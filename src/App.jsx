@@ -222,7 +222,7 @@ const FIT = {
    Meðaltal þriggja tímabila er notað sem varúð gegn of-fittun.          */
 const FIT_MULTI = { bias:-1.72, pts5:1.155, mins5:8.988, xgi90:0.955, bps90:0.003, price:1.229, fdr:-0.984 };
 
-const TL_WINDOW = 8;   // umferðir sýndar í einu — minna skrun
+const TL_WINDOW = 13;  // umferðir sýndar í einu — hnútarnir FYLLA breiddina
 
 /* ---- Landsleikjahlé: hlé Á EFTIR þessum umferðum ---- */
 const INTL_BREAK_AFTER = [3, 7, 11, 15, 22, 27];
@@ -2719,20 +2719,24 @@ const S = {
     fontSize:15, lineHeight:1, cursor:"pointer", background:C.cardAlt, color:C.purple,
     border:`1px solid ${C.border}`, borderRadius:7, padding:0, marginBottom:1 },
   tlArrowOff: { opacity:0.3, cursor:"default", color:C.text3 },
-  // EKKI flex:1 — röðin skreppur að hnútunum, annars nær línan út í tómið
-  tlRow: { position:"relative", display:"flex", alignItems:"flex-end", gap:5 },
-  tlLine: { position:"absolute", left:2, right:2, bottom:12, height:2, background:C.border, borderRadius:1, zIndex:0 },
-  nodeCol: { position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 },
+  /* Röðin FYLLIR breiddina og hnútarnir deila henni jafnt (flex:1 á nodeCol).
+     Þannig spannar línan allan skjáinn í staðinn fyrir að hanga vinstra megin. */
+  tlRow: { flex:1, minWidth:0, position:"relative", display:"flex", alignItems:"flex-end", gap:3 },
+  tlLine: { position:"absolute", left:0, right:0, bottom:15, height:2, background:C.border, borderRadius:1, zIndex:0 },
+  nodeCol: { flex:"1 1 0", minWidth:0, position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 },
   chipSlotAbove: { height:17, display:"flex", alignItems:"center" },
   chipAbove: { display:"flex", alignItems:"center", gap:2, color:"#fff", borderRadius:5, padding:"1px 4px", lineHeight:1.3, boxShadow:"0 1px 3px rgba(0,0,0,0.18)" },
   chipAboveIcon: { fontFamily:mono, fontSize:9, fontWeight:700 },
   chipAboveTxt: { fontFamily:mono, fontSize:8.5, fontWeight:700, letterSpacing:0.2 },
-  node: { position:"relative", zIndex:1, width:34, height:34, borderRadius:9, border:`1px solid ${C.border}`, background:C.cardAlt, cursor:"pointer", fontFamily:mono, fontSize:12.5, color:C.text2, padding:0 },
+  // width:100% -> hnúturinn fyllir kólumnuna sína, svo röðin nær yfir allan skjáinn
+  node: { position:"relative", zIndex:1, width:"100%", minWidth:26, height:32, borderRadius:8,
+    border:`1px solid ${C.border}`, background:C.cardAlt, cursor:"pointer", fontFamily:mono,
+    fontSize:12, color:C.text2, padding:0 },
   nodeOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:700 },
   nodeNum: { position:"relative", zIndex:1 },
   nodeDot: { position:"absolute", bottom:4, left:"50%", transform:"translateX(-50%)", width:4, height:4, borderRadius:"50%", background:"#f59e0b" },
   nodeChip: { position:"absolute", top:-6, right:-6, fontFamily:mono, fontSize:8, fontWeight:700, color:"#fff", padding:"1px 3px", borderRadius:4, lineHeight:1.3 },
-  intl: { position:"relative", zIndex:2, display:"inline-flex", alignItems:"center", alignSelf:"flex-end", marginBottom:5 },
+  intl: { flexShrink:0, position:"relative", zIndex:2, display:"inline-flex", alignItems:"center", alignSelf:"flex-end", marginBottom:5 },
   globe: { display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:10, boxShadow:`0 0 0 3px ${C.card}` },
   deadline: { marginTop:9, fontSize:12, color:C.text2, fontFamily:mono },
 
