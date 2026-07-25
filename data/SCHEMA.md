@@ -307,6 +307,58 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
+### ENDANLEGUR SAMANBURÐUR — ÞRJÁR FDR-ÚTGÁFUR, 5 TÍMABIL
+
+2.720 lið-leikir 2021/22–2025/26. Liðsstyrkur alltaf úr fyrra tímabili.
+Krossprófað (læra á 4 tímabil, prófa á það fimmta).
+
+#### A. Fylgni við raunveruleg stig per leikmann
+
+| Staða | FPL-opinbert | Okkar gamla | **Okkar nýja** | Vs FPL |
+|---|---|---|---|---|
+| GK | +0,140 | +0,158 | **+0,161** | +15% |
+| DEF | +0,236 | +0,267 | **+0,278** | +18% |
+| MID | +0,202 | +0,252 | **+0,282** | **+40%** |
+| FWD | +0,117 | +0,156 | **+0,182** | **+56%** |
+| **Meðal** | +0,174 | +0,208 | **+0,226** | **+30%** |
+
+#### B. Aðgreiningarhæfni — stig í léttasta vs þyngsta fimmtungi
+
+| Staða | FPL-opinbert | Okkar gamla | Okkar nýja |
+|---|---|---|---|
+| GK | +0,92 | **+1,20** | +1,17 |
+| DEF | +1,39 | +1,75 | **+1,96** |
+| MID | +0,77 | +1,20 | **+1,34** |
+| FWD | +0,94 | +1,43 | **+1,78** |
+
+Fyrir framherja **næstum tvöfaldast** spönnin (+0,94 → +1,78).
+
+#### C. Praktískt próf — velja léttustu leiki per stöðu
+
+Meðalstig per valinn leikmann:
+
+| Staða | FPL | Gamla | **Nýja** | Allir |
+|---|---|---|---|---|
+| GK | 3,92 | 3,90 | **4,09** | 3,43 |
+| DEF | 3,71 | 3,96 | **4,11** | 3,05 |
+| MID | 3,68 | 4,05 | **4,18** | 3,46 |
+| FWD | 4,40 | 4,74 | **5,21** | 4,10 |
+
+Framherjar: **+0,81 stig per leik** yfir opinbert FDR. Yfir fimm umferðir ~4 stig.
+
+#### D. Stöðugleiki — 13 af 15 tilvikum bötnuðu
+
+| Tímabil | DEF | MID | FWD |
+|---|---|---|---|
+| 2021-22 | ✓ | ✓ | ✓ |
+| 2022-23 | ✗ (flatt) | ✓ | ✓ |
+| 2023-24 | ✓ | ✓ | ✗ |
+| 2024-25 | ✓ | ✓ | ✓ |
+| 2025-26 | ✓ | ✓ | ✓ |
+
+Tveir brestir: DEF 2022/23 stóð í stað (0,267 → 0,264), FWD 2023/24 versnaði
+(0,158 → 0,145). Það er 13% brestahlutfall — bætingin er sterk en ekki einhliða.
+
 ### HEIMAVÖLLUR — MÆLDUR
 
 **Pöruð greining** (sama liðapar, bæði áttir — liðsstyrkur eyðist úr jöfnunni):
