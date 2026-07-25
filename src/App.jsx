@@ -982,8 +982,9 @@ export default function App() {
       if (e && typeof e.cs === "number") return { cs: Math.round(e.cs), src: "elo" };
     }
     if (!fx) return { cs: null, src: null };
-    // MÆLD KVÖRÐUN: samfelld þyngd -> CS% úr töflu sem er mæld á 1.102 leikjum.
     // Fínt með eigin vörn (liðsstyrkur) sem FDR sér ekki.
+    // MÆLD KVÖRÐUN: samfelld þyngd -> CS% úr töflu sem er mæld á 2.720
+    // lið-leikjum. Þyngdin inniheldur ÞEGAR liðsstyrk, svo engin auka-leiðrétting.
     const d2 = fixDifficulty(teamId, fx, 2) ?? fx.fdr;
     return { cs: clamp(Math.round(lookupPos(2, "cs", d2)), 3, 70), src: "mælt" };
   }
@@ -2422,112 +2423,38 @@ function FixChip({ fx, teamById, diff, pos }) {
 }
 
 /* ---- LEIKIR UMFERÐARINNAR ----
-   Þéttur listi við hliðina á vellinum. Hvert lið fær sinn FFDR-lit, svo þú
-   sérð á svipstundu hverjir eiga léttan leik — óháð því hvort þú átt þá.   */
-/* ============================================================
-   FFDR-TAFLA — lið × umferðir, sér fyrir hverja stöðu.
-   Þetta er plönunar-yfirsýnin: hvaða lið eiga léttustu leikina á
-   næstunni, fyrir þá stöðu sem þú ert að versla í.
-   Raðað eftir MEÐAL-FFDR yfir valið svið (léttast fyrst).
-   ============================================================ */
-function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span, maxGw, onPickTeam }) {
-  const [pos, setPos] = useState(2);
-  const gws = Array.from({ length: span }, (_, i) => from + i).filter(g => g <= maxGw);
-  const rows = (teams || []).map(t => {
-    const cells = gws.map(g => {
-      const fxs = fixByTeamGw[t.id]?.[g] || [];
-      if (!fxs.length) return { blank: true };
-      return {
-        multi: fxs.length > 1,
-        items: fxs.map(f => ({ f, d: diffOf(t.id, f, pos) ?? f.fdr })),
-      };
-    });
-    const vals = cells.flatMap(c => c.items ? c.items.map(x => x.d) : []);
-    return { t, cells, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
-             played: vals.length };
-  }).sort((a, z) => (a.avg ?? 9) - (z.avg ?? 9));
-  const POSB = [[1,"GK"],[2,"VÖRN"],[3,"MIÐJA"],[4,"SÓKN"]];
-  return (
-    <section style={S.card}>
-      <div style={S.recHead}>
-        <h2 style={S.h2}>FFDR — leikjaþyngd</h2>
-        <div style={S.ffdrPos}>
-          {POSB.map(([v,l]) => (
-            <button key={v} style={{ ...S.ffdrPosBtn, ...(pos === v ? S.ffdrPosOn : {}) }}
-              onClick={() => setPos(v)}>{l}</button>
-          ))}
-        </div>
-      </div>
-      <div style={S.muted}>
-        GW{gws[0]}–{gws[gws.length-1]} · raðað eftir meðal-FFDR (léttast efst).
-        Vogtölur eru mældar sér fyrir hverja stöðu — sami leikur getur verið
-        léttur fyrir vörn og þungur fyrir sókn.
-      </div>
-      <div style={S.ffdrScroll}>
-        <table style={S.ffdrTable}>
-          <thead>
-            <tr>
-              <th style={{ ...S.ffdrTh, ...S.ffdrThTeam }}>Lið</th>
-              {gws.map(g => <th key={g} style={S.ffdrTh}>{g}</th>)}
-              <th style={S.ffdrTh} title="Meðaltal yfir sviðið">Með.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ t, cells, avg }) => (
-              <tr key={t.id}>
-                <td style={S.ffdrTeamCell}>
-                  <button style={S.ffdrTeamBtn} onClick={() => onPickTeam && onPickTeam(t.id)}>
-                    <Crest team={t} size={13} />{t.short}
-                  </button>
-                </td>
-                {cells.map((c, i) => {
-                  if (c.blank) return <td key={i} style={S.ffdrBlank} title="Auð umferð">—</td>;
-                  const worst = Math.max(...c.items.map(x => x.d));
-                  const tier = tierOf(worst);
-                  return (
-                    <td key={i} style={{ ...S.ffdrCell, background: TIER_BG[tier], color: TIER_FG[tier] }}
-                      title={c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (ú)"} · ${x.d}`).join("  |  ")}>
-                      {c.items.map((x, k) => (
-                        <span key={k} style={S.ffdrOpp}>
-                          {teamById[x.f.opp]?.short || "?"}{x.f.home ? "" : <i style={S.ffdrAway}>ú</i>}
-                        </span>
-                      ))}
-                      {c.multi && <span style={S.ffdrDouble}>×2</span>}
-                    </td>
-                  );
-                })}
-                <td style={S.ffdrAvg}>{avg == null ? "—" : avg.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div style={S.ffdrLegend}>
-        {TIER_NAME.map((n, i) => (
-          <span key={n} style={{ ...S.ffdrChip, background: TIER_BG[i], color: TIER_FG[i] }}>{n}</span>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weatherByFx,
-  liveByFx, nameOf, onPick }) {
-  const [open, setOpen] = useState(null);   // útvíkkuð röð (fixture id)
+   Hópað eftir DEGI eins og opinbera FPL-síðan: dagsetning einu sinni sem
+   haus, leikir dagsins undir, tíminn miðjaður milli liðanna.
+   FFDR er EKKI hér — hann er í sinni eigin töflu (📊 FFDR), svo þetta er
+   hreinn leikjalisti án tvítekningar.                                       */
+function GwFixtureList({ gw, fixtures, teamById, crestFor, weatherByFx, liveByFx, nameOf, onPick }) {
+  const [open, setOpen] = useState(null);
   const list = (fixtures || []).filter(f => f.event === gw)
-    .sort((a, b) => String(a.kickoff_time || "").localeCompare(String(b.kickoff_time || "")));
-  const fmt = iso => {
+    .sort((a, b) => String(a.kickoff_time || "~").localeCompare(String(b.kickoff_time || "~")));
+
+  const DAYS = ["sunnudagur","mánudagur","þriðjudagur","miðvikudagur","fimmtudagur","föstudagur","laugardagur"];
+  const MON  = ["jan","feb","mars","apríl","maí","júní","júlí","ágúst","sept","okt","nóv","des"];
+  const dayKey = iso => iso ? iso.slice(0, 10) : "tbc";
+  const dayLbl = iso => {
+    if (!iso) return "Ótímasett";
+    const d = new Date(iso);
+    return `${DAYS[d.getDay()]} ${d.getDate()}. ${MON[d.getMonth()]}`;
+  };
+  const timeLbl = iso => {
     if (!iso) return "—";
     const d = new Date(iso);
-    return `${["sun","mán","þri","mið","fim","fös","lau"][d.getDay()]} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
   };
-  const side = (tid, opp, home) => {
-    const t = teamById[tid];
-    const fx = { opp, home, fdr: 3, kickoff: null };
-    const d = diffOf ? diffOf(tid, fx, 2) : null;
-    const tier = d != null ? tierOf(d) : 2;
-    return { t, bg: TIER_BG[tier], fg: TIER_FG[tier], d };
-  };
+
+  // hópa eftir degi, í tímaröð
+  const groups = [];
+  for (const f of list) {
+    const k = dayKey(f.kickoff_time);
+    let g = groups.find(x => x.key === k);
+    if (!g) { groups.push(g = { key: k, label: dayLbl(f.kickoff_time), items: [] }); }
+    g.items.push(f);
+  }
+
   if (!list.length) return (
     <div style={S.gfWrap}>
       <div style={S.gfHead}>Leikir GW{gw}</div>
@@ -2537,58 +2464,51 @@ function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weathe
   return (
     <div style={S.gfWrap}>
       <div style={S.gfHead}>Leikir GW{gw} <span style={S.gfCount}>{list.length}</span></div>
-      {list.map(f => {
-        const H = side(f.team_h, f.team_a, true), A = side(f.team_a, f.team_h, false);
-        const w = weatherByFx?.[f.id];
-        const L = liveByFx?.[f.id];
-        const live = L?.started && !L?.finished;
-        const done = L?.finished || f.finished;
-        const score = (L?.h?.score ?? f.team_h_score) != null
-          ? `${L?.h?.score ?? f.team_h_score}-${L?.a?.score ?? f.team_a_score}` : null;
-        const scorers = side => [
-          ...(L?.[side]?.goals || []).map(id => `⚽ ${nameOf ? nameOf(id) : id}`),
-          ...(L?.[side]?.assists || []).map(id => `↗ ${nameOf ? nameOf(id) : id}`),
-        ];
-        const hasDetail = live || (done && (scorers("h").length || scorers("a").length));
-        return (
-          <div key={f.id} style={S.gfRow}>
-            <div style={S.gfTime}>
-              <span>
-                {live ? <span style={S.gfLive}>· í gangi</span> : fmt(f.kickoff_time)}
-              </span>
-              {w?.temp_c != null && <span style={S.gfWx}>{Math.round(w.temp_c)}°{w.precip_mm >= 0.5 ? " ☂" : ""}</span>}
-            </div>
-            <div style={S.gfTeams}>
-              <button style={{ ...S.gfTeam, background:H.bg, color:H.fg }}
-                title={`${H.t?.name} · FFDR ${H.d ?? "—"}`} onClick={() => onPick && onPick(f.team_h)}>
-                <Crest team={H.t} size={12} />{H.t?.short || "?"}
-              </button>
-              <button style={{ ...S.gfVs, ...(hasDetail ? S.gfVsOpen : {}) }}
-                title={hasDetail ? "Smelltu fyrir markaskorara" : undefined}
-                onClick={() => hasDetail && setOpen(open === f.id ? null : f.id)}>
-                {score || "–"}{hasDetail ? (open === f.id ? " ▴" : " ▾") : ""}
-              </button>
-              <button style={{ ...S.gfTeam, background:A.bg, color:A.fg }}
-                title={`${A.t?.name} · FFDR ${A.d ?? "—"}`} onClick={() => onPick && onPick(f.team_a)}>
-                <Crest team={A.t} size={12} />{A.t?.short || "?"}
-              </button>
-            </div>
-            {open === f.id && hasDetail && (
-              <div style={S.gfDetail}>
-                {[["h", H.t?.short], ["a", A.t?.short]].map(([sd, sh]) => {
-                  const sc = scorers(sd);
-                  return sc.length ? (
-                    <div key={sd} style={S.gfScorers}>
-                      <b>{sh}</b> {sc.join(" · ")}
-                    </div>
-                  ) : null;
-                })}
+      {groups.map(g => (
+        <div key={g.key} style={S.gfDay}>
+          {/* DAGSETNING — einu sinni fyrir ofan leiki dagsins */}
+          <div style={S.gfDayLbl}>{g.label}</div>
+          {g.items.map(f => {
+            const H = teamById[f.team_h], A = teamById[f.team_a];
+            const w = weatherByFx?.[f.id];
+            const L = liveByFx?.[f.id];
+            const live = L?.started && !L?.finished;
+            const done = L?.finished || f.finished;
+            const hs = L?.h?.score ?? f.team_h_score, as = L?.a?.score ?? f.team_a_score;
+            const scorers = side => [
+              ...(L?.[side]?.goals || []).map(id => `⚽ ${nameOf ? nameOf(id) : id}`),
+              ...(L?.[side]?.assists || []).map(id => `↗ ${nameOf ? nameOf(id) : id}`),
+            ];
+            const hasDetail = live || (done && (scorers("h").length || scorers("a").length));
+            const mid = (done || live) && hs != null ? `${hs}–${as}` : timeLbl(f.kickoff_time);
+            return (
+              <div key={f.id} style={S.gfMatch}>
+                <button style={S.gfSide} onClick={() => onPick && onPick(f.team_h)} title={H?.name}>
+                  <span style={S.gfShort}>{H?.short || "?"}</span><Crest team={H} size={14} />
+                </button>
+                {/* TÍMI / STAÐA — miðjað */}
+                <button style={{ ...S.gfMid, ...(live ? S.gfMidLive : {}), ...(hasDetail ? S.gfMidOpen : {}) }}
+                  onClick={() => hasDetail && setOpen(open === f.id ? null : f.id)}
+                  title={hasDetail ? "Smelltu fyrir markaskorara" : (w?.temp_c != null ? `${Math.round(w.temp_c)}°C` : undefined)}>
+                  {mid}
+                  {live && <span style={S.gfLiveDot} />}
+                </button>
+                <button style={{ ...S.gfSide, ...S.gfSideR }} onClick={() => onPick && onPick(f.team_a)} title={A?.name}>
+                  <Crest team={A} size={14} /><span style={S.gfShort}>{A?.short || "?"}</span>
+                </button>
+                {open === f.id && hasDetail && (
+                  <div style={S.gfDetail}>
+                    {[["h", H?.short], ["a", A?.short]].map(([sd, sh]) => {
+                      const sc = scorers(sd);
+                      return sc.length ? <div key={sd}><b>{sh}</b> {sc.join(" · ")}</div> : null;
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
-      <div style={S.gfNote}>Litur = FFDR fyrir varnarmenn þess liðs.</div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -2822,19 +2742,21 @@ const S = {
   gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
   gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
-  gfRow: { padding:"4px 0", borderTop:`1px solid ${C.border}` },
-  gfTime: { display:"flex", justifyContent:"space-between", fontFamily:mono, fontSize:8.5, color:C.text3, marginBottom:2 },
-  gfWx: { color:C.text3 },
-  gfTeams: { display:"flex", alignItems:"center", gap:3 },
-  gfTeam: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3, minWidth:0,
-    fontFamily:mono, fontSize:9.5, fontWeight:700, padding:"3px 2px", borderRadius:5,
-    border:"1px solid transparent", cursor:"pointer" },
-  gfLive: { color:C.red, fontWeight:700 },
-  gfVsOpen: { cursor:"pointer", color:C.purple, fontWeight:700 },
-  gfDetail: { marginTop:3, paddingTop:3, borderTop:`1px dashed ${C.border}`, fontSize:8.5, lineHeight:1.5, color:C.text2 },
-  gfScorers: { marginBottom:1 },
-  gfVs: { fontFamily:mono, fontSize:8.5, color:C.text3, minWidth:30, textAlign:"center", background:"none", border:"none", padding:0 },
-  gfNote: { marginTop:7, paddingTop:6, borderTop:`1px solid ${C.border}`, fontSize:8.5, color:C.text3, lineHeight:1.4 },
+  gfDay: { marginTop:6 },
+  gfDayLbl: { fontFamily:mono, fontSize:8, textTransform:"uppercase", letterSpacing:0.6,
+    color:C.text3, padding:"3px 0 4px", borderTop:`1px solid ${C.border}` },
+  gfMatch: { display:"flex", alignItems:"center", gap:2, padding:"2px 0", flexWrap:"wrap" },
+  gfSide: { flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:3,
+    cursor:"pointer", background:"none", border:"none", padding:"2px 0" },
+  gfSideR: { justifyContent:"flex-start" },
+  gfShort: { fontFamily:mono, fontSize:10, fontWeight:700, color:C.text },
+  gfMid: { position:"relative", minWidth:40, textAlign:"center", fontFamily:mono, fontSize:9.5,
+    fontWeight:600, color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`,
+    borderRadius:5, padding:"2px 3px", cursor:"default" },
+  gfMidLive: { background:C.redBg, borderColor:C.red, color:"#a01f2b", fontWeight:700 },
+  gfMidOpen: { cursor:"pointer" },
+  gfLiveDot: { position:"absolute", top:-2, right:-2, width:5, height:5, borderRadius:"50%", background:C.red },
+  gfDetail: { flexBasis:"100%", marginTop:2, fontSize:8.5, lineHeight:1.5, color:C.text2 },
   gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
   /* ATH: þessi hét áður "pitchRow" og ÁREKSTRI við leikmanna-röðina neðar.
      Síðasti lykill vinnur í JS-hlut, svo grid-ið var YFIRSKRIFAÐ og völlurinn
@@ -2880,19 +2802,21 @@ const S = {
   gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
   gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
-  gfRow: { padding:"4px 0", borderTop:`1px solid ${C.border}` },
-  gfTime: { display:"flex", justifyContent:"space-between", fontFamily:mono, fontSize:8.5, color:C.text3, marginBottom:2 },
-  gfWx: { color:C.text3 },
-  gfTeams: { display:"flex", alignItems:"center", gap:3 },
-  gfTeam: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3, minWidth:0,
-    fontFamily:mono, fontSize:9.5, fontWeight:700, padding:"3px 2px", borderRadius:5,
-    border:"1px solid transparent", cursor:"pointer" },
-  gfLive: { color:C.red, fontWeight:700 },
-  gfVsOpen: { cursor:"pointer", color:C.purple, fontWeight:700 },
-  gfDetail: { marginTop:3, paddingTop:3, borderTop:`1px dashed ${C.border}`, fontSize:8.5, lineHeight:1.5, color:C.text2 },
-  gfScorers: { marginBottom:1 },
-  gfVs: { fontFamily:mono, fontSize:8.5, color:C.text3, minWidth:30, textAlign:"center", background:"none", border:"none", padding:0 },
-  gfNote: { marginTop:7, paddingTop:6, borderTop:`1px solid ${C.border}`, fontSize:8.5, color:C.text3, lineHeight:1.4 },
+  gfDay: { marginTop:6 },
+  gfDayLbl: { fontFamily:mono, fontSize:8, textTransform:"uppercase", letterSpacing:0.6,
+    color:C.text3, padding:"3px 0 4px", borderTop:`1px solid ${C.border}` },
+  gfMatch: { display:"flex", alignItems:"center", gap:2, padding:"2px 0", flexWrap:"wrap" },
+  gfSide: { flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:3,
+    cursor:"pointer", background:"none", border:"none", padding:"2px 0" },
+  gfSideR: { justifyContent:"flex-start" },
+  gfShort: { fontFamily:mono, fontSize:10, fontWeight:700, color:C.text },
+  gfMid: { position:"relative", minWidth:40, textAlign:"center", fontFamily:mono, fontSize:9.5,
+    fontWeight:600, color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`,
+    borderRadius:5, padding:"2px 3px", cursor:"default" },
+  gfMidLive: { background:C.redBg, borderColor:C.red, color:"#a01f2b", fontWeight:700 },
+  gfMidOpen: { cursor:"pointer" },
+  gfLiveDot: { position:"absolute", top:-2, right:-2, width:5, height:5, borderRadius:"50%", background:C.red },
+  gfDetail: { flexBasis:"100%", marginTop:2, fontSize:8.5, lineHeight:1.5, color:C.text2 },
   gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
   pitchRow: { display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" },
 
