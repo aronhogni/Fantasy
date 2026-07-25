@@ -307,6 +307,67 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
+### HEIMAVÖLLUR — MÆLDUR
+
+**Pöruð greining** (sama liðapar, bæði áttir — liðsstyrkur eyðist úr jöfnunni):
+
+| | Síðustu 4 tímabil | Öll 9 tímabil |
+|---|---|---|
+| Samanburðir | 1.520 | 3.420 |
+| Mörk skoruð | **+0,283** | +0,262 |
+| Mörk á sig | −0,283 | −0,262 |
+| Stig | **+0,391** | +0,348 |
+| Hreint blað | **+5,4pp** | +6,6pp |
+
+Marktækt: staðalvilla stiga 0,042 → níu staðalvillur.
+
+**NÁTTÚRULEG TILRAUN:** 2020/21 (COVID, engir áhorfendur) gaf **+0,01 mörk** —
+heimavöllurinn hvarf nánast. Áhorfendur eru vélbúnaðurinn, ekki ferðalög eða
+kunnugleiki á vellinum.
+
+| Tímabil | Munur í mörkum |
+|---|---|
+| 17/18 | +0,38 |
+| 18/19 | +0,32 |
+| 19/20 | +0,31 |
+| **20/21** | **+0,01** ← engir áhorfendur |
+| 21/22 | +0,21 |
+| 22/23 | +0,42 |
+| 23/24 | +0,32 |
+| 24/25 | +0,09 |
+| 25/26 | +0,30 |
+
+**Fantasy-stig, parað á LEIKMANN** (5 tímabil, ≥60 mín, ≥5 leikir hvor átt):
+
+| Staða | n | Forskot heima | Staðalvilla | Marktækt |
+|---|---|---|---|---|
+| FWD | 157 | **+0,735** | 0,124 | ✓ |
+| DEF | 575 | **+0,507** | 0,057 | ✓ |
+| MID | 637 | +0,297 | 0,052 | ✓ |
+| GK | 123 | +0,197 | 0,102 | á mörkum |
+
+**Þyngdar-stuðlar eru EFTIRSTÖÐVAR, ekki hráa forskotið.** FDR gefur þegar
+lægra gildi heima, svo við bætum aðeins því við sem FDR **missir**:
+
+| Staða | Hrátt forskot | Þyngdar-stuðull | Bæting í r |
+|---|---|---|---|
+| FWD | +0,735 | **0,24** | +0,011 |
+| MID | +0,297 | **0,16** | +0,010 |
+| DEF | +0,507 | **0,08** | +0,003 |
+| GK | +0,197 | 0,02 | ~0 |
+
+Röðin er önnur af þessari ástæðu: FDR fangar næstum allt heimavallar-forskot
+varnarmanna (hreint blað), en mun minna af forskoti framherja.
+
+**Dæmi** — Liverpool gegn Chelsea, FDR 3 í bæði áttir:
+
+| Staða | Heima | Úti | Munur |
+|---|---|---|---|
+| GK | 2,94 | 2,98 | 0,04 |
+| DEF | 2,87 | 3,03 | 0,16 |
+| MID | 2,77 | 3,09 | 0,32 |
+| FWD | **2,53** | **3,01** | **0,48** |
+
 ### SÉR-LEIKJAÞYNGD PER STÖÐU — MÆLT
 
 Grid-leit með krossprófun yfir 5 tímabil (2.720 lið-leikir, liðsstyrkur úr
