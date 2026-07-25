@@ -177,10 +177,7 @@ Hrátt CSV óskert. **132 kolónur** í nýjustu tímabilum.
 | `B365CH`, `AHCh`, `AvgCAHH` … | **lokalínur** (C-innskot) — skarpasta fría líkindaspáin |
 | `PSH/PSD/PSA`, `PSC*` | **ÓTRAUST** frá 2025-07-23, listað í `untrusted_columns` |
 
-**EKKI til í E0** (athugað í öllum 9 tímabilum): `Attendance`, `HHW`/`AHW`
-(stöng/þverslá), `HFKC`/`AFKC`, `HO`/`AO`, `HBP`/`ABP`.
-Heppnismælir byggður á stangarskotum verður að koma frá **Understat**
-(`result: "ShotOnPost"`), ekki héðan.
+**Fullur kolónulisti og hvað er afsannað:** sjá viðauka neðst.
 
 ### `fdcouk/referees.json`
 `{ league_avg_yellow_pg, referees: { "<nafn>": { games, yellow_pg, red_pg, fouls_pg, card_index } } }`
@@ -245,6 +242,45 @@ Haversine úr `teams_map` hnitum. `km` gildir um **útiliðið**.
 **Merking sem er oft misskilin:** lið sem fer ÚR bikar snemma fær **TRYGGARI**
 mínútur, ekki verri.
 
+### `team_form.json` — LIÐ-STYRKUR, HEILT
+`{ season, header_columns, teams: [{ fpl_id, short, matches, source,
+goals_pg, conceded_pg, shots_pg, shots_against_pg, sot_pg, sot_against_pg,
+corners_pg, fouls_pg, yellows_pg, reds_pg, clean_sheet_pct,
+conversion, sot_conversion }] }`
+
+**NOTIÐ ÞETTA FYRIR LIÐ-STYRK, EKKI FPL-SUMMUR.**
+
+FPL `bootstrap-static` inniheldur aðeins leikmenn sem eru í leiknum **núna**.
+Þeir sem fóru úr deildinni eru fjarlægðir — og tölur þeirra frá síðasta
+tímabili með þeim. Mælt: **19% af mörkum 2025/26 vantar** í summu FPL-leikmanna
+(851 af 1045). Fulham vantar 57%.
+
+E0 hefur alla 380 leiki, svo þetta er heilt. 17 lið með sögu, 3 nýliðar `matches: 0`.
+
+### `luck.json`
+```
+{ result_enum_seen: [...],
+  teams:   [{ fpl_id, short, matches, goals, conceded, xg, xgc,
+              goals_minus_xg, conceded_minus_xgc,
+              woodwork_for, woodwork_against, source, xg_incomplete }],
+  players: [{ understat_id, player, shots, woodwork, goals, xg, npxg,
+              goals_minus_xg, penalties_taken, penalties_scored,
+              freekicks_taken, corners }] }
+```
+
+`woodwork` úr Understat `result: "ShotOnPost"` — **per SKOT**, svo það gefur
+tölu per leikmann. Það er betra en HHW/AHW hefði verið (sem eru ekki til).
+
+`result_enum_seen` listar öll ólík `result`-gildi sem raunverulega komu —
+ENUM-gildin voru óstaðfest og eru nú skjalfest úr keyrslu.
+
+`goals` kemur úr E0 (heilt), `xg` úr FPL-summu sem vantar ~19% →
+**`xg_incomplete: true`**. Framendinn má ekki sýna `goals_minus_xg` sem
+nákvæma tölu þegar það flagg er sett.
+
+Nýliðar: `championship_proxy`, og **`woodwork: null` — EKKI núll.**
+Stangarskot eru ekki til fyrir þau, og núll myndi lesast sem „engin stangarskot".
+
 ### `rotation.json`
 `{ rows: [{ fpl_id, event, kickoff_time, rest_days,
 euro_before, euro_after, euro_competition }] }`
@@ -301,3 +337,68 @@ Understat-ID ≠ FPL-ID — þarf vörpun.
 **Landsleikja-boð per leikmann** — FPL hefur ekki þjóðerni.
 **Progressive passes, pressures, hlaupagögn** — aðeins greitt (Stats Perform).
 **openfootball bikarar** — lagt niður eftir 2024-25.
+
+---
+
+## VIÐAUKI: RAUNVERULEGAR CSV-HEADER-RAÐIR
+
+**Regla:** aldrei treysta skjölun. `notes.txt` hjá football-data.co.uk er
+orðabók yfir **allar deildir og öll tímabil** með klausunni *where available*
+— ekki skema fyrir E0. Pipeline-inn prentar raunverulega header-röð í hverri
+keyrslu og hún er skjalfest hér.
+
+### Kolónufjöldi per tímabil
+
+| Tímabil | Kolónur |
+|---|---|
+| 17/18 | 65 |
+| 18/19 | 62 |
+| 19/20 | 106 |
+| 20/21 | 106 |
+| 21/22 | 106 |
+| 22/23 | 106 |
+| 23/24 | 106 |
+| 24/25 | 120 |
+| 25/26 | 132 |
+
+### E0-2526 — öll 132 kolónuheiti, í röð
+
+```
+Div, Date, Time, HomeTeam, AwayTeam, FTHG, FTAG, FTR
+HTHG, HTAG, HTR, Referee, HS, AS, HST, AST
+HF, AF, HC, AC, HY, AY, HR, AR
+B365H, B365D, B365A, BFDH, BFDD, BFDA, BMGMH, BMGMD
+BMGMA, BVH, BVD, BVA, BWH, BWD, BWA, CLH
+CLD, CLA, LBH, LBD, LBA, PSH, PSD, PSA
+MaxH, MaxD, MaxA, AvgH, AvgD, AvgA, BFEH, BFED
+BFEA, B365>2.5, B365<2.5, P>2.5, P<2.5, Max>2.5, Max<2.5, Avg>2.5
+Avg<2.5, BFE>2.5, BFE<2.5, AHh, B365AHH, B365AHA, PAHH, PAHA
+MaxAHH, MaxAHA, AvgAHH, AvgAHA, BFEAHH, BFEAHA, B365CH, B365CD
+B365CA, BFDCH, BFDCD, BFDCA, BMGMCH, BMGMCD, BMGMCA, BVCH
+BVCD, BVCA, BWCH, BWCD, BWCA, CLCH, CLCD, CLCA
+LBCH, LBCD, LBCA, PSCH, PSCD, PSCA, MaxCH, MaxCD
+MaxCA, AvgCH, AvgCD, AvgCA, BFECH, BFECD, BFECA, B365C>2.5
+B365C<2.5, PC>2.5, PC<2.5, MaxC>2.5, MaxC<2.5, AvgC>2.5, AvgC<2.5, BFEC>2.5
+BFEC<2.5, AHCh, B365CAHH, B365CAHA, PCAHH, PCAHA, MaxCAHH, MaxCAHA
+AvgCAHH, AvgCAHA, BFECAHH, BFECAHA
+```
+
+### Hvað er STAÐFEST til (öll 9 tímabil)
+
+| Svið | Staða |
+|---|---|
+| `Referee` | ✓ öll tímabil |
+| `HF`, `AF` (brot) | ✓ öll tímabil, engar tómar raðir → **`fouls_per_match` er GILT** |
+| `HY`,`AY`,`HR`,`AR` (spjöld) | ✓ öll tímabil |
+| `HS`,`AS`,`HST`,`AST` (skot) | ✓ öll tímabil |
+| `HC`,`AC` (horn) | ✓ öll tímabil |
+
+### Hvað er AFSANNAÐ — aldrei til í E0
+
+Athugað í öllum níu tímabilum (1718–2526):
+
+`Attendance`, `HHW`/`AHW` (stöng/þverslá), `HFKC`/`AFKC`, `HO`/`AO`, `HBP`/`ABP`
+
+Heppnismælir byggður á stangarskotum verður að koma frá **Understat**
+(`result: "ShotOnPost"`) — sem er í raun betra, því það er per SKOT og gefur
+því tölu per LEIKMANN, ekki per leik.
