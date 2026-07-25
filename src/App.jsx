@@ -137,8 +137,9 @@ export default function App() {
         if (d.error || !d.games?.length) { setOddsState(d.games?.length ? "ok" : "off"); }
         const map = {};
         (d.games||[]).forEach(g => {
-          map[g.home] = { cs:g.homeCS, xg:g.homeXG, opp:g.away, home:true, exp:g.expTotalGoals };
-          map[g.away] = { cs:g.awayCS, xg:g.awayXG, opp:g.home, home:false, exp:g.expTotalGoals };
+          // xGA (vænt mörk á sig) = vænt mörk ANDSTÆÐINGSINS
+          map[g.home] = { cs:g.homeCS, xg:g.homeXG, xga:g.awayXG, opp:g.away, home:true, exp:g.expTotalGoals };
+          map[g.away] = { cs:g.awayCS, xg:g.awayXG, xga:g.homeXG, opp:g.home, home:false, exp:g.expTotalGoals };
         });
         setOdds(map);
         setOddsState(d.games?.length ? "ok" : "off");
@@ -430,7 +431,10 @@ function PlayerCard({ p, gw, captain, bench, onCap, odds }) {
       {fx ? <FixChip fx={fx} live={live} /> : <div style={S.noFix}>—</div>}
       {live ? (
         isDefensive
-          ? <div style={{...S.liveLine, color:csColor(live.cs)}}>CS {live.cs}%</div>
+          ? <div style={S.liveDefBox}>
+              <span style={{color:csColor(live.cs), fontWeight:700}}>CS {live.cs}%</span>
+              <span style={S.xgaLine} title="Vænt mörk á sig (xGA) — lægra er betra">{live.xga} á sig</span>
+            </div>
           : <div style={S.liveLine}>{live.xg} vænt mörk</div>
       ) : (
         <div style={S.cardProj}>{Math.round(p.proj/38*10)/10} spá/vika</div>
@@ -519,6 +523,8 @@ const S = {
     background: st==="ok"?"#35C46A":st==="loading"?"#E0A500":st==="error"?"#E5484D":"#5f7385",
     boxShadow: st==="ok"?"0 0 0 3px rgba(53,196,106,0.2)":"none" }),
   liveLine: { fontFamily:mono, fontSize:11, fontWeight:600, marginTop:5, color:"#9fb0bd" },
+  liveDefBox: { display:"flex", flexDirection:"column", gap:1, marginTop:5, alignItems:"center" },
+  xgaLine: { fontFamily:mono, fontSize:9, color:"#7E93A3" },
 
   main: { display:"grid", gridTemplateColumns:"1.35fr 1fr", gap:16, alignItems:"start" },
 
