@@ -269,7 +269,17 @@ function sellTenths(purchase10, current10) {
   if (purchase10 == null || current10 <= purchase10) return current10;
   return purchase10 + Math.floor((current10 - purchase10) / 2);
 }
-const photoUrl = code => code ? `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png` : null;
+/* FPL hefur myndir í fleiri en einni stærð og þekjan er ÓLÍK milli þeirra.
+   Nýlegir leikmenn (háir kóðar, t.d. Le Fée 484420, Mosquera 500040) vantar
+   oft í 110x140 en eru til í 250x250. Við prófum stærri fyrst, svo minni,
+   og fellum loks á teiknaða treyju.                                        */
+const PHOTO_SIZES = ["250x250", "110x140"];
+const initialsOf = p => p
+  ? ((p.first_name || "").trim()[0] || "") + ((p.second_name || p.web_name || "").trim()[0] || "")
+  : "";
+const photoUrl = (code, i = 0) => (code && PHOTO_SIZES[i])
+  ? `https://resources.premierleague.com/premierleague/photos/players/${PHOTO_SIZES[i]}/p${code}.png`
+  : null;
 const crestUrl = code => code ? `https://resources.premierleague.com/premierleague/badges/50/t${code}.png` : null;
 const fmtDate = iso => {
   if (!iso) return "—";
@@ -393,14 +403,27 @@ function rotationRisk(p, seasonGames) {
 }
 
 /* ---- Teiknuð treyja (fallback ef mynd næst ekki) ---- */
-function Kit({ short, size = 34 }) {
+function Kit({ short, size = 34, initials }) {
   const [a, b] = KIT[short] || ["#9aa", "#fff"];
+  // Upphafsstafir svo fallbackið lesist sem ÞESSI leikmaður, ekki brotin mynd.
+  const dark = (() => {
+    const h = String(a).replace("#", ""); if (h.length < 6) return true;
+    const [r, g, bl] = [0, 2, 4].map(k => parseInt(h.slice(k, k + 2), 16));
+    return (0.299 * r + 0.587 * g + 0.114 * bl) < 150;
+  })();
   return (
-    <svg width={size} height={size * 0.9} viewBox="0 0 40 36" aria-hidden="true">
+    <svg width={size} height={size * 0.9} viewBox="0 0 40 36" role="img"
+      aria-label={initials ? `${initials} — mynd vantar` : "mynd vantar"}>
       <path d="M13 3 L20 6 L27 3 L34 8 L31 14 L28 12 L28 33 L12 33 L12 12 L9 14 L6 8 Z"
         fill={a} stroke="rgba(0,0,0,0.18)" strokeWidth="0.7" strokeLinejoin="round" />
       <path d="M13 3 L9 14 L6 8 Z" fill={b} opacity="0.9" />
       <path d="M27 3 L31 14 L34 8 Z" fill={b} opacity="0.9" />
+      {initials && (
+        <text x="20" y="26" textAnchor="middle" fontFamily="ui-monospace, monospace"
+          fontSize="11" fontWeight="700" fill={dark ? "#fff" : "#1d1d20"} opacity="0.92">
+          {initials}
+        </text>
+      )}
     </svg>
   );
 }
@@ -1962,7 +1985,7 @@ export default function App() {
               <div style={S.dHead}>
                 <div style={S.dPortrait}>
                   {isPlayer
-                    ? <PlayerImg code={p.code} short={t.short} size={52} />
+                    ? <PlayerImg code={p.code} short={t.short} size={52} initials={initialsOf(p)} />
                     : <Crest team={t} size={44} />}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
@@ -2268,7 +2291,7 @@ export default function App() {
                     style={{ ...S.sItem, ...(block ? S.sItemBlocked : {}) }}
                     title={block ? `Ólöglegt: ${block}` : ""}>
                     <div style={S.sPortrait}>
-                      <PlayerImg code={p.code} short={t?.short} size={30} />
+                      <PlayerImg code={p.code} short={t?.short} size={30} initials={initialsOf(p)} />
                       <Crest team={t} size={13} style={S.sCrest} />
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
@@ -2324,12 +2347,14 @@ function Crest({ team, size = 16, style }) {
     onError={() => setOk(false)} />;
 }
 
-function PlayerImg({ code, short, size = 34 }) {
-  const [ok, setOk] = useState(true);
-  const url = photoUrl(code);
-  if (!url || !ok) return <Kit short={short} size={size} />;
+function PlayerImg({ code, short, size = 34, initials }) {
+  // prófum hverja myndastærð í röð; síðast teiknuð treyja
+  const [tryIdx, setTryIdx] = useState(0);
+  useEffect(() => { setTryIdx(0); }, [code]);
+  const url = photoUrl(code, tryIdx);
+  if (!url) return <Kit short={short} size={size} initials={initials} />;
   return <img src={url} alt="" style={{ height:size, width:"auto", objectFit:"contain" }}
-    onError={() => setOk(false)} loading="lazy" />;
+    onError={() => setTryIdx(v => v + 1)} loading="lazy" />;
 }
 
 function DStat({ k, v, sub }) {
@@ -2619,7 +2644,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       )}
       <div style={S.pPortrait}
         title={`${team?.name || "?"}${"\n"}ATH: FPL-myndin getur sýnt GAMALT félag eftir skipti. Merkið er rétt.`}>
-        <PlayerImg code={p.code} short={team?.short} size={38} />
+        <PlayerImg code={p.code} short={team?.short} size={38} initials={initialsOf(p)} />
         {/* Merkið er ÓTVÍRÆÐA félags-vísbendingin — stærra og með hvítum
             baug svo það lesist yfir myndinni, sem getur verið úrelt.       */}
         <Crest team={team} size={18} style={S.pCrest} />
@@ -2662,7 +2687,7 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, onAdd })
     <div style={S.recCard} onClick={onAdd}>
       <div style={S.recTop}>
         <div style={S.recPortrait}>
-          <PlayerImg code={p.code} short={team?.short} size={32} />
+          <PlayerImg code={p.code} short={team?.short} size={32} initials={initialsOf(p)} />
           <Crest team={team} size={13} style={S.sCrest} />
         </div>
         <div style={{ flex:1, minWidth:0 }}>
