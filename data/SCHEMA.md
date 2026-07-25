@@ -307,7 +307,53 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
-### MÆLD KVÖRÐUN — FIMM TÍMABIL, 2.720 LIÐ-LEIKIR
+### SÉR-LEIKJAÞYNGD PER STÖÐU — MÆLT
+
+Grid-leit með krossprófun yfir 5 tímabil (2.720 lið-leikir, liðsstyrkur úr
+fyrra tímabili). Markmið: **raunveruleg meðalstig per leikmann** í stöðunni.
+
+| Staða | FDR | Eigin styrkur | Andstæðingur | Umbreyting |
+|---|---|---|---|---|
+| GK | 0,45 | 0,45 | 0,10 | varnar |
+| DEF | 0,45 | 0,50 | 0,05 | varnar |
+| MID | 0,40 | 0,60 | 0,00 | **varnar** |
+| FWD | 0,40 | 0,60 | 0,00 | sóknar |
+
+**Krossprófuð fylgni við raunstig:**
+
+| Staða | Hrátt FDR | Ein formúla | Sér per stöðu |
+|---|---|---|---|
+| GK | +0,140 | +0,158 | **+0,161** |
+| DEF | +0,236 | +0,267 | **+0,275** |
+| MID | +0,202 | +0,252 | **+0,272** |
+| FWD | +0,117 | +0,156 | **+0,171** |
+
+**TVENNT ÓVÆNT:**
+
+1. **Andstæðingurinn vegur nánast núll** (0,00–0,10). FDR fangar hann þegar,
+   svo sér-liður fyrir hann er nær óþarfur. Það sem bætir er **eigin styrkur**.
+2. **Miðjumenn nota varnar-umbreytinguna.** Þeir fá hreint-blað-stig og eigin
+   varnarstyrkur spáir betur en sóknarstyrkur.
+
+**Mældir flokkar (kvantílar, allir einrænir) — meðalstig per leikmann:**
+
+| Þrep | GK | DEF | MID | FWD |
+|---|---|---|---|---|
+| A (léttast) | 3,92 | 3,86 | 4,13 | 4,86 |
+| B | 3,81 | 3,53 | 3,62 | 4,53 |
+| C | 3,38 | 3,20 | 3,45 | 4,07 |
+| D | 3,32 | 2,72 | 3,30 | 3,69 |
+| E (þyngst) | 2,72 | 1,93 | 2,82 | 3,40 |
+| **Spönn** | **1,20** | **1,93** | **1,31** | **1,46** |
+
+Varnarmenn hafa mestu spönn — 1,93 stig per leikmann per leik, eða ~10 stig
+yfir fimm umferðir.
+
+**Dæmi um hvers vegna sér-þyngd skiptir máli:** Sunderland gegn Ipswich er
+þrep **A** fyrir vörn og markvörð, en þrep **D** fyrir framherja — því
+Sunderland skoraði 0,92 mörk per leik. Ein tala hefði falið það.
+
+### FYRRI KVÖRÐUN — FIMM TÍMABIL, 2.720 LIÐ-LEIKIR
 
 Nýi samsetti stuðullinn (FDR 0,45 + eigin styrkur 0,35 + andstæðingur 0,20)
 mældur gegn **raunverulegum fantasy-útkomum** 2021/22–2025/26.
