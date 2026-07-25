@@ -307,6 +307,66 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
+## FFDR — Fantasy Fixture Difficulty Rating
+
+Okkar mælda leikjaþyngd. **MÆLT á 7 tímabilum** (2019/20–2025/26),
+**3.808 lið-leikjum**. Liðsstyrkur alltaf úr fyrra tímabili → ekkert leki.
+
+| Staða | FPL FDR | **FFDR** | Bæting | Brestir |
+|---|---|---|---|---|
+| GK | 0,131 | 0,149 | **+14%** | 1/7 |
+| DEF | 0,233 | 0,307 | **+32%** | 0/7 |
+| MID | 0,207 | 0,307 | **+48%** | 0/7 |
+| FWD | 0,119 | 0,183 | **+54%** | 2/7 |
+| **MEÐAL** | **0,172** | **0,236** | **+37%** | 3/28 |
+
+### Þættir FFDR
+
+| Þáttur | GK | DEF | MID | FWD |
+|---|---|---|---|---|
+| FDR (opinbert) | 0,45 | 0,45 | 0,40 | 0,40 |
+| Eigin styrkur | 0,45 | 0,50 | 0,60 | 0,60 |
+| Andstæðingur | 0,10 | 0,05 | 0,00 | 0,00 |
+| Umbreyting | varnar | varnar | varnar | sóknar |
+| Skot á mark | — | 0,50 | 0,20 | — |
+| Fyrra tímabil | — | — | 0,45 | — |
+| Elo-munur | — | — | 0,15 | 0,30 |
+| **Markaðslína** | **0,35** | **0,65** | **0,35** | **0,35** |
+| Heimavöllur | 0,04 | **0,00** | 0,08 | 0,12 |
+
+### LÆRDÓMUR SEM BREYTTI STILLINGUM
+
+**Markaðslínan inniheldur ÞEGAR heimavöllinn.** Þegar hún er blönduð inn verður
+sér-heima-stuðull **tvítalning**. Fyrir varnarmenn fellur fylgnin **einræn**
+þegar hann hækkar:
+
+| Heima-stuðull | 0,00 | 0,08 | 0,16 | 0,24 |
+|---|---|---|---|---|
+| DEF fylgni | **0,3071** | 0,3052 | 0,2997 | 0,2919 |
+
+Hann var því settur í **núll** fyrir varnarmenn og lækkaður hjá öllum öðrum
+(FWD 0,24 → 0,12). Þetta var hugmyndavilla í 5-tímabila útgáfunni.
+
+### Brestirnir — báðir skýrðir
+
+**FWD 2020/21** — COVID, engir áhorfendur. Heimavallar-forskot framherja varð
+**negatíft (−0,140)** og heima-stuðullinn refsaði því ranglega:
+
+| Tímabil | DEF heima | FWD heima |
+|---|---|---|
+| 2019-20 | +0,614 | +0,236 |
+| **2020-21** | **+0,116** | **−0,140** |
+| 2021-22 | +0,372 | +0,334 |
+| 2022-23 | +0,806 | +0,811 |
+| 2024-25 | +0,089 | +0,831 |
+
+Heimavallar-forskotið er **mjög sveiflukennt** (DEF +0,089 til +0,806). Fastur
+stuðull er alltaf málamiðlun — sem er önnur ástæða til að hafa hann lítinn.
+
+**GK 2019/20** — markverðir eru innbyggt veikast spáðir. Vörslur gefa stig og
+þær eru **fleiri í erfiðum leikjum**, sem vinnur á móti hreinu blaði og dempar
+öll merki. Það er eðli stöðunnar, ekki líkanavilla.
+
 ### BLÖNDUN MARKAÐS OG FORMÚLU — FULLMÆLT
 
 E0-lokalínur **paraðar við** vaastav leikmanna-stig: 2.720 lið-leikir, 5 tímabil.
