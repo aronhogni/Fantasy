@@ -307,6 +307,35 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
+### MÆLD KVÖRÐUN Á LEIKJAÞYNGD
+
+**1.102 leikir yfir 3 tímabil, FDR borið við LOKALÍNUR markaðarins:**
+
+| FDR | Raun mörk á sig | Markaður spáði | Raun CS% |
+|---|---|---|---|
+| 1 | 0,76 | 1,00 | 43,9% |
+| 2 | 1,19 | 1,20 | 28,7% |
+| 3 | 1,44 | 1,45 | 24,5% |
+| 4 | 1,82 | 1,83 | 13,9% |
+| 5 | 2,25 | 2,24 | 8,8% |
+
+**FDR er RÉTT KVARÐAÐ að meðaltali** — nánast eins og markaðurinn.
+
+**Vandinn er UPPLAUSN, ekki skekkja.** Innan „FDR 3" er markaðs-breiddin
+**0,61–2,75 mörk**. 16% af FDR-3 leikjum eru mun erfiðari en talan segir,
+14% mun léttari. Markaðurinn er 1,3× betri spá (r 0,374 á móti 0,283) af
+þessari ástæðu einni.
+
+**Lausn í appinu:** samfelld þyngd = FDR 0,45 + eigin styrkur 0,35 +
+andstæðingur 0,20 (mældar vogtölur), brúað gegn töflunni að ofan.
+Dæmi: Arsenal og Man Utd eru bæði FDR 2, en fá 35% og 28% því vörnin
+þeirra var 0,71 á móti 1,32 mörk á sig.
+
+**Gluggalengd — MÆLT (400 lið-leikir):** heilt fyrra tímabil er BEST
+(r +0,236 samsett). Síðustu 6 leikir eru VERST (+0,182 — verra en FDR eitt).
+Nýleg gögn eru of hávaðakennd á lið-stigi. **Regla: nýleg gögn fyrir
+leikmenn, heilt tímabil fyrir lið.**
+
 ### `rotation.json`
 `{ rows: [{ fpl_id, event, kickoff_time, rest_days,
 euro_before, euro_after, euro_competition }] }`
