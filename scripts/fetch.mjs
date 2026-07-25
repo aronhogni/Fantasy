@@ -244,9 +244,49 @@ async function computeDefcon(events, els) {
     cbit_per_90: a.starts ? +(a.cbit / a.starts).toFixed(2) : 0,
     cbirt_per_90: a.starts ? +(a.cbirt / a.starts).toFixed(2) : 0,
   }));
-  await writeJSON("defcon.json", { updated: status.updated, players: out,
-    note: "hit_rate = threshold_hits/starts. DEF þröskuldur 10 CBIT, MID/FWD 12 CBIRT. STAÐFESTA: merking defensive_contribution." });
-  record("defcon", true, out.length);
+
+  // ---- DefCon-TÆKIFÆRI per lið ----
+  // Rök: fleiri skot/mörk á sig -> fleiri hreinsanir/blokkeringar -> fleiri CBIT.
+  // Það eru EKKI bestu varnirnar sem skora DefCon, heldur þær sem hafa mest að gera.
+  // Reiknað úr opinberum FPL-gögnum: xGC liðsins (sl. tímabil) + sóknarstyrkur andstæðinga
+  // í komandi leikjum. Sjálfstætt frá CS% — má EKKI leggja saman (sjá SCHEMA.md).
+  const teamAtt = {}, teamDef = {};
+  for (const e of els) {
+    const t = e.team;
+    teamAtt[t] = (teamAtt[t] || 0) + parseFloat(e.expected_goal_involvements || 0);
+    if (e.element_type === 1) {
+      const mins = e.minutes || 0;
+      if (mins > 400) {
+        const per90 = parseFloat(e.expected_goals_conceded || 0) / (mins / 90);
+        if (!teamDef[t] || mins > teamDef[t].mins) teamDef[t] = { xgc90: +per90.toFixed(2), mins };
+      }
+    }
+  }
+  let fixturesArr = [];
+  try { fixturesArr = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8")); } catch {}
+  const opportunity = {};
+  for (const tid of Object.keys(teamAtt)) {
+    const own = teamDef[tid]?.xgc90 ?? 1.4;
+    const upcoming = fixturesArr.filter(f => !f.finished && (f.team_h === +tid || f.team_a === +tid)).slice(0, 6);
+    let oppAttSum = 0;
+    upcoming.forEach(f => {
+      const opp = f.team_h === +tid ? f.team_a : f.team_h;
+      oppAttSum += (teamAtt[opp] || 50) / 38; // sóknar-xGI andstæðings per leik
+    });
+    const oppAttAvg = upcoming.length ? oppAttSum / upcoming.length : 1.4;
+    // 0-100 kvarði: hærra = meira að gera fyrir varnarmenn = fleiri DefCon-tækifæri
+    const raw = own * 22 + oppAttAvg * 20;
+    opportunity[tid] = {
+      own_xgc90: own,
+      opp_attack_avg: +oppAttAvg.toFixed(2),
+      defcon_opportunity: Math.max(0, Math.min(100, Math.round(raw))),
+      fixtures_used: upcoming.length,
+    };
+  }
+
+  await writeJSON("defcon.json", { updated: status.updated, players: out, opportunity,
+    note: "hit_rate = threshold_hits/starts. DEF þröskuldur 10 CBIT, MID/FWD 12 CBIRT. defcon_opportunity: vinnuálag varnar (hærra = fleiri CBIT-tækifæri) — AÐSKILINN mælikvarði frá CS%, ekki leggja saman." });
+  record("defcon", true, out.length, `${Object.keys(opportunity).length} lið með tækifæris-mat`);
 }
 
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
@@ -274,23 +314,70 @@ async function fetchElo() {
   const { header, rows } = parseCSV(text);
   console.log(`ClubElo dags-haus: ${header.join(",")}`);
   const eng = rows.filter(r => r.Country === "ENG" && (r.Level === "1" || r.Level === "2"));
-  const eloByName = {}; eng.forEach(r => eloByName[r.Club] = r);
+  // LOGGA öll ensk nöfn — þannig þarf aldrei að giska á stafsetningu aftur
+  console.log(`ClubElo ENG L1+L2 nöfn (${eng.length}): ${eng.map(r => r.Club).join(" | ")}`);
+
+  // normaliserað: lágstafir, aðeins bókstafir/tölur (þolir bil, punkta, úrfellingar)
+  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const byNorm = {};
+  eng.forEach(r => { byNorm[norm(r.Club)] = r; });
+
+  // mörg möguleg nöfn per lið (ClubElo notar bil í fjölorða nöfnum)
+  const CAND = {
+    ARS:["Arsenal"], AVL:["Aston Villa","AstonVilla","Villa"], BOU:["Bournemouth","AFC Bournemouth"],
+    BRE:["Brentford"], BHA:["Brighton"], CHE:["Chelsea"], COV:["Coventry","Coventry City"],
+    CRY:["Crystal Palace","CrystalPalace","Palace"], EVE:["Everton"], FUL:["Fulham"],
+    HUL:["Hull","Hull City"], IPS:["Ipswich","Ipswich Town"], LEE:["Leeds","Leeds United"],
+    LIV:["Liverpool"], MCI:["Man City","ManCity","Manchester City"],
+    MUN:["Man United","ManUnited","Man Utd","Manchester United"],
+    NEW:["Newcastle","Newcastle United"], NFO:["Forest","Nottingham","Nott'm Forest","Nottingham Forest"],
+    SUN:["Sunderland"], TOT:["Tottenham","Spurs"], WOL:["Wolves"], BUR:["Burnley"], WHU:["West Ham"],
+  };
+  const eloByFpl = {};
   const teams = [];
   for (const [id, t] of Object.entries(teamsById)) {
-    const cname = NAMES[t.short_name]?.clubelo;
-    const row = cname && eloByName[cname];
-    if (row) teams.push({ fpl_id: Number(id), elo: +row.Elo, rank: row.Rank ? +row.Rank : null, level: +row.Level });
-    else console.warn(`ClubElo: fann ekki ${t.short_name} (${cname})`);
+    const cands = CAND[t.short_name] || [t.name];
+    let row = null;
+    for (const c of cands) { const hit = byNorm[norm(c)]; if (hit) { row = hit; break; } }
+    if (row) {
+      const rec = { fpl_id: Number(id), short: t.short_name, elo: +row.Elo,
+        rank: row.Rank ? +row.Rank : null, level: +row.Level, clubelo_name: row.Club };
+      teams.push(rec); eloByFpl[row.Club] = Number(id);
+    } else {
+      console.warn(`ClubElo: fann ekki ${t.short_name} (${t.name}) — prófaði: ${cands.join(", ")}`);
+    }
   }
   await writeJSON("elo.json", { updated: status.updated, teams });
   record("elo", true, teams.length, `af ${eng.length} ENG L1+L2`);
 
+  // /Fixtures: kolónur STAÐFESTAR = Date,Country,Home,Away,GD<-5..GD>5,R:0-0..R:6-0
+  // Úr úrslitalíkindum má reikna hreint blað og sigurlíkur — ókeypis, engin Odds-credit.
   try {
     const ft = await eloFetch("http://api.clubelo.com/Fixtures");
     const { header: fh, rows: fr } = parseCSV(ft);
-    console.log(`ClubElo /Fixtures haus (ÓSTAÐFEST): ${fh.join(",")}`);
-    await writeJSON("elo_fixtures_raw.json", { header: fh, rows: fr.slice(0, 200) });
-    record("elo_fixtures", true, fr.length, "hrátt — parsari eftir logg");
+    const engFx = fr.filter(r => r.Country === "ENG");
+    const scoreCols = fh.filter(h => h.startsWith("R:"));
+    const out = engFx.map(r => {
+      let csHome = 0, csAway = 0, pHome = 0, pDraw = 0, pAway = 0, xgH = 0, xgA = 0;
+      for (const col of scoreCols) {
+        const m = col.match(/^R:(\d+)-(\d+)$/); if (!m) continue;
+        const h = +m[1], a = +m[2], p = parseFloat(r[col] || 0);
+        if (!p) continue;
+        if (a === 0) csHome += p;      // andstæðingur skorar ekki -> heimalið heldur hreinu
+        if (h === 0) csAway += p;
+        if (h > a) pHome += p; else if (h === a) pDraw += p; else pAway += p;
+        xgH += h * p; xgA += a * p;
+      }
+      return {
+        date: r.Date, home: r.Home, away: r.Away,
+        home_fpl: eloByFpl[r.Home] ?? null, away_fpl: eloByFpl[r.Away] ?? null,
+        cs_home: +(csHome * 100).toFixed(1), cs_away: +(csAway * 100).toFixed(1),
+        p_home: +(pHome * 100).toFixed(1), p_draw: +(pDraw * 100).toFixed(1), p_away: +(pAway * 100).toFixed(1),
+        xg_home: +xgH.toFixed(2), xg_away: +xgA.toFixed(2),
+      };
+    });
+    await writeJSON("elo_fixtures.json", { updated: status.updated, fixtures: out });
+    record("elo_fixtures", true, out.length, `${engFx.length} ENG af ${fr.length}`);
   } catch (e) { record("elo_fixtures", false, 0, e.message); }
 }
 
