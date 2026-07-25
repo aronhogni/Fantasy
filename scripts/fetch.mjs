@@ -150,6 +150,28 @@ async function fetchFPL() {
     clearances_blocks_interceptions:e.clearances_blocks_interceptions,
     tackles:e.tackles, recoveries:e.recoveries,
     status:e.status, chance_of_playing_next_round:e.chance_of_playing_next_round, news:e.news,
+    news_added:e.news_added,
+    // ---- spjöld og bönn (bann-hætta) ----
+    yellow_cards:e.yellow_cards, red_cards:e.red_cards,
+    // ---- byrjunarlið / skiptingar-hætta ----
+    starts:e.starts, starts_per_90:e.starts_per_90,
+    // ---- fastaleikir: vítatakarar og hornaspyrnur ----
+    penalties_order:e.penalties_order,
+    corners_and_indirect_freekicks_order:e.corners_and_indirect_freekicks_order,
+    direct_freekicks_order:e.direct_freekicks_order,
+    penalties_saved:e.penalties_saved, penalties_missed:e.penalties_missed,
+    // ---- per-90 (betri samanburður en árstíðarsummur) ----
+    expected_goals_per_90:e.expected_goals_per_90,
+    expected_assists_per_90:e.expected_assists_per_90,
+    expected_goal_involvements_per_90:e.expected_goal_involvements_per_90,
+    expected_goals_conceded_per_90:e.expected_goals_conceded_per_90,
+    clean_sheets_per_90:e.clean_sheets_per_90,
+    // ---- ICT-þættir og raðir ----
+    influence:e.influence, creativity:e.creativity, threat:e.threat,
+    form_rank:e.form_rank, points_per_game_rank:e.points_per_game_rank,
+    selected_rank:e.selected_rank, now_cost_rank:e.now_cost_rank,
+    dreamteam_count:e.dreamteam_count,
+    saves:e.saves, own_goals:e.own_goals,
   }));
   await writeJSON("players.json", { updated: status.updated, players: pick });
 
