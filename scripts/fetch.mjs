@@ -532,7 +532,11 @@ async function fetchEuro() {
   const seen = new Set();
 
   // --- (a) ESPN: prófa kandídat-kóða, logga hvað svarar ---
-  const ESPN_CODES = ["uefa.champions", "uefa.europa", "uefa.europa.conf", "uefa.super_cup"];
+  // UEFA + innlendar bikarkeppnir. Kóðar ÓSTAÐFESTIR — prófum og loggum.
+  const ESPN_CODES = [
+    "uefa.champions", "uefa.europa", "uefa.europa.conf", "uefa.super_cup",
+    "eng.fa", "eng.league_cup", "eng.trophy", "fifa.cwc",
+  ];
   const d1 = today.replace(/-/g, "");
   const end = new Date(Date.now() + 120 * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
   for (const code of ESPN_CODES) {
@@ -627,10 +631,19 @@ async function fetchEuro() {
     });
   });
 
+  const COMP_LABEL = {
+    "uefa.champions":"Meistaradeild", "uefa.europa":"Evrópudeild",
+    "uefa.europa.conf":"Sambandsdeild", "uefa.super_cup":"Ofurbikar",
+    "eng.fa":"FA Cup", "eng.league_cup":"Ligubikar", "eng.trophy":"EFL Trophy",
+    "fifa.cwc":"HM félagsliða", CL:"Meistaradeild", EL:"Evrópudeild",
+  };
+  out.forEach(m => { m.comp_label = COMP_LABEL[m.comp] || m.comp; });
+  Object.values(byTeam).forEach(arr => arr.forEach(x => { x.comp_label = COMP_LABEL[x.comp] || x.comp; }));
+
   await writeJSON("euro_fixtures.json", {
     updated: status.updated, sources_ok: found,
     fixtures: out, by_team: byTeam,
-    note: "Evrópuleikir enskra liða. by_team lyklað á FPL team id. UEFA byrjar ~16. sept -> GW1-4 tóm.",
+    note: "Evrópu- og bikarleikir enskra liða. by_team lyklað á FPL team id. UEFA byrjar ~16. sept.",
   });
   record("euro_fixtures", out.length > 0 || found.length > 0, out.length,
     found.length ? found.join(",") : "engin heimild svaraði");
