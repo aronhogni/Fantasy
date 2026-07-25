@@ -510,7 +510,8 @@ export default function App() {
   const [selling, setSelling] = useState(null);
   const [searchQ, setSearchQ] = useState("");
   const [browse, setBrowse] = useState(false);
-  const [showFfdr, setShowFfdr] = useState(false);  // FFDR-taflan sýnileg // frjáls leit (ekki bundin sölu)
+  const [showFfdr, setShowFfdr] = useState(false);  // FFDR-taflan sýnileg
+  const [showChips, setShowChips] = useState(false); // chip-stillingar sýnilegar // frjáls leit (ekki bundin sölu)
   const [searchPos, setSearchPos] = useState("all");
   const [toast, setToast] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -1483,7 +1484,10 @@ export default function App() {
             title="Leita í öllum leikmönnum">🔍 Leikmenn</button>
           <button style={{ ...S.searchBtn, ...(showFfdr ? S.searchBtnOn : {}) }}
             onClick={() => setShowFfdr(v => !v)}
-            title="Leikjaþyngd allra liða, sér fyrir hverja stöðu">📊 FFDR</button>
+            title="Leikjaþyngd allra liða, varnar- og sóknar-hópur">📊 FFDR</button>
+          <button style={{ ...S.searchBtn, ...(showChips ? S.searchBtnOn : {}) }}
+            onClick={() => setShowChips(v => !v)}
+            title="Wildcard, Free Hit, Bench Boost, Triple Captain">🎫 Chips</button>
           <input style={S.urlInput} placeholder="FPL Url" value={urlInput}
             onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && connectUrl()} />
           <button style={S.connectBtn} onClick={connectUrl}>{entryId ? "Uppfæra" : "Tengja"}</button>
@@ -1754,76 +1758,78 @@ export default function App() {
 
         {/* ---------- Hliðarstika ---------- */}
         <div style={S.side}>
-          {/* Chips */}
-          <section style={S.card}>
-            <h2 style={S.h2}>Chips</h2>
-            <div style={S.muted}>
-              Tvö sett — eitt fyrir hvern hálfleik. Gildistími kemur úr FPL-API-inu.
-              Ein chip per umferð. Wildcard og Free Hit byrja í GW2.
-            </div>
-            {[1, 2].map(half => {
-              const slots = chipSlots.filter(x => x.half === half);
-              if (!slots.length) return null;
-              return (
-                <div key={half}>
-                  {(() => {
-                    const lastGw = Math.max(...slots.map(x => x.to));
-                    const dl = events?.find(e => e.id === (half === 1 ? lastGw : lastGw))?.deadline_time;
-                    const unused = slots.filter(x => !chips[x.key]).length;
-                    const expired = dl ? new Date() > new Date(dl) : false;
-                    return (
-                      <div style={S.chipHalfLbl}>
-                        {half === 1 ? "Fyrri hluti" : "Seinni hluti"}
-                        <span style={S.chipHalfRange}>GW{slots[0].from}–{lastGw}</span>
-                        {dl && (
-                          <span style={{ ...S.chipExpiry, ...(expired ? S.chipExpired : {}) }}>
-                            {expired ? "útrunnið" : `fellur ${fmtDeadline(dl)}`}
-                            {!expired && unused > 0 ? ` · ${unused} ónotuð` : ""}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  {slots.map(slot => {
-                    const c = CHIPS[slot.name];
-                    if (!c) return null;
-                    const used = chips[slot.key];
-                    const best = bestGwFor(slot.name, slot.from, slot.to);
-                    const val = used ? chipValue[used]?.[slot.name] : null;
-                    return (
-                      <div key={slot.key} style={S.chipRow}>
-                        <span style={{ ...S.chipIcon, background: c.color }}>{c.icon}</span>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={S.chipName}>{c.label}</div>
-                          <div style={S.chipDesc}>
-                            {used && val != null
-                              ? <span style={{ color: C.green, fontWeight:600 }}>GW{used} · vænt +{val} stig</span>
-                              : best
-                                ? <span>best í <b>GW{best.g}</b> (+{best.v})</span>
-                                : c.desc}
-                          </div>
+          {/* CHIPS — bak við hnapp (🎫 Chips) í staðinn fyrir að vera alltaf sýnilegt */}
+          {showChips && (
+            <section style={S.card}>
+              <h2 style={S.h2}>Chips</h2>
+              <div style={S.muted}>
+                Tvö sett — eitt fyrir hvern hálfleik. Gildistími kemur úr FPL-API-inu.
+                Ein chip per umferð. Wildcard og Free Hit byrja í GW2.
+              </div>
+              {[1, 2].map(half => {
+                const slots = chipSlots.filter(x => x.half === half);
+                if (!slots.length) return null;
+                return (
+                  <div key={half}>
+                    {(() => {
+                      const lastGw = Math.max(...slots.map(x => x.to));
+                      const dl = events?.find(e => e.id === (half === 1 ? lastGw : lastGw))?.deadline_time;
+                      const unused = slots.filter(x => !chips[x.key]).length;
+                      const expired = dl ? new Date() > new Date(dl) : false;
+                      return (
+                        <div style={S.chipHalfLbl}>
+                          {half === 1 ? "Fyrri hluti" : "Seinni hluti"}
+                          <span style={S.chipHalfRange}>GW{slots[0].from}–{lastGw}</span>
+                          {dl && (
+                            <span style={{ ...S.chipExpiry, ...(expired ? S.chipExpired : {}) }}>
+                              {expired ? "útrunnið" : `fellur ${fmtDeadline(dl)}`}
+                              {!expired && unused > 0 ? ` · ${unused} ónotuð` : ""}
+                            </span>
+                          )}
                         </div>
-                        <select style={S.chipSel} value={used || ""}
-                          onChange={e => setChipSlot(slot.key, e.target.value ? +e.target.value : null)}>
-                          <option value="">—</option>
-                          {Array.from({ length: slot.to - slot.from + 1 }, (_, i) => slot.from + i).map(n => {
-                            const other = chipAt(n);
-                            const taken = other && chips[slot.key] !== n;
-                            const v = chipValue[n]?.[slot.name];
-                            return (
-                              <option key={n} value={n} disabled={taken}>
-                                GW{n}{taken ? ` (${CHIPS[other]?.short})` : v != null && v > 0 ? ` +${v}` : ""}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </section>
+                      );
+                    })()}
+                    {slots.map(slot => {
+                      const c = CHIPS[slot.name];
+                      if (!c) return null;
+                      const used = chips[slot.key];
+                      const best = bestGwFor(slot.name, slot.from, slot.to);
+                      const val = used ? chipValue[used]?.[slot.name] : null;
+                      return (
+                        <div key={slot.key} style={S.chipRow}>
+                          <span style={{ ...S.chipIcon, background: c.color }}>{c.icon}</span>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={S.chipName}>{c.label}</div>
+                            <div style={S.chipDesc}>
+                              {used && val != null
+                                ? <span style={{ color: C.green, fontWeight:600 }}>GW{used} · vænt +{val} stig</span>
+                                : best
+                                  ? <span>best í <b>GW{best.g}</b> (+{best.v})</span>
+                                  : c.desc}
+                            </div>
+                          </div>
+                          <select style={S.chipSel} value={used || ""}
+                            onChange={e => setChipSlot(slot.key, e.target.value ? +e.target.value : null)}>
+                            <option value="">—</option>
+                            {Array.from({ length: slot.to - slot.from + 1 }, (_, i) => slot.from + i).map(n => {
+                              const other = chipAt(n);
+                              const taken = other && chips[slot.key] !== n;
+                              const v = chipValue[n]?.[slot.name];
+                              return (
+                                <option key={n} value={n} disabled={taken}>
+                                  GW{n}{taken ? ` (${CHIPS[other]?.short})` : v != null && v > 0 ? ` +${v}` : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </section>
+          )}
 
           {/* Verðbreytingar */}
           <section style={S.card}>
@@ -2658,7 +2664,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
                   const worst = Math.max(...c.items.map(x => x.d));
                   const tier = tierOf(worst);
                   return (
-                    <td key={i} style={{ ...S.ffdrCell, background: TIER_BG[tier], color: TIER_FG[tier] }}
+                    <td key={i} style={{ ...S.ffdrTd, background: TIER_BG[tier], color: TIER_FG[tier] }}
                       title={c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (ú)"} · ${x.d}`).join("  |  ")}>
                       {c.items.map((x, k) => (
                         <span key={k} style={S.ffdrOpp}>
@@ -2907,7 +2913,7 @@ const S = {
 
   main: { display:"grid", gridTemplateColumns:"minmax(0,1fr) 320px", gap:14, alignItems:"start" },
   // völlur + leikir hlið við hlið; völlurinn MINNI en áður
-  searchBtnOn: { background:C.purple, color:"#fff", borderColor:C.purple },
+  searchBtnOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
   ffdrPos: { display:"flex", gap:3 },
   ffdrPosBtn: { fontFamily:mono, fontSize:9, fontWeight:700, letterSpacing:0.3, cursor:"pointer",
     padding:"3px 7px", background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`, borderRadius:6 },
@@ -2920,8 +2926,6 @@ const S = {
   ffdrTeamCell: { position:"sticky", left:0, background:C.card, zIndex:1, padding:0 },
   ffdrTeamBtn: { display:"flex", alignItems:"center", gap:4, width:"100%", cursor:"pointer",
     fontFamily:mono, fontSize:10, fontWeight:700, color:C.text, background:"none", border:"none", padding:"2px 3px" },
-  ffdrCell: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono, fontSize:9,
-    fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
   ffdrOpp: { display:"block" },
   ffdrAway: { fontStyle:"normal", fontSize:7, opacity:0.7, marginLeft:1 },
   ffdrDouble: { display:"block", fontSize:7, opacity:0.8 },
@@ -2945,7 +2949,7 @@ const S = {
   gfMid: { minWidth:42, textAlign:"center", fontFamily:mono, fontSize:9.5, fontWeight:600,
     color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:5,
     padding:"2px 3px", cursor:"default" },
-  gfMidLive: { background:C.redBg, borderColor:C.red, color:"#a01f2b", fontWeight:700 },
+  gfMidLive: { background:C.redBg, color:"#a01f2b", fontWeight:700, border:`1px solid ${C.red}` },
   gfMidOpen: { cursor:"pointer", color:C.purple },
   gfDetail: { flexBasis:"100%", marginTop:2, fontSize:8.5, lineHeight:1.5, color:C.text2 },
   gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
@@ -2978,7 +2982,7 @@ const S = {
     fontFamily:mono, fontSize:9, fontWeight:700, lineHeight:1, cursor:"pointer",
     background:"rgba(255,255,255,0.92)", color:C.text2, border:`1px solid ${C.border}`,
     borderRadius:4, boxShadow:"0 1px 2px rgba(0,0,0,0.10)" },
-  pcIconSwap: { color:C.purple, borderColor:"#d9c8f5", fontSize:10 },
+  pcIconSwap: { color:C.purple, border:"1px solid #d9c8f5", fontSize:10 },
   band: { position:"absolute", top:4, right:4, minWidth:15, height:15, borderRadius:8, fontFamily:mono, fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 },
   pPortrait: { position:"relative", height:34, display:"flex", alignItems:"flex-end", justifyContent:"center", marginBottom:2 },
   pCrest: { position:"absolute", bottom:-3, right:4, width:18, height:18, objectFit:"contain",
@@ -3031,8 +3035,12 @@ const S = {
   fixWxWait: { display:"block", fontFamily:mono, fontSize:9, color:C.text3, marginTop:2, fontStyle:"italic" },
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },
   tblRow: { display:"flex", alignItems:"center", gap:4, padding:"3px 0", borderBottom:`1px solid ${C.page}` },
+  // ffdrCell = <span> í leikmanns-yfirliti (inline-block)
   ffdrCell: { display:"inline-block", minWidth:32, textAlign:"center", fontFamily:mono,
     fontSize:10, fontWeight:700, padding:"1px 4px", borderRadius:4 },
+  // ffdrTd = <td> í FFDR-töflunni. MÁ EKKI vera inline-block — brýtur töfluna.
+  ffdrTd: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono,
+    fontSize:9, fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
   tblNum: { width:46, textAlign:"right", fontFamily:mono, fontSize:11, color:C.text2, position:"relative" },
   dcChip: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginTop:1 },
   availBadge: { position:"absolute", top:4, left:4, fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 3px", borderRadius:4, lineHeight:1.3, zIndex:2 },
