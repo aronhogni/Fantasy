@@ -307,6 +307,66 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
+### ÞRJÁR VIÐBÆTUR — MÆLDAR
+
+#### 1. Lifandi lokalínur (stærsta viðbótin)
+
+Odds-kallið sækir nú `h2h,totals,**spreads**` (3 kredit/dag = 90/mán af 500).
+
+**Bakprófuð aðferð** (380 leikir):
+1. λ heildarmarka leyst úr yfir/undir-**líkum** með Poisson-inversion — línan
+   sjálf (2,5) er viðmið, ekki vænting.
+2. Handicap skiptir mörkunum: `heima = (λ − AH) / 2`.
+   **FORMERKI STAÐFEST:** negatíft AH = heimalið favorít. Öfuga túlkunin gaf
+   1,306 heima á móti raunverulegum 1,526 — víxlaði liðunum.
+3. Kvörðun **−4,1%** — líkanið mældist systematískt bjartsýnt (2,864 á móti 2,750).
+
+`odds.json` skrifar nú `diff` á sama 1–5 kvarða sem framendinn notar, plús
+`method` (`totals+spreads` eða `totals+h2h` sem fallback) og `lambda`.
+
+Framendinn blandar **60% markaður / 40% mælda formúla** — markaðurinn er betri
+(r 0,374 á móti 0,283) en formúlan hefur liðsstyrk sem markaðslínan getur misst.
+
+Dæmi: Wolves v Man City, AH +1 → City þyngd **1,56**, Wolves **3,11**. Raun 0-4.
+
+#### 2. Sóknar-umbreytingin fittuð
+
+| Form | r (FWD) |
+|---|---|
+| Gagnstætt `LG/xg` (áður) | 0,1821 |
+| **Línulegt `2 − xg/LG`** | **0,1869** |
+| Log | 0,1853 |
+| Veldi 0,5 / 1,5 | 0,1744 / 0,1759 |
+
+#### 3. Elo — prófað með OKKAR EIGIN útreikningi
+
+ClubElo-sagan var ekki fáanleg (elo.json er aðeins 2026/27), svo ég **reiknaði
+Elo sjálfur** úr E0-úrslitum 9 tímabila: K=20, heimavöllur 60 stig,
+markamunar-vog, 25% aðhvarf að meðaltali milli tímabila.
+
+Raðar rétt: 25/26 Arsenal 1739 · Man City 1715 · Man United 1635 — sem passar
+við lokastöðuna (85/78/71 stig).
+
+**Elo-munur slær mörk sem inntak á öllum stöðum:**
+
+| Staða | Mörk (vörn) | Elo eigin | **Elo-munur** |
+|---|---|---|---|
+| GK | 0,088 | 0,071 | **0,124** |
+| DEF | 0,157 | 0,151 | **0,222** |
+| MID | 0,192 | 0,220 | **0,243** |
+| FWD | 0,113 | 0,141 | **0,163** |
+
+**En inni í samsetta stuðlinum hjálpar hann aðeins sóknarstöðum:**
+
+| Staða | Án Elo | Með Elo | Vog |
+|---|---|---|---|
+| GK | 0,161 | 0,161 | 0,00 |
+| DEF | 0,282 | 0,282 | 0,00 |
+| MID | 0,285 | **0,290** | 0,15 |
+| FWD | 0,182 | **0,189** | 0,30 |
+
+Samsett með línulega forminu: **FWD 0,1909** (upp úr 0,1821).
+
 ### FRAMHALDS-TILRAUNIR — hvað bætir spágildið?
 
 #### Hjálpa fleiri þrep? JÁ, sex eru betri en fimm
