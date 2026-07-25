@@ -281,6 +281,32 @@ nákvæma tölu þegar það flagg er sett.
 Nýliðar: `championship_proxy`, og **`woodwork: null` — EKKI núll.**
 Stangarskot eru ekki til fyrir þau, og núll myndi lesast sem „engin stangarskot".
 
+### `form_features.json` — INNTAK Í MÆLDA STIGALÍKANIÐ
+`{ gws_used, window_5, window_10, mode, players: [{ fpl_id, mins5, pts5,
+start_rate, over60_rate, xgi90, bps90, dc90, samples, minutes_window }] }`
+
+Reiknað **umferð fyrir umferð** úr `live/gw{n}.json`, ekki úr uppsöfnuðum
+`minutes` í `players.json`.
+
+`mode`: `preseason` (0 umferðir) → `warmup` (1–4) → `fitted` (5+).
+Framendinn á að **lækka öryggi** í warmup.
+
+**MÆLING (út-af-úrtaki, 2025/26, 19.448 sýni, lært GW6–20, prófað GW21–33):**
+
+| Líkan | MAE stig/5 umferðir |
+|---|---|
+| ekkert líkan (meðaltal) | 6,70 |
+| FPL-eigin `xP` | 6,43 |
+| handvaldar vogtölur | 5,00 |
+| **fittað** | **3,66** |
+
+Stöðluð áhrif, mest fyrst: **mins5 +4,6 til +5,1**, verð +1,0 til +1,3,
+xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
+
+**FDR MÆLIST ~0.** Prófað á sjóndeildarhring 1, 2, 3, 5 og 8 umferðir —
+bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
+(lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
+
 ### `rotation.json`
 `{ rows: [{ fpl_id, event, kickoff_time, rest_days,
 euro_before, euro_after, euro_competition }] }`
