@@ -486,6 +486,7 @@ export default function App() {
   const [benchSwaps, setBenchSwaps] = useState({});
   const [chips, setChips] = useState({});
   const [dragId, setDragId] = useState(null);
+  const [swapSel, setSwapSel] = useState(null);   // valinn til skipta (smellu-flæði)
   const [selling, setSelling] = useState(null);
   const [searchQ, setSearchQ] = useState("");
   const [browse, setBrowse] = useState(false); // frjáls leit (ekki bundin sölu)
@@ -1089,16 +1090,33 @@ export default function App() {
     flash(`GW${gw}: ${o.web_name} → ${n.web_name} · banki £${bankAfter.toFixed(1)}`);
   }
   function removeTransfer(i) { setPlan(p => p.filter((_,j) => j !== i)); }
+  /* ---------- SMELLU-SKIPTI ----------
+     Smella á leikmann VELUR hann. Smella á annan SKIPTIR þeim, ef FPL-reglur
+     leyfa. Upplýsingar og útskipting eru á sér ikonum, svo smellur á spjaldið
+     er alltaf skipti — ekki tvíræð aðgerð.                                  */
+  function clickPlayer(id) {
+    if (swapSel == null) { setSwapSel(id); return; }
+    if (swapSel === id) { setSwapSel(null); return; }
+    const a = squadAt.find(x => x.id === swapSel), b = squadAt.find(x => x.id === id);
+    if (a && b && a.starter === b.starter) {
+      flash(a.starter ? "Báðir í byrjunarliði — veldu einn á bekk." : "Báðir á bekk.");
+      setSwapSel(id); return;
+    }
+    swapStarterBench(swapSel, id);
+    setSwapSel(null);
+  }
+
   function swapStarterBench(aId, bId) {
     const a = squadAt.find(s => s.id === aId), b = squadAt.find(s => s.id === bId);
-    if (!a || !b || a.starter === b.starter) return;
+    if (!a || !b || a.starter === b.starter) return false;
     const next = squadAt.map(s => s.id === aId ? { ...s, starter: b.starter } : s.id === bId ? { ...s, starter: a.starter } : s);
     const cnt = { 1:0, 2:0, 3:0, 4:0 };
     next.filter(s => s.starter).forEach(s => { const p = byId[s.id]; if (p) cnt[p.element_type]++; });
     if (cnt[1] !== 1 || cnt[2] < 3 || cnt[3] < 2 || cnt[4] < 1 || cnt[2]+cnt[3]+cnt[4] !== 10) {
-      flash("Ólögleg uppstilling (1 GK, 3+ vörn, 2+ miðja, 1+ sókn)."); return;
+      flash("Ólögleg uppstilling (1 GK, 3+ vörn, 2+ miðja, 1+ sókn)."); return false;
     }
     setBenchSwaps(bs => ({ ...bs, [gw]: [...(bs[gw] || []), [aId, bId]] }));
+      return true;
   }
   function connectUrl() {
     const m = urlInput.match(/entry\/(\d+)/) || urlInput.match(/^(\d+)$/);
@@ -1392,6 +1410,7 @@ export default function App() {
       {/* ---------- Tímalína ---------- */}
       <div style={S.tlWrap}>
         <div style={S.tlRow}>
+          <div style={S.tlLine} />
           {Array.from({ length: Math.min(12, maxGw) }, (_,i) => i + 1 + Math.max(0, Math.min(gw - 4, maxGw - 12))).map(n => {
             const active = n === gw;
             const has = plan.some(t => t.gw === n);
@@ -1579,6 +1598,8 @@ export default function App() {
               Viðmið úr Pitch.jsx: marklína 7,13 · markteigur 13,02 ·
               vítapunktur 18,92 · vítateigur 24,82 · miðlína 63,42 ·
               bekkjarskil 75,99                                            */}
+          <div style={S.pitchRow}>
+          <div style={S.pitchCol}>
           <Pitch bench={0.24}>
             {ROW_Y.map(({ pos, y }) => (
               <div key={pos} style={{ ...S.pitchRowAbs, top: `${y}%` }}>
@@ -1590,7 +1611,9 @@ export default function App() {
                     dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
                     isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
                     isSellHint={recommendations.sellIds?.has(sq.id)}
-                    onOpen={() => setDetail({ kind:"player", id:sq.id })}
+                    onInfo={() => setDetail({ kind:"player", id:sq.id })}
+                    onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
+                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
@@ -1606,13 +1629,21 @@ export default function App() {
                   dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
                   isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
                   isSellHint={recommendations.sellIds?.has(sq.id)}
-                  onOpen={() => setDetail({ kind:"player", id:sq.id })}
+                  onInfo={() => setDetail({ kind:"player", id:sq.id })}
+                  onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
+                  onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel}
                   dragId={dragId} setDragId={setDragId}
                   onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
               ))}
             </div>
             <div style={S.benchLabel}>Bekkur</div>
           </Pitch>
+          </div>
+          {/* LEIKIR UMFERÐARINNAR — við hliðina á vellinum */}
+          <GwFixtureList gw={gw} fixtures={fixtures} teamById={teamById}
+            crestFor={crestFor} diffOf={fixDifficulty} csFor={csFor}
+            weatherByFx={weatherByFx} onPick={t => setDetail({ kind:"team", id:t })} />
+          </div>
 
           {/* Skiptaáætlun (listi — ekki form) */}
           {plan.length > 0 && (
@@ -2375,8 +2406,65 @@ function FixChip({ fx, teamById, diff, pos }) {
   );
 }
 
+/* ---- LEIKIR UMFERÐARINNAR ----
+   Þéttur listi við hliðina á vellinum. Hvert lið fær sinn FFDR-lit, svo þú
+   sérð á svipstundu hverjir eiga léttan leik — óháð því hvort þú átt þá.   */
+function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weatherByFx, onPick }) {
+  const list = (fixtures || []).filter(f => f.event === gw)
+    .sort((a, b) => String(a.kickoff_time || "").localeCompare(String(b.kickoff_time || "")));
+  const fmt = iso => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return `${["sun","mán","þri","mið","fim","fös","lau"][d.getDay()]} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  };
+  const side = (tid, opp, home) => {
+    const t = teamById[tid];
+    const fx = { opp, home, fdr: 3, kickoff: null };
+    const d = diffOf ? diffOf(tid, fx, 2) : null;
+    const tier = d != null ? tierOf(d) : 2;
+    return { t, bg: TIER_BG[tier], fg: TIER_FG[tier], d };
+  };
+  if (!list.length) return (
+    <div style={S.gfWrap}>
+      <div style={S.gfHead}>Leikir GW{gw}</div>
+      <div style={S.gfEmpty}>Engir leikir skráðir.</div>
+    </div>
+  );
+  return (
+    <div style={S.gfWrap}>
+      <div style={S.gfHead}>Leikir GW{gw} <span style={S.gfCount}>{list.length}</span></div>
+      {list.map(f => {
+        const H = side(f.team_h, f.team_a, true), A = side(f.team_a, f.team_h, false);
+        const w = weatherByFx?.[f.id];
+        const done = f.finished || f.started;
+        return (
+          <div key={f.id} style={S.gfRow}>
+            <div style={S.gfTime}>
+              {fmt(f.kickoff_time)}
+              {w?.temp_c != null && <span style={S.gfWx}>{Math.round(w.temp_c)}°{w.precip_mm >= 0.5 ? " ☂" : ""}</span>}
+            </div>
+            <div style={S.gfTeams}>
+              <button style={{ ...S.gfTeam, background:H.bg, color:H.fg }}
+                title={`${H.t?.name} · FFDR ${H.d ?? "—"}`} onClick={() => onPick && onPick(f.team_h)}>
+                <Crest team={H.t} size={12} />{H.t?.short || "?"}
+              </button>
+              <span style={S.gfVs}>{done && f.team_h_score != null ? `${f.team_h_score}-${f.team_a_score}` : "–"}</span>
+              <button style={{ ...S.gfTeam, background:A.bg, color:A.fg }}
+                title={`${A.t?.name} · FFDR ${A.d ?? "—"}`} onClick={() => onPick && onPick(f.team_a)}>
+                <Crest team={A.t} size={12} />{A.t?.short || "?"}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      <div style={S.gfNote}>Litur = FFDR fyrir varnarmenn þess liðs.</div>
+    </div>
+  );
+}
+
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor, teamXgFor,
-  crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint, onOpen, dragId, setDragId, onDropPlayer }) {
+  crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
+  onInfo, onTransfer, onCardClick, swapSel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -2396,14 +2484,25 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       onDragEnd={() => setDragId(null)}
       onDragOver={e => { if (dragId && dragId !== p.id) e.preventDefault(); }}
       onDrop={e => { e.preventDefault(); if (dragId && dragId !== p.id) onDropPlayer(dragId); setDragId(null); }}
-      onClick={() => !dragging && onOpen()}
+      onClick={() => !dragging && onCardClick && onCardClick()}
       style={{
         ...S.pCard, ...(bench ? S.pCardBench : {}),
         borderTop: `3px solid ${POS_COLOR[p.element_type]}`,
         opacity: dragging ? 0.4 : (isSellHint ? 0.62 : 1),
-        outline: isPlanned ? `2px dashed ${C.green}` : "none",
-        outlineOffset: isPlanned ? 1 : 0,
-      }}>
+        // VALINN til skipta fær sterkan ramma; plönuð viðbót punktalínu
+        outline: swapSel === p.id ? `2px solid ${C.purple}`
+               : isPlanned ? `2px dashed ${C.green}` : "none",
+        outlineOffset: swapSel === p.id ? 2 : (isPlanned ? 1 : 0),
+      }}
+      title={swapSel === p.id ? "Valinn — smelltu á annan til að skipta"
+             : "Smelltu til að skipta við annan leikmann"}>
+      {/* IKON — sér aðgerðir. Smellur á spjaldið er SKIPTI. */}
+      <div style={S.pcIcons}>
+        <button style={S.pcIcon} title="Upplýsingar"
+          onClick={e => { e.stopPropagation(); onInfo && onInfo(); }}>i</button>
+        <button style={{ ...S.pcIcon, ...S.pcIconSwap }} title="Skipta út — opnar leit"
+          onClick={e => { e.stopPropagation(); onTransfer && onTransfer(); }}>⇄</button>
+      </div>
       {isCap && <span style={{ ...S.band, background:"#ffd23f", color:"#4a3800" }}>C</span>}
       {isVice && <span style={{ ...S.band, background:"#c9c9d0", color:"#33333a" }}>V</span>}
       {av.isRisk && (
@@ -2505,13 +2604,15 @@ const S = {
   connectBtn: { background:C.purple, color:"#fff", border:"none", borderRadius:8, padding:"9px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },
 
   tlWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px", marginBottom:12 },
-  tlRow: { display:"flex", alignItems:"flex-end", gap:5, flexWrap:"wrap" },
-  nodeCol: { display:"flex", flexDirection:"column", alignItems:"center", gap:3 },
+  // lína gegnum hnútana — teiknuð sem bakgrunnur á röðinni
+  tlRow: { position:"relative", display:"flex", alignItems:"flex-end", gap:5, flexWrap:"wrap" },
+  tlLine: { position:"absolute", left:0, right:0, bottom:13, height:2, background:C.border, borderRadius:1, zIndex:0 },
+  nodeCol: { position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 },
   chipSlotAbove: { height:17, display:"flex", alignItems:"center" },
   chipAbove: { display:"flex", alignItems:"center", gap:2, color:"#fff", borderRadius:5, padding:"1px 4px", lineHeight:1.3, boxShadow:"0 1px 3px rgba(0,0,0,0.18)" },
   chipAboveIcon: { fontFamily:mono, fontSize:9, fontWeight:700 },
   chipAboveTxt: { fontFamily:mono, fontSize:8.5, fontWeight:700, letterSpacing:0.2 },
-  node: { position:"relative", width:34, height:34, borderRadius:9, border:`1px solid ${C.border}`, background:C.cardAlt, cursor:"pointer", fontFamily:mono, fontSize:12.5, color:C.text2, padding:0 },
+  node: { position:"relative", zIndex:1, width:34, height:34, borderRadius:9, border:`1px solid ${C.border}`, background:C.cardAlt, cursor:"pointer", fontFamily:mono, fontSize:12.5, color:C.text2, padding:0 },
   nodeOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:700 },
   nodeNum: { position:"relative", zIndex:1 },
   nodeDot: { position:"absolute", bottom:4, left:"50%", transform:"translateX(-50%)", width:4, height:4, borderRadius:"50%", background:"#f59e0b" },
@@ -2558,6 +2659,22 @@ const S = {
   scMine: { fontWeight:700, color:C.purple },
 
   main: { display:"grid", gridTemplateColumns:"minmax(0,1fr) 320px", gap:14, alignItems:"start" },
+  // völlur + leikir hlið við hlið; völlurinn MINNI en áður
+  gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
+  gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
+  gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
+  gfRow: { padding:"4px 0", borderTop:`1px solid ${C.border}` },
+  gfTime: { display:"flex", justifyContent:"space-between", fontFamily:mono, fontSize:8.5, color:C.text3, marginBottom:2 },
+  gfWx: { color:C.text3 },
+  gfTeams: { display:"flex", alignItems:"center", gap:3 },
+  gfTeam: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3, minWidth:0,
+    fontFamily:mono, fontSize:9.5, fontWeight:700, padding:"3px 2px", borderRadius:5,
+    border:"1px solid transparent", cursor:"pointer" },
+  gfVs: { fontFamily:mono, fontSize:8.5, color:C.text3, minWidth:26, textAlign:"center" },
+  gfNote: { marginTop:7, paddingTop:6, borderTop:`1px solid ${C.border}`, fontSize:8.5, color:C.text3, lineHeight:1.4 },
+  gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
+  pitchRow: { display:"grid", gridTemplateColumns:"minmax(280px,1fr) 210px", gap:12, alignItems:"start", marginBottom:12 },
+  pitchCol: { maxWidth:460, margin:"0 auto", width:"100%" },
   side: { display:"flex", flexDirection:"column", gap:12 },
 
   capBar: { display:"flex", gap:8, alignItems:"center", marginBottom:9 },
@@ -2570,6 +2687,19 @@ const S = {
     display:"flex", justifyContent:"center", gap:6, flexWrap:"nowrap", padding:"0 4px" },
   benchLabel: { position:"absolute", left:10, top:"77.5%", fontFamily:mono, fontSize:9,
     letterSpacing:1, textTransform:"uppercase", color:"rgba(234,243,236,0.55)", zIndex:1 },
+  gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
+  gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
+  gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
+  gfRow: { padding:"4px 0", borderTop:`1px solid ${C.border}` },
+  gfTime: { display:"flex", justifyContent:"space-between", fontFamily:mono, fontSize:8.5, color:C.text3, marginBottom:2 },
+  gfWx: { color:C.text3 },
+  gfTeams: { display:"flex", alignItems:"center", gap:3 },
+  gfTeam: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3, minWidth:0,
+    fontFamily:mono, fontSize:9.5, fontWeight:700, padding:"3px 2px", borderRadius:5,
+    border:"1px solid transparent", cursor:"pointer" },
+  gfVs: { fontFamily:mono, fontSize:8.5, color:C.text3, minWidth:26, textAlign:"center" },
+  gfNote: { marginTop:7, paddingTop:6, borderTop:`1px solid ${C.border}`, fontSize:8.5, color:C.text3, lineHeight:1.4 },
+  gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
   pitchRow: { display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" },
 
   pCard: { position:"relative", width:"clamp(62px, 17.5%, 92px)", background:C.card,
@@ -2577,6 +2707,12 @@ const S = {
     textAlign:"center", cursor:"pointer", boxShadow:"0 2px 6px rgba(0,0,0,0.28)",
     flexShrink:1, minWidth:0 },
   pCardBench: { background:"rgba(255,255,255,0.94)" },
+  pcIcons: { position:"absolute", top:2, right:2, display:"flex", gap:2, zIndex:3 },
+  pcIcon: { width:15, height:15, padding:0, display:"flex", alignItems:"center", justifyContent:"center",
+    fontFamily:mono, fontSize:9, fontWeight:700, lineHeight:1, cursor:"pointer",
+    background:"rgba(255,255,255,0.92)", color:C.text2, border:`1px solid ${C.border}`,
+    borderRadius:4, boxShadow:"0 1px 2px rgba(0,0,0,0.10)" },
+  pcIconSwap: { color:C.purple, borderColor:"#d9c8f5", fontSize:10 },
   band: { position:"absolute", top:4, right:4, minWidth:15, height:15, borderRadius:8, fontFamily:mono, fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 },
   pPortrait: { position:"relative", height:34, display:"flex", alignItems:"flex-end", justifyContent:"center", marginBottom:2 },
   pCrest: { position:"absolute", bottom:-2, right:8, width:15, height:15, objectFit:"contain" },
