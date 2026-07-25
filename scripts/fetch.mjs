@@ -950,9 +950,39 @@ function splitGoals(total, hWin, aWin) {
   return { home, away: total - home };
 }
 
+/* ---- HVENÆR Á AÐ SÆKJA ODDS? ----
+   Daglega = 30 köll x 3 kredit = 90/mán. Óþarfi: lína á þriðjudegi hefur
+   ekkert að segja um ákvörðun sem er tekin á föstudegi.
+   TVISVAR PER UMFERÐ er betur stillt við ákvörðunarpunkta OG 72% ódýrara:
+     1) "skörp" sókn innan 36 klst fyrir frest — línan er sem næst lokalínu
+     2) "plönunar" sókn 6-8 dögum fyrir frest — fyrir framtíðar-skipti
+   ~8,4 köll/mán x 3 = ~25 kredit af 500.                                  */
+async function shouldFetchOdds() {
+  let events = [];
+  try { events = JSON.parse(await readFile(`${DATA}/events.json`, "utf8")).events; } catch { return { go: true, why: "engin events" }; }
+  const next = events.find(e => e.deadline_time && new Date(e.deadline_time) > new Date());
+  if (!next) return { go: false, why: "engin umferð framundan" };
+  const hrs = (new Date(next.deadline_time) - new Date()) / 3600000;
+  const inSharp = hrs > 0 && hrs <= 36;
+  const inPlan  = hrs >= 144 && hrs <= 192;      // 6-8 dagar
+  if (!inSharp && !inPlan) return { go: false, why: `${Math.round(hrs)} klst í frest GW${next.id} — utan glugga` };
+  // ekki sækja tvisvar í sama glugga
+  try {
+    const prev = JSON.parse(await readFile(`${DATA}/odds.json`, "utf8"));
+    const age = (new Date() - new Date(prev.updated)) / 3600000;
+    const win = inSharp ? "sharp" : "plan";
+    if (prev.window === win && age < 30)
+      return { go: false, why: `${win}-gluggi þegar sóttur f. ${Math.round(age)} klst` };
+  } catch {}
+  return { go: true, why: inSharp ? "sharp" : "plan", window: inSharp ? "sharp" : "plan", gw: next.id };
+}
+
 async function fetchOdds() {
   const key = process.env.ODDS_API_KEY;
   if (!key) { record("odds", false, 0, "ODDS_API_KEY vantar"); return; }
+  const gate = await shouldFetchOdds();
+  console.log(`Odds-hlið: ${gate.go ? "SÆKI" : "sleppi"} — ${gate.why}`);
+  if (!gate.go) { record("odds", true, 0, `sleppt: ${gate.why}`); return; }
 
   const url = `https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?apiKey=${key}`
     + `&regions=uk&markets=h2h,totals,spreads&oddsFormat=decimal&dateFormat=iso`;
@@ -1060,11 +1090,12 @@ async function fetchOdds() {
   if (unmatched.size) console.warn(`Odds: ópöruð nöfn: ${[...unmatched].join(" | ")}`);
 
   await writeJSON("odds.json", {
-    updated: status.updated, requests_remaining: remaining ? +remaining : null,
+    updated: status.updated, window: gate.window || null, gw: gate.gw || null,
+    requests_remaining: remaining ? +remaining : null,
     note: "CS% úr Poisson á væntum mörkum mótherja. 'opp' og 'kickoff' STAÐFESTA að línan gildi um réttan leik.",
     teams,
   });
-  record("odds", true, games, `${Object.keys(teams).length} lið · ${remaining} kredit eftir`);
+  record("odds", true, games, `${gate.window} · ${Object.keys(teams).length} lið · ${remaining} kredit eftir`);
 }
 
 /* ========== HRAÐUR HAMUR (--fast) ==========
