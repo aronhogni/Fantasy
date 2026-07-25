@@ -1,0 +1,58 @@
+# Byggir appið og setur það á GitHub Pages.
+# FRÍTT og ÓTAKMARKAÐ fyrir opinber repo — engin Netlify-credit.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    # aðeins þegar APPIÐ breytist — ekki við gagna-commit frá cron
+    paths:
+      - "src/**"
+      - "public/**"
+      - "index.html"
+      - "vite.config.js"
+      - "package.json"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# ein útgáfa í gangi; nýrri ýting hættir eldri byggingu
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Setja upp pakka
+        run: npm install --no-audit --no-fund
+      - name: Byggja
+        run: npm run build
+      - name: Staðfesta útkomu
+        run: |
+          test -f dist/index.html || { echo "dist/index.html vantar"; exit 1; }
+          echo "dist innihald:"; ls -la dist
+          # 404.html = sama og index svo dýpri slóðir virki
+          cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

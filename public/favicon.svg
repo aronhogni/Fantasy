@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="ts">
+  <title id="ts">Merki, einfölduð útgáfa</title>
+  <!-- Fyrir 16-24 px: panelarnir mauka saman og eru felldir út.
+       Útlínan heldur sér — hún gefur boltanum form í smáu.
+       ATH: currentColor er sett hér því favicon hefur enga CSS-umgjörð
+       frá appinu. Aðlagast ljósum/dökkum vafraflipa.                     -->
+  <style>
+    svg { color: #37003c }
+    @media (prefers-color-scheme: dark) { svg { color: #f2f2f4 } }
+  </style>
+  <circle cx="32" cy="32" r="25" fill="none" stroke="currentColor" stroke-width="4.8"/>
+  <path d="M14 43 H27 V33 H40 V21 H54" fill="none" stroke="currentColor"
+        stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="54" cy="21" r="6.4" fill="var(--logo-accent, #46d17f)"
+          stroke="#0f2e1c" stroke-width="1.2"/>
+</svg>

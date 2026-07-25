@@ -2,6 +2,13 @@
   command = "npm run build"
   publish = "dist"
   functions = "netlify/functions"
-  # Sleppa byggingu ef AÐEINS gagna-/pipeline-skrár breyttust (sparar Netlify credits).
-  # Skipunin: "0 = slepptu". git diff skilar 0 (engar breytingar utan data/scripts/workflows) -> slepptu.
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)data' ':(exclude)scripts' ':(exclude).github'"
+
+  # APPIÐ ER Á GITHUB PAGES. Netlify hýsir AÐEINS proxy-fallið, sem sækir
+  # FPL-API (það sendir ekki CORS-höfuð svo vafrinn getur ekki kallað beint).
+  #
+  # ignore skilar 0 = "slepptu byggingu". Við byggjum því AÐEINS þegar
+  # netlify/ breytist. Þar með kostar app-þróun engin Netlify-credit.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- netlify/"
+
+[functions]
+  node_bundler = "esbuild"
