@@ -110,17 +110,27 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
       svo sér-liður fyrir hann er nær óþarfur.
    2) MIÐJUMENN nota VARNAR-umbreytinguna, ekki sóknar. Þeir fá hreint-blað-stig
       og eigin varnarstyrkur spáir betur en sóknarstyrkur.                    */
+/* TVEIR HÓPAR í stað fjögurra staða. MÆLT á 7 tímabilum:
+     staða   FPL FDR   4 stöður   2 hópar
+     GK        0,131     0,149     0,149
+     DEF       0,233     0,307     0,307
+     MID       0,207     0,307     0,314   <- betri
+     FWD       0,119     0,183     0,184
+     MEÐAL     0,172     0,236     0,238
+
+   Af hverju hópar eru betri: MIÐJUMENN mældust betur með SÓKNAR-umbreytingu
+   eftir að markaðsþátturinn kom inn. Markaðslínan fangar liðsstyrk, svo
+   eftirstöðvarnar lesast sóknarlega. Áður (án markaðar) var varnar-umbreyting
+   betri fyrir miðju — það var rétt þá og er ekki rétt núna.
+
+   Og hópun leysir vandamál sem var sýnilegt: Sunderland-miðjumaður fékk
+   þyngd 2,36 og Sunderland-framherji 3,15 í SAMA leik, því ólíkar
+   umbreytingar voru notaðar. Nú fá þeir sömu tölu.                        */
 const DIFF_W = {
-  // sot = hlutfall skot-á-mark í styrkmælingu · prev = vog á TÍMABILIÐ Á UNDAN
-  // Bæði MÆLD í samsettri leit (2.720 lið-leikir, krossprófað).
-  // Aðeins tekið þar sem bætingin er yfir hávaða:
-  //   MID +0,0143 (prev 0,45 · sot 0,20)  ·  DEF +0,0041 (sot 0,50)
-  //   GK +0,0002 og FWD +0,0018 -> innan hávaða, EKKI tekið (of-fittun-vörn)
-  // elo = vog á Elo-mun (andstæðinga-leiðréttur). MÆLT: hjálpar MID/FWD, ekki GK/DEF.
-  1: { fdr:0.45, own:0.45, opp:0.10, useDef:true,  home:0.04, sot:0.00, prev:0.00, elo:0.00, mkt:0.35 },  // GK
-  2: { fdr:0.45, own:0.50, opp:0.05, useDef:true,  home:0.00, sot:0.50, prev:0.00, elo:0.00, mkt:0.65 },  // DEF
-  3: { fdr:0.40, own:0.60, opp:0.00, useDef:true,  home:0.08, sot:0.20, prev:0.45, elo:0.15, mkt:0.35 },  // MID
-  4: { fdr:0.40, own:0.60, opp:0.00, useDef:false, home:0.12, sot:0.00, prev:0.00, elo:0.30, mkt:0.35 },  // FWD
+  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.5 },  // GK  — VARNAR-hópur
+  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.5 },  // DEF — VARNAR-hópur
+  3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.35 },  // MID — SÓKNAR-hópur
+  4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.35 },  // FWD — SÓKNAR-hópur
 };
 /* SÓKNAR-UMBREYTING: MÆLT að LÍNULEGT form (2 − xg/LG) sé betra en gagnstætt
    (LG/xg): r 0,1869 á móti 0,1821 fyrir framherja. Log var 0,1853.          */
@@ -147,10 +157,10 @@ const HOME_PTS = { 1: 0.197, 2: 0.507, 3: 0.297, 4: 0.735 };  // mæld stig/leik
 /* MÆLDIR FLOKKAR PER STÖÐU — kvantílar, allir EINRÆNIR.
    pts = raunveruleg meðalstig per leikmann í þeirri stöðu í einum leik.     */
 const MEASURED_POS = {
-  1: [{d:2.01,pts:3.92,cs:34.8},{d:2.62,pts:3.81,cs:30.1},{d:2.95,pts:3.38,cs:26.1},{d:3.29,pts:3.32,cs:21.0},{d:3.79,pts:2.72,cs:11.3}],
-  2: [{d:2.00,pts:3.86,cs:35.0},{d:2.61,pts:3.53,cs:30.1},{d:2.95,pts:3.20,cs:25.9},{d:3.28,pts:2.72,cs:21.0},{d:3.77,pts:1.93,cs:11.0}],
-  3: [{d:2.00,pts:4.13,cs:35.8},{d:2.58,pts:3.62,cs:30.1},{d:2.91,pts:3.45,cs:24.7},{d:3.24,pts:3.30,cs:20.9},{d:3.75,pts:2.82,cs:12.3}],
-  4: [{d:2.10,pts:4.86,cs:33.4},{d:2.71,pts:4.53,cs:29.7},{d:3.04,pts:4.07,cs:22.8},{d:3.36,pts:3.69,cs:16.9},{d:3.94,pts:3.40,cs:19.0}],
+  1: [{d:1.91,pts:4.00}, {d:2.32,pts:3.78}, {d:2.60,pts:3.55}, {d:2.94,pts:3.33}, {d:3.58,pts:2.80}],
+  2: [{d:1.91,pts:4.12}, {d:2.32,pts:3.57}, {d:2.60,pts:3.07}, {d:2.94,pts:2.64}, {d:3.58,pts:1.92}],
+  3: [{d:1.84,pts:4.28}, {d:2.39,pts:3.62}, {d:2.72,pts:3.33}, {d:3.08,pts:3.15}, {d:3.75,pts:2.76}],
+  4: [{d:1.86,pts:4.98}, {d:2.41,pts:4.67}, {d:2.73,pts:3.91}, {d:3.09,pts:3.76}, {d:3.76,pts:3.37}],
 };
 function lookupPos(pos, key, d) {
   const T = MEASURED_POS[pos] || MEASURED_POS[3];
@@ -2430,11 +2440,11 @@ function ChipIcon({ kind, color }) {
      FWD      0,182    0,172   0,179
    Talan sjálf er líka sýnd, svo ekkert tapast í raun.                      */
 function tierOf(d) {
-  if (d < 2.35) return 0;   // léttast
-  if (d < 2.62) return 1;
-  if (d < 2.88) return 2;
-  if (d < 3.14) return 3;
-  if (d < 3.45) return 4;
+  if (d < 2.11) return 0;   // léttast
+  if (d < 2.41) return 1;
+  if (d < 2.66) return 2;
+  if (d < 2.94) return 3;
+  if (d < 3.35) return 4;
   return 5;                 // þyngst
 }
 /* SEX ÞREP — litaröð eftir erfiðleikastigi:
@@ -2549,7 +2559,7 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, 
    Raðað eftir MEÐAL-FFDR yfir valið svið (léttast fyrst).
    ============================================================ */
 function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span, maxGw, onPickTeam }) {
-  const [pos, setPos] = useState(2);
+  const [pos, setPos] = useState(2);   // 2 = varnar-hópur, 4 = sóknar-hópur
   const gws = Array.from({ length: span }, (_, i) => from + i).filter(g => g <= maxGw);
   const rows = (teams || []).map(t => {
     const cells = gws.map(g => {
@@ -2564,7 +2574,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
     return { t, cells, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
              played: vals.length };
   }).sort((a, z) => (a.avg ?? 9) - (z.avg ?? 9));
-  const POSB = [[1,"GK"],[2,"VÖRN"],[3,"MIÐJA"],[4,"SÓKN"]];
+  const POSB = [[2,"VÖRN"],[4,"SÓKN"]];   // tveir hópar — GK+DEF og MID+FWD
   return (
     <section style={S.card}>
       <div style={S.recHead}>
