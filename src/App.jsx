@@ -1078,7 +1078,11 @@ export default function App() {
     [squadAt, byId, buyPrices]);
 
   const starters = squadAt.filter(s => s.starter).sort((a,z) => a.order - z.order);
-  const bench = squadAt.filter(s => !s.starter).sort((a,z) => a.order - z.order);
+  // BEKKUR: markmaður ALLTAF lengst til vinstri (eins og FPL), svo röð.
+  const bench = squadAt.filter(s => !s.starter).sort((a, z) => {
+    const gk = x => (byId[x.id]?.element_type === 1 ? 0 : 1);
+    return gk(a) - gk(z) || a.order - z.order;
+  });
   const rows = { 1:[], 2:[], 3:[], 4:[] };
   starters.forEach(s => { const p = byId[s.id]; if (p) rows[p.element_type].push(s); });
 
@@ -1520,89 +1524,8 @@ export default function App() {
             : ev?.finished ? "lokið" : "ekki hafin"}
           tone={(apiHit || transferCost[gw]?.hits) ? "bad" : "ok"} />
       </div>
-
-      {/* ---------- Leikir í umferðinni ---------- */}
-      {/* ---------- Leikir í umferðinni + LIFANDI STAÐA ---------- */}
-      <div style={S.fixCards}>
-        {fixturesOfGw.map(f => {
-          const L = liveByFx[f.id];
-          const w = weatherByFx[f.id];
-          const hasW = w && w.temp_c != null;
-          const isLive = L?.started && !L?.finished;
-          const done = L?.finished;
-          const nm = id => byId[id]?.web_name || `#${id}`;
-          const scorerLine = (side, key, icon) => {
-            const arr = L?.[side]?.[key] || [];
-            if (!arr.length) return null;
-            return (
-              <div style={S.scLine}>
-                <span style={S.scIcon}>{icon}</span>
-                <span style={S.scNames}>
-                  {arr.map((x, i) => (
-                    <span key={i} style={{ ...S.scName, ...(squadIds.has(x.id) ? S.scMine : {}) }}
-                      onClick={ev => { ev.stopPropagation(); setDetail({ kind:"player", id:x.id }); }}>
-                      {nm(x.id)}{x.n > 1 ? ` ×${x.n}` : ""}{i < arr.length - 1 ? ", " : ""}
-                    </span>
-                  ))}
-                </span>
-              </div>
-            );
-          };
-          return (
-            <div key={f.id} style={{ ...S.fixCard, ...(isLive ? S.fixCardLive : {}) }}>
-              <div style={S.fixTop}>
-                <span style={S.fixSideL}>
-                  <Crest team={teamById[f.team_h]} size={16} />
-                  <span onClick={() => setDetail({ kind:"team", id:f.team_h })} style={S.fixTeamLink}>{teamById[f.team_h]?.short}</span>
-                </span>
-                <span style={S.fixMid}>
-                  {L && (L.started || done)
-                    ? <span style={S.fixScore}>{L.score_h ?? 0}–{L.score_a ?? 0}</span>
-                    : <span style={S.fixV}>v</span>}
-                </span>
-                <span style={S.fixSideR}>
-                  <span onClick={() => setDetail({ kind:"team", id:f.team_a })} style={S.fixTeamLink}>{teamById[f.team_a]?.short}</span>
-                  <Crest team={teamById[f.team_a]} size={16} />
-                </span>
-              </div>
-
-              <div style={S.fixStatus}>
-                {isLive
-                  ? <span style={S.liveTag}><span style={S.liveDot} />{L.minutes}'</span>
-                  : done
-                    ? <span style={S.doneTag}>{L.provisional ? "lokið (bráðabirgða)" : "lokið"}</span>
-                    : <span style={S.fixTime}>{fmtDate(f.kickoff_time)}</span>}
-                {hasW && !done && (
-                  <span style={S.fixWx}>
-                    {Math.round(w.temp_c)}°
-                    {w.precip_mm > 0.2 ? ` 🌧${w.precip_mm.toFixed(1)}` : ""}
-                    {w.wind_kmh > 25 ? ` 💨${Math.round(w.wind_kmh)}` : ""}
-                  </span>
-                )}
-              </div>
-
-              {L && (L.started || done) && (
-                <div style={S.scBox}>
-                  <div style={S.scCol}>
-                    {scorerLine("h", "goals", "⚽")}
-                    {scorerLine("h", "assists", "🅰")}
-                    {scorerLine("h", "own", "🙃")}
-                    {scorerLine("h", "red", "🟥")}
-                  </div>
-                  <div style={S.scDiv} />
-                  <div style={S.scCol}>
-                    {scorerLine("a", "goals", "⚽")}
-                    {scorerLine("a", "assists", "🅰")}
-                    {scorerLine("a", "own", "🙃")}
-                    {scorerLine("a", "red", "🟥")}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {!fixturesOfGw.length && <div style={S.muted}>Engir leikir skráðir í GW{gw}.</div>}
-      </div>
+      {/* Leikir umferðarinnar eru NÚ AÐEINS við hliðina á vellinum
+          (GwFixtureList). Þeir voru bæði hér og þar — tvítekning. */}
 
       <div style={S.main}>
         {/* ---------- Völlur ---------- */}
@@ -1630,7 +1553,7 @@ export default function App() {
               Viðmið úr Pitch.jsx: marklína 7,13 · markteigur 13,02 ·
               vítapunktur 18,92 · vítateigur 24,82 · miðlína 63,42 ·
               bekkjarskil 75,99                                            */}
-          <div style={S.pitchRow}>
+          <div style={S.pitchSplit}>
           <div style={S.pitchCol}>
           <Pitch bench={0.24}>
             {ROW_Y.map(({ pos, y }) => (
@@ -1674,7 +1597,7 @@ export default function App() {
           {/* LEIKIR UMFERÐARINNAR — við hliðina á vellinum */}
           <GwFixtureList gw={gw} fixtures={fixtures} teamById={teamById}
             crestFor={crestFor} diffOf={fixDifficulty} csFor={csFor}
-            weatherByFx={weatherByFx} onPick={t => setDetail({ kind:"team", id:t })} />
+            weatherByFx={weatherByFx} liveByFx={liveByFx} nameOf={id => byId[id]?.web_name || `#${id}`} onPick={t => setDetail({ kind:"team", id:t })} />
           </div>
 
           {/* Skiptaáætlun (listi — ekki form) */}
@@ -2464,7 +2387,9 @@ function FixChip({ fx, teamById, diff, pos }) {
 /* ---- LEIKIR UMFERÐARINNAR ----
    Þéttur listi við hliðina á vellinum. Hvert lið fær sinn FFDR-lit, svo þú
    sérð á svipstundu hverjir eiga léttan leik — óháð því hvort þú átt þá.   */
-function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weatherByFx, onPick }) {
+function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weatherByFx,
+  liveByFx, nameOf, onPick }) {
+  const [open, setOpen] = useState(null);   // útvíkkuð röð (fixture id)
   const list = (fixtures || []).filter(f => f.event === gw)
     .sort((a, b) => String(a.kickoff_time || "").localeCompare(String(b.kickoff_time || "")));
   const fmt = iso => {
@@ -2491,11 +2416,22 @@ function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weathe
       {list.map(f => {
         const H = side(f.team_h, f.team_a, true), A = side(f.team_a, f.team_h, false);
         const w = weatherByFx?.[f.id];
-        const done = f.finished || f.started;
+        const L = liveByFx?.[f.id];
+        const live = L?.started && !L?.finished;
+        const done = L?.finished || f.finished;
+        const score = (L?.h?.score ?? f.team_h_score) != null
+          ? `${L?.h?.score ?? f.team_h_score}-${L?.a?.score ?? f.team_a_score}` : null;
+        const scorers = side => [
+          ...(L?.[side]?.goals || []).map(id => `⚽ ${nameOf ? nameOf(id) : id}`),
+          ...(L?.[side]?.assists || []).map(id => `↗ ${nameOf ? nameOf(id) : id}`),
+        ];
+        const hasDetail = live || (done && (scorers("h").length || scorers("a").length));
         return (
           <div key={f.id} style={S.gfRow}>
             <div style={S.gfTime}>
-              {fmt(f.kickoff_time)}
+              <span>
+                {live ? <span style={S.gfLive}>· í gangi</span> : fmt(f.kickoff_time)}
+              </span>
               {w?.temp_c != null && <span style={S.gfWx}>{Math.round(w.temp_c)}°{w.precip_mm >= 0.5 ? " ☂" : ""}</span>}
             </div>
             <div style={S.gfTeams}>
@@ -2503,12 +2439,28 @@ function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weathe
                 title={`${H.t?.name} · FFDR ${H.d ?? "—"}`} onClick={() => onPick && onPick(f.team_h)}>
                 <Crest team={H.t} size={12} />{H.t?.short || "?"}
               </button>
-              <span style={S.gfVs}>{done && f.team_h_score != null ? `${f.team_h_score}-${f.team_a_score}` : "–"}</span>
+              <button style={{ ...S.gfVs, ...(hasDetail ? S.gfVsOpen : {}) }}
+                title={hasDetail ? "Smelltu fyrir markaskorara" : undefined}
+                onClick={() => hasDetail && setOpen(open === f.id ? null : f.id)}>
+                {score || "–"}{hasDetail ? (open === f.id ? " ▴" : " ▾") : ""}
+              </button>
               <button style={{ ...S.gfTeam, background:A.bg, color:A.fg }}
                 title={`${A.t?.name} · FFDR ${A.d ?? "—"}`} onClick={() => onPick && onPick(f.team_a)}>
                 <Crest team={A.t} size={12} />{A.t?.short || "?"}
               </button>
             </div>
+            {open === f.id && hasDetail && (
+              <div style={S.gfDetail}>
+                {[["h", H.t?.short], ["a", A.t?.short]].map(([sd, sh]) => {
+                  const sc = scorers(sd);
+                  return sc.length ? (
+                    <div key={sd} style={S.gfScorers}>
+                      <b>{sh}</b> {sc.join(" · ")}
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            )}
           </div>
         );
       })}
@@ -2661,8 +2613,9 @@ const S = {
     fontSize:15, lineHeight:1, cursor:"pointer", background:C.cardAlt, color:C.purple,
     border:`1px solid ${C.border}`, borderRadius:7, padding:0, marginBottom:1 },
   tlArrowOff: { opacity:0.3, cursor:"default", color:C.text3 },
-  tlRow: { flex:1, position:"relative", display:"flex", alignItems:"flex-end", gap:5, flexWrap:"wrap" },
-  tlLine: { position:"absolute", left:0, right:0, bottom:13, height:2, background:C.border, borderRadius:1, zIndex:0 },
+  // EKKI flex:1 — röðin skreppur að hnútunum, annars nær línan út í tómið
+  tlRow: { position:"relative", display:"flex", alignItems:"flex-end", gap:5 },
+  tlLine: { position:"absolute", left:2, right:2, bottom:12, height:2, background:C.border, borderRadius:1, zIndex:0 },
   nodeCol: { position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 },
   chipSlotAbove: { height:17, display:"flex", alignItems:"center" },
   chipAbove: { display:"flex", alignItems:"center", gap:2, color:"#fff", borderRadius:5, padding:"1px 4px", lineHeight:1.3, boxShadow:"0 1px 3px rgba(0,0,0,0.18)" },
@@ -2673,8 +2626,8 @@ const S = {
   nodeNum: { position:"relative", zIndex:1 },
   nodeDot: { position:"absolute", bottom:4, left:"50%", transform:"translateX(-50%)", width:4, height:4, borderRadius:"50%", background:"#f59e0b" },
   nodeChip: { position:"absolute", top:-6, right:-6, fontFamily:mono, fontSize:8, fontWeight:700, color:"#fff", padding:"1px 3px", borderRadius:4, lineHeight:1.3 },
-  intl: { display:"inline-flex", alignItems:"center", alignSelf:"flex-end", marginBottom:7 },
-  globe: { display:"inline-flex", alignItems:"center", justifyContent:"center", width:20, height:20, borderRadius:"50%", background:"#fff", border:`1px solid ${C.border}`, fontSize:11 },
+  intl: { position:"relative", zIndex:2, display:"inline-flex", alignItems:"center", alignSelf:"flex-end", marginBottom:5 },
+  globe: { display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:10, boxShadow:`0 0 0 3px ${C.card}` },
   deadline: { marginTop:9, fontSize:12, color:C.text2, fontFamily:mono },
 
   tcFree: { marginLeft:8, color:"#0a7a4a", fontWeight:600 },
@@ -2689,7 +2642,6 @@ const S = {
   statVal: { fontFamily:mono, fontSize:23, fontWeight:700, marginTop:2 },
   statSub: { fontSize:10.5, color:C.text3, marginTop:1 },
 
-  fixCards: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(168px,1fr))", gap:8, marginBottom:12 },
   fixCard: { background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:"8px 9px" },
   fixCardLive: { border:`1px solid ${C.green}`, background:"#f7fffb" },
   fixTop: { display:"flex", alignItems:"center", justifyContent:"space-between", gap:4 },
@@ -2726,11 +2678,18 @@ const S = {
   gfTeam: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3, minWidth:0,
     fontFamily:mono, fontSize:9.5, fontWeight:700, padding:"3px 2px", borderRadius:5,
     border:"1px solid transparent", cursor:"pointer" },
-  gfVs: { fontFamily:mono, fontSize:8.5, color:C.text3, minWidth:26, textAlign:"center" },
+  gfLive: { color:C.red, fontWeight:700 },
+  gfVsOpen: { cursor:"pointer", color:C.purple, fontWeight:700 },
+  gfDetail: { marginTop:3, paddingTop:3, borderTop:`1px dashed ${C.border}`, fontSize:8.5, lineHeight:1.5, color:C.text2 },
+  gfScorers: { marginBottom:1 },
+  gfVs: { fontFamily:mono, fontSize:8.5, color:C.text3, minWidth:30, textAlign:"center", background:"none", border:"none", padding:0 },
   gfNote: { marginTop:7, paddingTop:6, borderTop:`1px solid ${C.border}`, fontSize:8.5, color:C.text3, lineHeight:1.4 },
   gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
-  pitchRow: { display:"grid", gridTemplateColumns:"minmax(280px,1fr) 210px", gap:12, alignItems:"start", marginBottom:12 },
-  pitchCol: { maxWidth:460, margin:"0 auto", width:"100%" },
+  /* ATH: þessi hét áður "pitchRow" og ÁREKSTRI við leikmanna-röðina neðar.
+     Síðasti lykill vinnur í JS-hlut, svo grid-ið var YFIRSKRIFAÐ og völlurinn
+     hrundi í kremju. Nýtt heiti: pitchSplit.                               */
+  pitchSplit: { display:"grid", gridTemplateColumns:"minmax(380px,1fr) 164px", gap:10, alignItems:"start", marginBottom:12 },
+  pitchCol: { width:"100%", minWidth:0 },
   side: { display:"flex", flexDirection:"column", gap:12 },
 
   capBar: { display:"flex", gap:8, alignItems:"center", marginBottom:9 },
@@ -2753,7 +2712,11 @@ const S = {
   gfTeam: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3, minWidth:0,
     fontFamily:mono, fontSize:9.5, fontWeight:700, padding:"3px 2px", borderRadius:5,
     border:"1px solid transparent", cursor:"pointer" },
-  gfVs: { fontFamily:mono, fontSize:8.5, color:C.text3, minWidth:26, textAlign:"center" },
+  gfLive: { color:C.red, fontWeight:700 },
+  gfVsOpen: { cursor:"pointer", color:C.purple, fontWeight:700 },
+  gfDetail: { marginTop:3, paddingTop:3, borderTop:`1px dashed ${C.border}`, fontSize:8.5, lineHeight:1.5, color:C.text2 },
+  gfScorers: { marginBottom:1 },
+  gfVs: { fontFamily:mono, fontSize:8.5, color:C.text3, minWidth:30, textAlign:"center", background:"none", border:"none", padding:0 },
   gfNote: { marginTop:7, paddingTop:6, borderTop:`1px solid ${C.border}`, fontSize:8.5, color:C.text3, lineHeight:1.4 },
   gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
   pitchRow: { display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" },
