@@ -307,6 +307,46 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
+### FRAMHALDS-TILRAUNIR — hvað bætir spágildið?
+
+#### Hjálpa fleiri þrep? JÁ, sex eru betri en fimm
+
+Þrepun **tapar** upplýsingum úr samfellda stuðlinum:
+
+| Staða | Samfellt | 3 þrep | 5 þrep | **6 þrep** | 8 þrep |
+|---|---|---|---|---|---|
+| GK | 0,161 | 0,160 | 0,151 | **0,162** | 0,157 |
+| DEF | 0,278 | 0,252 | 0,267 | **0,268** | 0,271 |
+| MID | 0,282 | 0,258 | 0,270 | **0,276** | 0,277 |
+| FWD | 0,182 | 0,169 | 0,172 | **0,179** | 0,180 |
+
+Sex þrep tapa minna en fimm. Appið notar nú **sex þrep OG sýnir töluna**,
+svo ekkert tapast í raun.
+
+#### Liðsstyrks-inntak — hvað mælist best?
+
+| Staða | Mörk | Skot á mark | Blanda | 2 tímabil |
+|---|---|---|---|---|
+| GK | **0,161** | 0,156 | 0,160 | 0,159 |
+| DEF | 0,278 | 0,278 | **0,282** | 0,277 |
+| MID | 0,282 | 0,280 | 0,286 | **0,294** |
+| FWD | **0,182** | 0,170 | 0,180 | 0,184 |
+
+**Skot á mark EIN eru verri en mörk** — þótt þau séu stöðugri. FPL gefur stig
+fyrir mörk, svo mörk eru beinni mælikvarði.
+
+Samsett leit (skot-hlutfall × 2-tímabila vog):
+
+| Staða | Núverandi | Best | Stillingar | Bæting |
+|---|---|---|---|---|
+| GK | 0,161 | 0,161 | — | +0,0002 |
+| DEF | 0,278 | **0,282** | skot 0,50 | +0,0041 |
+| MID | 0,282 | **0,297** | skot 0,20 · prev 0,45 | **+0,0143** |
+| FWD | 0,182 | 0,184 | prev 0,30 | +0,0018 |
+
+**Aðeins DEF og MID tekið inn.** GK (+0,0002) og FWD (+0,0018) eru innan
+hávaða og að stilla þau væri of-fittun á 2.720 sýni.
+
 ### ENDANLEGUR SAMANBURÐUR — ÞRJÁR FDR-ÚTGÁFUR, 5 TÍMABIL
 
 2.720 lið-leikir 2021/22–2025/26. Liðsstyrkur alltaf úr fyrra tímabili.
