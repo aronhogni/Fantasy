@@ -531,14 +531,47 @@ async function fetchEuro() {
   const matches = [];
   const seen = new Set();
 
-  // --- (a) ESPN: prófa kandídat-kóða, logga hvað svarar ---
-  // UEFA + innlendar bikarkeppnir. Kóðar ÓSTAÐFESTIR — prófum og loggum.
-  const ESPN_CODES = [
+  // --- (0) UPPGÖTVUN: spyrja ESPN hvaða keppnir eru til í fótbolta.
+  // Í stað þess að giska á kóða loggum við þá sem raunverulega eru í boði.
+  // Loggið úr þessu skrefi gerir næstu útgáfu nákvæma.
+  let discovered = [];
+  for (const durl of [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/leagues",
+  ]) {
+    try {
+      const r = await fetch(durl, { headers: { "User-Agent": UA } });
+      if (!r.ok) { console.log(`Evrópa uppgötvun ${durl.slice(-30)}: HTTP ${r.status}`); continue; }
+      const j = await r.json();
+      // ESPN skilar ýmsum formum — grípum öll 'slug'/'id' sem líkjast keppnikóða
+      const codes = new Set();
+      const walk = o => {
+        if (!o || typeof o !== "object") return;
+        if (typeof o.slug === "string" && o.slug.includes(".")) codes.add(o.slug);
+        if (typeof o.id === "string" && o.id.includes(".")) codes.add(o.id);
+        Object.values(o).forEach(walk);
+      };
+      walk(j);
+      discovered = [...codes];
+      const relevant = discovered.filter(c => /uefa|^eng\.|fifa\.cwc/i.test(c));
+      console.log(`Evrópa uppgötvun: ${discovered.length} kóðar, viðeigandi (${relevant.length}): ${relevant.join(", ")}`);
+      if (discovered.length) break;
+    } catch (e) { console.log(`Evrópa uppgötvun brást: ${e.message}`); }
+  }
+
+  // --- (a) ESPN: nota uppgötvaða kóða ef til, annars kandídata ---
+  // UEFA + innlendar bikarkeppnir + forkeppnir. Kóðar ÓSTAÐFESTIR — prófum og loggum.
+  const CANDIDATES = [
     "uefa.champions", "uefa.europa", "uefa.europa.conf", "uefa.super_cup",
-    "eng.fa", "eng.league_cup", "eng.trophy", "fifa.cwc",
+    "uefa.champions_qual", "uefa.europa_qual", "uefa.conf_qual",
+    "eng.fa", "eng.league_cup", "eng.charity", "fifa.cwc",
   ];
+  const ESPN_CODES = discovered.length
+    ? [...new Set([...discovered.filter(c => /uefa|^eng\.(fa|league_cup|charity)|fifa\.cwc/i.test(c)), ...CANDIDATES])]
+    : CANDIDATES;
+  console.log(`Evrópa: prófa ${ESPN_CODES.length} kóða`);
   const d1 = today.replace(/-/g, "");
-  const end = new Date(Date.now() + 120 * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
+  const end = new Date(Date.now() + 150 * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
   for (const code of ESPN_CODES) {
     const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/scoreboard?dates=${d1}-${end}`;
     try {
@@ -547,7 +580,7 @@ async function fetchEuro() {
       const j = await r.json();
       const evs = j.events || [];
       console.log(`Evrópa ESPN ${code}: OK, ${evs.length} viðureignir`);
-      found.push(`espn:${code}(${evs.length})`);
+      if (evs.length) found.push(`espn:${code}(${evs.length})`);
       for (const e of evs) {
         const comp = (e.competitions || [])[0];
         const teams = (comp?.competitors || []).map(c => c.team?.displayName || c.team?.name).filter(Boolean);
@@ -557,7 +590,7 @@ async function fetchEuro() {
         seen.add(key);
         matches.push({ comp: code, date: e.date, home: teams[0], away: teams[1] });
       }
-      await new Promise(r => setTimeout(r, 400));
+      await new Promise(r => setTimeout(r, 350));
     } catch (e) { console.log(`Evrópa ESPN ${code}: ${e.message}`); }
   }
 
@@ -634,7 +667,9 @@ async function fetchEuro() {
   const COMP_LABEL = {
     "uefa.champions":"Meistaradeild", "uefa.europa":"Evrópudeild",
     "uefa.europa.conf":"Sambandsdeild", "uefa.super_cup":"Ofurbikar",
-    "eng.fa":"FA Cup", "eng.league_cup":"Ligubikar", "eng.trophy":"EFL Trophy",
+    "eng.fa":"FA Cup", "eng.league_cup":"Ligubikar", "eng.charity":"Community Shield",
+    "uefa.champions_qual":"Meistarad. forkeppni", "uefa.europa_qual":"Evrópud. forkeppni",
+    "uefa.conf_qual":"Sambandsd. forkeppni",
     "fifa.cwc":"HM félagsliða", CL:"Meistaradeild", EL:"Evrópudeild",
   };
   out.forEach(m => { m.comp_label = COMP_LABEL[m.comp] || m.comp; });
