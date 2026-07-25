@@ -1355,11 +1355,14 @@ async function deriveTeamForm() {
   const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
   const fd2fpl = {};
   Object.entries(tmap).forEach(([id, v]) => { if (v.fdcouk) fd2fpl[v.fdcouk] = Number(id); });
-  let rows = [], header = [];
+  let rows = [], header = [], rowsPrev = [];
   try {
     const j = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2526.json`, "utf8"));
     rows = j.rows; header = j.header;
   } catch { record("team_form", false, 0, "E0-2526 vantar"); return; }
+  // FYRRA tímabil líka — MÆLING sýnir að 2-tímabila blöndun bætir miðjumanna-spá
+  // um +0,014 í fylgni (45% vog á tímabilið á undan).
+  try { rowsPrev = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2425.json`, "utf8")).rows; } catch {}
 
   // REGLA: prenta raunverulega header-röð, ekki treysta lista
   console.log(`E0-2526 header (${header.length} kolónur): ${header.join(",")}`);
@@ -1379,9 +1382,24 @@ async function deriveTeamForm() {
       if (home) d.h++;
     }
   }
+  // sama uppsöfnun fyrir fyrra tímabil
+  const aggPrev = {};
+  for (const r of rowsPrev) {
+    const sets = [
+      [r.HomeTeam, +r.FTHG||0, +r.FTAG||0, +r.HST||0, +r.AST||0],
+      [r.AwayTeam, +r.FTAG||0, +r.FTHG||0, +r.AST||0, +r.HST||0],
+    ];
+    for (const [nm, gf, ga, stf, sta] of sets) {
+      const fid = fd2fpl[nm]; if (!fid) continue;
+      const d = aggPrev[fid] || (aggPrev[fid] = { n:0, gf:0, ga:0, stf:0, sta:0 });
+      d.n++; d.gf+=gf; d.ga+=ga; d.stf+=stf; d.sta+=sta;
+    }
+  }
+
   const out = teams.map(t => {
     const d = agg[t.id];
     if (!d) return { fpl_id: t.id, short: t.short, matches: 0, source: "none" };
+    const p = aggPrev[t.id];
     const per = v => +(v / d.n).toFixed(2);
     return {
       fpl_id: t.id, short: t.short, matches: d.n, source: "fdcouk_e0",
@@ -1393,6 +1411,9 @@ async function deriveTeamForm() {
       clean_sheet_pct: Math.round(d.cs / d.n * 100),
       conversion: d.sf ? +(d.gf / d.sf).toFixed(3) : null,
       sot_conversion: d.stf ? +(d.gf / d.stf).toFixed(3) : null,
+      // fyrra tímabil (fyrir 2-tímabila blöndun í framenda)
+      prev: p ? { matches: p.n, goals_pg: +(p.gf/p.n).toFixed(2), conceded_pg: +(p.ga/p.n).toFixed(2),
+                  sot_pg: +(p.stf/p.n).toFixed(2), sot_against_pg: +(p.sta/p.n).toFixed(2) } : null,
     };
   });
   await writeJSON("team_form.json", {
