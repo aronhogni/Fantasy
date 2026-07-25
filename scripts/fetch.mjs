@@ -1405,6 +1405,70 @@ async function deriveTeamForm() {
   record("team_form", true, withData, `${out.length - withData} lið án PL-sögu (nýliðar)`);
 }
 
+/* ---- 7. RÚLLANDI EIGINLEIKAR — fyrir fittaða stigalíkanið ----
+   Reiknað UMFERÐ FYRIR UMFERÐ úr live-gögnunum, ekki úr uppsöfnuðum
+   minutes-sviðinu í players.json.
+   MÆLT ÚT-AF-ÚRTAKI á 2025/26 (19.448 sýni): mins5 er RÍKJANDI þáttur
+   (stöðluð áhrif +4,6 til +5,1 stig/5 umferðir). FDR mælist ~0.            */
+async function deriveFormFeatures() {
+  const events = JSON.parse(await readFile(`${DATA}/events.json`, "utf8")).events;
+  const finished = events.filter(e => e.finished).map(e => e.id).sort((a, b) => a - b);
+  if (!finished.length) {
+    await writeJSON("form_features.json", {
+      updated: status.updated, gws_used: 0, mode: "preseason",
+      note: "Engar loknar umferðir — fittaða líkanið þarf ~5 umferðir. Framendinn notar fyrir-tímabils-ham.",
+      players: [],
+    });
+    record("form_features", true, 0, "engar loknar umferðir (fyrir tímabil)");
+    return;
+  }
+  // hlaða live-gögnum
+  const perGw = {};
+  for (const g of finished) {
+    try {
+      const d = JSON.parse(await readFile(`${DATA}/live/gw${g}.json`, "utf8"));
+      perGw[g] = {};
+      for (const el of (d.elements || [])) perGw[g][el.id] = el.stats || {};
+    } catch {}
+  }
+  const gws = Object.keys(perGw).map(Number).sort((a, b) => a - b);
+  const last5 = gws.slice(-5), last10 = gws.slice(-10);
+  const ids = new Set();
+  gws.forEach(g => Object.keys(perGw[g]).forEach(id => ids.add(+id)));
+
+  const out = [];
+  for (const id of ids) {
+    const g5 = last5.map(g => perGw[g][id]).filter(Boolean);
+    const g10 = last10.map(g => perGw[g][id]).filter(Boolean);
+    if (!g5.length) continue;
+    const mins5 = g5.reduce((a, s) => a + (s.minutes || 0), 0) / g5.length;
+    const pts5  = g5.reduce((a, s) => a + (s.total_points || 0), 0) / g5.length;
+    const starts5 = g5.reduce((a, s) => a + (s.starts || 0), 0) / g5.length;
+    const tm = g10.reduce((a, s) => a + (s.minutes || 0), 0);
+    const xgi90 = tm ? g10.reduce((a, s) => a + parseFloat(s.expected_goal_involvements || 0), 0) * 90 / tm : 0;
+    const bps90 = tm ? g10.reduce((a, s) => a + (s.bps || 0), 0) * 90 / tm : 0;
+    const dc90  = tm ? g10.reduce((a, s) => a + parseFloat(s.defensive_contribution || 0), 0) * 90 / tm : 0;
+    const over60 = g5.filter(s => (s.minutes || 0) >= 60).length / g5.length;
+    out.push({
+      fpl_id: id,
+      mins5: +mins5.toFixed(1), pts5: +pts5.toFixed(2),
+      start_rate: +starts5.toFixed(2), over60_rate: +over60.toFixed(2),
+      xgi90: +xgi90.toFixed(3), bps90: +bps90.toFixed(2), dc90: +dc90.toFixed(2),
+      samples: g5.length, minutes_window: tm,
+    });
+  }
+  await writeJSON("form_features.json", {
+    updated: status.updated, gws_used: gws.length,
+    window_5: last5, window_10: last10,
+    mode: gws.length >= 5 ? "fitted" : "warmup",
+    note: "Rúllandi eiginleikar úr live-gögnum, umferð fyrir umferð. " +
+          "mins5 er ríkjandi þáttur skv. mælingu út-af-úrtaki (2025/26, 19.448 sýni). " +
+          "mode:'warmup' þýðir undir 5 umferðir — framendinn á að lækka confidence.",
+    players: out,
+  });
+  record("form_features", true, out.length, `${gws.length} umferðir · mode=${gws.length >= 5 ? "fitted" : "warmup"}`);
+}
+
 /* ========== MAIN ========== */
 async function main() {
   await mkdir(DATA, { recursive: true });
@@ -1442,7 +1506,8 @@ async function main() {
   if (FLAGS.derived) { try { await deriveGameweekShape(); }    catch (e) { record("gameweek_shape", false, 0, e.message); }
                        try { await deriveRotation(); }         catch (e) { record("rotation", false, 0, e.message); }
                        try { await deriveTeamForm(); }          catch (e) { record("team_form", false, 0, e.message); }
-                       try { await deriveLuck(); }              catch (e) { record("luck", false, 0, e.message); } }
+                       try { await deriveLuck(); }              catch (e) { record("luck", false, 0, e.message); }
+                       try { await deriveFormFeatures(); }      catch (e) { record("form_features", false, 0, e.message); } }
 
   await writeJSON("status.json", status);
   console.log("\n=== status.json ===");
