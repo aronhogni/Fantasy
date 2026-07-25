@@ -483,21 +483,30 @@ async function fetchHistoricalE0() {
     const h = (r.HomeTeam || "").trim(), a = (r.AwayTeam || "").trim();
     if (!h || !a) continue;
     const key = `${h}|${a}`;
-    const o = h2h[key] || (h2h[key] = { games:0, home_w:0, draw:0, away_w:0, gf:0, ga:0, btts:0, over25:0 });
+    const o = h2h[key] || (h2h[key] = {
+      games:0, home_w:0, draw:0, away_w:0, gf:0, ga:0, btts:0, over25:0,
+      cs_home:0, cs_away:0, // TELJUM hrein blöð beint — ekki afleiða úr BTTS
+    });
     o.games++;
     const hg = +r.FTHG || 0, ag = +r.FTAG || 0;
     o.gf += hg; o.ga += ag;
     if (r.FTR === "H") o.home_w++; else if (r.FTR === "D") o.draw++; else o.away_w++;
     if (hg > 0 && ag > 0) o.btts++;
     if (hg + ag > 2.5) o.over25++;
+    if (ag === 0) o.cs_home++;   // heimalið hélt hreinu = úti skoraði 0
+    if (hg === 0) o.cs_away++;   // útilið hélt hreinu = heima skoraði 0
   }
   const h2hOut = {};
   for (const [k, o] of Object.entries(h2h)) {
     if (o.games < 2) continue;
-    h2hOut[k] = { ...o,
+    h2hOut[k] = {
+      games: o.games, home_w: o.home_w, draw: o.draw, away_w: o.away_w,
       home_w_pct: Math.round(o.home_w / o.games * 100),
-      cs_home_pct: Math.round((o.games - o.btts - (o.ga > 0 ? 0 : 0)) / o.games * 100),
+      cs_home_pct: Math.round(o.cs_home / o.games * 100),
+      cs_away_pct: Math.round(o.cs_away / o.games * 100),
       avg_goals: +((o.gf + o.ga) / o.games).toFixed(2),
+      goals_home_pg: +(o.gf / o.games).toFixed(2),
+      goals_away_pg: +(o.ga / o.games).toFixed(2),
       btts_pct: Math.round(o.btts / o.games * 100),
       over25_pct: Math.round(o.over25 / o.games * 100),
     };
