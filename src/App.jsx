@@ -518,7 +518,7 @@ export default function App() {
   const [gwPts, setGwPts] = useState(null);
   const [recPos, setRecPos] = useState("ALL");
   const [recRange, setRecRange] = useState(5);
-  const [teamSort, setTeamSort] = useState("elo");
+  const [teamSort, setTeamSort] = useState("def");
   const [detail, setDetail] = useState(null); // {kind:"player"|"team", id}
   const [live, setLive] = useState(null);      // lifandi staða valdrar umferðar
   const [gwStats, setGwStats] = useState(null); // per-leikmanns tölur valdrar umferðar
@@ -834,10 +834,6 @@ export default function App() {
     const m = {};
     (elo?.teams || []).forEach(t => m[t.fpl_id] = t);
     return m;
-  }, [elo]);
-  const eloRange = useMemo(() => {
-    const vals = (elo?.teams || []).map(t => t.elo);
-    return vals.length ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
   }, [elo]);
 
   // ---- Veður per leik ----
@@ -1890,53 +1886,74 @@ export default function App() {
             </div>
           </section>
 
-          {/* Lið: styrkur + DefCon-tækifæri */}
+          {/* Lið: FFDR-röðun + DefCon (það eina sem er EKKI í FFDR) */}
           <section style={S.card}>
             <div style={S.recHead}>
-              <h2 style={S.h2}>Lið — styrkur og DefCon</h2>
+              <h2 style={S.h2}>Lið — FFDR GW{gw}–{Math.min(gw + recRange - 1, maxGw)}</h2>
               <select style={S.chipSel} value={teamSort} onChange={e => setTeamSort(e.target.value)}>
-                <option value="elo">ClubElo</option>
+                <option value="def">FFDR vörn</option>
+                <option value="att">FFDR sókn</option>
                 <option value="dc">DefCon-tækifæri</option>
-                <option value="xgc">Vörn (xGC)</option>
               </select>
             </div>
             <div style={S.muted}>
-              ClubElo = styrkur (hærra betra). DefCon-tækif. = vinnuálag varnar (hærra = fleiri CBIT-stig).
-              Þessir tveir eru <b>aðskildir</b> frá CS% og draga oft í gagnstæða átt.
+              FFDR er <b>útkoman</b> — ClubElo og xGC eru inntök í hana og eru því
+              ekki sýnd sér. <b>DefCon er ekki í FFDR</b>: það mælir vinnuálag varnar
+              og dregur oft í <b>gagnstæða átt</b> við hreint blað. Lægra FFDR = léttara.
             </div>
             <div style={S.tblHead}>
               <span style={{ flex:1 }}>Lið</span>
-              <span style={S.tblNum}>Elo</span>
-              <span style={S.tblNum}>xGC</span>
-              <span style={S.tblNum}>DC</span>
+              <span style={S.tblNum} title="FFDR fyrir varnarmenn, meðaltal valins bils">vörn</span>
+              <span style={S.tblNum} title="FFDR fyrir framherja">sókn</span>
+              <span style={S.tblNum} title="DefCon-tækifæri — EKKI í FFDR">DC</span>
             </div>
-            {[...teams].sort((a,b) => {
-              if (teamSort === "elo") return (eloByTeam[b.id]?.elo || 0) - (eloByTeam[a.id]?.elo || 0);
-              if (teamSort === "dc") return (dcOpp[b.id]?.defcon_opportunity || 0) - (dcOpp[a.id]?.defcon_opportunity || 0);
-              return (teamMetrics[a.id]?.xgc90 || 9) - (teamMetrics[b.id]?.xgc90 || 9);
-            }).map(t => {
-              const e = eloByTeam[t.id], dc = dcOpp[t.id];
-              const eloPct = e && eloRange ? (e.elo - eloRange.min) / Math.max(1, eloRange.max - eloRange.min) : 0;
-              const mine = squadAt.some(s => byId[s.id]?.team === t.id);
-              return (
-                <div key={t.id} style={{ ...S.tblRow, cursor:"pointer" }} onClick={() => setDetail({ kind:"team", id:t.id })}>
-                  <span style={{ flex:1, display:"flex", alignItems:"center", gap:5, minWidth:0 }}>
-                    <Crest team={t} size={14} />
-                    <span style={{ fontWeight: mine ? 700 : 400, fontSize:11.5 }}>{t.short}</span>
-                  </span>
-                  <span style={S.tblNum} title={e ? `rank ${e.rank} · level ${e.level}` : "ekki paraður"}>
-                    {e ? Math.round(e.elo) : "—"}
-                    {e && <span style={{ ...S.eloBar, width: `${Math.round(eloPct * 22) + 3}px` }} />}
-                  </span>
-                  <span style={{ ...S.tblNum, color: (teamMetrics[t.id]?.xgc90 ?? 9) < 1.2 ? C.green : (teamMetrics[t.id]?.xgc90 ?? 9) > 1.6 ? C.red : C.text2 }}>
-                    {teamMetrics[t.id]?.xgc90 ?? "—"}
-                  </span>
-                  <span style={{ ...S.tblNum, color: !dc ? C.text3 : dc.defcon_opportunity >= 75 ? C.green : dc.defcon_opportunity >= 65 ? C.amber : C.text2 }}>
-                    {dc ? dc.defcon_opportunity : "—"}
-                  </span>
-                </div>
-              );
-            })}
+            {(() => {
+              // meðal-FFDR yfir valið bil, per staða
+              const avg = (tid, pos) => {
+                let n = 0, sum = 0;
+                for (let g = gw; g < gw + recRange && g <= maxGw; g++) {
+                  for (const fx of (fixByTeamGw[tid]?.[g] || [])) {
+                    const d = fixDifficulty(tid, fx, pos);
+                    if (d != null) { sum += d; n++; }
+                  }
+                }
+                return n ? +(sum / n).toFixed(2) : null;
+              };
+              const rows = teams.map(t => ({
+                t, def: avg(t.id, 2), att: avg(t.id, 4),
+                dc: dcOpp[t.id]?.defcon_opportunity ?? null,
+              }));
+              rows.sort((a, b) => {
+                if (teamSort === "dc") return (b.dc ?? -1) - (a.dc ?? -1);
+                const k = teamSort === "att" ? "att" : "def";
+                return (a[k] ?? 9) - (b[k] ?? 9);
+              });
+              return rows.map(({ t, def, att, dc }) => {
+                const mine = squadAt.some(x => byId[x.id]?.team === t.id);
+                const cell = v => v == null ? { bg:"transparent", fg:C.text3 }
+                  : { bg: TIER_BG[tierOf(v)], fg: TIER_FG[tierOf(v)] };
+                const cd = cell(def), ca = cell(att);
+                return (
+                  <div key={t.id} style={{ ...S.tblRow, cursor:"pointer" }}
+                    onClick={() => setDetail({ kind:"team", id:t.id })}>
+                    <span style={{ flex:1, display:"flex", alignItems:"center", gap:5, minWidth:0 }}>
+                      <Crest team={t} size={14} />
+                      <span style={{ fontWeight: mine ? 700 : 400, fontSize:11.5 }}>{t.short}</span>
+                    </span>
+                    <span style={{ ...S.tblNum }}>
+                      <span style={{ ...S.ffdrCell, background:cd.bg, color:cd.fg }}>{def ?? "—"}</span>
+                    </span>
+                    <span style={{ ...S.tblNum }}>
+                      <span style={{ ...S.ffdrCell, background:ca.bg, color:ca.fg }}>{att ?? "—"}</span>
+                    </span>
+                    <span style={{ ...S.tblNum, color: dc == null ? C.text3
+                      : dc >= 75 ? C.green : dc >= 65 ? C.amber : C.text2 }}>
+                      {dc ?? "—"}
+                    </span>
+                  </div>
+                );
+              });
+            })()}
           </section>
 
           {/* API-staða */}
@@ -3014,8 +3031,9 @@ const S = {
   fixWxWait: { display:"block", fontFamily:mono, fontSize:9, color:C.text3, marginTop:2, fontStyle:"italic" },
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },
   tblRow: { display:"flex", alignItems:"center", gap:4, padding:"3px 0", borderBottom:`1px solid ${C.page}` },
+  ffdrCell: { display:"inline-block", minWidth:32, textAlign:"center", fontFamily:mono,
+    fontSize:10, fontWeight:700, padding:"1px 4px", borderRadius:4 },
   tblNum: { width:46, textAlign:"right", fontFamily:mono, fontSize:11, color:C.text2, position:"relative" },
-  eloBar: { display:"block", height:2, background:C.purple, borderRadius:1, marginTop:1, marginLeft:"auto", opacity:0.55 },
   dcChip: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginTop:1 },
   availBadge: { position:"absolute", top:4, left:4, fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 3px", borderRadius:4, lineHeight:1.3, zIndex:2 },
   sAvail: { fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 4px", borderRadius:4, marginLeft:5 },
