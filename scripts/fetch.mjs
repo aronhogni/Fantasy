@@ -892,6 +892,114 @@ async function fetchEuro() {
     `${stale} úreltum sleppt · ${found.length ? found.join(",") : "engin heimild svaraði"}`);
 }
 
+/* ========== 8. THE ODDS API — bókmakara-CS% (FÆRT ÚR NETLIFY Á CRON) ==========
+   Var áður Netlify-function (kostaði credit við hverja opnun appsins).
+   Nú: cron sækir 1x/dag, skrifar data/odds.json, appið les frítt frá GitHub.
+   Kvóti: markets(2) × regions(1) = 2 kredit/dag = ~60/mán af 500. Óhætt.
+   Lykill: process.env.ODDS_API_KEY (GitHub Secret) — ALDREI í kóða.          */
+function poissonCleanSheet(oppExpectedGoals) {
+  return Math.round(Math.exp(-oppExpectedGoals) * 100);
+}
+function impliedProb(dec) { return dec > 0 ? 1 / dec : 0; }
+function devig(h, d, a) {
+  const raw = [impliedProb(h), impliedProb(d), impliedProb(a)];
+  const s = raw.reduce((x, y) => x + y, 0) || 1;
+  return { home: raw[0] / s, draw: raw[1] / s, away: raw[2] / s };
+}
+function splitGoals(total, hWin, aWin) {
+  const hShare = Math.min(0.85, Math.max(0.15, 0.5 + (hWin - aWin) * 0.35));
+  const home = total * hShare;
+  return { home, away: total - home };
+}
+
+async function fetchOdds() {
+  const key = process.env.ODDS_API_KEY;
+  if (!key) { record("odds", false, 0, "ODDS_API_KEY vantar"); return; }
+
+  const url = `https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?apiKey=${key}`
+    + `&regions=uk&markets=h2h,totals&oddsFormat=decimal&dateFormat=iso`;
+  const r = await fetch(url, { headers: { "User-Agent": UA } });
+  const remaining = r.headers.get("x-requests-remaining");
+  const used = r.headers.get("x-requests-used");
+  console.log(`Odds API: eftir=${remaining} notað=${used}`);
+  if (!r.ok) { record("odds", false, 0, `HTTP ${r.status}`); return; }
+  const raw = await r.json();
+
+  // Nafnavörpun Odds API -> FPL short_name (normaliserað)
+  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const byNorm = {};
+  for (const [id, t] of Object.entries(teamsById)) {
+    byNorm[norm(t.name)] = t.short_name;
+    byNorm[norm(t.short_name)] = t.short_name;
+    const LONG = {
+      ARS:["Arsenal"], AVL:["Aston Villa"], BOU:["Bournemouth","AFC Bournemouth"],
+      BRE:["Brentford"], BHA:["Brighton and Hove Albion","Brighton & Hove Albion","Brighton"],
+      CHE:["Chelsea"], COV:["Coventry City","Coventry"], CRY:["Crystal Palace"],
+      EVE:["Everton"], FUL:["Fulham"], HUL:["Hull City","Hull"],
+      IPS:["Ipswich Town","Ipswich"], LEE:["Leeds United","Leeds"], LIV:["Liverpool"],
+      MCI:["Manchester City","Man City"], MUN:["Manchester United","Man Utd","Man United"],
+      NEW:["Newcastle United","Newcastle"], NFO:["Nottingham Forest","Nott'm Forest"],
+      SUN:["Sunderland"], TOT:["Tottenham Hotspur","Tottenham","Spurs"],
+    }[t.short_name] || [];
+    LONG.forEach(n => byNorm[norm(n)] = t.short_name);
+  }
+
+  const PREFERRED = ["bet365", "williamhill", "betfair_ex_uk", "skybet", "paddypower"];
+  const teams = {};
+  const unmatched = new Set();
+  let games = 0;
+
+  for (const g of (raw || [])) {
+    const books = (g.bookmakers || []).filter(b =>
+      b.markets?.some(m => m.key === "h2h") && b.markets?.some(m => m.key === "totals"));
+    const pick = books.sort((a, b) =>
+      (PREFERRED.indexOf(a.key) + 1 || 99) - (PREFERRED.indexOf(b.key) + 1 || 99)).slice(0, 3);
+    if (!pick.length) continue;
+
+    let totLine = 0, totN = 0, hO = 0, dO = 0, aO = 0, n = 0;
+    for (const b of pick) {
+      const h2h = b.markets.find(m => m.key === "h2h");
+      const tot = b.markets.find(m => m.key === "totals");
+      if (h2h) {
+        const ho = h2h.outcomes.find(o => o.name === g.home_team)?.price;
+        const ao = h2h.outcomes.find(o => o.name === g.away_team)?.price;
+        const dr = h2h.outcomes.find(o => o.name === "Draw")?.price;
+        if (ho && ao && dr) { hO += ho; aO += ao; dO += dr; n++; }
+      }
+      if (tot) {
+        const over = tot.outcomes.find(o => o.name === "Over");
+        if (over?.point) { totLine += over.point; totN++; }
+      }
+    }
+    if (!n || !totN) continue;
+
+    const p = devig(hO / n, dO / n, aO / n);
+    const expTotal = totLine / totN + 0.2;
+    const { home: hxg, away: axg } = splitGoals(expTotal, p.home, p.away);
+
+    const hs = byNorm[norm(g.home_team)], as = byNorm[norm(g.away_team)];
+    if (!hs) unmatched.add(g.home_team);
+    if (!as) unmatched.add(g.away_team);
+    if (!hs || !as) continue;
+    games++;
+
+    // LYKILATRIÐI: við geymum mótherja + kickoff svo framendinn geti staðfest
+    // að línan gildi um RÉTTA leikinn (ekki notað á aðra umferð).
+    teams[hs] = { cs: poissonCleanSheet(axg), xga: +axg.toFixed(1), xg: +hxg.toFixed(1),
+      opp: as, home: true, kickoff: g.commence_time, books: pick.map(b => b.title) };
+    teams[as] = { cs: poissonCleanSheet(hxg), xga: +hxg.toFixed(1), xg: +axg.toFixed(1),
+      opp: hs, home: false, kickoff: g.commence_time, books: pick.map(b => b.title) };
+  }
+  if (unmatched.size) console.warn(`Odds: ópöruð nöfn: ${[...unmatched].join(" | ")}`);
+
+  await writeJSON("odds.json", {
+    updated: status.updated, requests_remaining: remaining ? +remaining : null,
+    note: "CS% úr Poisson á væntum mörkum mótherja. 'opp' og 'kickoff' STAÐFESTA að línan gildi um réttan leik.",
+    teams,
+  });
+  record("odds", true, games, `${Object.keys(teams).length} lið · ${remaining} kredit eftir`);
+}
+
 /* ========== MAIN ========== */
 async function main() {
   await mkdir(DATA, { recursive: true });
@@ -914,6 +1022,7 @@ async function main() {
   if (FLAGS.understat){ try { await fetchUnderstat(); }      catch (e) { record("understat_season", false, 0, e.message); } }
   if (FLAGS.understat_shots){ try { await fetchUnderstatShots(); } catch (e) { record("understat_shots", false, 0, e.message); } }
   if (FLAGS.euro)   { try { await fetchEuro(); }              catch (e) { record("euro_fixtures", false, 0, e.message); } }
+  if (FLAGS.odds_key){ try { await fetchOdds(); }              catch (e) { record("odds", false, 0, e.message); } }
 
   await writeJSON("status.json", status);
   console.log("\n=== status.json ===");
