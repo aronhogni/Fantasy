@@ -494,6 +494,7 @@ export default function App() {
   const [dragId, setDragId] = useState(null);
   const [swapSel, setSwapSel] = useState(null);   // valinn til skipta (smellu-flæði)
   const [editPrice, setEditPrice] = useState(null); // kaupverð í stillingu (id)
+  const [confirmReset, setConfirmReset] = useState(null); // "gw" | "all" — staðfestingar-skref
   const [tlStart, setTlStart] = useState(1);        // fyrsta umferð í tímalínu-glugga
   const [selling, setSelling] = useState(null);
   const [searchQ, setSearchQ] = useState("");
@@ -1143,6 +1144,30 @@ export default function App() {
     setBenchSwaps(bs => ({ ...bs, [gw]: [...(bs[gw] || []), [aId, bId]] }));
       return true;
   }
+  /* ---------- ENDURSTILLING ----------
+     Hvað er plönuð í umferð: skipti, bekkjar-breytingar, chip.
+     Tveggja-skrefa staðfesting því þetta er óafturkræft.                */
+  function gwPlanned(g) {
+    const tr = plan.filter(t => t.gw === g).length;
+    const bs = (benchSwaps[g] || []).length;
+    const chKey = Object.keys(chips).find(k => chips[k] === g);
+    const ch = chKey ? (CHIPS[chipSlots.find(x => x.key === chKey)?.name]?.short || "chip") : null;
+    return { tr, bs, ch, any: tr > 0 || bs > 0 || !!ch };
+  }
+  function resetGw(g) {
+    setPlan(pl => pl.filter(t => t.gw !== g));
+    setBenchSwaps(bs => { const n = { ...bs }; delete n[g]; return n; });
+    setChips(c => { const n = { ...c }; for (const k of Object.keys(n)) if (n[k] === g) delete n[k]; return n; });
+    setSwapSel(null); setSelling(null); setConfirmReset(null);
+    flash(`GW${g} endurstillt — upprunalega liðið aftur.`);
+  }
+  function resetAll() {
+    setPlan([]); setBenchSwaps({}); setChips({});
+    setCaptain(START_CAPTAIN); setVice(null);
+    setSwapSel(null); setSelling(null); setConfirmReset(null);
+    flash("Öll plönun endurstillt.");
+  }
+
   function connectUrl() {
     const m = urlInput.match(/entry\/(\d+)/) || urlInput.match(/^(\d+)$/);
     if (!m) { flash("Slóð þarf að innihalda /entry/{númer}/"); return; }
@@ -1489,6 +1514,28 @@ export default function App() {
         <div style={S.deadline}>
           <b>GW{gw}</b> · frestur {fmtDeadline(ev?.deadline_time)}
           {ev?.finished ? " · lokið" : ""}
+          {/* ENDURSTILLA UMFERÐ — birtist aðeins ef eitthvað er plönuð */}
+          {(() => {
+            const pl = gwPlanned(gw);
+            if (!pl.any) return null;
+            const what = [
+              pl.tr ? `${pl.tr} skipti` : null,
+              pl.bs ? `${pl.bs} bekkjar-breyting${pl.bs > 1 ? "ar" : ""}` : null,
+              pl.ch,
+            ].filter(Boolean).join(" · ");
+            return confirmReset === "gw" ? (
+              <span style={S.resetConfirm}>
+                Hreinsa {what}?
+                <button style={S.resetYes} onClick={() => resetGw(gw)}>já</button>
+                <button style={S.resetNo} onClick={() => setConfirmReset(null)}>nei</button>
+              </span>
+            ) : (
+              <button style={S.resetBtn} onClick={() => setConfirmReset("gw")}
+                title={`Hreinsa alla plönun í GW${gw}: ${what}`}>
+                ↺ endurstilla GW{gw}
+              </button>
+            );
+          })()}
           {(() => {
             const tc = transferCost[gw];
             if (!tc) return null;
@@ -1629,6 +1676,22 @@ export default function App() {
               <div style={S.muted}>
                 Ávinningur = vænt stig (stig/leik + FDR, FPL ep_next fyrir næstu umferð) yfir 5 umferðir.
                 Refsing dregst frá. Áætlun, ekki vissa.
+              </div>
+              {/* ENDURSTILLA ALLT — fyrir þegar Wildcard-tilraun er hætt við */}
+              <div style={S.resetAllRow}>
+                {confirmReset === "all" ? (
+                  <span style={S.resetConfirm}>
+                    Hreinsa ALLA plönun ({plan.length} skipti, {Object.keys(benchSwaps).length} umferðir
+                    m. bekkjar-breytingum, {Object.keys(chips).length} chip)?
+                    <button style={S.resetYes} onClick={resetAll}>já, allt</button>
+                    <button style={S.resetNo} onClick={() => setConfirmReset(null)}>nei</button>
+                  </span>
+                ) : (
+                  <button style={S.resetBtn} onClick={() => setConfirmReset("all")}
+                    title="Hreinsa öll skipti, bekkjar-breytingar og chips — upprunalega liðið aftur">
+                    ↺ endurstilla alla plönun
+                  </button>
+                )}
               </div>
               {[...plan].sort((a,z) => a.gw - z.gw).map((t,i) => {
                 const gain = transferNet(t);
@@ -2738,6 +2801,17 @@ const S = {
   nodeChip: { position:"absolute", top:-6, right:-6, fontFamily:mono, fontSize:8, fontWeight:700, color:"#fff", padding:"1px 3px", borderRadius:4, lineHeight:1.3 },
   intl: { flexShrink:0, position:"relative", zIndex:2, display:"inline-flex", alignItems:"center", alignSelf:"flex-end", marginBottom:5 },
   globe: { display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:10, boxShadow:`0 0 0 3px ${C.card}` },
+  resetAllRow: { marginTop:8, paddingTop:8, borderTop:`1px solid ${C.border}` },
+  resetBtn: { marginLeft:10, fontFamily:sans, fontSize:9.5, cursor:"pointer",
+    background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`,
+    borderRadius:6, padding:"2px 7px" },
+  resetConfirm: { marginLeft:10, display:"inline-flex", alignItems:"center", gap:5,
+    fontSize:9.5, color:"#a01f2b", background:C.redBg, border:`1px solid ${C.red}`,
+    borderRadius:6, padding:"2px 6px" },
+  resetYes: { fontFamily:sans, fontSize:9.5, fontWeight:700, cursor:"pointer",
+    background:C.red, color:"#fff", border:"none", borderRadius:4, padding:"1px 7px" },
+  resetNo: { fontFamily:sans, fontSize:9.5, cursor:"pointer",
+    background:C.card, color:C.text2, border:`1px solid ${C.border}`, borderRadius:4, padding:"1px 7px" },
   deadline: { marginTop:9, fontSize:12, color:C.text2, fontFamily:mono },
 
   tcFree: { marginLeft:8, color:"#0a7a4a", fontWeight:600 },
