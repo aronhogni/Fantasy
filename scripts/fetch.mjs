@@ -28,6 +28,8 @@ const FLAGS = {
   weather:         (process.env.ENABLE_WEATHER ?? "true")    === "true",
   espn:            (process.env.ENABLE_ESPN ?? "false")      === "true",
   euro:            (process.env.ENABLE_EURO ?? "true")       === "true",
+  travel:          (process.env.ENABLE_TRAVEL ?? "true")     === "true",
+  derived:         (process.env.ENABLE_DERIVED ?? "true")    === "true",
   odds_key:        process.env.ODDS_API_KEY || "",
 };
 
@@ -437,7 +439,12 @@ async function fetchHistoricalE0() {
     try {
       const { text } = await getText(`https://www.football-data.co.uk/mmz4281/${ss}/E0.csv`);
       const { header, rows } = parseCSV(text);
-      await writeJSON(path, { season: ss, header, rows });
+      // VARÚÐ frá football-data.co.uk: Pinnacle-fæðið (PS*/PSC*) er óáreiðanlegt
+      // frá 23.07.2025 og ekki lengur notað í meðaltöl. Merkjum það.
+      const untrusted = header.filter(h => /^PSC?[HDA]$/.test(h));
+      await writeJSON(path, { season: ss, header, rows,
+        untrusted_columns: untrusted,
+        untrusted_note: "Pinnacle-línur óáreiðanlegar frá 2025-07-23 — ekki nota í meðaltöl." });
       allRows.push(...rows);
       fetchedSeasons++;
       console.log(`fdcouk E0-${ss}: ${rows.length} leikir`);
@@ -1063,6 +1070,156 @@ async function fetchFast() {
   await writeJSON("status_fast.json", status);
 }
 
+/* ========== 10. AFLEIDD LÖG — engin ný köll, engir kvótar ==========
+   Allt hér er reiknað úr gögnum sem eru ÞEGAR sótt. Kostar ekkert.
+   Hvert lag í sínu try/catch og telur raðir í status.json.              */
+
+const LONG_TRIP_KM = 300;   // þröskuldur fyrir "langt ferðalag"
+
+// Haversine — fjarlægð milli leikvanga í km
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(a)));
+}
+
+/* ---- 5. FERÐALENGD ----
+   Hnitin eru þegar í teams_map.json (sótt fyrir veðrið). Sama borð gefur
+   ferðalengd útiliðsins — breyta sem nánast enginn reiknar.              */
+async function deriveTravel() {
+  const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
+  const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
+  const out = [];
+  let missing = 0;
+  for (const f of fixtures) {
+    const h = tmap[f.team_h], a = tmap[f.team_a];
+    if (!h?.lat || !a?.lat) { missing++; continue; }
+    const km = haversineKm(a.lat, a.lon, h.lat, h.lon);
+    out.push({
+      fixture_id: f.id, event: f.event, kickoff_time: f.kickoff_time,
+      home_fpl_id: f.team_h, away_fpl_id: f.team_a,
+      km, is_long_trip: km > LONG_TRIP_KM,
+    });
+  }
+  if (missing) console.warn(`Ferðalengd: ${missing} leikir án hnita`);
+  await writeJSON("travel.json", {
+    updated: status.updated, long_trip_km: LONG_TRIP_KM,
+    note: "km = haversine milli leikvanga. Gildir um ÚTILIÐIÐ (away_fpl_id).",
+    fixtures: out,
+  });
+  const longs = out.filter(x => x.is_long_trip).length;
+  record("travel", true, out.length, `${longs} löng ferðalög (>${LONG_TRIP_KM} km)`);
+}
+
+/* ---- 6. UMFERÐAFORM: auðar og tvöfaldar umferðir ----
+   Leitt úr fixtures.json. Lið með 0 leiki = auð umferð, 2+ = tvöföld.
+   ATH SEM ER OFT MISSKILIN: lið sem fer ÚR bikar snemma fær TRYGGARI
+   mínútur, ekki verri — þess vegna cup_exited-sviðið.                    */
+async function deriveGameweekShape() {
+  const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
+  const teams = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
+  const events = JSON.parse(await readFile(`${DATA}/events.json`, "utf8")).events;
+  // bikarleikir (úr euro_fixtures.json ef til) til að meta cup_exited
+  let extra = {};
+  try {
+    const eu = JSON.parse(await readFile(`${DATA}/euro_fixtures.json`, "utf8"));
+    extra = eu.by_team || {};
+  } catch {}
+
+  const count = {};
+  fixtures.forEach(f => {
+    if (!f.event) return;
+    [f.team_h, f.team_a].forEach(t => {
+      count[t] = count[t] || {};
+      count[t][f.event] = (count[t][f.event] || 0) + 1;
+    });
+  });
+
+  const shape = events.map(ev => {
+    const playing = [], blanks = [], doubles = [];
+    teams.forEach(t => {
+      const n = count[t.id]?.[ev.id] || 0;
+      if (n === 0) blanks.push(t.id);
+      else { playing.push(t.id); if (n >= 2) doubles.push(t.id); }
+    });
+    return { event: ev.id, teams_playing: playing, blanks, doubles };
+  });
+
+  // cup_exited: lið sem hafa ENGA bikar-/Evrópuleiki skráða framvegis.
+  // Fyrir tímabil er þetta óþekkt — merkjum null, ekki false (ekki ljúga).
+  const anyExtra = Object.keys(extra).length > 0;
+  const cupStatus = {};
+  teams.forEach(t => {
+    const games = extra[t.id] || extra[String(t.id)] || [];
+    cupStatus[t.id] = anyExtra ? { extra_games: games.length, cup_exited: games.length === 0 }
+                               : { extra_games: 0, cup_exited: null };
+  });
+
+  await writeJSON("gameweek_shape.json", {
+    updated: status.updated,
+    note: "blanks = lið með 0 leiki í umferð, doubles = 2+. cup_exited null = óþekkt (bikarar ódregnir).",
+    cup_status: cupStatus, shape,
+  });
+  const nB = shape.reduce((a, s) => a + s.blanks.length, 0);
+  const nD = shape.reduce((a, s) => a + s.doubles.length, 0);
+  record("gameweek_shape", true, shape.length, `${nB} auðar, ${nD} tvöfaldar`);
+}
+
+/* ---- 1b. HVÍLDARDAGAR ----
+   rest_days úr KICKOFF-TÍMA (ekki dagsetningu eingöngu), yfir ALLAR
+   keppnir sem við höfum. euro_before/after fyllast þegar Evrópudráttur
+   er gerður — þangað til eru þau false, sem er rétt (engir leikir skráðir). */
+async function deriveRotation() {
+  const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
+  const teams = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
+  let extra = {};
+  try {
+    const eu = JSON.parse(await readFile(`${DATA}/euro_fixtures.json`, "utf8"));
+    extra = eu.by_team || {};
+  } catch {}
+
+  const out = [];
+  for (const t of teams) {
+    // allir leikir liðsins: deild + Evrópa/bikar, tímaraðaðir
+    const pl = fixtures
+      .filter(f => (f.team_h === t.id || f.team_a === t.id) && f.kickoff_time)
+      .map(f => ({ when: new Date(f.kickoff_time), event: f.event, comp: "PL" }));
+    const ex = (extra[t.id] || extra[String(t.id)] || [])
+      .filter(x => x.date)
+      .map(x => ({ when: new Date(x.date), event: null, comp: x.comp_label || x.comp }));
+    const all = [...pl, ...ex].sort((a, b) => a.when - b.when);
+
+    for (let i = 0; i < all.length; i++) {
+      const g = all[i];
+      if (g.comp !== "PL" || !g.event) continue;      // aðeins PL-umferðir
+      const prev = all[i - 1];
+      const next = all[i + 1];
+      const dayDiff = (x, y) => Math.round((y - x) / 86400000 * 10) / 10;
+      const restDays = prev ? dayDiff(prev.when, g.when) : null;
+      const beforeGap = prev && prev.comp !== "PL" ? dayDiff(prev.when, g.when) : null;
+      const afterGap = next && next.comp !== "PL" ? dayDiff(g.when, next.when) : null;
+      out.push({
+        fpl_id: t.id, event: g.event, kickoff_time: g.when.toISOString(),
+        rest_days: restDays,
+        euro_before: beforeGap != null && beforeGap >= 2 && beforeGap <= 4,
+        euro_after: afterGap != null && afterGap >= 2 && afterGap <= 4,
+        euro_competition: (beforeGap != null && beforeGap <= 4) ? prev.comp
+                        : (afterGap != null && afterGap <= 4) ? next.comp : null,
+      });
+    }
+  }
+  const flagged = out.filter(x => x.euro_before || x.euro_after).length;
+  const short = out.filter(x => x.rest_days != null && x.rest_days < 4).length;
+  await writeJSON("rotation.json", {
+    updated: status.updated,
+    note: "rest_days = dagar frá SÍÐASTA leik liðsins í hvaða keppni sem er (úr kickoff_time). euro_before/after = Evrópu-/bikarleikur 2-4 dögum fyrir/eftir.",
+    rows: out,
+  });
+  record("rotation", true, out.length, `${short} m. <4 daga hvíld, ${flagged} m. Evrópu-nálægð`);
+}
+
 /* ========== MAIN ========== */
 async function main() {
   await mkdir(DATA, { recursive: true });
@@ -1094,6 +1251,11 @@ async function main() {
   if (FLAGS.understat_shots){ try { await fetchUnderstatShots(); } catch (e) { record("understat_shots", false, 0, e.message); } }
   if (FLAGS.euro)   { try { await fetchEuro(); }              catch (e) { record("euro_fixtures", false, 0, e.message); } }
   if (FLAGS.odds_key){ try { await fetchOdds(); }              catch (e) { record("odds", false, 0, e.message); } }
+
+  // ---- AFLEIDD LÖG (engin ný köll) — keyrð SÍÐAST því þau lesa skrárnar ofan ----
+  if (FLAGS.travel)  { try { await deriveTravel(); }           catch (e) { record("travel", false, 0, e.message); } }
+  if (FLAGS.derived) { try { await deriveGameweekShape(); }    catch (e) { record("gameweek_shape", false, 0, e.message); }
+                       try { await deriveRotation(); }         catch (e) { record("rotation", false, 0, e.message); } }
 
   await writeJSON("status.json", status);
   console.log("\n=== status.json ===");
