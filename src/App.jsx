@@ -33,7 +33,7 @@ const C = {
 /* ---- Lið-kóðar fyrir félagsmerki (notað ef 'code' vantar í teams.json) ---- */
 const CREST_FALLBACK = {
   ARS:3, AVL:7, BOU:91, BRE:94, BHA:36, CHE:8, CRY:31, EVE:11, FUL:54,
-  LIV:14, MCI:43, MUN:1, NEW:4, NFO:17, TOT:6, SUN:56, COV:96, HUL:88, IPS:40, LEE:2,
+  LIV:14, MCI:43, MUN:1, NEW:4, NFO:17, TOT:6, SUN:56, COV:9, HUL:88, IPS:40, LEE:2,
 };
 /* ---- Treyjulitir fyrir fallback-mynd ---- */
 const KIT = {
@@ -2518,9 +2518,12 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
           {av.short}{av.chance != null && av.chance > 0 ? av.chance : ""}
         </span>
       )}
-      <div style={S.pPortrait}>
+      <div style={S.pPortrait}
+        title={`${team?.name || "?"}${"\n"}ATH: FPL-myndin getur sýnt GAMALT félag eftir skipti. Merkið er rétt.`}>
         <PlayerImg code={p.code} short={team?.short} size={38} />
-        <Crest team={team} size={15} style={S.pCrest} />
+        {/* Merkið er ÓTVÍRÆÐA félags-vísbendingin — stærra og með hvítum
+            baug svo það lesist yfir myndinni, sem getur verið úrelt.       */}
+        <Crest team={team} size={18} style={S.pCrest} />
       </div>
       <div style={S.pName}>{p.web_name}</div>
       <div style={S.pPrice}>
@@ -2734,7 +2737,9 @@ const S = {
   pcIconSwap: { color:C.purple, borderColor:"#d9c8f5", fontSize:10 },
   band: { position:"absolute", top:4, right:4, minWidth:15, height:15, borderRadius:8, fontFamily:mono, fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 },
   pPortrait: { position:"relative", height:34, display:"flex", alignItems:"flex-end", justifyContent:"center", marginBottom:2 },
-  pCrest: { position:"absolute", bottom:-2, right:8, width:15, height:15, objectFit:"contain" },
+  pCrest: { position:"absolute", bottom:-3, right:4, width:18, height:18, objectFit:"contain",
+    background:"#fff", borderRadius:"50%", padding:1,
+    boxShadow:"0 0 0 1.5px #fff, 0 1px 3px rgba(0,0,0,0.28)" },
   pCode: { position:"absolute", bottom:0, right:6, fontFamily:mono, fontSize:8, color:C.text3 },
   pName: { fontSize:11, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" },
   pPrice: { fontFamily:mono, fontSize:10.5, color:C.text2 },
