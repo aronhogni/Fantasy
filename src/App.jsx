@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Pitch from "./Pitch.jsx";
 
 /* ============================================================
@@ -232,6 +232,7 @@ const FIT = {
    Meðaltal þriggja tímabila er notað sem varúð gegn of-fittun.          */
 const FIT_MULTI = { bias:-1.72, pts5:1.155, mins5:8.988, xgi90:0.955, bps90:0.003, price:1.229, fdr:-0.984 };
 
+const FFDR_AHEAD = 5;  // umferðir sem útskiptingar-röðun horfir á
 const TL_WINDOW = 13;  // umferðir sýndar í einu — hnútarnir FYLLA breiddina
 
 /* ---- Landsleikjahlé: hlé Á EFTIR þessum umferðum ---- */
@@ -1185,6 +1186,19 @@ export default function App() {
   }
 
   /* ---------- Leit (allir 558) ---------- */
+  /* Meðal-FFDR næstu FFDR_AHEAD umferðir, í hóp leikmannsins.
+     Notað til að raða útskiptingar-kostum: léttustu leikirnir efst.        */
+  const ffdrAhead = useCallback(p => {
+    let sum = 0, n = 0;
+    for (let g = gw; g < gw + FFDR_AHEAD && g <= maxGw; g++) {
+      for (const f of (fixByTeamGw[p.team]?.[g] || [])) {
+        const d = fixDifficulty(p.team, f, p.element_type);
+        if (d != null) { sum += d; n++; }
+      }
+    }
+    return n ? sum / n : 9;      // engir leikir -> aftast
+  }, [gw, maxGw, fixByTeamGw, teamMetrics, odds, eloByTeam, teamById]);
+
   const searchResults = useMemo(() => {
     if (!players) return [];
     const q = searchQ.toLowerCase().trim()
@@ -1198,9 +1212,17 @@ export default function App() {
       const hay = `${p.web_name} ${p.first_name} ${p.second_name} ${t?.name || ""} ${t?.short || ""}`
         .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return hay.includes(q);
-    }).sort((a,b) => parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0) || b.total_points - a.total_points)
-      .slice(0, 120);
-  }, [players, searchQ, searchPos, selling, squadIds, byId, teamById]);
+    }).sort((a, b) => {
+      /* Í ÚTSKIPTINGU: raða eftir FFDR næstu 5 umferðir — LÉTTAST EFST.
+         Það er spurningin sem verið er að svara: hver á bestu leikina? */
+      if (selling) {
+        const d = ffdrAhead(a) - ffdrAhead(b);
+        if (Math.abs(d) > 0.005) return d;
+      }
+      return parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0)
+          || (b.total_points || 0) - (a.total_points || 0);
+    }).slice(0, 120);
+  }, [players, searchQ, searchPos, selling, squadIds, byId, teamById, ffdrAhead]);
 
   /* ---------- Tillögu-kerfi: MÆLDAR vogtölur (sjá FIT ofar) ---------- */
   const recommendations = useMemo(() => {
