@@ -670,6 +670,14 @@ export default function App() {
   const preSeasonRef = React.useRef(false);
 
   /* ---------- Afleidd gögn ---------- */
+  /* ---------- TÍMABILS-STAÐA — verður að vera SNEMMA ----------
+     Uppsafnaðar tölur í players.json (spjöld, mínútur, byrjanir, stig) eru
+     frá FYRRA tímabili þar til umferð er lokin. Þessi tvö flögg ákveða hvort
+     þær megi lesa sem yfirstandandi — og margt neðar þarf þau, svo þau eru
+     skilgreind hér, ekki hjá preSeason.                                     */
+  const seasonStarted = !!events?.some(e => e.finished);
+  const seasonGames = (events || []).filter(e => e.finished).length;
+
   const byId = useMemo(() => {
     const m = {}; (players || []).forEach(p => m[p.id] = p);
 
@@ -1244,8 +1252,6 @@ export default function App() {
   const preSeason = gw1Deadline ? new Date() < new Date(gw1Deadline) : false;
   // TÍMABIL BYRJAÐ = einhver umferð lokin. Þangað til eru allar uppsöfnuðu
   // tölur í players.json frá SÍÐASTA tímabili (spjöld, mínútur, stig).
-  const seasonStarted = !!events?.some(e => e.finished);
-  const seasonGames = (events || []).filter(e => e.finished).length;
   preSeasonRef.current = preSeason;
 
   /* ---------- VÆNT STIG per umferð ----------
