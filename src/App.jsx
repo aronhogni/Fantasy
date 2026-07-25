@@ -11,12 +11,28 @@ import React, { useState, useEffect, useMemo } from "react";
    ============================================================ */
 const PROXY_URL = "https://mellifluous-hummingbird-565c85.netlify.app/.netlify/functions/odds"; // Netlify-fallið þitt
 
-// CS% -> litur. Mörk notanda: grænt ≥40%, gult 25–39%, rautt <25%.
+// SAMSETT varnar-einkunn: CS% er kjölfestan, xGA (vænt mörk á sig) gefur
+// hóflega ±12 leiðréttingu. Meðal-xGA ~1.4: betri vörn = bónus, verri = refsing.
+// Grænt ≥38, gult 24–37, rautt <24 á samsettu.
+function defScore(cs, xga) {
+  if (cs == null) return null;
+  if (xga == null) return cs;
+  const adj = Math.max(-12, Math.min(12, (1.4 - xga) * 20));
+  return Math.round(cs + adj);
+}
+function defColor(cs, xga) {
+  const s = defScore(cs, xga);
+  if (s == null) return null;
+  if (s >= 38) return "#1B7A3D";   // grænt: sterk vörn (CS% + lágt xGA)
+  if (s >= 24) return "#E0A500";   // gult: eðlilegt
+  return "#C62828";                 // rautt: veik vörn (lágt CS% og/eða hátt xGA)
+}
+// CS% -> litur (notað þar sem aðeins CS% á við). Mörk notanda: 40/25.
 function csColor(pct) {
   if (pct == null) return null;
-  if (pct >= 40) return "#1B7A3D";      // grænt: yfir meðallagi, gott CS-veðmál
-  if (pct >= 25) return "#E0A500";      // gult: eðlilegt bil (meðallag ~28-30%)
-  return "#C62828";                      // rautt: undir meðallagi, ólíklegt hreint
+  if (pct >= 40) return "#1B7A3D";
+  if (pct >= 25) return "#E0A500";
+  return "#C62828";
 }
 
 // ---- Leikjadagskrá GW1–8: [andstæðingur, heima?, FDR 1(létt)–5(þungt)] ----
@@ -278,7 +294,7 @@ export default function App() {
 
       <div style={S.oddsBar}>
         <span style={S.oddsDot(oddsState)} />
-        {oddsState==="ok"   && <span>Bókmakera-CS% virkt — litað eftir hreint-líkum (grænt ≥40%, gult 25–39%, rautt {"<"}25%). Meðallið ~28-30%.</span>}
+        {oddsState==="ok"   && <span>Bókmakera-gögn virk — varnarmenn litaðir eftir SAMSETTRI einkunn (CS% + vænt mörk á sig). Grænt = sterk vörn, gult = eðlileg, rautt = veik.</span>}
         {oddsState==="loading" && <span>Sæki bókmakera-línur…</span>}
         {oddsState==="off"  && <span>Bókmakera-CS% óvirkt — sýni FDR + spá. Tengdu Netlify-proxy (PROXY_URL) til að kveikja á lifandi CS%.</span>}
         {oddsState==="error"&& <span>Náði ekki í bókmakera-línur. Athugaðu proxy-slóð og ODDS_API_KEY á Netlify.</span>}
@@ -428,11 +444,11 @@ function PlayerCard({ p, gw, captain, bench, onCap, odds }) {
       </button>
       <div style={S.cardName}>{p.n}</div>
       <div style={S.cardMeta}>{p.t} · £{p.price.toFixed(1)}</div>
-      {fx ? <FixChip fx={fx} live={live} /> : <div style={S.noFix}>—</div>}
+      {fx ? <FixChip fx={fx} live={live} isDef={isDefensive} /> : <div style={S.noFix}>—</div>}
       {live ? (
         isDefensive
           ? <div style={S.liveDefBox}>
-              <span style={{color:csColor(live.cs), fontWeight:700}}>CS {live.cs}%</span>
+              <span style={{color:defColor(live.cs, live.xga), fontWeight:700, fontFamily:mono, fontSize:11}}>CS {live.cs}%</span>
               <span style={S.xgaLine} title="Vænt mörk á sig (xGA) — lægra er betra">{live.xga} á sig</span>
             </div>
           : <div style={S.liveLine}>{live.xg} vænt mörk</div>
@@ -443,10 +459,13 @@ function PlayerCard({ p, gw, captain, bench, onCap, odds }) {
   );
 }
 
-function FixChip({ fx, inline, live }) {
+function FixChip({ fx, inline, live, isDef }) {
   const [opp, home, fdr] = fx;
-  // Ef lifandi CS% er til fyrir þennan leik, litum eftir því; annars FDR.
-  const bg = (live && live.cs != null) ? csColor(live.cs) : FDR[fdr];
+  // Varnarmenn: samsettur CS%+xGA litur. Aðrir: CS% ef til, annars FDR.
+  let bg = FDR[fdr];
+  if (live && live.cs != null) {
+    bg = isDef ? defColor(live.cs, live.xga) : csColor(live.cs);
+  }
   return (
     <span style={{...S.fixChip, background:bg, ...(inline?{padding:"1px 6px"}:{})}}>
       {opp}{home?" (H)":" (A)"}
