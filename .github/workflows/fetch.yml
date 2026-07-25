@@ -1,0 +1,42 @@
+name: fetch-data
+
+on:
+  schedule:
+    - cron: "0 5 * * *"     # 05:00 UTC daglega
+  workflow_dispatch: {}      # handvirk keyrsla úr Actions-flipanum
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sækja gögn
+        env:
+          ENABLE_UNDERSTAT: "true"
+          ENABLE_UNDERSTAT_SHOTS: "true"
+          ENABLE_ELO: "true"
+          ENABLE_FDCOUK: "true"
+          ENABLE_WEATHER: "true"
+          ENABLE_ESPN: "false"
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: node scripts/fetch.mjs
+
+      - name: Committa ef eitthvað breyttist
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data
+          if git diff --staged --quiet; then
+            echo "Engar breytingar — sleppi commit."
+          else
+            git commit -m "data: $(date -u +%Y-%m-%d)"
+            git push
+          fi
