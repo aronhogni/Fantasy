@@ -307,6 +307,60 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
+### BLÖNDUN MARKAÐS OG FORMÚLU — FULLMÆLT
+
+E0-lokalínur **paraðar við** vaastav leikmanna-stig: 2.720 lið-leikir, 5 tímabil.
+Krossprófað (læra á 4 tímabil, velja blöndu, prófa á því fimmta).
+
+#### Bæði mælt: fylgni OG praktískt val
+
+| Staða | Blanda | Fylgni (ÚaÚ) | Praktískt* | Yfir grunn |
+|---|---|---|---|---|
+| GK | **20%** | 0,1648 | 4,05 | +0,62 |
+| DEF | **65%** | 0,3062 | 4,32 | +1,27 |
+| MID | **40%** | 0,2996 | 4,29 | +0,83 |
+| FWD | **35%** | 0,1931 | 5,19 | +1,09 |
+
+\* meðalstig per leikmann þegar léttustu 15% leikja eru valin
+
+#### Þrjár niðurstöður sem stangast á — og hvað þær segja
+
+**1. Yfirborðið er FLATT.** DEF gefur 0,3045–0,3064 á öllu bilinu 40–80%.
+Nákvæma talan skiptir litlu; **það sem skiptir máli er AÐ blanda**.
+
+**2. Fylgni og praktískt val gefa ólík svör.** Fyrir DEF segir fylgni 60%,
+praktískt val segir 100%. Ástæðan: fylgni mælir alla dreifinguna, praktískt
+val aðeins **toppinn**. Markaðurinn er betri í að finna öfgaleiki en verri
+í miðjunni.
+
+**3. Besta blandan fer eftir LEIKJATEGUND:**
+
+| Staða | Öfgaleikir (þyngd <2 eða >4) | Jafnir leikir |
+|---|---|---|
+| GK | 55% (r 0,146) | 35% (r 0,141) |
+| DEF | **100%** (r 0,294) | 60% (r 0,230) |
+| MID | 65% (r 0,291) | 35% (r 0,190) |
+| FWD | **5%** (r 0,206) | 40% (r 0,152) |
+
+Fyrir varnarmenn er markaðurinn **einn** bestur í öfgaleikjum. Fyrir framherja
+er hann nánast gagnslaus þar (5%) en gagnlegur í jöfnum leikjum (40%).
+
+**EKKI ÚTFÆRT.** Skilyrt blöndun tvöfaldar breytufjöldann (8 í stað 4) á sömu
+2.720 sýnum. FWD-talan (5%) er tortryggileg. Föst blöndun er valin sem
+of-fittunar-vörn — sama ákvörðun sem var tekin með premium-liðnum.
+
+#### Stöðugleiki
+
+| Staða | Val per haldið tímabil | Dómur |
+|---|---|---|
+| GK | 30 · 30 · 35 · 45 · 40 | stöðugt |
+| DEF | 60 · 65 · 55 · **85** · 65 | **óstöðugt — varúð** |
+| MID | 45 · 45 · 45 · 45 · 50 | mjög stöðugt |
+| FWD | 30 · 35 · 25 · 20 · 20 | stöðugt |
+
+DEF er flaggað óstöðugt (eitt tímabil valdi 85%). Út-af-úrtaki árangur er samt
+góður (0,3033), og flata yfirborðið þýðir að 65% er óhætt val.
+
 ### ÞRJÁR VIÐBÆTUR — MÆLDAR
 
 #### 1. Lifandi lokalínur (stærsta viðbótin)
