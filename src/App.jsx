@@ -269,7 +269,7 @@ export default function App() {
 
       {/* Mælaborð */}
       <div style={S.stats}>
-        <Stat label="Banki (GW"+gw+")" value={`£${bank.toFixed(1)}`} tone={bank<0?"bad":"ok"} />
+        <Stat label={`Banki (GW${gw})`} value={`£${bank.toFixed(1)}`} tone={bank<0?"bad":"ok"} />
         <Stat label="Spá / vika" value={projTotal.toFixed(1)} sub="XI + fyrirliði ×2" />
         <Stat label="Skipti í áætlun" value={plan.length} sub={`${plan.filter(t=>t.gw<=gw).length} virk núna`} />
         <Stat label="Mest frá félagi" value={Math.max(...Object.values(teamCounts))+"/3"} tone={Math.max(...Object.values(teamCounts))>3?"bad":"ok"} />
