@@ -2037,25 +2037,32 @@ export default function App() {
               <div style={S.dGrid}>
                 {isPlayer ? (
                   <>
-                    <DStat k="Spá næstu (ep)" v={p.ep_next} />
-                    <DStat k="Form" v={p.form} />
-                    <DStat k="Stig/leik" v={p.points_per_game} />
-                    <DStat k="Stig samtals" v={p.total_points} sub="sl. tímabil" />
-                    <DStat k="Eignarhlutfall" v={`${p.selected_by_percent}%`} />
-                    <DStat k="Mínútur" v={p.minutes} sub="sl. tímabil" />
-                    <DStat k="xG / 90" v={per90(p.expected_goals, p.minutes) ?? "—"} />
-                    <DStat k="xA / 90" v={per90(p.expected_assists, p.minutes) ?? "—"} />
-                    {p.element_type <= 2 && <DStat k="Hrein blöð" v={p.clean_sheets} sub="sl. tímabil" />}
-                    {rot && <DStat k="Byrjaði" v={`${rot.starts}/38`} sub={`${rot.pct}%`} />}
-                    {p.yellow_cards != null && <DStat k="Gul / rauð" v={`${p.yellow_cards} / ${p.red_cards ?? 0}`} />}
-                    {sp && <DStat k="Vítaröð" v={sp.pen ?? "—"} sub={sp.isPenTaker ? "fyrsti taki" : ""} />}
+                    {/* SKÝRING á heimildar-merkjum — svo aldrei sé óljóst */}
+                    <div style={S.srcLegend}>
+                      <span><b style={{ color:C.green }}>nú</b> lifandi</span>
+                      <span><b style={{ color:C.amber }}>{seasonStarted ? `GW1–${seasonGames}` : "sl. tímabil"}</b> uppsafnað</span>
+                      <span><b style={{ color:C.purple }}>reikn.</b> okkar mat</span>
+                    </div>
+                    <DStat k="Spá næstu (ep)" v={p.ep_next} src="live" />
+                    <DStat k="Form" v={p.form} src="cum" />
+                    <DStat k="Stig/leik" v={p.points_per_game} src="cum" />
+                    <DStat k="Stig samtals" v={p.total_points} src="cum" />
+                    <DStat k="Eignarhlutfall" v={`${p.selected_by_percent}%`} src="live" />
+                    <DStat k="Mínútur" v={p.minutes} src="cum" />
+                    <DStat k="xG / 90" v={per90(p.expected_goals, p.minutes) ?? "—"} src="cum" />
+                    <DStat k="xA / 90" v={per90(p.expected_assists, p.minutes) ?? "—"} src="cum" />
+                    {p.element_type <= 2 && <DStat k="Hrein blöð" v={p.clean_sheets} src="cum" />}
+                    {rot && <DStat k="Byrjaði" v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} src="cum" />}
+                    {p.yellow_cards != null && <DStat k="Gul / rauð" v={`${p.yellow_cards} / ${p.red_cards ?? 0}`} src="cum"
+                      sub={seasonStarted ? null : "núllstillast — engin bann-hætta enn"} />}
+                    {sp && <DStat k="Vítaröð" v={sp.pen ?? "—"} sub={sp.isPenTaker ? "fyrsti taki" : ""} src="live" />}
                   </>
                 ) : (
                   <>
-                    <DStat k="ClubElo" v={e ? Math.round(e.elo) : "—"} sub={e ? `rank ${e.rank}` : "ekki paraður"} />
-                    <DStat k="xG / leik" v={tm.xg90 ?? "—"} />
-                    <DStat k="xGC / 90" v={tm.xgc90 ?? "—"} sub="lægra betra" />
-                    <DStat k="DefCon-tækifæri" v={dcv ? dcv.defcon_opportunity : "—"} sub="hærra = fleiri CBIT" />
+                    <DStat k="ClubElo" v={e ? Math.round(e.elo) : "—"} sub={e ? `rank ${e.rank}` : "ekki paraður"} src="live" />
+                    <DStat k="xG / leik" v={tm.xg90 ?? "—"} src="calc" />
+                    <DStat k="xGC / 90" v={tm.xgc90 ?? "—"} sub="lægra betra" src="calc" />
+                    <DStat k="DefCon-tækifæri" v={dcv ? dcv.defcon_opportunity : "—"} sub="hærra = fleiri CBIT" src="calc" />
                   </>
                 )}
               </div>
@@ -2084,7 +2091,7 @@ export default function App() {
                       )}
                     </div>
                     <div style={S.dGrid}>
-                      <DStat k="Núverandi" v={`£${(cur / 10).toFixed(1)}`} />
+                      <DStat k="Núverandi" v={`£${(cur / 10).toFixed(1)}`} src="live" />
                       <DStat k="Söluverð" v={`£${(sell / 10).toFixed(1)}`}
                         sub={profit > 0 ? `${((profit - kept) / 10).toFixed(1)} tapast` : ""} />
                       <DStat k="Verðbreyting"
@@ -2800,6 +2807,10 @@ const S = {
   dAlert: { borderRadius:8, padding:"8px 10px", fontSize:12, marginBottom:9 },
   dGrid: { display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(88px,1fr))", gap:7, marginBottom:12 },
   dStat: { background:C.cardAlt, borderRadius:8, padding:"7px 9px" },
+  srcLegend: { gridColumn:"1 / -1", display:"flex", gap:12, flexWrap:"wrap", fontSize:9,
+    color:C.text3, marginBottom:2, paddingBottom:5, borderBottom:`1px solid ${C.border}` },
+  srcTag: { marginLeft:4, fontFamily:mono, fontSize:7.5, fontWeight:700, letterSpacing:0.2,
+    textTransform:"none", opacity:0.85 },
   dStatK: { fontFamily:mono, fontSize:8.5, textTransform:"uppercase", letterSpacing:0.5, color:C.text3 },
   dStatV: { fontFamily:mono, fontSize:15, fontWeight:700, marginTop:1 },
   dStatS: { fontSize:9, color:C.text3 },
@@ -2831,6 +2842,8 @@ const S = {
   pSell: { fontFamily:mono, fontSize:8.5, color:C.red, marginLeft:2 },
   dActions: { display:"flex", gap:6, flexWrap:"wrap", paddingTop:8, borderTop:`1px solid ${C.border}` },
   dBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:7, padding:"7px 11px", fontSize:12, color:C.text, cursor:"pointer", fontWeight:500 },
+  srcLegend: { gridColumn:"1 / -1", display:"flex", gap:12, flexWrap:"wrap", fontSize:9,
+    color:C.text3, marginBottom:2, paddingBottom:5, borderBottom:`1px solid ${C.border}` },
   srcTag: { fontSize:7.5, opacity:0.55, marginLeft:2, verticalAlign:"super" },
   dotWait: { width:7, height:7, borderRadius:"50%", background:"#f59e0b", flexShrink:0 },
   dotOff: { width:7, height:7, borderRadius:"50%", background:C.text3, flexShrink:0 },
