@@ -493,7 +493,8 @@ export default function App() {
   const [tlStart, setTlStart] = useState(1);        // fyrsta umferð í tímalínu-glugga
   const [selling, setSelling] = useState(null);
   const [searchQ, setSearchQ] = useState("");
-  const [browse, setBrowse] = useState(false); // frjáls leit (ekki bundin sölu)
+  const [browse, setBrowse] = useState(false);
+  const [showFfdr, setShowFfdr] = useState(false);  // FFDR-taflan sýnileg // frjáls leit (ekki bundin sölu)
   const [searchPos, setSearchPos] = useState("all");
   const [toast, setToast] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -1429,6 +1430,9 @@ export default function App() {
         <div style={S.headRight}>
           <button style={S.searchBtn} onClick={() => { setBrowse(true); setSearchQ(""); setSearchPos("all"); }}
             title="Leita í öllum leikmönnum">🔍 Leikmenn</button>
+          <button style={{ ...S.searchBtn, ...(showFfdr ? S.searchBtnOn : {}) }}
+            onClick={() => setShowFfdr(v => !v)}
+            title="Leikjaþyngd allra liða, sér fyrir hverja stöðu">📊 FFDR</button>
           <input style={S.urlInput} placeholder="FPL Url" value={urlInput}
             onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && connectUrl()} />
           <button style={S.connectBtn} onClick={connectUrl}>{entryId ? "Uppfæra" : "Tengja"}</button>
@@ -1599,6 +1603,14 @@ export default function App() {
             crestFor={crestFor} diffOf={fixDifficulty} csFor={csFor}
             weatherByFx={weatherByFx} liveByFx={liveByFx} nameOf={id => byId[id]?.web_name || `#${id}`} onPick={t => setDetail({ kind:"team", id:t })} />
           </div>
+
+          {/* FFDR-TAFLAN — plönunar-yfirsýn yfir öll lið */}
+          {showFfdr && (
+            <FfdrTable teams={teams} fixByTeamGw={fixByTeamGw} teamById={teamById}
+              diffOf={fixDifficulty} crestFor={crestFor}
+              from={tlStart} span={TL_WINDOW} maxGw={maxGw}
+              onPickTeam={id => setDetail({ kind:"team", id })} />
+          )}
 
           {/* Skiptaáætlun (listi — ekki form) */}
           {plan.length > 0 && (
@@ -2387,6 +2399,93 @@ function FixChip({ fx, teamById, diff, pos }) {
 /* ---- LEIKIR UMFERÐARINNAR ----
    Þéttur listi við hliðina á vellinum. Hvert lið fær sinn FFDR-lit, svo þú
    sérð á svipstundu hverjir eiga léttan leik — óháð því hvort þú átt þá.   */
+/* ============================================================
+   FFDR-TAFLA — lið × umferðir, sér fyrir hverja stöðu.
+   Þetta er plönunar-yfirsýnin: hvaða lið eiga léttustu leikina á
+   næstunni, fyrir þá stöðu sem þú ert að versla í.
+   Raðað eftir MEÐAL-FFDR yfir valið svið (léttast fyrst).
+   ============================================================ */
+function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span, maxGw, onPickTeam }) {
+  const [pos, setPos] = useState(2);
+  const gws = Array.from({ length: span }, (_, i) => from + i).filter(g => g <= maxGw);
+  const rows = (teams || []).map(t => {
+    const cells = gws.map(g => {
+      const fxs = fixByTeamGw[t.id]?.[g] || [];
+      if (!fxs.length) return { blank: true };
+      return {
+        multi: fxs.length > 1,
+        items: fxs.map(f => ({ f, d: diffOf(t.id, f, pos) ?? f.fdr })),
+      };
+    });
+    const vals = cells.flatMap(c => c.items ? c.items.map(x => x.d) : []);
+    return { t, cells, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+             played: vals.length };
+  }).sort((a, z) => (a.avg ?? 9) - (z.avg ?? 9));
+  const POSB = [[1,"GK"],[2,"VÖRN"],[3,"MIÐJA"],[4,"SÓKN"]];
+  return (
+    <section style={S.card}>
+      <div style={S.recHead}>
+        <h2 style={S.h2}>FFDR — leikjaþyngd</h2>
+        <div style={S.ffdrPos}>
+          {POSB.map(([v,l]) => (
+            <button key={v} style={{ ...S.ffdrPosBtn, ...(pos === v ? S.ffdrPosOn : {}) }}
+              onClick={() => setPos(v)}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <div style={S.muted}>
+        GW{gws[0]}–{gws[gws.length-1]} · raðað eftir meðal-FFDR (léttast efst).
+        Vogtölur eru mældar sér fyrir hverja stöðu — sami leikur getur verið
+        léttur fyrir vörn og þungur fyrir sókn.
+      </div>
+      <div style={S.ffdrScroll}>
+        <table style={S.ffdrTable}>
+          <thead>
+            <tr>
+              <th style={{ ...S.ffdrTh, ...S.ffdrThTeam }}>Lið</th>
+              {gws.map(g => <th key={g} style={S.ffdrTh}>{g}</th>)}
+              <th style={S.ffdrTh} title="Meðaltal yfir sviðið">Með.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ t, cells, avg }) => (
+              <tr key={t.id}>
+                <td style={S.ffdrTeamCell}>
+                  <button style={S.ffdrTeamBtn} onClick={() => onPickTeam && onPickTeam(t.id)}>
+                    <Crest team={t} size={13} />{t.short}
+                  </button>
+                </td>
+                {cells.map((c, i) => {
+                  if (c.blank) return <td key={i} style={S.ffdrBlank} title="Auð umferð">—</td>;
+                  const worst = Math.max(...c.items.map(x => x.d));
+                  const tier = tierOf(worst);
+                  return (
+                    <td key={i} style={{ ...S.ffdrCell, background: TIER_BG[tier], color: TIER_FG[tier] }}
+                      title={c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (ú)"} · ${x.d}`).join("  |  ")}>
+                      {c.items.map((x, k) => (
+                        <span key={k} style={S.ffdrOpp}>
+                          {teamById[x.f.opp]?.short || "?"}{x.f.home ? "" : <i style={S.ffdrAway}>ú</i>}
+                        </span>
+                      ))}
+                      {c.multi && <span style={S.ffdrDouble}>×2</span>}
+                    </td>
+                  );
+                })}
+                <td style={S.ffdrAvg}>{avg == null ? "—" : avg.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={S.ffdrLegend}>
+        {TIER_NAME.map((n, i) => (
+          <span key={n} style={{ ...S.ffdrChip, background: TIER_BG[i], color: TIER_FG[i] }}>{n}</span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weatherByFx,
   liveByFx, nameOf, onPick }) {
   const [open, setOpen] = useState(null);   // útvíkkuð röð (fixture id)
@@ -2671,6 +2770,30 @@ const S = {
 
   main: { display:"grid", gridTemplateColumns:"minmax(0,1fr) 320px", gap:14, alignItems:"start" },
   // völlur + leikir hlið við hlið; völlurinn MINNI en áður
+  searchBtnOn: { background:C.purple, color:"#fff", borderColor:C.purple },
+  ffdrPos: { display:"flex", gap:3 },
+  ffdrPosBtn: { fontFamily:mono, fontSize:9, fontWeight:700, letterSpacing:0.3, cursor:"pointer",
+    padding:"3px 7px", background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`, borderRadius:6 },
+  ffdrPosOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
+  ffdrScroll: { overflowX:"auto", marginTop:8, paddingBottom:2 },
+  ffdrTable: { borderCollapse:"separate", borderSpacing:2, fontSize:9.5, width:"100%" },
+  ffdrTh: { fontFamily:mono, fontSize:8.5, fontWeight:700, color:C.text3, textAlign:"center",
+    padding:"1px 3px", minWidth:34 },
+  ffdrThTeam: { textAlign:"left", minWidth:58, position:"sticky", left:0, background:C.card, zIndex:1 },
+  ffdrTeamCell: { position:"sticky", left:0, background:C.card, zIndex:1, padding:0 },
+  ffdrTeamBtn: { display:"flex", alignItems:"center", gap:4, width:"100%", cursor:"pointer",
+    fontFamily:mono, fontSize:10, fontWeight:700, color:C.text, background:"none", border:"none", padding:"2px 3px" },
+  ffdrCell: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono, fontSize:9,
+    fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
+  ffdrOpp: { display:"block" },
+  ffdrAway: { fontStyle:"normal", fontSize:7, opacity:0.7, marginLeft:1 },
+  ffdrDouble: { display:"block", fontSize:7, opacity:0.8 },
+  ffdrBlank: { textAlign:"center", padding:"3px 2px", borderRadius:5, background:C.cardAlt,
+    color:C.text3, fontFamily:mono, fontSize:9 },
+  ffdrAvg: { textAlign:"center", padding:"3px 4px", fontFamily:mono, fontSize:9.5, fontWeight:700,
+    color:C.text2, background:C.cardAlt, borderRadius:5 },
+  ffdrLegend: { display:"flex", gap:4, flexWrap:"wrap", marginTop:8, paddingTop:7, borderTop:`1px solid ${C.border}` },
+  ffdrChip: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 },
   gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
   gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
@@ -2705,6 +2828,30 @@ const S = {
     display:"flex", justifyContent:"center", gap:6, flexWrap:"nowrap", padding:"0 4px" },
   benchLabel: { position:"absolute", left:10, top:"77.5%", fontFamily:mono, fontSize:9,
     letterSpacing:1, textTransform:"uppercase", color:"rgba(234,243,236,0.55)", zIndex:1 },
+  searchBtnOn: { background:C.purple, color:"#fff", borderColor:C.purple },
+  ffdrPos: { display:"flex", gap:3 },
+  ffdrPosBtn: { fontFamily:mono, fontSize:9, fontWeight:700, letterSpacing:0.3, cursor:"pointer",
+    padding:"3px 7px", background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`, borderRadius:6 },
+  ffdrPosOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
+  ffdrScroll: { overflowX:"auto", marginTop:8, paddingBottom:2 },
+  ffdrTable: { borderCollapse:"separate", borderSpacing:2, fontSize:9.5, width:"100%" },
+  ffdrTh: { fontFamily:mono, fontSize:8.5, fontWeight:700, color:C.text3, textAlign:"center",
+    padding:"1px 3px", minWidth:34 },
+  ffdrThTeam: { textAlign:"left", minWidth:58, position:"sticky", left:0, background:C.card, zIndex:1 },
+  ffdrTeamCell: { position:"sticky", left:0, background:C.card, zIndex:1, padding:0 },
+  ffdrTeamBtn: { display:"flex", alignItems:"center", gap:4, width:"100%", cursor:"pointer",
+    fontFamily:mono, fontSize:10, fontWeight:700, color:C.text, background:"none", border:"none", padding:"2px 3px" },
+  ffdrCell: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono, fontSize:9,
+    fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
+  ffdrOpp: { display:"block" },
+  ffdrAway: { fontStyle:"normal", fontSize:7, opacity:0.7, marginLeft:1 },
+  ffdrDouble: { display:"block", fontSize:7, opacity:0.8 },
+  ffdrBlank: { textAlign:"center", padding:"3px 2px", borderRadius:5, background:C.cardAlt,
+    color:C.text3, fontFamily:mono, fontSize:9 },
+  ffdrAvg: { textAlign:"center", padding:"3px 4px", fontFamily:mono, fontSize:9.5, fontWeight:700,
+    color:C.text2, background:C.cardAlt, borderRadius:5 },
+  ffdrLegend: { display:"flex", gap:4, flexWrap:"wrap", marginTop:8, paddingTop:7, borderTop:`1px solid ${C.border}` },
+  ffdrChip: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 },
   gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
   gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
