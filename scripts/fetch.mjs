@@ -245,15 +245,31 @@ async function computeDefcon(events, els) {
   record("defcon", true, out.length);
 }
 
-/* ========== 4. CLUB ELO — CSV, tvö köll ========== */
+/* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
+async function eloFetch(url, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": UA } });
+      if (r.status === 429 || r.status >= 500) throw new Error(`${r.status} (yfirálag?)`);
+      if (!r.ok) throw new Error(`${r.status} ${url}`);
+      const text = await r.text();
+      if (!text || text.length < 20) throw new Error("tómt svar");
+      return text;
+    } catch (e) {
+      lastErr = e;
+      console.warn(`ClubElo tilraun ${i + 1}/${tries} brást: ${e.message}`);
+      await new Promise(r => setTimeout(r, 2000 * (i + 1))); // 2s, 4s, 6s
+    }
+  }
+  throw lastErr;
+}
 async function fetchElo() {
-  // öll lið þennan dag, eitt kall
-  const { text } = await getText(`https://api.clubelo.com/${today}`);
+  // ClubElo notar http (ekki https) — https gefur oft "fetch failed"
+  const text = await eloFetch(`http://api.clubelo.com/${today}`);
   const { header, rows } = parseCSV(text);
   console.log(`ClubElo dags-haus: ${header.join(",")}`);
-  // FILTER: ENG, Level 1 og 2
   const eng = rows.filter(r => r.Country === "ENG" && (r.Level === "1" || r.Level === "2"));
-  // varpa á fpl_id gegnum NAMES.clubelo
   const eloByName = {}; eng.forEach(r => eloByName[r.Club] = r);
   const teams = [];
   for (const [id, t] of Object.entries(teamsById)) {
@@ -265,9 +281,8 @@ async function fetchElo() {
   await writeJSON("elo.json", { updated: status.updated, teams });
   record("elo", true, teams.length, `af ${eng.length} ENG L1+L2`);
 
-  // komandi leikir + líkur — kolónuheiti ÓSTAÐFEST, loggum
   try {
-    const { text: ft } = await getText("https://api.clubelo.com/Fixtures");
+    const ft = await eloFetch("http://api.clubelo.com/Fixtures");
     const { header: fh, rows: fr } = parseCSV(ft);
     console.log(`ClubElo /Fixtures haus (ÓSTAÐFEST): ${fh.join(",")}`);
     await writeJSON("elo_fixtures_raw.json", { header: fh, rows: fr.slice(0, 200) });
@@ -351,23 +366,43 @@ async function fetchWeather() {
   record("weather", true, out.length);
 }
 
-/* ========== 3. UNDERSTAT — árstíðarsummur (skot per-match seinna) ========== */
+/* ========== 3. UNDERSTAT — árstíðarsummur (sjálf-greinandi) ========== */
 async function fetchUnderstat() {
-  const { text } = await getText("https://understat.com/league/EPL/2026");
-  // gögn eru JSON.parse('...') með \xNN kóðun inni í <script>
   const decode = s => s.replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  // Understat tímabils-númer = byrjunarár. 2026/27 -> "2026". Prófum líka 2025 til vara.
+  let text, usedUrl;
+  for (const yr of ["2026", "2025"]) {
+    try {
+      const r = await fetch(`https://understat.com/league/EPL/${yr}`, { headers: { "User-Agent": UA } });
+      if (!r.ok) { console.warn(`Understat /${yr}: HTTP ${r.status}`); continue; }
+      text = await r.text(); usedUrl = yr;
+      if (text.includes("JSON.parse")) break;
+    } catch (e) { console.warn(`Understat /${yr}: ${e.message}`); }
+  }
+  if (!text) { record("understat_season", false, 0, "náði engri síðu"); return; }
+
+  // logga hvaða JSON.parse-breytur eru á síðunni (þetta segir okkur sannleikann)
+  const found = [...text.matchAll(/(?:var\s+)?(\w+)\s*=\s*JSON\.parse/g)].map(m => m[1]);
+  console.log(`Understat (/${usedUrl}) JSON.parse breytur: ${found.length ? found.join(", ") : "ENGAR"}`);
+  if (!found.length) {
+    const snippet = text.slice(0, 500).replace(/\s+/g, " ");
+    console.log(`Understat hrátt (fyrstu 500): ${snippet}`);
+    record("understat_season", false, 0, "engar JSON.parse breytur — sjá logg");
+    return;
+  }
   const grab = (varName) => {
-    const m = text.match(new RegExp(varName + "\\s*=\\s*JSON.parse\\('([^']+)'\\)"));
-    return m ? JSON.parse(decode(m[1])) : null;
+    const re = new RegExp(varName + "\\s*=\\s*JSON\\.parse\\(\\s*'([^']*)'\\s*\\)");
+    const m = text.match(re);
+    if (!m) return null;
+    try { return JSON.parse(decode(m[1])); } catch (e) { console.warn(`Understat ${varName} parse-villa: ${e.message}`); return null; }
   };
-  // loggum hvaða breytur finnast
-  const found = [...text.matchAll(/var\s+(\w+)\s*=\s*JSON\.parse/g)].map(m => m[1]);
-  console.log(`Understat breytur á EPL-síðu: ${found.join(", ")}`);
   const teamsData = grab("teamsData");
   const playersData = grab("playersData");
-  await writeJSON("understat/season.json", { updated: status.updated,
-    teams: teamsData ?? null, players: playersData ?? null, vars_found: found });
-  record("understat_season", !!(teamsData || playersData), (playersData?.length) ?? 0, found.join(","));
+  const datesData = grab("datesData");
+  await writeJSON("understat/season.json", { updated: status.updated, season: usedUrl,
+    teams: teamsData ?? null, players: playersData ?? null, dates: datesData ?? null, vars_found: found });
+  const n = (playersData?.length) ?? 0;
+  record("understat_season", !!(teamsData || playersData), n, `/${usedUrl} · [${found.join(",")}]`);
 }
 
 /* ========== MAIN ========== */
