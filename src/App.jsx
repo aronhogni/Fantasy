@@ -9,7 +9,7 @@ import React, { useState, useEffect, useMemo } from "react";
    Ef tómt eða ótengt notar appið sáðu FDR-gögnin (virkar áfram).
    CS%-litur:  grænt ≥50%, gult 30–49%, rautt <30%.
    ============================================================ */
-const PROXY_URL = ""; // t.d. "https://þitt-app.netlify.app/.netlify/functions/odds"
+const PROXY_URL = "https://mellifluous-hummingbird-565c85.netlify.app/.netlify/functions/odds"; // Netlify-fallið þitt
 
 // CS% -> litur fyrir leikja-flís og varnar-CS
 function csColor(pct) {
