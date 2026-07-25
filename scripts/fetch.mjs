@@ -109,10 +109,14 @@ async function fetchFPL() {
 
   // teams.json + teams_map.json
   teams.forEach(t => { teamsById[t.id] = t; shortById[t.id] = t.short_name; });
-  const teamsOut = teams.map(t => ({ id:t.id, name:t.name, short:t.short_name,
+  const teamsOut = teams.map(t => ({ id:t.id, name:t.name, short:t.short_name, code:t.code,
     strength:t.strength, strength_overall_home:t.strength_overall_home,
-    strength_overall_away:t.strength_overall_away }));
+    strength_overall_away:t.strength_overall_away,
+    strength_attack_home:t.strength_attack_home, strength_attack_away:t.strength_attack_away,
+    strength_defence_home:t.strength_defence_home, strength_defence_away:t.strength_defence_away }));
   await writeJSON("teams.json", { updated: status.updated, teams: teamsOut });
+  // chips (nöfn/ikon fyrir framenda) ef til í bootstrap
+  if (bootstrap.chips) await writeJSON("chips.json", bootstrap.chips);
 
   const map = {};
   for (const t of teams) {
