@@ -2,3 +2,6 @@
   command = "npm run build"
   publish = "dist"
   functions = "netlify/functions"
+  # Sleppa byggingu ef AÐEINS gagna-/pipeline-skrár breyttust (sparar Netlify credits).
+  # Skipunin: "0 = slepptu". git diff skilar 0 (engar breytingar utan data/scripts/workflows) -> slepptu.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)data' ':(exclude)scripts' ':(exclude).github'"

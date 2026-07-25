@@ -73,6 +73,18 @@ function Kit({ team, size=34 }) {
 
 // ---- Leikjadagskrá GW1–8: [andstæðingur, heima?, FDR 1(létt)–5(þungt)] ----
 // GW1 staðfest af notanda. GW2–8 lesin af FFS ticker (staðfestist gegn lifandi gögnum).
+// Landsleikjahlé: hlé kemur Á EFTIR þessum umferðum (staðfest gegn opinberri dagskrá).
+// 2026/27: hlé eftir GW3 (sept) og GW7 (okt) á fyrstu 8 umferðunum.
+const INTL_BREAK_AFTER = [3, 7];
+
+// Chips: hver má nota einu sinni (á fyrri helmingi tímabils). label + stutt ikon + litur.
+const CHIPS = {
+  wildcard: { label:"Wildcard",     short:"WC", color:"#E5484D", desc:"Ótakmörkuð skipti, engin refsing" },
+  freehit:  { label:"Free Hit",     short:"FH", color:"#5AA9E6", desc:"Lið eina viku, fer svo til baka" },
+  bboost:   { label:"Bench Boost",  short:"BB", color:"#35C46A", desc:"Bekkurinn skorar líka" },
+  "3xc":    { label:"Triple Captain",short:"TC", color:"#E8C15A", desc:"Fyrirliði ×3 í stað ×2" },
+};
+
 const FIX = {
   TOT: [["BRE",false,3],["NEW",true,3],["NFO",false,2],["EVE",true,3],["AVL",false,3],["MUN",true,3],["COV",true,2],["CHE",false,4]],
   ARS: [["COV",true,1],["FUL",false,3],["CHE",true,4],["SUN",false,2],["BHA",true,3],["LEE",false,2],["NFO",true,2],["EVE",false,3]],
@@ -95,6 +107,32 @@ const FIX = {
   BHA: [["AVL",true,3],["CHE",true,3],["LEE",true,2],["COV",false,2],["ARS",false,4],["SUN",false,2],["CRY",true,3],["NEW",true,3]],
   AVL: [["BHA",false,3],["WHU",true,2],["FUL",false,3],["CRY",true,3],["CHE",true,3],["IPS",false,2],["NEW",false,3],["MCI",true,4]],
   WHU: [["MCI",true,4],["AVL",false,3],["BOU",true,3],["IPS",false,2],["BOU",true,3],["BRE",true,2],["BRE",false,2],["CRY",false,3]],
+};
+
+// ---- FPL félagsmerki-kóðar (stöðugir 'code' úr bootstrap teams). Merki-slóð frá opinberu FPL-CDN. ----
+const CREST_CODE = {
+  ARS:3, AVL:7, BOU:91, BRE:94, BHA:36, CHE:8, CRY:31, EVE:11, FUL:54,
+  LIV:14, MCI:43, MUN:1, NEW:4, NFO:17, TOT:6, WHU:21, SUN:56,
+  COV:96, HUL:88, IPS:40, LEE:2,
+};
+function crestUrl(team) {
+  const c = CREST_CODE[team];
+  return c ? `https://resources.premierleague.com/premierleague/badges/50/t${c}.png` : null;
+}
+// Leikmannamynd: þarf FPL element 'code' (fyllt úr bootstrap þegar lifandi tenging er á).
+function photoUrl(code) {
+  return code ? `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png` : null;
+}
+
+// ---- Alias: nákvæm FPL web_name afbrigði fyrir hvern leikmann (öryggisnet fyrir pörun) ----
+// Lið+staða eru þegar hörð sía; þetta grípur nafna-afbrigði (styttingar, upphafsstafi, rithátt).
+const ALIAS = {
+  vvd:["Van Dijk","Virgil"], bruno:["B.Fernandes","Fernandes","Bruno Fernandes"],
+  dcl:["Calvert-Lewin","Calvert Lewin"], lefee:["Le Fée","Le Fee"],
+  guehi:["Guéhi","Guehi"], szobo:["Szoboszlai"], egeli:["Egeli","Walle Egeli","W.Egeli"],
+  thomas:["B.Thomas","Thomas"], hughes:["C.Hughes","Hughes"], williams:["N.Williams","Williams"],
+  thiago:["I.Thiago","Thiago","Igor Thiago"], kinsky:["Kinský","Kinsky"], dubravka:["Dúbravka","Dubravka"],
+  mitchell:["Mitchell"], mateta:["Mateta"], ndiaye:["Ndiaye","I.Ndiaye"],
 };
 
 // ---- Leikmannagrunnur (sáð úr samtalinu). momentum: -100 (fer að lækka) .. +100 (fer að hækka) ----
@@ -173,12 +211,18 @@ export default function App() {
   const [plan, setPlan] = useState([]); // {gw, outId, inId}
   const [captain, setCaptain] = useState(START_ID);
   const [toast, setToast] = useState(null);
-  const [draft, setDraft] = useState({ gw:3, outId:"", inId:"" });
+  const [sellGw, setSellGw] = useState(1);   // í hvaða umferð skiptin gerast
+  const [selling, setSelling] = useState(null); // dbId leikmanns sem á að selja (opnar leitarglugga)
+  const [searchQ, setSearchQ] = useState("");   // leitartexti
   const [loaded, setLoaded] = useState(false);
   const [odds, setOdds] = useState(null);      // { TEAM: {cs, xg, opp, home} }
   const [oddsState, setOddsState] = useState("idle"); // idle|loading|ok|off|error
   const [benchSwaps, setBenchSwaps] = useState({}); // { gw: [[starterId, benchId], ...] }
   const [dragId, setDragId] = useState(null);       // hvaða spjald er dregið
+  const [vice, setVice] = useState(null);           // varafyrirliði (dbId)
+  const [actualPts, setActualPts] = useState(null); // raun-stig liðsins í valdri GW (úr FPL entry)
+  const [livePts, setLivePts] = useState(null);     // live stig meðan leikir standa
+  const [chips, setChips] = useState({});           // { gw: "wildcard"|"bboost"|"3xc"|"freehit" }
 
   // Sækja lifandi bókmakera-CS% gegnum proxy (næstu umferðir sem hafa markaði)
   useEffect(() => {
@@ -201,16 +245,69 @@ export default function App() {
     })();
   }, []);
 
+  // Sækja FPL bootstrap: lifandi verð + leikmannamynd-kóðar (paraðir við DB eftir nafni+liði)
+  const [live, setLive] = useState({}); // { dbId: { photo, price } }
+  const [liveState, setLiveState] = useState("idle");
+  useEffect(() => {
+    if (!PROXY_URL) { setLiveState("off"); return; }
+    (async () => {
+      setLiveState("loading");
+      try {
+        const r = await fetch(`${PROXY_URL}?path=fpl-bootstrap`);
+        const d = await r.json();
+        if (!d.elements) { setLiveState("off"); return; }
+        // FPL team id -> okkar kóði
+        const teamCode = {}; (d.teams||[]).forEach(t => { teamCode[t.id] = t.short_name; });
+        const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z]/g,"");
+        // FPL staða: 1=GK 2=DEF 3=MID 4=FWD -> okkar
+        const posMap = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
+        const map = {};
+        for (const p of DB) {
+          const targets = [norm(p.n), ...(ALIAS[p.id]||[]).map(norm)]; // nafn + handvirk alias
+          // HÖRÐ sía: sama lið OG sama staða. Kemur í veg fyrir rangan 'Fernandes'/'Thomas'.
+          const pool = d.elements.filter(e => teamCode[e.team]===p.t && posMap[e.element_type]===p.pos);
+          let cand = null;
+          // 1) nákvæm pörun á web_name
+          cand = pool.find(e => targets.includes(norm(e.web_name)));
+          // 2) web_name inniheldur eða er innihaldið í markmiði
+          if (!cand) cand = pool.find(e => targets.some(t => norm(e.web_name).includes(t) || t.includes(norm(e.web_name))));
+          // 3) fullt nafn inniheldur markmið (síðasta úrræði, en lið+staða þrengja)
+          if (!cand) cand = pool.find(e => targets.some(t => norm(e.first_name+e.second_name).includes(t)));
+          // 4) ef aðeins EINN leikmaður er eftir í pool (t.d. eini FWD hjá nýliða) — treystu því
+          if (!cand && pool.length===1) cand = pool[0];
+          if (cand) map[p.id] = { photo: photoUrl(cand.code), price: cand.now_cost/10, matched: cand.web_name };
+          else map[p.id] = { photo: null, price: null, matched: null }; // enginn fundinn -> fallback treyja
+        }
+        setLive(map);
+        setLiveState("ok");
+      } catch { setLiveState("error"); }
+    })();
+  }, []);
+
+  // Sækja raun-stig liðsins fyrir valda GW (úr FPL picks) þegar lið er tengt
+  useEffect(() => {
+    if (!PROXY_URL || !entryId) { setActualPts(null); setLivePts(null); return; }
+    (async () => {
+      try {
+        const r = await fetch(`${PROXY_URL}?path=fpl-picks&id=${entryId}&gw=${gw}`);
+        const d = await r.json();
+        const pts = d?.entry_history?.points;
+        setActualPts(pts != null ? pts : null);
+        setLivePts(pts != null ? pts : null);
+      } catch { setActualPts(null); setLivePts(null); }
+    })();
+  }, [entryId, gw]);
+
   // Sækja vistað ástand
   useEffect(() => {
     (async () => {
       const s = await loadState("fpl_planner_v1");
-      if (s) { setEntryId(s.entryId ?? null); setPlan(s.plan ?? []); setCaptain(s.captain ?? START_ID); setBenchSwaps(s.benchSwaps ?? {}); }
+      if (s) { setEntryId(s.entryId ?? null); setPlan(s.plan ?? []); setCaptain(s.captain ?? START_ID); setBenchSwaps(s.benchSwaps ?? {}); setVice(s.vice ?? null); setChips(s.chips ?? {}); }
       setLoaded(true);
     })();
   }, []);
   // Vista við breytingar
-  useEffect(() => { if (loaded) saveState("fpl_planner_v1", { entryId, plan, captain, benchSwaps }); }, [entryId, plan, captain, benchSwaps, loaded]);
+  useEffect(() => { if (loaded) saveState("fpl_planner_v1", { entryId, plan, captain, benchSwaps, vice, chips }); }, [entryId, plan, captain, benchSwaps, vice, chips, loaded]);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(null), 2600); };
 
@@ -243,9 +340,6 @@ export default function App() {
   }, [plan, gw, benchSwaps]);
 
   const squadIds = new Set(squad.map(s => s.id));
-  const teamCounts = useMemo(() => {
-    const c = {}; squad.forEach(s => { const t = byId[s.id].t; c[t] = (c[t]||0)+1; }); return c;
-  }, [squad]);
 
   const projTotal = useMemo(() => squad.filter(s=>s.starter)
     .reduce((a,s)=> a + (byId[s.id].proj/38) * (s.id===captain?2:1), 0), [squad, captain]);
@@ -273,15 +367,25 @@ export default function App() {
     flash(`${byId[starterId].n} ↔ ${byId[benchId].n}`);
   }
 
-  function addTransfer() {
-    if (!draft.outId || !draft.inId) { flash("Veldu bæði leikmann út og inn."); return; }
-    const outP = byId[draft.outId], inP = byId[draft.inId];
+  function commitTransfer(outId, inId) {
+    const outP = byId[outId], inP = byId[inId];
     if (outP.pos !== inP.pos) { flash("Skiptin verða að vera í sömu stöðu."); return; }
-    setPlan(p => [...p, { gw:draft.gw, outId:draft.outId, inId:draft.inId }]);
-    setDraft(d => ({ ...d, outId:"", inId:"" }));
-    flash(`Skipti sett á GW${draft.gw}: ${outP.n} → ${inP.n}`);
+    setPlan(p => [...p, { gw:sellGw, outId, inId }]);
+    setSelling(null); setSearchQ("");
+    flash(`Skipti sett á GW${sellGw}: ${outP.n} → ${inP.n}`);
   }
   function removeTransfer(i) { setPlan(p => p.filter((_,j)=>j!==i)); }
+  // Velja/afvelja chip í tiltekinni umferð. Sami chip aðeins einu sinni; ein chip per vika.
+  function setChipForGw(g, chip) {
+    setChips(prev => {
+      const next = { ...prev };
+      if (!chip) { delete next[g]; return next; }         // afvelja
+      // fjarlægja þennan chip úr annarri viku (má bara nota einu sinni)
+      for (const k of Object.keys(next)) if (next[k]===chip) delete next[k];
+      next[g] = chip;                                      // ein chip per vika (skrifar yfir)
+      return next;
+    });
+  }
   function loadRecommended() {
     setPlan([
       { gw:1, outId:"semenyo", inId:"mbeumo" },
@@ -291,18 +395,25 @@ export default function App() {
     flash("Hlóð ráðlögðu áætluninni: Semenyo→Mbeumo (GW1), Le Fée→Rice (GW3).");
   }
 
-  // Lið-samsetning fyrir valda GW (til að byggja 'út' valmynd)
-  const squadAtDraftGw = useMemo(() => {
+  // Lið-samsetning fyrir valda sölu-GW (hvaða menn eru í liðinu þá)
+  const squadAtSellGw = useMemo(() => {
     let sq = BASE_SQUAD.map(s=>({...s}));
     [...plan].sort((a,z)=>a.gw-z.gw).forEach(tr => {
-      if (tr.gw >= draft.gw) return;
+      if (tr.gw > sellGw) return;
       const i = sq.findIndex(s=>s.id===tr.outId); if(i>=0) sq[i]={...sq[i],id:tr.inId};
     });
     return sq;
-  }, [plan, draft.gw]);
-  const outOptions = squadAtDraftGw.map(s=>byId[s.id]);
-  const outPos = draft.outId ? byId[draft.outId].pos : null;
-  const inOptions = DB.filter(p => p.pos===outPos && !squadAtDraftGw.some(s=>s.id===p.id));
+  }, [plan, sellGw]);
+  const squadAtSellIds = new Set(squadAtSellGw.map(s=>s.id));
+  // Leitarniðurstöður: sama staða og seldi maðurinn, ekki þegar í liði, passar við leit
+  const sellPos = selling ? byId[selling].pos : null;
+  const searchResults = useMemo(() => {
+    if (!selling) return [];
+    const q = searchQ.toLowerCase().trim();
+    return DB.filter(p => p.pos===sellPos && !squadAtSellIds.has(p.id) &&
+      (!q || p.n.toLowerCase().includes(q) || p.t.toLowerCase().includes(q)))
+      .sort((a,b)=>b.proj-a.proj);
+  }, [selling, searchQ, sellPos, squadAtSellIds]);
 
   return (
     <div style={S.root}>
@@ -335,11 +446,16 @@ export default function App() {
           {Array.from({length:8},(_,i)=>i+1).map(n=>{
             const has = plan.some(t=>t.gw===n);
             const active = n===gw;
+            const breakAfter = INTL_BREAK_AFTER.includes(n);
             return (
-              <button key={n} onClick={()=>setGw(n)} style={{...S.node, ...(active?S.nodeActive:{})}}>
-                <span style={S.nodeNum}>{n}</span>
-                {has && <span style={{...S.nodeDot, ...(active?{background:"#0B1622"}:{})}} />}
-              </button>
+              <React.Fragment key={n}>
+                <button onClick={()=>setGw(n)} style={{...S.node, ...(active?S.nodeActive:{})}}>
+                  <span style={S.nodeNum}>{n}</span>
+                  {has && <span style={{...S.nodeDot, ...(active?{background:"#0B1622"}:{})}} />}
+                  {chips[n] && <span style={{...S.nodeChip, background:CHIPS[chips[n]].color}}>{CHIPS[chips[n]].short}</span>}
+                </button>
+                {breakAfter && <span style={S.intlBreak} title="Landsleikjahlé á eftir þessari umferð">🌐</span>}
+              </React.Fragment>
             );
           })}
         </div>
@@ -347,10 +463,9 @@ export default function App() {
 
       {/* Mælaborð */}
       <div style={S.stats}>
-        <Stat label={`Banki (GW${gw})`} value={`£${bank.toFixed(1)}`} tone={bank<0?"bad":"ok"} />
-        <Stat label="Spá / vika" value={projTotal.toFixed(1)} sub="XI + fyrirliði ×2" />
-        <Stat label="Skipti í áætlun" value={plan.length} sub={`${plan.filter(t=>t.gw<=gw).length} virk núna`} />
-        <Stat label="Mest frá félagi" value={Math.max(...Object.values(teamCounts))+"/3"} tone={Math.max(...Object.values(teamCounts))>3?"bad":"ok"} />
+        <Stat icon="💰" label={`Banki (GW${gw})`} value={`£${bank.toFixed(1)}`} tone={bank<0?"bad":"ok"} />
+        <Stat icon="✅" label="Stig (raun)" value={actualPts==null?"—":actualPts} sub={entryId?`GW${gw}`:"tengdu lið"} />
+        <Stat icon="🔴" label="Live stig" value={livePts==null?"—":livePts} sub={livePts==null?"í leik":"uppfærist"} />
       </div>
 
       <div style={S.oddsBar}>
@@ -362,6 +477,11 @@ export default function App() {
         {oddsState==="idle" && <span>Bókmakera-CS% óvirkt.</span>}
       </div>
 
+      {liveState==="ok" && <div style={S.liveBar}>
+        <span style={S.oddsDot("ok")} />
+        <span>Lifandi FPL-gögn tengd — raunverð og leikmannamyndir/merki frá opinberu FPL.</span>
+      </div>}
+
       {appliedThisGw.length>0 && (
         <div style={S.gwNote}>
           GW{gw}: {appliedThisGw.map(t=>`${byId[t.outId].n} → ${byId[t.inId].n}`).join(" · ")} — liðið að neðan sýnir stöðuna EFTIR skiptin.
@@ -371,8 +491,23 @@ export default function App() {
       <div style={S.main}>
         {/* Völlur */}
         <div style={S.pitch}>
+          <div style={S.capBar}>
+            <div style={S.capSelect}>
+              <span style={S.capLbl}><span style={S.statIcon}>©</span>Fyrirliði</span>
+              <select style={S.capDropdown} value={captain} onChange={e=>{ if(e.target.value===vice) setVice(null); setCaptain(e.target.value); }}>
+                {starters.map(s=><option key={s.id} value={s.id}>{byId[s.id].n}</option>)}
+              </select>
+            </div>
+            <div style={S.capSelect}>
+              <span style={S.capLbl}><span style={S.statIcon}>Ⓥ</span>Varafyrirliði</span>
+              <select style={S.capDropdown} value={vice||""} onChange={e=>setVice(e.target.value||null)}>
+                <option value="">— enginn —</option>
+                {starters.filter(s=>s.id!==captain).map(s=><option key={s.id} value={s.id}>{byId[s.id].n}</option>)}
+              </select>
+            </div>
+          </div>
           <div style={S.pitchHint}>
-            <span>Dragðu leikmann milli vallar og bekkjar til að breyta byrjunarliði (GW{gw})</span>
+            <span>Smelltu á leikmann til að skipta honum út í GW{sellGw} · dragðu til að breyta byrjunarliði</span>
             {(benchSwaps[gw]?.length>0) &&
               <button style={S.resetBtn} onClick={()=>setBenchSwaps(bs=>{const n={...bs}; delete n[gw]; return n;})}>Núllstilla</button>}
           </div>
@@ -380,8 +515,7 @@ export default function App() {
             {["GK","DEF","MID","FWD"].map(pos=>(
               <div key={pos} style={S.rowLine}>
                 {rows[pos].map(s=>(
-                  <PlayerCard key={s.id} p={byId[s.id]} gw={gw} captain={captain} odds={odds}
-                    onCap={()=>setCaptain(s.id)}
+                  <PlayerCard key={s.id} p={byId[s.id]} gw={gw} captain={captain} viceId={vice} odds={odds} livePlayer={live[s.id]} onSell={()=>{setSellGw(gw); setSelling(s.id); setSearchQ("");}}
                     draggable dragId={dragId} setDragId={setDragId}
                     onDropPlayer={(fromId)=>swapStarterBench(s.id, fromId)} zone="pitch" />
                 ))}
@@ -398,8 +532,7 @@ export default function App() {
             <div style={S.benchLabel}>Bekkur</div>
             <div style={S.benchRow}>
               {bench.map(s=>(
-                <PlayerCard key={s.id} p={byId[s.id]} gw={gw} captain={captain} bench odds={odds}
-                  onCap={()=>setCaptain(s.id)}
+                <PlayerCard key={s.id} p={byId[s.id]} gw={gw} captain={captain} viceId={vice} bench odds={odds} livePlayer={live[s.id]} onSell={()=>{setSellGw(gw); setSelling(s.id); setSearchQ("");}}
                   draggable dragId={dragId} setDragId={setDragId}
                   onDropPlayer={(fromId)=>swapStarterBench(fromId, s.id)} zone="bench" />
               ))}
@@ -416,36 +549,12 @@ export default function App() {
               <button style={S.ghostBtn} onClick={loadRecommended}>Hlaða ráðlögðu</button>
             </div>
 
-            <div style={S.transferForm}>
-              <div style={S.formRow}>
-                <label style={S.lbl}>Umferð</label>
-                <select style={S.select} value={draft.gw} onChange={e=>setDraft(d=>({...d,gw:+e.target.value,outId:"",inId:""}))}>
-                  {Array.from({length:8},(_,i)=>i+1).map(n=><option key={n} value={n}>GW{n}</option>)}
-                </select>
-              </div>
-              <div style={S.formRow}>
-                <label style={S.lbl}>Út</label>
-                <select style={S.select} value={draft.outId} onChange={e=>setDraft(d=>({...d,outId:e.target.value,inId:""}))}>
-                  <option value="">— veldu —</option>
-                  {outOptions.map(p=><option key={p.id} value={p.id}>{p.n} ({POS_LABEL[p.pos]}, £{p.price})</option>)}
-                </select>
-              </div>
-              <div style={S.formRow}>
-                <label style={S.lbl}>Inn</label>
-                <select style={S.select} value={draft.inId} onChange={e=>setDraft(d=>({...d,inId:e.target.value}))} disabled={!draft.outId}>
-                  <option value="">{draft.outId?"— veldu —":"veldu 'út' fyrst"}</option>
-                  {inOptions.map(p=><option key={p.id} value={p.id}>{p.n} (£{p.price}, spá {p.proj})</option>)}
-                </select>
-              </div>
-              {draft.outId && draft.inId && (
-                <div style={S.diffBox}>
-                  <span>Kostn.breyt: <b style={{color: (byId[draft.outId].price-byId[draft.inId].price)>=0?"#35C46A":"#E5484D"}}>
-                    £{(byId[draft.outId].price-byId[draft.inId].price).toFixed(1)}</b></span>
-                  <span>Spá-breyt: <b style={{color:(byId[draft.inId].proj-byId[draft.outId].proj)>=0?"#35C46A":"#E5484D"}}>
-                    {(byId[draft.inId].proj-byId[draft.outId].proj)>=0?"+":""}{byId[draft.inId].proj-byId[draft.outId].proj}</b></span>
-                </div>
-              )}
-              <button style={S.addBtn} onClick={addTransfer}>Bæta skiptum við áætlun</button>
+            <div style={S.sellGwRow}>
+              <label style={S.lbl}>Skipta í</label>
+              <select style={S.select} value={sellGw} onChange={e=>setSellGw(+e.target.value)}>
+                {Array.from({length:8},(_,i)=>i+1).map(n=><option key={n} value={n}>GW{n}</option>)}
+              </select>
+              <span style={S.sellHint}>← veldu umferð, smelltu svo á leikmann á vellinum</span>
             </div>
 
             <div style={S.planList}>
@@ -471,6 +580,34 @@ export default function App() {
             </div>
           </section>
 
+          {/* Chips */}
+          <section style={S.panel}>
+            <h2 style={S.h2}>Chips</h2>
+            <div style={S.priceNote}>Veldu í hvaða umferð þú notar hverja chip. Hver má nota einu sinni; ein chip per vika.</div>
+            <div style={S.chipGrid}>
+              {Object.entries(CHIPS).map(([key, c])=>{
+                const usedGw = Object.keys(chips).find(g=>chips[g]===key);
+                return (
+                  <div key={key} style={S.chipRow}>
+                    <span style={{...S.chipTag, background:c.color}}>{c.short}</span>
+                    <div style={S.chipInfo}>
+                      <div style={S.chipName}>{c.label}</div>
+                      <div style={S.chipDesc}>{c.desc}</div>
+                    </div>
+                    <select style={S.chipSelect} value={usedGw||""}
+                      onChange={e=>{ const g=e.target.value; if(usedGw) setChipForGw(+usedGw,null); if(g) setChipForGw(+g,key); }}>
+                      <option value="">— ekki notuð —</option>
+                      {Array.from({length:8},(_,i)=>i+1).map(n=>{
+                        const taken = chips[n] && chips[n]!==key; // önnur chip þegar í þeirri viku
+                        return <option key={n} value={n} disabled={taken}>GW{n}{taken?` (upptekin: ${CHIPS[chips[n]].short})`:""}</option>;
+                      })}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
           {/* Verðhækkunar-mælir */}
           <section style={S.panel}>
             <h2 style={S.h2}>Verðbreytingar — hversu nálægt?</h2>
@@ -488,32 +625,82 @@ export default function App() {
         </div>
       </div>
 
+      {liveState==="ok" && (() => {
+        const missed = DB.filter(p => live[p.id] && !live[p.id].photo);
+        if (!missed.length) return <div style={S.matchOk}>✓ Allir {DB.length} leikmenn paraðir við FPL-gögn — myndir og merki tengd.</div>;
+        return <div style={S.matchWarn}>
+          ⚠️ {missed.length} leikmenn náðu ekki FPL-mynd (nota treyju): {missed.map(p=>`${p.n} (${p.t})`).join(", ")}.
+          Segðu mér hvað FPL kallar þá og ég bæti í alias.
+        </div>;
+      })()}
+
       <footer style={S.footer}>
         Gögn sáð úr greiningu okkar (verð, spár, leikir GW1–8, verðbreytinga-rök). GW1 staðfest; GW2–8 lesin af ticker.
-        Lifandi verð/stig/leikir krefjast bakenda vegna CORS — plönunar-vélin virkar að fullu án hans.
+        Lifandi FPL-gögn (verð, myndir, merki) tengd þegar proxy er á. Bókmakera-CS% cache-að í 12 klst.
       </footer>
+
+      {selling && (
+        <div style={S.modalOverlay} onClick={()=>{setSelling(null); setSearchQ("");}}>
+          <div style={S.modal} onClick={e=>e.stopPropagation()}>
+            <div style={S.modalHead}>
+              <input autoFocus style={S.searchInputHead} placeholder="Leita að leikmanni eða liði…"
+                value={searchQ} onChange={e=>setSearchQ(e.target.value)} />
+              <button style={S.modalClose} onClick={()=>{setSelling(null); setSearchQ("");}}>✕</button>
+            </div>
+            <div style={S.searchList}>
+              {searchResults.map(p=>{
+                const lp = live[p.id];
+                const photo = lp?.photo, crest = crestUrl(p.t), price = lp?.price ?? p.price;
+                const diff = byId[selling].price - price;
+                return (
+                  <button key={p.id} style={S.searchItem} onClick={()=>commitTransfer(selling, p.id)}>
+                    <div style={S.searchPortrait}>
+                      {photo ? <img src={photo} alt={p.n} style={S.searchPhoto} loading="lazy" /> : <Kit team={p.t} size={26} />}
+                      {crest && <img src={crest} alt={p.t} style={S.searchCrest} loading="lazy" />}
+                    </div>
+                    <div style={S.searchInfo}>
+                      <div style={S.searchName}>{p.n}</div>
+                      <div style={S.searchMeta}>{p.t} · spá {p.proj}</div>
+                    </div>
+                    <div style={S.searchRight}>
+                      <div style={S.searchPrice}>£{price.toFixed(1)}</div>
+                      <div style={{...S.searchDiff, color: diff>=0?"#35C46A":"#E5484D"}}>{diff>=0?"+":""}£{diff.toFixed(1)}</div>
+                    </div>
+                  </button>
+                );
+              })}
+              {searchResults.length===0 && <div style={S.empty}>Enginn {POS_LABEL[byId[selling].pos].toLowerCase()}-leikmaður fannst. Prófaðu annað leitarorð.</div>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && <div style={S.toast}>{toast}</div>}
     </div>
   );
 }
 
-function Stat({ label, value, sub, tone }) {
+function Stat({ label, value, sub, tone, icon }) {
   return (
     <div style={S.statCard}>
-      <div style={S.statLabel}>{label}</div>
+      <div style={S.statLabel}>{icon && <span style={S.statIcon}>{icon}</span>}{label}</div>
       <div style={{...S.statValue, color: tone==="bad"?"#E5484D":tone==="ok"?"#EAF0F6":"#EAF0F6"}}>{value}</div>
       {sub && <div style={S.statSub}>{sub}</div>}
     </div>
   );
 }
 
-function PlayerCard({ p, gw, captain, bench, onCap, odds, draggable, dragId, setDragId, onDropPlayer, zone }) {
+function PlayerCard({ p, gw, captain, viceId, bench, odds, livePlayer, draggable, dragId, setDragId, onDropPlayer, zone, onSell }) {
   const fx = FIX[p.t]?.[gw-1];
   const isCap = p.id===captain;
+  const isVice = p.id===viceId;
   const live = odds?.[p.t];
   const isDefensive = p.pos==="GK" || p.pos==="DEF";
   const isDragging = dragId===p.id;
+  const [imgOk, setImgOk] = React.useState(true);
+  const photo = livePlayer?.photo;
+  const price = livePlayer?.price ?? p.price;   // lifandi verð ef til, annars sáð
+  const crest = crestUrl(p.t);
   return (
     <div
       draggable={!!draggable}
@@ -521,17 +708,22 @@ function PlayerCard({ p, gw, captain, bench, onCap, odds, draggable, dragId, set
       onDragEnd={()=>setDragId?.(null)}
       onDragOver={e=>{ if(dragId && dragId!==p.id) e.preventDefault(); }}
       onDrop={e=>{ e.preventDefault(); if(dragId && dragId!==p.id) onDropPlayer?.(dragId); setDragId?.(null); }}
+      onClick={()=>{ if(!isDragging) onSell?.(); }}
+      title="Smelltu til að skipta út"
       style={{...S.card, ...(bench?S.cardBench:{}), borderTopColor: POS_COLOR[p.pos],
-        opacity:isDragging?0.4:1, cursor:draggable?"grab":"default"}}>
-      <button style={{...S.capBtn, ...(isCap?S.capOn:{})}} onClick={onCap} title="Setja sem fyrirliða">
-        {isCap?"C":"c"}
-      </button>
-      <div style={S.kitWrap}>
-        <Kit team={p.t} size={30} />
-        <span style={S.kitCode}>{p.t}</span>
+        opacity:isDragging?0.4:1, cursor:draggable?"pointer":"default"}}>
+      {isCap && <span style={{...S.armband, background:"#E8C15A", color:"#3a2d05"}}>C</span>}
+      {isVice && <span style={{...S.armband, background:"#9fb0bd", color:"#0B1622"}}>V</span>}
+      <div style={S.portrait}>
+        {photo && imgOk
+          ? <img src={photo} alt={p.n} style={S.photoImg} onError={()=>setImgOk(false)} loading="lazy" />
+          : <Kit team={p.t} size={30} />}
+        {crest
+          ? <img src={crest} alt={p.t} style={S.crestImg} loading="lazy" />
+          : <span style={S.kitCode}>{p.t}</span>}
       </div>
       <div style={S.cardName}>{p.n}</div>
-      <div style={S.cardMeta}>£{p.price.toFixed(1)}</div>
+      <div style={S.cardMeta}>£{price.toFixed(1)}</div>
       {fx ? <FixChip fx={fx} live={live} isDef={isDefensive} /> : <div style={S.noFix}>—</div>}
       {live ? (
         isDefensive
@@ -616,16 +808,32 @@ const S = {
   nodeActive: { background:"#35C46A", color:"#06120A", borderColor:"#35C46A", transform:"scale(1.12)", boxShadow:"0 0 0 4px rgba(53,196,106,0.15)" },
   nodeNum: { fontSize:14 },
   nodeDot: { position:"absolute", bottom:4, width:5, height:5, borderRadius:"50%", background:"#F5A623" },
+  nodeChip: { position:"absolute", top:-7, right:-7, fontFamily:mono, fontSize:8, fontWeight:700, color:"#0B1622", padding:"1px 3px", borderRadius:4, lineHeight:1.3 },
+  intlBreak: { fontSize:13, opacity:0.85, margin:"0 -2px", alignSelf:"center" },
+  chipGrid: { display:"flex", flexDirection:"column", gap:8 },
+  chipRow: { display:"flex", alignItems:"center", gap:10, background:"#0B1622", border:"1px solid #1B2E3F", borderRadius:8, padding:"8px 10px" },
+  chipTag: { fontFamily:mono, fontSize:11, fontWeight:700, color:"#0B1622", padding:"3px 6px", borderRadius:5, minWidth:26, textAlign:"center", flexShrink:0 },
+  chipInfo: { flex:1, minWidth:0 },
+  chipName: { fontSize:13, fontWeight:600, color:"#EAF0F6" },
+  chipDesc: { fontSize:10.5, color:"#7E93A3" },
+  chipSelect: { background:"#12212F", border:"1px solid #22384A", color:"#EAF0F6", padding:"5px 7px", borderRadius:6, fontSize:12, outline:"none", flexShrink:0 },
 
-  stats: { display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:14 },
-  statCard: { background:"#0E1B2A", border:"1px solid #1B2E3F", borderRadius:12, padding:"12px 14px" },
+  stats: { display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:14 },
+  statCard: { background:"#0E1B2A", border:"1px solid #1B2E3F", borderRadius:12, padding:"12px 14px", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center" },
   statLabel: { fontFamily:mono, fontSize:10.5, letterSpacing:1, textTransform:"uppercase", color:"#7E93A3" },
+  statIcon: { marginRight:5, fontSize:12 },
+  armband: { position:"absolute", top:5, right:5, minWidth:16, height:16, padding:"0 3px", borderRadius:8, fontSize:9.5, fontWeight:700, fontFamily:mono, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, zIndex:2 },
+  capBar: { display:"flex", gap:10, marginBottom:12 },
+  capSelect: { flex:1, display:"flex", flexDirection:"column", gap:4, background:"#0B1622", border:"1px solid #1B2E3F", borderRadius:8, padding:"7px 10px" },
+  capLbl: { fontFamily:mono, fontSize:10, letterSpacing:0.5, textTransform:"uppercase", color:"#7f9d88", display:"flex", alignItems:"center" },
+  capDropdown: { background:"#12212F", border:"1px solid #22384A", color:"#EAF0F6", padding:"5px 7px", borderRadius:6, fontSize:12.5, outline:"none", width:"100%" },
   statValue: { fontFamily:mono, fontSize:24, fontWeight:600, marginTop:3 },
   statSub: { fontSize:11, color:"#7E93A3", marginTop:2 },
 
   gwNote: { background:"rgba(90,169,230,0.1)", border:"1px solid #234a63", color:"#9fc7e8", borderRadius:8, padding:"8px 12px", fontSize:12.5, marginBottom:14 },
 
   oddsBar: { display:"flex", alignItems:"center", gap:9, fontSize:12, color:"#9fb0bd", background:"#0E1B2A", border:"1px solid #1B2E3F", borderRadius:8, padding:"8px 12px", marginBottom:14 },
+  liveBar: { display:"flex", alignItems:"center", gap:9, fontSize:12, color:"#9fb0bd", background:"#0E1B2A", border:"1px solid #1B2E3F", borderRadius:8, padding:"8px 12px", marginBottom:14 },
   oddsDot: (st) => ({ width:8, height:8, borderRadius:"50%", flexShrink:0,
     background: st==="ok"?"#35C46A":st==="loading"?"#E0A500":st==="error"?"#E5484D":"#5f7385",
     boxShadow: st==="ok"?"0 0 0 3px rgba(53,196,106,0.2)":"none" }),
@@ -640,6 +848,9 @@ const S = {
   resetBtn: { background:"transparent", border:"1px solid #2f5a3e", color:"#7fcf9a", padding:"3px 9px", borderRadius:6, fontSize:11, cursor:"pointer" },
   kitWrap: { position:"relative", display:"flex", justifyContent:"center", marginBottom:2, marginTop:2 },
   kitCode: { position:"absolute", bottom:-2, right:14, fontFamily:mono, fontSize:8, fontWeight:700, color:"#9fb0bd", background:"#0B1622", padding:"0 3px", borderRadius:3, border:"1px solid #22384A" },
+  portrait: { position:"relative", display:"flex", justifyContent:"center", alignItems:"flex-end", height:38, marginBottom:3, marginTop:2 },
+  photoImg: { height:38, width:"auto", objectFit:"contain", filter:"drop-shadow(0 1px 2px rgba(0,0,0,0.4))" },
+  crestImg: { position:"absolute", bottom:-1, right:10, width:15, height:15, objectFit:"contain", background:"#0B1622", borderRadius:3, padding:1 },
   pitchInner: { display:"flex", flexDirection:"column", gap:14 },
   rowLine: { display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" },
   card: { position:"relative", background:"#0E1B2A", border:"1px solid #22384A", borderTop:"3px solid #35C46A", borderRadius:10, padding:"8px 8px 7px", width:92, textAlign:"center" },
@@ -688,5 +899,27 @@ const S = {
   gaugeLabel: { fontFamily:mono, fontSize:10, fontWeight:600, whiteSpace:"nowrap", width:66, textAlign:"right" },
 
   footer: { marginTop:20, fontSize:11, color:"#5f7385", lineHeight:1.5, borderTop:"1px solid #1B2E3F", paddingTop:12 },
+  matchOk: { fontSize:12, color:"#7fcf9a", background:"rgba(53,196,106,0.08)", border:"1px solid #2f5a3e", borderRadius:8, padding:"8px 12px", marginTop:16 },
+  matchWarn: { fontSize:12, color:"#e8c15a", background:"rgba(232,193,90,0.08)", border:"1px solid #6a5a2a", borderRadius:8, padding:"8px 12px", marginTop:16, lineHeight:1.5 },
   toast: { position:"fixed", bottom:20, left:"50%", transform:"translateX(-50%)", background:"#12212F", border:"1px solid #35C46A", color:"#EAF0F6", padding:"10px 18px", borderRadius:10, fontSize:13, boxShadow:"0 8px 30px rgba(0,0,0,0.4)", zIndex:50 },
+
+  sellGwRow: { display:"flex", alignItems:"center", gap:8, marginBottom:14 },
+  sellHint: { fontSize:11, color:"#7E93A3", flex:1 },
+
+  modalOverlay: { position:"fixed", inset:0, background:"rgba(4,10,18,0.75)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100, padding:20 },
+  modal: { background:"#0E1B2A", border:"1px solid #22384A", borderRadius:14, width:"100%", maxWidth:420, maxHeight:"80vh", display:"flex", flexDirection:"column", boxShadow:"0 20px 60px rgba(0,0,0,0.5)" },
+  modalHead: { display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, padding:"14px 14px 10px" },
+  searchInputHead: { flex:1, background:"#12212F", border:"1px solid #22384A", color:"#EAF0F6", padding:"9px 12px", borderRadius:8, fontSize:13.5, outline:"none" },
+  modalClose: { background:"transparent", border:"none", color:"#7E93A3", fontSize:16, cursor:"pointer", padding:4, flexShrink:0 },
+  searchList: { overflowY:"auto", padding:"0 8px 12px", display:"flex", flexDirection:"column", gap:4 },
+  searchItem: { display:"flex", alignItems:"center", gap:10, background:"transparent", border:"1px solid transparent", borderRadius:9, padding:"7px 8px", cursor:"pointer", textAlign:"left", width:"100%" },
+  searchPortrait: { position:"relative", width:34, height:34, flexShrink:0, display:"flex", alignItems:"flex-end", justifyContent:"center" },
+  searchPhoto: { height:34, width:"auto", objectFit:"contain" },
+  searchCrest: { position:"absolute", bottom:-2, right:-4, width:14, height:14, objectFit:"contain", background:"#0E1B2A", borderRadius:3, padding:1 },
+  searchInfo: { flex:1, minWidth:0 },
+  searchName: { fontSize:13.5, fontWeight:600, color:"#EAF0F6", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" },
+  searchMeta: { fontFamily:mono, fontSize:11, color:"#7E93A3" },
+  searchRight: { textAlign:"right", flexShrink:0 },
+  searchPrice: { fontFamily:mono, fontSize:13, color:"#EAF0F6", fontWeight:600 },
+  searchDiff: { fontFamily:mono, fontSize:10.5 },
 };
