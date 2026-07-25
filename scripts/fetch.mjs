@@ -521,6 +521,70 @@ async function fetchUnderstat() {
   record("understat_season", !!(teamsData || playersData), n, `/${usedUrl} · [${found.join(",")}]`);
 }
 
+/* ========== 3b. UNDERSTAT SKOT PER LEIK — grunnur fyrir "big chances" ==========
+   Skot-gögn gefa það sem FPL birtir EKKI: npxG, fastaleikja-hættu, og
+   BIG CHANCES MISSED (skot með xG > 0.30 sem fór ekki inn).
+   Sæktu match-síður, EKKI player/{id} (700 köll). Hámark 1 kall/sek.        */
+const BIG_CHANCE_XG = 0.30;
+
+async function fetchUnderstatShots() {
+  const decode = s => s.replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  const grab = (text, varName) => {
+    const m = text.match(new RegExp(varName + "\\s*=\\s*JSON\\.parse\\(\\s*'([^']*)'\\s*\\)"));
+    if (!m) return null;
+    try { return JSON.parse(decode(m[1])); } catch { return null; }
+  };
+
+  // Leikjalisti tímabilsins fæst úr datesData á lið-síðum, eða af league-síðu.
+  // Við lesum season.json sem þegar var skrifað (vars_found segir hvað er í boði).
+  let season = null;
+  try { season = JSON.parse(await readFile(`${DATA}/understat/season.json`, "utf8")); } catch {}
+  const dates = season?.dates;
+  if (!dates || !Array.isArray(dates)) {
+    record("understat_shots", false, 0, "engin datesData — tímabil ekki byrjað?");
+    return;
+  }
+
+  // aðeins LOKNIR leikir sem við höfum ekki þegar sótt
+  const done = dates.filter(d => d.isResult);
+  let fetched = 0, bigMissed = {}, shotsTotal = 0;
+  for (const d of done) {
+    const path = `understat/match/${d.id}.json`;
+    if (existsSync(`${DATA}/${path}`)) continue;
+    try {
+      const r = await fetch(`https://understat.com/match/${d.id}`, { headers: { "User-Agent": UA } });
+      if (!r.ok) { console.warn(`Understat match ${d.id}: HTTP ${r.status}`); continue; }
+      const text = await r.text();
+      const shots = grab(text, "shotsData");
+      if (!shots) { console.warn(`Understat match ${d.id}: engin shotsData`); continue; }
+      await writeJSON(path, shots);
+      fetched++;
+      // afleiða big chances missed jafnóðum
+      for (const side of ["h", "a"]) {
+        for (const sh of (shots[side] || [])) {
+          shotsTotal++;
+          const xg = parseFloat(sh.xG || 0);
+          if (xg > BIG_CHANCE_XG && sh.result !== "Goal") {
+            const key = sh.player_id;
+            bigMissed[key] = bigMissed[key] || { player: sh.player, missed: 0, xg_sum: 0 };
+            bigMissed[key].missed++;
+            bigMissed[key].xg_sum = +(bigMissed[key].xg_sum + xg).toFixed(2);
+          }
+        }
+      }
+      await new Promise(r => setTimeout(r, 1100)); // hámark 1 kall/sek
+    } catch (e) { console.warn(`Understat match ${d.id}: ${e.message}`); }
+  }
+  if (Object.keys(bigMissed).length) {
+    await writeJSON("understat/big_chances.json", {
+      updated: status.updated, threshold_xg: BIG_CHANCE_XG,
+      note: "Skot með xG yfir þröskuldi sem fóru EKKI inn. Understat player_id — parast við FPL gegnum understat_id_map.",
+      players: bigMissed,
+    });
+  }
+  record("understat_shots", true, fetched, `${shotsTotal} skot · ${Object.keys(bigMissed).length} leikm. m. klúðruð stórfæri`);
+}
+
 /* ========== 9b. EVRÓPULEIKIR — álag/rótasjón (sjálf-greinandi) ==========
    FPL-API-ið veit ekkert um Evrópukeppnir. Tveir kostir:
    (a) ESPN almenna API — enginn lykill, nær yfir allar UEFA-keppnir, en ÓFORMLEGT
@@ -751,6 +815,7 @@ async function main() {
                       try { await fetchPromotedBaseline(); } catch (e) { record("promoted_baseline", false, 0, e.message); } }
   if (FLAGS.weather){ try { await fetchWeather(); }          catch (e) { record("weather", false, 0, e.message); } }
   if (FLAGS.understat){ try { await fetchUnderstat(); }      catch (e) { record("understat_season", false, 0, e.message); } }
+  if (FLAGS.understat_shots){ try { await fetchUnderstatShots(); } catch (e) { record("understat_shots", false, 0, e.message); } }
   if (FLAGS.euro)   { try { await fetchEuro(); }              catch (e) { record("euro_fixtures", false, 0, e.message); } }
 
   await writeJSON("status.json", status);
