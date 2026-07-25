@@ -188,6 +188,7 @@ async function fetchFPL() {
   const fixtures = await getJSON(`${FPL}/fixtures/`);
   await writeJSON("fixtures.json", fixtures.map(f => ({
     id:f.id, event:f.event, kickoff_time:f.kickoff_time, finished:f.finished,
+    started:f.started, minutes:f.minutes, finished_provisional:f.finished_provisional,
     team_h:f.team_h, team_a:f.team_a, team_h_score:f.team_h_score, team_a_score:f.team_a_score,
     team_h_difficulty:f.team_h_difficulty, team_a_difficulty:f.team_a_difficulty })));
   record("fpl_fixtures", true, fixtures.length);
