@@ -577,6 +577,10 @@ async function fetchEuro() {
       discovered = [...codes];
       const relevant = discovered.filter(c => /uefa|^eng\.|fifa\.cwc/i.test(c));
       console.log(`Evrópa uppgötvun: ${discovered.length} kóðar, viðeigandi (${relevant.length}): ${relevant.join(", ")}`);
+      // Æfingarleikir: LOGGA en EKKI nota. Þeir mega ekki skekkja álagsreikning
+      // (falskar tvöfaldar umferðir). Sjá FRIENDLY_BLOCK neðar.
+      const friendlyCodes = discovered.filter(c => /friendly|friendlies|preseason|pre_season/i.test(c));
+      if (friendlyCodes.length) console.log(`Æfingarleikja-kóðar (EKKI notaðir): ${friendlyCodes.join(", ")}`);
       if (discovered.length) break;
     } catch (e) { console.log(`Evrópa uppgötvun brást: ${e.message}`); }
   }
@@ -588,9 +592,12 @@ async function fetchEuro() {
     "uefa.champions_qual", "uefa.europa_qual", "uefa.conf_qual",
     "eng.fa", "eng.league_cup", "eng.charity", "fifa.cwc",
   ];
-  const ESPN_CODES = discovered.length
+  // VÖRN: æfingarleikir og vinamót eru útilokuð. Þeir eru ekki keppnisleikir og
+  // myndu skekkja álag/rótasjón (og búa til falskar tvöfaldar umferðir).
+  const FRIENDLY_BLOCK = /friendly|friendlies|preseason|pre_season|testimonial|trophy\.pre/i;
+  const ESPN_CODES = (discovered.length
     ? [...new Set([...discovered.filter(c => /uefa|^eng\.(fa|league_cup|charity)|fifa\.cwc/i.test(c)), ...CANDIDATES])]
-    : CANDIDATES;
+    : CANDIDATES).filter(c => !FRIENDLY_BLOCK.test(c));
   console.log(`Evrópa: prófa ${ESPN_CODES.length} kóða`);
   const d1 = today.replace(/-/g, "");
   const end = new Date(Date.now() + 150 * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
@@ -676,11 +683,13 @@ async function fetchEuro() {
   // Aðeins leikir sem varða ensk lið (það er allt sem hefur áhrif á FPL-álag)
   const out = [];
   const unmatched = new Set();
-  let stale = 0;
+  let stale = 0, friendlySkipped = 0;
   for (const m of matches) {
     // HARÐUR FILTER: sleppa öllu sem er í fortíðinni. Heimildir skila stundum
     // síðasta tímabili þegar nýtt er ekki dregið — þau gögn eru verri en engin.
     if (!m.date || m.date.slice(0, 10) < today) { stale++; continue; }
+    // Auka-vörn: ef keppnin er æfingarleikur, sleppa (á ekki að gerast en tryggjum).
+    if (/friendly|preseason|testimonial/i.test(m.comp)) { friendlySkipped++; continue; }
     const hId = fplByNorm[norm(m.home)] ?? null;
     const aId = fplByNorm[norm(m.away)] ?? null;
     if (!hId && !aId) {
@@ -691,6 +700,7 @@ async function fetchEuro() {
     out.push({ comp: m.comp, date: m.date, home: m.home, away: m.away, home_fpl: hId, away_fpl: aId });
   }
   if (stale) console.log(`Evrópa: sleppti ${stale} úreltum leikjum (dagsetning fyrir ${today})`);
+  if (friendlySkipped) console.log(`Evrópa: sleppti ${friendlySkipped} æfingarleikjum (ekki keppnisleikir)`);
   if (unmatched.size) console.log(`Evrópa: ópöruð ensk-lík nöfn: ${[...unmatched].slice(0,8).join(" | ")}`);
 
   // Álag per lið: fjöldi Evrópuleikja og dagsetningar (framendinn parar við FPL-umferðir)
