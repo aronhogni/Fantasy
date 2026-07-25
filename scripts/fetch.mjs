@@ -13,7 +13,7 @@
    - nafnastafsetning nýliða hjá ClubElo
    ============================================================ */
 
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
@@ -1220,6 +1220,191 @@ async function deriveRotation() {
   record("rotation", true, out.length, `${short} m. <4 daga hvíld, ${flagged} m. Evrópu-nálægð`);
 }
 
+/* ---- 4b. HEPPNISMÆLIR ÚR UNDERSTAT ----
+   HHW/AHW voru aldrei til í E0 (staðfest í 9 tímabilum). Understat-skot hafa
+   'result'-svið og ShotOnPost er BETRA merki: það er á SKOT, ekki á leik,
+   svo við fáum það per LEIKMANN.
+   ENUM-gildin eru ÓSTAÐFEST — við loggum öll ólík gildi sem koma.           */
+async function deriveLuck() {
+  // 1) lesa öll skot sem eru sótt
+  const seen = new Set();
+  const teamAgg = {}, playerAgg = {};
+  let files = 0, shots = 0;
+  let dir = [];
+  try { dir = (await readdir(`${DATA}/understat/match`)).filter(f => f.endsWith(".json")); } catch {}
+  for (const f of dir) {
+    let sh;
+    try { sh = JSON.parse(await readFile(`${DATA}/understat/match/${f}`, "utf8")); } catch { continue; }
+    files++;
+    for (const side of ["h", "a"]) {
+      const opp = side === "h" ? "a" : "h";
+      for (const s of (sh[side] || [])) {
+        shots++;
+        seen.add(s.result);                       // LOGGA öll ENUM-gildi
+        const tName = s.h_a === "h" ? sh.h_team : sh.a_team;  // óstaðfest svið, þolum vöntun
+        const key = s.player_id;
+        const xg = parseFloat(s.xG || 0);
+        const isGoal = s.result === "Goal";
+        const isPost = /post|woodwork|bar/i.test(s.result || "");
+        const isPen = s.situation === "Penalty";
+        const p = playerAgg[key] || (playerAgg[key] = {
+          understat_id: key, player: s.player, shots: 0, woodwork: 0,
+          goals: 0, xg: 0, npxg: 0, penalties_taken: 0, penalties_scored: 0,
+          freekicks_taken: 0, corners: 0,
+        });
+        p.shots++; p.xg += xg;
+        if (!isPen) p.npxg += xg;
+        if (isGoal) p.goals++;
+        if (isPost) p.woodwork++;
+        if (isPen) { p.penalties_taken++; if (isGoal) p.penalties_scored++; }
+        if (s.situation === "DirectFreekick") p.freekicks_taken++;
+        if (s.situation === "FromCorner") p.corners++;
+      }
+    }
+  }
+  Object.values(playerAgg).forEach(p => {
+    p.xg = +p.xg.toFixed(2); p.npxg = +p.npxg.toFixed(2);
+    p.goals_minus_xg = +(p.goals - p.xg).toFixed(2);
+  });
+
+  if (seen.size) console.log(`Understat result-ENUM (STAÐFEST): ${[...seen].sort().join(", ")}`);
+  else console.log("Understat: engin skot-gögn enn — heppnismælir bíður leikja");
+
+  // 2) LIÐ-STIG: mörk vs xG úr E0 (heilt) + xGC úr FPL-markverði
+  const teams = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
+  const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
+  const fd2fpl = {};
+  Object.entries(tmap).forEach(([id, v]) => { if (v.fdcouk) fd2fpl[v.fdcouk] = Number(id); });
+  let e0rows = [];
+  try { e0rows = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2526.json`, "utf8")).rows; } catch {}
+
+  const e0 = {};
+  for (const r of e0rows) {
+    const pairs = [
+      [r.HomeTeam, +r.FTHG || 0, +r.FTAG || 0],
+      [r.AwayTeam, +r.FTAG || 0, +r.FTHG || 0],
+    ];
+    for (const [nm, gf, ga] of pairs) {
+      const fid = fd2fpl[nm]; if (!fid) continue;
+      const d = e0[fid] || (e0[fid] = { matches: 0, gf: 0, ga: 0 });
+      d.matches++; d.gf += gf; d.ga += ga;
+    }
+  }
+  // xG/xGC úr FPL (ATH: 19% vantar v. leikmanna sem fóru — merkjum það)
+  const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
+  const fplAgg = {};
+  players.forEach(p => {
+    const a = fplAgg[p.team] || (fplAgg[p.team] = { xg: 0, gkMins: 0, xgc: 0 });
+    a.xg += parseFloat(p.expected_goals || 0);
+    if (p.element_type === 1 && (p.minutes || 0) > a.gkMins) {
+      a.gkMins = p.minutes; a.xgc = parseFloat(p.expected_goals_conceded || 0);
+    }
+  });
+  // nýliða-staðgengill
+  let pb = {};
+  try { pb = JSON.parse(await readFile(`${DATA}/promoted_baseline.json`, "utf8")); } catch {}
+
+  const teamOut = teams.map(t => {
+    const d = e0[t.id], f = fplAgg[t.id] || {};
+    if (d) {
+      return {
+        fpl_id: t.id, short: t.short, matches: d.matches,
+        goals: d.gf, conceded: d.ga,
+        xg: +(f.xg || 0).toFixed(1), xgc: +(f.xgc || 0).toFixed(1),
+        goals_minus_xg: f.xg ? +(d.gf - f.xg).toFixed(1) : null,
+        conceded_minus_xgc: f.xgc ? +(d.ga - f.xgc).toFixed(1) : null,
+        woodwork_for: null, woodwork_against: null,   // fyllist með skot-gögnum
+        source: "e0+fpl",
+        xg_incomplete: true,   // FPL-summa vantar leikmenn sem fóru úr deildinni
+      };
+    }
+    // nýliðar án PL-sögu: B-deildar-staðgengill. STANGARSKOT ERU EKKI TIL -> null
+    const key = t.name.replace(/ (City|Town|United)$/, "");
+    const b = pb[key] || pb[t.name];
+    return {
+      fpl_id: t.id, short: t.short,
+      matches: b?.games ?? null,
+      goals: b ? Math.round(b.goals_pg * (b.games || 46)) : null,
+      conceded: b ? Math.round(b.goals_against_pg * (b.games || 46)) : null,
+      xg: null, xgc: null, goals_minus_xg: null, conceded_minus_xgc: null,
+      woodwork_for: null, woodwork_against: null,      // EKKI núll — ekki til
+      source: b ? "championship_proxy" : "none",
+      xg_incomplete: null,
+    };
+  });
+
+  await writeJSON("luck.json", {
+    updated: status.updated,
+    result_enum_seen: [...seen].sort(),
+    note: "woodwork úr Understat 'ShotOnPost' (per SKOT, svo per leikmaður). " +
+          "goals úr E0 (heilt), xg úr FPL-summu sem VANTAR ~19% (leikmenn sem fóru úr deildinni) " +
+          "-> xg_incomplete:true. Nýliðar: championship_proxy, woodwork null (EKKI núll).",
+    teams: teamOut,
+    players: Object.values(playerAgg),
+  });
+  record("luck", true, teamOut.length,
+    `${Object.keys(playerAgg).length} leikmenn · ${shots} skot úr ${files} leikjum · ENUM: ${seen.size || "engin"}`);
+}
+
+/* ---- 3b. LIÐ-FORM ÚR E0 — HEILT, engin vöntun ----
+   FPL-summur vantar ~19% (leikmenn sem fóru úr deildinni eru fjarlægðir úr
+   bootstrap). E0 hefur alla 380 leiki, svo lið-mælikvarðar héðan eru heilir.
+   Framendinn á að nota ÞETTA fyrir lið-styrk, og FPL fyrir leikmanna-tölur.  */
+async function deriveTeamForm() {
+  const teams = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
+  const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
+  const fd2fpl = {};
+  Object.entries(tmap).forEach(([id, v]) => { if (v.fdcouk) fd2fpl[v.fdcouk] = Number(id); });
+  let rows = [], header = [];
+  try {
+    const j = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2526.json`, "utf8"));
+    rows = j.rows; header = j.header;
+  } catch { record("team_form", false, 0, "E0-2526 vantar"); return; }
+
+  // REGLA: prenta raunverulega header-röð, ekki treysta lista
+  console.log(`E0-2526 header (${header.length} kolónur): ${header.join(",")}`);
+
+  const agg = {};
+  for (const r of rows) {
+    const sets = [
+      [r.HomeTeam, true,  +r.FTHG||0, +r.FTAG||0, +r.HS||0, +r.AS||0, +r.HST||0, +r.AST||0, +r.HC||0, +r.HF||0, +r.HY||0, +r.HR||0],
+      [r.AwayTeam, false, +r.FTAG||0, +r.FTHG||0, +r.AS||0, +r.HS||0, +r.AST||0, +r.HST||0, +r.AC||0, +r.AF||0, +r.AY||0, +r.AR||0],
+    ];
+    for (const [nm, home, gf, ga, sf, sa, stf, sta, cor, foul, yel, red] of sets) {
+      const fid = fd2fpl[nm]; if (!fid) continue;
+      const d = agg[fid] || (agg[fid] = { n:0, gf:0, ga:0, sf:0, sa:0, stf:0, sta:0, cor:0, foul:0, yel:0, red:0, cs:0, h:0 });
+      d.n++; d.gf+=gf; d.ga+=ga; d.sf+=sf; d.sa+=sa; d.stf+=stf; d.sta+=sta;
+      d.cor+=cor; d.foul+=foul; d.yel+=yel; d.red+=red;
+      if (ga === 0) d.cs++;
+      if (home) d.h++;
+    }
+  }
+  const out = teams.map(t => {
+    const d = agg[t.id];
+    if (!d) return { fpl_id: t.id, short: t.short, matches: 0, source: "none" };
+    const per = v => +(v / d.n).toFixed(2);
+    return {
+      fpl_id: t.id, short: t.short, matches: d.n, source: "fdcouk_e0",
+      goals_pg: per(d.gf), conceded_pg: per(d.ga),
+      shots_pg: per(d.sf), shots_against_pg: per(d.sa),
+      sot_pg: per(d.stf), sot_against_pg: per(d.sta),
+      corners_pg: per(d.cor), fouls_pg: per(d.foul),
+      yellows_pg: per(d.yel), reds_pg: +(d.red / d.n).toFixed(3),
+      clean_sheet_pct: Math.round(d.cs / d.n * 100),
+      conversion: d.sf ? +(d.gf / d.sf).toFixed(3) : null,
+      sot_conversion: d.stf ? +(d.gf / d.stf).toFixed(3) : null,
+    };
+  });
+  await writeJSON("team_form.json", {
+    updated: status.updated, season: "2025-26", header_columns: header.length,
+    note: "ÚR E0, HEILT (380 leikir). Notið þetta fyrir LIÐ-styrk — FPL-summur " +
+          "vantar ~19% því leikmenn sem fóru úr deildinni eru fjarlægðir úr bootstrap.",
+    teams: out,
+  });
+  const withData = out.filter(x => x.matches > 0).length;
+  record("team_form", true, withData, `${out.length - withData} lið án PL-sögu (nýliðar)`);
+}
+
 /* ========== MAIN ========== */
 async function main() {
   await mkdir(DATA, { recursive: true });
@@ -1255,7 +1440,9 @@ async function main() {
   // ---- AFLEIDD LÖG (engin ný köll) — keyrð SÍÐAST því þau lesa skrárnar ofan ----
   if (FLAGS.travel)  { try { await deriveTravel(); }           catch (e) { record("travel", false, 0, e.message); } }
   if (FLAGS.derived) { try { await deriveGameweekShape(); }    catch (e) { record("gameweek_shape", false, 0, e.message); }
-                       try { await deriveRotation(); }         catch (e) { record("rotation", false, 0, e.message); } }
+                       try { await deriveRotation(); }         catch (e) { record("rotation", false, 0, e.message); }
+                       try { await deriveTeamForm(); }          catch (e) { record("team_form", false, 0, e.message); }
+                       try { await deriveLuck(); }              catch (e) { record("luck", false, 0, e.message); } }
 
   await writeJSON("status.json", status);
   console.log("\n=== status.json ===");
