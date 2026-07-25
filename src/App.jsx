@@ -362,7 +362,7 @@ function availOf(p) {
 // ATH: raunverulegt bann kemur úr FPL status ('s') — sjá availOf().
 // Þetta mælir aðeins HÆTTU á komandi banni.
 // Premier League: 5 gul (til umf. 19) = 1 leikur, 10 (til umf. 32) = 2, 15 = 3.
-function banRisk(p, gwNow) {
+function banRisk(p, gwNow, seasonStarted) {
   const y = p?.yellow_cards;
   if (y == null) return null;
   const TIERS = [[5, 19, 1], [10, 32, 2], [15, 38, 3]];
@@ -383,7 +383,7 @@ function setPieceOf(p) {
   return { pen, ck, fk, isPenTaker: pen === 1 };
 }
 // Skiptingar-hætta: byrjaði sjaldan þrátt fyrir að vera heill
-function rotationRisk(p) {
+function rotationRisk(p, seasonGames) {
   const st = p?.starts;
   if (st == null) return null;
   const pct = Math.round((st / 38) * 100);
@@ -1196,10 +1196,10 @@ export default function App() {
       }
 
       // Aðlaganir sem MÆLINGIN nær ekki yfir (tiltækileiki, bönn, fastaleikir)
-      const br = banRisk(p, gw);
+      const br = banRisk(p, gw, seasonStarted);
       const banPen = !br ? 0 : br.level === "high" ? -2.5 : br.level === "mid" ? -1 : 0;
       const spB = setPieceOf(p)?.isPenTaker ? 2.2 : 0;
-      const rot = rotationRisk(p);
+      const rot = rotationRisk(p, seasonGames);
       const rotPen = !rot ? 0 : rot.level === "high" ? -2 : rot.level === "mid" ? -0.8 : 0;
       // DefCon-tækifæri fyrir vörn (aðskilið frá CS%)
       let dcB = 0;
@@ -1242,6 +1242,10 @@ export default function App() {
      óviðkomandi á meðan (enginn hagnaður til að deila).                     */
   const gw1Deadline = events?.find(e => e.id === 1)?.deadline_time || null;
   const preSeason = gw1Deadline ? new Date() < new Date(gw1Deadline) : false;
+  // TÍMABIL BYRJAÐ = einhver umferð lokin. Þangað til eru allar uppsöfnuðu
+  // tölur í players.json frá SÍÐASTA tímabili (spjöld, mínútur, stig).
+  const seasonStarted = !!events?.some(e => e.finished);
+  const seasonGames = (events || []).filter(e => e.finished).length;
   preSeasonRef.current = preSeason;
 
   /* ---------- VÆNT STIG per umferð ----------
@@ -1613,7 +1617,7 @@ export default function App() {
                     isSellHint={recommendations.sellIds?.has(sq.id)}
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel}
+                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
@@ -1631,7 +1635,7 @@ export default function App() {
                   isSellHint={recommendations.sellIds?.has(sq.id)}
                   onInfo={() => setDetail({ kind:"player", id:sq.id })}
                   onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                  onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel}
+                  onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames}
                   dragId={dragId} setDragId={setDragId}
                   onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
               ))}
@@ -1808,7 +1812,7 @@ export default function App() {
             <h2 style={S.h2}>Tiltækileiki liðsins</h2>
             {(() => {
               const flagged = squadAt.map(x => byId[x.id]).filter(Boolean).map(pp => ({
-                pp, av: availOf(pp), ban: banRisk(pp, gw), rot: rotationRisk(pp),
+                pp, av: availOf(pp), ban: banRisk(pp, gw, seasonStarted), rot: rotationRisk(pp, seasonGames),
               })).filter(x => x.av.isRisk || (x.ban && x.ban.level === "high") || (x.rot && x.rot.level === "high"));
               if (!flagged.length) return <div style={S.okBox}>Allir 15 tiltækir — engin meiðsli, bönn eða spjaldahætta.</div>;
               return flagged.map(({ pp, av, ban, rot }) => (
@@ -1982,9 +1986,9 @@ export default function App() {
         if (!t) return null;
         const fxs = allFixturesFor(t.id, gw, 12);
         const av = isPlayer ? availOf(p) : null;
-        const ban = isPlayer ? banRisk(p, gw) : null;
+        const ban = isPlayer ? banRisk(p, gw, seasonStarted) : null;
         const sp = isPlayer ? setPieceOf(p) : null;
-        const rot = isPlayer ? rotationRisk(p) : null;
+        const rot = isPlayer ? rotationRisk(p, seasonGames) : null;
         const tm = teamMetrics[t.id] || {};
         const e = eloByTeam[t.id], dcv = dcOpp[t.id];
         const per90 = (v, mins) => (mins > 400 && v != null) ? +(parseFloat(v) * (90 / mins)).toFixed(2) : null;
@@ -2464,7 +2468,7 @@ function GwFixtureList({ gw, fixtures, teamById, crestFor, diffOf, csFor, weathe
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor, teamXgFor,
   crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onCardClick, swapSel, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -2474,9 +2478,9 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
   const txg = !isDef ? teamXgFor(p.team, fx) : null;
   const csColor = csObj?.cs == null ? C.text3 : csObj.cs >= 40 ? C.green : csObj.cs >= 25 ? C.amber : C.red;
   const av = availOf(p);
-  const ban = banRisk(p, gwNow);
+  const ban = banRisk(p, gwNow, seasonStarted);
   const sp = setPieceOf(p);
-  const rot = rotationRisk(p);
+  const rot = rotationRisk(p, seasonGames);
   return (
     <div
       draggable
