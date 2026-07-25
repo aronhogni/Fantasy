@@ -218,6 +218,8 @@ const FIT = {
    Meðaltal þriggja tímabila er notað sem varúð gegn of-fittun.          */
 const FIT_MULTI = { bias:-1.72, pts5:1.155, mins5:8.988, xgi90:0.955, bps90:0.003, price:1.229, fdr:-0.984 };
 
+const TL_WINDOW = 8;   // umferðir sýndar í einu — minna skrun
+
 /* ---- Landsleikjahlé: hlé Á EFTIR þessum umferðum ---- */
 const INTL_BREAK_AFTER = [3, 7, 11, 15, 22, 27];
 
@@ -487,6 +489,8 @@ export default function App() {
   const [chips, setChips] = useState({});
   const [dragId, setDragId] = useState(null);
   const [swapSel, setSwapSel] = useState(null);   // valinn til skipta (smellu-flæði)
+  const [editPrice, setEditPrice] = useState(null); // kaupverð í stillingu (id)
+  const [tlStart, setTlStart] = useState(1);        // fyrsta umferð í tímalínu-glugga
   const [selling, setSelling] = useState(null);
   const [searchQ, setSearchQ] = useState("");
   const [browse, setBrowse] = useState(false); // frjáls leit (ekki bundin sölu)
@@ -727,6 +731,16 @@ export default function App() {
   const crestFor = t => crestUrl(t?.code ?? CREST_FALLBACK[t?.short]);
 
   const maxGw = events ? events.length : 38;
+
+  /* tímalínu-glugginn fylgir valdri umferð ef hún fer út fyrir hann.
+     ATH: verður að vera EFTIR maxGw — TDZ annars.                          */
+  useEffect(() => {
+    setTlStart(v => {
+      if (gw < v) return Math.max(1, gw - 1);
+      if (gw > v + TL_WINDOW - 1) return Math.min(Math.max(1, maxGw - TL_WINDOW + 1), gw - TL_WINDOW + 2);
+      return v;
+    });
+  }, [gw, maxGw]);
 
   // Leikir per lið per umferð
   const fixByTeamGw = useMemo(() => {
@@ -1419,9 +1433,13 @@ export default function App() {
 
       {/* ---------- Tímalína ---------- */}
       <div style={S.tlWrap}>
+        <div style={S.tlOuter}>
+          <button style={{ ...S.tlArrow, ...(tlStart <= 1 ? S.tlArrowOff : {}) }}
+            disabled={tlStart <= 1} title="Fyrri umferðir"
+            onClick={() => setTlStart(v => Math.max(1, v - TL_WINDOW))}>‹</button>
         <div style={S.tlRow}>
           <div style={S.tlLine} />
-          {Array.from({ length: Math.min(12, maxGw) }, (_,i) => i + 1 + Math.max(0, Math.min(gw - 4, maxGw - 12))).map(n => {
+          {Array.from({ length: Math.min(TL_WINDOW, maxGw) }, (_,i) => tlStart + i).filter(n => n <= maxGw).map(n => {
             const active = n === gw;
             const has = plan.some(t => t.gw === n);
             const brk = INTL_BREAK_AFTER.includes(n);
@@ -1457,6 +1475,10 @@ export default function App() {
               </React.Fragment>
             );
           })}
+        </div>
+          <button style={{ ...S.tlArrow, ...(tlStart + TL_WINDOW > maxGw ? S.tlArrowOff : {}) }}
+            disabled={tlStart + TL_WINDOW > maxGw} title="Næstu umferðir"
+            onClick={() => setTlStart(v => Math.min(Math.max(1, maxGw - TL_WINDOW + 1), v + TL_WINDOW))}>›</button>
         </div>
         <div style={S.deadline}>
           <b>GW{gw}</b> · frestur {fmtDeadline(ev?.deadline_time)}
@@ -2079,14 +2101,30 @@ export default function App() {
                     </div>
                     <div style={S.priceRow}>
                       <label style={S.priceLbl}>Kaupverð</label>
-                      <div style={S.priceEdit}>
-                        <button style={S.priceStep} onClick={() => setBuyPrices(b => ({ ...b, [p.id]: { p: Math.max(35, buy - 1), src:"manual" } }))}>−</button>
-                        <span style={S.priceVal}>£{(buy / 10).toFixed(1)}</span>
-                        <button style={S.priceStep} onClick={() => setBuyPrices(b => ({ ...b, [p.id]: { p: buy + 1, src:"manual" } }))}>+</button>
-                      </div>
-                      {buyPrices[p.id] != null && (
-                        <button style={S.priceReset} onClick={() => setBuyPrices(b => { const n = { ...b }; delete n[p.id]; return n; })}>
-                          núllstilla
+                      {editPrice === p.id ? (
+                        <div style={S.priceEdit}>
+                          <button style={S.priceStep} title="−0,1"
+                            onClick={() => setBuyPrices(b => ({ ...b, [p.id]: { p: Math.max(35, buy - 1), src:"manual" } }))}>−</button>
+                          <input type="number" step="0.1" min="3.5" max="20" style={S.priceInput}
+                            value={(buy / 10).toFixed(1)}
+                            onChange={e => {
+                              const v = Math.round(parseFloat(e.target.value) * 10);
+                              if (Number.isFinite(v)) setBuyPrices(b => ({ ...b, [p.id]: { p: clamp(v, 35, 200), src:"manual" } }));
+                            }} />
+                          <button style={S.priceStep} title="+0,1"
+                            onClick={() => setBuyPrices(b => ({ ...b, [p.id]: { p: Math.min(200, buy + 1), src:"manual" } }))}>+</button>
+                          <button style={S.priceDone} onClick={() => setEditPrice(null)}>✓</button>
+                          {buyPrices[p.id] != null && (
+                            <button style={S.priceReset} title="Aftur í sjálfvirkt"
+                              onClick={() => { setBuyPrices(b => { const n = { ...b }; delete n[p.id]; return n; }); setEditPrice(null); }}>
+                              núllstilla
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <button style={S.priceOpen} onClick={() => setEditPrice(p.id)}
+                          title="Smelltu til að stilla kaupverð">
+                          £{(buy / 10).toFixed(1)}<span style={S.priceOpenIcon}>stilla</span>
                         </button>
                       )}
                     </div>
@@ -2622,7 +2660,12 @@ const S = {
 
   tlWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px", marginBottom:12 },
   // lína gegnum hnútana — teiknuð sem bakgrunnur á röðinni
-  tlRow: { position:"relative", display:"flex", alignItems:"flex-end", gap:5, flexWrap:"wrap" },
+  tlOuter: { display:"flex", alignItems:"flex-end", gap:6 },
+  tlArrow: { width:22, height:26, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
+    fontSize:15, lineHeight:1, cursor:"pointer", background:C.cardAlt, color:C.purple,
+    border:`1px solid ${C.border}`, borderRadius:7, padding:0, marginBottom:1 },
+  tlArrowOff: { opacity:0.3, cursor:"default", color:C.text3 },
+  tlRow: { flex:1, position:"relative", display:"flex", alignItems:"flex-end", gap:5, flexWrap:"wrap" },
   tlLine: { position:"absolute", left:0, right:0, bottom:13, height:2, background:C.border, borderRadius:1, zIndex:0 },
   nodeCol: { position:"relative", zIndex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 },
   chipSlotAbove: { height:17, display:"flex", alignItems:"center" },
@@ -2835,6 +2878,15 @@ const S = {
   dNote: { background:C.cardAlt, borderRadius:8, padding:"8px 10px", fontSize:10.5, color:C.text2, lineHeight:1.5, marginBottom:10 },
   priceRow: { display:"flex", alignItems:"center", gap:9, marginBottom:9 },
   priceLbl: { fontFamily:mono, fontSize:10, textTransform:"uppercase", letterSpacing:0.5, color:C.text3 },
+  priceOpen: { display:"inline-flex", alignItems:"center", gap:6, cursor:"pointer",
+    fontFamily:mono, fontSize:13, fontWeight:700, color:C.text,
+    background:C.cardAlt, border:`1px dashed ${C.border}`, borderRadius:7, padding:"3px 8px" },
+  priceOpenIcon: { fontFamily:sans, fontSize:8.5, fontWeight:400, color:C.purple,
+    textTransform:"uppercase", letterSpacing:0.4 },
+  priceInput: { width:52, textAlign:"center", fontFamily:mono, fontSize:12.5, fontWeight:700,
+    color:C.text, background:C.card, border:`1px solid ${C.border}`, borderRadius:5, padding:"2px 3px" },
+  priceDone: { width:22, height:22, display:"flex", alignItems:"center", justifyContent:"center",
+    cursor:"pointer", fontSize:11, background:C.green, color:"#fff", border:"none", borderRadius:5, padding:0 },
   priceEdit: { display:"flex", alignItems:"center", gap:5, background:C.cardAlt, borderRadius:7, padding:"3px 5px" },
   priceStep: { width:22, height:22, borderRadius:5, border:`1px solid ${C.border}`, background:C.card, color:C.text, fontSize:13, cursor:"pointer", lineHeight:1, padding:0 },
   priceVal: { fontFamily:mono, fontSize:13.5, fontWeight:700, minWidth:44, textAlign:"center" },
