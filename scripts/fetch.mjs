@@ -599,7 +599,11 @@ async function fetchEuro() {
   if (euroKey) {
     for (const comp of ["CL", "EL"]) {
       try {
-        const r = await fetch(`https://api.football-data.org/v4/competitions/${comp}/matches`,
+        // MIKILVÆGT: án dateFrom/dateTo skilar fd.org NÝJASTA tímabili sem það hefur
+        // (t.d. 2025/26 áður en dráttur 2026/27 er gerður) -> úreltar dagsetningar.
+        const dTo = new Date(Date.now() + 300 * 86400000).toISOString().slice(0, 10);
+        const r = await fetch(
+          `https://api.football-data.org/v4/competitions/${comp}/matches?dateFrom=${today}&dateTo=${dTo}`,
           { headers: { "X-Auth-Token": euroKey, "User-Agent": UA } });
         if (!r.ok) { console.log(`Evrópa fd.org ${comp}: HTTP ${r.status}`); continue; }
         const j = await r.json();
@@ -643,7 +647,11 @@ async function fetchEuro() {
   // Aðeins leikir sem varða ensk lið (það er allt sem hefur áhrif á FPL-álag)
   const out = [];
   const unmatched = new Set();
+  let stale = 0;
   for (const m of matches) {
+    // HARÐUR FILTER: sleppa öllu sem er í fortíðinni. Heimildir skila stundum
+    // síðasta tímabili þegar nýtt er ekki dregið — þau gögn eru verri en engin.
+    if (!m.date || m.date.slice(0, 10) < today) { stale++; continue; }
     const hId = fplByNorm[norm(m.home)] ?? null;
     const aId = fplByNorm[norm(m.away)] ?? null;
     if (!hId && !aId) {
@@ -653,6 +661,7 @@ async function fetchEuro() {
     }
     out.push({ comp: m.comp, date: m.date, home: m.home, away: m.away, home_fpl: hId, away_fpl: aId });
   }
+  if (stale) console.log(`Evrópa: sleppti ${stale} úreltum leikjum (dagsetning fyrir ${today})`);
   if (unmatched.size) console.log(`Evrópa: ópöruð ensk-lík nöfn: ${[...unmatched].slice(0,8).join(" | ")}`);
 
   // Álag per lið: fjöldi Evrópuleikja og dagsetningar (framendinn parar við FPL-umferðir)
@@ -680,8 +689,8 @@ async function fetchEuro() {
     fixtures: out, by_team: byTeam,
     note: "Evrópu- og bikarleikir enskra liða. by_team lyklað á FPL team id. UEFA byrjar ~16. sept.",
   });
-  record("euro_fixtures", out.length > 0 || found.length > 0, out.length,
-    found.length ? found.join(",") : "engin heimild svaraði");
+  record("euro_fixtures", true, out.length,
+    `${stale} úreltum sleppt · ${found.length ? found.join(",") : "engin heimild svaraði"}`);
 }
 
 /* ========== MAIN ========== */
