@@ -47,11 +47,15 @@ const KIT = {
 };
 const POS_LABEL = { 1:"Markv.", 2:"Vörn", 3:"Miðja", 4:"Sókn" };
 /* Raða-staðsetningar sem % af vallarhæð, mældar gegn viðmiðum Pitch.jsx */
+/* JÖFN BIL — 15 prósentustig milli allra raða. Áður var GK->DEF 16 og
+   hinar 15, sem sást sem stærra bil undir markverðinum.
+   Viðmiðin halda: GK milli markteigs (13,02) og vítapunkts (18,92),
+   vörn fyrir framan vítateig (24,82), sókn fyrir miðlínu (63,42).          */
 const ROW_Y = [
-  { pos: 1, y: 15 },   // markvörður — milli markteigs (13,02) og vítapunkts (18,92)
-  { pos: 2, y: 31 },   // vörn — rétt fyrir framan vítateig (24,82)
-  { pos: 3, y: 46 },   // miðja — milli vítateigs og miðlínu
-  { pos: 4, y: 61 },   // sókn — við miðlínu (63,42)
+  { pos: 1, y: 15 },   // markvörður
+  { pos: 2, y: 30 },   // vörn
+  { pos: 3, y: 45 },   // miðja
+  { pos: 4, y: 60 },   // sókn
 ];
 /* FPL explain-lyklar -> íslensk heiti (stiga-uppskipting) */
 const EXPLAIN_IS = {
@@ -978,12 +982,6 @@ export default function App() {
     return +clamp(lookupMeasured("ga", d2), 0.3, 3.4).toFixed(1);
   }
   // Team xG (sóknar-vænting liðsins í þessum leik)
-  function teamXgFor(teamId, fx) {
-    if (!fx) return null;
-    const att = teamMetrics[teamId]?.xg90 ?? 1.4;
-    const oppDef = teamMetrics[fx.opp]?.xgc90 ?? 1.4;
-    return +clamp(att * 0.55 + oppDef * 0.45 + (fx.home ? 0.14 : -0.14), 0.2, 3.5).toFixed(1);
-  }
 
   /* ---------- Sameinaður leikjalisti: deild + Evrópa + bikar ---------- */
   function allFixturesFor(teamId, fromGw = 1, count = 10) {
@@ -1566,13 +1564,13 @@ export default function App() {
                   <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
                     fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]}
                     captain={captain} vice={vice}
-                    csFor={csFor} xgaFor={xgaFor} teamXgFor={teamXgFor} crestFor={crestFor}
+                    csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
                     dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
                     isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
                     isSellHint={recommendations.sellIds?.has(sq.id)}
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames}
+                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
@@ -1584,13 +1582,13 @@ export default function App() {
                 <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
                   fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]} bench
                   captain={captain} vice={vice}
-                  csFor={csFor} xgaFor={xgaFor} teamXgFor={teamXgFor} crestFor={crestFor}
+                  csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
                   dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
                   isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
                   isSellHint={recommendations.sellIds?.has(sq.id)}
                   onInfo={() => setDetail({ kind:"player", id:sq.id })}
                   onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                  onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames}
+                  onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)}
                   dragId={dragId} setDragId={setDragId}
                   onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
               ))}
@@ -2568,16 +2566,15 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
   );
 }
 
-function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor, teamXgFor,
+function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor,
   crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, ep, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
   const dragging = dragId === p.id;
   const csObj = isDef ? csFor(p.team, fx) : null;
   const xga = isDef ? xgaFor(p.team, fx) : null;
-  const txg = !isDef ? teamXgFor(p.team, fx) : null;
   const csColor = csObj?.cs == null ? C.text3 : csObj.cs >= 40 ? C.green : csObj.cs >= 25 ? C.amber : C.red;
   const av = availOf(p);
   const ban = banRisk(p, gwNow, seasonStarted);
@@ -2634,12 +2631,19 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       </div>
       <FixChip fx={fx} teamById={teamById} diff={diffOf ? diffOf(p.team, fx, p.element_type) : null} pos={p.element_type} />
       {/* EIN aðaltala */}
+      {/* EIN aðaltala — VÆNT STIG leikmannsins.
+          Áður var hér lið-xG fyrir sóknarmenn, en það er ÓÞARFI: FFDR-flísin
+          inniheldur það þegar (eigin sóknarstyrkur vegur 0,60 í FFDR fyrir
+          framherja). Vænt stig er leikmanns-stig og ekki tvítalning.        */}
       <div style={S.pMain}>
-        {isDef
-          ? <span style={{ color:csColor, fontWeight:700, fontFamily:mono, fontSize:11.5 }}>
-              CS {csObj?.cs == null ? "—" : `${csObj.cs}%`}
-            </span>
-          : <span style={S.pTeamXg}>xG {txg == null ? "—" : txg}</span>}
+        <span style={S.pEp} title="Vænt stig í þessari umferð (mínútur + FFDR + form)">
+          {ep == null ? "—" : `≈${ep.toFixed(1)}`}
+        </span>
+        {isDef && csObj?.cs != null && (
+          <span style={{ ...S.pCsSmall, color:csColor }} title="Líkur á hreinu blaði (mælt)">
+            CS {csObj.cs}%
+          </span>
+        )}
       </div>
       {/* Fínleg merkjaröð — aðeins það sem er athugavert */}
       <div style={S.sigRow}>
@@ -2852,7 +2856,8 @@ const S = {
   pPrice: { fontFamily:mono, fontSize:10.5, color:C.text2 },
   pStatBox: { display:"flex", flexDirection:"column", gap:0, marginTop:3 },
   pStatSub: { fontFamily:mono, fontSize:9, color:C.text3 },
-  pTeamXg: { fontFamily:mono, fontSize:10, color:C.text2, fontWeight:600 },
+  pEp: { fontFamily:mono, fontSize:12, fontWeight:700, color:C.purple },
+  pCsSmall: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginLeft:4 },
   fixChip: { display:"inline-block", fontFamily:mono, fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, margin:"4px 0 1px" },
   away: { fontSize:8, opacity:0.75, marginLeft:1 },
   fixNum: { fontSize:7.5, opacity:0.7, marginLeft:3, fontWeight:400 },
