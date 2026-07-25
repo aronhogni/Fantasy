@@ -307,7 +307,43 @@ xgi90 +0,7, pts5 +0,3 til +1,0, **FDR −0,2 til −0,6**.
 bætingin er **negatíf alls staðar**. Það er samt haft með á sinni mældu
 (lítilli) vog. Litakóðar á leikjum eru gagnlegt samhengi, ekki forspá.
 
-### MÆLD KVÖRÐUN Á LEIKJAÞYNGD
+### MÆLD KVÖRÐUN — FIMM TÍMABIL, 2.720 LIÐ-LEIKIR
+
+Nýi samsetti stuðullinn (FDR 0,45 + eigin styrkur 0,35 + andstæðingur 0,20)
+mældur gegn **raunverulegum fantasy-útkomum** 2021/22–2025/26.
+Liðsstyrkur alltaf úr **fyrra tímabili** → ekkert leki.
+
+| Markmið | FDR | Nýr stuðull | Bæting |
+|---|---|---|---|
+| Hreint blað | +0,170 | **+0,190** | +12% |
+| Mörk á sig | +0,276 | **+0,289** | +5% |
+| Varnarmanna-stig | +0,207 | **+0,241** | +16% |
+| Markmanna-stig | +0,126 | **+0,152** | +21% |
+| Sóknar-stig (MID+FWD) | +0,171 | **+0,226** | +32% |
+
+**Bætingin er jákvæð í öllum fimm tímabilum**, aldrei negatíf (+0,005 til +0,057).
+
+**Staðsetningarnæmt skiptir máli:** varnar-útgáfan er best fyrir varnarmenn og
+markverði, sóknar-útgáfan fyrir miðju og sókn (+0,226 á móti +0,214).
+
+#### Mældir flokkar — `MEASURED` í appinu
+
+| Þyngd | n | CS% | Á sig | Varnarst. | Markm.st. | Sóknarst. |
+|---|---|---|---|---|---|---|
+| 1,0–2,2 | 214 | **40,2%** | 1,00 | 18,8 | 4,2 | 31,2 |
+| 2,2–2,6 | 518 | 30,3% | 1,11 | 17,3 | 4,2 | 29,9 |
+| 2,6–3,0 | 660 | 28,5% | 1,28 | 15,1 | 3,8 | 28,0 |
+| 3,0–3,4 | 659 | 22,8% | 1,53 | 13,9 | 3,5 | 26,3 |
+| 3,4–5,0 | 669 | **13,0%** | 1,99 | 10,2 | 3,0 | 22,8 |
+
+Fullkomlega einræn á öllum fimm mælikvörðum. **Litaþrepin fimm í appinu eru
+þessi bil** — ekki valin tala, heldur mældir flokkar.
+
+Til samanburðar nær hrátt FDR aðeins 31,8% (FDR 2) niður í 9,8% (FDR 5).
+Nýi stuðullinn finnur **214 leiki með 40,2% CS-tíðni** sem FDR fleygir saman
+við FDR 2.
+
+### GAMLA KVÖRÐUNIN (FDR-lyklað, 1.102 leikir)
 
 **1.102 leikir yfir 3 tímabil, FDR borið við LOKALÍNUR markaðarins:**
 
