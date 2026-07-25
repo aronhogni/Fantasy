@@ -234,7 +234,7 @@ export default function App() {
       <header style={S.header}>
         <div>
           <div style={S.kicker}>Fantasy Premier League · 2026/27</div>
-          <h1 style={S.h1}>Liðs&shy;plönun</h1>
+          <h1 style={S.h1}>Liðsplönun</h1>
         </div>
         <div style={S.connectBox}>
           <input
@@ -277,7 +277,7 @@ export default function App() {
 
       <div style={S.oddsBar}>
         <span style={S.oddsDot(oddsState)} />
-        {oddsState==="ok"   && <span>Bókmakera-CS% virkt — leikja-flísar litaðar eftir hreint-líkum (grænt ≥50%, gult 30–49%, rautt &lt;30%).</span>}
+        {oddsState==="ok"   && <span>Bókmakera-CS% virkt — leikja-flísar litaðar eftir hreint-líkum (grænt ≥50%, gult 30–49%, rautt {"<"}30%).</span>}
         {oddsState==="loading" && <span>Sæki bókmakera-línur…</span>}
         {oddsState==="off"  && <span>Bókmakera-CS% óvirkt — sýni FDR + spá. Tengdu Netlify-proxy (PROXY_URL) til að kveikja á lifandi CS%.</span>}
         {oddsState==="error"&& <span>Náði ekki í bókmakera-línur. Athugaðu proxy-slóð og ODDS_API_KEY á Netlify.</span>}
