@@ -11,11 +11,10 @@ import React, { useState, useEffect, useMemo } from "react";
    ============================================================ */
 const PROXY_URL = "https://mellifluous-hummingbird-565c85.netlify.app/.netlify/functions/odds"; // Netlify-fallið þitt
 
-// CS% -> litur. Kvarðað við raunveruleikann: meðallið heldur hreinu ~28-30% leikja,
-// svo 50% væri ranglega strangt. ≥38% = yfir meðallagi (grænt), <25% = undir (rautt).
+// CS% -> litur. Mörk notanda: grænt ≥40%, gult 25–39%, rautt <25%.
 function csColor(pct) {
   if (pct == null) return null;
-  if (pct >= 38) return "#1B7A3D";      // grænt: yfir meðallagi, gott CS-veðmál
+  if (pct >= 40) return "#1B7A3D";      // grænt: yfir meðallagi, gott CS-veðmál
   if (pct >= 25) return "#E0A500";      // gult: eðlilegt bil (meðallag ~28-30%)
   return "#C62828";                      // rautt: undir meðallagi, ólíklegt hreint
 }
@@ -278,7 +277,7 @@ export default function App() {
 
       <div style={S.oddsBar}>
         <span style={S.oddsDot(oddsState)} />
-        {oddsState==="ok"   && <span>Bókmakera-CS% virkt — litað eftir hreint-líkum (grænt ≥38% = yfir meðallagi, gult 25–37% = eðlilegt, rautt {"<"}25%). Meðallið ~28-30%.</span>}
+        {oddsState==="ok"   && <span>Bókmakera-CS% virkt — litað eftir hreint-líkum (grænt ≥40%, gult 25–39%, rautt {"<"}25%). Meðallið ~28-30%.</span>}
         {oddsState==="loading" && <span>Sæki bókmakera-línur…</span>}
         {oddsState==="off"  && <span>Bókmakera-CS% óvirkt — sýni FDR + spá. Tengdu Netlify-proxy (PROXY_URL) til að kveikja á lifandi CS%.</span>}
         {oddsState==="error"&& <span>Náði ekki í bókmakera-línur. Athugaðu proxy-slóð og ODDS_API_KEY á Netlify.</span>}
