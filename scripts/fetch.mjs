@@ -416,6 +416,102 @@ async function fetchFdcouk() {
   record("fdcouk_e0", true, rows.length);
 }
 
+/* ========== 5b. SÖGULEG E0 — H2H, dómarar, heima/úti, lokalínur ==========
+   Sama heimild sem þegar er notuð (football-data.co.uk), en söguleg tímabil.
+   Leikjatölur eru til frá 2017/18. Þetta gefur gögn NÚNA, óháð tímabilsbyrjun:
+   - innbyrðis viðureignir liða
+   - dómara-tilhneiging til spjalda (áhrif á bann-hættu)
+   - heima/úti-mynstur
+   - lokalínur (skarpasta fría líkindaspáin)
+   SÆKT EINU SINNI — skrárnar breytast ekki eftir að tímabil er lokið.        */
+async function fetchHistoricalE0() {
+  const SEASONS = ["1718","1819","1920","2021","2122","2223","2324","2425","2526"];
+  const allRows = [];
+  let fetchedSeasons = 0;
+  for (const ss of SEASONS) {
+    const path = `fdcouk/E0-${ss}.json`;
+    if (existsSync(`${DATA}/${path}`)) {
+      try { allRows.push(...JSON.parse(await readFile(`${DATA}/${path}`, "utf8")).rows); } catch {}
+      continue;
+    }
+    try {
+      const { text } = await getText(`https://www.football-data.co.uk/mmz4281/${ss}/E0.csv`);
+      const { header, rows } = parseCSV(text);
+      await writeJSON(path, { season: ss, header, rows });
+      allRows.push(...rows);
+      fetchedSeasons++;
+      console.log(`fdcouk E0-${ss}: ${rows.length} leikir`);
+      await new Promise(r => setTimeout(r, 600));
+    } catch (e) { console.warn(`fdcouk E0-${ss}: ${e.message}`); }
+  }
+  if (!allRows.length) { record("fdcouk_history", false, 0, "engin söguleg gögn"); return; }
+
+  // ---- Dómara-tilhneiging: spjöld per leik ----
+  const refs = {};
+  for (const r of allRows) {
+    const ref = (r.Referee || "").trim();
+    if (!ref) continue;
+    const y = (+r.HY || 0) + (+r.AY || 0);
+    const rd = (+r.HR || 0) + (+r.AR || 0);
+    const f = (+r.HF || 0) + (+r.AF || 0);
+    const a = refs[ref] || (refs[ref] = { games:0, yellow:0, red:0, fouls:0 });
+    a.games++; a.yellow += y; a.red += rd; a.fouls += f;
+  }
+  const refOut = {};
+  const leagueAvgY = Object.values(refs).reduce((s,a)=>s+a.yellow,0) /
+                     Math.max(1, Object.values(refs).reduce((s,a)=>s+a.games,0));
+  for (const [ref, a] of Object.entries(refs)) {
+    if (a.games < 20) continue; // of lítið úrtak
+    refOut[ref] = {
+      games: a.games,
+      yellow_pg: +(a.yellow / a.games).toFixed(2),
+      red_pg: +(a.red / a.games).toFixed(3),
+      fouls_pg: +(a.fouls / a.games).toFixed(1),
+      // hlutfall á móti meðaltali: 1.2 = 20% fleiri spjöld en meðal-dómari
+      card_index: +((a.yellow / a.games) / (leagueAvgY || 1)).toFixed(2),
+    };
+  }
+  await writeJSON("fdcouk/referees.json", {
+    updated: status.updated, seasons: SEASONS, league_avg_yellow_pg: +leagueAvgY.toFixed(2),
+    note: "card_index > 1 = fleiri spjöld en meðal-dómari. Nýtist í bann-hættu leikmanna.",
+    referees: refOut,
+  });
+
+  // ---- Innbyrðis viðureignir (H2H) per liðapar ----
+  const h2h = {};
+  for (const r of allRows) {
+    const h = (r.HomeTeam || "").trim(), a = (r.AwayTeam || "").trim();
+    if (!h || !a) continue;
+    const key = `${h}|${a}`;
+    const o = h2h[key] || (h2h[key] = { games:0, home_w:0, draw:0, away_w:0, gf:0, ga:0, btts:0, over25:0 });
+    o.games++;
+    const hg = +r.FTHG || 0, ag = +r.FTAG || 0;
+    o.gf += hg; o.ga += ag;
+    if (r.FTR === "H") o.home_w++; else if (r.FTR === "D") o.draw++; else o.away_w++;
+    if (hg > 0 && ag > 0) o.btts++;
+    if (hg + ag > 2.5) o.over25++;
+  }
+  const h2hOut = {};
+  for (const [k, o] of Object.entries(h2h)) {
+    if (o.games < 2) continue;
+    h2hOut[k] = { ...o,
+      home_w_pct: Math.round(o.home_w / o.games * 100),
+      cs_home_pct: Math.round((o.games - o.btts - (o.ga > 0 ? 0 : 0)) / o.games * 100),
+      avg_goals: +((o.gf + o.ga) / o.games).toFixed(2),
+      btts_pct: Math.round(o.btts / o.games * 100),
+      over25_pct: Math.round(o.over25 / o.games * 100),
+    };
+  }
+  await writeJSON("fdcouk/h2h.json", {
+    updated: status.updated, seasons: SEASONS,
+    note: "Lyklað 'HomeTeam|AwayTeam' með fdcouk-nöfnum. Sögulegt mynstur, ekki spá.",
+    pairs: h2hOut,
+  });
+
+  record("fdcouk_history", true, allRows.length,
+    `${fetchedSeasons} ný tímabil · ${Object.keys(refOut).length} dómarar · ${Object.keys(h2hOut).length} liðapör`);
+}
+
 /* ========== 6. NÝLIÐA-GRUNNLÍNA — B-deild 2025/26, EINU SINNI ========== */
 async function fetchPromotedBaseline() {
   const path = `${DATA}/promoted_baseline.json`;
@@ -812,6 +908,7 @@ async function main() {
   try { await computeDefcon(events, els); } catch (e) { record("defcon", false, 0, e.message); }
   if (FLAGS.elo)    { try { await fetchElo(); }              catch (e) { record("elo", false, 0, e.message); } }
   if (FLAGS.fdcouk) { try { await fetchFdcouk(); }           catch (e) { record("fdcouk_e0", false, 0, e.message); }
+                      try { await fetchHistoricalE0(); }     catch (e) { record("fdcouk_history", false, 0, e.message); }
                       try { await fetchPromotedBaseline(); } catch (e) { record("promoted_baseline", false, 0, e.message); } }
   if (FLAGS.weather){ try { await fetchWeather(); }          catch (e) { record("weather", false, 0, e.message); } }
   if (FLAGS.understat){ try { await fetchUnderstat(); }      catch (e) { record("understat_season", false, 0, e.message); } }
