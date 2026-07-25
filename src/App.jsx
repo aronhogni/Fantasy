@@ -35,6 +35,42 @@ function csColor(pct) {
   return "#C62828";
 }
 
+// ---- Félagslitir: [aðal, auka, mynstur] fyrir teiknaðar treyjur (löglegt: bara litir) ----
+const KIT = {
+  ARS:["#EF0107","#FFFFFF","sleeves"], MCI:["#6CABDD","#1C2C5B","plain"],
+  LIV:["#C8102E","#FFFFFF","plain"],   MUN:["#DA020E","#000000","plain"],
+  TOT:["#FFFFFF","#132257","plain"],   CHE:["#034694","#FFFFFF","plain"],
+  ARS2:["#EF0107","#FFFFFF","sleeves"],NEW:["#241F20","#FFFFFF","stripes"],
+  SUN:["#EB172B","#FFFFFF","stripes"], EVE:["#003399","#FFFFFF","plain"],
+  LEE:["#FFFFFF","#1D428A","plain"],   NFO:["#DD0000","#FFFFFF","plain"],
+  COV:["#4B92DB","#FFFFFF","plain"],   HUL:["#F5A12D","#000000","stripes"],
+  IPS:["#3A64A3","#FFFFFF","plain"],   BOU:["#D31F26","#000000","stripes"],
+  CRY:["#1B458F","#C4122E","stripes"], BHA:["#0057B8","#FFFFFF","stripes"],
+  FUL:["#FFFFFF","#000000","plain"],   BRE:["#E30613","#FFFFFF","stripes"],
+  AVL:["#95BFE5","#670E36","plain"],   WHU:["#7A263A","#1BB1E7","plain"],
+};
+
+function Kit({ team, size=34 }) {
+  const [main, accent, pattern] = KIT[team] || ["#556","#889","plain"];
+  const w = size, h = size*0.9;
+  return (
+    <svg width={w} height={h} viewBox="0 0 40 36" style={{display:"block"}}>
+      {/* treyju-form */}
+      <path d="M13 3 L20 6 L27 3 L34 8 L31 14 L28 12 L28 33 L12 33 L12 12 L9 14 L6 8 Z"
+        fill={main} stroke="rgba(0,0,0,0.25)" strokeWidth="0.6" strokeLinejoin="round"/>
+      {pattern==="stripes" && [15,19,23].map(x=>(
+        <rect key={x} x={x} y="12" width="2" height="21" fill={accent} opacity="0.9"/>
+      ))}
+      {pattern==="sleeves" && <>
+        <path d="M13 3 L9 14 L6 8 Z" fill={accent}/>
+        <path d="M27 3 L31 14 L34 8 Z" fill={accent}/>
+      </>}
+      {/* kragi */}
+      <path d="M17 4 L20 7 L23 4" fill="none" stroke={accent} strokeWidth="1.2"/>
+    </svg>
+  );
+}
+
 // ---- Leikjadagskrá GW1–8: [andstæðingur, heima?, FDR 1(létt)–5(þungt)] ----
 // GW1 staðfest af notanda. GW2–8 lesin af FFS ticker (staðfestist gegn lifandi gögnum).
 const FIX = {
@@ -141,6 +177,8 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [odds, setOdds] = useState(null);      // { TEAM: {cs, xg, opp, home} }
   const [oddsState, setOddsState] = useState("idle"); // idle|loading|ok|off|error
+  const [benchSwaps, setBenchSwaps] = useState({}); // { gw: [[starterId, benchId], ...] }
+  const [dragId, setDragId] = useState(null);       // hvaða spjald er dregið
 
   // Sækja lifandi bókmakera-CS% gegnum proxy (næstu umferðir sem hafa markaði)
   useEffect(() => {
@@ -167,12 +205,12 @@ export default function App() {
   useEffect(() => {
     (async () => {
       const s = await loadState("fpl_planner_v1");
-      if (s) { setEntryId(s.entryId ?? null); setPlan(s.plan ?? []); setCaptain(s.captain ?? START_ID); }
+      if (s) { setEntryId(s.entryId ?? null); setPlan(s.plan ?? []); setCaptain(s.captain ?? START_ID); setBenchSwaps(s.benchSwaps ?? {}); }
       setLoaded(true);
     })();
   }, []);
   // Vista við breytingar
-  useEffect(() => { if (loaded) saveState("fpl_planner_v1", { entryId, plan, captain }); }, [entryId, plan, captain, loaded]);
+  useEffect(() => { if (loaded) saveState("fpl_planner_v1", { entryId, plan, captain, benchSwaps }); }, [entryId, plan, captain, benchSwaps, loaded]);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(null), 2600); };
 
@@ -196,8 +234,13 @@ export default function App() {
       sq[idx] = { ...sq[idx], id: tr.inId };
       if (tr.gw === gw) applied.push(tr);
     }
+    // handvirk bekkjar-skipti (drag-and-drop) fyrir þessa GW
+    (benchSwaps[gw]||[]).forEach(([aId, bId]) => {
+      const a = sq.find(s=>s.id===aId), b = sq.find(s=>s.id===bId);
+      if (a && b) { const t=a.starter; a.starter=b.starter; b.starter=t; const o=a.order; a.order=b.order; b.order=o; }
+    });
     return { squad: sq, bank: Math.round(b*10)/10, appliedThisGw: applied };
-  }, [plan, gw]);
+  }, [plan, gw, benchSwaps]);
 
   const squadIds = new Set(squad.map(s => s.id));
   const teamCounts = useMemo(() => {
@@ -211,6 +254,24 @@ export default function App() {
   const bench = squad.filter(s => !s.starter).sort((a,z)=>a.order-z.order);
   const rows = { GK:[], DEF:[], MID:[], FWD:[] };
   starters.forEach(s => rows[byId[s.id].pos].push(s));
+
+  // Er uppstilling lögleg eftir bekkjar-skipti? (1 GK, 3-5 DEF, min 2 MID, min 1 FWD, 11 alls)
+  function formationOK(starterIds) {
+    const c = { GK:0, DEF:0, MID:0, FWD:0 };
+    starterIds.forEach(id => c[byId[id].pos]++);
+    return c.GK===1 && c.DEF>=3 && c.DEF<=5 && c.MID>=2 && c.MID<=5 && c.FWD>=1 && c.FWD<=3
+      && (c.GK+c.DEF+c.MID+c.FWD)===11;
+  }
+  // Skipta byrjunarmanni og bekkjarmanni (drag-and-drop). Ver ólöglega uppstillingu.
+  function swapStarterBench(starterId, benchId) {
+    if (starterId===benchId) return;
+    const sPos = byId[starterId].pos, bPos = byId[benchId].pos;
+    if ((sPos==="GK") !== (bPos==="GK")) { flash("Markvörð má aðeins skipta við markvörð."); return; }
+    const nextStarterIds = starters.map(s=>s.id).filter(id=>id!==starterId).concat(benchId);
+    if (!formationOK(nextStarterIds)) { flash("Ólögleg uppstilling — þarf 1 GK, 3–5 vörn, 2–5 miðju, 1–3 sókn."); return; }
+    setBenchSwaps(bs => ({ ...bs, [gw]: [...(bs[gw]||[]), [starterId, benchId]] }));
+    flash(`${byId[starterId].n} ↔ ${byId[benchId].n}`);
+  }
 
   function addTransfer() {
     if (!draft.outId || !draft.inId) { flash("Veldu bæði leikmann út og inn."); return; }
@@ -310,22 +371,37 @@ export default function App() {
       <div style={S.main}>
         {/* Völlur */}
         <div style={S.pitch}>
+          <div style={S.pitchHint}>
+            <span>Dragðu leikmann milli vallar og bekkjar til að breyta byrjunarliði (GW{gw})</span>
+            {(benchSwaps[gw]?.length>0) &&
+              <button style={S.resetBtn} onClick={()=>setBenchSwaps(bs=>{const n={...bs}; delete n[gw]; return n;})}>Núllstilla</button>}
+          </div>
           <div style={S.pitchInner}>
             {["GK","DEF","MID","FWD"].map(pos=>(
               <div key={pos} style={S.rowLine}>
                 {rows[pos].map(s=>(
                   <PlayerCard key={s.id} p={byId[s.id]} gw={gw} captain={captain} odds={odds}
-                    onCap={()=>setCaptain(s.id)} />
+                    onCap={()=>setCaptain(s.id)}
+                    draggable dragId={dragId} setDragId={setDragId}
+                    onDropPlayer={(fromId)=>swapStarterBench(s.id, fromId)} zone="pitch" />
                 ))}
               </div>
             ))}
           </div>
-          <div style={S.benchWrap}>
+          <div style={S.benchWrap}
+            onDragOver={e=>{ if(dragId) e.preventDefault(); }}
+            onDrop={e=>{ e.preventDefault(); const from=dragId; if(from && starters.some(s=>s.id===from)){
+              // dregið af velli á bekkjarsvæði -> skipta við fyrsta löglega bekkjarmann
+              const cand = bench.find(b=>formationOK(starters.map(s=>s.id).filter(id=>id!==from).concat(b.id)) && ((byId[from].pos==="GK")===(byId[b.id].pos==="GK")));
+              if (cand) swapStarterBench(from, cand.id); else flash("Fann engan löglegan bekkjarmann til að víxla við.");
+            } setDragId(null); }}>
             <div style={S.benchLabel}>Bekkur</div>
             <div style={S.benchRow}>
               {bench.map(s=>(
                 <PlayerCard key={s.id} p={byId[s.id]} gw={gw} captain={captain} bench odds={odds}
-                  onCap={()=>setCaptain(s.id)} />
+                  onCap={()=>setCaptain(s.id)}
+                  draggable dragId={dragId} setDragId={setDragId}
+                  onDropPlayer={(fromId)=>swapStarterBench(fromId, s.id)} zone="bench" />
               ))}
             </div>
           </div>
@@ -432,18 +508,30 @@ function Stat({ label, value, sub, tone }) {
   );
 }
 
-function PlayerCard({ p, gw, captain, bench, onCap, odds }) {
+function PlayerCard({ p, gw, captain, bench, onCap, odds, draggable, dragId, setDragId, onDropPlayer, zone }) {
   const fx = FIX[p.t]?.[gw-1];
   const isCap = p.id===captain;
-  const live = odds?.[p.t];                       // lifandi bókmakera-gögn fyrir lið mannsins
+  const live = odds?.[p.t];
   const isDefensive = p.pos==="GK" || p.pos==="DEF";
+  const isDragging = dragId===p.id;
   return (
-    <div style={{...S.card, ...(bench?S.cardBench:{}), borderTopColor: POS_COLOR[p.pos]}}>
+    <div
+      draggable={!!draggable}
+      onDragStart={e=>{ setDragId?.(p.id); e.dataTransfer.effectAllowed="move"; }}
+      onDragEnd={()=>setDragId?.(null)}
+      onDragOver={e=>{ if(dragId && dragId!==p.id) e.preventDefault(); }}
+      onDrop={e=>{ e.preventDefault(); if(dragId && dragId!==p.id) onDropPlayer?.(dragId); setDragId?.(null); }}
+      style={{...S.card, ...(bench?S.cardBench:{}), borderTopColor: POS_COLOR[p.pos],
+        opacity:isDragging?0.4:1, cursor:draggable?"grab":"default"}}>
       <button style={{...S.capBtn, ...(isCap?S.capOn:{})}} onClick={onCap} title="Setja sem fyrirliða">
         {isCap?"C":"c"}
       </button>
+      <div style={S.kitWrap}>
+        <Kit team={p.t} size={30} />
+        <span style={S.kitCode}>{p.t}</span>
+      </div>
       <div style={S.cardName}>{p.n}</div>
-      <div style={S.cardMeta}>{p.t} · £{p.price.toFixed(1)}</div>
+      <div style={S.cardMeta}>£{p.price.toFixed(1)}</div>
       {fx ? <FixChip fx={fx} live={live} isDef={isDefensive} /> : <div style={S.noFix}>—</div>}
       {live ? (
         isDefensive
@@ -548,6 +636,10 @@ const S = {
   main: { display:"grid", gridTemplateColumns:"1.35fr 1fr", gap:16, alignItems:"start" },
 
   pitch: { background:"linear-gradient(180deg,#0d2418,#0a1c13)", border:"1px solid #17402a", borderRadius:16, padding:"18px 14px" },
+  pitchHint: { display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:11, color:"#7f9d88", marginBottom:14, fontFamily:mono },
+  resetBtn: { background:"transparent", border:"1px solid #2f5a3e", color:"#7fcf9a", padding:"3px 9px", borderRadius:6, fontSize:11, cursor:"pointer" },
+  kitWrap: { position:"relative", display:"flex", justifyContent:"center", marginBottom:2, marginTop:2 },
+  kitCode: { position:"absolute", bottom:-2, right:14, fontFamily:mono, fontSize:8, fontWeight:700, color:"#9fb0bd", background:"#0B1622", padding:"0 3px", borderRadius:3, border:"1px solid #22384A" },
   pitchInner: { display:"flex", flexDirection:"column", gap:14 },
   rowLine: { display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" },
   card: { position:"relative", background:"#0E1B2A", border:"1px solid #22384A", borderTop:"3px solid #35C46A", borderRadius:10, padding:"8px 8px 7px", width:92, textAlign:"center" },
