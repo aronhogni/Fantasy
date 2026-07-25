@@ -2566,10 +2566,6 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
           {av.short}{av.chance != null && av.chance > 0 ? av.chance : ""}
         </span>
       )}
-      {sp?.isPenTaker && <span style={S.penBadge} title="Fyrsti vítataki (uppfærist daglega úr FPL)">PEN</span>}
-      {ban && ban.level === "high" && (
-        <span style={S.cardBadge} title={`${ban.y} gul spjöld — 1 frá ${ban.threshold}-þröskuldi`}>🟨</span>
-      )}
       <div style={S.pPortrait}>
         <PlayerImg code={p.code} short={team?.short} size={38} />
         <Crest team={team} size={15} style={S.pCrest} />
@@ -2599,7 +2595,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
         {ban && ban.level === "high" &&
           <span style={S.sigCard} title={`${ban.y} gul spjöld — 1 frá ${ban.threshold}-þröskuldi (${ban.matches} leikja bann)`}>{ban.y}Y</span>}
         {rot && rot.level === "high" &&
-          <span style={S.sigRot} title={`Byrjaði ${rot.starts} af 38 — skiptingar-hætta`}>{rot.pct}%</span>}
+          <span style={S.sigRot} title={`Byrjaði ${rot.starts} af ${rot.played}${rot.prevSeason ? " (sl. tímabil)" : ""} — skiptingar-hætta`}>{rot.pct}%</span>}
       </div>
     </div>
   );
@@ -2826,8 +2822,6 @@ const S = {
   eloBar: { display:"block", height:2, background:C.purple, borderRadius:1, marginTop:1, marginLeft:"auto", opacity:0.55 },
   dcChip: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginTop:1 },
   availBadge: { position:"absolute", top:4, left:4, fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 3px", borderRadius:4, lineHeight:1.3, zIndex:2 },
-  penBadge: { position:"absolute", bottom:4, left:4, fontFamily:mono, fontSize:7.5, fontWeight:700, padding:"1px 3px", borderRadius:3, background:"#e6f9f0", color:"#0a7a4a", lineHeight:1.2, letterSpacing:0.2, zIndex:2 },
-  cardBadge: { position:"absolute", bottom:4, right:4, fontSize:8, lineHeight:1, zIndex:2 },
   sAvail: { fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 4px", borderRadius:4, marginLeft:5 },
   sPen: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"1px 3px", borderRadius:4, background:"#e6f9f0", color:"#0a7a4a", marginLeft:4 },
   okBox: { background:C.greenBg, color:"#0a7a4a", borderRadius:8, padding:"8px 10px", fontSize:12 },
