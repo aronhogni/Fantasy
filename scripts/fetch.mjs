@@ -1000,9 +1000,71 @@ async function fetchOdds() {
   record("odds", true, games, `${Object.keys(teams).length} lið · ${remaining} kredit eftir`);
 }
 
+/* ========== HRAÐUR HAMUR (--fast) ==========
+   Keyrt oft (á 30 mín). Sækir AÐEINS bootstrap og skrifar litla skrá með
+   fljótandi sviðum: meiðsli, líkur á að spila, fréttir, verð, flutningar.
+   Ástæða: FPL uppfærir meiðslafréttir allan daginn eftir fréttamannafundi.
+   Full players.json er þung (400KB) — hún fer áfram í daglegu keyrsluna.
+   ÞETTA KOSTAR EKKERT: GitHub Actions er frítt fyrir opinber repo.        */
+async function fetchFast() {
+  const bs = await getJSON(`${FPL}/bootstrap-static/`);
+  const els = bs.elements || [];
+  const events = bs.events || [];
+
+  // aðeins það sem breytist innan dags
+  const volatile = els
+    .filter(e => e.status !== "a" || e.cost_change_event !== 0 || (e.news || "").trim())
+    .map(e => ({
+      id: e.id, status: e.status, news: e.news, news_added: e.news_added,
+      chance_this: e.chance_of_playing_this_round,
+      chance_next: e.chance_of_playing_next_round,
+      now_cost: e.now_cost, cost_change_event: e.cost_change_event,
+      transfers_in_event: e.transfers_in_event, transfers_out_event: e.transfers_out_event,
+      selected_by_percent: e.selected_by_percent,
+    }));
+
+  // verðbreytingar í dag (allir, en aðeins 3 svið — létt)
+  const prices = els
+    .filter(e => e.cost_change_event !== 0)
+    .map(e => ({ id: e.id, now_cost: e.now_cost, chg: e.cost_change_event }));
+
+  const cur = events.find(e => e.is_current);
+  const next = events.find(e => e.is_next);
+
+  await writeJSON("news.json", {
+    updated: new Date().toISOString(),
+    current_gw: cur?.id ?? null, next_gw: next?.id ?? null,
+    next_deadline: next?.deadline_time ?? null,
+    note: "Fljótandi svið uppfærð á 30 mín. Framendinn leggur þetta OFAN Á players.json.",
+    players: volatile, price_changes: prices,
+  });
+
+  // fixtures eru léttar og geta breyst (frestun, leiktímar)
+  try {
+    const fx = await getJSON(`${FPL}/fixtures/`);
+    await writeJSON("fixtures.json", fx.map(f => ({
+      id:f.id, event:f.event, kickoff_time:f.kickoff_time, finished:f.finished,
+      started:f.started, minutes:f.minutes, finished_provisional:f.finished_provisional,
+      team_h:f.team_h, team_a:f.team_a, team_h_score:f.team_h_score, team_a_score:f.team_a_score,
+      team_h_difficulty:f.team_h_difficulty, team_a_difficulty:f.team_a_difficulty })));
+  } catch (e) { console.warn(`fast fixtures: ${e.message}`); }
+
+  console.log(`HRAÐUR: ${volatile.length} leikmenn m. frétt/vafa/verðbreytingu, ${prices.length} verðbreytingar`);
+  record("fast_news", true, volatile.length, `${prices.length} verðbreytingar`);
+  await writeJSON("status_fast.json", status);
+}
+
 /* ========== MAIN ========== */
 async function main() {
   await mkdir(DATA, { recursive: true });
+
+  // --fast: aðeins fljótandi gögn (meiðsli, verð, fixtures). Keyrt á 30 mín.
+  if (process.argv.includes("--fast")) {
+    try { await fetchFast(); }
+    catch (e) { record("fast_news", false, 0, e.message); await writeJSON("status_fast.json", status); process.exit(1); }
+    return;
+  }
+
   let events, els;
   try {
     ({ events, els } = await fetchFPL());

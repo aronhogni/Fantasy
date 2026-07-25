@@ -1,0 +1,42 @@
+name: fetch-fast
+
+# Meiðslafréttir, verðbreytingar og leikjastöður uppfærast allan daginn.
+# Þetta er létt keyrsla (aðeins bootstrap + fixtures) og KOSTAR EKKERT
+# (GitHub Actions er frítt fyrir opinber repo). Netlify byggir ekki —
+# ignore-reglan í netlify.toml sleppir byggingu þegar aðeins data/ breytist.
+on:
+  schedule:
+    - cron: "*/30 * * * *"     # á 30 mínútum
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-fast
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sækja fljótandi gögn
+        run: node scripts/fetch.mjs --fast
+
+      - name: Committa ef eitthvað breyttist
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git pull --rebase --autostash || true
+          git add data
+          if git diff --staged --quiet; then
+            echo "Engar breytingar."
+          else
+            git commit -m "fast: $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi
