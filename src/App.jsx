@@ -873,7 +873,7 @@ export default function App() {
     teams.forEach(t => {
       const tid = t.id;
       const own = teamMetrics[tid]?.xgc90 ?? 1.4;
-      const up = fixtures.filter(f => !f.finished && (f.team_h === tid || f.team_a === tid)).slice(0, 6);
+      const up = fixtures.filter(f => !f.finished && (f.team_h === tid || f.team_a === tid)).slice(0, recRange);
       let s = 0;
       // sóknarstyrkur andstæðinga úr teamMetrics (xG, með nýliða-fallback)
       up.forEach(f => { const o = f.team_h === tid ? f.team_a : f.team_h; s += (teamMetrics[o]?.xg90 ?? 1.4); });
@@ -1970,9 +1970,13 @@ export default function App() {
           <h2 style={S.h2}>Mælt með kaupum — GW{gw}–{Math.min(gw + recRange - 1, maxGw)}</h2>
           <div style={S.recCtl}>
             <select style={S.chipSel} value={recRange} onChange={e => setRecRange(+e.target.value)}>
+              <option value={1}>næsti leikur</option>
+              <option value={2}>næstu 2</option>
+              <option value={3}>næstu 3</option>
               <option value={4}>næstu 4</option>
               <option value={5}>næstu 5</option>
               <option value={6}>næstu 6</option>
+              <option value={8}>næstu 8</option>
             </select>
             <select style={S.chipSel} value={recPos} onChange={e => setRecPos(e.target.value)}>
               <option value="ALL">allar stöður</option>
@@ -2006,7 +2010,7 @@ export default function App() {
               {(recommendations.byPos[pos] || []).map(r => (
                 <RecCard key={r.p.id} r={r} team={teamById[r.p.team]} teamById={teamById}
                   dc={dcOpp[r.p.team]} elo={eloByTeam[r.p.team]} diffOf={fixDifficulty}
-                  crestFor={crestFor} csFor={csFor} onAdd={() => setDetail({ kind:"player", id:r.p.id })} />
+                  crestFor={crestFor} csFor={csFor} range={recRange} onAdd={() => setDetail({ kind:"player", id:r.p.id })} />
               ))}
             </div>
           </div>
@@ -2019,7 +2023,9 @@ export default function App() {
         const p = isPlayer ? byId[detail.id] : null;
         const t = isPlayer ? teamById[p?.team] : teamById[detail.id];
         if (!t) return null;
-        const fxs = allFixturesFor(t.id, gw, 12);
+        // FFDR-sjóndeildarhringur fylgir stillingunni (lágmark 6 svo
+        // Evrópu- og bikarleikir sjáist í samhengi)
+        const fxs = allFixturesFor(t.id, gw, Math.max(6, recRange));
         const av = isPlayer ? availOf(p) : null;
         const ban = isPlayer ? banRisk(p, gw, seasonStarted) : null;
         const sp = isPlayer ? setPieceOf(p) : null;
@@ -2732,7 +2738,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
   );
 }
 
-function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, onAdd }) {
+function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, onAdd }) {
   const { p, fxs } = r;
   const isDef = p.element_type <= 2;
   return (
@@ -2749,7 +2755,7 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, onAdd })
         <div style={S.recScore}>{r.score}</div>
       </div>
       <div style={S.recFix}>
-        {fxs.slice(0, 6).map((f,i) => {
+        {fxs.slice(0, range || 6).map((f,i) => {
           const d = diffOf ? (diffOf(p.team, f, p.element_type) ?? f.fdr) : f.fdr;
           const t = tierOf(d);
           const bg = TIER_BG[t], fg = TIER_FG[t];
