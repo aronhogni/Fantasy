@@ -269,17 +269,7 @@ function sellTenths(purchase10, current10) {
   if (purchase10 == null || current10 <= purchase10) return current10;
   return purchase10 + Math.floor((current10 - purchase10) / 2);
 }
-/* FPL hefur myndir í fleiri en einni stærð og þekjan er ÓLÍK milli þeirra.
-   Nýlegir leikmenn (háir kóðar, t.d. Le Fée 484420, Mosquera 500040) vantar
-   oft í 110x140 en eru til í 250x250. Við prófum stærri fyrst, svo minni,
-   og fellum loks á teiknaða treyju.                                        */
-const PHOTO_SIZES = ["250x250", "110x140"];
-const initialsOf = p => p
-  ? ((p.first_name || "").trim()[0] || "") + ((p.second_name || p.web_name || "").trim()[0] || "")
-  : "";
-const photoUrl = (code, i = 0) => (code && PHOTO_SIZES[i])
-  ? `https://resources.premierleague.com/premierleague/photos/players/${PHOTO_SIZES[i]}/p${code}.png`
-  : null;
+const photoUrl = code => code ? `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png` : null;
 const crestUrl = code => code ? `https://resources.premierleague.com/premierleague/badges/50/t${code}.png` : null;
 const fmtDate = iso => {
   if (!iso) return "—";
@@ -403,27 +393,14 @@ function rotationRisk(p, seasonGames) {
 }
 
 /* ---- Teiknuð treyja (fallback ef mynd næst ekki) ---- */
-function Kit({ short, size = 34, initials }) {
+function Kit({ short, size = 34 }) {
   const [a, b] = KIT[short] || ["#9aa", "#fff"];
-  // Upphafsstafir svo fallbackið lesist sem ÞESSI leikmaður, ekki brotin mynd.
-  const dark = (() => {
-    const h = String(a).replace("#", ""); if (h.length < 6) return true;
-    const [r, g, bl] = [0, 2, 4].map(k => parseInt(h.slice(k, k + 2), 16));
-    return (0.299 * r + 0.587 * g + 0.114 * bl) < 150;
-  })();
   return (
-    <svg width={size} height={size * 0.9} viewBox="0 0 40 36" role="img"
-      aria-label={initials ? `${initials} — mynd vantar` : "mynd vantar"}>
+    <svg width={size} height={size * 0.9} viewBox="0 0 40 36" aria-hidden="true">
       <path d="M13 3 L20 6 L27 3 L34 8 L31 14 L28 12 L28 33 L12 33 L12 12 L9 14 L6 8 Z"
         fill={a} stroke="rgba(0,0,0,0.18)" strokeWidth="0.7" strokeLinejoin="round" />
       <path d="M13 3 L9 14 L6 8 Z" fill={b} opacity="0.9" />
       <path d="M27 3 L31 14 L34 8 Z" fill={b} opacity="0.9" />
-      {initials && (
-        <text x="20" y="26" textAnchor="middle" fontFamily="ui-monospace, monospace"
-          fontSize="11" fontWeight="700" fill={dark ? "#fff" : "#1d1d20"} opacity="0.92">
-          {initials}
-        </text>
-      )}
     </svg>
   );
 }
@@ -982,9 +959,8 @@ export default function App() {
       if (e && typeof e.cs === "number") return { cs: Math.round(e.cs), src: "elo" };
     }
     if (!fx) return { cs: null, src: null };
+    // MÆLD KVÖRÐUN: samfelld þyngd -> CS% úr töflu sem er mæld á 1.102 leikjum.
     // Fínt með eigin vörn (liðsstyrkur) sem FDR sér ekki.
-    // MÆLD KVÖRÐUN: samfelld þyngd -> CS% úr töflu sem er mæld á 2.720
-    // lið-leikjum. Þyngdin inniheldur ÞEGAR liðsstyrk, svo engin auka-leiðrétting.
     const d2 = fixDifficulty(teamId, fx, 2) ?? fx.fdr;
     return { cs: clamp(Math.round(lookupPos(2, "cs", d2)), 3, 70), src: "mælt" };
   }
@@ -1624,8 +1600,9 @@ export default function App() {
           </div>
           {/* LEIKIR UMFERÐARINNAR — við hliðina á vellinum */}
           <GwFixtureList gw={gw} fixtures={fixtures} teamById={teamById}
-            crestFor={crestFor} diffOf={fixDifficulty} csFor={csFor}
-            weatherByFx={weatherByFx} liveByFx={liveByFx} nameOf={id => byId[id]?.web_name || `#${id}`} onPick={t => setDetail({ kind:"team", id:t })} />
+            weatherByFx={weatherByFx} liveByFx={liveByFx}
+            nameOf={id => byId[id]?.web_name || `#${id}`}
+            onPick={t => setDetail({ kind:"team", id:t })} />
           </div>
 
           {/* FFDR-TAFLAN — plönunar-yfirsýn yfir öll lið */}
@@ -1986,7 +1963,7 @@ export default function App() {
               <div style={S.dHead}>
                 <div style={S.dPortrait}>
                   {isPlayer
-                    ? <PlayerImg code={p.code} short={t.short} size={52} initials={initialsOf(p)} />
+                    ? <PlayerImg code={p.code} short={t.short} size={52} />
                     : <Crest team={t} size={44} />}
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
@@ -2292,7 +2269,7 @@ export default function App() {
                     style={{ ...S.sItem, ...(block ? S.sItemBlocked : {}) }}
                     title={block ? `Ólöglegt: ${block}` : ""}>
                     <div style={S.sPortrait}>
-                      <PlayerImg code={p.code} short={t?.short} size={30} initials={initialsOf(p)} />
+                      <PlayerImg code={p.code} short={t?.short} size={30} />
                       <Crest team={t} size={13} style={S.sCrest} />
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
@@ -2348,14 +2325,12 @@ function Crest({ team, size = 16, style }) {
     onError={() => setOk(false)} />;
 }
 
-function PlayerImg({ code, short, size = 34, initials }) {
-  // prófum hverja myndastærð í röð; síðast teiknuð treyja
-  const [tryIdx, setTryIdx] = useState(0);
-  useEffect(() => { setTryIdx(0); }, [code]);
-  const url = photoUrl(code, tryIdx);
-  if (!url) return <Kit short={short} size={size} initials={initials} />;
+function PlayerImg({ code, short, size = 34 }) {
+  const [ok, setOk] = useState(true);
+  const url = photoUrl(code);
+  if (!url || !ok) return <Kit short={short} size={size} />;
   return <img src={url} alt="" style={{ height:size, width:"auto", objectFit:"contain" }}
-    onError={() => setTryIdx(v => v + 1)} loading="lazy" />;
+    onError={() => setOk(false)} loading="lazy" />;
 }
 
 function DStat({ k, v, sub }) {
@@ -2423,18 +2398,16 @@ function FixChip({ fx, teamById, diff, pos }) {
 }
 
 /* ---- LEIKIR UMFERÐARINNAR ----
-   Hópað eftir DEGI eins og opinbera FPL-síðan: dagsetning einu sinni sem
-   haus, leikir dagsins undir, tíminn miðjaður milli liðanna.
-   FFDR er EKKI hér — hann er í sinni eigin töflu (📊 FFDR), svo þetta er
-   hreinn leikjalisti án tvítekningar.                                       */
-function GwFixtureList({ gw, fixtures, teamById, crestFor, weatherByFx, liveByFx, nameOf, onPick }) {
+   Hópað eftir DEGI eins og opinbera FPL-síðan: dagsetning EINU SINNI sem
+   haus, leikir dagsins undir, tíminn MIÐJAÐUR milli liðanna.
+   FFDR er EKKI hér — hann er í sinni eigin töflu, svo þetta er hreinn
+   leikjalisti án tvítekningar.                                             */
+function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, onPick }) {
   const [open, setOpen] = useState(null);
   const list = (fixtures || []).filter(f => f.event === gw)
     .sort((a, b) => String(a.kickoff_time || "~").localeCompare(String(b.kickoff_time || "~")));
-
   const DAYS = ["sunnudagur","mánudagur","þriðjudagur","miðvikudagur","fimmtudagur","föstudagur","laugardagur"];
   const MON  = ["jan","feb","mars","apríl","maí","júní","júlí","ágúst","sept","okt","nóv","des"];
-  const dayKey = iso => iso ? iso.slice(0, 10) : "tbc";
   const dayLbl = iso => {
     if (!iso) return "Ótímasett";
     const d = new Date(iso);
@@ -2445,16 +2418,13 @@ function GwFixtureList({ gw, fixtures, teamById, crestFor, weatherByFx, liveByFx
     const d = new Date(iso);
     return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
   };
-
-  // hópa eftir degi, í tímaröð
   const groups = [];
   for (const f of list) {
-    const k = dayKey(f.kickoff_time);
+    const k = f.kickoff_time ? f.kickoff_time.slice(0, 10) : "tbc";
     let g = groups.find(x => x.key === k);
-    if (!g) { groups.push(g = { key: k, label: dayLbl(f.kickoff_time), items: [] }); }
+    if (!g) groups.push(g = { key: k, label: dayLbl(f.kickoff_time), items: [] });
     g.items.push(f);
   }
-
   if (!list.length) return (
     <div style={S.gfWrap}>
       <div style={S.gfHead}>Leikir GW{gw}</div>
@@ -2466,7 +2436,6 @@ function GwFixtureList({ gw, fixtures, teamById, crestFor, weatherByFx, liveByFx
       <div style={S.gfHead}>Leikir GW{gw} <span style={S.gfCount}>{list.length}</span></div>
       {groups.map(g => (
         <div key={g.key} style={S.gfDay}>
-          {/* DAGSETNING — einu sinni fyrir ofan leiki dagsins */}
           <div style={S.gfDayLbl}>{g.label}</div>
           {g.items.map(f => {
             const H = teamById[f.team_h], A = teamById[f.team_a];
@@ -2486,12 +2455,11 @@ function GwFixtureList({ gw, fixtures, teamById, crestFor, weatherByFx, liveByFx
                 <button style={S.gfSide} onClick={() => onPick && onPick(f.team_h)} title={H?.name}>
                   <span style={S.gfShort}>{H?.short || "?"}</span><Crest team={H} size={14} />
                 </button>
-                {/* TÍMI / STAÐA — miðjað */}
                 <button style={{ ...S.gfMid, ...(live ? S.gfMidLive : {}), ...(hasDetail ? S.gfMidOpen : {}) }}
                   onClick={() => hasDetail && setOpen(open === f.id ? null : f.id)}
-                  title={hasDetail ? "Smelltu fyrir markaskorara" : (w?.temp_c != null ? `${Math.round(w.temp_c)}°C` : undefined)}>
+                  title={hasDetail ? "Smelltu fyrir markaskorara"
+                        : (w?.temp_c != null ? `${Math.round(w.temp_c)}°C${w.precip_mm >= 0.5 ? " · úrkoma" : ""}` : undefined)}>
                   {mid}
-                  {live && <span style={S.gfLiveDot} />}
                 </button>
                 <button style={{ ...S.gfSide, ...S.gfSideR }} onClick={() => onPick && onPick(f.team_a)} title={A?.name}>
                   <Crest team={A} size={14} /><span style={S.gfShort}>{A?.short || "?"}</span>
@@ -2510,6 +2478,93 @@ function GwFixtureList({ gw, fixtures, teamById, crestFor, weatherByFx, liveByFx
         </div>
       ))}
     </div>
+  );
+}
+
+/* ============================================================
+   FFDR-TAFLA — lið × umferðir, sér fyrir hverja stöðu.
+   Þetta er plönunar-yfirsýnin: hvaða lið eiga léttustu leikina á
+   næstunni, fyrir þá stöðu sem þú ert að versla í.
+   Raðað eftir MEÐAL-FFDR yfir valið svið (léttast fyrst).
+   ============================================================ */
+function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span, maxGw, onPickTeam }) {
+  const [pos, setPos] = useState(2);
+  const gws = Array.from({ length: span }, (_, i) => from + i).filter(g => g <= maxGw);
+  const rows = (teams || []).map(t => {
+    const cells = gws.map(g => {
+      const fxs = fixByTeamGw[t.id]?.[g] || [];
+      if (!fxs.length) return { blank: true };
+      return {
+        multi: fxs.length > 1,
+        items: fxs.map(f => ({ f, d: diffOf(t.id, f, pos) ?? f.fdr })),
+      };
+    });
+    const vals = cells.flatMap(c => c.items ? c.items.map(x => x.d) : []);
+    return { t, cells, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+             played: vals.length };
+  }).sort((a, z) => (a.avg ?? 9) - (z.avg ?? 9));
+  const POSB = [[1,"GK"],[2,"VÖRN"],[3,"MIÐJA"],[4,"SÓKN"]];
+  return (
+    <section style={S.card}>
+      <div style={S.recHead}>
+        <h2 style={S.h2}>FFDR — leikjaþyngd</h2>
+        <div style={S.ffdrPos}>
+          {POSB.map(([v,l]) => (
+            <button key={v} style={{ ...S.ffdrPosBtn, ...(pos === v ? S.ffdrPosOn : {}) }}
+              onClick={() => setPos(v)}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <div style={S.muted}>
+        GW{gws[0]}–{gws[gws.length-1]} · raðað eftir meðal-FFDR (léttast efst).
+        Vogtölur eru mældar sér fyrir hverja stöðu — sami leikur getur verið
+        léttur fyrir vörn og þungur fyrir sókn.
+      </div>
+      <div style={S.ffdrScroll}>
+        <table style={S.ffdrTable}>
+          <thead>
+            <tr>
+              <th style={{ ...S.ffdrTh, ...S.ffdrThTeam }}>Lið</th>
+              {gws.map(g => <th key={g} style={S.ffdrTh}>{g}</th>)}
+              <th style={S.ffdrTh} title="Meðaltal yfir sviðið">Með.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ t, cells, avg }) => (
+              <tr key={t.id}>
+                <td style={S.ffdrTeamCell}>
+                  <button style={S.ffdrTeamBtn} onClick={() => onPickTeam && onPickTeam(t.id)}>
+                    <Crest team={t} size={13} />{t.short}
+                  </button>
+                </td>
+                {cells.map((c, i) => {
+                  if (c.blank) return <td key={i} style={S.ffdrBlank} title="Auð umferð">—</td>;
+                  const worst = Math.max(...c.items.map(x => x.d));
+                  const tier = tierOf(worst);
+                  return (
+                    <td key={i} style={{ ...S.ffdrCell, background: TIER_BG[tier], color: TIER_FG[tier] }}
+                      title={c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (ú)"} · ${x.d}`).join("  |  ")}>
+                      {c.items.map((x, k) => (
+                        <span key={k} style={S.ffdrOpp}>
+                          {teamById[x.f.opp]?.short || "?"}{x.f.home ? "" : <i style={S.ffdrAway}>ú</i>}
+                        </span>
+                      ))}
+                      {c.multi && <span style={S.ffdrDouble}>×2</span>}
+                    </td>
+                  );
+                })}
+                <td style={S.ffdrAvg}>{avg == null ? "—" : avg.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={S.ffdrLegend}>
+        {TIER_NAME.map((n, i) => (
+          <span key={n} style={{ ...S.ffdrChip, background: TIER_BG[i], color: TIER_FG[i] }}>{n}</span>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -2564,7 +2619,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       )}
       <div style={S.pPortrait}
         title={`${team?.name || "?"}${"\n"}ATH: FPL-myndin getur sýnt GAMALT félag eftir skipti. Merkið er rétt.`}>
-        <PlayerImg code={p.code} short={team?.short} size={38} initials={initialsOf(p)} />
+        <PlayerImg code={p.code} short={team?.short} size={38} />
         {/* Merkið er ÓTVÍRÆÐA félags-vísbendingin — stærra og með hvítum
             baug svo það lesist yfir myndinni, sem getur verið úrelt.       */}
         <Crest team={team} size={18} style={S.pCrest} />
@@ -2607,7 +2662,7 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, onAdd })
     <div style={S.recCard} onClick={onAdd}>
       <div style={S.recTop}>
         <div style={S.recPortrait}>
-          <PlayerImg code={p.code} short={team?.short} size={32} initials={initialsOf(p)} />
+          <PlayerImg code={p.code} short={team?.short} size={32} />
           <Crest team={team} size={13} style={S.sCrest} />
         </div>
         <div style={{ flex:1, minWidth:0 }}>
@@ -2742,20 +2797,19 @@ const S = {
   gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
   gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
-  gfDay: { marginTop:6 },
+  gfDay: { marginTop:5 },
   gfDayLbl: { fontFamily:mono, fontSize:8, textTransform:"uppercase", letterSpacing:0.6,
-    color:C.text3, padding:"3px 0 4px", borderTop:`1px solid ${C.border}` },
+    color:C.text3, padding:"4px 0 4px", borderTop:`1px solid ${C.border}` },
   gfMatch: { display:"flex", alignItems:"center", gap:2, padding:"2px 0", flexWrap:"wrap" },
-  gfSide: { flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:3,
-    cursor:"pointer", background:"none", border:"none", padding:"2px 0" },
+  gfSide: { flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end",
+    gap:3, cursor:"pointer", background:"none", border:"none", padding:"2px 0" },
   gfSideR: { justifyContent:"flex-start" },
   gfShort: { fontFamily:mono, fontSize:10, fontWeight:700, color:C.text },
-  gfMid: { position:"relative", minWidth:40, textAlign:"center", fontFamily:mono, fontSize:9.5,
-    fontWeight:600, color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`,
-    borderRadius:5, padding:"2px 3px", cursor:"default" },
+  gfMid: { minWidth:42, textAlign:"center", fontFamily:mono, fontSize:9.5, fontWeight:600,
+    color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:5,
+    padding:"2px 3px", cursor:"default" },
   gfMidLive: { background:C.redBg, borderColor:C.red, color:"#a01f2b", fontWeight:700 },
-  gfMidOpen: { cursor:"pointer" },
-  gfLiveDot: { position:"absolute", top:-2, right:-2, width:5, height:5, borderRadius:"50%", background:C.red },
+  gfMidOpen: { cursor:"pointer", color:C.purple },
   gfDetail: { flexBasis:"100%", marginTop:2, fontSize:8.5, lineHeight:1.5, color:C.text2 },
   gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
   /* ATH: þessi hét áður "pitchRow" og ÁREKSTRI við leikmanna-röðina neðar.
@@ -2775,49 +2829,6 @@ const S = {
     display:"flex", justifyContent:"center", gap:6, flexWrap:"nowrap", padding:"0 4px" },
   benchLabel: { position:"absolute", left:10, top:"77.5%", fontFamily:mono, fontSize:9,
     letterSpacing:1, textTransform:"uppercase", color:"rgba(234,243,236,0.55)", zIndex:1 },
-  searchBtnOn: { background:C.purple, color:"#fff", borderColor:C.purple },
-  ffdrPos: { display:"flex", gap:3 },
-  ffdrPosBtn: { fontFamily:mono, fontSize:9, fontWeight:700, letterSpacing:0.3, cursor:"pointer",
-    padding:"3px 7px", background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`, borderRadius:6 },
-  ffdrPosOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
-  ffdrScroll: { overflowX:"auto", marginTop:8, paddingBottom:2 },
-  ffdrTable: { borderCollapse:"separate", borderSpacing:2, fontSize:9.5, width:"100%" },
-  ffdrTh: { fontFamily:mono, fontSize:8.5, fontWeight:700, color:C.text3, textAlign:"center",
-    padding:"1px 3px", minWidth:34 },
-  ffdrThTeam: { textAlign:"left", minWidth:58, position:"sticky", left:0, background:C.card, zIndex:1 },
-  ffdrTeamCell: { position:"sticky", left:0, background:C.card, zIndex:1, padding:0 },
-  ffdrTeamBtn: { display:"flex", alignItems:"center", gap:4, width:"100%", cursor:"pointer",
-    fontFamily:mono, fontSize:10, fontWeight:700, color:C.text, background:"none", border:"none", padding:"2px 3px" },
-  ffdrCell: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono, fontSize:9,
-    fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
-  ffdrOpp: { display:"block" },
-  ffdrAway: { fontStyle:"normal", fontSize:7, opacity:0.7, marginLeft:1 },
-  ffdrDouble: { display:"block", fontSize:7, opacity:0.8 },
-  ffdrBlank: { textAlign:"center", padding:"3px 2px", borderRadius:5, background:C.cardAlt,
-    color:C.text3, fontFamily:mono, fontSize:9 },
-  ffdrAvg: { textAlign:"center", padding:"3px 4px", fontFamily:mono, fontSize:9.5, fontWeight:700,
-    color:C.text2, background:C.cardAlt, borderRadius:5 },
-  ffdrLegend: { display:"flex", gap:4, flexWrap:"wrap", marginTop:8, paddingTop:7, borderTop:`1px solid ${C.border}` },
-  ffdrChip: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 },
-  gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
-  gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
-  gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
-  gfDay: { marginTop:6 },
-  gfDayLbl: { fontFamily:mono, fontSize:8, textTransform:"uppercase", letterSpacing:0.6,
-    color:C.text3, padding:"3px 0 4px", borderTop:`1px solid ${C.border}` },
-  gfMatch: { display:"flex", alignItems:"center", gap:2, padding:"2px 0", flexWrap:"wrap" },
-  gfSide: { flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:3,
-    cursor:"pointer", background:"none", border:"none", padding:"2px 0" },
-  gfSideR: { justifyContent:"flex-start" },
-  gfShort: { fontFamily:mono, fontSize:10, fontWeight:700, color:C.text },
-  gfMid: { position:"relative", minWidth:40, textAlign:"center", fontFamily:mono, fontSize:9.5,
-    fontWeight:600, color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`,
-    borderRadius:5, padding:"2px 3px", cursor:"default" },
-  gfMidLive: { background:C.redBg, borderColor:C.red, color:"#a01f2b", fontWeight:700 },
-  gfMidOpen: { cursor:"pointer" },
-  gfLiveDot: { position:"absolute", top:-2, right:-2, width:5, height:5, borderRadius:"50%", background:C.red },
-  gfDetail: { flexBasis:"100%", marginTop:2, fontSize:8.5, lineHeight:1.5, color:C.text2 },
-  gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
   pitchRow: { display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" },
 
   pCard: { position:"relative", width:"clamp(62px, 17.5%, 92px)", background:C.card,
@@ -2910,8 +2921,6 @@ const S = {
   dStat: { background:C.cardAlt, borderRadius:8, padding:"7px 9px" },
   srcLegend: { gridColumn:"1 / -1", display:"flex", gap:12, flexWrap:"wrap", fontSize:9,
     color:C.text3, marginBottom:2, paddingBottom:5, borderBottom:`1px solid ${C.border}` },
-  srcTag: { marginLeft:4, fontFamily:mono, fontSize:7.5, fontWeight:700, letterSpacing:0.2,
-    textTransform:"none", opacity:0.85 },
   dStatK: { fontFamily:mono, fontSize:8.5, textTransform:"uppercase", letterSpacing:0.5, color:C.text3 },
   dStatV: { fontFamily:mono, fontSize:15, fontWeight:700, marginTop:1 },
   dStatS: { fontSize:9, color:C.text3 },
@@ -2952,9 +2961,8 @@ const S = {
   pSell: { fontFamily:mono, fontSize:8.5, color:C.red, marginLeft:2 },
   dActions: { display:"flex", gap:6, flexWrap:"wrap", paddingTop:8, borderTop:`1px solid ${C.border}` },
   dBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:7, padding:"7px 11px", fontSize:12, color:C.text, cursor:"pointer", fontWeight:500 },
-  srcLegend: { gridColumn:"1 / -1", display:"flex", gap:12, flexWrap:"wrap", fontSize:9,
-    color:C.text3, marginBottom:2, paddingBottom:5, borderBottom:`1px solid ${C.border}` },
-  srcTag: { fontSize:7.5, opacity:0.55, marginLeft:2, verticalAlign:"super" },
+  srcTag: { marginLeft:4, fontFamily:mono, fontSize:7.5, fontWeight:700, letterSpacing:0.2,
+    textTransform:"none", opacity:0.85 },
   dotWait: { width:7, height:7, borderRadius:"50%", background:"#f59e0b", flexShrink:0 },
   dotOff: { width:7, height:7, borderRadius:"50%", background:C.text3, flexShrink:0 },
 
