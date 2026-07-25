@@ -27,6 +27,7 @@ const FLAGS = {
   fdcouk:          (process.env.ENABLE_FDCOUK ?? "true")     === "true",
   weather:         (process.env.ENABLE_WEATHER ?? "true")    === "true",
   espn:            (process.env.ENABLE_ESPN ?? "false")      === "true",
+  euro:            (process.env.ENABLE_EURO ?? "true")       === "true",
   odds_key:        process.env.ODDS_API_KEY || "",
 };
 
@@ -149,7 +150,8 @@ async function fetchFPL() {
     defensive_contribution:e.defensive_contribution,
     clearances_blocks_interceptions:e.clearances_blocks_interceptions,
     tackles:e.tackles, recoveries:e.recoveries,
-    status:e.status, chance_of_playing_next_round:e.chance_of_playing_next_round, news:e.news,
+    status:e.status, chance_of_playing_next_round:e.chance_of_playing_next_round,
+    chance_of_playing_this_round:e.chance_of_playing_this_round, news:e.news,
     news_added:e.news_added,
     // ---- spjöld og bönn (bann-hætta) ----
     yellow_cards:e.yellow_cards, red_cards:e.red_cards,
@@ -518,6 +520,122 @@ async function fetchUnderstat() {
   record("understat_season", !!(teamsData || playersData), n, `/${usedUrl} · [${found.join(",")}]`);
 }
 
+/* ========== 9b. EVRÓPULEIKIR — álag/rótasjón (sjálf-greinandi) ==========
+   FPL-API-ið veit ekkert um Evrópukeppnir. Tveir kostir:
+   (a) ESPN almenna API — enginn lykill, nær yfir allar UEFA-keppnir, en ÓFORMLEGT
+   (b) football-data.org — Meistaradeild frí "forever", þarf frían lykil (EURO_API_KEY)
+   Slóðir/keppnikóðar eru ÓSTAÐFESTIR: við prófum nokkra og LOGGUM hvað svarar.
+   ATH: UEFA-keppnir byrja um 16. sept 2026 -> GW1-4 hafa engin Evrópuleiki.       */
+async function fetchEuro() {
+  const found = [];
+  const matches = [];
+  const seen = new Set();
+
+  // --- (a) ESPN: prófa kandídat-kóða, logga hvað svarar ---
+  const ESPN_CODES = ["uefa.champions", "uefa.europa", "uefa.europa.conf", "uefa.super_cup"];
+  const d1 = today.replace(/-/g, "");
+  const end = new Date(Date.now() + 120 * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
+  for (const code of ESPN_CODES) {
+    const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/scoreboard?dates=${d1}-${end}`;
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": UA } });
+      if (!r.ok) { console.log(`Evrópa ESPN ${code}: HTTP ${r.status}`); continue; }
+      const j = await r.json();
+      const evs = j.events || [];
+      console.log(`Evrópa ESPN ${code}: OK, ${evs.length} viðureignir`);
+      found.push(`espn:${code}(${evs.length})`);
+      for (const e of evs) {
+        const comp = (e.competitions || [])[0];
+        const teams = (comp?.competitors || []).map(c => c.team?.displayName || c.team?.name).filter(Boolean);
+        if (teams.length !== 2) continue;
+        const key = `${e.date}|${teams.join("|")}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        matches.push({ comp: code, date: e.date, home: teams[0], away: teams[1] });
+      }
+      await new Promise(r => setTimeout(r, 400));
+    } catch (e) { console.log(`Evrópa ESPN ${code}: ${e.message}`); }
+  }
+
+  // --- (b) football-data.org (aðeins ef lykill er til) ---
+  const euroKey = process.env.EURO_API_KEY || "";
+  if (euroKey) {
+    for (const comp of ["CL", "EL"]) {
+      try {
+        const r = await fetch(`https://api.football-data.org/v4/competitions/${comp}/matches`,
+          { headers: { "X-Auth-Token": euroKey, "User-Agent": UA } });
+        if (!r.ok) { console.log(`Evrópa fd.org ${comp}: HTTP ${r.status}`); continue; }
+        const j = await r.json();
+        const ms = j.matches || [];
+        console.log(`Evrópa fd.org ${comp}: OK, ${ms.length} leikir`);
+        found.push(`fdorg:${comp}(${ms.length})`);
+        for (const m of ms) {
+          const h = m.homeTeam?.shortName || m.homeTeam?.name, a = m.awayTeam?.shortName || m.awayTeam?.name;
+          if (!h || !a) continue;
+          const key = `${m.utcDate}|${h}|${a}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          matches.push({ comp, date: m.utcDate, home: h, away: a });
+        }
+      } catch (e) { console.log(`Evrópa fd.org ${comp}: ${e.message}`); }
+    }
+  } else {
+    console.log("Evrópa: EURO_API_KEY vantar — sleppi football-data.org (ESPN reynt samt)");
+  }
+
+  // --- Varpa liðanöfnum á FPL-id (normaliserað, þolir mismunandi stafsetningu) ---
+  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "")
+    .replace(/^afc/, "").replace(/fc$/, "").replace(/^the/, "");
+  const fplByNorm = {};
+  for (const [id, t] of Object.entries(teamsById)) {
+    fplByNorm[norm(t.name)] = Number(id);
+    fplByNorm[norm(t.short_name)] = Number(id);
+    // algeng löng nöfn sem ESPN/fd.org nota
+    const LONG = {
+      ARS:["Arsenal"], AVL:["Aston Villa"], BOU:["Bournemouth","AFC Bournemouth"],
+      BRE:["Brentford"], BHA:["Brighton & Hove Albion","Brighton and Hove Albion"],
+      CHE:["Chelsea"], COV:["Coventry City"], CRY:["Crystal Palace"], EVE:["Everton"],
+      FUL:["Fulham"], HUL:["Hull City"], IPS:["Ipswich Town"], LEE:["Leeds United"],
+      LIV:["Liverpool"], MCI:["Manchester City"], MUN:["Manchester United"],
+      NEW:["Newcastle United"], NFO:["Nottingham Forest"], SUN:["Sunderland"],
+      TOT:["Tottenham Hotspur"],
+    }[t.short_name] || [];
+    LONG.forEach(n => fplByNorm[norm(n)] = Number(id));
+  }
+
+  // Aðeins leikir sem varða ensk lið (það er allt sem hefur áhrif á FPL-álag)
+  const out = [];
+  const unmatched = new Set();
+  for (const m of matches) {
+    const hId = fplByNorm[norm(m.home)] ?? null;
+    const aId = fplByNorm[norm(m.away)] ?? null;
+    if (!hId && !aId) {
+      if (/united|city|arsenal|chelsea|liverpool|tottenham|villa|forest|newcastle|brighton/i.test(`${m.home} ${m.away}`))
+        unmatched.add(`${m.home} v ${m.away}`);
+      continue;
+    }
+    out.push({ comp: m.comp, date: m.date, home: m.home, away: m.away, home_fpl: hId, away_fpl: aId });
+  }
+  if (unmatched.size) console.log(`Evrópa: ópöruð ensk-lík nöfn: ${[...unmatched].slice(0,8).join(" | ")}`);
+
+  // Álag per lið: fjöldi Evrópuleikja og dagsetningar (framendinn parar við FPL-umferðir)
+  const byTeam = {};
+  out.forEach(m => {
+    [m.home_fpl, m.away_fpl].forEach(id => {
+      if (!id) return;
+      (byTeam[id] = byTeam[id] || []).push({ comp: m.comp, date: m.date });
+    });
+  });
+
+  await writeJSON("euro_fixtures.json", {
+    updated: status.updated, sources_ok: found,
+    fixtures: out, by_team: byTeam,
+    note: "Evrópuleikir enskra liða. by_team lyklað á FPL team id. UEFA byrjar ~16. sept -> GW1-4 tóm.",
+  });
+  record("euro_fixtures", out.length > 0 || found.length > 0, out.length,
+    found.length ? found.join(",") : "engin heimild svaraði");
+}
+
 /* ========== MAIN ========== */
 async function main() {
   await mkdir(DATA, { recursive: true });
@@ -537,6 +655,7 @@ async function main() {
                       try { await fetchPromotedBaseline(); } catch (e) { record("promoted_baseline", false, 0, e.message); } }
   if (FLAGS.weather){ try { await fetchWeather(); }          catch (e) { record("weather", false, 0, e.message); } }
   if (FLAGS.understat){ try { await fetchUnderstat(); }      catch (e) { record("understat_season", false, 0, e.message); } }
+  if (FLAGS.euro)   { try { await fetchEuro(); }              catch (e) { record("euro_fixtures", false, 0, e.message); } }
 
   await writeJSON("status.json", status);
   console.log("\n=== status.json ===");

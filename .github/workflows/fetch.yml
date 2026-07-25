@@ -26,6 +26,8 @@ jobs:
           ENABLE_FDCOUK: "true"
           ENABLE_WEATHER: "true"
           ENABLE_ESPN: "false"
+          ENABLE_EURO: "true"
+          EURO_API_KEY: ${{ secrets.EURO_API_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: node scripts/fetch.mjs
 
