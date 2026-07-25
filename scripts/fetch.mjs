@@ -531,6 +531,27 @@ async function fetchEuro() {
   const matches = [];
   const seen = new Set();
 
+  // --- Varpa liðanöfnum á FPL-id (normaliserað, þolir mismunandi stafsetningu) ---
+  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "")
+    .replace(/^afc/, "").replace(/fc$/, "").replace(/^the/, "");
+  const fplByNorm = {};
+  for (const [id, t] of Object.entries(teamsById)) {
+    fplByNorm[norm(t.name)] = Number(id);
+    fplByNorm[norm(t.short_name)] = Number(id);
+    // algeng löng nöfn sem ESPN/fd.org nota
+    const LONG = {
+      ARS:["Arsenal"], AVL:["Aston Villa"], BOU:["Bournemouth","AFC Bournemouth"],
+      BRE:["Brentford"], BHA:["Brighton & Hove Albion","Brighton and Hove Albion"],
+      CHE:["Chelsea"], COV:["Coventry City"], CRY:["Crystal Palace"], EVE:["Everton"],
+      FUL:["Fulham"], HUL:["Hull City"], IPS:["Ipswich Town"], LEE:["Leeds United"],
+      LIV:["Liverpool"], MCI:["Manchester City"], MUN:["Manchester United"],
+      NEW:["Newcastle United"], NFO:["Nottingham Forest"], SUN:["Sunderland"],
+      TOT:["Tottenham Hotspur"],
+    }[t.short_name] || [];
+    LONG.forEach(n => fplByNorm[norm(n)] = Number(id));
+  }
+
+
   // --- (0) UPPGÖTVUN: spyrja ESPN hvaða keppnir eru til í fótbolta.
   // Í stað þess að giska á kóða loggum við þá sem raunverulega eru í boði.
   // Loggið úr þessu skrefi gerir næstu útgáfu nákvæma.
@@ -624,24 +645,31 @@ async function fetchEuro() {
     console.log("Evrópa: EURO_API_KEY vantar — sleppi football-data.org (ESPN reynt samt)");
   }
 
-  // --- Varpa liðanöfnum á FPL-id (normaliserað, þolir mismunandi stafsetningu) ---
-  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "")
-    .replace(/^afc/, "").replace(/fc$/, "").replace(/^the/, "");
-  const fplByNorm = {};
-  for (const [id, t] of Object.entries(teamsById)) {
-    fplByNorm[norm(t.name)] = Number(id);
-    fplByNorm[norm(t.short_name)] = Number(id);
-    // algeng löng nöfn sem ESPN/fd.org nota
-    const LONG = {
-      ARS:["Arsenal"], AVL:["Aston Villa"], BOU:["Bournemouth","AFC Bournemouth"],
-      BRE:["Brentford"], BHA:["Brighton & Hove Albion","Brighton and Hove Albion"],
-      CHE:["Chelsea"], COV:["Coventry City"], CRY:["Crystal Palace"], EVE:["Everton"],
-      FUL:["Fulham"], HUL:["Hull City"], IPS:["Ipswich Town"], LEE:["Leeds United"],
-      LIV:["Liverpool"], MCI:["Manchester City"], MUN:["Manchester United"],
-      NEW:["Newcastle United"], NFO:["Nottingham Forest"], SUN:["Sunderland"],
-      TOT:["Tottenham Hotspur"],
-    }[t.short_name] || [];
-    LONG.forEach(n => fplByNorm[norm(n)] = Number(id));
+  // --- (c) ÞÁTTTAKA 2026/27: hverjir eru í Evrópu, þótt leikir séu ódregnir.
+  // Þetta er nothæft fyrir álagsplönun MÁNUÐUM áður en dráttur er gerður.
+  const participation = {};
+  if (euroKey) {
+    for (const comp of ["CL", "EL", "ECL"]) {
+      try {
+        const r = await fetch(`https://api.football-data.org/v4/competitions/${comp}/teams`,
+          { headers: { "X-Auth-Token": euroKey, "User-Agent": UA } });
+        if (!r.ok) { console.log(`Þátttaka ${comp}: HTTP ${r.status}`); continue; }
+        const j = await r.json();
+        const season = j.season?.startDate ? j.season.startDate.slice(0, 4) : "?";
+        const tms = j.teams || [];
+        let eng = 0;
+        for (const t of tms) {
+          const nm = t.shortName || t.name;
+          const id = fplByNorm[norm(nm)] ?? fplByNorm[norm(t.name)] ?? null;
+          if (id) {
+            (participation[id] = participation[id] || []).push(comp);
+            eng++;
+          }
+        }
+        console.log(`Þátttaka ${comp}: tímabil ${season}, ${tms.length} lið, ${eng} ensk`);
+        found.push(`part:${comp}(${eng}eng)`);
+      } catch (e) { console.log(`Þátttaka ${comp}: ${e.message}`); }
+    }
   }
 
   // Aðeins leikir sem varða ensk lið (það er allt sem hefur áhrif á FPL-álag)
@@ -686,8 +714,8 @@ async function fetchEuro() {
 
   await writeJSON("euro_fixtures.json", {
     updated: status.updated, sources_ok: found,
-    fixtures: out, by_team: byTeam,
-    note: "Evrópu- og bikarleikir enskra liða. by_team lyklað á FPL team id. UEFA byrjar ~16. sept.",
+    fixtures: out, by_team: byTeam, participation,
+    note: "Evrópu- og bikarleikir enskra liða. by_team lyklað á FPL team id. participation = hvaða keppni lið er í 2026/27 (nothæft þótt leikir séu ódregnir).",
   });
   record("euro_fixtures", true, out.length,
     `${stale} úreltum sleppt · ${found.length ? found.join(",") : "engin heimild svaraði"}`);
