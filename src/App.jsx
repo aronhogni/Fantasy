@@ -3029,7 +3029,7 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, relOf, r
 
 /* ================= Stílar ================= */
 const S = {
-  shell: { fontFamily:sans, background:C.page, color:C.text, minHeight:"100vh", padding:"14px 16px 40px", maxWidth:1180, margin:"0 auto" },
+  shell: { fontFamily:sans, background:C.page, color:C.text, minHeight:"100vh", padding:"14px 16px 40px", maxWidth:1280, margin:"0 auto" },
   loading: { padding:40, textAlign:"center", color:C.text2, fontFamily:mono },
   errBox: { padding:20, background:C.redBg, border:`1px solid ${C.red}`, borderRadius:10, color:"#7a1520" },
 
@@ -3127,19 +3127,19 @@ const S = {
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
   gfCount: { fontWeight:400, color:C.text3, letterSpacing:0, marginLeft:"auto" },
   gfDay: { marginTop:7 },
-  gfDayLbl: { fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6,
+  gfDayLbl: { fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.6,
     color:C.text3, padding:"4px 0 4px", borderTop:`1px solid ${C.border}` },
   /* Röðin er grid: [heimapilla → hægri] [tími] [útipilla ← vinstri].
      Áður þandi hvor "hlið" sig yfir hálfa breiddina með lit — leit út
      eins og málningarklessur. Nú situr liturinn á pillunni sjálfri. */
-  gfMatch: { display:"grid", gridTemplateColumns:"1fr 52px 1fr", alignItems:"center",
+  gfMatch: { display:"grid", gridTemplateColumns:"1fr 58px 1fr", alignItems:"center",
     gap:4, padding:"2px 0" },
   gfCellL: { display:"flex", justifyContent:"flex-end", minWidth:0 },
   gfCellR: { display:"flex", justifyContent:"flex-start", minWidth:0 },
   gfPill: { display:"inline-flex", alignItems:"center", gap:4, cursor:"pointer",
     background:C.cardAlt, border:"none", borderRadius:6, padding:"3px 7px" },
-  gfShort: { fontFamily:mono, fontSize:11.5, fontWeight:700 },
-  gfMid: { minWidth:48, textAlign:"center", fontFamily:mono, fontSize:11, fontWeight:600,
+  gfShort: { fontFamily:mono, fontSize:12.5, fontWeight:700 },
+  gfMid: { minWidth:54, textAlign:"center", fontFamily:mono, fontSize:12, fontWeight:600,
     color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:5,
     padding:"2px 3px", cursor:"default" },
   gfMidLive: { background:C.redBg, color:"#a01f2b", fontWeight:700, border:`1px solid ${C.red}` },
@@ -3150,10 +3150,10 @@ const S = {
      gfWrap — fastur 164px dálkur með minWidth:280 á innihaldinu olli
      yfirflæði sem braut útlitið. Á smáum skjám brotnar þetta í eina
      súlu í src/styles.css.                                                */
-  pitchSplit: { display:"grid", gridTemplateColumns:"minmax(0,1fr) minmax(240px,300px)", gap:10, alignItems:"start", marginBottom:12 },
-  // Völlur og leikjalisti deila röðinni. Völlurinn er þakinn við 460px svo
-  // listinn fái raunverulegt rúm; hvort tveggja brotnar undir á smáum skjá.
-  pitchCol: { flex:"1 1 320px", minWidth:0, maxWidth:460 },
+  pitchSplit: { display:"grid", gridTemplateColumns:"minmax(0,1fr) minmax(280px,340px)", gap:10, alignItems:"start", marginBottom:12 },
+  // Völlurinn fyllir dálkinn sinn (ekkert þak lengur — skelin breikkaði í
+  // 1280 og leikjalistinn fékk sinn fasta dálk, svo þeir slást ekki um pláss).
+  pitchCol: { minWidth:0 },
   side: { display:"flex", flexDirection:"column", gap:12 },
 
   capBar: { display:"flex", gap:8, alignItems:"center", marginBottom:9 },
@@ -3171,7 +3171,7 @@ const S = {
   benchLabel: { fontFamily:mono, fontSize:9, letterSpacing:1, textTransform:"uppercase",
     color:"rgba(234,243,236,0.55)", marginBottom:4 },
 
-  pCard: { position:"relative", width:"clamp(62px, 17.5%, 92px)", background:C.card,
+  pCard: { position:"relative", width:"clamp(62px, 17.5%, 100px)", background:C.card,
     border:`1px solid rgba(255,255,255,0.5)`, borderRadius:9, padding:"6px 4px 6px",
     textAlign:"center", cursor:"pointer", boxShadow:"0 2px 6px rgba(0,0,0,0.28)",
     flexShrink:1, minWidth:0 },
