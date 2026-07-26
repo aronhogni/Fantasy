@@ -1044,14 +1044,21 @@ async function fetchInjuries() {
   let via = `league+season=${seasonYear}`;
   if (!d.response?.length) {
     if (errTxt(d)) console.warn(`API-Sports injuries (${via}): ${errTxt(d)} — nota leikdaga-leiðina`);
+    /* EMPÍRÍSKT MÆLT (keyrsla 2): fría þrepið leyfir aðeins ±1 DAGS
+       glugga kringum daginn í dag ("try from <í gær> to <á morgun>").
+       Við spyrjum því AÐEINS um leikdaga innan þess glugga — í reynd:
+       daglega keyrslan grípur meiðslin fyrir leiki dagsins og morgun-
+       dagsins, sem er nákvæmlega glugginn sem skiptir máli við frest.
+       Fyrir tímabil er listinn eðlilega tómur (0 köll notuð).          */
     let dates = [];
     try {
       const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
-      const now = Date.now();
+      const day = t => t.toISOString().slice(0, 10);
+      const win = new Set([-1, 0, 1].map(o => day(new Date(Date.now() + o * 864e5))));
       dates = [...new Set(fixtures
-        .filter(f => f.kickoff_time && new Date(f.kickoff_time) > now - 864e5 && !f.finished)
+        .filter(f => f.kickoff_time && !f.finished && win.has(f.kickoff_time.slice(0, 10)))
         .sort((a, b) => a.kickoff_time.localeCompare(b.kickoff_time))
-        .map(f => f.kickoff_time.slice(0, 10)))].slice(0, 6);
+        .map(f => f.kickoff_time.slice(0, 10)))];
     } catch {}
     const merged = []; const errs = [];
     for (const dt of dates) {
@@ -1061,7 +1068,7 @@ async function fetchInjuries() {
       d = r;   // heldur remaining-hausnum af síðasta kalli
     }
     d = { ...d, response: merged };
-    via = dates.length ? `leikdagar ${dates[0]}…${dates[dates.length - 1]} (${dates.length} köll)` : "engir komandi leikdagar";
+    via = dates.length ? `leikdagar ${dates.join(", ")} (${dates.length} köll)` : "engir leikdagar innan frí-þreps gluggans (±1 dagur)";
     if (errs.length && !merged.length) {
       await writeJSON("injuries.json", { updated: status.updated, plan, via,
         error: errs.join(" | ").slice(0, 200), players: [], unmatched: [] });
