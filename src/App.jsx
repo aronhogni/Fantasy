@@ -2946,7 +2946,14 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, relOf, r
         {/* HVERS VEGNA — svo skorið sé ekki dulúð. Mínútur og verð ráða; leikir vega ~5%. */}
         {r.why && <span style={S.recWhy}>{r.why}</span>}
         {r.ffdrAvg != null && <span style={S.recFfdr} title="Meðal-FFDR (algilt) yfir sviðið">FFDR {r.ffdrAvg}</span>}
-        {isDef && `CS-vænting ${Math.round(fxs.reduce((a,f) => a + (csFor(p.team, f).cs || 0), 0) / fxs.length)}%`}
+        {isDef && (() => {
+            /* VILLA SEM VAR: "|| 0" taldi vantandi CS sem NÚLL og dró meðaltalið
+               niður — Raya (Arsenal) sýndi 9% þegar lægsta mögulega er 15%.
+               Nú er vantandi gildum SLEPPT, og ef ekkert er til sýnum við "—". */
+            const vals = fxs.map(f => csFor(p.team, f).cs).filter(v => Number.isFinite(v));
+            if (!vals.length) return "CS-vænting —";
+            return `CS-vænting ${Math.round(vals.reduce((a, v) => a + v, 0) / vals.length)}%`;
+          })()}
         {isDef && dc && ` · DC ${dc.defcon_opportunity}`}
         {elo && `${isDef ? " · " : ""}elo ${Math.round(elo.elo)}`}
       </div>
