@@ -1678,7 +1678,7 @@ export default function App() {
           {/* LEIKIR UMFERÐARINNAR — við hliðina á vellinum */}
           <GwFixtureList gw={gw} fixtures={fixtures} teamById={teamById}
             weatherByFx={weatherByFx} liveByFx={liveByFx}
-            nameOf={id => byId[id]?.web_name || `#${id}`}
+            nameOf={id => byId[id]?.web_name || `#${id}`} diffOf={fixDifficulty}
             onPick={t => setDetail({ kind:"team", id:t })} />
           </div>
 
@@ -2524,7 +2524,7 @@ function FixChip({ fx, teamById, diff, pos }) {
    haus, leikir dagsins undir, tíminn MIÐJAÐUR milli liðanna.
    FFDR er EKKI hér — hann er í sinni eigin töflu, svo þetta er hreinn
    leikjalisti án tvítekningar.                                             */
-function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, onPick }) {
+function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, diffOf, onPick }) {
   const [open, setOpen] = useState(null);
   const list = (fixtures || []).filter(f => f.event === gw)
     .sort((a, b) => String(a.kickoff_time || "~").localeCompare(String(b.kickoff_time || "~")));
@@ -2550,12 +2550,12 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, 
   if (!list.length) return (
     <div style={S.gfWrap}>
       <div style={S.gfHead}>Leikir GW{gw}</div>
-      <div style={S.gfEmpty}>Engir leikir skráðir.</div>
+      <div style={S.gfEmpty}>Engir leikir skráðir — auð umferð.</div>
     </div>
   );
   return (
     <div style={S.gfWrap}>
-      <div style={S.gfHead}>Leikir GW{gw} <span style={S.gfCount}>{list.length}</span></div>
+      <div style={S.gfHead}>Leikir GW{gw} <span style={S.gfCount}>{list.length} leikir</span></div>
       {groups.map(g => (
         <div key={g.key} style={S.gfDay}>
           <div style={S.gfDayLbl}>{g.label}</div>
@@ -2574,18 +2574,35 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, 
             const mid = (done || live) && hs != null ? `${hs}–${as}` : timeLbl(f.kickoff_time);
             return (
               <div key={f.id} style={S.gfMatch}>
-                <button style={S.gfSide} onClick={() => onPick && onPick(f.team_h)} title={H?.name}>
-                  <span style={S.gfShort}>{H?.short || "?"}</span><Crest team={H} size={14} />
-                </button>
+                {(() => {
+                  // FFDR fyrir varnarmenn þess liðs — liturinn er upplýsingin
+                  const d = diffOf ? diffOf(f.team_h, { opp:f.team_a, home:true, fdr:f.team_h_difficulty ?? 3, kickoff:f.kickoff_time }, 2) : null;
+                  const t = d != null ? tierOf(d) : null;
+                  return (
+                    <button style={{ ...S.gfSide, ...(t != null ? { background:TIER_BG[t], color:TIER_FG[t] } : {}) }}
+                      onClick={() => onPick && onPick(f.team_h)}
+                      title={`${H?.name || "?"} — heima${d != null ? ` · FFDR ${d}` : ""}`}>
+                      <span style={S.gfShort}>{H?.short || "?"}</span><Crest team={H} size={14} />
+                    </button>
+                  );
+                })()}
                 <button style={{ ...S.gfMid, ...(live ? S.gfMidLive : {}), ...(hasDetail ? S.gfMidOpen : {}) }}
                   onClick={() => hasDetail && setOpen(open === f.id ? null : f.id)}
                   title={hasDetail ? "Smelltu fyrir markaskorara"
                         : (w?.temp_c != null ? `${Math.round(w.temp_c)}°C${w.precip_mm >= 0.5 ? " · úrkoma" : ""}` : undefined)}>
                   {mid}
                 </button>
-                <button style={{ ...S.gfSide, ...S.gfSideR }} onClick={() => onPick && onPick(f.team_a)} title={A?.name}>
-                  <Crest team={A} size={14} /><span style={S.gfShort}>{A?.short || "?"}</span>
-                </button>
+                {(() => {
+                  const d = diffOf ? diffOf(f.team_a, { opp:f.team_h, home:false, fdr:f.team_a_difficulty ?? 3, kickoff:f.kickoff_time }, 2) : null;
+                  const t = d != null ? tierOf(d) : null;
+                  return (
+                    <button style={{ ...S.gfSide, ...S.gfSideR, ...(t != null ? { background:TIER_BG[t], color:TIER_FG[t] } : {}) }}
+                      onClick={() => onPick && onPick(f.team_a)}
+                      title={`${A?.name || "?"} — úti${d != null ? ` · FFDR ${d}` : ""}`}>
+                      <Crest team={A} size={14} /><span style={S.gfShort}>{A?.short || "?"}</span>
+                    </button>
+                  );
+                })()}
                 {open === f.id && hasDetail && (
                   <div style={S.gfDetail}>
                     {[["h", H?.short], ["a", A?.short]].map(([sd, sh]) => {
@@ -2935,18 +2952,20 @@ const S = {
     color:C.text2, background:C.cardAlt, borderRadius:5 },
   ffdrLegend: { display:"flex", gap:4, flexWrap:"wrap", marginTop:8, paddingTop:7, borderTop:`1px solid ${C.border}` },
   ffdrChip: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 },
-  gfWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"9px 10px", position:"sticky", top:8 },
+  gfWrap: { flex:"1 1 300px", minWidth:280, maxWidth:400, boxSizing:"border-box",
+    background:C.card, border:`1px solid ${C.border}`, borderRadius:12,
+    padding:"12px 13px", position:"sticky", top:8 },
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
-  gfCount: { fontWeight:400, color:C.text3, letterSpacing:0 },
-  gfDay: { marginTop:5 },
-  gfDayLbl: { fontFamily:mono, fontSize:8, textTransform:"uppercase", letterSpacing:0.6,
+  gfCount: { fontWeight:400, color:C.text3, letterSpacing:0, marginLeft:"auto" },
+  gfDay: { marginTop:7 },
+  gfDayLbl: { fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6,
     color:C.text3, padding:"4px 0 4px", borderTop:`1px solid ${C.border}` },
-  gfMatch: { display:"flex", alignItems:"center", gap:2, padding:"2px 0", flexWrap:"wrap" },
+  gfMatch: { display:"flex", alignItems:"center", gap:3, padding:"3px 0", flexWrap:"wrap" },
   gfSide: { flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end",
     gap:3, cursor:"pointer", background:"none", border:"none", padding:"2px 0" },
   gfSideR: { justifyContent:"flex-start" },
-  gfShort: { fontFamily:mono, fontSize:10, fontWeight:700, color:C.text },
-  gfMid: { minWidth:42, textAlign:"center", fontFamily:mono, fontSize:9.5, fontWeight:600,
+  gfShort: { fontFamily:mono, fontSize:11.5, fontWeight:700 },
+  gfMid: { minWidth:48, textAlign:"center", fontFamily:mono, fontSize:11, fontWeight:600,
     color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:5,
     padding:"2px 3px", cursor:"default" },
   gfMidLive: { background:C.redBg, color:"#a01f2b", fontWeight:700, border:`1px solid ${C.red}` },
@@ -2957,7 +2976,9 @@ const S = {
      Síðasti lykill vinnur í JS-hlut, svo grid-ið var YFIRSKRIFAÐ og völlurinn
      hrundi í kremju. Nýtt heiti: pitchSplit.                               */
   pitchSplit: { display:"grid", gridTemplateColumns:"minmax(380px,1fr) 164px", gap:10, alignItems:"start", marginBottom:12 },
-  pitchCol: { width:"100%", minWidth:0 },
+  // Völlur og leikjalisti deila röðinni. Völlurinn er þakinn við 460px svo
+  // listinn fái raunverulegt rúm; hvort tveggja brotnar undir á smáum skjá.
+  pitchCol: { flex:"1 1 320px", minWidth:0, maxWidth:460 },
   side: { display:"flex", flexDirection:"column", gap:12 },
 
   capBar: { display:"flex", gap:8, alignItems:"center", marginBottom:9 },
