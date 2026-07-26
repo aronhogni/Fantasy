@@ -162,6 +162,14 @@ await act(async () => { infoBtns[0].dispatchEvent(new dom.window.MouseEvent("cli
 await render();
 ok(text().includes("Leikir"), "yfirlit opnast með leikjalista");
 ok(text().includes("uppsafnað"), "heimildar-skýring birtist");
+// HVAÐAN tölurnar eru: fyrir tímabil á hver uppsöfnuð tala að bera
+// "2025/26" (reiknað úr GW1-frestinum), ekki loðið "sl. tímabil"
+ok(text().includes("2025/26"), "uppsafnaðar tölur merktar tímabilinu 2025/26");
+ok(!text().includes("sl. tímabil"), "loðna merkingin 'sl. tímabil' horfin");
+// FERÐALENGDIN (var reiknuð daglega en birtist hvergi): ✈ + km á leikjaröðum
+ok(/✈\d+/.test(text()), "ferðalengd (✈ km) birtist á leikjaröðum yfirlitsins");
+const travelChip = [...container.querySelectorAll("span")].find(el => /✈\d+/.test(el.textContent) && el.title);
+ok(!!travelChip && /km \(loftlína\)/.test(travelChip.title), "ferða-tooltip útskýrir km og loftlínu");
 ok(!text().includes("undefined"), "ekkert 'undefined' í yfirlitinu");
 // Yfirlitsglugginn er SÍÐASTA "✕"-ið í DOM (fjarlægja-hnappur andstæðings
 // í hliðarstikunni notar sama tákn og kemur á undan — fyrsta ✕-ið eyddi
@@ -169,6 +177,11 @@ ok(!text().includes("undefined"), "ekkert 'undefined' í yfirlitinu");
 const closeBtn = [...container.querySelectorAll("button")].filter(b => b.textContent === "✕").at(-1);
 await act(async () => { closeBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
+
+console.log("\n=== 6b. FERÐALENGD Í GW-LEIKJALISTANUM ===");
+const midWithTravel = [...container.querySelectorAll("button")].filter(b => b.title && b.title.includes("ferðast"));
+ok(midWithTravel.length > 0, `GW-listinn ber ferðalengd í tooltip (${midWithTravel.length} leikir)`);
+ok(midWithTravel.every(b => /\d+ km/.test(b.title)), "km-talan í hverju ferða-tooltipi");
 
 console.log("\n=== 7. FFDR-TAFLAN OG CHIPS ===");
 const ffdrBtn = [...container.querySelectorAll("button")].find(b => b.textContent.includes("FFDR"));

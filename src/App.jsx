@@ -430,6 +430,7 @@ export default function App() {
   const [defcon, setDefcon] = useState(null);
   const [elo, setElo] = useState(null);
   const [weather, setWeather] = useState(null);
+  const [travel, setTravel] = useState(null);   // ferðalengd útiliðs per leik (pipeline)
   const [eloFx, setEloFx] = useState(null);
   const [euroFx, setEuroFx] = useState(null);
   const [pipeStatus, setPipeStatus] = useState(null);
@@ -507,6 +508,7 @@ export default function App() {
         try { setPipeStatus(await j("status.json")); } catch {}
         try { setElo(await j("elo.json")); } catch {}
         try { setWeather(await j("weather.json")); } catch {}
+        try { setTravel(await j("travel.json")); } catch {}
         try { setEloFx(await j("elo_fixtures.json")); } catch {}
         try { setEuroFx(await j("euro_fixtures.json")); } catch {}
         try { setNews(await j("news.json")); } catch {}
@@ -846,6 +848,13 @@ export default function App() {
     (weather?.fixtures || []).forEach(w => m[w.fixture_id] = w);
     return m;
   }, [weather]);
+  /* Ferðalengd útiliðsins (loftlína milli leikvanga, ≥300 km = langferð).
+     VAR REIKNUÐ DAGLEGA í pipeline en birtist hvergi — nú á leikjaröðum. */
+  const travelByFx = useMemo(() => {
+    const m = {};
+    (travel?.fixtures || []).forEach(t => m[t.fixture_id] = t);
+    return m;
+  }, [travel]);
   const weatherReady = useMemo(() =>
     (weather?.fixtures || []).some(w => w.temp_c != null), [weather]);
 
@@ -997,7 +1006,7 @@ export default function App() {
     const pl = (fixtures || [])
       .filter(f => (f.team_h === teamId || f.team_a === teamId) && f.event && f.event >= fromGw)
       .map(f => ({
-        kind: "pl", gw: f.event, date: f.kickoff_time,
+        kind: "pl", id: f.id, gw: f.event, date: f.kickoff_time,
         opp: f.team_h === teamId ? f.team_a : f.team_h,
         home: f.team_h === teamId,
         fdr: f.team_h === teamId ? f.team_h_difficulty : f.team_a_difficulty,
@@ -1357,6 +1366,15 @@ export default function App() {
      óviðkomandi á meðan (enginn hagnaður til að deila).                     */
   const gw1Deadline = events?.find(e => e.id === 1)?.deadline_time || null;
   const preSeason = gw1Deadline ? new Date() < new Date(gw1Deadline) : false;
+  /* HVAÐAN eru uppsöfnuðu tölurnar? Fyrir tímabil: allar frá SÍÐASTA
+     tímabili (t.d. "2025/26"), reiknað úr GW1-frestinum svo merkið sé
+     alltaf rétt ártal. Eftir að umferðir klárast: "GW1–N". Þetta merki
+     fylgir HVERRI uppsafnaðri tölu — ekki bara skýringunni.             */
+  const prevSeasonLabel = (() => {
+    const y = gw1Deadline ? new Date(gw1Deadline).getFullYear() : null;
+    return y ? `${y - 1}/${String(y).slice(-2)}` : "sl. tímabil";
+  })();
+  const cumLabel = seasonStarted ? `GW1–${seasonGames}` : prevSeasonLabel;
   // TÍMABIL BYRJAÐ = einhver umferð lokin. Þangað til eru allar uppsöfnuðu
   // tölur í players.json frá SÍÐASTA tímabili (spjöld, mínútur, stig).
   preSeasonRef.current = preSeason;
@@ -1676,7 +1694,7 @@ export default function App() {
                       isSellHint={recommendations.sellIds?.has(sq.id)}
                       onInfo={() => setDetail({ kind:"player", id:sq.id })}
                       onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                      onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)}
+                      onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                       dragId={dragId} setDragId={setDragId}
                       onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                   ))}
@@ -1697,7 +1715,7 @@ export default function App() {
                     isSellHint={recommendations.sellIds?.has(sq.id)}
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)}
+                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
@@ -1707,7 +1725,7 @@ export default function App() {
           </div>
           {/* LEIKIR UMFERÐARINNAR — við hliðina á vellinum */}
           <GwFixtureList gw={gw} fixtures={fixtures} teamById={teamById}
-            weatherByFx={weatherByFx} liveByFx={liveByFx}
+            weatherByFx={weatherByFx} travelByFx={travelByFx} liveByFx={liveByFx}
             nameOf={id => byId[id]?.web_name || `#${id}`} diffOf={fixDifficulty}
             onPick={t => setDetail({ kind:"team", id:t })} />
           </div>
@@ -2221,21 +2239,22 @@ export default function App() {
                   <>
                     {/* SKÝRING á heimildar-merkjum — svo aldrei sé óljóst */}
                     <div style={S.srcLegend}>
-                      <span><b style={{ color:C.green }}>nú</b> lifandi</span>
-                      <span><b style={{ color:C.amber }}>∑</b> uppsafnað ({seasonStarted ? `GW1–${seasonGames}` : "sl. tímabil"})</span>
-                      <span><b style={{ color:C.purple }}>reikn.</b> okkar mat</span>
+                      <span>merkið við hverja tölu segir hvaðan hún er:</span>
+                      <span><b style={{ color:C.green }}>nú</b> = lifandi úr FPL</span>
+                      <span><b style={{ color:C.amber }}>{cumLabel}</b> = uppsafnað yfir það tímabil</span>
+                      <span><b style={{ color:C.purple }}>reikn.</b> = mat appsins</span>
                     </div>
                     <DStat k="Spá næstu (ep)" v={p.ep_next} src="live" />
-                    <DStat k="Form" v={p.form} src="cum" />
-                    <DStat k="Stig/leik" v={p.points_per_game} src="cum" />
-                    <DStat k="Stig samtals" v={p.total_points} src="cum" />
+                    <DStat k="Form" v={p.form} src="cum" period={cumLabel} />
+                    <DStat k="Stig/leik" v={p.points_per_game} src="cum" period={cumLabel} />
+                    <DStat k="Stig samtals" v={p.total_points} src="cum" period={cumLabel} />
                     <DStat k="Eignarhlutfall" v={`${p.selected_by_percent}%`} src="live" />
-                    <DStat k="Mínútur" v={p.minutes} src="cum" />
-                    <DStat k="xG / 90" v={per90(p.expected_goals, p.minutes) ?? "—"} src="cum" />
-                    <DStat k="xA / 90" v={per90(p.expected_assists, p.minutes) ?? "—"} src="cum" />
-                    {p.element_type <= 2 && <DStat k="Hrein blöð" v={p.clean_sheets} src="cum" />}
-                    {rot && <DStat k="Byrjaði" v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} src="cum" />}
-                    {p.yellow_cards != null && <DStat k="Gul / rauð" v={`${p.yellow_cards} / ${p.red_cards ?? 0}`} src="cum"
+                    <DStat k="Mínútur" v={p.minutes} src="cum" period={cumLabel} />
+                    <DStat k="xG / 90" v={per90(p.expected_goals, p.minutes) ?? "—"} src="cum" period={cumLabel} />
+                    <DStat k="xA / 90" v={per90(p.expected_assists, p.minutes) ?? "—"} src="cum" period={cumLabel} />
+                    {p.element_type <= 2 && <DStat k="Hrein blöð" v={p.clean_sheets} src="cum" period={cumLabel} />}
+                    {rot && <DStat k="Byrjaði" v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} src="cum" period={cumLabel} />}
+                    {p.yellow_cards != null && <DStat k="Gul / rauð" v={`${p.yellow_cards} / ${p.red_cards ?? 0}`} src="cum" period={cumLabel}
                       sub={seasonStarted ? null : "núllstillast — engin bann-hætta enn"} />}
                     {sp && <DStat k="Vítaröð" v={sp.pen ?? "—"} sub={sp.isPenTaker ? "fyrsti taki" : ""} src="live" />}
                   </>
@@ -2423,6 +2442,20 @@ export default function App() {
                         {oppLabel(teamById[f.opp]?.short, f.home)}
                       </span>
                       <span style={S.dFixFdr} title={`FDR ${f.fdr}, samsett ${dd}`}>þyngd {dd}</span>
+                      {(() => {
+                        const tr = travelByFx[f.id];
+                        if (!tr?.km) return null;
+                        // sjónarhorn skoðaða liðsins: úti = ÞAÐ ferðast,
+                        // heima = MÓTHERJINN ferðast (gott fyrir vörnina)
+                        return (
+                          <span style={{ ...S.dFixTravel, ...(tr.is_long_trip ? S.dFixTravelLong : {}) }}
+                            title={f.home
+                              ? `Mótherjinn ferðast ${tr.km} km (loftlína)${tr.is_long_trip ? " — langferð (300+ km), mælist draga úr útiliðum" : ""}`
+                              : `${isPlayer ? "Liðið" : t.short} ferðast ${tr.km} km (loftlína)${tr.is_long_trip ? " — langferð (300+ km)" : ""}`}>
+                            ✈{tr.km}{f.home ? "→" : ""}
+                          </span>
+                        );
+                      })()}
                       {isPlayer && HOME_PTS[p.element_type] != null && (
                         <span style={S.dFixHome}
                           title={`Mælt heimavallar-forskot fyrir ${POS_LABEL[p.element_type].toLowerCase()}: +${HOME_PTS[p.element_type]} stig/leik`}>
@@ -2563,13 +2596,20 @@ function PlayerImg({ code, short, size = 34 }) {
 const DSTAT_SRC = {
   live: ["nú", "#00b96b"], cum: ["∑", "#c98a00"], calc: ["reikn.", "#37003c"],
 };
-function DStat({ k, v, sub, src }) {
+/* period-propið (t.d. "2025/26" eða "GW1–7") kemur í stað ∑-táknsins á
+   uppsöfnuðum tölum, svo hver tala segir SJÁLF hvaðan hún er — það var
+   ekki nógu skýrt að fela tímabilið í skýringunni einni.                */
+function DStat({ k, v, sub, src, period }) {
   const tag = DSTAT_SRC[src];
+  const label = src === "cum" && period ? period : tag?.[0];
+  const title = src === "live" ? "Lifandi tala úr FPL núna"
+    : src === "cum" ? `Uppsafnað yfir ${period || "tímabilið"}`
+    : src === "calc" ? "Reiknað mat appsins úr opinberum gögnum" : undefined;
   return (
     <div style={S.dStat}>
       <div style={S.dStatK}>
         {k}
-        {tag && <span style={{ ...S.srcTag, color: tag[1] }}>{tag[0]}</span>}
+        {tag && <span style={{ ...S.srcTag, color: tag[1] }} title={title}>{label}</span>}
       </div>
       <div style={S.dStatV}>{v}</div>
       {sub ? <div style={S.dStatS}>{sub}</div> : null}
@@ -2625,7 +2665,7 @@ function FixChip({ fx, teamById, diff, pos, relTier }) {
    haus, leikir dagsins undir, tíminn MIÐJAÐUR milli liðanna.
    FFDR er EKKI hér — hann er í sinni eigin töflu, svo þetta er hreinn
    leikjalisti án tvítekningar.                                             */
-function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, diffOf, onPick }) {
+function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveByFx, nameOf, diffOf, onPick }) {
   const [open, setOpen] = useState(null);
   const list = (fixtures || []).filter(f => f.event === gw)
     .sort((a, b) => String(a.kickoff_time || "~").localeCompare(String(b.kickoff_time || "~")));
@@ -2696,7 +2736,10 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, 
                 <button style={{ ...S.gfMid, ...(live ? S.gfMidLive : {}), ...(hasDetail ? S.gfMidOpen : {}) }}
                   onClick={() => hasDetail && setOpen(open === f.id ? null : f.id)}
                   title={hasDetail ? "Smelltu fyrir markaskorara"
-                        : (w?.temp_c != null ? `${Math.round(w.temp_c)}°C${w.precip_mm >= 0.5 ? " · úrkoma" : ""}` : undefined)}>
+                        : [
+                            w?.temp_c != null ? `${Math.round(w.temp_c)}°C${w.precip_mm >= 0.5 ? " · úrkoma" : ""}` : null,
+                            travelByFx?.[f.id]?.km ? `✈ ${A?.short || "úti"} ferðast ${travelByFx[f.id].km} km${travelByFx[f.id].is_long_trip ? " (langferð)" : ""}` : null,
+                          ].filter(Boolean).join(" · ") || undefined}>
                   {mid}
                 </button>
                 <span style={S.gfCellR}>{pill(A, false, true)}</span>
@@ -2808,7 +2851,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor,
   crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, relOf, ep, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, relOf, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -2894,7 +2937,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
         {ban && ban.level === "high" &&
           <span style={S.sigCard} title={`${ban.y} gul spjöld — 1 frá ${ban.threshold}-þröskuldi (${ban.matches} leikja bann)`}>{ban.y}Y</span>}
         {rot && rot.level === "high" &&
-          <span style={S.sigRot} title={`Byrjaði ${rot.starts} af ${rot.played}${rot.prevSeason ? " (sl. tímabil)" : ""} — skiptingar-hætta`}>{rot.pct}%</span>}
+          <span style={S.sigRot} title={`Byrjaði ${rot.starts} af ${rot.played} leikjum${rot.prevSeason && cumLabel ? ` tímabilið ${cumLabel}` : ""} — skiptingar-hætta`}>{rot.pct}%</span>}
       </div>
     </div>
   );
@@ -3207,6 +3250,8 @@ const S = {
   dFixFdr: { fontFamily:mono, fontSize:9.5, color:C.text3 },
   dFixHome: { fontFamily:mono, fontSize:9, color:C.text3 },
   dFixCs: { fontFamily:mono, fontSize:10, color:C.text2 },
+  dFixTravel: { fontFamily:mono, fontSize:9, color:C.text3 },
+  dFixTravelLong: { color:"#8a5f00", background:"#fff6e0", borderRadius:4, padding:"0 4px", fontWeight:700 },
   dFixDate: { fontFamily:mono, fontSize:9.5, color:C.text3, flexShrink:0 },
   dSubLbl: { fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, marginBottom:4 },
   dExList: { display:"flex", flexDirection:"column", gap:1, marginBottom:10 },
