@@ -964,6 +964,55 @@ export default function App() {
     return +clamp(core - homeAdj, 1, 5).toFixed(2);
   }
 
+  /* ---- AFSTÆTT FFDR ----
+     VANDAMÁL sem mældist: eigin-styrkur vegur 0,55, svo bilið FÆRIST með
+     liðsstyrk. Leeds-framherji fær 2,61-4,20 og sér ALDREI grænt, sama hve
+     léttur andstæðingurinn er. Man City fær 1,77-3,36.
+
+     Það er rétt sem STIGASPÁ (Leeds-framherji skorar minna) en gagnslaust
+     sem LEIKJA-SAMANBURÐUR — liturinn segir hvaða liði maðurinn er í.
+
+     Lausn: TVEIR kvarðar, hvor fyrir sína spurningu.
+       ALGILT   — hvern á ég að kaupa?  (samanburður milli liða) -> FFDR-tafla
+       AFSTÆTT  — hvenær á ég að spila honum? (innan liðs) -> leikja-flísar
+     Afstætt raðar 38 leikjum liðsins í sex jafnstóra flokka.                */
+  const ffdrRange = useMemo(() => {
+    if (!teams || !fixtures) return {};
+    const out = {};
+    for (const t of teams) {
+      for (const pos of [2, 4]) {
+        const vals = [];
+        for (let g = 1; g <= maxGw; g++) {
+          for (const f of (fixByTeamGw[t.id]?.[g] || [])) {
+            const d = fixDifficulty(t.id, f, pos);
+            if (d != null) vals.push(d);
+          }
+        }
+        if (vals.length) {
+          /* ÓLÍK gildi, ekki kvantílar. Lélegt lið hefur aðeins ~8 ólík FFDR-gildi
+             (FDR 1-5 x heima/úti), svo kvantílar mynda tvítekin skil og flokkar
+             verða tómir. Röðun ólíkra gilda tryggir að jafnir leikir fá SAMA lit
+             og að allir sex litir nýtist.                                       */
+          out[`${t.id}|${pos}`] = [...new Set(vals)].sort((a, b) => a - b);
+        }
+      }
+    }
+    return out;
+  }, [teams, fixtures, maxGw, fixByTeamGw, teamMetrics, odds, eloByTeam]);
+
+  /* Þrep leiks AFSTÆTT innan liðsins (0 = léttasti sjötti hluti). */
+  function tierRel(teamId, fx, pos) {
+    const d = fixDifficulty(teamId, fx, pos);
+    if (d == null) return null;
+    const uniq = ffdrRange[`${teamId}|${pos <= 2 ? 2 : 4}`];
+    if (!uniq || uniq.length < 2) return tierOf(d);
+    const i = uniq.indexOf(d);
+    if (i < 0) return tierOf(d);
+    // röð ólíks gildis -> þrep 0..5
+    return Math.min(5, Math.floor(i * 6 / uniq.length));
+  }
+
+
   // CS-mat: bókmakarar ef til, annars afleitt úr FDR + xGC (opinber gögn)
   function csFor(teamId, fx) {
     const short = teamById[teamId]?.short;
@@ -1677,7 +1726,7 @@ export default function App() {
                     isSellHint={recommendations.sellIds?.has(sq.id)}
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)}
+                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
@@ -1695,7 +1744,7 @@ export default function App() {
                   isSellHint={recommendations.sellIds?.has(sq.id)}
                   onInfo={() => setDetail({ kind:"player", id:sq.id })}
                   onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                  onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)}
+                  onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)}
                   dragId={dragId} setDragId={setDragId}
                   onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
               ))}
@@ -2533,15 +2582,20 @@ const TIER_BG   = ["#b8ecd0", "#d8f5e4", "#fdf6d8", "#f9e6a8", "#fde0e2", "#f7c4
 const TIER_FG   = ["#02402a", "#046b41", "#75620f", "#7a5600", "#a33540", "#87141e"];
 const TIER_NAME = ["dökkgrænt", "grænt", "ljósgult", "dökkgult", "ljósrautt", "rautt"];
 
-function FixChip({ fx, teamById, diff, pos }) {
+function FixChip({ fx, teamById, diff, pos, relTier }) {
   if (!fx) return <div style={S.noFix}>—</div>;
   const opp = teamById[fx.opp]?.short || "?";
   const d = diff != null ? diff : fx.fdr;
-  const t = tierOf(d);
+  // AFSTÆTT þrep ef til (innan liðsins), annars algilt
+  const t = relTier != null ? relTier : tierOf(d);
   const bg = TIER_BG[t], fg = TIER_FG[t];
   return (
     <div style={{ ...S.fixChip, background:bg, color:fg }}
-      title={diff != null ? `${TIER_NAME[t]} · þyngd ${d} (FDR ${fx.fdr} + liðsstyrkur + heima/úti + markaður ef til)` : `FDR ${fx.fdr}`}>
+      title={diff != null
+        ? `${TIER_NAME[t]} — ${relTier != null ? "AFSTÆTT innan liðsins" : "algilt"}`
+          + `\nFFDR ${d} (algilt, samanburðarhæft milli liða)`
+          + `\nFDR ${fx.fdr} · ${fx.home ? "heima" : "úti"}`
+        : `FDR ${fx.fdr}`}>
       {opp}{fx.home ? "" : <span style={S.away}>(a)</span>}
       {diff != null && <span style={S.fixNum}>{d.toFixed(1)}</span>}
     </div>
@@ -2685,8 +2739,10 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
       </div>
       <div style={S.muted}>
         GW{gws[0]}–{gws[gws.length-1]} · raðað eftir meðal-FFDR (léttast efst).
-        Vogtölur eru mældar sér fyrir hverja stöðu — sami leikur getur verið
-        léttur fyrir vörn og þungur fyrir sókn.
+        <b> Þetta er ALGILDUR kvarði</b> — samanburðarhæfur milli liða, svo lélegt
+        lið er rautt jafnvel í léttum leik. Það er rétt fyrir „hvern á ég að kaupa".
+        Leikja-flísar á spjöldum eru <b>afstæðar innan liðsins</b> — fyrir „hvenær
+        á ég að spila honum".
       </div>
       <div style={S.ffdrScroll}>
         <table style={S.ffdrTable}>
@@ -2738,7 +2794,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor,
   crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, ep, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, relOf, ep, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -2799,7 +2855,8 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
             →{(sellTenths_/10).toFixed(1)}
           </span>}
       </div>
-      <FixChip fx={fx} teamById={teamById} diff={diffOf ? diffOf(p.team, fx, p.element_type) : null} pos={p.element_type} />
+      <FixChip fx={fx} teamById={teamById} diff={diffOf ? diffOf(p.team, fx, p.element_type) : null} pos={p.element_type}
+        relTier={relOf ? relOf(p.team, fx, p.element_type) : null} />
       {/* EIN aðaltala */}
       {/* EIN aðaltala — VÆNT STIG leikmannsins.
           Áður var hér lið-xG fyrir sóknarmenn, en það er ÓÞARFI: FFDR-flísin
