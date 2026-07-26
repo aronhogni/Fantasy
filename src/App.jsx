@@ -1352,7 +1352,29 @@ export default function App() {
       }
 
       const score = (raw + banPen + spB + rotPen + dcB) * (0.35 + 0.65 * avail);
-      return { p, score: +score.toFixed(2), ease: +(5 - fdrAvg).toFixed(2), fxs, mode };
+
+      /* HVAÐ DRÍFUR SKORIÐ — birt á kortinu svo talan sé ekki dulúð.
+         Mælt: mínútur eru ríkjandi (+4,9 stöðluð áhrif), FFDR nær núll (−0,4).
+         Þess vegna getur leikmaður með ÞUNGA leiki verið réttmæt tillaga.     */
+      const drivers = [];
+      if (haveForm && ff[p.id]) {
+        drivers.push([`mín ${Math.round(ff[p.id].mins5)}′`, w.mins5 * (ff[p.id].mins5 / 90)]);
+      } else {
+        const mp = Math.min(1, (p.minutes || 0) / (38 * 90));
+        drivers.push([`mín ${Math.round(mp * 100)}%`, w.mins5 * mp]);
+      }
+      drivers.push([`£${price.toFixed(1)}`, w.price * price]);
+      drivers.push(["leikir", w.fdr * fdrAvg]);
+      drivers.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+      const tot = drivers.reduce((a, x) => a + Math.abs(x[1]), 0) || 1;
+      const why = drivers.slice(0, 2).map(([lbl, v]) => `${lbl} ${Math.round(100 * Math.abs(v) / tot)}%`).join(" · ");
+
+      // algilt meðal-FFDR yfir sviðið (til samanburðar milli liða)
+      let fsum = 0, fn = 0;
+      for (const f of fxs) { const d = fixDifficulty(p.team, f, p.element_type); if (d != null) { fsum += d; fn++; } }
+
+      return { p, score: +score.toFixed(2), ease: +(5 - fdrAvg).toFixed(2), fxs, mode,
+               why, ffdrAvg: fn ? +(fsum / fn).toFixed(2) : null };
     };
     const all = players.map(scoreOf).filter(Boolean);
     const byPos = {};
@@ -2136,7 +2158,7 @@ export default function App() {
             <div style={S.recGrid}>
               {(recommendations.byPos[pos] || []).map(r => (
                 <RecCard key={r.p.id} r={r} team={teamById[r.p.team]} teamById={teamById}
-                  dc={dcOpp[r.p.team]} elo={eloByTeam[r.p.team]} diffOf={fixDifficulty}
+                  dc={dcOpp[r.p.team]} elo={eloByTeam[r.p.team]} diffOf={fixDifficulty} relOf={tierRel}
                   crestFor={crestFor} csFor={csFor} range={recRange} onAdd={() => setDetail({ kind:"player", id:r.p.id })} />
               ))}
             </div>
@@ -2890,7 +2912,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
   );
 }
 
-function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, onAdd }) {
+function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, relOf, range, onAdd }) {
   const { p, fxs } = r;
   const isDef = p.element_type <= 2;
   return (
@@ -2909,7 +2931,8 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, o
       <div style={S.recFix}>
         {fxs.slice(0, range || 6).map((f,i) => {
           const d = diffOf ? (diffOf(p.team, f, p.element_type) ?? f.fdr) : f.fdr;
-          const t = tierOf(d);
+          // AFSTÆTT innan liðsins — sami kvarði sem á leikmanna-spjöldum
+          const t = relOf ? (relOf(p.team, f, p.element_type) ?? tierOf(d)) : tierOf(d);
           const bg = TIER_BG[t], fg = TIER_FG[t];
           return (
             <span key={i} style={{ ...S.recFixChip, background:bg, color:fg }}
@@ -2920,6 +2943,9 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, o
         })}
       </div>
       <div style={S.recExtra}>
+        {/* HVERS VEGNA — svo skorið sé ekki dulúð. Mínútur og verð ráða; leikir vega ~5%. */}
+        {r.why && <span style={S.recWhy}>{r.why}</span>}
+        {r.ffdrAvg != null && <span style={S.recFfdr} title="Meðal-FFDR (algilt) yfir sviðið">FFDR {r.ffdrAvg}</span>}
         {isDef && `CS-vænting ${Math.round(fxs.reduce((a,f) => a + (csFor(p.team, f).cs || 0), 0) / fxs.length)}%`}
         {isDef && dc && ` · DC ${dc.defcon_opportunity}`}
         {elo && `${isDef ? " · " : ""}elo ${Math.round(elo.elo)}`}
@@ -3233,6 +3259,8 @@ const S = {
   recTop: { display:"flex", alignItems:"center", gap:8 },
   recPortrait: { position:"relative", width:32, height:32, display:"flex", alignItems:"flex-end", justifyContent:"center", flexShrink:0 },
   recName: { fontSize:12.5, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" },
+  recWhy: { fontFamily:mono, fontSize:8.5, color:C.purple, fontWeight:700 },
+  recFfdr: { fontFamily:mono, fontSize:8.5, color:C.text3 },
   recMeta: { fontFamily:mono, fontSize:10, color:C.text3 },
   recScore: { fontFamily:mono, fontSize:13, fontWeight:700, color:C.purple, flexShrink:0 },
   recFix: { display:"flex", gap:3, marginTop:7, flexWrap:"wrap" },
