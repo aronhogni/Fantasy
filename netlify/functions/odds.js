@@ -87,6 +87,51 @@ export const handler = async (event) => {
       return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
     }
 
+    /* --- LIFANDI GÖGN — leiðirnar sem appið kallar á í hverri umferð ---
+       ATH VILLAN SEM VAR: þessar leiðir VANTAÐI. Óþekkt path féll þá beint
+       niður í bókmakera-greinina, sem (a) eyddi Odds-API-kvótanum við hverja
+       umferðaskiptingu og (b) skilaði odds-JSON þar sem appið bjóst við
+       leikja-stöðu — svo lifandi staðan virkaði aldrei.
+       CDN-cache 60s: allir notendur deila einu FPL-kalli á mínútu.          */
+    const liveCache = { ...cors, "Netlify-CDN-Cache-Control": "public, durable, max-age=60" };
+
+    // Hráar leikmanna-tölur umferðar (stats + explain) — fyrir GW-frammistöðu
+    if (path === "fpl-live") {
+      const gw = event.queryStringParameters.gw;
+      if (!/^\d+$/.test(gw || "")) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "gw vantar" }) };
+      const data = await getJSON(`${FPL_BASE}/event/${gw}/live/`);
+      return { statusCode: 200, headers: liveCache, body: JSON.stringify(data) };
+    }
+
+    // Samandregin leikja-staða umferðar — fyrir stigatöfluna við völlinn.
+    // Lögunin sem framendinn les: { any_live, fixtures:[{id, started,
+    // finished, h:{score,goals,assists}, a:{...}}] } með leikmanna-ID-um.
+    if (path === "live") {
+      const gw = event.queryStringParameters.gw;
+      if (!/^\d+$/.test(gw || "")) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "gw vantar" }) };
+      const fx = await getJSON(`${FPL_BASE}/fixtures/?event=${gw}`);
+      const fixtures = (fx || []).map(f => {
+        const stat = k => (f.stats || []).find(x => x.identifier === k) || { h: [], a: [] };
+        const goals = stat("goals_scored"), assists = stat("assists");
+        const ids = arr => (arr || []).map(x => x.element);
+        return {
+          id: f.id, started: !!f.started,
+          finished: !!(f.finished || f.finished_provisional),
+          minutes: f.minutes ?? 0,
+          h: { score: f.team_h_score, goals: ids(goals.h), assists: ids(assists.h) },
+          a: { score: f.team_a_score, goals: ids(goals.a), assists: ids(assists.a) },
+        };
+      });
+      const any_live = fixtures.some(f => f.started && !f.finished);
+      return { statusCode: 200, headers: liveCache, body: JSON.stringify({ gw: +gw, any_live, fixtures }) };
+    }
+
+    // Óþekkt path á að SVARA 400, ekki falla í bókmakera-greinina —
+    // það var kvóta-lekinn.
+    if (path !== "odds") {
+      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: `óþekkt path: ${path}` }) };
+    }
+
     // --- Bókmakera-línur + CS%-útreikningur ---
     if (!key) {
       return { statusCode: 200, headers: cors, body: JSON.stringify({

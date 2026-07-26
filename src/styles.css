@@ -1,0 +1,46 @@
+/* ============================================================
+   RESPONSIVE-REGLUR
+   Stílarnir í App.jsx eru inline (JS-hlutir) og geta því ekki
+   innihaldið media queries. Þessi skrá brýtur föstu grid-dálkana
+   upp á minni skjám. !important þarf því inline-stílar vinna
+   annars alltaf.
+   ============================================================ */
+
+/* Hliðarstikan (320px) fer undir aðalefnið þegar þrengist */
+@media (max-width: 1020px) {
+  .app-main {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Völlur og leikjalisti í eina súlu; völlurinn fær fulla breidd */
+@media (max-width: 760px) {
+  .pitch-split {
+    grid-template-columns: 1fr !important;
+  }
+  .pitch-col {
+    max-width: none !important;
+  }
+  .gf-wrap {
+    position: static !important;
+  }
+  .head-right {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .url-input {
+    flex: 1 1 130px;
+    width: auto !important;
+    min-width: 0;
+  }
+}
+
+/* Símar: minni spássíur svo spjöldin fái plássið */
+@media (max-width: 480px) {
+  .app-shell {
+    padding: 10px 8px 32px !important;
+  }
+  .app-stats {
+    gap: 6px !important;
+  }
+}

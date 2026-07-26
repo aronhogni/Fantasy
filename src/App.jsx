@@ -227,14 +227,6 @@ const FIT = {
   3: { bias:-1.62, mins5:14.578, pts5: 0.180, bps90:0.003, price:0.984, fdr:-0.534, xgi90:2.403 },
   4: { bias:-1.98, mins5:13.869, pts5: 0.519, bps90:0.009, price:0.698, fdr:-0.881, xgi90:1.919 },
 };
-/* ---- VOGTÖLUR YFIR ÞRJÚ TÍMABIL (2023/24, 2024/25, 2025/26) ----
-   Krossprófun milli tímabila: MAE 3,73-3,90 á móti 3,73 innan tímabils
-   -> líkanið ALHÆFIST, það er ekki of-fittað á eitt tímabil.
-   Stöðugleiki vogtalna (cv): fdr 0,21 STÖÐUGT · mins5 0,28 · price 0,32
-   · pts5 0,53 · xgi90 0,62 ÓSTÖÐUGT · bps90 1,18 ÓSTÖÐUGT (nær núll).
-   Meðaltal þriggja tímabila er notað sem varúð gegn of-fittun.          */
-const FIT_MULTI = { bias:-1.72, pts5:1.155, mins5:8.988, xgi90:0.955, bps90:0.003, price:1.229, fdr:-0.984 };
-
 const FFDR_AHEAD = 5;  // umferðir sem útskiptingar-röðun horfir á
 const TL_WINDOW = 13;  // umferðir sýndar í einu — hnútarnir FYLLA breiddina
 
@@ -412,12 +404,21 @@ function setPieceOf(p) {
   if (pen == null && ck == null && fk == null) return null;
   return { pen, ck, fk, isPenTaker: pen === 1 };
 }
-// Skiptingar-hætta: byrjaði sjaldan þrátt fyrir að vera heill
+// Skiptingar-hætta: byrjaði sjaldan þrátt fyrir að vera heill.
+// FYRIR TÍMABIL sýnir FPL starts FYRRA tímabils (deilt með 38). Þegar
+// tímabilið er hafið núllstillast tölurnar og rétt nefnari er fjöldi
+// LOKINNA umferða — að deila með 38 gaf t.d. "8%" eftir 3 umferðir.
+// Undir 3 loknum umferðum er úrtakið of lítið fyrir "high"-flagg.
 function rotationRisk(p, seasonGames) {
   const st = p?.starts;
   if (st == null) return null;
-  const pct = Math.round((st / 38) * 100);
-  return { starts: st, pct, level: pct >= 75 ? "safe" : pct >= 50 ? "mid" : "high" };
+  const prevSeason = !seasonGames;               // engin lokin umferð enn
+  const played = prevSeason ? 38 : seasonGames;
+  if (!played) return null;
+  const pct = Math.round((st / played) * 100);
+  const enough = prevSeason || seasonGames >= 3;
+  const level = !enough ? "low" : pct >= 75 ? "safe" : pct >= 50 ? "mid" : "high";
+  return { starts: st, played, pct, prevSeason, level };
 }
 
 /* ---- Teiknuð treyja (fallback ef mynd næst ekki) ---- */
@@ -571,7 +572,7 @@ export default function App() {
         try { setChipRules(await j("chips.json")); } catch {}
         try { setFormFeat(await j("form_features.json")); } catch {}
         try { setTeamForm(await j("team_form.json")); } catch {}
-        const cur = ev.events.find(e => e.is_current) || ev.events.find(e => e.is_next);
+        const cur = evA.find(e => e.is_current) || evA.find(e => e.is_next);
         if (cur) setGw(cur.id);
       } catch (e) { setDataState("error"); }
     })();
@@ -896,7 +897,7 @@ export default function App() {
       };
     });
     return m;
-  }, [defcon, players, fixtures, teams, teamMetrics]);
+  }, [defcon, players, fixtures, teams, teamMetrics, recRange]);
 
   /* ---- SAMSETT LEIKJAÞYNGD ----
      MÆLT á 544 lið-leikjum (fyrra tímabil spáir næsta, ekkert leki):
@@ -1578,11 +1579,11 @@ export default function App() {
   );
 
   return (
-    <div style={S.shell}>
+    <div className="app-shell" style={S.shell}>
       {/* ---------- Haus ---------- */}
-      <header style={S.head}>
+      <header className="app-head" style={S.head}>
         <Logo />
-        <div style={S.headRight}>
+        <div className="head-right" style={S.headRight}>
           <button style={S.searchBtn} onClick={() => { setBrowse(true); setSearchQ(""); setSearchPos("all"); }}
             title="Leita í öllum leikmönnum">🔍 Leikmenn</button>
           <button style={{ ...S.searchBtn, ...(showFfdr ? S.searchBtnOn : {}) }}
@@ -1591,7 +1592,7 @@ export default function App() {
           <button style={{ ...S.searchBtn, ...(showChips ? S.searchBtnOn : {}) }}
             onClick={() => setShowChips(v => !v)}
             title="Wildcard, Free Hit, Bench Boost, Triple Captain">🎫 Chips</button>
-          <input style={S.urlInput} placeholder="FPL Url" value={urlInput}
+          <input className="url-input" style={S.urlInput} placeholder="FPL Url" value={urlInput}
             onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && connectUrl()} />
           <button style={S.connectBtn} onClick={connectUrl}>{entryId ? "Uppfæra" : "Tengja"}</button>
         </div>
@@ -1697,7 +1698,7 @@ export default function App() {
       </div>
 
       {/* ---------- Mælaborð ---------- */}
-      <div style={S.stats}>
+      <div className="app-stats" style={S.stats}>
         <Stat icon="💰" label="Banki" value={`£${bank.toFixed(1)}`}
           sub={`lið £${squadValue.toFixed(1)} · alls £${(bank + squadValue).toFixed(1)}`}
           tone={bank < 0 ? "bad" : "ok"} />
@@ -1711,7 +1712,7 @@ export default function App() {
       {/* Leikir umferðarinnar eru NÚ AÐEINS við hliðina á vellinum
           (GwFixtureList). Þeir voru bæði hér og þar — tvítekning. */}
 
-      <div style={S.main}>
+      <div className="app-main" style={S.main}>
         {/* ---------- Völlur ---------- */}
         <div>
           <div style={S.capBar}>
@@ -1737,8 +1738,8 @@ export default function App() {
               Viðmið úr Pitch.jsx: marklína 7,13 · markteigur 13,02 ·
               vítapunktur 18,92 · vítateigur 24,82 · miðlína 63,42 ·
               bekkjarskil 75,99                                            */}
-          <div style={S.pitchSplit}>
-          <div style={S.pitchCol}>
+          <div className="pitch-split" style={S.pitchSplit}>
+          <div className="pitch-col" style={S.pitchCol}>
           <Pitch bench={0.24}>
             {ROW_Y.map(({ pos, y }) => (
               <div key={pos} style={{ ...S.pitchRowAbs, top: `${y}%` }}>
@@ -1920,7 +1921,7 @@ export default function App() {
         </div>
 
         {/* ---------- Hliðarstika ---------- */}
-        <div style={S.side}>
+        <div className="app-side" style={S.side}>
           {/* CHIPS — bak við hnapp (🎫 Chips) í staðinn fyrir að vera alltaf sýnilegt */}
           {showChips && (
             <section style={S.card}>
@@ -1936,7 +1937,7 @@ export default function App() {
                   <div key={half}>
                     {(() => {
                       const lastGw = Math.max(...slots.map(x => x.to));
-                      const dl = events?.find(e => e.id === (half === 1 ? lastGw : lastGw))?.deadline_time;
+                      const dl = events?.find(e => e.id === lastGw)?.deadline_time;
                       const unused = slots.filter(x => !chips[x.key]).length;
                       const expired = dl ? new Date() > new Date(dl) : false;
                       return (
@@ -2224,7 +2225,7 @@ export default function App() {
                     {/* SKÝRING á heimildar-merkjum — svo aldrei sé óljóst */}
                     <div style={S.srcLegend}>
                       <span><b style={{ color:C.green }}>nú</b> lifandi</span>
-                      <span><b style={{ color:C.amber }}>{seasonStarted ? `GW1–${seasonGames}` : "sl. tímabil"}</b> uppsafnað</span>
+                      <span><b style={{ color:C.amber }}>∑</b> uppsafnað ({seasonStarted ? `GW1–${seasonGames}` : "sl. tímabil"})</span>
                       <span><b style={{ color:C.purple }}>reikn.</b> okkar mat</span>
                     </div>
                     <DStat k="Spá næstu (ep)" v={p.ep_next} src="live" />
@@ -2559,10 +2560,20 @@ function PlayerImg({ code, short, size = 34 }) {
     onError={() => setOk(false)} loading="lazy" />;
 }
 
-function DStat({ k, v, sub }) {
+/* Heimildar-merki: "nú" (lifandi), "∑" (uppsafnað), "reikn." (okkar mat).
+   Skýringin fyrir ofan (srcLegend) vísar í þessi merki — áður var src-propið
+   hent og skýringin lofaði merkjum sem birtust hvergi. */
+const DSTAT_SRC = {
+  live: ["nú", "#00b96b"], cum: ["∑", "#c98a00"], calc: ["reikn.", "#37003c"],
+};
+function DStat({ k, v, sub, src }) {
+  const tag = DSTAT_SRC[src];
   return (
     <div style={S.dStat}>
-      <div style={S.dStatK}>{k}</div>
+      <div style={S.dStatK}>
+        {k}
+        {tag && <span style={{ ...S.srcTag, color: tag[1] }}>{tag[0]}</span>}
+      </div>
       <div style={S.dStatV}>{v}</div>
       {sub ? <div style={S.dStatS}>{sub}</div> : null}
     </div>
@@ -2577,11 +2588,6 @@ function Stat({ icon, label, value, sub, tone }) {
       {sub && <div style={S.statSub}>{sub}</div>}
     </div>
   );
-}
-
-function ChipIcon({ kind, color }) {
-  const glyph = { wildcard:"♻", freehit:"⚡", bboost:"⬆", "3xc":"3×" }[kind] || "•";
-  return <span style={{ ...S.chipIcon, background: color }}>{glyph}</span>;
 }
 
 /* FIMM litaþrep — bilin eru MÆLDU flokkarnir, ekki valin.
@@ -2657,13 +2663,13 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, 
     g.items.push(f);
   }
   if (!list.length) return (
-    <div style={S.gfWrap}>
+    <div className="gf-wrap" style={S.gfWrap}>
       <div style={S.gfHead}>Leikir GW{gw}</div>
       <div style={S.gfEmpty}>Engir leikir skráðir — auð umferð.</div>
     </div>
   );
   return (
-    <div style={S.gfWrap}>
+    <div className="gf-wrap" style={S.gfWrap}>
       <div style={S.gfHead}>Leikir GW{gw} <span style={S.gfCount}>{list.length} leikir</span></div>
       {groups.map(g => (
         <div key={g.key} style={S.gfDay}>
@@ -2999,7 +3005,6 @@ const S = {
   nodeOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:700 },
   nodeNum: { position:"relative", zIndex:1 },
   nodeDot: { position:"absolute", bottom:4, left:"50%", transform:"translateX(-50%)", width:4, height:4, borderRadius:"50%", background:"#f59e0b" },
-  nodeChip: { position:"absolute", top:-6, right:-6, fontFamily:mono, fontSize:8, fontWeight:700, color:"#fff", padding:"1px 3px", borderRadius:4, lineHeight:1.3 },
   intl: { flexShrink:0, position:"relative", zIndex:2, display:"inline-flex", alignItems:"center", alignSelf:"flex-end", marginBottom:5 },
   globe: { display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:10, boxShadow:`0 0 0 3px ${C.card}` },
   resetAllRow: { marginTop:8, paddingTop:8, borderTop:`1px solid ${C.border}` },
@@ -3027,29 +3032,6 @@ const S = {
   statVal: { fontFamily:mono, fontSize:23, fontWeight:700, marginTop:2 },
   statSub: { fontSize:10.5, color:C.text3, marginTop:1 },
 
-  fixCard: { background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:"8px 9px" },
-  fixCardLive: { border:`1px solid ${C.green}`, background:"#f7fffb" },
-  fixTop: { display:"flex", alignItems:"center", justifyContent:"space-between", gap:4 },
-  fixSideL: { display:"flex", alignItems:"center", gap:4, flex:1, minWidth:0 },
-  fixSideR: { display:"flex", alignItems:"center", gap:4, flex:1, minWidth:0, justifyContent:"flex-end" },
-  fixCrest: { width:16, height:16, objectFit:"contain", flexShrink:0 },
-  fixTeamLink: { fontFamily:mono, fontSize:12, fontWeight:700, cursor:"pointer" },
-  fixMid: { flexShrink:0, padding:"0 4px" },
-  fixScore: { fontFamily:mono, fontSize:14, fontWeight:700, color:C.purple },
-  fixV: { color:C.text3, fontSize:11 },
-  fixStatus: { display:"flex", alignItems:"center", justifyContent:"space-between", gap:6, marginTop:4 },
-  fixTime: { fontFamily:mono, fontSize:9.5, color:C.text3 },
-  liveTag: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:10, fontWeight:700, color:"#0a7a4a" },
-  liveDot: { width:6, height:6, borderRadius:"50%", background:C.green },
-  doneTag: { fontFamily:mono, fontSize:9.5, color:C.text3 },
-  scBox: { display:"flex", gap:5, marginTop:6, paddingTop:5, borderTop:`1px solid ${C.border}` },
-  scCol: { flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:2 },
-  scDiv: { width:1, background:C.border },
-  scLine: { display:"flex", gap:3, alignItems:"flex-start" },
-  scIcon: { fontSize:8.5, lineHeight:1.5, flexShrink:0 },
-  scNames: { fontSize:9.5, lineHeight:1.45, color:C.text2 },
-  scName: { cursor:"pointer" },
-  scMine: { fontWeight:700, color:C.purple },
 
   main: { display:"grid", gridTemplateColumns:"minmax(0,1fr) 320px", gap:14, alignItems:"start" },
   // völlur + leikir hlið við hlið; völlurinn MINNI en áður
@@ -3075,7 +3057,9 @@ const S = {
     color:C.text2, background:C.cardAlt, borderRadius:5 },
   ffdrLegend: { display:"flex", gap:4, flexWrap:"wrap", marginTop:8, paddingTop:7, borderTop:`1px solid ${C.border}` },
   ffdrChip: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 },
-  gfWrap: { flex:"1 1 300px", minWidth:280, maxWidth:400, boxSizing:"border-box",
+  /* Breiddin kemur úr grid-dálki pitchSplit — flex/minWidth hér áður
+     YFIRFLÆDDI 164px dálkinn (leifar frá því þetta var flexbox). */
+  gfWrap: { boxSizing:"border-box", minWidth:0,
     background:C.card, border:`1px solid ${C.border}`, borderRadius:12,
     padding:"12px 13px", position:"sticky", top:8 },
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
@@ -3095,10 +3079,11 @@ const S = {
   gfMidOpen: { cursor:"pointer", color:C.purple },
   gfDetail: { flexBasis:"100%", marginTop:2, fontSize:8.5, lineHeight:1.5, color:C.text2 },
   gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
-  /* ATH: þessi hét áður "pitchRow" og ÁREKSTRI við leikmanna-röðina neðar.
-     Síðasti lykill vinnur í JS-hlut, svo grid-ið var YFIRSKRIFAÐ og völlurinn
-     hrundi í kremju. Nýtt heiti: pitchSplit.                               */
-  pitchSplit: { display:"grid", gridTemplateColumns:"minmax(380px,1fr) 164px", gap:10, alignItems:"start", marginBottom:12 },
+  /* Völlur + leikjalisti hlið við hlið. Seinni dálkurinn VERÐUR að rúma
+     gfWrap — fastur 164px dálkur með minWidth:280 á innihaldinu olli
+     yfirflæði sem braut útlitið. Á smáum skjám brotnar þetta í eina
+     súlu í src/styles.css.                                                */
+  pitchSplit: { display:"grid", gridTemplateColumns:"minmax(0,1fr) minmax(240px,300px)", gap:10, alignItems:"start", marginBottom:12 },
   // Völlur og leikjalisti deila röðinni. Völlurinn er þakinn við 460px svo
   // listinn fái raunverulegt rúm; hvort tveggja brotnar undir á smáum skjá.
   pitchCol: { flex:"1 1 320px", minWidth:0, maxWidth:460 },
@@ -3114,7 +3099,6 @@ const S = {
     display:"flex", justifyContent:"center", gap:6, flexWrap:"nowrap", padding:"0 4px" },
   benchLabel: { position:"absolute", left:10, top:"77.5%", fontFamily:mono, fontSize:9,
     letterSpacing:1, textTransform:"uppercase", color:"rgba(234,243,236,0.55)", zIndex:1 },
-  pitchRow: { display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" },
 
   pCard: { position:"relative", width:"clamp(62px, 17.5%, 92px)", background:C.card,
     border:`1px solid rgba(255,255,255,0.5)`, borderRadius:9, padding:"6px 4px 6px",
@@ -3132,11 +3116,8 @@ const S = {
   pCrest: { position:"absolute", bottom:-3, right:4, width:18, height:18, objectFit:"contain",
     background:"#fff", borderRadius:"50%", padding:1,
     boxShadow:"0 0 0 1.5px #fff, 0 1px 3px rgba(0,0,0,0.28)" },
-  pCode: { position:"absolute", bottom:0, right:6, fontFamily:mono, fontSize:8, color:C.text3 },
   pName: { fontSize:11, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" },
   pPrice: { fontFamily:mono, fontSize:10.5, color:C.text2 },
-  pStatBox: { display:"flex", flexDirection:"column", gap:0, marginTop:3 },
-  pStatSub: { fontFamily:mono, fontSize:9, color:C.text3 },
   pEp: { fontFamily:mono, fontSize:12, fontWeight:700, color:C.purple },
   pCsSmall: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginLeft:4 },
   fixChip: { display:"inline-block", fontFamily:mono, fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, margin:"4px 0 1px" },
@@ -3174,8 +3155,6 @@ const S = {
 
   srcRow: { display:"flex", alignItems:"center", gap:7, fontSize:11.5, color:C.text2, padding:"3px 0" },
   dotOk: { width:7, height:7, borderRadius:"50%", background:C.green, flexShrink:0 },
-  fixWx: { display:"block", fontFamily:mono, fontSize:9.5, color:C.text2, marginTop:2 },
-  fixWxWait: { display:"block", fontFamily:mono, fontSize:9, color:C.text3, marginTop:2, fontStyle:"italic" },
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },
   tblRow: { display:"flex", alignItems:"center", gap:4, padding:"3px 0", borderBottom:`1px solid ${C.page}` },
   // ffdrCell = <span> í leikmanns-yfirliti (inline-block)
@@ -3185,7 +3164,6 @@ const S = {
   ffdrTd: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono,
     fontSize:9, fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
   tblNum: { width:46, textAlign:"right", fontFamily:mono, fontSize:11, color:C.text2, position:"relative" },
-  dcChip: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginTop:1 },
   availBadge: { position:"absolute", top:4, left:4, fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 3px", borderRadius:4, lineHeight:1.3, zIndex:2 },
   sAvail: { fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 4px", borderRadius:4, marginLeft:5 },
   sPen: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"1px 3px", borderRadius:4, background:"#e6f9f0", color:"#0a7a4a", marginLeft:4 },
@@ -3246,7 +3224,6 @@ const S = {
     cursor:"pointer", fontSize:11, background:C.green, color:"#fff", border:"none", borderRadius:5, padding:0 },
   priceEdit: { display:"flex", alignItems:"center", gap:5, background:C.cardAlt, borderRadius:7, padding:"3px 5px" },
   priceStep: { width:22, height:22, borderRadius:5, border:`1px solid ${C.border}`, background:C.card, color:C.text, fontSize:13, cursor:"pointer", lineHeight:1, padding:0 },
-  priceVal: { fontFamily:mono, fontSize:13.5, fontWeight:700, minWidth:44, textAlign:"center" },
   priceReset: { background:"transparent", border:"none", color:C.text3, fontSize:10.5, cursor:"pointer", textDecoration:"underline" },
   pSell: { fontFamily:mono, fontSize:8.5, color:C.red, marginLeft:2 },
   dActions: { display:"flex", gap:6, flexWrap:"wrap", paddingTop:8, borderTop:`1px solid ${C.border}` },
@@ -3254,7 +3231,6 @@ const S = {
   srcTag: { marginLeft:4, fontFamily:mono, fontSize:7.5, fontWeight:700, letterSpacing:0.2,
     textTransform:"none", opacity:0.85 },
   dotWait: { width:7, height:7, borderRadius:"50%", background:"#f59e0b", flexShrink:0 },
-  dotOff: { width:7, height:7, borderRadius:"50%", background:C.text3, flexShrink:0 },
 
   recHead: { display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" },
   recCtl: { display:"flex", gap:6 },

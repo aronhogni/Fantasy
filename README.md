@@ -1,89 +1,43 @@
-# FPL Plönun — uppsetning (Netlify + The Odds API)
+# Fantasy plönun — FPL 2026/27
 
-Þrjár skrár:
-- `fpl_planner.jsx` — appið (framendi)
-- `netlify/functions/odds.js` — proxy sem sækir bókmakera-línur + FPL-gögn og reiknar CS%
-- `README.md` — þessi skrá
+Skipulagstól fyrir Fantasy Premier League: völlur með liðinu þínu, framtíðar-skipti
+eftir umferðum, FFDR-leikjaþyngd (mæld, ekki ágiskuð), CS%-líkur, chips-plönun,
+tillögu-kerfi og lifandi staða — allt úr opinberum gögnum.
 
-Þú setur þetta upp sjálf/ur á Netlify (frítt) — nákvæmlega eins og fyrri öppin þín. Ég get ekki hýst það né séð lyklana þína; það á að vera þannig.
+**Appið:** https://aronhogni.github.io/Fantasy/
 
----
+## Uppbygging
 
-## 1. Fáðu The Odds API lykil (frítt, 2 mín)
+| Hluti | Hvar | Kostnaður |
+|---|---|---|
+| **Framendi** (`src/`) | GitHub Pages, byggt af `pages.yml` við hverja ýtingu á app-skrár | frítt |
+| **Gagna-pipeline** (`scripts/fetch.mjs`) | GitHub Actions cron: `fetch.yml` daglega kl. 05 UTC, `fetch-fast.yml` á 30 mín (meiðsli/verð) | frítt |
+| **Gögn** (`data/`) | Committuð í repo, framendinn les frá raw.githubusercontent (CORS-opið) | frítt |
+| **Proxy** (`netlify/functions/odds.js`) | Netlify — AÐEINS fyrir slóðir sem vafrinn nær ekki beint í (FPL-API sendir ekki CORS-höfuð): lifandi staða, picks, live-tölur | ~4 credit/mán |
 
-1. Farðu á **the-odds-api.com** → "Get API Key"
-2. Skráðu netfang → lykillinn kemur í tölvupósti (löng runa af stöfum)
-3. Ókeypis þrepið gefur ~500 köll/mánuði — nóg fyrir næstu 1–2 umferðir með vistun
+`netlify.toml` er með ignore-reglu: Netlify byggir **aðeins** þegar `netlify/` breytist.
+App- og gagna-breytingar kosta því engin Netlify-credit.
 
-**Ekki líma lykilinn inn í kóðann.** Hann fer í Netlify-umhverfisbreytu (skref 4). Þannig sést hann aldrei í vafranum.
+## Leyndarmál (GitHub Secrets / Netlify env)
 
----
+- `ODDS_API_KEY` — the-odds-api.com, fyrir bókmakera-CS% (valfrjálst; appið virkar án)
+- `EURO_API_KEY` — football-data.org, fyrir Evrópu-/bikarleiki (valfrjálst)
 
-## 2. Byggðu appið (Vite + React)
+Pipeline-inn sækir odds aðeins tvisvar per umferð (36 klst og 6–8 dögum fyrir frest)
+— ~25 credit/mán af 500 fríum.
 
-Í tölvunni (eða beint á Netlify — sjá skref 3b):
+## Þróun
 
 ```bash
-npm create vite@latest fpl-planner -- --template react
-cd fpl-planner
 npm install
+npm run dev      # staðbundin þróun
+npm run build    # framleiðslu-bygging í dist/
+npm test         # keyrslupróf (jsdom + alvöru data/-skrárnar)
 ```
 
-Afritaðu svo:
-- `fpl_planner.jsx` → `src/App.jsx` (skrifaðu yfir)
-- `netlify/functions/odds.js` → `netlify/functions/odds.js` (búðu til möppuna)
+## Prófin
 
-Opnaðu `src/App.jsx` og settu proxy-slóðina efst (þú færð hana eftir fyrsta deploy — skref 3):
-```js
-const PROXY_URL = "https://ÞITT-APP.netlify.app/.netlify/functions/odds";
-```
-
----
-
-## 3. Settu í loftið á Netlify
-
-**3a. Með GitHub (mælt með):**
-1. Ýttu möppunni í nýtt GitHub-repo (`git init`, commit, push) — eins og fyrri verkefnin
-2. Á **netlify.com** → "Add new site" → "Import from Git" → veldu repo-ið
-3. Build command: `npm run build` · Publish directory: `dist`
-4. Deploy → þú færð slóð eins og `https://fpl-planner-abc.netlify.app`
-
-**3b. Án GitHub (drag & drop):** virkar fyrir framendann EN ekki fyrir functions. Notaðu GitHub-leiðina svo proxy-fallið keyri.
-
----
-
-## 4. Settu API-lykilinn inn (falinn)
-
-1. Netlify → síðan þín → **Site configuration → Environment variables**
-2. "Add a variable":
-   - Key: `ODDS_API_KEY`
-   - Value: lykillinn úr skrefi 1
-3. Vistaðu → **Deploys → Trigger deploy → Deploy site** (svo breytan taki gildi)
-
----
-
-## 5. Kláraðu tenginguna
-
-1. Settu réttu `PROXY_URL` slóðina í `src/App.jsx` (skref 2), committaðu, push → Netlify byggir aftur
-2. Opnaðu appið. Efst á að standa:
-   **"Bókmakera-CS% virkt"** með grænum punkti = allt tengt.
-3. Leikja-flísarnar litast nú eftir raunverulegum hreint-líkum, varnarmenn sýna CS% og sóknarmenn vænt mörk.
-
----
-
-## Hvað virkar strax vs hvað þarf tengingu
-
-| Eiginleiki | Án proxy | Með proxy |
-|---|---|---|
-| Tímalína + lið morfast eftir GW | ✅ | ✅ |
-| Framtíðar-skipti eftir vikum | ✅ | ✅ |
-| Verðhækkunar-mælir | ✅ (sáð) | ✅ (lifandi kemur í v-næst) |
-| Leikja-litur | FDR (sáð) | **CS% frá bókmökurum** |
-| CS% á varnarmönnum | — | ✅ |
-| Vænt mörk á sóknarmönnum | — | ✅ |
-
-## Athugasemdir
-- **Bókmakera-markaðir opna 5–7 daga fyrir leik.** Fjarlægar umferðir hafa engar línur → appið sýnir FDR/spá þar, skiptir sjálfkrafa í CS% þegar markaður opnar.
-- **CS%-útreikningur:** vænt mörk leiksins (úr totals-línu) skipt á liðin (úr sigurlíkum), sett í Poisson: CS% = e^(−vænt mörk andstæðings). Staðlaða aðferðin.
-- **Þrep-sparnaður:** fallið sækir aðeins `soccer_epl` og velur 3 helstu banka. Bættu við vistun (cache) í fallinu ef þú vilt spara enn meira (t.d. geyma svar í 3 klst).
-- **FPL-gögn:** fallið hefur líka `?path=fpl-bootstrap|fpl-fixtures|fpl-entry|fpl-picks` tilbúið fyrir næsta skref (lifandi verð/stig/lið úr URL).
+`tests/smoke.test.mjs` rennir appinu í jsdom með raunverulegu gagnaskránum úr
+`data/` og fer í gegnum: hleðslu, völlinn (15 spjöld), umferðaskipti, skipti með
+FPL-reglum, endurstillingu, leikmannayfirlit, FFDR-töfluna, chips, tillögur og
+vistun. Fetch er hermt — engin netköll.
