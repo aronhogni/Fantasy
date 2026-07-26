@@ -288,6 +288,10 @@ function sellTenths(purchase10, current10) {
   return purchase10 + Math.floor((current10 - purchase10) / 2);
 }
 const photoUrl = code => code ? `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png` : null;
+/* Andstæðingur: HEIMALEIKUR = STÓRIR STAFIR, ÚTILEIKUR = litlir stafir.
+   Það gerir "(a)"-merkið óþarft og heldur flísunum þéttum.               */
+const oppLabel = (short, home) => !short ? "?" : (home ? short.toUpperCase() : short.toLowerCase());
+
 const crestUrl = code => code ? `https://resources.premierleague.com/premierleague/badges/50/t${code}.png` : null;
 const fmtDate = iso => {
   if (!iso) return "—";
@@ -2396,7 +2400,7 @@ export default function App() {
                     <div key={i} style={S.dFixRow}>
                       <span style={S.dFixGw}>GW{f.gw}</span>
                       <span style={{ ...S.dFixOpp, background:bg, color:fg }}>
-                        {teamById[f.opp]?.short}{f.home ? "" : <span style={S.away}>(a)</span>}
+                        {oppLabel(teamById[f.opp]?.short, f.home)}
                       </span>
                       <span style={S.dFixFdr} title={`FDR ${f.fdr}, samsett ${dd}`}>þyngd {dd}</span>
                       {isPlayer && HOME_PTS[p.element_type] != null && (
@@ -2483,7 +2487,7 @@ export default function App() {
                       </div>
                       <div style={S.sMeta}>
                         {t?.short} · {POS_LABEL[p.element_type]} · ep {p.ep_next}
-                        {fx ? ` · ${teamById[fx.opp]?.short}${fx.home ? "" : " (a)"}` : ""}
+                        {fx ? ` · ${oppLabel(teamById[fx.opp]?.short, fx.home)}` : ""}
                       </div>
                     </div>
                     <div style={{ textAlign:"right" }}>
@@ -2596,7 +2600,7 @@ function FixChip({ fx, teamById, diff, pos, relTier }) {
           + `\nFFDR ${d} (algilt, samanburðarhæft milli liða)`
           + `\nFDR ${fx.fdr} · ${fx.home ? "heima" : "úti"}`
         : `FDR ${fx.fdr}`}>
-      {opp}{fx.home ? "" : <span style={S.away}>(a)</span>}
+      {oppLabel(opp, fx.home)}
       {diff != null && <span style={S.fixNum}>{d.toFixed(1)}</span>}
     </div>
   );
@@ -2665,7 +2669,7 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, 
                     <button style={{ ...S.gfSide, ...(t != null ? { background:TIER_BG[t], color:TIER_FG[t] } : {}) }}
                       onClick={() => onPick && onPick(f.team_h)}
                       title={`${H?.name || "?"} — heima${d != null ? ` · FFDR ${d}` : ""}`}>
-                      <span style={S.gfShort}>{H?.short || "?"}</span><Crest team={H} size={14} />
+                      <span style={S.gfShort}>{oppLabel(H?.short, true)}</span><Crest team={H} size={14} />
                     </button>
                   );
                 })()}
@@ -2682,7 +2686,7 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, 
                     <button style={{ ...S.gfSide, ...S.gfSideR, ...(t != null ? { background:TIER_BG[t], color:TIER_FG[t] } : {}) }}
                       onClick={() => onPick && onPick(f.team_a)}
                       title={`${A?.name || "?"} — úti${d != null ? ` · FFDR ${d}` : ""}`}>
-                      <Crest team={A} size={14} /><span style={S.gfShort}>{A?.short || "?"}</span>
+                      <Crest team={A} size={14} /><span style={S.gfShort}>{oppLabel(A?.short, false)}</span>
                     </button>
                   );
                 })()}
@@ -2910,7 +2914,7 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, o
           return (
             <span key={i} style={{ ...S.recFixChip, background:bg, color:fg }}
               title={`samsett þyngd ${d} (FDR ${f.fdr})`}>
-              {teamById[f.opp]?.short}{f.home ? "" : <span style={S.away}>(a)</span>}
+              {oppLabel(teamById[f.opp]?.short, f.home)}
             </span>
           );
         })}
@@ -3103,7 +3107,6 @@ const S = {
   pEp: { fontFamily:mono, fontSize:12, fontWeight:700, color:C.purple },
   pCsSmall: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginLeft:4 },
   fixChip: { display:"inline-block", fontFamily:mono, fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, margin:"4px 0 1px" },
-  away: { fontSize:8, opacity:0.75, marginLeft:1 },
   fixNum: { fontSize:7.5, opacity:0.7, marginLeft:3, fontWeight:400 },
   noFix: { fontFamily:mono, fontSize:10, color:C.text3, margin:"4px 0" },
 
