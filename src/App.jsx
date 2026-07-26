@@ -432,6 +432,7 @@ export default function App() {
   const [weather, setWeather] = useState(null);
   const [travel, setTravel] = useState(null);   // ferðalengd útiliðs per leik (pipeline)
   const [baseline, setBaseline] = useState(null); // lokatölur FYRRA tímabils (frystar við GW1)
+  const [injuries, setInjuries] = useState(null); // TEGUND meiðsla úr API-Sports (auðgar FPL-status)
   const [eloFx, setEloFx] = useState(null);
   const [euroFx, setEuroFx] = useState(null);
   const [pipeStatus, setPipeStatus] = useState(null);
@@ -511,6 +512,7 @@ export default function App() {
         try { setWeather(await j("weather.json")); } catch {}
         try { setTravel(await j("travel.json")); } catch {}
         try { setBaseline(await j("season_baseline.json")); } catch {}
+        try { setInjuries(await j("injuries.json")); } catch {}
         try { setEloFx(await j("elo_fixtures.json")); } catch {}
         try { setEuroFx(await j("euro_fixtures.json")); } catch {}
         try { setNews(await j("news.json")); } catch {}
@@ -862,6 +864,13 @@ export default function App() {
     (baseline?.players || []).forEach(b => m[b.id] = b);
     return m;
   }, [baseline]);
+  /* Meiðsla-TEGUNDIN úr API-Sports. FPL-status ræður áfram tiltækileika
+     (a/d/i/s + %-líkur) — þetta svarar bara "HVAÐ er að honum?".        */
+  const injuryById = useMemo(() => {
+    const m = {};
+    (injuries?.players || []).forEach(x => { if (!m[x.fpl_id]) m[x.fpl_id] = x; });
+    return m;
+  }, [injuries]);
   const weatherReady = useMemo(() =>
     (weather?.fixtures || []).some(w => w.temp_c != null), [weather]);
 
@@ -1753,7 +1762,11 @@ export default function App() {
                       ? <span style={{ ...S.riskTag, background:"#fff6e0", color:"#8a5f00" }}>{ban.y} gul</span>
                       : <span style={{ ...S.riskTag, background:"#eeeef1", color:"#61616b" }}>byrj {rot.pct}%</span>}
                   <span style={S.riskName}>{pp.web_name}</span>
-                  <span style={S.riskNews} title={av.news}>{av.news ? av.news.slice(0, 42) : ""}</span>
+                  <span style={S.riskNews} title={[av.news, injuryById[pp.id]?.reason && `API-Sports: ${injuryById[pp.id].reason}`].filter(Boolean).join("\n")}>
+                    {injuryById[pp.id]?.reason
+                      ? <><b>{injuryById[pp.id].reason}</b>{av.news ? ` · ${av.news.slice(0, 30)}` : ""}</>
+                      : (av.news ? av.news.slice(0, 42) : "")}
+                  </span>
                 </div>
               ));
             })()}
@@ -2111,6 +2124,12 @@ export default function App() {
               Veður — {weatherReady ? `${(weather.fixtures || []).filter(w => w.temp_c != null).length} leikir` : "utan 16-daga spár"}
             </div>
             <div style={S.srcRow}>
+              <span style={injuries?.players?.length ? S.dotOk : S.dotWait} />
+              Meiðsla-tegundir (API-Sports) — {injuries
+                ? (injuries.error ? `villa: ${String(injuries.error).slice(0, 30)}` : `${(injuries.players || []).length} paraðir`)
+                : "bíður fyrstu keyrslu"}
+            </div>
+            <div style={S.srcRow}>
               <span style={Object.keys(dcOpp || {}).length ? S.dotOk : S.dotWait} />
               DefCon-tækifæri — {Object.keys(dcOpp || {}).length} lið
               {defcon?.opportunity && Object.keys(defcon.opportunity).length ? " (pipeline)" : " (reiknað í appi)"}
@@ -2223,6 +2242,22 @@ export default function App() {
                 <div style={{ ...S.dAlert, background:av.bg, color:av.color }}>
                   <b>{av.label}</b>{av.chance != null ? ` — ${av.chance}% líkur á að spila` : ""}
                   {av.news ? <div style={{ marginTop:2, fontWeight:400 }}>{av.news}</div> : null}
+                  {injuryById[p.id]?.reason && (
+                    <div style={{ marginTop:3, fontWeight:400 }}>
+                      Tegund: <b>{injuryById[p.id].reason}</b>
+                      {injuryById[p.id].type ? ` · ${injuryById[p.id].type}` : ""}
+                      <span style={S.injSrc}> — API-Sports</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* API-Sports veit af meiðslum sem FPL hefur EKKI flaggað enn —
+                  birt varfærið sem óstaðfest vísbending, ekki viðvörun.      */}
+              {isPlayer && !av.isRisk && injuryById[p.id]?.reason && (
+                <div style={{ ...S.dAlert, background:C.cardAlt, color:C.text2 }}>
+                  <b>API-Sports skráir:</b> {injuryById[p.id].reason}
+                  {injuryById[p.id].type ? ` (${injuryById[p.id].type})` : ""} —
+                  FPL hefur ekki flaggað hann, svo þetta getur verið úrelt eða smávægilegt.
                 </div>
               )}
               {isPlayer && ban && (ban.level === "high" || ban.level === "mid") && (
@@ -3302,6 +3337,7 @@ const S = {
   dExName: { flex:1, color:C.text2 },
   dExVal: { fontFamily:mono, fontSize:10, color:C.text3 },
   dExPts: { fontFamily:mono, fontSize:11.5, fontWeight:700, minWidth:26, textAlign:"right" },
+  injSrc: { fontFamily:mono, fontSize:8.5, opacity:0.75 },
   dNote: { background:C.cardAlt, borderRadius:8, padding:"8px 10px", fontSize:10.5, color:C.text2, lineHeight:1.5, marginBottom:10 },
   priceRow: { display:"flex", alignItems:"center", gap:9, marginBottom:9 },
   priceLbl: { fontFamily:mono, fontSize:10, textTransform:"uppercase", letterSpacing:0.5, color:C.text3 },

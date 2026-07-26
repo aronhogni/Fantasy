@@ -44,6 +44,12 @@ if (!("oninput" in dom.window.HTMLElement.prototype)) {
 let proxyLiveCalls = 0;
 globalThis.fetch = async (url) => {
   url = String(url);
+  if (url.endsWith("/injuries.json")) {
+    return { ok: true, status: 200, json: async () => ({
+      updated: "x", players: [
+        { fpl_id: 496, name_api: "A. Kinsky", team_api: "Tottenham", type: "Questionable", reason: "Knock" },
+      ], unmatched: [] }) };
+  }
   const raw = url.match(/raw\.githubusercontent\.com\/aronhogni\/Fantasy\/main\/data\/(.+)$/);
   if (raw) {
     const f = `${DATA}${raw[1]}`;
@@ -170,6 +176,9 @@ ok(!text().includes("sl. tímabil"), "loðna merkingin 'sl. tímabil' horfin");
 for (const k of ["Stig/leik", "Mínútur", "xG / 90", "Mörk + assist", "Gul / rauð"])
   ok(text().includes(k), `dálkurinn '${k}' undir tímabils-flokknum`);
 ok(text().includes("Spá næstu"), "ep undir 'Núna'-flokknum");
+// MEIÐSLA-TEGUNDIN úr API-Sports: FPL segir 'a' -> varfærna óstaðfesta línan
+ok(text().includes("API-Sports skráir:") && text().includes("Knock"),
+  "meiðsla-tegund úr API-Sports birt varfærið þegar FPL flaggar ekki");
 // FERÐALENGDIN (var reiknuð daglega en birtist hvergi): ✈ + km á leikjaröðum
 ok(/✈\d+/.test(text()), "ferðalengd (✈ km) birtist á leikjaröðum yfirlitsins");
 const travelChip = [...container.querySelectorAll("span")].find(el => /✈\d+/.test(el.textContent) && el.title);

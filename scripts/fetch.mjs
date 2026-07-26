@@ -21,6 +21,7 @@ const DATA = "data";
 const today = new Date().toISOString().slice(0, 10);
 
 const FLAGS = {
+  apisports: !!process.env.API_SPORTS_KEY,
   understat:       (process.env.ENABLE_UNDERSTAT ?? "true")  === "true",
   understat_shots: (process.env.ENABLE_UNDERSTAT_SHOTS ?? "true") === "true",
   elo:             (process.env.ENABLE_ELO ?? "true")        === "true",
@@ -1001,6 +1002,102 @@ async function shouldFetchOdds() {
   return { go: true, why: inSharp ? "sharp" : "plan", window: inSharp ? "sharp" : "plan", gw: next.id };
 }
 
+/* ========== API-SPORTS (api-football.com v3) — MEIÐSLI ==========
+   FPL-fréttirnar segja "knock — 75%" en ekki HVAÐ er að. /injuries
+   gefur TEGUND (Hamstring, Knee, Illness...) og hvaða leik hún tengist.
+
+   FYRIRVARI SEM VERÐUR AÐ PRÓFA EMPÍRÍSKT: frítt þrep er "limited in
+   terms of available seasons" — ef season=2026 er læst reynum við
+   date-leiðina í staðinn og skráum hráu villuna í status.json svo
+   sannleikurinn sjáist eftir fyrstu keyrslu.
+
+   Kvóti: /status er FRÍTT (telst ekki), gagnakallið er 1/dag = 1% af
+   100 kalla dagskvótanum.                                            */
+const APIS = "https://v3.football.api-sports.io";
+async function apiSports(path) {
+  const r = await fetch(`${APIS}${path}`, {
+    headers: { "x-apisports-key": process.env.API_SPORTS_KEY, "User-Agent": UA },
+  });
+  const j = await r.json();
+  return { http: r.status, remaining: r.headers.get("x-ratelimit-requests-remaining"), ...j };
+}
+
+async function fetchInjuries() {
+  // hvaða þrep erum við á? (frítt kall)
+  let plan = "?";
+  try {
+    const st = await apiSports("/status");
+    plan = `${st.response?.subscription?.plan} · ${st.response?.requests?.current}/${st.response?.requests?.limit_day} köll í dag`;
+    console.log(`API-Sports: ${plan}`);
+  } catch (e) { console.warn("API-Sports /status:", e.message); }
+
+  // aðalleiðin: deild + tímabil. league=39 = Premier League.
+  const seasonYear = 2026;
+  let d = await apiSports(`/injuries?league=39&season=${seasonYear}`);
+  let via = `league+season=${seasonYear}`;
+  const errTxt = o => (o.errors && (Array.isArray(o.errors) ? o.errors.join("; ") : JSON.stringify(o.errors))) || "";
+  if (!d.response?.length && errTxt(d)) {
+    // fallback: date-leiðin (gæti sloppið við tímabils-lásinn)
+    console.warn(`API-Sports injuries (${via}): ${errTxt(d)} — reyni date-leiðina`);
+    const today = new Date().toISOString().slice(0, 10);
+    const d2 = await apiSports(`/injuries?league=39&date=${today}`);
+    if (d2.response?.length || !errTxt(d2)) { d = d2; via = `date=${today}`; }
+  }
+  if (errTxt(d) && !d.response?.length) {
+    await writeJSON("injuries.json", { updated: status.updated, plan, via,
+      error: errTxt(d), note: "API-Sports svaraði með villu — sjá error.", players: [], unmatched: [] });
+    record("apisports_injuries", false, 0, `${errTxt(d).slice(0, 70)} (${via})`);
+    return;
+  }
+
+  // para API-nöfn við FPL-id: normalíserað fullt nafn + "F. Eftirnafn"
+  // + web_name, ALLT skorðað við liðið (annars ranganir á algengum nöfnum)
+  const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
+  const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
+  const teamsJs = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
+  const norm = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  // API-liðanafn -> FPL team id (leit í öllum nafna-afbrigðum teams_map)
+  const teamIdByNorm = {};
+  for (const [id, t] of Object.entries(tmap))
+    for (const v of [t.fpl, t.fdcouk, t.clubelo, t.understat, t.short])
+      if (v) teamIdByNorm[norm(v)] = +id;
+  teamsJs.forEach(t => { teamIdByNorm[norm(t.name)] = t.id; });
+  const fplByTeam = {};
+  for (const p of players) {
+    const keys = new Set([norm(p.web_name), norm(`${p.first_name} ${p.second_name}`),
+      norm(p.second_name), norm(`${(p.first_name || "")[0] || ""} ${p.second_name}`)]);
+    (fplByTeam[p.team] ??= []).push({ id: p.id, keys });
+  }
+  const matchFpl = (apiName, teamId) => {
+    const n = norm(apiName);
+    const last = n.split(" ").pop();
+    const cands = fplByTeam[teamId] || [];
+    let hit = cands.find(c => c.keys.has(n));
+    if (!hit) { const byLast = cands.filter(c => c.keys.has(last)); if (byLast.length === 1) hit = byLast[0]; }
+    return hit?.id ?? null;
+  };
+
+  const out = [], unmatched = [];
+  const seen = new Set();
+  for (const it of (d.response || [])) {
+    const teamId = teamIdByNorm[norm(it.team?.name)];
+    const fplId = teamId ? matchFpl(it.player?.name, teamId) : null;
+    const key = `${it.player?.id}|${it.fixture?.id}`;
+    if (seen.has(key)) continue; seen.add(key);
+    const rec = { name_api: it.player?.name, team_api: it.team?.name,
+      type: it.player?.type ?? it.type ?? null,      // "Missing Fixture" / "Questionable"
+      reason: it.player?.reason ?? it.reason ?? null, // "Knee Injury", "Illness"...
+      fixture_date: it.fixture?.date ?? null };
+    if (fplId) out.push({ fpl_id: fplId, ...rec });
+    else unmatched.push(`${rec.name_api} (${rec.team_api})`);
+  }
+  await writeJSON("injuries.json", { updated: status.updated, plan, via,
+    note: "Tegund og ástæða meiðsla úr API-Sports /injuries. FPL-status ræður áfram tiltækileika; þetta AUÐGAR hann.",
+    players: out, unmatched });
+  record("apisports_injuries", true, out.length,
+    `${via} · ${out.length} paraðir · ${unmatched.length} óparaðir · ${d.remaining ?? "?"} köll eftir í dag`);
+}
+
 async function fetchOdds() {
   const key = process.env.ODDS_API_KEY;
   if (!key) { record("odds", false, 0, "ODDS_API_KEY vantar"); return; }
@@ -1627,6 +1724,7 @@ async function main() {
   if (FLAGS.understat_shots){ try { await fetchUnderstatShots(); } catch (e) { record("understat_shots", false, 0, e.message); } }
   if (FLAGS.euro)   { try { await fetchEuro(); }              catch (e) { record("euro_fixtures", false, 0, e.message); } }
   if (FLAGS.odds_key){ try { await fetchOdds(); }              catch (e) { record("odds", false, 0, e.message); } }
+  if (FLAGS.apisports){ try { await fetchInjuries(); }          catch (e) { record("apisports_injuries", false, 0, e.message); } }
 
   // ---- AFLEIDD LÖG (engin ný köll) — keyrð SÍÐAST því þau lesa skrárnar ofan ----
   if (FLAGS.travel)  { try { await deriveTravel(); }           catch (e) { record("travel", false, 0, e.message); } }

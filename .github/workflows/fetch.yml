@@ -31,6 +31,7 @@ jobs:
           ENABLE_DERIVED: "true"
           EURO_API_KEY: ${{ secrets.EURO_API_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          API_SPORTS_KEY: ${{ secrets.API_SPORTS_KEY }}
         run: node scripts/fetch.mjs
 
       - name: Committa ef eitthvað breyttist
