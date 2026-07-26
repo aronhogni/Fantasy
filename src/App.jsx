@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Pitch from "./Pitch.jsx";
+import { clamp, sellTenths, lookupPos, lookupMeasured,
+  tierOf, TIER_BG, TIER_FG, TIER_NAME,
+  makeFixDifficulty, computeTransferCost, expPointsFor } from "./model.js";
 
 /* ============================================================
    FPL PLÖNUN — v3
@@ -46,17 +49,6 @@ const KIT = {
   TOT:["#ffffff","#132257"], SUN:["#EB172B","#ffffff"],
 };
 const POS_LABEL = { 1:"Markv.", 2:"Vörn", 3:"Miðja", 4:"Sókn" };
-/* Raða-staðsetningar sem % af vallarhæð, mældar gegn viðmiðum Pitch.jsx */
-/* JÖFN BIL — 15 prósentustig milli allra raða. Áður var GK->DEF 16 og
-   hinar 15, sem sást sem stærra bil undir markverðinum.
-   Viðmiðin halda: GK milli markteigs (13,02) og vítapunkts (18,92),
-   vörn fyrir framan vítateig (24,82), sókn fyrir miðlínu (63,42).          */
-const ROW_Y = [
-  { pos: 1, y: 15 },   // markvörður
-  { pos: 2, y: 30 },   // vörn
-  { pos: 3, y: 45 },   // miðja
-  { pos: 4, y: 60 },   // sókn
-];
 /* FPL explain-lyklar -> íslensk heiti (stiga-uppskipting) */
 const EXPLAIN_IS = {
   minutes:"Mínútur", goals_scored:"Mörk", assists:"Assist", clean_sheets:"Hreint blað",
@@ -126,16 +118,6 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
    Og hópun leysir vandamál sem var sýnilegt: Sunderland-miðjumaður fékk
    þyngd 2,36 og Sunderland-framherji 3,15 í SAMA leik, því ólíkar
    umbreytingar voru notaðar. Nú fá þeir sömu tölu.                        */
-const DIFF_W = {
-  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.5 },  // GK  — VARNAR-hópur
-  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.5 },  // DEF — VARNAR-hópur
-  3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.35 },  // MID — SÓKNAR-hópur
-  4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.35 },  // FWD — SÓKNAR-hópur
-};
-/* SÓKNAR-UMBREYTING: MÆLT að LÍNULEGT form (2 − xg/LG) sé betra en gagnstætt
-   (LG/xg): r 0,1869 á móti 0,1821 fyrir framherja. Log var 0,1853.          */
-const ELO_SCALE = 150;   // Elo-stig sem svara ~1 þrepi í þyngd
-const LG_SOT = 4.4;   // deildarmeðaltal skota á mark per leik (mælt úr E0)
 
 /* ---- HEIMAVÖLLUR — MÆLDUR ----
    PÖRUÐ GREINING, 9 tímabil úr E0 (3.420 samanburðir, sama liðapar bæði áttir):
@@ -159,23 +141,6 @@ const HOME_PTS = { 1: 0.197, 2: 0.507, 3: 0.297, 4: 0.735 };  // mæld stig/leik
 /* MÆLD TAFLA — 3.808 lið-leikir, 7 tímabil, á SAMA FFDR-kvarða sem
    appið notar (öll vog innifalin, þ.m.t. markaður og heimavöllur).
    BÆÐI pts og cs — cs vantaði áður og gaf NaN í CS%-sýn.            */
-const MEASURED_POS = {
-  1: [{d:1.99,pts:4.03,cs:38.9}, {d:2.40,pts:3.79,cs:29.4}, {d:2.70,pts:3.51,cs:26.4}, {d:3.04,pts:3.33,cs:21.6}, {d:3.68,pts:2.80,cs:10.5}],
-  2: [{d:1.81,pts:4.12,cs:38.6}, {d:2.21,pts:3.59,cs:30.9}, {d:2.50,pts:3.08,cs:26.2}, {d:2.86,pts:2.59,cs:19.9}, {d:3.58,pts:1.93,cs:10.9}],
-  3: [{d:1.94,pts:4.23,cs:38.8}, {d:2.40,pts:3.69,cs:30.7}, {d:2.70,pts:3.26,cs:24.1}, {d:3.03,pts:3.17,cs:22.1}, {d:3.65,pts:2.79,cs:10.9}],
-  4: [{d:1.82,pts:4.96,cs:36.5}, {d:2.41,pts:4.73,cs:29.5}, {d:2.74,pts:3.85,cs:24.2}, {d:3.10,pts:3.72,cs:21.7}, {d:3.77,pts:3.42,cs:12.4}],
-};
-function lookupPos(pos, key, d) {
-  const T = MEASURED_POS[pos] || MEASURED_POS[3];
-  const x = clamp(d, T[0].d, T[T.length-1].d);
-  for (let i = 0; i < T.length - 1; i++) {
-    if (x >= T[i].d && x <= T[i+1].d) {
-      const t = (x - T[i].d) / (T[i+1].d - T[i].d);
-      return T[i][key] + (T[i+1][key] - T[i][key]) * t;
-    }
-  }
-  return T[T.length-1][key];
-}
 
 /* MÆLT Á SAMSETTA KVARÐANUM — 2.720 lið-leikir, 5 tímabil (2021/22-2025/26).
    Liðsstyrkur alltaf úr FYRRA tímabili, svo ekkert leki.
@@ -185,26 +150,6 @@ function lookupPos(pos, key, d) {
      varnarm.-stig  FDR +0,207 -> nýr +0,241  (+16%)
      markm.-stig    FDR +0,126 -> nýr +0,152  (+21%)
      sóknar-stig    FDR +0,171 -> nýr +0,226  (+32%)                        */
-const MEASURED = [
-  // þyngd, CS%, mörk á sig, varnarm.stig, markm.stig, sóknar.stig  (per lið-leik)
-  { d: 2.00, cs: 40.2, ga: 1.00, def: 18.8, gk: 4.2, att: 31.2 },
-  { d: 2.40, cs: 30.3, ga: 1.11, def: 17.3, gk: 4.2, att: 29.9 },
-  { d: 2.80, cs: 28.5, ga: 1.28, def: 15.1, gk: 3.8, att: 28.0 },
-  { d: 3.20, cs: 22.8, ga: 1.53, def: 13.9, gk: 3.5, att: 26.3 },
-  { d: 4.00, cs: 13.0, ga: 1.99, def: 10.2, gk: 3.0, att: 22.8 },
-];
-// Línuleg brúun á mældu töflunni
-function lookupMeasured(key, d) {
-  const x = clamp(d, MEASURED[0].d, MEASURED[MEASURED.length-1].d);
-  for (let i = 0; i < MEASURED.length - 1; i++) {
-    const a = MEASURED[i], b = MEASURED[i+1];
-    if (x >= a.d && x <= b.d) {
-      const t = (x - a.d) / (b.d - a.d);
-      return a[key] + (b[key] - a[key]) * t;
-    }
-  }
-  return MEASURED[MEASURED.length-1][key];
-}
 
 /* ---- MÆLDAR VOGTÖLUR FYRIR STIGASPÁ ----
    FITTAÐ út-af-úrtaki á 2025/26 umferð-fyrir-umferð gögnum:
@@ -267,18 +212,12 @@ const START_CAPTAIN = 411; // Haaland
 const BUDGET = 100.0;
 
 /* ---- Hjálparföll ---- */
-const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 
 /* ---- FPL SÖLUVERÐ (50%-hagnaðarreglan) ----
    Þú fær kaupverðið + 50% af hagnaði, NIÐURJAFNAÐ á næstu 0,1.
    Tap: þú fær fullt núverandi verð (engin vörn).
    Dæmi: kaup 7,0 -> verð 7,5 gefur 7,2 (ekki 7,5).
    Verð eru heiltölur x10 í API-inu, svo við reiknum í tíundum.       */
-function sellTenths(purchase10, current10) {
-  if (current10 == null) return 0;
-  if (purchase10 == null || current10 <= purchase10) return current10;
-  return purchase10 + Math.floor((current10 - purchase10) / 2);
-}
 const photoUrl = code => code ? `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png` : null;
 /* Andstæðingur: HEIMALEIKUR = STÓRIR STAFIR, ÚTILEIKUR = litlir stafir.
    Það gerir "(a)"-merkið óþarft og heldur flísunum þéttum.               */
@@ -909,65 +848,11 @@ export default function App() {
      Vogtölur eru MÆLDAR per stöðu — sjá DIFF_W. Varnar-umbreyting notar
      eigin vörn + sókn andstæðings; sóknar-umbreyting eigin sókn + vörn
      andstæðings. Mælingin setti GK, DEF OG MID á varnar-umbreytinguna.   */
-  // pos = element_type (1 GK, 2 DEF, 3 MID, 4 FWD). Vogtölur MÆLDAR per stöðu.
-  function fixDifficulty(teamId, fx, pos) {
-    if (!fx) return null;
-    const me = teamMetrics[teamId], opp = teamMetrics[fx.opp];
-    if (!me || !opp) return fx.fdr;
-    const W = DIFF_W[pos] || DIFF_W[3];
-    const LG = 1.45;
-    // 2-tímabila blöndun (prev-vog) ef fyrra tímabil er til í team_form
-    const mix = (cur, prv) => (prv == null || !W.prev) ? cur : (1 - W.prev) * cur + W.prev * prv;
-    const mg = W.useDef ? mix(me.xgc90, me.prevConc)  : mix(me.xg90, me.prevGoals);
-    const og = W.useDef ? mix(opp.xg90, opp.prevGoals) : mix(opp.xgc90, opp.prevConc);
-    // sóknar-umbreyting: LÍNULEG (mælt betri en gagnstæð)
-    let own  = W.useDef ? (mg / LG) : (2 - mg / LG);
-    let them = W.useDef ? (og / LG) : (2 - og / LG);
-    // skot-á-mark blandað inn (mælt: hjálpar DEF og MID)
-    if (W.sot && me.sotFor != null && opp.sotFor != null) {
-      const ms = W.useDef ? me.sotAg  : me.sotFor;
-      const os = W.useDef ? opp.sotFor : opp.sotAg;
-      const ownS  = W.useDef ? (ms / LG_SOT) : (LG_SOT / Math.max(1.5, ms));
-      const themS = W.useDef ? (os / LG_SOT) : (LG_SOT / Math.max(1.5, os));
-      own  = (1 - W.sot) * own  + W.sot * ownS;
-      them = (1 - W.sot) * them + W.sot * themS;
-    }
-    /* MARKAÐS-ÞYNGD TEKUR FORGANG þegar hún gildir um RÉTTA leikinn.
-       Mælt: markaðurinn er 1,3x betri spá en FDR (r 0,374 á móti 0,283).
-       Aðeins fáanleg fyrir næstu ~viku, svo hún blandast við mælda formúluna. */
-    const short_ = teamById[teamId]?.short;
-    const bk = odds && short_ && odds[short_];
-    const bkValid = bk && bk.diff != null &&
-      teamById[fx.opp]?.short === bk.opp &&
-      (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0,10) === bk.kickoff.slice(0,10));
-
-    let core = fx.fdr * W.fdr + (own * 3) * W.own + (them * 3) * W.opp;
-    if (bkValid && W.mkt) {
-      /* MÆLD blöndunarhlutföll — E0 lokalínur PARAÐAR við vaastav leikmanna-stig,
-         2.720 lið-leikir, 5 tímabil. Krossprófað (læra á 4, prófa á 1) og valið
-         með JAFNVEGI á fylgni + praktísku vali (léttustu 15% leikja).
-
-         100% markaður er VERRI en blöndun á öllum stöðum.
-
-         MIKILVÆGT: yfirborðið er FLATT nálægt hámarki. DEF gefur 0,3045-0,3064
-         á öllu bilinu 40-80%. Nákvæma talan skiptir litlu; það sem skiptir máli
-         er AÐ blanda, ekki hversu mikið.
-
-         Út-af-úrtaki fylgni við valda blöndu:
-           GK 0,165 (20%) · DEF 0,306 (65%) · MID 0,300 (40%) · FWD 0,193 (35%)  */
-      core = W.mkt * bk.diff + (1 - W.mkt) * core;
-    }
-    // ELO-MUNUR — andstæðinga-leiðréttur styrkur. MÆLT: MID +0,005, FWD +0,007.
-    if (W.elo) {
-      const me_e = eloByTeam[teamId]?.elo, op_e = eloByTeam[fx.opp]?.elo;
-      if (me_e && op_e) {
-        const eScore = clamp((op_e - me_e) / ELO_SCALE + 3, 1, 5);
-        core = (1 - W.elo) * core + W.elo * eScore;
-      }
-    }
-    const homeAdj = (W.home || 0) * (fx.home ? 1 : -1);
-    return +clamp(core - homeAdj, 1, 5).toFixed(2);
-  }
+  /* FFDR-fallið sjálft býr í src/model.js — prófin og bakprófunin keyra
+     NÁKVÆMLEGA sama kóða. Hér er það aðeins bundið við gögn appsins.    */
+  const fixDifficulty = useMemo(
+    () => makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }),
+    [teamMetrics, teamById, odds, eloByTeam]);
 
   /* ---- AFSTÆTT FFDR ----
      VANDAMÁL sem mældist: eigin-styrkur vegur 0,55, svo bilið FÆRIST með
@@ -1075,11 +960,21 @@ export default function App() {
       .slice(0, count);
   }
 
+  /* ---------- FREE HIT-UMFERÐIR ----------
+     Skipti gerð í Free Hit-umferð gilda AÐEINS í þeirri umferð — liðið
+     fer sjálfkrafa til baka eftir hana. Lesið beint úr chips-ástandinu
+     (lyklarnir heita "freehit:START"), svo þetta þarf ekki chipSlots.   */
+  const fhGws = useMemo(() => new Set(
+    Object.entries(chips).filter(([k]) => k.startsWith("freehit")).map(([, g]) => g)
+  ), [chips]);
+
   /* ---------- Lið í valdri umferð ---------- */
   const squadAt = useMemo(() => {
     let sq = (squadOverride || START_SQUAD).map(s => ({ ...s }));
     [...plan].sort((a,z) => a.gw - z.gw).forEach(tr => {
       if (tr.gw > gw) return;
+      // FH-skipti gilda aðeins í sinni umferð
+      if (fhGws.has(tr.gw) && tr.gw !== gw) return;
       const i = sq.findIndex(s => s.id === tr.outId);
       if (i >= 0) sq[i] = { ...sq[i], id: tr.inId };
     });
@@ -1090,7 +985,7 @@ export default function App() {
       }
     });
     return sq;
-  }, [plan, gw, benchSwaps, squadOverride]);
+  }, [plan, gw, benchSwaps, squadOverride, fhGws]);
 
   const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt]);
   const officialIds = useMemo(() => new Set((squadOverride || START_SQUAD).map(s => s.id)), [squadOverride]);
@@ -1137,13 +1032,15 @@ export default function App() {
       const spentBuy = base.reduce((a, s) => a + buyOf(s.id), 0);
       tenths = Math.round(BUDGET * 10) - spentBuy;
     }
-    // beita plönuðum skiptum til og með valdri umferð
+    // beita plönuðum skiptum til og með valdri umferð.
+    // FH-skipti snerta bankann aðeins Í sinni umferð — hann gengur til baka.
     [...plan].sort((a, z) => a.gw - z.gw).forEach(tr => {
       if (tr.gw > gw) return;
+      if (fhGws.has(tr.gw) && tr.gw !== gw) return;
       tenths += sellOf(tr.outId) - (byId[tr.inId]?.now_cost ?? 0);
     });
     return +(tenths / 10).toFixed(1);
-  }, [players, squadOverride, apiBank, plan, gw, byId, buyPrices]);
+  }, [players, squadOverride, apiBank, plan, gw, byId, buyPrices, fhGws]);
 
   // Liðsverð = summa SÖLUVERÐA (það sem þú fengir ef þú seldir allt)
   const squadValue = useMemo(() =>
@@ -1423,33 +1320,18 @@ export default function App() {
        grunnur  = leikmanns-stig, óháð umferð (ep_next ef til, annars stig/leik)
        margfaldari = MÆLD stig við hans FFDR / meðaltal stöðunnar
      Þar með er kvarðinn festur við FPL-spána og aðeins LEIKURINN breytist.  */
-  const POS_MEAN_PTS = { 1: 3.492, 2: 3.062, 3: 3.428, 4: 4.136 };  // úr MEASURED_POS
   function expPoints(pid, g) {
     const p = byId[pid];
     if (!p) return 0;
-    const fxs = fixByTeamGw[p.team]?.[g] || [];
-    if (!fxs.length) return 0;                     // auð umferð
-    const avail = p.status === "a" ? 1 : (p.chance_of_playing_next_round ?? 0) / 100;
-    const pos = p.element_type;
-    // grunnur: FPL-eigin spá ef til, annars stig/leik. SAMA í öllum umferðum.
-    const ep = parseFloat(p.ep_next);
-    const ppg = parseFloat(p.points_per_game || 0);
-    const base = Number.isFinite(ep) && ep > 0 ? ep : ppg;
-    if (!base) return 0;
-    const mean = POS_MEAN_PTS[pos] || 3.4;
-    // margfaldari per leik í umferðinni (tvöföld umferð leggst saman)
-    let mult = 0;
-    for (const f of fxs) {
-      const d = fixDifficulty(p.team, f, pos);
-      const pts = d != null ? lookupPos(pos, "pts", d) : null;
-      mult += Number.isFinite(pts) ? pts / mean : 1;
-    }
-    return base * mult * avail;
+    return expPointsFor({ p, fxs: fixByTeamGw[p.team]?.[g] || [],
+      fixDifficulty, teamId: p.team });
   }
-  // Nettó ávinningur skipta: vænt stig inn − út yfir sjóndeildarhring, mínus refsing
+  // Nettó ávinningur skipta: vænt stig inn − út yfir sjóndeildarhring, mínus
+  // refsing. FH-skipti gilda AÐEINS í sinni umferð — ávinningurinn líka.
   function transferNet(tr, horizon = 5) {
+    const h = fhGws.has(tr.gw) ? 1 : horizon;
     let gain = 0;
-    for (let g = tr.gw; g < tr.gw + horizon && g <= maxGw; g++) {
+    for (let g = tr.gw; g < tr.gw + h && g <= maxGw; g++) {
       gain += expPoints(tr.inId, g) - expPoints(tr.outId, g);
     }
     return +gain.toFixed(1);
@@ -1502,27 +1384,13 @@ export default function App() {
      1 frítt skipti á umferð, má safna upp í 5. Hvert aukalegt = -4 stig.
      Wildcard og Free Hit: ótakmörkuð, ekkert -4.
      Fyrir GW1-frest: ótakmörkuð og frí.                                     */
-  const transferCost = useMemo(() => {
-    const made = {};
-    plan.forEach(t => { made[t.gw] = (made[t.gw] || 0) + 1; });
-    const out = {};
-    let ft = 1;
-    for (let g = 1; g <= maxGw; g++) {
-      const n = made[g] || 0;
-      const chip = chipAt(g);
-      const unlimited = (g === 1 && preSeason) || chip === "wildcard" || chip === "freehit";
-      if (unlimited) {
-        out[g] = { made: n, free: n, hits: 0, points: 0, unlimited: true, chip, ftAvailable: ft };
-        ft = 1;                       // eftir wildcard byrjar þú með 1
-      } else {
-        const used = Math.min(n, ft);
-        const extra = n - used;
-        out[g] = { made: n, free: used, hits: extra, points: extra * -4, unlimited: false, ftAvailable: ft };
-        ft = Math.min(5, ft - used + 1);
-      }
-    }
-    return out;
-  }, [plan, chips, chipSlots, maxGw, preSeason]);
+  /* Skipta-kostnaður reiknast í model.js. ATH LAGFÆRING: Wildcard/Free Hit
+     eyðir EKKI söfnuðum fríum skiptum lengur — þau haldast og +1 bætist við
+     (regla FPL frá 2024/25). Eldri útgáfa endurstillti í 1 sem sýndi ranga
+     "X frí" tölu eftir chip-umferðir.                                     */
+  const transferCost = useMemo(
+    () => computeTransferCost({ plan, chipAt, maxGw, preSeason }),
+    [plan, chips, chipSlots, maxGw, preSeason]);
 
   /* ---------- VERÐMÆTI CHIPS per umferð ----------
      Bench Boost: hvað bekkurinn (4 menn) væri vænt að skora í þeirri umferð.
@@ -1536,6 +1404,7 @@ export default function App() {
       let sq = (squadOverride || START_SQUAD).map(x => ({ ...x }));
       [...plan].sort((a, z) => a.gw - z.gw).forEach(tr => {
         if (tr.gw > g) return;
+        if (fhGws.has(tr.gw) && tr.gw !== g) return;   // FH gildir eina umferð
         const i = sq.findIndex(x => x.id === tr.outId);
         if (i >= 0) sq[i] = { ...sq[i], id: tr.inId };
       });
@@ -1549,7 +1418,7 @@ export default function App() {
       out[g] = { bboost: +bb.toFixed(1), "3xc": +tc.toFixed(1) };
     }
     return out;
-  }, [players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, events]);
+  }, [players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, events, fhGws]);
 
   // besta umferð fyrir hvert chip innan gildistíma
   const bestGwFor = (name, from, to) => {
@@ -1734,18 +1603,41 @@ export default function App() {
               <button style={S.ghost} onClick={() => setBenchSwaps(bs => { const n = { ...bs }; delete n[gw]; return n; })}>Núllstilla bekk</button>}
           </div>
 
-          {/* VÖLLUR — teiknaður bakgrunnur, raðir absolute með % af hæð.
-              Viðmið úr Pitch.jsx: marklína 7,13 · markteigur 13,02 ·
-              vítapunktur 18,92 · vítateigur 24,82 · miðlína 63,42 ·
-              bekkjarskil 75,99                                            */}
+          {/* VÖLLUR — spjöldin í VENJULEGU FLÆÐI ofan á bakgrunninum.
+              Fyrri útgáfa negldi raðir á föst prósent af hæð; þegar spjöldin
+              urðu hærri en bilið SKÖRUÐUST raðirnar og bekkurinn klipptist
+              neðan af. Nú deila raðirnar plássinu (space-evenly) og
+              völlurinn VEX ef efnið þarf meira — skörun er ómöguleg.       */}
           <div className="pitch-split" style={S.pitchSplit}>
           <div className="pitch-col" style={S.pitchCol}>
-          <Pitch bench={0.24}>
-            {ROW_Y.map(({ pos, y }) => (
-              <div key={pos} style={{ ...S.pitchRowAbs, top: `${y}%` }}>
-                {rows[pos].map(sq => (
+          <Pitch>
+            <div style={S.rowsArea}>
+              {[1, 2, 3, 4].map(pos => (
+                <div key={pos} style={S.pitchRowFlex}>
+                  {rows[pos].map(sq => (
+                    <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
+                      fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]}
+                      captain={captain} vice={vice}
+                      csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
+                      dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
+                      isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
+                      isSellHint={recommendations.sellIds?.has(sq.id)}
+                      onInfo={() => setDetail({ kind:"player", id:sq.id })}
+                      onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
+                      onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)}
+                      dragId={dragId} setDragId={setDragId}
+                      onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
+                  ))}
+                </div>
+              ))}
+            </div>
+            {/* BEKKUR — HTML-borði sem fylgir innihaldinu, ekki fast prósent */}
+            <div style={S.benchArea}>
+              <div style={S.benchLabel}>Bekkur</div>
+              <div style={S.pitchRowFlex}>
+                {bench.map(sq => (
                   <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
-                    fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]}
+                    fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]} bench
                     captain={captain} vice={vice}
                     csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
                     dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
@@ -1758,25 +1650,7 @@ export default function App() {
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
               </div>
-            ))}
-            {/* BEKKUR — undir bekkjarskilunum, inni í vellinum */}
-            <div style={{ ...S.pitchRowAbs, top: "86%" }}>
-              {bench.map(sq => (
-                <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
-                  fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]} bench
-                  captain={captain} vice={vice}
-                  csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
-                  dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
-                  isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
-                  isSellHint={recommendations.sellIds?.has(sq.id)}
-                  onInfo={() => setDetail({ kind:"player", id:sq.id })}
-                  onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                  onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)}
-                  dragId={dragId} setDragId={setDragId}
-                  onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
-              ))}
             </div>
-            <div style={S.benchLabel}>Bekkur</div>
           </Pitch>
           </div>
           {/* LEIKIR UMFERÐARINNAR — við hliðina á vellinum */}
@@ -1899,6 +1773,8 @@ export default function App() {
                 return (
                   <div key={i} style={S.planItem}>
                     <span style={{ ...S.planGw, ...(tc?.hits > 0 ? S.planGwHit : {}) }}>GW{t.gw}</span>
+                    {fhGws.has(t.gw) &&
+                      <span style={S.planFh} title="Free Hit — liðið fer til baka eftir umferðina, skiptin gilda aðeins í henni">FH</span>}
                     <span style={{ flex:1, minWidth:0 }}>
                       <span style={{ color:C.red }}>{byId[t.outId]?.web_name}</span>
                       {" → "}
@@ -2600,19 +2476,8 @@ function Stat({ icon, label, value, sub, tone }) {
      MID      0,282    0,270   0,276
      FWD      0,182    0,172   0,179
    Talan sjálf er líka sýnd, svo ekkert tapast í raun.                      */
-function tierOf(d) {
-  if (d < 2.11) return 0;   // léttast
-  if (d < 2.41) return 1;
-  if (d < 2.66) return 2;
-  if (d < 2.94) return 3;
-  if (d < 3.35) return 4;
-  return 5;                 // þyngst
-}
 /* SEX ÞREP — litaröð eftir erfiðleikastigi:
    1 dökkgrænt · 2 grænt · 3 ljósgult · 4 dökkgult · 5 ljósrautt · 6 rautt   */
-const TIER_BG   = ["#b8ecd0", "#d8f5e4", "#fdf6d8", "#f9e6a8", "#fde0e2", "#f7c4c9"];
-const TIER_FG   = ["#02402a", "#046b41", "#75620f", "#7a5600", "#a33540", "#87141e"];
-const TIER_NAME = ["dökkgrænt", "grænt", "ljósgult", "dökkgult", "ljósrautt", "rautt"];
 
 function FixChip({ fx, teamById, diff, pos, relTier }) {
   if (!fx) return <div style={S.noFix}>—</div>;
@@ -2687,37 +2552,33 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, liveByFx, nameOf, 
             ];
             const hasDetail = live || (done && (scorers("h").length || scorers("a").length));
             const mid = (done || live) && hs != null ? `${hs}–${as}` : timeLbl(f.kickoff_time);
+            // FFDR-pilla per lið — LITURINN situr á pillunni sjálfri
+            // (nafn + merki), ekki á blokk sem þenur sig yfir hálfa röðina.
+            const pill = (team, home, right) => {
+              const oppId = home ? f.team_a : f.team_h;
+              const fdr = home ? (f.team_h_difficulty ?? 3) : (f.team_a_difficulty ?? 3);
+              const d = diffOf ? diffOf(team === H ? f.team_h : f.team_a,
+                { opp: oppId, home, fdr, kickoff: f.kickoff_time }, 2) : null;
+              const t = d != null ? tierOf(d) : null;
+              return (
+                <button style={{ ...S.gfPill, ...(t != null ? { background:TIER_BG[t], color:TIER_FG[t] } : {}) }}
+                  onClick={() => onPick && onPick(home ? f.team_h : f.team_a)}
+                  title={`${team?.name || "?"} — ${home ? "heima" : "úti"}${d != null ? ` · FFDR ${d}` : ""}`}>
+                  {right ? <><Crest team={team} size={13} /><span style={S.gfShort}>{oppLabel(team?.short, home)}</span></>
+                         : <><span style={S.gfShort}>{oppLabel(team?.short, home)}</span><Crest team={team} size={13} /></>}
+                </button>
+              );
+            };
             return (
               <div key={f.id} style={S.gfMatch}>
-                {(() => {
-                  // FFDR fyrir varnarmenn þess liðs — liturinn er upplýsingin
-                  const d = diffOf ? diffOf(f.team_h, { opp:f.team_a, home:true, fdr:f.team_h_difficulty ?? 3, kickoff:f.kickoff_time }, 2) : null;
-                  const t = d != null ? tierOf(d) : null;
-                  return (
-                    <button style={{ ...S.gfSide, ...(t != null ? { background:TIER_BG[t], color:TIER_FG[t] } : {}) }}
-                      onClick={() => onPick && onPick(f.team_h)}
-                      title={`${H?.name || "?"} — heima${d != null ? ` · FFDR ${d}` : ""}`}>
-                      <span style={S.gfShort}>{oppLabel(H?.short, true)}</span><Crest team={H} size={14} />
-                    </button>
-                  );
-                })()}
+                <span style={S.gfCellL}>{pill(H, true, false)}</span>
                 <button style={{ ...S.gfMid, ...(live ? S.gfMidLive : {}), ...(hasDetail ? S.gfMidOpen : {}) }}
                   onClick={() => hasDetail && setOpen(open === f.id ? null : f.id)}
                   title={hasDetail ? "Smelltu fyrir markaskorara"
                         : (w?.temp_c != null ? `${Math.round(w.temp_c)}°C${w.precip_mm >= 0.5 ? " · úrkoma" : ""}` : undefined)}>
                   {mid}
                 </button>
-                {(() => {
-                  const d = diffOf ? diffOf(f.team_a, { opp:f.team_h, home:false, fdr:f.team_a_difficulty ?? 3, kickoff:f.kickoff_time }, 2) : null;
-                  const t = d != null ? tierOf(d) : null;
-                  return (
-                    <button style={{ ...S.gfSide, ...S.gfSideR, ...(t != null ? { background:TIER_BG[t], color:TIER_FG[t] } : {}) }}
-                      onClick={() => onPick && onPick(f.team_a)}
-                      title={`${A?.name || "?"} — úti${d != null ? ` · FFDR ${d}` : ""}`}>
-                      <Crest team={A} size={14} /><span style={S.gfShort}>{oppLabel(A?.short, false)}</span>
-                    </button>
-                  );
-                })()}
+                <span style={S.gfCellR}>{pill(A, false, true)}</span>
                 {open === f.id && hasDetail && (
                   <div style={S.gfDetail}>
                     {[["h", H?.short], ["a", A?.short]].map(([sd, sh]) => {
@@ -3025,6 +2886,8 @@ const S = {
   tcHit: { marginLeft:8, color:C.red, fontWeight:700 },
   preSeasonBar: { marginTop:9, background:"#f1e9ff", border:`1px solid #d9c8f5`, borderRadius:8, padding:"8px 10px", fontSize:11.5, color:"#4a1a6b", lineHeight:1.5 },
   nodeHit: { position:"absolute", bottom:-7, left:"50%", transform:"translateX(-50%)", fontFamily:mono, fontSize:8, fontWeight:700, color:"#fff", background:C.red, padding:"0 3px", borderRadius:3, lineHeight:1.4 },
+  planFh: { fontFamily:mono, fontSize:8.5, fontWeight:700, color:"#fff", background:"#2563eb",
+    borderRadius:4, padding:"1px 4px" },
   planGwHit: { background:C.redBg, border:`1px solid ${C.red}`, color:"#a01f2b", fontWeight:700 },
   stats: { display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:12 },
   statCard: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"11px 12px", textAlign:"center" },
@@ -3067,17 +2930,22 @@ const S = {
   gfDay: { marginTop:7 },
   gfDayLbl: { fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6,
     color:C.text3, padding:"4px 0 4px", borderTop:`1px solid ${C.border}` },
-  gfMatch: { display:"flex", alignItems:"center", gap:3, padding:"3px 0", flexWrap:"wrap" },
-  gfSide: { flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end",
-    gap:3, cursor:"pointer", background:"none", border:"none", padding:"2px 0" },
-  gfSideR: { justifyContent:"flex-start" },
+  /* Röðin er grid: [heimapilla → hægri] [tími] [útipilla ← vinstri].
+     Áður þandi hvor "hlið" sig yfir hálfa breiddina með lit — leit út
+     eins og málningarklessur. Nú situr liturinn á pillunni sjálfri. */
+  gfMatch: { display:"grid", gridTemplateColumns:"1fr 52px 1fr", alignItems:"center",
+    gap:4, padding:"2px 0" },
+  gfCellL: { display:"flex", justifyContent:"flex-end", minWidth:0 },
+  gfCellR: { display:"flex", justifyContent:"flex-start", minWidth:0 },
+  gfPill: { display:"inline-flex", alignItems:"center", gap:4, cursor:"pointer",
+    background:C.cardAlt, border:"none", borderRadius:6, padding:"3px 7px" },
   gfShort: { fontFamily:mono, fontSize:11.5, fontWeight:700 },
   gfMid: { minWidth:48, textAlign:"center", fontFamily:mono, fontSize:11, fontWeight:600,
     color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:5,
     padding:"2px 3px", cursor:"default" },
   gfMidLive: { background:C.redBg, color:"#a01f2b", fontWeight:700, border:`1px solid ${C.red}` },
   gfMidOpen: { cursor:"pointer", color:C.purple },
-  gfDetail: { flexBasis:"100%", marginTop:2, fontSize:8.5, lineHeight:1.5, color:C.text2 },
+  gfDetail: { gridColumn:"1 / -1", marginTop:2, fontSize:8.5, lineHeight:1.5, color:C.text2 },
   gfEmpty: { fontSize:11, color:C.text3, padding:"6px 0" },
   /* Völlur + leikjalisti hlið við hlið. Seinni dálkurinn VERÐUR að rúma
      gfWrap — fastur 164px dálkur með minWidth:280 á innihaldinu olli
@@ -3095,10 +2963,14 @@ const S = {
   capSel: { border:"none", background:"transparent", fontSize:12.5, color:C.text, outline:"none", maxWidth:120 },
   ghost: { background:"transparent", border:`1px solid ${C.border}`, borderRadius:7, padding:"6px 10px", fontSize:11.5, color:C.text2, cursor:"pointer" },
 
-  pitchRowAbs: { position:"absolute", left:0, right:0, transform:"translateY(-50%)",
-    display:"flex", justifyContent:"center", gap:6, flexWrap:"nowrap", padding:"0 4px" },
-  benchLabel: { position:"absolute", left:10, top:"77.5%", fontFamily:mono, fontSize:9,
-    letterSpacing:1, textTransform:"uppercase", color:"rgba(234,243,236,0.55)", zIndex:1 },
+  /* Raðirnar deila plássinu jafnt; völlurinn vex ef þarf (sjá Pitch.jsx) */
+  rowsArea: { flex:"1 0 auto", display:"flex", flexDirection:"column",
+    justifyContent:"space-evenly", gap:6, padding:"10px 6px 12px" },
+  pitchRowFlex: { display:"flex", justifyContent:"center", gap:6, flexWrap:"nowrap", padding:"0 2px" },
+  benchArea: { flex:"0 0 auto", background:"rgba(9,24,15,0.78)",
+    borderTop:"1.6px dashed rgba(234,243,236,0.35)", padding:"7px 8px 10px" },
+  benchLabel: { fontFamily:mono, fontSize:9, letterSpacing:1, textTransform:"uppercase",
+    color:"rgba(234,243,236,0.55)", marginBottom:4 },
 
   pCard: { position:"relative", width:"clamp(62px, 17.5%, 92px)", background:C.card,
     border:`1px solid rgba(255,255,255,0.5)`, borderRadius:9, padding:"6px 4px 6px",

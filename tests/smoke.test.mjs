@@ -82,6 +82,11 @@ ok(text().includes("Haaland"), "Haaland á vellinum");
 ok(!text().includes("af undefined"), "engin 'af undefined' villa (rotationRisk)");
 ok(!/NaN/.test(text()), "engin NaN í viðmótinu");
 
+console.log("\n=== 2b. PENINGATÖLURNAR Á MÆLABORÐINU ===");
+// Fyrir tímabil, án skipta: banki + liðsverð Á að vera nákvæmlega £100.0
+ok(text().includes("alls £100.0"), "banki + liðsverð = £100.0 (fjárlögin ganga upp)");
+ok(/Banki/.test(text()) && !/£NaN|£undefined/.test(text()), "engin brotin peningatala");
+
 console.log("\n=== 3. UMFERÐASKIPTI Á TÍMALÍNU ===");
 const gwBtns = [...container.querySelectorAll("button")].filter(b => /^\d+$/.test(b.textContent.trim()));
 ok(gwBtns.length >= 13, `tímalínuhnútar til staðar (${gwBtns.length})`);
