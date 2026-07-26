@@ -27,6 +27,11 @@ export function sellTenths(purchase10, current10) {
    betra en fjórar stöður á 7 tímabilum (fylgni 0,238 á móti 0,236).
    Vogtölur úr grid-leit + krossprófun, 2.720 lið-leikir, ekkert leki
    (liðsstyrkur alltaf úr FYRRA tímabili).                              */
+/* FERÐALENGD ER VILJANDI EKKI HÉR: mælt á 3.420 útileikjum yfir 9
+   tímabil (parað innan liðs-tímabils, mótherja-leiðrétt) — áhrifin eru
+   ógreinanleg frá núlli (t=−0,42 · r=−0,037). Varðprófið í
+   tests/travel-measure.mjs endurmælir þetta og fellur ef það breytist.
+   Ferðin birtist sem UPPLÝSING á leikjaröðum, ekki sem vog.             */
 export const DIFF_W = {
   1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.5 },
   2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.5 },
