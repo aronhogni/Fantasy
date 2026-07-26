@@ -156,11 +156,14 @@ const HOME_PTS = { 1: 0.197, 2: 0.507, 3: 0.297, 4: 0.735 };  // mæld stig/leik
 
 /* MÆLDIR FLOKKAR PER STÖÐU — kvantílar, allir EINRÆNIR.
    pts = raunveruleg meðalstig per leikmann í þeirri stöðu í einum leik.     */
+/* MÆLD TAFLA — 3.808 lið-leikir, 7 tímabil, á SAMA FFDR-kvarða sem
+   appið notar (öll vog innifalin, þ.m.t. markaður og heimavöllur).
+   BÆÐI pts og cs — cs vantaði áður og gaf NaN í CS%-sýn.            */
 const MEASURED_POS = {
-  1: [{d:1.91,pts:4.00}, {d:2.32,pts:3.78}, {d:2.60,pts:3.55}, {d:2.94,pts:3.33}, {d:3.58,pts:2.80}],
-  2: [{d:1.91,pts:4.12}, {d:2.32,pts:3.57}, {d:2.60,pts:3.07}, {d:2.94,pts:2.64}, {d:3.58,pts:1.92}],
-  3: [{d:1.84,pts:4.28}, {d:2.39,pts:3.62}, {d:2.72,pts:3.33}, {d:3.08,pts:3.15}, {d:3.75,pts:2.76}],
-  4: [{d:1.86,pts:4.98}, {d:2.41,pts:4.67}, {d:2.73,pts:3.91}, {d:3.09,pts:3.76}, {d:3.76,pts:3.37}],
+  1: [{d:1.99,pts:4.03,cs:38.9}, {d:2.40,pts:3.79,cs:29.4}, {d:2.70,pts:3.51,cs:26.4}, {d:3.04,pts:3.33,cs:21.6}, {d:3.68,pts:2.80,cs:10.5}],
+  2: [{d:1.81,pts:4.12,cs:38.6}, {d:2.21,pts:3.59,cs:30.9}, {d:2.50,pts:3.08,cs:26.2}, {d:2.86,pts:2.59,cs:19.9}, {d:3.58,pts:1.93,cs:10.9}],
+  3: [{d:1.94,pts:4.23,cs:38.8}, {d:2.40,pts:3.69,cs:30.7}, {d:2.70,pts:3.26,cs:24.1}, {d:3.03,pts:3.17,cs:22.1}, {d:3.65,pts:2.79,cs:10.9}],
+  4: [{d:1.82,pts:4.96,cs:36.5}, {d:2.41,pts:4.73,cs:29.5}, {d:2.74,pts:3.85,cs:24.2}, {d:3.10,pts:3.72,cs:21.7}, {d:3.77,pts:3.42,cs:12.4}],
 };
 function lookupPos(pos, key, d) {
   const T = MEASURED_POS[pos] || MEASURED_POS[3];
@@ -967,7 +970,7 @@ export default function App() {
     const bk = odds && short && odds[short];
     // Bókmakara-línan gildir AÐEINS um þann leik sem hún var sett fyrir.
     // Staðfestum gegn mótherja + dagsetningu — annars notum við aðrar heimildir.
-    const bkValid = bk && typeof bk.cs === "number" && fx &&
+    const bkValid = bk && Number.isFinite(bk.cs) && fx &&
       teamById[fx.opp]?.short === bk.opp &&
       (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0,10) === bk.kickoff.slice(0,10));
     if (bkValid) return { cs: bk.cs, src: "bookie" };
@@ -975,19 +978,21 @@ export default function App() {
     if (fx?.kickoff) {
       const key = `${teamId}|${fx.kickoff.slice(0,10)}`;
       const e = eloCsByFx[key];
-      if (e && typeof e.cs === "number") return { cs: Math.round(e.cs), src: "elo" };
+      if (e && Number.isFinite(e.cs)) return { cs: Math.round(e.cs), src: "elo" };
     }
     if (!fx) return { cs: null, src: null };
     // MÆLD KVÖRÐUN: samfelld þyngd -> CS% úr töflu sem er mæld á 1.102 leikjum.
     // Fínt með eigin vörn (liðsstyrkur) sem FDR sér ekki.
     const d2 = fixDifficulty(teamId, fx, 2) ?? fx.fdr;
-    return { cs: clamp(Math.round(lookupPos(2, "cs", d2)), 3, 70), src: "mælt" };
+    const raw = lookupPos(2, "cs", d2);
+    if (!Number.isFinite(raw)) return { cs: null, src: null };
+    return { cs: clamp(Math.round(raw), 3, 70), src: "mælt" };
   }
   // Vænt mörk á sig
   function xgaFor(teamId, fx) {
     const short = teamById[teamId]?.short;
     const bk = odds && short && odds[short];
-    const bkValid = bk && typeof bk.xga === "number" && fx &&
+    const bkValid = bk && Number.isFinite(bk.xga) && fx &&
       teamById[fx.opp]?.short === bk.opp &&
       (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0,10) === bk.kickoff.slice(0,10));
     if (bkValid) return bk.xga;
@@ -1335,18 +1340,35 @@ export default function App() {
      Byggt á opinberum gögnum: stig/leik (sl. tímabil) leiðrétt fyrir
      leikjaþyngd (FDR), og FPL-eigin ep_next fyrir næstu umferð.
      Þetta er ÁÆTLUN, ekki spá með vissu — en hún er samanburðarhæf.        */
-  const FDR_FACTOR = { 1: 1.25, 2: 1.12, 3: 1.0, 4: 0.88, 5: 0.75 };
+  /* ---- VÆNT STIG ----
+     ÁÐUR: næsta umferð notaði FPL ep_next, seinni umferðir ppg x FDR-fasta.
+     Það voru TVÆR ÓKVARÐAÐAR aðferðir og gaf stökk milli GW1 og GW2
+     (2,0 -> 3,4 fyrir sama leikmann). Nú EIN aðferð:
+       grunnur  = leikmanns-stig, óháð umferð (ep_next ef til, annars stig/leik)
+       margfaldari = MÆLD stig við hans FFDR / meðaltal stöðunnar
+     Þar með er kvarðinn festur við FPL-spána og aðeins LEIKURINN breytist.  */
+  const POS_MEAN_PTS = { 1: 3.492, 2: 3.062, 3: 3.428, 4: 4.136 };  // úr MEASURED_POS
   function expPoints(pid, g) {
     const p = byId[pid];
     if (!p) return 0;
-    const avail = p.status === "a" ? 1 : (p.chance_of_playing_next_round ?? 0) / 100;
     const fxs = fixByTeamGw[p.team]?.[g] || [];
-    if (!fxs.length) return 0;                       // blank GW
-    // næsta umferð: notum FPL-eigin ep_next (opinber spá)
-    const nextGw = events?.find(e => e.is_next)?.id;
-    if (g === nextGw && p.ep_next != null) return parseFloat(p.ep_next) * avail;
+    if (!fxs.length) return 0;                     // auð umferð
+    const avail = p.status === "a" ? 1 : (p.chance_of_playing_next_round ?? 0) / 100;
+    const pos = p.element_type;
+    // grunnur: FPL-eigin spá ef til, annars stig/leik. SAMA í öllum umferðum.
+    const ep = parseFloat(p.ep_next);
     const ppg = parseFloat(p.points_per_game || 0);
-    return fxs.reduce((a, f) => a + ppg * (FDR_FACTOR[f.fdr] ?? 1) * (f.home ? 1.05 : 0.95), 0) * avail;
+    const base = Number.isFinite(ep) && ep > 0 ? ep : ppg;
+    if (!base) return 0;
+    const mean = POS_MEAN_PTS[pos] || 3.4;
+    // margfaldari per leik í umferðinni (tvöföld umferð leggst saman)
+    let mult = 0;
+    for (const f of fxs) {
+      const d = fixDifficulty(p.team, f, pos);
+      const pts = d != null ? lookupPos(pos, "pts", d) : null;
+      mult += Number.isFinite(pts) ? pts / mean : 1;
+    }
+    return base * mult * avail;
   }
   // Nettó ávinningur skipta: vænt stig inn − út yfir sjóndeildarhring, mínus refsing
   function transferNet(tr, horizon = 5) {
