@@ -1966,19 +1966,17 @@ export default function App() {
               <select style={S.chipSel} value={teamSort} onChange={e => setTeamSort(e.target.value)}>
                 <option value="def">FFDR vörn</option>
                 <option value="att">FFDR sókn</option>
-                <option value="dc">DefCon-tækifæri</option>
               </select>
             </div>
             <div style={S.muted}>
-              FFDR er <b>útkoman</b> — ClubElo og xGC eru inntök í hana og eru því
-              ekki sýnd sér. <b>DefCon er ekki í FFDR</b>: það mælir vinnuálag varnar
-              og dregur oft í <b>gagnstæða átt</b> við hreint blað. Lægra FFDR = léttara.
+              FFDR er <b>útkoman</b> — ClubElo, xGC og markaðslínan eru inntök í hana
+              og eru því ekki sýnd sér. Lægra FFDR = léttara. (DefCon-tækifærið er
+              sér-merki og sést á leikmannaspjöldum og í liða-yfirlitinu.)
             </div>
             <div style={S.tblHead}>
               <span style={{ flex:1 }}>Lið</span>
               <span style={S.tblNum} title="FFDR fyrir varnarmenn, meðaltal valins bils">vörn</span>
               <span style={S.tblNum} title="FFDR fyrir framherja">sókn</span>
-              <span style={S.tblNum} title="DefCon-tækifæri — EKKI í FFDR">DC</span>
             </div>
             {(() => {
               // meðal-FFDR yfir valið bil, per staða
@@ -1994,14 +1992,12 @@ export default function App() {
               };
               const rows = teams.map(t => ({
                 t, def: avg(t.id, 2), att: avg(t.id, 4),
-                dc: dcOpp[t.id]?.defcon_opportunity ?? null,
               }));
               rows.sort((a, b) => {
-                if (teamSort === "dc") return (b.dc ?? -1) - (a.dc ?? -1);
                 const k = teamSort === "att" ? "att" : "def";
                 return (a[k] ?? 9) - (b[k] ?? 9);
               });
-              return rows.map(({ t, def, att, dc }) => {
+              return rows.map(({ t, def, att }) => {
                 const mine = squadAt.some(x => byId[x.id]?.team === t.id);
                 const cell = v => v == null ? { bg:"transparent", fg:C.text3 }
                   : { bg: TIER_BG[tierOf(v)], fg: TIER_FG[tierOf(v)] };
@@ -2018,10 +2014,6 @@ export default function App() {
                     </span>
                     <span style={{ ...S.tblNum }}>
                       <span style={{ ...S.ffdrCell, background:ca.bg, color:ca.fg }}>{att ?? "—"}</span>
-                    </span>
-                    <span style={{ ...S.tblNum, color: dc == null ? C.text3
-                      : dc >= 75 ? C.green : dc >= 65 ? C.amber : C.text2 }}>
-                      {dc ?? "—"}
                     </span>
                   </div>
                 );
