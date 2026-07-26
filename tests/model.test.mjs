@@ -8,7 +8,7 @@
    6. tierOf-KVÖRÐUN: sextílar endurreiknaðir úr raungögnum appsins
    ============================================================ */
 import { readFileSync } from "node:fs";
-import { sellTenths, computeTransferCost, expPointsFor, lookupPos,
+import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePrediction,
   POS_MEAN_PTS, MEASURED_POS, tierOf, TIER_CUTS, TIER_BG,
   makeFixDifficulty, clamp } from "../src/model.js";
 
@@ -186,6 +186,37 @@ shares.forEach((sh, i) => ok(sh >= 0.12 && sh <= 0.22,
   `þrep ${i} (${["dökkgrænt","grænt","ljósgult","dökkgult","ljósrautt","rautt"][i]}) fær 12–22% (${(100 * sh).toFixed(1)}%)`));
 ok(TIER_BG.length === 6 && new Set(TIER_BG).size === 6, "sex aðgreindir litir");
 ok(TIER_CUTS.every((x, i) => i === 0 || x > TIER_CUTS[i - 1]), "mörkin stranghækkandi");
+
+console.log("\n=== 7. VERÐSPÁIN (nálgunin sjálf) ===");
+eq(priceMovePrediction({ net: 200000, selectedByPct: "5.0", chg: 0 }), "up",
+  "mikill innflutningur á 5%-manni: hækkun");
+eq(priceMovePrediction({ net: 200000, selectedByPct: "5.0", chg: 1 }), null,
+  "búinn að hækka í dag: engin spá (FPL hreyfir 1x/dag)");
+eq(priceMovePrediction({ net: -200000, selectedByPct: "5.0", chg: 0 }), "down",
+  "mikill útflutningur: lækkun");
+eq(priceMovePrediction({ net: 30000, selectedByPct: "5.0", chg: 0 }), null,
+  "undir þröskuldi: engin spá");
+// þröskuldurinn SKALAST með eignarhaldi: sama nettó dugar litlum en ekki fjöldamanni
+eq(priceMovePrediction({ net: 100000, selectedByPct: "2.0", chg: 0 }), "up",
+  "100k dugar 2%-manni");
+eq(priceMovePrediction({ net: 100000, selectedByPct: "45.0", chg: 0 }), null,
+  "100k dugar EKKI 45%-fjöldamanni (þröskuldur skalast)");
+
+console.log("\n=== 8. PWA-SKRÁRNAR ===");
+{
+  const pub = new URL("../public/", import.meta.url).pathname;
+  const mf = JSON.parse(readFileSync(pub + "manifest.webmanifest", "utf8"));
+  eq(mf.start_url, "/Fantasy/", "manifest start_url með base-slóð");
+  eq(mf.scope, "/Fantasy/", "manifest scope réttur");
+  ok(mf.icons.length >= 3 && mf.icons.some(i => i.purpose === "maskable"), "íkonar þ.m.t. maskable");
+  for (const f of ["icon-192.png", "icon-512.png", "icon-180.png"]) {
+    const b = readFileSync(pub + f);
+    ok(b.length > 500 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47, `${f} er alvöru PNG`);
+  }
+  const html = readFileSync(new URL("../index.html", import.meta.url).pathname, "utf8");
+  ok(html.includes('rel="manifest"') && html.includes("icon-180.png"),
+    "index.html vísar á manifest og apple-touch-icon (PNG, ekki SVG)");
+}
 
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Pitch from "./Pitch.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME,
-  makeFixDifficulty, computeTransferCost, expPointsFor } from "./model.js";
+  makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction } from "./model.js";
 
 /* ============================================================
    FPL PLÖNUN — v3
@@ -477,6 +477,9 @@ export default function App() {
   const [live, setLive] = useState(null);      // lifandi staða valdrar umferðar
   const [gwStats, setGwStats] = useState(null); // per-leikmanns tölur valdrar umferðar
   const [liveTick, setLiveTick] = useState(0);
+  const [rivals, setRivals] = useState([]);          // [{id}] — andstæðingar til samanburðar
+  const [rivalInput, setRivalInput] = useState("");
+  const [rivalData, setRivalData] = useState({});    // {id: {name, gwPts, totalPts, captain, picks}}
 
   const flash = m => { setToast(m); setTimeout(() => setToast(null), 2800); };
 
@@ -601,13 +604,14 @@ export default function App() {
         setEntryId(s.entryId ?? null); setPlan(s.plan ?? []);
         setCaptain(s.captain ?? START_CAPTAIN); setVice(s.vice ?? null);
         setBenchSwaps(s.benchSwaps ?? {}); setChips(s.chips ?? {}); setBuyPrices(s.buyPrices ?? {});
+        setRivals(s.rivals ?? []);
       }
       setLoaded(true);
     })();
   }, []);
   useEffect(() => {
-    if (loaded) saveState("fpl_planner_v3", { entryId, plan, captain, vice, benchSwaps, chips, buyPrices });
-  }, [entryId, plan, captain, vice, benchSwaps, chips, buyPrices, loaded]);
+    if (loaded) saveState("fpl_planner_v3", { entryId, plan, captain, vice, benchSwaps, chips, buyPrices, rivals });
+  }, [entryId, plan, captain, vice, benchSwaps, chips, buyPrices, rivals, loaded]);
 
   /* ---------- Sækja raunlið + stig úr FPL-slóð ---------- */
   useEffect(() => {
@@ -643,6 +647,52 @@ export default function App() {
 
   // preSeason er reiknað neðar (þarf events) — ref til að buyOf nái í það
   const preSeasonRef = React.useRef(false);
+
+  /* ---------- Andstæðingar: lið þeirra í valdri umferð ----------
+     Endurnotar proxy-leiðirnar sem eru ÞEGAR til (fpl-entry, fpl-picks) —
+     engin ný Netlify-uppsetning. Nafnið er sótt einu sinni per andstæðing;
+     picks fylgja valdri umferð. Fyrir tímabil skilar picks 404 (ekkert lið
+     skráð enn) — þá sýnum við nafnið og bíðum.                            */
+  useEffect(() => {
+    if (!PROXY_URL || !rivals.length) return;
+    let alive = true;
+    (async () => {
+      for (const r of rivals) {
+        try {
+          let name = rivalData[r.id]?.name;
+          if (!name) {
+            const e = await (await fetch(`${PROXY_URL}?path=fpl-entry&id=${r.id}`)).json();
+            name = e?.name || e?.player_first_name
+              ? `${e.name ?? ""}${e.player_first_name ? ` (${e.player_first_name})` : ""}`.trim()
+              : `lið ${r.id}`;
+          }
+          let picks = null, gwPts = null, totalPts = null, capId = null;
+          try {
+            const d = await (await fetch(`${PROXY_URL}?path=fpl-picks&id=${r.id}&gw=${gw}`)).json();
+            if (Array.isArray(d?.picks) && d.picks.length) {
+              picks = d.picks.map(x => x.element);
+              capId = d.picks.find(x => x.is_captain)?.element ?? null;
+              gwPts = d?.entry_history?.points ?? null;
+              totalPts = d?.entry_history?.total_points ?? null;
+            }
+          } catch {}
+          if (alive) setRivalData(prev => ({ ...prev, [r.id]: { name, picks, capId, gwPts, totalPts } }));
+        } catch {
+          if (alive) setRivalData(prev => ({ ...prev, [r.id]: { name: `lið ${r.id}`, error: true } }));
+        }
+      }
+    })();
+    return () => { alive = false; };
+  }, [rivals, gw]);
+
+  function addRival() {
+    const m = rivalInput.match(/entry\/(\d+)/) || rivalInput.match(/^(\d+)$/);
+    if (!m) { flash("Slóð eða númer andstæðings — t.d. 606 eða .../entry/606/"); return; }
+    const id = m[1];
+    if (rivals.some(r => r.id === id)) { flash("Þegar á listanum."); return; }
+    if (String(id) === String(entryId)) { flash("Það ert þú sjálf/ur."); return; }
+    setRivals(rs => [...rs, { id }]); setRivalInput("");
+  }
 
   /* ---------- Afleidd gögn ---------- */
   /* ---------- TÍMABILS-STAÐA — verður að vera SNEMMA ----------
@@ -1290,10 +1340,12 @@ export default function App() {
   /* ---------- Verðbreytingar (raunveruleg gögn) ---------- */
   const priceMovers = useMemo(() => {
     if (!players) return { up:[], down:[] };
-    const withNet = players.map(p => ({
-      p, net: (p.transfers_in_event || 0) - (p.transfers_out_event || 0),
-      chg: p.cost_change_event || 0,
-    }));
+    const withNet = players.map(p => {
+      const net = (p.transfers_in_event || 0) - (p.transfers_out_event || 0);
+      const chg = p.cost_change_event || 0;
+      return { p, net, chg,
+        predict: priceMovePrediction({ net, selectedByPct: p.selected_by_percent, chg }) };
+    });
     const up = withNet.filter(x => x.net > 0).sort((a,b) => b.net - a.net).slice(0, 8);
     const down = withNet.filter(x => x.net < 0).sort((a,b) => a.net - b.net).slice(0, 6);
     return { up, down };
@@ -1688,8 +1740,13 @@ export default function App() {
           {/* Verðbreytingar */}
           <section style={S.card}>
             <h2 style={S.h2}>Verðbreytingar — flutningar í umferð</h2>
-            <div style={S.muted}>Raungögn: transfers_in/out og cost_change_event úr FPL.</div>
-            {priceMovers.up.map(({ p, net, chg }) => {
+            <div style={S.muted}>
+              Raungögn: transfers_in/out og cost_change_event úr FPL.
+              <b> „í nótt?"</b> er nálgun (nettó-flutningar á móti eignarhaldi) —
+              FPL birtir ekki formúluna sína, svo þetta er vísbending, ekki vissa.
+              Grænt nafn = þú ert með hann í skiptaáætlun: <b>flýttu skiptunum</b> ef hann hækkar.
+            </div>
+            {priceMovers.up.map(({ p, net, chg, predict }) => {
               const mine = squadIds.has(p.id), planned = plan.some(t => t.inId === p.id);
               return (
                 <div key={p.id} style={S.moveRow}>
@@ -1698,13 +1755,15 @@ export default function App() {
                   </span>
                   <span style={S.moveNet}>+{(net/1000).toFixed(0)}k</span>
                   <span style={{ ...S.moveChg, color: chg > 0 ? C.green : C.text3 }}>
-                    {chg > 0 ? `↑ £${(chg/10).toFixed(1)}` : "—"}
+                    {chg > 0 ? `↑ £${(chg/10).toFixed(1)}`
+                     : predict === "up" ? <span style={S.movePredict} title="Nettó-flutningar yfir áætluðum þröskuldi — líklega hækkun í næstu verðkeyrslu FPL (nálgun)">↑ í nótt?</span>
+                     : "—"}
                   </span>
                 </div>
               );
             })}
             {priceMovers.down.length > 0 && <div style={S.moveSep}>Mest út</div>}
-            {priceMovers.down.map(({ p, net, chg }) => {
+            {priceMovers.down.map(({ p, net, chg, predict }) => {
               const mine = squadIds.has(p.id);
               return (
                 <div key={p.id} style={S.moveRow}>
@@ -1713,7 +1772,9 @@ export default function App() {
                   </span>
                   <span style={{ ...S.moveNet, color: C.red }}>{(net/1000).toFixed(0)}k</span>
                   <span style={{ ...S.moveChg, color: chg < 0 ? C.red : C.text3 }}>
-                    {chg < 0 ? `↓ £${Math.abs(chg/10).toFixed(1)}` : "—"}
+                    {chg < 0 ? `↓ £${Math.abs(chg/10).toFixed(1)}`
+                     : predict === "down" ? <span style={{ ...S.movePredict, color:C.red }} title="Nettó-útflutningar yfir þröskuldi — líklega lækkun í nótt (nálgun). Ef þú ætlar að selja hann: gerðu það fyrir verðkeyrsluna.">↓ í nótt?</span>
+                     : "—"}
                   </span>
                 </div>
               );
@@ -1941,6 +2002,66 @@ export default function App() {
                 );
               });
             })()}
+          </section>
+
+          {/* Andstæðingar — sérstöðu-samanburður */}
+          <section style={S.card}>
+            <h2 style={S.h2}>Andstæðingar</h2>
+            <div style={S.muted}>
+              Berðu liðið þitt við keppinauta í mini-deildinni: hverjir eru
+              <b> sérstöðumennirnir</b> (differentials) á báða bóga, og hver ber bandið hjá þeim.
+            </div>
+            <div style={S.rivalAddRow}>
+              <input style={{ ...S.urlInput, width:"auto", flex:1, minWidth:0 }}
+                placeholder="FPL-slóð eða liðsnúmer" value={rivalInput}
+                onChange={e => setRivalInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addRival()} />
+              <button style={S.connectBtn} onClick={addRival}>Bæta við</button>
+            </div>
+            {!rivals.length && <div style={S.muted}>Engir skráðir enn. Númerið er í slóð liðsins á fantasy.premierleague.com.</div>}
+            {rivals.map(r => {
+              const d = rivalData[r.id];
+              if (!d) return <div key={r.id} style={S.rivalRow}><span style={S.rivalName}>lið {r.id}</span><span style={S.muted}>sæki…</span></div>;
+              const myIds = squadIds;
+              const theirs = (d.picks || []).filter(id => !myIds.has(id)).map(id => byId[id]).filter(Boolean)
+                .sort((a, b) => parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0));
+              const mine = d.picks ? [...myIds].filter(id => !d.picks.includes(id)).map(id => byId[id]).filter(Boolean)
+                .sort((a, b) => parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0)) : [];
+              const shared = d.picks ? d.picks.filter(id => myIds.has(id)).length : null;
+              return (
+                <div key={r.id} style={S.rivalBlock}>
+                  <div style={S.rivalRow}>
+                    <span style={S.rivalName}>{d.name}</span>
+                    <span style={S.rivalPts}>{d.gwPts != null ? `GW ${d.gwPts} · alls ${d.totalPts}` : "—"}</span>
+                    <button style={S.rm} title="Fjarlægja"
+                      onClick={() => { setRivals(rs => rs.filter(x => x.id !== r.id)); }}>✕</button>
+                  </div>
+                  {d.picks ? (
+                    <>
+                      <div style={S.rivalMeta}>
+                        {shared}/15 sameiginlegir
+                        {d.capId != null && <> · fyrirliði <b>{byId[d.capId]?.web_name ?? "?"}</b>
+                          {d.capId === captain ? " (sami og þú)" : ""}</>}
+                      </div>
+                      {theirs.length > 0 && <div style={S.rivalDiff}>
+                        <span style={S.rivalDiffLbl}>þeirra sérstaða</span>
+                        {theirs.slice(0, 3).map(p => <span key={p.id} style={S.rivalChip}
+                          title={`ep ${p.ep_next} · ${teamById[p.team]?.short}`}
+                          onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>)}
+                        {theirs.length > 3 && <span style={S.muted}>+{theirs.length - 3}</span>}
+                      </div>}
+                      {mine.length > 0 && <div style={S.rivalDiff}>
+                        <span style={{ ...S.rivalDiffLbl, color:C.green }}>þín sérstaða</span>
+                        {mine.slice(0, 3).map(p => <span key={p.id} style={{ ...S.rivalChip, background:C.greenBg, color:"#0a7a4a" }}
+                          title={`ep ${p.ep_next} · ${teamById[p.team]?.short}`}
+                          onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>)}
+                        {mine.length > 3 && <span style={S.muted}>+{mine.length - 3}</span>}
+                      </div>}
+                    </>
+                  ) : <div style={S.rivalMeta}>{d.error ? "náðist ekki — er númerið rétt?" : "ekkert lið skráð í þessari umferð enn (fyrir tímabil er það eðlilegt)"}</div>}
+                </div>
+              );
+            })}
           </section>
 
           {/* API-staða */}
@@ -3023,8 +3144,19 @@ const S = {
   moveTeam: { fontFamily:mono, fontSize:9.5, color:C.text3 },
   moveNet: { fontFamily:mono, fontSize:11, color:C.green, minWidth:44, textAlign:"right" },
   moveChg: { fontFamily:mono, fontSize:10, minWidth:44, textAlign:"right" },
+  movePredict: { fontFamily:mono, fontSize:9.5, fontWeight:700, color:C.green },
   moveSep: { fontFamily:mono, fontSize:10, textTransform:"uppercase", letterSpacing:0.8, color:C.text3, marginTop:9, paddingTop:6, borderTop:`1px solid ${C.border}` },
 
+  rivalAddRow: { display:"flex", gap:6, marginBottom:8 },
+  rivalBlock: { borderTop:`1px solid ${C.border}`, padding:"7px 0" },
+  rivalRow: { display:"flex", alignItems:"center", gap:7 },
+  rivalName: { fontWeight:700, fontSize:12.5, flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  rivalPts: { fontFamily:mono, fontSize:10.5, color:C.text2, flexShrink:0 },
+  rivalMeta: { fontSize:10.5, color:C.text3, marginTop:2 },
+  rivalDiff: { display:"flex", alignItems:"center", gap:4, flexWrap:"wrap", marginTop:4 },
+  rivalDiffLbl: { fontFamily:mono, fontSize:8.5, textTransform:"uppercase", letterSpacing:0.5, color:C.text3, marginRight:2 },
+  rivalChip: { fontSize:10.5, fontWeight:600, background:C.cardAlt, border:`1px solid ${C.border}`,
+    borderRadius:5, padding:"1px 6px", cursor:"pointer" },
   srcRow: { display:"flex", alignItems:"center", gap:7, fontSize:11.5, color:C.text2, padding:"3px 0" },
   dotOk: { width:7, height:7, borderRadius:"50%", background:C.green, flexShrink:0 },
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },

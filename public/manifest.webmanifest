@@ -1,0 +1,16 @@
+{
+  "name": "Fantasy plönun",
+  "short_name": "Fantasy",
+  "description": "FPL-skipulagstól: völlur, framtíðar-skipti, FFDR, chips og lifandi staða",
+  "start_url": "/Fantasy/",
+  "scope": "/Fantasy/",
+  "display": "standalone",
+  "background_color": "#f2f2f4",
+  "theme_color": "#37003c",
+  "lang": "is",
+  "icons": [
+    { "src": "/Fantasy/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/Fantasy/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/Fantasy/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

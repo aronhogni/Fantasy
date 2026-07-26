@@ -30,6 +30,15 @@ globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.SVGElement = dom.window.SVGElement;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+/* jsdom skortir oninput/onchange-EIGINDIRNAR á frumgerðinni; react-dom
+   notar ('oninput' in div) til að velja atburðaleið og féll þess vegna á
+   IE9-polyfill (attachEvent) sem er ekki til — onChange á textareitum
+   kviknaði aldrei. Shimmið lætur React velja nútímaleiðina.            */
+if (!("oninput" in dom.window.HTMLElement.prototype)) {
+  for (const ev of ["oninput", "onchange"])
+    Object.defineProperty(dom.window.HTMLElement.prototype, ev, {
+      get() { return null; }, set() {}, configurable: true });
+}
 
 // ---------- fetch-hermun ----------
 let proxyLiveCalls = 0;
@@ -48,6 +57,16 @@ globalThis.fetch = async (url) => {
   if (url.includes("path=fpl-live")) {
     return { ok: true, status: 200, json: async () => ({ elements: [] }) };
   }
+  if (url.includes("path=fpl-entry")) {
+    return { ok: true, status: 200, json: async () => ({ name: "Prófliðið", player_first_name: "Jón" }) };
+  }
+  if (url.includes("path=fpl-picks") && url.includes("id=909")) {
+    // andstæðingur: 13 sameiginlegir + 2 sérstöðumenn, Haaland með bandið
+    return { ok: true, status: 200, json: async () => ({
+      entry_history: { points: 0, total_points: 0 },
+      picks: RIVAL_PICKS.map((el, i) => ({ element: el, position: i + 1, is_captain: el === 411 })),
+    }) };
+  }
   if (url.includes("path=fpl-picks")) {
     return { ok: true, status: 200, json: async () => ({}) };
   }
@@ -56,6 +75,20 @@ globalThis.fetch = async (url) => {
 
 // ---------- flýta setTimeout fyrir toast (annars hangir act) ----------
 const realSetTimeout = globalThis.setTimeout;
+
+// Sérstöðumenn andstæðingsins: tveir raunverulegir leikmenn utan byrjunarliðsins
+const allPlayers = JSON.parse(readFileSync(`${DATA}players.json`, "utf8")).players;
+const START_IDS = [496,11,356,423,542,397,426,239,368,411,346,497,173,278,321];
+const outsiders = allPlayers.filter(p => !START_IDS.includes(p.id)).slice(0, 2).map(p => p.id);
+const RIVAL_PICKS = [...START_IDS.slice(0, 13), ...outsiders];
+
+/* Andstæðingurinn er FORFYLLTUR í vistaða ástandið: jsdom + react-dom
+   eiga í útistöðum um input-atburði á stýrðum textareitum, og það sem
+   skiptir máli að prófa er sóknar-, birtingar- og vistunarflæðið —
+   ekki atburðakerfi jsdom. Hnappa-tengingin er prófuð sér (tómt =
+   villuboð).                                                          */
+dom.window.localStorage.setItem("fpl_planner_v3",
+  JSON.stringify({ rivals: [{ id: "909" }], captain: 411 }));
 
 const { default: App } = await import("../src/App.jsx");
 
@@ -130,7 +163,10 @@ await render();
 ok(text().includes("Leikir"), "yfirlit opnast með leikjalista");
 ok(text().includes("uppsafnað"), "heimildar-skýring birtist");
 ok(!text().includes("undefined"), "ekkert 'undefined' í yfirlitinu");
-const closeBtn = [...container.querySelectorAll("button")].find(b => b.textContent === "✕");
+// Yfirlitsglugginn er SÍÐASTA "✕"-ið í DOM (fjarlægja-hnappur andstæðings
+// í hliðarstikunni notar sama tákn og kemur á undan — fyrsta ✕-ið eyddi
+// óvart andstæðingnum og braut kafla 9!)
+const closeBtn = [...container.querySelectorAll("button")].filter(b => b.textContent === "✕").at(-1);
 await act(async () => { closeBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
 
@@ -157,10 +193,26 @@ await act(async () => {
 await render();
 ok(text().includes("GW5–12") || text().includes("GW5–"), "fyrirsögn fylgir nýjum sjóndeildarhring");
 
-console.log("\n=== 9. VISTUN (localStorage) ===");
+console.log("\n=== 9. ANDSTÆÐINGAR (differentials) ===");
+ok(text().includes("Andstæðingar"), "andstæðinga-svæðið birtist");
+const rivalInput = [...container.querySelectorAll("input")].find(i => i.placeholder?.includes("liðsnúmer"));
+ok(!!rivalInput, "innsláttur fyrir liðsnúmer til staðar");
+// hnappurinn er tengdur: tómt inntak gefur leiðbeininguna
+const addBtn = [...container.querySelectorAll("button")].find(b => b.textContent === "Bæta við");
+await act(async () => { addBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+ok(text().includes("Slóð eða númer andstæðings"), "Bæta við-hnappurinn tengdur (villuboð á tómu)");
+await render(); await render();
+ok(text().includes("Prófliðið"), "nafn andstæðings sótt og birt");
+ok(text().includes("13/15 sameiginlegir"), "sameiginlegir taldir rétt (13/15)");
+ok(text().includes("þeirra sérstaða"), "sérstaða þeirra birt");
+ok(text().includes("þín sérstaða"), "þín sérstaða birt");
+ok(text().includes("sami og þú"), "fyrirliða-samanburður (báðir með Haaland)");
+
+console.log("\n=== 10. VISTUN (localStorage) ===");
 const saved = dom.window.localStorage.getItem("fpl_planner_v3");
 ok(!!saved, "ástand vistast í localStorage");
 ok(JSON.parse(saved).captain === 411, "fyrirliði (Haaland) í vistuðu ástandi");
+ok(JSON.parse(saved).rivals?.length === 1, "andstæðingur vistast með ástandinu");
 
 console.log(`\n========================================`);
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);

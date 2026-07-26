@@ -208,3 +208,20 @@ export function expPointsFor({ p, fxs, fixDifficulty, teamId }) {
   }
   return base * mult * avail;
 }
+
+/* ---- VERÐSPÁ (nálgun) ----
+   FPL birtir ekki verðbreytingaformúluna; þekkta mynstrið er að nettó-
+   flutningar þurfi að ná þröskuldi sem SKALAST með eignarhaldi (fjölda-
+   maður þarf fleiri flutninga til að hreyfast). Við notum kvaðratrótar-
+   skölun á selected_by_percent með 60k grunn — gróf en gagnleg nálgun,
+   MERKT sem spurning ("í nótt?") en aldrei sem vissa.
+   Skilar "up" / "down" / null. chg != 0 = búinn að hreyfast í dag
+   (FPL hreyfir verð að hámarki einu sinni á dag) -> engin spá.          */
+export function priceMovePrediction({ net, selectedByPct, chg }) {
+  if (chg) return null;
+  const pct = Math.max(0.3, parseFloat(selectedByPct) || 0.3);
+  const threshold = 60000 * Math.sqrt(pct / 5);
+  if (net > threshold) return "up";
+  if (net < -threshold) return "down";
+  return null;
+}
