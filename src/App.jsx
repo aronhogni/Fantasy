@@ -375,11 +375,17 @@ function availOf(p) {
   const chance = p?.chance_of_playing_next_round;
   return { ...a, chance, news: (p?.news || "").trim(), isRisk: p?.status && p.status !== "a" };
 }
-// Hversu nálægt NÆSTA spjaldabanni? Skilar null ef gögnin eru ekki komin.
-// ATH: raunverulegt bann kemur úr FPL status ('s') — sjá availOf().
-// Þetta mælir aðeins HÆTTU á komandi banni.
-// Premier League: 5 gul (til umf. 19) = 1 leikur, 10 (til umf. 32) = 2, 15 = 3.
+/* Hversu nálægt NÆSTA spjaldabanni?
+   ATH: raunverulegt bann kemur úr FPL status ('s') — sjá availOf().
+   Þetta mælir aðeins HÆTTU á komandi banni.
+   Premier League: 5 gul (til umf. 19) = 1 leikur, 10 (til umf. 32) = 2, 15 = 3.
+
+   MIKILVÆGT: gul spjöld NÚLLSTILLAST milli tímabila, en FPL sýnir tölur
+   FYRRA tímabils í bootstrap-static þar til nýtt tímabil byrjar. Að reikna
+   bann-hættu á þeim er villa — Luke Shaw var sýndur "9 gul" og "1 frá banni"
+   þegar hann hefur núll. Þess vegna: EKKERT fyrr en umferð er lokin.        */
 function banRisk(p, gwNow, seasonStarted) {
+  if (!seasonStarted) return null;      // spjöld fyrra tímabils gilda ekki
   const y = p?.yellow_cards;
   if (y == null) return null;
   const TIERS = [[5, 19, 1], [10, 32, 2], [15, 38, 3]];
@@ -1682,6 +1688,66 @@ export default function App() {
             onPick={t => setDetail({ kind:"team", id:t })} />
           </div>
 
+          {/* Meiðsli, bönn og hætta í liðinu */}
+          <section style={S.card}>
+            <h2 style={S.h2}>Tiltækileiki liðsins</h2>
+            {(() => {
+              const flagged = squadAt.map(x => byId[x.id]).filter(Boolean).map(pp => ({
+                pp, av: availOf(pp), ban: banRisk(pp, gw, seasonStarted), rot: rotationRisk(pp, seasonGames),
+              })).filter(x => x.av.isRisk || (x.ban && x.ban.level === "high") || (x.rot && x.rot.level === "high"));
+              if (!flagged.length) return <div style={S.okBox}>Allir 15 tiltækir — engin meiðsli, bönn eða spjaldahætta.</div>;
+              return flagged.map(({ pp, av, ban, rot }) => (
+                <div key={pp.id} style={S.riskRow}>
+                  {av.isRisk
+                    ? <span style={{ ...S.riskTag, background:av.bg, color:av.color }}>{av.label}{av.chance != null ? ` ${av.chance}%` : ""}</span>
+                    : ban && ban.level === "high"
+                      ? <span style={{ ...S.riskTag, background:"#fff6e0", color:"#8a5f00" }}>{ban.y} gul</span>
+                      : <span style={{ ...S.riskTag, background:"#eeeef1", color:"#61616b" }}>byrj {rot.pct}%</span>}
+                  <span style={S.riskName}>{pp.web_name}</span>
+                  <span style={S.riskNews} title={av.news}>{av.news ? av.news.slice(0, 42) : ""}</span>
+                </div>
+              ));
+            })()}
+            <div style={S.muted}>
+              Úr FPL: status, chance_of_playing, news, gul spjöld og byrjunarhlutfall.
+              Spjaldabann: 5 gul (til umf. 19) = 1 leikur, 10 = 2, 15 = 3.
+            </div>
+          </section>
+          {/* Verðbreytingar */}
+          <section style={S.card}>
+            <h2 style={S.h2}>Verðbreytingar — flutningar í umferð</h2>
+            <div style={S.muted}>Raungögn: transfers_in/out og cost_change_event úr FPL.</div>
+            {priceMovers.up.map(({ p, net, chg }) => {
+              const mine = squadIds.has(p.id), planned = plan.some(t => t.inId === p.id);
+              return (
+                <div key={p.id} style={S.moveRow}>
+                  <span style={{ ...S.moveName, fontWeight: mine ? 700 : 400, color: planned ? C.green : C.text }}>
+                    {p.web_name} <span style={S.moveTeam}>{teamById[p.team]?.short}</span>
+                  </span>
+                  <span style={S.moveNet}>+{(net/1000).toFixed(0)}k</span>
+                  <span style={{ ...S.moveChg, color: chg > 0 ? C.green : C.text3 }}>
+                    {chg > 0 ? `↑ £${(chg/10).toFixed(1)}` : "—"}
+                  </span>
+                </div>
+              );
+            })}
+            {priceMovers.down.length > 0 && <div style={S.moveSep}>Mest út</div>}
+            {priceMovers.down.map(({ p, net, chg }) => {
+              const mine = squadIds.has(p.id);
+              return (
+                <div key={p.id} style={S.moveRow}>
+                  <span style={{ ...S.moveName, fontWeight: mine ? 700 : 400 }}>
+                    {p.web_name} <span style={S.moveTeam}>{teamById[p.team]?.short}</span>
+                  </span>
+                  <span style={{ ...S.moveNet, color: C.red }}>{(net/1000).toFixed(0)}k</span>
+                  <span style={{ ...S.moveChg, color: chg < 0 ? C.red : C.text3 }}>
+                    {chg < 0 ? `↓ £${Math.abs(chg/10).toFixed(1)}` : "—"}
+                  </span>
+                </div>
+              );
+            })}
+          </section>
+
           {/* FFDR-TAFLAN — plönunar-yfirsýn yfir öll lið */}
           {showFfdr && (
             <FfdrTable teams={teams} fixByTeamGw={fixByTeamGw} teamById={teamById}
@@ -1831,66 +1897,7 @@ export default function App() {
             </section>
           )}
 
-          {/* Verðbreytingar */}
-          <section style={S.card}>
-            <h2 style={S.h2}>Verðbreytingar — flutningar í umferð</h2>
-            <div style={S.muted}>Raungögn: transfers_in/out og cost_change_event úr FPL.</div>
-            {priceMovers.up.map(({ p, net, chg }) => {
-              const mine = squadIds.has(p.id), planned = plan.some(t => t.inId === p.id);
-              return (
-                <div key={p.id} style={S.moveRow}>
-                  <span style={{ ...S.moveName, fontWeight: mine ? 700 : 400, color: planned ? C.green : C.text }}>
-                    {p.web_name} <span style={S.moveTeam}>{teamById[p.team]?.short}</span>
-                  </span>
-                  <span style={S.moveNet}>+{(net/1000).toFixed(0)}k</span>
-                  <span style={{ ...S.moveChg, color: chg > 0 ? C.green : C.text3 }}>
-                    {chg > 0 ? `↑ £${(chg/10).toFixed(1)}` : "—"}
-                  </span>
-                </div>
-              );
-            })}
-            {priceMovers.down.length > 0 && <div style={S.moveSep}>Mest út</div>}
-            {priceMovers.down.map(({ p, net, chg }) => {
-              const mine = squadIds.has(p.id);
-              return (
-                <div key={p.id} style={S.moveRow}>
-                  <span style={{ ...S.moveName, fontWeight: mine ? 700 : 400 }}>
-                    {p.web_name} <span style={S.moveTeam}>{teamById[p.team]?.short}</span>
-                  </span>
-                  <span style={{ ...S.moveNet, color: C.red }}>{(net/1000).toFixed(0)}k</span>
-                  <span style={{ ...S.moveChg, color: chg < 0 ? C.red : C.text3 }}>
-                    {chg < 0 ? `↓ £${Math.abs(chg/10).toFixed(1)}` : "—"}
-                  </span>
-                </div>
-              );
-            })}
-          </section>
 
-          {/* Meiðsli, bönn og hætta í liðinu */}
-          <section style={S.card}>
-            <h2 style={S.h2}>Tiltækileiki liðsins</h2>
-            {(() => {
-              const flagged = squadAt.map(x => byId[x.id]).filter(Boolean).map(pp => ({
-                pp, av: availOf(pp), ban: banRisk(pp, gw, seasonStarted), rot: rotationRisk(pp, seasonGames),
-              })).filter(x => x.av.isRisk || (x.ban && x.ban.level === "high") || (x.rot && x.rot.level === "high"));
-              if (!flagged.length) return <div style={S.okBox}>Allir 15 tiltækir — engin meiðsli, bönn eða spjaldahætta.</div>;
-              return flagged.map(({ pp, av, ban, rot }) => (
-                <div key={pp.id} style={S.riskRow}>
-                  {av.isRisk
-                    ? <span style={{ ...S.riskTag, background:av.bg, color:av.color }}>{av.label}{av.chance != null ? ` ${av.chance}%` : ""}</span>
-                    : ban && ban.level === "high"
-                      ? <span style={{ ...S.riskTag, background:"#fff6e0", color:"#8a5f00" }}>{ban.y} gul</span>
-                      : <span style={{ ...S.riskTag, background:"#eeeef1", color:"#61616b" }}>byrj {rot.pct}%</span>}
-                  <span style={S.riskName}>{pp.web_name}</span>
-                  <span style={S.riskNews} title={av.news}>{av.news ? av.news.slice(0, 42) : ""}</span>
-                </div>
-              ));
-            })()}
-            <div style={S.muted}>
-              Úr FPL: status, chance_of_playing, news, gul spjöld og byrjunarhlutfall.
-              Spjaldabann: 5 gul (til umf. 19) = 1 leikur, 10 = 2, 15 = 3.
-            </div>
-          </section>
 
           {/* Lið: FFDR-röðun + DefCon (það eina sem er EKKI í FFDR) */}
           <section style={S.card}>
