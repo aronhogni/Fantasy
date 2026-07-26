@@ -1031,23 +1031,43 @@ async function fetchInjuries() {
     console.log(`API-Sports: ${plan}`);
   } catch (e) { console.warn("API-Sports /status:", e.message); }
 
-  // aðalleiðin: deild + tímabil. league=39 = Premier League.
+  /* EMPÍRÍSKT MÆLT (keyrsla 2026-07-26): season=2026 er LÆST á fría
+     þrepinu; date-leiðin virkar villulaust en `date` síar eftir LEIKDEGI
+     leiksins sem meiðslin tengjast. Rétta spurningin er því um KOMANDI
+     leikdaga — nákvæmlega dagana sem skipta máli fyrir frest-ákvarðanir.
+     Við spyrjum um allt að 6 næstu leikdaga (úr fixtures.json) = ≤6 köll
+     af 100 dagskvótanum. Season-leiðin er samt reynd fyrst svo uppfærsla
+     í borgað þrep virki sjálfkrafa (1 kall í stað 6).                   */
+  const errTxt = o => (o.errors && (Array.isArray(o.errors) ? o.errors.join("; ") : JSON.stringify(o.errors))) || "";
   const seasonYear = 2026;
   let d = await apiSports(`/injuries?league=39&season=${seasonYear}`);
   let via = `league+season=${seasonYear}`;
-  const errTxt = o => (o.errors && (Array.isArray(o.errors) ? o.errors.join("; ") : JSON.stringify(o.errors))) || "";
-  if (!d.response?.length && errTxt(d)) {
-    // fallback: date-leiðin (gæti sloppið við tímabils-lásinn)
-    console.warn(`API-Sports injuries (${via}): ${errTxt(d)} — reyni date-leiðina`);
-    const today = new Date().toISOString().slice(0, 10);
-    const d2 = await apiSports(`/injuries?league=39&date=${today}`);
-    if (d2.response?.length || !errTxt(d2)) { d = d2; via = `date=${today}`; }
-  }
-  if (errTxt(d) && !d.response?.length) {
-    await writeJSON("injuries.json", { updated: status.updated, plan, via,
-      error: errTxt(d), note: "API-Sports svaraði með villu — sjá error.", players: [], unmatched: [] });
-    record("apisports_injuries", false, 0, `${errTxt(d).slice(0, 70)} (${via})`);
-    return;
+  if (!d.response?.length) {
+    if (errTxt(d)) console.warn(`API-Sports injuries (${via}): ${errTxt(d)} — nota leikdaga-leiðina`);
+    let dates = [];
+    try {
+      const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
+      const now = Date.now();
+      dates = [...new Set(fixtures
+        .filter(f => f.kickoff_time && new Date(f.kickoff_time) > now - 864e5 && !f.finished)
+        .sort((a, b) => a.kickoff_time.localeCompare(b.kickoff_time))
+        .map(f => f.kickoff_time.slice(0, 10)))].slice(0, 6);
+    } catch {}
+    const merged = []; const errs = [];
+    for (const dt of dates) {
+      const r = await apiSports(`/injuries?league=39&date=${dt}`);
+      if (errTxt(r)) errs.push(`${dt}: ${errTxt(r)}`);
+      merged.push(...(r.response || []));
+      d = r;   // heldur remaining-hausnum af síðasta kalli
+    }
+    d = { ...d, response: merged };
+    via = dates.length ? `leikdagar ${dates[0]}…${dates[dates.length - 1]} (${dates.length} köll)` : "engir komandi leikdagar";
+    if (errs.length && !merged.length) {
+      await writeJSON("injuries.json", { updated: status.updated, plan, via,
+        error: errs.join(" | ").slice(0, 200), players: [], unmatched: [] });
+      record("apisports_injuries", false, 0, errs[0].slice(0, 70));
+      return;
+    }
   }
 
   // para API-nöfn við FPL-id: normalíserað fullt nafn + "F. Eftirnafn"
@@ -1092,7 +1112,7 @@ async function fetchInjuries() {
     else unmatched.push(`${rec.name_api} (${rec.team_api})`);
   }
   await writeJSON("injuries.json", { updated: status.updated, plan, via,
-    note: "Tegund og ástæða meiðsla úr API-Sports /injuries. FPL-status ræður áfram tiltækileika; þetta AUÐGAR hann.",
+    note: "Tegund og ástæða meiðsla úr API-Sports /injuries fyrir komandi leikdaga. FPL-status ræður áfram tiltækileika; þetta AUÐGAR hann. Fyrir tímabil (engir leikdagar framundan innan glugga) er listinn eðlilega tómur.",
     players: out, unmatched });
   record("apisports_injuries", true, out.length,
     `${via} · ${out.length} paraðir · ${unmatched.length} óparaðir · ${d.remaining ?? "?"} köll eftir í dag`);
