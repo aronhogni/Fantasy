@@ -193,7 +193,32 @@ og lagaðu nafnapörun ef `unmatched` er stór.
 
 ---
 
-## 9. Fyrsta lota í Claude Code — tillaga
+## 9. Það sem þetta skjal getur EKKI flutt með sér
+
+Þrennt fylgir ekki repo-inu og þarf að vera til á vélinni:
+
+1. **Git-skilríki.** `gh auth login` eða SSH-lykill. (Og afturkallaðu PAT-ið, sjá kafla 1.)
+2. **API-lyklarnir**, ef þú vilt keyra `scripts/fetch.mjs` staðbundið. Þeir búa í
+   GitHub Secrets og pipeline fær þá þar; `fetch.mjs` les aðeins `process.env`
+   (ekkert dotenv). Staðbundið:
+   ```bash
+   export API_SPORTS_KEY=...  ODDS_API_KEY=...  EURO_API_KEY=...
+   node scripts/fetch.mjs
+   ```
+   Vantar lykil → `FLAGS` sleppir þeirri heimild þegjandi (ekki hrun), svo þú
+   getur keyrt hitt án þeirra. `.env` og `.env.local` eru í `.gitignore` —
+   **repo er public, aldrei lykil í commit.**
+3. **Þitt eigið liðsástand** (byrjunarlið, fyrirliði, skiptaáætlun, chips,
+   andstæðingar) er í `localStorage` í vafranum, ekki í repo. Það flyst ekki
+   milli véla; `START_IDS` í `tests/smoke.test.mjs` er aðeins prófliðið.
+
+Allt annað er í repo-inu: prófin (144, þau **framkvæma** ákvarðanirnar í kafla 3
+og eru þar með áreiðanlegri en prósa), `README.md`, `data/SCHEMA.md` og
+commit-sagan á íslensku.
+
+---
+
+## 10. Fyrsta lota í Claude Code — tillaga
 
 ```bash
 npm ci && npm test && npm run build      # allt á að vera grænt
