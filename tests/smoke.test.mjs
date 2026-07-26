@@ -161,11 +161,15 @@ const infoBtns = [...container.querySelectorAll("button")].filter(b => b.title =
 await act(async () => { infoBtns[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
 ok(text().includes("Leikir"), "yfirlit opnast með leikjalista");
-ok(text().includes("uppsafnað"), "heimildar-skýring birtist");
-// HVAÐAN tölurnar eru: fyrir tímabil á hver uppsöfnuð tala að bera
-// "2025/26" (reiknað úr GW1-frestinum), ekki loðið "sl. tímabil"
-ok(text().includes("2025/26"), "uppsafnaðar tölur merktar tímabilinu 2025/26");
+// FLOKKUNIN: tölurnar undir þremur fyrirsögnum með heimild og tímabili
+ok(text().includes("Núna"), "flokkurinn 'Núna — lifandi' birtist");
+ok(text().includes("Tímabilið 2025/26"), "tímabils-flokkurinn með réttu ártali (úr GW1-fresti)");
+ok(text().includes("uppsafnað"), "fyrirsögnin útskýrir uppsöfnunina");
 ok(!text().includes("sl. tímabil"), "loðna merkingin 'sl. tímabil' horfin");
+// dálkarnir undir tímabils-fyrirsögninni
+for (const k of ["Stig/leik", "Mínútur", "xG / 90", "Mörk + assist", "Gul / rauð"])
+  ok(text().includes(k), `dálkurinn '${k}' undir tímabils-flokknum`);
+ok(text().includes("Spá næstu"), "ep undir 'Núna'-flokknum");
 // FERÐALENGDIN (var reiknuð daglega en birtist hvergi): ✈ + km á leikjaröðum
 ok(/✈\d+/.test(text()), "ferðalengd (✈ km) birtist á leikjaröðum yfirlitsins");
 const travelChip = [...container.querySelectorAll("span")].find(el => /✈\d+/.test(el.textContent) && el.title);

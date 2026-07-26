@@ -202,6 +202,30 @@ async function fetchFPL() {
   await writeJSON(`history/${today}.json`, snap);
   record("fpl_history_snapshot", true, snap.length, today);
 
+  // ---- TÍMABILS-GRUNNUR fyrir "í fyrra"-dálkinn í yfirlitinu ----
+  // FYRIR tímabil eru uppsöfnuðu tölurnar í bootstrap LOKATÖLUR fyrra
+  // tímabils. Við skrifum þær daglega MEÐAN engin umferð er lokin; um
+  // leið og GW1 klárast hættum við að skrifa -> skráin FRÝS sem
+  // 2025/26-lokatölurnar og appið getur sýnt "í ár vs. í fyrra".
+  if (!events.some(ev => ev.finished)) {
+    const y = new Date(events[0]?.deadline_time || Date.now()).getFullYear();
+    await writeJSON("season_baseline.json", {
+      updated: status.updated,
+      label: `${y - 1}/${String(y).slice(-2)}`,
+      note: "Lokatölur fyrra tímabils. Skrifað daglega FRAM AÐ GW1, frýs svo.",
+      players: els.map(e => ({
+        id: e.id, total_points: e.total_points, minutes: e.minutes,
+        points_per_game: e.points_per_game, starts: e.starts,
+        goals_scored: e.goals_scored, assists: e.assists,
+        expected_goals: e.expected_goals, expected_assists: e.expected_assists,
+        clean_sheets: e.clean_sheets, yellow_cards: e.yellow_cards, red_cards: e.red_cards,
+      })),
+    });
+    record("season_baseline", true, els.length, "fyrir tímabil — uppfært daglega");
+  } else {
+    record("season_baseline", true, 0, "frosið (tímabil hafið)");
+  }
+
   // event/{gw}/live/ fyrir LOKNAR umferðir. Fyrsta keyrsla: allar. Eftir það: nýjustu.
   const finished = events.filter(ev => ev.finished).map(ev => ev.id);
   let liveCount = 0;

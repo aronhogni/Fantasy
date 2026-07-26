@@ -431,6 +431,7 @@ export default function App() {
   const [elo, setElo] = useState(null);
   const [weather, setWeather] = useState(null);
   const [travel, setTravel] = useState(null);   // ferðalengd útiliðs per leik (pipeline)
+  const [baseline, setBaseline] = useState(null); // lokatölur FYRRA tímabils (frystar við GW1)
   const [eloFx, setEloFx] = useState(null);
   const [euroFx, setEuroFx] = useState(null);
   const [pipeStatus, setPipeStatus] = useState(null);
@@ -509,6 +510,7 @@ export default function App() {
         try { setElo(await j("elo.json")); } catch {}
         try { setWeather(await j("weather.json")); } catch {}
         try { setTravel(await j("travel.json")); } catch {}
+        try { setBaseline(await j("season_baseline.json")); } catch {}
         try { setEloFx(await j("elo_fixtures.json")); } catch {}
         try { setEuroFx(await j("euro_fixtures.json")); } catch {}
         try { setNews(await j("news.json")); } catch {}
@@ -855,6 +857,11 @@ export default function App() {
     (travel?.fixtures || []).forEach(t => m[t.fixture_id] = t);
     return m;
   }, [travel]);
+  const baselineById = useMemo(() => {
+    const m = {};
+    (baseline?.players || []).forEach(b => m[b.id] = b);
+    return m;
+  }, [baseline]);
   const weatherReady = useMemo(() =>
     (weather?.fixtures || []).some(w => w.temp_c != null), [weather]);
 
@@ -2233,40 +2240,90 @@ export default function App() {
                 </div>
               )}
 
-              {/* tölur */}
-              <div style={S.dGrid}>
-                {isPlayer ? (
-                  <>
-                    {/* SKÝRING á heimildar-merkjum — svo aldrei sé óljóst */}
-                    <div style={S.srcLegend}>
-                      <span>merkið við hverja tölu segir hvaðan hún er:</span>
-                      <span><b style={{ color:C.green }}>nú</b> = lifandi úr FPL</span>
-                      <span><b style={{ color:C.amber }}>{cumLabel}</b> = uppsafnað yfir það tímabil</span>
-                      <span><b style={{ color:C.purple }}>reikn.</b> = mat appsins</span>
-                    </div>
-                    <DStat k="Spá næstu (ep)" v={p.ep_next} src="live" />
-                    <DStat k="Form" v={p.form} src="cum" period={cumLabel} />
-                    <DStat k="Stig/leik" v={p.points_per_game} src="cum" period={cumLabel} />
-                    <DStat k="Stig samtals" v={p.total_points} src="cum" period={cumLabel} />
-                    <DStat k="Eignarhlutfall" v={`${p.selected_by_percent}%`} src="live" />
-                    <DStat k="Mínútur" v={p.minutes} src="cum" period={cumLabel} />
-                    <DStat k="xG / 90" v={per90(p.expected_goals, p.minutes) ?? "—"} src="cum" period={cumLabel} />
-                    <DStat k="xA / 90" v={per90(p.expected_assists, p.minutes) ?? "—"} src="cum" period={cumLabel} />
-                    {p.element_type <= 2 && <DStat k="Hrein blöð" v={p.clean_sheets} src="cum" period={cumLabel} />}
-                    {rot && <DStat k="Byrjaði" v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} src="cum" period={cumLabel} />}
-                    {p.yellow_cards != null && <DStat k="Gul / rauð" v={`${p.yellow_cards} / ${p.red_cards ?? 0}`} src="cum" period={cumLabel}
-                      sub={seasonStarted ? null : "núllstillast — engin bann-hætta enn"} />}
-                    {sp && <DStat k="Vítaröð" v={sp.pen ?? "—"} sub={sp.isPenTaker ? "fyrsti taki" : ""} src="live" />}
-                  </>
-                ) : (
-                  <>
-                    <DStat k="ClubElo" v={e ? Math.round(e.elo) : "—"} sub={e ? `rank ${e.rank}` : "ekki paraður"} src="live" />
-                    <DStat k="xG / leik" v={tm.xg90 ?? "—"} src="calc" />
-                    <DStat k="xGC / 90" v={tm.xgc90 ?? "—"} sub="lægra betra" src="calc" />
-                    <DStat k="DefCon-tækifæri" v={dcv ? dcv.defcon_opportunity : "—"} sub="hærra = fleiri CBIT" src="calc" />
-                  </>
-                )}
-              </div>
+              {/* ---------- TÖLUR — FLOKKAÐAR UNDIR FYRIRSÖGNUM ----------
+                  Þrír flokkar með lit fyrirsagnarinnar sem heimildar-merki:
+                  grænt = lifandi núna · gult = tímabils-uppsöfnun (með
+                  dálkum "í ár" og "í fyrra" þegar bæði eru til) ·
+                  fjólublátt = reiknað mat appsins.                        */}
+              {isPlayer ? (
+                <>
+                  <div style={S.dGroupHead}>
+                    <span style={{ ...S.dGroupDot, background:C.green }} />
+                    Núna <span style={S.dGroupSub}>lifandi úr FPL</span>
+                  </div>
+                  <div style={S.dGrid}>
+                    <DStat k="Spá næstu (ep)" v={p.ep_next} />
+                    <DStat k="Eignarhlutfall" v={`${p.selected_by_percent}%`} />
+                    <DStat k="Form" v={p.form} sub="rúllandi 30 dagar" />
+                    {sp && <DStat k="Vítaröð" v={sp.pen ?? "—"} sub={sp.isPenTaker ? "fyrsti taki" : ""} />}
+                  </div>
+
+                  <div style={S.dGroupHead}>
+                    <span style={{ ...S.dGroupDot, background:C.amber }} />
+                    {seasonStarted && baselineById[p.id]
+                      ? <>Tímabilin <span style={S.dGroupSub}>uppsafnað — í ár á móti í fyrra</span></>
+                      : <>Tímabilið {cumLabel} <span style={S.dGroupSub}>uppsafnað{seasonStarted ? "" : " — nýtt tímabil ekki hafið"}</span></>}
+                  </div>
+                  {(() => {
+                    const bl = baselineById[p.id];
+                    const rows = [
+                      ["Stig", p.total_points, bl?.total_points],
+                      ["Stig/leik", p.points_per_game, bl?.points_per_game],
+                      ["Mínútur", p.minutes, bl?.minutes],
+                      rot && ["Byrjaði", `${rot.starts}/${rot.played} (${rot.pct}%)`,
+                        bl?.starts != null ? `${bl.starts}/38 (${Math.round(bl.starts / 38 * 100)}%)` : null],
+                      ["Mörk + assist", `${p.goals_scored ?? 0} + ${p.assists ?? 0}`,
+                        bl ? `${bl.goals_scored ?? 0} + ${bl.assists ?? 0}` : null],
+                      ["xG / 90", per90(p.expected_goals, p.minutes) ?? "—",
+                        bl ? (per90(bl.expected_goals, bl.minutes) ?? "—") : null],
+                      ["xA / 90", per90(p.expected_assists, p.minutes) ?? "—",
+                        bl ? (per90(bl.expected_assists, bl.minutes) ?? "—") : null],
+                      p.element_type <= 2 && ["Hrein blöð", p.clean_sheets, bl?.clean_sheets],
+                      ["Gul / rauð", `${p.yellow_cards ?? 0} / ${p.red_cards ?? 0}`,
+                        bl ? `${bl.yellow_cards ?? 0} / ${bl.red_cards ?? 0}` : null],
+                    ].filter(Boolean);
+                    /* Þegar bæði tímabil eru til: SAMANBURÐARTAFLA með dálk
+                       fyrir hvort. Annars venjulegt dálkanet — sama gagn. */
+                    if (seasonStarted && bl) return (
+                      <table style={S.cmpTable}>
+                        <thead><tr>
+                          <th style={S.cmpTh}></th>
+                          <th style={{ ...S.cmpTh, ...S.cmpThNum }}>í ár · GW1–{seasonGames}</th>
+                          <th style={{ ...S.cmpTh, ...S.cmpThNum, color:C.text3 }}>{baseline?.label || "í fyrra"}</th>
+                        </tr></thead>
+                        <tbody>
+                          {rows.map(([k, cur, prev]) => (
+                            <tr key={k}>
+                              <td style={S.cmpK}>{k}</td>
+                              <td style={S.cmpV}>{cur ?? "—"}</td>
+                              <td style={{ ...S.cmpV, color:C.text3 }}>{prev ?? "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    );
+                    return (
+                      <div style={S.dGrid}>
+                        {rows.map(([k, cur]) => <DStat key={k} k={k} v={cur ?? "—"}
+                          sub={k === "Gul / rauð" && !seasonStarted ? "núllstillast við GW1" : null} />)}
+                      </div>
+                    );
+                  })()}
+                </>
+              ) : (
+                <>
+                  <div style={S.dGroupHead}>
+                    <span style={{ ...S.dGroupDot, background:C.purple }} />
+                    Styrkur liðsins <span style={S.dGroupSub}>reiknað mat appsins ({cumLabel}) · ClubElo lifandi</span>
+                  </div>
+                  <div style={S.dGrid}>
+                    <DStat k="ClubElo" v={e ? Math.round(e.elo) : "—"} sub={e ? `rank ${e.rank}` : "ekki paraður"} />
+                    <DStat k="xG / leik" v={tm.xg90 ?? "—"} />
+                    <DStat k="xGC / 90" v={tm.xgc90 ?? "—"} sub="lægra betra" />
+                    <DStat k="DefCon-tækifæri" v={dcv ? dcv.defcon_opportunity : "—"} sub="hærra = fleiri CBIT" />
+                  </div>
+                </>
+              )}
 
               {/* VERÐ: kaup, sala, hagnaður (50%-reglan) */}
               {isPlayer && squadIds.has(p.id) && (() => {
@@ -2590,27 +2647,13 @@ function PlayerImg({ code, short, size = 34 }) {
     onError={() => setOk(false)} loading="lazy" />;
 }
 
-/* Heimildar-merki: "nú" (lifandi), "∑" (uppsafnað), "reikn." (okkar mat).
-   Skýringin fyrir ofan (srcLegend) vísar í þessi merki — áður var src-propið
-   hent og skýringin lofaði merkjum sem birtust hvergi. */
-const DSTAT_SRC = {
-  live: ["nú", "#00b96b"], cum: ["∑", "#c98a00"], calc: ["reikn.", "#37003c"],
-};
-/* period-propið (t.d. "2025/26" eða "GW1–7") kemur í stað ∑-táknsins á
-   uppsöfnuðum tölum, svo hver tala segir SJÁLF hvaðan hún er — það var
-   ekki nógu skýrt að fela tímabilið í skýringunni einni.                */
-function DStat({ k, v, sub, src, period }) {
-  const tag = DSTAT_SRC[src];
-  const label = src === "cum" && period ? period : tag?.[0];
-  const title = src === "live" ? "Lifandi tala úr FPL núna"
-    : src === "cum" ? `Uppsafnað yfir ${period || "tímabilið"}`
-    : src === "calc" ? "Reiknað mat appsins úr opinberum gögnum" : undefined;
+/* Heimildin býr í FLOKKS-fyrirsögninni fyrir ofan (Núna / Tímabilið X /
+   Styrkur) — per-tölu merkin sem voru hér reyndust óþörf tvítekning
+   þegar tölurnar flokkuðust rétt.                                       */
+function DStat({ k, v, sub }) {
   return (
     <div style={S.dStat}>
-      <div style={S.dStatK}>
-        {k}
-        {tag && <span style={{ ...S.srcTag, color: tag[1] }} title={title}>{label}</span>}
-      </div>
+      <div style={S.dStatK}>{k}</div>
       <div style={S.dStatV}>{v}</div>
       {sub ? <div style={S.dStatS}>{sub}</div> : null}
     </div>
@@ -3234,11 +3277,19 @@ const S = {
   dAlert: { borderRadius:8, padding:"8px 10px", fontSize:12, marginBottom:9 },
   dGrid: { display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(88px,1fr))", gap:7, marginBottom:12 },
   dStat: { background:C.cardAlt, borderRadius:8, padding:"7px 9px" },
-  srcLegend: { gridColumn:"1 / -1", display:"flex", gap:12, flexWrap:"wrap", fontSize:9,
-    color:C.text3, marginBottom:2, paddingBottom:5, borderBottom:`1px solid ${C.border}` },
   dStatK: { fontFamily:mono, fontSize:8.5, textTransform:"uppercase", letterSpacing:0.5, color:C.text3 },
   dStatV: { fontFamily:mono, fontSize:15, fontWeight:700, marginTop:1 },
   dStatS: { fontSize:9, color:C.text3 },
+  dGroupHead: { display:"flex", alignItems:"baseline", gap:6, fontSize:12, fontWeight:700,
+    color:C.text, marginBottom:6, marginTop:2, paddingTop:8, borderTop:`1px solid ${C.border}` },
+  dGroupDot: { width:8, height:8, borderRadius:"50%", flexShrink:0, alignSelf:"center" },
+  dGroupSub: { fontFamily:mono, fontSize:9, fontWeight:400, color:C.text3, letterSpacing:0.2 },
+  cmpTable: { width:"100%", borderCollapse:"collapse", marginBottom:12, fontSize:11.5 },
+  cmpTh: { fontFamily:mono, fontSize:8.5, textTransform:"uppercase", letterSpacing:0.5,
+    color:C.amber, textAlign:"left", padding:"2px 6px", borderBottom:`1px solid ${C.border}` },
+  cmpThNum: { textAlign:"right" },
+  cmpK: { color:C.text2, padding:"3px 6px", borderBottom:`1px solid ${C.page}` },
+  cmpV: { fontFamily:mono, fontWeight:700, textAlign:"right", padding:"3px 6px", borderBottom:`1px solid ${C.page}` },
   dSectionLbl: { display:"flex", alignItems:"baseline", gap:7, fontSize:12.5, fontWeight:700, color:C.purple, marginBottom:6, paddingTop:4, borderTop:`1px solid ${C.border}` },
   dSectionNote: { fontFamily:mono, fontSize:9.5, fontWeight:400, color:C.text3 },
   dFixList: { display:"flex", flexDirection:"column", gap:2, marginBottom:12 },
@@ -3277,8 +3328,6 @@ const S = {
   pSell: { fontFamily:mono, fontSize:8.5, color:C.red, marginLeft:2 },
   dActions: { display:"flex", gap:6, flexWrap:"wrap", paddingTop:8, borderTop:`1px solid ${C.border}` },
   dBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:7, padding:"7px 11px", fontSize:12, color:C.text, cursor:"pointer", fontWeight:500 },
-  srcTag: { marginLeft:4, fontFamily:mono, fontSize:7.5, fontWeight:700, letterSpacing:0.2,
-    textTransform:"none", opacity:0.85 },
   dotWait: { width:7, height:7, borderRadius:"50%", background:"#f59e0b", flexShrink:0 },
 
   recHead: { display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" },
