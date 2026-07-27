@@ -21,8 +21,14 @@ Tímabilið **2026/27 hefst 21. ágúst 2026** (GW1-frestur 21.8 kl. 17:30 UTC);
 | Proxy | Netlify function `netlify/functions/odds.js` | **EINA** sem Netlify hýsir |
 
 **Skráastærðir** (til að vita hvað þú ert að opna):
-`src/App.jsx` 3.397 l · `scripts/fetch.mjs` 1.769 l · `src/model.js` 232 l ·
-`src/Pitch.jsx` 124 l · `netlify/functions/odds.js` 201 l · prófin ~790 l.
+`src/App.jsx` 3.397 l · `scripts/fetch.mjs` ~1.740 l · `src/model.js` ~265 l ·
+`src/market.js` 95 l · `src/Pitch.jsx` 124 l · `netlify/functions/odds.js` 201 l ·
+prófin ~1.180 l (fimm söfn, sjá kafla 4).
+
+**`src/market.js`** (nýtt 27.7.): markaðs-umbreytingin (odds -> vænt mörk ->
+FFDR-þyngd) var inni í `fetch.mjs` og því ÓPRÓFANLEG þótt hún beri 0,80 af
+vog varnarmanns. Nú flytja pipeline OG bakprófin sömu skrá. Ekki afrita
+þessar formúlur til baka inn í `fetch.mjs`.
 
 **Leyndarmál í GitHub Secrets:** `ODDS_API_KEY`, `EURO_API_KEY`, `API_SPORTS_KEY`.
 Þau eru gefin sem `env` í `fetch.yml`. Aldrei setja lykil í kóða eða í commit.
@@ -62,6 +68,29 @@ Vogtölur og töflur þar eru **mældar**, ekki valdar: grid-leit með krosspró
 Ef þú vilt breyta þeim, þarf mæling að réttlæta það — annars fer bakprófið
 niður og það er rétt hjá því.
 
+**MÆLT 27.7.2026 — WALK-FORWARD Á 8 TÍMABILUM** (`tests/ffdr-walkforward.mjs`,
+6.080 lið-leikir, styrkur alltaf úr fyrra tímabili, markaðslína endurbyggð úr
+B365-oddsum, Elo reiknað fram í tímann). Þrennt sem eldra bakprófið gat ekki séð:
+
+| inntak | r við mörk á sig |
+|---|---|
+| markaðslínan ein | **0,394** |
+| FFDR (full inntök, mkt 0,80) | 0,393 |
+| FFDR án markaðar (líkanskjarninn) | 0,290 |
+| hrátt FDR eitt | 0,245 |
+
+1. **`mkt` fyrir GK/DEF var hækkað 0,50 -> 0,80.** Einræn framför upp að ~0,8
+   og 0,80 slær 0,50 í **8/8 tímabilum**; kvörðun birtu CS%-talnanna batnaði
+   samtímis úr +2,5pp halla í −0,6pp. Tvö óskyld viðmið sammála. Síðustu 0,2
+   eru viljandi eftir (dómur, ekki mæling): línan kemur úr fáum bókmökurum og
+   ein skekkt lína á ekki að ráða þyngdinni alveg.
+2. **`mkt` fyrir MID/FWD stendur í 0,35.** Mælt optimum 0,50 gaf r −0,3404 á
+   móti −0,3403 og sló núverandi í aðeins 4/8 tímabilum — hreint suð.
+   Mæling sem segir „ekki breyta“ er niðurstaða, ekki mistök.
+3. **Sóknarhópurinn var aldrei bakprófaður** og virkar: r=−0,345 við mörk
+   skoruð (hrátt FDR −0,168), 2,24 mörk/leik í léttasta sjöttungi á móti 0,88
+   í þyngsta.
+
 Ákvarðanir sem eru vísvitandi og hafa þegar verið véfengdar einu sinni:
 
 - **FFDR** er útkoman. ClubElo, xGC og markaðslína (bókmakarar) eru **inntök**
@@ -90,19 +119,35 @@ niður og það er rétt hjá því.
   leggst saman, auð umferð = 0.
 - **Verðspáin** („↑ í nótt?“) er **nálgun** — FPL birtir ekki formúluna. Þröskuldur
   skalast með eignarhaldi (√). Hún má aldrei birtast sem vissa.
+- **Markaðsþyngd er reiknuð úr `xga` þegar `diff` vantar** (`model.js`). Ekki
+  fjarlægja þá varaleið: `diff` var bætt í pipeline 25.7. kl. 20:29 en
+  `odds.json` var síðast skrifuð kl. 17:30 sama dag, og odds eru aðeins sótt
+  tvisvar per umferð — svo skráin í notkun hafði **aldrei** `diff`, `bkValid`
+  var alltaf falskt og **markaðsliðurinn var dauður í appinu í heila viku**
+  þótt öll 144 prófin væru græn (þau prófuðu formúluna, ekki hvort gögnin sem
+  hún fær séu nýtileg). `xga` er einmitt inntakið í `marketDiff`, svo þetta er
+  sama talan. Vörður: kafli 5b í `model.test.mjs`.
 
 ---
 
 ## 4. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir fjögur söfn, **144 próf**, öll græn:
+`tests/run-tests.mjs` keyrir **fimm** söfn, **173 próf**, öll græn:
 
 | Safn | Fjöldi | Hvað það gerir |
 |---|---|---|
-| `model.test.mjs` | 77 | Hver birt tala: söluverð, frí skipti/refsingar, vænt stig, mælda taflan, FFDR-eiginleikar, verðspá, PWA-skrár. **Endurkvarðar litamörkin úr `data/`.** |
-| `ffdr-backtest.mjs` | 10 | FFDR spáð fyrir öllum 380 leikjum 2025/26 með styrk 2024/25 eingöngu. Grænasti sjöttungur 38% CS vs 13% rauðasti; r=0,220 við mörk á sig (hrátt FDR 0,169). Tölfræðileg vikmörk, ekki hörð mörk. |
+| `model.test.mjs` | 83 | Hver birt tala: söluverð, frí skipti/refsingar, vænt stig, mælda taflan, FFDR-eiginleikar, verðspá, PWA-skrár. **Endurkvarðar litamörkin úr `data/`.** Kafli 5b: vörður að hver röð í `odds.json` sé NÝTILEG (`diff` eða `xga`, `opp`, `kickoff`, gagnkvæm) — sá vörður vantaði og það kostaði viku af dauðum markaðslið. |
+| `ffdr-backtest.mjs` | 10 | Spáir öllum 380 leikjum 2025/26 með styrk 2024/25 eingöngu. Svarar **„halda LITIRNIR?“** á einu tímabili. Grænasti sjöttungur 33% CS vs 13% rauðasti; r=0,217. Tölfræðileg vikmörk, ekki hörð mörk. |
+| `ffdr-walkforward.mjs` | 23 | **8 tímabil (1819–2526), 6.080 lið-leikir, FULL inntök** — markaðslína endurbyggð úr B365-oddsum og Elo reiknað fram í tímann. Svarar því sem eldra bakprófið gat ekki: er FFDR betri en **sitt besta inntak**, er MEASURED-taflan rétt **kvörðuð** (ekki bara rétt röðuð), og virkar **sóknarhópurinn**. Sjá kafla 3. |
 | `travel-measure.mjs` | 2 | Vörðurinn í kafla 3. |
 | `smoke.test.mjs` | 55 | Appið keyrt í **jsdom** með raunverulegum `data/`-skrám og hermdu `fetch`. 15 spjöld, peningar (banki+lið = £100.0), umferðaskipti, FPL-reglur, chips, andstæðingar, vistun, meiðsli, ferðalengd. |
+
+**`tests/lib/e0.mjs`** byggir spá-heiminn (liðsstyrkur, FDR-nálgun, markaðslína,
+Elo) fyrir BÁÐA bakprófin. Ein uppbygging á einum stað — annars getur eitt
+bakpróf mælt annan heim en hitt og bæði virst græn á meðan þau eru
+ósamanburðarhæf. **FDR-nálgunin er kvörðuð gegn raunverulegu FPL-FDR** í
+`data/fixtures.json` (meðaltal 3,05); gamla nálgunin var 0,25 þyngri og
+skekkti allan líkanskjarna bakprófsins. Vörður fylgir.
 
 **Gildrur í smoke-prófinu** (kostuðu tíma, ekki endurtaka):
 - Sértækir `fetch`-mock-ar verða að koma **Á UNDAN** almenna `raw`-handlernum.
@@ -160,6 +205,39 @@ og lagaðu nafnapörun ef `unmatched` er stór.
 ---
 
 ## 7. Næstu skref (rædd, ekki byrjað)
+
+### 0. OPINN GALLI, MÆLDUR — KVARÐARNIR TVEIR STANGAST Á
+
+Þetta er **stærsta ómleysta atriðið** og það var mælt 27.7.2026. Sannað úr
+föstunum sjálfum, engin gögn þarf:
+
+| kvarði | hvar liggur MEÐALLEIKUR? |
+|---|---|
+| `MEASURED_POS[2]` (taflan sem CS% á spjöldum kemur úr) | d ≈ **2,51** (CS 26,1% = raunveruleg tíðni) |
+| `marketDiff` (bókmakaralínan) | d = **2,44** ✅ samræmi |
+| líkanskjarninn `fdr*0,45 + own*3*0,55` | d = **3,02** ❌ ~0,5 of þungt |
+
+Kjarninn er byggður á „1–5 kvarða með miðju í 3“ en taflan er á kvarða þar sem
+meðalleikur er 2,5. **Afleiðing:** leikir MEÐ markaðslínu (aðeins næsta umferð)
+sýna rétt CS%; leikir ÁN línu (**allar seinni umferðir**) sýna CS% sem er
+**6,7pp of svartsýnt** — mælt á 6.080 lið-leikjum. Vænt stig hallar sömu leið.
+
+Þetta bitnar beint á því sem tólið er til fyrir: að bera leiki saman yfir
+sjóndeildarhring. Næsta umferð litast grænni en seinni umferðir án þess að vera
+léttari (15/20 lið-leikir í GW1 skiptu lit þegar markaðurinn lifnaði við).
+
+**EKKI LAGAÐ VILJANDI.** Leiðréttingin færir hverja birta tölu fyrir allar
+umferðir nema næstu, og valið er hönnunarákvörðun sem notandi á að taka:
+- (a) **kvarða kjarnann** á töfluna (affint; fylgni haggast ekki, litahlutföll
+  haldast því `TIER_CUTS` eru afstæðir sextílar — en CS% og vænt stig hækka), eða
+- (b) **endurmæla `MEASURED_POS`** á kjarnakvarðanum.
+(a) er líklega rétt: markaðskvarðinn er sjálfstætt staðfestur réttur
+(−2,4pp á móti −6,7pp), svo það er kjarninn sem er skekktur.
+
+Mælingin er í `ffdr-walkforward.mjs` kafla 9 og prentast í hverri keyrslu, svo
+hún er sýnileg og getur ekki rekið hljóðlega.
+
+### Annað
 
 1. **`/fixtures/lineups` — staðfest byrjunarlið.** Verðmætasta viðbótin:
    liðin birtast 40–60 mín fyrir leik, innan ±1 dags gluggans, og `fetch-fast`

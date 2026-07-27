@@ -15,6 +15,11 @@
 
 import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
+/* Markaðs-umbreytingin (odds -> vænt mörk -> FFDR-þyngd) er FLUTT í
+   src/market.js svo bakprófið keyri nakvaemlega sama kóða og pipeline.
+   Hún var áður staðbundin hér og þar með óprófanleg — samt með vog 0,50
+   í FFDR fyrir GK/DEF. Sjá tests/ffdr-walkforward.mjs.                  */
+import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../src/market.js";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const DATA = "data";
@@ -938,42 +943,10 @@ async function fetchEuro() {
    Nú: cron sækir 1x/dag, skrifar data/odds.json, appið les frítt frá GitHub.
    Kvóti: markets(2) × regions(1) = 2 kredit/dag = ~60/mán af 500. Óhætt.
    Lykill: process.env.ODDS_API_KEY (GitHub Secret) — ALDREI í kóða.          */
-const clampN = (v,a,b) => Math.max(a, Math.min(b, v));
-function poissonCleanSheet(oppExpectedGoals) {
-  return Math.round(Math.exp(-oppExpectedGoals) * 100);
-}
-
-/* ---- LOKALÍNU-AÐFERÐIN (BAKPRÓFUÐ á 380 leikjum) ----
-   1) Leysa væntanleg heildarmörk út úr yfir/undir-líkum með Poisson-inversion.
-   2) Skipta þeim með handicap: heima = (λ − AH) / 2.  ATH FORMERKI:
-      NEGATÍFT handicap = heimalið er favorít (staðfest á raungögnum).
-   3) Kvarða −4,1% — líkanið mældist systematískt bjartsýnt.
-   Markaðurinn mældist 1,3x betri en FDR (r 0,374 á móti 0,283).           */
-const MARKET_CALIB = 0.959;          // −4,1%
-function lambdaFromOver(pOver, line) {
-  // finna λ þannig að P(X > line) = pOver  (Poisson)
-  const k = Math.floor(line);        // t.d. 2 fyrir línuna 2,5
-  let lo = 0.1, hi = 8;
-  for (let i = 0; i < 60; i++) {
-    const m = (lo + hi) / 2;
-    let cum = 0, term = Math.exp(-m);
-    for (let j = 0; j <= k; j++) { cum += term; term *= m / (j + 1); }
-    (1 - cum < pOver) ? lo = m : hi = m;
-  }
-  return (lo + hi) / 2;
-}
-function impliedProb(dec) { return dec > 0 ? 1 / dec : 0; }
-function devig2(o1, o2) { const a = impliedProb(o1), b = impliedProb(o2); return (a + b) ? a / (a + b) : 0.5; }
-function devig(h, d, a) {
-  const raw = [impliedProb(h), impliedProb(d), impliedProb(a)];
-  const s = raw.reduce((x, y) => x + y, 0) || 1;
-  return { home: raw[0] / s, draw: raw[1] / s, away: raw[2] / s };
-}
-function splitGoals(total, hWin, aWin) {
-  const hShare = Math.min(0.85, Math.max(0.15, 0.5 + (hWin - aWin) * 0.35));
-  const home = total * hShare;
-  return { home, away: total - home };
-}
+/* poissonCleanSheet · MARKET_CALIB · lambdaFromOver · devig · devig2 ·
+   splitGoals · marketGoals · marketDiff eru NÚ Í src/market.js (sjá
+   import að ofan). Ekki afrita þau hingað aftur — bakprófið mælir
+   markaðsliðinn með sömu skrá.                                         */
 
 /* ---- HVENÆR Á AÐ SÆKJA ODDS? ----
    Daglega = 30 köll x 3 kredit = 90/mán. Óþarfi: lína á þriðjudegi hefur
@@ -1203,19 +1176,13 @@ async function fetchOdds() {
     // λ úr LÍKUM, ekki línunni sjálfri (línan er viðmið, ekki vænting)
     const line = totLine / totN;
     const pOver = devig2(totOver / totN, totUnder / totN);
-    const lambda = lambdaFromOver(pOver, line) * MARKET_CALIB;
-    let hxg, axg, method;
-    if (ahN) {
-      // BAKPRÓFAÐA AÐFERÐIN: handicap skiptir mörkunum. Spreads-punktur á
-      // heimaliði er +N þegar heimalið FÆR forgjöf, svo við drögum hann frá.
-      const ah = ahPoint / ahN;
-      hxg = (lambda - ah) / 2; axg = (lambda + ah) / 2;
-      method = "totals+spreads";
-    } else {
-      const sp = splitGoals(lambda, p.home, p.away);
-      hxg = sp.home; axg = sp.away; method = "totals+h2h";
-    }
-    hxg = Math.max(0.15, hxg); axg = Math.max(0.15, axg);
+    /* SAMEIGINLEGA UMBREYTINGIN (src/market.js) — asískt handicap notað
+       þegar það er til (nákvæmara), annars 1X2-skipting. Spreads-punktur
+       á heimaliði er +N þegar heimalið FÆR forgjöf.                      */
+    const { hxg, axg, lambda, method } = marketGoals({
+      pHome: p.home, pAway: p.away, line, pOver,
+      ah: ahN ? ahPoint / ahN : null,
+    });
 
     const hs = byNorm[norm(g.home_team)], as = byNorm[norm(g.away_team)];
     if (!hs) unmatched.add(g.home_team);
@@ -1225,14 +1192,12 @@ async function fetchOdds() {
 
     // LYKILATRIÐI: við geymum mótherja + kickoff svo framendinn geti staðfest
     // að línan gildi um RÉTTA leikinn (ekki notað á aðra umferð).
-    // MARKAÐS-ÞYNGD á sama 1-5 kvarða sem framendinn notar.
-    // Mælt: 1,0 mark á sig ~ þyngd 2,0 · 2,0 ~ 4,0 (úr MEASURED-töflunni).
-    const toDiff = ga => Math.round(clampN(1.0 + (ga - 0.5) * 1.55, 1, 5) * 100) / 100;
+    // MARKAÐS-ÞYNGD (marketDiff) er á sama 1-5 kvarða sem framendinn notar.
     teams[hs] = { cs: poissonCleanSheet(axg), xga: +axg.toFixed(2), xg: +hxg.toFixed(2),
-      diff: toDiff(axg), opp: as, home: true, kickoff: g.commence_time,
+      diff: marketDiff(axg), opp: as, home: true, kickoff: g.commence_time,
       method, lambda: +lambda.toFixed(2), books: pick.map(b => b.title) };
     teams[as] = { cs: poissonCleanSheet(hxg), xga: +hxg.toFixed(2), xg: +axg.toFixed(2),
-      diff: toDiff(hxg), opp: hs, home: false, kickoff: g.commence_time,
+      diff: marketDiff(hxg), opp: hs, home: false, kickoff: g.commence_time,
       method, lambda: +lambda.toFixed(2), books: pick.map(b => b.title) };
   }
   if (unmatched.size) console.warn(`Odds: ópöruð nöfn: ${[...unmatched].join(" | ")}`);

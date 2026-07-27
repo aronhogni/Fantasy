@@ -9,6 +9,8 @@
    Allar mælingar-athugasemdir fylgja föllunum sem þær eiga við.
    ============================================================ */
 
+import { marketDiff } from "./market.js";
+
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /* ---- FPL SÖLUVERÐ (50%-hagnaðarreglan) ----
@@ -32,9 +34,25 @@ export function sellTenths(purchase10, current10) {
    ógreinanleg frá núlli (t=−0,42 · r=−0,037). Varðprófið í
    tests/travel-measure.mjs endurmælir þetta og fellur ef það breytist.
    Ferðin birtist sem UPPLÝSING á leikjaröðum, ekki sem vog.             */
+/* MKT-VOGIN, MÆLD 2026-07-27 á 6.080 lið-leikjum (8 tímabil, walk-forward,
+   leave-one-season-out — tests/ffdr-walkforward.mjs):
+
+   GK/DEF gegn mörkum á sig, r:
+     mkt  0,00   0,20   0,35   0,50   0,70   0,80   0,90   1,00
+     r   0,290  0,333  0,358  0,376  0,389  0,393  0,394  0,394
+   Einræn upp að ~0,8 og 0,8 slær 0,50 í 8/8 tímabilum. Gamla 0,50
+   skildi eftir mælanlegan ábata. HÆKKAÐ 0,50 -> 0,80.
+   Síðustu 0,2 eru VILJANDI EFTIR og það er dómur, ekki mæling: línan
+   kemur úr fáum bókmökurum per leik og ein úrelt/skekkt lína myndi
+   annars ráða þyngdinni alveg. 0,80 nær 97% af mælda ábatanum.
+
+   MID/FWD gegn mörkum skoruðum: mælt optimum 0,50 gefur r −0,3404 á
+   móti −0,3403 við núverandi 0,35 og slær hana í aðeins 4/8 tímabilum
+   — hreint suð. ÓBREYTT 0,35. (Mæling sem segir "ekki breyta" er
+   niðurstaða, ekki mistök.)                                            */
 export const DIFF_W = {
-  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.5 },
-  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.5 },
+  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.8 },
+  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.8 },
   3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.35 },
   4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.35 },
 };
@@ -138,16 +156,33 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
       them = (1 - W.sot) * them + W.sot * themS;
     }
     /* MARKAÐS-ÞYNGD TEKUR FORGANG þegar hún gildir um RÉTTA leikinn —
-       staðfest gegn mótherja + dagsetningu. Mælt 1,3x betri spá en FDR. */
+       staðfest gegn mótherja + dagsetningu. Mælt sterkasta einstaka
+       inntakið: r=0,394 við mörk á sig á 6.080 lið-leikjum, á móti 0,245
+       fyrir hrátt FDR (tests/ffdr-walkforward.mjs).
+
+       ÞYNGDIN ER REIKNUÐ ÚR xga ÞEGAR `diff` VANTAR. Þetta er ekki
+       skraut: `diff` var bætt í pipeline 2026-07-25 kl. 20:29 en
+       data/odds.json var síðast skrifuð kl. 17:30 sama dag og odds eru
+       aðeins sótt tvisvar per umferð — svo skráin í notkun hafði ALDREI
+       `diff`, bkValid var alltaf falskt og markaðsliðurinn (helmingur
+       af vog varnarmanns) var í reynd dauður í appinu án þess að neitt
+       birti það. `xga` er einmitt inntakið í marketDiff, svo þetta er
+       sama talan, ekki nálgun — og appið þolir nú útgáfuskekkju milli
+       sín og pipeline. Vörður: tests/model.test.mjs krefst þess að
+       hver röð í odds.json sé NÝTILEG (diff eða xga + opp + kickoff). */
     const short_ = teamById[teamId]?.short;
     const bk = odds && short_ && odds[short_];
-    const bkValid = bk && bk.diff != null &&
+    const bkDiff = !bk ? null
+      : bk.diff != null ? bk.diff
+      : bk.xga != null ? marketDiff(bk.xga)
+      : null;
+    const bkValid = bk && bkDiff != null &&
       teamById[fx.opp]?.short === bk.opp &&
       (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0,10) === bk.kickoff.slice(0,10));
 
     let core = fx.fdr * W.fdr + (own * 3) * W.own + (them * 3) * W.opp;
     if (bkValid && W.mkt) {
-      core = W.mkt * bk.diff + (1 - W.mkt) * core;
+      core = W.mkt * bkDiff + (1 - W.mkt) * core;
     }
     if (W.elo) {
       const me_e = eloByTeam[teamId]?.elo, op_e = eloByTeam[fx.opp]?.elo;

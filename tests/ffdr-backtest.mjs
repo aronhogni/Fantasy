@@ -17,51 +17,28 @@
       raunveruleikann í nýju tímabili?
    3. Er dreifingin á litaþrepunum heilbrigð (~1/6 hvert)?
    ============================================================ */
-import { readFileSync } from "node:fs";
 import { makeFixDifficulty, tierOf, TIER_NAME, lookupMeasured } from "../src/model.js";
-
-const D = new URL("../data/", import.meta.url).pathname;
-const J = f => JSON.parse(readFileSync(D + f, "utf8"));
+/* Uppbygging spá-heimsins er SAMEIGINLEG með ffdr-walkforward.mjs
+   (tests/lib/e0.mjs) — annars gæti þetta bakpróf mælt annan heim en
+   það og bæði virst græn á meðan þau eru ósamanburðarhæf.
+   ATH: sotFor/sotAg nýliða eru null (eins og App.jsx:835 skilar), svo
+   sot-liðurinn sleppur út fyrir þá — það er hegðun appsins.            */
+import { loadSeason, buildStrength, PROMO_DEFAULT, fdrApprox, corr } from "./lib/e0.mjs";
 
 let pass = 0, fail = 0;
 const ok = (c, n) => { c ? (pass++, console.log(`  ✓ ${n}`)) : (fail++, console.log(`  ✗ ${n}`)); };
 
 /* ---------- 1. Styrkur úr 2024/25 (spá-tímabilið sér hann aldrei) ---------- */
-const prev = J("fdcouk/E0-2425.json").rows;
-const agg = {};
-for (const r of prev) {
-  for (const [team, gf, ga, sot, sotAg] of [
-    [r.HomeTeam, +r.FTHG, +r.FTAG, +(r.HST || 0), +(r.AST || 0)],
-    [r.AwayTeam, +r.FTAG, +r.FTHG, +(r.AST || 0), +(r.HST || 0)],
-  ]) {
-    const a = agg[team] = agg[team] || { g: 0, c: 0, sf: 0, sa: 0, n: 0 };
-    a.g += gf; a.c += ga; a.sf += sot; a.sa += sotAg; a.n++;
-  }
-}
-const strength = {};
-for (const [t, a] of Object.entries(agg)) {
-  strength[t] = { xg90: a.g / a.n, xgc90: a.c / a.n, sotFor: a.sf / a.n, sotAg: a.sa / a.n };
-}
-// Nýliðar 2025/26 (ekki í E0-2425): sömu sjálfgildi og appið notar
-const cur = J("fdcouk/E0-2526.json").rows;
+const prev = loadSeason("2425");
+const strength = buildStrength(prev);
+const cur = loadSeason("2526");
 const teams26 = new Set(cur.flatMap(r => [r.HomeTeam, r.AwayTeam]));
 const promoted = [...teams26].filter(t => !strength[t]);
 console.log(`\nNýliðar 2025/26 (fá sjálfgildi eins og í appinu): ${promoted.join(", ")}`);
-for (const t of promoted) strength[t] = { xg90: 1.1, xgc90: 1.6, sotFor: 3.4, sotAg: 5.0 };
+for (const t of promoted) strength[t] = { ...PROMO_DEFAULT };
 
 /* ---------- 2. FDR-nálgun: kvintílar stiga mótherjans 2024/25 ---------- */
-const pts = {};
-for (const r of prev) {
-  const res = r.FTR;
-  pts[r.HomeTeam] = (pts[r.HomeTeam] || 0) + (res === "H" ? 3 : res === "D" ? 1 : 0);
-  pts[r.AwayTeam] = (pts[r.AwayTeam] || 0) + (res === "A" ? 3 : res === "D" ? 1 : 0);
-}
-const ranked = Object.entries(pts).sort((a, b) => b[1] - a[1]).map(([t]) => t);
-const fdrOf = opp => {
-  const i = ranked.indexOf(opp);
-  if (i < 0) return 2;                 // nýliði = léttur mótherji, eins og FPL gerir
-  return i < 4 ? 5 : i < 8 ? 4 : i < 14 ? 3 : 2;   // FPL notar nær aldrei 1
-};
+const fdrOf = fdrApprox(prev);
 
 /* ---------- 3. FFDR með SAMA fallinu og appið ---------- */
 const ids = {}; let nextId = 1;
@@ -107,13 +84,7 @@ const byTier = [0, 1, 2, 3, 4, 5].map(t => {
   return { t, n: g.length, cs, sd, ga, tblCs };
 });
 
-// (a) SAMFELLDA FYLGNIN — sterkasta prófið
-const corr = (xs, ys) => {
-  const n = xs.length, mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
-  let sxy=0, sxx=0, syy=0;
-  for (let i=0;i<n;i++){ const dx=xs[i]-mx, dy=ys[i]-my; sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy; }
-  return sxy/Math.sqrt(sxx*syy);
-};
+// (a) SAMFELLDA FYLGNIN — sterkasta prófið (corr úr lib/e0.mjs)
 const rFfdrGa = corr(rows.map(x=>x.d), rows.map(x=>x.ga));
 const rowsFdr = [];
 for (const r of cur) {

@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePrediction,
   POS_MEAN_PTS, MEASURED_POS, tierOf, TIER_CUTS, TIER_BG,
   makeFixDifficulty, clamp } from "../src/model.js";
+import { marketDiff } from "../src/market.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -130,6 +131,48 @@ ok(withMkt < dStrong, `markaðslína (létt) dregur FFDR niður þegar hún á v
 const noOdds = fd(1, { opp: 2, home: true, fdr: 3, kickoff: "2026-08-21T19:00:00Z" }, 2);
 eq(wrongOpp, noOdds, "lína á RANGAN mótherja er hunsuð");
 eq(fd(9, { opp: 3, home: true, fdr: 4 }, 2), 4, "óþekkt lið fellur á hrátt FDR");
+/* xga-VARALEIÐIN: röð án `diff` en með `xga` á að gefa SÖMU þyngd.
+   Þetta er ekki fræðilegt — sjá vörðinn í kafla 5b hér að neðan.      */
+const oddsXga = { STE: { xga: 0.8, opp: "MID", kickoff: "2026-08-21T19:00:00Z" } };
+const oddsDiff = { STE: { diff: marketDiff(0.8), opp: "MID", kickoff: "2026-08-21T19:00:00Z" } };
+const mk = o => makeFixDifficulty({ teamMetrics: tm, teamById: tb, odds: o, eloByTeam: {} })
+  (1, { opp: 3, home: true, fdr: 3, kickoff: "2026-08-21T19:00:00Z" }, 2);
+eq(mk(oddsXga), mk(oddsDiff), "röð með xga en án diff gefur sömu þyngd");
+ok(mk(oddsXga) < dStrong, `xga-varaleiðin virkjar markaðsliðinn í raun (${mk(oddsXga)} < ${dStrong})`);
+
+/* ---- 5b. VÖRÐUR: HVER RÖÐ Í odds.json VERÐUR AÐ VERA NÝTILEG ----
+   AF HVERJU ÞESSI VÖRÐUR TIL: `diff` var bætt í fetch.mjs 2026-07-25
+   kl. 20:29, en data/odds.json var skrifuð kl. 17:30 sama dag og odds
+   eru aðeins sótt tvisvar per umferð. Skráin í notkun hafði því aldrei
+   `diff`; bkValid var alltaf falskt og markaðsliðurinn — sterkasta
+   einstaka inntak FFDR (r=0,394 á móti 0,245 fyrir hrátt FDR) — var
+   dauður í appinu í heila viku ÁN ÞESS AÐ NEITT PRÓF SÆI ÞAÐ. Öll
+   prófin voru græn því þau prófuðu formúluna, ekki hvort gögnin sem
+   hún fær séu nýtileg.
+   Röð sem líkanið getur ekki notað er VERRI en engin röð: hún telst
+   með í "20 lið, úr pipeline" í hliðarstikunni og lítur út eins og
+   virk heimild. Krafan er því: sé röð til, verður hún að vera nýtileg. */
+console.log("\n=== 5b. VÖRÐUR: odds.json-raðir eru NÝTILEGAR ===");
+const oddsRaw = J("odds.json").teams || {};
+const oddsRows = Object.entries(oddsRaw);
+console.log(`  ${oddsRows.length} raðir í odds.json (updated ${J("odds.json").updated})`);
+if (!oddsRows.length) {
+  ok(true, "odds.json tóm — utan sóknarglugga, ekkert að staðfesta");
+} else {
+  const noWeight = oddsRows.filter(([, v]) => v.diff == null && v.xga == null);
+  const noOpp = oddsRows.filter(([, v]) => !v.opp);
+  const noKick = oddsRows.filter(([, v]) => !v.kickoff);
+  ok(noWeight.length === 0,
+    `hver röð hefur diff EÐA xga (vantaði: ${noWeight.map(([k]) => k).join(", ") || "engin"})`);
+  ok(noOpp.length === 0,
+    `hver röð hefur opp — annars er hún hunsuð sem "rangur mótherji" (vantaði: ${noOpp.map(([k]) => k).join(", ") || "engin"})`);
+  ok(noKick.length === 0,
+    `hver röð hefur kickoff (vantaði: ${noKick.map(([k]) => k).join(", ") || "engin"})`);
+  // gagnkvæmni: ef A á línu gegn B, á B að eiga línu gegn A
+  const oneSided = oddsRows.filter(([k, v]) => v.opp && oddsRaw[v.opp]?.opp !== k);
+  ok(oneSided.length === 0,
+    `línur eru gagnkvæmar (einhliða: ${oneSided.map(([k]) => k).join(", ") || "engar"})`);
+}
 
 console.log("\n=== 6. LITAKVÖRÐUN GEGN RAUNGÖGNUM APPSINS ===");
 // Endurbyggja teamMetrics NÁKVÆMLEGA eins og App.jsx og endurreikna sextílana
