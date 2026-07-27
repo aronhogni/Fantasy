@@ -76,20 +76,35 @@ B365-oddsum, Elo reiknað fram í tímann). Þrennt sem eldra bakprófið gat ek
 |---|---|
 | markaðslínan ein | **0,394** |
 | FFDR (full inntök, mkt 0,80) | 0,393 |
-| FFDR án markaðar (líkanskjarninn) | 0,290 |
-| hrátt FDR eitt | 0,245 |
+| FFDR án markaðar (líkanskjarninn) | 0,293 |
+| hrátt FDR eitt | 0,252 |
+
+Sóknarhliðin, |r| við mörk **skoruð**: FFDR-sókn **0,383** · hrátt FDR 0,168.
 
 1. **`mkt` fyrir GK/DEF var hækkað 0,50 -> 0,80.** Einræn framför upp að ~0,8
    og 0,80 slær 0,50 í **8/8 tímabilum**; kvörðun birtu CS%-talnanna batnaði
    samtímis úr +2,5pp halla í −0,6pp. Tvö óskyld viðmið sammála. Síðustu 0,2
    eru viljandi eftir (dómur, ekki mæling): línan kemur úr fáum bókmökurum og
    ein skekkt lína á ekki að ráða þyngdinni alveg.
-2. **`mkt` fyrir MID/FWD stendur í 0,35.** Mælt optimum 0,50 gaf r −0,3404 á
-   móti −0,3403 og sló núverandi í aðeins 4/8 tímabilum — hreint suð.
-   Mæling sem segir „ekki breyta“ er niðurstaða, ekki mistök.
-3. **Sóknarhópurinn var aldrei bakprófaður** og virkar: r=−0,345 við mörk
-   skoruð (hrátt FDR −0,168), 2,24 mörk/leik í léttasta sjöttungi á móti 0,88
-   í þyngsta.
+2. **Sóknarhópurinn fékk RANGA markaðsstærð** — stærsti einstaki fundurinn.
+   Markaðsliðurinn gaf ÖLLUM stöðum `marketDiff(xga)`, þ.e. þyngd þess að
+   halda **hreinu blaði**. Fyrir miðjumann og framherja er það rangt: það
+   mælir hvað mótherjinn skorar, ekki hvað liðið skorar. Rétta stærðin —
+   eigin vænt mörk — var **þegar í `odds.json` sem `xg`**, ónotuð (pipeline
+   sækir `totals,spreads`). Lagað með `marketAttackDiff`:
+   r −0,345 -> **−0,383** við mörk skoruð, betra í **8/8 tímabilum**.
+3. **`mkt` fyrir MID/FWD 0,35 -> 0,80** — og sagan er lærdómur: fyrsta
+   mælingin sagði að 0,35 væri optimum og hækkun væri suð (0,50 gaf −0,3404
+   á móti −0,3403). Það var **rétt mælt á röngu inntaki**. Með réttu stærðinni
+   varð vogin einræn upp í 0,8 (−0,367 -> −0,388). Mæling á röngu inntaki
+   gefur rétt svar við rangri spurningu.
+4. **Handoff-tilgátan um margföldunar-lið** (`xgTeam = (mg/LG)*(og/LG)*LG*heima`
+   með vog `W.xg≈0,20`) **mældist suð** og var EKKI tekin upp: r −0,3360 á
+   móti −0,3342 fyrir kjarnann (0,14σ), slær hann í 5/8 tímabilum.
+   Fyrirvari: sú tilgáta var mæld gegn **leikmannastigum** í öðru samhengi, hér
+   gegn **mörkum skoruðum** — ekki sama markmið, svo þetta afsannar hana ekki
+   formlega. En á markmiðinu sem má mæla með raungögnum í þessu repo er hún
+   suð, og hún var ekki þess virði á móti T1 að ofan (0,050).
 
 Ákvarðanir sem eru vísvitandi og hafa þegar verið véfengdar einu sinni:
 
@@ -132,13 +147,13 @@ B365-oddsum, Elo reiknað fram í tímann). Þrennt sem eldra bakprófið gat ek
 
 ## 4. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir **fimm** söfn, **173 próf**, öll græn:
+`tests/run-tests.mjs` keyrir **fimm** söfn, **176 próf**, öll græn:
 
 | Safn | Fjöldi | Hvað það gerir |
 |---|---|---|
-| `model.test.mjs` | 83 | Hver birt tala: söluverð, frí skipti/refsingar, vænt stig, mælda taflan, FFDR-eiginleikar, verðspá, PWA-skrár. **Endurkvarðar litamörkin úr `data/`.** Kafli 5b: vörður að hver röð í `odds.json` sé NÝTILEG (`diff` eða `xga`, `opp`, `kickoff`, gagnkvæm) — sá vörður vantaði og það kostaði viku af dauðum markaðslið. |
+| `model.test.mjs` | 84 | Hver birt tala: söluverð, frí skipti/refsingar, vænt stig, mælda taflan, FFDR-eiginleikar, verðspá, PWA-skrár. **Endurkvarðar litamörkin úr `data/`.** Kafli 5b: vörður að hver röð í `odds.json` sé NÝTILEG (`diff` eða `xga`, `opp`, `kickoff`, gagnkvæm) — sá vörður vantaði og það kostaði viku af dauðum markaðslið. |
 | `ffdr-backtest.mjs` | 10 | Spáir öllum 380 leikjum 2025/26 með styrk 2024/25 eingöngu. Svarar **„halda LITIRNIR?“** á einu tímabili. Grænasti sjöttungur 33% CS vs 13% rauðasti; r=0,217. Tölfræðileg vikmörk, ekki hörð mörk. |
-| `ffdr-walkforward.mjs` | 23 | **8 tímabil (1819–2526), 6.080 lið-leikir, FULL inntök** — markaðslína endurbyggð úr B365-oddsum og Elo reiknað fram í tímann. Svarar því sem eldra bakprófið gat ekki: er FFDR betri en **sitt besta inntak**, er MEASURED-taflan rétt **kvörðuð** (ekki bara rétt röðuð), og virkar **sóknarhópurinn**. Sjá kafla 3. |
+| `ffdr-walkforward.mjs` | 25 | **8 tímabil (1819–2526), 6.080 lið-leikir, FULL inntök** — markaðslína endurbyggð úr B365-oddsum og Elo reiknað fram í tímann. Svarar því sem eldra bakprófið gat ekki: er FFDR betri en **sitt besta inntak**, er MEASURED-taflan rétt **kvörðuð** (ekki bara rétt röðuð), og virkar **sóknarhópurinn**. Sjá kafla 3. |
 | `travel-measure.mjs` | 2 | Vörðurinn í kafla 3. |
 | `smoke.test.mjs` | 55 | Appið keyrt í **jsdom** með raunverulegum `data/`-skrám og hermdu `fetch`. 15 spjöld, peningar (banki+lið = £100.0), umferðaskipti, FPL-reglur, chips, andstæðingar, vistun, meiðsli, ferðalengd. |
 
@@ -236,6 +251,32 @@ umferðir nema næstu, og valið er hönnunarákvörðun sem notandi á að taka
 
 Mælingin er í `ffdr-walkforward.mjs` kafla 9 og prentast í hverri keyrslu, svo
 hún er sýnileg og getur ekki rekið hljóðlega.
+
+### 0b. ÚR HANDOFF-I 27.7. — AFGREITT OG ÓAFGREITT
+
+Handoff úr spjall-lotu lagði fram fjögur atriði. Staða þeirra eftir mælingu:
+
+| atriði | staða |
+|---|---|
+| Markaðs-lína á **lið-mörkum** („bæta totals+spreads við h2h“) | **VAR ÞEGAR TIL.** `fetch.mjs:1109` sækir `h2h,totals,spreads` og `odds.json` geymir `xg` per lið. Ekkert API-verk þurfti — stærðin var bara ónotuð. Sjá kafla 3 atriði 2. |
+| Sóknar-liðurinn er ekki betri en hrátt FDR | **Var rétt greint í eðli, rangt í orsök.** Orsökin var ranga markaðsstærðin, ekki `own`-liðurinn. Lagað. |
+| Margföldunar-liður `W.xg≈0,20` | **Mælt suð, ekki tekið upp.** Sjá kafla 3 atriði 4. |
+| Tillögu-líkanið noti FFDR í stað hrás FDR | **ÓAFGREITT — ekki í repo.** Prótótýpan var aldrei ýtt. Sjá hér að neðan. |
+
+**ÓAFGREITT: tillögu-líkanið (`recs`) notar hrátt FDR.** Handoff-ið segir að
+FIT-vogtölurnar (`src/App.jsx:170`, `fdr:-0,597` fyrir GK o.s.frv.) hafi verið
+fittaðar gegn **hráu FDR**. Að skipta FFDR inn án endurfits setur vog sem var
+mæld á einum kvarða á annan kvarða — og við vitum núna að kvarðarnir eru ekki
+þeir sömu (kafli 7.0: kjarninn miðar á 3,0, taflan á 2,5). Því er þetta
+**ekki einföld skipting** og var ekki gert blint.
+
+Rétta röðin er:
+1. Leysa kvarðamálið í 7.0 (það ræður hvaða kvarði FFDR er á).
+2. Endurfitta `FIT`-vogtölurnar gegn FFDR — þarf `form_features.json`
+   (er í `data/`) og fittunar-skriftuna, sem er **ekki í repo-inu**.
+   Hún þarf að koma inn áður en þetta er hægt; annars er hvert nýtt
+   vogtölusett ómælt og fellur á reglunni í kafla 3.
+3. Þá fyrst skipta, og mæla að bakprófið batni.
 
 ### Annað
 

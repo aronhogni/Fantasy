@@ -83,12 +83,21 @@ for (let si = 1; si < SEASONS.length; si++) {
     /* ODDS-KORTIÐ EINS OG APPIÐ HEFUR ÞAÐ: aðeins leikurinn sem er í
        vændum, með opp+kickoff til staðfestingar (model.js krefst þess). */
     const kickoff = `${r.Date}T00:00:00Z`;
+    /* FULL odds-röð eins og pipeline skrifar hana: xga OG xg, svo
+       model.js velji rétta stærð per hóp sjálft.                     */
     const odds = mk ? {
+      [r.HomeTeam]: { xga: mk.axg, xg: mk.hxg, opp: r.AwayTeam, kickoff },
+      [r.AwayTeam]: { xga: mk.hxg, xg: mk.axg, opp: r.HomeTeam, kickoff },
+    } : null;
+    /* GAMLA HEGÐUNIN til samanburðar: aðeins varnarstærðin, sem allar
+       stöður fengu áður (ekkert xg -> model.js fellur á defDiff).     */
+    const oddsWrong = mk ? {
       [r.HomeTeam]: { diff: mk.hDiff, opp: r.AwayTeam, kickoff },
       [r.AwayTeam]: { diff: mk.aDiff, opp: r.HomeTeam, kickoff },
     } : null;
 
     const withMkt = makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam });
+    const wrongMkt = makeFixDifficulty({ teamMetrics, teamById, odds: oddsWrong, eloByTeam });
     const noMkt = makeFixDifficulty({ teamMetrics, teamById, odds: null, eloByTeam });
 
     const hg = +r.FTHG, ag = +r.FTAG;
@@ -102,6 +111,7 @@ for (let si = 1; si < SEASONS.length; si++) {
         season: key, team, promoted: promoted.includes(team),
         dDef: withMkt(me, fx, 2),            // GK/DEF-hópurinn, full inntök
         dAtt: withMkt(me, fx, 4),            // MID/FWD-hópurinn, full inntök
+        dAttWrongMkt: wrongMkt(me, fx, 4),   // sókn með VARNAR-stærðinni (gamla hegðunin)
         dDefNoMkt: noMkt(me, fx, 2),         // sama án markaðar (gamla bakprófið)
         fdr: fx.fdr,
         mDiff: mDiff ?? null,
@@ -217,6 +227,21 @@ const rAttFdr = corr(all.map(x => x.fdr), all.map(x => x.gf));
 console.log(`  FFDR-sókn vs mörk skoruð:  r = ${rAtt.toFixed(3)}   (hrátt FDR: ${rAttFdr.toFixed(3)})`);
 ok(rAtt < -0.15, `léttari sóknar-FFDR => FLEIRI mörk skoruð (r=${rAtt.toFixed(3)}, á að vera neikvætt)`);
 ok(rAtt < rAttFdr, `sóknar-FFDR slær hrátt FDR (${rAtt.toFixed(3)} < ${rAttFdr.toFixed(3)})`);
+
+/* VÖRÐUR: RÉTT MARKAÐSSTÆRÐ FYRIR SÓKN.
+   Sóknarhópurinn fékk marketDiff(xga) — þyngd HREINS BLAÐS — í staðinn
+   fyrir eigin vænt mörk. Þetta próf fellur ef nokkur snýr því til baka. */
+const rAttWrong = corr(all.map(x => x.dAttWrongMkt), all.map(x => x.gf));
+console.log(`  með RANGRI markaðsstærð (xga): r = ${rAttWrong.toFixed(3)}` +
+  `  ->  rétta stærðin bætir ${Math.abs(rAtt - rAttWrong).toFixed(3)}`);
+const winsAtt = PRED.filter(k => {
+  const g = all.filter(x => x.season === k);
+  return corr(g.map(x => x.dAtt), g.map(x => x.gf)) < corr(g.map(x => x.dAttWrongMkt), g.map(x => x.gf));
+}).length;
+ok(rAtt < rAttWrong,
+  `eigin vænt mörk (xg) slá þyngd hreins blaðs (xga) fyrir sókn (${rAtt.toFixed(3)} < ${rAttWrong.toFixed(3)})`);
+ok(winsAtt >= PRED.length - 1,
+  `og gera það í ≥${PRED.length - 1}/${PRED.length} tímabilum (${winsAtt})`);
 
 console.log("\nsextíll  n     dAtt-bil     mörk skoruð/leik");
 const sa = [...all].sort((a, b) => a.dAtt - b.dAtt);

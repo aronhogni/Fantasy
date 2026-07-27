@@ -160,6 +160,9 @@ if (!oddsRows.length) {
   ok(true, "odds.json tóm — utan sóknarglugga, ekkert að staðfesta");
 } else {
   const noWeight = oddsRows.filter(([, v]) => v.diff == null && v.xga == null);
+  const noXg = oddsRows.filter(([, v]) => v.xg == null);
+  ok(noXg.length === 0,
+    `hver röð hefur xg — SÓKNARHÓPURINN þarf eigin vænt mörk (vantaði: ${noXg.map(([k]) => k).join(", ") || "engin"})`);
   const noOpp = oddsRows.filter(([, v]) => !v.opp);
   const noKick = oddsRows.filter(([, v]) => !v.kickoff);
   ok(noWeight.length === 0,

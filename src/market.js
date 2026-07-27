@@ -60,9 +60,28 @@ export function splitGoals(total, hWin, aWin) {
 }
 
 /* MARKAÐS-ÞYNGD á sama 1–5 kvarða sem framendinn notar.
-   Mælt: 1,0 mark á sig ~ þyngd 2,0 · 2,0 ~ 4,0 (úr MEASURED-töflunni). */
+   Mælt: 1,0 mark á sig ~ þyngd 2,0 · 2,0 ~ 4,0 (úr MEASURED-töflunni).
+   ÞETTA ER VARNAR-STÆRÐIN: þyngd þess að halda hreinu blaði. Hún á við
+   GK/DEF. Fyrir sóknarhópinn, sjá marketAttackDiff.                    */
 export function marketDiff(expectedGoalsAgainst) {
   return Math.round(clampN(1.0 + (expectedGoalsAgainst - 0.5) * 1.55, 1, 5) * 100) / 100;
+}
+
+/* SÓKNAR-ÞYNGD ÚR MARKAÐNUM — þyngd þess að SKORA.
+   AF HVERJU SÉR FALL: markaðsliðurinn gaf öllum stöðum marketDiff(xga),
+   þ.e. þyngd þess að halda hreinu blaði. Fyrir miðjumann og framherja er
+   það RANGA stærðin — hún mælir hvað mótherjinn skorar, ekki hvað liðið
+   skorar. Rétta stærðin (eigin vænt mörk) var ÞEGAR í odds.json sem `xg`,
+   ónotuð, því pipeline sækir totals+spreads.
+   MÆLT á 6.080 lið-leikjum gegn mörkum SKORUÐUM: r −0,365 á móti −0,345
+   með xga, og rétta stærðin slær hina í 8/8 tímabilum. Markaðs-xg eitt
+   gefur −0,390 (tests/ffdr-walkforward.mjs).
+   Fleiri vænt mörk = LÉTTARI leikur, svo stærðin er spegluð um
+   deildarmeðaltalið og fer svo gegnum SÖMU línulegu umbreytingu — þannig
+   liggur meðalleikur í 2,44 á báðum kvörðum og þeir eru samanburðarhæfir. */
+export const LG_XG_MARKET = 1.45;      // deildarmeðaltal marka per lið-leik
+export function marketAttackDiff(expectedGoalsFor) {
+  return marketDiff(2 * LG_XG_MARKET - expectedGoalsFor);
 }
 
 /* ---- HEILDARUMBREYTINGIN: odds -> vænt mörk fyrir bæði lið ----

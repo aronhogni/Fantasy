@@ -9,7 +9,7 @@
    Allar mælingar-athugasemdir fylgja föllunum sem þær eiga við.
    ============================================================ */
 
-import { marketDiff } from "./market.js";
+import { marketDiff, marketAttackDiff } from "./market.js";
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -46,15 +46,23 @@ export function sellTenths(purchase10, current10) {
    kemur úr fáum bókmökurum per leik og ein úrelt/skekkt lína myndi
    annars ráða þyngdinni alveg. 0,80 nær 97% af mælda ábatanum.
 
-   MID/FWD gegn mörkum skoruðum: mælt optimum 0,50 gefur r −0,3404 á
-   móti −0,3403 við núverandi 0,35 og slær hana í aðeins 4/8 tímabilum
-   — hreint suð. ÓBREYTT 0,35. (Mæling sem segir "ekki breyta" er
-   niðurstaða, ekki mistök.)                                            */
+   MID/FWD gegn mörkum SKORUÐUM, r (með RÉTTRI markaðsstærð, sjá neðar):
+     mkt  0,35   0,50   0,65   0,80   1,00
+     r  −0,367 −0,377 −0,384 −0,388 −0,390
+   Einræn og flöt eftir 0,8; sama 0,80 valið og fyrir vörn, sama röksemd.
+
+   ATH SÖGUNA — HÚN ER LÆRDÓMUR: fyrsta mælingin sagði að 0,35 væri
+   optimum fyrir MID/FWD og að hækkun væri suð (0,50 gaf −0,3404 á móti
+   −0,3403, 4/8 tímabil). Það var RÉTT MÆLT en á RÖNGU INNTAKI:
+   sóknarhópurinn fékk þá marketDiff(xga), þ.e. þyngd þess að halda hreinu
+   blaði. Þegar rétta stærðin (eigin vænt mörk) kom í staðinn varð vogin
+   allt í einu einræn upp í 0,8. Mæling á röngu inntaki gefur rétt svar
+   við rangri spurningu.                                                 */
 export const DIFF_W = {
   1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.8 },
   2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.8 },
-  3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.35 },
-  4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.35 },
+  3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.8 },
+  4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.8 },
 };
 export const ELO_SCALE = 150;   // Elo-stig sem svara ~1 þrepi í þyngd
 export const LG_SOT = 4.4;      // deildarmeðaltal skota á mark per leik (mælt úr E0)
@@ -170,12 +178,21 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
        sama talan, ekki nálgun — og appið þolir nú útgáfuskekkju milli
        sín og pipeline. Vörður: tests/model.test.mjs krefst þess að
        hver röð í odds.json sé NÝTILEG (diff eða xga + opp + kickoff). */
+    /* RÉTT MARKAÐSSTÆRÐ PER HÓP: varnarhópurinn (useDef) spyr hvað
+       MÓTHERJINN skorar (xga -> marketDiff); sóknarhópurinn spyr hvað
+       LIÐIÐ skorar (xg -> marketAttackDiff). Áður fengu allar stöður
+       varnarstærðina, sem var ranga spurningin fyrir MID/FWD — sjá
+       marketAttackDiff í market.js fyrir mælinguna.                    */
     const short_ = teamById[teamId]?.short;
     const bk = odds && short_ && odds[short_];
-    const bkDiff = !bk ? null
+    const defDiff = !bk ? null
       : bk.diff != null ? bk.diff
       : bk.xga != null ? marketDiff(bk.xga)
       : null;
+    const bkDiff = !bk ? null
+      : W.useDef ? defDiff
+      : bk.xg != null ? marketAttackDiff(bk.xg)
+      : defDiff;                         // eldri odds.json án xg: fell á gamla hegðun
     const bkValid = bk && bkDiff != null &&
       teamById[fx.opp]?.short === bk.opp &&
       (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0,10) === bk.kickoff.slice(0,10));
