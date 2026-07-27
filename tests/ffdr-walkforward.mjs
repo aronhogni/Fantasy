@@ -40,7 +40,7 @@ import {
   SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrApprox,
   marketForRow, eloWalkForward, corr, rSE, brier,
 } from "./lib/e0.mjs";
-import { makeFixDifficulty, lookupPos, lookupMeasured, tierOf, TIER_NAME } from "../src/model.js";
+import { makeFixDifficulty, lookupPos, lookupMeasured, tierOf, TIER_NAME, toMeasuredScale } from "../src/model.js";
 
 let pass = 0, fail = 0;
 const ok = (c, n) => { c ? (pass++, console.log(`  ✓ ${n}`)) : (fail++, console.log(`  ✗ ${n}`)); };
@@ -215,7 +215,9 @@ const csY = all.map(x => x.cs ? 1 : 0);
 const base = csY.reduce((a, b) => a + b, 0) / csY.length;
 const bFfdr = brier(all.map(x => lookupPos(2, "cs", x.dDef) / 100), csY);
 const bBase = brier(csY.map(() => base), csY);
-const bFdr = brier(all.map(x => lookupMeasured("cs", x.fdr) / 100), csY);
+/* FDR-grunnlínan verður að fara gegnum SCALE_FIX líka, annars er hún
+   lesin á öðrum kvarða en FFDR og samanburðurinn ósanngjarn. */
+const bFdr = brier(all.map(x => lookupMeasured("cs", toMeasuredScale(x.fdr, true)) / 100), csY);
 console.log(`\n  Brier: FFDR ${bFfdr.toFixed(4)} · grunnhlutfall ${bBase.toFixed(4)} · FDR-taflan ${bFdr.toFixed(4)}`);
 console.log(`  Brier skill gegn grunnhlutfalli: ${(100 * (1 - bFfdr / bBase)).toFixed(1)}%`);
 ok(bFfdr < bBase, `FFDR-CS-spáin slær það að spá alltaf meðaltalinu (${bFfdr.toFixed(4)} < ${bBase.toFixed(4)})`);
@@ -308,36 +310,37 @@ console.log(`  FPL 2026/27: meðaltal ${fplMean.toFixed(3)}  ·  nálgun bakpró
 ok(Math.abs(apxMean - fplMean) < 0.1,
   `nálgað FDR er innan 0,1 af FPL-meðaltali (${Math.abs(apxMean - fplMean).toFixed(3)})`);
 
-/* ---------- 9. KVARÐASAMRÆMI — OPINN GALLI, MÆLDUR HÉR ----------
-   MEASURED_POS[2] er taflan sem CS% og vænt stig á spjöldunum koma úr.
-   Hún setur MEÐALLEIK (raunverulegt CS ~26%) við d ~2,50. Markaðsþyngdin
-   setur meðalleik við marketDiff(1,43) = 2,44 — samræmi. Líkanskjarninn
-   (fdr*0,45 + own*3*0,55) setur meðalleik við ~3,02, því hann er byggður
-   á "1–5 kvarða með miðju í 3", ekki á kvarða töflunnar.
+/* ---------- 9. KVARÐASAMRÆMI — VÖRÐUR EFTIR SCALE_FIX ----------
+   GALLINN SEM VAR: `fdr`, `own` og `elo` eru á "1–5 kvarða með miðju í 3"
+   en MEASURED-töflurnar eru á kvarða þar sem meðalleikur er ~2,5. Leikir
+   ÁN markaðslínu — þ.e. allar umferðir nema næsta — fengu því d sem var
+   ~0,5 of þungt og birt CS% var 6,7pp of svartsýnt.
 
-   AFLEIÐING: fyrir leiki MEÐ markaðslínu (næsta umferð) er d á réttum
-   kvarða og birt CS% rétt. Fyrir leiki ÁN línu (allar seinni umferðir)
-   er d of þungt og birt CS% of svartsýnt. Mælt hér að neðan.
-
-   ÞETTA ER EKKI LAGAÐ Í ÞESSARI LOTU: leiðréttingin færir HVERJA birta
-   tölu í appinu (CS%, vænt stig) fyrir allar umferðir nema næstu, og
-   valið milli þess að kvarða kjarnann eða endurmæla töfluna er
-   hönnunarákvörðun. Mælingin er hér svo hún sé sýnileg og reki ekki.  */
-console.log("\n=== KVARÐASAMRÆMI: kjarni gegn töflu (OPINN GALLI) ===");
+   SCALE_FIX (model.js) leiðréttir það með affinu falli sem var FITTAÐ
+   gegn raunverulegum úrslitum. Þetta próf er vörðurinn: báðir
+   d-framleiðendurnir — kjarninn OG markaðurinn — verða að láta töfluna
+   lesa nálægt raunveruleikanum, og kjarninn má ekki reka aftur.       */
+console.log("\n=== KVARÐASAMRÆMI EFTIR SCALE_FIX (vörður) ===");
 const meanCore = all.reduce((a, x) => a + x.dDefNoMkt, 0) / all.length;
 const meanMkt = all.reduce((a, x) => a + x.mDiff, 0) / all.length;
 const realCsAll = 100 * all.filter(x => x.cs).length / all.length;
 const tblOnCore = all.reduce((a, x) => a + lookupPos(2, "cs", x.dDefNoMkt), 0) / all.length;
 const tblOnMkt = all.reduce((a, x) => a + lookupPos(2, "cs", x.mDiff), 0) / all.length;
 console.log(`  raunverulegt CS% (n=${all.length}): ${realCsAll.toFixed(1)}%`);
-console.log(`  taflan á MARKAÐSKVARÐA (meðal-d ${meanMkt.toFixed(2)}): ` +
-  `${tblOnMkt.toFixed(1)}%  -> skekkja ${(tblOnMkt - realCsAll >= 0 ? "+" : "") + (tblOnMkt - realCsAll).toFixed(1)}pp`);
 console.log(`  taflan á LÍKANSKJARNA  (meðal-d ${meanCore.toFixed(2)}): ` +
   `${tblOnCore.toFixed(1)}%  -> skekkja ${(tblOnCore - realCsAll >= 0 ? "+" : "") + (tblOnCore - realCsAll).toFixed(1)}pp`);
-ok(Math.abs(tblOnMkt - realCsAll) < Math.abs(tblOnCore - realCsAll),
-  `markaðskvarðinn passar betur við töfluna en kjarninn — kjarninn er of þungur`);
-console.log(`  -> leikir ÁN markaðslínu (allar umferðir nema næsta) sýna CS% sem er ` +
-  `${Math.abs(tblOnCore - realCsAll).toFixed(1)}pp of svartsýnt. SJÁ CLAUDE.md kafla 7.`);
+console.log(`  taflan á MARKAÐSKVARÐA (meðal-d ${meanMkt.toFixed(2)}): ` +
+  `${tblOnMkt.toFixed(1)}%  -> skekkja ${(tblOnMkt - realCsAll >= 0 ? "+" : "") + (tblOnMkt - realCsAll).toFixed(1)}pp`);
+ok(Math.abs(tblOnCore - realCsAll) <= 3,
+  `kjarninn lætur töfluna lesa rétt innan 3pp (${Math.abs(tblOnCore - realCsAll).toFixed(1)}pp — var 6,7pp fyrir SCALE_FIX)`);
+/* Kvarðarnir tveir verða að vera SAMBÆRILEGIR, annars litast næsta umferð
+   öðrum lit en seinni umferðir án að vera léttari. */
+ok(Math.abs(tblOnCore - tblOnMkt) <= 4,
+  `kjarni og markaður á sama kvarða innan 4pp (${Math.abs(tblOnCore - tblOnMkt).toFixed(1)}pp) — engin litastökk milli umferða`);
+/* EFTIRSTÖÐVAR: marketDiff sjálf er ~2,4pp of bjartsýn. Skjalað í
+   model.js og CLAUDE.md; sér yfirferð. Þetta próf heldur því í skefjum. */
+ok(Math.abs(tblOnMkt - realCsAll) <= 4,
+  `markaðskvarðinn innan 4pp (${Math.abs(tblOnMkt - realCsAll).toFixed(1)}pp — þekktar eftirstöðvar)`);
 
 console.log(`\nWALK-FORWARD: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

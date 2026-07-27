@@ -147,13 +147,13 @@ Sóknarhliðin, |r| við mörk **skoruð**: FFDR-sókn **0,383** · hrátt FDR 0
 
 ## 4. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir **fimm** söfn, **176 próf**, öll græn:
+`tests/run-tests.mjs` keyrir **fimm** söfn, **178 próf**, öll græn:
 
 | Safn | Fjöldi | Hvað það gerir |
 |---|---|---|
 | `model.test.mjs` | 84 | Hver birt tala: söluverð, frí skipti/refsingar, vænt stig, mælda taflan, FFDR-eiginleikar, verðspá, PWA-skrár. **Endurkvarðar litamörkin úr `data/`.** Kafli 5b: vörður að hver röð í `odds.json` sé NÝTILEG (`diff` eða `xga`, `opp`, `kickoff`, gagnkvæm) — sá vörður vantaði og það kostaði viku af dauðum markaðslið. |
 | `ffdr-backtest.mjs` | 10 | Spáir öllum 380 leikjum 2025/26 með styrk 2024/25 eingöngu. Svarar **„halda LITIRNIR?“** á einu tímabili. Grænasti sjöttungur 33% CS vs 13% rauðasti; r=0,217. Tölfræðileg vikmörk, ekki hörð mörk. |
-| `ffdr-walkforward.mjs` | 25 | **8 tímabil (1819–2526), 6.080 lið-leikir, FULL inntök** — markaðslína endurbyggð úr B365-oddsum og Elo reiknað fram í tímann. Svarar því sem eldra bakprófið gat ekki: er FFDR betri en **sitt besta inntak**, er MEASURED-taflan rétt **kvörðuð** (ekki bara rétt röðuð), og virkar **sóknarhópurinn**. Sjá kafla 3. |
+| `ffdr-walkforward.mjs` | 27 | **8 tímabil (1819–2526), 6.080 lið-leikir, FULL inntök** — markaðslína endurbyggð úr B365-oddsum og Elo reiknað fram í tímann. Svarar því sem eldra bakprófið gat ekki: er FFDR betri en **sitt besta inntak**, er MEASURED-taflan rétt **kvörðuð** (ekki bara rétt röðuð), og virkar **sóknarhópurinn**. Sjá kafla 3. |
 | `travel-measure.mjs` | 2 | Vörðurinn í kafla 3. |
 | `smoke.test.mjs` | 55 | Appið keyrt í **jsdom** með raunverulegum `data/`-skrám og hermdu `fetch`. 15 spjöld, peningar (banki+lið = £100.0), umferðaskipti, FPL-reglur, chips, andstæðingar, vistun, meiðsli, ferðalengd. |
 
@@ -221,36 +221,61 @@ og lagaðu nafnapörun ef `unmatched` er stór.
 
 ## 7. Næstu skref (rædd, ekki byrjað)
 
-### 0. OPINN GALLI, MÆLDUR — KVARÐARNIR TVEIR STANGAST Á
+### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)
 
-Þetta er **stærsta ómleysta atriðið** og það var mælt 27.7.2026. Sannað úr
-föstunum sjálfum, engin gögn þarf:
+Var stærsta ómleysta atriðið. **Þrír** kvarðar stönguðust á, ekki tveir:
 
-| kvarði | hvar liggur MEÐALLEIKUR? |
-|---|---|
-| `MEASURED_POS[2]` (taflan sem CS% á spjöldum kemur úr) | d ≈ **2,51** (CS 26,1% = raunveruleg tíðni) |
-| `marketDiff` (bókmakaralínan) | d = **2,44** ✅ samræmi |
-| líkanskjarninn `fdr*0,45 + own*3*0,55` | d = **3,02** ❌ ~0,5 of þungt |
+| kvarði | meðalleikur var við d | staða |
+|---|---|---|
+| `MEASURED_POS` (CS% og vænt stig á spjöldum) | **2,51** | viðmiðið |
+| `marketDiff` (bókmakaralínan) | **2,44** | samræmi |
+| líkanskjarninn `fdr*0,45 + own*3*0,55` + `elo` | **3,02** | ~0,5 of þungt |
+| `MEASURED` (`lookupMeasured`, birt mörk á sig) | **2,97** | á LEGACY-kvarða |
 
-Kjarninn er byggður á „1–5 kvarða með miðju í 3“ en taflan er á kvarða þar sem
-meðalleikur er 2,5. **Afleiðing:** leikir MEÐ markaðslínu (aðeins næsta umferð)
-sýna rétt CS%; leikir ÁN línu (**allar seinni umferðir**) sýna CS% sem er
-**6,7pp of svartsýnt** — mælt á 6.080 lið-leikjum. Vænt stig hallar sömu leið.
+Kjarninn OG `elo` eru á „1–5 kvarða með miðju í 3“; töflurnar eru á 2,5-kvarða.
+Afleiðing: leikir **án** markaðslínu — allar umferðir nema næsta — fengu d sem
+var ~0,5 of þungt og birt CS% var **6,7pp of svartsýnt**. Næsta umferð litaðist
+grænni en seinni umferðir án þess að vera léttari, sem bitnaði beint á því sem
+tólið er til fyrir.
 
-Þetta bitnar beint á því sem tólið er til fyrir: að bera leiki saman yfir
-sjóndeildarhring. Næsta umferð litast grænni en seinni umferðir án þess að vera
-léttari (15/20 lið-leikir í GW1 skiptu lit þegar markaðurinn lifnaði við).
+**LAGAÐ** með `SCALE_FIX` í `model.js`: affint fall, **fittað gegn raunverulegum
+úrslitum** (Brier á birta CS%-inu gegn því hvort hreint blað varð, 6.080
+lið-leikir, LOSO-krossprófað). Röðin er nú: `fdr`+`own`+`elo` blandast á
+3-kvarðanum -> `SCALE_FIX` færir á töflukvarðann -> markaðurinn blandast
+**síðast** (hann er þegar á rétta kvarðanum og á ekki að þynnast eftir á).
 
-**EKKI LAGAÐ VILJANDI.** Leiðréttingin færir hverja birta tölu fyrir allar
-umferðir nema næstu, og valið er hönnunarákvörðun sem notandi á að taka:
-- (a) **kvarða kjarnann** á töfluna (affint; fylgni haggast ekki, litahlutföll
-  haldast því `TIER_CUTS` eru afstæðir sextílar — en CS% og vænt stig hækka), eða
-- (b) **endurmæla `MEASURED_POS`** á kjarnakvarðanum.
-(a) er líklega rétt: markaðskvarðinn er sjálfstætt staðfestur réttur
-(−2,4pp á móti −6,7pp), svo það er kjarninn sem er skekktur.
+| mæling | fyrir | eftir |
+|---|---|---|
+| kjarninn lætur töfluna lesa | −6,7pp | **−0,3pp** |
+| kvörðunarhalli / meðalfrávik | +6,7 / 6,7pp | **+0,3 / 1,1pp** |
+| Brier (kjarni, án markaðar) | 0,1902 | **0,1850** |
+| stökk milli næstu og seinni umferða | ~9pp | **2,7pp** |
 
-Mælingin er í `ffdr-walkforward.mjs` kafla 9 og prentast í hverri keyrslu, svo
-hún er sýnileg og getur ekki rekið hljóðlega.
+Staðfest á raungögnum: GW1 (hefur línu) meðal-FFDR 2,47 / birt CS 27,2% ·
+GW3 (engin lína) 2,44 / 27,1% — **stökkið er farið**.
+
+Tvennt fylgdi með og hvorugt var valfrjálst:
+- **`MEASURED` d-hnitin endurmerkt** (2,00/2,40/2,80/3,20/4,00 -> 1,32/1,81/
+  2,30/2,78/3,76). Þau voru á legacy-kvarðanum svo `App.jsx:1016` (birt mörk á
+  sig) las töfluna á röngum stað eftir leiðréttinguna. Endurmerking, **ekki**
+  endurmæling: `cs`/`ga`/`def`/`gk`/`att` haggast ekki.
+- **`TIER_CUTS` endurreiknuð** -> `[1,92, 2,30, 2,46, 2,75, 3,03]`. Öll
+  dreifingin færðist um ~0,5 svo gömlu mörkin gáfu 48,8% dökkgrænt. Litirnir
+  eru afstæðir sextílar og fylgja kvarðanum; hvert þrep fær nú ~1/6 aftur.
+  Prófið sem felldi þau gerði nákvæmlega það sem það átti að gera.
+
+**EFTIRSTÖÐVAR (minni, sér yfirferð):** `marketDiff` sjálf lætur töfluna lesa
+**~2,4pp of bjartsýnt**. Það er fjórðungur af upphaflega gallanum. Ekki lagað
+því fittið á markaðnum lenti á grid-jaðrinum (center 3,1 = jaðar) og er þar með
+ekki traust, og `MARKET_CALIB` var mælt sérstaklega annars staðar. Vörður í
+`ffdr-walkforward.mjs` kafla 9 heldur því innan 4pp.
+
+**ATH VIÐ ENDURKVÖRÐUN — REGIME-BREYTING:** hreint blað hefur **fallið**:
+~28% (2017–2023) -> ~23% (2023–2026), mörk/leik upp. `SCALE_FIX` var samt
+fittað á öll 8 tímabilin því fitt á síðustu 3 var **óstöðugt** undir LOSO
+(center 2,53–2,73, spread 0,86–1,28) og gaf ekki betra meðalfrávik (3,1 á móti
+3,2pp) og VERRA á 2025/26 einu (+1,8pp á móti −0,3pp). Ef regime-breytingin
+heldur áfram er þetta fyrsta talan sem á að endurmæla.
 
 ### 0b. ÚR HANDOFF-I 27.7. — AFGREITT OG ÓAFGREITT
 

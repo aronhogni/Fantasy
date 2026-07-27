@@ -1685,6 +1685,450 @@ async function deriveFormFeatures() {
   record("form_features", true, out.length, `${gws.length} umferðir · mode=${gws.length >= 5 ? "fitted" : "warmup"}`);
 }
 
+/* ========== 12. UMFERDARSKYRSLA — data/last_gw.json ==========
+   Ein SJALFSTAED skra fyrir flipann "Umferdin": sidasta LOKNA umferd,
+   leikmenn + leikir + lida-tolur, alt uppleyst i nofn og stutt-kodun.
+
+   AF HVERJU SJALFSTAED (ekki bara vísun i live/gw{n}.json): FPL endurnytir
+   element-id milli timabila. Skyrsla fyrir 2025/26 sem vaeri pörud vid
+   players.json 2026/27 eftir id myndi birta VITLAUS NOFN. Skrain berur
+   thvi sin eigin nofn, stodur og lid.
+
+   TVAER LEIDIR, sama utkomu-logun:
+     (a) I TIMABILI — data/live/gw{n}.json (FPL) + fixtures.json + E0-2627.
+     (b) FYRIR TIMABIL — engin lokin umferd i 2026/27 til. Tha er sidasta
+         lokna umferdin GW38 2025/26. Hun kemur ur vaastav-speglun FPL-gagna
+         (raw.githubusercontent.com — engin Cloudflare, enginn lykill) og
+         lida-tolurnar ur E0-2526 sem vid hofum thegar staðbundid.
+         MERKT archive:true svo framendinn ljugi ekki um artalid.
+
+   MAELT 27.7.2026: porun speglunar-leikja vid E0-2526 gaf 10/10 i GW38.
+
+   HVAD ER *EKKI* HER: skot-hnit, medalstadsetning, touches i teig,
+   big chances, woodwork. Understat faerdi skot-gognin ur HTML-inu
+   (leikjasidur skila adeins match_info; league-sidur byte-eins 18.645 b
+   skel i 5/5 tilraunum, oll timabil) og speglunin hafdi ALDREI skotstig
+   — adeins leikja-samantektir per leikmann — og stodvadist eftir 2024-25.
+   FBref skilar 403. Thess vegna er hvergi latid sem svo ad thetta se til. */
+
+const MIRROR = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data";
+const ARCHIVE_SEASON = "2025-26";      // sidasta LOKNA timabilid
+const POS_FROM_TYPE = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
+
+/* E0-leikir -> uppflettitafla a (dagsetning, heimalid, utilid) i fdcouk-nofnum. */
+function e0Index(rows) {
+  const idx = {};
+  for (const m of rows || []) {
+    const d = String(m.Date || "").split("/");
+    if (d.length !== 3) continue;
+    const iso = `${d[2].length === 2 ? "20" + d[2] : d[2]}-${d[1]}-${d[0]}`;
+    idx[`${iso}|${m.HomeTeam}|${m.AwayTeam}`] = m;
+  }
+  return idx;
+}
+const e0Num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+function e0Stats(m) {
+  if (!m) return null;
+  return {
+    shots_h: e0Num(m.HS), shots_a: e0Num(m.AS),
+    sot_h: e0Num(m.HST),  sot_a: e0Num(m.AST),
+    corners_h: e0Num(m.HC), corners_a: e0Num(m.AC),
+    fouls_h: e0Num(m.HF),  fouls_a: e0Num(m.AF),
+    yellow_h: e0Num(m.HY), yellow_a: e0Num(m.AY),
+    red_h: e0Num(m.HR),    red_a: e0Num(m.AR),
+    ht_h: e0Num(m.HTHG),   ht_a: e0Num(m.HTAG),
+    referee: m.Referee || null,
+  };
+}
+
+async function deriveLastGwReport() {
+  const jread = async p => JSON.parse(await readFile(`${DATA}/${p}`, "utf8"));
+  let events = [];
+  try { events = (await jread("events.json")).events || []; } catch {}
+  const finished = events.filter(e => e.finished).map(e => e.id);
+  const curGw = finished.length ? Math.max(...finished) : null;
+
+  if (curGw != null) {
+    const built = await buildLiveGwReport(curGw);
+    if (built) { record("last_gw", true, built.players.length, `GW${curGw} ${built.season} · ur live/gw${curGw}.json`); return; }
+  }
+  await buildArchiveGwReport();
+}
+
+/* ---- (a) I TIMABILI: ur okkar eigin live-skra ---- */
+async function buildLiveGwReport(gw) {
+  const jread = async p => JSON.parse(await readFile(`${DATA}/${p}`, "utf8"));
+  let live, players, fixtures, teams;
+  try {
+    live     = await jread(`live/gw${gw}.json`);
+    players  = (await jread("players.json")).players;
+    fixtures = await jread("fixtures.json");
+    teams    = (await jread("teams.json")).teams;
+  } catch (e) { console.warn(`last_gw: live-leid brast (${e.message}) — fell a safn`); return null; }
+  if (!live?.elements?.length) return null;
+
+  const tById = {}; teams.forEach(t => tById[t.id] = t);
+  const pById = {}; players.forEach(p => pById[p.id] = p);
+  const fxById = {}; fixtures.forEach(f => fxById[f.id] = f);
+
+  let e0 = null;
+  try { e0 = e0Index((await jread("fdcouk/E0-2627.json")).rows); } catch {}
+
+  const gwFx = fixtures.filter(f => f.event === gw);
+  const outFx = gwFx.map(f => {
+    const h = tById[f.team_h], a = tById[f.team_a];
+    const key = `${String(f.kickoff_time).slice(0,10)}|${NAMES[h?.short]?.fdcouk}|${NAMES[a?.short]?.fdcouk}`;
+    return {
+      id: f.id, h: h?.short || null, a: a?.short || null,
+      h_score: f.team_h_score, a_score: f.team_a_score,
+      kickoff: f.kickoff_time, stats: e0Stats(e0?.[key]),
+    };
+  });
+
+  const outPl = [];
+  for (const el of live.elements) {
+    const p = pById[el.id];
+    if (!p) continue;
+    const st = el.stats || {};
+    if (!(st.minutes > 0) && !(st.total_points !== 0)) continue;
+    const myFx = gwFx.filter(f => f.team_h === p.team || f.team_a === p.team);
+    for (const f of (myFx.length ? myFx : [null])) {
+      const home = f ? f.team_h === p.team : null;
+      const oppId = f ? (home ? f.team_a : f.team_h) : null;
+      outPl.push(normPlayerRow({
+        id: p.id, name: p.web_name, pos: POS_FROM_TYPE[p.element_type],
+        team: tById[p.team]?.short, opp: oppId ? tById[oppId]?.short : null,
+        home, fixture: f?.id ?? null, value: p.now_cost, src: st,
+        // tvofold umferd: FPL gefur samtolur, ekki per leik — deilum EKKI,
+        // heldur merkjum rodina svo framendinn tvitelji ekki.
+        multi: myFx.length > 1,
+      }));
+    }
+  }
+
+  const label = await seasonLabelFromEvents();
+  await writeJSON("last_gw.json", {
+    updated: status.updated, season: label, gw, archive: false,
+    source: "fpl-live", note: "Ur FPL event/{gw}/live/ um pipeline. Lida-tolur (skot, skot a mark) ur football-data.co.uk E0.",
+    missing: MISSING_NOTE, fixtures: outFx, players: outPl,
+  });
+  return { season: label, players: outPl };
+}
+
+/* ---- (b) FYRIR TIMABIL: sidasta lokna umferd fyrra timabils ur speglun ---- */
+async function buildArchiveGwReport() {
+  const seasonLabel = ARCHIVE_SEASON.replace("-", "/20");   // "2025-26" -> "2025/2026"
+  const nice = `${ARCHIVE_SEASON.slice(0,4)}/${ARCHIVE_SEASON.slice(5)}`; // "2025/26"
+
+  const { text: tTeams } = await getText(`${MIRROR}/${ARCHIVE_SEASON}/teams.csv`);
+  const teamRows = parseCSV(tTeams).rows;
+  const shortById = {}, shortByName = {};
+  for (const t of teamRows) { shortById[t.id] = t.short_name; shortByName[t.name] = t.short_name; }
+
+  // finna HAESTU umferd sem er til i speglun (skrarnar heita gw1..gw38)
+  let gw = null, rows = null;
+  for (let g = 38; g >= 1; g--) {
+    try {
+      const { text } = await getText(`${MIRROR}/${ARCHIVE_SEASON}/gws/gw${g}.csv`);
+      const parsed = parseCSV(text).rows.filter(r => r.element);
+      if (parsed.length) { gw = g; rows = parsed; break; }
+    } catch { /* naesta nidur */ }
+  }
+  if (!gw) { record("last_gw", false, 0, `engin gw-skra i speglun fyrir ${ARCHIVE_SEASON}`); return; }
+
+  let e0 = null;
+  const e0File = `fdcouk/E0-${ARCHIVE_SEASON.slice(2,4)}${ARCHIVE_SEASON.slice(5)}.json`; // E0-2526.json
+  try { e0 = e0Index(JSON.parse(await readFile(`${DATA}/${e0File}`, "utf8")).rows); } catch {}
+
+  // leikir endurbyggdir ur leikmanna-rodunum sjalfum (was_home + skor)
+  const fxMap = {};
+  for (const r of rows) {
+    const f = fxMap[r.fixture] || (fxMap[r.fixture] = { id: +r.fixture, h:null, a:null,
+      h_score:null, a_score:null, kickoff:r.kickoff_time, stats:null });
+    const s = shortByName[r.team] || r.team;
+    if (String(r.was_home) === "True") { f.h = s; f.h_score = +r.team_h_score; f.a_score = +r.team_a_score; }
+    else f.a = s;
+    if (r.kickoff_time) f.kickoff = r.kickoff_time;
+  }
+  let matched = 0;
+  const outFx = Object.values(fxMap).sort((x,y) => String(x.kickoff).localeCompare(String(y.kickoff)));
+  for (const f of outFx) {
+    const key = `${String(f.kickoff).slice(0,10)}|${NAMES[f.h]?.fdcouk}|${NAMES[f.a]?.fdcouk}`;
+    f.stats = e0Stats(e0?.[key]);
+    if (f.stats) matched++;
+  }
+
+  const outPl = rows.map(r => normPlayerRow({
+    id: null,                                   // VILJANDI: id fyrra timabils parast EKKI
+    name: r.name, pos: r.position,
+    team: shortByName[r.team] || r.team,
+    opp: shortById[r.opponent_team] || null,
+    home: String(r.was_home) === "True",
+    fixture: +r.fixture, value: r.value ? +r.value : null, src: r, multi: false,
+  })).filter(p => p.minutes > 0 || p.points !== 0);
+
+  await writeJSON("last_gw.json", {
+    updated: status.updated, season: nice, gw, archive: true,
+    source: "vaastav-mirror",
+    note: `Tímabilið 2026/27 er ekki byrjað — engin lokin umferð til. Þetta er `
+        + `SÍÐASTA LOKNA umferðin, GW${gw} ${nice}, úr speglun FPL-gagna á GitHub. `
+        + `Liða-tölur (skot, skot á mark, hornspyrnur, brot) úr football-data.co.uk E0.`,
+    missing: MISSING_NOTE,
+    fixtures: outFx, players: outPl,
+  });
+  record("last_gw", true, outPl.length,
+    `SAFN GW${gw} ${nice} · ${outFx.length} leikir · E0-porun ${matched}/${outFx.length}`);
+}
+
+/* Skilabodin um thad sem VANTAR fylgja SKRANNI, ekki bara kodanum — svo
+   framendinn geti birt astaeduna i stad thess ad skilja eftir tomt plass. */
+const MISSING_NOTE = {
+  shot_map: "Skot-hnit (x/y) fást ekki: Understat færði skot-gögnin úr HTML-inu (leikjasíður skila aðeins match_info), speglunin hafði aldrei skotstig og stöðvaðist eftir 2024-25, FBref svarar 403.",
+  avg_position: "Meðalstaðsetning á velli er ekki í neinni heimild sem við náum í.",
+  touches_in_box: "Touches í teig krefjast Opta-gagna (FBref) sem svara 403.",
+  big_chances: "Big chances eru Opta-skilgreining og fást ekki. Understat-nálgunin (xG>0,30 per skot) þarf skotstig sem eru horfin.",
+  woodwork: "Woodwork þarf 'result'-svið per skot (ShotOnPost) sem er horfið úr Understat.",
+  measured: "2026-07-27",
+};
+
+async function seasonLabelFromEvents() {
+  // artalid reiknad ur GW1-fresti eins og framendinn gerir
+  try {
+    const ev = JSON.parse(await readFile(`${DATA}/events.json`, "utf8")).events || [];
+    const y = new Date(ev[0]?.deadline_time).getUTCFullYear();
+    return Number.isFinite(y) ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : "";
+  } catch { return ""; }
+}
+
+/* Ein rod, sama logun ur badum leidum. `src` er hrátt hlut (live stats eda CSV-rod). */
+function normPlayerRow({ id, name, pos, team, opp, home, fixture, value, src, multi }) {
+  const n = k => { const v = parseFloat(src[k]); return Number.isFinite(v) ? v : null; };
+  const i = k => { const v = parseInt(src[k], 10); return Number.isFinite(v) ? v : 0; };
+  return {
+    id, name, pos, team, opp, home, fixture, multi: !!multi,
+    value: value == null ? null : +value,
+    minutes: i("minutes"), points: i("total_points"), starts: i("starts"),
+    goals: i("goals_scored"), assists: i("assists"),
+    cs: i("clean_sheets"), gc: i("goals_conceded"), og: i("own_goals"),
+    saves: i("saves"), pens_saved: i("penalties_saved"), pens_missed: i("penalties_missed"),
+    yellow: i("yellow_cards"), red: i("red_cards"),
+    bonus: i("bonus"), bps: i("bps"),
+    xg: n("expected_goals"), xa: n("expected_assists"),
+    xgi: n("expected_goal_involvements"), xgc: n("expected_goals_conceded"),
+    dc: n("defensive_contribution"), tackles: n("tackles"),
+    recoveries: n("recoveries"), cbi: n("clearances_blocks_interceptions"),
+    influence: n("influence"), creativity: n("creativity"),
+    threat: n("threat"), ict: n("ict_index"),
+    xp: n("xP"),
+  };
+}
+
+/* ========== 13. SKOT-KORT UR ESPN — data/last_gw_shots.json ==========
+   ESPN's ooppinbera site-API gefur thad sem VID leitudum ad annars stadar
+   og fannst ekki. MAELT 27.7.2026 a ollum 10 leikjum GW38 2025/26:
+
+     commentary[].play  -> HVERT SKOT med:
+       fieldPositionX/Y  hnit (0-1)
+       type.text         Goal | Goal - Header | Goal - Volley | Goal - Free-kick
+                         | Penalty - Scored | Shot On Target | Shot Off Target
+                         | Shot Blocked | SHOT HIT WOODWORK | Own Goal
+       participants[0]   SKYTTAN — 109/109 fundust i rosters, svo lids-porun
+                         gegnum roster er areidanleg (play.team er ALLTAF tomt)
+       text              likamshluti ("left footed"/"right footed"/"header") og
+                         SVAEDI ("the centre of the box", "outside the box", ...)
+     boxscore.teams[].statistics -> possession, pass-nakvaemni, krossar,
+       langar sendingar, blokkud skot, tacklingar, rof, hreinsanir, rangstodur
+     rosters[].formation + roster[].formationPlace -> byrjunarlids-uppstilling
+     rosters[].roster[].stats -> totalShots og shotsOnTarget PER LEIKMANN
+
+   HNITAKERFID — MAELT, EKKI GISKAD: X er fjarlaegd fra marki sem SOTT er ad,
+   ekki absolut stada. Prof: i CRY 1-2 ARS liggja OLL thrju morkin a lagu X
+   (0,262 / 0,264 / 0,128) thott sitt hvort lidid skoradi. Absolut kerfi
+   hefdi sett thau a gagnstaeda enda. Thess vegna er kortid EINN VALLARHELMINGUR.
+
+   OTRAUST 9%: 10 af 109 skotum hofdu X>0,5 og OLL voru langskot
+   ("outside the box", eitt "more than 35 yards" a X=0,964 sem vaeri 100 m).
+   Thau eru MERKT usable:false og TALIN i excluded — ekki spegluð yfir
+   (1-X), thvi thad vaeri agiskun um kerfi sem vid staðfestum ekki.
+
+   ENGIN xG HER. ESPN gefur hana ekki, svo "big chances" (xG>0,30 per skot)
+   er EKKI reiknad. Umferdarskyrslan birtir xG PER LEIKMANN ur FPL i stadinn
+   og kallar hana ekki big chances.
+
+   SofaScore var skodad (per-match shotmap MED xG og post-flaggi) en skilar
+   HTTP 403 herna og datacenter-IP i Actions faer verri medferd — onothaeft.  */
+
+const ESPN_SOCCER = "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1";
+/* ESPN-stuttkodun -> FPL short. AÐEINS tvaer vikja (maelt a 20 lidum). */
+const ESPN_SHORT = { MAN:"MUN", MNC:"MCI" };
+const espnShort = ab => ESPN_SHORT[ab] || ab;
+
+const SHOT_TYPE = {
+  "Goal":"goal", "Goal - Header":"goal", "Goal - Volley":"goal",
+  "Goal - Free-kick":"goal", "Penalty - Scored":"goal",
+  "Shot On Target":"on_target", "Shot Off Target":"off_target",
+  "Shot Blocked":"blocked", "Shot Hit Woodwork":"woodwork",
+};
+const ZONE_RE = [
+  [/the centre of the box/i, "box_centre"],
+  [/the left side of the box/i, "box_left"],
+  [/the right side of the box/i, "box_right"],
+  [/very close range/i, "close_range"],
+  [/the penalty spot/i, "penalty_spot"],
+  [/more than 35 yards/i, "far"],
+  [/outside the box/i, "outside"],
+];
+const IN_BOX = new Set(["box_centre","box_left","box_right","close_range","penalty_spot"]);
+
+function shotZone(text) {
+  for (const [re, z] of ZONE_RE) if (re.test(text)) return z;
+  return null;
+}
+function shotFoot(text) {
+  if (/header/i.test(text)) return "head";
+  if (/left footed/i.test(text)) return "left";
+  if (/right footed/i.test(text)) return "right";
+  return null;
+}
+
+async function fetchEspnShots() {
+  let base;
+  try { base = JSON.parse(await readFile(`${DATA}/last_gw.json`, "utf8")); } catch {
+    record("espn_shots", false, 0, "last_gw.json vantar — keyrdu deriveLastGwReport fyrst");
+    return;
+  }
+  const dates = [...new Set((base.fixtures || []).map(f => String(f.kickoff).slice(0,10)).filter(Boolean))];
+  if (!dates.length) { record("espn_shots", false, 0, "engar dagsetningar i last_gw.json"); return; }
+
+  /* 1) finna ESPN-event-id fyrir hvern leik gegnum scoreboard voldu daganna */
+  const espnByPair = {};
+  for (const d of dates) {
+    try {
+      const sb = await getJSON(`${ESPN_SOCCER}/scoreboard?dates=${d.replace(/-/g,"")}`);
+      for (const ev of sb.events || []) {
+        const cs = ev.competitions?.[0]?.competitors || [];
+        const h = cs.find(c => c.homeAway === "home"), a = cs.find(c => c.homeAway === "away");
+        if (!h || !a) continue;
+        espnByPair[`${espnShort(h.team.abbreviation)}|${espnShort(a.team.abbreviation)}`] = ev.id;
+      }
+    } catch (e) { console.warn(`espn scoreboard ${d}: ${e.message}`); }
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  /* 2) sumary per leik -> skot, lida-tolur, uppstilling */
+  const shots = [], outFx = [], playerAgg = {};
+  let excluded = 0, matchedFx = 0;
+  for (const f of base.fixtures || []) {
+    const eid = espnByPair[`${f.h}|${f.a}`];
+    if (!eid) { console.warn(`espn: fann ekki ${f.h} v ${f.a}`); continue; }
+    let d;
+    try { d = await getJSON(`${ESPN_SOCCER}/summary?event=${eid}`); }
+    catch (e) { console.warn(`espn summary ${eid}: ${e.message}`); continue; }
+    matchedFx++;
+
+    // nafn -> lid, ur rosters (play.team er alltaf tomt)
+    const teamOf = {}, formation = {}, perPlayer = {};
+    for (const r of d.rosters || []) {
+      const sh = espnShort(r.team?.abbreviation);
+      formation[r.homeAway === "home" ? "h" : "a"] = r.formation || null;
+      for (const pl of r.roster || []) {
+        const nm = pl.athlete?.displayName;
+        if (!nm) continue;
+        teamOf[nm] = sh;
+        const st = {}; (pl.stats || []).forEach(s => st[s.name] = s.displayValue);
+        perPlayer[nm] = {
+          name: nm, team: sh, pos: pl.position?.abbreviation || null,
+          starter: !!pl.starter, formation_place: pl.formationPlace ? +pl.formationPlace : null,
+          shots: +st.totalShots || 0, sot: +st.shotsOnTarget || 0,
+          fouls: +st.foulsCommitted || 0, fouled: +st.foulsSuffered || 0,
+          saves: +st.saves || 0, shots_faced: +st.shotsFaced || 0,
+        };
+      }
+    }
+
+    // lida-tolur
+    const tstats = {};
+    for (const t of d.boxscore?.teams || []) {
+      const o = {}; (t.statistics || []).forEach(s => {
+        const v = parseFloat(s.displayValue);
+        o[s.name] = Number.isFinite(v) ? v : s.displayValue;
+      });
+      tstats[espnShort(t.team?.abbreviation) === f.h ? "h" : "a"] = o;
+    }
+
+    // SKOT ur commentary — dedup a play-id (commentary tvitekur radir)
+    const seen = new Set();
+    for (const c of d.commentary || []) {
+      const p = c.play;
+      if (!p) continue;
+      const label = p.type?.text || "";
+      const kind = SHOT_TYPE[label];
+      const own  = label === "Own Goal";
+      if (!kind && !own) continue;
+      const pid = p.id ?? `${label}|${c.sequence}`;
+      if (seen.has(pid)) continue;
+      seen.add(pid);
+
+      const text = String(c.text || p.text || "");
+      const shooter = p.participants?.[0]?.athlete?.displayName || null;
+      const x = typeof p.fieldPositionX === "number" ? p.fieldPositionX : null;
+      const y = typeof p.fieldPositionY === "number" ? p.fieldPositionY : null;
+      // (0,0) er "ekki skrad", ekki hornid. X>0,5 er otraust (sja hausinn).
+      const usable = x != null && y != null && !(x === 0 && y === 0) && x <= 0.5;
+      if (!usable) excluded++;
+      const zone = shotZone(text);
+
+      shots.push({
+        fixture: f.id, espn_event: eid,
+        team: own ? null : (shooter ? teamOf[shooter] || null : null),
+        player: shooter, kind: own ? "own_goal" : kind,
+        minute: p.clock?.displayValue || null, period: p.period?.number ?? null,
+        x, y, usable, zone, in_box: zone ? IN_BOX.has(zone) : null,
+        foot: shotFoot(text), text: text || null,
+      });
+
+      if (shooter && !own) {
+        const a = playerAgg[shooter] || (playerAgg[shooter] = {
+          name: shooter, team: teamOf[shooter] || null,
+          shots:0, on_target:0, off_target:0, blocked:0, woodwork:0, goals:0, in_box:0 });
+        a.shots++;
+        if (kind === "goal") { a.goals++; a.on_target++; }
+        else if (kind === "on_target") a.on_target++;
+        else if (kind === "off_target") a.off_target++;
+        else if (kind === "blocked") a.blocked++;
+        else if (kind === "woodwork") a.woodwork++;
+        if (zone && IN_BOX.has(zone)) a.in_box++;
+      }
+    }
+
+    outFx.push({
+      fixture: f.id, espn_event: eid, h: f.h, a: f.a,
+      h_score: f.h_score, a_score: f.a_score,
+      formation_h: formation.h || null, formation_a: formation.a || null,
+      team_stats: tstats,
+      lineup: Object.values(perPlayer).filter(p => p.starter || p.shots || p.saves),
+    });
+    await new Promise(r => setTimeout(r, 350));
+  }
+
+  await writeJSON("last_gw_shots.json", {
+    updated: status.updated, season: base.season, gw: base.gw, archive: !!base.archive,
+    source: "espn-site-api",
+    note: "Skot med hnitum ur ESPN commentary. X er FJARLAEGD FRA MARKI sem sott er ad "
+        + "(maelt: oll mork i CRY-ARS a lagu X thott badir skoruðu) — kortid er EINN vallarhelmingur. "
+        + "Woodwork er eigin skot-tegund hja ESPN ('Shot Hit Woodwork'). Svaedi og likamshluti "
+        + "eru lesin ur texta ESPN, ekki agiskud.",
+    caveats: {
+      no_xg: "ESPN gefur ekki xG per skot, svo BIG CHANCES eru ekki reiknud. Umferdarskyrslan birtir xG per leikmann ur FPL i stadinn.",
+      excluded: `${excluded} skot hofdu otraust hnit (X>0,5, oll langskot) og eru merkt usable:false — EKKI spegluð.`,
+      no_touches: "Touches i teig og medalstadsetning eru ekki i ESPN-fædinu.",
+    },
+    fixtures: outFx, shots, players: Object.values(playerAgg),
+  });
+  record("espn_shots", true, shots.length,
+    `${matchedFx}/${(base.fixtures||[]).length} leikir · ${shots.length} skot · ${excluded} otraust hnit`);
+}
+
 /* ========== MAIN ========== */
 async function main() {
   await mkdir(DATA, { recursive: true });
@@ -1724,7 +2168,9 @@ async function main() {
                        try { await deriveRotation(); }         catch (e) { record("rotation", false, 0, e.message); }
                        try { await deriveTeamForm(); }          catch (e) { record("team_form", false, 0, e.message); }
                        try { await deriveLuck(); }              catch (e) { record("luck", false, 0, e.message); }
-                       try { await deriveFormFeatures(); }      catch (e) { record("form_features", false, 0, e.message); } }
+                       try { await deriveFormFeatures(); }      catch (e) { record("form_features", false, 0, e.message); }
+                       try { await deriveLastGwReport(); }      catch (e) { record("last_gw", false, 0, e.message); }
+                       try { await fetchEspnShots(); }          catch (e) { record("espn_shots", false, 0, e.message); } }
 
   await writeJSON("status.json", status);
   console.log("\n=== status.json ===");

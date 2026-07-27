@@ -65,6 +65,58 @@ export const DIFF_W = {
   4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.8 },
 };
 export const ELO_SCALE = 150;   // Elo-stig sem svara ~1 þrepi í þyngd
+
+/* ---- KVARÐALEIÐRÉTTING — TVEIR KVARÐAR SEM STÖNGUÐUST Á ----
+   GALLINN (mældur 27.7.2026, var skjalaður í CLAUDE.md kafla 7.0):
+   `fdr`, `own` og `elo` eru öll á "1–5 kvarða með miðju í 3" — meðalleikur
+   fékk d ~3,0. En MEASURED-töflurnar, sem CS% og vænt stig á spjöldunum
+   koma úr, eru á kvarða þar sem meðalleikur er ~2,5 (taflan setur raun-
+   tíðnina 26,1% CS við d=2,51). Markaðsþyngdin er á TÖFLUKVARÐANUM
+   (marketDiff(1,43)=2,44). Kjarninn var því ~0,5 of þungur og
+   MEASURED-taflan var lesin á röngum stað: birt CS% fyrir leiki ÁN
+   markaðslínu — þ.e. ALLAR umferðir nema næstu — var 6,7pp of svartsýnt,
+   og næsta umferð litaðist grænni en seinni umferðir án að vera léttari.
+
+   LEIÐRÉTTINGIN er affin og FITTUÐ, ekki valin. Hún var fittuð GEGN
+   RAUNVERULEGUM ÚRSLITUM, ekki gegn markaðnum: markmiðið er Brier á
+   CS%-inu sem TAFLAN BIRTIR (lookupPos(2,"cs",d)) á móti því hvort
+   hreint blað varð í raun, á 6.080 lið-leikjum. Fyrsta tilraunin
+   kvarðaði kjarnann á markaðinn og erfði þá +2,4pp bjartsýni hans —
+   úrslitin eru rétta viðmiðið, markaðurinn er milliliður.
+   Affin umbreyting haggar EKKI fylgni, svo spákraftur er óbreyttur —
+   hún færir aðeins d þangað sem taflan á að vera lesin.
+
+   MÆLT (GK/DEF, LOSO-krossprófað):
+     kvörðunarhalli  +6,7pp -> +0,3pp   ·  meðalfrávik 6,7pp -> 1,1pp
+     birt CS%        19,4%  -> ~26%     (raun 26,1%)
+     Brier           0,1902 -> 0,1850   (grunnhlutfall 0,1928)
+   Fittið er stöðugt yfir LOSO: center í [2,49, 2,56], spread í [1,14, 1,28].
+
+   ATH: spread > 1 fyrir vörn er ekki villa. Kjarninn er UNDIR-spenntur af
+   því að fdr-liðurinn er grófur (heiltölur 2–5); markaðurinn hefur sd 0,79
+   á móti 0,50, svo réttur halli teygir hann.
+
+   SÓKNARHÓPURINN er fittaður með aðhvarfi á markaðs-sóknarþyngdina, ekki
+   á úrslit: það er engin tvíkosta útkoma fyrir sókn (mörk skoruð eru ekki
+   0/1) svo Brier er ekki í boði. Staðfest með sjálfsamræmi: taflan gefur
+   meðal-pts ~POS_MEAN_PTS[4] á kvarðaða dreifinguna.
+
+   EFTIRSTÖÐVAR, SKJALAÐAR (sjá CLAUDE.md 7.0): marketDiff sjálf lætur
+   töfluna lesa ~2,4pp OF BJARTSÝNT. Það er fjórðungur af upphaflega
+   gallanum og var EKKI lagað hér: fittið á markaðnum lenti á
+   grid-jaðrinum (center 3,1 = jaðar) svo það er ekki traust, og
+   MARKET_CALIB var mælt sérstaklega annars staðar. Sér yfirferð.
+
+   Sett fram í miðjuðu formi (d − 3) svo það sé lesanlegt hvað er gert:
+   færa miðjuna úr 3 í ~2,5 og stilla spennuna.                        */
+export const SCALE_FIX = {
+  def: { center: 2.54, spread: 1.22 },   // GK + DEF (pos 1, 2) — fittað á úrslit
+  att: { center: 2.57, spread: 0.89 },   // MID + FWD (pos 3, 4) — fittað á markaðs-sóknarþyngd
+};
+export const toMeasuredScale = (d, useDef) => {
+  const S = useDef ? SCALE_FIX.def : SCALE_FIX.att;
+  return S.center + S.spread * (d - 3);
+};
 export const LG_SOT = 4.4;      // deildarmeðaltal skota á mark per leik (mælt úr E0)
 export const LG_XG = 1.45;      // deildarmeðaltal marka per lið-leik
 
@@ -91,13 +143,28 @@ export function lookupPos(pos, key, d) {
    Notað sem nefnari í expPoints-margfaldaranum; prófað í tests/.       */
 export const POS_MEAN_PTS = { 1: 3.492, 2: 3.062, 3: 3.428, 4: 4.136 };
 
-/* MÆLT Á SAMSETTA KVARÐANUM — 2.720 lið-leikir, 5 tímabil. */
+/* MÆLT Á SAMSETTA KVARÐANUM — 2.720 lið-leikir, 5 tímabil.
+
+   d-HNITIN ENDURMERKT 2026-07-27, MÆLDU TÖLURNAR ÓBREYTTAR.
+   Þessi tafla var á LEGACY-kvarðanum (miðja í ~3,0): gömlu hnitin
+   2,00/2,40/2,80/3,20/4,00 settu meðalleik í ~2,97. MEASURED_POS er hins
+   vegar á kvarða þar sem meðalleikur er ~2,51 — TÖFLURNAR TVÆR VORU Á
+   SITT HVORUM KVARÐA, sem enginn hafði tekið eftir því hvorug var
+   bakprófuð gegn hinni.
+   Eftir SCALE_FIX skilar FFDR nú 2,5-miðjuðum d, svo App.jsx:1016
+   (`lookupMeasured("ga", d2)` — birt mörk á sig) las töfluna á röngum
+   stað og gaf ~19% of lág mörk á sig. Hnitin eru því færð með sömu affinu
+   umbreytingu, d_nýtt = 2,54 + 1,22*(d_gamalt − 3):
+     2,00 -> 1,32 · 2,40 -> 1,81 · 2,80 -> 2,30 · 3,20 -> 2,78 · 4,00 -> 3,76
+   Þetta er ENDURMERKING, ekki endurmæling: cs/ga/def/gk/att haggast ekki,
+   aðeins hvar á FFDR-kvarðanum þau eru lesin. Staðfest: meðal-d 2,52 gefur
+   nú ga 1,39 — sama tala sem gamla taflan gaf við gamla meðaltalið 2,98.  */
 export const MEASURED = [
-  { d: 2.00, cs: 40.2, ga: 1.00, def: 18.8, gk: 4.2, att: 31.2 },
-  { d: 2.40, cs: 30.3, ga: 1.11, def: 17.3, gk: 4.2, att: 29.9 },
-  { d: 2.80, cs: 28.5, ga: 1.28, def: 15.1, gk: 3.8, att: 28.0 },
-  { d: 3.20, cs: 22.8, ga: 1.53, def: 13.9, gk: 3.5, att: 26.3 },
-  { d: 4.00, cs: 13.0, ga: 1.99, def: 10.2, gk: 3.0, att: 22.8 },
+  { d: 1.32, cs: 40.2, ga: 1.00, def: 18.8, gk: 4.2, att: 31.2 },
+  { d: 1.81, cs: 30.3, ga: 1.11, def: 17.3, gk: 4.2, att: 29.9 },
+  { d: 2.30, cs: 28.5, ga: 1.28, def: 15.1, gk: 3.8, att: 28.0 },
+  { d: 2.78, cs: 22.8, ga: 1.53, def: 13.9, gk: 3.5, att: 26.3 },
+  { d: 3.76, cs: 13.0, ga: 1.99, def: 10.2, gk: 3.0, att: 22.8 },
 ];
 export function lookupMeasured(key, d) {
   const x = clamp(d, MEASURED[0].d, MEASURED[MEASURED.length-1].d);
@@ -115,15 +182,22 @@ export function lookupMeasured(key, d) {
    tímabilsins 2026/27 (1.520 lið-leikir × 2 hópar, reiknað með
    nákvæmlega inntökum appsins í tests/model.test.mjs).
 
-   ENDURKVÖRÐUN 2026-07: gömlu mörkin (2,11/2,41/2,66/2,94/3,35) komu
-   úr 7-tímabila safni og gáfu 3,8% dökkgrænt en 26% rautt á þessu
-   tímabili — kvarðinn "hallaði á rautt" og nær allt leit þungt út.
-   Nú fær hvert þrep ~1/6 leikja. Þetta breytir AÐEINS litunum;
-   tölurnar sjálfar (CS%, vænt stig) koma áfram úr mældu töflunum
-   á samfellda d-gildinu og haggast ekki.
+   ENDURKVÖRÐUN 2026-07 (fyrri): gömlu mörkin (2,11/2,41/2,66/2,94/3,35)
+   komu úr 7-tímabila safni og gáfu 3,8% dökkgrænt en 26% rautt — kvarðinn
+   "hallaði á rautt" og nær allt leit þungt út.
+
+   ENDURKVÖRÐUN 2026-07-27 (þessi): SCALE_FIX færði alla FFDR-dreifinguna
+   um ~0,5 niður (miðja úr ~3,0 í ~2,5), svo gömlu mörkin gáfu 48,8%
+   dökkgrænt. Mörkin hér eru sextílar NÝJU dreifingarinnar, reiknaðir úr
+   data/ með nákvæmlega inntökum appsins. ÞETTA ER AFLEIÐING, EKKI
+   SJÁLFSTÆÐ ÁKVÖRÐUN: litirnir eru afstæð kvörðun og fylgja hvaða kvarða
+   sem d er á. Prófið sem felldi þau (kafli 6 í model.test.mjs) gerði
+   nákvæmlega það sem það átti að gera.
+   Tölurnar sjálfar (CS%, vænt stig) koma áfram úr mældu töflunum á
+   samfellda d-gildinu — og eru NÚ rétt kvarðaðar, sem var tilgangurinn.
    Prófið endurreiknar sextílana úr data/ og fellur ef þeir reka
    >0,12 frá þessum mörkum — þá er kominn tími á endurkvörðun.        */
-export const TIER_CUTS = [2.45, 2.76, 2.92, 3.21, 3.45];
+export const TIER_CUTS = [1.92, 2.30, 2.46, 2.75, 3.03];
 export function tierOf(d) {
   for (let i = 0; i < TIER_CUTS.length; i++) if (d < TIER_CUTS[i]) return i;
   return 5;                 // þyngst
@@ -197,16 +271,25 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
       teamById[fx.opp]?.short === bk.opp &&
       (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0,10) === bk.kickoff.slice(0,10));
 
+    /* RÖÐIN SKIPTIR MÁLI OG ER MÆLD:
+       1) fdr + own + elo blandast á 3-MIÐJAÐA kvarðanum. Elo er líka
+          3-miðjað ((op−me)/150 + 3) svo það tilheyrir þeim kvarða; það
+          var ÁÐUR blandað EFTIR markaðnum og dró útkomuna aftur í átt
+          að 3, sem hélt hluta kvarðagallans inni.
+       2) Kvarðaleiðréttingin færir þá blöndu á MEASURED-kvarðann.
+       3) Markaðurinn blandast SÍÐAST því hann er þegar á rétta kvarðanum
+          og er best kvarðaða inntakið — hann á ekki að þynnast eftir á. */
     let core = fx.fdr * W.fdr + (own * 3) * W.own + (them * 3) * W.opp;
-    if (bkValid && W.mkt) {
-      core = W.mkt * bkDiff + (1 - W.mkt) * core;
-    }
     if (W.elo) {
       const me_e = eloByTeam[teamId]?.elo, op_e = eloByTeam[fx.opp]?.elo;
       if (me_e && op_e) {
         const eScore = clamp((op_e - me_e) / ELO_SCALE + 3, 1, 5);
         core = (1 - W.elo) * core + W.elo * eScore;
       }
+    }
+    core = toMeasuredScale(core, W.useDef);
+    if (bkValid && W.mkt) {
+      core = W.mkt * bkDiff + (1 - W.mkt) * core;
     }
     const homeAdj = (W.home || 0) * (fx.home ? 1 : -1);
     return +clamp(core - homeAdj, 1, 5).toFixed(2);
