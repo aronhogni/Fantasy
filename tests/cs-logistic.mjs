@@ -25,7 +25,7 @@
    prófið sem til er, því þeir voru fittaðir á annað úrtak.
    ============================================================ */
 import {
-  SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrFor,
+  SEASONS, loadSeason, buildStrength, PROMO_DEFAULT,
   marketForRow, eloWalkForward, brier,
 } from "./lib/e0.mjs";
 import { poissonCleanSheet } from "../src/market.js";

@@ -30,7 +30,7 @@ import {
   SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrFor,
   marketForRow, eloWalkForward, corr, rSE,
 } from "./lib/e0.mjs";
-import { makeFixDifficulty, LG_SOT } from "../src/model.js";
+import { makeFixDifficulty } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 let pass = 0, fail = 0;

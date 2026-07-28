@@ -12,7 +12,7 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   POS_MEAN_PTS, MEASURED_POS, tierOf, TIER_CUTS, TIER_BG,
   MEASURED, MEASURED_LEGACY_D, SCALE_FIX, toMeasuredScale, lookupMeasured,
   TIER_COUNT, TIER_NAME, TIER_FG, TIER_NEUTRAL,
-  makeFixDifficulty, clamp, cleanSheetProb, lambdaFromStrength } from "../src/model.js";
+  makeFixDifficulty, cleanSheetProb, lambdaFromStrength } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 
 const D = new URL("../data/", import.meta.url).pathname;

@@ -14,12 +14,12 @@
 import { spawnSync } from "node:child_process";
 const here = new URL(".", import.meta.url).pathname;
 let failed = 0;
-for (const [f, loader] of [["model.test.mjs"], ["stats.test.mjs"], ["ffdr-backtest.mjs"], ["ffdr-walkforward.mjs"], ["ffdr-player-points.mjs"], ["ffdr-old-vs-new.mjs"], ["cs-model.mjs"], ["cs-logistic.mjs"], ["form-blend.mjs"], ["travel-measure.mjs"], ["data-resilience.mjs", true], ["smoke.test.mjs", true]]) {
+for (const [f, loader] of [["model.test.mjs"], ["stats.test.mjs"], ["ffdr-backtest.mjs"], ["ffdr-walkforward.mjs"], ["ffdr-player-points.mjs"], ["ffdr-old-vs-new.mjs"], ["cs-model.mjs"], ["cs-logistic.mjs"], ["form-blend.mjs"], ["ffdr-cs-versions.mjs"], ["travel-measure.mjs"], ["data-resilience.mjs", true], ["smoke.test.mjs", true]]) {
   console.log(`\n${"=".repeat(56)}\n  ${f}\n${"=".repeat(56)}`);
   const args = loader ? ["--import", `data:text/javascript,import{register}from"node:module";register("${here}jsx-loader.mjs","file://${here}")`, here + f] : [here + f];
   const r = spawnSync("node", args, { stdio: ["ignore", "inherit", "pipe"] });
   if (r.status !== 0) failed++;
 }
 console.log(`\n${"=".repeat(56)}`);
-console.log(failed ? `HEILD: ${failed} prófasafn féll` : "HEILD: öll ellefu prófasöfnin græn");
+console.log(failed ? `HEILD: ${failed} prófasafn féll` : "HEILD: öll tolf prófasöfnin græn");
 process.exit(failed ? 1 : 0);
