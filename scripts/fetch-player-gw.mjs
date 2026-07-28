@@ -65,9 +65,12 @@ function parseCsv(text) {
 }
 
 /* Sömu 20 tölur fyrir hverja röð — sjá HEADER. */
+/* `dc` (defensive_contribution) og `cbit` eru AÐEINS til frá 2025/26 —
+   DefCon er ný stigagjöf. Eldri tímabil fá null, EKKI 0: núll myndi lesast
+   sem "hann vann engar varnaraðgerðir" í stað "talan var ekki til".     */
 const HEADER = ["round", "date", "team", "pos", "home", "mins", "starts", "pts",
   "goals", "assists", "cs", "gc", "saves", "bonus", "bps", "xg", "xa", "xgc",
-  "value", "name"];
+  "value", "name", "dc", "cbit"];
 const num = v => { const n = +v; return Number.isFinite(n) ? n : 0; };
 
 const out = {}, report = [];
@@ -111,6 +114,8 @@ for (const [key, dir] of Object.entries(SEASONS)) {
       +num(r.expected_goals).toFixed(2), +num(r.expected_assists).toFixed(2),
       +num(r.expected_goals_conceded).toFixed(2),
       num(r.value), r.name || "",
+      r.defensive_contribution == null || r.defensive_contribution === "" ? null : num(r.defensive_contribution),
+      r.clearances_blocks_interceptions == null || r.clearances_blocks_interceptions === "" ? null : num(r.clearances_blocks_interceptions),
     ]);
     kept++;
   }
