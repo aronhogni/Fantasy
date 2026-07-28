@@ -291,13 +291,14 @@ ok(tiers.every((b, i) => i === 0 || b.ga >= tiers[i - 1].ga - 0.05),
 ok(tiers[0].cs - tiers[tiers.length - 1].cs >= 20,
   `endarnir skildir að ≥20pp: ${tiers[0].cs.toFixed(0)}% á móti ${tiers[tiers.length-1].cs.toFixed(0)}%`);
 
-/* ---------- 7. MARKAÐSKVÖRÐUNIN (MARKET_CALIB=0,959) ----------
-   Sú tala var mæld á 380 leikjum. Heldur hún á 3.040?               */
+/* ---------- 7. MARKAÐSKVÖRÐUNIN (MARKET_CALIB) ----------
+   Var 0,959 (mælt á 380 leikjum) og er nú 1,0 — endurmælt á 10.640
+   lið-leikjum, sjá tests/cs-model.mjs. Þetta próf er vörðurinn.      */
 const mkRows = all.filter(x => x.mDiff != null);
 const impliedGa = mkRows.map(x => (x.mDiff - 1.0) / 1.55 + 0.5);   // andhverfa marketDiff
 const mMean = impliedGa.reduce((a, b) => a + b, 0) / impliedGa.length;
 const aMean = mkRows.reduce((a, x) => a + x.ga, 0) / mkRows.length;
-console.log(`\n=== MARKAÐSKVÖRÐUN (MARKET_CALIB=0,959 var mælt á 380 leikjum) ===`);
+console.log(`\n=== MARKAÐSKVÖRÐUN (MARKET_CALIB=1,0 — endurmælt 28.7. á 10.640) ===`);
 console.log(`  vænt mörk á sig skv. línu: ${mMean.toFixed(3)}  ·  raun: ${aMean.toFixed(3)}  ·  ` +
   `halli ${((mMean / aMean - 1) * 100 >= 0 ? "+" : "") + ((mMean / aMean - 1) * 100).toFixed(1)}%`);
 ok(Math.abs(mMean / aMean - 1) < 0.06,

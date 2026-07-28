@@ -965,42 +965,14 @@ export default function App() {
        ALGILT   — hvern á ég að kaupa?  (samanburður milli liða) -> FFDR-tafla
        AFSTÆTT  — hvenær á ég að spila honum? (innan liðs) -> leikja-flísar
      Afstætt raðar 38 leikjum liðsins í sex jafnstóra flokka.                */
-  const ffdrRange = useMemo(() => {
-    if (!teams || !fixtures) return {};
-    const out = {};
-    for (const t of teams) {
-      for (const pos of [2, 4]) {
-        const vals = [];
-        for (let g = 1; g <= maxGw; g++) {
-          for (const f of (fixByTeamGw[t.id]?.[g] || [])) {
-            const d = fixDifficulty(t.id, f, pos);
-            if (d != null) vals.push(d);
-          }
-        }
-        if (vals.length) {
-          /* ÓLÍK gildi, ekki kvantílar. Lélegt lið hefur aðeins ~8 ólík FFDR-gildi
-             (FDR 1-5 x heima/úti), svo kvantílar mynda tvítekin skil og flokkar
-             verða tómir. Röðun ólíkra gilda tryggir að jafnir leikir fá SAMA lit
-             og að allir litir nýtist (TIER_COUNT, nú sjö).                      */
-          out[`${t.id}|${pos}`] = [...new Set(vals)].sort((a, b) => a - b);
-        }
-      }
-    }
-    return out;
-  }, [teams, fixtures, maxGw, fixByTeamGw, teamMetrics, odds, eloByTeam]);
-
-  /* Þrep leiks AFSTÆTT innan liðsins (0 = léttasti sjötti hluti). */
-  function tierRel(teamId, fx, pos) {
-    const d = fixDifficulty(teamId, fx, pos);
-    if (d == null) return null;
-    const uniq = ffdrRange[`${teamId}|${pos <= 2 ? 2 : 4}`];
-    if (!uniq || uniq.length < 2) return tierOf(d);
-    const i = uniq.indexOf(d);
-    if (i < 0) return tierOf(d);
-    // röð ólíks gildis -> þrep 0..TIER_COUNT-1 (má EKKI harðkóða 6: sjöunda
-    // þrepið — hlutlausa gráa — hefði annars aldrei birst)
-    return Math.min(TIER_COUNT - 1, Math.floor(i * TIER_COUNT / uniq.length));
-  }
+  /* AFSTÆÐ ÞREP INNAN LIÐS VORU FJARLÆGÐ 28.7.2026 (ffdrRange + tierRel).
+     Þau þvinguðu hvert lið til að nota alla sex litina, svo Arsenal fékk
+     "rautt" á leik sem er algilt dökkgult. MÆLT á 28.355 byrjunarliðs-
+     umferðum: algilt þrep spáir stigum leikmanns MARKTÆKT betur en afstætt
+     (DEF −0,267 á móti −0,190; ~30% af merkinu fór til spillis).
+     Spjöld og tillögur eru því algild — sjá tests/ffdr-player-points.mjs
+     kafla E, sem er vörðurinn. Ekki setja afstæð þrep inn aftur án þess
+     að sú mæling segi annað.                                            */
 
 
   // CS-mat: bókmakarar ef til, annars afleitt úr FDR + xGC (opinber gögn)
@@ -1785,7 +1757,7 @@ export default function App() {
                       isSellHint={recommendations.sellIds?.has(sq.id)}
                       onInfo={() => setDetail({ kind:"player", id:sq.id })}
                       onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                      onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
+                      onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                       dragId={dragId} setDragId={setDragId}
                       onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                   ))}
@@ -1806,7 +1778,7 @@ export default function App() {
                     isSellHint={recommendations.sellIds?.has(sq.id)}
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
-                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} relOf={tierRel} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
+                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
@@ -2310,7 +2282,7 @@ export default function App() {
             <div style={S.recGrid}>
               {(recommendations.byPos[pos] || []).map(r => (
                 <RecCard key={r.p.id} r={r} team={teamById[r.p.team]} teamById={teamById}
-                  dc={dcOpp[r.p.team]} elo={eloByTeam[r.p.team]} diffOf={fixDifficulty} relOf={tierRel}
+                  dc={dcOpp[r.p.team]} elo={eloByTeam[r.p.team]} diffOf={fixDifficulty}
                   crestFor={crestFor} csFor={csFor} range={recRange} onAdd={() => setDetail({ kind:"player", id:r.p.id })} />
               ))}
             </div>
@@ -2766,18 +2738,19 @@ function Stat({ icon, label, value, sub, tone }) {
 /* SEX ÞREP — litaröð eftir erfiðleikastigi:
    1 dökkgrænt · 2 grænt · 3 ljósgult · 4 dökkgult · 5 ljósrautt · 6 rautt   */
 
-function FixChip({ fx, teamById, diff, pos, relTier }) {
+function FixChip({ fx, teamById, diff, pos }) {
   if (!fx) return <div style={S.noFix}>—</div>;
   const opp = teamById[fx.opp]?.short || "?";
   const d = diff != null ? diff : fx.fdr;
-  // AFSTÆTT þrep ef til (innan liðsins), annars algilt
-  const t = relTier != null ? relTier : tierOf(d);
+  /* ALGILT þrep — aldrei afstætt innan liðs. Sjá skýringuna þar sem
+     ffdrRange/tierRel voru fjarlægð (mælt á 28.355 leikmanna-umferðum). */
+  const t = tierOf(d);
   const bg = TIER_BG[t], fg = TIER_FG[t];
   return (
     <div style={{ ...S.fixChip, background:bg, color:fg }}
       title={diff != null
-        ? `${TIER_NAME[t]} — ${relTier != null ? "AFSTÆTT innan liðsins" : "algilt"}`
-          + `\nFFDR ${d} (algilt, samanburðarhæft milli liða)`
+        ? `${TIER_NAME[t]} — algildur kvarði, samanburðarhæfur milli liða`
+          + `\nFFDR ${d}`
           + `\nFDR ${fx.fdr} · ${fx.home ? "heima" : "úti"}`
         : `FDR ${fx.fdr}`}>
       {oppLabel(opp, fx.home)}
@@ -2977,7 +2950,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor,
   crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, relOf, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -3051,7 +3024,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
           á lið, svo þau verða að vera á algildum kvarða — og þá er
           "Lið — FFDR"-taflan loks samræmd við spjöldin.                  */}
       <FixChip fx={fx} teamById={teamById} diff={diffOf ? diffOf(p.team, fx, p.element_type) : null} pos={p.element_type}
-        relTier={null} />
+        />
       {/* EIN aðaltala */}
       {/* EIN aðaltala — VÆNT STIG leikmannsins.
           Áður var hér lið-xG fyrir sóknarmenn, en það er ÓÞARFI: FFDR-flísin
@@ -3090,7 +3063,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
   );
 }
 
-function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, relOf, range, onAdd }) {
+function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, onAdd }) {
   const { p, fxs } = r;
   const isDef = p.element_type <= 2;
   return (

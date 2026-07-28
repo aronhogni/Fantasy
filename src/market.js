@@ -19,13 +19,29 @@ export function poissonCleanSheet(oppExpectedGoals) {
   return Math.round(Math.exp(-oppExpectedGoals) * 100);
 }
 
-/* ---- LOKALÍNU-AÐFERÐIN (BAKPRÓFUÐ á 380 leikjum) ----
+/* ---- LOKALÍNU-AÐFERÐIN ----
    1) Leysa væntanleg heildarmörk út úr yfir/undir-líkum með Poisson-inversion.
    2) Skipta þeim með handicap: heima = (λ − AH) / 2.  ATH FORMERKI:
       NEGATÍFT handicap = heimalið er favorít (staðfest á raungögnum).
-   3) Kvarða −4,1% — líkanið mældist systematískt bjartsýnt.
-   Markaðurinn mældist 1,3x betri en FDR (r 0,374 á móti 0,283).           */
-export const MARKET_CALIB = 0.959;          // −4,1%
+   Markaðurinn mældist 1,3x betri en FDR (r 0,374 á móti 0,283).
+
+   MARKET_CALIB 0,959 -> 1,0 (28.7.2026). Gamla −4,1% kvörðunin var mæld á
+   380 LEIKJUM. Endurmæld á 10.640 lið-leikjum (14 tímabil, `tests/cs-model.mjs`
+   og sveipun á viðbótar-margfaldara) er niðurstaðan skýr: besti margfaldari
+   ofan á 0,959 er 1,04–1,05, þ.e. 0,959 × 1,045 ≈ 1,00. Poisson-inversionin
+   er því ÓSKEKKT í sjálfu sér og −4,1% skekkti hana.
+
+   ÁHRIF (CS = e^−λ, LOSO á 14 tímabilum):
+     kvörðunarhalli   −1,5pp -> +0,1pp
+     meðalfrávik       1,5pp -> 0,8pp
+     Brier            0,18422 -> 0,18401
+   LOSO-bilið á margfaldaranum er 1,04–1,05, þ.e. FASTUR yfir tímabil —
+   þetta er ekki fitt á hávaða.
+
+   ÞETTA VAR RÓTIN að þeim „eftirstöðvum" sem voru skjalaðar í model.js:
+   markaðurinn lét MEASURED-töfluna lesa ~2,4pp of bjartsýnt. Sú skekkja
+   kom hingað, ekki úr töflunni.                                          */
+export const MARKET_CALIB = 1.0;
 
 export function lambdaFromOver(pOver, line) {
   // finna λ þannig að P(X > line) = pOver  (Poisson)
