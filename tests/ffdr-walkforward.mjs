@@ -37,7 +37,7 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import {
-  SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrApprox,
+  SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrFor,
   marketForRow, eloWalkForward, corr, rSE, brier,
 } from "./lib/e0.mjs";
 import { makeFixDifficulty, lookupPos, lookupMeasured, tierOf, TIER_NAME, toMeasuredScale } from "../src/model.js";
@@ -55,13 +55,18 @@ const byKey = Object.fromEntries(loaded.map(s => [s.key, s.rows]));
 const PRED = SEASONS.slice(1);
 
 const all = [];            // ein röð per lið-leik
+const fdrSrc = {};         // tímabil -> "opinbert" | "nálgað"
 let noMarket = 0;
 
 for (let si = 1; si < SEASONS.length; si++) {
   const key = SEASONS[si], prevKey = SEASONS[si - 1];
   const rows = byKey[key], prevRows = byKey[prevKey];
   const strength = buildStrength(prevRows);
-  const fdrOf = fdrApprox(prevRows);
+  /* OPINBERT FPL-FDR þegar það er til (1819+, data/fpl_fdr_history.json),
+     annars nálgun. Appið notar opinbera talan, svo bakprófið verður að
+     gera það líka — annars mælir það annan heim en appið keyrir í.     */
+  const FDR = fdrFor(key, prevRows);
+  fdrSrc[key] = FDR.source;
 
   const teams = [...new Set(rows.flatMap(r => [r.HomeTeam, r.AwayTeam]))];
   const promoted = teams.filter(t => !strength[t]);
@@ -101,12 +106,13 @@ for (let si = 1; si < SEASONS.length; si++) {
     const noMkt = makeFixDifficulty({ teamMetrics, teamById, odds: null, eloByTeam });
 
     const hg = +r.FTHG, ag = +r.FTAG;
-    for (const [team, oppTeam, home, gf, ga, mDiff] of [
-      [r.HomeTeam, r.AwayTeam, true, hg, ag, mk?.hDiff],
-      [r.AwayTeam, r.HomeTeam, false, ag, hg, mk?.aDiff],
+    const fdrPair = FDR.forFixture(r.HomeTeam, r.AwayTeam);
+    for (const [team, oppTeam, home, gf, ga, mDiff, fdrVal] of [
+      [r.HomeTeam, r.AwayTeam, true, hg, ag, mk?.hDiff, fdrPair.h],
+      [r.AwayTeam, r.HomeTeam, false, ag, hg, mk?.aDiff, fdrPair.a],
     ]) {
       const me = ids[team], op = ids[oppTeam];
-      const fx = { opp: op, home, fdr: fdrOf(oppTeam), kickoff };
+      const fx = { opp: op, home, fdr: fdrVal, kickoff };
       all.push({
         season: key, team, promoted: promoted.includes(team),
         dDef: withMkt(me, fx, 2),            // GK/DEF-hópurinn, full inntök

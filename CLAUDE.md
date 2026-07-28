@@ -23,7 +23,15 @@ Tímabilið **2026/27 hefst 21. ágúst 2026** (GW1-frestur 21.8 kl. 17:30 UTC);
 **Skráastærðir** (til að vita hvað þú ert að opna):
 `src/App.jsx` 3.397 l · `scripts/fetch.mjs` ~1.740 l · `src/model.js` ~265 l ·
 `src/market.js` 95 l · `src/Pitch.jsx` 124 l · `netlify/functions/odds.js` 201 l ·
-prófin ~1.180 l (fimm söfn, sjá kafla 4).
+`src/stats.js` ~430 l · `src/GwReport.jsx` ~600 l · `src/Leaderboard.jsx` ~300 l ·
+prófin ~1.500 l (sex söfn, sjá kafla 4).
+
+**Þrír flipar** (frá 28.7.): `Skipulag` (upprunalega appið) · `Umferðin`
+(`src/GwReport.jsx` — skýrsla um síðustu loknu umferð + skot-kort) ·
+`Stigatafla` (`src/Leaderboard.jsx`). Flipa-státið er `view` í `App.jsx`.
+Nýju fliparnir lesa AÐEINS `data/`-skrár — þeir hanga ekki á liðinu þínu
+og virka þótt ekkert sé tengt. Allar tölur þeirra eru í `src/stats.js`
+(hreint, ekkert React) af sömu ástæðu og `model.js`: prófin keyra sama kóða.
 
 **`src/market.js`** (nýtt 27.7.): markaðs-umbreytingin (odds -> vænt mörk ->
 FFDR-þyngd) var inni í `fetch.mjs` og því ÓPRÓFANLEG þótt hún beri 0,80 af
@@ -101,11 +109,34 @@ FPL notar FDR **1** í 10% leikja 2024/25, sem nálgunin gerði aldrei.
 er upplýsingar og ekki fínni þrep. Án markaðslínunnar er FFDR 1,35x, svo
 líkanið sjálft slær FDR og bókmakararnir bæta þar ofan á.
 
-**OPIÐ: `SCALE_FIX` var fittað á NÁLGAÐA FDR-ið.** Appið notar raunverulega
-FPL-FDR-ið, og með því er líkanskjarninn **0,090 léttari** að meðaltali en
-fittið gerði ráð fyrir (2,432 á móti 2,522) — þ.e. birt CS% er um **1,4pp of
-bjartsýnt** í raun. Lítið en mælt. Endurfitt á opinbera FDR-ið er næsta skref;
-allt sem þarf er nú í repo-inu.
+**ENDURFITTAÐ 28.7. Á OPINBERA FDR-IÐ.** Fyrsta `SCALE_FIX`-fittið notaði
+nálgaða FDR-ið, en appið keyrir á opinbera — með því var kjarninn 0,090
+léttari en fittið gerði ráð fyrir. Endurfittað á sama hátt (Brier gegn
+úrslitum fyrir vörn, aðhvarf á markaðs-sóknarþyngd fyrir sókn), á þeim 8
+tímabilum sem HAFA opinbera FDR-ið:
+
+| | var | er |
+|---|---|---|
+| `SCALE_FIX.def` | 2,54 / 1,22 | **2,63 / 1,20** |
+| `SCALE_FIX.att` | 2,57 / 0,89 | **2,62 / 0,87** |
+| kvörðunarhalli varnar | −1,0pp | **+0,2pp** |
+| meðalfrávik | 2,2pp | **2,0pp** |
+
+LOSO-stöðugt (def center 2,58–2,66, att 2,61–2,64). LOSO-**Brier** batnar
+aðeins í 3/8 tímabilum og það er rétt: þetta er KVÖRÐUN (hvar taflan er
+lesin), ekki aðgreining. Aðgreining haggast ekki af affinu falli — r og AUC
+í töflunni að ofan eru óbreytt.
+
+Tvennt fylgdi: `MEASURED`-hnitin endurreiknuð með nýja fittinu
+(1,43/1,91/2,39/2,87/3,83) og `TIER_CUTS` -> `[2,02, 2,39, 2,53, 2,80, 3,08]`.
+**NÝR VÖRÐUR** (`model.test.mjs` kafli 4b) endurreiknar `MEASURED[i].d` úr
+`MEASURED_LEGACY_D` og fellur ef þau reka frá `SCALE_FIX` — sú hætta var
+raunveruleg því engin sjálfstæð heimild er til um birt mörk á sig.
+
+Bakprófin nota nú **opinbera FDR-ið** (`fdrFor()` í `tests/lib/e0.mjs`) þegar
+það er til, svo þau mæli sama heim sem appið keyrir í. Það styrkti kjarnann
+mælanlega: r 0,293 -> **0,328**, og FFDR (0,406) nær nú markaðslínunni einni
+(0,404) í fyrsta sinn.
 
 1. **`mkt` fyrir GK/DEF var hækkað 0,50 -> 0,80.** Einræn framför upp að ~0,8
    og 0,80 slær 0,50 í **8/8 tímabilum**; kvörðun birtu CS%-talnanna batnaði
@@ -173,13 +204,14 @@ allt sem þarf er nú í repo-inu.
 
 ## 4. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir **fimm** söfn, **178 próf**, öll græn:
+`tests/run-tests.mjs` keyrir **sex** söfn, **299 próf**, öll græn (keyrt 3x):
 
 | Safn | Fjöldi | Hvað það gerir |
 |---|---|---|
 | `model.test.mjs` | 84 | Hver birt tala: söluverð, frí skipti/refsingar, vænt stig, mælda taflan, FFDR-eiginleikar, verðspá, PWA-skrár. **Endurkvarðar litamörkin úr `data/`.** Kafli 5b: vörður að hver röð í `odds.json` sé NÝTILEG (`diff` eða `xga`, `opp`, `kickoff`, gagnkvæm) — sá vörður vantaði og það kostaði viku af dauðum markaðslið. |
 | `ffdr-backtest.mjs` | 10 | Spáir öllum 380 leikjum 2025/26 með styrk 2024/25 eingöngu. Svarar **„halda LITIRNIR?“** á einu tímabili. Grænasti sjöttungur 33% CS vs 13% rauðasti; r=0,217. Tölfræðileg vikmörk, ekki hörð mörk. |
 | `ffdr-walkforward.mjs` | 27 | **8 tímabil (1819–2526), 6.080 lið-leikir, FULL inntök** — markaðslína endurbyggð úr B365-oddsum og Elo reiknað fram í tímann. Svarar því sem eldra bakprófið gat ekki: er FFDR betri en **sitt besta inntak**, er MEASURED-taflan rétt **kvörðuð** (ekki bara rétt röðuð), og virkar **sóknarhópurinn**. Sjá kafla 3. |
+| `stats.test.mjs` | 121 | Flipana `Umferðin` og `Stigatafla`. Stat-skráin (hvert `get()` þolir tóm/vitlaus inntök — engin deiling með núlli), stigatöflu-röðun, jafnteflis-sæti og mínútu-þak, `bestXi` gegn FPL-formasjón, ESPN-skotin, nafna-pörun, og **vörður að mörk stemmi við úrslitin**. Tveir varðar sem eiga að fella: (a) ef X>0,5 hættir að vera undantekning hefur ESPN breytt hnitakerfinu og kortið er vitlaust; (b) ef nafna-pörun fellur undir 90% hefur heimild breytt nafnaformi. |
 | `travel-measure.mjs` | 2 | Vörðurinn í kafla 3. |
 | `smoke.test.mjs` | 55 | Appið keyrt í **jsdom** með raunverulegum `data/`-skrám og hermdu `fetch`. 15 spjöld, peningar (banki+lið = £100.0), umferðaskipti, FPL-reglur, chips, andstæðingar, vistun, meiðsli, ferðalengd. |
 
@@ -242,6 +274,60 @@ frí-þreps gluggans (±1 dagur)"`, 0 köll notuð. Þetta er **réttur** presea
 árangur. **PENDING: fyrsta raunprófunin er 20.–21. ágúst**, þegar GW1-leikir
 koma inn í gluggann. Athugaðu þá `injuries.json` → `via`, `players`, `unmatched`
 og lagaðu nafnapörun ef `unmatched` er stór.
+
+---
+
+## 6b. SKOT-GÖGN — mælt 27.–28. júlí 2026, ekki giskað
+
+Þetta kostaði margar mælingar. **Ekki endurtaka þær; lestu töfluna.**
+
+| Heimild | Svar | Skot-hnit | Woodwork | xG/skot |
+|---|---|---|---|---|
+| **ESPN** `site.api.espn.com/.../soccer/eng.1` | **200** | **já** | **já** | nei |
+| Understat (bein) | 200 en **gagnalaust** | nei | nei | — |
+| vaastav-speglun `understat/` | 200 | nei (aðeins leikja-samantekt) | nei | — |
+| FBref | **403** | — | — | — |
+| SofaScore (4 hostar) | **403** | — | — | — |
+
+- **Understat er dautt fyrir okkur.** Leikjasíður skila aðeins `var match_info`
+  (liða-xG, skot, skot á mark, deep, PPDA); `shotsData` og `rostersData` eru
+  **horfin**. League-síður skila **byte-eins 18.645 b skel í 5/5 tilraunum og
+  fyrir öll tímabil** (2019/2024/2025) — það er ekki timeout og batnar ekki í
+  ágúst. `fetchUnderstatShots()` getur því ekki skilað gögnum og
+  `luck.json`-woodwork verður áfram `null`. Skilaboðin þar voru ÓSÖNN
+  („tímabil ekki byrjað?“) og eru nú lagfærð.
+- **vaastav-speglunin** hafði aldrei skotstig og **stöðvaðist eftir 2024-25**.
+  En hún gaf annað sem vantaði: `data/{season}/gws/gw{n}.csv` = raunveruleg
+  per-umferðar FPL-gögn. Það er heimildin fyrir safn-skýrsluna.
+- **SofaScore** var skoðað (shotmap MEÐ xG og post-flaggi — það sem ESPN vantar)
+  en skilar 403 á fjórum hostum, líka á venjulegu vefsíðunni. Ónothæft óháð
+  því hve gott fæðið er.
+
+**ESPN-hnitakerfið er MÆLT:** `fieldPositionX` er **fjarlægð frá markinu sem
+sótt er að**, ekki absolút staða. Prófið: í CRY 1–2 ARS liggja öll þrjú mörkin
+á lágu X (0,262 / 0,264 / 0,128) þótt sitt hvort liðið skoraði — absolút kerfi
+hefði sett þau á gagnstæða enda. Þess vegna er kortið **einn vallarhelmingur**,
+markið UPPI, í réttum stærðarhlutföllum (68 m breitt × 52,5 m langt). Fyrsta
+útgáfan hafði markið vinstra í 760×480 kassa og **togaði x-ásinn**.
+
+**9% hnita eru ótraust:** 19 af 290 skotum höfðu X>0,5 og **öll voru langskot**
+(eitt „more than 35 yards“ á X=0,964 = 100 m). Þau eru merkt `usable:false`,
+**talin og birt** — og **EKKI speglað** yfir (1−X), því það væri ágiskun um
+kerfi sem við staðfestum ekki.
+
+**Nafna-pörun FPL↔ESPN er 99% (161/162), var 80%.** Þrennt þurfti: TRANSLIT-tafla
+á undan NFD (`ß`→ss, punktlaust `ı`; „Groß“ varð „gro“ og „Kadıoğlu“ varð
+„kad oglu“), orða-skörun í stað síðasta orðs (samsett eftirnöfn: „Diego Gómez
+Amarilla“ vs „Diego Gómez“), og **eitt-á-eitt pörun** — annars hirtu tveir
+Gomes-ar sömu skyttuna. Ópöraðir fá `null`, EKKI 0.
+
+**Það sem enn vantar og má ALDREI látið sem sé til:** xG per skot (ESPN gefur
+hana ekki → **big chances eru EKKI reiknuð**), touches í teig, og raunveruleg
+meðalstaðsetning. `formation` er birt sem *uppstilling*, ekki sem mæld staðsetning.
+
+**Krossprófun sem sannar úrdráttinn:** 23 mörk + 1 sjálfsmark = 24 = summa
+úrslitanna í GW38, úr BÁÐUM heimildum sjálfstætt; og ESPN-skotafjöldi stemmir
+við E0 upp á skot í helmingi leikja og víkur mest um 1. Bæði prófað.
 
 ---
 

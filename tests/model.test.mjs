@@ -10,6 +10,7 @@
 import { readFileSync } from "node:fs";
 import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePrediction,
   POS_MEAN_PTS, MEASURED_POS, tierOf, TIER_CUTS, TIER_BG,
+  MEASURED, MEASURED_LEGACY_D, SCALE_FIX, toMeasuredScale, lookupMeasured,
   makeFixDifficulty, clamp } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 
@@ -105,6 +106,25 @@ import("../src/model.js").then(() => {});
   ok(MEASURED.every((x, i) => i === 0 || x.cs < MEASURED[i-1].cs), "MEASURED: CS% fellur með þyngd");
   ok(MEASURED.every((x, i) => i === 0 || x.ga > MEASURED[i-1].ga), "MEASURED: mörk á sig hækka með þyngd");
 }
+
+/* ---- 4b. VÖRÐUR: MEASURED-hnitin fylgja SCALE_FIX ----
+   MEASURED var mæld á LEGACY-kvarðanum (miðja í 3). Hnitin eru endurmerkt
+   með SCALE_FIX.def svo hún sé á sama kvarða sem MEASURED_POS. EF
+   SCALE_FIX BREYTIST OG HNITIN FYLGJA EKKI les App.jsx:1016 birt mörk á
+   sig á röngum stað — og það er engin sjálfstæð heimild um þá tölu sem
+   annað próf gæti borið hana við. Þessi vörður er sú heimild.          */
+console.log("\n=== 4b. VÖRÐUR: MEASURED-hnitin fylgja SCALE_FIX ===");
+ok(MEASURED_LEGACY_D.length === MEASURED.length, "legacy-hnit fyrir hverja röð");
+MEASURED.forEach((row, i) => {
+  const want = +toMeasuredScale(MEASURED_LEGACY_D[i], true).toFixed(2);
+  ok(Math.abs(row.d - want) < 0.005,
+    `röð ${i}: d=${row.d} = SCALE_FIX(${MEASURED_LEGACY_D[i]})=${want}`);
+});
+/* Og lokaprófið á að taflan sé rétt kvörðuð: meðalleikur á að gefa
+   mörk á sig nálægt deildarmeðaltalinu (~1,43 úr E0). */
+const gaAtMean = lookupMeasured("ga", SCALE_FIX.def.center);
+ok(Math.abs(gaAtMean - 1.43) < 0.15,
+  `meðalleikur (d=${SCALE_FIX.def.center}) gefur ${gaAtMean.toFixed(2)} mörk á sig ~ 1,43 í raun`);
 
 console.log("\n=== 5. FFDR-EIGINLEIKAR ===");
 const tm = { 1: { xg90: 2.0, xgc90: 0.8, sotFor: 6, sotAg: 3 },     // sterkt lið

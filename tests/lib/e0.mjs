@@ -37,6 +37,24 @@ export function realFdr(seasonKey) {
   return (homeTeam, awayTeam) => s[`${homeTeam}|${awayTeam}`] || null;
 }
 
+/* BESTA FÁANLEGA FDR fyrir tímabil — EINN staður svo bakprófin geti ekki
+   notað sitt hvora heimildina. Opinbert þegar það er til (1819+), annars
+   nálgun. `source` er skilað með svo útprent geti merkt hvort er hvað.  */
+export function fdrFor(seasonKey, prevRows) {
+  const real = realFdr(seasonKey);
+  const approx = fdrApprox(prevRows);
+  return {
+    source: real ? "opinbert" : "nálgað",
+    real: !!real,
+    /* Skilar { h, a } — FDR heimaliðs og útiliðs fyrir þennan leik. */
+    forFixture(homeTeam, awayTeam) {
+      const p = real && real(homeTeam, awayTeam);
+      return p ? { h: p[0], a: p[1], real: true }
+               : { h: approx(awayTeam), a: approx(homeTeam), real: false };
+    },
+  };
+}
+
 export const loadSeason = key =>
   JSON.parse(readFileSync(`${D}fdcouk/E0-${key}.json`, "utf8")).rows;
 

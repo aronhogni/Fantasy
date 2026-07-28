@@ -109,9 +109,20 @@ export const ELO_SCALE = 150;   // Elo-stig sem svara ~1 þrepi í þyngd
 
    Sett fram í miðjuðu formi (d − 3) svo það sé lesanlegt hvað er gert:
    færa miðjuna úr 3 í ~2,5 og stilla spennuna.                        */
+/* ENDURFITTAÐ 28.7.2026 Á OPINBERA FPL-FDR-IÐ. Fyrsta fittið notaði
+   NÁLGAÐ sögulegt FDR (FPL birtir aðeins yfirstandandi tímabil). Nú er
+   raunverulega talan til í data/fpl_fdr_history.json og með henni er
+   kjarninn 0,090 léttari að meðaltali en nálgunin gaf — appið keyrir á
+   opinbera FDR-inu, svo fittið varð að gera það líka.
+     def  2,54/1,22 -> 2,63/1,20   ·   att  2,57/0,89 -> 2,62/0,87
+   Kvörðunarhalli varnar: −1,0pp -> +0,2pp (meðalfrávik 2,2 -> 2,0pp).
+   ATH: LOSO-Brier batnar aðeins í 3/8 tímabilum — breytingin er
+   KVÖRÐUN (hvar taflan er lesin), ekki aðgreining, og það er einmitt
+   hlutverk SCALE_FIX. Fittið er stöðugt: def center 2,58–2,66 /
+   spread 1,16–1,38, att center 2,61–2,64 / spread 0,86–0,88.          */
 export const SCALE_FIX = {
-  def: { center: 2.54, spread: 1.22 },   // GK + DEF (pos 1, 2) — fittað á úrslit
-  att: { center: 2.57, spread: 0.89 },   // MID + FWD (pos 3, 4) — fittað á markaðs-sóknarþyngd
+  def: { center: 2.63, spread: 1.20 },   // GK + DEF (pos 1, 2) — fittað á úrslit
+  att: { center: 2.62, spread: 0.87 },   // MID + FWD (pos 3, 4) — fittað á markaðs-sóknarþyngd
 };
 export const toMeasuredScale = (d, useDef) => {
   const S = useDef ? SCALE_FIX.def : SCALE_FIX.att;
@@ -153,19 +164,28 @@ export const POS_MEAN_PTS = { 1: 3.492, 2: 3.062, 3: 3.428, 4: 4.136 };
    bakprófuð gegn hinni.
    Eftir SCALE_FIX skilar FFDR nú 2,5-miðjuðum d, svo App.jsx:1016
    (`lookupMeasured("ga", d2)` — birt mörk á sig) las töfluna á röngum
-   stað og gaf ~19% of lág mörk á sig. Hnitin eru því færð með sömu affinu
-   umbreytingu, d_nýtt = 2,54 + 1,22*(d_gamalt − 3):
-     2,00 -> 1,32 · 2,40 -> 1,81 · 2,80 -> 2,30 · 3,20 -> 2,78 · 4,00 -> 3,76
+   stað og gaf ~19% of lág mörk á sig. Hnitin eru því færð með SÖMU affinu
+   umbreytingu sem SCALE_FIX.def notar, d_nýtt = center + spread*(d_gamalt − 3).
+   ENDURREIKNAÐ 28.7. með fittinu á opinbera FDR-ið (2,63/1,20):
+     LEGACY-hnit:  2,00   2,40   2,80   3,20   4,00
+     -> NÚVERANDI: 1,43   1,91   2,39   2,87   3,83
    Þetta er ENDURMERKING, ekki endurmæling: cs/ga/def/gk/att haggast ekki,
-   aðeins hvar á FFDR-kvarðanum þau eru lesin. Staðfest: meðal-d 2,52 gefur
-   nú ga 1,39 — sama tala sem gamla taflan gaf við gamla meðaltalið 2,98.  */
+   aðeins hvar á FFDR-kvarðanum þau eru lesin. EF SCALE_FIX.def BREYTIST
+   AFTUR VERÐUR ÞETTA AÐ FYLGJA — annars les appið mörk á sig á röngum stað
+   og ekkert próf grípur það sjálfkrafa (það er engin sjálfstæð heimild um
+   birt mörk á sig; sjá vörðinn í model.test.mjs kafla 4b).               */
 export const MEASURED = [
-  { d: 1.32, cs: 40.2, ga: 1.00, def: 18.8, gk: 4.2, att: 31.2 },
-  { d: 1.81, cs: 30.3, ga: 1.11, def: 17.3, gk: 4.2, att: 29.9 },
-  { d: 2.30, cs: 28.5, ga: 1.28, def: 15.1, gk: 3.8, att: 28.0 },
-  { d: 2.78, cs: 22.8, ga: 1.53, def: 13.9, gk: 3.5, att: 26.3 },
-  { d: 3.76, cs: 13.0, ga: 1.99, def: 10.2, gk: 3.0, att: 22.8 },
+  { d: 1.43, cs: 40.2, ga: 1.00, def: 18.8, gk: 4.2, att: 31.2 },
+  { d: 1.91, cs: 30.3, ga: 1.11, def: 17.3, gk: 4.2, att: 29.9 },
+  { d: 2.39, cs: 28.5, ga: 1.28, def: 15.1, gk: 3.8, att: 28.0 },
+  { d: 2.87, cs: 22.8, ga: 1.53, def: 13.9, gk: 3.5, att: 26.3 },
+  { d: 3.83, cs: 13.0, ga: 1.99, def: 10.2, gk: 3.0, att: 22.8 },
 ];
+/* LEGACY-hnitin, geymd svo endurmerkingin sé endurreiknanleg og ekki
+   ágiskun ef SCALE_FIX breytist: MEASURED_LEGACY_D[i] er d-hnit rað i
+   á upprunalega 3-miðjaða kvarðanum. Vörðurinn í model.test.mjs
+   endurreiknar MEASURED[i].d úr þessu og fellur ef þau reka í sundur. */
+export const MEASURED_LEGACY_D = [2.00, 2.40, 2.80, 3.20, 4.00];
 export function lookupMeasured(key, d) {
   const x = clamp(d, MEASURED[0].d, MEASURED[MEASURED.length-1].d);
   for (let i = 0; i < MEASURED.length - 1; i++) {
@@ -186,7 +206,11 @@ export function lookupMeasured(key, d) {
    komu úr 7-tímabila safni og gáfu 3,8% dökkgrænt en 26% rautt — kvarðinn
    "hallaði á rautt" og nær allt leit þungt út.
 
-   ENDURKVÖRÐUN 2026-07-27 (þessi): SCALE_FIX færði alla FFDR-dreifinguna
+   ENDURKVÖRÐUN 2026-07-28: SCALE_FIX var endurfittað á OPINBERA FPL-FDR-ið
+   (var nálgað), sem færði dreifinguna um ~0,05 upp -> mörkin fylgja.
+   Gömlu mörkin (1,92/2,30/2,46/2,75/3,03) gáfu 9,3% dökkgrænt og 23% rautt.
+
+   ENDURKVÖRÐUN 2026-07-27: SCALE_FIX færði alla FFDR-dreifinguna
    um ~0,5 niður (miðja úr ~3,0 í ~2,5), svo gömlu mörkin gáfu 48,8%
    dökkgrænt. Mörkin hér eru sextílar NÝJU dreifingarinnar, reiknaðir úr
    data/ með nákvæmlega inntökum appsins. ÞETTA ER AFLEIÐING, EKKI
@@ -197,7 +221,7 @@ export function lookupMeasured(key, d) {
    samfellda d-gildinu — og eru NÚ rétt kvarðaðar, sem var tilgangurinn.
    Prófið endurreiknar sextílana úr data/ og fellur ef þeir reka
    >0,12 frá þessum mörkum — þá er kominn tími á endurkvörðun.        */
-export const TIER_CUTS = [1.92, 2.30, 2.46, 2.75, 3.03];
+export const TIER_CUTS = [2.02, 2.39, 2.53, 2.80, 3.08];
 export function tierOf(d) {
   for (let i = 0; i < TIER_CUTS.length; i++) if (d < TIER_CUTS[i]) return i;
   return 5;                 // þyngst
