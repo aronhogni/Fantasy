@@ -186,6 +186,60 @@ export const MEASURED = [
    á upprunalega 3-miðjaða kvarðanum. Vörðurinn í model.test.mjs
    endurreiknar MEASURED[i].d úr þessu og fellur ef þau reka í sundur. */
 export const MEASURED_LEGACY_D = [2.00, 2.40, 2.80, 3.20, 4.00];
+/* ---- HREINT BLAÐ SEM LÍKINDALÍKAN (FALLBACK-LEIÐIN) ----
+   VANDAMÁLIÐ: þegar bókmakaralína vantar — þ.e. í ÖLLUM umferðum nema
+   næstu — reiknaði appið CS% með `lookupPos(2,"cs", FFDR)`. Það er
+   tvöföld þjöppun: mörg inntök -> eitt d á 1–5 kvarða -> 5-punkta tafla.
+   Mælt á 10.640 lið-leikjum (14 tímabil, LOSO): halli +2,3pp og
+   meðalfrávik 2,3pp, skill aðeins 3,91%.
+
+   LAUSNIN: logistic-líkan beint á inntökin, sem er rétt form fyrir
+   líkindi. λ er væntanleg mörk á sig úr MARGFÖLDUN (eigin vörn ×
+   sóknarstyrkur mótherja / deildarmeðaltal), eins og Poisson gerir ráð
+   fyrir — ekki summa.
+
+     leið                              Brier     skill   halli   frávik
+     taflan (appið áður)               0,19040   3,91%   +2,3pp  2,3pp
+     logistic(λ, heima)                0,18848   4,88%   +0,0pp  1,1pp
+     logistic(λ, heima, elo, fdr)      0,18637   5,94%   +0,0pp  1,1pp   <- valið
+   ΔBrier gegn töflunni: +0,00569, bootstrap-öryggisbil
+   [+0,00555, +0,00584] — hvergi nærri núlli. MARKTÆKT.
+
+   SJÁLFSTÆÐ STAÐFESTING: Fable-lota mældi sama form á ÖÐRU úrtaki
+   (24 tímabil, 9.410 leikir úr GitHub-spegli af football-data.co.uk) og
+   fékk stuðla sigmoid(+0,171 − 1,066·λ + 0,514·heima). Þeir stuðlar,
+   ÓBREYTTIR, gefa 4,93% skill á okkar gögnum — nánast sama og okkar eigið
+   fitt (4,88%). Tvær óskyldar mælingar á sama fyrirbæri.
+
+   ATH — MARKAÐSLEIÐIN ER EKKI BREYTT og það er mælt: fyrir leiki MEÐ línu
+   er e^−λ þegar optimalt (skill 7,14%, frávik 0,7pp) og logistic-lag ofan
+   á það gefur ΔBrier −0,00001, þ.e. EKKERT. Fable mældi +0,0023 þar, en
+   það var (a) gegn krúðari λ (1X2-skiptingu í stað totals+spreads sem við
+   notum) og (b) áður en MARKET_CALIB var lagað í 1,0 í dag — sú skekkja
+   sem logistic-lagið átti að éta er þegar farin við rótina.
+   Sjá tests/cs-logistic.mjs.                                            */
+export const CS_FALLBACK_COEF = {
+  intercept: -0.3383, lam: -0.3713, home: 0.3990, eloDiff: -0.1581, fdr: -0.1370,
+};
+/* λ úr liðsstyrk: margföldun, ekki summa (Poisson-form). LG_XG er nefnari
+   beggja þátta svo talan sé í mörkum, ekki í hlutfalli.                  */
+export function lambdaFromStrength(ownXgc, oppXg) {
+  return (ownXgc / LG_XG) * (oppXg / LG_XG) * LG_XG;
+}
+/* Skilar líkindum 0–1. eloDiff = (elo mótherja − eigið elo) / 100.
+   Öll inntök valfrjáls nema ownXgc/oppXg; vantandi elo/fdr fara í 0 /
+   deildarmeðaltal, sem er hlutlaust.                                     */
+export function cleanSheetProb({ ownXgc, oppXg, home = false, eloDiff = 0, fdr = 3 }) {
+  if (!Number.isFinite(ownXgc) || !Number.isFinite(oppXg)) return null;
+  const C = CS_FALLBACK_COEF;
+  const z = C.intercept
+    + C.lam * lambdaFromStrength(ownXgc, oppXg)
+    + C.home * (home ? 1 : 0)
+    + C.eloDiff * (Number.isFinite(eloDiff) ? eloDiff : 0)
+    + C.fdr * (Number.isFinite(fdr) ? fdr : 3);
+  return 1 / (1 + Math.exp(-z));
+}
+
 export function lookupMeasured(key, d) {
   const x = clamp(d, MEASURED[0].d, MEASURED[MEASURED.length-1].d);
   for (let i = 0; i < MEASURED.length - 1; i++) {

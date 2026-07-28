@@ -12,7 +12,7 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   POS_MEAN_PTS, MEASURED_POS, tierOf, TIER_CUTS, TIER_BG,
   MEASURED, MEASURED_LEGACY_D, SCALE_FIX, toMeasuredScale, lookupMeasured,
   TIER_COUNT, TIER_NAME, TIER_FG, TIER_NEUTRAL,
-  makeFixDifficulty, clamp } from "../src/model.js";
+  makeFixDifficulty, clamp, cleanSheetProb, lambdaFromStrength } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
@@ -126,6 +126,36 @@ MEASURED.forEach((row, i) => {
 const gaAtMean = lookupMeasured("ga", SCALE_FIX.def.center);
 ok(Math.abs(gaAtMean - 1.43) < 0.15,
   `meðalleikur (d=${SCALE_FIX.def.center}) gefur ${gaAtMean.toFixed(2)} mörk á sig ~ 1,43 í raun`);
+
+/* ---- 4c. HREINT BLAÐ SEM LÍKINDI (cleanSheetProb) ----
+   Fallback-leiðin fyrir CS% (allar umferðir nema næsta). Einingapróf á
+   eiginleikum; marktektin sjálf er mæld í tests/cs-logistic.mjs.      */
+console.log("\n=== 4c. cleanSheetProb — fallback-líkindi fyrir hreint blað ===");
+const csP = o => cleanSheetProb(o);
+ok(csP({ ownXgc: 1.4, oppXg: 1.4 }) > 0 && csP({ ownXgc: 1.4, oppXg: 1.4 }) < 1,
+  `meðalleikur gefur líkindi innan (0,1): ${(100 * csP({ ownXgc: 1.4, oppXg: 1.4 })).toFixed(1)}%`);
+/* Meðalleikur á að liggja nálægt raunverulegri tíðni (27,2% á 15 tímabilum) */
+const csMid = 100 * csP({ ownXgc: 1.4, oppXg: 1.45, home: false, fdr: 3 });
+ok(Math.abs(csMid - 27.2) < 6, `meðalleikur ~raunveruleg tíðni 27,2% (${csMid.toFixed(1)}%)`);
+/* EINRÆNNI: sterkari eigin vörn -> HÆRRI líkindi */
+ok(csP({ ownXgc: 0.8, oppXg: 1.4 }) > csP({ ownXgc: 1.8, oppXg: 1.4 }),
+  "sterkari eigin vörn gefur hærri CS-líkindi");
+/* og sterkari sókn mótherja -> LÆGRI */
+ok(csP({ ownXgc: 1.4, oppXg: 0.9 }) > csP({ ownXgc: 1.4, oppXg: 2.1 }),
+  "sterkari sókn mótherja gefur lægri CS-líkindi");
+/* heimavöllur hjálpar, og Elo-yfirburðir mótherja skaða */
+ok(csP({ ownXgc: 1.4, oppXg: 1.4, home: true }) > csP({ ownXgc: 1.4, oppXg: 1.4, home: false }),
+  "heimavöllur hækkar CS-líkindi");
+ok(csP({ ownXgc: 1.4, oppXg: 1.4, eloDiff: -2 }) > csP({ ownXgc: 1.4, oppXg: 1.4, eloDiff: 2 }),
+  "sterkari mótherji (Elo) lækkar CS-líkindi");
+ok(csP({ ownXgc: 1.4, oppXg: 1.4, fdr: 2 }) > csP({ ownXgc: 1.4, oppXg: 1.4, fdr: 5 }),
+  "léttara FDR hækkar CS-líkindi");
+/* λ-formið á að vera MARGFÖLDUN, ekki summa */
+ok(Math.abs(lambdaFromStrength(1.45, 1.45) - 1.45) < 1e-9,
+  "λ(meðal, meðal) = deildarmeðaltalið sjálft (margföldunarform)");
+ok(lambdaFromStrength(2.9, 1.45) > lambdaFromStrength(1.45, 1.45),
+  "λ hækkar með verri eigin vörn");
+ok(csP({ ownXgc: null, oppXg: 1.4 }) === null, "vantandi inntak skilar null, ekki NaN");
 
 console.log("\n=== 5. FFDR-EIGINLEIKAR ===");
 const tm = { 1: { xg90: 2.0, xgc90: 0.8, sotFor: 6, sotAg: 3 },     // sterkt lið

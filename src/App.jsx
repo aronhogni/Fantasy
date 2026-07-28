@@ -7,7 +7,8 @@ import Compare from "./Compare.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
-  makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction } from "./model.js";
+  makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
+  cleanSheetProb } from "./model.js";
 
 /* ============================================================
    FPL PLÖNUN — v3
@@ -992,8 +993,25 @@ export default function App() {
       if (e && Number.isFinite(e.cs)) return { cs: Math.round(e.cs), src: "elo" };
     }
     if (!fx) return { cs: null, src: null };
-    // MÆLD KVÖRÐUN: samfelld þyngd -> CS% úr töflu sem er mæld á 1.102 leikjum.
-    // Fínt með eigin vörn (liðsstyrkur) sem FDR sér ekki.
+    /* LÍKINDALÍKAN, EKKI UPPFLETTITAFLA. Var `lookupPos(2,"cs", FFDR)`,
+       sem þjappaði öllu í eitt d á 1–5 kvarða og las 5-punkta töflu.
+       MÆLT á 10.640 lið-leikjum (14 tímabil, LOSO): logistic á inntökin
+       gefur skill 5,94% á móti 3,91%, halla +0,0pp á móti +2,3pp og
+       meðalfrávik 1,1pp á móti 2,3pp. ΔBrier +0,00569 með
+       öryggisbili [+0,00555, +0,00584] — marktækt.
+       Staðfest sjálfstætt: Fable-lota fékk sama form á öðru úrtaki.
+       Sjá cleanSheetProb í model.js og tests/cs-logistic.mjs.          */
+    const me = teamMetrics[teamId], op = teamMetrics[fx.opp];
+    if (me && op) {
+      const myElo = eloByTeam[teamId]?.elo, opElo = eloByTeam[fx.opp]?.elo;
+      const p = cleanSheetProb({
+        ownXgc: me.xgc90, oppXg: op.xg90, home: !!fx.home,
+        eloDiff: (myElo && opElo) ? (opElo - myElo) / 100 : 0,
+        fdr: fx.fdr,
+      });
+      if (Number.isFinite(p)) return { cs: clamp(Math.round(100 * p), 3, 70), src: "líkindi" };
+    }
+    /* Neyðarvara ef liðstölur vanta alveg (t.d. nýliði án grunnlínu). */
     const d2 = fixDifficulty(teamId, fx, 2) ?? fx.fdr;
     const raw = lookupPos(2, "cs", d2);
     if (!Number.isFinite(raw)) return { cs: null, src: null };
