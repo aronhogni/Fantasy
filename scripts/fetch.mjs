@@ -27,8 +27,13 @@ const today = new Date().toISOString().slice(0, 10);
 
 const FLAGS = {
   apisports: !!process.env.API_SPORTS_KEY,
-  understat:       (process.env.ENABLE_UNDERSTAT ?? "true")  === "true",
-  understat_shots: (process.env.ENABLE_UNDERSTAT_SHOTS ?? "true") === "true",
+  /* UNDERSTAT ER SLOKKT SJALFGEFID (28.7.2026). Ekki bilun sem lagast:
+     Understat FJARLAEGDI gognin ur HTML-inu. league-sidur skila byte-eins
+     18.645 b skel i 5/5 tilraunum og fyrir OLL timabil; leikjasidur hafa
+     adeins `var match_info`. Skot-kortid kemur nu ur ESPN (fetchEspnShots).
+     Kveikt aftur med ENABLE_UNDERSTAT=true ef their skila gognum a ny.     */
+  understat:       (process.env.ENABLE_UNDERSTAT ?? "false") === "true",
+  understat_shots: (process.env.ENABLE_UNDERSTAT_SHOTS ?? "false") === "true",
   elo:             (process.env.ENABLE_ELO ?? "true")        === "true",
   fdcouk:          (process.env.ENABLE_FDCOUK ?? "true")     === "true",
   weather:         (process.env.ENABLE_WEATHER ?? "true")    === "true",
@@ -440,8 +445,20 @@ async function fetchElo() {
 
 /* ========== 5. FOOTBALL-DATA.CO.UK — CSV ========== */
 async function fetchFdcouk() {
-  // E0 yfirstandandi tímabil (leikjatölur + lokalínur)
-  const { text } = await getText("https://www.football-data.co.uk/mmz4281/2627/E0.csv");
+  /* E0 yfirstandandi timabil. FYRIR TIMABIL ER SKRAIN EKKI TIL og
+     football-data skilar 404 — thad er EDLILEGT astand, ekki bilun, og a
+     ekki ad birtast sem raud villa i Gagnaheimildum. Vid greinum a milli:
+     404 = "bidur timabils", allt annad = raunveruleg villa.               */
+  let text;
+  try {
+    ({ text } = await getText("https://www.football-data.co.uk/mmz4281/2627/E0.csv"));
+  } catch (e) {
+    if (/^404 /.test(e.message)) {
+      record("fdcouk_e0", true, 0, "bíður tímabils — E0 2026/27 verður til við fyrstu umferð");
+      return;
+    }
+    throw e;
+  }
   const { header, rows } = parseCSV(text);
   console.log(`fdcouk E0 kolónur: ${header.slice(0, 20).join(",")}…`);
   await writeJSON("fdcouk/E0-2627.json", { header, rows });
@@ -457,10 +474,12 @@ async function fetchFdcouk() {
    - lokalínur (skarpasta fría líkindaspáin)
    SÆKT EINU SINNI — skrárnar breytast ekki eftir að tímabil er lokið.        */
 async function fetchHistoricalE0() {
-  /* 1516 og 1617 bætt við 28.7.2026 til að bakprófin nái 10 SPÁÐUM tímabilum
-     (fyrsta tímabilið er aðeins styrk-heimild). Leikjatölur (HST/AST) eru til
-     frá 1516 svo liðsstyrkur er heill alla leið. */
-  const SEASONS = ["1516","1617","1718","1819","1920","2021","2122","2223","2324","2425","2526"];
+  /* 15 TÍMABIL (28.7.2026) = 14 SPÁÐ; fyrsta er aðeins styrk-heimild.
+     Leikjatölur (HST/AST) eru til frá 1112 svo liðsstyrkur er heill alla
+     leið; yfir/undir og asískt handicap koma úr Betbrain-meðaltölum
+     (BbAv>2.5 / BbAHh) fyrir 2019 og úr B365/Avg eftir það — fallröðin
+     í tests/lib/e0.mjs marketForRow() sér um það. */
+  const SEASONS = ["1112","1213","1314","1415","1516","1617","1718","1819","1920","2021","2122","2223","2324","2425","2526"];
   const allRows = [];
   let fetchedSeasons = 0;
   for (const ss of SEASONS) {
@@ -686,7 +705,15 @@ async function fetchUnderstatShots() {
   try { season = JSON.parse(await readFile(`${DATA}/understat/season.json`, "utf8")); } catch {}
   const dates = season?.dates;
   if (!dates || !Array.isArray(dates)) {
-    record("understat_shots", false, 0, "engin datesData — tímabil ekki byrjað?");
+    /* SKILABODIN VORU OSONN. Adur stod "tímabil ekki byrjað?" sem gaf i skyn
+       ad thetta myndi leysast i agust. MAELT 27.7.2026: Understat hefur
+       FJARLAEGT skot-gognin ur HTML-inu. league-sidur skila BYTE-EINS
+       18.645 b skel i 5/5 tilraunum og fyrir OLL timabil (2019, 2024, 2025);
+       leikjasidur hafa adeins `var match_info` — `shotsData` og `rostersData`
+       eru horfin. Thetta batnar thvi EKKI af sjalfu ser.
+       Skot-kortid kemur nu ur ESPN i stadinn (sja fetchEspnShots).          */
+    record("understat_shots", false, 0,
+      "Understat birtir ekki lengur shotsData (maelt 27.7.2026, 5/5 tilraunir) — ESPN kom i stadinn");
     return;
   }
 
@@ -1949,10 +1976,18 @@ function normPlayerRow({ id, name, pos, team, opp, home, fixture, value, src, mu
    (0,262 / 0,264 / 0,128) thott sitt hvort lidid skoradi. Absolut kerfi
    hefdi sett thau a gagnstaeda enda. Thess vegna er kortid EINN VALLARHELMINGUR.
 
-   OTRAUST 9%: 10 af 109 skotum hofdu X>0,5 og OLL voru langskot
-   ("outside the box", eitt "more than 35 yards" a X=0,964 sem vaeri 100 m).
-   Thau eru MERKT usable:false og TALIN i excluded — ekki spegluð yfir
-   (1-X), thvi thad vaeri agiskun um kerfi sem vid staðfestum ekki.
+   KVORDUN — X ER HLUTFALL AF HALFUM VELLI (52,5 m), EKKI AF 105 m.
+   Thetta var MAELT gegn svaedis-textanum ESPN sem er ohað hnitunum:
+     close_range  (markteigur, 5,5 m)  x <= 0,110   5,5/52,5  = 0,105  PASSAR
+     i teig       (vitateigur, 16,5 m) x <= 0,336  16,5/52,5  = 0,314  PASSAR
+     utan teigs                        x >= 0,340
+   Med 105 m kvarda hefdi teigmarkid att ad vera 0,157 — thad passar EKKI.
+   Y er hlutfall af breidd (68 m); box_left 0,241-0,368 / box_centre
+   0,370-0,622 / box_right 0,634-0,766 — ostyttandi og i rettri rod.
+
+   Metrar fra marki = x * 52,5. Fyrsta utgafan margfaldadi med 105 og setti
+   thvi HVERT SKOT I TVOFALDA FJARLAEGD — mork lentu vid midjulinu.
+   ENGIN hnit eru "otraust": x-svidid er 0,040-0,964 = 2-51 m, allt gilt.
 
    ENGIN xG HER. ESPN gefur hana ekki, svo "big chances" (xG>0,30 per skot)
    er EKKI reiknad. Umferdarskyrslan birtir xG PER LEIKMANN ur FPL i stadinn
@@ -2076,8 +2111,14 @@ async function fetchEspnShots() {
       const shooter = p.participants?.[0]?.athlete?.displayName || null;
       const x = typeof p.fieldPositionX === "number" ? p.fieldPositionX : null;
       const y = typeof p.fieldPositionY === "number" ? p.fieldPositionY : null;
-      // (0,0) er "ekki skrad", ekki hornid. X>0,5 er otraust (sja hausinn).
-      const usable = x != null && y != null && !(x === 0 && y === 0) && x <= 0.5;
+      /* (0,0) er "ekki skrad", ekki hornid — thad er EINA astaedan til ad
+         sleppa skoti. Adur var hér lika `x <= 0.5` af thvi ad vid hofdum
+         KVARDANN RANGAN (sja KVORDUN i hausnum): vid toldum x vera hlutfall
+         af 105 m, svo 19 skot med x>0,5 virtust vera 53-100 m fra marki og
+         voru "otraust". Med rettum kvarda (52,5 m) eru thau 27-51 m — allt
+         venjuleg langskot, og OLL merkt "outside the box" af ESPN sjalfu.
+         Their voru aldrei rusl; kvardinn okkar var rangur.                 */
+      const usable = x != null && y != null && !(x === 0 && y === 0);
       if (!usable) excluded++;
       const zone = shotZone(text);
 
@@ -2123,13 +2164,276 @@ async function fetchEspnShots() {
         + "eru lesin ur texta ESPN, ekki agiskud.",
     caveats: {
       no_xg: "ESPN gefur ekki xG per skot, svo BIG CHANCES eru ekki reiknud. Umferdarskyrslan birtir xG per leikmann ur FPL i stadinn.",
-      excluded: `${excluded} skot hofdu otraust hnit (X>0,5, oll langskot) og eru merkt usable:false — EKKI spegluð.`,
+      excluded: `${excluded} skot voru an hnita (0,0 = oskrad hja ESPN) og eru merkt usable:false.`,
+      scale: "x er hlutfall af HALFUM velli: metrar fra marki = x * 52,5. Kvardad gegn svaedis-texta ESPN (markteigur 0,105 / vitateigur 0,314).",
       no_touches: "Touches i teig og medalstadsetning eru ekki i ESPN-fædinu.",
     },
     fixtures: outFx, shots, players: Object.values(playerAgg),
   });
   record("espn_shots", true, shots.length,
-    `${matchedFx}/${(base.fixtures||[]).length} leikir · ${shots.length} skot · ${excluded} otraust hnit`);
+    `${matchedFx}/${(base.fixtures||[]).length} leikir · ${shots.length} skot · ${excluded} an hnita`);
+}
+
+/* ========== 14. FYRRI TIMABIL PER LEIKMANN — data/player_seasons.json ==========
+   Spjold leikmanna syna "i ar vs i fyrra vs hitteðfyrra". Til thess tharf
+   LOKATOLUR fyrri timabila per leikmann — sem FPL-API-ið birtir EKKI
+   (thad man adeins yfirstandandi timabil).
+
+   PORUNARLYKILLINN ER `code`, EKKI `id`. FPL endurnytir element-id milli
+   timabila en `code` er fast a leikmanni aevilangt. Maelt 28.7.2026:
+   af 563 nuverandi leikmonnum eiga 456 gogn i 2025-26, 348 i 2024-25 og
+   277 i 2023-24 (hinir voru ekki i deildinni).
+
+   SAETI ERU REIKNUD HER, ekki i framendanum: 563 leikmenn x ~16 tolur x
+   3 timabil er ekki vinna sem a ad gerast i React vid hverja opnun.
+   Sætin eru innan TIMABILSINS og adeins medal theirra sem SPILUDU
+   (minutur > 0) — annars vaeri "1 af 800" thar sem 300 spiludu aldrei.
+
+   defensive_contribution kom FYRST 2025/26. Fyrir eldri timabil er hun
+   EKKI 0 heldur VANTAR — sja field_availability. Framendinn a ad birta
+   strik, ekki null-i breytt i nullu.                                     */
+
+const SEASON_DIRS = ["2025-26", "2024-25", "2023-24"];
+const seasonLabel = d => `${d.slice(0, 4)}/${d.slice(5)}`;
+
+/* CSV med gaesalappa-studningi. parseCSV (naiv) dugar fyrir E0 en players_raw
+   hefur `news` sem inniheldur kommur inni i gaesalöppum. */
+function parseCSVQuoted(text) {
+  const rows = [];
+  let row = [], cell = "", inQ = false;
+  const t = text.replace(/\r\n/g, "\n");
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inQ) {
+      if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else inQ = false; }
+      else cell += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell.length || row.length) { row.push(cell); rows.push(row); }
+  const header = rows.shift() || [];
+  return rows.filter(r => r.length > 1)
+    .map(r => Object.fromEntries(header.map((h, i) => [h, r[i]])));
+}
+
+/* Tolur sem fa SAETI. `rev:true` = LAEGRA er betra (xGC). */
+const SEASON_STATS = [
+  { k: "total_points" }, { k: "minutes" }, { k: "starts" },
+  { k: "goals_scored" }, { k: "assists" },
+  { k: "expected_goals" }, { k: "expected_goals_per_90" },
+  { k: "expected_assists" }, { k: "expected_assists_per_90" },
+  { k: "expected_goal_involvements" }, { k: "expected_goal_involvements_per_90" },
+  { k: "expected_goals_conceded", rev: true },
+  { k: "clean_sheets" }, { k: "goals_conceded", rev: true },
+  { k: "saves" }, { k: "bonus" }, { k: "bps" },
+  { k: "defensive_contribution" },
+  { k: "points_per_90", derived: true }, { k: "dc_per_start", derived: true },
+];
+
+async function fetchPlayerSeasons() {
+  const out = {};                       // code -> { "2025/26": {...} }
+  const availability = {};              // svid -> [timabil sem hafa thad]
+  const counts = {};
+  for (const dir of SEASON_DIRS) {
+    const label = seasonLabel(dir);
+    let rows;
+    try {
+      const { text } = await getText(`${MIRROR}/${dir}/players_raw.csv`);
+      rows = parseCSVQuoted(text);
+    } catch (e) { console.warn(`player_seasons ${dir}: ${e.message}`); continue; }
+    if (!rows.length) continue;
+
+    const has = new Set(Object.keys(rows[0]));
+    for (const s of SEASON_STATS) {
+      if (s.derived || has.has(s.k)) (availability[s.k] ||= []).push(label);
+    }
+
+    // 1) grunn-rod per leikmann
+    const recs = rows.map(r => {
+      const n = k => { const v = parseFloat(r[k]); return Number.isFinite(v) ? v : null; };
+      const mins = n("minutes") ?? 0, starts = n("starts") ?? 0;
+      const rec = {
+        code: r.code, id: n("id"), element_type: n("element_type"),
+        web_name: r.web_name || `${r.first_name || ""} ${r.second_name || ""}`.trim(),
+        now_cost: n("now_cost"),
+      };
+      for (const s of SEASON_STATS) {
+        if (s.derived) continue;
+        rec[s.k] = has.has(s.k) ? n(s.k) : null;       // VANTAR != 0
+      }
+      rec.points_per_90 = mins > 0 ? +(((n("total_points") ?? 0) / mins) * 90).toFixed(2) : null;
+      rec.dc_per_start  = (rec.defensive_contribution != null && starts > 0)
+        ? +(rec.defensive_contribution / starts).toFixed(2) : null;
+      rec.played = mins > 0;
+      return rec;
+    });
+
+    // 2) SAETI innan timabilsins, adeins medal theirra sem spiludu
+    const pool = recs.filter(r => r.played);
+    counts[label] = pool.length;
+    for (const s of SEASON_STATS) {
+      const vals = pool.filter(r => r[s.k] != null)
+        .sort((a, b) => s.rev ? a[s.k] - b[s.k] : b[s.k] - a[s.k]);
+      let rank = 0, prev = null;
+      vals.forEach((r, i) => {
+        if (prev === null || r[s.k] !== prev) rank = i + 1;
+        prev = r[s.k];
+        (r.rank ||= {})[s.k] = rank;
+      });
+      // hversu margir eiga tolu i thessari staerd (nefnarinn i "3 af 412")
+      const n = vals.length;
+      vals.forEach(r => { (r.rank_of ||= {})[s.k] = n; });
+    }
+
+    for (const r of recs) {
+      if (!r.code) continue;
+      (out[r.code] ||= {})[label] = r;
+    }
+  }
+
+  const seasons = SEASON_DIRS.map(seasonLabel).filter(l => counts[l]);
+  await writeJSON("player_seasons.json", {
+    updated: status.updated, seasons, pool_sizes: counts,
+    key: "code",
+    note: "Lokatolur fyrri timabila per leikmann ur vaastav-speglun FPL-gagna. "
+        + "PORAD A `code` (fast a leikmanni), EKKI `id` sem FPL endurnytir milli timabila. "
+        + "Saeti eru innan timabils og adeins medal theirra sem spiludu (minutur>0).",
+    field_availability: availability,
+    missing_note: "defensive_contribution kom fyrst 2025/26. Fyrir eldri timabil er hun null = VANTAR, ekki 0.",
+    players: out,
+  });
+  record("player_seasons", true, Object.keys(out).length,
+    `${seasons.join(", ")} · ${seasons.map(s => `${s}:${counts[s]}`).join(" ")}`);
+}
+
+/* ========== 15. MO / AO — data/imminent.json ==========
+   "Mark ohjakvaemilegt" og "Assist ohjakvaemilegt": hverjir eru ad byggja
+   upp faeri en hafa ekki skorad enn. Formulan og MAELINGIN a bak vid hana
+   eru i src/stats.js — her er adeins GLUGGINN reiknadur.
+
+   Gluggi = sidustu 4 LOKNU umferdir. I timabili koma thaer ur
+   data/live/gw{n}.json; fyrir timabil (engar loknar) er sami
+   safn-hattur og i last_gw: sidustu 4 umferdir fyrra timabils ur
+   vaastav-speglun, MERKT archive:true.                                    */
+
+const IMM_WINDOW = 4;
+
+async function deriveImminent() {
+  const jread = async p => JSON.parse(await readFile(`${DATA}/${p}`, "utf8"));
+  let events = [];
+  try { events = (await jread("events.json")).events || []; } catch {}
+  const finished = events.filter(e => e.finished).map(e => e.id).sort((a, b) => a - b);
+
+  let rows = [], season, gws, archive;
+  if (finished.length >= 1) {
+    // ---- i timabili: ur okkar eigin live-skram ----
+    gws = finished.slice(-IMM_WINDOW);
+    season = await seasonLabelFromEvents();
+    archive = false;
+    let players = [];
+    try { players = (await jread("players.json")).players; } catch {}
+    const pById = {}; players.forEach(p => pById[p.id] = p);
+    const acc = {};
+    for (const gw of gws) {
+      let live;
+      try { live = await jread(`live/gw${gw}.json`); } catch { continue; }
+      for (const el of live.elements || []) {
+        const st = el.stats || {}, p = pById[el.id];
+        if (!p) continue;
+        const a = acc[el.id] || (acc[el.id] = {
+          code: p.code, name: p.web_name, team: p.team, pos: POS_FROM_TYPE[p.element_type],
+          now_cost: p.now_cost, window: blankWindow(), series: [] });
+        addWindow(a.window, st);
+        a.series.push(gwPoint(gw, st));
+      }
+    }
+    rows = Object.values(acc);
+  } else {
+    // ---- fyrir timabil: safn ur speglun ----
+    archive = true;
+    const nice = `${ARCHIVE_SEASON.slice(0,4)}/${ARCHIVE_SEASON.slice(5)}`;
+    season = nice;
+    const { text: tTeams } = await getText(`${MIRROR}/${ARCHIVE_SEASON}/teams.csv`);
+    const shortByName = {};
+    for (const t of parseCSV(tTeams).rows) shortByName[t.name] = t.short_name;
+
+    // finna haestu tiltaeku umferdina og taka 4 aftur fra henni
+    let top = 0;
+    for (let g = 38; g >= 1; g--) {
+      try { await getText(`${MIRROR}/${ARCHIVE_SEASON}/gws/gw${g}.csv`); top = g; break; } catch {}
+    }
+    if (!top) { record("imminent", false, 0, "engin gw-skra i speglun"); return; }
+    gws = [];
+    for (let g = Math.max(1, top - IMM_WINDOW + 1); g <= top; g++) gws.push(g);
+
+    const acc = {};
+    for (const g of gws) {
+      let csv;
+      try { ({ text: csv } = await getText(`${MIRROR}/${ARCHIVE_SEASON}/gws/gw${g}.csv`)); }
+      catch { continue; }
+      for (const r of parseCSVQuoted(csv)) {
+        if (!r.element) continue;
+        const key = r.element;
+        const a = acc[key] || (acc[key] = {
+          code: null, name: r.name, team: shortByName[r.team] || r.team,
+          pos: r.position, now_cost: r.value ? +r.value : null, window: blankWindow(), series: [] });
+        addWindow(a.window, r);
+        a.series.push(gwPoint(g, r));
+      }
+    }
+    rows = Object.values(acc);
+  }
+
+  const num_ = v => { const x = parseFloat(v); return Number.isFinite(x) ? x : 0; };
+  rows.forEach(r => {
+    r.window.gi = r.window.goals + r.window.assists;
+    if (r.series) r.series.sort((a, b) => a.gw - b.gw);
+  });
+
+  await writeJSON("imminent.json", {
+    updated: status.updated, season, archive, gws,
+    window: IMM_WINDOW,
+    note: "Gluggi = sidustu " + IMM_WINDOW + " loknu umferdir. Studlarnir sjalfir eru reiknadir i "
+        + "src/stats.js (moScore/aoScore) svo profin keyri sama kóda og appid.",
+    measured: {
+      samples: 13273, seasons: 3, gameweeks: 114,
+      mo: "Samsettur studull (xG 0,8 + threat/25 0,3 + oheppni 0,2). Ut af urtaki 2,888 "
+        + "a moti 2,696 (xG einn) og 2,779 (threat einn) — vinnur i 2/3 timabilum, jafnar i thvi thridja.",
+      ao: "BERT creativity/90. Samsettur AO-studull VAR profadur og FELL: 2,179 a moti 2,206 "
+        + "fyrir bera creativity, tapadi i 0/3 timabilum. xA-vogin valdist alltaf 0.",
+      pool: "Adeins leikmenn med 0-1 mark+assist i glugganum og 180+ minutur.",
+    },
+    players: rows,
+  });
+  record("imminent", true, rows.length,
+    `${archive ? "SAFN " : ""}${season} GW${gws[0]}-${gws[gws.length-1]}`);
+}
+
+/* Ein umferd i rodinni — nog til ad teikna trend an thess ad blasa upp skrana. */
+function gwPoint(gw, r) {
+  const f = k => { const v = parseFloat(r[k]); return Number.isFinite(v) ? +v.toFixed(2) : 0; };
+  return { gw: +gw, min: f("minutes"), xg: f("expected_goals"), xa: f("expected_assists"),
+           thr: f("threat"), cre: f("creativity"),
+           g: f("goals_scored"), a: f("assists") };
+}
+function blankWindow() {
+  return { minutes:0, goals:0, assists:0, xg:0, xa:0, xgi:0, threat:0, creativity:0, bps:0, starts:0 };
+}
+function addWindow(w, r) {
+  const f = k => { const v = parseFloat(r[k]); return Number.isFinite(v) ? v : 0; };
+  w.minutes   += f("minutes");
+  w.goals     += f("goals_scored");
+  w.assists   += f("assists");
+  w.xg        += f("expected_goals");
+  w.xa        += f("expected_assists");
+  w.xgi       += f("expected_goal_involvements");
+  w.threat    += f("threat");
+  w.creativity+= f("creativity");
+  w.bps       += f("bps");
+  w.starts    += f("starts");
+  ["xg","xa","xgi","threat","creativity"].forEach(k => { w[k] = +w[k].toFixed(3); });
 }
 
 /* ========== MAIN ========== */
@@ -2173,7 +2477,9 @@ async function main() {
                        try { await deriveLuck(); }              catch (e) { record("luck", false, 0, e.message); }
                        try { await deriveFormFeatures(); }      catch (e) { record("form_features", false, 0, e.message); }
                        try { await deriveLastGwReport(); }      catch (e) { record("last_gw", false, 0, e.message); }
-                       try { await fetchEspnShots(); }          catch (e) { record("espn_shots", false, 0, e.message); } }
+                       try { await fetchEspnShots(); }          catch (e) { record("espn_shots", false, 0, e.message); }
+                       try { await fetchPlayerSeasons(); }      catch (e) { record("player_seasons", false, 0, e.message); }
+                       try { await deriveImminent(); }          catch (e) { record("imminent", false, 0, e.message); } }
 
   await writeJSON("status.json", status);
   console.log("\n=== status.json ===");

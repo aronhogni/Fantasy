@@ -119,7 +119,7 @@ for (let si = 1; si < SEASONS.length; si++) {
         dAtt: withMkt(me, fx, 4),            // MID/FWD-hópurinn, full inntök
         dAttWrongMkt: wrongMkt(me, fx, 4),   // sókn með VARNAR-stærðinni (gamla hegðunin)
         dDefNoMkt: noMkt(me, fx, 2),         // sama án markaðar (gamla bakprófið)
-        fdr: fx.fdr,
+        fdr: fx.fdr, realFdr: fdrPair.real,
         mDiff: mDiff ?? null,
         cs: ga === 0, ga, gf,
       });
@@ -327,12 +327,19 @@ ok(Math.abs(apxMean - fplMean) < 0.1,
    d-framleiðendurnir — kjarninn OG markaðurinn — verða að láta töfluna
    lesa nálægt raunveruleikanum, og kjarninn má ekki reka aftur.       */
 console.log("\n=== KVARÐASAMRÆMI EFTIR SCALE_FIX (vörður) ===");
-const meanCore = all.reduce((a, x) => a + x.dDefNoMkt, 0) / all.length;
-const meanMkt = all.reduce((a, x) => a + x.mDiff, 0) / all.length;
-const realCsAll = 100 * all.filter(x => x.cs).length / all.length;
-const tblOnCore = all.reduce((a, x) => a + lookupPos(2, "cs", x.dDefNoMkt), 0) / all.length;
-const tblOnMkt = all.reduce((a, x) => a + lookupPos(2, "cs", x.mDiff), 0) / all.length;
-console.log(`  raunverulegt CS% (n=${all.length}): ${realCsAll.toFixed(1)}%`);
+/* MÆLT AÐEINS Á TÍMABILUM MEÐ OPINBERU FDR. Elstu tímabilin (1112-1718)
+   nota NÁLGAÐ FDR, sem er ~0,25 þyngra en FPL notar; kjarninn verður þar
+   kerfisbundið þyngri og kvarða-samanburðurinn mælir þá heim sem appið er
+   EKKI í. SCALE_FIX var líka fittað á opinberu tímabilin, svo vörðurinn á
+   að vera á sama úrtaki og fittið.                                      */
+const scaleRows = all.filter(x => x.realFdr);
+const meanCore = scaleRows.reduce((a, x) => a + x.dDefNoMkt, 0) / scaleRows.length;
+const meanMkt = scaleRows.reduce((a, x) => a + x.mDiff, 0) / scaleRows.length;
+const realCsAll = 100 * scaleRows.filter(x => x.cs).length / scaleRows.length;
+const tblOnCore = scaleRows.reduce((a, x) => a + lookupPos(2, "cs", x.dDefNoMkt), 0) / scaleRows.length;
+const tblOnMkt = scaleRows.reduce((a, x) => a + lookupPos(2, "cs", x.mDiff), 0) / scaleRows.length;
+console.log(`  (aðeins ${scaleRows.length} raðir með OPINBERU FDR af ${all.length})`);
+console.log(`  raunverulegt CS% (n=${scaleRows.length}): ${realCsAll.toFixed(1)}%`);
 console.log(`  taflan á LÍKANSKJARNA  (meðal-d ${meanCore.toFixed(2)}): ` +
   `${tblOnCore.toFixed(1)}%  -> skekkja ${(tblOnCore - realCsAll >= 0 ? "+" : "") + (tblOnCore - realCsAll).toFixed(1)}pp`);
 console.log(`  taflan á MARKAÐSKVARÐA (meðal-d ${meanMkt.toFixed(2)}): ` +

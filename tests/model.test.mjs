@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePrediction,
   POS_MEAN_PTS, MEASURED_POS, tierOf, TIER_CUTS, TIER_BG,
   MEASURED, MEASURED_LEGACY_D, SCALE_FIX, toMeasuredScale, lookupMeasured,
+  TIER_COUNT, TIER_NAME, TIER_FG, TIER_NEUTRAL,
   makeFixDifficulty, clamp } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 
@@ -238,19 +239,44 @@ for (const f of fixtures) {
 }
 vals.sort((a, b) => a - b);
 const q = p => vals[Math.floor(p * vals.length)];
-const sext = [1, 2, 3, 4, 5].map(i => q(i / 6));
+const sext = Array.from({ length: TIER_COUNT - 1 }, (_, i) => q((i + 1) / TIER_COUNT));
 console.log(`  sextílar úr gögnum: ${sext.map(x => x.toFixed(2)).join(" / ")}`);
 console.log(`  mörkin í model.js:  ${TIER_CUTS.join(" / ")}`);
 sext.forEach((x, i) => ok(Math.abs(x - TIER_CUTS[i]) <= 0.12,
   `mark ${i + 1} innan ±0,12 af sextíl (${TIER_CUTS[i]} ↔ ${x.toFixed(2)})`));
 // hvert þrep fær 12–22% leikja (fullkomið væri 16,7%)
-const cnt = [0, 0, 0, 0, 0, 0];
+const cnt = new Array(TIER_COUNT).fill(0);
 vals.forEach(v => cnt[tierOf(v)]++);
 const shares = cnt.map(c => c / vals.length);
 console.log(`  dreifing: ${shares.map(x => (100 * x).toFixed(1) + "%").join(" / ")}`);
 shares.forEach((sh, i) => ok(sh >= 0.12 && sh <= 0.22,
-  `þrep ${i} (${["dökkgrænt","grænt","ljósgult","dökkgult","ljósrautt","rautt"][i]}) fær 12–22% (${(100 * sh).toFixed(1)}%)`));
-ok(TIER_BG.length === 6 && new Set(TIER_BG).size === 6, "sex aðgreindir litir");
+  `þrep ${i} (${TIER_NAME[i]}) fær 12–22% (${(100 * sh).toFixed(1)}%)`));
+ok(TIER_BG.length === TIER_COUNT && new Set(TIER_BG).size === TIER_COUNT,
+  `${TIER_COUNT} aðgreindir bakgrunnslitir`);
+ok(TIER_FG.length === TIER_COUNT && TIER_NAME.length === TIER_COUNT,
+  "forgrunnslitir og nöfn fylgja fjölda þrepa");
+ok(TIER_CUTS.length === TIER_COUNT - 1, `${TIER_COUNT - 1} skil fyrir ${TIER_COUNT} þrep`);
+/* MIÐÞREPIÐ Á AÐ VERA HLUTLAUST (grátt/hvítt): mettun þess á að vera
+   MARKTÆKT lægri en grænu og rauðu þrepanna, annars er "hvorki gott né
+   vont" ekki lesanlegt sem slíkt. Mælt í HSL-mettun úr hex.            */
+const sat = hex => {
+  const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx+mn)/2;
+  return mx === mn ? 0 : (mx-mn)/(1 - Math.abs(2*l-1));
+};
+const satMid = sat(TIER_BG[TIER_NEUTRAL]), satEnds = Math.min(sat(TIER_BG[0]), sat(TIER_BG[TIER_COUNT-1]));
+ok(satMid < satEnds * 0.5,
+  `hlutlausa þrepið (${TIER_NAME[TIER_NEUTRAL]}) er ómettað: mettun ${satMid.toFixed(2)} < helmingur af endunum ${satEnds.toFixed(2)}`);
+/* Og grænt/gult mega ekki vera nánast eins — það var kvortunin sem
+   olli endurhonnuninni. Krafa: nagranna-threp vikja >=0,08 i mettun EDA
+   >=25 i einhverjum RGB-thaetti.                                       */
+const rgb = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+for (let i = 1; i < TIER_COUNT; i++) {
+  const a = rgb(TIER_BG[i-1]), b = rgb(TIER_BG[i]);
+  const maxCh = Math.max(...a.map((v,k) => Math.abs(v - b[k])));
+  ok(maxCh >= 20 || Math.abs(sat(TIER_BG[i-1]) - sat(TIER_BG[i])) >= 0.08,
+    `þrep ${i-1} og ${i} eru sjónrænt aðgreind (max RGB-munur ${maxCh})`);
+}
 ok(TIER_CUTS.every((x, i) => i === 0 || x > TIER_CUTS[i - 1]), "mörkin stranghækkandi");
 
 console.log("\n=== 7. VERÐSPÁIN (nálgunin sjálf) ===");

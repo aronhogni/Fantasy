@@ -224,11 +224,28 @@ export function lookupMeasured(key, d) {
 export const TIER_CUTS = [2.02, 2.39, 2.53, 2.80, 3.08];
 export function tierOf(d) {
   for (let i = 0; i < TIER_CUTS.length; i++) if (d < TIER_CUTS[i]) return i;
-  return 5;                 // þyngst
-}
-export const TIER_BG   = ["#b8ecd0", "#d8f5e4", "#fdf6d8", "#f9e6a8", "#fde0e2", "#f7c4c9"];
-export const TIER_FG   = ["#02402a", "#046b41", "#75620f", "#7a5600", "#a33540", "#87141e"];
-export const TIER_NAME = ["dökkgrænt", "grænt", "ljósgult", "dökkgult", "ljósrautt", "rautt"];
+  return TIER_CUTS.length;  // þyngst — MÁ EKKI vera harðkóðað (var 5, svo
+}                           // sjöunda þrep hefði aldrei verið hægt að nota)
+/* LITIRNIR ENDURHANNAÐIR 28.7.2026 — GRÁTT MIÐÞREP.
+   VAND MÁLIÐ: grænt (#d8f5e4) og ljósgult (#fdf6d8) voru nánast eins á
+   skjá. Miðjan var því ólæsileg og notandinn gat ekki greint "ágætur
+   leikur" frá "hlutlausum".
+   LAUSNIN: ljósgula þrepið verður HLUTLAUST GRÁTT. Þá þarf paletta ekki
+   að þræða sex liti gegnum sama græn-gula sviðið, svo dökkgrænt og
+   dökkgult verða afgerandi mettuð. Augað fær þrjá hópa: grænt = sækja,
+   grátt = hlutlaust, gult/rautt = forðast.
+   FJÖLDI ÞREPA ER ÓBREYTTUR (sex, sextílar) svo TIER_CUTS haggast ekki —
+   aðeins litirnir. Prófin verja bæði hlutleysi miðþrepsins og að
+   nágranna-þrep séu sjónrænt aðgreind.                                 */
+export const TIER_BG   = ["#5cc78c", "#b3e8cc", "#ecedf1", "#f5c95f", "#f9b8bf", "#ec8b95"];
+export const TIER_FG   = ["#01301d", "#04613a", "#4c515c", "#5f3d00", "#93202b", "#6e0b14"];
+export const TIER_NAME = ["dökkgrænt", "grænt", "hlutlaust", "dökkgult", "ljósrautt", "rautt"];
+/* HLUTLAUSA ÞREPIÐ — grátt, "hvorki gott né vont". Vísað til í prófum svo
+   staðsetning þess sé skjöluð og megi ekki reka óviljandi.              */
+export const TIER_NEUTRAL = 2;
+/* Fjöldi þrepa á EINUM stað — App.jsx reiknar afstæð þrep innan liðs og
+   má ekki harðkóða 6 (það gerði það og hefði sleppt sjöunda litnum).   */
+export const TIER_COUNT = TIER_BG.length;
 
 /* ---- FFDR-VERKSMIÐJAN ----
    Skilar fixDifficulty(teamId, fx, pos) fyrir gefin gögn. App.jsx OG

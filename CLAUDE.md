@@ -89,6 +89,87 @@ B365-oddsum, Elo reiknað fram í tímann). Þrennt sem eldra bakprófið gat ek
 
 Sóknarhliðin, |r| við mörk **skoruð**: FFDR-sókn **0,383** · hrátt FDR 0,168.
 
+### FFDR GEGN RAUNVERULEGUM STIGUM LEIKMANNA (mælt 28.7.2026)
+
+Allt hér að ofan mældi FFDR gegn **lið**-útkomum, því per-umferðar
+leikmannatölur voru ekki til í repo-inu. Nú eru þær:
+`data/fpl_player_gw.json` (56.278 raðir, 5 tímabil, `scripts/fetch-player-gw.mjs`).
+`tests/ffdr-player-points.mjs` mælir því loks **rétta markmiðið**, á 28.355
+byrjunarliðs-umferðum (starts≥1, mín≥60):
+
+| staða | stig/leik | r(FFDR) | r(FDR) | léttasti 1/6 -> þyngsti 1/6 |
+|---|---|---|---|---|
+| GK | 3,38 | **−0,167** | −0,141 | 4,06 -> 2,61 (+55%) |
+| DEF | 3,15 | **−0,275** | −0,198 | 4,48 -> 1,83 (**+145%**) |
+| MID | 3,74 | **−0,203** | −0,138 | 4,78 -> 2,88 (+66%) |
+| FWD | 4,36 | **−0,214** | −0,143 | 5,66 -> 3,37 (+68%) |
+
+FFDR slær opinbert FDR í **öllum fjórum stöðum**, og vænt stig
+(`MEASURED_POS.pts`) er rétt kvarðað innan 0,28 stiga í öllum stöðum.
+
+**ALGILT ÞREP Í STAÐ AFSTÆÐS Á SPJÖLDUM — LAGAÐ.** Spjöldin sýndu þrep
+AFSTÆTT innan liðsins (röð leikja liðsins þvinguð í sex jafna hluta), sem
+lét HVERT lið nota alla litina. Arsenal fékk því „rautt“ á leik sem er
+algilt dökkgult og „ljósrautt“ á leik sem er algilt **grænn** — það var
+raunveruleg röng birting. Notandinn tók eftir henni á Rice (2 rauðir leikir
+sem voru í raun léttir).
+
+| staða | r(ALGILT þrep) | r(afstætt þrep) | tapað merki |
+|---|---|---|---|
+| GK | −0,166 | −0,110 | 34% |
+| DEF | −0,267 | −0,190 | 29% |
+| MID | −0,195 | −0,139 | 29% |
+| FWD | −0,204 | −0,144 | 29% |
+
+Algilda þrepið tapar nánast engu gegn samfellda FFDR (−0,267 á móti −0,275)
+en afstæða þrepið henti ~30% af merkinu. Spjöld OG tillögur eru nú algild,
+og þar með samræmd „Lið — FFDR“-töflunni. Vörður: kafli E í
+`ffdr-player-points.mjs`.
+
+**VARNARSINNAÐIR MIÐJUMENN (Rice, Caicedo) — ENGIN BREYTING, MÆLT.**
+Spurt var hvort þeir eigi að fá varnar-formúluna. Skilgreint úr gögnum
+(xGI/90 úr FYRRA tímabili, svo ekkert leki): varnar-FFDR gefur −0,156 á
+móti −0,153 fyrir sóknar-FFDR — **0,1σ**, hreint suð. Blöndusveipun
+(`d = w·dDef + (1−w)·dAtt`) gefur besta w=0,55 með 0,009 ábata, en
+hópaskiptingin er **ekki einræn** (3. fjórðungur vill w=0,95, sóknarsinnar
+w=0) og besta w hoppar milli tímabila (0 / 0,65 / 0,75 / 1,0) og skiptir
+formerki. Það sem notandinn sá hjá Rice var afstæða þrepið, ekki formúlan.
+
+### TREND — „HEITUR“ LEIKMAÐUR ER EKKI HEITUR (mælt 28.7.2026)
+
+Andstætt almennri FPL-visku, og því skjalað hér svo það sé ekki „lagað“:
+
+| | hrá tala | eftir stjórnun fyrir gæðum |
+|---|---|---|
+| mark eftir mark í síðasta leik | 21,0% á móti 9,5% (**+11,5pp**) | **−2,9pp** |
+| sjálffylgni innan leikmanns | — | **−0,061** (±0,007) |
+| hreint blað eftir hreint blað | 29,0% á móti 26,4% (+2,7pp) | **−1,5pp** |
+
+Hráa talan mælir bara að **góðir leikmenn skora oft**. Innan hópa með sömu
+grunn-markatíðni snýst áhrifið við: leikmaður sem var nýbúinn að skora hnígur
+að sínu eigin meðaltali. Sama gildir um lið og hrein blöð (15 tímabil).
+**FORM ER ÞVÍ EKKI INNTAK Í FFDR** — það væri að verðleggja hávaða.
+
+### STÖÐUR GEGN LIÐUM — HÁVAÐI, EKKI EIGINLEIKI (mælt 28.7.2026)
+
+Spurt var hvort ákveðnar stöður nái stigum gegn ákveðnum liðum, svo það megi
+spá fyrir sambærilega leikmenn í framtíðinni. `tests/pos-vs-opponent.mjs`
+mælir leif (raunstig − FFDR-vænting) per (mótherji, staða) og spyr svo
+**lykilspurningarinnar: flyst hún milli tímabila?**
+
+| staða | pör | r(N -> N+1) | |
+|---|---|---|---|
+| GK | 34 | −0,182 (±0,180) | hávaði |
+| DEF | 51 | −0,051 (±0,144) | hávaði |
+| MID | 51 | −0,014 (±0,144) | hávaði |
+| FWD | 35 | +0,059 (±0,177) | hávaði |
+
+Stóru tölurnar innan tímabils (Wolves DEF +1,49 stig/leik, Ipswich FWD +1,52)
+eru **38-leikja úrtakshávaði**, ekki eiginleiki liðsins. Þetta má EKKI fara í
+FFDR: það myndi líta út eins og innsæi og vera tilviljun. Að leifin flytjist
+ekki er jafnframt staðfesting á að FFDR sé þegar búið að draga út þann hluta
+mótherjans sem ER stöðugur (xG/xGC, Elo, markaðslínan).
+
 ### FFDR GEGN OPINBERU FPL-FDR — 10 tímabil (mælt 28.7.2026)
 
 `tests/ffdr-vs-fdr.mjs`. **FDR-ið er nú það raunverulega**, ekki nálgun:
@@ -176,7 +257,14 @@ mælanlega: r 0,293 -> **0,328**, og FFDR (0,406) nær nú markaðslínunni einn
   varnar og fylgir oft *þyngri* leikjum — dregur í gagnstæða átt við hreint
   blað. Blöndun myndi láta merkin éta hvort annað. DC lifir á leikmannaspjöldum
   (≥70) og í liða-yfirlitinu.
-- **`TIER_CUTS = [2.45, 2.76, 2.92, 3.21, 3.45]`** eru **sextílar raunverulegrar
+- **LITIRNIR: sex þrep með HLUTLAUSU GRÁU MIÐÞREPI** (28.7.). Grænt og
+  ljósgult voru nánast eins á skjá, svo miðjan var ólæsileg. Ljósgula þrepið
+  varð `hlutlaust` grátt (`#ecedf1`), sem frelsaði dökkgrænt og dökkgult til
+  að vera afgerandi mettuð. `TIER_NEUTRAL = 2`. Prófin verja bæði að
+  miðþrepið sé ómettað og að nágranna-þrep séu sjónrænt aðgreind (≥20 í RGB).
+  `tierOf` skilaði HARÐKÓÐUÐU 5 sem þyngsta þrepi — nú `TIER_CUTS.length`,
+  svo fjöldi þrepa má breytast án þess að efsta þrepið verði ónothæft.
+- **`TIER_CUTS`** eru **sextílar raunverulegrar
   FFDR-dreifingar** tímabilsins, ekki handvaldar tölur. Gömlu mörkin gáfu 3,8%
   dökkgrænt en 26% rautt („af hverju á hann alltaf rauða leiki?“). Prófið
   endurreiknar sextílana úr `data/` í hverri keyrslu og fellur ef þeir reka
@@ -310,10 +398,32 @@ hefði sett þau á gagnstæða enda. Þess vegna er kortið **einn vallarhelmin
 markið UPPI, í réttum stærðarhlutföllum (68 m breitt × 52,5 m langt). Fyrsta
 útgáfan hafði markið vinstra í 760×480 kassa og **togaði x-ásinn**.
 
-**9% hnita eru ótraust:** 19 af 290 skotum höfðu X>0,5 og **öll voru langskot**
-(eitt „more than 35 yards“ á X=0,964 = 100 m). Þau eru merkt `usable:false`,
-**talin og birt** — og **EKKI speglað** yfir (1−X), því það væri ágiskun um
-kerfi sem við staðfestum ekki.
+**KVARÐINN — x er hlutfall af HÁLFUM velli (52,5 m), ekki af 105 m.**
+Þetta kostaði villu sem ekkert próf sá: fyrsta útgáfan margfaldaði með 105 og
+setti **hvert skot í tvöfalda fjarlægð**, svo mörk birtust uppi við miðjulínu.
+Notandinn sá það á vellinum áður en nokkur tala afhjúpaði það.
+
+Kvörðunin er mæld gegn **svæðis-texta ESPN, sem er óháður hnitunum**:
+
+| Svæði (ESPN-texti) | mælt x | rétt hlutfall af 52,5 m |
+|---|---|---|
+| `close_range` (markteigur 5,5 m) | max **0,110** | 5,5/52,5 = **0,105** |
+| í teig (vítateigur 16,5 m) | max **0,336** | 16,5/52,5 = **0,314** |
+| utan teigs | min 0,340 | — |
+
+Með 105 m kvarða ætti teigmarkið að vera 0,157 — það passar ekki. Y er hlutfall
+af breidd (68 m): `box_left` 0,241–0,368 · `box_centre` 0,370–0,622 ·
+`box_right` 0,634–0,766, óskarandi og í réttri röð.
+**Metrar frá marki = x × 52,5.**
+
+**Það eru ENGIN „ótraust" hnit.** Fyrri útgáfa henti 19 skotum með x>0,5 sem
+„ótraustum" — en með réttum kvarða eru þau 27–51 m, öll merkt „outside the box"
+af ESPN sjálfu. Þau voru aldrei rusl; kvarðinn okkar var rangur. x-sviðið er
+0,040–0,964 = 2–51 m.
+
+`tests/stats.test.mjs` kafli 6 er **kvörðunar-vörður**: hann ber hnitin við
+svæðis-textann OG **útilokar 105 m kvarðann sérstaklega**, svo þessi villa geti
+ekki laumast inn aftur.
 
 **Nafna-pörun FPL↔ESPN er 99% (161/162), var 80%.** Þrennt þurfti: TRANSLIT-tafla
 á undan NFD (`ß`→ss, punktlaust `ı`; „Groß“ varð „gro“ og „Kadıoğlu“ varð
@@ -328,6 +438,21 @@ meðalstaðsetning. `formation` er birt sem *uppstilling*, ekki sem mæld staðs
 **Krossprófun sem sannar úrdráttinn:** 23 mörk + 1 sjálfsmark = 24 = summa
 úrslitanna í GW38, úr BÁÐUM heimildum sjálfstætt; og ESPN-skotafjöldi stemmir
 við E0 upp á skot í helmingi leikja og víkur mest um 1. Bæði prófað.
+
+**ÞRJÁR TÖLUR SEM LÍTA RANGT ÚT EN ERU RÉTTAR** — ekki „laga" þær:
+1. **45 hrein blöð í 10 leikjum.** Þau eru talin **per leikmann**, ekki per lið:
+   4 lið héldu hreinu (≈42 leikmenn) og 3 Arsenal-menn til viðbótar voru teknir
+   af velli **áður en** Palace skoraði á 89. mín (83./74./61. mín). FPL-reglan er
+   60+ mín án þess að fá á sig mark *meðan maður er inni á*. Liða-talan er nú
+   birt við hliðina svo þetta lesist rétt.
+2. **23 assist á móti 23 mörkum (100%).** FPL-skilgreiningin er rýmri en Opta —
+   t.d. gefur FPL assist fyrir að vinna víti sem er skorað. ESPN telur 17 í sömu
+   umferð. Þar sem þetta er FPL-tól er FPL-talan sú rétta; heimildin er merkt.
+3. **Meslier með 11 mörk — ÞETTA ER RANGT, og það er FPL sem lýgur.**
+   `bootstrap-static` skilar `goals_scored:11` með `minutes:0` og
+   `total_points:0` (11 mörk gæfu ≥66 stig). Einn af 563. `isIncoherent()` í
+   `stats.js` tekur út tölu sem krefst spilunar þegar mínútur eru 0, **telur
+   hana og birtir þá tölu** — hún er ekki skrifuð í 0, því það fæli vandann.
 
 ---
 

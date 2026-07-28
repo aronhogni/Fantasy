@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Pitch from "./Pitch.jsx";
+import GwReport from "./GwReport.jsx";
+import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
+import SetPieces, { setPieceBadges } from "./SetPieces.jsx";
+import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
-  tierOf, TIER_BG, TIER_FG, TIER_NAME,
+  tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction } from "./model.js";
 
 /* ============================================================
@@ -15,7 +19,12 @@ import { clamp, sellTenths, lookupPos, lookupMeasured,
    FDR, deadline og spár koma öll úr API.
    ============================================================ */
 
-const RAW = "https://raw.githubusercontent.com/aronhogni/Fantasy/main/data";
+/* Í BYGGINGU les appid raw.githubusercontent (main-greinina) — engin bakendi.
+   Í DEV les það data/ STAÐBUNDID svo nyjar pipeline-skrar seu synilegar ADUR
+   en their eru pushadar, og svo dev virki an nets. Vite thjonar rot-skrar.   */
+const RAW = import.meta.env?.DEV
+  ? `${import.meta.env.BASE_URL}data`      // base er /Fantasy/ — ma ekki fara framhja
+  : "https://raw.githubusercontent.com/aronhogni/Fantasy/main/data";
 const PROXY_URL = "https://mellifluous-hummingbird-565c85.netlify.app/.netlify/functions/odds";
 
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
@@ -48,7 +57,7 @@ const KIT = {
   MUN:["#DA020E","#ffffff"], NEW:["#241F20","#ffffff"], NFO:["#DD0000","#ffffff"],
   TOT:["#ffffff","#132257"], SUN:["#EB172B","#ffffff"],
 };
-const POS_LABEL = { 1:"Markv.", 2:"Vörn", 3:"Miðja", 4:"Sókn" };
+const POS_LABEL = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };   // universal, ekki islenskt
 /* FPL explain-lyklar -> íslensk heiti (stiga-uppskipting) */
 const EXPLAIN_IS = {
   minutes:"Mínútur", goals_scored:"Mörk", assists:"Assist", clean_sheets:"Hreint blað",
@@ -377,7 +386,7 @@ function Logo() {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
       {/* Merki appsins — currentColor erfir lit, --logo-accent stýrir boltanum */}
-      <svg width="34" height="34" viewBox="0 0 64 64" role="img" aria-label="Fantasy plönun"
+      <svg width="34" height="34" viewBox="0 0 64 64" role="img" aria-label="FantasyApp"
         style={{ color: C.purple, "--logo-accent": "#46d17f", flexShrink: 0 }}>
         <title id="t">Merki reiknilíkans fyrir Fantasy-fótbolta</title>
         <defs>
@@ -414,8 +423,7 @@ function Logo() {
         </g>
       </svg>
       <div>
-        <div style={{ fontWeight:700, fontSize:16, letterSpacing:-0.3, color:C.purple }}>Fantasy plönun</div>
-        <div style={{ fontSize:10.5, color:C.text3, fontFamily:mono, letterSpacing:0.4 }}>2026/27 · opinber gögn</div>
+        <div style={{ fontWeight:700, fontSize:16, letterSpacing:-0.3, color:C.purple }}>FantasyApp</div>
       </div>
     </div>
   );
@@ -475,11 +483,19 @@ export default function App() {
   const [gwPts, setGwPts] = useState(null);
   const [recPos, setRecPos] = useState("ALL");
   const [recRange, setRecRange] = useState(5);
+  const [recMaxCost, setRecMaxCost] = useState("");   // hamarksverd i tillogum (tomt = ekkert thak)
   const [teamSort, setTeamSort] = useState("def");
   const [detail, setDetail] = useState(null); // {kind:"player"|"team", id}
   const [live, setLive] = useState(null);      // lifandi staða valdrar umferðar
   const [gwStats, setGwStats] = useState(null); // per-leikmanns tölur valdrar umferðar
   const [liveTick, setLiveTick] = useState(0);
+  const [view, setView] = useState("planner");   // "planner" | "gw" | "board"
+  const [lastGw, setLastGw] = useState(null);     // data/last_gw.json — sidasta lokna umferd
+  const [lastGwShots, setLastGwShots] = useState(null); // data/last_gw_shots.json — ESPN-skot
+  const [seasonsFile, setSeasonsFile] = useState(null); // data/player_seasons.json — fyrri timabil (lyklad a code)
+  const [priceEdit, setPriceEdit] = useState(null);     // {id} — lettur verd-gluggi
+  const [spNotes, setSpNotes] = useState(null);         // data/set_piece_notes.json
+  const [imminent, setImminent] = useState(null);       // data/imminent.json — mo/ao
   const [rivals, setRivals] = useState([]);          // [{id}] — andstæðingar til samanburðar
   const [rivalInput, setRivalInput] = useState("");
   const [rivalData, setRivalData] = useState({});    // {id: {name, gwPts, totalPts, captain, picks}}
@@ -520,6 +536,11 @@ export default function App() {
         try { setChipRules(await j("chips.json")); } catch {}
         try { setFormFeat(await j("form_features.json")); } catch {}
         try { setTeamForm(await j("team_form.json")); } catch {}
+        try { setLastGw(await j("last_gw.json")); } catch {}
+        try { setLastGwShots(await j("last_gw_shots.json")); } catch {}
+        try { setSeasonsFile(await j("player_seasons.json")); } catch {}
+        try { setSpNotes(await j("set_piece_notes.json")); } catch {}
+        try { setImminent(await j("imminent.json")); } catch {}
         const cur = evA.find(e => e.is_current) || evA.find(e => e.is_next);
         if (cur) setGw(cur.id);
       } catch (e) { setDataState("error"); }
@@ -957,7 +978,7 @@ export default function App() {
           /* ÓLÍK gildi, ekki kvantílar. Lélegt lið hefur aðeins ~8 ólík FFDR-gildi
              (FDR 1-5 x heima/úti), svo kvantílar mynda tvítekin skil og flokkar
              verða tómir. Röðun ólíkra gilda tryggir að jafnir leikir fá SAMA lit
-             og að allir sex litir nýtist.                                       */
+             og að allir litir nýtist (TIER_COUNT, nú sjö).                      */
           out[`${t.id}|${pos}`] = [...new Set(vals)].sort((a, b) => a - b);
         }
       }
@@ -973,8 +994,9 @@ export default function App() {
     if (!uniq || uniq.length < 2) return tierOf(d);
     const i = uniq.indexOf(d);
     if (i < 0) return tierOf(d);
-    // röð ólíks gildis -> þrep 0..5
-    return Math.min(5, Math.floor(i * 6 / uniq.length));
+    // röð ólíks gildis -> þrep 0..TIER_COUNT-1 (má EKKI harðkóða 6: sjöunda
+    // þrepið — hlutlausa gráa — hefði annars aldrei birst)
+    return Math.min(TIER_COUNT - 1, Math.floor(i * TIER_COUNT / uniq.length));
   }
 
 
@@ -1340,7 +1362,13 @@ export default function App() {
       drivers.push(["leikir", w.fdr * fdrAvg]);
       drivers.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
       const tot = drivers.reduce((a, x) => a + Math.abs(x[1]), 0) || 1;
-      const why = drivers.slice(0, 2).map(([lbl, v]) => `${lbl} ${Math.round(100 * Math.abs(v) / tot)}%`).join(" · ");
+      /* TVÆR PRÓSENTUR í sama streng var ólæsilegt: labelið getur sjálft
+         innihaldið % ("mín 89%") og svo var HLUTDEILD driverins skeytt á
+         eftir -> "mín 89% 44%", sem lestist sem ein tala. Hlutdeildin fer
+         nú í sviga með orði, svo það sé ljóst hvað er hvað.              */
+      const why = drivers.slice(0, 2)
+        .map(([lbl, v]) => `${lbl} (${Math.round(100 * Math.abs(v) / tot)}% af skori)`)
+        .join(" · ");
 
       // algilt meðal-FFDR yfir sviðið (til samanburðar milli liða)
       let fsum = 0, fn = 0;
@@ -1350,9 +1378,16 @@ export default function App() {
                why, ffdrAvg: fn ? +(fsum / fn).toFixed(2) : null };
     };
     const all = players.map(scoreOf).filter(Boolean);
+    /* VERDTHAK — sia adeins a TILLOGULISTANN, ekki a "skipta ut"-matid.
+       Verdthak a ekki ad breyta thvi hver er verstur i thinu lidi.        */
+    const maxT = (() => {
+      const v = parseFloat(String(recMaxCost).replace(",", "."));
+      return Number.isFinite(v) && v > 0 ? Math.round(v * 10) : null;
+    })();
     const byPos = {};
     [1,2,3,4].forEach(pos => {
-      byPos[pos] = all.filter(r => r.p.element_type === pos && !squadIds.has(r.p.id))
+      byPos[pos] = all.filter(r => r.p.element_type === pos && !squadIds.has(r.p.id)
+                                && (maxT == null || (r.p.now_cost ?? 0) <= maxT))
         .sort((a,b) => b.score - a.score).slice(0, 4);
     });
     // versti í liðinu = mælt með að skipta út
@@ -1360,7 +1395,7 @@ export default function App() {
     const sorted = [...inSquad].sort((a,b) => a.score - b.score);
     const sellIds = new Set(sorted.slice(0, 2).map(r => r.p.id));
     return { byPos, sellIds, inSquadScores: Object.fromEntries(inSquad.map(r => [r.p.id, r.score])) };
-  }, [players, fixtures, gw, recRange, fixByTeamGw, teamMetrics, squadIds, odds, defcon, dcOpp, eloByTeam, eloCsByFx, maxGw, formFeat]);
+  }, [players, fixtures, gw, recRange, fixByTeamGw, teamMetrics, squadIds, odds, defcon, dcOpp, eloByTeam, eloCsByFx, maxGw, formFeat, recMaxCost]);
 
   /* ---------- Verðbreytingar (raunveruleg gögn) ---------- */
   const priceMovers = useMemo(() => {
@@ -1391,6 +1426,15 @@ export default function App() {
     return y ? `${y - 1}/${String(y).slice(-2)}` : "sl. tímabil";
   })();
   const cumLabel = seasonStarted ? `GW1–${seasonGames}` : prevSeasonLabel;
+  /* HEITI YFIRSTANDANDI TIMABILS — annad en cumLabel!
+     cumLabel merkir "hvada timabil eiga tolurnar i players.json vid" og er
+     thvi fyrra timabilid fyrir GW1. Timabila-taflan tharf hins vegar RETTA
+     artalid a efsta dalkinn, annars faer 2026/27-dalkurinn heitid 2025/26
+     OG 2025/26-dalkurinn dettur ut sem tvitekning.                        */
+  const currentSeasonLabel = (() => {
+    const y = gw1Deadline ? new Date(gw1Deadline).getFullYear() : null;
+    return y ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : "í ár";
+  })();
   // TÍMABIL BYRJAÐ = einhver umferð lokin. Þangað til eru allar uppsöfnuðu
   // tölur í players.json frá SÍÐASTA tímabili (spjöld, mínútur, stig).
   preSeasonRef.current = preSeason;
@@ -1553,6 +1597,34 @@ export default function App() {
         </div>
       </header>
 
+      {/* ---------- Flipar ----------
+          "Umferdin" og "Stigatafla" eru SJALFSTAEDIR lesmatar sem lesa
+          data/last_gw*.json og players.json — their hanga ekki a lidinu
+          thinu og virka thott ekkert se tengt.                            */}
+      <div style={S.viewTabs}>
+        {[["planner","\u26bd Skipulag"],["gw","\ud83d\udcca Umferðin"],["board","\ud83c\udfc6 Stigatafla"],["sp","\u26bd\ufe0f Föst leikatriði"]].map(([k,l]) => (
+          <button key={k} style={{ ...S.viewTab, ...(view === k ? S.viewTabOn : {}) }}
+            onClick={() => setView(k)}>{l}</button>
+        ))}
+      </div>
+
+      {view === "gw" && (
+        <GwReport report={lastGw} shotsFile={lastGwShots} teamById={teamById} Crest={Crest} />
+      )}
+      {view === "sp" && (
+        <SetPieces players={players} teams={teams} teamById={teamById} Crest={Crest}
+          notes={spNotes} onPickPlayer={id => setDetail({ kind:"player", id })} />
+      )}
+      {view === "board" && (
+        <Leaderboard players={players} teams={teams} teamById={teamById} Crest={Crest}
+          imminent={imminent} photoUrl={photoUrl}
+          onPickPlayer={id => setDetail({ kind:"player", id })}
+          seasonNote={preSeason
+            ? "Tímabilið 2026/27 er ekki byrjað. Tölurnar hér eru uppsafnaðar tölur sem FPL birtir núna — þær nollast þegar GW1 opnar."
+            : null} />
+      )}
+
+      {view === "planner" && (<>
       {/* ---------- Tímalína ---------- */}
       <div style={S.tlWrap}>
         <div style={S.tlOuter}>
@@ -2138,11 +2210,44 @@ export default function App() {
               <span style={defcon?.players?.length ? S.dotOk : S.dotWait} />
               DefCon hit-rate — {defcon?.players?.length || 0} leikmenn {defcon?.players?.length ? "" : "(bíður leikja)"}
             </div>
-            {pipeStatus?.sources && Object.entries(pipeStatus.sources).filter(([k]) => k.startsWith("understat") || k.startsWith("fdcouk")).map(([k,v]) => (
-              <div key={k} style={S.srcRow}>
-                <span style={v.ok ? S.dotOk : S.dotWait} />{k} — {v.ok ? `${v.count}` : (v.note || "").slice(0,34)}
-              </div>
-            ))}
+            {/* PIPELINE-HEIMILDIR ur status.json.
+                AÐUR: hrait lykilheiti ("fdcouk_e0") og note klippt i 34 stafi,
+                svo "404 https://www.football-data.co.u" birtist sem villa —
+                thott 404 fyrir timabil se EDLILEGT astand. Nu: islensk heiti,
+                THRJU stig (i lagi / bidur / villa) og full skyring i tooltip.
+                Understat er ekki lengur i listanum — hun var tekin ur notkun
+                (sja kafla 6b i CLAUDE.md); ESPN kom i stadinn.               */}
+            {pipeStatus?.sources && (() => {
+              const SHOW = {
+                fdcouk_e0:      "Leikjatölur E0 (yfirstandandi)",
+                fdcouk_history: "Leikjatölur E0 (saga)",
+                espn_shots:     "Skot með hnitum (ESPN)",
+                last_gw:        "Umferðarskýrsla",
+                player_seasons: "Fyrri tímabil leikmanna",
+                travel:         "Ferðalengdir",
+                rotation:       "Rótasjón",
+                team_form:      "Liðsform",
+                luck:           "Heppnismælir",
+                form_features:  "Rúllandi form",
+                gameweek_shape: "Umferðalögun",
+                euro_fixtures:  "Evrópuleikir",
+              };
+              return Object.entries(pipeStatus.sources)
+                .filter(([k]) => SHOW[k])
+                .map(([k, v]) => {
+                  // "bidur" = keyrslan tokst en gognin eru ekki til enn
+                  const waiting = v.ok && (!v.count || v.count === 0);
+                  const dot = !v.ok ? S.dotErr : waiting ? S.dotWait : S.dotOk;
+                  return (
+                    <div key={k} style={S.srcRow} title={v.note || ""}>
+                      <span style={dot} />{SHOW[k]} — {
+                        !v.ok ? `villa: ${(v.note || "óþekkt").slice(0, 40)}`
+                        : waiting ? (v.note || "bíður gagna")
+                        : v.count}
+                    </div>
+                  );
+                });
+            })()}
           </section>
         </div>
       </div>
@@ -2161,6 +2266,16 @@ export default function App() {
               <option value={6}>næstu 6</option>
               <option value={8}>næstu 8</option>
             </select>
+            <label style={S.recMaxWrap} title="Sýna aðeins leikmenn undir þessu verði">
+              <span style={S.recMaxLbl}>hám. £</span>
+              <input style={S.recMaxInput} type="number" step="0.5" min="3.5" max="20"
+                placeholder="—" value={recMaxCost}
+                onChange={e => setRecMaxCost(e.target.value)} />
+              {recMaxCost !== "" && (
+                <button style={S.recMaxClear} title="Hreinsa verðþak"
+                  onClick={() => setRecMaxCost("")}>✕</button>
+              )}
+            </label>
             <select style={S.chipSel} value={recPos} onChange={e => setRecPos(e.target.value)}>
               <option value="ALL">allar stöður</option>
               <option value="1">markverðir</option>
@@ -2199,6 +2314,7 @@ export default function App() {
           </div>
         ))}
       </section>
+      </>)}
 
       {/* ---------- Yfirlit: leikmaður eða lið ---------- */}
       {detail && (() => {
@@ -2206,9 +2322,12 @@ export default function App() {
         const p = isPlayer ? byId[detail.id] : null;
         const t = isPlayer ? teamById[p?.team] : teamById[detail.id];
         if (!t) return null;
-        // FFDR-sjóndeildarhringur fylgir stillingunni (lágmark 6 svo
-        // Evrópu- og bikarleikir sjáist í samhengi)
-        const fxs = allFixturesFor(t.id, gw, Math.max(6, recRange));
+        /* NAESTU 8 LEIKIR a spjaldinu (ad beidni). Aður var thetta bundid
+           vid recRange (lagmark 6) sem thydir ad spjaldid stytti sig thegar
+           tillogu-bilid var stytt — ohad hvor öðrum nu. Evropu-/bikarleikir
+           fljota med i tímaröð svo alagið sjáist i samhengi.               */
+        const CARD_FIXTURES = 8;
+        const fxs = allFixturesFor(t.id, gw, CARD_FIXTURES);
         const av = isPlayer ? availOf(p) : null;
         const ban = isPlayer ? banRisk(p, gw, seasonStarted) : null;
         const sp = isPlayer ? setPieceOf(p) : null;
@@ -2267,75 +2386,31 @@ export default function App() {
                 </div>
               )}
 
-              {/* ---------- TÖLUR — FLOKKAÐAR UNDIR FYRIRSÖGNUM ----------
-                  Þrír flokkar með lit fyrirsagnarinnar sem heimildar-merki:
-                  grænt = lifandi núna · gult = tímabils-uppsöfnun (með
-                  dálkum "í ár" og "í fyrra" þegar bæði eru til) ·
-                  fjólublátt = reiknað mat appsins.                        */}
+              {/* ---------- TÖLUR ----------
+                  LEIKMENN: nyr efsti hluti (sex adaltolur) + timabila-tafla
+                  med saetum og trend-merkingu — sja src/PlayerPanel.jsx.
+                  LID: obreytt reiknad mat appsins.                        */}
               {isPlayer ? (
                 <>
-                  <div style={S.dGroupHead}>
-                    <span style={{ ...S.dGroupDot, background:C.green }} />
-                    Núna <span style={S.dGroupSub}>lifandi úr FPL</span>
-                  </div>
+                  <PlayerHeadline
+                    p={p}
+                    inSquad={squadIds.has(p.id)}
+                    buyTenths={squadIds.has(p.id) ? buyOf(p.id) : null}
+                    sellTenths_={squadIds.has(p.id) ? sellOf(p.id) : null}
+                    seasonStarted={seasonStarted}
+                    onEditPrice={() => setPriceEdit({ id: p.id })} />
+
+                  {/* ep og vitarod eiga heima her, ekki i timabila-toflunni */}
                   <div style={S.dGrid}>
                     <DStat k="Spá næstu (ep)" v={p.ep_next} />
-                    <DStat k="Eignarhlutfall" v={`${p.selected_by_percent}%`} />
-                    <DStat k="Form" v={p.form} sub="rúllandi 30 dagar" />
+                    {rot && <DStat k="Byrjaði" v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} />}
                     {sp && <DStat k="Vítaröð" v={sp.pen ?? "—"} sub={sp.isPenTaker ? "fyrsti taki" : ""} />}
+                    {sp?.ck != null && <DStat k="Horn/aukasp." v={sp.ck} />}
+                    {sp?.fk != null && <DStat k="Aukaspyrnur" v={sp.fk} />}
                   </div>
 
-                  <div style={S.dGroupHead}>
-                    <span style={{ ...S.dGroupDot, background:C.amber }} />
-                    {seasonStarted && baselineById[p.id]
-                      ? <>Tímabilin <span style={S.dGroupSub}>uppsafnað — í ár á móti í fyrra</span></>
-                      : <>Tímabilið {cumLabel} <span style={S.dGroupSub}>uppsafnað{seasonStarted ? "" : " — nýtt tímabil ekki hafið"}</span></>}
-                  </div>
-                  {(() => {
-                    const bl = baselineById[p.id];
-                    const rows = [
-                      ["Stig", p.total_points, bl?.total_points],
-                      ["Stig/leik", p.points_per_game, bl?.points_per_game],
-                      ["Mínútur", p.minutes, bl?.minutes],
-                      rot && ["Byrjaði", `${rot.starts}/${rot.played} (${rot.pct}%)`,
-                        bl?.starts != null ? `${bl.starts}/38 (${Math.round(bl.starts / 38 * 100)}%)` : null],
-                      ["Mörk + assist", `${p.goals_scored ?? 0} + ${p.assists ?? 0}`,
-                        bl ? `${bl.goals_scored ?? 0} + ${bl.assists ?? 0}` : null],
-                      ["xG / 90", per90(p.expected_goals, p.minutes) ?? "—",
-                        bl ? (per90(bl.expected_goals, bl.minutes) ?? "—") : null],
-                      ["xA / 90", per90(p.expected_assists, p.minutes) ?? "—",
-                        bl ? (per90(bl.expected_assists, bl.minutes) ?? "—") : null],
-                      p.element_type <= 2 && ["Hrein blöð", p.clean_sheets, bl?.clean_sheets],
-                      ["Gul / rauð", `${p.yellow_cards ?? 0} / ${p.red_cards ?? 0}`,
-                        bl ? `${bl.yellow_cards ?? 0} / ${bl.red_cards ?? 0}` : null],
-                    ].filter(Boolean);
-                    /* Þegar bæði tímabil eru til: SAMANBURÐARTAFLA með dálk
-                       fyrir hvort. Annars venjulegt dálkanet — sama gagn. */
-                    if (seasonStarted && bl) return (
-                      <table style={S.cmpTable}>
-                        <thead><tr>
-                          <th style={S.cmpTh}></th>
-                          <th style={{ ...S.cmpTh, ...S.cmpThNum }}>í ár · GW1–{seasonGames}</th>
-                          <th style={{ ...S.cmpTh, ...S.cmpThNum, color:C.text3 }}>{baseline?.label || "í fyrra"}</th>
-                        </tr></thead>
-                        <tbody>
-                          {rows.map(([k, cur, prev]) => (
-                            <tr key={k}>
-                              <td style={S.cmpK}>{k}</td>
-                              <td style={S.cmpV}>{cur ?? "—"}</td>
-                              <td style={{ ...S.cmpV, color:C.text3 }}>{prev ?? "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    );
-                    return (
-                      <div style={S.dGrid}>
-                        {rows.map(([k, cur]) => <DStat key={k} k={k} v={cur ?? "—"}
-                          sub={k === "Gul / rauð" && !seasonStarted ? "núllstillast við GW1" : null} />)}
-                      </div>
-                    );
-                  })()}
+                  <SeasonTable p={p} seasonsFile={seasonsFile}
+                    currentLabel={currentSeasonLabel} seasonStarted={seasonStarted} />
                 </>
               ) : (
                 <>
@@ -2352,80 +2427,12 @@ export default function App() {
                 </>
               )}
 
-              {/* VERÐ: kaup, sala, hagnaður (50%-reglan) */}
-              {isPlayer && squadIds.has(p.id) && (() => {
-                const buy = buyOf(p.id), cur = p.now_cost, sell = sellOf(p.id);
-                const profit = cur - buy, kept = sell - buy;
-                return (
-                  <>
-                    <div style={S.dSectionLbl}>
-                      Verð
-                      <span style={S.dSectionNote}>50% af hagnaði, niðurjafnað</span>
-                    </div>
-                    <div style={S.priceRow}>
-                      <label style={S.priceLbl}>Kaupverð</label>
-                      {editPrice === p.id ? (
-                        <div style={S.priceEdit}>
-                          <button style={S.priceStep} title="−0,1"
-                            onClick={() => setBuyPrices(b => ({ ...b, [p.id]: { p: Math.max(35, buy - 1), src:"manual" } }))}>−</button>
-                          <input type="number" step="0.1" min="3.5" max="20" style={S.priceInput}
-                            value={(buy / 10).toFixed(1)}
-                            onChange={e => {
-                              const v = Math.round(parseFloat(e.target.value) * 10);
-                              if (Number.isFinite(v)) setBuyPrices(b => ({ ...b, [p.id]: { p: clamp(v, 35, 200), src:"manual" } }));
-                            }} />
-                          <button style={S.priceStep} title="+0,1"
-                            onClick={() => setBuyPrices(b => ({ ...b, [p.id]: { p: Math.min(200, buy + 1), src:"manual" } }))}>+</button>
-                          <button style={S.priceDone} onClick={() => setEditPrice(null)}>✓</button>
-                          {buyPrices[p.id] != null && (
-                            <button style={S.priceReset} title="Aftur í sjálfvirkt"
-                              onClick={() => { setBuyPrices(b => { const n = { ...b }; delete n[p.id]; return n; }); setEditPrice(null); }}>
-                              núllstilla
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <button style={S.priceOpen} onClick={() => setEditPrice(p.id)}
-                          title="Smelltu til að stilla kaupverð">
-                          £{(buy / 10).toFixed(1)}<span style={S.priceOpenIcon}>stilla</span>
-                        </button>
-                      )}
-                    </div>
-                    <div style={S.dGrid}>
-                      <DStat k="Núverandi" v={`£${(cur / 10).toFixed(1)}`} src="live" />
-                      <DStat k="Söluverð" v={`£${(sell / 10).toFixed(1)}`}
-                        sub={profit > 0 ? `${((profit - kept) / 10).toFixed(1)} tapast` : ""} />
-                      <DStat k="Verðbreyting"
-                        v={`${profit >= 0 ? "+" : ""}£${(profit / 10).toFixed(1)}`}
-                        sub={profit > 0 ? `heldur £${(kept / 10).toFixed(1)}` : profit < 0 ? "fullt verð" : ""} />
-                    </div>
-                    {(() => {
-                      const src = buySrcOf(p.id);
-                      const rec = buyPrices[p.id];
-                      const date = rec && typeof rec === "object" ? rec.date : null;
-                      const LBL = {
-                        manual:  ["Stillt af þér", C.purple],
-                        api:     ["Úr FPL", C.green],
-                        auto:    [date ? `Skráð sjálfkrafa ${date}` : "Skráð sjálfkrafa", C.green],
-                        planned: ["Ekki keyptur enn — enginn hagnaður", C.text2],
-                      };
-                      const [txt, col] = LBL[src] || ["Áætlað sem núverandi verð", C.amber];
-                      return (
-                        <div style={S.dNote}>
-                          <span style={{ color: col, fontWeight: 600 }}>{txt}.</span>{" "}
-                          {src === "auto"
-                            ? "Appið sá verðið þegar hann kom inn í liðið. Stilltu ef það er ekki rétt."
-                            : src === "planned"
-                              ? "Hagnaður byrjar að reiknast þegar skiptin fara fram."
-                              : src === "manual" || src === "api"
-                                ? "Söluverð og banki reiknast af þessu."
-                                : "Opinbera FPL-slóðin gefur ekki kaupverð. Stilltu það hér, eða tengdu liðið — þá skráir appið það sjálft."}
-                        </div>
-                      );
-                    })()}
-                  </>
-                );
-              })()}
+              {/* VERD-BLOKKIN VAR HER OG ER FARIN.
+                  Hun hafdi eigin stillingar-glugga, +/- hnappa og thrju
+                  smaletursvid — allt til ad breyta EINNI tolu. Nu er ✎ a
+                  verd-reitnum i efsta hluta (PlayerHeadline) sem opnar einn
+                  lettan popup (PriceEditor), og soluverd/hagnadur birtast
+                  thar sem undirtexti. Ein tala, einn stadur.               */}
 
               {/* GW-FRAMMISTAÐA — hvernig gekk í þessari umferð */}
               {isPlayer && (() => {
@@ -2527,27 +2534,29 @@ export default function App() {
                       </span>
                       <span style={S.dFixFdr} title={`FDR ${f.fdr}, samsett ${dd}`}>þyngd {dd}</span>
                       {(() => {
+                        /* AÐEINS eigin ferðalengd. Ferð MOTHERJANS var her lika
+                           (thegar f.home) en var tekin ut ad beidni notanda —
+                           hun er ekki relevant fyrir hans eigin leikmann.       */
                         const tr = travelByFx[f.id];
-                        if (!tr?.km) return null;
-                        // sjónarhorn skoðaða liðsins: úti = ÞAÐ ferðast,
-                        // heima = MÓTHERJINN ferðast (gott fyrir vörnina)
+                        if (!tr?.km || f.home) return null;
                         return (
                           <span style={{ ...S.dFixTravel, ...(tr.is_long_trip ? S.dFixTravelLong : {}) }}
-                            title={f.home
-                              ? `Mótherjinn ferðast ${tr.km} km (loftlína)${tr.is_long_trip ? " — langferð (300+ km), mælist draga úr útiliðum" : ""}`
-                              : `${isPlayer ? "Liðið" : t.short} ferðast ${tr.km} km (loftlína)${tr.is_long_trip ? " — langferð (300+ km)" : ""}`}>
-                            ✈{tr.km}{f.home ? "→" : ""}
+                            title={`${isPlayer ? "Liðið" : t.short} ferðast ${tr.km} km (loftlína)${tr.is_long_trip ? " — langferð (300+ km)" : ""}`}>
+                            ✈{tr.km}
                           </span>
                         );
                       })()}
                       {isPlayer && HOME_PTS[p.element_type] != null && (
                         <span style={S.dFixHome}
-                          title={`Mælt heimavallar-forskot fyrir ${POS_LABEL[p.element_type].toLowerCase()}: +${HOME_PTS[p.element_type]} stig/leik`}>
+                          title={`Mælt heimavallar-forskot fyrir ${POS_LABEL[p.element_type]}: +${HOME_PTS[p.element_type]} stig/leik`}>
                           {f.home ? `+${HOME_PTS[p.element_type].toFixed(2)}` : "úti"}
                         </span>
                       )}
                       <span style={{ flex:1 }} />
-                      {cs.cs != null && <span style={S.dFixCs}>CS {cs.cs}%</span>}
+                      {/* CS-vaenting er MERKINGARLAUS fyrir FWD (og synd MID adeins
+                          af thvi ad their fa 1 stig fyrir CS). Tekin ut fyrir sokn. */}
+                      {cs.cs != null && !(isPlayer && p.element_type === 4) &&
+                        <span style={S.dFixCs} title="Líkur á hreinu blaði (CS)">CS {cs.cs}%</span>}
                       <span style={S.dFixDate}>{fmtDate(f.date)}</span>
                     </div>
                   );
@@ -2643,6 +2652,26 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* VERD-POPUP — einn lettur gluggi, kallaður fra ✎ a spjaldinu */}
+      {priceEdit && (() => {
+        const pp = byId[priceEdit.id];
+        if (!pp) return null;
+        return (
+          <PriceEditor p={pp} valueTenths={buyOf(pp.id)}
+            onClose={() => setPriceEdit(null)}
+            onSave={tenths => {
+              setBuyPrices(b => {
+                const nb = { ...b };
+                if (tenths == null) delete nb[pp.id];
+                else nb[pp.id] = { p: clamp(tenths, 35, 200), src: "manual" };
+                return nb;
+              });
+              flash(tenths == null ? `${pp.web_name}: kaupverð hreinsað`
+                                   : `${pp.web_name}: kaupverð £${(tenths/10).toFixed(1)}`);
+            }} />
+        );
+      })()}
 
       {toast && <div style={S.toast}>{toast}</div>}
     </div>
@@ -2982,8 +3011,20 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
             →{(sellTenths_/10).toFixed(1)}
           </span>}
       </div>
+      {/* ALGILT ÞREP, EKKI afstætt innan liðsins. MÆLT 28.7.2026 á 28.355
+          byrjunarliðs-umferðum (tests/ffdr-player-points.mjs kafli E):
+            fylgni við stig leikmanns   ALGILT   AFSTÆTT
+              DEF                       −0,267   −0,190
+              MID                       −0,195   −0,139
+          Afstæða þrepið henti ~30% af merkinu. Það þvingaði HVERT lið til
+          að nota alla sex litina, svo Arsenal fékk "rautt" á leik sem er
+          algilt dökkgult og "ljósrautt" á leik sem er algilt GRÆNN — það
+          var raunveruleg röng birting, ekki smekksatriði (Rice sýndi 2
+          rauða leiki sem voru í raun léttir). Spjöld eru borin saman ÞVERT
+          á lið, svo þau verða að vera á algildum kvarða — og þá er
+          "Lið — FFDR"-taflan loks samræmd við spjöldin.                  */}
       <FixChip fx={fx} teamById={teamById} diff={diffOf ? diffOf(p.team, fx, p.element_type) : null} pos={p.element_type}
-        relTier={relOf ? relOf(p.team, fx, p.element_type) : null} />
+        relTier={null} />
       {/* EIN aðaltala */}
       {/* EIN aðaltala — VÆNT STIG leikmannsins.
           Áður var hér lið-xG fyrir sóknarmenn, en það er ÓÞARFI: FFDR-flísin
@@ -3001,7 +3042,16 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       </div>
       {/* Fínleg merkjaröð — aðeins það sem er athugavert */}
       <div style={S.sigRow}>
-        {sp?.isPenTaker && <span style={S.sigPen} title="Fyrsti vítataki (uppfærist daglega)">PEN</span>}
+        {/* FOST LEIKATRIDI sem ikon-rod: viti / aukaspyrnur / horn.
+            Adur var adeins "PEN" fyrir fyrsta vitataka — aukaspyrnu- og
+            hornatakar sáust hvergi a vellinum thott FPL gefi rodun theirra.
+            Sami taknlisti og i flipanum "Fost leikatridi" (SP_KINDS).      */}
+        {(setPieceBadges(p) || []).map(b => (
+          <span key={b.key} style={{ ...S.sigSet, ...(b.order === 1 ? S.sigSetFirst : {}) }}
+            title={`${b.label} — ${b.order === 1 ? "fyrsti taki" : `${b.order}. í röð`} (úr FPL)`}>
+            {b.icon}{b.order > 1 ? b.order : ""}
+          </span>
+        ))}
         {isDef && dc && dc.defcon_opportunity >= 70 &&
           <span style={S.sigDc} title={`DefCon-tækifæri ${dc.defcon_opportunity} — mikið vinnuálag varnar`}>DC{dc.defcon_opportunity}</span>}
         {ban && ban.level === "high" &&
@@ -3032,8 +3082,9 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, relOf, r
       <div style={S.recFix}>
         {fxs.slice(0, range || 6).map((f,i) => {
           const d = diffOf ? (diffOf(p.team, f, p.element_type) ?? f.fdr) : f.fdr;
-          // AFSTÆTT innan liðsins — sami kvarði sem á leikmanna-spjöldum
-          const t = relOf ? (relOf(p.team, f, p.element_type) ?? tierOf(d)) : tierOf(d);
+          /* ALGILT — tillögur bera leikmenn ÞVERT á lið, svo afstætt þrep
+             innan liðs væri hér beinlínis misvísandi (sjá PlayerCard).  */
+          const t = tierOf(d);
           const bg = TIER_BG[t], fg = TIER_FG[t];
           return (
             <span key={i} style={{ ...S.recFixChip, background:bg, color:fg }}
@@ -3043,21 +3094,38 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, relOf, r
           );
         })}
       </div>
+      {/* TOLUR SEM MERKTIR REITIR.
+          AÐUR: allt steypt saman i einn streng an bila —
+          "£5.5 49% · min 89% 44%FFDR 2.38CS-vaenting 30% · DC 62 · elo 1971".
+          Talan og heiti hennar limdust saman og enginn gat lesid hvad var hvad.
+          Nu er hver tala sinn reitur med SKYRU heiti og tooltip.            */}
       <div style={S.recExtra}>
-        {/* HVERS VEGNA — svo skorið sé ekki dulúð. Mínútur og verð ráða; leikir vega ~5%. */}
-        {r.why && <span style={S.recWhy}>{r.why}</span>}
-        {r.ffdrAvg != null && <span style={S.recFfdr} title="Meðal-FFDR (algilt) yfir sviðið">FFDR {r.ffdrAvg}</span>}
-        {isDef && (() => {
-            /* VILLA SEM VAR: "|| 0" taldi vantandi CS sem NÚLL og dró meðaltalið
-               niður — Raya (Arsenal) sýndi 9% þegar lægsta mögulega er 15%.
-               Nú er vantandi gildum SLEPPT, og ef ekkert er til sýnum við "—". */
+        {(() => {
+          const chips = [];
+          if (r.ffdrAvg != null) chips.push(["FFDR", r.ffdrAvg,
+            "Meðal-FFDR yfir sviðið (algildur kvarði) — lægra er léttara"]);
+          if (isDef) {
             const vals = fxs.map(f => csFor(p.team, f).cs).filter(v => Number.isFinite(v));
-            if (!vals.length) return "CS-vænting —";
-            return `CS-vænting ${Math.round(vals.reduce((a, v) => a + v, 0) / vals.length)}%`;
-          })()}
-        {isDef && dc && ` · DC ${dc.defcon_opportunity}`}
-        {elo && `${isDef ? " · " : ""}elo ${Math.round(elo.elo)}`}
+            /* VILLA SEM VAR: "|| 0" taldi vantandi CS sem NULL og dro
+               medaltalid nidur — Raya syndi 9% thegar laegsta mogulega er 15%.
+               Vantandi gildum er SLEPPT, og "—" ef ekkert er til.           */
+            chips.push(["CS-vænting", vals.length
+              ? `${Math.round(vals.reduce((a, v) => a + v, 0) / vals.length)}%` : "—",
+              "Líkur á hreinu blaði að meðaltali yfir sviðið"]);
+            if (dc) chips.push(["DC", dc.defcon_opportunity,
+              "DefCon-tækifæri liðsins — hærra = fleiri varnaraðgerðir í boði"]);
+          }
+          if (elo) chips.push(["Elo", Math.round(elo.elo), "ClubElo-styrkur liðsins"]);
+          return chips.map(([k, v, tip]) => (
+            <span key={k} style={S.recChip} title={tip}>
+              <span style={S.recChipK}>{k}</span>
+              <span style={S.recChipV}>{v}</span>
+            </span>
+          ));
+        })()}
       </div>
+      {/* HVERS VEGNA — hvad rekur skorid. Minutur og verd rada; leikir ~5%. */}
+      {r.why && <div style={S.recWhy} title="Stærstu þættirnir á bak við skorið">{r.why}</div>}
     </div>
   );
 }
@@ -3077,6 +3145,10 @@ const S = {
   posBtnOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:600 },
   connectBtn: { background:C.purple, color:"#fff", border:"none", borderRadius:8, padding:"9px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },
 
+  viewTabs: { display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" },
+  viewTab: { border:`1px solid ${C.border}`, background:C.card, color:C.text2,
+             borderRadius:8, padding:"7px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },
+  viewTabOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
   tlWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px", marginBottom:12 },
   // lína gegnum hnútana — teiknuð sem bakgrunnur á röðinni
   tlOuter: { display:"flex", alignItems:"flex-end", gap:6 },
@@ -3271,6 +3343,7 @@ const S = {
   rivalChip: { fontSize:10.5, fontWeight:600, background:C.cardAlt, border:`1px solid ${C.border}`,
     borderRadius:5, padding:"1px 6px", cursor:"pointer" },
   srcRow: { display:"flex", alignItems:"center", gap:7, fontSize:11.5, color:C.text2, padding:"3px 0" },
+  dotErr: { width:6, height:6, borderRadius:"50%", background:C.red, flex:"0 0 6px" },
   dotOk: { width:7, height:7, borderRadius:"50%", background:C.green, flexShrink:0 },
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },
   tblRow: { display:"flex", alignItems:"center", gap:4, padding:"3px 0", borderBottom:`1px solid ${C.page}` },
@@ -3291,6 +3364,9 @@ const S = {
   riskNews: { color:C.text3, fontSize:10, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   pMain: { marginTop:2 },
   sigRow: { display:"flex", gap:3, justifyContent:"center", flexWrap:"wrap", marginTop:3, minHeight:11 },
+  sigSet: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"1px 3px", borderRadius:4,
+            background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}` },
+  sigSetFirst: { background:"#e6f9f0", color:"#0a7a4a", border:"1px solid #b9e8d0" },
   sigPen: { fontFamily:mono, fontSize:7.5, fontWeight:700, padding:"1px 3px", borderRadius:3, background:"#e6f9f0", color:"#0a7a4a", letterSpacing:0.2 },
   sigDc:  { fontFamily:mono, fontSize:7.5, fontWeight:700, padding:"1px 3px", borderRadius:3, background:"#eef2ff", color:"#3730a3" },
   sigCard:{ fontFamily:mono, fontSize:7.5, fontWeight:700, padding:"1px 3px", borderRadius:3, background:"#fff6e0", color:"#8a5f00" },
@@ -3368,13 +3444,24 @@ const S = {
   recTop: { display:"flex", alignItems:"center", gap:8 },
   recPortrait: { position:"relative", width:32, height:32, display:"flex", alignItems:"flex-end", justifyContent:"center", flexShrink:0 },
   recName: { fontSize:12.5, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" },
-  recWhy: { fontFamily:mono, fontSize:8.5, color:C.purple, fontWeight:700 },
+  recMaxWrap: { display:"inline-flex", alignItems:"center", gap:3, border:`1px solid ${C.border}`,
+                borderRadius:6, padding:"2px 6px", background:C.card },
+  recMaxLbl: { fontSize:10, color:C.text3, whiteSpace:"nowrap" },
+  recMaxInput: { width:46, border:"none", outline:"none", fontSize:11.5, fontFamily:mono,
+                 background:"transparent", color:C.text },
+  recMaxClear: { border:"none", background:"transparent", color:C.text3, cursor:"pointer",
+                 fontSize:10, padding:0, lineHeight:1 },
+  recChip: { display:"inline-flex", alignItems:"baseline", gap:3, background:C.cardAlt,
+             border:`1px solid ${C.border}`, borderRadius:4, padding:"1px 5px", whiteSpace:"nowrap" },
+  recChipK: { fontSize:8.5, color:C.text3, textTransform:"uppercase", letterSpacing:0.3 },
+  recChipV: { fontSize:10.5, fontWeight:700, color:C.text, fontFamily:mono },
+  recWhy: { fontFamily:mono, fontSize:8.5, color:C.purple, fontWeight:700, marginTop:4, lineHeight:1.4 },
   recFfdr: { fontFamily:mono, fontSize:8.5, color:C.text3 },
   recMeta: { fontFamily:mono, fontSize:10, color:C.text3 },
   recScore: { fontFamily:mono, fontSize:13, fontWeight:700, color:C.purple, flexShrink:0 },
   recFix: { display:"flex", gap:3, marginTop:7, flexWrap:"wrap" },
   recFixChip: { fontFamily:mono, fontSize:9, fontWeight:700, padding:"2px 4px", borderRadius:4 },
-  recExtra: { fontFamily:mono, fontSize:10, color:C.text2, marginTop:5 },
+  recExtra: { display:"flex", flexWrap:"wrap", gap:4, marginTop:5 },
 
   overlay: { position:"fixed", inset:0, background:"rgba(20,20,25,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100, padding:18 },
   modal: { background:C.card, border:`1px solid ${C.border}`, borderRadius:14, width:"100%", maxWidth:440, maxHeight:"82vh", display:"flex", flexDirection:"column", boxShadow:"0 18px 50px rgba(0,0,0,0.22)" },

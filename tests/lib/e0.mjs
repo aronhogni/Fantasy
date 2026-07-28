@@ -20,8 +20,8 @@ const D = new URL("../../data/", import.meta.url).pathname;
    tímabil á undan því til að spá því með), svo 11 tímabil = 10 spáð.
    1516 og 1617 voru bætt við 28.7.2026 til að fá 10 spáð tímabil;
    leikjatölur (skot á mark) eru til frá 1516 svo styrkur er heill. */
-export const SEASONS = ["1516", "1617", "1718", "1819", "1920", "2021",
-                        "2122", "2223", "2324", "2425", "2526"];
+export const SEASONS = ["1112", "1213", "1314", "1415", "1516", "1617", "1718",
+                        "1819", "1920", "2021", "2122", "2223", "2324", "2425", "2526"];
 
 /* RAUNVERULEGT FPL-FDR per leik, sótt af scripts/fetch-fdr-history.mjs.
    Til frá 1819. Lykill: "HomeTeam|AwayTeam" -> [h_diff, a_diff].
