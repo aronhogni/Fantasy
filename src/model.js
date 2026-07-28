@@ -51,6 +51,33 @@ export function sellTenths(purchase10, current10) {
      r  −0,367 −0,377 −0,384 −0,388 −0,390
    Einræn og flöt eftir 0,8; sama 0,80 valið og fyrir vörn, sama röksemd.
 
+   ELO-VOGIN FYRIR GK/DEF: 0 -> 0,15 (28.7.2026). Hún hafði ALDREI verið
+   mæld með nýtilegu Elo: bakprófin notuðu eigin walk-forward nálgun sem
+   mældist 0,133 í fylgni við markamun á móti 0,448 fyrir raunverulegt
+   ClubElo (bókmakaralínan 0,471). Nálgunin var 3,4x lakari, svo "elo
+   bætir engu við vörn" var rétt mælt á ÖNÝTU inntaki — sama tegund villu
+   sem fannst í sóknar-markaðsstærðinni.
+
+   Með RAUNVERULEGU ClubElo (data/clubelo_history.json, 9.408 leikir),
+   mælt á KJARNANUM (án markaðar, þ.e. allar umferðir nema næsta):
+     elo-vog   mörk á sig   DEF-stig   GK-stig
+     0,00       0,3164      −0,2655    −0,1715
+     0,10       0,3291      −0,2673    −0,1731
+     0,15       0,3336      −0,2673    −0,1732   <- valið
+     0,20       0,3371      −0,2666    −0,1729
+     0,30       0,3412      −0,2642    −0,1717
+   Mörk á sig batna áfram upp í 0,30+, EN raunveruleg stig leikmanna
+   toppa við 0,10–0,15 og lækka eftir það. Stigin eru markmiðið, svo
+   0,15 er valið — ekki 0,30 sem myndi líta betur út á lið-útkomunni.
+
+   MEÐ markaðslínu er þetta hlutlaust (0,3952 -> 0,3948, 0,04σ) því
+   markaðurinn gleypir Elo alveg (hlutfylgni 0,007). Ábatinn er á
+   kjarnanum, og kjarninn gildir um nær allar umferðir.
+
+   SÓKNIN heldur 0,15: sveipunin er flöt/tvíbent þar — mörk skoruð toppa
+   við ~0,30 og MID-stig hækka áfram, en FWD-stig LÆKKA. Að hækka hana
+   væri að skipta MID út fyrir FWD án nettó-ábata.
+
    ATH SÖGUNA — HÚN ER LÆRDÓMUR: fyrsta mælingin sagði að 0,35 væri
    optimum fyrir MID/FWD og að hækkun væri suð (0,50 gaf −0,3404 á móti
    −0,3403, 4/8 tímabil). Það var RÉTT MÆLT en á RÖNGU INNTAKI:
@@ -59,8 +86,8 @@ export function sellTenths(purchase10, current10) {
    allt í einu einræn upp í 0,8. Mæling á röngu inntaki gefur rétt svar
    við rangri spurningu.                                                 */
 export const DIFF_W = {
-  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, elo:0, mkt:0.8 },
-  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, elo:0, mkt:0.8 },
+  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, elo:0.15, mkt:0.8 },
+  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, elo:0.15, mkt:0.8 },
   3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, elo:0.15, mkt:0.8 },
   4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, elo:0.15, mkt:0.8 },
 };
@@ -295,6 +322,9 @@ export function lookupMeasured(key, d) {
    komu úr 7-tímabila safni og gáfu 3,8% dökkgrænt en 26% rautt — kvarðinn
    "hallaði á rautt" og nær allt leit þungt út.
 
+   ENDURKVÖRÐUN 2026-07-28 (d): elo-vog GK/DEF 0 -> 0,15 færði dreifinguna
+   um ~0,03; mörkin fylgja.
+
    ENDURKVÖRÐUN 2026-07-28 (c): aðlögunar-blandan (prevWeight) blandar 21%
    af tímabilinu 2024/25 inn í forleiks-styrkinn (n=38 -> w=0,21), svo
    dreifingin færðist um ~0,05. Mörkin fylgja.
@@ -314,7 +344,7 @@ export function lookupMeasured(key, d) {
    samfellda d-gildinu — og eru NÚ rétt kvarðaðar, sem var tilgangurinn.
    Prófið endurreiknar sextílana úr data/ og fellur ef þeir reka
    >0,12 frá þessum mörkum — þá er kominn tími á endurkvörðun.        */
-export const TIER_CUTS = [1.98, 2.33, 2.51, 2.75, 3.06];
+export const TIER_CUTS = [1.98, 2.32, 2.54, 2.77, 3.10];
 export function tierOf(d) {
   for (let i = 0; i < TIER_CUTS.length; i++) if (d < TIER_CUTS[i]) return i;
   return TIER_CUTS.length;  // þyngst — MÁ EKKI vera harðkóðað (var 5, svo

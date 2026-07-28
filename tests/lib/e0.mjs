@@ -145,7 +145,56 @@ export function marketForRow(r) {
   return { hDiff: marketDiff(axg), aDiff: marketDiff(hxg), hxg, axg };
 }
 
-/* ---------- ELO WALK-FORWARD ----------
+/* ---------- RAUNVERULEGT CLUBELO (kjörið) ----------
+   data/clubelo_history.json (scripts/fetch-clubelo-history.mjs) geymir
+   FYRIR-LEIK ClubElo per leik 2000/01–2024/25. Þetta er SAMA tegund
+   inntaks sem appið notar (data/elo.json), svo bakprófin mæla loks
+   elo-liðinn með réttu inntaki.
+
+   HVERS VEGNA ÞETTA KEMUR Í STAÐ NÁLGUNARINNAR: eigin walk-forward Elo
+   mældist 0,133 í fylgni við markamun á móti 0,448 fyrir raunverulegt
+   ClubElo (og 0,471 fyrir bókmakaralínuna). Nálgunin var 3,4x lakari, svo
+   elo-vogin í FFDR hafði aldrei verið mæld með nýtilegu inntaki.
+   Lekapróf: sjá scripts/fetch-clubelo-history.mjs (þrjú próf, þar af eitt
+   sem ÉG gerði fyrst OG VAR ÓGILT — það er skjalað þar svo það sé ekki
+   endurtekið).
+
+   eloWalkForward er EKKI fjarlægt: það er varaleiðin fyrir tímabil sem
+   safnið nær ekki til (t.d. 2025/26) og vörður ef skráin vantar.      */
+let _eloHist = null;
+export function realElo(seasonKey) {
+  if (_eloHist === null) {
+    try { _eloHist = JSON.parse(readFileSync(`${D}clubelo_history.json`, "utf8")).seasons; }
+    catch { _eloHist = {}; }
+  }
+  const s = _eloHist[seasonKey];
+  if (!s) return null;
+  return (homeTeam, awayTeam) => {
+    const v = s[`${homeTeam}|${awayTeam}`];
+    return v ? { h: v[0], a: v[1] } : null;
+  };
+}
+
+/* BESTA FÁANLEGA ELO: raunverulegt ClubElo þegar það er til, annars
+   walk-forward nálgun. EINN staður, svo bakprófin geti ekki notað sitt
+   hvora heimildina — sama regla sem gildir um fdrFor().              */
+export function eloFor(seasons) {
+  const wf = eloWalkForward(seasons);
+  const real = {};
+  for (const { key } of seasons) real[key] = realElo(key);
+  return {
+    /* Skilar { h, a, src } fyrir leik nr. i í tímabili key. */
+    get(key, i, homeTeam, awayTeam) {
+      const f = real[key];
+      const hit = f && f(homeTeam, awayTeam);
+      if (hit) return { ...hit, src: "clubelo" };
+      const w = wf.get(`${key}|${i}`);
+      return w ? { ...w, src: "nálgun" } : null;
+    },
+  };
+}
+
+/* ---------- ELO WALK-FORWARD (VARALEIÐ) ----------
    ClubElo-tölur eru aðeins til fyrir NÚNA (data/elo.json), svo sögulegt
    Elo er reiknað hér úr úrslitum — en AÐEINS úr leikjum sem búnir voru
    fyrir hvern leik (fyrir-leik Elo, ekkert leki).

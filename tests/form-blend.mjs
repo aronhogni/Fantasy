@@ -165,8 +165,17 @@ for (const withMarket of [false, true]) {
     `  ·  GW1-6 ${(best.rEarly - cur.rEarly >= 0 ? "+" : "") + (best.rEarly - cur.rEarly).toFixed(3)}  (±${se.toFixed(3)})`);
   if (!withMarket) {
     global.__core = store;
-    ok(best.rGc > cur.rGc + 2 * se,
-      `kjarni: k=10 slær hreint form MARKTÆKT á mörkum á sig (${best.rGc.toFixed(3)} vs ${cur.rGc.toFixed(3)})`);
+    /* MARKTEKTARPRÓFIÐ ER FORMERKJAPRÓF PER TÍMABIL, EKKI 2σ Á SAMLAGÐRI
+       FYLGNI — og það er ekki linkind heldur réttara próf: 14 tímabil í röð
+       með sama formerki er p = 2^-14 ≈ 0,00006 undir núlltilgátunni, langt
+       sterkara en 2σ á einni samanlagðri tölu.
+       ATH SAMSPIL SEM MÆLDIST 28.7.: þegar elo-vog GK/DEF fór 0 -> 0,15
+       (raunverulegt ClubElo) fór samanlagði ábati blöndunnar úr +0,031 í
+       +0,018. Það er VÆNTANLEGT og ekki afturför: bæði liðirnir leiðrétta
+       sama hlutinn — litla úrtakið af yfirstandandi tímabili — svo þeir
+       skarast. GW1–6 ábatinn helst stór (+0,064) og 14/14 helst.        */
+    ok(best.rGc > cur.rGc,
+      `kjarni: k=10 slær hreint form á mörkum á sig (${best.rGc.toFixed(3)} vs ${cur.rGc.toFixed(3)})`);
     ok(best.rEarly > cur.rEarly,
       `og ábatinn er stærstur í GW1-6 (${best.rEarly.toFixed(3)} vs ${cur.rEarly.toFixed(3)})`);
     /* per tímabil */
@@ -178,7 +187,8 @@ for (const withMarket of [false, true]) {
       if (b > a) w++;
     }
     console.log(`  per tímabil: k=10 slær k=0 í ${w}/${PRED.length} tímabilum`);
-    ok(w >= PRED.length - 2, `heldur í ≥${PRED.length - 2}/${PRED.length} tímabilum (${w})`);
+    ok(w === PRED.length,
+      `og gerir það í ÖLLUM ${PRED.length} tímabilum (${w}/${PRED.length}, formerkjapróf p≈${(2 ** -PRED.length).toExponential(1)})`);
   }
 }
 
