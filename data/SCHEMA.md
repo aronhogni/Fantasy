@@ -866,3 +866,71 @@ Athugað í öllum níu tímabilum (1718–2526):
 Heppnismælir byggður á stangarskotum verður að koma frá **Understat**
 (`result: "ShotOnPost"`) — sem er í raun betra, því það er per SKOT og gefur
 því tölu per LEIKMANN, ekki per leik.
+
+---
+
+## `last_gw.json` — SÍÐASTA LOKNA UMFERÐIN (flipinn „Umferðin")
+
+Skrifað af `deriveLastGwReport()`. **SJÁLFSTÆÐ skrá:** hún ber sín eigin nöfn,
+lið og stöður og er EKKI pöruð við `players.json` á `element`-id, því FPL
+endurnýtir id milli tímabila — safn-skýrsla pöruð á id myndi birta vitlaus nöfn.
+
+```
+updated   ISO
+season    "2025/26"      artalid sem gogn eiga vid
+gw        38
+archive   true|false     true = FYRRA timabil (ekki yfirstandandi)
+source    "fpl-live" | "vaastav-mirror"
+note      skyring a islensku — BIRT i vidmotinu
+missing   { shot_map, avg_position, touches_in_box, big_chances, woodwork, measured }
+          hvad VANTAR og hvers vegna. Vidmotid a ad birta thetta, ekki thegja.
+fixtures  [ { id, h, a, h_score, a_score, kickoff,
+              stats: { shots_h, shots_a, sot_h, sot_a, corners_h, corners_a,
+                       fouls_h, fouls_a, yellow_*, red_*, ht_h, ht_a, referee } | null } ]
+          stats = football-data.co.uk E0, parad a (dagsetning, heimalid, utilid).
+          Maelt: 10/10 i GW38 2025/26.
+players   [ { id|null, name, pos GK|DEF|MID|FWD, team, opp, home, fixture, multi,
+              value, minutes, points, starts, goals, assists, cs, gc, og, saves,
+              pens_saved, pens_missed, yellow, red, bonus, bps,
+              xg, xa, xgi, xgc, dc, tackles, recoveries, cbi,
+              influence, creativity, threat, ict, xp } ]
+```
+
+**Tvær leiðir, sama lögun.** Í tímabili: `data/live/gw{n}.json` + `fixtures.json`
++ `E0-2627`. Fyrir tímabil (engin lokin umferð til): síðasta lokna umferð fyrra
+tímabils úr vaastav-speglun FPL-gagna á GitHub + `E0-2526` sem við höfum þegar.
+
+## `last_gw_shots.json` — SKOT MEÐ HNITUM (ESPN)
+
+Skrifað af `fetchEspnShots()`. Sjá kafla 6b í `CLAUDE.md` fyrir mælingarnar.
+
+```
+season, gw, archive, source "espn-site-api"
+note      hnitakerfid skyrt
+caveats   { no_xg, excluded, no_touches }   TAKMARKANIR, birtar i vidmotinu
+fixtures  [ { fixture, espn_event, h, a, h_score, a_score,
+              formation_h, formation_a,        "4-2-3-1" — UPPSTILLING, ekki maeld stada
+              team_stats: { h:{...}, a:{...} },
+                possessionPct, totalPasses, accuratePasses, passPct,
+                totalShots, shotsOnTarget, blockedShots, totalCrosses,
+                totalTackles, interceptions, totalClearance, offsides, saves ...
+              lineup: [ { name, team, pos, starter, formation_place,
+                          shots, sot, fouls, fouled, saves, shots_faced } ] } ]
+shots     [ { fixture, espn_event, team, player,
+              kind  goal|on_target|off_target|blocked|woodwork|own_goal,
+              minute, period,
+              x, y      x = FJARLAEGD FRA SOTTA MARKINU sem HLUTFALL AF HALFUM
+                        VELLI -> metrar = x * 52,5  (EKKI * 105; kvardad gegn
+                        svaedis-texta ESPN: markteigur 0,105 / teigur 0,314).
+                        y = thvert yfir vollinn (0..1 af 68 m).
+              usable    false adeins ef hnit vantar eda eru (0,0) = oskrad
+              zone      box_centre|box_left|box_right|close_range|penalty_spot|outside|far
+              in_box    bool|null   — LESID UR TEXTA ESPN, ekki reiknad ur hnitum
+              foot      left|right|head
+              text      upprunalegi ESPN-textinn (rekjanleiki) } ]
+players   [ { name, team, shots, on_target, off_target, blocked, woodwork, goals, in_box } ]
+```
+
+**Woodwork er hér** (`kind:"woodwork"`, ESPN-tegundin `Shot Hit Woodwork`) — það
+er heimildin sem Understat átti að gefa en gefur ekki lengur.
+**xG per skot er EKKI hér** og því eru *big chances* ekki reiknuð.

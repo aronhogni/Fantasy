@@ -1,0 +1,437 @@
+/* ============================================================
+   STATS-PRÓF — flipana "Umferðin" og "Stigatafla"
+
+   Prófin lesa RAUNVERULEG data/-gögn (ekki gervi-sýni) svo þau
+   fangi bæði formúlu-villur OG breytingar á heimildunum.
+
+   1. Skrárnar sjálfar: lögun, sjálfstæði, heiðarleg merking
+   2. STAT_DEFS — hver tala í stigatöflunni
+   3. buildLeaderboard — röðun, mínútu-þak, síur
+   4. gwTotals / gwTop / withDerived
+   5. bestXi — FPL-formasjónarreglur
+   6. ESPN-skot: hnitakerfið, woodwork, teig-flokkun
+   7. Nafna-pörun FPL <-> ESPN
+   8. VÖRÐUR: mörk í skýrslunni verða að stemma við úrslitin
+   ============================================================ */
+import { readFileSync, existsSync } from "node:fs";
+import {
+  STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, buildLeaderboard, fmtStat, minutesFloor,
+  gwTotals, gwTop, withDerived, bestXi, gwFixtureReports,
+  shotsFor, shotSummary, SHOT_KINDS, matchShotsToPlayers, normName, nameScore,
+  lastFinishedGw, num, POS_ORDER,
+  moScore, aoScore, inImminentPool, imminentBoard,
+  MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES,
+} from "../src/stats.js";
+
+const D = new URL("../data/", import.meta.url).pathname;
+const J = f => JSON.parse(readFileSync(D + f, "utf8"));
+let pass = 0, fail = 0;
+const ok = (c, n) => { c ? (pass++, console.log(`  ✓ ${n}`)) : (fail++, console.log(`  ✗ ${n}`)); };
+const eq = (a, b, n) => ok(a === b, `${n} (${JSON.stringify(a)}${a === b ? "" : " ≠ " + JSON.stringify(b)})`);
+const near = (a, b, tol, n) => ok(Math.abs(a - b) <= tol, `${n} (${a} vs ${b} ±${tol})`);
+
+const players = J("players.json").players;
+const hasReport = existsSync(D + "last_gw.json");
+const hasShots  = existsSync(D + "last_gw_shots.json");
+const report = hasReport ? J("last_gw.json") : null;
+const shotsF = hasShots ? J("last_gw_shots.json") : null;
+
+/* ================= 1. SKRÁRNAR ================= */
+console.log("\n=== 1. SKRÁRNAR — lögun og heiðarleg merking ===");
+ok(hasReport, "data/last_gw.json er til (pipeline: deriveLastGwReport)");
+if (report) {
+  ok(Array.isArray(report.players) && report.players.length > 0, `players-listi (${report.players?.length})`);
+  ok(Array.isArray(report.fixtures) && report.fixtures.length > 0, `fixtures-listi (${report.fixtures?.length})`);
+  ok(typeof report.gw === "number" && report.gw >= 1, `gw er tala (${report.gw})`);
+  ok(typeof report.season === "string" && /^\d{4}\/\d{2}$/.test(report.season), `season-merking "${report.season}"`);
+
+  /* SJÁLFSTÆÐI: skýrslan má EKKI hanga á players.json-id, því FPL
+     endurnýtir element-id milli tímabila. Safn-skýrsla á að hafa id:null. */
+  const anyId = report.players.some(p => p.id != null);
+  if (report.archive) {
+    ok(!anyId, "SAFN: id er null á öllum (má ekki parast við players.json)");
+    ok(report.players.every(p => p.name && p.team && p.pos),
+      "SAFN: hver rað hefur eigin nafn, lið og stöðu");
+  } else {
+    ok(anyId, "Í TÍMABILI: id fylgir (sama tímabil, pörun óhætt)");
+  }
+  ok(typeof report.note === "string" && report.note.length > 20, "note skýrir hvaðan gögnin koma");
+  ok(report.missing && report.missing.shot_map && report.missing.big_chances,
+    "missing-blokkin skráir hvað VANTAR (svo framendinn þegi ekki um það)");
+
+  // stodur eru af thekktu mengi
+  const posSet = new Set(report.players.map(p => p.pos));
+  ok([...posSet].every(p => POS_ORDER[p]), `stöður úr þekktu mengi (${[...posSet].join(",")})`);
+}
+
+/* ================= 2. STAT_DEFS ================= */
+console.log("\n=== 2. STAT-SKRÁIN — hver tala í stigatöflunni ===");
+ok(STAT_DEFS.length >= 40, `${STAT_DEFS.length} tölur skilgreindar`);
+ok(new Set(STAT_DEFS.map(d => d.key)).size === STAT_DEFS.length, "engir tvítekiðir lyklar");
+ok(STAT_DEFS.every(d => d.label && typeof d.get === "function"), "hver hefur label og get()");
+ok(STAT_DEFS.every(d => STAT_GROUPS.some(g => g.key === d.group)), "hver tilheyrir gildum flokki");
+ok(STAT_GROUPS.every(g => STAT_DEFS.some(d => d.group === g.key)), "enginn flokkur er tómur");
+
+// get() ma ALDREI kasta, jafnvel a tomum hlut eða vitlausri logun
+let threw = null;
+for (const d of STAT_DEFS) {
+  for (const junk of [{}, { minutes: 0 }, { minutes: "x", total_points: null }]) {
+    try { d.get(junk); } catch (e) { threw = `${d.key}: ${e.message}`; }
+  }
+}
+ok(!threw, `get() þolir tóm/vitlaus inntök${threw ? " — " + threw : ""}`);
+
+// afleiddar tolur reiknast rett a thekktum inntokum
+const fake = { goals_scored: 5, expected_goals: "3.20", assists: 2, expected_assists: "1.80",
+               expected_goal_involvements: "5.00", minutes: 900, total_points: 60,
+               now_cost: 75, clean_sheets: 4, starts: 10, saves: 30, goals_conceded: 10 };
+near(STAT_BY_KEY.goals_minus_xg.get(fake), 1.8, 1e-9, "Mörk − xG = 5 − 3,20");
+near(STAT_BY_KEY.gi_minus_xgi.get(fake), 2.0, 1e-9, "Framlög − xGI = 7 − 5,00");
+near(STAT_BY_KEY.pts_per_90.get(fake), 6.0, 1e-9, "Stig/90 = 60/900×90");
+near(STAT_BY_KEY.pts_per_million.get(fake), 8.0, 1e-9, "Stig/milljón = 60 / 7,5");
+near(STAT_BY_KEY.cs_pct.get(fake), 40, 1e-9, "Hreint blað % = 4/10");
+near(STAT_BY_KEY.save_pct.get(fake), 75, 1e-9, "Vörsluhlutfall = 30/(30+10)");
+eq(STAT_BY_KEY.pts_per_90.get({ minutes: 0, total_points: 5 }), null, "0 mínútur → null, ekki Infinity");
+eq(STAT_BY_KEY.mins_per_gi.get({ minutes: 900, goals_scored: 0, assists: 0 }), null,
+  "ekkert framlag → null, ekki deiling með núlli");
+
+// fmtStat
+eq(fmtStat(STAT_BY_KEY.now_cost, 7.5), "£7.5", "verð birt með £");
+eq(fmtStat(STAT_BY_KEY.goals_minus_xg, 1.8), "+1.80", "formerki á signed tölum");
+eq(fmtStat(STAT_BY_KEY.goals_minus_xg, -1.8), "-1.80", "neikvætt formerki");
+eq(fmtStat(STAT_BY_KEY.cs_pct, 40), "40%", "prósent birt með %");
+eq(fmtStat(STAT_BY_KEY.total_points, null), "—", "null birtist sem strik");
+
+/* ================= 3. buildLeaderboard ================= */
+console.log("\n=== 3. STIGATAFLAN — röðun, þak og síur ===");
+const lbPts = buildLeaderboard({ players, statKey: "total_points", limit: 20 });
+ok(lbPts.rows.length > 0, `stigatafla skilar röðum (${lbPts.rows.length})`);
+ok(lbPts.rows.every((r, i, a) => i === 0 || a[i-1].v >= r.v), "hæst-fyrst röðun (hi:true)");
+eq(lbPts.rows[0].rank, 1, "fyrsta sæti er 1");
+
+const lbCost = buildLeaderboard({ players, statKey: "now_cost", limit: 10 });
+ok(lbCost.rows.every((r, i, a) => i === 0 || a[i-1].v <= r.v), "lægst-fyrst þegar hi:false (verð)");
+
+// jafnteflis-saeti: sama tala -> sama saeti
+const tie = buildLeaderboard({ players, statKey: "red_cards", limit: 40 });
+const tiedSameRank = tie.rows.every((r, i, a) => i === 0 || (r.v === a[i-1].v ? r.rank === a[i-1].rank : r.rank > a[i-1].rank));
+ok(tiedSameRank, "jafntefli fá sama sæti");
+
+// stodu-sia
+const gkOnly = buildLeaderboard({ players, statKey: "saves", pos: "1", limit: 50 });
+ok(gkOnly.rows.every(r => r.p.element_type === 1), "stöðu-sía heldur (aðeins markverðir)");
+// tolur sem eru merktar pos: birtast ekki fyrir adrar stodur
+const savesFwd = buildLeaderboard({ players, statKey: "saves", pos: "4", limit: 10 });
+eq(savesFwd.rows.length, 0, "vörslur eru ekki í boði fyrir framherja (def.pos)");
+
+// minutu-thakid gildir a hlutfallstolur en EKKI a heildartolur
+const floor = minutesFloor(players, 0.25);
+ok(floor >= 0, `mínútu-þak reiknað úr mestu spiluðu mínútum (${floor})`);
+const rate = buildLeaderboard({ players, statKey: "pts_per_90", minMinutes: floor, limit: 30 });
+ok(rate.rows.every(r => (num(r.p.minutes) ?? 0) >= floor), "hlutfallstala hlýðir mínútu-þaki");
+const total = buildLeaderboard({ players, statKey: "goals_scored", minMinutes: floor, limit: 30 });
+eq(total.skipped, 0, "heildartala (mörk) hlýðir EKKI mínútu-þaki");
+
+// leit og lids-sia
+const one = players.find(p => p.web_name);
+const searched = buildLeaderboard({ players, statKey: "total_points", search: one.web_name, limit: 50 });
+ok(searched.rows.some(r => r.p.id === one.id), `leit finnur "${one.web_name}"`);
+const teamF = buildLeaderboard({ players, statKey: "total_points", teamId: String(one.team), limit: 100 });
+ok(teamF.rows.every(r => r.p.team === one.team), "liðs-sía heldur");
+eq(buildLeaderboard({ players, statKey: "engin_svona_tala" }).rows.length, 0, "óþekktur lykill hrynur ekki");
+
+/* ================= 4. gwTotals / gwTop / withDerived ================= */
+if (report) {
+  console.log("\n=== 4. UMFERÐARTÖLUR ===");
+  const rows = withDerived(report.players);
+  eq(rows.length, report.players.length, "withDerived breytir ekki fjölda raða");
+  const t = gwTotals(rows);
+  eq(t.players, rows.length, "totals telja allar raðir");
+
+  // handreiknad: summa marka verdur ad passa
+  const sumGoals = report.players.reduce((s, p) => s + (p.goals || 0), 0);
+  eq(t.goals, sumGoals, `mörk lögð saman (${sumGoals})`);
+  const sumPts = report.players.reduce((s, p) => s + (p.points || 0), 0);
+  eq(t.points, sumPts, "stig lögð saman");
+  near(t.avg_points, sumPts / rows.length, 0.01, "meðalstig");
+
+  // gwTop
+  const topPts = gwTop(rows, "points", 5);
+  ok(topPts.length <= 5 && topPts.every((r, i, a) => i === 0 || a[i-1].points >= r.points),
+    "gwTop raðar hæst-fyrst");
+  const topLow = gwTop(rows, "points", 5, { hi: false });
+  ok(topLow.every((r, i, a) => i === 0 || a[i-1].points <= r.points), "gwTop hi:false raðar lægst-fyrst");
+  ok(gwTop(rows, "points", 5, { minMinutes: 60 }).every(r => r.minutes >= 60), "minMinutes heldur");
+  eq(gwTop(rows, "svid_sem_er_ekki_til", 5).length, 0, "óþekkt svið skilar tómu, hrynur ekki");
+
+  // afleiddar tolur
+  const withXg = rows.find(r => r.xg != null && r.xgi != null);
+  if (withXg) {
+    near(withXg.g_minus_xg, (withXg.goals || 0) - withXg.xg, 0.011, "Mörk − xG per rað");
+    near(withXg.gi_minus_xgi, withXg.gi - withXg.xgi, 0.011, "Framlög − xGI per rað");
+  }
+}
+
+/* ================= 5. bestXi ================= */
+console.log("\n=== 5. LIÐ VIKUNNAR — FPL-formasjónarreglur ===");
+if (report) {
+  const { xi, count, points } = bestXi(withDerived(report.players));
+  eq(xi.length, 11, "ellefu leikmenn");
+  eq(count.GK, 1, "nákvæmlega 1 markvörður");
+  ok(count.DEF >= 3 && count.DEF <= 5, `vörn 3–5 (${count.DEF})`);
+  ok(count.MID >= 2 && count.MID <= 5, `miðja 2–5 (${count.MID})`);
+  ok(count.FWD >= 1 && count.FWD <= 3, `sókn 1–3 (${count.FWD})`);
+  eq(points, xi.reduce((s, r) => s + (r.points || 0), 0), "stigasumma stemmir");
+  ok(xi.every((r, i, a) => i === 0 || (POS_ORDER[a[i-1].pos] <= POS_ORDER[r.pos])),
+    "raðað eftir stöðu (markv. fyrst)");
+}
+// synthetiskt: gradug rodun ma ekki brjota lagmorkin
+const synth = [
+  ...Array.from({ length: 8 }, (_, i) => ({ name:`m${i}`, pos:"MID", points: 20 - i, bps: 0 })),
+  ...Array.from({ length: 4 }, (_, i) => ({ name:`d${i}`, pos:"DEF", points: 2, bps: 0 })),
+  { name:"gk", pos:"GK", points: 1, bps: 0 },
+  { name:"f", pos:"FWD", points: 1, bps: 0 },
+];
+const sx = bestXi(synth);
+eq(sx.xi.length, 11, "synth: 11 valdir þótt miðjumenn séu stigahæstir");
+eq(sx.count.MID, 5, "synth: miðja stoppar í 5 (þak virt)");
+eq(sx.count.GK, 1, "synth: markvörður tekinn þótt hann sé stigalægstur");
+ok(sx.count.DEF >= 3, "synth: lágmark 3 í vörn virt");
+eq(bestXi([]).xi.length, 0, "tómt inntak skilar tómu liði");
+
+/* ================= 6. ESPN-SKOT ================= */
+console.log("\n=== 6. ESPN-SKOT — hnitakerfi, woodwork, teigur ===");
+ok(hasShots, "data/last_gw_shots.json er til (pipeline: fetchEspnShots)");
+if (shotsF) {
+  const sh = shotsF.shots;
+  ok(Array.isArray(sh) && sh.length > 50, `skot-listi (${sh.length})`);
+  eq(shotsF.gw, report?.gw, "sama umferð og last_gw.json");
+  eq(shotsF.season, report?.season, "sama tímabil og last_gw.json");
+  ok(shotsF.caveats?.no_xg, "caveats segja að xG per skot VANTI (engar big chances)");
+  ok(shotsF.caveats?.excluded && shotsF.caveats?.scale,
+    "caveats telja hnitalaus skot OG skjalfesta kvarðann (52,5 m)");
+
+  const usable = sh.filter(s => s.usable);
+  ok(usable.every(s => s.x >= 0 && s.x <= 1), "X er 0–1 (hlutfall af hálfum velli)");
+  ok(usable.every(s => s.y >= 0 && s.y <= 1), "Y er 0–1 þvert yfir völlinn");
+  ok(usable.every(s => !(s.x === 0 && s.y === 0)), "(0,0) er talið óskráð, ekki hornið");
+  ok(sh.filter(s => !s.usable).every(s => s.x == null || (s.x === 0 && s.y === 0)),
+    "aðeins hnitalaus skot eru merkt usable:false");
+
+  /* ===== KVORDUNAR-VORDUR — sterkasta profid a skot-kortinu =====
+     x er hlutfall af HALFUM velli (52,5 m). Thad var ekki gefid: fyrsta
+     utgafan notadi 105 m og setti hvert skot i TVOFALDA fjarlaegd, svo mork
+     birtust vid midjulinu. Villan var ekki synileg i neinu profi.
+
+     Vordurinn kvardar hnitin gegn SVAEDIS-TEXTA ESPN, sem er OHAD
+     hnitunum ("from the centre of the box" vs "outside the box"). Ef
+     ESPN skiptir um einingu (eda um kvarda) hrynur samsvorunin og thetta
+     prof fellur — i stad thess ad kortid ljugi thegjandi.                */
+  const M_HALF = 52.5, BOX = 16.5, SIX = 5.5;
+  const xs = z => sh.filter(s => s.usable && s.zone === z).map(s => s.x);
+  const inBoxX  = sh.filter(s => s.usable && s.in_box === true).map(s => s.x);
+  const outBoxX = sh.filter(s => s.usable && s.in_box === false).map(s => s.x);
+  const mx = a => Math.max(...a), mn = a => Math.min(...a);
+
+  ok(mx(xs("close_range")) <= (SIX / M_HALF) * 1.15,
+    `markteigs-skot innan markteigs: max x ${mx(xs("close_range")).toFixed(3)} vs 5,5/52,5 = ${(SIX/M_HALF).toFixed(3)}`);
+  ok(mx(inBoxX) <= (BOX / M_HALF) * 1.10,
+    `teig-skot innan teigs: max x ${mx(inBoxX).toFixed(3)} vs 16,5/52,5 = ${(BOX/M_HALF).toFixed(3)}`);
+  ok(mn(outBoxX) >= (BOX / M_HALF) * 0.95,
+    `skot utan teigs eru utan teigs: min x ${mn(outBoxX).toFixed(3)} vs ${(BOX/M_HALF).toFixed(3)}`);
+  ok(mx(inBoxX) < mn(outBoxX) * 1.05,
+    "teigur og utan-teigs skarast ekki (svæðis-texti og hnit eru samstiga)");
+  // 105 m kvardinn MA EKKI passa — annars er vordurinn gagnslaus
+  ok(!(mx(inBoxX) <= BOX / 105),
+    `105 m kvardinn er UTILOKADUR (teigmork vaeru 0,157, en teig-skot na ${mx(inBoxX).toFixed(3)})`);
+
+  // y: teigbreidd 40,3 af 68 m -> 0,204..0,796. Vinstri/midja/haegri i rod.
+  const ys = z => sh.filter(s => s.usable && s.zone === z).map(s => s.y);
+  ok(mx(ys("box_left")) < mn(ys("box_centre")) &&
+     mx(ys("box_centre")) < mn(ys("box_right")),
+    "y-ásinn: vinstri < miðja < hægri í teignum, án skörunar");
+  const inBoxY = sh.filter(s => s.usable && s.in_box === true).map(s => s.y);
+  ok(mn(inBoxY) >= 0.204 * 0.85 && mx(inBoxY) <= 0.796 * 1.15,
+    `teig-skot innan teigbreiddar: y ${mn(inBoxY).toFixed(3)}–${mx(inBoxY).toFixed(3)} vs 0,204–0,796`);
+  // mork eiga ad vera NAER markinu en skot ad medaltali
+  const goalX = usable.filter(s => s.kind === "goal").map(s => s.x);
+  const otherX = usable.filter(s => s.kind !== "goal").map(s => s.x);
+  if (goalX.length && otherX.length) {
+    const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+    ok(avg(goalX) < avg(otherX),
+      `mörk skoruð nær marki en önnur skot (${avg(goalX).toFixed(3)} < ${avg(otherX).toFixed(3)})`);
+  }
+
+  // tegundir
+  const kinds = new Set(sh.map(s => s.kind));
+  ok([...kinds].every(k => SHOT_KINDS.some(x => x.key === k)), `allar tegundir þekktar (${[...kinds].join(",")})`);
+  ok(sh.some(s => s.kind === "woodwork"), "WOODWORK er til í gögnunum (ESPN 'Shot Hit Woodwork')");
+  // woodwork-textinn a ad stydja flokkunina
+  const wood = sh.filter(s => s.kind === "woodwork");
+  const woodOk = wood.filter(s => /post|bar|woodwork/i.test(s.text || "")).length;
+  ok(woodOk >= Math.ceil(wood.length * 0.5),
+    `texti styður woodwork-flokkun (${woodOk}/${wood.length} nefna stöng/slá)`);
+
+  // teigur kemur ur TEXTA ESPN, ekki ur hnitum — svo hann ma ekki vera getinn
+  ok(sh.some(s => s.in_box === true) && sh.some(s => s.in_box === false), "teig-flokkun bæði true og false");
+  ok(sh.every(s => s.in_box === null || typeof s.in_box === "boolean"), "in_box er boolean eða null (ekki getið)");
+
+  // skyttan og lidid
+  ok(sh.filter(s => s.player).length / sh.length > 0.95, "skytta þekkt á >95% skota");
+  const noTeam = sh.filter(s => !s.team && s.kind !== "own_goal");
+  eq(noTeam.length, 0, "hvert skot (nema sjálfsmörk) hefur lið");
+
+  // shotSummary
+  const sum = shotSummary(sh);
+  eq(sum.total, sh.length, "shotSummary telur öll skot");
+  eq(sum.on_target_total, sum.goal + sum.on_target, "skot á mark = mörk + varin");
+  ok(sum.accuracy >= 0 && sum.accuracy <= 100, `nýtingarhlutfall 0–100 (${sum.accuracy}%)`);
+  eq(shotSummary([]).total, 0, "tómt inntak hrynur ekki");
+
+  // shotsFor-siur
+  const f0 = shotsF.fixtures[0];
+  const perFx = shotsFor(sh, { fixture: f0.fixture });
+  ok(perFx.all.length > 0 && perFx.all.every(s => s.fixture === f0.fixture), "sía á leik heldur");
+  eq(perFx.usable.length + perFx.excluded, perFx.all.length, "usable + excluded = allt");
+  const t0 = sh.find(s => s.team)?.team;
+  ok(shotsFor(sh, { team: t0 }).all.every(s => s.team === t0), "sía á lið heldur");
+}
+
+/* ================= 7. NAFNA-PÖRUN ================= */
+console.log("\n=== 7. NAFNA-PÖRUN FPL <-> ESPN ===");
+eq(normName("Mohamed Salah"), "mohamed salah", "normName: einfalt nafn");
+eq(normName("João Palhinha"), "joao palhinha", "normName: broddstafir fjarlægðir");
+eq(normName("M.Salah"), "m salah", "normName: punktur verður bil");
+eq(normName("Wan-Bissaka"), "wan bissaka", "normName: bandstrik verður bil");
+eq(normName(null), "", "normName þolir null");
+eq(normName("Pascal Groß"), "pascal gross", "normName: ß -> ss (var 'gro' og braut pörun)");
+eq(normName("Ferdi Kadıoğlu"), "ferdi kadioglu", "normName: punktlaust ı (var 'kad oglu')");
+ok(nameScore("Diego Gómez Amarilla", "Diego Gómez") >= 2, "samsett eftirnafn parast (orða-skörun)");
+ok(nameScore("Santiago Ignacio Bueno", "Santiago Bueno") >
+   nameScore("Santiago Ignacio Bueno", "Hugo Bueno"),
+  "rétti Bueno vinnur yfir samherja með sama eftirnafni");
+eq(nameScore("Mohamed Salah", "Erling Haaland"), 0, "ólík nöfn skora 0");
+
+if (report && shotsF) {
+  const m = matchShotsToPlayers(withDerived(report.players), shotsF.players);
+  eq(m.rows.length, report.players.length, "pörun breytir ekki fjölda raða");
+  eq(m.matched + m.unmatched, report.players.length, "matched + unmatched = allt");
+  // OPARADIR FA null, EKKI null-i BREYTT I 0 — annars birtist "0 skot" sem stadreynd
+  ok(m.rows.filter(r => !r.shot).every(r => r.shot === null), "ópöraðir fá null (ekki 0 skot)");
+  // ekkert lek milli lida
+  ok(m.rows.filter(r => r.shot).every(r => r.shot.team === r.team), "pörun aldrei þvert á lið");
+  // engin ESPN-skytta ma parast vid TVO FPL-menn
+  const usedNames = m.rows.filter(r => r.shot).map(r => r.shot.name);
+  eq(usedNames.length, new Set(usedNames).size, "hver ESPN-skytta parast við mest EINN FPL-mann");
+
+  /* VORDUR A PORUNARHLUTFALLI. Maelt 27.7.2026: 161/162 = 99% eftir
+     (a) TRANSLIT-toflu, (b) orða-skorun i stad sidasta ords og
+     (c) EITT-A-EITT porun. Var 80% med sidasta-ords-porun, og 5 skyttur
+     voru tvi-eignaðar adur en eitt-a-eitt kom inn.
+     Sa EINI sem eftir stendur er Brasiliumadur thar sem ESPN notar
+     gaelunafn og FPL logheiti — krefdist gaelunafna-toflu, ekki villa.
+     Ef thetta fellur undir 90% hefur heimild breytt nafnaformi.         */
+  const rate = 1 - m.shotsUnmatched / shotsF.players.length;
+  ok(rate >= 0.90,
+    `ESPN-skyttur paraðar: ${shotsF.players.length - m.shotsUnmatched}/${shotsF.players.length}`
+    + ` = ${(rate*100).toFixed(0)}% (þak 90%)`);
+  console.log(`     (${m.matched} FPL-raðir pöruðust · ${m.shotsUnmatched} skytta án FPL-manns)`);
+}
+
+/* ================= 8. VÖRÐUR: MÖRK VERÐA AÐ STEMMA ================= */
+console.log("\n=== 8. VÖRÐUR — skýrslan verður að stemma við úrslitin ===");
+if (report) {
+  // Summa marka i urslitum leikjanna vs summa marka i leikmanna-rodunum.
+  // Thetta er STERKASTA profid a badar heimildir i einu: ef pipeline
+  // parar vitlausa leiki eða tvitelur tvofalda umferd, fellur thetta.
+  const scored = report.fixtures.reduce((s, f) => s + (f.h_score ?? 0) + (f.a_score ?? 0), 0);
+  const byPlayers = report.players.reduce((s, p) => s + (p.goals || 0), 0);
+  const ownGoals = report.players.reduce((s, p) => s + (p.og || 0), 0);
+  ok(scored > 0, `úrslit leikjanna gefa ${scored} mörk`);
+  eq(byPlayers + ownGoals, scored, `mörk leikmanna (${byPlayers}) + sjálfsmörk (${ownGoals}) = úrslit (${scored})`);
+
+  if (shotsF) {
+    // Sama vordur a ESPN-hlidinni.
+    const espnGoals = shotsF.shots.filter(s => s.kind === "goal").length;
+    const espnOwn   = shotsF.shots.filter(s => s.kind === "own_goal").length;
+    eq(espnGoals + espnOwn, scored, `ESPN-mörk (${espnGoals}+${espnOwn} sjálfsm.) = úrslit (${scored})`);
+    // og leikirnir sjalfir
+    eq(shotsF.fixtures.length, report.fixtures.length, "sami fjöldi leikja í báðum skrám");
+    const fxIds = new Set(report.fixtures.map(f => f.id));
+    ok(shotsF.fixtures.every(f => fxIds.has(f.fixture)), "hver ESPN-leikur parast við FPL-fixture-id");
+  }
+
+  // engin rad ma vera tom-tolulaus
+  ok(report.players.every(p => Number.isFinite(p.minutes) && Number.isFinite(p.points)),
+    "hver rað hefur mínútur og stig sem tölur");
+
+  // gwFixtureReports
+  const fr = gwFixtureReports({ report, shotsFile: shotsF });
+  eq(fr.length, report.fixtures.length, "fixture-skýrslur fyrir hvern leik");
+  ok(fr.every(f => f.players.every(p => p.fixture === f.fx.id)), "leikmenn lenda í rétta leiknum");
+  ok(fr.every(f => !f.star || f.players[0] === f.star), "stjarna er stigahæsti leikmaður leiksins");
+  ok(fr.every((f, i, a) => i === 0 || String(a[i-1].fx.kickoff) <= String(f.fx.kickoff)),
+    "leikir raðast í tímaröð");
+}
+
+/* ================= lastFinishedGw ================= */
+console.log("\n=== 9. lastFinishedGw ===");
+eq(lastFinishedGw([{ id:1, finished:true }, { id:2, finished:false }]), 1, "síðasta lokna umferð");
+eq(lastFinishedGw([{ id:1, finished:true }, { id:3, finished:true }, { id:2, finished:false }]), 3, "hæsta lokna, ekki fyrsta");
+eq(lastFinishedGw([]), null, "engin umferð lokin → null");
+eq(lastFinishedGw(null), null, "null-öruggt");
+const ev = J("events.json").events;
+const lf = lastFinishedGw(ev);
+ok(lf === null || (lf >= 1 && lf <= 38), `raungögn: síðasta lokna = ${lf === null ? "engin (fyrir tímabil)" : lf}`);
+
+
+/* ================= 10. MO / AO — "ohjakvaemilegt" ================= */
+console.log("\n=== 10. MÓ / AÓ — óhjákvæmilegt ===");
+const hasImm = existsSync(D + "imminent.json");
+ok(hasImm, "data/imminent.json er til (pipeline: deriveImminent)");
+
+// formulan sjalf a thekktum inntokum
+const w = { minutes: 320, goals: 0, assists: 1, xg: 2.0, xa: 0.4, threat: 100, creativity: 90 };
+near(moScore(w), 0.8*2.0 + 0.3*(100/25) + 0.2*2.0, 1e-6, "mó = xG·0,8 + threat/25·0,3 + óheppni·0,2");
+near(aoScore(w), (90/320)*90, 0.01, "aó = creativity/90 (bert — samsetning féll)");
+
+/* "Oheppni" telur ADEINS thegar leikmadurinn er UNDIR xG. Sa sem hefur
+   skorad MEIRA en xG segir til um a ekki ad fa bonus fyrir thad.        */
+near(moScore({ ...w, goals: 3, xg: 2.0 }), 0.8*2.0 + 0.3*4, 1e-6,
+  "yfir-frammistaða gefur EKKI neikvæðan óheppnis-lið (klippt við 0)");
+ok(moScore({ ...w, goals: 0 }) > moScore({ ...w, goals: 2 }),
+  "sá sem hefur klúðrað sömu færum skorar hærra en sá sem nýtti þau");
+eq(moScore(null), null, "null-öruggt");
+eq(aoScore({ minutes: 0, creativity: 50 }), null, "0 mínútur → null, ekki Infinity");
+
+// markhopurinn
+ok(inImminentPool({ minutes: 300, goals: 1, assists: 0 }), "0–1 framlag og 180+ mín = í markhóp");
+ok(!inImminentPool({ minutes: 300, goals: 1, assists: 1 }),
+  `2 framlög = UTAN markhóps (þak ${IMMINENT_MAX_GI})`);
+ok(!inImminentPool({ minutes: 100, goals: 0, assists: 0 }),
+  `undir ${IMMINENT_MIN_MINUTES} mín = of lítið úrtak`);
+
+if (hasImm) {
+  const imm = J("imminent.json");
+  ok(Array.isArray(imm.players) && imm.players.length > 100, `leikmenn í glugga (${imm.players?.length})`);
+  eq(imm.gws.length, imm.window, `gluggi er ${imm.window} umferðir (${imm.gws.join(",")})`);
+  ok(imm.measured?.mo && imm.measured?.ao, "mæling skjalfest í skránni");
+  ok(/0/.test(String(imm.measured.ao)) && /creativity/i.test(String(imm.measured.ao)),
+    "AÓ-skýringin segir að samsetningin hafi FALLIÐ (0/3) — ekki falin");
+
+  const board = imminentBoard(imm.players, "mo", 20);
+  ok(board.length > 0 && board.length <= 20, `mó-tafla skilar röðum (${board.length})`);
+  ok(board.every(p => inImminentPool(p.window)), "AÐEINS leikmenn í markhóp komast á töfluna");
+  ok(board.every((p, i, a) => i === 0 || a[i-1].score >= p.score), "raðað hæst-fyrst");
+  ok(board.every(p => (p.window.goals + p.window.assists) <= IMMINENT_MAX_GI),
+    "enginn á töflunni hefur þegar sprungið út (>1 framlag)");
+  const aboard = imminentBoard(imm.players, "ao", 20);
+  ok(aboard.length > 0, `aó-tafla skilar röðum (${aboard.length})`);
+  // MO og AO eiga ad rada OLIKT — annars er annar theirra tilgangslaus
+  const top5mo = board.slice(0,5).map(p => p.name).join("|");
+  const top5ao = aboard.slice(0,5).map(p => p.name).join("|");
+  ok(top5mo !== top5ao, "mó og aó raða ekki eins (ólík merki, ekki sama talan tvisvar)");
+}
+
+console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);
+process.exit(fail ? 1 : 0);

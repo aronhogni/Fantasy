@@ -15,6 +15,9 @@
        (mark / a mark / framhjá / blokkad / I STONG) skyttu, svaedi og
        likamshluta, auk lida-tolna (possession, sendingar, tacklingar) og
        byrjunarlids-uppstillingar.
+       KVARDI: x = hlutfall af HALFUM velli, metrar fra marki = x * 52,5.
+       Kvardad gegn svaedis-texta ESPN (markteigur 0,105 / vitateigur 0,314);
+       105 m kvardinn er utilokadur i tests/stats.test.mjs kafla 6.
      data/players.json       uppsafnad timabil fyrir stigatofluna.
 
    HVAD VANTAR ENN — og hvers vegna ekkert her latir sem svo:
@@ -52,12 +55,12 @@ const safeDiv = (a, b) => (b == null || b === 0 || a == null ? null : a / b);
 
 export const STAT_GROUPS = [
   { key: "core",    label: "Grunnur" },
-  { key: "attack",  label: "Sokn" },
-  { key: "expect",  label: "Vaentingar (xG/xA)" },
-  { key: "defence", label: "Vorn" },
-  { key: "bonus",   label: "Bonus og ICT" },
-  { key: "value",   label: "Verd og eignarhald" },
-  { key: "disc",    label: "Ogn og refsingar" },
+  { key: "attack",  label: "Sókn" },
+  { key: "expect",  label: "Væntingar (xG/xA)" },
+  { key: "defence", label: "Vörn" },
+  { key: "bonus",   label: "Bónus og ICT" },
+  { key: "value",   label: "Verð og eignarhald" },
+  { key: "disc",    label: "Spjöld og refsingar" },
 ];
 
 export const STAT_DEFS = [
@@ -65,24 +68,24 @@ export const STAT_DEFS = [
   { key:"total_points", label:"Stig", group:"core", dec:0, hi:true, get:p=>num(p.total_points) },
   { key:"points_per_game", label:"Stig/leik", group:"core", dec:1, hi:true, get:p=>num(p.points_per_game) },
   { key:"pts_per_90", label:"Stig/90", group:"core", dec:2, hi:true, derived:true,
-    note:"Stig deilt a spiladar minutur x 90. Refsar ekki fyrir litla spilun eins og stig/leik.",
+    note:"Stig deilt á spilaðar mínútur × 90. Refsar ekki fyrir litla spilun eins og stig/leik.",
     get:p=>per90(num(p.total_points), num(p.minutes)) },
-  { key:"minutes", label:"Minutur", group:"core", dec:0, hi:true, get:p=>num(p.minutes) },
-  { key:"starts", label:"Byrjunarlid", group:"core", dec:0, hi:true, get:p=>num(p.starts) },
-  { key:"form", label:"Form", group:"core", dec:1, hi:true, note:"FPL-form: medalstig sidustu 30 daga.",
+  { key:"minutes", label:"Mínútur", group:"core", dec:0, hi:true, get:p=>num(p.minutes) },
+  { key:"starts", label:"Byrjunarlið", group:"core", dec:0, hi:true, get:p=>num(p.starts) },
+  { key:"form", label:"Form", group:"core", dec:1, hi:true, note:"FPL-form: meðalstig síðustu 30 daga.",
     get:p=>num(p.form) },
-  { key:"dreamteam_count", label:"Lid vikunnar", group:"core", dec:0, hi:true,
-    note:"Hversu oft leikmadurinn hefur komist i FPL-lid vikunnar.", get:p=>num(p.dreamteam_count) },
+  { key:"dreamteam_count", label:"Lið vikunnar", group:"core", dec:0, hi:true,
+    note:"Hversu oft leikmaðurinn hefur komist í FPL-lið vikunnar.", get:p=>num(p.dreamteam_count) },
 
   /* ---- Sokn ---- */
-  { key:"goals_scored", label:"Mork", group:"attack", dec:0, hi:true, get:p=>num(p.goals_scored) },
+  { key:"goals_scored", label:"Mörk", group:"attack", dec:0, hi:true, get:p=>num(p.goals_scored) },
   { key:"assists", label:"Assist", group:"attack", dec:0, hi:true, get:p=>num(p.assists) },
-  { key:"gi", label:"Mork + assist", group:"attack", dec:0, hi:true, derived:true,
+  { key:"gi", label:"Mörk + assist", group:"attack", dec:0, hi:true, derived:true,
     get:p=>(num(p.goals_scored)??0)+(num(p.assists)??0) },
   { key:"gi_per_90", label:"M+A /90", group:"attack", dec:2, hi:true, derived:true,
     get:p=>per90((num(p.goals_scored)??0)+(num(p.assists)??0), num(p.minutes)) },
-  { key:"mins_per_gi", label:"Min/framlag", group:"attack", dec:0, hi:false, derived:true,
-    note:"Minutur per mark eda assist. Laegra er betra. Tomt ef ekkert framlag.",
+  { key:"mins_per_gi", label:"Mín/framlag", group:"attack", dec:0, hi:false, derived:true,
+    note:"Mínútur per mark eða assist. Lægra er betra. Tómt ef ekkert framlag.",
     get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0); return gi>0?safeDiv(num(p.minutes),gi):null; } },
 
   /* ---- Vaentingar ---- */
@@ -94,75 +97,75 @@ export const STAT_DEFS = [
   { key:"expected_assists_per_90", label:"xA/90", group:"expect", dec:2, hi:true, get:p=>num(p.expected_assists_per_90) },
   { key:"expected_goal_involvements_per_90", label:"xGI/90", group:"expect", dec:2, hi:true,
     get:p=>num(p.expected_goal_involvements_per_90) },
-  { key:"goals_minus_xg", label:"Mork - xG", group:"expect", dec:2, hi:true, derived:true, signed:true,
-    note:"Yfir nulli = skorar meira en faerin gefa (klinisk nyting eda heppni). Undir nulli = kludrar faerum.",
+  { key:"goals_minus_xg", label:"Mörk − xG", group:"expect", dec:2, hi:true, derived:true, signed:true,
+    note:"Yfir núlli = skorar meira en færin gefa (klínísk nýting eða heppni). Undir núlli = klúðrar færum.",
     get:p=>{ const g=num(p.goals_scored), x=num(p.expected_goals); return (g==null||x==null)?null:g-x; } },
-  { key:"assists_minus_xa", label:"Assist - xA", group:"expect", dec:2, hi:true, derived:true, signed:true,
+  { key:"assists_minus_xa", label:"Assist − xA", group:"expect", dec:2, hi:true, derived:true, signed:true,
     get:p=>{ const a=num(p.assists), x=num(p.expected_assists); return (a==null||x==null)?null:a-x; } },
-  { key:"gi_minus_xgi", label:"Framlog - xGI", group:"expect", dec:2, hi:true, derived:true, signed:true,
-    note:"Heildarmunur a raunverulegum framlogum og vaentum. Sterkasta einstaka merkid um oheppni/heppni.",
+  { key:"gi_minus_xgi", label:"Framlög − xGI", group:"expect", dec:2, hi:true, derived:true, signed:true,
+    note:"Heildarmunur á raunverulegum framlögum og væntum. Sterkasta einstaka merkið um óheppni/heppni.",
     get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0), x=num(p.expected_goal_involvements);
              return x==null?null:gi-x; } },
 
   /* ---- Vorn ---- */
-  { key:"clean_sheets", label:"Hreint blad", group:"defence", dec:0, hi:true, pos:[1,2,3], get:p=>num(p.clean_sheets) },
-  { key:"cs_pct", label:"Hreint blad %", group:"defence", dec:0, hi:true, pos:[1,2,3], derived:true, pct:true,
-    note:"Hreint blad deilt a byrjunarlids-leiki.",
+  { key:"clean_sheets", label:"Hreint blað", group:"defence", dec:0, hi:true, pos:[1,2,3], get:p=>num(p.clean_sheets) },
+  { key:"cs_pct", label:"Hreint blað %", group:"defence", dec:0, hi:true, pos:[1,2,3], derived:true, pct:true,
+    note:"Hreint blað deilt á byrjunarliðs-leiki.",
     get:p=>{ const r=safeDiv(num(p.clean_sheets), num(p.starts)); return r==null?null:r*100; } },
-  { key:"goals_conceded", label:"Mork a sig", group:"defence", dec:0, hi:false, pos:[1,2,3], get:p=>num(p.goals_conceded) },
+  { key:"goals_conceded", label:"Mörk á sig", group:"defence", dec:0, hi:false, pos:[1,2,3], get:p=>num(p.goals_conceded) },
   { key:"expected_goals_conceded", label:"xGC", group:"defence", dec:2, hi:false, pos:[1,2,3],
     get:p=>num(p.expected_goals_conceded) },
-  { key:"gc_minus_xgc", label:"Mork a sig - xGC", group:"defence", dec:2, hi:false, pos:[1,2,3], derived:true, signed:true,
-    note:"Undir nulli = vornin (eda markvordurinn) heldur betur en faerin gefa.",
+  { key:"gc_minus_xgc", label:"Mörk á sig − xGC", group:"defence", dec:2, hi:false, pos:[1,2,3], derived:true, signed:true,
+    note:"Undir núlli = vörnin (eða markvörðurinn) heldur betur en færin gefa.",
     get:p=>{ const g=num(p.goals_conceded), x=num(p.expected_goals_conceded); return (g==null||x==null)?null:g-x; } },
-  { key:"saves", label:"Vorslur", group:"defence", dec:0, hi:true, pos:[1], get:p=>num(p.saves) },
-  { key:"saves_per_90", label:"Vorslur/90", group:"defence", dec:2, hi:true, pos:[1], derived:true,
+  { key:"saves", label:"Vörslur", group:"defence", dec:0, hi:true, pos:[1], get:p=>num(p.saves) },
+  { key:"saves_per_90", label:"Vörslur/90", group:"defence", dec:2, hi:true, pos:[1], derived:true,
     get:p=>per90(num(p.saves), num(p.minutes)) },
-  { key:"save_pct", label:"Vorsluhlutfall %", group:"defence", dec:0, hi:true, pos:[1], derived:true, pct:true,
-    note:"Vorslur / (vorslur + mork a sig). Groft — FPL telur ekki skot a mark per markvord.",
+  { key:"save_pct", label:"Vörsluhlutfall %", group:"defence", dec:0, hi:true, pos:[1], derived:true, pct:true,
+    note:"Vörslur / (vörslur + mörk á sig). Gróft — FPL telur ekki skot á mark per markvörð.",
     get:p=>{ const s=num(p.saves), g=num(p.goals_conceded);
              if (s==null||g==null||(s+g)===0) return null; return (s/(s+g))*100; } },
-  { key:"penalties_saved", label:"Vitavorslur", group:"defence", dec:0, hi:true, pos:[1], get:p=>num(p.penalties_saved) },
+  { key:"penalties_saved", label:"Vítavörslur", group:"defence", dec:0, hi:true, pos:[1], get:p=>num(p.penalties_saved) },
   { key:"defensive_contribution", label:"Varnarframlag (DC)", group:"defence", dec:0, hi:true,
-    note:"FPL DefCon-stig. Athugid: DC er VILJANDI utan FFDR — sja kafla 3 i CLAUDE.md.",
+    note:"FPL DefCon-stig. Athugið: DC er VILJANDI utan FFDR — sjá kafla 3 í CLAUDE.md.",
     get:p=>num(p.defensive_contribution) },
   { key:"dc_per_90", label:"DC/90", group:"defence", dec:2, hi:true, derived:true,
     get:p=>per90(num(p.defensive_contribution), num(p.minutes)) },
-  { key:"clearances_blocks_interceptions", label:"Frakost/blokk/rof", group:"defence", dec:0, hi:true,
+  { key:"clearances_blocks_interceptions", label:"Hreinsanir/blokk/rof", group:"defence", dec:0, hi:true,
     get:p=>num(p.clearances_blocks_interceptions) },
   { key:"tackles", label:"Tacklingar", group:"defence", dec:0, hi:true, get:p=>num(p.tackles) },
   { key:"recoveries", label:"Endurheimtur", group:"defence", dec:0, hi:true, get:p=>num(p.recoveries) },
 
   /* ---- Bonus og ICT ---- */
-  { key:"bonus", label:"Bonus", group:"bonus", dec:0, hi:true, get:p=>num(p.bonus) },
+  { key:"bonus", label:"Bónus", group:"bonus", dec:0, hi:true, get:p=>num(p.bonus) },
   { key:"bps", label:"BPS", group:"bonus", dec:0, hi:true, get:p=>num(p.bps) },
   { key:"bps_per_90", label:"BPS/90", group:"bonus", dec:1, hi:true, derived:true,
     get:p=>per90(num(p.bps), num(p.minutes)) },
   { key:"ict_index", label:"ICT-vísitala", group:"bonus", dec:1, hi:true, get:p=>num(p.ict_index) },
-  { key:"influence", label:"Ahrif", group:"bonus", dec:1, hi:true, get:p=>num(p.influence) },
-  { key:"creativity", label:"Skopun", group:"bonus", dec:1, hi:true, get:p=>num(p.creativity) },
-  { key:"threat", label:"Haetta", group:"bonus", dec:1, hi:true,
-    note:"FPL-maeling a hversu haettulegar stodur leikmadurinn kemst i.", get:p=>num(p.threat) },
+  { key:"influence", label:"Áhrif", group:"bonus", dec:1, hi:true, get:p=>num(p.influence) },
+  { key:"creativity", label:"Sköpun", group:"bonus", dec:1, hi:true, get:p=>num(p.creativity) },
+  { key:"threat", label:"Hætta", group:"bonus", dec:1, hi:true,
+    note:"FPL-mæling á hversu hættulegar stöður leikmaðurinn kemst í.", get:p=>num(p.threat) },
 
   /* ---- Verd og eignarhald ---- */
-  { key:"now_cost", label:"Verd", group:"value", dec:1, hi:false, money:true, get:p=>{ const c=num(p.now_cost); return c==null?null:c/10; } },
-  { key:"pts_per_million", label:"Stig per milljon", group:"value", dec:1, hi:true, derived:true,
-    note:"Heildarstig deilt a nuverandi verd. Klassiska verdmaeta-talan.",
+  { key:"now_cost", label:"Verð", group:"value", dec:1, hi:false, money:true, get:p=>{ const c=num(p.now_cost); return c==null?null:c/10; } },
+  { key:"pts_per_million", label:"Stig per milljón", group:"value", dec:1, hi:true, derived:true,
+    note:"Heildarstig deilt á núverandi verð. Klassíska verðmæta-talan.",
     get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null:safeDiv(num(p.total_points), c/10); } },
   { key:"selected_by_percent", label:"Eignarhald %", group:"value", dec:1, hi:true, pct:true,
     get:p=>num(p.selected_by_percent) },
-  { key:"cost_change_start", label:"Verdbreyting", group:"value", dec:1, hi:true, signed:true, money:true,
-    note:"Breyting fra byrjun timabils.",
+  { key:"cost_change_start", label:"Verðbreyting", group:"value", dec:1, hi:true, signed:true, money:true,
+    note:"Breyting frá byrjun tímabils.",
     get:p=>{ const c=num(p.cost_change_start); return c==null?null:c/10; } },
-  { key:"net_transfers_event", label:"Nettoflutningar", group:"value", dec:0, hi:true, signed:true, derived:true,
-    note:"Inn minus ut i yfirstandandi umferd.",
+  { key:"net_transfers_event", label:"Nettóflutningar", group:"value", dec:0, hi:true, signed:true, derived:true,
+    note:"Inn mínus út í yfirstandandi umferð.",
     get:p=>{ const i=num(p.transfers_in_event)??0, o=num(p.transfers_out_event)??0; return i-o; } },
 
   /* ---- Ogn og refsingar ---- */
-  { key:"yellow_cards", label:"Gul spjold", group:"disc", dec:0, hi:false, get:p=>num(p.yellow_cards) },
-  { key:"red_cards", label:"Raud spjold", group:"disc", dec:0, hi:false, get:p=>num(p.red_cards) },
-  { key:"own_goals", label:"Sjalfsmork", group:"disc", dec:0, hi:false, get:p=>num(p.own_goals) },
-  { key:"penalties_missed", label:"Kludrud viti", group:"disc", dec:0, hi:false, get:p=>num(p.penalties_missed) },
+  { key:"yellow_cards", label:"Gul spjöld", group:"disc", dec:0, hi:false, get:p=>num(p.yellow_cards) },
+  { key:"red_cards", label:"Rauð spjöld", group:"disc", dec:0, hi:false, get:p=>num(p.red_cards) },
+  { key:"own_goals", label:"Sjálfsmörk", group:"disc", dec:0, hi:false, get:p=>num(p.own_goals) },
+  { key:"penalties_missed", label:"Klúðruð víti", group:"disc", dec:0, hi:false, get:p=>num(p.penalties_missed) },
 ];
 
 export const STAT_BY_KEY = Object.fromEntries(STAT_DEFS.map(d => [d.key, d]));
@@ -191,14 +194,38 @@ export function minutesFloor(players, fraction = 0.25) {
   return Math.round(max * fraction);
 }
 
+/* ---- SAMKVAEMNI-VORDUR A HEIMILDINNI ----
+   FPL-API-ID SJALFT getur skilad omogulegum tolum. MAELT 28.7.2026:
+   element 3 (Meslier) kemur med goals_scored:11 en minutes:0 OG
+   total_points:0. Ellefu mork gaefu minnst 66 stig, svo TVO svid segja
+   ad hann hafi ekki spilad og EITT segir annad -> markatalan er ruslid.
+   Hann var 1 af 563 og trónaði a toppi "Mork" fyrir markverdi.
+
+   Vid þegjum ekki og skrifum ekki yfir i 0 (thad myndi FELA vandann i
+   heimildinni). Talan er TEKIN UT og TALIN, eins og minutu-thakid.
+
+   REGLAN ER ALMENN, ekki Meslier-undantekning: tala sem KREFST spilunar
+   getur ekki verid >0 thegar minutur eru 0. Adeins verd, eignarhald og
+   flutningar eru oháð spilun.                                            */
+const MINUTES_INDEPENDENT = new Set([
+  "minutes", "now_cost", "selected_by_percent", "cost_change_start",
+  "net_transfers_event", "pts_per_million",
+]);
+
+export function isIncoherent(p, statKey, v) {
+  if (v == null || v <= 0) return false;
+  if (MINUTES_INDEPENDENT.has(statKey)) return false;
+  return (num(p.minutes) ?? 0) === 0;
+}
+
 export function buildLeaderboard({
   players, statKey, pos = "all", minMinutes = 0, limit = 50,
   teamId = "all", search = "", onlyAvailable = false,
 }) {
   const def = STAT_BY_KEY[statKey];
-  if (!def) return { def: null, rows: [], skipped: 0 };
+  if (!def) return { def: null, rows: [], skipped: 0, incoherent: 0 };
   const q = (search || "").trim().toLowerCase();
-  let skipped = 0;
+  let skipped = 0, incoherent = 0;
 
   const rows = [];
   for (const p of players || []) {
@@ -213,6 +240,8 @@ export function buildLeaderboard({
     const mins = num(p.minutes) ?? 0;
     const v = def.get(p);
     if (v == null || !Number.isFinite(v)) continue;
+    // HEIMILDIN getur logid — sja isIncoherent. Tekid ut OG talid.
+    if (isIncoherent(p, def.key, v)) { incoherent++; continue; }
     // minutu-thak gildir adeins um hlutfallstolur (/90, %) — heildartolur
     // eins og "mork" eru sjalfkrafa ovarnar gegn litilli spilun.
     const rateLike = /_per_90$|_pct$|^pts_per_90$|^mins_per_gi$/.test(def.key) || def.pct;
@@ -227,7 +256,7 @@ export function buildLeaderboard({
   let rank = 0, prev = null;
   rows.forEach((r, i) => { if (prev === null || r.v !== prev) rank = i + 1; prev = r.v; r.rank = rank; });
 
-  return { def, rows: rows.slice(0, limit), total: rows.length, skipped };
+  return { def, rows: rows.slice(0, limit), total: rows.length, skipped, incoherent };
 }
 
 /* ============================================================
@@ -269,6 +298,20 @@ export function gwTotals(rows) {
   t.xg = +t.xg.toFixed(2); t.xa = +t.xa.toFixed(2);
   t.avg_points = t.players ? +(t.points / t.players).toFixed(2) : null;
   return t;
+}
+
+/* Hve morg LID heldu hreinu — allt annad en cs-summan, sem er per LEIKMANN.
+   45 leikmanna-hrein blod i 10 leikjum leit rangt ut thangad til thetta var
+   sett vid hlidina: 4 lid heldu hreinu (4 x ~11 leikmenn = 42) og thrir til
+   vidbotar voru teknir af velli ADUR en motherjinn skoradi (FPL-reglan er
+   60+ min AN thess ad fa a sig mark MEDAN madur er inni a). */
+export function teamsWithCleanSheet(fixtures) {
+  let n = 0;
+  for (const f of fixtures || []) {
+    if (f.a_score === 0) n++;
+    if (f.h_score === 0) n++;
+  }
+  return n;
 }
 
 /* Afleiddar tolur per rod — reiknadar EINU SINNI, notadar allsstadar. */
@@ -321,32 +364,89 @@ export function bestXi(rows) {
 }
 
 /* ---- NAFNA-PORUN FPL <-> ESPN ----
-   FPL web_name er stytt ("M.Salah", "Gabriel", "Joao Pedro"); ESPN gefur
-   fullt nafn. Vid normaliserum (broddstafir af, punktar/bandstrik ut) og
-   krefjumst ad LIDID passi lika — annars parast algeng eftirnofn milli lida.
-   Reglan sem virkar a flestum: eftirnafn + lid. Oparadir eru TALDIR.       */
+   FPL gefur stytt nafn i timabili ("M.Salah") og fullt nafn i safni
+   ("Diego Gomez Amarilla"); ESPN gefur sina eigin utgafu ("Diego Gomez").
+
+   TVAER VILLUR SEM MAELDUST og eru lagfaerdar her (porun var 80%):
+   1. NFD-normalisering leysir EKKI upp alla bokstafi. "Grohs" (sharp-s)
+      vard "gro" a moti ESPN "Gross", og "Kadioglu" vard "kad oglu" thvi
+      punktlaust i (U+0131) er ekki [a-z] og vard bil. Thess vegna kemur
+      TRANSLIT-tafla A UNDAN NFD.
+   2. Porun a SIDASTA ordi brast a samsettum eftirnofnum: FPL
+      "Diego Gomez Amarilla" -> "amarilla" en ESPN "Diego Gomez" -> "gomez".
+      Nu er porad a ORDA-SKORUN i stad sidasta ords.
+
+   REGLAN: sama lid + flest sameiginleg ord, og BESTA parid verdur ad vera
+   STRANGARA en naesta besta — annars er thad tvirætt og fer i unmatched.
+   Thad ver gegn "Hugo Bueno" vs "Santiago Ignacio Bueno" i sama lidi.
+   OPARADIR FA null, EKKI 0 — "0 skot" vaeri stadhaefing sem vid eigum ekki. */
+const TRANSLIT = {
+  "ß":"ss", "ı":"i", "ø":"o", "ł":"l", "đ":"d",
+  "ð":"d", "þ":"th", "æ":"ae", "œ":"oe", "ħ":"h",
+  "ŋ":"n", "ŧ":"t", "ĸ":"k", "'":"", "’":"",
+};
+const TRANSLIT_RE = new RegExp("[" + Object.keys(TRANSLIT).join("") + "]", "g");
+
 export const normName = s => (s || "")
-  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  .toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  .toLowerCase()
+  .replace(TRANSLIT_RE, c => TRANSLIT[c] ?? c)
+  .normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+
+const nameTokens = s => normName(s).split(" ").filter(t => t.length >= 2);
+
+/* Skor = fjoldi sameiginlegra orda, +0,5 ef SIDASTA ordid er sameiginlegt
+   (eftirnafn a ad vega thyngra en fornafn).                               */
+export function nameScore(a, b) {
+  const ta = nameTokens(a), tb = nameTokens(b);
+  if (!ta.length || !tb.length) return 0;
+  const setB = new Set(tb);
+  let shared = 0;
+  for (const t of new Set(ta)) if (setB.has(t)) shared++;
+  if (!shared) return 0;
+  return shared + (ta[ta.length - 1] === tb[tb.length - 1] ? 0.5 : 0);
+}
 
 export function matchShotsToPlayers(rows, shotPlayers) {
-  const byTeamLast = {};
-  for (const sp of shotPlayers || []) {
-    const parts = normName(sp.name).split(" ");
-    const last = parts[parts.length - 1];
-    (byTeamLast[`${sp.team}|${last}`] ||= []).push(sp);
-  }
-  let matched = 0, unmatched = 0;
-  const out = (rows || []).map(r => {
-    const parts = normName(r.name).split(" ");
-    const last = parts[parts.length - 1];
-    const cand = byTeamLast[`${r.team}|${last}`];
-    if (cand && cand.length === 1) { matched++; return { ...r, shot: cand[0] }; }
-    unmatched++;
-    return { ...r, shot: null };
+  /* EITT-A-EITT PORUN, GRADUG A SKORI (maelt: nauðsynlegt).
+     Fyrri utgafa valdi BESTA parid fyrir hverja FPL-rod sjalfstaett og
+     leyfdi thannig TVEIMUR FPL-monnum ad hirda SOMU ESPN-skyttu:
+       ESPN "Rodrigo Gomes" (WOL) var eignud Toti Gomes (1,5),
+       Angel Gomes (1,5) OG Rodrigo Martins Gomes (2,5).
+     Tveir theirra hefdu fengid skot-tolur annars manns. Nu er porad
+     hnattraent: sterkustu por fyrst, hver skytta og hver rod nyttar
+     MEST EINU SINNI. Hinir Gomes-arnir fa null — sem er rett, thvi
+     ESPN skradi thau ekki a skot.                                        */
+  const byTeam = {};
+  (shotPlayers || []).forEach((sp, i) => (byTeam[sp.team] ||= []).push({ sp, i }));
+
+  const pairs = [];
+  (rows || []).forEach((r, ri) => {
+    for (const { sp, i } of (byTeam[r.team] || [])) {
+      const sc = nameScore(r.name, sp.name);
+      if (sc >= 1) pairs.push({ ri, si: i, sc });
+    }
   });
-  return { rows: out, matched, unmatched };
+  // haesta skor fyrst; stodug rodun svo utkoman se endurtakanleg
+  pairs.sort((a, b) => b.sc - a.sc || a.ri - b.ri || a.si - b.si);
+
+  const takenRow = new Set(), takenShot = new Set(), assign = new Map();
+  for (const { ri, si, sc } of pairs) {
+    if (takenRow.has(ri) || takenShot.has(si)) continue;
+    takenRow.add(ri); takenShot.add(si); assign.set(ri, shotPlayers[si]);
+  }
+
+  let matched = 0, unmatched = 0;
+  const out = (rows || []).map((r, ri) => {
+    const sp = assign.get(ri) || null;
+    if (sp) matched++; else unmatched++;
+    return { ...r, shot: sp };
+  });
+  // hve margar skyttur fundu ekki sinn mann (t.d. gaelunofn: Savinho)
+  const shotsUnmatched = (shotPlayers || []).length - takenShot.size;
+  return { rows: out, matched, unmatched, shotsUnmatched };
 }
+
 
 /* ---- SKOT-KORT ----
    Skilar AÐEINS skotum med nothaefum hnitum. Hin eru talin i `excluded`
@@ -422,4 +522,79 @@ export function lastFinishedGw(events) {
   let last = null;
   for (const e of events || []) if (e.finished && (last == null || e.id > last)) last = e.id;
   return last;
+}
+
+/* ============================================================
+   4. "OHJAKVAEMILEGT" — MO (mark) og AO (assist)
+
+   MARKMID: finna leikmenn ADUR en their springa ut. Thess vegna er
+   markhopurinn ADEINS their sem hafa 0-1 mark+assist i glugganum —
+   sa sem er thegar buinn ad skora tvisvar tharf enga spa.
+
+   MAELT A 3 TIMABILUM (2023-24, 2024-25, 2025-26), 114 umferdum,
+   13.273 synishornum (leikmadur x umferd). Gluggi 4 umferdir aftur,
+   markmid: mork/assist naestu 4 umferdir. Malikvardi: LYFTING =
+   medaltal efsta tiundarhlutans deilt med medaltali allra.
+
+   MO — SAMSETTUR STUDULL STENST PROFID:
+     vogir valdar a 2 timabilum, profadar a thvi THRIDJA (ut af urtaki):
+       2023-24 haldid eftir: 2,711  (xG eitt 2,449 · threat eitt 2,711)
+       2024-25 haldid eftir: 3,059  (xG eitt 2,844 · threat eitt 2,995)
+       2025-26 haldid eftir: 2,895  (xG eitt 2,794 · threat eitt 2,631)
+       MEDALTAL 2,888 a moti 2,696 (xG) og 2,779 (threat)
+     Vinnur i 2/3 og jafnar i thvi thridja. Hoflegur en RAUNVERULEGUR ábati.
+
+   AO — SAMSETTI STUDULLINN FELL OG ER THVI EKKI NOTADUR:
+     sama profun gaf 2,179 a moti 2,206 fyrir BERA creativity —
+     hann tapadi i 0/3 timabilum, thad er i OLLUM. xA-vogin valdist
+     ALLTAF 0, sem segir ad xA baeti engu ofan a creativity fyrir
+     thennan markhop. Thess vegna er AO einfaldlega creativity/90.
+     Ad birta samsettan AO-studul vaeri skraut sem maelingin hafnadi.
+
+   LAERDOMUR SEM ER VERT AD MUNA: "oheppni" (xG - mork) EIN OG SER er
+   VEIKARA merki (lyfting 2,27) en hreint MAGN (xG 2,70 / threat 2,78).
+   Sa sem klúðrar faerum er ekki jafn liklegur og sa sem BYR THAU TIL.
+   ============================================================ */
+
+/* Vogir: xG-summa, threat/25, og "oheppni" (adeins jakvaed att).
+   Threat er deilt med 25 svo lidirnir seu a svipudum kvarda. */
+export const MO_WEIGHTS = { xg: 0.8, threat: 0.3, unlucky: 0.2, threat_scale: 25 };
+export const IMMINENT_WINDOW = 4;      // umferdir aftur i timann
+export const IMMINENT_MAX_GI = 1;      // markhopur: 0-1 framlog i glugganum
+export const IMMINENT_MIN_MINUTES = 180;
+
+/* w: samtala gluggans { minutes, goals, assists, xg, xa, threat, creativity } */
+export function moScore(w) {
+  if (!w) return null;
+  const xg = num(w.xg) ?? 0, thr = num(w.threat) ?? 0, g = num(w.goals) ?? 0;
+  const unlucky = Math.max(0, xg - g);            // adeins UNDIR vaentingum telur
+  return +(MO_WEIGHTS.xg * xg
+         + MO_WEIGHTS.threat * (thr / MO_WEIGHTS.threat_scale)
+         + MO_WEIGHTS.unlucky * unlucky).toFixed(3);
+}
+
+/* AO er BERT creativity/90 — samsetning fell ut af urtaki (sja hausinn). */
+export function aoScore(w) {
+  if (!w) return null;
+  const mins = num(w.minutes) ?? 0;
+  if (mins <= 0) return null;
+  return +(((num(w.creativity) ?? 0) / mins) * 90).toFixed(2);
+}
+
+/* Er leikmadurinn i markhopnum? Utan hans er studullinn MERKINGARLAUS. */
+export function inImminentPool(w) {
+  if (!w) return false;
+  const gi = (num(w.goals) ?? 0) + (num(w.assists) ?? 0);
+  return (num(w.minutes) ?? 0) >= IMMINENT_MIN_MINUTES && gi <= IMMINENT_MAX_GI;
+}
+
+/* Radar leikmonnum eftir studli. Skilar ADEINS theim sem eru i markhop. */
+export function imminentBoard(players, kind = "mo", limit = 20) {
+  const fn = kind === "ao" ? aoScore : moScore;
+  return (players || [])
+    .filter(p => inImminentPool(p.window))
+    .map(p => ({ ...p, score: fn(p.window) }))
+    .filter(p => p.score != null)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
 }

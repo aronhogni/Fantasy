@@ -110,7 +110,7 @@ await render(); await render();
 const text = () => container.textContent;
 ok(!text().includes("Sæki opinber FPL-gögn"), "hleðsluskjár horfinn");
 ok(!text().includes("Náði ekki í gögnin"), "engin gagna-villa");
-ok(text().includes("Fantasy plönun"), "haus birtist");
+ok(text().includes("FantasyApp"), "haus birtist (endurnefnt úr 'Fantasy plönun')");
 ok(text().includes("Banki"), "mælaborð birtist");
 ok(container.querySelectorAll(".fpl-pitch").length === 1, "völlurinn teiknast");
 
@@ -167,15 +167,25 @@ const infoBtns = [...container.querySelectorAll("button")].filter(b => b.title =
 await act(async () => { infoBtns[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
 ok(text().includes("Leikir"), "yfirlit opnast með leikjalista");
-// FLOKKUNIN: tölurnar undir þremur fyrirsögnum með heimild og tímabili
-ok(text().includes("Núna"), "flokkurinn 'Núna — lifandi' birtist");
-ok(text().includes("Tímabilið 2025/26"), "tímabils-flokkurinn með réttu ártali (úr GW1-fresti)");
-ok(text().includes("uppsafnað"), "fyrirsögnin útskýrir uppsöfnunina");
+/* SPJALDID VAR ENDURHANNAD (28.7.). Profin her fylgja NYJU uppsetningunni:
+   efsti hluti med sex adaltolum + timabila-tafla med saetum og trendi.
+   Gomlu fyrirsagnirnar ("Núna", "Tímabilið …", "uppsafnað") eru farnar
+   og tolurnar eru nu i toflu, ekki i dalkaneti.                          */
+for (const k of ["Verð", "Heildarstig", "Stig/leik", "Bónusstig", "Form", "Eignarhlutfall"])
+  ok(text().includes(k), `efsti hluti: '${k}'`);
+ok(text().includes("Tímabil"), "tímabila-taflan birtist");
 ok(!text().includes("sl. tímabil"), "loðna merkingin 'sl. tímabil' horfin");
-// dálkarnir undir tímabils-fyrirsögninni
-for (const k of ["Stig/leik", "Mínútur", "xG / 90", "Mörk + assist", "Gul / rauð"])
-  ok(text().includes(k), `dálkurinn '${k}' undir tímabils-flokknum`);
-ok(text().includes("Spá næstu"), "ep undir 'Núna'-flokknum");
+// RETT ARTAL a yfirstandandi timabili — cumLabel (2025/26) ma EKKI rata i hausinn
+ok(text().includes("2026/27"), "dálkur yfirstandandi tímabils ber rétt ártal (2026/27)");
+ok(text().includes("2025/26") && text().includes("2024/25"),
+  "eldri tímabil fylgja með í töflunni");
+// FYRIR TIMABIL a yfirstandandi dalkur ad vera TOMUR, ekki tvitekning a i fyrra
+ok(text().includes("2026/27 er ekki hafið"),
+  "tómur dálkur útskýrður — FPL-tölurnar eru enn fyrra tímabils");
+// radirnar sem beðið var um
+for (const k of ["Mínútur", "xGI", "YC / RC", "BP / BPS"])
+  ok(text().includes(k), `tímabila-röðin '${k}'`);
+ok(text().includes("Spá næstu"), "ep birtist áfram");
 // MEIÐSLA-TEGUNDIN úr API-Sports: FPL segir 'a' -> varfærna óstaðfesta línan
 ok(text().includes("API-Sports skráir:") && text().includes("Knock"),
   "meiðsla-tegund úr API-Sports birt varfærið þegar FPL flaggar ekki");

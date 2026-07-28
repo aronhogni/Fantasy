@@ -10,9 +10,12 @@
    helmingar leggjast a EINN vallarhelming. Thad er RETT framsetning
    fyrir thessi gogn, ekki einfoldun.
 
-   Skot med otraustum hnitum (X>0,5, oll langskot) eru EKKI plottud og
-   EKKI spegluð — thau eru TALIN og talan birt. Ad spegla thau vaeri
-   agiskun um hnitakerfi sem vid staðfestum ekki.
+   KVARDINN ER MAELDUR, EKKI GISKADUR: x er hlutfall af HALFUM velli
+   (52,5 m), svo metrar fra marki = x * 52,5. Sannreynt gegn svaedis-texta
+   ESPN sem er ohað hnitunum — markteigs-skot (5,5 m) na x <= 0,110 og
+   markteigurinn er 5,5/52,5 = 0,105; teig-skot (16,5 m) na x <= 0,336 og
+   teigurinn er 16,5/52,5 = 0,314. Fyrsta utgafan notadi 105 m og setti
+   thvi hvert skot i TVOFALDA fjarlaegd — mork lentu vid midjulinu.
 
    ENGIN FORMULA HER — allt kemur ur src/stats.js.
    ============================================================ */
@@ -21,6 +24,7 @@ import React, { useState, useMemo } from "react";
 import {
   withDerived, gwTotals, gwTop, bestXi, gwFixtureReports,
   shotsFor, shotSummary, SHOT_KINDS, matchShotsToPlayers, POS_ORDER,
+  teamsWithCleanSheet,
 } from "./stats.js";
 
 const POS_COLOR = { GK:"#8b5cf6", DEF:"#2563eb", MID:"#00b96b", FWD:"#d92d3c" };
@@ -32,7 +36,9 @@ export default function GwReport({ report, shotsFile, teamById, Crest }) {
   const [teamSel, setTeamSel] = useState("all"); // skot-kort: lid
 
   const rows = useMemo(() => withDerived(report?.players || []), [report]);
-  const totals = useMemo(() => gwTotals(rows), [rows]);
+  const totals = useMemo(() => ({
+    ...gwTotals(rows), teams_cs: teamsWithCleanSheet(report?.fixtures),
+  }), [rows, report]);
   const xi = useMemo(() => bestXi(rows), [rows]);
   const fixtures = useMemo(() => gwFixtureReports({ report, shotsFile }), [report, shotsFile]);
   const joined = useMemo(
@@ -108,8 +114,9 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
     <>
       <div style={S.tiles}>
         <Tile k="Mörk" v={totals.goals} sub={`${totals.og} sjálfsmörk`} />
-        <Tile k="Assist" v={totals.assists} />
-        <Tile k="Hrein blöð" v={totals.cs} />
+        <Tile k="Assist" v={totals.assists} sub="FPL-skilgreining" />
+        <Tile k="Hrein blöð (leikmenn)" v={totals.cs}
+          sub={`${totals.teams_cs} lið héldu hreinu`} />
         <Tile k="Vörslur" v={totals.saves} />
         <Tile k="Spjöld" v={`${totals.yellow}G / ${totals.red}R`} />
         <Tile k="Bónus gefinn" v={totals.bonus} />
@@ -123,6 +130,16 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
           <Tile k="Í stöng/slá" v={shotSum.woodwork} tone="amber" />
           <Tile k="Blokkuð skot" v={shotSum.blocked} />
         </>}
+      </div>
+
+      <div style={S.note}>
+        <b>Hrein blöð eru talin per LEIKMANN, ekki per lið.</b> FPL veitir hreint blað þeim sem
+        spilar 60+ mínútur án þess að fá á sig mark <i>á meðan hann er inni á</i> — svo leikmaður
+        sem er tekinn af velli áður en mótherjinn skorar heldur sínu. Dæmi úr þessari umferð:
+        Palace skoraði á 89. mínútu gegn Arsenal, og þrír Arsenal-menn sem fóru af velli á undan
+        (83., 74. og 61. mín) fá hreint blað þótt liðið hafi fengið á sig mark.
+        {" "}<b>Assist fylgja FPL-skilgreiningu</b>, sem er rýmri en Opta — FPL gefur t.d. assist
+        fyrir að vinna víti sem er skorað. Í þessari umferð telur FPL {totals.assists} en ESPN 17.
       </div>
 
       <H>Lið vikunnar — {xi.points} stig</H>
@@ -184,6 +201,12 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
 
 /* ================= SKOT-KORT ================= */
 function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, teamById, Crest }) {
+  /* Hookar ATH: allir hookar verda ad kallast ADUR en snuid er til baka,
+     annars brotnar hook-rodun milli render-a (React rules of hooks).      */
+  const teams = useMemo(
+    () => [...new Set((shotsFile?.shots || []).map(s => s.team).filter(Boolean))].sort(),
+    [shotsFile]);
+
   if (!shotsFile) {
     return (
       <div style={S.blocked}>
@@ -192,9 +215,6 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
       </div>
     );
   }
-  const teams = useMemo(
-    () => [...new Set((shotsFile.shots || []).map(s => s.team).filter(Boolean))].sort(),
-    [shotsFile]);
 
   const sel = shotsFor(shotsFile.shots, {
     fixture: fxSel === "all" ? null : +fxSel,
@@ -229,13 +249,15 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
       <Pitch shots={sel.usable} />
 
       <div style={S.note}>
-        <b>X-ásinn er fjarlægð frá markinu sem sótt er að</b> — mælt, ekki gefið: í CRY 1–2 ARS
-        liggja öll þrjú mörkin á lágu X þótt sitt hvort liðið skoraði. Þess vegna leggjast bæði
-        lið á sama vallarhelming; það er rétt framsetning fyrir þessi gögn.
+        <b>Lóðrétti ásinn er fjarlægð frá markinu sem sótt er að</b> — mælt, ekki gefið: í
+        CRY 1–2 ARS liggja öll þrjú mörkin nálægt marki þótt sitt hvort liðið skoraði, svo
+        bæði lið leggjast á sama vallarhelming. <b>Kvarðinn er kvarðaður</b> gegn svæðis-texta
+        ESPN, sem er óháður hnitunum: markteigs-skot nema x≤0,110 og markteigurinn er
+        5,5/52,5=0,105; teig-skot nema x≤0,336 og teigurinn er 16,5/52,5=0,314. Þess vegna
+        er <b>metrafjöldi = x × 52,5</b>, ekki × 105.
         {sel.excluded > 0 && (
-          <> <b style={{ color:"#c98a00" }}>{sel.excluded} skot eru ekki á kortinu</b> — hnitin
-          voru ótraust (X&gt;0,5, öll langskot). Þau eru <b>ekki</b> speglað inn, því það væri
-          ágiskun um hnitakerfi sem við staðfestum ekki.</>
+          <> <b style={{ color:"#c98a00" }}>{sel.excluded} skot eru ekki á kortinu</b> — ESPN
+          skráði engin hnit fyrir þau (0,0).</>
         )}
       </div>
 
@@ -293,40 +315,70 @@ const ZONE_IS = {
 };
 const FOOT_IS = { left:"Vinstri", right:"Hægri", head:"Haus" };
 
-/* Vollur: EINN helmingur. x=0 er markid sem sott er ad -> vid setjum
-   markid VINSTRA og latum x vaxa til haegri. y er thvert yfir vollinn. */
+/* VOLLUR — EINN HELMINGUR, i RETTUM STAERDARHLUTFOLLUM.
+
+   ESPN gefur x = fjarlaegd fra markinu sem sott er ad (0..0,5 af vallarlengd)
+   og y = thvert yfir vollinn (0..1). Helmingurinn er thvi 52,5 m LANGUR og
+   68 m BREIDUR — BREIDARI en hann er langur.
+
+   Thess vegna er MARKID UPPI og sott upp: y (breidd, 68 m) liggur a
+   laretta asnum og x (fjarlaegd, 52,5 m) a lodretta. Fyrsta utgafa hafdi
+   markid vinstra i 760x480 kassa, sem TOGADI x-asinn (thad synir 52,5 m
+   sem 760 px en 68 m sem 480 px) og skot vird thvi fjaerlaegari marki en
+   thau voru. Nu er 1 px = sama vegalengd i badar attir.
+
+   Vitateigur: 16,5 m af 52,5 m = 31,4% af haed. Markteigur 5,5 m = 10,5%.
+   Teigbreidd 40,3 m af 68 m = 59,3%; markteigsbreidd 18,3 m = 26,9%.     */
+const PITCH_M = { half: 52.5, wide: 68, boxDeep: 16.5, boxWide: 40.3,
+                  sixDeep: 5.5, sixWide: 18.3, spot: 11 };
 function Pitch({ shots }) {
-  const W = 760, H = 480, PAD = 8;
-  const px = s => PAD + (s.x / 0.5) * (W - PAD * 2);   // 0..0.5 -> full breidd
-  const py = s => PAD + s.y * (H - PAD * 2);
+  const SC = 9;                                     // px per metra
+  const W = PITCH_M.wide * SC, H = PITCH_M.half * SC;
+  const mx = m => (m / PITCH_M.wide) * W;           // metrar thvert -> px
+  const my = m => (m / PITCH_M.half) * H;           // metrar fra marki -> px
+  /* hnit -> px. x er hlutfall af HALFUM velli (52,5 m) — KVARDAD gegn
+     svaedis-texta ESPN, sja hausinn. Fyrsta utgafan margfaldadi med 105 og
+     setti hvert skot i TVOFALDA fjarlaegd; mork lentu vid midjulinu.       */
+  const px = s => mx(s.y * PITCH_M.wide);
+  const py = s => my(s.x * PITCH_M.half);
+
+  const boxX = mx((PITCH_M.wide - PITCH_M.boxWide) / 2);
+  const sixX = mx((PITCH_M.wide - PITCH_M.sixWide) / 2);
+
   return (
     <div style={S.pitchWrap}>
       <svg viewBox={`0 0 ${W} ${H}`} style={S.pitch} role="img"
         aria-label={`Skot-kort, ${shots.length} skot`}>
         <rect x="0" y="0" width={W} height={H} fill="#e9f5ee" />
-        {/* markteigur og vitateigur, malad fra vinstri (markid) */}
         <g stroke="#ffffff" strokeWidth="2" fill="none">
-          <rect x={PAD} y={PAD} width={W - PAD*2} height={H - PAD*2} />
-          <rect x={PAD} y={H*0.21} width={(W-PAD*2)*0.33} height={H*0.58} />
-          <rect x={PAD} y={H*0.36} width={(W-PAD*2)*0.12} height={H*0.28} />
-          <line x1={W-PAD} y1={PAD} x2={W-PAD} y2={H-PAD} strokeDasharray="6 6" />
-          <circle cx={(W-PAD*2)*0.22} cy={H/2} r="3" fill="#fff" stroke="none" />
+          {/* marklina uppi, midlina nidri */}
+          <line x1="0" y1="1" x2={W} y2="1" />
+          <line x1="0" y1={H-1} x2={W} y2={H-1} strokeDasharray="7 7" />
+          <rect x={boxX} y="0" width={mx(PITCH_M.boxWide)} height={my(PITCH_M.boxDeep)} />
+          <rect x={sixX} y="0" width={mx(PITCH_M.sixWide)} height={my(PITCH_M.sixDeep)} />
+          {/* markid sjalft (7,32 m) */}
+          <line x1={mx((PITCH_M.wide - 7.32)/2)} y1="2" x2={mx((PITCH_M.wide + 7.32)/2)} y2="2"
+            strokeWidth="5" stroke="#37003c" />
         </g>
-        <text x={PAD+6} y={H-14} style={S.pitchLbl}>mark</text>
-        <text x={W-PAD-90} y={H-14} style={S.pitchLbl}>miðja vallar</text>
-        {shots.map((s, i) => {
-          const k = SHOT_KINDS.find(x => x.key === s.kind);
-          const isGoal = s.kind === "goal";
-          return (
-            <circle key={i} cx={px(s)} cy={py(s)} r={isGoal ? 8 : 5.5}
-              fill={k?.color || "#8b8b95"} fillOpacity={isGoal ? 0.95 : 0.6}
-              stroke={isGoal ? "#02402a" : "none"} strokeWidth={isGoal ? 2 : 0}>
-              <title>{`${s.minute || ""} ${s.player || ""} (${s.team || ""}) — ${k?.label || s.kind}`
-                + `${s.zone ? " · " + (ZONE_IS[s.zone] || s.zone) : ""}`
-                + `${s.foot ? " · " + (FOOT_IS[s.foot] || s.foot) : ""}`}</title>
-            </circle>
-          );
-        })}
+        <circle cx={W/2} cy={my(PITCH_M.spot)} r="2.5" fill="#fff" />
+        <text x="6" y={H-8} style={S.pitchLbl}>miðja vallar</text>
+        <text x="6" y={16} style={S.pitchLbl}>mark</text>
+
+        {/* mork sidast svo their liggi OFAN a hinum */}
+        {shots.slice().sort((a, b) => (a.kind === "goal" ? 1 : 0) - (b.kind === "goal" ? 1 : 0))
+          .map((s, i) => {
+            const k = SHOT_KINDS.find(x => x.key === s.kind);
+            const isGoal = s.kind === "goal";
+            return (
+              <circle key={i} cx={px(s)} cy={py(s)} r={isGoal ? 7 : 5}
+                fill={k?.color || "#8b8b95"} fillOpacity={isGoal ? 0.95 : 0.55}
+                stroke={isGoal ? "#02402a" : "none"} strokeWidth={isGoal ? 2 : 0}>
+                <title>{`${s.minute || ""} ${s.player || ""} (${s.team || ""}) — ${k?.label || s.kind}`
+                  + `${s.zone ? " · " + (ZONE_IS[s.zone] || s.zone) : ""}`
+                  + `${s.foot ? " · " + (FOOT_IS[s.foot] || s.foot) : ""}`}</title>
+              </circle>
+            );
+          })}
       </svg>
       {!shots.length && <div style={S.muted}>Engin skot með nothæfum hnitum í þessu vali.</div>}
     </div>
@@ -511,7 +563,7 @@ const S = {
   tabs:{ display:"flex", gap:4, flexWrap:"wrap" },
   tabBtn:{ border:`1px solid ${C.border}`, background:C.card, color:C.text2, borderRadius:6,
            padding:"4px 10px", fontSize:12, fontWeight:600, cursor:"pointer" },
-  tabOn:{ background:C.purple, color:"#fff", borderColor:C.purple },
+  tabOn:{ background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
   archive:{ fontSize:11.5, color:"#7a5600", background:C.amberBg, border:"1px solid #f0dcae",
             borderRadius:6, padding:"7px 9px", margin:"10px 0", lineHeight:1.5 },
   muted:{ fontSize:11.5, color:C.text3, margin:"4px 0", lineHeight:1.45 },
@@ -524,7 +576,7 @@ const S = {
 
   tiles:{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(112px, 1fr))", gap:6, marginTop:10 },
   tile:{ border:`1px solid ${C.border}`, borderRadius:7, background:C.cardAlt, padding:"6px 8px" },
-  tileAmber:{ background:C.amberBg, borderColor:"#f0dcae" },
+  tileAmber:{ background:C.amberBg, border:"1px solid #f0dcae" },
   tileV:{ fontSize:17, fontWeight:700, color:C.text, fontFamily:mono, lineHeight:1.1 },
   tileK:{ fontSize:9.5, color:C.text2, marginTop:2, lineHeight:1.25 },
   tileS:{ fontSize:9, color:C.text3, marginTop:1 },
@@ -558,8 +610,9 @@ const S = {
   legItem:{ display:"flex", alignItems:"center", gap:3, fontSize:10, color:C.text2 },
   dot:{ width:8, height:8, borderRadius:"50%", display:"inline-block" },
 
-  pitchWrap:{ marginTop:4 },
-  pitch:{ width:"100%", height:"auto", border:`1px solid ${C.border}`, borderRadius:8, display:"block" },
+  pitchWrap:{ marginTop:4, display:"flex", justifyContent:"center" },
+  pitch:{ width:"100%", maxWidth:560, height:"auto", border:`1px solid ${C.border}`,
+          borderRadius:8, display:"block" },
   pitchLbl:{ fontSize:11, fill:"#8b8b95" },
 
   scroll:{ overflowX:"auto", marginTop:4 },

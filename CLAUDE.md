@@ -456,6 +456,79 @@ við E0 upp á skot í helmingi leikja og víkur mest um 1. Bæði prófað.
 
 ---
 
+## 6c. TREND — MÆLT 28.7.2026 á 3 tímabilum (114 umferðir)
+
+Gögn: `vaastav`-speglun, per-umferðar CSV 2023-24 / 2024-25 / 2025-26.
+Greiningarnar eru í `scratchpad` (ekki í repo) en **niðurstöðurnar eru hér**
+því þær breyta því hvað við megum segja í viðmótinu.
+
+### „Heitur leikmaður" ER BLEKKING — mikilvægasta niðurstaðan
+
+Hrátt lítur formið sterkt út: sá sem skoraði skorar í næsta leik í **20,6%**
+tilvika á móti **9,5%** hjá þeim sem skoraði ekki — *2,17× lyfting*, og hún
+helst yfir 1–4 umferðir (2,09–2,17×). Það er nákvæmlega mynstrið sem fær fólk
+til að elta „heita" leikmenn.
+
+**En það er gæða-rugl (confound): góðir leikmenn skora oftar OG eru líklegri
+til að skora aftur.** Þegar hver leikmaður er borinn saman við **sitt eigið**
+meðaltal snýst niðurstaðan við:
+
+| Innan-leikmanns próf (n=291 leikmenn) | Eigið grunnhlutfall | Eftir atburð | Munur |
+|---|---|---|---|
+| **Eftir að hafa skorað** | 24,3% | 19,8% | **−4,52pp** (t = −5,26) |
+| Eftir óheppinn leik (xG≥0,5, ekkert mark) | 30,8% | 32,0% | +1,24pp (t = 0,37) |
+| Eftir daufan leik (xG<0,1) | 10,3% | 11,2% | +0,93pp (t = +3,21) |
+
+**Innan leikmanns er væg AFTURHVARF TIL MEÐALTALS, ekki form.** Að kaupa
+leikmann *af því að hann skoraði síðast* er að kaupa á toppi sveiflu.
+Það sem heldur er **magnið** (xG, threat), ekki atburðurinn — og það er
+einmitt þess vegna sem mó-stuðullinn vegur magn þyngst (sjá 6d).
+
+### Hrein blöð liða RAÐAST EKKI Í RUNUR
+
+| | Hreint blað í næsta leik |
+|---|---|
+| Eftir hreint blað | **22,8%** |
+| Eftir að hafa fengið á sig mark | **23,0%** |
+| **Lyfting** | **0,99 — enginn munur** |
+| Eftir TVÖ hrein í röð | 21,2% (n=113) — *lægra en grunnur* |
+| Eftir sigur MEÐ hreinu blaði | 24,1% (n=399) |
+
+Úrtak: 505 leikir eftir CS, 1.672 eftir mark á sig. **Að elta vörn „á hreinu-
+blaðs rúnti" á sér enga stoð í gögnunum.** FFDR og xGC eiga að ráða vali á
+vörnum, ekki síðasta úrslit.
+
+---
+
+## 6d. MÓ / AÓ — „óhjákvæmilegt" (mælt, annað féll)
+
+Markhópur: leikmenn með **0–1 framlag** síðustu 4 umferðir og 180+ mín.
+Mælt á 13.273 sýnum. Mælikvarði: lyfting efsta tíundarhlutans.
+
+**MÓ stenst — samsettur stuðull `xG·0,8 + threat/25·0,3 + óheppni·0,2`:**
+vogtölur valdar á 2 tímabilum og prófaðar á því þriðja (út af úrtaki):
+
+| Haldið eftir | mó | xG eitt | threat eitt |
+|---|---|---|---|
+| 2023-24 | 2,711 | 2,449 | 2,711 |
+| 2024-25 | **3,059** | 2,844 | 2,995 |
+| 2025-26 | **2,895** | 2,794 | 2,631 |
+| **Meðaltal** | **2,888** | 2,696 | 2,779 |
+
+Vinnur í 2/3 og jafnar í því þriðja. Hóflegur en raunverulegur ábati.
+
+**AÓ FÉLL og er því BERT `creativity/90`:** samsettur stuðull gaf 2,179 á
+móti **2,206** fyrir bert creativity og tapaði í **0 af 3** tímabilum;
+xA-vogin valdist alltaf **0**. Að birta samsettan aó-stuðul væri skraut sem
+mælingin hafnaði. Þetta er skjalfest í `data/imminent.json` (`measured.ao`)
+og prófað í `tests/stats.test.mjs` kafla 10.
+
+**Óheppni er veikasta inntakið** (lyfting 2,27 ein og sér, á móti 2,70 fyrir
+xG og 2,78 fyrir threat) — sem passar við 6c: sá sem *býr til* færi er
+líklegri en sá sem *klúðraði* þeim. Vogin á óheppni er því lítil (0,2).
+
+---
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)

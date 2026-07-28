@@ -3,6 +3,7 @@ import Pitch from "./Pitch.jsx";
 import GwReport from "./GwReport.jsx";
 import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
 import SetPieces, { setPieceBadges } from "./SetPieces.jsx";
+import Compare from "./Compare.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
@@ -496,6 +497,8 @@ export default function App() {
   const [priceEdit, setPriceEdit] = useState(null);     // {id} — lettur verd-gluggi
   const [spNotes, setSpNotes] = useState(null);         // data/set_piece_notes.json
   const [imminent, setImminent] = useState(null);       // data/imminent.json — mo/ao
+  const [cmpIds, setCmpIds] = useState([]);             // samanburdur — allt ad 4
+  const [cmpOpen, setCmpOpen] = useState(false);
   const [rivals, setRivals] = useState([]);          // [{id}] — andstæðingar til samanburðar
   const [rivalInput, setRivalInput] = useState("");
   const [rivalData, setRivalData] = useState({});    // {id: {name, gwPts, totalPts, captain, picks}}
@@ -2575,6 +2578,15 @@ export default function App() {
                       <button style={S.dBtn} onClick={() => { setVice(p.id); setDetail(null); flash(`${p.web_name} er varafyrirliði`); }}>Varafyrirliði</button>}
                   </>
                 )}
+                {isPlayer && (
+                  <button style={S.dBtn} title="Bæta þessum leikmanni í samanburð"
+                    onClick={() => {
+                      setCmpIds(v => v.includes(p.id) ? v : [...v, p.id].slice(0, 4));
+                      setDetail(null); setCmpOpen(true);
+                    }}>
+                    ⇄ Bera saman{cmpIds.length ? ` (${cmpIds.length})` : ""}
+                  </button>
+                )}
                 {isPlayer && <button style={S.dBtn} onClick={() => setDetail({ kind:"team", id:t.id })}>Sjá lið: {t.short}</button>}
               </div>
             </div>
@@ -2672,6 +2684,21 @@ export default function App() {
             }} />
         );
       })()}
+
+      {/* SAMANBURDUR — fljotandi hnappur medan eitthvad er valid */}
+      {!!cmpIds.length && !cmpOpen && (
+        <button style={S.cmpFab} onClick={() => setCmpOpen(true)}>
+          ⇄ Samanburður ({cmpIds.length})
+        </button>
+      )}
+      {cmpOpen && (
+        <Compare ids={cmpIds} players={players} teamById={teamById}
+          seasonsFile={seasonsFile} photoUrl={photoUrl} Crest={Crest}
+          currentLabel={currentSeasonLabel} seasonStarted={seasonStarted}
+          onRemove={id => setCmpIds(v => v.filter(x => x !== id))}
+          onClear={() => { setCmpIds([]); setCmpOpen(false); }}
+          onClose={() => setCmpOpen(false)} />
+      )}
 
       {toast && <div style={S.toast}>{toast}</div>}
     </div>
@@ -3145,6 +3172,10 @@ const S = {
   posBtnOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:600 },
   connectBtn: { background:C.purple, color:"#fff", border:"none", borderRadius:8, padding:"9px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },
 
+  cmpFab: { position:"fixed", right:16, bottom:16, zIndex:60, border:"none",
+            background:C.purple, color:"#fff", borderRadius:22, padding:"10px 16px",
+            fontSize:13, fontWeight:600, cursor:"pointer",
+            boxShadow:"0 6px 20px rgba(55,0,60,0.35)" },
   viewTabs: { display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" },
   viewTab: { border:`1px solid ${C.border}`, background:C.card, color:C.text2,
              borderRadius:8, padding:"7px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },
