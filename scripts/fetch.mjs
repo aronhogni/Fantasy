@@ -457,7 +457,10 @@ async function fetchFdcouk() {
    - lokalínur (skarpasta fría líkindaspáin)
    SÆKT EINU SINNI — skrárnar breytast ekki eftir að tímabil er lokið.        */
 async function fetchHistoricalE0() {
-  const SEASONS = ["1718","1819","1920","2021","2122","2223","2324","2425","2526"];
+  /* 1516 og 1617 bætt við 28.7.2026 til að bakprófin nái 10 SPÁÐUM tímabilum
+     (fyrsta tímabilið er aðeins styrk-heimild). Leikjatölur (HST/AST) eru til
+     frá 1516 svo liðsstyrkur er heill alla leið. */
+  const SEASONS = ["1516","1617","1718","1819","1920","2021","2122","2223","2324","2425","2526"];
   const allRows = [];
   let fetchedSeasons = 0;
   for (const ss of SEASONS) {

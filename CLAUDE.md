@@ -81,6 +81,32 @@ B365-oddsum, Elo reiknað fram í tímann). Þrennt sem eldra bakprófið gat ek
 
 Sóknarhliðin, |r| við mörk **skoruð**: FFDR-sókn **0,383** · hrátt FDR 0,168.
 
+### FFDR GEGN OPINBERU FPL-FDR — 10 tímabil (mælt 28.7.2026)
+
+`tests/ffdr-vs-fdr.mjs`. **FDR-ið er nú það raunverulega**, ekki nálgun:
+`data/fpl_fdr_history.json` geymir `team_h_difficulty`/`team_a_difficulty` per
+leik 1819–2526 úr afriti af FPL-API-inu (sótt af `scripts/fetch-fdr-history.mjs`,
+öll 380/380 leikir per tímabil pöruð við E0 og staðfest gagntækt). Það munar:
+FPL notar FDR **1** í 10% leikja 2024/25, sem nálgunin gerði aldrei.
+
+| mælikvarði (6.080 lið-leikir með opinberu FDR) | FFDR | FDR | forskot |
+|---|---|---|---|
+| r við mörk á sig | **0,397** | 0,302 | +31% |
+| AUC (hreint blað), yfir tilviljun | **17,2%** | 12,0% | 1,44x |
+| Brier-skill eftir LOSO-kvörðun | **6,95%** | 3,56% | 1,95x |
+| CS% léttasti 1/6 á móti þyngsta | **44,9% / 7,8%** | 39,0% / 12,2% | 37,1pp á móti 26,8pp |
+
+**FFDR vinnur á báðum röðunarmælikvörðum í 10/10 tímabilum.** Þvingað í
+**4 þrep** — sömu upplausn sem FDR hefur — er FFDR enn **1,79x**, svo forskotið
+er upplýsingar og ekki fínni þrep. Án markaðslínunnar er FFDR 1,35x, svo
+líkanið sjálft slær FDR og bókmakararnir bæta þar ofan á.
+
+**OPIÐ: `SCALE_FIX` var fittað á NÁLGAÐA FDR-ið.** Appið notar raunverulega
+FPL-FDR-ið, og með því er líkanskjarninn **0,090 léttari** að meðaltali en
+fittið gerði ráð fyrir (2,432 á móti 2,522) — þ.e. birt CS% er um **1,4pp of
+bjartsýnt** í raun. Lítið en mælt. Endurfitt á opinbera FDR-ið er næsta skref;
+allt sem þarf er nú í repo-inu.
+
 1. **`mkt` fyrir GK/DEF var hækkað 0,50 -> 0,80.** Einræn framför upp að ~0,8
    og 0,80 slær 0,50 í **8/8 tímabilum**; kvörðun birtu CS%-talnanna batnaði
    samtímis úr +2,5pp halla í −0,6pp. Tvö óskyld viðmið sammála. Síðustu 0,2

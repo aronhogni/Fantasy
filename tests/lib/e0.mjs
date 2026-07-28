@@ -17,8 +17,25 @@ import { marketGoals, marketDiff, devig, devig2 } from "../../src/market.js";
 const D = new URL("../../data/", import.meta.url).pathname;
 
 /* Tímabilin í tímaröð. Fyrsta er aðeins STYRK-heimild (það er ekkert
-   tímabil á undan því til að spá því með). */
-export const SEASONS = ["1718", "1819", "1920", "2021", "2122", "2223", "2324", "2425", "2526"];
+   tímabil á undan því til að spá því með), svo 11 tímabil = 10 spáð.
+   1516 og 1617 voru bætt við 28.7.2026 til að fá 10 spáð tímabil;
+   leikjatölur (skot á mark) eru til frá 1516 svo styrkur er heill. */
+export const SEASONS = ["1516", "1617", "1718", "1819", "1920", "2021",
+                        "2122", "2223", "2324", "2425", "2526"];
+
+/* RAUNVERULEGT FPL-FDR per leik, sótt af scripts/fetch-fdr-history.mjs.
+   Til frá 1819. Lykill: "HomeTeam|AwayTeam" -> [h_diff, a_diff].
+   Notaðu ALLTAF þetta þegar það er til; fdrApprox er neyðarlausn.      */
+let _fdrHist = null;
+export function realFdr(seasonKey) {
+  if (_fdrHist === null) {
+    try { _fdrHist = JSON.parse(readFileSync(`${D}fpl_fdr_history.json`, "utf8")).seasons; }
+    catch { _fdrHist = {}; }
+  }
+  const s = _fdrHist[seasonKey];
+  if (!s) return null;
+  return (homeTeam, awayTeam) => s[`${homeTeam}|${awayTeam}`] || null;
+}
 
 export const loadSeason = key =>
   JSON.parse(readFileSync(`${D}fdcouk/E0-${key}.json`, "utf8")).rows;
