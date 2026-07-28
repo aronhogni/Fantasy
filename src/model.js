@@ -59,11 +59,46 @@ export function sellTenths(purchase10, current10) {
    allt í einu einræn upp í 0,8. Mæling á röngu inntaki gefur rétt svar
    við rangri spurningu.                                                 */
 export const DIFF_W = {
-  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.8 },
-  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, prev:0.00, elo:0, mkt:0.8 },
-  3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.8 },
-  4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, prev:0.00, elo:0.15, mkt:0.8 },
+  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, elo:0, mkt:0.8 },
+  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, elo:0, mkt:0.8 },
+  3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, elo:0.15, mkt:0.8 },
+  4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, elo:0.15, mkt:0.8 },
 };
+
+/* ---- AÐLÖGUNAR-BLANDA Á LIÐSSTYRK (28.7.2026) ----
+   `prev`-vogin VAR FÖST 0,00 í DIFF_W, svo `mix()` skilaði alltaf
+   yfirstandandi tímabili og reitirnir prevGoals/prevConc — sem voru
+   lagðir alla leið úr team_form.json — voru ALDREI notaðir. Afleiðingin
+   var að í GW3 hvíldi leikjaþyngd á ÞREMUR leikjum af hávaða.
+
+   NÚ ER VOGIN KVIK: w_prev = k/(n+k), n = leikir liðsins á yfirstandandi
+   tímabili, k=10. n=0 -> allt fyrra tímabil · n=10 -> 50/50 · n=38 -> 21%.
+   Þetta er venjuleg Bayes-hnignun: lítið úrtak hnígur að fyrra þekkingu.
+
+   MÆLT á 10.640 lið-leikjum (14 tímabil, kjarninn án markaðar):
+     stilling                 r(mörk á sig)  r(mörk skoruð)  GW1–6 vörn
+     k=0 (hreint form, ÁÐUR)     0,285          0,335          0,222
+     k=10 (nú)                   0,316          0,358          0,314
+     k=20                        0,317          0,359          0,317
+     hreint fyrra tímabil        0,297          0,347          0,303
+   +0,031 í heild, +0,093 Í GW1–6, og k=10 slær k=0 í 14/14 TÍMABILUM.
+   Hámarkið er FLATT (k=10–40), svo valið er ekki á hnífsbrún.
+   Gegn raunverulegum stigum leikmanna batnar spáin í öllum fjórum
+   stöðum, og GW1–6 mest: DEF −0,187 -> −0,302 · GK −0,125 -> −0,188.
+
+   TVENNT SEM MÁ EKKI MISSKILJA:
+   1. ÞETTA ER EKKI "FORM" Í MERKINGU HEITRA LEIKMANNA. Sú tilgáta var
+      mæld og hrakin (sjá tests/ffdr-player-points.mjs kafla F: sjálffylgni
+      innan leikmanns er −0,06). Hér er ekkert spáð um straeti — aðeins
+      hversu mikið á að TRÚA litlu úrtaki af yfirstandandi tímabili.
+   2. Áhrifin eru lítil MEÐ markaðslínu (+0,002) því markaðurinn vegur
+      0,80 og hann veit þetta þegar. Ábatinn er á kjarnanum, þ.e. í öllum
+      umferðum nema næstu — sem er einmitt þar sem skipulagning gerist. */
+export const PREV_K = 10;
+export function prevWeight(matchesThisSeason) {
+  const n = Number.isFinite(matchesThisSeason) ? Math.max(0, matchesThisSeason) : 0;
+  return PREV_K / (n + PREV_K);
+}
 export const ELO_SCALE = 150;   // Elo-stig sem svara ~1 þrepi í þyngd
 
 /* ---- KVARÐALEIÐRÉTTING — TVEIR KVARÐAR SEM STÖNGUÐUST Á ----
@@ -260,6 +295,10 @@ export function lookupMeasured(key, d) {
    komu úr 7-tímabila safni og gáfu 3,8% dökkgrænt en 26% rautt — kvarðinn
    "hallaði á rautt" og nær allt leit þungt út.
 
+   ENDURKVÖRÐUN 2026-07-28 (c): aðlögunar-blandan (prevWeight) blandar 21%
+   af tímabilinu 2024/25 inn í forleiks-styrkinn (n=38 -> w=0,21), svo
+   dreifingin færðist um ~0,05. Mörkin fylgja.
+
    ENDURKVÖRÐUN 2026-07-28: SCALE_FIX var endurfittað á OPINBERA FPL-FDR-ið
    (var nálgað), sem færði dreifinguna um ~0,05 upp -> mörkin fylgja.
    Gömlu mörkin (1,92/2,30/2,46/2,75/3,03) gáfu 9,3% dökkgrænt og 23% rautt.
@@ -275,7 +314,7 @@ export function lookupMeasured(key, d) {
    samfellda d-gildinu — og eru NÚ rétt kvarðaðar, sem var tilgangurinn.
    Prófið endurreiknar sextílana úr data/ og fellur ef þeir reka
    >0,12 frá þessum mörkum — þá er kominn tími á endurkvörðun.        */
-export const TIER_CUTS = [2.02, 2.39, 2.53, 2.80, 3.08];
+export const TIER_CUTS = [1.98, 2.33, 2.51, 2.75, 3.06];
 export function tierOf(d) {
   for (let i = 0; i < TIER_CUTS.length; i++) if (d < TIER_CUTS[i]) return i;
   return TIER_CUTS.length;  // þyngst — MÁ EKKI vera harðkóðað (var 5, svo
@@ -306,7 +345,11 @@ export const TIER_COUNT = TIER_BG.length;
    prófin kalla á þetta sama fall — engin tvítekning á formúlunni.
 
    Inntök:
-     teamMetrics  { [teamId]: { xg90, xgc90, sotFor, sotAg, prevGoals, prevConc } }
+     teamMetrics  { [teamId]: { xg90, xgc90, sotFor, sotAg, matches,
+                                prevGoals, prevConc, prevSotFor, prevSotAg } }
+                  `matches` = leikir liðsins á YFIRSTANDANDI tímabili og
+                  stýrir aðlögunar-vog prevWeight(); vanti hún er n=0,
+                  þ.e. full trú á fyrra tímabil (varfærið sjálfgildi).
      teamById     { [teamId]: { short, ... } }
      odds         { [short]: { diff, opp, kickoff, ... } } | null
      eloByTeam    { [teamId]: { elo } } | {}
@@ -317,16 +360,24 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
     const me = teamMetrics[teamId], opp = teamMetrics[fx.opp];
     if (!me || !opp) return fx.fdr;
     const W = DIFF_W[pos] || DIFF_W[3];
-    // 2-tímabila blöndun (prev-vog) ef fyrra tímabil er til
-    const mix = (cur, prv) => (prv == null || !W.prev) ? cur : (1 - W.prev) * cur + W.prev * prv;
-    const mg = W.useDef ? mix(me.xgc90, me.prevConc)  : mix(me.xg90, me.prevGoals);
-    const og = W.useDef ? mix(opp.xg90, opp.prevGoals) : mix(opp.xgc90, opp.prevConc);
+    /* 2-tímabila blöndun með KVIKRI vog per liði — hvert lið hefur sína
+       eigin leikjatölu (frestaðir leikir gera þær ólíkar). Sjá prevWeight. */
+    const mixWith = m => {
+      const w = prevWeight(m?.matches);
+      return (cur, prv) => (prv == null || !Number.isFinite(prv)) ? cur : (1 - w) * cur + w * prv;
+    };
+    const mixMe = mixWith(me), mixOp = mixWith(opp);
+    const mg = W.useDef ? mixMe(me.xgc90, me.prevConc)  : mixMe(me.xg90, me.prevGoals);
+    const og = W.useDef ? mixOp(opp.xg90, opp.prevGoals) : mixOp(opp.xgc90, opp.prevConc);
     // sóknar-umbreyting: LÍNULEG (mælt betri en gagnstæð)
     let own  = W.useDef ? (mg / LG_XG) : (2 - mg / LG_XG);
     let them = W.useDef ? (og / LG_XG) : (2 - og / LG_XG);
     if (W.sot && me.sotFor != null && opp.sotFor != null) {
-      const ms = W.useDef ? me.sotAg  : me.sotFor;
-      const os = W.useDef ? opp.sotFor : opp.sotAg;
+      /* Skot á mark blandast með SÖMU kviku vog — team_form.prev geymir
+         sot_pg/sot_against_pg, svo þetta er til. Mælt: blandað sot gefur
+         0,316 á móti 0,312 þegar aðeins mörk eru blönduð.               */
+      const ms = W.useDef ? mixMe(me.sotAg, me.prevSotAg) : mixMe(me.sotFor, me.prevSotFor);
+      const os = W.useDef ? mixOp(opp.sotFor, opp.prevSotFor) : mixOp(opp.sotAg, opp.prevSotAg);
       const ownS  = W.useDef ? (ms / LG_SOT) : (LG_SOT / Math.max(1.5, ms));
       const themS = W.useDef ? (os / LG_SOT) : (LG_SOT / Math.max(1.5, os));
       own  = (1 - W.sot) * own  + W.sot * ownS;

@@ -841,11 +841,14 @@ export default function App() {
       let xgc90 = a.gkMins > 400 ? +(a.gkXgc / games).toFixed(2) : 1.4;
       let src = "fpl";
       let sotFor = null, sotAg = null, prevGoals = null, prevConc = null;
+      let prevSotFor = null, prevSotAg = null, matches = null;
       if (tf[t.id]) {                       // HEILT — tekur forgang
         const x = tf[t.id];
         xg90 = x.goals_pg; xgc90 = x.conceded_pg;
         sotFor = x.sot_pg ?? null; sotAg = x.sot_against_pg ?? null;
         prevGoals = x.prev?.goals_pg ?? null; prevConc = x.prev?.conceded_pg ?? null;
+        prevSotFor = x.prev?.sot_pg ?? null; prevSotAg = x.prev?.sot_against_pg ?? null;
+        matches = x.matches ?? null;      // stýrir aðlögunar-vog (prevWeight)
         src = "e0_complete";
       }
       // Nýliðar hafa enga PL-sögu (xG ~0). Notum B-deildargrunn með afslætti
@@ -859,7 +862,8 @@ export default function App() {
           src = "championship_proxy";
         } else { xg90 = 1.1; xgc90 = 1.6; src = "default"; }
       }
-      m[t.id] = { xg90, xgc90, sotFor, sotAg, prevGoals, prevConc, mins: a.gkMins, src };
+      m[t.id] = { xg90, xgc90, sotFor, sotAg, matches,
+        prevGoals, prevConc, prevSotFor, prevSotAg, mins: a.gkMins, src };
     });
     return m;
   }, [players, teams, promoted, teamForm]);
