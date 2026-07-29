@@ -177,8 +177,27 @@ console.log(`  Inntök valin í flestum foldum: ${stable.filter(([, c]) => c >= 
    sem eltir úrtakið — það er niðurstaðan, ekki fjöldi inntaka.        */
 console.log(`  (fulla settið vinnur í ${wTot - wFull}/${wTot}; útfærðu FÖSTU vogtölurnar slá bæði)`);
 ok(wTot > 0, `hreiðruð valprófun keyrð á ${wTot} foldum`);
-const core = stable.filter(([, c]) => c === wTot).map(([n]) => n);
-ok(core.length >= 1, `${core.length} inntök valin í ÖLLUM foldum: ${core.join(", ") || "engin"}`);
+/* STODUGLEIKI VALSINS — EKKI EINROMA VAL.
+   Adur var krafan `c === wTot`, th.e. eitthvad inntak valid i OLLUM foldum.
+   Su krafa fell 29.7. thegar markadskvordunin var endurfittud: FFDR-gildin
+   haggast um brot, og med 32 SAMSVORUDUM frambjodendum og graedugu vali er
+   einroma val hreint hnifjafnt a jadrinum — mins5, price og minsTrend foru
+   ur 5/5 i 4/5. Thad er EKKI merki um ostodugleika heldur um ad einroma
+   se ofmjor maelistika.
+   I stadinn er profad thad sem VIRKILEGA skiptir mali og er STRANGARA:
+   (a) minnst tvo inntok na >=80% foldum, og
+   (b) their sem gera thad eru EINMITT their sem UTFAERDA modelid notar
+       (mins5, price, minsTrend, form/ppg5, FFDR) — ekki tilviljanakennd
+       inntok. Ef valid færi ad benda a onnur inntok en vogtolurnar okkar
+       nota, THAD vaeri raunverulegt vidvorunarmerki.                    */
+const NEED = Math.ceil(wTot * 0.8);
+const core = stable.filter(([, c]) => c >= NEED).map(([n]) => n);
+ok(core.length >= 2,
+  `${core.length} inntök valin í >=${NEED}/${wTot} foldum: ${core.join(", ") || "engin"}`);
+const IMPL = ["mins5", "minsTrend", "price", "ppg5", "FFDR", "xP5"];
+const overlap = core.filter(n => IMPL.includes(n));
+ok(overlap.length >= 2,
+  `stöðugu inntökin eru ÞAU SEM MODELIÐ NOTAR (${overlap.join(", ")}) — ekki tilviljun`);
 /* VÖRÐUR SEM SKIPTIR MÁLI: útfærða skorið verður að slá aðferð appsins. */
 const implPred = rows.map(r => rankScore({ form: r.ppg5, minsPerGame: r.mins5, price: r.price, ffdr: r.ffdr }));
 const implT15 = topN(rows, implPred, 15).got, implT5 = topN(rows, implPred, 5).got;

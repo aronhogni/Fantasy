@@ -40,6 +40,7 @@ import {
   SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrFor,
   marketForRow, eloWalkForward, corr, rSE, brier,
 } from "./lib/e0.mjs";
+import { MARKET_DIFF_A, MARKET_DIFF_B } from "../src/market.js";
 import { makeFixDifficulty, lookupPos, lookupMeasured, tierOf, TIER_NAME, toMeasuredScale } from "../src/model.js";
 
 let pass = 0, fail = 0;
@@ -295,7 +296,10 @@ ok(tiers[0].cs - tiers[tiers.length - 1].cs >= 20,
    Var 0,959 (mælt á 380 leikjum) og er nú 1,0 — endurmælt á 10.640
    lið-leikjum, sjá tests/cs-model.mjs. Þetta próf er vörðurinn.      */
 const mkRows = all.filter(x => x.mDiff != null);
-const impliedGa = mkRows.map(x => (x.mDiff - 1.0) / 1.55 + 0.5);   // andhverfa marketDiff
+/* ANDHVERFA marketDiff — verdur ad koma UR market.js. Fastarnir voru
+   HARDKODADIR her (1,0 / 1,55) og thegar kvordunin var endurfittud 29.7.
+   hefdi thessi vordur maelt ANNAN kvarda en appid keyrir og virst graenn. */
+const impliedGa = mkRows.map(x => (x.mDiff - MARKET_DIFF_A) / MARKET_DIFF_B + 0.5);
 const mMean = impliedGa.reduce((a, b) => a + b, 0) / impliedGa.length;
 const aMean = mkRows.reduce((a, x) => a + x.ga, 0) / mkRows.length;
 console.log(`\n=== MARKAÐSKVÖRÐUN (MARKET_CALIB=1,0 — endurmælt 28.7. á 10.640) ===`);

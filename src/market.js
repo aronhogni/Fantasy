@@ -79,8 +79,37 @@ export function splitGoals(total, hWin, aWin) {
    Mælt: 1,0 mark á sig ~ þyngd 2,0 · 2,0 ~ 4,0 (úr MEASURED-töflunni).
    ÞETTA ER VARNAR-STÆRÐIN: þyngd þess að halda hreinu blaði. Hún á við
    GK/DEF. Fyrir sóknarhópinn, sjá marketAttackDiff.                    */
+/* KVORDUN ENDURFITTUD 29.7.2026: 1,00 + 1,55x -> 1,05 + 1,65x.
+   Thetta voru "eftirstodvarnar" sem voru skjaladar i model.js og CLAUDE.md:
+   markadslidurinn let MEASURED-tofluna lesa of BJARTSYNT. MARKET_CALIB
+   (lambda-skolunin) var thegar rett — skekkjan var i thessu AFFINA falli,
+   th.e. HVAR taflan er lesin, ekki i vaentu morkunum sjalfum.
+
+   AF HVERJU THETTA VAR EKKI LAGAD ADUR: fyrra fittid lenti a JADRI gridsins
+   (center 3,1 = jadar) og var thvi ekki traust. Nu er gridid BREITT
+   (A 0,60-1,60 · B 1,00-2,40) og besta gildid er INNI i thvi, ekki a jadri.
+
+   Fittad gegn RAUNVERULEGUM urslitum: Brier a birta CS%-inu
+   (lookupPos(2,"cs",d)) gegn thvi hvort hreint blad vard, 11.400 lid-leikir
+   med markadslinu, 15 timabil:
+     kvordunarhalli   +0,89pp -> -0,71pp
+     medalfravik      2,69pp  -> 1,75pp   (-35%)
+     Brier            0,18534 -> 0,18495
+   LOSO: A 0,95-1,10 · B 1,60-1,80 (thett), og 1,05/1,65 er jafnframt
+   TIDASTA LOSO-valid. Brier batnar ut fyrir urtak i 12/15 timabilum.
+
+   ADGREINING ER OHOGGUD OG THAD ER EKKI TILVILJUN: affin einhalla
+   umbreyting breytir ENGRI rodun, svo r og AUC geta ekki haggast
+   (maelt: r(d,ga) 0,39219 -> 0,39176; r(d,cs) -0,25919 -> -0,25991,
+   fjordi tugstafur = numerisk rounding). Thetta er KVORDUN, ekki
+   adgreining — sama tegund lagfaeringar sem SCALE_FIX var.
+   Medal-d faerist 2,41 -> 2,55, sem er einmitt midja MEASURED-toflunnar.
+   Klemma vid 5 bindur 0,87% af rodum (var 0,46%) — enn undir 1%.        */
+export const MARKET_DIFF_A = 1.05;
+export const MARKET_DIFF_B = 1.65;
 export function marketDiff(expectedGoalsAgainst) {
-  return Math.round(clampN(1.0 + (expectedGoalsAgainst - 0.5) * 1.55, 1, 5) * 100) / 100;
+  return Math.round(clampN(
+    MARKET_DIFF_A + (expectedGoalsAgainst - 0.5) * MARKET_DIFF_B, 1, 5) * 100) / 100;
 }
 
 /* SÓKNAR-ÞYNGD ÚR MARKAÐNUM — þyngd þess að SKORA.
