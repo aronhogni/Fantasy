@@ -29,7 +29,7 @@ const per90 = (v, m) => (!m || m <= 0 || v == null) ? null : (v / m) * 90;
 const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
 /* Radirnar. `hi:false` = laegra er betra. `fmt` styrir birtingu.        */
-const ROWS = [
+export const ROWS = [
   { grp:"Grunnur" },
   { k:"total_points", label:"FPL-stig",       hi:true,  get:r => r.total_points },
   { k:"minutes",      label:"Mínútur",        hi:true,  get:r => r.minutes },
@@ -88,6 +88,91 @@ const ROWS = [
   { k:"red_cards",    label:"Rauð spjöld",    hi:false, get:r => r.red_cards },
 ];
 
+/* ============================================================
+   SJONRAENT SNID — parasulur per tolu
+
+   HVERS VEGNA `hi` SKIPTIR OLLU: sulan ma ekki bara vera lengri thegar
+   talan er haerri. Fyrir "Min. per stig", "Verd", "GC" og "gul spjold" er
+   LAEGRA betra, svo lengsta sulan vaeri VERSTI leikmadurinn. Hver rod ber
+   `hi` og forustan er reiknud ur henni — annars vaeri myndin beinlinis
+   villandi, sem er verra en engin mynd.
+
+   TVENNS KONAR KVARDI:
+     venjuleg tala  -> sula fra 0 upp i max(theirra tveggja)
+     `signed` tala  -> FRAVIKSSULA ut fra midju (Mork - xG ma vera < 0)
+   Kvardinn er PER ROD, ekki per tafla: xG (0-20) og BPS (0-800) i sama
+   kvarda gaefi ósýnilegar xG-sulur.
+
+   VANTANDI GILDI ER EKKI NULL: null faer "—" og ENGA sulu. Sula af lengd 0
+   laesist eins og maeld nulltala.
+   ============================================================ */
+export function barGeom(row, v, lo, hi) {
+  if (v == null || !Number.isFinite(v)) return null;
+  if (row.signed) {
+    const m = Math.max(Math.abs(lo), Math.abs(hi), 1e-9);
+    const half = 50 * (Math.abs(v) / m);
+    return { left: v < 0 ? 50 - half : 50, width: half, diverge: true };
+  }
+  const top = Math.max(Math.abs(hi), Math.abs(lo), 1e-9);
+  return { left: 0, width: 100 * (Math.max(0, v) / top), diverge: false };
+}
+
+function VisualRows({ cols, anyDef, anyGk }) {
+  return (
+    <div style={S.vis}>
+      {ROWS.map((row, ri) => {
+        if (row.grp) {
+          if (row.defOnly && !anyDef) return null;
+          return <div key={`g${ri}`} style={S.vGrp}>{row.grp}</div>;
+        }
+        if (row.defOnly && !anyDef) return null;
+        if (row.gkOnly && !anyGk) return null;
+        const vals = cols.map(c => (c.rec ? row.get(c.rec) : null));
+        const nums = vals.filter(v => v != null && Number.isFinite(v));
+        if (!nums.length) return null;              // engin tala -> engin rod
+        const lo = Math.min(...nums, 0), hi = Math.max(...nums, 0);
+        let best = null;
+        if (nums.length > 1) {
+          const b = row.hi ? Math.max(...nums) : Math.min(...nums);
+          if (nums.filter(v => v === b).length === 1) best = b;
+        }
+        return (
+          <div key={row.k} style={S.vRow}>
+            <div style={S.vLbl} title={row.note || ""}>
+              {row.label}
+              {!row.hi ? <span style={S.vLo} title="Lægra er betra">▼</span> : null}
+            </div>
+            <div style={S.vBars}>
+              {vals.map((v, i) => {
+                const g = barGeom(row, v, lo, hi);
+                const lead = best != null && v === best;
+                return (
+                  <div key={i} style={S.vBarLine}>
+                    <div style={S.vTrack}>
+                      {row.signed ? <div style={S.vZero} /> : null}
+                      {g ? (
+                        <div style={{ ...S.vFill, left:`${g.left}%`, width:`${g.width}%`,
+                                      background: lead ? C.green : PAL[i % PAL.length] }} />
+                      ) : null}
+                    </div>
+                    <div style={{ ...S.vNum, ...(lead ? S.vNumLead : {}) }}>
+                      {fmtVal(row, v)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* Litir per leikmann thegar hvorugur leidir (jafntefli/eitt gildi).
+   Graent er FRATEKID fyrir forustuna, sbr. toflusnidid.                */
+const PAL = ["#7d6f97", "#9aa0b4", "#b08a6a", "#6f97a0"];
+
 function fmtVal(row, v) {
   if (v == null || !Number.isFinite(v)) return "—";
   const body = v.toFixed(row.dec ?? 0);
@@ -124,6 +209,11 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
   }, [seasonsFile, currentLabel]);
   const [season, setSeason] = useState(() => seasonStarted ? currentLabel
                                             : (seasonsFile?.seasons?.[0] || currentLabel));
+  /* SJONRAENT ER SJALFGEFID THEGAR TVEIR ERU VALDIR — thad var bedin:
+     "velja tvo leikmenn og bera stat theirra saman med sjonraenum haetti".
+     Med thremur eda fjorum verdur taflan laesilegri (fjorar sulur per rod
+     verda thunnar), svo hun er sjalfgefin tha. Notandinn getur skipt.     */
+  const [visual, setVisual] = useState(() => (ids || []).length <= 2);
 
   const picked = (ids || []).map(id => (players || []).find(p => p.id === id)).filter(Boolean);
   const isLive = season === currentLabel;
@@ -151,6 +241,12 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                 </option>
               ))}
             </select>
+            <div style={S.seg} role="group" aria-label="Snið samanburðar">
+              <button style={{ ...S.segBtn, ...(visual ? S.segOn : {}) }}
+                aria-pressed={visual} onClick={() => setVisual(true)}>▤ Sjónrænt</button>
+              <button style={{ ...S.segBtn, ...(!visual ? S.segOn : {}) }}
+                aria-pressed={!visual} onClick={() => setVisual(false)}>≡ Tafla</button>
+            </div>
             <button style={S.clear} onClick={onClear}>Hreinsa</button>
             <button style={S.close} onClick={onClose}>✕</button>
           </div>
@@ -175,6 +271,7 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
               þegar 2026/27 byrjar. Tímabila-samanburður virkar strax og nær 3 ár aftur.
             </div>
 
+            {visual ? <VisualRows cols={cols} anyDef={anyDef} anyGk={anyGk} /> : (
             <div style={S.scroll}>
               <table style={S.tbl}>
                 <thead>
@@ -237,10 +334,15 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                 </tbody>
               </table>
             </div>
+            )}
 
             <div style={S.legend}>
               <span style={S.tdBestInline}>Grænt</span> = betra gildi (aðeins merkt þegar
-              einn er ótvírætt hærri). Tölur sem FFS birtir en engin heimild okkar gefur —
+              einn er ótvírætt hærri). Í sjónræna sniðinu er <b>súlulengd</b> kvörðuð
+              <b> per röð</b> (xG og BPS eiga ekki sama kvarða), <b>▼</b> merkir tölu þar
+              sem <b>lægra er betra</b>, og tölur með formerki (Mörk − xG) eru
+              <b> frávikssúlur út frá miðju</b>. Vantandi tala fær „—" og <b>enga</b> súlu —
+              súla af lengd 0 læsist eins og mæld nulltala. Tölur sem FFS birtir en engin heimild okkar gefur —
               snertingar í teig, big chances, dribbles, návígi — eru <b>ekki</b> hér.
               Sjá kafla 6b í CLAUDE.md.
             </div>
@@ -252,6 +354,30 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
 }
 
 const S = {
+  /* ---- sjonraena snidid ---- */
+  vis:{ display:"flex", flexDirection:"column", gap:2, marginTop:4 },
+  vGrp:{ fontSize:10.5, fontWeight:700, letterSpacing:0.6, textTransform:"uppercase",
+         color:C.text3, padding:"10px 0 3px", borderBottom:`1px solid ${C.border}`,
+         marginBottom:3 },
+  vRow:{ display:"grid", gridTemplateColumns:"minmax(96px, 150px) 1fr", gap:8,
+         alignItems:"center", padding:"3px 0" },
+  vLbl:{ fontSize:11.5, color:C.text2, display:"flex", alignItems:"center", gap:3,
+         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  vLo:{ fontSize:8, color:C.text3, flexShrink:0 },
+  vBars:{ display:"flex", flexDirection:"column", gap:2, minWidth:0 },
+  vBarLine:{ display:"grid", gridTemplateColumns:"1fr 54px", gap:6, alignItems:"center" },
+  vTrack:{ position:"relative", height:11, background:C.cardAlt,
+           border:`1px solid ${C.border}`, borderRadius:3, overflow:"hidden" },
+  vZero:{ position:"absolute", left:"50%", top:0, bottom:0, width:1,
+          background:C.border },
+  vFill:{ position:"absolute", top:0, bottom:0, borderRadius:2, minWidth:1 },
+  vNum:{ fontFamily:mono, fontSize:11, textAlign:"right", color:C.text2 },
+  vNumLead:{ color:C.green, fontWeight:700 },
+  seg:{ display:"flex", border:`1px solid ${C.border}`, borderRadius:7, overflow:"hidden" },
+  segBtn:{ border:"none", background:"transparent", cursor:"pointer", padding:"4px 8px",
+           fontSize:11, color:C.text2, whiteSpace:"nowrap" },
+  segOn:{ background:C.purple, color:"#fff", fontWeight:600 },
+
   wrap:{ position:"fixed", inset:0, background:"rgba(20,20,25,0.5)", zIndex:70,
          display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"24px 12px", overflowY:"auto" },
   panel:{ background:C.card, borderRadius:12, border:`1px solid ${C.border}`, padding:14,

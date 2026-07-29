@@ -53,6 +53,111 @@ const OVERSCAN = 12;
 /* ---- Sniðgrunnur fyrir "min/max"-siur: hvada dalkar eru tolulegir ---- */
 const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
 
+/* ============================================================
+   STATPICKER — leitanlegur dalkavalari
+
+   AF HVERJU EKKI <select>: dalkarnir eru 108 i 12 flokkum. Native-select
+   getur adeins hoppad a fyrsta staf, svo ad finna "Vaentar assist" thydir
+   ad skruna gegnum allan listann. Notandinn bad um leit.
+
+   LEITIN ER BROTTFELLD A BRODDSTOFUM: "vaent" verdur ad finna "Væntar",
+   "throskuldur" ad finna "Þröskuldur". Islenskt vidmot thar sem leitin
+   krefst broddstafa er leit sem virkar ekki i reynd.
+   Leitad er i BAEDI dalksheiti OG flokksheiti, svo "vorn" gefur allan
+   varnar-flokkinn.
+   ============================================================ */
+const fold = t => String(t ?? "").toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/þ/g, "th").replace(/ð/g, "d").replace(/æ/g, "ae").replace(/ø|ö/g, "o");
+
+function StatPicker({ value, onChange, style }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [hi, setHi] = useState(0);
+  const boxRef = useRef(null);
+  const listRef = useRef(null);
+  const cur = STAT_BY_KEY[value];
+
+  /* Flatur listi MED flokks-skilum svo orvalyklar hoppi rett — ad radast
+     eftir flokkum en fletjast fyrir lyklabord er thad sem gerir hann
+     nothaefan an mus.                                                    */
+  const items = useMemo(() => {
+    const f = fold(q);
+    const out = [];
+    for (const g of STAT_GROUPS) {
+      /* Leitad er i THRENNU: dalksheiti, flokksheiti OG `key`. Lyklarnir eru
+         a ENSKU (threat, creativity, bps, ict_index) og thad er thad sem
+         FPL-folk slaer inn — islenska heitid a "threat" er "Ogn", svo an
+         lykla-leitar gaefi "threat" ENGA nidurstodu. Maelt: 108 -> 12 fyrir
+         "vaent", 5 fyrir "spjold", og "threat" fann ekkert fyrr en nu.     */
+      const ds = STAT_DEFS.filter(d => d.group === g.key)
+        .filter(d => !f || fold(d.label).includes(f) || fold(g.label).includes(f)
+                        || fold(d.key).replace(/_/g, " ").includes(f)
+                        || fold(d.key).includes(f));
+      if (!ds.length) continue;
+      out.push({ grp: g.label });
+      for (const d of ds) out.push({ d, grp: g.label });
+    }
+    return out;
+  }, [q]);
+  const pickable = items.filter(i => i.d);
+
+  useEffect(() => { setHi(0); }, [q]);
+  useEffect(() => {
+    if (!open) return;
+    const away = e => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+  /* Halda upplystu atridi i sjonmali — annars leidir orvalyklarnir
+     valid ut ur skrunglugganum og notandinn ser ekkert gerast.          */
+  useEffect(() => {
+    if (!open || !listRef.current) return;
+    const el = listRef.current.querySelector('[data-hi="1"]');
+    if (el?.scrollIntoView) el.scrollIntoView({ block: "nearest" });
+  }, [hi, open]);
+
+  const commit = i => { const it = pickable[i]; if (!it) return;
+                        onChange(it.d.key); setOpen(false); setQ(""); };
+  const key = e => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setHi(v => Math.min(v + 1, pickable.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHi(v => Math.max(v - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); commit(hi); }
+    else if (e.key === "Escape") { setOpen(false); setQ(""); }
+  };
+
+  return (
+    <div ref={boxRef} style={{ ...S.pkWrap, ...(style || {}) }}>
+      <input style={S.pkInput} role="combobox" aria-expanded={open}
+        aria-label="Leita að tölu"
+        placeholder={cur?.label || "veldu tölu"}
+        value={open ? q : (cur?.label || "")}
+        onFocus={() => setOpen(true)}
+        onChange={e => { setQ(e.target.value); setOpen(true); }}
+        onKeyDown={key} />
+      <span style={S.pkCaret} aria-hidden="true">▾</span>
+      {open && (
+        <div ref={listRef} style={S.pkList} role="listbox">
+          {!pickable.length ? <div style={S.pkNone}>engin tala passar við „{q}“</div> : null}
+          {items.map((it, i) => it.d ? (
+            <div key={it.d.key} role="option"
+              aria-selected={it.d.key === value}
+              data-hi={pickable.indexOf(it) === hi ? "1" : "0"}
+              style={{ ...S.pkOpt,
+                       ...(pickable.indexOf(it) === hi ? S.pkOptHi : {}),
+                       ...(it.d.key === value ? S.pkOptSel : {}) }}
+              onMouseEnter={() => setHi(pickable.indexOf(it))}
+              onMouseDown={e => { e.preventDefault(); commit(pickable.indexOf(it)); }}>
+              {it.d.label}
+              {it.d.live_only ? <span style={S.pkLive} title="Fylgir EKKI valdu tímabili">nú</span> : null}
+            </div>
+          ) : <div key={"g" + i} style={S.pkGrp}>{it.grp}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PlayerList({ players, teams, teamById, events, seasonsFile,
                                      imminent, shotsFile, fixtures, odds, defcon,
                                      photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
@@ -469,14 +574,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           sama kraft i einu chipi.                                      */}
       <div style={S.thRow}>
         <span style={S.thLbl}>Þröskuldur:</span>
-        <select style={S.sel} value={thKey} onChange={e => setThKey(e.target.value)}>
-          {STAT_GROUPS.map(g => (
-            <optgroup key={g.key} label={g.label}>
-              {STAT_DEFS.filter(d => d.group === g.key)
-                .map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
-            </optgroup>
-          ))}
-        </select>
+        <StatPicker value={thKey} onChange={setThKey} />
         <select style={S.selNarrow} value={thOp} onChange={e => setThOp(e.target.value)}>
           <option value=">=">≥</option><option value="<=">≤</option>
         </select>
@@ -650,6 +748,28 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 }
 
 const S = {
+  /* ---- leitanlegur dalkavalari (108 dalkar; select var oskrunanlegur) ---- */
+  pkWrap:{ position:"relative", minWidth:150, flex:"0 1 190px" },
+  pkInput:{ width:"100%", boxSizing:"border-box", font:"inherit", fontSize:12,
+            padding:"4px 18px 4px 7px", border:`1px solid ${C.border}`,
+            borderRadius:6, background:"#fff", color:C.text },
+  pkCaret:{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)",
+            fontSize:9, color:C.text3, pointerEvents:"none" },
+  pkList:{ position:"absolute", zIndex:40, top:"calc(100% + 2px)", left:0,
+           minWidth:"100%", width:"max-content", maxWidth:300, maxHeight:290,
+           overflowY:"auto", background:"#fff", border:`1px solid ${C.border}`,
+           borderRadius:8, boxShadow:"0 10px 28px rgba(0,0,0,0.16)", padding:3 },
+  pkGrp:{ fontSize:9.5, fontWeight:700, letterSpacing:0.5, textTransform:"uppercase",
+          color:C.text3, padding:"6px 6px 2px" },
+  pkOpt:{ fontSize:12, padding:"4px 7px", borderRadius:5, cursor:"pointer",
+          color:C.text, display:"flex", alignItems:"center", gap:5,
+          whiteSpace:"nowrap" },
+  pkOptHi:{ background:"#f0eef4" },
+  pkOptSel:{ fontWeight:700, color:C.purple },
+  pkLive:{ fontSize:8.5, fontWeight:700, color:"#0a7d4f", background:"#e6f7ef",
+           borderRadius:3, padding:"0 3px" },
+  pkNone:{ fontSize:12, color:C.text3, padding:"8px 7px" },
+
   card:{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:14, marginBottom:12 },
   head:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap" },
   h2:{ margin:0, fontSize:16, fontWeight:700, color:C.purple },
