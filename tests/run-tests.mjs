@@ -14,7 +14,7 @@
 import { spawnSync } from "node:child_process";
 const here = new URL(".", import.meta.url).pathname;
 let failed = 0;
-const SUITES = [["model.test.mjs"], ["stats.test.mjs"], ["ffdr-backtest.mjs"], ["ffdr-walkforward.mjs"], ["ffdr-player-points.mjs"], ["ffdr-old-vs-new.mjs"], ["cs-model.mjs"], ["cs-logistic.mjs"], ["form-blend.mjs"], ["ffdr-cs-versions.mjs"], ["defcon-mid.mjs"], ["exp-points.mjs"], ["rank-model.mjs"], ["mins-trend.mjs"], ["rotation.mjs"], ["travel-measure.mjs"], ["data-resilience.mjs", true], ["react-warnings.mjs", true], ["smoke.test.mjs", true]];
+const SUITES = [["model.test.mjs"], ["stats.test.mjs"], ["ffdr-backtest.mjs"], ["ffdr-walkforward.mjs"], ["ffdr-player-points.mjs"], ["ffdr-old-vs-new.mjs"], ["cs-model.mjs"], ["cs-logistic.mjs"], ["form-blend.mjs"], ["ffdr-cs-versions.mjs"], ["defcon-mid.mjs"], ["exp-points.mjs"], ["rank-model.mjs"], ["mins-trend.mjs"], ["rotation.mjs"], ["workflow-push.mjs"], ["travel-measure.mjs"], ["data-resilience.mjs", true], ["react-warnings.mjs", true], ["smoke.test.mjs", true]];
 for (const [f, loader] of SUITES) {
   console.log(`\n${"=".repeat(56)}\n  ${f}\n${"=".repeat(56)}`);
   const args = loader ? ["--import", `data:text/javascript,import{register}from"node:module";register("${here}jsx-loader.mjs","file://${here}")`, here + f] : [here + f];

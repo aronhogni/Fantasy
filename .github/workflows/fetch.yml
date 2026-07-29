@@ -12,9 +12,9 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "20"
 
@@ -36,12 +36,40 @@ jobs:
 
       - name: Committa ef eitthvað breyttist
         run: |
+          set -uo pipefail
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add data
           if git diff --staged --quiet; then
             echo "Engar breytingar — sleppi commit."
-          else
-            git commit -m "data: $(date -u +%Y-%m-%d)"
-            git push
+            exit 0
           fi
+          git commit -m "data: $(date -u +%Y-%m-%d)"
+          # KAPPHLAUPIÐ SEM FELLDI fetch-data 29.7.2026 kl. 07:40:
+          # fetch-fast pushaði 12 SEKÚNDUM á undan, svo þessu pushi var
+          # HAFNAÐ ("fetch first") og heill dagur af sóttum gögnum fór í
+          # ruslið þegjandi — keyrslan varð rauð en engin gögn töpuðust
+          # sýnilega. fetch.yml hafði ENGA pull; fetch-fast hafði pull en
+          # ÁÐUR en hún committaði, svo hún gat líka fallið á push.
+          #
+          # Endurtilraun ofan á fjarlægu greininni. Við árekstur í data/
+          # vinnur OKKAR fersk sókn: í rebase er "theirs" það commit sem er
+          # endurspilað (okkar), ekki upprunagreinin. Það er rétt hér því
+          # data/ er endurmyndað í heild í hverri keyrslu — nýrri sókn er
+          # alltaf réttari en sú sem var á undan.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "pushað í tilraun $i"
+              exit 0
+            fi
+            echo "push hafnað (tilraun $i) — endurstilli ofan á origin/main"
+            git fetch origin main || { echo "::error::git fetch brast"; exit 1; }
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort || true
+              echo "::error::rebase brast — engin gögn pushuð"
+              exit 1
+            fi
+            sleep $((i * 4))
+          done
+          echo "::error::push mistókst eftir 5 tilraunir"
+          exit 1
