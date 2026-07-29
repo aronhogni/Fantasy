@@ -13,7 +13,7 @@
 
 import React, { useState, useMemo } from "react";
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, buildLeaderboard, fmtStat, minutesFloor, num,
-         imminentBoard, moScore, aoScore, MO_WEIGHTS, nameScore } from "./stats.js";
+         imminentBoard, nameScore, startRisk, START_MODEL } from "./stats.js";
 
 const POS_TABS = [["all","Allir"],["1","Markv."],["2","Vörn"],["3","Miðja"],["4","Sókn"]];
 const POS_LABEL = { 1:"MV", 2:"V", 3:"M", 4:"S" };
@@ -57,6 +57,10 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
         <div style={S.modeRow}>
           <button style={{ ...S.modeBtn, ...(mode==="overview"?S.modeOn:{}) }}
             onClick={() => setMode("overview")}>Yfirlit</button>
+          <button style={{ ...S.modeBtn, ...(mode==="starts"?S.modeOn:{}) }}
+            onClick={() => setMode("starts")} title="Hverjir eru í bekkjar-hættu þrátt fyrir að hafa byrjað">
+            Bekkjar-hætta
+          </button>
           <button style={{ ...S.modeBtn, ...(mode==="imminent"?S.modeOn:{}) }}
             onClick={() => setMode("imminent")} title="Hverjir eru við það að skora eða leggja upp">
             Óhjákvæmilegt
@@ -83,7 +87,7 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
       )}
 
       {/* ---- Sameiginlegar síur (eiga ekki við í Óhjákvæmilegt) ---- */}
-      {mode !== "imminent" && <div style={S.filters}>
+      {mode !== "imminent" && mode !== "starts" && <div style={S.filters}>
         <div style={S.posRow}>
           {POS_TABS.map(([v,l]) => (
             <button key={v} style={{ ...S.posBtn, ...(pos===v?S.posOn:{}) }}
@@ -107,8 +111,17 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
         </label>
       </div>}
 
+      {group === "rank" && mode !== "imminent" && (
+        <div style={S.note}>
+          <b>Þetta eru FPL-sæti INNAN stöðunnar</b>, ekki meðal allra leikmanna — svo hver
+          staða á sinn nr. 1. Þess vegna sjást fjórir með „1" þegar ekki er síað á stöðu
+          (besti GK, besti DEF, besti MID, besti FWD). <b>Lægra er betra.</b> Dæmi: Raya er
+          með 4,4 stig/leik → sæti <b>3</b> innan markvarða en 32. yfir alla.
+        </div>
+      )}
+
       {/* ---- Flokka-val ---- */}
-      {mode !== "imminent" && <div style={S.groupRow}>
+      {mode !== "imminent" && mode !== "starts" && <div style={S.groupRow}>
         {STAT_GROUPS.map(g => (
           <button key={g.key} style={{ ...S.groupBtn, ...(group===g.key?S.groupOn:{}) }}
             onClick={() => {
@@ -120,7 +133,10 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
         ))}
       </div>}
 
-      {mode === "imminent" ? (
+      {mode === "starts" ? (
+        <StartRiskPanel imminent={imminent} players={players} teamById={teamById}
+          Crest={Crest} photoUrl={photoUrl} onPickPlayer={onPickPlayer} />
+      ) : mode === "imminent" ? (
         <ImminentPanel imminent={imminent} teamById={teamById} Crest={Crest}
           photoUrl={photoUrl} players={players} onPickPlayer={onPickPlayer} />
       ) : mode === "overview" ? (
@@ -236,7 +252,17 @@ function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPla
           const cur = findCur(p);
           const img = photoUrl && cur?.code ? photoUrl(cur.code) : null;
           const t = cur ? teamById?.[cur.team] : null;
-          const series = (p.series || []).map(x => x[serieKey] ?? 0);
+          /* TVOFOLD UMFERD: leikmadur getur haft TVAER radir i somu umferd
+             (GW36 2025/26 var tvofold fyrir CRY og MCI — 82 leikmenn).
+             Gluggasumman a ad telja BADA leiki, en linuritid heitir
+             "per umferd", svo thad verdur ad LEGGJA THA SAMAN i einn punkt.
+             Annars birtust 5 punktar i 4-umferda glugga, tveir merktir GW36. */
+          const byGw = new Map();
+          for (const x of (p.series || [])) {
+            byGw.set(x.gw, (byGw.get(x.gw) ?? 0) + (x[serieKey] ?? 0));
+          }
+          const gwList = [...byGw.keys()].sort((a, b) => a - b);
+          const series = gwList.map(g => +byGw.get(g).toFixed(2));
           return (
             <div key={p.name + i} style={S.immCard}
               onClick={() => cur && onPickPlayer && onPickPlayer(cur.id)}>
@@ -258,7 +284,7 @@ function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPla
               </div>
 
               <Spark values={series} label={isMo ? "xG per umferð" : "creativity per umferð"}
-                gws={(p.series || []).map(x => x.gw)} />
+                gws={gwList} />
 
               <div style={S.immStats}>
                 {isMo ? (
@@ -306,6 +332,104 @@ function Spark({ values, gws, label }) {
       ))}
     </svg>
   );
+}
+
+
+/* ============================================================
+   BEKKJAR-HAETTA — leikmenn sem BYRJUDU sidast en likurnar segja annad.
+
+   Thetta er eina spurningin sem "byrjadi sidast"-reglan getur ekki svarad,
+   og hun er dyrust: 21,6% theirra sem byrjudu sidast spila EKKI 60+ naest.
+   Maelt: laegsti tiundarhluti likansins fangar 42-49% theirra (2,09x).
+   Nakvaemni likansins er EKKI betri en grunnreglan — kvordunin er.
+   ============================================================ */
+function StartRiskPanel({ imminent, players, teamById, Crest, photoUrl, onPickPlayer }) {
+  const rows = useMemo(() => {
+    if (!imminent?.players) return [];
+    const byCodeName = {};
+    for (const p of players || []) byCodeName[nameScore ? p.web_name : p.web_name] = p;
+    return imminent.players
+      .filter(p => p.start_feats)
+      .map(p => ({ p, r: startRisk(p.start_feats) }))
+      .filter(x => x.r)
+      .sort((a, b) => a.r.p - b.r.p);
+  }, [imminent, players]);
+
+  const traps = rows.filter(x => x.r.level === "trap");
+  const safe  = rows.filter(x => x.r.level === "safe").slice(-8).reverse();
+  const m = START_MODEL.measured;
+
+  if (!imminent) return <div style={S.warn}>Sæki <code>imminent.json</code>…</div>;
+
+  return (
+    <>
+      <div style={S.note}>
+        <b>Hverjir eru í bekkjar-hættu þrátt fyrir að hafa byrjað síðast.</b> Af þeim sem
+        byrjuðu síðast spila <b>{Math.round(m.trap_base_rate*100)}%</b> EKKI 60+ mínútur næst —
+        og það eru dýrustu einstöku mistökin í FPL.
+        <div style={{ marginTop:5 }}>
+          Mælt á <b>{m.samples.toLocaleString("is")}</b> sýnishornum yfir {m.seasons} tímabil.
+          Líkanið er <b>ekki nákvæmara</b> en reglan „byrjaði síðast" (88,0% á móti 88,2% yfir
+          alla leikmenn) — það væri óheiðarlegt að segja annað. Ábatinn er annars staðar: það er
+          <b>betur kvarðað</b> (Brier {m.brier} á móti {m.brier_baseline}, −24%) svo hægt er að
+          <i>raða</i> eftir hættu, og lægsti tíundarhlutinn fangar
+          {" "}<b>{Math.round(m.trap_lift*m.trap_base_rate*100)}%</b> þeirra sem falla á bekk —
+          <b>{m.trap_lift}× lyfting</b>, samhljóða í öllum þrem tímabilum.
+          {" "}<i>Hvíld (&lt;4 dagar) hafði engin áhrif og er ekki í líkaninu.</i>
+        </div>
+      </div>
+
+      <H2>Bekkjar-hætta ({traps.length})</H2>
+      {!traps.length ? <div style={S.muted}>Enginn í þessum flokki í núverandi glugga.</div> : (
+        <div style={S.srGrid}>
+          {traps.map(({ p, r }) => (
+            <div key={p.name} style={S.srCard} onClick={() => {
+              const cur = (players || []).find(x => x.web_name === p.name);
+              if (cur && onPickPlayer) onPickPlayer(cur.id);
+            }}>
+              <div style={S.srTop}>
+                <span style={S.srP}>{Math.round(r.p * 100)}%</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={S.srName}>{p.name}</div>
+                  <div style={S.srMeta}>{p.team} · {p.pos}</div>
+                </div>
+              </div>
+              <div style={S.srMins}>
+                {(p.start_minutes || []).map((v, i) => (
+                  <span key={i} style={{ ...S.srMin, ...(v >= 60 ? S.srMinOn : {}) }}>{v}</span>
+                ))}
+              </div>
+              <div style={S.srWhy}>mínútur síðustu {(p.start_minutes||[]).length} umferðir</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <H2>Öruggastir</H2>
+      <div style={S.srGrid}>
+        {safe.map(({ p, r }) => (
+          <div key={p.name} style={{ ...S.srCard, ...S.srCardSafe }}>
+            <div style={S.srTop}>
+              <span style={{ ...S.srP, ...S.srPSafe }}>{Math.round(r.p * 100)}%</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={S.srName}>{p.name}</div>
+                <div style={S.srMeta}>{p.team} · {p.pos}</div>
+              </div>
+            </div>
+            <div style={S.srMins}>
+              {(p.start_minutes || []).map((v, i) => (
+                <span key={i} style={{ ...S.srMin, ...(v >= 60 ? S.srMinOn : {}) }}>{v}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+function H2({ children }) {
+  return <div style={{ fontSize:11, fontWeight:700, color:"#37003c", textTransform:"uppercase",
+                       letterSpacing:0.4, margin:"14px 0 6px" }}>{children}</div>;
 }
 
 /* ---- Top-5 kassi fyrir eina tolu ---- */
@@ -407,6 +531,26 @@ function FullTable({ table, teamById, Crest, onPickPlayer, minMin }) {
 }
 
 
+
+const SR_STYLES = {
+  srGrid:{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:8 },
+  srCard:{ border:"1px solid #f0dcae", background:"#fff6e0", borderRadius:8,
+           padding:"7px 9px", cursor:"pointer" },
+  srCardSafe:{ border:"1px solid #b9e8d0", background:"#e6f9f0", cursor:"default" },
+  srTop:{ display:"flex", alignItems:"center", gap:7 },
+  srP:{ fontSize:15, fontWeight:700, color:"#a33540",
+        fontFamily:"ui-monospace, Menlo, monospace", minWidth:44 },
+  srPSafe:{ color:"#046b41" },
+  srName:{ fontSize:11.5, fontWeight:600, color:"#1d1d20", overflow:"hidden",
+           textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  srMeta:{ fontSize:9.5, color:"#61616b" },
+  srMins:{ display:"flex", gap:3, marginTop:5 },
+  srMin:{ fontSize:9.5, fontFamily:"ui-monospace, Menlo, monospace", background:"#fff",
+          border:"1px solid #e0e0e4", borderRadius:3, padding:"1px 4px", color:"#8b8b95" },
+  srMinOn:{ color:"#1d1d20", fontWeight:700, borderColor:"#c9c9d0" },
+  srWhy:{ fontSize:8.5, color:"#8b8b95", marginTop:3 },
+};
+
 const IMM_STYLES = {
   immHead:{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10,
             flexWrap:"wrap", marginBottom:8 },
@@ -436,6 +580,7 @@ const C = {
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 const S = {
+  ...SR_STYLES,
   ...IMM_STYLES,
   card:{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:14, marginBottom:12 },
   head:{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexWrap:"wrap", marginBottom:8 },

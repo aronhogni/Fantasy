@@ -30,7 +30,6 @@ const n = v => { const x = typeof v === "number" ? v : parseFloat(v); return Num
 const f1 = v => v == null ? "—" : (+v).toFixed(1);
 const f2 = v => v == null ? "—" : (+v).toFixed(2);
 const i0 = v => v == null ? "—" : String(Math.round(v));
-const per90 = (v, mins) => (!mins || mins <= 0 || v == null) ? null : (v / mins) * 90;
 
 /* ============================================================
    1. EFSTI HLUTI — sex tolur sem skipta mestu, 2026/27

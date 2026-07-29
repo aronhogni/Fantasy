@@ -23,12 +23,11 @@
 import React, { useState, useMemo } from "react";
 import {
   withDerived, gwTotals, gwTop, bestXi, gwFixtureReports,
-  shotsFor, shotSummary, SHOT_KINDS, matchShotsToPlayers, POS_ORDER,
+  shotsFor, shotSummary, SHOT_KINDS, matchShotsToPlayers,
   teamsWithCleanSheet,
 } from "./stats.js";
 
 const POS_COLOR = { GK:"#8b5cf6", DEF:"#2563eb", MID:"#00b96b", FWD:"#d92d3c" };
-const POS_IS = { GK:"Markv.", DEF:"Vörn", MID:"Miðja", FWD:"Sókn" };
 
 export default function GwReport({ report, shotsFile, teamById, Crest }) {
   const [tab, setTab] = useState("overview");
@@ -45,12 +44,27 @@ export default function GwReport({ report, shotsFile, teamById, Crest }) {
     () => matchShotsToPlayers(rows, shotsFile?.players || []), [rows, shotsFile]);
 
   if (!report) {
+    /* TOMT ASTAND SEM SKYRIR SIG. Adur stod adeins "Saeki last_gw.json..."
+       sem er ogreinanlegt fra "hangir ad eilifu" — notandinn gat ekki vitad
+       hvort hann aetti ad bida, endurhlada eda keyra pipeline.              */
     return (
       <section style={S.card}>
         <h2 style={S.h2}>Umferðin</h2>
-        <div style={S.muted}>
-          Sæki <code>last_gw.json</code>… Ef hún kemur ekki hefur pipeline ekki keyrt
-          <b> deriveLastGwReport</b> enn.
+        <div style={S.blocked}>
+          <b>Umferðarskýrslan er ekki komin.</b> Hún kemur úr <code>data/last_gw.json</code>,
+          sem pipeline skrifar (<code>deriveLastGwReport</code> í <code>scripts/fetch.mjs</code>).
+          <div style={{ marginTop: 6 }}>Þrjár ástæður, í líklegri röð:</div>
+          <ol style={S.olTight}>
+            <li><b>Skráin er ekki ýtt á GitHub enn.</b> Appið les
+              <code> raw.githubusercontent.com/.../main/data/</code> — nýjar pipeline-skrár
+              sjást ekki fyrr en þær eru committaðar og ýttar.</li>
+            <li><b>Pipeline hefur ekki keyrt</b> síðan skrefið var bætt við.
+              Keyrðu <code>node scripts/fetch.mjs</code> eða
+              <code> gh workflow run fetch.yml</code>.</li>
+            <li><b>Netið/GitHub svarar ekki</b> — endurhlaða síðuna.</li>
+          </ol>
+          Flipinn <b>Stigatafla</b> virkar óháð þessu, hann les
+          <code> players.json</code>.
         </div>
       </section>
     );
@@ -415,6 +429,12 @@ function PlayerTab({ joined, teamById, Crest }) {
             <th style={S.th} title="Úr ESPN">Á mark</th>
             <th style={S.th} title="Úr ESPN">Stöng</th>
             <th style={S.th} title="Úr ESPN">Í teig</th>
+            {/* SKOPUN — lesid ur ESPN-texta ("Assisted by X with a cross").
+                Thetta er thad sem Fable vildi fa ur FBref (sem svarar 403):
+                faeri skopud, krossar og through balls sem LEIDDU TIL SKOTS. */}
+            <th style={S.th} title="Færi sköpuð — hversu oft hann lagði upp skot (úr ESPN)">Færi</th>
+            <th style={S.th} title="Krossar sem leiddu til skots (úr ESPN)">Kross</th>
+            <th style={S.th} title="Through balls sem leiddu til skots (úr ESPN)">Þ.bolti</th>
           </tr></thead>
           <tbody>
             {rows.slice(0, 250).map((r, i) => (
@@ -429,6 +449,9 @@ function PlayerTab({ joined, teamById, Crest }) {
                 <td style={S.td}>{r.shot ? r.shot.on_target : "—"}</td>
                 <td style={S.td}>{r.shot ? (r.shot.woodwork || 0) : "—"}</td>
                 <td style={S.td}>{r.shot ? r.shot.in_box : "—"}</td>
+                <td style={S.td}>{r.shot ? (r.shot.chances_created || 0) : "—"}</td>
+                <td style={S.td}>{r.shot ? (r.shot.cross_created || 0) : "—"}</td>
+                <td style={S.td}>{r.shot ? (r.shot.through_balls || 0) : "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -571,6 +594,7 @@ const S = {
          borderRadius:6, padding:"7px 9px", margin:"8px 0", lineHeight:1.55 },
   blocked:{ fontSize:12, color:"#7a5600", background:C.amberBg, border:"1px solid #f0dcae",
             borderRadius:6, padding:"12px", lineHeight:1.6, marginTop:10 },
+  olTight:{ margin:"4px 0 6px", paddingLeft:18, lineHeight:1.6 },
   hLbl:{ fontSize:11, fontWeight:700, color:C.purple, textTransform:"uppercase",
          letterSpacing:0.4, margin:"14px 0 4px" },
 

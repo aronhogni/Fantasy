@@ -529,6 +529,237 @@ líklegri en sá sem *klúðraði* þeim. Vogin á óheppni er því lítil (0,2
 
 ---
 
+## 6e. GAGNAHEIMILDIR — HLIÐIN MÆLD 28.7.2026 (svar við Fable-handoff)
+
+`TERMINAL_HANDOFF.md` (Fable) leggur til að fjarlægja og bæta við heimildum.
+**Þrjú af fjórum hliðum þess FALLA á mælingu.** Hér er hvað var mælt og hvað
+var gert — svo þetta sé ekki endurtekið.
+
+| Heimild | Svar 28.7. | Tillaga Fable | GERT |
+|---|---|---|---|
+| **ESPN** site-API | **200** | „valkvætt · bætir engu við mó/aó" | **HALDIÐ — BURÐARVIRKI** |
+| **fdcouk_e0** | 404 (2026/27) · **200 (2025/26)** | „brotin slóð → FJARLÆGJA" | **HALDIÐ** |
+| **Understat** | 200 en **gagnalaus** | „HALDA+LAGA, scraper bilaður" | **SLÖKKT** |
+| **API-Sports** | 0 paraðir (rétt) | „0 paraðir → FJARLÆGJA" | **HALDIÐ** |
+| **FBref** | **403** | „BÆTA VIÐ um `soccerdata`" | **EKKI BÆTT VIÐ** |
+| **FotMob** | details **404/gated** | „VARA fyrir Understat" | **ÓNOTHÆFT** |
+| SofaScore | **403** (4 hostar) | „EKKI NOTA" | rétt — ónothæft |
+| xgabora | **200** | bæta við (statískt) | **reachable — bíður FFDR-lotu** |
+| FPL-Core-Insights | **200** | P7.4 bikar/Evrópa | reachable, ekki byggt enn |
+
+### Hlið 1 — `fdcouk_e0` → FBref: **FELLUR**
+Tvær ástæður, báðar mældar:
+1. **Slóðin er EKKI brotin.** `mmz4281/2627/E0.csv` → 404, en `mmz4281/2526/E0.csv`
+   → **200 með 203 KB**. Sama mynstur, eldra tímabil virkar. 404-ið er einfaldlega
+   það að **2026/27 er ekki byrjað** — football-data býr skrána til við fyrsta leik.
+   Birtist nú sem „bíður tímabils", ekki rauð villa.
+2. **FBref getur ekki tekið yfir: HTTP 403.** Hliðið sjálft krefst „FBref-scrape
+   VIRKT FYRST" — það er ófullnægt, svo skv. eigin reglu handoff-sins má ekki
+   fjarlægja `fdcouk_e0`. Auk þess er `soccerdata` Python-pakki og pipeline er
+   Node **án dependencies** — það væri arkitektúr-breyting, ekki viðbót.
+
+### Hlið 3 — Understat-viðgerð: **FELLUR, ÓVIÐGERANLEGT**
+Handoff segir „stöng/slá-heimildin er ÞEGAR til … scraperinn er bilaður".
+**Gögnin eru farin, ekki scraperinn.** Mælt: league-síður skila byte-eins
+18.645 b skel í 5/5 tilraunum, öll tímabil. Leikjasíður hafa aðeins
+`var match_info`; `shotsData` og `rostersData` eru **horfin**. Sama leikjasíða
+fór úr **30.898 b → 5.570 b á einum degi** (28.7.) — hún heldur áfram að rýrna.
+Þar með fellur allt sem byggði á henni í handoff-inu:
+- **Big Chances** „leiðum við út sjálf úr per-skot xG" — það er engin per-skot xG.
+- **In Box = `X≥0,84` og `0,20≤Y≤0,80`** — það er Understat-hnitakerfi. ESPN notar
+  annað (x = hlutfall af HÁLFUM velli frá sótta markinu, teigmörk 0,314) — sjá 6b.
+- **Stöng/slá** kemur nú úr ESPN sem **eigin leik-tegund** (`Shot Hit Woodwork`).
+
+### ESPN er ekki „valkvætt" — hún er eina skot-heimildin sem svarar
+Handoff: „Bætir engu við mó/aó". Rangt: ESPN gefur skot-hnit, útkomu
+(mark / á mark / framhjá / blokkað / **í stöng**), skyttu, svæði, líkamshluta,
+skot+SoT **per leikmann** og 28 liða-tölur. Án hennar er ekkert skot-kort og
+ekkert woodwork. **Ekki fjarlægja.**
+
+### Hlið 2 — API-Sports út: **forsendan er ÖNNUR EN HANDOFF SEGIR**
+Rétt í handoff: „Meiðsli og verð" kemur úr **FPL** (`fetchFast` → `news.json` úr
+`e.news`, `e.news_added`, `chance_of_playing_*`) — ekki úr API-Sports.
+**En „0 paraðir" er ekki bilun.** Fría þrepið leyfir aðeins leikdaga innan ±1
+dags og fyrir tímabil eru þeir ekki til → 0 köll notuð, engin villa. Og
+API-Sports gefur það sem FPL gefur **ekki**: TEGUND meiðsla („Hamstring
+Injury"), birt feitletruð á spjaldi (`App.jsx` ~1834).
+**Niðurstaða: HALDIÐ.** Fyrsta raunprófunin er 20.–21. ágúst (kafli 6). Að
+fjarlægja hana núna væri að henda mældri vinnu rétt fyrir fyrsta prófið.
+Staðan segir nú „engir leikdagar í glugga (bíður GW1)" í stað „0 paraðir".
+
+### Það sem enn VANTAR og engin náanleg heimild gefur
+`aó`-inntökin úr handoff-inu — **through balls, crosses, chances created,
+snertingar í vítateig** — koma öll úr FBref (403). Þess vegna er aó **bert
+creativity/90**, sem er hvort sem er það sem mældist best (sjá 6d).
+**Big Chances** eru ekki reiknuð: þær þurfa per-skot xG sem hvorki ESPN,
+FotMob né Understat gefa okkur lengur.
+
+---
+
+## 6f. ÚR FABLE-HANDOFF — HVAÐ VAR TEKIÐ (stats/leaderboard), 28.7.
+
+Valið á verðleikum, ekki í heild. FFDR-hlutinn (P1) fór til annarrar lotu.
+
+### TEKIÐ — og það kom úr gögnum sem við sóttum ÞEGAR
+Fable vildi fá `Chances Created`, `Crosses`, `Through Balls` og `SoT` úr
+**FBref**, sem svarar **403**. Þau fást öll úr **ESPN-textanum** sem við sækjum
+þegar. ESPN skrifar upplögnina út:
+
+> „Attempt saved. X (Team) right footed shot from the centre of the box is
+> saved. **Assisted by Y with a cross following a corner.**"
+
+Mælt á GW38 2025/26: **219 af 290 skotum (76%)** nefna upplegg —
+`pass` 144 · **`cross` 54** · `following a corner` 33 · **`through ball` 12** ·
+`set piece` 10 · `headed pass` 9 · `fast break` 8 · `direct free kick` 3.
+
+Þar með fást per leikmann: **færi sköpuð**, **krossar**, **through balls**,
+**föst leikatriði** — birt í `Umferðin → Leikmenn`. Og þetta er **betri** tala
+en hrár FBref-kross: Fable vildi vega krossa *lægra* því þeir „geta verið
+lélegir" — hér er sían innbyggð, krossinn þarf að hafa **leitt til skots**.
+Krossprófun: Mateus Mané efstur í færum sköpuðum (6) og líka efstur í aó.
+
+### TEKIÐ — 39 FPL-svið sem við sóttum en birtum EKKI
+Audit á `bootstrap-static`: **105 svið, 44 í notkun.** Bætt við:
+- **`*_rank_type` — FPL-sæti INNAN stöðu.** Nýr flokkur í stigatöflunni.
+  Þetta er það sem skiptir máli í fantasy: Raya er **3. besti GK** í stig/leik
+  en 32. yfir alla. Átta sæti (stig/leik, form, ICT, áhrif, sköpun, hætta,
+  eignarhald, verð). Lægra er betra.
+- **Opinberar FPL-tölur í stað okkar eigin útreiknings.** `value_season`
+  (stig/milljón), `value_form`, `saves_per_90`, `defensive_contribution_per_90`,
+  `clean_sheets_per_90`, `goals_conceded_per_90`,
+  `expected_goals_conceded_per_90`, `starts_per_90`, `cost_change_event`.
+  Þær voru afleiddar hjá okkur (`†`) — nú birtum við FPL-töluna og höfum
+  **eina tölu færri til að verja**. Vörður: prófið sannreynir að
+  `value_season == stig/verð` á **öllum 563 raungögnum**.
+  Stigatafla: **65 tölur í 8 flokkum** (var 47/7); afleiddar `†` 12 af 65.
+
+**VILLA SEM PRÓFIÐ FANN:** ný svið voru í `STAT_DEFS` en `fetchFPL` skrifar
+aðeins VALIN svið í `players.json` — allur nýi flokkurinn hefði birst sem
+strik. Prófið „value_season == stig/verð á 0 raungögnum" felldi það. Svið
+bætt í pipeline.
+
+### EKKI TEKIÐ — og hvers vegna
+| Úr handoff | Ástæða |
+|---|---|
+| `penalties_text` / `direct_freekicks_text` / `corners_..._text` | **Tóm hjá öllum 563 leikmönnum.** Mælt. Gefa ekkert. |
+| FBref um `soccerdata` | 403 · Python-pakki í Node-pipeline án dependencies |
+| FotMob sem vara | `matchDetails` 404/gated með GILDU id → engin shotmap |
+| Understat „HALDA+LAGA" | gögnin eru farin, ekki scraperinn (sjá 6e) |
+| Big Chances úr per-skot xG | engin heimild gefur per-skot xG |
+| Snertingar í vítateig | krefjast fulls event-fæðis (FBref) |
+| `scout_risks`, `squad_number`, `event_points` | tóm (preseason) |
+| xgabora, FPL-Core-Insights | **náanleg (200)** — bíða FFDR-lotu / P7.4 |
+
+---
+
+## 6g. HANDOFF №2 FRÁ FABLE — PRÓFAÐ 28.7., TVENNU HAFNAÐ
+
+Handoff №2 **samþykkir allar fjórar vettvangs-athuganir** úr 6e og leiðréttir
+kafla 8 formlega. Sú leiðrétting er þegar komin í kóðann (6e) — ekkert nýtt
+verk þar. Það sem var NÝTT var prófað:
+
+### §2 mó-endurhönnun Fable: **HAFNAÐ á mælingu**
+Fable-formúlan `rank(xgi5) + rank(markaðs-mörk) − rank(GI−xGI)` var prófuð
+gegn okkar mó **í Fable-lauginni sjálfri** (MID/FWD, mins5≥45, ≤1 GI síðustu 5;
+**8.675 sýnishorn**, 3 tímabil, LOSO):
+
+| Stuðull | Mörk næstu 4 | Stig næstu 4 |
+|---|---|---|
+| **Okkar mó** (`xG·0,8 + threat/25·0,3 + óheppni·0,2`) | **1,998** | **1,313** |
+| Fable án óheppnis-liðar (`pct(xgi5)`) | 1,722 | 1,298 |
+| **Fable eins og hún er skrifuð** | **1,673** | **1,259** |
+
+Okkar vinnur á BÁÐUM markmiðum í ÖLLUM þrem tímabilum. Og **óheppnis-liður
+Fable gerir hana VERRI** (1,673 á móti 1,722 án hans) — þriðja óháða
+staðfestingin á því að „óheppni" er veikt merki (sjá 6c og 6d).
+
+**Markaðs-/leikja-liðurinn (nýja hugmyndin) bætir ekki heldur:**
+- heimaleikja-hlutfall næstu 4: **enginn ábati** við neina vog (1,998 → ≤1,996)
+- styrkur mótherja (fyrra tímabil, lekafrítt): **+0,7%** í besta falli
+  (2,053 → 2,068 við vog 0,25–0,5) og hrynur í 1,846 við vog 2,0.
+Það er suð. mó heldur sér óbreyttur.
+
+Þrennt í §2 var þegar rétt hjá okkur: in-box reglan var leidd úr **ESPN-svæðis-
+texta** (ekki 0,84-reglunni, sem Fable fellir formlega úr gildi), Big Chances
+eru sleppt, og tréverk kemur úr ESPN-leiktegund.
+
+### §4 fyrirfram-liðsvals-tól: **REPRODUCERAST EKKI → EKKI BYGGT**
+Endurgert í Python (OLS á 6 tímabila-pörum, £83,0m, hám. 3/félag, 8
+uppstillingar, grædgi + skiptaleit). Eftirá-þakið mitt **2.093–2.195** passar
+við þeirra 2.076–2.238, svo bestunin er ekki vandinn.
+
+| Markár | Þak | Hjörð GW1 | Líkan | Fable segir |
+|---|---|---|---|---|
+| 2023-24 | 2174 | **70,0%** | 58,9% | 62,6% |
+| 2024-25 | 2187 | **70,1%** | 68,2% | 77,8% |
+| 2025-26 | 2141 | 57,1% | **66,7%** | 75,3% |
+| **meðaltal** | | **65,7%** (n=3) | **66,8%** (n=5) | 70,8% |
+
+**Líkanið tapar fyrir hráu GW1-eignarhaldi í 2 af 3 tímabilum** og nær ekki
+75–78% þeirra. Ekki byggt: við sendum ekki eiginleika sem slær ekki eins-línu
+viðmið. Ef þetta á að ganga þarf `team.py`/`team2.py`/`teamall.py` frá hinni
+lotunni til að finna hvar útfærslurnar skilja.
+
+**LEKI SEM VAR FUNDINN Í MINNI EIGIN PRÓFUN:** fyrsta keyrslan gaf hjörðinni
+**95,7%** af þakinu. Ástæðan: `selected_by_percent` í `players_raw.csv` fyrir
+gengið tímabil er **LOKASTAÐA**, gegnsýrð af útkomunni. Með raunverulegu
+GW1-eignarhaldi úr `gws/gw1.csv` fór talan í **65,7%** — sem passar við
+Fable's 64,0% og staðfestir bæði lagfæringuna og þeirra tölu.
+**Notið ALDREI `selected_by_percent` úr archive-skrá sem GW1-merki.**
+
+---
+
+## 6h. BYRJUNAR-LÍKUR — eigin hugmynd, mæld 28.7.2026
+
+Þegar báðar Fable-hugmyndirnar féllu (6g) var spurt: hvað er ÞÁ mest að vinna?
+Svarið kom úr eigin mælingum: **allt annað í appinu er verðlaust ef
+leikmaðurinn spilar ekki.** Dýrasta einstaka mistökin í FPL eru að stilla upp
+manni sem endar á bekknum, og forsendan sem allir nota — „hann byrjaði síðast,
+hann byrjar næst" — er rétt í 88,2% tilvika en **þegir um hin 11,8%**.
+
+**Mælt á 65.557 sýnishornum** (3 tímabil, 114 umferðir), LOSO:
+
+| | Nákvæmni | Brier |
+|---|---|---|
+| Grunnregla „byrjaði síðast" | **88,2%** | 0,1176 |
+| `starts5` (hlutfall síðustu 5) | — | 0,1028 |
+| **Líkanið** (5 breytur) | 88,0% | **0,0888** |
+
+**NÁKVÆMNI ER EKKI ÁBATINN — og það á ekki að selja hana sem slíkan.**
+Líkanið er jafn nákvæmt og grunnreglan. Ábatinn er tvennskonar:
+
+1. **Kvörðun:** Brier −24%. Líkanið gefur LÍKUR, ekki já/nei, svo það má
+   **raða** leikmönnum eftir hættu.
+2. **BEKKJAR-GILDRAN — notagildið.** Af þeim sem byrjuðu síðast spila
+   **21,6% EKKI** 60+ næst. Lægsti tíundarhlutinn fangar **42–49%** þeirra:
+   **lyfting 2,09×**, samhljóða öll þrjú tímabilin [2,05 · 2,15 · 2,07].
+   Þýðing: *„af þeim sem þú telur örugga er þetta tíundarhlutinn sem er í raun
+   í hættu — nærri helmingur þeirra fellur á bekk."*
+
+Breyturnar fimm: `starts5`, `mins5`, `trend`, `started_last`, `value`
+(logistísk aðhvarfsgreining; vogtölur og normalisering FESTAR í
+`START_MODEL` í `src/stats.js`).
+
+### PRÓFAÐ OG HAFNAÐ — ekki endurtaka
+- **HVÍLD / LEIKJAÁLAG: engin áhrif.** Eftir <4 daga hvíld spila **27,0%**
+  60+ mínútur, á móti **27,3%** annars (10.448 leikir með skammri hvíld).
+  **ATH:** `rotation.json` í þessu repo flaggar „<4 daga hvíld" sem
+  rótasjón-hættu — þessi mæling segir að flaggið hafi **ekkert forspárgildi
+  um mínútur**. Það er ekki fjarlægt hér (annað session á rotation), en það
+  á ekki að treysta því.
+- **Staða (GK/DEF/FWD-dúmmíar):** +0,03× = suð. Sleppt; einfaldara er betra.
+- **FPL `starts`-flagg og „kom inn af bekk":** engin bæting yfir mínútur.
+
+### Útfærsla
+Pipeline sækir nú **5 umferðir** (`FETCH_WINDOW`) en mó/aó halda sínum
+**4-umferða glugga** — validering þeirra er bundin við 4, svo mó-glugginn er
+LEIDDUR út úr seríunni. Vörður í prófi: mó-gluggi má aldrei verða >4.
+Tvöföld umferð er **lögð saman í eina umferð** (spurningin er um UMFERÐ, ekki
+stakan leik). Birt í `Stigatafla → Bekkjar-hætta` með mínútu-röðinni sýnilegri
+svo röksemdin sé gagnsæ.
+
+---
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)

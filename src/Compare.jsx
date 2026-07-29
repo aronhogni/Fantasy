@@ -25,8 +25,6 @@ const C = {
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
 
-const f2 = v => v == null ? null : +(+v).toFixed(2);
-const f1 = v => v == null ? null : +(+v).toFixed(1);
 const per90 = (v, m) => (!m || m <= 0 || v == null) ? null : (v / m) * 90;
 const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 

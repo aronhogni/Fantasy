@@ -175,6 +175,29 @@ async function fetchFPL() {
     corners_and_indirect_freekicks_order:e.corners_and_indirect_freekicks_order,
     direct_freekicks_order:e.direct_freekicks_order,
     penalties_saved:e.penalties_saved, penalties_missed:e.penalties_missed,
+    /* ---- OPINBERAR FPL-TOLUR SEM VID REIKNADUM SJALF ADUR ----
+       FPL gefur thessar tolur sjalft. Ad reikna thaer sjalf var tvitekning
+       sem vid thurftum ad verja; nu birtum vid theirra tolu.
+       (Prof: value_season == total_points/verd a ollum raungognum.)      */
+    value_season:e.value_season, value_form:e.value_form,
+    saves_per_90:e.saves_per_90,
+    defensive_contribution_per_90:e.defensive_contribution_per_90,
+    clean_sheets_per_90:e.clean_sheets_per_90,
+    goals_conceded_per_90:e.goals_conceded_per_90,
+    expected_goals_conceded_per_90:e.expected_goals_conceded_per_90,
+    cost_change_event:e.cost_change_event,
+    /* ---- FPL-SAETI INNAN STODU (`_rank_type`) ----
+       `_rank` er medal ALLRA leikmanna; `_rank_type` er medal leikmanna I
+       SOMU STODU og er thad sem skiptir mali i fantasy.
+       Maelt: Raya stig/leik 4,4 -> rank_type 3 (3. besti GK) en rank 32.  */
+    points_per_game_rank_type:e.points_per_game_rank_type,
+    form_rank_type:e.form_rank_type,
+    ict_index_rank_type:e.ict_index_rank_type,
+    influence_rank_type:e.influence_rank_type,
+    creativity_rank_type:e.creativity_rank_type,
+    threat_rank_type:e.threat_rank_type,
+    selected_rank_type:e.selected_rank_type,
+    now_cost_rank_type:e.now_cost_rank_type,
     // ---- per-90 (betri samanburður en árstíðarsummur) ----
     expected_goals_per_90:e.expected_goals_per_90,
     expected_assists_per_90:e.expected_assists_per_90,
@@ -1124,8 +1147,13 @@ async function fetchInjuries() {
   await writeJSON("injuries.json", { updated: status.updated, plan, via,
     note: "Tegund og ástæða meiðsla úr API-Sports /injuries fyrir komandi leikdaga. FPL-status ræður áfram tiltækileika; þetta AUÐGAR hann. Fyrir tímabil (engir leikdagar framundan innan glugga) er listinn eðlilega tómur.",
     players: out, unmatched });
+  /* "0 paraðir" er RETT utkoma fyrir timabil, ekki bilun — sja hlid 2 i
+     kafla 6e i CLAUDE.md. Merkjum thad svo enginn fjarlaegi tenginguna
+     a theim forsendum ad hun se brotin.                                  */
   record("apisports_injuries", true, out.length,
-    `${via} · ${out.length} paraðir · ${unmatched.length} óparaðir · ${d.remaining ?? "?"} köll eftir í dag`);
+    out.length === 0 && /leikdag/i.test(via)
+      ? `${via} — RETT preseason-utkoma, 0 koll notud (fyrsta raunprofun 20.-21. agust)`
+      : `${via} · ${out.length} paraðir · ${unmatched.length} óparaðir · ${d.remaining ?? "?"} köll eftir í dag`);
 }
 
 async function fetchOdds() {
@@ -2022,6 +2050,35 @@ function shotZone(text) {
   for (const [re, z] of ZONE_RE) if (re.test(text)) return z;
   return null;
 }
+/* ---- UPPLOGN UR ESPN-TEXTA ----
+   ESPN skrifar: "Attempt saved. X (Team) right footed shot from the centre of
+   the box is saved. Assisted by Y with a cross following a corner."
+   Thar med fæst thad sem Fable vildi fa ur FBref (403):
+     chances created  = hversu oft leikmadur er nefndur sem UPPLEGGJARI
+     crosses          = "with a cross"      (adeins their sem SKOPUDU faeri)
+     through balls    = "with a through ball"
+     set-piece skopun = "following a corner / set piece / direct free kick"
+   MAELT a GW38 2025/26: 219 af 290 skotum (76%) nefna upplegg —
+   pass 144 · cross 54 · following a corner 33 · through ball 12 ·
+   set piece 10 · headed pass 9 · fast break 8 · direct free kick 3.
+   ATH: thetta eru krossar sem SKOPUDU SKOT, ekki hrar krossatolur. Fable
+   vildi vega hra krossa LAEGRA thvi their "geta verid lelegir" — hér er
+   sian innbyggd: krossinn tarf ad hafa leitt til skots.                   */
+const ASSIST_RE = /Assisted by ([^.,]+?)(?: with an? ([a-z ]+?))?(?: following ([^.]+?))?\./;
+function parseAssist(text) {
+  const m = ASSIST_RE.exec(text || "");
+  if (!m) return null;
+  const how = (m[2] || "pass").trim();
+  return {
+    by: m[1].trim(),
+    how: /through ball/.test(how) ? "through_ball"
+       : /cross/.test(how)        ? "cross"
+       : /headed/.test(how)       ? "headed_pass"
+       : "pass",
+    context: m[3] ? m[3].trim().replace(/^a /, "") : null,
+  };
+}
+
 function shotFoot(text) {
   if (/header/i.test(text)) return "head";
   if (/left footed/i.test(text)) return "left";
@@ -2122,6 +2179,7 @@ async function fetchEspnShots() {
       if (!usable) excluded++;
       const zone = shotZone(text);
 
+      const asst = parseAssist(text);
       shots.push({
         fixture: f.id, espn_event: eid,
         team: own ? null : (shooter ? teamOf[shooter] || null : null),
@@ -2129,12 +2187,29 @@ async function fetchEspnShots() {
         minute: p.clock?.displayValue || null, period: p.period?.number ?? null,
         x, y, usable, zone, in_box: zone ? IN_BOX.has(zone) : null,
         foot: shotFoot(text), text: text || null,
+        assist_by: asst?.by ?? null, assist_type: asst?.how ?? null,
+        assist_context: asst?.context ?? null,
       });
+
+      /* UPPLEGGJARINN faer skopunar-tolur. Hann er annar leikmadur en
+         skyttan, svo hann fer i sama playerAgg gegnum eigid nafn.        */
+      if (asst?.by) {
+        const c = playerAgg[asst.by] || (playerAgg[asst.by] = {
+          name: asst.by, team: teamOf[asst.by] || null,
+          shots:0, on_target:0, off_target:0, blocked:0, woodwork:0, goals:0, in_box:0,
+          chances_created:0, cross_created:0, through_balls:0, setpiece_created:0 });
+        c.chances_created = (c.chances_created || 0) + 1;
+        if (asst.how === "cross")        c.cross_created  = (c.cross_created || 0) + 1;
+        if (asst.how === "through_ball") c.through_balls  = (c.through_balls || 0) + 1;
+        if (asst.context && /corner|set piece|free kick/.test(asst.context))
+          c.setpiece_created = (c.setpiece_created || 0) + 1;
+      }
 
       if (shooter && !own) {
         const a = playerAgg[shooter] || (playerAgg[shooter] = {
           name: shooter, team: teamOf[shooter] || null,
-          shots:0, on_target:0, off_target:0, blocked:0, woodwork:0, goals:0, in_box:0 });
+          shots:0, on_target:0, off_target:0, blocked:0, woodwork:0, goals:0, in_box:0,
+          chances_created:0, cross_created:0, through_balls:0, setpiece_created:0 });
         a.shots++;
         if (kind === "goal") { a.goals++; a.on_target++; }
         else if (kind === "on_target") a.on_target++;
@@ -2167,6 +2242,9 @@ async function fetchEspnShots() {
       excluded: `${excluded} skot voru an hnita (0,0 = oskrad hja ESPN) og eru merkt usable:false.`,
       scale: "x er hlutfall af HALFUM velli: metrar fra marki = x * 52,5. Kvardad gegn svaedis-texta ESPN (markteigur 0,105 / vitateigur 0,314).",
       no_touches: "Touches i teig og medalstadsetning eru ekki i ESPN-fædinu.",
+      created: "chances_created / cross_created / through_balls / setpiece_created eru LESIN UR TEXTA ESPN "
+             + "('Assisted by X with a cross following a corner') — 219 af 290 skotum (76%) nefna upplegg i GW38. "
+             + "Thetta eru krossar/through balls sem SKOPUDU SKOT, ekki hrar tolur.",
     },
     fixtures: outFx, shots, players: Object.values(playerAgg),
   });
@@ -2293,6 +2371,25 @@ async function fetchPlayerSeasons() {
     }
   }
 
+  /* SIA A LEIKMENN SEM ERU I DEILDINNI NUNA.
+     Framendinn flettir ALLTAF upp med `code` ur players.json, svo saga
+     leikmanns sem er farinn ur deildinni er ONOTHAEF — hun getur ekki
+     birst. Maelt: 935 af 1420 (66%) voru horfnir og bnru 1,22 MB af
+     2,52 MB. Skrain er sott UR NETI vid hverja opnun, svo thetta er
+     baedi minna repo OG hradari hledsla. Pipeline keyrir daglega, svo ef
+     leikmadur kemur til baka birtist saga hans aftur naesta dag.        */
+  let kept = out, dropped = 0;
+  try {
+    const cur = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players || [];
+    const live = new Set(cur.map(p => String(p.code)));
+    if (live.size > 100) {
+      kept = {};
+      for (const [code, v] of Object.entries(out)) {
+        if (live.has(String(code))) kept[code] = v; else dropped++;
+      }
+    }
+  } catch (e) { console.warn(`player_seasons: sia brast (${e.message}) — skrifa allt`); }
+
   const seasons = SEASON_DIRS.map(seasonLabel).filter(l => counts[l]);
   await writeJSON("player_seasons.json", {
     updated: status.updated, seasons, pool_sizes: counts,
@@ -2302,10 +2399,11 @@ async function fetchPlayerSeasons() {
         + "Saeti eru innan timabils og adeins medal theirra sem spiludu (minutur>0).",
     field_availability: availability,
     missing_note: "defensive_contribution kom fyrst 2025/26. Fyrir eldri timabil er hun null = VANTAR, ekki 0.",
-    players: out,
+    players: kept,
   });
-  record("player_seasons", true, Object.keys(out).length,
-    `${seasons.join(", ")} · ${seasons.map(s => `${s}:${counts[s]}`).join(" ")}`);
+  record("player_seasons", true, Object.keys(kept).length,
+    `${seasons.join(", ")} · ${seasons.map(s => `${s}:${counts[s]}`).join(" ")}`
+    + (dropped ? ` · ${dropped} utan deildar sleppt` : ""));
 }
 
 /* ========== 15. MO / AO — data/imminent.json ==========
@@ -2318,7 +2416,9 @@ async function fetchPlayerSeasons() {
    safn-hattur og i last_gw: sidustu 4 umferdir fyrra timabils ur
    vaastav-speglun, MERKT archive:true.                                    */
 
-const IMM_WINDOW = 4;
+const IMM_WINDOW = 4;      // mo/ao — VALIDERAD vid 4 umferdir
+const START_WINDOW = 5;    // byrjunar-likur — VALIDERAD vid 5 umferdir
+const FETCH_WINDOW = Math.max(IMM_WINDOW, START_WINDOW);
 
 async function deriveImminent() {
   const jread = async p => JSON.parse(await readFile(`${DATA}/${p}`, "utf8"));
@@ -2329,7 +2429,7 @@ async function deriveImminent() {
   let rows = [], season, gws, archive;
   if (finished.length >= 1) {
     // ---- i timabili: ur okkar eigin live-skram ----
-    gws = finished.slice(-IMM_WINDOW);
+    gws = finished.slice(-FETCH_WINDOW);
     season = await seasonLabelFromEvents();
     archive = false;
     let players = [];
@@ -2366,7 +2466,7 @@ async function deriveImminent() {
     }
     if (!top) { record("imminent", false, 0, "engin gw-skra i speglun"); return; }
     gws = [];
-    for (let g = Math.max(1, top - IMM_WINDOW + 1); g <= top; g++) gws.push(g);
+    for (let g = Math.max(1, top - FETCH_WINDOW + 1); g <= top; g++) gws.push(g);
 
     const acc = {};
     for (const g of gws) {
@@ -2387,14 +2487,51 @@ async function deriveImminent() {
   }
 
   const num_ = v => { const x = parseFloat(v); return Number.isFinite(x) ? x : 0; };
+  /* TVEIR GLUGGAR UR EINNI SOKN.
+     mo/ao voru validerud vid 4 umferdir og byrjunar-likur vid 5, svo vid
+     saekjum 5 og LEIDUM mo-gluggann ut ur seriunni (sidustu 4 umferdir).
+     Ad breyta mo i 5 vaeri ad kasta valideringunni.                       */
   rows.forEach(r => {
-    r.window.gi = r.window.goals + r.window.assists;
-    if (r.series) r.series.sort((a, b) => a.gw - b.gw);
+    (r.series || []).sort((a, b) => a.gw - b.gw);
+    const uniqGws = [...new Set((r.series || []).map(x => x.gw))].sort((a, b) => a - b);
+    const moGws = new Set(uniqGws.slice(-IMM_WINDOW));
+    const w = blankWindow();
+    for (const x of (r.series || [])) {
+      if (!moGws.has(x.gw)) continue;
+      w.minutes += x.min; w.goals += x.g; w.assists += x.a;
+      w.xg += x.xg; w.xa += x.xa;
+      w.threat += x.thr; w.creativity += x.cre;
+    }
+    ["xg","xa","threat","creativity"].forEach(k => { w[k] = +w[k].toFixed(3); });
+    w.xgi = r.window.xgi; w.bps = r.window.bps; w.starts = r.window.starts;
+    w.gi = w.goals + w.assists;
+    r.window = w;
+    r.mo_gws = [...moGws].sort((a, b) => a - b);
+
+    /* BYRJUNAR-LIKUR: minutur per umferd yfir ALLAR 5. Tvofold umferd er
+       LOGD SAMAN i eina umferd — spurningin er "spilar hann 60+ i naestu
+       UMFERD", ekki i naesta leik.                                        */
+    const byGw = new Map();
+    for (const x of (r.series || [])) byGw.set(x.gw, (byGw.get(x.gw) ?? 0) + x.min);
+    const mins = uniqGws.map(g => byGw.get(g) ?? 0);
+    r.start_minutes = mins;
+    if (mins.length >= 2) {
+      const half = Math.max(1, Math.floor(mins.length / 2));
+      const late = mins.slice(-half).reduce((a, b) => a + b, 0) / half;
+      const early = mins.slice(0, half).reduce((a, b) => a + b, 0) / half;
+      r.start_feats = {
+        starts5: +(mins.filter(v => v >= 60).length / mins.length).toFixed(3),
+        mins5: +(mins.reduce((a, b) => a + b, 0) / mins.length).toFixed(1),
+        trend: +(late - early).toFixed(1),
+        started_last: mins[mins.length - 1] >= 60 ? 1 : 0,
+        value: r.now_cost ?? null,
+      };
+    }
   });
 
   await writeJSON("imminent.json", {
     updated: status.updated, season, archive, gws,
-    window: IMM_WINDOW,
+    window: IMM_WINDOW, start_window: START_WINDOW, fetched_gws: gws,
     note: "Gluggi = sidustu " + IMM_WINDOW + " loknu umferdir. Studlarnir sjalfir eru reiknadir i "
         + "src/stats.js (moScore/aoScore) svo profin keyri sama kóda og appid.",
     measured: {
@@ -2404,6 +2541,11 @@ async function deriveImminent() {
       ao: "BERT creativity/90. Samsettur AO-studull VAR profadur og FELL: 2,179 a moti 2,206 "
         + "fyrir bera creativity, tapadi i 0/3 timabilum. xA-vogin valdist alltaf 0.",
       pool: "Adeins leikmenn med 0-1 mark+assist i glugganum og 180+ minutur.",
+      start_prob: "start_feats/start_minutes eru fyrir BYRJUNAR-LIKUR (5 umferdir). "
+        + "MAELT a 65.557 synum: nakvaemni 88,0% a moti 88,2% fyrir 'byrjadi sidast' (JAFNT), "
+        + "en Brier 0,0888 a moti 0,1176 (-24%) og BEKKJAR-GILDRAN: laegsti tiundarhluti "
+        + "fangar 42-49% theirra sem falla a bekk thratt fyrir ad hafa byrjad (lyfting 2,09x). "
+        + "Hvild (<4 dagar) hafdi ENGIN ahrif og er thvi EKKI i likaninu.",
     },
     players: rows,
   });
