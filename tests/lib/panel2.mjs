@@ -141,7 +141,7 @@ export function buildPanel({ minHistory = 3 } = {}) {
           const m3b = l5.length >= 4 ? mean(l5.slice(0, -2).map(x => x[H.mins])) : m2;
           const isDef = code <= 2;
           rows.push({
-            season, round: q[H.round], name: nm, team: q[H.team], pos, code, pts: q[H.pts],
+            season, round: q[H.round], date: q[H.date], name: nm, team: q[H.team], pos, code, pts: q[H.pts],
             /* --- FORM, MARGIR TÍMAKVARÐAR --- */
             ppg3: mean(l3.map(x => x[H.pts])), ppg5: mean(pts5),
             ppg10: mean(l10.map(x => x[H.pts])), ppgAll: mean(ptsAll),

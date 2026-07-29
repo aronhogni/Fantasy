@@ -23,7 +23,7 @@
    ============================================================ */
 import { corr } from "./lib/e0.mjs";
 import {
-  buildPanel, FEATURES, POSN, fitRidge, design, losoPredict, spearman, topN,
+  buildPanel, FEATURES, fitRidge, design, losoPredict, spearman, topN,
 } from "./lib/panel.mjs";
 import { lookupPos, POS_MEAN_PTS } from "../src/model.js";
 

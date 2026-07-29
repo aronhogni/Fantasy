@@ -36,7 +36,7 @@ import {
 import * as C_ from "../src/model.js";
 import * as A_ from "./lib/frozen/A/model.js";
 import * as B_ from "./lib/frozen/B/model.js";
-import { poissonCleanSheet, marketDiff } from "../src/market.js";
+import { marketDiff } from "../src/market.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 let pass = 0, fail = 0;
