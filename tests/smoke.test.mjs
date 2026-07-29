@@ -264,12 +264,13 @@ ok(text().includes("FFDR-samanburður"), "FFDR-samanburður opnast við smell á
 const rotTable = [...container.querySelectorAll("table")]
   .find(t => t.textContent.includes("Þekja"));
 ok(!!rotTable, "spjaldið teiknar töflu");
-const rotPanel = rotTable;
-const rTxt = () => {
-  const h = [...container.querySelectorAll("div")]
-    .find(d => d.textContent.includes("Verðþak") && d.textContent.includes("róterings-par"));
-  return h ? h.textContent : "";
-};
+/* Modalinn sjalfur: h2 -> S.head -> S.panel. Stillingarnar (select,
+   checkbox) eru i hausnum, UTAN toflunnar, svo tha ma ekki leita i henni. */
+const rotH2 = [...container.querySelectorAll("h2")]
+  .find(x => x.textContent.includes("FFDR-samanburður"));
+const rotPanel = rotH2?.parentElement?.parentElement || null;
+ok(!!rotPanel && rotPanel.contains(rotTable), "modal-spjaldid fannst og inniheldur tofluna");
+const rTxt = () => rotPanel ? rotPanel.textContent : "";
 ok(rTxt().includes("Þekja") && rTxt().includes("Vinn."),
   "báðir mælikvarðar birtir: Þekja (FFDR) og Vinn. (ákvörðunin)");
 ok(/Verðþak £\d/.test(rTxt()) || rTxt().includes("Verðþak ekkert"),

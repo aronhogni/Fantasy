@@ -183,7 +183,10 @@ export default function Rotation({
                           hard={needOf(cell) > 0} />
                       ))}
                       <td style={S.tdNum} colSpan={2}>
-                        {t.cells.filter(c => needOf(c) > 0).length} erfiðar
+                        {(() => {
+                          const n = t.cells.filter(c => needOf(c) > 0).length;
+                          return `${n} ${n === 1 ? "erfið" : "erfiðar"}`;
+                        })()}
                       </td>
                     </tr>
                   ))}
