@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import { TIER_NEUTRAL, tierOf } from "../src/model.js";
 import {
   BLANK_NEED, DEFAULT_HORIZON, HARD_TIER_MIN, TIER_NEED,
-  candidatePool, findRotationPartners, gwCell, horizonGws, needOf,
+  candidatePool, coversNeed, findRotationPartners, gwCell, horizonGws, needOf,
 } from "../src/rotation.js";
 
 let pass = 0, fail = 0;
@@ -30,7 +30,13 @@ const FFDR = {
   10: { 1: 1.6, 2: 3.4, 3: 1.6, 4: 3.4, 5: 2.0, 6: 2.0 },  // MINN MAÐUR: þungur 2 og 4
   20: { 1: 3.4, 2: 1.6, 3: 3.4, 4: 1.6, 5: 3.4, 6: 3.4 },  // SPEGILMYND: léttur 2 og 4
   30: { 1: 1.6, 2: 1.6, 3: 1.6, 4: 3.4, 5: 1.6, 6: 1.6 },  // BETRI Í HEILD, þungur í 4
-  40: { 1: 2.0, 2: 2.0, 3: 2.0, 4: 2.0, 5: 2.0, 6: 2.0 },  // flatur hlutlaus
+  40: { 1: 2.0, 2: 2.0, 3: 2.0, 4: 2.0, 5: 2.0, 6: 2.0 },  // flatur GRAENN (threp 1)
+  /* Lid fyrir throskulds-profid. ATH: 2,00 er GRAENT, ekki hlutlaust —
+     hlutlaust threp er 2,32-2,54 skv. TIER_CUTS. Thad var min villa i
+     fyrstu utgafu profsins og kodinn hafdi rett fyrir ser.              */
+  50: { 1: 2.40, 2: 2.40, 3: 2.40, 4: 2.40, 5: 2.40, 6: 2.40 }, // flatur HVITUR
+  60: { 1: 1.60, 2: 1.60, 3: 1.60, 4: 1.60, 5: 1.60, 6: 1.60 }, // flatur DOKKGRAENN
+  70: { 1: 2.45, 2: 2.45, 3: 2.45, 4: 2.45, 5: 2.45, 6: 2.45 }, // annar HVITUR
 };
 const fixByTeamGw = {};
 for (const tid of Object.keys(FFDR))
@@ -58,8 +64,10 @@ ok(horizonGws(36, 6, 38).join(",") === "36,37,38", "klippt við umferð 38, enga
 ok(DEFAULT_HORIZON === 6, "sjálfgildi er 6 umferðir (það sem notandinn bað um)");
 ok(HARD_TIER_MIN === 3 && TIER_NEED[3] === 1 && TIER_NEED[4] === 2 && TIER_NEED[5] === 3,
   "erfitt = dökkgult(3)/ljósrautt(4)/rautt(5), þyngd 1/2/3");
-ok(TIER_NEED.slice(0, 3).every(x => x === 0),
-  "dökkgrænt/grænt/hlutlaust kalla EKKI á hjálp (þyngd 0)");
+ok(TIER_NEED[0] === 0 && TIER_NEED[1] === 0,
+  "dökkgrænt og grænt kalla ALDREI á hjálp (þyngd 0)");
+ok(needOf({ blank:false, tier:2 }) === 0 && needOf({ blank:false, tier:2 }, 2) === TIER_NEED[2],
+  `hlutlaust er 0 við SJÁLFGEFINN þröskuld en ${TIER_NEED[2]} þegar hann er færður í 2`);
 ok(BLANK_NEED >= TIER_NEED[5],
   `auð umferð er ÞYNGST (${BLANK_NEED} >= rautt ${TIER_NEED[5]}) — 0 stig er verra en hvaða leikur sem er`);
 
@@ -187,8 +195,72 @@ const capped = findRotationPartners({ targets: [target], candidates: [...cands, 
   gwFrom: 1, horizon: 6, maxGw: 6, fixByTeamGw, fixDifficulty, maxTenths: 70 });
 ok(capped.results.every(r => r.p.now_cost <= 70) && capped.results[0]?.p.id === 200,
   "MEÐ verðþaki £7,0 fellur hann út og spegilmyndin vinnur — listinn verður nothæfur");
-ok(capped.results.length === withDear.results.length - 1,
-  "þakið fjarlægir AÐEINS þá sem eru of dýrir, ekki neitt annað");
+ok(!capped.results.some(r => r.p.id === 500) &&
+   !capped.results.some(r => r.others.some(o => o.id === 500)),
+  "þakið fjarlægir dýra manninn ALVEG — hann leynist ekki í +N heldur");
+ok(capped.results.some(r => r.teamId === 20 && r.p.id === 200),
+  "lið 20 heldur röð sinni, nú með spegilmyndina í forsvari (dýri var í SAMA liði)");
+
+/* ---------- 5b. EITT LID = EIN ROD ---------- */
+console.log(`\n${"─".repeat(84)}`);
+console.log("5b. EITT LIÐ = EIN RÖÐ (FFDR er eiginleiki liðsins)");
+console.log("─".repeat(84));
+{
+  /* thrir varnarmenn i SAMA lidi (20) -> eiga NAKVAEMLEGA somu sex leiki */
+  const three = [
+    { p: mk(201, 20, 2, "6.0"), teamId: 20 },
+    { p: mk(202, 20, 2, "5.0"), teamId: 20 },
+    { p: mk(203, 20, 2, "4.0"), teamId: 20 },
+    { p: mk(400, 40, 2, "5.0"), teamId: 40 },
+  ];
+  const g = findRotationPartners({ targets: [target], candidates: three, gwFrom: 1,
+    horizon: 6, maxGw: 6, fixByTeamGw, fixDifficulty });
+  console.log(`  ${g.results.map(r => `${r.p.web_name}(+${r.others.length})`).join("  ")}`);
+  ok(g.results.length === 2,
+    `þrír úr liði 20 + einn úr 40 -> TVÆR raðir, ekki fjórar (${g.results.length})`);
+  const t20 = g.results.find(r => r.teamId === 20);
+  ok(t20 && t20.p.id === 201,
+    "BESTI mannsins úr liðinu er sá sem birtist (hæsta vænt stig)");
+  ok(t20 && t20.others.length === 2 && t20.others.every(o => o.team === 20),
+    `hinir tveir eru taldir og fylgja með (+${t20?.others.length})`);
+  ok(t20 && t20.others.every(o => o.id !== t20.p.id), "sá sem birtist er ekki líka í +N");
+  const flat = findRotationPartners({ targets: [target], candidates: three, gwFrom: 1,
+    horizon: 6, maxGw: 6, fixByTeamGw, fixDifficulty, byTeamOnly: false });
+  ok(flat.results.length === 4 && flat.results.every(r => r.others.length === 0),
+    "byTeamOnly:false gefur ALLA (svo hægt sé að slá þetta af)");
+}
+
+/* ---------- 5c. HLUTLAUSIR LEIKIR: "graenn a moti hvitum" ---------- */
+console.log(`\n${"─".repeat(84)}`);
+console.log("5c. ÞRÖSKULDUR — hvítur leikur er UPPFÆRANLEGUR");
+console.log("─".repeat(84));
+{
+  /* Lid 50 er FLATUR HVITUR (2,40 alla sex) — VVD-daemid notandans:
+     ekki vondur leikur, en UPPFAERANLEGUR ef annar a graenan.            */
+  const flatTarget = { p: mk(110, 50, 2), teamId: 50 };
+  const cands2 = [{ p: mk(600, 60, 2), teamId: 60 },   // 1,60 dokkgraent
+                  { p: mk(700, 70, 2), teamId: 70 }];  // 2,45 annar hvitur
+  const d3 = findRotationPartners({ targets: [flatTarget], candidates: cands2,
+    gwFrom: 1, horizon: 6, maxGw: 6, fixByTeamGw, fixDifficulty, hardFrom: 3 });
+  ok(d3.hard.length === 0,
+    "þröskuldur 3 (dökkgult): hvítur leikur telst EKKI erfiður — óbreytt hegðun");
+  ok(coversNeed({ blank:false, tier:1 }, 2) && !coversNeed({ blank:false, tier:2 }, 2)
+     && !coversNeed({ blank:true }, 2),
+    "coversNeed: þrep UNDIR þröskuldi þekur, jafnt þrep gerir ekki, auð umferð aldrei");
+  const d2 = findRotationPartners({ targets: [flatTarget], candidates: cands2,
+    gwFrom: 1, horizon: 6, maxGw: 6, fixByTeamGw, fixDifficulty, hardFrom: 2 });
+  console.log(`  þröskuldur 2: ${d2.hard.length} umferðir, þyngd ${d2.totalNeed}` +
+    ` · pör: ${d2.results.map(r => r.p.web_name + " " + r.cover + "%").join(", ")}`);
+  ok(d2.hard.length === 6 && d2.hard.every(h => h.need === TIER_NEED[2]),
+    `þröskuldur 2: allir sex hvítu teljast, þyngd ${TIER_NEED[2]} hver`);
+  ok(TIER_NEED[2] > 0 && TIER_NEED[2] < TIER_NEED[3],
+    `hlutlaust vegur MINNA en dökkgult (${TIER_NEED[2]} < ${TIER_NEED[3]}) — forgangur heldur`);
+  const green = d2.results.find(r => r.p.id === 600);
+  ok(green && green.cover === 100,
+    "GRÆNI (dökkgrænt 1,60) þekur hvítu umferðirnar 100% — þetta er það sem beðið var um");
+  ok(!d2.results.find(r => r.p.id === 700),
+    "annar HVÍTUR þekur EKKI hvítt: þekja krefst þreps UNDIR þröskuldi, ekki jafns");
+}
 
 /* ---------- 6. Raunveruleg gögn ---------- */
 console.log(`\n${"─".repeat(84)}`);

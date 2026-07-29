@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Pitch from "./Pitch.jsx";
 import GwReport from "./GwReport.jsx";
 import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
-import SetPieces, { setPieceBadges } from "./SetPieces.jsx";
+import SetPieces from "./SetPieces.jsx";
 import Compare from "./Compare.jsx";
 import Rotation from "./Rotation.jsx";
 import PlayerList from "./PlayerList.jsx";
@@ -3059,9 +3059,15 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       title={swapSel === p.id ? "Valinn — smelltu á annan til að skipta"
              : "Smelltu til að skipta við annan leikmann"}>
       {/* IKON — sér aðgerðir. Smellur á spjaldið er SKIPTI. */}
-      <div style={S.pcIcons}>
+      {/* "i" ER VINSTRA MEGIN. Thrju ikon i sama horni voru trodin og
+          spjaldid er adeins clamp(62px, 17.5%, 100px) breitt. Vinstra
+          hornid var laust nema tha midjuflaggid (availBadge) se til —
+          thad er faert til hlidar vid ikonid i stad thess ad liggja undir. */}
+      <div style={S.pcIconsL}>
         <button style={S.pcIcon} title="Upplýsingar"
           onClick={e => { e.stopPropagation(); onInfo && onInfo(); }}>i</button>
+      </div>
+      <div style={S.pcIcons}>
         <button style={{ ...S.pcIcon, ...S.pcIconSwap }} title="Skipta út — opnar leit"
           onClick={e => { e.stopPropagation(); onTransfer && onTransfer(); }}>⇄</button>
         {/* FFDR-SAMANBURDUR — hver kemur inn fyrir hann i ERFIDU umferdunum.
@@ -3124,16 +3130,13 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       </div>
       {/* Fínleg merkjaröð — aðeins það sem er athugavert */}
       <div style={S.sigRow}>
-        {/* FOST LEIKATRIDI sem ikon-rod: viti / aukaspyrnur / horn.
-            Adur var adeins "PEN" fyrir fyrsta vitataka — aukaspyrnu- og
-            hornatakar sáust hvergi a vellinum thott FPL gefi rodun theirra.
-            Sami taknlisti og i flipanum "Fost leikatridi" (SP_KINDS).      */}
-        {(setPieceBadges(p) || []).map(b => (
-          <span key={b.key} style={{ ...S.sigSet, ...(b.order === 1 ? S.sigSetFirst : {}) }}
-            title={`${b.label} — ${b.order === 1 ? "fyrsti taki" : `${b.order}. í röð`} (úr FPL)`}>
-            {b.icon}{b.order > 1 ? b.order : ""}
-          </span>
-        ))}
+        {/* FOST LEIKATRIDI ERU EKKI A SPJALDINU (fjarlaegt 29.7. ad bedni
+            notanda). Spjaldid er clamp(62px, 17.5%, 100px) breitt og thessi
+            ikon-rod (viti + aukaspyrna + horn) trod merkjarodina svo
+            thad sem er ATHUGAVERT — DC, spjaldabann, roterings-haetta —
+            drukknadi i henni. Rodunin er OBREYTT annars stadar:
+            leikmannaglugginn ("Vitarod") og flipinn "Fost leikatridi".
+            Ekki setja inn aftur an thess ad spjaldid stækki.              */}
         {isDef && dc && dc.defcon_opportunity >= 70 &&
           <span style={S.sigDc} title={`DefCon-tækifæri ${dc.defcon_opportunity} — mikið vinnuálag varnar`}>DC{dc.defcon_opportunity}</span>}
         {ban && ban.level === "high" &&
@@ -3370,6 +3373,7 @@ const S = {
     flexShrink:1, minWidth:0 },
   pCardBench: { background:"rgba(255,255,255,0.94)" },
   pcIcons: { position:"absolute", top:2, right:2, display:"flex", gap:2, zIndex:3 },
+  pcIconsL: { position:"absolute", top:2, left:2, display:"flex", gap:2, zIndex:3 },
   pcIcon: { width:15, height:15, padding:0, display:"flex", alignItems:"center", justifyContent:"center",
     fontFamily:mono, fontSize:9, fontWeight:700, lineHeight:1, cursor:"pointer",
     background:"rgba(255,255,255,0.92)", color:C.text2, border:`1px solid ${C.border}`,
@@ -3442,7 +3446,8 @@ const S = {
   ffdrTd: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono,
     fontSize:9, fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
   tblNum: { width:46, textAlign:"right", fontFamily:mono, fontSize:11, color:C.text2, position:"relative" },
-  availBadge: { position:"absolute", top:4, left:4, fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 3px", borderRadius:4, lineHeight:1.3, zIndex:2 },
+  /* left 21 (var 4): "i"-ikonid situr nu i vinstra horninu. */
+  availBadge: { position:"absolute", top:4, left:21, fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 3px", borderRadius:4, lineHeight:1.3, zIndex:2 },
   sAvail: { fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 4px", borderRadius:4, marginLeft:5 },
   sPen: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"1px 3px", borderRadius:4, background:"#e6f9f0", color:"#0a7a4a", marginLeft:4 },
   okBox: { background:C.greenBg, color:"#0a7a4a", borderRadius:8, padding:"8px 10px", fontSize:12 },

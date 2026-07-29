@@ -1484,7 +1484,16 @@ async function deriveGameweekShape() {
 /* ---- 1b. HVÍLDARDAGAR ----
    rest_days úr KICKOFF-TÍMA (ekki dagsetningu eingöngu), yfir ALLAR
    keppnir sem við höfum. euro_before/after fyllast þegar Evrópudráttur
-   er gerður — þangað til eru þau false, sem er rétt (engir leikir skráðir). */
+   er gerður — þangað til eru þau false, sem er rétt (engir leikir skráðir).
+
+   „<4 DAGA HVÍLD"-FLAGGIÐ VAR TEKIÐ ÚT 29.7.2026 — MÆLT ÓNÝTT.
+   Það var talið í status og las eins og rótasjón-hætta. Mæling á 65.557
+   leikmanna-umferðum (3 tímabil): eftir <4 daga hvíld spila 27,0% af
+   leikmönnum 60+ mínútur, á móti 27,3% annars (10.448 leikir með skammri
+   hvíld). Það er EKKERT forspárgildi um mínútur, svo talan mátti ekki
+   birtast við hlið raunverulegra hættu-merkja.
+   `rest_days` sjálft er GEYMT sem UPPLÝSING — sama regla og ferðalengd
+   (kafli 3 í CLAUDE.md): mælt ómarktækt => birt, ekki vegið. */
 async function deriveRotation() {
   const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
   const teams = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
@@ -1525,13 +1534,18 @@ async function deriveRotation() {
     }
   }
   const flagged = out.filter(x => x.euro_before || x.euro_after).length;
-  const short = out.filter(x => x.rest_days != null && x.rest_days < 4).length;
   await writeJSON("rotation.json", {
     updated: status.updated,
     note: "rest_days = dagar frá SÍÐASTA leik liðsins í hvaða keppni sem er (úr kickoff_time). euro_before/after = Evrópu-/bikarleikur 2-4 dögum fyrir/eftir.",
+    /* Mælt 29.7.2026: hvíld hefur ekkert forspárgildi um mínútur (27,0% á
+       móti 27,3% spila 60+ eftir <4 daga hvíld, n=10.448). Talningin var
+       tekin úr status svo hún lesist ekki sem hætta. Evrópu-nálægð er
+       ÓMÆLD og heldur sér. */
+    rest_measured: { short_rest_60plus: 0.270, other_60plus: 0.273,
+                     samples: 10448, verdict: "engin ahrif — ekki hættumerki" },
     rows: out,
   });
-  record("rotation", true, out.length, `${short} m. <4 daga hvíld, ${flagged} m. Evrópu-nálægð`);
+  record("rotation", true, out.length, `${flagged} m. Evrópu-nálægð (hvíld mæld ónýt, ekki flagguð)`);
 }
 
 /* ---- 4b. HEPPNISMÆLIR ÚR UNDERSTAT ----
@@ -2618,7 +2632,10 @@ async function deriveImminent() {
         + "src/stats.js (moScore/aoScore) svo profin keyri sama kóda og appid.",
     measured: {
       samples: 13273, seasons: 3, gameweeks: 114,
-      mo: "Samsettur studull (xG 0,8 + threat/25 0,3 + oheppni 0,2). Ut af urtaki 2,888 "
+      mo: "Samsettur studull (xGI 0,8 + threat/25 0,3 + oheppni 0,2). Magnlidurinn "
+        + "var xG eitt fram ad 29.7.2026; xGI maeldist betri a 4 timabilum "
+        + "(lyfting 2,498 a moti 2,379 fyrir mork+assist, 3/4 timabil, engir nyir "
+        + "stikar). Ut af urtaki 2,888 "
         + "a moti 2,696 (xG einn) og 2,779 (threat einn) — vinnur i 2/3 timabilum, jafnar i thvi thridja.",
       ao: "BERT creativity/90. Samsettur AO-studull VAR profadur og FELL: 2,179 a moti 2,206 "
         + "fyrir bera creativity, tapadi i 0/3 timabilum. xA-vogin valdist alltaf 0.",

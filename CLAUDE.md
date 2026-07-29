@@ -370,6 +370,7 @@ Taflan hér að neðan er ekki tæmandi; hún nefnir þau sem bera ákvarðanir.
 | `rotation.mjs` | 44 | FFDR-SAMANBURÐUR / róterings-par (`src/rotation.js`). Sjá kafla 3d. Kafli 3 er PRÓFSTEINNINN: spegilmynd verður að vinna þann sem er BETRI Í HEILD, annars er þetta röðun í dulargervi. |
 | `workflow-push.mjs` | 37 | PUSH-KAPPHLAUPIÐ í pipeline. Dregur shell-blokkina ÚT ÚR `.github/workflows/*.yml` og keyrir hana á ALVÖRU git-hirslum með kapphlaupið þvingað fram. Sjá kafla 5b. |
 | `travel-measure.mjs` | 2 | Vörðurinn í kafla 3. |
+| `mo-candidates.mjs` | 9 | **mó gegn frambjóðendum á 4 tímabilum** (2223–2526). Mælir shipped `moScore` (ekki afrit af formúlunni) og heldur `xGI`-ábatanum með **bootstrap klösuðum per leikmann** — CI verður að útiloka núll. Sami vörður hafnaði því að sleppa óheppnis-liðnum. Sjá 6d. |
 | `smoke.test.mjs` | 55 | Appið keyrt í **jsdom** með raunverulegum `data/`-skrám og hermdu `fetch`. 15 spjöld, peningar (banki+lið = £100.0), umferðaskipti, FPL-reglur, chips, andstæðingar, vistun, meiðsli, ferðalengd. |
 
 **`tests/lib/e0.mjs`** byggir spá-heiminn (liðsstyrkur, FDR-nálgun, markaðslína,
@@ -628,6 +629,67 @@ og prófað í `tests/stats.test.mjs` kafla 10.
 xG og 2,78 fyrir threat) — sem passar við 6c: sá sem *býr til* færi er
 líklegri en sá sem *klúðraði* þeim. Vogin á óheppni er því lítil (0,2).
 
+### ENDURMÆLT 29.7.2026 — MAGNLIÐURINN VAR RANGUR: xGI, EKKI xG
+
+`tests/mo-candidates.mjs` (nýtt safn). **Fjögur** tímabil úr
+`data/fpl_player_gw.json`, þ.e. 2022-23 líka — tímabil sem `MO_WEIGHTS`
+**hafa aldrei séð** (vogirnar voru valdar á 2324+2425, prófaðar á 2526).
+
+**INNTAKIÐ PASSAÐI EKKI VIÐ MARKMIÐIÐ.** Markmið mó er mörk **+ assist**
+næstu 4 umferðir, en magnliðurinn taldi aðeins **xG**. xA var hvergi, þótt
+útkoman sem við mælum innihaldi assist. Þetta er sama ætt af villu og
+markaðs-sóknarliðurinn í kafla 3 atriði 2: **rétt mælt á röngu inntaki.**
+
+| markmið (lyfting efsta 1/6... reyndar 1/10) | xG (var) | **xGI (er)** | ábati |
+|---|---|---|---|
+| mörk+assist næstu 4 | 2,379 | **2,498** | +0,119 (3/4 tímabil) |
+| stig næstu 4 | 1,268 | **1,311** | +0,043 (3/4 tímabil) |
+
+**ENGIR NÝIR STIKAR** — `xg`-vogin (0,8) liggur einfaldlega á `(xg + xa)`.
+
+**Fjórar óháðar staðfestingar á að þetta sé merki og ekki fitt:**
+1. **Bootstrap, klasað per leikmann** (sami maður í mörgum umferðum er ekki
+   sjálfstætt sýni): +0,138 með 95% CI **[0,061, 0,239]**, P(betri) **100%**
+   á mörk+assist; +0,052 CI [0,026, 0,084] á stig. Núll er útilokað.
+2. **LOSO-tún** (vogir valdar á 3 tímabilum, mælt á hinu) velur xA-vog
+   **0,8 / 1,0 / 1,0 / 1,0** — stöðug í öllum fjórum brotum. Vogir sem eru
+   hávaði hoppa og skipta formerki (sbr. def/att-blöndun í kafla 3).
+3. **Túnaða þakið er 2,504; þessi útgáfa nær 2,498** — 99,8% af ábatanum
+   fæst án þess að fitta nokkuð.
+4. **xA EITT er 1,945 — verra en xG eitt (2,130).** Ábatinn er samlegð
+   milli þeirra, ekki að lélegra inntak hafi verið skipt út fyrir betra.
+
+**Hvar ábatinn er:** DEF **+0,226** (1,170 → 1,395, +19%) · FWD +0,081 ·
+MID +0,059. Rökrétt: framlög varnarmanna eru óhlutfallslega **assist** og
+xG ein sá þau næstum ekki.
+**Fyrirvari sem má ekki fela:** innan FWD eingöngu er lyftingin ~1,0 bæði
+fyrir og eftir (n=973) — mó greinir **ekki** milli framherja. Hún virkar
+þegar borið er saman þvert á stöður.
+
+**Skörun mó og aó** fer 21% → 30% á efsta tíundarhluta; þeir eru enn
+aðgreindir listar. **aó er ÓBREYTT**: xA bætir engu ofan á creativity
+(mælt 28.7., xA-vog valdist alltaf 0) og það stangast ekki á — creativity
+kóðar þegar færa-sköpun, xG gerir það ekki.
+
+**PRÓFAÐ OG HAFNAÐ Í SÖMU MÆLINGU** (svo þetta sé ekki endurtekið):
+
+| frambjóðandi | niðurstaða |
+|---|---|
+| **mó × byrjunar-líkur** | vinnur á STIGUM (4/4, +0,041) en **tapar** á mörk+assist (−0,040). LOSO velur veldi 1–2 fyrir stig en **0** fyrir mörk — ekki einrátt yfir markmið. Byrjunar-líkur eru birtar **sér** (Bekkjar-hætta + eigin dálkur), sem er gagnsærra en að blanda þeim inn |
+| **að sleppa óheppnis-liðnum** | punktmat +0,022 leit betra út, en bootstrap gefur CI **[−0,023, +0,055]**, P(betri) 74% — **ógreinanlegt frá núlli**. Liðurinn heldur sér. Sama mælistika sem samþykkti xGI hafnaði þessu |
+| óheppni úr xGI (`max(0, xgi−gi)`) | 2,493 á móti 2,498 — jafnt. Haldið xG-útgáfunni: „óheppni" er **eigin** klúður í dauðafærum, ekki samherja-klúður í færum sem hann lagði upp |
+| mó / mín (per 90) | 2,393 — **verra**. Magnið í glugganum er það sem gildir |
+
+**VÖRÐUR GEGN ÞVÍ AÐ LIÐURINN DEYI ÞÖGULT** (kafli 10 í `stats.test.mjs`):
+`imminent.json` verður að bera `xa` í **hverjum** glugga, hún verður að vera
+raunverulega fyllt (mælt: 334/841 = 40%, hærra en xG) og hún verður að
+**hreyfa** mó hjá raunverulegum leikmönnum (169 af 184 í markhóp). Án þessa
+gæti pipeline hætt að skrifa `xa`, formúlan læsi 0 og bætingin væri horfin
+þögult — nákvæmlega gildran sem kostaði viku þegar markaðsliðurinn var
+dauður í `odds.json` og öll 144 prófin voru græn.
+Níu stökkbreytingar-prófuð: að skila magnliðnum í xG eitt fellir **4 próf í
+`stats.test.mjs` og 4 í `mo-candidates.mjs`**, þar á meðal bæði bootstrap-in.
+
 ---
 
 ## 6e. GAGNAHEIMILDIR — HLIÐIN MÆLD 28.7.2026 (svar við Fable-handoff)
@@ -844,10 +906,14 @@ Breyturnar fimm: `starts5`, `mins5`, `trend`, `started_last`, `value`
 ### PRÓFAÐ OG HAFNAÐ — ekki endurtaka
 - **HVÍLD / LEIKJAÁLAG: engin áhrif.** Eftir <4 daga hvíld spila **27,0%**
   60+ mínútur, á móti **27,3%** annars (10.448 leikir með skammri hvíld).
-  **ATH:** `rotation.json` í þessu repo flaggar „<4 daga hvíld" sem
-  rótasjón-hættu — þessi mæling segir að flaggið hafi **ekkert forspárgildi
-  um mínútur**. Það er ekki fjarlægt hér (annað session á rotation), en það
-  á ekki að treysta því.
+  **FLAGGIÐ VAR TEKIÐ ÚT 29.7.2026.** `rotation.json` flaggaði „<4 daga
+  hvíld" og pipeline taldi það í `status.json` („40 m. <4 daga hvíld"), þar
+  sem það las eins og rótasjón-hætta við hlið raunverulegra hættu-merkja.
+  Talningin er farin; `rest_days` er **geymt sem upplýsing** og skráin ber nú
+  `rest_measured` með tölunum. Sama regla og ferðalengd í kafla 3: mælt
+  ómarktækt ⇒ birt, ekki vegið. **Evrópu-nálægð er ÓMÆLD og heldur sér.**
+  (Appið las `rotation.json` aldrei, svo þetta var aðeins í status-línunni —
+  `rotationRisk` í `App.jsx` er allt annað: byrjunarhlutfall, ekki hvíld.)
 - **Staða (GK/DEF/FWD-dúmmíar):** +0,03× = suð. Sleppt; einfaldara er betra.
 - **FPL `starts`-flagg og „kom inn af bekk":** engin bæting yfir mínútur.
 

@@ -23,7 +23,8 @@
 import React, { useMemo, useState } from "react";
 import { TIER_BG, TIER_FG, TIER_NAME } from "./model.js";
 import {
-  DEFAULT_HORIZON, candidatePool, findRotationPartners, gwCell, horizonGws, needOf,
+  DEFAULT_HORIZON, HARD_TIER_MIN, candidatePool, findRotationPartners, gwCell,
+  horizonGws, needOf,
 } from "./rotation.js";
 
 const C = {
@@ -55,6 +56,11 @@ function Cell({ cell, teamById, hard }) {
   );
 }
 
+/* Val a sjondeildarhring. Sjalfgildi 6 (thad sem notandinn bad um) en
+   listinn nær alla leid — horizonGws() klippir vid sidustu umferd, svo
+   "allar" er ohaett i hvada umferd sem er. Taflan skrunar sjalf (S.scroll). */
+export const HORIZONS = [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 38];
+
 export default function Rotation({
   targetIds, players, teamById, fixByTeamGw, fixDifficulty, gwNow, maxGw = 38,
   squadIds, Crest, onToggleTarget, onClear, onClose,
@@ -62,6 +68,11 @@ export default function Rotation({
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
   const [onlyMine, setOnlyMine] = useState(false);
   const [capExtra, setCapExtra] = useState(20);          // í tíundum: +£2,0
+  /* Hvad telst "erfitt". Sjalfgildi 3 (dokkgult+) er thad sem maelt var.
+     2 = "hlutlaust+": hvitur leikur er ekki VONDUR en hann er UPPFAERANLEGUR
+     ef annar madur a graenan leik i somu umferd. Tha þarf frambjodandinn
+     ad vera GRAENN til ad theka (coversNeed krefst threps UNDIR throskuldi). */
+  const [hardFrom, setHardFrom] = useState(HARD_TIER_MIN);
 
   const owned = useMemo(() => new Set(squadIds || []), [squadIds]);
   const targets = useMemo(
@@ -84,8 +95,9 @@ export default function Rotation({
 
   const R = useMemo(() => findRotationPartners({
     targets, candidates: pool, gwFrom: gwNow, horizon, maxGw,
-    fixByTeamGw, fixDifficulty, ownedIds: owned, limit: 12, maxTenths,
-  }), [targets, pool, gwNow, horizon, maxGw, fixByTeamGw, fixDifficulty, owned, maxTenths]);
+    fixByTeamGw, fixDifficulty, ownedIds: owned, limit: 12, maxTenths, hardFrom,
+  }), [targets, pool, gwNow, horizon, maxGw, fixByTeamGw, fixDifficulty, owned,
+       maxTenths, hardFrom]);
 
   const gws = horizonGws(gwNow, horizon, maxGw);
   const hardSet = new Set(R.hard.map(h => h.gw));
@@ -111,7 +123,9 @@ export default function Rotation({
             <label style={S.lbl}>Umferðir
               <select style={S.sel} value={horizon}
                 onChange={e => setHorizon(Number(e.target.value))}>
-                {[4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n}</option>)}
+                {HORIZONS.map(n => (
+                  <option key={n} value={n}>{n === 38 ? "allar" : n}</option>
+                ))}
               </select>
             </label>
             <label style={S.lbl}>Verðþak
@@ -122,6 +136,13 @@ export default function Rotation({
                 <option value={20}>+£2,0</option>
                 <option value={50}>+£5,0</option>
                 <option value="off">ekkert þak</option>
+              </select>
+            </label>
+            <label style={S.lbl}>Erfitt frá
+              <select style={S.sel} value={hardFrom}
+                onChange={e => setHardFrom(Number(e.target.value))}>
+                <option value={3}>dökkgult</option>
+                <option value={2}>hlutlaust (hvítt)</option>
               </select>
             </label>
             <label style={{ ...S.lbl, cursor:"pointer" }}>
@@ -180,11 +201,11 @@ export default function Rotation({
                       </td>
                       {t.cells.map((cell, i) => (
                         <Cell key={gws[i]} cell={cell} teamById={teamById}
-                          hard={needOf(cell) > 0} />
+                          hard={needOf(cell, hardFrom) > 0} />
                       ))}
                       <td style={S.tdNum} colSpan={2}>
                         {(() => {
-                          const n = t.cells.filter(c => needOf(c) > 0).length;
+                          const n = t.cells.filter(c => needOf(c, hardFrom) > 0).length;
                           return `${n} ${n === 1 ? "erfið" : "erfiðar"}`;
                         })()}
                       </td>
@@ -239,6 +260,13 @@ export default function Rotation({
                               <span style={S.pos}>{POS[c.p.element_type]}</span>
                               <span style={S.price}>£{((c.p.now_cost || 0) / 10).toFixed(1)}</span>
                               {c.owned && <span style={S.mine} title="Þegar í liðinu þínu — engin skipti">í liðinu</span>}
+                              {!!c.others?.length && (
+                                <span style={S.others}
+                                  title={"Sömu leikir — FFDR er eiginleiki LIÐSINS:\n"
+                                    + c.others.map(o => `${POS[o.element_type]} ${o.web_name} £${((o.now_cost||0)/10).toFixed(1)}`).join("\n")}>
+                                  +{c.others.length}
+                                </span>
+                              )}
                             </td>
                             {cells.map((cell, j) => (
                               <Cell key={gws[j]} cell={cell} teamById={teamById}
@@ -270,7 +298,10 @@ export default function Rotation({
               með hlutlausum leik eða betri. <b>Vinn.</b> er ákvörðunin: vænt stig
               hans mínus þess sem hann kemur inn fyrir, aðeins í erfiðu umferðunum.
               Raðað eftir vinningi — hrein þekja setur menn í slökum liðum á toppinn.
+              {" "}Ein röð per LIÐ — FFDR er eiginleiki liðsins, svo allir varnarmenn
+              sama félags eiga sömu leiki; <b>+N</b> eru hinir í sama liði.
               {" "}Verðþak {maxTenths == null ? "ekkert" : `£${(maxTenths / 10).toFixed(1)}`}.
+              {hardFrom <= 2 && " Hlutlausir (hvítir) leikir teljast með, og þá þarf parið að vera GRÆNT."}
               <button style={S.clearAll} onClick={onClear}>Hreinsa val</button>
             </div>
           </>
@@ -315,6 +346,8 @@ const S = {
         borderRadius:3, padding:"0 3px" },
   price:{ fontSize:9.5, color:C.text3, fontFamily:mono },
   mine:{ fontSize:9, color:"#046b41", background:"#e6f9f0", borderRadius:3, padding:"0 4px" },
+  others:{ fontSize:9, color:C.text3, background:C.cardAlt, border:`1px solid ${C.border}`,
+           borderRadius:3, padding:"0 3px", cursor:"help" },
   rm:{ border:"none", background:"transparent", color:C.text3, fontSize:10,
        cursor:"pointer", padding:0 },
   cell:{ padding:"3px 2px", textAlign:"center", fontSize:9.5, fontWeight:600,

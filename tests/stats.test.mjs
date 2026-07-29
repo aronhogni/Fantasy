@@ -439,13 +439,24 @@ ok(hasImm, "data/imminent.json er til (pipeline: deriveImminent)");
 
 // formulan sjalf a thekktum inntokum
 const w = { minutes: 320, goals: 0, assists: 1, xg: 2.0, xa: 0.4, threat: 100, creativity: 90 };
-near(moScore(w), 0.8*2.0 + 0.3*(100/25) + 0.2*2.0, 1e-6, "mó = xG·0,8 + threat/25·0,3 + óheppni·0,2");
+/* MAGNLIDURINN ER xGI (xg+xa), ENDURMAELT 29.7.2026: markmid mo er
+   mork+ASSIST, svo inntakid verdur ad innihalda upplagshlutann. xG eitt
+   gaf lyftingu 2,379, xGI gefur 2,498 (3/4 timabil, 4 timabil maeld).   */
+near(moScore(w), 0.8*(2.0 + 0.4) + 0.3*(100/25) + 0.2*2.0, 1e-6,
+  "mó = xGI·0,8 + threat/25·0,3 + óheppni·0,2");
+ok(moScore({ ...w, xa: 1.2 }) > moScore({ ...w, xa: 0 }),
+  "xA hækkar mó — upplagsmadur er lika \"a tima\" (var ekki svo fyrir 29.7.)");
 near(aoScore(w), (90/320)*90, 0.01, "aó = creativity/90 (bert — samsetning féll)");
 
 /* "Oheppni" telur ADEINS thegar leikmadurinn er UNDIR xG. Sa sem hefur
    skorad MEIRA en xG segir til um a ekki ad fa bonus fyrir thad.        */
-near(moScore({ ...w, goals: 3, xg: 2.0 }), 0.8*2.0 + 0.3*4, 1e-6,
+near(moScore({ ...w, goals: 3, xg: 2.0 }), 0.8*(2.0 + 0.4) + 0.3*4, 1e-6,
   "yfir-frammistaða gefur EKKI neikvæðan óheppnis-lið (klippt við 0)");
+/* Oheppnis-lidurinn er EIGIN daudafaeri (xg-mork), EKKI xgi-gi. Maelt jafnt
+   (2,493 a moti 2,498) svo hugtakid ræður: samherji sem klúðrar færi sem
+   thu lagdir upp er ekki THIN oheppni.                                   */
+near(moScore({ minutes:320, goals:0, assists:0, xg:0, xa:1.0, threat:0 }),
+  0.8*1.0, 1e-6, "xA eitt gefur engan óheppnis-lið");
 ok(moScore({ ...w, goals: 0 }) > moScore({ ...w, goals: 2 }),
   "sá sem hefur klúðrað sömu færum skorar hærra en sá sem nýtti þau");
 eq(moScore(null), null, "null-öruggt");
@@ -467,6 +478,25 @@ if (hasImm) {
     `sóttar umferðir = byrjunar-gluggi (${imm.gws.join(",")})`);
   eq(imm.window, 4, "mó-gluggi er 4 umferðir — óháður sóknar-glugganum");
   ok(imm.measured?.mo && imm.measured?.ao, "mæling skjalfest í skránni");
+
+  /* VÖRÐUR: `xa` VERÐUR AÐ VERA Í GLUGGANUM — annars er xGI-liðurinn DAUÐUR.
+     Frá 29.7. les moScore (xg + xa). Ef pipeline hætti að skrifa `xa` læsi
+     formúlan 0 og bætingin (+0,119 lyfting) væri horfin ÞÖGULT — appið birti
+     áfram tölu, bara verri. Þetta er sama gildran sem kostaði viku þegar
+     markaðsliðurinn var dauður í `odds.json` og öll prófin voru græn: þau
+     prófuðu formúluna, ekki hvort gögnin sem hún fær séu nýtileg.         */
+  const wins = (imm.players || []).map(p => p.window).filter(Boolean);
+  ok(wins.length > 100, `nógu margir gluggar til að mæla (${wins.length})`);
+  ok(wins.every(w => "xa" in w), "HVER gluggi hefur xa-svið (ekki bara flestir)");
+  const xaLive = wins.filter(w => (w.xa ?? 0) > 0).length;
+  ok(xaLive / wins.length > 0.10,
+     `xa er RAUNVERULEGA fyllt, ekki allt núll (${xaLive}/${wins.length} = ` +
+     `${Math.round(xaLive/wins.length*100)}%)`);
+  /* Og að hún hafi ÁHRIF á tölu sem er birt: einhver í markhópnum verður að
+     fá hærra mó út af xA en hann hefði fengið af xG einni.                */
+  const pool = wins.filter(w => inImminentPool(w));
+  const moved = pool.filter(w => moScore(w) > moScore({ ...w, xa: 0 })).length;
+  ok(moved > 0, `xA hreyfir mó hjá raunverulegum leikmönnum (${moved} af ${pool.length})`);
   ok(/0/.test(String(imm.measured.ao)) && /creativity/i.test(String(imm.measured.ao)),
     "AÓ-skýringin segir að samsetningin hafi FALLIÐ (0/3) — ekki falin");
 

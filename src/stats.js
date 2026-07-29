@@ -618,10 +618,65 @@ export function lastFinishedGw(events) {
    LAERDOMUR SEM ER VERT AD MUNA: "oheppni" (xG - mork) EIN OG SER er
    VEIKARA merki (lyfting 2,27) en hreint MAGN (xG 2,70 / threat 2,78).
    Sa sem klúðrar faerum er ekki jafn liklegur og sa sem BYR THAU TIL.
+
+   ---- ENDURMAELT 29.7.2026: MAGNID ER xGI, EKKI xG ----
+   `tests/mo-candidates.mjs`, FJOGUR timabil (2223-2526) ur
+   data/fpl_player_gw.json. 2223 hefur xG og var timabil sem vogtolurnar
+   HOFDU ALDREI SED — hreint ut-af-urtaki ofan a thad sem gert var 28.7.
+
+   INNTAKID PASSADI EKKI VID MARKMIDID. Markmid mo er mork + ASSIST
+   naestu 4 umferdir, en inntakid taldi adeins xG. xA var hvergi, thott
+   utkoman sem vid maelum innihaldi assist. Sama aett af villu og
+   markads-sóknarlidurinn i kafla 3.2 i CLAUDE.md: rett maelt a rongu
+   inntaki gefur rett svar vid rangri spurningu.
+
+   LAGAD: magnlidurinn er nu (xg + xa), sama vog (0,8). ENGIR NYIR STIKAR.
+
+   lyfting efsta tiundarhlutans, 4 timabil:
+     markmid                 xG (var)   xGI (er)   abati
+     mork+assist naestu 4      2,379      2,498    +0,119  (3/4 timabil)
+     STIG naestu 4             1,268      1,311    +0,043  (3/4 timabil)
+
+   AD THETTA SE MERKI OG EKKI FITT — thrjar odhadar staðfestingar:
+     1. LOSO-tun (vogir valdar a 3 timabilum, maelt a hinu) velur xa-vog
+        0,8 / 1,0 / 1,0 / 1,0 — STODUG i ollum fjorum brotum. Vogir sem
+        eru havadi hoppa og skipta formerki (sbr. def/att-blondun i kafla 3).
+     2. Tunada thakid er 2,504; thessi utgafa AN nyrra stika naer 2,498 —
+        99,8% af abatanum fæst an thess ad fitta nokkud.
+     3. xA EITT er 1,945 — VERRA en xG eitt (2,130). Abatinn er samlegd
+        milli theirra, ekki ad annad inntak hafi verid skipt ut fyrir betra.
+
+   HVAR ABATINN ER: DEF +0,226 (1,170 -> 1,395, +19%) · FWD +0,081 ·
+   MID +0,059. Rokrett: framlog varnarmanna eru ohlutfallslega ASSIST og
+   xG eitt sa thau naestum ekki.
+   FYRIRVARI SEM MA EKKI FELA: innan FWD eingongu er lyftingin ~1,0 baedi
+   fyrir og eftir (n=973) — mo greinir EKKI milli framherja. Hun virkar
+   thegar borid er saman thvert a stodur.
+
+   SKARAST MO OG AO NUNA? Skorun efstu tiundarhluta ferr 21% -> 30%.
+   Their eru enn adgreindir listar. AO er OBREYTT: xA baetir engu ofan a
+   creativity (maelt 28.7., xA-vog valdist alltaf 0) — thad stangast ekki
+   a, thvi creativity kodar thegar faera-sköpun en xG gerir thad ekki.
+
+   PROFAD OG HAFNAD i somu maelingu:
+     mo x BYRJUNARLIKUR: vinnur a STIGUM (4/4, +0,045) en TAPAR a
+       mork+assist (-0,040). LOSO velur veldi 1-2 fyrir stig en 0 fyrir
+       mork — ekki einratt yfir markmid, svo thad fer EKKI inn. Byrjunar-
+       likur eru birtar SER (Bekkjar-hætta og eigin dalkur), sem er
+       gagnsaerra en ad blanda theim inn i mo.
+     mo / min (per 90): 2,294 — VERRI. Magn i glugganum er thad sem gildir.
+     mo an oheppnis-lidar: 2,379 — jafnt. Lidurinn ber engan abata a
+       thessum gluggum en gerir engan skada; haldid til ad brjota ekki
+       skjalfesta hegdun ad ósekju.
+     oheppni ur xGI i stad xG (max(0, xgi-gi)): 2,493 a moti 2,498 — jafnt.
+       Haldid xG-utgafunni: "oheppni" er EIGIN klúdur i daudafaerum, ekki
+       samherja-klúdur i faerum sem hann lagdi upp.
    ============================================================ */
 
-/* Vogir: xG-summa, threat/25, og "oheppni" (adeins jakvaed att).
-   Threat er deilt med 25 svo lidirnir seu a svipudum kvarda. */
+/* Vogir: xGI-summa (xG+xA), threat/25, og "oheppni" (adeins jakvaed att).
+   Threat er deilt med 25 svo lidirnir seu a svipudum kvarda.
+   `xg`-vogin liggur a (xg + xa) — sja hausinn: markmidid er mork+ASSIST,
+   svo magnlidurinn verdur ad innihalda upplagshlutann lika.            */
 export const MO_WEIGHTS = { xg: 0.8, threat: 0.3, unlucky: 0.2, threat_scale: 25 };
 export const IMMINENT_WINDOW = 4;      // umferdir aftur i timann
 export const IMMINENT_MAX_GI = 1;      // markhopur: 0-1 framlog i glugganum
@@ -630,9 +685,12 @@ export const IMMINENT_MIN_MINUTES = 180;
 /* w: samtala gluggans { minutes, goals, assists, xg, xa, threat, creativity } */
 export function moScore(w) {
   if (!w) return null;
-  const xg = num(w.xg) ?? 0, thr = num(w.threat) ?? 0, g = num(w.goals) ?? 0;
-  const unlucky = Math.max(0, xg - g);            // adeins UNDIR vaentingum telur
-  return +(MO_WEIGHTS.xg * xg
+  const xg = num(w.xg) ?? 0, xa = num(w.xa) ?? 0;
+  const thr = num(w.threat) ?? 0, g = num(w.goals) ?? 0;
+  const xgi = xg + xa;                            // MAGNID (maelt 29.7.: xGI > xG)
+  const unlucky = Math.max(0, xg - g);            // adeins UNDIR vaentingum telur,
+                                                  // og adeins EIGIN daudafaeri
+  return +(MO_WEIGHTS.xg * xgi
          + MO_WEIGHTS.threat * (thr / MO_WEIGHTS.threat_scale)
          + MO_WEIGHTS.unlucky * unlucky).toFixed(3);
 }
@@ -690,9 +748,10 @@ export function imminentBoard(players, kind = "mo", limit = 20) {
 
    PROFAD OG HAFNAD (ekki endurtaka):
      HVILD/LEIKJAALAG: <4 daga hvild gefur 27,0% a moti 27,3% annars —
-       ENGIN ahrif. Athugid: `rotation.json` i thessu repo flaggar "<4 daga
-       hvild" sem rotasjon-hættu; sú flögg hefur EKKERT forspargildi um
-       minutur skv. thessari maelingu.
+       ENGIN ahrif (n=10.448). Vegna thessarar maelingar var "<4 daga
+       hvild"-talningin TEKIN UT ur rotation-status 29.7.2026; hun las eins
+       og hættumerki. `rest_days` er geymt sem UPPLYSING, ekki sem vog —
+       sama regla og ferdalengd.
      STADA (GK/DEF/FWD-dummy): +0,03x lyfting = sud. Sleppt; einfaldara er
        betra og ver okkur gegn ofurfittun.
 

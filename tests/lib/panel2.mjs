@@ -197,6 +197,9 @@ export function buildPanel({ minHistory = 3, includeBlanks = false } = {}) {
             /* --- LEIKUR OG LIÐSFORM --- */
             ffdr: isDef ? f.dDef : f.dAtt,
             ffdrDef: f.dDef, ffdrAtt: f.dAtt,
+            /* HRATT OPINBERT FDR — svo maela megi FFDR GEGN thvi a somu
+               rodum. VILJANDI EKKI i FEATURES: thad er vidmid, ekki inntak. */
+            fdrRaw: f.fdr,
             cs: f.cs, home: f.home, teamXg: f.teamXg, teamXga: f.teamXga,
             rest: f.rest, eloDiff: f.eloDiff,
             tmGf5: f.tmGf5, tmGa5: f.tmGa5, tmCs5: f.tmCs5,

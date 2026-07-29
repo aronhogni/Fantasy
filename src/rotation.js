@@ -31,13 +31,17 @@
    0 stig, sem er verra en hvaða rauði leikur sem er. Hún fær hæsta
    þyngd og frambjóðandi sem er sjálfur auður þekur ekkert.
    ============================================================ */
-import { TIER_NEUTRAL, expPointsFor, tierOf } from "./model.js";
+import { expPointsFor, tierOf } from "./model.js";
 
 /* Erfitt = dökkgult (3), ljósrautt (4), rautt (5) — það sem notandinn
    kallaði "rauðir, dökkrauðir, jafnvel dökk gulir". Þyngd stigvaxandi:
    rauður leikur kallar á hjálp þrefalt frekar en dökkgulur.             */
 export const HARD_TIER_MIN = 3;
-export const TIER_NEED = [0, 0, 0, 1, 2, 3];
+/* Thyngd per threp. HLUTLAUST (2) faer 0,5 og telur AÐEINS thegar
+   throskuldurinn er faerdur nidur i 2 — tha er spurningin "grænn leikur
+   a moti hvitum": hvitur utileikur er ekki VONDUR en hann er UPPFAERANLEGUR
+   ef annar madur a graenan heimaleik i somu umferd.                     */
+export const TIER_NEED = [0, 0, 0.5, 1, 2, 3];
 export const BLANK_NEED = 3;          // auð umferð = jafn slæm og rauð
 export const DEFAULT_HORIZON = 6;
 
@@ -67,11 +71,19 @@ export function gwCell({ teamId, pos, gw, fixByTeamGw, fixDifficulty }) {
 }
 
 /* Þyngd umferðar fyrir EINN mann: 0 ef leikurinn er hlutlaus eða léttari. */
-export function needOf(cell) {
+export function needOf(cell, hardFrom = HARD_TIER_MIN) {
   if (!cell) return 0;
   if (cell.blank) return BLANK_NEED;
   if (cell.tier == null) return 0;
+  if (cell.tier < hardFrom) return 0;
   return TIER_NEED[cell.tier] ?? 0;
+}
+/* Frambjodandi ThEKUR umferd ef hann er UNDIR throskuldinum sjalfum.
+   Thetta er almenna formid: vid throskuld 3 tydir thad hlutlaust eda betra
+   (eins og adur), vid throskuld 2 tydir thad graent eda dokkgraent — th.e.
+   "graenn a moti hvitum" fæst sjalfkrafa, an serreglu.                  */
+export function coversNeed(cell, hardFrom = HARD_TIER_MIN) {
+  return !!cell && !cell.blank && cell.tier != null && cell.tier < hardFrom;
 }
 
 /* ---- KJARNINN ----
@@ -81,6 +93,7 @@ export function needOf(cell) {
 export function findRotationPartners({
   targets, candidates, gwFrom, horizon = DEFAULT_HORIZON, maxGw = 38,
   fixByTeamGw, fixDifficulty, ownedIds, limit = 10, maxTenths = null,
+  hardFrom = HARD_TIER_MIN, byTeamOnly = true,
 }) {
   const gws = horizonGws(gwFrom, horizon, maxGw);
   const T = (targets || []).filter(t => t?.p);
@@ -99,7 +112,7 @@ export function findRotationPartners({
         umferð þar sem BÁÐIR eru þungir fer efst í forgang.              */
   const need = gws.map((gw, i) => {
     const per = tRows.map(t => ({
-      id: t.p.id, name: t.p.web_name, cell: t.cells[i], need: needOf(t.cells[i]),
+      id: t.p.id, name: t.p.web_name, cell: t.cells[i], need: needOf(t.cells[i], hardFrom),
       ep: epOf(t.p, t.teamId, t.cells[i], fixDifficulty),
     }));
     return { gw, need: per.reduce((a, x) => a + x.need, 0), per };
@@ -132,8 +145,7 @@ export function findRotationPartners({
       const worst = hardHere.reduce((a, x) => (a == null || x.ep < a.ep ? x : a), null);
       const g = Math.max(0, cEp - (worst ? worst.ep : 0));
       gain += g;
-      /* þekja: hlutlaus leikur eða léttari, og EKKI auð umferð */
-      const covers = !cell.blank && cell.tier != null && cell.tier <= TIER_NEUTRAL;
+      const covers = coversNeed(cell, hardFrom);
       if (covers) covered += n.need;
       per.push({ gw: n.gw, cell, ep: +cEp.toFixed(2), gain: +g.toFixed(2), covers,
                  vs: worst ? worst.name : null });
@@ -150,7 +162,25 @@ export function findRotationPartners({
      fyrst) þegar hvorugt skilur.                                        */
   out.sort((a, b) => b.gain - a.gain || b.cover - a.cover
                   || (a.p.now_cost || 0) - (b.p.now_cost || 0));
-  return { gws, hard, totalNeed, targets: tRows, results: out.slice(0, limit) };
+
+  /* EITT LID = EIN ROD. FFDR er EIGINLEIKI LIDSINS, svo allir varnarmenn
+     Arsenal fengu NAKVAEMLEGA somu sex leiki og listinn var 4-5 eins radir.
+     Vid hordum besta manninn ur hverju lidi og teljum hina — thad er sama
+     upplysing i einni rod i stad fimm.                                   */
+  const shown = [];
+  if (byTeamOnly) {
+    const seen = new Map();
+    for (const r of out) {
+      const cur = seen.get(r.teamId);
+      if (cur) { cur.others.push(r.p); continue; }
+      const row = { ...r, others: [] };
+      seen.set(r.teamId, row); shown.push(row);
+    }
+  } else {
+    shown.push(...out.map(r => ({ ...r, others: [] })));
+  }
+  return { gws, hard, totalNeed, targets: tRows, hardFrom,
+           results: shown.slice(0, limit) };
 }
 
 /* Vænt stig fyrir EINA umferð úr þegar-reiknaðri rútu (auð umferð = 0). */
