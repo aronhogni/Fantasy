@@ -4,6 +4,8 @@ import GwReport from "./GwReport.jsx";
 import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
 import SetPieces, { setPieceBadges } from "./SetPieces.jsx";
 import Compare from "./Compare.jsx";
+import Rotation from "./Rotation.jsx";
+import PlayerList from "./PlayerList.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
@@ -438,6 +440,7 @@ export default function App() {
   const [fixtures, setFixtures] = useState(null);
   const [events, setEvents] = useState(null);
   const [defcon, setDefcon] = useState(null);
+  const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
   const [elo, setElo] = useState(null);
   const [weather, setWeather] = useState(null);
   const [travel, setTravel] = useState(null);   // ferðalengd útiliðs per leik (pipeline)
@@ -497,6 +500,9 @@ export default function App() {
   const [spNotes, setSpNotes] = useState(null);         // data/set_piece_notes.json
   const [imminent, setImminent] = useState(null);       // data/imminent.json — mo/ao
   const [cmpIds, setCmpIds] = useState([]);             // samanburdur — allt ad 4
+  /* FFDR-samanburdur (roterings-par): 1-2 menn sem eg vil fa hjalp med.
+     Adskilid fra cmpIds — thad er stat-samanburdur, thetta er leikjaplan. */
+  const [rotIds, setRotIds] = useState([]);
   const [cmpOpen, setCmpOpen] = useState(false);
   const [rivals, setRivals] = useState([]);          // [{id}] — andstæðingar til samanburðar
   const [rivalInput, setRivalInput] = useState("");
@@ -525,6 +531,7 @@ export default function App() {
         setPlayers(plA); setTeams(tmA); setFixtures(fxA); setEvents(evA);
         setDataState("ok");
         try { setDefcon(await j("defcon.json")); } catch {}
+        try { setPlayerForm(await j("player_form.json")); } catch {}
         try { setPipeStatus(await j("status.json")); } catch {}
         try { setElo(await j("elo.json")); } catch {}
         try { setWeather(await j("weather.json")); } catch {}
@@ -1374,11 +1381,18 @@ export default function App() {
          — mælingin sýndi að röðun og birt stærð eru tvö ólík störf og
          eiga ekki að deila einni tölu.                                  */
       const gamesSoFar = seasonGames || 38;      // forleikur: síðasta tímabil
+      /* mínútuþróun kemur úr pipeline (player_form.json). Vantar hún —
+         preseason eða <4 loknar umferðir — fer 0 inn og skorið er eins
+         og áður. mins5 þar er RAUNVERULEGAR síðustu 5 umferðir og því
+         betri en árs-meðaltalið; við notum hana þegar hún er til.       */
+      const pf = playerForm?.players?.[p.id];
       const rank = rankScore({
         form: parseFloat(p.form),
-        minsPerGame: (p.minutes ?? 0) / Math.max(1, gamesSoFar),
+        minsPerGame: Number.isFinite(pf?.mins5) ? pf.mins5
+                   : (p.minutes ?? 0) / Math.max(1, gamesSoFar),
         price: (p.now_cost ?? 45) / 10,
         ffdr: fn ? fsum / fn : null,
+        minsTrend: pf?.mins_trend,
       });
       return { p, score: +score.toFixed(2), rank: +rank.toFixed(3),
                ease: +(5 - fdrAvg).toFixed(2), fxs, mode,
@@ -1402,7 +1416,7 @@ export default function App() {
     const sorted = [...inSquad].sort((a,b) => a.score - b.score);
     const sellIds = new Set(sorted.slice(0, 2).map(r => r.p.id));
     return { byPos, sellIds, inSquadScores: Object.fromEntries(inSquad.map(r => [r.p.id, r.score])) };
-  }, [players, fixtures, gw, recRange, fixByTeamGw, teamMetrics, squadIds, odds, defcon, dcOpp, eloByTeam, eloCsByFx, maxGw, formFeat, recMaxCost]);
+  }, [players, fixtures, gw, recRange, fixByTeamGw, teamMetrics, squadIds, odds, defcon, dcOpp, eloByTeam, eloCsByFx, maxGw, formFeat, recMaxCost, playerForm]);
 
   /* ---------- Verðbreytingar (raunveruleg gögn) ---------- */
   const priceMovers = useMemo(() => {
@@ -1609,7 +1623,7 @@ export default function App() {
           data/last_gw*.json og players.json — their hanga ekki a lidinu
           thinu og virka thott ekkert se tengt.                            */}
       <div style={S.viewTabs}>
-        {[["planner","\u26bd Skipulag"],["gw","\ud83d\udcca Umferðin"],["board","\ud83c\udfc6 Stigatafla"],["sp","\u26bd\ufe0f Föst leikatriði"]].map(([k,l]) => (
+        {[["planner","\u26bd Skipulag"],["players","\ud83d\udc65 Leikmenn"],["gw","\ud83d\udcca Umferðin"],["board","\ud83c\udfc6 Stigatafla"],["sp","\u26bd\ufe0f Föst leikatriði"]].map(([k,l]) => (
           <button key={k} style={{ ...S.viewTab, ...(view === k ? S.viewTabOn : {}) }}
             onClick={() => setView(k)}>{l}</button>
         ))}
@@ -1617,6 +1631,16 @@ export default function App() {
 
       {view === "gw" && (
         <GwReport report={lastGw} shotsFile={lastGwShots} teamById={teamById} Crest={Crest} />
+      )}
+      {view === "players" && (
+        <PlayerList players={players} teams={teams} teamById={teamById} events={events}
+          seasonsFile={seasonsFile} imminent={imminent} shotsFile={lastGwShots}
+          fixtures={fixtures} odds={odds} defcon={defcon}
+          photoUrl={photoUrl} Crest={Crest}
+          onPickPlayer={id => setDetail({ kind:"player", id })}
+          cmpIds={cmpIds}
+          onCompare={id => setCmpIds(v => v.includes(id) ? v.filter(x => x !== id)
+                                                        : [...v, id].slice(0, 4))} />
       )}
       {view === "sp" && (
         <SetPieces players={players} teams={teams} teamById={teamById} Crest={Crest}
@@ -1789,6 +1813,7 @@ export default function App() {
                       isSellHint={recommendations.sellIds?.has(sq.id)}
                       onInfo={() => setDetail({ kind:"player", id:sq.id })}
                       onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
+                      onRotation={() => setRotIds([sq.id])}
                       onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                       dragId={dragId} setDragId={setDragId}
                       onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
@@ -1810,6 +1835,7 @@ export default function App() {
                     isSellHint={recommendations.sellIds?.has(sq.id)}
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
+                    onRotation={() => setRotIds([sq.id])}
                     onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
@@ -2702,6 +2728,16 @@ export default function App() {
           ⇄ Samanburður ({cmpIds.length})
         </button>
       )}
+      {!!rotIds.length && (
+        <Rotation targetIds={rotIds} players={players} teamById={teamById}
+          fixByTeamGw={fixByTeamGw} fixDifficulty={fixDifficulty}
+          gwNow={gw} maxGw={maxGw} squadIds={squadIds} Crest={Crest}
+          onToggleTarget={id => setRotIds(v => v.includes(id)
+            ? (v.length > 1 ? v.filter(x => x !== id) : v)
+            : [...v, id].slice(0, 2))}
+          onClear={() => setRotIds([])}
+          onClose={() => setRotIds([])} />
+      )}
       {cmpOpen && (
         <Compare ids={cmpIds} players={players} teamById={teamById}
           seasonsFile={seasonsFile} photoUrl={photoUrl} Crest={Crest}
@@ -2989,7 +3025,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor,
   crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onCardClick, swapSel, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onRotation, onCardClick, swapSel, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -3024,6 +3060,11 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
           onClick={e => { e.stopPropagation(); onInfo && onInfo(); }}>i</button>
         <button style={{ ...S.pcIcon, ...S.pcIconSwap }} title="Skipta út — opnar leit"
           onClick={e => { e.stopPropagation(); onTransfer && onTransfer(); }}>⇄</button>
+        {/* FFDR-SAMANBURDUR — hver kemur inn fyrir hann i ERFIDU umferdunum.
+            Adskilid frá ⇄ (sem er skipti) og frá i (sem er upplysingar).   */}
+        <button style={{ ...S.pcIcon, ...S.pcIconRot }}
+          title="FFDR-samanburður — finndu mann sem á léttar umferðir þar sem hann á þungar"
+          onClick={e => { e.stopPropagation(); onRotation && onRotation(); }}>↻</button>
       </div>
       {isCap && <span style={{ ...S.band, background:"#ffd23f", color:"#4a3800" }}>C</span>}
       {isVice && <span style={{ ...S.band, background:"#c9c9d0", color:"#33333a" }}>V</span>}
@@ -3330,6 +3371,8 @@ const S = {
     background:"rgba(255,255,255,0.92)", color:C.text2, border:`1px solid ${C.border}`,
     borderRadius:4, boxShadow:"0 1px 2px rgba(0,0,0,0.10)" },
   pcIconSwap: { color:C.purple, border:"1px solid #d9c8f5", fontSize:10 },
+  /* FFDR-samanburdur: gron umgjord svo hun se ekki misskilin sem skipti. */
+  pcIconRot: { color:"#046b41", border:"1px solid #b7e6cd", fontSize:10 },
   band: { position:"absolute", top:4, right:4, minWidth:15, height:15, borderRadius:8, fontFamily:mono, fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 },
   pPortrait: { position:"relative", height:34, display:"flex", alignItems:"flex-end", justifyContent:"center", marginBottom:2 },
   pCrest: { position:"absolute", bottom:-3, right:4, width:18, height:18, objectFit:"contain",

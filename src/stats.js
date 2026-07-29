@@ -69,6 +69,10 @@ export const STAT_GROUPS = [
   { key: "defence", label: "Vörn" },
   { key: "bonus",   label: "Bónus og ICT" },
   { key: "value",   label: "Verð og eignarhald" },
+  { key: "threat",  label: "Ógn (ESPN, síðasta umferð)" },
+  { key: "window",  label: "Form-gluggi (síðustu 4–5)" },
+  { key: "fixtures",label: "Leikir framundan" },
+  { key: "setp",    label: "Föst leikatriði" },
   { key: "rank",    label: "FPL-sæti (innan stöðu)" },
   { key: "disc",    label: "Spjöld og refsingar" },
 ];
@@ -174,7 +178,7 @@ export const STAT_DEFS = [
   /* OPINBER FPL-TALA, ekki okkar utreikningur: FPL `value_season` er
      nakvaemlega total_points/verd (Raya 162/6,0 = 27,0 = value_season).
      Betra ad birta theirra tolu en ad verja okkar eigin eins tolu.      */
-  { key:"pts_per_million", label:"Stig per milljón", group:"value", dec:1, hi:true,
+  { key:"pts_per_million", label:"Stig per m", group:"value", dec:1, hi:true,
     note:"FPL-eigin verðmæta-tala (value_season): heildarstig deilt á núverandi verð.",
     get:p=>num(p.value_season) },
   { key:"value_form", label:"Form per milljón", group:"value", dec:2, hi:true,
@@ -753,3 +757,150 @@ export function startRisk(f) {
   return { p, level: startedLast ? "trap" : "low",
            label: startedLast ? "Bekkjar-hætta þrátt fyrir að hafa byrjað" : "Byrjar ólíklega" };
 }
+
+/* ============================================================
+   6. VIDBOTAR-DALKAR — allt sem gagnast og vid HOFUM
+
+   `live_only: true` merkir dalk sem byggir a NUVERANDI gognum (ESPN
+   sidustu umferdar, form-glugga, leikjum framundan). Hann er FALINN
+   thegar soguleg timabil eru valin — thad vaeri osatt ad syna
+   "leikir framundan" vid hlidina a tolum fra 2023/24.
+
+   Radirnar sem thessir lesa eru AUDGADAR i cook-skrefinu i
+   PlayerList.jsx: leikmadur + ESPN-skot + form-gluggi + leikja-samtolur
+   + lids-samhengi. STAT_DEFS er afram EINA dalkaskrain.
+   ============================================================ */
+const per90of = (key) => (p) => per90(num(p[key]), num(p.minutes));
+
+STAT_DEFS.push(
+  /* ---- Sokn: /90 og nyting ---- */
+  { key:"goals_per_90", label:"Mörk /90", group:"attack", dec:2, hi:true, derived:true,
+    get: per90of("goals_scored") },
+  { key:"assists_per_90", label:"Assist /90", group:"attack", dec:2, hi:true, derived:true,
+    get: per90of("assists") },
+  { key:"conversion", label:"Nýting mörk", group:"attack", dec:2, hi:true, derived:true,
+    note:"Yfir 1,00 = skorar meira en færin gefa. Undir = klúðrar. Þarf xG>0,5 til að vera merkingarbært.",
+    get:p=>{ const x=num(p.expected_goals); if (x==null||x<0.5) return null;
+             return safeDiv(num(p.goals_scored) ?? 0, x); } },
+  { key:"assist_conversion", label:"Nýting assist", group:"attack", dec:2, hi:true, derived:true,
+    get:p=>{ const x=num(p.expected_assists); if (x==null||x<0.5) return null;
+             return safeDiv(num(p.assists) ?? 0, x); } },
+
+  /* ---- Vaentingar ---- */
+  { key:"xgi_per_million", label:"xGI per m", group:"expect", dec:2, hi:true, derived:true,
+    note:"Vænt framlög á hverja milljón — verðmæti UNDIRLIGGJANDI, ekki stiga.",
+    get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null
+             : safeDiv(num(p.expected_goal_involvements), c/10); } },
+  { key:"mins_per_xgi", label:"Mín. per xGI", group:"expect", dec:0, hi:false, derived:true,
+    get:p=>safeDiv(num(p.minutes), num(p.expected_goal_involvements)) },
+  { key:"xg_share", label:"xG-hlutur", group:"expect", dec:0, hi:true, pct:true,
+    derived:true, live_only:true,
+    note:"Hversu stór hluti af væntum mörkum liðsins kemur frá honum. Normaliserar fyrir liðsstyrk.",
+    get:p=>{ const t=num(p._team_xg); if (!t) return null;
+             const v=num(p.expected_goals); return v==null?null:(v/t)*100; } },
+
+  /* ---- Vorn: /90 ---- */
+  { key:"cbi_per_90", label:"Hreins/blokk /90", group:"defence", dec:2, hi:true, derived:true,
+    get: per90of("clearances_blocks_interceptions") },
+  { key:"tackles_per_90", label:"Tacklingar /90", group:"defence", dec:2, hi:true, derived:true,
+    get: per90of("tackles") },
+  { key:"recoveries_per_90", label:"Endurheimtur /90", group:"defence", dec:2, hi:true, derived:true,
+    get: per90of("recoveries") },
+
+  /* ---- Bonus og ICT: /90 og samsetning ---- */
+  { key:"bonus_per_90", label:"Bónus /90", group:"bonus", dec:2, hi:true, derived:true,
+    get: per90of("bonus") },
+  { key:"bonus_share", label:"Bónus-hlutur", group:"bonus", dec:0, hi:true, pct:true,
+    derived:true,
+    note:"Hve stór hluti stiga kom úr bónus. Hátt = háður bónus, sem er sveiflukenndara.",
+    get:p=>{ const t=num(p.total_points); if (!t) return null;
+             return safeDiv(num(p.bonus) ?? 0, t)*100; } },
+  { key:"bonus_per_bps", label:"Bón/100 BPS", group:"bonus", dec:2, hi:true, derived:true,
+    note:"Hversu vel BPS breytist í raunverulegan bónus — hátt = hann er oft í topp-3 í sínum leik.",
+    get:p=>{ const b=num(p.bps); if (!b||b<50) return null;
+             return safeDiv(num(p.bonus) ?? 0, b/100); } },
+  { key:"ict_per_90", label:"ICT /90", group:"bonus", dec:2, hi:true, derived:true,
+    get: per90of("ict_index") },
+  { key:"threat_per_90", label:"Hætta /90", group:"bonus", dec:1, hi:true, derived:true,
+    get: per90of("threat") },
+  { key:"creativity_per_90", label:"Sköpun /90", group:"bonus", dec:1, hi:true, derived:true,
+    get: per90of("creativity") },
+
+  /* ---- Verd ---- */
+  { key:"bonus_per_million", label:"Bónus per m", group:"value", dec:2, hi:true, derived:true,
+    get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null:safeDiv(num(p.bonus), c/10); } },
+  { key:"mins_per_million", label:"Mín. per m", group:"value", dec:0, hi:true, derived:true,
+    note:"Spilatími á hverja milljón — hversu ódýrt þú kaupir mínútur.",
+    get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null:safeDiv(num(p.minutes), c/10); } },
+
+  /* ---- Ogn: ESPN, sidasta umferd ---- */
+  { key:"espn_shots", label:"Skot", group:"threat", dec:0, hi:true, live_only:true,
+    note:"Skot í síðustu loknu umferð (ESPN).", get:p=>num(p._espn_shots) },
+  { key:"espn_sot", label:"Skot á mark", group:"threat", dec:0, hi:true, live_only:true,
+    get:p=>num(p._espn_sot) },
+  { key:"espn_accuracy", label:"Skotnýting", group:"threat", dec:0, hi:true, pct:true,
+    live_only:true, derived:true,
+    get:p=>{ const s=num(p._espn_shots); if (!s) return null;
+             return safeDiv(num(p._espn_sot) ?? 0, s)*100; } },
+  { key:"espn_in_box", label:"Skot í teig", group:"threat", dec:0, hi:true, live_only:true,
+    get:p=>num(p._espn_in_box) },
+  { key:"espn_woodwork", label:"Í stöng/slá", group:"threat", dec:0, hi:true, live_only:true,
+    note:"Woodwork — eigin leiktegund hjá ESPN.", get:p=>num(p._espn_woodwork) },
+  { key:"espn_created", label:"Færi skópuð", group:"threat", dec:0, hi:true, live_only:true,
+    note:"Hversu oft hann lagði upp skot (lesið úr ESPN-texta).", get:p=>num(p._espn_created) },
+  { key:"espn_cross", label:"Krossar→skot", group:"threat", dec:0, hi:true, live_only:true,
+    note:"Krossar sem LEIDDU TIL SKOTS — ekki hráar krossatölur.", get:p=>num(p._espn_cross) },
+  { key:"espn_through", label:"Through balls", group:"threat", dec:0, hi:true, live_only:true,
+    get:p=>num(p._espn_through) },
+
+  /* ---- Form-gluggi (sidustu 4-5 umferdir) ---- */
+  { key:"w_minutes", label:"Mín. í glugga", group:"window", dec:0, hi:true, live_only:true,
+    get:p=>num(p._w_minutes) },
+  { key:"w_xg", label:"xG í glugga", group:"window", dec:2, hi:true, live_only:true,
+    get:p=>num(p._w_xg) },
+  { key:"w_xa", label:"xA í glugga", group:"window", dec:2, hi:true, live_only:true,
+    get:p=>num(p._w_xa) },
+  { key:"w_threat", label:"Hætta gl.", group:"window", dec:0, hi:true, live_only:true,
+    get:p=>num(p._w_threat) },
+  { key:"w_creativity", label:"Sköpun gl.", group:"window", dec:0, hi:true, live_only:true,
+    get:p=>num(p._w_creativity) },
+  { key:"mo", label:"mó", group:"window", dec:2, hi:true, live_only:true, derived:true,
+    note:"Mark óhjákvæmilegt. Mælt: efsti tíundarhluti skorar 2,89× meðaltalið. Aðeins fyrir 0–1 framlag í glugga.",
+    get:p=>num(p._mo) },
+  { key:"ao", label:"aó", group:"window", dec:1, hi:true, live_only:true, derived:true,
+    note:"Assist óhjákvæmilegt. Bert creativity/90 — samsettur stuðull féll á mælingu (0/3 tímabil).",
+    get:p=>num(p._ao) },
+  { key:"start_prob", label:"Byrjunar-líkur", group:"window", dec:0, hi:true, pct:true,
+    live_only:true, derived:true,
+    note:"Líkur á 60+ mínútum næst. Mælt á 65.557 sýnum; lægsti tíundarhluti fangar 2,09× bekkjar-föllin.",
+    get:p=>{ const v=num(p._start_p); return v==null?null:v*100; } },
+
+  /* ---- Leikir framundan ---- */
+  { key:"fdr6", label:"FDR næstu 6", group:"fixtures", dec:2, hi:false, live_only:true,
+    note:"Meðal-FDR næstu sex leikja (opinbert FPL-FDR). Lægra er léttara.",
+    get:p=>num(p._fdr6) },
+  { key:"home6", label:"Heima /6", group:"fixtures", dec:0, hi:true, live_only:true,
+    get:p=>num(p._home6) },
+  { key:"fix6", label:"Leikir /6", group:"fixtures", dec:0, hi:true, live_only:true,
+    note:"Undir 6 = auð umferð. Yfir 6 = tvöföld umferð.", get:p=>num(p._fix6) },
+  { key:"team_cs_prob", label:"CS-líkur liðsins", group:"fixtures", dec:0, hi:true, pct:true,
+    live_only:true, note:"Úr bókmakera-línu (odds.json).", get:p=>num(p._team_cs) },
+  { key:"team_dc", label:"DefCon liðs", group:"fixtures", dec:0, hi:true,
+    live_only:true, get:p=>num(p._team_dc) },
+
+  /* ---- Fost leikatridi (rodun: 1 = fyrsti taki, LAEGRA er betra) ---- */
+  { key:"pen_order", label:"Víta-röð", group:"setp", dec:0, hi:false, live_only:true,
+    note:"1 = fyrsti vítataki. Sterkasta einstaka fyrirliða-vísbendingin í gögnunum.",
+    get:p=>num(p.penalties_order) },
+  { key:"fk_order", label:"Aukasp.-röð", group:"setp", dec:0, hi:false, live_only:true,
+    get:p=>num(p.direct_freekicks_order) },
+  { key:"ck_order", label:"Horna-röð", group:"setp", dec:0, hi:false, live_only:true,
+    get:p=>num(p.corners_and_indirect_freekicks_order) },
+
+  /* ---- Ogn og refsingar: /90 ---- */
+  { key:"cards_per_90", label:"Spjöld /90", group:"disc", dec:2, hi:false, derived:true,
+    get:p=>per90((num(p.yellow_cards) ?? 0) + (num(p.red_cards) ?? 0), num(p.minutes)) },
+);
+
+/* Endurbyggja uppflettitofluna eftir vidbaeturnar. */
+for (const d of STAT_DEFS) STAT_BY_KEY[d.key] = d;

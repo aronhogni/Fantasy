@@ -553,17 +553,32 @@ export function expPointsFor({ p, fxs, fixDifficulty, teamId }) {
    Vogtölur fittaðar á öll 5 tímabil (ridge, tests/rank-model.mjs).       */
 export const RANK_W = {
   bias: 1.38487, form: 0.13805, minsPerGame: 0.01607, price: 0.28235, ffdr: -0.59359,
+  minsTrend: 0.01,
 };
 /* form = meðalstig síðustu ~5 (FPL `form`) · minsPerGame = mínútur/leik
    · price = £m · ffdr = leikjaþyngd stöðunnar. Vantandi gildi fara í
-   varfærið sjálfgildi, ekki 0, svo skorið hrynji ekki í tómi.          */
-export function rankScore({ form, minsPerGame, price, ffdr }) {
+   varfærið sjálfgildi, ekki 0, svo skorið hrynji ekki í tómi.
+
+   minsTrend = mín/umferð síðustu 2 MÍNUS mín/umferð þriggja þar á undan
+   (mínútur, um −90..+90). Þetta er EINA inntakið sem árstölur geta ekki
+   gefið: `minutes/gamesPlayed` sér ekki hvort sess er að VAXA eða RÝRNA.
+   Mælt á 5 tímabilum (`tests/rank-model.mjs`), vog 0,01 valin með LOSO:
+     laug sem inniheldur ALLA leikmenn (verkefni tillögu-vélarinnar)
+       topp-15 4,669 -> 4,735, jákvætt 5/5 tímabil, t=6,66
+     laug aðeins þeirra sem SPILUÐU
+       −0,008, 2/5 tímabil — ógreinanlegt, sem er væntanlegt: hafi maður
+       spilað skiptir þróunin minna máli en hitt.
+   Vantar merkið (preseason, eða <4 loknar umferðir) -> 0 og skorið er
+   nákvæmlega eins og áður. Krefst `data/player_form.json` (pipeline).  */
+export function rankScore({ form, minsPerGame, price, ffdr, minsTrend }) {
   const W = RANK_W;
   const f = Number.isFinite(form) ? form : 0;
   const m = Number.isFinite(minsPerGame) ? clamp(minsPerGame, 0, 90) : 0;
   const p = Number.isFinite(price) ? price : 4.5;
   const d = Number.isFinite(ffdr) ? ffdr : 2.5;
-  return W.bias + W.form * f + W.minsPerGame * m + W.price * p + W.ffdr * d;
+  const t = Number.isFinite(minsTrend) ? clamp(minsTrend, -90, 90) : 0;
+  return W.bias + W.form * f + W.minsPerGame * m + W.price * p + W.ffdr * d
+       + W.minsTrend * t;
 }
 
 /* ---- VERÐSPÁ (nálgun) ----

@@ -374,6 +374,67 @@ async function computeDefcon(events, els) {
   record("defcon", true, out.length, `${Object.keys(opportunity).length} lið með tækifæris-mat`);
 }
 
+/* ========== 3b. PER-UMFERÐAR LEIKMANNASAGA — mínútuþróun ==========
+   ENGIN NÝ KÖLL: leitt úr data/live/gw{n}.json sem pipeline skrifar þegar
+   fyrir hverja lokna umferð. Árstölur (`minutes/gamesPlayed`) geta ekki
+   greint sess sem VEX frá sessi sem RÝRNAR — þetta getur.
+
+   Raðirnar eru PER UMFERÐ, ekki per leikinn leik: sá sem sat á bekknum
+   fær 0 og telur með. (Fyrri mæling sem sleppti 0-röðum lét bekkjarmenn
+   virðast í formi — sjá tests/rank-model.mjs.)                          */
+async function computePlayerForm(events, els) {
+  const finished = events.filter(ev => ev.finished).map(ev => ev.id).sort((a, b) => a - b);
+  const hist = {};                        // id -> [{gw, mins, pts, starts}]
+  els.forEach(e => hist[e.id] = []);
+
+  for (const gw of finished) {
+    const path = `${DATA}/live/gw${gw}.json`;
+    if (!existsSync(path)) continue;
+    let live;
+    try { live = JSON.parse(await readFile(path, "utf8")); } catch { continue; }
+    for (const el of (live.elements || [])) {
+      if (!hist[el.id]) hist[el.id] = [];
+      const st = el.stats || {};
+      hist[el.id].push({ gw, mins: st.minutes || 0, pts: st.total_points || 0,
+                         starts: st.starts || 0 });
+    }
+  }
+
+  const mean = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0;
+  const out = {};
+  let withTrend = 0;
+  for (const [id, rows] of Object.entries(hist)) {
+    if (!rows.length) continue;
+    rows.sort((a, b) => a.gw - b.gw);
+    const l5 = rows.slice(-5);
+    const m5 = l5.map(r => r.mins);
+    /* þróun: síðustu 2 umferðir MÍNUS þær 3 þar á undan. Þarf >=4 raðir,
+       annars er "þar á undan" sama gluggi og "síðustu" og talan er 0.   */
+    const recent = mean(m5.slice(-2));
+    const before = l5.length >= 4 ? mean(m5.slice(0, -2)) : recent;
+    const trend = recent - before;
+    if (trend !== 0) withTrend++;
+    out[id] = {
+      gws: rows.length,
+      mins5: +mean(m5).toFixed(1),
+      mins_trend: +trend.toFixed(1),
+      ppg5: +mean(l5.map(r => r.pts)).toFixed(2),
+      start_rate5: +mean(l5.map(r => r.starts >= 1 ? 1 : 0)).toFixed(2),
+    };
+  }
+
+  await writeJSON("player_form.json", {
+    updated: status.updated, gws_used: finished.length, players: out,
+    note: "Per-umferdar sogu leitt ur data/live/gw{n}.json — ENGIN ny koll. "
+        + "mins_trend = min/umferd sidustu 2 minus thriggja thar a undan (raðir per UMFERD, 0 talid med). "
+        + "Notad i rankScore (vog 0,01; maelt +0,066 topp-15, 5/5 timabil). "
+        + "Toemt fyrir GW4 — tha er trend 0 og skorid er eins og adur.",
+  });
+  record("player_form", true, Object.keys(out).length,
+    finished.length ? `${finished.length} umferdir, ${withTrend} med minututhroun`
+                    : "engin lokin umferd (preseason) — throunin kviknar vid GW4");
+}
+
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
 async function eloFetch(url, tries = 3) {
   let lastErr;
@@ -2310,6 +2371,21 @@ const SEASON_STATS = [
   { k: "points_per_90", derived: true }, { k: "dc_per_start", derived: true },
 ];
 
+/* SVID SEM ERU BARA BORIN AFRAM (engin saeti) — svo SOMU dalkarnir virki i
+   leikmannalistanum yfir OLL timabil. Adur virkudu adeins 31 af 65 STAT_DEFS
+   a sogulegri rod. Svid sem vantar i eldra timabili verda null (VANTAR),
+   EKKI 0 — sja field_availability i skranni.                              */
+const SEASON_CARRY = [
+  "points_per_game", "form", "ict_index", "influence", "creativity", "threat",
+  "selected_by_percent", "yellow_cards", "red_cards", "own_goals",
+  "penalties_missed", "penalties_saved", "dreamteam_count",
+  "clearances_blocks_interceptions", "tackles", "recoveries",
+  "starts_per_90", "saves_per_90", "clean_sheets_per_90",
+  "goals_conceded_per_90", "expected_goals_conceded_per_90",
+  "defensive_contribution_per_90", "value_season", "value_form",
+  "cost_change_start",
+];
+
 async function fetchPlayerSeasons() {
   const out = {};                       // code -> { "2025/26": {...} }
   const availability = {};              // svid -> [timabil sem hafa thad]
@@ -2327,6 +2403,7 @@ async function fetchPlayerSeasons() {
     for (const s of SEASON_STATS) {
       if (s.derived || has.has(s.k)) (availability[s.k] ||= []).push(label);
     }
+    for (const k of SEASON_CARRY) if (has.has(k)) (availability[k] ||= []).push(label);
 
     // 1) grunn-rod per leikmann
     const recs = rows.map(r => {
@@ -2340,6 +2417,11 @@ async function fetchPlayerSeasons() {
       for (const s of SEASON_STATS) {
         if (s.derived) continue;
         rec[s.k] = has.has(s.k) ? n(s.k) : null;       // VANTAR != 0
+      }
+      for (const k of SEASON_CARRY) {
+        if (!has.has(k)) { rec[k] = null; continue; }  // VANTAR != 0
+        const v = parseFloat(r[k]);
+        rec[k] = Number.isFinite(v) ? v : (r[k] === "" || r[k] == null ? null : r[k]);
       }
       rec.points_per_90 = mins > 0 ? +(((n("total_points") ?? 0) / mins) * 90).toFixed(2) : null;
       rec.dc_per_start  = (rec.defensive_contribution != null && starts > 0)
@@ -2600,6 +2682,7 @@ async function main() {
   }
 
   try { await computeDefcon(events, els); } catch (e) { record("defcon", false, 0, e.message); }
+  try { await computePlayerForm(events, els); } catch (e) { record("player_form", false, 0, e.message); }
   if (FLAGS.elo)    { try { await fetchElo(); }              catch (e) { record("elo", false, 0, e.message); } }
   if (FLAGS.fdcouk) { try { await fetchFdcouk(); }           catch (e) { record("fdcouk_e0", false, 0, e.message); }
                       try { await fetchHistoricalE0(); }     catch (e) { record("fdcouk_history", false, 0, e.message); }

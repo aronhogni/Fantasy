@@ -250,6 +250,59 @@ ok(!!saved, "ástand vistast í localStorage");
 ok(JSON.parse(saved).captain === 411, "fyrirliði (Haaland) í vistuðu ástandi");
 ok(JSON.parse(saved).rivals?.length === 1, "andstæðingur vistast með ástandinu");
 
+console.log("\n=== 11. FFDR-SAMANBURÐUR (róterings-par) ===");
+/* Þriðja ikonið á spjaldinu. Það er EITT per spjald, svo við tökum það
+   fyrsta — byrjunarliðið er teiknað fyrst, svo þetta er byrjunarliðsmaður. */
+const rotBtns = [...container.querySelectorAll("button")].filter(b => b.textContent === "↻");
+ok(rotBtns.length >= 15, `↻-ikon á hverju spjaldi (${rotBtns.length} fundin)`);
+await act(async () => { rotBtns[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+await render();
+ok(text().includes("FFDR-samanburður"), "FFDR-samanburður opnast við smell á ↻");
+/* NB: leit ad "div sem inniheldur róterings-par" skilar YTSTA div appsins
+   (modalinn er teiknadur inni i honum), svo thead-th-talning naedi yfir
+   ADRAR toflur lika. Vid festum okkur i SJALFA rotunar-tofluna.        */
+const rotTable = [...container.querySelectorAll("table")]
+  .find(t => t.textContent.includes("Þekja"));
+ok(!!rotTable, "spjaldið teiknar töflu");
+const rotPanel = rotTable;
+const rTxt = () => {
+  const h = [...container.querySelectorAll("div")]
+    .find(d => d.textContent.includes("Verðþak") && d.textContent.includes("róterings-par"));
+  return h ? h.textContent : "";
+};
+ok(rTxt().includes("Þekja") && rTxt().includes("Vinn."),
+  "báðir mælikvarðar birtir: Þekja (FFDR) og Vinn. (ákvörðunin)");
+ok(/Verðþak £\d/.test(rTxt()) || rTxt().includes("Verðþak ekkert"),
+  "verðþakið er SÝNT, ekki falin sía");
+const horSel = rotPanel && [...rotPanel.querySelectorAll("select")]
+  .find(sel => [...sel.options].some(o => o.textContent === "6"));
+ok(horSel && horSel.value === "6", "sjálfgildi er 6 umferðir");
+const mineBox = rotPanel && [...rotPanel.querySelectorAll("input[type=checkbox]")][0];
+ok(!!mineBox, "„aðeins mitt lið“ er í boði (rótering af bekknum þarf engin skipti)");
+ok(!/undefined|NaN/.test(rTxt()), "ekkert undefined/NaN í róterings-spjaldinu");
+/* Grindin: fjöldi umferða-dálka á að fylgja valinu */
+const colsAt = () => {
+  const t = [...container.querySelectorAll("table")].find(x => x.textContent.includes("Þekja"));
+  return t ? t.querySelectorAll("thead th").length : 0;
+};
+const c6 = colsAt();
+if (horSel) {
+  await act(async () => {
+    horSel.value = "10";
+    horSel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  await render();
+}
+const c10 = colsAt();
+/* 1 nafnadalkur + N umferdir + 2 tolur */
+ok(c6 === 9, `6 umferdir -> 9 dalkar: nafn + 6 + þekja + vinn. (${c6})`);
+ok(c10 === 13, `10 umferdir -> 13 dalkar (${c10})`);
+/* Lokun */
+const rotClose = [...container.querySelectorAll("button")].filter(b => b.textContent === "✕").at(-1);
+await act(async () => { rotClose.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+await render();
+ok(!text().includes("róterings-par"), "spjaldið lokast");
+
 console.log(`\n========================================`);
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

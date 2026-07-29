@@ -611,5 +611,84 @@ if (existsSync(D + "imminent.json")) {
     "skráin segir að hvíld hafi verið prófuð og HAFNAÐ");
 }
 
+
+/* ================= 13. LEIKMANNALISTINN — 108 DALKAR ================= */
+console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
+{
+  ok(STAT_DEFS.length >= 100, `${STAT_DEFS.length} dálkar skilgreindir`);
+  eq(new Set(STAT_DEFS.map(d => d.key)).size, STAT_DEFS.length, "engir tvítekiðir lyklar");
+  ok(STAT_DEFS.every(d => STAT_BY_KEY[d.key] === d),
+    "STAT_BY_KEY nær yfir ALLA dálka (endurbyggt eftir viðbætur)");
+  ok(STAT_DEFS.every(d => STAT_GROUPS.some(g => g.key === d.group)),
+    "hver dálkur tilheyrir gildum flokki");
+  ok(STAT_GROUPS.every(g => STAT_DEFS.some(d => d.group === g.key)), "enginn flokkur tómur");
+  ok(STAT_DEFS.every(d => d.label.length <= 22), "engin heiti of löng fyrir töfluhaus");
+
+  /* live_only ma ALDREI vera a arstidar-summu — thad myndi fela hana
+     ranglega. Adeins nutima-gogn (ESPN/gluggi/leikir/spyrnur) bera hana. */
+  const liveGroups = new Set(["threat", "window", "fixtures", "setp"]);
+  const badLive = STAT_DEFS.filter(d => d.live_only && !liveGroups.has(d.group)
+                                     && d.key !== "xg_share");
+  eq(badLive.length, 0, `live_only aðeins á nútíma-flokkum${badLive.length ? " — " + badLive[0].key : ""}`);
+
+  // hvert get() ma ALDREI kasta, lika a audgudum reitum sem vantar
+  let threw = null;
+  for (const d of STAT_DEFS) {
+    for (const junk of [{}, { minutes: 0 }, { minutes: "x" },
+                        { _espn_shots: null, _w_xg: null, _fdr6: null, _team_xg: 0 }]) {
+      try { d.get(junk); } catch (e) { threw = `${d.key}: ${e.message}`; }
+    }
+  }
+  ok(!threw, `öll ${STAT_DEFS.length} get() þola tóm inntök${threw ? " — " + threw : ""}`);
+
+  // afleiddar tolur sem eru NYJAR: rett a thekktum inntokum
+  const f = { goals_scored: 6, expected_goals: 4.0, assists: 3, expected_assists: 2.0,
+              minutes: 900, bonus: 12, bps: 400, total_points: 60, now_cost: 75,
+              yellow_cards: 3, red_cards: 1, clearances_blocks_interceptions: 90,
+              ict_index: 180, threat: 450, creativity: 270,
+              expected_goal_involvements: 6.0, _team_xg: 40 };
+  near(STAT_BY_KEY.goals_per_90.get(f), 0.6, 1e-9, "Mörk/90 = 6/900×90");
+  near(STAT_BY_KEY.conversion.get(f), 1.5, 1e-9, "Nýting mörk = 6/4,0");
+  near(STAT_BY_KEY.bonus_share.get(f), 20, 1e-9, "Bónus-hlutur = 12/60");
+  near(STAT_BY_KEY.bonus_per_bps.get(f), 3, 1e-9, "Bónus per 100 BPS = 12/(400/100)");
+  near(STAT_BY_KEY.cards_per_90.get(f), 0.4, 1e-9, "Spjöld/90 = (3+1)/900×90");
+  near(STAT_BY_KEY.xgi_per_million.get(f), 0.8, 1e-9, "xGI per m = 6,0/7,5");
+  near(STAT_BY_KEY.xg_share.get(f), 10, 1e-9, "xG-hlutur = 4,0/40");
+  near(STAT_BY_KEY.cbi_per_90.get(f), 9, 1e-9, "Hreins/blokk /90");
+
+  /* NYTING kraefst xG >= 0,5 — annars er hun merkingarlaus (1 mark ur
+     0,04 xG gaefi 25x og trónaði a toppnum).                            */
+  eq(STAT_BY_KEY.conversion.get({ goals_scored: 1, expected_goals: 0.04 }), null,
+    "nýting krefst xG ≥ 0,5 (verndar gegn 25× rusli)");
+  eq(STAT_BY_KEY.bonus_per_bps.get({ bonus: 3, bps: 10 }), null,
+    "bónus/BPS krefst BPS ≥ 50");
+  eq(STAT_BY_KEY.xg_share.get({ expected_goals: 2, _team_xg: 0 }), null,
+    "xG-hlutur með 0 í liðs-xG → null, ekki Infinity");
+
+  // lifandi gogn: dalkarnir lesa raunveruleg svid
+  eq(STAT_BY_KEY.espn_shots.get({ _espn_shots: 4 }), 4, "ESPN-skot úr auðguðum reit");
+  eq(STAT_BY_KEY.mo.get({ _mo: 2.5 }), 2.5, "mó úr auðguðum reit");
+  eq(STAT_BY_KEY.start_prob.get({ _start_p: 0.87 }), 87, "byrjunar-líkur → prósent");
+  eq(STAT_BY_KEY.pen_order.get({ penalties_order: 1 }), 1, "víta-röð úr FPL-sviði");
+  ok(STAT_BY_KEY.pen_order.hi === false, "víta-röð: LÆGRA er betra (1 = fyrsti taki)");
+  ok(STAT_BY_KEY.fdr6.hi === false, "FDR næstu 6: lægra er léttara");
+
+  /* RAUNGOGN: hve margir dalkar virka a lifandi leikmanni og a sogulegri
+     rod. Vordur gegn thvi ad soguleg syn tæmist.                        */
+  const live = players.find(p => /Haaland/.test(p.web_name)) || players[0];
+  const liveOk = STAT_DEFS.filter(d => !d.live_only && d.get(live) != null).length;
+  ok(liveOk >= 20, `lifandi leikmaður: ${liveOk} árstíðar-dálkar með gildi`);
+  if (existsSync(D + "player_seasons.json")) {
+    const ps = J("player_seasons.json");
+    const hist = ps.players[String(live.code)]?.[ps.seasons[0]];
+    if (hist) {
+      const histOk = STAT_DEFS.filter(d => !d.live_only && d.get(hist) != null).length;
+      ok(histOk >= 40, `söguleg röð ${ps.seasons[0]}: ${histOk} dálkar með gildi (SEASON_CARRY)`);
+      eq(hist.defensive_contribution_per_90 == null, ps.seasons[0] !== "2025/26",
+        "DC/90 aðeins frá 2025/26 — null (VANTAR) fyrir eldri, ekki 0");
+    }
+  }
+}
+
 console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);
