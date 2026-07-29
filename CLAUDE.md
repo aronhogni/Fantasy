@@ -21,10 +21,11 @@ Tímabilið **2026/27 hefst 21. ágúst 2026** (GW1-frestur 21.8 kl. 17:30 UTC);
 | Proxy | Netlify function `netlify/functions/odds.js` | **EINA** sem Netlify hýsir |
 
 **Skráastærðir** (til að vita hvað þú ert að opna):
-`src/App.jsx` 3.397 l · `scripts/fetch.mjs` ~1.740 l · `src/model.js` ~265 l ·
+`src/App.jsx` 3.572 l · `scripts/fetch.mjs` ~2.714 l · `src/model.js` 599 l ·
 `src/market.js` 95 l · `src/Pitch.jsx` 124 l · `netlify/functions/odds.js` 201 l ·
 `src/stats.js` ~430 l · `src/GwReport.jsx` ~600 l · `src/Leaderboard.jsx` ~300 l ·
-prófin ~1.500 l (sex söfn, sjá kafla 4).
+`src/rotation.js` 171 l · `src/Rotation.jsx` 332 l ·
+prófin ~13.100 l (**21 söfn**, sjá kafla 4).
 
 **Þrír flipar** (frá 28.7.): `Skipulag` (upprunalega appið) · `Umferðin`
 (`src/GwReport.jsx` — skýrsla um síðustu loknu umferð + skot-kort) ·
@@ -134,6 +135,65 @@ móti −0,153 fyrir sóknar-FFDR — **0,1σ**, hreint suð. Blöndusveipun
 hópaskiptingin er **ekki einræn** (3. fjórðungur vill w=0,95, sóknarsinnar
 w=0) og besta w hoppar milli tímabila (0 / 0,65 / 0,75 / 1,0) og skiptir
 formerki. Það sem notandinn sá hjá Rice var afstæða þrepið, ekki formúlan.
+
+### 3c. MÍNÚTUÞRÓUN — eina inntakið sem árstölur geta ekki gefið (mælt 29.7.)
+
+Appið hafði aðeins ÁRSTÖLUR (`minutes / gamesPlayed`). Sú tala getur ekki
+greint mann sem er að **vinna sér sess** frá manni sem er að **missa hann**
+— báðir geta endað í 60 mín/leik. Per-umferðar sagan getur:
+
+    mins_trend = mín/umferð síðustu 2  MÍNUS  mín/umferð þriggja þar á undan
+
+Mælt á 5 tímabilum, vog **0,01** valin með LOSO. Niðurstaðan er SKILYRT VIÐ
+LAUGINA og það er kjarninn:
+
+| laug | fall í topp-15 | tímabil jákvæð |
+|---|---|---|
+| **allir leikmenn** (það sem tillögu-vélin raðar í raun) | **+0,066** | **5/5**, t=6,66 |
+| aðeins þeir sem SPILUÐU | −0,008 | 2/5 — hávaði |
+
+Seinni röðin er ekki bilun heldur skiljanleg: hafi maður þegar spilað er
+þróunin búin að segja sitt í mínútunum sjálfum. LOSO út fyrir úrtak gaf
++0,066 (4/5), svo þetta er ekki grid-yfirfitting.
+
+**LAGT OFAN Á gömlu vogtölurnar, EKKI endurfittað.** Endurfitting á raunsæju
+lauginni gaf +0,100 þar en **TAPAÐI topp-5 (6,025 -> 5,779)**. Viðbótin
+heldur báðum. **MÆLT OG SLEPPT:** `full90` + `start_rate5` gáfu −0,018 í
+BÁÐUM laugum — ekki setja inn aftur án nýrrar mælingar.
+
+Gögnin koma úr `data/player_form.json`, LEITT ÚT ÚR `data/live/gw{n}.json`
+sem pipeline skrifar þegar — **engin ný köll**. Raðirnar eru per UMFERÐ, ekki
+per leikinn leik (bekkjarmaður fær 0 og telur með); fyrri mæling sem sleppti
+0-röðum sagði bekkjarmenn „í formi“. **Í forleik er `data/live/` tóm, svo
+þróunin er 0 og skorið er NÁKVÆMLEGA eins og áður — hún kviknar við GW4.**
+
+### 3d. FFDR-SAMANBURÐUR — RÓTERINGS-PAR (`src/rotation.js`, 29.7.)
+
+Svarar: *„VVD á City á útivelli og Arsenal tveimur umferðum seinna — hver
+kemur inn fyrir hann í ÞEIM umferðum?“* Ikon **↻** á leikmannaspjaldinu.
+
+Þetta er **önnur spurning en FFDR-taflan** og prófið sannar það: maður með
+BETRI 6 umferðir í heild er gagnslaus sem par sé hann þungur í sömu
+umferðunum. `tests/rotation.mjs` kafli 3 er sá prófsteinn.
+
+- erfitt = dökkgult(3)/ljósrautt(4)/rautt(5), þyngd **1/2/3**
+- **AUÐ UMFERÐ ER ÞYNGST** (3). Notandinn nefndi hana ekki, en blank = 0 stig
+  og það er verra en hvaða rauði leikur sem er.
+- tveir menn valdir -> þyngdin **LEGGST SAMAN** (sammengi, ekki snið)
+- **ÞEKJA** = hlutfall þyngdarinnar sem hann mætir með hlutlausum leik eða
+  betri. Þetta er FFDR-svarið.
+- **VINNINGUR** = vænt stig hans mínus þess (verri) manns sem hann kemur inn
+  fyrir, AÐEINS í erfiðu umferðunum. Þetta er ákvörðunin.
+- **RAÐAÐ EFTIR VINNINGI**, ekki þekju: hrein FFDR-þekja setur menn í slökum
+  liðum á toppinn. Þekja > 0 er samt SKILYRÐI.
+- stöðu-reglan: markmaður kemur ALDREI inn fyrir varnarmann, svo GK valinn ->
+  aðeins GK; annars allt nema GK.
+- **VERÐÞAK** (sjálfg. +£2,0): ÁN þess raðast Haaland á toppinn hjá HVERJUM
+  varnarmanni — rétt svar við „hver skorar mest?“ en rangt við „hver kemur
+  inn af bekknum?“. Þakið er **UI-afmörkun, EKKI hluti líkansins**.
+
+Reikningurinn er allur í `src/rotation.js` (hreint, ekkert React) af sömu
+ástæðu og `model.js`. `src/Rotation.jsx` er birting eingöngu.
 
 ### TREND — „HEITUR“ LEIKMAÐUR ER EKKI HEITUR (mælt 28.7.2026)
 
@@ -292,7 +352,12 @@ mælanlega: r 0,293 -> **0,328**, og FFDR (0,406) nær nú markaðslínunni einn
 
 ## 4. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir **sex** söfn, **299 próf**, öll græn (keyrt 3x):
+`tests/run-tests.mjs` keyrir **21 safn**, **630 staðfestingar** (auk 7
+seiglu-atburðarása og 22 viðmóta sem telja ekki eins), öll græn (keyrt 3x).
+**Fjöldinn er reiknaður úr `SUITES`** — hann var harðkóðaður strengur
+("fimmtan") sem staðnaði um leið og safni var bætt við.
+
+Taflan hér að neðan er ekki tæmandi; hún nefnir þau sem bera ákvarðanir.
 
 | Safn | Fjöldi | Hvað það gerir |
 |---|---|---|
@@ -300,6 +365,10 @@ mælanlega: r 0,293 -> **0,328**, og FFDR (0,406) nær nú markaðslínunni einn
 | `ffdr-backtest.mjs` | 10 | Spáir öllum 380 leikjum 2025/26 með styrk 2024/25 eingöngu. Svarar **„halda LITIRNIR?“** á einu tímabili. Grænasti sjöttungur 33% CS vs 13% rauðasti; r=0,217. Tölfræðileg vikmörk, ekki hörð mörk. |
 | `ffdr-walkforward.mjs` | 27 | **8 tímabil (1819–2526), 6.080 lið-leikir, FULL inntök** — markaðslína endurbyggð úr B365-oddsum og Elo reiknað fram í tímann. Svarar því sem eldra bakprófið gat ekki: er FFDR betri en **sitt besta inntak**, er MEASURED-taflan rétt **kvörðuð** (ekki bara rétt röðuð), og virkar **sóknarhópurinn**. Sjá kafla 3. |
 | `stats.test.mjs` | 121 | Flipana `Umferðin` og `Stigatafla`. Stat-skráin (hvert `get()` þolir tóm/vitlaus inntök — engin deiling með núlli), stigatöflu-röðun, jafnteflis-sæti og mínútu-þak, `bestXi` gegn FPL-formasjón, ESPN-skotin, nafna-pörun, og **vörður að mörk stemmi við úrslitin**. Tveir varðar sem eiga að fella: (a) ef X>0,5 hættir að vera undantekning hefur ESPN breytt hnitakerfinu og kortið er vitlaust; (b) ef nafna-pörun fellur undir 90% hefur heimild breytt nafnaformi. |
+| `rank-model.mjs` | 13 | RÖÐUNARSKORIÐ fyrir tillögur (`rankScore`). Mælt á 5 tímabilum, LOSO: topp-15 5,13 og topp-5 6,07 á móti 4,70/5,29 hjá aðferð appsins og 4,48/5,20 hjá **FPL-eigin xP**. Inniheldur ORAKEL-ÞAKIÐ (5,62 / 6,54) sem sýnir að hærri tala væri LEKI, ekki afrek. |
+| `mins-trend.mjs` | 22 | MÍNÚTUÞRÓUN í röðunarskori (`RANK_W.minsTrend`). Sjá kafla 3c. Kafli 0 dregur `computePlayerForm` ÚT ÚR `scripts/fetch.mjs` og keyrir hana á TILBÚNUM live-skrám — sá kóði kviknar fyrst 21. ágúst og ómældur kóði sem fer í gang einn morgun var ekki ásættanlegt. |
+| `rotation.mjs` | 44 | FFDR-SAMANBURÐUR / róterings-par (`src/rotation.js`). Sjá kafla 3d. Kafli 3 er PRÓFSTEINNINN: spegilmynd verður að vinna þann sem er BETRI Í HEILD, annars er þetta röðun í dulargervi. |
+| `workflow-push.mjs` | 37 | PUSH-KAPPHLAUPIÐ í pipeline. Dregur shell-blokkina ÚT ÚR `.github/workflows/*.yml` og keyrir hana á ALVÖRU git-hirslum með kapphlaupið þvingað fram. Sjá kafla 5b. |
 | `travel-measure.mjs` | 2 | Vörðurinn í kafla 3. |
 | `smoke.test.mjs` | 55 | Appið keyrt í **jsdom** með raunverulegum `data/`-skrám og hermdu `fetch`. 15 spjöld, peningar (banki+lið = £100.0), umferðaskipti, FPL-reglur, chips, andstæðingar, vistun, meiðsli, ferðalengd. |
 
@@ -320,6 +389,38 @@ skekkti allan líkanskjarna bakprófsins. Vörður fylgir.
 ---
 
 ## 5. Pipeline og gagnaskrár
+
+### 5b. PUSH-KAPPHLAUPIÐ — LAGAÐ 29.7.2026, hafði ÞEGAR kostað dag
+
+`fetch-data` féll 29.7. kl. 07:40:28 UTC:
+
+    [main 76b0b9b] data: 2026-07-29
+     25 files changed, 25 insertions(+), 25 deletions(-)
+    ! [rejected]  main -> main (fetch first)
+
+`fetch-fast` pushaði kl. 07:40:16 — **tólf sekúndum á undan**. Sóknin var
+fullkomlega í lagi (25 skrár, engin heimild brast) en pushinu var hafnað og
+**gögn dagsins fóru í ruslið**. Keyrslan varð rauð og ekkert sagði HVAÐ
+tapaðist.
+
+Orsökin var tvíþætt: `fetch.yml` hafði **enga `git pull`**, og `fetch-fast.yml`
+pullaði **áður en hún committaði** — sem lokar minni glugganum en ekki þeim
+sem felldi hana. Þetta er sama kapphlaupið sem kafli 2 varar MANNESKJUR við,
+en workflowin sjálf gerðu það ekki.
+
+**Lausn:** endurtilraunalykkja (5 tilraunir) í BÁÐUM. Við höfnun er sótt og
+endurstillt ofan á `origin/main` og pushað aftur. Við árekstur í `data/`
+vinnur OKKAR fersk sókn (`rebase -X theirs` = commitið sem er endurspilað).
+Það er rétt hér því `data/` er endurmyndað Í HEILD í hverri keyrslu.
+
+**Staðfest í raun:** bæði workflow ræst samtímis 29.7. kl. 19:58 — `fetch-fast`
+kláraðist á 14 s meðan `fetch-data` var í gangi, og logið sýnir
+`! [rejected]` -> `push hafnað (tilraun 1)` -> **`pushað í tilraun 2`**, keyrslan
+GRÆN. Vörður: `tests/workflow-push.mjs`.
+
+Actions-útgáfur `checkout`/`setup-node` eru **v5** í öllum þrem workflowum
+(Node 20 afskrifað; runnerinn þvingaði þegar Node 24). Prófið ver það — og það
+var einmitt prófið sem fann að `pages.yml` var enn á v4.
 
 `scripts/fetch.mjs` skrifar allt í `data/` (sjá `data/SCHEMA.md`). Hver heimild
 skráir sig í `status.json` (`record(...)`) — appið birtir það undir

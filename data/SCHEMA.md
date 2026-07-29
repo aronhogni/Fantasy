@@ -98,6 +98,23 @@ team_h, team_a, team_h_score, team_a_score, team_h_difficulty, team_a_difficulty
 Óskert FPL-svar. **`explain`-blokkin er geymd ÓSKERT** — hún er eina óyggjandi
 heimildin um hvaða stig voru veitt og hvers vegna.
 
+### `player_form.json` — per-umferðar mínútusaga, LEIDD (engin ný köll)
+`{ updated, gws_used, players: { <id>: { gws, mins5, mins_trend, ppg5,
+start_rate5 } }, note }`
+
+Leitt ÚT ÚR `live/gw{n}.json` — sækir ekkert sjálft. `mins_trend` = mín/umferð
+síðustu 2 mínus þriggja þar á undan.
+
+**Raðirnar eru per UMFERÐ, ekki per leikinn leik**: bekkjarmaður fær 0 og telur
+með. Það er ekki smáatriði — mæling sem sleppti 0-röðum sýndi bekkjarmenn „í
+formi“.
+
+`mins_trend` er inntak í `rankScore` með vog 0,01 (mælt +0,066 topp-15, 5/5
+tímabil — sjá CLAUDE.md kafla 3c). **Krefst ≥4 loknar umferðir**; fyrir það er
+þróunin 0 og röðunin er eins og áður. Í forleik er skráin tóm (`gws_used: 0`)
+og `status.json` segir „engin lokin umferd (preseason) — throunin kviknar vid
+GW4“.
+
 ### `history/YYYY-MM-DD.json` — dagleg verðmynd
 `[{ id, now_cost, cost_change_event, selected_by_percent, transfers_in_event,
 transfers_out_event, total_points }]`
@@ -748,6 +765,12 @@ leikmenn, heilt tímabil fyrir lið.**
 ### `rotation.json`
 `{ rows: [{ fpl_id, event, kickoff_time, rest_days,
 euro_before, euro_after, euro_competition }] }`
+
+**`rest_days` ER UPPLÝSING, EKKI HÆTTUMERKI (29.7.2026).** Mælt á 10.448
+leikjum með skammri hvíld: 27,0% spila 60+ mínútur eftir <4 daga hvíld á móti
+27,3% annars — ekkert forspárgildi. „<4 daga hvíld"-talningin var því tekin úr
+`status.json`; `rest_measured` í skránni geymir tölurnar. Evrópu-nálægð er
+**ómæld** og heldur sér.
 
 `rest_days` úr **kickoff-tíma**, yfir allar keppnir. `euro_before`/`euro_after`
 = Evrópu-/bikarleikur 2–4 dögum fyrir/eftir. Þau eru `false` þar til dráttur
