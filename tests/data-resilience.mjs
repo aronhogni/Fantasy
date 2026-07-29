@@ -15,12 +15,15 @@
    ============================================================ */
 /* Vantandi/skemmdar skrar: birtast flipar an thess ad hrynja? */
 import { readFileSync } from "node:fs";
+/* VELAROHAD SLOD. Adur var "/Users/arongeorgsson/Fantasy/..." hardkodad,
+   svo profin virkudu adeins a einni vel — onnur lota gat ekki keyrt thau. */
+const REPO = new URL("../", import.meta.url);
 import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 
-const D = "/Users/arongeorgsson/Fantasy/data/";
+const D = new URL("data/", REPO).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
 
 const SCENARIOS = [
@@ -59,7 +62,7 @@ for (const [label, missing] of SCENARIOS) {
 
   let crashed = null; const perTab = {};
   try {
-    const { default: App } = await import("/Users/arongeorgsson/Fantasy/src/App.jsx");
+    const { default: App } = await import(new URL("src/App.jsx", REPO).href);
     const root = createRoot(document.getElementById("root"));
     await act(async () => { root.render(React.createElement(App)); });
     await act(async () => { await new Promise(r => setTimeout(r, 150)); });

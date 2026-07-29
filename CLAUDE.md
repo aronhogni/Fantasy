@@ -760,6 +760,110 @@ svo röksemdin sé gagnsæ.
 
 ---
 
+## 6i. LEIKMANNALISTINN — flipinn „Leikmenn" (29.7.2026)
+
+`src/PlayerList.jsx`. Allir 564 leikmenn í einni töflu: síanlegir,
+raðanlegir, með mynd, yfir fjögur tímabil.
+
+### EIN DÁLKASKRÁ — ekki tvær
+Dálkarnir eru **`STAT_DEFS` úr `src/stats.js`** — sama skrá sem stigataflan
+og prófin nota. Sérstakur dálkalisti fyrir listann hefði farið úr samhengi
+við hana innan viku. **Ef þú vilt taka dálk út: eyddu honum úr `STAT_DEFS`
+og hann horfur úr töflu, röðun, þröskuldum OG stigatöflu í einu.**
+
+**108 dálkar í 12 flokkum** (var 65 í 8). Nýir flokkar: `Ógn (ESPN,
+síðasta umferð)` · `Form-gluggi (síðustu 4–5)` · `Leikir framundan` ·
+`Föst leikatriði`.
+
+### TÍMABILIÐ STÝRIR SJÁLFGEFNU VALI — aldrei hardkóðað
+Mælt: `finished_gw = 0` í dag, GW1-frestur 21.8. Þess vegna eru **öll**
+árstíðarsvið í `players.json` núll fyrir alla 564 — listi sem raðaði eftir
+`total_points` raðaði 564 nullum og hefði litið út eins og bilun.
+`finished_gw` er lesið úr `events.json` í hverri hleðslu:
+
+    finished_gw === 0  ->  sjálfgefið tímabil er SÍÐASTA LOKNA (2025/26)
+    finished_gw >= 1   ->  2026/27 verður sjálfgefið
+
+**Verð, staða og eignarhlutfall eru ALLTAF úr gögnum dagsins**, líka þegar
+söguleg tölur eru sýndar — þú kaupir á verði dagsins, ekki á verði 2023/24.
+
+### `live_only` — og villan sem var
+Dálkar sem byggja á nútíma-gögnum (ESPN síðustu umferðar, form-gluggi,
+leikir framundan, spyrnu-röð) eru merktir `live_only` og fá **grænan borða**
+sem segir að þeir fylgi EKKI valdu tímabili.
+**Fyrsta útgáfan FALDI þá í sögulegu tímabili** — sem gerði þá ónáanlega,
+því 2026/27 er tómt og það er sjálfgefið val ekki. Nú eru þeir alltaf
+sýnilegir og heiti flokkanna bera tímabilið sjálf.
+
+### `SEASON_CARRY` í pipeline
+`player_seasons.json` bar aðeins 26 svið, svo **aðeins 31 af 108 dálkum**
+virkaði á sögulegri röð. 25 svið bætt við (form, ICT, áhrif, sköpun, hætta,
+eignarhlutfall, spjöld, tacklingar, endurheimtur, per-90 svið,
+`value_season`/`value_form`) → **74 dálkar með gildi** á 2025/26.
+Kostnaður 1,29 → 1,83 MB (eftir 63%-síuna í 6f).
+Svið sem vantar í eldra tímabili verða **null (VANTAR), EKKI 0** — `DC/90`
+er aðeins til frá 2025/26 og próf staðfestir að það sé null áður.
+
+### NULL ER EKKI NÚLL
+    null (gögn vantar)      -> "—" grátt, raðast ALLTAF SÍÐAST í BÁÐAR áttir
+    0    (raunverulegt núll) -> "0"
+Tóm gildi fljóta annars upp í „asc" og fylla toppinn — algengasta villan í
+svona töflum. Dálkur sem er tómur fyrir alla í völdu tímabili er **falinn**,
+með hnapp og tölu um hve margir.
+
+### ALMENNUR ÞRÖSKULDUR
+Velja dálk → `≥`/`≤` → tala → verður chip. Þrjátíu sliderar á skjá í einu
+eru ónothæfir; þetta gefur sama kraft í einu chipi og virkar á **hvaða** af
+108 dálkunum sem er.
+
+### FRAMMISTAÐA (mælt í dev-console)
+`cook` 564 raðir **1,6–2,2 ms** · sía **0,1 ms** · röðun **0,2 ms**.
+Viðmið var 8 ms. Sýndarvæðing með fastri raðahæð (34 px) + 12 overscan.
+**Engin ný dependency.**
+
+### SÍMI (prófað á 380 px, ekki á skjáborði)
+Frosni nafnadálkurinn var **196 px af 380** — meira en helmingur skjásins.
+Nú `matchMedia`-skynjun: nafn 196→124 px, tölur 88→66 px, **mynd falin**
+(hvert pixel þarf að fara í nafnið), flokkahnappar skruna lárétt í stað
+þess að taka fjórar línur, og borðarnir dragast saman í eina ýtanlega línu.
+
+### VILLUR SEM VORU LAGAÐAR
+- **Byrjunar-líkur sýndu „—" fyrir ALLA:** `imminent.json` geymir fullt nafn
+  („Cole Palmer") en `players.json` `web_name` („Palmer"), svo bein
+  nafna-uppfletting skilaði engu. Nú orða-skorun + LIÐ með óþræddum
+  sigurvegara, sama aðferð og `matchShotsToPlayers`.
+- **Haus-heiti þoldu saman** („ByrjunarliðByrjunarhlutfall"): dálkar voru
+  78 px en heitin lengri. Breidd 88 px + ellipsis + stytt heiti.
+- **Nýting (mörk/xG) krefst xG ≥ 0,5** og `bónus/BPS` krefst BPS ≥ 50 —
+  annars gæfi 1 mark úr 0,04 xG 25× og trónaði á toppnum.
+
+### VAKTLISTI OG „MITT LIГ — tveir litir, tvær merkingar
+Stjarna (☆/★) í frosna nafna-hólfinu setur leikmann á **vaktlista**; hann
+vistast í `localStorage` undir `watch` (**ekkert þak**, ólíkt andstæðingum).
+Stjarnan **í hausnum er SÍA**, ekki röðun — hún situr í röðunar-hausnum og
+þarf `stopPropagation`, annars raðar smellurinn eftir nafni í leiðinni.
+
+**BORÐINN ER Á HÓLFINU, EKKI Á RÖÐINNI.** Röðin skrunar lárétt yfir 108
+dálka; grænn borði á henni hefði horfið við fyrsta skrun. Frosna hólfið er
+alltaf á skjánum, svo `cellMine` er `inset 3px` skuggi þar.
+
+**Liturinn var í árekstri:** samanburðar-röðin notaði `C.greenBg` — sami
+græni og eignarhald á að bera. Samanburður er nú **ljósfjólublár** (`#f7f2f8`)
+og grænt þýðir aðeins „í mínu liði". Bæði merkin sjást samtímis: bakgrunnur
+segir „í samanburði", borðinn segir „minn".
+
+Próf: `tests/watchlist.mjs` (18 próf) — vistun, síun, afmerking, og að
+borðinn liggi á hólfinu. **Fjórar stökkbreytingar prófaðar** (borði fjarlægður,
+borði færður á röðina, samanburður settur í grænt aftur, `watch` tekið úr
+`saveState`) og allar fundust — prófið er ekki innantómt.
+
+Próf: kafli 13 í `tests/stats.test.mjs` (28 próf) — 108 einkvæmir lyklar,
+`STAT_BY_KEY` nær yfir alla eftir viðbætur, `live_only` aðeins á
+nútíma-flokkum, **öll 108 `get()` þola tóm inntök**, hver ný afleidd tala á
+þekktum inntökum, og að söguleg sýn tæmist ekki (74 dálkar með gildi).
+
+---
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)

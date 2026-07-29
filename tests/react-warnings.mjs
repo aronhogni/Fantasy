@@ -11,12 +11,15 @@
    ============================================================ */
 /* Fellur a HVERRI React-vidvorun (key, hooks, propTypes...) i ollum flipum. */
 import { readFileSync } from "node:fs";
+/* VELAROHAD SLOD. Adur var "/Users/arongeorgsson/Fantasy/..." hardkodad,
+   svo profin virkudu adeins a einni vel — onnur lota gat ekki keyrt thau. */
+const REPO = new URL("../", import.meta.url);
 import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 
-const D="/Users/arongeorgsson/Fantasy/data/";
+const D = new URL("data/", REPO).pathname;
 const J=f=>JSON.parse(readFileSync(D+f,"utf8"));
 const dom=new JSDOM("<!doctype html><div id=root></div>",{url:"http://localhost/",pretendToBeVisual:true});
 globalThis.window=dom.window; globalThis.document=dom.window.document;
@@ -42,7 +45,7 @@ for (const m of ["error","warn"]) {
     if(/DeprecationWarning|module\.register|attachEvent|trace-deprecation/.test(t)) return;
     warns.push(m+": "+t.slice(0,150)); };
 }
-const { default: App } = await import("/Users/arongeorgsson/Fantasy/src/App.jsx");
+const { default: App } = await import(new URL("src/App.jsx", REPO).href);
 const root=createRoot(document.getElementById("root"));
 await act(async()=>{ root.render(React.createElement(App)); });
 await act(async()=>{ await new Promise(r=>setTimeout(r,200)); });

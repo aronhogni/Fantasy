@@ -21,6 +21,11 @@
    Dalkur sem er tomur fyrir ALLA i voldu timabili er FALINN, ekki
    syndur sem sull af strikum — nema notandinn kveiki a honum.
 
+   VAKTLISTI OG "MITT LID": stjarnan (vistud i localStorage) og graen rond.
+   RONDIN ER A FROSNA NAFNA-HOLFINU, EKKI A RODINNI — rodin skrunar larett
+   og bordi a henni hefdi horfid vid fyrsta larett skrun. Samanburdar-liturinn
+   var faerdur ur graenum i ljosfjolublaan svo GRAENT thydi adeins eignarhald.
+
    VERD OG STADA ERU ALLTAF UR NUVERANDI players.json, lika thegar
    soguleg tolur eru syndar: thu kaupir a verdi DAGSINS, ekki a verdi
    2023/24. Sami rok fyrir stodu og tiltækileika.
@@ -50,7 +55,24 @@ const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
 
 export default function PlayerList({ players, teams, teamById, events, seasonsFile,
                                      imminent, shotsFile, fixtures, odds, defcon,
-                                     photoUrl, Crest, onPickPlayer, onCompare, cmpIds }) {
+                                     photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
+                                     watch, onWatch, mineIds }) {
+  /* ---------- SIMI: 380 px er profunar-breiddin ----------
+     Frosni nafnadalkurinn var 196 px af 380 px — meira en helmingur
+     skjasins, svo tolurnar fengu naerri ekkert. Og bordinn + siur + 12
+     flokkahnappar ýttu toflunni undir fold. Baedi lagfaert her.        */
+  const [narrow, setNarrow] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 560 : false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 559px)");
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
+  const [showInfo, setShowInfo] = useState(false);
+
   /* ---------- timabil ---------- */
   const finishedGw = useMemo(
     () => (events || []).filter(e => e.finished).length, [events]);
@@ -76,6 +98,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const [teamSel, setTeamSel] = useState([]);
   const [onlyAvail, setOnlyAvail] = useState(false);
   const [hidePicked, setHidePicked] = useState(false);
+  const [onlyWatch, setOnlyWatch] = useState(false);
+  const [onlyMine, setOnlyMine] = useState(false);
   const [group, setGroup] = useState("core");
   const [thresholds, setThresholds] = useState([]);   // [{key, op, val}]
   const [sortKey, setSortKey] = useState("total_points");
@@ -216,6 +240,10 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     [groupCols, showEmpty]);
   const emptyCount = groupCols.filter(c => c.withVal === 0).length;
 
+  const watchSet = useMemo(() => new Set(watch || []), [watch]);
+  const mineSet = useMemo(
+    () => (mineIds instanceof Set ? mineIds : new Set(mineIds || [])), [mineIds]);
+
   /* ---------- sia ---------- */
   const filtered = useMemo(() => {
     const t0 = (typeof performance !== "undefined" ? performance.now() : 0);
@@ -229,6 +257,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       if (teamSet.size && !teamSet.has(r.p.team)) return false;
       if (onlyAvail && !r.avail) return false;
       if (hidePicked && picked.has(r.p.id)) return false;
+      if (onlyWatch && !watchSet.has(r.p.id)) return false;
+      if (onlyMine && !mineSet.has(r.p.id)) return false;
       if (Number.isFinite(lo) && r.cost < lo) return false;
       if (Number.isFinite(hi) && r.cost > hi) return false;
       if (needle && !r.search.includes(needle)) return false;
@@ -244,7 +274,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Leikmenn] sia -> ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [rows, pos, q, minCost, maxCost, teamSel, onlyAvail, hidePicked, thresholds, cmpIds]);
+  }, [rows, pos, q, minCost, maxCost, teamSel, onlyAvail, hidePicked, thresholds, cmpIds,
+      onlyWatch, onlyMine, watchSet, mineSet]);
 
   /* ---------- rodun ----------
      NULL ALLTAF SIDAST, i BADAR attir. Thetta er algengasta villan:
@@ -292,6 +323,12 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const last = Math.min(sorted.length, Math.ceil((scrollTop + viewH) / ROW_H) + OVERSCAN);
   const window_ = sorted.slice(first, last);
 
+  /* Breiddir eftir skja. Nafnadalkur 196 -> 124 og tolur 88 -> 66 i sima. */
+  const wName = narrow ? 140 : 214;   // +18 px fyrir stjornuna
+  const wNum  = narrow ? 66 : 88;
+  const cName = { ...S.cName, width: wName, minWidth: wName };
+  const cNum  = { ...S.cNum,  width: wNum,  minWidth: wNum, maxWidth: wNum };
+
   const sortOn = (key, higherBetter = true) => {
     if (sortKey === key) { setSortDir(d => d === "asc" ? "desc" : "asc"); return; }
     setSortKey(key); setSortDir(higherBetter ? "desc" : "asc");
@@ -308,6 +345,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     () => setTeamSel(v => v.filter(x => x !== id))]));
   if (onlyAvail) chips.push(["aðeins leikhæfir", () => setOnlyAvail(false)]);
   if (hidePicked) chips.push(["fela valda", () => setHidePicked(false)]);
+  if (onlyWatch) chips.push(["★ vaktlisti", () => setOnlyWatch(false)]);
+  if (onlyMine) chips.push(["mitt lið", () => setOnlyMine(false)]);
   thresholds.forEach((t, i) => chips.push([
     `${STAT_BY_KEY[t.key]?.label || t.key} ${t.op} ${t.val}`,
     () => setThresholds(v => v.filter((_, j) => j !== i))]));
@@ -338,6 +377,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
             <button style={S.clearAll} onClick={() => {
               setPos("all"); setQ(""); setMinCost(""); setMaxCost(""); setTeamSel([]);
               setOnlyAvail(false); setHidePicked(false); setThresholds([]);
+              setOnlyWatch(false); setOnlyMine(false);
             }}>hreinsa allt</button>}
         </div>
       </div>
@@ -350,18 +390,25 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         </div>
       )}
       {finishedGw === 0 && !isLive && (
-        <div style={S.note}>
-          <b>{currentLabel} er ekki hafið</b>, svo listinn sýnir <b>{season}</b>.
-          Verð, staða og eignarhlutfall eru samt <b>úr dagsins gögnum</b> — þú kaupir á
-          verði dagsins, ekki á verði {season}.
-        </div>
+        narrow && !showInfo ? (
+          <button style={S.noteMini} onClick={() => setShowInfo(true)}>
+            {currentLabel} ekki hafið — sýnir {season} · <b>af hverju?</b>
+          </button>
+        ) : (
+          <div style={S.note}>
+            <b>{currentLabel} er ekki hafið</b>, svo listinn sýnir <b>{season}</b>.
+            Verð, staða og eignarhlutfall eru samt <b>úr dagsins gögnum</b> — þú kaupir á
+            verði dagsins, ekki á verði {season}.
+            {narrow && <> <button style={S.link} onClick={() => setShowInfo(false)}>fela</button></>}
+          </div>
+        )
       )}
 
       {!isLive && (() => {
         const liveCols = STAT_DEFS.filter(d => d.group === group && d.live_only).length;
         if (!liveCols) return null;
         return (
-          <div style={S.mixNote}>
+          <div style={{ ...S.mixNote, ...(narrow ? S.mixMini : {}) }}>
             <b>Þessi flokkur sýnir NÚTÍMA-gögn</b> — ekki {season}. Hann byggir á síðustu loknu
             umferð, form-glugganum eða leikjum framundan, svo hann breytist ekki þótt þú veljir
             annað tímabil. Árstíðar-summurnar (Grunnur, Sókn, Vörn …) fylgja hins vegar {season}.
@@ -399,6 +446,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           <input type="checkbox" checked={onlyAvail}
             onChange={e => setOnlyAvail(e.target.checked)} />aðeins leikhæfir
         </label>
+        <label style={S.check} title="Aðeins stjörnumerktir">
+          <input type="checkbox" checked={onlyWatch}
+            onChange={e => setOnlyWatch(e.target.checked)} />★ vaktlisti ({watchSet.size})
+        </label>
+        {mineSet.size > 0 && (
+          <label style={S.check} title="Aðeins leikmenn í mínu liði">
+            <input type="checkbox" checked={onlyMine}
+              onChange={e => setOnlyMine(e.target.checked)} />mitt lið ({mineSet.size})
+          </label>
+        )}
         {!!(cmpIds || []).length && (
           <label style={S.check}>
             <input type="checkbox" checked={hidePicked}
@@ -466,17 +523,25 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           <div style={{ height: sorted.length * ROW_H + 30, position: "relative", minWidth: "max-content" }}>
             {/* haus */}
             <div style={{ ...S.hRow, width: "100%" }}>
-              <div style={{ ...S.hCell, ...S.cName }} role="columnheader" aria-sort={aria("__name")}
+              <div style={{ ...S.hCell, ...cName }} role="columnheader" aria-sort={aria("__name")}
                 tabIndex={0} onClick={() => sortOn("__name", false)}
                 onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn("__name", false); } }}>
+                {/* Stjarnan i hausnum er SIA, ekki rodun. stopPropagation
+                    thvi smellur a hausinn sjalfan radar eftir nafni.       */}
+                <button style={{ ...S.starHead, ...(onlyWatch ? S.starOn : {}) }}
+                  aria-pressed={onlyWatch}
+                  title={onlyWatch ? "Sýna alla" : "Sýna aðeins vaktlista"}
+                  onClick={e => { e.stopPropagation(); setOnlyWatch(v => !v); }}>
+                  {onlyWatch ? "★" : "☆"}
+                </button>
                 Leikmaður{arrow("__name")}
               </div>
-              <div style={{ ...S.hCell, ...S.cNum }} aria-sort={aria("__cost")} tabIndex={0}
+              <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__cost")} tabIndex={0}
                 onClick={() => sortOn("__cost", false)}>Verð{arrow("__cost")}</div>
-              <div style={{ ...S.hCell, ...S.cNum }} aria-sort={aria("__own")} tabIndex={0}
+              <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__own")} tabIndex={0}
                 onClick={() => sortOn("__own")}>Eign %{arrow("__own")}</div>
               {visibleCols.map(d => (
-                <div key={d.key} style={{ ...S.hCell, ...S.cNum }}
+                <div key={d.key} style={{ ...S.hCell, ...cNum }}
                   title={`${d.label}${d.note ? " — " + d.note : ""}`}
                   aria-sort={aria(d.key)} tabIndex={0}
                   onClick={() => sortOn(d.key, d.hi !== false)}
@@ -484,7 +549,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                   {d.label}{d.derived ? "†" : ""}{arrow(d.key)}
                 </div>
               ))}
-              <div style={{ ...S.hCell, ...S.cNum }} aria-sort={aria("__start")} tabIndex={0}
+              <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__start")} tabIndex={0}
                 title="Byrjunar-líkur — mælt, sjá Bekkjar-hætta"
                 onClick={() => sortOn("__start")}>Byrjar{arrow("__start")}</div>
               <div style={{ ...S.hCell, ...S.cAct }}>+</div>
@@ -493,17 +558,30 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
             {window_.map((r, i) => {
               const idx = first + i;
               const inCmp = (cmpIds || []).includes(r.p.id);
+              const isWatched = watchSet.has(r.p.id);
+              const isMine = mineSet.has(r.p.id);
               return (
                 <div key={r.p.code} style={{
                   ...S.row, top: 30 + idx * ROW_H,
-                  ...(idx % 2 ? S.rowAlt : {}), ...(inCmp ? S.rowPicked : {}),
+                  ...(idx % 2 ? S.rowAlt : {}),
+                  ...(isMine ? S.rowMine : {}), ...(inCmp ? S.rowPicked : {}),
                 }}>
-                  <div style={{ ...S.cell, ...S.cName }}>
+                  <div style={{ ...S.cell, ...cName, ...(isMine ? S.cellMine : {}) }}>
+                    {/* BORDINN ER A HOLFINU, EKKI RODINNI. Rodin skrunar
+                        larett; bordi a henni hefdi horfid vid fyrsta skrun.
+                        Frosna holfid er alltaf synilegt.                   */}
+                    <button style={{ ...S.star, ...(isWatched ? S.starOn : {}) }}
+                      aria-pressed={isWatched}
+                      aria-label={`${isWatched ? "Fjarlægja" : "Setja"} ${r.p.web_name} ${isWatched ? "af" : "á"} vaktlista`}
+                      title={isWatched ? "Á vaktlista — smelltu til að fjarlægja" : "Setja á vaktlista"}
+                      onClick={e => { e.stopPropagation(); onWatch?.(r.p.id); }}>
+                      {isWatched ? "★" : "☆"}
+                    </button>
                     <button style={S.nameBtn} onClick={() => onPickPlayer?.(r.p.id)}
                       title={r.p.news || `${r.p.first_name} ${r.p.second_name}`}>
-                      {photoUrl && r.p.code
+                      {!narrow && (photoUrl && r.p.code
                         ? <img src={photoUrl(r.p.code)} alt="" style={S.img} loading="lazy" />
-                        : <span style={S.imgFb}>{r.p.web_name.slice(0, 1)}</span>}
+                        : <span style={S.imgFb}>{r.p.web_name.slice(0, 1)}</span>)}
                       <span style={{ ...S.dot, background: POS_COLOR[r.p.element_type] }} />
                       <span style={S.nm}>{r.p.web_name}</span>
                       <span style={S.teamTag}>
@@ -514,18 +592,18 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                       {!isLive && !r.hist && <span style={S.noHist} title={`Engin gögn í ${season}`}>—</span>}
                     </button>
                   </div>
-                  <div style={{ ...S.cell, ...S.cNum, ...S.strong }}>£{r.cost.toFixed(1)}</div>
-                  <div style={{ ...S.cell, ...S.cNum }}>{r.own.toFixed(1)}</div>
+                  <div style={{ ...S.cell, ...cNum, ...S.strong }}>£{r.cost.toFixed(1)}</div>
+                  <div style={{ ...S.cell, ...cNum }}>{r.own.toFixed(1)}</div>
                   {visibleCols.map(d => {
                     const v = r.src ? d.get(r.src) : null;
                     return (
-                      <div key={d.key} style={{ ...S.cell, ...S.cNum,
+                      <div key={d.key} style={{ ...S.cell, ...cNum,
                         ...(v == null ? S.miss : {}) }}>
                         {v == null ? "—" : fmtStat(d, v)}
                       </div>
                     );
                   })}
-                  <div style={{ ...S.cell, ...S.cNum }}>
+                  <div style={{ ...S.cell, ...cNum }}>
                     {r.startP == null ? <span style={S.miss}>—</span> : (
                       <span style={{ fontWeight: 700,
                         color: r.startLevel === "safe" ? "#046b41"
@@ -554,6 +632,10 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         raðast <b>alltaf síðast</b>, í báðar áttir. Dálkar sem eru tómir fyrir alla í
         {" "}{season} eru faldir — kveiktu á þeim með hnappnum. Smelltu á haus til að raða,
         á nafn til að opna spjaldið, á <b>⇄</b> til að bera saman.
+        {" "}<b style={{ color:"#e8a71c" }}>★</b> setur á vaktlista (vistast milli heimsókna);
+        stjarnan í hausnum sýnir aðeins vaktlistann.
+        {" "}<b style={{ color:C.green }}>Græn rönd</b> = leikmaður í þínu liði — röndin er á
+        nafna-hólfinu því röðin skrunar til hliðar.
       </div>
     </section>
   );
@@ -584,6 +666,10 @@ const S = {
   note:{ fontSize:11.5, color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`,
          borderRadius:6, padding:"7px 9px", margin:"10px 0", lineHeight:1.5 },
   muted:{ fontSize:11.5, color:C.text3 },
+  noteMini:{ display:"block", width:"100%", textAlign:"left", fontSize:10.5,
+             color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`,
+             borderRadius:6, padding:"5px 8px", margin:"8px 0 0", cursor:"pointer" },
+  mixMini:{ fontSize:10, padding:"5px 8px", lineHeight:1.45 },
   mixNote:{ fontSize:11, color:"#0a5c3e", background:C.greenBg, border:"1px solid #b9e8d0",
             borderRadius:6, padding:"6px 9px", margin:"8px 0 0", lineHeight:1.5 },
 
@@ -611,10 +697,12 @@ const S = {
   chip:{ border:`1px solid #d9c7dc`, background:"#f6f1f7", color:C.purple, borderRadius:12,
          padding:"2px 8px", fontSize:10.5, cursor:"pointer" },
 
-  groupRow:{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:8,
-             borderBottom:`1px solid ${C.border}`, paddingBottom:7 },
+  groupRow:{ display:"flex", gap:4, marginBottom:8, overflowX:"auto",
+             borderBottom:`1px solid ${C.border}`, paddingBottom:7,
+             scrollbarWidth:"none", WebkitOverflowScrolling:"touch" },
   groupBtn:{ border:"none", background:"transparent", color:C.text2, borderRadius:5,
-             padding:"4px 9px", fontSize:11.5, fontWeight:600, cursor:"pointer" },
+             padding:"4px 9px", fontSize:11.5, fontWeight:600, cursor:"pointer",
+             whiteSpace:"nowrap", flex:"0 0 auto" },
   groupOn:{ background:"#f1e9f2", color:C.purple },
   emptyBtn:{ marginLeft:"auto", fontSize:10, color:C.text3 },
 
@@ -628,7 +716,17 @@ const S = {
   row:{ position:"absolute", left:0, right:0, display:"flex", height:ROW_H,
         alignItems:"center", borderBottom:"1px solid #f4f4f6" },
   rowAlt:{ background:"#fcfcfd" },
-  rowPicked:{ background:C.greenBg },
+  /* GRAENT THYDIR ADEINS "MITT LID". Samanburdur var adur greenBg — sami
+     litur — svo hann er faerdur i ljosfjolublaan. Einn litur, ein merking. */
+  rowPicked:{ background:"#f7f2f8" },
+  rowMine:{ background:"#effaf4" },
+  cellMine:{ boxShadow:`inset 3px 0 0 ${C.green}` },
+  star:{ border:"none", background:"transparent", cursor:"pointer", padding:0,
+         fontSize:13, lineHeight:1, color:"#c9c9d0", flex:"0 0 14px", width:14 },
+  starHead:{ border:"none", background:"transparent", cursor:"pointer", padding:0,
+             fontSize:12, lineHeight:1, color:"#c9c9d0", flex:"0 0 14px", width:14,
+             marginRight:2 },
+  starOn:{ color:"#e8a71c" },
   cell:{ display:"flex", alignItems:"center", padding:"0 6px", fontSize:11.5,
          whiteSpace:"nowrap", borderRight:"1px solid #f6f6f8" },
   cName:{ position:"sticky", left:0, zIndex:2, width:196, minWidth:196,

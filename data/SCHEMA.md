@@ -934,3 +934,47 @@ players   [ { name, team, shots, on_target, off_target, blocked, woodwork, goals
 **Woodwork er hér** (`kind:"woodwork"`, ESPN-tegundin `Shot Hit Woodwork`) — það
 er heimildin sem Understat átti að gefa en gefur ekki lengur.
 **xG per skot er EKKI hér** og því eru *big chances* ekki reiknuð.
+
+---
+
+## `player_seasons.json` — LOKATOLUR FYRRI TIMABILA (uppfaert 29.7.2026)
+
+Skrifad af `fetchPlayerSeasons()`. **LYKLAD A `code`, EKKI `id`** — FPL
+endurnytir element-id milli timabila, svo id-porun syndi vitlausan leikmann.
+
+```
+updated, seasons ["2025/26","2024/25","2023/24"], key "code"
+pool_sizes  { "2025/26": 537, ... }   fjoldi sem SPILADI hvert timabil
+field_availability { svid: [timabil sem hafa thad] }
+missing_note  DC kom fyrst 2025/26 -> null fyrir eldri, EKKI 0
+players { <code>: { "<timabil>": {
+    code, id, element_type, web_name, now_cost,
+    -- MED SAETUM (SEASON_STATS): total_points, minutes, starts,
+       goals_scored, assists, expected_goals(+_per_90),
+       expected_assists(+_per_90), expected_goal_involvements(+_per_90),
+       expected_goals_conceded, clean_sheets, goals_conceded, saves,
+       bonus, bps, defensive_contribution, points_per_90, dc_per_start
+    -- BORIN AFRAM (SEASON_CARRY, engin saeti): points_per_game, form,
+       ict_index, influence, creativity, threat, selected_by_percent,
+       yellow_cards, red_cards, own_goals, penalties_missed,
+       penalties_saved, dreamteam_count, clearances_blocks_interceptions,
+       tackles, recoveries, starts_per_90, saves_per_90,
+       clean_sheets_per_90, goals_conceded_per_90,
+       expected_goals_conceded_per_90, defensive_contribution_per_90,
+       value_season, value_form, cost_change_start
+    rank    { svid: saeti }      innan TIMABILS
+    rank_of { svid: fjoldi }     nefnari = ALLIR sem spiludu, EKKI siun
+    played  bool
+} } }
+```
+
+**TVAER SIUR SEM MA EKKI RUGLA SAMAN:**
+1. Skrain heldur adeins leikmonnum sem eru I DEILDINNI NUNA (935 af 1420
+   sleppt, -63%): framendinn flettir alltaf upp med `code` ur
+   `players.json`, svo saga leikmanns sem er farinn er onothaef.
+2. **SAETIN eru samt reiknud UR OLLUM sem spiludu** (537, ekki 485).
+   Prof stadfestir ad 485 komi hvergi fram sem nefnari.
+
+`SEASON_CARRY` var baett vid 29.7. svo SOMU dalkarnir virki i
+leikmannalistanum yfir oll timabil — adur virkudu adeins 31 af 108
+STAT_DEFS a sogulegri rod, nu 74.

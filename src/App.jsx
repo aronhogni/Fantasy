@@ -499,6 +499,7 @@ export default function App() {
   const [priceEdit, setPriceEdit] = useState(null);     // {id} — lettur verd-gluggi
   const [spNotes, setSpNotes] = useState(null);         // data/set_piece_notes.json
   const [imminent, setImminent] = useState(null);       // data/imminent.json — mo/ao
+  const [watch, setWatch] = useState([]);               // vaktlisti (stjornumerktir) — ekkert thak
   const [cmpIds, setCmpIds] = useState([]);             // samanburdur — allt ad 4
   /* FFDR-samanburdur (roterings-par): 1-2 menn sem eg vil fa hjalp med.
      Adskilid fra cmpIds — thad er stat-samanburdur, thetta er leikjaplan. */
@@ -643,14 +644,14 @@ export default function App() {
         setEntryId(s.entryId ?? null); setPlan(s.plan ?? []);
         setCaptain(s.captain ?? START_CAPTAIN); setVice(s.vice ?? null);
         setBenchSwaps(s.benchSwaps ?? {}); setChips(s.chips ?? {}); setBuyPrices(s.buyPrices ?? {});
-        setRivals(s.rivals ?? []);
+        setRivals(s.rivals ?? []); setWatch(s.watch ?? []);
       }
       setLoaded(true);
     })();
   }, []);
   useEffect(() => {
-    if (loaded) saveState("fpl_planner_v3", { entryId, plan, captain, vice, benchSwaps, chips, buyPrices, rivals });
-  }, [entryId, plan, captain, vice, benchSwaps, chips, buyPrices, rivals, loaded]);
+    if (loaded) saveState("fpl_planner_v3", { entryId, plan, captain, vice, benchSwaps, chips, buyPrices, rivals, watch });
+  }, [entryId, plan, captain, vice, benchSwaps, chips, buyPrices, rivals, watch, loaded]);
 
   /* ---------- Sækja raunlið + stig úr FPL-slóð ---------- */
   useEffect(() => {
@@ -1638,6 +1639,9 @@ export default function App() {
           fixtures={fixtures} odds={odds} defcon={defcon}
           photoUrl={photoUrl} Crest={Crest}
           onPickPlayer={id => setDetail({ kind:"player", id })}
+          watch={watch}
+          onWatch={id => setWatch(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id])}
+          mineIds={squadIds}
           cmpIds={cmpIds}
           onCompare={id => setCmpIds(v => v.includes(id) ? v.filter(x => x !== id)
                                                         : [...v, id].slice(0, 4))} />
