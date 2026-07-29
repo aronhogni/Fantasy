@@ -8,7 +8,7 @@ import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
-  cleanSheetProb } from "./model.js";
+  cleanSheetProb, rankScore } from "./model.js";
 
 /* ============================================================
    FPL PLÖNUN — v3
@@ -441,7 +441,6 @@ export default function App() {
   const [elo, setElo] = useState(null);
   const [weather, setWeather] = useState(null);
   const [travel, setTravel] = useState(null);   // ferðalengd útiliðs per leik (pipeline)
-  const [baseline, setBaseline] = useState(null); // lokatölur FYRRA tímabils (frystar við GW1)
   const [injuries, setInjuries] = useState(null); // TEGUND meiðsla úr API-Sports (auðgar FPL-status)
   const [eloFx, setEloFx] = useState(null);
   const [euroFx, setEuroFx] = useState(null);
@@ -470,7 +469,6 @@ export default function App() {
   const [chips, setChips] = useState({});
   const [dragId, setDragId] = useState(null);
   const [swapSel, setSwapSel] = useState(null);   // valinn til skipta (smellu-flæði)
-  const [editPrice, setEditPrice] = useState(null); // kaupverð í stillingu (id)
   const [confirmReset, setConfirmReset] = useState(null); // "gw" | "all" — staðfestingar-skref
   const [tlStart, setTlStart] = useState(1);        // fyrsta umferð í tímalínu-glugga
   const [selling, setSelling] = useState(null);
@@ -531,7 +529,10 @@ export default function App() {
         try { setElo(await j("elo.json")); } catch {}
         try { setWeather(await j("weather.json")); } catch {}
         try { setTravel(await j("travel.json")); } catch {}
-        try { setBaseline(await j("season_baseline.json")); } catch {}
+        /* season_baseline.json er EKKI lengur lesin: gamla "i ar vs i fyrra"-taflan
+           notadi hana, en SeasonTable les nu player_seasons.json sem porar a `code`
+           (fast a leikmanni) i stad `id` sem FPL endurnytir milli timabila.
+           Pipeline skrifar hana afram — hun er bara ekki sott i framendann.     */
         try { setInjuries(await j("injuries.json")); } catch {}
         try { setEloFx(await j("elo_fixtures.json")); } catch {}
         try { setEuroFx(await j("euro_fixtures.json")); } catch {}
@@ -888,11 +889,6 @@ export default function App() {
     (travel?.fixtures || []).forEach(t => m[t.fixture_id] = t);
     return m;
   }, [travel]);
-  const baselineById = useMemo(() => {
-    const m = {};
-    (baseline?.players || []).forEach(b => m[b.id] = b);
-    return m;
-  }, [baseline]);
   /* Meiðsla-TEGUNDIN úr API-Sports. FPL-status ræður áfram tiltækileika
      (a/d/i/s + %-líkur) — þetta svarar bara "HVAÐ er að honum?".        */
   const injuryById = useMemo(() => {
@@ -1371,7 +1367,21 @@ export default function App() {
       let fsum = 0, fn = 0;
       for (const f of fxs) { const d = fixDifficulty(p.team, f, p.element_type); if (d != null) { fsum += d; fn++; } }
 
-      return { p, score: +score.toFixed(2), ease: +(5 - fdrAvg).toFixed(2), fxs, mode,
+      /* RÖÐUNARSKOR — mælt sér fyrir RÖÐUN, sjá rankScore í model.js.
+         Tillögur eru RAÐAÐAR eftir þessu (topp-5 6,07 raunstig á móti
+         5,29 hjá gamla skorinu og 5,20 hjá FPL-eigin xP, 5/5 tímabil).
+         `score` heldur sér ÓBREYTT sem birt tala og drifkraftar (`why`)
+         — mælingin sýndi að röðun og birt stærð eru tvö ólík störf og
+         eiga ekki að deila einni tölu.                                  */
+      const gamesSoFar = seasonGames || 38;      // forleikur: síðasta tímabil
+      const rank = rankScore({
+        form: parseFloat(p.form),
+        minsPerGame: (p.minutes ?? 0) / Math.max(1, gamesSoFar),
+        price: (p.now_cost ?? 45) / 10,
+        ffdr: fn ? fsum / fn : null,
+      });
+      return { p, score: +score.toFixed(2), rank: +rank.toFixed(3),
+               ease: +(5 - fdrAvg).toFixed(2), fxs, mode,
                why, ffdrAvg: fn ? +(fsum / fn).toFixed(2) : null };
     };
     const all = players.map(scoreOf).filter(Boolean);
@@ -1385,7 +1395,7 @@ export default function App() {
     [1,2,3,4].forEach(pos => {
       byPos[pos] = all.filter(r => r.p.element_type === pos && !squadIds.has(r.p.id)
                                 && (maxT == null || (r.p.now_cost ?? 0) <= maxT))
-        .sort((a,b) => b.score - a.score).slice(0, 4);
+        .sort((a,b) => b.rank - a.rank).slice(0, 4);
     });
     // versti í liðinu = mælt með að skipta út
     const inSquad = all.filter(r => squadIds.has(r.p.id));
@@ -2192,11 +2202,19 @@ export default function App() {
               <span style={weatherReady ? S.dotOk : S.dotWait} />
               Veður — {weatherReady ? `${(weather.fixtures || []).filter(w => w.temp_c != null).length} leikir` : "utan 16-daga spár"}
             </div>
-            <div style={S.srcRow}>
+            {/* API-SPORTS: "0 paraðir" LAS SEM BILUN en er RETT preseason-utkoma.
+                Fria threpid leyfir adeins leikdaga innan +/-1 dags og fyrir
+                timabil eru their ekki til — 0 kollum eytt, engin villa.
+                Fyrsta raunprofun er 20.-21. agust (CLAUDE.md kafli 6).
+                FPL-status raedur afram tiltaekileika; thetta AUDGAR hann
+                med TEGUND meidsla sem FPL-news gefur ekki.                 */}
+            <div style={S.srcRow} title={injuries?.via || ""}>
               <span style={injuries?.players?.length ? S.dotOk : S.dotWait} />
-              Meiðsla-tegundir (API-Sports) — {injuries
-                ? (injuries.error ? `villa: ${String(injuries.error).slice(0, 30)}` : `${(injuries.players || []).length} paraðir`)
-                : "bíður fyrstu keyrslu"}
+              Meiðsla-tegundir (API-Sports) — {
+                !injuries ? "bíður fyrstu keyrslu"
+                : injuries.error ? `villa: ${String(injuries.error).slice(0, 30)}`
+                : injuries.players?.length ? `${injuries.players.length} paraðir`
+                : "engir leikdagar í glugga (bíður GW1)"}
             </div>
             <div style={S.srcRow}>
               <span style={Object.keys(dcOpp || {}).length ? S.dotOk : S.dotWait} />
@@ -2331,7 +2349,6 @@ export default function App() {
         const rot = isPlayer ? rotationRisk(p, seasonGames) : null;
         const tm = teamMetrics[t.id] || {};
         const e = eloByTeam[t.id], dcv = dcOpp[t.id];
-        const per90 = (v, mins) => (mins > 400 && v != null) ? +(parseFloat(v) * (90 / mins)).toFixed(2) : null;
         return (
           <div style={S.overlay} onClick={() => setDetail(null)}>
             <div style={S.detail} onClick={ev => ev.stopPropagation()}>
@@ -2978,11 +2995,9 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
   const isDef = p.element_type <= 2;
   const dragging = dragId === p.id;
   const csObj = isDef ? csFor(p.team, fx) : null;
-  const xga = isDef ? xgaFor(p.team, fx) : null;
   const csColor = csObj?.cs == null ? C.text3 : csObj.cs >= 40 ? C.green : csObj.cs >= 25 ? C.amber : C.red;
   const av = availOf(p);
   const ban = banRisk(p, gwNow, seasonStarted);
-  const sp = setPieceOf(p);
   const rot = rotationRisk(p, seasonGames);
   return (
     <div

@@ -68,9 +68,16 @@ function parseCsv(text) {
 /* `dc` (defensive_contribution) og `cbit` eru AÐEINS til frá 2025/26 —
    DefCon er ný stigagjöf. Eldri tímabil fá null, EKKI 0: núll myndi lesast
    sem "hann vann engar varnaraðgerðir" í stað "talan var ekki til".     */
+/* `dc`/`cbit`/`recov`/`tackles` eru AÐEINS til frá 2025/26 (DefCon er ný
+   stigagjöf) -> null, EKKI 0, fyrir eldri tímabil.
+   `xP` er FPL-EIGIÐ VÆNT STIG þeirrar umferðar — sögulega jafngildi
+   `ep_next` sem appið notar sem grunn. Það er til í ÖLLUM tímabilum og
+   gerir kleift að mæla RAUNVERULEGA aðferð appsins, ekki staðgengil.  */
 const HEADER = ["round", "date", "team", "pos", "home", "mins", "starts", "pts",
   "goals", "assists", "cs", "gc", "saves", "bonus", "bps", "xg", "xa", "xgc",
-  "value", "name", "dc", "cbit"];
+  "value", "name", "dc", "cbit",
+  "xP", "ict", "infl", "creat", "threat", "sel", "tIn", "tOut",
+  "yc", "rc", "pMiss", "pSave", "recov", "tack"];
 const num = v => { const n = +v; return Number.isFinite(n) ? n : 0; };
 
 const out = {}, report = [];
@@ -116,6 +123,12 @@ for (const [key, dir] of Object.entries(SEASONS)) {
       num(r.value), r.name || "",
       r.defensive_contribution == null || r.defensive_contribution === "" ? null : num(r.defensive_contribution),
       r.clearances_blocks_interceptions == null || r.clearances_blocks_interceptions === "" ? null : num(r.clearances_blocks_interceptions),
+      +num(r.xP).toFixed(2), +num(r.ict_index).toFixed(1), +num(r.influence).toFixed(1),
+      +num(r.creativity).toFixed(1), +num(r.threat).toFixed(1),
+      num(r.selected), num(r.transfers_in), num(r.transfers_out),
+      num(r.yellow_cards), num(r.red_cards), num(r.penalties_missed), num(r.penalties_saved),
+      r.recoveries == null || r.recoveries === "" ? null : num(r.recoveries),
+      r.tackles == null || r.tackles === "" ? null : num(r.tackles),
     ]);
     kept++;
   }

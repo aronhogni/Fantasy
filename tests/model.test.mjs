@@ -12,7 +12,8 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   POS_MEAN_PTS, MEASURED_POS, tierOf, TIER_CUTS, TIER_BG,
   MEASURED, MEASURED_LEGACY_D, SCALE_FIX, toMeasuredScale, lookupMeasured,
   TIER_COUNT, TIER_NAME, TIER_FG, TIER_NEUTRAL,
-  makeFixDifficulty, cleanSheetProb, lambdaFromStrength } from "../src/model.js";
+  makeFixDifficulty, cleanSheetProb, lambdaFromStrength,
+  rankScore, RANK_W } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
@@ -156,6 +157,29 @@ ok(Math.abs(lambdaFromStrength(1.45, 1.45) - 1.45) < 1e-9,
 ok(lambdaFromStrength(2.9, 1.45) > lambdaFromStrength(1.45, 1.45),
   "λ hækkar með verri eigin vörn");
 ok(csP({ ownXgc: null, oppXg: 1.4 }) === null, "vantandi inntak skilar null, ekki NaN");
+
+/* ---- 4d. RÖÐUNARSKOR (rankScore) ----
+   Skorið sem TILLÖGUR raðast eftir. Mælt í tests/rank-model.mjs:
+   topp-5 6,07 raunstig á móti 5,29 (gamla skorið) og 5,20 (FPL-eigið xP),
+   í 5/5 tímabilum. Hér eru eiginleikarnir varðir.                      */
+console.log("\n=== 4d. RÖÐUNARSKOR (rankScore) ===");
+const rs = o => rankScore(o);
+const rBase = { form: 4, minsPerGame: 85, price: 8, ffdr: 2.2 };
+ok(Number.isFinite(rs(rBase)), `grunndæmi skilar tölu (${rs(rBase).toFixed(2)})`);
+/* EINRÆNNI Í ÖLLUM FJÓRUM — formerkin eru öll túlkanleg og mega ekki snúast */
+ok(rs({ ...rBase, form: 6 }) > rs({ ...rBase, form: 2 }), "meira form -> hærra skor");
+ok(rs({ ...rBase, minsPerGame: 90 }) > rs({ ...rBase, minsPerGame: 30 }), "fleiri mínútur -> hærra skor");
+ok(rs({ ...rBase, price: 12 }) > rs({ ...rBase, price: 5 }), "hærra verð -> hærra skor (markaðurinn veit)");
+ok(rs({ ...rBase, ffdr: 1.5 }) > rs({ ...rBase, ffdr: 3.5 }), "LÉTTARI leikur -> hærra skor");
+/* Vantandi gildi mega ekki gefa NaN — þau eiga varfærið sjálfgildi */
+ok(Number.isFinite(rs({})), "tómt inntak skilar tölu, ekki NaN");
+ok(Number.isFinite(rs({ form: NaN, price: null, ffdr: undefined })), "vitlaus inntök skila tölu");
+/* Mínútur eru klemmdar — 200 mín er ógilt inntak og má ekki blása skorið upp */
+ok(rs({ ...rBase, minsPerGame: 200 }) === rs({ ...rBase, minsPerGame: 90 }),
+  "mínútur klemmdar við 90 (ógilt inntak blæs ekki skorið upp)");
+/* VOGTÖLU-VÖRÐUR: formerki mega ekki breytast við endurfitt */
+ok(RANK_W.form > 0 && RANK_W.minsPerGame > 0 && RANK_W.price > 0 && RANK_W.ffdr < 0,
+  "vogtölu-formerki: form/mín/verð jákvæð, FFDR NEGATÍF");
 
 console.log("\n=== 5. FFDR-EIGINLEIKAR ===");
 const tm = { 1: { xg90: 2.0, xgc90: 0.8, sotFor: 6, sotAg: 3 },     // sterkt lið

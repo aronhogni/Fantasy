@@ -20,6 +20,7 @@ import {
   shotsFor, shotSummary, SHOT_KINDS, matchShotsToPlayers, normName, nameScore,
   lastFinishedGw, num, POS_ORDER,
   moScore, aoScore, inImminentPool, imminentBoard,
+  startFeatures, startProbability, startRisk, START_MODEL,
   MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES,
 } from "../src/stats.js";
 
@@ -88,12 +89,58 @@ const fake = { goals_scored: 5, expected_goals: "3.20", assists: 2, expected_ass
 near(STAT_BY_KEY.goals_minus_xg.get(fake), 1.8, 1e-9, "Mörk − xG = 5 − 3,20");
 near(STAT_BY_KEY.gi_minus_xgi.get(fake), 2.0, 1e-9, "Framlög − xGI = 7 − 5,00");
 near(STAT_BY_KEY.pts_per_90.get(fake), 6.0, 1e-9, "Stig/90 = 60/900×90");
-near(STAT_BY_KEY.pts_per_million.get(fake), 8.0, 1e-9, "Stig/milljón = 60 / 7,5");
+/* pts_per_million kemur nu ur OPINBERU FPL-svidi (`value_season`), ekki
+   okkar utreikningi. Profid speglar thad OG sannreynir ad FPL-talan se
+   raunverulega total_points/verd a RAUNGOGNUM — annars vaerum vid ad
+   birta tolu sem vid skiljum ekki.                                      */
+eq(STAT_BY_KEY.pts_per_million.get({ ...fake, value_season: "8.0" }), 8,
+  "Stig/milljón kemur úr FPL value_season");
+eq(STAT_BY_KEY.pts_per_million.get(fake), null,
+  "ekkert value_season → null (við reiknum það EKKI sjálf lengur)");
+{
+  const withVal = players.filter(p => num(p.value_season) != null && num(p.now_cost) > 0
+                                   && num(p.total_points) > 0);
+  const off = withVal.filter(p => {
+    const mine = num(p.total_points) / (num(p.now_cost) / 10);
+    return Math.abs(mine - num(p.value_season)) > 0.06;
+  });
+  ok(withVal.length > 100 && off.length === 0,
+    `FPL value_season = stig/verð á öllum ${withVal.length} raungögnum`
+    + (off.length ? ` — ${off.length} víkja, t.d. ${off[0].web_name}` : ""));
+}
 near(STAT_BY_KEY.cs_pct.get(fake), 40, 1e-9, "Hreint blað % = 4/10");
 near(STAT_BY_KEY.save_pct.get(fake), 75, 1e-9, "Vörsluhlutfall = 30/(30+10)");
 eq(STAT_BY_KEY.pts_per_90.get({ minutes: 0, total_points: 5 }), null, "0 mínútur → null, ekki Infinity");
 eq(STAT_BY_KEY.mins_per_gi.get({ minutes: 900, goals_scored: 0, assists: 0 }), null,
   "ekkert framlag → null, ekki deiling með núlli");
+
+/* NYJAR OPINBERAR TOLUR — sannreyna ad thaer komi ur rettum svidum. */
+eq(STAT_BY_KEY.saves_per_90.get({ saves_per_90: 1.62 }), 1.62, "Vörslur/90 úr FPL saves_per_90");
+eq(STAT_BY_KEY.dc_per_90.get({ defensive_contribution_per_90: 3.4 }), 3.4, "DC/90 úr FPL-sviði");
+eq(STAT_BY_KEY.cs_per_90.get({ clean_sheets_per_90: 0.51 }), 0.51, "Hreint blað/90 úr FPL-sviði");
+eq(STAT_BY_KEY.starts_per_90.get({ starts_per_90: 1 }), 1, "Byrjunarhlutfall úr FPL-sviði");
+
+/* FPL-SAETI: `_rank_type` er innan STODU. Vordur: laegra verdur ad vera
+   betra (hi:false) og saetid verdur ad vera <= fjoldi i stodunni.        */
+{
+  const rankDefs = STAT_DEFS.filter(d => d.group === "rank");
+  ok(rankDefs.length >= 6, `${rankDefs.length} stöðu-sæti skilgreind`);
+  ok(rankDefs.every(d => d.hi === false), "öll sæti: lægra er betra");
+  const perPos = {};
+  for (const p of players) perPos[p.element_type] = (perPos[p.element_type] || 0) + 1;
+  const bust = [];
+  for (const d of rankDefs) {
+    for (const p of players) {
+      const v = d.get(p);
+      if (v != null && v > perPos[p.element_type]) { bust.push(`${d.key}: ${v} > ${perPos[p.element_type]}`); break; }
+    }
+  }
+  ok(bust.length === 0, `sæti aldrei hærra en fjöldi í stöðunni${bust.length ? " — " + bust[0] : ""}`);
+  // og STODU-saetid a ad vera <= heildar-saetid
+  const gk = players.filter(p => p.element_type === 1 && num(p.points_per_game_rank_type) != null);
+  ok(gk.every(p => num(p.points_per_game_rank_type) <= num(p.points_per_game_rank)),
+    "stöðu-sæti er aldrei hærra en heildar-sæti");
+}
 
 // fmtStat
 eq(fmtStat(STAT_BY_KEY.now_cost, 7.5), "£7.5", "verð birt með £");
@@ -414,7 +461,11 @@ ok(!inImminentPool({ minutes: 100, goals: 0, assists: 0 }),
 if (hasImm) {
   const imm = J("imminent.json");
   ok(Array.isArray(imm.players) && imm.players.length > 100, `leikmenn í glugga (${imm.players?.length})`);
-  eq(imm.gws.length, imm.window, `gluggi er ${imm.window} umferðir (${imm.gws.join(",")})`);
+  /* TVEIR GLUGGAR NU: `gws` er hvad var SOTT (5, fyrir byrjunar-likur) en
+     `window` er mo-glugginn (4, sem valideringin er bundin vid).          */
+  eq(imm.gws.length, imm.start_window,
+    `sóttar umferðir = byrjunar-gluggi (${imm.gws.join(",")})`);
+  eq(imm.window, 4, "mó-gluggi er 4 umferðir — óháður sóknar-glugganum");
   ok(imm.measured?.mo && imm.measured?.ao, "mæling skjalfest í skránni");
   ok(/0/.test(String(imm.measured.ao)) && /creativity/i.test(String(imm.measured.ao)),
     "AÓ-skýringin segir að samsetningin hafi FALLIÐ (0/3) — ekki falin");
@@ -431,6 +482,133 @@ if (hasImm) {
   const top5mo = board.slice(0,5).map(p => p.name).join("|");
   const top5ao = aboard.slice(0,5).map(p => p.name).join("|");
   ok(top5mo !== top5ao, "mó og aó raða ekki eins (ólík merki, ekki sama talan tvisvar)");
+}
+
+
+/* ================= 11. ILLGJARNT INNTAK ================= */
+/* Skrarnar koma UTAN UR NETI. Ef ein er half-skrifud eda skemmd ma
+   framendinn birta MINNA en aldrei hrynja. Thetta profar HVERT utflutt
+   fall gegn 27 skemmdum logunum — thar med `[null]` (null-rad inni i
+   giltu fylki, sem faerdi bestXi nidur adur) og hlut i stad fylkis
+   (`players` sem hlutur — sem hefur GERST i thessu repo adur).        */
+console.log("\n=== 11. ILLGJARNT INNTAK (engin undantekning, ekkert NaN) ===");
+{
+  const HOSTILE = [
+    undefined, null, {}, [], 0, -1, "", "abc", NaN, Infinity, -Infinity,
+    { minutes: null }, { minutes: "x" }, { minutes: 0 }, { minutes: -5 },
+    { minutes: NaN, goals: NaN }, { window: null }, { window: {} },
+    { series: null }, { players: null }, { fixtures: null },
+    { players: [], fixtures: [] }, { players: [{}], fixtures: [{}] },
+    [null], [undefined], [{}], [{ pos: null }],
+  ];
+  const M = await import("../src/stats.js");
+  const FUNCS = [
+    ["num", a => M.num(a)], ["normName", a => M.normName(a)],
+    ["nameScore", a => M.nameScore(a, a)], ["moScore", a => M.moScore(a)],
+    ["aoScore", a => M.aoScore(a)], ["inImminentPool", a => M.inImminentPool(a)],
+    ["teamsWithCleanSheet", a => M.teamsWithCleanSheet(a)],
+    ["lastFinishedGw", a => M.lastFinishedGw(a)],
+    ["minutesFloor", a => M.minutesFloor(a)],
+    ["isIncoherent", a => M.isIncoherent(a, "goals_scored", 5)],
+    ["fmtStat", a => M.fmtStat(a, 1.5)],
+    ["withDerived", a => M.withDerived(a)], ["gwTotals", a => M.gwTotals(a)],
+    ["bestXi", a => M.bestXi(a)], ["shotSummary", a => M.shotSummary(a)],
+    ["shotsFor", a => M.shotsFor(a)], ["gwTop", a => M.gwTop(a, "points")],
+    ["imminentBoard", a => M.imminentBoard(a, "mo")],
+    ["matchShotsToPlayers", a => M.matchShotsToPlayers(a, a)],
+    ["buildLeaderboard", a => M.buildLeaderboard({ players: a, statKey: "total_points" })],
+    ["gwFixtureReports", a => M.gwFixtureReports({ report: a, shotsFile: a })],
+  ];
+  let threw = [], leaked = [];
+  for (const [name, fn] of FUNCS) {
+    for (const h of HOSTILE) {
+      let out;
+      try { out = fn(h); }
+      catch (e) { threw.push(`${name}: ${e.message.slice(0, 40)}`); continue; }
+      let flat = "";
+      try { flat = JSON.stringify(out ?? null) || ""; } catch { flat = ""; }
+      if (/(NaN|Infinity)/.test(flat)) leaked.push(`${name} -> ${flat.slice(0, 40)}`);
+      if (typeof out === "number" && !Number.isFinite(out)) leaked.push(`${name} -> ${out}`);
+    }
+  }
+  ok(threw.length === 0,
+    `ekkert fall kastar á skemmdu inntaki${threw.length ? " — " + threw[0] : ` (${FUNCS.length} föll × ${HOSTILE.length} lögun)`}`);
+  ok(leaked.length === 0,
+    `ekkert NaN/Infinity lekur út${leaked.length ? " — " + leaked[0] : ""}`);
+  // og enn RETT a giltu inntaki eftir throlgardana
+  eq(M.fmtStat(M.STAT_BY_KEY.total_points, 42), "42", "þolgarðar breyta ekki réttri útkomu");
+  eq(M.bestXi([{ pos:"GK", points:5 }, null, { pos:"DEF", points:3 }]).xi.length, 2,
+    "null-rað er sleppt en gildar raðir haldast");
+}
+
+
+/* ================= 12. BYRJUNAR-LIKUR ================= */
+console.log("\n=== 12. BYRJUNAR-LÍKUR (bekkjar-hætta) ===");
+{
+  const M = START_MODEL.measured;
+  ok(M.samples > 60000 && M.seasons === 3, `mæling skjalfest (${M.samples} sýni, ${M.seasons} tímabil)`);
+  ok(M.brier < M.brier_baseline,
+    `betur kvarðað en grunnreglan (Brier ${M.brier} < ${M.brier_baseline})`);
+  ok(M.trap_lift >= 1.8, `bekkjar-lyfting ${M.trap_lift}× skjalfest`);
+
+  // eiginleikar ur minutu-rod
+  const f = startFeatures([90, 90, 90, 90, 90], 75);
+  eq(f.starts5, 1, "fastamaður: starts5 = 1");
+  eq(f.started_last, 1, "byrjaði síðast");
+  eq(f.mins5, 90, "mins5 = 90");
+  const f2 = startFeatures([0, 0, 0, 0, 90], 45);
+  eq(f2.started_last, 1, "bakvörður sem spilaði síðasta leik: started_last = 1");
+  near(f2.starts5, 0.2, 1e-9, "en starts5 aðeins 0,2");
+
+  /* KJARNINN: sami leikmadur, EINI munurinn er sagan a undan.
+     Likanid verdur ad greina thetta ad — annars er thad gagnslaust.      */
+  const pSafe = startProbability(startFeatures([90,90,90,90,90], 75));
+  const pTrap = startProbability(startFeatures([0,0,0,0,90], 45));
+  ok(pSafe > 0.8, `fastamaður fær háar líkur (${pSafe})`);
+  ok(pTrap < 0.5, `sá sem byrjaði EINU SINNI fær lágar líkur (${pTrap})`);
+  ok(pSafe - pTrap > 0.4, "líkanið greinir þessa tvo skýrt að");
+
+  // haettuflokkun
+  eq(startRisk(startFeatures([90,90,90,90,90], 75)).level, "safe", "fastamaður = safe");
+  eq(startRisk(startFeatures([0,0,0,0,90], 45)).level, "trap",
+    "byrjaði síðast en lágar líkur = TRAP (þetta er flokkurinn sem stuðullinn er til fyrir)");
+  eq(startRisk(startFeatures([0,10,0,25,15], 45)).level, "low", "skiptimaður = low");
+
+  // throl
+  eq(startProbability(null), null, "null-öruggt");
+  eq(startFeatures([], 50), null, "tóm mínútu-röð → null");
+  eq(startFeatures([90], 50), null, "ein umferð er of lítið → null");
+  eq(startProbability({ starts5: 1 }), null, "vantandi eiginleiki → null, ekki NaN");
+  ok(startProbability(startFeatures([90,90,90,90,90], null)) != null,
+    "vantandi verð fellur á meðaltal, hrynur ekki");
+
+  // likur verda ALLTAF a [0,1]
+  const extremes = [[0,0,0,0,0],[90,90,90,90,90],[120,120,120,120,120],[-5,-5,0,0,90]];
+  ok(extremes.every(m => { const p = startProbability(startFeatures(m, 200)); return p >= 0 && p <= 1; }),
+    "líkur alltaf á [0,1], líka við öfgagildi");
+}
+
+if (existsSync(D + "imminent.json")) {
+  const imm = J("imminent.json");
+  ok(imm.start_window === 5, `byrjunar-gluggi er 5 umferðir (${imm.start_window})`);
+  ok(imm.window === 4, `mó-gluggi HELDUR sér í 4 (${imm.window}) — validering bundin við það`);
+  ok(imm.fetched_gws.length === 5, `5 umferðir sóttar (${imm.fetched_gws?.join(",")})`);
+  const withF = imm.players.filter(p => p.start_feats);
+  ok(withF.length > 500, `${withF.length} leikmenn með byrjunar-eiginleika`);
+  // mo-gluggi ma ALDREI vera lengri en 4 umferdir
+  ok(imm.players.every(p => !p.mo_gws || p.mo_gws.length <= 4),
+    "mó-gluggi aldrei lengri en 4 umferðir (5-umferða sókn má ekki leka í mó)");
+  // allar likur gildar
+  const probs = withF.map(p => startProbability(p.start_feats)).filter(v => v != null);
+  ok(probs.length === withF.length, "líkur reiknast fyrir alla með eiginleika");
+  ok(probs.every(v => v >= 0 && v <= 1), "allar líkur á [0,1]");
+  // TVOFOLD UMFERD: minutur lagdar saman, svo 180 er leyfilegt en 5 stok
+  ok(withF.every(p => (p.start_minutes || []).length <= 5),
+    "mínútu-röð aldrei fleiri en 5 stök (tvöföld umferð lögð saman)");
+  ok(imm.measured?.start_prob && /2,09|2\.09/.test(String(imm.measured.start_prob)),
+    "lyftingin skjalfest í skránni");
+  ok(/hvild|Hvild/i.test(String(imm.measured.start_prob)),
+    "skráin segir að hvíld hafi verið prófuð og HAFNAÐ");
 }
 
 console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);

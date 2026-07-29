@@ -525,6 +525,47 @@ export function expPointsFor({ p, fxs, fixDifficulty, teamId }) {
   return base * mult * avail;
 }
 
+/* ---- RÖÐUNARSKOR FYRIR TILLÖGUR (mælt 29.7.2026) ----
+   AF HVERJU SÉR SKOR OG EKKI "VÆNT STIG": mælingar á 48.445
+   leikmanna-umferðum (5 tímabil, LOSO) sýndu að RÖÐUN og STÆRÐ eru tvö
+   ólík störf. Að auka leikja-næmið í expPointsFor bætti röðun en gaf
+   13–27% NEGATÍF vænt stig og verri MAE. Þess vegna heldur birta talan
+   (`≈4,8 stig`) sinni kvörðun og TILLÖGUR raðast eftir þessu skori.
+
+   MÆLIKVARÐINN ER ÁKVÖRÐUNIN: raunstig þeirra sem skorið valdi.
+     val         þetta skor   aðferð appsins   FPL-eigið xP   ORAKEL-ÞAK
+     topp-15        5,13          4,70             4,48          5,62
+     topp-5         6,07          5,29             5,20          6,54
+   Slær bæði aðferð appsins OG FPL-eigið xP í 5/5 tímabilum.
+   ORAKEL-ÞAKIÐ er það sem fæst með því að vita ÁRSTÍÐAR-MEÐALTAL hvers
+   leikmanns fyrirfram (þ.e. framtíðina) — skorið nær 91–93% af því.
+
+   ÞVÍ ERU AÐEINS FJÖGUR INNTÖK: rík sett voru mæld og VERSNA valið
+   (57 inntök gáfu topp-5 5,95 á móti 6,07). Hreiðruð valprófun sýndi
+   þéttan lista betri í 5/5 tímabilum. `mins5` og `price` voru valin í
+   ÖLLUM foldum, FFDR í 3/5. Fleiri tölur = meira suð, ekki meiri vísdómur.
+
+   HVERS VEGNA ÞESSI FJÖGUR (öll formerki túlkanleg):
+     form   ↑ -> betra    (nýleg stig — geta og staða í liðinu)
+     mínútur↑ -> betra    (stærsta einstaka tellið; hann verður að spila)
+     verð   ↑ -> betra    (markaðurinn verðleggur getu sem tölur okkar sjá ekki)
+     FFDR   ↑ -> VERRA    (þyngri leikur)
+   Vogtölur fittaðar á öll 5 tímabil (ridge, tests/rank-model.mjs).       */
+export const RANK_W = {
+  bias: 1.38487, form: 0.13805, minsPerGame: 0.01607, price: 0.28235, ffdr: -0.59359,
+};
+/* form = meðalstig síðustu ~5 (FPL `form`) · minsPerGame = mínútur/leik
+   · price = £m · ffdr = leikjaþyngd stöðunnar. Vantandi gildi fara í
+   varfærið sjálfgildi, ekki 0, svo skorið hrynji ekki í tómi.          */
+export function rankScore({ form, minsPerGame, price, ffdr }) {
+  const W = RANK_W;
+  const f = Number.isFinite(form) ? form : 0;
+  const m = Number.isFinite(minsPerGame) ? clamp(minsPerGame, 0, 90) : 0;
+  const p = Number.isFinite(price) ? price : 4.5;
+  const d = Number.isFinite(ffdr) ? ffdr : 2.5;
+  return W.bias + W.form * f + W.minsPerGame * m + W.price * p + W.ffdr * d;
+}
+
 /* ---- VERÐSPÁ (nálgun) ----
    FPL birtir ekki verðbreytingaformúluna; þekkta mynstrið er að nettó-
    flutningar þurfi að ná þröskuldi sem SKALAST með eignarhaldi (fjölda-
