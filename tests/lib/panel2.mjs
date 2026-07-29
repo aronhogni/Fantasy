@@ -97,7 +97,17 @@ function buildFixtures() {
 }
 
 /* ---------- Panelið með RÍKU setti ---------- */
-export function buildPanel({ minHistory = 3 } = {}) {
+/* TVAER LAUGIR, TVAER SPURNINGAR — og thad er ekki smekksatriði:
+     includeBlanks=false (SJALFGEFID): adeins radir med minutum > 0.
+       Svarar "hversu morg stig EF hann kemur vid sogu". Allar maelingar
+       sem eru skjaladar i CLAUDE.md og commit-sogunni nota THESSA laug.
+     includeBlanks=true: ALLAR radir, lika 0-minutu (62% af gognum).
+       Svarar "hverja aetti eg ad velja" — thad sem tillogu-velin gerir
+       i raun. Talan er LAEGRI (fleiri vondir kandidatar) og NIDURSTODUR
+       SNUAST VID: fleiri inntok hjalpa, thvi tiltaekileiki er merki.
+   Ad blanda thessu tvennu saman er samanburdur a tveimur olikum
+   verkefnum. Laugin ER hluti af skilgreiningu maelikvardans.          */
+export function buildPanel({ minHistory = 3, includeBlanks = false } = {}) {
   const fxMap = buildFixtures();
   const PG = JSON.parse(readFileSync(`${D}fpl_player_gw.json`, "utf8"));
   const H = Object.fromEntries(PG.header.map((h, i) => [h, i]));
@@ -126,7 +136,7 @@ export function buildPanel({ minHistory = 3 } = {}) {
         const f = fxMap.get(`${season}|${q[H.date]}|${q[H.team]}`);
         const pos = q[H.pos] === "GKP" ? "GK" : q[H.pos];
         const code = POSN[pos];
-        if (f && code && hist.length >= minHistory) {
+        if (f && code && hist.length >= minHistory && (includeBlanks || q[H.mins] > 0)) {
           const win = k => hist.slice(-k);
           const l3 = win(3), l5 = win(5), l10 = win(10);
           const per90 = (arr2, k) => {

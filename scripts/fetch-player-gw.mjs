@@ -103,7 +103,14 @@ for (const [key, dir] of Object.entries(SEASONS)) {
   const unmatchedTeam = new Set();
   let noFixture = 0, kept = 0;
   for (const r of rows) {
-    if (num(r.minutes) <= 0) continue;                 // ekkert að læra af 0 mín
+    /* 0-MÍNÚTU RAÐIR ERU NÚ MEÐ (29.7.2026). Þær voru sleppt áður og það
+       var afmörkun sem skipti máli: "spilar hann?" er STÆRSTA einstaka
+       tellið um stig (mins5 vann mikilvægis-mælinguna), en það var ekki
+       mælanlegt því raðir án mínútna vantaði. Tillögu-vélin raðar ÖLLUM
+       leikmönnum, líka þeim sem spila ekki, svo þetta er raunverulega
+       verkefnið. ATH: að hafa þær með LÆKKAR topp-15 töluna (fleiri vondir
+       kandídatar í lauginni) — það er ekki afturför heldur raunsærri laug. */
+    if (num(r.minutes) < 0) continue;
     const raw = (r.team || "").trim();
     const team = TEAM_MAP[raw] || raw;
     if (!e0Names.has(team)) { unmatchedTeam.add(raw); continue; }
@@ -143,7 +150,7 @@ for (const [key, dir] of Object.entries(SEASONS)) {
 await writeFile("data/fpl_player_gw.json", JSON.stringify({
   updated: new Date().toISOString(),
   source: "vaastav/Fantasy-Premier-League — data/{season}/gws/merged_gw.csv",
-  note: "Columnar. Adeins radir med minutum > 0. Parad vid E0 a (dagsetning, lid).",
+  note: "Columnar. ALLAR radir (lika 0 minutur, fra 29.7.2026). Parad vid E0 a (dagsetning, lid).",
   header: HEADER, seasons: out,
 }));
 console.log(report.join("\n"));

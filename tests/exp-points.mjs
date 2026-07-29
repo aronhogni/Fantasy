@@ -404,10 +404,16 @@ console.log(`  er samt STRUKTUR-breyting sem gildir a hvadа grunn sem er.`);
    Að hækka α myndi bæta röðunina í tillögum OG skemma töluna á
    spjaldinu samtímis. Rétta lausnin er sér-skor fyrir röðun, ekki
    útþensla á birtri tölu. ÞVÍ ER α ÓBREYTT.                            */
-const alphaBad = Object.entries(alphaRes).filter(([, v]) => v.a > 1.5);
-ok(alphaBad.length > 0,
-  `α-hámörk liggja yfir 1 (${alphaBad.map(([p, v]) => p + ":" + v.a).join(" ")}) — leikjaþyngd er UNDIR-vegin fyrir RÖÐUN`);
-ok(true, "…en MAE versnar og GK/DEF fá negatíf vænt stig -> α HELDUR 1 (sjá skýringu)");
+/* UPPFÆRT 29.7.: með RÉTTRI sögu (blankar með í rúllandi glugga, sjá
+   lib/panel.mjs) hurfu háu α-hámörkin — þau voru að hluta artefakt af
+   því að "síðustu 5" þýddi síðustu 5 LEIKIR, svo bekkjaðir leikmenn
+   litu í formi. Niðurstaðan er ÓBREYTT (α helst 1) en nú af sterkari
+   ástæðu: hámarkið er ekki lengur yfir 1 að marki.                    */
+const alphaHigh = Object.entries(alphaRes).filter(([, v]) => v.a > 1.5);
+console.log(`\n  α-hámörk yfir 1,5: ${alphaHigh.length ? alphaHigh.map(([p, v]) => p + ":" + v.a).join(" ") : "ENGIN"}`);
+ok(alphaHigh.length === 0 || alphaHigh.every(([p]) => ["GK", "DEF"].includes(p)),
+  "há α-hámörk (ef nokkur) eru aðeins hjá GK/DEF, þar sem MAE versnar og spár verða negatífar");
+ok(true, "α HELDUR 1 — röðun og birt stærð eru tvö ólík störf (sjá rankScore)");
 
 console.log(`\nVÆNT-STIG: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

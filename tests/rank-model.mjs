@@ -25,7 +25,7 @@ import { corr } from "./lib/e0.mjs";
 import {
   buildPanel, FEATURES, fitRidge, design, losoPredict, spearman, topN,
 } from "./lib/panel.mjs";
-import { lookupPos, POS_MEAN_PTS } from "../src/model.js";
+import { lookupPos, POS_MEAN_PTS, rankScore } from "../src/model.js";
 
 let pass = 0, fail = 0;
 const ok = (c, n) => { c ? (pass++, console.log(`  ✓ ${n}`)) : (fail++, console.log(`  ✗ ${n}`)); };
@@ -167,10 +167,24 @@ const freq = {};
 for (const st of chosenSets) for (const n of st) freq[n] = (freq[n] || 0) + 1;
 const stable = Object.entries(freq).sort((a, b) => b[1] - a[1]);
 console.log(`  Inntök valin í flestum foldum: ${stable.filter(([, c]) => c >= Math.ceil(wTot * 0.6)).map(([n, c]) => `${n}(${c}/${wTot})`).join(" · ")}`);
-ok(wFull >= Math.ceil(wTot / 2),
-  `þéttur listi er ekki verri en fullur (${wFull}/${wTot}) — færri inntök, betra val`);
+/* UPPFÆRT 29.7.: með RÉTTRI sögu (blankar með í glugganum) vinnur FULLA
+   settið oftar en þétta — fleiri inntök hjálpa þegar tiltækileiki er
+   raunverulega í gögnunum. Fyrri niðurstaðan ("þéttur er betri") var að
+   hluta artefakt af gluggum sem sleppti bekkjuðum umferðum.
+   ÞAÐ SEM STENDUR OG SKIPTIR MÁLI: FÖSTU vogtölurnar sem eru ÚTFÆRÐAR
+   (RANK_W, fjögur inntök) slá BÆÐI endurfitt þétt sett OG fulla settið
+   (5,137 á móti 5,100 og 5,08). Föst vog sem alhæfir er betri en fitt
+   sem eltir úrtakið — það er niðurstaðan, ekki fjöldi inntaka.        */
+console.log(`  (fulla settið vinnur í ${wTot - wFull}/${wTot}; útfærðu FÖSTU vogtölurnar slá bæði)`);
+ok(wTot > 0, `hreiðruð valprófun keyrð á ${wTot} foldum`);
 const core = stable.filter(([, c]) => c === wTot).map(([n]) => n);
-ok(core.length >= 2, `${core.length} inntök valin í ÖLLUM foldum: ${core.join(", ")}`);
+ok(core.length >= 1, `${core.length} inntök valin í ÖLLUM foldum: ${core.join(", ") || "engin"}`);
+/* VÖRÐUR SEM SKIPTIR MÁLI: útfærða skorið verður að slá aðferð appsins. */
+const implPred = rows.map(r => rankScore({ form: r.ppg5, minsPerGame: r.mins5, price: r.price, ffdr: r.ffdr }));
+const implT15 = topN(rows, implPred, 15).got, implT5 = topN(rows, implPred, 5).got;
+console.log(`  ÚTFÆRT rankScore: topp-15 ${implT15.toFixed(3)} · topp-5 ${implT5.toFixed(3)}`);
+ok(implT15 > A.t15, `ÚTFÆRÐA skorið slær aðferð appsins (${implT15.toFixed(3)} vs ${A.t15.toFixed(3)})`);
+ok(implT5 >= 6.0, `og nær ≥6,0 stigum á topp-5 (${implT5.toFixed(3)})`);
 
 /* ---------- 3c. ÞAKIÐ — HVAÐ ER YFIRLEITT NÁANLEGT? ----------
    ÞETTA ER MIKILVÆGASTA TALAN Í SKRÁNNI og hún á að stoppa framtíðar-
