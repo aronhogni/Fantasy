@@ -15,6 +15,8 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   makeFixDifficulty, cleanSheetProb, lambdaFromStrength,
   rankScore, RANK_W } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
+import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, availForKickoff,
+         eloStale, parseReturn } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -54,6 +56,36 @@ eq(tc[5].ftAvailable, 5, "eftir wildcard: +1 bætist við söfnuð (4→5), EKKI
 tc = computeTransferCost({ plan: [{gw:1},{gw:1},{gw:1},{gw:1}], chipAt: noChip, maxGw: 3, preSeason: true });
 eq(tc[1].hits, 0, "GW1 fyrir frest: ótakmörkuð og frí");
 eq(tc[2].ftAvailable, 1, "GW2: allir byrja tímabilið með 1 frítt");
+
+/* HVERS VEGNA ER ÓTAKMARKAÐ? — VÖRÐUR (31.7.2026)
+   Villan sem notandinn sá: haus GW1 sagði „Bench Boost — ótakmörkuð skipti".
+   Bench Boost gefur EKKI skipti; það var GW1-fresturinn sem gerði það. Raðan
+   bar aðeins `chip`, svo birtingin eignaði chipinu verkun sem hann hefur ekki.
+   Prófin hér að ofan sáu þetta ekki því þau notuðu ÖLL `noChip` í forleik —
+   sambland sem er einmitt raunstaðan í appinu í dag.                        */
+const bbAt = g => (g === 1 ? "bboost" : null);
+tc = computeTransferCost({ plan: [{gw:1},{gw:1}], chipAt: bbAt, maxGw: 3, preSeason: true });
+eq(tc[1].unlimited, true, "GW1 forleikur + BB: enn ótakmörkuð (fresturinn)");
+eq(tc[1].unlimitedBy, "preseason", "BB MÁ ALDREI vera orsök ótakmarkaðra skipta");
+const tcAt = g => (g === 1 ? "3xc" : null);
+tc = computeTransferCost({ plan: [{gw:1}], chipAt: tcAt, maxGw: 3, preSeason: true });
+eq(tc[1].unlimitedBy, "preseason", "Triple Captain er ekki heldur orsök");
+/* og hin hliðin: WC/FH GEFA skipti og eiga að eignast það */
+tc = computeTransferCost({ plan: [{gw:4}], chipAt: wcAt, maxGw: 6, preSeason: false });
+eq(tc[4].unlimitedBy, "chip", "wildcard ER orsökin utan forleiks");
+const fhAt = g => (g === 5 ? "freehit" : null);
+tc = computeTransferCost({ plan: [{gw:5}], chipAt: fhAt, maxGw: 6, preSeason: false });
+eq(tc[5].unlimitedBy, "chip", "free hit ER orsökin utan forleiks");
+/* BB utan forleiks: hvorki ótakmarkað né orsök — venjuleg refsing gildir.
+   GW2 valið VILJANDI: þar eru aðeins 2 frí söfnuð, svo 3 skipti fara yfir.
+   Í GW6 væru 5 frí komin og refsingin hefði ekki mælt neitt.               */
+const bb2 = g => (g === 2 ? "bboost" : null);
+tc = computeTransferCost({ plan: [{gw:2},{gw:2},{gw:2}], chipAt: bb2, maxGw: 6, preSeason: false });
+eq(tc[2].unlimited, false, "BB utan forleiks gefur EKKI ótakmörkuð skipti");
+eq(tc[2].unlimitedBy, undefined, "og engin orsök er skráð");
+eq(tc[2].ftAvailable, 2, "GW2 hefur 2 frí söfnuð");
+eq(tc[2].hits, 1, "BB ver ekki gegn refsingu: 3 skipti − 2 frí = 1 yfir");
+eq(tc[2].points, -4, "og það kostar −4");
 
 console.log("\n=== 3. VÆNT STIG (≈talan á spjöldunum) ===");
 // POS_MEAN_PTS á að vera nákvæmlega meðaltal mældu töflunnar
@@ -363,6 +395,93 @@ console.log("\n=== 8. PWA-SKRÁRNAR ===");
   ok(html.includes('rel="manifest"') && html.includes("icon-180.png"),
     "index.html vísar á manifest og apple-touch-icon (PNG, ekki SVG)");
 }
+
+/* ---------- 12. ENDURKOMU-DAGSETNING (villa sem skekkti AKVARDANIR) ----------
+   `avail` var reiknad ur chance_of_playing_next_round og notad fyrir ALLAR
+   umferdir, svo flaggadur madur fekk 0 vaent stig i GW2-5 thott hann vaeri
+   kominn til baka — og transferNet(horizon=5) leggur thau fimm null saman.
+   Raungogn: Garner (239) "Groin injury - Expected back 22 Aug", GW1-frestur
+   21.8. Maelt: 10 af 55 flögguðum hafa lesanlega dagsetningu.            */
+console.log("\n=== 12. ENDURKOMU-DAGSETNING ===");
+const NOW = Date.UTC(2026, 6, 31);
+const P_INJ = { status:"i", chance_of_playing_next_round:0, element_type:3,
+                ep_next:"3.0", points_per_game:"3.0",
+                news:"Groin injury - Expected back 22 Aug" };
+const P_BAN = { status:"s", chance_of_playing_next_round:0, element_type:3,
+                ep_next:"3.0", points_per_game:"3.0", news:"Suspended until 29 Aug" };
+const P_NODATE = { status:"i", chance_of_playing_next_round:25, element_type:3,
+                   ep_next:"3.0", points_per_game:"3.0", news:"Knock" };
+
+ok(parseReturn(P_INJ.news, NOW)?.kind === "injury", "greinir 'Expected back' sem meidsli");
+ok(parseReturn(P_BAN.news, NOW)?.kind === "ban", "greinir 'Suspended until' sem bann");
+ok(parseReturn("Knock", NOW) === null, "engin dagsetning -> null (og tha gildir gamla hegdunin)");
+ok(parseReturn("Expected back 32 Xyz", NOW) === null, "rusl-manudur -> null, engin agiskun");
+/* ARID ER EKKI I TEXTANUM — "back 10 Jan" i juli er NAESTA jan, ekki lidid */
+const jan = parseReturn("Expected back 10 Jan", NOW);
+ok(jan && jan.ts > NOW, "'10 Jan' i juli er NAESTI januar, ekki lidinn (annars til leiks strax)");
+
+ok(availForKickoff(P_INJ, "2026-08-21T17:30:00Z", NOW) === 0,
+  "FYRIR endurkomu: 0 (obreytt)");
+ok(availForKickoff(P_INJ, "2026-08-23T13:00:00Z", NOW) === RETURN_AVAIL.injury,
+  `EFTIR endurkomu: ${RETURN_AVAIL.injury} (maelt 68,6% af fyrri minutum a 1.169 endurkomum)`);
+ok(availForKickoff(P_INJ, "2026-09-12T14:00:00Z", NOW) === RETURN_AVAIL.injury,
+  "og EKKERT ramp upp i 1,0 seinna — maelt 68,6/67,8/66,1% er FLATT");
+ok(availForKickoff(P_BAN, "2026-08-25T14:00:00Z", NOW) === 0, "bann: 0 fyrir lokadagsetningu");
+ok(availForKickoff(P_BAN, "2026-08-30T14:00:00Z", NOW) === 1,
+  "bann: 1,0 eftir hana — bann er reglu-atridi, ekki likamlegt");
+ok(RETURN_AVAIL.ban > RETURN_AVAIL.injury,
+  "bann faer HAERRA gildi en meidsli (madurinn er i fullu formi)");
+ok(availForKickoff(P_NODATE, "2026-09-01T14:00:00Z", NOW) === 0.25,
+  "engin dagsetning -> FPL-talan obreytt (varaleidin er REGLAN, 45 af 55)");
+ok(availForKickoff({ status:"a" }, "2026-09-01T14:00:00Z", NOW) === 1,
+  "heilbrigdur madur er ohreyfdur");
+
+/* GW1 STRAEKKAR 21.-24. AGUST — thvi ER thetta per LEIK og ekki per umferd */
+const fdFlat = () => 2.5;
+const gw1 = [{ opp:2, home:true, kickoff:"2026-08-21T17:30:00Z" }];
+const gw1late = [{ opp:2, home:true, kickoff:"2026-08-23T13:00:00Z" }];
+const rEarly = expPointsFor({ p:P_INJ, fxs:gw1, fixDifficulty:fdFlat, teamId:1, nowTs:NOW });
+const rLate = expPointsFor({ p:P_INJ, fxs:gw1late, fixDifficulty:fdFlat, teamId:1, nowTs:NOW });
+ok(rEarly === 0, `leikur 21.8. (fyrir endurkomu) -> 0 vaent stig (${rEarly})`);
+ok(rLate > 0, `leikur 23.8. i SOMU umferd -> ${rLate.toFixed(2)} stig, EKKI 0`);
+ok(rLate < 3.0, "en LAEGRI en fullur grunnur — hann er nykominn til baka");
+/* Tvofold umferd thar sem hann missir fyrri leikinn en spilar seinni */
+const dbl = expPointsFor({ p:P_INJ, fxs:[...gw1, ...gw1late], fixDifficulty:fdFlat, teamId:1, nowTs:NOW });
+ok(Math.abs(dbl - rLate) < 1e-9,
+  "tvofold umferd: adeins leikurinn EFTIR endurkomu telur");
+/* Vordur um AKVORDUNINA: summa yfir 5 umferdir ma ekki vera 0 */
+const five = [1,2,3,4,5].map(i => [{ opp:2, home:true,
+  kickoff:new Date(Date.UTC(2026, 7, 21 + i * 7)).toISOString() }]);
+const tot = five.reduce((a, fx) =>
+  a + expPointsFor({ p:P_INJ, fxs:fx, fixDifficulty:fdFlat, teamId:1, nowTs:NOW }), 0);
+ok(tot > 5, `summa yfir 5 umferdir er ${tot.toFixed(1)}, EKKI 0 — thetta er villan sem skekkti transferNet`);
+
+/* ---------- 13. ALDUR A FFDR-INNTAKI (thogul bilun) ----------
+   elo.json er inntak i FFDR og var 31.7.2026 1,5 daga gomul thvi ClubElo
+   BRAST — status.json sagdi {"ok":false,"note":"fetch failed"} en vidmotid
+   sagdi ekkert. Sama mynstur sem gerdi markadslidinn daudan i viku.       */
+console.log("\n=== 13. ALDUR A ELO-GOGNUM ===");
+const T0 = Date.UTC(2026, 6, 31, 12);
+const dAgo = n => new Date(T0 - n * 864e5).toISOString();
+ok(eloStale(dAgo(0.5), T0) === null, "ferskt (0,5 dags) -> engin truflun");
+ok(eloStale(dAgo(1.9), T0) === null, `undir throskuldi (${ELO_STALE_WARN} dagar) -> thegjum`);
+const w = eloStale(dAgo(3), T0);
+ok(w?.level === "warn", "3 dagar -> vidvorun (nokkur keyrsla tapadist)");
+const b2 = eloStale(dAgo(9), T0);
+ok(b2?.level === "bad", `9 dagar -> BILUN (>=${ELO_STALE_BAD})`);
+ok(Math.abs(b2.days - 9) < 0.01, `aldur reiknadur rett (${b2.days.toFixed(2)})`);
+ok(eloStale(null, T0) === null && eloStale("rusl", T0) === null,
+  "engin/ogild dagsetning -> null, engin agiskun og ekkert hrun");
+ok(ELO_STALE_WARN < ELO_STALE_BAD, "vidvorun kemur A UNDAN bilun");
+/* Raungogn: skrain i repo-inu ma ekki vera i 'bilun'-stodu othoguð */
+const eloReal = JSON.parse(readFileSync(new URL("../data/elo.json", import.meta.url), "utf8"));
+const stReal = eloStale(eloReal.updated);
+console.log(`  data/elo.json: ${stReal ? stReal.days.toFixed(1) + " dagar (" + stReal.level + ")" : "ferskt"}`);
+/* ENGIN STADFESTING A RAUNSKRANNI — VILJANDI. Pipeline GETUR verid nidri
+   og thad er einmitt thad sem fallid er til ad birta; prof sem fell vid thad
+   vaeri prof a ClubElo, ekki a okkar koda. Talan er logguð til upplysingar.
+   (Fyrsta utgafa min hafdi hér `ok(... || true)` sem GAT EKKI FALLID — prof
+   sem getur ekki fallid er verra en ekkert prof.)                        */
 
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

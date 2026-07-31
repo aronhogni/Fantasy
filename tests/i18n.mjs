@@ -72,6 +72,48 @@ ok("hver lykill hefur enska thydingu", missing.length === 0,
    + (missing.length > 6 ? ` (+${missing.length - 6})` : ""));
 ok("engin thyding er tom", ![...used].some(([k]) => EN[k] === ""));
 
+/* ---------- 1c. TVITEKNIR LYKLAR ----------
+   JS LEYFIR TVITEKINN LYKIL I HLUTBOKSTAF OG HELDUR ThEGJANDI SEINNI.
+   Thess vegna gat `"mó": "IG"` (ein lota) og `"mó": "GI"` (onnur lota)
+   badir stadid i skranni — annar var DAUDUR og enginn vissi hvor. Ekkert
+   annad prof gat sed thad: ordabokin er GILD JS og allir lyklar til.
+   Fundid 31.7.2026: FJORAR tvitekningar, tvaer med OLIK gildi.
+   Ordabokin er lesin sem TEXTI hér, ekki flutt inn — innflutningur hefur
+   thegar thjappad tvitekningunum saman.                                */
+console.log("\n=== 1c. TVITEKNIR LYKLAR I ORDABOKINNI ===");
+{
+  const raw = readFileSync(SRC + "i18n-en.js", "utf8");
+  const at = new Map(), dupes = [];
+  traverse(parse(raw, { sourceType: "module" }), {
+    ObjectProperty(p) {
+      const k = p.node.key.value ?? p.node.key.name;
+      if (typeof k !== "string") return;
+      if (at.has(k)) dupes.push(`${JSON.stringify(k.slice(0, 40))} (linur ${at.get(k)} og ${p.node.loc.start.line})`);
+      else at.set(k, p.node.loc.start.line);
+    },
+  });
+  ok(`${at.size} lyklar, enginn tvitekinn`, dupes.length === 0, dupes.join(" | "));
+}
+
+/* ---------- 1d. ThYDING SEM ER SAMA OG LYKILLINN ----------
+   Afrit-innslattur ("þýtt" med copy-paste) skilar strengnum obreyttum og
+   vidmotid er tha islenskt thott lykillinn se til. Thad sem MA vera eins
+   er taemandi talid upp — allt annad er villa.                         */
+console.log("\n=== 1d. EN == IS (afrit-innslattur) ===");
+{
+  const SAME_OK = new Set([
+    "📊 FFDR", "🎫 Chips",          // emoji + othytt vorumerki
+    "chip)?",                        // FPL-heiti, obeygt a badum malum
+    "{0} — FFDR {1} ({2})",          // adeins stikur og othytt heiti
+    "M", "GK", "DEF", "MID", "FWD",  // stodu-skammstafanir
+  ]);
+  const identical = Object.entries(EN)
+    .filter(([k, v]) => k === v && !SAME_OK.has(k))
+    .map(([k]) => JSON.stringify(k.slice(0, 40)));
+  ok("engin thyding er ORDRETT eins og islenski lykillinn",
+     identical.length === 0, identical.slice(0, 10).join(" | "));
+}
+
 /* ---------- 2. Stikur tynast ekki ---------- */
 console.log("\n=== 2. STIKUR ({0}, {1} ...) ===");
 const slots = s => (String(s).match(/\{\d+\}/g) || []).slice().sort().join(",");

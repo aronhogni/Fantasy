@@ -25,6 +25,9 @@
                             9.464 raunverulegum porum OG tilbunum jadartilfellum
                             (tvitekin tokn), plus tima-thak. Hun var hagraedd
                             60,1 -> 4,7 ms; profid fellur ef thad er afturkallad
+   4g.error-boundary.mjs  — VILLUVORN: hviti skjarinn. Profar UTGONGUNA (hreinsa
+                            vistad astand) og ad `fpl_lang` haldi ser — sa sem
+                            hrundi a ensku ma ekki kastast i islensku ofan a thad
    4e.i18n-dom.mjs        — TUNGUMAL LESID AF SKJANUM: appid teiknad a BADUM
                             malum i jsdom og DOM-arnir bornir saman. Naer thad
                             sem AST-profid getur ekki sed — ASCII-islensku
@@ -34,7 +37,7 @@
 import { spawnSync } from "node:child_process";
 const here = new URL(".", import.meta.url).pathname;
 let failed = 0;
-const SUITES = [["model.test.mjs"], ["stats.test.mjs"], ["ffdr-backtest.mjs"], ["ffdr-walkforward.mjs"], ["ffdr-player-points.mjs"], ["ffdr-old-vs-new.mjs"], ["cs-model.mjs"], ["cs-logistic.mjs"], ["form-blend.mjs"], ["ffdr-cs-versions.mjs"], ["defcon-mid.mjs"], ["exp-points.mjs"], ["rank-model.mjs"], ["mins-trend.mjs"], ["rotation.mjs"], ["workflow-push.mjs"], ["lineups.mjs"], ["travel-measure.mjs"], ["mo-candidates.mjs"], ["player-gw-range.mjs"], ["set-pieces.mjs", true], ["name-match.mjs"], ["data-resilience.mjs", true], ["react-warnings.mjs", true], ["watchlist.mjs", true], ["compare-visual.mjs", true], ["i18n.mjs", true], ["i18n-dom.mjs", true], ["smoke.test.mjs", true]];
+const SUITES = [["model.test.mjs"], ["stats.test.mjs"], ["ffdr-backtest.mjs"], ["ffdr-walkforward.mjs"], ["ffdr-player-points.mjs"], ["ffdr-old-vs-new.mjs"], ["cs-model.mjs"], ["cs-logistic.mjs"], ["form-blend.mjs"], ["ffdr-cs-versions.mjs"], ["defcon-mid.mjs"], ["exp-points.mjs"], ["rank-model.mjs"], ["mins-trend.mjs"], ["rotation.mjs"], ["workflow-push.mjs"], ["lineups.mjs"], ["travel-measure.mjs"], ["mo-candidates.mjs"], ["player-gw-range.mjs"], ["set-pieces.mjs", true], ["name-match.mjs"], ["data-resilience.mjs", true], ["react-warnings.mjs", true], ["watchlist.mjs", true], ["compare-visual.mjs", true], ["i18n.mjs", true], ["i18n-dom.mjs", true], ["error-boundary.mjs", true], ["smoke.test.mjs", true]];
 for (const [f, loader] of SUITES) {
   console.log(`\n${"=".repeat(56)}\n  ${f}\n${"=".repeat(56)}`);
   const args = loader ? ["--import", `data:text/javascript,import{register}from"node:module";register("${here}jsx-loader.mjs","file://${here}")`, here + f] : [here + f];

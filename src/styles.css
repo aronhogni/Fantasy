@@ -44,3 +44,35 @@
     gap: 6px !important;
   }
 }
+
+/* ============================================================
+   LYKLABORDS-FOKUS — VAR ENGINN
+
+   Maelt 31.7.2026 i Chrome: `document.activeElement` med
+   `outlineStyle: "none"`. Nokkrir reitir bera `outline:"none"` INLINE
+   (App.jsx urlInput/search/capSel/chipSel, PlayerList costIn) til ad
+   fela sjalfgefna hring vafrans, og thar med var ENGIN fokus-visbending
+   i ollu appinu. Sa sem notar Tab sa ekki hvar hann var.
+
+   THRJAR AKVARDANIR:
+   1. `:focus-visible`, EKKI `:focus` — hringurinn birtist adeins vid
+      lyklabord (og programmatic fokus), ekki vid musarklikk. Musarnotandi
+      faer thvi ekkert nytt sjonraent suð.
+   2. `currentColor` i stad fasts litar. Appid hefur bædi ljosa hnappa med
+      dokkum texta OG dokkfjolublaa med hvitum ("Uppfæra", valinn flipi).
+      Fastur litur hefdi horfid a einum theirra; currentColor erfir
+      textalitinn og hefur thvi ALLTAF birtuskil vid bakgrunninn.
+   3. NEGATIFT offset (-3px) svo hringurinn se INNAN reitsins. Ytri hringur
+      hefdi verid KLIPPTUR: tungumals-vixlarinn (`langWrap`) og
+      leikmannalistinn nota `overflow:hidden`.
+
+   !important thvi inline-stilar vinna annars alltaf (sama rok sem
+   responsive-reglurnar hér ofan).                                      */
+:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: -3px !important;
+}
+/* Reitir eru rymri: thar ma hringurinn liggja a kantinum sjalfum. */
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline-offset: -1px !important;
+}

@@ -352,7 +352,7 @@ mælanlega: r 0,293 -> **0,328**, og FFDR (0,406) nær nú markaðslínunni einn
 
 ## 4. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir **28 söfn** (auk 7
+`tests/run-tests.mjs` keyrir **30 söfn** (auk 7
 seiglu-atburðarása og 22 viðmóta sem telja ekki eins), öll græn (keyrt 3x).
 **Fjöldinn er reiknaður úr `SUITES`** — hann var harðkóðaður strengur
 ("fimmtan") sem staðnaði um leið og safni var bætt við.
@@ -371,6 +371,7 @@ Taflan hér að neðan er ekki tæmandi; hún nefnir þau sem bera ákvarðanir.
 | `workflow-push.mjs` | 37 | PUSH-KAPPHLAUPIÐ í pipeline. Dregur shell-blokkina ÚT ÚR `.github/workflows/*.yml` og keyrir hana á ALVÖRU git-hirslum með kapphlaupið þvingað fram. Sjá kafla 5b. |
 | `travel-measure.mjs` | 2 | Vörðurinn í kafla 3. |
 | `mo-candidates.mjs` | 9 | **mó gegn frambjóðendum á 4 tímabilum** (2223–2526). Mælir shipped `moScore` (ekki afrit af formúlunni) og heldur `xGI`-ábatanum með **bootstrap klösuðum per leikmann** — CI verður að útiloka núll. Sami vörður hafnaði því að sleppa óheppnis-liðnum. Sjá 6d. |
+| `error-boundary.mjs` | 18 | **HVÍTI SKJÁRINN.** Prófar ÚTGÖNGUNA, ekki bara að kassinn birtist: tvístiga hreinsun vistaðs ástands, að `fpl_*` fari en **`fpl_lang` haldi sér**, og að lyklar annarra appa á sömu slóð séu óhreyfðir. Sjá 8c. |
 | `name-match.mjs` | 14 | **NAFNA-PÖRUNIN — heitasti kóðinn í appinu.** Skorið borið við sjálfstæða viðmiðs-útfærslu á 9.464 raunverulegum pörum OG tilbúnum jaðartilfellum (tvítekin tökn — raungögn hafa þau ekki, svo þau nægja ekki). Tíma-þak 25 ms; hagræðingin mældist 60,1 -> 4,7 ms. Sjá 6i. |
 | `i18n-dom.mjs` | 18 | **TUNGUMÁL LESIÐ AF SKJÁNUM.** Appið teiknað í jsdom á BÁÐUM málum og DOM-arnir bornir saman: lína sem er eins á báðum málum er annaðhvort viljandi eins eða óþýdd. Nær það sem AST-prófið getur ekki séð — ASCII-íslensku („fellur") og íslenskan bút sprautaðan INN í þýddan streng. Sex stökkbreytingar prófaðar. |
 | `smoke.test.mjs` | 55 | Appið keyrt í **jsdom** með raunverulegum `data/`-skrám og hermdu `fetch`. 15 spjöld, peningar (banki+lið = £100.0), umferðaskipti, FPL-reglur, chips, andstæðingar, vistun, meiðsli, ferðalengd. |
@@ -1469,6 +1470,19 @@ finna þetta er að keyra appið á ensku og skoða, eins og var gert hér.
   sem tvítekning — ekki setja þau inn aftur.
 - Notandinn vill **einfaldar töflur**. Ekki bæta dálkum í „Lið — FFDR“ nema
   hann biðji um það.
+- **LYKLABORÐS-FÓKUS VAR ENGINN — lagað 31.7.2026** (`src/styles.css`).
+  Mælt í Chrome: `document.activeElement` með `outlineStyle: "none"`.
+  Nokkrir reitir bera `outline:"none"` **inline** (`urlInput`, `search`,
+  `capSel`, `chipSel`, `costIn`) til að fela sjálfgefna hringinn, svo það
+  var **engin** fókus-vísbending í öllu appinu. Þrennt í lausninni og
+  hvert um sig þarf að haldast: `:focus-visible` (ekki `:focus`) svo
+  músarnotandi fái ekkert nýtt suð · `currentColor` í stað fasts litar,
+  því appið hefur bæði ljósa hnappa með dökkum texta og dökkfjólubláa með
+  hvítum — fastur litur hyrfi á öðrum þeirra · **negatíft** `outline-offset`
+  svo hringurinn sé INNAN reitsins, því `langWrap` og leikmannalistinn nota
+  `overflow:hidden` og ytri hringur var klipptur. Staðfest sjónrænt á
+  fjórum tilfellum: ljós hnappur, dökkur hnappur, reitur með inline
+  `outline:none`, og klippandi umgjörð.
 
 ---
 
@@ -1531,6 +1545,40 @@ sparlega; það var þörf á því á einum stað.
   þegar, svo enskan er þegar rétt; íslensku kommurnar í PRÓSA („2,89×")
   eru skrifaðar með punkti í þýðingunni sjálfri. Eina staðar-næma tala er
   `toLocaleString(getLang())` í `Leaderboard.jsx` (65.557 / 65,557).
+
+---
+
+## 8c. VILLUVÖRN — hvíti skjárinn (31.7.2026)
+
+`src/ErrorBoundary.jsx`, utan um `<App/>` í `main.jsx`. Áður: eitt óvænt
+svið í render → React aftengir allt tréð → **hvítur skjár, engin skilaboð,
+engin leið til baka**. Ekkert í appinu greip það, og appið les 25 skrár úr
+sex heimildum sem pipeline skrifar daglega.
+
+**MIKILVÆGARA EN KASSINN ER ÚTGANGAN.** `loadState` les `fpl_planner_v3`
+úr localStorage og setur beint í state (`App.jsx` ~701). Sé blobbið óheilt
+— skiptaáætlun úr eldri útgáfu, chip-lykill sem er ekki lengur til —
+**hrynur appið við HVERJA hleðslu** og notandinn hefur enga leið til baka
+nema devtools. Þess vegna er hnappurinn „Hreinsa vistaða plönun":
+
+- **Tvístiga** (eyðir raunverulegri vinnu; einn smellur er of nærri).
+- Hreinsar alla `fpl_*`-lykla — **valið yfir harðkóðaðan lista** svo nýr
+  lykill (`fpl_planner_v4`) verði ekki útundan þegjandi.
+- **HREINSAR ALDREI `fpl_lang`.** Sá sem hrundi á ensku verður að fá ensku
+  aftur; annars kastast hann í íslensku ofan á hrunið og skilur ekki
+  lengur hnappana. Vörður í prófinu — `localStorage.clear()` er einfaldari
+  og fellur á honum.
+- Villuskilaboðin sjálf eru **sýnd** (svo megi segja frá þeim) og
+  component-stakkurinn er í `<details>`. Skilaboðin eru **ekki þýdd**: þau
+  koma úr JS-vixlinum og eru villuskilaboð, ekki viðmótstexti.
+
+**Grípur EKKI async-villur** (fetch) — þær eru þegar meðhöndlaðar í
+`dataState`, sem sýnir sinn eigin villukassa. Þetta er viljandi.
+
+Prófað sjónrænt í Chrome með **raunverulegu** hruni (throw settur í
+`Pitch.jsx`, kassinn birtist, throw fjarlægt aftur) — ekki aðeins í jsdom.
+Vörður: `tests/error-boundary.mjs` (18), tvær stökkbreytingar prófaðar:
+`localStorage.clear()` og hreinsun í einum smell. Báðar felldar.
 
 ---
 

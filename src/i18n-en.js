@@ -364,7 +364,6 @@ export const EN = {
   "Mælt heimavallar-forskot fyrir {0}: +{1} stig/leik":
     "Measured home advantage for {0}: +{1} pts/match",
   "úti": "away",
-  "Líkur á hreinu blaði (CS)": "Clean sheet probability (CS)",
   "Engir leikir skráðir.": "No fixtures listed.",
   "Skipta út": "Transfer out",
   "{0} er fyrirliði": "{0} is captain",
@@ -457,7 +456,6 @@ export const EN = {
   "Söluverð eftir 50%-reglunni: £{0}": "Sell price under the 50% rule: £{0}",
   "Vænt stig í þessari umferð (mínútur + FFDR + form)":
     "Expected points this gameweek (minutes + FFDR + form)",
-  "Líkur á hreinu blaði (mælt)": "Clean sheet probability (measured)",
   "DefCon-tækifæri {0} — mikið vinnuálag varnar":
     "DefCon opportunity {0} — heavy defensive workload",
   "{0} gul spjöld — 1 frá {1}-þröskuldi ({2} leikja bann)":
@@ -470,8 +468,6 @@ export const EN = {
   "Meðal-FFDR yfir sviðið (algildur kvarði) — lægra er léttara":
     "Average FFDR over the range (absolute scale) — lower is easier",
   "CS-vænting": "CS expectation",
-  "Líkur á hreinu blaði að meðaltali yfir sviðið":
-    "Clean sheet probability averaged over the range",
   "DefCon-tækifæri liðsins — hærra = fleiri varnaraðgerðir í boði":
     "The team's DefCon opportunity — higher = more defensive actions on offer",
   "ClubElo-styrkur liðsins": "The team's ClubElo strength",
@@ -797,7 +793,6 @@ export const EN = {
     "under the wrong year. The column fills up once GW1 is finished.",
   "Feitletrað grænt": "Bold green",
   "= hærra en næsta tímabil á undan ·": "= higher than the season before ·",
-  "rautt": "red",
   "= lægra. Fyrir": "= lower. For",
   "og": "and",
   "er þessu snúið við — lægra er betra. Sæti er meðal allra sem spiluðu það tímabil.":
@@ -821,7 +816,6 @@ export const EN = {
   "sama verð": "same price",
   "ekkert þak": "no cap",
   "Erfitt frá": "Hard from",
-  "dökkgult": "dark yellow",
   "hlutlaust (hvítt)": "neutral (white)",
   "aðeins mitt lið": "my squad only",
   "Loka": "Close",
@@ -1027,6 +1021,13 @@ export const EN = {
   "xA í glugga": "xA in window",
   "Hætta gl.": "Threat (win.)",
   "Sköpun gl.": "Creativity (win.)",
+  /* IG/IA, EKKI GI/AI — "GI" er FOST FPL-SKAMMSTOFUN fyrir *goal
+     involvement* (mork+assist), og thessi sama tafla hefur dalkana xGI,
+     xGI/90, xGI per m og "Framlög − xGI". Dalkur sem heitir GI vid hlid
+     theirra lesst sem UPPSAFNAD FRAMLAG, en mó er SPA um framlag sem er
+     ekki komid. IG/IA fylgir lika skyringunni ("Imminent goal").
+     ATH: thetta var TVISKILGREINT (IG i einni lotu, GI i annarri) og JS
+     helt thegjandi seinni — sja duplicate-vordinn i tests/i18n.mjs.     */
   "mó": "IG",
   "Mark óhjákvæmilegt. Mælt: efsti tíundarhluti skorar 2,89× meðaltalið. Aðeins fyrir 0–1 framlag í glugga.":
     "Imminent goal. Measured: the top decile scores 2.89× the average. Only for 0–1 involvements in the window.",
@@ -1169,6 +1170,19 @@ export const EN = {
   "MID": "MID",
   "FWD": "FWD",
 
+/* ================= ErrorBoundary.jsx ================= */
+  "Eitthvað brotnaði": "Something broke",
+  "Appið gat ekki teiknað þessa sýn. Öll gögn eru óskemmd á GitHub — þetta er villa í viðmótinu, ekki í gögnunum þínum.":
+    "The app could not render this view. All your data is intact on GitHub — this is a bug in the interface, not in your data.",
+  "Endurhlaða": "Reload",
+  "Hreinsa vistaða plönun": "Clear saved planning",
+  "já — hreinsa og endurhlaða": "yes — clear and reload",
+  "Þetta eyðir skiptaáætlun, fyrirliða, chips, andstæðingum og vaktlista — tungumálið heldur sér. Liðið sjálft kemur úr FPL og hverfur ekki.":
+    "This deletes your transfer plan, captain, chips, rivals and watchlist — the language is kept. The squad itself comes from FPL and is unaffected.",
+  "Ef appið hrynur við HVERJA hleðslu er vistaða plönunin líklega orsökin.":
+    "If the app crashes on EVERY load, the saved planning is the likely cause.",
+  "Tæknilegar upplýsingar": "Technical details",
+
 /* ================= i18n.js ================= */
   "Fantasy plönun": "Fantasy planner",
   /* ---- BAETT VID 31.7.: nyir strengir ur annarri lotu (leikmannalisti,
@@ -1178,14 +1192,21 @@ export const EN = {
     "Open the player list — search, filters and comparison",
   "🔍 Leita": "🔍 Search",
   /* Threskuldar-flisar i leikmannalistanum: ">= minnst 5" / "<= mest 5". */
+  "Elo-gögn eru {0} daga gömul — ClubElo hefur ekki svarað síðan þá.":
+    "Elo data is {0} days old — ClubElo has not responded since then.",
+  /* CS% ER SKILYRT EN LEIT OSKILYRT UT: 152 af 564 leikmonnum syna
+     LIDS-CS% vid hlid PER-LEIKMANNS vaentra stiga. Fyrirvarinn segir
+     baedi skilyrdin. Odyrasta lagfaeringin i allri yfirferdinni.        */
+  "Líkur á hreinu blaði — LIÐSINS, ekki leikmannsins. Hann fær stigin aðeins ef liðið heldur hreinu OG hann spilar 60+ mín.":
+    "Clean-sheet probability — for the TEAM, not the player. He only gets the points if the team keeps a clean sheet AND he plays 60+ mins.",
+  "Líkur á hreinu blaði að meðaltali yfir sviðið — LIÐSINS. Leikmaðurinn fær stigin aðeins ef hann spilar 60+ mín.":
+    "Average clean-sheet probability over the range — for the TEAM. The player only gets the points if he plays 60+ mins.",
   "minnst": "min",
   "mest": "max",
   "Líkur á 60+ mínútum — mælt líkan (Brier 0,089 á móti 0,118 fyrir „byrjaði síðast\"). Glugginn er SÍÐUSTU 5 LOKNU UMFERÐIR; fyrir tímabil eru það lok síðasta tímabils, þar sem hvíld og rótasjón eru miklar. Undir 50% = bekkjar-hætta.":
     "Chance of 60+ minutes — measured model (Brier 0.089 vs 0.118 for \"started last time\"). The window is the LAST 5 COMPLETED GAMEWEEKS; in preseason that means the end of last season, when rest and rotation are heavy. Below 50% = bench risk.",
-  "mó": "GI",
   "mó — magn (xGI) + ógn + óheppni síðustu 4 umferðir. Aðeins fyrir þá sem eru í markhópnum (0–1 framlag, 180+ mín).":
     "Goal imminent — volume (xGI) + threat + bad luck over the last 4 gameweeks. Only for players in the target group (0–1 returns, 180+ mins).",
-  "aó": "AI",
   "aó — sköpun per 90 mín. Hátt = leggur upp færi en fær ekki assist.":
     "Assist imminent — creativity per 90 mins. High = creating chances without getting the assist.",
   "Líklega hækkun í nótt — NÁLGUN, FPL birtir ekki formúluna":

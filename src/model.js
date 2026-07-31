@@ -477,7 +477,16 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
    Hvert aukalegt = −4 stig. Wildcard og Free Hit: ótakmörkuð skipti og
    SÖFNUÐU skiptin HALDAST og halda áfram að safnast (+1 næstu umferð,
    þak 5) — regla frá 2024/25 sem eldri útgáfa braut með ft=1.
-   GW1 fyrir frest: ótakmörkuð, og allir byrja með 1 FT í GW2.          */
+   GW1 fyrir frest: ótakmörkuð, og allir byrja með 1 FT í GW2.
+
+   `unlimitedBy` SEGIR HVERS VEGNA, OG ÞAÐ ER EKKI SKRAUT: aðeins Wildcard
+   og Free Hit gefa skipti. Bench Boost og Triple Captain gefa EKKI NEITT
+   skiptatengt. Áður bar raðan `chip` eina — hvaða chip sem var plönuð í
+   þeirri umferð — svo birtingin gat ekki greint „ótakmörkuð VEGNA chips"
+   frá „ótakmörkuð af því að GW1-frestur er ekki runninn út". Í forleik með
+   Bench Boost í GW1 varð úr því **„Bench Boost — ótakmörkuð skipti"**, sem
+   er ósönn regla á skjánum. GW1 fyrir frest vinnur ALLTAF sem orsök, því
+   hún gildir óháð chipi og getur því ekki eignað chipi ranga verkun.       */
 export function computeTransferCost({ plan, chipAt, maxGw, preSeason }) {
   const made = {};
   plan.forEach(t => { made[t.gw] = (made[t.gw] || 0) + 1; });
@@ -487,9 +496,11 @@ export function computeTransferCost({ plan, chipAt, maxGw, preSeason }) {
     const n = made[g] || 0;
     const chip = chipAt(g);
     const isGw1Free = (g === 1 && preSeason);
-    const unlimited = isGw1Free || chip === "wildcard" || chip === "freehit";
+    const chipGivesTransfers = chip === "wildcard" || chip === "freehit";
+    const unlimited = isGw1Free || chipGivesTransfers;
     if (unlimited) {
-      out[g] = { made: n, free: n, hits: 0, points: 0, unlimited: true, chip, ftAvailable: ft };
+      out[g] = { made: n, free: n, hits: 0, points: 0, unlimited: true, chip,
+                 unlimitedBy: isGw1Free ? "preseason" : "chip", ftAvailable: ft };
       // GW1: allir byrja tímabilið með 1 FT. WC/FH: söfnuð skipti
       // HALDAST og +1 bætist við eins og venjulega (þak 5).
       ft = isGw1Free ? 1 : Math.min(5, ft + 1);
@@ -507,9 +518,89 @@ export function computeTransferCost({ plan, chipAt, maxGw, preSeason }) {
    EIN aðferð allar umferðir: grunnur (ep_next ef til, annars stig/leik)
    × margfaldari (mæld stig við FFDR leiksins / meðaltal stöðunnar)
    × tiltækileiki. Tvöföld umferð leggst saman; auð umferð = 0.         */
-export function expPointsFor({ p, fxs, fixDifficulty, teamId }) {
+/* ---- ENDURKOMU-DAGSETNING ÚR `news` (29.7. -> LAGAÐ 31.7.2026) ----
+   VILLAN SEM VAR, OG HÚN SKEKKTI ÁKVARÐANIR:
+   `avail` var reiknað úr `chance_of_playing_next_round` — EINU tölunni sem
+   FPL gefur — og notað fyrir ALLAR umferðir. `expPoints(pid, g)` er samt
+   kallað per umferð. Flaggaður leikmaður fékk því 0 vænt stig í GW2, 3, 4
+   og 5 þótt hann sé kominn til baka, og `transferNet(tr, horizon = 5)`
+   LEGGUR ÞESSI FIMM NÚLL SAMAN. Þetta var því ekki birtingarvilla heldur
+   skekkja í skipta-tillögunum.
+   Dæmi úr raungögnum: Garner (239) "Groin injury - Expected back 22 Aug",
+   GW1-frestur er 21.8. — hann er til leiks frá GW2 en fékk 0 alla leið.
+
+   MÆLT: 10 af 55 flögguðum hafa LESANLEGA dagsetningu, svo varaleiðin
+   (óbreytt hegðun) er REGLAN, ekki undantekningin. Þrír eru bönn með
+   nákvæmri lokadagsetningu — það er dagatal, ekki spá.
+
+   HVE MIKIÐ SPILA ÞEIR EFTIR ENDURKOMU? MÆLT á 1.169 endurkomum
+   (fpl_player_gw.json, 5 tímabil; fjarvera = 2+ umferðir með 0 mín, grunnur
+   >=60 mín, 3+ leikir á undan):
+     1. umferð eftir endurkomu   68,6% af fyrri mínútum
+     2. umferð                   67,8%
+     3. umferð                   66,1%
+     60+ mín í fyrsta leik       51,0%
+   RAMPINN ER FLATUR, EKKI STÍGANDI — þeir setjast í ~2/3 og hanga þar.
+   Þess vegna er EKKERT ramp upp í 1,0: `injury` fær 0,69 í öllum umferðum
+   eftir dagsetninguna.
+   BÖNN fá 1,0: bann er reglu-atriði, ekki líkamlegt — maðurinn er í fullu
+   formi þegar það rennur út. ATH þó að mælingin gat EKKI skilið bönn frá
+   meiðslum (engin news-saga til), svo 1,0 er dómur um EÐLI banns, ekki
+   mælt gildi. Það er skjalað hér vísvitandi.                            */
+export const RETURN_AVAIL = { ban: 1.0, injury: 0.69 };
+
+/* ---- ALDUR A FFDR-INNTAKI (ThOGUL BILUN) ----
+   elo.json er inntak i FFDR. 31.7.2026 var hun 1,5 daga gomul thvi ClubElo
+   BRAST (`elo: {"ok":false,"note":"fetch failed"}` i status.json) — en
+   ekkert i vidmotinu sagdi thad, adeins raud lina i heimildalistanum. Sama
+   mynstur sem gerdi markadslidinn daudan i VIKU (kafli 3): formulan i lagi,
+   gognin sem hun fekk ekki.
+   HREINT FALL svo threpin seu profanleg — vafrinn getur ekki komid ser i
+   'gamalt' stod ad vild, svo threpin verda ad vera maelanleg an hans.
+   2 dagar: pipeline gengur daglega, svo eitt tapad skipti er ekki tidindi.
+   5 dagar: nokkrar keyrslur i rod hafa brostid og thad er raunveruleg bilun. */
+export const ELO_STALE_WARN = 2, ELO_STALE_BAD = 5;
+export function eloStale(updated, nowTs = Date.now()) {
+  const t = updated ? Date.parse(updated) : NaN;
+  if (!Number.isFinite(t)) return null;               // engin dagsetning -> thegjum
+  const days = (nowTs - t) / 864e5;
+  if (days < ELO_STALE_WARN) return null;             // ferskt: engin truflun
+  return { days, level: days >= ELO_STALE_BAD ? "bad" : "warn" };
+}
+const MONTHS = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5,
+                 jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+/* "Groin injury - Expected back 22 Aug" -> { kind:"injury", ts }
+   "Suspended until 29 Aug"              -> { kind:"ban",    ts }
+   Ekkert lesanlegt -> null (og þá gildir gamla hegðunin).               */
+export function parseReturn(news, nowTs = Date.now()) {
+  const m = /(Expected back|Suspended until)\s+(\d{1,2})\s+([A-Za-z]{3})/i.exec(news || "");
+  if (!m) return null;
+  const mon = MONTHS[m[3].toLowerCase()];
+  if (mon == null) return null;
+  const day = +m[2];
+  const now = new Date(nowTs);
+  /* ÁRIÐ ER EKKI I TEXTANUM. Veljum það ár sem setur dagsetninguna innan
+     næstu ~11 mánaða — annars yrði "Expected back 10 Jan" lesið sem
+     dagsetning í fortíðinni og maðurinn talinn til leiks strax.          */
+  let y = now.getUTCFullYear();
+  let ts = Date.UTC(y, mon, day);
+  if (ts < nowTs - 30 * 864e5) ts = Date.UTC(y + 1, mon, day);
+  return { kind: /Suspended/i.test(m[1]) ? "ban" : "injury", ts };
+}
+/* Tiltækileiki fyrir EINN leik. `kickoff` er ISO-strengur leiksins.
+   Fyrir dagsetninguna (eða ef hún vantar) gildir FPL-talan óbreytt.     */
+export function availForKickoff(p, kickoff, nowTs = Date.now()) {
+  const cur = p?.status === "a" ? 1 : (p?.chance_of_playing_next_round ?? 0) / 100;
+  if (p?.status === "a" || cur >= 1) return 1;
+  const r = parseReturn(p?.news, nowTs);
+  if (!r || !kickoff) return cur;
+  const k = Date.parse(kickoff);
+  if (!Number.isFinite(k) || k < r.ts) return cur;
+  return Math.max(cur, RETURN_AVAIL[r.kind] ?? cur);
+}
+
+export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs }) {
   if (!p || !fxs?.length) return 0;
-  const avail = p.status === "a" ? 1 : (p.chance_of_playing_next_round ?? 0) / 100;
   const pos = p.element_type;
   const ep = parseFloat(p.ep_next);
   const ppg = parseFloat(p.points_per_game || 0);
@@ -520,9 +611,13 @@ export function expPointsFor({ p, fxs, fixDifficulty, teamId }) {
   for (const f of fxs) {
     const d = fixDifficulty(teamId, f, pos);
     const pts = d != null ? lookupPos(pos, "pts", d) : null;
-    mult += Number.isFinite(pts) ? pts / mean : 1;
+    /* TILTAEKILEIKI ER PER LEIK, EKKI PER LEIKMANN. GW1 straekkar 21.-24.
+       agust, svo madur sem er "back 22 Aug" getur spilad INNAN GW1 — thess
+       vegna er thetta i leikja-lykkjunni og ekki fyrir utan hana.        */
+    const av = availForKickoff(p, f?.kickoff ?? f?.kickoff_time, nowTs);
+    mult += (Number.isFinite(pts) ? pts / mean : 1) * av;
   }
-  return base * mult * avail;
+  return base * mult;
 }
 
 /* ---- RÖÐUNARSKOR FYRIR TILLÖGUR (mælt 29.7.2026) ----

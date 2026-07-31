@@ -18,7 +18,7 @@ import { useLang } from "./useLang.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
-  cleanSheetProb, rankScore } from "./model.js";
+  cleanSheetProb, rankScore, eloStale } from "./model.js";
 
 /* ============================================================
    FPL PLÖNUN — v3
@@ -1860,7 +1860,9 @@ export default function App() {
             if (!tc) return null;
             if (tc.unlimited) return (
               <span style={S.tcFree}>
-                {tc.chip ? tx("{0} — ótakmörkuð skipti", [CHIPS[tc.chip].label]) : tx("ótakmörkuð frí skipti")}
+                {/* AÐEINS WC/FH gefa skipti — sjá `unlimitedBy` í model.js.
+                    Að spyrja `tc.chip` gaf „Bench Boost — ótakmörkuð skipti". */}
+                {tc.unlimitedBy === "chip" ? tx("{0} — ótakmörkuð skipti", [CHIPS[tc.chip].label]) : tx("ótakmörkuð frí skipti")}
               </span>
             );
             return (
@@ -2205,6 +2207,28 @@ export default function App() {
             </div>
             <div style={S.muted}>
               {tx("FFDR er")} <b>{tx("útkoman")}</b> {tx("— ClubElo, xGC og markaðslínan eru inntök í hana og eru því ekki sýnd sér. Lægra FFDR = léttara. (DefCon-tækifærið er sér-merki og sést á leikmannaspjöldum og í liða-yfirlitinu.)")}
+              {/* ALDUR INNTAKANNA — THOGULL BILUN VAR MOGULEG.
+                  elo.json er FFDR-inntak og var 31.7.2026 EINN OG HALFUR
+                  DAGUR gomul thvi ClubElo brast ("fetch failed" i
+                  status.json) — en ekkert i vidmotinu sagdi thad. Sama
+                  mynstur sem gerdi markadslidinn daudan i VIKU (kafli 3):
+                  formulan var i lagi, gognin sem hun fekk voru ekki.
+                  Aldurinn er thvi synilegur ThAR SEM FFDR ER BIRT, ekki
+                  adeins sem rauð lina i heimildalistanum.               */}
+              {(() => {
+                /* Threpin sjalf eru i model.js (eloStale) svo thau seu
+                   profanleg — vafrinn getur ekki sett sig i 'gamalt' stod. */
+                const st = eloStale(elo?.updated);
+                if (!st) return null;
+                return (
+                  <div style={{ marginTop:6, fontSize:10.5, lineHeight:1.5,
+                                color: st.level === "bad" ? C.red : C.amber }}>
+                    {st.level === "bad" ? "⚠ " : ""}
+                    {tx("Elo-gögn eru {0} daga gömul — ClubElo hefur ekki svarað síðan þá.",
+                        [st.days.toFixed(1)])}
+                  </div>
+                );
+              })()}
             </div>
             <div style={S.tblHead}>
               <span style={{ flex:1 }}>{tx("Lið")}</span>
@@ -2710,7 +2734,7 @@ export default function App() {
                       {/* CS-vaenting er MERKINGARLAUS fyrir FWD (og synd MID adeins
                           af thvi ad their fa 1 stig fyrir CS). Tekin ut fyrir sokn. */}
                       {cs.cs != null && !(isPlayer && p.element_type === 4) &&
-                        <span style={S.dFixCs} title={tx("Líkur á hreinu blaði (CS)")}>CS {cs.cs}%</span>}
+                        <span style={S.dFixCs} title={tx("Líkur á hreinu blaði — LIÐSINS, ekki leikmannsins. Hann fær stigin aðeins ef liðið heldur hreinu OG hann spilar 60+ mín.")}>CS {cs.cs}%</span>}
                       <span style={S.dFixDate}>{fmtDate(f.date)}</span>
                     </div>
                   );
@@ -3287,7 +3311,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
           {ep == null ? "—" : `≈${ep.toFixed(1)}`}
         </span>
         {isDef && csObj?.cs != null && (
-          <span style={{ ...S.pCsSmall, color:csColor }} title={tx("Líkur á hreinu blaði (mælt)")}>
+          <span style={{ ...S.pCsSmall, color:csColor }} title={tx("Líkur á hreinu blaði — LIÐSINS, ekki leikmannsins. Hann fær stigin aðeins ef liðið heldur hreinu OG hann spilar 60+ mín.")}>
             CS {csObj.cs}%
           </span>
         )}
@@ -3362,7 +3386,7 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, o
                Vantandi gildum er SLEPPT, og "—" ef ekkert er til.           */
             chips.push([tx("CS-vænting"), vals.length
               ? `${Math.round(vals.reduce((a, v) => a + v, 0) / vals.length)}%` : "—",
-              tx("Líkur á hreinu blaði að meðaltali yfir sviðið")]);
+              tx("Líkur á hreinu blaði að meðaltali yfir sviðið — LIÐSINS. Leikmaðurinn fær stigin aðeins ef hann spilar 60+ mín.")]);
             if (dc) chips.push(["DC", dc.defcon_opportunity,
               tx("DefCon-tækifæri liðsins — hærra = fleiri varnaraðgerðir í boði")]);
           }

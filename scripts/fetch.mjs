@@ -585,7 +585,14 @@ async function eloFetch(url, tries = 3) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
     try {
-      const r = await fetch(url, { headers: { "User-Agent": UA } });
+      /* TIMAMORK — VANTADI ALVEG. undici hefur ~300 s sjalfgildi, sem er
+         ekki timamork i cron heldur HENGJA: thrjar tilraunir gefa 15 min af
+         bid adur en keyrslan gefst upp. Maelt 31.7.2026: elo BRAST i raun
+         thann dag ("fetch failed") og appid keyrdi FFDR a Elo fra 30.7. an
+         ad nokkud saegdi thad — sama mynstur sem gerdi markadslidinn daudan
+         i viku (kafli 3). 20 s er rifleg mork fyrir eina CSV.            */
+      const r = await fetch(url, { headers: { "User-Agent": UA },
+                                   signal: AbortSignal.timeout(20000) });
       if (r.status === 429 || r.status >= 500) throw new Error(`${r.status} (yfirálag?)`);
       if (!r.ok) throw new Error(`${r.status} ${url}`);
       const text = await r.text();
@@ -594,7 +601,8 @@ async function eloFetch(url, tries = 3) {
     } catch (e) {
       lastErr = e;
       console.warn(`ClubElo tilraun ${i + 1}/${tries} brást: ${e.message}`);
-      await new Promise(r => setTimeout(r, 2000 * (i + 1))); // 2s, 4s, 6s
+      /* ekki sofa eftir SIDUSTU tilraun — thad voru 6 s af hreinni bid */
+      if (i < tries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)));
     }
   }
   throw lastErr;

@@ -30,9 +30,14 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 /* Merkin sem lika birtast a leikmannaspjoldum — eitt satt um taknin. */
 export const SP_KINDS = [
-  { key:"pen", field:"penalties_order",                       icon:"⚽", get label() { return tx("Víti"); },        short:"P" },
-  { key:"fk",  field:"direct_freekicks_order",                icon:"◎", get label() { return tx("Aukaspyrnur"); }, short:"F" },
-  { key:"ck",  field:"corners_and_indirect_freekicks_order",  icon:"⌾", get label() { return tx("Horn"); },        short:"C" },
+  /* SHORT-BOKSTAFUR OG LITUR I STAD TAKNS I LISTANUM (31.7.2026).
+     ⚽ / ◎ / ⌾ eru OGREINANLEG i raunstaerd — thau tvo sidari eru naer eins
+     hringir i 13px, svo madur sem tekur allar thrjar las eins og tvitekning.
+     Taknid heldur ser thar sem LABEL fylgir (tegunda-valid), en i listanum
+     — thar sem taknid stendur EITT — kemur bokstafur med sinum lit.       */
+  { key:"pen", field:"penalties_order",                       icon:"⚽", tint:"#b3261e", get label() { return tx("Víti"); },        short:"P" },
+  { key:"fk",  field:"direct_freekicks_order",                icon:"◎", tint:"#1b5e9c", get label() { return tx("Aukaspyrnur"); }, short:"F" },
+  { key:"ck",  field:"corners_and_indirect_freekicks_order",  icon:"⌾", tint:"#0a7a4a", get label() { return tx("Horn"); },        short:"C" },
 ];
 
 /* ============================================================
@@ -159,7 +164,8 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
                 const hit = e[k.key];
                 return (
                   <div key={k.key} style={S.line}>
-                    <span style={S.icon} title={k.label} aria-label={k.label}>{k.icon}</span>
+                    <span style={{ ...S.icon, color:k.tint, borderColor:k.tint }}
+                      title={k.label} aria-label={k.label}>{k.short}</span>
                     {!hit ? (
                       <span style={S.none} title={tx("FPL hefur ekki skráð röðun fyrir þetta lið")}>—</span>
                     ) : (
@@ -199,7 +205,8 @@ const S = {
   keyN:{ fontFamily:mono, fontSize:10, color:C.text3 },
   line:{ display:"flex", alignItems:"center", gap:6, padding:"2px 0",
          borderTop:`1px solid #f4f4f6` },
-  icon:{ fontSize:13, width:15, textAlign:"center", flexShrink:0, color:C.text2 },
+  icon:{ fontSize:9.5, fontWeight:800, width:15, textAlign:"center", flexShrink:0,
+    border:"1px solid", borderRadius:3, lineHeight:1.5 },
   pick:{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:6,
          background:"transparent", border:"none", cursor:"pointer",
          padding:"2px 0", textAlign:"left", font:"inherit" },
