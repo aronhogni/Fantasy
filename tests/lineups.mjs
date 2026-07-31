@@ -75,15 +75,29 @@ async function sandbox({ kickoff = KICK } = {}) {
   return dir;
 }
 
-/* v3-snid, eins og skjalfest er */
+/* SNIDID ER STADFEST GEGN LIFANDI API-INU, EKKI TEKID UR SKJOLUN.
+   Rannsokn i GitHub Actions 31.7.2026 (thar er lykillinn) gaf:
+     http=200  results=2  errors=[]        <- threpid LEYFIR endapunktinn
+     lyklar = ["team","coach","formation","startXI","substitutes"]
+     team="Burnley"  formation="5-4-1"  startXI=11  substitutes=9
+     player0 = {"id":162489,"name":"J. Trafford","number":1,"pos":"G","grid":"1:1"}
+
+   ATH NOFNIN — ThAU ERU SKAMMSTOFUD: "J. Trafford", ekki "James Trafford".
+   Fyrsta utgafa thessa profs notadi FULL nofn ("Bukayo Saka") og stadfesti
+   thar med snið sem API-id sendir ALDREI. Porunin virkadi samt, en af
+   TILVILJUN: hun endurnytir "F. Eftirnafn"-lykilinn ur fetchInjuries. Nu er
+   profad a RAUNVERULEGA snidinu svo thad se maeling og ekki heppni.       */
 const LINEUP_OK = {
   http: 200, results: 2, errors: [], response: [
-    { team: { id: 42, name: "Arsenal" }, formation: "4-3-3",
-      startXI: [{ player: { id: 1, name: "Bukayo Saka", pos: "F" } },
-                { player: { id: 2, name: "Gabriel Magalhaes", pos: "D" } }],
-      substitutes: [{ player: { id: 3, name: "Martin Ødegaard", pos: "M" } }] },
-    { team: { id: 49, name: "Chelsea" }, formation: "3-4-3",
-      startXI: [{ player: { id: 4, name: "Cole Palmer", pos: "M" } }], substitutes: [] },
+    { team: { id: 42, name: "Arsenal" }, coach: { id: 9, name: "M. Arteta" },
+      formation: "4-3-3",
+      startXI: [{ player: { id: 1, name: "B. Saka", number: 7, pos: "F", grid: "4:1" } },
+                { player: { id: 2, name: "Gabriel", number: 6, pos: "D", grid: "2:2" } }],
+      substitutes: [{ player: { id: 3, name: "M. Ødegaard", number: 8, pos: "M", grid: null } }] },
+    { team: { id: 49, name: "Chelsea" }, coach: { id: 10, name: "E. Maresca" },
+      formation: "3-4-3",
+      startXI: [{ player: { id: 4, name: "C. Palmer", number: 10, pos: "M", grid: "3:2" } }],
+      substitutes: [] },
   ],
 };
 const FIXTURES_OK = {
@@ -123,7 +137,12 @@ console.log("─".repeat(84));
   ok(saka?.started === true, "Saka (startXI) -> started=true");
   const ode = o.players?.find(x => x.fpl_id === 13);
   ok(ode?.started === false, "Ødegaard (substitutes) -> started=false, EKKI sleppt");
-  ok(ode?.fpl_id === 13, "pörun tholir ø/accent (Ødegaard -> Odegaard)");
+  ok(ode?.fpl_id === 13,
+    "pörun tholir SKAMMSTAFAD nafn MED accent (\"M. Ødegaard\" -> fpl 13)");
+  ok(saka?.name_api === "B. Saka",
+    "skammstafad nafn ur API-inu er varðveitt i name_api (rekjanleiki)");
+  const gab = o.players?.find(x => x.fpl_id === 12);
+  ok(gab?.fpl_id === 12, "EITT nafn an upphafsstafs (\"Gabriel\") parast lika");
   ok(o.players?.every(x => x.gw === 1 && x.fixture === 9001),
     "umferd og leikur fylgja hverjum leikmanni");
   ok(o.teams?.length === 2 && o.teams.some(t => t.formation === "4-3-3"),

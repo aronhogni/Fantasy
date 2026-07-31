@@ -1313,14 +1313,33 @@ er. `FIT` heldur sínum vogtölum.
    **Tvö köll per leikdags-lotu, ekki eitt:** FPL-fixture-id og
    API-Sports-fixture-id eru ÖNNUR NÚMER, svo `/fixtures?league=39&date=`
    kemur fyrst og er parað eftir liðum. ~11 köll á leikdegi af 100.
-   **HEIMILDIN Á FRÍA ÞREPINU VAR ÓSTAÐFEST** þegar þetta var byggt og það er
-   ekki leti: `API_SPORTS_KEY` er aðeins í GitHub Secrets — `curl` án hans
-   skilar `{"errors":{"token":"Missing application key"}}` (prófað af BÁÐUM,
-   31.7.), og í forleik er enginn leikur í glugganum. Þess vegna er
-   **könnunar-kall** innbyggt sem loggar `errors` óskert og skrifar
-   `probe.gated` í `lineups.json`; Actions-keyrslan hefur lykilinn og svarar.
-   Umslagið er samt EKKI ágiskun — það var staðfest gegn lifandi hostinum og
-   er sama umslag sem `fetchInjuries` les.
+   **HEIMILDIN ER STAÐFEST — MÆLT Í ACTIONS 31.7.2026.** Hún var óstaðfest
+   þegar þetta var byggt: `API_SPORTS_KEY` er aðeins í GitHub Secrets, svo
+   `curl` héðan skilar `{"errors":{"token":"Missing application key"}}` (prófað
+   af BÁÐUM). Svarið kom með því að ræsa `fetch-fast` í Actions, þar sem
+   lykillinn ER:
+
+       API-Sports /fixtures/lineups RANNSOKN: http=200 results=2 errors=[]
+       lyklar=["team","coach","formation","startXI","substitutes"]
+       team="Burnley" formation="5-4-1" startXI=11 substitutes=9
+       player0={"id":162489,"name":"J. Trafford","number":1,"pos":"G","grid":"1:1"}
+
+   Fría þrepið **LEYFIR** endapunktinn (`errors=[]`, engin plan-villa) og
+   sniðið er nú **mælt, ekki tekið úr skjölun**.
+
+   **NÖFNIN ERU SKAMMSTÖFUÐ: „J. Trafford“, ekki „James Trafford“.** Pörunin
+   virkar því hún endurnýtir `"F. Eftirnafn"`-lykilinn úr `fetchInjuries` — en
+   fyrsta útgáfa prófsins notaði FULL nöfn og staðfesti þar með snið sem
+   API-ið sendir aldrei. Það var heppni, ekki mæling; prófið notar nú
+   raunverulega sniðið.
+
+   **TVÆR VILLUR FUNDUST VIÐ AÐ RÆSA ÞETTA, HVORUG MEÐ LESTRI:**
+   (a) fallið var fyrst aðeins kallað úr daglegu keyrslunni (05 UTC) meðan
+   leikir byrja 12–19 UTC — glugginn hefði nánast aldrei opnast;
+   (b) `fetch-fast.yml` hafði **engan `env`-blokk**, svo `FLAGS.apisports` var
+   false og fallið var sleppt þegjandi. Prófið „er fetchLineups kallað úr
+   fetchFast?“ var grænt allan tímann því það les KÓÐA, ekki workflow-ið.
+   Vörður í `tests/workflow-push.mjs` ber nú saman kóðann OG workflowið.
    Prófað í `tests/lineups.mjs` (29 próf) á **hermdum svörum í skjalfestu
    v3-sniði**, þar á meðal öll bilunartilvikin: þrep lokað, óvænt snið,
    engin pörun, rate-limit. Vörður fylgir um að fallið sé kallað úr
