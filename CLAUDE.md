@@ -1076,11 +1076,39 @@ Tvennt fylgdi með og hvorugt var valfrjálst:
   eru afstæðir sextílar og fylgja kvarðanum; hvert þrep fær nú ~1/6 aftur.
   Prófið sem felldi þau gerði nákvæmlega það sem það átti að gera.
 
-**EFTIRSTÖÐVAR (minni, sér yfirferð):** `marketDiff` sjálf lætur töfluna lesa
-**~2,4pp of bjartsýnt**. Það er fjórðungur af upphaflega gallanum. Ekki lagað
-því fittið á markaðnum lenti á grid-jaðrinum (center 3,1 = jaðar) og er þar með
-ekki traust, og `MARKET_CALIB` var mælt sérstaklega annars staðar. Vörður í
-`ffdr-walkforward.mjs` kafla 9 heldur því innan 4pp.
+**EFTIRSTÖÐVARNAR — LAGAÐAR 29.7.2026.** `marketDiff` lét töfluna lesa of
+bjartsýnt (~1,4pp þegar hér var komið, upphaflega 2,4pp). Rótin var EKKI í
+væntu mörkunum: `MARKET_CALIB` mælist rétt innan 0,8%. Skekkjan var í affina
+fallinu sem ræður **hvar taflan er lesin**:
+
+    marketDiff(xga) = A + (xga − 0,5) · B      A: 1,00 -> 1,05 · B: 1,55 -> 1,65
+
+Ástæðan fyrir að þetta var ekki lagað fyrr — fittið lenti á grid-jaðrinum —
+var **leyst með því að stækka gridið**: A 0,60–1,60 · B 1,00–2,40, og besta
+gildið er nú INNI í því. Fittað gegn raunverulegum úrslitum (Brier á birta
+CS%-inu), 11.400 lið-leikir með markaðslínu, 15 tímabil:
+
+| mæling | fyrir | eftir |
+|---|---|---|
+| kvörðunarhalli | +0,89pp | **−0,71pp** |
+| meðalfrávik (tíundarhlutar) | 2,69pp | **1,75pp** |
+| Brier | 0,18534 | **0,18495** |
+| vörður í walkforward kafla 9 | ~1,4pp | **0,2pp** |
+
+LOSO: A 0,95–1,10 · B 1,60–1,80, og 1,05/1,65 er jafnframt tíðasta LOSO-valið.
+Brier batnar **út fyrir úrtak í 12/15 tímabilum**.
+
+**AÐGREINING HAGGAST EKKI — OG ÞAÐ ER EKKI TILVILJUN:** affin einhalla
+umbreyting breytir ENGRI röðun, svo r og AUC *geta* ekki haggast. Mælt til að
+vera viss: r(d,ga) 0,39219 -> 0,39176, r(d,cs) −0,25919 -> −0,25991 (fjórði
+tugstafur = rounding). Þetta er KVÖRÐUN, ekki aðgreining — sama tegund
+lagfæringar sem `SCALE_FIX` var. Meðal-d fer 2,41 -> 2,55, sem er einmitt
+miðja MEASURED-töflunnar.
+
+**VÖRÐUR SEM HEFÐI ÞAGAÐ:** `ffdr-walkforward.mjs` reiknaði andhverfu
+`marketDiff` með **harðkóðuðum** föstum (1,0 / 1,55). Eftir endurfittun hefði
+sá vörður mælt annan kvarða en appið keyrir OG VIRST GRÆNN. Fastarnir eru nú
+`MARKET_DIFF_A/B`, fluttir út úr `market.js`, og prófið les þá þaðan.
 
 **ATH VIÐ ENDURKVÖRÐUN — REGIME-BREYTING:** hreint blað hefur **fallið**:
 ~28% (2017–2023) -> ~23% (2023–2026), mörk/leik upp. `SCALE_FIX` var samt
@@ -1100,20 +1128,51 @@ Handoff úr spjall-lotu lagði fram fjögur atriði. Staða þeirra eftir mælin
 | Margföldunar-liður `W.xg≈0,20` | **Mælt suð, ekki tekið upp.** Sjá kafla 3 atriði 4. |
 | Tillögu-líkanið noti FFDR í stað hrás FDR | **ÓAFGREITT — ekki í repo.** Prótótýpan var aldrei ýtt. Sjá hér að neðan. |
 
-**ÓAFGREITT: tillögu-líkanið (`recs`) notar hrátt FDR.** Handoff-ið segir að
-FIT-vogtölurnar (`src/App.jsx:170`, `fdr:-0,597` fyrir GK o.s.frv.) hafi verið
-fittaðar gegn **hráu FDR**. Að skipta FFDR inn án endurfits setur vog sem var
-mæld á einum kvarða á annan kvarða — og við vitum núna að kvarðarnir eru ekki
-þeir sömu (kafli 7.0: kjarninn miðar á 3,0, taflan á 2,5). Því er þetta
-**ekki einföld skipting** og var ekki gert blint.
+**FIT GEGN FFDR — MÆLT 29.7.2026 OG HAFNAÐ. EKKI ÓAFGREITT LENGUR.**
+Handoff-ið sagði að `FIT` (`src/App.jsx`, `fdr:−0,597` fyrir GK o.s.frv.) væri
+fittað gegn **hráu FDR** og að skipta FFDR inn án endurfits setti vog af einum
+kvarða á annan. Það var RÉTT en **óveruleg** athugasemd, og hér er mælingin.
 
-Rétta röðin er:
-1. Leysa kvarðamálið í 7.0 (það ræður hvaða kvarði FFDR er á).
-2. Endurfitta `FIT`-vogtölurnar gegn FFDR — þarf `form_features.json`
-   (er í `data/`) og fittunar-skriftuna, sem er **ekki í repo-inu**.
-   Hún þarf að koma inn áður en þetta er hægt; annars er hvert nýtt
-   vogtölusett ómælt og fellur á reglunni í kafla 3.
-3. Þá fyrst skipta, og mæla að bakprófið batni.
+Skriftin sem „vantaði í repo-ið“ var skrifuð og fittið gert almennilega:
+**85.646 sýnishorn, 5 tímabil, LOSO, per stöðu** — `FIT` sjálft var fittað á
+EINU tímabili og EINUM split (GW6–20 -> GW21–33).
+
+| MAE (lægra betra) | FFDR | hrátt FDR | ekkert |
+|---|---|---|---|
+| GK | 2,512 | 2,516 | **2,481** |
+| DEF | 3,963 | 3,951 | **3,947** |
+| MID | 3,814 | **3,806** | 3,814 |
+| FWD | 4,223 | **4,222** | 4,223 |
+
+| ákvörðun: raunstig topp-N innan stöðu | topp-3 | topp-5 | topp-10 |
+|---|---|---|---|
+| FFDR | **19,816** | 18,875 | 17,321 |
+| hrátt FDR | 19,807 | **18,895** | **17,370** |
+| ekkert | 19,748 | 18,729 | 17,218 |
+
+**Leikja-liðurinn í heild er verður ~0,1 stig af ~19, og FFDR gegn FDR er
+hnífjafnt** — hrátt FDR er meira að segja örlítið á undan á topp-5 og topp-10.
+Kvarðamálið er þar með óvirkt í reynd: vogin sem það snýr að er nánast núll.
+Að skipta væri hreyfing án mælanlegs ábata.
+
+**ORSÖKIN MÆLD** — meðaltal yfir marga leiki þvær liðinn út, og MJÖG ólíkt
+fyrir FFDR og FDR:
+
+| sjóndeildarhringur | sd(meðal-FFDR) | sd(meðal-FDR) |
+|---|---|---|
+| 1 umferð | 0,727 | 0,983 |
+| 5 umferðir | 0,501 | 0,396 |
+| 8 umferðir | 0,481 | **0,296** |
+
+FFDR heldur tveimur þriðju af breytileika sínum út í 8 umferðir; FDR tapar
+70%. Það er raunverulegur punktur í vil FFDR — en hann breytir ekki
+ÁKVÖRÐUNUM hér, því stig næstu 5 umferða eru ráðin af MÍNÚTUM. Merkið per
+leik er ósvikið (r −0,275 fyrir DEF á einni umferð, kafli 3); það er
+samlagningin sem drepur það.
+
+**Niðurstaða: lokað sem MÆLT-OG-HAFNAÐ.** `rankScore` (kafli 3, `RANK_W`) er
+það sem RAÐAR tillögum og það notar FFDR beint á einni umferð, þar sem merkið
+er. `FIT` heldur sínum vogtölum.
 
 ### Annað
 
@@ -1131,6 +1190,41 @@ Rétta röðin er:
    (320 → ~290 px) ef völlurinn má stækka enn meira.
 
 ---
+
+## 7b. TUNGUMÁL — TVÆR VILLUR Í VERÐINUM SEM PRÓFIÐ FANN EKKI (31.7.)
+
+`tests/i18n.mjs` var grænt og samt var enska viðmótið hálf-íslenskt á fjórum
+flipum. Fundið með því að **KEYRA appið á ensku í Chrome og leita að þ/ð/æ í
+DOM-inu** — 14 strengir. Tvær villur í prófinu sjálfu:
+
+1. **`inCall(p, "tx")` spurði „er strengurinn EINHVERS STAÐAR inni í
+   tx()-kalli?“** Það er allt annað en „er hann LYKILLINN?“. Með því slapp
+   `tx("✈ {0} ferðast {1} km{2}", [a, b, langt ? " (langferð)" : ""])`:
+   sniðmátið er þýtt en íslenski búturinn sem er settur INN í það er það ekki.
+   Viðmótið birti **„travel 359 km (langferð)“** — hálf-þýtt, sem er verra en
+   óþýtt því það lítur út eins og villa. Nú er spurt `isTxKey` = `arguments[0]`.
+2. **`TemplateElement`-greinin notaði `EXEMPT.some(e => v.includes(e))`** og
+   `EXEMPT` inniheldur stöku stafina `"ð"`, `"þ"`, `"æ"` (fyrir translit-töfluna
+   í `stats.js`). Þar með slapp **sérhver** íslenskur sniðmáts-strengur, því
+   nær allir innihalda ð. Kafli 5 var nánast óvirkur fyrir template-strengi.
+   Nú er nákvæm samsvörun (`EXEMPT.includes(v.trim())`).
+
+Lagað: fimm strengir splittaðir í **heilar setningar** í stað sniðmáts + búts
+(ferðalengd ×2, róterings-hætta) og enskar þýðingar bættar við.
+
+### ÞAÐ SEM EFTIR STENDUR OG ER *EKKI* KÓÐI — MÖRK SEM ER RÉTT AÐ ÞEKKJA
+Níu strengir eru enn íslenskir á ensku, og **allir níu koma úr GÖGNUNUM**:
+`status.json`-nóturnar (`record(...)` í `fetch.mjs`) og `last_gw.json.note`.
+Dæmi: „engir leikdagar innan frí-þreps gluggans (±1 dagur)“, „64 löng ferðalög
+(>300 km)“, „0 auðar, 0 tvöfaldar“.
+
+`tx()` getur ekki hjálpað: þetta er prósa með innfelldum tölum sem pipeline
+skrifar, ekki strengir í kóða. Rétta lausnin væri að `record()` skrifaði
+**skipulögð svið** (kóði + tölur) og appið byggði setninguna — það er ~20+
+kallstaðir í `fetch.mjs`. **EKKI GERT**: þetta er hliðarstiku-greining og ein
+upplýsinga-lína, og breytingin er breið og áhættusöm fyrir snyrti-ábata.
+**AST-prófið NÁIR ALDREI ÞESSU** — það les kóða, ekki DOM. Eina leiðin til að
+finna þetta er að keyra appið á ensku og skoða, eins og var gert hér.
 
 ## 8. Viðmótsreglur sem hafa þegar verið lærðar
 

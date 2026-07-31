@@ -2599,7 +2599,15 @@ export default function App() {
                         if (!tr?.km || f.home) return null;
                         return (
                           <span style={{ ...S.dFixTravel, ...(tr.is_long_trip ? S.dFixTravelLong : {}) }}
-                            title={tx("{0} ferðast {1} km (loftlína){2}", [isPlayer ? "Liðið" : t.short, tr.km, tr.is_long_trip ? " — langferð (300+ km)" : ""])}>
+                            title={(() => {
+                              /* HEIL SETNING i hvorri leid, ekki sniðmat +
+                                 islenskur buti sem rok. Sa buti var ekki
+                                 thyddur og gaf "travel 359 km (langferð)". */
+                              const who = isPlayer ? tx("Liðið") : t.short;
+                              return tr.is_long_trip
+                                ? tx("{0} ferðast {1} km (loftlína) — langferð (300+ km)", [who, tr.km])
+                                : tx("{0} ferðast {1} km (loftlína)", [who, tr.km]);
+                            })()}>
                             ✈{tr.km}
                           </span>
                         );
@@ -2932,7 +2940,11 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
                   title={hasDetail ? tx("Smelltu fyrir markaskorara")
                         : [
                             w?.temp_c != null ? `${Math.round(w.temp_c)}°C${w.precip_mm >= 0.5 ? tx(" · úrkoma") : ""}` : null,
-                            travelByFx?.[f.id]?.km ? tx("✈ {0} ferðast {1} km{2}", [A?.short || "úti", travelByFx[f.id].km, travelByFx[f.id].is_long_trip ? " (langferð)" : ""]) : null,
+                            travelByFx?.[f.id]?.km
+                              ? (travelByFx[f.id].is_long_trip
+                                  ? tx("✈ {0} ferðast {1} km (langferð)", [A?.short || tx("úti"), travelByFx[f.id].km])
+                                  : tx("✈ {0} ferðast {1} km", [A?.short || tx("úti"), travelByFx[f.id].km]))
+                              : null,
                           ].filter(Boolean).join(" · ") || undefined}>
                   {mid}
                 </button>
@@ -3163,7 +3175,9 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
         {ban && ban.level === "high" &&
           <span style={S.sigCard} title={tx("{0} gul spjöld — 1 frá {1}-þröskuldi ({2} leikja bann)", [ban.y, ban.threshold, ban.matches])}>{ban.y}Y</span>}
         {rot && rot.level === "high" &&
-          <span style={S.sigRot} title={tx("Byrjaði {0} af {1} leikjum{2} — skiptingar-hætta", [rot.starts, rot.played, rot.prevSeason && cumLabel ? ` tímabilið ${cumLabel}` : ""])}>{rot.pct}%</span>}
+          <span style={S.sigRot} title={rot.prevSeason && cumLabel
+            ? tx("Byrjaði {0} af {1} leikjum tímabilið {2} — skiptingar-hætta", [rot.starts, rot.played, cumLabel])
+            : tx("Byrjaði {0} af {1} leikjum — skiptingar-hætta", [rot.starts, rot.played])}>{rot.pct}%</span>}
       </div>
     </div>
   );

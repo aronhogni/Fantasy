@@ -116,7 +116,13 @@ ok("engin thyding a streng sem enginn kallar a", dead.length === 0,
    + (dead.length > 8 ? ` (+${dead.length - 8})` : ""));
 for (const k of DYNAMIC) if (EN[k] == null) ok(`dynamiskur lykill ${k} er i EN`, false);
 
-/* ---------- 5. Ekkert islenskt UTAN tx() ---------- */
+/* ---------- 5. Ekkert islenskt UTAN tx() ----------
+   ThAD SEM ThESSI KAFLI NÆR EKKI, SVO ThAD SE EKKI MISSKILID: hann les
+   KODA. Islensk prosa sem PIPELINE skrifar i data/ (status.json-noturnar
+   ur record(), last_gw.json.note) birtist obreytt i vidmotinu a ensku og
+   ekkert AST-prof getur sed thad. Nio slikir strengir voru maeldir 31.7.
+   med thvi ad keyra appid a ensku i Chrome — sja CLAUDE.md kafla 7b.
+   Ef thu vilt vita hvort enska vidmotid se HEILT: keyrdu thad.        */
 console.log("\n=== 5. LEKI — ISLENSKA UTAN tx() ===");
 const IS_CHARS = /[þðæöáíéúýóÞÐÆÖÁÍÉÚÝÓ]/;
 /* Viljandi undanskilid, hvert med astaedu:
@@ -135,13 +141,32 @@ const EXEMPT = [
   "dökkgrænt", "grænt", "dökkgult", "ljósrautt",
   "Vörn", "Miðja", "Sókn",
 ];
-const inCall = (p, name) => {
+/* FORRITARA-SKILABOD (console.warn/error/log, new Error) eru ekki vidmot. */
+const inDevCall = (p) => {
   let up = p.parentPath;
   while (up) {
     if (up.node.type === "CallExpression" &&
-        (up.node.callee?.name === name ||
-         /warn|error|log/.test(up.node.callee?.property?.name || ""))) return true;
+        /warn|error|log/.test(up.node.callee?.property?.name || "")) return true;
     up = up.parentPath;
+  }
+  return false;
+};
+/* ER STRENGURINN LYKILLINN i tx(...) — TH.E. FYRSTA ROKID?
+   ATH ThETTA VAR VILLAN: adur var spurt "er hann EINHVERS STADAR inni i
+   tx()-kalli?" og thad er allt annad. Med thvi slapp
+     tx("✈ {0} ferðast {1} km{2}", [a, b, langt ? " (langferð)" : ""])
+   i gegn — sniðmatid er thytt en ISLENSKI BUTURINN sem er settur INN i thad
+   er thad ekki. Vidmotid birti tha "travel 359 km (langferð)": halft thytt,
+   sem er verra en othytt thvi thad lítur út eins og villa.
+   Fundid 31.7. med thvi ad KEYRA appid a ensku og leita ad þ/ð/æ i DOM-inu —
+   14 strengir a fjorum flipum. Profid var graent allan timann.          */
+const isTxKey = (p) => {
+  let child = p.node, up = p.parentPath;
+  while (up) {
+    const n = up.node;
+    if (n.type === "CallExpression" && n.callee?.name === "tx")
+      return n.arguments[0] === child;
+    child = n; up = up.parentPath;
   }
   return false;
 };
@@ -153,7 +178,7 @@ for (const f of files) {
     StringLiteral(p) {
       const v = p.node.value;
       if (!IS_CHARS.test(v) || EXEMPT.includes(v)) return;
-      if (inCall(p, "tx")) return;
+      if (isTxKey(p) || inDevCall(p)) return;
       if (p.parent.type === "ImportDeclaration") return;
       leaks.push(`${f}:${p.node.loc.start.line} ${JSON.stringify(v.slice(0, 45))}`);
     },
@@ -164,14 +189,21 @@ for (const f of files) {
     },
     TemplateElement(p) {
       const v = p.node.value.cooked ?? "";
-      if (!IS_CHARS.test(v) || EXEMPT.some(e => v.includes(e))) return;
-      if (inCall(p, "tx")) return;
+      /* NAKVAEM SAMSVORUN, EKKI .includes(). ANNAD VAR VILLA: EXEMPT hefur
+         stoku stafina "ð"/"þ"/"æ" (fyrir translit-tofluna i stats.js) og med
+         .includes() slapp SERHVER islenskur sniðmats-strengur i gegn — thvi
+         nær allir innihalda ð. Thetta gerdi kafla 5 nánast ovirkan fyrir
+         template-strengi, og thess vegna slapp
+           tx("Byrjaði {0} af {1} leikjum{2} ...", [..., ` tímabilið ${x}`])
+         sem birti "Started 7 of 38 matches tímabilið 2025/26" a ensku.    */
+      if (!IS_CHARS.test(v) || EXEMPT.includes(v.trim())) return;
+      if (isTxKey(p) || inDevCall(p)) return;
       leaks.push(`${f}:${p.node.loc.start.line} TPL ${JSON.stringify(v.slice(0, 45))}`);
     },
   });
 }
 ok("enginn islenskur vidmotsstrengur utan tx()", leaks.length === 0,
-   leaks.slice(0, 6).join(" | ") + (leaks.length > 6 ? ` (+${leaks.length - 6})` : ""));
+   leaks.join("\n     "));
 
 /* ---------- 6. lang i dep-listum ---------- */
 console.log("\n=== 6. lang I DEP-LISTUM (stod memo-gildi) ===");

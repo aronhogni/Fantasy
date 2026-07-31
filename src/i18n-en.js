@@ -352,7 +352,13 @@ export const EN = {
   "deild (Evrópu/bikar-gögn ekki komin)": "league (Europe/cup data not in yet)",
   "FDR {0}, samsett {1}": "FDR {0}, combined {1}",
   "þyngd": "difficulty",
-  "{0} ferðast {1} km (loftlína){2}": "{0} travel {1} km (as the crow flies){2}",
+  /* SPLITT 31.7.: {2} var islenskur buti (" — langferð (300+ km)") sem var
+     aldrei thyddur, svo enska vidmotid birti "travel 359 km (langferð)".
+     Nu er HEIL setning i hvorri leid. Sama a vid um ✈-utgafuna nedar. */
+  "{0} ferðast {1} km (loftlína)": "{0} travels {1} km (as the crow flies)",
+  "{0} ferðast {1} km (loftlína) — langferð (300+ km)":
+    "{0} travels {1} km (as the crow flies) — long trip (300+ km)",
+  "Liðið": "The team",
   "Mælt heimavallar-forskot fyrir {0}: +{1} stig/leik":
     "Measured home advantage for {0}: +{1} pts/match",
   "úti": "away",
@@ -419,7 +425,8 @@ export const EN = {
   "Engir leikir skráðir — auð umferð.": "No fixtures listed — blank gameweek.",
   "Smelltu fyrir markaskorara": "Click for goalscorers",
   " · úrkoma": " · rain",
-  "✈ {0} ferðast {1} km{2}": "✈ {0} travel {1} km{2}",
+  "✈ {0} ferðast {1} km": "✈ {0} travels {1} km",
+  "✈ {0} ferðast {1} km (langferð)": "✈ {0} travels {1} km (long trip)",
   /* FFDR-tafla */
   "VÖRN": "DEFENCE",
   "SÓKN": "ATTACK",
@@ -453,8 +460,10 @@ export const EN = {
     "DefCon opportunity {0} — heavy defensive workload",
   "{0} gul spjöld — 1 frá {1}-þröskuldi ({2} leikja bann)":
     "{0} yellow cards — 1 from the {1} threshold ({2}-match ban)",
-  "Byrjaði {0} af {1} leikjum{2} — skiptingar-hætta":
-    "Started {0} of {1} matches{2} — rotation risk",
+  "Byrjaði {0} af {1} leikjum — skiptingar-hætta":
+    "Started {0} of {1} matches — rotation risk",
+  "Byrjaði {0} af {1} leikjum tímabilið {2} — skiptingar-hætta":
+    "Started {0} of {1} matches in {2} — rotation risk",
   "samsett þyngd {0} (FDR {1})": "combined difficulty {0} (FDR {1})",
   "Meðal-FFDR yfir sviðið (algildur kvarði) — lægra er léttara":
     "Average FFDR over the range (absolute scale) — lower is easier",
