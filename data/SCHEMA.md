@@ -1018,3 +1018,67 @@ players { <code>: { "<timabil>": {
 `SEASON_CARRY` var baett vid 29.7. svo SOMU dalkarnir virki i
 leikmannalistanum yfir oll timabil — adur virkudu adeins 31 af 108
 STAT_DEFS a sogulegri rod, nu 74.
+
+
+---
+
+## `player_gw_{season}.json` — per-umferðar tölur (31.7.2026)
+
+Fimm skrár: `player_gw_2122` … `player_gw_2526`. Grunnurinn undir
+**umferðar-bil** í leikmannalistanum („bara GW 30–38 síðasta tímabil").
+
+```
+{ season:"2526", label:"2025/26",
+  stats: ["mins","starts","pts","goals","assists","cs","gc","saves","bonus",
+          "bps","xg","xa","xgc","dc","cbit","threat","creat","infl",
+          "recov","tack","yc","rc"],
+  scale: { xg:100, xa:100, xgc:100, creat:10, infl:10, threat:1 },
+  players: { "<code>": { t:"Arsenal", p:"MID", gw: { "1":[...22 tölur], ... } } } }
+```
+
+**EIN SKRÁ PER TÍMABIL, LETIHLAÐIN.** `fpl_player_gw.json` er **19 MB** og því
+ónothæf í vafra. Mælt 31.7.: þjappaða sniðið er **1,2–1,5 MB per tímabil
+(≈0,21 MB gzip)**; öll fimm í einni skrá væru 7,3 MB (0,87 MB gzip) — gzip er
+ekki vandinn, **þáttingin** er.
+
+**LYKILLINN ER `code`, EKKI `id`.** FPL endurnýtir `id` milli tímabila, svo
+id-lykill gæfi rangan leikmann í eldra tímabili. `code` er fast. Vörpunin
+`element → code` kemur úr `players_raw.csv` per tímabil.
+
+**AÐEINS SAMLAGNINGARHÆFAR TÖLUR.** Verð, eignarhald, FPL-sæti og
+`value_season` eru **árstíðartölur** — þær má ekki leggja saman yfir bil og
+eru því ekki hér. Afleiddar tölur (per-90, hlutföll, nýting) eru reiknaðar
+úr summunum.
+
+**DESIMALAR ERU HEILTÖLU-KVARÐAÐIR** (`xg*100` o.s.frv.); `scale` segir
+hvernig lesa skal. Það er ástæðan fyrir að skráin er lítil.
+
+### AFMÖRKUN Á `(code, umferð, DAGSETNING)` — mælt nauðsynleg
+FPL á stundum **tvö `element`** fyrir sama mann (nýtt skráningarnúmer á miðju
+tímabili) og bæði varpast á sama `code`. Junior Kroupi fékk þá **1826 mínútur
+í stað 1663** — umferðir 1–9 tvítaldar. **10 slíkar raðir** í 2025/26, engin í
+öðrum tímabilum.
+
+Dagsetningin er rétta skilyrðið, **ekki umferðin ein**: í umferð 33 hafði hann
+tvo **raunverulega** leiki (18/04 og 22/04) — tvöföld umferð — og þeir eiga
+**báðir** að teljast. Að afmarka á umferð hefði þagað yfir tvöföldum umferðum
+hjá öllum leikmönnum.
+
+### Krossprófun gegn óháðri heimild
+Summa yfir allar umferðir á að vera jöfn árstíðartölunni í
+`player_seasons.json` (annar FPL-endapunktur):
+
+| tímabil | stemmir |
+|---|---|
+| 2025/26 | **457/457 (100%)** |
+| 2024/25 | 347/348 (99,7%) — Ferguson 368 á móti 385 mín |
+| 2023/24 | **278/278 (100%)** |
+
+**2022/23 hefur 37 umferðir, ekki 38, og það er rétt:** umferð 7 hefur núll
+raðir í heimildinni sjálfri (leikirnir 10.–11. september 2022 frestaðir).
+Fyrsta útgáfa varðarins krafðist 38 og **féll á raungögnum** — krafan var
+röng, ekki gögnin.
+
+Vörður: `tests/player-gw-range.mjs` (31 próf) — summur, tvítekningar **og**
+að tvöfaldar umferðir haldi báðum leikjum, kvörðun desimala, og að GW30–38
+gefi raunverulegar tölur (443 leikmenn með mínútur).

@@ -133,7 +133,7 @@ for (const [key, dir] of Object.entries(SEASONS)) {
   const rowsOut = [];
   const slim = {};                       // code -> { t, p, gw: { round: [tolur] } }
   const unmatchedTeam = new Set();
-  let noFixture = 0, kept = 0, noCode = 0;
+  let noFixture = 0, kept = 0, noCode = 0, dupSkipped = 0;
   for (const r of rows) {
     /* 0-MÍNÚTU RAÐIR ERU NÚ MEÐ (29.7.2026). Þær voru sleppt áður og það
        var afmörkun sem skipti máli: "spilar hann?" er STÆRSTA einstaka
@@ -177,6 +177,7 @@ for (const [key, dir] of Object.entries(SEASONS)) {
        sem gildir i byrjunar-likunum (kafli 6h).
        DESIMALAR ERU HEILTOLU-KVARDADIR (xg*100 o.s.frv.) svo skrain se
        lítil; `scale` i skranni segir hvernig lesa skal.                 */
+    kept++;                       // radir i HRASKRANNI (afmorkun gildir adeins um slim)
     const code = codeOf.get(num(r.element));
     if (!code) noCode++;
     else {
@@ -193,7 +194,7 @@ for (const [key, dir] of Object.entries(SEASONS)) {
          umferd — og THEIR eiga BADIR ad teljast. Ad afmarka a umferd
          eingongu hefdi thagt yfir tvofaldar umferdir hja ollum.          */
       const fxKey = `${rd}|${fx.Date}`;
-      if (e._seen.has(fxKey)) continue;
+      if (e._seen.has(fxKey)) { dupSkipped++; continue; }
       e._seen.add(fxKey);
       const v = e.gw[rd] || (e.gw[rd] = new Array(SLIM_STATS.length).fill(0));
       for (let i = 0; i < SLIM_STATS.length; i++) {
@@ -203,7 +204,6 @@ for (const [key, dir] of Object.entries(SEASONS)) {
         v[i] += Math.round(num(raw) * (SLIM_SCALE[f] || 1));
       }
     }
-    kept++;
   }
   out[key] = rowsOut;
   slimOut[key] = slim;
@@ -211,7 +211,9 @@ for (const [key, dir] of Object.entries(SEASONS)) {
   for (const r of rowsOut) pos[r[3]] = (pos[r[3]] || 0) + 1;
   report.push(`${key}: ${kept} raðir (mín>0) · ${Object.entries(pos).map(([k, v]) => k + " " + v).join(" ")}` +
     `${unmatchedTeam.size ? ` · ÓPÖRUÐ LIÐ: ${[...unmatchedTeam].join(", ")}` : ""}` +
-    `${noFixture ? ` · ${noFixture} raðir án leiks` : ""}`);
+    `${noFixture ? ` · ${noFixture} raðir án leiks` : ""}` +
+    `${noCode ? ` · ${noCode} án code` : ""}` +
+    `${dupSkipped ? ` · ${dupSkipped} TVITEKNAR (sami code+umferd+dagsetning)` : ""}`);
 }
 
 await writeFile("data/fpl_player_gw.json", JSON.stringify({
