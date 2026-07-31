@@ -1268,10 +1268,27 @@ er. `FIT` heldur sínum vogtölum.
 
 ### Annað
 
-1. **`/fixtures/lineups` — staðfest byrjunarlið.** Verðmætasta viðbótin:
-   liðin birtast 40–60 mín fyrir leik, innan ±1 dags gluggans, og `fetch-fast`
-   (30 mín) gæti gripið þau → „byrjar EKKI“-flagg á þínum mönnum fyrir seinni
-   leiki dagsins. ~10 köll/leikdag. **Á að vera til fyrir GW1.**
+1. **`/fixtures/lineups` — staðfest byrjunarlið. BYGGT 31.7.2026.**
+   `fetchLineups()` í `scripts/fetch.mjs` -> `data/lineups.json`, kallað úr
+   **`--fast`** (30 mín) — EKKI daglegu keyrslunni, sem gengur kl. 05 UTC
+   meðan leikir byrja 12–19 UTC. Glugginn er leikur innan 2 klst eða
+   nýbyrjaður; utan hans 0–1 kall.
+   **Tvö köll per leikdags-lotu, ekki eitt:** FPL-fixture-id og
+   API-Sports-fixture-id eru ÖNNUR NÚMER, svo `/fixtures?league=39&date=`
+   kemur fyrst og er parað eftir liðum. ~11 köll á leikdegi af 100.
+   **HEIMILDIN Á FRÍA ÞREPINU VAR ÓSTAÐFEST** þegar þetta var byggt og það er
+   ekki leti: `API_SPORTS_KEY` er aðeins í GitHub Secrets — `curl` án hans
+   skilar `{"errors":{"token":"Missing application key"}}` (prófað af BÁÐUM,
+   31.7.), og í forleik er enginn leikur í glugganum. Þess vegna er
+   **könnunar-kall** innbyggt sem loggar `errors` óskert og skrifar
+   `probe.gated` í `lineups.json`; Actions-keyrslan hefur lykilinn og svarar.
+   Umslagið er samt EKKI ágiskun — það var staðfest gegn lifandi hostinum og
+   er sama umslag sem `fetchInjuries` les.
+   Prófað í `tests/lineups.mjs` (29 próf) á **hermdum svörum í skjalfestu
+   v3-sniði**, þar á meðal öll bilunartilvikin: þrep lokað, óvænt snið,
+   engin pörun, rate-limit. Vörður fylgir um að fallið sé kallað úr
+   `fetchFast` — fyrsta útgáfan mín tengdi það aðeins við daglegu keyrsluna
+   og hefði verið **dautt kóði sem virtist virka**.
 2. `/players?league=39&season=` — ítarlegri tölur (skot, lykilsendingar,
    einvígi, einkunn). Líklega læst eins og meiðslin; kostar 1 kall að prófa.
 3. `/predictions`, `/odds` — **ekki þess virði**: við höfum bókmakera-línu og

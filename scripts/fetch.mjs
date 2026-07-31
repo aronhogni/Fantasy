@@ -435,6 +435,140 @@ async function computePlayerForm(events, els) {
                     : "engin lokin umferd (preseason) — throunin kviknar vid GW4");
 }
 
+/* ========== 3c. STADFEST BYRJUNARLID — /fixtures/lineups ==========
+   VERDMAETASTA VIDBOTIN skv. CLAUDE.md kafla 7.1: lidin birtast 40-60 min
+   fyrir leik. Med fetch-fast (30 min) naest thvi "byrjar EKKI"-flagg a mina
+   menn adur en seinni leikir dagsins byrja — thad er dyrasta einstaka
+   mistokin i FPL ad stilla upp manni sem endar a bekknum.
+
+   TVO KOLL PER LEIKDAG-LOTU, EKKI EITT:
+   FPL-fixture-id og API-Sports-fixture-id eru ONNUR NUMER. Thvi tharf
+   /fixtures?league=39&date=... fyrst (1 kall) til ad fa their id og para
+   thau vid FPL-leikina eftir LIDUM, og svo /fixtures/lineups per leik.
+   ~11 koll a leikdegi af 100/dag.
+
+   HEIMILDIN A FRIA THREPINU ER OSTADFEST — OG THAD ER MAELT, EKKI GISKAD:
+   hvorki notandinn ne eg getum profad hana staðbundid thvi lykillinn er
+   adeins i GitHub Secrets (`curl` an hans skilar
+   {"errors":{"token":"Missing application key"}} — profad 31.7.).
+   Thess vegna er RANNSAKANDI KALL innbyggt: se enginn leikur i glugganum
+   er gert EITT kall a thekkt fixture-id og `errors` LOGGAD OSKERT. Actions-
+   keyrslan hefur lykilinn, svo logid svarar spurningunni i naestu keyrslu.
+   Svarid fer lika i status.json, svo thad se ekki bundid vid eitt log.
+
+   ENGIN AGISKUN UM SVARSNIDID: umslagid ({get,errors,results,response})
+   er STADFEST gegn lifandi hostinum, og er thad sama sem fetchInjuries
+   les thegar. Innihald `response[]` er skjalfest v3-snid:
+     [{ team:{id,name}, formation:"4-3-3", startXI:[{player:{id,name,pos}}],
+        substitutes:[{player:{...}}] }]
+   Se snidid annad fellur EKKERT — vid skrifum tha 0 leikmenn og skraum thad. */
+async function fetchLineups() {
+  const errTxt = o => (o.errors && (Array.isArray(o.errors) ? o.errors.join("; ")
+                                    : JSON.stringify(o.errors))) || "";
+  /* GLUGGINN: leikir sem eru ad byrja (innan 2 klst) eda nybyrjadir (3 klst).
+     Utan hans er ekkert ad hafa og engin koll eru notud.                  */
+  let fx = [];
+  try {
+    const all = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
+    const now = Date.now();
+    fx = all.filter(f => f.kickoff_time && !f.finished_provisional && !f.finished)
+      .filter(f => { const d = new Date(f.kickoff_time).getTime() - now;
+                     return d < 2 * 3600e3 && d > -3 * 3600e3; });
+  } catch (e) { record("api_lineups", false, 0, `fixtures.json: ${e.message}`); return; }
+
+  if (!fx.length) {
+    /* RANNSAKANDI KALL — svarar AÐEINS "leyfir threpið endapunktinn?" */
+    const probe = await apiSports("/fixtures/lineups?fixture=1035037");
+    const err = errTxt(probe);
+    console.log(`API-Sports /fixtures/lineups RANNSOKN: http=${probe.http} ` +
+                `results=${probe.results} errors=${JSON.stringify(probe.errors ?? null)}`);
+    const gated = /plan|subscription|not allowed|upgrade/i.test(err);
+    record("api_lineups", true, 0,
+      gated ? `ENDAPUNKTUR LOKADUR a fria threpinu: ${err.slice(0, 120)}`
+            : err ? `enginn leikur i glugga; rannsokn gaf: ${err.slice(0, 120)}`
+                  : "enginn leikur i glugga (bidur leikdags) — endapunktur svarar an plan-villu");
+    await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [], players: [],
+      probe: { http: probe.http, errors: probe.errors ?? null, gated },
+      note: "Stadfest byrjunarlid ur API-Sports /fixtures/lineups. TOMT utan "
+          + "leikdags-glugga (leikur innan 2 klst eda nybyrjadur). `probe` "
+          + "geymir svarid vid thvi hvort fria threpid leyfi endapunktinn." });
+    return;
+  }
+
+  /* 1. API-fixture-id per dagsetning, parad vid FPL-leiki eftir lidum */
+  const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
+  const teamsJs = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
+  const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
+  const norm = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  const teamIdByNorm = {};
+  for (const [id, t] of Object.entries(tmap))
+    for (const v of [t.fpl, t.fdcouk, t.clubelo, t.understat, t.short])
+      if (v) teamIdByNorm[norm(v)] = +id;
+  teamsJs.forEach(t => { teamIdByNorm[norm(t.name)] = t.id; });
+
+  const dates = [...new Set(fx.map(f => f.kickoff_time.slice(0, 10)))];
+  const apiFx = [];
+  let calls = 0, errs = [];
+  for (const dt of dates) {
+    const r = await apiSports(`/fixtures?league=39&date=${dt}`); calls++;
+    if (errTxt(r)) errs.push(`fixtures ${dt}: ${errTxt(r)}`);
+    for (const it of (r.response || [])) {
+      const h = teamIdByNorm[norm(it.teams?.home?.name)];
+      const a = teamIdByNorm[norm(it.teams?.away?.name)];
+      if (it.fixture?.id && h && a) apiFx.push({ apiId: it.fixture.id, h, a });
+    }
+  }
+  /* 2. Lineups per leik sem vid getum parad vid FPL-leik */
+  const fplByTeam = {};
+  for (const p of players) {
+    const keys = new Set([norm(p.web_name), norm(`${p.first_name} ${p.second_name}`),
+      norm(p.second_name), norm(`${(p.first_name || "")[0] || ""} ${p.second_name}`)]);
+    (fplByTeam[p.team] ??= []).push({ id: p.id, keys });
+  }
+  const matchFpl = (nm, teamId) => {
+    const n = norm(nm), last = n.split(" ").pop();
+    const c = fplByTeam[teamId] || [];
+    let hit = c.find(x => x.keys.has(n));
+    if (!hit) { const bl = c.filter(x => x.keys.has(last)); if (bl.length === 1) hit = bl[0]; }
+    return hit?.id ?? null;
+  };
+  const outPlayers = [], outTeams = [], unmatched = [];
+  for (const f of fx) {
+    const m = apiFx.find(x => (x.h === f.team_h && x.a === f.team_a));
+    if (!m) continue;
+    const r = await apiSports(`/fixtures/lineups?fixture=${m.apiId}`); calls++;
+    if (errTxt(r)) { errs.push(`lineups ${m.apiId}: ${errTxt(r)}`); continue; }
+    for (const side of (r.response || [])) {
+      const teamId = teamIdByNorm[norm(side.team?.name)];
+      if (!teamId) continue;
+      outTeams.push({ fpl_team: teamId, gw: f.event, formation: side.formation ?? null,
+                      fixture: f.id });
+      const add = (arr, started) => {
+        for (const e of (arr || [])) {
+          const nm = e.player?.name;
+          const id = matchFpl(nm, teamId);
+          if (id == null) { unmatched.push(`${nm} (${side.team?.name})`); continue; }
+          outPlayers.push({ fpl_id: id, fpl_team: teamId, gw: f.event, fixture: f.id,
+                            started, pos: e.player?.pos ?? null, name_api: nm });
+        }
+      };
+      add(side.startXI, true);
+      add(side.substitutes, false);
+    }
+  }
+  await writeJSON("lineups.json", { updated: status.updated,
+    gws: [...new Set(fx.map(f => f.event))], calls,
+    teams: outTeams, players: outPlayers, unmatched, errors: errs,
+    note: "Stadfest byrjunarlid (started=true) og bekkur (false) ur API-Sports "
+        + "/fixtures/lineups fyrir leiki innan gluggans. FPL-status raedur "
+        + "aframhaldandi tiltækileika; thetta er STADFESTING, ekki spa." });
+  const started = outPlayers.filter(p => p.started).length;
+  record("api_lineups", !errs.length || !!outPlayers.length, outPlayers.length,
+    errs.length ? `${calls} koll, ${started} byrja, villur: ${errs[0].slice(0, 90)}`
+                : `${calls} koll, ${outTeams.length} lid, ${started} byrja, ${unmatched.length} oparadir`);
+}
+
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
 async function eloFetch(url, tries = 3) {
   let lastErr;
@@ -1378,6 +1512,18 @@ async function fetchFast() {
       team_h:f.team_h, team_a:f.team_a, team_h_score:f.team_h_score, team_a_score:f.team_a_score,
       team_h_difficulty:f.team_h_difficulty, team_a_difficulty:f.team_a_difficulty })));
   } catch (e) { console.warn(`fast fixtures: ${e.message}`); }
+
+  /* STADFEST BYRJUNARLID TILHEYRIR HRADA KEYRSLUNNI, EKKI DAGLEGU.
+     Thetta var MIN VILLA fyrst: eg tengdi fetchLineups adeins vid daglegu
+     keyrsluna, sem gengur kl. 05 UTC. Leikir byrja 12-19 UTC, svo glugginn
+     (leikur innan 2 klst) hefdi NANAST ALDREI opnast og eiginleikinn hefdi
+     verid daudur kodi sem virtist virka. 30-minutna keyrslan er einmitt su
+     sem naer lidunum 40-60 min fyrir leik — sja CLAUDE.md kafla 7.1.
+     Utan gluggans kostar thetta 1 kall (rannsokn) eda 0.               */
+  if (FLAGS.apisports) {
+    try { await fetchLineups(); }
+    catch (e) { record("api_lineups", false, 0, e.message); }
+  }
 
   console.log(`HRAÐUR: ${volatile.length} leikmenn m. frétt/vafa/verðbreytingu, ${prices.length} verðbreytingar`);
   record("fast_news", true, volatile.length, `${prices.length} verðbreytingar`);
@@ -2700,6 +2846,7 @@ async function main() {
 
   try { await computeDefcon(events, els); } catch (e) { record("defcon", false, 0, e.message); }
   try { await computePlayerForm(events, els); } catch (e) { record("player_form", false, 0, e.message); }
+  if (FLAGS.apisports) { try { await fetchLineups(); } catch (e) { record("api_lineups", false, 0, e.message); } }
   if (FLAGS.elo)    { try { await fetchElo(); }              catch (e) { record("elo", false, 0, e.message); } }
   if (FLAGS.fdcouk) { try { await fetchFdcouk(); }           catch (e) { record("fdcouk_e0", false, 0, e.message); }
                       try { await fetchHistoricalE0(); }     catch (e) { record("fdcouk_history", false, 0, e.message); }

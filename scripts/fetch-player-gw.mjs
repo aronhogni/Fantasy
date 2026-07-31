@@ -80,7 +80,23 @@ const HEADER = ["round", "date", "team", "pos", "home", "mins", "starts", "pts",
   "yc", "rc", "pMiss", "pSave", "recov", "tack"];
 const num = v => { const n = +v; return Number.isFinite(n) ? n : 0; };
 
-const out = {}, report = [];
+/* ---- THJAPPADA SNIDID: samlagningarhaefar tolur eingongu ----
+   Maelt 31.7.: oll 5 timabil i thessu sniði eru 7,3 MB (0,87 MB gzip) og
+   EITT timabil 1,6 MB (0,21 MB gzip). Upprunalega fpl_player_gw.json er
+   19 MB og thvi onothaef i vafra — thess vegna er hun EKKI notud i appinu
+   og thessi skrifud per timabil, letihladin.                           */
+const SLIM_STATS = ["mins","starts","pts","goals","assists","cs","gc","saves",
+  "bonus","bps","xg","xa","xgc","dc","cbit","threat","creat","infl",
+  "recov","tack","yc","rc"];
+const SLIM_SRC = { mins:"minutes", pts:"total_points", goals:"goals_scored",
+  cs:"clean_sheets", gc:"goals_conceded", xg:"expected_goals",
+  xa:"expected_assists", xgc:"expected_goals_conceded",
+  dc:"defensive_contribution", cbit:"clearances_blocks_interceptions",
+  creat:"creativity", infl:"influence", recov:"recoveries", tack:"tackles",
+  yc:"yellow_cards", rc:"red_cards" };
+const SLIM_SCALE = { xg:100, xa:100, xgc:100, creat:10, infl:10, threat:1 };
+
+const out = {}, slimOut = {}, report = [];
 for (const [key, dir] of Object.entries(SEASONS)) {
   const e0Path = `data/fdcouk/E0-${key}.json`;
   if (!existsSync(e0Path)) { report.push(`${key}: E0 vantar — sleppt`); continue; }
@@ -95,13 +111,29 @@ for (const [key, dir] of Object.entries(SEASONS)) {
     byDayTeam.set(`${e0Day(r.Date)}|${r.AwayTeam}`, r);
   }
 
+  /* element -> CODE. `element` er FPL-id INNAN timabils og FPL endurnytir
+     id milli timabila; `code` er FAST yfir oll timabil og er thad sem
+     players.json ber. Nafna-porun yfir fimm timabil vaeri brothaett
+     (samsett eftirnofn, broddstafir, tvinefni) — code er nakvaemt.       */
+  const codeOf = new Map();
+  {
+    const pr = await fetch(`${RAW}/${dir}/players_raw.csv`, { headers: { "User-Agent": UA } });
+    if (pr.ok) {
+      for (const r of parseCsv(await pr.text())) {
+        const id = +r.id, code = +r.code;
+        if (Number.isFinite(id) && Number.isFinite(code)) codeOf.set(id, code);
+      }
+    } else report.push(`${key}: players_raw.csv HTTP ${pr.status} — engin code-vorpun`);
+  }
+
   const res = await fetch(`${RAW}/${dir}/gws/merged_gw.csv`, { headers: { "User-Agent": UA } });
   if (!res.ok) { report.push(`${key}: merged_gw.csv HTTP ${res.status} — sleppt`); continue; }
   const rows = parseCsv(await res.text());
 
   const rowsOut = [];
+  const slim = {};                       // code -> { t, p, gw: { round: [tolur] } }
   const unmatchedTeam = new Set();
-  let noFixture = 0, kept = 0;
+  let noFixture = 0, kept = 0, noCode = 0;
   for (const r of rows) {
     /* 0-MÍNÚTU RAÐIR ERU NÚ MEÐ (29.7.2026). Þær voru sleppt áður og það
        var afmörkun sem skipti máli: "spilar hann?" er STÆRSTA einstaka
@@ -137,9 +169,44 @@ for (const [key, dir] of Object.entries(SEASONS)) {
       r.recoveries == null || r.recoveries === "" ? null : num(r.recoveries),
       r.tackles == null || r.tackles === "" ? null : num(r.tackles),
     ]);
+    /* ---- THJAPPADA SNIDID (fyrir umferdar-bil i appinu) ----
+       ADEINS SAMLAGNINGARHAEFAR TOLUR. Verd, eignarhald, FPL-saeti og
+       value_season eru ARSTIDARTOLUR — thaer ma EKKI leggja saman yfir
+       bil og eru thvi ekki her. Tvofold umferd LEGGST SAMAN i somu
+       umferd (spurningin er um UMFERD, ekki stakan leik) — sama regla
+       sem gildir i byrjunar-likunum (kafli 6h).
+       DESIMALAR ERU HEILTOLU-KVARDADIR (xg*100 o.s.frv.) svo skrain se
+       lítil; `scale` i skranni segir hvernig lesa skal.                 */
+    const code = codeOf.get(num(r.element));
+    if (!code) noCode++;
+    else {
+      const e = slim[code] || (slim[code] = { t: team, p: r.position || "", gw: {}, _seen: new Set() });
+      e.t = team; e.p = r.position || e.p;
+      const rd = num(r.round);
+      /* AFMORKUN A (code, umferd, DAGSETNING) — MAELT NAUDSYNLEG.
+         FPL a stundum TVO `element` fyrir sama mann (nytt skrasetningar-
+         numer a midju timabili) og badir varpast a sama `code`. Tha koma
+         TVAER EINS radir i somu umferd og summan tviteldi: Junior Kroupi
+         fekk 1826 minutur i stad 1663 (umferdir 1-9 tvitaldar).
+         DAGSETNINGIN er rétta skilyrdid, EKKI umferdin ein: i umferd 33
+         hafdi hann tvo raunverulega leiki (18/04 og 22/04) — tvofold
+         umferd — og THEIR eiga BADIR ad teljast. Ad afmarka a umferd
+         eingongu hefdi thagt yfir tvofaldar umferdir hja ollum.          */
+      const fxKey = `${rd}|${fx.Date}`;
+      if (e._seen.has(fxKey)) continue;
+      e._seen.add(fxKey);
+      const v = e.gw[rd] || (e.gw[rd] = new Array(SLIM_STATS.length).fill(0));
+      for (let i = 0; i < SLIM_STATS.length; i++) {
+        const f = SLIM_STATS[i];
+        const raw = r[SLIM_SRC[f] || f];
+        if (raw == null || raw === "") continue;      // vantar -> 0 i summu
+        v[i] += Math.round(num(raw) * (SLIM_SCALE[f] || 1));
+      }
+    }
     kept++;
   }
   out[key] = rowsOut;
+  slimOut[key] = slim;
   const pos = {};
   for (const r of rowsOut) pos[r[3]] = (pos[r[3]] || 0) + 1;
   report.push(`${key}: ${kept} raðir (mín>0) · ${Object.entries(pos).map(([k, v]) => k + " " + v).join(" ")}` +
@@ -153,6 +220,25 @@ await writeFile("data/fpl_player_gw.json", JSON.stringify({
   note: "Columnar. ALLAR radir (lika 0 minutur, fra 29.7.2026). Parad vid E0 a (dagsetning, lid).",
   header: HEADER, seasons: out,
 }));
+/* Ein skra PER TIMABIL: appid hledur adeins thad timabil sem er valid.
+   Oll fimm i einni skra vaeri 7,3 MB ad thatta thott gzip se 0,87 MB —
+   thattingin er kostnadurinn, ekki nidurhalid.                          */
+for (const [key, slim] of Object.entries(slimOut)) {
+  const label = SEASONS[key].replace("-", "/").replace(/^(\d{4})\/(\d{2})$/, "$1/$2");
+  await writeFile(`data/player_gw_${key}.json`, JSON.stringify({
+    updated: new Date().toISOString(),
+    season: key, label,
+    source: "vaastav/Fantasy-Premier-League — merged_gw.csv + players_raw.csv (code)",
+    note: "Lyklad a FPL `code` (fast yfir timabil). ADEINS samlagningarhaefar "
+        + "tolur — verd, eignarhald og FPL-saeti eru arstidartolur og eru EKKI her. "
+        + "Tvofold umferd er logd saman i somu umferd. Desimalar heiltolu-kvardadir, "
+        + "sja `scale`.",
+    stats: SLIM_STATS, scale: SLIM_SCALE,
+    /* `_seen` er afmorkunar-hjalp og a ekki i skrana. */
+    players: Object.fromEntries(Object.entries(slim)
+      .map(([c, e]) => [c, { t: e.t, p: e.p, gw: e.gw }])),
+  }));
+}
 console.log(report.join("\n"));
 const total = Object.values(out).reduce((a, r) => a + r.length, 0);
 console.log(`\nSkrifað data/fpl_player_gw.json — ${total} raðir, ${Object.keys(out).length} tímabil`);

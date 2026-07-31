@@ -98,6 +98,23 @@ team_h, team_a, team_h_score, team_a_score, team_h_difficulty, team_a_difficulty
 Óskert FPL-svar. **`explain`-blokkin er geymd ÓSKERT** — hún er eina óyggjandi
 heimildin um hvaða stig voru veitt og hvers vegna.
 
+### `lineups.json` — STAÐFEST byrjunarlið (API-Sports)
+`{ updated, gws, calls, teams:[{fpl_team, gw, formation, fixture}],
+players:[{fpl_id, fpl_team, gw, fixture, started, pos, name_api}],
+unmatched, errors, probe, note }`
+
+`started: true` = í **startXI**, `false` = á bekk. Þetta er **staðfesting**,
+ekki spá — FPL-status ræður áfram tiltækileika.
+
+**Tómt utan leikdags-glugga** (leikur innan 2 klst eða nýbyrjaður). Þá er
+`probe` skrifað í staðinn: eitt könnunar-kall sem svarar því hvort fría þrepið
+LEYFI endapunktinn (`probe.gated`). Sú heimild var **óstaðfest þegar þetta var
+skrifað** — hvorki notandi né Claude nær í `API_SPORTS_KEY` (aðeins í GitHub
+Secrets), svo svarið kemur úr fyrstu Actions-keyrslu.
+
+Skrifað úr **`--fast`** (30 mín) og EKKI úr daglegu keyrslunni: liðin birtast
+40–60 mín fyrir leik og daglega keyrslan er kl. 05 UTC.
+
 ### `player_form.json` — per-umferðar mínútusaga, LEIDD (engin ný köll)
 `{ updated, gws_used, players: { <id>: { gws, mins5, mins_trend, ppg5,
 start_rate5 } }, note }`
