@@ -101,7 +101,7 @@ export const EN = {
   "Tengja": "Connect",
   /* Flipar */
   "⚽ Skipulag": "⚽ Planner",
-  "👥 Leikmenn": "👥 Player stats",
+  "👥 Leikmannatölur": "👥 Player stats",
   "📊 Umferðin": "📊 Gameweek",
   "🏆 Stigatafla": "🏆 Leaderboard",
   "⚽️ Föst leikatriði": "⚽️ Set pieces",

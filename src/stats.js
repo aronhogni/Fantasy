@@ -903,7 +903,31 @@ export function matchImminent(p, idx, teamShort) {
   return (best && bs >= 1 && bs > second) ? best : null;
 }
 
-/* AO er BERT creativity/90 — samsetning fell ut af urtaki (sja hausinn). */
+/* ============================================================
+   AO ER BERT creativity/90 — OG THAD STENDUR (akvedid 31.7.2026)
+
+   Samsetning med xA fell ut af urtaki 28.7. (2,179 a moti 2,206, tapadi i
+   0/3 timabilum, xA-vogin valdist ALLTAF 0).
+
+   ENDURSKODAD 31.7.: profad hvort AO aetti ad vera HRA creativity-SUMMA
+   gluggans i stad creativity/90. Punktmat OG bootstrap studdu thad:
+     assist naestu 4:  summa 2,421  a moti  /90 2,297   CI [0,027 0,246] P=99%
+     stig naestu 4:    summa 1,294  a moti  /90 1,225   CI [0,047 0,100] P=100%
+   EN THAD VAR EKKI TEKID UPP, og astaedan er malid sjalft: innan
+   MINUTU-THRIDJUNGA hrynur abatinn i +0,105 / +0,013 / +0,003. Med fastar
+   minutur er summa = hlutfall x fasti, svo rodunin er nanast sama. Abatinn
+   kemur thvi ur SAMANBURDI THVERT A MINUTUHOPA — thad er ad hygla theim sem
+   spila meira, ekki "magn slaer hlutfall".
+
+   THAD ER MERKINGAR-AKVORDUN, EKKI TAEKNILEG: AO svarar "hver leggur upp
+   faeri an ad fa assist" og /90 er RETTA formid a theirri spurningu.
+   "Hver spilar mest OG leggur upp faeri" er onnur spurning, og minutur eru
+   thegar syndar i eigin dalki og i byrjunar-likunum (6h). Ad blanda theim
+   inn i AO gerdi visinn tvitradann.
+
+   xA er hins vegar KOMID INN i MO (sja hausinn) thvi thar var inntakid
+   raunverulega rangt: markmidid er mork + ASSIST.
+   ============================================================ */
 export function aoScore(w) {
   if (!w) return null;
   const mins = num(w.minutes) ?? 0;

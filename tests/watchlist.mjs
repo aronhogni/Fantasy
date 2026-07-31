@@ -61,13 +61,19 @@ const fire = async el => {
 /* NAKVAEM leit, ekki `includes`: efst i skelinni er LEITAR-hnappur sem
    heitir lika "Leikmenn" (🔍) og `includes` valdi HANN — flipinn opnadist
    aldrei og profid mældi tomt vidmot. */
+/* MATCH A 👥-FORSKEYTINU, ekki a fullu heiti. Nakvaem leit var sett hér
+   thvi LEITAR-hnappurinn het lika "Leikmenn" og `includes` valdi HANN.
+   Sa arekstur er farinn (hnappurinn heitir nu "Leita"), og nakvaema leitin
+   brotnadi um leid og flipinn var endurnefndur i "Leikmannatolur" — profid
+   a ad prófa HEGDUN, ekki ordalag.                                       */
 const byExact = t => [...document.querySelectorAll("button")].find(x=>x.textContent.trim()===t);
+const byTab = emoji => [...document.querySelectorAll("button")].find(x=>x.textContent.trim().startsWith(emoji));
 const stars = () => [...document.querySelectorAll("button")].filter(x=>x.textContent==="★"||x.textContent==="☆");
 const rowStars = () => stars().filter(x=>x.getAttribute("aria-label"));
 const headStar = () => stars().find(x=>!x.getAttribute("aria-label"));
 const stored = () => JSON.parse(localStorage.getItem("fpl_planner_v3")||"{}").watch;
 
-await fire(byExact("👥 Leikmenn"));
+await fire(byTab("👥"));
 
 console.log("\nVAKTLISTI");
 ok("stjarna a hverri rod", rowStars().length > 10, `fann ${rowStars().length}`);

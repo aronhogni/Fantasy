@@ -79,8 +79,14 @@ const fire = async el => {
   await act(async()=>{ el.dispatchEvent(new dom.window.MouseEvent("click",{bubbles:true})); });
   await act(async()=>{ await new Promise(r=>setTimeout(r,120)); });
 };
-const btn = t => [...document.querySelectorAll("button")].find(x=>x.textContent.trim()===t);
-await fire(btn("👥 Leikmenn"));
+/* MATCH A FORSKEYTI, ekki nakvaemu heiti: flipinn var endurnefndur ur
+   "👥 Leikmenn" i "👥 Leikmannatolur" og nakvaema leitin brotnadi.
+   Profid a ad prófa HEGDUN, ekki ordalag. Forskeytid er ohaett thvi
+   LEITAR-hnappurinn heitir nu "Leita" (areksturinn sem kalladi a nakvaema
+   leit er farinn).                                                       */
+const btn = t => [...document.querySelectorAll("button")]
+  .find(x => x.textContent.trim() === t || x.textContent.trim().startsWith(t));
+await fire(btn("👥"));
 const add = [...document.querySelectorAll("button")].filter(b=>(b.title||"").includes("Bæta í samanburð"));
 ok(`samanburdar-hnappar i listanum (${add.length})`, add.length >= 2);
 await fire(add[0]); 

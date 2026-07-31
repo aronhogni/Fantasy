@@ -1225,6 +1225,88 @@ opnast hvert eru vanaspurning í filter-viðmóti.
 
 ---
 
+## 6k. LOKAHNYKKUR 31.7.2026 — P7.4 MÆLT OG HAFNAÐ, aó STENDUR
+
+> **Þetta er á grein `lokahnykkur`, EKKI á `main`** (notandinn bað um að ekki
+> yrði ýtt). Sjá „Hvernig þetta kemst í main" neðst.
+
+### P7.4 (bikar/Evrópa) — MÆLT OG **EKKI BYGGT**
+Handoff №1 leggur til að feitletra leikmenn sem byrjuðu í Evrópu/bikar, því
+þeir séu ólíklegri í næsta EPL-start. **Áður en það var byggt var það mælt** —
+að birta ómælt merki er það sem kafli 3 forðast.
+
+Heimildin **er** til: `olbauday/FPL-Core-Insights` →
+`data/2025-2026/By Tournament/{Champions,Europa,Conference} League + EFL Cup/GW{n}/`
+með `lineups.csv` (`is_starting`) og `fixtures.csv` (`gameweek` = FPL-umferðin).
+`player_id` og `team_code` eru **tóm**, svo liðið er leitt út úr `match_id` og
+pörun er nafna-skorun með liði.
+
+| | |
+|---|---|
+| Evrópu-byrjanir | 2.154 tilvik · 941 pöruð (77%) · 188 leikmenn |
+| hrátt: byrjar EPL eftir Evrópu-start | **45,0%** á móti **46,4%** |
+| **innan leikmanns** | **−1,37pp · t = −0,82 · 95% CI [−4,67; +1,92]** |
+
+**Núll er innan CI ⇒ P7.4 verður ekki byggt.** Samhljóða hvíldar-mælingunni í
+6h (−0,3pp), en nú mælt á **réttu inntakinu**: Evrópuleikjunum sjálfum, ekki
+hvíld milli EPL-leikja. 6h gat ekki séð miðvikudagsleik í Evrópu — þetta gat
+það, og svarið er það sama.
+
+**Innan-leikmanns samanburður var skilyrði, ekki skraut:** hráar tölur mæla að
+Evrópulið eiga fastamenn, sem dregur í **gagnstæða** átt við tilgátuna.
+
+**Villa í minni eigin mælingu sem hefði gefið skekkt úrtak:** fyrsta útgáfan
+þáttaði `match_id` með ógráðugu regexi og fékk „league-arsenal" sem lið. Það
+felldi 131 af 181 lyklum — og þar með fóru byrjanir hjá **Arsenal, Chelsea og
+Man City út úr úrtakinu**. Mælingin hefði „virkað" og verið marklaus.
+Lagað með þekktum keppnis-forskeytum: 108/193 lið pöruð (hin eru erlend félög
+sem skipta ekki máli), pörun 73% → 77%, n 112 → 188.
+
+**Skriftan er `tests/euro-congestion.mjs` og er EKKI í `npm test`** — hún
+sækir ~65 skrár og GitHub-kvótinn (60/klst.) gaf **HTTP 403** við endurteknar
+keyrslur, svo safnið féll af ástæðu sem hafði ekkert með mælinguna að gera.
+Öll önnur söfn lesa committuð `data/`. Keyrsluskipun er í hausnum á skránni.
+
+### aó VERÐUR ÁFRAM `creativity/90` — ákveðið
+Mælt að hrá creativity-**summa** slær `/90`: assist 2,421 á móti 2,297
+(CI [0,027; 0,246], P=99%), stig 1,294 á móti 1,225 (CI [0,047; 0,100]).
+**Samt ekki tekið upp:** innan **mínútu-þriðjunga** hrynur ábatinn í
++0,105 / +0,013 / +0,003. Með fastar mínútur er summa = hlutfall × fasti, svo
+röðunin er nánast sú sama — ábatinn kemur úr **samanburði þvert á mínútuhópa**,
+þ.e. að hygla þeim sem spila meira.
+
+Það er **merkingar-ákvörðun, ekki tæknileg**: aó svarar „hver leggur upp færi
+án að fá assist" og `/90` er rétta formið á þeirri spurningu. Mínútur eru þegar
+sýndar í eigin dálki og í byrjunar-líkunum (6h); að blanda þeim inn í aó gerði
+vísinn tvíræðan. Skjalað í `stats.js` svo þetta sé ekki endurmælt.
+**xA fór hins vegar INN í mó** (6d) því þar var inntakið raunverulega rangt.
+
+### Flipinn heitir nú „Leikmannatölur" / „Player stats"
+Bæði tungumál samræmd. Tvö af mínum prófum **felldu** endurnefninguna því þau
+smelltu á flipann eftir **nákvæmu** heiti; þau nota nú `👥`-forskeytið. Nákvæma
+leitin var sett inn af því að 🔍-hnappurinn hét líka „Leikmenn" — sá árekstur
+er farinn (hann heitir „Leita"), svo forskeytið er óhætt. **Próf á að prófa
+hegðun, ekki orðalag.**
+
+### Það sem BÍÐUR TÍMABILSINS og er ekki hægt að klára núna
+| atriði | af hverju blokkað |
+|---|---|
+| API-Sports meiðsla-**tegund** | frí-þrepið sér aðeins ±1 dag; fyrsta raunprófun **20.–21. ágúst** |
+| `/fixtures/lineups` staðfest byrjunarlið | krefst `API_SPORTS_KEY` sem er **write-only** í GitHub Secrets — ég get ekki kallað |
+| „í ár vs. í fyrra"-taflan | kviknar fyrst þegar GW1 klárast |
+| `fdcouk_e0` 2026/27 | CSV verður til við fyrsta leik |
+
+### Hvernig þetta kemst í main
+```bash
+git worktree list                      # sjá /Users/arongeorgsson/Fantasy-lokahnykkur
+git merge lokahnykkur                  # úr Fantasy/ á main
+npm test && npm run build              # 29/29 græn, staðfest á greininni
+```
+Eða `git worktree remove --force ../Fantasy-lokahnykkur && git branch -D lokahnykkur`
+til að hafna öllu.
+
+---
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)

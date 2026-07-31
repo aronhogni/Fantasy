@@ -1,4 +1,10 @@
 node_modules/
+# `node_modules/` med skastriki naer EKKI yfir SYMLINK med sama nafni.
+# Worktree-uppsetning notar symlink i sameiginlega node_modules og hann sast
+# thvi sem ORAKID — eitt `git add -A` hefdi committad hann.
+# ATH: .gitignore notar `#`, EKKI `/* */` — `/*` er MYNSTUR sem naer yfir allt
+# i rot. Fyrsta tilraun min setti C-athugasemd hér og thad var haettulegt.
+node_modules
 dist/
 .env
 .env.local

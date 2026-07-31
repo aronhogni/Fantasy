@@ -1773,7 +1773,7 @@ export default function App() {
           data/last_gw*.json og players.json — their hanga ekki a lidinu
           thinu og virka thott ekkert se tengt.                            */}
       <div style={S.viewTabs}>
-        {[["planner",tx("⚽ Skipulag")],["players",tx("👥 Leikmenn")],["gw",tx("📊 Umferðin")],["board",tx("🏆 Stigatafla")],["sp",tx("⚽️ Föst leikatriði")]].map(([k,l]) => (
+        {[["planner",tx("⚽ Skipulag")],["players",tx("👥 Leikmannatölur")],["gw",tx("📊 Umferðin")],["board",tx("🏆 Stigatafla")],["sp",tx("⚽️ Föst leikatriði")]].map(([k,l]) => (
           <button key={k} style={{ ...S.viewTab, ...(view === k ? S.viewTabOn : {}) }}
             onClick={() => setView(k)}>{l}</button>
         ))}
