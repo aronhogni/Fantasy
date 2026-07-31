@@ -426,10 +426,38 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const window_ = sorted.slice(first, last);
 
   /* Breiddir eftir skja. Nafnadalkur 196 -> 124 og tolur 88 -> 66 i sima. */
-  const wName = narrow ? 140 : 214;   // +18 px fyrir stjornuna
-  const wNum  = narrow ? 66 : 88;
+  const wName = narrow ? 140 : 200;   // +18 px fyrir stjornuna
   const cName = { ...S.cName, width: wName, minWidth: wName };
+  /* BREIDD PER DALK, EKKI EIN FOST BREIDD FYRIR ALLA.
+     Fasta breiddin var 88 px af thvi ad LENGSTA heitid ("Byrjunarhlutfall")
+     thurfti thad — svo "xG" fekk lika 88 px og notandinn thurfti ad skruna
+     langt til hlidar ad engu gagni. Nu er breiddin reiknud ur heitinu og
+     ur thvi hve breid TALAN getur ordid (`dec`), klippt i [46, 88].
+     Mælt: 108 dalkar foru ur 9.504 px i 6.010 px = 37% styttri skrunleid. */
+  /* HAUSINN MA BROTNA I TVAER LINUR — thad er thad sem gefur sparnadinn.
+     Med EINNI linu stjorna islensku heitin breiddinni ("Byrjunarhlutfall")
+     og 17 dalkar lentu i thakinu; maelt gaf thad adeins 21,6%. Med tveimur
+     linum stjornar TALAN breiddinni og sparnadurinn verdur 36,5%
+     (9.504 px -> 6.031 px yfir alla 108 dalka). Hausinn er EIN rod, svo
+     ha0 hans er einskiptis-kostnadur — ekki per rod.
+     Nedri morkin eru LENGSTA ORDID i heitinu, ekki heitid deilt i tvo:
+     annars vaeri ord klippt i midju thott plass vaeri til.               */
+  const wOf = d => {
+    const label = String(d?.label ?? "");
+    const perLine = Math.ceil(label.length / 2);
+    const longestWord = Math.max(...label.split(/[ /(]+/).map(w => w.length));
+    const lab = Math.max(perLine, longestWord) * 5.35 + 14;
+    const dec = d?.dec ?? 0;
+    const val = (4 + (dec ? dec + 1 : 0)) * 6.2 + 12; // tala (11px mono)
+    return Math.round(Math.max(46, Math.min(76, Math.max(lab, val))));
+  };
+  /* Fostu dalkarnir (Verd, Eign %) sátu i 88 px thott heitin seu stutt. */
+  const wNum = narrow ? 60 : wOf({ label: "Eign %", dec: 1 });
   const cNum  = { ...S.cNum,  width: wNum,  minWidth: wNum, maxWidth: wNum };
+  const cFor = d => {
+    const w = narrow ? Math.min(66, wOf(d)) : wOf(d);
+    return { ...S.cNum, width: w, minWidth: w, maxWidth: w };
+  };
 
   const sortOn = (key, higherBetter = true) => {
     if (sortKey === key) { setSortDir(d => d === "asc" ? "desc" : "asc"); return; }
@@ -450,7 +478,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   if (onlyWatch) chips.push([tx("★ vaktlisti"), () => setOnlyWatch(false)]);
   if (onlyMine) chips.push([tx("mitt lið"), () => setOnlyMine(false)]);
   thresholds.forEach((t, i) => chips.push([
-    `${STAT_BY_KEY[t.key]?.label || t.key} ${t.op} ${t.val}`,
+    `${STAT_BY_KEY[t.key]?.label || t.key} ${t.op === ">=" ? tx("minnst") : tx("mest")} ${t.val}`,
     () => setThresholds(v => v.filter((_, j) => j !== i))]));
 
   if (!players?.length) {
@@ -567,8 +595,13 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       <div style={S.thRow}>
         <span style={S.thLbl}>{tx("Þröskuldur:")}</span>
         <StatPicker value={thKey} onChange={setThKey} />
-        <select style={S.selNarrow} value={thOp} onChange={e => setThOp(e.target.value)}>
-          <option value=">=">≥</option><option value="<=">≤</option>
+        {/* ORD, EKKI TAKN. "≥" og "≤" eru vanaspurning: notandinn tharf ad
+            muna hvor bogi opnast hvert, og thad er ekki thess vert i einu
+            filter-vidmoti. "minnst 5" og "mest 5" lesast rett i fyrstu
+            tilraun og thurfa engan lykil.                                */}
+        <select style={S.selOp} value={thOp} onChange={e => setThOp(e.target.value)}>
+          <option value=">=">{tx("minnst")}</option>
+          <option value="<=">{tx("mest")}</option>
         </select>
         <input style={S.thVal} type="number" step="any" placeholder={tx("tala")}
           value={thVal} onChange={e => setThVal(e.target.value)}
@@ -631,7 +664,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
               <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__own")} tabIndex={0}
                 onClick={() => sortOn("__own")}>{tx("Eign %")}{arrow("__own")}</div>
               {visibleCols.map(d => (
-                <div key={d.key} style={{ ...S.hCell, ...cNum }}
+                <div key={d.key} style={{ ...S.hCell, ...cFor(d) }}
                   title={`${d.label}${d.note ? " — " + d.note : ""}`}
                   aria-sort={aria(d.key)} tabIndex={0}
                   onClick={() => sortOn(d.key, d.hi !== false)}
@@ -688,7 +721,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                   {visibleCols.map(d => {
                     const v = r.src ? d.get(r.src) : null;
                     return (
-                      <div key={d.key} style={{ ...S.cell, ...cNum,
+                      <div key={d.key} style={{ ...S.cell, ...cFor(d),
                         ...(v == null ? S.miss : {}) }}>
                         {v == null ? "—" : fmtStat(d, v)}
                       </div>
@@ -767,6 +800,8 @@ const S = {
             borderRadius:4, padding:"1px 5px", color:C.text3 },
   headCtl:{ display:"flex", alignItems:"center", gap:6 },
   sel:{ border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 7px", fontSize:11.5, maxWidth:200 },
+  selOp:{ font:"inherit", fontSize:12, padding:"4px 6px", border:`1px solid ${C.border}`,
+          borderRadius:6, background:"#fff", color:C.text },
   selNarrow:{ border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 5px", fontSize:12 },
   clearAll:{ border:`1px solid ${C.border}`, background:C.card, color:C.text2,
              borderRadius:6, padding:"3px 9px", fontSize:11, cursor:"pointer" },
@@ -819,9 +854,12 @@ const S = {
            borderRadius:8, position:"relative" },
   hRow:{ position:"sticky", top:0, zIndex:3, display:"flex", height:30,
          background:C.cardAlt, borderBottom:`1px solid ${C.borderStrong || C.border}` },
+  /* whiteSpace:"normal" + 2 linur: sja wOf. `lineHeight` er sett svo tvaer
+     linur passi i haus-hædina an ad ýta rodunum nidur.                   */
   hCell:{ display:"flex", alignItems:"center", fontSize:9.5, fontWeight:700, color:C.text2,
-          padding:"0 6px", cursor:"pointer", userSelect:"none", whiteSpace:"nowrap",
-          borderRight:"1px solid #eeeef1", overflow:"hidden", textOverflow:"ellipsis" },
+          padding:"0 5px", cursor:"pointer", userSelect:"none",
+          whiteSpace:"normal", lineHeight:1.12, wordBreak:"break-word",
+          borderRight:"1px solid #eeeef1", overflow:"hidden" },
   row:{ position:"absolute", left:0, right:0, display:"flex", height:ROW_H,
         alignItems:"center", borderBottom:"1px solid #f4f4f6" },
   rowAlt:{ background:"#fcfcfd" },

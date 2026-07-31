@@ -458,16 +458,53 @@ export const normName = s => str(s)
   .normalize("NFD").replace(/[̀-ͯ]/g, "")
   .replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
 
-const nameTokens = s => normName(s).split(" ").filter(t => t.length >= 2);
+/* ---- MINNI A TAKNUN (memo) ----
+   `nameScore` er kollud ~25.000 sinnum i hverri "cook"-umferd i
+   leikmannalistanum (564 leikmenn x ~25 ESPN-skyttur x tvo nafnaform), en
+   OLIKU strengirnir eru adeins ~1.500. `normName` gerir NFD-normalization
+   OG fjorar regex-yfirferdir, svo SAMI strengurinn var normalizeradur
+   tugthusundum sinnum.
+
+   MAELT a raungognum (564 leikmenn, 206 ESPN-skyttur), median af 7:
+     nafna-porun i cook:  60,1 ms  ->  8,6 ms  med minninu
+                                   ->  4,7 ms  eftir ad Set-in foru ur
+                                                nameScore (12,8x samanlagt)
+   Skjalfest vidmid i CLAUDE.md kafla 6i er 8 ms fyrir alla cook-umferdina;
+   hun var komin i 66,8 ms thegar dalkar fyrir ESPN-ogn og byrjunar-likur
+   komu inn, thvi BADAR nafna-poranirnar keyra per leikmann.
+
+   ThETTA GETUR EKKI BREYTT NIDURSTODU: nameTokens er hreint fall af
+   strengnum. Vordur i tests/stats.test.mjs sannreynir ad fingerfar
+   porunarinnar (hver leikmadur -> hvada skytta) se ORDRETT eins og an
+   minnisins, og ad minnid skili SOMU toknum vid endurtekid kall.        */
+const TOKEN_MEMO = new Map();
+export const nameTokens = s => {
+  const k = str(s);
+  const hit = TOKEN_MEMO.get(k);
+  if (hit !== undefined) return hit;
+  const v = normName(k).split(" ").filter(t => t.length >= 2);
+  /* Thak: nofn eru fa, en ef einhver kallar nameScore a NOTANDA-INNSLATT
+     (leitarreit) gaeti minnid vaxid ohindrad. 4.000 er ~3x fjoldi nafna. */
+  if (TOKEN_MEMO.size > 4000) TOKEN_MEMO.clear();
+  TOKEN_MEMO.set(k, v);
+  return v;
+};
 
 /* Skor = fjoldi sameiginlegra orda, +0,5 ef SIDASTA ordid er sameiginlegt
    (eftirnafn a ad vega thyngra en fornafn).                               */
 export function nameScore(a, b) {
   const ta = nameTokens(a), tb = nameTokens(b);
   if (!ta.length || !tb.length) return 0;
-  const setB = new Set(tb);
+  /* EKKERT Set: nofn hafa 2-4 tokn og tvaer Set-uthlutanir per kall voru
+     staersti kostnadurinn sem eftir stod (25.000 koll per cook-umferd).
+     `ta.indexOf(t) !== i` gerir NAKVAEMLEGA thad sem `new Set(ta)` gerdi:
+     telur hvert EINKVAEMT tak einu sinni. Sama skor, engin uthlutun.     */
   let shared = 0;
-  for (const t of new Set(ta)) if (setB.has(t)) shared++;
+  for (let i = 0; i < ta.length; i++) {
+    const t = ta[i];
+    if (ta.indexOf(t) !== i) continue;
+    if (tb.indexOf(t) !== -1) shared++;
+  }
   if (!shared) return 0;
   return shared + (ta[ta.length - 1] === tb[tb.length - 1] ? 0.5 : 0);
 }

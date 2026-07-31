@@ -155,6 +155,32 @@ for (const file of ["fetch.yml", "fetch-fast.yml"]) {
   }
 }
 
+/* ---------- LYKLAR SEM WORKFLOWIN VERDA AD GEFA ----------
+   fetch-fast.yml hafdi ENGAN env-blokk og thad gerdi fetchLineups (stadfest
+   byrjunarlid) ad daudum koda: FLAGS.apisports var false, svo fallid var
+   sleppt thegjandi — prof graen, status graenn, aldrei eitt byrjunarlid.
+   Fannst 31.7. med thvi ad RAESA workflowid og sja ad rannsakandi kallid
+   kom aldrei i logid. Vordur: lineups eru sott i HRADA keyrslunni, svo
+   lykillinn VERDUR ad vera thar.                                        */
+console.log(`\n${"─".repeat(84)}`);
+console.log("LYKLAR I WORKFLOWUM");
+console.log("─".repeat(84));
+{
+  const fast = readFileSync(new URL("../.github/workflows/fetch-fast.yml", import.meta.url), "utf8");
+  const daily = readFileSync(new URL("../.github/workflows/fetch.yml", import.meta.url), "utf8");
+  const fetchSrc = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url), "utf8");
+  const inFast = fetchSrc.slice(fetchSrc.indexOf("async function fetchFast("));
+  const fastBody = inFast.slice(0, inFast.indexOf("\n}\n"));
+  const fastNeedsApiSports = /fetchLineups\(\)/.test(fastBody);
+  ok(fastNeedsApiSports,
+    "fetchFast kallar a fetchLineups (annars er thessi vordur ekki timabaer)");
+  if (fastNeedsApiSports)
+    ok(/API_SPORTS_KEY:\s*\$\{\{\s*secrets\.API_SPORTS_KEY/.test(fast),
+      "fetch-fast.yml GEFUR API_SPORTS_KEY — annars er fetchLineups daudur kodi");
+  ok(/API_SPORTS_KEY:\s*\$\{\{\s*secrets\.API_SPORTS_KEY/.test(daily),
+    "fetch.yml gefur API_SPORTS_KEY (meidsla-tegund)");
+}
+
 /* ---------- Actions-útgáfur ---------- */
 console.log(`\n${"─".repeat(84)}`);
 console.log("ACTIONS-ÚTGÁFUR");

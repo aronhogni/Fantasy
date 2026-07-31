@@ -26,6 +26,14 @@ jobs:
           node-version: "20"
 
       - name: Sækja fljótandi gögn
+        # API_SPORTS_KEY VANTADI HER og thad gerdi stadfest byrjunarlid
+        # (fetchLineups) ad DAUDUM KODA: FLAGS.apisports var false i hradu
+        # keyrslunni, svo fallid var sleppt thegjandi. Fannst 31.7. med thvi
+        # ad RAESA workflowid og sja ad rannsakandi kallid kom aldrei i logid.
+        # Lineups tilheyra HRADA keyrslunni (lidin birtast 40-60 min fyrir
+        # leik) svo lykillinn verdur ad vera hér, ekki bara i fetch.yml.
+        env:
+          API_SPORTS_KEY: ${{ secrets.API_SPORTS_KEY }}
         run: node scripts/fetch.mjs --fast
 
       - name: Committa ef eitthvað breyttist
