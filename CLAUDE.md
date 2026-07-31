@@ -1145,6 +1145,70 @@ Leitað er í **þrennu**: dálksheiti, flokksheiti OG `key`. Lykla-leitin var
 nauðsynleg því lyklarnir eru á **ensku** og það er það sem FPL-fólk slær inn:
 „threat" gaf **enga** niðurstöðu áður, því íslenska heitið er „Ógn".
 
+### UMFERÐAR-BIL Í LISTANUM (31.7.) — „bara GW 30–38"
+38 kassar undir tímabils-valinu. Smellur setur upphaf, næsti endann; smellur
+**fyrir** upphafið snýr bilinu við (annars virkaði valarinn „bara til hægri").
+
+`sumGwRange` í `stats.js` skilar röð með **FPL-sviðaheitum**
+(`total_points`, `expected_goals`…). Það er ásett: `STAT_DEFS` lesa FPL-heiti,
+svo allir dálkar — líka afleiddu — virka **óbreyttir** á bilinu. Ný heiti hefðu
+kallað á annað dálkasett og þá væru **tvær dálkaskrár** (sjá 6i).
+
+Staðfest: Haaland 1–38 = **239 stig / 2.953 mín / 25,5 xG**, nákvæmlega
+árstíðartalan. GW30–38 = **44 stig / 630 mín**, ppg 7,3.
+`points_per_game` deilir með **leikjum sem hann spilaði**, ekki fjölda umferða —
+annars fengi meiddur maður ranglega lágt meðaltal.
+
+Skrárnar (`player_gw_{season}.json`, 1,2–1,5 MB) eru **letihlaðnar** og bilið
+**nullstillist við tímabils-skipti**.
+
+**BLINDIR DÁLKAR ERU LEIDDIR ÚT, EKKI HANDSKRIFAÐIR** (`gwBlindKeys`).
+Fyrsta útgáfan var handskrifaður lyklalisti og **13 af 22 lyklum voru rangir** —
+ég giskaði á heitin, svo merkingin birtist hvergi. Nú er hver dálkur kallaður á
+tveimur röðum sem eru eins nema summanlegu sviðin hafa ólík gildi; dálkur sem
+skilar sömu tölu les ekki summurnar.
+Tvær villur í prófuninni **sjálfri** fundust þannig: margfaldarar `10 + (i % 7)`
+**kollíderuðu** (svo „Mörk − xG" og „nýting" töldust ranglega blindir), og
+prófgildin voru **undir þröskuldum** („bónus/BPS" krefst BPS ≥ 50).
+Niðurstaða: **21 blindir · 62 fylgja bilinu**, merkt `∑` á dálkinum sjálfum.
+
+### FÖST LEIKATRIÐI — EINN RAMMI PER LIÐ (31.7.)
+Þrír undirflipar urðu **eitt spjald per lið** með ikonum; aðeins fyrsti taki.
+
+**MÆLING SEM BREYTTI HÖNNUNINNI — HORN NÁ ALDREI 1:**
+
+| svið | röðunar-svið | talan 1 |
+|---|---|---|
+| `penalties_order` | 1–5 | 20/20 lið |
+| `direct_freekicks_order` | 1–5 | 20/20 lið |
+| `corners_and_indirect_freekicks_order` | **4–10** | **0/20 lið** |
+
+FPL notar annan grunn fyrir horn (Arsenal: Rice=5, Saka=6, Madueke=7). Tvær
+**þöglar** villur: „aðeins fyrsti taki" (`order===1`) sýndi **ekkert** fyrir
+horn, og `setPieceBadges` með `order <= 3` þýddi að **hornatakar fengu aldrei
+ikon**. Talan VAR til — hún var bara aldrei ≤ 3.
+„Fyrsti taki" er nú **lægsta röðun innan liðsins** (`setPieceRanks`): horn fóru
+**0/20 → 20/20**, ARS ⌾ = Rice. Vörður: `tests/set-pieces.mjs`.
+
+### DÁLKABREIDD OG RÖÐUN UNDIR HEITUM (31.7.)
+108 dálkar höfðu allir 88 px af því að **lengsta** heitið þurfti það.
+Breiddin er nú reiknuð per dálk, klippt í [46, 76].
+
+| útgáfa | skrunleið | sparnaður |
+|---|---|---|
+| 88 px allir | 9.504 px | — |
+| ein lína í haus, þak 88 | 7.451 px | 21,6% |
+| **tvær línur, þak 76** | **6.031 px** | **36,5%** |
+
+Með einni línu stjórna **íslensku heitin** breiddinni og 17 dálkar lentu í
+þakinu; með tveimur stjórnar **talan**. Hausinn er ein röð, svo hæð hans er
+einskiptis-kostnaður.
+**`boxSizing:"border-box"` Á BÁÐUM** — án þess var haus 2 px smærri en hólf og
+skekkjan **hlóðst upp** (dálkur 9 var 16 px af, svo heitið sat ekki yfir sínum
+dálki). Mælt eftir: skekkja **0 px**.
+`≥`/`≤` urðu **„minnst"/„mest"** — tákn sem krefjast þess að muna hvor bogi
+opnast hvert eru vanaspurning í filter-viðmóti.
+
 ### VARÚÐ FYRIR NÆSTU LOTU — TVÆR LOTUR Á EINU VINNUTRÉ
 Þessi vinna varð fyrir raunverulegum skaða af samhliða vinnu, þrisvar:
 1. **Hunkur horfinn:** skrif hinnar lotunnar í `App.jsx` yfirskrifuðu
