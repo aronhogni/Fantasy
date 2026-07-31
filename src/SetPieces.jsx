@@ -35,36 +35,90 @@ export const SP_KINDS = [
   { key:"ck",  field:"corners_and_indirect_freekicks_order",  icon:"⌾", get label() { return tx("Horn"); },        short:"C" },
 ];
 
-/* Ikon-rod fyrir eitt spjald. Skilar null ef leikmadurinn tekur ekkert. */
-export function setPieceBadges(p, { max = 3 } = {}) {
-  const out = [];
+/* ============================================================
+   ROD INNAN LIDS — "FYRSTI TAKI" ER LAEGSTA RODUN LIDSINS, EKKI order===1
+
+   MAELT 31.7.2026 a raungognum (data/players.json, 20 lid):
+     penalties_order                        1-5   (1 hja 20/20 lidum)
+     direct_freekicks_order                 1-5   (1 hja 20/20 lidum)
+     corners_and_indirect_freekicks_order   4-10  (1 hja  0/20 lidum!)
+   FPL notar ANNAN GRUNN fyrir horn. Daemi (Arsenal): Rice=5, Saka=6,
+   Madueke=7, Odegaard=8 — Rice ER hornataki lidsins thott talan se 5.
+
+   TVAER LIFANDI VILLUR SEM THETTA LEIDRETTIR:
+     1. "adeins fyrsti taki" (order === 1) syndi EKKERT fyrir horn.
+     2. setPieceBadges notadi `order <= 3`, svo HORNATAKAR FENGU ALDREI
+        IKON a leikmannaspjaldi — Saka bar ekkert hornamerki.
+   Bædi voru thogul: talan var til, hun var bara aldrei <= 3.
+
+   Lausnin er ROD INNAN LIDS: rank 1 = sa sem tekur thau, hvad sem
+   FPL-talan er. Thad er rett fyrir ALLAR THRJAR tegundir (fyrir viti og
+   aukaspyrnur er laegsta talan 1 hvort sem er) og tholir ad FPL breyti
+   grunninum.
+   ============================================================ */
+export function setPieceRanks(players) {
+  const byId = new Map();
   for (const k of SP_KINDS) {
-    const o = p?.[k.field];
-    if (o != null && o <= max) out.push({ ...k, order: o });
+    const byTeam = new Map();
+    for (const p of players || []) {
+      const o = p?.[k.field];
+      if (o == null) continue;
+      if (!byTeam.has(p.team)) byTeam.set(p.team, []);
+      byTeam.get(p.team).push({ p, order: o });
+    }
+    for (const list of byTeam.values()) {
+      list.sort((a, b) => a.order - b.order);
+      list.forEach((e, i) => {
+        if (!byId.has(e.p.id)) byId.set(e.p.id, []);
+        byId.get(e.p.id).push({ ...k, order: e.order, rank: i + 1 });
+      });
+    }
   }
+  return byId;
+}
+
+/* Ikon-rod fyrir eitt spjald. `ranks` ur setPieceRanks; an hennar er
+   ekkert birt — betra en ad birta rangt (sbr. hornin ofar).            */
+export function setPieceBadges(p, ranks, { maxRank = 2 } = {}) {
+  const list = ranks?.get?.(p?.id);
+  if (!list) return null;
+  const out = list.filter(b => b.rank <= maxRank);
   return out.length ? out : null;
 }
 
 export default function SetPieces({ players, teams, teamById, Crest, notes, onPickPlayer }) {
   const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
-  const [kind, setKind] = useState("pen");
-  const [onlyFirst, setOnlyFirst] = useState(false);
-  const def = SP_KINDS.find(k => k.key === kind);
 
-  const byTeam = useMemo(() => {
-    const m = {};
+  /* EITT SPJALD PER LID, ENGIR UNDIRFLIPAR (31.7.2026).
+     Adur voru thrir flipar (viti / aukaspyrnur / horn) og notandinn thurfti
+     ad fletta THRISVAR gegnum 20 lid til ad sja eitt lid. Spurningin sem
+     spjaldid svarar er "hver tekur hvad hja THESSU lidi", svo lidid er
+     rettur rammi og tegundin er IKON innan hans.
+     ADEINS FYRSTI TAKI: rodun 2-5 skiptir ekki mali fyrir fantasy-val og
+     hun tvofaldadi haedina a hverju spjaldi.                             */
+  const ranks = useMemo(() => setPieceRanks(players), [players, lang]);
+
+  const primary = useMemo(() => {
+    const m = {};                       // teamId -> { pen, fk, ck }
     for (const p of players || []) {
-      const o = p[def.field];
-      if (o == null) continue;
-      if (onlyFirst && o !== 1) continue;
-      (m[p.team] ||= []).push({ p, order: o });
+      for (const b of (ranks.get(p.id) || [])) {
+        if (b.rank !== 1) continue;
+        (m[p.team] ||= {})[b.key] = { p, order: b.order };
+      }
     }
-    Object.values(m).forEach(l => l.sort((a, b) => a.order - b.order));
     return m;
-  }, [players, def, onlyFirst, lang]);
+  }, [players, ranks, lang]);
 
-  const covered = Object.keys(byTeam).length;
+  /* Thekja per tegund — birt svo tomur reitur lesist sem "FPL hefur ekki
+     skrad", ekki sem "tolan er ekki til hja okkur".                      */
+  const cover = useMemo(() => {
+    const c = {};
+    for (const k of SP_KINDS) c[k.key] = Object.values(primary).filter(e => e[k.key]).length;
+    return c;
+  }, [primary, lang]);
+
   const sorted = (teams || []).slice().sort((a, b) => String(a.short).localeCompare(String(b.short)));
+  const nTeams = teams?.length ?? 0;
 
   return (
     <section style={S.card}>
@@ -72,34 +126,28 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
         <div>
           <h2 style={S.h2}>{tx("Föst leikatriði")}</h2>
           <div style={S.sub}>
-            {tx("Röðun úr FPL — hver tekur víti, aukaspyrnur og horn.")}
+            {tx("Fyrsti taki hjá hverju liði — úr FPL, uppfærist sjálfkrafa með daglegu gagnasækninni.")}
             {notes?.last_updated && tx(" Uppfært {0}.", [String(notes.last_updated).slice(0, 10)])}
           </div>
         </div>
-        <div style={S.tabs}>
+        <div style={S.keyRow}>
           {SP_KINDS.map(k => (
-            <button key={k.key} style={{ ...S.tabBtn, ...(kind === k.key ? S.tabOn : {}) }}
-              onClick={() => setKind(k.key)}>{k.icon} {k.label}</button>
+            <span key={k.key} style={S.keyItem} title={`${k.label} — ${cover[k.key] ?? 0}/${nTeams} ${tx("lið")}`}>
+              <span style={S.keyIcon}>{k.icon}</span>{k.label}
+              <span style={S.keyN}>{cover[k.key] ?? 0}/{nTeams}</span>
+            </span>
           ))}
         </div>
       </div>
 
       <div style={S.note}>
         <b>{tx("Fyrirliðar (armbandið) eru ekki hér.")}</b> {tx("Hvorki FPL-API-ið né ESPN-fæðið gefur hver ber fyrirliðabandið, svo við sýnum það ekki frekar en að giska. Það sem er")}
-        <i> {tx("mælt")}</i> {tx("— og skiptir mestu fyrir fantasy — er spyrnu-röðunin hér að neðan: víta­skytta nr. 1 er sterkasta einstaka fyrirliða-vísbendingin sem gögnin geyma.")}
-      </div>
-
-      <div style={S.filters}>
-        <label style={S.check}>
-          <input type="checkbox" checked={onlyFirst} onChange={e => setOnlyFirst(e.target.checked)} />
-          {tx("aðeins fyrsti taki")}
-        </label>
-        <span style={S.muted}>{covered} {tx("af")} {teams?.length ?? 0} {tx("liðum með skráða röðun")}</span>
+        <i> {tx("mælt")}</i> {tx("— og skiptir mestu fyrir fantasy — er spyrnu-röðunin: víta­skytta nr. 1 er sterkasta einstaka fyrirliða-vísbendingin sem gögnin geyma.")}
       </div>
 
       <div style={S.grid}>
         {sorted.map(t => {
-          const list = byTeam[t.id] || [];
+          const e = primary[t.id] || {};
           return (
             <div key={t.id} style={S.tCard}>
               <div style={S.tHead}>
@@ -107,29 +155,55 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
                 <b>{t.short}</b>
                 <span style={S.tName}>{t.name}</span>
               </div>
-              {!list.length ? (
-                <div style={S.empty}>{tx("Engin röðun skráð")}</div>
-              ) : list.map(({ p, order }) => (
-                <button key={p.id} style={S.row} onClick={() => onPickPlayer && onPickPlayer(p.id)}>
-                  <span style={{ ...S.ord, ...(order === 1 ? S.ordFirst : {}) }}>{order}</span>
-                  <span style={S.nm}>{p.web_name}</span>
-                  <span style={{ ...S.pos, color: POS_COLOR[p.element_type] }}>{POS[p.element_type]}</span>
-                  <span style={S.cost}>£{((p.now_cost ?? 0) / 10).toFixed(1)}</span>
-                </button>
-              ))}
+              {SP_KINDS.map(k => {
+                const hit = e[k.key];
+                return (
+                  <div key={k.key} style={S.line}>
+                    <span style={S.icon} title={k.label} aria-label={k.label}>{k.icon}</span>
+                    {!hit ? (
+                      <span style={S.none} title={tx("FPL hefur ekki skráð röðun fyrir þetta lið")}>—</span>
+                    ) : (
+                      <button style={S.pick} onClick={() => onPickPlayer && onPickPlayer(hit.p.id)}
+                        title={`${hit.p.web_name} — ${k.label}, ${tx("FPL-röðun")} ${hit.order}`}>
+                        <span style={S.nm}>{hit.p.web_name}</span>
+                        <span style={{ ...S.pos, color: POS_COLOR[hit.p.element_type] }}>
+                          {POS[hit.p.element_type]}
+                        </span>
+                        <span style={S.cost}>£{((hit.p.now_cost ?? 0) / 10).toFixed(1)}</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
       </div>
 
       <div style={S.legend}>
-        <b>1</b> {tx("= fyrsti taki. Röðunin er handskráð hjá FPL og getur verið úrelt snemma tímabils — sannreyndu gegn síðustu leikjum áður en þú byggir fyrirliða-val á henni.")}
+        {tx("Táknin:")} <b>⚽</b> {tx("víti")} · <b>◎</b> {tx("aukaspyrnur")} · <b>⌾</b> {tx("horn")}.
+        {" "}<b>{tx("„Fyrsti taki\" er lægsta FPL-röðun liðsins, ekki talan 1.")}</b>{" "}
+        {tx("Mælt á raungögnum: víti og aukaspyrnur eru númeruð 1–5, en horn")}
+        {" "}<b>{tx("4–10 og ná aldrei 1")}</b>{" "}
+        {tx("— FPL notar annan grunn þar. Eldri útgáfa krafðist talsins 1 og sýndi því aldrei hornataka.")}
+        {" "}{tx("Röðunin er handskráð hjá FPL og getur verið úrelt snemma tímabils — sannreyndu gegn síðustu leikjum áður en þú byggir fyrirliða-val á henni.")}
       </div>
     </section>
   );
 }
 
 const S = {
+  keyRow:{ display:"flex", gap:9, flexWrap:"wrap", alignItems:"center" },
+  keyItem:{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:C.text2 },
+  keyIcon:{ fontSize:13 },
+  keyN:{ fontFamily:mono, fontSize:10, color:C.text3 },
+  line:{ display:"flex", alignItems:"center", gap:6, padding:"2px 0",
+         borderTop:`1px solid #f4f4f6` },
+  icon:{ fontSize:13, width:15, textAlign:"center", flexShrink:0, color:C.text2 },
+  pick:{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:6,
+         background:"transparent", border:"none", cursor:"pointer",
+         padding:"2px 0", textAlign:"left", font:"inherit" },
+  none:{ flex:1, fontSize:11, color:C.text3 },
   card:{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:14, marginBottom:12 },
   head:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap" },
   h2:{ margin:0, fontSize:16, fontWeight:700, color:C.purple },

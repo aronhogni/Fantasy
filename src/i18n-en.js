@@ -1186,6 +1186,9 @@ export const EN = {
   "Opna leikmannalistann — leit, síur og samanburður":
     "Open the player list — search, filters and comparison",
   "🔍 Leita": "🔍 Search",
+  /* Threskuldar-flisar i leikmannalistanum: ">= minnst 5" / "<= mest 5". */
+  "minnst": "min",
+  "mest": "max",
   "Líkur á 60+ mínútum — mælt líkan (Brier 0,089 á móti 0,118 fyrir „byrjaði síðast\"). Glugginn er SÍÐUSTU 5 LOKNU UMFERÐIR; fyrir tímabil eru það lok síðasta tímabils, þar sem hvíld og rótasjón eru miklar. Undir 50% = bekkjar-hætta.":
     "Chance of 60+ minutes — measured model (Brier 0.089 vs 0.118 for \"started last time\"). The window is the LAST 5 COMPLETED GAMEWEEKS; in preseason that means the end of last season, when rest and rotation are heavy. Below 50% = bench risk.",
   "mó": "GI",

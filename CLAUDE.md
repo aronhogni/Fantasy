@@ -352,7 +352,7 @@ mælanlega: r 0,293 -> **0,328**, og FFDR (0,406) nær nú markaðslínunni einn
 
 ## 4. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir **21 safn**, **630 staðfestingar** (auk 7
+`tests/run-tests.mjs` keyrir **28 söfn** (auk 7
 seiglu-atburðarása og 22 viðmóta sem telja ekki eins), öll græn (keyrt 3x).
 **Fjöldinn er reiknaður úr `SUITES`** — hann var harðkóðaður strengur
 ("fimmtan") sem staðnaði um leið og safni var bætt við.
@@ -371,6 +371,8 @@ Taflan hér að neðan er ekki tæmandi; hún nefnir þau sem bera ákvarðanir.
 | `workflow-push.mjs` | 37 | PUSH-KAPPHLAUPIÐ í pipeline. Dregur shell-blokkina ÚT ÚR `.github/workflows/*.yml` og keyrir hana á ALVÖRU git-hirslum með kapphlaupið þvingað fram. Sjá kafla 5b. |
 | `travel-measure.mjs` | 2 | Vörðurinn í kafla 3. |
 | `mo-candidates.mjs` | 9 | **mó gegn frambjóðendum á 4 tímabilum** (2223–2526). Mælir shipped `moScore` (ekki afrit af formúlunni) og heldur `xGI`-ábatanum með **bootstrap klösuðum per leikmann** — CI verður að útiloka núll. Sami vörður hafnaði því að sleppa óheppnis-liðnum. Sjá 6d. |
+| `name-match.mjs` | 14 | **NAFNA-PÖRUNIN — heitasti kóðinn í appinu.** Skorið borið við sjálfstæða viðmiðs-útfærslu á 9.464 raunverulegum pörum OG tilbúnum jaðartilfellum (tvítekin tökn — raungögn hafa þau ekki, svo þau nægja ekki). Tíma-þak 25 ms; hagræðingin mældist 60,1 -> 4,7 ms. Sjá 6i. |
+| `i18n-dom.mjs` | 18 | **TUNGUMÁL LESIÐ AF SKJÁNUM.** Appið teiknað í jsdom á BÁÐUM málum og DOM-arnir bornir saman: lína sem er eins á báðum málum er annaðhvort viljandi eins eða óþýdd. Nær það sem AST-prófið getur ekki séð — ASCII-íslensku („fellur") og íslenskan bút sprautaðan INN í þýddan streng. Sex stökkbreytingar prófaðar. |
 | `smoke.test.mjs` | 55 | Appið keyrt í **jsdom** með raunverulegum `data/`-skrám og hermdu `fetch`. 15 spjöld, peningar (banki+lið = £100.0), umferðaskipti, FPL-reglur, chips, andstæðingar, vistun, meiðsli, ferðalengd. |
 
 **`tests/lib/e0.mjs`** byggir spá-heiminn (liðsstyrkur, FDR-nálgun, markaðslína,
@@ -987,6 +989,41 @@ eru ónothæfir; þetta gefur sama kraft í einu chipi og virkar á **hvaða** a
 `cook` 564 raðir **1,6–2,2 ms** · sía **0,1 ms** · röðun **0,2 ms**.
 Viðmið var 8 ms. Sýndarvæðing með fastri raðahæð (34 px) + 12 overscan.
 **Engin ný dependency.**
+
+**ÞESSI TALA STAÐNAÐI OG VAR ORÐIN 30× OF LÁG — LAGAÐ 31.7.2026.**
+Talan að ofan var rétt þegar hún var mæld, en **áður en** dálkarnir fyrir
+ESPN-ógn (6f) og byrjunar-líkur (6h) komu inn. Þeir tveir bættu við
+**tveimur nafna-pörunum PER LEIKMANN** inni í `cook` (`findShot` og
+`findImm`), svo raunveruleg tala var **66,8 ms** — 8× yfir viðmiðinu.
+Það sást í dev-console allan tímann og enginn las það.
+
+Orsökin var ekki pörunin sjálf heldur **endurtekin normalísering**:
+`nameScore` er kölluð ~25.000 sinnum per `cook` (564 leikmenn × ~25
+ESPN-skyttur × tvö nafnaform) en ólíku strengirnir eru aðeins ~1.500.
+`normName` gerir NFD-normalization + fjórar regex-yfirferðir, svo **sami
+strengurinn var normalíseraður tugþúsundum sinna**, og `nameScore`
+úthlutaði tveimur `Set`-um í hverju kalli.
+
+Tvennt lagað í `src/stats.js`, **hvorugt breytir niðurstöðu** (bæði eru
+hrein umritun):
+
+| mæling | fyrir | eftir |
+|---|---|---|
+| Node, `findShot`+`findImm`, 564 leikmenn (median af 7) | 60,1 ms | **4,7 ms** (12,8×) |
+| Chrome, `findShot` einn | 19,6 ms | **1,1 ms** (17,8×) |
+| pörunin sjálf (hver leikmaður → hvaða skytta) | — | **564/564 EINS** |
+
+1. `nameTokens` fékk **minni** (memo, þak 4.000 strengir).
+2. `nameScore` **hætti að úthluta `Set`-um** — nöfn hafa 2–4 tökn, svo
+   `ta.indexOf(t) !== i` gerir sama de-dupe án úthlutunar.
+
+**Vörður: `tests/name-match.mjs`.** Hann ber skorið við **sjálfstæða
+viðmiðs-útfærslu** (skrifaða upp úr reglunni, ekki afrit af kóðanum) á
+9.464 raunverulegum nafnapörum, OG á tilbúnum jaðartilfellum — því
+**raunveruleg nöfn nægja ekki**: enginn knattspyrnumaður í gögnunum hefur
+tvítekið tak í nafni sínu, svo stökkbreyting sem fjarlægði de-dupe slapp
+þegar aðeins raungögn voru prófuð. Tíma-þak (25 ms) fellur ef hagræðingin
+er afturkölluð (mælt: 51,4 ms).
 
 ### SÍMI (prófað á 380 px, ekki á skjáborði)
 Frosni nafnadálkurinn var **196 px af 380** — meira en helmingur skjásins.
