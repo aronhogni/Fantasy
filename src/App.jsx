@@ -7,6 +7,8 @@ import Compare from "./Compare.jsx";
 import Rotation from "./Rotation.jsx";
 import PlayerList from "./PlayerList.jsx";
 import Leaderboard from "./Leaderboard.jsx";
+import { t as tx, setLang, LANGS } from "./i18n.js";
+import { useLang } from "./useLang.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
@@ -64,10 +66,10 @@ const KIT = {
 const POS_LABEL = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };   // universal, ekki islenskt
 /* FPL explain-lyklar -> íslensk heiti (stiga-uppskipting) */
 const EXPLAIN_IS = {
-  minutes:"Mínútur", goals_scored:"Mörk", assists:"Assist", clean_sheets:"Hreint blað",
-  goals_conceded:"Mörk á sig", own_goals:"Sjálfsmörk", penalties_saved:"Vítavörslur",
-  penalties_missed:"Klúðruð víti", yellow_cards:"Gult spjald", red_cards:"Rautt spjald",
-  saves:"Vörslur", bonus:"Bónus", bps:"BPS", defensive_contribution:"Varnarframlag",
+  get minutes() { return tx("Mínútur"); }, get goals_scored() { return tx("Mörk"); }, get assists() { return tx("Assist"); }, get clean_sheets() { return tx("Hreint blað"); },
+  get goals_conceded() { return tx("Mörk á sig"); }, get own_goals() { return tx("Sjálfsmörk"); }, get penalties_saved() { return tx("Vítavörslur"); },
+  get penalties_missed() { return tx("Klúðruð víti"); }, get yellow_cards() { return tx("Gult spjald"); }, get red_cards() { return tx("Rautt spjald"); },
+  get saves() { return tx("Vörslur"); }, get bonus() { return tx("Bónus"); }, bps:"BPS", get defensive_contribution() { return tx("Varnarframlag"); },
 };
 const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
@@ -197,10 +199,10 @@ const INTL_BREAK_AFTER = [3, 7, 11, 15, 22, 27];
    FPL 2026/27: tvö sett — eitt fyrir GW1-19, annað fyrir GW20-38.
    Wildcard og Free Hit byrja í GW2 (skipti eru þegar ótakmörkuð í GW1).   */
 const CHIPS = {
-  wildcard: { label:"Wildcard",       short:"WC", color:"#d92d3c", icon:"♻",  desc:"Ótakmörkuð skipti, engin refsing" },
-  freehit:  { label:"Free Hit",       short:"FH", color:"#2563eb", icon:"⚡", desc:"Lið eina umferð, fer svo til baka" },
-  bboost:   { label:"Bench Boost",    short:"BB", color:"#00b96b", icon:"⬆",  desc:"Bekkurinn skorar líka (allir 15)" },
-  "3xc":    { label:"Triple Captain", short:"TC", color:"#c98a00", icon:"3×", desc:"Fyrirliði ×3 í stað ×2" },
+  wildcard: { label:"Wildcard",       short:"WC", color:"#d92d3c", icon:"♻",  get desc() { return tx("Ótakmörkuð skipti, engin refsing"); } },
+  freehit:  { label:"Free Hit",       short:"FH", color:"#2563eb", icon:"⚡", get desc() { return tx("Lið eina umferð, fer svo til baka"); } },
+  bboost:   { label:"Bench Boost",    short:"BB", color:"#00b96b", icon:"⬆",  get desc() { return tx("Bekkurinn skorar líka (allir 15)"); } },
+  "3xc":    { label:"Triple Captain", short:"TC", color:"#c98a00", icon:"3×", get desc() { return tx("Fyrirliði ×3 í stað ×2"); } },
 };
 
 /* ---- Byrjunarlið: raunveruleg FPL-ID (staðfest úr players.json) ---- */
@@ -240,22 +242,23 @@ const crestUrl = code => code ? `https://resources.premierleague.com/premierleag
 const fmtDate = iso => {
   if (!iso) return "—";
   const d = new Date(iso);
-  const days = ["sun","mán","þri","mið","fim","fös","lau"];
+  const days = [tx("sun"),tx("mán"),tx("þri"),tx("mið"),tx("fim"),tx("fös"),tx("lau")];
   return `${days[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 };
 const fmtClock = iso => {
   if (!iso) return "—";
   const d = new Date(iso), now = new Date();
   const mins = Math.round((now - d) / 60000);
-  if (mins < 2) return "núna";
-  if (mins < 60) return `f. ${mins} mín`;
+  if (mins < 2) return tx("núna");
+  if (mins < 60) return tx("f. {0} mín", [mins]);
   const h = Math.round(mins / 60);
-  return h < 24 ? `f. ${h} klst` : `${d.getDate()}.${d.getMonth()+1}.`;
+  return h < 24 ? tx("f. {0} klst", [h]) : `${d.getDate()}.${d.getMonth()+1}.`;
 };
 const fmtDeadline = iso => {
   if (!iso) return "—";
   const d = new Date(iso);
-  return `${d.getDate()}.${d.getMonth()+1}. kl. ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  return tx("{0}.{1}. kl. {2}:{3}", [d.getDate(), d.getMonth()+1,
+    String(d.getHours()).padStart(2,"0"), String(d.getMinutes()).padStart(2,"0")]);
 };
 /* ---- VISTUN ----
    ATH: window.storage er AÐEINS til í Claude-artifact-sandkassa. Á Netlify
@@ -313,13 +316,17 @@ async function loadState(key) {
    status: a=til leiks, d=vafi, i=meiddur, s=Í BANNI, u=ótiltækur, n=ekki í hóp
    Spjaldabann (Premier League): 5 gul (fyrir umf. 19) = 1 leikur,
    10 gul (fyrir umf. 32) = 2 leikir, 15 gul = 3 leikir.            */
+/* SOLID litir bættir vid 29.7.: pale bakgrunnur + dokkur texti i 8,5px
+   var nær OSYNILEGUR a vellinum — notandinn sa ekki ad Garner var meiddur.
+   `bg`/`color` halda ser fyrir LISTA og glugga (thar er hvitur grunnur og
+   fint merki rett), en SPJALDID a vellinum notar `solid` + hvitan texta.  */
 const AVAIL = {
-  a: { label:"Til leiks",    short:"",   color:null,      bg:null },
-  d: { label:"Vafi",         short:"?",  color:"#8a5f00", bg:"#fff6e0" },
-  i: { label:"Meiddur",      short:"✚",  color:"#a01f2b", bg:"#fdecee" },
-  s: { label:"Í banni",      short:"⛔", color:"#5b21b6", bg:"#f1e9ff" },
-  u: { label:"Ótiltækur",    short:"✕",  color:"#61616b", bg:"#eeeef1" },
-  n: { label:"Ekki í hóp",   short:"–",  color:"#61616b", bg:"#eeeef1" },
+  a: { get label() { return tx("Til leiks"); },    short:"",   color:null,      bg:null,      solid:null },
+  d: { get label() { return tx("Vafi"); },         short:"?",  color:"#8a5f00", bg:"#fff6e0", solid:"#e0a100" },
+  i: { get label() { return tx("Meiddur"); },      short:"✚",  color:"#a01f2b", bg:"#fdecee", solid:"#d92d3c" },
+  s: { get label() { return tx("Í banni"); },      short:"⛔", color:"#5b21b6", bg:"#f1e9ff", solid:"#6d28d9" },
+  u: { get label() { return tx("Ótiltækur"); },    short:"✕",  color:"#61616b", bg:"#eeeef1", solid:"#4b4b55" },
+  n: { get label() { return tx("Ekki í hóp"); },   short:"–",  color:"#61616b", bg:"#eeeef1", solid:"#4b4b55" },
 };
 function availOf(p) {
   const a = AVAIL[p?.status] || AVAIL.a;
@@ -392,7 +399,7 @@ function Logo() {
       {/* Merki appsins — currentColor erfir lit, --logo-accent stýrir boltanum */}
       <svg width="34" height="34" viewBox="0 0 64 64" role="img" aria-label="FantasyApp"
         style={{ color: C.purple, "--logo-accent": "#46d17f", flexShrink: 0 }}>
-        <title id="t">Merki reiknilíkans fyrir Fantasy-fótbolta</title>
+        <title id="t">{tx("Merki reiknilíkans fyrir Fantasy-fótbolta")}</title>
         <defs>
         <clipPath id="c"><circle cx="32" cy="32" r="26"/></clipPath>
         <clipPath id="b"><circle cx="55.0" cy="20.0" r="6.2"/></clipPath>
@@ -433,7 +440,32 @@ function Logo() {
   );
 }
 
+/* ---------- TUNGUMAL ----------
+   TVEIR HNAPPAR, EKKI EINN VIXLARI. Einn hnappur sem segir "EN" getur
+   thytt tvennt — "thu ert a ensku" eda "smelltu til ad fara a ensku" —
+   og notandinn getur ekki vitad hvort. Tveir hnappar med `aria-pressed`
+   syna STODUNA og valid samtimis, sem er lika thad sem skjalesarar lesa.
+
+   Heitin (IS / English) eru VILJANDI utan ordabokarinnar: tungumals-val a
+   alltaf ad standa a sinu EIGIN mali, annars getur sa sem lenti i ohappi
+   med rangt tungumal ekki fundid leidina til baka.                      */
+function LangToggle() {
+  const lang = useLang();
+  return (
+    <div style={S.langWrap} role="group" aria-label="Language / Tungumál">
+      {LANGS.map(([code, short, name]) => (
+        <button key={code} type="button"
+          style={{ ...S.langBtn, ...(lang === code ? S.langOn : {}) }}
+          aria-pressed={lang === code}
+          title={name}
+          onClick={() => setLang(code)}>{short}</button>
+      ))}
+    </div>
+  );
+}
+
 export default function App() {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   /* ---------- Gögn úr pipeline ---------- */
   const [players, setPlayers] = useState(null);
   const [teams, setTeams] = useState(null);
@@ -601,7 +633,7 @@ export default function App() {
     const m = {};
     (live?.fixtures || []).forEach(f => m[f.id] = f);
     return m;
-  }, [live]);
+  }, [live, lang]);
 
   /* ---------- Tölur leikmanna í valdri umferð ----------
      Loknar umferðir: data/live/gw{n}.json úr pipeline (frítt, engin function-köll).
@@ -704,7 +736,7 @@ export default function App() {
             const e = await (await fetch(`${PROXY_URL}?path=fpl-entry&id=${r.id}`)).json();
             name = e?.name || e?.player_first_name
               ? `${e.name ?? ""}${e.player_first_name ? ` (${e.player_first_name})` : ""}`.trim()
-              : `lið ${r.id}`;
+              : tx("lið {0}", [r.id]);
           }
           let picks = null, gwPts = null, totalPts = null, capId = null;
           try {
@@ -718,7 +750,7 @@ export default function App() {
           } catch {}
           if (alive) setRivalData(prev => ({ ...prev, [r.id]: { name, picks, capId, gwPts, totalPts } }));
         } catch {
-          if (alive) setRivalData(prev => ({ ...prev, [r.id]: { name: `lið ${r.id}`, error: true } }));
+          if (alive) setRivalData(prev => ({ ...prev, [r.id]: { name: tx("lið {0}", [r.id]), error: true } }));
         }
       }
     })();
@@ -727,10 +759,10 @@ export default function App() {
 
   function addRival() {
     const m = rivalInput.match(/entry\/(\d+)/) || rivalInput.match(/^(\d+)$/);
-    if (!m) { flash("Slóð eða númer andstæðings — t.d. 606 eða .../entry/606/"); return; }
+    if (!m) { flash(tx("Slóð eða númer andstæðings — t.d. 606 eða .../entry/606/")); return; }
     const id = m[1];
-    if (rivals.some(r => r.id === id)) { flash("Þegar á listanum."); return; }
-    if (String(id) === String(entryId)) { flash("Það ert þú sjálf/ur."); return; }
+    if (rivals.some(r => r.id === id)) { flash(tx("Þegar á listanum.")); return; }
+    if (String(id) === String(entryId)) { flash(tx("Það ert þú sjálf/ur.")); return; }
     setRivals(rs => [...rs, { id }]); setRivalInput("");
   }
 
@@ -760,7 +792,7 @@ export default function App() {
       };
     });
     return m;
-  }, [players, news]);
+  }, [players, news, lang]);
 
   /* ---------- Sjálfvirk kaupverðs-greining ----------
      Þegar liðið kemur úr FPL-slóðinni berum við það við það sem við sáum síðast.
@@ -788,7 +820,7 @@ export default function App() {
   }, [squadOverride, players, byId, plan]);
   const teamById = useMemo(() => {
     const m = {}; (teams || []).forEach(t => m[t.id] = t); return m;
-  }, [teams]);
+  }, [teams, lang]);
   const crestFor = t => crestUrl(t?.code ?? CREST_FALLBACK[t?.short]);
 
   const maxGw = events ? events.length : 38;
@@ -818,12 +850,12 @@ export default function App() {
       add(f.team_a, f.team_h, false, f.team_a_difficulty);
     });
     return m;
-  }, [fixtures]);
+  }, [fixtures, lang]);
 
   const fixturesOfGw = useMemo(() =>
     (fixtures || []).filter(f => f.event === gw)
       .sort((a,z) => (a.kickoff_time||"").localeCompare(z.kickoff_time||"")),
-    [fixtures, gw]);
+    [fixtures, gw, lang]);
 
   // Lið-mælikvarðar úr opinberum gögnum (sl. tímabil)
   const teamMetrics = useMemo(() => {
@@ -875,37 +907,37 @@ export default function App() {
         prevGoals, prevConc, prevSotFor, prevSotAg, mins: a.gkMins, src };
     });
     return m;
-  }, [players, teams, promoted, teamForm]);
+  }, [players, teams, promoted, teamForm, lang]);
 
   // ---- ClubElo styrkur per lið ----
   const eloByTeam = useMemo(() => {
     const m = {};
     (elo?.teams || []).forEach(t => m[t.fpl_id] = t);
     return m;
-  }, [elo]);
+  }, [elo, lang]);
 
   // ---- Veður per leik ----
   const weatherByFx = useMemo(() => {
     const m = {};
     (weather?.fixtures || []).forEach(w => m[w.fixture_id] = w);
     return m;
-  }, [weather]);
+  }, [weather, lang]);
   /* Ferðalengd útiliðsins (loftlína milli leikvanga, ≥300 km = langferð).
      VAR REIKNUÐ DAGLEGA í pipeline en birtist hvergi — nú á leikjaröðum. */
   const travelByFx = useMemo(() => {
     const m = {};
     (travel?.fixtures || []).forEach(t => m[t.fixture_id] = t);
     return m;
-  }, [travel]);
+  }, [travel, lang]);
   /* Meiðsla-TEGUNDIN úr API-Sports. FPL-status ræður áfram tiltækileika
      (a/d/i/s + %-líkur) — þetta svarar bara "HVAÐ er að honum?".        */
   const injuryById = useMemo(() => {
     const m = {};
     (injuries?.players || []).forEach(x => { if (!m[x.fpl_id]) m[x.fpl_id] = x; });
     return m;
-  }, [injuries]);
+  }, [injuries, lang]);
   const weatherReady = useMemo(() =>
-    (weather?.fixtures || []).some(w => w.temp_c != null), [weather]);
+    (weather?.fixtures || []).some(w => w.temp_c != null), [weather, lang]);
 
   // ---- ClubElo CS-líkindi per leik (ókeypis, úr úrslitalíkindum) ----
   const eloCsByFx = useMemo(() => {
@@ -915,7 +947,7 @@ export default function App() {
       if (f.away_fpl) m[`${f.away_fpl}|${f.date}`] = { cs: f.cs_away, xg: f.xg_away, win: f.p_away };
     });
     return m;
-  }, [eloFx]);
+  }, [eloFx, lang]);
 
   // ---- DefCon-tækifæri per lið ----
   // Úr pipeline ef til, annars reiknað hér úr sömu opinberu gögnum.
@@ -944,7 +976,7 @@ export default function App() {
       };
     });
     return m;
-  }, [defcon, players, fixtures, teams, teamMetrics, recRange]);
+  }, [defcon, players, fixtures, teams, teamMetrics, recRange, lang]);
 
   /* ---- SAMSETT LEIKJAÞYNGD ----
      MÆLT á 544 lið-leikjum (fyrra tímabil spáir næsta, ekkert leki):
@@ -960,7 +992,7 @@ export default function App() {
      NÁKVÆMLEGA sama kóða. Hér er það aðeins bundið við gögn appsins.    */
   const fixDifficulty = useMemo(
     () => makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }),
-    [teamMetrics, teamById, odds, eloByTeam]);
+    [teamMetrics, teamById, odds, eloByTeam, lang]);
 
   /* ---- AFSTÆTT FFDR ----
      VANDAMÁL sem mældist: eigin-styrkur vegur 0,55, svo bilið FÆRIST með
@@ -1017,13 +1049,13 @@ export default function App() {
         eloDiff: (myElo && opElo) ? (opElo - myElo) / 100 : 0,
         fdr: fx.fdr,
       });
-      if (Number.isFinite(p)) return { cs: clamp(Math.round(100 * p), 3, 70), src: "líkindi" };
+      if (Number.isFinite(p)) return { cs: clamp(Math.round(100 * p), 3, 70), src: tx("líkindi") };
     }
     /* Neyðarvara ef liðstölur vanta alveg (t.d. nýliði án grunnlínu). */
     const d2 = fixDifficulty(teamId, fx, 2) ?? fx.fdr;
     const raw = lookupPos(2, "cs", d2);
     if (!Number.isFinite(raw)) return { cs: null, src: null };
-    return { cs: clamp(Math.round(raw), 3, 70), src: "mælt" };
+    return { cs: clamp(Math.round(raw), 3, 70), src: tx("mælt") };
   }
   // Vænt mörk á sig
   function xgaFor(teamId, fx) {
@@ -1064,7 +1096,7 @@ export default function App() {
      (lyklarnir heita "freehit:START"), svo þetta þarf ekki chipSlots.   */
   const fhGws = useMemo(() => new Set(
     Object.entries(chips).filter(([k]) => k.startsWith("freehit")).map(([, g]) => g)
-  ), [chips]);
+  ), [chips, lang]);
 
   /* ---------- Lið í valdri umferð ---------- */
   const squadAt = useMemo(() => {
@@ -1083,11 +1115,11 @@ export default function App() {
       }
     });
     return sq;
-  }, [plan, gw, benchSwaps, squadOverride, fhGws]);
+  }, [plan, gw, benchSwaps, squadOverride, fhGws, lang]);
 
-  const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt]);
-  const officialIds = useMemo(() => new Set((squadOverride || START_SQUAD).map(s => s.id)), [squadOverride]);
-  const plannedIn = useMemo(() => new Set(plan.filter(t => t.gw <= gw).map(t => t.inId)), [plan, gw]);
+  const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt, lang]);
+  const officialIds = useMemo(() => new Set((squadOverride || START_SQUAD).map(s => s.id)), [squadOverride, lang]);
+  const plannedIn = useMemo(() => new Set(plan.filter(t => t.gw <= gw).map(t => t.inId)), [plan, gw, lang]);
 
   /* ---- KAUPVERÐ ----
      Þrjár sjálfvirkar heimildir, í forgangsröð:
@@ -1138,12 +1170,12 @@ export default function App() {
       tenths += sellOf(tr.outId) - (byId[tr.inId]?.now_cost ?? 0);
     });
     return +(tenths / 10).toFixed(1);
-  }, [players, squadOverride, apiBank, plan, gw, byId, buyPrices, fhGws]);
+  }, [players, squadOverride, apiBank, plan, gw, byId, buyPrices, fhGws, lang]);
 
   // Liðsverð = summa SÖLUVERÐA (það sem þú fengir ef þú seldir allt)
   const squadValue = useMemo(() =>
     +(squadAt.reduce((a, s) => a + sellOf(s.id), 0) / 10).toFixed(1),
-    [squadAt, byId, buyPrices]);
+    [squadAt, byId, buyPrices, lang]);
 
   const starters = squadAt.filter(s => s.starter).sort((a,z) => a.order - z.order);
   // BEKKUR: markmaður ALLTAF lengst til vinstri (eins og FPL), svo röð.
@@ -1158,13 +1190,13 @@ export default function App() {
   function commitTransfer(outId, inId) {
     const o = byId[outId], n = byId[inId];
     if (!o || !n) return;
-    if (o.element_type !== n.element_type) { flash("Skiptin verða að vera í sömu stöðu."); return; }
+    if (o.element_type !== n.element_type) { flash(tx("Skiptin verða að vera í sömu stöðu.")); return; }
 
     // FPL-REGLA: hámark 3 leikmenn frá sama félagi
     const after = squadAt.map(s => (s.id === outId ? inId : s.id));
     const sameClub = after.filter(id => byId[id]?.team === n.team).length;
     if (sameClub > 3) {
-      flash(`Of margir frá ${teamById[n.team]?.short} — hámark 3 per félagi.`);
+      flash(tx("Of margir frá {0} — hámark 3 per félagi.", [teamById[n.team]?.short]));
       return;
     }
 
@@ -1173,7 +1205,7 @@ export default function App() {
     // söluverð út (50%-reglan), fullt verð inn
     const bankAfter = +(bank + (sellOf(outId) - n.now_cost) / 10).toFixed(1);
     if (bankAfter < 0) {
-      flash(`Vantar £${Math.abs(bankAfter).toFixed(1)}m — of dýr skipti.`);
+      flash(tx("Vantar £{0}m — of dýr skipti.", [Math.abs(bankAfter).toFixed(1)]));
       return;
     }
 
@@ -1181,7 +1213,7 @@ export default function App() {
     // (Ef verðið breytist fyrir framkvæmd uppfærist það við næstu liðs-greiningu.)
     setPlan(p => [...p, { gw, outId, inId, seenPrice: n.now_cost, seenAt: new Date().toISOString().slice(0,10) }]);
     setSelling(null); setSearchQ("");
-    flash(`GW${gw}: ${o.web_name} → ${n.web_name} · banki £${bankAfter.toFixed(1)}`);
+    flash(tx("GW{0}: {1} → {2} · banki £{3}", [gw, o.web_name, n.web_name, bankAfter.toFixed(1)]));
   }
   function removeTransfer(i) { setPlan(p => p.filter((_,j) => j !== i)); }
   /* ---------- SMELLU-SKIPTI ----------
@@ -1193,7 +1225,7 @@ export default function App() {
     if (swapSel === id) { setSwapSel(null); return; }
     const a = squadAt.find(x => x.id === swapSel), b = squadAt.find(x => x.id === id);
     if (a && b && a.starter === b.starter) {
-      flash(a.starter ? "Báðir í byrjunarliði — veldu einn á bekk." : "Báðir á bekk.");
+      flash(a.starter ? tx("Báðir í byrjunarliði — veldu einn á bekk.") : tx("Báðir á bekk."));
       setSwapSel(id); return;
     }
     swapStarterBench(swapSel, id);
@@ -1207,7 +1239,7 @@ export default function App() {
     const cnt = { 1:0, 2:0, 3:0, 4:0 };
     next.filter(s => s.starter).forEach(s => { const p = byId[s.id]; if (p) cnt[p.element_type]++; });
     if (cnt[1] !== 1 || cnt[2] < 3 || cnt[3] < 2 || cnt[4] < 1 || cnt[2]+cnt[3]+cnt[4] !== 10) {
-      flash("Ólögleg uppstilling (1 GK, 3+ vörn, 2+ miðja, 1+ sókn)."); return false;
+      flash(tx("Ólögleg uppstilling (1 GK, 3+ vörn, 2+ miðja, 1+ sókn).")); return false;
     }
     setBenchSwaps(bs => ({ ...bs, [gw]: [...(bs[gw] || []), [aId, bId]] }));
       return true;
@@ -1227,19 +1259,19 @@ export default function App() {
     setBenchSwaps(bs => { const n = { ...bs }; delete n[g]; return n; });
     setChips(c => { const n = { ...c }; for (const k of Object.keys(n)) if (n[k] === g) delete n[k]; return n; });
     setSwapSel(null); setSelling(null); setConfirmReset(null);
-    flash(`GW${g} endurstillt — upprunalega liðið aftur.`);
+    flash(tx("GW{0} endurstillt — upprunalega liðið aftur.", [g]));
   }
   function resetAll() {
     setPlan([]); setBenchSwaps({}); setChips({});
     setCaptain(START_CAPTAIN); setVice(null);
     setSwapSel(null); setSelling(null); setConfirmReset(null);
-    flash("Öll plönun endurstillt.");
+    flash(tx("Öll plönun endurstillt."));
   }
 
   function connectUrl() {
     const m = urlInput.match(/entry\/(\d+)/) || urlInput.match(/^(\d+)$/);
-    if (!m) { flash("Slóð þarf að innihalda /entry/{númer}/"); return; }
-    setEntryId(m[1]); flash(`Tengt lið ${m[1]} — sæki raunlið og stig.`);
+    if (!m) { flash(tx("Slóð þarf að innihalda /entry/{númer}/")); return; }
+    setEntryId(m[1]); flash(tx("Tengt lið {0} — sæki raunlið og stig.", [m[1]]));
   }
 
   /* ---------- Leit (allir 558) ---------- */
@@ -1254,7 +1286,7 @@ export default function App() {
       }
     }
     return n ? sum / n : 9;      // engir leikir -> aftast
-  }, [gw, maxGw, fixByTeamGw, teamMetrics, odds, eloByTeam, teamById]);
+  }, [gw, maxGw, fixByTeamGw, teamMetrics, odds, eloByTeam, teamById, lang]);
 
   const searchResults = useMemo(() => {
     if (!players) return [];
@@ -1279,7 +1311,7 @@ export default function App() {
       return parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0)
           || (b.total_points || 0) - (a.total_points || 0);
     }).slice(0, 120);
-  }, [players, searchQ, searchPos, selling, squadIds, byId, teamById, ffdrAhead]);
+  }, [players, searchQ, searchPos, selling, squadIds, byId, teamById, ffdrAhead, lang]);
 
   /* ---------- Tillögu-kerfi: MÆLDAR vogtölur (sjá FIT ofar) ---------- */
   const recommendations = useMemo(() => {
@@ -1354,13 +1386,13 @@ export default function App() {
          Þess vegna getur leikmaður með ÞUNGA leiki verið réttmæt tillaga.     */
       const drivers = [];
       if (haveForm && ff[p.id]) {
-        drivers.push([`mín ${Math.round(ff[p.id].mins5)}′`, w.mins5 * (ff[p.id].mins5 / 90)]);
+        drivers.push([tx("mín {0}′", [Math.round(ff[p.id].mins5)]), w.mins5 * (ff[p.id].mins5 / 90)]);
       } else {
         const mp = Math.min(1, (p.minutes || 0) / (38 * 90));
-        drivers.push([`mín ${Math.round(mp * 100)}%`, w.mins5 * mp]);
+        drivers.push([tx("mín {0}%", [Math.round(mp * 100)]), w.mins5 * mp]);
       }
       drivers.push([`£${price.toFixed(1)}`, w.price * price]);
-      drivers.push(["leikir", w.fdr * fdrAvg]);
+      drivers.push([tx("leikir"), w.fdr * fdrAvg]);
       drivers.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
       const tot = drivers.reduce((a, x) => a + Math.abs(x[1]), 0) || 1;
       /* TVÆR PRÓSENTUR í sama streng var ólæsilegt: labelið getur sjálft
@@ -1368,7 +1400,7 @@ export default function App() {
          eftir -> "mín 89% 44%", sem lestist sem ein tala. Hlutdeildin fer
          nú í sviga með orði, svo það sé ljóst hvað er hvað.              */
       const why = drivers.slice(0, 2)
-        .map(([lbl, v]) => `${lbl} (${Math.round(100 * Math.abs(v) / tot)}% af skori)`)
+        .map(([lbl, v]) => tx("{0} ({1}% af skori)", [lbl, Math.round(100 * Math.abs(v) / tot)]))
         .join(" · ");
 
       // algilt meðal-FFDR yfir sviðið (til samanburðar milli liða)
@@ -1417,7 +1449,7 @@ export default function App() {
     const sorted = [...inSquad].sort((a,b) => a.score - b.score);
     const sellIds = new Set(sorted.slice(0, 2).map(r => r.p.id));
     return { byPos, sellIds, inSquadScores: Object.fromEntries(inSquad.map(r => [r.p.id, r.score])) };
-  }, [players, fixtures, gw, recRange, fixByTeamGw, teamMetrics, squadIds, odds, defcon, dcOpp, eloByTeam, eloCsByFx, maxGw, formFeat, recMaxCost, playerForm]);
+  }, [players, fixtures, gw, recRange, fixByTeamGw, teamMetrics, squadIds, odds, defcon, dcOpp, eloByTeam, eloCsByFx, maxGw, formFeat, recMaxCost, playerForm, lang]);
 
   /* ---------- Verðbreytingar (raunveruleg gögn) ---------- */
   const priceMovers = useMemo(() => {
@@ -1431,7 +1463,7 @@ export default function App() {
     const up = withNet.filter(x => x.net > 0).sort((a,b) => b.net - a.net).slice(0, 8);
     const down = withNet.filter(x => x.net < 0).sort((a,b) => a.net - b.net).slice(0, 6);
     return { up, down };
-  }, [players]);
+  }, [players, lang]);
 
   /* ---------- FYRIR TÍMABIL ----------
      Verð hreyfast ekki og skipti eru ótakmörkuð og frí þar til GW1-frestur
@@ -1445,7 +1477,7 @@ export default function App() {
      fylgir HVERRI uppsafnaðri tölu — ekki bara skýringunni.             */
   const prevSeasonLabel = (() => {
     const y = gw1Deadline ? new Date(gw1Deadline).getFullYear() : null;
-    return y ? `${y - 1}/${String(y).slice(-2)}` : "sl. tímabil";
+    return y ? `${y - 1}/${String(y).slice(-2)}` : tx("sl. tímabil");
   })();
   const cumLabel = seasonStarted ? `GW1–${seasonGames}` : prevSeasonLabel;
   /* HEITI YFIRSTANDANDI TIMABILS — annad en cumLabel!
@@ -1455,7 +1487,7 @@ export default function App() {
      OG 2025/26-dalkurinn dettur ut sem tvitekning.                        */
   const currentSeasonLabel = (() => {
     const y = gw1Deadline ? new Date(gw1Deadline).getFullYear() : null;
-    return y ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : "í ár";
+    return y ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : tx("í ár");
   })();
   // TÍMABIL BYRJAÐ = einhver umferð lokin. Þangað til eru allar uppsöfnuðu
   // tölur í players.json frá SÍÐASTA tímabili (spjöld, mínútur, stig).
@@ -1511,7 +1543,7 @@ export default function App() {
       { key:"bboost:20",  name:"bboost",   from:20, to:38, half:2 },
       { key:"3xc:20",     name:"3xc",      from:20, to:38, half:2 },
     ];
-  }, [chipRules]);
+  }, [chipRules, lang]);
 
   // chips-ástand: { slotKey: gw }
   function setChipSlot(slotKey, g) {
@@ -1542,7 +1574,7 @@ export default function App() {
      "X frí" tölu eftir chip-umferðir.                                     */
   const transferCost = useMemo(
     () => computeTransferCost({ plan, chipAt, maxGw, preSeason }),
-    [plan, chips, chipSlots, maxGw, preSeason]);
+    [plan, chips, chipSlots, maxGw, preSeason, lang]);
 
   /* ---------- VERÐMÆTI CHIPS per umferð ----------
      Bench Boost: hvað bekkurinn (4 menn) væri vænt að skora í þeirri umferð.
@@ -1570,7 +1602,7 @@ export default function App() {
       out[g] = { bboost: +bb.toFixed(1), "3xc": +tc.toFixed(1) };
     }
     return out;
-  }, [players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, events, fhGws]);
+  }, [players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, events, fhGws, lang]);
 
   // besta umferð fyrir hvert chip innan gildistíma
   const bestGwFor = (name, from, to) => {
@@ -1585,17 +1617,17 @@ export default function App() {
   };
 
   const totalHits = useMemo(() =>
-    Object.values(transferCost).reduce((a, x) => a + x.points, 0), [transferCost]);
+    Object.values(transferCost).reduce((a, x) => a + x.points, 0), [transferCost, lang]);
 
   const ev = events?.find(e => e.id === gw);
 
   /* ---------- Hleðsla / villa ---------- */
   if (dataState === "loading") return (
-    <div style={S.shell}><div style={S.loading}>Sæki opinber FPL-gögn…</div></div>
+    <div style={S.shell}><div style={S.loading}>{tx("Sæki opinber FPL-gögn…")}</div></div>
   );
   if (dataState === "error") return (
     <div style={S.shell}><div style={S.errBox}>
-      Náði ekki í gögnin úr <code>data/</code>. Keyrðu GitHub Actions (fetch-data) og reyndu aftur.
+      {tx("Náði ekki í gögnin úr")} <code>data/</code>{tx(". Keyrðu GitHub Actions (fetch-data) og reyndu aftur.")}
     </div></div>
   );
 
@@ -1605,17 +1637,18 @@ export default function App() {
       <header className="app-head" style={S.head}>
         <Logo />
         <div className="head-right" style={S.headRight}>
+          <LangToggle />
           <button style={S.searchBtn} onClick={() => { setBrowse(true); setSearchQ(""); setSearchPos("all"); }}
-            title="Leita í öllum leikmönnum">🔍 Leikmenn</button>
+            title={tx("Leita í öllum leikmönnum")}>{tx("🔍 Leikmenn")}</button>
           <button style={{ ...S.searchBtn, ...(showFfdr ? S.searchBtnOn : {}) }}
             onClick={() => setShowFfdr(v => !v)}
-            title="Leikjaþyngd allra liða, varnar- og sóknar-hópur">📊 FFDR</button>
+            title={tx("Leikjaþyngd allra liða, varnar- og sóknar-hópur")}>{tx("📊 FFDR")}</button>
           <button style={{ ...S.searchBtn, ...(showChips ? S.searchBtnOn : {}) }}
             onClick={() => setShowChips(v => !v)}
-            title="Wildcard, Free Hit, Bench Boost, Triple Captain">🎫 Chips</button>
+            title="Wildcard, Free Hit, Bench Boost, Triple Captain">{tx("🎫 Chips")}</button>
           <input className="url-input" style={S.urlInput} placeholder="FPL Url" value={urlInput}
             onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && connectUrl()} />
-          <button style={S.connectBtn} onClick={connectUrl}>{entryId ? "Uppfæra" : "Tengja"}</button>
+          <button style={S.connectBtn} onClick={connectUrl}>{entryId ? tx("Uppfæra") : tx("Tengja")}</button>
         </div>
       </header>
 
@@ -1624,7 +1657,7 @@ export default function App() {
           data/last_gw*.json og players.json — their hanga ekki a lidinu
           thinu og virka thott ekkert se tengt.                            */}
       <div style={S.viewTabs}>
-        {[["planner","\u26bd Skipulag"],["players","\ud83d\udc65 Leikmenn"],["gw","\ud83d\udcca Umferðin"],["board","\ud83c\udfc6 Stigatafla"],["sp","\u26bd\ufe0f Föst leikatriði"]].map(([k,l]) => (
+        {[["planner",tx("⚽ Skipulag")],["players",tx("👥 Leikmenn")],["gw",tx("📊 Umferðin")],["board",tx("🏆 Stigatafla")],["sp",tx("⚽️ Föst leikatriði")]].map(([k,l]) => (
           <button key={k} style={{ ...S.viewTab, ...(view === k ? S.viewTabOn : {}) }}
             onClick={() => setView(k)}>{l}</button>
         ))}
@@ -1655,7 +1688,7 @@ export default function App() {
           imminent={imminent} photoUrl={photoUrl}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           seasonNote={preSeason
-            ? "Tímabilið 2026/27 er ekki byrjað. Tölurnar hér eru uppsafnaðar tölur sem FPL birtir núna — þær nollast þegar GW1 opnar."
+            ? tx("Tímabilið 2026/27 er ekki byrjað. Tölurnar hér eru uppsafnaðar tölur sem FPL birtir núna — þær nollast þegar GW1 opnar.")
             : null} />
       )}
 
@@ -1664,7 +1697,7 @@ export default function App() {
       <div style={S.tlWrap}>
         <div style={S.tlOuter}>
           <button style={{ ...S.tlArrow, ...(tlStart <= 1 ? S.tlArrowOff : {}) }}
-            disabled={tlStart <= 1} title="Fyrri umferðir"
+            disabled={tlStart <= 1} title={tx("Fyrri umferðir")}
             onClick={() => setTlStart(v => Math.max(1, v - TL_WINDOW))}>‹</button>
         <div style={S.tlRow}>
           <div style={S.tlLine} />
@@ -1684,7 +1717,7 @@ export default function App() {
                       const val = chipValue[n]?.[c];
                       return (
                         <span style={{ ...S.chipAbove, background: meta.color }}
-                          title={`${meta.label}${val ? ` — vænt +${val} stig` : ""}`}>
+                          title={`${meta.label}${val ? tx(" — vænt +{0} stig", [val]) : ""}`}>
                           <span style={S.chipAboveIcon}>{meta.icon}</span>
                           <span style={S.chipAboveTxt}>{meta.short}</span>
                         </span>
@@ -1695,42 +1728,42 @@ export default function App() {
                     <span style={S.nodeNum}>{n}</span>
                     {has && <span style={S.nodeDot} />}
                     {transferCost[n]?.hits > 0 &&
-                      <span style={S.nodeHit} title={`${transferCost[n].made} skipti, ${transferCost[n].hits} yfir frí = ${transferCost[n].points} stig`}>
+                      <span style={S.nodeHit} title={tx("{0} skipti, {1} yfir frí = {2} stig", [transferCost[n].made, transferCost[n].hits, transferCost[n].points])}>
                         {transferCost[n].points}
                       </span>}
                   </button>
                 </div>
-                {brk && <span style={S.intl} title="Landsleikjahlé"><span style={S.globe}>🌐</span></span>}
+                {brk && <span style={S.intl} title={tx("Landsleikjahlé")}><span style={S.globe}>🌐</span></span>}
               </React.Fragment>
             );
           })}
         </div>
           <button style={{ ...S.tlArrow, ...(tlStart + TL_WINDOW > maxGw ? S.tlArrowOff : {}) }}
-            disabled={tlStart + TL_WINDOW > maxGw} title="Næstu umferðir"
+            disabled={tlStart + TL_WINDOW > maxGw} title={tx("Næstu umferðir")}
             onClick={() => setTlStart(v => Math.min(Math.max(1, maxGw - TL_WINDOW + 1), v + TL_WINDOW))}>›</button>
         </div>
         <div style={S.deadline}>
-          <b>GW{gw}</b> · frestur {fmtDeadline(ev?.deadline_time)}
-          {ev?.finished ? " · lokið" : ""}
+          <b>GW{gw}</b> {tx("· frestur")} {fmtDeadline(ev?.deadline_time)}
+          {ev?.finished ? tx(" · lokið") : ""}
           {/* ENDURSTILLA UMFERÐ — birtist aðeins ef eitthvað er plönuð */}
           {(() => {
             const pl = gwPlanned(gw);
             if (!pl.any) return null;
             const what = [
-              pl.tr ? `${pl.tr} skipti` : null,
-              pl.bs ? `${pl.bs} bekkjar-breyting${pl.bs > 1 ? "ar" : ""}` : null,
+              pl.tr ? tx("{0} skipti", [pl.tr]) : null,
+              pl.bs ? tx(pl.bs > 1 ? "{0} bekkjar-breytingar" : "{0} bekkjar-breyting", [pl.bs]) : null,
               pl.ch,
             ].filter(Boolean).join(" · ");
             return confirmReset === "gw" ? (
               <span style={S.resetConfirm}>
-                Hreinsa {what}?
-                <button style={S.resetYes} onClick={() => resetGw(gw)}>já</button>
-                <button style={S.resetNo} onClick={() => setConfirmReset(null)}>nei</button>
+                {tx("Hreinsa")} {what}?
+                <button style={S.resetYes} onClick={() => resetGw(gw)}>{tx("já")}</button>
+                <button style={S.resetNo} onClick={() => setConfirmReset(null)}>{tx("nei")}</button>
               </span>
             ) : (
               <button style={S.resetBtn} onClick={() => setConfirmReset("gw")}
-                title={`Hreinsa alla plönun í GW${gw}: ${what}`}>
-                ↺ endurstilla GW{gw}
+                title={tx("Hreinsa alla plönun í GW{0}: {1}", [gw, what])}>
+                {tx("↺ endurstilla GW")}{gw}
               </button>
             );
           })()}
@@ -1739,36 +1772,34 @@ export default function App() {
             if (!tc) return null;
             if (tc.unlimited) return (
               <span style={S.tcFree}>
-                {tc.chip ? `${CHIPS[tc.chip].label} — ótakmörkuð skipti` : "ótakmörkuð frí skipti"}
+                {tc.chip ? tx("{0} — ótakmörkuð skipti", [CHIPS[tc.chip].label]) : tx("ótakmörkuð frí skipti")}
               </span>
             );
             return (
               <span style={tc.hits > 0 ? S.tcHit : S.tcOk}>
-                {tc.made} skipti · {tc.ftAvailable} frí
-                {tc.hits > 0 ? ` · ${tc.points} stig` : ""}
+                {tc.made} {tx("skipti ·")} {tc.ftAvailable} {tx("frí")}
+                {tc.hits > 0 ? tx(" · {0} stig", [tc.points]) : ""}
               </span>
             );
           })()}
         </div>
         {preSeason && (
           <div style={S.preSeasonBar}>
-            <b>Fyrir tímabil.</b> Verð hreyfast ekki og skipti eru ótakmörkuð og frí þar til
-            frestur GW1 rennur út {fmtDeadline(gw1Deadline)}. Kaupverð læsist þá — 50%-söluregla
-            gildir eftir það.
+            <b>{tx("Fyrir tímabil.")}</b> {tx("Verð hreyfast ekki og skipti eru ótakmörkuð og frí þar til frestur GW1 rennur út")} {fmtDeadline(gw1Deadline)}{tx(". Kaupverð læsist þá — 50%-söluregla gildir eftir það.")}
           </div>
         )}
       </div>
 
       {/* ---------- Mælaborð ---------- */}
       <div className="app-stats" style={S.stats}>
-        <Stat icon="💰" label="Banki" value={`£${bank.toFixed(1)}`}
-          sub={`lið £${squadValue.toFixed(1)} · alls £${(bank + squadValue).toFixed(1)}`}
+        <Stat icon="💰" label={tx("Banki")} value={`£${bank.toFixed(1)}`}
+          sub={tx("lið £{0} · alls £{1}", [squadValue.toFixed(1), (bank + squadValue).toFixed(1)])}
           tone={bank < 0 ? "bad" : "ok"} />
-        <Stat icon="🏆" label="Heildarstig" value={totalPts == null ? "—" : totalPts} sub={entryId ? `lið ${entryId}` : "tengdu FPL Url"} />
-        <Stat icon="📅" label={`Umferð ${gw}`} value={gwPts == null ? "—" : gwPts}
-          sub={apiHit ? `refsing ${-apiHit} tekin`
-            : transferCost[gw]?.hits > 0 ? `áætluð refsing ${transferCost[gw].points}`
-            : ev?.finished ? "lokið" : "ekki hafin"}
+        <Stat icon="🏆" label={tx("Heildarstig")} value={totalPts == null ? "—" : totalPts} sub={entryId ? tx("lið {0}", [entryId]) : tx("tengdu FPL Url")} />
+        <Stat icon="📅" label={tx("Umferð {0}", [gw])} value={gwPts == null ? "—" : gwPts}
+          sub={apiHit ? tx("refsing {0} tekin", [-apiHit])
+            : transferCost[gw]?.hits > 0 ? tx("áætluð refsing {0}", [transferCost[gw].points])
+            : ev?.finished ? tx("lokið") : tx("ekki hafin")}
           tone={(apiHit || transferCost[gw]?.hits) ? "bad" : "ok"} />
       </div>
       {/* Leikir umferðarinnar eru NÚ AÐEINS við hliðina á vellinum
@@ -1793,7 +1824,7 @@ export default function App() {
               </select>
             </div>
             {(benchSwaps[gw]?.length > 0) &&
-              <button style={S.ghost} onClick={() => setBenchSwaps(bs => { const n = { ...bs }; delete n[gw]; return n; })}>Núllstilla bekk</button>}
+              <button style={S.ghost} onClick={() => setBenchSwaps(bs => { const n = { ...bs }; delete n[gw]; return n; })}>{tx("Núllstilla bekk")}</button>}
           </div>
 
           {/* VÖLLUR — spjöldin í VENJULEGU FLÆÐI ofan á bakgrunninum.
@@ -1827,7 +1858,7 @@ export default function App() {
             </div>
             {/* BEKKUR — HTML-borði sem fylgir innihaldinu, ekki fast prósent */}
             <div style={S.benchArea}>
-              <div style={S.benchLabel}>Bekkur</div>
+              <div style={S.benchLabel}>{tx("Bekkur")}</div>
               <div style={S.pitchRowFlex}>
                 {bench.map(sq => (
                   <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
@@ -1857,19 +1888,19 @@ export default function App() {
 
           {/* Meiðsli, bönn og hætta í liðinu */}
           <section style={S.card}>
-            <h2 style={S.h2}>Tiltækileiki liðsins</h2>
+            <h2 style={S.h2}>{tx("Tiltækileiki liðsins")}</h2>
             {(() => {
               const flagged = squadAt.map(x => byId[x.id]).filter(Boolean).map(pp => ({
                 pp, av: availOf(pp), ban: banRisk(pp, gw, seasonStarted), rot: rotationRisk(pp, seasonGames),
               })).filter(x => x.av.isRisk || (x.ban && x.ban.level === "high") || (x.rot && x.rot.level === "high"));
-              if (!flagged.length) return <div style={S.okBox}>Allir 15 tiltækir — engin meiðsli, bönn eða spjaldahætta.</div>;
+              if (!flagged.length) return <div style={S.okBox}>{tx("Allir 15 tiltækir — engin meiðsli, bönn eða spjaldahætta.")}</div>;
               return flagged.map(({ pp, av, ban, rot }) => (
                 <div key={pp.id} style={S.riskRow}>
                   {av.isRisk
                     ? <span style={{ ...S.riskTag, background:av.bg, color:av.color }}>{av.label}{av.chance != null ? ` ${av.chance}%` : ""}</span>
                     : ban && ban.level === "high"
-                      ? <span style={{ ...S.riskTag, background:"#fff6e0", color:"#8a5f00" }}>{ban.y} gul</span>
-                      : <span style={{ ...S.riskTag, background:"#eeeef1", color:"#61616b" }}>byrj {rot.pct}%</span>}
+                      ? <span style={{ ...S.riskTag, background:"#fff6e0", color:"#8a5f00" }}>{ban.y} {tx("gul")}</span>
+                      : <span style={{ ...S.riskTag, background:"#eeeef1", color:"#61616b" }}>{tx("byrj")} {rot.pct}%</span>}
                   <span style={S.riskName}>{pp.web_name}</span>
                   <span style={S.riskNews} title={[av.news, injuryById[pp.id]?.reason && `API-Sports: ${injuryById[pp.id].reason}`].filter(Boolean).join("\n")}>
                     {injuryById[pp.id]?.reason
@@ -1880,18 +1911,15 @@ export default function App() {
               ));
             })()}
             <div style={S.muted}>
-              Úr FPL: status, chance_of_playing, news, gul spjöld og byrjunarhlutfall.
-              Spjaldabann: 5 gul (til umf. 19) = 1 leikur, 10 = 2, 15 = 3.
+              {tx("Úr FPL: status, chance_of_playing, news, gul spjöld og byrjunarhlutfall. Spjaldabann: 5 gul (til umf. 19) = 1 leikur, 10 = 2, 15 = 3.")}
             </div>
           </section>
           {/* Verðbreytingar */}
           <section style={S.card}>
-            <h2 style={S.h2}>Verðbreytingar — flutningar í umferð</h2>
+            <h2 style={S.h2}>{tx("Verðbreytingar — flutningar í umferð")}</h2>
             <div style={S.muted}>
-              Raungögn: transfers_in/out og cost_change_event úr FPL.
-              <b> „í nótt?"</b> er nálgun (nettó-flutningar á móti eignarhaldi) —
-              FPL birtir ekki formúluna sína, svo þetta er vísbending, ekki vissa.
-              Grænt nafn = þú ert með hann í skiptaáætlun: <b>flýttu skiptunum</b> ef hann hækkar.
+              {tx("Raungögn: transfers_in/out og cost_change_event úr FPL.")}
+              <b> {tx("„í nótt?\"")}</b> {tx("er nálgun (nettó-flutningar á móti eignarhaldi) — FPL birtir ekki formúluna sína, svo þetta er vísbending, ekki vissa. Grænt nafn = þú ert með hann í skiptaáætlun:")} <b>{tx("flýttu skiptunum")}</b> {tx("ef hann hækkar.")}
             </div>
             {priceMovers.up.map(({ p, net, chg, predict }) => {
               const mine = squadIds.has(p.id), planned = plan.some(t => t.inId === p.id);
@@ -1903,13 +1931,13 @@ export default function App() {
                   <span style={S.moveNet}>+{(net/1000).toFixed(0)}k</span>
                   <span style={{ ...S.moveChg, color: chg > 0 ? C.green : C.text3 }}>
                     {chg > 0 ? `↑ £${(chg/10).toFixed(1)}`
-                     : predict === "up" ? <span style={S.movePredict} title="Nettó-flutningar yfir áætluðum þröskuldi — líklega hækkun í næstu verðkeyrslu FPL (nálgun)">↑ í nótt?</span>
+                     : predict === "up" ? <span style={S.movePredict} title={tx("Nettó-flutningar yfir áætluðum þröskuldi — líklega hækkun í næstu verðkeyrslu FPL (nálgun)")}>{tx("↑ í nótt?")}</span>
                      : "—"}
                   </span>
                 </div>
               );
             })}
-            {priceMovers.down.length > 0 && <div style={S.moveSep}>Mest út</div>}
+            {priceMovers.down.length > 0 && <div style={S.moveSep}>{tx("Mest út")}</div>}
             {priceMovers.down.map(({ p, net, chg, predict }) => {
               const mine = squadIds.has(p.id);
               return (
@@ -1920,7 +1948,7 @@ export default function App() {
                   <span style={{ ...S.moveNet, color: C.red }}>{(net/1000).toFixed(0)}k</span>
                   <span style={{ ...S.moveChg, color: chg < 0 ? C.red : C.text3 }}>
                     {chg < 0 ? `↓ £${Math.abs(chg/10).toFixed(1)}`
-                     : predict === "down" ? <span style={{ ...S.movePredict, color:C.red }} title="Nettó-útflutningar yfir þröskuldi — líklega lækkun í nótt (nálgun). Ef þú ætlar að selja hann: gerðu það fyrir verðkeyrsluna.">↓ í nótt?</span>
+                     : predict === "down" ? <span style={{ ...S.movePredict, color:C.red }} title={tx("Nettó-útflutningar yfir þröskuldi — líklega lækkun í nótt (nálgun). Ef þú ætlar að selja hann: gerðu það fyrir verðkeyrsluna.")}>{tx("↓ í nótt?")}</span>
                      : "—"}
                   </span>
                 </div>
@@ -1940,34 +1968,32 @@ export default function App() {
           {plan.length > 0 && (
             <div style={S.card}>
               <div style={S.recHead}>
-                <h2 style={S.h2}>Skiptaáætlun</h2>
+                <h2 style={S.h2}>{tx("Skiptaáætlun")}</h2>
                 <span style={S.planTotal}>
                   {(() => {
                     const gain = plan.reduce((a, t) => a + transferNet(t), 0);
                     const net = +(gain + totalHits).toFixed(1);
                     return <span style={{ color: net >= 0 ? C.green : C.red, fontWeight:700 }}>
-                      nettó {net >= 0 ? "+" : ""}{net} stig
+                      {tx("nettó")} {net >= 0 ? "+" : ""}{net} {tx("stig")}
                     </span>;
                   })()}
                 </span>
               </div>
               <div style={S.muted}>
-                Ávinningur = vænt stig (stig/leik + FDR, FPL ep_next fyrir næstu umferð) yfir 5 umferðir.
-                Refsing dregst frá. Áætlun, ekki vissa.
+                {tx("Ávinningur = vænt stig (stig/leik + FDR, FPL ep_next fyrir næstu umferð) yfir 5 umferðir. Refsing dregst frá. Áætlun, ekki vissa.")}
               </div>
               {/* ENDURSTILLA ALLT — fyrir þegar Wildcard-tilraun er hætt við */}
               <div style={S.resetAllRow}>
                 {confirmReset === "all" ? (
                   <span style={S.resetConfirm}>
-                    Hreinsa ALLA plönun ({plan.length} skipti, {Object.keys(benchSwaps).length} umferðir
-                    m. bekkjar-breytingum, {Object.keys(chips).length} chip)?
-                    <button style={S.resetYes} onClick={resetAll}>já, allt</button>
-                    <button style={S.resetNo} onClick={() => setConfirmReset(null)}>nei</button>
+                    {tx("Hreinsa ALLA plönun (")}{plan.length} {tx("skipti,")} {Object.keys(benchSwaps).length} {tx("umferðir m. bekkjar-breytingum,")} {Object.keys(chips).length} {tx("chip)?")}
+                    <button style={S.resetYes} onClick={resetAll}>{tx("já, allt")}</button>
+                    <button style={S.resetNo} onClick={() => setConfirmReset(null)}>{tx("nei")}</button>
                   </span>
                 ) : (
                   <button style={S.resetBtn} onClick={() => setConfirmReset("all")}
-                    title="Hreinsa öll skipti, bekkjar-breytingar og chips — upprunalega liðið aftur">
-                    ↺ endurstilla alla plönun
+                    title={tx("Hreinsa öll skipti, bekkjar-breytingar og chips — upprunalega liðið aftur")}>
+                    {tx("↺ endurstilla alla plönun")}
                   </button>
                 )}
               </div>
@@ -1982,18 +2008,18 @@ export default function App() {
                   <div key={i} style={S.planItem}>
                     <span style={{ ...S.planGw, ...(tc?.hits > 0 ? S.planGwHit : {}) }}>GW{t.gw}</span>
                     {fhGws.has(t.gw) &&
-                      <span style={S.planFh} title="Free Hit — liðið fer til baka eftir umferðina, skiptin gilda aðeins í henni">FH</span>}
+                      <span style={S.planFh} title={tx("Free Hit — liðið fer til baka eftir umferðina, skiptin gilda aðeins í henni")}>FH</span>}
                     <span style={{ flex:1, minWidth:0 }}>
                       <span style={{ color:C.red }}>{byId[t.outId]?.web_name}</span>
                       {" → "}
                       <span style={{ color:C.green, fontWeight:600 }}>{byId[t.inId]?.web_name}</span>
                     </span>
-                    <span style={S.planCalc} title="vænt stig yfir 5 umferðir">
+                    <span style={S.planCalc} title={tx("vænt stig yfir 5 umferðir")}>
                       {gain >= 0 ? "+" : ""}{gain}
                     </span>
-                    {hitShare < 0 && <span style={S.planHitVal} title="hlutdeild í refsingu">{hitShare}</span>}
+                    {hitShare < 0 && <span style={S.planHitVal} title={tx("hlutdeild í refsingu")}>{hitShare}</span>}
                     <span style={{ ...S.planNet, color: net >= 0 ? C.green : C.red }}
-                      title={net >= 0 ? "þess virði" : "kostar meira en það gefur"}>
+                      title={net >= 0 ? tx("þess virði") : tx("kostar meira en það gefur")}>
                       {net >= 0 ? "+" : ""}{net}
                     </span>
                     <button style={S.rm} onClick={() => removeTransfer(plan.indexOf(t))}>✕</button>
@@ -2011,8 +2037,7 @@ export default function App() {
             <section style={S.card}>
               <h2 style={S.h2}>Chips</h2>
               <div style={S.muted}>
-                Tvö sett — eitt fyrir hvern hálfleik. Gildistími kemur úr FPL-API-inu.
-                Ein chip per umferð. Wildcard og Free Hit byrja í GW2.
+                {tx("Tvö sett — eitt fyrir hvern hálfleik. Gildistími kemur úr FPL-API-inu. Ein chip per umferð. Wildcard og Free Hit byrja í GW2.")}
               </div>
               {[1, 2].map(half => {
                 const slots = chipSlots.filter(x => x.half === half);
@@ -2026,12 +2051,12 @@ export default function App() {
                       const expired = dl ? new Date() > new Date(dl) : false;
                       return (
                         <div style={S.chipHalfLbl}>
-                          {half === 1 ? "Fyrri hluti" : "Seinni hluti"}
+                          {half === 1 ? tx("Fyrri hluti") : tx("Seinni hluti")}
                           <span style={S.chipHalfRange}>GW{slots[0].from}–{lastGw}</span>
                           {dl && (
                             <span style={{ ...S.chipExpiry, ...(expired ? S.chipExpired : {}) }}>
-                              {expired ? "útrunnið" : `fellur ${fmtDeadline(dl)}`}
-                              {!expired && unused > 0 ? ` · ${unused} ónotuð` : ""}
+                              {expired ? tx("útrunnið") : `fellur ${fmtDeadline(dl)}`}
+                              {!expired && unused > 0 ? tx(" · {0} ónotuð", [unused]) : ""}
                             </span>
                           )}
                         </div>
@@ -2050,9 +2075,9 @@ export default function App() {
                             <div style={S.chipName}>{c.label}</div>
                             <div style={S.chipDesc}>
                               {used && val != null
-                                ? <span style={{ color: C.green, fontWeight:600 }}>GW{used} · vænt +{val} stig</span>
+                                ? <span style={{ color: C.green, fontWeight:600 }}>GW{used} {tx("· vænt +")}{val} {tx("stig")}</span>
                                 : best
-                                  ? <span>best í <b>GW{best.g}</b> (+{best.v})</span>
+                                  ? <span>{tx("best í")} <b>GW{best.g}</b> (+{best.v})</span>
                                   : c.desc}
                             </div>
                           </div>
@@ -2084,21 +2109,19 @@ export default function App() {
           {/* Lið: FFDR-röðun + DefCon (það eina sem er EKKI í FFDR) */}
           <section style={S.card}>
             <div style={S.recHead}>
-              <h2 style={S.h2}>Lið — FFDR GW{gw}–{Math.min(gw + recRange - 1, maxGw)}</h2>
+              <h2 style={S.h2}>{tx("Lið — FFDR GW")}{gw}–{Math.min(gw + recRange - 1, maxGw)}</h2>
               <select style={S.chipSel} value={teamSort} onChange={e => setTeamSort(e.target.value)}>
-                <option value="def">FFDR vörn</option>
-                <option value="att">FFDR sókn</option>
+                <option value="def">{tx("FFDR vörn")}</option>
+                <option value="att">{tx("FFDR sókn")}</option>
               </select>
             </div>
             <div style={S.muted}>
-              FFDR er <b>útkoman</b> — ClubElo, xGC og markaðslínan eru inntök í hana
-              og eru því ekki sýnd sér. Lægra FFDR = léttara. (DefCon-tækifærið er
-              sér-merki og sést á leikmannaspjöldum og í liða-yfirlitinu.)
+              {tx("FFDR er")} <b>{tx("útkoman")}</b> {tx("— ClubElo, xGC og markaðslínan eru inntök í hana og eru því ekki sýnd sér. Lægra FFDR = léttara. (DefCon-tækifærið er sér-merki og sést á leikmannaspjöldum og í liða-yfirlitinu.)")}
             </div>
             <div style={S.tblHead}>
-              <span style={{ flex:1 }}>Lið</span>
-              <span style={S.tblNum} title="FFDR fyrir varnarmenn, meðaltal valins bils">vörn</span>
-              <span style={S.tblNum} title="FFDR fyrir framherja">sókn</span>
+              <span style={{ flex:1 }}>{tx("Lið")}</span>
+              <span style={S.tblNum} title={tx("FFDR fyrir varnarmenn, meðaltal valins bils")}>{tx("vörn")}</span>
+              <span style={S.tblNum} title={tx("FFDR fyrir framherja")}>{tx("sókn")}</span>
             </div>
             {(() => {
               // meðal-FFDR yfir valið bil, per staða
@@ -2145,22 +2168,22 @@ export default function App() {
 
           {/* Andstæðingar — sérstöðu-samanburður */}
           <section style={S.card}>
-            <h2 style={S.h2}>Andstæðingar</h2>
+            <h2 style={S.h2}>{tx("Andstæðingar")}</h2>
             <div style={S.muted}>
-              Berðu liðið þitt við keppinauta í mini-deildinni: hverjir eru
-              <b> sérstöðumennirnir</b> (differentials) á báða bóga, og hver ber bandið hjá þeim.
+              {tx("Berðu liðið þitt við keppinauta í mini-deildinni: hverjir eru")}
+              <b> {tx("sérstöðumennirnir")}</b> {tx("(differentials) á báða bóga, og hver ber bandið hjá þeim.")}
             </div>
             <div style={S.rivalAddRow}>
               <input style={{ ...S.urlInput, width:"auto", flex:1, minWidth:0 }}
-                placeholder="FPL-slóð eða liðsnúmer" value={rivalInput}
+                placeholder={tx("FPL-slóð eða liðsnúmer")} value={rivalInput}
                 onChange={e => setRivalInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addRival()} />
-              <button style={S.connectBtn} onClick={addRival}>Bæta við</button>
+              <button style={S.connectBtn} onClick={addRival}>{tx("Bæta við")}</button>
             </div>
-            {!rivals.length && <div style={S.muted}>Engir skráðir enn. Númerið er í slóð liðsins á fantasy.premierleague.com.</div>}
+            {!rivals.length && <div style={S.muted}>{tx("Engir skráðir enn. Númerið er í slóð liðsins á fantasy.premierleague.com.")}</div>}
             {rivals.map(r => {
               const d = rivalData[r.id];
-              if (!d) return <div key={r.id} style={S.rivalRow}><span style={S.rivalName}>lið {r.id}</span><span style={S.muted}>sæki…</span></div>;
+              if (!d) return <div key={r.id} style={S.rivalRow}><span style={S.rivalName}>{tx("lið")} {r.id}</span><span style={S.muted}>{tx("sæki…")}</span></div>;
               const myIds = squadIds;
               const theirs = (d.picks || []).filter(id => !myIds.has(id)).map(id => byId[id]).filter(Boolean)
                 .sort((a, b) => parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0));
@@ -2171,33 +2194,33 @@ export default function App() {
                 <div key={r.id} style={S.rivalBlock}>
                   <div style={S.rivalRow}>
                     <span style={S.rivalName}>{d.name}</span>
-                    <span style={S.rivalPts}>{d.gwPts != null ? `GW ${d.gwPts} · alls ${d.totalPts}` : "—"}</span>
-                    <button style={S.rm} title="Fjarlægja"
+                    <span style={S.rivalPts}>{d.gwPts != null ? tx("GW {0} · alls {1}", [d.gwPts, d.totalPts]) : "—"}</span>
+                    <button style={S.rm} title={tx("Fjarlægja")}
                       onClick={() => { setRivals(rs => rs.filter(x => x.id !== r.id)); }}>✕</button>
                   </div>
                   {d.picks ? (
                     <>
                       <div style={S.rivalMeta}>
-                        {shared}/15 sameiginlegir
-                        {d.capId != null && <> · fyrirliði <b>{byId[d.capId]?.web_name ?? "?"}</b>
-                          {d.capId === captain ? " (sami og þú)" : ""}</>}
+                        {shared}{tx("/15 sameiginlegir")}
+                        {d.capId != null && <> {tx("· fyrirliði")} <b>{byId[d.capId]?.web_name ?? "?"}</b>
+                          {d.capId === captain ? tx(" (sami og þú)") : ""}</>}
                       </div>
                       {theirs.length > 0 && <div style={S.rivalDiff}>
-                        <span style={S.rivalDiffLbl}>þeirra sérstaða</span>
+                        <span style={S.rivalDiffLbl}>{tx("þeirra sérstaða")}</span>
                         {theirs.slice(0, 3).map(p => <span key={p.id} style={S.rivalChip}
                           title={`ep ${p.ep_next} · ${teamById[p.team]?.short}`}
                           onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>)}
                         {theirs.length > 3 && <span style={S.muted}>+{theirs.length - 3}</span>}
                       </div>}
                       {mine.length > 0 && <div style={S.rivalDiff}>
-                        <span style={{ ...S.rivalDiffLbl, color:C.green }}>þín sérstaða</span>
+                        <span style={{ ...S.rivalDiffLbl, color:C.green }}>{tx("þín sérstaða")}</span>
                         {mine.slice(0, 3).map(p => <span key={p.id} style={{ ...S.rivalChip, background:C.greenBg, color:"#0a7a4a" }}
                           title={`ep ${p.ep_next} · ${teamById[p.team]?.short}`}
                           onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>)}
                         {mine.length > 3 && <span style={S.muted}>+{mine.length - 3}</span>}
                       </div>}
                     </>
-                  ) : <div style={S.rivalMeta}>{d.error ? "náðist ekki — er númerið rétt?" : "ekkert lið skráð í þessari umferð enn (fyrir tímabil er það eðlilegt)"}</div>}
+                  ) : <div style={S.rivalMeta}>{d.error ? tx("náðist ekki — er númerið rétt?") : tx("ekkert lið skráð í þessari umferð enn (fyrir tímabil er það eðlilegt)")}</div>}
                 </div>
               );
             })}
@@ -2205,32 +2228,32 @@ export default function App() {
 
           {/* API-staða */}
           <section style={S.card}>
-            <h2 style={S.h2}>Gagnaheimildir</h2>
-            <div style={S.srcRow}><span style={S.dotOk} />FPL bootstrap — {players.length} leikmenn, {teams.length} lið</div>
+            <h2 style={S.h2}>{tx("Gagnaheimildir")}</h2>
+            <div style={S.srcRow}><span style={S.dotOk} />FPL bootstrap — {players.length} {tx("leikmenn,")} {teams.length} {tx("lið")}</div>
             <div style={S.srcRow}>
               <span style={news ? S.dotOk : S.dotWait} />
-              Meiðsli og verð — {news
-                ? `${(news.players || []).length} merktir · uppfært ${fmtClock(news.updated)}`
-                : "bíður hraðakeyrslu"}
+              {tx("Meiðsli og verð —")} {news
+                ? tx("{0} merktir · uppfært {1}", [(news.players || []).length, fmtClock(news.updated)])
+                : tx("bíður hraðakeyrslu")}
             </div>
-            <div style={S.srcRow}><span style={S.dotOk} />FPL fixtures — {fixtures.length} leikir + FDR</div>
-            <div style={S.srcRow}><span style={S.dotOk} />FPL events — frestir, {events.length} umferðir</div>
+            <div style={S.srcRow}><span style={S.dotOk} />FPL fixtures — {fixtures.length} {tx("leikir + FDR")}</div>
+            <div style={S.srcRow}><span style={S.dotOk} />{tx("FPL events — frestir,")} {events.length} {tx("umferðir")}</div>
             <div style={S.srcRow}>
               <span style={oddsState === "ok" ? S.dotOk : S.dotWait} />
-              Bókmakera-CS% {oddsState === "ok"
-                ? `(${Object.keys(odds || {}).length} lið, úr pipeline)`
-                : oddsState === "loading" ? "(sæki…)"
-                : oddsState === "empty" ? "(skrá til, engir leikir á línu)"
-                : "(odds.json vantar — keyrðu fetch-data)"}
+              {tx("Bókmakera-CS%")} {oddsState === "ok"
+                ? tx("({0} lið, úr pipeline)", [Object.keys(odds || {}).length])
+                : oddsState === "loading" ? tx("(sæki…)")
+                : oddsState === "empty" ? tx("(skrá til, engir leikir á línu)")
+                : tx("(odds.json vantar — keyrðu fetch-data)")}
             </div>
             <div style={S.srcRow}>
               <span style={Object.keys(eloByTeam || {}).length ? S.dotOk : S.dotWait} />
-              ClubElo — {Object.keys(eloByTeam || {}).length}/{teams?.length ?? 0} lið
-              {eloFx?.fixtures?.length ? ` · ${eloFx.fixtures.length} leikir m. CS-líkindum` : ""}
+              ClubElo — {Object.keys(eloByTeam || {}).length}/{teams?.length ?? 0} {tx("lið")}
+              {eloFx?.fixtures?.length ? tx(" · {0} leikir m. CS-líkindum", [eloFx.fixtures.length]) : ""}
             </div>
             <div style={S.srcRow}>
               <span style={weatherReady ? S.dotOk : S.dotWait} />
-              Veður — {weatherReady ? `${(weather.fixtures || []).filter(w => w.temp_c != null).length} leikir` : "utan 16-daga spár"}
+              {tx("Veður —")} {weatherReady ? tx("{0} leikir", [(weather.fixtures || []).filter(w => w.temp_c != null).length]) : tx("utan 16-daga spár")}
             </div>
             {/* API-SPORTS: "0 paraðir" LAS SEM BILUN en er RETT preseason-utkoma.
                 Fria threpid leyfir adeins leikdaga innan +/-1 dags og fyrir
@@ -2240,20 +2263,20 @@ export default function App() {
                 med TEGUND meidsla sem FPL-news gefur ekki.                 */}
             <div style={S.srcRow} title={injuries?.via || ""}>
               <span style={injuries?.players?.length ? S.dotOk : S.dotWait} />
-              Meiðsla-tegundir (API-Sports) — {
-                !injuries ? "bíður fyrstu keyrslu"
-                : injuries.error ? `villa: ${String(injuries.error).slice(0, 30)}`
-                : injuries.players?.length ? `${injuries.players.length} paraðir`
-                : "engir leikdagar í glugga (bíður GW1)"}
+              {tx("Meiðsla-tegundir (API-Sports) —")} {
+                !injuries ? tx("bíður fyrstu keyrslu")
+                : injuries.error ? tx("villa: {0}", [String(injuries.error).slice(0, 30)])
+                : injuries.players?.length ? tx("{0} paraðir", [injuries.players.length])
+                : tx("engir leikdagar í glugga (bíður GW1)")}
             </div>
             <div style={S.srcRow}>
               <span style={Object.keys(dcOpp || {}).length ? S.dotOk : S.dotWait} />
-              DefCon-tækifæri — {Object.keys(dcOpp || {}).length} lið
-              {defcon?.opportunity && Object.keys(defcon.opportunity).length ? " (pipeline)" : " (reiknað í appi)"}
+              {tx("DefCon-tækifæri —")} {Object.keys(dcOpp || {}).length} {tx("lið")}
+              {defcon?.opportunity && Object.keys(defcon.opportunity).length ? " (pipeline)" : tx(" (reiknað í appi)")}
             </div>
             <div style={S.srcRow}>
               <span style={defcon?.players?.length ? S.dotOk : S.dotWait} />
-              DefCon hit-rate — {defcon?.players?.length || 0} leikmenn {defcon?.players?.length ? "" : "(bíður leikja)"}
+              DefCon hit-rate — {defcon?.players?.length || 0} {tx("leikmenn")} {defcon?.players?.length ? "" : tx("(bíður leikja)")}
             </div>
             {/* PIPELINE-HEIMILDIR ur status.json.
                 AÐUR: hrait lykilheiti ("fdcouk_e0") og note klippt i 34 stafi,
@@ -2264,18 +2287,18 @@ export default function App() {
                 (sja kafla 6b i CLAUDE.md); ESPN kom i stadinn.               */}
             {pipeStatus?.sources && (() => {
               const SHOW = {
-                fdcouk_e0:      "Leikjatölur E0 (yfirstandandi)",
-                fdcouk_history: "Leikjatölur E0 (saga)",
-                espn_shots:     "Skot með hnitum (ESPN)",
-                last_gw:        "Umferðarskýrsla",
-                player_seasons: "Fyrri tímabil leikmanna",
-                travel:         "Ferðalengdir",
-                rotation:       "Rótasjón",
-                team_form:      "Liðsform",
-                luck:           "Heppnismælir",
-                form_features:  "Rúllandi form",
-                gameweek_shape: "Umferðalögun",
-                euro_fixtures:  "Evrópuleikir",
+                fdcouk_e0:      tx("Leikjatölur E0 (yfirstandandi)"),
+                fdcouk_history: tx("Leikjatölur E0 (saga)"),
+                espn_shots:     tx("Skot með hnitum (ESPN)"),
+                last_gw:        tx("Umferðarskýrsla"),
+                player_seasons: tx("Fyrri tímabil leikmanna"),
+                travel:         tx("Ferðalengdir"),
+                rotation:       tx("Rótasjón"),
+                team_form:      tx("Liðsform"),
+                luck:           tx("Heppnismælir"),
+                form_features:  tx("Rúllandi form"),
+                gameweek_shape: tx("Umferðalögun"),
+                euro_fixtures:  tx("Evrópuleikir"),
               };
               return Object.entries(pipeStatus.sources)
                 .filter(([k]) => SHOW[k])
@@ -2286,8 +2309,8 @@ export default function App() {
                   return (
                     <div key={k} style={S.srcRow} title={v.note || ""}>
                       <span style={dot} />{SHOW[k]} — {
-                        !v.ok ? `villa: ${(v.note || "óþekkt").slice(0, 40)}`
-                        : waiting ? (v.note || "bíður gagna")
+                        !v.ok ? tx("villa: {0}", [(v.note || tx("óþekkt")).slice(0, 40)])
+                        : waiting ? (v.note || tx("bíður gagna"))
                         : v.count}
                     </div>
                   );
@@ -2300,49 +2323,44 @@ export default function App() {
       {/* ---------- TILLÖGUR ---------- */}
       <section style={{ ...S.card, marginTop:16 }}>
         <div style={S.recHead}>
-          <h2 style={S.h2}>Mælt með kaupum — GW{gw}–{Math.min(gw + recRange - 1, maxGw)}</h2>
+          <h2 style={S.h2}>{tx("Mælt með kaupum — GW")}{gw}–{Math.min(gw + recRange - 1, maxGw)}</h2>
           <div style={S.recCtl}>
             <select style={S.chipSel} value={recRange} onChange={e => setRecRange(+e.target.value)}>
-              <option value={1}>næsti leikur</option>
-              <option value={2}>næstu 2</option>
-              <option value={3}>næstu 3</option>
-              <option value={4}>næstu 4</option>
-              <option value={5}>næstu 5</option>
-              <option value={6}>næstu 6</option>
-              <option value={8}>næstu 8</option>
+              <option value={1}>{tx("næsti leikur")}</option>
+              <option value={2}>{tx("næstu 2")}</option>
+              <option value={3}>{tx("næstu 3")}</option>
+              <option value={4}>{tx("næstu 4")}</option>
+              <option value={5}>{tx("næstu 5")}</option>
+              <option value={6}>{tx("næstu 6")}</option>
+              <option value={8}>{tx("næstu 8")}</option>
             </select>
-            <label style={S.recMaxWrap} title="Sýna aðeins leikmenn undir þessu verði">
-              <span style={S.recMaxLbl}>hám. £</span>
+            <label style={S.recMaxWrap} title={tx("Sýna aðeins leikmenn undir þessu verði")}>
+              <span style={S.recMaxLbl}>{tx("hám. £")}</span>
               <input style={S.recMaxInput} type="number" step="0.5" min="3.5" max="20"
                 placeholder="—" value={recMaxCost}
                 onChange={e => setRecMaxCost(e.target.value)} />
               {recMaxCost !== "" && (
-                <button style={S.recMaxClear} title="Hreinsa verðþak"
+                <button style={S.recMaxClear} title={tx("Hreinsa verðþak")}
                   onClick={() => setRecMaxCost("")}>✕</button>
               )}
             </label>
             <select style={S.chipSel} value={recPos} onChange={e => setRecPos(e.target.value)}>
-              <option value="ALL">allar stöður</option>
-              <option value="1">markverðir</option>
-              <option value="2">vörn</option>
-              <option value="3">miðja</option>
-              <option value="4">sókn</option>
+              <option value="ALL">{tx("allar stöður")}</option>
+              <option value="1">{tx("markverðir")}</option>
+              <option value="2">{tx("vörn")}</option>
+              <option value="3">{tx("miðja")}</option>
+              <option value="4">{tx("sókn")}</option>
             </select>
           </div>
         </div>
         <div style={S.muted}>
           {formFeat?.mode === "fitted" ? (
             <>
-              <b style={{ color: C.green }}>Mælt líkan.</b> Vogtölur fittaðar út-af-úrtaki á 2025/26
-              ({formFeat.gws_used} umferðir í rúllandi glugga). Ríkjandi þáttur er <b>mínútur</b>.
-              Leikjaþyngd er <b>mæld tafla</b> úr 1.102 leikjum, ekki línuleg ágiskun —
-              FDR er rétt kvarðað að meðaltali en of grófkornótt, svo við fínum það með liðsstyrk.
+              <b style={{ color: C.green }}>{tx("Mælt líkan.")}</b> {tx("Vogtölur fittaðar út-af-úrtaki á 2025/26 (")}{formFeat.gws_used} {tx("umferðir í rúllandi glugga). Ríkjandi þáttur er")} <b>{tx("mínútur")}</b>{tx(". Leikjaþyngd er")} <b>{tx("mæld tafla")}</b> {tx("úr 1.102 leikjum, ekki línuleg ágiskun — FDR er rétt kvarðað að meðaltali en of grófkornótt, svo við fínum það með liðsstyrk.")}
             </>
           ) : (
             <>
-              <b style={{ color: C.amber }}>Fyrir-tímabils ham.</b> Mínútur síðustu umferða eru
-              ríkjandi þátturinn en þær eru ekki til enn. Notum verð, FPL ep_next og síðasta tímabil.
-              Mæling sýnir að þetta er <b>~1,5 stigum ónákvæmara</b> — skorið verður skarpara frá GW6.
+              <b style={{ color: C.amber }}>{tx("Fyrir-tímabils ham.")}</b> {tx("Mínútur síðustu umferða eru ríkjandi þátturinn en þær eru ekki til enn. Notum verð, FPL ep_next og síðasta tímabil. Mæling sýnir að þetta er")} <b>{tx("~1,5 stigum ónákvæmara")}</b> {tx("— skorið verður skarpara frá GW6.")}
             </>
           )}
         </div>
@@ -2394,7 +2412,7 @@ export default function App() {
                   <div style={S.dSub}>
                     {isPlayer
                       ? `${p.first_name} ${p.second_name} · ${t.short} · ${POS_LABEL[p.element_type]} · £${(p.now_cost/10).toFixed(1)}`
-                      : `${t.short} · ${(players || []).filter(x => x.team === t.id).length} leikmenn`}
+                      : tx("{0} · {1} leikmenn", [t.short, (players || []).filter(x => x.team === t.id).length])}
                   </div>
                 </div>
                 <button style={S.close} onClick={() => setDetail(null)}>✕</button>
@@ -2403,11 +2421,11 @@ export default function App() {
               {/* staða / meiðsli */}
               {isPlayer && av.isRisk && (
                 <div style={{ ...S.dAlert, background:av.bg, color:av.color }}>
-                  <b>{av.label}</b>{av.chance != null ? ` — ${av.chance}% líkur á að spila` : ""}
+                  <b>{av.label}</b>{av.chance != null ? tx(" — {0}% líkur á að spila", [av.chance]) : ""}
                   {av.news ? <div style={{ marginTop:2, fontWeight:400 }}>{av.news}</div> : null}
                   {injuryById[p.id]?.reason && (
                     <div style={{ marginTop:3, fontWeight:400 }}>
-                      Tegund: <b>{injuryById[p.id].reason}</b>
+                      {tx("Tegund:")} <b>{injuryById[p.id].reason}</b>
                       {injuryById[p.id].type ? ` · ${injuryById[p.id].type}` : ""}
                       <span style={S.injSrc}> — API-Sports</span>
                     </div>
@@ -2418,15 +2436,13 @@ export default function App() {
                   birt varfærið sem óstaðfest vísbending, ekki viðvörun.      */}
               {isPlayer && !av.isRisk && injuryById[p.id]?.reason && (
                 <div style={{ ...S.dAlert, background:C.cardAlt, color:C.text2 }}>
-                  <b>API-Sports skráir:</b> {injuryById[p.id].reason}
-                  {injuryById[p.id].type ? ` (${injuryById[p.id].type})` : ""} —
-                  FPL hefur ekki flaggað hann, svo þetta getur verið úrelt eða smávægilegt.
+                  <b>{tx("API-Sports skráir:")}</b> {injuryById[p.id].reason}
+                  {injuryById[p.id].type ? ` (${injuryById[p.id].type})` : ""} {tx("— FPL hefur ekki flaggað hann, svo þetta getur verið úrelt eða smávægilegt.")}
                 </div>
               )}
               {isPlayer && ban && (ban.level === "high" || ban.level === "mid") && (
                 <div style={{ ...S.dAlert, background:"#fff6e0", color:"#8a5f00" }}>
-                  <b>{ban.y} gul spjöld</b> — {ban.toGo} frá {ban.threshold}-þröskuldi
-                  ({ban.matches} {ban.matches === 1 ? "leikur" : "leikir"} í banni)
+                  <b>{ban.y} {tx("gul spjöld")}</b> — {ban.toGo} {tx("frá")} {ban.threshold}{tx("-þröskuldi (")}{ban.matches} {ban.matches === 1 ? tx("leikur") : tx("leikir")} {tx("í banni)")}
                 </div>
               )}
 
@@ -2446,11 +2462,11 @@ export default function App() {
 
                   {/* ep og vitarod eiga heima her, ekki i timabila-toflunni */}
                   <div style={S.dGrid}>
-                    <DStat k="Spá næstu (ep)" v={p.ep_next} />
-                    {rot && <DStat k="Byrjaði" v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} />}
-                    {sp && <DStat k="Vítaröð" v={sp.pen ?? "—"} sub={sp.isPenTaker ? "fyrsti taki" : ""} />}
-                    {sp?.ck != null && <DStat k="Horn/aukasp." v={sp.ck} />}
-                    {sp?.fk != null && <DStat k="Aukaspyrnur" v={sp.fk} />}
+                    <DStat k={tx("Spá næstu (ep)")} v={p.ep_next} />
+                    {rot && <DStat k={tx("Byrjaði")} v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} />}
+                    {sp && <DStat k={tx("Vítaröð")} v={sp.pen ?? "—"} sub={sp.isPenTaker ? tx("fyrsti taki") : ""} />}
+                    {sp?.ck != null && <DStat k={tx("Horn/aukasp.")} v={sp.ck} />}
+                    {sp?.fk != null && <DStat k={tx("Aukaspyrnur")} v={sp.fk} />}
                   </div>
 
                   <SeasonTable p={p} seasonsFile={seasonsFile}
@@ -2460,13 +2476,13 @@ export default function App() {
                 <>
                   <div style={S.dGroupHead}>
                     <span style={{ ...S.dGroupDot, background:C.purple }} />
-                    Styrkur liðsins <span style={S.dGroupSub}>reiknað mat appsins ({cumLabel}) · ClubElo lifandi</span>
+                    {tx("Styrkur liðsins")} <span style={S.dGroupSub}>{tx("reiknað mat appsins (")}{cumLabel}{tx(") · ClubElo lifandi")}</span>
                   </div>
                   <div style={S.dGrid}>
-                    <DStat k="ClubElo" v={e ? Math.round(e.elo) : "—"} sub={e ? `rank ${e.rank}` : "ekki paraður"} />
-                    <DStat k="xG / leik" v={tm.xg90 ?? "—"} />
-                    <DStat k="xGC / 90" v={tm.xgc90 ?? "—"} sub="lægra betra" />
-                    <DStat k="DefCon-tækifæri" v={dcv ? dcv.defcon_opportunity : "—"} sub="hærra = fleiri CBIT" />
+                    <DStat k="ClubElo" v={e ? Math.round(e.elo) : "—"} sub={e ? `rank ${e.rank}` : tx("ekki paraður")} />
+                    <DStat k={tx("xG / leik")} v={tm.xg90 ?? "—"} />
+                    <DStat k="xGC / 90" v={tm.xgc90 ?? "—"} sub={tx("lægra betra")} />
+                    <DStat k={tx("DefCon-tækifæri")} v={dcv ? dcv.defcon_opportunity : "—"} sub={tx("hærra = fleiri CBIT")} />
                   </div>
                 </>
               )}
@@ -2483,9 +2499,9 @@ export default function App() {
                 const g = gwStats?.byId?.[p.id];
                 if (!g) return (
                   <>
-                    <div style={S.dSectionLbl}>GW{gw} frammistaða</div>
+                    <div style={S.dSectionLbl}>GW{gw} {tx("frammistaða")}</div>
                     <div style={S.muted}>
-                      Engar tölur fyrir GW{gw} enn — umferðin er ekki byrjuð (tímabil hefst 21. ágúst).
+                      {tx("Engar tölur fyrir GW")}{gw} {tx("enn — umferðin er ekki byrjuð (tímabil hefst 21. ágúst).")}
                     </div>
                   </>
                 );
@@ -2497,32 +2513,32 @@ export default function App() {
                 return (
                   <>
                     <div style={S.dSectionLbl}>
-                      GW{gw} frammistaða
+                      GW{gw} {tx("frammistaða")}
                       <span style={S.dSectionNote}>
-                        {st.total_points} stig · {st.minutes} mín
-                        {gwStats.src === "live" ? " · lifandi" : ""}
+                        {st.total_points} {tx("stig ·")} {st.minutes} {tx("mín")}
+                        {gwStats.src === "live" ? tx(" · lifandi") : ""}
                       </span>
                     </div>
                     <div style={S.dGrid}>
-                      <DStat k="Stig" v={num(st.total_points)} />
-                      <DStat k="Mínútur" v={num(st.minutes)} />
-                      <DStat k="Mörk" v={num(st.goals_scored)} />
-                      <DStat k="Assist" v={num(st.assists)} />
+                      <DStat k={tx("Stig")} v={num(st.total_points)} />
+                      <DStat k={tx("Mínútur")} v={num(st.minutes)} />
+                      <DStat k={tx("Mörk")} v={num(st.goals_scored)} />
+                      <DStat k={tx("Assist")} v={num(st.assists)} />
                       <DStat k="xG" v={xg == null ? "—" : (+xg).toFixed(2)}
                         sub={xg != null && st.minutes > 0 ? (overP >= 0 ? `+${overP.toFixed(2)} yfir` : `${overP.toFixed(2)} undir`) : ""} />
                       <DStat k="xA" v={xa == null ? "—" : (+xa).toFixed(2)} />
-                      <DStat k="Bónus / BPS" v={`${num(st.bonus)} / ${num(st.bps)}`} />
-                      {p.element_type <= 2 && <DStat k="Hreint blað" v={st.clean_sheets ? "já" : "nei"} sub={`${num(st.goals_conceded)} á sig`} />}
+                      <DStat k={tx("Bónus / BPS")} v={`${num(st.bonus)} / ${num(st.bps)}`} />
+                      {p.element_type <= 2 && <DStat k={tx("Hreint blað")} v={st.clean_sheets ? tx("já") : tx("nei")} sub={tx("{0} á sig", [num(st.goals_conceded)])} />}
                       {p.element_type <= 2 && <DStat k="xGC" v={st.expected_goals_conceded == null ? "—" : (+st.expected_goals_conceded).toFixed(2)} />}
-                      {p.element_type === 1 && <DStat k="Vörslur" v={num(st.saves)} />}
-                      {(st.yellow_cards || st.red_cards) ? <DStat k="Spjöld" v={`${num(st.yellow_cards)}G / ${num(st.red_cards)}R`} /> : null}
-                      {st.defensive_contribution != null && <DStat k="Varnarframlag" v={st.defensive_contribution} />}
+                      {p.element_type === 1 && <DStat k={tx("Vörslur")} v={num(st.saves)} />}
+                      {(st.yellow_cards || st.red_cards) ? <DStat k={tx("Spjöld")} v={tx("{0}G / {1}R", [num(st.yellow_cards), num(st.red_cards)])} /> : null}
+                      {st.defensive_contribution != null && <DStat k={tx("Varnarframlag")} v={st.defensive_contribution} />}
                     </div>
 
                     {/* Hvaðan stigin komu — úr explain, óskert */}
                     {ex.length > 0 && (
                       <>
-                        <div style={S.dSubLbl}>Hvaðan stigin komu</div>
+                        <div style={S.dSubLbl}>{tx("Hvaðan stigin komu")}</div>
                         <div style={S.dExList}>
                           {ex.filter(x => x.points !== 0).map((x, i) => (
                             <div key={i} style={S.dExRow}>
@@ -2539,9 +2555,7 @@ export default function App() {
 
                     {/* Big chances missed — krefst Understat */}
                     <div style={S.dNote}>
-                      <b>Big chances missed</b> er ekki í FPL-API-inu. Það er afleitt úr Understat
-                      skot-gögnum (skot með xG yfir 0,30 sem fór ekki inn) — birtist þegar
-                      skot-gögn eru komin (tímabil hafið).
+                      <b>Big chances missed</b> {tx("er ekki í FPL-API-inu. Það er afleitt úr Understat skot-gögnum (skot með xG yfir 0,30 sem fór ekki inn) — birtist þegar skot-gögn eru komin (tímabil hafið).")}
                     </div>
                   </>
                 );
@@ -2549,11 +2563,11 @@ export default function App() {
 
               {/* LEIKIR — deild + Evrópa + bikar */}
               <div style={S.dSectionLbl}>
-                Leikir
+                {tx("Leikir")}
                 <span style={S.dSectionNote}>
                   {euroFx?.fixtures?.length
-                    ? "deild · Evrópa · bikar"
-                    : "deild (Evrópu/bikar-gögn ekki komin)"}
+                    ? tx("deild · Evrópa · bikar")
+                    : tx("deild (Evrópu/bikar-gögn ekki komin)")}
                 </span>
               </div>
               <div style={S.dFixList}>
@@ -2576,7 +2590,7 @@ export default function App() {
                       <span style={{ ...S.dFixOpp, background:bg, color:fg }}>
                         {oppLabel(teamById[f.opp]?.short, f.home)}
                       </span>
-                      <span style={S.dFixFdr} title={`FDR ${f.fdr}, samsett ${dd}`}>þyngd {dd}</span>
+                      <span style={S.dFixFdr} title={tx("FDR {0}, samsett {1}", [f.fdr, dd])}>{tx("þyngd")} {dd}</span>
                       {(() => {
                         /* AÐEINS eigin ferðalengd. Ferð MOTHERJANS var her lika
                            (thegar f.home) en var tekin ut ad beidni notanda —
@@ -2585,50 +2599,50 @@ export default function App() {
                         if (!tr?.km || f.home) return null;
                         return (
                           <span style={{ ...S.dFixTravel, ...(tr.is_long_trip ? S.dFixTravelLong : {}) }}
-                            title={`${isPlayer ? "Liðið" : t.short} ferðast ${tr.km} km (loftlína)${tr.is_long_trip ? " — langferð (300+ km)" : ""}`}>
+                            title={tx("{0} ferðast {1} km (loftlína){2}", [isPlayer ? "Liðið" : t.short, tr.km, tr.is_long_trip ? " — langferð (300+ km)" : ""])}>
                             ✈{tr.km}
                           </span>
                         );
                       })()}
                       {isPlayer && HOME_PTS[p.element_type] != null && (
                         <span style={S.dFixHome}
-                          title={`Mælt heimavallar-forskot fyrir ${POS_LABEL[p.element_type]}: +${HOME_PTS[p.element_type]} stig/leik`}>
-                          {f.home ? `+${HOME_PTS[p.element_type].toFixed(2)}` : "úti"}
+                          title={tx("Mælt heimavallar-forskot fyrir {0}: +{1} stig/leik", [POS_LABEL[p.element_type], HOME_PTS[p.element_type]])}>
+                          {f.home ? `+${HOME_PTS[p.element_type].toFixed(2)}` : tx("úti")}
                         </span>
                       )}
                       <span style={{ flex:1 }} />
                       {/* CS-vaenting er MERKINGARLAUS fyrir FWD (og synd MID adeins
                           af thvi ad their fa 1 stig fyrir CS). Tekin ut fyrir sokn. */}
                       {cs.cs != null && !(isPlayer && p.element_type === 4) &&
-                        <span style={S.dFixCs} title="Líkur á hreinu blaði (CS)">CS {cs.cs}%</span>}
+                        <span style={S.dFixCs} title={tx("Líkur á hreinu blaði (CS)")}>CS {cs.cs}%</span>}
                       <span style={S.dFixDate}>{fmtDate(f.date)}</span>
                     </div>
                   );
                 })}
-                {!fxs.length && <div style={S.muted}>Engir leikir skráðir.</div>}
+                {!fxs.length && <div style={S.muted}>{tx("Engir leikir skráðir.")}</div>}
               </div>
 
               {/* aðgerðir */}
               <div style={S.dActions}>
                 {isPlayer && squadIds.has(p.id) && (
                   <>
-                    <button style={S.dBtn} onClick={() => { setDetail(null); setSelling(p.id); setSearchQ(""); }}>Skipta út</button>
+                    <button style={S.dBtn} onClick={() => { setDetail(null); setSelling(p.id); setSearchQ(""); }}>{tx("Skipta út")}</button>
                     {starters.some(x => x.id === p.id) && p.id !== captain &&
-                      <button style={S.dBtn} onClick={() => { if (p.id === vice) setVice(null); setCaptain(p.id); setDetail(null); flash(`${p.web_name} er fyrirliði`); }}>Fyrirliði</button>}
+                      <button style={S.dBtn} onClick={() => { if (p.id === vice) setVice(null); setCaptain(p.id); setDetail(null); flash(tx("{0} er fyrirliði", [p.web_name])); }}>{tx("Fyrirliði")}</button>}
                     {starters.some(x => x.id === p.id) && p.id !== captain && p.id !== vice &&
-                      <button style={S.dBtn} onClick={() => { setVice(p.id); setDetail(null); flash(`${p.web_name} er varafyrirliði`); }}>Varafyrirliði</button>}
+                      <button style={S.dBtn} onClick={() => { setVice(p.id); setDetail(null); flash(tx("{0} er varafyrirliði", [p.web_name])); }}>{tx("Varafyrirliði")}</button>}
                   </>
                 )}
                 {isPlayer && (
-                  <button style={S.dBtn} title="Bæta þessum leikmanni í samanburð"
+                  <button style={S.dBtn} title={tx("Bæta þessum leikmanni í samanburð")}
                     onClick={() => {
                       setCmpIds(v => v.includes(p.id) ? v : [...v, p.id].slice(0, 4));
                       setDetail(null); setCmpOpen(true);
                     }}>
-                    ⇄ Bera saman{cmpIds.length ? ` (${cmpIds.length})` : ""}
+                    {tx("⇄ Bera saman")}{cmpIds.length ? ` (${cmpIds.length})` : ""}
                   </button>
                 )}
-                {isPlayer && <button style={S.dBtn} onClick={() => setDetail({ kind:"team", id:t.id })}>Sjá lið: {t.short}</button>}
+                {isPlayer && <button style={S.dBtn} onClick={() => setDetail({ kind:"team", id:t.id })}>{tx("Sjá lið:")} {t.short}</button>}
               </div>
             </div>
           </div>
@@ -2640,13 +2654,13 @@ export default function App() {
         <div style={S.overlay} onClick={() => { setSelling(null); setBrowse(false); setSearchQ(""); }}>
           <div style={S.modal} onClick={e => e.stopPropagation()}>
             <div style={S.modalHead}>
-              <input autoFocus style={S.search} placeholder="Leita — nafn eða lið"
+              <input autoFocus style={S.search} placeholder={tx("Leita — nafn eða lið")}
                 value={searchQ} onChange={e => setSearchQ(e.target.value)} />
               <button style={S.close} onClick={() => { setSelling(null); setBrowse(false); setSearchQ(""); }}>✕</button>
             </div>
             {browse && !selling && (
               <div style={S.posFilter}>
-                {[["all","Allir"],["1","GK"],["2","Vörn"],["3","Miðja"],["4","Sókn"]].map(([v,l]) => (
+                {[["all",tx("Allir")],["1","GK"],["2",tx("Vörn")],["3",tx("Miðja")],["4",tx("Sókn")]].map(([v,l]) => (
                   <button key={v} onClick={() => setSearchPos(v)}
                     style={{ ...S.posBtn, ...(searchPos === v ? S.posBtnOn : {}) }}>{l}</button>
                 ))}
@@ -2661,8 +2675,8 @@ export default function App() {
                 let block = null;
                 if (selling) {
                   const after = squadAt.map(x => (x.id === selling ? p.id : x.id));
-                  if (after.filter(id => byId[id]?.team === p.team).length > 3) block = "3 per félag";
-                  else if (bank + diff < 0) block = `vantar £${Math.abs(bank + diff).toFixed(1)}`;
+                  if (after.filter(id => byId[id]?.team === p.team).length > 3) block = tx("3 per félag");
+                  else if (bank + diff < 0) block = tx("vantar £{0}", [Math.abs(bank + diff).toFixed(1)]);
                 }
                 return (
                   <button key={p.id}
@@ -2670,7 +2684,7 @@ export default function App() {
                       ? commitTransfer(selling, p.id)
                       : (setBrowse(false), setSearchQ(""), setDetail({ kind:"player", id:p.id }))}
                     style={{ ...S.sItem, ...(block ? S.sItemBlocked : {}) }}
-                    title={block ? `Ólöglegt: ${block}` : ""}>
+                    title={block ? tx("Ólöglegt: {0}", [block]) : ""}>
                     <div style={S.sPortrait}>
                       <PlayerImg code={p.code} short={t?.short} size={30} />
                       <Crest team={t} size={13} style={S.sCrest} />
@@ -2682,7 +2696,7 @@ export default function App() {
                           ? <span style={{ ...S.sAvail, background:a.bg, color:a.color }}
                               title={a.news || a.label}>{a.short}{a.chance != null && a.chance > 0 ? ` ${a.chance}%` : ""}</span>
                           : null; })()}
-                        {setPieceOf(p)?.isPenTaker && <span style={S.sPen} title="Fyrsti vítataki (uppfærist daglega úr FPL)">PEN</span>}
+                        {setPieceOf(p)?.isPenTaker && <span style={S.sPen} title={tx("Fyrsti vítataki (uppfærist daglega úr FPL)")}>PEN</span>}
                       </div>
                       <div style={S.sMeta}>
                         {t?.short} · {POS_LABEL[p.element_type]} · ep {p.ep_next}
@@ -2700,7 +2714,7 @@ export default function App() {
                   </button>
                 );
               })}
-              {!searchResults.length && <div style={S.muted}>Enginn leikmaður fannst.</div>}
+              {!searchResults.length && <div style={S.muted}>{tx("Enginn leikmaður fannst.")}</div>}
             </div>
           </div>
         </div>
@@ -2720,8 +2734,8 @@ export default function App() {
                 else nb[pp.id] = { p: clamp(tenths, 35, 200), src: "manual" };
                 return nb;
               });
-              flash(tenths == null ? `${pp.web_name}: kaupverð hreinsað`
-                                   : `${pp.web_name}: kaupverð £${(tenths/10).toFixed(1)}`);
+              flash(tenths == null ? tx("{0}: kaupverð hreinsað", [pp.web_name])
+                                   : tx("{0}: kaupverð £{1}", [pp.web_name, (tenths/10).toFixed(1)]));
             }} />
         );
       })()}
@@ -2729,7 +2743,7 @@ export default function App() {
       {/* SAMANBURDUR — fljotandi hnappur medan eitthvad er valid */}
       {!!cmpIds.length && !cmpOpen && (
         <button style={S.cmpFab} onClick={() => setCmpOpen(true)}>
-          ⇄ Samanburður ({cmpIds.length})
+          {tx("⇄ Samanburður (")}{cmpIds.length})
         </button>
       )}
       {!!rotIds.length && (
@@ -2828,9 +2842,9 @@ function FixChip({ fx, teamById, diff, pos }) {
   return (
     <div style={{ ...S.fixChip, background:bg, color:fg }}
       title={diff != null
-        ? `${TIER_NAME[t]} — algildur kvarði, samanburðarhæfur milli liða`
+        ? tx("{0} — algildur kvarði, samanburðarhæfur milli liða", [tx(TIER_NAME[t])])
           + `\nFFDR ${d}`
-          + `\nFDR ${fx.fdr} · ${fx.home ? "heima" : "úti"}`
+          + `\nFDR ${fx.fdr} · ${fx.home ? tx("heima") : tx("úti")}`
         : `FDR ${fx.fdr}`}>
       {oppLabel(opp, fx.home)}
       {diff != null && <span style={S.fixNum}>{d.toFixed(1)}</span>}
@@ -2847,10 +2861,12 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
   const [open, setOpen] = useState(null);
   const list = (fixtures || []).filter(f => f.event === gw)
     .sort((a, b) => String(a.kickoff_time || "~").localeCompare(String(b.kickoff_time || "~")));
-  const DAYS = ["sunnudagur","mánudagur","þriðjudagur","miðvikudagur","fimmtudagur","föstudagur","laugardagur"];
-  const MON  = ["jan","feb","mars","apríl","maí","júní","júlí","ágúst","sept","okt","nóv","des"];
+  const DAYS = [tx("sunnudagur"),tx("mánudagur"),tx("þriðjudagur"),tx("miðvikudagur"),
+                tx("fimmtudagur"),tx("föstudagur"),tx("laugardagur")];
+  const MON  = [tx("jan"),tx("feb"),tx("mars"),tx("apríl"),tx("maí"),tx("júní"),
+                tx("júlí"),tx("ágúst"),tx("sept"),tx("okt"),tx("nóv"),tx("des")];
   const dayLbl = iso => {
-    if (!iso) return "Ótímasett";
+    if (!iso) return tx("Ótímasett");
     const d = new Date(iso);
     return `${DAYS[d.getDay()]} ${d.getDate()}. ${MON[d.getMonth()]}`;
   };
@@ -2868,13 +2884,13 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
   }
   if (!list.length) return (
     <div className="gf-wrap" style={S.gfWrap}>
-      <div style={S.gfHead}>Leikir GW{gw}</div>
-      <div style={S.gfEmpty}>Engir leikir skráðir — auð umferð.</div>
+      <div style={S.gfHead}>{tx("Leikir GW")}{gw}</div>
+      <div style={S.gfEmpty}>{tx("Engir leikir skráðir — auð umferð.")}</div>
     </div>
   );
   return (
     <div className="gf-wrap" style={S.gfWrap}>
-      <div style={S.gfHead}>Leikir GW{gw} <span style={S.gfCount}>{list.length} leikir</span></div>
+      <div style={S.gfHead}>{tx("Leikir GW")}{gw} <span style={S.gfCount}>{list.length} {tx("leikir")}</span></div>
       {groups.map(g => (
         <div key={g.key} style={S.gfDay}>
           <div style={S.gfDayLbl}>{g.label}</div>
@@ -2902,7 +2918,7 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
               return (
                 <button style={{ ...S.gfPill, ...(t != null ? { background:TIER_BG[t], color:TIER_FG[t] } : {}) }}
                   onClick={() => onPick && onPick(home ? f.team_h : f.team_a)}
-                  title={`${team?.name || "?"} — ${home ? "heima" : "úti"}${d != null ? ` · FFDR ${d}` : ""}`}>
+                  title={`${team?.name || "?"} — ${home ? tx("heima") : tx("úti")}${d != null ? ` · FFDR ${d}` : ""}`}>
                   {right ? <><Crest team={team} size={13} /><span style={S.gfShort}>{oppLabel(team?.short, home)}</span></>
                          : <><span style={S.gfShort}>{oppLabel(team?.short, home)}</span><Crest team={team} size={13} /></>}
                 </button>
@@ -2913,10 +2929,10 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
                 <span style={S.gfCellL}>{pill(H, true, false)}</span>
                 <button style={{ ...S.gfMid, ...(live ? S.gfMidLive : {}), ...(hasDetail ? S.gfMidOpen : {}) }}
                   onClick={() => hasDetail && setOpen(open === f.id ? null : f.id)}
-                  title={hasDetail ? "Smelltu fyrir markaskorara"
+                  title={hasDetail ? tx("Smelltu fyrir markaskorara")
                         : [
-                            w?.temp_c != null ? `${Math.round(w.temp_c)}°C${w.precip_mm >= 0.5 ? " · úrkoma" : ""}` : null,
-                            travelByFx?.[f.id]?.km ? `✈ ${A?.short || "úti"} ferðast ${travelByFx[f.id].km} km${travelByFx[f.id].is_long_trip ? " (langferð)" : ""}` : null,
+                            w?.temp_c != null ? `${Math.round(w.temp_c)}°C${w.precip_mm >= 0.5 ? tx(" · úrkoma") : ""}` : null,
+                            travelByFx?.[f.id]?.km ? tx("✈ {0} ferðast {1} km{2}", [A?.short || "úti", travelByFx[f.id].km, travelByFx[f.id].is_long_trip ? " (langferð)" : ""]) : null,
                           ].filter(Boolean).join(" · ") || undefined}>
                   {mid}
                 </button>
@@ -2960,11 +2976,11 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
     return { t, cells, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
              played: vals.length };
   }).sort((a, z) => (a.avg ?? 9) - (z.avg ?? 9));
-  const POSB = [[2,"VÖRN"],[4,"SÓKN"]];   // tveir hópar — GK+DEF og MID+FWD
+  const POSB = [[2,tx("VÖRN")],[4,tx("SÓKN")]];   // tveir hópar — GK+DEF og MID+FWD
   return (
     <section style={S.card}>
       <div style={S.recHead}>
-        <h2 style={S.h2}>FFDR — leikjaþyngd</h2>
+        <h2 style={S.h2}>{tx("FFDR — leikjaþyngd")}</h2>
         <div style={S.ffdrPos}>
           {POSB.map(([v,l]) => (
             <button key={v} style={{ ...S.ffdrPosBtn, ...(pos === v ? S.ffdrPosOn : {}) }}
@@ -2973,19 +2989,16 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
         </div>
       </div>
       <div style={S.muted}>
-        GW{gws[0]}–{gws[gws.length-1]} · raðað eftir meðal-FFDR (léttast efst).
-        <b> Þetta er ALGILDUR kvarði</b> — samanburðarhæfur milli liða, svo lélegt
-        lið er rautt jafnvel í léttum leik. Það er rétt fyrir „hvern á ég að kaupa".
-        Leikja-flísar á spjöldum eru <b>afstæðar innan liðsins</b> — fyrir „hvenær
-        á ég að spila honum".
+        GW{gws[0]}–{gws[gws.length-1]} {tx("· raðað eftir meðal-FFDR (léttast efst).")}
+        <b> {tx("Þetta er ALGILDUR kvarði")}</b> {tx("— samanburðarhæfur milli liða, svo lélegt lið er rautt jafnvel í léttum leik. Það er rétt fyrir „hvern á ég að kaupa\". Leikja-flísar á spjöldum eru")} <b>{tx("afstæðar innan liðsins")}</b> {tx("— fyrir „hvenær á ég að spila honum\".")}
       </div>
       <div style={S.ffdrScroll}>
         <table style={S.ffdrTable}>
           <thead>
             <tr>
-              <th style={{ ...S.ffdrTh, ...S.ffdrThTeam }}>Lið</th>
+              <th style={{ ...S.ffdrTh, ...S.ffdrThTeam }}>{tx("Lið")}</th>
               {gws.map(g => <th key={g} style={S.ffdrTh}>{g}</th>)}
-              <th style={S.ffdrTh} title="Meðaltal yfir sviðið">Með.</th>
+              <th style={S.ffdrTh} title={tx("Meðaltal yfir sviðið")}>{tx("Með.")}</th>
             </tr>
           </thead>
           <tbody>
@@ -2997,15 +3010,15 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
                   </button>
                 </td>
                 {cells.map((c, i) => {
-                  if (c.blank) return <td key={i} style={S.ffdrBlank} title="Auð umferð">—</td>;
+                  if (c.blank) return <td key={i} style={S.ffdrBlank} title={tx("Auð umferð")}>—</td>;
                   const worst = Math.max(...c.items.map(x => x.d));
                   const tier = tierOf(worst);
                   return (
                     <td key={i} style={{ ...S.ffdrTd, background: TIER_BG[tier], color: TIER_FG[tier] }}
-                      title={c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (ú)"} · ${x.d}`).join("  |  ")}>
+                      title={c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : tx(" (ú)")} · ${x.d}`).join("  |  ")}>
                       {c.items.map((x, k) => (
                         <span key={k} style={S.ffdrOpp}>
-                          {teamById[x.f.opp]?.short || "?"}{x.f.home ? "" : <i style={S.ffdrAway}>ú</i>}
+                          {teamById[x.f.opp]?.short || "?"}{x.f.home ? "" : <i style={S.ffdrAway}>{tx("ú")}</i>}
                         </span>
                       ))}
                       {c.multi && <span style={S.ffdrDouble}>×2</span>}
@@ -3020,7 +3033,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
       </div>
       <div style={S.ffdrLegend}>
         {TIER_NAME.map((n, i) => (
-          <span key={n} style={{ ...S.ffdrChip, background: TIER_BG[i], color: TIER_FG[i] }}>{n}</span>
+          <span key={n} style={{ ...S.ffdrChip, background: TIER_BG[i], color: TIER_FG[i] }}>{tx(n)}</span>
         ))}
       </div>
     </section>
@@ -3051,41 +3064,49 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
         ...S.pCard, ...(bench ? S.pCardBench : {}),
         borderTop: `3px solid ${POS_COLOR[p.element_type]}`,
         opacity: dragging ? 0.4 : (isSellHint ? 0.62 : 1),
+        /* HRINGUR UM SPJALDID thegar madurinn er EKKI til leiks. Merkid eitt
+           er 15px og drukknar innan um myndina; hringurinn sest a einu
+           augabragdi yfir allan vollinn. `inset` svo hann breyti ekki
+           uppsetningu (spjoldin eru i flæði, sja kafla 8 i CLAUDE.md).    */
+        boxShadow: av.isRisk
+          ? `inset 0 0 0 2px ${av.solid || "#d92d3c"}${av.chance === 0 ? "" : "99"}`
+          : undefined,
         // VALINN til skipta fær sterkan ramma; plönuð viðbót punktalínu
         outline: swapSel === p.id ? `2px solid ${C.purple}`
                : isPlanned ? `2px dashed ${C.green}` : "none",
         outlineOffset: swapSel === p.id ? 2 : (isPlanned ? 1 : 0),
       }}
-      title={swapSel === p.id ? "Valinn — smelltu á annan til að skipta"
-             : "Smelltu til að skipta við annan leikmann"}>
+      title={swapSel === p.id ? tx("Valinn — smelltu á annan til að skipta")
+             : tx("Smelltu til að skipta við annan leikmann")}>
       {/* IKON — sér aðgerðir. Smellur á spjaldið er SKIPTI. */}
       {/* "i" ER VINSTRA MEGIN. Thrju ikon i sama horni voru trodin og
           spjaldid er adeins clamp(62px, 17.5%, 100px) breitt. Vinstra
           hornid var laust nema tha midjuflaggid (availBadge) se til —
           thad er faert til hlidar vid ikonid i stad thess ad liggja undir. */}
       <div style={S.pcIconsL}>
-        <button style={S.pcIcon} title="Upplýsingar"
+        <button style={S.pcIcon} title={tx("Upplýsingar")}
           onClick={e => { e.stopPropagation(); onInfo && onInfo(); }}>i</button>
       </div>
       <div style={S.pcIcons}>
-        <button style={{ ...S.pcIcon, ...S.pcIconSwap }} title="Skipta út — opnar leit"
+        <button style={{ ...S.pcIcon, ...S.pcIconSwap }} title={tx("Skipta út — opnar leit")}
           onClick={e => { e.stopPropagation(); onTransfer && onTransfer(); }}>⇄</button>
         {/* FFDR-SAMANBURDUR — hver kemur inn fyrir hann i ERFIDU umferdunum.
             Adskilid frá ⇄ (sem er skipti) og frá i (sem er upplysingar).   */}
         <button style={{ ...S.pcIcon, ...S.pcIconRot }}
-          title="FFDR-samanburður — finndu mann sem á léttar umferðir þar sem hann á þungar"
+          title={tx("FFDR-samanburður — finndu mann sem á léttar umferðir þar sem hann á þungar")}
           onClick={e => { e.stopPropagation(); onRotation && onRotation(); }}>↻</button>
       </div>
       {isCap && <span style={{ ...S.band, background:"#ffd23f", color:"#4a3800" }}>C</span>}
       {isVice && <span style={{ ...S.band, background:"#c9c9d0", color:"#33333a" }}>V</span>}
       {av.isRisk && (
-        <span style={{ ...S.availBadge, background:av.bg, color:av.color }}
-          title={`${av.label}${av.chance != null ? ` — ${av.chance}% líkur` : ""}${av.news ? `\n${av.news}` : ""}`}>
+        <span style={{ ...S.availBadge, background:av.solid || av.bg,
+                       color:av.solid ? "#fff" : av.color }}
+          title={`${av.label}${av.chance != null ? tx(" — {0}% líkur", [av.chance]) : ""}${av.news ? `\n${av.news}` : ""}`}>
           {av.short}{av.chance != null && av.chance > 0 ? av.chance : ""}
         </span>
       )}
       <div style={S.pPortrait}
-        title={`${team?.name || "?"}${"\n"}ATH: FPL-myndin getur sýnt GAMALT félag eftir skipti. Merkið er rétt.`}>
+        title={tx("{0}{1}ATH: FPL-myndin getur sýnt GAMALT félag eftir skipti. Merkið er rétt.", [team?.name || "?", "\n"])}>
         <PlayerImg code={p.code} short={team?.short} size={38} />
         {/* Merkið er ÓTVÍRÆÐA félags-vísbendingin — stærra og með hvítum
             baug svo það lesist yfir myndinni, sem getur verið úrelt.       */}
@@ -3095,7 +3116,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       <div style={S.pPrice}>
         £{(p.now_cost/10).toFixed(1)}
         {sellTenths_ != null && sellTenths_ < p.now_cost &&
-          <span style={S.pSell} title={`Söluverð eftir 50%-reglunni: £${(sellTenths_/10).toFixed(1)}`}>
+          <span style={S.pSell} title={tx("Söluverð eftir 50%-reglunni: £{0}", [(sellTenths_/10).toFixed(1)])}>
             →{(sellTenths_/10).toFixed(1)}
           </span>}
       </div>
@@ -3119,11 +3140,11 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
           inniheldur það þegar (eigin sóknarstyrkur vegur 0,60 í FFDR fyrir
           framherja). Vænt stig er leikmanns-stig og ekki tvítalning.        */}
       <div style={S.pMain}>
-        <span style={S.pEp} title="Vænt stig í þessari umferð (mínútur + FFDR + form)">
+        <span style={S.pEp} title={tx("Vænt stig í þessari umferð (mínútur + FFDR + form)")}>
           {ep == null ? "—" : `≈${ep.toFixed(1)}`}
         </span>
         {isDef && csObj?.cs != null && (
-          <span style={{ ...S.pCsSmall, color:csColor }} title="Líkur á hreinu blaði (mælt)">
+          <span style={{ ...S.pCsSmall, color:csColor }} title={tx("Líkur á hreinu blaði (mælt)")}>
             CS {csObj.cs}%
           </span>
         )}
@@ -3138,11 +3159,11 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
             leikmannaglugginn ("Vitarod") og flipinn "Fost leikatridi".
             Ekki setja inn aftur an thess ad spjaldid stækki.              */}
         {isDef && dc && dc.defcon_opportunity >= 70 &&
-          <span style={S.sigDc} title={`DefCon-tækifæri ${dc.defcon_opportunity} — mikið vinnuálag varnar`}>DC{dc.defcon_opportunity}</span>}
+          <span style={S.sigDc} title={tx("DefCon-tækifæri {0} — mikið vinnuálag varnar", [dc.defcon_opportunity])}>DC{dc.defcon_opportunity}</span>}
         {ban && ban.level === "high" &&
-          <span style={S.sigCard} title={`${ban.y} gul spjöld — 1 frá ${ban.threshold}-þröskuldi (${ban.matches} leikja bann)`}>{ban.y}Y</span>}
+          <span style={S.sigCard} title={tx("{0} gul spjöld — 1 frá {1}-þröskuldi ({2} leikja bann)", [ban.y, ban.threshold, ban.matches])}>{ban.y}Y</span>}
         {rot && rot.level === "high" &&
-          <span style={S.sigRot} title={`Byrjaði ${rot.starts} af ${rot.played} leikjum${rot.prevSeason && cumLabel ? ` tímabilið ${cumLabel}` : ""} — skiptingar-hætta`}>{rot.pct}%</span>}
+          <span style={S.sigRot} title={tx("Byrjaði {0} af {1} leikjum{2} — skiptingar-hætta", [rot.starts, rot.played, rot.prevSeason && cumLabel ? ` tímabilið ${cumLabel}` : ""])}>{rot.pct}%</span>}
       </div>
     </div>
   );
@@ -3173,7 +3194,7 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, o
           const bg = TIER_BG[t], fg = TIER_FG[t];
           return (
             <span key={i} style={{ ...S.recFixChip, background:bg, color:fg }}
-              title={`samsett þyngd ${d} (FDR ${f.fdr})`}>
+              title={tx("samsett þyngd {0} (FDR {1})", [d, f.fdr])}>
               {oppLabel(teamById[f.opp]?.short, f.home)}
             </span>
           );
@@ -3188,19 +3209,19 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, o
         {(() => {
           const chips = [];
           if (r.ffdrAvg != null) chips.push(["FFDR", r.ffdrAvg,
-            "Meðal-FFDR yfir sviðið (algildur kvarði) — lægra er léttara"]);
+            tx("Meðal-FFDR yfir sviðið (algildur kvarði) — lægra er léttara")]);
           if (isDef) {
             const vals = fxs.map(f => csFor(p.team, f).cs).filter(v => Number.isFinite(v));
             /* VILLA SEM VAR: "|| 0" taldi vantandi CS sem NULL og dro
                medaltalid nidur — Raya syndi 9% thegar laegsta mogulega er 15%.
                Vantandi gildum er SLEPPT, og "—" ef ekkert er til.           */
-            chips.push(["CS-vænting", vals.length
+            chips.push([tx("CS-vænting"), vals.length
               ? `${Math.round(vals.reduce((a, v) => a + v, 0) / vals.length)}%` : "—",
-              "Líkur á hreinu blaði að meðaltali yfir sviðið"]);
+              tx("Líkur á hreinu blaði að meðaltali yfir sviðið")]);
             if (dc) chips.push(["DC", dc.defcon_opportunity,
-              "DefCon-tækifæri liðsins — hærra = fleiri varnaraðgerðir í boði"]);
+              tx("DefCon-tækifæri liðsins — hærra = fleiri varnaraðgerðir í boði")]);
           }
-          if (elo) chips.push(["Elo", Math.round(elo.elo), "ClubElo-styrkur liðsins"]);
+          if (elo) chips.push(["Elo", Math.round(elo.elo), tx("ClubElo-styrkur liðsins")]);
           return chips.map(([k, v, tip]) => (
             <span key={k} style={S.recChip} title={tip}>
               <span style={S.recChipK}>{k}</span>
@@ -3210,7 +3231,7 @@ function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, o
         })()}
       </div>
       {/* HVERS VEGNA — hvad rekur skorid. Minutur og verd rada; leikir ~5%. */}
-      {r.why && <div style={S.recWhy} title="Stærstu þættirnir á bak við skorið">{r.why}</div>}
+      {r.why && <div style={S.recWhy} title={tx("Stærstu þættirnir á bak við skorið")}>{r.why}</div>}
     </div>
   );
 }
@@ -3294,6 +3315,15 @@ const S = {
   main: { display:"grid", gridTemplateColumns:"minmax(0,1fr) 320px", gap:14, alignItems:"start" },
   // völlur + leikir hlið við hlið; völlurinn MINNI en áður
   searchBtnOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
+  /* Tungumals-vixlarinn: same haed sem hnapparnir vid hlidina (36 px) svo
+     hausinn haldi einni linu. Fastri breidd a hvern hnapp (34 px) er haldid
+     svo "IS"/"EN" hoppi ekki til nar valid breytist.                     */
+  langWrap: { display:"flex", border:`1px solid ${C.borderStrong}`, borderRadius:8,
+              overflow:"hidden", background:C.card, flexShrink:0 },
+  langBtn: { width:34, padding:"8px 0", border:"none", background:"transparent",
+             fontSize:11.5, fontWeight:600, letterSpacing:0.3, color:C.text2,
+             cursor:"pointer", lineHeight:1.2 },
+  langOn: { background:C.purple, color:"#fff" },
   ffdrPos: { display:"flex", gap:3 },
   ffdrPosBtn: { fontFamily:mono, fontSize:9, fontWeight:700, letterSpacing:0.3, cursor:"pointer",
     padding:"3px 7px", background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`, borderRadius:6 },
@@ -3447,7 +3477,10 @@ const S = {
     fontSize:9, fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
   tblNum: { width:46, textAlign:"right", fontFamily:mono, fontSize:11, color:C.text2, position:"relative" },
   /* left 21 (var 4): "i"-ikonid situr nu i vinstra horninu. */
-  availBadge: { position:"absolute", top:4, left:21, fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 3px", borderRadius:4, lineHeight:1.3, zIndex:2 },
+  /* fontSize 8,5 -> 10 og hvitur baugur svo merkid lesist yfir myndinni. */
+  availBadge: { position:"absolute", top:3, left:21, fontFamily:mono, fontSize:10,
+    fontWeight:800, padding:"1px 4px", borderRadius:4, lineHeight:1.35, zIndex:4,
+    boxShadow:"0 0 0 1.5px #fff, 0 1px 2px rgba(0,0,0,0.25)" },
   sAvail: { fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 4px", borderRadius:4, marginLeft:5 },
   sPen: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"1px 3px", borderRadius:4, background:"#e6f9f0", color:"#0a7a4a", marginLeft:4 },
   okBox: { background:C.greenBg, color:"#0a7a4a", borderRadius:8, padding:"8px 10px", fontSize:12 },

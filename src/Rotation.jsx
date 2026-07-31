@@ -22,6 +22,8 @@
 
 import React, { useMemo, useState } from "react";
 import { TIER_BG, TIER_FG, TIER_NAME } from "./model.js";
+import { t as tx } from "./i18n.js";
+import { useLang } from "./useLang.js";
 import {
   DEFAULT_HORIZON, HARD_TIER_MIN, candidatePool, findRotationPartners, gwCell,
   horizonGws, needOf,
@@ -39,18 +41,18 @@ function Cell({ cell, teamById, hard }) {
   if (!cell || cell.blank) return (
     <td style={{ ...S.cell, background:"#f1f1f4", color:C.text3,
                  outline: hard ? `2px solid ${C.red}` : "none", outlineOffset:-2 }}
-        title="Auð umferð — leikmaðurinn spilar ekki og fær 0 stig">–</td>
+        title={tx("Auð umferð — leikmaðurinn spilar ekki og fær 0 stig")}>–</td>
   );
   const t = cell.tier ?? 2;
   const label = cell.fxs.map(f => {
     const o = teamById?.[f.opp];
-    return `${o?.short || "?"}${f.home ? "" : " (ú)"}`;
+    return `${o?.short || "?"}${f.home ? "" : tx(" (ú)")}`;
   }).join(" + ");
   return (
     <td style={{ ...S.cell, background:TIER_BG[t], color:TIER_FG[t],
                  outline: hard ? `2px solid ${C.red}` : "none", outlineOffset:-2 }}
-        title={`${label} — FFDR ${cell.ffdr?.toFixed(2)} (${TIER_NAME[t]})` +
-               (cell.dbl ? "\nTVÖFÖLD UMFERÐ" : "")}>
+        title={tx("{0} — FFDR {1} ({2})", [label, cell.ffdr?.toFixed(2), tx(TIER_NAME[t])]) +
+               (cell.dbl ? tx("\nTVÖFÖLD UMFERÐ") : "")}>
       {label}{cell.dbl ? " ⧫" : ""}
     </td>
   );
@@ -65,6 +67,7 @@ export default function Rotation({
   targetIds, players, teamById, fixByTeamGw, fixDifficulty, gwNow, maxGw = 38,
   squadIds, Crest, onToggleTarget, onClear, onClose,
 }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
   const [onlyMine, setOnlyMine] = useState(false);
   const [capExtra, setCapExtra] = useState(20);          // í tíundum: +£2,0
@@ -74,13 +77,13 @@ export default function Rotation({
      ad vera GRAENN til ad theka (coversNeed krefst threps UNDIR throskuldi). */
   const [hardFrom, setHardFrom] = useState(HARD_TIER_MIN);
 
-  const owned = useMemo(() => new Set(squadIds || []), [squadIds]);
+  const owned = useMemo(() => new Set(squadIds || []), [squadIds, lang]);
   const targets = useMemo(
     () => (targetIds || [])
       .map(id => (players || []).find(p => p.id === id))
       .filter(Boolean).slice(0, 2)
       .map(p => ({ p, teamId: p.team })),
-    [targetIds, players]);
+    [targetIds, players, lang]);
 
   const anyGk = targets.some(t => t.p.element_type === 1);
   /* Þakið hangir á DÝRASTA valda manninum — sé VVD (£6,5) og Salah
@@ -91,13 +94,13 @@ export default function Rotation({
   const pool = useMemo(() => {
     const base = onlyMine ? (players || []).filter(p => owned.has(p.id)) : players;
     return candidatePool(base, targets);
-  }, [players, targets, onlyMine, owned]);
+  }, [players, targets, onlyMine, owned, lang]);
 
   const R = useMemo(() => findRotationPartners({
     targets, candidates: pool, gwFrom: gwNow, horizon, maxGw,
     fixByTeamGw, fixDifficulty, ownedIds: owned, limit: 12, maxTenths, hardFrom,
   }), [targets, pool, gwNow, horizon, maxGw, fixByTeamGw, fixDifficulty, owned,
-       maxTenths, hardFrom]);
+       maxTenths, hardFrom, lang]);
 
   const gws = horizonGws(gwNow, horizon, maxGw);
   const hardSet = new Set(R.hard.map(h => h.gw));
@@ -112,77 +115,75 @@ export default function Rotation({
     .filter(p => anyGk ? p.element_type === 1 : true)
     .sort((a, b) => a.element_type - b.element_type ||
                     (b.now_cost || 0) - (a.now_cost || 0)),
-    [players, owned, targetIds, anyGk]);
+    [players, owned, targetIds, anyGk, lang]);
 
   return (
     <div style={S.wrap} onClick={onClose}>
       <div style={S.panel} onClick={e => e.stopPropagation()}>
         <div style={S.head}>
-          <h2 style={S.h2}>FFDR-samanburður — róterings-par</h2>
+          <h2 style={S.h2}>{tx("FFDR-samanburður — róterings-par")}</h2>
           <div style={S.headCtl}>
-            <label style={S.lbl}>Umferðir
+            <label style={S.lbl}>{tx("Umferðir")}
               <select style={S.sel} value={horizon}
                 onChange={e => setHorizon(Number(e.target.value))}>
                 {HORIZONS.map(n => (
-                  <option key={n} value={n}>{n === 38 ? "allar" : n}</option>
+                  <option key={n} value={n}>{n === 38 ? tx("allar") : n}</option>
                 ))}
               </select>
             </label>
-            <label style={S.lbl}>Verðþak
+            <label style={S.lbl}>{tx("Verðþak")}
               <select style={S.sel} value={capExtra}
                 onChange={e => setCapExtra(e.target.value === "off" ? "off" : Number(e.target.value))}>
-                <option value={0}>sama verð</option>
+                <option value={0}>{tx("sama verð")}</option>
                 <option value={10}>+£1,0</option>
                 <option value={20}>+£2,0</option>
                 <option value={50}>+£5,0</option>
-                <option value="off">ekkert þak</option>
+                <option value="off">{tx("ekkert þak")}</option>
               </select>
             </label>
-            <label style={S.lbl}>Erfitt frá
+            <label style={S.lbl}>{tx("Erfitt frá")}
               <select style={S.sel} value={hardFrom}
                 onChange={e => setHardFrom(Number(e.target.value))}>
-                <option value={3}>dökkgult</option>
-                <option value={2}>hlutlaust (hvítt)</option>
+                <option value={3}>{tx("dökkgult")}</option>
+                <option value={2}>{tx("hlutlaust (hvítt)")}</option>
               </select>
             </label>
             <label style={{ ...S.lbl, cursor:"pointer" }}>
               <input type="checkbox" checked={onlyMine}
-                onChange={e => setOnlyMine(e.target.checked)} /> aðeins mitt lið
+                onChange={e => setOnlyMine(e.target.checked)} /> {tx("aðeins mitt lið")}
             </label>
-            <button style={S.close} onClick={onClose} title="Loka">✕</button>
+            <button style={S.close} onClick={onClose} title={tx("Loka")}>✕</button>
           </div>
         </div>
 
         {!targets.length ? (
           <div style={S.empty}>
-            Enginn valinn. Opnaðu leikmann á vellinum og smelltu á <b>↻</b>.
+            {tx("Enginn valinn. Opnaðu leikmann á vellinum og smelltu á")} <b>↻</b>.
           </div>
         ) : (
           <>
             <div style={S.note}>
-              Finnur mann sem á <b>léttar umferðir NÁKVÆMLEGA þar sem þínir eru þungir</b>.
-              Þetta er annað en FFDR-taflan: maður með betri 6 umferðir í heild er
-              gagnslaus sem par ef hann er þungur í sömu umferðunum.
+              {tx("Finnur mann sem á")} <b>{tx("léttar umferðir NÁKVÆMLEGA þar sem þínir eru þungir")}</b>{tx(". Þetta er annað en FFDR-taflan: maður með betri 6 umferðir í heild er gagnslaus sem par ef hann er þungur í sömu umferðunum.")}
               {anyGk
-                ? " Markmaður valinn — því eru aðeins markmenn í boði."
-                : " Allar stöður nema markmenn eru í boði."}
+                ? tx(" Markmaður valinn — því eru aðeins markmenn í boði.")
+                : tx(" Allar stöður nema markmenn eru í boði.")}
             </div>
 
             <div style={S.scroll}>
               <table style={S.tbl}>
                 <thead>
                   <tr>
-                    <th style={S.thK}>Leikmaður</th>
+                    <th style={S.thK}>{tx("Leikmaður")}</th>
                     {gws.map(gw => (
                       <th key={gw} style={{ ...S.th, ...(hardSet.has(gw) ? S.thHard : {}) }}
                         title={hardSet.has(gw)
-                          ? `Erfið umferð — þyngd ${R.hard.find(h => h.gw === gw)?.need}`
-                          : "Í lagi"}>
+                          ? tx("Erfið umferð — þyngd {0}", [R.hard.find(h => h.gw === gw)?.need])
+                          : tx("Í lagi")}>
                         {gw}{hardSet.has(gw) ? " !" : ""}
                       </th>
                     ))}
-                    <th style={S.thNum} title="Hlutfall þyngdarinnar í erfiðu umferðunum sem hann mætir með hlutlausum leik eða betri">Þekja</th>
-                    <th style={S.thNum} title="Vænt stig hans mínus vænt stig þess sem hann kemur inn fyrir, lagt saman yfir erfiðu umferðirnar">Vinn.</th>
+                    <th style={S.thNum} title={tx("Hlutfall þyngdarinnar í erfiðu umferðunum sem hann mætir með hlutlausum leik eða betri")}>{tx("Þekja")}</th>
+                    <th style={S.thNum} title={tx("Vænt stig hans mínus vænt stig þess sem hann kemur inn fyrir, lagt saman yfir erfiðu umferðirnar")}>{tx("Vinn.")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -196,7 +197,7 @@ export default function Rotation({
                         <span style={S.pos}>{POS[t.p.element_type]}</span>
                         <span style={S.price}>£{((t.p.now_cost || 0) / 10).toFixed(1)}</span>
                         {(targetIds || []).length > 1 &&
-                          <button style={S.rm} title="Taka úr samanburði"
+                          <button style={S.rm} title={tx("Taka úr samanburði")}
                             onClick={() => onToggleTarget && onToggleTarget(t.p.id)}>✕</button>}
                       </td>
                       {t.cells.map((cell, i) => (
@@ -206,7 +207,7 @@ export default function Rotation({
                       <td style={S.tdNum} colSpan={2}>
                         {(() => {
                           const n = t.cells.filter(c => needOf(c, hardFrom) > 0).length;
-                          return `${n} ${n === 1 ? "erfið" : "erfiðar"}`;
+                          return `${n} ${n === 1 ? tx("erfið") : tx("erfiðar")}`;
                         })()}
                       </td>
                     </tr>
@@ -217,11 +218,11 @@ export default function Rotation({
                     <tr>
                       <td style={S.tdAdd} colSpan={gws.length + 3}>
                         <label style={S.addLbl}>
-                          Bæta öðrum við:
+                          {tx("Bæta öðrum við:")}
                           <select style={S.sel} value=""
                             onChange={e => e.target.value &&
                               onToggleTarget && onToggleTarget(Number(e.target.value))}>
-                            <option value="">— veldu —</option>
+                            <option value="">{tx("— veldu —")}</option>
                             {addable.map(p => (
                               <option key={p.id} value={p.id}>
                                 {POS[p.element_type]} · {p.web_name} · £{((p.now_cost || 0) / 10).toFixed(1)}
@@ -236,19 +237,18 @@ export default function Rotation({
                   {/* TILLÖGUR */}
                   {!R.hard.length ? (
                     <tr><td style={S.tdEmpty} colSpan={gws.length + 3}>
-                      Engar erfiðar umferðir næstu {horizon} — ekkert að leysa.
-                      Þessi maður má vera inni.
+                      {tx("Engar erfiðar umferðir næstu")} {horizon} {tx("— ekkert að leysa. Þessi maður má vera inni.")}
                     </td></tr>
                   ) : !R.results.length ? (
                     <tr><td style={S.tdEmpty} colSpan={gws.length + 3}>
-                      Enginn þekur þessar umferðir innan þaksins
-                      {onlyMine ? " í liðinu þínu" : ""}. Hækkaðu verðþakið
-                      {onlyMine ? " eða slepptu „aðeins mitt lið“" : ""}.
+                      {tx("Enginn þekur þessar umferðir innan þaksins")}
+                      {onlyMine ? tx(" í liðinu þínu") : ""}{tx(". Hækkaðu verðþakið")}
+                      {onlyMine ? tx(" eða slepptu „aðeins mitt lið“") : ""}.
                     </td></tr>
                   ) : (
                     <>
                       <tr><td style={S.grp} colSpan={gws.length + 3}>
-                        BESTU PÖR — raðað eftir vinningi í erfiðu umferðunum
+                        {tx("BESTU PÖR — raðað eftir vinningi í erfiðu umferðunum")}
                       </td></tr>
                       {R.results.map((c, i) => {
                         const cells = rowCells(c);
@@ -259,10 +259,10 @@ export default function Rotation({
                               {c.p.web_name}
                               <span style={S.pos}>{POS[c.p.element_type]}</span>
                               <span style={S.price}>£{((c.p.now_cost || 0) / 10).toFixed(1)}</span>
-                              {c.owned && <span style={S.mine} title="Þegar í liðinu þínu — engin skipti">í liðinu</span>}
+                              {c.owned && <span style={S.mine} title={tx("Þegar í liðinu þínu — engin skipti")}>{tx("í liðinu")}</span>}
                               {!!c.others?.length && (
                                 <span style={S.others}
-                                  title={"Sömu leikir — FFDR er eiginleiki LIÐSINS:\n"
+                                  title={tx("Sömu leikir — FFDR er eiginleiki LIÐSINS:\n")
                                     + c.others.map(o => `${POS[o.element_type]} ${o.web_name} £${((o.now_cost||0)/10).toFixed(1)}`).join("\n")}>
                                   +{c.others.length}
                                 </span>
@@ -290,19 +290,13 @@ export default function Rotation({
             </div>
 
             <div style={S.legend}>
-              <b>!</b> = umferð sem þinn maður á erfiða (dökkgult, ljósrautt, rautt)
-              eða <b>auða</b>; auð umferð telst þyngst því hún gefur 0 stig.
-              Rauður rammi merkir þær.
-              {" "}<b>⧫</b> = tvöföld umferð. {" "}
-              <b>Þekja</b> er FFDR-svarið: hversu miklu af erfiðleikunum hann mætir
-              með hlutlausum leik eða betri. <b>Vinn.</b> er ákvörðunin: vænt stig
-              hans mínus þess sem hann kemur inn fyrir, aðeins í erfiðu umferðunum.
-              Raðað eftir vinningi — hrein þekja setur menn í slökum liðum á toppinn.
-              {" "}Ein röð per LIÐ — FFDR er eiginleiki liðsins, svo allir varnarmenn
-              sama félags eiga sömu leiki; <b>+N</b> eru hinir í sama liði.
-              {" "}Verðþak {maxTenths == null ? "ekkert" : `£${(maxTenths / 10).toFixed(1)}`}.
-              {hardFrom <= 2 && " Hlutlausir (hvítir) leikir teljast með, og þá þarf parið að vera GRÆNT."}
-              <button style={S.clearAll} onClick={onClear}>Hreinsa val</button>
+              <b>!</b> {tx("= umferð sem þinn maður á erfiða (dökkgult, ljósrautt, rautt) eða")} <b>{tx("auða")}</b>{tx("; auð umferð telst þyngst því hún gefur 0 stig. Rauður rammi merkir þær.")}
+              {" "}<b>⧫</b> {tx("= tvöföld umferð.")} {" "}
+              <b>{tx("Þekja")}</b> {tx("er FFDR-svarið: hversu miklu af erfiðleikunum hann mætir með hlutlausum leik eða betri.")} <b>{tx("Vinn.")}</b> {tx("er ákvörðunin: vænt stig hans mínus þess sem hann kemur inn fyrir, aðeins í erfiðu umferðunum. Raðað eftir vinningi — hrein þekja setur menn í slökum liðum á toppinn.")}
+              {" "}{tx("Ein röð per LIÐ — FFDR er eiginleiki liðsins, svo allir varnarmenn sama félags eiga sömu leiki;")} <b>+N</b> {tx("eru hinir í sama liði.")}
+              {" "}{tx("Verðþak")} {maxTenths == null ? tx("ekkert") : `£${(maxTenths / 10).toFixed(1)}`}.
+              {hardFrom <= 2 && tx(" Hlutlausir (hvítir) leikir teljast með, og þá þarf parið að vera GRÆNT.")}
+              <button style={S.clearAll} onClick={onClear}>{tx("Hreinsa val")}</button>
             </div>
           </>
         )}

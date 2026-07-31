@@ -12,14 +12,21 @@
    ============================================================ */
 
 import React, { useState, useMemo } from "react";
+import { t as tx, getLang } from "./i18n.js";
+import { useLang } from "./useLang.js";
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, buildLeaderboard, fmtStat, minutesFloor, num,
          imminentBoard, nameScore, startRisk, START_MODEL } from "./stats.js";
 
+/* Islensku heitin eru LYKLAR i orðabokinni (sja i18n.js) — thess vegna
+   stendur `t()` a NOTKUNARSTADNUM og ekki her: fastar a einingarsvidi eru
+   reiknadar EINU SINNI vid innflutning og hefdu thvi frosid a thvi
+   tungumali sem var valid tha.                                         */
 const POS_TABS = [["all","Allir"],["1","Markv."],["2","Vörn"],["3","Miðja"],["4","Sókn"]];
 const POS_LABEL = { 1:"MV", 2:"V", 3:"M", 4:"S" };
 const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 export default function Leaderboard({ players, teams, teamById, Crest, onPickPlayer, seasonNote, imminent, photoUrl }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [mode, setMode] = useState("overview");     // "overview" | "table" | "imminent"
   const [group, setGroup] = useState("attack");
   const [statKey, setStatKey] = useState("total_points");
@@ -33,37 +40,37 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
      svo það virki eins i GW3 og GW38 an handstillingar. 25% valid: i
      fullu timabili (~3.400 min) gefur það ~850 min, sem er nogu lagt til
      ad hleypa hlutastarfs-leikmonnum ad en hendir 90-minutu urtokum ut. */
-  const minMin = useMemo(() => (limitRate ? minutesFloor(players || [], 0.25) : 0), [players, limitRate]);
+  const minMin = useMemo(() => (limitRate ? minutesFloor(players || [], 0.25) : 0), [players, limitRate, lang]);
 
   const hasAnyMinutes = useMemo(
-    () => (players || []).some(p => (num(p.minutes) ?? 0) > 0), [players]);
+    () => (players || []).some(p => (num(p.minutes) ?? 0) > 0), [players, lang]);
 
   const groupStats = useMemo(
-    () => STAT_DEFS.filter(d => d.group === group), [group]);
+    () => STAT_DEFS.filter(d => d.group === group), [group, lang]);
 
   const table = useMemo(() => buildLeaderboard({
     players: players || [], statKey, pos, teamId, search,
     minMinutes: minMin, onlyAvailable: onlyAvail, limit: 200,
-  }), [players, statKey, pos, teamId, search, minMin, onlyAvail]);
+  }), [players, statKey, pos, teamId, search, minMin, onlyAvail, lang]);
 
   if (!players?.length) {
-    return <section style={S.card}><div style={S.muted}>Sæki leikmannagögn…</div></section>;
+    return <section style={S.card}><div style={S.muted}>{tx("Sæki leikmannagögn…")}</div></section>;
   }
 
   return (
     <section style={S.card}>
       <div style={S.head}>
-        <h2 style={S.h2}>Stigatafla</h2>
+        <h2 style={S.h2}>{tx("Stigatafla")}</h2>
         <div style={S.modeRow}>
           <button style={{ ...S.modeBtn, ...(mode==="overview"?S.modeOn:{}) }}
-            onClick={() => setMode("overview")}>Yfirlit</button>
+            onClick={() => setMode("overview")}>{tx("Yfirlit")}</button>
           <button style={{ ...S.modeBtn, ...(mode==="starts"?S.modeOn:{}) }}
-            onClick={() => setMode("starts")} title="Hverjir eru í bekkjar-hættu þrátt fyrir að hafa byrjað">
-            Bekkjar-hætta
+            onClick={() => setMode("starts")} title={tx("Hverjir eru í bekkjar-hættu þrátt fyrir að hafa byrjað")}>
+            {tx("Bekkjar-hætta")}
           </button>
           <button style={{ ...S.modeBtn, ...(mode==="imminent"?S.modeOn:{}) }}
-            onClick={() => setMode("imminent")} title="Hverjir eru við það að skora eða leggja upp">
-            Óhjákvæmilegt
+            onClick={() => setMode("imminent")} title={tx("Hverjir eru við það að skora eða leggja upp")}>
+            {tx("Óhjákvæmilegt")}
           </button>
           <button style={{ ...S.modeBtn, ...(mode==="table"?S.modeOn:{}) }}
             onClick={() => {
@@ -74,15 +81,14 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
               setMode("table");
               const g = STAT_BY_KEY[statKey]?.group;
               if (g) setGroup(g);
-            }}>Tafla</button>
+            }}>{tx("Tafla")}</button>
         </div>
       </div>
 
       {seasonNote && <div style={S.note}>{seasonNote}</div>}
       {!hasAnyMinutes && (
         <div style={S.warn}>
-          Enginn leikmaður hefur spilaðar mínútur í þessum gögnum — tímabilið er ekki byrjað.
-          Töflurnar fyllast þegar GW1 er lokið.
+          {tx("Enginn leikmaður hefur spilaðar mínútur í þessum gögnum — tímabilið er ekki byrjað. Töflurnar fyllast þegar GW1 er lokið.")}
         </div>
       )}
 
@@ -91,32 +97,29 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
         <div style={S.posRow}>
           {POS_TABS.map(([v,l]) => (
             <button key={v} style={{ ...S.posBtn, ...(pos===v?S.posOn:{}) }}
-              onClick={() => setPos(v)}>{l}</button>
+              onClick={() => setPos(v)}>{tx(l)}</button>
           ))}
         </div>
         <select style={S.select} value={teamId} onChange={e => setTeamId(e.target.value)}>
-          <option value="all">Öll lið</option>
+          <option value="all">{tx("Öll lið")}</option>
           {(teams || []).slice().sort((a,b)=>String(a.short).localeCompare(String(b.short)))
             .map(t => <option key={t.id} value={t.id}>{t.short}</option>)}
         </select>
-        <input style={S.input} placeholder="Leita að leikmanni" value={search}
+        <input style={S.input} placeholder={tx("Leita að leikmanni")} value={search}
           onChange={e => setSearch(e.target.value)} />
-        <label style={S.check} title={`Sleppir leikmönnum undir ${minMin} mín í /90- og %-tölum. Verndar gegn 12-mínútna úrtökum.`}>
+        <label style={S.check} title={tx("Sleppir leikmönnum undir {0} mín í /90- og %-tölum. Verndar gegn 12-mínútna úrtökum.", [minMin])}>
           <input type="checkbox" checked={limitRate} onChange={e => setLimitRate(e.target.checked)} />
-          mín. {minMin} mín í hlutfallstölum
+          {tx("mín.")} {minMin} {tx("mín í hlutfallstölum")}
         </label>
         <label style={S.check}>
           <input type="checkbox" checked={onlyAvail} onChange={e => setOnlyAvail(e.target.checked)} />
-          aðeins leikhæfir
+          {tx("aðeins leikhæfir")}
         </label>
       </div>}
 
       {group === "rank" && mode !== "imminent" && (
         <div style={S.note}>
-          <b>Þetta eru FPL-sæti INNAN stöðunnar</b>, ekki meðal allra leikmanna — svo hver
-          staða á sinn nr. 1. Þess vegna sjást fjórir með „1" þegar ekki er síað á stöðu
-          (besti GK, besti DEF, besti MID, besti FWD). <b>Lægra er betra.</b> Dæmi: Raya er
-          með 4,4 stig/leik → sæti <b>3</b> innan markvarða en 32. yfir alla.
+          <b>{tx("Þetta eru FPL-sæti INNAN stöðunnar")}</b>{tx(", ekki meðal allra leikmanna — svo hver staða á sinn nr. 1. Þess vegna sjást fjórir með „1\" þegar ekki er síað á stöðu (besti GK, besti DEF, besti MID, besti FWD).")} <b>{tx("Lægra er betra.")}</b> {tx("Dæmi: Raya er með 4,4 stig/leik → sæti")} <b>3</b> {tx("innan markvarða en 32. yfir alla.")}
         </div>
       )}
 
@@ -154,7 +157,7 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
             {groupStats.map(def => (
               <button key={def.key} style={{ ...S.statBtn, ...(statKey===def.key?S.statOn:{}) }}
                 onClick={() => setStatKey(def.key)} title={def.note || ""}>
-                {def.label}{def.derived ? <i style={S.derived} title="Reiknað af okkur úr FPL-sviðum">†</i> : null}
+                {def.label}{def.derived ? <i style={S.derived} title={tx("Reiknað af okkur úr FPL-sviðum")}>†</i> : null}
               </button>
             ))}
           </div>
@@ -164,8 +167,7 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
       )}
 
       <div style={S.legend}>
-        <b>†</b> = reiknað af okkur úr FPL-sviðum, ekki svið sem FPL birtir sjálft.
-        Hlutfallstölur (/90, %) hlýða mínútu-þakinu; heildartölur ekki.
+        <b>†</b> {tx("= reiknað af okkur úr FPL-sviðum, ekki svið sem FPL birtir sjálft. Hlutfallstölur (/90, %) hlýða mínútu-þakinu; heildartölur ekki.")}
       </div>
     </section>
   );
@@ -182,9 +184,10 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
    Vogtolurnar og maelingin a bak vid MO/AO eru i src/stats.js.
    ============================================================ */
 function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPlayer }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [kind, setKind] = useState("mo");
   const board = useMemo(
-    () => imminent ? imminentBoard(imminent.players, kind, 12) : [], [imminent, kind]);
+    () => imminent ? imminentBoard(imminent.players, kind, 12) : [], [imminent, kind, lang]);
   /* SAFN-RADIR EIGA ENGAN `code` (sja deriveImminent) svo code-uppfletting
      ein og ser skilar engum myndum. Vid follum a NAFN + LID, sama adferd og
      matchShotsToPlayers notar — og krefjumst othraedds sigurvegara.        */
@@ -206,10 +209,10 @@ function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPla
       }
       return (best && bs >= 1 && bs > second) ? best : null;
     };
-  }, [players, teamById]);
+  }, [players, teamById, lang]);
 
   if (!imminent) {
-    return <div style={S.warn}>Sæki <code>imminent.json</code>… pipeline hefur ekki skrifað hana enn.</div>;
+    return <div style={S.warn}>{tx("Sæki")} <code>imminent.json</code>{tx("… pipeline hefur ekki skrifað hana enn.")}</div>;
   }
   const isMo = kind === "mo";
   const serieKey = isMo ? "xg" : "cre";
@@ -219,30 +222,24 @@ function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPla
       <div style={S.immHead}>
         <div style={S.modeRow}>
           <button style={{ ...S.modeBtn, ...(isMo ? S.modeOn : {}) }}
-            onClick={() => setKind("mo")}>⚽ Mark óhjákvæmilegt</button>
+            onClick={() => setKind("mo")}>{tx("⚽ Mark óhjákvæmilegt")}</button>
           <button style={{ ...S.modeBtn, ...(!isMo ? S.modeOn : {}) }}
-            onClick={() => setKind("ao")}>◎ Assist óhjákvæmilegt</button>
+            onClick={() => setKind("ao")}>{tx("◎ Assist óhjákvæmilegt")}</button>
         </div>
         <span style={S.muted}>
-          {imminent.archive ? "SAFN · " : ""}{imminent.season} · GW{imminent.gws?.join(", ")}
+          {imminent.archive ? tx("SAFN · ") : ""}{imminent.season} · GW{imminent.gws?.join(", ")}
         </span>
       </div>
 
       <div style={S.note}>
         {isMo ? (
           <>
-            <b>Hverjir eru við það að skora.</b> Aðeins leikmenn með <b>0–1 framlag</b> í
-            síðustu {imminent.window} umferðum — sá sem er þegar sprunginn út þarf enga spá.
-            Stuðullinn er <code>xG·0,8 + threat/25·0,3 + óheppni·0,2</code>, <b>mældur</b> á
-            13.273 sýnum yfir 3 tímabil: efsti tíundarhlutinn skorar <b>2,89×</b> meðaltalið,
-            á móti 2,70 fyrir xG eitt og 2,78 fyrir threat eitt (út af úrtaki, 2/3 tímabil).
+            <b>{tx("Hverjir eru við það að skora.")}</b> {tx("Aðeins leikmenn með")} <b>{tx("0–1 framlag")}</b> {tx("í síðustu")} {imminent.window} {tx("umferðum — sá sem er þegar sprunginn út þarf enga spá. Stuðullinn er")} <code>{tx("xG·0,8 + threat/25·0,3 + óheppni·0,2")}</code>, <b>{tx("mældur")}</b> {tx("á 13.273 sýnum yfir 3 tímabil: efsti tíundarhlutinn skorar")} <b>{tx("2,89×")}</b> {tx("meðaltalið, á móti 2,70 fyrir xG eitt og 2,78 fyrir threat eitt (út af úrtaki, 2/3 tímabil).")}
           </>
         ) : (
           <>
-            <b>Hverjir eru við það að leggja upp.</b> Þetta er <b>bert creativity/90</b> — og það
-            er niðurstaða mælingar, ekki leti: samsettur aó-stuðull (xA + creativity + óheppni)
-            var prófaður og <b>féll</b>, 2,18 á móti 2,21 fyrir bert creativity, og tapaði í
-            <b> 0 af 3</b> tímabilum. xA-vogin valdist alltaf 0. Við birtum því það sem virkar.
+            <b>{tx("Hverjir eru við það að leggja upp.")}</b> {tx("Þetta er")} <b>{tx("bert creativity/90")}</b> {tx("— og það er niðurstaða mælingar, ekki leti: samsettur aó-stuðull (xA + creativity + óheppni) var prófaður og")} <b>{tx("féll")}</b>{tx(", 2,18 á móti 2,21 fyrir bert creativity, og tapaði í")}
+            <b> {tx("0 af 3")}</b> {tx("tímabilum. xA-vogin valdist alltaf 0. Við birtum því það sem virkar.")}
           </>
         )}
       </div>
@@ -278,12 +275,12 @@ function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPla
                     {cur ? ` · £${((cur.now_cost ?? 0) / 10).toFixed(1)}` : ""}
                   </div>
                 </div>
-                <div style={S.immScore} title={isMo ? "mó-stuðull" : "aó-stuðull"}>
+                <div style={S.immScore} title={isMo ? tx("mó-stuðull") : tx("aó-stuðull")}>
                   {p.score}
                 </div>
               </div>
 
-              <Spark values={series} label={isMo ? "xG per umferð" : "creativity per umferð"}
+              <Spark values={series} label={isMo ? tx("xG per umferð") : tx("creativity per umferð")}
                 gws={gwList} />
 
               <div style={S.immStats}>
@@ -291,8 +288,8 @@ function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPla
                   <>
                     <span><b>{p.window.xg.toFixed(2)}</b> xG</span>
                     <span><b>{Math.round(p.window.threat)}</b> threat</span>
-                    <span title="xG mínus mörk — hversu mikið hann á inni">
-                      <b>{Math.max(0, p.window.xg - p.window.goals).toFixed(2)}</b> á inni</span>
+                    <span title={tx("xG mínus mörk — hversu mikið hann á inni")}>
+                      <b>{Math.max(0, p.window.xg - p.window.goals).toFixed(2)}</b> {tx("á inni")}</span>
                   </>
                 ) : (
                   <>
@@ -300,13 +297,13 @@ function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPla
                     <span><b>{p.window.xa.toFixed(2)}</b> xA</span>
                   </>
                 )}
-                <span style={S.immGi}>{p.window.gi} framlag</span>
+                <span style={S.immGi}>{p.window.gi} {tx("framlag")}</span>
               </div>
             </div>
           );
         })}
       </div>
-      {!board.length && <div style={S.muted}>Enginn leikmaður í markhóp í þessum glugga.</div>}
+      {!board.length && <div style={S.muted}>{tx("Enginn leikmaður í markhóp í þessum glugga.")}</div>}
     </>
   );
 }
@@ -344,6 +341,7 @@ function Spark({ values, gws, label }) {
    Nakvaemni likansins er EKKI betri en grunnreglan — kvordunin er.
    ============================================================ */
 function StartRiskPanel({ imminent, players, teamById, Crest, photoUrl, onPickPlayer }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const rows = useMemo(() => {
     if (!imminent?.players) return [];
     const byCodeName = {};
@@ -353,34 +351,30 @@ function StartRiskPanel({ imminent, players, teamById, Crest, photoUrl, onPickPl
       .map(p => ({ p, r: startRisk(p.start_feats) }))
       .filter(x => x.r)
       .sort((a, b) => a.r.p - b.r.p);
-  }, [imminent, players]);
+  }, [imminent, players, lang]);
 
   const traps = rows.filter(x => x.r.level === "trap");
   const safe  = rows.filter(x => x.r.level === "safe").slice(-8).reverse();
   const m = START_MODEL.measured;
 
-  if (!imminent) return <div style={S.warn}>Sæki <code>imminent.json</code>…</div>;
+  if (!imminent) return <div style={S.warn}>{tx("Sæki")} <code>imminent.json</code>…</div>;
 
   return (
     <>
       <div style={S.note}>
-        <b>Hverjir eru í bekkjar-hættu þrátt fyrir að hafa byrjað síðast.</b> Af þeim sem
-        byrjuðu síðast spila <b>{Math.round(m.trap_base_rate*100)}%</b> EKKI 60+ mínútur næst —
-        og það eru dýrustu einstöku mistökin í FPL.
+        <b>{tx("Hverjir eru í bekkjar-hættu þrátt fyrir að hafa byrjað síðast.")}</b> {tx("Af þeim sem byrjuðu síðast spila")} <b>{Math.round(m.trap_base_rate*100)}%</b> {tx("EKKI 60+ mínútur næst — og það eru dýrustu einstöku mistökin í FPL.")}
         <div style={{ marginTop:5 }}>
-          Mælt á <b>{m.samples.toLocaleString("is")}</b> sýnishornum yfir {m.seasons} tímabil.
-          Líkanið er <b>ekki nákvæmara</b> en reglan „byrjaði síðast" (88,0% á móti 88,2% yfir
-          alla leikmenn) — það væri óheiðarlegt að segja annað. Ábatinn er annars staðar: það er
-          <b>betur kvarðað</b> (Brier {m.brier} á móti {m.brier_baseline}, −24%) svo hægt er að
-          <i>raða</i> eftir hættu, og lægsti tíundarhlutinn fangar
-          {" "}<b>{Math.round(m.trap_lift*m.trap_base_rate*100)}%</b> þeirra sem falla á bekk —
-          <b>{m.trap_lift}× lyfting</b>, samhljóða í öllum þrem tímabilum.
-          {" "}<i>Hvíld (&lt;4 dagar) hafði engin áhrif og er ekki í líkaninu.</i>
+          {tx("Mælt á")} <b>{m.samples.toLocaleString(getLang())}</b> {tx("sýnishornum yfir")} {m.seasons} {tx("tímabil. Líkanið er")} <b>{tx("ekki nákvæmara")}</b> {tx("en reglan „byrjaði síðast\" (88,0% á móti 88,2% yfir alla leikmenn) — það væri óheiðarlegt að segja annað. Ábatinn er annars staðar: það er")}
+          <b>{tx("betur kvarðað")}</b> (Brier {m.brier} {tx("á móti")} {m.brier_baseline}{tx(", −24%) svo hægt er að")}
+          <i>{tx("raða")}</i> {tx("eftir hættu, og lægsti tíundarhlutinn fangar")}
+          {" "}<b>{Math.round(m.trap_lift*m.trap_base_rate*100)}%</b> {tx("þeirra sem falla á bekk —")}
+          <b>{m.trap_lift}{tx("× lyfting")}</b>{tx(", samhljóða í öllum þrem tímabilum.")}
+          {" "}<i>{tx("Hvíld (<4 dagar) hafði engin áhrif og er ekki í líkaninu.")}</i>
         </div>
       </div>
 
-      <H2>Bekkjar-hætta ({traps.length})</H2>
-      {!traps.length ? <div style={S.muted}>Enginn í þessum flokki í núverandi glugga.</div> : (
+      <H2>{tx("Bekkjar-hætta (")}{traps.length})</H2>
+      {!traps.length ? <div style={S.muted}>{tx("Enginn í þessum flokki í núverandi glugga.")}</div> : (
         <div style={S.srGrid}>
           {traps.map(({ p, r }) => (
             <div key={p.name} style={S.srCard} onClick={() => {
@@ -399,13 +393,13 @@ function StartRiskPanel({ imminent, players, teamById, Crest, photoUrl, onPickPl
                   <span key={i} style={{ ...S.srMin, ...(v >= 60 ? S.srMinOn : {}) }}>{v}</span>
                 ))}
               </div>
-              <div style={S.srWhy}>mínútur síðustu {(p.start_minutes||[]).length} umferðir</div>
+              <div style={S.srWhy}>{tx("mínútur síðustu")} {(p.start_minutes||[]).length} {tx("umferðir")}</div>
             </div>
           ))}
         </div>
       )}
 
-      <H2>Öruggastir</H2>
+      <H2>{tx("Öruggastir")}</H2>
       <div style={S.srGrid}>
         {safe.map(({ p, r }) => (
           <div key={p.name} style={{ ...S.srCard, ...S.srCardSafe }}>
@@ -434,21 +428,22 @@ function H2({ children }) {
 
 /* ---- Top-5 kassi fyrir eina tolu ---- */
 function MiniBoard({ def, players, pos, teamId, search, minMin, onlyAvail, teamById, Crest, onPickPlayer, onOpen }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const { rows, total, skipped } = useMemo(() => buildLeaderboard({
     players, statKey: def.key, pos, teamId, search, minMinutes: minMin,
     onlyAvailable: onlyAvail, limit: 5,
-  }), [players, def.key, pos, teamId, search, minMin, onlyAvail]);
+  }), [players, def.key, pos, teamId, search, minMin, onlyAvail, lang]);
 
   return (
     <div style={S.mini}>
-      <button style={S.miniHead} onClick={onOpen} title={def.note || "Opna fulla töflu"}>
+      <button style={S.miniHead} onClick={onOpen} title={def.note || tx("Opna fulla töflu")}>
         <span style={S.miniTitle}>
           {def.label}{def.derived ? <i style={S.derived}>†</i> : null}
         </span>
-        <span style={S.miniMore}>{def.hi ? "hæst" : "lægst"} ›</span>
+        <span style={S.miniMore}>{def.hi ? tx("hæst") : tx("lægst")} ›</span>
       </button>
       {!rows.length ? (
-        <div style={S.miniEmpty}>Engar tölur</div>
+        <div style={S.miniEmpty}>{tx("Engar tölur")}</div>
       ) : rows.map(r => {
         const t = teamById?.[r.p.team];
         return (
@@ -457,18 +452,18 @@ function MiniBoard({ def, players, pos, teamId, search, minMin, onlyAvail, teamB
             {Crest && t ? <Crest team={t} size={13} /> : null}
             <span style={S.miniName}>{r.p.web_name}</span>
             <span style={{ ...S.miniPos, color: POS_COLOR[r.p.element_type] }}>
-              {POS_LABEL[r.p.element_type]}
+              {tx(POS_LABEL[r.p.element_type])}
             </span>
             <span style={S.miniVal}>{fmtStat(def, r.v)}</span>
           </button>
         );
       })}
       {skipped > 0 && (
-        <div style={S.miniNote} title={`${skipped} leikmenn undir ${minMin} mín eru ekki með`}>
-          {skipped} undir mínútu-þaki
+        <div style={S.miniNote} title={tx("{0} leikmenn undir {1} mín eru ekki með", [skipped, minMin])}>
+          {skipped} {tx("undir mínútu-þaki")}
         </div>
       )}
-      {total > 5 && <div style={S.miniNote}>af {total}</div>}
+      {total > 5 && <div style={S.miniNote}>{tx("af")} {total}</div>}
     </div>
   );
 }
@@ -488,7 +483,7 @@ function FullTable({ table, teamById, Crest, onPickPlayer, minMin }) {
           <thead>
             <tr>
               <th style={{ ...S.th, ...S.thRank }}>#</th>
-              <th style={{ ...S.th, ...S.thName }}>Leikmaður</th>
+              <th style={{ ...S.th, ...S.thName }}>{tx("Leikmaður")}</th>
               <th style={{ ...S.th, ...S.thVal }} title={def.note || ""}>{def.label}</th>
               {CTX.map(c => <th key={c.key} style={S.th}>{c.label}</th>)}
             </tr>
@@ -504,9 +499,9 @@ function FullTable({ table, teamById, Crest, onPickPlayer, minMin }) {
                       {Crest && t ? <Crest team={t} size={14} /> : null}
                       <span style={S.nm}>{r.p.web_name}</span>
                       <span style={{ ...S.tag, color: POS_COLOR[r.p.element_type] }}>
-                        {POS_LABEL[r.p.element_type]}
+                        {tx(POS_LABEL[r.p.element_type])}
                       </span>
-                      {r.p.status !== "a" && <span style={S.flag} title={r.p.news || "Ekki fullkomlega leikhæfur"}>!</span>}
+                      {r.p.status !== "a" && <span style={S.flag} title={r.p.news || tx("Ekki fullkomlega leikhæfur")}>!</span>}
                     </button>
                   </td>
                   <td style={S.tdVal}>{fmtStat(def, r.v)}</td>
@@ -517,13 +512,12 @@ function FullTable({ table, teamById, Crest, onPickPlayer, minMin }) {
           </tbody>
         </table>
       </div>
-      {!rows.length && <div style={S.muted}>Enginn leikmaður með tölu í þessum flokki.</div>}
+      {!rows.length && <div style={S.muted}>{tx("Enginn leikmaður með tölu í þessum flokki.")}</div>}
       <div style={S.muted}>
-        {rows.length} af {total} sýndir.
-        {skipped > 0 && ` ${skipped} sleppt vegna mínútu-þaks (${minMin} mín).`}
+        {rows.length} {tx("af")} {total} {tx("sýndir.")}
+        {skipped > 0 && tx(" {0} sleppt vegna mínútu-þaks ({1} mín).", [skipped, minMin])}
         {table.incoherent > 0 && (
-          <> {" "}<b style={{ color:"#c98a00" }}>{table.incoherent} tekinn út</b> — FPL-API-ið
-          gefur tölu sem er ómöguleg miðað við 0 spilaðar mínútur.</>
+          <> {" "}<b style={{ color:"#c98a00" }}>{table.incoherent} {tx("tekinn út")}</b> {tx("— FPL-API-ið gefur tölu sem er ómöguleg miðað við 0 spilaðar mínútur.")}</>
         )}
       </div>
     </>

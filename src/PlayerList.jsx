@@ -32,6 +32,8 @@
    ============================================================ */
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { t as tx } from "./i18n.js";
+import { useLang } from "./useLang.js";
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName, nameScore,
          startRisk, moScore, aoScore, inImminentPool } from "./stats.js";
 
@@ -71,6 +73,7 @@ const fold = t => String(t ?? "").toLowerCase()
   .replace(/þ/g, "th").replace(/ð/g, "d").replace(/æ/g, "ae").replace(/ø|ö/g, "o");
 
 function StatPicker({ value, onChange, style }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [hi, setHi] = useState(0);
@@ -99,7 +102,7 @@ function StatPicker({ value, onChange, style }) {
       for (const d of ds) out.push({ d, grp: g.label });
     }
     return out;
-  }, [q]);
+  }, [q, lang]);
   const pickable = items.filter(i => i.d);
 
   useEffect(() => { setHi(0); }, [q]);
@@ -129,8 +132,8 @@ function StatPicker({ value, onChange, style }) {
   return (
     <div ref={boxRef} style={{ ...S.pkWrap, ...(style || {}) }}>
       <input style={S.pkInput} role="combobox" aria-expanded={open}
-        aria-label="Leita að tölu"
-        placeholder={cur?.label || "veldu tölu"}
+        aria-label={tx("Leita að tölu")}
+        placeholder={cur?.label || tx("veldu tölu")}
         value={open ? q : (cur?.label || "")}
         onFocus={() => setOpen(true)}
         onChange={e => { setQ(e.target.value); setOpen(true); }}
@@ -138,7 +141,7 @@ function StatPicker({ value, onChange, style }) {
       <span style={S.pkCaret} aria-hidden="true">▾</span>
       {open && (
         <div ref={listRef} style={S.pkList} role="listbox">
-          {!pickable.length ? <div style={S.pkNone}>engin tala passar við „{q}“</div> : null}
+          {!pickable.length ? <div style={S.pkNone}>{tx("engin tala passar við „")}{q}“</div> : null}
           {items.map((it, i) => it.d ? (
             <div key={it.d.key} role="option"
               aria-selected={it.d.key === value}
@@ -149,7 +152,7 @@ function StatPicker({ value, onChange, style }) {
               onMouseEnter={() => setHi(pickable.indexOf(it))}
               onMouseDown={e => { e.preventDefault(); commit(pickable.indexOf(it)); }}>
               {it.d.label}
-              {it.d.live_only ? <span style={S.pkLive} title="Fylgir EKKI valdu tímabili">nú</span> : null}
+              {it.d.live_only ? <span style={S.pkLive} title={tx("Fylgir EKKI valdu tímabili")}>{tx("nú")}</span> : null}
             </div>
           ) : <div key={"g" + i} style={S.pkGrp}>{it.grp}</div>)}
         </div>
@@ -162,6 +165,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                                      imminent, shotsFile, fixtures, odds, defcon,
                                      photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
                                      watch, onWatch, mineIds }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   /* ---------- SIMI: 380 px er profunar-breiddin ----------
      Frosni nafnadalkurinn var 196 px af 380 px — meira en helmingur
      skjasins, svo tolurnar fengu naerri ekkert. Og bordinn + siur + 12
@@ -180,12 +184,12 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 
   /* ---------- timabil ---------- */
   const finishedGw = useMemo(
-    () => (events || []).filter(e => e.finished).length, [events]);
+    () => (events || []).filter(e => e.finished).length, [events, lang]);
   const currentLabel = useMemo(() => {
     const d = (events || []).find(e => e.id === 1)?.deadline_time;
     const y = d ? new Date(d).getFullYear() : null;
-    return y ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : "í ár";
-  }, [events]);
+    return y ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : tx("í ár");
+  }, [events, lang]);
   const olderSeasons = seasonsFile?.seasons || [];
   const seasonOpts = [currentLabel, ...olderSeasons];
   const [season, setSeason] = useState(null);
@@ -324,7 +328,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Leikmenn] cook ${out.length} radir: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [players, teamById, seasonsFile, season, isLive, imminent, shotsFile, fixtures, events, odds, defcon]);
+  }, [players, teamById, seasonsFile, season, isLive, imminent, shotsFile, fixtures, events, odds, defcon, lang]);
 
   /* ---------- hvada dalkar hafa GOGN i thessu timabili ---------- */
   const groupCols = useMemo(() => {
@@ -339,15 +343,15 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       const withVal = rows.reduce((n, r) => n + (r.src && d.get(r.src) != null ? 1 : 0), 0);
       return { def: d, withVal };
     });
-  }, [group, rows]);
+  }, [group, rows, lang]);
   const visibleCols = useMemo(
     () => groupCols.filter(c => showEmpty || c.withVal > 0).map(c => c.def),
-    [groupCols, showEmpty]);
+    [groupCols, showEmpty, lang]);
   const emptyCount = groupCols.filter(c => c.withVal === 0).length;
 
-  const watchSet = useMemo(() => new Set(watch || []), [watch]);
+  const watchSet = useMemo(() => new Set(watch || []), [watch, lang]);
   const mineSet = useMemo(
-    () => (mineIds instanceof Set ? mineIds : new Set(mineIds || [])), [mineIds]);
+    () => (mineIds instanceof Set ? mineIds : new Set(mineIds || [])), [mineIds, lang]);
 
   /* ---------- sia ---------- */
   const filtered = useMemo(() => {
@@ -380,7 +384,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       console.log(`[Leikmenn] sia -> ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
   }, [rows, pos, q, minCost, maxCost, teamSel, onlyAvail, hidePicked, thresholds, cmpIds,
-      onlyWatch, onlyMine, watchSet, mineSet]);
+      onlyWatch, onlyMine, watchSet, mineSet, lang]);
 
   /* ---------- rodun ----------
      NULL ALLTAF SIDAST, i BADAR attir. Thetta er algengasta villan:
@@ -407,7 +411,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Leikmenn] rodun ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [filtered, sortKey, sortDir]);
+  }, [filtered, sortKey, sortDir, lang]);
 
   /* ---------- synadarvaeding (fost radahæd) ---------- */
   const scrollRef = useRef(null);
@@ -442,39 +446,39 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const aria = k => sortKey !== k ? "none" : (sortDir === "asc" ? "ascending" : "descending");
 
   const chips = [];
-  if (pos !== "all") chips.push([POS[+pos], () => setPos("all")]);
+  if (pos !== "all") chips.push([tx(POS[+pos]), () => setPos("all")]);
   if (q) chips.push([`„${q}"`, () => setQ("")]);
   if (minCost !== "") chips.push([`≥ £${minCost}`, () => setMinCost("")]);
   if (maxCost !== "") chips.push([`≤ £${maxCost}`, () => setMaxCost("")]);
   teamSel.forEach(id => chips.push([teamById?.[id]?.short || id,
     () => setTeamSel(v => v.filter(x => x !== id))]));
-  if (onlyAvail) chips.push(["aðeins leikhæfir", () => setOnlyAvail(false)]);
-  if (hidePicked) chips.push(["fela valda", () => setHidePicked(false)]);
-  if (onlyWatch) chips.push(["★ vaktlisti", () => setOnlyWatch(false)]);
-  if (onlyMine) chips.push(["mitt lið", () => setOnlyMine(false)]);
+  if (onlyAvail) chips.push([tx("aðeins leikhæfir"), () => setOnlyAvail(false)]);
+  if (hidePicked) chips.push([tx("fela valda"), () => setHidePicked(false)]);
+  if (onlyWatch) chips.push([tx("★ vaktlisti"), () => setOnlyWatch(false)]);
+  if (onlyMine) chips.push([tx("mitt lið"), () => setOnlyMine(false)]);
   thresholds.forEach((t, i) => chips.push([
     `${STAT_BY_KEY[t.key]?.label || t.key} ${t.op} ${t.val}`,
     () => setThresholds(v => v.filter((_, j) => j !== i))]));
 
   if (!players?.length) {
-    return <section style={S.card}><div style={S.muted}>Sæki leikmannagögn…</div></section>;
+    return <section style={S.card}><div style={S.muted}>{tx("Sæki leikmannagögn…")}</div></section>;
   }
 
   return (
     <section style={S.card}>
       <div style={S.head}>
         <div>
-          <h2 style={S.h2}>Leikmenn</h2>
+          <h2 style={S.h2}>{tx("Leikmenn")}</h2>
           <div style={S.sub}>
-            {sorted.length} af {players.length} · {season}
-            {!isLive && <span style={S.histTag}>söguleg tölur</span>}
+            {sorted.length} {tx("af")} {players.length} · {season}
+            {!isLive && <span style={S.histTag}>{tx("söguleg tölur")}</span>}
           </div>
         </div>
         <div style={S.headCtl}>
           <select style={S.sel} value={season ?? ""} onChange={e => setSeason(e.target.value)}>
             {seasonOpts.map(s => (
               <option key={s} value={s}>
-                {s}{s === currentLabel && finishedGw === 0 ? " (ekki hafið)" : ""}
+                {s}{s === currentLabel && finishedGw === 0 ? tx(" (ekki hafið)") : ""}
               </option>
             ))}
           </select>
@@ -483,28 +487,25 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
               setPos("all"); setQ(""); setMinCost(""); setMaxCost(""); setTeamSel([]);
               setOnlyAvail(false); setHidePicked(false); setThresholds([]);
               setOnlyWatch(false); setOnlyMine(false);
-            }}>hreinsa allt</button>}
+            }}>{tx("hreinsa allt")}</button>}
         </div>
       </div>
 
       {finishedGw === 0 && isLive && (
         <div style={S.warn}>
-          <b>{currentLabel} er ekki hafið</b> — öll árstíðarsvið eru núll fyrir alla
-          {" "}{players.length} leikmenn, svo þessi sýn hefur engar tölur að raða.
-          Veldu <b>{olderSeasons[0] || "eldra tímabil"}</b> í fellilistanum.
+          <b>{currentLabel} {tx("er ekki hafið")}</b> {tx("— öll árstíðarsvið eru núll fyrir alla")}
+          {" "}{players.length} {tx("leikmenn, svo þessi sýn hefur engar tölur að raða. Veldu")} <b>{olderSeasons[0] || tx("eldra tímabil")}</b> {tx("í fellilistanum.")}
         </div>
       )}
       {finishedGw === 0 && !isLive && (
         narrow && !showInfo ? (
           <button style={S.noteMini} onClick={() => setShowInfo(true)}>
-            {currentLabel} ekki hafið — sýnir {season} · <b>af hverju?</b>
+            {currentLabel} {tx("ekki hafið — sýnir")} {season} · <b>{tx("af hverju?")}</b>
           </button>
         ) : (
           <div style={S.note}>
-            <b>{currentLabel} er ekki hafið</b>, svo listinn sýnir <b>{season}</b>.
-            Verð, staða og eignarhlutfall eru samt <b>úr dagsins gögnum</b> — þú kaupir á
-            verði dagsins, ekki á verði {season}.
-            {narrow && <> <button style={S.link} onClick={() => setShowInfo(false)}>fela</button></>}
+            <b>{currentLabel} {tx("er ekki hafið")}</b>{tx(", svo listinn sýnir")} <b>{season}</b>{tx(". Verð, staða og eignarhlutfall eru samt")} <b>{tx("úr dagsins gögnum")}</b> {tx("— þú kaupir á verði dagsins, ekki á verði")} {season}.
+            {narrow && <> <button style={S.link} onClick={() => setShowInfo(false)}>{tx("fela")}</button></>}
           </div>
         )
       )}
@@ -514,9 +515,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         if (!liveCols) return null;
         return (
           <div style={{ ...S.mixNote, ...(narrow ? S.mixMini : {}) }}>
-            <b>Þessi flokkur sýnir NÚTÍMA-gögn</b> — ekki {season}. Hann byggir á síðustu loknu
-            umferð, form-glugganum eða leikjum framundan, svo hann breytist ekki þótt þú veljir
-            annað tímabil. Árstíðar-summurnar (Grunnur, Sókn, Vörn …) fylgja hins vegar {season}.
+            <b>{tx("Þessi flokkur sýnir NÚTÍMA-gögn")}</b> {tx("— ekki")} {season}{tx(". Hann byggir á síðustu loknu umferð, form-glugganum eða leikjum framundan, svo hann breytist ekki þótt þú veljir annað tímabil. Árstíðar-summurnar (Grunnur, Sókn, Vörn …) fylgja hins vegar")} {season}.
           </div>
         );
       })()}
@@ -526,45 +525,45 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         <div style={S.posRow}>
           {POS_TABS.map(([v, l]) => (
             <button key={v} style={{ ...S.posBtn, ...(pos === v ? S.posOn : {}) }}
-              onClick={() => setPos(v)}>{l}</button>
+              onClick={() => setPos(v)}>{tx(l)}</button>
           ))}
         </div>
-        <input style={S.search} placeholder="Leita — nafn eða lið" value={q}
+        <input style={S.search} placeholder={tx("Leita — nafn eða lið")} value={q}
           onChange={e => setQ(e.target.value)} />
-        <label style={S.costWrap} title="Verðbil í milljónum">
+        <label style={S.costWrap} title={tx("Verðbil í milljónum")}>
           <span style={S.costLbl}>£</span>
-          <input style={S.costIn} type="number" step="0.1" placeholder="frá"
+          <input style={S.costIn} type="number" step="0.1" placeholder={tx("frá")}
             value={minCost} onChange={e => setMinCost(e.target.value)} />
           <span style={S.costLbl}>–</span>
-          <input style={S.costIn} type="number" step="0.1" placeholder="til"
+          <input style={S.costIn} type="number" step="0.1" placeholder={tx("til")}
             value={maxCost} onChange={e => setMaxCost(e.target.value)} />
         </label>
         <select style={S.sel} value="" onChange={e => {
           const id = +e.target.value;
           if (id) setTeamSel(v => v.includes(id) ? v : [...v, id]);
         }}>
-          <option value="">+ lið</option>
+          <option value="">{tx("+ lið")}</option>
           {(teams || []).slice().sort((a, b) => String(a.short).localeCompare(String(b.short)))
             .map(t => <option key={t.id} value={t.id}>{t.short}</option>)}
         </select>
         <label style={S.check}>
           <input type="checkbox" checked={onlyAvail}
-            onChange={e => setOnlyAvail(e.target.checked)} />aðeins leikhæfir
+            onChange={e => setOnlyAvail(e.target.checked)} />{tx("aðeins leikhæfir")}
         </label>
-        <label style={S.check} title="Aðeins stjörnumerktir">
+        <label style={S.check} title={tx("Aðeins stjörnumerktir")}>
           <input type="checkbox" checked={onlyWatch}
-            onChange={e => setOnlyWatch(e.target.checked)} />★ vaktlisti ({watchSet.size})
+            onChange={e => setOnlyWatch(e.target.checked)} />{tx("★ vaktlisti (")}{watchSet.size})
         </label>
         {mineSet.size > 0 && (
-          <label style={S.check} title="Aðeins leikmenn í mínu liði">
+          <label style={S.check} title={tx("Aðeins leikmenn í mínu liði")}>
             <input type="checkbox" checked={onlyMine}
-              onChange={e => setOnlyMine(e.target.checked)} />mitt lið ({mineSet.size})
+              onChange={e => setOnlyMine(e.target.checked)} />{tx("mitt lið (")}{mineSet.size})
           </label>
         )}
         {!!(cmpIds || []).length && (
           <label style={S.check}>
             <input type="checkbox" checked={hidePicked}
-              onChange={e => setHidePicked(e.target.checked)} />fela valda ({cmpIds.length})
+              onChange={e => setHidePicked(e.target.checked)} />{tx("fela valda (")}{cmpIds.length})
           </label>
         )}
       </div>
@@ -573,15 +572,15 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           Thrjatiu sliderar a skja i einu eru onothaefir; thetta gefur
           sama kraft i einu chipi.                                      */}
       <div style={S.thRow}>
-        <span style={S.thLbl}>Þröskuldur:</span>
+        <span style={S.thLbl}>{tx("Þröskuldur:")}</span>
         <StatPicker value={thKey} onChange={setThKey} />
         <select style={S.selNarrow} value={thOp} onChange={e => setThOp(e.target.value)}>
           <option value=">=">≥</option><option value="<=">≤</option>
         </select>
-        <input style={S.thVal} type="number" step="any" placeholder="tala"
+        <input style={S.thVal} type="number" step="any" placeholder={tx("tala")}
           value={thVal} onChange={e => setThVal(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") addTh(); }} />
-        <button style={S.addBtn} onClick={addTh}>bæta við</button>
+        <button style={S.addBtn} onClick={addTh}>{tx("bæta við")}</button>
       </div>
 
       {chips.length > 0 && (
@@ -600,9 +599,9 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         ))}
         {emptyCount > 0 && (
           <button style={{ ...S.groupBtn, ...S.emptyBtn, ...(showEmpty ? S.groupOn : {}) }}
-            title={`${emptyCount} dálkar hafa engin gögn í ${season}`}
+            title={tx("{0} dálkar hafa engin gögn í {1}", [emptyCount, season])}
             onClick={() => setShowEmpty(v => !v)}>
-            {showEmpty ? "fela tóma" : `sýna tóma dálka (${emptyCount})`}
+            {showEmpty ? tx("fela tóma") : tx("sýna tóma dálka ({0})", [emptyCount])}
           </button>
         )}
       </div>
@@ -610,11 +609,11 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       {/* ---------- tafla ---------- */}
       {!sorted.length ? (
         <div style={S.empty}>
-          <b>Enginn leikmaður passar.</b> Virkar síur: {chips.length
-            ? chips.map(([l]) => l).join(" · ") : "engar"}.
+          <b>{tx("Enginn leikmaður passar.")}</b> {tx("Virkar síur:")} {chips.length
+            ? chips.map(([l]) => l).join(" · ") : tx("engar")}.
           {chips.length > 0 && <> <button style={S.link} onClick={() => {
             setThresholds([]); setMinCost(""); setMaxCost("");
-          }}>hreinsa þröskulda og verðbil</button></>}
+          }}>{tx("hreinsa þröskulda og verðbil")}</button></>}
         </div>
       ) : (
         <div ref={scrollRef} style={S.scroll}>
@@ -628,16 +627,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     thvi smellur a hausinn sjalfan radar eftir nafni.       */}
                 <button style={{ ...S.starHead, ...(onlyWatch ? S.starOn : {}) }}
                   aria-pressed={onlyWatch}
-                  title={onlyWatch ? "Sýna alla" : "Sýna aðeins vaktlista"}
+                  title={onlyWatch ? tx("Sýna alla") : tx("Sýna aðeins vaktlista")}
                   onClick={e => { e.stopPropagation(); setOnlyWatch(v => !v); }}>
                   {onlyWatch ? "★" : "☆"}
                 </button>
-                Leikmaður{arrow("__name")}
+                {tx("Leikmaður")}{arrow("__name")}
               </div>
               <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__cost")} tabIndex={0}
-                onClick={() => sortOn("__cost", false)}>Verð{arrow("__cost")}</div>
+                onClick={() => sortOn("__cost", false)}>{tx("Verð")}{arrow("__cost")}</div>
               <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__own")} tabIndex={0}
-                onClick={() => sortOn("__own")}>Eign %{arrow("__own")}</div>
+                onClick={() => sortOn("__own")}>{tx("Eign %")}{arrow("__own")}</div>
               {visibleCols.map(d => (
                 <div key={d.key} style={{ ...S.hCell, ...cNum }}
                   title={`${d.label}${d.note ? " — " + d.note : ""}`}
@@ -648,8 +647,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                 </div>
               ))}
               <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__start")} tabIndex={0}
-                title="Byrjunar-líkur — mælt, sjá Bekkjar-hætta"
-                onClick={() => sortOn("__start")}>Byrjar{arrow("__start")}</div>
+                title={tx("Byrjunar-líkur — mælt, sjá Bekkjar-hætta")}
+                onClick={() => sortOn("__start")}>{tx("Byrjar")}{arrow("__start")}</div>
               <div style={{ ...S.hCell, ...S.cAct }}>+</div>
             </div>
 
@@ -670,8 +669,9 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                         Frosna holfid er alltaf synilegt.                   */}
                     <button style={{ ...S.star, ...(isWatched ? S.starOn : {}) }}
                       aria-pressed={isWatched}
-                      aria-label={`${isWatched ? "Fjarlægja" : "Setja"} ${r.p.web_name} ${isWatched ? "af" : "á"} vaktlista`}
-                      title={isWatched ? "Á vaktlista — smelltu til að fjarlægja" : "Setja á vaktlista"}
+                      aria-label={isWatched ? tx("Fjarlægja {0} af vaktlista", [r.p.web_name])
+                                            : tx("Setja {0} á vaktlista", [r.p.web_name])}
+                      title={isWatched ? tx("Á vaktlista — smelltu til að fjarlægja") : tx("Setja á vaktlista")}
                       onClick={e => { e.stopPropagation(); onWatch?.(r.p.id); }}>
                       {isWatched ? "★" : "☆"}
                     </button>
@@ -686,8 +686,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                         {Crest && r.team ? <Crest team={r.team} size={11} /> : null}
                         {r.team?.short}
                       </span>
-                      {!r.avail && <span style={S.flag} title={r.p.news || "Ekki leikhæfur"}>!</span>}
-                      {!isLive && !r.hist && <span style={S.noHist} title={`Engin gögn í ${season}`}>—</span>}
+                      {!r.avail && <span style={S.flag} title={r.p.news || tx("Ekki leikhæfur")}>!</span>}
+                      {!isLive && !r.hist && <span style={S.noHist} title={tx("Engin gögn í {0}", [season])}>—</span>}
                     </button>
                   </div>
                   <div style={{ ...S.cell, ...cNum, ...S.strong }}>£{r.cost.toFixed(1)}</div>
@@ -708,14 +708,14 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                              : r.startLevel === "trap" ? C.red
                              : r.startLevel === "mid" ? C.amber : C.text3 }}
                         title={r.startLevel === "trap"
-                          ? "Byrjaði síðast en er í bekkjar-hættu" : undefined}>
+                          ? tx("Byrjaði síðast en er í bekkjar-hættu") : undefined}>
                         {Math.round(r.startP * 100)}%
                       </span>
                     )}
                   </div>
                   <div style={{ ...S.cell, ...S.cAct }}>
                     <button style={{ ...S.addSm, ...(inCmp ? S.addSmOn : {}) }}
-                      title={inCmp ? "Í samanburði" : "Bæta í samanburð"}
+                      title={inCmp ? tx("Í samanburði") : tx("Bæta í samanburð")}
                       onClick={() => onCompare?.(r.p.id)}>{inCmp ? "✓" : "⇄"}</button>
                   </div>
                 </div>
@@ -726,14 +726,10 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       )}
 
       <div style={S.legend}>
-        <b>†</b> = reiknað af okkur úr FPL-sviðum. <b>—</b> = gögn vantar (ekki núll) og
-        raðast <b>alltaf síðast</b>, í báðar áttir. Dálkar sem eru tómir fyrir alla í
-        {" "}{season} eru faldir — kveiktu á þeim með hnappnum. Smelltu á haus til að raða,
-        á nafn til að opna spjaldið, á <b>⇄</b> til að bera saman.
-        {" "}<b style={{ color:"#e8a71c" }}>★</b> setur á vaktlista (vistast milli heimsókna);
-        stjarnan í hausnum sýnir aðeins vaktlistann.
-        {" "}<b style={{ color:C.green }}>Græn rönd</b> = leikmaður í þínu liði — röndin er á
-        nafna-hólfinu því röðin skrunar til hliðar.
+        <b>†</b> {tx("= reiknað af okkur úr FPL-sviðum.")} <b>—</b> {tx("= gögn vantar (ekki núll) og raðast")} <b>{tx("alltaf síðast")}</b>{tx(", í báðar áttir. Dálkar sem eru tómir fyrir alla í")}
+        {" "}{season} {tx("eru faldir — kveiktu á þeim með hnappnum. Smelltu á haus til að raða, á nafn til að opna spjaldið, á")} <b>⇄</b> {tx("til að bera saman.")}
+        {" "}<b style={{ color:"#e8a71c" }}>★</b> {tx("setur á vaktlista (vistast milli heimsókna); stjarnan í hausnum sýnir aðeins vaktlistann.")}
+        {" "}<b style={{ color:C.green }}>{tx("Græn rönd")}</b> {tx("= leikmaður í þínu liði — röndin er á nafna-hólfinu því röðin skrunar til hliðar.")}
       </div>
     </section>
   );

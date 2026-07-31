@@ -16,6 +16,8 @@
    ============================================================ */
 
 import React, { useMemo, useState } from "react";
+import { t as tx } from "./i18n.js";
+import { useLang } from "./useLang.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -28,9 +30,9 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 /* Merkin sem lika birtast a leikmannaspjoldum — eitt satt um taknin. */
 export const SP_KINDS = [
-  { key:"pen", field:"penalties_order",                       icon:"⚽", label:"Víti",        short:"P" },
-  { key:"fk",  field:"direct_freekicks_order",                icon:"◎", label:"Aukaspyrnur", short:"F" },
-  { key:"ck",  field:"corners_and_indirect_freekicks_order",  icon:"⌾", label:"Horn",        short:"C" },
+  { key:"pen", field:"penalties_order",                       icon:"⚽", get label() { return tx("Víti"); },        short:"P" },
+  { key:"fk",  field:"direct_freekicks_order",                icon:"◎", get label() { return tx("Aukaspyrnur"); }, short:"F" },
+  { key:"ck",  field:"corners_and_indirect_freekicks_order",  icon:"⌾", get label() { return tx("Horn"); },        short:"C" },
 ];
 
 /* Ikon-rod fyrir eitt spjald. Skilar null ef leikmadurinn tekur ekkert. */
@@ -44,6 +46,7 @@ export function setPieceBadges(p, { max = 3 } = {}) {
 }
 
 export default function SetPieces({ players, teams, teamById, Crest, notes, onPickPlayer }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [kind, setKind] = useState("pen");
   const [onlyFirst, setOnlyFirst] = useState(false);
   const def = SP_KINDS.find(k => k.key === kind);
@@ -58,7 +61,7 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
     }
     Object.values(m).forEach(l => l.sort((a, b) => a.order - b.order));
     return m;
-  }, [players, def, onlyFirst]);
+  }, [players, def, onlyFirst, lang]);
 
   const covered = Object.keys(byTeam).length;
   const sorted = (teams || []).slice().sort((a, b) => String(a.short).localeCompare(String(b.short)));
@@ -67,10 +70,10 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
     <section style={S.card}>
       <div style={S.head}>
         <div>
-          <h2 style={S.h2}>Föst leikatriði</h2>
+          <h2 style={S.h2}>{tx("Föst leikatriði")}</h2>
           <div style={S.sub}>
-            Röðun úr FPL — hver tekur víti, aukaspyrnur og horn.
-            {notes?.last_updated && ` Uppfært ${String(notes.last_updated).slice(0, 10)}.`}
+            {tx("Röðun úr FPL — hver tekur víti, aukaspyrnur og horn.")}
+            {notes?.last_updated && tx(" Uppfært {0}.", [String(notes.last_updated).slice(0, 10)])}
           </div>
         </div>
         <div style={S.tabs}>
@@ -82,18 +85,16 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
       </div>
 
       <div style={S.note}>
-        <b>Fyrirliðar (armbandið) eru ekki hér.</b> Hvorki FPL-API-ið né ESPN-fæðið gefur
-        hver ber fyrirliðabandið, svo við sýnum það ekki frekar en að giska. Það sem er
-        <i> mælt</i> — og skiptir mestu fyrir fantasy — er spyrnu-röðunin hér að neðan:
-        víta­skytta nr. 1 er sterkasta einstaka fyrirliða-vísbendingin sem gögnin geyma.
+        <b>{tx("Fyrirliðar (armbandið) eru ekki hér.")}</b> {tx("Hvorki FPL-API-ið né ESPN-fæðið gefur hver ber fyrirliðabandið, svo við sýnum það ekki frekar en að giska. Það sem er")}
+        <i> {tx("mælt")}</i> {tx("— og skiptir mestu fyrir fantasy — er spyrnu-röðunin hér að neðan: víta­skytta nr. 1 er sterkasta einstaka fyrirliða-vísbendingin sem gögnin geyma.")}
       </div>
 
       <div style={S.filters}>
         <label style={S.check}>
           <input type="checkbox" checked={onlyFirst} onChange={e => setOnlyFirst(e.target.checked)} />
-          aðeins fyrsti taki
+          {tx("aðeins fyrsti taki")}
         </label>
-        <span style={S.muted}>{covered} af {teams?.length ?? 0} liðum með skráða röðun</span>
+        <span style={S.muted}>{covered} {tx("af")} {teams?.length ?? 0} {tx("liðum með skráða röðun")}</span>
       </div>
 
       <div style={S.grid}>
@@ -107,7 +108,7 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
                 <span style={S.tName}>{t.name}</span>
               </div>
               {!list.length ? (
-                <div style={S.empty}>Engin röðun skráð</div>
+                <div style={S.empty}>{tx("Engin röðun skráð")}</div>
               ) : list.map(({ p, order }) => (
                 <button key={p.id} style={S.row} onClick={() => onPickPlayer && onPickPlayer(p.id)}>
                   <span style={{ ...S.ord, ...(order === 1 ? S.ordFirst : {}) }}>{order}</span>
@@ -122,8 +123,7 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
       </div>
 
       <div style={S.legend}>
-        <b>1</b> = fyrsti taki. Röðunin er handskráð hjá FPL og getur verið úrelt snemma
-        tímabils — sannreyndu gegn síðustu leikjum áður en þú byggir fyrirliða-val á henni.
+        <b>1</b> {tx("= fyrsti taki. Röðunin er handskráð hjá FPL og getur verið úrelt snemma tímabils — sannreyndu gegn síðustu leikjum áður en þú byggir fyrirliða-val á henni.")}
       </div>
     </section>
   );

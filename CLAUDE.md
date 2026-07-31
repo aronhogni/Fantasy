@@ -1149,6 +1149,68 @@ Rétta röðin er:
 
 ---
 
+## 8b. TUNGUMÁL — enskur hnappur í hausnum (30.7.2026)
+
+`IS | EN` í hausnum (`LangToggle` í `App.jsx`). Valið vistast í
+`localStorage` undir `fpl_lang` og `<html lang>` + flipa-titill fylgja.
+**Íslenska er sjálfgefin og getur ekki brostið** (sjá lykla-regluna).
+
+### ÍSLENSKI FRUMTEXTINN ER LYKILLINN — ekki `nav.planner`
+
+`src/i18n.js` er hreint (ekkert React) og `src/i18n-en.js` er orðabókin:
+`{ "Bekkur": "Bench" }`. Abstrakt lyklar hefðu krafist þess að hver af
+**933** strengjum færi í tvö skjöl og hver ósamstæður lykill (`nav.planer`)
+hefði birt lykilinn sjálfan í viðmótinu. Með frumtextann sem lykil skilar
+`t()` lyklinum þegar þýðingu vantar — íslenskan er því alltaf rétt og eina
+sem getur brostið er þýðingin, sem **prófið finnur** (`tests/i18n.mjs`).
+
+### FJÖGUR ATRIÐI SEM KOSTUÐU TÍMA — ekki endurtaka
+
+1. **Kallið heitir `tx()`, EKKI `t()`.** `t` er upptekið í þessu repo-i sem
+   lið/þrep — **51 staðbundin binding** (`.map(t => ...)`, `TIER_NAME[t]`).
+   Fyrsta útfærslan notaði `t()` og **95 köll lentu í skugga** af
+   staðbundnu `t` og hefðu kastað `TypeError` í keyrslu. Að endurnefna 51
+   staðbundna breytu var stærri og hættulegri breyting en að flytja inn
+   undir öðru nafni. Vörður: kafli 5 í prófinu.
+2. **Töflur á einingarsviði verða að vera LAZY.** `STAT_DEFS`,
+   `STAT_GROUPS`, `CHIPS`, `EXPLAIN_IS`, `ROWS`, `SP_KINDS` og `ZONE_IS`
+   eru reiknaðar EINU SINNI við innflutning — `label: tx("Stig")` hefði
+   frosið á því tungumáli sem var valið þá. Þær nota því **getter**
+   (`get label() { return tx("Stig"); }`), 211 talsins. Vörður: kafli 7.
+3. **`lang` er í HVERJUM `useMemo`/`useCallback` dep-lista** (62 talsins,
+   `useLang()` gefur hann). Dep-listi breytist ekki þótt `LANG` breytist,
+   svo vistað gildi sem BER texta yrði stöðugt eftir tungumálsskipti.
+   `useEffect` fékk hann VILJANDI EKKI — það hefði endursótt öll `data/`.
+4. **ASCII-íslenska er ósýnileg fyrir stafa-skynjun.** Leitin að
+   þýðanlegum strengjum fann `þðæö` sjálfkrafa, en „Grunnur", „Hreinsa",
+   „Yfirlit", „laugardagur", „lau" og „Utan teigs" hafa enga broddstafi og
+   sluppu. Þeir fundust á **skjánum**, ekki í kóðanum. Ef nýr texti er
+   settur inn: prófið skannar `þðæö` sjálfkrafa, en ASCII-íslenska þarf
+   **auga** — eða keyrðu appið á ensku og lestu það.
+
+**Samhengis-lyklar:** `"M|mörk"` birtist sem `M` á íslensku og `G` á ensku.
+Til af því að `M` er **homógraf** — Mörk í skotatöflunni, Miðja í
+stöðutöflunni — og einn lykill getur ekki haft tvær þýðingar. Notaðu þetta
+sparlega; það var þörf á því á einum stað.
+
+### ÞAÐ SEM ER VILJANDI ÓÞÝTT
+- **Stat-skammstafanir** (xG, xA, xGI, BPS, ICT, DC, CS) og **chip-heiti**
+  (Wildcard, Free Hit, Bench Boost, Triple Captain) — þau eru ensk þegar og
+  FPL-notendur þekkja þau nákvæmlega svona.
+- **Skilaboð til forritara** (`console.warn`, `new Error`) — ekki viðmót.
+- **STATUS-NÓTUR ÚR PIPELINE.** `data/status.json` og `last_gw.json` bera
+  íslenskan texta sem `scripts/fetch.mjs` skrifar („bíður tímabils — E0
+  2026/27 verður til við fyrstu umferð"). Þær birtast **áfram á íslensku**
+  undir *Data sources* og í umferðar-skýrslunni. Að þýða þær er ekki
+  strengja-verk heldur endurhönnun á `record(...)` í 2.714-línu skriftu sem
+  keyrir mannlaus — það á að vera sér lota með sinni eigin mælingu.
+- **Tölur eru ekki sniðnar per tungumál.** Appið notar `toFixed` (punktur)
+  þegar, svo enskan er þegar rétt; íslensku kommurnar í PRÓSA („2,89×")
+  eru skrifaðar með punkti í þýðingunni sjálfri. Eina staðar-næma tala er
+  `toLocaleString(getLang())` í `Leaderboard.jsx` (65.557 / 65,557).
+
+---
+
 ## 9. Það sem þetta skjal getur EKKI flutt með sér
 
 Þrennt fylgir ekki repo-inu og þarf að vera til á vélinni:

@@ -16,6 +16,8 @@
 
 import React, { useMemo, useState } from "react";
 import { num } from "./stats.js";
+import { t as tx } from "./i18n.js";
+import { useLang } from "./useLang.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -30,62 +32,62 @@ const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
 /* Radirnar. `hi:false` = laegra er betra. `fmt` styrir birtingu.        */
 export const ROWS = [
-  { grp:"Grunnur" },
-  { k:"total_points", label:"FPL-stig",       hi:true,  get:r => r.total_points },
-  { k:"minutes",      label:"Mínútur",        hi:true,  get:r => r.minutes },
-  { k:"starts",       label:"Byrjaðir leikir",hi:true,  get:r => r.starts },
-  { k:"pts90",        label:"Stig / 90",      hi:true,  dec:2, get:r => per90(r.total_points, r.minutes) },
-  { k:"minPerPt",     label:"Mín. per stig",  hi:false, dec:1,
-    note:"Lægra er betra — hversu lengi hann er að vinna sér inn stig",
+  { get grp() { return tx("Grunnur"); } },
+  { k:"total_points", get label() { return tx("FPL-stig"); },       hi:true,  get:r => r.total_points },
+  { k:"minutes",      get label() { return tx("Mínútur"); },        hi:true,  get:r => r.minutes },
+  { k:"starts",       get label() { return tx("Byrjaðir leikir"); },hi:true,  get:r => r.starts },
+  { k:"pts90",        get label() { return tx("Stig / 90"); },      hi:true,  dec:2, get:r => per90(r.total_points, r.minutes) },
+  { k:"minPerPt",     get label() { return tx("Mín. per stig"); },  hi:false, dec:1,
+    get note() { return tx("Lægra er betra — hversu lengi hann er að vinna sér inn stig"); },
     get:r => div(r.minutes, r.total_points) },
-  { k:"cost",         label:"Verð",           hi:false, dec:1, money:true,
+  { k:"cost",         get label() { return tx("Verð"); },           hi:false, dec:1, money:true,
     get:r => r.now_cost == null ? null : r.now_cost / 10 },
-  { k:"ppm",          label:"Stig per milljón", hi:true, dec:1,
+  { k:"ppm",          get label() { return tx("Stig per milljón"); }, hi:true, dec:1,
     get:r => div(r.total_points, r.now_cost == null ? null : r.now_cost / 10) },
 
-  { grp:"Sókn" },
-  { k:"goals_scored", label:"Mörk",           hi:true,  get:r => r.goals_scored },
-  { k:"assists",      label:"Assist",         hi:true,  get:r => r.assists },
-  { k:"gi",           label:"Mörk + assist",  hi:true,  get:r => (r.goals_scored ?? 0) + (r.assists ?? 0) },
-  { k:"gi90",         label:"M+A / 90",       hi:true,  dec:2,
+  { get grp() { return tx("Sókn"); } },
+  { k:"goals_scored", get label() { return tx("Mörk"); },           hi:true,  get:r => r.goals_scored },
+  { k:"assists",      get label() { return tx("Assist"); },         hi:true,  get:r => r.assists },
+  { k:"gi",           get label() { return tx("Mörk + assist"); },  hi:true,  get:r => (r.goals_scored ?? 0) + (r.assists ?? 0) },
+  { k:"gi90",         get label() { return tx("M+A / 90"); },       hi:true,  dec:2,
     get:r => per90((r.goals_scored ?? 0) + (r.assists ?? 0), r.minutes) },
-  { k:"minPerGi",     label:"Mín. per framlag", hi:false, dec:0,
+  { k:"minPerGi",     get label() { return tx("Mín. per framlag"); }, hi:false, dec:0,
     get:r => { const gi = (r.goals_scored ?? 0) + (r.assists ?? 0); return gi ? div(r.minutes, gi) : null; } },
 
-  { grp:"Væntingar" },
+  { get grp() { return tx("Væntingar"); } },
   { k:"expected_goals", label:"xG",           hi:true, dec:2, get:r => r.expected_goals },
   { k:"xg90",         label:"xG / 90",        hi:true, dec:2, get:r => r.expected_goals_per_90 },
-  { k:"xgDelta",      label:"Mörk − xG",      hi:true, dec:2, signed:true,
-    note:"Yfir núlli = klínísk nýting eða heppni",
+  { k:"xgDelta",      get label() { return tx("Mörk − xG"); },      hi:true, dec:2, signed:true,
+    get note() { return tx("Yfir núlli = klínísk nýting eða heppni"); },
     get:r => (r.goals_scored == null || r.expected_goals == null) ? null : r.goals_scored - r.expected_goals },
   { k:"expected_assists", label:"xA",         hi:true, dec:2, get:r => r.expected_assists },
   { k:"xa90",         label:"xA / 90",        hi:true, dec:2, get:r => r.expected_assists_per_90 },
-  { k:"xaDelta",      label:"Assist − xA",    hi:true, dec:2, signed:true,
+  { k:"xaDelta",      get label() { return tx("Assist − xA"); },    hi:true, dec:2, signed:true,
     get:r => (r.assists == null || r.expected_assists == null) ? null : r.assists - r.expected_assists },
   { k:"expected_goal_involvements", label:"xGI", hi:true, dec:2, get:r => r.expected_goal_involvements },
-  { k:"minPerXgi",    label:"Mín. per xGI",   hi:false, dec:0,
+  { k:"minPerXgi",    get label() { return tx("Mín. per xGI"); },   hi:false, dec:0,
     get:r => div(r.minutes, r.expected_goal_involvements) },
 
-  { grp:"Vörn", defOnly:true },
+  { get grp() { return tx("Vörn"); }, defOnly:true },
   { defOnly:true, k:"clean_sheets", label:"CS",             hi:true,  get:r => r.clean_sheets },
   { defOnly:true, k:"csPct",        label:"CS %",           hi:true,  dec:0, pct:true,
     get:r => { const v = div(r.clean_sheets, r.starts); return v == null ? null : v * 100; } },
   { defOnly:true, k:"goals_conceded", label:"GC",           hi:false, get:r => r.goals_conceded },
   { defOnly:true, k:"expected_goals_conceded", label:"xGC", hi:false, dec:2, get:r => r.expected_goals_conceded },
   { defOnly:true, k:"gcDelta",      label:"GC − xGC",       hi:false, dec:2, signed:true,
-    note:"Undir núlli = varist betur en færin gáfu",
+    get note() { return tx("Undir núlli = varist betur en færin gáfu"); },
     get:r => (r.goals_conceded == null || r.expected_goals_conceded == null) ? null
              : r.goals_conceded - r.expected_goals_conceded },
   { defOnly:true, k:"defensive_contribution", label:"DC",   hi:true,  get:r => r.defensive_contribution },
-  { defOnly:true, k:"dc_per_start", label:"DC per byrjun",  hi:true,  dec:1, get:r => r.dc_per_start },
-  { defOnly:true, gkOnly:true, k:"saves", label:"Vörslur", hi:true, get:r => r.saves },
+  { defOnly:true, k:"dc_per_start", get label() { return tx("DC per byrjun"); },  hi:true,  dec:1, get:r => r.dc_per_start },
+  { defOnly:true, gkOnly:true, k:"saves", get label() { return tx("Vörslur"); }, hi:true, get:r => r.saves },
 
-  { grp:"Bónus og agi" },
-  { k:"bonus",        label:"Bónusstig",      hi:true,  get:r => r.bonus },
+  { get grp() { return tx("Bónus og agi"); } },
+  { k:"bonus",        get label() { return tx("Bónusstig"); },      hi:true,  get:r => r.bonus },
   { k:"bps",          label:"BPS",            hi:true,  get:r => r.bps },
   { k:"bps90",        label:"BPS / 90",       hi:true,  dec:1, get:r => per90(r.bps, r.minutes) },
-  { k:"yellow_cards", label:"Gul spjöld",     hi:false, get:r => r.yellow_cards },
-  { k:"red_cards",    label:"Rauð spjöld",    hi:false, get:r => r.red_cards },
+  { k:"yellow_cards", get label() { return tx("Gul spjöld"); },     hi:false, get:r => r.yellow_cards },
+  { k:"red_cards",    get label() { return tx("Rauð spjöld"); },    hi:false, get:r => r.red_cards },
 ];
 
 /* ============================================================
@@ -140,7 +142,7 @@ function VisualRows({ cols, anyDef, anyGk }) {
           <div key={row.k} style={S.vRow}>
             <div style={S.vLbl} title={row.note || ""}>
               {row.label}
-              {!row.hi ? <span style={S.vLo} title="Lægra er betra">▼</span> : null}
+              {!row.hi ? <span style={S.vLo} title={tx("Lægra er betra")}>▼</span> : null}
             </div>
             <div style={S.vBars}>
               {vals.map((v, i) => {
@@ -203,10 +205,11 @@ function liveRow(p) {
 
 export default function Compare({ ids, players, teamById, seasonsFile, photoUrl, Crest,
                                   currentLabel, seasonStarted, onRemove, onClear, onClose }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const seasons = useMemo(() => {
     const older = (seasonsFile?.seasons || []);
     return [{ key: currentLabel, live: true }, ...older.map(s => ({ key: s }))];
-  }, [seasonsFile, currentLabel]);
+  }, [seasonsFile, currentLabel, lang]);
   const [season, setSeason] = useState(() => seasonStarted ? currentLabel
                                             : (seasonsFile?.seasons?.[0] || currentLabel));
   /* SJONRAENT ER SJALFGEFID THEGAR TVEIR ERU VALDIR — thad var bedin:
@@ -232,43 +235,40 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
     <div style={S.wrap} onClick={onClose}>
       <div style={S.panel} onClick={e => e.stopPropagation()}>
         <div style={S.head}>
-          <h2 style={S.h2}>Samanburður</h2>
+          <h2 style={S.h2}>{tx("Samanburður")}</h2>
           <div style={S.headCtl}>
             <select style={S.sel} value={season} onChange={e => setSeason(e.target.value)}>
               {seasons.map(s => (
                 <option key={s.key} value={s.key}>
-                  {s.key}{s.live && !seasonStarted ? " (ekki hafið)" : ""}
+                  {s.key}{s.live && !seasonStarted ? tx(" (ekki hafið)") : ""}
                 </option>
               ))}
             </select>
-            <div style={S.seg} role="group" aria-label="Snið samanburðar">
+            <div style={S.seg} role="group" aria-label={tx("Snið samanburðar")}>
               <button style={{ ...S.segBtn, ...(visual ? S.segOn : {}) }}
-                aria-pressed={visual} onClick={() => setVisual(true)}>▤ Sjónrænt</button>
+                aria-pressed={visual} onClick={() => setVisual(true)}>{tx("▤ Sjónrænt")}</button>
               <button style={{ ...S.segBtn, ...(!visual ? S.segOn : {}) }}
-                aria-pressed={!visual} onClick={() => setVisual(false)}>≡ Tafla</button>
+                aria-pressed={!visual} onClick={() => setVisual(false)}>{tx("≡ Tafla")}</button>
             </div>
-            <button style={S.clear} onClick={onClear}>Hreinsa</button>
+            <button style={S.clear} onClick={onClear}>{tx("Hreinsa")}</button>
             <button style={S.close} onClick={onClose}>✕</button>
           </div>
         </div>
 
         {!picked.length ? (
           <div style={S.empty}>
-            Enginn valinn. Opnaðu leikmann og smelltu á <b>⇄ Bera saman</b> til að bæta honum við.
+            {tx("Enginn valinn. Opnaðu leikmann og smelltu á")} <b>{tx("⇄ Bera saman")}</b> {tx("til að bæta honum við.")}
           </div>
         ) : (
           <>
             {isLive && !seasonStarted && (
               <div style={S.warn}>
-                <b>{currentLabel} er ekki hafið</b> — engar tölur til. Veldu eldra tímabil
-                í fellilistanum til að bera saman.
+                <b>{currentLabel} {tx("er ekki hafið")}</b> {tx("— engar tölur til. Veldu eldra tímabil í fellilistanum til að bera saman.")}
               </div>
             )}
 
             <div style={S.note}>
-              Borið saman yfir <b>heilt tímabil</b>, ekki frjálst umferðabil: per-umferðar
-              tölur liggja aðeins fyrir í <code>live/gw*.json</code> og þær fyllast fyrst
-              þegar 2026/27 byrjar. Tímabila-samanburður virkar strax og nær 3 ár aftur.
+              {tx("Borið saman yfir")} <b>{tx("heilt tímabil")}</b>{tx(", ekki frjálst umferðabil: per-umferðar tölur liggja aðeins fyrir í")} <code>live/gw*.json</code> {tx("og þær fyllast fyrst þegar 2026/27 byrjar. Tímabila-samanburður virkar strax og nær 3 ár aftur.")}
             </div>
 
             {visual ? <VisualRows cols={cols} anyDef={anyDef} anyGk={anyGk} /> : (
@@ -290,7 +290,7 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                               {Crest && t ? <Crest team={t} size={11} /> : null}
                               {t?.short} · {POS[p.element_type]} · £{((p.now_cost ?? 0)/10).toFixed(1)}
                             </div>
-                            <button style={S.rm} onClick={() => onRemove(p.id)}>fjarlægja</button>
+                            <button style={S.rm} onClick={() => onRemove(p.id)}>{tx("fjarlægja")}</button>
                           </div>
                         </th>
                       );
@@ -337,14 +337,9 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
             )}
 
             <div style={S.legend}>
-              <span style={S.tdBestInline}>Grænt</span> = betra gildi (aðeins merkt þegar
-              einn er ótvírætt hærri). Í sjónræna sniðinu er <b>súlulengd</b> kvörðuð
-              <b> per röð</b> (xG og BPS eiga ekki sama kvarða), <b>▼</b> merkir tölu þar
-              sem <b>lægra er betra</b>, og tölur með formerki (Mörk − xG) eru
-              <b> frávikssúlur út frá miðju</b>. Vantandi tala fær „—" og <b>enga</b> súlu —
-              súla af lengd 0 læsist eins og mæld nulltala. Tölur sem FFS birtir en engin heimild okkar gefur —
-              snertingar í teig, big chances, dribbles, návígi — eru <b>ekki</b> hér.
-              Sjá kafla 6b í CLAUDE.md.
+              <span style={S.tdBestInline}>{tx("Grænt")}</span> {tx("= betra gildi (aðeins merkt þegar einn er ótvírætt hærri). Í sjónræna sniðinu er")} <b>{tx("súlulengd")}</b> {tx("kvörðuð")}
+              <b> {tx("per röð")}</b> {tx("(xG og BPS eiga ekki sama kvarða),")} <b>▼</b> {tx("merkir tölu þar sem")} <b>{tx("lægra er betra")}</b>{tx(", og tölur með formerki (Mörk − xG) eru")}
+              <b> {tx("frávikssúlur út frá miðju")}</b>{tx(". Vantandi tala fær „—\" og")} <b>{tx("enga")}</b> {tx("súlu — súla af lengd 0 læsist eins og mæld nulltala. Tölur sem FFS birtir en engin heimild okkar gefur — snertingar í teig, big chances, dribbles, návígi — eru")} <b>{tx("ekki")}</b> {tx("hér. Sjá kafla 6b í CLAUDE.md.")}
             </div>
           </>
         )}

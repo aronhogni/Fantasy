@@ -21,6 +21,8 @@
    ============================================================ */
 
 import React, { useState, useMemo } from "react";
+import { t as tx } from "./i18n.js";
+import { useLang } from "./useLang.js";
 import {
   withDerived, gwTotals, gwTop, bestXi, gwFixtureReports,
   shotsFor, shotSummary, SHOT_KINDS, matchShotsToPlayers,
@@ -30,18 +32,19 @@ import {
 const POS_COLOR = { GK:"#8b5cf6", DEF:"#2563eb", MID:"#00b96b", FWD:"#d92d3c" };
 
 export default function GwReport({ report, shotsFile, teamById, Crest }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [tab, setTab] = useState("overview");
   const [fxSel, setFxSel] = useState("all");     // skot-kort: leikur
   const [teamSel, setTeamSel] = useState("all"); // skot-kort: lid
 
-  const rows = useMemo(() => withDerived(report?.players || []), [report]);
+  const rows = useMemo(() => withDerived(report?.players || []), [report, lang]);
   const totals = useMemo(() => ({
     ...gwTotals(rows), teams_cs: teamsWithCleanSheet(report?.fixtures),
-  }), [rows, report]);
-  const xi = useMemo(() => bestXi(rows), [rows]);
-  const fixtures = useMemo(() => gwFixtureReports({ report, shotsFile }), [report, shotsFile]);
+  }), [rows, report, lang]);
+  const xi = useMemo(() => bestXi(rows), [rows, lang]);
+  const fixtures = useMemo(() => gwFixtureReports({ report, shotsFile }), [report, shotsFile, lang]);
   const joined = useMemo(
-    () => matchShotsToPlayers(rows, shotsFile?.players || []), [rows, shotsFile]);
+    () => matchShotsToPlayers(rows, shotsFile?.players || []), [rows, shotsFile, lang]);
 
   if (!report) {
     /* TOMT ASTAND SEM SKYRIR SIG. Adur stod adeins "Saeki last_gw.json..."
@@ -49,21 +52,18 @@ export default function GwReport({ report, shotsFile, teamById, Crest }) {
        hvort hann aetti ad bida, endurhlada eda keyra pipeline.              */
     return (
       <section style={S.card}>
-        <h2 style={S.h2}>Umferðin</h2>
+        <h2 style={S.h2}>{tx("Umferðin")}</h2>
         <div style={S.blocked}>
-          <b>Umferðarskýrslan er ekki komin.</b> Hún kemur úr <code>data/last_gw.json</code>,
-          sem pipeline skrifar (<code>deriveLastGwReport</code> í <code>scripts/fetch.mjs</code>).
-          <div style={{ marginTop: 6 }}>Þrjár ástæður, í líklegri röð:</div>
+          <b>{tx("Umferðarskýrslan er ekki komin.")}</b> {tx("Hún kemur úr")} <code>data/last_gw.json</code>{tx(", sem pipeline skrifar (")}<code>deriveLastGwReport</code> {tx("í")} <code>scripts/fetch.mjs</code>).
+          <div style={{ marginTop: 6 }}>{tx("Þrjár ástæður, í líklegri röð:")}</div>
           <ol style={S.olTight}>
-            <li><b>Skráin er ekki ýtt á GitHub enn.</b> Appið les
-              <code> raw.githubusercontent.com/.../main/data/</code> — nýjar pipeline-skrár
-              sjást ekki fyrr en þær eru committaðar og ýttar.</li>
-            <li><b>Pipeline hefur ekki keyrt</b> síðan skrefið var bætt við.
-              Keyrðu <code>node scripts/fetch.mjs</code> eða
+            <li><b>{tx("Skráin er ekki ýtt á GitHub enn.")}</b> {tx("Appið les")}
+              <code> raw.githubusercontent.com/.../main/data/</code> {tx("— nýjar pipeline-skrár sjást ekki fyrr en þær eru committaðar og ýttar.")}</li>
+            <li><b>{tx("Pipeline hefur ekki keyrt")}</b> {tx("síðan skrefið var bætt við. Keyrðu")} <code>node scripts/fetch.mjs</code> {tx("eða")}
               <code> gh workflow run fetch.yml</code>.</li>
-            <li><b>Netið/GitHub svarar ekki</b> — endurhlaða síðuna.</li>
+            <li><b>{tx("Netið/GitHub svarar ekki")}</b> {tx("— endurhlaða síðuna.")}</li>
           </ol>
-          Flipinn <b>Stigatafla</b> virkar óháð þessu, hann les
+          {tx("Flipinn")} <b>{tx("Stigatafla")}</b> {tx("virkar óháð þessu, hann les")}
           <code> players.json</code>.
         </div>
       </section>
@@ -71,10 +71,10 @@ export default function GwReport({ report, shotsFile, teamById, Crest }) {
   }
 
   const TABS = [
-    ["overview", "Yfirlit"],
-    ["shots", `Skot-kort${shotsFile ? ` (${shotsFile.shots?.length ?? 0})` : ""}`],
-    ["players", "Leikmenn"],
-    ["matches", `Leikirnir (${fixtures.length})`],
+    ["overview", tx("Yfirlit")],
+    ["shots", tx("Skot-kort{0}", [shotsFile ? ` (${shotsFile.shots?.length ?? 0})` : ""])],
+    ["players", tx("Leikmenn")],
+    ["matches", tx("Leikirnir ({0})", [fixtures.length])],
   ];
 
   return (
@@ -82,12 +82,12 @@ export default function GwReport({ report, shotsFile, teamById, Crest }) {
       <div style={S.head}>
         <div>
           <h2 style={S.h2}>
-            Umferðin — GW{report.gw}
+            {tx("Umferðin — GW")}{report.gw}
             <span style={S.season}>{report.season}</span>
           </h2>
           <div style={S.sub}>
-            {totals.players} leikmenn með tölur · {totals.goals} mörk · {totals.assists} assist ·
-            {" "}{totals.cs} hrein blöð · meðalstig {totals.avg_points}
+            {totals.players} {tx("leikmenn með tölur ·")} {totals.goals} {tx("mörk ·")} {totals.assists} {tx("assist ·")}
+            {" "}{totals.cs} {tx("hrein blöð · meðalstig")} {totals.avg_points}
           </div>
         </div>
         <div style={S.tabs}>
@@ -100,7 +100,7 @@ export default function GwReport({ report, shotsFile, teamById, Crest }) {
 
       {report.archive && (
         <div style={S.archive}>
-          <b>Þetta er síðasta LOKNA umferðin, ekki yfirstandandi.</b> {report.note}
+          <b>{tx("Þetta er síðasta LOKNA umferðin, ekki yfirstandandi.")}</b> {report.note}
         </div>
       )}
 
@@ -120,46 +120,41 @@ export default function GwReport({ report, shotsFile, teamById, Crest }) {
 
 /* ================= YFIRLIT ================= */
 function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
-  const shotSum = useMemo(() => shotSummary(shotsFile?.shots || []), [shotsFile]);
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
+  const shotSum = useMemo(() => shotSummary(shotsFile?.shots || []), [shotsFile, lang]);
   const over  = gwTop(rows, "gi_minus_xgi", 6, { hi: true,  minMinutes: 30 });
   const under = gwTop(rows, "gi_minus_xgi", 6, { hi: false, minMinutes: 30 });
 
   return (
     <>
       <div style={S.tiles}>
-        <Tile k="Mörk" v={totals.goals} sub={`${totals.og} sjálfsmörk`} />
-        <Tile k="Assist" v={totals.assists} sub="FPL-skilgreining" />
-        <Tile k="Hrein blöð (leikmenn)" v={totals.cs}
-          sub={`${totals.teams_cs} lið héldu hreinu`} />
-        <Tile k="Vörslur" v={totals.saves} />
-        <Tile k="Spjöld" v={`${totals.yellow}G / ${totals.red}R`} />
-        <Tile k="Bónus gefinn" v={totals.bonus} />
-        <Tile k="xG samtals" v={totals.xg.toFixed(1)} sub={`raun ${totals.goals}`} />
-        <Tile k="xA samtals" v={totals.xa.toFixed(1)} sub={`raun ${totals.assists}`} />
-        <Tile k="10+ stiga leikir" v={totals.hauls} />
-        <Tile k="Blönk (60+ mín, ≤2 stig)" v={totals.blanks} />
+        <Tile k={tx("Mörk")} v={totals.goals} sub={tx("{0} sjálfsmörk", [totals.og])} />
+        <Tile k={tx("Assist")} v={totals.assists} sub={tx("FPL-skilgreining")} />
+        <Tile k={tx("Hrein blöð (leikmenn)")} v={totals.cs}
+          sub={tx("{0} lið héldu hreinu", [totals.teams_cs])} />
+        <Tile k={tx("Vörslur")} v={totals.saves} />
+        <Tile k={tx("Spjöld")} v={tx("{0}G / {1}R", [totals.yellow, totals.red])} />
+        <Tile k={tx("Bónus gefinn")} v={totals.bonus} />
+        <Tile k={tx("xG samtals")} v={totals.xg.toFixed(1)} sub={tx("raun {0}", [totals.goals])} />
+        <Tile k={tx("xA samtals")} v={totals.xa.toFixed(1)} sub={tx("raun {0}", [totals.assists])} />
+        <Tile k={tx("10+ stiga leikir")} v={totals.hauls} />
+        <Tile k={tx("Blönk (60+ mín, ≤2 stig)")} v={totals.blanks} />
         {shotsFile && <>
-          <Tile k="Skot" v={shotSum.total} sub={`${shotSum.in_box} í teig`} />
-          <Tile k="Skot á mark" v={shotSum.on_target_total} sub={`${shotSum.accuracy}% nýting`} />
-          <Tile k="Í stöng/slá" v={shotSum.woodwork} tone="amber" />
-          <Tile k="Blokkuð skot" v={shotSum.blocked} />
+          <Tile k={tx("Skot")} v={shotSum.total} sub={tx("{0} í teig", [shotSum.in_box])} />
+          <Tile k={tx("Skot á mark")} v={shotSum.on_target_total} sub={tx("{0}% nýting", [shotSum.accuracy])} />
+          <Tile k={tx("Í stöng/slá")} v={shotSum.woodwork} tone="amber" />
+          <Tile k={tx("Blokkuð skot")} v={shotSum.blocked} />
         </>}
       </div>
 
       <div style={S.note}>
-        <b>Hrein blöð eru talin per LEIKMANN, ekki per lið.</b> FPL veitir hreint blað þeim sem
-        spilar 60+ mínútur án þess að fá á sig mark <i>á meðan hann er inni á</i> — svo leikmaður
-        sem er tekinn af velli áður en mótherjinn skorar heldur sínu. Dæmi úr þessari umferð:
-        Palace skoraði á 89. mínútu gegn Arsenal, og þrír Arsenal-menn sem fóru af velli á undan
-        (83., 74. og 61. mín) fá hreint blað þótt liðið hafi fengið á sig mark.
-        {" "}<b>Assist fylgja FPL-skilgreiningu</b>, sem er rýmri en Opta — FPL gefur t.d. assist
-        fyrir að vinna víti sem er skorað. Í þessari umferð telur FPL {totals.assists} en ESPN 17.
+        <b>{tx("Hrein blöð eru talin per LEIKMANN, ekki per lið.")}</b> {tx("FPL veitir hreint blað þeim sem spilar 60+ mínútur án þess að fá á sig mark")} <i>{tx("á meðan hann er inni á")}</i> {tx("— svo leikmaður sem er tekinn af velli áður en mótherjinn skorar heldur sínu. Dæmi úr þessari umferð: Palace skoraði á 89. mínútu gegn Arsenal, og þrír Arsenal-menn sem fóru af velli á undan (83., 74. og 61. mín) fá hreint blað þótt liðið hafi fengið á sig mark.")}
+        {" "}<b>{tx("Assist fylgja FPL-skilgreiningu")}</b>{tx(", sem er rýmri en Opta — FPL gefur t.d. assist fyrir að vinna víti sem er skorað. Í þessari umferð telur FPL")} {totals.assists} {tx("en ESPN 17.")}
       </div>
 
-      <H>Lið vikunnar — {xi.points} stig</H>
+      <H>{tx("Lið vikunnar —")} {xi.points} {tx("stig")}</H>
       <div style={S.muted}>
-        Besta leyfilega FPL-uppstilling úr umferðinni (1 markv. · 3–5 vörn · 2–5 miðja · 1–3 sókn).
-        Ekki FPL-„Dream Team“ heldur reiknað úr sömu tölum.
+        {tx("Besta leyfilega FPL-uppstilling úr umferðinni (1 markv. · 3–5 vörn · 2–5 miðja · 1–3 sókn). Ekki FPL-„Dream Team“ heldur reiknað úr sömu tölum.")}
       </div>
       <div style={S.xiWrap}>
         {["GK","DEF","MID","FWD"].map(pos => {
@@ -175,37 +170,37 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
 
       <div style={S.two}>
         <div>
-          <H>Yfir væntingum</H>
-          <div style={S.muted}>Mörk + assist mínus xGI. Klínísk nýting eða heppni.</div>
+          <H>{tx("Yfir væntingum")}</H>
+          <div style={S.muted}>{tx("Mörk + assist mínus xGI. Klínísk nýting eða heppni.")}</div>
           <RankList rows={over} val={r => signed(r.gi_minus_xgi)} teamById={teamById} Crest={Crest} />
         </div>
         <div>
-          <H>Undir væntingum</H>
-          <div style={S.muted}>Færin voru þarna en fóru ekki inn.</div>
+          <H>{tx("Undir væntingum")}</H>
+          <div style={S.muted}>{tx("Færin voru þarna en fóru ekki inn.")}</div>
           <RankList rows={under} val={r => signed(r.gi_minus_xgi)} teamById={teamById} Crest={Crest} />
         </div>
       </div>
 
       <div style={S.two}>
         <div>
-          <H>Stigahæstir</H>
+          <H>{tx("Stigahæstir")}</H>
           <RankList rows={gwTop(rows, "points", 8)} val={r => r.points} teamById={teamById} Crest={Crest} />
         </div>
         <div>
-          <H>BPS — bónus-stigin</H>
-          <div style={S.muted}>BPS ræður hverjir fá 3/2/1 bónus.</div>
+          <H>{tx("BPS — bónus-stigin")}</H>
+          <div style={S.muted}>{tx("BPS ræður hverjir fá 3/2/1 bónus.")}</div>
           <RankList rows={gwTop(rows, "bps", 8)} val={r => r.bps}
-            extra={r => `${r.bonus} bónus`} teamById={teamById} Crest={Crest} />
+            extra={r => tx("{0} bónus", [r.bonus])} teamById={teamById} Crest={Crest} />
         </div>
       </div>
 
       <div style={S.two}>
         <div>
-          <H>Varnarframlag (DC)</H>
+          <H>{tx("Varnarframlag (DC)")}</H>
           <RankList rows={gwTop(rows, "dc", 8)} val={r => r.dc} teamById={teamById} Crest={Crest} />
         </div>
         <div>
-          <H>Vörslur</H>
+          <H>{tx("Vörslur")}</H>
           <RankList rows={gwTop(rows, "saves", 8)} val={r => r.saves} teamById={teamById} Crest={Crest} />
         </div>
       </div>
@@ -215,17 +210,18 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
 
 /* ================= SKOT-KORT ================= */
 function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, teamById, Crest }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   /* Hookar ATH: allir hookar verda ad kallast ADUR en snuid er til baka,
      annars brotnar hook-rodun milli render-a (React rules of hooks).      */
   const teams = useMemo(
     () => [...new Set((shotsFile?.shots || []).map(s => s.team).filter(Boolean))].sort(),
-    [shotsFile]);
+    [shotsFile, lang]);
 
   if (!shotsFile) {
     return (
       <div style={S.blocked}>
-        <b>Skot-gögn eru ekki komin.</b> Pipeline hefur ekki skrifað
-        <code> last_gw_shots.json</code> enn (ESPN-hlutinn, <code>fetchEspnShots</code>).
+        <b>{tx("Skot-gögn eru ekki komin.")}</b> {tx("Pipeline hefur ekki skrifað")}
+        <code> last_gw_shots.json</code> {tx("enn (ESPN-hlutinn,")} <code>fetchEspnShots</code>).
       </div>
     );
   }
@@ -240,7 +236,7 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
     <>
       <div style={S.filters}>
         <select style={S.select} value={fxSel} onChange={e => setFxSel(e.target.value)}>
-          <option value="all">Allir leikir</option>
+          <option value="all">{tx("Allir leikir")}</option>
           {fixtures.map(f => (
             <option key={f.fx.id} value={f.fx.id}>
               {f.fx.h} {f.fx.h_score}–{f.fx.a_score} {f.fx.a}
@@ -248,7 +244,7 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
           ))}
         </select>
         <select style={S.select} value={teamSel} onChange={e => setTeamSel(e.target.value)}>
-          <option value="all">Öll lið</option>
+          <option value="all">{tx("Öll lið")}</option>
           {teams.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <div style={S.legendRow}>
@@ -263,35 +259,29 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
       <Pitch shots={sel.usable} />
 
       <div style={S.note}>
-        <b>Lóðrétti ásinn er fjarlægð frá markinu sem sótt er að</b> — mælt, ekki gefið: í
-        CRY 1–2 ARS liggja öll þrjú mörkin nálægt marki þótt sitt hvort liðið skoraði, svo
-        bæði lið leggjast á sama vallarhelming. <b>Kvarðinn er kvarðaður</b> gegn svæðis-texta
-        ESPN, sem er óháður hnitunum: markteigs-skot nema x≤0,110 og markteigurinn er
-        5,5/52,5=0,105; teig-skot nema x≤0,336 og teigurinn er 16,5/52,5=0,314. Þess vegna
-        er <b>metrafjöldi = x × 52,5</b>, ekki × 105.
+        <b>{tx("Lóðrétti ásinn er fjarlægð frá markinu sem sótt er að")}</b> {tx("— mælt, ekki gefið: í CRY 1–2 ARS liggja öll þrjú mörkin nálægt marki þótt sitt hvort liðið skoraði, svo bæði lið leggjast á sama vallarhelming.")} <b>{tx("Kvarðinn er kvarðaður")}</b> {tx("gegn svæðis-texta ESPN, sem er óháður hnitunum: markteigs-skot nema x≤0,110 og markteigurinn er 5,5/52,5=0,105; teig-skot nema x≤0,336 og teigurinn er 16,5/52,5=0,314. Þess vegna er")} <b>{tx("metrafjöldi = x × 52,5")}</b>{tx(", ekki × 105.")}
         {sel.excluded > 0 && (
-          <> <b style={{ color:"#c98a00" }}>{sel.excluded} skot eru ekki á kortinu</b> — ESPN
-          skráði engin hnit fyrir þau (0,0).</>
+          <> <b style={{ color:"#c98a00" }}>{sel.excluded} {tx("skot eru ekki á kortinu")}</b> {tx("— ESPN skráði engin hnit fyrir þau (0,0).")}</>
         )}
       </div>
 
       <div style={S.tiles}>
-        <Tile k="Skot" v={sum.total} />
-        <Tile k="Á mark" v={sum.on_target_total} sub={`${sum.accuracy ?? "—"}% nýting`} />
-        <Tile k="Mörk" v={sum.goal} />
-        <Tile k="Í stöng/slá" v={sum.woodwork} tone="amber" />
-        <Tile k="Blokkuð" v={sum.blocked} />
-        <Tile k="Framhjá" v={sum.off_target} />
-        <Tile k="Í teig" v={sum.in_box} sub={`${sum.outside} fyrir utan`} />
-        <Tile k="Hægri / vinstri / haus" v={`${sum.right}/${sum.left}/${sum.head}`} />
+        <Tile k={tx("Skot")} v={sum.total} />
+        <Tile k={tx("Á mark")} v={sum.on_target_total} sub={tx("{0}% nýting", [sum.accuracy ?? "—"])} />
+        <Tile k={tx("Mörk")} v={sum.goal} />
+        <Tile k={tx("Í stöng/slá")} v={sum.woodwork} tone="amber" />
+        <Tile k={tx("Blokkuð")} v={sum.blocked} />
+        <Tile k={tx("Framhjá")} v={sum.off_target} />
+        <Tile k={tx("Í teig")} v={sum.in_box} sub={tx("{0} fyrir utan", [sum.outside])} />
+        <Tile k={tx("Hægri / vinstri / haus")} v={`${sum.right}/${sum.left}/${sum.head}`} />
       </div>
 
-      <H>Skotin</H>
+      <H>{tx("Skotin")}</H>
       <div style={S.scroll}>
         <table style={S.table}>
           <thead><tr>
-            <th style={S.thL}>Mín</th><th style={S.thL}>Lið</th><th style={S.thL}>Leikmaður</th>
-            <th style={S.thL}>Útkoma</th><th style={S.thL}>Svæði</th><th style={S.thL}>Fótur</th>
+            <th style={S.thL}>{tx("Mín")}</th><th style={S.thL}>{tx("Lið")}</th><th style={S.thL}>{tx("Leikmaður")}</th>
+            <th style={S.thL}>{tx("Útkoma")}</th><th style={S.thL}>{tx("Svæði")}</th><th style={S.thL}>{tx("Fótur")}</th>
             <th style={S.th}>X</th><th style={S.th}>Y</th>
           </tr></thead>
           <tbody>
@@ -317,17 +307,18 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
           </tbody>
         </table>
       </div>
-      {sel.all.length > 120 && <div style={S.muted}>Fyrstu 120 af {sel.all.length} sýnd.</div>}
-      <div style={S.muted}>* ótraust hnit — ekki á kortinu.</div>
+      {sel.all.length > 120 && <div style={S.muted}>{tx("Fyrstu 120 af")} {sel.all.length} {tx("sýnd.")}</div>}
+      <div style={S.muted}>{tx("* ótraust hnit — ekki á kortinu.")}</div>
     </>
   );
 }
 
 const ZONE_IS = {
-  box_centre:"Miðja teigs", box_left:"Vinstri teig", box_right:"Hægri teig",
-  close_range:"Nærfæri", penalty_spot:"Vítapunktur", outside:"Utan teigs", far:"35+ yardar",
+  get box_centre() { return tx("Miðja teigs"); }, get box_left() { return tx("Vinstri teig"); }, get box_right() { return tx("Hægri teig"); },
+  get close_range() { return tx("Nærfæri"); }, get penalty_spot() { return tx("Vítapunktur"); }, get outside() { return tx("Utan teigs"); }, get far() { return tx("35+ yardar"); },
 };
-const FOOT_IS = { left:"Vinstri", right:"Hægri", head:"Haus" };
+const FOOT_IS = { get left() { return tx("Vinstri"); }, get right() { return tx("Hægri"); },
+                  get head() { return tx("Haus"); } };
 
 /* VOLLUR — EINN HELMINGUR, i RETTUM STAERDARHLUTFOLLUM.
 
@@ -362,7 +353,7 @@ function Pitch({ shots }) {
   return (
     <div style={S.pitchWrap}>
       <svg viewBox={`0 0 ${W} ${H}`} style={S.pitch} role="img"
-        aria-label={`Skot-kort, ${shots.length} skot`}>
+        aria-label={tx("Skot-kort, {0} skot", [shots.length])}>
         <rect x="0" y="0" width={W} height={H} fill="#e9f5ee" />
         <g stroke="#ffffff" strokeWidth="2" fill="none">
           {/* marklina uppi, midlina nidri */}
@@ -375,8 +366,8 @@ function Pitch({ shots }) {
             strokeWidth="5" stroke="#37003c" />
         </g>
         <circle cx={W/2} cy={my(PITCH_M.spot)} r="2.5" fill="#fff" />
-        <text x="6" y={H-8} style={S.pitchLbl}>miðja vallar</text>
-        <text x="6" y={16} style={S.pitchLbl}>mark</text>
+        <text x="6" y={H-8} style={S.pitchLbl}>{tx("miðja vallar")}</text>
+        <text x="6" y={16} style={S.pitchLbl}>{tx("mark")}</text>
 
         {/* mork sidast svo their liggi OFAN a hinum */}
         {shots.slice().sort((a, b) => (a.kind === "goal" ? 1 : 0) - (b.kind === "goal" ? 1 : 0))
@@ -394,47 +385,47 @@ function Pitch({ shots }) {
             );
           })}
       </svg>
-      {!shots.length && <div style={S.muted}>Engin skot með nothæfum hnitum í þessu vali.</div>}
+      {!shots.length && <div style={S.muted}>{tx("Engin skot með nothæfum hnitum í þessu vali.")}</div>}
     </div>
   );
 }
 
 /* ================= LEIKMENN ================= */
 function PlayerTab({ joined, teamById, Crest }) {
+  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [sort, setSort] = useState("points");
   const COLS = [
-    ["points","Stig"], ["minutes","Mín"], ["goals","M"], ["assists","A"],
-    ["xg","xG"], ["xa","xA"], ["gi_minus_xgi","M+A−xGI"],
-    ["bps","BPS"], ["bonus","Bón"], ["dc","DC"], ["saves","Vörsl"],
+    ["points",tx("Stig")], ["minutes",tx("Mín")], ["goals",tx("M|mörk")], ["assists","A"],
+    ["xg","xG"], ["xa","xA"], ["gi_minus_xgi",tx("M+A−xGI")],
+    ["bps","BPS"], ["bonus",tx("Bón")], ["dc","DC"], ["saves",tx("Vörsl")],
   ];
   const rows = useMemo(() => joined.rows.slice().sort((a,b) =>
-    (b[sort] ?? -1e9) - (a[sort] ?? -1e9)), [joined, sort]);
+    (b[sort] ?? -1e9) - (a[sort] ?? -1e9)), [joined, sort, lang]);
 
   return (
     <>
       <div style={S.muted}>
-        Skot-dálkarnir koma úr ESPN og eru paraðir við FPL á eftirnafni + liði.
-        <b> {joined.matched}</b> leikmenn pöruðust, <b>{joined.unmatched}</b> ekki
-        (þeir hafa engar skot-tölur, ekki núll).
+        {tx("Skot-dálkarnir koma úr ESPN og eru paraðir við FPL á eftirnafni + liði.")}
+        <b> {joined.matched}</b> {tx("leikmenn pöruðust,")} <b>{joined.unmatched}</b> {tx("ekki (þeir hafa engar skot-tölur, ekki núll).")}
       </div>
       <div style={S.scroll}>
         <table style={S.table}>
           <thead><tr>
-            <th style={S.thL}>Leikmaður</th><th style={S.thL}>Lið</th><th style={S.thL}>Á móti</th>
+            <th style={S.thL}>{tx("Leikmaður")}</th><th style={S.thL}>{tx("Lið")}</th><th style={S.thL}>{tx("Á móti")}</th>
             {COLS.map(([k,l]) => (
               <th key={k} style={{ ...S.th, cursor:"pointer", color: sort===k ? "#37003c" : undefined }}
                 onClick={() => setSort(k)}>{l}</th>
             ))}
-            <th style={S.th} title="Úr ESPN">Skot</th>
-            <th style={S.th} title="Úr ESPN">Á mark</th>
-            <th style={S.th} title="Úr ESPN">Stöng</th>
-            <th style={S.th} title="Úr ESPN">Í teig</th>
+            <th style={S.th} title={tx("Úr ESPN")}>{tx("Skot")}</th>
+            <th style={S.th} title={tx("Úr ESPN")}>{tx("Á mark")}</th>
+            <th style={S.th} title={tx("Úr ESPN")}>{tx("Stöng")}</th>
+            <th style={S.th} title={tx("Úr ESPN")}>{tx("Í teig")}</th>
             {/* SKOPUN — lesid ur ESPN-texta ("Assisted by X with a cross").
                 Thetta er thad sem Fable vildi fa ur FBref (sem svarar 403):
                 faeri skopud, krossar og through balls sem LEIDDU TIL SKOTS. */}
-            <th style={S.th} title="Færi sköpuð — hversu oft hann lagði upp skot (úr ESPN)">Færi</th>
-            <th style={S.th} title="Krossar sem leiddu til skots (úr ESPN)">Kross</th>
-            <th style={S.th} title="Through balls sem leiddu til skots (úr ESPN)">Þ.bolti</th>
+            <th style={S.th} title={tx("Færi sköpuð — hversu oft hann lagði upp skot (úr ESPN)")}>{tx("Færi")}</th>
+            <th style={S.th} title={tx("Krossar sem leiddu til skots (úr ESPN)")}>{tx("Kross")}</th>
+            <th style={S.th} title={tx("Through balls sem leiddu til skots (úr ESPN)")}>{tx("Þ.bolti")}</th>
           </tr></thead>
           <tbody>
             {rows.slice(0, 250).map((r, i) => (
@@ -443,7 +434,7 @@ function PlayerTab({ joined, teamById, Crest }) {
                   <span style={{ ...S.posTag, color: POS_COLOR[r.pos] }}>{r.pos}</span> {r.name}
                 </td>
                 <td style={S.tdL}>{r.team}</td>
-                <td style={S.tdL}>{r.opp}{r.home ? "" : " (ú)"}</td>
+                <td style={S.tdL}>{r.opp}{r.home ? "" : tx(" (ú)")}</td>
                 {COLS.map(([k]) => <td key={k} style={S.td}>{fmt(r[k])}</td>)}
                 <td style={S.td}>{r.shot ? r.shot.shots : "—"}</td>
                 <td style={S.td}>{r.shot ? r.shot.on_target : "—"}</td>
@@ -457,7 +448,7 @@ function PlayerTab({ joined, teamById, Crest }) {
           </tbody>
         </table>
       </div>
-      {rows.length > 250 && <div style={S.muted}>Fyrstu 250 af {rows.length}.</div>}
+      {rows.length > 250 && <div style={S.muted}>{tx("Fyrstu 250 af")} {rows.length}.</div>}
     </>
   );
 }
@@ -476,35 +467,35 @@ function MatchTab({ fixtures, teamById, Crest }) {
               <b>{f.fx.a}</b>
             </div>
             {(f.formation_h || f.formation_a) && (
-              <div style={S.mForm}>{f.formation_h || "?"} · uppstilling · {f.formation_a || "?"}</div>
+              <div style={S.mForm}>{f.formation_h || "?"} {tx("· uppstilling ·")} {f.formation_a || "?"}</div>
             )}
-            <MRow l="xG (úr FPL, lagt saman)" h={f.xg_h?.toFixed(2)} a={f.xg_a?.toFixed(2)} />
-            <MRow l="Skot" h={f.shots_h.total} a={f.shots_a.total} />
-            <MRow l="Á mark" h={f.shots_h.on_target_total} a={f.shots_a.on_target_total} />
-            <MRow l="Í teig" h={f.shots_h.in_box} a={f.shots_a.in_box} />
-            <MRow l="Í stöng/slá" h={f.shots_h.woodwork} a={f.shots_a.woodwork} />
+            <MRow l={tx("xG (úr FPL, lagt saman)")} h={f.xg_h?.toFixed(2)} a={f.xg_a?.toFixed(2)} />
+            <MRow l={tx("Skot")} h={f.shots_h.total} a={f.shots_a.total} />
+            <MRow l={tx("Á mark")} h={f.shots_h.on_target_total} a={f.shots_a.on_target_total} />
+            <MRow l={tx("Í teig")} h={f.shots_h.in_box} a={f.shots_a.in_box} />
+            <MRow l={tx("Í stöng/slá")} h={f.shots_h.woodwork} a={f.shots_a.woodwork} />
             {e0 && <>
-              <div style={S.mSrc}>úr E0</div>
-              <MRow l="Skot (E0)" h={e0.shots_h} a={e0.shots_a} />
-              <MRow l="Á mark (E0)" h={e0.sot_h} a={e0.sot_a} />
-              <MRow l="Hornspyrnur" h={e0.corners_h} a={e0.corners_a} />
-              <MRow l="Brot" h={e0.fouls_h} a={e0.fouls_a} />
-              {e0.referee && <div style={S.mRef}>Dómari: {e0.referee}</div>}
+              <div style={S.mSrc}>{tx("úr E0")}</div>
+              <MRow l={tx("Skot (E0)")} h={e0.shots_h} a={e0.shots_a} />
+              <MRow l={tx("Á mark (E0)")} h={e0.sot_h} a={e0.sot_a} />
+              <MRow l={tx("Hornspyrnur")} h={e0.corners_h} a={e0.corners_a} />
+              <MRow l={tx("Brot")} h={e0.fouls_h} a={e0.fouls_a} />
+              {e0.referee && <div style={S.mRef}>{tx("Dómari:")} {e0.referee}</div>}
             </>}
             {eh && <>
-              <div style={S.mSrc}>úr ESPN</div>
-              <MRow l="Vald á bolta %" h={eh.possessionPct} a={ea?.possessionPct} />
-              <MRow l="Sendingar" h={eh.totalPasses} a={ea?.totalPasses} />
-              <MRow l="Nákvæmni %" h={pct(eh.passPct)} a={pct(ea?.passPct)} />
-              <MRow l="Krossar" h={eh.totalCrosses} a={ea?.totalCrosses} />
-              <MRow l="Tacklingar" h={eh.totalTackles} a={ea?.totalTackles} />
-              <MRow l="Rof" h={eh.interceptions} a={ea?.interceptions} />
-              <MRow l="Hreinsanir" h={eh.totalClearance} a={ea?.totalClearance} />
-              <MRow l="Rangstöður" h={eh.offsides} a={ea?.offsides} />
+              <div style={S.mSrc}>{tx("úr ESPN")}</div>
+              <MRow l={tx("Vald á bolta %")} h={eh.possessionPct} a={ea?.possessionPct} />
+              <MRow l={tx("Sendingar")} h={eh.totalPasses} a={ea?.totalPasses} />
+              <MRow l={tx("Nákvæmni %")} h={pct(eh.passPct)} a={pct(ea?.passPct)} />
+              <MRow l={tx("Krossar")} h={eh.totalCrosses} a={ea?.totalCrosses} />
+              <MRow l={tx("Tacklingar")} h={eh.totalTackles} a={ea?.totalTackles} />
+              <MRow l={tx("Rof")} h={eh.interceptions} a={ea?.interceptions} />
+              <MRow l={tx("Hreinsanir")} h={eh.totalClearance} a={ea?.totalClearance} />
+              <MRow l={tx("Rangstöður")} h={eh.offsides} a={ea?.offsides} />
             </>}
             {f.star && (
               <div style={S.mStar}>
-                Stjarna: <b>{f.star.name}</b> ({f.star.team}) — {f.star.points} stig, {f.star.bps} BPS
+                {tx("Stjarna:")} <b>{f.star.name}</b> ({f.star.team}) — {f.star.points} {tx("stig,")} {f.star.bps} BPS
               </div>
             )}
           </div>
@@ -543,7 +534,7 @@ function Tile({ k, v, sub, tone }) {
 }
 function XiCard({ r, teamById, Crest }) {
   return (
-    <div style={S.xiCard} title={`${r.name} — ${r.points} stig, ${r.bps} BPS`}>
+    <div style={S.xiCard} title={tx("{0} — {1} stig, {2} BPS", [r.name, r.points, r.bps])}>
       <div style={{ ...S.xiPos, background: POS_COLOR[r.pos] }}>{r.pos}</div>
       <div style={S.xiName}>{r.name}</div>
       <div style={S.xiTeam}>{r.team} {r.home ? "v" : "@"} {r.opp}</div>
@@ -552,7 +543,7 @@ function XiCard({ r, teamById, Crest }) {
   );
 }
 function RankList({ rows, val, extra, teamById, Crest }) {
-  if (!rows?.length) return <div style={S.muted}>Engar tölur.</div>;
+  if (!rows?.length) return <div style={S.muted}>{tx("Engar tölur.")}</div>;
   return (
     <div style={S.rl}>
       {rows.map((r, i) => (
