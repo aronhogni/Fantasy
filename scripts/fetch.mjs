@@ -482,6 +482,17 @@ async function fetchLineups() {
     const err = errTxt(probe);
     console.log(`API-Sports /fixtures/lineups RANNSOKN: http=${probe.http} ` +
                 `results=${probe.results} errors=${JSON.stringify(probe.errors ?? null)}`);
+    /* SNIDID LOGGAD LIKA. Rannsoknin 31.7. gaf http=200, errors=[] og
+       results=2 — th.e. threpid LEYFIR endapunktinn. Tha er naesta spurning
+       hvort `response[]` se i thvi sniði sem vid lesum, og thad er odyrt ad
+       svara: logga lyklana i stad thess ad treysta skjolun.              */
+    const first = (probe.response || [])[0];
+    if (first) console.log("  SNID response[0]: lyklar=" + JSON.stringify(Object.keys(first))
+      + ` team=${JSON.stringify(first.team?.name ?? null)}`
+      + ` formation=${JSON.stringify(first.formation ?? null)}`
+      + ` startXI=${Array.isArray(first.startXI) ? first.startXI.length : "VANTAR"}`
+      + ` substitutes=${Array.isArray(first.substitutes) ? first.substitutes.length : "VANTAR"}`
+      + ` player0=${JSON.stringify(first.startXI?.[0]?.player ?? null)}`);
     const gated = /plan|subscription|not allowed|upgrade/i.test(err);
     record("api_lineups", true, 0,
       gated ? `ENDAPUNKTUR LOKADUR a fria threpinu: ${err.slice(0, 120)}`
