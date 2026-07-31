@@ -172,5 +172,68 @@ if (g26b) {
      maxXg > 0.5 && maxXg < 4, String(maxXg));
 }
 
+console.log("\n=== 5. sumGwRange — SKILAR FPL-NEFNDUM SVIDUM ===");
+const M = await import(new URL("src/stats.js", REPO).href);
+const g = files["2526"];
+if (g) {
+  /* HEILT BIL 1-38 VERDUR AD VERA JAFNT ARSTIDINNI. Thad er sterkasta
+     profid a reiknivélinni: hun ma ekki tapa ne tvitelja neinu.        */
+  let code = null;
+  for (const [c, v] of Object.entries(ps.players))
+    if (/Haaland/.test(v["2025/26"]?.web_name || "")) code = c;
+  ok("Haaland finnst (vidmid fyrir reiknivelina)", !!code);
+  if (code) {
+    const full = M.sumGwRange(g.players[code], g, 1, 38);
+    const sea = ps.players[code]["2025/26"];
+    ok(`heilt bil 1-38 == arstid (stig ${full.total_points})`,
+       full.total_points === +sea.total_points, `vs ${sea.total_points}`);
+    ok(`heilt bil 1-38 == arstid (minutur ${full.minutes})`,
+       full.minutes === +sea.minutes, `vs ${sea.minutes}`);
+    ok("svidin heita FPL-heitum (svo allir 108 dalkar virki obreyttir)",
+       "total_points" in full && "expected_goals" in full && "goals_scored" in full);
+    const r = M.sumGwRange(g.players[code], g, 30, 38);
+    ok(`hlutabil GW30-38 er MINNA en heilt (${r.total_points} < ${full.total_points})`,
+       r.total_points < full.total_points);
+    /* points_per_game deilir med LEIKJUM SEM HANN SPILADI, ekki fjolda
+       umferda — annars fengi meiddur madur ranglega lagt medaltal.      */
+    ok(`points_per_game deilir med leikjum (apps ${r._gw_apps}, ppg ${r.points_per_game})`,
+       Math.abs(r.points_per_game - r.total_points / r._gw_apps) < 0.06,
+       `${r.points_per_game} vs ${(r.total_points / r._gw_apps).toFixed(1)}`);
+    ok("per-90 tolur reiknadar ur summum",
+       r.expected_goals_per_90 != null &&
+       Math.abs(r.expected_goals_per_90 - (r.expected_goals / r.minutes) * 90) < 0.02);
+    /* ARSTIDARTOLUR ERU OSKILGREINDAR, EKKI 0 — 0 vaeri rong tala. */
+    ok("arstidartolur eru OSKILGREINDAR (ekki 0)",
+       r.now_cost === undefined && r.selected_by_percent === undefined &&
+       r.form === undefined);
+    ok("umferd utan bils telst ekki (1-1 er minna en 1-38)",
+       M.sumGwRange(g.players[code], g, 1, 1).total_points < full.total_points);
+    ok("bil utan timabils skilar null", M.sumGwRange(g.players[code], g, 60, 70) === null);
+    ok("tomt inntak skilar null", M.sumGwRange(null, g, 1, 38) === null);
+    ok("snuid bil (38-1) er sama og 1-38",
+       M.sumGwRange(g.players[code], g, 38, 1)?.total_points === full.total_points);
+  }
+}
+
+console.log("\n=== 6. gwBlindKeys — LEITT UT, EKKI HANDSKRIFAD ===");
+const blind = M.gwBlindKeys();
+ok(`blindir dalkar greindir (${blind.size})`, blind.size > 10 && blind.size < 40, String(blind.size));
+/* Thessir VERDA ad vera blindir: verd og eignarhald koma ur lifandi gognum
+   og geta ekki fylgt bili.                                              */
+for (const k of ["now_cost", "selected_by_percent", "form", "ict_index",
+                 "cost_change_event", "net_transfers_event"])
+  ok(`"${k}" er blindur (arstid/nutid)`, blind.has(k));
+/* Og thessir VERDA ad fylgja bilinu — thad er tilgangurinn. Fyrsta utgafa
+   probunnar taldi "goals_minus_xg" og "conversion" ranglega blinda thvi
+   tveir margfaldarar kollideruðu; "bonus_per_bps" thvi profgildin klarudu
+   ekki BPS>=50 throskuldinn. Thessar linur fella slikt aftur.           */
+for (const k of ["total_points", "minutes", "goals_scored", "expected_goals",
+                 "goals_minus_xg", "conversion", "bonus_per_bps", "cbi_per_90",
+                 "saves_per_90", "gi_minus_xgi"])
+  ok(`"${k}" FYLGIR bilinu`, !blind.has(k));
+const defs = M.STAT_DEFS.filter(d => d.key && !d.live_only);
+ok(`fleiri dalkar fylgja bilinu en gera ekki (${defs.length - [...blind].filter(k => defs.some(d => d.key === k)).length} a moti ${blind.size})`,
+   defs.length - blind.size > blind.size);
+
 console.log(`\nPER-UMFERDAR SKRAR: ${pass}/${pass + fail} graen`);
 process.exit(fail ? 1 : 0);

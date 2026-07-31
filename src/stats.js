@@ -735,6 +735,144 @@ export function moScore(w) {
 }
 
 /* ============================================================
+   UMFERDAR-BIL — "bara GW 30-38 sidasta timabil"
+
+   Skilar rod med FPL-SVIDAHEITUM (total_points, expected_goals, ...) ur
+   thjoppudu per-umferdar skranni. Thad er ASETT: STAT_DEFS lesa FPL-heiti,
+   svo ALLIR 108 dalkar — lika afleiddu (per-90, hlutfoll, nyting) — virka
+   OBREYTTIR a bilinu. Ef eg hefdi buid til ny heiti hefdi thurft annad
+   dalkasett fyrir bila-syn, og tha vaeru tvaer dalkaskrar (sja 6i: einmitt
+   thad sem a ekki ad gerast).
+
+   HVAD ER **EKKI** HER OG HVERS VEGNA:
+     verd, eignarhald, FPL-saeti, value_season, form, ICT, draumalid —
+     thaer eru ARSTIDARTOLUR eda astand, ekki summur. Their eru EKKI settar
+     i 0 heldur skildar eftir OSKILGREINDAR, svo `get()` skili null og
+     dalkurinn birti "—" (VANTAR). Ad setja 0 vaeri ad birta ranga tolu.
+   ============================================================ */
+export const GW_SUM_TO_FPL = {
+  mins: "minutes", starts: "starts", pts: "total_points",
+  goals: "goals_scored", assists: "assists", cs: "clean_sheets",
+  gc: "goals_conceded", saves: "saves", bonus: "bonus", bps: "bps",
+  xg: "expected_goals", xa: "expected_assists", xgc: "expected_goals_conceded",
+  dc: "defensive_contribution", cbit: "clearances_blocks_interceptions",
+  threat: "threat", creat: "creativity", infl: "influence",
+  recov: "recoveries", tack: "tackles", yc: "yellow_cards", rc: "red_cards",
+};
+
+/* entry: { t, p, gw } ur player_gw_{season}.json · file: skrain sjalf */
+export function sumGwRange(entry, file, from, to) {
+  if (!entry?.gw || !Array.isArray(file?.stats)) return null;
+  const ix = {}; file.stats.forEach((k, i) => ix[k] = i);
+  const scale = file.scale || {};
+  const lo = Math.min(from, to), hi = Math.max(from, to);
+  const sum = {};
+  let apps = 0, rounds = 0;
+  for (let r = lo; r <= hi; r++) {
+    const arr = entry.gw[r] || entry.gw[String(r)];
+    if (!arr) continue;
+    rounds++;
+    const mins = arr[ix.mins] ?? 0;
+    if (mins > 0) apps++;
+    for (const k of file.stats) sum[k] = (sum[k] ?? 0) + (arr[ix[k]] ?? 0) / (scale[k] || 1);
+  }
+  if (!rounds) return null;
+  const out = {};
+  for (const [k, fpl] of Object.entries(GW_SUM_TO_FPL))
+    if (sum[k] != null) out[fpl] = +sum[k].toFixed(2);
+  /* Afleiddar tolur sem FPL birtir sjalf a arstid — reiknadar ur summunum
+     svo dalkarnir seu ekki tomir ad ósekju.                              */
+  const mins = out.minutes ?? 0;
+  const per90 = v => (mins > 0 && v != null) ? +((v / mins) * 90).toFixed(2) : null;
+  out.expected_goal_involvements = +(((out.expected_goals ?? 0) + (out.expected_assists ?? 0))).toFixed(2);
+  out.expected_goals_per_90 = per90(out.expected_goals);
+  out.expected_assists_per_90 = per90(out.expected_assists);
+  out.expected_goal_involvements_per_90 = per90(out.expected_goal_involvements);
+  out.expected_goals_conceded_per_90 = per90(out.expected_goals_conceded);
+  out.saves_per_90 = per90(out.saves);
+  out.clean_sheets_per_90 = per90(out.clean_sheets);
+  out.goals_conceded_per_90 = per90(out.goals_conceded);
+  out.defensive_contribution_per_90 = per90(out.defensive_contribution);
+  out.starts_per_90 = per90(out.starts);
+  /* points_per_game deilir med LEIKJUM SEM HANN SPILADI (mins>0), eins og
+     FPL gerir — ekki med fjolda umferda i bilinu. Annars fengi sa sem var
+     meiddur halft bilid ranglega lagt medaltal.                          */
+  out.points_per_game = apps > 0 ? +((out.total_points ?? 0) / apps).toFixed(1) : null;
+  out._gw_apps = apps;
+  out._gw_rounds = rounds;
+  return out;
+}
+
+/* ============================================================
+   HVADA DALKAR FYLGJA EKKI UMFERDAR-BILINU — LEITT UT, EKKI HANDSKRIFAD
+
+   Fyrsta utgafa var HANDSKRIFADUR listi af lyklum. 13 af 22 voru
+   RANGIR — eg giskadi a heitin i stad thess ad lesa thau — svo merkingin
+   birtist hvergi. Handskrifadur listi rekur auk thess fra STAT_DEFS um
+   leid og dalki er baett vid.
+
+   Nu er thad MAELT: hver dalkur er kalladur a tveimur profunar-rodum sem
+   eru EINS nema summanlegu svidin hafa ólík gildi. Dalkur sem skilar SOMU
+   tolu i badum tilvikum les ekki summurnar og fylgir thvi ekki bilinu.
+
+   MARGFALDARARNIR ERU OLIKIR PER SVID, EKKI ALLIR x2: med jafnri
+   tvofoldun halda HLUTFOLL ser ("stig per minutu" breytist ekki thott
+   badir lidir tvofaldist) og slikir dalkar hefdu ranglega verid taldir
+   blindir. Med olikum margfoldurum breytast hlutfoll lika.
+   ============================================================ */
+export function gwBlindKeys(defs = STAT_DEFS) {
+  /* EINKVAEM GILDI PER SVID i BADUM profunum. Fyrsta utgafa notadi
+     `10 + (i % 7)` og TVAER svid fengu sama margfaldara — tha vard
+     mismunur eins og "Mork - xG" taldist RANGLEGA blindur. Einkvaem,
+     obrotin gildi (i*1,37) utiloka baedi mismuna- og hlutfalls-tilviljanir. */
+  const base = {}, alt = {};
+  let i = 0;
+  for (const fpl of Object.values(GW_SUM_TO_FPL)) {
+    i++;
+    /* GILDIN VERDA AD VERA STOR NOG TIL AD KLARA THROSKULDANA.
+       Nokkrir dalkar hafa lagmark til ad forðast rugl-tolur ("bonus/BPS"
+       krefst BPS >= 50, "nyting" krefst xG >= 0,5). Med litlum profgildum
+       skiladi `bonus_per_bps` null i BADUM profunum og taldist ranglega
+       blindur. Storu gildin klara throskuldana; einkvaemnin er ohreyfd.  */
+    base[fpl] = 120 + i * 13.7;
+    alt[fpl] = 60 + i * 21.1;
+  }
+  /* Svid sem koma UR LIFANDI gognum og eiga ad vera EINS i badum — thau
+     eru einmitt thad sem gerir dalk blindan.                            */
+  for (const k of ["now_cost", "selected_by_percent", "form", "value_form",
+                   "ict_index", "influence", "creativity", "threat"]) {
+    if (base[k] == null) { base[k] = 50; alt[k] = 50; }
+  }
+  const derive = r => {
+    const m = r.minutes || 1;
+    const o = { ...r };
+    o.expected_goal_involvements = (r.expected_goals ?? 0) + (r.expected_assists ?? 0);
+    for (const [f, src] of [["expected_goals_per_90", "expected_goals"],
+                            ["expected_assists_per_90", "expected_assists"],
+                            ["expected_goals_conceded_per_90", "expected_goals_conceded"],
+                            ["saves_per_90", "saves"], ["clean_sheets_per_90", "clean_sheets"],
+                            ["goals_conceded_per_90", "goals_conceded"],
+                            ["defensive_contribution_per_90", "defensive_contribution"],
+                            ["starts_per_90", "starts"]])
+      o[f] = ((r[src] ?? 0) / m) * 90;
+    o.expected_goal_involvements_per_90 = (o.expected_goal_involvements / m) * 90;
+    o.points_per_game = (r.total_points ?? 0) / Math.max(1, (r.starts ?? 1));
+    return o;
+  };
+  const A = derive(base), B = derive(alt);
+  const blind = new Set();
+  for (const d of defs) {
+    if (!d.key || typeof d.get !== "function") continue;
+    if (d.live_only) continue;              // their bera thegar eigin merki
+    let a, b;
+    try { a = d.get(A); b = d.get(B); } catch { continue; }
+    const same = (a == null && b == null) || String(a) === String(b);
+    if (same) blind.add(d.key);
+  }
+  return blind;
+}
+
+/* ============================================================
    PORUN VID imminent.json — EIN UTFAERSLA
 
    imminent.json geymir FULLT nafn ("Cole Palmer") en players.json `web_name`

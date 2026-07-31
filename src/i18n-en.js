@@ -101,7 +101,7 @@ export const EN = {
   "Tengja": "Connect",
   /* Flipar */
   "⚽ Skipulag": "⚽ Planner",
-  "👥 Leikmenn": "👥 Players",
+  "👥 Leikmenn": "👥 Player stats",
   "📊 Umferðin": "📊 Gameweek",
   "🏆 Stigatafla": "🏆 Leaderboard",
   "⚽️ Föst leikatriði": "⚽️ Set pieces",
@@ -881,19 +881,10 @@ export const EN = {
   "Víti": "Penalties",
   "Horn": "Corners",
   "Föst leikatriði": "Set pieces",
-  "Röðun úr FPL — hver tekur víti, aukaspyrnur og horn.":
-    "Order from FPL — who takes penalties, free kicks and corners.",
   " Uppfært {0}.": " Updated {0}.",
   "Fyrirliðar (armbandið) eru ekki hér.": "Captains (the armband) are not here.",
   "Hvorki FPL-API-ið né ESPN-fæðið gefur hver ber fyrirliðabandið, svo við sýnum það ekki frekar en að giska. Það sem er":
     "Neither the FPL API nor the ESPN feed says who wears the armband, so we do not show it rather than guess. What is",
-  "— og skiptir mestu fyrir fantasy — er spyrnu-röðunin hér að neðan: víta­skytta nr. 1 er sterkasta einstaka fyrirliða-vísbendingin sem gögnin geyma.":
-    "— and matters most for fantasy — is the set-piece order below: the no. 1 penalty taker is the single strongest captaincy signal the data holds.",
-  "aðeins fyrsti taki": "first taker only",
-  "liðum með skráða röðun": "teams with a recorded order",
-  "Engin röðun skráð": "No order recorded",
-  "= fyrsti taki. Röðunin er handskráð hjá FPL og getur verið úrelt snemma tímabils — sannreyndu gegn síðustu leikjum áður en þú byggir fyrirliða-val á henni.":
-    "= first taker. The order is hand-maintained by FPL and can be out of date early in the season — check it against recent matches before you base a captaincy on it.",
 
 /* ================= stats.js ================= */
   /* Flokkar */
@@ -1201,4 +1192,31 @@ export const EN = {
     "Likely price rise tonight — AN APPROXIMATION, FPL does not publish the formula",
   "Líklega lækkun í nótt (nálgun) — kauptu eftir verðkeyrslunni":
     "Likely price fall tonight (approximation) — buy after the price run",
+
+  /* ---- umferdar-bil, fost leikatridi, skipta-gluggi (31.7.2026) ---- */
+  "Umferðir:": "Gameweeks:",
+  "allt tímabilið": "whole season",
+  "fyrri hluti": "first half",
+  "seinni hluti": "second half",
+  "hleð…": "loading…",
+  "gögn vantar": "data missing",
+  "Veldu umferðabil": "Select gameweek range",
+  "Bilið gildir um tölur sem má LEGGJA SAMAN. Verð, eignarhald, form, ICT og FPL-sæti eru árstíðartölur og fylgja EKKI bilinu — þeir dálkar eru merktir": "The range applies to numbers that can be SUMMED. Price, ownership, form, ICT and FPL ranks are season figures and do NOT follow the range — those columns are marked",
+  "árstíð": "season",
+  "og sýna heildina.": "and show the season total.",
+  "ÁRSTÍÐARTALA: fylgir ekki umferðabilinu, sýnir heildina": "SEASON FIGURE: does not follow the gameweek range, shows the total",
+  "árstíðartala": "season figure",
+  "Fyrsti taki hjá hverju liði — úr FPL, uppfærist sjálfkrafa með daglegu gagnasækninni.": "First taker for each team — from FPL, updates automatically with the daily data fetch.",
+  "— og skiptir mestu fyrir fantasy — er spyrnu-röðunin: víta­skytta nr. 1 er sterkasta einstaka fyrirliða-vísbendingin sem gögnin geyma.": "— and matters most for fantasy — is the set-piece order: the no. 1 penalty taker is the strongest single captaincy hint the data holds.",
+  "FPL hefur ekki skráð röðun fyrir þetta lið": "FPL has no order recorded for this team",
+  "FPL-röðun": "FPL order",
+  "Táknin:": "The icons:",
+  "víti": "penalties",
+  "aukaspyrnur": "free kicks",
+  "horn": "corners",
+  "„Fyrsti taki\" er lægsta FPL-röðun liðsins, ekki talan 1.": "\"First taker\" is the team's LOWEST FPL order, not the number 1.",
+  "Mælt á raungögnum: víti og aukaspyrnur eru númeruð 1–5, en horn": "Measured on real data: penalties and free kicks are numbered 1–5, but corners",
+  "4–10 og ná aldrei 1": "4–10 and never reach 1",
+  "— FPL notar annan grunn þar. Eldri útgáfa krafðist talsins 1 og sýndi því aldrei hornataka.": "— FPL uses a different base there. An older version required the number 1 and so never showed a corner taker.",
+  "Röðunin er handskráð hjá FPL og getur verið úrelt snemma tímabils — sannreyndu gegn síðustu leikjum áður en þú byggir fyrirliða-val á henni.": "The order is hand-entered by FPL and can be stale early in the season — verify against recent matches before basing a captaincy pick on it.",
 };

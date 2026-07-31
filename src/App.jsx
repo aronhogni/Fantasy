@@ -5,6 +5,7 @@ import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
 import SetPieces from "./SetPieces.jsx";
 import Compare from "./Compare.jsx";
 import Rotation from "./Rotation.jsx";
+import { RAW } from "./dataUrl.js";
 /* Toluranar i skipta-glugganum koma UR SOMU SKRA sem listinn og stigataflan
    nota (src/stats.js) — ekki afritadar formulur. Sama regla sem gildir um
    model.js: ein utfaersla, svo profin keyri thad sem appid birtir.        */
@@ -33,9 +34,8 @@ import { clamp, sellTenths, lookupPos, lookupMeasured,
 /* Í BYGGINGU les appid raw.githubusercontent (main-greinina) — engin bakendi.
    Í DEV les það data/ STAÐBUNDID svo nyjar pipeline-skrar seu synilegar ADUR
    en their eru pushadar, og svo dev virki an nets. Vite thjonar rot-skrar.   */
-const RAW = import.meta.env?.DEV
-  ? `${import.meta.env.BASE_URL}data`      // base er /Fantasy/ — ma ekki fara framhja
-  : "https://raw.githubusercontent.com/aronhogni/Fantasy/main/data";
+/* Slodin er i src/dataUrl.js — leikmannalistinn tharf hana lika og
+   ad flytja hana inn ur App.jsx hefdi gefid hringtilvisun. */
 const PROXY_URL = "https://mellifluous-hummingbird-565c85.netlify.app/.netlify/functions/odds";
 
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";

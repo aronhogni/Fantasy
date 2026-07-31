@@ -33,9 +33,10 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { t as tx } from "./i18n.js";
+import { RAW } from "./dataUrl.js";
 import { useLang } from "./useLang.js";
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName, nameScore,
-  indexImminentByTeam, matchImminent,
+  indexImminentByTeam, matchImminent, sumGwRange, gwBlindKeys,
          startRisk, moScore, aoScore, inImminentPool } from "./stats.js";
 
 const C = {
@@ -200,6 +201,47 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   }, [season, finishedGw, currentLabel, olderSeasons]);
   const isLive = season === currentLabel;
 
+  /* ---------- UMFERDAR-BIL ----------
+     null = HEILT timabil. Bilid gildir adeins um samlagningarhaefar tolur;
+     verd, eignarhald og FPL-saeti eru ARSTIDARTOLUR og fylgja EKKI — their
+     eru merktir i vidmotinu, thvi thogul rong tala er verri en synilega
+     vantandi tala. Skrarnar eru LETIHLADNAR: 1,2-1,5 MB per timabil og
+     thad er tilgangslaust ad hlada theim ef bilid er ekki notad.         */
+  const [gwRange, setGwRange] = useState(null);      // [fra, til] eda null
+  const [gwFile, setGwFile] = useState(null);        // { key, data }
+  const [gwLoading, setGwLoading] = useState(false);
+  const [gwErr, setGwErr] = useState(null);
+
+  /* "2025/26" -> "2526". Skrarnar heita player_gw_{key}.json. */
+  const seasonKey = useMemo(() => {
+    const m = String(season || "").match(/^(\d{4})\/(\d{2})$/);
+    return m ? m[1].slice(2) + m[2] : null;
+  }, [season, lang]);
+
+  /* Hledur ADEINS thegar bil er raunverulega valid. Bilid er nullstillt
+     thegar timabili er skipt — annars sæti GW30-38 eftir a nyju timabili
+     og notandinn saei tolur fyrir bil sem hann valdi ekki thar.          */
+  useEffect(() => { setGwRange(null); setGwErr(null); }, [season]);
+  useEffect(() => {
+    if (!gwRange || !seasonKey) return;
+    if (gwFile?.key === seasonKey) return;
+    let dead = false;
+    setGwLoading(true); setGwErr(null);
+    fetch(`${RAW}/player_gw_${seasonKey}.json`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => { if (!dead) { setGwFile({ key: seasonKey, data }); setGwLoading(false); } })
+      .catch(e => { if (!dead) { setGwErr(String(e.message || e)); setGwLoading(false); } });
+    return () => { dead = true; };
+  }, [gwRange, seasonKey, gwFile]);
+
+  const gwActive = !!(gwRange && gwFile?.key === seasonKey && gwFile?.data);
+  /* LEITT UT ur STAT_DEFS, ekki handskrifad — sja gwBlindKeys i stats.js.
+     Fyrsta utgafa var handskrifadur lyklalisti og 13 af 22 lyklum voru
+     RANGIR, svo merkingin birtist hvergi.                               */
+  /* `lang` i dep-listanum: STAT_DEFS-heiti eru LAZY og fylgja tungumali,
+     svo blindu-mengid verdur ad endurreiknast vid tungumalabreytingu.   */
+  const blindKeys = useMemo(() => gwBlindKeys(), [lang]);
+
   /* ---------- sior ---------- */
   const [pos, setPos] = useState("all");
   const [q, setQ] = useState("");
@@ -274,7 +316,13 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     const dcById = defcon?.opportunity || {};
 
     const out = (players || []).map(p => {
-      const hist = isLive ? null : seasonsFile?.players?.[String(p.code)]?.[season];
+      /* UMFERDAR-BIL kemur I STAD arstidar-rodarinnar. Skilar FPL-nefndum
+         svidum, svo allir 108 dalkar — lika afleiddu — virka obreyttir.  */
+      const gwEntry = gwActive ? gwFile.data.players?.[String(p.code)] : null;
+      const ranged = gwEntry ? sumGwRange(gwEntry, gwFile.data, gwRange[0], gwRange[1]) : null;
+      const hist = isLive ? null
+                 : (gwActive ? ranged
+                             : seasonsFile?.players?.[String(p.code)]?.[season]);
       /* GAGNAHLUTURINN sem dalkarnir lesa: soguleg rod ef timabil er valid,
          annars lifandi. VERD og STADA koma ALLTAF ur lifandi gognum.      */
       const src = isLive ? p : (hist ? { ...hist, now_cost: p.now_cost,
@@ -321,7 +369,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Leikmenn] cook ${out.length} radir: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [players, teamById, seasonsFile, season, isLive, imminent, shotsFile, fixtures, events, odds, defcon, lang]);
+  }, [players, teamById, seasonsFile, season, isLive, imminent, shotsFile, fixtures, events,
+      odds, defcon, lang, gwActive, gwFile, gwRange]);
 
   /* ---------- hvada dalkar hafa GOGN i thessu timabili ---------- */
   const groupCols = useMemo(() => {
@@ -446,7 +495,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     const label = String(d?.label ?? "");
     const perLine = Math.ceil(label.length / 2);
     const longestWord = Math.max(...label.split(/[ /(]+/).map(w => w.length));
-    const lab = Math.max(perLine, longestWord) * 5.35 + 14;
+    const lab = Math.max(perLine, longestWord) * 5.9 + 12;   // 10,5px haus
     const dec = d?.dec ?? 0;
     const val = (4 + (dec ? dec + 1 : 0)) * 6.2 + 12; // tala (11px mono)
     return Math.round(Math.max(46, Math.min(76, Math.max(lab, val))));
@@ -511,6 +560,64 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
             }}>{tx("hreinsa allt")}</button>}
         </div>
       </div>
+
+      {/* ---------- SJONRAENT UMFERDAR-BIL ----------
+          38 kassar; smellur setur upphaf, naesti smellur setur endann.
+          Thad er einfaldara en tveir fellilistar og synir SAMTIMIS hvad er
+          valid — spurningin "hvad var hann ad gera i lokin" er sjonræn.
+          Bilid er sleppt fyrir yfirstandandi timabil sem er EKKI hafid:
+          thar eru engar loknar umferdir og valarinn vaeri 38 dauðir kassar. */}
+      {!(isLive && finishedGw === 0) && seasonKey && (
+        <div style={S.gwWrap}>
+          <div style={S.gwTop}>
+            <span style={S.gwLbl}>{tx("Umferðir:")}</span>
+            <div style={S.gwPresets}>
+              <button style={{ ...S.gwPreset, ...(!gwRange ? S.gwPresetOn : {}) }}
+                onClick={() => setGwRange(null)}>{tx("allt tímabilið")}</button>
+              {[[30, 38, "30–38"], [20, 29, "20–29"], [1, 19, tx("fyrri hluti")],
+                [20, 38, tx("seinni hluti")]].map(([a, b, l]) => (
+                <button key={l} style={{ ...S.gwPreset,
+                    ...(gwRange && gwRange[0] === a && gwRange[1] === b ? S.gwPresetOn : {}) }}
+                  onClick={() => setGwRange([a, b])}>{l}</button>
+              ))}
+            </div>
+            {gwRange && (
+              <span style={S.gwNow}>
+                GW {gwRange[0]}–{gwRange[1]}
+                {gwLoading ? ` · ${tx("hleð…")}` : ""}
+                {gwErr ? ` · ${tx("gögn vantar")}: ${gwErr}` : ""}
+              </span>
+            )}
+          </div>
+          <div style={S.gwBar} role="group" aria-label={tx("Veldu umferðabil")}>
+            {Array.from({ length: 38 }, (_, i) => i + 1).map(n => {
+              const on = gwRange && n >= gwRange[0] && n <= gwRange[1];
+              const edge = gwRange && (n === gwRange[0] || n === gwRange[1]);
+              return (
+                <button key={n} title={`GW ${n}`} aria-pressed={!!on}
+                  style={{ ...S.gwCell, ...(on ? S.gwOn : {}), ...(edge ? S.gwEdge : {}) }}
+                  onClick={() => setGwRange(r => {
+                    /* Fyrsti smellur = nytt upphaf. Annar smellur = endi.
+                       Ef smellt er FYRIR upphafid snýst bilid vid i stad
+                       thess ad gera ekkert — annars virkar valarinn "bara
+                       til haegri" og thad er ekki thad sem notandinn gerir. */
+                    if (!r || r[0] !== r[1]) return [n, n];
+                    return n < r[0] ? [n, r[0]] : [r[0], n];
+                  })}>
+                  {n % 5 === 0 || n === 1 ? n : ""}
+                </button>
+              );
+            })}
+          </div>
+          {gwRange && (
+            <div style={S.gwNote}>
+              {tx("Bilið gildir um tölur sem má LEGGJA SAMAN. Verð, eignarhald, form, ICT og FPL-sæti eru árstíðartölur og fylgja EKKI bilinu — þeir dálkar eru merktir")}
+              {" "}<span style={S.blindTag}>{tx("árstíð")}</span>{" "}
+              {tx("og sýna heildina.")}
+            </div>
+          )}
+        </div>
+      )}
 
       {finishedGw === 0 && isLive && (
         <div style={S.warn}>
@@ -664,12 +771,20 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
               <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__own")} tabIndex={0}
                 onClick={() => sortOn("__own")}>{tx("Eign %")}{arrow("__own")}</div>
               {visibleCols.map(d => (
-                <div key={d.key} style={{ ...S.hCell, ...cFor(d) }}
-                  title={`${d.label}${d.note ? " — " + d.note : ""}`}
+                <div key={d.key} style={{ ...S.hCell, ...cFor(d),
+                       ...(gwActive && blindKeys.has(d.key) ? S.hBlind : {}) }}
+                  title={`${d.label}${d.note ? " — " + d.note : ""}` +
+                         (gwActive && blindKeys.has(d.key)
+                          ? ` — ${tx("ÁRSTÍÐARTALA: fylgir ekki umferðabilinu, sýnir heildina")}` : "")}
                   aria-sort={aria(d.key)} tabIndex={0}
                   onClick={() => sortOn(d.key, d.hi !== false)}
                   onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn(d.key, d.hi !== false); } }}>
-                  {d.label}{d.derived ? "†" : ""}{arrow(d.key)}
+                  {d.label}{d.derived ? "†" : ""}
+                  {/* Merking a dalkinum sjalfum, ekki adeins i skyringu:
+                      notandinn les tofluna, ekki fotnotur. */}
+                  {gwActive && blindKeys.has(d.key)
+                    ? <span style={S.blindMark} title={tx("árstíðartala")}>∑</span> : null}
+                  {arrow(d.key)}
                 </div>
               ))}
               <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__start")} tabIndex={0}
@@ -770,6 +885,27 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 }
 
 const S = {
+  /* ---- sjonraent umferdar-bil ---- */
+  gwWrap:{ display:"flex", flexDirection:"column", gap:4, padding:"7px 0 2px" },
+  gwTop:{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" },
+  gwLbl:{ fontSize:11, fontWeight:700, color:C.text2 },
+  gwPresets:{ display:"flex", gap:3, flexWrap:"wrap" },
+  gwPreset:{ border:`1px solid ${C.border}`, background:"#fff", color:C.text2,
+             borderRadius:5, padding:"2px 7px", fontSize:11, cursor:"pointer" },
+  gwPresetOn:{ background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:600 },
+  gwNow:{ fontFamily:mono, fontSize:11, color:C.purple, fontWeight:700 },
+  gwBar:{ display:"flex", gap:1, flexWrap:"nowrap", overflowX:"auto" },
+  gwCell:{ flex:"1 1 0", minWidth:14, height:18, border:`1px solid ${C.border}`,
+           background:"#fafafb", color:C.text3, borderRadius:2, cursor:"pointer",
+           fontSize:8.5, padding:0, lineHeight:"16px" },
+  gwOn:{ background:"#e8e2ee", color:C.purple, borderColor:"#cdbcd8" },
+  gwEdge:{ background:C.purple, color:"#fff", borderColor:C.purple, fontWeight:700 },
+  gwNote:{ fontSize:10.5, color:C.text3, lineHeight:1.35 },
+  blindTag:{ fontSize:9, fontWeight:700, background:"#f0eef4", color:"#4a3d5c",
+             borderRadius:3, padding:"0 3px" },
+  hBlind:{ background:"#faf7fb", color:"#8b7d9b" },
+  blindMark:{ fontSize:9, color:"#9a8aa8", marginLeft:1 },
+
   /* ---- leitanlegur dalkavalari (108 dalkar; select var oskrunanlegur) ---- */
   pkWrap:{ position:"relative", minWidth:150, flex:"0 1 190px" },
   pkInput:{ width:"100%", boxSizing:"border-box", font:"inherit", fontSize:12,
@@ -856,9 +992,19 @@ const S = {
          background:C.cardAlt, borderBottom:`1px solid ${C.borderStrong || C.border}` },
   /* whiteSpace:"normal" + 2 linur: sja wOf. `lineHeight` er sett svo tvaer
      linur passi i haus-hædina an ad ýta rodunum nidur.                   */
-  hCell:{ display:"flex", alignItems:"center", fontSize:9.5, fontWeight:700, color:C.text2,
+  /* boxSizing:"border-box" A BADUM — HAUS OG HOLFI.
+     AFTURFOR SEM MAELDIST: an thess var haus-holfid 2 px SMAERRA en
+     gagna-holfid (60 a moti 62) thvi bordid og padding logdust UTAN a
+     uppgefna breidd i einu en ekki i odru. Skekkjan HLADST UPP: dalkur 1
+     var 2 px af, dalkur 9 var 16 px af, og tha situr heitid ekki lengur
+     yfir sinum dalki. Med border-box er uppgefin breidd HEILDARBREIDDIN
+     og haus og holf geta ekki rekid i sundur.
+     fontSize 10,5 (var 9,5): heitin voru ordin of smá vid tveggja-linu
+     brotid. Breiddar-formulan (wOf) notar 5,9 px/staf til samraemis.     */
+  hCell:{ boxSizing:"border-box", display:"flex", alignItems:"center",
+          fontSize:10.5, fontWeight:700, color:C.text2,
           padding:"0 5px", cursor:"pointer", userSelect:"none",
-          whiteSpace:"normal", lineHeight:1.12, wordBreak:"break-word",
+          whiteSpace:"normal", lineHeight:1.14, wordBreak:"break-word",
           borderRight:"1px solid #eeeef1", overflow:"hidden" },
   row:{ position:"absolute", left:0, right:0, display:"flex", height:ROW_H,
         alignItems:"center", borderBottom:"1px solid #f4f4f6" },
@@ -874,7 +1020,7 @@ const S = {
              fontSize:12, lineHeight:1, color:"#c9c9d0", flex:"0 0 14px", width:14,
              marginRight:2 },
   starOn:{ color:"#e8a71c" },
-  cell:{ display:"flex", alignItems:"center", padding:"0 6px", fontSize:11.5,
+  cell:{ boxSizing:"border-box", display:"flex", alignItems:"center", padding:"0 5px", fontSize:11.5,
          whiteSpace:"nowrap", borderRight:"1px solid #f6f6f8" },
   cName:{ position:"sticky", left:0, zIndex:2, width:196, minWidth:196,
           background:"inherit", borderRight:`1px solid ${C.border}` },
