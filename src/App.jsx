@@ -5,6 +5,11 @@ import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
 import SetPieces from "./SetPieces.jsx";
 import Compare from "./Compare.jsx";
 import Rotation from "./Rotation.jsx";
+/* Toluranar i skipta-glugganum koma UR SOMU SKRA sem listinn og stigataflan
+   nota (src/stats.js) — ekki afritadar formulur. Sama regla sem gildir um
+   model.js: ein utfaersla, svo profin keyri thad sem appid birtir.        */
+import { moScore, aoScore, startProbability, inImminentPool,
+         indexImminentByTeam, matchImminent } from "./stats.js";
 import PlayerList from "./PlayerList.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import { t as tx, setLang, LANGS } from "./i18n.js";
@@ -188,7 +193,30 @@ const FIT = {
   4: { bias:-1.98, mins5:13.869, pts5: 0.519, bps90:0.009, price:0.698, fdr:-0.881, xgi90:1.919 },
 };
 const FFDR_AHEAD = 5;  // umferðir sem útskiptingar-röðun horfir á
-const TL_WINDOW = 13;  // umferðir sýndar í einu — hnútarnir FYLLA breiddina
+/* UMFERDIR SYNDAR I EINU — BREIDDARHAD SIDAN 31.7.2026.
+   Hnutarnir "FYLLA breiddina" (kafli 8), sem er rett a bord/skjá en BROTNAR
+   i simabreidd: 13 hnutar i 390px gefa 26px hnuta sem SKARAST. Maelt i
+   Chrome a 390 og 480 px: 9 skorunar-par, og skarandi hnutar eru ekki
+   throngir heldur OTAPPANLEGIR — thu getur ekki valid umferdina sem thu
+   villt. Ekkert yfirflaedi maeldist, svo profin og yfirflaedi-vordurinn
+   sau thetta ekki; thad fannst med thvi ad RENDRA appid i simabreidd.
+   760px+ hafdi engin skorun, thvi eru brotin thar.                       */
+const TL_WINDOW = 13;        // >760px
+const TL_WINDOW_MID = 9;     // 481-760
+const TL_WINDOW_NARROW = 6;  // <=480 (simi)
+function useTlWindow() {
+  const [w, setW] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth ? window.innerWidth : 1280);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const on = () => setW(window.innerWidth);
+    window.addEventListener("resize", on);
+    window.addEventListener("orientationchange", on);
+    return () => { window.removeEventListener("resize", on);
+                   window.removeEventListener("orientationchange", on); };
+  }, []);
+  return w <= 480 ? TL_WINDOW_NARROW : w <= 760 ? TL_WINDOW_MID : TL_WINDOW;
+}
 
 /* ---- Landsleikjahlé: hlé Á EFTIR þessum umferðum ---- */
 const INTL_BREAK_AFTER = [3, 7, 11, 15, 22, 27];
@@ -506,12 +534,11 @@ export default function App() {
   const [swapSel, setSwapSel] = useState(null);   // valinn til skipta (smellu-flæði)
   const [confirmReset, setConfirmReset] = useState(null); // "gw" | "all" — staðfestingar-skref
   const [tlStart, setTlStart] = useState(1);        // fyrsta umferð í tímalínu-glugga
+  const tlWindow = useTlWindow();                  // BREIDDARHAD — sja useTlWindow
   const [selling, setSelling] = useState(null);
   const [searchQ, setSearchQ] = useState("");
-  const [browse, setBrowse] = useState(false);
   const [showFfdr, setShowFfdr] = useState(false);  // FFDR-taflan sýnileg
   const [showChips, setShowChips] = useState(false); // chip-stillingar sýnilegar // frjáls leit (ekki bundin sölu)
-  const [searchPos, setSearchPos] = useState("all");
   const [toast, setToast] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [totalPts, setTotalPts] = useState(null);
@@ -830,10 +857,10 @@ export default function App() {
   useEffect(() => {
     setTlStart(v => {
       if (gw < v) return Math.max(1, gw - 1);
-      if (gw > v + TL_WINDOW - 1) return Math.min(Math.max(1, maxGw - TL_WINDOW + 1), gw - TL_WINDOW + 2);
+      if (gw > v + tlWindow - 1) return Math.min(Math.max(1, maxGw - tlWindow + 1), gw - tlWindow + 2);
       return v;
     });
-  }, [gw, maxGw]);
+  }, [gw, maxGw, tlWindow]);
 
   // Leikir per lið per umferð
   const fixByTeamGw = useMemo(() => {
@@ -1288,11 +1315,61 @@ export default function App() {
     return n ? sum / n : 9;      // engir leikir -> aftast
   }, [gw, maxGw, fixByTeamGw, teamMetrics, odds, eloByTeam, teamById, lang]);
 
+  /* ---------- MERKI FYRIR SKIPTA-GLUGGANN ----------
+     Skipta-glugginn er AUGNABLIK AKVORDUNARINNAR og hann syndi adeins
+     `ep_next` og andstaeding, thott vid hofum maelt fjorar adrar tolur.
+     Thaer eru allar reiknadar UR SOMU SKRAM sem hinir fliparnir nota.
+
+     BYRJUNAR-LIKUR ERU FYRSTAR AF ASETTU RADI: allt annad er verdlaust ef
+     leikmadurinn spilar ekki. Maelt (kafli 6h): af theim sem byrjudu sidast
+     spila 21,6% EKKI 60+ naest, og laegsti tiundarhlutinn fangar 42-49%
+     theirra — lyfting 2,09x, samhljoda oll thrju timabilin.               */
+  const immIdx = useMemo(() => indexImminentByTeam(imminent), [imminent, lang]);
+  const netByPlayer = useMemo(() => {
+    const m = {};
+    for (const p of players || []) {
+      m[p.id] = { net: (p.transfers_in_event || 0) - (p.transfers_out_event || 0),
+                  chg: p.cost_change_event || 0 };
+    }
+    return m;
+  }, [players, lang]);
+
+  const signalsOf = useCallback(p => {
+    if (!p) return null;
+    const im = matchImminent(p, immIdx, teamById?.[p.team]?.short);
+    const w = im?.window;
+    const nb = netByPlayer[p.id] || {};
+    return {
+      /* startProbability tekur `start_feats` sem pipeline reiknar (5 umferda
+         gluggi). Vantar hann -> null, EKKI 0: "engin gogn" og "spilar ekki"
+         eru ekki sama hlutid.                                             */
+      startP: im?.start_feats ? startProbability(im.start_feats) : null,
+      /* mo/ao gilda ADEINS i markhopnum (0-1 framlag, 180+ min). Fyrir adra
+         er talan ekki "lag" heldur EKKI TIL — thess vegna null.
+
+         MARKMENN FA HVORUGA, OG THAD ER MAELINGAR-ATRIDI EKKI SMEKKUR:
+         mo/ao eru soknar-visar og markmenn komast i markhopinn AF THVI AD
+         their hafa 0 framlog. tests/mo-candidates.mjs maeldi DEF/MID/FWD —
+         GK var ALDREI maeldur. "mo 0.0" a markverdi er thvi omaeld tala
+         sem lítur út eins og maeling, sem er thad sem thetta repo a ad
+         forðast (sbr. "Vaent stig" og "birt CS%" i kafla 3).             */
+      mo: (w && p.element_type !== 1 && inImminentPool(w)) ? moScore(w) : null,
+      ao: (w && p.element_type !== 1 && inImminentPool(w)) ? aoScore(w) : null,
+      ffdr: ffdrAhead(p),
+      predict: priceMovePrediction({ net: nb.net, selectedByPct: p.selected_by_percent,
+                                     chg: nb.chg }),
+    };
+  }, [immIdx, teamById, netByPlayer, ffdrAhead, lang]);
+
   const searchResults = useMemo(() => {
     if (!players) return [];
     const q = searchQ.toLowerCase().trim()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const posFilter = selling ? byId[selling]?.element_type : (searchPos === "all" ? null : +searchPos);
+    /* I SKIPTI-HAM er stadan alltaf su sem er seld — FPL leyfir ekki ad
+       skipta varnarmanni fyrir framherja. Stodu-sian sem browse-hamurinn
+       hafdi er thvi ekki lengur til; hun var adeins fyrir flakk og thad
+       flutti a Leikmenn-flipann.                                          */
+    const posFilter = byId[selling]?.element_type ?? null;
     return players.filter(p => {
       if (posFilter && p.element_type !== posFilter) return false;
       if (selling && squadIds.has(p.id)) return false;
@@ -1311,7 +1388,7 @@ export default function App() {
       return parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0)
           || (b.total_points || 0) - (a.total_points || 0);
     }).slice(0, 120);
-  }, [players, searchQ, searchPos, selling, squadIds, byId, teamById, ffdrAhead, lang]);
+  }, [players, searchQ, selling, squadIds, byId, teamById, ffdrAhead, lang]);
 
   /* ---------- Tillögu-kerfi: MÆLDAR vogtölur (sjá FIT ofar) ---------- */
   const recommendations = useMemo(() => {
@@ -1638,8 +1715,19 @@ export default function App() {
         <Logo />
         <div className="head-right" style={S.headRight}>
           <LangToggle />
-          <button style={S.searchBtn} onClick={() => { setBrowse(true); setSearchQ(""); setSearchPos("all"); }}
-            title={tx("Leita í öllum leikmönnum")}>{tx("🔍 Leikmenn")}</button>
+          {/* VISAR A LEIKMENN-FLIPANN. browse-hamurinn var TVIVERKNADUR:
+              flipinn gerir thad sama betur (108 dalkar, throskuldar,
+              vaktlisti, samanburdur, fjogur timabil) medan thessi gluggi
+              hafdi adeins nafna-leit + stodu-siu.
+              HEITID BREYTTIST UR "Leikmenn" I "Leita": tveir hnappar hetu
+              "Leikmenn" (thessi og flipinn) og thad rugl er MAELT, ekki
+              tilgatulegt — baedi vafra-leit og prof greipu thann ranga i
+              throun og areksturinn thurfti ad skjalfesta i profaskra.
+              SKIPTA-GLUGGINN (selling) LIFIR OBREYTTUR: hann veit hvad thu
+              ert ad selja, hvad er i bankanum og hvad 3-per-felag reglan
+              segir. Leikmannalistinn veit ekkert af thvi.                 */}
+          <button style={S.searchBtn} onClick={() => setView("players")}
+            title={tx("Opna leikmannalistann — leit, síur og samanburður")}>{tx("🔍 Leita")}</button>
           <button style={{ ...S.searchBtn, ...(showFfdr ? S.searchBtnOn : {}) }}
             onClick={() => setShowFfdr(v => !v)}
             title={tx("Leikjaþyngd allra liða, varnar- og sóknar-hópur")}>{tx("📊 FFDR")}</button>
@@ -1698,10 +1786,10 @@ export default function App() {
         <div style={S.tlOuter}>
           <button style={{ ...S.tlArrow, ...(tlStart <= 1 ? S.tlArrowOff : {}) }}
             disabled={tlStart <= 1} title={tx("Fyrri umferðir")}
-            onClick={() => setTlStart(v => Math.max(1, v - TL_WINDOW))}>‹</button>
+            onClick={() => setTlStart(v => Math.max(1, v - tlWindow))}>‹</button>
         <div style={S.tlRow}>
           <div style={S.tlLine} />
-          {Array.from({ length: Math.min(TL_WINDOW, maxGw) }, (_,i) => tlStart + i).filter(n => n <= maxGw).map(n => {
+          {Array.from({ length: Math.min(tlWindow, maxGw) }, (_,i) => tlStart + i).filter(n => n <= maxGw).map(n => {
             const active = n === gw;
             const has = plan.some(t => t.gw === n);
             const brk = INTL_BREAK_AFTER.includes(n);
@@ -1738,9 +1826,9 @@ export default function App() {
             );
           })}
         </div>
-          <button style={{ ...S.tlArrow, ...(tlStart + TL_WINDOW > maxGw ? S.tlArrowOff : {}) }}
-            disabled={tlStart + TL_WINDOW > maxGw} title={tx("Næstu umferðir")}
-            onClick={() => setTlStart(v => Math.min(Math.max(1, maxGw - TL_WINDOW + 1), v + TL_WINDOW))}>›</button>
+          <button style={{ ...S.tlArrow, ...(tlStart + tlWindow > maxGw ? S.tlArrowOff : {}) }}
+            disabled={tlStart + tlWindow > maxGw} title={tx("Næstu umferðir")}
+            onClick={() => setTlStart(v => Math.min(Math.max(1, maxGw - tlWindow + 1), v + tlWindow))}>›</button>
         </div>
         <div style={S.deadline}>
           <b>GW{gw}</b> {tx("· frestur")} {fmtDeadline(ev?.deadline_time)}
@@ -1960,7 +2048,7 @@ export default function App() {
           {showFfdr && (
             <FfdrTable teams={teams} fixByTeamGw={fixByTeamGw} teamById={teamById}
               diffOf={fixDifficulty} crestFor={crestFor}
-              from={tlStart} span={TL_WINDOW} maxGw={maxGw}
+              from={tlStart} span={tlWindow} maxGw={maxGw}
               onPickTeam={id => setDetail({ kind:"team", id })} />
           )}
 
@@ -2055,7 +2143,7 @@ export default function App() {
                           <span style={S.chipHalfRange}>GW{slots[0].from}–{lastGw}</span>
                           {dl && (
                             <span style={{ ...S.chipExpiry, ...(expired ? S.chipExpired : {}) }}>
-                              {expired ? tx("útrunnið") : `fellur ${fmtDeadline(dl)}`}
+                              {expired ? tx("útrunnið") : tx("fellur {0}", [fmtDeadline(dl)])}
                               {!expired && unused > 0 ? tx(" · {0} ónotuð", [unused]) : ""}
                             </span>
                           )}
@@ -2658,22 +2746,15 @@ export default function App() {
       })()}
 
       {/* ---------- Leitargluggi ---------- */}
-      {(selling !== null || browse) && (
-        <div style={S.overlay} onClick={() => { setSelling(null); setBrowse(false); setSearchQ(""); }}>
+      {/* ADEINS SKIPTI-HAMUR. browse var fjarlagt 31.7. — sja hnappinn ofar. */}
+      {selling !== null && (
+        <div style={S.overlay} onClick={() => { setSelling(null); setSearchQ(""); }}>
           <div style={S.modal} onClick={e => e.stopPropagation()}>
             <div style={S.modalHead}>
               <input autoFocus style={S.search} placeholder={tx("Leita — nafn eða lið")}
                 value={searchQ} onChange={e => setSearchQ(e.target.value)} />
-              <button style={S.close} onClick={() => { setSelling(null); setBrowse(false); setSearchQ(""); }}>✕</button>
+              <button style={S.close} onClick={() => { setSelling(null); setSearchQ(""); }}>✕</button>
             </div>
-            {browse && !selling && (
-              <div style={S.posFilter}>
-                {[["all",tx("Allir")],["1","GK"],["2",tx("Vörn")],["3",tx("Miðja")],["4",tx("Sókn")]].map(([v,l]) => (
-                  <button key={v} onClick={() => setSearchPos(v)}
-                    style={{ ...S.posBtn, ...(searchPos === v ? S.posBtnOn : {}) }}>{l}</button>
-                ))}
-              </div>
-            )}
             <div style={S.searchList}>
               {searchResults.map(p => {
                 const t = teamById[p.team];
@@ -2690,7 +2771,7 @@ export default function App() {
                   <button key={p.id}
                     onClick={() => selling
                       ? commitTransfer(selling, p.id)
-                      : (setBrowse(false), setSearchQ(""), setDetail({ kind:"player", id:p.id }))}
+                      : (setSearchQ(""), setDetail({ kind:"player", id:p.id }))}
                     style={{ ...S.sItem, ...(block ? S.sItemBlocked : {}) }}
                     title={block ? tx("Ólöglegt: {0}", [block]) : ""}>
                     <div style={S.sPortrait}>
@@ -2710,6 +2791,56 @@ export default function App() {
                         {t?.short} · {POS_LABEL[p.element_type]} · ep {p.ep_next}
                         {fx ? ` · ${oppLabel(teamById[fx.opp]?.short, fx.home)}` : ""}
                       </div>
+                      {/* MAELDU TOLURNAR. Rodin er ASETT: byrjunar-likur
+                          fyrst (allt annad er verdlaust ef hann spilar
+                          ekki), tha thyngd leikjanna, tha "a hann tima",
+                          tha verdid. Tomt gildi er SLEPPT, ekki sett i 0 —
+                          "engin gogn" og "lag tala" eru ekki sama hlutid. */}
+                      {(() => {
+                        const sg = signalsOf(p);
+                        if (!sg) return null;
+                        const ti = tierOf(sg.ffdr);
+                        return (
+                          <div style={S.sSig}>
+                            {sg.startP != null && (
+                              <span style={{ ...S.sigPill,
+                                             ...(sg.startP < 0.5 ? S.sigBad
+                                                 : sg.startP < 0.75 ? S.sigWarn : S.sigOk) }}
+                                title={tx("Líkur á 60+ mínútum — mælt líkan (Brier 0,089 á móti 0,118 fyrir „byrjaði síðast\"). Glugginn er SÍÐUSTU 5 LOKNU UMFERÐIR; fyrir tímabil eru það lok síðasta tímabils, þar sem hvíld og rótasjón eru miklar. Undir 50% = bekkjar-hætta.")}>
+                                {Math.round(sg.startP * 100)}%
+                              </span>
+                            )}
+                            {sg.ffdr < 9 && (
+                              <span style={{ ...S.sigFfdr, background:TIER_BG[ti], color:TIER_FG[ti] }}
+                                title={`FFDR ${FFDR_AHEAD} — ${TIER_NAME[ti]}`}>
+                                {sg.ffdr.toFixed(2)}
+                              </span>
+                            )}
+                            {sg.mo != null && sg.mo >= 0.05 && (
+                              <span style={S.sigMo}
+                                title={tx("mó — magn (xGI) + ógn + óheppni síðustu 4 umferðir. Aðeins fyrir þá sem eru í markhópnum (0–1 framlag, 180+ mín).")}>
+                                {tx("mó")} {sg.mo.toFixed(1)}
+                              </span>
+                            )}
+                            {sg.ao != null && sg.ao >= 20 && (
+                              <span style={S.sigMo}
+                                title={tx("aó — sköpun per 90 mín. Hátt = leggur upp færi en fær ekki assist.")}>
+                                {tx("aó")} {sg.ao.toFixed(0)}
+                              </span>
+                            )}
+                            {sg.predict === "up" && (
+                              <span style={S.sigUp} title={tx("Líklega hækkun í nótt — NÁLGUN, FPL birtir ekki formúluna")}>
+                                ↑
+                              </span>
+                            )}
+                            {sg.predict === "down" && (
+                              <span style={S.sigDown} title={tx("Líklega lækkun í nótt (nálgun) — kauptu eftir verðkeyrslunni")}>
+                                ↓
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div style={{ textAlign:"right" }}>
                       <div style={S.sPrice}>£{(p.now_cost/10).toFixed(1)}</div>
@@ -3260,9 +3391,6 @@ const S = {
   headRight: { display:"flex", gap:8, alignItems:"center" },
   urlInput: { background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 11px", fontSize:13, color:C.text, width:210, outline:"none" },
   searchBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:8, padding:"8px 12px", fontSize:12.5, color:C.text, cursor:"pointer", whiteSpace:"nowrap" },
-  posFilter: { display:"flex", gap:4, padding:"0 13px 9px" },
-  posBtn: { flex:1, background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:6, padding:"5px 0", fontSize:11, color:C.text2, cursor:"pointer" },
-  posBtnOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:600 },
   connectBtn: { background:C.purple, color:"#fff", border:"none", borderRadius:8, padding:"9px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },
 
   cmpFab: { position:"fixed", right:16, bottom:16, zIndex:60, border:"none",
@@ -3615,6 +3743,20 @@ const S = {
   sCrest: { position:"absolute", bottom:-2, right:-3, width:13, height:13, objectFit:"contain" },
   sName: { fontSize:13, fontWeight:600, color:C.text, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" },
   sMeta: { fontFamily:mono, fontSize:10, color:C.text3 },
+  /* ---- maeldu merkin i skipta-glugganum ---- */
+  sSig:{ display:"flex", alignItems:"center", gap:4, marginTop:3, flexWrap:"wrap" },
+  sigPill:{ fontSize:9.5, fontWeight:700, borderRadius:3, padding:"0 3px", lineHeight:"14px" },
+  sigOk:{ background:"#e6f7ef", color:"#0a7d4f" },
+  sigWarn:{ background:"#fff5e0", color:"#8a5a00" },
+  sigBad:{ background:"#fde8ea", color:"#a3202c" },
+  sigFfdr:{ fontSize:9.5, fontWeight:700, borderRadius:3, padding:"0 4px",
+            lineHeight:"14px", fontFamily:mono },
+  sigMo:{ fontSize:9.5, fontWeight:600, borderRadius:3, padding:"0 3px",
+          lineHeight:"14px", background:"#f0eef4", color:"#4a3d5c" },
+  sigUp:{ fontSize:9.5, fontWeight:700, borderRadius:3, padding:"0 3px",
+          lineHeight:"14px", background:"#e6f7ef", color:"#0a7d4f" },
+  sigDown:{ fontSize:9.5, fontWeight:700, borderRadius:3, padding:"0 3px",
+            lineHeight:"14px", background:"#fde8ea", color:"#a3202c" },
   sPrice: { fontFamily:mono, fontSize:12.5, fontWeight:700 },
   sItemBlocked: { opacity:0.45 },
   sBlock: { fontFamily:mono, fontSize:9, color:C.red, fontWeight:700 },

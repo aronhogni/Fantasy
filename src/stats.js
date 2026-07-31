@@ -697,6 +697,37 @@ export function moScore(w) {
          + MO_WEIGHTS.unlucky * unlucky).toFixed(3);
 }
 
+/* ============================================================
+   PORUN VID imminent.json — EIN UTFAERSLA
+
+   imminent.json geymir FULLT nafn ("Cole Palmer") en players.json `web_name`
+   ("Palmer"), svo bein nafna-uppfletting skilar ENGU. Nota orda-skorun +
+   LID med othraeddum sigurvegara — sama adferd sem matchShotsToPlayers.
+
+   HVERS VEGNA HER OG EKKI I PlayerList: thegar skipta-glugginn (App.jsx)
+   fór ad birta somu tolur var thetta ad verda ONNUR utfaersla a sama hlut.
+   Tvaer utfaerslur a nafnaporun thydir ad "Byrjar"-dalkurinn getur virkad i
+   listanum og verid tomur i skiptaglugganum, an ad neitt prof falli.
+   ============================================================ */
+export function indexImminentByTeam(imminent) {
+  const by = {};
+  for (const ip of rowsOf(imminent?.players)) (by[ip.team] ||= []).push(ip);
+  return by;
+}
+
+/* p: FPL-leikmadur · idx: ur indexImminentByTeam · teamShort: "ARS" o.s.frv. */
+export function matchImminent(p, idx, teamShort) {
+  const cands = (idx && idx[teamShort]) || [];
+  let best = null, bs = 0, second = 0;
+  for (const c of cands) {
+    const sc = Math.max(nameScore(p?.web_name, c.name),
+                        nameScore(`${p?.first_name ?? ""} ${p?.second_name ?? ""}`, c.name));
+    if (sc > bs) { second = bs; bs = sc; best = c; }
+    else if (sc > second) second = sc;
+  }
+  return (best && bs >= 1 && bs > second) ? best : null;
+}
+
 /* AO er BERT creativity/90 — samsetning fell ut af urtaki (sja hausinn). */
 export function aoScore(w) {
   if (!w) return null;

@@ -35,6 +35,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { t as tx } from "./i18n.js";
 import { useLang } from "./useLang.js";
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName, nameScore,
+  indexImminentByTeam, matchImminent,
          startRisk, moScore, aoScore, inImminentPool } from "./stats.js";
 
 const C = {
@@ -227,19 +228,11 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
        players.json web_name ("Palmer"), svo bein nafna-uppfletting skilar
        ENGU — allur "Byrjar"-dalkurinn vard "—". Nota orda-skorun + LID,
        sama adferd og matchShotsToPlayers, med othraeddum sigurvegara.     */
-    const immByTeam = {};
-    for (const ip of imminent?.players || []) (immByTeam[ip.team] ||= []).push(ip);
-    const findImm = (p) => {
-      const cands = immByTeam[teamById?.[p.team]?.short] || [];
-      let best = null, bs = 0, second = 0;
-      for (const c of cands) {
-        const sc = Math.max(nameScore(p.web_name, c.name),
-                            nameScore(`${p.first_name} ${p.second_name}`, c.name));
-        if (sc > bs) { second = bs; bs = sc; best = c; }
-        else if (sc > second) second = sc;
-      }
-      return (best && bs >= 1 && bs > second) ? best : null;
-    };
+    /* Porunin sjalf er i src/stats.js svo skipta-glugginn i App.jsx noti
+       NAKVAEMLEGA sama kod — tvaer utfaerslur gaefu tomar tolur a einum
+       stad og fylltar a odrum an ad prof felli.                          */
+    const immByTeam = indexImminentByTeam(imminent);
+    const findImm = p => matchImminent(p, immByTeam, teamById?.[p.team]?.short);
 
     /* ---- LIDS-SAMTOLUR: xG liðsins (fyrir "hlutur af xG liðsins") ---- */
     const teamXg = {};

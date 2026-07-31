@@ -304,6 +304,36 @@ await act(async () => { rotClose.dispatchEvent(new dom.window.MouseEvent("click"
 await render();
 ok(!text().includes("róterings-par"), "spjaldið lokast");
 
+console.log("\n=== 12. TIMALINAN I SIMABREIDD (skorunar-vordur) ===");
+/* HVERS VEGNA ThETTA PROF ER TIL: TL_WINDOW var FAST 13 og i 390px urdu
+   hnutarnir 26px og SKORUÐUST — 9 skorunar-por, maelt i raunverulegum
+   Chrome 31.7.2026. Skarandi hnutar eru ekki throngir heldur OTAPPANLEGIR.
+   Ekkert yfirflaedi maeldist, svo hvorki profin ne yfirflaedi-vordurinn
+   sau thad; thad fannst med thvi ad RENDRA appid i simabreidd.
+   jsdom hefur enga uppsetningu (getBoundingClientRect er allt 0) svo
+   SKORUNIN sjalf er ekki maelanleg her — thad sem ER maelanlegt, og er
+   raunveruleg orsok, er FJOLDI hnuta per breidd. Thad er thad sem er varid. */
+const pagerCount = () => [...container.querySelectorAll("button")]
+  .filter(b => /^\d{1,2}$/.test(b.textContent.trim())).length;
+const atWidth = async (w) => {
+  dom.window.innerWidth = w;
+  await act(async () => { dom.window.dispatchEvent(new dom.window.Event("resize")); });
+  await render();
+  return pagerCount();
+};
+const wide = await atWidth(1280);
+ok(wide === 13, `1280px -> 13 umferdir i timalinu (${wide})`);
+const mid = await atWidth(760);
+ok(mid === 9, `760px -> 9 umferdir (${mid})`);
+const phone = await atWidth(390);
+ok(phone === 6, `390px (simi) -> 6 umferdir, ekki 13 (${phone})`);
+ok(phone < wide, "simi faer FAERRI hnuta en bord — thad er allt malid");
+/* Hnutarnir verda ad vera nogu breidir til ad tappa a. Vid 390px og 6
+   hnutum maeldust their 42px i Chrome; vid 13 voru their 26px. Reglan
+   ma ekki reka thannig ad simi fai fleiri en 8.                        */
+ok(phone <= 8, `simi faer <=8 hnuta svo hver verdi >=40px breidur (${phone})`);
+await atWidth(1280);   // skila i upphaflegt svo seinni prof se ohreyfd
+
 console.log(`\n========================================`);
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

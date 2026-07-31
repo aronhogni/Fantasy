@@ -93,8 +93,6 @@ export const EN = {
   ". Keyrðu GitHub Actions (fetch-data) og reyndu aftur.":
     ". Run GitHub Actions (fetch-data) and try again.",
   /* Haus */
-  "Leita í öllum leikmönnum": "Search all players",
-  "🔍 Leikmenn": "🔍 Players",
   "Leikjaþyngd allra liða, varnar- og sóknar-hópur":
     "Fixture difficulty for every team, defensive and attacking",
   "📊 FFDR": "📊 FFDR",
@@ -198,6 +196,10 @@ export const EN = {
   "Fyrri hluti": "First half",
   "Seinni hluti": "Second half",
   "útrunnið": "expired",
+  /* "fellur" hefur ENGA broddstafi, svo AST-skonnunin i tests/i18n.mjs var
+     blind a hann og enska chip-spjaldid sagdi "fellur 20/9 at 17:30".
+     Fundinn 31.7. af tests/i18n-dom.mjs (IS/EN-mismunur a skjanum).     */
+  "fellur {0}": "expires {0}",
   " · {0} ónotuð": " · {0} unused",
   "· vænt +": "· expected +",
   "best í": "best in",
@@ -1178,4 +1180,22 @@ export const EN = {
 
 /* ================= i18n.js ================= */
   "Fantasy plönun": "Fantasy planner",
+  /* ---- BAETT VID 31.7.: nyir strengir ur annarri lotu (leikmannalisti,
+     byrjunar-likur, mó/aó, verdspa). Their voru i kodanum en ekki her, svo
+     enska vidmotid hefdi birt islensku. ---- */
+  "Opna leikmannalistann — leit, síur og samanburður":
+    "Open the player list — search, filters and comparison",
+  "🔍 Leita": "🔍 Search",
+  "Líkur á 60+ mínútum — mælt líkan (Brier 0,089 á móti 0,118 fyrir „byrjaði síðast\"). Glugginn er SÍÐUSTU 5 LOKNU UMFERÐIR; fyrir tímabil eru það lok síðasta tímabils, þar sem hvíld og rótasjón eru miklar. Undir 50% = bekkjar-hætta.":
+    "Chance of 60+ minutes — measured model (Brier 0.089 vs 0.118 for \"started last time\"). The window is the LAST 5 COMPLETED GAMEWEEKS; in preseason that means the end of last season, when rest and rotation are heavy. Below 50% = bench risk.",
+  "mó": "GI",
+  "mó — magn (xGI) + ógn + óheppni síðustu 4 umferðir. Aðeins fyrir þá sem eru í markhópnum (0–1 framlag, 180+ mín).":
+    "Goal imminent — volume (xGI) + threat + bad luck over the last 4 gameweeks. Only for players in the target group (0–1 returns, 180+ mins).",
+  "aó": "AI",
+  "aó — sköpun per 90 mín. Hátt = leggur upp færi en fær ekki assist.":
+    "Assist imminent — creativity per 90 mins. High = creating chances without getting the assist.",
+  "Líklega hækkun í nótt — NÁLGUN, FPL birtir ekki formúluna":
+    "Likely price rise tonight — AN APPROXIMATION, FPL does not publish the formula",
+  "Líklega lækkun í nótt (nálgun) — kauptu eftir verðkeyrslunni":
+    "Likely price fall tonight (approximation) — buy after the price run",
 };
