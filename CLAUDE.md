@@ -1031,6 +1031,98 @@ nútíma-flokkum, **öll 108 `get()` þola tóm inntök**, hver ný afleidd tala
 
 ---
 
+## 6j. SKIPTA-GLUGGINN, LEITIN OG SJÓNRÆNI SAMANBURÐURINN (31.7.2026)
+
+### 🔍-hnappurinn vísar nú á flipann — `browse` var tvíverknaður
+Leitarglugginn þjónaði **tveimur óskyldum** hlutverkum:
+
+| hlutverk | inn um | hvað | staða |
+|---|---|---|---|
+| `browse` | 🔍-hnappinn | nafna-leit + stöðu-sía → opnar spjald | **fjarlægt** |
+| `selling` | „Skipta út" | mótframbjóðendur með **lögmæti forreiknað** (`3 per félag`, `vantar £X`) og `commitTransfer` | **óbreytt** |
+
+`browse` gerði minna en Leikmenn-flipinn (108 dálkar, þröskuldar, vaktlisti,
+samanburður, fjögur tímabil). `selling` **má ekki fjarlægja**: hann veit hvað
+þú ert að selja, hvað er í bankanum og hvað 3-per-félag reglan segir —
+leikmannalistinn veit ekkert af því.
+
+Hnappurinn heitir nú **„🔍 Leita"**, ekki „Leikmenn". Nafna-áreksturinn var
+**mældur, ekki tilgátulegur**: tveir hnappar hétu „Leikmenn" og bæði
+vafra-leit og `byText("Leikmenn")` í prófi greipu þann ranga í þróun — það
+þurfti að skjalfesta í `tests/watchlist.mjs`. Dauður kóði fór með:
+`browse`/`setBrowse`, `searchPos`, `posFilter`/`posBtn`-stílar. Í skipti-ham
+er staðan **alltaf** sú sem er seld (FPL leyfir ekki DEF→FWD), svo stöðu-sían
+átti hvergi heima eftir það.
+
+### Mældu tölurnar í skipta-gluggann — augnablik ákvörðunarinnar
+Hann sýndi aðeins `ep_next` og andstæðing þótt fjórar mældar tölur væru til.
+Röðin er **ásett**: byrjunar-líkur fyrst (allt annað er verðlaust ef hann
+spilar ekki, kafli 6h), þá FFDR næstu leikja, þá mó/aó, þá verðspá.
+
+**MARKMENN FÁ HVORKI mó NÉ aó — mælingar-atriði, ekki smekkur.** Þeir komast
+í markhópinn *af því að* þeir hafa 0 framlög, og `mo-candidates.mjs` mældi
+**DEF/MID/FWD — GK var aldrei mældur**. „mó 0,0" á markverði er ómæld tala
+sem lítur út eins og mæling. Sömu ástæðu fær mó undir 0,05 enga birtingu:
+0,0 er ekki upplýsing.
+
+**Tómt gildi er SLEPPT, ekki sett í 0** — „engin gögn" og „lág tala" eru ekki
+sama hlutið. Staðfest á raungögnum: 60/60 raðir fá FFDR, 45/60 byrjunar-líkur
+(Meslier fær enga — 0 mínútur, sbr. `isIncoherent`), 26 MID fá mó, 12 aó,
+**0 markmenn fá mó**. Verð-örvarnar eru tómar í preseason og það er rétt:
+`transfers_in_event` er 0 fyrir tímabil.
+
+Byrjunar-líkurnar bera **glugga-fyrirvara í tooltip**: glugginn er síðustu 5
+LOKNU umferðir, sem fyrir tímabil er lok síðasta tímabils þar sem hvíld er
+mikil. Raya fær 47% því hann var hvíldur í GW38 — líkanið hegðar sér rétt,
+en talan er samhengisháð og það á að standa þar.
+
+### `imminent`-pörunin er nú EIN útfærsla
+`indexImminentByTeam` + `matchImminent` fluttust í `src/stats.js`.
+`imminent.json` geymir fullt nafn („Cole Palmer"), `players.json` `web_name`
+(„Palmer"), svo bein uppfletting skilar engu. Þegar skipta-glugginn fór að
+birta sömu tölur var þetta að verða **önnur** útfærsla á sama hlut — og tvær
+útfærslur á nafnapörun þýðir að „Byrjar"-dálkurinn getur virkað í listanum og
+verið tómur í glugganum **án þess að neitt próf falli**.
+
+### Sjónrænn samanburður (`Compare.jsx`)
+Rofi „Sjónrænt / Tafla", sjálfgefið sjónrænt þegar **tveir** eru valdir (með
+3–4 verða fjórar súlur per röð of þunnar). Kvarðinn er **per röð** — xG (0–20)
+og BPS (0–800) í sama kvarða gæfi ósýnilegar xG-súlur. Tölur með formerki
+(Mörk − xG) fá **frávikssúlu út frá miðju**. Vantandi gildi fær „—" og **enga**
+súlu: súla af lengd 0 læsist eins og mæld nulltala.
+
+**`hi` (hærra-er-betra) er forsenda þess að myndin sé rétt, ekki skraut.**
+Fyrir Mín./stig, Verð, GC, xGC, Mín./framlag, Mín./xGI og spjöld er **lægra**
+betra — þá væri lengsta súlan VERSTI leikmaðurinn. **Villandi mynd er verri
+en engin mynd.** Vörður: `tests/compare-visual.mjs` les 7 lægra-er-betra og
+21 hærra-er-betra röð úr DOM á raungögnum og fellur ef græna súlan er á
+röngum manni. Stökkbreyting (hunsa `hi`) snýr 7 röðum við og fellur.
+
+### Leitanlegur dálkavalari í þröskuldinum
+108 dálkar í native `<select>` þýddi skrun; native-select hoppar aðeins á
+fyrsta staf. Nú combobox með leit, örvalyklum og `scrollIntoView`.
+**Leitin er brottfelld á broddstöfum** — íslenskt viðmót þar sem leitin
+krefst broddstafa er leit sem virkar ekki: „vaent" finnur **Væntingar**
+(108 → 12), „spjold" finnur **Gul spjöld** (→ 5).
+Leitað er í **þrennu**: dálksheiti, flokksheiti OG `key`. Lykla-leitin var
+nauðsynleg því lyklarnir eru á **ensku** og það er það sem FPL-fólk slær inn:
+„threat" gaf **enga** niðurstöðu áður, því íslenska heitið er „Ógn".
+
+### VARÚÐ FYRIR NÆSTU LOTU — TVÆR LOTUR Á EINU VINNUTRÉ
+Þessi vinna varð fyrir raunverulegum skaða af samhliða vinnu, þrisvar:
+1. **Hunkur horfinn:** skrif hinnar lotunnar í `App.jsx` yfirskrifuðu
+   merkja-blokkina í skipta-glugganum; hún þurfti að vera endursett. Ekkert
+   próf hefði fundið það — kóðinn var einfaldlega ekki þar.
+2. **`git add -A` sópar vinnu annarra:** mó-breytingin (§6d) og þessi vinna
+   lentu inni í commit-um hinnar lotunnar, svo commit-textinn lýsir þeim ekki.
+   Þess vegna er röksemdin skráð **hér**; CLAUDE.md er heimildin sem gildir.
+3. **`npm test` er ótraust á meðan:** safna-fjöldinn fór 23 → 24 → 25 milli
+   keyrslna og eitt fall var hálfskrifað `i18n-dom.mjs`. Keyrðu **þín** söfn
+   sér áður en þú ályktar að flökt sé raunverulegt.
+**Notaðu `git add <skrár>`, aldrei `git add -A`, í þessu repo.**
+
+---
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)
