@@ -98,6 +98,22 @@ team_h, team_a, team_h_score, team_a_score, team_h_difficulty, team_a_difficulty
 Óskert FPL-svar. **`explain`-blokkin er geymd ÓSKERT** — hún er eina óyggjandi
 heimildin um hvaða stig voru veitt og hvers vegna.
 
+### `player_gw_{season}.json` — ein skrá per tímabil
+`scripts/fetch-player-gw.mjs` skrifar eina slíka **per tímabil** (slétt,
+lyklað á FPL `code`) svo aðeins valið tímabil sé hlaðið. Þær eru grunnurinn
+undir umferðar-bili í leikmannalistanum („bara GW 30–38 síðasta tímabil").
+Verðir: `tests/player-gw-range.mjs` (summur stemma við `player_seasons.json`
+— óháð heimild) og `tests/euro-congestion.mjs`.
+
+Skriftin er **ekki í cron**; til að endurgera: `node scripts/fetch-player-gw.mjs`.
+
+**AÐVÖRUN ÚR REYNSLU (1.8.2026):** þessar skrár mældust „án lesanda" og
+**fjórar voru fjarlægðar** — ranglega. Lesandinn (`player-gw-range.mjs`) hafði
+landað í repo-inu *mínútum áður* í samhliða lotu, svo `grep`-mælingin var
+réttur mælikvarði á úreltu tré. Prófin stöðvuðu þetta og skrárnar voru
+endurheimtar. **Lærdómur: `git pull` OG endurlesa lesendur ÁÐUR en gögnum er
+eytt, ekki bara þegar ýtt er.**
+
 ### `lineups.json` — STAÐFEST byrjunarlið (API-Sports)
 `{ updated, gws, calls, teams:[{fpl_team, gw, formation, fixture}],
 players:[{fpl_id, fpl_team, gw, fixture, started, pos, name_api}],

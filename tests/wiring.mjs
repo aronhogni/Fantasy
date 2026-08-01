@@ -30,13 +30,26 @@ console.log("=".repeat(84));
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const fetchSrc = readFileSync(ROOT + "scripts/fetch.mjs", "utf8");
+/* ALLAR SKRIFTIR, EKKI ADEINS fetch.mjs — ThAD VAR GAT I ThESSUM VERDI.
+   1.8.2026 fundust `data/player_gw_{2122..2425}.json` (5,5 MB) med ENGAN
+   lesanda. Vordurinn sa thau ekki thvi thau eru skrifud af
+   scripts/fetch-player-gw.mjs og hann las adeins scripts/fetch.mjs. Sama
+   tegund villu sem hann var byggdur til ad finna, i verdinum sjalfum.   */
+const scriptFiles = readdirSync(ROOT + "scripts").filter(f => /\.mjs$/.test(f));
+const allScripts = scriptFiles.map(f => readFileSync(ROOT + "scripts/" + f, "utf8")).join("\n");
 const srcFiles = readdirSync(ROOT + "src").filter(f => /\.(jsx|js)$/.test(f));
 const appCode = srcFiles.map(f => readFileSync(ROOT + "src/" + f, "utf8")).join("\n");
+/* Prof eru LOGMAETUR lesandi — bakprof lesa sogugogn sem appid snertir ekki. */
+const testFiles = readdirSync(ROOT + "tests").filter(f => /\.mjs$/.test(f));
+const testCode = testFiles.map(f => readFileSync(ROOT + "tests/" + f, "utf8")).join("\n");
+const consumers = appCode + "\n" + testCode;
 
 /* Hvað skrifar pipeline? */
-const written = [...fetchSrc.matchAll(/writeJSON\(\s*[`"]([^`"]+\.json)[`"]/g)]
-  .map(m => m[1])
-  .filter(f => !/\$\{|\{n\}/.test(f));            // sleppum sniðmátum (live/gw{n})
+const written = [
+  ...[...fetchSrc.matchAll(/writeJSON\(\s*[`"]([^`"]+\.json)[`"]/g)].map(m => m[1]),
+  /* writeFile("data/x.json") i hinum skriftunum */
+  ...[...allScripts.matchAll(/writeFile\(\s*[`"]data\/([^`"]+\.json)[`"]/g)].map(m => m[1]),
+].filter(f => !/\$\{|\{n\}/.test(f));            // sleppum sniðmátum (live/gw{n})
 const uniq = [...new Set(written)].sort();
 ok(uniq.length > 20, `${uniq.length} fastar gagnaskrár skrifaðar úr pipeline`);
 
@@ -67,10 +80,41 @@ const OK_UNREAD = {
 };
 const unread = uniq.filter(f => {
   const base = f.split("/").pop().replace(/\.json$/, "");
-  return !appCode.includes(f) && !new RegExp(`["'\`]${base}\\.json`).test(appCode)
-      && !new RegExp(`\\b${base}\\b`).test(appCode);
+  return !consumers.includes(f) && !new RegExp(`["'\`]${base}\\.json`).test(consumers)
+      && !new RegExp(`\\b${base}\\b`).test(consumers);
 });
 console.log(`\n  skrifað en ónefnt í src/: ${unread.length ? unread.join(", ") : "engar"}`);
+
+/* ---- SKRAR A DISKI, EKKI ADEINS ThAER SEM MA LESA UT UR KODANUM ----
+   ThETTA ER SU ATHUGUN SEM VIRKAR: skriftir skrifa sumar skrar med
+   SNIDMATI (`player_gw_${key}.json`) og engin statisk lesning getur leyst
+   thau upp i skraarnofn. Thess vegna slapp `player_gw_{2122..2425}.json`
+   (5,5 MB, engir lesendur) framhja fyrstu utgafu thessa vardar TVISVAR:
+   fyrst thvi hann las adeins fetch.mjs, svo thvi hann las adeins
+   bokstaflegar strengja-skrifanir. Diskurinn lygur ekki.               */
+const onDisk = readdirSync(ROOT + "data").filter(f => /\.json$/.test(f));
+/* SNIDMATS-TILVISANIR TELJA. `player_gw_2122.json` er lesin med
+   `player_gw_${key}.json` — og fyrsta utgafa thessarar athugunar flaggadi
+   thaer thvi sem foreldralausar OG EG EYDDI FJORUM SKRUM A THEIM GRUNNI.
+   Thaer voru endurheimtar (profin stodvudu thad) en lærdómurinn er hér:
+   sniðmats-lestur er lestur. Vid skodum thvi bædi fullt nafn OG stofninn
+   an talna, followed by "${" eda "`".                                    */
+const stem = b => b.replace(/[0-9]+$/, "");
+const orphans = onDisk.filter(f => {
+  const base = f.replace(/\.json$/, "");
+  if (consumers.includes(f) || new RegExp(`\\b${base}\\b`).test(consumers)) return false;
+  const st = stem(base);
+  return !(st !== base && (consumers.includes(st + "${") || consumers.includes("`" + st)
+                           || consumers.includes(st + "{")));
+});
+console.log(`  ${onDisk.length} json-skrar i data/ · ${orphans.length} an lesanda`);
+if (orphans.length) console.log(`    ${orphans.join(", ")}`);
+/* Hver foreldralaus skra a ad vera a hvitlista MED astaedu — annars er hun
+   1-2 MB af gognum sem enginn notar og enginn veit af.                  */
+const ORPHAN_OK = {};
+const badOrphans = orphans.filter(f => !ORPHAN_OK[f]);
+ok(badOrphans.length === 0,
+  `engin foreldralaus gagnaskra a diski${badOrphans.length ? ": " + badOrphans.join(", ") : ""}`);
 const undocumented = unread.filter(f => !OK_UNREAD[f]);
 ok(undocumented.length === 0,
   `hver ólesin skrá hefur ÁSTÆÐU á hvítlista${undocumented.length ? ": VANTAR " + undocumented.join(", ") : ""}`);
