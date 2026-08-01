@@ -501,6 +501,8 @@ export default function App() {
   const [events, setEvents] = useState(null);
   const [defcon, setDefcon] = useState(null);
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
+  const [lineups, setLineups] = useState(null);         // STADFEST byrjunarlid
+  const [pipeStatusFast, setPipeStatusFast] = useState(null);
   const [elo, setElo] = useState(null);
   const [weather, setWeather] = useState(null);
   const [travel, setTravel] = useState(null);   // ferðalengd útiliðs per leik (pipeline)
@@ -593,6 +595,15 @@ export default function App() {
         try { setDefcon(await j("defcon.json")); } catch {}
         try { setPlayerForm(await j("player_form.json")); } catch {}
         try { setPipeStatus(await j("status.json")); } catch {}
+        /* HRADA KEYRSLAN SKRIFAR I status_fast.json OG APPID LAS HANA EKKI.
+           Thar med voru ALLAR heimildir hradar keyrslunnar osynilegar i
+           hlidarstikunni — thar a medal api_lineups. Vordur i profi.     */
+        try { setPipeStatusFast(await j("status_fast.json")); } catch {}
+        /* STADFEST BYRJUNARLID. Pipeline skrifadi lineups.json en APPID LAS
+           HANA ALDREI — eiginleikinn var fullbyggdur og maeldur en gognin
+           foru ekkert. Thridja tilvikid af somu tegund i thessari lotu
+           (rong keyrsla -> vantandi lykil -> enginn notandi).            */
+        try { setLineups(await j("lineups.json")); } catch {}
         try { setElo(await j("elo.json")); } catch {}
         try { setWeather(await j("weather.json")); } catch {}
         try { setTravel(await j("travel.json")); } catch {}
@@ -1145,6 +1156,14 @@ export default function App() {
   }, [plan, gw, benchSwaps, squadOverride, fhGws, lang]);
 
   const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt, lang]);
+  /* STADFEST BYRJUNARLID per umferd. Adeins fyrir tha umferd sem lineups.json
+     naer til (leikur innan gluggans); annars tomt og spjaldid syn ekkert. */
+  const lineupBy = useMemo(() => {
+    const m = {};
+    for (const r of (lineups?.players || []))
+      if (r?.fpl_id != null) m[`${r.fpl_id}|${r.gw}`] = !!r.started;
+    return m;
+  }, [lineups, lang]);
   const officialIds = useMemo(() => new Set((squadOverride || START_SQUAD).map(s => s.id)), [squadOverride, lang]);
   const plannedIn = useMemo(() => new Set(plan.filter(t => t.gw <= gw).map(t => t.inId)), [plan, gw, lang]);
 
@@ -1939,6 +1958,7 @@ export default function App() {
                       onInfo={() => setDetail({ kind:"player", id:sq.id })}
                       onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
                       onRotation={() => setRotIds([sq.id])}
+                      confirmed={lineupBy[`${sq.id}|${gw}`]}
                       onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                       dragId={dragId} setDragId={setDragId}
                       onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
@@ -1961,6 +1981,7 @@ export default function App() {
                     onInfo={() => setDetail({ kind:"player", id:sq.id })}
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
                     onRotation={() => setRotIds([sq.id])}
+                    confirmed={lineupBy[`${sq.id}|${gw}`]}
                     onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
@@ -2397,8 +2418,16 @@ export default function App() {
                 THRJU stig (i lagi / bidur / villa) og full skyring i tooltip.
                 Understat er ekki lengur i listanum — hun var tekin ur notkun
                 (sja kafla 6b i CLAUDE.md); ESPN kom i stadinn.               */}
-            {pipeStatus?.sources && (() => {
+            {(pipeStatus?.sources || pipeStatusFast?.sources) && (() => {
+              /* BADAR STODUSKRARNAR. Hrada keyrslan (30 min) skrifar i
+                 status_fast.json og appid las hana ALDREI — thar med voru
+                 allar heimildir hennar osynilegar, thar a medal api_lineups
+                 (stadfest byrjunarlid) sem er EINGONGU sott thar. Hrada
+                 keyrslan er nyrri, svo hun hefur forgang a somu lykla.   */
+              const sources = { ...(pipeStatus?.sources || {}),
+                                ...(pipeStatusFast?.sources || {}) };
               const SHOW = {
+                api_lineups:    tx("Staðfest byrjunarlið"),
                 fdcouk_e0:      tx("Leikjatölur E0 (yfirstandandi)"),
                 fdcouk_history: tx("Leikjatölur E0 (saga)"),
                 espn_shots:     tx("Skot með hnitum (ESPN)"),
@@ -2412,7 +2441,7 @@ export default function App() {
                 gameweek_shape: tx("Umferðalögun"),
                 euro_fixtures:  tx("Evrópuleikir"),
               };
-              return Object.entries(pipeStatus.sources)
+              return Object.entries(sources)
                 .filter(([k]) => SHOW[k])
                 .map(([k, v]) => {
                   // "bidur" = keyrslan tokst en gognin eru ekki til enn
@@ -3209,7 +3238,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor,
   crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onRotation, onCardClick, swapSel, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onRotation, onCardClick, swapSel, confirmed, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -3317,6 +3346,17 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
         )}
       </div>
       {/* Fínleg merkjaröð — aðeins það sem er athugavert */}
+      {/* STADFEST BYRJUNARLID — sterkasta merkid a spjaldinu thegar thad er
+          til, thvi thad er ekki spa heldur STADFESTING (lidin birtast 40-60
+          min fyrir leik). "BEKKUR" er thad sem kostar mest ad missa.     */}
+      {confirmed != null && (
+        <div style={{ ...S.confBadge,
+                      background: confirmed ? "#0a7a4a" : "#b3261e" }}
+          title={confirmed ? tx("STAÐFEST í byrjunarliði (úr uppstillingu leiksins)")
+                           : tx("STAÐFEST Á BEKKNUM — hann byrjar EKKI þennan leik")}>
+          {confirmed ? tx("BYRJAR") : tx("BEKKUR")}
+        </div>
+      )}
       <div style={S.sigRow}>
         {/* FOST LEIKATRIDI ERU EKKI A SPJALDINU (fjarlaegt 29.7. ad bedni
             notanda). Spjaldid er clamp(62px, 17.5%, 100px) breitt og thessi
@@ -3656,6 +3696,9 @@ const S = {
   riskNews: { color:C.text3, fontSize:10, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   pMain: { marginTop:2 },
   sigRow: { display:"flex", gap:3, justifyContent:"center", flexWrap:"wrap", marginTop:3, minHeight:11 },
+  confBadge: { position:"absolute", left:2, right:2, bottom:2, color:"#fff",
+    fontFamily:mono, fontSize:8.5, fontWeight:800, letterSpacing:0.3,
+    textAlign:"center", borderRadius:3, padding:"1px 0", zIndex:4 },
   sigSet: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"1px 3px", borderRadius:4,
             background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}` },
   sigSetFirst: { background:"#e6f9f0", color:"#0a7a4a", border:"1px solid #b9e8d0" },

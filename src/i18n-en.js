@@ -1201,6 +1201,14 @@ export const EN = {
     "Clean-sheet probability — for the TEAM, not the player. He only gets the points if the team keeps a clean sheet AND he plays 60+ mins.",
   "Líkur á hreinu blaði að meðaltali yfir sviðið — LIÐSINS. Leikmaðurinn fær stigin aðeins ef hann spilar 60+ mín.":
     "Average clean-sheet probability over the range — for the TEAM. The player only gets the points if he plays 60+ mins.",
+  /* STADFEST BYRJUNARLID (lineups.json). Stadfesting, ekki spa. */
+  "Staðfest byrjunarlið": "Confirmed lineups",
+  "BYRJAR": "STARTS",
+  "BEKKUR": "BENCHED",
+  "STAÐFEST í byrjunarliði (úr uppstillingu leiksins)":
+    "CONFIRMED in the starting XI (from the match lineup)",
+  "STAÐFEST Á BEKKNUM — hann byrjar EKKI þennan leik":
+    "CONFIRMED ON THE BENCH — he is NOT starting this match",
   "minnst": "min",
   "mest": "max",
   "Líkur á 60+ mínútum — mælt líkan (Brier 0,089 á móti 0,118 fyrir „byrjaði síðast\"). Glugginn er SÍÐUSTU 5 LOKNU UMFERÐIR; fyrir tímabil eru það lok síðasta tímabils, þar sem hvíld og rótasjón eru miklar. Undir 50% = bekkjar-hætta.":
