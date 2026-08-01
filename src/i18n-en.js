@@ -1202,6 +1202,10 @@ export const EN = {
   "Líkur á hreinu blaði að meðaltali yfir sviðið — LIÐSINS. Leikmaðurinn fær stigin aðeins ef hann spilar 60+ mín.":
     "Average clean-sheet probability over the range — for the TEAM. The player only gets the points if he plays 60+ mins.",
   /* STADFEST BYRJUNARLID (lineups.json). Stadfesting, ekki spa. */
+  /* ThRIR NAESTU LEIKIR A SPJALDINU (1.8.2026) */
+  "Auð umferð — hann spilar ekki og fær 0 stig":
+    "Blank gameweek — he does not play and scores 0",
+  "TVÖFÖLD UMFERÐ": "DOUBLE GAMEWEEK",
   "Staðfest byrjunarlið": "Confirmed lineups",
   "BYRJAR": "STARTS",
   "BEKKUR": "BENCHED",

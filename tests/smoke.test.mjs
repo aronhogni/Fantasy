@@ -334,6 +334,37 @@ ok(phone < wide, "simi faer FAERRI hnuta en bord — thad er allt malid");
 ok(phone <= 8, `simi faer <=8 hnuta svo hver verdi >=40px breidur (${phone})`);
 await atWidth(1280);   // skila i upphaflegt svo seinni prof se ohreyfd
 
+console.log("\n=== 13. THRIR NAESTU LEIKIR A SPJALDINU ===");
+/* Adur var EIN leikjaflis (yfirstandandi umferd). Nu thrjar umferdir.
+   ATH: ThRJAR UMFERDIR, EKKI ThRIR LEIKIR — tvofold umferd ma ekki yta
+   thridju umferdinni ut, og auð umferd verdur ad birtast sem "–" og ekki
+   hverfa (auð umferd = 0 stig, thad er ThYNGSTA upplysingin).           */
+const stripsOf = () => [...container.querySelectorAll("div")].filter(x => {
+  const k = [...x.children];
+  return k.length >= 1 && k.length <= 3 && k.every(c =>
+    c.tagName === "DIV" && /^[A-Za-z?–]{1,4}[⧫]?[\d.]*$/.test((c.textContent || "").trim()));
+});
+const strips = stripsOf();
+ok(strips.length >= 15, `leikjastrengur a hverju spjaldi (${strips.length} fundnir)`);
+const sizes = strips.map(s => s.children.length);
+ok(sizes.every(n => n >= 1 && n <= 3), `hver strengur ber 1-3 umferdir (${[...new Set(sizes)].join(",")})`);
+ok(sizes.some(n => n === 3), "minnst einn strengur ber ALLAR thrjar umferdirnar");
+/* Hver flis a ad hafa tooltip med FFDR — annars er talan hvergi */
+const cells = strips.flatMap(s => [...s.children]);
+const withFfdr = cells.filter(c => /FFDR/.test(c.title || ""));
+const blanks = cells.filter(c => (c.textContent || "").trim() === "–");
+ok(withFfdr.length + blanks.length === cells.length,
+  `hver flis hefur FFDR i tooltip eda er auð umferd (${withFfdr.length} + ${blanks.length} = ${cells.length})`);
+ok(cells.every(c => (c.title || "").length > 0), "engin flis an tooltip");
+/* FYRSTA flisin ber TOLUNA synilega (hinar hafa hana i tooltip) */
+const first = strips.map(s => s.children[0]).filter(Boolean);
+ok(first.some(c => /\d\.\d/.test(c.textContent || "")),
+  "fyrsta flisin birtir FFDR-toluna synilega");
+/* Heimavollur/utivollur helst i staffrodinni (oppLabel: STORT=heima) */
+ok(cells.some(c => /^[A-Z]{3}/.test((c.textContent || "").trim()))
+   && cells.some(c => /^[a-z]{3}/.test((c.textContent || "").trim())),
+  "heima (STORT) og uti (litid) sest afram i staffrodinni");
+
 console.log(`\n========================================`);
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

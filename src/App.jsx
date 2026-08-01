@@ -1156,6 +1156,15 @@ export default function App() {
   }, [plan, gw, benchSwaps, squadOverride, fhGws, lang]);
 
   const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt, lang]);
+  /* ThRJAR NAESTU UMFERDIR fyrir spjaldid — fylking PER UMFERD (tom = auð,
+     tveir = tvofold). Klippt vid maxGw svo sidustu umferdir gefi ekki
+     draugaumferdir.                                                      */
+  const nextGwFixtures = useCallback((teamId, from) => {
+    const out = [];
+    for (let g = from; g < from + 3 && g <= maxGw; g++)
+      out.push(fixByTeamGw[teamId]?.[g] || []);
+    return out;
+  }, [fixByTeamGw, maxGw, lang]);
   /* STADFEST BYRJUNARLID per umferd. Adeins fyrir tha umferd sem lineups.json
      naer til (leikur innan gluggans); annars tomt og spjaldid syn ekkert. */
   const lineupBy = useMemo(() => {
@@ -1950,6 +1959,7 @@ export default function App() {
                   {rows[pos].map(sq => (
                     <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
                       fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]}
+                      fxNext3={nextGwFixtures(byId[sq.id]?.team, gw)}
                       captain={captain} vice={vice}
                       csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
                       dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
@@ -1973,6 +1983,7 @@ export default function App() {
                 {bench.map(sq => (
                   <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
                     fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]} bench
+                    fxNext3={nextGwFixtures(byId[sq.id]?.team, gw)}
                     captain={captain} vice={vice}
                     csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
                     dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
@@ -3023,6 +3034,55 @@ function Stat({ icon, label, value, sub, tone }) {
 /* SEX ÞREP — litaröð eftir erfiðleikastigi:
    1 dökkgrænt · 2 grænt · 3 ljósgult · 4 dökkgult · 5 ljósrautt · 6 rautt   */
 
+/* ---- ThRIR NAESTU LEIKIR A SPJALDINU (1.8.2026) ----
+   Adur var EIN flis: leikur yfirstandandi umferdar. Notandinn vill sja
+   thyngdina framundan a spjaldinu sjalfu, ekki bara i FFDR-toflunni.
+
+   LEIKIR ERU PER UMFERD, EKKI PER LEIK: umferd getur verid AUD (- ) eda
+   TVOFOLD (⧫). Thess vegna er inntakid fylking af umferdum, hver med sinni
+   fylkingu af leikjum — annars myndi tvofold umferd yta thridju umferdinni
+   ut og spjaldid syna "3 naestu leiki" sem eru i raun 2 umferdir.
+
+   LITURINN ER ALGILT ThREP (TIER_BG), sami kvardi sem taflan og
+   roterings-spjaldid nota. Adeins FYRSTA flisin ber TOLUNA — spjaldid er
+   clamp(62px, 17.5%, 100px) breitt og thrjar tolur i rod fara undir 7,5px
+   sem er thegar a laegri mörkum lesanleika (maelt i simabreidd 31.7.).
+   Hinar tvaer bera lidskoda og hafa FFDR i tooltip.                      */
+function FixStrip({ gws, teamById, diffOf, teamId, pos }) {
+  const cells = (gws || []).slice(0, 3);
+  if (!cells.length) return <div style={S.noFix}>—</div>;
+  return (
+    <div style={S.fixStrip}>
+      {cells.map((fxs, i) => {
+        if (!fxs?.length)
+          return <div key={i} style={{ ...S.fixMini, ...S.fixBlank }}
+            title={tx("Auð umferð — hann spilar ekki og fær 0 stig")}>–</div>;
+        /* tvofold umferd: LETTASTI leikurinn raedur litnum (thad er sa sem
+           thu myndir stilla upp fyrir), badir i tooltip. */
+        let best = null, bestFx = null;
+        for (const f of fxs) {
+          const d = diffOf ? diffOf(teamId, f, pos) : null;
+          if (d != null && (best == null || d < best)) { best = d; bestFx = f; }
+        }
+        const use = bestFx || fxs[0];
+        const d = best != null ? best : use.fdr;
+        const t = tierOf(d);
+        const opp = teamById[use.opp]?.short || "?";
+        const label = fxs.map(f =>
+          `${teamById[f.opp]?.short || "?"}${f.home ? "" : " (" + tx("úti") + ")"}`).join(" + ");
+        return (
+          <div key={i} style={{ ...S.fixMini, background:TIER_BG[t], color:TIER_FG[t] }}
+            title={`${label}\nFFDR ${d.toFixed(2)} — ${tx(TIER_NAME[t])}`
+              + `\nFDR ${use.fdr}${fxs.length > 1 ? "\n" + tx("TVÖFÖLD UMFERÐ") : ""}`}>
+            {oppLabel(opp, use.home)}{fxs.length > 1 ? "⧫" : ""}
+            {i === 0 && <span style={S.fixNum}>{d.toFixed(1)}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function FixChip({ fx, teamById, diff, pos }) {
   if (!fx) return <div style={S.noFix}>—</div>;
   const opp = teamById[fx.opp]?.short || "?";
@@ -3238,7 +3298,7 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor,
   crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onRotation, onCardClick, swapSel, confirmed, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onRotation, onCardClick, swapSel, confirmed, fxNext3, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -3328,8 +3388,8 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
           rauða leiki sem voru í raun léttir). Spjöld eru borin saman ÞVERT
           á lið, svo þau verða að vera á algildum kvarða — og þá er
           "Lið — FFDR"-taflan loks samræmd við spjöldin.                  */}
-      <FixChip fx={fx} teamById={teamById} diff={diffOf ? diffOf(p.team, fx, p.element_type) : null} pos={p.element_type}
-        />
+      <FixStrip gws={fxNext3} teamById={teamById} diffOf={diffOf}
+        teamId={p.team} pos={p.element_type} />
       {/* EIN aðaltala */}
       {/* EIN aðaltala — VÆNT STIG leikmannsins.
           Áður var hér lið-xG fyrir sóknarmenn, en það er ÓÞARFI: FFDR-flísin
@@ -3627,6 +3687,19 @@ const S = {
   pEp: { fontFamily:mono, fontSize:12, fontWeight:700, color:C.purple },
   pCsSmall: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginLeft:4 },
   fixChip: { display:"inline-block", fontFamily:mono, fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, margin:"4px 0 1px" },
+  /* WRAP, EKKI CLIP — og thad er kjarninn. Fyrsta utgafa hafdi
+     flexWrap:"nowrap" + overflow:"hidden": i simabreidd (spjald 73px) fóru
+     flisarnar i 16px thott "NEW" thurfi 21px, svo SIDASTI STAFURINN VAR
+     KLIPPTUR AF OLLUM NIU flisum sem maeldar voru. Yfirflaedi-profid sagdi
+     "ekkert yfirflaedi" thvi klipping ER ekki yfirflaedi — thad fannst
+     adeins med thvi ad bera scrollWidth vid clientWidth per flis.
+     Nu vefjast thaer i tvaer linur i stad thess ad klippast, og
+     overflow:hidden er FARID svo thogul klipping se ekki moguleg aftur.  */
+  fixStrip: { display:"flex", gap:2, justifyContent:"center", alignItems:"center",
+    margin:"4px 0 1px", flexWrap:"wrap", rowGap:2 },
+  fixMini: { fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"2px 2px",
+    borderRadius:4, whiteSpace:"nowrap", flex:"0 0 auto" },
+  fixBlank: { background:"#f1f1f4", color:C.text3 },
   fixNum: { fontSize:7.5, opacity:0.7, marginLeft:3, fontWeight:400 },
   noFix: { fontFamily:mono, fontSize:10, color:C.text3, margin:"4px 0" },
 
