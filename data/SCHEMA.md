@@ -171,11 +171,16 @@ Hvað klúbburinn **segir** um vítatakara. Tómt fyrir tímabil.
 ### `defcon.json`
 ```
 { players: [{ fpl_id, position, starts, threshold_hits, hit_rate,
-              cbit_per_90, cbirt_per_90 }],
+              hit_rate_adj, p0, cbit_per_90, cbirt_per_90 }],
   opportunity: { <fpl_id>: { own_xgc90, opp_attack_avg,
                              defcon_opportunity, fixtures_used } } }
 ```
-`hit_rate` = `threshold_hits / starts`, reiknað **umferð fyrir umferð**.
+`hit_rate` = `threshold_hits / starts`, reiknað **umferð fyrir umferð** —
+**HRÁ og ofmælist á litlum sýnum** (mælt gegn ytra viðmiði: okkar n=10–15
+mælingar fóru í 75–80% en engin leikmaður í ~470 manna tímabilsspá fer yfir
+~57%). Til birtingar er `hit_rate_adj` = `(hits + 10·p0)/(starts + 10)`,
+`p0` = stöðu-meðaltal (empirísk Bayes-afturvirkni, TERMINAL_HANDOFF_4 §2).
+Sýnið `starts` alltaf við hlið hittninnar. Vörður: `tests/defcon-shrink.mjs`.
 `defcon_opportunity` 0–100 = vinnuálag varnar. **Aðskilið frá CS%.**
 
 ---

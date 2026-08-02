@@ -185,7 +185,7 @@ async function fetchFPL() {
     clean_sheets_per_90:e.clean_sheets_per_90,
     goals_conceded_per_90:e.goals_conceded_per_90,
     expected_goals_conceded_per_90:e.expected_goals_conceded_per_90,
-    cost_change_event:e.cost_change_event,
+    /* cost_change_event er THEGAR ofar i listanum (lina ~154).            */
     /* ---- FPL-SAETI INNAN STODU (`_rank_type`) ----
        `_rank` er medal ALLRA leikmanna; `_rank_type` er medal leikmanna I
        SOMU STODU og er thad sem skiptir mali i fantasy.
@@ -202,8 +202,8 @@ async function fetchFPL() {
     expected_goals_per_90:e.expected_goals_per_90,
     expected_assists_per_90:e.expected_assists_per_90,
     expected_goal_involvements_per_90:e.expected_goal_involvements_per_90,
-    expected_goals_conceded_per_90:e.expected_goals_conceded_per_90,
-    clean_sheets_per_90:e.clean_sheets_per_90,
+    /* xGC/90 og CS/90 eru THEGAR i "OPINBERAR FPL-TOLUR"-blokkinni ad ofan —
+       ekki endurtaka their her (esbuild varar vid tviteknum lyklum).       */
     // ---- ICT-þættir og raðir ----
     influence:e.influence, creativity:e.creativity, threat:e.threat,
     form_rank:e.form_rank, points_per_game_rank:e.points_per_game_rank,
@@ -330,6 +330,33 @@ async function computeDefcon(events, els) {
     cbirt_per_90: a.starts ? +(a.cbirt / a.starts).toFixed(2) : 0,
   }));
 
+  /* ---- AFTURVIRKJUD HITTNI (hit_rate_adj) — TERMINAL_HANDOFF_4 §2 ----
+     Hra hittni ofmaelist a litlum synum: okkar GW20+ maelingar (n=10-15)
+     foru upp i 75-80% medan ytra vidmid (FFS-timabilsspa, ~470 leikmenn)
+     hefur ENGAN leikmann yfir ~57%. Fravikin voru staerst thar sem synid
+     var litid OG hittnin ha; thar sem synid var stort vorum vid innan
+     8 prosentustiga — klassisk ofmaeling a litlum synum.
+     Logun: empirisk Bayes-afturvirkni ad sama formi og prevWeight,
+       hittni_adj = (hits + K*p0) / (starts + K),  K = 10
+     p0 = STODU-meðaltal ur somu gognum (heildar-hits/heildar-starts per
+     stodu), med fostum vara-gildum medan laugin er litil (fyrstu umferdir).
+     Dæmi ur handoffinu: 9/12 hratt = 75% -> (9+10*0,32)/22 = 56%.
+     HRAA TALAN OG n HALDA SER — afturvirknin er VIDBOT, ekki yfirskrift. */
+  const DC_K = 10;
+  const DC_P0_FALLBACK = { 1: 0.02, 2: 0.27, 3: 0.17, 4: 0.10 };
+  const pool = {};
+  for (const p of out) {
+    const q = pool[p.position] || (pool[p.position] = { hits: 0, starts: 0 });
+    q.hits += p.threshold_hits; q.starts += p.starts;
+  }
+  for (const p of out) {
+    const q = pool[p.position];
+    const p0 = q && q.starts >= 50 ? q.hits / q.starts
+                                   : (DC_P0_FALLBACK[p.position] ?? 0.17);
+    p.p0 = +p0.toFixed(3);
+    p.hit_rate_adj = +((p.threshold_hits + DC_K * p0) / (p.starts + DC_K)).toFixed(3);
+  }
+
   // ---- DefCon-TÆKIFÆRI per lið ----
   // Rök: fleiri skot/mörk á sig -> fleiri hreinsanir/blokkeringar -> fleiri CBIT.
   // Það eru EKKI bestu varnirnar sem skora DefCon, heldur þær sem hafa mest að gera.
@@ -370,7 +397,7 @@ async function computeDefcon(events, els) {
   }
 
   await writeJSON("defcon.json", { updated: status.updated, players: out, opportunity,
-    note: "hit_rate = threshold_hits/starts. DEF þröskuldur 10 CBIT, MID/FWD 12 CBIRT. defcon_opportunity: vinnuálag varnar (hærra = fleiri CBIT-tækifæri) — AÐSKILINN mælikvarði frá CS%, ekki leggja saman." });
+    note: "hit_rate = threshold_hits/starts (HRÁ — ofmælist á litlum sýnum). hit_rate_adj = (hits + 10·p0)/(starts + 10), p0 = stöðu-meðaltal — notið HANA til birtingar, alltaf með starts við hlið. DEF þröskuldur 10 CBIT, MID/FWD 12 CBIRT. defcon_opportunity: vinnuálag varnar (hærra = fleiri CBIT-tækifæri) — AÐSKILINN mælikvarði frá CS%, ekki leggja saman." });
   record("defcon", true, out.length, `${Object.keys(opportunity).length} lið með tækifæris-mat`);
 }
 

@@ -1305,6 +1305,69 @@ npm test && npm run build              # 29/29 græn, staðfest á greininni
 Eða `git worktree remove --force ../Fantasy-lokahnykkur && git branch -D lokahnykkur`
 til að hafna öllu.
 
+> **ATH:** `lokahnykkur` var síðan sameinuð í main (33940f5) — leiðbeiningin
+> að ofan er söguleg.
+
+---
+
+## 6l. HANDOFF №4 (FFS-ytra viðmið) — AFGREITT 2.8.2026
+
+Handoff №4 ber okkar DC-hittni-mælingar við ytra viðmið (FFS Season-Long
+Projections, ~470 leikmenn, borgunarveggur — notandi lagði fram afrit).
+**Eitt tekið, restin annaðhvort þegar uppfyllt eða óframkvæmanleg.**
+
+### TEKIÐ — afturvirkni á DC-hittni (§2, tillaga 1)
+Kjarninn í handoffinu og hann er réttur: `hit_rate = hits/starts` í
+`computeDefcon` (`fetch.mjs`) ofmælist á litlum sýnum. Sönnunin er ytri:
+enginn leikmaður í öllu FFS-safninu fer yfir ~57% hittni, en okkar
+GW20+-mælingar (n=10–15) fóru í 75–80% — og frávikin voru kerfisbundið
+stærst þar sem sýnið var lítið OG hittnin há (Danso 80→15, Botman 75→30),
+nánast núll þar sem sýnið var stórt (Ampadu, Groß, Stach, Sangaré innan
+8 pp). Klassísk ofmæling á litlum sýnum.
+
+Lögun í pipeline (EKKI í líkani — DC er áfram utan FFDR):
+
+    hit_rate_adj = (hits + 10·p0) / (starts + 10)
+    p0 = stöðu-meðaltal úr sömu gögnum (laug ≥ 50 startir),
+         annars fastar: DEF 0,27 · MID 0,17 · FWD 0,10 · GK 0,02
+
+Hráa talan og `starts` HALDA SÉR í skránni — afturvirknin er viðbót.
+`defcon.json.players` ber nú `hit_rate_adj` og `p0`; birting á að nota
+afturvirkjuðu töluna og sýna alltaf leikjafjöldann við hlið hennar.
+**Vörður: `tests/defcon-shrink.mjs`** (21 próf) — dregur `computeDefcon`
+ÚT ÚR `fetch.mjs` og keyrir á tilbúnum live-skrám (sama mynstur og
+`mins-trend.mjs` kafli 0, af sömu ástæðu: kóðinn kviknar fyrst 21.8.).
+Þrjár stökkbreytingar prófaðar (K breytt, afturvirkni fjarlægð,
+fallback-fastar teknir úr sambandi) — allar felldar.
+
+### ÞEGAR UPPFYLLT — DC sem eiginleiki, ekki röðunar-ás (§5, tillaga 2)
+FFS raðar Ampadu neðstan af fjórum þrátt fyrir hæstu DC-töluna, því
+sóknarframlag ræður (31,7 DC-stig ≈ 0,83 stig/leik; eitt mark + stoðsending
+= 8). Það er nákvæmlega afstaðan sem þetta repo tók 27.7.: DC er VILJANDI
+utan FFDR og utan röðunar (kafli 3), birt sem merki (DC≥70) og upplýsing.
+Engin breyting.
+
+### EKKERT SKOTMARK — liðs-stíls-regla og kvörðunar-kúrfa (§3, tillögur 3–4)
+Formúlurnar sem handoffið varar við (`hittni ≈ 0,183 − 0,0014·markatala`,
+`DEF: hittni ≈ 0,094·DC/leik − 0,424`) eru úr handoffi №3 og voru **aldrei
+útfærðar í þessu repo-i**. Varnaglarnir eiga sér ekkert skotmark hér.
+Ef einhver leggur til að spá nýliða-hittni út frá Championship-tölum:
+lesið §3 í handoffinu fyrst — kúrfan er PL-mæld og ofmælir líklega
+20–25 pp á annarrar-deildar inntaki.
+
+### ÓFRAMKVÆMANLEGT — QA-hlið gegn ytra viðmiði (§7.5)
+Hugmyndin er góð (flagga spár >20 pp frá ytra viðmiði) en FFS-gögnin eru
+á borgunarvegg og ekki sjálfvirkt aðgengileg (§8 í handoffinu sjálfu
+staðfestir það). Ekkert til að tengja við í pipeline. Fallback-fastarnir
+í afturvirkninni (DEF 0,27 / MID 0,17) eru kvarðaðir við FFS-dreifinguna
+og eru það sem hægt er að flytja úr viðmiðinu án sjálfvirks aðgengis.
+
+### UPPLÝSING SEM Á AÐ MUNA — mínútu-spá (§4)
+Ytri heimildir sjá æfingaleiki, pressuherbergi og félagaskipti í rauntíma;
+söguleg byrjunar-hlutföll gera það ekki. Það rímar við 6h (líkanið er
+kvörðun, ekki véfrétt) og við að staðfest byrjunarlið (`lineups.json`)
+er lifandi merkið sem á að vega þyngst á leikdegi.
+
 ---
 
 ## 7. Næstu skref (rædd, ekki byrjað)
