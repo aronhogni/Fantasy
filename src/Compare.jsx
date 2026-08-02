@@ -28,6 +28,14 @@ const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
 
 const per90 = (v, m) => (!m || m <= 0 || v == null) ? null : (v / m) * 90;
+
+/* Mynd sem HVERFUR vid 404 i stad brotins-myndar-taks. premierleague.com
+   skilar 404 fyrir nyflutta menn; nafnid stendur hvort sem er fyrir nedan. */
+function SafeImg({ src, style }) {
+  const [ok, setOk] = useState(true);
+  if (!ok) return null;
+  return <img src={src} alt="" style={style} loading="lazy" onError={() => setOk(false)} />;
+}
 const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
 /* Radirnar. `hi:false` = laegra er betra. `fmt` styrir birtingu.        */
@@ -283,7 +291,7 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                         <th key={p.id} style={S.thP}>
                           <div style={S.pHead}>
                             {photoUrl && p.code
-                              ? <img src={photoUrl(p.code)} alt="" style={S.img} loading="lazy" />
+                              ? <SafeImg src={photoUrl(p.code)} style={S.img} />
                               : null}
                             <div style={S.pName}>{p.web_name}</div>
                             <div style={S.pMeta}>

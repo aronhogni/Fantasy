@@ -47,6 +47,15 @@ const C = {
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
 const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
+
+/* Mynd med stafa-fallback VID VILLU, ekki adeins thegar code vantar —
+   premierleague.com skilar 404 fyrir nyflutta menn og an onError birtist
+   brotid-myndar-tak i rodinni. Sama regla og PlayerImg i App.jsx.       */
+function RowPhoto({ src, name }) {
+  const [ok, setOk] = useState(true);
+  if (!ok) return <span style={S.imgFb}>{(name || "?").slice(0, 1)}</span>;
+  return <img src={src} alt="" style={S.img} loading="lazy" onError={() => setOk(false)} />;
+}
 const POS_TABS = [["all","Allir"],["1","GK"],["2","DEF"],["3","MID"],["4","FWD"]];
 
 /* Dalkar sem eru ALLTAF synilegir (ur nuverandi gognum, ekki timabili). */
@@ -819,7 +828,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     <button style={S.nameBtn} onClick={() => onPickPlayer?.(r.p.id)}
                       title={r.p.news || `${r.p.first_name} ${r.p.second_name}`}>
                       {!narrow && (photoUrl && r.p.code
-                        ? <img src={photoUrl(r.p.code)} alt="" style={S.img} loading="lazy" />
+                        ? <RowPhoto src={photoUrl(r.p.code)} name={r.p.web_name} />
                         : <span style={S.imgFb}>{r.p.web_name.slice(0, 1)}</span>)}
                       <span style={{ ...S.dot, background: POS_COLOR[r.p.element_type] }} />
                       <span style={S.nm}>{r.p.web_name}</span>

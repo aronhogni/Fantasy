@@ -183,6 +183,16 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
 
    Vogtolurnar og maelingin a bak vid MO/AO eru i src/stats.js.
    ============================================================ */
+/* Mynd med stafa-fallback VID VILLU, ekki adeins thegar code vantar.
+   premierleague.com skilar 404 fyrir nyja/nyflutta menn (Igor Jesus i
+   agust 2026) og an onError birti vafrinn brotid-myndar-tak i stad
+   stafsins — sama regla og PlayerImg i App.jsx.                        */
+function ImmPhoto({ img, name }) {
+  const [ok, setOk] = useState(true);
+  if (!img || !ok) return <span style={S.immImgFb}>{(name || "?").slice(0, 1)}</span>;
+  return <img src={img} alt="" style={S.immImg} loading="lazy" onError={() => setOk(false)} />;
+}
+
 function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPlayer }) {
   const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [kind, setKind] = useState("mo");
@@ -265,9 +275,7 @@ function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPla
               onClick={() => cur && onPickPlayer && onPickPlayer(cur.id)}>
               <div style={S.immTop}>
                 <span style={S.immRank}>{i + 1}</span>
-                {img
-                  ? <img src={img} alt="" style={S.immImg} loading="lazy" />
-                  : <span style={S.immImgFb}>{(p.name || "?").slice(0, 1)}</span>}
+                <ImmPhoto img={img} name={p.name} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={S.immName}>{p.name}</div>
                   <div style={S.immMeta}>
