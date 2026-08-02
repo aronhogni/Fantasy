@@ -577,7 +577,13 @@ async function fetchLineups() {
       if (v) teamIdByNorm[norm(v)] = +id;
   teamsJs.forEach(t => { teamIdByNorm[norm(t.name)] = t.id; });
 
-  const dates = [...new Set(fx.map(f => f.kickoff_time.slice(0, 10)))];
+  /* Dagsetningar-kall er ekki gert se ALLT thegar til — annars kostadi hver
+     keyrsla 1 kall til einskis medan glugginn er opinn.                   */
+  let prevPeek = null;
+  try { prevPeek = JSON.parse(await readFile(`${DATA}/lineups.json`, "utf8")); } catch {}
+  const havePeek = new Set((prevPeek?.players || []).map(x => x.fixture));
+  const missing = fx.filter(f => !havePeek.has(f.id));
+  const dates = [...new Set(missing.map(f => f.kickoff_time.slice(0, 10)))];
   const apiFx = [];
   let calls = 0, errs = [];
   for (const dt of dates) {
@@ -603,8 +609,22 @@ async function fetchLineups() {
     if (!hit) { const bl = c.filter(x => x.keys.has(last)); if (bl.length === 1) hit = bl[0]; }
     return hit?.id ?? null;
   };
+  /* GEYMSLA PER LEIK: byrjunarlid breytist ekki eftir ad thad er birt, en
+     glugginn er opinn i 5 klst og keyrslan gengur a 30 min fresti — an
+     thessa voru SOMU lidin sott allt ad 10 sinnum. Vid berum afram thad sem
+     vid hofum thegar og spyrjum adeins um leiki sem vantar.               */
+  let prevAll = null;
+  try { prevAll = JSON.parse(await readFile(`${DATA}/lineups.json`, "utf8")); } catch {}
+  const haveFx = new Set((prevAll?.players || []).map(x => x.fixture));
   const outPlayers = [], outTeams = [], unmatched = [];
+  let reused = 0;
   for (const f of fx) {
+    if (haveFx.has(f.id)) {
+      outPlayers.push(...(prevAll.players || []).filter(x => x.fixture === f.id));
+      outTeams.push(...(prevAll.teams || []).filter(x => x.fixture === f.id));
+      reused++;
+      continue;
+    }
     const m = apiFx.find(x => (x.h === f.team_h && x.a === f.team_a));
     if (!m) continue;
     const r = await apiSports(`/fixtures/lineups?fixture=${m.apiId}`); calls++;
@@ -635,8 +655,9 @@ async function fetchLineups() {
         + "aframhaldandi tiltækileika; thetta er STADFESTING, ekki spa." });
   const started = outPlayers.filter(p => p.started).length;
   record("api_lineups", !errs.length || !!outPlayers.length, outPlayers.length,
-    errs.length ? `${calls} koll, ${started} byrja, villur: ${errs[0].slice(0, 90)}`
-                : `${calls} koll, ${outTeams.length} lid, ${started} byrja, ${unmatched.length} oparadir`);
+    errs.length ? `${calls} koll (${reused} endurnyttir), ${started} byrja, villur: ${errs[0].slice(0, 90)}`
+                : `${calls} koll (${reused} leikir endurnyttir), ${outTeams.length} lid, `
+                  + `${started} byrja, ${unmatched.length} oparadir`);
 }
 
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
@@ -1313,12 +1334,35 @@ async function shouldFetchOdds() {
    Kvóti: /status er FRÍTT (telst ekki), gagnakallið er 1/dag = 1% af
    100 kalla dagskvótanum.                                            */
 const APIS = "https://v3.football.api-sports.io";
+/* KVOTA-VORDUR. Fria threpid er 100 koll/dag og REIKNINGURINN VAR UPPSAGDUR
+   2.8.2026 ("Status: Suspended" a dashboard). Eg get ekki fullyrt hvad orsakadi
+   thad, en tvennt i thessum koda var raunveruleg hætta og er nu lokad:
+     (a) rannsakandi kallid var gert i HVERRI hradri keyrslu = 48/dag (lagad
+         med geymslu, 7 daga TTL)
+     (b) a leikdegi var glugginn opinn i 5 klst og hrada keyrslan gengur a 30
+         min fresti, svo SOMU byrjunarlidin voru sott allt ad 10 sinnum:
+         60 koll a fjolmennasta GW1-degi, og 110 a 10-leikja midvikudegi
+         — YFIR THAKI.
+   Threnn vorn: geymsla per leik (sja fetchLineups), og THESSI hardi throskuldur
+   sem notar `x-ratelimit-requests-remaining` sem API-id sendir sjalft. Vid
+   hangum ekki a eigin talningu — vid hlustum a thjoninn.                  */
+const API_MIN_REMAINING = 15;      // hættum thegar sva marg eru eftir
+let apiRemaining = null, apiBlocked = null;
 async function apiSports(path) {
+  if (apiBlocked) return { http: 0, blocked: apiBlocked, errors: { budget: apiBlocked }, response: [] };
+  if (apiRemaining != null && apiRemaining <= API_MIN_REMAINING) {
+    apiBlocked = `kvoti at throtum (${apiRemaining} eftir) — stodvad adur en threpid loka∂i`;
+    console.warn(`API-Sports: ${apiBlocked}`);
+    return { http: 0, blocked: apiBlocked, errors: { budget: apiBlocked }, response: [] };
+  }
   const r = await fetch(`${APIS}${path}`, {
     headers: { "x-apisports-key": process.env.API_SPORTS_KEY, "User-Agent": UA },
+    signal: AbortSignal.timeout(20000),
   });
   const j = await r.json();
-  return { http: r.status, remaining: r.headers.get("x-ratelimit-requests-remaining"), ...j };
+  const rem = r.headers.get("x-ratelimit-requests-remaining");
+  if (rem != null && Number.isFinite(+rem)) apiRemaining = +rem;
+  return { http: r.status, remaining: rem, ...j };
 }
 
 async function fetchInjuries() {
