@@ -415,5 +415,26 @@ ok(alphaHigh.length === 0 || alphaHigh.every(([p]) => ["GK", "DEF"].includes(p))
   "há α-hámörk (ef nokkur) eru aðeins hjá GK/DEF, þar sem MAE versnar og spár verða negatífar");
 ok(true, "α HELDUR 1 — röðun og birt stærð eru tvö ólík störf (sjá rankScore)");
 
+/* ---------- NYLIDA-GRUNNURINN: VORDUR GEGN BLINDU FORGILDI ----------
+   Maelt 2.8.2026 a 4 nylida-argongum (sja CLAUDE.md kafla 3e). Skekkjan er
+   RAUNVERULEG (xP of lagt um +0,95 til +1,26 a byrjunarlidsmonnum, t 3,3-8,3)
+   EN ONYTANLEG: a lauginni sem appid beitir grunninum a (ALLIR nylidar,
+   n=1994) er xP obreytt BEST — MAE 0,848 a moti 0,873 fyrir 50/50-blondu og
+   1,217 fyrir flatt stodu-forgildi. Fjorar SKILYRTAR utfaerslur (a fyrri
+   minutum, enginn leki) gafu 0,0005 i MAE og unnu i 2/4 argongum = suð.
+   Thessi vordur fellur ef einhver setur stodu-forgildi inn i grunninn.   */
+console.log("\n=== NYLIDA-GRUNNURINN (vordur) ===");
+{
+  const modelSrc = readFileSync(new URL("../src/model.js", import.meta.url), "utf8");
+  const fn = modelSrc.slice(modelSrc.indexOf("export function expPointsFor"));
+  const body = fn.slice(0, fn.indexOf("\n}\n"));
+  ok(/ep_next/.test(body) && /points_per_game/.test(body),
+    "grunnurinn er ENN ep_next med points_per_game sem varaleid");
+  ok(!/PROMO|promoted|nylid|NYLID/i.test(body),
+    "ENGIN nylida-serregla i grunninum — maeld og hafnad, sja kafla 3e");
+  ok(!/POS_MEAN_PTS\s*\[/.test(body.replace(/const mean = POS_MEAN_PTS[^;]*;/, "")),
+    "POS_MEAN_PTS er adeins notad sem NORMALISERING, ekki sem forgildi a grunninn");
+}
+
 console.log(`\nVÆNT-STIG: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

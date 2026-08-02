@@ -218,10 +218,18 @@ console.log("─".repeat(84));
   const dir = await sandbox({ kickoff: new Date(Date.now() + 20 * 864e5).toISOString() });
   const GATED = { http: 200, results: 0, response: [],
     errors: { plan: "Your plan does not have access to this endpoint." } };
+  /* UPPSOGN er lika adgangsleysi — sja fetch.mjs. 2.8.2026 sagdi stodan
+     "svarar an plan-villu" thott reikningurinn vaeri uppsagdur.         */
+  const SUSPENDED = { http: 200, results: 0, response: [],
+    errors: { access: "Your account is suspended, check on https://dashboard.api-football.com." } };
   const { written, rec } = await run({ dir, responder: () => GATED });
   ok(written?.obj?.probe?.gated === true, "gated=true greint ur `plan`-villunni");
   ok(/LOKADUR/.test(rec.note), `status segir ÞAÐ SKYRT: "${rec.note.slice(0, 70)}"`);
   ok(rec.ok === true, "keyrslan er samt ekki MERKT SEM BILUN — thetta er threp, ekki villa");
+  const sus = await run({ dir, responder: () => SUSPENDED });
+  ok(sus.written?.obj?.probe?.gated === true,
+    "UPPSAGDUR reikningur greinist lika sem adgangsleysi (var false 2.8.)");
+  ok(/LOKADUR/.test(sus.rec.note), `og sest i stodunni: "${sus.rec.note.slice(0, 60)}"`);
 }
 
 /* ---------- 4. Thegar heimildin brestur a leikdegi ---------- */

@@ -547,7 +547,12 @@ async function fetchLineups() {
       + ` startXI=${Array.isArray(first.startXI) ? first.startXI.length : "VANTAR"}`
       + ` substitutes=${Array.isArray(first.substitutes) ? first.substitutes.length : "VANTAR"}`
       + ` player0=${JSON.stringify(first.startXI?.[0]?.player ?? null)}`);
-    const gated = /plan|subscription|not allowed|upgrade/i.test(err);
+    /* "suspended" VANTADI HER og thad kostadi ranga stodu: 2.8.2026 var
+       reikningurinn UPPSAGDUR ("Your account is suspended") en `gated` vard
+       false, svo stodan sagdi "endapunktur svarar an plan-villu" — sem er
+       ordrett rett og alvarlega misvisandi. Adgangsleysi er adgangsleysi
+       hvort sem thad heitir plan, threp eda uppsogn.                     */
+    const gated = /plan|subscription|not allowed|upgrade|suspend|access/i.test(err);
     record("api_lineups", true, 0,
       gated ? `ENDAPUNKTUR LOKADUR a fria threpinu: ${err.slice(0, 120)}`
             : err ? `enginn leikur i glugga; rannsokn gaf: ${err.slice(0, 120)}`

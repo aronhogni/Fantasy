@@ -194,5 +194,58 @@ console.log(`  ${recorded.length} heimildir skrá sig · ${shown.length} nefndar
 ok(shown.length >= 10,
   `minnst 10 heimildir eru synilegar i vidmotinu (${shown.length} af ${recorded.length})`);
 
+/* ---------- SJALFVIRKNANDI ATHUGANIR FYRIR AGUST ----------
+   Tvennt i CLAUDE.md beid thess ad "einhver athugadi i agust": fyrsta
+   raunprof API-Sports (nafna-porun meidsla) og "i ar vs i fyrra"-taflan sem
+   kviknar vid GW1. Ad treysta a minni er engin vord — thessar athuganir
+   KVIKNA SJALFAR thegar gognin verda til, og eru ThOGULAR thangad til.  */
+console.log(`\n${"─".repeat(84)}`);
+console.log("SJALFVIRKNANDI ATHUGANIR (thogular i forleik)");
+console.log("─".repeat(84));
+{
+  const J = f => { try { return JSON.parse(readFileSync(ROOT + "data/" + f, "utf8")); }
+                   catch { return null; } };
+  /* 1. API-Sports nafna-porun — fyrsta raunprofid 20.-21. agust (kafli 6) */
+  const inj = J("injuries.json");
+  const nPl = inj?.players?.length ?? 0, nUn = inj?.unmatched?.length ?? 0;
+  if (nPl + nUn === 0) {
+    console.log("  API-Sports: engin gogn enn (forleikur) — athugunin bidur");
+    ok(true, "API-Sports-porun: bidur gagna (rett i forleik, 0 koll notud)");
+  } else {
+    const rate = nPl / (nPl + nUn);
+    console.log(`  API-Sports: ${nPl} paradir, ${nUn} oparadir -> ${(100*rate).toFixed(1)}%`);
+    ok(rate >= 0.9,
+      `nafna-porun >=90% (${(100*rate).toFixed(1)}%) — undir thvi hefur heimild breytt nafnaformi`);
+  }
+  /* 2. "I ar vs i fyrra" — kviknar vid GW1 (kafli 7 atridi 4) */
+  const lastGw = J("last_gw.json");
+  const base = J("season_baseline.json");
+  const archive = lastGw?.archive === true;
+  if (archive) {
+    console.log(`  Samanburdartaflan: last_gw er ENN afrit (${lastGw?.season}) — bidur GW1`);
+    ok(true, "samanburdartaflan bidur GW1 (last_gw.archive === true)");
+  } else {
+    console.log(`  Samanburdartaflan: RAUNGOGN komin (GW${lastGw?.gw}) — athugun virk`);
+    ok(base?.label && (base?.players?.length ?? 0) > 100,
+      `season_baseline hefur fyrra-timabils tolur (${base?.label}, ${base?.players?.length ?? 0} leikmenn)`);
+    ok(lastGw?.fixtures?.length > 0, "last_gw hefur raunverulega leiki til ad bera saman");
+  }
+  /* 3. Stadfest byrjunarlid — kviknar a leikdegi */
+  const lu = J("lineups.json");
+  if ((lu?.players?.length ?? 0) === 0) {
+    const gated = lu?.probe?.gated;
+    console.log(`  Byrjunarlid: engin gogn (utan glugga)${gated ? " · ThREP LOKAD" : ""}`);
+    ok(gated !== true,
+      gated === true ? "ATH: API-threpid LEYFIR EKKI /fixtures/lineups — sja probe i lineups.json"
+                     : "byrjunarlid bidur leikdags (threp leyfir endapunktinn)");
+  } else {
+    const st = lu.players.filter(x => x.started).length;
+    console.log(`  Byrjunarlid: ${lu.players.length} leikmenn, ${st} byrja`);
+    ok(st >= 11, `minnst 11 byrjunarlidsmenn thegar gogn eru til (${st})`);
+    ok((lu.unmatched?.length ?? 0) / lu.players.length < 0.15,
+      `oparadir undir 15% (${lu.unmatched?.length ?? 0} af ${lu.players.length})`);
+  }
+}
+
 console.log(`\nTENGINGAR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);
