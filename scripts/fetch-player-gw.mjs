@@ -117,7 +117,8 @@ for (const [key, dir] of Object.entries(SEASONS)) {
      (samsett eftirnofn, broddstafir, tvinefni) — code er nakvaemt.       */
   const codeOf = new Map();
   {
-    const pr = await fetch(`${RAW}/${dir}/players_raw.csv`, { headers: { "User-Agent": UA } });
+    const pr = await fetch(`${RAW}/${dir}/players_raw.csv`,
+      { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
     if (pr.ok) {
       for (const r of parseCsv(await pr.text())) {
         const id = +r.id, code = +r.code;
@@ -126,7 +127,8 @@ for (const [key, dir] of Object.entries(SEASONS)) {
     } else report.push(`${key}: players_raw.csv HTTP ${pr.status} — engin code-vorpun`);
   }
 
-  const res = await fetch(`${RAW}/${dir}/gws/merged_gw.csv`, { headers: { "User-Agent": UA } });
+  const res = await fetch(`${RAW}/${dir}/gws/merged_gw.csv`,
+    { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
   if (!res.ok) { report.push(`${key}: merged_gw.csv HTTP ${res.status} — sleppt`); continue; }
   const rows = parseCsv(await res.text());
 

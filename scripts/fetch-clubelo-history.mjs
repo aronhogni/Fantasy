@@ -67,7 +67,8 @@ function parseCsv(text) {
 }
 
 console.log("Sæki 42 MB CSV …");
-const text = await (await fetch(URL_, { headers: { "User-Agent": UA } })).text();
+const text = await (await fetch(URL_, { headers: { "User-Agent": UA },
+  signal: AbortSignal.timeout(20000) })).text();
 const rows = parseCsv(text).filter(r => r.Division === "E0");
 console.log(`E0-raðir: ${rows.length}`);
 

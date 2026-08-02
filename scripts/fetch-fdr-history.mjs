@@ -73,7 +73,8 @@ for (const [key, dir] of Object.entries(SEASONS)) {
   const e0 = JSON.parse(await readFile(e0Path, "utf8")).rows
     .filter(r => r.HomeTeam && r.FTHG !== "" && r.FTHG != null);
 
-  const res = await fetch(`${RAW}/${dir}/fixtures.csv`, { headers: { "User-Agent": UA } });
+  const res = await fetch(`${RAW}/${dir}/fixtures.csv`,
+    { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
   if (!res.ok) { report.push(`${key}: fixtures.csv HTTP ${res.status} — sleppt`); continue; }
   const fx = parseCsvQuoted(await res.text())
     .filter(f => f.kickoff_time && f.team_h_score !== "" && f.team_h_difficulty);

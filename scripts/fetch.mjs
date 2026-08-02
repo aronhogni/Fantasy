@@ -55,8 +55,20 @@ async function writeJSON(path, obj) {
   await mkdir(full.split("/").slice(0, -1).join("/"), { recursive: true });
   await writeFile(full, JSON.stringify(obj));
 }
+/* TIMAMORK A OLL UTANHUSS-KOLL. VANTADI a 8 af 10 — thar med a THESSUM
+   sameiginlega hjalpara, sem FPL, ESPN, GitHub-raw og football-data.co.uk
+   fara OLL gegnum. undici hefur ~300 s sjalfgildi, sem er ekki timamork i
+   cron heldur HENGJA: ein daud tenging gat lokad keyrslunni i 5 minutur og
+   thagad nidur allt sem kom a eftir. ClubElo og API-Sports fengu mörk 31.7.
+   og 2.8. — thetta alhaefir thad i stad thess ad laga eitt og eitt.       */
+const FETCH_TIMEOUT_MS = 20000;
+/* `fetch` MED timamorkum. Fyrir tha stadi sem lesa `r.headers` eda `r.ok`
+   sjalfir og geta thvi ekki farid gegnum getText/getJSON.                 */
+const fetchT = (url, opts = {}) =>
+  fetch(url, { ...opts, signal: AbortSignal.timeout(opts.timeoutMs || FETCH_TIMEOUT_MS) });
 async function getText(url, opts = {}) {
-  const r = await fetch(url, { headers: { "User-Agent": UA, ...(opts.headers || {}) } });
+  const r = await fetch(url, { headers: { "User-Agent": UA, ...(opts.headers || {}) },
+                               signal: AbortSignal.timeout(opts.timeoutMs || FETCH_TIMEOUT_MS) });
   if (!r.ok) throw new Error(`${r.status} ${url}`);
   return { text: await r.text(), res: r };
 }
@@ -970,7 +982,7 @@ async function fetchUnderstat() {
   let text, usedUrl;
   for (const yr of ["2026", "2025"]) {
     try {
-      const r = await fetch(`https://understat.com/league/EPL/${yr}`, { headers: { "User-Agent": UA } });
+      const r = await fetchT(`https://understat.com/league/EPL/${yr}`, { headers: { "User-Agent": UA } });
       if (!r.ok) { console.warn(`Understat /${yr}: HTTP ${r.status}`); continue; }
       text = await r.text(); usedUrl = yr;
       if (text.includes("JSON.parse")) break;
@@ -1041,7 +1053,7 @@ async function fetchUnderstatShots() {
     const path = `understat/match/${d.id}.json`;
     if (existsSync(`${DATA}/${path}`)) continue;
     try {
-      const r = await fetch(`https://understat.com/match/${d.id}`, { headers: { "User-Agent": UA } });
+      const r = await fetchT(`https://understat.com/match/${d.id}`, { headers: { "User-Agent": UA } });
       if (!r.ok) { console.warn(`Understat match ${d.id}: HTTP ${r.status}`); continue; }
       const text = await r.text();
       const shots = grab(text, "shotsData");
@@ -1115,7 +1127,7 @@ async function fetchEuro() {
     "https://site.api.espn.com/apis/site/v2/sports/soccer/leagues",
   ]) {
     try {
-      const r = await fetch(durl, { headers: { "User-Agent": UA } });
+      const r = await fetchT(durl, { headers: { "User-Agent": UA } });
       if (!r.ok) { console.log(`Evrópa uppgötvun ${durl.slice(-30)}: HTTP ${r.status}`); continue; }
       const j = await r.json();
       // ESPN skilar ýmsum formum — grípum öll 'slug'/'id' sem líkjast keppnikóða
@@ -1157,7 +1169,7 @@ async function fetchEuro() {
   for (const code of ESPN_CODES) {
     const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/scoreboard?dates=${d1}-${end}`;
     try {
-      const r = await fetch(url, { headers: { "User-Agent": UA } });
+      const r = await fetchT(url, { headers: { "User-Agent": UA } });
       if (!r.ok) { console.log(`Evrópa ESPN ${code}: HTTP ${r.status}`); continue; }
       const j = await r.json();
       const evs = j.events || [];
@@ -1184,7 +1196,7 @@ async function fetchEuro() {
         // MIKILVÆGT: án dateFrom/dateTo skilar fd.org NÝJASTA tímabili sem það hefur
         // (t.d. 2025/26 áður en dráttur 2026/27 er gerður) -> úreltar dagsetningar.
         const dTo = new Date(Date.now() + 300 * 86400000).toISOString().slice(0, 10);
-        const r = await fetch(
+        const r = await fetchT(
           `https://api.football-data.org/v4/competitions/${comp}/matches?dateFrom=${today}&dateTo=${dTo}`,
           { headers: { "X-Auth-Token": euroKey, "User-Agent": UA } });
         if (!r.ok) { console.log(`Evrópa fd.org ${comp}: HTTP ${r.status}`); continue; }
@@ -1212,7 +1224,7 @@ async function fetchEuro() {
   if (euroKey) {
     for (const comp of ["CL", "EL", "ECL"]) {
       try {
-        const r = await fetch(`https://api.football-data.org/v4/competitions/${comp}/teams`,
+        const r = await fetchT(`https://api.football-data.org/v4/competitions/${comp}/teams`,
           { headers: { "X-Auth-Token": euroKey, "User-Agent": UA } });
         if (!r.ok) { console.log(`Þátttaka ${comp}: HTTP ${r.status}`); continue; }
         const j = await r.json();
@@ -1482,7 +1494,7 @@ async function fetchOdds() {
 
   const url = `https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?apiKey=${key}`
     + `&regions=uk&markets=h2h,totals,spreads&oddsFormat=decimal&dateFormat=iso`;
-  const r = await fetch(url, { headers: { "User-Agent": UA } });
+  const r = await fetchT(url, { headers: { "User-Agent": UA } });
   const remaining = r.headers.get("x-requests-remaining");
   const used = r.headers.get("x-requests-used");
   console.log(`Odds API: eftir=${remaining} notað=${used}`);

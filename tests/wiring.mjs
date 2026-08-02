@@ -157,6 +157,35 @@ console.log("─".repeat(84));
     `engin cron-stjarna ("*" + "/30") inni i blokk-athugasemd${cronInComment.length ? ": " + cronInComment.join(", ") : ""}`);
 }
 
+/* ---- TIMAMORK A UTANHUSS-KOLLUM ----
+   Maelt 2.8.2026: 8 af 10 `fetch`-kollum i pipeline hofdu ENGIN timamork,
+   thar med sameiginlegi hjalparinn (getText) sem FPL, ESPN, GitHub-raw og
+   football-data.co.uk fara OLL gegnum. undici hefur ~300 s sjalfgildi, sem
+   er ekki timamork i cron heldur HENGJA. ClubElo (31.7.) og API-Sports
+   (2.8.) fengu mörk hvor i sinu lagi — thessi vordur alhaefir thad.      */
+console.log(`\n${"─".repeat(84)}`);
+console.log("TIMAMORK A UTANHUSS-KOLLUM");
+console.log("─".repeat(84));
+{
+  const naked = [];
+  for (const f of scriptFiles) {
+    const txt = readFileSync(ROOT + "scripts/" + f, "utf8").split("\n");
+    txt.forEach((l, i) => {
+      if (!/await fetch\(|= fetch\(/.test(l)) return;
+      const ctx = txt.slice(Math.max(0, i - 3), i + 6).join("\n");
+      if (!/AbortSignal\.timeout/.test(ctx)) naked.push(`${f}:${i + 1}`);
+    });
+  }
+  console.log(`  ${scriptFiles.length} skriftir skodadar`);
+  ok(naked.length === 0,
+    `hvert fetch-kall hefur timamork${naked.length ? ": " + naked.join(", ") : ""}`);
+  /* Og kvota-vordurinn a API-Sports ma ekki horfa */
+  ok(/API_MIN_REMAINING/.test(fetchSrc) && /x-ratelimit-requests-remaining/.test(fetchSrc),
+    "API-Sports les kvota-hausinn OG hefur throskuld (reikningur var uppsagdur 2.8.)");
+  ok(/haveFx|reused/.test(fetchSrc),
+    "byrjunarlid eru GEYMD per leik — glugginn er 5 klst og keyrslan a 30 min fresti");
+}
+
 /* ---- Sértækir verðir um það sem BRAST ---- */
 console.log(`\n${"─".repeat(84)}`);
 console.log("VERÐIR UM ÞAU ÞRJÚ TILVIK SEM BRUSTU");
