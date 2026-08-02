@@ -458,6 +458,8 @@ export const EN = {
     "Expected points this gameweek (minutes + FFDR + form)",
   "DefCon-tækifæri {0} — mikið vinnuálag varnar":
     "DefCon opportunity {0} — heavy defensive workload",
+  "DC-hittni": "DC hit rate",
+  "{0} byrjaðir · hrá {1}%": "{0} starts · raw {1}%",
   "{0} gul spjöld — 1 frá {1}-þröskuldi ({2} leikja bann)":
     "{0} yellow cards — 1 from the {1} threshold ({2}-match ban)",
   "Byrjaði {0} af {1} leikjum — skiptingar-hætta":

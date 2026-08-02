@@ -2547,6 +2547,13 @@ export default function App() {
         const ban = isPlayer ? banRisk(p, gw, seasonStarted) : null;
         const sp = isPlayer ? setPieceOf(p) : null;
         const rot = isPlayer ? rotationRisk(p, seasonGames) : null;
+        /* DC-HITTNI (afturvirkjud, sja TERMINAL_HANDOFF_4 og CLAUDE.md 6l):
+           hit_rate_adj ur defcon.json — EKKI hraa hit_rate, hun ofmaelist a
+           litlum synum. n (startir) fylgir ALLTAF med. GK er sleppt: DefCon-
+           stig eru fyrir utivallarmenn og GK-talan vaeri omaeld tala sem
+           liti ut eins og maeling (sama regla og mo/ao i skiptaglugganum). */
+        const dcp = isPlayer && p.element_type !== 1 && defcon?.players?.length
+          ? defcon.players.find(x => x.fpl_id === p.id) : null;
         const tm = teamMetrics[t.id] || {};
         const e = eloByTeam[t.id], dcv = dcOpp[t.id];
         return (
@@ -2616,6 +2623,10 @@ export default function App() {
                   <div style={S.dGrid}>
                     <DStat k={tx("Spá næstu (ep)")} v={p.ep_next} />
                     {rot && <DStat k={tx("Byrjaði")} v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} />}
+                    {/* Afturvirkjud tala, ALDREI hra — og n synilegt vid hlidina */}
+                    {dcp && dcp.starts > 0 && dcp.hit_rate_adj != null &&
+                      <DStat k={tx("DC-hittni")} v={`${Math.round(dcp.hit_rate_adj * 100)}%`}
+                        sub={tx("{0} byrjaðir · hrá {1}%", [dcp.starts, Math.round(dcp.hit_rate * 100)])} />}
                     {sp && <DStat k={tx("Vítaröð")} v={sp.pen ?? "—"} sub={sp.isPenTaker ? tx("fyrsti taki") : ""} />}
                     {sp?.ck != null && <DStat k={tx("Horn/aukasp.")} v={sp.ck} />}
                     {sp?.fk != null && <DStat k={tx("Aukaspyrnur")} v={sp.fk} />}

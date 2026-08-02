@@ -136,6 +136,53 @@ hópaskiptingin er **ekki einræn** (3. fjórðungur vill w=0,95, sóknarsinnar
 w=0) og besta w hoppar milli tímabila (0 / 0,65 / 0,75 / 1,0) og skiptir
 formerki. Það sem notandinn sá hjá Rice var afstæða þrepið, ekki formúlan.
 
+### 3e. NÝLIÐA-GRUNNURINN — MÆLT 2.8.2026 OG HAFNAÐ
+
+Kóða-yfirferð benti á að `ep_next` sé of lágt fyrir nýliða og að þetta væri
+„stærsti mældi ábatinn sem eftir er". **Skekkjan er raunveruleg. Hún er samt
+EKKI nýtanleg.** Mælt á fjórum nýliða-árgöngum (2223 Bournemouth/Forest/Fulham,
+2324 Sheffield Utd/Burnley/Luton, 2425 Southampton/Leicester/Ipswich,
+2526 Sunderland/Burnley/Leeds), GW1–5, LOSO á árgöngum.
+
+**Skekkjan, á BYRJUNARLIÐSMÖNNUM** (starts≥1, mín≥60; n=446):
+
+| staða | raunstig | FPL-xP | halli | t |
+|---|---|---|---|---|
+| GK | 3,14 | 2,05 | **+1,09** | 3,3 |
+| DEF | 2,33 | 1,38 | **+0,95** | 5,9 |
+| MID | 3,01 | 1,78 | **+1,24** | 8,3 |
+| FWD | 3,43 | 2,17 | **+1,26** | 3,3 |
+
+Á þeirri laug slær 50/50-blanda við stöðu-forgildi xP-ið: MAE 1,646 -> 1,452.
+**Þess vegna leit þetta út eins og stór ábati.**
+
+**EN LAUGIN SEM APPIÐ BEITIR GRUNNINUM Á ER ÖNNUR** — allir nýliðar, líka
+þeir sem spila ekki (n=1994). Þar er niðurstaðan viðsnúin:
+
+| kostur | MAE (LOSO) |
+|---|---|
+| **xP óbreytt** | **0,848** |
+| blanda 50/50 | 0,873 |
+| flatt stöðu-forgildi | 1,217 |
+
+Skekkjan er enn til (+0,44 til +0,48, t upp í 11,1) en **hver leiðrétting
+gerir spána VERRI** á þeirri laug. Blint grunn-skipti myndi því versna appið.
+
+**SKILYRT LEIÐRÉTTING VIRKAR EKKI HELDUR.** Fjórar útfærslur prófaðar með
+mínútum úr FYRRI umferðum sama tímabils (enginn leki): blanda ef mín≥60,
+blanda × mín/90, halli × mín/90, blind blanda. Besta gaf **0,0005 stig í MAE**
+og vann í **2/4 árgöngum** — hreint suð.
+
+**HVERS VEGNA:** skekkjan er samanþjöppuð í þeim sem BYRJA, og þegar við
+vitum að hann byrjar (fyrri mínútur) er xP-ið þegar búið að ná honum. Í GW1 —
+þar sem þetta myndi skipta mestu — er ENGIN fyrri-mínútu-vísbending til að
+skilyrða á.
+
+**Niðurstaða: LOKAÐ sem mælt-og-hafnað.** Ekki taka upp stöðu-forgildi fyrir
+nýliða. Vörður: `tests/exp-points.mjs` (nýliða-kafli) fellur ef blint
+forgildi er sett inn. Ef einhver vill reyna aftur þarf **nýtt inntak** sem
+segir fyrir GW1 hver byrjar — ekki nýja töflu ofan á sömu inntök.
+
 ### 3c. MÍNÚTUÞRÓUN — eina inntakið sem árstölur geta ekki gefið (mælt 29.7.)
 
 Appið hafði aðeins ÁRSTÖLUR (`minutes / gamesPlayed`). Sú tala getur ekki
@@ -1339,6 +1386,17 @@ afturvirkjuðu töluna og sýna alltaf leikjafjöldann við hlið hennar.
 `mins-trend.mjs` kafli 0, af sömu ástæðu: kóðinn kviknar fyrst 21.8.).
 Þrjár stökkbreytingar prófaðar (K breytt, afturvirkni fjarlægð,
 fallback-fastar teknir úr sambandi) — allar felldar.
+
+**BIRTING:** DStat „DC-hittni" á leikmannaspjaldinu (modal, `App.jsx`)
+— DC lifir á spjöldum skv. kafla 3. Sýnir `hit_rate_adj`% með
+`starts` og hráu töluna sem undirtexta. **GK fær reitinn ALDREI**:
+DefCon-stig eru fyrir útivallarmenn og GK-tala væri ómæld tala sem liti
+út eins og mæling (sama regla og mó/aó í 6j). Reiturinn er ósýnilegur
+fram að 21.8. (players tómt) — þess vegna er **`tests/dc-hit-display.mjs`**
+(10 próf): hermir defcon.json MEÐ leikmönnum í jsdom, opnar spjald og
+neglir að afturvirkjaða talan sé aðaltalan (ekki sú hráa), að n sjáist,
+og að GK sé útilokaður. Tvær stökkbreytingar felldar (hrá í stað
+afturvirkjaðrar; GK-útilokun fjarlægð).
 
 ### ÞEGAR UPPFYLLT — DC sem eiginleiki, ekki röðunar-ás (§5, tillaga 2)
 FFS raðar Ampadu neðstan af fjórum þrátt fyrir hæstu DC-töluna, því
