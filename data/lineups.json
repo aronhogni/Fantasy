@@ -1,7 +1,1 @@
-{
- "updated": "2026-08-02T16:54:56.984Z",
- "gws": [],
- "teams": [],
- "players": [],
- "note": "Stadfest byrjunarlid ur API-Sports /fixtures/lineups. TOMT utan leikdags-glugga. `probe` var HREINSAD 2.8.2026 eftir ad lykillinn var endurnyjadur — naesta keyrsla endurspyr med nyja lyklinum."
-}
+{"updated":"2026-08-02T17:48:40.323Z","gws":[],"teams":[],"players":[],"probe":{"at":"2026-08-02T17:48:40.323Z","http":200,"errors":[],"gated":false},"note":"Stadfest byrjunarlid ur API-Sports /fixtures/lineups. TOMT utan leikdags-glugga (leikur innan 2 klst eda nybyrjadur). `probe` geymir svarid vid thvi hvort fria threpid leyfi endapunktinn."}
