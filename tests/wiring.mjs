@@ -119,6 +119,44 @@ const undocumented = unread.filter(f => !OK_UNREAD[f]);
 ok(undocumented.length === 0,
   `hver ólesin skrá hefur ÁSTÆÐU á hvítlista${undocumented.length ? ": VANTAR " + undocumented.join(", ") : ""}`);
 
+/* ---- ThYNGDARPROF A SETNINGAFRAEDI ALLRA SKRIFTA ----
+   2.8.2026 skrifadi eg athugasemd sem innihelt cron-taknmal (stjarna,
+   skastrik, 30) INNI I BLOKK-ATHUGASEMD. Su tveggja-stafa rod LOKAR
+   athugasemdinni, svo "30, svo ..." vard kodi:
+   scripts/fetch.mjs var SETNINGAFRAEDILEGA BROTIN. Ekkert prof keyrir
+   pipeline-inn (hann kallar a netid) svo ENGIN vord hefdi sed thad — nema
+   tests/lineups.mjs sem dregur EITT fall ut og eval-ar thad, og thad var
+   tilviljun ad thad fall var i naendinni.
+   Repo-id er ThETTSKRIFAD af athugasemdum (thad er visvitandi, kafli 2), svo
+   thessi hætta er raunveruleg. `node --check` a hverja skrift kostar
+   millisekundur og faer ALLT tred, ekki bara thad sem prof snerta.       */
+console.log(`\n${"─".repeat(84)}`);
+console.log("SETNINGAFRAEDI — node --check a allar skriftir");
+console.log("─".repeat(84));
+{
+  const { execFileSync } = await import("node:child_process");
+  const bad = [];
+  for (const f of scriptFiles) {
+    try { execFileSync(process.execPath, ["--check", ROOT + "scripts/" + f], { stdio: "pipe" }); }
+    catch (e) { bad.push(`${f}: ${String(e.stderr || e).split("\n").find(l => /Error|error/.test(l)) || "?"}`); }
+  }
+  for (const f of srcFiles.filter(x => /\.js$/.test(x))) {
+    try { execFileSync(process.execPath, ["--check", ROOT + "src/" + f], { stdio: "pipe" }); }
+    catch (e) { bad.push(`src/${f}: ${String(e.stderr || e).split("\n").find(l => /Error|error/.test(l)) || "?"}`); }
+  }
+  console.log(`  ${scriptFiles.length} skriftir + ${srcFiles.filter(x => /\.js$/.test(x)).length} src-js skodadar`);
+  ok(bad.length === 0, `engin setningafraedi-villa${bad.length ? ": " + bad.slice(0, 3).join(" | ") : ""}`);
+  // Beint vordur um cron-taknmalid i athugasemd (stjarna + skastrik + tala).
+  const cronInComment = [];
+  for (const f of scriptFiles) {
+    const txt = readFileSync(ROOT + "scripts/" + f, "utf8");
+    for (const m of txt.matchAll(/\/\*[\s\S]*?\*\//g))
+      if (/\*\/\d/.test(m[0])) cronInComment.push(f);
+  }
+  ok(cronInComment.length === 0,
+    `engin cron-stjarna ("*" + "/30") inni i blokk-athugasemd${cronInComment.length ? ": " + cronInComment.join(", ") : ""}`);
+}
+
 /* ---- Sértækir verðir um það sem BRAST ---- */
 console.log(`\n${"─".repeat(84)}`);
 console.log("VERÐIR UM ÞAU ÞRJÚ TILVIK SEM BRUSTU");

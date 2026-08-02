@@ -477,7 +477,34 @@ async function fetchLineups() {
   } catch (e) { record("api_lineups", false, 0, `fixtures.json: ${e.message}`); return; }
 
   if (!fx.length) {
-    /* RANNSAKANDI KALL — svarar AÐEINS "leyfir threpið endapunktinn?" */
+    /* RANNSAKANDI KALL — svarar AÐEINS "leyfir threpid endapunktinn?"
+       OG ThAD ER SPURNING SEM ThARF AD SVARA EINU SINNI, EKKI 48x A DAG.
+       VILLA SEM EG SETTI INN 31.7. OG MAELDI 2.8.: kallid var gert i HVERRI
+       hradri keyrslu. Cron gengur a 30 min fresti, svo 48 keyrslur a dag = 48 koll a dag af
+       100 i fria threpinu — helmingur dagskvotans i greiningu sem var thegar
+       svarad (31.7.: http=200, errors=[], threp LEYFIR endapunktinn).
+       2.8. skiladi hun {"access":"Your account is suspended"}. Eg get ekki
+       fullyrt ad kollin min hafi valdid thvi — uppsogn er venjulega
+       reikningsatridi — en ad brenna helming kvotans i vordur er villa
+       oháð thvi.
+       NU: svarid er GEYMT i lineups.json og endurtekid adeins ef thad er
+       eldra en PROBE_TTL_DAYS. Vid leikdag er thetta hvort sem er ekki
+       notad — tha eru raunveruleg kall gerd.                             */
+    const PROBE_TTL_DAYS = 7;
+    let prev = null;
+    try { prev = JSON.parse(await readFile(`${DATA}/lineups.json`, "utf8")).probe; } catch {}
+    const prevAge = prev?.at ? (Date.now() - Date.parse(prev.at)) / 864e5 : Infinity;
+    if (prev && prevAge < PROBE_TTL_DAYS) {
+      await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [],
+        players: [], probe: prev,
+        note: "Stadfest byrjunarlid ur API-Sports /fixtures/lineups. TOMT utan "
+            + "leikdags-glugga. `probe` er GEYMT svar (endurtekid a "
+            + `${PROBE_TTL_DAYS} daga fresti) — ekki nytt kall i hverri keyrslu.` });
+      record("api_lineups", true, 0,
+        `enginn leikur i glugga; geymt svar ${prevAge.toFixed(1)} daga gamalt`
+        + (prev.gated ? " — ENDAPUNKTUR LOKADUR" : ""));
+      return;
+    }
     const probe = await apiSports("/fixtures/lineups?fixture=1035037");
     const err = errTxt(probe);
     console.log(`API-Sports /fixtures/lineups RANNSOKN: http=${probe.http} ` +
@@ -499,7 +526,7 @@ async function fetchLineups() {
             : err ? `enginn leikur i glugga; rannsokn gaf: ${err.slice(0, 120)}`
                   : "enginn leikur i glugga (bidur leikdags) — endapunktur svarar an plan-villu");
     await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [], players: [],
-      probe: { http: probe.http, errors: probe.errors ?? null, gated },
+      probe: { at: status.updated, http: probe.http, errors: probe.errors ?? null, gated },
       note: "Stadfest byrjunarlid ur API-Sports /fixtures/lineups. TOMT utan "
           + "leikdags-glugga (leikur innan 2 klst eda nybyrjadur). `probe` "
           + "geymir svarid vid thvi hvort fria threpid leyfi endapunktinn." });

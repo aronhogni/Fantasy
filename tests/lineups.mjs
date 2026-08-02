@@ -114,7 +114,12 @@ async function run({ dir, responder }) {
   const fn = factory(readFile, dir,
     async (name, obj) => { written = { name, obj }; },
     (n, o, c, note) => { rec.ok = o; rec.n = c; rec.note = note || ""; },
-    { updated: "prof" },
+    /* RAUNVERULEGUR TIMASTIMPILL, ekki "prof": probe.at er stimplad ur
+       status.updated og geymslu-athugunin reiknar ALDUR ur honum. Med
+       ologilegri dagsetningu vard aldurinn Infinity og kallid var alltaf
+       endurtekid — profid hefdi thvi sagt "geymsla virkar ekki" thott
+       kodinn vaeri rettur.                                               */
+    { updated: new Date().toISOString() },
     async (path) => { calls.push(path); return responder(path); },
     { log() {}, warn() {} });
   await fn();
@@ -166,6 +171,43 @@ console.log("─".repeat(84));
   ok(written?.obj?.probe && written.obj.probe.gated === false,
     "probe skrad og gated=false thegar engin plan-villa kemur");
   ok(/bidur leikdags|an plan-villu/.test(rec.note), `status segir stoduna: "${rec.note}"`);
+}
+
+/* ---------- 2b. RANNSOKNIN MA EKKI BRENNA KVOTANN ----------
+   VILLA MAELD 2.8.2026: kallid var gert i HVERRI hradri keyrslu. Cron gengur
+   a 30 min fresti = 48 keyrslur/dag = 48 koll af 100 i fria threpinu, i
+   greiningu sem var thegar svarad 31.7. Sama dag skiladi endapunkturinn
+   {"access":"Your account is suspended"}. Eg get ekki fullyrt ad kollin hafi
+   valdid thvi, en helmingur dagskvotans i vordur er villa oháð thvi.       */
+console.log(`\n${"─".repeat(84)}`);
+console.log("2b. GEYMT SVAR — engin ny koll i hverri keyrslu");
+console.log("─".repeat(84));
+{
+  const dir = await sandbox({ kickoff: new Date(Date.now() + 20 * 864e5).toISOString() });
+  const FRESH = { http:200, results:0, errors:[], response:[] };
+  /* fyrsta keyrsla: EITT kall og svarid stimplad */
+  const r1 = await run({ dir, responder: () => FRESH });
+  ok(r1.calls.length === 1, `fyrsta keyrsla gerir eitt kall (${r1.calls.length})`);
+  ok(r1.written?.obj?.probe?.at, "svarid er TIMASTIMPLAD (an thess er ekki haegt ad geyma thad)");
+  /* skrifa svarid a disk og keyra aftur — nu a EKKERT kall ad vera gert */
+  await writeFile(join(dir, "lineups.json"), JSON.stringify(r1.written.obj));
+  const r2 = await run({ dir, responder: () => { throw new Error("ATTI EKKI AD KALLA"); } });
+  ok(r2.calls.length === 0, `onnur keyrsla gerir ENGIN koll (${r2.calls.length})`);
+  ok(r2.written?.obj?.probe?.at === r1.written.obj.probe.at, "geymda svarid er bori\u00f0 afram obreytt");
+  ok(/geymt svar/.test(r2.rec.note), `status segir ad svarid se geymt: "${r2.rec.note.slice(0, 60)}"`);
+  /* gamalt svar (>7 dagar) -> spurt aftur */
+  const old = { ...r1.written.obj,
+    probe: { ...r1.written.obj.probe, at: new Date(Date.now() - 9 * 864e5).toISOString() } };
+  await writeFile(join(dir, "lineups.json"), JSON.stringify(old));
+  const r3 = await run({ dir, responder: () => FRESH });
+  ok(r3.calls.length === 1, `9 daga gamalt svar -> spurt aftur (${r3.calls.length} kall)`);
+  /* LOKAD threp i geymdu svari a ad SJAST i stodunni an nys kalls */
+  const gatedPrev = { ...r1.written.obj,
+    probe: { at:new Date().toISOString(), http:200, errors:{ plan:"no access" }, gated:true } };
+  await writeFile(join(dir, "lineups.json"), JSON.stringify(gatedPrev));
+  const r4 = await run({ dir, responder: () => { throw new Error("ATTI EKKI AD KALLA"); } });
+  ok(r4.calls.length === 0 && /LOKADUR/.test(r4.rec.note),
+    `lokad threp sest i stodunni UT UR geymdu svari: "${r4.rec.note.slice(0, 60)}"`);
 }
 
 /* ---------- 3. ThREPID LOKAR ENDAPUNKTINUM ---------- */
