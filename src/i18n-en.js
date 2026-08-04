@@ -460,6 +460,8 @@ export const EN = {
     "DefCon opportunity {0} — heavy defensive workload",
   "DC-hittni": "DC hit rate",
   "{0} byrjaðir · hrá {1}%": "{0} starts · raw {1}%",
+  "Byrjunar-líkur (mælt líkan, gluggi = síðustu 5 loknu umferðir). Vinningurinn er veginn með þessari tölu; undir 15% kemst enginn á listann.":
+    "Start probability (measured model, window = last 5 finished gameweeks). The gain is weighted by this number; below 15% nobody makes the list.",
   "{0} gul spjöld — 1 frá {1}-þröskuldi ({2} leikja bann)":
     "{0} yellow cards — 1 from the {1} threshold ({2}-match ban)",
   "Byrjaði {0} af {1} leikjum — skiptingar-hætta":

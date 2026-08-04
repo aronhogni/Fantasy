@@ -65,7 +65,7 @@ export const HORIZONS = [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 38];
 
 export default function Rotation({
   targetIds, players, teamById, fixByTeamGw, fixDifficulty, gwNow, maxGw = 38,
-  squadIds, Crest, onToggleTarget, onClear, onClose,
+  squadIds, Crest, onToggleTarget, onClear, onClose, startProbOf = null,
 }) {
   const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
@@ -99,8 +99,9 @@ export default function Rotation({
   const R = useMemo(() => findRotationPartners({
     targets, candidates: pool, gwFrom: gwNow, horizon, maxGw,
     fixByTeamGw, fixDifficulty, ownedIds: owned, limit: 12, maxTenths, hardFrom,
+    startProbOf,
   }), [targets, pool, gwNow, horizon, maxGw, fixByTeamGw, fixDifficulty, owned,
-       maxTenths, hardFrom, lang]);
+       maxTenths, hardFrom, startProbOf, lang]);
 
   const gws = horizonGws(gwNow, horizon, maxGw);
   const hardSet = new Set(R.hard.map(h => h.gw));
@@ -259,6 +260,15 @@ export default function Rotation({
                               {c.p.web_name}
                               <span style={S.pos}>{POS[c.p.element_type]}</span>
                               <span style={S.price}>£{((c.p.now_cost || 0) / 10).toFixed(1)}</span>
+                              {/* Byrjunar-likur (6h-likanid). Undir 15% kemst
+                                  madur ALDREI hingad (golf i rotation.js) —
+                                  merkid synir hvers vegna rodin er eins og
+                                  hun er, t.d. 47% a hvildum adalmanni.     */}
+                              {c.startP != null &&
+                                <span style={S.startP}
+                                  title={tx("Byrjunar-líkur (mælt líkan, gluggi = síðustu 5 loknu umferðir). Vinningurinn er veginn með þessari tölu; undir 15% kemst enginn á listann.")}>
+                                  ▶{Math.round(c.startP * 100)}%
+                                </span>}
                               {c.owned && <span style={S.mine} title={tx("Þegar í liðinu þínu — engin skipti")}>{tx("í liðinu")}</span>}
                               {!!c.others?.length && (
                                 <span style={S.others}
@@ -340,6 +350,8 @@ const S = {
         borderRadius:3, padding:"0 3px" },
   price:{ fontSize:9.5, color:C.text3, fontFamily:mono },
   mine:{ fontSize:9, color:"#046b41", background:"#e6f9f0", borderRadius:3, padding:"0 4px" },
+  startP:{ fontSize:9, color:"#5b5470", background:"#efedf4", borderRadius:3, padding:"0 4px",
+           cursor:"help" },
   others:{ fontSize:9, color:C.text3, background:C.cardAlt, border:`1px solid ${C.border}`,
            borderRadius:3, padding:"0 3px", cursor:"help" },
   rm:{ border:"none", background:"transparent", color:C.text3, fontSize:10,

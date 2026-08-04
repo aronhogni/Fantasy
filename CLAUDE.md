@@ -238,6 +238,18 @@ umferðunum. `tests/rotation.mjs` kafli 3 er sá prófsteinn.
 - **VERÐÞAK** (sjálfg. +£2,0): ÁN þess raðast Haaland á toppinn hjá HVERJUM
   varnarmanni — rétt svar við „hver skorar mest?“ en rangt við „hver kemur
   inn af bekknum?“. Þakið er **UI-afmörkun, EKKI hluti líkansins**.
+- **BYRJUNAR-GOLF OG -VOG** (4.8.2026, að beiðni notanda): varamarkmaður
+  sem spilar aldrei var fullgildur frambjóðandi — heilbrigður
+  (tiltækileiki 1,0), ódýr og með græna leiki, því FFDR er eiginleiki
+  LIÐSINS. Nú: `MIN_START_PROB = 0,15` — frambjóðandi með MÆLDAR
+  byrjunar-líkur (6h-líkanið) undir golfi er útilokaður, og vinningurinn
+  er veginn `ep × P(byrjar)` báðum megin (líka hjá valda manninum).
+  Golfið er mælt: hreinir varamarkmenn P=0,038–0,039, hvíldur aðalmaður
+  (Raya GW38) P=0,47 — 0,15 sker með breiðu bili á báða bóga.
+  **`P=null` (engin gögn, t.d. nýliðar/nýflutt lið) útilokar ALDREI** —
+  „engin gögn“ og „spilar ekki“ eru ekki sama hlutið; þeir birtast án
+  ▶%-merkis og lagast sjálfkrafa þegar umferðargögn koma. Vörður:
+  kafli 7 í `tests/rotation.mjs`, þrjár stökkbreytingar felldar.
 
 Reikningurinn er allur í `src/rotation.js` (hreint, ekkert React) af sömu
 ástæðu og `model.js`. `src/Rotation.jsx` er birting eingöngu.

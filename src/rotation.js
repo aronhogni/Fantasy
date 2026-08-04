@@ -37,6 +37,16 @@ import { expPointsFor, tierOf } from "./model.js";
    kallaði "rauðir, dökkrauðir, jafnvel dökk gulir". Þyngd stigvaxandi:
    rauður leikur kallar á hjálp þrefalt frekar en dökkgulur.             */
 export const HARD_TIER_MIN = 3;
+/* LAGMARKS-BYRJUNARLIKUR FRAMBJODANDA. Varamarkmadur sem spilar aldrei
+   var fullgildur frambjodandi: heilbrigdur (tiltaekileiki 1,0), odyr
+   (undir verdthakinu) og med graena leiki (FFDR er eiginleiki LIDSINS).
+   Notandinn sa slika menn a listanum og bad um lagfaeringu 4.8.2026.
+   Golfid notar MAELDA 6h-likanid (startProbability, Brier -24%):
+   maelt a raungognum 4.8. eru hreinir varamarkmenn P=0,038-0,039 en
+   hvildur adalmarkmadur (Raya, GW38) P=0,47 — 0,15 sker their fyrri fra
+   med breidu bili a bada boga. P=null (engin gogn, t.d. nyr leikmadur)
+   UTILOKAR EKKI: "engin gogn" og "spilar ekki" eru ekki sama hlutid.   */
+export const MIN_START_PROB = 0.15;
 /* Thyngd per threp. HLUTLAUST (2) faer 0,5 og telur AÐEINS thegar
    throskuldurinn er faerdur nidur i 2 — tha er spurningin "grænn leikur
    a moti hvitum": hvitur utileikur er ekki VONDUR en hann er UPPFAERANLEGUR
@@ -93,13 +103,15 @@ export function coversNeed(cell, hardFrom = HARD_TIER_MIN) {
 export function findRotationPartners({
   targets, candidates, gwFrom, horizon = DEFAULT_HORIZON, maxGw = 38,
   fixByTeamGw, fixDifficulty, ownedIds, limit = 10, maxTenths = null,
-  hardFrom = HARD_TIER_MIN, byTeamOnly = true,
+  hardFrom = HARD_TIER_MIN, byTeamOnly = true, startProbOf = null,
 }) {
   const gws = horizonGws(gwFrom, horizon, maxGw);
   const T = (targets || []).filter(t => t?.p);
   const owned = ownedIds instanceof Set ? ownedIds : new Set(ownedIds || []);
   if (!T.length || !gws.length)
     return { gws, hard: [], totalNeed: 0, targets: [], results: [] };
+  /* Byrjunar-likur: null = engin gogn = voginni sleppt (x1). */
+  const pOf = p => (startProbOf ? startProbOf(p) : null);
 
   /* 1. Rúta hvers markmanns yfir sjóndeildarhringinn */
   const tRows = T.map(t => ({
@@ -109,11 +121,13 @@ export function findRotationPartners({
   }));
 
   /* 2. Þörf per umferð. Tveir menn valdir -> ÞYNGDIN LEGGST SAMAN, svo
-        umferð þar sem BÁÐIR eru þungir fer efst í forgang.              */
+        umferð þar sem BÁÐIR eru þungir fer efst í forgang.
+        ep er VEGID med byrjunar-likum (symmetriskt vid frambjodendur):
+        vaentistig = P(spilar) x stig|spilar.                            */
   const need = gws.map((gw, i) => {
     const per = tRows.map(t => ({
       id: t.p.id, name: t.p.web_name, cell: t.cells[i], need: needOf(t.cells[i], hardFrom),
-      ep: epOf(t.p, t.teamId, t.cells[i], fixDifficulty),
+      ep: epOf(t.p, t.teamId, t.cells[i], fixDifficulty) * (pOf(t.p) ?? 1),
     }));
     return { gw, need: per.reduce((a, x) => a + x.need, 0), per };
   });
@@ -133,12 +147,18 @@ export function findRotationPartners({
        (sjálfgildi þar: verð mannsins + 2,0) og er EKKI hluti líkansins —
        það afmarkar aðeins hvað er raunverulega í boði.                  */
     if (maxTenths != null && (c.p.now_cost ?? 0) > maxTenths) continue;
+    /* BYRJUNAR-GOLFID: madur sem MAELIST ekki spila (P < 0,15) er ekki
+       par, sama hversu graenir leikir lidsins hans eru — FFDR er
+       eiginleiki lidsins en stigin krefjast thess ad HANN se a vellinum.
+       null sleppur i gegn: engin gogn eru ekki donn a bekknum.          */
+    const cP = pOf(c.p);
+    if (cP != null && cP < MIN_START_PROB) continue;
     let gain = 0, covered = 0;
     const per = [];
     for (const n of hard) {
       const cell = gwCell({ teamId: c.teamId, pos: c.p.element_type, gw: n.gw,
                             fixByTeamGw, fixDifficulty });
-      const cEp = epOf(c.p, c.teamId, cell, fixDifficulty);
+      const cEp = epOf(c.p, c.teamId, cell, fixDifficulty) * (cP ?? 1);
       /* skipt er út þeim VERSTA af völdu mönnunum sem er þungur í þessari
          umferð — það er stærsta framförin sem raunverulega er í boði.   */
       const hardHere = n.per.filter(x => x.need > 0);
@@ -154,7 +174,7 @@ export function findRotationPartners({
     out.push({
       p: c.p, teamId: c.teamId, owned: owned.has(c.p.id),
       cover: Math.round(100 * covered / totalNeed),
-      gain: +gain.toFixed(2), per,
+      gain: +gain.toFixed(2), per, startP: cP,
     });
   }
 

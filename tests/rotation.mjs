@@ -323,5 +323,83 @@ for (const p of players.filter(x => x.element_type === 1).slice(0, 40)) {
 ok(gkOk && gkOk.results.every(x => x.p.element_type === 1),
   "markmaður á raunverulegum gögnum -> AÐEINS markmenn í tillögum");
 
+/* ---------- 7. BYRJUNAR-GOLFID — varamadur sem spilar ekki er EKKI par ----------
+   Notandinn sa varamarkmenn sem spila ALDREI a listanum (4.8.2026):
+   heilbrigdur (tiltaekileiki 1,0), odyr og med graena leiki lidsins.
+   Golfid notar 6h-likanid: MAELT a raungognum eru hreinir varamarkmenn
+   P=0,038 en hvildur adalmadur (Raya GW38) P=0,47 — MIN_START_PROB=0,15
+   sker med breidu bili a bada boga. LYKILATRIDI: P=null (engin gogn,
+   t.d. nyr leikmadur) utilokar EKKI — "engin gogn" er ekki "bekkur".   */
+console.log(`\n${"─".repeat(84)}`);
+console.log("7. BYRJUNAR-GOLFID OG -VOGIN (startProbOf)");
+console.log("─".repeat(84));
+{
+  const { MIN_START_PROB } = await import("../src/rotation.js");
+  ok(MIN_START_PROB === 0.15,
+    `golfid er 0,15 — undir hvildar-adalmanni (0,47) og yfir hreinum varamanni (0,038)`);
+
+  /* minn madur (lid 10, thungur 2 og 4) + tveir frambjodendur i SAMA
+     spegil-lidi (20): adalmadurinn P=0,9 og varamadurinn P=0,04.
+     byTeamOnly:false svo badir sjaist; eini munurinn er P.              */
+  const me = mk(1, 10), star = mk(2, 20), backup = mk(3, 20);
+  const P = { 2: 0.9, 3: 0.04 };
+  const args = {
+    targets: [{ p: me, teamId: 10 }],
+    candidates: [{ p: star, teamId: 20 }, { p: backup, teamId: 20 }],
+    gwFrom: 1, horizon: 6, maxGw: 38, fixByTeamGw, fixDifficulty,
+    byTeamOnly: false,
+  };
+  const r1 = findRotationPartners({ ...args, startProbOf: p => P[p.id] ?? null });
+  ok(r1.results.some(x => x.p.id === 2), "adalmadurinn (P=0,9) er a listanum");
+  ok(!r1.results.some(x => x.p.id === 3),
+    "varamadurinn (P=0,04) er EKKI a listanum thott leikir lidsins seu eins");
+  ok(r1.results.find(x => x.p.id === 2)?.startP === 0.9,
+    "byrjunar-likurnar fylgja rodinni (fyrir birtingu i UI)");
+
+  /* engin gogn (null) utilokar EKKI — nyr leikmadur an sogu er i lauginni */
+  const r2 = findRotationPartners({ ...args, startProbOf: p => (p.id === 3 ? null : P[p.id]) });
+  ok(r2.results.some(x => x.p.id === 3),
+    "P=null (engin gogn) utilokar EKKI — nyr leikmadur helst i lauginni");
+
+  /* an startProbOf er hegdunin OBREYTT (gamla leidin) */
+  const r3 = findRotationPartners(args);
+  ok(r3.results.some(x => x.p.id === 3),
+    "an startProbOf er engin utilokun (bakvirk samhaefni)");
+
+  /* VOGIN: tveir eins menn, P 0,9 og 0,5 -> sa med haerri P vinnur.
+     Badir yfir golfinu, sami FFDR, sama verd — adeins P skilur.        */
+  const a = mk(4, 20), b = mk(5, 20);
+  const P2 = { 4: 0.5, 5: 0.9 };
+  const r4 = findRotationPartners({
+    targets: [{ p: me, teamId: 10 }],
+    candidates: [{ p: a, teamId: 20 }, { p: b, teamId: 20 }],
+    gwFrom: 1, horizon: 6, maxGw: 38, fixByTeamGw, fixDifficulty,
+    byTeamOnly: false, startProbOf: p => P2[p.id] ?? null,
+  });
+  const ia = r4.results.findIndex(x => x.p.id === 4);
+  const ib = r4.results.findIndex(x => x.p.id === 5);
+  ok(ib >= 0 && ia >= 0 && ib < ia,
+    `vinningurinn er VEGINN med P: sa med 0,9 radast ofar theim med 0,5 (${ib} < ${ia})`);
+  const g4 = r4.results[ia].gain, g5 = r4.results[ib].gain;
+  ok(g5 > g4, `vegni vinningurinn er staerri hja P=0,9 (${g5} > ${g4})`);
+
+  /* MARKMADURINN SJALFUR er lika veginn: sami frambjodandi gefur MEIRI
+     vinning gegn manni sem spilar ekki (ep hans nalgast 0).            */
+  const r5 = findRotationPartners({
+    targets: [{ p: me, teamId: 10 }],
+    candidates: [{ p: star, teamId: 20 }],
+    gwFrom: 1, horizon: 6, maxGw: 38, fixByTeamGw, fixDifficulty,
+    byTeamOnly: false, startProbOf: p => (p.id === 1 ? 0.2 : 0.9),
+  });
+  const r6 = findRotationPartners({
+    targets: [{ p: me, teamId: 10 }],
+    candidates: [{ p: star, teamId: 20 }],
+    gwFrom: 1, horizon: 6, maxGw: 38, fixByTeamGw, fixDifficulty,
+    byTeamOnly: false, startProbOf: p => (p.id === 1 ? 0.9 : 0.9),
+  });
+  ok(r5.results[0].gain > r6.results[0].gain,
+    "vogin er symmetrisk: vinningur eykst thegar MINN madur spilar sjaldnar");
+}
+
 console.log(`\nRÓTERINGS-PAR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

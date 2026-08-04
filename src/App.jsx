@@ -1362,6 +1362,14 @@ export default function App() {
     return m;
   }, [players, lang]);
 
+  /* Byrjunar-likur EINAR (fyrir roterings-parid o.fl.) — sama utfaersla og
+     signalsOf notar, an mo/ao/verd-hlutans. null = engin gogn, EKKI 0.   */
+  const startPOf = useCallback(p => {
+    if (!p) return null;
+    const im = matchImminent(p, immIdx, teamById?.[p.team]?.short);
+    return im?.start_feats ? startProbability(im.start_feats) : null;
+  }, [immIdx, teamById, lang]);
+
   const signalsOf = useCallback(p => {
     if (!p) return null;
     const im = matchImminent(p, immIdx, teamById?.[p.team]?.short);
@@ -2963,6 +2971,7 @@ export default function App() {
       {!!rotIds.length && (
         <Rotation targetIds={rotIds} players={players} teamById={teamById}
           fixByTeamGw={fixByTeamGw} fixDifficulty={fixDifficulty}
+          startProbOf={startPOf}
           gwNow={gw} maxGw={maxGw} squadIds={squadIds} Crest={Crest}
           onToggleTarget={id => setRotIds(v => v.includes(id)
             ? (v.length > 1 ? v.filter(x => x !== id) : v)
