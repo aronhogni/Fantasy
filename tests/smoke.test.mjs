@@ -365,6 +365,31 @@ ok(cells.some(c => /^[A-Z]{3}/.test((c.textContent || "").trim()))
    && cells.some(c => /^[a-z]{3}/.test((c.textContent || "").trim())),
   "heima (STORT) og uti (litid) sest afram i staffrodinni");
 
+console.log("\n=== 14. FPL-TENGING: STADFESTING OG VILLUR ===");
+/* ThAD SEM BRAST: connectUrl sendi flash("Tengt lid X") SAMSTUNDIS — adur en
+   nokkud var sannreynt — og ef soknin brast var thad ThOGULT
+   (`catch { setTotalPts(null) }`). Notandinn sa "tengt" og svo EKKERT, og
+   fekk enga visbendingu um hvad hann atti ad lima inn.
+   MAELT 4.8.2026: `fpl-entry` virkar i forleik (skilar nafni stjornandans) en
+   `fpl-picks` er 404 thvi FPL birtir ekki lid fyrir umferd sem er EKKI byrjud.
+   Tengingin er thvi sannreynd med fpl-entry og forleiks-stodan skyrd.     */
+const urlInput = container.querySelector("input.url-input");
+ok(!!urlInput, "slodar-innslattur finnst");
+ok(/entry\/NÚMER|entry\/NUMBER/.test(urlInput?.title || ""),
+  "tooltip segir HVADA part af slodinni a ad lima (var ekkert)");
+ok(/1234567/.test(urlInput?.title || ""), "og gefur DAEMI, ekki adeins reglu");
+const connBtn = [...container.querySelectorAll("button")]
+  .find(b => /Tengja|Uppfæra|Connect|Update/.test(b.textContent));
+ok(!!connBtn, "Tengja-hnappur finnst");
+/* REGLAN SJALF er profud i tests/model.test.mjs (parseEntryId) — HREINT
+   fall. Innslattur i STYRDA React-reiti er otraustur i jsdom (kafli 4), svo
+   ad drifa hann her maelir jsdom og ekki regluna. Fyrsta utgafa thessa
+   profs gerdi thad og fell af theim sokum, ekki af kodanum.
+   Her er thvi adeins profad thad sem jsdom GETUR sagt: ad merkid se til,
+   ad thad segi hvad a ad lima, og ad gamla ostadfesta "tengt" se farid.  */
+ok(!/Tengt lið .* sæki raunlið/.test(text()),
+  "GAMLA HEGDUNIN ER FARIN: engin 'tengt' stadfesting an sannreyningar");
+
 console.log(`\n========================================`);
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

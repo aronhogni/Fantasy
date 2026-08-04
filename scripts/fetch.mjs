@@ -529,10 +529,20 @@ async function fetchLineups() {
        NU: svarid er GEYMT i lineups.json og endurtekid adeins ef thad er
        eldra en PROBE_TTL_DAYS. Vid leikdag er thetta hvort sem er ekki
        notad — tha eru raunveruleg kall gerd.                             */
-    const PROBE_TTL_DAYS = 7;
+/* OSAMHVERF GEYMSLA — LAGAD 4.8.2026. Fyrsta utgafan geymdi SVARID i 7
+       daga oháð thvi HVERT thad var, og thad hafdi afleidingu sem eg sa ekki
+       fyrr en reikningurinn var lagfaerdur: geymda svarid var UPPSOGN, svo
+       pipeline hefdi EKKI tekid eftir ad adgangur var kominn aftur i allt ad
+       viku. Geymsla sem thaggar nidur GODAR frettir er ekki geymsla, hun er
+       hindrun.
+       Rett regla: HEILBRIGT svar ma geyma lengi (thad breytist ekki), en
+       BLOKKERAD svar er stod sem er VAENTANLEGA timabundin og a ad reyna
+       aftur fljott. 7 dagar a moti 1 degi.                                */
+    const PROBE_TTL_OK = 7, PROBE_TTL_BLOCKED = 1;
     let prev = null;
     try { prev = JSON.parse(await readFile(`${DATA}/lineups.json`, "utf8")).probe; } catch {}
     const prevAge = prev?.at ? (Date.now() - Date.parse(prev.at)) / 864e5 : Infinity;
+    const PROBE_TTL_DAYS = prev?.gated ? PROBE_TTL_BLOCKED : PROBE_TTL_OK;
     if (prev && prevAge < PROBE_TTL_DAYS) {
       await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [],
         players: [], probe: prev,

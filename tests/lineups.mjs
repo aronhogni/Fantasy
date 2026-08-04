@@ -195,6 +195,25 @@ console.log("─".repeat(84));
   ok(r2.calls.length === 0, `onnur keyrsla gerir ENGIN koll (${r2.calls.length})`);
   ok(r2.written?.obj?.probe?.at === r1.written.obj.probe.at, "geymda svarid er bori\u00f0 afram obreytt");
   ok(/geymt svar/.test(r2.rec.note), `status segir ad svarid se geymt: "${r2.rec.note.slice(0, 60)}"`);
+  /* BLOKKERAD svar a ad reynast aftur EFTIR EINN DAG, ekki sjo — annars
+     tekur pipeline ekki eftir ad adgangur se kominn aftur. Thetta var
+     raunveruleg afleiding: reikningurinn var lagfaerdur 4.8. en geymda
+     uppsognin var fra 2.8., svo an thessa hefdi hann bedid til ~9.8.     */
+  const blocked2d = { ...r1.written.obj,
+    probe: { at:new Date(Date.now() - 2 * 864e5).toISOString(), http:200,
+             errors:{ access:"suspended" }, gated:true } };
+  await writeFile(join(dir, "lineups.json"), JSON.stringify(blocked2d));
+  const rb = await run({ dir, responder: () => FRESH });
+  ok(rb.calls.length === 1,
+    `2 daga gamalt BLOKKERAD svar -> spurt aftur (${rb.calls.length} kall)`);
+  const ok2d = { ...r1.written.obj,
+    probe: { at:new Date(Date.now() - 2 * 864e5).toISOString(), http:200,
+             errors:[], gated:false } };
+  await writeFile(join(dir, "lineups.json"), JSON.stringify(ok2d));
+  const ro = await run({ dir, responder: () => { throw new Error("ATTI EKKI AD KALLA"); } });
+  ok(ro.calls.length === 0,
+    `2 daga gamalt HEILBRIGT svar -> EKKI spurt aftur (${ro.calls.length} koll)`);
+
   /* gamalt svar (>7 dagar) -> spurt aftur */
   const old = { ...r1.written.obj,
     probe: { ...r1.written.obj.probe, at: new Date(Date.now() - 9 * 864e5).toISOString() } };

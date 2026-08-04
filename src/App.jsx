@@ -18,7 +18,7 @@ import { useLang } from "./useLang.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
-  cleanSheetProb, rankScore, eloStale } from "./model.js";
+  cleanSheetProb, rankScore, eloStale, parseEntryId } from "./model.js";
 
 /* ============================================================
    FPL PLÖNUN — v3
@@ -527,6 +527,11 @@ export default function App() {
   const [entryId, setEntryId] = useState(null);
   const [urlInput, setUrlInput] = useState("");
   const [squadOverride, setSquadOverride] = useState(null); // raunlið úr FPL-slóð
+  /* STADA TENGINGARINNAR. Adur var flash("Tengt lid X") sent SAMSTUNDIS —
+     ADUR en nokkud var sannreynt — og ef soknin brast var thad ThOGULT
+     (`catch { setTotalPts(null) }`). Notandinn sa thvi "tengt" og svo
+     ekkert. Nu er thetta thrjar adgreindar stodur med raunverulegu svari. */
+  const [conn, setConn] = useState({ state: "idle", msg: "", name: null, picks: null });
   const [plan, setPlan] = useState([]);            // [{gw, outId, inId}]
   const [captain, setCaptain] = useState(START_CAPTAIN);
   const [vice, setVice] = useState(null);
@@ -736,6 +741,17 @@ export default function App() {
         if (d?.entry_history?.bank != null) setApiBank(d.entry_history.bank);
         // FPL segir okkur raunverulega refsingu sem var tekin í umferðinni
         setApiHit(d?.entry_history?.event_transfers_cost ?? null);
+        if (d?.error) {
+          /* SKYRING I STAD ThOGNAR. Forleikur: FPL birtir ekki `picks` fyrir
+             umferd sem er EKKI byrjud — /entry/{id}/event/{gw}/picks/ er 404.
+             Thad er ekki villa i slodinni og notandinn a ad vita thad. */
+          const is404 = /404/.test(String(d.error));
+          setConn(c => (c.state === "ok" || c.state === "picks")
+            ? { ...c, state:"picks", picks:false,
+                msg: is404 ? tx("Tengt ✓ — en FPL birtir ekki liðið fyrr en umferð {0} byrjar. Stig og raunlið koma þá sjálfkrafa.", [gw])
+                           : tx("Tengt ✓ — en náði ekki liðinu ({0}).", [String(d.error).slice(0, 40)]) }
+            : c);
+        }
         if (Array.isArray(d?.picks) && d.picks.length) {
           setSquadOverride(d.picks.map((p, i) => ({
             id: p.element, starter: p.position <= 11, order: p.position,
@@ -749,6 +765,10 @@ export default function App() {
           const v = d.picks.find(p => p.is_vice_captain);
           if (c) setCaptain(c.element);
           if (v) setVice(v.element);
+          /* STADFESTING A ThVI SEM SKIPTIR: lidid UPPFAERDIST. */
+          setConn(cc => ({ ...cc, state:"picks", picks:true,
+            msg: tx("Tengt ✓ — {0} leikmenn sóttir úr FPL fyrir umferð {1}.",
+                    [d.picks.length, gw]) }));
         }
       } catch { setTotalPts(null); setGwPts(null); }
     })();
@@ -1323,10 +1343,42 @@ export default function App() {
     flash(tx("Öll plönun endurstillt."));
   }
 
-  function connectUrl() {
-    const m = urlInput.match(/entry\/(\d+)/) || urlInput.match(/^(\d+)$/);
-    if (!m) { flash(tx("Slóð þarf að innihalda /entry/{númer}/")); return; }
-    setEntryId(m[1]); flash(tx("Tengt lið {0} — sæki raunlið og stig.", [m[1]]));
+  /* TENGING ER NU SANNREYND. `fpl-entry` virkar i forleik (skilar nafni
+     stjornandans) svo vid getum stadfest ad slodin/numerid se RETT thott
+     `fpl-picks` se ekki til fyrr en umferdin byrjar. Thad er kjarninn:
+     tvennt sem brast var (a) engin stadfesting, (b) thogul mistok.       */
+  async function connectUrl() {
+    const raw = (urlInput || "").trim();
+    if (!raw) { setConn({ state:"error", msg:tx("Límdu FPL-slóðina þína eða liðsnúmerið."), name:null, picks:null }); return; }
+    /* Leyfilegt: full slod (hvada undirsida sem er), /entry/NNN, eda bert numer */
+    const parsed = parseEntryId(raw);
+    if (parsed.error) {
+      setConn({ state:"error", name:null, picks:null,
+        msg: parsed.error === "league"
+          ? tx("Þetta er DEILDAR-slóð. Notaðu slóðina á LIÐIÐ þitt — hún inniheldur /entry/NÚMER/.")
+          : tx("Fann ekki liðsnúmer. Slóðin þarf að innihalda /entry/NÚMER/ — eða límdu bara númerið.") });
+      return;
+    }
+    const id = parsed.id;
+    if (!PROXY_URL) { setConn({ state:"error", msg:tx("Vantar proxy — get ekki talað við FPL."), name:null, picks:null }); return; }
+    setConn({ state:"checking", msg:tx("Athuga lið {0} …", [id]), name:null, picks:null });
+    try {
+      const r = await fetch(`${PROXY_URL}?path=fpl-entry&id=${id}`);
+      const d = await r.json();
+      if (d?.error || d?.id == null) {
+        setConn({ state:"error", name:null, picks:null,
+          msg: tx("Lið {0} fannst ekki hjá FPL. Athugaðu númerið.", [id]) });
+        return;
+      }
+      const nm = [d.player_first_name, d.player_last_name].filter(Boolean).join(" ");
+      const team = d.name || "";
+      setEntryId(id);
+      setConn({ state:"ok", name: team || nm, picks:null,
+        msg: tx("Tengt: {0}{1} — lið {2}", [team || nm, team && nm ? ` (${nm})` : "", id]) });
+    } catch (e) {
+      setConn({ state:"error", name:null, picks:null,
+        msg: tx("Náði ekki sambandi við FPL ({0}).", [String(e.message || e).slice(0, 40)]) });
+    }
   }
 
   /* ---------- Leit (allir 558) ---------- */
@@ -1770,10 +1822,35 @@ export default function App() {
           <button style={{ ...S.searchBtn, ...(showChips ? S.searchBtnOn : {}) }}
             onClick={() => setShowChips(v => !v)}
             title="Wildcard, Free Hit, Bench Boost, Triple Captain">{tx("🎫 Chips")}</button>
-          <input className="url-input" style={S.urlInput} placeholder="FPL Url" value={urlInput}
+          <input className="url-input" style={S.urlInput}
+            placeholder={tx("FPL-slóð eða liðsnúmer")} value={urlInput}
+            title={tx("Límdu slóðina á LIÐIÐ þitt (hún inniheldur /entry/NÚMER/) — eða bara númerið. Dæmi: fantasy.premierleague.com/entry/1234567/event/1")}
             onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && connectUrl()} />
-          <button style={S.connectBtn} onClick={connectUrl}>{entryId ? tx("Uppfæra") : tx("Tengja")}</button>
+          <button style={S.connectBtn} onClick={connectUrl}
+            disabled={conn.state === "checking"}>
+            {conn.state === "checking" ? tx("Athuga …") : entryId ? tx("Uppfæra") : tx("Tengja")}</button>
         </div>
+        {/* STADA TENGINGARINNAR — SYNILEG. Adur var engin stadfesting og
+            engin villa: notandinn sa "Tengt lid X" samstundis og svo ekkert
+            thott soknin hefdi brostid. Nu sest hvad gerdist i raun.       */}
+        {conn.state !== "idle" && (
+          <div style={{ ...S.connMsg,
+            background: conn.state === "error" ? "#fdecee"
+                      : conn.state === "checking" ? "#f4f4f6"
+                      : conn.picks === false ? "#fff6e0" : "#e6f9f0",
+            color: conn.state === "error" ? "#93202b"
+                 : conn.state === "checking" ? C.text2
+                 : conn.picks === false ? "#7a5600" : "#046b41" }}>
+            {conn.state === "error" ? "✕ " : conn.state === "checking" ? "… "
+              : conn.picks === false ? "⚠ " : "✓ "}
+            {conn.msg}
+            {conn.state === "error" && (
+              <span style={S.connHint}>
+                {" "}{tx("Dæmi: fantasy.premierleague.com/entry/1234567/event/1 — eða bara 1234567")}
+              </span>
+            )}
+          </div>
+        )}
       </header>
 
       {/* ---------- Flipar ----------
@@ -3533,6 +3610,9 @@ const S = {
 
   head: { display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:14, flexWrap:"wrap" },
   headRight: { display:"flex", gap:8, alignItems:"center" },
+  connMsg: { margin:"6px 0 0", padding:"5px 9px", borderRadius:6, fontSize:11.5,
+    lineHeight:1.5, maxWidth:"100%" },
+  connHint: { opacity:0.85, fontFamily:mono, fontSize:10.5 },
   urlInput: { background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 11px", fontSize:13, color:C.text, width:210, outline:"none" },
   searchBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:8, padding:"8px 12px", fontSize:12.5, color:C.text, cursor:"pointer", whiteSpace:"nowrap" },
   connectBtn: { background:C.purple, color:"#fff", border:"none", borderRadius:8, padding:"9px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },

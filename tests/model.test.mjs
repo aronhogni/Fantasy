@@ -15,7 +15,7 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   makeFixDifficulty, cleanSheetProb, lambdaFromStrength,
   rankScore, RANK_W } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
-import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, availForKickoff,
+import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, availForKickoff, parseEntryId,
          eloStale, parseReturn } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
@@ -482,6 +482,39 @@ console.log(`  data/elo.json: ${stReal ? stReal.days.toFixed(1) + " dagar (" + s
    vaeri prof a ClubElo, ekki a okkar koda. Talan er logguð til upplysingar.
    (Fyrsta utgafa min hafdi hér `ok(... || true)` sem GAT EKKI FALLID — prof
    sem getur ekki fallid er verra en ekkert prof.)                        */
+
+/* ---------- 14. FPL-SLOD -> LIDSNUMER ----------
+   Notandinn: "Thad virkar ekki ad setja inn url. Hvada part af urlinu a ad
+   fara inn? Thad kemur engin villa eda athugasemd sem segir stadfest."
+   Reglan er nu hreint fall svo hun se profanleg — jsdom getur ekki drifid
+   styrda React-reiti a aabyggilegan hatt (kafli 4).                       */
+console.log("\n=== 14. FPL-SLOD -> LIDSNUMER ===");
+{
+  const E = (v) => parseEntryId(v).error, I = (v) => parseEntryId(v).id;
+  ok(I("https://fantasy.premierleague.com/entry/1234567/event/1") === "1234567",
+    "full slod med /event/ -> numerid");
+  ok(I("https://fantasy.premierleague.com/entry/1234567/history") === "1234567",
+    "onnur undirsida virkar lika (/history)");
+  ok(I("fantasy.premierleague.com/entry/98765/") === "98765", "an https og med skastriki");
+  ok(I("entry/42") === "42", "adeins slodar-buturinn");
+  ok(I("1234567") === "1234567", "BERT numer");
+  ok(I("  1234567  ") === "1234567", "bil kringum numer eru snyrt");
+  ok(I("#1234567") === "1234567", "# fyrir framan (fpl syn stundum svo)");
+  ok(E("") === "empty" && E("   ") === "empty", "tomt -> 'empty' (bidjum um innslatt)");
+  ok(E("https://fantasy.premierleague.com/leagues/314/standings/c") === "league",
+    "DEILDAR-slod -> 'league' (algengasta mistokin fær SERTAEKA villu)");
+  ok(E("https://fantasy.premierleague.com/league/314/standings") === "league",
+    "eintala 'league' lika");
+  ok(E("bull") === "none" && E("https://google.com") === "none",
+    "rusl -> 'none', engin agiskun");
+  ok(E("my-team") === "none",
+    "/my-team hefur ekkert numer — thad er innskrada sidan, ekki opinber slod");
+  ok(parseEntryId(null).error === "empty" && parseEntryId(undefined).error === "empty",
+    "null/undefined hrynja ekki");
+  /* Ekki taka numer ur ORUM stodum i slodinni */
+  ok(I("https://fantasy.premierleague.com/leagues/314/standings/c") === undefined,
+    "deildarnumer (314) er EKKI tekid sem lidsnumer");
+}
 
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

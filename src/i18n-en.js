@@ -78,8 +78,6 @@ export const EN = {
     "Illegal formation (1 GK, 3+ DEF, 2+ MID, 1+ FWD).",
   "GW{0} endurstillt — upprunalega liðið aftur.": "GW{0} reset — original squad restored.",
   "Öll plönun endurstillt.": "All planning reset.",
-  "Slóð þarf að innihalda /entry/{númer}/": "The URL must contain /entry/{number}/",
-  "Tengt lið {0} — sæki raunlið og stig.": "Connected team {0} — fetching real squad and points.",
   /* Rodunarskor — drivers */
   "mín {0}′": "mins {0}′",
   "mín {0}%": "mins {0}%",
@@ -1256,4 +1254,26 @@ export const EN = {
   "4–10 og ná aldrei 1": "4–10 and never reach 1",
   "— FPL notar annan grunn þar. Eldri útgáfa krafðist talsins 1 og sýndi því aldrei hornataka.": "— FPL uses a different base there. An older version required the number 1 and so never showed a corner taker.",
   "Röðunin er handskráð hjá FPL og getur verið úrelt snemma tímabils — sannreyndu gegn síðustu leikjum áður en þú byggir fyrirliða-val á henni.": "The order is hand-entered by FPL and can be stale early in the season — verify against recent matches before basing a captaincy pick on it.",
+  /* FPL-TENGING: sannreynd med raunverulegu svari (4.8.2026). Adur var
+     "Tengt lid X" sent SAMSTUNDIS og mistok voru ThOGUL. */
+  "Límdu slóðina á LIÐIÐ þitt (hún inniheldur /entry/NÚMER/) — eða bara númerið. Dæmi: fantasy.premierleague.com/entry/1234567/event/1":
+    "Paste the link to YOUR TEAM (it contains /entry/NUMBER/) — or just the number. Example: fantasy.premierleague.com/entry/1234567/event/1",
+  "Athuga …": "Checking …",
+  "Athuga lið {0} …": "Checking team {0} …",
+  "Límdu FPL-slóðina þína eða liðsnúmerið.": "Paste your FPL link or team ID.",
+  "Þetta er DEILDAR-slóð. Notaðu slóðina á LIÐIÐ þitt — hún inniheldur /entry/NÚMER/.":
+    "That is a LEAGUE link. Use the link to YOUR TEAM — it contains /entry/NUMBER/.",
+  "Fann ekki liðsnúmer. Slóðin þarf að innihalda /entry/NÚMER/ — eða límdu bara númerið.":
+    "No team ID found. The link must contain /entry/NUMBER/ — or just paste the number.",
+  "Vantar proxy — get ekki talað við FPL.": "No proxy — cannot reach FPL.",
+  "Lið {0} fannst ekki hjá FPL. Athugaðu númerið.": "FPL has no team {0}. Check the number.",
+  "Tengt: {0}{1} — lið {2}": "Connected: {0}{1} — team {2}",
+  "Náði ekki sambandi við FPL ({0}).": "Could not reach FPL ({0}).",
+  "Tengt ✓ — en FPL birtir ekki liðið fyrr en umferð {0} byrjar. Stig og raunlið koma þá sjálfkrafa.":
+    "Connected ✓ — but FPL does not publish the squad until gameweek {0} starts. Points and your real squad will arrive automatically.",
+  "Tengt ✓ — en náði ekki liðinu ({0}).": "Connected ✓ — but could not fetch the squad ({0}).",
+  "Tengt ✓ — {0} leikmenn sóttir úr FPL fyrir umferð {1}.":
+    "Connected ✓ — {0} players fetched from FPL for gameweek {1}.",
+  "Dæmi: fantasy.premierleague.com/entry/1234567/event/1 — eða bara 1234567":
+    "Example: fantasy.premierleague.com/entry/1234567/event/1 — or just 1234567",
 };

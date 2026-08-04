@@ -547,6 +547,22 @@ export function computeTransferCost({ plan, chipAt, maxGw, preSeason }) {
    formi þegar það rennur út. ATH þó að mælingin gat EKKI skilið bönn frá
    meiðslum (engin news-saga til), svo 1,0 er dómur um EÐLI banns, ekki
    mælt gildi. Það er skjalað hér vísvitandi.                            */
+/* ---- FPL-SLOD -> LIDSNUMER ----
+   HREINT FALL svo thad se profanlegt. Innslattur i STYRDA React-reiti er
+   ótraustur i jsdom (kafli 4), svo ad profa thetta gegnum vidmotid maelir
+   jsdom og ekki regluna. Reglan sjalf er thad sem getur brostid.
+   Skilar { id } eda { error: "empty"|"league"|"none" }.                   */
+export function parseEntryId(raw) {
+  const t = String(raw ?? "").trim();
+  if (!t) return { error: "empty" };
+  const m = t.match(/entry\/(\d+)/) || t.match(/^#?(\d+)$/);
+  if (m) return { id: m[1] };
+  /* Algengasta mistokin: deildar-slod i stad lids-slodar. Hun a ad fa
+     SERTAEKA villu, annars leitar notandinn i tomu. */
+  if (/leagues?\//i.test(t)) return { error: "league" };
+  return { error: "none" };
+}
+
 export const RETURN_AVAIL = { ban: 1.0, injury: 0.69 };
 
 /* ---- ALDUR A FFDR-INNTAKI (ThOGUL BILUN) ----

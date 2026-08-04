@@ -278,6 +278,9 @@ console.log("\n=== D. TEXTI SEM BREYTTIST EKKI ===");
 /* Viljandi EINS a badum malum. Hver flokkur med astaedu — thetta er
    samningurinn sem CLAUDE.md kafli 8b lysir.                          */
 const IDENTICAL = new Set([
+  /* SLODA-HLUTAR. Daemid um FPL-slodina (.../entry/1234567/event/1) er
+     ordrett eins a badum malum — slod er slod. 4.8.2026.               */
+  "entry", "event", "premierleague", "fantasy", "com",
   /* stat-skammstafanir: ensk thegar, FPL-notendur thekkja thaer svona */
   "xG", "xA", "xGI", "xGC", "BPS", "BP", "ICT", "DC", "CS", "GC", "YC", "RC",
   "FDR", "FFDR", "EP", "ep", "GW", "PEN", "DefCon", "CBIT", "xG90", "xA90",
