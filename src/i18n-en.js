@@ -460,6 +460,16 @@ export const EN = {
   "{0} byrjaðir · hrá {1}%": "{0} starts · raw {1}%",
   "Byrjunar-líkur (mælt líkan, gluggi = síðustu 5 loknu umferðir). Vinningurinn er veginn með þessari tölu; undir 15% kemst enginn á listann.":
     "Start probability (measured model, window = last 5 finished gameweeks). The gain is weighted by this number; below 15% nobody makes the list.",
+  "DC-hittni (yfirstandandi)": "DC hit rate (current season)",
+  "DC-hittni (leiðrétt)": "DC hit rate (adjusted)",
+  "DC-hittni (hrá)": "DC hit rate (raw)",
+  "DC-leikir (n)": "DC games (n)",
+  "Hlutfall byrjunarleikja sem ná DefCon-þröskuldinum, AFTURVIRKJAÐ fyrir sýnastærð (empirísk Bayes, k=10 að stöðu-meðaltali). Notið þessa, ekki þá hráu — og lesið n við hliðina.":
+    "Share of starts reaching the DefCon threshold, SHRUNK for sample size (empirical Bayes, k=10 towards the position mean). Use this one, not the raw — and read n next to it.",
+  "Hrá hittni (hits/starts) — OFMÆLIST á litlum sýnum (75% á n=12 getur verið 57% í raun). Sýnd til gagnsæis; leiðrétta talan er sú sem gildir.":
+    "Raw hit rate (hits/starts) — OVERESTIMATES on small samples (75% at n=12 can be 57% in truth). Shown for transparency; the adjusted number is the one that counts.",
+  "Fjöldi leikja á bak við hittnina. Lítið n = lítið að marka hráu töluna.":
+    "Games behind the hit rate. Small n = the raw number means little.",
   "{0} gul spjöld — 1 frá {1}-þröskuldi ({2} leikja bann)":
     "{0} yellow cards — 1 from the {1} threshold ({2}-match ban)",
   "Byrjaði {0} af {1} leikjum — skiptingar-hætta":

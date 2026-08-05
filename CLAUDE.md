@@ -1410,6 +1410,19 @@ neglir að afturvirkjaða talan sé aðaltalan (ekki sú hráa), að n sjáist,
 og að GK sé útilokaður. Tvær stökkbreytingar felldar (hrá í stað
 afturvirkjaðrar; GK-útilokun fjarlægð).
 
+**DÁLKAR Í LEIKMANNATÖLUM (4.8.):** eigin flokkur `dcstat`
+(„DC-hittni (yfirstandandi)" — hvorki form-gluggi né leikir framundan,
+svo heitið ljúgi ekki) með þremur dálkum: leiðrétt %, hrá % (gagnsæi)
+og n. `live_only` — fylgja EKKI völdu sögulegu tímabili.
+**VIÐ TENGINGUNA FANNST AÐ „DefCon liðs"-dálkurinn VAR DAUÐUR FRÁ
+FÆÐINGU**: cook gaf `num()` hlutinn sjálfan (ekki `.defcon_opportunity`),
+num(hlutur)=null, og null-hjá-öllum dálkur FELUR SIG SJÁLFUR sem tómur —
+eiginleikinn sem gerir dálka örugga (6i) faldi líkið. Lagað. Vörður:
+**`tests/playerlist-live-cols.mjs`** — les GILDIN úr DOM (ekki bara að
+dálkarnir séu til), notar röðunina sjálfa til að fleyta gagna-röð inn í
+sýndarglugga listans (leitin er ótraust í jsdom, smoke-gildran). Tvær
+stökkbreytingar felldar (dauði team_dc endurvakinn; adj les hráu).
+
 ### ÞEGAR UPPFYLLT — DC sem eiginleiki, ekki röðunar-ás (§5, tillaga 2)
 FFS raðar Ampadu neðstan af fjórum þrátt fyrir hæstu DC-töluna, því
 sóknarframlag ræður (31,7 DC-stig ≈ 0,83 stig/leik; eitt mark + stoðsending
@@ -1437,6 +1450,29 @@ Ytri heimildir sjá æfingaleiki, pressuherbergi og félagaskipti í rauntíma;
 söguleg byrjunar-hlutföll gera það ekki. Það rímar við 6h (líkanið er
 kvörðun, ekki véfrétt) og við að staðfest byrjunarlið (`lineups.json`)
 er lifandi merkið sem á að vega þyngst á leikdegi.
+
+---
+
+## 6m. ÞRÍR SMÆRRI EIGINLEIKAR 4.8.2026 (að beiðni: „gerðu allar hugmyndir")
+
+1. **GW1-VÖKULISTINN — `tests/gw1-checklist.mjs`.** CLAUDE.md geymdi ~6
+   dreifðar „athuga þegar GW1 klárast"-athugasemdir. Nú eru þær vélrænar:
+   safnið sefur í forleik (prófar að svefnstaðan sé samkvæm: player_form
+   tómt, defcon tómt, imminent=archive, baseline á fyrra tímabili) og
+   VAKNAR við fyrstu loknu umferð — þá verður live/gw{n}, player_form,
+   last_gw(+shots á réttri umferð), defcon MEÐ hit_rate_adj, imminent án
+   archive, baseline ÁFRAM frosið á 2025/26 og E0-2627 til. Vakandi
+   greinin var prófuð á TILBÚNUM gögnum um `GW1_DATA_DIR`-umhverfisbreytu
+   (hún hefur aldrei keyrt á raunverulegum) og þrjár svefnpurrkur felldar
+   (staðnað last_gw, horfin afturvirkni, yfirskrifað baseline).
+   **Dagurinn sem safnið fyrst fellur er dagurinn sem það borgar sig.**
+2. **ÞÉTTARI CRON Á LEIKDÖGUM** (`fetch-fast.yml`): mælt 4.8. að GitHub
+   þynnir `*/30` niður í 1–3,5 klst raunbil. Viðbótar-cron
+   `*/15 10-21 * * 0,1,5,6` (fös–mán, PL-tímar) gefur sömu þynningu
+   2–4× fleiri raunkeyrslur á leikdögum — glugginn fyrir staðfest
+   byrjunarlið er ~5 klst og liðin birtast ~60 mín fyrir leik. Kvótinn
+   er varinn í `fetch.mjs` (geymsla per leik), ekki í cron-inu.
+3. **DC-hittni dálkarnir** — sjá lok kafla 6l (og team_dc-upprisan þar).
 
 ---
 

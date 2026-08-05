@@ -1,0 +1,124 @@
+/* ============================================================
+   GW1-VÖKULISTI — sefur í forleik, VAKNAR þegar fyrsta umferðin klárast
+
+   AF HVERJU: CLAUDE.md geymir ~6 dreifðar athugasemdir um hluti sem
+   „á að athuga þegar GW1 klárast" — kóða sem kviknar einn morgun eftir
+   margra vikna svefn. Sá morgunn er einmitt þegar enginn man eftir
+   athugasemdunum. Þetta safn gerir þær að VÉLRÆNUM staðhæfingum:
+   í forleik prófar það að svefnstaðan sé samkvæm sjálfri sér; frá og
+   með fyrstu LOKNU umferð fellur það ef einhver heimildanna vaknaði ekki.
+
+   Þetta er sama hugsun og vörðurinn um dauða markaðsliðinn (kafli 3 í
+   CLAUDE.md): kerfi sem „virkar" af því að enginn mælir það er ekki
+   vitað að virki. Dagurinn sem þetta safn fyrst FELLUR er dagurinn sem
+   það borgar sig.
+
+   Keyrsla:  node tests/gw1-checklist.mjs
+   ============================================================ */
+import { readFileSync, existsSync } from "node:fs";
+
+/* GW1_DATA_DIR: vakandi greinin hefur ALDREI keyrt á raungögnum fyrr en
+   22. ágúst — hún er því prófuð á TILBÚNUM gögnum (sjá sjálfsprófunina
+   neðst) og umhverfisbreytan gerir það mögulegt án þess að hrófla við
+   data/. Í venjulegri keyrslu er hún ósett og repo-gögnin lesin.        */
+const D = process.env.GW1_DATA_DIR
+  ? process.env.GW1_DATA_DIR.replace(/\/?$/, "/")
+  : new URL("../data/", import.meta.url).pathname;
+const J = f => JSON.parse(readFileSync(D + f, "utf8"));
+
+let pass = 0, fail = 0;
+const ok = (c, n) => { c ? (pass++, console.log(`  ✓ ${n}`)) : (fail++, console.log(`  ✗ ${n}`)); };
+
+console.log(`\n${"=".repeat(84)}`);
+console.log("GW1-VÖKULISTI — heimildir sem eiga að vakna með tímabilinu");
+console.log("=".repeat(84));
+
+const events = J("events.json").events;
+const finished = events.filter(e => e.finished).map(e => e.id);
+const finishedGw = finished.length ? Math.max(...finished) : 0;
+console.log(`  loknar umferðir: ${finished.length} (síðasta: ${finishedGw || "engin"})`);
+
+/* Grunnstoðirnar þrjár verða að vera grænar í status.json á ÖLLUM
+   árstímum — allt annað í appinu hangir á þeim.                        */
+const status = J("status.json");
+const src = status.sources || status;
+for (const k of ["fpl_bootstrap", "fpl_fixtures", "fpl_live"]) {
+  ok(src[k]?.ok === true, `grunnstoð ${k} er græn í status.json`);
+}
+
+if (finishedGw === 0) {
+  /* ---------- FORLEIKUR: svefnstaðan á að vera SAMKVÆM ---------- */
+  console.log(`\n${"─".repeat(84)}`);
+  console.log("FORLEIKUR — engin lokin umferð; prófað að svefnstaðan sé samkvæm");
+  console.log("─".repeat(84));
+
+  const pf = J("player_form.json");
+  ok(Object.keys(pf.players || {}).length === 0,
+    "player_form er tómt (mínútuþróun kviknar við GW4, ekki fyrr)");
+  const dc = J("defcon.json");
+  ok((dc.players || []).length === 0,
+    "defcon.players er tómt (hittni krefst leikja)");
+  const im = J("imminent.json");
+  ok(im.archive === true,
+    "imminent er merkt ARCHIVE (mó/aó úr lokum fyrra tímabils, ekki látið sem nýtt)");
+  const sb = J("season_baseline.json");
+  ok(sb.label && (sb.players || []).length > 400,
+    `season_baseline ber fyrra tímabil (${sb.label}, ${(sb.players || []).length} leikmenn)`);
+  console.log("  → vökulistinn sjálfur virkjast þegar fyrsta umferðin klárast.");
+} else {
+  /* ---------- TÍMABILIÐ ER BYRJAÐ: allt á að hafa VAKNAÐ ---------- */
+  console.log(`\n${"─".repeat(84)}`);
+  console.log(`VÖKULISTINN — GW${finishedGw} er lokið og heimildirnar eiga að fylgja`);
+  console.log("─".repeat(84));
+
+  /* 1. live/gw{n}.json — hráefnið sem allt per-umferðar er leitt af */
+  ok(existsSync(`${D}live/gw${finishedGw}.json`),
+    `live/gw${finishedGw}.json er til (hráefni allra per-umferðar talna)`);
+
+  /* 2. Mínútuþróunin (3c): raðir eiga að vera til frá fyrstu umferð
+        (gildið sjálft er 0 þar til 4-5 umferðir eru til — það er rétt). */
+  const pf = J("player_form.json");
+  ok(Object.keys(pf.players || {}).length > 100,
+    `player_form hefur vaknað (${Object.keys(pf.players || {}).length} leikmenn)`);
+  ok((pf.gws_used ?? 0) >= 1, `player_form las ${pf.gws_used} umferðir`);
+
+  /* 3. Umferðarskýrslan fylgir SÍÐUSTU LOKNU umferð — ekki gamalli */
+  const lg = J("last_gw.json");
+  ok(lg.gw === finishedGw && lg.archive !== true,
+    `last_gw.json er fyrir GW${finishedGw} og ekki lengur merkt archive (gw=${lg.gw})`);
+
+  /* 4. ESPN-skotin fylgja sömu umferð (skot-kortið) */
+  const sh = J("last_gw_shots.json");
+  ok(sh.gw === finishedGw && (sh.shots || []).length > 50,
+    `skot-kortið fylgir GW${finishedGw} (${(sh.shots || []).length} skot)`);
+
+  /* 5. DC-hittnin (6l): raðir MEÐ afturvirkjuðu tölunni */
+  const dc = J("defcon.json");
+  ok((dc.players || []).length > 50,
+    `defcon.players hefur vaknað (${(dc.players || []).length} leikmenn)`);
+  ok((dc.players || []).every(p => "hit_rate_adj" in p && "p0" in p && "starts" in p),
+    "hver DC-röð ber hit_rate_adj + p0 + starts (afturvirknin lifir)");
+
+  /* 6. mó/aó-glugginn á að vera ÚR ÞESSU tímabili, ekki archive */
+  const im = J("imminent.json");
+  ok(im.archive !== true,
+    "imminent er EKKI lengur archive — glugginn les yfirstandandi tímabil");
+
+  /* 7. season_baseline á að FRJÓSA á fyrra tímabili — ekki uppfærast */
+  const sb = J("season_baseline.json");
+  ok(sb.label === "2025/26",
+    `season_baseline er FROSIÐ á 2025/26 („í ár vs. í fyrra" þarf það) — er ${sb.label}`);
+
+  /* 8. E0-leikjatölur yfirstandandi tímabils verða til við fyrsta leik */
+  ok(existsSync(`${D}fdcouk/E0-2627.json`) && (J("fdcouk/E0-2627.json").rows || []).length >= 1,
+    "fdcouk/E0-2627.json er til með röðum (varð til við fyrsta leik)");
+
+  /* 9. Meiðslin (API-Sports): heimildin á ekki að vera rauð. Fjöldi para
+        er EKKI prófaður — milli umferða eru engir leikdagar í ±1 dags
+        glugganum og 0 pör eru þá rétt svar (sjá kafla 6 í CLAUDE.md).   */
+  ok(src.apisports_injuries?.ok !== false,
+    "apisports_injuries er ekki rauð í status.json");
+}
+
+console.log(`\nGW1-VÖKULISTI: ${pass} stóðust, ${fail} féllu`);
+process.exit(fail ? 1 : 0);

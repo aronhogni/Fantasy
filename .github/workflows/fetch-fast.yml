@@ -7,6 +7,16 @@ name: fetch-fast
 on:
   schedule:
     - cron: "*/30 * * * *"     # á 30 mínútum
+    # ÞÉTTARI Á LEIKDÖGUM. Mælt 4.8.2026: GitHub þynnir schedule-keyrslur —
+    # */30 skilaði í raun 1-3,5 klst bilum (versta bil 3,7 klst). Í forleik
+    # er það meinlaust en á leikdegi er glugginn fyrir staðfest byrjunarlið
+    # ~5 klst og liðin birtast ~60 mín fyrir leik: ein keyrsla sem hittir
+    # gluggann SNEMMA sækir ekkert og sú næsta gat verið 3 klst seinna.
+    # Þéttari cron á leikdaga-tímum (fös/lau/sun/mán 10-21 UTC — PL byrjar
+    # 11:30-20:00) þýðir að SAMA þynning gefur ~2-4x fleiri raunkeyrslur.
+    # Kvótinn er varinn annars staðar: sótt byrjunarlið eru GEYMD per leik
+    # (fetch.mjs) svo fleiri keyrslur endursækja ekki sama leikinn.
+    - cron: "*/15 10-21 * * 0,1,5,6"
   workflow_dispatch: {}
 
 permissions:

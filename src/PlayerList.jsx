@@ -323,6 +323,9 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     }
     const csByShort = odds || {};
     const dcById = defcon?.opportunity || {};
+    /* DC-hittni per leikmann (fpl_id -> rod). Tomt fram ad GW1.        */
+    const dcHitById = {};
+    for (const r of defcon?.players || []) dcHitById[r.fpl_id] = r;
 
     const out = (players || []).map(p => {
       /* UMFERDAR-BIL kemur I STAD arstidar-rodarinnar. Skilar FPL-nefndum
@@ -359,7 +362,14 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
         _home6: fa?.home ?? null, _fix6: fa?.n ?? null,
         _team_cs: short && csByShort[short] ? num(csByShort[short].cs) : null,
-        _team_dc: dcById[p.team] != null ? num(dcById[p.team]) : null,
+        /* VILLA SEM VAR: dcById[p.team] er HLUTUR ({own_xgc90, ...}) og
+           num(hlutur) er null — dalkurinn "DefCon lids" var thvi ALLTAF
+           tomur og faldi sig sjalfur sem tomur dalkur. Fannst 4.8.2026
+           thegar sama tenging var skrifud fyrir DC-hittni.              */
+        _team_dc: num(dcById[p.team]?.defcon_opportunity),
+        _dc_hit_adj: num(dcHitById[p.id]?.hit_rate_adj),
+        _dc_hit_raw: num(dcHitById[p.id]?.hit_rate),
+        _dc_starts: num(dcHitById[p.id]?.starts),
       });
 
       return {

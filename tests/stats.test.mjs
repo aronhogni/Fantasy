@@ -656,7 +656,7 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
 
   /* live_only ma ALDREI vera a arstidar-summu — thad myndi fela hana
      ranglega. Adeins nutima-gogn (ESPN/gluggi/leikir/spyrnur) bera hana. */
-  const liveGroups = new Set(["threat", "window", "fixtures", "setp"]);
+  const liveGroups = new Set(["threat", "window", "fixtures", "setp", "dcstat"]);
   const badLive = STAT_DEFS.filter(d => d.live_only && !liveGroups.has(d.group)
                                      && d.key !== "xg_share");
   eq(badLive.length, 0, `live_only aðeins á nútíma-flokkum${badLive.length ? " — " + badLive[0].key : ""}`);
