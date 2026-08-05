@@ -1392,9 +1392,35 @@ async function fetchInjuries() {
   let plan = "?";
   try {
     const st = await apiSports("/status");
-    plan = `${st.response?.subscription?.plan} · ${st.response?.requests?.current}/${st.response?.requests?.limit_day} köll í dag`;
+    /* HEILSA REIKNINGSINS ER NU SKRAD SEM SIN EIGIN HEIMILD.
+       2.8.2026 var reikningurinn UPPSAGDUR og thad sast hvergi i vidmotinu:
+       eina visbendingin var rannsakandi kall inni i api_lineups, og thad
+       geymdi svarid — svo uppsognin var GRAEN i stodunni. `/status` svarar
+       thessu DIREKT (threp + kvoti) og er kallad hvort sem er.
+       `errors.access` / `errors.token` -> reikningurinn er i vandraedum og
+       thad a ad SJAST, ekki alykta ut ur odru.                            */
+    const acc = st.response?.subscription?.plan;
+    const cur = st.response?.requests?.current, lim = st.response?.requests?.limit_day;
+    const accErr = st.errors && !Array.isArray(st.errors)
+      ? (st.errors.access || st.errors.token || Object.values(st.errors)[0]) : null;
+    if (accErr) {
+      plan = `REIKNINGUR I VANDRAEDUM: ${String(accErr).slice(0, 90)}`;
+      record("apisports_account", false, 0, plan);
+    } else if (acc) {
+      plan = `${acc} · ${cur}/${lim} köll í dag`;
+      /* Vidvorun ADUR en kvotinn thrytur, ekki eftir. */
+      const near = lim && cur != null && cur / lim > 0.8;
+      record("apisports_account", true, cur ?? 0,
+        `${acc} · ${cur}/${lim} koll i dag${near ? " — YFIR 80% AF KVOTA" : ""}`);
+    } else {
+      plan = "svar an threps-upplysinga";
+      record("apisports_account", false, 0, plan);
+    }
     console.log(`API-Sports: ${plan}`);
-  } catch (e) { console.warn("API-Sports /status:", e.message); }
+  } catch (e) {
+    console.warn("API-Sports /status:", e.message);
+    record("apisports_account", false, 0, `/status brast: ${String(e.message).slice(0, 80)}`);
+  }
 
   /* EMPÍRÍSKT MÆLT (keyrsla 2026-07-26): season=2026 er LÆST á fría
      þrepinu; date-leiðin virkar villulaust en `date` síar eftir LEIKDEGI

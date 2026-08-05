@@ -2524,6 +2524,7 @@ export default function App() {
                                 ...(pipeStatusFast?.sources || {}) };
               const SHOW = {
                 api_lineups:    tx("Staðfest byrjunarlið"),
+                apisports_account: tx("API-Sports reikningur"),
                 fdcouk_e0:      tx("Leikjatölur E0 (yfirstandandi)"),
                 fdcouk_history: tx("Leikjatölur E0 (saga)"),
                 espn_shots:     tx("Skot með hnitum (ESPN)"),

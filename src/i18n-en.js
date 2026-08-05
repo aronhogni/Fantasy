@@ -1219,6 +1219,7 @@ export const EN = {
     "Blank gameweek — he does not play and scores 0",
   "TVÖFÖLD UMFERÐ": "DOUBLE GAMEWEEK",
   "Staðfest byrjunarlið": "Confirmed lineups",
+  "API-Sports reikningur": "API-Sports account",
   "BYRJAR": "STARTS",
   "BEKKUR": "BENCHED",
   "STAÐFEST í byrjunarliði (úr uppstillingu leiksins)":
