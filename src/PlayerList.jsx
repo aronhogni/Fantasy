@@ -510,14 +510,47 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
      ha0 hans er einskiptis-kostnadur — ekki per rod.
      Nedri morkin eru LENGSTA ORDID i heitinu, ekki heitid deilt i tvo:
      annars vaeri ord klippt i midju thott plass vaeri til.               */
+  /* MAELT 6.8.2026 (canvas.measureText a 700 10.5px ui-monospace i Chrome):
+     stafur er 6,32 px, EKKI 5,9 — gamla matid var 1-8 px of naumt og ENSK
+     heiti brotnudu i MIDJU ORDI ("Point/s", "Minute/s") og "Team of the
+     week" fell i thrjar linur sem klipptust vid 30px haus-haedina.
+     Notandinn sa thetta ("utlitid er serstakt a sumum stodum").
+     TVAER breytingar, badar maeldar:
+       1. 5,9 -> 6,35 px/staf (maelt 6,32 + oryggismork).
+       2. ceil(len/2)-agiskunin vek fyrir NAKVAEMRI tveggja-linu skiptingu:
+          minnsta breidd thar sem ordin skiptast i tvaer samfelldar linur.
+          Agiskunin vanmat heiti med ojofnum ordum ("Mins per xGI" tharf
+          "Mins per"/"xGI", ekki 6 stafi per linu) — 15 heiti brotnudu.   */
+  const PXC = 6.35;
+  const twoLineInner = label => {
+    const words = label.split(" ");
+    if (words.length === 1) return label.length * PXC;
+    let best = Infinity;
+    for (let i = 0; i < words.length - 1; i++) {
+      const l1 = words.slice(0, i + 1).join(" ").length;
+      const l2 = words.slice(i + 1).join(" ").length;
+      best = Math.min(best, Math.max(l1, l2) * PXC);
+    }
+    return best;
+  };
   const wOf = d => {
     const label = String(d?.label ?? "");
-    const perLine = Math.ceil(label.length / 2);
-    const longestWord = Math.max(...label.split(/[ /(]+/).map(w => w.length));
-    const lab = Math.max(perLine, longestWord) * 5.9 + 12;   // 10,5px haus
+    /* "-" telst ordaskil (CSS brytur eftir bandstriki), "/" og "→" EKKI. */
+    const longestWord = Math.max(...label.split(/[ (-]+/).map(w => w.length)) * PXC;
+    /* Afleidd merki (†) er BAETT VID heitid i haus-rennslinu — an thess i
+       breiddar-mati fell "Clean sheet %†" i thridju linu um 0,4 px.      */
+    const marker = d?.derived ? 7 : 0;
+    const lab = Math.max(twoLineInner(label), longestWord) + marker + 12;
     const dec = d?.dec ?? 0;
     const val = (4 + (dec ? dec + 1 : 0)) * 6.2 + 12; // tala (11px mono)
-    return Math.round(Math.max(46, Math.min(76, Math.max(lab, val))));
+    /* ThAKID VIKUR FYRIR ORDI SEM GETUR EKKI BROTNAD. Vid 76 brotnadi
+       "Byrjunarlið" i "Byrjunarli/ð" og "Vítavörslur" i "Vítavörslu/r" —
+       stakur stafur a seinni linu. Ord an brotstada faer breiddina sina
+       (hard hamark 114: "Byrjunarhlutfall" maelist 101,1 px og innri
+       breiddin er breidd − 10 padding − 1 border — 112 vantadi 0,1 px).
+       Kostnadur: ~6 dalkar × 15-35 px af ~6000 px skrunleid.            */
+    const cap = Math.max(76, Math.min(114, longestWord + marker + 13));
+    return Math.round(Math.max(46, Math.min(cap, Math.max(lab, val))));
   };
   /* Fostu dalkarnir (Verd, Eign %) sátu i 88 px thott heitin seu stutt. */
   const wNum = narrow ? 60 : wOf({ label: "Eign %", dec: 1 });

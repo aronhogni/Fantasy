@@ -1473,6 +1473,26 @@ er lifandi merkið sem á að vega þyngst á leikdegi.
    byrjunarlið er ~5 klst og liðin birtast ~60 mín fyrir leik. Kvótinn
    er varinn í `fetch.mjs` (geymsla per leik), ekki í cron-inu.
 3. **DC-hittni dálkarnir** — sjá lok kafla 6l (og team_dc-upprisan þar).
+4. **HAUS-BROTIN Í LEIKMANNATÖFLUNNI — LAGAÐUR 6.8.2026** (notandinn sá:
+   „útlitið er sérstakt á sumum stöðum"). Dálkabreiddin (6j) mat staf á
+   **5,9 px en hann mælist 6,32** (canvas.measureText á raunverulega
+   hausletrinu í Chrome) og taldi hvorki †-merkið né bilstafinn — 34 heiti
+   á báðum málum brotnuðu í miðju orði („Point/s", „Minute/s") eða féllu
+   í þriðju línu sem 30px hausinn klippti („Team of the week",
+   „Clean sheet %†", „DC-hittni (leiðrétt)†"). Þrennt lagað í `wOf`:
+   (a) mælt stafamat 6,35 + †-vídd á afleiddum, (b) ceil(len/2)-ágiskunin
+   vék fyrir nákvæmri tveggja-línu skiptingu orða, (c) **76px þakið víkur
+   fyrir orði sem getur ekki brotnað** (hart hámark 114 — innri breidd er
+   breidd−10 padding−1 border, og „Byrjunarhlutfall" mælist 101,1 px; 112
+   vantaði 0,1 px og skildi eftir stakt „l" á línu tvö). Sjö íslensk heiti
+   og fimm ensk stytt í leiðinni (þau sem ekkert þak bjargar: „CBI alls",
+   „Verðbr. í umferð", „Krossar → skot"…). Sannreynt VÉLRÆNT í Chrome:
+   13 flokkar × bæði mál, 0 klippt/yfirfull haus-hólf (scrollHeight-skönn).
+   **Vörður í `stats.test.mjs`** speglar formúluna og fellur á hverju
+   heiti sem passar ekki í ≤2 línur á öðru hvoru málinu — stökkbreytt með
+   klippara sem mældist (felld) og með heiti sem þakið bjargar (slapp,
+   rétt). AÐFERÐIN ER FYRIRMYNDIN: skjá-letur er MÆLT með canvas, ekki
+   giskað — 5,9-talan lifði í þrjár vikur af því að hún var nálægt.
 
 ---
 

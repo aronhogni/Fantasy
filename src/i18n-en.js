@@ -461,8 +461,8 @@ export const EN = {
   "Byrjunar-líkur (mælt líkan, gluggi = síðustu 5 loknu umferðir). Vinningurinn er veginn með þessari tölu; undir 15% kemst enginn á listann.":
     "Start probability (measured model, window = last 5 finished gameweeks). The gain is weighted by this number; below 15% nobody makes the list.",
   "DC-hittni (yfirstandandi)": "DC hit rate (current season)",
-  "DC-hittni (leiðrétt)": "DC hit rate (adjusted)",
-  "DC-hittni (hrá)": "DC hit rate (raw)",
+  "DC-hittni (leiðr.)": "DC hit % (adj)",
+  "DC-hittni (hrá)": "DC hit % (raw)",
   "DC-leikir (n)": "DC games (n)",
   "Hlutfall byrjunarleikja sem ná DefCon-þröskuldinum, AFTURVIRKJAÐ fyrir sýnastærð (empirísk Bayes, k=10 að stöðu-meðaltali). Notið þessa, ekki þá hráu — og lesið n við hliðina.":
     "Share of starts reaching the DefCon threshold, SHRUNK for sample size (empirical Bayes, k=10 towards the position mean). Use this one, not the raw — and read n next to it.",
@@ -497,7 +497,6 @@ export const EN = {
   "Stig per milljón": "Points per million",
   "Mörk + assist": "Goals + assists",
   "M+A / 90": "G+A / 90",
-  "Mín. per framlag": "Mins per involvement",
   "Væntingar": "Expected",
   "Mörk − xG": "Goals − xG",
   "Yfir núlli = klínísk nýting eða heppni": "Above zero = clinical finishing or luck",
@@ -613,6 +612,7 @@ export const EN = {
   "BPS ræður hverjir fá 3/2/1 bónus.": "BPS decides who gets 3/2/1 bonus.",
   "{0} bónus": "{0} bonus",
   "Varnarframlag (DC)": "Def. contribution (DC)",
+  "DC alls": "DC total",
   "Skot-gögn eru ekki komin.": "Shot data has not arrived.",
   "Pipeline hefur ekki skrifað": "The pipeline has not written",
   "enn (ESPN-hlutinn,": "yet (the ESPN part,",
@@ -779,7 +779,7 @@ export const EN = {
   "keypt £": "bought £",
   "· sala £": "· sell £",
   "ekki hafið": "not started",
-  "Stig/leik": "Points/match",
+  "Stig/leik": "Pts/match",
   "rúllandi 30 dagar": "rolling 30 days",
   "Eignarhlutfall": "Ownership",
   "{0} af {1}": "{0} of {1}",
@@ -915,12 +915,12 @@ export const EN = {
   "Hversu oft leikmaðurinn hefur komist í FPL-lið vikunnar.":
     "How often the player has made the FPL team of the week.",
   "M+A /90": "G+A /90",
-  "Mín/framlag": "Mins/involvement",
+  "Mín. per framlag": "Mins per GI",
   "Mínútur per mark eða assist. Lægra er betra. Tómt ef ekkert framlag.":
     "Minutes per goal or assist. Lower is better. Empty if there is no involvement.",
   "Yfir núlli = skorar meira en færin gefa (klínísk nýting eða heppni). Undir núlli = klúðrar færum.":
     "Above zero = scores more than the chances imply (clinical finishing or luck). Below zero = wastes chances.",
-  "Framlög − xGI": "Involvements − xGI",
+  "Framlög − xGI": "GI − xGI",
   "Heildarmunur á raunverulegum framlögum og væntum. Sterkasta einstaka merkið um óheppni/heppni.":
     "The total gap between real and expected involvements. The single strongest signal of bad or good luck.",
   "Hreint blað %": "Clean sheet %",
@@ -930,7 +930,7 @@ export const EN = {
     "Below zero = the defence (or the goalkeeper) holds up better than the chances imply.",
   "Vörslur/90": "Saves/90",
   "Opinber FPL-tala (saves_per_90).": "Official FPL figure (saves_per_90).",
-  "Vörsluhlutfall %": "Save %",
+  "Vörslur %": "Save %",
   "Vörslur / (vörslur + mörk á sig). Gróft — FPL telur ekki skot á mark per markvörð.":
     "Saves / (saves + goals conceded). Rough — FPL does not count shots on target per keeper.",
   "FPL DefCon-stig. Athugið: DC er VILJANDI utan FFDR — sjá kafla 3 í CLAUDE.md.":
@@ -944,7 +944,7 @@ export const EN = {
   "Opinber FPL-tala (goals_conceded_per_90).": "Official FPL figure (goals_conceded_per_90).",
   "Opinber FPL-tala (expected_goals_conceded_per_90).":
     "Official FPL figure (expected_goals_conceded_per_90).",
-  "Hreinsanir/blokk/rof": "Clear/block/intercept",
+  "CBI alls": "CBI total",
   "Endurheimtur": "Recoveries",
   "ICT-vísitala": "ICT index",
   "Áhrif": "Influence",
@@ -961,11 +961,11 @@ export const EN = {
   "Eignarhald %": "Ownership %",
   "Verðbreyting": "Price change",
   "Breyting frá byrjun tímabils.": "Change since the start of the season.",
-  "Verðbreyting í umferð": "Price change (GW)",
+  "Verðbr. í umferð": "Price chg (GW)",
   "Verðbreyting í yfirstandandi umferð.": "Price change in the current gameweek.",
   "Nettóflutningar": "Net transfers",
   "Inn mínus út í yfirstandandi umferð.": "In minus out in the current gameweek.",
-  "Stig/leik — sæti": "Points/match — rank",
+  "Stig/leik — sæti": "Pts/match rank",
   "Sæti í stig/leik innan stöðunnar (FPL points_per_game_rank_type).":
     "Rank in points/match within the position (FPL points_per_game_rank_type).",
   "Form — sæti": "Form — rank",
@@ -1000,7 +1000,6 @@ export const EN = {
   "xG-hlutur": "xG share",
   "Hversu stór hluti af væntum mörkum liðsins kemur frá honum. Normaliserar fyrir liðsstyrk.":
     "How much of the team's expected goals comes from him. Normalises for team strength.",
-  "Hreins/blokk /90": "Clear/block /90",
   "Tacklingar /90": "Tackles /90",
   "Endurheimtur /90": "Recoveries /90",
   "Bónus /90": "Bonus /90",
@@ -1024,7 +1023,7 @@ export const EN = {
   "Færi skópuð": "Chances created",
   "Hversu oft hann lagði upp skot (lesið úr ESPN-texta).":
     "How often he set up a shot (read from ESPN's text).",
-  "Krossar→skot": "Crosses→shots",
+  "Krossar → skot": "Crosses → shots",
   "Krossar sem LEIDDU TIL SKOTS — ekki hráar krossatölur.":
     "Crosses that LED TO A SHOT — not raw cross counts.",
   /* Form-gluggi */
@@ -1046,7 +1045,7 @@ export const EN = {
   "aó": "IA",
   "Assist óhjákvæmilegt. Bert creativity/90 — samsettur stuðull féll á mælingu (0/3 tímabil).":
     "Imminent assist. Plain creativity/90 — a composite score failed on measurement (0/3 seasons).",
-  "Byrjunar-líkur": "Start probability",
+  "Byrjunar-líkur": "Start prob.",
   "Líkur á 60+ mínútum næst. Mælt á 65.557 sýnum; lægsti tíundarhluti fangar 2,09× bekkjar-föllin.":
     "Probability of 60+ minutes next. Measured on 65,557 samples; the lowest decile captures 2.09× the bench drops.",
   /* Leikir framundan */
@@ -1057,7 +1056,7 @@ export const EN = {
   "Leikir /6": "Matches /6",
   "Undir 6 = auð umferð. Yfir 6 = tvöföld umferð.":
     "Below 6 = a blank gameweek. Above 6 = a double gameweek.",
-  "CS-líkur liðsins": "Team CS probability",
+  "CS-líkur liðsins": "Team CS prob.",
   "Úr bókmakera-línu (odds.json).": "From the bookmaker line (odds.json).",
   "DefCon liðs": "Team DefCon",
   /* Fost leikatridi */

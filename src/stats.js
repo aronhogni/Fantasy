@@ -107,7 +107,7 @@ export const STAT_DEFS = [
     get:p=>(num(p.goals_scored)??0)+(num(p.assists)??0) },
   { key:"gi_per_90", get label() { return tx("M+A /90"); }, group:"attack", dec:2, hi:true, derived:true,
     get:p=>per90((num(p.goals_scored)??0)+(num(p.assists)??0), num(p.minutes)) },
-  { key:"mins_per_gi", get label() { return tx("Mín/framlag"); }, group:"attack", dec:0, hi:false, derived:true,
+  { key:"mins_per_gi", get label() { return tx("Mín. per framlag"); }, group:"attack", dec:0, hi:false, derived:true,
     get note() { return tx("Mínútur per mark eða assist. Lægra er betra. Tómt ef ekkert framlag."); },
     get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0); return gi>0?safeDiv(num(p.minutes),gi):null; } },
 
@@ -144,12 +144,12 @@ export const STAT_DEFS = [
   { key:"saves", get label() { return tx("Vörslur"); }, group:"defence", dec:0, hi:true, pos:[1], get:p=>num(p.saves) },
   { key:"saves_per_90", get label() { return tx("Vörslur/90"); }, group:"defence", dec:2, hi:true, pos:[1],
     get note() { return tx("Opinber FPL-tala (saves_per_90)."); }, get:p=>num(p.saves_per_90) },
-  { key:"save_pct", get label() { return tx("Vörsluhlutfall %"); }, group:"defence", dec:0, hi:true, pos:[1], derived:true, pct:true,
+  { key:"save_pct", get label() { return tx("Vörslur %"); }, group:"defence", dec:0, hi:true, pos:[1], derived:true, pct:true,
     get note() { return tx("Vörslur / (vörslur + mörk á sig). Gróft — FPL telur ekki skot á mark per markvörð."); },
     get:p=>{ const s=num(p.saves), g=num(p.goals_conceded);
              if (s==null||g==null||(s+g)===0) return null; return (s/(s+g))*100; } },
   { key:"penalties_saved", get label() { return tx("Vítavörslur"); }, group:"defence", dec:0, hi:true, pos:[1], get:p=>num(p.penalties_saved) },
-  { key:"defensive_contribution", get label() { return tx("Varnarframlag (DC)"); }, group:"defence", dec:0, hi:true,
+  { key:"defensive_contribution", get label() { return tx("DC alls"); }, group:"defence", dec:0, hi:true,
     get note() { return tx("FPL DefCon-stig. Athugið: DC er VILJANDI utan FFDR — sjá kafla 3 í CLAUDE.md."); },
     get:p=>num(p.defensive_contribution) },
   { key:"dc_per_90", label:"DC/90", group:"defence", dec:2, hi:true,
@@ -163,7 +163,7 @@ export const STAT_DEFS = [
   { key:"xgc_per_90", label:"xGC /90", group:"defence", dec:2, hi:false, pos:[1,2,3],
     get note() { return tx("Opinber FPL-tala (expected_goals_conceded_per_90)."); },
     get:p=>num(p.expected_goals_conceded_per_90) },
-  { key:"clearances_blocks_interceptions", get label() { return tx("Hreinsanir/blokk/rof"); }, group:"defence", dec:0, hi:true,
+  { key:"clearances_blocks_interceptions", get label() { return tx("CBI alls"); }, group:"defence", dec:0, hi:true,
     get:p=>num(p.clearances_blocks_interceptions) },
   { key:"tackles", get label() { return tx("Tacklingar"); }, group:"defence", dec:0, hi:true, get:p=>num(p.tackles) },
   { key:"recoveries", get label() { return tx("Endurheimtur"); }, group:"defence", dec:0, hi:true, get:p=>num(p.recoveries) },
@@ -195,7 +195,7 @@ export const STAT_DEFS = [
   { key:"cost_change_start", get label() { return tx("Verðbreyting"); }, group:"value", dec:1, hi:true, signed:true, money:true,
     get note() { return tx("Breyting frá byrjun tímabils."); },
     get:p=>{ const c=num(p.cost_change_start); return c==null?null:c/10; } },
-  { key:"cost_change_event", get label() { return tx("Verðbreyting í umferð"); }, group:"value", dec:1, hi:true,
+  { key:"cost_change_event", get label() { return tx("Verðbr. í umferð"); }, group:"value", dec:1, hi:true,
     signed:true, money:true, get note() { return tx("Verðbreyting í yfirstandandi umferð."); },
     get:p=>{ const c=num(p.cost_change_event); return c==null?null:c/10; } },
   { key:"net_transfers_event", get label() { return tx("Nettóflutningar"); }, group:"value", dec:0, hi:true, signed:true, derived:true,
@@ -1095,7 +1095,7 @@ STAT_DEFS.push(
              const v=num(p.expected_goals); return v==null?null:(v/t)*100; } },
 
   /* ---- Vorn: /90 ---- */
-  { key:"cbi_per_90", get label() { return tx("Hreins/blokk /90"); }, group:"defence", dec:2, hi:true, derived:true,
+  { key:"cbi_per_90", label:"CBI /90", group:"defence", dec:2, hi:true, derived:true,
     get: per90of("clearances_blocks_interceptions") },
   { key:"tackles_per_90", get label() { return tx("Tacklingar /90"); }, group:"defence", dec:2, hi:true, derived:true,
     get: per90of("tackles") },
@@ -1143,7 +1143,7 @@ STAT_DEFS.push(
     get note() { return tx("Woodwork — eigin leiktegund hjá ESPN."); }, get:p=>num(p._espn_woodwork) },
   { key:"espn_created", get label() { return tx("Færi skópuð"); }, group:"threat", dec:0, hi:true, live_only:true,
     get note() { return tx("Hversu oft hann lagði upp skot (lesið úr ESPN-texta)."); }, get:p=>num(p._espn_created) },
-  { key:"espn_cross", get label() { return tx("Krossar→skot"); }, group:"threat", dec:0, hi:true, live_only:true,
+  { key:"espn_cross", get label() { return tx("Krossar → skot"); }, group:"threat", dec:0, hi:true, live_only:true,
     get note() { return tx("Krossar sem LEIDDU TIL SKOTS — ekki hráar krossatölur."); }, get:p=>num(p._espn_cross) },
   { key:"espn_through", label:"Through balls", group:"threat", dec:0, hi:true, live_only:true,
     get:p=>num(p._espn_through) },
@@ -1175,7 +1175,7 @@ STAT_DEFS.push(
      n-dalkurinn stendur vid hlidina af asettu radi (krafa handoffs 4:
      hittni an leikjafjolda er half saga). Tomt fram ad GW1 -> dalkarnir
      fela sig sjalfir (null-reglan i PlayerList).                        */
-  { key:"dc_hit_adj", get label() { return tx("DC-hittni (leiðrétt)"); }, group:"dcstat", dec:0, hi:true,
+  { key:"dc_hit_adj", get label() { return tx("DC-hittni (leiðr.)"); }, group:"dcstat", dec:0, hi:true,
     pct:true, live_only:true, derived:true,
     get note() { return tx("Hlutfall byrjunarleikja sem ná DefCon-þröskuldinum, AFTURVIRKJAÐ fyrir sýnastærð (empirísk Bayes, k=10 að stöðu-meðaltali). Notið þessa, ekki þá hráu — og lesið n við hliðina."); },
     get:p=>{ const v=num(p._dc_hit_adj); return v==null?null:v*100; } },

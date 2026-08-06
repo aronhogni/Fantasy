@@ -654,6 +654,62 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
   ok(STAT_GROUPS.every(g => STAT_DEFS.some(d => d.group === g.key)), "enginn flokkur tómur");
   ok(STAT_DEFS.every(d => d.label.length <= 22), "engin heiti of löng fyrir töfluhaus");
 
+  /* HAUS-BROT: hvert heiti verdur ad passa i <=2 linur vid breiddina sem
+     wOf i PlayerList reiknar — a BADUM malum. Fannst 6.8.2026: 34 heiti
+     brotnudu i midju ordi ("Point/s") eda klipptust i thridju linu
+     ("Team of the week", "Clean sheet %†") thvi stafamatid var 5,9 px en
+     maeldist 6,32 (canvas.measureText, 700 10.5px ui-monospace) og hvorki
+     †-merkid ne bilstafurinn voru talin med. Formúlan her SPEGLAR wOf
+     (PXC 6,35 · marker 7 · cap 76->114 vikur fyrir ordi) og greedy-brot
+     med FULLRI bilbreidd (mono: bil = 6,32, ekki halft).                */
+  {
+    const { EN } = await import("../src/i18n-en.js");
+    const PXC = 6.35, GLYPH = 6.32;
+    const twoLineInner = label => {
+      const words = label.split(" ");
+      if (words.length === 1) return label.length * PXC;
+      let best = Infinity;
+      for (let i = 0; i < words.length - 1; i++)
+        best = Math.min(best, Math.max(words.slice(0, i + 1).join(" ").length,
+                                       words.slice(i + 1).join(" ").length) * PXC);
+      return best;
+    };
+    const wOf = (label, derived) => {
+      const longest = Math.max(...label.split(/[ (-]+/).map(w => w.length)) * PXC;
+      const marker = derived ? 7 : 0;
+      const lab = Math.max(twoLineInner(label), longest) + marker + 12;
+      const cap = Math.max(76, Math.min(114, longest + marker + 13));
+      return Math.round(Math.max(46, Math.min(cap, lab)));
+    };
+    const linesAt = (label, derived, inner) => {
+      /* greedy ordabrot; ord sem passar hvergi brotnar i budum af inner */
+      const text = label + (derived ? "†" : "");
+      const words = text.split(" ");
+      let lines = 1, cur = 0;
+      for (const w of words) {
+        let ww = w.length * GLYPH;
+        const need = cur ? cur + GLYPH + ww : ww;
+        if (need <= inner) { cur = need; continue; }
+        if (ww <= inner) { lines++; cur = ww; continue; }
+        /* brotid inni i ordi (break-word) — fyllir linur af inner */
+        let rest = ww - (cur ? 0 : inner);
+        if (!cur) lines += Math.ceil(rest / inner) - 0; else { lines++; rest = ww; lines += Math.ceil(rest / inner) - 1; }
+        cur = ((ww - 1) % inner) + 1;
+      }
+      return lines;
+    };
+    const bad = [];
+    for (const d of STAT_DEFS) {
+      const is = String(d.label);
+      for (const label of [is, EN[is] ?? is]) {
+        const w = wOf(label, !!d.derived);
+        const inner = w - 11;                     // 10 padding + 1 border
+        if (linesAt(label, !!d.derived, inner) > 2) bad.push(`${d.key}: "${label}" (${w}px)`);
+      }
+    }
+    eq(bad.length, 0, `hvert heiti passar i <=2 haus-linur a badum malum${bad.length ? " — " + bad[0] : ""}`);
+  }
+
   /* live_only ma ALDREI vera a arstidar-summu — thad myndi fela hana
      ranglega. Adeins nutima-gogn (ESPN/gluggi/leikir/spyrnur) bera hana. */
   const liveGroups = new Set(["threat", "window", "fixtures", "setp", "dcstat"]);
