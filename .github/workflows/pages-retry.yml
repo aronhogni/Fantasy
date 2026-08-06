@@ -37,6 +37,14 @@ jobs:
                "(tilraun ${{ github.event.workflow_run.run_attempt }} af 5)" \
                "— bíð í 4 mín svo hikstinn fái að líða hjá."
           sleep 240
-          gh api -X POST \
-            "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/rerun-failed-jobs"
-          echo "endurræst."
+          # IDEMPOTENT: kallið má mistakast án þess að lita keyrsluna rauða.
+          # 6.8.2026 sat þetta workflow í biðröð í >30 mín (Actions-atvikið
+          # sjálft) og manneskja endurræsti keyrsluna Á UNDAN því — þá er
+          # svar API-sins 4xx ("already running"/"cannot rerun") og það er
+          # RÉTT ástand, ekki bilun: einhver annar var fyrri til.
+          if gh api -X POST \
+            "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/rerun-failed-jobs"; then
+            echo "endurræst."
+          else
+            echo "endurræsing óþörf eða óhæf (líklega þegar endurræst af öðrum) — í lagi."
+          fi
