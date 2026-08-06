@@ -1,0 +1,42 @@
+# Endurræsir pages-keyrslu sem FELLUR — sjálfvirkt, með þaki.
+#
+# HVERS VEGNA: 6.8.2026 var skráð atvik hjá GitHub ("Pages - Deployment
+# Lag"): deployment festist í "deployment_in_progress" þar til action-ið
+# tímaði út. Innri endurtilraunin í pages.yml (tvær tilraunir) réð við
+# stutta hiksta, en langt atvik fellir BÁÐAR tilraunir og þá stæði síðan
+# á gamalli útgáfu þar til næsta kóða-ýting kæmi — sem í forleik getur
+# verið dögum seinna. Þetta workflow gerir það sem manneskjan gerði í
+# höndunum (gh run rerun --failed), sjálfkrafa, eftir 4 mín bið.
+#
+# ÞAKIÐ: run_attempt < 5. Hver endurræsing hækkar attempt-töluna, svo
+# lykkjan stöðvast af sjálfri sér eftir ~5 tilraunir (~1,5 klst glugga
+# með innri tilraununum). Falli allt það er raunveruleg bilun sem
+# tölvupósturinn á að fá að segja frá.
+name: pages-retry
+
+on:
+  workflow_run:
+    workflows: [pages]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  retry:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt < 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bíða og endurræsa föllnu störfin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "pages-keyrsla ${{ github.event.workflow_run.id }} féll" \
+               "(tilraun ${{ github.event.workflow_run.run_attempt }} af 5)" \
+               "— bíð í 4 mín svo hikstinn fái að líða hjá."
+          sleep 240
+          gh api -X POST \
+            "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/rerun-failed-jobs"
+          echo "endurræst."
