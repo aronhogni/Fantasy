@@ -33,10 +33,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # BIÐIN VEX MEÐ TILRAUNUM: 4 /, 8, 12, 16 mín. Mælt 6.8.2026 í
+          # runner-þurrð GitHub ("job was not acquired by Runner of type
+          # hosted"): hver tilraun brennur ~15 mín í öflunarröð og fellur —
+          # með fastri 4 mín bið kláraðist 5-tilrauna fjárhagurinn á ~80 mín
+          # meðan atvikið stóð lengur. Vaxandi bið spannar ~2,5 klst og
+          # lifir því lengra atvik af án þess að hækka þakið.
+          A=${{ github.event.workflow_run.run_attempt }}
           echo "pages-keyrsla ${{ github.event.workflow_run.id }} féll" \
-               "(tilraun ${{ github.event.workflow_run.run_attempt }} af 5)" \
-               "— bíð í 4 mín svo hikstinn fái að líða hjá."
-          sleep 240
+               "(tilraun $A af 5) — bíð í $((4 * A)) mín."
+          sleep $((240 * A))
           # IDEMPOTENT: kallið má mistakast án þess að lita keyrsluna rauða.
           # 6.8.2026 sat þetta workflow í biðröð í >30 mín (Actions-atvikið
           # sjálft) og manneskja endurræsti keyrsluna Á UNDAN því — þá er
