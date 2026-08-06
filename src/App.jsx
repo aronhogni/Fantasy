@@ -3142,10 +3142,10 @@ function Stat({ icon, label, value, sub, tone }) {
    ut og spjaldid syna "3 naestu leiki" sem eru i raun 2 umferdir.
 
    LITURINN ER ALGILT ThREP (TIER_BG), sami kvardi sem taflan og
-   roterings-spjaldid nota. Adeins FYRSTA flisin ber TOLUNA — spjaldid er
-   clamp(62px, 17.5%, 100px) breitt og thrjar tolur i rod fara undir 7,5px
-   sem er thegar a laegri mörkum lesanleika (maelt i simabreidd 31.7.).
-   Hinar tvaer bera lidskoda og hafa FFDR i tooltip.                      */
+   roterings-spjaldid nota. ENGIN flis ber toluna synilega — fyrsta flisin
+   bar hana adur en notandinn bad um ad hun faeri (6.8.2026): liturinn
+   segir threpid og nakvaema talan er i tooltip a hverri flis. FixChip
+   (skiptaglugginn) heldur SINNI tolu — annad yfirbord, onnur beidni.    */
 function FixStrip({ gws, teamById, diffOf, teamId, pos }) {
   const cells = (gws || []).slice(0, 3);
   if (!cells.length) return <div style={S.noFix}>—</div>;
@@ -3173,7 +3173,6 @@ function FixStrip({ gws, teamById, diffOf, teamId, pos }) {
             title={`${label}\nFFDR ${d.toFixed(2)} — ${tx(TIER_NAME[t])}`
               + `\nFDR ${use.fdr}${fxs.length > 1 ? "\n" + tx("TVÖFÖLD UMFERÐ") : ""}`}>
             {oppLabel(opp, use.home)}{fxs.length > 1 ? "⧫" : ""}
-            {i === 0 && <span style={S.fixNum}>{d.toFixed(1)}</span>}
           </div>
         );
       })}

@@ -356,10 +356,11 @@ const blanks = cells.filter(c => (c.textContent || "").trim() === "–");
 ok(withFfdr.length + blanks.length === cells.length,
   `hver flis hefur FFDR i tooltip eda er auð umferd (${withFfdr.length} + ${blanks.length} = ${cells.length})`);
 ok(cells.every(c => (c.title || "").length > 0), "engin flis an tooltip");
-/* FYRSTA flisin ber TOLUNA synilega (hinar hafa hana i tooltip) */
-const first = strips.map(s => s.children[0]).filter(Boolean);
-ok(first.some(c => /\d\.\d/.test(c.textContent || "")),
-  "fyrsta flisin birtir FFDR-toluna synilega");
+/* ENGIN flis ber toluna SYNILEGA — notandinn bad um ad hun faeri
+   (6.8.2026); liturinn segir threpid og talan er i tooltip.
+   Ofugt vid eldri stadhaefingu sem krafdist tolunnar a fyrstu flis.  */
+ok(cells.every(c => !/\d\.\d/.test(c.textContent || "")),
+  "engin flis birtir FFDR-toluna synilega (hun er i tooltip)");
 /* Heimavollur/utivollur helst i staffrodinni (oppLabel: STORT=heima) */
 ok(cells.some(c => /^[A-Z]{3}/.test((c.textContent || "").trim()))
    && cells.some(c => /^[a-z]{3}/.test((c.textContent || "").trim())),
