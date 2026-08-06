@@ -52,7 +52,21 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment2.outputs.page_url }}
     steps:
+      # TVAER TILRAUNIR. 6.8.2026 festist deployment i "deployment_in_progress"
+      # hja GitHub i 10 minutur, action-id timadi ut og keyrslan vard raud —
+      # en endurkeyrslan for i gegn a 56 sekundum. Thetta var infra-hiksti
+      # theirra megin (build-skrefid okkar var graent) og eina "logunin" er
+      # ad reyna aftur sjalfkrafa i stad thess ad senda tolvupost og bida
+      # eftir manneskju. Fyrri tilraunin faer 5 min (fost deployment er fost
+      # — deploy-pages HAETTIR VID hana sjalft vid timeout) og su seinni byr
+      # tha til NYJA deployment ur sama artifacti.
       - id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+        with:
+          timeout: "300000"
+      - id: deployment2
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
