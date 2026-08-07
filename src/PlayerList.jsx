@@ -776,8 +776,17 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         </div>
       )}
 
-      {/* ---------- flokkar ---------- */}
-      <div style={S.groupRow}>
+      {/* ---------- flokkar ----------
+           BROTNA A BORDI, SKRUNA I SIMA. Rodin var alltaf nowrap+auto med
+           `scrollbarWidth:none` — thad er RETT i sima (fingur strjuka og
+           fjorar linur af hnoppum aeta skjainn, kafli 6i) en a bordi var
+           ENGIN visbending um ad meira vaeri til hægra: maelt 7.8.2026
+           voru 289 px af 1.539 px utan skjas og tveir flokkar ("FPL rank",
+           "Cards and penalties") osynilegir — og thad var MITT verk ad
+           baeta 13. flokknum vid (DC-hittni). A bordi er lodrett plass
+           odyrt, svo thar brotnar rodin i tvaer linur og allir flokkar
+           sjast; i sima helst strjuk-rodin obreytt.                      */}
+      <div style={{ ...S.groupRow, ...(narrow ? {} : S.groupRowWide) }}>
         {STAT_GROUPS.map(g => (
           <button key={g.key} style={{ ...S.groupBtn, ...(group === g.key ? S.groupOn : {}) }}
             onClick={() => setGroup(g.key)}>{g.label}</button>
@@ -1032,6 +1041,9 @@ const S = {
   groupRow:{ display:"flex", gap:4, marginBottom:8, overflowX:"auto",
              borderBottom:`1px solid ${C.border}`, paddingBottom:7,
              scrollbarWidth:"none", WebkitOverflowScrolling:"touch" },
+  /* Bord: brotna i stad ad skruna (sja skyringu vid notkun). rowGap svo
+     tvaer linur klessist ekki saman.                                     */
+  groupRowWide:{ flexWrap:"wrap", overflowX:"visible", rowGap:4 },
   groupBtn:{ border:"none", background:"transparent", color:C.text2, borderRadius:5,
              padding:"4px 9px", fontSize:11.5, fontWeight:600, cursor:"pointer",
              whiteSpace:"nowrap", flex:"0 0 auto" },

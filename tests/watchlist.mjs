@@ -137,5 +137,23 @@ if (mineBox) {
      !/inset/.test(banded[0].parentElement.style.boxShadow||""));
 }
 
+/* ---- FLOKKA-RODIN: BROTNAR A BORDI, STRJUKAST I SIMA ----
+   Maelt 7.8.2026: rodin var alltaf nowrap + overflowX:auto MED
+   `scrollbarWidth:none`, svo a bordi voru 289 px af 1.539 px utan skjas
+   og TVEIR flokkar osynilegir an nokkurrar visbendingar (13. flokkurinn,
+   DC-hittni, var thad sem fyllti maelinn). jsdom er 1024 px breitt =
+   BORD, svo hann a ad brotna her. Simamalid (<560) heldur strjuk-rodinni
+   — thad er RETT thar (kafli 6i) og er gaett i koda gegnum `narrow`.   */
+{
+  const gRow = [...document.querySelectorAll("button")]
+    .find(b => /Spjöld og refsingar|Cards and penalties/.test(b.textContent))?.parentElement;
+  ok("flokka-rodin finnst", !!gRow);
+  ok("a BORDI brotnar rodin (flexWrap:wrap) svo allir flokkar sjaist",
+    gRow?.style.flexWrap === "wrap", `fekk "${gRow?.style.flexWrap}"`);
+  ok("engin flokka-hnappur er falinn i larettu skruni a bordi",
+    !gRow || gRow.scrollWidth <= gRow.clientWidth + 1,
+    `scrollWidth ${gRow?.scrollWidth} vs clientWidth ${gRow?.clientWidth}`);
+}
+
 console.log(`\nVAKTLISTI: ${pass}/${pass+fail} graen`);
 process.exit(fail ? 1 : 0);
