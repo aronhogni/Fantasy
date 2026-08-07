@@ -1521,6 +1521,19 @@ audkennt. **Pottur og skipting** (sjalfgefid 50/30/20, ritanleg) synir hvad
 hvert saeti er vert eins og staðan er nuna — namundad NIDUR svo greidslur
 fari aldrei yfir pottinn.
 
+**TVAER PENINGA-VILLUR FUNDNAR I UTLITSPROFUN 7.8. OG LOKADAR:**
+`prizeFor` deildi med SUMMU skiptingarinnar an thess ad klippa neikvaed
+gildi — `pottur 10.000, skipting [50,-30]` gaf fyrsta saeti **25.000**,
+th.e. **2,5x allan pottinn** (summan vard 20, svo 50/20 = 2,5). Og
+neikvaedur pottur gaf neikvaed verdlaun. Badar lokadar med `Math.max(0,…)`
+a badum hlidum. Reitirnir eru FRJALS TEXTI (`50/30/20`) svo their fa hvad
+sem er. **Vordur: `tests/leagues.mjs`** (22 prof) med 500 slembnum
+inntokum sem verja obrigdulu regluna — *summa verdlauna ma ALDREI fara
+yfir pottinn og ekkert verdlaun ma vera neikvaett*. Thrjar
+stokkbreytingar felldar (klipping fjarlaegd, namundad UPP, neikvaedur
+pottur leyfdur). Taflan fekk lika eigin skrun-kassa svo breid lidsnofn
+ryðji ekki SIDUNNI ut a sima (kafli 8).
+
 **Peningar og deildar-numer eru NOTANDA-GOGN**: geymt i `localStorage`
 (`fpl_leagues`) og fara ALDREI i nein kall ut. Ny leid `fpl-league` i
 `netlify/functions/odds.js` (FPL-standings er CORS-lokad eins og allt

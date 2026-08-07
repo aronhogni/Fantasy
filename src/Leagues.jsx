@@ -37,10 +37,17 @@ export const DEFAULT_SPLIT = [50, 30, 20];
    ALDREI yfir pottinn — að lofa meiru en er til er verri villa en að
    eiga afgang).                                                        */
 export function prizeFor(pot, split) {
-  const p = Number(pot) || 0;
-  const s = (split || []).map(x => Number(x) || 0);
+  /* NEIKVAED GILDI ERU KLIPPT I NULL — MAELT 7.8.2026:
+     an thess gaf `pot 10.000, split [50,-30]` fyrsta saeti **25.000**,
+     thad er 2,5x ALLAN pottinn (summan vard 20, svo 50/20 = 2,5).
+     Neikvaedur pottur gaf neikvaed verdlaun. Hvorugt ma gerast: thetta
+     eru PENINGAR og notandinn slaer thetta inn i hondunum.
+     Reglan: pottur >= 0, hver hlutur >= 0, og se summan 0 fa allir 0.  */
+  const p = Math.max(0, Number(pot) || 0);
+  const s = (split || []).map(x => Math.max(0, Number(x) || 0));
   const sum = s.reduce((a, b) => a + b, 0);
   if (!p || !sum) return s.map(() => 0);
+  /* Namundad NIDUR: ad lofa meiru en er til er verri villa en afgangur. */
   return s.map(x => Math.floor(p * (x / sum)));
 }
 
@@ -159,6 +166,11 @@ export default function Leagues({ proxyUrl, entryId }) {
             )}
 
             {rows.length > 0 && (
+              /* EIGIN SKRUN-KASSI: breidd efni ma ALDREI ryðja SIDUNNI ut
+                 (kafli 8). Toflan hefur fimm dalka og lidsnofn eru frjals
+                 texti — a sima getur hun ordid breidari en skjarinn, og tha
+                 a HUN ad skruna, ekki skelin.                            */
+              <div style={S.tblWrap}>
               <table style={S.tbl}>
                 <thead><tr>
                   <th style={S.thN}>#</th>
@@ -196,6 +208,7 @@ export default function Leagues({ proxyUrl, entryId }) {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
             {d && !rows.length && !busy[l.id] && (
               <div style={S.empty}>{tx("Engin staða enn — deildin byrjar að telja við fyrstu umferð.")}</div>
@@ -232,7 +245,8 @@ const S = {
   prizeRow:{ display:"flex", gap:10, padding:"7px 11px", borderTop:`1px solid ${C.border}`,
              background:"#fffdf5", flexWrap:"wrap" },
   prize:{ fontSize:12, fontFamily:mono, color:C.gold },
-  tbl:{ width:"100%", borderCollapse:"collapse" },
+  tblWrap:{ overflowX:"auto", WebkitOverflowScrolling:"touch" },
+  tbl:{ width:"100%", borderCollapse:"collapse", minWidth:340 },
   th:{ textAlign:"left", fontSize:10.5, color:C.text3, padding:"6px 8px", borderTop:`1px solid ${C.border}` },
   thN:{ textAlign:"right", fontSize:10.5, color:C.text3, padding:"6px 6px", width:52, borderTop:`1px solid ${C.border}` },
   thNum:{ textAlign:"right", fontSize:10.5, color:C.text3, padding:"6px 8px", borderTop:`1px solid ${C.border}` },
