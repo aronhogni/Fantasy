@@ -18,13 +18,43 @@ on:
   workflow_run:
     workflows: [pages]
     types: [completed]
+  # SOPARINN: workflow_run-keðjan getur DÁIÐ ÞÖGULT — mælt 6.-7.8.2026:
+  # retry-keyrslurnar SJÁLFAR runner-sveltust og voru felldar í atvikinu,
+  # felld keyrsla sendir aldrei rerun-kallið, og workflow_run-atburðir eru
+  # ekki endursendir. Þegar runnerar komu aftur var síðan strandaglópur á
+  # gamalli útgáfu og EKKERT vakti keðjuna. Cron á 6 klst fresti lítur við:
+  # sé nýjasta pages-keyrslan fallin er hún endurræst. Kostar eitt API-kall.
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
 
 permissions:
   actions: write
 
 jobs:
+  sweep:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Endurræsa nýjustu pages-keyrslu sé hún fallin
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          R=$(gh api "repos/${{ github.repository }}/actions/workflows/pages.yml/runs?per_page=1" \
+              --jq '.workflow_runs[0]')
+          ID=$(echo "$R" | jq -r .id); CONC=$(echo "$R" | jq -r .conclusion)
+          ATT=$(echo "$R" | jq -r .run_attempt)
+          echo "nyjasta pages-keyrsla: $ID · $CONC · tilraun $ATT"
+          if [ "$CONC" = "failure" ] && [ "$ATT" -lt 8 ]; then
+            gh api -X POST "repos/${{ github.repository }}/actions/runs/$ID/rerun-failed-jobs" \
+              && echo "endurræst" || echo "endurræsing óhæf — í lagi"
+          else
+            echo "ekkert að gera"
+          fi
+
   retry:
     if: >-
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'failure' &&
       github.event.workflow_run.run_attempt < 5
     runs-on: ubuntu-latest
