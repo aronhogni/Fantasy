@@ -296,8 +296,10 @@ if (horSel) {
 }
 const c10 = colsAt();
 /* 1 nafnadalkur + N umferdir + 2 tolur */
-ok(c6 === 9, `6 umferdir -> 9 dalkar: nafn + 6 + þekja + vinn. (${c6})`);
-ok(c10 === 13, `10 umferdir -> 13 dalkar (${c10})`);
+/* +1 dalkur 7.8.2026: FFDR (medaltal i erfidu umferdunum) sem listinn
+   er nu RADADUR eftir. nafn + 6 umferdir + FFDR + thekja + vinn. = 10 */
+ok(c6 === 10, `6 umferdir -> 10 dalkar: nafn + 6 + FFDR + þekja + vinn. (${c6})`);
+ok(c10 === 14, `10 umferdir -> 14 dalkar (${c10})`);
 /* Lokun */
 const rotClose = [...container.querySelectorAll("button")].filter(b => b.textContent === "✕").at(-1);
 await act(async () => { rotClose.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });

@@ -461,6 +461,15 @@ export const EN = {
   "Byrjunar-líkur (mælt líkan, gluggi = síðustu 5 loknu umferðir). Vinningurinn er veginn með þessari tölu; undir 15% kemst enginn á listann.":
     "Start probability (measured model, window = last 5 finished gameweeks). The gain is weighted by this number; below 15% nobody makes the list.",
   "DC-hittni (yfirstandandi)": "DC hit rate (current season)",
+  "Fyrirliði — tvöföld stig": "Captain — double points",
+  "Varafyrirliði — tekur við ef fyrirliðinn spilar ekki":
+    "Vice-captain — takes over if the captain does not play",
+  "Meðal-FFDR hans í ERFIÐU umferðunum — lægra = léttara prógramm. Listinn er raðaður eftir þessari tölu.":
+    "His average FFDR in the HARD gameweeks — lower = easier schedule. The list is sorted by this number.",
+  "BESTU PÖR — raðað eftir léttasta prógrammi (FFDR) í erfiðu umferðunum":
+    "BEST PAIRS — sorted by easiest schedule (FFDR) in the hard gameweeks",
+  "er ákvörðunin: vænt stig hans mínus þess sem hann kemur inn fyrir, aðeins í erfiðu umferðunum. Raðað eftir FFDR (léttasta prógramminu) — hafðu í huga að léttir leikir einir setja menn í slökum liðum ofarlega, svo lestu vinninginn með.":
+    "is the decision: his expected points minus those of the player he replaces, in the hard gameweeks only. Sorted by FFDR (the easiest schedule) — bear in mind that easy fixtures alone put players in weak teams near the top, so read the gain alongside.",
   "DC-hittni (leiðr.)": "DC hit % (adj)",
   "DC-hittni (hrá)": "DC hit % (raw)",
   "DC-leikir (n)": "DC games (n)",
@@ -860,8 +869,6 @@ export const EN = {
   " í liðinu þínu": " in your squad",
   ". Hækkaðu verðþakið": ". Raise the price cap",
   " eða slepptu „aðeins mitt lið“": " or drop \"my squad only\"",
-  "BESTU PÖR — raðað eftir vinningi í erfiðu umferðunum":
-    "BEST PAIRS — sorted by gain in the hard gameweeks",
   "Þegar í liðinu þínu — engin skipti": "Already in your squad — no transfer needed",
   "í liðinu": "in squad",
   "Sömu leikir — FFDR er eiginleiki LIÐSINS:\n": "Same fixtures — FFDR is a property of the TEAM:\n",
@@ -873,8 +880,6 @@ export const EN = {
   "= tvöföld umferð.": "= double gameweek.",
   "er FFDR-svarið: hversu miklu af erfiðleikunum hann mætir með hlutlausum leik eða betri.":
     "is the FFDR answer: how much of the difficulty he meets with a neutral fixture or better.",
-  "er ákvörðunin: vænt stig hans mínus þess sem hann kemur inn fyrir, aðeins í erfiðu umferðunum. Raðað eftir vinningi — hrein þekja setur menn í slökum liðum á toppinn.":
-    "is the decision: his expected points minus those of the player he replaces, in the hard gameweeks only. Sorted by gain — pure cover puts players in weak teams on top.",
   "Ein röð per LIÐ — FFDR er eiginleiki liðsins, svo allir varnarmenn sama félags eiga sömu leiki;":
     "One row per TEAM — FFDR is a property of the team, so every defender at the same club has the same fixtures;",
   "eru hinir í sama liði.": "are the others at that team.",

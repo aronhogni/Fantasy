@@ -1584,6 +1584,18 @@ export default function App() {
          og áður. mins5 þar er RAUNVERULEGAR síðustu 5 umferðir og því
          betri en árs-meðaltalið; við notum hana þegar hún er til.       */
       const pf = playerForm?.players?.[p.id];
+      /* TILTAEKILEIKI VANTADI I RODUNINA — FUNDID 7.8.2026 AF NOTANDA:
+         J.Timber (ARS, `status:"i"`, chance_next 0, ep_next 0.0,
+         "Groin injury") var i 2. saeti yfir varnarmenn sem MAELT ER MED
+         AD KAUPA. rankScore metur form/minutur/verd/FFDR — hann veit
+         EKKERT um meidsli, svo meiddur madur i lidi med letta leiki
+         (ARS, FFDR 1,62) flaut upp. Birta talan (`score`) bar hins vegar
+         tiltaekileikann (9,51 a moti 42,74 hja Gabriel) og THVI leit
+         listinn ut fyrir ad vera oradadur — sami galli, tvo einkenni.
+         Sama margfeldi og `score` notar er nu lagt a rodunina: 0% likur
+         -> 0 og madurinn dettur af listanum, 25/50/75% skala hlutfallslega.
+         Mælingin a rankScore (kafli 4) haggast ekki: hun snyst um ROD
+         theirra sem GETA spilad.                                        */
       const rank = rankScore({
         form: parseFloat(p.form),
         minsPerGame: Number.isFinite(pf?.mins5) ? pf.mins5
@@ -1591,7 +1603,7 @@ export default function App() {
         price: (p.now_cost ?? 45) / 10,
         ffdr: fn ? fsum / fn : null,
         minsTrend: pf?.mins_trend,
-      });
+      }) * avail;
       return { p, score: +score.toFixed(2), rank: +rank.toFixed(3),
                ease: +(5 - fdrAvg).toFixed(2), fxs, mode,
                why, ffdrAvg: fn ? +(fsum / fn).toFixed(2) : null };
@@ -3439,6 +3451,16 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
       <div style={S.pcIconsL}>
         <button style={S.pcIcon} title={tx("Upplýsingar")}
           onClick={e => { e.stopPropagation(); onInfo && onInfo(); }}>i</button>
+        {/* FYRIRLIDA-MERKID ER HER, VINSTRA MEGIN (beidni 7.8.2026).
+            Adur sat thad `position:absolute top:4 right:4` — NAKVAEMLEGA
+            undir ⇄/↻-ikonunum (zIndex 2 a moti 3), svo C-id a Haaland
+            var OSYNILEGT. I flex-rodinni vinstra megin getur thad ekki
+            legid undir neinu. availBadge (meidsli) faerist til hlidar
+            a moti, sja `availLeft`.                                    */}
+        {isCap && <span style={{ ...S.bandFlow, background:"#ffd23f", color:"#4a3800" }}
+          title={tx("Fyrirliði — tvöföld stig")}>C</span>}
+        {isVice && <span style={{ ...S.bandFlow, background:"#c9c9d0", color:"#33333a" }}
+          title={tx("Varafyrirliði — tekur við ef fyrirliðinn spilar ekki")}>V</span>}
       </div>
       <div style={S.pcIcons}>
         <button style={{ ...S.pcIcon, ...S.pcIconSwap }} title={tx("Skipta út — opnar leit")}
@@ -3449,10 +3471,9 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
           title={tx("FFDR-samanburður — finndu mann sem á léttar umferðir þar sem hann á þungar")}
           onClick={e => { e.stopPropagation(); onRotation && onRotation(); }}>↻</button>
       </div>
-      {isCap && <span style={{ ...S.band, background:"#ffd23f", color:"#4a3800" }}>C</span>}
-      {isVice && <span style={{ ...S.band, background:"#c9c9d0", color:"#33333a" }}>V</span>}
       {av.isRisk && (
-        <span style={{ ...S.availBadge, background:av.solid || av.bg,
+        <span style={{ ...S.availBadge, left: isCap || isVice ? 38 : 21,
+                       background:av.solid || av.bg,
                        color:av.solid ? "#fff" : av.color }}
           title={`${av.label}${av.chance != null ? tx(" — {0}% líkur", [av.chance]) : ""}${av.news ? `\n${av.news}` : ""}`}>
           {av.short}{av.chance != null && av.chance > 0 ? av.chance : ""}
@@ -3778,6 +3799,11 @@ const S = {
   /* FFDR-samanburdur: gron umgjord svo hun se ekki misskilin sem skipti. */
   pcIconRot: { color:"#046b41", border:"1px solid #b7e6cd", fontSize:10 },
   band: { position:"absolute", top:4, right:4, minWidth:15, height:15, borderRadius:8, fontFamily:mono, fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 },
+  /* Sama utlit og `band` en I FLAEDI (pcIconsL) i stad absolute — thannig
+     getur merkid ekki lent undir odru ikoni. Sja skyringu vid notkun.  */
+  bandFlow: { minWidth:15, height:15, borderRadius:8, fontFamily:mono, fontSize:9,
+    fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center",
+    flexShrink:0, boxShadow:"0 1px 2px rgba(0,0,0,0.10)" },
   pPortrait: { position:"relative", height:34, display:"flex", alignItems:"flex-end", justifyContent:"center", marginBottom:2 },
   pCrest: { position:"absolute", bottom:-3, right:4, width:18, height:18, objectFit:"contain",
     background:"#fff", borderRadius:"50%", padding:1,

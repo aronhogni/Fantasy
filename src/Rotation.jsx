@@ -183,6 +183,7 @@ export default function Rotation({
                         {gw}{hardSet.has(gw) ? " !" : ""}
                       </th>
                     ))}
+                    <th style={S.thNum} title={tx("Meðal-FFDR hans í ERFIÐU umferðunum — lægra = léttara prógramm. Listinn er raðaður eftir þessari tölu.")}>FFDR</th>
                     <th style={S.thNum} title={tx("Hlutfall þyngdarinnar í erfiðu umferðunum sem hann mætir með hlutlausum leik eða betri")}>{tx("Þekja")}</th>
                     <th style={S.thNum} title={tx("Vænt stig hans mínus vænt stig þess sem hann kemur inn fyrir, lagt saman yfir erfiðu umferðirnar")}>{tx("Vinn.")}</th>
                   </tr>
@@ -205,7 +206,7 @@ export default function Rotation({
                         <Cell key={gws[i]} cell={cell} teamById={teamById}
                           hard={needOf(cell, hardFrom) > 0} />
                       ))}
-                      <td style={S.tdNum} colSpan={2}>
+                      <td style={S.tdNum} colSpan={3}>
                         {(() => {
                           const n = t.cells.filter(c => needOf(c, hardFrom) > 0).length;
                           return `${n} ${n === 1 ? tx("erfið") : tx("erfiðar")}`;
@@ -217,7 +218,7 @@ export default function Rotation({
                   {/* BÆTA ÖÐRUM VIÐ */}
                   {(targetIds || []).length < 2 && !!addable.length && (
                     <tr>
-                      <td style={S.tdAdd} colSpan={gws.length + 3}>
+                      <td style={S.tdAdd} colSpan={gws.length + 4}>
                         <label style={S.addLbl}>
                           {tx("Bæta öðrum við:")}
                           <select style={S.sel} value=""
@@ -237,19 +238,19 @@ export default function Rotation({
 
                   {/* TILLÖGUR */}
                   {!R.hard.length ? (
-                    <tr><td style={S.tdEmpty} colSpan={gws.length + 3}>
+                    <tr><td style={S.tdEmpty} colSpan={gws.length + 4}>
                       {tx("Engar erfiðar umferðir næstu")} {horizon} {tx("— ekkert að leysa. Þessi maður má vera inni.")}
                     </td></tr>
                   ) : !R.results.length ? (
-                    <tr><td style={S.tdEmpty} colSpan={gws.length + 3}>
+                    <tr><td style={S.tdEmpty} colSpan={gws.length + 4}>
                       {tx("Enginn þekur þessar umferðir innan þaksins")}
                       {onlyMine ? tx(" í liðinu þínu") : ""}{tx(". Hækkaðu verðþakið")}
                       {onlyMine ? tx(" eða slepptu „aðeins mitt lið“") : ""}.
                     </td></tr>
                   ) : (
                     <>
-                      <tr><td style={S.grp} colSpan={gws.length + 3}>
-                        {tx("BESTU PÖR — raðað eftir vinningi í erfiðu umferðunum")}
+                      <tr><td style={S.grp} colSpan={gws.length + 4}>
+                        {tx("BESTU PÖR — raðað eftir léttasta prógrammi (FFDR) í erfiðu umferðunum")}
                       </td></tr>
                       {R.results.map((c, i) => {
                         const cells = rowCells(c);
@@ -282,6 +283,9 @@ export default function Rotation({
                               <Cell key={gws[j]} cell={cell} teamById={teamById}
                                 hard={false} />
                             ))}
+                            <td style={{ ...S.tdNum, fontWeight:700 }}>
+                              {c.ffdr == null ? "—" : c.ffdr.toFixed(2)}
+                            </td>
                             <td style={{ ...S.tdNum, fontWeight:700,
                                          color: c.cover >= 67 ? "#046b41" : c.cover >= 34 ? C.text2 : C.text3 }}>
                               {c.cover}%
@@ -302,7 +306,7 @@ export default function Rotation({
             <div style={S.legend}>
               <b>!</b> {tx("= umferð sem þinn maður á erfiða (dökkgult, ljósrautt, rautt) eða")} <b>{tx("auða")}</b>{tx("; auð umferð telst þyngst því hún gefur 0 stig. Rauður rammi merkir þær.")}
               {" "}<b>⧫</b> {tx("= tvöföld umferð.")} {" "}
-              <b>{tx("Þekja")}</b> {tx("er FFDR-svarið: hversu miklu af erfiðleikunum hann mætir með hlutlausum leik eða betri.")} <b>{tx("Vinn.")}</b> {tx("er ákvörðunin: vænt stig hans mínus þess sem hann kemur inn fyrir, aðeins í erfiðu umferðunum. Raðað eftir vinningi — hrein þekja setur menn í slökum liðum á toppinn.")}
+              <b>{tx("Þekja")}</b> {tx("er FFDR-svarið: hversu miklu af erfiðleikunum hann mætir með hlutlausum leik eða betri.")} <b>{tx("Vinn.")}</b> {tx("er ákvörðunin: vænt stig hans mínus þess sem hann kemur inn fyrir, aðeins í erfiðu umferðunum. Raðað eftir FFDR (léttasta prógramminu) — hafðu í huga að léttir leikir einir setja menn í slökum liðum ofarlega, svo lestu vinninginn með.")}
               {" "}{tx("Ein röð per LIÐ — FFDR er eiginleiki liðsins, svo allir varnarmenn sama félags eiga sömu leiki;")} <b>+N</b> {tx("eru hinir í sama liði.")}
               {" "}{tx("Verðþak")} {maxTenths == null ? tx("ekkert") : `£${(maxTenths / 10).toFixed(1)}`}.
               {hardFrom <= 2 && tx(" Hlutlausir (hvítir) leikir teljast með, og þá þarf parið að vera GRÆNT.")}

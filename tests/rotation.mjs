@@ -307,8 +307,12 @@ if (found) {
   ok(r.results.every(x => Number.isFinite(x.gain) && Number.isFinite(x.cover)),
     "engin NaN í vinningi eða þekju á raunverulegum gögnum");
   ok(r.results.every(x => x.cover >= 0 && x.cover <= 100), "þekja er á 0-100");
-  ok(r.results.every((x, i, a) => i === 0 || a[i - 1].gain >= x.gain),
-    "raðað fallandi eftir vinningi");
+  /* RADAD EFTIR FFDR — LETTASTA PROGRAMMID FYRST (beidni 7.8.2026).
+     Adur var radad eftir VINNINGI; sú stadhaefing er hér snuin vid.    */
+  ok(r.results.every((x, i, a) => i === 0 || (a[i - 1].ffdr ?? 99) <= (x.ffdr ?? 99)),
+    "raðað VAXANDI eftir FFDR (léttasta prógrammið efst)");
+  ok(r.results.every(x => x.ffdr == null || (x.ffdr > 0 && x.ffdr < 7)),
+    "medal-FFDR er a vitrænu bili (auð umferd faer BLANK_FFDR=6)");
   ok(r.results.every(x => x.per.length === r.hard.length),
     "hver tillaga hefur rúta fyrir HVERJA erfiða umferð (ekkert vantar í grindina)");
 }

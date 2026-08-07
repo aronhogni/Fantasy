@@ -265,7 +265,12 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const [thresholds, setThresholds] = useState([]);   // [{key, op, val}]
   const [sortKey, setSortKey] = useState("total_points");
   const [sortDir, setSortDir] = useState("desc");
-  const [showEmpty, setShowEmpty] = useState(false);
+  /* TOMIR DALKAR ERU SYNILEGIR SJALFGEFID (beidni notanda 7.8.2026).
+     Sjalfvirk felun faldi dalka sem notandinn VEIT ad eiga ad vera tomir
+     (t.d. DC-hittni fyrir GW1) og gerdi thad ovist hvort dalkurinn vaeri
+     til yfirleitt. Hnappurinn "fela toma" er afram til fyrir thren sem
+     vilja threngri toflu.                                              */
+  const [showEmpty, setShowEmpty] = useState(true);
   const [thKey, setThKey] = useState("expected_goal_involvements_per_90");
   const [thOp, setThOp] = useState(">=");
   const [thVal, setThVal] = useState("");
@@ -521,36 +526,24 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           minnsta breidd thar sem ordin skiptast i tvaer samfelldar linur.
           Agiskunin vanmat heiti med ojofnum ordum ("Mins per xGI" tharf
           "Mins per"/"xGI", ekki 6 stafi per linu) — 15 heiti brotnudu.   */
+  /* EIN LINA A HVERT HEITI (beidni notanda 7.8.2026 med skjamynd).
+     Adur brotnudu heitin i tvaer linur til ad spara skrunleid (36,5%
+     maelt i kafla 6j) en thad gerdi hausinn ojafnan: "Owned %" i tveimur
+     linum vid hlidina a "Points" i einni, og "Team of the week" i thremur.
+     Nu raedur FULL BREIDD heitisins: hver dalkur er nogu breidur fyrir
+     sitt heiti a EINNI linu (klippt i [46, 136]).
+     KOSTNADUR SEM ER VITAD AF: skrunleidin fer ur ~6.030 px i ~9.380 px
+     yfir alla dalka. Thad er ASETT skipti — notandinn valdi laesileika.
+     6,35 px/staf er MAELT (canvas.measureText a 700 10.5px ui-monospace,
+     6,32 + oryggismork), sja kafla 6m atridi 4.                        */
   const PXC = 6.35;
-  const twoLineInner = label => {
-    const words = label.split(" ");
-    if (words.length === 1) return label.length * PXC;
-    let best = Infinity;
-    for (let i = 0; i < words.length - 1; i++) {
-      const l1 = words.slice(0, i + 1).join(" ").length;
-      const l2 = words.slice(i + 1).join(" ").length;
-      best = Math.min(best, Math.max(l1, l2) * PXC);
-    }
-    return best;
-  };
   const wOf = d => {
     const label = String(d?.label ?? "");
-    /* "-" telst ordaskil (CSS brytur eftir bandstriki), "/" og "→" EKKI. */
-    const longestWord = Math.max(...label.split(/[ (-]+/).map(w => w.length)) * PXC;
-    /* Afleidd merki (†) er BAETT VID heitid i haus-rennslinu — an thess i
-       breiddar-mati fell "Clean sheet %†" i thridju linu um 0,4 px.      */
-    const marker = d?.derived ? 7 : 0;
-    const lab = Math.max(twoLineInner(label), longestWord) + marker + 12;
+    const marker = d?.derived ? 7 : 0;              // †-merkid i hausnum
+    const lab = label.length * PXC + marker + 13;   // 10 padding + 1 bord + 2 svigrum
     const dec = d?.dec ?? 0;
     const val = (4 + (dec ? dec + 1 : 0)) * 6.2 + 12; // tala (11px mono)
-    /* ThAKID VIKUR FYRIR ORDI SEM GETUR EKKI BROTNAD. Vid 76 brotnadi
-       "Byrjunarlið" i "Byrjunarli/ð" og "Vítavörslur" i "Vítavörslu/r" —
-       stakur stafur a seinni linu. Ord an brotstada faer breiddina sina
-       (hard hamark 114: "Byrjunarhlutfall" maelist 101,1 px og innri
-       breiddin er breidd − 10 padding − 1 border — 112 vantadi 0,1 px).
-       Kostnadur: ~6 dalkar × 15-35 px af ~6000 px skrunleid.            */
-    const cap = Math.max(76, Math.min(114, longestWord + marker + 13));
-    return Math.round(Math.max(46, Math.min(cap, Math.max(lab, val))));
+    return Math.round(Math.max(46, Math.min(136, Math.max(lab, val))));
   };
   /* Fostu dalkarnir (Verd, Eign %) sátu i 88 px thott heitin seu stutt. */
   const wNum = narrow ? 60 : wOf({ label: "Eign %", dec: 1 });
@@ -1065,10 +1058,15 @@ const S = {
      og haus og holf geta ekki rekid i sundur.
      fontSize 10,5 (var 9,5): heitin voru ordin of smá vid tveggja-linu
      brotid. Breiddar-formulan (wOf) notar 5,9 px/staf til samraemis.     */
+  /* EIN LINA (`nowrap`) og HAEGRI-JOFNUN svo haus standi yfir sinni tolu:
+     gildin eru haegri-jofnud (cNum) en hausinn var flex-start, svo stutt
+     heiti sátu vinstra megin og long til haegri — thad var ojafnan sem
+     notandinn sa. `justifyContent:flex-end` samraemir thetta.          */
   hCell:{ boxSizing:"border-box", display:"flex", alignItems:"center",
+          justifyContent:"flex-end", textAlign:"right",
           fontSize:10.5, fontWeight:700, color:C.text2,
           padding:"0 5px", cursor:"pointer", userSelect:"none",
-          whiteSpace:"normal", lineHeight:1.14, wordBreak:"break-word",
+          whiteSpace:"nowrap", lineHeight:1.14,
           borderRight:"1px solid #eeeef1", overflow:"hidden" },
   row:{ position:"absolute", left:0, right:0, display:"flex", height:ROW_H,
         alignItems:"center", borderBottom:"1px solid #f4f4f6" },

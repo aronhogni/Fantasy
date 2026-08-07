@@ -53,6 +53,10 @@ export const MIN_START_PROB = 0.15;
    ef annar madur a graenan heimaleik i somu umferd.                     */
 export const TIER_NEED = [0, 0, 0.5, 1, 2, 3];
 export const BLANK_NEED = 3;          // auð umferð = jafn slæm og rauð
+/* FFDR-gildi sem AUÐ umferð fær þegar raðað er eftir léttleika. Hærra en
+   nokkurt raunverulegt FFDR (dreifingin nær ~1,3–3,5) því blank = 0 stig
+   og má ALDREI raðast eins og léttur leikur.                            */
+export const BLANK_FFDR = 6;
 export const DEFAULT_HORIZON = 6;
 
 /* Umferðirnar sem skoðaðar eru: gwFrom .. gwFrom+horizon-1, klippt við
@@ -171,17 +175,34 @@ export function findRotationPartners({
                  vs: worst ? worst.name : null });
     }
     if (!covered) continue;                       // þekur ekkert -> ekki par
+    /* MEDAL-FFDR I ERFIDU UMFERDUNUM = "hve auðvelt er prógrammið hans
+       ÞARNA". Auð umferð telst VERST (BLANK_FFDR): hún gefur 0 stig og
+       má ekki líta út eins og léttur leikur þegar raðað er eftir léttleika. */
+    const ffdrs = per.map(x => x.cell.blank ? BLANK_FFDR : x.cell.ffdr)
+                     .filter(v => v != null);
+    const ffdrMean = ffdrs.length ? ffdrs.reduce((a, b) => a + b, 0) / ffdrs.length : null;
     out.push({
       p: c.p, teamId: c.teamId, owned: owned.has(c.p.id),
       cover: Math.round(100 * covered / totalNeed),
-      gain: +gain.toFixed(2), per, startP: cP,
+      gain: +gain.toFixed(2), ffdr: ffdrMean == null ? null : +ffdrMean.toFixed(2),
+      per, startP: cP,
     });
   }
 
-  /* Raðað eftir VINNINGI; þekja er jafnteflis-brjótur, svo verð (ódýrari
-     fyrst) þegar hvorugt skilur.                                        */
-  out.sort((a, b) => b.gain - a.gain || b.cover - a.cover
-                  || (a.p.now_cost || 0) - (b.p.now_cost || 0));
+  /* RADAD EFTIR FFDR — LETTASTA PROGRAMMID I ERFIDU UMFERDUNUM FYRST
+     (beidni notanda 7.8.2026; adur var radad eftir VINNINGI).
+     Spurningin sem listinn svarar er "hver a lettar umferdir NAKVAEMLEGA
+     thar sem minn madur er thungur", og FFDR er svarid vid henni —
+     vinningurinn blandar STIGUM (verdi og formi) inn i rodunina.
+     FYRIRVARI SEM STENDUR (kafli 3d): hrein FFDR-rodun hyglar monnum i
+     SLOKUM lidum sem eiga letta leiki en skora ekki. Thess vegna:
+       · thekja > 0 er AFRAM skilyrdi (sa sem thekur ekkert kemst ekki a
+         listann yfirleitt), og
+       · byrjunar-golfid (MIN_START_PROB) siar ut tha sem spila ekki, og
+       · VINNINGURINN ER AFRAM SYNDUR i eigin dalki svo hann sjaist.
+     Jafntefli: thekja, svo vinningur, svo verd (odyrari fyrr).          */
+  out.sort((a, b) => (a.ffdr ?? 99) - (b.ffdr ?? 99) || b.cover - a.cover
+                  || b.gain - a.gain || (a.p.now_cost || 0) - (b.p.now_cost || 0));
 
   /* EITT LID = EIN ROD. FFDR er EIGINLEIKI LIDSINS, svo allir varnarmenn
      Arsenal fengu NAKVAEMLEGA somu sex leiki og listinn var 4-5 eins radir.
