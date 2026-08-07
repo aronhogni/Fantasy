@@ -42,6 +42,16 @@ const DEF_ID = 11; // Mosquera — ARS DEF (lid 1), i sjalfgefna lidinu
 globalThis.fetch = async u => {
   const n = String(u).split("/data/")[1];
   if (!n) return { ok: false, status: 404, json: async () => ({}) };
+  /* DEFCON_HISTORY: fra 7.8.2026 FYLGJA DC-dalkarnir voldu timabili og
+     lesa `defcon_history.json` (lyklad a `code`) thegar sogulegt timabil
+     er valid — sem er SJALFGEFID i forleik (2025/26). Hermum thvi BADAR
+     heimildir: history fyrir sjalfgefna sýn, defcon.json fyrir lifandi. */
+  if (n === "defcon_history.json") {
+    return { ok: true, status: 200, json: async () => ({
+      seasons: { "2025/26": { "500040": {   // Mosquera (FPL code)
+        pos: "DEF", starts: 12, hits: 9, p0: 0.361,
+        hit_rate: 0.75, hit_rate_adj: 0.573 } } } }) };
+  }
   if (n === "defcon.json") {
     const real = J(n);
     return { ok: true, status: 200, json: async () => ({ ...real, players: [
@@ -101,8 +111,8 @@ await fire(byTab("👥"));
 console.log("\nLIFANDI DÁLKAR (hermt defcon.json)");
 
 /* ---- 1. DC-hittni-flokkurinn: nyju dalkarnir ---- */
-ok("flokka-hnappurinn 'DC-hittni (yfirstandandi)' er til", !!byExact("DC-hittni (yfirstandandi)"));
-await fire(byExact("DC-hittni (yfirstandandi)"));
+ok("flokka-hnappurinn 'DC-hittni' er til", !!byExact("DC-hittni"));
+await fire(byExact("DC-hittni"));
 ok("raðað eftir 'DC-leikir (n)' — null-síðast flýtur gagna-röðinni efst",
   await clickHeader("DC-leikir (n)"));
 let txt = mosRowText();

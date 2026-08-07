@@ -183,6 +183,20 @@ mælingar fóru í 75–80% en engin leikmaður í ~470 manna tímabilsspá fer 
 Sýnið `starts` alltaf við hlið hittninnar. Vörður: `tests/defcon-shrink.mjs`.
 `defcon_opportunity` 0–100 = vinnuálag varnar. **Aðskilið frá CS%.**
 
+### `defcon_history.json`
+```
+{ seasons: { "2025/26": { <code>: { pos, starts, hits, hit_rate,
+                                     hit_rate_adj, p0 } } } }
+```
+DC-hittni **fyrri tímabila**, leidd úr `player_gw_{s}.json` (`dc` = FPL
+`defensive_contribution`, sem er TALNINGIN 1–27, ekki stigin). Lyklað á
+FPL `code` (fast yfir tímabil, ólíkt `id`). Sömu þröskuldar og
+afturvirkni og `defcon.json` svo tölurnar séu samanburðarhæfar.
+**AÐEINS tímabil sem EIGA DefCon:** mælt eru 2021/22–2024/25 með `dc`
+skrifað sem **0** (ekki null) — án síu hefði hver leikmaður fengið
+hittni 0,000 sem *lítur út eins og mæling*. Þau eru því sleppt og appið
+sýnir „—" (VANTAR). DefCon er ný stigagjöf frá 2025/26.
+
 ---
 
 ## Bókmakarar

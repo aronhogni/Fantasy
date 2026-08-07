@@ -4,6 +4,7 @@ import GwReport from "./GwReport.jsx";
 import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
 import SetPieces from "./SetPieces.jsx";
 import Compare from "./Compare.jsx";
+import Leagues from "./Leagues.jsx";
 import Rotation from "./Rotation.jsx";
 import { RAW } from "./dataUrl.js";
 /* Toluranar i skipta-glugganum koma UR SOMU SKRA sem listinn og stigataflan
@@ -500,6 +501,7 @@ export default function App() {
   const [fixtures, setFixtures] = useState(null);
   const [events, setEvents] = useState(null);
   const [defcon, setDefcon] = useState(null);
+  const [defconHist, setDefconHist] = useState(null);  // DC-hittni fyrri timabila
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
   const [lineups, setLineups] = useState(null);         // STADFEST byrjunarlid
   const [pipeStatusFast, setPipeStatusFast] = useState(null);
@@ -598,6 +600,7 @@ export default function App() {
         setPlayers(plA); setTeams(tmA); setFixtures(fxA); setEvents(evA);
         setDataState("ok");
         try { setDefcon(await j("defcon.json")); } catch {}
+        try { setDefconHist(await j("defcon_history.json")); } catch {}
         try { setPlayerForm(await j("player_form.json")); } catch {}
         try { setPipeStatus(await j("status.json")); } catch {}
         /* HRADA KEYRSLAN SKRIFAR I status_fast.json OG APPID LAS HANA EKKI.
@@ -1882,7 +1885,7 @@ export default function App() {
       {view === "players" && (
         <PlayerList players={players} teams={teams} teamById={teamById} events={events}
           seasonsFile={seasonsFile} imminent={imminent} shotsFile={lastGwShots}
-          fixtures={fixtures} odds={odds} defcon={defcon}
+          fixtures={fixtures} odds={odds} defcon={defcon} defconHist={defconHist}
           photoUrl={photoUrl} Crest={Crest}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           watch={watch}
@@ -1897,12 +1900,18 @@ export default function App() {
           notes={spNotes} onPickPlayer={id => setDetail({ kind:"player", id })} />
       )}
       {view === "board" && (
+        <>
         <Leaderboard players={players} teams={teams} teamById={teamById} Crest={Crest}
           imminent={imminent} photoUrl={photoUrl}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           seasonNote={preSeason
             ? tx("Tímabilið 2026/27 er ekki byrjað. Tölurnar hér eru uppsafnaðar tölur sem FPL birtir núna — þær nollast þegar GW1 opnar.")
             : null} />
+        {/* EINKA-DEILDIR + VERDLAUN. Undir stigatoflunni thvi thetta er
+            sama spurning fra hinni hlidinni: "hvernig stend eg?" —
+            stigataflan er leikmanna-tolur, thetta er MIN stada.        */}
+        <Leagues proxyUrl={PROXY_URL} entryId={entryId} />
+        </>
       )}
 
       {view === "planner" && (<>

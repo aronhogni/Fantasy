@@ -457,10 +457,33 @@ export const EN = {
   "DefCon-tækifæri {0} — mikið vinnuálag varnar":
     "DefCon opportunity {0} — heavy defensive workload",
   "DC-hittni": "DC hit rate",
+  "Einka-deildir": "Mini-leagues",
+  "deildar-númer eða slóð": "league ID or link",
+  "Staðan í deildunum þínum. Verðlaunapotturinn er ÞITT innslag — hann er geymdur í vafranum þínum og fer aldrei neitt.":
+    "Where you stand in your leagues. The prize pot is YOUR input — it is stored in your browser and never leaves it.",
+  "Engin deild skráð. Númerið er í slóð deildarinnar á fantasy.premierleague.com (…/leagues/":
+    "No league added. The ID is in the league URL on fantasy.premierleague.com (…/leagues/",
+  "Vantar proxy — deildir eru sóttar í gegnum hann.":
+    "Proxy missing — leagues are fetched through it.",
+  "Náði ekki í deild {0}: {1}": "Could not load league {0}: {1}",
+  "Sláðu inn deildar-númer eða FPL-slóð deildarinnar.":
+    "Enter a league ID or the league's FPL link.",
+  "Deildin er þegar á listanum.": "That league is already on the list.",
+  "Deild": "League",
+  "Pottur": "Pot",
+  "Skipting %": "Split %",
+  "Prósenta per sæti, aðskilið með /. Dæmi: 50/30/20":
+    "Percent per place, separated by /. Example: 50/30/20",
+  "Fjarlægja deild": "Remove league",
+  "Umferð": "GW",
+  "Alls": "Total",
+  "Verðlaun": "Prize",
+  "þú": "you",
+  "Engin staða enn — deildin byrjar að telja við fyrstu umferð.":
+    "No standings yet — the league starts counting at the first gameweek.",
   "{0} byrjaðir · hrá {1}%": "{0} starts · raw {1}%",
   "Byrjunar-líkur (mælt líkan, gluggi = síðustu 5 loknu umferðir). Vinningurinn er veginn með þessari tölu; undir 15% kemst enginn á listann.":
     "Start probability (measured model, window = last 5 finished gameweeks). The gain is weighted by this number; below 15% nobody makes the list.",
-  "DC-hittni (yfirstandandi)": "DC hit rate (current season)",
   "Fyrirliði — tvöföld stig": "Captain — double points",
   "Varafyrirliði — tekur við ef fyrirliðinn spilar ekki":
     "Vice-captain — takes over if the captain does not play",

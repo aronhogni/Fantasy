@@ -81,6 +81,24 @@ export const handler = async (event) => {
       const data = await getJSON(`${FPL_BASE}/entry/${id}/`);
       return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
     }
+    /* EINKA-DEILDIR (mini-leagues). Standings-endapunkturinn er opinn en
+       CORS-lokadur, eins og allt annad FPL — thess vegna fer hann hedan.
+       `page` fylgir svo staerri deildir (>50 lid) seu naanlegar.
+       CDN-cache 60 s: stadan breytist adeins thegar stig uppfaerast.     */
+    if (path === "fpl-league") {
+      const { id, page } = event.queryStringParameters;
+      if (!/^\d+$/.test(String(id || ""))) {
+        return { statusCode: 400, headers: cors,
+                 body: JSON.stringify({ error: "id verdur ad vera tala" }) };
+      }
+      const p = /^\d+$/.test(String(page || "")) ? page : 1;
+      const data = await getJSON(
+        `${FPL_BASE}/leagues-classic/${id}/standings/?page_standings=${p}`);
+      return { statusCode: 200,
+               headers: { ...cors, "Netlify-CDN-Cache-Control": "public, durable, max-age=60" },
+               body: JSON.stringify(data) };
+    }
+
     if (path === "fpl-picks") {
       const { id, gw } = event.queryStringParameters;
       const data = await getJSON(`${FPL_BASE}/entry/${id}/event/${gw}/picks/`);

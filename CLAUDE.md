@@ -1496,6 +1496,40 @@ er lifandi merkið sem á að vega þyngst á leikdegi.
 
 ---
 
+## 6n. DC-HITTNI FYRRI TIMABILA + EINKA-DEILDIR (7.8.2026, ad beidni)
+
+### DC-hittni fylgir nu voldu timabili
+`computeDefconHistory()` i `fetch.mjs` -> `data/defcon_history.json`.
+Leitt ur `player_gw_{s}.json` (`dc` = FPL `defensive_contribution`, sem er
+TALNINGIN 1-27, ekki stigin) — **engin ny koll**. Somu throskuldar
+(DEF 10, MID/FWD 12) og SAMA afturvirkni (K=10) og `defcon.json`, svo
+tolurnar seu samanburdarhaefar. Dalkarnir threir eru ekki lengur
+`live_only`; `cook` velur heimild eftir voldu timabili (history er
+lyklad a `code`, sem er fast yfir timabil, en `defcon.json` a `fpl_id`).
+
+**GILDRA SEM VAR FUNDIN OG LOKAD:** fyrsta keyrslan skrifadi FIMM timabil.
+En 2122-2425 geyma `dc` sem **0, ekki null** — an siu hefdi hver leikmadur
+fengid hittni **0,000**, sem LITUR UT EINS OG MAELING en thydir "gognin eru
+ekki til". Nakvaemlega gildran sem kafli 3 fordast. Nu er timabil sleppt ef
+ENGINN i thvi naer throskuldinum; appid synir "—" (VANTAR). DefCon er ny
+stigagjof, svo adeins **2025/26** hefur raunveruleg gogn.
+
+### Einka-deildir + verdlaunapottur (`src/Leagues.jsx`)
+Undir Stigatoflunni. Deildir baettar vid med numeri EDA FPL-slod; stada,
+umferdar-stig, heildarstig og hreyfing (▲/▼ fra sidustu umferd), eigid lid
+audkennt. **Pottur og skipting** (sjalfgefid 50/30/20, ritanleg) synir hvad
+hvert saeti er vert eins og staðan er nuna — namundad NIDUR svo greidslur
+fari aldrei yfir pottinn.
+
+**Peningar og deildar-numer eru NOTANDA-GOGN**: geymt i `localStorage`
+(`fpl_leagues`) og fara ALDREI i nein kall ut. Ny leid `fpl-league` i
+`netlify/functions/odds.js` (FPL-standings er CORS-lokad eins og allt
+annad FPL), med 60 s CDN-cache og tolu-stadfestingu a id.
+**ATH: thetta er `netlify/`-breyting og kveikir thvi EINA Netlify-byggingu**
+(sja kafla 2 atridi 4) — ohjakvaemilegt fyrir eiginleikann.
+
+---
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)

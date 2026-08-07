@@ -173,7 +173,7 @@ function StatPicker({ value, onChange, style }) {
 }
 
 export default function PlayerList({ players, teams, teamById, events, seasonsFile,
-                                     imminent, shotsFile, fixtures, odds, defcon,
+                                     imminent, shotsFile, fixtures, odds, defcon, defconHist,
                                      photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
                                      watch, onWatch, mineIds }) {
   const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
@@ -328,9 +328,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     }
     const csByShort = odds || {};
     const dcById = defcon?.opportunity || {};
-    /* DC-hittni per leikmann (fpl_id -> rod). Tomt fram ad GW1.        */
+    /* DC-hittni per leikmann. TVAER HEIMILDIR:
+         · yfirstandandi timabil -> defcon.json (lyklad a fpl_id)
+         · sogulegt timabil      -> defcon_history.json (lyklad a `code`,
+           sem er FAST yfir timabil ólíkt id)
+       Valid raedur hvor er lesin, svo dalkarnir FYLGJA timabilinu eins og
+       adrar tolur i toflunni. DefCon er ny stigagjof fra 2025/26; eldri
+       timabil eru EKKI i skranni og fa "—" (VANTAR), ekki 0.           */
     const dcHitById = {};
     for (const r of defcon?.players || []) dcHitById[r.fpl_id] = r;
+    const dcHistBySeason = isLive ? null : (defconHist?.seasons?.[season] || null);
 
     const out = (players || []).map(p => {
       /* UMFERDAR-BIL kemur I STAD arstidar-rodarinnar. Skilar FPL-nefndum
@@ -372,9 +379,13 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
            tomur og faldi sig sjalfur sem tomur dalkur. Fannst 4.8.2026
            thegar sama tenging var skrifud fyrir DC-hittni.              */
         _team_dc: num(dcById[p.team]?.defcon_opportunity),
-        _dc_hit_adj: num(dcHitById[p.id]?.hit_rate_adj),
-        _dc_hit_raw: num(dcHitById[p.id]?.hit_rate),
-        _dc_starts: num(dcHitById[p.id]?.starts),
+        ...(() => {
+          const h = dcHistBySeason ? dcHistBySeason[String(p.code)]
+                                   : dcHitById[p.id];
+          return { _dc_hit_adj: num(h?.hit_rate_adj),
+                   _dc_hit_raw: num(h?.hit_rate),
+                   _dc_starts:  num(h?.starts) };
+        })(),
       });
 
       return {
@@ -394,7 +405,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       console.log(`[Leikmenn] cook ${out.length} radir: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
   }, [players, teamById, seasonsFile, season, isLive, imminent, shotsFile, fixtures, events,
-      odds, defcon, lang, gwActive, gwFile, gwRange]);
+      odds, defcon, defconHist, lang, gwActive, gwFile, gwRange]);
 
   /* ---------- hvada dalkar hafa GOGN i thessu timabili ---------- */
   const groupCols = useMemo(() => {

@@ -301,6 +301,85 @@ async function fetchFPL() {
 }
 
 /* ========== 2. DEFCON — afleitt úr live, umferð fyrir umferð ========== */
+/* ========== 2b. DC-HITTNI FYRRI TIMABILA (defcon_history.json) ==========
+   Notandinn vill sja DC-hittni a SOGULEGUM timabilum, ekki bara thvi
+   yfirstandandi. Hraefnid er thegar i repo-inu: data/player_gw_{s}.json
+   ber `dc` (= FPL `defensive_contribution`, TALNINGIN 1-27, ekki stigin)
+   per leikmann per umferd. ENGIN NY KOLL.
+
+   HORD SKORDA SEM MA EKKI FELA: `dc` er AÐEINS til fra 2025/26 — DefCon
+   er ny stigagjof. Maelt a raungognum: 2122/2223/2324/2425 hafa NULL
+   raðir med dc>0, 2526 hefur 9.620. Skrain ber thvi adeins thau timabil
+   sem eiga gogn, og appid synir "—" (VANTAR) fyrir hin — sem er RETT
+   svar, ekki 0%.
+
+   Somu throskuldar og computeDefcon notar (DEF 10, MID/FWD 12) og SAMA
+   afturvirkni (empirisk Bayes, K=10 ad stodu-medaltali) svo tolurnar
+   seu SAMBAERILEGAR vid yfirstandandi timabil.                        */
+async function computeDefconHistory() {
+  const DC_K = 10;
+  const DC_P0_FALLBACK = { GK: 0.02, DEF: 0.27, MID: 0.17, FWD: 0.10 };
+  const POS_THRESH = { GK: 10, DEF: 10, MID: 12, FWD: 12 };
+  const seasons = {};
+  let files = 0;
+  for (const f of await readdir(DATA)) {
+    const m = /^player_gw_(\d{4})\.json$/.exec(f);
+    if (!m) continue;
+    let d; try { d = JSON.parse(await readFile(`${DATA}/${f}`, "utf8")); } catch { continue; }
+    const inv = {};
+    for (const [i, name] of Object.entries(d.stats || {})) inv[name] = +i;
+    if (inv.dc == null) continue;
+    const out = {};
+    for (const [code, row] of Object.entries(d.players || {})) {
+      const pos = row.p;
+      const th = POS_THRESH[pos] ?? 12;
+      let starts = 0, hits = 0;
+      for (const g of Object.values(row.gw || {})) {
+        const mins = g[inv.mins] ?? 0;
+        if (mins <= 0) continue;
+        const dc = g[inv.dc];
+        if (dc == null) continue;          // timabil an DefCon -> ekki talid
+        starts++;
+        if (dc >= th) hits++;
+      }
+      if (starts > 0) out[code] = { pos, starts, hits };
+    }
+    /* TIMABIL AN DEFCON ER SLEPPT — MAELT: i 2122-2425 er `dc` skrifad
+       sem 0 (ekki null), svo an thessarar sidu hefdi hver leikmadur fengid
+       hittni 0,000 sem LITUR UT EINS OG MAELING en er "gognin eru ekki
+       til". Nakvaemlega gildran sem kafli 3 fordast. Krafa: einhver i
+       timabilinu tharf ad hafa NAD throskuldinum.                       */
+    const anyHit = Object.values(out).some(r => r.hits > 0);
+    if (!Object.keys(out).length || !anyHit) continue;
+    /* p0 per stodu ur SOMU gognum (sama regla og computeDefcon).      */
+    const pool = {};
+    for (const r of Object.values(out)) {
+      const q = pool[r.pos] || (pool[r.pos] = { hits: 0, starts: 0 });
+      q.hits += r.hits; q.starts += r.starts;
+    }
+    for (const r of Object.values(out)) {
+      const q = pool[r.pos];
+      const p0 = q && q.starts >= 50 ? q.hits / q.starts
+                                     : (DC_P0_FALLBACK[r.pos] ?? 0.17);
+      r.p0 = +p0.toFixed(3);
+      r.hit_rate = +(r.hits / r.starts).toFixed(3);
+      r.hit_rate_adj = +((r.hits + DC_K * p0) / (r.starts + DC_K)).toFixed(3);
+    }
+    seasons[d.label || m[1]] = out;
+    files++;
+  }
+  await writeJSON("defcon_history.json", {
+    updated: status.updated, seasons,
+    note: "DC-hittni per timabil, LEITT ur player_gw_{s}.json (`dc` = FPL "
+        + "defensive_contribution, TALNING). Lyklad a FPL `code`. ADEINS "
+        + "timabil sem EIGA dc — DefCon er ny stigagjof fra 2025/26; eldri "
+        + "timabil vantar og eiga ad birtast sem VANTAR, ekki 0. Somu "
+        + "throskuldar og afturvirkni og defcon.json (DEF 10, MID/FWD 12, K=10).",
+  });
+  record("defcon_history", true, files,
+    `${files} timabil: ${Object.entries(seasons).map(([k, v]) => `${k} (${Object.keys(v).length} leikm.)`).join(", ") || "engin"}`);
+}
+
 async function computeDefcon(events, els) {
   // þröskuldar: DEF 10 CBIT, MID/FWD 12 CBIRT. Hámark 2 stig/leik.
   // element_type: 1 GK, 2 DEF, 3 MID, 4 FWD
@@ -3015,6 +3094,7 @@ async function main() {
   }
 
   try { await computeDefcon(events, els); } catch (e) { record("defcon", false, 0, e.message); }
+  try { await computeDefconHistory(); }        catch (e) { record("defcon_history", false, 0, e.message); }
   try { await computePlayerForm(events, els); } catch (e) { record("player_form", false, 0, e.message); }
   if (FLAGS.apisports) { try { await fetchLineups(); } catch (e) { record("api_lineups", false, 0, e.message); } }
   if (FLAGS.elo)    { try { await fetchElo(); }              catch (e) { record("elo", false, 0, e.message); } }

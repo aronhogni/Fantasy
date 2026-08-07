@@ -76,7 +76,7 @@ export const STAT_GROUPS = [
   /* DC-hittni er UPPSAFNAD yfir yfirstandandi timabil — hvorki 4-5 umferda
      gluggi ne "leikir framundan", svo hun a sinn eigin flokk med heidarlegu
      heiti (sbr. 6i: heiti flokkanna bera timabilid sjalf).                */
-  { key: "dcstat",  get label() { return tx("DC-hittni (yfirstandandi)"); } },
+  { key: "dcstat",  get label() { return tx("DC-hittni"); } },
   { key: "fixtures",get label() { return tx("Leikir framundan"); } },
   { key: "setp",    get label() { return tx("Föst leikatriði"); } },
   { key: "rank",    get label() { return tx("FPL-sæti (innan stöðu)"); } },
@@ -1176,15 +1176,15 @@ STAT_DEFS.push(
      hittni an leikjafjolda er half saga). Tomt fram ad GW1 -> dalkarnir
      fela sig sjalfir (null-reglan i PlayerList).                        */
   { key:"dc_hit_adj", get label() { return tx("DC-hittni (leiðr.)"); }, group:"dcstat", dec:0, hi:true,
-    pct:true, live_only:true, derived:true,
+    pct:true,  derived:true,
     get note() { return tx("Hlutfall byrjunarleikja sem ná DefCon-þröskuldinum, AFTURVIRKJAÐ fyrir sýnastærð (empirísk Bayes, k=10 að stöðu-meðaltali). Notið þessa, ekki þá hráu — og lesið n við hliðina."); },
     get:p=>{ const v=num(p._dc_hit_adj); return v==null?null:v*100; } },
   { key:"dc_hit_raw", get label() { return tx("DC-hittni (hrá)"); }, group:"dcstat", dec:0, hi:true,
-    pct:true, live_only:true, derived:true,
+    pct:true,  derived:true,
     get note() { return tx("Hrá hittni (hits/starts) — OFMÆLIST á litlum sýnum (75% á n=12 getur verið 57% í raun). Sýnd til gagnsæis; leiðrétta talan er sú sem gildir."); },
     get:p=>{ const v=num(p._dc_hit_raw); return v==null?null:v*100; } },
   { key:"dc_starts", get label() { return tx("DC-leikir (n)"); }, group:"dcstat", dec:0, hi:true,
-    live_only:true, derived:true,
+     derived:true,
     get note() { return tx("Fjöldi leikja á bak við hittnina. Lítið n = lítið að marka hráu töluna."); },
     get:p=>num(p._dc_starts) },
 
