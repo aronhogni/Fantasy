@@ -1543,6 +1543,82 @@ annad FPL), med 60 s CDN-cache og tolu-stadfestingu a id.
 
 ---
 
+## 6o. ARON-STUDULL (JOFNUDUR) — MAELT 7.8.2026, BIRT EN EKKI RADAD
+
+Spurning notandans: "hverjir fa ALLTAF 4-6 stig thegar their spila, i stad
+thess ad fa 2 og 2 og 2 og svo 11?"
+
+`consistency.json` (computeConsistency i fetch.mjs, leitt ur
+`player_gw_*.json`, engin ny koll, oll 5 timabilin):
+`hit4_pct` / `hit6_pct` / `blank_pct` = hlutfall SPILADRA leikja med
+>=4 / >=6 / <=2 stig, afturvirkjad (K=10 ad stodu-medaltali).
+**`aron = hit4_pct - blank_pct`** — "4+ er gott, 1-2 er galli".
+
+### ThRENNT MAELT — OG HVERT ThEIRRA FELLDI EINA UTFAERSLU
+
+**1. Throskuldurinn skiptir ekki mali.** FPL-stig eru ALLTAF heiltolur
+(0 af 11.361 leik med aukastaf), svo >=3,5 ER >=4 og >=5,5 ER >=6.
+Raunthroskuldar 3/4/5/6/7 gefa ALLIR r ~ 0,90 vid stig/leik og abatinn
+umfram stig/leik **skiptir formerki**: +0,6 / +1,4 / -0,6 / +1,4 / -1,0 pp.
+Havada-undirskrift; enginn throskuldur "vinnur".
+
+**2. Jofnudur er ekki sjalfstaedur eiginleiki.** Leif hit4 eftir ad
+stjornad er fyrir stigum flyst med r = 0,418 — EN thad reyndist vera
+STADAN i dulargervi: innan stodu hrynur hun (DEF 0,10 · MID 0,12 · FWD
+-0,11). Og med VERD lika stjornad (r(verd,ppg) = 0,43-0,66): DEF 0,122 og
+MID 0,126 med 2*SE 0,21-0,27, formerki flakka. **Ekkert eftir.**
+
+**3. AD DEILA MED VERDI VAR PROFAD OG HAFNAD.** `aron/verd` heldur ser
+BETUR milli timabila (0,441 a moti 0,389) — en i akvordunarprofinu (byggja
+gilt 15-manna lid undir £100m i ari N, maela utkomu i N+1) er thad VERRA:
+4,09 -> 3,92 stig/leik og 37,8% -> 35,6% hittni.
+**Skyringin er ThESS VIRDI AD MUNA: verd er sjalft mjog stodugt milli
+timabila, svo hlutfall erfir thann stodugleika. Persistence haekkadi an
+thess ad UPPLYSINGAR baettust vid.** Haerri fylgni != betri akvordun.
+`ppg/milljon` og `hit4/milljon` eru enn verri — thaer skildu **£22m af
+£100m OSNERTA** thvi thaer rada odyrum monnum efst (3,69 og 3,44 stig/leik).
+`aron/verd` slapp vid tha gildru af thvi ad studullinn getur verid
+NEIKVAEDUR og neikvaed tala deilt med lagu verdi verdur MEIRA neikvaed.
+
+### ThROSKULDURINN: 4 ER RETTUR — 5 OG 6 ERU VERRI (maelt 7.8.)
+Notandinn spurdi hvort 5 eda 6 vaeri betra. Svarid er NEI og astaedan er
+odrugsaeisleg: **jafni madurinn fer sjaldan yfir 6, en 2-2-2-og-svo-11
+madurinn KLARAR 6 og 7 i sprengingunum.** Har throskuldur telur thvi
+sprengingar, ekki jofnud. Maelt sem fylgni hitT vid SVEIFLUSTUDUL innan
+ppg-bils (5 timabil): T=3 -0,546 · T=4 -0,272 · T=5 -0,176 · T=6 -0,081 ·
+**T=7 +0,148 — SNYST VID og verdlaunar sveiflur.**
+Studullinn sjalfur (med blank-lidnum): aron_3 -0,546 · aron_4 -0,490 ·
+aron_5 -0,472 · aron_6 -0,432.
+T=3 maelist adeins betur EN ER HRORNUD: >=3 og <=2 eru SAMFYLLI, svo
+aron_3 = 2*hit3 - 1 og blank-lidurinn haettir ad baeta nokkru vid.
+**T=4 stendur**: hann heldur hlutlausa 3-stiga bilinu og blank-lidurinn
+ber sjalfstaeda upplysingu. `6+`-dalkurinn er afram birtur EN ber nu
+maelinguna i tooltip: hann maelir SPRENGIKRAFT, ekki jofnud.
+
+### AFLEIDINGIN
+Studullinn fer **ALDREI i `rankScore`** — vordur er kafli 5 i
+`tests/consistency.mjs` sem fellur ef einhver reynir thad. Hann er birtur
+sem LYSING i eigin flokki ("Jofnudur (Aron)", 5 dalkar) med fyrirvaranum
+i tooltip. **Retta notkunin er ad rada eftir Jofnudi OG nota
+verd-throskuldinn** — thad heldur samanburdinum innan verdflokks i stad
+thess ad lata hlutfall blanda theim saman.
+
+---
+
+## 6p. FIMM TIMABIL I LEIKMANNALISTANUM (7.8.2026)
+
+`SEASON_DIRS` var hardkodad a ThRJU timabil ("2025-26","2024-25","2023-24")
+svo fellilistinn bar adeins thau — notandinn bad um fleiri. Maelt: vaastav-
+speglunin ber `players_raw.csv` fyrir **2019-20 til 2025-26, oll HTTP 200**
+(174-380 KB). Faert i FIMM (2021-22 og 2022-23 baett vid) svo listinn passi
+vid `player_gw_*.json` sem umferdar-bilid les — annars gaeti notandinn
+valid timabil i fellilistanum sem umferdar-bilid a ekki.
+`player_seasons.json` fer ur ~1,9 MB i ~2,5 MB (493 leikmenn eftir siu,
+1.304 utan deildar sleppt). Hun er LETIHLADIN svo thetta snertir ekki
+fyrstu hledslu appsins.
+
+---
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)

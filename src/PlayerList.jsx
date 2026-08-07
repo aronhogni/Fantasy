@@ -173,7 +173,7 @@ function StatPicker({ value, onChange, style }) {
 }
 
 export default function PlayerList({ players, teams, teamById, events, seasonsFile,
-                                     imminent, shotsFile, fixtures, odds, defcon, defconHist,
+                                     imminent, shotsFile, fixtures, odds, defcon, defconHist, consist,
                                      photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
                                      watch, onWatch, mineIds }) {
   const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
@@ -338,6 +338,10 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     const dcHitById = {};
     for (const r of defcon?.players || []) dcHitById[r.fpl_id] = r;
     const dcHistBySeason = isLive ? null : (defconHist?.seasons?.[season] || null);
+    /* ARON-STUDULL: alltaf ur consistency.json og FYLGIR voldu timabili.
+       Lykladur a `code` eins og hin sogulegu gognin. Fyrir 2026/27 (ekki
+       byrjad) er ekkert til og dalkarnir syna "—" — sem er rett.       */
+    const consBySeason = consist?.seasons?.[season] || null;
 
     const out = (players || []).map(p => {
       /* UMFERDAR-BIL kemur I STAD arstidar-rodarinnar. Skilar FPL-nefndum
@@ -382,9 +386,15 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         ...(() => {
           const h = dcHistBySeason ? dcHistBySeason[String(p.code)]
                                    : dcHitById[p.id];
+          const k = consBySeason?.[String(p.code)];
           return { _dc_hit_adj: num(h?.hit_rate_adj),
                    _dc_hit_raw: num(h?.hit_rate),
-                   _dc_starts:  num(h?.starts) };
+                   _dc_starts:  num(h?.starts),
+                   _aron:       num(k?.aron),
+                   _hit4:       num(k?.hit4_pct),
+                   _hit6:       num(k?.hit6_pct),
+                   _blank:      num(k?.blank_pct),
+                   _cgames:     num(k?.games) };
         })(),
       });
 
@@ -405,7 +415,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       console.log(`[Leikmenn] cook ${out.length} radir: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
   }, [players, teamById, seasonsFile, season, isLive, imminent, shotsFile, fixtures, events,
-      odds, defcon, defconHist, lang, gwActive, gwFile, gwRange]);
+      odds, defcon, defconHist, consist, lang, gwActive, gwFile, gwRange]);
 
   /* ---------- hvada dalkar hafa GOGN i thessu timabili ---------- */
   const groupCols = useMemo(() => {

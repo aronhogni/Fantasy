@@ -183,6 +183,24 @@ mælingar fóru í 75–80% en engin leikmaður í ~470 manna tímabilsspá fer 
 Sýnið `starts` alltaf við hlið hittninnar. Vörður: `tests/defcon-shrink.mjs`.
 `defcon_opportunity` 0–100 = vinnuálag varnar. **Aðskilið frá CS%.**
 
+### `consistency.json` — ARON-STUÐULL (jöfnuður)
+```
+{ seasons: { "2025/26": { <code>: { pos, games, hit4, hit6, blank,
+      ppg, hit4_pct, hit6_pct, blank_pct, aron } } } }
+```
+Hlutfall **spilaðra** leikja með ≥4 / ≥6 / ≤2 stig, afturvirkjað (K=10 að
+stöðu-meðaltali) svo maður með 3 leiki fái ekki 100%.
+`aron = hit4_pct − blank_pct` — „4+ er gott, 1–2 er galli".
+
+**LÝSING Á FORTÍÐ, EKKI SPÁ — og það er MÆLT** (5 tímabil, 7.8.2026):
+hit4 fylgir stigum/leik með **r = 0,90**; enginn þröskuldur (≥3/4/5/6/7)
+gaf forspárgildi umfram stig/leik og ábatinn **skipti formerki**
+(+0,6 / +1,4 / −0,6 / +1,4 / −1,0 pp); verð ræður miklu (r 0,43–0,66) og
+eftir að stjórnað er fyrir stigum **og verði** innan stöðu er engin
+varanleg leif (DEF 0,12 · MID 0,13, 2·SE 0,21–0,27, formerki flakka).
+**Fer því ALDREI í `rankScore`** — vörður: kafli 5 í `tests/consistency.mjs`.
+Rétta notkunin: bera saman menn í **sömu stöðu á svipuðu verði**.
+
 ### `defcon_history.json`
 ```
 { seasons: { "2025/26": { <code>: { pos, starts, hits, hit_rate,

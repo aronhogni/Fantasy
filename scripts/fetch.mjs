@@ -316,6 +316,91 @@ async function fetchFPL() {
    Somu throskuldar og computeDefcon notar (DEF 10, MID/FWD 12) og SAMA
    afturvirkni (empirisk Bayes, K=10 ad stodu-medaltali) svo tolurnar
    seu SAMBAERILEGAR vid yfirstandandi timabil.                        */
+/* ========== 2c. ARON-STUDULLINN (JOFNUDUR) — consistency.json ==========
+   SPURNINGIN: "hverjir fa ALLTAF 4-6 stig thegar their spila, i stad thess
+   ad fa 2 og 2 og 2 og svo 11?" Talan er LYSING A FORTID, ekki spa — og
+   thad er MAELT, ekki agiskad:
+
+   MAELT 7.8.2026 a 5 timabilum (player_gw_*.json):
+     · hit4 fylgir stigum/leik med r = 0,90 — thad er ad miklu leyti SAMA
+       talan. Engin throskuldur (>=3/4/5/6/7) sleppur undan thvi.
+     · Ad velja topp-20 eftir hit4 gaf +1,4 prosentustig i hittni naesta ar
+       — en ABATINN SKIPTIR FORMERKI milli throskulda (+0,6 / +1,4 / -0,6 /
+       +1,4 / -1,0). Thad er havada-undirskrift.
+     · VERD raedur miklu: r(verd, ppg) = 0,43-0,66, r(verd, hit4) = 0,22-0,54.
+     · ThEGAR STJORNAD ER FYRIR ppg OG VERDI, INNAN STODU, hverfur allt:
+       DEF r=0,12 og MID r=0,13 (2*SE = 0,21-0,27) og formerkin flakka.
+   NIDURSTADA: jofnudur er EKKI sjalfstaedur, varanlegur eiginleiki. Hann
+   fer thvi ALDREI i rankScore — thad vaeri ad verdleggja havada (kafli 3).
+   Hann er birtur sem LYSING, med theim fyrirvara i tooltip.
+
+   RETTA NOTKUNIN: bera saman menn i SOMU STODU a SVIPUDU VERDI. Thar
+   segir studullinn hvor gefur 4-6 vikulega og hvor laetur thig bida eftir
+   sprengingunni. Milli stada eda verdflokka er hann marklaus.
+
+   Somu afturvirkni og DC-hittnin (K=10 ad stodu-medaltali) svo madur med
+   3 leiki fai ekki 100%.                                              */
+async function computeConsistency() {
+  const K = 10;
+  const seasons = {};
+  let files = 0;
+  for (const f of await readdir(DATA)) {
+    const m = /^player_gw_(\d{4})\.json$/.exec(f);
+    if (!m) continue;
+    let d; try { d = JSON.parse(await readFile(`${DATA}/${f}`, "utf8")); } catch { continue; }
+    const inv = {};
+    for (const [i, name] of Object.entries(d.stats || {})) inv[name] = +i;
+    if (inv.pts == null || inv.mins == null) continue;
+    const out = {};
+    for (const [code, row] of Object.entries(d.players || {})) {
+      let games = 0, hit4 = 0, hit6 = 0, blank = 0, sum = 0;
+      for (const g of Object.values(row.gw || {})) {
+        if ((g[inv.mins] ?? 0) <= 0) continue;          // ADEINS leiknir leikir
+        const pts = g[inv.pts] ?? 0;
+        games++; sum += pts;
+        if (pts >= 4) hit4++;
+        if (pts >= 6) hit6++;
+        if (pts <= 2) blank++;
+      }
+      if (games > 0) out[code] = { pos: row.p, games, hit4, hit6, blank, sum };
+    }
+    if (!Object.keys(out).length) continue;
+    /* p0 per stodu ur SOMU gognum — afturvirkni fyrir litil syni. */
+    const pool = {};
+    for (const r of Object.values(out)) {
+      const q = pool[r.pos] || (pool[r.pos] = { h4: 0, h6: 0, bl: 0, g: 0 });
+      q.h4 += r.hit4; q.h6 += r.hit6; q.bl += r.blank; q.g += r.games;
+    }
+    for (const r of Object.values(out)) {
+      const q = pool[r.pos], ok = q && q.g >= 50;
+      const p4 = ok ? q.h4 / q.g : 0.28, p6 = ok ? q.h6 / q.g : 0.18,
+            pb = ok ? q.bl / q.g : 0.55;
+      r.ppg      = +(r.sum / r.games).toFixed(2);
+      r.hit4_pct = +((r.hit4 + K * p4) / (r.games + K)).toFixed(3);
+      r.hit6_pct = +((r.hit6 + K * p6) / (r.games + K)).toFixed(3);
+      r.blank_pct= +((r.blank + K * pb) / (r.games + K)).toFixed(3);
+      /* ARON-STUDULLINN: hittni MINUS klur — nakvaemlega hugmyndin
+         ("4+ er gott, 1-2 er galli"). Bil: -1 .. +1.                  */
+      r.aron     = +(r.hit4_pct - r.blank_pct).toFixed(3);
+      delete r.sum;
+    }
+    seasons[d.label || m[1]] = out;
+    files++;
+  }
+  await writeJSON("consistency.json", {
+    updated: status.updated, seasons,
+    note: "ARON-STUDULL (jofnudur). hit4_pct/hit6_pct/blank_pct = hlutfall "
+        + "SPILADRA leikja med >=4 / >=6 / <=2 stig, AFTURVIRKJAD (K=10 ad "
+        + "stodu-medaltali). aron = hit4_pct - blank_pct. LYSING A FORTID, "
+        + "EKKI SPA: maelt a 5 timabilum fylgir hit4 stigum/leik med r=0,90 "
+        + "og eftir ad stjornad er fyrir stig OG VERD innan stodu er engin "
+        + "varanleg leif (DEF 0,12 / MID 0,13, formerkin flakka). Bera skal "
+        + "saman menn i SOMU STODU a SVIPUDU VERDI.",
+  });
+  record("consistency", true, files,
+    `${files} timabil: ${Object.entries(seasons).map(([k, v]) => `${k} (${Object.keys(v).length})`).join(", ")}`);
+}
+
 async function computeDefconHistory() {
   const DC_K = 10;
   const DC_P0_FALLBACK = { GK: 0.02, DEF: 0.27, MID: 0.17, FWD: 0.10 };
@@ -2741,7 +2826,14 @@ async function fetchEspnShots() {
    EKKI 0 heldur VANTAR — sja field_availability. Framendinn a ad birta
    strik, ekki null-i breytt i nullu.                                     */
 
-const SEASON_DIRS = ["2025-26", "2024-25", "2023-24"];
+/* FIMM TIMABIL, EKKI ThRJU (beidni notanda 7.8.2026: "eg vill geta skodad
+   fyrri timabil"). Speglunin BER thau — maelt: 2019-20 til 2025-26 skila
+   oll HTTP 200 (174-380 KB). Vid tokum fimm svo listinn passi vid
+   player_gw_*.json (2122-2526) sem umferdar-bilid les — annars gaeti
+   notandinn valid timabil i fellilistanum sem umferdar-bilid a ekki.
+   KOSTNADUR: player_seasons.json staekkar (~1,9 MB -> ~3 MB); hun er
+   letihladin i listanum svo thad snertir ekki fyrstu hledslu appsins.  */
+const SEASON_DIRS = ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22"];
 const seasonLabel = d => `${d.slice(0, 4)}/${d.slice(5)}`;
 
 /* CSV med gaesalappa-studningi. parseCSV (naiv) dugar fyrir E0 en players_raw
@@ -3095,6 +3187,7 @@ async function main() {
 
   try { await computeDefcon(events, els); } catch (e) { record("defcon", false, 0, e.message); }
   try { await computeDefconHistory(); }        catch (e) { record("defcon_history", false, 0, e.message); }
+  try { await computeConsistency(); }          catch (e) { record("consistency", false, 0, e.message); }
   try { await computePlayerForm(events, els); } catch (e) { record("player_form", false, 0, e.message); }
   if (FLAGS.apisports) { try { await fetchLineups(); } catch (e) { record("api_lineups", false, 0, e.message); } }
   if (FLAGS.elo)    { try { await fetchElo(); }              catch (e) { record("elo", false, 0, e.message); } }

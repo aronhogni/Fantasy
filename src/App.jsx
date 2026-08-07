@@ -502,6 +502,7 @@ export default function App() {
   const [events, setEvents] = useState(null);
   const [defcon, setDefcon] = useState(null);
   const [defconHist, setDefconHist] = useState(null);  // DC-hittni fyrri timabila
+  const [consist, setConsist] = useState(null);        // Aron-studull (jofnudur)
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
   const [lineups, setLineups] = useState(null);         // STADFEST byrjunarlid
   const [pipeStatusFast, setPipeStatusFast] = useState(null);
@@ -601,6 +602,7 @@ export default function App() {
         setDataState("ok");
         try { setDefcon(await j("defcon.json")); } catch {}
         try { setDefconHist(await j("defcon_history.json")); } catch {}
+        try { setConsist(await j("consistency.json")); } catch {}
         try { setPlayerForm(await j("player_form.json")); } catch {}
         try { setPipeStatus(await j("status.json")); } catch {}
         /* HRADA KEYRSLAN SKRIFAR I status_fast.json OG APPID LAS HANA EKKI.
@@ -1885,7 +1887,7 @@ export default function App() {
       {view === "players" && (
         <PlayerList players={players} teams={teams} teamById={teamById} events={events}
           seasonsFile={seasonsFile} imminent={imminent} shotsFile={lastGwShots}
-          fixtures={fixtures} odds={odds} defcon={defcon} defconHist={defconHist}
+          fixtures={fixtures} odds={odds} defcon={defcon} defconHist={defconHist} consist={consist}
           photoUrl={photoUrl} Crest={Crest}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           watch={watch}

@@ -457,6 +457,22 @@ export const EN = {
   "DefCon-tækifæri {0} — mikið vinnuálag varnar":
     "DefCon opportunity {0} — heavy defensive workload",
   "DC-hittni": "DC hit rate",
+  "Jöfnuður (Aron)": "Consistency (Aron)",
+  "Jöfnuður": "Consistency",
+  "4+ stig": "4+ points",
+  "6+ stig": "6+ points",
+  "2 stig eða minna": "2 points or fewer",
+  "Leikir (n)": "Games (n)",
+  "ARON-STUÐULL: hlutfall leikja með 4+ stig MÍNUS hlutfall með 2 eða færri. Hærra = jafnari skil (4-6 vikulega) í stað 2-2-2-og-svo-11. MÆLT OG SKJALFEST: þetta er LÝSING Á FORTÍÐ, ekki spá — hittnin fylgir stigum/leik með r=0,90 og eftir að stjórnað er fyrir stig OG VERÐ innan stöðu er engin varanleg leif. Berðu því saman menn í SÖMU STÖÐU á SVIPUÐU VERÐI.":
+    "ARON COEFFICIENT: share of games with 4+ points MINUS share with 2 or fewer. Higher = steadier returns (4-6 weekly) instead of 2-2-2-then-11. MEASURED AND DOCUMENTED: this DESCRIBES THE PAST, it does not predict — the hit rate tracks points/game at r=0.90, and once you control for points AND PRICE within position no persistent residual remains. So compare players in the SAME POSITION at a SIMILAR PRICE.",
+  "Hlutfall SPILAÐRA leikja með 4+ stig, afturvirkjað fyrir sýnastærð (K=10). Lýsing á fortíð — sjá Jöfnuð (Aron).":
+    "Share of GAMES PLAYED with 4+ points, shrunk for sample size (K=10). Describes the past — see Consistency (Aron).",
+  "Hlutfall spilaðra leikja með 6+ stig — STÓRU LEIKIRNIR, ekki jöfnuður. MÆLT: hár þröskuldur greinir EKKI jafna menn frá sveiflukenndum (r við sveiflur er −0,08 við 6+ og +0,15 við 7+, þ.e. snýst við) — því 2-2-2-og-svo-11 maðurinn klárar 6 í sprengingunum en jafni maðurinn fer sjaldan yfir 6. Notaðu Jöfnuð fyrir stöðugleika, þennan fyrir sprengikraft.":
+    "Share of games played with 6+ points — THE BIG HAULS, not consistency. MEASURED: a high threshold does NOT separate steady players from erratic ones (r with lumpiness is −0.08 at 6+ and +0.15 at 7+, i.e. it inverts) — because the 2-2-2-then-11 player clears 6 on his hauls while the steady player rarely exceeds 6. Use Consistency for steadiness, this for explosiveness.",
+  "Hlutfall spilaðra leikja með 2 stig eða færri. Þetta er „gallinn“ — lægra er betra.":
+    "Share of games played with 2 points or fewer. This is the downside — lower is better.",
+  "Fjöldi spilaðra leikja á bak við hlutföllin. Lítið n = lítið að marka.":
+    "Games played behind the percentages. Small n means little.",
   "Einka-deildir": "Mini-leagues",
   "deildar-númer eða slóð": "league ID or link",
   "Staðan í deildunum þínum. Verðlaunapotturinn er ÞITT innslag — hann er geymdur í vafranum þínum og fer aldrei neitt.":

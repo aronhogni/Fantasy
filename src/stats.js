@@ -77,6 +77,8 @@ export const STAT_GROUPS = [
      gluggi ne "leikir framundan", svo hun a sinn eigin flokk med heidarlegu
      heiti (sbr. 6i: heiti flokkanna bera timabilid sjalf).                */
   { key: "dcstat",  get label() { return tx("DC-hittni"); } },
+  /* Aron-studull: LYSING a fortid (sja skyringu i stats.js). */
+  { key: "aron",    get label() { return tx("Jöfnuður (Aron)"); } },
   { key: "fixtures",get label() { return tx("Leikir framundan"); } },
   { key: "setp",    get label() { return tx("Föst leikatriði"); } },
   { key: "rank",    get label() { return tx("FPL-sæti (innan stöðu)"); } },
@@ -1187,6 +1189,25 @@ STAT_DEFS.push(
      derived:true,
     get note() { return tx("Fjöldi leikja á bak við hittnina. Lítið n = lítið að marka hráu töluna."); },
     get:p=>num(p._dc_starts) },
+
+  /* ---- Jofnudur (Aron-studull) ----
+     Sja skyringuna i computeConsistency() i fetch.mjs: engin varanleg
+     leif eftir ad stjornad er fyrir stig og verd, svo thetta fer ALDREI
+     i rodun — adeins birtingu, med fyrirvara i tooltip.               */
+  { key:"aron_net", get label() { return tx("Jöfnuður"); }, group:"aron", dec:2, hi:true, signed:true, derived:true,
+    get note() { return tx("ARON-STUÐULL: hlutfall leikja með 4+ stig MÍNUS hlutfall með 2 eða færri. Hærra = jafnari skil (4-6 vikulega) í stað 2-2-2-og-svo-11. MÆLT OG SKJALFEST: þetta er LÝSING Á FORTÍÐ, ekki spá — hittnin fylgir stigum/leik með r=0,90 og eftir að stjórnað er fyrir stig OG VERÐ innan stöðu er engin varanleg leif. Berðu því saman menn í SÖMU STÖÐU á SVIPUÐU VERÐI."); },
+    get:p=>num(p._aron) },
+  { key:"aron_hit4", get label() { return tx("4+ stig"); }, group:"aron", dec:0, hi:true, pct:true, derived:true,
+    get note() { return tx("Hlutfall SPILAÐRA leikja með 4+ stig, afturvirkjað fyrir sýnastærð (K=10). Lýsing á fortíð — sjá Jöfnuð (Aron)."); },
+    get:p=>{ const v=num(p._hit4); return v==null?null:v*100; } },
+  { key:"aron_hit6", get label() { return tx("6+ stig"); }, group:"aron", dec:0, hi:true, pct:true, derived:true,
+    get note() { return tx("Hlutfall spilaðra leikja með 6+ stig — STÓRU LEIKIRNIR, ekki jöfnuður. MÆLT: hár þröskuldur greinir EKKI jafna menn frá sveiflukenndum (r við sveiflur er −0,08 við 6+ og +0,15 við 7+, þ.e. snýst við) — því 2-2-2-og-svo-11 maðurinn klárar 6 í sprengingunum en jafni maðurinn fer sjaldan yfir 6. Notaðu Jöfnuð fyrir stöðugleika, þennan fyrir sprengikraft."); },
+    get:p=>{ const v=num(p._hit6); return v==null?null:v*100; } },
+  { key:"aron_blank", get label() { return tx("2 stig eða minna"); }, group:"aron", dec:0, hi:false, pct:true, derived:true,
+    get note() { return tx("Hlutfall spilaðra leikja með 2 stig eða færri. Þetta er „gallinn“ — lægra er betra."); },
+    get:p=>{ const v=num(p._blank); return v==null?null:v*100; } },
+  { key:"aron_games", get label() { return tx("Leikir (n)"); }, group:"aron", dec:0, hi:true, derived:true,
+    get note() { return tx("Fjöldi spilaðra leikja á bak við hlutföllin. Lítið n = lítið að marka."); }, get:p=>num(p._cgames) },
 
   /* ---- Leikir framundan ---- */
   { key:"fdr6", get label() { return tx("FDR næstu 6"); }, group:"fixtures", dec:2, hi:false, live_only:true,
