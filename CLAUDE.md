@@ -2867,6 +2867,61 @@ ellipsis viljandi. Thad sem var lagad:
    ekki hinni — og notandinn lesid thann mun sem MERKINGU. Skyringin stendur
    afram i tooltip-inu.
 
+
+---
+
+## 8i. BIG CHANCES A SIG — BYGGT 8.8.2026, BIDUR EINNAR KEYRSLU
+
+Fyrirvarinn i 8e sagdi ad thaer vaeru ofaanlegar. **Thad var rett medan ESPN
+var eina skot-heimildin og er thad ekki lengur** (BSD, kafli 6t, gefur per-skot
+xG i ollum 380 leikjum 2025/26).
+
+`scripts/fetch-bsd-teams.mjs` -> `data/bsd_teams.json`. **SER SKRIFTA vid
+hlidina a `fetch-bsd.mjs`** af thvi ad su er per LEIKMANN: leikmanna-summa yfir
+timabil veit ekkert um hver mótherjinn var i hverjum leik, svo hun getur ekki
+svarad „hvad faer thetta LID a sig". Faced-tolur krefjast thess ad hvert skot
+se eignad lidi og hinu lidinu talid a moti, **per leik**.
+
+**TVAER TOLUR, EKKI EIN.** `bc_*` er okkar talning (skot med xg >= 0,18) og
+`bc_reported_*` er lids-svidid `big_chances` sem BSD birtir sjalft. Badar eru
+geymdar svo rek sjaist STRAX — throskuldurinn 0,18 var fittadur gegn thvi svidi
+(MAE 0,746, r 0,774 a 748 lid-leikjum) og skipti BSD um xG-likan myndi okkar
+tala reka **thogult** ef hin vaeri ekki vid hlidina.
+
+**ThRJAR REGLUR I SAMLAGNINGUNNI, ALLAR AKVARDANIR:**
+1. **Skot an lids er sleppt, ekki eignad heimalidinu.** Rong eignun telur
+   BADUM megin rangt (fyrir hja einu, a sig hja hinu) — tvofold villa.
+2. **Skot an xG telst i `shots` en ekki i xG.** Ad lata thad gilda 0 thynnti
+   medaltalid thogult.
+3. **Leikur an skotakorts telst ekki sem leikur.** Annars deildum vid med
+   haerri leikjafjolda en gognin na yfir og hver per-leik tala yrdi
+   kerfisbundid of lag.
+
+**PROFAD AN LYKILS.** `BSD_KEY` er write-only i GitHub Secrets, svo soknin
+keyrir ekki her. Samlagningin er thvi dregin UT sem hreint fall
+(`aggregateTeamShots`) og profud a **tilbunum BSD-svorum** — sama mynstur og
+`mins-trend.mjs` kafli 0 og `defcon-shrink.mjs` nota, af somu astaedu: omældur
+kodi sem fer i gang einn morgun er ekki asaettanlegt. Fimm stokkbreytingar
+felldar (skot eignad rongu lidi, leikur an skotakorts talinn med, throskuldur
+strangt staerra, xG-vantar gildir 0, BSD-tala sett i stad okkar).
+
+**VORDURINN ThRENGDIST I STAD ThESS AD SLOKKNA.** Kafli 6 i `team-stats.mjs`
+bannadi heitid „big chance" ALFARID. Nu ma dalkur heita thad — **en adeins ef
+`src === "BSD"`**, th.e. ef hann er raunverulega talinn ur per-skot xG.
+ESPN-dalkur sem thættist vera big chance fellur enn.
+
+### OFULLKOMNIR DALKAR FULLYRDA EKKI LENGUR
+`xG`/`xGC` koma ur FPL-summu sem vantar ~19% — og **undirtalningin er MISJOFN
+milli lida**, thvi hun raest af thvi hve margir foru ur deildinni fra hverju
+lidi. Maelt daemi: **Leeds maelist med laegsta xGC i deildinni (0,70) medan
+raunveruleg mork a sig eru 1,47.** Graena „best"-merkingin thar sagdi
+notandanum ad Leeds hefdi att bestu vaentu vornina — gervi.
+Merkingin er FULLYRDING og su tala getur ekki borid hana, svo hun er tekin af
+ollum `incomplete`-dalkum. **Tolurnar standa afram** (thaer eru gagnlegar i
+samanburdi) og hausinn theirra er **gulur** svo fyrirvarinn sjaist a skjanum en
+ekki adeins i tooltip-i. **Litur en EKKI nytt tákn**: †-merkid var tekid ut
+samdaegurs ad beidni notandans, svo nytt tákn vaeri ad ganga aftur i sama vanda.
+
 ---
 
 ## 9. Það sem þetta skjal getur EKKI flutt með sér

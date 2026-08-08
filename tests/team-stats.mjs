@@ -24,6 +24,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY }
   from "../src/teamstats.js";
+import { aggregateTeamShots, BIG_CHANCE_XG, IN_BOX_X } from "../scripts/fetch-bsd-teams.mjs";
 
 const D = new URL("../data/", import.meta.url).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -71,15 +72,16 @@ console.log("─".repeat(84));
      AKVORDUN um merkingu og a ad brotna synilega ef einhver snyr honum.  */
   const LOWER_BETTER = ["shots_against_pg", "sot_against_pg", "box_against_pg",
     "close_against_pg", "sot_share_against", "conceded_pg", "xgc_pg",
-    "conceded_minus_xgc", "fouls_pg", "yellows_pg"];
+    "conceded_minus_xgc", "fouls_pg", "yellows_pg",
+    "bc_against_pg", "xg_per_shot_against"];
   const HIGHER_BETTER = ["long_against_pg", "long_share", "cs_pct", "goals_pg",
     "xg_pg", "shots_pg", "sot_pg", "box_pg", "close_pg", "conversion",
-    "goals_minus_xg", "corners_pg"];
+    "goals_minus_xg", "corners_pg", "bc_pg"];
   const bad = [];
   for (const k of LOWER_BETTER) if (TEAM_STAT_BY_KEY[k]?.hi !== false) bad.push(`${k} aetti ad vera hi:false`);
   for (const k of HIGHER_BETTER) if (TEAM_STAT_BY_KEY[k]?.hi !== true) bad.push(`${k} aetti ad vera hi:true`);
   ok("hver dalkur ber retta att", bad.length === 0, bad.slice(0, 3).join(" · "));
-  ok("allir 22 dalkar eru i attar-listunum",
+  ok("allir dalkar eru i attar-listunum",
     LOWER_BETTER.length + HIGHER_BETTER.length === TEAM_STAT_DEFS.length,
     `${LOWER_BETTER.length}+${HIGHER_BETTER.length} a moti ${TEAM_STAT_DEFS.length}`);
   /* LANGSKOT ERU SERTILFELLID og thess vegna prófad SER: thau eru eina
@@ -175,13 +177,21 @@ console.log(`\n${"─".repeat(84)}`);
 console.log("6. VORDUR — 'big chances' ma ALDREI birtast sem maeld tala");
 console.log("─".repeat(84));
 {
-  /* Their krefjast xG PER SKOT og engin naanleg heimild gefur hana. Se
-     einhver seinna kominn med dalk sem heitir thad, er hann OKKAR likan
-     sem litur ut eins og maeling — nakvaemlega thad sem CLAUDE.md 6b og
-     6e banna. Naerfaeri MA heita naerfaeri og ekkert annad.             */
+  /* VORDURINN ThRENGDIST 8.8.2026 I STAD ThESS AD SLOKKNA.
+     Adur bannadi hann heitid ALFARID, af thvi ad engin naanleg heimild
+     gaf xG per skot. BSD gefur hana nu (100% skota 2025/26), svo bann
+     vaeri ordid rangt — en TILGANGURINN er obreyttur: dalkur MA heita
+     "big chance" ADEINS ef hann er raunverulega talinn ur per-skot xG.
+     Se einhver seinna kominn med "big chances" ur ESPN-svaedi eda ur
+     agiskun, er thad OKKAR likan sem litur ut eins og maeling —
+     nakvaemlega thad sem CLAUDE.md 6b/6e banna, og THA fellur thetta.  */
   const named = TEAM_STAT_DEFS.filter(d => /big chance/i.test(`${d.label} ${d.short}`));
-  ok("enginn dalkur heitir 'big chance'", named.length === 0,
-    named.map(d => d.key).join(","));
+  ok(`${named.length} dalkar heita 'big chance' — og ALLIR koma ur BSD (per-skot xG)`,
+    named.length > 0 && named.every(d => d.src === "BSD"),
+    named.filter(d => d.src !== "BSD").map(d => `${d.key}:${d.src}`).join(","));
+  ok("enginn ESPN-dalkur thykist vera big chance",
+    TEAM_STAT_DEFS.filter(d => d.src === "ESPN")
+      .every(d => !/big chance/i.test(`${d.label} ${d.short}`)));
   ok("naerfaeris-dalkurinn segir BERUM ORDUM ad hann se ekki big chance",
     /not the same number|stand-in/i.test(TEAM_STAT_BY_KEY.close_against_pg.note));
   ok("skran sjalf ber sama fyrirvara", /BIG CHANCES ERU EKKI HER/i.test(teamShots.note || ""));
@@ -215,6 +225,153 @@ console.log("─".repeat(84));
   }
   ok("oll 22 get() thola hvada tomu/gollud inntok sem er", !bad, bad || "");
   ok("tom inntok gefa tomt fylki, ekki hrun", buildTeamRows({}).length === 0);
+}
+
+/* ---------- 8. BSD-SAMLAGNINGIN (big chances a sig) ---------- */
+console.log(`\n${"─".repeat(84)}`);
+console.log("8. aggregateTeamShots — kodinn sem kviknar fyrst thegar BSD_KEY er til");
+console.log("─".repeat(84));
+{
+  /* Sami rokstudningur og i mins-trend.mjs kafla 0 og defcon-shrink.mjs:
+     thetta er kodi sem KEYRIR EKKI HER (hann tharf lykil sem er write-only
+     i GitHub Secrets), og omældur kodi sem fer i gang einn morgun er ekki
+     asaettanlegt. Hann er thvi dreginn UT sem hreint fall og profadur a
+     TILBUNUM BSD-svorum.                                                */
+  const m = (home, away, shots, reported) => ({ home, away, shots, reported });
+  const S = (team_id, xg, x) => ({ team_id, xg, x });
+
+  {
+    /* Grunntilfelli: 1 gegn 2. Lid 1 tekur tvo skot (annad big chance),
+       lid 2 eitt (big chance). Faced-tolurnar eru SPEGILMYND.           */
+    const r = aggregateTeamShots([m(1, 2, [S(1, 0.5, 10), S(1, 0.05, 30), S(2, 0.9, 5)])]);
+    const t1 = r.teams.find(t => t.team_id === 1), t2 = r.teams.find(t => t.team_id === 2);
+    ok("bædi lid fa leikinn talinn", t1.matches === 1 && t2.matches === 1);
+    ok("big chances FYRIR eru rett (1 og 1)", t1.bc_pg === 1 && t2.bc_pg === 1,
+      `${t1.bc_pg} / ${t2.bc_pg}`);
+    ok("big chances A SIG eru SPEGILMYND (1 og 1)",
+      t1.bc_against_pg === 1 && t2.bc_against_pg === 1, `${t1.bc_against_pg} / ${t2.bc_against_pg}`);
+    ok("skot a sig hja lidi 2 eru skotin sem lid 1 tok (2)", t2.shots_against_pg === 2,
+      `${t2.shots_against_pg}`);
+    ok("xG a hvert skot a sig er GAEDATALAN (0,9 fyrir lid 1)",
+      Math.abs(t1.xg_per_shot_against - 0.9) < 1e-6, `${t1.xg_per_shot_against}`);
+  }
+  {
+    /* ThROSKULDURINN ER JAFNT-EDA-STAERRA. Skot NAKVAEMLEGA a 0,18 er
+       big chance; 0,179 er thad ekki. Se merkinu snuid faerast tolur.  */
+    const r = aggregateTeamShots([m(1, 2, [S(1, BIG_CHANCE_XG, 10), S(1, BIG_CHANCE_XG - 0.001, 10)])]);
+    ok("skot NAKVAEMLEGA a throskuldinum telst big chance",
+      r.teams.find(t => t.team_id === 1).bc_pg === 1);
+  }
+  {
+    /* SKOT AN LIDS ER SLEPPT, EKKI EIGNAD HEIMALIDINU. Rong eignun telur
+       BADUM megin rangt — fyrir hja einu, a sig hja hinu — og er thvi
+       TVOFOLD villa, ekki hálf.                                         */
+    const r = aggregateTeamShots([m(1, 2, [S(null, 0.9, 5), S(1, 0.5, 5)])]);
+    ok("skot an lids er talid SER, ekki eignad", r.no_team === 1);
+    ok("og faced-talan mengast ekki af thvi",
+      r.teams.find(t => t.team_id === 1).bc_against_pg === 0,
+      `${r.teams.find(t => t.team_id === 1).bc_against_pg}`);
+    const bad = aggregateTeamShots([m(1, 2, [S(99, 0.9, 5), S(1, 0.5, 5)])]);
+    ok("skot eignad lidi sem er EKKI i leiknum er lika sleppt", bad.no_team === 1);
+  }
+  {
+    /* SKOT AN xG TELST I `shots` EN EKKI I xG. Ad lata thad gilda 0
+       thynnti medaltalid THOGULT.                                       */
+    const r = aggregateTeamShots([m(1, 2, [S(1, null, 5), S(1, 0.4, 5)])]);
+    const t2 = r.teams.find(t => t.team_id === 2);
+    ok("skot an xG telst med i skotafjolda", t2.shots_against_pg === 2);
+    ok("en THYNNIR EKKI xG a hvert skot (0,4 / 1 skot med xG)",
+      Math.abs(t2.xg_per_shot_against - 0.2) < 1e-6, `${t2.xg_per_shot_against}`);
+    ok("og er talid", r.no_xg === 1);
+  }
+  {
+    /* LEIKUR AN SKOTAKORTS TELST EKKI SEM LEIKUR. Annars deildum vid med
+       haerri leikjafjolda en gognin na yfir og HVER per-leik tala yrdi
+       kerfisbundid of lag — thogul skekkja sem litur ut eins og maeling. */
+    const r = aggregateTeamShots([m(1, 2, []), m(1, 2, [S(1, 0.9, 5)])]);
+    ok("leikur an skotakorts er talinn SER", r.no_shotmap === 1);
+    ok("og hann taeklar EKKI med i deilingunni (matches = 1, ekki 2)",
+      r.teams.find(t => t.team_id === 1).matches === 1,
+      `${r.teams.find(t => t.team_id === 1).matches}`);
+    ok("svo big chances per leik er 1,0 en ekki 0,5",
+      r.teams.find(t => t.team_id === 1).bc_pg === 1);
+  }
+  {
+    /* BSD-BIRTA TALAN ER GEYMD VID HLIDINA, ALDREI I STAD OKKAR — svo
+       rek i throskuldinum sjaist STRAX i stad thess ad okkar tala reki
+       thogult thegar BSD skiptir um xG-likan.                           */
+    const r = aggregateTeamShots([m(1, 2, [S(1, 0.9, 5)], { 1: { big_chances: 3 } })]);
+    const t1 = r.teams.find(t => t.team_id === 1), t2 = r.teams.find(t => t.team_id === 2);
+    ok("okkar talning stendur obreytt", t1.bc_pg === 1);
+    ok("og BSD-talan er geymd SER", t1.bc_reported_pg === 3, `${t1.bc_reported_pg}`);
+    ok("birta talan speglast lika sem 'a sig'", t2.bc_reported_against_pg === 3);
+    const none = aggregateTeamShots([m(1, 2, [S(1, 0.9, 5)])]);
+    ok("vanti birta talan er hun NULL, ekki 0",
+      none.teams.find(t => t.team_id === 1).bc_reported_pg === null);
+  }
+  {
+    /* Innan/utan teigs fylgir MAELDA kvardanum (hlutfall af FULLUM velli). */
+    const r = aggregateTeamShots([m(1, 2, [S(1, 0.5, IN_BOX_X - 1), S(1, 0.5, IN_BOX_X + 1)])]);
+    ok("skot innan teigs talid eftir maelda kvardanum",
+      r.teams.find(t => t.team_id === 1).in_box_pg === 1);
+  }
+  {
+    const r = aggregateTeamShots([]);
+    ok("tomt inntak fellur ekki", r.teams.length === 0 && r.no_shotmap === 0);
+    ok("rusl fellur ekki", aggregateTeamShots(null).teams.length === 0);
+    ok("leikur an beggja lida er sleppt",
+      aggregateTeamShots([{ home: 1, shots: [S(1, .5, 5)] }]).teams.length === 0);
+  }
+}
+
+/* ---------- 9. DALKARNIR THOLA AD SKRAIN SE EKKI TIL ---------- */
+console.log(`\n${"─".repeat(84)}`);
+console.log("9. BSD-dalkar an bsd_teams.json — tomir, EKKI nullir eda hrun");
+console.log("─".repeat(84));
+{
+  const BSD_KEYS = ["bc_against_pg", "bc_pg", "xg_per_shot_against"];
+  ok("dalkarnir eru skradir", BSD_KEYS.every(k => TEAM_STAT_BY_KEY[k]));
+  ok("their eru merktir BSD", BSD_KEYS.every(k => TEAM_STAT_BY_KEY[k].src === "BSD"));
+  /* Their na yfir EITT timabil og verda ad segja thad sjalfir — annars
+     les notandinn tomt sem "engin big chance" i 2023/24.               */
+  ok("og skyring theirra segir ad thekjan se eitt timabil",
+    BSD_KEYS.every(k => /2025\/26/.test(TEAM_STAT_BY_KEY[k].note)));
+  const rowsNoBsd = buildTeamRows({ teams, teamForm, luck, teamShots });
+  ok("an skrarinnar eru their NULL hja ollum (ekki 0)",
+    rowsNoBsd.every(r => BSD_KEYS.every(k => TEAM_STAT_BY_KEY[k].get(r) === null)));
+  /* Og MED skra virka their — hermd svo profid se ekki had thvi ad
+     einhver hafi keyrt soknina.                                        */
+  const fake = { teams: [{ fpl_id: 1, bc_against_pg: 1.5, bc_pg: 2.5, xg_per_shot_against: 0.11, matches: 38 }] };
+  const rowsBsd = buildTeamRows({ teams, teamForm, luck, teamShots, bsdTeams: fake });
+  const ars = rowsBsd.find(r => r.id === 1);
+  ok("med skra rata tolurnar i rodina", ars.bc_against_pg === 1.5 && ars.bc_pg === 2.5);
+  ok("og hin lidin haldast NULL", rowsBsd.filter(r => r.id !== 1).every(r => r.bc_against_pg === null));
+  ok("BIG_CHANCE_XG er maeldi fastinn 0,18", BIG_CHANCE_XG === 0.18);
+}
+
+/* ---------- 10. OFULLKOMNIR DALKAR FULLYRDA EKKI ---------- */
+console.log(`\n${"─".repeat(84)}`);
+console.log("10. besta/versta ma EKKI standa a dalki sem vantar gogn i");
+console.log("─".repeat(84));
+{
+  /* Vordurinn er a SKRANNI, ekki a birtingunni: `incomplete` er thad sem
+     Teams.jsx les til ad sleppa merkingunni, svo hann verdur ad vera
+     rettur a hverjum dalki sem byggir a FPL-summunni. Fari hann af einum
+     theirra fer graena merkingin aftur a toluna sem getur ekki borid
+     hana — og thad er nakvaemlega villan sem sast a Leeds (xGC 0,70
+     "best" medan raunveruleg mork a sig voru 1,47).                    */
+  const fplSummed = TEAM_STAT_DEFS.filter(d => d.src === "FPL");
+  ok(`allir ${fplSummed.length} FPL-summu-dalkar bera \`incomplete\``,
+    fplSummed.length >= 4 && fplSummed.every(d => d.incomplete === true),
+    fplSummed.filter(d => !d.incomplete).map(d => d.key).join(","));
+  /* Og OFUGT: dalkur sem er heill ma EKKI bera flaggid, annars taeki hann
+     ad astaedulausu af ser merkinguna.                                  */
+  ok("engir E0- eda BSD-dalkar bera flaggid ad ostaedu",
+    TEAM_STAT_DEFS.filter(d => d.src !== "FPL").every(d => !d.incomplete),
+    TEAM_STAT_DEFS.filter(d => d.src !== "FPL" && d.incomplete).map(d => d.key).join(","));
+  const teamsJsx = readFileSync(new URL("../src/Teams.jsx", import.meta.url), "utf8");
+  ok("Teams.jsx sleppir merkingunni a theim (`if (d.incomplete) return null`)",
+    /if \(d\.incomplete\) return null/.test(teamsJsx));
 }
 
 console.log(`\nLIDA-TOLUR: ${pass} stodust, ${fail} fellu`);

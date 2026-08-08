@@ -54,15 +54,19 @@ const div = (a, b) => (num(a) != null && num(b) ? +(a / b).toFixed(3) : null);
 
 /* Ein rod per lid. `t` ber somu reiti hvadan sem their koma, svo
    dalkarnir thurfa ekki ad vita hvada skra atti hvad.                  */
-export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamShots = null } = {}) {
+export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamShots = null,
+                                bsdTeams = null } = {}) {
   const list = Array.isArray(teams) ? teams : (teams?.teams || []);
   const formById = {}, luckById = {}, shotsById = {};
   for (const t of teamForm?.teams || []) if (t.fpl_id != null) formById[t.fpl_id] = t;
   for (const t of luck?.teams || []) if (t.fpl_id != null) luckById[t.fpl_id] = t;
   for (const t of teamShots?.teams || []) if (t.fpl_id != null) shotsById[t.fpl_id] = t;
+  const bsdById = {};
+  for (const t of bsdTeams?.teams || []) if (t.fpl_id != null) bsdById[t.fpl_id] = t;
 
   return list.map(t => {
     const f = formById[t.id] || {}, l = luckById[t.id] || {}, s = shotsById[t.id] || {};
+    const b = bsdById[t.id] || {};
     const m = num(l.matches) || num(f.matches) || null;
     return {
       id: t.id, short: t.short, name: t.name, team: t,
@@ -100,6 +104,11 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
       yellows_pg:        num(f.yellows_pg),
       goals_minus_xg:    num(l.goals_minus_xg),
       conceded_minus_xgc: num(l.conceded_minus_xgc),
+      /* --- BSD-skotakortid: EINA heimildin med xG PER SKOT --- */
+      bc_against_pg:  num(b.bc_against_pg),
+      bc_pg:          num(b.bc_pg),
+      xg_per_shot_against: num(b.xg_per_shot_against),
+      bsd_matches:    num(b.matches),
     };
   });
 }
@@ -138,6 +147,21 @@ export const TEAM_STAT_DEFS = [
     dec: 3, hi: true, pct: true, src: "ESPN",
     note: "Of every shot the team faces, the fraction taken from outside the box. A high share means the defence keeps opponents out — the same shot count is far less dangerous.",
     get: r => r.long_share },
+  /* BIG CHANCES A SIG — ThAD SEM SPURT VAR UM. Talid ur BSD-skotakorti:
+     hvert skot ber sina eigin xG og skot yfir 0,18 telst big chance
+     (throskuldurinn var FITTADUR gegn lids-svidinu `big_chances` sem BSD
+     birtir sjalft: MAE 0,746, r 0,774 a 748 lid-leikjum).
+     EITT TIMABIL: BSD hefur skotakort i 2025/26 og engin eldri, svo
+     dalkurinn er TOMUR i odrum timabilum — og thad er rett, "engin gogn"
+     er ekki "engin big chance".                                        */
+  { key: "bc_against_pg", label: "Big chances faced", short: "BigC", group: "keeper",
+    dec: 2, hi: false, src: "BSD", season_locked: true,
+    note: "Big chances faced per match — shots against with an expected-goals value of 0.18 or more, counted from the BSD shot map. This is the number a goalkeeper actually has to survive: two teams can concede the same shot count and face completely different danger. Only 2025/26 has a shot map, so this is empty for other seasons.",
+    get: r => r.bc_against_pg },
+  { key: "xg_per_shot_against", label: "xG per shot faced", short: "xG/shot", group: "keeper",
+    dec: 3, hi: false, src: "BSD", season_locked: true,
+    note: "The average expected-goals value of a shot faced. Quality rather than volume — a low number means the defence gives up hopeful efforts, a high one means it gives up chances. Only 2025/26 has a shot map.",
+    get: r => r.xg_per_shot_against },
   { key: "sot_share_against", label: "On target share faced", short: "SoT %", group: "keeper",
     dec: 3, hi: false, pct: true, src: "E0",
     note: "Of the shots faced, the fraction on target.",
@@ -178,6 +202,10 @@ export const TEAM_STAT_DEFS = [
   { key: "close_pg", label: "Close-range shots", short: "Close", group: "attack",
     dec: 2, hi: true, src: "ESPN", note: "Shots taken from very close range (six-yard area).",
     get: r => r.close_pg },
+  { key: "bc_pg", label: "Big chances created", short: "BigC", group: "attack",
+    dec: 2, hi: true, src: "BSD", season_locked: true,
+    note: "Big chances the team creates per match — shots worth 0.18 expected goals or more, from the BSD shot map. Only 2025/26 has a shot map.",
+    get: r => r.bc_pg },
   { key: "conversion", label: "Shot conversion", short: "Conv.", group: "attack",
     dec: 3, hi: true, pct: true, src: "E0", note: "Goals per shot taken.",
     get: r => r.conversion },

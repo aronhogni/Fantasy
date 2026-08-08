@@ -529,6 +529,7 @@ export default function App() {
   const [teamForm, setTeamForm] = useState(null);   // HEILT lið-form úr E0
   const [luck, setLuck] = useState(null);           // xG/xGC per lið (FPL-summa)
   const [teamShots, setTeamShots] = useState(null); // SVAEDI skotanna (ESPN, heilt timabil)
+  const [bsdTeams, setBsdTeams] = useState(null);   // per-skot xG (BSD, 2025/26 eitt)
   const [buyPrices, setBuyPrices] = useState({});  // {playerId: kaupverð x10}
   const [apiBank, setApiBank] = useState(null);    // banki úr FPL (tíundir) ef tengt
   const [apiHit, setApiHit] = useState(null);      // raunveruleg refsing úr FPL
@@ -640,6 +641,7 @@ export default function App() {
         try { setTeamForm(await j("team_form.json")); } catch {}
         try { setLuck(await j("luck.json")); } catch {}
         try { setTeamShots(await j("team_shots.json")); } catch {}
+        try { setBsdTeams(await j("bsd_teams.json")); } catch {}
         try { setLastGw(await j("last_gw.json")); } catch {}
         try { setLastGwShots(await j("last_gw_shots.json")); } catch {}
         try { setSeasonsFile(await j("player_seasons.json")); } catch {}
@@ -1919,7 +1921,8 @@ export default function App() {
                                                         : [...v, id].slice(0, 4))} />
       )}
       {view === "teams" && (
-        <Teams teams={teams} teamForm={teamForm} luck={luck} teamShots={teamShots} />
+        <Teams teams={teams} teamForm={teamForm} luck={luck} teamShots={teamShots}
+          bsdTeams={bsdTeams} />
       )}
       {view === "sp" && (
         <SetPieces players={players} teams={teams} teamById={teamById} Crest={Crest}
