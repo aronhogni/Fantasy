@@ -78,16 +78,16 @@ await fire(byTab("👥"));
 console.log("\nVAKTLISTI");
 ok("stjarna a hverri rod", rowStars().length > 10, `fann ${rowStars().length}`);
 ok("ein stjarna i hausnum", !!headStar());
-ok("hausstjarnan er SIA, ekki rodun", /vaktlista|Sýna/.test(headStar()?.title||""), headStar()?.title);
+ok("hausstjarnan er SIA, ekki rodun", /watchlist/i.test(headStar()?.title||""), headStar()?.title);
 
 const first = rowStars()[0];
-const firstName = (first.getAttribute("aria-label")||"").replace(/^(Setja|Fjarlægja) | (á|af) vaktlista$/g,"");
+const firstName = (first.getAttribute("aria-label")||"").replace(/^(Add|Remove) | (to|from) the watchlist$/g,"");
 ok("otom stjarna er hol (☆)", first.textContent==="☆");
 await fire(first);
 const onNow = rowStars().filter(x=>x.textContent==="★");
 ok("smellur fyllir stjornuna", onNow.length===1, `${onNow.length} fylltar`);
 ok("astandid lendir i localStorage", Array.isArray(stored()) && stored().length===1, JSON.stringify(stored()));
-ok("aria-label snyst vid", /Fjarlægja/.test(onNow[0]?.getAttribute("aria-label")||""));
+ok("aria-label snyst vid", /^Remove /.test(onNow[0]?.getAttribute("aria-label")||""));
 
 /* stjornumerkja tvo til vidbotar svo sian hafi eitthvad ad sia */
 await fire(rowStars()[2]); await fire(rowStars()[4]);
@@ -124,7 +124,7 @@ console.log("\nGRAENN BORDI A FROSNA HOLFINU — LIFANDI");
 /* Siar a "mitt lid" svo lidsmenn seu vissulega i syndu rodunum — annars
    gaeti profid stadist bara vegna thess ad enginn theirra var a skjanum. */
 const mineBox = [...document.querySelectorAll("input[type=checkbox]")]
-  .find(c => (c.parentElement?.textContent||"").includes("mitt lið"));
+  .find(c => (c.parentElement?.textContent||"").includes("my squad"));
 ok("hakkassi fyrir \"mitt lid\" er til", !!mineBox);
 if (mineBox) {
   await fire(mineBox);
@@ -146,7 +146,7 @@ if (mineBox) {
    — thad er RETT thar (kafli 6i) og er gaett i koda gegnum `narrow`.   */
 {
   const gRow = [...document.querySelectorAll("button")]
-    .find(b => /Spjöld og refsingar|Cards and penalties/.test(b.textContent))?.parentElement;
+    .find(b => /Föst leikatriði og spjöld|Set pieces and cards/.test(b.textContent))?.parentElement;
   ok("flokka-rodin finnst", !!gRow);
   ok("a BORDI brotnar rodin (flexWrap:wrap) svo allir flokkar sjaist",
     gRow?.style.flexWrap === "wrap", `fekk "${gRow?.style.flexWrap}"`);

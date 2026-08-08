@@ -16,8 +16,7 @@
    ============================================================ */
 
 import React, { useMemo, useState } from "react";
-import { t as tx } from "./i18n.js";
-import { useLang } from "./useLang.js";
+import { interp } from "./interp.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -35,9 +34,9 @@ export const SP_KINDS = [
      hringir i 13px, svo madur sem tekur allar thrjar las eins og tvitekning.
      Taknid heldur ser thar sem LABEL fylgir (tegunda-valid), en i listanum
      — thar sem taknid stendur EITT — kemur bokstafur med sinum lit.       */
-  { key:"pen", field:"penalties_order",                       icon:"⚽", tint:"#b3261e", get label() { return tx("Víti"); },        short:"P" },
-  { key:"fk",  field:"direct_freekicks_order",                icon:"◎", tint:"#1b5e9c", get label() { return tx("Aukaspyrnur"); }, short:"F" },
-  { key:"ck",  field:"corners_and_indirect_freekicks_order",  icon:"⌾", tint:"#0a7a4a", get label() { return tx("Horn"); },        short:"C" },
+  { key:"pen", field:"penalties_order",                       icon:"⚽", tint:"#b3261e", get label() { return "Penalties"; },        short:"P" },
+  { key:"fk",  field:"direct_freekicks_order",                icon:"◎", tint:"#1b5e9c", get label() { return "Free kicks"; }, short:"F" },
+  { key:"ck",  field:"corners_and_indirect_freekicks_order",  icon:"⌾", tint:"#0a7a4a", get label() { return "Corners"; },        short:"C" },
 ];
 
 /* ============================================================
@@ -92,7 +91,6 @@ export function setPieceBadges(p, ranks, { maxRank = 2 } = {}) {
 }
 
 export default function SetPieces({ players, teams, teamById, Crest, notes, onPickPlayer }) {
-  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
 
   /* EITT SPJALD PER LID, ENGIR UNDIRFLIPAR (31.7.2026).
      Adur voru thrir flipar (viti / aukaspyrnur / horn) og notandinn thurfti
@@ -101,7 +99,7 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
      rettur rammi og tegundin er IKON innan hans.
      ADEINS FYRSTI TAKI: rodun 2-5 skiptir ekki mali fyrir fantasy-val og
      hun tvofaldadi haedina a hverju spjaldi.                             */
-  const ranks = useMemo(() => setPieceRanks(players), [players, lang]);
+  const ranks = useMemo(() => setPieceRanks(players), [players]);
 
   const primary = useMemo(() => {
     const m = {};                       // teamId -> { pen, fk, ck }
@@ -112,7 +110,7 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
       }
     }
     return m;
-  }, [players, ranks, lang]);
+  }, [players, ranks]);
 
   /* Thekja per tegund — birt svo tomur reitur lesist sem "FPL hefur ekki
      skrad", ekki sem "tolan er ekki til hja okkur".                      */
@@ -120,7 +118,7 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
     const c = {};
     for (const k of SP_KINDS) c[k.key] = Object.values(primary).filter(e => e[k.key]).length;
     return c;
-  }, [primary, lang]);
+  }, [primary]);
 
   const sorted = (teams || []).slice().sort((a, b) => String(a.short).localeCompare(String(b.short)));
   const nTeams = teams?.length ?? 0;
@@ -129,15 +127,15 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
     <section style={S.card}>
       <div style={S.head}>
         <div>
-          <h2 style={S.h2}>{tx("Föst leikatriði")}</h2>
+          <h2 style={S.h2}>{"Set pieces"}</h2>
           <div style={S.sub}>
-            {tx("Fyrsti taki hjá hverju liði — úr FPL, uppfærist sjálfkrafa með daglegu gagnasækninni.")}
-            {notes?.last_updated && tx(" Uppfært {0}.", [String(notes.last_updated).slice(0, 10)])}
+            {"First taker for each team — from FPL, updates automatically with the daily data fetch."}
+            {notes?.last_updated && interp(" Updated {0}.", [String(notes.last_updated).slice(0, 10)])}
           </div>
         </div>
         <div style={S.keyRow}>
           {SP_KINDS.map(k => (
-            <span key={k.key} style={S.keyItem} title={`${k.label} — ${cover[k.key] ?? 0}/${nTeams} ${tx("lið")}`}>
+            <span key={k.key} style={S.keyItem} title={`${k.label} — ${cover[k.key] ?? 0}/${nTeams} ${"teams"}`}>
               <span style={S.keyIcon}>{k.icon}</span>{k.label}
               <span style={S.keyN}>{cover[k.key] ?? 0}/{nTeams}</span>
             </span>
@@ -146,8 +144,8 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
       </div>
 
       <div style={S.note}>
-        <b>{tx("Fyrirliðar (armbandið) eru ekki hér.")}</b> {tx("Hvorki FPL-API-ið né ESPN-fæðið gefur hver ber fyrirliðabandið, svo við sýnum það ekki frekar en að giska. Það sem er")}
-        <i> {tx("mælt")}</i> {tx("— og skiptir mestu fyrir fantasy — er spyrnu-röðunin: víta­skytta nr. 1 er sterkasta einstaka fyrirliða-vísbendingin sem gögnin geyma.")}
+        <b>{"Captains (the armband) are not here."}</b> {"Neither the FPL API nor the ESPN feed says who wears the armband, so we do not show it rather than guess. What is"}
+        <i> {"measured"}</i> {"— and matters most for fantasy — is the set-piece order: the no. 1 penalty taker is the strongest single captaincy hint the data holds."}
       </div>
 
       <div style={S.grid}>
@@ -167,10 +165,10 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
                     <span style={{ ...S.icon, color:k.tint, borderColor:k.tint }}
                       title={k.label} aria-label={k.label}>{k.short}</span>
                     {!hit ? (
-                      <span style={S.none} title={tx("FPL hefur ekki skráð röðun fyrir þetta lið")}>—</span>
+                      <span style={S.none} title={"FPL has no order recorded for this team"}>—</span>
                     ) : (
                       <button style={S.pick} onClick={() => onPickPlayer && onPickPlayer(hit.p.id)}
-                        title={`${hit.p.web_name} — ${k.label}, ${tx("FPL-röðun")} ${hit.order}`}>
+                        title={`${hit.p.web_name} — ${k.label}, ${"FPL order"} ${hit.order}`}>
                         <span style={S.nm}>{hit.p.web_name}</span>
                         <span style={{ ...S.pos, color: POS_COLOR[hit.p.element_type] }}>
                           {POS[hit.p.element_type]}
@@ -187,12 +185,12 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
       </div>
 
       <div style={S.legend}>
-        {tx("Táknin:")} <b>⚽</b> {tx("víti")} · <b>◎</b> {tx("aukaspyrnur")} · <b>⌾</b> {tx("horn")}.
-        {" "}<b>{tx("„Fyrsti taki\" er lægsta FPL-röðun liðsins, ekki talan 1.")}</b>{" "}
-        {tx("Mælt á raungögnum: víti og aukaspyrnur eru númeruð 1–5, en horn")}
-        {" "}<b>{tx("4–10 og ná aldrei 1")}</b>{" "}
-        {tx("— FPL notar annan grunn þar. Eldri útgáfa krafðist talsins 1 og sýndi því aldrei hornataka.")}
-        {" "}{tx("Röðunin er handskráð hjá FPL og getur verið úrelt snemma tímabils — sannreyndu gegn síðustu leikjum áður en þú byggir fyrirliða-val á henni.")}
+        {"The icons:"} <b>⚽</b> {"penalties"} · <b>◎</b> {"free kicks"} · <b>⌾</b> {"corners"}.
+        {" "}<b>{"\"First taker\" is the team's LOWEST FPL order, not the number 1."}</b>{" "}
+        {"Measured on real data: penalties and free kicks are numbered 1–5, but corners"}
+        {" "}<b>{"4–10 and never reach 1"}</b>{" "}
+        {"— FPL uses a different base there. An older version required the number 1 and so never showed a corner taker."}
+        {" "}{"The order is hand-entered by FPL and can be stale early in the season — verify against recent matches before basing a captaincy pick on it."}
       </div>
     </section>
   );

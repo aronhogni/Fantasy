@@ -35,7 +35,6 @@
        403. ESPN svaradi — thess vegna er hun heimildin.
    ============================================================ */
 
-import { t as tx } from "./i18n.js";
 
 export const num = v => {
   const n = typeof v === "number" ? v : parseFloat(v);
@@ -56,186 +55,475 @@ const safeDiv = (a, b) => (b == null || b === 0 || a == null ? null : a / b);
 /* ============================================================
    1. STAT-SKRAIN — eitt satt um hverja tolu
 
-   Hver posts: key, label (islenskt), get(p) -> tala eða null,
-   dec (tugabrot), hi (true = haerra er betra), group, pos (stodur sem
-   talan er merkingarbaer fyrir, null = allar), note (birt i tooltip).
+   EIN ROD, I THEIRRI ROD SEM TAFLAN BIRTIR. Adur var skrain i tveimur
+   hlutum (grunn-fylki + `STAT_DEFS.push(...)` langt nidri i skranni) og
+   thad var ORSOK THESS ad /90-dalkur endadi tugum dalka fra sinni
+   grunntolu: ICT i Grunni, ICT/90 i push-blokkinni. Nu er ein rod og
+   birtingar-rodin ER skra-rodin.
+
+   SVIDIN:
+     key     lykill (FPL-svidsheiti thegar thad er til)
+     label   FULLT heiti. Notad i dalkavalaranum, filter-chip-um, tooltip
+             og stigatoflunni — ma og A ad vera lysandi.
+     short   HEITID I TOFLUHAUSNUM (sjalfgefid = label). Hausinn hefur
+             ~46-142 px; "Clearances/blocks/int" passar aldrei thar en
+             "CBI" gerir thad. Skyringin er i tooltip, ekki i hausnum.
+     band    UNDIRFLOKKUR — spannandi hausrod fyrir ofan dalkana, sama
+             hugmynd sem FFS notar ("Goals: Tot | In | Out | H | M/G").
+             THAD ER BANDID SEM GERIR STUTT HEITI LAESILEG: "/90" eitt er
+             radgata, "/90" undir "Goals" er thad ekki.
+     note    SKYLDA — hver dalkur hefur skyringu (vordur i stats.test.mjs
+             kafla 13). Stytt heiti AN skyringar er verra en langt heiti.
+     dec, hi (true = haerra betra), pct, money, signed, pos, derived,
+     live_only — obreytt fra adur.
 
    `derived: true` merkir tolu sem VID reiknum ur FPL-svidum, ekki svid
    sem FPL birtir sjalft — svo hun se ekki misskilin sem opinber tala.
    ============================================================ */
 
+const per90of = (key) => (p) => per90(num(p[key]), num(p.minutes));
+
 export const STAT_GROUPS = [
-  { key: "core",    get label() { return tx("Grunnur"); } },
-  { key: "attack",  get label() { return tx("Sókn"); } },
-  { key: "expect",  get label() { return tx("Væntingar (xG/xA)"); } },
-  { key: "defence", get label() { return tx("Vörn"); } },
-  { key: "bonus",   get label() { return tx("Bónus og ICT"); } },
-  { key: "value",   get label() { return tx("Verð og eignarhald"); } },
-  { key: "threat",  get label() { return tx("Ógn (ESPN, síðasta umferð)"); } },
-  { key: "window",  get label() { return tx("Form-gluggi (síðustu 4–5)"); } },
-  /* DC-hittni er UPPSAFNAD yfir yfirstandandi timabil — hvorki 4-5 umferda
-     gluggi ne "leikir framundan", svo hun a sinn eigin flokk med heidarlegu
-     heiti (sbr. 6i: heiti flokkanna bera timabilid sjalf).                */
-  { key: "dcstat",  get label() { return tx("DC-hittni"); } },
-  /* Aron-studull: LYSING a fortid (sja skyringu i stats.js). */
-  { key: "aron",    get label() { return tx("Jöfnuður (Aron)"); } },
-  { key: "fixtures",get label() { return tx("Leikir framundan"); } },
-  { key: "setp",    get label() { return tx("Föst leikatriði"); } },
-  { key: "rank",    get label() { return tx("FPL-sæti (innan stöðu)"); } },
-  { key: "disc",    get label() { return tx("Spjöld og refsingar"); } },
+  /* 7 flokkar. ENDURSKIPULAGT 7.8.2026 (faerri og breidari) og svo 8.8.
+     ad beidni: ICT/ogn/skopun/ahrif foru UR Grunni I SOKN — their maela
+     sokn, ekki grunn-upplysingar um leikmann, og i Grunni voru their
+     komnir a milli verds og eignarhalds.                              */
+  { key: "core",    label: "Basics" },
+  { key: "attack",  label: "Attack" },
+  { key: "defence", label: "Defence" },
+  { key: "threat",  label: "Threat" },
+  { key: "aron",    label: "Consistency (Aron)" },
+  { key: "fixtures",label: "Upcoming fixtures" },
+  { key: "setp",    label: "Set pieces and cards" },
 ];
 
 export const STAT_DEFS = [
-  /* ---- Grunnur ---- */
-  { key:"total_points", get label() { return tx("Stig"); }, group:"core", dec:0, hi:true, get:p=>num(p.total_points) },
-  { key:"points_per_game", get label() { return tx("Stig/leik"); }, group:"core", dec:1, hi:true, get:p=>num(p.points_per_game) },
-  { key:"pts_per_90", get label() { return tx("Stig/90"); }, group:"core", dec:2, hi:true, derived:true,
-    get note() { return tx("Stig deilt á spilaðar mínútur × 90. Refsar ekki fyrir litla spilun eins og stig/leik."); },
+  /* ================= GRUNNUR ================= */
+  /* --- band: Points --- */
+  { key:"total_points", label:"Points", short:"Total", group:"core", band:"Points",
+    dec:0, hi:true, note:"Total FPL points in the selected season.",
+    get:p=>num(p.total_points) },
+  { key:"points_per_game", label:"Points per match", short:"Per match", group:"core", band:"Points",
+    dec:1, hi:true,
+    note:"Official FPL figure. Divides by MATCHES HE PLAYED, not by gameweeks — a player who missed ten weeks is not punished for the weeks he was out.",
+    get:p=>num(p.points_per_game) },
+  { key:"pts_per_start", label:"Points per start", short:"Per start", group:"core", band:"Points",
+    dec:1, hi:true, derived:true,
+    note:"Points divided by STARTS. Points per match counts substitute cameos too, so it drags a starter down; this is what he returns in the games he actually starts. Empty if he has never started.",
+    get:p=>{ const s=num(p.starts); return s>0?safeDiv(num(p.total_points),s):null; } },
+  { key:"pts_per_90", label:"Points per 90", short:"Per 90", group:"core", band:"Points",
+    dec:2, hi:true, derived:true,
+    note:"Points divided by minutes played × 90. Rewards output per minute — it flatters a substitute who scores in cameos, so read it next to Minutes.",
     get:p=>per90(num(p.total_points), num(p.minutes)) },
-  { key:"minutes", get label() { return tx("Mínútur"); }, group:"core", dec:0, hi:true, get:p=>num(p.minutes) },
-  { key:"starts", get label() { return tx("Byrjunarlið"); }, group:"core", dec:0, hi:true, get:p=>num(p.starts) },
-  { key:"starts_per_90", get label() { return tx("Byrjunarhlutfall"); }, group:"core", dec:2, hi:true,
-    get note() { return tx("Opinber FPL-tala (starts_per_90) — 1,0 = byrjar alltaf þegar hann spilar."); },
-    get:p=>num(p.starts_per_90) },
-  { key:"form", label:"Form", group:"core", dec:1, hi:true, get note() { return tx("FPL-form: meðalstig síðustu 30 daga."); },
-    get:p=>num(p.form) },
-  { key:"dreamteam_count", get label() { return tx("Lið vikunnar"); }, group:"core", dec:0, hi:true,
-    get note() { return tx("Hversu oft leikmaðurinn hefur komist í FPL-lið vikunnar."); }, get:p=>num(p.dreamteam_count) },
 
-  /* ---- Sokn ---- */
-  { key:"goals_scored", get label() { return tx("Mörk"); }, group:"attack", dec:0, hi:true, get:p=>num(p.goals_scored) },
-  { key:"assists", get label() { return tx("Assist"); }, group:"attack", dec:0, hi:true, get:p=>num(p.assists) },
-  { key:"gi", get label() { return tx("Mörk + assist"); }, group:"attack", dec:0, hi:true, derived:true,
+  /* --- band: Minutes --- */
+  { key:"minutes", label:"Minutes", short:"Mins", group:"core", band:"Minutes",
+    dec:0, hi:true, note:"Minutes played in the selected season. The single most important number in FPL: everything else is worthless if he does not play.",
+    get:p=>num(p.minutes) },
+  { key:"starts", label:"Starts", group:"core", band:"Minutes",
+    dec:0, hi:true, note:"Number of matches he started (FPL `starts`).",
+    get:p=>num(p.starts) },
+  { key:"starts_per_90", label:"Starts per 90 mins", short:"Starts/90", group:"core", band:"Minutes",
+    dec:2, hi:true,
+    note:"Official FPL starts_per_90 = starts ÷ (minutes ÷ 90). IT IS NOT THE SHARE OF GAMES STARTED, so it goes ABOVE 1.00 — measured: 186 of 365 players are over 1, up to 2.37 (1 start in 38 minutes). Above 1 = he starts but comes off early, or the sample is tiny. Around 1.0 = starts and plays the full match — that is the ideal. Below 1 = much of his time comes off the bench (1 start in 351 minutes = 0.26). For \"will he start the NEXT one?\" use Start prob, not this.",
+    get:p=>num(p.starts_per_90) },
+  { key:"start_prob", label:"Start probability", short:"Start prob", group:"core", band:"Minutes",
+    dec:0, hi:true, pct:true, live_only:true, derived:true,
+    note:"OUR MEASURED MODEL, not an FPL field: probability of 60+ minutes in the NEXT gameweek, from starts and minutes over the last 5 finished gameweeks. Measured on 65,557 samples — the model is no more accurate than \"he started last time\" (88%) but far better CALIBRATED (Brier −24%), so the RANKING is what it is for: the lowest decile catches 2.09× the bench drops. Live figure — it does not follow the selected season.",
+    get:p=>{ const v=num(p._start_p); return v==null?null:v*100; } },
+
+  /* --- band: Form --- */
+  { key:"form", label:"Form", group:"core", band:"Form",
+    dec:1, hi:true, note:"FPL form: average points over the last 30 days.",
+    get:p=>num(p.form) },
+  { key:"dreamteam_count", label:"Team of the week (TOTW)", short:"TOTW", group:"core", band:"Form",
+    dec:0, hi:true,
+    note:"How many times he has made the FPL Team of the Week (the official dream team, the best XI of the gameweek).",
+    get:p=>num(p.dreamteam_count) },
+
+  /* --- band: Bonus --- */
+  { key:"bonus", label:"Bonus points", short:"Bonus", group:"core", band:"Bonus",
+    dec:0, hi:true, note:"Bonus points won (the 3/2/1 handed to the top BPS scorers in each match).",
+    get:p=>num(p.bonus) },
+  { key:"bonus_per_90", label:"Bonus per 90", short:"/90", group:"core", band:"Bonus",
+    dec:2, hi:true, derived:true, note:"Bonus points per 90 minutes played.",
+    get: per90of("bonus") },
+  { key:"bps", label:"BPS", group:"core", band:"Bonus",
+    dec:0, hi:true, note:"Bonus Points System — the raw score FPL ranks players on inside each match. High BPS with low bonus means he is often 4th in his own match.",
+    get:p=>num(p.bps) },
+  { key:"bonus_per_bps", label:"Bonus per 100 BPS", short:"Bon/100", group:"core", band:"Bonus",
+    dec:2, hi:true, derived:true,
+    note:"How well BPS converts into real bonus — high = he is usually in the top 3 of his match, not 4th. Needs BPS ≥ 50 to mean anything.",
+    get:p=>{ const b=num(p.bps); if (!b||b<50) return null;
+             return safeDiv(num(p.bonus) ?? 0, b/100); } },
+
+  /* --- band: Value --- */
+  /* OPINBER FPL-TALA, ekki okkar utreikningur: `value_season` er
+     nakvaemlega total_points/verd (Raya 162/6,0 = 27,0). Betra ad birta
+     theirra tolu en ad verja okkar eigin eins tolu.                    */
+  { key:"pts_per_million", label:"Points per £m", short:"Pts/£m", group:"core", band:"Value",
+    dec:1, hi:true,
+    note:"FPL's own value figure (value_season): total points ÷ current price. Cheap players win it by default, so use it to compare inside a price bracket, not across the whole list.",
+    get:p=>num(p.value_season) },
+  { key:"value_form", label:"Form per £m", short:"Form/£m", group:"core", band:"Value",
+    dec:2, hi:true, note:"FPL's own value_form: form ÷ price — value at CURRENT form rather than over the whole season.",
+    get:p=>num(p.value_form) },
+
+  /* --- band: Price and ownership ---
+     VERD OG EIGNARHALD ERU FASTIR DALKAR i leikmannalistanum (PINNED) og
+     eru THVI SLEPPT ur skrunanlegu dalkunum thar. Their eru samt i
+     skranni: stigataflan radar eftir theim og filter/valari nota thau.
+     ADUR birtust their TVISVAR i toflunni — "verd aftur vid hlidina a
+     Threat" (notandinn, 8.8.2026). Sja PINNED i PlayerList.jsx.        */
+  { key:"now_cost", label:"Price", group:"core", band:"Price and ownership",
+    dec:1, hi:false, money:true, note:"Current price. Always today's price, also when a historical season is selected — you buy at today's price.",
+    get:p=>{ const c=num(p.now_cost); return c==null?null:c/10; } },
+  { key:"selected_by_percent", label:"Ownership %", short:"Owned %", group:"core", band:"Price and ownership",
+    dec:1, hi:true, pct:true, note:"Share of all FPL squads that own him right now.",
+    get:p=>num(p.selected_by_percent) },
+  { key:"cost_change_start", label:"Price change (season)", short:"Chg season", group:"core",
+    band:"Price and ownership", dec:1, hi:true, signed:true, money:true,
+    note:"Price change since the start of the season.",
+    get:p=>{ const c=num(p.cost_change_start); return c==null?null:c/10; } },
+  { key:"cost_change_event", label:"Price change (GW)", short:"Chg GW", group:"core",
+    band:"Price and ownership", dec:1, hi:true, signed:true, money:true,
+    note:"Price change inside the current gameweek.",
+    get:p=>{ const c=num(p.cost_change_event); return c==null?null:c/10; } },
+  { key:"net_transfers_event", label:"Net transfers (GW)", short:"Net trans", group:"core",
+    band:"Price and ownership", dec:0, hi:true, signed:true, derived:true,
+    note:"Transfers in minus transfers out in the current gameweek — what drives the price change.",
+    get:p=>{ const i=num(p.transfers_in_event)??0, o=num(p.transfers_out_event)??0; return i-o; } },
+
+  /* ================= SOKN ================= */
+  /* --- band: Goals --- */
+  { key:"goals_scored", label:"Goals", group:"attack", band:"Goals",
+    dec:0, hi:true, note:"Goals scored.", get:p=>num(p.goals_scored) },
+  { key:"goals_per_90", label:"Goals per 90", short:"/90", group:"attack", band:"Goals",
+    dec:2, hi:true, derived:true, note:"Goals per 90 minutes played.",
+    get: per90of("goals_scored") },
+
+  /* --- band: Assists --- */
+  { key:"assists", label:"Assists", group:"attack", band:"Assists",
+    dec:0, hi:true, note:"Assists as FPL counts them — a wider definition than Opta's (FPL gives an assist for winning a penalty that is scored).",
+    get:p=>num(p.assists) },
+  { key:"assists_per_90", label:"Assists per 90", short:"/90", group:"attack", band:"Assists",
+    dec:2, hi:true, derived:true, note:"Assists per 90 minutes played.",
+    get: per90of("assists") },
+
+  /* --- band: G+A --- */
+  { key:"gi", label:"Goals + assists", short:"G+A", group:"attack", band:"G+A",
+    dec:0, hi:true, derived:true, note:"Goal involvements: goals plus assists.",
     get:p=>(num(p.goals_scored)??0)+(num(p.assists)??0) },
-  { key:"gi_per_90", get label() { return tx("M+A /90"); }, group:"attack", dec:2, hi:true, derived:true,
+  { key:"gi_per_90", label:"Goals + assists per 90", short:"/90", group:"attack", band:"G+A",
+    dec:2, hi:true, derived:true, note:"Goal involvements per 90 minutes played.",
     get:p=>per90((num(p.goals_scored)??0)+(num(p.assists)??0), num(p.minutes)) },
-  { key:"mins_per_gi", get label() { return tx("Mín. per framlag"); }, group:"attack", dec:0, hi:false, derived:true,
-    get note() { return tx("Mínútur per mark eða assist. Lægra er betra. Tómt ef ekkert framlag."); },
+  { key:"mins_per_gi", label:"Minutes per G+A", short:"Mins/GA", group:"attack", band:"G+A",
+    dec:0, hi:false, derived:true,
+    note:"How long you wait for a goal or an assist. LOWER IS BETTER. Empty if he has no involvement at all.",
     get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0); return gi>0?safeDiv(num(p.minutes),gi):null; } },
 
-  /* ---- Vaentingar ---- */
-  { key:"expected_goals", label:"xG", group:"expect", dec:2, hi:true, get:p=>num(p.expected_goals) },
-  { key:"expected_assists", label:"xA", group:"expect", dec:2, hi:true, get:p=>num(p.expected_assists) },
-  { key:"expected_goal_involvements", label:"xGI", group:"expect", dec:2, hi:true,
+  /* --- band: Expected --- */
+  { key:"expected_goals", label:"xG (expected goals)", short:"xG", group:"attack", band:"Expected",
+    dec:2, hi:true, note:"Expected goals: the sum of the quality of the chances he took. More stable than goals themselves.",
+    get:p=>num(p.expected_goals) },
+  { key:"expected_goals_per_90", label:"xG per 90", short:"xG/90", group:"attack", band:"Expected",
+    dec:2, hi:true, note:"Official FPL figure (expected_goals_per_90).",
+    get:p=>num(p.expected_goals_per_90) },
+  { key:"expected_assists", label:"xA (expected assists)", short:"xA", group:"attack", band:"Expected",
+    dec:2, hi:true, note:"Expected assists: the quality of the chances he created for others.",
+    get:p=>num(p.expected_assists) },
+  { key:"expected_assists_per_90", label:"xA per 90", short:"xA/90", group:"attack", band:"Expected",
+    dec:2, hi:true, note:"Official FPL figure (expected_assists_per_90).",
+    get:p=>num(p.expected_assists_per_90) },
+  { key:"expected_goal_involvements", label:"xGI (expected G+A)", short:"xGI", group:"attack",
+    band:"Expected", dec:2, hi:true, note:"Expected goal involvements: xG + xA. The best single underlying number for an attacker.",
     get:p=>num(p.expected_goal_involvements) },
-  { key:"expected_goals_per_90", label:"xG/90", group:"expect", dec:2, hi:true, get:p=>num(p.expected_goals_per_90) },
-  { key:"expected_assists_per_90", label:"xA/90", group:"expect", dec:2, hi:true, get:p=>num(p.expected_assists_per_90) },
-  { key:"expected_goal_involvements_per_90", label:"xGI/90", group:"expect", dec:2, hi:true,
+  { key:"expected_goal_involvements_per_90", label:"xGI per 90", short:"xGI/90", group:"attack",
+    band:"Expected", dec:2, hi:true, note:"Official FPL figure (expected_goal_involvements_per_90).",
     get:p=>num(p.expected_goal_involvements_per_90) },
-  { key:"goals_minus_xg", get label() { return tx("Mörk − xG"); }, group:"expect", dec:2, hi:true, derived:true, signed:true,
-    get note() { return tx("Yfir núlli = skorar meira en færin gefa (klínísk nýting eða heppni). Undir núlli = klúðrar færum."); },
+  { key:"mins_per_xgi", label:"Minutes per xGI", short:"Mins/xGI", group:"attack", band:"Expected",
+    dec:0, hi:false, derived:true, note:"Minutes per unit of expected involvement. LOWER IS BETTER — the underlying twin of Minutes per G+A, and less noisy than it.",
+    get:p=>safeDiv(num(p.minutes), num(p.expected_goal_involvements)) },
+  { key:"xgi_per_million", label:"xGI per £m", short:"xGI/£m", group:"attack", band:"Expected",
+    dec:2, hi:true, derived:true, note:"Expected involvements per million — value of the UNDERLYING rather than of points already banked.",
+    get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null
+             : safeDiv(num(p.expected_goal_involvements), c/10); } },
+  { key:"xg_share", label:"Share of team xG", short:"xG share", group:"attack", band:"Expected",
+    dec:0, hi:true, pct:true, derived:true, live_only:true,
+    note:"How much of his team's expected goals comes from him. Normalises for team strength — 25% in a weak side can beat 10% in a strong one. Live figure, does not follow the selected season.",
+    get:p=>{ const t=num(p._team_xg); if (!t) return null;
+             const v=num(p.expected_goals); return v==null?null:(v/t)*100; } },
+
+  /* --- band: Over/under --- */
+  { key:"goals_minus_xg", label:"Goals − xG", short:"G−xG", group:"attack", band:"Over/under",
+    dec:2, hi:true, derived:true, signed:true,
+    note:"Above zero = he scores more than the chances imply (clinical, or lucky). Below zero = he wastes chances. Measured across seasons: this does NOT persist, so a big negative is usually a buy signal rather than a flaw.",
     get:p=>{ const g=num(p.goals_scored), x=num(p.expected_goals); return (g==null||x==null)?null:g-x; } },
-  { key:"assists_minus_xa", get label() { return tx("Assist − xA"); }, group:"expect", dec:2, hi:true, derived:true, signed:true,
+  { key:"conversion", label:"Goal conversion (goals/xG)", short:"G/xG", group:"attack", band:"Over/under",
+    dec:2, hi:true, derived:true,
+    note:"The same thing as a ratio: above 1.00 = scores more than the chances imply. Needs xG > 0.5 — otherwise one goal from 0.04 xG would read as 25× and top the table.",
+    get:p=>{ const x=num(p.expected_goals); if (x==null||x<0.5) return null;
+             return safeDiv(num(p.goals_scored) ?? 0, x); } },
+  { key:"assists_minus_xa", label:"Assists − xA", short:"A−xA", group:"attack", band:"Over/under",
+    dec:2, hi:true, derived:true, signed:true,
+    note:"Above zero = his team-mates finish the chances he creates. Depends more on others than Goals − xG does.",
     get:p=>{ const a=num(p.assists), x=num(p.expected_assists); return (a==null||x==null)?null:a-x; } },
-  { key:"gi_minus_xgi", get label() { return tx("Framlög − xGI"); }, group:"expect", dec:2, hi:true, derived:true, signed:true,
-    get note() { return tx("Heildarmunur á raunverulegum framlögum og væntum. Sterkasta einstaka merkið um óheppni/heppni."); },
+  { key:"assist_conversion", label:"Assist conversion (assists/xA)", short:"A/xA", group:"attack",
+    band:"Over/under", dec:2, hi:true, derived:true,
+    note:"Assists ÷ xA. Needs xA > 0.5 to mean anything.",
+    get:p=>{ const x=num(p.expected_assists); if (x==null||x<0.5) return null;
+             return safeDiv(num(p.assists) ?? 0, x); } },
+  { key:"gi_minus_xgi", label:"G+A − xGI", short:"GA−xGI", group:"attack", band:"Over/under",
+    dec:2, hi:true, derived:true, signed:true,
+    note:"The total gap between real and expected involvements — the single strongest luck signal. A big negative is the classic \"due\" player; that is exactly what the IG score is built on.",
     get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0), x=num(p.expected_goal_involvements);
              return x==null?null:gi-x; } },
 
-  /* ---- Vorn ---- */
-  { key:"clean_sheets", get label() { return tx("Hreint blað"); }, group:"defence", dec:0, hi:true, pos:[1,2,3], get:p=>num(p.clean_sheets) },
-  { key:"cs_pct", get label() { return tx("Hreint blað %"); }, group:"defence", dec:0, hi:true, pos:[1,2,3], derived:true, pct:true,
-    get note() { return tx("Hreint blað deilt á byrjunarliðs-leiki."); },
+  /* --- band: Indexes ---
+     FLUTT UR GRUNNI 8.8.2026 ad beidni notanda. ICT, ahrif, skopun og ogn
+     eru SOKNAR-tolur (threat er bokstaflega staðsetningar-haetta i teig) og
+     i Grunni sátu thaer a milli verds og eignarhalds. Hver /90 stendur nu
+     VID SINA grunntolu — thad var onnur beidni i somu ferd.             */
+  { key:"ict_index", label:"ICT index", short:"ICT", group:"attack", band:"Indexes",
+    dec:1, hi:true, note:"FPL's combined Influence + Creativity + Threat index. A summary of everything he does, not just returns.",
+    get:p=>num(p.ict_index) },
+  { key:"ict_per_90", label:"ICT index per 90", short:"ICT/90", group:"attack", band:"Indexes",
+    dec:2, hi:true, derived:true, note:"ICT index per 90 minutes played — comparable between a starter and a substitute.",
+    get: per90of("ict_index") },
+  { key:"influence", label:"Influence", short:"Infl", group:"attack", band:"Indexes",
+    dec:1, hi:true, note:"FPL's Influence: how much he affects the result — goals, assists, saves, decisive defensive actions.",
+    get:p=>num(p.influence) },
+  { key:"influence_per_90", label:"Influence per 90", short:"Infl/90", group:"attack", band:"Indexes",
+    dec:1, hi:true, derived:true, note:"Influence per 90 minutes played.",
+    get: per90of("influence") },
+  { key:"creativity", label:"Creativity", short:"Creat", group:"attack", band:"Indexes",
+    dec:1, hi:true, note:"FPL's Creativity: chance creation, passes into danger, crosses. This is the raw material behind the IA score.",
+    get:p=>num(p.creativity) },
+  { key:"creativity_per_90", label:"Creativity per 90", short:"Creat/90", group:"attack", band:"Indexes",
+    dec:1, hi:true, derived:true, note:"Creativity per 90 minutes played. This is exactly what the IA score uses — measured as the best form of the question \"who creates chances without getting the assist?\"",
+    get: per90of("creativity") },
+  { key:"threat", label:"Threat", group:"attack", band:"Indexes",
+    dec:1, hi:true, note:"FPL's Threat: how dangerous the positions he gets into are — shot volume and shot location. High threat with few goals is the most common \"due\" pattern.",
+    get:p=>num(p.threat) },
+  { key:"threat_per_90", label:"Threat per 90", short:"Threat/90", group:"attack", band:"Indexes",
+    dec:1, hi:true, derived:true, note:"Threat per 90 minutes played.",
+    get: per90of("threat") },
+
+  /* --- band: Imminent --- */
+  { key:"mo", label:"Imminent goal (IG)", short:"IG", group:"attack", band:"Imminent",
+    dec:2, hi:true, live_only:true, derived:true,
+    note:"OUR MEASURED SCORE: xGI × 0.8 + threat/25 × 0.3 + bad luck × 0.2 over the last 4 finished gameweeks. Only for players with 0–1 involvements in that window — the point is \"he is about to score\". Measured: the top decile returns 2.89× the average over the next four gameweeks. Live figure; goalkeepers never get it (never measured for them).",
+    get:p=>num(p._mo) },
+  { key:"ao", label:"Imminent assist (IA)", short:"IA", group:"attack", band:"Imminent",
+    dec:1, hi:true, live_only:true, derived:true,
+    note:"OUR MEASURED SCORE: plain creativity/90 over the form window. A composite version was tested and LOST in 0 of 3 seasons, so the plain figure stands. Live figure; goalkeepers never get it.",
+    get:p=>num(p._ao) },
+
+  /* --- band: Penalties --- */
+  { key:"pen_order", label:"Penalty order", short:"Order", group:"attack", band:"Penalties",
+    dec:0, hi:false, live_only:true,
+    note:"1 = first penalty taker at his club. LOWER IS BETTER. The strongest single captaincy signal in the data. Today's order — it does not follow the selected season.",
+    get:p=>num(p.penalties_order) },
+  { key:"penalties_missed", label:"Penalties missed", short:"Missed", group:"attack", band:"Penalties",
+    dec:0, hi:false, note:"Penalties missed (−2 points each).",
+    get:p=>num(p.penalties_missed) },
+
+  /* ================= VORN ================= */
+  /* --- band: Clean sheets --- */
+  { key:"clean_sheets", label:"Clean sheets", short:"CS", group:"defence", band:"Clean sheets",
+    dec:0, hi:true, pos:[1,2,3],
+    note:"Clean sheets he was credited with. FPL's rule is 60+ minutes without conceding WHILE HE IS ON THE PITCH, so it is counted per player and not per team.",
+    get:p=>num(p.clean_sheets) },
+  { key:"cs_per_90", label:"Clean sheets per 90", short:"CS/90", group:"defence", band:"Clean sheets",
+    dec:2, hi:true, pos:[1,2,3], note:"Official FPL figure (clean_sheets_per_90) — divides by minutes, unlike CS % which divides by starts.",
+    get:p=>num(p.clean_sheets_per_90) },
+  { key:"cs_pct", label:"Clean sheet %", short:"CS %", group:"defence", band:"Clean sheets",
+    dec:0, hi:true, pos:[1,2,3], derived:true, pct:true,
+    note:"Clean sheets ÷ starts — the share of his starts that ended in a clean sheet.",
     get:p=>{ const r=safeDiv(num(p.clean_sheets), num(p.starts)); return r==null?null:r*100; } },
-  { key:"goals_conceded", get label() { return tx("Mörk á sig"); }, group:"defence", dec:0, hi:false, pos:[1,2,3], get:p=>num(p.goals_conceded) },
-  { key:"expected_goals_conceded", label:"xGC", group:"defence", dec:2, hi:false, pos:[1,2,3],
+
+  /* --- band: Conceded --- */
+  { key:"goals_conceded", label:"Goals conceded", short:"GC", group:"defence", band:"Conceded",
+    dec:0, hi:false, pos:[1,2,3], note:"Goals conceded while he was on the pitch. LOWER IS BETTER — defenders and keepers lose a point per two conceded.",
+    get:p=>num(p.goals_conceded) },
+  { key:"gc_per_90", label:"Conceded per 90", short:"GC/90", group:"defence", band:"Conceded",
+    dec:2, hi:false, pos:[1,2,3], note:"Official FPL figure (goals_conceded_per_90). LOWER IS BETTER.",
+    get:p=>num(p.goals_conceded_per_90) },
+  { key:"expected_goals_conceded", label:"xGC (expected conceded)", short:"xGC", group:"defence",
+    band:"Conceded", dec:2, hi:false, pos:[1,2,3],
+    note:"Expected goals conceded — the quality of the chances his team gave away. LOWER IS BETTER, and it is a far better guide to future clean sheets than goals conceded.",
     get:p=>num(p.expected_goals_conceded) },
-  { key:"gc_minus_xgc", get label() { return tx("Mörk á sig − xGC"); }, group:"defence", dec:2, hi:false, pos:[1,2,3], derived:true, signed:true,
-    get note() { return tx("Undir núlli = vörnin (eða markvörðurinn) heldur betur en færin gefa."); },
+  { key:"xgc_per_90", label:"xGC per 90", short:"xGC/90", group:"defence", band:"Conceded",
+    dec:2, hi:false, pos:[1,2,3], note:"Official FPL figure (expected_goals_conceded_per_90). LOWER IS BETTER.",
+    get:p=>num(p.expected_goals_conceded_per_90) },
+  { key:"gc_minus_xgc", label:"Conceded − xGC", short:"GC−xGC", group:"defence", band:"Conceded",
+    dec:2, hi:false, pos:[1,2,3], derived:true, signed:true,
+    note:"Below zero = the defence (or the keeper) holds up better than the chances imply. Above zero = they have been unlucky or the keeper is at fault, and clean sheets should come.",
     get:p=>{ const g=num(p.goals_conceded), x=num(p.expected_goals_conceded); return (g==null||x==null)?null:g-x; } },
-  { key:"saves", get label() { return tx("Vörslur"); }, group:"defence", dec:0, hi:true, pos:[1], get:p=>num(p.saves) },
-  { key:"saves_per_90", get label() { return tx("Vörslur/90"); }, group:"defence", dec:2, hi:true, pos:[1],
-    get note() { return tx("Opinber FPL-tala (saves_per_90)."); }, get:p=>num(p.saves_per_90) },
-  { key:"save_pct", get label() { return tx("Vörslur %"); }, group:"defence", dec:0, hi:true, pos:[1], derived:true, pct:true,
-    get note() { return tx("Vörslur / (vörslur + mörk á sig). Gróft — FPL telur ekki skot á mark per markvörð."); },
+
+  /* --- band: Goalkeeping --- */
+  { key:"saves", label:"Saves", group:"defence", band:"Goalkeeping",
+    dec:0, hi:true, pos:[1], note:"Saves made. Every third save is a point, so a busy keeper in a weak side can out-score a quiet one.",
+    get:p=>num(p.saves) },
+  { key:"saves_per_90", label:"Saves per 90", short:"Saves/90", group:"defence", band:"Goalkeeping",
+    dec:2, hi:true, pos:[1], note:"Official FPL figure (saves_per_90).",
+    get:p=>num(p.saves_per_90) },
+  { key:"save_pct", label:"Save %", group:"defence", band:"Goalkeeping",
+    dec:0, hi:true, pos:[1], derived:true, pct:true,
+    note:"Saves ÷ (saves + goals conceded). ROUGH: FPL does not publish shots on target per keeper, so a deflected goal counts against him the same as a howler.",
     get:p=>{ const s=num(p.saves), g=num(p.goals_conceded);
              if (s==null||g==null||(s+g)===0) return null; return (s/(s+g))*100; } },
-  { key:"penalties_saved", get label() { return tx("Vítavörslur"); }, group:"defence", dec:0, hi:true, pos:[1], get:p=>num(p.penalties_saved) },
-  { key:"defensive_contribution", get label() { return tx("DC alls"); }, group:"defence", dec:0, hi:true,
-    get note() { return tx("FPL DefCon-stig. Athugið: DC er VILJANDI utan FFDR — sjá kafla 3 í CLAUDE.md."); },
+  { key:"penalties_saved", label:"Penalty saves (PS)", short:"PS", group:"defence", band:"Goalkeeping",
+    dec:0, hi:true, pos:[1], note:"Penalties saved — 5 points each, the biggest single bonus available to a goalkeeper.",
+    get:p=>num(p.penalties_saved) },
+
+  /* --- band: DefCon ---
+     DC ER VILJANDI UTAN FFDR (kafli 3 i CLAUDE.md): hun maelir vinnualag
+     varnar og fylgir oft THYNGRI leikjum, svo hun dregur i gagnstaeda att
+     vid hreint blad. Hun lifir a spjoldum og i thessari toflu.          */
+  { key:"defensive_contribution", label:"DefCon total", short:"DC", group:"defence", band:"DefCon",
+    dec:0, hi:true, note:"FPL DefCon points earned. DC is DELIBERATELY outside our FFDR difficulty model: it tracks defensive WORKLOAD, which rises in HARDER matches, so blending it with clean-sheet difficulty would make the two signals eat each other.",
     get:p=>num(p.defensive_contribution) },
-  { key:"dc_per_90", label:"DC/90", group:"defence", dec:2, hi:true,
-    get note() { return tx("Opinber FPL-tala (defensive_contribution_per_90)."); },
+  { key:"dc_per_90", label:"DefCon per 90", short:"DC/90", group:"defence", band:"DefCon",
+    dec:2, hi:true, note:"Official FPL figure (defensive_contribution_per_90).",
     get:p=>num(p.defensive_contribution_per_90) },
-  { key:"cs_per_90", get label() { return tx("Hreint blað /90"); }, group:"defence", dec:2, hi:true, pos:[1,2,3],
-    get note() { return tx("Opinber FPL-tala (clean_sheets_per_90) — ólíkt CS% sem deilir á byrjunarliðs-leiki."); },
-    get:p=>num(p.clean_sheets_per_90) },
-  { key:"gc_per_90", get label() { return tx("Mörk á sig /90"); }, group:"defence", dec:2, hi:false, pos:[1,2,3],
-    get note() { return tx("Opinber FPL-tala (goals_conceded_per_90)."); }, get:p=>num(p.goals_conceded_per_90) },
-  { key:"xgc_per_90", label:"xGC /90", group:"defence", dec:2, hi:false, pos:[1,2,3],
-    get note() { return tx("Opinber FPL-tala (expected_goals_conceded_per_90)."); },
-    get:p=>num(p.expected_goals_conceded_per_90) },
-  { key:"clearances_blocks_interceptions", get label() { return tx("CBI alls"); }, group:"defence", dec:0, hi:true,
+  { key:"dc_hit_adj", label:"DC hit % (adjusted)", short:"DC hit%", group:"defence", band:"DefCon",
+    dec:0, hi:true, pct:true, derived:true,
+    note:"Share of his starts that reached the DefCon threshold (10 for defenders, 12 for midfielders and forwards), SHRUNK for sample size (empirical Bayes, k=10 towards the position mean). USE THIS ONE, not the raw figure — and read the games column next to it.",
+    get:p=>{ const v=num(p._dc_hit_adj); return v==null?null:v*100; } },
+  { key:"dc_hit_raw", label:"DC hit % (raw)", short:"DC raw%", group:"defence", band:"DefCon",
+    dec:0, hi:true, pct:true, derived:true,
+    note:"Raw hit rate (hits ÷ starts). IT OVERESTIMATES on small samples — measured against an external benchmark, 75% at n=12 turned out to be about 30% in truth. Shown for transparency only; the adjusted figure is the one that counts.",
+    get:p=>{ const v=num(p._dc_hit_raw); return v==null?null:v*100; } },
+  { key:"dc_starts", label:"DC games (n)", short:"DC n", group:"defence", band:"DefCon",
+    dec:0, hi:true, derived:true, note:"How many games sit behind the hit rate. Small n means the raw percentage says very little.",
+    get:p=>num(p._dc_starts) },
+
+  /* --- band: Defensive actions --- */
+  { key:"clearances_blocks_interceptions", label:"Clearances/blocks/int", short:"CBI",
+    group:"defence", band:"Defensive actions", dec:0, hi:true,
+    note:"Clearances, blocks and interceptions added together — the bulk of a defender's DefCon count.",
     get:p=>num(p.clearances_blocks_interceptions) },
-  { key:"tackles", get label() { return tx("Tacklingar"); }, group:"defence", dec:0, hi:true, get:p=>num(p.tackles) },
-  { key:"recoveries", get label() { return tx("Endurheimtur"); }, group:"defence", dec:0, hi:true, get:p=>num(p.recoveries) },
+  { key:"cbi_per_90", label:"CBI per 90", short:"CBI/90", group:"defence", band:"Defensive actions",
+    dec:2, hi:true, derived:true, note:"Clearances, blocks and interceptions per 90 minutes played.",
+    get: per90of("clearances_blocks_interceptions") },
+  { key:"tackles", label:"Tackles", short:"Tack", group:"defence", band:"Defensive actions",
+    dec:0, hi:true, note:"Tackles. Counts towards DefCon for midfielders and forwards.",
+    get:p=>num(p.tackles) },
+  { key:"tackles_per_90", label:"Tackles per 90", short:"Tack/90", group:"defence",
+    band:"Defensive actions", dec:2, hi:true, derived:true, note:"Tackles per 90 minutes played.",
+    get: per90of("tackles") },
+  { key:"recoveries", label:"Recoveries", short:"Recov", group:"defence", band:"Defensive actions",
+    dec:0, hi:true, note:"Ball recoveries. Counts towards DefCon for midfielders and forwards, and it is the term that decides most of their hit rate.",
+    get:p=>num(p.recoveries) },
+  { key:"recoveries_per_90", label:"Recoveries per 90", short:"Recov/90", group:"defence",
+    band:"Defensive actions", dec:2, hi:true, derived:true, note:"Ball recoveries per 90 minutes played.",
+    get: per90of("recoveries") },
 
-  /* ---- Bonus og ICT ---- */
-  { key:"bonus", get label() { return tx("Bónus"); }, group:"bonus", dec:0, hi:true, get:p=>num(p.bonus) },
-  { key:"bps", label:"BPS", group:"bonus", dec:0, hi:true, get:p=>num(p.bps) },
-  { key:"bps_per_90", label:"BPS/90", group:"bonus", dec:1, hi:true, derived:true,
-    get:p=>per90(num(p.bps), num(p.minutes)) },
-  { key:"ict_index", get label() { return tx("ICT-vísitala"); }, group:"bonus", dec:1, hi:true, get:p=>num(p.ict_index) },
-  { key:"influence", get label() { return tx("Áhrif"); }, group:"bonus", dec:1, hi:true, get:p=>num(p.influence) },
-  { key:"creativity", get label() { return tx("Sköpun"); }, group:"bonus", dec:1, hi:true, get:p=>num(p.creativity) },
-  { key:"threat", get label() { return tx("Hætta"); }, group:"bonus", dec:1, hi:true,
-    get note() { return tx("FPL-mæling á hversu hættulegar stöður leikmaðurinn kemst í."); }, get:p=>num(p.threat) },
+  /* ================= OGN (ESPN, sidasta lokna umferd) ================= */
+  /* --- band: Shots --- */
+  { key:"espn_shots", label:"Shots", group:"threat", band:"Shots",
+    dec:0, hi:true, live_only:true,
+    note:"Shots in the LAST FINISHED gameweek, read from ESPN's match feed. One gameweek only — it is a snapshot, not a season total.",
+    get:p=>num(p._espn_shots) },
+  { key:"espn_sot", label:"Shots on target", short:"On target", group:"threat", band:"Shots",
+    dec:0, hi:true, live_only:true, note:"Shots on target in the last finished gameweek (ESPN).",
+    get:p=>num(p._espn_sot) },
+  { key:"espn_accuracy", label:"Shot accuracy", short:"Accuracy", group:"threat", band:"Shots",
+    dec:0, hi:true, pct:true, live_only:true, derived:true,
+    note:"Shots on target ÷ shots. This is ACCURACY, not finishing — ESPN gives no xG per shot, so we cannot say how good the chances were.",
+    get:p=>{ const s=num(p._espn_shots); if (!s) return null;
+             return safeDiv(num(p._espn_sot) ?? 0, s)*100; } },
+  { key:"espn_in_box", label:"Shots in the box", short:"In box", group:"threat", band:"Shots",
+    dec:0, hi:true, live_only:true,
+    note:"Shots from inside the penalty area, taken from ESPN's own zone text (not from a coordinate rule). Location beats volume: a shot in the box is worth several from distance.",
+    get:p=>num(p._espn_in_box) },
+  { key:"espn_woodwork", label:"Hit the woodwork", short:"Wood", group:"threat", band:"Shots",
+    dec:0, hi:true, live_only:true,
+    note:"Shots that hit the post or the bar — its own event type at ESPN. The purest bad-luck signal there is.",
+    get:p=>num(p._espn_woodwork) },
 
-  /* ---- Verd og eignarhald ---- */
-  { key:"now_cost", get label() { return tx("Verð"); }, group:"value", dec:1, hi:false, money:true, get:p=>{ const c=num(p.now_cost); return c==null?null:c/10; } },
-  /* OPINBER FPL-TALA, ekki okkar utreikningur: FPL `value_season` er
-     nakvaemlega total_points/verd (Raya 162/6,0 = 27,0 = value_season).
-     Betra ad birta theirra tolu en ad verja okkar eigin eins tolu.      */
-  { key:"pts_per_million", get label() { return tx("Stig per m"); }, group:"value", dec:1, hi:true,
-    get note() { return tx("FPL-eigin verðmæta-tala (value_season): heildarstig deilt á núverandi verð."); },
-    get:p=>num(p.value_season) },
-  { key:"value_form", get label() { return tx("Form per milljón"); }, group:"value", dec:2, hi:true,
-    get note() { return tx("FPL-eigin value_form: form deilt á verð — verðmæti í NÚVERANDI formi."); },
-    get:p=>num(p.value_form) },
-  { key:"selected_by_percent", get label() { return tx("Eignarhald %"); }, group:"value", dec:1, hi:true, pct:true,
-    get:p=>num(p.selected_by_percent) },
-  { key:"cost_change_start", get label() { return tx("Verðbreyting"); }, group:"value", dec:1, hi:true, signed:true, money:true,
-    get note() { return tx("Breyting frá byrjun tímabils."); },
-    get:p=>{ const c=num(p.cost_change_start); return c==null?null:c/10; } },
-  { key:"cost_change_event", get label() { return tx("Verðbr. í umferð"); }, group:"value", dec:1, hi:true,
-    signed:true, money:true, get note() { return tx("Verðbreyting í yfirstandandi umferð."); },
-    get:p=>{ const c=num(p.cost_change_event); return c==null?null:c/10; } },
-  { key:"net_transfers_event", get label() { return tx("Nettóflutningar"); }, group:"value", dec:0, hi:true, signed:true, derived:true,
-    get note() { return tx("Inn mínus út í yfirstandandi umferð."); },
-    get:p=>{ const i=num(p.transfers_in_event)??0, o=num(p.transfers_out_event)??0; return i-o; } },
+  /* --- band: Chance creation --- */
+  { key:"espn_created", label:"Chances created", short:"Created", group:"threat", band:"Chance creation",
+    dec:0, hi:true, live_only:true,
+    note:"How often he set up a shot in the last finished gameweek, read out of ESPN's commentary (\"Assisted by X …\"). 76% of shots name their assist, so this is a floor, not an exact count. NOT the same thing as Big Chances — see the note on Shot accuracy.",
+    get:p=>num(p._espn_created) },
+  { key:"espn_cross", label:"Crosses → shots", short:"Crosses", group:"threat", band:"Chance creation",
+    dec:0, hi:true, live_only:true,
+    note:"Crosses that LED TO A SHOT — not raw cross counts. A raw cross number rewards hopeful balls into the box; this one only counts when it worked.",
+    get:p=>num(p._espn_cross) },
+  { key:"espn_through", label:"Through balls", short:"Through", group:"threat", band:"Chance creation",
+    dec:0, hi:true, live_only:true, note:"Passes described as a through ball that led to a shot (ESPN commentary).",
+    get:p=>num(p._espn_through) },
 
-  /* ---- FPL-SAETI INNAN STODU ----
-     FPL gefur TVO saeti fyrir hverja tolu: `_rank` (medal ALLRA leikmanna)
-     og `_rank_type` (medal leikmanna I SOMU STODU). Hid sidara er thad sem
-     skiptir mali i fantasy — 3. besti markvordur er allt annad en 32. besti
-     leikmadur i heild. Maelt: Raya ppg 4,4 -> rank_type 3, rank 32.
-     Vid birtum STODU-saetid. LAEGRA er betra.                            */
-  { key:"ppg_rank_type", get label() { return tx("Stig/leik — sæti"); }, group:"rank", dec:0, hi:false,
-    get note() { return tx("Sæti í stig/leik innan stöðunnar (FPL points_per_game_rank_type)."); },
-    get:p=>num(p.points_per_game_rank_type) },
-  { key:"form_rank_type", get label() { return tx("Form — sæti"); }, group:"rank", dec:0, hi:false,
-    get:p=>num(p.form_rank_type) },
-  { key:"ict_rank_type", get label() { return tx("ICT — sæti"); }, group:"rank", dec:0, hi:false,
-    get:p=>num(p.ict_index_rank_type) },
-  { key:"influence_rank_type", get label() { return tx("Áhrif — sæti"); }, group:"rank", dec:0, hi:false,
-    get:p=>num(p.influence_rank_type) },
-  { key:"creativity_rank_type", get label() { return tx("Sköpun — sæti"); }, group:"rank", dec:0, hi:false,
-    get:p=>num(p.creativity_rank_type) },
-  { key:"threat_rank_type", get label() { return tx("Hætta — sæti"); }, group:"rank", dec:0, hi:false,
-    get:p=>num(p.threat_rank_type) },
-  { key:"selected_rank_type", get label() { return tx("Eignarhald — sæti"); }, group:"rank", dec:0, hi:false,
-    get note() { return tx("Sæti í eignarhaldi innan stöðunnar — lágt sæti = mikið eignað."); },
-    get:p=>num(p.selected_rank_type) },
-  { key:"cost_rank_type", get label() { return tx("Verð — sæti"); }, group:"rank", dec:0, hi:false,
-    get note() { return tx("Sæti í verði innan stöðunnar — 1 = dýrastur."); },
-    get:p=>num(p.now_cost_rank_type) },
+  /* ================= JOFNUDUR (ARON-STUDULL) ================= */
+  { key:"aron_net", label:"Consistency (Aron)", short:"Aron", group:"aron", band:"Consistency",
+    dec:2, hi:true, signed:true, derived:true,
+    note:"ARON COEFFICIENT: share of games with 4+ points MINUS share with 2 or fewer. Higher = steady 4–6 every week instead of 2-2-2-then-11. MEASURED AND DOCUMENTED: it DESCRIBES THE PAST and does not predict — the hit rate tracks points/match at r=0.90, and once you control for points AND price inside a position no persistent residual is left. So compare players in the SAME POSITION at a SIMILAR PRICE. Never used in any ranking.",
+    get:p=>num(p._aron) },
+  { key:"aron_hit4", label:"4+ points %", short:"4+ pts", group:"aron", band:"Consistency",
+    dec:0, hi:true, pct:true, derived:true,
+    note:"Share of GAMES PLAYED with 4+ points, shrunk for sample size (k=10). The threshold 4 is measured, not chosen: 5 and 6 are worse, because the explosive 2-2-2-then-11 player clears 6 in his spikes, so a high threshold counts spikes rather than consistency.",
+    get:p=>{ const v=num(p._hit4); return v==null?null:v*100; } },
+  { key:"aron_blank", label:"2 points or fewer %", short:"≤2 pts", group:"aron", band:"Consistency",
+    dec:0, hi:false, pct:true, derived:true,
+    note:"Share of games played that returned 2 points or fewer. This is the downside term — LOWER IS BETTER, and it is what makes the coefficient more than a restatement of points per match.",
+    get:p=>{ const v=num(p._blank); return v==null?null:v*100; } },
+  { key:"aron_games", label:"Games (n)", short:"n", group:"aron", band:"Consistency",
+    dec:0, hi:true, derived:true, note:"Games played behind the percentages. Small n means little.",
+    get:p=>num(p._cgames) },
 
-  /* ---- Ogn og refsingar ---- */
-  { key:"yellow_cards", get label() { return tx("Gul spjöld"); }, group:"disc", dec:0, hi:false, get:p=>num(p.yellow_cards) },
-  { key:"red_cards", get label() { return tx("Rauð spjöld"); }, group:"disc", dec:0, hi:false, get:p=>num(p.red_cards) },
-  { key:"own_goals", get label() { return tx("Sjálfsmörk"); }, group:"disc", dec:0, hi:false, get:p=>num(p.own_goals) },
-  { key:"penalties_missed", get label() { return tx("Klúðruð víti"); }, group:"disc", dec:0, hi:false, get:p=>num(p.penalties_missed) },
+  /* ================= LEIKIR FRAMUNDAN ================= */
+  { key:"fdr6", label:"FDR next 6", short:"FDR6", group:"fixtures", band:"Next 6 gameweeks",
+    dec:2, hi:false, live_only:true,
+    note:"Average official FPL difficulty over the next six matches. LOWER IS EASIER. Note that averaging over six weeks washes most of the signal out — measured, a fixture term is worth about 0.1 points out of 19 over that horizon.",
+    get:p=>num(p._fdr6) },
+  { key:"home6", label:"Home games in next 6", short:"Home", group:"fixtures", band:"Next 6 gameweeks",
+    dec:0, hi:true, live_only:true, note:"How many of the next six matches are at home.",
+    get:p=>num(p._home6) },
+  { key:"fix6", label:"Matches in next 6", short:"Games", group:"fixtures", band:"Next 6 gameweeks",
+    dec:0, hi:true, live_only:true,
+    note:"Counted per GAMEWEEK, not per match: below 6 = a blank gameweek is coming, above 6 = a double. A blank is worse than any hard fixture, because it is a guaranteed zero.",
+    get:p=>num(p._fix6) },
+  { key:"team_cs_prob", label:"Team clean sheet prob.", short:"Team CS", group:"fixtures",
+    band:"Team, next match", dec:0, hi:true, pct:true, live_only:true,
+    note:"Probability of a clean sheet in the next match, from the bookmaker line (odds.json) — not from our model. The market is the single strongest input we have for defensive difficulty.",
+    get:p=>num(p._team_cs) },
+  { key:"team_dc", label:"Team DefCon chance", short:"Team DC", group:"fixtures",
+    band:"Team, next match", dec:0, hi:true, live_only:true,
+    note:"How much defensive work his team is likely to have in the next match — the opportunity side of DefCon. High means a busy defence, which is good for DC points and bad for a clean sheet.",
+    get:p=>num(p._team_dc) },
+
+  /* ================= FOST LEIKATRIDI OG SPJOLD ================= */
+  { key:"fk_order", label:"Free-kick order", short:"FK", group:"setp", band:"Set-piece order",
+    dec:0, hi:false, live_only:true, note:"1 = first direct free-kick taker at his club. LOWER IS BETTER. Today's order — it does not follow the selected season.",
+    get:p=>num(p.direct_freekicks_order) },
+  { key:"ck_order", label:"Corner order", short:"Corners", group:"setp", band:"Set-piece order",
+    dec:0, hi:false, live_only:true,
+    note:"Corner and indirect free-kick order. MEASURED: FPL numbers corners on a different scale — the range is 4–10 and NO club has a 1, so \"first taker\" here means the lowest number at that club, not the number 1.",
+    get:p=>num(p.corners_and_indirect_freekicks_order) },
+  { key:"yellow_cards", label:"Yellow cards", short:"Yellow", group:"setp", band:"Cards",
+    dec:0, hi:false, note:"Yellow cards (−1 point each). LOWER IS BETTER.",
+    get:p=>num(p.yellow_cards) },
+  { key:"red_cards", label:"Red cards", short:"Red", group:"setp", band:"Cards",
+    dec:0, hi:false, note:"Red cards (−3 points, plus the suspension that follows). LOWER IS BETTER.",
+    get:p=>num(p.red_cards) },
+  { key:"cards_per_90", label:"Cards per 90", short:"Cards/90", group:"setp", band:"Cards",
+    dec:2, hi:false, derived:true, note:"Yellow and red cards per 90 minutes played. LOWER IS BETTER — this is the honest form of the question, since a card count rewards players who barely play.",
+    get:p=>per90((num(p.yellow_cards) ?? 0) + (num(p.red_cards) ?? 0), num(p.minutes)) },
+  { key:"own_goals", label:"Own goals", short:"OG", group:"setp", band:"Cards",
+    dec:0, hi:false, note:"Own goals (−2 points each). LOWER IS BETTER.",
+    get:p=>num(p.own_goals) },
 ];
+
+/* MAELT-OG-FJARLAEGT 8.8.2026 (beidni notanda): `bps_per_90`,
+   `mins_per_million` og `bonus_per_million`. Thaer voru afleiddar tolur
+   sem engin akvordun hvildi a — BPS/90 er nanast einræn i `bonus_per_90`,
+   og badar per-milljon tolurnar erfa thann sama galla sem maeldist a
+   `aron/verd` (kafli 6o): verd er sjalft mjog stodugt, svo hlutfall
+   erfir stodugleikann AN ThESS ad upplysingar baetist vid, og radar
+   odyrum monnum efst. `pts_per_million` er eftir thvi ad hun er
+   OPINBER FPL-tala (value_season) sem notendur bera saman vid annad.  */
 
 export const STAT_BY_KEY = Object.fromEntries(STAT_DEFS.map(d => [d.key, d]));
 
@@ -569,12 +857,12 @@ export function shotsFor(shots, { fixture = null, team = null, player = null } =
 }
 
 export const SHOT_KINDS = [
-  { key:"goal",       get label() { return tx("Mark"); },        color:"#00b96b" },
-  { key:"on_target",  get label() { return tx("Á mark"); },      color:"#2563eb" },
-  { key:"woodwork",   get label() { return tx("Í stöng/slá"); }, color:"#c98a00" },
-  { key:"off_target", get label() { return tx("Framhjá"); },     color:"#8b8b95" },
-  { key:"blocked",    get label() { return tx("Blokkað"); },     color:"#d92d3c" },
-  { key:"own_goal",   get label() { return tx("Sjálfsmark"); },  color:"#37003c" },
+  { key:"goal",       get label() { return "Goal"; },        color:"#00b96b" },
+  { key:"on_target",  get label() { return "On target"; },      color:"#2563eb" },
+  { key:"woodwork",   get label() { return "Woodwork"; }, color:"#c98a00" },
+  { key:"off_target", get label() { return "Off target"; },     color:"#8b8b95" },
+  { key:"blocked",    get label() { return "Blocked"; },     color:"#d92d3c" },
+  { key:"own_goal",   get label() { return "Own goal"; },  color:"#37003c" },
 ];
 
 export function shotSummary(shots) {
@@ -1049,192 +1337,9 @@ export function startRisk(f) {
   const p = startProbability(f);
   if (p == null) return null;
   const startedLast = (num(f.started_last) ?? 0) >= 1;
-  if (p >= 0.75) return { p, level: "safe",  label: tx("Byrjar líklega") };
-  if (p >= 0.45) return { p, level: "mid",   label: tx("Óvíst") };
+  if (p >= 0.75) return { p, level: "safe",  label: "Likely to start" };
+  if (p >= 0.45) return { p, level: "mid",   label: "Uncertain" };
   return { p, level: startedLast ? "trap" : "low",
-           label: startedLast ? tx("Bekkjar-hætta þrátt fyrir að hafa byrjað") : tx("Byrjar ólíklega") };
+           label: startedLast ? "Bench risk despite having started" : "Unlikely to start" };
 }
 
-/* ============================================================
-   6. VIDBOTAR-DALKAR — allt sem gagnast og vid HOFUM
-
-   `live_only: true` merkir dalk sem byggir a NUVERANDI gognum (ESPN
-   sidustu umferdar, form-glugga, leikjum framundan). Hann er FALINN
-   thegar soguleg timabil eru valin — thad vaeri osatt ad syna
-   "leikir framundan" vid hlidina a tolum fra 2023/24.
-
-   Radirnar sem thessir lesa eru AUDGADAR i cook-skrefinu i
-   PlayerList.jsx: leikmadur + ESPN-skot + form-gluggi + leikja-samtolur
-   + lids-samhengi. STAT_DEFS er afram EINA dalkaskrain.
-   ============================================================ */
-const per90of = (key) => (p) => per90(num(p[key]), num(p.minutes));
-
-STAT_DEFS.push(
-  /* ---- Sokn: /90 og nyting ---- */
-  { key:"goals_per_90", get label() { return tx("Mörk /90"); }, group:"attack", dec:2, hi:true, derived:true,
-    get: per90of("goals_scored") },
-  { key:"assists_per_90", get label() { return tx("Assist /90"); }, group:"attack", dec:2, hi:true, derived:true,
-    get: per90of("assists") },
-  { key:"conversion", get label() { return tx("Nýting mörk"); }, group:"attack", dec:2, hi:true, derived:true,
-    get note() { return tx("Yfir 1,00 = skorar meira en færin gefa. Undir = klúðrar. Þarf xG>0,5 til að vera merkingarbært."); },
-    get:p=>{ const x=num(p.expected_goals); if (x==null||x<0.5) return null;
-             return safeDiv(num(p.goals_scored) ?? 0, x); } },
-  { key:"assist_conversion", get label() { return tx("Nýting assist"); }, group:"attack", dec:2, hi:true, derived:true,
-    get:p=>{ const x=num(p.expected_assists); if (x==null||x<0.5) return null;
-             return safeDiv(num(p.assists) ?? 0, x); } },
-
-  /* ---- Vaentingar ---- */
-  { key:"xgi_per_million", label:"xGI per m", group:"expect", dec:2, hi:true, derived:true,
-    get note() { return tx("Vænt framlög á hverja milljón — verðmæti UNDIRLIGGJANDI, ekki stiga."); },
-    get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null
-             : safeDiv(num(p.expected_goal_involvements), c/10); } },
-  { key:"mins_per_xgi", get label() { return tx("Mín. per xGI"); }, group:"expect", dec:0, hi:false, derived:true,
-    get:p=>safeDiv(num(p.minutes), num(p.expected_goal_involvements)) },
-  { key:"xg_share", get label() { return tx("xG-hlutur"); }, group:"expect", dec:0, hi:true, pct:true,
-    derived:true, live_only:true,
-    get note() { return tx("Hversu stór hluti af væntum mörkum liðsins kemur frá honum. Normaliserar fyrir liðsstyrk."); },
-    get:p=>{ const t=num(p._team_xg); if (!t) return null;
-             const v=num(p.expected_goals); return v==null?null:(v/t)*100; } },
-
-  /* ---- Vorn: /90 ---- */
-  { key:"cbi_per_90", label:"CBI /90", group:"defence", dec:2, hi:true, derived:true,
-    get: per90of("clearances_blocks_interceptions") },
-  { key:"tackles_per_90", get label() { return tx("Tacklingar /90"); }, group:"defence", dec:2, hi:true, derived:true,
-    get: per90of("tackles") },
-  { key:"recoveries_per_90", get label() { return tx("Endurheimtur /90"); }, group:"defence", dec:2, hi:true, derived:true,
-    get: per90of("recoveries") },
-
-  /* ---- Bonus og ICT: /90 og samsetning ---- */
-  { key:"bonus_per_90", get label() { return tx("Bónus /90"); }, group:"bonus", dec:2, hi:true, derived:true,
-    get: per90of("bonus") },
-  { key:"bonus_share", get label() { return tx("Bónus-hlutur"); }, group:"bonus", dec:0, hi:true, pct:true,
-    derived:true,
-    get note() { return tx("Hve stór hluti stiga kom úr bónus. Hátt = háður bónus, sem er sveiflukenndara."); },
-    get:p=>{ const t=num(p.total_points); if (!t) return null;
-             return safeDiv(num(p.bonus) ?? 0, t)*100; } },
-  { key:"bonus_per_bps", get label() { return tx("Bón/100 BPS"); }, group:"bonus", dec:2, hi:true, derived:true,
-    get note() { return tx("Hversu vel BPS breytist í raunverulegan bónus — hátt = hann er oft í topp-3 í sínum leik."); },
-    get:p=>{ const b=num(p.bps); if (!b||b<50) return null;
-             return safeDiv(num(p.bonus) ?? 0, b/100); } },
-  { key:"ict_per_90", label:"ICT /90", group:"bonus", dec:2, hi:true, derived:true,
-    get: per90of("ict_index") },
-  { key:"threat_per_90", get label() { return tx("Hætta /90"); }, group:"bonus", dec:1, hi:true, derived:true,
-    get: per90of("threat") },
-  { key:"creativity_per_90", get label() { return tx("Sköpun /90"); }, group:"bonus", dec:1, hi:true, derived:true,
-    get: per90of("creativity") },
-
-  /* ---- Verd ---- */
-  { key:"bonus_per_million", get label() { return tx("Bónus per m"); }, group:"value", dec:2, hi:true, derived:true,
-    get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null:safeDiv(num(p.bonus), c/10); } },
-  { key:"mins_per_million", get label() { return tx("Mín. per m"); }, group:"value", dec:0, hi:true, derived:true,
-    get note() { return tx("Spilatími á hverja milljón — hversu ódýrt þú kaupir mínútur."); },
-    get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null:safeDiv(num(p.minutes), c/10); } },
-
-  /* ---- Ogn: ESPN, sidasta umferd ---- */
-  { key:"espn_shots", get label() { return tx("Skot"); }, group:"threat", dec:0, hi:true, live_only:true,
-    get note() { return tx("Skot í síðustu loknu umferð (ESPN)."); }, get:p=>num(p._espn_shots) },
-  { key:"espn_sot", get label() { return tx("Skot á mark"); }, group:"threat", dec:0, hi:true, live_only:true,
-    get:p=>num(p._espn_sot) },
-  { key:"espn_accuracy", get label() { return tx("Skotnýting"); }, group:"threat", dec:0, hi:true, pct:true,
-    live_only:true, derived:true,
-    get:p=>{ const s=num(p._espn_shots); if (!s) return null;
-             return safeDiv(num(p._espn_sot) ?? 0, s)*100; } },
-  { key:"espn_in_box", get label() { return tx("Skot í teig"); }, group:"threat", dec:0, hi:true, live_only:true,
-    get:p=>num(p._espn_in_box) },
-  { key:"espn_woodwork", get label() { return tx("Í stöng/slá"); }, group:"threat", dec:0, hi:true, live_only:true,
-    get note() { return tx("Woodwork — eigin leiktegund hjá ESPN."); }, get:p=>num(p._espn_woodwork) },
-  { key:"espn_created", get label() { return tx("Færi skópuð"); }, group:"threat", dec:0, hi:true, live_only:true,
-    get note() { return tx("Hversu oft hann lagði upp skot (lesið úr ESPN-texta)."); }, get:p=>num(p._espn_created) },
-  { key:"espn_cross", get label() { return tx("Krossar → skot"); }, group:"threat", dec:0, hi:true, live_only:true,
-    get note() { return tx("Krossar sem LEIDDU TIL SKOTS — ekki hráar krossatölur."); }, get:p=>num(p._espn_cross) },
-  { key:"espn_through", label:"Through balls", group:"threat", dec:0, hi:true, live_only:true,
-    get:p=>num(p._espn_through) },
-
-  /* ---- Form-gluggi (sidustu 4-5 umferdir) ---- */
-  { key:"w_minutes", get label() { return tx("Mín. í glugga"); }, group:"window", dec:0, hi:true, live_only:true,
-    get:p=>num(p._w_minutes) },
-  { key:"w_xg", get label() { return tx("xG í glugga"); }, group:"window", dec:2, hi:true, live_only:true,
-    get:p=>num(p._w_xg) },
-  { key:"w_xa", get label() { return tx("xA í glugga"); }, group:"window", dec:2, hi:true, live_only:true,
-    get:p=>num(p._w_xa) },
-  { key:"w_threat", get label() { return tx("Hætta gl."); }, group:"window", dec:0, hi:true, live_only:true,
-    get:p=>num(p._w_threat) },
-  { key:"w_creativity", get label() { return tx("Sköpun gl."); }, group:"window", dec:0, hi:true, live_only:true,
-    get:p=>num(p._w_creativity) },
-  { key:"mo", get label() { return tx("mó"); }, group:"window", dec:2, hi:true, live_only:true, derived:true,
-    get note() { return tx("Mark óhjákvæmilegt. Mælt: efsti tíundarhluti skorar 2,89× meðaltalið. Aðeins fyrir 0–1 framlag í glugga."); },
-    get:p=>num(p._mo) },
-  { key:"ao", get label() { return tx("aó"); }, group:"window", dec:1, hi:true, live_only:true, derived:true,
-    get note() { return tx("Assist óhjákvæmilegt. Bert creativity/90 — samsettur stuðull féll á mælingu (0/3 tímabil)."); },
-    get:p=>num(p._ao) },
-  { key:"start_prob", get label() { return tx("Byrjunar-líkur"); }, group:"window", dec:0, hi:true, pct:true,
-    live_only:true, derived:true,
-    get note() { return tx("Líkur á 60+ mínútum næst. Mælt á 65.557 sýnum; lægsti tíundarhluti fangar 2,09× bekkjar-föllin."); },
-    get:p=>{ const v=num(p._start_p); return v==null?null:v*100; } },
-
-  /* ---- DC-hittni (defcon.json, yfirstandandi timabil) ----
-     LEIDRETTA talan a undan theirri hrau — hun er su sem a ad nota, og
-     n-dalkurinn stendur vid hlidina af asettu radi (krafa handoffs 4:
-     hittni an leikjafjolda er half saga). Tomt fram ad GW1 -> dalkarnir
-     fela sig sjalfir (null-reglan i PlayerList).                        */
-  { key:"dc_hit_adj", get label() { return tx("DC-hittni (leiðr.)"); }, group:"dcstat", dec:0, hi:true,
-    pct:true,  derived:true,
-    get note() { return tx("Hlutfall byrjunarleikja sem ná DefCon-þröskuldinum, AFTURVIRKJAÐ fyrir sýnastærð (empirísk Bayes, k=10 að stöðu-meðaltali). Notið þessa, ekki þá hráu — og lesið n við hliðina."); },
-    get:p=>{ const v=num(p._dc_hit_adj); return v==null?null:v*100; } },
-  { key:"dc_hit_raw", get label() { return tx("DC-hittni (hrá)"); }, group:"dcstat", dec:0, hi:true,
-    pct:true,  derived:true,
-    get note() { return tx("Hrá hittni (hits/starts) — OFMÆLIST á litlum sýnum (75% á n=12 getur verið 57% í raun). Sýnd til gagnsæis; leiðrétta talan er sú sem gildir."); },
-    get:p=>{ const v=num(p._dc_hit_raw); return v==null?null:v*100; } },
-  { key:"dc_starts", get label() { return tx("DC-leikir (n)"); }, group:"dcstat", dec:0, hi:true,
-     derived:true,
-    get note() { return tx("Fjöldi leikja á bak við hittnina. Lítið n = lítið að marka hráu töluna."); },
-    get:p=>num(p._dc_starts) },
-
-  /* ---- Jofnudur (Aron-studull) ----
-     Sja skyringuna i computeConsistency() i fetch.mjs: engin varanleg
-     leif eftir ad stjornad er fyrir stig og verd, svo thetta fer ALDREI
-     i rodun — adeins birtingu, med fyrirvara i tooltip.               */
-  { key:"aron_net", get label() { return tx("Jöfnuður"); }, group:"aron", dec:2, hi:true, signed:true, derived:true,
-    get note() { return tx("ARON-STUÐULL: hlutfall leikja með 4+ stig MÍNUS hlutfall með 2 eða færri. Hærra = jafnari skil (4-6 vikulega) í stað 2-2-2-og-svo-11. MÆLT OG SKJALFEST: þetta er LÝSING Á FORTÍÐ, ekki spá — hittnin fylgir stigum/leik með r=0,90 og eftir að stjórnað er fyrir stig OG VERÐ innan stöðu er engin varanleg leif. Berðu því saman menn í SÖMU STÖÐU á SVIPUÐU VERÐI."); },
-    get:p=>num(p._aron) },
-  { key:"aron_hit4", get label() { return tx("4+ stig"); }, group:"aron", dec:0, hi:true, pct:true, derived:true,
-    get note() { return tx("Hlutfall SPILAÐRA leikja með 4+ stig, afturvirkjað fyrir sýnastærð (K=10). Lýsing á fortíð — sjá Jöfnuð (Aron)."); },
-    get:p=>{ const v=num(p._hit4); return v==null?null:v*100; } },
-  { key:"aron_hit6", get label() { return tx("6+ stig"); }, group:"aron", dec:0, hi:true, pct:true, derived:true,
-    get note() { return tx("Hlutfall spilaðra leikja með 6+ stig — STÓRU LEIKIRNIR, ekki jöfnuður. MÆLT: hár þröskuldur greinir EKKI jafna menn frá sveiflukenndum (r við sveiflur er −0,08 við 6+ og +0,15 við 7+, þ.e. snýst við) — því 2-2-2-og-svo-11 maðurinn klárar 6 í sprengingunum en jafni maðurinn fer sjaldan yfir 6. Notaðu Jöfnuð fyrir stöðugleika, þennan fyrir sprengikraft."); },
-    get:p=>{ const v=num(p._hit6); return v==null?null:v*100; } },
-  { key:"aron_blank", get label() { return tx("2 stig eða minna"); }, group:"aron", dec:0, hi:false, pct:true, derived:true,
-    get note() { return tx("Hlutfall spilaðra leikja með 2 stig eða færri. Þetta er „gallinn“ — lægra er betra."); },
-    get:p=>{ const v=num(p._blank); return v==null?null:v*100; } },
-  { key:"aron_games", get label() { return tx("Leikir (n)"); }, group:"aron", dec:0, hi:true, derived:true,
-    get note() { return tx("Fjöldi spilaðra leikja á bak við hlutföllin. Lítið n = lítið að marka."); }, get:p=>num(p._cgames) },
-
-  /* ---- Leikir framundan ---- */
-  { key:"fdr6", get label() { return tx("FDR næstu 6"); }, group:"fixtures", dec:2, hi:false, live_only:true,
-    get note() { return tx("Meðal-FDR næstu sex leikja (opinbert FPL-FDR). Lægra er léttara."); },
-    get:p=>num(p._fdr6) },
-  { key:"home6", get label() { return tx("Heima /6"); }, group:"fixtures", dec:0, hi:true, live_only:true,
-    get:p=>num(p._home6) },
-  { key:"fix6", get label() { return tx("Leikir /6"); }, group:"fixtures", dec:0, hi:true, live_only:true,
-    get note() { return tx("Undir 6 = auð umferð. Yfir 6 = tvöföld umferð."); }, get:p=>num(p._fix6) },
-  { key:"team_cs_prob", get label() { return tx("CS-líkur liðsins"); }, group:"fixtures", dec:0, hi:true, pct:true,
-    live_only:true, get note() { return tx("Úr bókmakera-línu (odds.json)."); }, get:p=>num(p._team_cs) },
-  { key:"team_dc", get label() { return tx("DefCon liðs"); }, group:"fixtures", dec:0, hi:true,
-    live_only:true, get:p=>num(p._team_dc) },
-
-  /* ---- Fost leikatridi (rodun: 1 = fyrsti taki, LAEGRA er betra) ---- */
-  { key:"pen_order", get label() { return tx("Víta-röð"); }, group:"setp", dec:0, hi:false, live_only:true,
-    get note() { return tx("1 = fyrsti vítataki. Sterkasta einstaka fyrirliða-vísbendingin í gögnunum."); },
-    get:p=>num(p.penalties_order) },
-  { key:"fk_order", get label() { return tx("Aukasp.-röð"); }, group:"setp", dec:0, hi:false, live_only:true,
-    get:p=>num(p.direct_freekicks_order) },
-  { key:"ck_order", get label() { return tx("Horna-röð"); }, group:"setp", dec:0, hi:false, live_only:true,
-    get:p=>num(p.corners_and_indirect_freekicks_order) },
-
-  /* ---- Ogn og refsingar: /90 ---- */
-  { key:"cards_per_90", get label() { return tx("Spjöld /90"); }, group:"disc", dec:2, hi:false, derived:true,
-    get:p=>per90((num(p.yellow_cards) ?? 0) + (num(p.red_cards) ?? 0), num(p.minutes)) },
-);
-
-/* Endurbyggja uppflettitofluna eftir vidbaeturnar. */
-for (const d of STAT_DEFS) STAT_BY_KEY[d.key] = d;

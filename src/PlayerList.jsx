@@ -32,9 +32,8 @@
    ============================================================ */
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { t as tx } from "./i18n.js";
+import { interp } from "./interp.js";
 import { RAW } from "./dataUrl.js";
-import { useLang } from "./useLang.js";
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName, nameScore,
   indexImminentByTeam, matchImminent, sumGwRange, gwBlindKeys,
          startRisk, moScore, aoScore, inImminentPool } from "./stats.js";
@@ -56,12 +55,23 @@ function RowPhoto({ src, name }) {
   if (!ok) return <span style={S.imgFb}>{(name || "?").slice(0, 1)}</span>;
   return <img src={src} alt="" style={S.img} loading="lazy" onError={() => setOk(false)} />;
 }
-const POS_TABS = [["all","Allir"],["1","GK"],["2","DEF"],["3","MID"],["4","FWD"]];
+const POS_TABS = [["all","All"],["1","GK"],["2","DEF"],["3","MID"],["4","FWD"]];
 
-/* Dalkar sem eru ALLTAF synilegir (ur nuverandi gognum, ekki timabili). */
-const PINNED = ["now_cost", "selected_by_percent"];
+/* FASTIR DALKAR — birtir vinstra megin i OLLUM flokkum thvi thu tekur
+   engan akvordun an theirra. Their eru THVI SLEPPT ur flokka-dalkunum:
+   adur voru their BAEDI fastir OG i "Grunni", svo "Price" birtist tvisvar
+   i somu toflu — vid hlidina a Threat i Grunni (notandinn, 8.8.2026).
+   Skra-legur samastadur theirra er obreyttur (stigataflan radar eftir
+   theim og filter-valarinn finnur thau).                              */
+const PINNED = new Set(["now_cost", "selected_by_percent"]);
 const ROW_H = 34;          // fost haed -> synadarvaeding er einfold
 const OVERSCAN = 12;
+/* HAUSINN ER TVEGGJA THREPA (FFS-lagid, sja BANDS nedar): spannandi
+   bands-rod ofan a heitunum. Haedirnar eru fastar thvi radirnar eru
+   absolute-stadsettar undir hausnum — ein tala, einn stadur.          */
+const BAND_H = 17;
+const LABEL_H = 30;
+const HEAD_H = BAND_H + LABEL_H;
 
 /* ---- Sniðgrunnur fyrir "min/max"-siur: hvada dalkar eru tolulegir ---- */
 const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
@@ -84,7 +94,6 @@ const fold = t => String(t ?? "").toLowerCase()
   .replace(/þ/g, "th").replace(/ð/g, "d").replace(/æ/g, "ae").replace(/ø|ö/g, "o");
 
 function StatPicker({ value, onChange, style }) {
-  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [hi, setHi] = useState(0);
@@ -104,8 +113,14 @@ function StatPicker({ value, onChange, style }) {
          FPL-folk slaer inn — islenska heitid a "threat" er "Ogn", svo an
          lykla-leitar gaefi "threat" ENGA nidurstodu. Maelt: 108 -> 12 fyrir
          "vaent", 5 fyrir "spjold", og "threat" fann ekkert fyrr en nu.     */
+      /* Leitad er i FIMM: dalksheiti, HAUS-heiti (`short`), band, flokkur
+         OG `key`. `short` var vidbot 8.8.2026 — hausinn segir "CBI" og thad
+         er thad sem notandinn slaer inn, en fulla heitid er
+         "Clearances/blocks/int". Lykla-leitin var thegar naudsynleg af sömu
+         aestaedu i íslenska vidmotinu og heldur ser: FPL-folk slaer "bps".  */
       const ds = STAT_DEFS.filter(d => d.group === g.key)
         .filter(d => !f || fold(d.label).includes(f) || fold(g.label).includes(f)
+                        || fold(d.short).includes(f) || fold(d.band).includes(f)
                         || fold(d.key).replace(/_/g, " ").includes(f)
                         || fold(d.key).includes(f));
       if (!ds.length) continue;
@@ -113,7 +128,7 @@ function StatPicker({ value, onChange, style }) {
       for (const d of ds) out.push({ d, grp: g.label });
     }
     return out;
-  }, [q, lang]);
+  }, [q]);
   const pickable = items.filter(i => i.d);
 
   useEffect(() => { setHi(0); }, [q]);
@@ -143,8 +158,8 @@ function StatPicker({ value, onChange, style }) {
   return (
     <div ref={boxRef} style={{ ...S.pkWrap, ...(style || {}) }}>
       <input style={S.pkInput} role="combobox" aria-expanded={open}
-        aria-label={tx("Leita að tölu")}
-        placeholder={cur?.label || tx("veldu tölu")}
+        aria-label={"Search for a stat"}
+        placeholder={cur?.label || "pick a stat"}
         value={open ? q : (cur?.label || "")}
         onFocus={() => setOpen(true)}
         onChange={e => { setQ(e.target.value); setOpen(true); }}
@@ -152,7 +167,7 @@ function StatPicker({ value, onChange, style }) {
       <span style={S.pkCaret} aria-hidden="true">▾</span>
       {open && (
         <div ref={listRef} style={S.pkList} role="listbox">
-          {!pickable.length ? <div style={S.pkNone}>{tx("engin tala passar við „")}{q}“</div> : null}
+          {!pickable.length ? <div style={S.pkNone}>{"no stat matches \""}{q}“</div> : null}
           {items.map((it, i) => it.d ? (
             <div key={it.d.key} role="option"
               aria-selected={it.d.key === value}
@@ -161,9 +176,14 @@ function StatPicker({ value, onChange, style }) {
                        ...(pickable.indexOf(it) === hi ? S.pkOptHi : {}),
                        ...(it.d.key === value ? S.pkOptSel : {}) }}
               onMouseEnter={() => setHi(pickable.indexOf(it))}
-              onMouseDown={e => { e.preventDefault(); commit(pickable.indexOf(it)); }}>
+              onMouseDown={e => { e.preventDefault(); commit(pickable.indexOf(it)); }}
+              title={it.d.note || ""}>
               {it.d.label}
-              {it.d.live_only ? <span style={S.pkLive} title={tx("Fylgir EKKI valdu tímabili")}>{tx("nú")}</span> : null}
+              {/* HAUS-HEITID BIRT MED — annars getur notandinn ekki tengt
+                  "Clearances/blocks/int" hér vid "CBI" i toflunni.       */}
+              {it.d.short && it.d.short !== it.d.label
+                ? <span style={S.pkShort}>{it.d.short}</span> : null}
+              {it.d.live_only ? <span style={S.pkLive} title={"Does NOT follow the selected season"}>{"now"}</span> : null}
             </div>
           ) : <div key={"g" + i} style={S.pkGrp}>{it.grp}</div>)}
         </div>
@@ -176,7 +196,6 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                                      imminent, shotsFile, fixtures, odds, defcon, defconHist, consist,
                                      photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
                                      watch, onWatch, mineIds }) {
-  const lang = useLang();   /* tungumal i dep-listum, sja useLang.js */
   /* ---------- SIMI: 380 px er profunar-breiddin ----------
      Frosni nafnadalkurinn var 196 px af 380 px — meira en helmingur
      skjasins, svo tolurnar fengu naerri ekkert. Og bordinn + siur + 12
@@ -195,12 +214,12 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 
   /* ---------- timabil ---------- */
   const finishedGw = useMemo(
-    () => (events || []).filter(e => e.finished).length, [events, lang]);
+    () => (events || []).filter(e => e.finished).length, [events]);
   const currentLabel = useMemo(() => {
     const d = (events || []).find(e => e.id === 1)?.deadline_time;
     const y = d ? new Date(d).getFullYear() : null;
-    return y ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : tx("í ár");
-  }, [events, lang]);
+    return y ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : "this year";
+  }, [events]);
   const olderSeasons = seasonsFile?.seasons || [];
   const seasonOpts = [currentLabel, ...olderSeasons];
   const [season, setSeason] = useState(null);
@@ -225,31 +244,54 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const seasonKey = useMemo(() => {
     const m = String(season || "").match(/^(\d{4})\/(\d{2})$/);
     return m ? m[1].slice(2) + m[2] : null;
-  }, [season, lang]);
+  }, [season]);
 
   /* Hledur ADEINS thegar bil er raunverulega valid. Bilid er nullstillt
      thegar timabili er skipt — annars sæti GW30-38 eftir a nyju timabili
      og notandinn saei tolur fyrir bil sem hann valdi ekki thar.          */
   useEffect(() => { setGwRange(null); setGwErr(null); }, [season]);
+  /* HVADA TIMABIL EIGA PER-UMFERDAR GOGN? `consistency.json` er BYGGD
+     UR NAKVAEMLEGA thessum skram (player_gw_{s}.json), svo lyklar hennar
+     eru sjalfvirk og sjalfvidhaldandi skra yfir thad sem er til.
+     VILLAN SEM ThETTA LAGAR (7.8.2026): 2026/27 er obyrjad og a enga
+     slika skra. Appid reyndi samt ad saekja hana, og raw.githubusercontent
+     skilar 404 AN CORS-hausa — svo vafrinn hafnar kallinu og notandinn sa
+     "gogn vantar: Failed to fetch" i stad thess ad fa ad vita ad
+     timabilid eigi einfaldlega engar umferdar-tolur enn.               */
+  const gwSeasons = useMemo(() => new Set(Object.keys(consist?.seasons || {})),
+    [consist]);
+  const gwAvailable = !consist || gwSeasons.size === 0 || gwSeasons.has(season);
+
   useEffect(() => {
     if (!gwRange || !seasonKey) return;
+    if (!gwAvailable) { setGwErr(null); return; }   // ekkert ad saekja
     if (gwFile?.key === seasonKey) return;
     let dead = false;
     setGwLoading(true); setGwErr(null);
-    fetch(`${RAW}/player_gw_${seasonKey}.json`)
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(data => { if (!dead) { setGwFile({ key: seasonKey, data }); setGwLoading(false); } })
-      .catch(e => { if (!dead) { setGwErr(String(e.message || e)); setGwLoading(false); } });
+    /* TVAER TILRAUNIR. Skrarnar eru 1,3-1,6 MB og notandinn fekk
+       "Failed to fetch" 7.8.2026 — netvilla, ekki 404 (allar skrarnar
+       svara 200). Ein bilun skildi hann eftir med villu OG ENGA leid til
+       baka nema skipta um timabil og til baka. Ein sjalfvirk endurtilraun
+       eftir 800 ms tekur venjulegan hiksta; mistakist hun lika birtist
+       "reyna aftur"-hnappur i stad hrarrar villu.                      */
+    const load = (attempt = 0) =>
+      fetch(`${RAW}/player_gw_${seasonKey}.json`)
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(data => { if (!dead) { setGwFile({ key: seasonKey, data }); setGwLoading(false); } })
+        .catch(e => {
+          if (dead) return;
+          if (attempt === 0) { setTimeout(() => { if (!dead) load(1); }, 800); return; }
+          setGwErr(String(e.message || e)); setGwLoading(false);
+        });
+    load();
     return () => { dead = true; };
-  }, [gwRange, seasonKey, gwFile]);
+  }, [gwRange, seasonKey, gwFile, gwAvailable]);
 
   const gwActive = !!(gwRange && gwFile?.key === seasonKey && gwFile?.data);
   /* LEITT UT ur STAT_DEFS, ekki handskrifad — sja gwBlindKeys i stats.js.
      Fyrsta utgafa var handskrifadur lyklalisti og 13 af 22 lyklum voru
      RANGIR, svo merkingin birtist hvergi.                               */
-  /* `lang` i dep-listanum: STAT_DEFS-heiti eru LAZY og fylgja tungumali,
-     svo blindu-mengid verdur ad endurreiknast vid tungumalabreytingu.   */
-  const blindKeys = useMemo(() => gwBlindKeys(), [lang]);
+  const blindKeys = useMemo(() => gwBlindKeys(), []);
 
   /* ---------- sior ---------- */
   const [pos, setPos] = useState("all");
@@ -262,15 +304,18 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const [onlyWatch, setOnlyWatch] = useState(false);
   const [onlyMine, setOnlyMine] = useState(false);
   const [group, setGroup] = useState("core");
+  /* THROSKULDAR — LIFA UTAN FLOKKS OG UTAN TIMABILS.
+     Thetta er kjarninn i beidninni 8.8.2026: "smelli a 90%, breyti i 85%,
+     fer svo i naesta flokk (threat) og held afram ad filtera thar."
+     Thess vegna er `thresholds` EINN listi sem engin flokka-skipti hreyfa,
+     og hver lidur er RITANLEGUR a sinum stad (sja FilterChip) i stad thess
+     ad thurfa ad setja hann inn upp a nytt.                            */
   const [thresholds, setThresholds] = useState([]);   // [{key, op, val}]
+  /* Sidasti throskuldur sem VARD TIL vid smell a tolu — reiturinn hans
+     faer fokus og textinn valinn, svo "85" komi beint i stad "90".     */
+  const [freshTh, setFreshTh] = useState(null);       // "key|op"
   const [sortKey, setSortKey] = useState("total_points");
   const [sortDir, setSortDir] = useState("desc");
-  /* TOMIR DALKAR ERU SYNILEGIR SJALFGEFID (beidni notanda 7.8.2026).
-     Sjalfvirk felun faldi dalka sem notandinn VEIT ad eiga ad vera tomir
-     (t.d. DC-hittni fyrir GW1) og gerdi thad ovist hvort dalkurinn vaeri
-     til yfirleitt. Hnappurinn "fela toma" er afram til fyrir thren sem
-     vilja threngri toflu.                                              */
-  const [showEmpty, setShowEmpty] = useState(true);
   const [thKey, setThKey] = useState("expected_goal_involvements_per_90");
   const [thOp, setThOp] = useState(">=");
   const [thVal, setThVal] = useState("");
@@ -392,7 +437,6 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                    _dc_starts:  num(h?.starts),
                    _aron:       num(k?.aron),
                    _hit4:       num(k?.hit4_pct),
-                   _hit6:       num(k?.hit6_pct),
                    _blank:      num(k?.blank_pct),
                    _cgames:     num(k?.games) };
         })(),
@@ -415,30 +459,27 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       console.log(`[Leikmenn] cook ${out.length} radir: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
   }, [players, teamById, seasonsFile, season, isLive, imminent, shotsFile, fixtures, events,
-      odds, defcon, defconHist, consist, lang, gwActive, gwFile, gwRange]);
+      odds, defcon, defconHist, consist, gwActive, gwFile, gwRange]);
 
-  /* ---------- hvada dalkar hafa GOGN i thessu timabili ---------- */
-  const groupCols = useMemo(() => {
-    /* live_only-dalkar eru NUTIMA-gogn (ESPN sidustu umferdar, form-gluggi,
-       leikir framundan, spyrnu-rod) og eru SYNDIR ALLTAF — timabils-valid
-       styrir adeins ARSTIDAR-SUMMUM.
-       AD FELA tha i sogulegu timabili gerdi tha ONAANLEGA, thvi 2026/27 er
-       tomt. Heiti flokkanna segja tímabilið sjalf ("sidasta umferd",
-       "sidustu 4-5", "framundan") og bordinn hér fyrir ofan endurtekur thad. */
-    const defs = STAT_DEFS.filter(d => d.group === group);
-    return defs.map(d => {
-      const withVal = rows.reduce((n, r) => n + (r.src && d.get(r.src) != null ? 1 : 0), 0);
-      return { def: d, withVal };
-    });
-  }, [group, rows, lang]);
+  /* ---------- dalkar valda flokksins ----------
+     live_only-dalkar eru NUTIMA-gogn (ESPN sidustu umferdar, form-gluggi,
+     leikir framundan, spyrnu-rod) og eru SYNDIR ALLTAF — timabils-valid
+     styrir adeins ARSTIDAR-SUMMUM. AD FELA tha i sogulegu timabili gerdi
+     tha ONAANLEGA, thvi 2026/27 er tomt.
+
+     TOMIR DALKAR ERU LIKA SYNDIR og "fela toma"-hnappurinn er FARINN
+     (beidni 8.8.2026): sjalfvirk felun faldi dalka sem notandinn VEIT ad
+     eiga ad vera tomir (DC-hittni fyrir GW1) og gerdi thad ovist hvort
+     dalkurinn vaeri til yfirleitt — hun faldi lika RAUNVERULEGA VILLU
+     eina, dauda "Team DefCon"-dalkinn (kafli 6l). Dalkur sem er tomur
+     segir "engin gogn"; dalkur sem er horfinn segir ekkert.            */
   const visibleCols = useMemo(
-    () => groupCols.filter(c => showEmpty || c.withVal > 0).map(c => c.def),
-    [groupCols, showEmpty, lang]);
-  const emptyCount = groupCols.filter(c => c.withVal === 0).length;
+    () => STAT_DEFS.filter(d => d.group === group && !PINNED.has(d.key)),
+    [group]);
 
-  const watchSet = useMemo(() => new Set(watch || []), [watch, lang]);
+  const watchSet = useMemo(() => new Set(watch || []), [watch]);
   const mineSet = useMemo(
-    () => (mineIds instanceof Set ? mineIds : new Set(mineIds || [])), [mineIds, lang]);
+    () => (mineIds instanceof Set ? mineIds : new Set(mineIds || [])), [mineIds]);
 
   /* ---------- sia ---------- */
   const filtered = useMemo(() => {
@@ -459,6 +500,12 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       if (Number.isFinite(hi) && r.cost > hi) return false;
       if (needle && !r.search.includes(needle)) return false;
       for (const t of thresholds) {
+        /* HALFSKRIFAD GILDI SIAR EKKI. Reiturinn i chip-inu er ritanlegur,
+           svo `val` er tomur strengur eitt augnablik medan notandinn skiptir
+           90 fyrir 85 — og `5 >= ""` er TRUE i JS (tomur strengur verdur 0),
+           svo an thessarar vardar hefdi sian hoppad i "minnst 0" og listinn
+           blikkad i fulla lengd vid hvern innslatt.                       */
+        if (!Number.isFinite(t.val)) continue;
         const d = STAT_BY_KEY[t.key];
         const v = d && r.src ? d.get(r.src) : null;
         if (v == null) return false;                 // "vantar" fellur ut ur throskuldi
@@ -471,7 +518,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       console.log(`[Leikmenn] sia -> ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
   }, [rows, pos, q, minCost, maxCost, teamSel, onlyAvail, hidePicked, thresholds, cmpIds,
-      onlyWatch, onlyMine, watchSet, mineSet, lang]);
+      onlyWatch, onlyMine, watchSet, mineSet]);
 
   /* ---------- rodun ----------
      NULL ALLTAF SIDAST, i BADAR attir. Thetta er algengasta villan:
@@ -498,16 +545,24 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Leikmenn] rodun ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [filtered, sortKey, sortDir, lang]);
+  }, [filtered, sortKey, sortDir]);
 
   /* ---------- synadarvaeding (fost radahæd) ---------- */
   const scrollRef = useRef(null);
   const [scrollTop, setScrollTop] = useState(0);
+  /* LARETT SKRUN ER LIKA STAT — sja S.frozenShadow. Notandinn sa "texti fer
+     undir nofnin og myndir af kollum" thegar skrunad var langt til haegri:
+     frosni dalkurinn ER ogagnsaer (maelt i Chrome) og hylur tolurnar rett,
+     en thad var ENGIN DYPTAR-VISBENDING um ad thaer faeru undir hann — og
+     haus-heitin, sem eru haegri-jofnud, birtust hálf ("ice chg (GW)") thett
+     upp vid "Player". Skuggi a kantinum segir "hér er brún, efnid heldur
+     afram undir" og hann er birtur AÐEINS thegar raunverulega er skrunad. */
+  const [scrolledX, setScrolledX] = useState(false);
   const [viewH, setViewH] = useState(620);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const onScroll = () => setScrollTop(el.scrollTop);
+    const onScroll = () => { setScrollTop(el.scrollTop); setScrolledX(el.scrollLeft > 2); };
     el.addEventListener("scroll", onScroll, { passive: true });
     const ro = typeof ResizeObserver !== "undefined"
       ? new ResizeObserver(() => setViewH(el.clientHeight || 620)) : null;
@@ -521,7 +576,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 
   /* Breiddir eftir skja. Nafnadalkur 196 -> 124 og tolur 88 -> 66 i sima. */
   const wName = narrow ? 140 : 200;   // +18 px fyrir stjornuna
-  const cName = { ...S.cName, width: wName, minWidth: wName };
+  const cName = { ...S.cName, width: wName, minWidth: wName,
+                  ...(scrolledX ? S.frozenShadow : {}) };
   /* BREIDD PER DALK, EKKI EIN FOST BREIDD FYRIR ALLA.
      Fasta breiddin var 88 px af thvi ad LENGSTA heitid ("Byrjunarhlutfall")
      thurfti thad — svo "xG" fekk lika 88 px og notandinn thurfti ad skruna
@@ -557,22 +613,61 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
      yfir alla dalka. Thad er ASETT skipti — notandinn valdi laesileika.
      6,35 px/staf er MAELT (canvas.measureText a 700 10.5px ui-monospace,
      6,32 + oryggismork), sja kafla 6m atridi 4.                        */
+  /* HAUSINN LES `short`, EKKI `label` (8.8.2026). Full heiti eiga
+     hvergi heima i 46-142 px haus — "Clearances/blocks/int" passar aldrei
+     en "CBI" gerir thad, og SKYRINGIN er thar sem hun a ad vera: i
+     tooltip-inu, sem hver dalkur hefur nu (krafa i stats.js). Bands-rodin
+     fyrir ofan gefur stuttum heitum samhengid: "/90" eitt er radgata,
+     "/90" undir "Goals" er thad ekki.                                   */
   const PXC = 6.35;
+  const hLabel = d => String(d?.short ?? d?.label ?? "");
   const wOf = d => {
-    const label = String(d?.label ?? "");
-    const marker = d?.derived ? 7 : 0;              // †-merkid i hausnum
+    const label = hLabel(d);
+    /* PLASS FYRIR MERKI SEM BAETAST VID HEITID I HAUSNUM:
+         †  afleidd tala (7 px)
+         ↓  rodunar-orin — BIRTIST A THEIM DALKI SEM ER RADAD EFTIR.
+       Orin var EKKI talin og thad klippti heitid: hausinn er haegri-
+       jafnadur og `nowrap`, svo yfirflaedi hverfur VINSTRA megin —
+       "Points ↓" birtist sem "oints ↓" (maelt 7.8.2026). Plassid er
+       tekid frá A OLLUM dalkum thvi rodunin faerist milli theirra.     */
+    const marker = (d?.derived ? 7 : 0) + 9;       // † + rodunar-or
     const lab = label.length * PXC + marker + 13;   // 10 padding + 1 bord + 2 svigrum
     const dec = d?.dec ?? 0;
     const val = (4 + (dec ? dec + 1 : 0)) * 6.2 + 12; // tala (11px mono)
-    return Math.round(Math.max(46, Math.min(136, Math.max(lab, val))));
+    return Math.round(Math.max(46, Math.min(142, Math.max(lab, val))));
   };
   /* Fostu dalkarnir (Verd, Eign %) sátu i 88 px thott heitin seu stutt. */
-  const wNum = narrow ? 60 : wOf({ label: "Eign %", dec: 1 });
+  const wNum = narrow ? 60 : wOf({ short: "Owned %", dec: 1 });
   const cNum  = { ...S.cNum,  width: wNum,  minWidth: wNum, maxWidth: wNum };
+  const wCol = d => (narrow ? Math.min(66, wOf(d)) : wOf(d));
   const cFor = d => {
-    const w = narrow ? Math.min(66, wOf(d)) : wOf(d);
+    const w = wCol(d);
     return { ...S.cNum, width: w, minWidth: w, maxWidth: w };
   };
+
+  /* ---------- BANDS: SPANNANDI HAUSROD (FFS-lagid) ----------
+     FFS birtir 100+ tolur i einni toflu og gerir thad laesilegt med tveimur
+     threpum: "Goals | Shots | Big Chances" spannar yfir stutt undirheiti
+     ("Tot In Out H M/G"). THAD ER THETTA sem gerir stytt heiti nothaef —
+     annars vaeri "/90" radgata. Bandid er `band` i STAT_DEFS og dalkarnir
+     eru i skra-rod, svo band-hlutar eru SAMFELLDIR (vordur i prófinu).
+     Ein breidd-utreikningur, tvaer radir: bands-rodin leggur saman
+     breiddir sinna dalka svo threpin geti ekki rekid i sundur.          */
+  const bands = useMemo(() => {
+    const out = [];
+    for (const d of visibleCols) {
+      const b = d.band || "";
+      const last = out[out.length - 1];
+      /* SAMA FALL sem holfin nota (`wCol`), ekki afrit af formulunni:
+         tvo threp sem reikna breidd sitt i hvoru lagi reka i sundur og tha
+         stendur bandid ekki lengur yfir sinum dalkum — nakvaemlega sama
+         afturfor sem `boxSizing` olli i einu threpi (kafli 6j).          */
+      const w = wCol(d);
+      if (last && last.band === b) { last.w += w; last.n++; }
+      else out.push({ band: b, w, n: 1 });
+    }
+    return out;
+  }, [visibleCols, narrow]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const sortOn = (key, higherBetter = true) => {
     if (sortKey === key) { setSortDir(d => d === "asc" ? "desc" : "asc"); return; }
@@ -581,49 +676,83 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const arrow = k => sortKey !== k ? "" : (sortDir === "asc" ? " ↑" : " ↓");
   const aria = k => sortKey !== k ? "none" : (sortDir === "asc" ? "ascending" : "descending");
 
+  /* ---------- SMELLUR A TOLU = THROSKULDUR ----------
+     Beidnin, orðrett: "ef ég smelli á ákveðið stat, t.d. start prósentu
+     90%, þá poppar það upp sem filter möguleiki sem ég get svo breytt".
+     Attin er LEIDD UT UR `hi` og ekki gefin: a "Verd" og "Min/framlag" er
+     LAEGRA betra, svo smellur thar setur HAM ("mest 5,4") — annars vaeri
+     smellurinn ad sia burt einmitt tha sem hann var ad benda a.
+     Talan er tekin EINS OG HUN BIRTIST (`dec`), ekki hra: notandinn smellti
+     a "90%", ekki a 0,8967 — throskuldur sem sier hann sjalfan ut er villa. */
+  const filterOnValue = (d, v) => {
+    if (v == null || !Number.isFinite(v)) return;
+    const op = d.hi === false ? "<=" : ">=";
+    const val = +v.toFixed(d.dec ?? 0);
+    setThresholds(t => [...t.filter(x => !(x.key === d.key && x.op === op)),
+                        { key: d.key, op, val }]);
+    setFreshTh(`${d.key}|${op}`);
+  };
+  const setThAt = (i, patch) =>
+    setThresholds(t => t.map((x, j) => j === i ? { ...x, ...patch } : x));
+  const dropThAt = i => setThresholds(t => t.filter((_, j) => j !== i));
+  /* HVADA DALKAR ERU UNDIR SIU — merkt i hausnum OG a flokkahnappnum, svo
+     sian se synileg thott hun se i ODRUM flokki en theim sem er opinn.  */
+  const thByKey = useMemo(() => {
+    const m = {};
+    thresholds.forEach(t => (m[t.key] ||= []).push(t));
+    return m;
+  }, [thresholds]);
+  const thPerGroup = useMemo(() => {
+    const m = {};
+    for (const t of thresholds) {
+      const g = STAT_BY_KEY[t.key]?.group;
+      if (g) m[g] = (m[g] ?? 0) + 1;
+    }
+    return m;
+  }, [thresholds]);
+
+  /* Einfoldu sirnar (stada, leit, verd, gatmerki) — chip sem hreinsar sig. */
   const chips = [];
-  if (pos !== "all") chips.push([tx(POS[+pos]), () => setPos("all")]);
-  if (q) chips.push([`„${q}"`, () => setQ("")]);
-  if (minCost !== "") chips.push([`≥ £${minCost}`, () => setMinCost("")]);
-  if (maxCost !== "") chips.push([`≤ £${maxCost}`, () => setMaxCost("")]);
+  if (pos !== "all") chips.push([POS[+pos], () => setPos("all")]);
+  if (q) chips.push([`“${q}”`, () => setQ("")]);
+  if (minCost !== "") chips.push([`price min £${minCost}`, () => setMinCost("")]);
+  if (maxCost !== "") chips.push([`price max £${maxCost}`, () => setMaxCost("")]);
   teamSel.forEach(id => chips.push([teamById?.[id]?.short || id,
     () => setTeamSel(v => v.filter(x => x !== id))]));
-  if (onlyAvail) chips.push([tx("aðeins leikhæfir"), () => setOnlyAvail(false)]);
-  if (hidePicked) chips.push([tx("fela valda"), () => setHidePicked(false)]);
-  if (onlyWatch) chips.push([tx("★ vaktlisti"), () => setOnlyWatch(false)]);
-  if (onlyMine) chips.push([tx("mitt lið"), () => setOnlyMine(false)]);
-  thresholds.forEach((t, i) => chips.push([
-    `${STAT_BY_KEY[t.key]?.label || t.key} ${t.op === ">=" ? tx("minnst") : tx("mest")} ${t.val}`,
-    () => setThresholds(v => v.filter((_, j) => j !== i))]));
+  if (onlyAvail) chips.push(["fit to play", () => setOnlyAvail(false)]);
+  if (hidePicked) chips.push(["hide selected", () => setHidePicked(false)]);
+  if (onlyWatch) chips.push(["★ watchlist", () => setOnlyWatch(false)]);
+  if (onlyMine) chips.push(["my squad", () => setOnlyMine(false)]);
+  const filterCount = chips.length + thresholds.length;
 
   if (!players?.length) {
-    return <section style={S.card}><div style={S.muted}>{tx("Sæki leikmannagögn…")}</div></section>;
+    return <section style={S.card}><div style={S.muted}>{"Fetching player data…"}</div></section>;
   }
 
   return (
     <section style={S.card}>
       <div style={S.head}>
         <div>
-          <h2 style={S.h2}>{tx("Leikmenn")}</h2>
+          <h2 style={S.h2}>{"Players"}</h2>
           <div style={S.sub}>
-            {sorted.length} {tx("af")} {players.length} · {season}
-            {!isLive && <span style={S.histTag}>{tx("söguleg tölur")}</span>}
+            {sorted.length} {"of"} {players.length} · {season}
+            {!isLive && <span style={S.histTag}>{"historical numbers"}</span>}
           </div>
         </div>
         <div style={S.headCtl}>
           <select style={S.sel} value={season ?? ""} onChange={e => setSeason(e.target.value)}>
             {seasonOpts.map(s => (
               <option key={s} value={s}>
-                {s}{s === currentLabel && finishedGw === 0 ? tx(" (ekki hafið)") : ""}
+                {s}{s === currentLabel && finishedGw === 0 ? " (not started)" : ""}
               </option>
             ))}
           </select>
-          {chips.length > 0 &&
+          {filterCount > 0 &&
             <button style={S.clearAll} onClick={() => {
               setPos("all"); setQ(""); setMinCost(""); setMaxCost(""); setTeamSel([]);
               setOnlyAvail(false); setHidePicked(false); setThresholds([]);
               setOnlyWatch(false); setOnlyMine(false);
-            }}>{tx("hreinsa allt")}</button>}
+            }}>{"clear all"}</button>}
         </div>
       </div>
 
@@ -636,26 +765,32 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       {!(isLive && finishedGw === 0) && seasonKey && (
         <div style={S.gwWrap}>
           <div style={S.gwTop}>
-            <span style={S.gwLbl}>{tx("Umferðir:")}</span>
-            <div style={S.gwPresets}>
-              <button style={{ ...S.gwPreset, ...(!gwRange ? S.gwPresetOn : {}) }}
-                onClick={() => setGwRange(null)}>{tx("allt tímabilið")}</button>
-              {[[30, 38, "30–38"], [20, 29, "20–29"], [1, 19, tx("fyrri hluti")],
-                [20, 38, tx("seinni hluti")]].map(([a, b, l]) => (
-                <button key={l} style={{ ...S.gwPreset,
-                    ...(gwRange && gwRange[0] === a && gwRange[1] === b ? S.gwPresetOn : {}) }}
-                  onClick={() => setGwRange([a, b])}>{l}</button>
-              ))}
-            </div>
+            <span style={S.gwLbl}>{"Gameweeks:"}</span>
+            {/* FORSTILLINGARNAR ("allt timabilid / 30-38 / fyrri hluti"...)
+                voru fjarlaegdar 7.8.2026 ad beidni: kassa-valarinn gerir
+                thad sama og meira, svo tvaer leidir ad somu stillingu voru
+                bara hávaði. "Hreinsa" dugar til ad fara til baka.       */}
+            {gwRange && (
+              <button style={S.gwPreset} onClick={() => setGwRange(null)}>
+                {"whole season"}
+              </button>
+            )}
             {gwRange && (
               <span style={S.gwNow}>
                 GW {gwRange[0]}–{gwRange[1]}
-                {gwLoading ? ` · ${tx("hleð…")}` : ""}
-                {gwErr ? ` · ${tx("gögn vantar")}: ${gwErr}` : ""}
+                {!gwAvailable
+                  ? ` · ${interp("no gameweek data for {0} — pick a finished season", [season])}`
+                  : gwLoading ? ` · ${"loading…"}` : ""}
+                {gwAvailable && gwErr ? <>
+                  {` · ${"data missing"}: ${gwErr} `}
+                  <button style={S.gwRetry} onClick={() => { setGwErr(null); setGwFile(null); }}>
+                    {"retry"}
+                  </button>
+                </> : null}
               </span>
             )}
           </div>
-          <div style={S.gwBar} role="group" aria-label={tx("Veldu umferðabil")}>
+          <div style={S.gwBar} role="group" aria-label={"Select gameweek range"}>
             {Array.from({ length: 38 }, (_, i) => i + 1).map(n => {
               const on = gwRange && n >= gwRange[0] && n <= gwRange[1];
               const edge = gwRange && (n === gwRange[0] || n === gwRange[1]);
@@ -670,16 +805,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     if (!r || r[0] !== r[1]) return [n, n];
                     return n < r[0] ? [n, r[0]] : [r[0], n];
                   })}>
-                  {n % 5 === 0 || n === 1 ? n : ""}
+                  {n}
                 </button>
               );
             })}
           </div>
           {gwRange && (
             <div style={S.gwNote}>
-              {tx("Bilið gildir um tölur sem má LEGGJA SAMAN. Verð, eignarhald, form, ICT og FPL-sæti eru árstíðartölur og fylgja EKKI bilinu — þeir dálkar eru merktir")}
-              {" "}<span style={S.blindTag}>{tx("árstíð")}</span>{" "}
-              {tx("og sýna heildina.")}
+              {"The range applies to numbers that can be SUMMED. Price, ownership, form, ICT and FPL ranks are season figures and do NOT follow the range — those columns are marked"}
+              {" "}<span style={S.blindTag}>{"season"}</span>{" "}
+              {"and show the season total."}
             </div>
           )}
         </div>
@@ -687,19 +822,19 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 
       {finishedGw === 0 && isLive && (
         <div style={S.warn}>
-          <b>{currentLabel} {tx("er ekki hafið")}</b> {tx("— öll árstíðarsvið eru núll fyrir alla")}
-          {" "}{players.length} {tx("leikmenn, svo þessi sýn hefur engar tölur að raða. Veldu")} <b>{olderSeasons[0] || tx("eldra tímabil")}</b> {tx("í fellilistanum.")}
+          <b>{currentLabel} {"has not started"}</b> {"— every season field is zero for all"}
+          {" "}{players.length} {"players, so this view has no numbers to sort. Pick"} <b>{olderSeasons[0] || "an earlier season"}</b> {"in the dropdown."}
         </div>
       )}
       {finishedGw === 0 && !isLive && (
         narrow && !showInfo ? (
           <button style={S.noteMini} onClick={() => setShowInfo(true)}>
-            {currentLabel} {tx("ekki hafið — sýnir")} {season} · <b>{tx("af hverju?")}</b>
+            {currentLabel} {"not started — showing"} {season} · <b>{"why?"}</b>
           </button>
         ) : (
           <div style={S.note}>
-            <b>{currentLabel} {tx("er ekki hafið")}</b>{tx(", svo listinn sýnir")} <b>{season}</b>{tx(". Verð, staða og eignarhlutfall eru samt")} <b>{tx("úr dagsins gögnum")}</b> {tx("— þú kaupir á verði dagsins, ekki á verði")} {season}.
-            {narrow && <> <button style={S.link} onClick={() => setShowInfo(false)}>{tx("fela")}</button></>}
+            <b>{currentLabel} {"has not started"}</b>{", so the list shows"} <b>{season}</b>{". Price, position and ownership are still"} <b>{"from today's data"}</b> {"— you buy at today's price, not at the price of"} {season}.
+            {narrow && <> <button style={S.link} onClick={() => setShowInfo(false)}>{"hide"}</button></>}
           </div>
         )
       )}
@@ -709,7 +844,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         if (!liveCols) return null;
         return (
           <div style={{ ...S.mixNote, ...(narrow ? S.mixMini : {}) }}>
-            <b>{tx("Þessi flokkur sýnir NÚTÍMA-gögn")}</b> {tx("— ekki")} {season}{tx(". Hann byggir á síðustu loknu umferð, form-glugganum eða leikjum framundan, svo hann breytist ekki þótt þú veljir annað tímabil. Árstíðar-summurnar (Grunnur, Sókn, Vörn …) fylgja hins vegar")} {season}.
+            <b>{"This group shows CURRENT data"}</b> {"— not"} {season}{". It is based on the last finished gameweek, the form window or upcoming fixtures, so it does not change when you pick another season. The season totals (Basics, Attack, Defence …) do follow"} {season}.
           </div>
         );
       })()}
@@ -719,45 +854,50 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         <div style={S.posRow}>
           {POS_TABS.map(([v, l]) => (
             <button key={v} style={{ ...S.posBtn, ...(pos === v ? S.posOn : {}) }}
-              onClick={() => setPos(v)}>{tx(l)}</button>
+              onClick={() => setPos(v)}>{l}</button>
           ))}
         </div>
-        <input style={S.search} placeholder={tx("Leita — nafn eða lið")} value={q}
+        <input style={S.search} placeholder={"Search — name or team"} value={q}
           onChange={e => setQ(e.target.value)} />
-        <label style={S.costWrap} title={tx("Verðbil í milljónum")}>
+        <label style={S.costWrap} title={"Price range in millions"}>
           <span style={S.costLbl}>£</span>
-          <input style={S.costIn} type="number" step="0.1" placeholder={tx("frá")}
+          <input style={S.costIn} type="number" step="0.1" placeholder={"from"}
             value={minCost} onChange={e => setMinCost(e.target.value)} />
           <span style={S.costLbl}>–</span>
-          <input style={S.costIn} type="number" step="0.1" placeholder={tx("til")}
+          <input style={S.costIn} type="number" step="0.1" placeholder={"to"}
             value={maxCost} onChange={e => setMaxCost(e.target.value)} />
         </label>
         <select style={S.sel} value="" onChange={e => {
           const id = +e.target.value;
           if (id) setTeamSel(v => v.includes(id) ? v : [...v, id]);
         }}>
-          <option value="">{tx("+ lið")}</option>
+          <option value="">{"+ team"}</option>
           {(teams || []).slice().sort((a, b) => String(a.short).localeCompare(String(b.short)))
             .map(t => <option key={t.id} value={t.id}>{t.short}</option>)}
         </select>
-        <label style={S.check}>
+        {/* "available only" SAGDI EKKI HVAD THAD GERIR — notandinn spurdi
+            hvort thad vaeri "bara their sem eg hef efni a". Thad er FPL
+            `status === "a"`: heilbrigdur og leikheimill. Verd kemur thessu
+            ekkert vid; verd-bilid vid hlidina gerir thad.               */}
+        <label style={S.check}
+          title={"Hides injured, suspended and doubtful players (FPL status other than \"available\"). Nothing to do with price — use the £ range for that."}>
           <input type="checkbox" checked={onlyAvail}
-            onChange={e => setOnlyAvail(e.target.checked)} />{tx("aðeins leikhæfir")}
+            onChange={e => setOnlyAvail(e.target.checked)} />{"fit to play"}
         </label>
-        <label style={S.check} title={tx("Aðeins stjörnumerktir")}>
+        <label style={S.check} title={"Starred players only"}>
           <input type="checkbox" checked={onlyWatch}
-            onChange={e => setOnlyWatch(e.target.checked)} />{tx("★ vaktlisti (")}{watchSet.size})
+            onChange={e => setOnlyWatch(e.target.checked)} />{"★ watchlist ("}{watchSet.size})
         </label>
         {mineSet.size > 0 && (
-          <label style={S.check} title={tx("Aðeins leikmenn í mínu liði")}>
+          <label style={S.check} title={"Only players in my squad"}>
             <input type="checkbox" checked={onlyMine}
-              onChange={e => setOnlyMine(e.target.checked)} />{tx("mitt lið (")}{mineSet.size})
+              onChange={e => setOnlyMine(e.target.checked)} />{"my squad ("}{mineSet.size})
           </label>
         )}
         {!!(cmpIds || []).length && (
           <label style={S.check}>
             <input type="checkbox" checked={hidePicked}
-              onChange={e => setHidePicked(e.target.checked)} />{tx("fela valda (")}{cmpIds.length})
+              onChange={e => setHidePicked(e.target.checked)} />{"hide selected ("}{cmpIds.length})
           </label>
         )}
       </div>
@@ -766,24 +906,62 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           Thrjatiu sliderar a skja i einu eru onothaefir; thetta gefur
           sama kraft i einu chipi.                                      */}
       <div style={S.thRow}>
-        <span style={S.thLbl}>{tx("Þröskuldur:")}</span>
+        <span style={S.thLbl}>{"Threshold:"}</span>
         <StatPicker value={thKey} onChange={setThKey} />
         {/* ORD, EKKI TAKN. "≥" og "≤" eru vanaspurning: notandinn tharf ad
             muna hvor bogi opnast hvert, og thad er ekki thess vert i einu
             filter-vidmoti. "minnst 5" og "mest 5" lesast rett i fyrstu
             tilraun og thurfa engan lykil.                                */}
         <select style={S.selOp} value={thOp} onChange={e => setThOp(e.target.value)}>
-          <option value=">=">{tx("minnst")}</option>
-          <option value="<=">{tx("mest")}</option>
+          <option value=">=">{"min"}</option>
+          <option value="<=">{"max"}</option>
         </select>
-        <input style={S.thVal} type="number" step="any" placeholder={tx("tala")}
+        <input style={S.thVal} type="number" step="any" placeholder={"number"}
           value={thVal} onChange={e => setThVal(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") addTh(); }} />
-        <button style={S.addBtn} onClick={addTh}>{tx("bæta við")}</button>
+        <button style={S.addBtn} onClick={addTh}>{"add"}</button>
       </div>
 
-      {chips.length > 0 && (
-        <div style={S.chipRow}>
+      {/* ---------- VIRKAR SIUR ----------
+          EIGIN RAMMI MED TOLU, EKKI LAUS CHIP-ROD. Beidnin var ad "hafa
+          augljost hvada filteringar eru i gangi": throskuldur getur legid a
+          dalki i ODRUM flokki en theim sem er opinn, svo lista sem er auðvelt
+          ad missa ur augsyn er ekki nog. Hver throskuldur er RITANLEGUR HER
+          — tala, atti og eyding — svo enginn thurfi ad setja hann inn upp a
+          nytt til ad breyta 90 i 85.                                      */}
+      {filterCount > 0 && (
+        <div style={S.filterBar}>
+          <span style={S.filterHd}>{"Filters"} <span style={S.filterN}>{filterCount}</span></span>
+          {thresholds.map((t, i) => {
+            const d = STAT_BY_KEY[t.key];
+            return (
+              <span key={t.key + t.op} style={S.thChip}>
+                {/* Heitid er HNAPPUR: hann opnar flokkinn sem dalkurinn er i,
+                    svo hægt se ad SJA toluna sem er sídad eftir.          */}
+                <button style={S.thChipName}
+                  title={`${d?.label || t.key} — click to show this column${d?.note ? "\n\n" + d.note : ""}`}
+                  onClick={() => d && setGroup(d.group)}>
+                  {d?.short || d?.label || t.key}
+                </button>
+                <button style={S.thChipOp}
+                  title={"Switch between a minimum and a maximum"}
+                  onClick={() => setThAt(i, { op: t.op === ">=" ? "<=" : ">=" })}>
+                  {t.op === ">=" ? "min" : "max"}
+                </button>
+                <input style={S.thChipVal} type="number" step="any" value={t.val}
+                  aria-label={`${d?.label || t.key} ${t.op === ">=" ? "minimum" : "maximum"}`}
+                  autoFocus={freshTh === `${t.key}|${t.op}`}
+                  onFocus={e => e.target.select()}
+                  onChange={e => {
+                    const v = parseFloat(String(e.target.value).replace(",", "."));
+                    setThAt(i, { val: Number.isFinite(v) ? v : e.target.value });
+                  }} />
+                {d?.pct ? <span style={S.thChipUnit}>%</span> : null}
+                <button style={S.thChipX} aria-label={"Remove filter"}
+                  onClick={() => dropThAt(i)}>✕</button>
+              </span>
+            );
+          })}
           {chips.map(([label, clear], i) => (
             <button key={i} style={S.chip} onClick={clear}>{label} ✕</button>
           ))}
@@ -803,69 +981,96 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       <div style={{ ...S.groupRow, ...(narrow ? {} : S.groupRowWide) }}>
         {STAT_GROUPS.map(g => (
           <button key={g.key} style={{ ...S.groupBtn, ...(group === g.key ? S.groupOn : {}) }}
-            onClick={() => setGroup(g.key)}>{g.label}</button>
-        ))}
-        {emptyCount > 0 && (
-          <button style={{ ...S.groupBtn, ...S.emptyBtn, ...(showEmpty ? S.groupOn : {}) }}
-            title={tx("{0} dálkar hafa engin gögn í {1}", [emptyCount, season])}
-            onClick={() => setShowEmpty(v => !v)}>
-            {showEmpty ? tx("fela tóma") : tx("sýna tóma dálka ({0})", [emptyCount])}
+            onClick={() => setGroup(g.key)}>
+            {g.label}
+            {/* TALAN A HNAPPNUM ER SVARID VID "hann eltir ef eg skipti um
+                flokk": sian a Threat helst thegar Sokn er opnud, og hun
+                SEGIR FRA SER hérna i stad thess ad thegja i lokuðum flokki. */}
+            {thPerGroup[g.key]
+              ? <span style={S.groupBadge}
+                  title={interp("{0} filter(s) on columns in this group", [thPerGroup[g.key]])}>
+                  {thPerGroup[g.key]}
+                </span>
+              : null}
           </button>
-        )}
+        ))}
       </div>
 
       {/* ---------- tafla ---------- */}
       {!sorted.length ? (
         <div style={S.empty}>
-          <b>{tx("Enginn leikmaður passar.")}</b> {tx("Virkar síur:")} {chips.length
-            ? chips.map(([l]) => l).join(" · ") : tx("engar")}.
-          {chips.length > 0 && <> <button style={S.link} onClick={() => {
+          <b>{"No player matches."}</b> {"Active filters:"} {filterCount
+            ? [...thresholds.map(t => `${STAT_BY_KEY[t.key]?.label || t.key} `
+                + `${t.op === ">=" ? "min" : "max"} ${t.val}`),
+               ...chips.map(([l]) => l)].join(" · ")
+            : "none"}.
+          {filterCount > 0 && <> <button style={S.link} onClick={() => {
             setThresholds([]); setMinCost(""); setMaxCost("");
-          }}>{tx("hreinsa þröskulda og verðbil")}</button></>}
+          }}>{"clear thresholds and price range"}</button></>}
         </div>
       ) : (
         <div ref={scrollRef} style={S.scroll}>
-          <div style={{ height: sorted.length * ROW_H + 30, position: "relative", minWidth: "max-content" }}>
-            {/* haus */}
-            <div style={{ ...S.hRow, width: "100%" }}>
-              <div style={{ ...S.hCell, ...cName }} role="columnheader" aria-sort={aria("__name")}
-                tabIndex={0} onClick={() => sortOn("__name", false)}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn("__name", false); } }}>
-                {/* Stjarnan i hausnum er SIA, ekki rodun. stopPropagation
-                    thvi smellur a hausinn sjalfan radar eftir nafni.       */}
-                <button style={{ ...S.starHead, ...(onlyWatch ? S.starOn : {}) }}
-                  aria-pressed={onlyWatch}
-                  title={onlyWatch ? tx("Sýna alla") : tx("Sýna aðeins vaktlista")}
-                  onClick={e => { e.stopPropagation(); setOnlyWatch(v => !v); }}>
-                  {onlyWatch ? "★" : "☆"}
-                </button>
-                {tx("Leikmaður")}{arrow("__name")}
+          <div style={{ height: sorted.length * ROW_H + HEAD_H, position: "relative", minWidth: "max-content" }}>
+            {/* ---------- HAUS: TVO THREP ----------
+                Bands-rodin ofan a heitunum. Frosnu hólfin (nafn, verd,
+                eign) eru sett i BADAR radirnar hvor fyrir sig — sticky
+                gildir per holf, svo hausinn getur ekki verið eitt
+                samfellt holf yfir bædi threp.                          */}
+            <div style={{ ...S.hStick, width: "100%" }}>
+              <div style={S.bandRow}>
+                <div style={{ ...S.bandCell, ...cName, ...S.bandFrozen }}>{group === "core" ? "" : ""}</div>
+                <div style={{ ...S.bandCell, width: wNum * 2, minWidth: wNum * 2 }}>{"Today"}</div>
+                {bands.map((b, i) => (
+                  <div key={i} style={{ ...S.bandCell, width: b.w, minWidth: b.w, maxWidth: b.w,
+                                        ...(b.band ? S.bandOn : {}) }}
+                    title={b.band}>{b.band}</div>
+                ))}
+                <div style={{ ...S.bandCell, ...S.cAct }} />
               </div>
-              <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__cost")} tabIndex={0}
-                onClick={() => sortOn("__cost", false)}>{tx("Verð")}{arrow("__cost")}</div>
-              <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__own")} tabIndex={0}
-                onClick={() => sortOn("__own")}>{tx("Eign %")}{arrow("__own")}</div>
-              {visibleCols.map(d => (
-                <div key={d.key} style={{ ...S.hCell, ...cFor(d),
-                       ...(gwActive && blindKeys.has(d.key) ? S.hBlind : {}) }}
-                  title={`${d.label}${d.note ? " — " + d.note : ""}` +
-                         (gwActive && blindKeys.has(d.key)
-                          ? ` — ${tx("ÁRSTÍÐARTALA: fylgir ekki umferðabilinu, sýnir heildina")}` : "")}
-                  aria-sort={aria(d.key)} tabIndex={0}
-                  onClick={() => sortOn(d.key, d.hi !== false)}
-                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn(d.key, d.hi !== false); } }}>
-                  {d.label}{d.derived ? "†" : ""}
-                  {/* Merking a dalkinum sjalfum, ekki adeins i skyringu:
-                      notandinn les tofluna, ekki fotnotur. */}
-                  {gwActive && blindKeys.has(d.key)
-                    ? <span style={S.blindMark} title={tx("árstíðartala")}>∑</span> : null}
-                  {arrow(d.key)}
+              <div style={S.hRow}>
+                <div style={{ ...S.hCell, ...cName, ...S.hName }} role="columnheader" aria-sort={aria("__name")}
+                  tabIndex={0} onClick={() => sortOn("__name", false)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn("__name", false); } }}>
+                  {/* Stjarnan i hausnum er SIA, ekki rodun. stopPropagation
+                      thvi smellur a hausinn sjalfan radar eftir nafni.       */}
+                  <button style={{ ...S.starHead, ...(onlyWatch ? S.starOn : {}) }}
+                    aria-pressed={onlyWatch}
+                    title={onlyWatch ? "Show all" : "Show watchlist only"}
+                    onClick={e => { e.stopPropagation(); setOnlyWatch(v => !v); }}>
+                    {onlyWatch ? "★" : "☆"}
+                  </button>
+                  {"Player"}{arrow("__name")}
                 </div>
-              ))}
-              <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__start")} tabIndex={0}
-                title={tx("Byrjunar-líkur — mælt, sjá Bekkjar-hætta")}
-                onClick={() => sortOn("__start")}>{tx("Byrjar")}{arrow("__start")}</div>
-              <div style={{ ...S.hCell, ...S.cAct }}>+</div>
+                <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__cost")} tabIndex={0}
+                  title={"Current price — always today's price, also for a historical season"}
+                  onClick={() => sortOn("__cost", false)}>{"Price"}{arrow("__cost")}</div>
+                <div style={{ ...S.hCell, ...cNum }} aria-sort={aria("__own")} tabIndex={0}
+                  title={"Share of all FPL squads that own him right now"}
+                  onClick={() => sortOn("__own")}>{"Owned %"}{arrow("__own")}</div>
+                {visibleCols.map(d => (
+                  <div key={d.key} style={{ ...S.hCell, ...cFor(d),
+                         ...(gwActive && blindKeys.has(d.key) ? S.hBlind : {}),
+                         ...(thByKey[d.key] ? S.hFiltered : {}) }}
+                    title={`${d.label}${d.short && d.short !== d.label ? ` (${d.short})` : ""}`
+                         + `${d.derived ? " · computed by us from FPL fields" : ""}`
+                         + `\n\n${d.note || ""}`
+                         + `\n\nClick the header to sort. Click any value in the column to filter on it.`
+                         + (gwActive && blindKeys.has(d.key)
+                            ? `\n\nSEASON FIGURE: does not follow the gameweek range, shows the total.` : "")}
+                    aria-sort={aria(d.key)} tabIndex={0}
+                    onClick={() => sortOn(d.key, d.hi !== false)}
+                    onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn(d.key, d.hi !== false); } }}>
+                    {thByKey[d.key] ? <span style={S.hFunnel} title={"filtered"}>▼</span> : null}
+                    {hLabel(d)}{d.derived ? "†" : ""}
+                    {/* Merking a dalkinum sjalfum, ekki adeins i skyringu:
+                        notandinn les tofluna, ekki fotnotur. */}
+                    {gwActive && blindKeys.has(d.key)
+                      ? <span style={S.blindMark} title={"season figure"}>∑</span> : null}
+                    {arrow(d.key)}
+                  </div>
+                ))}
+                <div style={{ ...S.hCell, ...S.cAct }}>+</div>
+              </div>
             </div>
 
             {window_.map((r, i) => {
@@ -875,19 +1080,27 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
               const isMine = mineSet.has(r.p.id);
               return (
                 <div key={r.p.code} style={{
-                  ...S.row, top: 30 + idx * ROW_H,
+                  ...S.row, top: HEAD_H + idx * ROW_H,
                   ...(idx % 2 ? S.rowAlt : {}),
                   ...(isMine ? S.rowMine : {}), ...(inCmp ? S.rowPicked : {}),
                 }}>
-                  <div style={{ ...S.cell, ...cName, ...(isMine ? S.cellMine : {}) }}>
+                  {/* TVEIR SKUGGAR A SAMA HOLFI: graena rondin ("mitt lid",
+                      inset) og kant-skugginn thegar skrunad er larett. Their
+                      MEGA EKKI skrifa hvor yfir annan — `cellMine` var
+                      spread-ad EFTIR `cName` og hefdi thurrkað kantinn ut,
+                      svo rondin hefdi horfid um leid og skrunad var.       */}
+                  <div style={{ ...S.cell, ...cName,
+                    boxShadow: [isMine ? S.cellMine.boxShadow : "",
+                                scrolledX ? S.frozenShadow.boxShadow : ""]
+                               .filter(Boolean).join(", ") || undefined }}>
                     {/* BORDINN ER A HOLFINU, EKKI RODINNI. Rodin skrunar
                         larett; bordi a henni hefdi horfid vid fyrsta skrun.
                         Frosna holfid er alltaf synilegt.                   */}
                     <button style={{ ...S.star, ...(isWatched ? S.starOn : {}) }}
                       aria-pressed={isWatched}
-                      aria-label={isWatched ? tx("Fjarlægja {0} af vaktlista", [r.p.web_name])
-                                            : tx("Setja {0} á vaktlista", [r.p.web_name])}
-                      title={isWatched ? tx("Á vaktlista — smelltu til að fjarlægja") : tx("Setja á vaktlista")}
+                      aria-label={isWatched ? interp("Remove {0} from the watchlist", [r.p.web_name])
+                                            : interp("Add {0} to the watchlist", [r.p.web_name])}
+                      title={isWatched ? "On the watchlist — click to remove" : "Add to the watchlist"}
                       onClick={e => { e.stopPropagation(); onWatch?.(r.p.id); }}>
                       {isWatched ? "★" : "☆"}
                     </button>
@@ -902,36 +1115,44 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                         {Crest && r.team ? <Crest team={r.team} size={11} /> : null}
                         {r.team?.short}
                       </span>
-                      {!r.avail && <span style={S.flag} title={r.p.news || tx("Ekki leikhæfur")}>!</span>}
-                      {!isLive && !r.hist && <span style={S.noHist} title={tx("Engin gögn í {0}", [season])}>—</span>}
+                      {!r.avail && <span style={S.flag} title={r.p.news || "Not available"}>!</span>}
+                      {!isLive && !r.hist && <span style={S.noHist} title={interp("No data in {0}", [season])}>—</span>}
                     </button>
                   </div>
                   <div style={{ ...S.cell, ...cNum, ...S.strong }}>£{r.cost.toFixed(1)}</div>
                   <div style={{ ...S.cell, ...cNum }}>{r.own.toFixed(1)}</div>
                   {visibleCols.map(d => {
                     const v = r.src ? d.get(r.src) : null;
+                    /* SMELLUR A TOLU SETUR SIU A HANA. Tomt holf er EKKI
+                       smellanlegt: "engin gogn" er ekki tala og throskuldur
+                       ur henni vaeri tilbuningur.
+                       BYRJUNAR-LIKUR FA LIT — thad var eini dalkurinn sem
+                       hafdi hann adur (i tvitekna hola dalknum lengst til
+                       haegri, sem er nu farinn) og hann a hann skilid:
+                       "start prob" er einmitt talan sem a ad hropa.        */
+                    const isSp = d.key === "start_prob";
                     return (
                       <div key={d.key} style={{ ...S.cell, ...cFor(d),
-                        ...(v == null ? S.miss : {}) }}>
+                        ...(v == null ? S.miss : S.cellHit),
+                        ...(isSp && v != null ? {
+                          fontWeight: 700,
+                          color: r.startLevel === "safe" ? "#046b41"
+                               : r.startLevel === "trap" ? C.red
+                               : r.startLevel === "mid" ? C.amber : C.text3 } : {}) }}
+                        title={v == null ? interp("{0}: no data", [d.label])
+                          : (isSp && r.startLevel === "trap"
+                             ? `${d.label}: ${fmtStat(d, v)} — started last time but is at risk of the bench.`
+                               + `\nClick to filter on this value.`
+                             : `${d.label}: ${fmtStat(d, v)}`
+                               + `\nClick to filter (${d.hi === false ? "max" : "min"} ${(+v.toFixed(d.dec ?? 0))}).`)}
+                        onClick={v == null ? undefined : () => filterOnValue(d, v)}>
                         {v == null ? "—" : fmtStat(d, v)}
                       </div>
                     );
                   })}
-                  <div style={{ ...S.cell, ...cNum }}>
-                    {r.startP == null ? <span style={S.miss}>—</span> : (
-                      <span style={{ fontWeight: 700,
-                        color: r.startLevel === "safe" ? "#046b41"
-                             : r.startLevel === "trap" ? C.red
-                             : r.startLevel === "mid" ? C.amber : C.text3 }}
-                        title={r.startLevel === "trap"
-                          ? tx("Byrjaði síðast en er í bekkjar-hættu") : undefined}>
-                        {Math.round(r.startP * 100)}%
-                      </span>
-                    )}
-                  </div>
                   <div style={{ ...S.cell, ...S.cAct }}>
                     <button style={{ ...S.addSm, ...(inCmp ? S.addSmOn : {}) }}
-                      title={inCmp ? tx("Í samanburði") : tx("Bæta í samanburð")}
+                      title={inCmp ? "In the comparison" : "Add to the comparison"}
                       onClick={() => onCompare?.(r.p.id)}>{inCmp ? "✓" : "⇄"}</button>
                   </div>
                 </div>
@@ -942,10 +1163,11 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       )}
 
       <div style={S.legend}>
-        <b>†</b> {tx("= reiknað af okkur úr FPL-sviðum.")} <b>—</b> {tx("= gögn vantar (ekki núll) og raðast")} <b>{tx("alltaf síðast")}</b>{tx(", í báðar áttir. Dálkar sem eru tómir fyrir alla í")}
-        {" "}{season} {tx("eru faldir — kveiktu á þeim með hnappnum. Smelltu á haus til að raða, á nafn til að opna spjaldið, á")} <b>⇄</b> {tx("til að bera saman.")}
-        {" "}<b style={{ color:"#e8a71c" }}>★</b> {tx("setur á vaktlista (vistast milli heimsókna); stjarnan í hausnum sýnir aðeins vaktlistann.")}
-        {" "}<b style={{ color:C.green }}>{tx("Græn rönd")}</b> {tx("= leikmaður í þínu liði — röndin er á nafna-hólfinu því röðin skrunar til hliðar.")}
+        <b>{"Click any value to filter on it"}</b> {"— it becomes an editable chip above the table that stays with you when you switch column group. Click a header to sort, a name to open the card,"} <b>⇄</b> {"to compare. Hover any header for what the number is and what counts as good."}
+        {" "}<b>†</b> {"= computed by us from FPL fields."} <b>—</b> {"= data missing (not zero) and always sorts"} <b>{"last"}</b>{", in both directions; a column that is empty for everyone in"}
+        {" "}{season} {"is still shown, because \"no data\" is information too."}
+        {" "}<b style={{ color:"#e8a71c" }}>★</b> {"adds to the watchlist (saved between visits); the star in the header shows the watchlist only."}
+        {" "}<b style={{ color:C.green }}>{"A green stripe"}</b> {"= a player in your squad — the stripe is on the name cell because the row scrolls sideways."}
       </div>
     </section>
   );
@@ -961,6 +1183,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 
 const S = {
   /* ---- sjonraent umferdar-bil ---- */
+  gwRetry:{ border:`1px solid ${C.border}`, background:"#fff", borderRadius:5,
+            padding:"1px 7px", fontSize:10.5, cursor:"pointer", color:C.purple, fontWeight:700 },
   gwWrap:{ display:"flex", flexDirection:"column", gap:4, padding:"7px 0 2px" },
   gwTop:{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" },
   gwLbl:{ fontSize:11, fontWeight:700, color:C.text2 },
@@ -970,9 +1194,12 @@ const S = {
   gwPresetOn:{ background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:600 },
   gwNow:{ fontFamily:mono, fontSize:11, color:C.purple, fontWeight:700 },
   gwBar:{ display:"flex", gap:1, flexWrap:"nowrap", overflowX:"auto" },
-  gwCell:{ flex:"1 1 0", minWidth:14, height:18, border:`1px solid ${C.border}`,
+  /* ALLIR 38 KASSAR BERA NU TOLU (adur adeins 1,5,10...). Tveggja-stafa
+     tolur tharfnast meira plass: minWidth 14 -> 19 og letur 8,5 -> 9.
+     38 x 19 px + bil = ~760 px og roðin er ~1.250 px, svo thad passar.  */
+  gwCell:{ flex:"1 1 0", minWidth:19, height:18, border:`1px solid ${C.border}`,
            background:"#fafafb", color:C.text3, borderRadius:2, cursor:"pointer",
-           fontSize:8.5, padding:0, lineHeight:"16px" },
+           fontSize:9, padding:0, lineHeight:"16px", fontFamily:mono },
   gwOn:{ background:"#e8e2ee", color:C.purple, borderColor:"#cdbcd8" },
   gwEdge:{ background:C.purple, color:"#fff", borderColor:C.purple, fontWeight:700 },
   gwNote:{ fontSize:10.5, color:C.text3, lineHeight:1.35 },
@@ -1001,6 +1228,8 @@ const S = {
   pkOptSel:{ fontWeight:700, color:C.purple },
   pkLive:{ fontSize:8.5, fontWeight:700, color:"#0a7d4f", background:"#e6f7ef",
            borderRadius:3, padding:"0 3px" },
+  pkShort:{ fontSize:9, fontFamily:mono, color:C.text3, background:"#f2f2f5",
+            borderRadius:3, padding:"0 3px", marginLeft:"auto" },
   pkNone:{ fontSize:12, color:C.text3, padding:"8px 7px" },
 
   card:{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:14, marginBottom:12 },
@@ -1052,6 +1281,36 @@ const S = {
   chip:{ border:`1px solid #d9c7dc`, background:"#f6f1f7", color:C.purple, borderRadius:12,
          padding:"2px 8px", fontSize:10.5, cursor:"pointer" },
 
+  /* ---- VIRKAR SIUR: eigin rammi, ekki laus chip-rod ----
+     Rammi + tala + eigin bakgrunnur svo "hvad er i gangi" se lesid i einu
+     augnakasti. Chip-in eru RITANLEG (tala, atti, eyding) — thad var
+     beidnin: breyta gildi an ad setja siuna inn upp a nytt.             */
+  filterBar:{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center",
+              background:"#f8f5f9", border:`1px solid #e4d8e7`, borderRadius:8,
+              padding:"6px 8px", marginBottom:8 },
+  filterHd:{ fontSize:10, fontWeight:700, letterSpacing:0.6, textTransform:"uppercase",
+             color:C.purple, display:"flex", alignItems:"center", gap:4 },
+  filterN:{ background:C.purple, color:"#fff", borderRadius:9, minWidth:14,
+            textAlign:"center", padding:"0 4px", fontSize:9.5, letterSpacing:0 },
+  thChip:{ display:"inline-flex", alignItems:"center", gap:0,
+           border:`1px solid #cdb5d2`, background:"#fff", borderRadius:12,
+           overflow:"hidden", height:22 },
+  thChipName:{ border:"none", background:"transparent", color:C.purple, fontWeight:700,
+               fontSize:10.5, padding:"0 6px", cursor:"pointer", height:"100%",
+               maxWidth:110, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  thChipOp:{ border:"none", borderLeft:"1px solid #ecdff0", background:"#faf6fb",
+             color:C.text2, fontSize:9.5, padding:"0 5px", cursor:"pointer", height:"100%" },
+  thChipVal:{ width:46, border:"none", borderLeft:"1px solid #ecdff0", outline:"none",
+              fontFamily:mono, fontSize:11, textAlign:"right", padding:"0 3px",
+              height:"100%", color:C.text, background:"#fff",
+              /* number-spinnerarnir eta 16 px af 46 og gera reitinn ólæsilegan */
+              MozAppearance:"textfield" },
+  thChipUnit:{ fontSize:9.5, color:C.text3, paddingRight:2 },
+  thChipX:{ border:"none", borderLeft:"1px solid #ecdff0", background:"#faf6fb",
+            color:C.text3, fontSize:10, padding:"0 5px", cursor:"pointer", height:"100%" },
+  groupBadge:{ marginLeft:4, background:C.purple, color:"#fff", borderRadius:8,
+               fontSize:8.5, fontWeight:700, padding:"0 4px", verticalAlign:"middle" },
+
   groupRow:{ display:"flex", gap:4, marginBottom:8, overflowX:"auto",
              borderBottom:`1px solid ${C.border}`, paddingBottom:7,
              scrollbarWidth:"none", WebkitOverflowScrolling:"touch" },
@@ -1062,12 +1321,43 @@ const S = {
              padding:"4px 9px", fontSize:11.5, fontWeight:600, cursor:"pointer",
              whiteSpace:"nowrap", flex:"0 0 auto" },
   groupOn:{ background:"#f1e9f2", color:C.purple },
-  emptyBtn:{ marginLeft:"auto", fontSize:10, color:C.text3 },
 
   scroll:{ overflow:"auto", maxHeight:"min(66vh, 620px)", border:`1px solid ${C.border}`,
            borderRadius:8, position:"relative" },
-  hRow:{ position:"sticky", top:0, zIndex:3, display:"flex", height:30,
-         background:C.cardAlt, borderBottom:`1px solid ${C.borderStrong || C.border}` },
+  /* TVO THREP: `hStick` er sticky-umgjordin, `bandRow` og `hRow` eru
+     radirnar inni i henni. Sticky-vinstri gildir PER HOLF, svo frosnu
+     holfin eru sett i badar radir hvor fyrir sig — eitt holf getur ekki
+     spannad bædi threpin.                                               */
+  hStick:{ position:"sticky", top:0, zIndex:3, display:"flex", flexDirection:"column",
+           background:C.cardAlt, borderBottom:`1px solid ${C.borderStrong || C.border}` },
+  bandRow:{ display:"flex", height:BAND_H, background:"#f2f0f5" },
+  bandCell:{ boxSizing:"border-box", display:"flex", alignItems:"center",
+             justifyContent:"center", fontSize:9.5, fontWeight:700,
+             letterSpacing:0.4, textTransform:"uppercase", color:C.text3,
+             padding:"0 4px", whiteSpace:"nowrap", overflow:"hidden",
+             borderRight:"1px solid #e6e4ec" },
+  bandOn:{ color:"#5a4a66", background:"#eae6f0" },
+  bandFrozen:{ position:"sticky", left:0, zIndex:2, background:"#f2f0f5",
+               borderRight:`1px solid ${C.border}` },
+  hRow:{ display:"flex", height:LABEL_H },
+  /* Frosni HAUS-dalkurinn er VINSTRI-jafnadur (allir adrir haegri).
+     Adur var "Player" haegri-jafnad, svo thad sat thett upp vid naesta
+     haus-heiti sem er klippt vinstra megin thegar skrunad er — tvo hálf
+     ord i beinni rod, sem las eins og bilun ("Player" + "ice chg (GW)"). */
+  /* BAKGRUNNURINN VERDUR AD VERA BEINN, EKKI `inherit`.
+     THETTA VAR VILLAN SEM NOTANDINN SA ("þegar ég skrolla langt til hægri
+     fer texti undir nöfnin og myndir af köllum"): `cName` ber
+     `background:"inherit"`, sem virkar i GAGNARODUNUM thvi rodin sjalf
+     setur lit — en i hausnum sat liturinn a sticky-UMGJORDINNI og
+     haus-rodin sjalf var gagnsae, svo frosna "Player"-holfid var gagnsaett
+     og haus-heitin skrunudu SYNILEGA undir thad ("s/xGIPlayer xGI/£m").
+     Maelt i Chrome: bakgrunnur holfsins var rgba(0,0,0,0).
+     Beinn litur her + `frozenShadow` a kantinum = holfid hylur og THAD
+     SEST ad efnid heldur afram undir thvi.                              */
+  hName:{ justifyContent:"flex-start", textAlign:"left", background:C.cardAlt },
+  hFiltered:{ background:"#f3eaf5", color:C.purple },
+  hFunnel:{ fontSize:7.5, color:C.purple, marginRight:2 },
+  frozenShadow:{ boxShadow:"6px 0 8px -6px rgba(0,0,0,0.28)" },
   /* whiteSpace:"normal" + 2 linur: sja wOf. `lineHeight` er sett svo tvaer
      linur passi i haus-hædina an ad ýta rodunum nidur.                   */
   /* boxSizing:"border-box" A BADUM — HAUS OG HOLFI.
@@ -1089,8 +1379,14 @@ const S = {
           padding:"0 5px", cursor:"pointer", userSelect:"none",
           whiteSpace:"nowrap", lineHeight:1.14,
           borderRight:"1px solid #eeeef1", overflow:"hidden" },
+  /* BAKGRUNNURINN ER SKILYRDI, EKKI SKRAUT: frosna nafnaholfid (`cName`)
+     erfir bakgrunn RADARINNAR (`background:"inherit"`). Vaeri rodin
+     gagnsae — eins og hun var — skruna tolurnar SYNILEGA UNDIR nafninu
+     ("6*Gabriel +GBP1.3"). Maelt i Chrome: bakgrunnur bædi radar og holfs
+     var rgba(0,0,0,0). Litur ma ekki fjarlaegjast her.                   */
   row:{ position:"absolute", left:0, right:0, display:"flex", height:ROW_H,
-        alignItems:"center", borderBottom:"1px solid #f4f4f6" },
+        alignItems:"center", background:C.card,
+        borderBottom:"1px solid #f4f4f6" },
   rowAlt:{ background:"#fcfcfd" },
   /* GRAENT THYDIR ADEINS "MITT LID". Samanburdur var adur greenBg — sami
      litur — svo hann er faerdur i ljosfjolublaan. Einn litur, ein merking. */
@@ -1105,6 +1401,10 @@ const S = {
   starOn:{ color:"#e8a71c" },
   cell:{ boxSizing:"border-box", display:"flex", alignItems:"center", padding:"0 5px", fontSize:11.5,
          whiteSpace:"nowrap", borderRight:"1px solid #f6f6f8" },
+  /* Tola sem MA smella a til ad sia. Bendillinn er eina visbendingin sem
+     kostar ekkert sjonraent suð i 100-dalka toflu — tinting a hverju holfi
+     hefdi gert tofluna oleaesilega.                                      */
+  cellHit:{ cursor:"pointer" },
   cName:{ position:"sticky", left:0, zIndex:2, width:196, minWidth:196,
           background:"inherit", borderRight:`1px solid ${C.border}` },
   cNum:{ width:88, minWidth:88, maxWidth:88, justifyContent:"flex-end", fontFamily:mono, color:C.text2 },

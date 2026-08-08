@@ -13,7 +13,7 @@
      5. ... EN ALDREI `fpl_lang`. Sa sem hrundi a ensku verdur ad fa ensku
         aftur; annars kastast hann i islensku ofan a hrunid. Thetta er
         undirstada sem er audvelt ad brjota med `localStorage.clear()`.
-     6. bædi mal virka (textinn fer gegnum tx())
+     6. kassinn er a ensku og engin islenska eftir i honum
    ============================================================ */
 import { JSDOM } from "jsdom";
 import React from "react";
@@ -42,7 +42,6 @@ for (const m of ["attachEvent", "detachEvent"])
 const EB = await import("../src/ErrorBoundary.jsx");
 const ErrorBoundary = EB.default;
 const { clearSavedState } = EB;
-const { setLang, t: tx } = await import("../src/i18n.js");
 
 let container = dom.window.document.getElementById("root");
 const Boom = () => { throw new Error("logun kjarnagagna ovaent"); };
@@ -75,15 +74,14 @@ const btn = label => [...container.querySelectorAll("button")]
 
 /* ---------- 1-2. kassinn og skilabodin ---------- */
 console.log("\n=== 1. KASSINN I STAD HVITA SKJASINS ===");
-setLang("is");
 await mount(Fine);
 ok("born teiknast oskert thegar ekkert brestur",
    (container.textContent || "").includes("allt i lagi"));
-ok("engin villuvorn synileg tha", !(container.textContent || "").includes("brotnaði"));
+ok("engin villuvorn synileg tha", !(container.textContent || "").includes("Something broke"));
 
 await mount(Boom);
 const txt = () => container.textContent || "";
-ok("villa i render gefur KASSA, ekki tomt tre", txt().includes("Eitthvað brotnaði"),
+ok("villa i render gefur KASSA, ekki tomt tre", txt().includes("Something broke"),
    txt().slice(0, 60));
 ok("skilabod villunnar sjast (svo megi segja fra henni)",
    txt().includes("logun kjarnagagna ovaent"));
@@ -92,18 +90,17 @@ ok("role=alert er sett (skjalesarar)",
 
 /* ---------- 3. tvistiga hreinsun ---------- */
 console.log("\n=== 2. UTGANGAN ER TVISTIGA ===");
-ok("fyrsti hnappur er 'Endurhlaða'", !!btn("Endurhlaða"));
-const clearBtn = btn("Hreinsa vistaða plönun");
+ok("fyrsti hnappur er 'Reload'", !!btn("Reload"));
+const clearBtn = btn("Clear saved planning");
 ok("hreinsun er i bodi", !!clearBtn);
-ok("EKKI hreinsad i einum smell (enginn 'já'-hnappur fyrirfram)",
-   !btn("já — hreinsa og endurhlaða"));
+ok("EKKI hreinsad i einum smell (enginn 'yes'-hnappur fyrirfram)",
+   !btn("yes — clear and reload"));
 await click(clearBtn);
-ok("eftir fyrsta smell birtist stadfesting", !!btn("já — hreinsa og endurhlaða"));
-ok("og hun segir HVAD tapast",
-   txt().includes("skiptaáætlun") && txt().includes("tungumálið heldur sér"));
+ok("eftir fyrsta smell birtist stadfesting", !!btn("yes — clear and reload"));
+ok("og hun segir HVAD tapast", txt().includes("transfer plan"));
 
 /* ---------- 4-5. hvad er hreinsad og hvad EKKI ---------- */
-console.log("\n=== 3. HREINSUN: ASTAND FER, TUNGUMAL HELDUR SER ===");
+console.log("\n=== 3. HREINSUN: ALLIR fpl_-LYKLAR FARA ===");
 dom.window.localStorage.setItem("fpl_planner_v3", '{"plan":[1,2,3]}');
 dom.window.localStorage.setItem("fpl_watch_v1", "[1,2]");
 dom.window.localStorage.setItem("fpl_lang", "en");
@@ -112,8 +109,12 @@ const dropped = clearSavedState();
 ok("vistud plonun hreinsud", dom.window.localStorage.getItem("fpl_planner_v3") === null);
 ok("adrir fpl_-lyklar lika (nyr lykill verdur ekki utundan)",
    dom.window.localStorage.getItem("fpl_watch_v1") === null, dropped.join(","));
-ok("TUNGUMALID HELDUR SER — annars kastast notandinn i islensku ofan a hrunid",
-   dom.window.localStorage.getItem("fpl_lang") === "en");
+/* SNERIST VID 7.8.2026: appid er enskt og BARA enskt, svo `fpl_lang` er
+   daudur afgangur i localStorage hja theim sem notudu tvityngdu utgafuna.
+   Undantekningin sem var her adur (hann matti ALDREI hreinsast) atti vid
+   medan tungumal var til ad tapa; nu er hun bara rusl sem lifir hrun.   */
+ok("fpl_lang er hreinsad lika — tungumals-lykillinn er daudur afgangur",
+   dom.window.localStorage.getItem("fpl_lang") === null);
 ok("lyklar annarra appa a somu slod eru ohreyfdir",
    dom.window.localStorage.getItem("annad_app") === "ma ekki hreyfa");
 ok("hreinsun tholir ad localStorage se ekki til (private mode)", (() => {
@@ -126,15 +127,13 @@ ok("hreinsun tholir ad localStorage se ekki til (private mode)", (() => {
   finally { Object.defineProperty(globalThis, "localStorage", { value: real, configurable: true }); }
 })());
 
-/* ---------- 6. bædi mal ---------- */
-console.log("\n=== 4. TEXTINN FER GEGNUM tx() ===");
-setLang("en");
+/* ---------- 6. textinn ---------- */
+console.log("\n=== 4. KASSINN ER A ENSKU ===");
 await mount(Boom);
 ok("enski kassinn er a ensku", txt().includes("Something broke"), txt().slice(0, 60));
-ok("og islenskan er horfin ur honum", !txt().includes("Eitthvað brotnaði"));
+ok("og engin islenska eftir i honum", !/[þðæöÞÐÆÖ]/.test(txt()));
 ok("hnapparnir lika", !!btn("Reload"), [...container.querySelectorAll("button")]
    .map(b => b.textContent).join(" | "));
-setLang("is");
 
 console.log(`\nVILLUVORN: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

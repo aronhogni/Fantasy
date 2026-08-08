@@ -66,7 +66,7 @@ for (const [label, missing] of SCENARIOS) {
     const root = createRoot(document.getElementById("root"));
     await act(async () => { root.render(React.createElement(App)); });
     await act(async () => { await new Promise(r => setTimeout(r, 150)); });
-    for (const tab of ["Umferðin", "Stigatafla", "Föst leikatriði"]) {
+    for (const tab of ["Gameweek", "Leaderboard", "Set pieces"]) {
       const b = [...document.querySelectorAll("button")].find(x => x.textContent.includes(tab));
       if (!b) { perTab[tab] = "HNAPP VANTAR"; continue; }
       await act(async () => { b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
@@ -83,7 +83,7 @@ for (const [label, missing] of SCENARIOS) {
     if (txt === "HNAPP VANTAR") { problems.push(tab + ": hnapp vantar"); continue; }
     if (txt.trim().length < 400) problems.push(tab + ": nanast tomur (" + txt.trim().length + ")");
     if (/undefined|NaN|\[object Object\]/.test(txt)) problems.push(tab + ": birti undefined/NaN");
-    if (!txt.includes(tab.replace("Umferðin", "Umfer"))) problems.push(tab + ": eigid heiti vantar");
+    if (!txt.includes(tab)) problems.push(tab + ": eigid heiti vantar");
   }
   if (errors.length) problems.push("console.error: " + errors[0]);
   const bad = problems.length;

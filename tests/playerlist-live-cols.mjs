@@ -111,10 +111,10 @@ await fire(byTab("👥"));
 console.log("\nLIFANDI DÁLKAR (hermt defcon.json)");
 
 /* ---- 1. DC-hittni-flokkurinn: nyju dalkarnir ---- */
-ok("flokka-hnappurinn 'DC-hittni' er til", !!byExact("DC-hittni"));
-await fire(byExact("DC-hittni"));
+ok("flokka-hnappurinn 'Vörn' er til (DC-hittni fluttist thangad 7.8.)", !!byExact("Defence"));
+await fire(byExact("Defence"));
 ok("raðað eftir 'DC-leikir (n)' — null-síðast flýtur gagna-röðinni efst",
-  await clickHeader("DC-leikir (n)"));
+  await clickHeader("DC n"));
 let txt = mosRowText();
 ok("Mosquera-röðin er í sýnda glugganum eftir röðun", txt.includes("Mosquera"),
   `— fékk "${txt.slice(0, 80)}"`);
@@ -131,7 +131,7 @@ ok("n-dálkurinn ber leikjafjöldann (þrenndin 57%75%12)", txt.includes("57%75%
    Mosquera er AFRAM efstur — vid lesum team_dc-toluna ur hans rod.
    ARS defcon_opportunity ur RAUNskranni (53 i dag, endurreiknad her). */
 const arsOpp = String(J("defcon.json").opportunity["1"].defcon_opportunity);
-await fire(byExact("Leikir framundan"));
+await fire(byExact("Upcoming fixtures"));
 txt = mosRowText();
 ok(`team_dc ber TÖLU — ARS-röð Mosquera sýnir ${arsOpp} (dálkurinn var dauður frá fæðingu)`,
   txt.includes("Mosquera") && txt.includes(arsOpp),

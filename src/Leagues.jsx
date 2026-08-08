@@ -18,8 +18,7 @@
    CORS-lokað eins og allt annað FPL). CDN-cache 60 s.
    ============================================================ */
 import React, { useEffect, useMemo, useState } from "react";
-import { t as tx, getLang } from "./i18n.js";
-import { useLang } from "./useLang.js";
+import { interp } from "./interp.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -51,10 +50,9 @@ export function prizeFor(pot, split) {
   return s.map(x => Math.floor(p * (x / sum)));
 }
 
-const fmtMoney = n => (n || 0).toLocaleString(getLang() === "en" ? "en-GB" : "is-IS");
+const fmtMoney = n => (n || 0).toLocaleString("en-GB");
 
 export default function Leagues({ proxyUrl, entryId }) {
-  const lang = useLang();
   const [leagues, setLeagues] = useState([]);      // [{id, name, pot, split}]
   const [data, setData] = useState({});            // id -> standings
   const [busy, setBusy] = useState({});
@@ -75,7 +73,7 @@ export default function Leagues({ proxyUrl, entryId }) {
 
   /* ---- sækja stöðu ---- */
   const load = async id => {
-    if (!proxyUrl) { setErr(tx("Vantar proxy — deildir eru sóttar í gegnum hann.")); return; }
+    if (!proxyUrl) { setErr("Proxy missing — leagues are fetched through it."); return; }
     setBusy(b => ({ ...b, [id]: true })); setErr(null);
     try {
       const r = await fetch(`${proxyUrl}?path=fpl-league&id=${id}`);
@@ -87,7 +85,7 @@ export default function Leagues({ proxyUrl, entryId }) {
       const nm = j?.league?.name;
       if (nm) save(leagues.map(l => l.id === id ? { ...l, name: nm } : l));
     } catch (e) {
-      setErr(tx("Náði ekki í deild {0}: {1}", [id, String(e.message).slice(0, 60)]));
+      setErr(interp("Could not load league {0}: {1}", [id, String(e.message).slice(0, 60)]));
     } finally { setBusy(b => ({ ...b, [id]: false })); }
   };
   /* Saekja allar deildir vid fyrstu hledslu (og thegar nyrri baetist vid) */
@@ -99,8 +97,8 @@ export default function Leagues({ proxyUrl, entryId }) {
   const add = () => {
     const m = String(input).match(/leagues\/(\d+)|^(\d+)$/);
     const id = m ? (m[1] || m[2]) : null;
-    if (!id) { setErr(tx("Sláðu inn deildar-númer eða FPL-slóð deildarinnar.")); return; }
-    if (leagues.some(l => l.id === id)) { setErr(tx("Deildin er þegar á listanum.")); return; }
+    if (!id) { setErr("Enter a league ID or the league's FPL link."); return; }
+    if (leagues.some(l => l.id === id)) { setErr("That league is already on the list."); return; }
     save([...leagues, { id, name: null, pot: 0, split: [...DEFAULT_SPLIT] }]);
     setInput(""); setErr(null);
   };
@@ -110,21 +108,21 @@ export default function Leagues({ proxyUrl, entryId }) {
   return (
     <section style={S.wrap}>
       <div style={S.head}>
-        <h2 style={S.h2}>{tx("Einka-deildir")}</h2>
+        <h2 style={S.h2}>{"Mini-leagues"}</h2>
         <div style={S.addRow}>
-          <input style={S.input} value={input} placeholder={tx("deildar-númer eða slóð")}
+          <input style={S.input} value={input} placeholder={"league ID or link"}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && add()} />
-          <button style={S.btn} onClick={add}>{tx("Bæta við")}</button>
+          <button style={S.btn} onClick={add}>{"Add"}</button>
         </div>
       </div>
       <div style={S.note}>
-        {tx("Staðan í deildunum þínum. Verðlaunapotturinn er ÞITT innslag — hann er geymdur í vafranum þínum og fer aldrei neitt.")}
+        {"Where you stand in your leagues. The prize pot is YOUR input — it is stored in your browser and never leaves it."}
       </div>
       {err && <div style={S.err}>{err}</div>}
       {!leagues.length && (
         <div style={S.empty}>
-          {tx("Engin deild skráð. Númerið er í slóð deildarinnar á fantasy.premierleague.com (…/leagues/")}<b>123456</b>/standings/).
+          {"No league added. The ID is in the league URL on fantasy.premierleague.com (…/leagues/"}<b>123456</b>/standings/).
         </div>
       )}
 
@@ -136,22 +134,22 @@ export default function Leagues({ proxyUrl, entryId }) {
           <div key={l.id} style={S.card}>
             <div style={S.cardHead}>
               <div>
-                <div style={S.name}>{l.name || d?.league?.name || `${tx("Deild")} ${l.id}`}</div>
-                <div style={S.sub}>#{l.id}{rows.length ? ` · ${rows.length} ${tx("lið")}` : ""}
-                  {busy[l.id] ? ` · ${tx("sæki…")}` : ""}</div>
+                <div style={S.name}>{l.name || d?.league?.name || `${"League"} ${l.id}`}</div>
+                <div style={S.sub}>#{l.id}{rows.length ? ` · ${rows.length} ${"teams"}` : ""}
+                  {busy[l.id] ? ` · ${"fetching…"}` : ""}</div>
               </div>
               <div style={S.potBox}>
-                <label style={S.potLbl}>{tx("Pottur")}
+                <label style={S.potLbl}>{"Pot"}
                   <input style={S.potIn} type="number" min="0" value={l.pot || ""}
                     onChange={e => patch(l.id, "pot", Number(e.target.value) || 0)} />
                 </label>
-                <label style={S.potLbl}>{tx("Skipting %")}
+                <label style={S.potLbl}>{"Split %"}
                   <input style={{ ...S.potIn, width:96 }} value={(l.split || []).join("/")}
-                    title={tx("Prósenta per sæti, aðskilið með /. Dæmi: 50/30/20")}
+                    title={"Percent per place, separated by /. Example: 50/30/20"}
                     onChange={e => patch(l.id, "split",
                       e.target.value.split("/").map(x => Number(x.trim()) || 0).filter((_, i) => i < 8))} />
                 </label>
-                <button style={S.rm} title={tx("Fjarlægja deild")} onClick={() => remove(l.id)}>✕</button>
+                <button style={S.rm} title={"Remove league"} onClick={() => remove(l.id)}>✕</button>
               </div>
             </div>
 
@@ -174,10 +172,10 @@ export default function Leagues({ proxyUrl, entryId }) {
               <table style={S.tbl}>
                 <thead><tr>
                   <th style={S.thN}>#</th>
-                  <th style={S.th}>{tx("Lið")}</th>
-                  <th style={S.thNum}>{tx("Umferð")}</th>
-                  <th style={S.thNum}>{tx("Alls")}</th>
-                  <th style={S.thNum}>{tx("Verðlaun")}</th>
+                  <th style={S.th}>{"Team"}</th>
+                  <th style={S.thNum}>{"GW"}</th>
+                  <th style={S.thNum}>{"Total"}</th>
+                  <th style={S.thNum}>{"Prize"}</th>
                 </tr></thead>
                 <tbody>
                   {rows.slice(0, 25).map(r => {
@@ -196,7 +194,7 @@ export default function Leagues({ proxyUrl, entryId }) {
                         <td style={S.td}>
                           <b>{r.entry_name}</b>
                           <span style={S.mgr}> {r.player_name}</span>
-                          {mine && <span style={S.you}>{tx("þú")}</span>}
+                          {mine && <span style={S.you}>{"you"}</span>}
                         </td>
                         <td style={S.tdNum}>{r.event_total}</td>
                         <td style={{ ...S.tdNum, fontWeight:700 }}>{r.total}</td>
@@ -211,7 +209,7 @@ export default function Leagues({ proxyUrl, entryId }) {
               </div>
             )}
             {d && !rows.length && !busy[l.id] && (
-              <div style={S.empty}>{tx("Engin staða enn — deildin byrjar að telja við fyrstu umferð.")}</div>
+              <div style={S.empty}>{"No standings yet — the league starts counting at the first gameweek."}</div>
             )}
           </div>
         );

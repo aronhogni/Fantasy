@@ -18,7 +18,7 @@
    ============================================================ */
 
 import React, { useState } from "react";
-import { t as tx } from "./i18n.js";
+import { interp } from "./interp.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -47,26 +47,26 @@ export function PlayerHeadline({ p, buyTenths, sellTenths_, inSquad, onEditPrice
         <div style={S.hVal}>
           £{cost == null ? "—" : (cost / 10).toFixed(1)}
           {/* EITT lettur popup i stad heillar verd-blokkar med morgum glugga */}
-          <button style={S.editBtn} title={tx("Breyta innkaupsverði")}
+          <button style={S.editBtn} title={"Edit the purchase price"}
             onClick={e => { e.stopPropagation(); onEditPrice && onEditPrice(); }}>✎</button>
         </div>
-        <div style={S.hKey}>{tx("Verð")}</div>
+        <div style={S.hKey}>{"Price"}</div>
         {inSquad && buy != null && (
           <div style={S.hSub}>
-            {tx("keypt £")}{(buy / 10).toFixed(1)}
-            {sell != null && <> {tx("· sala £")}{(sell / 10).toFixed(1)}</>}
+            {"bought £"}{(buy / 10).toFixed(1)}
+            {sell != null && <> {"· sell £"}{(sell / 10).toFixed(1)}</>}
           </div>
         )}
       </div>
 
-      <Tile v={seasonStarted ? i0(n(p.total_points)) : "—"} k={tx("Heildarstig")}
-        sub={seasonStarted ? null : tx("ekki hafið")} />
-      <Tile v={seasonStarted ? f1(n(p.points_per_game)) : "—"} k={tx("Stig/leik")}
-        sub={seasonStarted ? null : tx("ekki hafið")} />
-      <Tile v={seasonStarted ? i0(n(p.bonus)) : "—"} k={tx("Bónusstig")}
-        sub={seasonStarted ? null : tx("ekki hafið")} />
-      <Tile v={f1(n(p.form))} k="Form" sub={tx("rúllandi 30 dagar")} />
-      <Tile v={`${p.selected_by_percent ?? "—"}%`} k={tx("Eignarhlutfall")} />
+      <Tile v={seasonStarted ? i0(n(p.total_points)) : "—"} k={"Total points"}
+        sub={seasonStarted ? null : "not started"} />
+      <Tile v={seasonStarted ? f1(n(p.points_per_game)) : "—"} k={"Pts/match"}
+        sub={seasonStarted ? null : "not started"} />
+      <Tile v={seasonStarted ? i0(n(p.bonus)) : "—"} k={"Bonus points"}
+        sub={seasonStarted ? null : "not started"} />
+      <Tile v={f1(n(p.form))} k="Form" sub={"rolling 30 days"} />
+      <Tile v={`${p.selected_by_percent ?? "—"}%`} k={"Ownership"} />
     </div>
   );
 }
@@ -90,7 +90,7 @@ function Tile({ v, k, sub }) {
 
 const RANK = (rec, key) => {
   const r = rec?.rank?.[key], of = rec?.rank_of?.[key];
-  return r ? tx("{0} af {1}", [r, of]) : null;
+  return r ? interp("{0} of {1}", [r, of]) : null;
 };
 
 /* Ein rod i toflunni. `get(rec)` skilar { v (birt), num (til samanburdar) } */
@@ -99,23 +99,23 @@ function makeRows(pos, live, seasonStarted) {
   const defensive = !isFwd;             // "Varnarstats tharf ekki fyrir soknarmenn"
 
   const rows = [
-    { label: tx("Heildarstig"), key: "total_points", rank: "total_points",
+    { label: "Total points", key: "total_points", rank: "total_points",
       get: r => ({ num: r.total_points, v: i0(r.total_points) }) },
 
-    { label: tx("Byrjaðir / stig 90"), key: "starts",
-      note: tx("Byrjaðir leikir og stig per 90 mínútur"),
+    { label: "Starts / points 90", key: "starts",
+      note: "Starts and points per 90 minutes",
       get: r => ({ num: r.points_per_90,
                    v: `${i0(r.starts)} / ${f2(r.points_per_90)}` }),
       rank: "points_per_90" },
 
-    { label: tx("Mínútur"), key: "minutes", rank: "minutes",
+    { label: "Minutes", key: "minutes", rank: "minutes",
       get: r => ({ num: r.minutes, v: i0(r.minutes) }) },
 
-    { label: tx("Mörk / xG / xG90"), key: "goals_scored", rank: "expected_goals",
+    { label: "Goals / xG / xG90", key: "goals_scored", rank: "expected_goals",
       get: r => ({ num: r.goals_scored,
                    v: `${i0(r.goals_scored)} / ${f2(r.expected_goals)} / ${f2(r.expected_goals_per_90)}` }) },
 
-    { label: tx("Assist / xA / xA90"), key: "assists", rank: "expected_assists",
+    { label: "Assists / xA / xA90", key: "assists", rank: "expected_assists",
       get: r => ({ num: r.assists,
                    v: `${i0(r.assists)} / ${f2(r.expected_assists)} / ${f2(r.expected_assists_per_90)}` }) },
 
@@ -133,11 +133,11 @@ function makeRows(pos, live, seasonStarted) {
       /* xGC: LAEGRA ER BETRA. rev:true snyr baedi trend-litnum og saetinu
          (saetid kemur thegar rev-radad ur pipeline).                      */
       { label: "GC / xGC", key: "goals_conceded", rank: "expected_goals_conceded", rev: true,
-        note: tx("Mörk á sig og vænt mörk á sig — lægra er betra"),
+        note: "Goals conceded and expected goals conceded — lower is better",
         get: r => ({ num: r.goals_conceded,
                      v: `${i0(r.goals_conceded)} / ${f2(r.expected_goals_conceded)}` }) },
       { label: "DC / DC%Start", key: "defensive_contribution", rank: "defensive_contribution",
-        note: tx("Varnarframlag alls og per byrjaðan leik. Kom fyrst 2025/26."),
+        note: "Defensive contribution in total and per start. First appeared in 2025/26.",
         get: r => ({ num: r.defensive_contribution,
                      v: r.defensive_contribution == null ? "—"
                         : `${i0(r.defensive_contribution)} / ${f1(r.dc_per_start)}` }) },
@@ -193,16 +193,16 @@ export function SeasonTable({ p, seasonsFile, currentLabel, seasonStarted }) {
   return (
     <>
       <div style={S.secLbl}>
-        {tx("Tímabil")}
+        {"Season"}
         <span style={S.secNote}>
-          {anyOlder ? tx("sæti er röðun meðal allra sem spiluðu það tímabil")
-                    : tx("engin fyrri tímabil skráð á þennan leikmann")}
+          {anyOlder ? "the rank is among everyone who played that season"
+                    : "no earlier seasons on record for this player"}
         </span>
       </div>
 
       {!seasonStarted && (
         <div style={S.warn}>
-          <b>{currentLabel} {tx("er ekki hafið.")}</b> {tx("FPL birtir enn lokatölur fyrra tímabils í þessum reitum, svo þær eru")} <b>{tx("ekki")}</b> {tx("sýndar undir")} {currentLabel} {tx("— það væri tvítekning á")} {older[0] || tx("fyrra tímabili")} {tx("undir röngu ártali. Dálkurinn fyllist þegar GW1 er lokið.")}
+          <b>{currentLabel} {"has not started."}</b> {"FPL still shows last season's final numbers in these fields, so they are"} <b>{"not"}</b> {"shown under"} {currentLabel} {"— that would duplicate"} {older[0] || "last season"} {"under the wrong year. The column fills up once GW1 is finished."}
         </div>
       )}
 
@@ -249,8 +249,8 @@ export function SeasonTable({ p, seasonsFile, currentLabel, seasonStarted }) {
         </table>
       </div>
       <div style={S.legend}>
-        <b style={S.up}>{tx("Feitletrað grænt")}</b> {tx("= hærra en næsta tímabil á undan ·")}
-        <span style={S.down}> {tx("rautt")}</span> {tx("= lægra. Fyrir")} <i>GC / xGC</i> {tx("og")} <i>YC / RC</i> {tx("er þessu snúið við — lægra er betra. Sæti er meðal allra sem spiluðu það tímabil.")}
+        <b style={S.up}>{"Bold green"}</b> {"= higher than the season before ·"}
+        <span style={S.down}> {"red"}</span> {"= lower. For"} <i>GC / xGC</i> {"and"} <i>YC / RC</i> {"this is reversed — lower is better. The rank is among everyone who played that season."}
       </div>
     </>
   );
@@ -266,9 +266,9 @@ export function PriceEditor({ p, valueTenths, onSave, onClose }) {
   return (
     <div style={S.popWrap} onClick={onClose}>
       <div style={S.pop} onClick={e => e.stopPropagation()}>
-        <div style={S.popHead}>{tx("Innkaupsverð —")} {p.web_name}</div>
+        <div style={S.popHead}>{"Purchase price —"} {p.web_name}</div>
         <div style={S.popNote}>
-          {tx("Söluverð reiknast af þessu: kaupverð + 50% af hagnaði, niðurjafnað á næstu 0,1.")}
+          {"The sell price is derived from this: purchase price + 50% of the profit, rounded down to the nearest 0.1."}
         </div>
         <div style={S.popRow}>
           <span style={S.popPfx}>£</span>
@@ -277,13 +277,13 @@ export function PriceEditor({ p, valueTenths, onSave, onClose }) {
             onKeyDown={e => { if (e.key === "Enter" && valid) { onSave(parsed); onClose(); }
                               if (e.key === "Escape") onClose(); }} />
           <button style={{ ...S.popBtn, opacity: valid ? 1 : 0.4 }} disabled={!valid}
-            onClick={() => { onSave(parsed); onClose(); }}>{tx("Vista")}</button>
+            onClick={() => { onSave(parsed); onClose(); }}>{"Save"}</button>
         </div>
         <div style={S.popActions}>
           <button style={S.popLink} onClick={() => { onSave(null); onClose(); }}>
-            {tx("Hreinsa (nota núverandi verð)")}
+            {"Clear (use the current price)"}
           </button>
-          <button style={S.popLink} onClick={onClose}>{tx("Hætta við")}</button>
+          <button style={S.popLink} onClick={onClose}>{"Cancel"}</button>
         </div>
       </div>
     </div>

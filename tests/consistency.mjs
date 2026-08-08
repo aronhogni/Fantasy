@@ -42,11 +42,10 @@ console.log("─".repeat(84));
   for (const [s, players] of Object.entries(C.seasons)) {
     for (const [code, r] of Object.entries(players)) {
       rows++;
-      const pcts = [r.hit4_pct, r.hit6_pct, r.blank_pct];
+      const pcts = [r.hit4_pct, r.blank_pct];
       if (pcts.some(v => typeof v !== "number" || v < 0 || v > 1)) { bad = `${s}/${code} hlutfall utan [0,1]`; break; }
       if (typeof r.aron !== "number" || r.aron < -1 || r.aron > 1) { bad = `${s}/${code} aron=${r.aron}`; break; }
-      if (r.hit4 > r.games || r.hit6 > r.games || r.blank > r.games) { bad = `${s}/${code} hits > games`; break; }
-      if (r.hit6 > r.hit4) { bad = `${s}/${code} 6+ fleiri en 4+ (omogulegt)`; break; }
+      if (r.hit4 > r.games || r.blank > r.games) { bad = `${s}/${code} hits > games`; break; }
       if (!r.games || r.games < 1) { bad = `${s}/${code} games=${r.games}`; break; }
     }
     if (bad) break;

@@ -1619,6 +1619,175 @@ fyrstu hledslu appsins.
 
 ---
 
+## 6q. DALKAFLOKKARNIR ENDURSKIPULAGDIR (7.8.2026, ad beidni)
+
+**14 flokkar -> 7, 115 dalkar -> 102.** Notandinn bad um faerri og breidari
+flokka: verd/eignarhald og bonus/ICT i Grunn, xG/xA og vitin i Sokn,
+DC-hittni i Vorn, spjold i Fost leikatridi, og "ESPN, sidasta umferd"
+tekid ur heiti Ognar.
+
+**TVEIR FLOKKAR FELLDIR EFTIR ATHUGUN — spurt var "segir thetta okkur
+eitthvad?" og svarid var maelt, ekki agiskad:**
+- **Form-gluggi (8 dalkar):** FIMM theirra (min/xG/xA/haetta/skopun i
+  glugga) ma fa MED UMFERDAR-BILINU sem notandinn velur sjalfur — hrein
+  tvitekning. ThRIR eru hvergi annars stadar: `mo`, `ao` og
+  `byrjunar-likur` (maelda 6h-likanid). Their voru FLUTTIR (mo/ao -> Sokn,
+  byrjunar-likur -> Grunnur), hinir fimm fjarlaegdir.
+- **FPL-saeti innan stodu (8 dalkar):** syndu ROD FPL a somu tolum og eru
+  THEGAR i toflunni (stig/leik, form, ICT...). Taflan radar sjalf, svo
+  thetta var tvitekin upplysing i annarri framsetningu. Allir fjarlaegdir.
+
+**UMFERDAR-VALARINN:** forstillingarnar ("allt timabilid / 30-38 / 20-29 /
+fyrri hluti / seinni hluti") fjarlaegdar — kassa-valarinn gerir thad sama
+og meira, svo tvaer leidir ad somu stillingu voru bara havadi. "Allt
+timabilid" er eftir sem ein hreinsun. ALLIR 38 kassar bera nu tolu (adur
+adeins 1,5,10,...): minWidth 14 -> 19 px og letur 8,5 -> 9.
+
+**VILLA SEM VORDURINN FANN VID ENDURSKIPULAGNINGUNA:** hausinn er
+haegri-jafnadur og `nowrap` fra 6m, svo yfirflaedi hverfur **VINSTRA**
+megin — "Points ↓" birtist sem "oints ↓". Rodunar-orin (9 px) var ekki
+talin i breiddar-matinu. Hun er nu tekin fra A OLLUM dalkum (rodunin
+faerist milli theirra) og thakid faert 136 -> 142 px svo lengsta heitid
+("DC-hittni (leidr.)", 141 px) rumist. Vordurinn i `stats.test.mjs` var
+samstilltur vid EINNAR-LINU formuluna — hann var enn a gomlu
+tveggja-linu utgafunni og hefdi thagad.
+
+---
+
+---
+
+## 6r. DALKASKRAIN ENDURHONNUD — FFS-LAGID, STUTT HEITI, SMELLANLEG SIA (8.8.2026)
+
+Beidni notandans i einni ferd (med tveimur FFS-skjamyndum). Allt her er
+gert; thad sem var SPURT um en EKKI byggt er i lokin med astaedu.
+
+### `short` OG `band` — TVO NY SVID I `STAT_DEFS`
+`label` var latid gera tvo storf: vera lysandi i dalkavalaranum OG passa i
+46-142 px haus. Thad gengur ekki upp — "Clearances/blocks/int" er rett heiti
+og ONYTT haus-heiti. Nu:
+
+| svid | hvar birtist |
+|---|---|
+| `label` | dalkavalari, filter-chip, tooltip, stigatafla |
+| `short` | TOFLUHAUSINN (sjalfgefid = label) |
+| `band` | spannandi hausrod fyrir ofan dalkana |
+| `note` | **SKYLDA** — tooltip a hverjum dalki |
+
+**BANDID ER FORSENDA STYTTINGARINNAR, EKKI SKRAUT.** FFS birtir 100+ tolur i
+einni toflu og gerir thad laesilegt med tveimur threpum: `Goals | Tot In Out
+H M/G`. Undirheitin eru ORDLAUS ein ("/90", "Tot") en fullkomlega laes undir
+bandinu. Thess vegna gengur "Goals · /90" thar sem "Goals per 90" hefdi
+thurft 108 px. Skrunleidin i Grunni for **1.615 -> 1.208 px** (25%) THOTT
+dalkur hafi verid baettur vid.
+Vordur i `stats.test.mjs` kafla 13: haus-heiti <= 12 stafir, hver dalkur ber
+`note` (>= 12 stafir) og **hvert band er SAMFELLT** — band sem klofnar i tvo
+myndi setja hausinn ur samhengi vid tolurnar undir honum.
+
+### SMELLUR A TOLU = RITANLEG SIA (kjarninn i beidninni)
+> "ef ég smelli á ákveðið stat t.d. start prósentu 90%, þá poppar það upp sem
+> filter möguleiki sem ég get svo breytt og hann eltir ef ég skipti um flokk"
+
+- Smellur a **hvada tolu sem er** setur throskuld a hennar dalk. Reiturinn
+  faer FOKUS og textinn er VALINN, svo "85" kemur beint i stad "90".
+- **Attin er LEIDD UT UR `hi`**, ekki gefin: a Verdi og Min/framlag er
+  LAEGRA betra, svo smellur thar setur **ham**. Annars hefdi smellurinn siad
+  burt einmitt tha sem var smellt a.
+- **Talan er tekin EINS OG HUN BIRTIST** (`toFixed(dec)`), ekki hra:
+  notandinn smellti a "90%", ekki a 0,8967 — throskuldur sem siar ut
+  leikmanninn sem var smellt a er villa.
+- Chip-in eru **RITANLEG A SINUM STAD**: tala, atti (min/max) og eyding.
+  Heiti chipsins er hnappur sem OPNAR flokkinn sem dalkurinn er i.
+- **Sian lifir utan flokks**: `thresholds` er einn listi sem flokka-skipti
+  hreyfa ekki. Thrjar visbendingar svo hun se ekki thogul: eigin rammi
+  ("FILTERS n"), **▼ i haus** sídada dalksins, og **tala a flokkahnappnum**
+  ("Basics ①") thegar sian liggur i lokudum flokki.
+- **HALFSKRIFAD GILDI SIAR EKKI.** `5 >= ""` er TRUE i JS (tomur strengur
+  verdur 0), svo an vardar hefdi listinn hoppad i fulla lengd i hvert sinn
+  sem reiturinn var tæmdur i innslætti. `Number.isFinite(t.val)` fyrst.
+
+### FROSNI DALKURINN — VILLAN SEM NOTANDINN SA, MAELD OG LOKUD
+> "Þegar ég skrolla langt inn í stats gluggann fer texti undir nöfnin og
+> myndir af köllum."
+
+`cName` ber `background:"inherit"`. Thad VIRKAR i gagnarodunum (rodin sjalf
+setur lit) en i hausnum sat liturinn a sticky-UMGJORDINNI, svo haus-rodin
+var gagnsae og frosna "Player"-holfid erfdi **rgba(0,0,0,0)** — maelt i
+Chrome. Haus-heitin skrunudu thvi SYNILEGA undir nafnadalkinn
+("s/xGIPlayer xGI/£m"). Gagnarodirnar voru alltaf i lagi (zoom-maelt).
+Thrennt lagad, hvert um sig naudsynlegt:
+1. **Beinn bakgrunnur** a haus-holfid — aldrei `inherit` thar sem
+   for-elementid er gagnsaett.
+2. **`frozenShadow`** a kantinum thegar `scrollLeft > 2`: dyptar-visbending
+   um ad efnid heldur afram UNDIR holfinu. Hun var ALDREI til, og thad var
+   ástæða thess ad hálf-klippt haus-heiti las eins og bilun.
+3. **"Player" er VINSTRI-jafnad** (allir adrir hausar haegri). Adur sat thad
+   thett upp vid naesta haus sem klippist vinstra megin — tvo half ord i
+   beinni rod.
+Skuggarnir tveir a sama holfi (graena "mitt lid"-rondin, inset, og
+kant-skugginn) eru **lagdir saman i einn `boxShadow`**; `cellMine` var
+spread-ad EFTIR og hefdi thurrkad kantinn ut.
+
+### TVITEKNINGAR SEM VORU FJARLAEGDAR
+| var | nu |
+|---|---|
+| **Verd og Eign% TVISVAR** — fastir dalkar OG i "Grunni", svo "price við hliðina á Threat" | `PINNED` er nu NOTAD til ad sleppa theim ur flokka-dalkunum. Their halda skra-legum samastad (stigataflan radar eftir theim) |
+| **"Start prob" og "Starts" — SAMA TALAN** hlid vid hlid | Hardkodadi dalkurinn lengst til haegri var `startP` med RONGU heiti ("Starts"). Farinn; `start_prob` i Grunni ber litinn sem hann hafdi |
+| `bps_per_90`, `mins_per_million`, `bonus_per_million` | fjarlaegd ad beidni |
+| "fela toma"-hnappurinn | farinn — tomur dalkur segir "engin gogn", horfinn dalkur segir ekkert, og sjalfvirk felun faldi einu sinni RAUNVERULEGA VILLU (daudi `team_dc`, kafli 6l) |
+
+### START% — SPURNINGIN SEM VAR SPURD, OG SVARID ER I TOOLTIP-INU
+> "Hvaðan kemur start% ? Afhverju eru sumir með yfir 1.0 í start rate?"
+
+`starts_per_90` er OPINBER FPL-tala og hun er **EKKI hlutfall leikja sem
+hann byrjadi**. Hun er `startir / (minutur / 90)` — **byrjanir per 90
+MINUTUR A VELLI**. Maelt i `data/players.json`: **186 af 365** eru yfir 1,0,
+haest 2,37 (Jocelin.T: 1 byrjun, 38 minutur).
+
+| tala | hvad hun thydir |
+|---|---|
+| ~1,00 | byrjar og spilar allan leikinn — **thad er markmidid** |
+| > 1 | byrjar en er tekinn af snemma, EDA urtakid er ortitid |
+| < 1 | mikill hluti minutna hans kemur AF BEKKNUM (George: 1 byrjun, 351 min = 0,26) |
+
+Heitid var "Start rate" — sem las eins og hlutfall a [0,1] og var thvi
+**villandi heiti, ekki bara stutt**. Nu **"Starts/90"** og tooltip-id ber
+allar tolurnar hér fyrir ofan. Spurningin "byrjar hann NAESTA?" er onnur
+tala: `start_prob` (maelda 6h-likanid).
+
+### ANNAD SEM VAR GERT
+- **`pts_per_start`** ("Per start") baett vid: `points_per_game` deilir med
+  leikjum sem hann SPILADI, svo varamanns-innkoma dregur byrjunarlidsmann
+  nidur. Per start er thad sem hann gefur i leikjum sem hann byrjar.
+- **`influence_per_90`** baett vid svo /90-parid vanti ekki i Indexes.
+- **ICT, ahrif, skopun og ogn -> SOKN** (ur Grunni), band "Indexes", hver
+  med sitt /90 vid hlidina. Thau maela sokn; i Grunni sátu thau a milli
+  verds og eignarhalds.
+- **Allt /90 stendur nu VID SINA GRUNNTOLU.** Ástæða thess ad thau voru
+  langt fra henni var **SKRA-LEG**: `STAT_DEFS` var i TVEIMUR hlutum
+  (grunn-fylki + `STAT_DEFS.push(...)` 800 linum nidar), svo ICT var i einum
+  og ICT/90 i odrum. Nu er **EIN ROD** og birtingar-rodin ER skra-rodin.
+- **Vitin saman** i bandi "Penalties" (rod + klikkud); vorslud viti (PS) er
+  i "Goalkeeping" thvi thad er GK-tala.
+- **Styttingar**: Clean sheets -> CS, Penalty saves -> PS, TOTW,
+  CBI, GC/xGC, G−xG, GA−xGI o.s.frv. — **oll med skyringu i tooltip**.
+- **"available only" -> "fit to play"** med tooltip. Notandinn spurdi hvort
+  thad vaeri "bara their sem eg hef efni a": thad er FPL `status === "a"`
+  (heilbrigdur og leikheimill) og verd kemur thvi ekkert vid.
+- Dalkavalarinn leitar nu lika i `short` og `band` ("CBI" finnur
+  "Clearances/blocks/int") og birtir haus-heitid vid hlid fulla heitisins.
+
+### SPURT UM OG **EKKI** BYGGT — MED ASTAEDU
+- **BIG CHANCES (og "big chances created"):** thaer eru **ekki i toflunni og
+  geta ekki verid**. Thaer krefjast **xG PER SKOT** og ENGIN heimild sem vid
+  naum i gefur hana: ESPN gefur skot-hnit en enga xG, Understat er
+  gagnalaust, FBref og SofaScore skila 403 (kafli 6b/6e). FFS hefur thaer
+  ur Opta. **"Chances created"** i Ogn er thad naesta sem er RAUNVERULEGT:
+  hve oft hann lagdi upp SKOT, lesid ur ESPN-texta (76% skota nefna upplegg,
+  svo hun er GOLF, ekki nakvaem tala) — og note-id segir thad, svo hun verdi
+  ekki lesin sem big chances.
+- **`points_per_start` var EKKI til** fyrr en nu (svarid vid "erum við með
+  points per start í basic?" var NEI).
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)

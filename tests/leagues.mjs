@@ -141,10 +141,13 @@ ok("heildarstig birt", txt().includes("512") && txt().includes("498"));
 ok("umferðarstig birt", txt().includes("62") && txt().includes("55"));
 
 /* VERÐLAUN: 10.000 í 50/30/20 -> 5000/3000/2000, og AÐEINS 3 fá. */
+/* SNIDID ER en-GB (thusundagreinir = komma) fra 7.8.2026, thegar
+   tungumalalagid var tekid ut og `toLocaleString(getLang())` vard fast.
+   Bædi form eru leyfd her svo profid meli UPPHÆDINA, ekki greininn.  */
 ok("verðlaun reiknuð í töfluna (5000 / 3000 / 2000)",
-  ["5.000", "5000"].some(x => txt().includes(x)) &&
-  ["3.000", "3000"].some(x => txt().includes(x)) &&
-  ["2.000", "2000"].some(x => txt().includes(x)));
+  ["5,000", "5.000", "5000"].some(x => txt().includes(x)) &&
+  ["3,000", "3.000", "3000"].some(x => txt().includes(x)) &&
+  ["2,000", "2.000", "2000"].some(x => txt().includes(x)));
 {
   /* 4. saeti a ad fa "—", ekki 0 — thad er EKKI verdlaunasaeti.      */
   const rows = [...document.querySelectorAll("tr")];

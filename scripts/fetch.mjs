@@ -353,31 +353,28 @@ async function computeConsistency() {
     if (inv.pts == null || inv.mins == null) continue;
     const out = {};
     for (const [code, row] of Object.entries(d.players || {})) {
-      let games = 0, hit4 = 0, hit6 = 0, blank = 0, sum = 0;
+      let games = 0, hit4 = 0, blank = 0, sum = 0;
       for (const g of Object.values(row.gw || {})) {
         if ((g[inv.mins] ?? 0) <= 0) continue;          // ADEINS leiknir leikir
         const pts = g[inv.pts] ?? 0;
         games++; sum += pts;
         if (pts >= 4) hit4++;
-        if (pts >= 6) hit6++;
         if (pts <= 2) blank++;
       }
-      if (games > 0) out[code] = { pos: row.p, games, hit4, hit6, blank, sum };
+      if (games > 0) out[code] = { pos: row.p, games, hit4, blank, sum };
     }
     if (!Object.keys(out).length) continue;
     /* p0 per stodu ur SOMU gognum — afturvirkni fyrir litil syni. */
     const pool = {};
     for (const r of Object.values(out)) {
-      const q = pool[r.pos] || (pool[r.pos] = { h4: 0, h6: 0, bl: 0, g: 0 });
-      q.h4 += r.hit4; q.h6 += r.hit6; q.bl += r.blank; q.g += r.games;
+      const q = pool[r.pos] || (pool[r.pos] = { h4: 0, bl: 0, g: 0 });
+      q.h4 += r.hit4; q.bl += r.blank; q.g += r.games;
     }
     for (const r of Object.values(out)) {
       const q = pool[r.pos], ok = q && q.g >= 50;
-      const p4 = ok ? q.h4 / q.g : 0.28, p6 = ok ? q.h6 / q.g : 0.18,
-            pb = ok ? q.bl / q.g : 0.55;
+      const p4 = ok ? q.h4 / q.g : 0.28, pb = ok ? q.bl / q.g : 0.55;
       r.ppg      = +(r.sum / r.games).toFixed(2);
       r.hit4_pct = +((r.hit4 + K * p4) / (r.games + K)).toFixed(3);
-      r.hit6_pct = +((r.hit6 + K * p6) / (r.games + K)).toFixed(3);
       r.blank_pct= +((r.blank + K * pb) / (r.games + K)).toFixed(3);
       /* ARON-STUDULLINN: hittni MINUS klur — nakvaemlega hugmyndin
          ("4+ er gott, 1-2 er galli"). Bil: -1 .. +1.                  */
@@ -389,8 +386,8 @@ async function computeConsistency() {
   }
   await writeJSON("consistency.json", {
     updated: status.updated, seasons,
-    note: "ARON-STUDULL (jofnudur). hit4_pct/hit6_pct/blank_pct = hlutfall "
-        + "SPILADRA leikja med >=4 / >=6 / <=2 stig, AFTURVIRKJAD (K=10 ad "
+    note: "ARON-STUDULL (jofnudur). hit4_pct/blank_pct = hlutfall SPILADRA "
+        + "leikja med >=4 / <=2 stig, AFTURVIRKJAD (K=10 ad "
         + "stodu-medaltali). aron = hit4_pct - blank_pct. LYSING A FORTID, "
         + "EKKI SPA: maelt a 5 timabilum fylgir hit4 stigum/leik med r=0,90 "
         + "og eftir ad stjornad er fyrir stig OG VERD innan stodu er engin "

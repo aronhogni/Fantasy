@@ -97,13 +97,13 @@ ok("i-hnappur Mosquera finnst", !!mosBtn);
 await fire(mosBtn);
 
 let txt = document.body.textContent;
-ok("spjaldið opnaðist (Spá næstu sést)", txt.includes("Spá næstu"));
-ok("„DC-hittni“ birtist á DEF-spjaldi", txt.includes("DC-hittni"));
+ok("spjaldið opnaðist (Spá næstu sést)", txt.includes("Next GW forecast"));
+ok("„DC-hittni“ birtist á DEF-spjaldi", txt.includes("DC hit rate"));
 ok("AFTURVIRKJAÐA talan er birt (57%)", txt.includes("57%"),
   "— birting á hráu tölunni í staðinn er nákvæmlega villan sem prófið ver gegn");
-ok("n er sýnilegt við hlið tölunnar (12 byrjaðir)", /12 byrjaðir/.test(txt));
-ok("hráa talan sýnd sem undirtexti, merkt hrá (75%)", /hrá 75%/.test(txt));
-ok("hráa talan er EKKI aðaltalan", !/DC-hittni75%/.test(txt.replace(/\s+/g, "")));
+ok("n er sýnilegt við hlið tölunnar (12 byrjaðir)", /12 starts/.test(txt));
+ok("hráa talan sýnd sem undirtexti, merkt hrá (75%)", /raw 75%/.test(txt));
+ok("hráa talan er EKKI aðaltalan", !/DChitrate75%/.test(txt.replace(/\s+/g, "")));
 
 /* GK: spjaldið hefur gögn í mockinu en má samt ekki birta reitinn. */
 const gkBtn = infoBtnFor("Kinsky");
@@ -113,7 +113,7 @@ txt = document.body.textContent;
 /* FULLT nafn sést adeins i modal-hausnum; "Kinsky" (web_name) er lika a
    vellinum og segði ekkert um hvort spjaldid skipti um mann.            */
 ok("Kinsky-spjaldið opnaðist (fullt nafn í haus)", txt.includes("Antonín"));
-ok("GK fær ALDREI DC-hittni þótt gögnin séu til", !txt.includes("DC-hittni"),
+ok("GK fær ALDREI DC-hittni þótt gögnin séu til", !txt.includes("DC hit rate"),
   "— GK-talan væri ómæld tala sem liti út eins og mæling");
 
 console.log(`\nDC-HITTNI BIRTING: ${pass} stóðust, ${fail} féllu`);

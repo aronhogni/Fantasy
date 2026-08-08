@@ -362,7 +362,7 @@ export function tierOf(d) {
    nágranna-þrep séu sjónrænt aðgreind.                                 */
 export const TIER_BG   = ["#5cc78c", "#b3e8cc", "#ecedf1", "#f5c95f", "#f9b8bf", "#ec8b95"];
 export const TIER_FG   = ["#01301d", "#04613a", "#4c515c", "#5f3d00", "#93202b", "#6e0b14"];
-export const TIER_NAME = ["dökkgrænt", "grænt", "hlutlaust", "dökkgult", "ljósrautt", "rautt"];
+export const TIER_NAME = ["dark green", "green", "neutral", "dark yellow", "light red", "red"];
 /* HLUTLAUSA ÞREPIÐ — grátt, "hvorki gott né vont". Vísað til í prófum svo
    staðsetning þess sé skjöluð og megi ekki reka óviljandi.              */
 export const TIER_NEUTRAL = 2;

@@ -87,16 +87,16 @@ const fire = async el => {
 const btn = t => [...document.querySelectorAll("button")]
   .find(x => x.textContent.trim() === t || x.textContent.trim().startsWith(t));
 await fire(btn("👥"));
-const add = [...document.querySelectorAll("button")].filter(b=>(b.title||"").includes("Bæta í samanburð"));
+const add = [...document.querySelectorAll("button")].filter(b=>(b.title||"").includes("to the comparison"));
 ok(`samanburdar-hnappar i listanum (${add.length})`, add.length >= 2);
 await fire(add[0]); 
-const add2 = [...document.querySelectorAll("button")].filter(b=>(b.title||"").includes("Bæta í samanburð"));
+const add2 = [...document.querySelectorAll("button")].filter(b=>(b.title||"").includes("to the comparison"));
 await fire(add2[0]);
-const fab = [...document.querySelectorAll("button")].find(b=>b.textContent.includes("Samanburður ("));
+const fab = [...document.querySelectorAll("button")].find(b=>b.textContent.includes("Comparison ("));
 ok("samanburdar-hnappur birtist med tolu", !!fab);
 await fire(fab);
 
-const seg = [...document.querySelectorAll("button")].filter(b=>/Sjónrænt|Tafla/.test(b.textContent));
+const seg = [...document.querySelectorAll("button")].filter(b=>/▤ Visual|≡ Table/.test(b.textContent));
 ok("ham-rofi: sjonraent / tafla", seg.length === 2);
 ok("SJONRAENT er sjalfgefid thegar TVEIR eru valdir (thad var bedin)",
    seg[0]?.getAttribute("aria-pressed") === "true");

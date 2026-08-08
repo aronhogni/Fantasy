@@ -108,10 +108,10 @@ await act(async () => { root.render(React.createElement(App)); });
 await render(); await render();
 
 const text = () => container.textContent;
-ok(!text().includes("Sæki opinber FPL-gögn"), "hleðsluskjár horfinn");
-ok(!text().includes("Náði ekki í gögnin"), "engin gagna-villa");
+ok(!text().includes("Fetching official FPL data"), "hleðsluskjár horfinn");
+ok(!text().includes("Could not fetch"), "engin gagna-villa");
 ok(text().includes("FantasyApp"), "haus birtist (endurnefnt úr 'Fantasy plönun')");
-ok(text().includes("Banki"), "mælaborð birtist");
+ok(text().includes("Bank"), "mælaborð birtist");
 ok(container.querySelectorAll(".fpl-pitch").length === 1, "völlurinn teiknast");
 
 console.log("\n=== 2. LIÐIÐ Á VELLINUM ===");
@@ -123,8 +123,8 @@ ok(!/NaN/.test(text()), "engin NaN í viðmótinu");
 
 console.log("\n=== 2b. PENINGATÖLURNAR Á MÆLABORÐINU ===");
 // Fyrir tímabil, án skipta: banki + liðsverð Á að vera nákvæmlega £100.0
-ok(text().includes("alls £100.0"), "banki + liðsverð = £100.0 (fjárlögin ganga upp)");
-ok(/Banki/.test(text()) && !/£NaN|£undefined/.test(text()), "engin brotin peningatala");
+ok(text().includes("total £100.0"), "banki + liðsverð = £100.0 (fjárlögin ganga upp)");
+ok(/Bank/.test(text()) && !/£NaN|£undefined/.test(text()), "engin brotin peningatala");
 
 console.log("\n=== 3. UMFERÐASKIPTI Á TÍMALÍNU ===");
 const gwBtns = [...container.querySelectorAll("button")].filter(b => /^\d+$/.test(b.textContent.trim()));
@@ -135,11 +135,11 @@ await render();
 ok(text().includes("GW5"), "GW5 valin og birt");
 
 console.log("\n=== 4. SKIPTI: opna leit, velja mann, staðfesta reglur ===");
-const swapIcons = [...container.querySelectorAll("button")].filter(b => b.title?.startsWith("Skipta út"));
+const swapIcons = [...container.querySelectorAll("button")].filter(b => b.title?.startsWith("Transfer out"));
 ok(swapIcons.length === 15, "skipta-ikon á hverju spjaldi");
 await act(async () => { swapIcons[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-const searchInput = container.querySelector('input[placeholder="Leita — nafn eða lið"]');
+const searchInput = container.querySelector('input[placeholder="Search — name or team"]');
 ok(!!searchInput, "leitargluggi opnast");
 const results = [...container.querySelectorAll("button")].filter(b => b.querySelector("img, svg") && b.textContent.includes("£"));
 ok(results.length > 5, `leitarniðurstöður birtast (${results.length})`);
@@ -148,51 +148,57 @@ const legal = results.find(r => !r.title?.startsWith("Ólöglegt"));
 const before = text();
 await act(async () => { legal.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-ok(text().includes("Skiptaáætlun"), "skipti skráð í áætlun");
+ok(text().includes("Transfer plan"), "skipti skráð í áætlun");
 ok(text().includes("GW5:") || /GW5/.test(text()), "skiptin tengd GW5");
 
 console.log("\n=== 5. ENDURSTILLING UMFERÐAR (tveggja skrefa) ===");
-const resetBtn = [...container.querySelectorAll("button")].find(b => b.textContent.includes("endurstilla GW5"));
+const resetBtn = [...container.querySelectorAll("button")].find(b => b.textContent.includes("reset GW5"));
 ok(!!resetBtn, "endurstilla-hnappur birtist eftir plönun");
 await act(async () => { resetBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-const yesBtn = [...container.querySelectorAll("button")].find(b => b.textContent.trim() === "já");
+const yesBtn = [...container.querySelectorAll("button")].find(b => b.textContent.trim() === "yes");
 ok(!!yesBtn, "staðfestingar-skref birtist");
 await act(async () => { yesBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-ok(!text().includes("Skiptaáætlun"), "áætlun tóm eftir endurstillingu");
+ok(!text().includes("Transfer plan"), "áætlun tóm eftir endurstillingu");
 
 console.log("\n=== 6. LEIKMANNAYFIRLIT (detail) ===");
-const infoBtns = [...container.querySelectorAll("button")].filter(b => b.title === "Upplýsingar");
+const infoBtns = [...container.querySelectorAll("button")].filter(b => b.title === "Information");
 await act(async () => { infoBtns[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-ok(text().includes("Leikir"), "yfirlit opnast með leikjalista");
+ok(text().includes("Fixtures"), "yfirlit opnast með leikjalista");
 /* SPJALDID VAR ENDURHANNAD (28.7.). Profin her fylgja NYJU uppsetningunni:
    efsti hluti med sex adaltolum + timabila-tafla med saetum og trendi.
    Gomlu fyrirsagnirnar ("Núna", "Tímabilið …", "uppsafnað") eru farnar
    og tolurnar eru nu i toflu, ekki i dalkaneti.                          */
-for (const k of ["Verð", "Heildarstig", "Stig/leik", "Bónusstig", "Form", "Eignarhlutfall"])
+for (const k of ["Price", "Total points", "Pts/match", "Bonus points", "Form", "Ownership"])
   ok(text().includes(k), `efsti hluti: '${k}'`);
-ok(text().includes("Tímabil"), "tímabila-taflan birtist");
-ok(!text().includes("sl. tímabil"), "loðna merkingin 'sl. tímabil' horfin");
+ok(text().includes("Season"), "tímabila-taflan birtist");
+/* LODNA MERKINGIN ("sl. timabil" / "last season") ma ekki standa i
+   TIMABILA-HAUSNUM — dalkurinn a ad bera artal. Fra 7.8.2026 er profid
+   bundid vid HAUSANA og ekki lengur vid allan textann: enskan notar
+   sama ordalag i PROSU ("...price, FPL ep_next and last season"), sem
+   islenskan gerdi ekki, svo heildar-leitin fell a rettum texta.       */
+ok([...container.querySelectorAll("th")].every(el => el.textContent.trim() !== "last season"),
+   "lodna merkingin 'last season' er ekki dalkahaus");
 // RETT ARTAL a yfirstandandi timabili — cumLabel (2025/26) ma EKKI rata i hausinn
 ok(text().includes("2026/27"), "dálkur yfirstandandi tímabils ber rétt ártal (2026/27)");
 ok(text().includes("2025/26") && text().includes("2024/25"),
   "eldri tímabil fylgja með í töflunni");
 // FYRIR TIMABIL a yfirstandandi dalkur ad vera TOMUR, ekki tvitekning a i fyrra
-ok(text().includes("2026/27 er ekki hafið"),
+ok(text().includes("2026/27 has not started"),
   "tómur dálkur útskýrður — FPL-tölurnar eru enn fyrra tímabils");
 // radirnar sem beðið var um
-for (const k of ["Mínútur", "xGI", "YC / RC", "BP / BPS"])
+for (const k of ["Minutes", "xGI", "YC / RC", "BP / BPS"])
   ok(text().includes(k), `tímabila-röðin '${k}'`);
-ok(text().includes("Spá næstu"), "ep birtist áfram");
+ok(text().includes("Next GW forecast"), "ep birtist áfram");
 // MEIÐSLA-TEGUNDIN úr API-Sports: FPL segir 'a' -> varfærna óstaðfesta línan
-ok(text().includes("API-Sports skráir:") && text().includes("Knock"),
+ok(text().includes("API-Sports records:") && text().includes("Knock"),
   "meiðsla-tegund úr API-Sports birt varfærið þegar FPL flaggar ekki");
 // FERÐALENGDIN (var reiknuð daglega en birtist hvergi): ✈ + km á leikjaröðum
 ok(/✈\d+/.test(text()), "ferðalengd (✈ km) birtist á leikjaröðum yfirlitsins");
 const travelChip = [...container.querySelectorAll("span")].find(el => /✈\d+/.test(el.textContent) && el.title);
-ok(!!travelChip && /km \(loftlína\)/.test(travelChip.title), "ferða-tooltip útskýrir km og loftlínu");
+ok(!!travelChip && /km \(as the crow flies\)/.test(travelChip.title), "ferða-tooltip útskýrir km og loftlínu");
 ok(!text().includes("undefined"), "ekkert 'undefined' í yfirlitinu");
 // Yfirlitsglugginn er SÍÐASTA "✕"-ið í DOM (fjarlægja-hnappur andstæðings
 // í hliðarstikunni notar sama tákn og kemur á undan — fyrsta ✕-ið eyddi
@@ -202,7 +208,7 @@ await act(async () => { closeBtn.dispatchEvent(new dom.window.MouseEvent("click"
 await render();
 
 console.log("\n=== 6b. FERÐALENGD Í GW-LEIKJALISTANUM ===");
-const midWithTravel = [...container.querySelectorAll("button")].filter(b => b.title && b.title.includes("ferðast"));
+const midWithTravel = [...container.querySelectorAll("button")].filter(b => b.title && b.title.includes("travels"));
 ok(midWithTravel.length > 0, `GW-listinn ber ferðalengd í tooltip (${midWithTravel.length} leikir)`);
 ok(midWithTravel.every(b => /\d+ km/.test(b.title)), "km-talan í hverju ferða-tooltipi");
 
@@ -210,16 +216,16 @@ console.log("\n=== 7. FFDR-TAFLAN OG CHIPS ===");
 const ffdrBtn = [...container.querySelectorAll("button")].find(b => b.textContent.includes("FFDR"));
 await act(async () => { ffdrBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-ok(text().includes("FFDR — leikjaþyngd"), "FFDR-tafla opnast");
+ok(text().includes("FFDR — fixture difficulty"), "FFDR-tafla opnast");
 ok(container.querySelectorAll("table").length >= 1, "taflan teiknast");
 const chipsBtn = [...container.querySelectorAll("button")].find(b => b.textContent.includes("Chips"));
 await act(async () => { chipsBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-ok(text().includes("Fyrri hluti"), "chips-svæðið opnast með báðum hálfleikjum");
+ok(text().includes("First half"), "chips-svæðið opnast með báðum hálfleikjum");
 
 console.log("\n=== 8. TILLÖGUR OG SJÓNDEILDARHRINGUR (dcOpp-deps prófið) ===");
-ok(text().includes("Mælt með kaupum"), "tillögu-svæðið birtist");
-const rangeSel = [...container.querySelectorAll("select")].find(s => [...s.options].some(o => o.textContent === "næstu 8"));
+ok(text().includes("Recommended buys"), "tillögu-svæðið birtist");
+const rangeSel = [...container.querySelectorAll("select")].find(s => [...s.options].some(o => o.textContent === "next 8"));
 ok(!!rangeSel, "sjóndeildarhrings-val til staðar");
 const dcBefore = (text().match(/DC\s?\d+/g) || []).join(",");
 await act(async () => {
@@ -230,19 +236,19 @@ await render();
 ok(text().includes("GW5–12") || text().includes("GW5–"), "fyrirsögn fylgir nýjum sjóndeildarhring");
 
 console.log("\n=== 9. ANDSTÆÐINGAR (differentials) ===");
-ok(text().includes("Andstæðingar"), "andstæðinga-svæðið birtist");
-const rivalInput = [...container.querySelectorAll("input")].find(i => i.placeholder?.includes("liðsnúmer"));
+ok(text().includes("Rivals"), "andstæðinga-svæðið birtist");
+const rivalInput = [...container.querySelectorAll("input")].find(i => i.placeholder?.includes("team ID"));
 ok(!!rivalInput, "innsláttur fyrir liðsnúmer til staðar");
 // hnappurinn er tengdur: tómt inntak gefur leiðbeininguna
-const addBtn = [...container.querySelectorAll("button")].find(b => b.textContent === "Bæta við");
+const addBtn = [...container.querySelectorAll("button")].find(b => b.textContent === "Add");
 await act(async () => { addBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
-ok(text().includes("Slóð eða númer andstæðings"), "Bæta við-hnappurinn tengdur (villuboð á tómu)");
+ok(text().includes("Rival URL or team ID"), "Bæta við-hnappurinn tengdur (villuboð á tómu)");
 await render(); await render();
 ok(text().includes("Prófliðið"), "nafn andstæðings sótt og birt");
-ok(text().includes("13/15 sameiginlegir"), "sameiginlegir taldir rétt (13/15)");
-ok(text().includes("þeirra sérstaða"), "sérstaða þeirra birt");
-ok(text().includes("þín sérstaða"), "þín sérstaða birt");
-ok(text().includes("sami og þú"), "fyrirliða-samanburður (báðir með Haaland)");
+ok(text().includes("13/15 shared"), "sameiginlegir taldir rétt (13/15)");
+ok(text().includes("their differentials"), "sérstaða þeirra birt");
+ok(text().includes("your differentials"), "þín sérstaða birt");
+ok(text().includes("same as yours"), "fyrirliða-samanburður (báðir með Haaland)");
 
 console.log("\n=== 10. VISTUN (localStorage) ===");
 const saved = dom.window.localStorage.getItem("fpl_planner_v3");
@@ -257,23 +263,23 @@ const rotBtns = [...container.querySelectorAll("button")].filter(b => b.textCont
 ok(rotBtns.length >= 15, `↻-ikon á hverju spjaldi (${rotBtns.length} fundin)`);
 await act(async () => { rotBtns[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-ok(text().includes("FFDR-samanburður"), "FFDR-samanburður opnast við smell á ↻");
+ok(text().includes("FFDR comparison"), "FFDR-samanburður opnast við smell á ↻");
 /* NB: leit ad "div sem inniheldur róterings-par" skilar YTSTA div appsins
    (modalinn er teiknadur inni i honum), svo thead-th-talning naedi yfir
    ADRAR toflur lika. Vid festum okkur i SJALFA rotunar-tofluna.        */
 const rotTable = [...container.querySelectorAll("table")]
-  .find(t => t.textContent.includes("Þekja"));
+  .find(t => t.textContent.includes("Cover"));
 ok(!!rotTable, "spjaldið teiknar töflu");
 /* Modalinn sjalfur: h2 -> S.head -> S.panel. Stillingarnar (select,
    checkbox) eru i hausnum, UTAN toflunnar, svo tha ma ekki leita i henni. */
 const rotH2 = [...container.querySelectorAll("h2")]
-  .find(x => x.textContent.includes("FFDR-samanburður"));
+  .find(x => x.textContent.includes("FFDR comparison"));
 const rotPanel = rotH2?.parentElement?.parentElement || null;
 ok(!!rotPanel && rotPanel.contains(rotTable), "modal-spjaldid fannst og inniheldur tofluna");
 const rTxt = () => rotPanel ? rotPanel.textContent : "";
-ok(rTxt().includes("Þekja") && rTxt().includes("Vinn."),
+ok(rTxt().includes("Cover") && rTxt().includes("Gain"),
   "báðir mælikvarðar birtir: Þekja (FFDR) og Vinn. (ákvörðunin)");
-ok(/Verðþak £\d/.test(rTxt()) || rTxt().includes("Verðþak ekkert"),
+ok(/Price cap £\d/.test(rTxt()) || rTxt().includes("Price cap none"),
   "verðþakið er SÝNT, ekki falin sía");
 const horSel = rotPanel && [...rotPanel.querySelectorAll("select")]
   .find(sel => [...sel.options].some(o => o.textContent === "6"));
@@ -283,7 +289,7 @@ ok(!!mineBox, "„aðeins mitt lið“ er í boði (rótering af bekknum þarf e
 ok(!/undefined|NaN/.test(rTxt()), "ekkert undefined/NaN í róterings-spjaldinu");
 /* Grindin: fjöldi umferða-dálka á að fylgja valinu */
 const colsAt = () => {
-  const t = [...container.querySelectorAll("table")].find(x => x.textContent.includes("Þekja"));
+  const t = [...container.querySelectorAll("table")].find(x => x.textContent.includes("Cover"));
   return t ? t.querySelectorAll("thead th").length : 0;
 };
 const c6 = colsAt();

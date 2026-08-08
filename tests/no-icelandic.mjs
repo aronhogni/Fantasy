@@ -1,32 +1,35 @@
 /* ============================================================
-   TUNGUMAL — LESID AF SKJANUM, EKKI UR KODANUM
+   ENGIN ISLENSKA A SKJANUM — LESID AF DOM-INUM, EKKI UR KODANUM
 
-   AF HVERJU THETTA SAFN ER TIL (og af hverju kafli 5 i i18n.mjs naegir EKKI):
-   31.7. voru 14 islenskir strengir eftir i ENSKA vidmotinu a fjorum flipum
-   medan tests/i18n.mjs var GRAENT. Their fundust af MANNI sem skipti i EN i
-   Chrome og las skjainn. Tvennt er AST-profi ohaegt ad sja i eðli sínu:
+   Appid var tvityngt til 7.8.2026 og thetta safn bar tha IS-DOM saman vid
+   EN-DOM. Tungumalalagid er farid (`tx()`, ordabokin, IS/EN-hnappurinn);
+   vidmotid er enskt og BARA enskt. Spurningin sem eftir stendur er onnur
+   og einfaldari: KOMST ISLENSKA AD?
 
-     1. ISLENSKA AN BRODDSTAFA. `þðæö`-skynjun ser ekki "Yfirlit",
-        "laugardagur", "Utan teigs", "Grunnur", "lau". Their sluppu ALLIR og
-        fundust a skjanum. Kodinn getur ekki greint "Yfirlit" fra ensku ordi.
-     2. TEXTI SEM ER SETTUR INN I THYDDAN STRENG. Sniðmatið er thytt en
-        buturinn ekki: "travel 359 km (langferð)".
+   HUN GETUR THAD ENN, OG A THREMUR LEIDUM:
+     1. Nyr strengur skrifadur a islensku (repo-id er islenskt: hver
+        athugasemd, hvert commit, thetta profskjal).
+     2. ISLENSKA AN BRODDSTAFA — "Yfirlit", "laugardagur", "Grunnur",
+        "lau", "Utan teigs". Stafa-skynjun ser thaer EKKI. Their sluppu
+        allir 31.7. og fundust af MANNI sem las skjainn.
+     3. Islenskur butur sprautadur INN i enskan streng: "travel 359 km
+        (langferd)". Sniðmatid er enskt, buturinn ekki.
 
-   ThESSI PROF LESA DOM-INN A BADUM MALUM OG BERA THA SAMAN. Thad snyr
-   vandanum vid: i stad ad spyrja "er thetta islenskt?" (sem krefst
-   ordabokar) er spurt "BREYTTIST thad?" — strengur sem er ORDRETT EINS a
-   islensku og ensku er annadhvort viljandi eins (xG, BPS, Haaland, £4.5)
-   eda othyddur. Sa listi er stuttur og upptalinn her.
+   AF HVERJU DOM OG EKKI AST: profid les TEXTANN SEM BIRTIST. Kodalestur
+   getur hvorki greint "Yfirlit" fra ensku ordi ne sed hvad `record()`
+   skrifadi i status.json.
 
-   ThRIR VORDUR:
-     A. Enginn islenskur STAFUR i enska DOM-inum nema hann komi UR GOGNUNUM
-        (leikmannanofn, status.json-notur) — sannreynt gegn data/-skranum
-        sjalfum, svo listinn getur ekki stadnad.
-     B. Engin OFYLLT stika ({0}) og hvorki "undefined" ne "NaN".
-     C. Enginn lykill vantar i keyrslu (missingKeys) — thetta naer DYNAMISKU
-        lyklunum (tx(TIER_NAME[t]), tx(l)) sem statiska profid ser ekki.
-     D. Mismunur IS/EN: hver textabutur sem er EINS a badum malum er annad
-        hvort a IDENTICAL-listanum eda leki.
+   TVENNT LEYFT, OG BADT LEITT UT UR data/ SVO LISTINN GETI EKKI STADNAD:
+     · NOFN leikmanna og lida (Gudmundsson, Sævarsson).
+     · PIPELINE-NOTUR. `record(...)` i fetch.mjs skrifar islenska prosu i
+       status.json og last_gw.json og appid birtir hana HRATT. Ad thyda
+       thaer er endurhonnun a ~20 kallstodum i 3.000-linu skriftu sem
+       keyrir mannlaus — sja CLAUDE.md 7b. Thaer eru fjarlaegdar sem
+       UNDIRSTRENGIR (longstu fyrst), ekki sem ORD: ordalisti leyfdi
+       sprautada butinn "lið £ ferðalög · alls" ad sleppa, af thvi ad
+       "ferðalög" er lika i status.json. Mutations-prof M4b sannadi thad.
+
+   Keyrsla: loader-safn (sja run-tests.mjs).
    ============================================================ */
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { JSDOM } from "jsdom";
@@ -74,7 +77,7 @@ globalThis.fetch = async (url) => {
   return { ok: false, status: 404, json: async () => ({}) };
 };
 
-const { t: tx, setLang, getLang, missingKeys } = await import("../src/i18n.js");
+
 const App = (await import("../src/App.jsx")).default;
 
 const container = dom.window.document.getElementById("root");
@@ -121,7 +124,7 @@ async function walkEverything() {
   for (const b of headBtns()) { await click(b); chunks.push(harvest()); }
 
   /* leikmannaspjald — staersta texta-flotid */
-  const info = [...container.querySelectorAll("button")].filter(b => b.title === tx("Upplýsingar"));
+  const info = [...container.querySelectorAll("button")].filter(b => b.title === "Information");
   if (info[0]) { await click(info[0]); chunks.push(harvest()); }
   const closeX = [...container.querySelectorAll("button")].filter(b => (b.textContent || "").trim() === "✕");
   if (closeX.length) await click(closeX.at(-1));
@@ -131,7 +134,7 @@ async function walkEverything() {
      tilbuinn lykil (tx("FFDR-samanburður")) — hann er ekki i ordabokinni
      og profid skradi hann tha sjalft sem VANTANDI lykil i kafla C.    */
   const rot = [...container.querySelectorAll("button")]
-    .filter(b => (b.title || "").startsWith("FFDR-samanb") || (b.title || "").startsWith("FFDR compar"));
+    .filter(b => (b.title || "").startsWith("FFDR compar"));
   if (rot[0]) {
     await click(rot[0]); chunks.push(harvest());
     const x = [...container.querySelectorAll("button")].filter(b => (b.textContent || "").trim() === "✕");
@@ -162,8 +165,7 @@ async function walkEverything() {
   return chunks.join("\n");
 }
 
-async function renderIn(lang) {
-  setLang(lang);
+async function renderIn() {
   if (root) await act(async () => { root.unmount(); });
   container.innerHTML = "";
   root = createRoot(container);
@@ -173,11 +175,8 @@ async function renderIn(lang) {
 }
 
 console.log("\n=== RENDER ===");
-const isText = await renderIn("is");
-ok("appid teiknast a islensku", isText.length > 5000, `${isText.length} stafir`);
-missingKeys().length = 0;
 const enText = await renderIn("en");
-ok("appid teiknast a ensku", enText.length > 5000, `${enText.length} stafir`);
+ok("appid teiknast", enText.length > 5000, `${enText.length} stafir`);
 
 /* ---------- A. Islenskir stafir i enska DOM-inum ---------- */
 console.log("\n=== A. ISLENSKA I ENSKA VIDMOTINU ===");
@@ -232,14 +231,20 @@ for (const f of readdirSync(DATA).filter(n => n.endsWith(".json"))) {
   try { eatNames(JSON.parse(readFileSync(DATA + f, "utf8"))); } catch { /* ignore */ }
 }
 
-/* Tungumals-vixlarinn stendur VILJANDI a sinu eigin mali: "Íslenska"/
-   "English" og aria-label "Language / Tungumál" — sa sem lendir i rongu
-   tungumali verdur ad geta fundid leidina til baka.                    */
-const SWITCHER = new Set(["Íslenska", "Tungumál"]);
+/* Engar undantekningar lengur: IS/EN-vixlarinn var eina ordid sem matti
+   standa a islensku, og hann er farinn.                                */
+const SWITCHER = new Set();
 
-const residualOf = (line) => {
+/* NOTU-HREINSUNIN ER SAMEIGINLEG kafla A og C. Vaeri hun tvirituð gaeti
+   annar kaflinn leyft notu sem hinn fellir a — og tha vaeri sa kafli
+   slokktur innan viku af thvi ad hann "flokti".                       */
+const stripNotes = (line) => {
   let r = line;
   for (const n of notes) if (r.includes(n)) r = r.split(n).join(" ");
+  return r;
+};
+const residualOf = (line) => {
+  const r = stripNotes(line);
   return r.split(/[\s·—–|/()\[\]{}<>"'’“”:;,!?%+=]+/)
     .filter(tok => {
       const w = tok.replace(/^[^\p{L}]+|[^\p{L}%]+$/gu, "");
@@ -264,121 +269,49 @@ const slotLeft = enText.match(/\{\d+\}/g) || [];
 ok("engin ofyllt stika ({0}) a skjanum", slotLeft.length === 0, slotLeft.slice(0, 8).join(" "));
 for (const bad of ["undefined", "NaN", "[object Object]"]) {
   ok(`ekkert "${bad}" i enska DOM-inum`, !enText.includes(bad));
-  ok(`ekkert "${bad}" i islenska DOM-inum`, !isText.includes(bad));
+}
+/* ---------- C. ISLENSKA AN BRODDSTAFA ---------- */
+console.log("\n=== C. ASCII-ISLENSKA (blindi bletturinn) ===");
+/* KAFLI A GETUR THETTA EKKI, OG THAD ER EDLISLAEGT: hann leitar ad
+   stofum sem enskan a ekki (þðæö, broddar). "Yfirlit", "Grunnur",
+   "laugardagur" og "Utan teigs" hafa ENGA slika stafi — their sluppu
+   ALLIR 31.7.2026 og fundust af manni sem las skjainn.
+
+   MEDAN APPID VAR TVITYNGT var svarid IS/EN-SAMANBURDUR: strengur sem
+   var ordrett eins a badum malum var grunsamlegur. Sa samanburdur er
+   farinn med odru malinu, svo hann er ekki i bodi lengur.
+
+   THETTA ER ORDALISTI OG HANN GETUR STADNAD — thad er vidurkennt hér og
+   ekki falid. Hann er thvi ekki gitskadur heldur BYGGDUR A THVI SEM
+   RAUNVERULEGA LAK (CLAUDE.md 8b) auk algengra islenskra ordmynda sem
+   hafa ENGA enska merkingu. Ord med enskri merkingu ("lid", "min",
+   "man", "mid", "sun", "form", "mark") eru VILJANDI UTAN listans — their
+   myndu fella profid a rettum enskum texta og tha vaeri thad slokkt
+   innan viku.                                                          */
+const ASCII_IS = [
+  /* raunverulegir lekar 31.7.2026 */
+  "yfirlit", "grunnur", "hreinsa", "laugardagur", "utan", "teigs",
+  /* vikudagar og skammstafanir theirra (birtast a leikjarodum) */
+  "sunnudagur", "manudagur", "thridjudagur", "midvikudagur",
+  "fimmtudagur", "fostudagur", "mandagur",
+  /* ordmyndir sem koma fyrir i vidmotstexta appsins */
+  "umferd", "umferdin", "umferdir", "leikmenn", "leikmadur", "stigatafla",
+  "skipulag", "sokn", "midja", "vorn", "markv", "bekkur", "spjold",
+  "allir", "alls", "engin", "engir", "ekkert", "ekki", "sidustu",
+  "naestu", "thegar", "thetta", "thessi", "vantar", "bidur", "hafid",
+  "faerslur", "adeins", "samtals", "medaltal", "heildar", "vaentanleg",
+  "endurhlada", "stadfesta", "breyta", "loka", "opna", "veldu",
+];
+{
+  const seen = new Set();
+  for (const line of enText.split("\n"))
+    for (const tok of stripNotes(line).split(/[^\p{L}]+/u)) {
+      const w = tok.toLowerCase();
+      if (ASCII_IS.includes(w) && !dataTokens.has(w)) seen.add(`${w}  <-  ${line.slice(0, 60)}`);
+    }
+  ok(`engin ASCII-islenska a skjanum (${ASCII_IS.length} ordmyndir vaktadar)`,
+     seen.size === 0, [...seen].slice(0, 6).join("\n     "));
 }
 
-/* ---------- C. Vantandi lyklar i KEYRSLU ---------- */
-console.log("\n=== C. VANTANDI LYKLAR I KEYRSLU (dynamiskir) ===");
-const miss = missingKeys();
-ok("enginn lykill vantadi medan appid var teiknad a ensku", miss.length === 0,
-   miss.slice(0, 12).map(k => JSON.stringify(k)).join(" · "));
-
-/* ---------- D. Mismunur IS/EN ---------- */
-console.log("\n=== D. TEXTI SEM BREYTTIST EKKI ===");
-/* Viljandi EINS a badum malum. Hver flokkur med astaedu — thetta er
-   samningurinn sem CLAUDE.md kafli 8b lysir.                          */
-const IDENTICAL = new Set([
-  /* SLODA-HLUTAR. Daemid um FPL-slodina (.../entry/1234567/event/1) er
-     ordrett eins a badum malum — slod er slod. 4.8.2026.               */
-  "entry", "event", "premierleague", "fantasy", "com",
-  /* Einka-deildir 7.8.2026: tomu-stodu textinn synir SLODARBUTINN
-     ".../leagues/123456/standings/" svo notandinn finni numerid. Slod er
-     slod — hun a EKKI ad thydast.                                      */
-  "leagues", "standings",
-  /* stat-skammstafanir: ensk thegar, FPL-notendur thekkja thaer svona */
-  "xG", "xA", "xGI", "xGC", "BPS", "BP", "ICT", "DC", "CS", "GC", "YC", "RC",
-  "FDR", "FFDR", "EP", "ep", "GW", "PEN", "DefCon", "CBIT", "xG90", "xA90",
-  "Form", "form", "Saves", "Elo", "ClubElo", "FPL", "ESPN", "Understat",
-  "Opta", "Brier", "LOSO", "sd", "vs", "v", "of", "and", "not", "no",
-  /* chip-heiti */
-  "Wildcard", "Free", "Hit", "Bench", "Boost", "Triple", "Captain", "Chips",
-  "WC", "FH", "BB", "TC",
-  /* stodur og einingar */
-  "GK", "DEF", "MID", "FWD", "MV", "M", "S", "D", "F", "G", "Y", "R", "A",
-  "km", "min", "mins", "pts", "m", "h", "C", "V", "i", "k",
-  /* eigin heiti i vidmotinu */
-  "FantasyApp", "Fantasy", "IS", "EN", "Url", "URL", "json", "data",
-  "Players", "Player", "Overview", "Table", "Goals", "Assists", "Minutes",
-  "Starts", "Price", "Bonus", "Cards", "Shots", "Team", "Teams",
-  /* FPL-svid, slodir og vorumerki eru VITNAD i vidmotinu og eru eins a
-     badum malum — "Real data: transfers_in/out and cost_change_event".  */
-  "API-Sports", "Understat", "FotMob", "SofaScore", "FBref", "GitHub",
-  "Actions", "pipeline", "bootstrap", "fixtures", "events", "differentials",
-  "Netlify", "Chrome", "PWA", "CSV", "E0", "L1", "L2", "CL",
-  /* Ensk ord sem islenska vidmotid notar LIKA — thau eru eins af thvi ad
-     their eru eins, ekki af thvi ad thydingu vanti:
-       "out"       — vitnad FPL-svid: "transfers_in/out"
-       "hit-rate"  — "DefCon hit-rate" stendur svo a islensku lika
-       "chip"      — FPL-heiti, obeygt i islenska vidmotinu
-       "best"      — "best í" / "best in"
-       "entry"     — slodar-butur: /entry/{numer}/
-       "fantasy"   — "fyrir fantasy" / "for fantasy"
-       "Assist"    — is. heiti dalks; en. "Assist conversion"
-       "Start"     — "DC / DC%Start", samsett skammstofun a badum malum    */
-  "out", "hit-rate", "chip", "best", "entry", "fantasy", "Assist", "assist",
-  "Start",
-]);
-/* Kodaheiti (`chance_of_playing`), slodir (`fantasy.premierleague.com`) og
-   skraaheiti eru vitnud orðrétt i badum malum.                          */
-const isIdentifier = w => /[_.]/.test(w) || /^[a-z]+[A-Z]/.test(w);
-/* PIPELINE-NOTUR eru gogn, ekki vidmot: `record()` i fetch.mjs skrifar
-   islenska prosu i status.json (og last_gw.json.note) og appid birtir hana
-   HRATT a badum malum — thess vegna eru ord ur theim eins a badum malum an
-   ad thyding vanti. Sja CLAUDE.md kafla 8b. Leitt ut ur `notes` sem kafli A
-   byggdi, svo ein uppspretta se til fyrir badar profanir.                */
-const noteWords = new Set();
-for (const n of notes)
-  for (const tok of n.split(/[\s·—–|/()\[\]{}<>"'’“”:;,!?%+=]+/)) {
-    const w = tok.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
-    if (w.length > 1) noteWords.add(w.toLowerCase());
-  }
-
-/* Nofn og tolur eru ekki thyding — byggt UR GOGNUNUM. */
-const nameTokens = new Set();
-for (const f of ["players.json", "teams.json", "player_seasons.json",
-                 "last_gw.json", "last_gw_shots.json", "imminent.json"]) {
-  if (!existsSync(DATA + f)) continue;
-  const blob = readFileSync(DATA + f, "utf8");
-  for (const tok of blob.split(/[\s"'\\,{}\[\]:()]+/)) {
-    const w = tok.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
-    if (w.length > 1) nameTokens.add(w.toLowerCase());
-  }
-}
-const words = s => {
-  const out = new Set();
-  for (const tok of s.split(/[\s·—–|/()\[\]{}<>"'’“”:;,!?%+=≈↑↓★☆✕⇄↺▤≡⧫’]+/)) {
-    const w = tok.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
-    if (w.length > 2 && /\p{L}/u.test(w) && !/^\d/.test(w)) out.add(w);
-  }
-  return out;
-};
-const isW = words(isText), enW = words(enText);
-const unchanged = [...isW].filter(w =>
-  enW.has(w) && !IDENTICAL.has(w) && !nameTokens.has(w.toLowerCase()) &&
-  !dataTokens.has(w.toLowerCase()) && !noteWords.has(w.toLowerCase()) &&
-  !isIdentifier(w) && !SWITCHER.has(w) && w !== "English" && w !== "Language");
-ok(`ord sem eru eins a badum malum eru OLL vitud (${isW.size} is / ${enW.size} en)`,
-   unchanged.length === 0, unchanged.slice(0, 30).join(" · ")
-   + (unchanged.length > 30 ? `  (+${unchanged.length - 30})` : ""));
-
-/* ---------- E. Vixlarinn sjalfur ---------- */
-console.log("\n=== E. VIXLARINN ===");
-ok("IS/EN-hnapparnir eru i hausnum", (() => {
-  const b = [...container.querySelectorAll("button")].map(x => (x.textContent || "").trim());
-  return b.includes("IS") && b.includes("EN");
-})());
-const enBtn = [...container.querySelectorAll("button")].find(b => (b.textContent || "").trim() === "EN");
-ok("enski hnappurinn er MERKTUR valinn (aria-pressed)", enBtn?.getAttribute("aria-pressed") === "true");
-const isBtn = [...container.querySelectorAll("button")].find(b => (b.textContent || "").trim() === "IS");
-await click(isBtn);
-ok("smellur a IS skiptir raunverulega", getLang() === "is");
-/* Flipa-rodin er ALLTAF a skjanum; "Bekkur" er adeins a Skipulags-flipa
-   og gangan endar ekki thar, svo fyrri utgafa profsins fell a rongum stad. */
-ok("og DOM-inn fylgir (flipa-heiti a islensku)",
-   (container.textContent || "").includes("Skipulag") &&
-   !(container.textContent || "").includes("Planner"));
-ok("vistast i localStorage", dom.window.localStorage.getItem("fpl_lang") === "is");
-ok("<html lang> fylgir valinu", dom.window.document.documentElement.lang === "is");
-
-console.log(`\nTUNGUMAL-DOM: ${pass} stóðust, ${fail} féllu`);
+console.log(`\nENGIN ISLENSKA: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

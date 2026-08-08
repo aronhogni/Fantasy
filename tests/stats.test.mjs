@@ -120,26 +120,15 @@ eq(STAT_BY_KEY.dc_per_90.get({ defensive_contribution_per_90: 3.4 }), 3.4, "DC/9
 eq(STAT_BY_KEY.cs_per_90.get({ clean_sheets_per_90: 0.51 }), 0.51, "Hreint blað/90 úr FPL-sviði");
 eq(STAT_BY_KEY.starts_per_90.get({ starts_per_90: 1 }), 1, "Byrjunarhlutfall úr FPL-sviði");
 
-/* FPL-SAETI: `_rank_type` er innan STODU. Vordur: laegra verdur ad vera
-   betra (hi:false) og saetid verdur ad vera <= fjoldi i stodunni.        */
+/* FPL-SAETI-DALKARNIR VORU FJARLAEGDIR 7.8.2026 (beidni notanda: "hvad er
+   thetta ad segja okkur?"). Attta dalkar syndu ROD FPL a somu tolum og eru
+   thegar i toflunni (stig/leik, form, ICT...) — taflan radar sjalf, svo
+   thetta var tvitekin upplysing. Vordurinn er nu OFUGUR: enginn dalkur ma
+   lesa `_rank_type` an thess ad flokkur se til fyrir hann.              */
 {
-  const rankDefs = STAT_DEFS.filter(d => d.group === "rank");
-  ok(rankDefs.length >= 6, `${rankDefs.length} stöðu-sæti skilgreind`);
-  ok(rankDefs.every(d => d.hi === false), "öll sæti: lægra er betra");
-  const perPos = {};
-  for (const p of players) perPos[p.element_type] = (perPos[p.element_type] || 0) + 1;
-  const bust = [];
-  for (const d of rankDefs) {
-    for (const p of players) {
-      const v = d.get(p);
-      if (v != null && v > perPos[p.element_type]) { bust.push(`${d.key}: ${v} > ${perPos[p.element_type]}`); break; }
-    }
-  }
-  ok(bust.length === 0, `sæti aldrei hærra en fjöldi í stöðunni${bust.length ? " — " + bust[0] : ""}`);
-  // og STODU-saetid a ad vera <= heildar-saetid
-  const gk = players.filter(p => p.element_type === 1 && num(p.points_per_game_rank_type) != null);
-  ok(gk.every(p => num(p.points_per_game_rank_type) <= num(p.points_per_game_rank)),
-    "stöðu-sæti er aldrei hærra en heildar-sæti");
+  const rankCols = STAT_DEFS.filter(d => /_rank_type/.test(String(d.get)));
+  eq(rankCols.length, 0,
+    `engir FPL-saeti dalkar eftir${rankCols.length ? " — " + rankCols[0].key : ""}`);
 }
 
 // fmtStat
@@ -652,70 +641,83 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
   ok(STAT_DEFS.every(d => STAT_GROUPS.some(g => g.key === d.group)),
     "hver dálkur tilheyrir gildum flokki");
   ok(STAT_GROUPS.every(g => STAT_DEFS.some(d => d.group === g.key)), "enginn flokkur tómur");
-  ok(STAT_DEFS.every(d => d.label.length <= 22), "engin heiti of löng fyrir töfluhaus");
+  /* HAUSINN LES `short`, EKKI `label` (8.8.2026). Full heiti eru vísvitandi
+     LÝSANDI — þau fara í dálkavalarann, filter-chip og tooltip — og passa
+     þar af leiðandi ekki í 46-142 px haus. Prófið á að mæla ÞAÐ SEM ER BIRT.
+     `hLabel` hér er sama fall og í PlayerList.jsx.                        */
+  const hLabel = d => String(d.short ?? d.label);
+  ok(STAT_DEFS.every(d => hLabel(d).length <= 12),
+    `ekkert HAUS-heiti lengra en 12 stafir (lengst: "${
+      STAT_DEFS.map(hLabel).sort((a,b)=>b.length-a.length)[0]}")`);
+  ok(STAT_DEFS.every(d => d.label.length <= 32), "engin FULL heiti óhóflega löng");
 
-  /* HAUS-BROT: hvert heiti verdur ad passa i <=2 linur vid breiddina sem
-     wOf i PlayerList reiknar — a BADUM malum. Fannst 6.8.2026: 34 heiti
-     brotnudu i midju ordi ("Point/s") eda klipptust i thridju linu
-     ("Team of the week", "Clean sheet %†") thvi stafamatid var 5,9 px en
-     maeldist 6,32 (canvas.measureText, 700 10.5px ui-monospace) og hvorki
-     †-merkid ne bilstafurinn voru talin med. Formúlan her SPEGLAR wOf
-     (PXC 6,35 · marker 7 · cap 76->114 vikur fyrir ordi) og greedy-brot
-     med FULLRI bilbreidd (mono: bil = 6,32, ekki halft).                */
+  /* SKYRING A HVERJUM DALKI ER SKYLDA. Stytt haus-heiti ("CBI", "GA−xGI",
+     "/90") er RADGATA an tooltip-s, svo styttingin og skyringin eru ein og
+     sama akvordunin: annad ma ekki koma an hins.                          */
+  const noNote = STAT_DEFS.filter(d => !d.note || String(d.note).length < 12);
+  eq(noNote.length, 0,
+    `hver dálkur hefur skýringu í tooltip${noNote.length ? " — " + noNote[0].key : ""}`);
+
+  /* BANDS (spannandi hausrod, FFS-lagid) verda ad vera SAMFELLD innan
+     flokks: bands-rodin leggur saman breiddir samliggjandi dalka, svo
+     dalkur sem lendir utan sins hluta myndi kljufa bandið i tvo og
+     hausinn faeri UR SAMHENGI vid tolurnar undir honum.                  */
   {
-    const { EN } = await import("../src/i18n-en.js");
-    const PXC = 6.35, GLYPH = 6.32;
-    const twoLineInner = label => {
-      const words = label.split(" ");
-      if (words.length === 1) return label.length * PXC;
-      let best = Infinity;
-      for (let i = 0; i < words.length - 1; i++)
-        best = Math.min(best, Math.max(words.slice(0, i + 1).join(" ").length,
-                                       words.slice(i + 1).join(" ").length) * PXC);
-      return best;
-    };
+    const seen = new Set(); let prev = null; const split = [];
+    for (const d of STAT_DEFS) {
+      const k = `${d.group}|${d.band}`;
+      if (k !== prev) { if (seen.has(k)) split.push(k); seen.add(k); prev = k; }
+    }
+    eq(split.length, 0, `hvert band er samfellt${split.length ? " — " + split[0] : ""}`);
+    ok(STAT_DEFS.every(d => d.band), "hver dálkur á band");
+  }
+
+  /* HAUS-BROT — SPEGLAR wOf i PlayerList.jsx.
+     Fra 7.8.2026 er hausinn EIN LINA (`nowrap`) og haegri-jafnadur, svo
+     yfirflaedi hverfur VINSTRA megin: "Points ↓" birtist sem "oints ↓".
+     Breiddin verdur thvi ad rumu heitid AUK theirra merkja sem baetast
+     vid thad i hausnum:  †  afleidd tala (7 px)  ·  ↓ rodunar-or (9 px,
+     tekid fra a OLLUM dalkum thvi rodunin faerist milli theirra).
+     6,35 px/staf er MAELT (canvas.measureText, 700 10.5px ui-monospace).  */
+  {
+    const PXC = 6.35, GLYPH = 6.32, CAP = 142;
     const wOf = (label, derived) => {
-      const longest = Math.max(...label.split(/[ (-]+/).map(w => w.length)) * PXC;
-      const marker = derived ? 7 : 0;
-      const lab = Math.max(twoLineInner(label), longest) + marker + 12;
-      const cap = Math.max(76, Math.min(114, longest + marker + 13));
-      return Math.round(Math.max(46, Math.min(cap, lab)));
-    };
-    const linesAt = (label, derived, inner) => {
-      /* greedy ordabrot; ord sem passar hvergi brotnar i budum af inner */
-      const text = label + (derived ? "†" : "");
-      const words = text.split(" ");
-      let lines = 1, cur = 0;
-      for (const w of words) {
-        let ww = w.length * GLYPH;
-        const need = cur ? cur + GLYPH + ww : ww;
-        if (need <= inner) { cur = need; continue; }
-        if (ww <= inner) { lines++; cur = ww; continue; }
-        /* brotid inni i ordi (break-word) — fyllir linur af inner */
-        let rest = ww - (cur ? 0 : inner);
-        if (!cur) lines += Math.ceil(rest / inner) - 0; else { lines++; rest = ww; lines += Math.ceil(rest / inner) - 1; }
-        cur = ((ww - 1) % inner) + 1;
-      }
-      return lines;
+      const marker = (derived ? 7 : 0) + 9;
+      const lab = label.length * PXC + marker + 13;
+      const dec = 2, val = (4 + dec + 1) * 6.2 + 12;
+      return Math.round(Math.max(46, Math.min(CAP, Math.max(lab, val))));
     };
     const bad = [];
     for (const d of STAT_DEFS) {
-      const is = String(d.label);
-      for (const label of [is, EN[is] ?? is]) {
+      {
+        const label = hLabel(d);
         const w = wOf(label, !!d.derived);
-        const inner = w - 11;                     // 10 padding + 1 border
-        if (linesAt(label, !!d.derived, inner) > 2) bad.push(`${d.key}: "${label}" (${w}px)`);
+        const inner = w - 11;                       // 10 padding + 1 bord
+        const need = label.length * GLYPH + (d.derived ? 7 : 0) + 9;
+        if (need > inner + 0.5) bad.push(`${d.key}: "${label}" tharf ${Math.round(need)} px en fær ${inner}`);
       }
     }
-    eq(bad.length, 0, `hvert heiti passar i <=2 haus-linur a badum malum${bad.length ? " — " + bad[0] : ""}`);
+    eq(bad.length, 0,
+      `hvert heiti + merki passar i EINA linu a badum malum${bad.length ? " — " + bad[0] : ""}`);
   }
 
-  /* live_only ma ALDREI vera a arstidar-summu — thad myndi fela hana
-     ranglega. Adeins nutima-gogn (ESPN/gluggi/leikir/spyrnur) bera hana. */
-  const liveGroups = new Set(["threat", "window", "fixtures", "setp"]);
-  const badLive = STAT_DEFS.filter(d => d.live_only && !liveGroups.has(d.group)
-                                     && d.key !== "xg_share");
-  eq(badLive.length, 0, `live_only aðeins á nútíma-flokkum${badLive.length ? " — " + badLive[0].key : ""}`);
+
+  /* live_only MA ALDREI SITJA A ARSTIDAR-SUMMU — thad myndi fela hana
+     ranglega. ADUR var thetta prófad eftir FLOKKI, en 7.8.2026 voru
+     flokkarnir sameinadir (mo/ao/byrjunar-likur fluttust i Sokn og Grunn)
+     svo flokkur segir ekki lengur til um thetta. Nu er listinn BEINN:
+     hver live_only dalkur er talinn upp med nafni. Baetist nyr vid an
+     thess ad vera skradur her fellur profid — sem er tilgangurinn.     */
+  const LIVE_OK = new Set([
+    "espn_shots","espn_sot","espn_accuracy","espn_in_box","espn_woodwork",
+    "espn_created","espn_cross","espn_through",          // ESPN, sidasta umferd
+    "mo","ao","start_prob",                               // lifandi gluggi
+    "fdr6","home6","fix6","team_cs_prob","team_dc",       // leikir framundan
+    "pen_order","fk_order","ck_order",                    // spyrnu-rod dagsins
+    "xg_share",
+  ]);
+  const badLive = STAT_DEFS.filter(d => d.live_only && !LIVE_OK.has(d.key));
+  eq(badLive.length, 0, `hver live_only dálkur er skráður${badLive.length ? " — " + badLive[0].key : ""}`);
 
   // hvert get() ma ALDREI kasta, lika a audgudum reitum sem vantar
   let threw = null;
@@ -735,7 +737,9 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
               expected_goal_involvements: 6.0, _team_xg: 40 };
   near(STAT_BY_KEY.goals_per_90.get(f), 0.6, 1e-9, "Mörk/90 = 6/900×90");
   near(STAT_BY_KEY.conversion.get(f), 1.5, 1e-9, "Nýting mörk = 6/4,0");
-  near(STAT_BY_KEY.bonus_share.get(f), 20, 1e-9, "Bónus-hlutur = 12/60");
+  /* "Bonus-hlutur" var fjarlaegdur 7.8.2026: hann svaradi "hve sveiflu-
+     kennd eru stigin hans" sem JOFNUDUR (Aron) svarar nu beint og betur,
+     og hann radadi eins og Bon/100 BPS (maelt r=0,972).            */
   near(STAT_BY_KEY.bonus_per_bps.get(f), 3, 1e-9, "Bónus per 100 BPS = 12/(400/100)");
   near(STAT_BY_KEY.cards_per_90.get(f), 0.4, 1e-9, "Spjöld/90 = (3+1)/900×90");
   near(STAT_BY_KEY.xgi_per_million.get(f), 0.8, 1e-9, "xGI per m = 6,0/7,5");
