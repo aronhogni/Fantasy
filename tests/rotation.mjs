@@ -405,5 +405,65 @@ console.log("─".repeat(84));
     "vogin er symmetrisk: vinningur eykst thegar MINN madur spilar sjaldnar");
 }
 
+/* ================================================================
+   8. SUMARGLUGGINN — BYRJUNAR-GOLFID VAR OVIRKT FYRIR ALLA SEM SKIPTU
+
+   Notandinn sa thetta: Meslier var bodinn sem roterings-par hja Arsenal
+   thott hann sé varamarkmadur med `starts5: 0, mins5: 0`. Golfid
+   (MIN_START_PROB) AETTI ad sia hann burt og gerdi thad ekki.
+
+   ORSOKIN VAR EKKI I GOLFINU HELDUR I UPPFLETTINGUNNI. `imminent.json`
+   bar lid SIDASTA timabils (Meslier undir LEE) en appid flettir upp eftir
+   lidi leikmannsins I DAG (ARS). Uppflettingin misheppnadist, `P` vard
+   null — og null-reglan (`P=null utilokar ALDREI`, kafli 3d) hleypti
+   honum i gegn. Golfid VIRTIST virka; thad var einfaldlega aldrei spurt.
+   Maelt 8.8.2026: 38 leikmenn voru skradir a rangt lid.
+
+   NULL-REGLAN SJALF STENDUR — hun er rett fyrir menn sem eiga ENGIN gogn
+   (nyir i deildinni). Thad sem var rangt var ad bua til fals-null.
+   ================================================================ */
+console.log(`\n${"─".repeat(72)}\n8. SUMARGLUGGINN — lid i imminent.json verdur ad vera lid DAGSINS\n${"─".repeat(72)}`);
+{
+  const read = f => JSON.parse(readFileSync(new URL(`../data/${f}`, import.meta.url), "utf8"));
+  let imm = null, players = null, teams = null;
+  try { imm = read("imminent.json"); players = read("players.json").players; teams = read("teams.json").teams; }
+  catch { /* skrar mega vanta */ }
+
+  if (!imm || !players || !teams) {
+    ok(true, "gagnaskrar vantar — kafli sleppt");
+  } else {
+    const shortById = Object.fromEntries(teams.map(t => [t.id, t.short]));
+    const immByCode = new Map((imm.players || []).filter(r => r.code != null).map(r => [r.code, r]));
+    ok(immByCode.size > 300,
+       `imminent.json ber \`code\` a ${immByCode.size} rodum (an hans er engin orugg uppfletting)`);
+
+    const wrong = [];
+    for (const p of players) {
+      const r = immByCode.get(p.code);
+      if (!r) continue;                       // ekki i glugganum — annad mal
+      const cur = shortById[p.team];
+      if (cur && r.team !== cur) wrong.push(`${p.web_name}: ${r.team} != ${cur}`);
+    }
+    ok(wrong.length === 0,
+       `hver rod ber lid DAGSINS${wrong.length ? ` — ${wrong.length} rangar: ` + wrong.slice(0, 5).join(", ") : ""}`);
+
+    /* Og hid raunverulega tilfelli: varamadur med 0 minutur i glugganum
+       verdur ad fa MAELDA byrjunar-liku undir golfinu — ekki null.      */
+    /* AÐEINS their sem eru I DEILDINNI I DAG. Hinir (423 alls) eru menn
+       sem foru ur deildinni — their eiga engan mann i dag og thad er RETT
+       ad their finnist ekki. Ad telja tha med vaeri ad maela brottfor sem
+       villu.                                                            */
+    const curByCode = new Map(players.map(p => [p.code, p]));
+    const zero = (imm.players || []).filter(r =>
+      r.code != null && curByCode.has(r.code)
+      && r.start_feats && r.start_feats.mins5 === 0 && r.start_feats.starts5 === 0);
+    ok(zero.length > 0,
+       `menn i deildinni i dag med 0 minutur i glugganum: ${zero.length} (their eiga ad MAELAST lagir, ekki hverfa)`);
+    const found = zero.filter(r => shortById[curByCode.get(r.code).team] === r.team);
+    ok(found.length === zero.length,
+       `hver theirra er finnanlegur undir sinu lidi i dag — annars sleppur hann gegnum golfid (${found.length}/${zero.length})`);
+  }
+}
+
 console.log(`\nRÓTERINGS-PAR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

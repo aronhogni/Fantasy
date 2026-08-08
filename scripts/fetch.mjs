@@ -3217,6 +3217,55 @@ async function deriveImminent() {
       }
     }
     rows = Object.values(acc);
+
+    /* ---- SUMARGLUGGINN: SKJALASAFNID BER LID SIDASTA TIMABILS ----
+       Radirnar hér koma ur gw-skram fyrra timabils og bera thvi lidid sem
+       leikmadurinn spiladi med ThA. Appid flettir theim hins vegar upp
+       eftir lidi hans I DAG (`matchImminent`, skordad vid lid). Fyrir HVERN
+       sumarkaupa-leikmann misheppnast su uppfletting, `P` verdur null — og
+       null-reglan i rotation.js (`P=null utilokar ALDREI`) hleypir honum tha
+       gegnum byrjunar-golfid.
+
+       MAELT 8.8.2026: **103 af 572** finnast undir ODRU lidi en sinu eigin.
+       Notandinn sa thetta a Meslier: skradur undir LEE, spilar med ARS, og
+       bakvordur med `starts5: 0, mins5: 0` — sem golfid AETTI ad sia burt —
+       var bodinn sem roterings-par. Golfid VIRTIST virka; thad var bara
+       aldrei spurt.
+
+       LEYST NAKVAEMLEGA, EKKI MED NAFNA-PORUN: gw-skrain ber `element`
+       (timabils-bundid id) og `players_raw.csv` sama timabils parar thad
+       vid `code`, sem er FAST yfir timabil. Kodinn flettir svo beint upp i
+       leikmonnum dagsins. Engin nafna-skorun, engin arekstrahaetta.
+       Leikmadur sem er EKKI i deildinni i dag helst oleystur med
+       `code: null` og gamla lidinu — thad er rett, hann a engan i dag.    */
+    try {
+      const { text: raw } = await getText(`${MIRROR}/${ARCHIVE_SEASON}/players_raw.csv`);
+      const codeByElement = new Map();
+      for (const r of parseCSVQuoted(raw))
+        if (r.id && r.code) codeByElement.set(String(r.id), +r.code);
+
+      let cur = [], curTeams = [];
+      try { cur = (await jread("players.json")).players || []; } catch {}
+      try { curTeams = (await jread("teams.json")).teams || []; } catch {}
+      const byCode = new Map(cur.map(p => [p.code, p]));
+      const shortById = Object.fromEntries(curTeams.map(t => [t.id, t.short]));
+
+      let moved = 0, resolved = 0;
+      for (const [element, r] of Object.entries(acc)) {
+        const code = codeByElement.get(String(element));
+        if (code == null) continue;
+        r.code = code;
+        const p = byCode.get(code);
+        if (!p) continue;                       // farinn ur deildinni — rett ad sleppa
+        resolved++;
+        const short = shortById[p.team];
+        if (short && short !== r.team) { r.team = short; moved++; }
+      }
+      console.log(`  imminent: ${resolved} radir leystar a code, ${moved} faerdar a lid dagsins`);
+    } catch (e) {
+      /* Mistakist thetta er skrain EINS OG ADUR — verri, en ekki brotin. */
+      console.warn(`  imminent: gat ekki leyst code/lid (${e.message}) — radir bera lid fyrra timabils`);
+    }
   }
 
   const num_ = v => { const x = parseFloat(v); return Number.isFinite(x) ? x : 0; };

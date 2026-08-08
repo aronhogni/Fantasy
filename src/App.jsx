@@ -514,6 +514,21 @@ export default function App() {
      hledslu. Sótt i fyrsta sinn sem leikmannaspjald er opnad, svo einu
      sinni fyrir alla lotuna (sama mynstur og player_gw_*.json, 6j).    */
   const [shotFile, setShotFile] = useState(null);      // null | "loading" | gogn | "err"
+  /* Skrain geymir EINA rod per skot (ekki afrit per leikmann og lid), svo
+     sýnirnar eru siadar ut ur henni. Visarnir eru byggdir EINU SINNI —
+     annars vaeri 9.544-rada sia keyrd i hverri teiknun.                */
+  const shotIndex = useMemo(() => {
+    if (!shotFile || typeof shotFile !== "object" || !Array.isArray(shotFile.shots)) return null;
+    const F = shotFile.legend?.fields || [];
+    const iCode = F.indexOf("code"), iTeam = F.indexOf("team"), iOpp = F.indexOf("opp");
+    const byCode = new Map(), byTeam = new Map(), byOpp = new Map();
+    const put = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+    for (const s of shotFile.shots) {
+      put(byCode, s[iCode], s); put(byTeam, s[iTeam], s); put(byOpp, s[iOpp], s);
+    }
+    const teams = shotFile.legend?.teams || [];
+    return { byCode, byTeam, byOpp, teams, calib: shotFile.calib };
+  }, [shotFile]);
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
   const [lineups, setLineups] = useState(null);         // STADFEST byrjunarlid
   const [pipeStatusFast, setPipeStatusFast] = useState(null);
@@ -576,6 +591,19 @@ export default function App() {
   const [gwStats, setGwStats] = useState(null); // per-leikmanns tölur valdrar umferðar
   const [liveTick, setLiveTick] = useState(0);
   const [view, setView] = useState("planner");   // "planner" | "gw" | "board"
+
+  /* LETIHLEDSLAN kviknar thegar skotakorts sé raunverulega thorf — spjald
+     opnad eda Teams-flipinn valinn — EKKI vid raesingu. 338 KB eiga ekkert
+     erindi i fyrstu hledslu (sama regla og player_gw_*.json, 6j).      */
+  const wantShots = detail?.kind === "player" || view === "teams";
+  useEffect(() => {
+    if (!wantShots || shotFile != null) return;
+    setShotFile("loading");
+    fetch(`${RAW}/bsd_shots.json`)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(setShotFile)
+      .catch(() => setShotFile("err"));
+  }, [wantShots, shotFile]);
   const [lastGw, setLastGw] = useState(null);     // data/last_gw.json — sidasta lokna umferd
   const [lastGwShots, setLastGwShots] = useState(null); // data/last_gw_shots.json — ESPN-skot
   const [seasonsFile, setSeasonsFile] = useState(null); // data/player_seasons.json — fyrri timabil (lyklad a code)
@@ -1943,7 +1971,7 @@ export default function App() {
       )}
       {view === "teams" && (
         <Teams teams={teams} teamForm={teamForm} luck={luck} teamShots={teamShots}
-          bsdTeams={bsdTeams} />
+          bsdTeams={bsdTeams} shotIndex={shotIndex} />
       )}
       {view === "sp" && (
         <SetPieces players={players} teams={teams} teamById={teamById} Crest={Crest}
@@ -2699,12 +2727,6 @@ export default function App() {
       {/* ---------- Yfirlit: leikmaður eða lið ---------- */}
       {detail && (() => {
         const isPlayer = detail.kind === "player";
-        /* Kveikjum a letihledslunni thegar spjald opnast — EKKI vid raesingu. */
-        if (isPlayer && shotFile == null) {
-          setShotFile("loading");
-          fetch(`${RAW}/bsd_shots.json`).then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
-            .then(setShotFile).catch(() => setShotFile("err"));
-        }
         const p = isPlayer ? byId[detail.id] : null;
         const t = isPlayer ? teamById[p?.team] : teamById[detail.id];
         if (!t) return null;
@@ -2807,8 +2829,7 @@ export default function App() {
                       Birtist EKKI ef leikmadurinn skaut ekki: tomur vollur
                       segir "engin gogn" en litur ut eins og "skaut aldrei". */}
                   {(() => {
-                    const sm = (shotFile && typeof shotFile === "object")
-                      ? shotFile.players?.[String(p.code)] : null;
+                    const sm = shotIndex?.byCode.get(p.code) || null;
                     if (!sm?.length) return null;
                     return (
                       <>
@@ -2816,7 +2837,7 @@ export default function App() {
                           Shot map <span style={{ fontWeight: 400, opacity: 0.65 }}>
                             2025/26 · bubble size = xG</span>
                         </div>
-                        <ShotMap shots={sm} calib={shotFile.calib} label={p.web_name} />
+                        <ShotMap shots={sm} calib={shotIndex.calib} label={p.web_name} />
                       </>
                     );
                   })()}
@@ -3821,15 +3842,6 @@ const S = {
   main: { display:"grid", gridTemplateColumns:"minmax(0,1fr) 320px", gap:14, alignItems:"start" },
   // völlur + leikir hlið við hlið; völlurinn MINNI en áður
   searchBtnOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
-  /* Tungumals-vixlarinn: same haed sem hnapparnir vid hlidina (36 px) svo
-     hausinn haldi einni linu. Fastri breidd a hvern hnapp (34 px) er haldid
-     svo "IS"/"EN" hoppi ekki til nar valid breytist.                     */
-  langWrap: { display:"flex", border:`1px solid ${C.borderStrong}`, borderRadius:8,
-              overflow:"hidden", background:C.card, flexShrink:0 },
-  langBtn: { width:34, padding:"8px 0", border:"none", background:"transparent",
-             fontSize:11.5, fontWeight:600, letterSpacing:0.3, color:C.text2,
-             cursor:"pointer", lineHeight:1.2 },
-  langOn: { background:C.purple, color:"#fff" },
   ffdrPos: { display:"flex", gap:3 },
   ffdrPosBtn: { fontFamily:mono, fontSize:9, fontWeight:700, letterSpacing:0.3, cursor:"pointer",
     padding:"3px 7px", background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`, borderRadius:6 },

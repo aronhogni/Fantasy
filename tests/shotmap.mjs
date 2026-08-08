@@ -37,27 +37,39 @@ if (!F) {
   console.log(`\nSKOTAKORT: ${pass} stodust, ${fail} féllu`);
   process.exit(0);
 }
-const rows = Object.entries(F.players || {});
-const all = rows.flatMap(([, a]) => a);
+/* EIN ROD PER SKOT (endurskipulagt 8.8.): synirnar eru SIADAR ur einni
+   flatri rod i stad thess ad geyma somu skotin thrisvar.               */
+const IDX = Object.fromEntries((F.legend?.fields || []).map((f, i) => [f, i]));
+const all = F.shots || [];
+const byCode = new Map();
+for (const s of all) {
+  const c = s[IDX.code];
+  if (c == null) continue;
+  (byCode.get(c) || byCode.set(c, []).get(c)).push(s);
+}
+const rows = [...byCode.entries()];
 
 /* ---------- 1. SKRAIN ---------- */
 H("1. SKRAIN");
 ok(F.source === "bsd_shotmap", `heimild merkt (${F.source})`);
 ok(F.season === "2025/26", `timabil merkt (${F.season})`);
 ok(rows.length > 200, `leikmenn med skot: ${rows.length}`);
+ok(Array.isArray(F.legend?.teams) && F.legend.teams.length === 20,
+   `lidin i legend: ${F.legend?.teams?.length}`);
 ok(all.length > 5000, `skot alls: ${all.length}`);
 ok(Array.isArray(F.legend?.type) && Array.isArray(F.legend?.fields),
    "legend fylgir svo skrain se lesanleg an thess ad thekkja kodann");
 ok(rows.every(([k]) => /^\d+$/.test(k)),
    "lyklad a FPL `code` (fast yfir timabil, olikt `id`)");
-ok(all.every(s => Array.isArray(s) && s.length === 6), "hver rod hefur 6 svid");
+ok(all.every(s => Array.isArray(s) && s.length === (F.legend?.fields || []).length),
+   `hver rod hefur ${(F.legend?.fields||[]).length} svid`);
 
 /* ---------- 2. AKKERI 1: xG FELLUR MED FJARLAEGD ---------- */
 H("2. xG FELLUR EINRAENT MED FJARLAEGD (sterkasta hnita-profid)");
 {
   const bands = [[0, 6], [6, 12], [12, 17], [17, 25], [25, 40]];
   const means = bands.map(([lo, hi]) => {
-    const g = all.filter(s => s[0] >= lo && s[0] < hi && s[2] != null).map(s => s[2]);
+    const g = all.filter(s => s[IDX.x] >= lo && s[IDX.x] < hi && s[IDX.xg] != null).map(s => s[IDX.xg]);
     return g.length ? g.reduce((a, b) => a + b, 0) / g.length : null;
   });
   means.forEach((m, i) => {
@@ -75,15 +87,15 @@ H("2. xG FELLUR EINRAENT MED FJARLAEGD (sterkasta hnita-profid)");
 H("3. VITASPYRNUR — fastur punktur ur raunheimi");
 {
   const iPen = F.legend.sit.indexOf("penalty");
-  const pens = all.filter(s => s[5] === iPen);
+  const pens = all.filter(s => s[IDX.sit] === iPen);
   ok(pens.length > 50, `vitaspyrnur i skranni: ${pens.length}`);
-  const ys = [...new Set(pens.map(s => s[1]))];
+  const ys = [...new Set(pens.map(s => s[IDX.y]))];
   ok(ys.length === 1 && ys[0] === 50,
      `allar vitaspyrnur liggja a y = 50,00 nakvaemlega (${ys.join(", ")})`);
-  const mx = pens.reduce((a, s) => a + s[0], 0) / pens.length;
+  const mx = pens.reduce((a, s) => a + s[IDX.x], 0) / pens.length;
   ok(Math.abs(mx - F.calib.pen_spot_x) < 0.5,
      `medal-x vitaspyrna (${mx.toFixed(2)}) passar vid teiknada vitapunktinn (${F.calib.pen_spot_x})`);
-  const mxg = pens.filter(s => s[2] != null).reduce((a, s) => a + s[2], 0) / pens.length;
+  const mxg = pens.filter(s => s[IDX.xg] != null).reduce((a, s) => a + s[IDX.xg], 0) / pens.length;
   ok(mxg > 0.7 && mxg < 0.85,
      `medal-xG vitaspyrnu er ${mxg.toFixed(3)} — thekkta vitahlutfallid, sjalfstaed stadfesting a xG-likaninu`);
 }
@@ -91,14 +103,52 @@ H("3. VITASPYRNUR — fastur punktur ur raunheimi");
 /* ---------- 4. AKKERI 3: TEIGURINN ---------- */
 H("4. TEIGURINN");
 {
-  const inbox = all.filter(s => s[0] <= F.calib.box_x);
+  const inbox = all.filter(s => s[IDX.x] <= F.calib.box_x);
   const [lo, hi] = F.calib.box_y;
-  const inside = inbox.filter(s => s[1] >= lo && s[1] <= hi).length;
+  const inside = inbox.filter(s => s[IDX.y] >= lo && s[IDX.y] <= hi).length;
   const share = inside / inbox.length;
   ok(share > 0.98,
      `${(100 * share).toFixed(1)}% teigsskota falla innan teiknadrar teigsbreiddar`);
-  ok(all.every(s => s[1] >= 0 && s[1] <= 100), "y er alltaf innan vallarbreiddar 0-100");
-  ok(all.every(s => s[0] >= 0), "x er aldrei neikvaett (marklinan er 0)");
+  ok(all.every(s => s[IDX.y] >= 0 && s[IDX.y] <= 100), "y er alltaf innan vallarbreiddar 0-100");
+  ok(all.every(s => s[IDX.x] >= 0), "x er aldrei neikvaett (marklinan er 0)");
+}
+
+/* ---------- 4b. LIDS-KORTIN ---------- */
+H("4b. LIDS-KORTIN (fyrir og A SIG)");
+{
+  const teams = F.legend.teams || [];
+  const byTeam = new Map(), byOpp = new Map();
+  for (const s of all) {
+    const t = s[IDX.team], o = s[IDX.opp];
+    if (t != null) byTeam.set(t, (byTeam.get(t) || 0) + 1);
+    if (o != null) byOpp.set(o, (byOpp.get(o) || 0) + 1);
+  }
+  /* 17 af 20 — Coventry, Hull og Ipswich komu UPP og spiludu ekki 2025/26.
+     Ad krefjast 20 vaeri ad krefjast gagna sem eiga ekki ad vera til.    */
+  ok(byTeam.size === 17 && byOpp.size === 17,
+     `17 lid eiga skot bada vegu (hin 3 komu upp og spiludu ekki 2025/26): ${byTeam.size}/${byOpp.size}`);
+  ok([...byTeam.values()].every(n => n > 200),
+     "hvert lid a raunverulegan skotafjolda (>200 a timabili)");
+  /* HVERT SKOT ER BAEDI "fyrir" og "a sig" — nema thegar annad lidid er
+     fallid ur deildinni og hefur thvi engan vísi. Summan getur thvi verid
+     mismunandi, EN hvorug ma vera staerri en heildin.                    */
+  const sumFor = [...byTeam.values()].reduce((a, b) => a + b, 0);
+  const sumAg = [...byOpp.values()].reduce((a, b) => a + b, 0);
+  ok(sumFor <= all.length && sumAg <= all.length,
+     `hvorug hlidin fer yfir heildarskot (${sumFor} og ${sumAg} af ${all.length})`);
+  /* ANDLITSPROF: lid a ad SKJOTA naer markinu en thad faer a sig? Nei —
+     thad er symmetriskt. En medal-xG a sig verdur ad vera a SOMU stardgrad
+     og fyrir; annars er "fyrir/a sig" vixlad.                            */
+  const mean = (m, idx) => {
+    const g = all.filter(s => s[idx] === m && s[IDX.xg] != null).map(s => s[IDX.xg]);
+    return g.reduce((a, b) => a + b, 0) / g.length;
+  };
+  const ti = teams.indexOf("ARS");
+  if (ti >= 0) {
+    const f = mean(ti, IDX.team), a = mean(ti, IDX.opp);
+    ok(f > 0.03 && f < 0.25 && a > 0.03 && a < 0.25,
+       `ARS medal-xG: skotid ${f.toFixed(3)} · a sig ${a.toFixed(3)} — badar a truverdugu bili`);
+  }
 }
 
 /* ---------- 5. BIRTINGIN ---------- */
@@ -113,7 +163,7 @@ H("5. BIRTINGIN (jsdom)");
   ok(circles === shots.length + 1,
      `hvert skot er teiknad: ${circles - 1} hringir + vitapunktur (skot: ${shots.length})`);
   const iGoal = F.legend.type.indexOf("goal");
-  const goals = shots.filter(s => s[3] === iGoal).length;
+  const goals = shots.filter(s => s[IDX.type] === iGoal).length;
   ok(new RegExp(`${goals} goals`).test(html), `mork talin rett i aria-label (${goals})`);
   ok(/aria-label="Shot map/.test(html), "svg ber aria-label (skjalesari)");
   /* TOMT MA ALDREI TEIKNA TOMAN VOLL: "engin gogn" og "skaut aldrei" eru

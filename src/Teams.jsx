@@ -11,6 +11,7 @@
    rodun eftir theim vaeri rodun a lidum i dulargervi.
    ============================================================ */
 import React, { useMemo, useState, useEffect } from "react";
+import ShotMap from "./ShotMap.jsx";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY } from "./teamstats.js";
 
 /* Engin sameiginleg thema-eining er til i thessu repo-i — hver eining ber
@@ -24,8 +25,10 @@ const C = {
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams }) {
+export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shotIndex }) {
   const [group, setGroup] = useState("keeper");
+  /* Valid lid fyrir skotakortin. null = ekkert valid.               */
+  const [pick, setPick] = useState(null);
   const [sort, setSort] = useState({ key: "sot_against_pg", dir: "asc" });
 
   const rows = useMemo(
@@ -166,7 +169,10 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams }) {
               <tbody>
                 {sorted.map(r => (
                   <tr key={r.id}>
-                    <td style={S.tdName}>
+                    <td style={{ ...S.tdName, ...(shotIndex ? { cursor: "pointer" } : null),
+                                 ...(pick === r.short ? { boxShadow: "inset 3px 0 0 #7b2d8e" } : null) }}
+                        onClick={shotIndex ? () => setPick(pick === r.short ? null : r.short) : undefined}
+                        title={shotIndex ? "Show this team's shot maps" : undefined}>
                       <span style={S.short}>{r.short}</span>
                       <span style={S.name}>{r.name || ""}</span>
                     </td>
@@ -183,6 +189,44 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams }) {
               </tbody>
             </table>
           </div>
+
+          {/* SKOTAKORT LIDSINS — BADAR HLIDAR.
+              Taflan segir HVE MORG skot lidid faer; kortid segir HVADAN.
+              "A sig"-kortid er thad sem raedur markvardar-/varnarvali og er
+              thvi fyrst: 12 langskot og 9 teigsskot eru sami dalkur i
+              toflunni en gerolikt mal a vellinum — nakvaemlega thad sem
+              skyringin efst i thessum flipa heldur fram.                */}
+          {shotIndex && pick && (() => {
+            const ti = shotIndex.teams.indexOf(pick);
+            if (ti < 0) return null;
+            const against = shotIndex.byOpp.get(ti) || [];
+            const forr = shotIndex.byTeam.get(ti) || [];
+            if (!against.length && !forr.length) return null;
+            const row = sorted.find(r => r.short === pick);
+            return (
+              <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #e6e6ea" }}>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                  {row?.name || pick}{" — shot maps "}
+                  <span style={{ fontWeight: 400, opacity: 0.65, fontSize: 12 }}>
+                    {"2025/26 · bubble size = xG · goal at top"}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "#6a6a72", marginBottom: 10 }}>
+                  {"Faced is the keeper-and-defence question; taken is the attack. "}
+                  {"Only 2025/26 has a shot map, so a promoted side has none — and none means no data."}
+                </div>
+                <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{"Shots faced"}</div>
+                    <ShotMap shots={against} calib={shotIndex.calib} width={300} label={`${pick} faced`} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{"Shots taken"}</div>
+                    <ShotMap shots={forr} calib={shotIndex.calib} width={300} label={`${pick} taken`} />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {promoted.length > 0 && (
             <p style={S.note}>

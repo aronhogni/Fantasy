@@ -1,39 +1,18 @@
-/* Keyrari: öll prófasöfnin, samandregin niðurstaða.
-   1. model.test.mjs      — einingapróf á hverri birtri tölu
-   1b.stats.test.mjs      — flipana "Umferðin" og "Stigatafla": stat-skráin,
-                            stigatöflan, ESPN-skotin (hnitakerfi + woodwork),
-                            nafna-pörun og vörður á að mörk stemmi við úrslit
-   2. ffdr-backtest.mjs   — FFDR gegn raunverulegum úrslitum 2025/26 (litirnir)
-   3. ffdr-walkforward.mjs— FFDR gegn 14 tímabilum með FULLUM inntökum
-                            (markaðslína + Elo) og gegn sínum eigin inntökum
-   3b.ffdr-player-points.mjs — FFDR gegn RAUNVERULEGUM STIGUM leikmanna
-                            (56.278 leikmanna-umferðir); einnig vörður á að
-                            spjöld noti ALGILT þrep og að form sé utan FFDR
-   4. travel-measure.mjs  — vörður: ferðalengd utan FFDR meðan ómarktæk
-   4a.mo-candidates.mjs   — mo-studullinn gegn frambodendum a 4 timabilum;
-                            bootstrap-vordur ad xGI-abatinn se merkjanlegur
-   4b.watchlist.mjs       — vaktlisti: stjörnumerking vistast í localStorage,
-                            hausstjarnan síar, grænn borði er á FROSNA hólfinu
-                            (röðin skrunar) og grænt/fjólublátt eru aðgreind
-   4c.compare-visual.mjs  — sjonraeni samanburdurinn: er GRAENA sulan a
-                            rettum manni thegar LAEGRA er betra (verd, GC,
-                            spjold)? Villandi mynd er verri en engin mynd
-   4d.i18n.mjs            — enska thyðingin: hver tx()-lykill hefur þýðingu,
-                            stikur tapast ekki, `lang` er i dep-listum og
-                            EKKERT islenskt vidmotsbrot er utan tx()
-   4f.name-match.mjs      — NAFNA-PORUNIN: skorid bert vid vidmids-utfaerslu a
-                            9.464 raunverulegum porum OG tilbunum jadartilfellum
-                            (tvitekin tokn), plus tima-thak. Hun var hagraedd
-                            60,1 -> 4,7 ms; profid fellur ef thad er afturkallad
-   4g.error-boundary.mjs  — VILLUVORN: hviti skjarinn. Profar UTGONGUNA (hreinsa
-                            vistad astand) og ad `fpl_lang` haldi ser — sa sem
-                            hrundi a ensku ma ekki kastast i islensku ofan a thad
-   4e.i18n-dom.mjs        — TUNGUMAL LESID AF SKJANUM: appid teiknad a BADUM
-                            malum i jsdom og DOM-arnir bornir saman. Naer thad
-                            sem AST-profid getur ekki sed — ASCII-islensku
-                            ("fellur") og islenskan but sprautadan INN i
-                            thyddan streng. Sex stokkbreytingar profadar.
-   5. smoke.test.mjs      — appið keyrt í jsdom með alvöru gögnum      */
+/* Keyrari: oll profasofnin, samandregin nidurstada.  `npm test`
+   Safn merkt `true` i SUITES tharf jsx-loaderinn (jsdom-profin).
+
+   HER ER ENGIN UPPTALNING A SOFNUNUM. Hausinn bar adur handskrifada
+   skra yfir ~15 af theim (numerud 1, 1b, 2, 3, 3b, 4, 4a...) og hun
+   STADNADI: hun taldi upp `i18n.mjs` og `i18n-dom.mjs` longu eftir ad
+   thau voru EYDD (7.8.2026), sagdi walk-forward na yfir 14 timabil
+   thegar thau eru 8, og sagdi `error-boundary` verja ad `fpl_lang`
+   HALDI SER — sem er akkurat OFUGT vid thad sem hun ver i dag.
+   Thad er sama villan og hardkodada talan nedst i thessari skra (sja
+   athugasemd vid `SUITES.length`): tvitekin skra sem enginn uppfaerir
+   verdur ad RONGUM leidarvisi, sem er verri en enginn.
+
+   `SUITES` her ad nedan ER skrain. Hvert safn ber sina eigin lysingu i
+   sinum haus, og CLAUDE.md kafli 5 lysir theim sem BERA AKVARDANIR.  */
 import { spawnSync } from "node:child_process";
 const here = new URL(".", import.meta.url).pathname;
 let failed = 0;

@@ -144,7 +144,9 @@ const SHOT_TYPE = ["goal", "save", "miss", "block", "post"];
 const SHOT_BODY = ["right-foot", "left-foot", "head", "other"];
 const SHOT_SIT  = ["assisted", "regular", "corner", "fast-break", "set-piece",
                    "throw-in-set-piece", "free-kick", "penalty"];
-const shotsBy = {};   // bsd player_id -> [[x, y, xg, type, body, sit], ...]
+const shotsBy = {};      // bsd player_id -> [[x, y, xg, type, body, sit], ...]
+const teamFor = {};      // bsd team_id -> skot LIDSINS
+const teamAgainst = {};  // bsd team_id -> skot A LIDID
 
 let done = 0, noShot = 0;
 const missed = [];
@@ -174,6 +176,7 @@ const ingest = (e) => {
   if (!got) return;
   const { ps, st } = got;
   for (const r of (ps?.player_stats || [])) addPlayerRow(P(r.player_id), r);
+  const homeTid = e.home_team_id ?? null, awayTid = e.away_team_id ?? null;
   const sm = st?.shotmap || [];
   if (!sm.length) noShot++;
   for (const sh of sm) {
@@ -185,11 +188,21 @@ const ingest = (e) => {
        player_gw_*.json (6j).                                            */
     const x = sh.pos?.x, y = sh.pos?.y;
     if (typeof x !== "number" || typeof y !== "number") continue;
-    (shotsBy[sh.player_id] ||= []).push([
+    const row = [
       +x.toFixed(1), +y.toFixed(1),
       typeof sh.xg === "number" ? +sh.xg.toFixed(3) : null,
       SHOT_TYPE.indexOf(sh.type), SHOT_BODY.indexOf(sh.body), SHOT_SIT.indexOf(sh.sit),
-    ]);
+    ];
+    (shotsBy[sh.player_id] ||= []).push(row);
+    /* LIDS-KORTIN. `home` segir HVOR skaut, svo hvert skot er BAEDI
+       "fyrir" hja odru lidinu og "a sig" hja hinu. A-SIG-KORTID er thad
+       sem skiptir FPL mali: lid sem faer 12 skot ad utan er allt annar
+       markvardar-kostur en lid sem faer 9 ur teignum — sama rok og
+       Teams-flipinn ber sjalfur.                                       */
+    const shooter = sh.home ? homeTid : awayTid;
+    const conceder = sh.home ? awayTid : homeTid;
+    if (shooter != null) (teamFor[shooter] ||= []).push(row);
+    if (conceder != null) (teamAgainst[conceder] ||= []).push(row);
   }
 };
 await pool(finished, 6, grab);
@@ -323,27 +336,53 @@ console.log(`leikmenn ${players.length} · parad vid FPL ${matched} · oparad ${
      pen_spot 11,5 = MEDALTAL 92 vitaspyrna (y = 50,00 hja OLLUM)
      box_x    17   = fittad gegn lids-svidinu `shots_inside_box`, MAE 0,133
      box_y    20,4-79,6 = 99,5% teigsskota falla thar innan             */
+/* EIN ROD PER SKOT, EKKI ThRJAR. Fyrsta utgafan geymdi hvert skot
+   thrisvar — undir leikmanni, undir "fyrir" hja lidinu og undir "a sig"
+   hja motherjanum — og skrain for i 543 KB fyrir 9.544 skot. Somu gogn
+   thrivegis er ekki bara staerd heldur hætta: their gaetu rekid i sundur.
+   Nu er EIN flot rod og sýnirnar eru SIADAR ur henni i appinu.        */
+const teamIdx = [...new Set(Object.values(BSD_TEAM))].sort();
+const ti = short => { const i = teamIdx.indexOf(short); return i < 0 ? null : i; };
+const codeOf = new Map();
+for (const [bid] of agg) { const fp = pairBsd.get(bid); if (fp) codeOf.set(bid, fp.code); }
+
+const flat = [];
+for (const e of [...finished].sort((x, y) => x.id - y.id)) {
+  const got = fetched.get(e.id);
+  for (const sh of (got?.st?.shotmap || [])) {
+    const x = sh.pos?.x, y = sh.pos?.y;
+    if (typeof x !== "number" || typeof y !== "number") continue;
+    const shooter = sh.home ? e.home_team_id : e.away_team_id;
+    const conceder = sh.home ? e.away_team_id : e.home_team_id;
+    flat.push([
+      +x.toFixed(1), +y.toFixed(1),
+      typeof sh.xg === "number" ? +sh.xg.toFixed(3) : null,
+      SHOT_TYPE.indexOf(sh.type), SHOT_BODY.indexOf(sh.body), SHOT_SIT.indexOf(sh.sit),
+      ti(BSD_TEAM[shooter]), ti(BSD_TEAM[conceder]),
+      codeOf.get(sh.player_id) ?? null,
+    ]);
+  }
+}
 const shotPayload = {
   updated: payload.updated, season: payload.season, source: "bsd_shotmap",
-  legend: { type: SHOT_TYPE, body: SHOT_BODY, sit: SHOT_SIT,
-            fields: ["x", "y", "xg", "type", "body", "sit"] },
+  legend: {
+    type: SHOT_TYPE, body: SHOT_BODY, sit: SHOT_SIT, teams: teamIdx,
+    fields: ["x", "y", "xg", "type", "body", "sit", "team", "opp", "code"],
+  },
   calib: { goal_line: 0, six_yard_x: 5.5, pen_spot_x: 11.5, box_x: IN_BOX_X,
            box_y: [20.4, 79.6], six_yard_y: [36.5, 63.5], big_chance_xg: BIG_CHANCE_XG },
-  note: "Hnit ur BSD-skotakorti. x = fjarlaegd fra markinu sem sott er ad, "
-      + "hlutfall af FULLUM velli (105 m) — ANNAR kvardi en ESPN (halfur "
-      + "vollur). y = breidd 0-100, midja 50. Kvordunin i `calib` er MAELD "
-      + "ur thessum gognum: vitaspyrnur liggja a x 11,5 og y 50,00 nakvaemlega. "
-      + "2025/26 eingongu — engin eldri timabil hafa skotakort.",
-  players: {},
+  note: "EIN rod per skot. Leikmannakort = sia a `code`; lidskort FYRIR = sia a "
+      + "`team`; lidskort A SIG = sia a `opp`. x = fjarlaegd fra markinu sem sott "
+      + "er ad, hlutfall af FULLUM velli (105 m) — ANNAR kvardi en ESPN (halfur "
+      + "vollur). y = breidd 0-100, midja 50. Kvordunin i `calib` er MAELD ur "
+      + "thessum gognum: vitaspyrnur liggja a x 11,5 og y 50,00 nakvaemlega. "
+      + "`team`/`opp` eru null fyrir lid sem eru ekki i urvalsdeild 2026/27 "
+      + "(fallin lid) og `code` er null fyrir oparada skyttu — ALDREI 0. "
+      + "2025/26 eingongu; engin eldri timabil hafa skotakort.",
+  shots: flat,
 };
-let shotRows = 0;
-for (const [bid, o] of agg) {
-  const fp = pairBsd.get(bid);
-  const arr = shotsBy[bid];
-  if (!fp || !arr?.length) continue;
-  shotPayload.players[String(fp.code)] = arr;
-  shotRows += arr.length;
-}
+const shotRows = flat.length;
+const nPlayers = new Set(flat.map(r => r[8]).filter(v => v != null)).size;
 const dest2 = new URL("../data/bsd_shots.json", import.meta.url).pathname;
 writeFileSync(dest2, JSON.stringify(shotPayload));
-console.log(`skrifad ${dest2} — ${Object.keys(shotPayload.players).length} leikmenn, ${shotRows} skot`);
+console.log(`skrifad ${dest2} — ${shotRows} skot, ${nPlayers} leikmenn, ${teamIdx.length} lid`);
