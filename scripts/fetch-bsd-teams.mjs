@@ -22,10 +22,25 @@
    leid — nytt timabil, nytt xG-likan hja BSD — sest thad STRAX i
    mismuninum i stad thess ad okkar tala reki thogult.
 
-   ThEKJAN ER EITT TIMABIL. BSD hefur skotakort i ollum 380 leikjum
-   2025/26 og ENGIN i eldri timabilum (maelt, CLAUDE.md 6t). Thessi
-   skra ma thvi ALDREI faeda bakprof — thau krefjast 8-15 timabila —
-   og dalkarnir sem lesa hana eru tomir i ollum odrum timabilum.
+   ThEKJAN ER EITT TIMABIL — ENDURMAELT 8.8.2026 A FLEIRI SYNUM.
+   BSD skrair 35 timabil af ensku urvalsdeildinni, en skotakortid nær
+   adeins yfir 2025/26 (season_id 337). Maelt med ATTA leikjum DREIFDUM
+   yfir hvert timabil (ekki thremur fyrstu, sem hefdu getad verid
+   byrjunar-skekkja):
+
+     2024/25   skotakort 0/8   lids-big_chances 0/8
+     2023/24   skotakort 0/8   lids-big_chances 0/8
+     2021/22   skotakort 0/8   lids-big_chances 0/8
+     2017/18   skotakort 0/8   lids-big_chances 0/8
+
+   ThAD ER EKKI ADEINS SKOTAKORTID SEM VANTAR heldur LIKA lids-svidid
+   `big_chances`, svo eldri timabil eru ekki nytileg her eftir neinni
+   leid. Skran ma thvi ALDREI faeda bakprof — thau krefjast 8-15
+   timabila — og dalkarnir sem lesa hana eru tomir i odrum timabilum.
+
+   SKRAN ER SAMT LYKLUD A TIMABIL. 2026/27 (season_id 1058) er i BSD med
+   200 leiki, alla `notstarted`. Thegar hun fer af stad slaest hun inn
+   vid hlidina a 2025/26 an thess ad thurrka hana ut — sja ad nedan.
 
    Keyrsla:  BSD_KEY=... node scripts/fetch-bsd-teams.mjs
              BSD_KEY=... node scripts/fetch-bsd-teams.mjs 337
@@ -240,6 +255,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     }
   }
 
+  /* TOM KEYRSLA MA ALDREI ThURRKA UT GOD GOGN.
+     2026/27 er i BSD med 200 leiki og ENGAN lokinn. An thessa vardar
+     hefdi `node fetch-bsd-teams.mjs 1058` skrifad skra med NULL lidum
+     ofan a heilt 2025/26 — og hun hefdi litid ut eins og maeling
+     ("engin big chances"), sem er nakvaemlega gildran sem kafli 3 og 6n
+     fordast. Keyrslan deyr thvi fremur en ad skrifa tomt timabil.      */
+  if (!matches.length) {
+    console.error(`Timabil ${SEASON}: ENGINN leikur med skotakorti. `
+      + `SKRIFA EKKERT — tom skra ofan a god gogn er verri en engin keyrsla.`);
+    console.error(`(BSD hefur skotakort adeins fyrir 2025/26, season_id 337 — maelt 8.8.2026.)`);
+    process.exit(2);
+  }
+
   const agg = aggregateTeamShots(matches);
 
   /* PORUN VID FPL — sama regla og annars stadar: opörud lid fa null,
@@ -263,9 +291,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ? +(pairs.reduce((a, t) => a + Math.abs(t.bc_pg - t.bc_reported_pg), 0) / pairs.length).toFixed(3)
     : null;
 
+  /* NAFN TIMABILSINS ER SOTT, EKKI HARDKODAD: "2025/26" var fast i
+     skranni og hefdi login um leid og annad timabil vaeri sott.        */
+  let seasonName = String(SEASON);
+  try {
+    const ls = await get(`/leagues/${LEAGUE}/seasons/`);
+    const hit = (ls.seasons || []).find(x => String(x.id) === String(SEASON));
+    if (hit?.year) seasonName = `${hit.year}/${String((hit.year + 1) % 100).padStart(2, "0")}`;
+  } catch { /* nafnid ma vanta — id-id dugar */ }
+
   const payload = {
     updated: new Date().toISOString(),
-    source: "bsd_shotmap", league_id: LEAGUE, season_id: SEASON, season: "2025/26",
+    source: "bsd_shotmap", league_id: LEAGUE, season_id: SEASON, season: seasonName,
     matches: matches.length,
     big_chance_xg: BIG_CHANCE_XG, in_box_x: IN_BOX_X,
     derived_vs_reported_mae: mae,
@@ -280,8 +317,20 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     unmatched_to_fpl: agg.teams.filter(t => t.fpl_id == null).map(t => t.short || t.team_id),
     teams: agg.teams,
   };
+  /* SAMEINAD, EKKI YFIRSKRIFAD. Onnur timabil sem hafa verid sott
+     halda ser; adeins thad sem var keyrt nuna er endurskrifad. Efsta
+     lagid speglar NYJASTA timabilid sem hefur gogn, svo vidmot sem les
+     skrana beint (og profin) haldast obreytt.                          */
   const dest = new URL("../data/bsd_teams.json", import.meta.url).pathname;
-  writeFileSync(dest, JSON.stringify(payload, null, 1));
+  let bySeason = {};
+  try {
+    const old = JSON.parse(readFileSync(dest, "utf8"));
+    bySeason = old.seasons || (old.season ? { [old.season]: old } : {});
+  } catch { /* fyrsta keyrsla */ }
+  bySeason[seasonName] = payload;
+  const newest = Object.values(bySeason)
+    .sort((a, b) => String(b.season).localeCompare(String(a.season)))[0];
+  writeFileSync(dest, JSON.stringify({ ...newest, seasons: bySeason }, null, 1));
   console.log(`\nskrifad ${dest}`);
   console.log(`lid ${agg.teams.length} · an lids ${agg.no_team} · an xG ${agg.no_xg} `
             + `· an skotakorts ${agg.no_shotmap} · MAE okkar-gegn-birtu ${mae}`);

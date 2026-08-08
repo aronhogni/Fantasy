@@ -2784,6 +2784,37 @@ Tvennt vantar áður en hún fer inn: (a) eigin sókn á liðs-`/stats/`-endapun
 stangaðist beinlínis á við `Big chances (derived)`-dálkinn sem er þegar í
 leikmannalistanum.
 
+### BSD NÆR YFIR EITT TÍMABIL — ENDURMÆLT 8.8.2026 OG STAÐFEST
+Beðið var um að sækja BSD fyrir fleiri tímabil. **Gögnin eru ekki til.** BSD
+skráir **35 tímabil** af ensku úrvalsdeildinni en skotakortið nær aðeins yfir
+2025/26 (`season_id 337`). Mælt með **átta leikjum DREIFÐUM yfir hvert tímabil**
+(ekki þremur fyrstu, sem hefðu getað verið byrjunar-skekkja):
+
+| tímabil | skotakort | liðs-`big_chances` |
+|---|---|---|
+| 2024/25 | 0/8 | 0/8 |
+| 2023/24 | 0/8 | 0/8 |
+| 2021/22 | 0/8 | 0/8 |
+| 2017/18 | 0/8 | 0/8 |
+
+**Það er ekki aðeins skotakortið sem vantar heldur LÍKA liðs-sviðið
+`big_chances`**, svo eldri tímabil eru ónothæf eftir *hvorri* leið sem er.
+
+**TÓM KEYRSLA MÁ ALDREI ÞURRKA ÚT GÓÐ GÖGN — VILLA SEM VAR FUNDIN VIÐ ÞETTA.**
+2026/27 (`season_id 1058`) er í BSD með 200 leiki, **alla `notstarted`**. Án
+varðar hefði `node scripts/fetch-bsd-teams.mjs 1058` skrifað skrá með **núll
+liðum ofan á heilt 2025/26** — og hún hefði litið út eins og mæling („engin big
+chances"), nákvæmlega gildran sem kaflar 3 og 6n forðast. Skriftan deyr nú með
+`exit 2` fremur en að skrifa tómt tímabil.
+
+Skráin er samt **lykluð á tímabil** (`seasons: { "2025/26": … }`) og keyrsla
+**sameinar** í stað þess að yfirskrifa, svo 2026/27 slæst inn við hliðina þegar
+hún fer af stað. Efsta lagið speglar nýjasta tímabilið sem hefur gögn, svo
+viðmótið og prófin haldast óbreytt. Tímabils-heitið er **sótt úr API-inu**, ekki
+harðkóðað — „2025/26" var fast í skránni og hefði logið um leið og annað
+tímabil væri sótt. Verðir: kafli 11 í `tests/team-stats.mjs`, tvær
+stökkbreytingar felldar (vörðurinn fjarlægður, sameining gerð að yfirskrift).
+
 ### `data/team_shots.json` — ný heimild, sótt EINU SINNI
 `scripts/fetch-team-shots.mjs` gengur um tímabilið dag fyrir dag (~660 köll:
 einn scoreboard per dag + eitt summary per leik) og telur skot eftir **svæðis-

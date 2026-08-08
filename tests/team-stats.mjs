@@ -374,5 +374,44 @@ console.log("─".repeat(84));
     /if \(d\.incomplete\) return null/.test(teamsJsx));
 }
 
+/* ---------- 11. FJOL-TIMABILA SKRAIN OG TOMA-KEYRSLU VORDURINN ---------- */
+console.log(`\n${"─".repeat(84)}`);
+console.log("11. bsd_teams.json — lyklud a timabil, og tom keyrsla ma ekki thurrka ut");
+console.log("─".repeat(84));
+{
+  const bsd = existsSync(D + "bsd_teams.json") ? J("bsd_teams.json") : null;
+  ok("bsd_teams.json er til", !!bsd);
+  if (bsd) {
+    ok("hun ber `seasons` (lyklud a timabil, ekki flot ein keyrsla)",
+      !!bsd.seasons && Object.keys(bsd.seasons).length >= 1,
+      Object.keys(bsd.seasons || {}).join(","));
+    /* Efsta lagid speglar NYJASTA timabilid svo vidmot sem les skrana
+       beint haldist obreytt thegar fleiri timabil baetast vid.        */
+    const newest = Object.values(bsd.seasons)
+      .sort((a, b) => String(b.season).localeCompare(String(a.season)))[0];
+    ok("efsta lagid speglar nyjasta timabilid", bsd.season === newest.season,
+      `${bsd.season} vs ${newest.season}`);
+    ok("timabils-heitid er SOTT, ekki hardkodad (a formi 20xx/xx)",
+      /^\d{4}\/\d{2}$/.test(String(bsd.season)), String(bsd.season));
+    ok("hvert timabil ber sina lida-rod", Object.values(bsd.seasons)
+      .every(sn => Array.isArray(sn.teams) && sn.teams.length > 0));
+    /* KROSSPROFUNIN MA ALDREI VERDA NULL AFTUR: hun var thad i heilli
+       keyrslu thvi lids-svidid var lesid ur RONGU sniði, og hun thagdi
+       med. Se hun null er sniðið breytt.                              */
+    ok(`krossprofun okkar-gegn-BSD-birtu er til (MAE ${bsd.derived_vs_reported_mae})`,
+      typeof bsd.derived_vs_reported_mae === "number");
+    ok("og hun er innan marka (MAE < 0,6 big chances/leik)",
+      bsd.derived_vs_reported_mae < 0.6, String(bsd.derived_vs_reported_mae));
+    ok("engin lid an leikja", bsd.teams.every(t => t.matches > 0));
+  }
+  /* Vordurinn i skriftunni sjalfri — hann er thad sem stendur milli
+     "keyri fyrir naesta timabil" og thess ad thurrka ut heilt ar.     */
+  const src = readFileSync(new URL("../scripts/fetch-bsd-teams.mjs", import.meta.url), "utf8");
+  ok("skriftan neitar ad skrifa thegar ENGINN leikur hefur skotakort",
+    /if \(!matches\.length\)[\s\S]{0,400}process\.exit\(2\)/.test(src));
+  ok("og hun SAMEINAR vid fyrri timabil i stad thess ad yfirskrifa",
+    /bySeason\[seasonName\] = payload/.test(src) && /old\.seasons \|\|/.test(src));
+}
+
 console.log(`\nLIDA-TOLUR: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);
