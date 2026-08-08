@@ -615,7 +615,13 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                    _b_clr:      num(b?.clearances),
                    _b_blk:      num(b?.blocks),
                    _b_fouled:   num(b?.was_fouled),
-                   _b_mins:     num(b?.minutes) };
+                   _b_mins:     num(b?.minutes),
+                   _b_sp_xg:    num(b?.sp_xg),
+                   _b_sp_share: num(b?.sp_xg_share) == null ? null : num(b.sp_xg_share) * 100,
+                   _b_op_xg:    num(b?.op_xg),
+                   _b_head_xg:  num(b?.head_xg),
+                   _b_head:     num(b?.head_shots),
+                   _b_wood:     num(b?.woodwork) };
         })(),
       });
 

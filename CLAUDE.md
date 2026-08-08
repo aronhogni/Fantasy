@@ -2052,6 +2052,88 @@ er lesinn UR TEXTA og er GOLF (6f). Badir eru birtir; heitin adgreina tha.
 BSD dettur ut → dalkarnir verda tomir („—"), EKKERT annad brotnar, thvi
 ekkert i FFDR, `rankScore` eda vænt stig les BSD.
 
+### 6t-b. SEINNI FERD — MA BSD LEYSA ADRAR HEIMILDIR AF HOLMI? (8.8.)
+
+Spurt var beint. Svarid er **NEI VID OLLUM** og hvert er maelt:
+
+| heimild | ma BSD taka vid? | MAELINGIN |
+|---|---|---|
+| **football-data.co.uk (E0)** | **NEI** | BSD geymir **ENGA sogulega odda** — 0/3 i 25/26, 24/25, 22/23 og 19/20. Oddar eru LIFANDI (~4 daga gluggi) og hverfa eftir leik. E0 er einmitt notud fyrir B365-oddana sem bakprofin endurbyggja markadslinuna ur. E0 STENDUR. |
+| **ESPN (skot)** | **NEI, ekki einhlitt** | BSD er betri (xG per skot) EN nær adeins yfir 2025/26. ESPN gefur SIDUSTU LOKNU UMFERD lifandi, sem BSD-skran gerir ekki. Their svara ólíkum spurningum. |
+| **API-Sports** | **NEI — en forsendan er brostin** | sja nedar |
+| **ClubElo** | **NEI** | BSD hefur engan Elo. |
+| **FPL (status/meidsli)** | **ALLS EKKI** | sja nedar |
+
+**BSD-`availability` ER VERRI EN FPL-STATUS — MAELT A 374 LEIKMONNUM.**
+BSD segir „available" um **23** leikmenn sem FPL flaggar rett: Saliba
+(bakmeidsli), Timber (nara, aftur 21.8.), Ferguson (okkla, aftur 10.10.),
+threir i BANNI (Christie, Fofana, Andersen) og tveir a LANI (Bassette,
+Burstow). BSD hefur hvorki bann- ne lans-hugtak. A moti flaggar BSD 7 menn
+sem FPL telur heila og sem hafa ENGAR FPL-frettir.
+**Nidurstada: FPL-status er afram einrátt, og BSD-availability a ekki einu
+sinni ad audga hann — hun skeikar i RONGU attina.** (Sbr. regluna i kafla 6.)
+
+**FORSENDA API-SPORTS ER BROSTIN — MAELT.** Kafli 6 segir markmidid vera
+„TEGUND meidsla („Hamstring Injury") sem FPL-frettirnar sleppa."
+Maelt 8.8. a ollum 58 flogguðum leikmonnum: **71% FPL-frettanna NEFNA
+TEGUNDINA** („Groin injury", „Back injury", „Knee injury"; 14 hnjameidsli,
+6 laeri, 4 aftanlaeri...) og **0 flaggadir menn eru an frettar**. Hin 29%
+eru bonn, lan og „Unspecified injury" — thar er ENGIN tegund til ad saekja.
+API-Sports er thvi ad saekja tolu sem FPL gefur nu thegar.
+**EKKI FJARLAEGT** (hun a enn `/fixtures/lineups`, byggt 31.7., og fyrsta
+raunprofun beggja er 20.-21.8.), en rokstudningurinn i kafla 6 er ranghermi
+og verdur ad endurmetast eftir GW1. BSD gefur stadfest byrjunarlid an kvota.
+
+### NY GOGN SEM VORU TEKIN (maeld, ekki agiskud)
+`sit` og `body` i skotakortinu eru 100% fyllt og RAUNVERULEGIR flokkar:
+assisted 47,7% · corner 17,6% · regular 13,1% · fast-break 6,9% ·
+set-piece 5,9% · innkast-fast 5,1% · aukaspyrna 2,6% · **viti 1,0% med
+medal-xG 0,788** — thekkta vitahlutfallid, sjalfstaed stadfesting a
+xG-likaninu. Skallar 18,7%.
+**Sex nyir dalkar**, band `Set-piece threat`: SP xG · SP % · OP xG ·
+Head xG · Headers · **Woodwork**.
+- **Fost leikatridi eru 31,2% skota** og adgreinanleg per leikmann.
+  Andlitsprof: haest hlutfall eru Thiaw 98%, van Dijk 97%, Gabriel 97%,
+  van den Berg 99% — nakvaemlega hornamidverdirnir. Rodun i appinu
+  stadfest sjonraent.
+- **TREVERK ER LOKS TIL.** `luck.json` hefur borid `woodwork: null` sidan
+  Understat do (6b) og 6e taldi thad oendurheimtanlegt. BSD skilar thvi sem
+  eigin utkomu-tegund (`type: "post"`): 211 skot 2025/26, 150 a poruðum
+  monnum, Haaland efstur med 6.
+
+### ANNAD SEM ER TIL EN VAR **EKKI** TEKID (og hvers vegna)
+| gogn | astaeda |
+|---|---|
+| lids-xGF/xGA i `/standings/` | **GILDRA:** `xgf` er **0,0 (ekki null)** fyrir 23/24 og eldri, og 24/25 er HLUTA (xg_games 22-23 af 38 — Liverpool 53,1 er ekki arstidartala). **`xg_games` er vordur-svidid** og verdur alltaf ad lesast. Adeins 25/26 er heilt. |
+| `/transfers/` (538.791 raðir) | raunveruleg, en FPL-lidid i `players.json` er thegar rett; „nykominn" er snyrti-upplysing, ekki akvordun |
+| `market_value_eur`, `wage`, `potential`, `injury_risk` | 68-83% fyllt en eru FIFA-aett skatamat, ekki maeldar FPL-staerdir |
+| `strengths`/`weaknesses`/`attributes`/`weight_kg` | **DAUD** (0,1-0,7% fyllt) |
+| `/players/{id}/stats/` | eitt kall per leikmann og ber BIKAR + LANDSLEIKI — en sama eins-timabils thekja. Landslids-alag er OMAELT hja okkur; Evropu-alag var maelt og HAFNAD (6k) |
+| `/events/{id}/h2h/`, `/metadata/`, `bestxi`, `top/{stat}` | virka, en eru afleiddar ur gognum sem vid hofum thegar |
+
+### ThRJAR ThOGULAR VILLUR SEM FUNDUST VID ENDURKEYRSLU
+Skran var **ekki endurgeranleg** — tvaer EINS keyrslur gafu 389, 390 og 391
+pörun. Thrjar oskyldar orsakir, allar lagadar:
+1. **ThOGULT GAGNATAP.** `pool` gleypti villur, svo eitt mistekid kall let
+   HEILAN LEIK hverfa an merkis (Harry Maguire fekk 25 leiki i einni keyrslu
+   og 26 i annarri). Nu eru mistekin koll TALIN, reynd aftur, og keyrslan
+   **deyr fremur en ad skrifa hluta-timabil**.
+2. **LIDID VAR „SIDASTI VINNUR".** Samhlida vinnsla gaf leikmanni sem skipti
+   um lid rosandi `team_id` og thar med annan frambjodenda-hop. Nu raedur
+   **flest-leikid lid**, jafntefli brotnar a laegsta id.
+3. **FLEYTITOLU-ROD.** Samlagning er ekki vixlin, svo Rodri fekk einkunn
+   7,40 i einni keyrslu og 7,41 i annarri. I/O er nu adskilid fra
+   uppsofnun: koll ganga samhlida, **summur eru lagdar saman i fastri
+   event-id rod**.
+Stadfest: tvaer fullar keyrslur eru nu **byte-eins**. Pörun for i **393**
+(haerri en adur — flest-leikid lid er rettara en sidasta).
+
+**VORDUR SEM ThURFTI AD BREYTA:** `player-gw-range.mjs` taldi blinda dalka
+med fostu thaki (`< 40`) og féll a 43 thott nyju dalkarnir seu RETTILEGA
+blindir (timabils-summur geta ekki fylgt umferdar-bili, frekar en verd eda
+form). Fast thak a talningu stadnar um leid og dalkum fjolgar — sama villa
+og hardkodada safna-talan (kafli 4). Maelt sem **hlutfall** nuna (35,0%).
+
 ---
 
 ## 7. Næstu skref (rædd, ekki byrjað)

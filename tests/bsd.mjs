@@ -76,7 +76,8 @@ ok(leaked.length === 0,
    til, er non-null og segir ekkert.                                    */
 const NUMF = ["xg", "shots", "big_chances", "shots_in_box", "key_pass", "crosses",
               "touches", "tackles", "interceptions", "clearances", "blocks",
-              "aerial_won", "rating", "dribbles_won", "was_fouled"];
+              "aerial_won", "rating", "dribbles_won", "was_fouled",
+              "sp_xg", "op_xg", "head_xg", "head_shots", "woodwork", "sp_xg_share"];
 const flat = [];
 for (const f of NUMF) {
   const vals = P.map(p => p[f]).filter(v => v != null);
@@ -224,6 +225,43 @@ ok(P.every(p => p.crosses_acc == null || p.crosses == null || p.crosses_acc <= p
    "heppnadir krossar fara aldrei yfir reynda krossa");
 ok(P.every(p => p.tackles_won == null || p.tackles == null || p.tackles_won <= p.tackles),
    "unnar tacklingar fara aldrei yfir reyndar");
+
+/* ---------- 7. SKOT-SUNDURLIDUN ---------- */
+H("7. FOST LEIKATRIDI / SKALLAR / TREVERK");
+/* Sundurlidunin ma ALDREI fara yfir heildina — hun er hlutmengi hennar. */
+ok(withShots.every(p => (p.sp_shots ?? 0) <= p.shots),
+   "fastra-leikatrida skot fara aldrei yfir heildarskot");
+ok(withShots.every(p => (p.head_shots ?? 0) <= p.shots),
+   "skallar fara aldrei yfir heildarskot");
+ok(withShots.every(p => (p.woodwork ?? 0) <= p.shots),
+   "treverk fer aldrei yfir heildarskot");
+/* sp_xg + op_xg ma ekki fara yfir heildar-xG: vitaspyrnur eru i HVORUGUM
+   flokki (eigin `sit`), svo summan er <= xg, ekki == xg.
+   VIKMORKIN ERU MAELD, EKKI VALIN: hver hinna thriggja er namundud i
+   3 aukastafi HVOR I SINU LAGI, svo summa tveggja namundadra talna ma
+   fara 0,001 yfir namunduðu heildina. Maelt: 30 leikmenn fara yfir og
+   ALLIR um NAKVAEMLEGA 0,001 — engin undantekning er staerri, svo thetta
+   er namundun en ekki gagnavilla. Vikmorkin eru 0,0015 (tvaer namundanir);
+   raunveruleg villa vaeri margfalt staerri og felldi profid afram.      */
+{
+  const over = withShots.filter(p => ((p.sp_xg ?? 0) + (p.op_xg ?? 0)) > (p.xg ?? 0) + 0.0015);
+  ok(over.length === 0,
+     `fost + opinn leikur fer aldrei yfir heildar-xG (viti er i hvorugum)${over.length ? ` — ${over.length} yfir namundunar-vikmorkum` : ""}`);
+}
+ok(P.every(p => p.sp_xg_share == null || (p.sp_xg_share >= 0 && p.sp_xg_share <= 1)),
+   "hlutfall fastra leikatrida liggur i [0,1]");
+/* ANDLITSPROF: hornamidverdir eiga ad vera efstir i HLUTFALLI, ekki i
+   heildar-xG. Ef thetta fellur er `sit`-flokkunin brotin.              */
+{
+  const big = P.filter(p => (p.sp_xg ?? 0) >= 2);
+  const topShare = big.filter(p => (p.sp_xg_share ?? 0) >= 0.9);
+  ok(topShare.length >= 3,
+     `menn med >=2 sp_xg OG >=90% hlutfall (hornamidverdir): ${topShare.length} — ${topShare.slice(0, 3).map(p => p.name).join(", ")}`);
+}
+{
+  const wood = P.reduce((s, p) => s + (p.woodwork || 0), 0);
+  ok(wood > 80, `treverk talid: ${wood} (luck.json hefur borid null sidan Understat do)`);
+}
 
 console.log(`\nBSD: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

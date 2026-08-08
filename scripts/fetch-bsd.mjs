@@ -142,12 +142,27 @@ const SUM = [
   "total_clearance", "ball_recovery", "saves", "punches", "goals_conceded",
   "yellow_card", "red_card",
 ];
+/* SKOT-SUNDURLIDUN — MAELD 8.8.2026, oll svidin 100% fyllt.
+   `sit` hefur atta gildi og their eru RAUNVERULEGIR flokkar, ekki tomir:
+   assisted 47,7% · corner 17,6% · regular 13,1% · fast-break 6,9% ·
+   set-piece 5,9% · throw-in-set-piece 5,1% · free-kick 2,6% · penalty 1,0%.
+   Vitaspyrnur maelast med medal-xG **0,788**, sem er thekkta vitaspyrnu-
+   hlutfallid — sjalfstaed stadfesting a xG-likani theirra.
+
+   FOST LEIKATRIDI eru thvi adgreinanleg per leikmann (31,2% skota), og thad
+   er raunverulegt FPL-forskot: hver ognar UR hornum er onnur spurning en
+   hver skorar mest.                                                       */
+const SET_PIECE = new Set(["corner", "set-piece", "throw-in-set-piece", "free-kick"]);
+const OPEN_PLAY = new Set(["assisted", "regular", "fast-break"]);
+
 const agg = new Map();   // bsd player_id -> tolur
 const P = id => {
   let o = agg.get(id);
   if (!o) {
-    o = { apps: 0, team_id: null, rating_sum: 0, rating_n: 0,
-          shots: 0, xg: 0, big_chances: 0, shots_in_box: 0, shots_out_box: 0 };
+    o = { apps: 0, team_id: null, teams: new Map(), rating_sum: 0, rating_n: 0,
+          shots: 0, xg: 0, big_chances: 0, shots_in_box: 0, shots_out_box: 0,
+          sp_shots: 0, sp_xg: 0, op_xg: 0, head_shots: 0, head_xg: 0,
+          pen_shots: 0, woodwork: 0 };
     for (const k of SUM) o[k] = 0;
     agg.set(id, o);
   }
@@ -155,14 +170,41 @@ const P = id => {
 };
 
 let done = 0, noShot = 0;
-await pool(finished, 6, async (e) => {
+const missed = [];
+/* SOTT SAMHLIDA, LAGT SAMAN I ROD.
+   Fleytitolu-samlagning er EKKI vixlin, svo samhlida uppsofnun gaf
+   Rodri einkunn 7,40 i einni keyrslu og 7,41 i annarri — somu gogn,
+   onnur rod. I/O er thvi adskilid fra uppsofnuninni: kollin ganga
+   samhlida, en summurnar eru lagdar saman i FASTRI event-id rod.      */
+const fetched = new Map();
+const grab = async (e) => {
   const [ps, st] = await Promise.all([
     get(`/events/${e.id}/player-stats/`).catch(() => null),
     get(`/events/${e.id}/stats/`).catch(() => null),
   ]);
+  /* ThOGULT GAGNATAP ER VERRA EN ENGIN SKRA.
+     `pool` gleypir villur, svo eitt mistekid kall let HEILAN LEIK hverfa
+     an nokkurs merkis. Maelt: tvaer eins keyrslur gafu Harry Maguire 25
+     og 26 leiki. Skra sem er thogult ohell litur ut eins og maeling —
+     nakvaemlega thad sem kafli 3 fordast. Mistekin koll eru thvi TALIN
+     og keyrslan DEYR fremur en ad skrifa hluta-timabil.                */
+  if (!ps || !st) { missed.push(e.id); return; }
+  fetched.set(e.id, { ps, st });
+  if (++done % 50 === 0) console.log(`  leikir ${done}/${finished.length}`);
+};
+const ingest = (e) => {
+  const got = fetched.get(e.id);
+  if (!got) return;
+  const { ps, st } = got;
   for (const r of (ps?.player_stats || [])) {
     const o = P(r.player_id);
-    o.apps++; o.team_id = r.team_id ?? o.team_id;
+    /* LIDID ER ThAD SEM HANN SPILADI FLESTA LEIKI FYRIR, ekki thad sem
+       vardst SIDAST unnid ur. `pool` vinnur leikina SAMHLIDA, svo "sidasti
+       vinnur" gaf leikmanni sem skipti um lid a midju timabili ROSANDI lid
+       milli keyrslna — og thar med annan frambjodenda-hop og adra pörun.
+       Maelt: tvaer eins keyrslur gafu 389, 390 og 391 pörun.            */
+    o.apps++;
+    if (r.team_id != null) o.teams.set(r.team_id, (o.teams.get(r.team_id) || 0) + 1);
     for (const k of SUM) if (typeof r[k] === "number") o[k] += r[k];
     if (typeof r.rating === "number") { o.rating_sum += r.rating; o.rating_n++; }
   }
@@ -172,15 +214,48 @@ await pool(finished, 6, async (e) => {
     if (s.player_id == null) continue;
     const o = P(s.player_id);
     o.shots++;
+    const xg = typeof s.xg === "number" ? s.xg : 0;
     if (typeof s.xg === "number") {
       o.xg += s.xg;
       if (s.xg >= BIG_CHANCE_XG) o.big_chances++;
     }
     const x = s.pos?.x;
     if (typeof x === "number") (x <= IN_BOX_X ? o.shots_in_box++ : o.shots_out_box++);
+    /* FOST LEIKATRIDI / OPINN LEIKUR / SKALLAR / TREVERK */
+    if (SET_PIECE.has(s.sit)) { o.sp_shots++; o.sp_xg += xg; }
+    else if (OPEN_PLAY.has(s.sit)) { o.op_xg += xg; }
+    if (s.sit === "penalty") o.pen_shots++;
+    if (s.body === "head") { o.head_shots++; o.head_xg += xg; }
+    /* TREVERK — `luck.json` hefur borid woodwork: null sidan Understat do
+       (6b). BSD gefur thad sem eigin utkomu-tegund: 211 skot 2025/26.   */
+    if (s.type === "post") o.woodwork++;
   }
-  if (++done % 50 === 0) console.log(`  leikir ${done}/${finished.length}`);
-});
+};
+await pool(finished, 6, grab);
+/* Onnur atrenna a tha sem duttu, rolegar (raðbundid). Standi eitthvad eftir
+   er ThAD VILLA — vid skrifum ekki hluta-timabil.                        */
+if (missed.length) {
+  console.log(`  ${missed.length} leikir duttu — onnur atrenna`);
+  const retry = finished.filter(e => missed.includes(e.id));
+  missed.length = 0;
+  for (const e of retry) await grab(e);
+}
+if (missed.length) {
+  console.error(`\nVILLA: ${missed.length} leikir naðust ekki (${missed.slice(0, 8).join(", ")}...).`);
+  console.error("Skrain er EKKI skrifud — hluta-timabil litur ut eins og maeling.");
+  process.exit(1);
+}
+/* FOST ROD: event-id stigandi, ohad thvi i hvada rod svorin bárust. */
+for (const e of [...finished].sort((a, b) => a.id - b.id)) ingest(e);
+
+/* Flest-leikid lid raedur; jafntefli brotnar a laegsta team_id svo thetta
+   se FAST milli keyrslna.                                              */
+for (const o of agg.values()) {
+  let best = null, bn = -1;
+  for (const [tid, n] of [...o.teams].sort((a, b) => a[0] - b[0]))
+    if (n > bn) { bn = n; best = tid; }
+  o.team_id = best;
+}
 console.log(`leikmenn med tolur: ${agg.size} · leikir an skotakorts: ${noShot}`);
 
 /* ---- 3) nofn ---- */
@@ -264,7 +339,13 @@ for (const [bid, o] of agg) {
       cands.push([s + 0.5 * minAgree(o.minutes_played, fp.id), bid, fp]);
   }
 }
-cands.sort((a, b) => b[0] - a[0]);
+/* STODUG ROD — ANNARS ER SKRAIN EKKI ENDURGERANLEG.
+   Maelt: tvaer EINS keyrslur gafu 391 og 389 pörun. Astaedan er ad
+   `agg` erfir innsetningarrod leikjanna, sem `pool` vinnur SAMHLIDA og
+   thvi i breytilegri rod; jofn skor brotnudu tha eftir tilviljun.
+   Jafntefli eru raunveruleg (samnefningar i sama lidi), svo their verda
+   ad brotna a EINHVERJU FOSTU — bsd_id og svo fpl_id.                  */
+cands.sort((a, b) => (b[0] - a[0]) || (a[1] - b[1]) || (a[2].id - b[2].id));
 const pairBsd = new Map(), usedFpl = new Set();
 for (const [, bid, fp] of cands) {
   if (pairBsd.has(bid) || usedFpl.has(fp.id)) continue;
@@ -296,6 +377,14 @@ for (const [bid, o] of agg) {
     big_chances: o.shots ? o.big_chances : null,
     shots_in_box: o.shots ? o.shots_in_box : null,
     shots_out_box: o.shots ? o.shots_out_box : null,
+    sp_shots: o.shots ? o.sp_shots : null,
+    sp_xg: o.shots ? +o.sp_xg.toFixed(3) : null,
+    op_xg: o.shots ? +o.op_xg.toFixed(3) : null,
+    sp_xg_share: o.xg > 0 ? +(o.sp_xg / o.xg).toFixed(3) : null,
+    head_shots: o.shots ? o.head_shots : null,
+    head_xg: o.shots ? +o.head_xg.toFixed(3) : null,
+    pen_shots: o.shots ? o.pen_shots : null,
+    woodwork: o.shots ? o.woodwork : null,
     key_pass: per(o.key_pass),
     crosses: per(o.total_cross), crosses_acc: per(o.accurate_cross),
     touches: per(o.touches),
@@ -314,7 +403,10 @@ for (const [bid, o] of agg) {
     yellow: per(o.yellow_card), red: per(o.red_card),
   });
 }
-players.sort((a, b) => (b.minutes || 0) - (a.minutes || 0));
+/* Jafnar minutur eru ALGENGAR (0 hja ollum sem spiladu ekki), svo rodin
+   verdur ad brotna a bsd_id — annars erfir hun samhlida vinnsluordina og
+   skrain er onnur i hverri keyrslu thott tolurnar seu their somu.      */
+players.sort((a, b) => (b.minutes || 0) - (a.minutes || 0) || (a.bsd_id - b.bsd_id));
 /* AÐEINS ThEIR SEM APPID GETUR BIRT fara i skrana. Leikmadur an `fpl_id`
    er osynilegur i toflunni (hun flettir upp a `code`), svo hann vaeri
    hreint burdargjald — 286 af 677 eru menn sem foru ur deildinni eftir

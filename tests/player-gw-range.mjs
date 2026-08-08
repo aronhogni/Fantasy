@@ -217,7 +217,19 @@ if (g) {
 
 console.log("\n=== 6. gwBlindKeys — LEITT UT, EKKI HANDSKRIFAD ===");
 const blind = M.gwBlindKeys();
-ok(`blindir dalkar greindir (${blind.size})`, blind.size > 10 && blind.size < 40, String(blind.size));
+/* HLUTFALL, EKKI FAST ThAK. Morkin voru `< 40` og féllu um leid og
+   BSD-dalkarnir baettust vid (43 af 123) — thott their SEU rettilega
+   blindir: their eru timabils-summur og geta ekki fylgt umferdar-bili,
+   alveg eins og verd og form. Fast thak a talningu stadnar um leid og
+   dalkum fjolgar, sama villa og hardkodada safna-talan i run-tests
+   (CLAUDE.md kafli 4). Tilgangur vardarins er ad grípa ad AFLEIDSLAN
+   brotni — tha verda annadhvort nanast allir blindir eda nanast engir —
+   svo hann er nu maeldur sem HLUTFALL af heildinni.                    */
+{
+  const share = blind.size / M.STAT_DEFS.length;      // maelt 8.8.2026: 35,0%
+  ok(`blindir dalkar greindir (${blind.size} af ${M.STAT_DEFS.length} = ${(100 * share).toFixed(0)}%)`,
+     blind.size > 10 && share > 0.10 && share < 0.55, `${blind.size}/${M.STAT_DEFS.length}`);
+}
 /* Thessir VERDA ad vera blindir: verd og eignarhald koma ur lifandi gognum
    og geta ekki fylgt bili.                                              */
 for (const k of ["now_cost", "selected_by_percent", "form", "ict_index",

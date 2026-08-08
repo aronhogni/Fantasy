@@ -306,6 +306,38 @@ export const STAT_DEFS = [
     note:"Shots taken inside the penalty area, from shot coordinates. The box edge was fitted against BSD's own team-level inside-box counts over 760 team-matches (MAE 0.13). BSD's x axis is a share of the FULL pitch, a different scale from ESPN's — measured here rather than carried over.",
     get:p=>num(p._b_inbox) },
 
+  /* --- band: Set-piece threat ---
+     MAELT 8.8.2026: 31,2% allra skota koma ur fostum leikatridum (horn
+     17,6% · set-piece 5,9% · innkast-fast 5,1% · aukaspyrna 2,6%). Thad er
+     ADGREINANLEGT per leikmann og er raunverulegt FPL-forskot: "hver ognar
+     ur hornum" er onnur spurning en "hver skorar mest". Andlitsprof:
+     efstu menn i hlutfalli eru Thiaw 98%, van Dijk 97%, Gabriel 97% —
+     nakvaemlega hornamidverdirnir.
+     Vitaspyrnur maelast med medal-xG 0,788, sem er thekkta vitahlutfallid
+     og thar med sjalfstaed stadfesting a xG-likani BSD.                  */
+  { key:"bsd_sp_xg", label:"Set-piece xG", short:"SP xG", group:"attack", band:"Set-piece threat",
+    dec:2, hi:true,
+    note:"xG from dead-ball situations only — corners, free kicks, set-piece throws. Measured: 31.2% of all shots come from these. This is the number that finds a centre-back who is a genuine corner threat.",
+    get:p=>num(p._b_sp_xg) },
+  { key:"bsd_sp_share", label:"Set-piece share of xG", short:"SP %", group:"attack",
+    band:"Set-piece threat", dec:0, hi:true, pct:true, derived:true,
+    note:"What share of his xG comes from dead balls. Near 100% means he is ONLY a set-piece threat (typical centre-back); a forward around 25% gets most of his chances in open play. High share plus low total is a corner specialist, not a goal source.",
+    get:p=>num(p._b_sp_share) },
+  { key:"bsd_op_xg", label:"Open-play xG", short:"OP xG", group:"attack", band:"Set-piece threat",
+    dec:2, hi:true,
+    note:"xG from open play only (assisted, regular and fast-break shots). Read against set-piece xG: open play is far more repeatable, because it does not depend on keeping the set-piece role.",
+    get:p=>num(p._b_op_xg) },
+  { key:"bsd_head_xg", label:"Headed xG", short:"Head xG", group:"attack", band:"Set-piece threat",
+    dec:2, hi:true, note:"xG from headers. 18.7% of all shots are headed. Aerial goal threat, which no FPL field carries.",
+    get:p=>num(p._b_head_xg) },
+  { key:"bsd_head", label:"Headed shots", short:"Headers", group:"attack", band:"Set-piece threat",
+    dec:0, hi:true, note:"Number of headed attempts across the season (BSD).",
+    get:p=>num(p._b_head) },
+  { key:"bsd_wood", label:"Hit the woodwork", short:"Woodwork", group:"attack",
+    band:"Set-piece threat", dec:0, hi:true,
+    note:"Shots that struck the post or bar — BSD reports it as its own outcome type. The repo has carried woodwork as permanently empty since Understat died (see 6b); this is the first real count. Pure bad luck, so it belongs next to Goals − xG rather than being read on its own.",
+    get:p=>num(p._b_wood) },
+
   /* --- band: Creation ---
      `key_pass` er RAUNVERULEG tala fyrir "faeri skopud". ESPN-dalkurinn i
      Ogn er lesinn UR TEXTA og er GOLF (76% skota nefna upplegg, 6f).   */
