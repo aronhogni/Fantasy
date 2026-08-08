@@ -599,6 +599,19 @@ staðfest með DOM-mynd af öllu appinu fyrir og eftir: munurinn var **5 strengi
 sem orðaröðin er hluti af setningunni. Heitið var valið **mælt**: `fmt` rakst á
 staðbundna talnasniðgerð og byggingin féll strax.
 
+**LEIFARNAR VORU HREINSAÐAR 8.8.2026 — ekki setja þær inn aftur:**
+
+| leif | hvers vegna hún var til | staða |
+|---|---|---|
+| **Lötu getterarnir** (`get label() { return "…"; }`, 70 talsins í 5 skrám) | tafla á einingarsviði var reiknuð EINU SINNI við innflutning og hefði **frosið á því tungumáli sem var valið þá** | **fjarlægðir** — nú venjuleg gildi. Lestur er nákvæmlega eins; getterarnir voru hrein yfirbygging eftir að lagið fór |
+| `langWrap` · `langBtn` · `langOn` í `App.jsx` | stílar IS/EN-hnappsins | **fjarlægðir** (skilgreindir, aldrei notaðir) |
+| `ZONE_IS` · `FOOT_IS` · `EXPLAIN_IS` | `_IS` = íslensk heiti | **endurnefnd** `ZONE_LABEL` / `FOOT_LABEL` / `EXPLAIN_LABEL` — gildin voru fyrir löngu orðin ensk, svo nafnið laug |
+| Suite-skráin í haus `run-tests.mjs` | handskrifuð upptalning | **fjarlægð** — hún taldi upp `i18n.mjs`/`i18n-dom.mjs` löngu eftir að þau voru eydd og sagði `error-boundary` verja hið gagnstæða við það sem hún ver. `SUITES` ER skráin |
+
+> **ATH við `docs/MAELINGAR.md` kafla 8b:** þar stendur að töflur á
+> einingarsviði **VERÐI** að vera lazy. Sú regla gilti á meðan tungumálalagið
+> var til og er **fallin úr gildi**. Ekki endurvekja getterana.
+
 **`tests/no-icelandic.mjs` er vörðurinn.** Kafli C er þar af því að
 stafa-skynjun **getur ekki séð** „Yfirlit", „Grunnur" eða „laugardagur" —
 **ASCII-íslenska er ósýnileg**. Listinn (52 orðmyndir) er byggður á því sem

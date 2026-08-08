@@ -72,12 +72,12 @@ const KIT = {
   TOT:["#ffffff","#132257"], SUN:["#EB172B","#ffffff"],
 };
 const POS_LABEL = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };   // universal, ekki islenskt
-/* FPL explain-lyklar -> íslensk heiti (stiga-uppskipting) */
-const EXPLAIN_IS = {
-  get minutes() { return "Minutes"; }, get goals_scored() { return "Goals"; }, get assists() { return "Assists"; }, get clean_sheets() { return "Clean sheets"; },
-  get goals_conceded() { return "Goals conceded"; }, get own_goals() { return "Own goals"; }, get penalties_saved() { return "Penalty saves"; },
-  get penalties_missed() { return "Penalties missed"; }, get yellow_cards() { return "Yellow card"; }, get red_cards() { return "Red card"; },
-  get saves() { return "Saves"; }, get bonus() { return "Bonus"; }, bps:"BPS", get defensive_contribution() { return "Defensive contribution"; },
+/* FPL explain-lyklar -> birt heiti (stiga-uppskipting) */
+const EXPLAIN_LABEL = {
+  minutes: "Minutes", goals_scored: "Goals", assists: "Assists", clean_sheets: "Clean sheets",
+  goals_conceded: "Goals conceded", own_goals: "Own goals", penalties_saved: "Penalty saves",
+  penalties_missed: "Penalties missed", yellow_cards: "Yellow card", red_cards: "Red card",
+  saves: "Saves", bonus: "Bonus", bps:"BPS", defensive_contribution: "Defensive contribution",
 };
 const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
@@ -258,10 +258,10 @@ function intlBreaks(fixtures) {
    FPL 2026/27: tvö sett — eitt fyrir GW1-19, annað fyrir GW20-38.
    Wildcard og Free Hit byrja í GW2 (skipti eru þegar ótakmörkuð í GW1).   */
 const CHIPS = {
-  wildcard: { label:"Wildcard",       short:"WC", color:"#d92d3c", icon:"♻",  get desc() { return "Unlimited transfers, no hit"; } },
-  freehit:  { label:"Free Hit",       short:"FH", color:"#2563eb", icon:"⚡", get desc() { return "Squad for one gameweek, then reverts"; } },
-  bboost:   { label:"Bench Boost",    short:"BB", color:"#00b96b", icon:"⬆",  get desc() { return "The bench scores too (all 15)"; } },
-  "3xc":    { label:"Triple Captain", short:"TC", color:"#c98a00", icon:"3×", get desc() { return "Captain ×3 instead of ×2"; } },
+  wildcard: { label:"Wildcard",       short:"WC", color:"#d92d3c", icon:"♻",  desc: "Unlimited transfers, no hit" },
+  freehit:  { label:"Free Hit",       short:"FH", color:"#2563eb", icon:"⚡", desc: "Squad for one gameweek, then reverts" },
+  bboost:   { label:"Bench Boost",    short:"BB", color:"#00b96b", icon:"⬆",  desc: "The bench scores too (all 15)" },
+  "3xc":    { label:"Triple Captain", short:"TC", color:"#c98a00", icon:"3×", desc: "Captain ×3 instead of ×2" },
 };
 
 /* ---- Byrjunarlið: raunveruleg FPL-ID (staðfest úr players.json) ---- */
@@ -380,12 +380,12 @@ async function loadState(key) {
    `bg`/`color` halda ser fyrir LISTA og glugga (thar er hvitur grunnur og
    fint merki rett), en SPJALDID a vellinum notar `solid` + hvitan texta.  */
 const AVAIL = {
-  a: { get label() { return "Available"; },    short:"",   color:null,      bg:null,      solid:null },
-  d: { get label() { return "Doubt"; },         short:"?",  color:"#8a5f00", bg:"#fff6e0", solid:"#e0a100" },
-  i: { get label() { return "Injured"; },      short:"✚",  color:"#a01f2b", bg:"#fdecee", solid:"#d92d3c" },
-  s: { get label() { return "Suspended"; },      short:"⛔", color:"#5b21b6", bg:"#f1e9ff", solid:"#6d28d9" },
-  u: { get label() { return "Unavailable"; },    short:"✕",  color:"#61616b", bg:"#eeeef1", solid:"#4b4b55" },
-  n: { get label() { return "Not in squad"; },   short:"–",  color:"#61616b", bg:"#eeeef1", solid:"#4b4b55" },
+  a: { label: "Available",    short:"",   color:null,      bg:null,      solid:null },
+  d: { label: "Doubt",         short:"?",  color:"#8a5f00", bg:"#fff6e0", solid:"#e0a100" },
+  i: { label: "Injured",      short:"✚",  color:"#a01f2b", bg:"#fdecee", solid:"#d92d3c" },
+  s: { label: "Suspended",      short:"⛔", color:"#5b21b6", bg:"#f1e9ff", solid:"#6d28d9" },
+  u: { label: "Unavailable",    short:"✕",  color:"#61616b", bg:"#eeeef1", solid:"#4b4b55" },
+  n: { label: "Not in squad",   short:"–",  color:"#61616b", bg:"#eeeef1", solid:"#4b4b55" },
 };
 function availOf(p) {
   const a = AVAIL[p?.status] || AVAIL.a;
@@ -2915,7 +2915,7 @@ export default function App() {
                         <div style={S.dExList}>
                           {ex.filter(x => x.points !== 0).map((x, i) => (
                             <div key={i} style={S.dExRow}>
-                              <span style={S.dExName}>{EXPLAIN_IS[x.identifier] || x.identifier}</span>
+                              <span style={S.dExName}>{EXPLAIN_LABEL[x.identifier] || x.identifier}</span>
                               {x.value != null && <span style={S.dExVal}>{x.value}</span>}
                               <span style={{ ...S.dExPts, color: x.points > 0 ? C.green : C.red }}>
                                 {x.points > 0 ? "+" : ""}{x.points}

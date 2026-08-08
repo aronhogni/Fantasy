@@ -63,8 +63,8 @@
       Fastur litur hefdi horfid a einum theirra; currentColor erfir
       textalitinn og hefur thvi ALLTAF birtuskil vid bakgrunninn.
    3. NEGATIFT offset (-3px) svo hringurinn se INNAN reitsins. Ytri hringur
-      hefdi verid KLIPPTUR: tungumals-vixlarinn (`langWrap`) og
-      leikmannalistinn nota `overflow:hidden`.
+      hefdi verid KLIPPTUR: leikmannalistinn og adrar umgjardir nota
+      `overflow:hidden`.
 
    !important thvi inline-stilar vinna annars alltaf (sama rok sem
    responsive-reglurnar hér ofan).                                      */

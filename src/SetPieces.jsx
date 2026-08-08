@@ -39,9 +39,9 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
    SILHUETTUM, thvi i smarri staerd er silhuettan allt. `short` heldur ser
    sem texta-fallback (aria/title og prof).                              */
 export const SP_KINDS = [
-  { key:"pen", field:"penalties_order",                      Icon:PenaltyIcon,  tint:"#b3261e", get label() { return "Penalties"; },  short:"P" },
-  { key:"fk",  field:"direct_freekicks_order",               Icon:FreeKickIcon, tint:"#1b5e9c", get label() { return "Free kicks"; }, short:"F" },
-  { key:"ck",  field:"corners_and_indirect_freekicks_order", Icon:CornerIcon,   tint:"#0a7a4a", get label() { return "Corners"; },    short:"C" },
+  { key:"pen", field:"penalties_order",                      Icon:PenaltyIcon,  tint:"#b3261e", label: "Penalties",  short:"P" },
+  { key:"fk",  field:"direct_freekicks_order",               Icon:FreeKickIcon, tint:"#1b5e9c", label: "Free kicks", short:"F" },
+  { key:"ck",  field:"corners_and_indirect_freekicks_order", Icon:CornerIcon,   tint:"#0a7a4a", label: "Corners",    short:"C" },
 ];
 
 /* ============================================================

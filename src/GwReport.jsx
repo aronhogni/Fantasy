@@ -289,8 +289,8 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
                   <td style={S.tdL}>{s.team || "—"}</td>
                   <td style={S.tdL}>{s.player || "—"}</td>
                   <td style={{ ...S.tdL, color: k?.color, fontWeight:600 }}>{k?.label || s.kind}</td>
-                  <td style={S.tdL}>{ZONE_IS[s.zone] || "—"}</td>
-                  <td style={S.tdL}>{FOOT_IS[s.foot] || "—"}</td>
+                  <td style={S.tdL}>{ZONE_LABEL[s.zone] || "—"}</td>
+                  <td style={S.tdL}>{FOOT_LABEL[s.foot] || "—"}</td>
                   <td style={{ ...S.td, opacity: s.usable ? 1 : 0.45 }}>
                     {s.x == null ? "—" : s.x.toFixed(3)}{!s.usable && "*"}
                   </td>
@@ -309,12 +309,12 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
   );
 }
 
-const ZONE_IS = {
-  get box_centre() { return "Centre of the box"; }, get box_left() { return "Left of the box"; }, get box_right() { return "Right of the box"; },
-  get close_range() { return "Close range"; }, get penalty_spot() { return "Penalty spot"; }, get outside() { return "Outside the box"; }, get far() { return "35+ yards"; },
+const ZONE_LABEL = {
+  box_centre: "Centre of the box", box_left: "Left of the box", box_right: "Right of the box",
+  close_range: "Close range", penalty_spot: "Penalty spot", outside: "Outside the box", far: "35+ yards",
 };
-const FOOT_IS = { get left() { return "Left"; }, get right() { return "Right"; },
-                  get head() { return "Head"; } };
+const FOOT_LABEL = { left: "Left", right: "Right",
+                  head: "Head" };
 
 /* VOLLUR — EINN HELMINGUR, i RETTUM STAERDARHLUTFOLLUM.
 
@@ -375,8 +375,8 @@ function Pitch({ shots }) {
                 fill={k?.color || "#8b8b95"} fillOpacity={isGoal ? 0.95 : 0.55}
                 stroke={isGoal ? "#02402a" : "none"} strokeWidth={isGoal ? 2 : 0}>
                 <title>{`${s.minute || ""} ${s.player || ""} (${s.team || ""}) — ${k?.label || s.kind}`
-                  + `${s.zone ? " · " + (ZONE_IS[s.zone] || s.zone) : ""}`
-                  + `${s.foot ? " · " + (FOOT_IS[s.foot] || s.foot) : ""}`}</title>
+                  + `${s.zone ? " · " + (ZONE_LABEL[s.zone] || s.zone) : ""}`
+                  + `${s.foot ? " · " + (FOOT_LABEL[s.foot] || s.foot) : ""}`}</title>
               </circle>
             );
           })}

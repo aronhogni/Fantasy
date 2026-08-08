@@ -969,12 +969,12 @@ export function shotsFor(shots, { fixture = null, team = null, player = null } =
 }
 
 export const SHOT_KINDS = [
-  { key:"goal",       get label() { return "Goal"; },        color:"#00b96b" },
-  { key:"on_target",  get label() { return "On target"; },      color:"#2563eb" },
-  { key:"woodwork",   get label() { return "Woodwork"; }, color:"#c98a00" },
-  { key:"off_target", get label() { return "Off target"; },     color:"#8b8b95" },
-  { key:"blocked",    get label() { return "Blocked"; },     color:"#d92d3c" },
-  { key:"own_goal",   get label() { return "Own goal"; },  color:"#37003c" },
+  { key:"goal",       label: "Goal",        color:"#00b96b" },
+  { key:"on_target",  label: "On target",      color:"#2563eb" },
+  { key:"woodwork",   label: "Woodwork", color:"#c98a00" },
+  { key:"off_target", label: "Off target",     color:"#8b8b95" },
+  { key:"blocked",    label: "Blocked",     color:"#d92d3c" },
+  { key:"own_goal",   label: "Own goal",  color:"#37003c" },
 ];
 
 export function shotSummary(shots) {
@@ -1123,7 +1123,12 @@ export function lastFinishedGw(events) {
    `xg`-vogin liggur a (xg + xa) — sja hausinn: markmidid er mork+ASSIST,
    svo magnlidurinn verdur ad innihalda upplagshlutann lika.            */
 export const MO_WEIGHTS = { xg: 0.8, threat: 0.3, unlucky: 0.2, threat_scale: 25 };
-export const IMMINENT_WINDOW = 4;      // umferdir aftur i timann
+/* GLUGGINN SJALFUR ER EKKI HER. Hann er `IMM_WINDOW` i scripts/fetch.mjs, sem
+   BYGGIR `imminent.json`; appid les gluggann sem pipeline skrifadi og velur
+   hann ekki. Her stod afrit (`IMMINENT_WINDOW = 4`) sem EKKERT las — talan
+   var maeld (mo/ao eru validerud vid 4 umferdir) og leit thvi ut fyrir ad
+   vera virk, svo breyting a henni hefdi engu skilad. Tvo eintok af maeldri
+   tolu, annad daudt, er nakvaemlega rekid sem CLAUDE.md fordast. */
 export const IMMINENT_MAX_GI = 1;      // markhopur: 0-1 framlog i glugganum
 export const IMMINENT_MIN_MINUTES = 180;
 

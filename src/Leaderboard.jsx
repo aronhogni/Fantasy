@@ -16,10 +16,6 @@ import { interp } from "./interp.js";
 import { STAT_DEFS, STAT_GROUPS, buildLeaderboard, fmtStat, minutesFloor,
          num, makeEnricher } from "./stats.js";
 
-/* Islensku heitin eru LYKLAR i orðabokinni (sja i18n.js) — thess vegna
-   stendur `t()` a NOTKUNARSTADNUM og ekki her: fastar a einingarsvidi eru
-   reiknadar EINU SINNI vid innflutning og hefdu thvi frosid a thvi
-   tungumali sem var valid tha.                                         */
 /* GK/DEF/MID/FWD, EKKI "Defence"/"Midfield"/"Attack".
    HEITA-AREKSTUR SEM VAR MAELDUR 8.8.2026: stodu-fliparnir hetu "Defence" og
    "Attack" — NAKVAEMLEGA somu ord og tolu-flokkarnir i rodinni beint fyrir
