@@ -44,6 +44,11 @@ jobs:
         # leik) svo lykillinn verdur ad vera hér, ekki bara i fetch.yml.
         env:
           API_SPORTS_KEY: ${{ secrets.API_SPORTS_KEY }}
+          # BSD: spad byrjunarlid (~13 klst gluggi) og vara-markadslina.
+          # AN ThESSA er FLAGS.bsd false og BADA follin eru sleppt THEGJANDI
+          # — nakvaemlega villan sem gerdi fetchLineups ad daudum koda
+          # (CLAUDE.md 7.1). Vordur: tests/bsd-pipeline.mjs kafli 2.
+          BSD_KEY: ${{ secrets.BSD_KEY }}
         run: node scripts/fetch.mjs --fast
 
       - name: Committa ef eitthvað breyttist

@@ -20,7 +20,7 @@ import { num } from "./stats.js";
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
   text2:"#61616b", text3:"#8b8b95", purple:"#37003c", green:"#00b96b",
-  amber:"#c98a00", red:"#d92d3c",
+  amber:"#c98a00", red:"#d92d3c", amberBg:"#fff6e0",
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
@@ -37,6 +37,9 @@ function SafeImg({ src, style }) {
 const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
 /* Radirnar. `hi:false` = laegra er betra. `fmt` styrir birtingu.        */
+import { advise, contextFactors, ADVISOR_CAL } from "./advisor.js";
+import { indexImminentByTeam, matchImminent } from "./stats.js";
+
 export const ROWS = [
   { get grp() { return "Basics"; } },
   { k:"total_points", get label() { return "FPL points"; },       hi:true,  get:r => r.total_points },
@@ -209,8 +212,160 @@ function liveRow(p) {
   };
 }
 
+
+/* ============================================================
+   RADGJOFIN — birting eingongu. Hver tala kemur ur src/advisor.js.
+
+   ThRJAR BIRTINGAR-AKVARDANIR, ALLAR TIL AD TALAN LJUGI EKKI:
+     1. PROSENTAN BER SINA EIGIN SKYRINGU A SKJANUM, ekki i tooltip-i:
+        "af 306.653 samanburdum i fortidinni". An hennar les hun sem
+        spadomur, sem hun er ekki.
+     2. ThEGAR MUNURINN ER UNDIR 55% SEGIR HUN ThAD BERUM ORDUM. Gognin
+        vita thad ekki, og verkfaeri sem thykist vissara en gognin er
+        verra en ekkert.
+     3. SAMHENGIS-TOLURNAR (DefCon, jofnudur, byrjunar-likur) eru i
+        EIGIN kassa med sinum fyrirvara. Their eru THAR af thvi ad
+        notandinn bad um "oll gogn" — en their eru UTAN talunnar af thvi
+        ad maelingin hafnadi theim, og bædi verdur ad sjast.
+   ============================================================ */
+function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, horizon }) {
+  const immByTeam = useMemo(() => indexImminentByTeam(imminent), [imminent]);
+
+  const input = useMemo(() => picked.map(p => {
+    const a = advisorById?.[p.id];
+    const im = matchImminent(p, immByTeam, teamById?.[p.team]?.short);
+    const dcRec = defcon?.players?.[p.id] ?? defcon?.players?.[String(p.id)];
+    const cRec = consist?.seasons
+      ? Object.values(consist.seasons).map(sn => sn?.[String(p.code)]).filter(Boolean).pop()
+      : null;
+    return {
+      id: p.id, name: p.web_name, pos: p.element_type, p,
+      inputs: a?.inputs || {},
+      available: a?.avail,
+      startProb: num(im?.start_prob),
+      dc: num(dcRec?.defcon_opportunity),
+      aron: num(cRec?.aron),
+    };
+  }), [picked, advisorById, immByTeam, defcon, consist, teamById]);
+
+  const res = useMemo(() => advise(input), [input]);
+  if (!res.ok) return null;
+
+  const pct = v => `${Math.round(v * 100)}%`;
+  const lead = res.lead;
+  const risky = res.ranked.filter(r => (r.startProb != null && r.startProb < 0.5)
+                                    || (r.available != null && r.available < 0.75));
+
+  return (
+    <div style={S.adv}>
+      <div style={S.advHead}>
+        <b style={S.advTitle}>{"Which one?"}</b>
+        <span style={S.advSub}>
+          {`over the next ${horizon || 5} gameweeks`}
+        </span>
+      </div>
+
+      <div style={S.advBars}>
+        {res.ranked.map(r => (
+          <div key={r.id} style={S.advBarRow}>
+            <span style={{ ...S.advName, ...(r.id === lead.id ? S.advNameLead : null) }}>
+              {r.name}
+            </span>
+            <div style={S.advTrack}>
+              <div style={{ ...S.advFill, width: `${Math.max(2, r.share * 100)}%`,
+                            background: r.id === lead.id ? "#1b5e9c" : "#c3cbd6" }} />
+            </div>
+            <span style={{ ...S.advPct, ...(r.id === lead.id ? S.advPctLead : null) }}>
+              {pct(r.share)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <p style={S.advWhat}>
+        {res.close ? (
+          <>
+            <b>{"Too close to call."}</b>{" The measured gap between "}
+            <b>{res.ranked[0].name}</b>{" and "}<b>{res.ranked[1].name}</b>
+            {" puts the head-to-head at "}<b>{pct(res.decisiveProb)}</b>
+            {" — barely better than a coin toss. On these numbers there is no real "}
+            {"case for one over the other; decide on something the model does not see."}
+          </>
+        ) : (
+          <>
+            <b>{lead.name}</b>{" leads. Head to head against "}
+            <b>{res.ranked[1].name}</b>{", the higher-rated player outscored the other in "}
+            <b>{pct(res.decisiveProb)}</b>{" of comparable cases."}
+          </>
+        )}
+      </p>
+
+      <p style={S.advCal}>
+        {"The percentage is not a probability that the transfer works out — nothing measures "}
+        {"that. It is how often the better-rated player actually scored more, counted over "}
+        <b>{"306,653 head-to-heads inside the same gameweek"}</b>{" across five seasons. "}
+        {"The ceiling is real: even the widest gap in the data only reaches about 81%, "}
+        {"because one gameweek of football is that noisy."}
+      </p>
+
+      {risky.length > 0 && (
+        <p style={S.advWarn}>
+          <b>{"The number above assumes they both play."}</b>{" "}
+          {risky.map(r => `${r.name}: ${r.startProb != null
+            ? `${Math.round(r.startProb * 100)}% to play 60+ minutes`
+            : "flagged as doubtful"}`).join(" · ")}
+          {". A player who does not start scores nothing, which is a harder problem than "}
+          {"who scores more — so it sits here rather than inside the percentage."}
+        </p>
+      )}
+
+      <div style={S.advCols}>
+        {res.ranked.map(r => {
+          const ctx = contextFactors(r);
+          return (
+            <div key={r.id} style={S.advCol}>
+              <div style={S.advColHd}>{r.name}</div>
+              <div style={S.advColSub}>{"What moves the score"}</div>
+              {r.terms.filter(t => t.delta != null && Math.abs(t.delta) >= 0.01).map(t => (
+                <div key={t.key} style={S.advTerm} title={`${t.label}: ${t.value}`}>
+                  <span style={S.advTermL}>{t.label}</span>
+                  <span style={{ ...S.advTermV,
+                                 color: t.delta > 0 ? "#0a5c3e" : "#8f2230" }}>
+                    {t.delta > 0 ? "+" : ""}{t.delta.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+              {ctx.length > 0 && <div style={S.advColSub}>{"Shown, but not in the score"}</div>}
+              {ctx.map(c => (
+                <div key={c.key} style={S.advTerm} title={c.note}>
+                  <span style={S.advTermL}>{c.label}</span>
+                  <span style={S.advTermCtx}>
+                    {c.fmt === "pct" ? `${Math.round(c.value * 100)}%`
+                      : c.fmt === "signed" ? `${c.value > 0 ? "+" : ""}${c.value.toFixed(2)}`
+                      : c.fmt === "int" ? String(Math.round(c.value)) : c.value.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      <p style={S.advFoot}>
+        {"The score behind this is the same one the buy recommendations are ranked by — "}
+        {"five inputs (form, minutes, price, fixture difficulty, minutes trend), fitted on "}
+        {"five seasons and validated season-by-season. It beats both the app's own expected "}
+        {"points and "}<b>{"FPL's published xP"}</b>{". The numbers under each name are how "}
+        {"much each input moved that player relative to the others in this comparison, so "}
+        {"they add up to the gap rather than explaining it after the fact."}
+      </p>
+    </div>
+  );
+}
+
 export default function Compare({ ids, players, teamById, seasonsFile, photoUrl, Crest,
-                                  currentLabel, seasonStarted, onRemove, onClear, onClose }) {
+                                  currentLabel, seasonStarted, onRemove, onClear, onClose,
+                                  advisorById, imminent, defcon, consist, horizon }) {
   const seasons = useMemo(() => {
     const older = (seasonsFile?.seasons || []);
     return [{ key: currentLabel, live: true }, ...older.map(s => ({ key: s }))];
@@ -271,6 +426,14 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                 <b>{currentLabel} {"has not started"}</b> {"— no numbers exist. Pick an earlier season in the dropdown to compare."}
               </div>
             )}
+
+            {/* RADGJOFIN STENDUR EFST. Hun er SVARID vid spurningunni sem
+                madur opnadi gluggann til ad svara ("hvorn a eg ad taka?");
+                taflan fyrir nedan er ROKSTUDNINGURINN. Vaeri hun nedst
+                thyrfti madur ad skruna fram hja ollum tolunum til ad fa
+                nidurstoduna, sem er ofug rod.                            */}
+            <Advisor picked={picked} advisorById={advisorById} imminent={imminent}
+              defcon={defcon} consist={consist} teamById={teamById} horizon={horizon} />
 
             <div style={S.note}>
               {"Compared over a"} <b>{"whole season"}</b>{", not an arbitrary gameweek range: per-gameweek numbers only exist in"} <code>live/gw*.json</code> {"and they only fill up once 2026/27 begins. Season comparison works right away and reaches 3 years back."}
@@ -354,6 +517,39 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
 }
 
 const S = {
+  /* ---- radgjofin ---- */
+  adv:{ border:"1px solid #cfe0f0", background:"#f7fbff", borderRadius:9,
+        padding:"11px 13px", marginBottom:10 },
+  advHead:{ display:"flex", alignItems:"baseline", gap:8, marginBottom:8 },
+  advTitle:{ fontSize:14, fontWeight:700, color:"#12456f" },
+  advSub:{ fontSize:11, color:C.text3 },
+  advBars:{ display:"flex", flexDirection:"column", gap:4 },
+  advBarRow:{ display:"grid", gridTemplateColumns:"minmax(78px,132px) 1fr 44px",
+              alignItems:"center", gap:8 },
+  advName:{ fontSize:12, color:C.text2, overflow:"hidden", textOverflow:"ellipsis",
+            whiteSpace:"nowrap" },
+  advNameLead:{ fontWeight:700, color:C.text },
+  advTrack:{ height:11, background:"#e7edf4", borderRadius:6, overflow:"hidden" },
+  advFill:{ height:"100%", borderRadius:6 },
+  advPct:{ fontFamily:mono, fontSize:12, textAlign:"right", color:C.text2 },
+  advPctLead:{ fontWeight:700, color:"#12456f", fontSize:13 },
+  advWhat:{ fontSize:12, color:C.text, lineHeight:1.5, margin:"9px 0 0" },
+  advCal:{ fontSize:11, color:C.text2, lineHeight:1.45, margin:"6px 0 0" },
+  advWarn:{ fontSize:11.5, color:"#7a5600", background:C.amberBg,
+            border:"1px solid #f0dcae", borderRadius:7, padding:"7px 9px",
+            margin:"8px 0 0", lineHeight:1.45 },
+  advCols:{ display:"flex", gap:8, flexWrap:"wrap", marginTop:10 },
+  advCol:{ flex:"1 1 150px", minWidth:140, background:"#fff",
+           border:`1px solid ${C.border}`, borderRadius:7, padding:"7px 9px" },
+  advColHd:{ fontSize:12, fontWeight:700, color:C.text, marginBottom:3 },
+  advColSub:{ fontSize:9, fontWeight:700, letterSpacing:0.5, textTransform:"uppercase",
+              color:C.text3, margin:"6px 0 2px" },
+  advTerm:{ display:"flex", justifyContent:"space-between", gap:6, fontSize:11,
+            color:C.text2, padding:"1px 0" },
+  advTermL:{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  advTermV:{ fontFamily:mono, fontWeight:700, flex:"0 0 auto" },
+  advTermCtx:{ fontFamily:mono, color:C.text3, flex:"0 0 auto" },
+  advFoot:{ fontSize:10.5, color:C.text3, lineHeight:1.45, margin:"9px 0 0" },
   /* ---- sjonraena snidid ---- */
   vis:{ display:"flex", flexDirection:"column", gap:2, marginTop:4 },
   vGrp:{ fontSize:10.5, fontWeight:700, letterSpacing:0.6, textTransform:"uppercase",

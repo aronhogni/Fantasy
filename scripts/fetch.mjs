@@ -20,6 +20,7 @@ import { existsSync } from "node:fs";
    Hún var áður staðbundin hér og þar með óprófanleg — samt með vog 0,50
    í FFDR fyrir GK/DEF. Sjá tests/ffdr-walkforward.mjs.                  */
 import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../src/market.js";
+import { mergeLineupSnapshot } from "../src/bsd.js";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const DATA = "data";
@@ -42,6 +43,9 @@ const FLAGS = {
   travel:          (process.env.ENABLE_TRAVEL ?? "true")     === "true",
   derived:         (process.env.ENABLE_DERIVED ?? "true")    === "true",
   odds_key:        process.env.ODDS_API_KEY || "",
+  /* BSD (sports.bzzoiro.com) — okeypis, enginn kvoti. Maelt 8.8.2026:
+     ~1.400 koll i einni lotu an throttlunar. Sja CLAUDE.md 6t.        */
+  bsd:             !!process.env.BSD_KEY,
 };
 
 const status = { updated: new Date().toISOString(), sources: {} };
@@ -1856,9 +1860,158 @@ async function fetchFast() {
     catch (e) { record("api_lineups", false, 0, e.message); }
   }
 
+  /* BSD-SPA UM BYRJUNARLID TILHEYRIR LIKA HRADA KEYRSLUNNI, OG HER ER
+     ASTAEDA SEM GILDIR UM ENGA ADRA HEIMILD I ThESSU REPO-I:
+     **SPAIN ER EKKI GEYMD AFTURVIRKT.** Maelt 8.8.2026 — leikur sem er
+     BUINN skilar `lineup_status: "confirmed"`, ekki thvi sem spad var
+     ADUR. Spa sem er ekki soft fyrir leik er thvi TOPUD AD EILIFU.
+     Glugginn maeldist ~11-13 klst fyrir leik (14 af 14 Carabao-leikjum
+     a T+11-13 voru `predicted`, allt utan thess `unavailable`).
+     Vid GEYMUM hana svo haegt se ad MAELA hana sidar gegn okkar eigin
+     6h-likani — hun er ekki notud i neinni akvordun fyrr en hun hefur
+     verid maeld, sbr. regluna i kafla 3.                              */
+  if (FLAGS.bsd) {
+    try { await fetchBsdLineups(); }
+    catch (e) { record("bsd_lineups", false, 0, e.message); }
+    try { await fetchBsdOdds(); }
+    catch (e) { record("bsd_odds", false, 0, e.message); }
+  }
+
   console.log(`HRAÐUR: ${volatile.length} leikmenn m. frétt/vafa/verðbreytingu, ${prices.length} verðbreytingar`);
   record("fast_news", true, volatile.length, `${prices.length} verðbreytingar`);
   await writeJSON("status_fast.json", status);
+}
+
+/* ========== BSD (sports.bzzoiro.com) ==========
+   Okeypis, enginn kvoti (maelt 8.8.2026). Uppsofnunin sjalf er i
+   `src/bsd.js` — HREIN og profud — svo pipeline og handvirka skriftan
+   `scripts/fetch-bsd.mjs` reikni NAKVAEMLEGA thad sama. Tvaer utfaerslur
+   myndu thyda ad lokna timabilid og thad lifandi gaetu rekid i sundur an
+   thess ad nokkurt prof felli (sama rok og `market.js`, kafli 1).      */
+const BSD_API = "https://sports.bzzoiro.com/api/v2";
+const BSD_LEAGUE = 1;                    // Premier League
+async function bsdGet(path) {
+  const r = await fetch(BSD_API + path, {
+    headers: { Authorization: `Token ${process.env.BSD_KEY}`, "user-agent": "fantasy-tool" },
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!r.ok) throw new Error(`BSD HTTP ${r.status} ${path}`);
+  return r.json();
+}
+/* Leikir yfirstandandi timabils. `is_current` er lesid ur BSD sjalfu svo
+   timabils-id se ekki hardkodad — thad breytist arlega.                */
+async function bsdCurrentSeason() {
+  const d = await bsdGet(`/leagues/${BSD_LEAGUE}/seasons/?limit=5`);
+  const cur = (d.seasons || []).find(s => s.is_current) || (d.seasons || [])[0];
+  return cur?.id ?? null;
+}
+
+/* ---- SPAD BYRJUNARLID — GEYMT, EKKI NOTAD ----
+   Spain er EKKI geymd afturvirkt hja BSD: leikur sem er buinn skilar
+   `confirmed`, ekki thvi sem spad var. Spa sem er ekki soft fyrir leik
+   er thvi TOPUD AD EILIFU. Thess vegna er hun geymd hér strax — EN hun
+   fer i ENGA akvordun fyrr en hun hefur verid maeld gegn 6h-likaninu
+   yfir GW1-4 (sama regla og allt annad i kafla 3).                    */
+async function fetchBsdLineups() {
+  const season = await bsdCurrentSeason();
+  if (!season) { record("bsd_lineups", true, 0, "ekkert timabil"); return; }
+  const d = await bsdGet(`/events/?league_id=${BSD_LEAGUE}&season_id=${season}&status=notstarted&limit=30`);
+  const now = Date.now();
+  /* Adeins leikir innan 24 klst — glugginn maeldist ~11-13 klst, svo
+     vidara en thad er hreint soun a kollum.                           */
+  const soon = (d.results || []).filter(e => {
+    const t = Date.parse(e.event_date);
+    return Number.isFinite(t) && t > now && t - now < 24 * 3600e3;
+  });
+  if (!soon.length) {
+    record("bsd_lineups", true, 0, "engir leikir innan 24 klst (spa-glugginn er ~13 klst)");
+    return;
+  }
+  /* VID SKRIFUM OFAN A, EKKI YFIR: fyrri spar mega ekki tapast, thvi
+     thaer eru einmitt thad sem a ad maela sidar.                      */
+  let prev = {};
+  try { prev = JSON.parse(await readFile(`${DATA}/bsd_lineups.json`, "utf8")).events || {}; }
+  catch { /* fyrsta keyrsla */ }
+  let got = 0;
+  for (const e of soon) {
+    try {
+      const lu = await bsdGet(`/events/${e.id}/lineups/`);
+      if (lu.lineup_status === "unavailable") continue;
+      const before = (prev[String(e.id)]?.snapshots || []).length;
+      prev = mergeLineupSnapshot(prev, {
+        eventId: e.id, fixture: `${e.home_team} v ${e.away_team}`,
+        kickoff: e.event_date, status: lu.lineup_status,
+        at: new Date().toISOString(),
+        lineups: { home: sideOf(lu.lineups?.home), away: sideOf(lu.lineups?.away) },
+      });
+      if ((prev[String(e.id)].snapshots || []).length > before) got++;
+    } catch (err) { console.warn(`bsd lineup ${e.id}: ${err.message}`); }
+  }
+  await writeJSON("bsd_lineups.json", {
+    updated: new Date().toISOString(), season_id: season,
+    note: "SPAD byrjunarlid ur BSD, geymt til MAELINGAR — ekki notad i neinni "
+        + "akvordun. Spain er ekki geymd afturvirkt (loknir leikir skila "
+        + "'confirmed'), svo hun tapast ef hun er ekki soft fyrir leik. "
+        + "Glugginn maeldist ~11-13 klst fyrir leik. `ai_score` er theirra "
+        + "eigin likan og hefur EKKI verid maelt gegn okkar 6h-likani.",
+    events: prev,
+  });
+  record("bsd_lineups", true, got, `${soon.length} leikir i glugga, ${got} ny skot`);
+}
+/* Adeins thad sem tharf til maelingar: hver atti ad byrja og med hvada
+   oryggi. Bekkurinn er 24-33 manns hja BSD og segir ekkert.           */
+function sideOf(s) {
+  if (!s) return null;
+  return {
+    team: s.team_name, formation: s.formation, confidence: s.confidence,
+    xi: (s.players || []).map(p => ({ n: p.name, pos: p.position, ai: p.ai_score })),
+  };
+}
+
+/* ---- MARKADSLINA UR BSD — VARALEID VID ODDS-API ----
+   Hun er VARALEID, ekki utskipting: Odds-API er ohreyfd og BSD skrifar i
+   SINA skra. Astaedan er kafli 3 — markadslinan er staersta validerada
+   merkid i verkefninu, svo hun ma ekki hanga a einni heimild sem er ny
+   og oreynd. `odds.json` heldur forgangi; thetta er thad sem gripur ef
+   kvotinn (456 koll eftir) klarast eda heimildin dettur.
+
+   ENGIN NY STAERDFRAEDI: BSD hefur ENGAN asiskan forgjafar-markad, en
+   `marketGoals()` i `src/market.js` hefur ThEGAR leid an hans
+   (`totals+h2h` gegnum `splitGoals`). Su leid var MAELD 8.8.2026 a 2.658
+   E0-leikjum gegn raunverulegum morkum: r(heima) 0,3958 a moti 0,3950
+   fyrir spread-leidina, MAE 0,9194 a moti 0,9206 — ThAD ER JAFNGOTT.
+   Poisson-lausn var lika profud (r 0,3965) og er 0,001 fra — su vidbot
+   var thvi MAELD OG SLEPPT sem suð.                                    */
+async function fetchBsdOdds() {
+  const season = await bsdCurrentSeason();
+  if (!season) { record("bsd_odds", true, 0, "ekkert timabil"); return; }
+  const d = await bsdGet(`/events/?league_id=${BSD_LEAGUE}&season_id=${season}&status=notstarted&limit=20`);
+  const out = {};
+  let priced = 0;
+  for (const e of (d.results || [])) {
+    let o;
+    try { o = await bsdGet(`/events/${e.id}/odds/`); }
+    catch { continue; }
+    const q = o?.odds || {};
+    if (q.home_win == null || q.over_25_goals == null) continue;
+    priced++;
+    out[String(e.id)] = {
+      fixture: `${e.home_team} v ${e.away_team}`, kickoff: e.event_date,
+      home_win: q.home_win, draw: q.draw, away_win: q.away_win,
+      over_25: q.over_25_goals, under_25: q.under_25_goals,
+    };
+  }
+  await writeJSON("bsd_odds.json", {
+    updated: new Date().toISOString(), season_id: season,
+    note: "VARALEID vid odds.json (Odds-API), ekki utskipting. BSD hefur "
+        + "ENGAN asiskan forgjafar-markad, svo linan er reiknud gegnum "
+        + "marketGoals() 'totals+h2h'-leidina — MAELD jafngod spread-leidinni "
+        + "a 2.658 E0-leikjum (r 0,3958 a moti 0,3950). Oddar BSD na adeins "
+        + "~4 daga fram, svo skrain er tom utan thess glugga og thad er RETT.",
+    events: out,
+  });
+  record("bsd_odds", true, priced,
+         priced ? `${priced} leikir verdlagdir` : "engir leikir innan ~4 daga odds-gluggans");
 }
 
 /* ========== 10. AFLEIDD LÖG — engin ný köll, engir kvótar ==========

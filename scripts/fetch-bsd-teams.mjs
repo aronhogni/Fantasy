@@ -186,7 +186,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const matches = [];
   const missed = [];
   let done = 0;
-  await pool(finished, 6, async (e) => {
+  const grabOne = async (e) => {
     const [st, ps] = await Promise.all([
       get(`/events/${e.id}/stats/`).catch(() => null),
       get(`/events/${e.id}/player-stats/`).catch(() => null),
@@ -202,18 +202,42 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       xg: typeof s.xg === "number" ? s.xg : null,
       x: s.pos?.x,
     }));
+    /* SNIÐIÐ ER MAELT, EKKI TEKID UR SKJOLUN: `st.stats` er HLUTUR med
+       `home`/`away`, ekki fylki af lidum. Fyrsta utgafan las
+       `st.statistics || st.teams` (fylki) og fann thvi ekkert — talan
+       var null i heilli keyrslu OG krossprofunin thagdi med henni.
+       Thess vegna er MAE-talan skrifud i skrana: se hun null aftur er
+       sniðið breytt og thad sest STRAX.                                */
+    const home = e.home_team_id ?? e.home?.id, away = e.away_team_id ?? e.away?.id;
     const reported = {};
-    for (const t of st.statistics || st.teams || []) {
-      const id = t.team_id ?? t.id;
-      if (id != null && typeof t.big_chances === "number") reported[id] = { big_chances: t.big_chances };
+    for (const [side, id] of [["home", home], ["away", away]]) {
+      const bc = st.stats?.[side]?.big_chances;
+      if (id != null && typeof bc === "number") reported[id] = { big_chances: bc };
     }
-    matches.push({ home: e.home_team_id ?? e.home?.id, away: e.away_team_id ?? e.away?.id, shots, reported });
+    matches.push({ event_id: e.id, home, away, shots, reported });
     if (++done % 50 === 0) console.log(`  leikir ${done}/${finished.length}`);
-  });
+  };
+  await pool(finished, 6, grabOne);
 
+  /* ONNUR ATRENNA A THA SEM DUTTU — RADBUNDID OG ROLEGA.
+     Fyrsta atrennan keyrir 6 samhlida og BSD dettur stundum a einstaka
+     kalli undir thvi alagi (maelt: 4 af 380). Ad deyja a thvi vaeri
+     ovirding vid 756 heppnud koll; ad skrifa an theirra vaeri thogult
+     gagnatap. Thess vegna: reyna aftur, EINN i einu, og deyja fyrst ef
+     eitthvad stendur enn eftir. Sama regla og i fetch-bsd.mjs.        */
   if (missed.length) {
-    console.error(`${missed.length} leikir mistokust — SKRIFA EKKI HALFT TIMABIL.`);
-    process.exit(1);
+    console.log(`${missed.length} leikir duttu — onnur atrenna, radbundid`);
+    const still = [];
+    for (const id of missed) {
+      const e = finished.find(x => x.id === id);
+      await sleep(400);
+      try { await grabOne(e); } catch { still.push(id); }
+      if (!matches.some(m => m.event_id === id)) still.push(id);
+    }
+    if (still.length) {
+      console.error(`${still.length} leikir mistokust ENN — SKRIFA EKKI HALFT TIMABIL.`);
+      process.exit(1);
+    }
   }
 
   const agg = aggregateTeamShots(matches);

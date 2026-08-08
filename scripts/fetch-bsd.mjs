@@ -72,6 +72,8 @@
    stadfest med STODU. Oparadir fa `fpl_id: null`, ALDREI 0.
    ============================================================ */
 import { writeFileSync, readFileSync } from "node:fs";
+import { BIG_CHANCE_XG, IN_BOX_X, newAcc, addPlayerRow, addShot, resolveTeam,
+         finalize, pairPlayers, FPL_POS } from "../src/bsd.js";
 
 const KEY = process.env.BSD_KEY;
 if (!KEY) {
@@ -82,9 +84,7 @@ const API = "https://sports.bzzoiro.com/api/v2";
 const LEAGUE = 1;                       // Premier League
 const SEASON = process.argv[2] || "337"; // 337 = 2025/26 (lokid)
 
-/* MAELDIR FASTAR — sja hausinn. Ekki breyta an nyrrar maelingar. */
-export const BIG_CHANCE_XG = 0.18;
-export const IN_BOX_X = 17;
+/* MAELDIR FASTAR eru i `src/bsd.js` — ein heimild, sja hausinn thar. */
 
 /* HANDSTADFEST lidatafla: BSD team_id -> FPL short. */
 const BSD_TEAM = {
@@ -131,43 +131,12 @@ console.log(`BSD timabil ${SEASON}: ${events.length} leikir, ${finished.length} 
 if (!finished.length) { console.error("engir loknir leikir — er timabilid byrjad?"); process.exit(1); }
 
 /* ---- 2) leikmannatolur + skotakort per leik ---- */
-/* SUMMANLEG svid. Daud svid (sja haus) eru VILJANDI EKKI hér.        */
-const SUM = [
-  "minutes_played", "goals", "goal_assist", "total_shots", "shots_on_target",
-  "key_pass", "total_cross", "accurate_cross", "touches",
-  "total_contest", "won_contest", "duel_won", "duel_lost", "aerial_won", "aerial_lost",
-  "total_pass", "accurate_pass", "total_long_balls", "accurate_long_balls",
-  "dispossessed", "possession_lost", "was_fouled", "fouls",
-  "blocked_scoring_attempt", "total_tackle", "won_tackle", "interception",
-  "total_clearance", "ball_recovery", "saves", "punches", "goals_conceded",
-  "yellow_card", "red_card",
-];
-/* SKOT-SUNDURLIDUN — MAELD 8.8.2026, oll svidin 100% fyllt.
-   `sit` hefur atta gildi og their eru RAUNVERULEGIR flokkar, ekki tomir:
-   assisted 47,7% · corner 17,6% · regular 13,1% · fast-break 6,9% ·
-   set-piece 5,9% · throw-in-set-piece 5,1% · free-kick 2,6% · penalty 1,0%.
-   Vitaspyrnur maelast med medal-xG **0,788**, sem er thekkta vitaspyrnu-
-   hlutfallid — sjalfstaed stadfesting a xG-likani theirra.
-
-   FOST LEIKATRIDI eru thvi adgreinanleg per leikmann (31,2% skota), og thad
-   er raunverulegt FPL-forskot: hver ognar UR hornum er onnur spurning en
-   hver skorar mest.                                                       */
-const SET_PIECE = new Set(["corner", "set-piece", "throw-in-set-piece", "free-kick"]);
-const OPEN_PLAY = new Set(["assisted", "regular", "fast-break"]);
-
-const agg = new Map();   // bsd player_id -> tolur
-const P = id => {
-  let o = agg.get(id);
-  if (!o) {
-    o = { apps: 0, team_id: null, teams: new Map(), rating_sum: 0, rating_n: 0,
-          shots: 0, xg: 0, big_chances: 0, shots_in_box: 0, shots_out_box: 0,
-          sp_shots: 0, sp_xg: 0, op_xg: 0, head_shots: 0, head_xg: 0,
-          pen_shots: 0, woodwork: 0 };
-    for (const k of SUM) o[k] = 0;
-    agg.set(id, o);
-  }
-  return o;
-};
+/* Uppsofnunin sjalf er i `src/bsd.js` — HREIN og profud. Hun er notud
+   baedi hér og i `fetchBsdLive()` i pipeline-inu; tvaer utfaerslur myndu
+   thyda ad lokna timabilid og thad lifandi gaetu reiknad SITT HVAD an
+   thess ad nokkurt prof felli (sbr. `market.js`, CLAUDE.md kafli 1).   */
+const agg = new Map();
+const P = id => { let o = agg.get(id); if (!o) { o = newAcc(); agg.set(id, o); } return o; };
 
 let done = 0, noShot = 0;
 const missed = [];
@@ -196,40 +165,10 @@ const ingest = (e) => {
   const got = fetched.get(e.id);
   if (!got) return;
   const { ps, st } = got;
-  for (const r of (ps?.player_stats || [])) {
-    const o = P(r.player_id);
-    /* LIDID ER ThAD SEM HANN SPILADI FLESTA LEIKI FYRIR, ekki thad sem
-       vardst SIDAST unnid ur. `pool` vinnur leikina SAMHLIDA, svo "sidasti
-       vinnur" gaf leikmanni sem skipti um lid a midju timabili ROSANDI lid
-       milli keyrslna — og thar med annan frambjodenda-hop og adra pörun.
-       Maelt: tvaer eins keyrslur gafu 389, 390 og 391 pörun.            */
-    o.apps++;
-    if (r.team_id != null) o.teams.set(r.team_id, (o.teams.get(r.team_id) || 0) + 1);
-    for (const k of SUM) if (typeof r[k] === "number") o[k] += r[k];
-    if (typeof r.rating === "number") { o.rating_sum += r.rating; o.rating_n++; }
-  }
+  for (const r of (ps?.player_stats || [])) addPlayerRow(P(r.player_id), r);
   const sm = st?.shotmap || [];
   if (!sm.length) noShot++;
-  for (const s of sm) {
-    if (s.player_id == null) continue;
-    const o = P(s.player_id);
-    o.shots++;
-    const xg = typeof s.xg === "number" ? s.xg : 0;
-    if (typeof s.xg === "number") {
-      o.xg += s.xg;
-      if (s.xg >= BIG_CHANCE_XG) o.big_chances++;
-    }
-    const x = s.pos?.x;
-    if (typeof x === "number") (x <= IN_BOX_X ? o.shots_in_box++ : o.shots_out_box++);
-    /* FOST LEIKATRIDI / OPINN LEIKUR / SKALLAR / TREVERK */
-    if (SET_PIECE.has(s.sit)) { o.sp_shots++; o.sp_xg += xg; }
-    else if (OPEN_PLAY.has(s.sit)) { o.op_xg += xg; }
-    if (s.sit === "penalty") o.pen_shots++;
-    if (s.body === "head") { o.head_shots++; o.head_xg += xg; }
-    /* TREVERK — `luck.json` hefur borid woodwork: null sidan Understat do
-       (6b). BSD gefur thad sem eigin utkomu-tegund: 211 skot 2025/26.   */
-    if (s.type === "post") o.woodwork++;
-  }
+  for (const sh of sm) if (sh.player_id != null) addShot(P(sh.player_id), sh);
 };
 await pool(finished, 6, grab);
 /* Onnur atrenna a tha sem duttu, rolegar (raðbundid). Standi eitthvad eftir
@@ -248,14 +187,8 @@ if (missed.length) {
 /* FOST ROD: event-id stigandi, ohad thvi i hvada rod svorin bárust. */
 for (const e of [...finished].sort((a, b) => a.id - b.id)) ingest(e);
 
-/* Flest-leikid lid raedur; jafntefli brotnar a laegsta team_id svo thetta
-   se FAST milli keyrslna.                                              */
-for (const o of agg.values()) {
-  let best = null, bn = -1;
-  for (const [tid, n] of [...o.teams].sort((a, b) => a[0] - b[0]))
-    if (n > bn) { bn = n; best = tid; }
-  o.team_id = best;
-}
+/* Flest-leikid lid raedur; jafntefli brotnar a laegsta team_id (i bsd.js). */
+for (const o of agg.values()) resolveTeam(o);
 console.log(`leikmenn med tolur: ${agg.size} · leikir an skotakorts: ${noShot}`);
 
 /* ---- 3) nofn ---- */
@@ -278,27 +211,6 @@ const fplTeams = Array.isArray(rawTeams) ? rawTeams : (rawTeams.teams || []);
 const teamByShort = Object.fromEntries(fplTeams.map(t => [t.short, t]));
 const rawPl = JSON.parse(readFileSync(new URL("../data/players.json", import.meta.url), "utf8"));
 const fplPlayers = Array.isArray(rawPl) ? rawPl : (rawPl.players || []);
-const FPL_POS = { 1: "G", 2: "D", 3: "M", 4: "F" };
-
-const TRANS = { "ß": "ss", "ı": "i", "ø": "o", "đ": "d", "ð": "d", "þ": "th", "æ": "ae", "œ": "oe", "ł": "l" };
-const norm = s => {
-  let t = String(s || "").toLowerCase();
-  for (const [a, b] of Object.entries(TRANS)) t = t.split(a).join(b);
-  return t.normalize("NFD").replace(/[̀-ͯ]/g, "")
-          .replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean).join(" ");
-};
-const toks = s => norm(s).split(" ").filter(w => w.length > 1);
-const score = (a, b) => {
-  const ta = toks(a), tb = toks(b);
-  if (!ta.length || !tb.length) return 0;
-  let hit = 0;
-  for (let i = 0; i < ta.length; i++) {
-    if (ta.indexOf(ta[i]) !== i) continue;      // de-dupe an Set (sbr. 6i)
-    if (tb.includes(ta[i])) hit++;
-  }
-  return hit / Math.min(new Set(ta).size, new Set(tb).size);
-};
-
 const fplByTeam = new Map();
 for (const p of fplPlayers) {
   if (!fplByTeam.has(p.team)) fplByTeam.set(p.team, []);
@@ -309,103 +221,36 @@ for (const p of fplPlayers) {
    Alex Murphy (badir NEW) VIXLUDUST, og Gabriel Martinelli lenti a
    Gabriel. Baedi pörin fa sama nafnaskor, svo rodin réd — thad er
    tilviljun, ekki pörun. `season_baseline.json` geymir FPL-minutur
-   SAMA timabils (2025/26), svo thaer eru gild sonnunargogn hér (og
-   AÐEINS hér: players.json-minutur eru yfirstandandi timabils og eru
-   0 i forleik). Minutu-samraemi er lagt VID nafnaskorid, svo thad
-   sker adeins ur thegar nofnin eru jofn.                              */
-let baseMin = new Map();
+   SAMA timabils, svo thaer eru gild sonnunargogn hér (og AÐEINS hér:
+   players.json-minutur eru yfirstandandi timabils og eru 0 i forleik). */
+let baseMin = null;
 try {
   const b = JSON.parse(readFileSync(new URL("../data/season_baseline.json", import.meta.url), "utf8"));
-  if (b.label === (SEASON === "337" ? "2025/26" : null))
+  if (SEASON === "337" && b.label === "2025/26")
     baseMin = new Map((b.players || []).map(p => [p.id, p.minutes]));
 } catch { /* skran ma vanta — tha raedur nafnid eitt */ }
-const minAgree = (bsdMin, fplId) => {
-  const fm = baseMin.get(fplId);
-  if (fm == null || (!bsdMin && !fm)) return 0;
-  return 1 - Math.abs(bsdMin - fm) / Math.max(bsdMin, fm, 1);
-};
 
-/* EITT-A-EITT: oll pör skorud, haesta fyrst, hvor adili notadur einu sinni. */
+/* Pörunin sjalf er i `src/bsd.js` (hrein og profud) — sja hausinn thar. */
 const cands = [];
 for (const [bid, o] of agg) {
   const short = BSD_TEAM[o.team_id];
   const ft = short ? teamByShort[short] : null;
   const m = meta.get(bid);
   if (!ft || !m) continue;
-  for (const fp of (fplByTeam.get(ft.id) || [])) {
-    const full = `${fp.first_name || ""} ${fp.second_name || ""}`;
-    const s = Math.max(score(m.name, full), score(m.name, fp.web_name), score(m.short_name, fp.web_name));
-    if (s >= 0.6 && (FPL_POS[fp.element_type] === m.position || s >= 0.99))
-      cands.push([s + 0.5 * minAgree(o.minutes_played, fp.id), bid, fp]);
-  }
+  cands.push({ bsd_id: bid, name: m.name, short_name: m.short_name, pos: m.position,
+               minutes: o.minutes_played, pool: fplByTeam.get(ft.id) || [] });
 }
-/* STODUG ROD — ANNARS ER SKRAIN EKKI ENDURGERANLEG.
-   Maelt: tvaer EINS keyrslur gafu 391 og 389 pörun. Astaedan er ad
-   `agg` erfir innsetningarrod leikjanna, sem `pool` vinnur SAMHLIDA og
-   thvi i breytilegri rod; jofn skor brotnudu tha eftir tilviljun.
-   Jafntefli eru raunveruleg (samnefningar i sama lidi), svo their verda
-   ad brotna a EINHVERJU FOSTU — bsd_id og svo fpl_id.                  */
-cands.sort((a, b) => (b[0] - a[0]) || (a[1] - b[1]) || (a[2].id - b[2].id));
-const pairBsd = new Map(), usedFpl = new Set();
-for (const [, bid, fp] of cands) {
-  if (pairBsd.has(bid) || usedFpl.has(fp.id)) continue;
-  pairBsd.set(bid, fp); usedFpl.add(fp.id);
-}
+const pairBsd = pairPlayers(cands, baseMin ? { minutesOf: id => baseMin.get(id) } : {});
 
 /* ---- 5) skrifa ---- */
 const players = [];
 for (const [bid, o] of agg) {
   const m = meta.get(bid), fp = pairBsd.get(bid) || null;
-  const short = BSD_TEAM[o.team_id] || null;
-  /* TOM GILDI ERU null, EKKI 0 — "spiladi ekki" og "0 tacklingar" er
-     ekki sama hlutid (CLAUDE.md 6i: NULL ER EKKI NULL).             */
-  const per = v => (o.apps ? v : null);
-  players.push({
-    bsd_id: bid,
-    name: m?.name ?? null,
-    pos: m?.position ?? null,
-    team: short,
-    fpl_id: fp?.id ?? null,
-    code: fp?.code ?? null,
-    apps: o.apps,
-    minutes: per(o.minutes_played),
-    rating: o.rating_n ? +(o.rating_sum / o.rating_n).toFixed(2) : null,
-    goals: per(o.goals), assists: per(o.goal_assist),
-    shots: o.shots || null,
-    xg: o.shots ? +o.xg.toFixed(3) : null,
-    xg_per_shot: o.shots ? +(o.xg / o.shots).toFixed(4) : null,
-    big_chances: o.shots ? o.big_chances : null,
-    shots_in_box: o.shots ? o.shots_in_box : null,
-    shots_out_box: o.shots ? o.shots_out_box : null,
-    sp_shots: o.shots ? o.sp_shots : null,
-    sp_xg: o.shots ? +o.sp_xg.toFixed(3) : null,
-    op_xg: o.shots ? +o.op_xg.toFixed(3) : null,
-    sp_xg_share: o.xg > 0 ? +(o.sp_xg / o.xg).toFixed(3) : null,
-    head_shots: o.shots ? o.head_shots : null,
-    head_xg: o.shots ? +o.head_xg.toFixed(3) : null,
-    pen_shots: o.shots ? o.pen_shots : null,
-    woodwork: o.shots ? o.woodwork : null,
-    key_pass: per(o.key_pass),
-    crosses: per(o.total_cross), crosses_acc: per(o.accurate_cross),
-    touches: per(o.touches),
-    dribbles: per(o.total_contest), dribbles_won: per(o.won_contest),
-    duels_won: per(o.duel_won), duels_lost: per(o.duel_lost),
-    aerial_won: per(o.aerial_won), aerial_lost: per(o.aerial_lost),
-    passes: per(o.total_pass), passes_acc: per(o.accurate_pass),
-    long_balls: per(o.total_long_balls), long_balls_acc: per(o.accurate_long_balls),
-    dispossessed: per(o.dispossessed), possession_lost: per(o.possession_lost),
-    was_fouled: per(o.was_fouled), fouls: per(o.fouls),
-    blocks: per(o.blocked_scoring_attempt),
-    tackles: per(o.total_tackle), tackles_won: per(o.won_tackle),
-    interceptions: per(o.interception), clearances: per(o.total_clearance),
-    recoveries: per(o.ball_recovery),
-    saves: per(o.saves), punches: per(o.punches), goals_conceded: per(o.goals_conceded),
-    yellow: per(o.yellow_card), red: per(o.red_card),
-  });
+  players.push(finalize(o, {
+    bsd_id: bid, name: m?.name, pos: m?.position, team: BSD_TEAM[o.team_id] || null,
+    fpl_id: fp?.id, code: fp?.code,
+  }));
 }
-/* Jafnar minutur eru ALGENGAR (0 hja ollum sem spiladu ekki), svo rodin
-   verdur ad brotna a bsd_id — annars erfir hun samhlida vinnsluordina og
-   skrain er onnur i hverri keyrslu thott tolurnar seu their somu.      */
 players.sort((a, b) => (b.minutes || 0) - (a.minutes || 0) || (a.bsd_id - b.bsd_id));
 /* AÐEINS ThEIR SEM APPID GETUR BIRT fara i skrana. Leikmadur an `fpl_id`
    er osynilegur i toflunni (hun flettir upp a `code`), svo hann vaeri

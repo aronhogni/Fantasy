@@ -1624,8 +1624,20 @@ export default function App() {
         ffdr: fn ? fsum / fn : null,
         minsTrend: pf?.mins_trend,
       }) * avail;
+      /* HRAU INNTOKIN FYLGJA MED — samanburdar-radgjofin (src/advisor.js)
+         verdur ad reikna a NAKVAEMLEGA somu tolum og tillogurnar, annars
+         gaeti hun sagt annad en listinn og hvorug vaeri traustsins verd.
+         Thau eru afhent, ekki endurreiknud.                             */
+      const rankInputs = {
+        form: parseFloat(p.form),
+        minsPerGame: Number.isFinite(pf?.mins5) ? pf.mins5
+                   : (p.minutes ?? 0) / Math.max(1, gamesSoFar),
+        price: (p.now_cost ?? 45) / 10,
+        ffdr: fn ? fsum / fn : null,
+        minsTrend: pf?.mins_trend,
+      };
       return { p, score: +score.toFixed(2), rank: +rank.toFixed(3),
-               ease: +(5 - fdrAvg).toFixed(2), fxs, mode,
+               ease: +(5 - fdrAvg).toFixed(2), fxs, mode, avail, rankInputs,
                why, ffdrAvg: fn ? +(fsum / fn).toFixed(2) : null };
     };
     const all = players.map(scoreOf).filter(Boolean);
@@ -1645,7 +1657,11 @@ export default function App() {
     const inSquad = all.filter(r => squadIds.has(r.p.id));
     const sorted = [...inSquad].sort((a,b) => a.score - b.score);
     const sellIds = new Set(sorted.slice(0, 2).map(r => r.p.id));
-    return { byPos, sellIds, inSquadScores: Object.fromEntries(inSquad.map(r => [r.p.id, r.score])) };
+    return { byPos, sellIds, inSquadScores: Object.fromEntries(inSquad.map(r => [r.p.id, r.score])),
+             /* ALLIR leikmenn, ekki adeins tillogurnar: samanburdurinn ma
+                bera saman hvern sem er, lika tha sem eru i lidinu.      */
+             advisorById: Object.fromEntries(all.map(r => [r.p.id,
+               { inputs: r.rankInputs, avail: r.avail, ffdrAvg: r.ffdrAvg, fxs: r.fxs }])) };
   }, [players, fixtures, gw, recRange, fixByTeamGw, teamMetrics, squadIds, odds, defcon, dcOpp, eloByTeam, eloCsByFx, maxGw, formFeat, recMaxCost, playerForm]);
 
   /* ---------- Verðbreytingar (raunveruleg gögn) ---------- */
@@ -3119,6 +3135,8 @@ export default function App() {
         <Compare ids={cmpIds} players={players} teamById={teamById}
           seasonsFile={seasonsFile} photoUrl={photoUrl} Crest={Crest}
           currentLabel={currentSeasonLabel} seasonStarted={seasonStarted}
+          advisorById={recommendations.advisorById} imminent={imminent}
+          defcon={defcon} consist={consist} horizon={recRange}
           onRemove={id => setCmpIds(v => v.filter(x => x !== id))}
           onClear={() => { setCmpIds([]); setCmpOpen(false); }}
           onClose={() => setCmpOpen(false)} />

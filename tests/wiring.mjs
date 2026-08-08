@@ -111,7 +111,16 @@ console.log(`  ${onDisk.length} json-skrar i data/ · ${orphans.length} an lesan
 if (orphans.length) console.log(`    ${orphans.join(", ")}`);
 /* Hver foreldralaus skra a ad vera a hvitlista MED astaedu — annars er hun
    1-2 MB af gognum sem enginn notar og enginn veit af.                  */
-const ORPHAN_OK = {};
+const ORPHAN_OK = {
+  /* VILJANDI OLESIN. Thetta er MAELINGA-SAFN, ekki eiginleiki: BSD geymir
+     ekki spar um byrjunarlid afturvirkt (loknir leikir skila `confirmed`),
+     svo spa sem er ekki soft fyrir leik tapast ad eilifu. Hun er thvi
+     soft STRAX en fer i ENGA akvordun fyrr en hun hefur verid maeld gegn
+     okkar eigin 6h-likani yfir GW1-4 — sbr. regluna i kafla 3 um ad birta
+     ekki omaelt merki. Ef hun stenst maelinguna verdur hun LESIN og tha
+     dettur thessi faersla ut. Sja CLAUDE.md 6t.                        */
+  "bsd_lineups.json": "maelinga-safn — spad byrjunarlid, omælt, ekki birt",
+};
 const badOrphans = orphans.filter(f => !ORPHAN_OK[f]);
 ok(badOrphans.length === 0,
   `engin foreldralaus gagnaskra a diski${badOrphans.length ? ": " + badOrphans.join(", ") : ""}`);
