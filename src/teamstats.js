@@ -14,17 +14,26 @@
    |--------------------|-------------------------------|-------------|
    | team_form.json     | skot, skot a mark, mork,      | E0, HEILT   |
    |  (fdcouk_e0)       | horn, spjold, hreint blad     | 380 leikir  |
-   | luck.json          | xG og xGC                     | FPL-summa   |
+   | bsd_teams.json     | xG og xGC (per-skot xG)       | BSD, 380    |
+   |  (bzzoiro)         |                               | 2025/26 EITT|
+   | luck.json          | RAUNMORK (goals/conceded)     | E0+FPL      |
    | team_shots.json    | SVAEDI skotanna (teigur,      | ESPN, 380   |
    |  (espn_commentary) | naerfaeri, langskot)          | leikir      |
 
    TVENNT SEM MA ALDREI FELA:
 
-   1. xG/xGC ERU OFULLKOMIN. `luck.json` leggur saman FPL-leikmannatolur
-      og leikmenn sem foru ur deildinni eru fjarlaegdir ur bootstrap —
-      ~19% vantar (`xg_incomplete: true`). Talan er thvi KERFISBUNDID
-      OF LAG og ma bera saman MILLI lida en ekki lesa sem absolut xG.
-      Hun er merkt i vidmotinu.
+   1. xG/xGC KOMA UR BSD OG NA YFIR EITT TIMABIL (2025/26).
+      ThAU KOMU ADUR UR FPL-SUMMU og su tala var ekki bara "~19% of lag"
+      heldur BYGGINGARLEGA BILUD: lids-xGC var tekid ur
+      `expected_goals_conceded` EINS markvardar, svo lid sem skipti um
+      markvord fekk storlega ranga tolu. Leeds maeldist med 0,70 xGC a
+      leik medan raunveruleg mork a sig voru 1,47 — og fekk thvi graena
+      "besta vornin"-merkingu sem var hreinn tilbuningur.
+      Maelt 8.8.2026 gegn raunmorkum, 17 lid: r 0,369 -> 0,818 (vorn) og
+      0,667 -> 0,749 (sokn), MAE ~45% laegra. Sja buildTeamRows.
+      Dalkarnir eru `season_locked` og TOMIR i odrum timabilum — engin
+      FPL-varaleid, thvi lakari tala undir betri merkimida er verri en
+      tomur dalkur.
 
    2. BIG CHANCES ERU EKKI I THESSARI TOFLU — ENN. Svaedin her koma ur
       ESPN, sem gefur STADSETNINGU hvers skots en ENGA xG-tolu fyrir
@@ -68,6 +77,31 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
     const f = formById[t.id] || {}, l = luckById[t.id] || {}, s = shotsById[t.id] || {};
     const b = bsdById[t.id] || {};
     const m = num(l.matches) || num(f.matches) || null;
+    /* ---------- xG/xGC KOMA NU UR BSD, EKKI UR FPL-SUMMUNNI ----------
+       MAELT 8.8.2026 a theim 17 lidum sem attu PL-rod 2025/26, gegn
+       RAUNVERULEGUM morkum sama timabils:
+
+         | heimild | r vid raunmork | MAE  |
+         | FPL xGC | 0,369          | 0,212|
+         | BSD xGC | 0,818          | 0,116|
+         | FPL xG  | 0,667          | 0,246|
+         | BSD xG  | 0,749          | 0,148|
+
+       Orsok gomlu skekkjunnar var BYGGINGARLEG, ekki tilviljun: lids-xGC
+       var tekid ur `expected_goals_conceded` EINS markvardar (haesta
+       minututalan), svo lid sem skipti um markvord — eda thar sem hann
+       for ur deildinni og hvarf ur bootstrap — fekk storlega ranga tolu.
+       Leeds: raunveruleg mork a sig 1,47/leik, FPL xGC 0,70, BSD 1,48.
+
+       ENGIN FPL-VARALEID. Maelt: BSD naer YFIR NAKVAEMLEGA somu 17 lid og
+       FPL-summan; hin thrju (COV/HUL/IPS) attu enga PL-rod og hafa hvorugt.
+       Enginn tapar tolu. Vaeri varaleidin holl eftir myndi lakari talan
+       lauma ser inn undir merkimida betri heimildar — og ONAKVAEM TALA
+       UNDIR RONGU NAFNI er verri en tomur dalkur (kafli 8i).
+       BSD naer adeins yfir 2025/26, svo dalkarnir eru `season_locked`. */
+    const bsdXg = num(b.xg_pg), bsdXgc = num(b.xgc_pg);
+    const xgTot  = bsdXg  != null && m ? +(bsdXg  * m).toFixed(1) : null;
+    const xgcTot = bsdXgc != null && m ? +(bsdXgc * m).toFixed(1) : null;
     return {
       id: t.id, short: t.short, name: t.name, team: t,
       matches: m,
@@ -79,14 +113,14 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
       long_against_pg:   num(s.outside_against_pg),
       long_share:        num(s.outside_share_against),
       conceded_pg:       num(f.conceded_pg),
-      xgc:               num(l.xgc),
-      xgc_pg:            m ? div(l.xgc, m) : null,
+      xgc:               xgcTot,
+      xgc_pg:            bsdXgc,
       cs_pct:            num(f.clean_sheet_pct),
       /* GAEDI SKOTANNA sem lidid gefur fra ser: xGC a hvert skot a sig.
          12 skot a sig segja litid ef ollum er skotid ad utan — hlutfallid
          er gaedin, talan er magnid. Thetta er NAESTA sem gognin leyfa vid
          "big chances faced" og heitir thvi ekki thvi nafni.             */
-      xgc_per_shot:      div(l.xgc, f.shots_against_pg && m ? f.shots_against_pg * m : null),
+      xgc_per_shot:      div(xgcTot, f.shots_against_pg && m ? f.shots_against_pg * m : null),
       sot_share_against: div(f.sot_against_pg, f.shots_against_pg),
       /* --- sokn --- */
       goals_pg:          num(f.goals_pg),
@@ -95,15 +129,22 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
       box_pg:            num(s.in_box_pg),
       close_pg:          num(s.close_pg),
       long_pg:           num(s.outside_pg),
-      xg:                num(l.xg),
-      xg_pg:             m ? div(l.xg, m) : null,
+      xg:                xgTot,
+      xg_pg:             bsdXg,
       conversion:        num(f.conversion),
       /* --- annad --- */
       corners_pg:        num(f.corners_pg),
       fouls_pg:          num(f.fouls_pg),
       yellows_pg:        num(f.yellows_pg),
-      goals_minus_xg:    num(l.goals_minus_xg),
-      conceded_minus_xgc: num(l.conceded_minus_xgc),
+      /* ENDURREIKNAD UR BSD, EKKI LESID UR luck.json. Hefdu thessir tveir
+         haldid FPL-afleidslunni vaeru their MISMUNUR TVEGGJA OLIKRA
+         HEIMILDA — birt xG ur BSD en "G-xG" reiknad ur FPL-xG — og dalkarnir
+         hefdu stangast a innbyrdis an thess ad nokkud syndi thad.
+         Mork/mork a sig eru raunverulegar (E0-heil) og haldast.          */
+      goals_minus_xg:    (num(l.goals) != null && xgTot != null)
+                           ? +(l.goals - xgTot).toFixed(1) : null,
+      conceded_minus_xgc: (num(l.conceded) != null && xgcTot != null)
+                           ? +(l.conceded - xgcTot).toFixed(1) : null,
       /* --- BSD-skotakortid: EINA heimildin med xG PER SKOT --- */
       bc_against_pg:  num(b.bc_against_pg),
       bc_pg:          num(b.bc_pg),
@@ -172,12 +213,12 @@ export const TEAM_STAT_DEFS = [
     dec: 2, hi: false, src: "E0", note: "Goals conceded per match (E0, full season).",
     get: r => r.conceded_pg },
   { key: "xgc_pg", label: "xGC per match", short: "xGC", group: "defence",
-    dec: 2, hi: false, src: "FPL", incomplete: true,
-    note: "Expected goals conceded per match. Summed from FPL player numbers, which drop players who left the league — roughly 19% is missing, so the level is systematically low. Compare teams with it; do not read it as an absolute xGC.",
+    dec: 2, hi: false, src: "BSD", season_locked: true,
+    note: "Expected goals conceded per match, summed from per-shot xG for every shot faced. Measured against real goals conceded it tracks at r 0.82 (the old FPL-summed version managed 0.37, because it took the whole team's xGC from a single goalkeeper's record). BSD covers 2025/26 only, so this is empty for other seasons.",
     get: r => r.xgc_pg },
   { key: "conceded_minus_xgc", label: "Conceded minus xGC", short: "GC−xGC", group: "defence",
-    dec: 1, hi: false, src: "FPL", incomplete: true,
-    note: "Goals conceded minus xGC over the season. Positive = conceded more than the chances warranted (bad keeping, or bad luck).",
+    dec: 1, hi: false, src: "BSD", season_locked: true,
+    note: "Goals conceded minus xGC over the season. Positive = conceded more than the chances faced warranted (bad keeping, or bad luck). Goals are real (E0); xGC is summed per shot.",
     get: r => r.conceded_minus_xgc },
   { key: "cs_pct", label: "Clean sheet %", short: "CS %", group: "defence",
     dec: 0, hi: true, src: "E0", note: "Share of matches with a clean sheet (E0, full season).",
@@ -188,8 +229,8 @@ export const TEAM_STAT_DEFS = [
     dec: 2, hi: true, src: "E0", note: "Goals scored per match (E0, full season).",
     get: r => r.goals_pg },
   { key: "xg_pg", label: "xG per match", short: "xG", group: "attack",
-    dec: 2, hi: true, src: "FPL", incomplete: true,
-    note: "Expected goals per match, summed from FPL player numbers — the same roughly 19% undercount as xGC. Comparable across teams, not absolute.",
+    dec: 2, hi: true, src: "BSD", season_locked: true,
+    note: "Expected goals per match, summed from the per-shot xG of every shot taken. Measured against real goals it tracks at r 0.75 (FPL-summed: 0.67) and its level is right rather than ~19% short. BSD covers 2025/26 only, so this is empty for other seasons.",
     get: r => r.xg_pg },
   { key: "shots_pg", label: "Shots per match", short: "Shots", group: "attack",
     dec: 2, hi: true, src: "E0", note: "Shots taken per match (E0, full season).",
@@ -210,8 +251,8 @@ export const TEAM_STAT_DEFS = [
     dec: 3, hi: true, pct: true, src: "E0", note: "Goals per shot taken.",
     get: r => r.conversion },
   { key: "goals_minus_xg", label: "Goals minus xG", short: "G−xG", group: "attack",
-    dec: 1, hi: true, src: "FPL", incomplete: true,
-    note: "Goals scored minus xG over the season. Positive = finishing above the chances created.",
+    dec: 1, hi: true, src: "BSD", season_locked: true,
+    note: "Goals scored minus xG over the season. Positive = finishing above the chances created. Goals are real (E0); xG is summed per shot.",
     get: r => r.goals_minus_xg },
 
   /* ---- annad ---- */

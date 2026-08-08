@@ -163,13 +163,24 @@ console.log("─".repeat(84));
     rows.filter(r => r.long_share != null).every(r => r.long_share >= 0 && r.long_share <= 1));
   ok("hreint blad % a [0,100]",
     rows.filter(r => r.cs_pct != null).every(r => r.cs_pct >= 0 && r.cs_pct <= 100));
-  /* xGC ER OFULLKOMID OG VERDUR AD VERA MERKT SEM SLIKT — annars les
-     notandinn absolut tolu sem er kerfisbundid ~19% of lag.           */
-  ok("xGC og xG bera `incomplete`-flaggid",
+  /* xG/xGC KOMA UR BSD (8.8.2026) OG MEGA ThVI EKKI BERA `incomplete`.
+     Adur voru thau FPL-summa og BYGGINGARLEGA bilud (lids-xGC ur EINUM
+     markverdi) — Leeds 0,70 a moti raunverulegum 1,47. Nu er heimildin
+     per-skot xG, svo flaggid vaeri RANGT og myndi fela raunverulega
+     baetingu. Ef einhver skiptir aftur i FPL-summuna verdur hann ad
+     setja flaggid aftur a — og tha fellur thetta prof.                */
+  ok("xGC og xG koma ur BSD, ekki FPL-summu",
     ["xgc_pg", "xg_pg", "goals_minus_xg", "conceded_minus_xgc"]
-      .every(k => TEAM_STAT_BY_KEY[k].incomplete === true));
-  ok("og skyring theirra segir fra undirtalningunni",
-    ["xgc_pg", "xg_pg"].every(k => /19%|short|missing/i.test(TEAM_STAT_BY_KEY[k].note)));
+      .every(k => TEAM_STAT_BY_KEY[k].src === "BSD"));
+  ok("og bera thvi EKKI `incomplete`",
+    ["xgc_pg", "xg_pg", "goals_minus_xg", "conceded_minus_xgc"]
+      .every(k => !TEAM_STAT_BY_KEY[k].incomplete));
+  /* BSD naer yfir EITT timabil — thad ma ekki gleymast i merkingunni. */
+  ok("og eru `season_locked` (BSD naer adeins yfir 2025/26)",
+    ["xgc_pg", "xg_pg", "goals_minus_xg", "conceded_minus_xgc"]
+      .every(k => TEAM_STAT_BY_KEY[k].season_locked === true));
+  ok("skyring xG/xGC nefnir per-skot-heimildina",
+    ["xgc_pg", "xg_pg"].every(k => /per-shot|per shot/i.test(TEAM_STAT_BY_KEY[k].note)));
 }
 
 /* ---------- 6. BIG CHANCES ERU EKKI HER ---------- */
@@ -361,8 +372,10 @@ console.log("─".repeat(84));
      hana — og thad er nakvaemlega villan sem sast a Leeds (xGC 0,70
      "best" medan raunveruleg mork a sig voru 1,47).                    */
   const fplSummed = TEAM_STAT_DEFS.filter(d => d.src === "FPL");
+  /* EFTIR 8.8.2026 ER ENGINN FPL-SUMMU-DALKUR EFTIR — xG/xGC foru i BSD.
+     Reglan stendur samt: BAETIST einn vid verdur hann ad bera flaggid. */
   ok(`allir ${fplSummed.length} FPL-summu-dalkar bera \`incomplete\``,
-    fplSummed.length >= 4 && fplSummed.every(d => d.incomplete === true),
+    fplSummed.every(d => d.incomplete === true),
     fplSummed.filter(d => !d.incomplete).map(d => d.key).join(","));
   /* Og OFUGT: dalkur sem er heill ma EKKI bera flaggid, annars taeki hann
      ad astaedulausu af ser merkinguna.                                  */

@@ -150,6 +150,47 @@ Gegn raunverulegum leikmannastigum (28.355 byrjunarliðs-umferðir) slær FFDR
 opinbert FDR í öllum fjórum stöðum; DEF er sterkast (r −0,275, léttasti
 sjöttungur gefur **+145%** á móti þeim þyngsta).
 
+### HEIMAVÖLLUR VANTAR FYRIR GK/DEF — MÆLT 8.8.2026, EKKI KOMIÐ INN ENN
+
+Notandinn sá einkennið: *„Liverpool úti og Man City heima ættu ekki að vera
+grænir fyrir Arsenal."* Þeir voru það — og verra: **LIV úti 2,14 og LIV heima
+2,14 eru NÁKVÆMLEGA EINS**, sömuleiðis MUN heima/úti (2,14) og CHE heima/úti
+(2,04). Af 38 leikjum Arsenal eru **35 grænir eða dökkgrænir**.
+
+**Orsökin er `home: 0` í `DIFF_W` fyrir stöður 1 og 2** (MID/FWD hafa 0,12).
+Varnarhópurinn fær því enga vallar-aðgreiningu nema gegnum opinbera FDR-ið,
+og FPL gefur Arsenal-gegn-Liverpool **sömu tölu (4) á báðum völlum**. Markaðs-
+línan kann heimavöll en hún er aðeins til fyrir NÆSTU umferð.
+
+**Mælt** á 10.640 lið-leikjum (14 tímabil, sami heimur og walk-forward):
+
+| home | r(d,GA) **kjarni** | r(d,GA) **með markaði** | Brier CS kjarni |
+|---|---|---|---|
+| **0,00** (í dag) | 0,3225 | **0,3942** | 0,18941 |
+| 0,20 | 0,3374 | 0,3864 | 0,18850 |
+| 0,25 | **0,3377** | 0,3819 | 0,18841 |
+
+Liðurinn **bætir kjarnann (+0,015) en skemmir með markaði** — bókmakarinn
+verðleggur heimavöll þegar, svo eigin liður tvítelur. Hann á því aðeins við
+þegar markaðslínan vantar, sem er sama bygging og `PREV_K`-nótan lýsir.
+**LOSO: 0,20–0,25 í 14/14 brotum, aldrei 0**, út fyrir úrtak betra í 11/14 —
+og eitt af þeim þremur sem tapa er **2020/21, Covid-tímabilið fyrir TÓMUM
+VÖLLUM**, sem er staðfesting á að liðurinn mælir raunverulegan heimavöll.
+
+**HVERS VEGNA ÞETTA VAR EKKI SETT INN:** útfært (`homeCore`, virkt aðeins
+þegar markaðurinn tekur ekki við) **felldi það 5 próf í `ffdr-backtest.mjs`**.
+±0,20 ósamhverf hliðrun ýtir leikjum ÚT ÚR miðþrepinu: hlutlaust fór í **8,6%**
+(á að vera ~16,7%) og röðin skekktist (hlutlaust 13,8% CS á móti ljósrauðu
+26,1%). Aðgreining batnaði (r upp) en **KVÖRÐUN brotnaði** — `TIER_CUTS` eru
+sextílar gömlu dreifingarinnar og `MEASURED` var fittað á gamla breidd
+(meðalfrávik 6,7pp > 6pp þakið).
+
+**Rétta næsta skrefið er KVÖRÐUNAR-UMFERÐ, ekki stærri vog:** endurfitta
+`SCALE_FIX`/`MEASURED` með Brier gegn úrslitum og endurreikna `TIER_CUTS` úr
+NÝJU dreifingunni — sama pass og var gert 27.–28.7. Að senda liðinn inn án
+þess gerir **birtu tölurnar verri** (CS% og mörk á sig sem notandinn les af
+skjánum) meðan röðunin batnar örlítið. Vörðurnir gerðu nákvæmlega sitt gagn.
+
 ### Ákvarðanir sem hafa þegar verið véfengdar — ekki taka þær upp aftur
 
 - **FFDR er ÚTKOMAN.** ClubElo, xGC og markaðslínan eru **inntök** og eru því
@@ -473,10 +514,19 @@ bókmakera-greinina og **eyddi Odds-API kvótanum**. CDN-cache 60 s. Leiðirnar
   Mín./framlag, spjöld og allt sem lið fær **á sig** er lægra betra — nema
   langskot, sem eru ódýrustu skotin sem hægt er að gefa frá sér. Villandi mynd
   er verri en engin mynd. Verðir: `compare-visual.mjs`, `team-stats.mjs`.
-- **Ófullkomin tala fullyrðir ekki.** `xG`/`xGC` úr FPL-summu vantar ~19% og
-  **undirtalningin er misjöfn milli liða** — Leeds mældist með lægsta xGC í
-  deildinni meðan raunveruleg mörk á sig voru 1,47. Græna „best"-merkingin var
-  tekin af öllum `incomplete`-dálkum; hausinn er gulur í staðinn.
+- **Ófullkomin tala fullyrðir ekki.** Græna „best"-merkingin er tekin af öllum
+  `incomplete`-dálkum og hausinn er gulur í staðinn. **Liða-xG/xGC ERU EKKI
+  LENGUR Í ÞEIM HÓPI** (8.8.2026): þau koma nú úr BSD (per-skot xG) í stað
+  FPL-summu. Gamla talan var ekki bara „~19% of lág" heldur **byggingarlega
+  biluð** — lids-xGC var tekið úr `expected_goals_conceded` **eins markvarðar**,
+  svo lið sem skipti um markmann fékk stórlega ranga tölu. Leeds mældist 0,70
+  á móti raunverulegum 1,47 og fékk þar með græna „besta vörnin"-merkingu sem
+  var hreinn tilbúningur. Mælt á 17 liðum gegn raunmörkum: **r 0,369 → 0,818**
+  (vörn) og 0,667 → 0,749 (sókn), MAE ~45% lægra. **Engin FPL-varaleið** —
+  BSD nær yfir nákvæmlega sömu 17 lið, hin þrjú (COV/HUL/IPS) áttu enga
+  PL-röð og hafa hvorugt, svo enginn tapar tölu. Dálkarnir eru `season_locked`
+  (BSD nær yfir 2025/26 eitt). Vörður: `team-stats.mjs` fellur ef einhver
+  skiptir aftur í FPL-summuna án þess að setja `incomplete` aftur á.
 - **Sjálfvirk felun á tómum dálkum faldi einu sinni RAUNVERULEGA VILLU**
   (dauður `team_dc`). Tómir dálkar eru **leiddir út, ekki taldir upp**, og
   fjöldinn er sagður í fótnótu.
