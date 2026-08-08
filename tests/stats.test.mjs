@@ -675,14 +675,16 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
   /* HAUS-BROT — SPEGLAR wOf i PlayerList.jsx.
      Fra 7.8.2026 er hausinn EIN LINA (`nowrap`) og haegri-jafnadur, svo
      yfirflaedi hverfur VINSTRA megin: "Points ↓" birtist sem "oints ↓".
-     Breiddin verdur thvi ad rumu heitid AUK theirra merkja sem baetast
-     vid thad i hausnum:  †  afleidd tala (7 px)  ·  ↓ rodunar-or (9 px,
+     Breiddin verdur thvi ad rumu heitid AUK rodunar-orinnar (↓, 9 px,
      tekid fra a OLLUM dalkum thvi rodunin faerist milli theirra).
+     †-merkid var her lika (7 px) en var TEKID UT 8.8.2026 og plassid
+     med thvi — dalkur sem heldur plassi fyrir tákn sem er ekki teiknad
+     er 7 px of breidur ad eilifu.
      6,35 px/staf er MAELT (canvas.measureText, 700 10.5px ui-monospace).  */
   {
     const PXC = 6.35, GLYPH = 6.32, CAP = 142;
-    const wOf = (label, derived) => {
-      const marker = (derived ? 7 : 0) + 9;
+    const wOf = (label) => {
+      const marker = 9;
       const lab = label.length * PXC + marker + 13;
       const dec = 2, val = (4 + dec + 1) * 6.2 + 12;
       return Math.round(Math.max(46, Math.min(CAP, Math.max(lab, val))));
@@ -691,9 +693,9 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
     for (const d of STAT_DEFS) {
       {
         const label = hLabel(d);
-        const w = wOf(label, !!d.derived);
+        const w = wOf(label);
         const inner = w - 11;                       // 10 padding + 1 bord
-        const need = label.length * GLYPH + (d.derived ? 7 : 0) + 9;
+        const need = label.length * GLYPH + 9;
         if (need > inner + 0.5) bad.push(`${d.key}: "${label}" tharf ${Math.round(need)} px en fær ${inner}`);
       }
     }

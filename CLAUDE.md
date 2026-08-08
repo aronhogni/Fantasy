@@ -25,7 +25,7 @@ Tímabilið **2026/27 hefst 21. ágúst 2026** (GW1-frestur 21.8 kl. 17:30 UTC);
 `src/market.js` 95 l · `src/Pitch.jsx` 124 l · `netlify/functions/odds.js` 201 l ·
 `src/stats.js` ~430 l · `src/GwReport.jsx` ~600 l · `src/Leaderboard.jsx` ~300 l ·
 `src/rotation.js` 171 l · `src/Rotation.jsx` 332 l ·
-prófin ~13.100 l (**21 söfn**, sjá kafla 4).
+prófin (**38 söfn**, sjá kafla 4).
 
 **Þrír flipar** (frá 28.7.): `Skipulag` (upprunalega appið) · `Umferðin`
 (`src/GwReport.jsx` — skýrsla um síðustu loknu umferð + skot-kort) ·
@@ -411,7 +411,7 @@ mælanlega: r 0,293 -> **0,328**, og FFDR (0,406) nær nú markaðslínunni einn
 
 ## 4. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir **30 söfn** (auk 7
+`tests/run-tests.mjs` keyrir **38 söfn** (auk 7
 seiglu-atburðarása og 22 viðmóta sem telja ekki eins), öll græn (keyrt 3x).
 **Fjöldinn er reiknaður úr `SUITES`** — hann var harðkóðaður strengur
 ("fimmtan") sem staðnaði um leið og safni var bætt við.
@@ -1788,6 +1788,272 @@ tala: `start_prob` (maelda 6h-likanid).
 - **`points_per_start` var EKKI til** fyrr en nu (svarid vid "erum við með
   points per start í basic?" var NEI).
 
+---
+
+## 6s. LEIKMANNATAFLAN VARD ADALVERKFAERID (8.8.2026, seinni ferd)
+
+Notandinn: *"Ég er lang mest að fara nota player stats töfluna til að skoða
+og bera saman leikmenn."* Thess vegna fluttist thad sem hann notar THANGAD og
+thad sem sagdi sama hlutinn tvisvar var TEKID UT.
+
+### THRIR LESMATAR I EINUM FLIPA
+| lesmati | hvad | hvadan |
+|---|---|---|
+| **Groups** | einn flokkur i einu med bands-hausnum (6r) | var |
+| **Build table** | NOTANDINN VELUR DALKANA | "Table" i stigatoflunni |
+| **Imminent** | IG/IA-spjoldin med linuriti | stigatoflunni |
+
+### "BUILD TABLE" — OG HVERS VEGNA HUN ER EKKI SAMA OG GAMLA "Table"
+Gamli toflu-hamurinn i stigatoflunni gat **EINA tolu i einu**: madur valdi xG
+og fekk xG-tofluna med fjorum samhengis-dalkum. Beidnin var onnur og hun var
+um SAMANBURD: *"ég vill geta valið mörg stats með því að smella á þau, þá
+birtast þau við hlið leikmanns... ég vill geta smellt á mörg stats sem verða
+þá bláir."*
+
+- **Blatt = valid.** Blai liturinn er ASETT ANNAR en fjolublai (rodun/sia) og
+  graeni ("mitt lid") — thrju merki, thrir litir. Sami arekstur var lagadur
+  einu sinni adur (samanburdar-rodin, kafli 6i).
+- **VALROD, EKKI SKRA-ROD.** Sa sem er valinn fyrst stendur fyrst. Skra-rod
+  hefdi verid "snyrtilegri" en tha getur madur ekki stillt tveimur tolum HLID
+  VID HLID, sem er allt sem hamurinn er til fyrir.
+- **FASTIR DALKAR: VERD OG STIG** ("Fast verður þá bara verð og stig,
+  restina bætir maður við"). I flokka-ham eru their afram verd og
+  eignarhald, thvi thar er "stig" fyrsti dalkur i Grunni og yrdi tvitekid.
+  Listinn `pinnedKeys` styrir BAEDI birtingu OG utilokun ur valaranum —
+  annars hefdi madur getad valid "Points" og fengid hann tvisvar.
+- **STIGIN FYLGJA TIMABILI OG UMFERDAR-BILI** eins og hver onnur summa (lesin
+  ur `src` gegnum skrana, ekki ur `p.total_points`). Fastur dalkur sem birti
+  arstidartolu vid hlid bils-talna hefdi logið.
+- Rodun er obreytt: smellur a haus radar, svo "geta raðað eftir ákveðnu stats"
+  er thegar til — tooltip-id segir thad nu upphatt.
+- Valid **vistast** (`fpl_cols` i localStorage, `fpl_*`-nafnareglan svo
+  hreinsunar-hnappurinn i ErrorBoundary taki hann med, kafli 8c).
+- **BANDS-RODIN ER SLEPPT i thessum ham.** Valrod brytur samfelluna, svo
+  hausinn las `MINUTES  EXPECTED  MINUTES` — sama bandid tvisvar med gati a
+  milli. Band sem endurtekur sig er verra en ekkert band. `headH` fylgir thvi
+  hvort rodin er teiknud, thvi radirnar eru absolute-stadsettar undir hausnum.
+
+### VALARINN VARD FJOLDALKA YFIRLIT — BREYTT AF HINNI LOTUNNI, HALDID
+Fyrsta utgafan min var 210 px kassi med `overflowY:auto`. Hin lotan skipti
+honum ut fyrir **`columns:"170px"`** (fjoldalka-flaedi) og hafdi RETT FYRIR
+SER: 100 dalkar i skrun-kassa thyda ad madur SKRUNAR til ad sja hvad er i
+bodi, sem er akkurat ofugt vid tilganginn — thetta er YFIRLIT yfir allt sem
+ma velja. `breakInside:"avoid"` situr a BONDUNUM (4-5 dalkar hvert), ekki a
+flokkunum: Attack er 33 dalkar og kemst aldrei i einn dalk, svo vordur a
+flokknum vaeri hunsadur hvort sem er. A sima helst skrunid (`pickBodyNarrow`).
+**Samanbrotid vard thvi BRYNNA, ekki onodsynlegt**: yfirlitid er ~490 px hatt
+og taflan er thad sem madur er ad byggja.
+Skjalad her thvi tvaer lotur unnu a somu skra samtimis (sbr. varuðina i 6j) —
+thessi breyting er MELD og haldið, ekki mistok.
+
+### TEKID UT: BEKKJAR-HAETTA
+Hun birti **somu maeldu toluna** sem `Start prob`-dalkurinn birtir, ur somu
+skra (`startRisk` -> `imminent.json`). Tvaer birtingar a einni maelingu, og su
+i toflunni er nytilegri thvi hun radast og siast med ollu odru.
+`startRisk`, `startProbability` og `START_MODEL` eru **obreytt i stats.js** og
+prófin a thau (kafli 12 i `stats.test.mjs`) obreytt — thad var BIRTINGIN sem
+for, ekki maelingin.
+
+### VORDURINN SEM MATTI EKKI FARA MED "Table"
+`buildLeaderboard` telur **ovaenlegar tolur** (`isIncoherent`): FPL skilar
+`goals_scored: 11` med `minutes: 0` (Meslier, 1 af 563 — kafli 6b atridi 3).
+Talan var birt **adeins i toflu-hamnum**, svo hun hefdi horfid thegjandi med
+honum. Hun er nu birt i hverjum topp-5 kassa i yfirlitinu (`{n} impossible`).
+Ad fjarlaegja birtingu a verdi og halda talningunni er nakvaemlega gildran sem
+kostadi viku thegar markadslidurinn var daudur (kafli 3).
+
+### FOST LEIKATRIDI — TEIKNUD IKON (`src/Icons.jsx`)
+Sagan er lærdomurinn og hun er thegar i `SP_KINDS`: taknin **⚽ / ◎ / ⌾ voru
+OGREINANLEG i 13px** (tvo naer eins hringir), svo 31.7. var theim skipt ut
+fyrir **bokstaf** (P/F/C). Bokstafur er laesilegur en merkingarlaus — madur
+les "C" og verdur ad VITA ad thad se corner.
+
+**REGLAN: I SMARRI STAERD ER SILHUETTAN ALLT.** Tvo ikon sem eru bædi
+"hringur med smaatridum" verda EINS vid 13px, hvad sem smaatridin eru. Thess
+vegna er hvert ikon a annarri grunnform-samsetningu:
+
+| ikon | silhuetta |
+|---|---|
+| **viti** | hringur + FLATUR DEPILL undir — lodrett tvennd |
+| **aukaspyrna** | hringur + THRJAR STANGIR (veggur) — larett tvennd |
+| **horn** | FANI a stong + fjordungsbogi — skálína |
+| **flipinn** | markramma + strikud ferd + knottur |
+
+**VITA-IKONID VAR ENDURTEIKNAD EFTIR SKJA-PROFUN, TVISVAR.** Fyrsta utgafan
+hafdi vitateigs-bogann YFIR knettinum: vid 15px las boginn plus
+pentagon-strikin inni i knettinum sem **HORN A ANDLITI**. Onnur utgafa setti
+hringlaga depil undir — hun las sem **stadsetningar-naell** (kula med totu).
+Thridja og gildandi: **flatur sporbaugur** = punktur A JORDU. Teikningin var
+"rett" i ollum thremur; myndin var vitlaus i tveimur. Ikon verdur ad profa i
+RAUNSTAERD, ekki i editor.
+Flipinn bar `⚽️` sem er SAMA taknid sem "⚽ Planner" bar — tveir flipar med
+sama tákni er thad sama og ekkert tákn.
+
+### VILLA SEM `npx esbuild` SA EKKI — OG HVAD SA HANA
+Ad flytja `ImminentPanel` og `StartRiskPanel` ut ur `Leaderboard.jsx` skildi
+eftir **thrjar tilvisanir i horfin nofn**: `...SR_STYLES`, `...IMM_STYLES` og
+— verst — `C` og `mono`, sem bjuggu MILLI theirra tveggja stila-blokka og
+fylgdu theim ut. Nidurstadan var `ReferenceError: C is not defined` =
+**HVITUR SKJAR a stigatoflunni**.
+
+`npx esbuild src/Leaderboard.jsx` var **GRAENT** allan tímann: hann thattar,
+hann leysir ekki nofn. Syntax-tekk er thvi EKKI nog eftir ad blokkir eru
+fluttar milli skraa. Tvennt sa thetta og bædi tharf:
+`tests/data-resilience.mjs` (opnar hvern flipa og krefst marktaeks innihalds)
+og appid i vafra. **Nyja reglan: eftir ad kodi er FLUTTUR milli skraa,
+`await import()` a skrana — thad leysir nofn a einingarsvidi.**
+
+## 6t. BSD — NY GAGNAHEIMILD, MAELD 8.8.2026 (handoff №5)
+
+`https://sports.bzzoiro.com/api/v2/` · `Authorization: Token <BSD_KEY>` ·
+lykill i GitHub Secrets. **Okeypis, enginn kvoti** (maelt: ~1.400 koll i
+einni lotu an throttlunar). Skjolin eru a `/openapi.json` (790 KB, 196
+slodir) — EKKI `/api/v2/openapi.json` eins og handoff №5 segir.
+Fotbolti er sjalfgefna ithrottin: `/api/v2/*` an forskeytis, 64 endapunktar.
+**Premier League = `league_id 1`** · 2025/26 = `season_id 337` ·
+2026/27 = `season_id 1058` · 35 timabil til.
+
+### HLIDID — hvad STENST og hvad FELLUR
+
+| handoff | tillaga | MAELD NIDURSTADA |
+|---|---|---|
+| **B1** odds | „HAESTA FORGANG, losar P1.2" | **HALF-STENST** — sja hér nedar |
+| **B2** big chances per leikmann | „endurlifgar felld verk" | **FELLUR — SVIDID ER ALLTAF NULL** |
+| **B3** shotmap + xG | „in-box reglan verdur lettvaeg" | **STENST AD FULLU** |
+| **B4** spad byrjunarlid | „staersta oleysta vandamalid" | **STENST, EN GLUGGINN ER ~13 KLST** |
+| **B5** meidsli per leik | beint i T6 | endapunktur til, tomur i forleik |
+| **B6** thjalfarar | sjalfvirka DC-flaggid | 3.400 thjalfarar med profil — nothaeft |
+| **B7** domarar | skerpir spjalda-leidrettingu | 1.231 domari, spjold/leik til |
+
+### ThAD SEM SKIPTIR MESTU: **DAUD SVID SEM LITA UT EINS OG MAELING**
+
+`big_chance_created` og `big_chance_missed` eru **100% non-null og
+ALLTAF NULL** — 15.189 leikmanna-leikir, ekkert gildi ≠ 0. Handoff №5 §B2
+hefdi sent **dalk af nullum**. Sama gildir um ~20 onnur svid:
+`expected_goals_on_target` (xGOT), `goals_prevented`, `keeper_save_value`,
+oll `*_value_normalized`, ball-carry/progression, `outfielder_block`,
+`error_lead_to_a_shot/goal`, `hit_woodwork`, `high_claims`,
+`last_man_tackle`, `clearance_off_line`, `total_offside`,
+`saved_shots_from_inside_the_box`, halfvallar-sendingar.
+
+**Thetta er nakvaemlega gildran sem kafli 3 og 6n fordast** og hun er nu
+vordud tvisvar i `tests/bsd.mjs`: (a) ekkert dautt svid ma rata i skrana,
+(b) hvert birt svid verdur ad hafa RAUNVERULEGA dreifingu. Stokkbreyting
+sem laumar `big_chance_created` inn fellur.
+
+### PER-SKOT xG — I FYRSTA SINN I ThESSU REPO-I
+`/events/{id}/stats/` → `shotmap`: **100% skota bera `xg`** i ollum 380
+leikjum 2025/26 (9.544 skot). Auk thess `pos{x,y}`, `gm` (marksstadsetning),
+`sit` (horn/fastbreak/vitaspyrna), `body`, `type` og `block`. Skran ber lika
+`momentum`, `average_positions` (RAUNVERULEG medalstadsetning — 6b segir
+hana vanta) og `xg_per_minute`. `/events/{id}/incidents/` gefur
+**uppbyggingar-kedjur marka med hnitum**, sem er naest thvi sem Understat
+gaf i xGChain.
+
+**ThEKJAN ER EITT TIMABIL.** Maelt a 8 timabilum: 2025/26 hefur skotakort i
+oll 380 skiptin, **2024/25 og eldri hafa EKKERT** (0/8 i hverju profudu
+timabili). BSD getur thvi **ALDREI** fætt bakprofin — thau krefjast 8-15
+timabila (kafli 3) — og ma ekki fara i FFDR-kjarnann. Hun er
+BIRTINGAR- og LIFANDI-heimild, ekki likans-heimild.
+**`has_xg` i lista-endapunktinum LYGUR**: hann er `false` fyrir OLL timabil,
+lika 2025/26 sem hefur full gogn. Ekki treysta honum; sæktu `/stats/`.
+
+### TVEIR FASTAR — FITTADIR GEGN BSD-INS EIGIN LIDSTOLUM
+Lids-svidin `big_chances` og `shots_inside_box` i `/stats/` ERU raunveruleg
+(0-8 per lid-leik), svo thau eru SANNLEIKURINN sem per-skot talan er fittud ad:
+
+| fasti | valid | MAE | tillaga handoffs | MAE hennar |
+|---|---|---|---|---|
+| `BIG_CHANCE_XG` | **0,18** | 0,746 (r 0,774) | 0,35 | 1,385 (r 0,612) |
+| `IN_BOX_X` | **17** | 0,133 | (ESPN-reglan) 31,4 | 4,079 |
+
+**KVARDINN ER ANNAR EN HJA ESPN.** BSD-`pos.x` er hlutfall af **FULLUM**
+velli (105 m): vitateigur 16,5 m = 15,7 og optimum maelist 16,5-17.
+ESPN er hlutfall af **HALFUM** velli (6b). Handoff №2 varadi vid ad flytja
+ESPN-regluna — su vorun var rett, og hér er malid **maelt** i stadinn fyrir
+ad vera flutt. Vordur i `tests/bsd.mjs` kafla 2 neglir badar tolurnar.
+
+### VORPUN — LIDIN HANDSTADFEST, LEIKMENN MED MINUTUM
+- **Lidin: HANDSTADFEST tafla** (`BSD_TEAM` i `fetch-bsd.mjs`), 20↔20
+  gagntaek. Fuzzy pörun **felldi Man United inn i Man City** (badir verda
+  „manchester" eftir normaliseringu) — thogul RONG pörun er verri en engin.
+  BSD-lidin 2026/27 stemma NAKVAEMLEGA vid `teams.json`, lika nyliðarnir
+  Coventry/Hull/Ipswich, og GW1 er 21.8. eins og FPL-fresturinn.
+- **Leikmenn: eitt-a-eitt + MINUTUR.** Nafnid eitt vixladi Jacob og Alex
+  Murphy (badir NEW) og setti Gabriel Martinelli a Gabriel. `season_baseline.json`
+  geymir FPL-minutur SAMA timabils, svo minutu-samraemi er lagt vid
+  nafnaskorid. Fyrir: mork r 0,9970, 3 rangar paranir. Eftir:
+  **r 0,9998 · 389/391 nakvaem · 0 rangar**.
+- **Stadfesting gegn FPL** (391 pör): mork **r 0,9998** · minutur **0,9998**
+  · xG **r 0,995**. Assist eru hins vegar **29% faerri** (503 a moti 708) —
+  thad er OPTA-skilgreiningin a moti FPL-skilgreiningunni (FPL gefur assist
+  fyrir unnid viti o.fl., sbr. 6b) og er ThVI EKKI VILLA. BSD-assist eiga
+  aldrei ad skipta ut FPL-tolunni.
+
+### ODDS — B1 FELLUR EKKI, EN GLUGGINN ER ~4 DAGAR
+Kerfid er raunverulegt: **81 bokari**, 373.890 raðir, uppfaert a klst.
+`/events/{id}/odds/comparison/` gefur per-bokara toflu **og
+`movement` (DRIFTING/SHORTENING)** sem engin onnur heimild okkar hefur.
+**EN:** upcoming-oddar na adeins **~4 daga fram** (maelt 8.8.: allir 257
+verdlagdir leikir liggja 8.-12.8.). PL GW1 er 21.8. og hefur thvi **0
+bokara** nuna — thad er GLUGGINN, ekki bilun; enskir Carabao-leikir innan
+gluggans hafa 17 bokara. Fyrir okkur er thad **nog**: markadslinan er notud
+fyrir NAESTU umferd.
+**GATIÐ: ENGIR SPREADS.** BSD hefur 1X2, O/U 1,5/2,5/3,5 og BTTS — en
+**engan asiskan forgjafar-markad**. `market.js` reiknar `(T±S)/2`, svo
+S vantar. Hun er endurheimtanleg (leysa λ_heima/λ_uti ur 1X2 + O/U 2,5
+undir Poisson) EN thad er NY afleidsla sem verdur ad maelast gegn
+`odds.json` adur en hun fer i FFDR. **EKKI GERT** — sja kafla 7.
+
+### SPAD BYRJUNARLID — GLUGGINN ER MAELDUR OG HANN ER STUTT
+`/events/{id}/lineups/` gefur `lineup_status` (`predicted`/`confirmed`/
+`unavailable`), `confidence` per lid og **`ai_score` per leikmann** —
+th.e. nakvaemlega staerdina sem 6h-likanid metur.
+**EN glugginn er ~11-13 klst fyrir leik** (maelt: allir 14 Carabao-leikir a
+T+11-13 klst eru `predicted`, allt thar fyrir utan `unavailable`; PL-opnunar-
+leikurinn er undantekning sem er spadur 13 dogum fram).
+
+**AFLEIDINGIN FYRIR FPL ER ThAD SEM HANDOFF №5 SEGIR EKKI:** FPL-fresturinn
+er ~1,5 klst fyrir FYRSTA leik umferdarinnar. Med 13 klst glugga eru
+laugardagsleikir spadir ~13 klst fyrir sinn eigin leik — sem er **EFTIR**
+fostudags-frestinn i GW1. Vid frest fast thvi spar adeins fyrir tha leiki
+sem hefjast innan ~13 klst fra fresti. Thetta er **gagnlegt en ekki
+lausnin** sem §B4 lysir, og ma ekki selja sem slika. Retta notkunin:
+(a) birta sem SPA med oryggistolu, (b) **maela hana gegn okkar eigin
+6h-likani yfir GW1-4** adur en henni er treyst.
+
+### ThAD SEM VAR BYGGT
+`scripts/fetch-bsd.mjs` (handvirkt, ~1.400 koll, timabil sem er LOKID
+breytist ekki) → **`data/bsd_players.json`** (271 KB, 391 leikmenn pöradir).
+Adeins pöradir menn fara i skrana; hinir 286 (foru ur deildinni) eru
+taldir og nefndir i `unmatched_names` svo hvarfid se SYNILEGT.
+**17 nyir dalkar** i `STAT_DEFS`, thrju bond:
+`Shot quality` (skot, xG ur skotum, xG/skot, big chances, teigsskot) ·
+`Creation` (faeri skopud, krossar, snertingar, rekstur, brotid a, einkunn) ·
+`Defensive detail` (tacklingar, stodvanir, hreinsanir, stodvud skot,
+skallaeinvigi — FPL bundlar thrju thau fyrstu i EINA CBI-tolu).
+Their eru **EKKI `live_only`**: their FYLGJA voldu timabili og eru tomir
+(„—") a ollum timabilum nema 2025/26 — stadfest sjonraent i Chrome.
+
+**`key_pass` er raunveruleg „faeri skopud"**, olikt ESPN-dalkinum i Ogn sem
+er lesinn UR TEXTA og er GOLF (6f). Badir eru birtir; heitin adgreina tha.
+
+### OSVARAD — spyrja Discord theirra
+1. **Hvadan koma gognin?** Osvarad og mikilvaegast. Sniðið
+   (`rating`, `big_chance_created`, `*_value_normalized`) er **SofaScore-laga**
+   — og SofaScore-skilmalar banna sjalfvirka sofnun (6e/handoff §1). Ef
+   thetta er endurmidlad thadan erum vid i somu skilmalastodu einu lagi fjaer.
+   **Thess vegna er BSD birtingar-heimild med fallbacki, ekki burdarvirki.**
+2. Leyfi til endurbirtingar i appi med notendum.
+3. Hvada xG-likan (tolurnar stemma vid FPL innan 0,5% svo thad er
+   Opta-ættad, en er ekki sama likan).
+
+**Fallback-stigveldid ur handoffinu stendur og er nu raunverulegt:**
+BSD dettur ut → dalkarnir verda tomir („—"), EKKERT annad brotnar, thvi
+ekkert i FFDR, `rankScore` eda vænt stig les BSD.
+
+---
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)
@@ -1986,6 +2252,13 @@ er. `FIT` heldur sínum vogtölum.
 
 ## 7b. TUNGUMÁL — TVÆR VILLUR Í VERÐINUM SEM PRÓFIÐ FANN EKKI (31.7.)
 
+> **SÖGULEGT — TUNGUMÁLALAGIÐ ER FARIÐ (7.8.2026).** Appið er enskt og
+> bara enskt; `tx()`, orðabókin og IS/EN-hnappurinn voru fjarlægð. Sjá
+> kafla 8d. Kaflinn stendur eftir því **lærdómurinn** í honum gildir enn:
+> AST-próf sér ekki það sem er á skjánum, og ASCII-íslenska sleppur í
+> gegnum stafa-skynjun. Það er nákvæmlega vandinn sem
+> `tests/no-icelandic.mjs` erfir.
+
 `tests/i18n.mjs` var grænt og samt var enska viðmótið hálf-íslenskt á fjórum
 flipum. Fundið með því að **KEYRA appið á ensku í Chrome og leita að þ/ð/æ í
 DOM-inu** — 14 strengir. Tvær villur í prófinu sjálfu:
@@ -2050,6 +2323,11 @@ finna þetta er að keyra appið á ensku og skoða, eins og var gert hér.
 ---
 
 ## 8b. TUNGUMÁL — enskur hnappur í hausnum (30.7.2026)
+
+> **SÖGULEGT — allt í þessum kafla var tekið út 7.8.2026 (sjá 8d).**
+> Geymt af tveimur ástæðum: `tx`-gegn-`t` áreksturinn endurtók sig
+> orðrétt þegar `interp` hét fyrst `fmt`, og lista-hlutinn skýrir hvers
+> vegna sumir strengir eru enskir hvort sem er (xG, BPS, chip-heiti).
 
 `IS | EN` í hausnum (`LangToggle` í `App.jsx`). Valið vistast í
 `localStorage` undir `fpl_lang` og `<html lang>` + flipa-titill fylgja.
@@ -2142,6 +2420,193 @@ Prófað sjónrænt í Chrome með **raunverulegu** hruni (throw settur í
 `Pitch.jsx`, kassinn birtist, throw fjarlægt aftur) — ekki aðeins í jsdom.
 Vörður: `tests/error-boundary.mjs` (18), tvær stökkbreytingar prófaðar:
 `localStorage.clear()` og hreinsun í einum smell. Báðar felldar.
+
+
+---
+
+## 8d. ENSKA EINGÖNGU — tungumálalagið tekið út (7.8.2026)
+
+Notandinn bað um það: *„taktu út íslenskuna, höfum bara appið á ensku, það
+flækir það að vera á íslensku líka. Taktu þá hnappinn IS/EN í burtu líka."*
+
+**Farið:** `src/i18n.js`, `src/i18n-en.js` (1.023 lyklar), `src/useLang.js`,
+`LangToggle`, `applyDocument()`, `tests/i18n.mjs`, `tests/i18n-dom.mjs`.
+`<html lang>` er `en`. `fpl_lang` er nú **hreinsaður** af villuvörninni —
+undantekningin sem verndaði hann (8c) sneri við um leið og hún hætti að eiga
+við: lykillinn er dauður afgangur hjá þeim sem notuðu tvítyngdu útgáfuna.
+
+**Eftir stendur `src/interp.js` — eitt fall.** 93 setningar eru byggðar með
+sniðmáti (`"£{0}m short — transfer too expensive"`) og orðaröðin er hluti af
+setningunni; samskeyting hefði verið 93 handbreytingar með raunverulegri hættu
+á týndu bili. **Fyrsta heitið `fmt` rakst á staðbundna talnasniðgerð í
+`GwReport.jsx`** og byggingin féll strax — sama gildran og `t` gegn `tx` var
+(8b). `interp` var valið **mælt**: það kemur hvergi fyrir í `src/`, `tests/`
+né `scripts/`.
+
+**UMRITUNIN VAR VÉLRÆN.** Babel-AST fann hvert `tx()`-kall og skipti því út
+fyrir enska strenginn úr orðabókinni — innst fyrst, endurtekið, svo hreiðruð
+köll leystust rétt. **1.048 stöðug köll + 96 með stikum = 1.144. Enginn lykill
+vantaði.** 24 köll flettu upp í töflum (`TIER_NAME`, `POS_LABEL`, `POS_TABS`);
+þær voru þýddar sjálfar og hjúpurinn tekinn af.
+
+**SÖNNUNIN — þetta er aðalatriðið.** DOM-mynd af öllu appinu (allir flipar,
+undirflipar, leikmannaspjald, róterings-spjald, FFDR-tafla, chips) var tekin
+**á ensku FYRIR** breytinguna og aftur **EFTIR**, með nákvæmlega sömu vélinni:
+
+| | stafir |
+|---|---|
+| fyrir | 832.812 |
+| eftir | 830.060 |
+| munur | 5 strengir × 64 söfnun = **IS/EN-hnappurinn, ekkert annað** |
+
+### `tests/no-icelandic.mjs` kemur í stað beggja gömlu safnanna
+Spurningin er önnur núna — ekki „er þýðingin til?" heldur **„komst íslenska
+að?"**. Þrír kaflar: (A) enginn íslenskur stafur í DOM-inum nema hann komi
+**úr `data/`** (nöfn og pipeline-nótur, fjarlægðar sem **undirstrengir**, ekki
+orð); (B) engin ófyllt stika, ekkert `undefined`/`NaN`; (C) **ASCII-ÍSLENSKA**.
+
+**Kafli C er þar af því að kafli A GETUR EKKI séð „Yfirlit", „Grunnur" eða
+„laugardagur".** Meðan appið var tvítyngt fann IS/EN-samanburðurinn þær, og sá
+samanburður fór með hinu málinu. **Listinn (52 orðmyndir) getur staðnað og það
+er sagt berum orðum í skjalinu** — hann er byggður á **því sem raunverulega
+lak 31.7.** Orð með enskri merkingu (`lid`, `min`, `man`, `mid`, `sun`) eru
+**viljandi utan hans**; þau myndu fella prófið á réttum enskum texta og þá
+væri það slökkt innan viku.
+**Fjórar stökkbreytingar prófaðar** — broddstafir, ASCII-íslenska, sprautaður
+bútur í sniðmát, ófyllt stika — og allar fjórar felldu prófið.
+
+**Tvennt í öðrum söfnum var EKKI bara endurnefning:**
+1. „sl. tímabil" og prósan „fyrra tímabil" þýddust **báðar** í `last season`,
+   svo heildarleitin féll á réttum texta. Vörðurinn er nú bundinn við
+   **dálkahausana**, sem var alltaf tilgangur hans.
+2. Verðlaun í einka-deildum eru nú `en-GB`-sniðin (`5,000` í stað `5.000`).
+
+**Það sem er enn íslenskt og á að vera það:** `status.json`- og
+`last_gw.json`-nóturnar sem `record(...)` skrifar. Þær eru **gögn**, ekki
+viðmót, og að þýða þær er endurhönnun á ~20 kallstöðum í 3.000-línu skriftu
+sem keyrir mannlaus (sjá 7b). Kafli A í nýja prófinu leyfir þær beinlínis.
+
+---
+
+## 8e. LIÐA-TÖLUR — nýr flipi „Teams" (8.8.2026)
+
+Beðið var um dálk sem sýnir **hvernig liðin sjálf spila** — xG, xGC, skot á
+sig, „big chances" á sig, langskot á sig — til dæmis við val á markverði.
+
+`src/teamstats.js` (hreint) + `src/Teams.jsx` (birting eingöngu), sömu skiptingu
+og `model.js`/`stats.js`. **Sér flipi en ekki dálkar í leikmannalistanum:**
+röðin er LIÐIÐ, og að hengja 20 liða-tölur á 572 leikmenn væri að endurtaka
+sömu tuttugu raðirnar 28 sinnum hverja.
+
+### BIG CHANCES ERU EKKI HÉR OG VERÐA ÞAÐ EKKI
+Þær krefjast **xG per skot** og engin náanleg heimild gefur hana (6b/6e: FBref
+403, SofaScore 403, Understat gagnalaus, FotMob gated). Að leiða þær út úr
+svæði eingöngu væri **okkar líkan sem lítur út eins og mæling**.
+Það sem gögnin leyfa er **nærfæri á sig** — skot úr markteig, talin af ESPN
+sjálfu. Það er skyld tala en ekki sama talan og hún ber því sitt rétta nafn.
+Vörður: kafli 6 í `tests/team-stats.mjs` fellur ef dálkur fer að heita það.
+
+### `data/team_shots.json` — ný heimild, sótt EINU SINNI
+`scripts/fetch-team-shots.mjs` gengur um tímabilið dag fyrir dag (~660 köll:
+einn scoreboard per dag + eitt summary per leik) og telur skot eftir **svæðis-
+texta ESPN**, ekki hnitum — textinn er óháður kvarðanum (6b). **Ekki í daglegu
+pipeline:** tímabil sem er lokið breytist ekki, svo skráin er skrifuð einu
+sinni og committuð. Sjálfsmörk eru sleppt (skyttan tilheyrir röngu liði).
+
+**KROSSPRÓFAÐ GEGN E0 — tvær óháðar heimildir um sama hlut:**
+
+| | |
+|---|---|
+| lið í báðum skrám | 17 (hin þrjú féllu úr deildinni) |
+| mesta frávik | **0,71 skot/leik** |
+| meðalfrávik | −0,47 (skot) · −0,43 (á mark) |
+
+ESPN telur **kerfisbundið ~3,5% færri — sama formerki í ÖLLUM liðum**, sem er
+munur á heimildum (commentary sleppir hluta blokkaðra skota) en **ekki villa í
+úrdrættinum**. Væri skekkjan handahófskennd — sum lið yfir, önnur undir — væri
+úrdrátturinn að para skot við röng lið, sem er allt annað og miklu verra. Sá
+vörður er kafli 3 í prófinu.
+**Notið E0 fyrir MAGN og ESPN fyrir SVÆÐI.** 8,9% skota bera engan svæðis-texta
+og teljast því aðeins í heildartölunni.
+
+### xG/xGC ERU ÓFULLKOMIN OG ERU MERKT SEM SLÍK
+`luck.json` leggur saman FPL-leikmannatölur og leikmenn sem fóru úr deildinni
+eru fjarlægðir úr bootstrap — **~19% vantar** (`xg_incomplete: true`). Talan er
+því kerfisbundið of lág: **berið hana saman MILLI liða, lesið hana ekki sem
+absolút xG.** Dálkarnir bera `incomplete`-flagg og skýringin segir frá því.
+
+### LÆGRA-ER-BETRA ER FORSENDA, EKKI SKRAUT
+Fyrir allt sem lið fær **á sig** er hærri tala verri — **nema langskot**, því
+þau eru ódýrustu skotin sem hægt er að gefa frá sér. Tafla sem litar hæstu
+töluna græna í „skot á sig" segir notandanum að versta vörnin sé sú besta.
+Sama regla og `compare-visual.mjs` ver (6j). Kafli 2 telur upp báða listana
+**berum orðum** svo þeir brotni sýnilega ef einhver snýr þeim.
+
+### NÝLIÐAR: NULL ER EKKI NÚLL
+Coventry, Hull og Ipswich áttu enga röð í ensku úrvalsdeildinni í fyrra. Væri
+`null` lesið sem 0 yrðu þeir með **núll skot á sig** og röðuðust efst í „besta
+vörnin". Nöfnin í skýringunni eru **leidd út úr gögnunum**, ekki handskrifuð.
+`tests/team-stats.mjs`: 35 próf, **fjórar stökkbreytingar prófaðar** (langskot
+snúið við, null raðast fyrst, vantandi gildi verður 0, dálkur endurnefndur
+„Big chances") og allar fjórar felldu prófið.
+
+---
+
+## 8f. FFDR — GRÆN RUNA FÆR RAMMA (8.8.2026)
+
+Beðið var um: *„þegar það koma 3 leikir eða fleiri sem eru grænir, ramma það
+inn með þunnum grænum ramma."*
+
+`greenRuns(tiers, minLen = 3)` í **`model.js`** (ekki inni í `App.jsx`) af sömu
+ástæðu og allt annað reiknað — prófin keyra sama kóðann. Runan svarar **annarri
+spurningu en þrepið**: þrepið segir „er þessi leikur léttur?", runan segir „á
+þetta lið gott PROGRAM?".
+
+Tvær reglur sem eru ákvarðanir:
+1. **Grænt = þrep UNDIR hlutlausu.** Hlutlaust er hlutlaust.
+2. **AUÐ UMFERÐ SLÍTUR RUNU.** Blank er 0 stig og því þyngra en hvaða rauður
+   leikur sem er (sama rök og `rotation.js`, 3d). **`null >= 2` er `false` í
+   JS**, svo naív skilyrði hleypir auðri umferð í gegn — `!= null` er prófað
+   sérstaklega.
+
+**RÚMFRÆÐIN VAR VANDINN, EKKI REGLAN.** Taflan hafði `borderSpacing: 2`, svo
+rammi teiknaður á hólfin hefði **slitnað** yfir hvert bil og lesist eins og
+strikalína. Nú er `borderSpacing: 0` með **2px gagnsæjum ramma** á hverju hólfi:
+rúmfræðin er sú sama (2+2 = bil milli hólfa) en brúnir næstliggjandi hólfa
+**snertast**, svo ramminn verður samfelldur. `backgroundClip: "padding-box"`
+heldur litfletinum innan við rammann. Bilið var **hækkað úr 1px í 2px að beiðni
+notandans** — með 1px lásust hólfin í runu sem einn klumpur.
+
+**Lykkjan var hert:** `i = j` eitt sér er óöruggt — verði ytra og innra
+skilyrðið einhvern tíma ósamstæð er `j === i` og lykkjan snýst að eilífu. Það
+**gerðist í raun** við stökkbreytingaprófun (`>=` á móti `>`) og **hengdi
+prófakeyrsluna í stað þess að fella hana**. Nú `i = Math.max(j, i + 1)`.
+Stökkbreytingar: þröskuldur 3→2, auð umferð brúar, rammi opinn — allar felldar.
+*(Ein reyndist **jafngild stökkbreyting**: ytra skilyrðið er aðeins flýtileið,
+innri lykkjan ræður niðurstöðunni, svo hún getur ekki breytt útkomu.)*
+
+---
+
+## 8g. ÞRENNT SMÁTT SEM VAR BEÐIÐ UM (8.8.2026)
+
+- **`†`-merkið tekið af dálkaheitum.** „Afleidd tala" er skýring, ekki eitthvað
+  sem maður les í hverri einustu hausröð; hún stendur áfram í tooltip-inu.
+  **Plássið fór með:** dálkur sem heldur 7px fyrir tákn sem er ekki teiknað er
+  of breiður að eilífu, og 60+ afleiddir dálkar gera það að raunverulegu skruni.
+  `wOf` og vörðurinn í `stats.test.mjs` uppfærðir saman.
+- **„Build your table" flæðir nú í dálka.** Valarinn var 210px kassi með
+  `overflowY:auto` — maður **skrunaði til að sjá hvað væri í boði**, sem er
+  öfugt við tilgang hans. `columns:"170px"` lætur efnið renna niður einn dálk og
+  byrja efst í þeim næsta; fjöldi dálka er leiddur út úr breiddinni.
+  `breakInside:"avoid"` er á **böndunum** (4–5 dálkar hvert), ekki flokkunum:
+  Attack er 33 dálkar og kemst aldrei í einn dálk, svo vörður á flokknum yrði
+  hunsaður hvort sem er. **Á síma helst skrunið** — þar er einn dálkur.
+- **Föst leikatriði: sá sem tekur fleiri en eina tegund er feitletraður.**
+  Talið á **röðun innan liðs** (`rank === 1`), ekki FPL-tölunni — horn ná aldrei
+  1 (6j), svo `order === 1` hefði talið hornin úr. Mælt: **10 leikmenn** taka
+  tvær tegundir, **enginn** tekur allar þrjár. Aðeins þyngd, enginn nýr litur:
+  litirnir í spjaldinu bera þegar merkingu (rauður=víti, blár=aukaspyrna,
+  grænn=horn).
 
 ---
 

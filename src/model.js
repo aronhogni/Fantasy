@@ -366,6 +366,41 @@ export const TIER_NAME = ["dark green", "green", "neutral", "dark yellow", "ligh
 /* HLUTLAUSA ÞREPIÐ — grátt, "hvorki gott né vont". Vísað til í prófum svo
    staðsetning þess sé skjöluð og megi ekki reka óviljandi.              */
 export const TIER_NEUTRAL = 2;
+
+/* GRAENAR RUNUR — 3+ LEIKIR I ROD I GRAENU THREPI.
+   Svarar ANNARRI spurningu en threpid sjalft: threpid segir "er thessi
+   leikur letttur?", runan segir "a thetta lid gott PROGRAM?" — og thad er
+   sidari spurningin sem raedur thvi hvenaer madur kaupir inn i lid.
+
+   TVAER REGLUR SEM ERU AKVARDANIR, EKKI SMEKKUR:
+     1. GRAENT = threp UNDIR hlutlausa (dokkgraent og graent). Hlutlaust
+        er hlutlaust — runa sem inniheldur thad vaeri ekki graen runa.
+     2. AUD UMFERD SLITUR RUNU. Blank er 0 stig og thvi thyngra en hvada
+        raudur leikur sem er (sama rok og i rotation.js, CLAUDE.md 3d).
+        Runa sem spannar auda umferd vaeri login. ATH: `null >= 2` er
+        FALSE i JS, svo naiv skilyrdi hleypir audri umferd i gegn — thess
+        vegna er `!= null` prófad SERSTAKLEGA. Vordur: model.test.mjs.
+
+   `tiers` er fylki threpa; `null` merkir auda umferd. Skilar fylki i somu
+   lengd: `null` thar sem engin runa er, annars { first, last, len }.     */
+export function greenRuns(tiers, minLen = 3) {
+  const out = new Array(tiers.length).fill(null);
+  for (let i = 0; i < tiers.length;) {
+    if (tiers[i] == null || tiers[i] > TIER_NEUTRAL) { i++; continue; }
+    let j = i;
+    while (j < tiers.length && tiers[j] != null && tiers[j] < TIER_NEUTRAL) j++;
+    if (j - i >= minLen)
+      for (let k = i; k < j; k++) out[k] = { first: k === i, last: k === j - 1, len: j - i };
+    /* `i = j` EITT SER ER OORUGGT: se ytra skilyrdid (hopp yfir) og innra
+       skilyrdid (lengja runu) einhvern tima osamstaed, verdur j === i og
+       lykkjan snyst ad eilifu. Thad gerdist i raun vid stokkbreytingar-
+       profun (>= vs >) og hengdi profakeyrsluna i stad thess ad fella
+       hana. Fallid ma ekki geta hengt vidmotid, hvad tha profid sem a ad
+       finna villuna.                                                     */
+    i = Math.max(j, i + 1);
+  }
+  return out;
+}
 /* Fjöldi þrepa á EINUM stað — App.jsx reiknar afstæð þrep innan liðs og
    má ekki harðkóða 6 (það gerði það og hefði sleppt sjöunda litnum).   */
 export const TIER_COUNT = TIER_BG.length;

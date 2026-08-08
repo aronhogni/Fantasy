@@ -17,6 +17,7 @@
 
 import React, { useMemo, useState } from "react";
 import { interp } from "./interp.js";
+import { PenaltyIcon, FreeKickIcon, CornerIcon } from "./Icons.jsx";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -27,16 +28,20 @@ const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 const POS = { 1:"GK", 2:"DEF", 3:"MID", 4:"FWD" };
 const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
-/* Merkin sem lika birtast a leikmannaspjoldum — eitt satt um taknin. */
+/* Merkin sem lika birtast a leikmannaspjoldum — eitt satt um taknin.
+
+   TEIKNUD IKON, EKKI TAKN (8.8.2026). Sagan er skjalfest her fyrir nedan af
+   thvi ad hun er lærdomurinn: taknin ⚽ / ◎ / ⌾ voru OGREINANLEG i 13px
+   (thau tvo sidari eru naer eins hringir), svo 31.7. var theim skipt ut
+   fyrir BOKSTAF med lit (P/F/C). Bokstafurinn er laesilegur en merkingar-
+   laus — madur les "C" og verdur ad VITA ad thad se corner.
+   Nu eru thad SVG-ikon (src/Icons.jsx) sem eru byggd a thremur olikum
+   SILHUETTUM, thvi i smarri staerd er silhuettan allt. `short` heldur ser
+   sem texta-fallback (aria/title og prof).                              */
 export const SP_KINDS = [
-  /* SHORT-BOKSTAFUR OG LITUR I STAD TAKNS I LISTANUM (31.7.2026).
-     ⚽ / ◎ / ⌾ eru OGREINANLEG i raunstaerd — thau tvo sidari eru naer eins
-     hringir i 13px, svo madur sem tekur allar thrjar las eins og tvitekning.
-     Taknid heldur ser thar sem LABEL fylgir (tegunda-valid), en i listanum
-     — thar sem taknid stendur EITT — kemur bokstafur med sinum lit.       */
-  { key:"pen", field:"penalties_order",                       icon:"⚽", tint:"#b3261e", get label() { return "Penalties"; },        short:"P" },
-  { key:"fk",  field:"direct_freekicks_order",                icon:"◎", tint:"#1b5e9c", get label() { return "Free kicks"; }, short:"F" },
-  { key:"ck",  field:"corners_and_indirect_freekicks_order",  icon:"⌾", tint:"#0a7a4a", get label() { return "Corners"; },        short:"C" },
+  { key:"pen", field:"penalties_order",                      Icon:PenaltyIcon,  tint:"#b3261e", get label() { return "Penalties"; },  short:"P" },
+  { key:"fk",  field:"direct_freekicks_order",               Icon:FreeKickIcon, tint:"#1b5e9c", get label() { return "Free kicks"; }, short:"F" },
+  { key:"ck",  field:"corners_and_indirect_freekicks_order", Icon:CornerIcon,   tint:"#0a7a4a", get label() { return "Corners"; },    short:"C" },
 ];
 
 /* ============================================================
@@ -81,6 +86,21 @@ export function setPieceRanks(players) {
   return byId;
 }
 
+/* HVERSU MARGAR TEGUNDIR TEKUR HANN FYRSTUR?
+   Sa sem tekur BAEDI viti og horn er annad slag i fantasy en sa sem
+   tekur adeins horn: hann er a fleiri en einni leid ad stigum og missir
+   thaer ekki allar thott ein hverfi. Thess vegna er hann FEITLETRADUR i
+   lida-spjaldinu — talan var THEGAR a skjanum (thrjar linur) en hun var
+   ekki LAESILEG fyrr en hun var merkt.
+
+   Talid a RODUN INNAN LIDS (rank === 1), ekki a FPL-tolunni: horn na
+   aldrei 1 (sja ofar), svo `order === 1` hefdi talid hornin ur.        */
+export function setPieceCount(p, ranks) {
+  const list = ranks?.get?.(p?.id);
+  if (!list) return 0;
+  return list.filter(b => b.rank === 1).length;
+}
+
 /* Ikon-rod fyrir eitt spjald. `ranks` ur setPieceRanks; an hennar er
    ekkert birt — betra en ad birta rangt (sbr. hornin ofar).            */
 export function setPieceBadges(p, ranks, { maxRank = 2 } = {}) {
@@ -100,6 +120,16 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
      ADEINS FYRSTI TAKI: rodun 2-5 skiptir ekki mali fyrir fantasy-val og
      hun tvofaldadi haedina a hverju spjaldi.                             */
   const ranks = useMemo(() => setPieceRanks(players), [players]);
+  /* Reiknad EINU SINNI fyrir alla, ekki per rod: annars vaeri thetta
+     20 lid x 3 tegundir uppflettingar i hverri teiknun.                */
+  const multi = useMemo(() => {
+    const m = new Map();
+    for (const p of players || []) {
+      const n = setPieceCount(p, ranks);
+      if (n > 1) m.set(p.id, n);
+    }
+    return m;
+  }, [players, ranks]);
 
   const primary = useMemo(() => {
     const m = {};                       // teamId -> { pen, fk, ck }
@@ -136,7 +166,7 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
         <div style={S.keyRow}>
           {SP_KINDS.map(k => (
             <span key={k.key} style={S.keyItem} title={`${k.label} — ${cover[k.key] ?? 0}/${nTeams} ${"teams"}`}>
-              <span style={S.keyIcon}>{k.icon}</span>{k.label}
+              <k.Icon size={15} color={k.tint} title={k.label} />{k.label}
               <span style={S.keyN}>{cover[k.key] ?? 0}/{nTeams}</span>
             </span>
           ))}
@@ -162,14 +192,18 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
                 const hit = e[k.key];
                 return (
                   <div key={k.key} style={S.line}>
-                    <span style={{ ...S.icon, color:k.tint, borderColor:k.tint }}
-                      title={k.label} aria-label={k.label}>{k.short}</span>
+                    <span style={{ ...S.icon, color:k.tint }} title={k.label}>
+                      <k.Icon size={15} title={k.label} />
+                    </span>
                     {!hit ? (
                       <span style={S.none} title={"FPL has no order recorded for this team"}>—</span>
                     ) : (
                       <button style={S.pick} onClick={() => onPickPlayer && onPickPlayer(hit.p.id)}
-                        title={`${hit.p.web_name} — ${k.label}, ${"FPL order"} ${hit.order}`}>
-                        <span style={S.nm}>{hit.p.web_name}</span>
+                        title={`${hit.p.web_name} — ${k.label}, ${"FPL order"} ${hit.order}`
+                          + (multi.has(hit.p.id) ? ` · first taker for ${multi.get(hit.p.id)} set-piece types` : "")}>
+                        <span style={{ ...S.nm, ...(multi.has(hit.p.id) ? S.nmMulti : null) }}>
+                          {hit.p.web_name}
+                        </span>
                         <span style={{ ...S.pos, color: POS_COLOR[hit.p.element_type] }}>
                           {POS[hit.p.element_type]}
                         </span>
@@ -185,7 +219,10 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
       </div>
 
       <div style={S.legend}>
-        {"The icons:"} <b>⚽</b> {"penalties"} · <b>◎</b> {"free kicks"} · <b>⌾</b> {"corners"}.
+        {"The icons:"}{" "}
+        <span style={S.legIcon}><PenaltyIcon size={13} color="#b3261e" title="Penalties" /> {"penalties"}</span> ·{" "}
+        <span style={S.legIcon}><FreeKickIcon size={13} color="#1b5e9c" title="Free kicks" /> {"free kicks"}</span> ·{" "}
+        <span style={S.legIcon}><CornerIcon size={13} color="#0a7a4a" title="Corners" /> {"corners"}</span>.
         {" "}<b>{"\"First taker\" is the team's LOWEST FPL order, not the number 1."}</b>{" "}
         {"Measured on real data: penalties and free kicks are numbered 1–5, but corners"}
         {" "}<b>{"4–10 and never reach 1"}</b>{" "}
@@ -199,12 +236,15 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
 const S = {
   keyRow:{ display:"flex", gap:9, flexWrap:"wrap", alignItems:"center" },
   keyItem:{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:C.text2 },
-  keyIcon:{ fontSize:13 },
+  legIcon:{ display:"inline-flex", alignItems:"center", gap:3, verticalAlign:"middle" },
   keyN:{ fontFamily:mono, fontSize:10, color:C.text3 },
   line:{ display:"flex", alignItems:"center", gap:6, padding:"2px 0",
          borderTop:`1px solid #f4f4f6` },
-  icon:{ fontSize:9.5, fontWeight:800, width:15, textAlign:"center", flexShrink:0,
-    border:"1px solid", borderRadius:3, lineHeight:1.5 },
+  /* RAMMINN VAR TEKINN AF: hann var thar til ad gera BOKSTAFINN ad merki.
+     Teiknad ikon er thegar merki, og kassi utan um thad aetir 2 px af 15 og
+     kepptir vid silhuettuna sem er allt sem madur les i thessari staerd.  */
+  icon:{ display:"flex", alignItems:"center", justifyContent:"center",
+         width:16, flexShrink:0 },
   pick:{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:6,
          background:"transparent", border:"none", cursor:"pointer",
          padding:"2px 0", textAlign:"left", font:"inherit" },
@@ -222,6 +262,11 @@ const S = {
   tName:{ fontSize:9.5, color:C.text3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   nm:{ flex:1, minWidth:0, fontSize:11.5, color:C.text, overflow:"hidden",
        textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  /* FEITLETRAD = tekur FLEIRI EN EINA tegund. Adeins thyngd, enginn nyr
+     litur: litirnir i spjaldinu bera THEGAR merkingu (raudur = viti, blar
+     = aukaspyrna, graenn = horn) og fjordi liturinn hefdi keppt vid tha i
+     stad thess ad baeta vid.                                            */
+  nmMulti:{ fontWeight:800, color:C.text },
   pos:{ fontSize:8.5, fontWeight:700 },
   cost:{ fontSize:10, fontFamily:mono, color:C.text2 },
   legend:{ fontSize:10.5, color:C.text3, marginTop:10, paddingTop:8,

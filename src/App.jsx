@@ -4,6 +4,8 @@ import Pitch from "./Pitch.jsx";
 import GwReport from "./GwReport.jsx";
 import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
 import SetPieces from "./SetPieces.jsx";
+import { SetPieceIcon } from "./Icons.jsx";
+import Teams from "./Teams.jsx";
 import Compare from "./Compare.jsx";
 import Leagues from "./Leagues.jsx";
 import Rotation from "./Rotation.jsx";
@@ -16,7 +18,7 @@ import { moScore, aoScore, startProbability, inImminentPool,
 import PlayerList from "./PlayerList.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
-  tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT,
+  tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
   cleanSheetProb, rankScore, eloStale, parseEntryId } from "./model.js";
 
@@ -506,6 +508,7 @@ export default function App() {
   const [defcon, setDefcon] = useState(null);
   const [defconHist, setDefconHist] = useState(null);  // DC-hittni fyrri timabila
   const [consist, setConsist] = useState(null);        // Aron-studull (jofnudur)
+  const [bsd, setBsd] = useState(null);                // BSD per-skot xG + Opta-tolur (2025/26)
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
   const [lineups, setLineups] = useState(null);         // STADFEST byrjunarlid
   const [pipeStatusFast, setPipeStatusFast] = useState(null);
@@ -524,6 +527,8 @@ export default function App() {
   const [chipRules, setChipRules] = useState(null); // chip-reglur ÚR FPL-API
   const [formFeat, setFormFeat] = useState(null);   // rúllandi eiginleikar (fittað líkan)
   const [teamForm, setTeamForm] = useState(null);   // HEILT lið-form úr E0
+  const [luck, setLuck] = useState(null);           // xG/xGC per lið (FPL-summa)
+  const [teamShots, setTeamShots] = useState(null); // SVAEDI skotanna (ESPN, heilt timabil)
   const [buyPrices, setBuyPrices] = useState({});  // {playerId: kaupverð x10}
   const [apiBank, setApiBank] = useState(null);    // banki úr FPL (tíundir) ef tengt
   const [apiHit, setApiHit] = useState(null);      // raunveruleg refsing úr FPL
@@ -606,6 +611,7 @@ export default function App() {
         try { setDefcon(await j("defcon.json")); } catch {}
         try { setDefconHist(await j("defcon_history.json")); } catch {}
         try { setConsist(await j("consistency.json")); } catch {}
+        try { setBsd(await j("bsd_players.json")); } catch {}
         try { setPlayerForm(await j("player_form.json")); } catch {}
         try { setPipeStatus(await j("status.json")); } catch {}
         /* HRADA KEYRSLAN SKRIFAR I status_fast.json OG APPID LAS HANA EKKI.
@@ -632,6 +638,8 @@ export default function App() {
         try { setChipRules(await j("chips.json")); } catch {}
         try { setFormFeat(await j("form_features.json")); } catch {}
         try { setTeamForm(await j("team_form.json")); } catch {}
+        try { setLuck(await j("luck.json")); } catch {}
+        try { setTeamShots(await j("team_shots.json")); } catch {}
         try { setLastGw(await j("last_gw.json")); } catch {}
         try { setLastGwShots(await j("last_gw_shots.json")); } catch {}
         try { setSeasonsFile(await j("player_seasons.json")); } catch {}
@@ -1879,9 +1887,18 @@ export default function App() {
           data/last_gw*.json og players.json — their hanga ekki a lidinu
           thinu og virka thott ekkert se tengt.                            */}
       <div style={S.viewTabs}>
-        {[["planner","⚽ Planner"],["players","👥 Player stats"],["gw","📊 Gameweek"],["board","🏆 Leaderboard"],["sp","⚽️ Set pieces"]].map(([k,l]) => (
-          <button key={k} style={{ ...S.viewTab, ...(view === k ? S.viewTabOn : {}) }}
-            onClick={() => setView(k)}>{l}</button>
+        {/* "Set pieces" bar SAMA taknid sem "Planner" (⚽) — tveir flipar med
+            sama tákni er thad sama og ekkert tákn. Nu teiknad ikon (dautt
+            bolta-spark ad marki), sja src/Icons.jsx. Textinn heldur ser thvi
+            prófin OG notandinn finna flipann eftir nafni.                 */}
+        {[["planner","⚽ Planner"],["players","👥 Player stats"],["teams","🛡️ Teams"],
+          ["gw","📊 Gameweek"],
+          ["board","🏆 Leaderboard"],["sp","Set pieces", SetPieceIcon]].map(([k,l,Ico]) => (
+          <button key={k} style={{ ...S.viewTab, ...(view === k ? S.viewTabOn : {}),
+                                   ...(Ico ? S.viewTabIcon : {}) }}
+            onClick={() => setView(k)}>
+            {Ico ? <Ico size={14} title="" /> : null}{l}
+          </button>
         ))}
       </div>
 
@@ -1892,7 +1909,7 @@ export default function App() {
         <PlayerList players={players} teams={teams} teamById={teamById} events={events}
           seasonsFile={seasonsFile} imminent={imminent} shotsFile={lastGwShots}
           fixtures={fixtures} odds={odds} defcon={defcon} defconHist={defconHist} consist={consist}
-          photoUrl={photoUrl} Crest={Crest}
+          bsd={bsd} photoUrl={photoUrl} Crest={Crest}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           watch={watch}
           onWatch={id => setWatch(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id])}
@@ -1901,14 +1918,19 @@ export default function App() {
           onCompare={id => setCmpIds(v => v.includes(id) ? v.filter(x => x !== id)
                                                         : [...v, id].slice(0, 4))} />
       )}
+      {view === "teams" && (
+        <Teams teams={teams} teamForm={teamForm} luck={luck} teamShots={teamShots} />
+      )}
       {view === "sp" && (
         <SetPieces players={players} teams={teams} teamById={teamById} Crest={Crest}
           notes={spNotes} onPickPlayer={id => setDetail({ kind:"player", id })} />
       )}
       {view === "board" && (
         <>
+        {/* `imminent` og `photoUrl` fylgja ekki lengur: IG/IA-spjoldin
+            fluttu undir Player stats og bekkjar-haettan var tekin ut, svo
+            stigataflan les nu ADEINS players.json. */}
         <Leaderboard players={players} teams={teams} teamById={teamById} Crest={Crest}
-          imminent={imminent} photoUrl={photoUrl}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           seasonNote={preSeason
             ? "The 2026/27 season has not started. The numbers here are the cumulative totals FPL is showing right now — they reset to zero when GW1 opens."
@@ -3383,7 +3405,14 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ t, cells, avg }) => (
+            {rows.map(({ t, cells, avg }) => {
+          /* GRAEN RUNA — 3+ LEIKIR I ROD I GRAENU THREPI FA RAMMA.
+             Reiknad A RODINNI, ekki i holfinu: holf veit ekkert um
+             nagranna sina. Sjalf reglan er i model.js (`greenRuns`) af
+             somu astaedu og allt annad reiknad — profin keyra sama kodann.  */
+          const run = greenRuns(cells.map(c => c.blank ? null
+            : tierOf(Math.max(...c.items.map(x => x.d)))));
+          return (
               <tr key={t.id}>
                 <td style={S.ffdrTeamCell}>
                   <button style={S.ffdrTeamBtn} onClick={() => onPickTeam && onPickTeam(t.id)}>
@@ -3394,9 +3423,18 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
                   if (c.blank) return <td key={i} style={S.ffdrBlank} title={"Blank gameweek"}>—</td>;
                   const worst = Math.max(...c.items.map(x => x.d));
                   const tier = tierOf(worst);
+                  const r = run[i];
                   return (
-                    <td key={i} style={{ ...S.ffdrTd, background: TIER_BG[tier], color: TIER_FG[tier] }}
-                      title={c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (a)"} · ${x.d}`).join("  |  ")}>
+                    <td key={i} style={{ ...S.ffdrTd, background: TIER_BG[tier], color: TIER_FG[tier],
+                          ...(r ? {
+                            borderTopColor: C.green, borderBottomColor: C.green,
+                            ...(r.first ? { borderLeftColor: C.green } : {}),
+                            ...(r.last ? { borderRightColor: C.green } : {}),
+                            borderTopLeftRadius: r.first ? 5 : 0, borderBottomLeftRadius: r.first ? 5 : 0,
+                            borderTopRightRadius: r.last ? 5 : 0, borderBottomRightRadius: r.last ? 5 : 0,
+                          } : {}) }}
+                      title={(r ? `${r.len} easy gameweeks in a row — ` : "")
+                        + c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (a)"} · ${x.d}`).join("  |  ")}>
                       {c.items.map((x, k) => (
                         <span key={k} style={S.ffdrOpp}>
                           {teamById[x.f.opp]?.short || "?"}{x.f.home ? "" : <i style={S.ffdrAway}>{"a"}</i>}
@@ -3408,7 +3446,8 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
                 })}
                 <td style={S.ffdrAvg}>{avg == null ? "—" : avg.toFixed(2)}</td>
               </tr>
-            ))}
+            );
+          })}
           </tbody>
         </table>
       </div>
@@ -3662,6 +3701,9 @@ const S = {
   viewTab: { border:`1px solid ${C.border}`, background:C.card, color:C.text2,
              borderRadius:8, padding:"7px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },
   viewTabOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
+  /* Ikonid stendur thar sem emoji-in stada i hinum flipunum: sama bil (6px)
+     svo hausrodin lesist jofn thott eitt taknid se teiknad og fjogur ekki. */
+  viewTabIcon: { display:"inline-flex", alignItems:"center", gap:6 },
   tlWrap: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px", marginBottom:12 },
   // lína gegnum hnútana — teiknuð sem bakgrunnur á röðinni
   tlOuter: { display:"flex", alignItems:"flex-end", gap:6 },
@@ -3732,9 +3774,19 @@ const S = {
     padding:"3px 7px", background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`, borderRadius:6 },
   ffdrPosOn: { background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
   ffdrScroll: { overflowX:"auto", marginTop:8, paddingBottom:2 },
-  ffdrTable: { borderCollapse:"separate", borderSpacing:2, fontSize:9.5, width:"100%" },
+  /* BORDERSPACING VAR 2 OG ER NU 0 MED 1px GAGNSAEUM RAMMA A HVERJU HOLFI.
+     Rumfraedin er ONBREYTT (1+1 = somu 2px milli holfa) en graeni ramminn
+     um graena runu verdur SAMFELLDUR: raendur naest-liggjandi holfa
+     SNERTAST i stad thess ad hafa 2px gat, sem hefdi litid ut eins og
+     strikalina en ekki rammi. `backgroundClip:"padding-box"` heldur
+     lit-flotinu innan vid rammann.
+     BREIDDIN ER 2px (bil milli holfa = 4px, var 2). Med 1px var taflan
+     of thett thegar graeni ramminn baettist ofan a hana — holfin i runu
+     lasust sem EINN klumpur i stad thriggja leikja. Bilid er thad sem
+     gerir rununa laesilega, ekki ramminn einn.                          */
+  ffdrTable: { borderCollapse:"separate", borderSpacing:0, fontSize:9.5, width:"100%" },
   ffdrTh: { fontFamily:mono, fontSize:8.5, fontWeight:700, color:C.text3, textAlign:"center",
-    padding:"1px 3px", minWidth:34 },
+    padding:"1px 3px", minWidth:34, border:"2px solid transparent", backgroundClip:"padding-box" },
   ffdrThTeam: { textAlign:"left", minWidth:58, position:"sticky", left:0, background:C.card, zIndex:1 },
   ffdrTeamCell: { position:"sticky", left:0, background:C.card, zIndex:1, padding:0 },
   ffdrTeamBtn: { display:"flex", alignItems:"center", gap:4, width:"100%", cursor:"pointer",
@@ -3743,9 +3795,9 @@ const S = {
   ffdrAway: { fontStyle:"normal", fontSize:7, opacity:0.7, marginLeft:1 },
   ffdrDouble: { display:"block", fontSize:7, opacity:0.8 },
   ffdrBlank: { textAlign:"center", padding:"3px 2px", borderRadius:5, background:C.cardAlt,
-    color:C.text3, fontFamily:mono, fontSize:9 },
+    color:C.text3, fontFamily:mono, fontSize:9,     border:"2px solid transparent", backgroundClip:"padding-box" },
   ffdrAvg: { textAlign:"center", padding:"3px 4px", fontFamily:mono, fontSize:9.5, fontWeight:700,
-    color:C.text2, background:C.cardAlt, borderRadius:5 },
+    color:C.text2, background:C.cardAlt, borderRadius:5,     border:"2px solid transparent", backgroundClip:"padding-box" },
   ffdrLegend: { display:"flex", gap:4, flexWrap:"wrap", marginTop:8, paddingTop:7, borderTop:`1px solid ${C.border}` },
   ffdrChip: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 },
   /* Breiddin kemur úr grid-dálki pitchSplit — flex/minWidth hér áður
@@ -3895,7 +3947,8 @@ const S = {
     fontSize:10, fontWeight:700, padding:"1px 4px", borderRadius:4 },
   // ffdrTd = <td> í FFDR-töflunni. MÁ EKKI vera inline-block — brýtur töfluna.
   ffdrTd: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono,
-    fontSize:9, fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25 },
+    fontSize:9, fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25,
+    border:"2px solid transparent", backgroundClip:"padding-box" },
   tblNum: { width:46, textAlign:"right", fontFamily:mono, fontSize:11, color:C.text2, position:"relative" },
   /* left 21 (var 4): "i"-ikonid situr nu i vinstra horninu. */
   /* fontSize 8,5 -> 10 og hvitur baugur svo merkid lesist yfir myndinni. */

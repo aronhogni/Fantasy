@@ -13,7 +13,7 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   MEASURED, MEASURED_LEGACY_D, SCALE_FIX, toMeasuredScale, lookupMeasured,
   TIER_COUNT, TIER_NAME, TIER_FG, TIER_NEUTRAL,
   makeFixDifficulty, cleanSheetProb, lambdaFromStrength,
-  rankScore, RANK_W } from "../src/model.js";
+  rankScore, RANK_W, greenRuns } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, availForKickoff, parseEntryId,
          eloStale, parseReturn } from "../src/model.js";
@@ -514,6 +514,37 @@ console.log("\n=== 14. FPL-SLOD -> LIDSNUMER ===");
   /* Ekki taka numer ur ORUM stodum i slodinni */
   ok(I("https://fantasy.premierleague.com/leagues/314/standings/c") === undefined,
     "deildarnumer (314) er EKKI tekid sem lidsnumer");
+}
+
+/* ---------- GRAENAR RUNUR (FFDR-ramminn) ---------- */
+console.log(`\n${"─".repeat(84)}`);
+console.log("GRAENAR RUNUR — 3+ leikir i rod fa ramma");
+console.log("─".repeat(84));
+{
+  const spans = r => r.map(x => x ? (x.first ? "[" : "") + x.len + (x.last ? "]" : "") : ".").join(" ");
+  /* G=0/1 graent · N=2 hlutlaust · R=5 raudur · null=aud umferd */
+  ok(spans(greenRuns([1, 1, 1])) === "[3 3 3]", "threir graenir i rod -> runa");
+  ok(spans(greenRuns([1, 1, 2])) === ". . .", "TVEIR duga EKKI — thad er threpid, ekki programid");
+  ok(spans(greenRuns([0, 1, 0, 5, 1, 1, 1, 1])) === "[3 3 3] . [4 4 4 4]",
+    "tvaer adskildar runur i somu rod", spans(greenRuns([0, 1, 0, 5, 1, 1, 1, 1])));
+  ok(spans(greenRuns([1, 1, 2, 1, 1])) === ". . . . .",
+    "HLUTLAUST SLITUR: 2+2 er ekki runa af 4");
+
+  /* AUD UMFERD ER THYNGST (CLAUDE.md 3d) — hun ma ALDREI vera bru.
+     Thetta er reglan sem er audveldast ad tapa: `null` er hvorki >= 2 ne
+     graent, svo naiv skilyrdi hleypir henni i gegn.                     */
+  ok(spans(greenRuns([1, 1, null, 1, 1])) === ". . . . .",
+    "AUD UMFERD SLITUR RUNU — blank er 0 stig, thyngra en raudur leikur");
+  ok(spans(greenRuns([1, 1, 1, null, 1, 1, 1])) === "[3 3 3] . [3 3 3]",
+    "en runur BEGGJA vegna audrar umferdar standa", spans(greenRuns([1, 1, 1, null, 1, 1, 1])));
+
+  ok(spans(greenRuns([])) === "", "tom rod fellur ekki");
+  ok(greenRuns([1, 1, 1]).length === 3, "skilar fylki i SOMU lengd (rodun i toflunni byggir a thvi)");
+  ok(spans(greenRuns([1, 1, 1, 1, 1])) === "[5 5 5 5 5]", "ein long runa er EIN runa, ekki margar");
+  /* Endarnir bera rammann; an theirra vaeri hann opinn i badar attir. */
+  const e = greenRuns([1, 1, 1]);
+  ok(e[0].first && !e[0].last && e[2].last && !e[2].first && !e[1].first && !e[1].last,
+    "first/last adeins a endunum — ramminn lokast");
 }
 
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);

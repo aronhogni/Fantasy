@@ -279,6 +279,60 @@ export const STAT_DEFS = [
     get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0), x=num(p.expected_goal_involvements);
              return x==null?null:gi-x; } },
 
+  /* --- band: Shot quality ---
+     UR BSD (sports.bzzoiro.com), maelt 8.8.2026. ThETTA ER I FYRSTA SINN
+     SEM REPO-ID HEFUR PER-SKOT xG: Understat er gagnalaus, FBref og
+     SofaScore skila 403 og ESPN gefur hnit EN ENGA xG (CLAUDE.md 6b/6e).
+     Skrain nær AÐEINS yfir 2025/26 — onnur timabil syna "—" (VANTAR).
+     Stadfest gegn FPL: mork r=0,9998 (389/391 nakvaem), xG r=0,995.    */
+  { key:"bsd_shots", label:"Shots (BSD)", short:"Shots", group:"attack", band:"Shot quality",
+    dec:0, hi:true,
+    note:"Total shots in the season, counted from BSD's shot map. Not an FPL field. 2025/26 only — other seasons are empty because the source does not go back further.",
+    get:p=>num(p._b_shots) },
+  { key:"bsd_xg", label:"xG from shot map", short:"xG (shots)", group:"attack", band:"Shot quality",
+    dec:2, hi:true,
+    note:"xG summed from individual shots, an independent measurement of FPL's own xG. Measured agreement across 391 matched players: r = 0.995. Where the two disagree, they are different xG models, not an error.",
+    get:p=>num(p._b_xg) },
+  { key:"bsd_xg_per_shot", label:"xG per shot", short:"xG/shot", group:"attack", band:"Shot quality",
+    dec:3, hi:true,
+    note:"Average quality of the chances he gets. High = he shoots from good positions; low = he shoots from distance. This is the number that separates a poacher from a long-range shooter, and no FPL field carries it.",
+    get:p=>num(p._b_xgs) },
+  { key:"bsd_big", label:"Big chances (derived)", short:"Big ch.", group:"attack", band:"Shot quality",
+    dec:0, hi:true, derived:true,
+    note:"DERIVED, NOT AN OPTA COUNT. BSD's own per-player big-chance field exists but is ALWAYS ZERO, so it is not used. Instead this counts shots with xG ≥ 0.18 — a threshold fitted against BSD's real TEAM-level big-chance totals over 748 team-matches (MAE 0.75, r 0.77). The obvious guess of 0.35 measured almost twice as badly (MAE 1.39).",
+    get:p=>num(p._b_big) },
+  { key:"bsd_in_box", label:"Shots inside the box", short:"In box", group:"attack", band:"Shot quality",
+    dec:0, hi:true,
+    note:"Shots taken inside the penalty area, from shot coordinates. The box edge was fitted against BSD's own team-level inside-box counts over 760 team-matches (MAE 0.13). BSD's x axis is a share of the FULL pitch, a different scale from ESPN's — measured here rather than carried over.",
+    get:p=>num(p._b_inbox) },
+
+  /* --- band: Creation ---
+     `key_pass` er RAUNVERULEG tala fyrir "faeri skopud". ESPN-dalkurinn i
+     Ogn er lesinn UR TEXTA og er GOLF (76% skota nefna upplegg, 6f).   */
+  { key:"bsd_key_pass", label:"Chances created", short:"Chances", group:"attack", band:"Creation",
+    dec:0, hi:true,
+    note:"Passes that led directly to a shot — the real count, not the text-derived estimate in the Threat group. FPL has no equivalent field: Creativity is an index, not a count. 2025/26 only.",
+    get:p=>num(p._b_kp) },
+  { key:"bsd_crosses", label:"Crosses", short:"Cross", group:"attack", band:"Creation",
+    dec:0, hi:true, note:"Total crosses attempted in the season (BSD). 2025/26 only.",
+    get:p=>num(p._b_cross) },
+  { key:"bsd_crosses_acc", label:"Crosses completed", short:"Cross ok", group:"attack", band:"Creation",
+    dec:0, hi:true, note:"Crosses that found a team-mate. Read next to total crosses — a high total with a low completion is volume, not creation.",
+    get:p=>num(p._b_crossa) },
+  { key:"bsd_touches", label:"Touches", short:"Touches", group:"attack", band:"Creation",
+    dec:0, hi:true, note:"Total touches of the ball across the season (BSD). A volume measure of involvement, not of quality.",
+    get:p=>num(p._b_touch) },
+  { key:"bsd_dribbles", label:"Dribbles won", short:"Dribbles", group:"attack", band:"Creation",
+    dec:0, hi:true, note:"Take-ons completed (BSD). 2025/26 only.",
+    get:p=>num(p._b_drib) },
+  { key:"bsd_fouled", label:"Times fouled", short:"Fouled", group:"attack", band:"Creation",
+    dec:0, hi:true, note:"How often he was fouled — a proxy for how much he is targeted, and it feeds set pieces in dangerous areas.",
+    get:p=>num(p._b_fouled) },
+  { key:"bsd_rating", label:"Match rating (BSD)", short:"Rating", group:"attack", band:"Creation",
+    dec:2, hi:true,
+    note:"Average per-match rating from BSD across the season. It is THEIR model's opinion, not a measured FPL quantity — useful as a second view, never as a reason on its own.",
+    get:p=>num(p._b_rating) },
+
   /* --- band: Indexes ---
      FLUTT UR GRUNNI 8.8.2026 ad beidni notanda. ICT, ahrif, skopun og ogn
      eru SOKNAR-tolur (threat er bokstaflega staðsetningar-haetta i teig) og
@@ -419,6 +473,32 @@ export const STAT_DEFS = [
   { key:"recoveries_per_90", label:"Recoveries per 90", short:"Recov/90", group:"defence",
     band:"Defensive actions", dec:2, hi:true, derived:true, note:"Ball recoveries per 90 minutes played.",
     get: per90of("recoveries") },
+
+  /* --- band: Defensive detail ---
+     FPL bundlar hreinsanir, stodvanir og stodvud skot i EINA tolu (CBI).
+     BSD heldur theim ADSKILDUM, svo hér sest HVAD madurinn gerir — midjumadur
+     med 60 stodvanir og 5 hreinsanir er annar leikmadur en oful sama tala i
+     hina attina. 2025/26 eingongu.                                        */
+  { key:"bsd_tackles", label:"Tackles (BSD)", short:"Tack (B)", group:"defence",
+    band:"Defensive detail", dec:0, hi:true,
+    note:"Tackles as counted by BSD. Shown next to the FPL tackle count deliberately: two independent sources for the same action, so a gap is visible rather than hidden.",
+    get:p=>num(p._b_tack) },
+  { key:"bsd_interceptions", label:"Interceptions", short:"Intercept", group:"defence",
+    band:"Defensive detail", dec:0, hi:true,
+    note:"Interceptions on their own. FPL only publishes them inside the combined CBI total, so this is the first time the term can be read separately.",
+    get:p=>num(p._b_int) },
+  { key:"bsd_clearances", label:"Clearances", short:"Clear", group:"defence",
+    band:"Defensive detail", dec:0, hi:true,
+    note:"Clearances on their own, split out of FPL's combined CBI total. High clearances usually means a defender under sustained pressure, which pulls against clean sheets.",
+    get:p=>num(p._b_clr) },
+  { key:"bsd_blocks", label:"Blocked shots", short:"Blocks", group:"defence",
+    band:"Defensive detail", dec:0, hi:true,
+    note:"Opposition shots he blocked, split out of FPL's combined CBI total.",
+    get:p=>num(p._b_blk) },
+  { key:"bsd_aerial", label:"Aerial duels won", short:"Aerials", group:"defence",
+    band:"Defensive detail", dec:0, hi:true,
+    note:"Aerial duels won across the season (BSD). No FPL field carries this at all.",
+    get:p=>num(p._b_aer) },
 
   /* ================= OGN (ESPN, sidasta lokna umferd) ================= */
   /* --- band: Shots --- */
