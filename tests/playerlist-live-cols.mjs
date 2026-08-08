@@ -154,17 +154,22 @@ await new Promise(r => setTimeout(r, 60));
     .filter(d => d.textContent.trim() === "No numbers").length;
   ok("stigataflan sýnir ENGAN tóman kassa í opnum flokki", noNums === 0,
     `— fann ${noNums}; audgunin kemst ekki til Leaderboard.jsx`);
-  /* Flokkur sem er ALVEG tomur a ekki ad fa hnapp. "Ogn" var 8/8 tomur og
-     verdur ad vera KOMINN AFTUR (audgadur) — ef hann vantar er tengingin
-     rofin, ef hann er thar med tomum kossum fellur profid fyrir ofan.   */
-  const threat = byExact("Threat");
-  ok("Ogn-flokkurinn er til i stigatoflunni (var 8/8 tomur)", !!threat);
-  if (threat) {
-    await fire(threat);
+  /* OGNAR-DALKARNIR FLUTTUST I "Attack" 8.8.2026 ad beidni notanda —
+     serflokkur "Threat" er ekki lengur til. Profid eltir EIGINLEIKANN,
+     ekki HEITID: thad sem her skiptir mali er ad ESPN-audgunin komist til
+     Leaderboard.jsx, og hun er nu profud i sinum nyja flokki. Vaeri hakid
+     afram a "Threat" myndi thad falla af ENDURNEFNINGU i stad bilunar —
+     "Prof a ad profa hegdun, ekki ordalag" (CLAUDE.md 6k).             */
+  const attack = byExact("Attack");
+  ok("Soknar-flokkurinn er til i stigatoflunni", !!attack);
+  if (attack) {
+    await fire(attack);
     const noNums2 = [...document.querySelectorAll("div")]
       .filter(d => d.textContent.trim() === "No numbers").length;
-    ok("Ogn: engir tomir kassar eftir audgun", noNums2 === 0, `— fann ${noNums2}`);
+    ok("Sokn (m.a. ognar-dalkarnir): engir tomir kassar eftir audgun",
+       noNums2 === 0, `— fann ${noNums2}`);
   }
+  ok("serflokkurinn 'Threat' er FARINN (dalkarnir eru i Attack)", !byExact("Threat"));
 }
 
 console.log(`\nLIFANDI DÁLKAR: ${pass} stóðust, ${fail} féllu`);

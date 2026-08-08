@@ -347,9 +347,19 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     return () => mq.removeEventListener?.("change", on);
   }, []);
   const [showInfo, setShowInfo] = useState(false);
-  /* GW-strikid er LOKAD sjalfgefid (sparar 44 px) en OPNAST sjalfkrafa um leid
-     og bil er valid — valid ma aldrei vera falid fyrir theim sem valdi thad. */
-  const [gwOpen, setGwOpen] = useState(false);
+  /* GW-STRIKID ER OPID SJALFGEFID — OG ThAD VAR LAERT AF NOTANDANUM.
+     8.8. var thad gert samanbrotid til ad spara 44 px. Notandinn tilkynnti
+     thad sem HORFINN EIGINLEIKA ("það vantar gameweek barið, af hverju var
+     það tekið út?") — hann var enn thar, en a bak vid litinn ▾-hnapp sem
+     enginn fann. Eiginleiki sem finnst ekki er verri en 44 px af skruni.
+     Hnappurinn helst svo haegt se ad loka thvi; valid er BARA vistad
+     (`fpl_gwopen`) thvi thetta er SMEKKUR eins og `dense`, ekki astand.  */
+  const [gwOpen, setGwOpen] = useState(() => {
+    try { return localStorage.getItem("fpl_gwopen") !== "0"; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("fpl_gwopen", gwOpen ? "1" : "0"); } catch { /* lokad */ }
+  }, [gwOpen]);
   /* THETTAR RADIR: 26 px i stad 34. Vistad thvi thetta er smekkur, ekki
      astand — sa sem vill sja 20 leikmenn i einu vill thad alltaf.        */
   const [dense, setDense] = useState(() => {
@@ -795,7 +805,11 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const window_ = sorted.slice(first, last);
 
   /* Breiddir eftir skja. Nafnadalkur 196 -> 124 og tolur 88 -> 66 i sima. */
-  const wName = narrow ? 140 : 200;   // +18 px fyrir stjornuna
+  /* +18 px fyrir stjornuna og +16 fyrir ⇄. A SIMA er ⇄ EKKI syndur og
+     breiddin helst 140: kafli 6i maeldi ad frosni dalkurinn var 196 px af
+     380 — meira en halfur skjarinn — og hvert pixel a ad fara i NAFNID.
+     Samanburdur er skjabords-vinnuflaedi hvort sem er.                  */
+  const wName = narrow ? 140 : 216;
   const cName = { ...S.cName, width: wName, minWidth: wName,
                   ...(scrolledX ? S.frozenShadow : {}) };
   /* BREIDD PER DALK, EKKI EIN FOST BREIDD FYRIR ALLA.
@@ -1340,7 +1354,6 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                                         ...(b.band ? S.bandOn : {}) }}
                     title={b.band}>{b.band}</div>
                 ))}
-                <div style={{ ...S.bandCell, ...S.cAct }} />
               </div>
               )}
               <div style={S.hRow}>
@@ -1391,7 +1404,6 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     {arrow(d.key)}
                   </div>
                 ))}
-                <div style={{ ...S.hCell, ...S.cAct }}>+</div>
               </div>
             </div>
 
@@ -1426,6 +1438,20 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                       onClick={e => { e.stopPropagation(); onWatch?.(r.p.id); }}>
                       {isWatched ? "★" : "☆"}
                     </button>
+                    {/* SAMANBURDAR-HNAPPURINN VAR AFTAST — A EFTIR 100+ DALKUM.
+                        Til ad na i hann thurfti ad skruna toffluna alla leid
+                        til haegri, svo hann fannst i reynd ekki. Nu situr hann
+                        i FROSNA holfinu vid hlidina a stjornunni: sama rok og
+                        bordinn "mitt lid" (6i) — thad sem madur notar i hverri
+                        rod ma ekki hverfa vid larett skrun.                  */}
+                    {!narrow && <button style={{ ...S.cmpBtn, ...(inCmp ? S.cmpOn : {}) }}
+                      aria-pressed={inCmp}
+                      aria-label={inCmp ? interp("Remove {0} from the comparison", [r.p.web_name])
+                                        : interp("Add {0} to the comparison", [r.p.web_name])}
+                      title={inCmp ? "In the comparison — click to remove" : "Add to the comparison"}
+                      onClick={e => { e.stopPropagation(); onCompare?.(r.p.id); }}>
+                      {inCmp ? "✓" : "⇄"}
+                    </button>}
                     <button style={S.nameBtn} onClick={() => onPickPlayer?.(r.p.id)}
                       title={r.p.news || `${r.p.first_name} ${r.p.second_name}`}>
                       {/* Myndin er 25 px ha og passar ekki i 26 px thetta rod. */}
@@ -1521,11 +1547,6 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                       </div>
                     );
                   })}
-                  <div style={{ ...S.cell, ...S.cAct }}>
-                    <button style={{ ...S.addSm, ...(inCmp ? S.addSmOn : {}) }}
-                      title={inCmp ? "In the comparison" : "Add to the comparison"}
-                      onClick={() => onCompare?.(r.p.id)}>{inCmp ? "✓" : "⇄"}</button>
-                  </div>
                 </div>
               );
             })}
@@ -1875,7 +1896,10 @@ const S = {
   cName:{ position:"sticky", left:0, zIndex:2, width:196, minWidth:196,
           background:"inherit", borderRight:`1px solid ${C.border}` },
   cNum:{ width:88, minWidth:88, maxWidth:88, justifyContent:"flex-end", fontFamily:mono, color:C.text2 },
-  cAct:{ width:36, minWidth:36, justifyContent:"center" },
+  /* ⇄ i frosna holfinu — somu maal og stjarnan svo thau standi jofn. */
+  cmpBtn:{ border:0, background:"none", cursor:"pointer", padding:"0 3px", fontSize:12,
+           lineHeight:1, color:"#b9b9c2", flex:"0 0 auto" },
+  cmpOn:{ color:"#7b2d8e", fontWeight:700 },
   strong:{ color:C.text, fontWeight:700 },
   miss:{ color:"#c4c4cc" },
 

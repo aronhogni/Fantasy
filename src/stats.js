@@ -91,7 +91,6 @@ export const STAT_GROUPS = [
   { key: "core",    label: "Basics" },
   { key: "attack",  label: "Attack" },
   { key: "defence", label: "Defence" },
-  { key: "threat",  label: "Threat" },
   { key: "aron",    label: "Consistency (Aron)" },
   { key: "fixtures",label: "Upcoming fixtures" },
   { key: "setp",    label: "Set pieces and cards" },
@@ -416,6 +415,49 @@ export const STAT_DEFS = [
 
   /* ================= VORN ================= */
   /* --- band: Clean sheets --- */
+  /* --- OGN (ESPN, sidasta lokna umferd) ---
+     FLUTT UR EIGIN FLIPA INN I SOKN 8.8.2026 ad beidni. Thetta eru
+     soknartolur og attu aldrei heima i serflokki; serflokkurinn thydi
+     bara ad notandinn thurfti ad skipta um flokk til ad sja skot vid
+     hlidina a xG. Bondin halda ser (ESPN, ein umferd) og bera thad
+     sjalf i heiti og note.
+     ROÐIN SKIPTIR MALI: bond verda ad vera SAMFELLD innan flokks, svo
+     blokkin er flutt LIKAMLEGA hingad — ekki bara merkt upp a nytt. */
+  { key:"espn_shots", label:"Shots", group:"attack", band:"Shots",
+    dec:0, hi:true, live_only:true,
+    note:"Shots in the LAST FINISHED gameweek, read from ESPN's match feed. One gameweek only — it is a snapshot, not a season total.",
+    get:p=>num(p._espn_shots) },
+  { key:"espn_sot", label:"Shots on target", short:"On target", group:"attack", band:"Shots",
+    dec:0, hi:true, live_only:true, note:"Shots on target in the last finished gameweek (ESPN).",
+    get:p=>num(p._espn_sot) },
+  { key:"espn_accuracy", label:"Shot accuracy", short:"Accuracy", group:"attack", band:"Shots",
+    dec:0, hi:true, pct:true, live_only:true, derived:true,
+    note:"Shots on target ÷ shots. This is ACCURACY, not finishing — ESPN gives no xG per shot, so we cannot say how good the chances were.",
+    get:p=>{ const s=num(p._espn_shots); if (!s) return null;
+             return safeDiv(num(p._espn_sot) ?? 0, s)*100; } },
+  { key:"espn_in_box", label:"Shots in the box", short:"In box", group:"attack", band:"Shots",
+    dec:0, hi:true, live_only:true,
+    note:"Shots from inside the penalty area, taken from ESPN's own zone text (not from a coordinate rule). Location beats volume: a shot in the box is worth several from distance.",
+    get:p=>num(p._espn_in_box) },
+  { key:"espn_woodwork", label:"Hit the woodwork", short:"Wood", group:"attack", band:"Shots",
+    dec:0, hi:true, live_only:true,
+    note:"Shots that hit the post or the bar — its own event type at ESPN. The purest bad-luck signal there is.",
+    get:p=>num(p._espn_woodwork) },
+
+  /* --- band: Chance creation --- */
+  { key:"espn_created", label:"Chances created", short:"Created", group:"attack", band:"Chance creation",
+    dec:0, hi:true, live_only:true,
+    note:"How often he set up a shot in the last finished gameweek, read out of ESPN's commentary (\"Assisted by X …\"). 76% of shots name their assist, so this is a floor, not an exact count. NOT the same thing as Big Chances — see the note on Shot accuracy.",
+    get:p=>num(p._espn_created) },
+  { key:"espn_cross", label:"Crosses → shots", short:"Crosses", group:"attack", band:"Chance creation",
+    dec:0, hi:true, live_only:true,
+    note:"Crosses that LED TO A SHOT — not raw cross counts. A raw cross number rewards hopeful balls into the box; this one only counts when it worked.",
+    get:p=>num(p._espn_cross) },
+  { key:"espn_through", label:"Through balls", short:"Through", group:"attack", band:"Chance creation",
+    dec:0, hi:true, live_only:true, note:"Passes described as a through ball that led to a shot (ESPN commentary).",
+    get:p=>num(p._espn_through) },
+
+  /* ================= JOFNUDUR (ARON-STUDULL) ================= */
   { key:"clean_sheets", label:"Clean sheets", short:"CS", group:"defence", band:"Clean sheets",
     dec:0, hi:true, pos:[1,2,3],
     note:"Clean sheets he was credited with. FPL's rule is 60+ minutes without conceding WHILE HE IS ON THE PITCH, so it is counted per player and not per team.",
@@ -534,41 +576,6 @@ export const STAT_DEFS = [
 
   /* ================= OGN (ESPN, sidasta lokna umferd) ================= */
   /* --- band: Shots --- */
-  { key:"espn_shots", label:"Shots", group:"threat", band:"Shots",
-    dec:0, hi:true, live_only:true,
-    note:"Shots in the LAST FINISHED gameweek, read from ESPN's match feed. One gameweek only — it is a snapshot, not a season total.",
-    get:p=>num(p._espn_shots) },
-  { key:"espn_sot", label:"Shots on target", short:"On target", group:"threat", band:"Shots",
-    dec:0, hi:true, live_only:true, note:"Shots on target in the last finished gameweek (ESPN).",
-    get:p=>num(p._espn_sot) },
-  { key:"espn_accuracy", label:"Shot accuracy", short:"Accuracy", group:"threat", band:"Shots",
-    dec:0, hi:true, pct:true, live_only:true, derived:true,
-    note:"Shots on target ÷ shots. This is ACCURACY, not finishing — ESPN gives no xG per shot, so we cannot say how good the chances were.",
-    get:p=>{ const s=num(p._espn_shots); if (!s) return null;
-             return safeDiv(num(p._espn_sot) ?? 0, s)*100; } },
-  { key:"espn_in_box", label:"Shots in the box", short:"In box", group:"threat", band:"Shots",
-    dec:0, hi:true, live_only:true,
-    note:"Shots from inside the penalty area, taken from ESPN's own zone text (not from a coordinate rule). Location beats volume: a shot in the box is worth several from distance.",
-    get:p=>num(p._espn_in_box) },
-  { key:"espn_woodwork", label:"Hit the woodwork", short:"Wood", group:"threat", band:"Shots",
-    dec:0, hi:true, live_only:true,
-    note:"Shots that hit the post or the bar — its own event type at ESPN. The purest bad-luck signal there is.",
-    get:p=>num(p._espn_woodwork) },
-
-  /* --- band: Chance creation --- */
-  { key:"espn_created", label:"Chances created", short:"Created", group:"threat", band:"Chance creation",
-    dec:0, hi:true, live_only:true,
-    note:"How often he set up a shot in the last finished gameweek, read out of ESPN's commentary (\"Assisted by X …\"). 76% of shots name their assist, so this is a floor, not an exact count. NOT the same thing as Big Chances — see the note on Shot accuracy.",
-    get:p=>num(p._espn_created) },
-  { key:"espn_cross", label:"Crosses → shots", short:"Crosses", group:"threat", band:"Chance creation",
-    dec:0, hi:true, live_only:true,
-    note:"Crosses that LED TO A SHOT — not raw cross counts. A raw cross number rewards hopeful balls into the box; this one only counts when it worked.",
-    get:p=>num(p._espn_cross) },
-  { key:"espn_through", label:"Through balls", short:"Through", group:"threat", band:"Chance creation",
-    dec:0, hi:true, live_only:true, note:"Passes described as a through ball that led to a shot (ESPN commentary).",
-    get:p=>num(p._espn_through) },
-
-  /* ================= JOFNUDUR (ARON-STUDULL) ================= */
   { key:"aron_net", label:"Consistency (Aron)", short:"Aron", group:"aron", band:"Consistency",
     dec:2, hi:true, signed:true, derived:true,
     note:"ARON COEFFICIENT: share of games with 4+ points MINUS share with 2 or fewer. Higher = steady 4–6 every week instead of 2-2-2-then-11. MEASURED AND DOCUMENTED: it DESCRIBES THE PAST and does not predict — the hit rate tracks points/match at r=0.90, and once you control for points AND price inside a position no persistent residual is left. So compare players in the SAME POSITION at a SIMILAR PRICE. Never used in any ranking.",

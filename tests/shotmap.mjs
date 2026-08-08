@@ -151,6 +151,44 @@ H("4b. LIDS-KORTIN (fyrir og A SIG)");
   }
 }
 
+/* ---------- 4c. MEDALSTADA — OG ANDSTAEDI ASINN ---------- */
+H("4c. MEDALSTADA PER LEIK (PositionMap)");
+{
+  const pos = F.positions || {};
+  ok(Object.keys(pos).length > 200, `leikmenn med medalstodu: ${Object.keys(pos).length}`);
+  const all2 = Object.values(pos).flat();
+  ok(all2.every(a => Array.isArray(a) && a.length === 2
+                  && a[0] >= 0 && a[0] <= 100 && a[1] >= 0 && a[1] <= 100),
+     "hver punktur er [x, y] innan vallar 0-100");
+  ok(Object.values(pos).every(a => a.length >= 5),
+     "enginn leikmadur med faerri en 5 leiki (undir thvi er skyid havadi)");
+
+  /* ASINN ER ANDSTAEDUR VID SKOTAKORTID og thad er auðveldasta villan i
+     ollu thessu: spegilmynd litur RETT ut. Akkerid er stodurnar sjalfar —
+     markmenn verda ad liggja LAEGST og framherjar HAEST. Snuist thad vid
+     er vollurinn a hvolfi.                                             */
+  let pl = null;
+  try { const raw = JSON.parse(readFileSync(ROOT + "data/players.json", "utf8"));
+        pl = Array.isArray(raw) ? raw : raw.players; } catch {}
+  if (!pl) ok(false, "players.json lesin til stodu-samanburdar");
+  else {
+    const POS = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
+    const byCode = new Map(pl.map(p => [String(p.code), p]));
+    const mean = {};
+    for (const [code, arr] of Object.entries(pos)) {
+      const p = byCode.get(code);
+      if (!p) continue;
+      (mean[POS[p.element_type]] ||= []).push(arr.reduce((s, a) => s + a[0], 0) / arr.length);
+    }
+    const avg = r => (mean[r] || []).reduce((a, b) => a + b, 0) / (mean[r] || []).length;
+    const g = avg("GK"), d = avg("DEF"), m = avg("MID"), f = avg("FWD");
+    console.log(`     GK ${g.toFixed(1)} · DEF ${d.toFixed(1)} · MID ${m.toFixed(1)} · FWD ${f.toFixed(1)}`);
+    ok(g < d && d < m && m < f,
+       `stodurnar raðast rett upp vollinn (GK ${g.toFixed(1)} < DEF ${d.toFixed(1)} < MID ${m.toFixed(1)} < FWD ${f.toFixed(1)})`);
+    ok(g < 20, `markmenn liggja vid eigid mark (${g.toFixed(1)}) — x=0 er EIGID mark, ekki sótta markid`);
+  }
+}
+
 /* ---------- 5. BIRTINGIN ---------- */
 H("5. BIRTINGIN (jsdom)");
 {

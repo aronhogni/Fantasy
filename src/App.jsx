@@ -17,6 +17,7 @@ import { moScore, aoScore, startProbability, inImminentPool,
          indexImminentByTeam, matchImminent } from "./stats.js";
 import PlayerList from "./PlayerList.jsx";
 import ShotMap from "./ShotMap.jsx";
+import PositionMap from "./PositionMap.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
@@ -527,7 +528,8 @@ export default function App() {
       put(byCode, s[iCode], s); put(byTeam, s[iTeam], s); put(byOpp, s[iOpp], s);
     }
     const teams = shotFile.legend?.teams || [];
-    return { byCode, byTeam, byOpp, teams, calib: shotFile.calib };
+    return { byCode, byTeam, byOpp, teams, calib: shotFile.calib,
+             positions: shotFile.positions || {} };
   }, [shotFile]);
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
   const [lineups, setLineups] = useState(null);         // STADFEST byrjunarlid
@@ -1975,7 +1977,7 @@ export default function App() {
       )}
       {view === "sp" && (
         <SetPieces players={players} teams={teams} teamById={teamById} Crest={Crest}
-          notes={spNotes} onPickPlayer={id => setDetail({ kind:"player", id })} />
+          notes={spNotes} bsd={bsd} onPickPlayer={id => setDetail({ kind:"player", id })} />
       )}
       {view === "board" && (
         <>
@@ -2838,6 +2840,23 @@ export default function App() {
                             2025/26 · bubble size = xG</span>
                         </div>
                         <ShotMap shots={sm} calib={shotIndex.calib} label={p.web_name} />
+                      </>
+                    );
+                  })()}
+
+                  {/* HVAR HANN SPILAR — medalstada per leik.
+                      EKKI heatmap: BSD skjalar `heatmap` en skilar henni
+                      aldrei (0 af 15.189 rodum). Thetta er thad sem ER til. */}
+                  {(() => {
+                    const pos = shotIndex?.positions?.[String(p.code)];
+                    if (!pos?.length) return null;
+                    return (
+                      <>
+                        <div style={S.dGroupHead}>
+                          Where he plays <span style={{ fontWeight: 400, opacity: 0.65 }}>
+                            2025/26 · one dot per match, not a touch heatmap</span>
+                        </div>
+                        <PositionMap positions={pos} label={p.web_name} />
                       </>
                     );
                   })()}

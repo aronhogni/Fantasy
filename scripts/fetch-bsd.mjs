@@ -106,6 +106,11 @@ async function get(path, tries = 3) {
       throw new Error(`HTTP ${r.status} ${path}`);
     } catch (e) { if (i === tries - 1) throw e; await sleep(800 * (i + 1)); }
   }
+  /* SIDASTA TILRAUN SEM ER 429/5xx `continue`-adi UT UR LYKKJUNNI og fallid
+     skilaði thvi `undefined` — ThOGULL BILUN sem birtist fyrst sem
+     "Cannot read properties of undefined (reading 'results')" langt fra
+     upprunanum. Kvota-thak a ad segjast sem kvota-thak.                  */
+  throw new Error(`BSD gafst upp eftir ${tries} tilraunir: ${path}`);
 }
 /* keyrir `fn` yfir `items` med takmarkadri samhlida-vinnslu */
 async function pool(items, n, fn) {
@@ -145,6 +150,19 @@ const SHOT_BODY = ["right-foot", "left-foot", "head", "other"];
 const SHOT_SIT  = ["assisted", "regular", "corner", "fast-break", "set-piece",
                    "throw-in-set-piece", "free-kick", "penalty"];
 const shotsBy = {};      // bsd player_id -> [[x, y, xg, type, body, sit], ...]
+/* MEDALSTADA PER LEIK — EKKI HEATMAP OG MA ALDREI HEITA ThAD.
+   BSD skjalar `PlayerStat.heatmap` ("list of {x,y} touch coordinates") EN
+   SKILAR HENNI ALDREI: 0 af 15.189 rodum bera reitinn, hvorki i
+   /events/{id}/player-stats/ ne /players/{id}/stats/. Skjalfest svid sem
+   er ekki afhent — sama aett og `big_chance_created` (alltaf null).
+   ThAD SEM ER RAUNVERULEGT er `average_positions`: EINN medalpunktur per
+   leikmann per leik. Yfir timabil verda thad allt ad 38 punktar, sem synir
+   HVAR hann spilar og HVE BREYTILEGT thad er — en thad er stadsetningar-
+   sky, ekki snerti-thettleiki.
+   ATH: x-asinn er ANNAR en i skotakortinu. Hér er 0 = EIGID mark og 100 =
+   mark motherjans (maelt: GK 11,3 · DEF 41,3 · MID 54,1 · FWD 61,6).
+   I skotakortinu er 0 = markid sem SOTT er ad. Ekki blanda theim.      */
+const posBy = {};        // bsd player_id -> [[x, y], ...] per leik
 const teamFor = {};      // bsd team_id -> skot LIDSINS
 const teamAgainst = {};  // bsd team_id -> skot A LIDID
 
@@ -177,6 +195,11 @@ const ingest = (e) => {
   const { ps, st } = got;
   for (const r of (ps?.player_stats || [])) addPlayerRow(P(r.player_id), r);
   const homeTid = e.home_team_id ?? null, awayTid = e.away_team_id ?? null;
+  for (const side of ["home", "away"])
+    for (const r of ((st?.average_positions || {})[side] || [])) {
+      if (r?.player_id == null || typeof r.x !== "number" || typeof r.y !== "number") continue;
+      (posBy[r.player_id] ||= []).push([+r.x.toFixed(1), +r.y.toFixed(1)]);
+    }
   const sm = st?.shotmap || [];
   if (!sm.length) noShot++;
   for (const sh of sm) {
@@ -380,7 +403,16 @@ const shotPayload = {
       + "(fallin lid) og `code` er null fyrir oparada skyttu — ALDREI 0. "
       + "2025/26 eingongu; engin eldri timabil hafa skotakort.",
   shots: flat,
+  /* MEDALSTADA per leik, lyklud a FPL `code`. AÐEINS their sem eiga >= 5
+     leiki: fjorir punktar syna ekkert um hvar madur spilar og skyid vaeri
+     hreinn havadi.                                                       */
+  positions: {},
 };
+for (const [bid, arr] of Object.entries(posBy)) {
+  const fp = pairBsd.get(+bid);
+  if (!fp || arr.length < 5) continue;
+  shotPayload.positions[String(fp.code)] = arr;
+}
 const shotRows = flat.length;
 const nPlayers = new Set(flat.map(r => r[8]).filter(v => v != null)).size;
 const dest2 = new URL("../data/bsd_shots.json", import.meta.url).pathname;

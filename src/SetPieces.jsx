@@ -110,7 +110,33 @@ export function setPieceBadges(p, ranks, { maxRank = 2 } = {}) {
   return out.length ? out : null;
 }
 
-export default function SetPieces({ players, teams, teamById, Crest, notes, onPickPlayer }) {
+/* HVER OGNAR UR FOSTUM LEIKATRIDUM — hin helmingurinn af spurningunni.
+   Flipinn hefur svarad "hver TEKUR hornid" en ekki "hver kemst a endann
+   a thvi", og fyrir fantasy er sidari spurningin oftar peningana virdi:
+   hornatakarinn skorar ekki, midverdirnir gera thad.
+   Talan er `sp_xg` ur bsd_players.json — xG UR FOSTUM LEIKATRIDUM eingongu
+   (horn, aukaspyrnur, fost innkost), MAELT: 31,2% allra skota koma thadan.
+   ThRoSKULDUR 1,0: undir thvi er rodun hrein tilviljun a einu timabili.  */
+const SP_XG_MIN = 1.0;
+function threatByTeam(bsd) {
+  const best = {};
+  for (const p of (bsd?.players || [])) {
+    if (!p.team || !(p.sp_xg >= SP_XG_MIN)) continue;
+    const cur = best[p.team];
+    if (!cur || p.sp_xg > cur.sp_xg) best[p.team] = p;
+  }
+  return best;
+}
+
+export default function SetPieces({ players, teams, teamById, Crest, notes, onPickPlayer, bsd }) {
+  /* Lyklad a FPL-skammstofun eins og lidin sjalf. AÐEINS 2025/26 — BSD
+     hefur engin eldri skotakort, svo nyliðar fa EKKERT (ekki null-tolu). */
+  const threat = useMemo(() => threatByTeam(bsd), [bsd]);
+  const byId = useMemo(() => {
+    const m = new Map();
+    for (const p of players || []) m.set(p.id, p);
+    return m;
+  }, [players]);
 
   /* EITT SPJALD PER LID, ENGIR UNDIRFLIPAR (31.7.2026).
      Adur voru thrir flipar (viti / aukaspyrnur / horn) og notandinn thurfti
@@ -213,6 +239,32 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
                   </div>
                 );
               })}
+              {/* HVER OGNAR — birtist adeins thegar talan er raunveruleg.
+                  Tomur reitur vaeri verri en enginn: hann laesist eins og
+                  "enginn ognar", en thydir "engin skotakort" (nyliðar).  */}
+              {(() => {
+                const th = threat[t.short];
+                if (!th) return null;
+                const fp = th.fpl_id != null ? byId.get(th.fpl_id) : null;
+                const share = th.sp_xg_share != null ? Math.round(th.sp_xg_share * 100) : null;
+                return (
+                  <div style={S.threat}
+                    title={`${th.name} had the most set-piece xG at ${t.short} in 2025/26: `
+                         + `${th.sp_xg.toFixed(2)} xG from corners, free kicks and set-piece throws`
+                         + (share != null ? `, which is ${share}% of all his xG` : "")
+                         + `. Last season's shot map — it says who threatened, not who will.`}>
+                    <span style={S.threatK}>{"aerial threat"}</span>
+                    {fp && onPickPlayer ? (
+                      <button style={S.threatBtn} onClick={() => onPickPlayer(fp.id)}>
+                        {fp.web_name}
+                      </button>
+                    ) : (
+                      <span style={S.threatNm}>{th.name}</span>
+                    )}
+                    <span style={S.threatV}>{th.sp_xg.toFixed(1)}{" xG"}</span>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -236,6 +288,16 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
 const S = {
   keyRow:{ display:"flex", gap:9, flexWrap:"wrap", alignItems:"center" },
   keyItem:{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:C.text2 },
+  /* "Hver ognar" — adskilid fra takara-linunum med haarfinni linu svo
+     thad lesist sem ONNUR spurning, ekki fjorda tegundin af fostu
+     leikatridi.                                                        */
+  threat: { display:"flex", alignItems:"center", gap:6, marginTop:6, paddingTop:6,
+            borderTop:"1px dashed #e3e3e8", fontSize:11 },
+  threatK: { color:"#8b8b95", textTransform:"uppercase", letterSpacing:.3, fontSize:9.5 },
+  threatBtn: { border:0, background:"none", padding:0, cursor:"pointer", font:"inherit",
+               fontWeight:600, color:"#1d1d20", textAlign:"left" },
+  threatNm: { fontWeight:600 },
+  threatV: { marginLeft:"auto", fontVariantNumeric:"tabular-nums", color:"#0a7a4a", fontWeight:600 },
   legIcon:{ display:"inline-flex", alignItems:"center", gap:3, verticalAlign:"middle" },
   keyN:{ fontFamily:mono, fontSize:10, color:C.text3 },
   line:{ display:"flex", alignItems:"center", gap:6, padding:"2px 0",
