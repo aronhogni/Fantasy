@@ -38,7 +38,7 @@ const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
 /* Radirnar. `hi:false` = laegra er betra. `fmt` styrir birtingu.        */
 import { advise, contextFactors, ADVISOR_CAL } from "./advisor.js";
-import { indexImminentByTeam, matchImminent } from "./stats.js";
+import { indexImminentByTeam, matchImminent, startRisk } from "./stats.js";
 
 export const ROWS = [
   { get grp() { return "Basics"; } },
@@ -242,7 +242,12 @@ function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, hor
       id: p.id, name: p.web_name, pos: p.element_type, p,
       inputs: a?.inputs || {},
       available: a?.avail,
-      startProb: num(im?.start_prob),
+      /* SAMA UTFAERSLA OG LEIKMANNALISTINN NOTAR. Fyrsta utgafan las
+         `im.start_prob` sem er EKKI til i skranni — reiturinn var thvi
+         alltaf tomur og enginn hefdi tekid eftir thvi, thvi "engin gogn"
+         er gild nidurstada. Talan er leidd ur `start_feats` gegnum
+         `startRisk`, eins og dalkurinn i listanum.                     */
+      startProb: im?.start_feats ? (startRisk(im.start_feats)?.p ?? null) : null,
       dc: num(dcRec?.defcon_opportunity),
       aron: num(cRec?.aron),
     };
@@ -357,7 +362,11 @@ function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, hor
         {"five seasons and validated season-by-season. It beats both the app's own expected "}
         {"points and "}<b>{"FPL's published xP"}</b>{". The numbers under each name are how "}
         {"much each input moved that player relative to the others in this comparison, so "}
-        {"they add up to the gap rather than explaining it after the fact."}
+        {"they add up to the gap rather than explaining it after the fact. "}
+        <b>{"Price counts upwards on purpose"}</b>{": it is the market's own rating of a "}
+        {"player, and it carries the ability our five numbers cannot see. That is why an "}
+        {"expensive player starts ahead — the model is not rewarding the cost, it is "}
+        {"reading what the cost implies."}
       </p>
     </div>
   );

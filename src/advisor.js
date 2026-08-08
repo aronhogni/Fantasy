@@ -108,7 +108,7 @@ export function pairWinProb(gap, cal = ADVISOR_CAL) {
 const TERMS = [
   { key: "form",        w: "form",        label: "Form (points per match, last 5)" },
   { key: "minsPerGame", w: "minsPerGame", label: "Minutes per match" },
-  { key: "price",       w: "price",       label: "Price" },
+  { key: "price",       w: "price",       label: "Price — the market's own rating" },
   { key: "ffdr",        w: "ffdr",        label: "Fixture difficulty (FFDR)" },
   { key: "minsTrend",   w: "minsTrend",   label: "Minutes trend" },
 ];

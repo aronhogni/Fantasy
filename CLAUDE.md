@@ -2922,6 +2922,96 @@ samanburdi) og hausinn theirra er **gulur** svo fyrirvarinn sjaist a skjanum en
 ekki adeins i tooltip-i. **Litur en EKKI nytt tákn**: †-merkid var tekid ut
 samdaegurs ad beidni notandans, svo nytt tákn vaeri ad ganga aftur i sama vanda.
 
+
+---
+
+## 8j. RADGJOFIN I SAMANBURDAR-GLUGGANUM (8.8.2026)
+
+Bedid var um: *„svakalega god AI reccomendation thegar eg ber saman tvo
+leikmenn ... tillogu ad kaupum i % 30% buy 70% buy ... byggt a ollum gognum og
+FFDR og FFDR-DEFCON Start% Form og OLLUM gognum. Ultimate tool til ad velja 1
+leikmann thegar eg er buinn ad finna 3-4 moguleika."*
+
+`src/advisor.js` (hreint) + spjald efst i `Compare.jsx`.
+
+### HVAD PROSENTAN ThYDIR — ThETTA ER ALLT ATRIDID
+Hun er **EKKI** „70% likur a ad thetta se god kaup". Su tala er omaelanleg
+(enginn veit hvad „god kaup" er sem utkoma) og hun vaeri thvi okkar agiskun i
+bunimgi maelingar — nakvaemlega thad sem thetta repo fordast alls stadar.
+
+Hun **ER**: hlutfall theirra skipta i fortidinni sem sa sem skorid setti ofar
+skoradi raunverulega fleiri stig. **MAELT A 306.653 SAMANBURDUM INNAN SOMU
+UMFERDAR**, 5 timabil, ur sama spjaldi og `rank-model.mjs` notar
+(`tests/lib/panel.mjs`, timaheidarlegt):
+
+| bil i rankScore | n | P(haerri skorar meira) |
+|---|---|---|
+| 0–0,25 | 42.861 | 51,2% |
+| 0,5–0,75 | 38.069 | 57,2% |
+| 1–1,5 | 57.046 | 63,4% |
+| 2–3 | 38.805 | 73,1% |
+| 3+ | 13.295 | **80,6%** |
+
+Logistisk fitun `P = 1/(1+exp(-(A + B·bil)))` med **A = 0,0258 · B = 0,4066**.
+**LOSO: B = 0,400–0,416 og A = 0,022–0,027** — thett, svo thetta er ekki
+yfirfitting. **Brier slaer 0,5-vidmidid i 5/5 timabilum** (0,1706–0,1818 a moti
+0,1923–0,1996), UT FYRIR URTAK.
+
+### ThAKID ER RAUNVERULEIKINN, EKKI HOGVAERD
+Vid MESTA bil sem gognin geyma fer talan adeins i **~81%**. Verkfaeri sem segdi
+„95% buy" vaeri ad ljuga, og thetta getur thad ekki: thakid kemur ur
+maelingunni. Bil umfram 3,5 er **klippt** — thar fyrir utan er framreikningur,
+ekki maeling.
+
+### KJARNINN ER `rankScore`, OG ThAD ER ASETT
+Nytt skor fyrir thetta vidmot hefdi thytt annad, **omælt** skor vid hlidina a
+thvi maelda. `rankScore` slaer badi adferd appsins (topp-15 5,13 a moti 4,70)
+OG **FPL-eigid xP** (4,48). Fjogur inntokin voru ekki valin af smekk: 57 inntok
+voru profud og **VERSNUDU** valid.
+
+### HLUTDEILD UR PORUM, EKKI SOFTMAX
+Softmax hefdi verid NY tala med nyjum hitastigs-stika sem enginn hefur maelt.
+Medal-vinningslikindi gegn hinum i hopnum er BEIN framlenging a thvi sem VAR
+maelt — og **fyrir tvo menn skilar hun nakvaemlega maeldu tolunni** (vordur i
+`tests/advisor.mjs` kafla 2).
+
+### ThAD SEM ER **EKKI** I TOLUNNI — OG ER SAMT BIRT
+Notandinn bad um „OLL gogn". Sum theirra hafa verid **MAELD OG HOFNUD**:
+DefCon dregur i GAGNSTAEDA att vid hreint blad (kafli 3), jofnudur er
+ogreinanlegur fra nulli innan stodu (6o), og „heitur leikmadur" er vaeg
+AFTURHVARF (6c). Ad lauma theim inn i toluna vaeri ad selja havada sem visdóm.
+Their eru thvi i **eigin kassa** merktir `weighted:false`, hver med skyringu a
+thvi hvers vegna hann vegur ekki. Vordur: kafli 5 i `advisor.mjs` sannar ad
+DefCon 95 + jofnudur 0,40 + byrjunar-likur 0,95 **hreyfa hlutdeildina EKKI**.
+
+### BYRJUNAR-LIKUR ERU HLID, EKKI LIDUR
+Talan svarar „hvor skorar meira **ef badir spila**". Sa sem spilar ekki skorar
+ekki neitt — onnur og hardari spurning. Ad margfalda thessu saman hefdi falid
+badar: 60% sem verdur 45% segir hvorki ad hann se betri ne ad hann se i haettu.
+Prosentan stendur thvi obreytt OG vidvorunin vid hlidina.
+
+### FRAMLOGIN LEGGJAST SAMAN — ThAU ERU EKKI EFTIRA-ROKSTUDNINGUR
+`rankScore` er LINULEGT, svo framlag hvers inntaks er nakvaemlega
+`w·(x − medaltal hopsins)`. Thess vegna **leggjast tolurnar undir hverju nafni
+saman i skor-muninn**, og skyringin getur ekki stangast a vid nidurstoduna.
+Fyrsta utgafan namundadi thau i gognunum og braut thad um 0,0002 — profid greip
+thad. Namundad er i BIRTINGU i stadinn.
+
+### VERD TELUR UPP A VIÐ, OG ThAD ER UTSKYRT A SKJANUM
+Sterkasti lidurinn i raun. An skyringar les „Price +1,04" eins og villa
+(„betri af thvi ad hann er dyr"). Textinn segir thvi berum ordum: verd er
+**markadurinn ad meta getu sem okkar fimm tolur sja ekki**; likanid verdlaunar
+ekki kostnadinn heldur les hvad hann gefur i skyn.
+
+### VILLA SEM VAR FUNDIN VID SJONPROFUN
+Byrjunar-likurnar voru lesnar sem `im.start_prob` — **thad svid er ekki til**.
+Reiturinn var thvi alltaf tomur og enginn hefdi tekid eftir thvi, thvi „engin
+gogn" er gild nidurstada i thessu appi. Nu leiddar ur `start_feats` gegnum
+`startRisk`, sama utfaersla og dalkurinn i leikmannalistanum notar.
+
+`tests/advisor.mjs`: 38 prof, thar a medal 500 slembin inntok sem verja
+obrigdulu regluna (hlutdeild alltaf a (0,1) og summan nakvaemlega 1).
+
 ---
 
 ## 9. Það sem þetta skjal getur EKKI flutt með sér
