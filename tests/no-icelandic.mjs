@@ -195,19 +195,17 @@ const IS_CHARS = /[þðæöÞÐÆÖ]|[áíéúýóÁÍÉÚÝÓ]/;
      3. Se ISLENSKUR STAFUR eftir -> LEKI, og leifin er birt.
    Thetta leyfir "Match stats E0 (current) — bíður tímabils..." (notan er
    fjarlaegd) en fellir sprautada butinn (hann er hvorki nóta ne nafn).   */
-const notes = [];
-const eatNotes = (obj) => {
-  if (!obj || typeof obj !== "object") return;
-  for (const [k, v] of Object.entries(obj)) {
-    if (typeof v === "string" && /^(note|via|error|reason|label|season|name)$/.test(k)) {
-      notes.push(v);
-    } else if (v && typeof v === "object") eatNotes(v);
-  }
-};
-for (const f of readdirSync(DATA).filter(n => n.endsWith(".json"))) {
-  try { eatNotes(JSON.parse(readFileSync(DATA + f, "utf8"))); } catch { /* ignore */ }
-}
-notes.sort((a, b) => b.length - a.length);
+/* UNDANTEKNINGIN ER FARIN — 8.8.2026.
+   Hér var vel sem las HVERJA `note`/`via` ur ollum data-skram og fjarlaegdi
+   thaer ur DOM-inum adur en leitad var ad islensku. Hun var til af thvi ad
+   `record(...)` i fetch.mjs skrifadi ISLENSKA prosu sem appid birti hratt
+   (CLAUDE.md 7b taldi thad of breitt ad thyda).
+
+   Notandinn sa afleidinguna: Umferdar-flipinn bar islenskan gulan kassa i
+   ENSKU vidmoti. Nu eru ALLAR 24 pipeline-notur enskar, svo undantekningin
+   hefur ekkert ad fela — og AN hennar er profid STRANGARA: hver islensk
+   nóta sem einhver skrifar hedan i fra fellur strax i stad thess ad vera
+   hvitthvegin. Staðfest: profid er graent an hennar.                     */
 
 /* NOFN — OG ADEINS NOFN. Ekki heilu skrarnar: fyrsta utgafa las HVERT
    islenskt tak ur ollum JSON-skram, sem gleypti nótu-prosuna lika ("löng
@@ -235,16 +233,8 @@ for (const f of readdirSync(DATA).filter(n => n.endsWith(".json"))) {
    standa a islensku, og hann er farinn.                                */
 const SWITCHER = new Set();
 
-/* NOTU-HREINSUNIN ER SAMEIGINLEG kafla A og C. Vaeri hun tvirituð gaeti
-   annar kaflinn leyft notu sem hinn fellir a — og tha vaeri sa kafli
-   slokktur innan viku af thvi ad hann "flokti".                       */
-const stripNotes = (line) => {
-  let r = line;
-  for (const n of notes) if (r.includes(n)) r = r.split(n).join(" ");
-  return r;
-};
 const residualOf = (line) => {
-  const r = stripNotes(line);
+  const r = line;
   return r.split(/[\s·—–|/()\[\]{}<>"'’“”:;,!?%+=]+/)
     .filter(tok => {
       const w = tok.replace(/^[^\p{L}]+|[^\p{L}%]+$/gu, "");
@@ -260,7 +250,7 @@ for (const line of enText.split("\n")) {
   const res = residualOf(l);
   if (res) codeLeaks.push(`${JSON.stringify(l.slice(0, 60))} -> ${res}`);
 }
-ok(`hver lina i enska DOM-inum er thydd (${notes.length} pipeline-notur leyfdar)`,
+ok("hver lina i enska DOM-inum er thydd (engar undantekningar)",
    codeLeaks.length === 0, [...new Set(codeLeaks)].slice(0, 8).join("\n     "));
 
 /* ---------- B. Stikur, undefined, NaN ---------- */
@@ -305,7 +295,7 @@ const ASCII_IS = [
 {
   const seen = new Set();
   for (const line of enText.split("\n"))
-    for (const tok of stripNotes(line).split(/[^\p{L}]+/u)) {
+    for (const tok of line.split(/[^\p{L}]+/u)) {
       const w = tok.toLowerCase();
       if (ASCII_IS.includes(w) && !dataTokens.has(w)) seen.add(`${w}  <-  ${line.slice(0, 60)}`);
     }
