@@ -622,7 +622,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
            blikkad i fulla lengd vid hvern innslatt.                       */
         if (!Number.isFinite(t.val)) continue;
         const d = STAT_BY_KEY[t.key];
-        const v = d && r.src ? d.get(r.src) : null;
+        /* VERD OG EIGNARHALD ERU ALLTAF DAGSINS — LIKA I SIUNNI.
+           Thessir tveir dalkar eru undantekningin fra "lestu ur `r.src`":
+           holfin birta dagsins tolu fyrir ALLA 573 (kafli 6i), en
+           arkiv-rodin er null hja 115 theirra sem spiludu ekki 2025/26.
+           Laesum vid `r.src` myndi "mest GBP15,5" henda theim 115 UT —
+           thott verdid theirra sjaist i toflunni og uppfylli skilyrdid.
+           Maelt: 573 -> 458 an thessarar undantekningar, 573 -> 573 med. */
+        const v = t.key === "now_cost" ? r.cost
+                : t.key === "selected_by_percent" ? r.own
+                : (d && r.src ? d.get(r.src) : null);
         if (v == null) return false;                 // "vantar" fellur ut ur throskuldi
         if (t.op === ">=" && !(v >= t.val)) return false;
         if (t.op === "<=" && !(v <= t.val)) return false;
@@ -1439,9 +1448,22 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                       {!isLive && !r.hist && <span style={S.noHist} title={interp("No data in {0}", [season])}>—</span>}
                     </button>
                   </div>
+                  {/* FOSTU DALKARNIR ERU SMELLANLEGIR EINS OG ALLIR HINIR.
+                      Their voru thad EKKI — hvorki onClick ne title — thott
+                      skyringin undir toflunni segi "Click any value to filter
+                      on it" og hvert einasta annad holf geri thad. Notandinn
+                      smellti a verd og EKKERT gerdist, an nokkurrar skyringar.
+                      Stadfest ad thetta se ohaett: throskuldurinn les
+                      `now_cost.get(r.src)` sem skilar SOMU tolu og birt er
+                      (maelt: "Price min 15,5" skilar nakvaemlega Haaland a
+                      GBP15,5), svo sian getur ekki siad ut thann sem smellt
+                      var a — sem er reglan i kafla 6r.                     */}
                   {(() => { const d = STAT_BY_KEY.now_cost, bg = heatBg(d, r.cost);
                     return <div style={{ ...S.cell, ...cNum, ...S.strong,
-                                         ...(bg ? { background: bg } : {}) }}>
+                                         ...(bg ? { background: bg } : {}) }}
+                      title={`${d.label}: £${r.cost.toFixed(1)}`
+                             + `\nClick to filter (max £${r.cost.toFixed(1)}).`}
+                      onClick={() => filterOnValue(d, r.cost)}>
                       £{r.cost.toFixed(1)}</div>; })()}
                   {mode === "custom" ? (() => {
                     /* STIGIN FYLGJA VOLDU TIMABILI OG UMFERDAR-BILI eins og
@@ -1463,7 +1485,10 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                   })() : (
                     (() => { const d = STAT_BY_KEY.selected_by_percent, bg = heatBg(d, r.own);
                       return <div style={{ ...S.cell, ...cNum,
-                                           ...(bg ? { background: bg } : {}) }}>
+                                           ...(bg ? { background: bg } : {}) }}
+                        title={`${d.label}: ${r.own.toFixed(1)}%`
+                               + `\nClick to filter (min ${r.own.toFixed(1)}).`}
+                        onClick={() => filterOnValue(d, r.own)}>
                         {r.own.toFixed(1)}</div>; })()
                   )}
                   {visibleCols.map(d => {

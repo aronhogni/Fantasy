@@ -394,7 +394,15 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
     const rec = isLive
       ? (seasonStarted ? liveRow(p) : null)
       : (seasonsFile?.players?.[String(p.code)]?.[season] || null);
-    return { p, rec: rec ? { ...rec, now_cost: rec.now_cost ?? num(p.now_cost) } : null };
+    /* VERD ER ALLTAF DAGSINS — LIKA I SOGULEGU TIMABILI (sama regla og
+       leikmannalistinn fylgir: "thu kaupir a verdi dagsins").
+       VILLAN SEM VAR: `rec.now_cost ?? p.now_cost` let SOGULEGA verdid vinna
+       thvi arkiv-rodin BER now_cost. Haaland birtist thvi a GBP14,7 (lok
+       2025/26) i sulunum medan RADGJOFIN i SAMA glugga reiknadi med GBP15,5
+       (dagsins) — tvo verd a sama manni i sama glugga. Og "Points per
+       million" deildi med verdi sem ekki er haegt ad kaupa a.
+       Rodin er thvi VIDSNUIN: dagsins verd vinnur, arkivid er varaleidin. */
+    return { p, rec: rec ? { ...rec, now_cost: num(p.now_cost) ?? rec.now_cost } : null };
   });
 
   const anyDef = picked.some(p => p.element_type <= 3);
