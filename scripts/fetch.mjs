@@ -28,13 +28,6 @@ const today = new Date().toISOString().slice(0, 10);
 
 const FLAGS = {
   apisports: !!process.env.API_SPORTS_KEY,
-  /* UNDERSTAT ER SLOKKT SJALFGEFID (28.7.2026). Ekki bilun sem lagast:
-     Understat FJARLAEGDI gognin ur HTML-inu. league-sidur skila byte-eins
-     18.645 b skel i 5/5 tilraunum og fyrir OLL timabil; leikjasidur hafa
-     adeins `var match_info`. Skot-kortid kemur nu ur ESPN (fetchEspnShots).
-     Kveikt aftur med ENABLE_UNDERSTAT=true ef their skila gognum a ny.     */
-  understat:       (process.env.ENABLE_UNDERSTAT ?? "false") === "true",
-  understat_shots: (process.env.ENABLE_UNDERSTAT_SHOTS ?? "false") === "true",
   elo:             (process.env.ENABLE_ELO ?? "true")        === "true",
   fdcouk:          (process.env.ENABLE_FDCOUK ?? "true")     === "true",
   weather:         (process.env.ENABLE_WEATHER ?? "true")    === "true",
@@ -102,29 +95,29 @@ const COORDS = {
 };
 /* ---- Nafnavörpun eftir kerfi, lyklað á FPL short_name ---- */
 const NAMES = {
-  ARS:{clubelo:"Arsenal",fdcouk:"Arsenal",understat:"Arsenal"},
-  AVL:{clubelo:"AstonVilla",fdcouk:"Aston Villa",understat:"Aston Villa"},
-  BOU:{clubelo:"Bournemouth",fdcouk:"Bournemouth",understat:"Bournemouth"},
-  BRE:{clubelo:"Brentford",fdcouk:"Brentford",understat:"Brentford"},
-  BHA:{clubelo:"Brighton",fdcouk:"Brighton",understat:"Brighton"},
-  BUR:{clubelo:"Burnley",fdcouk:"Burnley",understat:"Burnley"},
-  CHE:{clubelo:"Chelsea",fdcouk:"Chelsea",understat:"Chelsea"},
-  COV:{clubelo:"Coventry",fdcouk:"Coventry",understat:"Coventry"},
-  CRY:{clubelo:"CrystalPalace",fdcouk:"Crystal Palace",understat:"Crystal Palace"},
-  EVE:{clubelo:"Everton",fdcouk:"Everton",understat:"Everton"},
-  FUL:{clubelo:"Fulham",fdcouk:"Fulham",understat:"Fulham"},
-  HUL:{clubelo:"Hull",fdcouk:"Hull",understat:"Hull"},
-  IPS:{clubelo:"Ipswich",fdcouk:"Ipswich",understat:"Ipswich"},
-  LEE:{clubelo:"Leeds",fdcouk:"Leeds",understat:"Leeds"},
-  LIV:{clubelo:"Liverpool",fdcouk:"Liverpool",understat:"Liverpool"},
-  MCI:{clubelo:"ManCity",fdcouk:"Man City",understat:"Manchester City"},
-  MUN:{clubelo:"ManUnited",fdcouk:"Man United",understat:"Manchester United"},
-  NEW:{clubelo:"Newcastle",fdcouk:"Newcastle",understat:"Newcastle United"},
-  NFO:{clubelo:"Forest",fdcouk:"Nott'm Forest",understat:"Nottingham Forest"},
-  SUN:{clubelo:"Sunderland",fdcouk:"Sunderland",understat:"Sunderland"},
-  TOT:{clubelo:"Tottenham",fdcouk:"Tottenham",understat:"Tottenham"},
-  WHU:{clubelo:"WestHam",fdcouk:"West Ham",understat:"West Ham"},
-  WOL:{clubelo:"Wolves",fdcouk:"Wolves",understat:"Wolverhampton Wanderers"},
+  ARS:{clubelo:"Arsenal",fdcouk:"Arsenal"},
+  AVL:{clubelo:"AstonVilla",fdcouk:"Aston Villa"},
+  BOU:{clubelo:"Bournemouth",fdcouk:"Bournemouth"},
+  BRE:{clubelo:"Brentford",fdcouk:"Brentford"},
+  BHA:{clubelo:"Brighton",fdcouk:"Brighton"},
+  BUR:{clubelo:"Burnley",fdcouk:"Burnley"},
+  CHE:{clubelo:"Chelsea",fdcouk:"Chelsea"},
+  COV:{clubelo:"Coventry",fdcouk:"Coventry"},
+  CRY:{clubelo:"CrystalPalace",fdcouk:"Crystal Palace"},
+  EVE:{clubelo:"Everton",fdcouk:"Everton"},
+  FUL:{clubelo:"Fulham",fdcouk:"Fulham"},
+  HUL:{clubelo:"Hull",fdcouk:"Hull"},
+  IPS:{clubelo:"Ipswich",fdcouk:"Ipswich"},
+  LEE:{clubelo:"Leeds",fdcouk:"Leeds"},
+  LIV:{clubelo:"Liverpool",fdcouk:"Liverpool"},
+  MCI:{clubelo:"ManCity",fdcouk:"Man City"},
+  MUN:{clubelo:"ManUnited",fdcouk:"Man United"},
+  NEW:{clubelo:"Newcastle",fdcouk:"Newcastle"},
+  NFO:{clubelo:"Forest",fdcouk:"Nott'm Forest"},
+  SUN:{clubelo:"Sunderland",fdcouk:"Sunderland"},
+  TOT:{clubelo:"Tottenham",fdcouk:"Tottenham"},
+  WHU:{clubelo:"WestHam",fdcouk:"West Ham"},
+  WOL:{clubelo:"Wolves",fdcouk:"Wolves"},
 };
 
 /* ========== 1. FPL — kjarninn, fellir keyrsluna ef hann brestur ========== */
@@ -1150,44 +1143,6 @@ async function fetchWeather() {
   record("weather", true, out.length);
 }
 
-/* ========== 3. UNDERSTAT — árstíðarsummur (sjálf-greinandi) ========== */
-async function fetchUnderstat() {
-  const decode = s => s.replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-  // Understat tímabils-númer = byrjunarár. 2026/27 -> "2026". Prófum líka 2025 til vara.
-  let text, usedUrl;
-  for (const yr of ["2026", "2025"]) {
-    try {
-      const r = await fetchT(`https://understat.com/league/EPL/${yr}`, { headers: { "User-Agent": UA } });
-      if (!r.ok) { console.warn(`Understat /${yr}: HTTP ${r.status}`); continue; }
-      text = await r.text(); usedUrl = yr;
-      if (text.includes("JSON.parse")) break;
-    } catch (e) { console.warn(`Understat /${yr}: ${e.message}`); }
-  }
-  if (!text) { record("understat_season", false, 0, "could not reach the page"); return; }
-
-  // logga hvaða JSON.parse-breytur eru á síðunni (þetta segir okkur sannleikann)
-  const found = [...text.matchAll(/(?:var\s+)?(\w+)\s*=\s*JSON\.parse/g)].map(m => m[1]);
-  console.log(`Understat (/${usedUrl}) JSON.parse breytur: ${found.length ? found.join(", ") : "ENGAR"}`);
-  if (!found.length) {
-    const snippet = text.slice(0, 500).replace(/\s+/g, " ");
-    console.log(`Understat hrátt (fyrstu 500): ${snippet}`);
-    record("understat_season", false, 0, "no JSON.parse variables — see log");
-    return;
-  }
-  const grab = (varName) => {
-    const re = new RegExp(varName + "\\s*=\\s*JSON\\.parse\\(\\s*'([^']*)'\\s*\\)");
-    const m = text.match(re);
-    if (!m) return null;
-    try { return JSON.parse(decode(m[1])); } catch (e) { console.warn(`Understat ${varName} parse-villa: ${e.message}`); return null; }
-  };
-  const teamsData = grab("teamsData");
-  const playersData = grab("playersData");
-  const datesData = grab("datesData");
-  await writeJSON("understat/season.json", { updated: status.updated, season: usedUrl,
-    teams: teamsData ?? null, players: playersData ?? null, dates: datesData ?? null, vars_found: found });
-  const n = (playersData?.length) ?? 0;
-  record("understat_season", !!(teamsData || playersData), n, `/${usedUrl} · [${found.join(",")}]`);
-}
 
 /* ========== 3b. UNDERSTAT SKOT PER LEIK — grunnur fyrir "big chances" ==========
    Skot-gögn gefa það sem FPL birtir EKKI: npxG, fastaleikja-hættu, og
@@ -1195,71 +1150,6 @@ async function fetchUnderstat() {
    Sæktu match-síður, EKKI player/{id} (700 köll). Hámark 1 kall/sek.        */
 const BIG_CHANCE_XG = 0.30;
 
-async function fetchUnderstatShots() {
-  const decode = s => s.replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-  const grab = (text, varName) => {
-    const m = text.match(new RegExp(varName + "\\s*=\\s*JSON\\.parse\\(\\s*'([^']*)'\\s*\\)"));
-    if (!m) return null;
-    try { return JSON.parse(decode(m[1])); } catch { return null; }
-  };
-
-  // Leikjalisti tímabilsins fæst úr datesData á lið-síðum, eða af league-síðu.
-  // Við lesum season.json sem þegar var skrifað (vars_found segir hvað er í boði).
-  let season = null;
-  try { season = JSON.parse(await readFile(`${DATA}/understat/season.json`, "utf8")); } catch {}
-  const dates = season?.dates;
-  if (!dates || !Array.isArray(dates)) {
-    /* SKILABODIN VORU OSONN. Adur stod "tímabil ekki byrjað?" sem gaf i skyn
-       ad thetta myndi leysast i agust. MAELT 27.7.2026: Understat hefur
-       FJARLAEGT skot-gognin ur HTML-inu. league-sidur skila BYTE-EINS
-       18.645 b skel i 5/5 tilraunum og fyrir OLL timabil (2019, 2024, 2025);
-       leikjasidur hafa adeins `var match_info` — `shotsData` og `rostersData`
-       eru horfin. Thetta batnar thvi EKKI af sjalfu ser.
-       Skot-kortid kemur nu ur ESPN i stadinn (sja fetchEspnShots).          */
-    record("understat_shots", false, 0,
-      "Understat birtir ekki lengur shotsData (maelt 27.7.2026, 5/5 tilraunir) — ESPN kom i stadinn");
-    return;
-  }
-
-  // aðeins LOKNIR leikir sem við höfum ekki þegar sótt
-  const done = dates.filter(d => d.isResult);
-  let fetched = 0, bigMissed = {}, shotsTotal = 0;
-  for (const d of done) {
-    const path = `understat/match/${d.id}.json`;
-    if (existsSync(`${DATA}/${path}`)) continue;
-    try {
-      const r = await fetchT(`https://understat.com/match/${d.id}`, { headers: { "User-Agent": UA } });
-      if (!r.ok) { console.warn(`Understat match ${d.id}: HTTP ${r.status}`); continue; }
-      const text = await r.text();
-      const shots = grab(text, "shotsData");
-      if (!shots) { console.warn(`Understat match ${d.id}: engin shotsData`); continue; }
-      await writeJSON(path, shots);
-      fetched++;
-      // afleiða big chances missed jafnóðum
-      for (const side of ["h", "a"]) {
-        for (const sh of (shots[side] || [])) {
-          shotsTotal++;
-          const xg = parseFloat(sh.xG || 0);
-          if (xg > BIG_CHANCE_XG && sh.result !== "Goal") {
-            const key = sh.player_id;
-            bigMissed[key] = bigMissed[key] || { player: sh.player, missed: 0, xg_sum: 0 };
-            bigMissed[key].missed++;
-            bigMissed[key].xg_sum = +(bigMissed[key].xg_sum + xg).toFixed(2);
-          }
-        }
-      }
-      await new Promise(r => setTimeout(r, 1100)); // hámark 1 kall/sek
-    } catch (e) { console.warn(`Understat match ${d.id}: ${e.message}`); }
-  }
-  if (Object.keys(bigMissed).length) {
-    await writeJSON("understat/big_chances.json", {
-      updated: status.updated, threshold_xg: BIG_CHANCE_XG,
-      note: "Skot með xG yfir þröskuldi sem fóru EKKI inn. Understat player_id — parast við FPL gegnum understat_id_map.",
-      players: bigMissed,
-    });
-  }
-  record("understat_shots", true, fetched, `${shotsTotal} shots · ${Object.keys(bigMissed).length} players with missed big chances`);
-}
 
 /* ========== 9b. EVRÓPULEIKIR — álag/rótasjón (sjálf-greinandi) ==========
    FPL-API-ið veit ekkert um Evrópukeppnir. Tveir kostir:
@@ -2178,55 +2068,33 @@ async function deriveRotation() {
   record("rotation", true, out.length, `${flagged} with a European match nearby (rest measured useless, not flagged)`);
 }
 
-/* ---- 4b. HEPPNISMÆLIR ÚR UNDERSTAT ----
-   HHW/AHW voru aldrei til í E0 (staðfest í 9 tímabilum). Understat-skot hafa
-   'result'-svið og ShotOnPost er BETRA merki: það er á SKOT, ekki á leik,
-   svo við fáum það per LEIKMANN.
-   ENUM-gildin eru ÓSTAÐFEST — við loggum öll ólík gildi sem koma.           */
+/* ---- 4b. HEPPNISMÆLIR ----
+   TREVERK KEMUR NU UR BSD, EKKI UNDERSTAT (8.8.2026).
+   Gamla utgafan las `data/understat/match/*.json` — mappa sem hefur ALDREI
+   verid til hja okkur, thvi Understat fjarlaegdi skot-gognin ur HTML-inu
+   (CLAUDE.md 6e). Lykkjan for thvi yfir NULL skrar i hverri keyrslu og
+   `woodwork_for/against` voru fost a `null`. Skran sagdi sjalf "fyllist
+   med skot-gognum" — sem gat ekki gerst.
+   BSD skilar treverki sem EIGIN utkomu-tegund (`type: "post"`): 211 skot
+   2025/26. Talan er thvi RAUNVERULEG i fyrsta sinn.                      */
 async function deriveLuck() {
-  // 1) lesa öll skot sem eru sótt
-  const seen = new Set();
   const teamAgg = {}, playerAgg = {};
-  let files = 0, shots = 0;
-  let dir = [];
-  try { dir = (await readdir(`${DATA}/understat/match`)).filter(f => f.endsWith(".json")); } catch {}
-  for (const f of dir) {
-    let sh;
-    try { sh = JSON.parse(await readFile(`${DATA}/understat/match/${f}`, "utf8")); } catch { continue; }
-    files++;
-    for (const side of ["h", "a"]) {
-      const opp = side === "h" ? "a" : "h";
-      for (const s of (sh[side] || [])) {
-        shots++;
-        seen.add(s.result);                       // LOGGA öll ENUM-gildi
-        const tName = s.h_a === "h" ? sh.h_team : sh.a_team;  // óstaðfest svið, þolum vöntun
-        const key = s.player_id;
-        const xg = parseFloat(s.xG || 0);
-        const isGoal = s.result === "Goal";
-        const isPost = /post|woodwork|bar/i.test(s.result || "");
-        const isPen = s.situation === "Penalty";
-        const p = playerAgg[key] || (playerAgg[key] = {
-          understat_id: key, player: s.player, shots: 0, woodwork: 0,
-          goals: 0, xg: 0, npxg: 0, penalties_taken: 0, penalties_scored: 0,
-          freekicks_taken: 0, corners: 0,
-        });
-        p.shots++; p.xg += xg;
-        if (!isPen) p.npxg += xg;
-        if (isGoal) p.goals++;
-        if (isPost) p.woodwork++;
-        if (isPen) { p.penalties_taken++; if (isGoal) p.penalties_scored++; }
-        if (s.situation === "DirectFreekick") p.freekicks_taken++;
-        if (s.situation === "FromCorner") p.corners++;
-      }
+  /* Lids-treverk ur bsd_shots.json. Skrain er lyklud a FPL-skammstofun i
+     `legend.teams`, svo hvert skot veit HVER skaut og HVER fekk a sig.  */
+  const wood = {};                                   // short -> { for, against }
+  try {
+    const bs = JSON.parse(await readFile(`${DATA}/bsd_shots.json`, "utf8"));
+    const F = Object.fromEntries((bs.legend?.fields || []).map((f, i) => [f, i]));
+    const iPost = (bs.legend?.type || []).indexOf("post");
+    const names = bs.legend?.teams || [];
+    for (const sh of (bs.shots || [])) {
+      if (sh[F.type] !== iPost) continue;
+      const t = names[sh[F.team]], o = names[sh[F.opp]];
+      if (t) (wood[t] ||= { for: 0, against: 0 }).for++;
+      if (o) (wood[o] ||= { for: 0, against: 0 }).against++;
     }
-  }
-  Object.values(playerAgg).forEach(p => {
-    p.xg = +p.xg.toFixed(2); p.npxg = +p.npxg.toFixed(2);
-    p.goals_minus_xg = +(p.goals - p.xg).toFixed(2);
-  });
-
-  if (seen.size) console.log(`Understat result-ENUM (STAÐFEST): ${[...seen].sort().join(", ")}`);
-  else console.log("Understat: engin skot-gögn enn — heppnismælir bíður leikja");
+    console.log(`treverk ur BSD: ${Object.keys(wood).length} lid`);
+  } catch { /* skrain ma vanta — tha helst null, sem er RETT */ }
 
   // 2) LIÐ-STIG: mörk vs xG úr E0 (heilt) + xGC úr FPL-markverði
   const teams = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
@@ -2271,7 +2139,8 @@ async function deriveLuck() {
         xg: +(f.xg || 0).toFixed(1), xgc: +(f.xgc || 0).toFixed(1),
         goals_minus_xg: f.xg ? +(d.gf - f.xg).toFixed(1) : null,
         conceded_minus_xgc: f.xgc ? +(d.ga - f.xgc).toFixed(1) : null,
-        woodwork_for: null, woodwork_against: null,   // fyllist með skot-gögnum
+        woodwork_for: wood[t.short]?.for ?? null,
+        woodwork_against: wood[t.short]?.against ?? null,
         source: "e0+fpl",
         xg_incomplete: true,   // FPL-summa vantar leikmenn sem fóru úr deildinni
       };
@@ -2285,7 +2154,8 @@ async function deriveLuck() {
       goals: b ? Math.round(b.goals_pg * (b.games || 46)) : null,
       conceded: b ? Math.round(b.goals_against_pg * (b.games || 46)) : null,
       xg: null, xgc: null, goals_minus_xg: null, conceded_minus_xgc: null,
-      woodwork_for: null, woodwork_against: null,      // EKKI núll — ekki til
+      woodwork_for: wood[t.short]?.for ?? null,        // null ef BSD vantar — EKKI 0
+      woodwork_against: wood[t.short]?.against ?? null,
       source: b ? "championship_proxy" : "none",
       xg_incomplete: null,
     };
@@ -2293,15 +2163,15 @@ async function deriveLuck() {
 
   await writeJSON("luck.json", {
     updated: status.updated,
-    result_enum_seen: [...seen].sort(),
-    note: "woodwork úr Understat 'ShotOnPost' (per SKOT, svo per leikmaður). " +
-          "goals úr E0 (heilt), xg úr FPL-summu sem VANTAR ~19% (leikmenn sem fóru úr deildinni) " +
-          "-> xg_incomplete:true. Nýliðar: championship_proxy, woodwork null (EKKI núll).",
+    note: "woodwork kemur ur BSD-skotakortinu (eigin utkomu-tegund 'post'), 2025/26 eingongu. " +
+          "goals ur E0 (heilt), xg ur FPL-summu sem VANTAR ~19% (leikmenn sem foru ur deildinni) " +
+          "-> xg_incomplete:true. Nyliðar og lid an BSD-gagna fa woodwork null (EKKI null-tolu).",
     teams: teamOut,
     players: Object.values(playerAgg),
   });
+  const withWood = teamOut.filter(t => t.woodwork_for != null).length;
   record("luck", true, teamOut.length,
-    `${Object.keys(playerAgg).length} players · ${shots} shots from ${files} matches · ENUM: ${seen.size || "none"}`);
+    `${withWood} teams with woodwork from the BSD shot map`);
 }
 
 /* ---- 3b. LIÐ-FORM ÚR E0 — HEILT, engin vöntun ----
@@ -3406,8 +3276,6 @@ async function main() {
                       try { await fetchHistoricalE0(); }     catch (e) { record("fdcouk_history", false, 0, e.message); }
                       try { await fetchPromotedBaseline(); } catch (e) { record("promoted_baseline", false, 0, e.message); } }
   if (FLAGS.weather){ try { await fetchWeather(); }          catch (e) { record("weather", false, 0, e.message); } }
-  if (FLAGS.understat){ try { await fetchUnderstat(); }      catch (e) { record("understat_season", false, 0, e.message); } }
-  if (FLAGS.understat_shots){ try { await fetchUnderstatShots(); } catch (e) { record("understat_shots", false, 0, e.message); } }
   if (FLAGS.euro)   { try { await fetchEuro(); }              catch (e) { record("euro_fixtures", false, 0, e.message); } }
   if (FLAGS.odds_key){ try { await fetchOdds(); }              catch (e) { record("odds", false, 0, e.message); } }
   if (FLAGS.apisports){ try { await fetchInjuries(); }          catch (e) { record("apisports_injuries", false, 0, e.message); } }

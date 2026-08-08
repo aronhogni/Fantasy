@@ -34,7 +34,7 @@ export const IN_BOX_X = 17;
    halfvallar-sendingar eru 100% NON-NULL og ALLTAF NULL.
    Svid sem er alltaf 0 LITUR UT EINS OG MAELING en thydir "gognin eru
    ekki til" — gildran sem kafli 3 og 6n fordast.                      */
-export const SUM_FIELDS = [
+const SUM_FIELDS = [
   "minutes_played", "goals", "goal_assist", "total_shots", "shots_on_target",
   "key_pass", "total_cross", "accurate_cross", "touches",
   "total_contest", "won_contest", "duel_won", "duel_lost", "aerial_won", "aerial_lost",
@@ -50,8 +50,8 @@ export const SUM_FIELDS = [
    fast-break 6,9% · set-piece 5,9% · throw-in-set-piece 5,1% ·
    free-kick 2,6% · penalty 1,0% (medal-xG 0,788 = thekkta vitahlutfallid,
    sjalfstaed stadfesting a xG-likaninu). Skallar 18,7%.                */
-export const SET_PIECE = new Set(["corner", "set-piece", "throw-in-set-piece", "free-kick"]);
-export const OPEN_PLAY = new Set(["assisted", "regular", "fast-break"]);
+const SET_PIECE = new Set(["corner", "set-piece", "throw-in-set-piece", "free-kick"]);
+const OPEN_PLAY = new Set(["assisted", "regular", "fast-break"]);
 
 /** Tomur safnari fyrir einn leikmann. */
 export function newAcc() {

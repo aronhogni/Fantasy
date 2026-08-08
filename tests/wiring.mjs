@@ -59,8 +59,6 @@ const OK_UNREAD = {
   "status_fast.json":          "lesin GEGNUM pipeStatusFast — sjá athugasemd hér neðar",
   "fdcouk/h2h.json":           "hráefni fyrir framtíðar-h2h; engin sýn enn (skjalað í SCHEMA)",
   "fdcouk/referees.json":      "hráefni fyrir dómara-sýn; engin sýn enn",
-  "understat/season.json":     "Understat SLÖKKT (kafli 6e) — skrifast ekki í reynd",
-  "understat/big_chances.json":"Understat SLÖKKT (kafli 6e)",
   "season_baseline.json":      "lesin sem seasonsFile/baseline — nefnd óbeint",
   "gameweek_shape.json":       "lesin í GwReport gegnum breytu",
   "odds.json":                 "lesin sem `odds` (44 tilvik) — nafnið sjálft ekki í src",
