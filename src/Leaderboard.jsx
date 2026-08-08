@@ -14,17 +14,25 @@
 import React, { useState, useMemo } from "react";
 import { interp } from "./interp.js";
 import { STAT_DEFS, STAT_GROUPS, buildLeaderboard, fmtStat, minutesFloor,
-         num } from "./stats.js";
+         num, makeEnricher } from "./stats.js";
 
 /* Islensku heitin eru LYKLAR i orðabokinni (sja i18n.js) — thess vegna
    stendur `t()` a NOTKUNARSTADNUM og ekki her: fastar a einingarsvidi eru
    reiknadar EINU SINNI vid innflutning og hefdu thvi frosid a thvi
    tungumali sem var valid tha.                                         */
-const POS_TABS = [["all","All"],["1","GK"],["2","Defence"],["3","Midfield"],["4","Attack"]];
+/* GK/DEF/MID/FWD, EKKI "Defence"/"Midfield"/"Attack".
+   HEITA-AREKSTUR SEM VAR MAELDUR 8.8.2026: stodu-fliparnir hetu "Defence" og
+   "Attack" — NAKVAEMLEGA somu ord og tolu-flokkarnir i rodinni beint fyrir
+   nedan, thar sem thau thyda allt annad ("varnar-tolur", "soknar-tolur").
+   Tveir hnappar i sama vidmoti med sama nafni og ohaðri merkingu. Skammstofun
+   er thad sem leikmannataflan notar thegar, svo thetta samraemir lika.    */
+const POS_TABS = [["all","All"],["1","GK"],["2","DEF"],["3","MID"],["4","FWD"]];
 const POS_LABEL = { 1:"GK", 2:"D", 3:"M", 4:"F" };
 const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
-export default function Leaderboard({ players, teams, teamById, Crest, onPickPlayer, seasonNote }) {
+export default function Leaderboard({ players, teams, teamById, Crest, onPickPlayer, seasonNote,
+                                     imminent, shotsFile, fixtures, events, odds,
+                                     defcon, consist, season }) {
   /* EINN LESMATI EFTIR — YFIRLIT (8.8.2026). Thrennt fluttist eda for:
        · "Table"       -> undir Player stats sem "Build table". Su gat adeins
                           EINA tolu i einu; beidnin var ad velja MARGAR og
@@ -50,8 +58,44 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
   const hasAnyMinutes = useMemo(
     () => (players || []).some(p => (num(p.minutes) ?? 0) > 0), [players]);
 
+  /* ---------- AUDGUD RAÐ, ANNARS ERU 20 KASSAR VARANLEGA TOMIR ----------
+     MAELT 8.8.2026: stigataflan fekk HRAT players.json, en `live_only`-
+     dalkarnir lesa `_`-reiti sem eru settir saman ur sex odrum skram. Thess
+     vegna sagdi hver kassi i Ogn (8/8), Leikjum framundan (5/5) og Jofnudi
+     (4/4) "No numbers" — THRIR HEILIR FLOKKAR daudir, auk eins kassa i
+     hverjum af Grunni/Sokn/Vorn.
+     Audgunin er nu i src/stats.js og notud HER LIKA, svo topp-5 virki fyrir
+     IG, IA, byrjunar-likur, FDR6 og DC-hittni eins og fyrir allt annad.  */
+  const rows = useMemo(() => {
+    const e = makeEnricher({ players, teamById, imminent, shotsFile, fixtures,
+                             events, odds, defcon, consist, season, isLive: true });
+    return (players || []).map(p => ({ ...p, ...e(p).fields }));
+  }, [players, teamById, imminent, shotsFile, fixtures, events, odds,
+      defcon, consist, season]);
+
+  /* ---------- TOMIR DALKAR ERU LEIDDIR UT, EKKI TALDIR UPP ----------
+     Sumt getur ekki fyllst fyrr en seinna (Jofnudur krefst loknar umferdar,
+     BSD krefst thess timabils sem skrain ber). Ad telja thau upp med nafni
+     hefdi stadnad um leid og skra baettist vid — thess vegna er reglan
+     ALMENN: dalkur sem enginn leikmadur hefur gildi i birtist ekki, og
+     flokkur sem er thannig alveg tomur faer engan hnapp.
+     `some` stoppar vid fyrsta gildi, svo thetta er ekki 100x573 i reynd.  */
+  const nonEmpty = useMemo(() => {
+    const keep = new Set();
+    for (const d of STAT_DEFS) if (rows.some(p => d.get(p) != null)) keep.add(d.key);
+    return keep;
+  }, [rows]);
+  const liveGroups = useMemo(
+    () => STAT_GROUPS.filter(g => STAT_DEFS.some(d => d.group === g.key && nonEmpty.has(d.key))),
+    [nonEmpty]);
+  /* Ef flokkurinn sem var valinn tæmist (timabils-skipti) verdur ad faerast
+     a einn sem er til — annars stæði notandinn i tomum flokki an hnapps.  */
+  const shownGroup = liveGroups.some(g => g.key === group)
+    ? group : (liveGroups[0]?.key ?? group);
   const groupStats = useMemo(
-    () => STAT_DEFS.filter(d => d.group === group), [group]);
+    () => STAT_DEFS.filter(d => d.group === shownGroup && nonEmpty.has(d.key)),
+    [shownGroup, nonEmpty]);
+  const hiddenCount = STAT_DEFS.length - nonEmpty.size;
 
   if (!players?.length) {
     return <section style={S.card}><div style={S.muted}>{"Fetching player data…"}</div></section>;
@@ -106,15 +150,15 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
 
       {/* ---- Flokka-val ---- */}
       {<div style={S.groupRow}>
-        {STAT_GROUPS.map(g => (
-          <button key={g.key} style={{ ...S.groupBtn, ...(group===g.key?S.groupOn:{}) }}
+        {liveGroups.map(g => (
+          <button key={g.key} style={{ ...S.groupBtn, ...(shownGroup===g.key?S.groupOn:{}) }}
             onClick={() => setGroup(g.key)}>{g.label}</button>
         ))}
       </div>}
 
       <div style={S.grid}>
         {groupStats.map(def => (
-          <MiniBoard key={def.key} def={def} players={players} pos={pos} teamId={teamId}
+          <MiniBoard key={def.key} def={def} players={rows} pos={pos} teamId={teamId}
             search={search} minMin={minMin} onlyAvail={onlyAvail}
             teamById={teamById} Crest={Crest} onPickPlayer={onPickPlayer} />
         ))}
@@ -122,6 +166,7 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
 
       <div style={S.legend}>
         {"Rate figures (/90, %) obey the minutes floor; totals do not."}
+        {hiddenCount > 0 && <>{" "}{interp("{0} stats are not shown because no player has a value for them yet — each appears on its own once the data exists.", [hiddenCount])}</>}
       </div>
     </section>
   );

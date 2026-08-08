@@ -1455,3 +1455,154 @@ export function startRisk(f) {
            label: startedLast ? "Bench risk despite having started" : "Unlikely to start" };
 }
 
+
+/* ============================================================
+   7. AUDGUNIN — EIN UTFAERSLA FYRIR ALLA LESMATA
+
+   `live_only`-dalkarnir i STAT_DEFS lesa reiti med `_`-forskeyti (`_mo`,
+   `_espn_shots`, `_fdr6`, `_dc_hit_adj` ...). Their reitir eru ekki i
+   players.json — their eru SETTIR SAMAN ur sex odrum skram, og thad var
+   gert INNI I cook-skrefinu i PlayerList.jsx.
+
+   VILLAN SEM THETTA LEYSIR (maeld 8.8.2026): stigataflan fekk HRAT
+   players.json og bjó thvi til **20 varanlega tóma kassa** —
+   Ogn 8/8, Leikir framundan 5/5, Jofnudur 4/4 og einn i hverjum af
+   Grunni/Sokn/Vorn. Thrir HEILIR flokkar sem sogdu "No numbers" i hverjum
+   kassa. Talan var ekki bilud og skran ekki tóm; audgunin var einfaldlega
+   ekki til nema a einum stad.
+
+   Thess vegna er hun HER: eitt satt, tveir notendur (leikmannataflan og
+   stigataflan). Nakvaemlega sama rok og `model.js` og `market.js` — ef
+   formulan er a tveimur stodum getur onnur dáið thogult.
+
+   NOTKUN:
+     const e = makeEnricher(ctx);        // byggir uppflettitoflurnar EINU SINNI
+     Object.assign(src, e(p).fields);    // per leikmann
+     const { risk } = e(p);              // byrjunar-likur, ef tharf
+   ============================================================ */
+export function makeEnricher({
+  players, teamById, imminent, shotsFile, fixtures, events, odds,
+  defcon, defconHist, consist, bsd, season, isLive = true,
+} = {}) {
+  /* PORUN VID imminent.json: hun geymir FULLT nafn ("Cole Palmer") en
+     players.json `web_name` ("Palmer"), svo bein uppfletting skilar ENGU. */
+  const immByTeam = indexImminentByTeam(imminent);
+
+  /* LIDS-SAMTALA: xG lidsins, fyrir "hlutur af xG lidsins". */
+  const teamXg = {};
+  for (const p of players || []) {
+    const v = num(p.expected_goals);
+    if (v != null) teamXg[p.team] = (teamXg[p.team] ?? 0) + v;
+  }
+
+  /* ESPN-skot sidustu umferdar, porad a nafn + lid med othraeddum sigurvegara. */
+  const shotByTeam = {};
+  for (const sp of shotsFile?.players || []) (shotByTeam[sp.team] ||= []).push(sp);
+  const findShot = (p) => {
+    const cands = shotByTeam[teamById?.[p.team]?.short] || [];
+    let best = null, bs = 0, second = 0;
+    for (const c of cands) {
+      const sc = Math.max(nameScore(p.web_name, c.name),
+                          nameScore(`${p.first_name} ${p.second_name}`, c.name));
+      if (sc > bs) { second = bs; bs = sc; best = c; }
+      else if (sc > second) second = sc;
+    }
+    return (best && bs >= 1 && bs > second) ? best : null;
+  };
+
+  /* LEIKIR FRAMUNDAN — talid per UMFERD, ekki per leik: `fix6 < 6` er auð
+     umferd og `> 6` tvofold. Thad er spurningin sem notandinn hefur.     */
+  const nextGw = (events || []).find(e => e.is_next)?.id
+              ?? ((events || []).filter(e => e.finished).length + 1);
+  const fixAgg = {};
+  for (const f of fixtures || []) {
+    if (f.event == null || f.event < nextGw || f.event > nextGw + 5) continue;
+    for (const [team, isHome, diff] of [[f.team_h, true, f.team_h_difficulty],
+                                        [f.team_a, false, f.team_a_difficulty]]) {
+      const a = fixAgg[team] || (fixAgg[team] = { n:0, fdr:0, home:0 });
+      a.n++; a.fdr += (num(diff) ?? 3); if (isHome) a.home++;
+    }
+  }
+
+  const csByShort = odds || {};
+  const dcById = defcon?.opportunity || {};
+  const dcHitById = {};
+  for (const r of defcon?.players || []) dcHitById[r.fpl_id] = r;
+  /* DC-hittni: yfirstandandi timabil -> defcon.json (lyklad a fpl_id),
+     sogulegt -> defcon_history.json (lyklad a `code`, sem er FAST yfir
+     timabil olikt id). DefCon er ny stigagjof fra 2025/26; eldri timabil
+     eru ekki i skranni og fa "—" (VANTAR), ekki 0.                       */
+  const dcHistBySeason = isLive ? null : (defconHist?.seasons?.[season] || null);
+  const consBySeason = consist?.seasons?.[season] || null;
+  /* BSD er EITT lokid timabil, svo hun er lesin ADEINS thegar thad timabil
+     er valid — annars saust 2025/26-tolur undir hausnum "2024/25".      */
+  const bsdByCode = (bsd && bsd.season === season)
+    ? Object.fromEntries((bsd.players || []).map(r => [String(r.code), r]))
+    : null;
+
+  return function enrich(p) {
+    const im = matchImminent(p, immByTeam, teamById?.[p.team]?.short);
+    const risk = im?.start_feats ? startRisk(im.start_feats) : null;
+    const sh = findShot(p);
+    const fa = fixAgg[p.team];
+    const short = teamById?.[p.team]?.short;
+    const h = dcHistBySeason ? dcHistBySeason[String(p.code)] : dcHitById[p.id];
+    const k = consBySeason?.[String(p.code)];
+    const b = bsdByCode?.[String(p.code)];
+    return {
+      im, risk,
+      fields: {
+        _team_xg: teamXg[p.team] ?? null,
+        _espn_shots: sh?.shots ?? null, _espn_sot: sh?.on_target ?? null,
+        _espn_in_box: sh?.in_box ?? null, _espn_woodwork: sh?.woodwork ?? null,
+        _espn_created: sh?.chances_created ?? null, _espn_cross: sh?.cross_created ?? null,
+        _espn_through: sh?.through_balls ?? null,
+        _w_minutes: im?.window?.minutes ?? null, _w_xg: im?.window?.xg ?? null,
+        _w_xa: im?.window?.xa ?? null, _w_threat: im?.window?.threat ?? null,
+        _w_creativity: im?.window?.creativity ?? null,
+        _mo: im && inImminentPool(im.window) ? moScore(im.window) : null,
+        _ao: im && inImminentPool(im.window) ? aoScore(im.window) : null,
+        _start_p: risk?.p ?? null,
+        _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
+        _home6: fa?.home ?? null, _fix6: fa?.n ?? null,
+        _team_cs: short && csByShort[short] ? num(csByShort[short].cs) : null,
+        /* dcById[p.team] er HLUTUR og num(hlutur) er null — thess vegna
+           `.defcon_opportunity`. Sá dalkur var DAUDUR fra faedingu og
+           faldi sig sjalfur sem tomur (kafli 6l).                       */
+        _team_dc: num(dcById[p.team]?.defcon_opportunity),
+        _dc_hit_adj: num(h?.hit_rate_adj),
+        _dc_hit_raw: num(h?.hit_rate),
+        _dc_starts:  num(h?.starts),
+        _aron:       num(k?.aron),
+        _hit4:       num(k?.hit4_pct),
+        _blank:      num(k?.blank_pct),
+        _cgames:     num(k?.games),
+        /* Tomt = null (VANTAR), aldrei 0 — sbr. 6i. */
+        _b_xg:       num(b?.xg),
+        _b_shots:    num(b?.shots),
+        _b_xgs:      num(b?.xg_per_shot),
+        _b_big:      num(b?.big_chances),
+        _b_inbox:    num(b?.shots_in_box),
+        _b_kp:       num(b?.key_pass),
+        _b_cross:    num(b?.crosses),
+        _b_crossa:   num(b?.crosses_acc),
+        _b_rating:   num(b?.rating),
+        _b_touch:    num(b?.touches),
+        _b_drib:     num(b?.dribbles_won),
+        _b_aer:      num(b?.aerial_won),
+        _b_tack:     num(b?.tackles),
+        _b_int:      num(b?.interceptions),
+        _b_clr:      num(b?.clearances),
+        _b_blk:      num(b?.blocks),
+        _b_fouled:   num(b?.was_fouled),
+        _b_mins:     num(b?.minutes),
+        _b_sp_xg:    num(b?.sp_xg),
+        _b_sp_share: num(b?.sp_xg_share) == null ? null : num(b.sp_xg_share) * 100,
+        _b_op_xg:    num(b?.op_xg),
+        _b_head_xg:  num(b?.head_xg),
+        _b_head:     num(b?.head_shots),
+        _b_wood:     num(b?.woodwork),
+      },
+    };
+  };
+}

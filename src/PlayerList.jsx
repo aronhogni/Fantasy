@@ -35,9 +35,8 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { interp } from "./interp.js";
 import { RAW } from "./dataUrl.js";
 import ImminentPanel from "./Imminent.jsx";
-import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName, nameScore,
-  indexImminentByTeam, matchImminent, sumGwRange, gwBlindKeys,
-         startRisk, moScore, aoScore, inImminentPool } from "./stats.js";
+import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName,
+         sumGwRange, gwBlindKeys, makeEnricher } from "./stats.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -66,6 +65,7 @@ const POS_TABS = [["all","All"],["1","GK"],["2","DEF"],["3","MID"],["4","FWD"]];
    theim og filter-valarinn finnur thau).                              */
 const PINNED = new Set(["now_cost", "selected_by_percent"]);
 const ROW_H = 34;          // fost haed -> synadarvaeding er einfold
+const ROW_H_DENSE = 26;    // "thettar radir": 20 leikmenn i stad 12
 const OVERSCAN = 12;
 /* HAUSINN ER TVEGGJA THREPA (FFS-lagid, sja BANDS nedar): spannandi
    bands-rod ofan a heitunum. Haedirnar eru fastar thvi radirnar eru
@@ -217,10 +217,14 @@ function ColumnPicker({ keys, selected, onToggle, onClear, pinnedKeys, narrow })
   /* SAMANBROTID ER NAUDSYNLEGT, EKKI SNYRTING — og thad varð BRYNNA thegar
      valarinn faerdist ur 210 px skrun-kassa i fjoldalka YFIRLIT (sja
      `pickBody`): yfirlitid er ~490 px hatt, thvi thad synir OLL 100 chip i
-     einu. Taflan er thad sem madur er ad byggja, svo um leid og dalkarnir
-     eru valdir vill madur sja HANA og ekki valarann. Opinn sjalfgefid thvi
-     fyrsta verkid i thessum ham er alltaf ad velja.                       */
-  const [open, setOpen] = useState(true);
+     einu.
+
+     SJALFGEFNA STADAN ER LEIDD UT UR THVI HVORT DALKAR ERU THEGAR VALDIR, og
+     thad var MAELT: med valarann opinn byrjadi taflan i 974 px a 813 px skja
+     — HUN VAR ALVEG UTAN SKJAS og notandinn sa engan leikmann. Sa sem kemur
+     til baka med dalka i vali vill sja TOFLUNA; sa sem hefur enga dalka VERDUR
+     ad velja fyrst. Rofinn er afram til fyrir hvorn sem er.               */
+  const [open, setOpen] = useState(() => keys.length === 0);
   const f = fold(q);
   const groups = useMemo(() => STAT_GROUPS.map(g => {
     const ds = STAT_DEFS.filter(d => d.group === g.key && !pinnedKeys.has(d.key))
@@ -307,6 +311,23 @@ function ColumnPicker({ keys, selected, onToggle, onClear, pinnedKeys, narrow })
   );
 }
 
+/* ---- TVEIR TOFLU-ROFAR: hitakort og thettleiki ----
+   Their eru TOFLU-stillingar og ekki sior, svo their standa vid tofluna og
+   ekki i siu-rodinni — annars hefdu their birst i "Filters"-tolunni sem
+   telur hvad er SIAD, og thad hefdi verid ósatt.                        */
+function ViewToggles({ dense, setDense, heat, setHeat }) {
+  return (
+    <span style={S.toggles}>
+      <button style={{ ...S.tgl, ...(heat ? S.tglOn : {}) }} aria-pressed={heat}
+        title={"Colour each column by where the player falls INSIDE THE FILTERED SET (10th-90th percentile). Green = good, red = weak, and it flips for columns where lower is better (price, minutes per goal, goals conceded)."}
+        onClick={() => setHeat(v => !v)}>{"◧ heat"}</button>
+      <button style={{ ...S.tgl, ...(dense ? S.tglOn : {}) }} aria-pressed={dense}
+        title={"Compact rows: 26px instead of 34px — about 20 players on screen instead of 12. Player photos are hidden because they need the height."}
+        onClick={() => setDense(v => !v)}>{"≡ compact"}</button>
+    </span>
+  );
+}
+
 export default function PlayerList({ players, teams, teamById, events, seasonsFile,
                                      imminent, shotsFile, fixtures, odds, defcon, defconHist, consist,
                                      bsd, photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
@@ -326,6 +347,20 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     return () => mq.removeEventListener?.("change", on);
   }, []);
   const [showInfo, setShowInfo] = useState(false);
+  /* GW-strikid er LOKAD sjalfgefid (sparar 44 px) en OPNAST sjalfkrafa um leid
+     og bil er valid — valid ma aldrei vera falid fyrir theim sem valdi thad. */
+  const [gwOpen, setGwOpen] = useState(false);
+  /* THETTAR RADIR: 26 px i stad 34. Vistad thvi thetta er smekkur, ekki
+     astand — sa sem vill sja 20 leikmenn i einu vill thad alltaf.        */
+  const [dense, setDense] = useState(() => {
+    try { return localStorage.getItem("fpl_dense") === "1"; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem("fpl_dense", dense ? "1" : "0"); } catch {} }, [dense]);
+  /* HITAKORT: tolurnar litadar eftir hundradshluta innan SIADA hopsins. */
+  const [heat, setHeat] = useState(() => {
+    try { return localStorage.getItem("fpl_heat") !== "0"; } catch { return true; }
+  });
+  useEffect(() => { try { localStorage.setItem("fpl_heat", heat ? "1" : "0"); } catch {} }, [heat]);
 
   /* ---------- timabil ---------- */
   const finishedGw = useMemo(
@@ -365,6 +400,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
      thegar timabili er skipt — annars sæti GW30-38 eftir a nyju timabili
      og notandinn saei tolur fyrir bil sem hann valdi ekki thar.          */
   useEffect(() => { setGwRange(null); setGwErr(null); }, [season]);
+  useEffect(() => { if (gwRange) setGwOpen(true); }, [gwRange]);
   /* HVADA TIMABIL EIGA PER-UMFERDAR GOGN? `consistency.json` er BYGGD
      UR NAKVAEMLEGA thessum skram (player_gw_{s}.json), svo lyklar hennar
      eru sjalfvirk og sjalfvidhaldandi skra yfir thad sem er til.
@@ -472,82 +508,29 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   /* ---------- "cook": ein umferd yfir gognin ----------
      Allt sem radun og sia thurfa er reiknad HER, einu sinni. Enginn
      utreikningur og engin JSON-uppfletting inni i render.              */
+  /* ---------- AUDGUNIN — SER MEMO, OG THAD ER PERF-LAGFAERING ----------
+     MAELT 8.8.2026: `cook` keyrdi FJORUM SINNUM vid hverja hledslu
+     (63 + 28 + 14 + 15 ms) af thvi ad hver gagnaskra sem lendir (imminent,
+     shots, defcon, consistency, bsd) er i deps-listanum. Nafna-porunin —
+     dyrasti hlutinn, `findShot` og `matchImminent` fyrir 573 leikmenn — var
+     endurtekin i hvert skipti, OG lika vid hverja timabils- eda
+     umferdarbils-skiptingu thott hun se othad ohad theim.
+
+     Nu er audgunin sitt eigid memo sem hangir ADEINS a theim skram sem hun
+     les. `cook` hangir afram a season/gwRange en gerir tha enga porun.
+     Audgunin sjalf er i src/stats.js svo stigataflan noti SAMA kod.      */
+  const enrich = useMemo(() => makeEnricher({
+    players, teamById, imminent, shotsFile, fixtures, events, odds,
+    defcon, defconHist, consist, bsd, season, isLive,
+  }), [players, teamById, imminent, shotsFile, fixtures, events, odds,
+       defcon, defconHist, consist, bsd, season, isLive]);
+
+  /* ---------- "cook": ein umferd yfir gognin ---------- */
   const rows = useMemo(() => {
     const t0 = (typeof performance !== "undefined" ? performance.now() : 0);
-    /* PORUN VID imminent.json: hun geymir FULLT nafn ("Cole Palmer") en
-       players.json web_name ("Palmer"), svo bein nafna-uppfletting skilar
-       ENGU — allur "Byrjar"-dalkurinn vard "—". Nota orda-skorun + LID,
-       sama adferd og matchShotsToPlayers, med othraeddum sigurvegara.     */
-    /* Porunin sjalf er i src/stats.js svo skipta-glugginn i App.jsx noti
-       NAKVAEMLEGA sama kod — tvaer utfaerslur gaefu tomar tolur a einum
-       stad og fylltar a odrum an ad prof felli.                          */
-    const immByTeam = indexImminentByTeam(imminent);
-    const findImm = p => matchImminent(p, immByTeam, teamById?.[p.team]?.short);
-
-    /* ---- LIDS-SAMTOLUR: xG liðsins (fyrir "hlutur af xG liðsins") ---- */
-    const teamXg = {};
-    for (const p of players || []) {
-      const v = num(p.expected_goals);
-      if (v != null) teamXg[p.team] = (teamXg[p.team] ?? 0) + v;
-    }
-
-    /* ---- ESPN-SKOT sidustu umferdar, porad a nafn+lid ---- */
-    const shotByTeam = {};
-    for (const sp of shotsFile?.players || []) (shotByTeam[sp.team] ||= []).push(sp);
-    const findShot = (p) => {
-      const cands = shotByTeam[teamById?.[p.team]?.short] || [];
-      let best = null, bs = 0, second = 0;
-      for (const c of cands) {
-        const sc = Math.max(nameScore(p.web_name, c.name),
-                            nameScore(`${p.first_name} ${p.second_name}`, c.name));
-        if (sc > bs) { second = bs; bs = sc; best = c; }
-        else if (sc > second) second = sc;
-      }
-      return (best && bs >= 1 && bs > second) ? best : null;
-    };
-
-    /* ---- LEIKIR FRAMUNDAN: naestu sex UMFERDIR fra naestu ospiluðu ----
-       Talið per UMFERD, ekki per leik: `fix6 < 6` er auð umferd og
-       `> 6` er tvofold. Thad er spurningin sem notandinn hefur.        */
-    const nextGw = (events || []).find(e => e.is_next)?.id
-                ?? ((events || []).filter(e => e.finished).length + 1);
-    const fixAgg = {};
-    for (const f of fixtures || []) {
-      if (f.event == null || f.event < nextGw || f.event > nextGw + 5) continue;
-      for (const [team, isHome, diff] of [[f.team_h, true, f.team_h_difficulty],
-                                          [f.team_a, false, f.team_a_difficulty]]) {
-        const a = fixAgg[team] || (fixAgg[team] = { n:0, fdr:0, home:0, gws:new Set() });
-        a.n++; a.fdr += (num(diff) ?? 3); if (isHome) a.home++; a.gws.add(f.event);
-      }
-    }
-    const csByShort = odds || {};
-    const dcById = defcon?.opportunity || {};
-    /* DC-hittni per leikmann. TVAER HEIMILDIR:
-         · yfirstandandi timabil -> defcon.json (lyklad a fpl_id)
-         · sogulegt timabil      -> defcon_history.json (lyklad a `code`,
-           sem er FAST yfir timabil ólíkt id)
-       Valid raedur hvor er lesin, svo dalkarnir FYLGJA timabilinu eins og
-       adrar tolur i toflunni. DefCon er ny stigagjof fra 2025/26; eldri
-       timabil eru EKKI i skranni og fa "—" (VANTAR), ekki 0.           */
-    const dcHitById = {};
-    for (const r of defcon?.players || []) dcHitById[r.fpl_id] = r;
-    const dcHistBySeason = isLive ? null : (defconHist?.seasons?.[season] || null);
-    /* ARON-STUDULL: alltaf ur consistency.json og FYLGIR voldu timabili.
-       Lykladur a `code` eins og hin sogulegu gognin. Fyrir 2026/27 (ekki
-       byrjad) er ekkert til og dalkarnir syna "—" — sem er rett.       */
-    const consBySeason = consist?.seasons?.[season] || null;
-    /* BSD: per-skot xG og Opta-tolur sem FPL gefur EKKI (faeri skopud,
-       krossar, einvigi, granular varnartolur). Skrain er EITT lokid
-       timabil, svo hun er lesin AÐEINS thegar thad timabil er valid —
-       annars saust 2025/26-tolur undir hausnum "2024/25". Lyklad a
-       `code` eins og onnur soguleg gogn (fast yfir timabil, olikt id). */
-    const bsdByCode = (bsd && bsd.season === season)
-      ? Object.fromEntries((bsd.players || []).map(r => [String(r.code), r]))
-      : null;
-
     const out = (players || []).map(p => {
       /* UMFERDAR-BIL kemur I STAD arstidar-rodarinnar. Skilar FPL-nefndum
-         svidum, svo allir 108 dalkar — lika afleiddu — virka obreyttir.  */
+         svidum, svo allir dalkar — lika afleiddu — virka obreyttir.      */
       const gwEntry = gwActive ? gwFile.data.players?.[String(p.code)] : null;
       const ranged = gwEntry ? sumGwRange(gwEntry, gwFile.data, gwRange[0], gwRange[1]) : null;
       const hist = isLive ? null
@@ -557,73 +540,10 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
          annars lifandi. VERD og STADA koma ALLTAF ur lifandi gognum.      */
       const src = isLive ? p : (hist ? { ...hist, now_cost: p.now_cost,
                                          selected_by_percent: p.selected_by_percent } : null);
-      const im = findImm(p);
-      const risk = im?.start_feats ? startRisk(im.start_feats) : null;
-      const sh = findShot(p);
-      const fa = fixAgg[p.team];
-      const short = teamById?.[p.team]?.short;
-
+      const { risk, fields } = enrich(p);
       /* AUDGADIR REITIR — allir med `_` forskeyti svo their blandist ekki
          vid FPL-svid. STAT_DEFS med live_only:true lesa thessa.          */
-      if (src) Object.assign(src, {
-        _team_xg: teamXg[p.team] ?? null,
-        _espn_shots: sh?.shots ?? null, _espn_sot: sh?.on_target ?? null,
-        _espn_in_box: sh?.in_box ?? null, _espn_woodwork: sh?.woodwork ?? null,
-        _espn_created: sh?.chances_created ?? null, _espn_cross: sh?.cross_created ?? null,
-        _espn_through: sh?.through_balls ?? null,
-        _w_minutes: im?.window?.minutes ?? null, _w_xg: im?.window?.xg ?? null,
-        _w_xa: im?.window?.xa ?? null, _w_threat: im?.window?.threat ?? null,
-        _w_creativity: im?.window?.creativity ?? null,
-        _mo: im && inImminentPool(im.window) ? moScore(im.window) : null,
-        _ao: im && inImminentPool(im.window) ? aoScore(im.window) : null,
-        _start_p: risk?.p ?? null,
-        _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
-        _home6: fa?.home ?? null, _fix6: fa?.n ?? null,
-        _team_cs: short && csByShort[short] ? num(csByShort[short].cs) : null,
-        /* VILLA SEM VAR: dcById[p.team] er HLUTUR ({own_xgc90, ...}) og
-           num(hlutur) er null — dalkurinn "DefCon lids" var thvi ALLTAF
-           tomur og faldi sig sjalfur sem tomur dalkur. Fannst 4.8.2026
-           thegar sama tenging var skrifud fyrir DC-hittni.              */
-        _team_dc: num(dcById[p.team]?.defcon_opportunity),
-        ...(() => {
-          const h = dcHistBySeason ? dcHistBySeason[String(p.code)]
-                                   : dcHitById[p.id];
-          const k = consBySeason?.[String(p.code)];
-          const b = bsdByCode?.[String(p.code)];
-          return { _dc_hit_adj: num(h?.hit_rate_adj),
-                   _dc_hit_raw: num(h?.hit_rate),
-                   _dc_starts:  num(h?.starts),
-                   _aron:       num(k?.aron),
-                   _hit4:       num(k?.hit4_pct),
-                   _blank:      num(k?.blank_pct),
-                   _cgames:     num(k?.games),
-                   /* Tomt = null (VANTAR), aldrei 0 — sbr. 6i.        */
-                   _b_xg:       num(b?.xg),
-                   _b_shots:    num(b?.shots),
-                   _b_xgs:      num(b?.xg_per_shot),
-                   _b_big:      num(b?.big_chances),
-                   _b_inbox:    num(b?.shots_in_box),
-                   _b_kp:       num(b?.key_pass),
-                   _b_cross:    num(b?.crosses),
-                   _b_crossa:   num(b?.crosses_acc),
-                   _b_rating:   num(b?.rating),
-                   _b_touch:    num(b?.touches),
-                   _b_drib:     num(b?.dribbles_won),
-                   _b_aer:      num(b?.aerial_won),
-                   _b_tack:     num(b?.tackles),
-                   _b_int:      num(b?.interceptions),
-                   _b_clr:      num(b?.clearances),
-                   _b_blk:      num(b?.blocks),
-                   _b_fouled:   num(b?.was_fouled),
-                   _b_mins:     num(b?.minutes),
-                   _b_sp_xg:    num(b?.sp_xg),
-                   _b_sp_share: num(b?.sp_xg_share) == null ? null : num(b.sp_xg_share) * 100,
-                   _b_op_xg:    num(b?.op_xg),
-                   _b_head_xg:  num(b?.head_xg),
-                   _b_head:     num(b?.head_shots),
-                   _b_wood:     num(b?.woodwork) };
-        })(),
-      });
+      if (src) Object.assign(src, fields);
 
       return {
         p, src, hist: !!hist,
@@ -639,8 +559,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Leikmenn] cook ${out.length} radir: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [players, teamById, seasonsFile, season, isLive, imminent, shotsFile, fixtures, events,
-      odds, defcon, defconHist, consist, bsd, gwActive, gwFile, gwRange]);
+  }, [players, teamById, seasonsFile, season, isLive, enrich, gwActive, gwFile, gwRange]);
 
   /* ---------- dalkar valda flokksins ----------
      live_only-dalkar eru NUTIMA-gogn (ESPN sidustu umferdar, form-gluggi,
@@ -747,8 +666,99 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     return out;
   }, [filtered, sortKey, sortDir]);
 
+  /* ---------- HITAKORT ----------
+     Hundrad dalkar af einslitum grattonum tolum eru laesilegir EN EKKI
+     SKANNANLEGIR: til ad sja hver er godur i xGI/90 tharf madur ad rada
+     eftir honum, sem thydir ad madur getur adeins skodad einn i einu. Lida-
+     flipinn i thessu sama appi litar sinar tolur og er miklu fljotlesnari —
+     thess vegna er thetta hingad komid.
+
+     THRJAR AKVARDANIR:
+     1. KVARDINN ER INNAN SIADA HOPSINS, ekki allra 573. Ef notandinn siar a
+        varnarmenn undir 5,0 er spurningin "hver er bestur AF THESSUM" —
+        kvardi yfir allan listann hefdi gert alla dalka jafn-blada.
+     2. P10-P90, EKKI min-max. Haaland i xG gerir min-max kvarda thannig ad
+        allir adrir liggja i sama tonn. Klippt hundradshluta-bil heldur
+        millilaginu greinanlegu; jadartilfelli fa mettada endann.
+     3. `hi === false` SNYR KVARDANUM. A Verdi, Min/framlag og GC er LAEGRA
+        betra — annars vaeri sterkasti graeni liturinn a versta manninum,
+        sem er nakvaemlega villan sem `compare-visual.mjs` ver gegn i
+        samanburdinum (kafli 6j).
+     Litirnir eru LJOSIR bakgrunnar: talan sjalf verdur ad vera laesileg, svo
+     thetta er tonn undir texta, ekki merki i stad hans.                  */
+  const heatScale = useMemo(() => {
+    if (!heat) return null;
+    const m = {};
+    /* FOSTU DALKARNIR MED: Verd og Stig/Eign eru dalkar eins og adrir og
+       spurningin "er hann odyr fyrir thetta?" er ekki minna gild en hinar.
+       An theirra voru tveir olitadir dalkar innan um litada — sem las eins
+       og villa, ekki eins og akvordun.                                   */
+    for (const d of [...visibleCols, ...[...pinnedKeys].map(k => STAT_BY_KEY[k])].filter(Boolean)) {
+      const vals = [];
+      for (const r of filtered) {
+        const v = r.src ? d.get(r.src) : null;
+        if (v != null && Number.isFinite(v)) vals.push(v);
+      }
+      if (vals.length < 8) continue;              // ortitid urtak -> enginn litur
+      vals.sort((a, b) => a - b);
+      const lo = vals[Math.floor(vals.length * 0.10)];
+      const hi = vals[Math.floor(vals.length * 0.90)];
+      if (!(hi > lo)) continue;                    // allir eins -> enginn litur
+      m[d.key] = { lo, hi, invert: d.hi === false };
+    }
+    return m;
+  }, [heat, visibleCols, filtered, pinnedKeys]);
+
+  /* Fimm threp. Fleiri threp lita ut eins og halli og fara ad keppa vid
+     tolurnar; faerri threp segja ekki nog.                               */
+  const HEAT_GOOD = ["#e9f9f1", "#d6f3e5", "#c2ecd8"];
+  const HEAT_BAD  = ["#fdeeee", "#fbdedd", "#f8cdcb"];
+  const heatBg = (d, v) => {
+    const sc = heatScale?.[d.key];
+    if (!sc || v == null || !Number.isFinite(v)) return null;
+    let t = (v - sc.lo) / (sc.hi - sc.lo);         // 0..1 (ma fara utan)
+    t = Math.max(0, Math.min(1, t));
+    if (sc.invert) t = 1 - t;
+    /* MIDJAN FAER ENGAN TON — OG THAD ER STILLING SEM VAR MAELD A SKJA.
+       Fyrsta utgafan litadi allt fra 0,55 og upp / 0,45 og nidur, sem er
+       90% af hverjum dalki: taflan vard graen-raud flis og tonarnir hættu ad
+       benda a nokkud. Nu er efsti og nedsti fjordungur litadur og MIDJAN
+       HELMINGURINN olitadur, svo liturinn thydi "thetta er utgildi".     */
+    if (t >= 0.90) return HEAT_GOOD[2];
+    if (t >= 0.82) return HEAT_GOOD[1];
+    if (t >= 0.74) return HEAT_GOOD[0];
+    if (t <= 0.10) return HEAT_BAD[2];
+    if (t <= 0.18) return HEAT_BAD[1];
+    if (t <= 0.26) return HEAT_BAD[0];
+    return null;
+  };
+
   /* ---------- synadarvaeding (fost radahæd) ---------- */
   const scrollRef = useRef(null);
+  /* ---------- EINN SKRUN-GLUGGI, EKKI TVEIR ----------
+     MAELT 8.8.2026: kassinn var `min(66vh, 620px)` og BOTNINN hans lá 140 px
+     UNDIR skjanum. Thad gaf tvo skrun-svaedi ofan i hvort annad — mus-hjolid
+     gerdi sitt hvad eftir thvi hvar bendillinn var, og til ad na nedstu
+     rodunum thurfti fyrst ad skruna SIÐUNNI og svo TOFLUNNI.
+     Nu er haedin maeld: thad sem eftir er af skjanum fyrir nedan hausinn.
+     Efektid keyrir eftir HVERJU rendri (umgjordin haekkar og laekkar med
+     bordum, siu-chip-um og valaranum) en setur adeins nytt gildi ef skekkjan
+     er > 3 px, svo thetta getur ekki lykkjad.                            */
+  const [fitH, setFitH] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      const h = Math.max(280, Math.round(window.innerHeight - top - 10));
+      setFitH(prev => Math.abs(prev - h) > 3 ? h : prev);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    return () => { window.removeEventListener("resize", measure);
+                   window.removeEventListener("scroll", measure); };
+  });
   const [scrollTop, setScrollTop] = useState(0);
   /* LARETT SKRUN ER LIKA STAT — sja S.frozenShadow. Notandinn sa "texti fer
      undir nofnin og myndir af kollum" thegar skrunad var langt til haegri:
@@ -770,8 +780,9 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     setViewH(el.clientHeight || 620);
     return () => { el.removeEventListener("scroll", onScroll); ro?.disconnect(); };
   }, []);
-  const first = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
-  const last = Math.min(sorted.length, Math.ceil((scrollTop + viewH) / ROW_H) + OVERSCAN);
+  const rowH = dense ? ROW_H_DENSE : ROW_H;
+  const first = Math.max(0, Math.floor(scrollTop / rowH) - OVERSCAN);
+  const last = Math.min(sorted.length, Math.ceil((scrollTop + viewH) / rowH) + OVERSCAN);
   const window_ = sorted.slice(first, last);
 
   /* Breiddir eftir skja. Nafnadalkur 196 -> 124 og tolur 88 -> 66 i sima. */
@@ -1001,7 +1012,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       {!(isLive && finishedGw === 0) && seasonKey && (
         <div style={S.gwWrap}>
           <div style={S.gwTop}>
-            <span style={S.gwLbl}>{"Gameweeks:"}</span>
+            {/* SAMANBROTID SPARAR 44 PX AF 415 (maelt 8.8.2026). Strikid er
+                38 kassar sem taka fulla rod, og notandinn snertir thad
+                stundum — ekki i hverri heimsokn. Thegar bil ER valid er
+                thad OPID sjalfkrafa, svo valid geti aldrei verid falid.  */}
+            <button style={S.gwToggle} aria-expanded={gwOpen}
+              title={gwOpen ? "Hide the gameweek picker" : "Pick a gameweek range"}
+              onClick={() => setGwOpen(v => !v)}>
+              <span style={{ ...S.pickCaret, transform: gwOpen ? "none" : "rotate(-90deg)" }}>▾</span>
+              {"Gameweeks"}
+            </button>
             {/* FORSTILLINGARNAR ("allt timabilid / 30-38 / fyrri hluti"...)
                 voru fjarlaegdar 7.8.2026 ad beidni: kassa-valarinn gerir
                 thad sama og meira, svo tvaer leidir ad somu stillingu voru
@@ -1026,6 +1046,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
               </span>
             )}
           </div>
+          {gwOpen && (
           <div style={S.gwBar} role="group" aria-label={"Select gameweek range"}>
             {Array.from({ length: 38 }, (_, i) => i + 1).map(n => {
               const on = gwRange && n >= gwRange[0] && n <= gwRange[1];
@@ -1046,7 +1067,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
               );
             })}
           </div>
-          {gwRange && (
+          )}
+          {gwRange && gwOpen && (
             <div style={S.gwNote}>
               {"The range applies to numbers that can be SUMMED. Price, ownership, form, ICT and FPL ranks are season figures and do NOT follow the range — those columns are marked"}
               {" "}<span style={S.blindTag}>{"season"}</span>{" "}
@@ -1062,34 +1084,41 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           {" "}{players.length} {"players, so this view has no numbers to sort. Pick"} <b>{olderSeasons[0] || "an earlier season"}</b> {"in the dropdown."}
         </div>
       )}
-      {finishedGw === 0 && !isLive && (
-        narrow && !showInfo ? (
-          <button style={S.noteMini} onClick={() => setShowInfo(true)}>
-            {currentLabel} {"not started — showing"} {season} · <b>{"why?"}</b>
-          </button>
-        ) : (
-          <div style={S.note}>
-            <b>{currentLabel} {"has not started"}</b>{", so the list shows"} <b>{season}</b>{". Price, position and ownership are still"} <b>{"from today's data"}</b> {"— you buy at today's price, not at the price of"} {season}.
-            {narrow && <> <button style={S.link} onClick={() => setShowInfo(false)}>{"hide"}</button></>}
-          </div>
-        )
-      )}
-
-      {!isLive && (() => {
-        /* LESID UR `visibleCols`, EKKI UR `group`. VILLA SEM VAR: talningin
-           las `d.group === group`, sem er RETT i flokka-ham en VITLAUST i
-           bygginga-ham — thar rædur valrod notandans og `group` er bara sa
-           flokkur sem var sidast opnadur. Bordinn hefdi thvi birst thegar
-           enginn lifandi dalkur var i toflunni, og — verra — ThAGAD thegar
-           notandinn valdi Start prob eda FDR6 undir sogulegu timabili.
-           `visibleCols` er thad sem er A SKJANUM i badum homum.          */
-        const live = visibleCols.filter(d => d.live_only);
-        if (!live.length) return null;
+      {/* ---------- EIN UPPLYSINGA-LINA I STAD TVEGGJA BORDA ----------
+          MAELT 8.8.2026: 51% af skjanum (415 af 813 px) fór i umgjord adur en
+          fyrsta gagnarodin byrjadi, og TVEIR bordar attu 80 px af thvi —
+          bádir varanlegir fram ad 21. agust. Baedi eru satt og bæði thurfa ad
+          vera lesanleg EINU SINNI, ekki i hverri heimsokn.
+          Nu ein lina med tolu og "why?"-rofa; smaatridin opnast undir.
+          `visibleCols`, EKKI `group`: sú talning var RETT i flokka-ham en
+          vitlaus i bygginga-ham, thar sem valrod raedur og `group` er bara sa
+          flokkur sem var sidast opnadur.                                  */}
+      {(() => {
+        const live = isLive ? [] : visibleCols.filter(d => d.live_only);
+        const preNote = finishedGw === 0 && !isLive;
+        if (!preNote && !live.length) return null;
         return (
-          <div style={{ ...S.mixNote, ...(narrow ? S.mixMini : {}) }}>
-            <b>{live.length} {"of these columns show CURRENT data"}</b> {"— not"} {season}
-            {": "}{live.map(d => d.short || d.label).join(", ")}
-            {". They come from the last finished gameweek, the form window or upcoming fixtures, so they do not change when you pick another season. Everything else here does follow"} {season}.
+          <div style={S.infoLine}>
+            <button style={S.infoBtn} aria-expanded={showInfo}
+              onClick={() => setShowInfo(v => !v)}>
+              <span style={{ ...S.pickCaret, transform: showInfo ? "none" : "rotate(-90deg)" }}>▾</span>
+              {preNote ? <>{currentLabel} {"not started — showing"} <b>{season}</b></>
+                       : <>{"showing"} <b>{season}</b></>}
+              {live.length ? <span style={S.infoTag}>{live.length} {"live columns"}</span> : null}
+              <span style={S.infoWhy}>{showInfo ? "hide" : "why?"}</span>
+            </button>
+            {showInfo && (
+              <div style={S.infoBody}>
+                {preNote && <div>
+                  <b>{currentLabel} {"has not started"}</b>{", so the list shows"} <b>{season}</b>{". Price, position and ownership are still"} <b>{"from today's data"}</b> {"— you buy at today's price, not at the price of"} {season}.
+                </div>}
+                {!!live.length && <div style={{ marginTop: preNote ? 4 : 0 }}>
+                  <b>{live.length} {"columns show CURRENT data"}</b>{", not"} {season}{": "}
+                  {live.map(d => d.short || d.label).join(", ")}
+                  {". They come from the last finished gameweek, the form window or upcoming fixtures, so they do not change when you pick another season."}
+                </div>}
+              </div>
+            )}
           </div>
         );
       })()}
@@ -1149,8 +1178,11 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 
       {/* ---------- almennur throskuldur a HVAÐA tolu sem er ----------
           Thrjatiu sliderar a skja i einu eru onothaefir; thetta gefur
-          sama kraft i einu chipi.                                      */}
-      <div style={S.thRow}>
+          sama kraft i einu chipi.
+          I SOMU ROD OG ADRAR SIUR (8.8.2026): thetta ER sia, og eigin rod
+          fyrir hana kostadi 26 px af theim 415 sem foru i umgjord. Rodin
+          brotnar sjalf thegar plass thrytur.                            */}
+      <div style={{ ...S.thRow, ...S.thRowInline }}>
         <span style={S.thLbl}>{"Threshold:"}</span>
         <StatPicker value={thKey} onChange={setThKey} />
         {/* ORD, EKKI TAKN. "≥" og "≤" eru vanaspurning: notandinn tharf ad
@@ -1233,9 +1265,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
            odyrt, svo thar brotnar rodin i tvaer linur og allir flokkar
            sjast; i sima helst strjuk-rodin obreytt.                      */}
       {mode === "custom" ? (
-        <ColumnPicker keys={customKeys} selected={customSet} onToggle={toggleCol}
-          onClear={() => setCustomKeys([])} pinnedKeys={pinnedKeys}
-          narrow={narrow} />
+        <>
+          <ColumnPicker keys={customKeys} selected={customSet} onToggle={toggleCol}
+            onClear={() => setCustomKeys([])} pinnedKeys={pinnedKeys}
+            narrow={narrow} />
+          {/* Rofarnir eiga vid TOFLUNA, svo their fylgja henni i badum homum
+              — ekki bara i flokka-rodinni.                              */}
+          <div style={S.togglesRow}>
+            <ViewToggles dense={dense} setDense={setDense} heat={heat} setHeat={setHeat} />
+          </div>
+        </>
       ) : (
       <div style={{ ...S.groupRow, ...(narrow ? {} : S.groupRowWide) }}>
         {STAT_GROUPS.map(g => (
@@ -1253,6 +1292,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
               : null}
           </button>
         ))}
+        <ViewToggles dense={dense} setDense={setDense} heat={heat} setHeat={setHeat} />
       </div>
       )}
 
@@ -1269,8 +1309,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           }}>{"clear thresholds and price range"}</button></>}
         </div>
       ) : (
-        <div ref={scrollRef} style={S.scroll}>
-          <div style={{ height: sorted.length * ROW_H + headH, position: "relative", minWidth: "max-content" }}>
+        <div ref={scrollRef} style={{ ...S.scroll, ...(fitH ? { maxHeight: fitH } : {}) }}>
+          <div style={{ height: sorted.length * rowH + headH, position: "relative", minWidth: "max-content" }}>
             {/* ---------- HAUS: TVO THREP ----------
                 Bands-rodin ofan a heitunum. Frosnu hólfin (nafn, verd,
                 eign) eru sett i BADAR radirnar hvor fyrir sig — sticky
@@ -1353,7 +1393,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
               const isMine = mineSet.has(r.p.id);
               return (
                 <div key={r.p.code} style={{
-                  ...S.row, top: headH + idx * ROW_H,
+                  ...S.row, height: rowH, top: headH + idx * rowH,
                   ...(idx % 2 ? S.rowAlt : {}),
                   ...(isMine ? S.rowMine : {}), ...(inCmp ? S.rowPicked : {}),
                 }}>
@@ -1379,10 +1419,17 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     </button>
                     <button style={S.nameBtn} onClick={() => onPickPlayer?.(r.p.id)}
                       title={r.p.news || `${r.p.first_name} ${r.p.second_name}`}>
-                      {!narrow && (photoUrl && r.p.code
+                      {/* Myndin er 25 px ha og passar ekki i 26 px thetta rod. */}
+                      {!narrow && !dense && (photoUrl && r.p.code
                         ? <RowPhoto src={photoUrl(r.p.code)} name={r.p.web_name} />
                         : <span style={S.imgFb}>{r.p.web_name.slice(0, 1)}</span>)}
-                      <span style={{ ...S.dot, background: POS_COLOR[r.p.element_type] }} />
+                      {/* STADAN SEM LITADUR TEXTI, EKKI 5 PX DEPILL.
+                          Depillinn krafdist thess ad madur VISSI litakodann;
+                          "MID" i sama lit segir thad sjalft og kostar 17 px af
+                          200. Sami litur, sama upplysing, laesileg.        */}
+                      <span style={{ ...S.posTag, color: POS_COLOR[r.p.element_type] }}>
+                        {POS[r.p.element_type]}
+                      </span>
                       <span style={S.nm}>{r.p.web_name}</span>
                       <span style={S.teamTag}>
                         {Crest && r.team ? <Crest team={r.team} size={11} /> : null}
@@ -1392,7 +1439,10 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                       {!isLive && !r.hist && <span style={S.noHist} title={interp("No data in {0}", [season])}>—</span>}
                     </button>
                   </div>
-                  <div style={{ ...S.cell, ...cNum, ...S.strong }}>£{r.cost.toFixed(1)}</div>
+                  {(() => { const d = STAT_BY_KEY.now_cost, bg = heatBg(d, r.cost);
+                    return <div style={{ ...S.cell, ...cNum, ...S.strong,
+                                         ...(bg ? { background: bg } : {}) }}>
+                      £{r.cost.toFixed(1)}</div>; })()}
                   {mode === "custom" ? (() => {
                     /* STIGIN FYLGJA VOLDU TIMABILI OG UMFERDAR-BILI eins og
                        hver onnur summa — thau eru lesin ur `src` gegnum
@@ -1402,7 +1452,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     const v = r.src ? pd.get(r.src) : null;
                     return (
                       <div style={{ ...S.cell, ...cNum, ...S.strong,
-                                    ...(v == null ? S.miss : S.cellHit) }}
+                                    ...(v == null ? S.miss : S.cellHit),
+                                    ...(() => { const bg = heatBg(pd, v); return bg ? { background: bg } : {}; })() }}
                         title={v == null ? "Points: no data"
                           : `Points: ${v}\nClick to filter (min ${v}).`}
                         onClick={v == null ? undefined : () => filterOnValue(pd, v)}>
@@ -1410,7 +1461,10 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                       </div>
                     );
                   })() : (
-                    <div style={{ ...S.cell, ...cNum }}>{r.own.toFixed(1)}</div>
+                    (() => { const d = STAT_BY_KEY.selected_by_percent, bg = heatBg(d, r.own);
+                      return <div style={{ ...S.cell, ...cNum,
+                                           ...(bg ? { background: bg } : {}) }}>
+                        {r.own.toFixed(1)}</div>; })()
                   )}
                   {visibleCols.map(d => {
                     const v = r.src ? d.get(r.src) : null;
@@ -1425,6 +1479,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     return (
                       <div key={d.key} style={{ ...S.cell, ...cFor(d),
                         ...(v == null ? S.miss : S.cellHit),
+                        ...(() => { const bg = heatBg(d, v); return bg ? { background: bg } : {}; })(),
                         ...(isSp && v != null ? {
                           fontWeight: 700,
                           color: r.startLevel === "safe" ? "#046b41"
@@ -1568,6 +1623,7 @@ const S = {
   check:{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:C.text2, cursor:"pointer" },
 
   thRow:{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap", marginBottom:7 },
+  thRowInline:{ marginTop:-4, marginBottom:6 },
   thLbl:{ fontSize:11, color:C.text3 },
   thVal:{ width:70, border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 6px",
           fontSize:11.5, fontFamily:mono },
@@ -1673,6 +1729,29 @@ const S = {
              textOverflow:"ellipsis", whiteSpace:"nowrap" },
   chipStatOn:{ background:"#1b5e9c", color:"#fff", border:"1px solid #1b5e9c",
                fontWeight:600 },
+
+  /* ---- GW-samanbrot, upplysinga-lina og toflu-rofar ---- */
+  gwToggle:{ display:"inline-flex", alignItems:"center", gap:4, border:"none",
+             background:"transparent", cursor:"pointer", padding:0,
+             fontSize:11, fontWeight:700, color:C.text2 },
+  infoLine:{ margin:"7px 0 0" },
+  infoBtn:{ display:"flex", alignItems:"center", gap:6, width:"100%",
+            textAlign:"left", border:`1px solid ${C.border}`, background:C.cardAlt,
+            borderRadius:6, padding:"4px 8px", fontSize:11, color:C.text2,
+            cursor:"pointer", font:"inherit", fontWeight:400 },
+  infoTag:{ fontSize:9, fontWeight:700, background:C.greenBg, color:"#0a5c3e",
+            borderRadius:3, padding:"0 4px" },
+  infoWhy:{ marginLeft:"auto", fontSize:10.5, color:C.purple,
+            textDecoration:"underline" },
+  infoBody:{ fontSize:11, color:C.text2, lineHeight:1.5, padding:"6px 9px",
+             background:C.cardAlt, border:`1px solid ${C.border}`,
+             borderTop:"none", borderRadius:"0 0 6px 6px" },
+  togglesRow:{ display:"flex", justifyContent:"flex-end", marginBottom:6 },
+  toggles:{ display:"inline-flex", gap:3, marginLeft:"auto", flex:"0 0 auto" },
+  tgl:{ border:`1px solid ${C.border}`, background:C.card, color:C.text3,
+        borderRadius:5, padding:"2px 7px", fontSize:10, cursor:"pointer",
+        whiteSpace:"nowrap" },
+  tglOn:{ background:"#f1e9f2", color:C.purple, borderColor:"#d9c7dc", fontWeight:600 },
 
   groupRow:{ display:"flex", gap:4, marginBottom:8, overflowX:"auto",
              borderBottom:`1px solid ${C.border}`, paddingBottom:7,
@@ -1780,7 +1859,8 @@ const S = {
   img:{ width:20, height:25, objectFit:"contain", flex:"0 0 20px" },
   imgFb:{ width:20, height:25, display:"flex", alignItems:"center", justifyContent:"center",
           background:"#efeff2", borderRadius:3, fontSize:10, color:C.text3, flex:"0 0 20px" },
-  dot:{ width:5, height:5, borderRadius:"50%", flex:"0 0 5px" },
+  posTag:{ fontSize:8.5, fontWeight:800, letterSpacing:0.2, flex:"0 0 auto",
+           fontFamily:mono },
   nm:{ fontSize:11.5, color:C.text, overflow:"hidden", textOverflow:"ellipsis", flex:1, minWidth:0 },
   teamTag:{ display:"flex", alignItems:"center", gap:2, fontSize:9, color:C.text3 },
   flag:{ fontSize:10, fontWeight:700, color:C.red },

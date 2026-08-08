@@ -2136,6 +2136,136 @@ og hardkodada safna-talan (kafli 4). Maelt sem **hlutfall** nuna (35,0%).
 
 ---
 
+---
+
+## 6t. UTLITS-YFIRFERD OG THRJAR VILLUR (8.8.2026)
+
+Beidni: *"villuprofadu, farðu yfir utlitid, komdu med tillogur"* — og svo
+*"gerdu allt sem tharf"*. Allt her var MAELT i Chrome, ekki agiskad.
+
+### VILLA 1: STIGATAFLAN HAFDI 20 VARANLEGA TOMA KASSA
+`live_only`-dalkarnir lesa `_`-reiti (`_mo`, `_espn_shots`, `_fdr6`,
+`_dc_hit_adj` …) sem eru settir saman ur SEX skram. Audgunin var adeins til a
+EINUM stad — inni i `cook` i PlayerList.jsx. Stigataflan fekk hrat
+`players.json` og thvi:
+
+| flokkur | tomir kassar |
+|---|---|
+| Ogn | **8 af 8** |
+| Leikir framundan | **5 af 5** |
+| Jofnudur (Aron) | **4 af 4** |
+| Grunnur / Sokn / Vorn | 1 hver |
+
+Thrir HEILIR flokkar sogdu "No numbers" i hverjum kassa. Talan var ekki bilud
+og skrain ekki tom; formulan var einfaldlega ekki til nema a einum stad — sama
+aett af villu og daudi markadslidurinn (kafli 3) og daudi `team_dc` (6l).
+
+**Audgunin er nu `makeEnricher` i `src/stats.js`** og BADIR lesmatarnir nota
+hana. Maelt eftir: audgunin fyllir **16 live_only dalka sem hra rod skilar
+tomum (3 -> 19 af 20)**, og stigataflan sýnir **0 toma kassa**.
+
+**TOMIR DALKAR ERU LEIDDIR UT, EKKI TALDIR UPP.** Sumt getur ekki fyllst fyrr
+en seinna (Jofnudur krefst loknar umferdar, BSD krefst sins timabils), svo
+reglan er ALMENN: dalkur sem enginn hefur gildi i birtist ekki, og flokkur sem
+er thannig alveg tomur faer engan hnapp. Talan er sogd i fotnotu ("30 stats are
+not shown …"). Upptalning med nafni hefdi stadnad vid fyrstu vidbot.
+
+**TVEIR VORDUR, OG THEIR MAELA SITT HVAD:**
+`stats.test.mjs` kafli 14 maelir FORMULUNA (fyllir `makeEnricher` dalkana?) —
+og hann maelir thad sem **DELTA**, ekki sem upptalningu: fyrsta utgafa profsins
+krafdist thess ad hrat `players.json` gaefi ENGAN live_only dalk og var RONG,
+thvi `pen_order`/`fk_order`/`ck_order` eru live_only af thvi ad thau eru
+RÖÐ DAGSINS en lesa vanaleg FPL-svid.
+`playerlist-live-cols.mjs` kafli 3 maelir TENGINGUNA (skilar App.jsx skránum
+til stigatoflunnar?). Stokkbreyting profud: `imminent=`/`fixtures=` fjarlaegd
+ur `<Leaderboard>` -> Ogn-flokkurinn horfinn -> profid fellur.
+
+### `cook` KEYRIR FJORUM SINNUM VID HLEDSLU — MAELT, OG **EKKI** LAGAD
+Maelt fyrir: **63 + 28 + 14 + 15 ms**. Maelt eftir ad audgunin var flutt i
+sitt eigid memo: **43 + 30 + 14 + 15 ms** — thad er EKKERT SEM MUNAR, og thad
+er rett greint svona: keyrslurnar eru fjorar af thvi ad gagnaskrarnar LENDA
+FJORUM SINNUM (imminent, shots, defcon, consistency/bsd koma hver i sinu
+`fetch`). Audgunin VERDUR ad endurreiknast thegar inntak hennar kemur, og
+`cook` verdur ad beita henni aftur. Memo-skiptingin fjarlaegdi thvi ekki
+keyrslurnar — hun gerdi audgunina SAMNYTANLEGA, sem var raunverulega
+tilgangurinn (villa 1).
+
+**AD SKIPTA AUDGUNINNI I TVO LOG** (dyru nafna-uppfletti-toflurnar ohad
+timabili, odyru timabils-lykluðu uppflettingarnar per kall) myndi gera
+timabils-skipti odyrari — `season` er i deps og dregur thvi nafna-porunina med
+ser. **EKKI GERT**: 30 ms sem notandinn getur ekki greint, a modi thvi ad
+kljufa fall sem tveir lesmatar deila. Talan er skrad her svo naesti madur
+thurfi ekki ad maela hana upp a nytt.
+
+**ATH VID KAFLA 6i:** talan thar (1,6–2,2 ms fyrir `cook`) er STÖDNUÐ. Hun var
+rett thegar hun var maeld, en sidan hafa ESPN-ogn, byrjunar-likur, DC-hittni,
+Aron-studull og BSD allt lagst vid. **Raunveruleg tala i dag: 7–15 ms i
+jafnvaegi, 30–45 ms i fyrstu keyrslu.**
+
+### VILLA 3: THRIR TOMIR REITIR A LEIKMANNASPJALDI
+I forleik eru stig, stig/leik og bonus OLL "—/not started", svo thrir af sex
+reitum baru enga upplysingu og rodin brotnadi i **5+1** (einn einmana reitur a
+naestu linu). Sameinadir i einn reit. **HEITIN ERU HIN SOMU** — fyrsta utgafan
+skrifadi "Points, pts/match, bonus" og tapadi nakvaemu heitunum; kafli 6 i
+`smoke.test.mjs` felldi thad og gerdi RETT.
+
+### UTLIT: 51% AF SKJANUM VAR UMGJORD
+MAELT: **415 px af 813** foru i umgjord adur en fyrsta gagnarodin byrjadi —
+11 radir synilegar. Og kassinn var `min(66vh, 620px)`, svo BOTNINN hans la
+**140 px UNDIR skjanum**: tvo skrun-svaedi ofan i hvort annad, thar sem
+mus-hjolid gerdi sitt hvad eftir thvi hvar bendillinn var.
+
+| lagfaering | sparnadur |
+|---|---|
+| tveir bordar -> EIN lina med "why?"-rofa | 80 px |
+| GW-strikid (38 kassar) i samanbrot | 44 px |
+| throskuldur inn i siu-rodina (hann ER sia) | 26 px |
+| **taflan fyllir thad sem eftir er af skjanum** | einn skrun-gluggi |
+
+**Maelt eftir: 324 px umgjord (40%), botninn 7 px OFAN vid skjabrun, 13 radir
+— og 17 i thettum radir.** GW-strikid opnast SJALFKRAFA um leid og bil er
+valid, og "GW 30–38"-merkid og "whole season"-hnappurinn stada afram thott
+strikid se lokad: valid ma aldrei vera falid fyrir theim sem valdi thad.
+
+**BYGGINGA-HAMURINN: valarinn er nu LOKADUR sjalfgefid thegar dalkar eru
+thegar valdir.** Maelt: med hann opinn byrjadi taflan i **974 px a 813 px
+skja** — hun var ALVEG utan skjas og notandinn sa engan leikmann. Sa sem kemur
+til baka med dalka i vali vill sja TOFLUNA; sa sem hefur enga VERDUR ad velja
+fyrst, svo sjalfgefna stadan er LEIDD UT UR `keys.length`.
+
+### HITAKORT — STAERSTI LAESILEIKA-ABATINN
+Hundrad dalkar af einslitum grattonum tolum eru laesilegir en EKKI
+SKANNANLEGIR: til ad sja hver er godur i xGI/90 tharf madur ad rada eftir
+honum, sem thydir ad madur getur adeins skodad einn i einu. Lida-flipinn i
+thessu sama appi litar sinar tolur og er miklu fljotlesnari.
+
+Thrennt asett:
+1. **KVARDINN ER INNAN SIADA HOPSINS**, ekki allra 573. Ef notandinn siar a
+   varnarmenn undir 5,0 er spurningin "hver er bestur AF THESSUM".
+2. **P10–P90, ekki min-max.** Haaland i xG gerir min-max kvarda thannig ad
+   allir adrir liggja i sama tonn.
+3. **`hi === false` SNYR KVARDANUM** (Verd, Min/framlag, GC) — annars vaeri
+   sterkasti graeni liturinn a VERSTA manninum, sama villa sem
+   `compare-visual.mjs` ver gegn i samanburdinum.
+
+**BONDIN VORU THRENGD EFTIR SKJA-PROFUN:** fyrsta utgafan litadi allt fra 0,55
+upp / 0,45 nidur = **90% af hverjum dalki**, og taflan vard graen-raud flis thar
+sem tonarnir hættu ad benda a nokkud. Nu efsti og nedsti FJORDUNGUR, midjan
+helmingurinn olitadur — liturinn thydir "thetta er utgildi". Fostu dalkarnir
+(Verd, Stig/Eign) eru litadir LIKA: tveir olitadir dalkar innan um litada las
+eins og villa, ekki eins og akvordun.
+
+### TVENNT SMATT SEM VAR MAELT
+- **STADAN SEM LITADUR TEXTI, EKKI 5 PX DEPILL.** Depillinn krafdist thess ad
+  madur VISSI litakodann; "MID" i sama lit segir thad sjalft og kostar 17 px
+  af 200.
+- **HEITA-AREKSTUR I STIGATOFLUNNI.** Stodu-fliparnir hetu "Defence" og
+  "Attack" — NAKVAEMLEGA somu ord og tolu-flokkarnir i rodinni beint fyrir
+  nedan, med allt adra merkingu. Nu GK/DEF/MID/FWD, sama skammstofun sem
+  leikmannataflan notar.
+- **Thettar radir** (26 px) og hitakort vistast i `fpl_dense`/`fpl_heat`.
+  Myndin er falin i thettum radum: hun er 25 px ha og passar ekki i 26.
+
 ## 7. Næstu skref (rædd, ekki byrjað)
 
 ### 0. KVARÐAGALLINN — LAGAÐUR 27.7.2026 (`SCALE_FIX`)

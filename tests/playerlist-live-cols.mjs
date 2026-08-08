@@ -137,5 +137,35 @@ ok(`team_dc ber TÖLU — ARS-röð Mosquera sýnir ${arsOpp} (dálkurinn var da
   txt.includes("Mosquera") && txt.includes(arsOpp),
   `— fékk "${txt.slice(0, 120)}" · num(hlutur)=null stökkbreytingin fellir þetta`);
 
+/* ---- 3. STIGATAFLAN FAER SOMU AUDGUN — VORDUR GEGN 20 TOMUM KOSSUM ----
+   MAELT 8.8.2026: stigataflan fekk HRAT players.json, svo hver kassi i Ogn
+   (8/8), Leikjum framundan (5/5) og Jofnudi (4/4) sagdi "No numbers" — thrir
+   HEILIR flokkar daudir. Rotin var ekki tolan og ekki skrain: audgunin var
+   adeins til a EINUM stad (cook i PlayerList).
+   Thetta profar TENGINGUNA, ekki formuluna: `stats.test.mjs` kafli 14 maelir
+   ad `makeEnricher` fylli dalkana, en HER er spurningin hvort App.jsx skili
+   skránum yfirleitt til stigatoflunnar. Ef einhver fjarlaegir `imminent=` eda
+   `fixtures=` ur <Leaderboard> fer talan i núll og THETTA fellur — an thess
+   myndi hun thegja, thvi tomur dalkur er ekki villa i sjalfu ser.        */
+await fire(byTab("🏆"));
+await new Promise(r => setTimeout(r, 60));
+{
+  const noNums = [...document.querySelectorAll("div")]
+    .filter(d => d.textContent.trim() === "No numbers").length;
+  ok("stigataflan sýnir ENGAN tóman kassa í opnum flokki", noNums === 0,
+    `— fann ${noNums}; audgunin kemst ekki til Leaderboard.jsx`);
+  /* Flokkur sem er ALVEG tomur a ekki ad fa hnapp. "Ogn" var 8/8 tomur og
+     verdur ad vera KOMINN AFTUR (audgadur) — ef hann vantar er tengingin
+     rofin, ef hann er thar med tomum kossum fellur profid fyrir ofan.   */
+  const threat = byExact("Threat");
+  ok("Ogn-flokkurinn er til i stigatoflunni (var 8/8 tomur)", !!threat);
+  if (threat) {
+    await fire(threat);
+    const noNums2 = [...document.querySelectorAll("div")]
+      .filter(d => d.textContent.trim() === "No numbers").length;
+    ok("Ogn: engir tomir kassar eftir audgun", noNums2 === 0, `— fann ${noNums2}`);
+  }
+}
+
 console.log(`\nLIFANDI DÁLKAR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

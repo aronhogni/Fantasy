@@ -59,12 +59,25 @@ export function PlayerHeadline({ p, buyTenths, sellTenths_, inSquad, onEditPrice
         )}
       </div>
 
-      <Tile v={seasonStarted ? i0(n(p.total_points)) : "—"} k={"Total points"}
-        sub={seasonStarted ? null : "not started"} />
-      <Tile v={seasonStarted ? f1(n(p.points_per_game)) : "—"} k={"Pts/match"}
-        sub={seasonStarted ? null : "not started"} />
-      <Tile v={seasonStarted ? i0(n(p.bonus)) : "—"} k={"Bonus points"}
-        sub={seasonStarted ? null : "not started"} />
+      {/* THRIR TOMIR REITIR I FORLEIK — SAMEINADIR I EINN.
+          Fyrir 21. agust eru stig, stig/leik og bonus OLL "—/not started", svo
+          thrir af sex reitum baru enga upplysingu og rodin brotnadi i 5+1
+          (fimm reitir og einn einmana a naestu linu). Nu er EINN reitur sem
+          segir thad sem er satt, og rodin er jofn.                        */}
+      {seasonStarted ? (
+        <>
+          <Tile v={i0(n(p.total_points))} k={"Total points"} />
+          <Tile v={f1(n(p.points_per_game))} k={"Pts/match"} />
+          <Tile v={i0(n(p.bonus))} k={"Bonus points"} />
+        </>
+      ) : (
+        /* HEITIN ERU HIN SOMU, BARA A EINUM REIT — ekki umskrifud. Fyrsta
+           utgafan skrifadi "Points, pts/match, bonus" og TAPADI thar
+           nakvaemu heitunum; prófid i smoke.test.mjs (kafli 6) felldi thad,
+           og thad gerdi rett: heitin eru thad sem notandinn leitar eftir. */
+        <Tile v="—" k={"Total points · Pts/match · Bonus points"}
+          sub={"season not started"} />
+      )}
       <Tile v={f1(n(p.form))} k="Form" sub={"rolling 30 days"} />
       <Tile v={`${p.selected_by_percent ?? "—"}%`} k={"Ownership"} />
     </div>

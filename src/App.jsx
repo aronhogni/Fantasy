@@ -1930,7 +1930,12 @@ export default function App() {
         {/* `imminent` og `photoUrl` fylgja ekki lengur: IG/IA-spjoldin
             fluttu undir Player stats og bekkjar-haettan var tekin ut, svo
             stigataflan les nu ADEINS players.json. */}
+        {/* SOMU GAGNASKRAR OG LEIKMANNATAFLAN FAER. An theirra las stigataflan
+            HRAT players.json og 20 kassar voru varanlega tomir (Ogn 8/8,
+            Leikir framundan 5/5, Jofnudur 4/4) — sja makeEnricher i stats.js. */}
         <Leaderboard players={players} teams={teams} teamById={teamById} Crest={Crest}
+          imminent={imminent} shotsFile={lastGwShots} fixtures={fixtures} events={events}
+          odds={odds} defcon={defcon} consist={consist} season={currentSeasonLabel}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           seasonNote={preSeason
             ? "The 2026/27 season has not started. The numbers here are the cumulative totals FPL is showing right now — they reset to zero when GW1 opens."

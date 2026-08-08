@@ -21,7 +21,7 @@ import {
   lastFinishedGw, num, POS_ORDER,
   moScore, aoScore, inImminentPool, imminentBoard,
   startFeatures, startProbability, startRisk, START_MODEL,
-  MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES,
+  MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES, makeEnricher,
 } from "../src/stats.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
@@ -780,6 +780,51 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
         "DC/90 aðeins frá 2025/26 — null (VANTAR) fyrir eldri, ekki 0");
     }
   }
+}
+
+/* ================= 14. AUDGUNIN — EIN UTFAERSLA =================
+   Vorðurinn gegn theirri villu sem kostadi 20 tóma kassa i stigatoflunni:
+   `live_only`-dalkarnir lesa `_`-reiti sem `makeEnricher` setur saman. Ef
+   audgunin er ekki notud (eða hun hættir ad skila reit) verda their dalkar
+   tomir — og TOMUR DALKUR ER EKKI VILLA I SJALFU SER, svo ekkert felldi
+   thad adur. Herna er thad maelt: HRAT players.json a ad gefa NULL i
+   live_only-dalka, og AUDGUD rod a ad gefa gildi.                       */
+console.log("\n=== 14. AUDGUNIN (makeEnricher) ===");
+if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
+  const pl = J("players.json").players || J("players.json");
+  const teamsRaw = J("teams.json");
+  const teams = Array.isArray(teamsRaw) ? teamsRaw : (teamsRaw.teams || []);
+  const teamById = Object.fromEntries(teams.map(t => [t.id, t]));
+  const imm = J("imminent.json");
+  const shots = existsSync(D + "last_gw_shots.json") ? J("last_gw_shots.json") : null;
+  const fx = existsSync(D + "fixtures.json") ? J("fixtures.json") : [];
+  const ev = existsSync(D + "events.json") ? (J("events.json").events || []) : [];
+  const dc = existsSync(D + "defcon.json") ? J("defcon.json") : null;
+
+  const LIVE = STAT_DEFS.filter(d => d.live_only);
+  ok(LIVE.length > 10, `${LIVE.length} live_only dálkar til að verja`);
+
+  /* MAELT SEM DELTA, EKKI SEM UPPTALNING. Fyrsta utgafa profsins krafdist
+     thess ad HRAT players.json gaefi ENGAN live_only dalk — og thad var
+     RANGT: `pen_order`/`fk_order`/`ck_order` eru live_only af thvi ad thau
+     eru RÖÐ DAGSINS (fylgja ekki voldu timabili), en thau lesa vanaleg
+     FPL-svid og eru thvi til i hrau skranni. Listi yfir undantekningar hefdi
+     stadnad; deltan gerir thad ekki: audgunin verdur ad FYLLA dalka sem hrata
+     rodin skilar tomum, og talan segir hve marga.                        */
+  const e = makeEnricher({ players: pl, teamById, imminent: imm, shotsFile: shots,
+                           fixtures: fx, events: ev, defcon: dc, isLive: true });
+  const rows = pl.map(p => ({ ...p, ...e(p).fields }));
+  const rawFilled = LIVE.filter(d => pl.some(p => d.get(p) != null)).length;
+  const encFilled = LIVE.filter(d => rows.some(p => d.get(p) != null)).length;
+  ok(encFilled - rawFilled >= 8,
+    `audgunin fyllir ${encFilled - rawFilled} live_only dálka sem hrá röð skilar tómum `
+    + `(${rawFilled} -> ${encFilled} af ${LIVE.length})`);
+  /* Nafna-porunin sjalf: byrjunar-likur eiga ad naest fyrir MEIRIHLUTA. */
+  const withStart = rows.filter(p => p._start_p != null).length;
+  ok(withStart > 300, `byrjunar-líkur á ${withStart} leikmönnum (nafna-pörun virkar)`);
+  /* Reitur sem VANTAR ma vera null — ALDREI 0 (sbr. 6i). */
+  ok(rows.every(p => p._dc_hit_adj === null || typeof p._dc_hit_adj === "number"),
+    "vantandi audgun er null, ekki 0");
 }
 
 console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);
