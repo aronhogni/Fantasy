@@ -2498,13 +2498,25 @@ og `model.js`/`stats.js`. **Sér flipi en ekki dálkar í leikmannalistanum:**
 röðin er LIÐIÐ, og að hengja 20 liða-tölur á 572 leikmenn væri að endurtaka
 sömu tuttugu raðirnar 28 sinnum hverja.
 
-### BIG CHANCES ERU EKKI HÉR OG VERÐA ÞAÐ EKKI
-Þær krefjast **xG per skot** og engin náanleg heimild gefur hana (6b/6e: FBref
-403, SofaScore 403, Understat gagnalaus, FotMob gated). Að leiða þær út úr
-svæði eingöngu væri **okkar líkan sem lítur út eins og mæling**.
-Það sem gögnin leyfa er **nærfæri á sig** — skot úr markteig, talin af ESPN
-sjálfu. Það er skyld tala en ekki sama talan og hún ber því sitt rétta nafn.
+### BIG CHANCES ERU EKKI Í ÞESSARI TÖFLU — ENN
+Svæðin hér koma úr **ESPN**, sem gefur staðsetningu hvers skots en **enga
+xG-tölu** fyrir það, svo ekkert hér getur greint gott færi frá vonarskoti.
+Það sem ESPN-gögnin leyfa er **nærfæri á sig** — skot úr markteig, talin af
+ESPN sjálfu. Skyld tala en ekki sama talan, og hún ber því sitt rétta nafn.
 Vörður: kafli 6 í `tests/team-stats.mjs` fellur ef dálkur fer að heita það.
+
+**LEIÐRÉTT 8.8.2026 — ÞÆR ERU EKKI ÓFÁANLEGAR LENGUR.** Fyrsta útgáfa þessa
+kafla sagði „engin náanleg heimild gefur xG per skot". Það var rétt meðan ESPN
+var eina skot-heimildin, en **BSD (kafli 6t) gefur per-skot xG í öllum 380
+leikjum 2025/26 OG raunverulegt liðs-svið `big_chances`** í
+`/events/{id}/stats/` (0–8 per lið-leik, mælt). „Big chances á sig" er þá
+**bein talning** — talan hjá mótherjanum í hverjum leik — ekki afleiðsla.
+Tvennt vantar áður en hún fer inn: (a) eigin sókn á liðs-`/stats/`-endapunktinn
+(`bsd_players.json` er per LEIKMANN og ber hana ekki), og (b) að BSD nær yfir
+**eitt tímabil**, svo dálkurinn væri tómur í öllum öðrum.
+**Viðmótstexti sem segir „ófáanlegt" er nú rangur og var lagfærður** — hann
+stangaðist beinlínis á við `Big chances (derived)`-dálkinn sem er þegar í
+leikmannalistanum.
 
 ### `data/team_shots.json` — ný heimild, sótt EINU SINNI
 `scripts/fetch-team-shots.mjs` gengur um tímabilið dag fyrir dag (~660 köll:

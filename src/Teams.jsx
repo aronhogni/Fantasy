@@ -112,12 +112,14 @@ export default function Teams({ teams, teamForm, luck, teamShots }) {
         {"A team that concedes 12 shots from distance is a far better keeper pick than one that concedes 9 from inside the box."}
       </p>
       <p style={S.warn}>
-        <b>{"Big chances faced are not here, and will not be."}</b>{" They need expected goals "}
-        {"per individual shot, and no reachable source provides it (FBref and SofaScore both "}
-        {"return 403, Understat no longer serves shot data, FotMob is gated). "}
-        <b>{"Close-range faced"}</b>{" is what the data does support — shots from the six-yard "}
-        {"area, counted by ESPN itself. It is a measured stand-in, not the same number, so it "}
-        {"carries its own name."}
+        <b>{"Big chances faced are not in this table yet."}</b>{" The shot zones here come from "}
+        {"ESPN, which gives the position of every shot but no expected-goals value for it, so "}
+        {"nothing here can separate a good chance from a hopeful one. "}
+        <b>{"Close-range faced"}</b>{" — shots from the six-yard area, counted by ESPN itself — "}
+        {"is the measured stand-in, and it carries its own name rather than pretending to be "}
+        {"the same number. A real big-chances-faced column is now reachable from the BSD feed, "}
+        {"which publishes a per-match big-chance count per team, but only for 2025/26; it needs "}
+        {"its own fetch and is not wired up here."}
       </p>
 
       {missing ? (

@@ -26,13 +26,23 @@
       OF LAG og ma bera saman MILLI lida en ekki lesa sem absolut xG.
       Hun er merkt i vidmotinu.
 
-   2. BIG CHANCES ERU EKKI HER. Their krefjast xG PER SKOT og engin
-      naanleg heimild gefur hana (CLAUDE.md 6b/6e: FBref 403, SofaScore
-      403, Understat gagnalaus, FotMob gated). Ad reikna thaer ur svaedi
-      eingongu vaeri OKKAR likan sem litur ut eins og maeling.
-      Naerfaeri (`close_against_pg`) er thad sem GOGNIN leyfa: skot ur
-      markteig, talin af ESPN sjalfu. Thad er skyld tala en ekki sama
+   2. BIG CHANCES ERU EKKI I THESSARI TOFLU — ENN. Svaedin her koma ur
+      ESPN, sem gefur STADSETNINGU hvers skots en ENGA xG-tolu fyrir
+      thad, svo ekkert her getur greint gott faeri fra vonarskoti.
+      Naerfaeri (`close_against_pg`) er thad sem ESPN-gognin leyfa: skot
+      ur markteig, talin af ESPN sjalfu. Thad er SKYLD tala en ekki sama
       talan, og hun heitir thvi sinu retta nafni.
+
+      **ThAD ER HINS VEGAR EKKI LENGUR OFAANLEGT.** BSD (kafli 6t) gefur
+      per-skot xG i ollum 380 leikjum 2025/26 OG raunverulegt lids-svid
+      `big_chances` i `/events/{id}/stats/` (0-8 per lid-leik, maelt).
+      "Big chances a sig" = talan hja MOTHERJANUM i hverjum leik, og hun
+      er thvi BEIN TALNING en ekki afleidsla. Tvennt vantar adur en hun
+      fer inn: (a) eigin sokn a lids-stats-endapunktinn (bsd_players.json
+      er per LEIKMANN og ber hana ekki), og (b) medvitund um ad BSD naer
+      YFIR EITT TIMABIL — dalkurinn vaeri thvi tomur i ollum odrum.
+      Ordalagid i vidmotinu ma ekki segja "ofaanlegt"; thad var rett
+      medan ESPN var eina skot-heimildin og er thad ekki lengur.
 
    LAEGRA-ER-BETRA ER EKKI SKRAUT (`hi:false`): fyrir markvard er HAERRI
    skotafjoldi a sig verri, og tafla sem litar haestu toluna graena vaeri
