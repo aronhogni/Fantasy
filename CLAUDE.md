@@ -2138,6 +2138,60 @@ og hardkodada safna-talan (kafli 4). Maelt sem **hlutfall** nuna (35,0%).
 
 ---
 
+### 6t-c. SKOTAKORT PER LEIKMANN (8.8.2026)
+
+`data/bsd_shots.json` (168 KB, 316 leikmenn, 7.105 skot) + `src/ShotMap.jsx`,
+birt a leikmannaspjaldinu. **Fyrsta skotakortid i repo-inu med xG PER SKOT** —
+ESPN-kortid i Umferdinni hefur hnit EN ENGA xG (6b), sem er einmitt talan
+sem gerir kort ad upplysingum i stad punktaskys.
+**LETIHLADID**: sott i fyrsta sinn sem spjald er opnad, ekki vid raesingu.
+
+**KVORDUNIN KEMUR UR GOGNUNUM, EKKI UR REGLUGERD.** Vollurinn er teiknadur
+eftir `calib` i skranni, sem er MAELT ur somu skotum og eru teiknud ofan a
+hann. Astaedan er villan sem ESPN-kortid hafdi (6b): fyrsta utgafan
+margfaldadi med 105 i stad 52,5 og setti HVERT SKOT i tvofalda fjarlaegd —
+**ekkert prof sa thad, notandinn sa thad a vellinum**. Lesi vollurinn somu
+tolur og punktarnir getur thad ekki gerst.
+
+| kvordun | gildi | hvernig maelt |
+|---|---|---|
+| vitapunktur x | **11,5** | medaltal 92 vitaspyrna; y = **50,00 hja OLLUM** |
+| teigur x | **17** | fittad gegn `shots_inside_box`, MAE 0,133 |
+| teigsbreidd y | **20,4-79,6** | 99,5% teigsskota falla thar innan |
+| markteigur | 5,5 / y 36,5-63,5 | nominal, samraemt vid maeldu tolurnar |
+
+**ThRJU OHAD AKKERI I PROFINU** (`tests/shotmap.mjs`, 24 prof) — kortid er
+ekki profad a "birtist thad" heldur a **hvort punktarnir seu a rettum stad**:
+1. **xG FELLUR EINRAENT MED FJARLAEGD** (0,262 → 0,151 → 0,085 → 0,044 →
+   0,028 yfir fimm threp). Sterkasta profid thvi thad tengir HNITIN vid
+   xG-TOLURNAR — tvaer oskyldar staerdir ur sama svari.
+2. **VITASPYRNUR** a x 11,5 og y 50,00 nakvaemlega.
+3. **TEIGURINN**: 99,5% innan teiknadrar breiddar.
+Fimm stokkbreytingar felldar, thar a medal **ESPN-kvardavillan sjalf**
+(x × 2 → vitapunkturinn faerist i 23,0 og profid fellur) og oxul-vixl.
+
+**HONNUN SEM ER MAELD, EKKI VALIN:**
+- **Radius = √xG**, ekki xG. Flatarmal kulunnar er tha i hlutfalli vid xG;
+  annars lita 0,50 og 0,25 ut eins og fjorfaldur munur.
+- **Storu kulurnar teiknast UNDIR theim litlu** svo smau punktarnir hverfi ekki.
+- **Leikmadur AN skota fær EKKERT kort.** Tomur vollur les eins og "skaut
+  aldrei" en thydir "engin gogn" — sama regla og null-ekki-null (6i).
+  197 utivallarmenn og nanast allir markmenn fa thvi ekkert kort, og thad
+  er RETT. (Fjorir markmenn EIGA skot — hornspyrnur i uppbotartima.)
+
+**EITT UTLAGA-SKOT AF 7.105** (0,01%) er xG 0,694 ur 30 einingum. Thad er
+`fast-break`, og opid mark ur 31 m a skyndisokn ER haakt xG — thad er
+EKKI lagfaert. Ad "laga" raungogn vaeri ad finna upp gogn.
+
+**HEATMAP ER EKKI HAEGT OG VERDUR ThAD EKKI.** `average_positions` gefur
+EINN medalpunkt per leikmann per leik (~15 radir per lidshluta, `n` =
+snertingar), ekki thettleika-net. Ekkert i BSD ber snerti-hnit, svo
+"hvar hann spilar" er ekki leidanlegt. Medalstada MA birta sem punkt —
+en hun heitir thad tha, ekki heatmap. Skot-thettleiki ER hins vegar
+raunverulegur og er thad sem kortid synir.
+
+---
+
 ## 6t. UTLITS-YFIRFERD OG THRJAR VILLUR (8.8.2026)
 
 Beidni: *"villuprofadu, farðu yfir utlitid, komdu med tillogur"* — og svo

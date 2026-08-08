@@ -138,6 +138,14 @@ if (!finished.length) { console.error("engir loknir leikir — er timabilid byrj
 const agg = new Map();
 const P = id => { let o = agg.get(id); if (!o) { o = newAcc(); agg.set(id, o); } return o; };
 
+/* Skammstafanir svo skotaskrain se lítil — legend fylgir med i skranni
+   sjalfri, svo hun se lesanleg an thess ad thekkja thennan kod.        */
+const SHOT_TYPE = ["goal", "save", "miss", "block", "post"];
+const SHOT_BODY = ["right-foot", "left-foot", "head", "other"];
+const SHOT_SIT  = ["assisted", "regular", "corner", "fast-break", "set-piece",
+                   "throw-in-set-piece", "free-kick", "penalty"];
+const shotsBy = {};   // bsd player_id -> [[x, y, xg, type, body, sit], ...]
+
 let done = 0, noShot = 0;
 const missed = [];
 /* SOTT SAMHLIDA, LAGT SAMAN I ROD.
@@ -168,7 +176,21 @@ const ingest = (e) => {
   for (const r of (ps?.player_stats || [])) addPlayerRow(P(r.player_id), r);
   const sm = st?.shotmap || [];
   if (!sm.length) noShot++;
-  for (const sh of sm) if (sh.player_id != null) addShot(P(sh.player_id), sh);
+  for (const sh of sm) {
+    if (sh.player_id == null) continue;
+    addShot(P(sh.player_id), sh);
+    /* HRA SKOTIN GEYMD LIKA — fyrir skotakortid a leikmannaspjaldinu.
+       Their fara i SER SKRA (bsd_shots.json) sem er LETIHLADIN: 9.544 skot
+       eru ~250 KB og eiga ekkert erindi i fyrstu hledslu appsins, sbr.
+       player_gw_*.json (6j).                                            */
+    const x = sh.pos?.x, y = sh.pos?.y;
+    if (typeof x !== "number" || typeof y !== "number") continue;
+    (shotsBy[sh.player_id] ||= []).push([
+      +x.toFixed(1), +y.toFixed(1),
+      typeof sh.xg === "number" ? +sh.xg.toFixed(3) : null,
+      SHOT_TYPE.indexOf(sh.type), SHOT_BODY.indexOf(sh.body), SHOT_SIT.indexOf(sh.sit),
+    ]);
+  }
 };
 await pool(finished, 6, grab);
 /* Onnur atrenna a tha sem duttu, rolegar (raðbundid). Standi eitthvad eftir
@@ -288,3 +310,40 @@ const dest = new URL("../data/bsd_players.json", import.meta.url).pathname;
 writeFileSync(dest, JSON.stringify(payload));
 console.log(`\nskrifad ${dest}`);
 console.log(`leikmenn ${players.length} · parad vid FPL ${matched} · oparad ${players.length - matched}`);
+
+/* ---- 6) SKOTAKORTID — SER SKRA, LETIHLADIN ----
+   Lyklad a FPL `code` eins og onnur soguleg gogn (fast yfir timabil,
+   olikt `id`). Adeins pöradir leikmenn: skot a manni sem appid getur
+   ekki synt er hreint burdargjald.
+
+   KVORDUNIN FYLGIR MED I SKRANNI. Hun er MAELD ur thessum somu gognum,
+   ekki tekin ur reglugerd, svo teiknada vollinn geti ekki rekid fra
+   punktunum — thad var einmitt villan sem ESPN-kortid hafdi (6b: fyrsta
+   utgafan margfaldadi med 105 og setti hvert skot i tvofalda fjarlaegd).
+     pen_spot 11,5 = MEDALTAL 92 vitaspyrna (y = 50,00 hja OLLUM)
+     box_x    17   = fittad gegn lids-svidinu `shots_inside_box`, MAE 0,133
+     box_y    20,4-79,6 = 99,5% teigsskota falla thar innan             */
+const shotPayload = {
+  updated: payload.updated, season: payload.season, source: "bsd_shotmap",
+  legend: { type: SHOT_TYPE, body: SHOT_BODY, sit: SHOT_SIT,
+            fields: ["x", "y", "xg", "type", "body", "sit"] },
+  calib: { goal_line: 0, six_yard_x: 5.5, pen_spot_x: 11.5, box_x: IN_BOX_X,
+           box_y: [20.4, 79.6], six_yard_y: [36.5, 63.5], big_chance_xg: BIG_CHANCE_XG },
+  note: "Hnit ur BSD-skotakorti. x = fjarlaegd fra markinu sem sott er ad, "
+      + "hlutfall af FULLUM velli (105 m) — ANNAR kvardi en ESPN (halfur "
+      + "vollur). y = breidd 0-100, midja 50. Kvordunin i `calib` er MAELD "
+      + "ur thessum gognum: vitaspyrnur liggja a x 11,5 og y 50,00 nakvaemlega. "
+      + "2025/26 eingongu — engin eldri timabil hafa skotakort.",
+  players: {},
+};
+let shotRows = 0;
+for (const [bid, o] of agg) {
+  const fp = pairBsd.get(bid);
+  const arr = shotsBy[bid];
+  if (!fp || !arr?.length) continue;
+  shotPayload.players[String(fp.code)] = arr;
+  shotRows += arr.length;
+}
+const dest2 = new URL("../data/bsd_shots.json", import.meta.url).pathname;
+writeFileSync(dest2, JSON.stringify(shotPayload));
+console.log(`skrifad ${dest2} — ${Object.keys(shotPayload.players).length} leikmenn, ${shotRows} skot`);

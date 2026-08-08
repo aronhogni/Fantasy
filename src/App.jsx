@@ -16,6 +16,7 @@ import { RAW } from "./dataUrl.js";
 import { moScore, aoScore, startProbability, inImminentPool,
          indexImminentByTeam, matchImminent } from "./stats.js";
 import PlayerList from "./PlayerList.jsx";
+import ShotMap from "./ShotMap.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
@@ -509,6 +510,10 @@ export default function App() {
   const [defconHist, setDefconHist] = useState(null);  // DC-hittni fyrri timabila
   const [consist, setConsist] = useState(null);        // Aron-studull (jofnudur)
   const [bsd, setBsd] = useState(null);                // BSD per-skot xG + Opta-tolur (2025/26)
+  /* SKOTAKORTID ER LETIHLADID — 168 KB sem eiga ekkert erindi i fyrstu
+     hledslu. Sótt i fyrsta sinn sem leikmannaspjald er opnad, svo einu
+     sinni fyrir alla lotuna (sama mynstur og player_gw_*.json, 6j).    */
+  const [shotFile, setShotFile] = useState(null);      // null | "loading" | gogn | "err"
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
   const [lineups, setLineups] = useState(null);         // STADFEST byrjunarlid
   const [pipeStatusFast, setPipeStatusFast] = useState(null);
@@ -2694,6 +2699,12 @@ export default function App() {
       {/* ---------- Yfirlit: leikmaður eða lið ---------- */}
       {detail && (() => {
         const isPlayer = detail.kind === "player";
+        /* Kveikjum a letihledslunni thegar spjald opnast — EKKI vid raesingu. */
+        if (isPlayer && shotFile == null) {
+          setShotFile("loading");
+          fetch(`${RAW}/bsd_shots.json`).then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
+            .then(setShotFile).catch(() => setShotFile("err"));
+        }
         const p = isPlayer ? byId[detail.id] : null;
         const t = isPlayer ? teamById[p?.team] : teamById[detail.id];
         if (!t) return null;
@@ -2791,6 +2802,24 @@ export default function App() {
                     {sp?.ck != null && <DStat k={"Corners/FK"} v={sp.ck} />}
                     {sp?.fk != null && <DStat k={"Free kicks"} v={sp.fk} />}
                   </div>
+
+                  {/* SKOTAKORT — 2025/26, eina timabilid sem BSD hefur skot fyrir.
+                      Birtist EKKI ef leikmadurinn skaut ekki: tomur vollur
+                      segir "engin gogn" en litur ut eins og "skaut aldrei". */}
+                  {(() => {
+                    const sm = (shotFile && typeof shotFile === "object")
+                      ? shotFile.players?.[String(p.code)] : null;
+                    if (!sm?.length) return null;
+                    return (
+                      <>
+                        <div style={S.dGroupHead}>
+                          Shot map <span style={{ fontWeight: 400, opacity: 0.65 }}>
+                            2025/26 · bubble size = xG</span>
+                        </div>
+                        <ShotMap shots={sm} calib={shotFile.calib} label={p.web_name} />
+                      </>
+                    );
+                  })()}
 
                   <SeasonTable p={p} seasonsFile={seasonsFile}
                     currentLabel={currentSeasonLabel} seasonStarted={seasonStarted} />
