@@ -75,7 +75,8 @@ export default function Teams({ teams, teamForm, luck, teamShots }) {
 
   const head = (key, label, title, right = true) => (
     <th key={key} title={title}
-      style={{ ...S.th, ...(right ? S.thRight : null), ...(sort.key === key ? S.thOn : null) }}
+      style={{ ...S.th, ...(right ? S.thRight : S.thName),
+               ...(sort.key === key ? S.thOn : null) }}
       onClick={() => setSort(s => s.key === key
         ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
         : { key, dir: TEAM_STAT_DEFS.find(d => d.key === key)?.hi === false ? "asc" : "desc" })}>
@@ -212,8 +213,21 @@ const S = {
     whiteSpace: "nowrap", borderBottom: `1px solid ${C.border}`, textAlign: "left" },
   thRight: { textAlign: "right" },
   thOn: { color: C.purple },
-  tdName: { display: "flex", alignItems: "center", gap: 5, padding: "4px 7px",
-    borderBottom: "1px solid #f4f4f6", whiteSpace: "nowrap" },
+  /* LIDID VERDUR AD HALDAST A SKJANUM. Taflan ber 22 dalka og skrunar
+     larett innan sins kassa; an frysts fyrsta dalks veit madur ekki hvada
+     rod hann er ad lesa thegar hann er kominn ut i "langskot a sig" —
+     og thad er einmitt dalkurinn sem madur skrunar ad.
+
+     BAKGRUNNURINN ER SKILYRDI, EKKI SKRAUT: `background:"inherit"` a
+     frystu holfi erfir GAGNSAETT fra rod sem hefur engan eigin lit, og
+     tha skruna tolurnar SYNILEGA UNDIR lidsheitinu. Su villa var maeld i
+     leikmannalistanum 8.8.2026 ("6*Gabriel +GBP1.3") — hún er ekki
+     endurtekin hér: liturinn er GEFINN BEINT.                            */
+  thName: { position: "sticky", left: 0, zIndex: 2, background: C.cardAlt },
+  tdName: { position: "sticky", left: 0, zIndex: 1, background: C.card,
+    display: "flex", alignItems: "center", gap: 5, padding: "4px 7px",
+    borderBottom: "1px solid #f4f4f6", whiteSpace: "nowrap",
+    borderRight: `1px solid ${C.border}` },
   short: { fontFamily: mono, fontWeight: 700, fontSize: 11.5, color: C.text },
   name: { fontSize: 11, color: C.text3 },
   td: { textAlign: "right", fontFamily: mono, padding: "4px 7px", color: C.text2,

@@ -592,8 +592,17 @@ const S = {
   tileS:{ fontSize:9, color:C.text3, marginTop:1 },
 
   xiWrap:{ display:"flex", flexDirection:"column", gap:6, marginTop:6 },
-  xiLine:{ display:"flex", gap:6, flexWrap:"wrap" },
-  xiCard:{ flex:"1 1 120px", minWidth:110, border:`1px solid ${C.border}`, borderRadius:7,
+  /* SPJOLDIN VAXA EKKI LENGUR (8.8.2026). `flex:"1 1 120px"` let thau
+     fylla rodina, svo MARKVORDURINN — einn i sinni rod — spannadi ALLA
+     breiddina og fimm midjumenn urdu misbreidir eftir thvi hve long
+     nofnin voru. Thad las eins og bilun, ekki eins og lidsuppstilling.
+     `flex:"0 1 172px"` + `justifyContent:center` gefur ollum somu breidd
+     og midjar hverja linu, svo 1-3-5-2 les sem FORMASJON.
+     `0` i grow er thad sem skiptir mali; minWidth heldur laesileika og
+     wrap sér um throngar skjai.                                          */
+  xiLine:{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"center" },
+  xiCard:{ flex:"0 1 172px", minWidth:150, maxWidth:200,
+           border:`1px solid ${C.border}`, borderRadius:7,
            background:C.cardAlt, padding:"5px 7px", position:"relative" },
   xiPos:{ position:"absolute", top:5, right:6, color:"#fff", fontSize:8, fontWeight:700,
           borderRadius:3, padding:"1px 4px" },

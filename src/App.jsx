@@ -3605,7 +3605,13 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
         {rot && rot.level === "high" &&
           <span style={S.sigRot} title={rot.prevSeason && cumLabel
             ? interp("Started {0} of {1} matches in {2} — rotation risk", [rot.starts, rot.played, cumLabel])
-            : interp("Started {0} of {1} matches — rotation risk", [rot.starts, rot.played])}>{rot.pct}%</span>}
+            : interp("Started {0} of {1} matches — rotation risk", [rot.starts, rot.played])}>
+            {/* MERKIMIDINN ER NAUDSYNLEGUR, EKKI SKRAUT: bert "24%" stod
+                vid hlidina a "CS 44%" sem ER merkt, svo talan las sem
+                onnur likindi. `st` = hlutfall leikja sem hann BYRJADI.
+                Tooltip-id ber fulla setningu; spjaldid er 62-100 px svo
+                heilt ord kemst ekki fyrir.                              */}
+            {"st"}{rot.pct}%</span>}
       </div>
     </div>
   );

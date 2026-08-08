@@ -121,7 +121,7 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
       </div>
 
       <div style={S.legend}>
-        <b>†</b> {"= computed by us from FPL fields, not a field FPL publishes itself. Rate figures (/90, %) obey the minutes floor; totals do not."}
+        {"Rate figures (/90, %) obey the minutes floor; totals do not."}
       </div>
     </section>
   );
@@ -138,7 +138,12 @@ function MiniBoard({ def, players, pos, teamId, search, minMin, onlyAvail, teamB
     <div style={S.mini}>
       <div style={S.miniHead} title={def.note || ""}>
         <span style={S.miniTitle}>
-          {def.label}{def.derived ? <i style={S.derived}>†</i> : null}
+          {/* †-MERKID VAR TEKID UT 8.8.2026 ad beidni notandans, og thad
+              var gert i BADUM toflum: hefdi thad lifad her einni hefdi
+              sama talan borid merki i stigatoflunni en ekki i
+              leikmannalistanum, og notandinn hefdi lesid thann mun sem
+              MERKINGU. Skyringin sjalf stendur afram i tooltip-inu.    */}
+          {def.label}
         </span>
         <span style={S.miniMore}>{def.hi ? "highest" : "lowest"}</span>
       </div>

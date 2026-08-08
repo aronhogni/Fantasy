@@ -2608,6 +2608,41 @@ innri lykkjan ræður niðurstöðunni, svo hún getur ekki breytt útkomu.)*
   litirnir í spjaldinu bera þegar merkingu (rauður=víti, blár=aukaspyrna,
   grænn=horn).
 
+
+---
+
+## 8h. UTLITS-YFIRFERD 8.8.2026 — FJOGUR SEM VORU LOGUD
+
+Sjonræn ur­tekt a ollum sex flipum eftir ad enskan var kláruð. Sidan skrunar
+**hvergi larett** (maelt: `scrollWidth − clientWidth = 0` a ollum flipum) og
+eina klippta textabrotid er „João Maria Lobo Alves Palhares C…" sem ER
+ellipsis viljandi. Thad sem var lagad:
+
+1. **TEAM OF THE WEEK LAS EINS OG BILUN.** `xiCard` hafdi `flex:"1 1 120px"`,
+   svo spjoldin VOXU til ad fylla rodina: markvordurinn — einn i sinni rod —
+   spannadi **alla breiddina** og fimm midjumenn urdu misbreidir eftir thvi
+   hve long nofnin voru. Nu `flex:"0 1 172px"` + `justifyContent:center`:
+   allir jafnbreidir og hver lina midjud, svo 1-3-5-2 les sem **formasjon**.
+   `0` i grow er thad sem skiptir mali.
+
+2. **OMERKT PROSENTA A LEIKMANNASPJALDINU.** Rotasjon-haettan birtist sem
+   bert `24%` VID HLIDINA A `CS 44%` sem ER merkt — talan las thvi sem onnur
+   likindi. Nu `st24%` (hlutfall leikja sem hann BYRJADI); tooltip-id ber
+   fulla setningu. Spjaldid er 62–100 px svo heilt ord kemst ekki fyrir.
+
+3. **LIDA-DALKURINN FROSINN i Teams.** Taflan ber 22 dalka og skrunar larett
+   innan sins kassa; an frysts fyrsta dalks veit madur ekki hvada rod hann
+   les thegar hann er kominn ut i „langskot a sig" — og thad er einmitt
+   dalkurinn sem madur skrunar ad. **Bakgrunnurinn er gefinn BEINT, ekki
+   `inherit`**: sama villa var maeld i leikmannalistanum samdaegurs
+   („6*Gabriel +GBP1.3" skein i gegn) og hun er ekki endurtekin hér.
+
+4. **†-MERKID FOR LIKA UR STIGATOFLUNNI.** Thad var tekid ur
+   leikmannalistanum ad beidni notandans, en lifdi i `Leaderboard.jsx`. Hefdi
+   thad stadid thar einni hefdi SAMA TALAN borid merki i annarri toflunni en
+   ekki hinni — og notandinn lesid thann mun sem MERKINGU. Skyringin stendur
+   afram i tooltip-inu.
+
 ---
 
 ## 9. Það sem þetta skjal getur EKKI flutt með sér
