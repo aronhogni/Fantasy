@@ -129,9 +129,28 @@ export function aggregateTeamShots(matches, { bigChanceXg = BIG_CHANCE_XG, inBox
    SOKNIN — krefst BSD_KEY. Allt her ad ofan er profad an hans.
    ============================================================ */
 if (import.meta.url === `file://${process.argv[1]}`) {
+  /* LYKILLINN: `process.env` fyrst (thad er thad sem GitHub Actions gefur),
+     annars `.env.local` sem er i `.gitignore`. Sidari leidin er til svo
+     lykillinn thurfi ALDREI ad standa i skipanalinu — skipanalinur rata i
+     sogu skeljarinnar og i afrit af spjallinu, og repo-id er PUBLIC.
+     ENGIN dependency: `fetch.mjs` les adeins `process.env` og thad er
+     asett (CLAUDE.md kafli 9), svo hér er lesid handvirkt i sex linum
+     fremur en ad draga dotenv inn i pipeline sem hefur engar.           */
+  const readEnvLocal = () => {
+    try {
+      const txt = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
+      for (const line of txt.split("\n")) {
+        const m = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*)$/);
+        if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, "");
+      }
+    } catch { /* skran ma vanta */ }
+  };
+  readEnvLocal();
   const KEY = process.env.BSD_KEY;
   if (!KEY) {
-    console.error("BSD_KEY vantar. Keyrsla: BSD_KEY=... node scripts/fetch-bsd-teams.mjs");
+    console.error("BSD_KEY vantar. Tvaer leidir:");
+    console.error("  1) echo 'BSD_KEY=<lykill>' >> .env.local     (i .gitignore, best)");
+    console.error("  2) BSD_KEY=<lykill> node scripts/fetch-bsd-teams.mjs");
     process.exit(1);
   }
   const SEASON = process.argv[2] || "337";
