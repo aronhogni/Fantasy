@@ -20,7 +20,8 @@ import { existsSync } from "node:fs";
    Hún var áður staðbundin hér og þar með óprófanleg — samt með vog 0,50
    í FFDR fyrir GK/DEF. Sjá tests/ffdr-walkforward.mjs.                  */
 import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../src/market.js";
-import { mergeLineupSnapshot } from "../src/bsd.js";
+import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
+         finalize, pairPlayers } from "../src/bsd.js";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const DATA = "data";
@@ -1780,6 +1781,13 @@ async function fetchFast() {
    thess ad nokkurt prof felli (sama rok og `market.js`, kafli 1).      */
 const BSD_API = "https://sports.bzzoiro.com/api/v2";
 const BSD_LEAGUE = 1;                    // Premier League
+/* HANDSTADFEST lidatafla (sama og i scripts/fetch-bsd.mjs). Fuzzy pörun
+   felldi Man United inn i Man City — thogul rong pörun er verri en engin. */
+const BSD_TEAM_SHORT = {
+  18:"ARS", 3:"AVL", 2:"BOU", 16:"BRE", 5:"BHA", 13:"CHE", 203:"COV",
+  14:"CRY", 20:"EVE", 6:"FUL", 204:"HUL", 200:"IPS", 19:"LEE", 1:"LIV",
+  12:"MCI", 17:"MUN", 4:"NEW", 15:"NFO", 9:"TOT", 7:"SUN",
+};
 async function bsdGet(path) {
   const r = await fetch(BSD_API + path, {
     headers: { Authorization: `Token ${process.env.BSD_KEY}`, "user-agent": "fantasy-tool" },
@@ -1902,6 +1910,127 @@ async function fetchBsdOdds() {
   });
   record("bsd_odds", true, priced,
          priced ? `${priced} leikir verdlagdir` : "engir leikir innan ~4 daga odds-gluggans");
+}
+
+/* ---- YFIRSTANDANDI TIMABIL: BSD-LEIKMANNATOLUR ----
+   `bsd_players.json` er FROSID 2025/26 (handvirk skrifta, lokid timabil).
+   An thessa yrdu allir BSD-dalkarnir tomir um leid og notandinn velur
+   2026/27 — th.e. um leid og timabilid byrjar, sem er thegar their skipta
+   mestu mali. Thetta fall heldur theim lifandi.
+
+   VIÐBOTARLEGT, EKKI ENDURREIKNAD. Leikur sem er buinn breytist ekki, svo
+   adeins NYIR loknir leikir eru sottir og lagdir vid uppsafnadar summur.
+   Fyrsta utgafan endurreiknadi allt timabilid daglega: 760 koll og ~3 min
+   i hverri keyrslu i mai, fyrir gogn sem hofdu ekki breyst. Nu eru thetta
+   ~20 koll a viku.
+
+   ThAD ThYDIR AD SUMMURNAR SJALFAR ERU GEYMDAR (`_acc`) — finalize() er
+   ekki vixlanlegt (xg_per_shot er hlutfall), svo ekki er haegt ad leggja
+   BIRTU rodina vid nyjan leik. Appid les `players`/`shots` og hunsar `_acc`.
+
+   TOM KEYRSLA MA ALDREI ThURRKA UT GOD GOGN: se ekkert nytt, er skrain
+   latin OSNERT. Se hun til fyrir ANNAD timabil (arsskipti) er byrjad upp
+   a nytt — annars vaeru tvo timabil lögd saman i eina tolu.            */
+async function fetchBsdLive() {
+  const season = await bsdCurrentSeason();
+  if (!season) { record("bsd_live", true, 0, "no season"); return; }
+
+  let prev = { season_id: null, events: [], acc: {}, shots: [], positions: {} };
+  try {
+    const f = JSON.parse(await readFile(`${DATA}/bsd_live.json`, "utf8"));
+    if (f.season_id === season) prev = { ...prev, ...f, acc: f._acc || {} };
+  } catch { /* fyrsta keyrsla */ }
+
+  const evs = [];
+  for (const off of [0, 200]) {
+    const d = await bsdGet(`/events/?league_id=${BSD_LEAGUE}&season_id=${season}&limit=200&offset=${off}`);
+    evs.push(...(d.results || []));
+    if ((d.results || []).length < 200) break;
+  }
+  const done = new Set(prev.events || []);
+  const fresh = evs.filter(e => e.status === "finished" && !done.has(e.id))
+                   .sort((a, b) => a.id - b.id);          // FOST rod — sbr. fleytitolur
+  if (!fresh.length) {
+    record("bsd_live", true, (prev.events || []).length,
+           `${(prev.events || []).length} matches ingested — nothing new`);
+    return;
+  }
+
+  const acc = {};                                          // bsd id -> accumulator
+  for (const [k, v] of Object.entries(prev.acc || {})) acc[k] = { ...v, teams: new Map(v.teams || []) };
+  const P = id => (acc[id] ||= newAcc());
+  const shots = [...(prev.shots || [])];
+  const positions = { ...(prev.positions || {}) };
+  let added = 0;
+
+  for (const e of fresh) {
+    let ps, st;
+    try {
+      [ps, st] = await Promise.all([
+        bsdGet(`/events/${e.id}/player-stats/`),
+        bsdGet(`/events/${e.id}/stats/`),
+      ]);
+    } catch (err) { console.warn(`bsd live ${e.id}: ${err.message}`); continue; }
+    for (const r of (ps?.player_stats || [])) addPlayerRow(P(r.player_id), r);
+    for (const sh of (st?.shotmap || [])) {
+      if (sh.player_id == null) continue;
+      addShot(P(sh.player_id), sh);
+    }
+    for (const side of ["home", "away"])
+      for (const r of ((st?.average_positions || {})[side] || [])) {
+        if (r?.player_id == null || typeof r.x !== "number" || typeof r.y !== "number") continue;
+        (positions[r.player_id] ||= []).push([+r.x.toFixed(1), +r.y.toFixed(1)]);
+      }
+    done.add(e.id); added++;
+  }
+  if (!added) { record("bsd_live", false, 0, "no match could be fetched"); return; }
+
+  /* PORUN VID FPL — a lifandi timabili er BSD-lidid = lid dagsins, svo
+     nafn + lid dugar (engin sumarglugga-skekkja, sbr. imminent).       */
+  const [pl, tm] = await Promise.all([
+    readFile(`${DATA}/players.json`, "utf8").then(t => JSON.parse(t).players || []).catch(() => []),
+    readFile(`${DATA}/teams.json`, "utf8").then(t => JSON.parse(t).teams || []).catch(() => []),
+  ]);
+  const byShort = Object.fromEntries(tm.map(t => [t.short, t]));
+  const byTeamId = {};
+  for (const p of pl) (byTeamId[p.team] ||= []).push(p);
+  const names = new Map();
+  for (const id of Object.keys(acc)) {
+    try { const m = await bsdGet(`/players/${id}/`); names.set(+id, m); } catch { /* nafnlaus */ }
+  }
+  const cands = [];
+  for (const [id, o] of Object.entries(acc)) {
+    resolveTeam(o);
+    const short = BSD_TEAM_SHORT[o.team_id];
+    const ft = short ? byShort[short] : null;
+    const m = names.get(+id);
+    if (!ft || !m) continue;
+    cands.push({ bsd_id: +id, name: m.name, short_name: m.short_name, pos: m.position,
+                 minutes: o.minutes_played, pool: byTeamId[ft.id] || [] });
+  }
+  const pairs = pairPlayers(cands);
+  const players = [];
+  for (const [id, o] of Object.entries(acc)) {
+    const fp = pairs.get(+id);
+    if (!fp) continue;
+    players.push(finalize(o, { bsd_id: +id, name: names.get(+id)?.name, pos: names.get(+id)?.position,
+                               team: BSD_TEAM_SHORT[o.team_id] || null, fpl_id: fp.id, code: fp.code }));
+  }
+  players.sort((a, b) => (b.minutes || 0) - (a.minutes || 0) || (a.bsd_id - b.bsd_id));
+
+  const label = await seasonLabelFromEvents();
+  await writeJSON("bsd_live.json", {
+    updated: status.updated, source: "bsd_v2_live", season_id: season, season: label,
+    note: "Yfirstandandi timabil ur BSD, VIÐBOTARLEGT: adeins nyir loknir leikir eru "
+        + "sottir og lagdir vid uppsafnadar summur (`_acc`). Somu formulur og "
+        + "bsd_players.json — badar nota src/bsd.js. Appid les `players`/`shots`.",
+    matches: done.size,
+    events: [...done].sort((a, b) => a - b),
+    players, shots, positions,
+    _acc: Object.fromEntries(Object.entries(acc).map(([k, v]) => [k, { ...v, teams: [...v.teams] }])),
+  });
+  record("bsd_live", true, players.length,
+         `${done.size} matches (${added} new) · ${players.length} players matched`);
 }
 
 /* ========== 10. AFLEIDD LÖG — engin ný köll, engir kvótar ==========
@@ -3279,6 +3408,9 @@ async function main() {
   if (FLAGS.euro)   { try { await fetchEuro(); }              catch (e) { record("euro_fixtures", false, 0, e.message); } }
   if (FLAGS.odds_key){ try { await fetchOdds(); }              catch (e) { record("odds", false, 0, e.message); } }
   if (FLAGS.apisports){ try { await fetchInjuries(); }          catch (e) { record("apisports_injuries", false, 0, e.message); } }
+  /* DAGLEGA, EKKI --fast: loknir leikir breytast ekki innan dags og
+     30-minutna keyrslan a ekki ad bera ~20 koll a viku ad óthorfu.  */
+  if (FLAGS.bsd)      { try { await fetchBsdLive(); }            catch (e) { record("bsd_live", false, 0, e.message); } }
 
   // ---- AFLEIDD LÖG (engin ný köll) — keyrð SÍÐAST því þau lesa skrárnar ofan ----
   if (FLAGS.travel)  { try { await deriveTravel(); }           catch (e) { record("travel", false, 0, e.message); } }

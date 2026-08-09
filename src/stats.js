@@ -96,6 +96,16 @@ export const STAT_GROUPS = [
   { key: "setp",    label: "Set pieces and cards" },
 ];
 
+/* LAGMARKS-BYRJANIR FYRIR "stig per byrjun".
+   MAELT 9.8.2026 a 2025/26: an golfs var toppurinn Chiesa 37,0 (1 byrjun,
+   37 stig — nanast oll af BEKKNUM), og 17 af efstu 20 attu faerri en 5
+   byrjanir. Med golfi 5 verdur toppurinn Osula 9,5 · Ngumoha 8,6 ·
+   Zirkzee 8,4, og vid 10 er hann Nmecha 7,3 · Cherki 7,1 · Haaland 7,0.
+   Fimm er valid af somu astaedu og `xG >= 0,5` a nytingu og `BPS >= 50`
+   a bonus-hlutfalli (6i): naegilega hatt til ad drepa fjarstaeduna, ekki
+   svo hatt ad thad henda raunverulegum monnum.                         */
+export const PTS_PER_START_MIN = 5;
+
 export const STAT_DEFS = [
   /* ================= GRUNNUR ================= */
   /* --- band: Points --- */
@@ -108,8 +118,9 @@ export const STAT_DEFS = [
     get:p=>num(p.points_per_game) },
   { key:"pts_per_start", label:"Points per start", short:"Per start", group:"core", band:"Points",
     dec:1, hi:true, derived:true,
-    note:"Points divided by STARTS. Points per match counts substitute cameos too, so it drags a starter down; this is what he returns in the games he actually starts. Empty if he has never started.",
-    get:p=>{ const s=num(p.starts); return s>0?safeDiv(num(p.total_points),s):null; } },
+    note:"Points divided by STARTS — what he returns in the games he actually starts, where points per match is dragged down by substitute cameos. NEEDS AT LEAST 5 STARTS. Without that floor the column is nonsense: Chiesa took 37 points off the bench with ONE start and read 37.0 per start, and 17 of the top 20 had fewer than 5 starts. Empty below the floor, which means \"too few starts to say\", not zero.",
+    get:p=>{ const s=num(p.starts);
+             return s >= PTS_PER_START_MIN ? safeDiv(num(p.total_points), s) : null; } },
   { key:"pts_per_90", label:"Points per 90", short:"Per 90", group:"core", band:"Points",
     dec:2, hi:true, derived:true,
     note:"Points divided by minutes played × 90. Rewards output per minute — it flatters a substitute who scores in cameos, so read it next to Minutes.",
@@ -1548,8 +1559,14 @@ export function makeEnricher({
   const consBySeason = consist?.seasons?.[season] || null;
   /* BSD er EITT lokid timabil, svo hun er lesin ADEINS thegar thad timabil
      er valid — annars saust 2025/26-tolur undir hausnum "2024/25".      */
-  const bsdByCode = (bsd && bsd.season === season)
-    ? Object.fromEntries((bsd.players || []).map(r => [String(r.code), r]))
+  /* TVAER BSD-SKRAR: `bsd_players.json` er FROSID 2025/26 og
+     `bsd_live.json` er yfirstandandi timabil. Su sem passar vid VALIÐ
+     timabil raedur; hin er hunsud. An thessa yrdu allir BSD-dalkarnir
+     tomir um leid og notandinn velur 2026/27.                          */
+  const files = Array.isArray(bsd) ? bsd.filter(Boolean) : (bsd ? [bsd] : []);
+  const pick = files.find(f => f && f.season === season) || null;
+  const bsdByCode = (pick)
+    ? Object.fromEntries((pick.players || []).map(r => [String(r.code), r]))
     : null;
 
   return function enrich(p) {

@@ -510,7 +510,8 @@ export default function App() {
   const [defcon, setDefcon] = useState(null);
   const [defconHist, setDefconHist] = useState(null);  // DC-hittni fyrri timabila
   const [consist, setConsist] = useState(null);        // Aron-studull (jofnudur)
-  const [bsd, setBsd] = useState(null);                // BSD per-skot xG + Opta-tolur (2025/26)
+  const [bsd, setBsd] = useState(null);                // BSD 2025/26 (frosid)
+  const [bsdLive, setBsdLive] = useState(null);        // BSD yfirstandandi timabil
   /* SKOTAKORTID ER LETIHLADID — 168 KB sem eiga ekkert erindi i fyrstu
      hledslu. Sótt i fyrsta sinn sem leikmannaspjald er opnad, svo einu
      sinni fyrir alla lotuna (sama mynstur og player_gw_*.json, 6j).    */
@@ -648,6 +649,9 @@ export default function App() {
         try { setDefconHist(await j("defcon_history.json")); } catch {}
         try { setConsist(await j("consistency.json")); } catch {}
         try { setBsd(await j("bsd_players.json")); } catch {}
+        /* Til fyrst thegar timabilid er byrjad — vantar i forleik og thad
+           er RETT (enginn lokinn leikur til ad telja).                  */
+        try { setBsdLive(await j("bsd_live.json")); } catch {}
         try { setPlayerForm(await j("player_form.json")); } catch {}
         try { setPipeStatus(await j("status.json")); } catch {}
         /* HRADA KEYRSLAN SKRIFAR I status_fast.json OG APPID LAS HANA EKKI.
@@ -1962,7 +1966,7 @@ export default function App() {
         <PlayerList players={players} teams={teams} teamById={teamById} events={events}
           seasonsFile={seasonsFile} imminent={imminent} shotsFile={lastGwShots}
           fixtures={fixtures} odds={odds} defcon={defcon} defconHist={defconHist} consist={consist}
-          bsd={bsd} photoUrl={photoUrl} Crest={Crest}
+          bsd={[bsd, bsdLive]} photoUrl={photoUrl} Crest={Crest}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           watch={watch}
           onWatch={id => setWatch(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id])}
