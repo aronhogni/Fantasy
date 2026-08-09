@@ -260,7 +260,7 @@ töflu. Smáatriðin eru í `docs/MAELINGAR.md`.
 | Margföldunar-liður `W.xg≈0,20` | 0,14σ, slær kjarnann í 5/8 tímabilum | 3 |
 | `FIT` fittað gegn FFDR í stað hrás FDR | Hnífjafnt á 85.646 sýnum; leikja-liðurinn er ~0,1 stig af ~19 | 0b |
 | Hvíld / leikjaálag (<4 dagar) | 27,0% á móti 27,3%. Flaggið var **tekið út** 29.7. | 6h |
-| Evrópu-/bikarálag (P7.4) | Innan leikmanns −1,37pp, CI [−4,67; +1,92] — núll innan CI | 6k |
+| Evrópu-/bikarálag (P7.4) | Innan leikmanns −1,37pp, CI [−4,67; +1,92] — núll innan CI. **SÝNT SEM SAMHENGI FRÁ 9.8.2026** (★ í umferðastikunni og í FFDR-töflunni) en fer HVERGI inn í `fixDifficulty`, `expPointsFor` né `rankScore`. Merkið er grátt en ekki rautt af nákvæmlega þessari ástæðu: rautt væri fullyrðing sem mælingin styður ekki | 6k |
 | Staða-dúmmíar í byrjunar-líkanið | +0,03× = suð | 6h |
 | mó × byrjunar-líkur | Vinnur á stigum, **tapar** á mörk+assist; LOSO ekki einrátt yfir markmið | 6d |
 | Sleppa óheppnis-liðnum úr mó | CI [−0,023, +0,055] — ógreinanlegt. Sami mælikvarði sem samþykkti xGI hafnaði þessu | 6d |
@@ -399,6 +399,13 @@ Tvær aðrar tómar fullyrðingar í sömu ætt:
    afturkalla lagfæringuna: viðvörunar-safnið sá EKKI `borderColor` fyrr en
    kveikt/slökkt-kaflanum var bætt við — að **heimsækja** viðmót nægir ekki,
    því React kvartar aðeins við endurteikningu þegar eiginleiki er FJARLÆGÐUR.
+
+**MÆLITÆKIÐ GETUR SJÁLFT VERIÐ VILLAN.** Apaprófið féll í þremur fræjum af
+fjórum með „NaN á skjá" — og appið var í fullkomnu lagi. `textContent` límir
+saman texta án bila, svo FFDR-taflan skilar `"MUN" + "a" + "NEW"` sem
+**`MUNaNEW`**, sem ber undirstrenginn `NaN`. Sama gildra var í **fimm öðrum
+söfnum**. Leitin er nú `\bNaN\b` / `\bundefined\b`. Áður en þú trúir falli:
+*athugaðu hvort prófið sé að mæla það sem það heldur.*
 
 **FJÓRÐA TILFELLIÐ, OG ÞAÐ VAR Í MÍNU EIGIN NÝJA PRÓFI** (`playerlist-sort.mjs`):
 fullyrðingin „ekkert tómt gildi ofan við tölu" **getur ekki brugðist** þegar tómu
@@ -644,6 +651,14 @@ bókmakera-greinina og **eyddi Odds-API kvótanum**. CDN-cache 60 s. Leiðirnar
 
 ### Töflur og rúmfræði
 
+- **ALDREI BLANDA STYTTINGU OG LANGRITUN Í SAMA STÍL** — og það á við um
+  **`borderRadius` alveg eins og `border`**. Græna runan í FFDR-töflunni setur
+  `borderTopLeftRadius` o.s.frv. á stakar hliðar ofan á `borderRadius: 5`.
+  Það þagði á meðan bilið var FAST, en um leið og hægt var að **velja
+  umferðir** komu **14 React-viðvaranir**: runur koma og fara við hverja
+  breytingu, og React fjarlægir þá longhand-gildin í ódefineraðri röð.
+  Grunnstíllinn skrifar því allar fjórar hliðar/horn berum orðum
+  (`borderTopColor`… og `borderTopLeftRadius`…). Vörður: `react-warnings.mjs`.
 - **Frosinn dálkur fær bakgrunn BEINT, aldrei `inherit`.** Í hausnum situr
   liturinn á sticky-umgjörðinni, svo hólfið erfir `rgba(0,0,0,0)` og haus-heiti
   skruna sýnilega undir nafnadálkinn. Mælt tvisvar, í tveimur töflum. Kant-skugga

@@ -114,14 +114,14 @@ async function sweep({ label, missing = new Set(), teams = false }) {
         /* `undefined`/`NaN` a skja er alltaf villa; `[object Object]` thydir
            ad hlutur hafi verid settur thar sem tala atti ad vera (sbr. daudi
            team_dc-dalkurinn, CLAUDE.md 6l).                              */
-        if (/undefined|NaN|\[object Object\]/.test(txt)) problems.push(`${name}: undefined/NaN i spjaldi`);
+        if (/\bundefined\b|\bNaN\b|\[object Object\]/.test(txt)) problems.push(`${name}: undefined/NaN i spjaldi`);
         /* Lidsspjaldid: opnad UR leikmannaspjaldinu um "See team:".      */
         if (teams) {
           const tb = [...document.querySelectorAll("button")].find(x => x.textContent.startsWith("See team:"));
           if (tb) {
             try { await fire(tb); } catch (e) { problems.push(`${name}: lidsspjald KASTADI ${e.message.slice(0,50)}`); }
             const tt = document.body.textContent || "";
-            if (/undefined|NaN|\[object Object\]/.test(tt)) problems.push(`${name}: undefined/NaN i lidsspjaldi`);
+            if (/\bundefined\b|\bNaN\b|\[object Object\]/.test(tt)) problems.push(`${name}: undefined/NaN i lidsspjaldi`);
           }
         }
       }

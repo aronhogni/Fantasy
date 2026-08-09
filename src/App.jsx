@@ -22,7 +22,8 @@ import Leaderboard from "./Leaderboard.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
-  cleanSheetProb, rankScore, eloStale, parseEntryId } from "./model.js";
+  cleanSheetProb, rankScore, eloStale, parseEntryId,
+  intlBreaks, euroWeeks, euroTeams, compLabel } from "./model.js";
 
 /* ============================================================
    FPL PLÖNUN — v3
@@ -233,25 +234,10 @@ function useTlWindow() {
    fyrr en beðið var um ad birta TÖLUNA sjálfa.
    NU: bil >= BREAK_MIN_DAYS telst hle. 12 dagar skilja longu bilin
    (14-21 d) fra theim sem eru bara midvikudagslausar vikur (7-9,8 d).  */
-const BREAK_MIN_DAYS = 12;
-function intlBreaks(fixtures) {
-  const by = {};
-  for (const f of fixtures || []) {
-    if (f.event == null || !f.kickoff_time) continue;
-    const t = Date.parse(f.kickoff_time);
-    if (!Number.isFinite(t)) continue;
-    const a = by[f.event] || (by[f.event] = { min: t, max: t });
-    if (t < a.min) a.min = t; if (t > a.max) a.max = t;
-  }
-  const out = {};
-  for (const k of Object.keys(by)) {
-    const n = +k, next = by[n + 1];
-    if (!next) continue;
-    const days = (next.min - by[n].max) / 864e5;
-    if (days >= BREAK_MIN_DAYS) out[n] = Math.round(days);
-  }
-  return out;
-}
+/* FALLID SJALFT ER NU I model.js — asamt `euroWeeks`, sem verdur ad nota
+   NAKVAEMLEGA SOMU skilgreiningu a "bili milli umferda". Vaeru thau tvo
+   reiknud sitt i hvoru lagi gaetu merkin tvo lent a sitthvorum stadnum
+   fyrir sama gap. Sja athugasemdina vid `gwSpans`.                     */
 
 /* ---- Chips ----
    AÐEINS lýsigögn hér. REGLURNAR (hvenær má nota, hversu oft) koma úr
@@ -1060,6 +1046,13 @@ export default function App() {
   // ---- ClubElo styrkur per lið ----
   /* Landsleikjahle REIKNAD ur leikjadagsetningum — sja intlBreaks(). */
   const breaks = useMemo(() => intlBreaks(fixtures), [fixtures]);
+  /* EVROPUVIKUR — leikir sem falla i bilid a eftir umferd n.
+     BIRTING, EKKI LIKAN: evropualag maeldist −1,37pp med CI sem inniheldur
+     null (MAELINGAR 6k) og fer thvi hvergi inn i FFDR. Sja model.js.    */
+  const euroGw = useMemo(() => euroWeeks(fixtures, euroFx), [fixtures, euroFx]);
+  /* Hvada lid eru i Evropu i ar. `participation` virkar THOTT leikir seu
+     odregnir — i agust er thetta eina evropu-merkid sem er til.         */
+  const euroIn = useMemo(() => euroTeams(euroFx), [euroFx]);
 
   const eloByTeam = useMemo(() => {
     const m = {};
@@ -1234,7 +1227,9 @@ export default function App() {
         fdr: f.team_h === teamId ? f.team_h_difficulty : f.team_a_difficulty,
       }));
     const extra = ((euroFx?.by_team || {})[teamId] || []).map(x => ({
-      kind: "cup", comp: x.comp, label: x.comp_label || x.comp, date: x.date,
+      /* ENSKT HEITI — `comp_label` i skranni er ISLENSKT ("Ofurbikar",
+         "Meistaradeild") og thetta er BIRT i leikjalistanum. Sja compLabel(). */
+      kind: "cup", comp: x.comp, label: compLabel(x), date: x.date,
     }));
     return [...pl, ...extra]
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""))
@@ -2089,9 +2084,19 @@ export default function App() {
                       </span>}
                   </button>
                 </div>
+                {/* MILLI-HNUTA MERKIN. Baðar sitja i sama bili (eftir
+                    umferd n) og lesa somu `gwSpans`, svo thau geta ekki
+                    lent a sitthvorum stad fyrir sama gap.
+                    SILHUETTAN GREINIR THAU (CLAUDE.md: i smarri staerd er
+                    hun allt): hnottur = hringur, stjarna = oddar. Tvo
+                    hringlaga takn hefdu verid EINS vid 11 px.           */}
                 {brk && <span style={S.intl}
                   title={interp("International break — {0} days between GW{1} and GW{2}", [brk, n, n + 1])}>
                   <span style={S.globe}>🌐</span></span>}
+                {euroGw[n] && <span style={S.intl}
+                  title={interp("European week between GW{0} and GW{1} — {2} ({3} matches)",
+                                [n, n + 1, euroGw[n].comps.map(compLabel).join(", "), euroGw[n].n])}>
+                  <span style={S.euroStar}>★</span></span>}
               </React.Fragment>
             );
           })}
@@ -2099,6 +2104,24 @@ export default function App() {
           <button style={{ ...S.tlArrow, ...(tlStart + tlWindow > maxGw ? S.tlArrowOff : {}) }}
             disabled={tlStart + tlWindow > maxGw} title={"Later gameweeks"}
             onClick={() => setTlStart(v => Math.min(Math.max(1, maxGw - tlWindow + 1), v + tlWindow))}>›</button>
+        </div>
+        {/* SKYRING A MERKJUNUM I STIKUNNI — OG A ThVI ThEGAR ThAU VANTA.
+            🌐 er reiknad ur `fixtures.json` og er thvi alltaf til. ★ er
+            reiknad ur `euro_fixtures.json`, sem ber ENGA dagsetningu innan
+            timabilsins fyrr en drattur ridlakeppninnar er kominn (i agust
+            eru thar adeins Ofurbikarinn og Samfelagsskjoldurinn, BADIR
+            fyrir GW1). Tomt merki an skyringar laesi eins og "engin
+            evropukeppni" — sem er RANGT; hun er 6 lid. Reglan er su sama og
+            annars stadar i appinu: tomt astand a ad SEGJA hvers vegna.  */}
+        <div style={S.tlLegend}>
+          <span style={S.tlLegendItem}><span style={S.globeMini}>🌐</span>{"international break"}</span>
+          <span style={S.tlLegendItem}><span style={S.euroMini}>★</span>{
+            Object.keys(euroGw).length
+              ? interp("European week ({0})", [Object.keys(euroGw).length])
+              : euroIn.size
+                ? interp("European week — {0} clubs are in Europe, dates land when the draw is made", [euroIn.size])
+                : "European week"
+          }</span>
         </div>
         <div style={S.deadline}>
           <b>GW{gw}</b> {"· deadline"} {fmtDeadline(ev?.deadline_time)}
@@ -2588,6 +2611,21 @@ export default function App() {
                     <span style={{ flex:1, display:"flex", alignItems:"center", gap:5, minWidth:0 }}>
                       <Crest team={t} size={14} />
                       <span style={{ fontWeight: mine ? 700 : 400, fontSize:11.5 }}>{t.short}</span>
+                      {/* I EVROPU — DAUFT OG LITID, VILJANDI.
+                          Feitletrun er ThEGAR TEKIN: hun thydir "i minu
+                          lidi" (sja litareglurnar i CLAUDE.md — thrir
+                          litir, thrjar merkingar, mega ekki rekast a).
+                          Skaletur a 11,5 px skammstofun er varla synilegt.
+                          Thess vegna litil stjarna: SAMA takn og i
+                          umferdastikunni, svo ★ thydir eitt i ollu
+                          appinu — evropukeppni. Og hun er GRA en ekki
+                          raud thvi thetta er samhengi, ekki vidvorun:
+                          evropualag maeldist EKKI marktaekt (6k).       */}
+                      {euroIn.has(t.id) && (
+                        <span style={S.euroTag}
+                          title={interp("{0} is in {1} this season — European matches fall in the midweek gaps. Shown as context: the measured effect on points was not significant.",
+                                        [t.short, euroIn.get(t.id).map(compLabel).join(" + ")])}>★</span>
+                      )}
                     </span>
                     <span style={{ ...S.tblNum }}>
                       <span style={{ ...S.ffdrCell, background:cd.bg, color:cd.fg }}>{def ?? "—"}</span>
@@ -3562,7 +3600,44 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
    ============================================================ */
 function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span, maxGw, onPickTeam }) {
   const [pos, setPos] = useState(2);   // 2 = varnar-hópur, 4 = sóknar-hópur
-  const gws = Array.from({ length: span }, (_, i) => from + i).filter(g => g <= maxGw);
+  /* ---------- EIGID UMFERDABIL ----------
+     Adur var bilid NEGLT vid timalinuna (`from`/`span` ur `tlStart`/
+     `tlWindow`), svo eina leidin til ad sja GW2-10 var ad skruna
+     timalinunni — og tha faerdist hun lika. Notandinn bad beint um ad
+     geta valid bilid HER. Sama vidmot og i "Teams — FFDR" og i Player
+     stats: −/+ faera endann, "pick" opnar kassarod, fyrsti smellur setur
+     upphaf og annar endi, "reset" fer aftur i timalinuna.              */
+  const [range, setRange] = useState(null);         // [fra, til] eda null
+  const [picking, setPicking] = useState(false);
+  const gFrom = range ? range[0] : from;
+  const gTo   = range ? range[1] : Math.min(from + span - 1, maxGw);
+  const gws = Array.from({ length: Math.max(0, gTo - gFrom + 1) }, (_, i) => gFrom + i)
+    .filter(g => g >= 1 && g <= maxGw);
+
+  /* ---------- RODUN EFTIR SOKN EDA VORN ----------
+     BADAR tolur eru reiknadar fyrir hvert lid, ekki adeins su sem er
+     valin i litunum. Notandinn bad um ad "rada eftir attack og defence
+     difficulty" — thad kraefst thess ad BADAR seu til samtimis, annars
+     vaeri rodun eftir sokn adeins moguleg medan sokn er lituð.
+     `sortBy` er dalkurinn, `dir` attin. LAEGRA = LETTARA, svo "asc" er
+     sjalfgefid: lettustu leikirnir efst.                               */
+  const [sortBy, setSortBy] = useState("def");      // "def" | "att" | "team"
+  const [dir, setDir] = useState("asc");
+  const sortOn = key => {
+    if (sortBy === key) { setDir(d => d === "asc" ? "desc" : "asc"); return; }
+    setSortBy(key); setDir(key === "team" ? "asc" : "asc");
+  };
+  const arrow = k => sortBy !== k ? "" : (dir === "asc" ? " ↑" : " ↓");
+
+  const avgFor = (tid, p) => {
+    let n = 0, sum = 0;
+    for (const g of gws) for (const f of (fixByTeamGw[tid]?.[g] || [])) {
+      const d = diffOf(tid, f, p) ?? f.fdr;
+      if (d != null) { sum += d; n++; }
+    }
+    return n ? sum / n : null;
+  };
+
   const rows = (teams || []).map(t => {
     const cells = gws.map(g => {
       const fxs = fixByTeamGw[t.id]?.[g] || [];
@@ -3573,9 +3648,22 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
       };
     });
     const vals = cells.flatMap(c => c.items ? c.items.map(x => x.d) : []);
-    return { t, cells, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+    return { t, cells,
+             avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+             def: avgFor(t.id, 2), att: avgFor(t.id, 4),
+             n: cells.filter(c => !c.blank).length,
              played: vals.length };
-  }).sort((a, z) => (a.avg ?? 9) - (z.avg ?? 9));
+  }).sort((a, z) => {
+    if (sortBy === "team") return (dir === "asc" ? 1 : -1) * String(a.t.short).localeCompare(String(z.t.short));
+    /* VANTAR (tomt bil) RADAST ALLTAF NEDST, i BADAR attir — sama regla
+       og i leikmannatoflunni. `?? 9` eitt og ser hefdi fleytt theim UPP
+       i "desc" og latid lid an leikja lita ut eins og thau thyngstu.   */
+    const av = a[sortBy], zv = z[sortBy];
+    if (av == null && zv == null) return a.t.id - z.t.id;
+    if (av == null) return 1;
+    if (zv == null) return -1;
+    return (dir === "asc" ? 1 : -1) * (av - zv) || a.t.id - z.t.id;
+  });
   const POSB = [[2,"DEFENCE"],[4,"ATTACK"]];   // tveir hópar — GK+DEF og MID+FWD
   return (
     <section style={S.card}>
@@ -3588,21 +3676,65 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
           ))}
         </div>
       </div>
+      {/* UMFERDABILID — sama vidmot og annars stadar i appinu. */}
+      <div style={S.ffdrBar}>
+        <button style={S.ffdrStep} title={"One gameweek fewer"}
+          onClick={() => setRange([gFrom, Math.max(gFrom, gTo - 1)])}>−</button>
+        <span style={S.ffdrNow}>{"GW"} {gFrom}{gFrom !== gTo ? `–${gTo}` : ""}
+          <span style={S.ffdrN}>{gTo - gFrom + 1}</span></span>
+        <button style={S.ffdrStep} title={"One gameweek more"}
+          onClick={() => setRange([gFrom, Math.min(maxGw, gTo + 1)])}>+</button>
+        <button style={S.ffdrPick} aria-expanded={picking}
+          onClick={() => setPicking(v => !v)}>{picking ? "hide" : "pick"}</button>
+        {range && (
+          <button style={S.ffdrPick} title={"Back to the timeline range"}
+            onClick={() => { setRange(null); setPicking(false); }}>{"reset"}</button>
+        )}
+      </div>
+      {picking && (
+        <div style={S.ffdrBoxes} role="group" aria-label={"Select gameweeks"}>
+          {Array.from({ length: maxGw }, (_, i) => i + 1).map(n => {
+            const on = n >= gFrom && n <= gTo;
+            return (
+              <button key={n} title={`GW ${n}`} aria-pressed={on}
+                style={{ ...S.ffdrBox, ...(on ? S.ffdrBoxOn : {}) }}
+                onClick={() => setRange(r => {
+                  const cur = r || [gFrom, gTo];
+                  if (cur[0] !== cur[1]) return [n, n];
+                  return n < cur[0] ? [n, cur[0]] : [cur[0], n];
+                })}>{n}</button>
+            );
+          })}
+        </div>
+      )}
       <div style={S.muted}>
-        GW{gws[0]}–{gws[gws.length-1]} {"· sorted by average FFDR (easiest on top)."}
+        GW{gws[0]}–{gws[gws.length-1]} {"· click"} <b>{"Def"}</b> {"or"} <b>{"Att"}</b> {"to sort by that difficulty (lower = easier)."}
         <b> {"This is an ABSOLUTE scale"}</b> {"— comparable between teams, so a weak team is red even in an easy match. That is right for \"who should I buy\". The fixture tiles on player cards are"} <b>{"relative within the team"}</b> {"— for \"when should I play him\"."}
       </div>
       <div style={S.ffdrScroll}>
         <table style={S.ffdrTable}>
           <thead>
             <tr>
-              <th style={{ ...S.ffdrTh, ...S.ffdrThTeam }}>{"Team"}</th>
+              <th style={{ ...S.ffdrTh, ...S.ffdrThTeam, cursor:"pointer" }}
+                  onClick={() => sortOn("team")} title={"Sort by team"}>{"Team"}{arrow("team")}</th>
               {gws.map(g => <th key={g} style={S.ffdrTh}>{g}</th>)}
-              <th style={S.ffdrTh} title={"Average over the range"}>{"Avg."}</th>
+              {/* TVEIR RODUNAR-DALKAR. Adur var EINN "Avg." sem fylgdi
+                  lita-valinu, svo ekki var haegt ad rada eftir sokn medan
+                  vornin var lituð. Nu eru badar tolurnar synilegar og
+                  hvor sem er ma rada — thad var beidnin.               */}
+              <th style={{ ...S.ffdrTh, ...S.ffdrThSort, ...(sortBy === "def" ? S.ffdrThOn : {}) }}
+                  onClick={() => sortOn("def")}
+                  title={"Average defensive FFDR over the range — click to sort (lower = easier)"}>
+                {"Def"}{arrow("def")}</th>
+              <th style={{ ...S.ffdrTh, ...S.ffdrThSort, ...(sortBy === "att" ? S.ffdrThOn : {}) }}
+                  onClick={() => sortOn("att")}
+                  title={"Average attacking FFDR over the range — click to sort (lower = easier)"}>
+                {"Att"}{arrow("att")}</th>
+              <th style={S.ffdrTh} title={"Fixtures in the range. A BLANK is skipped by the average, so fewer fixtures can look easier than they are."}>{"n"}</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ t, cells, avg }) => {
+            {rows.map(({ t, cells, def, att, n }) => {
           /* GRAEN RUNA — 3+ LEIKIR I ROD I GRAENU THREPI FA RAMMA.
              Reiknad A RODINNI, ekki i holfinu: holf veit ekkert um
              nagranna sina. Sjalf reglan er i model.js (`greenRuns`) af
@@ -3641,7 +3773,16 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
                     </td>
                   );
                 })}
-                <td style={S.ffdrAvg}>{avg == null ? "—" : avg.toFixed(2)}</td>
+                {/* Litur a THEIRRI tolu sem er RODAD eftir, svo augad
+                    finni dalkinn sem stjornar rodinni. Hin er graa. */}
+                <td style={{ ...S.ffdrAvg, ...(sortBy === "def" ? S.ffdrAvgOn : {}) }}>
+                  {def == null ? "—" : def.toFixed(2)}</td>
+                <td style={{ ...S.ffdrAvg, ...(sortBy === "att" ? S.ffdrAvgOn : {}) }}>
+                  {att == null ? "—" : att.toFixed(2)}</td>
+                <td style={{ ...S.ffdrAvg, color: n < gws.length ? C.red : C.text3, fontWeight:400 }}
+                    title={n < gws.length
+                      ? `Only ${n} fixtures in ${gws.length} gameweeks — a BLANK is skipped by the average`
+                      : `${n} fixtures in ${gws.length} gameweeks`}>{n}</td>
               </tr>
             );
           })}
@@ -3942,6 +4083,23 @@ const S = {
   nodeDot: { position:"absolute", bottom:4, left:"50%", transform:"translateX(-50%)", width:4, height:4, borderRadius:"50%", background:"#f59e0b" },
   intl: { flexShrink:0, position:"relative", zIndex:2, display:"inline-flex", alignItems:"center", alignSelf:"flex-end", marginBottom:5 },
   globe: { display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:10, boxShadow:`0 0 0 3px ${C.card}` },
+  /* EVROPUVIKA. Sama grunnform og hnotturinn (18 px hringur a hvitum
+     skugga) svo rodin haldist, EN stjarnan er annad silhouette og
+     liturinn er daufur — thetta er samhengi, ekki vidvorun. Rautt eda
+     fyllt takn hefdi lesid eins og "haetta", sem vaeri RANGT: alagid
+     maeldist ekki marktaekt (MAELINGAR 6k).                            */
+  euroStar: { display:"inline-flex", alignItems:"center", justifyContent:"center", width:18, height:18, borderRadius:"50%", background:C.card, border:`1px solid ${C.border}`, fontSize:9, lineHeight:1, color:C.text3, boxShadow:`0 0 0 3px ${C.card}` },
+  /* Sama takn i FFDR-toflunni, an hringsins — thar er thad vidhengi vid
+     nafn en ekki merki a tidalinu. 8 px og C.text3: sest thegar leitad
+     er, hverfur thegar lesid er nidur dalkinn.                          */
+  euroTag: { fontSize:8, lineHeight:1, color:C.text3, flexShrink:0, cursor:"help" },
+  /* Skyringarlinan undir stikunni. Daufari en `deadline` — hun er lesin
+     EINU SINNI og a ekki ad keppa vid frestinn um athyglina.            */
+  tlLegend: { display:"flex", flexWrap:"wrap", gap:12, alignItems:"center",
+              fontSize:9.5, color:C.text3, marginTop:2 },
+  tlLegendItem: { display:"inline-flex", alignItems:"center", gap:4 },
+  globeMini: { fontSize:9, lineHeight:1 },
+  euroMini: { fontSize:9, lineHeight:1, color:C.text3 },
   resetAllRow: { marginTop:8, paddingTop:8, borderTop:`1px solid ${C.border}` },
   resetBtn: { marginLeft:10, fontFamily:sans, fontSize:9.5, cursor:"pointer",
     background:C.cardAlt, color:C.text2, border:`1px solid ${C.border}`,
@@ -3990,7 +4148,7 @@ const S = {
      gerir rununa laesilega, ekki ramminn einn.                          */
   ffdrTable: { borderCollapse:"separate", borderSpacing:0, fontSize:9.5, width:"100%" },
   ffdrTh: { fontFamily:mono, fontSize:8.5, fontWeight:700, color:C.text3, textAlign:"center",
-    padding:"1px 3px", minWidth:34, border:"2px solid transparent", backgroundClip:"padding-box" },
+    padding:"1px 3px", minWidth:34, borderWidth:2, borderStyle:"solid", borderTopColor:"transparent", borderRightColor:"transparent", borderBottomColor:"transparent", borderLeftColor:"transparent", backgroundClip:"padding-box" },
   ffdrThTeam: { textAlign:"left", minWidth:58, position:"sticky", left:0, background:C.card, zIndex:1 },
   ffdrTeamCell: { position:"sticky", left:0, background:C.card, zIndex:1, padding:0 },
   ffdrTeamBtn: { display:"flex", alignItems:"center", gap:4, width:"100%", cursor:"pointer",
@@ -3998,10 +4156,16 @@ const S = {
   ffdrOpp: { display:"block" },
   ffdrAway: { fontStyle:"normal", fontSize:7, opacity:0.7, marginLeft:1 },
   ffdrDouble: { display:"block", fontSize:7, opacity:0.8 },
-  ffdrBlank: { textAlign:"center", padding:"3px 2px", borderRadius:5, background:C.cardAlt,
-    color:C.text3, fontFamily:mono, fontSize:9,     border:"2px solid transparent", backgroundClip:"padding-box" },
+  ffdrBlank: { textAlign:"center", padding:"3px 2px", borderTopLeftRadius:5, borderTopRightRadius:5, borderBottomLeftRadius:5, borderBottomRightRadius:5, background:C.cardAlt,
+    color:C.text3, fontFamily:mono, fontSize:9,     borderWidth:2, borderStyle:"solid", borderTopColor:"transparent", borderRightColor:"transparent", borderBottomColor:"transparent", borderLeftColor:"transparent", backgroundClip:"padding-box" },
   ffdrAvg: { textAlign:"center", padding:"3px 4px", fontFamily:mono, fontSize:9.5, fontWeight:700,
-    color:C.text2, background:C.cardAlt, borderRadius:5,     border:"2px solid transparent", backgroundClip:"padding-box" },
+    color:C.text2, background:C.cardAlt, borderTopLeftRadius:5, borderTopRightRadius:5, borderBottomLeftRadius:5, borderBottomRightRadius:5,     borderWidth:2, borderStyle:"solid", borderTopColor:"transparent", borderRightColor:"transparent", borderBottomColor:"transparent", borderLeftColor:"transparent", backgroundClip:"padding-box" },
+  /* RODUNAR-HAUSAR i FFDR-toflunni. Bendillinn segir ad thad megi smella;
+     `ffdrThOn` merkir dalkinn sem STJORNAR rodinni — an hans er ekki haegt
+     ad sja hvor talan raedur thegar baðar eru synilegar.               */
+  ffdrThSort: { cursor:"pointer", userSelect:"none", minWidth:38 },
+  ffdrThOn: { color:C.purple },
+  ffdrAvgOn: { color:C.purple, background:"#f1e9f2" },
   ffdrLegend: { display:"flex", gap:4, flexWrap:"wrap", marginTop:8, paddingTop:7, borderTop:`1px solid ${C.border}` },
   ffdrChip: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 },
   /* Breiddin kemur úr grid-dálki pitchSplit — flex/minWidth hér áður
@@ -4171,9 +4335,21 @@ const S = {
   ffdrCell: { display:"inline-block", minWidth:32, textAlign:"center", fontFamily:mono,
     fontSize:10, fontWeight:700, padding:"1px 4px", borderRadius:4 },
   // ffdrTd = <td> í FFDR-töflunni. MÁ EKKI vera inline-block — brýtur töfluna.
-  ffdrTd: { textAlign:"center", padding:"3px 2px", borderRadius:5, fontFamily:mono,
+  /* FJORIR LANGRITADIR LITIR, EKKI `border`-STYTTINGIN.
+     Graena runan (greenRuns) setur `borderTopColor` o.s.frv. a EINSTAKAR
+     hlidar. Med `border:"2px solid transparent"` i grunni er thad blondun
+     styttingar og langritunar — React vardar vid henni og fjarlaegir
+     litina i odefinerаdri rod thegar runan hverfur. Thad kom ekki fram
+     medan bilid var FAST, en um leid og haegt var ad velja umferdir
+     birtust 14 vidvaranir: runur koma og fara vid hverja breytingu.
+     Grunnurinn skrifar thvi allar fjorar hlidar berum ordum og
+     yfirskriftin snertir somu eiginleika — engin blondun.              */
+  ffdrTd: { textAlign:"center", padding:"3px 2px", borderTopLeftRadius:5, borderTopRightRadius:5, borderBottomLeftRadius:5, borderBottomRightRadius:5, fontFamily:mono,
     fontSize:9, fontWeight:700, whiteSpace:"nowrap", lineHeight:1.25,
-    border:"2px solid transparent", backgroundClip:"padding-box" },
+    borderWidth:2, borderStyle:"solid",
+    borderTopColor:"transparent", borderRightColor:"transparent",
+    borderBottomColor:"transparent", borderLeftColor:"transparent",
+    backgroundClip:"padding-box" },
   tblNum: { width:46, textAlign:"right", fontFamily:mono, fontSize:11, color:C.text2, position:"relative" },
   /* left 21 (var 4): "i"-ikonid situr nu i vinstra horninu. */
   /* fontSize 8,5 -> 10 og hvitur baugur svo merkid lesist yfir myndinni. */

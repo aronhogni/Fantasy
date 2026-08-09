@@ -286,7 +286,7 @@ const horSel = rotPanel && [...rotPanel.querySelectorAll("select")]
 ok(horSel && horSel.value === "6", "sjálfgildi er 6 umferðir");
 const mineBox = rotPanel && [...rotPanel.querySelectorAll("input[type=checkbox]")][0];
 ok(!!mineBox, "„aðeins mitt lið“ er í boði (rótering af bekknum þarf engin skipti)");
-ok(!/undefined|NaN/.test(rTxt()), "ekkert undefined/NaN í róterings-spjaldinu");
+ok(!/\bundefined\b|\bNaN\b/.test(rTxt()), "ekkert undefined/NaN í róterings-spjaldinu");
 /* Grindin: fjöldi umferða-dálka á að fylgja valinu */
 const colsAt = () => {
   const t = [...container.querySelectorAll("table")].find(x => x.textContent.includes("Cover"));

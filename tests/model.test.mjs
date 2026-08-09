@@ -13,7 +13,8 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   MEASURED, MEASURED_LEGACY_D, SCALE_FIX, toMeasuredScale, lookupMeasured,
   TIER_COUNT, TIER_NAME, TIER_FG, TIER_NEUTRAL,
   makeFixDifficulty, cleanSheetProb, lambdaFromStrength,
-  rankScore, RANK_W, greenRuns } from "../src/model.js";
+  rankScore, RANK_W, greenRuns,
+  gwSpans, intlBreaks, euroWeeks, euroTeams, BREAK_MIN_DAYS, compLabel, COMP_EN } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, availForKickoff, parseEntryId,
          eloStale, parseReturn } from "../src/model.js";
@@ -545,6 +546,137 @@ console.log("─".repeat(84));
   const e = greenRuns([1, 1, 1]);
   ok(e[0].first && !e[0].last && e[2].last && !e[2].first && !e[1].first && !e[1].last,
     "first/last adeins a endunum — ramminn lokast");
+}
+
+/* ============================================================
+   LANDSLEIKJAHLE OG EVROPUVIKUR
+
+   >>> BIRTING, EKKI LIKAN. <<< Evropualag var MAELT og HAFNAD sem inntaki
+   (MAELINGAR 6k: −1,37pp, CI [−4,67; +1,92] — null er inni i bilinu).
+   Ef einhver vill nota thetta i spa tharf NYJA maelingu. Profin hér verja
+   thvi ad talan se RETT REIKNUD, ekki ad hun spai neinu.
+
+   ThETTA VERDUR AD PROFAST A TILBUNUM GOGNUM. `euroWeeks` skilar {} a
+   raungognum i dag: `euro_fixtures.json` ber adeins Ofurbikarinn og
+   Samfelagsskjoldinn og BADIR eru fyrir GW1, thvi drattur ridlakeppninnar
+   er ekki kominn. Kodi sem kviknar fyrst einn morgun i agust og hefur
+   aldrei verid keyrdur er nakvaemlega thad sem CLAUDE.md kafli 5 bannar —
+   sama mynstur og `mins-trend` kafli 0 og `defcon-shrink`.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nLANDSLEIKJAHLE OG EVROPUVIKUR\n${"─".repeat(72)}`);
+{
+  const D = (gw, ...iso) => iso.map(s => ({ event: gw, kickoff_time: s }));
+  /* Thrjar umferdir: GW1 (16.8.), GW2 (23.8.) og GW3 (12.9.).
+     Bilid GW1->GW2 er 7 dagar (venjuleg vika), GW2->GW3 er 20 (hle).   */
+  const FX = [
+    ...D(1, "2026-08-15T14:00:00Z", "2026-08-16T16:00:00Z"),
+    ...D(2, "2026-08-22T14:00:00Z", "2026-08-23T16:00:00Z"),
+    ...D(3, "2026-09-12T14:00:00Z"),
+  ];
+
+  const spans = gwSpans(FX);
+  ok(spans[1].min === Date.parse("2026-08-15T14:00:00Z")
+     && spans[1].max === Date.parse("2026-08-16T16:00:00Z"),
+     "gwSpans finnur fyrsta OG sidasta byrjunartima umferdar");
+  ok(Object.keys(spans).length === 3, "gwSpans skilar einni faerslu per umferd");
+  ok(gwSpans(null) && Object.keys(gwSpans(null)).length === 0,
+     "gwSpans tholir null og skilar tomu");
+  ok(Object.keys(gwSpans([{ event: 1 }, { kickoff_time: "x" }, { event: 2, kickoff_time: "ekki dagsetning" }])).length === 0,
+     "radir an dagsetningar/umferdar eru hunsadar, ekki NaN");
+
+  const brk = intlBreaks(FX);
+  ok(brk[1] === undefined, "7 daga bil er EKKI hle (venjuleg vika)");
+  ok(brk[2] === 20, `20 daga bil ER hle (${brk[2]} dagar)`);
+  ok(BREAK_MIN_DAYS === 12, `throskuldur er 12 dagar (${BREAK_MIN_DAYS})`);
+  /* RAUNGOGN: tolurnar sem CLAUDE.md skjalar verda ad haldast. Fallid
+     var FLUTT ur App.jsx i model.js — thetta ver ad flutningurinn hafi
+     ekki breytt hegdun (sbr. regluna um ad esbuild se ekki nog).       */
+  try {
+    const raw = JSON.parse(readFileSync(new URL("../data/fixtures.json", import.meta.url), "utf8"));
+    const list = Array.isArray(raw) ? raw : (raw.fixtures || []);
+    const real = intlBreaks(list);
+    ok(real[5] >= 18 && real[10] >= 12 && real[30] >= 18,
+       `raungogn: hle eftir GW5/10/30 (${real[5]}/${real[10]}/${real[30]} dagar)`);
+    ok(Object.keys(real).length === 3,
+       `nakvaemlega thrju hle a timabilinu (${Object.keys(real).length})`);
+  } catch { ok(true, "fixtures.json vantar — raungagna-hluti sleppt"); }
+
+  /* ---- EVROPUVIKUR ---- */
+  const EU = {
+    participation: { 1: ["CL"], 6: ["CL", "EL"], 99: [], 100: "ekki fylki" },
+    fixtures: [
+      /* i bilinu GW2->GW3 (20 dagar) — telst evropuvika */
+      { date: "2026-09-02T19:00Z", comp: "uefa.champions", comp_label: "Champions League",
+        home_fpl: 1, away_fpl: 6 },
+      { date: "2026-09-03T19:00Z", comp: "uefa.europa", comp_label: "Europa League",
+        home_fpl: 6, away_fpl: null },
+      /* SAMA DAG og deildarleikur i GW1 — telst EKKI vika i bilinu */
+      { date: "2026-08-15T19:00Z", comp: "x", comp_label: "Sami dagur", home_fpl: 1, away_fpl: null },
+      /* eftir sidustu umferd — ekkert bil a eftir, a ad hunsast */
+      { date: "2026-12-01T19:00Z", comp: "y", comp_label: "Eftir lok", home_fpl: 1, away_fpl: null },
+      { date: "ekki dagsetning", comp: "z", home_fpl: 1, away_fpl: null },
+    ],
+  };
+  const ew = euroWeeks(FX, EU);
+  ok(Object.keys(ew).length === 1 && ew[2], "evropuvika lendir i RETTA bilinu (eftir GW2)");
+  ok(ew[2].n === 2, `badir leikirnir i bilinu taldir (${ew[2]?.n})`);
+  ok(ew[2].comps.length === 2 && ew[2].comps.includes("uefa.champions")
+     && ew[2].comps.includes("uefa.europa"), "keppnirnar (velraen audkenni) taldar upp einu sinni hver");
+  ok(ew[2].comps.map(compLabel).join(", ") === "Champions League, Europa League",
+     `compLabel thydir audkennin a ensku (${ew[2].comps.map(compLabel).join(", ")})`);
+  ok(ew[2].teams.includes(1) && ew[2].teams.includes(6) && ew[2].teams.length === 2,
+     "lidin skrad einu sinni hvert, null hunsad");
+  ok(!ew[1], "leikur a SAMA degi og deildarleikur telst ekki vika i bilinu");
+  ok(!ew[3], "leikur eftir sidustu umferd hefur ekkert bil og er hunsadur");
+  ok(Object.keys(euroWeeks(FX, null)).length === 0, "euroWeeks tholir null-skra");
+  ok(Object.keys(euroWeeks(FX, { fixtures: [] })).length === 0, "tom skra gefur tomt, ekki hrun");
+  ok(Object.keys(euroWeeks([], EU)).length === 0, "engir deildarleikir -> engin bil -> tomt");
+
+  /* ---- KEPPNISHEITI VERDA AD VERA ENSK ----
+     `no-icelandic.mjs` GETUR EKKI VARID ThETTA og thad er viljandi: hun
+     leyfir islensku sem kemur UR `data/` (lidsnofn, frettir). `comp_label`
+     kemur ur data — en er UI-TEXTI, ekki gogn. Undanthagan sem er rett
+     fyrir frettir er thvi gat fyrir keppnisheiti.
+
+     VORDURINN ER ThVI ANNARS EDLIS: hver keppni sem pipeline GETUR skrifad
+     verdur ad eiga enskt heiti i COMP_EN. Ef einhver baetir keppni vid
+     `CANDIDATES` i fetch.mjs an thess ad thyda hana fellur thetta — i stad
+     thess ad islenskt heiti birtist thegjandi a spjaldi eftir naesta dratt. */
+  {
+    let src = "";
+    try { src = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url), "utf8"); } catch {}
+    const block = src.match(/const CANDIDATES = \[([\s\S]*?)\]/);
+    const comps = block ? [...block[1].matchAll(/"([a-z0-9._]+)"/g)].map(m => m[1]) : [];
+    ok(comps.length >= 8, `pipeline-keppnir lesnar ur fetch.mjs (${comps.length})`);
+    const missing = comps.filter(c => !COMP_EN[c]);
+    ok(missing.length === 0,
+       `hver keppni i pipeline a enskt heiti${missing.length ? " — VANTAR: " + missing.join(", ") : ""}`);
+    /* Og heitin sjalf mega ekki bera islensku (hvorki broddstafi ne
+       ASCII-islensku ordin sem stafaskynjun ser ekki).                 */
+    const IS_WORDS = /deild|bikar|forkeppni|felagslida|mots|leikur/i;
+    const bad = Object.entries(COMP_EN)
+      .filter(([, v]) => /[þðæöáíóúéýÞÐÆÖÁÍÓÚÉÝ]/.test(v) || IS_WORDS.test(v));
+    ok(bad.length === 0, `oll ensku heitin eru ensk${bad.length ? ": " + bad.map(b => b[1]).join(", ") : ""}`);
+    ok(compLabel({ comp: "uefa.super_cup", comp_label: "Ofurbikar" }) === "Super Cup",
+       "compLabel HUNSAR islenska labelid og notar audkennid");
+    ok(compLabel({ comp: "alveg.oth.ekkt" }) === "alveg.oth.ekkt",
+       "okunn keppni fellur a audkennid (ASCII), ekki a islenska labelid");
+    ok(compLabel(null) === "" && compLabel({}) === "", "compLabel tholir tomt");
+  }
+
+  /* ---- ThATTTAKA ---- */
+  const et = euroTeams(EU);
+  ok(et.get(1)?.join() === "CL" && et.get(6)?.join() === "CL,EL",
+     "euroTeams skilar keppnunum per lid");
+  ok(!et.has(99), "lid med TOMAN lista telst ekki i Evropu");
+  ok(!et.has(100), "svid sem er ekki fylki er hunsad, ekki hrun");
+  ok(euroTeams(null).size === 0 && euroTeams({}).size === 0, "euroTeams tholir null/tomt");
+  /* RAUNGOGN: sex ensk lid eru i Evropu 2026/27.                       */
+  try {
+    const real = euroTeams(JSON.parse(readFileSync(new URL("../data/euro_fixtures.json", import.meta.url), "utf8")));
+    ok(real.size >= 4 && real.size <= 10, `raungogn: ${real.size} lid i Evropu (4-10 er vitraent)`);
+    ok([...real.values()].every(v => Array.isArray(v) && v.length), "hvert lid ber ad minnsta kosti eina keppni");
+  } catch { ok(true, "euro_fixtures.json vantar — raungagna-hluti sleppt"); }
 }
 
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);

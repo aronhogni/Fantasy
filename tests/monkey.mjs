@@ -130,8 +130,14 @@ async function run(seed) {
       if (out.crashes.length > 4) break;
       continue;
     }
+    /* ORDAMORK ERU NAUDSYNLEG, EKKI SNYRTIMENNSKA.
+       `textContent` limir saman texta an bila, svo FFDR-taflan skilar
+       "…NFOMUN a NEW…" sem "MUNaNEW" — og thad ber undirstrenginn "NaN".
+       Fyrsta utgafa apaprofsins flaggadi ThRJU frae af fjorum a thessu og
+       appid var i fullkomnu lagi: villan var i MAELITAEKINU. Sama gildra
+       var i fimm odrum sofnum og var lagfaerd med.                      */
     const t = document.body.textContent || "";
-    if (/undefined|NaN|\[object Object\]/.test(t)) out.nan.push(`#${i} "${label}"`);
+    if (/\bundefined\b|\bNaN\b|\[object Object\]/.test(t)) out.nan.push(`#${i} "${label}"`);
   }
   console.error = oe;
   return out;

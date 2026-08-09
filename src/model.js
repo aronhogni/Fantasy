@@ -452,6 +452,145 @@ export function greenRuns(tiers, minLen = 3) {
    má ekki harðkóða 6 (það gerði það og hefði sleppt sjöunda litnum).   */
 export const TIER_COUNT = TIER_BG.length;
 
+/* ============================================================
+   UMFERÐA-BIL, LANDSLEIKJAHLÉ OG EVRÓPUVIKUR
+
+   >>> ÞETTA ER BIRTING, EKKI LÍKAN. <<<
+   Evrópuálag var MÆLT og HAFNAÐ sem inntaki í FFDR (docs/MAELINGAR.md
+   6k): innan leikmanns −1,37pp með CI [−4,67; +1,92] — núll er inni í
+   bilinu. Það er því EKKI vísbending um verri stig og má aldrei fara
+   inn í `fixDifficulty`, `expPointsFor` né `rankScore`. Það sem það ER:
+   samhengi fyrir MIG þegar ég vel umferð til að taka hit eða spila chip.
+   Ef einhver vill nota þetta í spá þarf NÝJA mælingu, ekki þennan kóða.
+
+   EIN SKILGREINING Á „BILI" FYRIR BÆÐI MERKIN. Landsleikjahléið og
+   Evrópuvikan sitja á sama stað í umferðastikunni — milli hnúts n og
+   n+1. Væru þau reiknuð sitt í hvoru lagi gætu þau verið ósammála um
+   hvar bilið liggur og merkin lent á sitthvorum staðnum fyrir sama gap.
+   Þess vegna reiknar `gwSpans` bilið einu sinni og bæði lesa hana.
+   ============================================================ */
+
+/* { [gw]: { min, max } } í ms — fyrsti og síðasti byrjunartími umferðar. */
+export function gwSpans(fixtures) {
+  const by = {};
+  for (const f of fixtures || []) {
+    if (f.event == null || !f.kickoff_time) continue;
+    const t = Date.parse(f.kickoff_time);
+    if (!Number.isFinite(t)) continue;
+    const a = by[f.event] || (by[f.event] = { min: t, max: t });
+    if (t < a.min) a.min = t;
+    if (t > a.max) a.max = t;
+  }
+  return by;
+}
+
+/* 12 dagar skilja raunveruleg hlé (14–21 d) frá miðvikudagslausum
+   vikum (7–9,8 d). Mælt úr fixtures.json — sjá athugasemd í App.jsx.  */
+export const BREAK_MIN_DAYS = 12;
+
+/* { [gw]: dagafjöldi } — hlé Á EFTIR þessari umferð.                  */
+export function intlBreaks(fixtures) {
+  const by = gwSpans(fixtures);
+  const out = {};
+  for (const k of Object.keys(by)) {
+    const n = +k, next = by[n + 1];
+    if (!next) continue;
+    const days = (next.min - by[n].max) / 864e5;
+    if (days >= BREAK_MIN_DAYS) out[n] = Math.round(days);
+  }
+  return out;
+}
+
+/* ---- KEPPNISHEITI Á ENSKU ----
+   `euro_fixtures.json` ber `comp_label` Á ÍSLENSKU („Meistaradeild",
+   „Ofurbikar", „Ligubikar") — það er leif frá því að viðmótið var
+   tvítyngt. Viðmótið er ENSKT EINGÖNGU (kafli 9) og labelið er BIRT:
+   leikjalistinn á leikmannaspjaldinu sýnir það. Mælt 9.8.2026: spjald
+   Aston Villa-manns bar „Ofurbikar" í enskri töflu, og þegar dráttur
+   riðlakeppninnar kemur verður „Meistaradeild" á sex félögum.
+
+   ÞÝTT EFTIR `comp` (VÉLRÆNA AUÐKENNINU), EKKI EFTIR LABELINU. Auðkennið
+   er stöðugt; labelið er texti sem pipeline má breyta. Þetta lagar því
+   BÆÐI gögnin sem þegar eru committuð OG þau sem koma síðar, án þess að
+   snerta pipeline — sem er rétt, því `comp_label` er líka notað í
+   pipeline-nótum þar sem íslenska er í lagi (kafli 9).
+
+   „Ofurbikar" ber ENGA broddstafi — þetta er nákvæmlega ASCII-íslenskan
+   sem stafaskynjun getur ekki séð (kafli 9). Orðin eru því á lista
+   `no-icelandic.mjs` kafla C.                                          */
+export const COMP_EN = {
+  "uefa.champions": "Champions League",
+  "uefa.europa": "Europa League",
+  "uefa.europa.conf": "Conference League",
+  "uefa.super_cup": "Super Cup",
+  "uefa.champions_qual": "UCL qualifying",
+  "uefa.europa_qual": "UEL qualifying",
+  "uefa.conf_qual": "UECL qualifying",
+  "eng.fa": "FA Cup",
+  "eng.league_cup": "League Cup",
+  "eng.charity": "Community Shield",
+  "fifa.cwc": "Club World Cup",
+  /* Stuttkóðarnir úr `participation`. */
+  CL: "Champions League", EL: "Europa League", UECL: "Conference League",
+};
+/* Fellur á `comp` (vélræna auðkennið, ASCII) EN EKKI á `comp_label` —
+   labelið er einmitt það sem gæti verið íslenskt.                      */
+export const compLabel = fx =>
+  COMP_EN[typeof fx === "string" ? fx : fx?.comp] ||
+  (typeof fx === "string" ? fx : fx?.comp) || "";
+
+/* { [gw]: { comps:[...], teams:[...], n } } — evrópu-/bikarleikir sem
+   falla í bilið Á EFTIR umferð n. `comps` ber VÉLRÆNU auðkennin; birting
+   þýðir þau með `compLabel` svo líkanið haldist tungumálalaust.
+
+   AÐEINS BILIÐ MILLI UMFERÐA. Evrópuleikir eru miðvikudagsleikir og
+   lenda því í gapinu; leikur sem færi fram á sama sólarhring og
+   deildarleikir telst ekki „evrópuvika" heldur er hann þegar sýnilegur
+   í leikjalistanum á spjaldinu.
+
+   TÓM ÚTKOMA ER RÉTT SVAR Í ÁGÚST. Dráttur riðlakeppninnar er ekki
+   kominn, svo `euro_fixtures.json` ber aðeins Ofurbikarinn og
+   Samfélagsskjöldinn — BÁÐA fyrir GW1. Fallið skilar þá {} og
+   viðmótið á að segja það berum orðum frekar en að sýna ekkert.       */
+export function euroWeeks(fixtures, euroFx) {
+  const by = gwSpans(fixtures);
+  const gws = Object.keys(by).map(Number).sort((a, b) => a - b);
+  const out = {};
+  for (const fx of (euroFx?.fixtures || [])) {
+    const t = Date.parse(fx.date);
+    if (!Number.isFinite(t)) continue;
+    for (const n of gws) {
+      const next = by[n + 1];
+      if (!next) continue;
+      if (t > by[n].max && t < next.min) {
+        const e = out[n] || (out[n] = { comps: [], teams: [], n: 0 });
+        e.n++;
+        /* VELRAENA AUDKENNID, ekki labelid — sja compLabel().           */
+        if (fx.comp && !e.comps.includes(fx.comp)) e.comps.push(fx.comp);
+        for (const id of [fx.home_fpl, fx.away_fpl])
+          if (id != null && !e.teams.includes(id)) e.teams.push(id);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/* Sett af FPL-liðs-id sem eru í Evrópukeppni í ár.
+   `participation` er NOTHÆFT ÞÓTT LEIKIR SÉU ÓDREGNIR — það er einmitt
+   ástæðan fyrir því að það er sérstakt svið í skránni og ekki leitt út
+   úr `fixtures`. Í ágúst er þetta eina evrópu-merkið sem er til.      */
+export function euroTeams(euroFx) {
+  const p = euroFx?.participation;
+  if (!p || typeof p !== "object") return new Map();
+  const m = new Map();
+  for (const [id, comps] of Object.entries(p)) {
+    const list = Array.isArray(comps) ? comps.filter(c => typeof c === "string") : [];
+    if (list.length) m.set(+id, list);
+  }
+  return m;
+}
+
 /* ---- FFDR-VERKSMIÐJAN ----
    Skilar fixDifficulty(teamId, fx, pos) fyrir gefin gögn. App.jsx OG
    prófin kalla á þetta sama fall — engin tvítekning á formúlunni.

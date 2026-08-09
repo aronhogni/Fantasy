@@ -126,7 +126,7 @@ for (const [label, missing, broken = {}, kind = "flipar"] of SCENARIOS) {
     if (!t.length) problems.push("HVITUR SKJAR — engin skilaboð");
     else if (!/could not|failed|error|villa|ekki/i.test(t))
       problems.push("tomt astand SEGIR EKKI hvers vegna: " + JSON.stringify(t.slice(0, 60)));
-    if (/undefined|NaN|\[object Object\]/.test(t)) problems.push("villuskilabod bera undefined/NaN");
+    if (/\bundefined\b|\bNaN\b|\[object Object\]/.test(t)) problems.push("villuskilabod bera undefined/NaN");
     if (problems.length) fail++;
     console.log(`  ${problems.length ? "✗" : "✓"} ${label.padEnd(26)} ${
       problems.length ? problems.join(" | ") : `ok — skyrd villa (${t.length} staf)`}`);
@@ -136,7 +136,7 @@ for (const [label, missing, broken = {}, kind = "flipar"] of SCENARIOS) {
   for (const [tab, txt] of Object.entries(perTab)) {
     if (txt === "HNAPP VANTAR") { problems.push(tab + ": hnapp vantar"); continue; }
     if (txt.trim().length < 400) problems.push(tab + ": nanast tomur (" + txt.trim().length + ")");
-    if (/undefined|NaN|\[object Object\]/.test(txt)) problems.push(tab + ": birti undefined/NaN");
+    if (/\bundefined\b|\bNaN\b|\[object Object\]/.test(txt)) problems.push(tab + ": birti undefined/NaN");
     if (!txt.includes(tab)) problems.push(tab + ": eigid heiti vantar");
   }
   if (errors.length) problems.push("console.error: " + errors[0]);

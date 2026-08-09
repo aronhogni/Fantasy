@@ -192,7 +192,7 @@ console.log(`\n${"─".repeat(72)}\nSVOR FRA PROXY-INU\n${"─".repeat(72)}`);
     console.error = oe; console.warn = ow;
 
     const usable = txt.includes("Planner") || txt.includes("Player stats");
-    const nan = /undefined|NaN|\[object Object\]/.test(txt);
+    const nan = /\bundefined\b|\bNaN\b|\[object Object\]/.test(txt);
     ok(`${label}: nothaeft og an NaN`, !crash && usable && !nan,
        crash ? "KASTADI: " + crash.slice(0, 55) : !usable ? "ekki nothaeft" : "NaN/undefined a skja");
   }

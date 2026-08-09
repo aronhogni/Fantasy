@@ -89,7 +89,12 @@ const readRows = () => {
     const txt = cells.map(c => c.textContent.trim());
     if (!txt.every(t => t === "—" || /^\d+(\.\d+)?$/.test(t))) continue;
     out.push({
-      team: spans[0].textContent.trim(),
+      /* ★ ER HLUTI AF HOLFINU EN EKKI AF NAFNINU. Hun er strippud hér svo
+         `n`-athugunin geti flett lidinu upp i teams.json — fyrsta utgafan
+         leitadi ad "ARS★" og fann ekkert. Merkid sjalft er profad i 4b
+         gegnum `euro`-flaggid.                                          */
+      team: spans[0].textContent.replace("★", "").trim(),
+      euro: /★/.test(spans[0].textContent),
       def: txt[0] === "—" ? null : +txt[0],
       att: txt[1] === "—" ? null : +txt[1],
       defBg: cells[0].style.background, attBg: cells[1].style.background,
@@ -196,12 +201,179 @@ ok(`allar 20 lidsradir lesnar (${rows.length})`, rows.length === 20, `fann ${row
   }
 }
 
+/* ---------- 4b. EVROPU-MERKID ----------
+   Notandinn bad um "adeins odruvisi, litid ikon eda skaletur, ekki
+   aberandi". Profid ver ThRENNT:
+     a) merkid er a NAKVAEMLEGA theim lidum sem `participation` nefnir —
+        hvorki fleiri ne faerri. Merki a rongu lidi vaeri verra en ekkert
+        (sama regla og BSD-lidavorpunin: thogul rong porun er verst).
+     b) thad er DAUFT. Ef einhver gerir thad rautt eda feitletrad er thad
+        ordid vidvorun — og evropualag maeldist EKKI marktaekt (6k), svo
+        vidvorun vaeri fullyrding sem gognin styðja ekki.
+     c) thad breytir ENGRI TOLU. FFDR-gildin verda ad vera nakvaemlega
+        thau somu hvort sem lidid er i Evropu eda ekki.                */
+{
+  const euro = J("euro_fixtures.json");
+  const part = euro?.participation || {};
+  const teamsFile = J("teams.json");
+  const tl = Array.isArray(teamsFile) ? teamsFile : (teamsFile.teams || []);
+  const wantShorts = new Set(Object.entries(part)
+    .filter(([, v]) => Array.isArray(v) && v.length)
+    .map(([id]) => (tl.find(t => t.id === +id) || {}).short)
+    .filter(Boolean));
+
+  /* Radirnar eru lesnar upp a nytt — bilid var faert i kafla 3/4.      */
+  const cur = readRows();
+  const starred = new Set(cur.filter(r => r.euro).map(r => r.team));
+  ok(`evropu-merkid er a ${wantShorts.size} lidum, nakvaemlega theim rettu`,
+     starred.size === wantShorts.size && [...wantShorts].every(s => starred.has(s)),
+     `merkt: ${[...starred].join(",")} · vaentanlegt: ${[...wantShorts].join(",")}`);
+
+  /* DAUFT, EKKI ABERANDI. */
+  const tags = [...section.querySelectorAll("span")].filter(s => s.textContent.trim() === "★");
+  ok(`merkin finnast i DOM (${tags.length})`, tags.length === wantShorts.size);
+  const loud = tags.filter(s => {
+    const st = s.style || {};
+    const size = parseFloat(st.fontSize) || 99;
+    const w = String(st.fontWeight || "");
+    return size > 10 || w === "bold" || +w >= 600 || /red|#d9|#f0[0-9a-f]{2}00/i.test(st.color || "");
+  });
+  ok("merkid er daufur smastafur — hvorki feitletrad ne raudt", loud.length === 0,
+     loud.map(s => `${s.style.fontSize}/${s.style.fontWeight}/${s.style.color}`).join(" | "));
+  ok("hvert merki ber skyringu (title)", tags.every(s => (s.getAttribute("title") || "").length > 20));
+
+  /* BREYTIR ENGRI TOLU — merkt lid og omerkt lesa somu FFDR-toflu.    */
+  const marked = cur.filter(r => r.euro);
+  ok(`merkt lid bera venjulegar FFDR-tolur (${marked.length})`,
+     marked.length > 0 && marked.every(r => (r.def == null || Number.isFinite(r.def))
+                                         && (r.att == null || Number.isFinite(r.att))));
+}
+
 /* ---------- 5. THREPIN SJALF ---------- */
 {
   ok("TIER_CUTS eru vaxandi", TIER_CUTS.every((c, i) => i === 0 || c > TIER_CUTS[i - 1]),
      TIER_CUTS.join(","));
   ok("tierOf skilar gildu threpi fyrir alla birta FFDR-tolu",
      rows.every(r => [r.def, r.att].every(v => v == null || (tierOf(v) >= 0 && tierOf(v) <= TIER_CUTS.length))));
+}
+
+/* ============================================================
+   6. FFDR-SPJALDID UNDIR VELLINUM (hnappurinn "📊 FFDR")
+
+   ThETTA ER ONNUR TAFLA EN SU AD OFAN og notandinn rakst a muninn:
+   "Teams — FFDR" hafdi bil-val og rodun, en spjaldid undir vellinum var
+   NEGLT vid timalinuna (`from=tlStart, span=tlWindow`) — eina leidin til
+   ad sja GW2-10 var ad skruna timalinunni, sem faerdi hana lika. Og
+   medaltalid var EITT, bundid vid lita-valid, svo ekki var haegt ad rada
+   eftir SOKN medan VORNIN var lituð.
+
+   Nu ber spjaldid eigid bil og TVO rodunar-dalka (Def/Att) sem baðir eru
+   reiknadir alltaf. Profad er:
+     a) bilid er sjalfstaett — ad velja GW2-10 gefur 9 dalka OG hreyfir
+        ekki hina tofluna
+     b) rodun eftir HVORRI tolu sem er, i BADAR attir, er einhalla
+     c) `n` fylgir raunverulegum leikjafjolda i bilinu
+     d) tomt gildi radast NEDST i badar attir (sama regla og alls stadar)
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nFFDR-SPJALDID UNDIR VELLINUM\n${"─".repeat(72)}`);
+{
+  const openBtn = [...document.querySelectorAll("button")].find(b => b.textContent.includes("📊 FFDR"));
+  ok("'📊 FFDR'-hnappurinn er til", !!openBtn);
+  if (openBtn) {
+    await fire(openBtn);
+    const panel = () => [...document.querySelectorAll("h2")]
+      .find(h => h.textContent.includes("FFDR — fixture difficulty"))?.closest("section");
+    ok("spjaldid opnast", !!panel());
+
+    const table = () => panel().querySelector("table");
+    const heads = () => [...table().querySelectorAll("thead th")];
+    const headTxt = () => heads().map(t => t.textContent.replace(/[↑↓]/g, "").trim());
+    const th = lbl => heads().find(t => t.textContent.replace(/[↑↓]/g, "").trim() === lbl);
+    const bodyRows = () => [...table().querySelectorAll("tbody tr")].map(r => {
+      const td = [...r.children];
+      const num = i => { const t = td[i].textContent.trim(); return t === "—" ? null : parseFloat(t); };
+      return { team: td[0].textContent.trim(),
+               def: num(td.length - 3), att: num(td.length - 2), n: num(td.length - 1) };
+    });
+
+    ok("Def- og Att-dalkar eru baðir i hausnum",
+       headTxt().includes("Def") && headTxt().includes("Att"), headTxt().join(" | "));
+    ok("`n`-dalkur er i hausnum", headTxt().includes("n"));
+    ok(`oll 20 lidin i toflunni (${bodyRows().length})`, bodyRows().length === 20);
+
+    /* ---- b) rodun eftir HVORRI tolu sem er, i BADAR attir ---- */
+    for (const key of ["def", "att"]) {
+      const lbl = key === "def" ? "Def" : "Att";
+      /* ATTIN ER LESIN AF ORINNI, EKKI GEFIN SER. Spjaldid opnast ThEGAR
+         radad eftir "Def" i asc, svo FYRSTI smellur a Def SNYR honum i
+         desc — hann velur ekki. Fyrsta utgafa profsins gaf ser "fyrsti
+         smellur = asc" og flaggadi thvi RETTA rodun sem ranga; nakvaemlega
+         sama villa og i playerlist-sort.mjs.                            */
+      const dirNow = () => { const t = th(lbl)?.textContent || "";
+        return t.includes("↑") ? "asc" : t.includes("↓") ? "desc" : null; };
+      await fire(th(lbl));
+      const r1 = bodyRows(), d1 = dirNow();
+      await fire(th(lbl));
+      const r2 = bodyRows(), d2 = dirNow();
+      ok(`${lbl}: attin snyst vid annan smell (${d1} -> ${d2})`, d1 && d2 && d1 !== d2);
+      const asc  = d1 === "asc"  ? r1 : r2;
+      const desc = d1 === "desc" ? r1 : r2;
+      const nums = a => a.map(r => r[key]).filter(v => v != null && Number.isFinite(v));
+      const a = nums(asc), d = nums(desc);
+      ok(`${lbl}: "asc" er vaxandi (${a.length} tolur)`,
+         a.length >= 15 && a.every((v, i) => i === 0 || v >= a[i - 1]),
+         a.slice(0, 5).join(", "));
+      ok(`${lbl}: "desc" er minnkandi`,
+         d.length >= 15 && d.every((v, i) => i === 0 || v <= d[i - 1]),
+         d.slice(0, 5).join(", "));
+      /* d) TOMT NEDST I BADAR ATTIR — osamhverfa reglan ur
+         playerlist-sort.mjs: se dalkurinn med tolur a annad bord ma
+         TOPPURINN aldrei vera tomur.                                  */
+      for (const [dir, arr] of [["asc", asc], ["desc", desc]])
+        ok(`${lbl} (${dir}): toppurinn er ekki tomur`, arr[0]?.[key] != null);
+    }
+
+    /* ---- a) eigid bil ---- */
+    const pick = [...panel().querySelectorAll("button")].find(b => b.textContent.trim() === "pick");
+    ok("spjaldid hefur eigin 'pick'-hnapp", !!pick);
+    if (pick) {
+      const before = headTxt().length;
+      await fire(pick);
+      const box = n => [...panel().querySelectorAll("button")].find(b => b.textContent.trim() === String(n));
+      await fire(box(2)); await fire(box(10));
+      const gwCols = headTxt().filter(t => /^\d+$/.test(t));
+      ok(`GW2-10 gefur nakvaemlega 9 umferdar-dalka (${gwCols.length})`, gwCols.length === 9,
+         gwCols.join(","));
+      ok("dalkarnir eru 2..10", gwCols[0] === "2" && gwCols.at(-1) === "10");
+      ok("bilid breyttist fra sjalfgefna (timalinu-bilinu)", headTxt().length !== before);
+
+      /* c) `n` fylgir fixtures.json i ThESSU bili. */
+      const fixtures = J("fixtures.json");
+      const fxs = Array.isArray(fixtures) ? fixtures : (fixtures.fixtures || []);
+      const teamsFile = J("teams.json");
+      const tl = Array.isArray(teamsFile) ? teamsFile : (teamsFile.teams || []);
+      const idByShort = new Map(tl.map(t => [t.short, t.id]));
+      const bad = [];
+      for (const r of bodyRows()) {
+        const id = idByShort.get(r.team.replace("★", "").trim());
+        if (id == null) { bad.push(`${r.team}: lid fannst ekki`); continue; }
+        const k = fxs.filter(f => (f.event ?? f.gw) >= 2 && (f.event ?? f.gw) <= 10
+                                && (f.team_h === id || f.team_a === id)).length;
+        if (k !== r.n) bad.push(`${r.team}: n=${r.n} en fixtures segir ${k}`);
+      }
+      ok("`n` stemmir vid fixtures.json fyrir oll lid i GW2-10", bad.length === 0,
+         bad.slice(0, 4).join(" | "));
+
+      /* "reset" skilar bilinu i timalinuna. */
+      const reset = [...panel().querySelectorAll("button")].find(b => b.textContent.trim() === "reset");
+      ok("'reset'-hnappur birtist thegar bil hefur verid valid", !!reset);
+      if (reset) {
+        await fire(reset);
+        ok("reset skilar sjalfgefnu bili", headTxt().length === before,
+           `${headTxt().length} vs ${before}`);
+      }
+    }
+  }
 }
 
 console.log(`\nFFDR-TAFLA: ${pass} stodust, ${fail} fellu`);

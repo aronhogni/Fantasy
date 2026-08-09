@@ -94,7 +94,7 @@ ok(`taflan teiknast i simabreidd (${body().length} radir)`, body().length >= 8);
 ok("engin console-villa i simaham", errors.length === 0, errors[0] || "");
 
 const txt = () => document.body.textContent || "";
-ok("ekkert undefined/NaN i simaham", !/undefined|NaN|\[object Object\]/.test(txt()));
+ok("ekkert undefined/NaN i simaham", !/\bundefined\b|\bNaN\b|\[object Object\]/.test(txt()));
 
 /* ---------- NARROW ER RAUNVERULEGA VIRKT ----------
    Ef `narrow` vaeri enn false vaeri nafnaholfid 216 px. Mæld breidd
@@ -135,7 +135,7 @@ ok(`nafnadalkurinn tekur < helming skjasins (${nameW}/${PHONE})`,
   for (const t of ["🛡️ Teams", "📊 Gameweek", "🏆 Leaderboard", "Set pieces", "👥 Player stats"]) {
     const b = [...document.querySelectorAll("button")].find(x => x.textContent.includes(t.replace(/^\S+\s/, "")));
     if (b) { await fire(b); switched++; }
-    if (/undefined|NaN/.test(txt())) { ok(`${t} an NaN i sima`, false); break; }
+    if (/\bundefined\b|\bNaN\b/.test(txt())) { ok(`${t} an NaN i sima`, false); break; }
   }
   ok(`allir flipar teiknast i simabreidd (${switched})`, switched >= 5);
   ok("engin console-villa eftir flipa-flakk i sima", errors.length === 0, errors[0] || "");
