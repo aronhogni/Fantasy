@@ -96,6 +96,7 @@ export const loadWeekly = (year) => load(`weekly/${year}.json`);
    standard en ekki i PPR. Ad birta eina tolu fyrir badar vaeri rangt. */
 export const loadEval = (scoring) => load(`model_eval_${scoring}.json`);
 export const loadStrategy = (scoring) => load(`strategy_${scoring}.json`);
+export const loadArank = (scoring) => load(`arank_${scoring}.json`);
 
 /* ============================================================
    BEIN DRAFT-TENGING VID SLEEPER

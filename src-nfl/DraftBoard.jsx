@@ -34,8 +34,14 @@ export default function DraftBoard({ rows, meta, league, season, accuracy }) {
     D.saveState("taken", [...t]); D.saveState("myPicks", [...m]);
   };
 
+  /* Bordid radar THEIM SEM A-RANKING NAER YFIR. K og DST eru utan
+     hennar (sja notu i build.js) og eru syndir ser nedar. */
   const available = useMemo(
-    () => rows.filter((r) => r.vbd != null && !taken.has(r.id))
+    () => rows.filter((r) => r.aRank != null && !taken.has(r.id))
+              .sort((a, b) => a.aRank - b.aRank),
+    [rows, taken]);
+  const kdst = useMemo(
+    () => rows.filter((r) => r.aRank == null && r.vbd != null && !taken.has(r.id))
               .sort((a, b) => b.vbd - a.vbd),
     [rows, taken]);
 
@@ -123,6 +129,30 @@ export default function DraftBoard({ rows, meta, league, season, accuracy }) {
           <BoardTable rows={shown.slice(0, 200)} onTake={take} taken={taken} />
         </div>
         <MyRoster roster={myRoster} league={league} onUndo={undo} />
+      </div>
+
+      <div className="panel" style={{ marginTop: 14 }}>
+        <h2>Kickers and defences</h2>
+        <div className="sub">
+          Listed separately, and last, on purpose.
+        </div>
+        <div className="note warn">
+          <b>Every simulation in this app excluded them.</b> The ordering that beats
+          ADP and Sleeper was measured on quarterbacks, backs, receivers and tight
+          ends only, so putting a defence into that list would be an unmeasured number
+          sitting next to measured ones. Value over replacement would place the top
+          defence around pick 77 — nobody drafts that way, because defences swing
+          wildly week to week and can be swapped every Tuesday, which the projection
+          cannot see.
+        </div>
+        <div className="chips">
+          {kdst.slice(0, 16).map((r) => (
+            <button key={r.id} className="chip" onClick={() => take(r, true)}
+              title={`VBD ${r.vbd == null ? "—" : r.vbd.toFixed(1)}`}>
+              {r.pos} {r.name}
+            </button>
+          ))}
+        </div>
       </div>
     </>
   );

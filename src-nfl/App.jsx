@@ -72,6 +72,7 @@ export default function App() {
       marketHistory: () => D.loadMarketHistory(),
       evalPpr: () => D.loadEval("ppr"), evalStd: () => D.loadEval("standard"),
       stratPpr: () => D.loadStrategy("ppr"), stratStd: () => D.loadStrategy("standard"),
+      arankPpr: () => D.loadArank("ppr"), arankStd: () => D.loadArank("standard"),
     };
     const got = await Promise.all(missing.map((k) => loaders[k]()));
     setExtra((prev) => {
@@ -88,7 +89,7 @@ export default function App() {
     else if (view === "schedule") need(["defense", "teamForm"]);
     else if (view === "sources") need(["calibration", "adp"]);
     else if (view === "market") need(["marketHistory"]);
-    else if (view === "lab") need(["evalPpr", "evalStd", "stratPpr", "stratStd"]);
+    else if (view === "lab") need(["evalPpr", "evalStd", "stratPpr", "stratStd", "arankPpr", "arankStd"]);
   }, [view, need]);
 
   /* ---- rodirnar ---- */
@@ -153,7 +154,8 @@ export default function App() {
       )}
       {view === "lab" && (
         <ModelLab evalPpr={extra.evalPpr} evalStd={extra.evalStd}
-          stratPpr={extra.stratPpr} stratStd={extra.stratStd} league={league} />
+          stratPpr={extra.stratPpr} stratStd={extra.stratStd} league={league}
+          rows={built.rows} arankPpr={extra.arankPpr} arankStd={extra.arankStd} />
       )}
       {view === "schedule" && (
         <Schedule schedule={core.schedule} teams={core.teams}

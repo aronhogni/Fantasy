@@ -289,8 +289,32 @@ async function main() {
       if (s && g) gsisBySleeper.set(s, g);
     }
     const POS_Q = ["QB", "RB", "WR", "TE"].map((p) => `position[]=${p}`).join("&");
+    /* SLEEPER-SPAR ERU TIL FRA 2018 EN THAER ERU EKKI ALLAR SPAR.
+       Endapunkturinn skilar tolum fyrir 2018-2025, en 2018-2020 eru
+       MENGADAR AF UTKOMUNNI — thaer voru bakfylltar eda uppfaerdar a
+       timabilinu. Maelt 9.8.2026, fylgni spar vid LEIKI SPILADA:
+
+         2018 r=0,600   2019 r=0,609   2020 r=0,690   <- mengud
+         2021 r=0,269   2022 r=0,169   2023 r=0,137
+         2024 r=0,212   2025 r=0,091                  <- hrein
+         (ADP til samanburdar: 0,08-0,15 OLL arin)
+
+       Doemin taka af allan vafa. 2020: Christian McCaffrey med ADP
+       1,2 — samdoma RB1 deildarinnar — var "spad" **RB48 med 64,9
+       stigum**, og hann spiladi 3 leiki. Saquon Barkley (ADP 2,5)
+       fekk RB54. Engin forleiks-spa setur tvo efstu hlauparana i
+       48. og 54. saeti.
+       2021 stenst hins vegar: Calvin Ridley (ADP 18) var spad **WR4
+       med 306,5 stigum** og hann spiladi 5 leiki. Sleeper vissi
+       ekkert.
+
+       Threpid er thvi sett a 2021 OG hlidið er SJALFVIRKT (sja
+       `leakyProj` nedar): ar sem fellur a fylgni-profinu er ekki
+       tekid inn, hvad sem thessi athugasemd segir. Kaemi i ljos ad
+       eldri gogn hreinsudust myndi hlidid hleypa theim inn af sjalfu
+       ser — og ofugt. */
     const projYears = [];
-    for (let y = 2022; y <= LAST_OUTCOME; y++) projYears.push(y);
+    for (let y = 2018; y <= LAST_OUTCOME; y++) projYears.push(y);
     await pool(projYears, 2, async (y) => {
       try {
         const d = await getJSON(
@@ -309,7 +333,7 @@ async function main() {
           });
           n++;
         }
-        record(`sleeper_proj_${y}`, n > 200, `${n} projections joined to gsis`);
+        record(`sleeper_proj_${y}`, n > 150, `${n} projections joined to gsis`);
       } catch (e) {
         record(`sleeper_proj_${y}`, false, `failed: ${e.message}`);
       }
@@ -474,6 +498,55 @@ async function main() {
     }
   }
 
+  /* ---------- 6b. LEKA-HLID A SPA-ARUNUM ----------
+
+     Forleiks-spa getur ekki vitad hverjir meidast. Fylgni hennar vid
+     LEIKI SPILADA a thvi ad vera lag. Ar sem fer yfir threpid er
+     FELLT: spain er thurrkud ut fyrir thad ar og thad er skrad.
+
+     MENGID SKIPTIR OLLU OG FYRSTA UTGAFAN HAFDI THAD RANGT.
+     Hun maeldi yfir ALLA sem attu spa (600+ per ar, thar med talda
+     djupa varamenn) og felldi tha OLL arin — lika hrein. Astaedan er
+     ruglandi thattur sem er ekki leki: madur sem er spad 5 stigum ER
+     varamadur og spilar faerri leiki, medan sa sem er spad 300 spilar
+     hverja viku. Su fylgni er raunveruleg og saklaus.
+
+     RETTA MENGID ER DRAFTANLEGI HOPURINN — their sem eiga ADP. Thar
+     er ruglandi thatturinn horfinn: allir i honum voru vaentir til ad
+     spila. Maelt a thvi mengi:
+       2018 r=0,600  2019 r=0,609  2020 r=0,690   <- mengud
+       2021 r=0,269  2022 r=0,169  2023 r=0,137
+       2024 r=0,212  2025 r=0,091                 <- hreinar
+       (ADP sjalft: 0,08-0,15 OLL arin)
+
+     Doemid sem tekur af vafann: 2020 var Christian McCaffrey — ADP
+     1,2, samdoma RB1 deildarinnar — "spad" RB48, og hann spiladi 3
+     leiki. 2021 var Calvin Ridley (ADP 18) hins vegar spad WR4 og
+     hann spiladi 5 leiki; su spa vissi ekkert. */
+  const LEAK_MAX = 0.40;
+  const leakyYears = new Set();
+  {
+    const byYear = new Map();
+    for (const r of rows) {
+      if (r.scoring !== "ppr" || r.sleeperProj == null || r.adp == null) continue;
+      (byYear.get(r.season) || byYear.set(r.season, []).get(r.season)).push(r);
+    }
+    for (const [yr, list] of [...byYear].sort((a, b) => a[0] - b[0])) {
+      if (list.length < 60) continue;
+      const rr = pearson(list.map((x) => x.sleeperProj), list.map((x) => x.g));
+      const leaky = Math.abs(rr) > LEAK_MAX;
+      if (leaky) leakyYears.add(yr);
+      record(`sleeper_leak_${yr}`, !leaky,
+        `projection vs games played r=${rr.toFixed(3)} on ${list.length} drafted players` +
+        (leaky ? " — REJECTED, outcome-aware" : ""));
+    }
+    for (const r of rows) {
+      if (leakyYears.has(r.season)) { r.sleeperProj = null; r.sleeperAdp = null; }
+    }
+    record("sleeper_leak_gate", true,
+      `${leakyYears.size} seasons rejected: ${[...leakyYears].sort().join(", ") || "none"}`);
+  }
+
   /* LEIKMADUR SEM SPILADI ALDREI FAER 0, EKKI NULL — og thad er retta
      svarid: hann var draftadur og gaf ekkert. Ad sleppa theim vaeri
      LIFUNAR-SKEKKJA sem gerdi hverja spa-adferd betri en hun er. */
@@ -499,6 +572,19 @@ async function main() {
   const byYear = {};
   for (const r of rows) byYear[r.season] = (byYear[r.season] || 0) + 1;
   console.log("radir per ar:", JSON.stringify(byYear));
+}
+
+/** Pearson-fylgni — notud i leka-hlidinu. */
+function pearson(a, b) {
+  const n = a.length;
+  const ma = a.reduce((x, y) => x + y, 0) / n;
+  const mb = b.reduce((x, y) => x + y, 0) / n;
+  let s = 0, da = 0, db = 0;
+  for (let i = 0; i < n; i++) {
+    const u = a[i] - ma, v = b[i] - mb;
+    s += u * v; da += u * u; db += v * v;
+  }
+  return da && db ? s / Math.sqrt(da * db) : 0;
 }
 
 /** NFL for ur 16 i 17 leiki 2021. Ad nota 17 alls stadar gaefi ollum

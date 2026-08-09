@@ -1,5 +1,5 @@
 {
- "generated": "2026-08-09T10:03:57.290Z",
+ "generated": "2026-08-09T12:59:30.067Z",
  "scoring": "standard",
  "testYears": [
   2018,
@@ -100,52 +100,106 @@
    "label": "Sleeper projection -> VBD  (A-RANKING)",
    "group": "mix",
    "note": "Spa Sleeper umreiknud i virdi yfir varamanni fyrir 12-lida deild.",
-   "years": 4,
+   "years": 5,
    "rho": {
-    "QB": 0.427,
-    "RB": 0.705,
-    "WR": 0.642,
-    "TE": 0.569,
-    "all": 0.522
+    "QB": 0.504,
+    "RB": 0.709,
+    "WR": 0.62,
+    "TE": 0.575,
+    "all": 0.51
    },
    "hit": {
-    "RB": 0.729,
-    "WR": 0.771,
-    "QB": 0.687,
-    "TE": 0.722
+    "RB": 0.742,
+    "WR": 0.755,
+    "QB": 0.716,
+    "TE": 0.708
    },
    "mae": {
-    "RB": 125.68,
-    "WR": 94.943
+    "RB": 125.408,
+    "WR": 95.778
    },
-   "draft": 1566.6,
-   "draftYears": 4,
-   "draftCommon": 1566.6,
+   "draft": 1571.8,
+   "draftYears": 5,
+   "draftCommon": 1571.8,
    "draftPerSeason": {
+    "2021": 1592.8,
     "2022": 1566.6,
     "2023": 1606,
     "2024": 1765.8,
     "2025": 1328
    },
    "rhoPerSeason": {
+    "2021": 0.463,
     "2022": 0.654,
     "2023": 0.517,
     "2024": 0.576,
     "2025": 0.34
    },
-   "rhoCommon": 0.522,
-   "hitRbCommon": 0.729,
-   "hitWrCommon": 0.771,
+   "rhoCommon": 0.51,
+   "hitRbCommon": 0.742,
+   "hitWrCommon": 0.755,
    "vsAdp": {
-    "diff": 269.5999999999999,
-    "lo": 153.3499999999999,
-    "hi": 373.79999999999995,
+    "diff": 268.2599999999999,
+    "lo": 175.2599999999999,
+    "hi": 351.61999999999995,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": 152.8749999999999,
-    "lo": 55.399999999999864,
-    "hi": 250.3499999999999,
+    "diff": 132.5199999999999,
+    "lo": 49.11999999999989,
+    "hi": 215.9199999999999,
+    "excludesZero": true
+   }
+  },
+  {
+   "key": "slp_resid_vbd",
+   "label": "Sleeper + correction -> VBD",
+   "group": "mix",
+   "note": "Okkar spa, umreiknud i virdi yfir varamanni.",
+   "years": 3,
+   "rho": {
+    "QB": 0.218,
+    "RB": 0.678,
+    "WR": 0.585,
+    "TE": 0.568,
+    "all": 0.464
+   },
+   "hit": {
+    "RB": 0.736,
+    "WR": 0.75,
+    "QB": 0.639,
+    "TE": 0.709
+   },
+   "mae": {
+    "RB": 123.703,
+    "WR": 93.85
+   },
+   "draft": 1502.3,
+   "draftYears": 3,
+   "draftCommon": null,
+   "draftPerSeason": {
+    "2023": 1591.7,
+    "2024": 1723.4,
+    "2025": 1191.7
+   },
+   "rhoPerSeason": {
+    "2023": 0.518,
+    "2024": 0.508,
+    "2025": 0.366
+   },
+   "rhoCommon": null,
+   "hitRbCommon": null,
+   "hitWrCommon": null,
+   "vsAdp": {
+    "diff": 203.73333333333335,
+    "lo": -28.200000000000045,
+    "hi": 364.60000000000014,
+    "excludesZero": false
+   },
+   "vsSleeper": {
+    "diff": 113.43333333333332,
+    "lo": 18.299999999999955,
+    "hi": 193.5,
     "excludesZero": true
    }
   },
@@ -154,52 +208,54 @@
    "label": "ADP + Sleeper x2",
    "group": "mix",
    "note": "Meiri vog a Sleeper, sem maeldist betri.",
-   "years": 4,
+   "years": 5,
    "rho": {
-    "QB": 0.411,
-    "RB": 0.684,
-    "WR": 0.62,
-    "TE": 0.558,
-    "all": 0.549
+    "QB": 0.481,
+    "RB": 0.69,
+    "WR": 0.598,
+    "TE": 0.571,
+    "all": 0.55
    },
    "hit": {
-    "RB": 0.74,
-    "WR": 0.771,
-    "QB": 0.667,
-    "TE": 0.722
+    "RB": 0.742,
+    "WR": 0.755,
+    "QB": 0.7,
+    "TE": 0.708
    },
    "mae": {
-    "RB": 153.243,
-    "WR": 142.885
+    "RB": 151.554,
+    "WR": 142.722
    },
-   "draft": 1466.8,
-   "draftYears": 4,
-   "draftCommon": 1466.8,
+   "draft": 1496.3,
+   "draftYears": 5,
+   "draftCommon": 1496.3,
    "draftPerSeason": {
+    "2021": 1614.6,
     "2022": 1591.5,
     "2023": 1607.3,
     "2024": 1591.3,
     "2025": 1076.9
    },
    "rhoPerSeason": {
+    "2021": 0.555,
     "2022": 0.641,
     "2023": 0.533,
     "2024": 0.53,
     "2025": 0.49
    },
-   "rhoCommon": 0.549,
-   "hitRbCommon": 0.74,
-   "hitWrCommon": 0.771,
+   "rhoCommon": 0.55,
+   "hitRbCommon": 0.742,
+   "hitWrCommon": 0.755,
    "vsAdp": {
-    "diff": 169.74999999999994,
-    "lo": -34.650000000000034,
-    "hi": 294.7499999999999,
-    "excludesZero": false
+    "diff": 192.73999999999992,
+    "lo": 20.519999999999982,
+    "hi": 292.7399999999999,
+    "excludesZero": true
    },
    "vsSleeper": {
-    "diff": 53.02499999999992,
-    "lo": 23.799999999999955,
-    "hi": 85.7999999999999,
+    "diff": 56.99999999999991,
+    "lo": 29.8599999999999,
+    "hi": 83.21999999999989,
     "excludesZero": true
    }
   },
@@ -208,52 +264,54 @@
    "label": "ADP + ECR + Sleeper x2  (A-RANKING)",
    "group": "mix",
    "note": "Allar thrjar, meiri vog a tha sem maeldist bestur.",
-   "years": 4,
+   "years": 5,
    "rho": {
-    "QB": 0.382,
-    "RB": 0.671,
-    "WR": 0.61,
-    "TE": 0.53,
-    "all": 0.54
+    "QB": 0.46,
+    "RB": 0.676,
+    "WR": 0.59,
+    "TE": 0.537,
+    "all": 0.542
    },
    "hit": {
-    "RB": 0.74,
-    "WR": 0.764,
-    "QB": 0.646,
-    "TE": 0.722
+    "RB": 0.742,
+    "WR": 0.75,
+    "QB": 0.683,
+    "TE": 0.708
    },
    "mae": {
-    "RB": 153.243,
-    "WR": 142.885
+    "RB": 151.554,
+    "WR": 142.722
    },
-   "draft": 1457.8,
-   "draftYears": 4,
-   "draftCommon": 1457.8,
+   "draft": 1479.1,
+   "draftYears": 5,
+   "draftCommon": 1479.1,
    "draftPerSeason": {
+    "2021": 1564.3,
     "2022": 1593.6,
     "2023": 1517.2,
     "2024": 1604.5,
     "2025": 1115.9
    },
    "rhoPerSeason": {
+    "2021": 0.549,
     "2022": 0.627,
     "2023": 0.519,
     "2024": 0.513,
     "2025": 0.5
    },
-   "rhoCommon": 0.54,
-   "hitRbCommon": 0.74,
-   "hitWrCommon": 0.764,
+   "rhoCommon": 0.542,
+   "hitRbCommon": 0.742,
+   "hitWrCommon": 0.75,
    "vsAdp": {
-    "diff": 160.79999999999995,
-    "lo": -16.57499999999999,
-    "hi": 275.97499999999985,
-    "excludesZero": false
+    "diff": 175.51999999999992,
+    "lo": 31.359999999999946,
+    "hi": 267.9,
+    "excludesZero": true
    },
    "vsSleeper": {
-    "diff": 44.07499999999993,
-    "lo": -23.500000000000057,
-    "hi": 92.07499999999987,
+    "diff": 39.77999999999993,
+    "lo": -14.280000000000063,
+    "hi": 82.55999999999986,
     "excludesZero": false
    }
   },
@@ -262,52 +320,54 @@
    "label": "ADP + Sleeper projection",
    "group": "mix",
    "note": "Tvaer sterkustu heimildirnar, jofn vog.",
-   "years": 4,
+   "years": 5,
    "rho": {
-    "QB": 0.368,
-    "RB": 0.66,
-    "WR": 0.601,
-    "TE": 0.517,
-    "all": 0.535
+    "QB": 0.442,
+    "RB": 0.669,
+    "WR": 0.582,
+    "TE": 0.533,
+    "all": 0.537
    },
    "hit": {
-    "RB": 0.74,
-    "WR": 0.771,
-    "QB": 0.646,
-    "TE": 0.722
+    "RB": 0.742,
+    "WR": 0.755,
+    "QB": 0.683,
+    "TE": 0.708
    },
    "mae": {
-    "RB": 153.243,
-    "WR": 142.885
+    "RB": 151.554,
+    "WR": 142.722
    },
-   "draft": 1440.8,
-   "draftYears": 4,
-   "draftCommon": 1440.8,
+   "draft": 1477.9,
+   "draftYears": 5,
+   "draftCommon": 1477.9,
    "draftPerSeason": {
+    "2021": 1626.3,
     "2022": 1584.9,
     "2023": 1603.3,
     "2024": 1575,
     "2025": 999.8
    },
    "rhoPerSeason": {
+    "2021": 0.546,
     "2022": 0.621,
     "2023": 0.513,
     "2024": 0.511,
     "2025": 0.493
    },
-   "rhoCommon": 0.535,
-   "hitRbCommon": 0.74,
-   "hitWrCommon": 0.771,
+   "rhoCommon": 0.537,
+   "hitRbCommon": 0.742,
+   "hitWrCommon": 0.755,
    "vsAdp": {
-    "diff": 143.74999999999994,
-    "lo": -93.47500000000014,
-    "hi": 289.44999999999993,
+    "diff": 174.27999999999992,
+    "lo": -30.32000000000007,
+    "hi": 292.39999999999986,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": 27.02499999999992,
-    "lo": -36.27500000000009,
-    "hi": 79.84999999999997,
+    "diff": 38.53999999999992,
+    "lo": -15.1400000000001,
+    "hi": 81.45999999999995,
     "excludesZero": false
    }
   },
@@ -316,52 +376,54 @@
    "label": "ADP + ECR + Sleeper, nudged 20% by the model",
    "group": "mix",
    "note": "Samsteypa skodana sem grunnur, likanid sem lítil leidretting.",
-   "years": 4,
+   "years": 5,
    "rho": {
-    "QB": 0.353,
-    "RB": 0.657,
-    "WR": 0.598,
-    "TE": 0.507,
-    "all": 0.534
+    "QB": 0.427,
+    "RB": 0.666,
+    "WR": 0.58,
+    "TE": 0.517,
+    "all": 0.537
    },
    "hit": {
-    "RB": 0.74,
-    "WR": 0.75,
-    "QB": 0.625,
-    "TE": 0.75
+    "RB": 0.733,
+    "WR": 0.739,
+    "QB": 0.667,
+    "TE": 0.729
    },
    "mae": {
-    "RB": 153.243,
-    "WR": 142.885
+    "RB": 151.554,
+    "WR": 142.722
    },
-   "draft": 1426.5,
-   "draftYears": 4,
-   "draftCommon": 1426.5,
+   "draft": 1462,
+   "draftYears": 5,
+   "draftCommon": 1462,
    "draftPerSeason": {
+    "2021": 1604.1,
     "2022": 1606.6,
     "2023": 1429.8,
     "2024": 1522.8,
     "2025": 1146.8
    },
    "rhoPerSeason": {
+    "2021": 0.549,
     "2022": 0.622,
     "2023": 0.507,
     "2024": 0.503,
     "2025": 0.502
    },
-   "rhoCommon": 0.534,
-   "hitRbCommon": 0.74,
-   "hitWrCommon": 0.75,
+   "rhoCommon": 0.537,
+   "hitRbCommon": 0.733,
+   "hitWrCommon": 0.739,
    "vsAdp": {
-    "diff": 129.4999999999999,
-    "lo": -13.825000000000102,
-    "hi": 263.87499999999983,
-    "excludesZero": false
+    "diff": 158.43999999999988,
+    "lo": 33.55999999999985,
+    "hi": 268.15999999999985,
+    "excludesZero": true
    },
    "vsSleeper": {
-    "diff": 12.774999999999864,
-    "lo": -86.80000000000013,
-    "hi": 100.89999999999986,
+    "diff": 22.699999999999864,
+    "lo": -63.94000000000015,
+    "hi": 93.19999999999986,
     "excludesZero": false
    }
   },
@@ -370,46 +432,48 @@
    "label": "Sleeper projection",
    "group": "baseline",
    "note": "Forleiks-spa Sleeper. Adeins 2022+.",
-   "years": 4,
+   "years": 5,
    "rho": {
-    "QB": 0.427,
-    "RB": 0.705,
-    "WR": 0.642,
-    "TE": 0.569,
-    "all": 0.726
+    "QB": 0.504,
+    "RB": 0.709,
+    "WR": 0.62,
+    "TE": 0.575,
+    "all": 0.729
    },
    "hit": {
-    "RB": 0.729,
-    "WR": 0.771,
-    "QB": 0.687,
-    "TE": 0.722
+    "RB": 0.742,
+    "WR": 0.755,
+    "QB": 0.716,
+    "TE": 0.708
    },
    "mae": {
-    "RB": 48.298,
-    "WR": 37.058
+    "RB": 48.25,
+    "WR": 40.136
    },
-   "draft": 1413.7,
-   "draftYears": 4,
-   "draftCommon": 1413.7,
+   "draft": 1439.3,
+   "draftYears": 5,
+   "draftCommon": 1439.3,
    "draftPerSeason": {
+    "2021": 1541.7,
     "2022": 1488.4,
     "2023": 1573.4,
     "2024": 1529.9,
     "2025": 1063.2
    },
    "rhoPerSeason": {
+    "2021": 0.738,
     "2022": 0.798,
     "2023": 0.705,
     "2024": 0.761,
     "2025": 0.641
    },
-   "rhoCommon": 0.726,
-   "hitRbCommon": 0.729,
-   "hitWrCommon": 0.771,
+   "rhoCommon": 0.729,
+   "hitRbCommon": 0.742,
+   "hitWrCommon": 0.755,
    "vsAdp": {
-    "diff": 116.72500000000002,
-    "lo": -68.52500000000003,
-    "hi": 235.15000000000003,
+    "diff": 135.74,
+    "lo": -12.460000000000036,
+    "hi": 229.67999999999998,
     "excludesZero": false
    },
    "vsSleeper": {
@@ -424,53 +488,159 @@
    "label": "ADP + ECR + Sleeper",
    "group": "mix",
    "note": "Allar thrjar skodanirnar.",
-   "years": 4,
+   "years": 5,
    "rho": {
-    "QB": 0.334,
-    "RB": 0.646,
-    "WR": 0.587,
-    "TE": 0.488,
-    "all": 0.525
+    "QB": 0.416,
+    "RB": 0.653,
+    "WR": 0.568,
+    "TE": 0.495,
+    "all": 0.528
    },
    "hit": {
-    "RB": 0.74,
-    "WR": 0.743,
-    "QB": 0.625,
-    "TE": 0.722
+    "RB": 0.733,
+    "WR": 0.733,
+    "QB": 0.667,
+    "TE": 0.708
    },
    "mae": {
-    "RB": 153.243,
-    "WR": 142.885
+    "RB": 151.554,
+    "WR": 142.722
    },
-   "draft": 1386.3,
-   "draftYears": 4,
-   "draftCommon": 1386.3,
+   "draft": 1422.5,
+   "draftYears": 5,
+   "draftCommon": 1422.5,
    "draftPerSeason": {
+    "2021": 1567.4,
     "2022": 1518.8,
     "2023": 1400,
     "2024": 1510.8,
     "2025": 1115.5
    },
    "rhoPerSeason": {
+    "2021": 0.539,
     "2022": 0.604,
     "2023": 0.496,
     "2024": 0.497,
     "2025": 0.504
    },
-   "rhoCommon": 0.525,
-   "hitRbCommon": 0.74,
-   "hitWrCommon": 0.743,
+   "rhoCommon": 0.528,
+   "hitRbCommon": 0.733,
+   "hitWrCommon": 0.733,
    "vsAdp": {
-    "diff": 89.27499999999992,
-    "lo": -40.30000000000007,
-    "hi": 190.57499999999987,
+    "diff": 118.91999999999993,
+    "lo": 1.4799999999999272,
+    "hi": 215.95999999999995,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -16.82000000000007,
+    "lo": -97.40000000000009,
+    "hi": 38.219999999999935,
+    "excludesZero": false
+   }
+  },
+  {
+   "key": "slp_resid",
+   "label": "Sleeper + our correction to its error",
+   "group": "model",
+   "note": "Spair SKEKKJU Sleeper, ekki utkomunni.",
+   "years": 3,
+   "rho": {
+    "QB": 0.218,
+    "RB": 0.678,
+    "WR": 0.585,
+    "TE": 0.568,
+    "all": 0.703
+   },
+   "hit": {
+    "RB": 0.736,
+    "WR": 0.75,
+    "QB": 0.639,
+    "TE": 0.709
+   },
+   "mae": {
+    "RB": 47.753,
+    "WR": 35.257
+   },
+   "draft": 1420.3,
+   "draftYears": 3,
+   "draftCommon": null,
+   "draftPerSeason": {
+    "2023": 1645.3,
+    "2024": 1478.7,
+    "2025": 1136.8
+   },
+   "rhoPerSeason": {
+    "2023": 0.708,
+    "2024": 0.756,
+    "2025": 0.645
+   },
+   "rhoCommon": null,
+   "hitRbCommon": null,
+   "hitWrCommon": null,
+   "vsAdp": {
+    "diff": 121.73333333333328,
+    "lo": -83.10000000000014,
+    "hi": 328.39999999999986,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -27.450000000000102,
-    "lo": -122.4500000000001,
-    "hi": 41.34999999999991,
+    "diff": 31.43333333333324,
+    "lo": -51.200000000000045,
+    "hi": 73.59999999999991,
     "excludesZero": false
+   }
+  },
+  {
+   "key": "slp_resid_lite",
+   "label": "Sleeper + correction (age, team change, durability only)",
+   "group": "model",
+   "note": "Adeins thaer breytur sem spa gaeti kerfisbundid misst af.",
+   "years": 3,
+   "rho": {
+    "QB": 0.196,
+    "RB": 0.679,
+    "WR": 0.587,
+    "TE": 0.559,
+    "all": 0.699
+   },
+   "hit": {
+    "RB": 0.736,
+    "WR": 0.75,
+    "QB": 0.583,
+    "TE": 0.709
+   },
+   "mae": {
+    "RB": 47.323,
+    "WR": 35.28
+   },
+   "draft": 1341.6,
+   "draftYears": 3,
+   "draftCommon": null,
+   "draftPerSeason": {
+    "2023": 1548.6,
+    "2024": 1478,
+    "2025": 998.1
+   },
+   "rhoPerSeason": {
+    "2023": 0.708,
+    "2024": 0.742,
+    "2025": 0.647
+   },
+   "rhoCommon": null,
+   "hitRbCommon": null,
+   "hitWrCommon": null,
+   "vsAdp": {
+    "diff": 43.03333333333327,
+    "lo": -221.80000000000007,
+    "hi": 231.69999999999982,
+    "excludesZero": false
+   },
+   "vsSleeper": {
+    "diff": -47.266666666666765,
+    "lo": -65.10000000000002,
+    "hi": -24.800000000000182,
+    "excludesZero": true
    }
   },
   {
@@ -478,112 +648,54 @@
    "label": "Sleeper ADP",
    "group": "baseline",
    "note": "ADP a theim vettvangi sem notandinn draftar a.",
-   "years": 4,
+   "years": 5,
    "rho": {
-    "QB": 0.345,
-    "RB": 0.615,
-    "WR": 0.554,
-    "TE": 0.458,
-    "all": 0.438
+    "QB": 0.41,
+    "RB": 0.629,
+    "WR": 0.532,
+    "TE": 0.487,
+    "all": 0.445
    },
    "hit": {
-    "RB": 0.708,
-    "WR": 0.736,
-    "QB": 0.625,
-    "TE": 0.695
+    "RB": 0.692,
+    "WR": 0.722,
+    "QB": 0.667,
+    "TE": 0.688
    },
    "mae": {
-    "RB": 128.858,
-    "WR": 115.968
+    "RB": 125.99,
+    "WR": 114.958
    },
-   "draft": 1334.1,
-   "draftYears": 4,
-   "draftCommon": 1334.1,
+   "draft": 1322.2,
+   "draftYears": 5,
+   "draftCommon": 1322.2,
    "draftPerSeason": {
+    "2021": 1274.4,
     "2022": 1440.7,
     "2023": 1408.2,
     "2024": 1252.8,
     "2025": 1234.8
    },
    "rhoPerSeason": {
+    "2021": 0.475,
     "2022": 0.564,
     "2023": 0.478,
     "2024": 0.374,
     "2025": 0.336
    },
-   "rhoCommon": 0.438,
-   "hitRbCommon": 0.708,
-   "hitWrCommon": 0.736,
+   "rhoCommon": 0.445,
+   "hitRbCommon": 0.692,
+   "hitWrCommon": 0.722,
    "vsAdp": {
-    "diff": 37.12499999999994,
-    "lo": -56.67500000000001,
-    "hi": 119.79999999999995,
+    "diff": 18.599999999999955,
+    "lo": -61.620000000000026,
+    "hi": 98.81999999999994,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -79.60000000000008,
-    "lo": -221.1500000000001,
-    "hi": 87.39999999999992,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_slp",
-   "label": "only: Sleeper projection (as a feature)",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.267,
-    "RB": 0.54,
-    "WR": 0.583,
-    "TE": 0.548,
-    "all": 0.506
-   },
-   "hit": {
-    "RB": 0.714,
-    "WR": 0.722,
-    "QB": 0.679,
-    "TE": 0.683
-   },
-   "mae": {
-    "RB": 56.366,
-    "WR": 41.55
-   },
-   "draft": 1304,
-   "draftYears": 7,
-   "draftCommon": 1389.3,
-   "draftPerSeason": {
-    "2019": 1162.6,
-    "2020": 1173.8,
-    "2021": 1234.4,
-    "2022": 1234.1,
-    "2023": 1668.5,
-    "2024": 1499.2,
-    "2025": 1155.3
-   },
-   "rhoPerSeason": {
-    "2019": 0.453,
-    "2020": 0.332,
-    "2021": 0.35,
-    "2022": 0.36,
-    "2023": 0.669,
-    "2024": 0.733,
-    "2025": 0.643
-   },
-   "rhoCommon": 0.601,
-   "hitRbCommon": 0.708,
-   "hitWrCommon": 0.743,
-   "vsAdp": {
-    "diff": 1.9285714285713635,
-    "lo": -104.64285714285721,
-    "hi": 144.74285714285705,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -24.450000000000102,
-    "lo": -167.70000000000016,
-    "hi": 93.59999999999991,
+    "diff": -117.14000000000006,
+    "lo": -250.80000000000004,
+    "hi": 39.959999999999944,
     "excludesZero": false
    }
   },
@@ -612,7 +724,7 @@
    },
    "draft": 1303.2,
    "draftYears": 8,
-   "draftCommon": 1297,
+   "draftCommon": 1303.6,
    "draftPerSeason": {
     "2018": 1311.1,
     "2019": 1295.7,
@@ -633,9 +745,9 @@
     "2024": 0.382,
     "2025": 0.386
    },
-   "rhoCommon": 0.411,
-   "hitRbCommon": 0.687,
-   "hitWrCommon": 0.729,
+   "rhoCommon": 0.416,
+   "hitRbCommon": 0.683,
+   "hitWrCommon": 0.717,
    "vsAdp": {
     "diff": 0,
     "lo": 0,
@@ -643,9 +755,9 @@
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -116.72500000000002,
-    "lo": -235.15000000000003,
-    "hi": 68.52500000000003,
+    "diff": -135.74,
+    "lo": -227.32000000000002,
+    "hi": 12.460000000000036,
     "excludesZero": false
    }
   },
@@ -674,7 +786,7 @@
    },
    "draft": 1303.2,
    "draftYears": 8,
-   "draftCommon": 1297,
+   "draftCommon": 1303.6,
    "draftPerSeason": {
     "2018": 1311.1,
     "2019": 1295.7,
@@ -695,9 +807,9 @@
     "2024": 0.382,
     "2025": 0.386
    },
-   "rhoCommon": 0.411,
-   "hitRbCommon": 0.687,
-   "hitWrCommon": 0.729,
+   "rhoCommon": 0.416,
+   "hitRbCommon": 0.683,
+   "hitWrCommon": 0.717,
    "vsAdp": {
     "diff": 0,
     "lo": 0,
@@ -705,9 +817,71 @@
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -116.72500000000002,
-    "lo": -235.15000000000003,
-    "hi": 68.52500000000003,
+    "diff": -135.74,
+    "lo": -227.32000000000002,
+    "hi": 12.460000000000036,
+    "excludesZero": false
+   }
+  },
+  {
+   "key": "r_slp",
+   "label": "only: Sleeper projection (as a feature)",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.374,
+    "RB": 0.61,
+    "WR": 0.625,
+    "TE": 0.573,
+    "all": 0.54
+   },
+   "hit": {
+    "RB": 0.708,
+    "WR": 0.729,
+    "QB": 0.677,
+    "TE": 0.708
+   },
+   "mae": {
+    "RB": 54.488,
+    "WR": 39.817
+   },
+   "draft": 1295.8,
+   "draftYears": 8,
+   "draftCommon": 1391.1,
+   "draftPerSeason": {
+    "2018": 1074.5,
+    "2019": 1162.6,
+    "2020": 1173.8,
+    "2021": 1234.4,
+    "2022": 1553.6,
+    "2023": 1622.9,
+    "2024": 1516.6,
+    "2025": 1028
+   },
+   "rhoPerSeason": {
+    "2018": 0.387,
+    "2019": 0.453,
+    "2020": 0.332,
+    "2021": 0.367,
+    "2022": 0.724,
+    "2023": 0.674,
+    "2024": 0.733,
+    "2025": 0.646
+   },
+   "rhoCommon": 0.629,
+   "hitRbCommon": 0.725,
+   "hitWrCommon": 0.75,
+   "vsAdp": {
+    "diff": -7.3875000000000455,
+    "lo": -135.78750000000002,
+    "hi": 134.91249999999994,
+    "excludesZero": false
+   },
+   "vsSleeper": {
+    "diff": -48.22000000000007,
+    "lo": -181.51999999999998,
+    "hi": 43.21999999999989,
     "excludesZero": false
    }
   },
@@ -716,28 +890,29 @@
    "label": "ADP nudged 50% toward the model",
    "group": "blend",
    "note": "Rodum ur badum, vegid saman. Vardveitir markadinn sem grunn.",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.355,
-    "RB": 0.615,
-    "WR": 0.506,
-    "TE": 0.421,
-    "all": 0.49
+    "QB": 0.361,
+    "RB": 0.59,
+    "WR": 0.515,
+    "TE": 0.399,
+    "all": 0.486
    },
    "hit": {
-    "RB": 0.714,
-    "WR": 0.714,
-    "QB": 0.643,
-    "TE": 0.667
+    "RB": 0.693,
+    "WR": 0.705,
+    "QB": 0.646,
+    "TE": 0.681
    },
    "mae": {
-    "RB": 149.339,
-    "WR": 141.921
+    "RB": 149.22,
+    "WR": 142.451
    },
-   "draft": 1303.1,
-   "draftYears": 7,
-   "draftCommon": 1307.2,
+   "draft": 1282.2,
+   "draftYears": 8,
+   "draftCommon": 1328.9,
    "draftPerSeason": {
+    "2018": 1136,
     "2019": 1269.8,
     "2020": 1207.4,
     "2021": 1415.5,
@@ -747,6 +922,7 @@
     "2025": 1154.4
    },
    "rhoPerSeason": {
+    "2018": 0.455,
     "2019": 0.479,
     "2020": 0.55,
     "2021": 0.523,
@@ -755,79 +931,19 @@
     "2024": 0.429,
     "2025": 0.507
    },
-   "rhoCommon": 0.47,
-   "hitRbCommon": 0.687,
-   "hitWrCommon": 0.722,
+   "rhoCommon": 0.48,
+   "hitRbCommon": 0.7,
+   "hitWrCommon": 0.716,
    "vsAdp": {
-    "diff": 1.0142857142856687,
-    "lo": -52.61428571428571,
-    "hi": 57.08571428571421,
+    "diff": -21.00000000000003,
+    "lo": -85.32499999999999,
+    "hi": 44.3249999999999,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -106.52500000000009,
-    "lo": -255.50000000000017,
-    "hi": 35.42500000000001,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_no_efficiency",
-   "label": "all but efficiency",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.305,
-    "RB": 0.603,
-    "WR": 0.51,
-    "TE": 0.385,
-    "all": 0.654
-   },
-   "hit": {
-    "RB": 0.708,
-    "WR": 0.718,
-    "QB": 0.595,
-    "TE": 0.633
-   },
-   "mae": {
-    "RB": 51.064,
-    "WR": 37.849
-   },
-   "draft": 1294.5,
-   "draftYears": 7,
-   "draftCommon": 1331.5,
-   "draftPerSeason": {
-    "2019": 1201.8,
-    "2020": 1166.8,
-    "2021": 1366.8,
-    "2022": 1540.4,
-    "2023": 1346.6,
-    "2024": 1251.3,
-    "2025": 1187.7
-   },
-   "rhoPerSeason": {
-    "2019": 0.673,
-    "2020": 0.71,
-    "2021": 0.669,
-    "2022": 0.664,
-    "2023": 0.575,
-    "2024": 0.622,
-    "2025": 0.663
-   },
-   "rhoCommon": 0.631,
-   "hitRbCommon": 0.688,
-   "hitWrCommon": 0.743,
-   "vsAdp": {
-    "diff": -7.571428571428636,
-    "lo": -85.52857142857147,
-    "hi": 85.97142857142853,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -82.22500000000008,
-    "lo": -252.70000000000016,
-    "hi": 88.25,
+    "diff": -110.46000000000008,
+    "lo": -230.78000000000014,
+    "hi": 4.240000000000009,
     "excludesZero": false
    }
   },
@@ -836,28 +952,29 @@
    "label": "all but durability",
    "group": "ablation",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.309,
-    "RB": 0.608,
-    "WR": 0.494,
-    "TE": 0.399,
-    "all": 0.652
+    "QB": 0.307,
+    "RB": 0.583,
+    "WR": 0.501,
+    "TE": 0.35,
+    "all": 0.645
    },
    "hit": {
-    "RB": 0.72,
-    "WR": 0.706,
-    "QB": 0.607,
-    "TE": 0.633
+    "RB": 0.698,
+    "WR": 0.698,
+    "QB": 0.604,
+    "TE": 0.625
    },
    "mae": {
-    "RB": 50.679,
-    "WR": 38.127
+    "RB": 51.391,
+    "WR": 37.945
    },
-   "draft": 1291.1,
-   "draftYears": 7,
-   "draftCommon": 1353.8,
+   "draft": 1273.5,
+   "draftYears": 8,
+   "draftCommon": 1349.6,
    "draftPerSeason": {
+    "2018": 1150.4,
     "2019": 1154.5,
     "2020": 1135,
     "2021": 1332.9,
@@ -867,6 +984,7 @@
     "2025": 1232.3
    },
    "rhoPerSeason": {
+    "2018": 0.599,
     "2019": 0.68,
     "2020": 0.712,
     "2021": 0.668,
@@ -875,79 +993,19 @@
     "2024": 0.617,
     "2025": 0.654
    },
-   "rhoCommon": 0.626,
-   "hitRbCommon": 0.708,
-   "hitWrCommon": 0.736,
+   "rhoCommon": 0.634,
+   "hitRbCommon": 0.717,
+   "hitWrCommon": 0.717,
    "vsAdp": {
-    "diff": -11.000000000000032,
-    "lo": -89.32857142857145,
-    "hi": 71.9571428571428,
+    "diff": -29.712500000000006,
+    "lo": -105.56249999999991,
+    "hi": 52.43749999999994,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -59.97500000000008,
-    "lo": -184.95000000000005,
-    "hi": 94.4249999999999,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_all",
-   "label": "market + experts + stats  (A-RANKING)",
-   "group": "model",
-   "note": "Allt sem vid hofum. Uppskriftin ad A-Ranking ef hun vinnur.",
-   "years": 7,
-   "rho": {
-    "QB": 0.319,
-    "RB": 0.594,
-    "WR": 0.506,
-    "TE": 0.408,
-    "all": 0.65
-   },
-   "hit": {
-    "RB": 0.708,
-    "WR": 0.71,
-    "QB": 0.607,
-    "TE": 0.65
-   },
-   "mae": {
-    "RB": 51.551,
-    "WR": 37.974
-   },
-   "draft": 1275.5,
-   "draftYears": 7,
-   "draftCommon": 1308.5,
-   "draftPerSeason": {
-    "2019": 1204.8,
-    "2020": 1108.1,
-    "2021": 1381.4,
-    "2022": 1353.9,
-    "2023": 1402.9,
-    "2024": 1276,
-    "2025": 1201.3
-   },
-   "rhoPerSeason": {
-    "2019": 0.682,
-    "2020": 0.692,
-    "2021": 0.668,
-    "2022": 0.658,
-    "2023": 0.573,
-    "2024": 0.618,
-    "2025": 0.656
-   },
-   "rhoCommon": 0.626,
-   "hitRbCommon": 0.688,
-   "hitWrCommon": 0.729,
-   "vsAdp": {
-    "diff": -26.571428571428605,
-    "lo": -95.90000000000002,
-    "hi": 37.671428571428514,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -105.20000000000005,
-    "lo": -224.05000000000007,
-    "hi": 60.94999999999993,
+    "diff": -89.74000000000005,
+    "lo": -201.52000000000004,
+    "hi": 45.57999999999993,
     "excludesZero": false
    }
   },
@@ -976,7 +1034,7 @@
    },
    "draft": 1267.2,
    "draftYears": 6,
-   "draftCommon": 1268.9,
+   "draftCommon": 1284.2,
    "draftPerSeason": {
     "2020": 1182.4,
     "2021": 1345.2,
@@ -993,9 +1051,9 @@
     "2024": 0.453,
     "2025": 0.517
    },
-   "rhoCommon": 0.487,
-   "hitRbCommon": 0.687,
-   "hitWrCommon": 0.729,
+   "rhoCommon": 0.493,
+   "hitRbCommon": 0.683,
+   "hitWrCommon": 0.722,
    "vsAdp": {
     "diff": -35.88333333333336,
     "lo": -116.18333333333328,
@@ -1003,10 +1061,134 @@
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -144.7750000000001,
-    "lo": -272.32500000000005,
-    "hi": -52.500000000000114,
+    "diff": -155.12000000000006,
+    "lo": -252.5,
+    "hi": -69.52000000000012,
     "excludesZero": true
+   }
+  },
+  {
+   "key": "r_slp_mkt",
+   "label": "Sleeper + market",
+   "group": "model",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.415,
+    "RB": 0.617,
+    "WR": 0.561,
+    "TE": 0.471,
+    "all": 0.671
+   },
+   "hit": {
+    "RB": 0.682,
+    "WR": 0.726,
+    "QB": 0.698,
+    "TE": 0.722
+   },
+   "mae": {
+    "RB": 49.059,
+    "WR": 37.46
+   },
+   "draft": 1264.7,
+   "draftYears": 8,
+   "draftCommon": 1348.8,
+   "draftPerSeason": {
+    "2018": 1178.8,
+    "2019": 1039.3,
+    "2020": 1155.8,
+    "2021": 1189.6,
+    "2022": 1570,
+    "2023": 1445.8,
+    "2024": 1513.6,
+    "2025": 1025
+   },
+   "rhoPerSeason": {
+    "2018": 0.63,
+    "2019": 0.69,
+    "2020": 0.701,
+    "2021": 0.661,
+    "2022": 0.697,
+    "2023": 0.625,
+    "2024": 0.725,
+    "2025": 0.636
+   },
+   "rhoCommon": 0.669,
+   "hitRbCommon": 0.683,
+   "hitWrCommon": 0.739,
+   "vsAdp": {
+    "diff": -38.450000000000074,
+    "lo": -148.91250000000008,
+    "hi": 92.02499999999992,
+    "excludesZero": false
+   },
+   "vsSleeper": {
+    "diff": -90.52000000000012,
+    "lo": -226.5400000000001,
+    "hi": 20.179999999999882,
+    "excludesZero": false
+   }
+  },
+  {
+   "key": "r_no_efficiency",
+   "label": "all but efficiency",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.304,
+    "RB": 0.576,
+    "WR": 0.51,
+    "TE": 0.334,
+    "all": 0.644
+   },
+   "hit": {
+    "RB": 0.688,
+    "WR": 0.712,
+    "QB": 0.594,
+    "TE": 0.625
+   },
+   "mae": {
+    "RB": 51.838,
+    "WR": 37.841
+   },
+   "draft": 1259.2,
+   "draftYears": 8,
+   "draftCommon": 1338.6,
+   "draftPerSeason": {
+    "2018": 1011.8,
+    "2019": 1201.8,
+    "2020": 1166.8,
+    "2021": 1366.8,
+    "2022": 1540.4,
+    "2023": 1346.6,
+    "2024": 1251.3,
+    "2025": 1187.7
+   },
+   "rhoPerSeason": {
+    "2018": 0.577,
+    "2019": 0.673,
+    "2020": 0.71,
+    "2021": 0.669,
+    "2022": 0.664,
+    "2023": 0.575,
+    "2024": 0.622,
+    "2025": 0.663
+   },
+   "rhoCommon": 0.639,
+   "hitRbCommon": 0.7,
+   "hitWrCommon": 0.728,
+   "vsAdp": {
+    "diff": -44.03750000000005,
+    "lo": -140.53750000000002,
+    "hi": 64.68749999999991,
+    "excludesZero": false
+   },
+   "vsSleeper": {
+    "diff": -100.76000000000008,
+    "lo": -237.14000000000016,
+    "hi": 39.73999999999997,
+    "excludesZero": false
    }
   },
   {
@@ -1014,28 +1196,29 @@
    "label": "ADP nudged 30% toward the model",
    "group": "blend",
    "note": "Rodum ur badum, vegid saman. Vardveitir markadinn sem grunn.",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.369,
-    "RB": 0.612,
-    "WR": 0.507,
-    "TE": 0.428,
-    "all": 0.491
+    "QB": 0.379,
+    "RB": 0.589,
+    "WR": 0.52,
+    "TE": 0.414,
+    "all": 0.489
    },
    "hit": {
-    "RB": 0.708,
-    "WR": 0.706,
-    "QB": 0.643,
-    "TE": 0.633
+    "RB": 0.687,
+    "WR": 0.701,
+    "QB": 0.635,
+    "TE": 0.639
    },
    "mae": {
-    "RB": 149.339,
-    "WR": 141.921
+    "RB": 149.22,
+    "WR": 142.451
    },
-   "draft": 1266.4,
-   "draftYears": 7,
-   "draftCommon": 1261.1,
+   "draft": 1255.3,
+   "draftYears": 8,
+   "draftCommon": 1284.4,
    "draftPerSeason": {
+    "2018": 1177.2,
     "2019": 1230.2,
     "2020": 1212.6,
     "2021": 1377.8,
@@ -1045,6 +1228,7 @@
     "2025": 1017
    },
    "rhoPerSeason": {
+    "2018": 0.468,
     "2019": 0.481,
     "2020": 0.553,
     "2021": 0.517,
@@ -1053,79 +1237,81 @@
     "2024": 0.433,
     "2025": 0.505
    },
-   "rhoCommon": 0.472,
-   "hitRbCommon": 0.687,
-   "hitWrCommon": 0.715,
+   "rhoCommon": 0.481,
+   "hitRbCommon": 0.691,
+   "hitWrCommon": 0.705,
    "vsAdp": {
-    "diff": -35.65714285714291,
-    "lo": -99.9571428571429,
-    "hi": 23.999999999999968,
+    "diff": -47.93750000000003,
+    "lo": -108.12500000000003,
+    "hi": 10.462499999999949,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -152.67500000000007,
-    "lo": -232.6500000000001,
-    "hi": -72.70000000000005,
+    "diff": -154.92000000000007,
+    "lo": -220.18000000000006,
+    "hi": -86.98000000000006,
     "excludesZero": true
    }
   },
   {
-   "key": "r_slp_all",
-   "label": "Sleeper + market + experts + stats",
+   "key": "r_all",
+   "label": "market + experts + stats  (A-RANKING)",
    "group": "model",
-   "note": "",
-   "years": 7,
+   "note": "Allt sem vid hofum. Uppskriftin ad A-Ranking ef hun vinnur.",
+   "years": 8,
    "rho": {
-    "QB": 0.319,
-    "RB": 0.607,
-    "WR": 0.52,
-    "TE": 0.395,
-    "all": 0.659
+    "QB": 0.313,
+    "RB": 0.567,
+    "WR": 0.507,
+    "TE": 0.359,
+    "all": 0.641
    },
    "hit": {
-    "RB": 0.708,
-    "WR": 0.714,
-    "QB": 0.595,
-    "TE": 0.65
+    "RB": 0.688,
+    "WR": 0.708,
+    "QB": 0.604,
+    "TE": 0.653
    },
    "mae": {
-    "RB": 50.324,
-    "WR": 37.53
+    "RB": 52.257,
+    "WR": 37.938
    },
-   "draft": 1266.3,
-   "draftYears": 7,
-   "draftCommon": 1328,
+   "draft": 1243.4,
+   "draftYears": 8,
+   "draftCommon": 1323.1,
    "draftPerSeason": {
-    "2019": 1144.6,
-    "2020": 1139.1,
-    "2021": 1268.3,
-    "2022": 1352.4,
-    "2023": 1431.7,
-    "2024": 1325.3,
-    "2025": 1202.5
+    "2018": 1018.5,
+    "2019": 1204.8,
+    "2020": 1108.1,
+    "2021": 1381.4,
+    "2022": 1353.9,
+    "2023": 1402.9,
+    "2024": 1276,
+    "2025": 1201.3
    },
    "rhoPerSeason": {
-    "2019": 0.683,
+    "2018": 0.582,
+    "2019": 0.682,
     "2020": 0.692,
-    "2021": 0.666,
-    "2022": 0.66,
-    "2023": 0.593,
-    "2024": 0.672,
-    "2025": 0.648
+    "2021": 0.668,
+    "2022": 0.658,
+    "2023": 0.573,
+    "2024": 0.618,
+    "2025": 0.656
    },
-   "rhoCommon": 0.643,
-   "hitRbCommon": 0.688,
-   "hitWrCommon": 0.743,
+   "rhoCommon": 0.635,
+   "hitRbCommon": 0.7,
+   "hitWrCommon": 0.717,
    "vsAdp": {
-    "diff": -35.78571428571435,
-    "lo": -103.35714285714296,
-    "hi": 34.4428571428571,
+    "diff": -59.82500000000002,
+    "lo": -148.1125,
+    "hi": 19.024999999999977,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -85.75000000000006,
-    "lo": -187.4500000000001,
-    "hi": 69.04999999999995,
+    "diff": -116.22000000000003,
+    "lo": -213.34000000000006,
+    "hi": 18.739999999999963,
     "excludesZero": false
    }
   },
@@ -1134,28 +1320,29 @@
    "label": "all but workload",
    "group": "ablation",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.299,
-    "RB": 0.596,
-    "WR": 0.508,
-    "TE": 0.437,
-    "all": 0.653
+    "QB": 0.308,
+    "RB": 0.571,
+    "WR": 0.51,
+    "TE": 0.405,
+    "all": 0.645
    },
    "hit": {
-    "RB": 0.69,
-    "WR": 0.71,
-    "QB": 0.595,
-    "TE": 0.65
+    "RB": 0.672,
+    "WR": 0.705,
+    "QB": 0.604,
+    "TE": 0.653
    },
    "mae": {
-    "RB": 50.884,
-    "WR": 37.804
+    "RB": 51.573,
+    "WR": 37.801
    },
-   "draft": 1264.9,
-   "draftYears": 7,
-   "draftCommon": 1291.3,
+   "draft": 1243,
+   "draftYears": 8,
+   "draftCommon": 1304.3,
    "draftPerSeason": {
+    "2018": 1089.4,
     "2019": 1125.3,
     "2020": 1207.6,
     "2021": 1356.2,
@@ -1165,6 +1352,7 @@
     "2025": 1135.2
    },
    "rhoPerSeason": {
+    "2018": 0.588,
     "2019": 0.678,
     "2020": 0.71,
     "2021": 0.673,
@@ -1173,559 +1361,81 @@
     "2024": 0.619,
     "2025": 0.654
    },
-   "rhoCommon": 0.627,
-   "hitRbCommon": 0.667,
-   "hitWrCommon": 0.729,
-   "vsAdp": {
-    "diff": -37.15714285714291,
-    "lo": -100.34285714285708,
-    "hi": 26.442857142857065,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -122.42500000000007,
-    "lo": -233.45000000000005,
-    "hi": 1.6499999999999773,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_slp_mkt",
-   "label": "Sleeper + market",
-   "group": "model",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.35,
-    "RB": 0.628,
-    "WR": 0.52,
-    "TE": 0.464,
-    "all": 0.665
-   },
-   "hit": {
-    "RB": 0.708,
-    "WR": 0.726,
-    "QB": 0.678,
-    "TE": 0.683
-   },
-   "mae": {
-    "RB": 49.124,
-    "WR": 38.217
-   },
-   "draft": 1261.7,
-   "draftYears": 7,
-   "draftCommon": 1361.8,
-   "draftPerSeason": {
-    "2019": 1039.3,
-    "2020": 1155.8,
-    "2021": 1189.6,
-    "2022": 1194.3,
-    "2023": 1678.4,
-    "2024": 1487.3,
-    "2025": 1087.3
-   },
-   "rhoPerSeason": {
-    "2019": 0.69,
-    "2020": 0.701,
-    "2021": 0.661,
-    "2022": 0.635,
-    "2023": 0.621,
-    "2024": 0.721,
-    "2025": 0.624
-   },
-   "rhoCommon": 0.65,
-   "hitRbCommon": 0.698,
-   "hitWrCommon": 0.743,
-   "vsAdp": {
-    "diff": -40.34285714285722,
-    "lo": -166.3428571428573,
-    "hi": 121.38571428571423,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -51.90000000000009,
-    "lo": -214.55000000000013,
-    "hi": 68.09999999999997,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_no_team",
-   "label": "all but team",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.288,
-    "RB": 0.593,
-    "WR": 0.506,
-    "TE": 0.399,
-    "all": 0.648
-   },
-   "hit": {
-    "RB": 0.702,
-    "WR": 0.69,
-    "QB": 0.583,
-    "TE": 0.667
-   },
-   "mae": {
-    "RB": 51.69,
-    "WR": 37.837
-   },
-   "draft": 1249,
-   "draftYears": 7,
-   "draftCommon": 1293.6,
-   "draftPerSeason": {
-    "2019": 1177.1,
-    "2020": 1078.6,
-    "2021": 1313.4,
-    "2022": 1381.6,
-    "2023": 1333.5,
-    "2024": 1264.3,
-    "2025": 1194.8
-   },
-   "rhoPerSeason": {
-    "2019": 0.673,
-    "2020": 0.687,
-    "2021": 0.663,
-    "2022": 0.655,
-    "2023": 0.571,
-    "2024": 0.63,
-    "2025": 0.655
-   },
-   "rhoCommon": 0.628,
-   "hitRbCommon": 0.698,
+   "rhoCommon": 0.636,
+   "hitRbCommon": 0.683,
    "hitWrCommon": 0.722,
    "vsAdp": {
-    "diff": -53.0142857142858,
-    "lo": -121.70000000000007,
-    "hi": 10.785714285714189,
+    "diff": -60.22500000000002,
+    "lo": -130.80000000000004,
+    "hi": 11.699999999999903,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -120.17500000000013,
-    "lo": -252.7500000000001,
-    "hi": 38.72499999999991,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_slp_stats",
-   "label": "Sleeper + stats",
-   "group": "model",
-   "note": "Baetir tolfraedi vid sterkustu heimildina?",
-   "years": 7,
-   "rho": {
-    "QB": 0.237,
-    "RB": 0.55,
-    "WR": 0.479,
-    "TE": 0.393,
-    "all": 0.63
-   },
-   "hit": {
-    "RB": 0.69,
-    "WR": 0.706,
-    "QB": 0.571,
-    "TE": 0.667
-   },
-   "mae": {
-    "RB": 52.839,
-    "WR": 38.546
-   },
-   "draft": 1245.1,
-   "draftYears": 7,
-   "draftCommon": 1351.3,
-   "draftPerSeason": {
-    "2019": 1075.2,
-    "2020": 1074.5,
-    "2021": 1160.6,
-    "2022": 1387.6,
-    "2023": 1405.9,
-    "2024": 1417.1,
-    "2025": 1194.5
-   },
-   "rhoPerSeason": {
-    "2019": 0.624,
-    "2020": 0.633,
-    "2021": 0.615,
-    "2022": 0.626,
-    "2023": 0.597,
-    "2024": 0.659,
-    "2025": 0.656
-   },
-   "rhoCommon": 0.635,
-   "hitRbCommon": 0.688,
-   "hitWrCommon": 0.736,
-   "vsAdp": {
-    "diff": -57.000000000000064,
-    "lo": -151.78571428571436,
-    "hi": 39.82857142857136,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -62.4500000000001,
-    "lo": -150.82500000000005,
-    "hi": 70.27499999999992,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_mkt_stats",
-   "label": "market + stats",
-   "group": "model",
-   "note": "Mannfjoldinn og tolfraedin.",
-   "years": 7,
-   "rho": {
-    "QB": 0.3,
-    "RB": 0.592,
-    "WR": 0.491,
-    "TE": 0.391,
-    "all": 0.645
-   },
-   "hit": {
-    "RB": 0.726,
-    "WR": 0.706,
-    "QB": 0.607,
-    "TE": 0.65
-   },
-   "mae": {
-    "RB": 51.646,
-    "WR": 38.466
-   },
-   "draft": 1236.1,
-   "draftYears": 7,
-   "draftCommon": 1248.5,
-   "draftPerSeason": {
-    "2019": 1203.8,
-    "2020": 1175.1,
-    "2021": 1279.8,
-    "2022": 1310.6,
-    "2023": 1406,
-    "2024": 1183.4,
-    "2025": 1094
-   },
-   "rhoPerSeason": {
-    "2019": 0.68,
-    "2020": 0.714,
-    "2021": 0.664,
-    "2022": 0.646,
-    "2023": 0.557,
-    "2024": 0.608,
-    "2025": 0.647
-   },
-   "rhoCommon": 0.615,
-   "hitRbCommon": 0.698,
-   "hitWrCommon": 0.729,
-   "vsAdp": {
-    "diff": -65.95714285714293,
-    "lo": -126.54285714285713,
-    "hi": 0.37142857142849345,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -165.22500000000008,
-    "lo": -304.32500000000005,
-    "hi": -21.35000000000008,
+    "diff": -135.04000000000005,
+    "lo": -228.64000000000004,
+    "hi": -27.260000000000037,
     "excludesZero": true
    }
   },
   {
-   "key": "r_no_experts",
-   "label": "all but experts",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.3,
-    "RB": 0.592,
-    "WR": 0.491,
-    "TE": 0.391,
-    "all": 0.645
-   },
-   "hit": {
-    "RB": 0.726,
-    "WR": 0.706,
-    "QB": 0.607,
-    "TE": 0.65
-   },
-   "mae": {
-    "RB": 51.646,
-    "WR": 38.466
-   },
-   "draft": 1236.1,
-   "draftYears": 7,
-   "draftCommon": 1248.5,
-   "draftPerSeason": {
-    "2019": 1203.8,
-    "2020": 1175.1,
-    "2021": 1279.8,
-    "2022": 1310.6,
-    "2023": 1406,
-    "2024": 1183.4,
-    "2025": 1094
-   },
-   "rhoPerSeason": {
-    "2019": 0.68,
-    "2020": 0.714,
-    "2021": 0.664,
-    "2022": 0.646,
-    "2023": 0.557,
-    "2024": 0.608,
-    "2025": 0.647
-   },
-   "rhoCommon": 0.615,
-   "hitRbCommon": 0.698,
-   "hitWrCommon": 0.729,
-   "vsAdp": {
-    "diff": -65.95714285714293,
-    "lo": -126.54285714285713,
-    "hi": 0.37142857142849345,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -165.22500000000008,
-    "lo": -304.32500000000005,
-    "hi": -21.35000000000008,
-    "excludesZero": true
-   }
-  },
-  {
-   "key": "r_exp_stats",
-   "label": "experts + stats",
+   "key": "r_slp_all",
+   "label": "Sleeper + market + experts + stats",
    "group": "model",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.264,
-    "RB": 0.544,
-    "WR": 0.478,
-    "TE": 0.375,
-    "all": 0.625
-   },
-   "hit": {
-    "RB": 0.684,
-    "WR": 0.706,
-    "QB": 0.56,
-    "TE": 0.65
-   },
-   "mae": {
-    "RB": 54.01,
-    "WR": 38.306
-   },
-   "draft": 1233.8,
-   "draftYears": 7,
-   "draftCommon": 1327.3,
-   "draftPerSeason": {
-    "2019": 1075.2,
-    "2020": 1052.1,
-    "2021": 1200.3,
-    "2022": 1411.9,
-    "2023": 1398.1,
-    "2024": 1274.4,
-    "2025": 1224.7
-   },
-   "rhoPerSeason": {
-    "2019": 0.624,
-    "2020": 0.632,
-    "2021": 0.633,
-    "2022": 0.665,
-    "2023": 0.579,
-    "2024": 0.599,
-    "2025": 0.641
-   },
-   "rhoCommon": 0.621,
-   "hitRbCommon": 0.677,
-   "hitWrCommon": 0.729,
-   "vsAdp": {
-    "diff": -68.24285714285718,
-    "lo": -163.70000000000002,
-    "hi": 29.25714285714272,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -86.45000000000005,
-    "lo": -215.4000000000001,
-    "hi": 77.29999999999995,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_no_market",
-   "label": "all but market",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.264,
-    "RB": 0.544,
-    "WR": 0.478,
-    "TE": 0.375,
-    "all": 0.625
-   },
-   "hit": {
-    "RB": 0.684,
-    "WR": 0.706,
-    "QB": 0.56,
-    "TE": 0.65
-   },
-   "mae": {
-    "RB": 54.01,
-    "WR": 38.306
-   },
-   "draft": 1233.8,
-   "draftYears": 7,
-   "draftCommon": 1327.3,
-   "draftPerSeason": {
-    "2019": 1075.2,
-    "2020": 1052.1,
-    "2021": 1200.3,
-    "2022": 1411.9,
-    "2023": 1398.1,
-    "2024": 1274.4,
-    "2025": 1224.7
-   },
-   "rhoPerSeason": {
-    "2019": 0.624,
-    "2020": 0.632,
-    "2021": 0.633,
-    "2022": 0.665,
-    "2023": 0.579,
-    "2024": 0.599,
-    "2025": 0.641
-   },
-   "rhoCommon": 0.621,
-   "hitRbCommon": 0.677,
-   "hitWrCommon": 0.729,
-   "vsAdp": {
-    "diff": -68.24285714285718,
-    "lo": -163.70000000000002,
-    "hi": 29.25714285714272,
-    "excludesZero": false
-   },
-   "vsSleeper": {
-    "diff": -86.45000000000005,
-    "lo": -215.4000000000001,
-    "hi": 77.29999999999995,
-    "excludesZero": false
-   }
-  },
-  {
-   "key": "r_no_production",
-   "label": "all but production",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.288,
-    "RB": 0.601,
+    "QB": 0.333,
+    "RB": 0.584,
     "WR": 0.52,
-    "TE": 0.384,
-    "all": 0.655
-   },
-   "hit": {
-    "RB": 0.714,
-    "WR": 0.706,
-    "QB": 0.571,
-    "TE": 0.634
-   },
-   "mae": {
-    "RB": 51.241,
-    "WR": 37.896
-   },
-   "draft": 1227,
-   "draftYears": 7,
-   "draftCommon": 1252.7,
-   "draftPerSeason": {
-    "2019": 1200.6,
-    "2020": 1161.9,
-    "2021": 1215.6,
-    "2022": 1305.8,
-    "2023": 1335.8,
-    "2024": 1244.5,
-    "2025": 1124.8
-   },
-   "rhoPerSeason": {
-    "2019": 0.695,
-    "2020": 0.705,
-    "2021": 0.678,
-    "2022": 0.652,
-    "2023": 0.574,
-    "2024": 0.62,
-    "2025": 0.66
-   },
-   "rhoCommon": 0.627,
-   "hitRbCommon": 0.688,
-   "hitWrCommon": 0.722,
-   "vsAdp": {
-    "diff": -75.05714285714294,
-    "lo": -115.84285714285716,
-    "hi": -30.74285714285728,
-    "excludesZero": true
-   },
-   "vsSleeper": {
-    "diff": -161.0000000000001,
-    "lo": -261.5000000000001,
-    "hi": -13.200000000000102,
-    "excludesZero": true
-   }
-  },
-  {
-   "key": "r_mkt_exp",
-   "label": "market + experts, no stats",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.36,
-    "RB": 0.602,
-    "WR": 0.518,
-    "TE": 0.407,
+    "TE": 0.368,
     "all": 0.653
    },
    "hit": {
-    "RB": 0.696,
-    "WR": 0.718,
-    "QB": 0.679,
-    "TE": 0.65
+    "RB": 0.688,
+    "WR": 0.705,
+    "QB": 0.614,
+    "TE": 0.653
    },
    "mae": {
-    "RB": 50.386,
-    "WR": 38.1
+    "RB": 51.196,
+    "WR": 37.351
    },
-   "draft": 1226.2,
-   "draftYears": 7,
-   "draftCommon": 1272.7,
+   "draft": 1238.9,
+   "draftYears": 8,
+   "draftCommon": 1321.7,
    "draftPerSeason": {
-    "2019": 1039.3,
-    "2020": 1155.8,
-    "2021": 1297.7,
-    "2022": 1337,
-    "2023": 1358.9,
-    "2024": 1341.7,
-    "2025": 1053.2
+    "2018": 1018.5,
+    "2019": 1144.6,
+    "2020": 1139.1,
+    "2021": 1244.8,
+    "2022": 1511.2,
+    "2023": 1423.6,
+    "2024": 1375.8,
+    "2025": 1053.3
    },
    "rhoPerSeason": {
-    "2019": 0.69,
-    "2020": 0.701,
-    "2021": 0.666,
-    "2022": 0.664,
-    "2023": 0.584,
-    "2024": 0.619,
-    "2025": 0.644
+    "2018": 0.583,
+    "2019": 0.683,
+    "2020": 0.692,
+    "2021": 0.665,
+    "2022": 0.679,
+    "2023": 0.594,
+    "2024": 0.673,
+    "2025": 0.651
    },
-   "rhoCommon": 0.628,
-   "hitRbCommon": 0.677,
-   "hitWrCommon": 0.722,
+   "rhoCommon": 0.652,
+   "hitRbCommon": 0.7,
+   "hitWrCommon": 0.717,
    "vsAdp": {
-    "diff": -75.82857142857145,
-    "lo": -151.94285714285715,
-    "hi": -3.7857142857142856,
-    "excludesZero": true
+    "diff": -64.32500000000007,
+    "lo": -167.95000000000002,
+    "hi": 47.16249999999991,
+    "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -141.02500000000003,
-    "lo": -201.35000000000002,
-    "hi": -54.55000000000001,
+    "diff": -117.58000000000011,
+    "lo": -211.2200000000001,
+    "hi": -19.120000000000072,
     "excludesZero": true
    }
   },
@@ -1734,28 +1444,29 @@
    "label": "ADP nudged 15% toward the model",
    "group": "blend",
    "note": "Rodum ur badum, vegid saman. Vardveitir markadinn sem grunn.",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.376,
-    "RB": 0.611,
-    "WR": 0.504,
-    "TE": 0.422,
-    "all": 0.49
+    "QB": 0.386,
+    "RB": 0.587,
+    "WR": 0.518,
+    "TE": 0.408,
+    "all": 0.488
    },
    "hit": {
-    "RB": 0.702,
-    "WR": 0.706,
-    "QB": 0.655,
-    "TE": 0.65
+    "RB": 0.682,
+    "WR": 0.701,
+    "QB": 0.646,
+    "TE": 0.653
    },
    "mae": {
-    "RB": 149.339,
-    "WR": 141.921
+    "RB": 149.22,
+    "WR": 142.451
    },
-   "draft": 1221.4,
-   "draftYears": 7,
-   "draftCommon": 1214.3,
+   "draft": 1220.5,
+   "draftYears": 8,
+   "draftCommon": 1227.5,
    "draftPerSeason": {
+    "2018": 1213.9,
     "2019": 1173.1,
     "2020": 1239.4,
     "2021": 1280.1,
@@ -1765,6 +1476,7 @@
     "2025": 967.7
    },
    "rhoPerSeason": {
+    "2018": 0.471,
     "2019": 0.479,
     "2020": 0.548,
     "2021": 0.513,
@@ -1773,20 +1485,144 @@
     "2024": 0.435,
     "2025": 0.506
    },
-   "rhoCommon": 0.473,
-   "hitRbCommon": 0.687,
-   "hitWrCommon": 0.722,
+   "rhoCommon": 0.481,
+   "hitRbCommon": 0.683,
+   "hitWrCommon": 0.705,
    "vsAdp": {
-    "diff": -80.64285714285718,
-    "lo": -147.51428571428573,
-    "hi": -18.514285714285766,
+    "diff": -82.7125,
+    "lo": -141.46249999999998,
+    "hi": -23.63749999999999,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -199.40000000000003,
-    "lo": -289.45000000000005,
-    "hi": -109.35000000000002,
+    "diff": -211.84000000000006,
+    "lo": -283.88000000000005,
+    "hi": -137.22000000000003,
     "excludesZero": true
+   }
+  },
+  {
+   "key": "r_mkt_exp",
+   "label": "market + experts, no stats",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.378,
+    "RB": 0.577,
+    "WR": 0.532,
+    "TE": 0.393,
+    "all": 0.65
+   },
+   "hit": {
+    "RB": 0.677,
+    "WR": 0.712,
+    "QB": 0.677,
+    "TE": 0.667
+   },
+   "mae": {
+    "RB": 51.021,
+    "WR": 37.753
+   },
+   "draft": 1220.3,
+   "draftYears": 8,
+   "draftCommon": 1277.7,
+   "draftPerSeason": {
+    "2018": 1178.8,
+    "2019": 1039.3,
+    "2020": 1155.8,
+    "2021": 1297.7,
+    "2022": 1337,
+    "2023": 1358.9,
+    "2024": 1341.7,
+    "2025": 1053.2
+   },
+   "rhoPerSeason": {
+    "2018": 0.63,
+    "2019": 0.69,
+    "2020": 0.701,
+    "2021": 0.666,
+    "2022": 0.664,
+    "2023": 0.584,
+    "2024": 0.619,
+    "2025": 0.644
+   },
+   "rhoCommon": 0.635,
+   "hitRbCommon": 0.675,
+   "hitWrCommon": 0.716,
+   "vsAdp": {
+    "diff": -82.88750000000002,
+    "lo": -151.72500000000002,
+    "hi": -15.375,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -161.62000000000003,
+    "lo": -221.04000000000002,
+    "hi": -81.28000000000002,
+    "excludesZero": true
+   }
+  },
+  {
+   "key": "r_no_team",
+   "label": "all but team",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.286,
+    "RB": 0.566,
+    "WR": 0.506,
+    "TE": 0.362,
+    "all": 0.64
+   },
+   "hit": {
+    "RB": 0.677,
+    "WR": 0.691,
+    "QB": 0.583,
+    "TE": 0.653
+   },
+   "mae": {
+    "RB": 52.369,
+    "WR": 37.828
+   },
+   "draft": 1219.6,
+   "draftYears": 8,
+   "draftCommon": 1297.5,
+   "draftPerSeason": {
+    "2018": 1013.2,
+    "2019": 1177.1,
+    "2020": 1078.6,
+    "2021": 1313.4,
+    "2022": 1381.6,
+    "2023": 1333.5,
+    "2024": 1264.3,
+    "2025": 1194.8
+   },
+   "rhoPerSeason": {
+    "2018": 0.585,
+    "2019": 0.673,
+    "2020": 0.687,
+    "2021": 0.663,
+    "2022": 0.655,
+    "2023": 0.571,
+    "2024": 0.63,
+    "2025": 0.655
+   },
+   "rhoCommon": 0.635,
+   "hitRbCommon": 0.708,
+   "hitWrCommon": 0.705,
+   "vsAdp": {
+    "diff": -83.62500000000006,
+    "lo": -169.5125,
+    "hi": -3.862500000000125,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -141.8000000000001,
+    "lo": -250.18000000000012,
+    "hi": 4.479999999999881,
+    "excludesZero": false
    }
   },
   {
@@ -1814,7 +1650,7 @@
    },
    "draft": 1219.5,
    "draftYears": 6,
-   "draftCommon": 1211.5,
+   "draftCommon": 1234,
    "draftPerSeason": {
     "2020": 1147,
     "2021": 1323.9,
@@ -1831,9 +1667,9 @@
     "2024": 0.419,
     "2025": 0.385
    },
-   "rhoCommon": 0.424,
-   "hitRbCommon": 0.698,
-   "hitWrCommon": 0.729,
+   "rhoCommon": 0.425,
+   "hitRbCommon": 0.692,
+   "hitWrCommon": 0.722,
    "vsAdp": {
     "diff": -83.61666666666672,
     "lo": -128.40000000000006,
@@ -1841,69 +1677,381 @@
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -202.2000000000001,
-    "lo": -325.20000000000005,
-    "hi": -54.050000000000125,
+    "diff": -205.32000000000008,
+    "lo": -303.72,
+    "hi": -84.70000000000013,
     "excludesZero": true
    }
   },
   {
-   "key": "r_stats",
-   "label": "stats only, NO market or experts",
+   "key": "r_exp_stats",
+   "label": "experts + stats",
    "group": "model",
-   "note": "Oll tolfraedi, engin skodun annarra.",
-   "years": 7,
+   "note": "",
+   "years": 8,
    "rho": {
-    "QB": 0.229,
-    "RB": 0.506,
-    "WR": 0.452,
-    "TE": 0.385,
-    "all": 0.605
+    "QB": 0.225,
+    "RB": 0.508,
+    "WR": 0.482,
+    "TE": 0.333,
+    "all": 0.616
    },
    "hit": {
-    "RB": 0.69,
-    "WR": 0.71,
-    "QB": 0.571,
-    "TE": 0.65
+    "RB": 0.661,
+    "WR": 0.701,
+    "QB": 0.552,
+    "TE": 0.653
    },
    "mae": {
-    "RB": 55.601,
-    "WR": 39.201
+    "RB": 54.801,
+    "WR": 38.3
    },
-   "draft": 1212.8,
-   "draftYears": 7,
-   "draftCommon": 1288.8,
+   "draft": 1211.5,
+   "draftYears": 8,
+   "draftCommon": 1301.9,
    "draftPerSeason": {
-    "2019": 1145.5,
-    "2020": 1028.1,
-    "2021": 1160.6,
-    "2022": 1348.5,
-    "2023": 1354.9,
-    "2024": 1321.1,
-    "2025": 1130.8
+    "2018": 1055.5,
+    "2019": 1075.2,
+    "2020": 1052.1,
+    "2021": 1200.3,
+    "2022": 1411.9,
+    "2023": 1398.1,
+    "2024": 1274.4,
+    "2025": 1224.7
    },
    "rhoPerSeason": {
-    "2019": 0.621,
-    "2020": 0.631,
-    "2021": 0.614,
-    "2022": 0.626,
-    "2023": 0.555,
-    "2024": 0.58,
-    "2025": 0.61
+    "2018": 0.555,
+    "2019": 0.624,
+    "2020": 0.632,
+    "2021": 0.633,
+    "2022": 0.665,
+    "2023": 0.579,
+    "2024": 0.599,
+    "2025": 0.641
    },
-   "rhoCommon": 0.593,
-   "hitRbCommon": 0.688,
-   "hitWrCommon": 0.729,
+   "rhoCommon": 0.623,
+   "hitRbCommon": 0.692,
+   "hitWrCommon": 0.717,
    "vsAdp": {
-    "diff": -89.27142857142864,
-    "lo": -169.81428571428577,
-    "hi": -10.600000000000039,
+    "diff": -91.66250000000002,
+    "lo": -182.4625,
+    "hi": 11.824999999999903,
+    "excludesZero": false
+   },
+   "vsSleeper": {
+    "diff": -137.44000000000005,
+    "lo": -274.96000000000015,
+    "hi": 18.7,
+    "excludesZero": false
+   }
+  },
+  {
+   "key": "r_no_market",
+   "label": "all but market",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.225,
+    "RB": 0.508,
+    "WR": 0.482,
+    "TE": 0.333,
+    "all": 0.616
+   },
+   "hit": {
+    "RB": 0.661,
+    "WR": 0.701,
+    "QB": 0.552,
+    "TE": 0.653
+   },
+   "mae": {
+    "RB": 54.801,
+    "WR": 38.3
+   },
+   "draft": 1211.5,
+   "draftYears": 8,
+   "draftCommon": 1301.9,
+   "draftPerSeason": {
+    "2018": 1055.5,
+    "2019": 1075.2,
+    "2020": 1052.1,
+    "2021": 1200.3,
+    "2022": 1411.9,
+    "2023": 1398.1,
+    "2024": 1274.4,
+    "2025": 1224.7
+   },
+   "rhoPerSeason": {
+    "2018": 0.555,
+    "2019": 0.624,
+    "2020": 0.632,
+    "2021": 0.633,
+    "2022": 0.665,
+    "2023": 0.579,
+    "2024": 0.599,
+    "2025": 0.641
+   },
+   "rhoCommon": 0.623,
+   "hitRbCommon": 0.692,
+   "hitWrCommon": 0.717,
+   "vsAdp": {
+    "diff": -91.66250000000002,
+    "lo": -182.4625,
+    "hi": 11.824999999999903,
+    "excludesZero": false
+   },
+   "vsSleeper": {
+    "diff": -137.44000000000005,
+    "lo": -274.96000000000015,
+    "hi": 18.7,
+    "excludesZero": false
+   }
+  },
+  {
+   "key": "r_mkt_stats",
+   "label": "market + stats",
+   "group": "model",
+   "note": "Mannfjoldinn og tolfraedin.",
+   "years": 8,
+   "rho": {
+    "QB": 0.296,
+    "RB": 0.566,
+    "WR": 0.494,
+    "TE": 0.345,
+    "all": 0.637
+   },
+   "hit": {
+    "RB": 0.703,
+    "WR": 0.705,
+    "QB": 0.604,
+    "TE": 0.653
+   },
+   "mae": {
+    "RB": 52.343,
+    "WR": 38.395
+   },
+   "draft": 1208.9,
+   "draftYears": 8,
+   "draftCommon": 1254.8,
+   "draftPerSeason": {
+    "2018": 1018.5,
+    "2019": 1203.8,
+    "2020": 1175.1,
+    "2021": 1279.8,
+    "2022": 1310.6,
+    "2023": 1406,
+    "2024": 1183.4,
+    "2025": 1094
+   },
+   "rhoPerSeason": {
+    "2018": 0.581,
+    "2019": 0.68,
+    "2020": 0.714,
+    "2021": 0.664,
+    "2022": 0.646,
+    "2023": 0.557,
+    "2024": 0.608,
+    "2025": 0.647
+   },
+   "rhoCommon": 0.624,
+   "hitRbCommon": 0.717,
+   "hitWrCommon": 0.717,
+   "vsAdp": {
+    "diff": -94.28750000000005,
+    "lo": -170.42499999999998,
+    "hi": -19.112500000000097,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -124.90000000000009,
-    "lo": -213.6500000000001,
-    "hi": -1.5000000000001137,
+    "diff": -184.5600000000001,
+    "lo": -293.76000000000005,
+    "hi": -69.46000000000008,
+    "excludesZero": true
+   }
+  },
+  {
+   "key": "r_no_experts",
+   "label": "all but experts",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.296,
+    "RB": 0.566,
+    "WR": 0.494,
+    "TE": 0.345,
+    "all": 0.637
+   },
+   "hit": {
+    "RB": 0.703,
+    "WR": 0.705,
+    "QB": 0.604,
+    "TE": 0.653
+   },
+   "mae": {
+    "RB": 52.343,
+    "WR": 38.395
+   },
+   "draft": 1208.9,
+   "draftYears": 8,
+   "draftCommon": 1254.8,
+   "draftPerSeason": {
+    "2018": 1018.5,
+    "2019": 1203.8,
+    "2020": 1175.1,
+    "2021": 1279.8,
+    "2022": 1310.6,
+    "2023": 1406,
+    "2024": 1183.4,
+    "2025": 1094
+   },
+   "rhoPerSeason": {
+    "2018": 0.581,
+    "2019": 0.68,
+    "2020": 0.714,
+    "2021": 0.664,
+    "2022": 0.646,
+    "2023": 0.557,
+    "2024": 0.608,
+    "2025": 0.647
+   },
+   "rhoCommon": 0.624,
+   "hitRbCommon": 0.717,
+   "hitWrCommon": 0.717,
+   "vsAdp": {
+    "diff": -94.28750000000005,
+    "lo": -170.42499999999998,
+    "hi": -19.112500000000097,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -184.5600000000001,
+    "lo": -293.76000000000005,
+    "hi": -69.46000000000008,
+    "excludesZero": true
+   }
+  },
+  {
+   "key": "r_no_production",
+   "label": "all but production",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.282,
+    "RB": 0.576,
+    "WR": 0.52,
+    "TE": 0.347,
+    "all": 0.646
+   },
+   "hit": {
+    "RB": 0.693,
+    "WR": 0.701,
+    "QB": 0.573,
+    "TE": 0.639
+   },
+   "mae": {
+    "RB": 51.953,
+    "WR": 37.928
+   },
+   "draft": 1202.8,
+   "draftYears": 8,
+   "draftCommon": 1245.3,
+   "draftPerSeason": {
+    "2018": 1033.5,
+    "2019": 1200.6,
+    "2020": 1161.9,
+    "2021": 1215.6,
+    "2022": 1305.8,
+    "2023": 1335.8,
+    "2024": 1244.5,
+    "2025": 1124.8
+   },
+   "rhoPerSeason": {
+    "2018": 0.587,
+    "2019": 0.695,
+    "2020": 0.705,
+    "2021": 0.678,
+    "2022": 0.652,
+    "2023": 0.574,
+    "2024": 0.62,
+    "2025": 0.66
+   },
+   "rhoCommon": 0.637,
+   "hitRbCommon": 0.7,
+   "hitWrCommon": 0.722,
+   "vsAdp": {
+    "diff": -100.37500000000006,
+    "lo": -159.56250000000003,
+    "hi": -44.27500000000015,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -194.02000000000012,
+    "lo": -292.1200000000001,
+    "hi": -64.78000000000011,
+    "excludesZero": true
+   }
+  },
+  {
+   "key": "r_slp_stats",
+   "label": "Sleeper + stats",
+   "group": "model",
+   "note": "Baetir tolfraedi vid sterkustu heimildina?",
+   "years": 8,
+   "rho": {
+    "QB": 0.219,
+    "RB": 0.521,
+    "WR": 0.491,
+    "TE": 0.365,
+    "all": 0.626
+   },
+   "hit": {
+    "RB": 0.667,
+    "WR": 0.698,
+    "QB": 0.552,
+    "TE": 0.667
+   },
+   "mae": {
+    "RB": 53.708,
+    "WR": 38.089
+   },
+   "draft": 1198.7,
+   "draftYears": 8,
+   "draftCommon": 1276.9,
+   "draftPerSeason": {
+    "2018": 1055.5,
+    "2019": 1075.2,
+    "2020": 1074.5,
+    "2021": 1160.6,
+    "2022": 1393.8,
+    "2023": 1417.1,
+    "2024": 1388.9,
+    "2025": 1023.9
+   },
+   "rhoPerSeason": {
+    "2018": 0.555,
+    "2019": 0.624,
+    "2020": 0.633,
+    "2021": 0.616,
+    "2022": 0.664,
+    "2023": 0.604,
+    "2024": 0.649,
+    "2025": 0.659
+   },
+   "rhoCommon": 0.638,
+   "hitRbCommon": 0.7,
+   "hitWrCommon": 0.711,
+   "vsAdp": {
+    "diff": -104.50000000000004,
+    "lo": -195.02499999999998,
+    "hi": -3.0500000000000256,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -162.4600000000001,
+    "lo": -278.84000000000015,
+    "hi": -73.7600000000001,
     "excludesZero": true
    }
   },
@@ -1912,28 +2060,29 @@
    "label": "only: the experts (ECR)",
    "group": "ablation",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
     "QB": 0.419,
     "RB": 0.534,
     "WR": 0.536,
     "TE": 0.342,
-    "all": 0.573
+    "all": 0.55
    },
    "hit": {
-    "RB": 0.708,
-    "WR": 0.726,
-    "QB": 0.679,
-    "TE": 0.633
+    "RB": 0.688,
+    "WR": 0.719,
+    "QB": 0.667,
+    "TE": 0.653
    },
    "mae": {
-    "RB": 55.341,
-    "WR": 39.531
+    "RB": 56.101,
+    "WR": 39.87
    },
-   "draft": 1197.3,
-   "draftYears": 7,
-   "draftCommon": 1213.8,
+   "draft": 1182,
+   "draftYears": 8,
+   "draftCommon": 1209,
    "draftPerSeason": {
+    "2018": 1074.5,
     "2019": 1162.6,
     "2020": 1173.8,
     "2021": 1189.9,
@@ -1943,6 +2092,7 @@
     "2025": 1070.1
    },
    "rhoPerSeason": {
+    "2018": 0.387,
     "2019": 0.453,
     "2020": 0.337,
     "2021": 0.648,
@@ -1951,19 +2101,81 @@
     "2024": 0.633,
     "2025": 0.665
    },
-   "rhoCommon": 0.643,
-   "hitRbCommon": 0.708,
-   "hitWrCommon": 0.743,
+   "rhoCommon": 0.644,
+   "hitRbCommon": 0.692,
+   "hitWrCommon": 0.733,
    "vsAdp": {
-    "diff": -104.72857142857148,
-    "lo": -133.25714285714295,
-    "hi": -69.02857142857147,
+    "diff": -121.21250000000003,
+    "lo": -162.125,
+    "hi": -82.82500000000002,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -199.97500000000008,
-    "lo": -289.5,
-    "hi": -65.5750000000001,
+    "diff": -230.34000000000006,
+    "lo": -315.84000000000003,
+    "hi": -100.62000000000012,
+    "excludesZero": true
+   }
+  },
+  {
+   "key": "r_stats",
+   "label": "stats only, NO market or experts",
+   "group": "model",
+   "note": "Oll tolfraedi, engin skodun annarra.",
+   "years": 8,
+   "rho": {
+    "QB": 0.195,
+    "RB": 0.475,
+    "WR": 0.459,
+    "TE": 0.341,
+    "all": 0.599
+   },
+   "hit": {
+    "RB": 0.667,
+    "WR": 0.705,
+    "QB": 0.562,
+    "TE": 0.653
+   },
+   "mae": {
+    "RB": 56.194,
+    "WR": 39.114
+   },
+   "draft": 1181.9,
+   "draftYears": 8,
+   "draftCommon": 1263.2,
+   "draftPerSeason": {
+    "2018": 965.9,
+    "2019": 1145.5,
+    "2020": 1028.1,
+    "2021": 1160.6,
+    "2022": 1348.5,
+    "2023": 1354.9,
+    "2024": 1321.1,
+    "2025": 1130.8
+   },
+   "rhoPerSeason": {
+    "2018": 0.554,
+    "2019": 0.621,
+    "2020": 0.631,
+    "2021": 0.614,
+    "2022": 0.626,
+    "2023": 0.555,
+    "2024": 0.58,
+    "2025": 0.61
+   },
+   "rhoCommon": 0.597,
+   "hitRbCommon": 0.7,
+   "hitWrCommon": 0.722,
+   "vsAdp": {
+    "diff": -121.26250000000006,
+    "lo": -213.72500000000002,
+    "hi": -30.725000000000037,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -176.1400000000001,
+    "lo": -300.3400000000001,
+    "hi": -42.96000000000013,
     "excludesZero": true
    }
   },
@@ -1972,59 +2184,61 @@
    "label": "Sleeper + durability only",
    "group": "model",
    "note": "Verdleggur Sleeper meidslahaettu? Ef ekki er thetta odyrasta vidbotin.",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.102,
-    "RB": 0.338,
-    "WR": 0.401,
-    "TE": 0.352,
-    "all": 0.538
+    "QB": 0.18,
+    "RB": 0.409,
+    "WR": 0.4,
+    "TE": 0.383,
+    "all": 0.563
    },
    "hit": {
-    "RB": 0.559,
-    "WR": 0.691,
-    "QB": 0.488,
-    "TE": 0.683
+    "RB": 0.588,
+    "WR": 0.684,
+    "QB": 0.552,
+    "TE": 0.667
    },
    "mae": {
-    "RB": 56.454,
-    "WR": 40.714
+    "RB": 55.296,
+    "WR": 39.573
    },
-   "draft": 1169.7,
-   "draftYears": 7,
-   "draftCommon": 1330.9,
+   "draft": 1166.9,
+   "draftYears": 8,
+   "draftCommon": 1219,
    "draftPerSeason": {
+    "2018": 1197.1,
     "2019": 1103.8,
     "2020": 939.7,
-    "2021": 820.7,
-    "2022": 1160.4,
-    "2023": 1557.8,
-    "2024": 1506,
-    "2025": 1099.3
+    "2021": 808.7,
+    "2022": 1469.8,
+    "2023": 1423.7,
+    "2024": 1479.3,
+    "2025": 913.3
    },
    "rhoPerSeason": {
+    "2018": 0.418,
     "2019": 0.496,
     "2020": 0.423,
-    "2021": 0.401,
-    "2022": 0.432,
-    "2023": 0.668,
-    "2024": 0.712,
-    "2025": 0.636
+    "2021": 0.404,
+    "2022": 0.737,
+    "2023": 0.669,
+    "2024": 0.713,
+    "2025": 0.645
    },
-   "rhoCommon": 0.612,
-   "hitRbCommon": 0.646,
-   "hitWrCommon": 0.757,
+   "rhoCommon": 0.634,
+   "hitRbCommon": 0.675,
+   "hitWrCommon": 0.728,
    "vsAdp": {
-    "diff": -132.38571428571433,
-    "lo": -307.5142857142858,
-    "hi": 57.571428571428505,
+    "diff": -136.26250000000005,
+    "lo": -294.0625,
+    "hi": 40.549999999999955,
     "excludesZero": false
    },
    "vsSleeper": {
-    "diff": -82.85000000000008,
-    "lo": -249.90000000000003,
-    "hi": 21.09999999999991,
-    "excludesZero": false
+    "diff": -220.36000000000007,
+    "lo": -479.9,
+    "hi": -51.260000000000126,
+    "excludesZero": true
    }
   },
   {
@@ -2032,28 +2246,29 @@
    "label": "only: the crowd (ADP)",
    "group": "ablation",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.328,
-    "RB": 0.592,
-    "WR": 0.496,
-    "TE": 0.402,
-    "all": 0.64
+    "QB": 0.35,
+    "RB": 0.569,
+    "WR": 0.513,
+    "TE": 0.388,
+    "all": 0.639
    },
    "hit": {
-    "RB": 0.702,
-    "WR": 0.718,
+    "RB": 0.682,
+    "WR": 0.712,
     "QB": 0.667,
-    "TE": 0.633
+    "TE": 0.653
    },
    "mae": {
-    "RB": 51.061,
-    "WR": 38.713
+    "RB": 51.613,
+    "WR": 38.289
    },
-   "draft": 1153,
-   "draftYears": 7,
-   "draftCommon": 1171.6,
+   "draft": 1156.2,
+   "draftYears": 8,
+   "draftCommon": 1175.2,
    "draftPerSeason": {
+    "2018": 1178.8,
     "2019": 1039.3,
     "2020": 1155.8,
     "2021": 1189.6,
@@ -2063,6 +2278,7 @@
     "2025": 1020
    },
    "rhoPerSeason": {
+    "2018": 0.63,
     "2019": 0.69,
     "2020": 0.701,
     "2021": 0.661,
@@ -2071,79 +2287,19 @@
     "2024": 0.61,
     "2025": 0.63
    },
-   "rhoCommon": 0.607,
-   "hitRbCommon": 0.687,
-   "hitWrCommon": 0.729,
+   "rhoCommon": 0.618,
+   "hitRbCommon": 0.683,
+   "hitWrCommon": 0.717,
    "vsAdp": {
-    "diff": -149.05714285714294,
-    "lo": -190.72857142857154,
-    "hi": -109.88571428571433,
+    "diff": -146.96250000000006,
+    "lo": -185.2125000000001,
+    "hi": -113.08750000000006,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -242.1500000000001,
-    "lo": -321.77500000000003,
-    "hi": -107.47500000000008,
-    "excludesZero": true
-   }
-  },
-  {
-   "key": "r_prod",
-   "label": "only: production (what he did)",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.218,
-    "RB": 0.455,
-    "WR": 0.397,
-    "TE": 0.404,
-    "all": 0.564
-   },
-   "hit": {
-    "RB": 0.661,
-    "WR": 0.706,
-    "QB": 0.583,
-    "TE": 0.617
-   },
-   "mae": {
-    "RB": 57.723,
-    "WR": 40.474
-   },
-   "draft": 1143.8,
-   "draftYears": 7,
-   "draftCommon": 1233.9,
-   "draftPerSeason": {
-    "2019": 1082.3,
-    "2020": 921.8,
-    "2021": 1067,
-    "2022": 1276.1,
-    "2023": 1393.3,
-    "2024": 1234,
-    "2025": 1032
-   },
-   "rhoPerSeason": {
-    "2019": 0.572,
-    "2020": 0.573,
-    "2021": 0.542,
-    "2022": 0.613,
-    "2023": 0.552,
-    "2024": 0.554,
-    "2025": 0.54
-   },
-   "rhoCommon": 0.565,
-   "hitRbCommon": 0.667,
-   "hitWrCommon": 0.722,
-   "vsAdp": {
-    "diff": -158.27142857142866,
-    "lo": -259.6428571428572,
-    "hi": -52.08571428571444,
-    "excludesZero": true
-   },
-   "vsSleeper": {
-    "diff": -179.8750000000001,
-    "lo": -275.0000000000001,
-    "hi": -76.47500000000008,
+    "diff": -264.1400000000001,
+    "lo": -335.22,
+    "hi": -150.94000000000005,
     "excludesZero": true
    }
   },
@@ -2172,7 +2328,7 @@
    },
    "draft": 1135.4,
    "draftYears": 8,
-   "draftCommon": 1165.5,
+   "draftCommon": 1159.1,
    "draftPerSeason": {
     "2018": 1145.5,
     "2019": 1032,
@@ -2193,9 +2349,9 @@
     "2024": 0.385,
     "2025": 0.439
    },
-   "rhoCommon": 0.463,
-   "hitRbCommon": 0.646,
-   "hitWrCommon": 0.694,
+   "rhoCommon": 0.452,
+   "hitRbCommon": 0.642,
+   "hitWrCommon": 0.689,
    "vsAdp": {
     "diff": -167.75,
     "lo": -246.61250000000004,
@@ -2203,9 +2359,9 @@
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -248.25000000000003,
-    "lo": -331.57500000000005,
-    "hi": -193.15000000000003,
+    "diff": -280.18,
+    "lo": -360.0400000000001,
+    "hi": -200.32000000000002,
     "excludesZero": true
    }
   },
@@ -2214,28 +2370,29 @@
    "label": "only: workload (what he got)",
    "group": "ablation",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.184,
-    "RB": 0.428,
-    "WR": 0.396,
-    "TE": 0.255,
-    "all": 0.556
+    "QB": 0.138,
+    "RB": 0.39,
+    "WR": 0.4,
+    "TE": 0.225,
+    "all": 0.549
    },
    "hit": {
-    "RB": 0.613,
-    "WR": 0.691,
-    "QB": 0.559,
-    "TE": 0.617
+    "RB": 0.589,
+    "WR": 0.688,
+    "QB": 0.542,
+    "TE": 0.611
    },
    "mae": {
-    "RB": 58.329,
-    "WR": 40.31
+    "RB": 58.76,
+    "WR": 40.254
    },
-   "draft": 1135.4,
-   "draftYears": 7,
-   "draftCommon": 1184,
+   "draft": 1126.5,
+   "draftYears": 8,
+   "draftCommon": 1160.3,
    "draftPerSeason": {
+    "2018": 1063.5,
     "2019": 1071.9,
     "2020": 1074.6,
     "2021": 1065.6,
@@ -2245,6 +2402,7 @@
     "2025": 970.2
    },
    "rhoPerSeason": {
+    "2018": 0.498,
     "2019": 0.574,
     "2020": 0.555,
     "2021": 0.526,
@@ -2253,19 +2411,81 @@
     "2024": 0.524,
     "2025": 0.581
    },
-   "rhoCommon": 0.559,
-   "hitRbCommon": 0.656,
-   "hitWrCommon": 0.708,
+   "rhoCommon": 0.552,
+   "hitRbCommon": 0.633,
+   "hitWrCommon": 0.7,
    "vsAdp": {
-    "diff": -166.61428571428578,
-    "lo": -229.90000000000006,
-    "hi": -90.71428571428578,
+    "diff": -176.73750000000004,
+    "lo": -236.35000000000002,
+    "hi": -109.50000000000003,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -229.72500000000008,
-    "lo": -315.05000000000007,
-    "hi": -141.8,
+    "diff": -279.0000000000001,
+    "lo": -393.20000000000016,
+    "hi": -163.34000000000006,
+    "excludesZero": true
+   }
+  },
+  {
+   "key": "r_prod",
+   "label": "only: production (what he did)",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.238,
+    "RB": 0.414,
+    "WR": 0.412,
+    "TE": 0.355,
+    "all": 0.562
+   },
+   "hit": {
+    "RB": 0.63,
+    "WR": 0.698,
+    "QB": 0.594,
+    "TE": 0.611
+   },
+   "mae": {
+    "RB": 58.171,
+    "WR": 40.264
+   },
+   "draft": 1124.8,
+   "draftYears": 8,
+   "draftCommon": 1200.5,
+   "draftPerSeason": {
+    "2018": 992.1,
+    "2019": 1082.3,
+    "2020": 921.8,
+    "2021": 1067,
+    "2022": 1276.1,
+    "2023": 1393.3,
+    "2024": 1234,
+    "2025": 1032
+   },
+   "rhoPerSeason": {
+    "2018": 0.547,
+    "2019": 0.572,
+    "2020": 0.573,
+    "2021": 0.542,
+    "2022": 0.613,
+    "2023": 0.552,
+    "2024": 0.554,
+    "2025": 0.54
+   },
+   "rhoCommon": 0.56,
+   "hitRbCommon": 0.667,
+   "hitWrCommon": 0.706,
+   "vsAdp": {
+    "diff": -178.36250000000007,
+    "lo": -268.8125,
+    "hi": -76.15000000000012,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -238.8400000000001,
+    "lo": -369.7400000000001,
+    "hi": -119.90000000000005,
     "excludesZero": true
    }
   },
@@ -2294,7 +2514,7 @@
    },
    "draft": 1110.2,
    "draftYears": 8,
-   "draftCommon": 1159.9,
+   "draftCommon": 1122.5,
    "draftPerSeason": {
     "2018": 1107.1,
     "2019": 1141.9,
@@ -2315,9 +2535,9 @@
     "2024": 0.387,
     "2025": 0.444
    },
-   "rhoCommon": 0.462,
-   "hitRbCommon": 0.656,
-   "hitWrCommon": 0.695,
+   "rhoCommon": 0.45,
+   "hitRbCommon": 0.667,
+   "hitWrCommon": 0.683,
    "vsAdp": {
     "diff": -192.9875,
     "lo": -270.4625000000001,
@@ -2325,9 +2545,9 @@
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -253.87500000000006,
-    "lo": -341.4500000000001,
-    "hi": -180.95000000000005,
+    "diff": -316.80000000000007,
+    "lo": -453.32000000000005,
+    "hi": -204.26000000000005,
     "excludesZero": true
    }
   },
@@ -2356,7 +2576,7 @@
    },
    "draft": 1101.5,
    "draftYears": 8,
-   "draftCommon": 1129.3,
+   "draftCommon": 1134.8,
    "draftPerSeason": {
     "2018": 1022,
     "2019": 1058.7,
@@ -2377,9 +2597,9 @@
     "2024": 0.311,
     "2025": 0.415
    },
-   "rhoCommon": 0.436,
-   "hitRbCommon": 0.635,
-   "hitWrCommon": 0.722,
+   "rhoCommon": 0.426,
+   "hitRbCommon": 0.617,
+   "hitWrCommon": 0.717,
    "vsAdp": {
     "diff": -201.71250000000003,
     "lo": -250.52500000000003,
@@ -2387,9 +2607,9 @@
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -284.42500000000007,
-    "lo": -370.60000000000014,
-    "hi": -177.97500000000005,
+    "diff": -304.48000000000013,
+    "lo": -382.4400000000001,
+    "hi": -209.26000000000005,
     "excludesZero": true
    }
   },
@@ -2398,28 +2618,29 @@
    "label": "only: team strength and pace",
    "group": "ablation",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.103,
-    "RB": 0.206,
-    "WR": 0.172,
-    "TE": 0.109,
-    "all": 0.439
+    "QB": 0.097,
+    "RB": 0.182,
+    "WR": 0.185,
+    "TE": 0.055,
+    "all": 0.435
    },
    "hit": {
-    "RB": 0.482,
-    "WR": 0.619,
-    "QB": 0.536,
-    "TE": 0.6
+    "RB": 0.474,
+    "WR": 0.621,
+    "QB": 0.531,
+    "TE": 0.57
    },
    "mae": {
-    "RB": 60.887,
-    "WR": 43.896
+    "RB": 60.925,
+    "WR": 43.505
    },
-   "draft": 1068.3,
-   "draftYears": 7,
-   "draftCommon": 1172.2,
+   "draft": 1061.5,
+   "draftYears": 8,
+   "draftCommon": 1121,
    "draftPerSeason": {
+    "2018": 1014.2,
     "2019": 866.5,
     "2020": 1006.2,
     "2021": 916.2,
@@ -2429,6 +2650,7 @@
     "2025": 1061.7
    },
    "rhoPerSeason": {
+    "2018": 0.407,
     "2019": 0.451,
     "2020": 0.417,
     "2021": 0.489,
@@ -2437,19 +2659,19 @@
     "2024": 0.373,
     "2025": 0.459
    },
-   "rhoCommon": 0.429,
-   "hitRbCommon": 0.49,
-   "hitWrCommon": 0.646,
+   "rhoCommon": 0.441,
+   "hitRbCommon": 0.492,
+   "hitWrCommon": 0.644,
    "vsAdp": {
-    "diff": -233.8,
-    "lo": -328.37142857142857,
-    "hi": -139.6714285714286,
+    "diff": -241.6875,
+    "lo": -328.5999999999999,
+    "hi": -156.55,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -241.50000000000006,
-    "lo": -337.55000000000007,
-    "hi": -85.17500000000001,
+    "diff": -318.30000000000007,
+    "lo": -500.7,
+    "hi": -126.56000000000003,
     "excludesZero": true
    }
   },
@@ -2458,28 +2680,29 @@
    "label": "only: profile (age, draft capital)",
    "group": "ablation",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": -0.059,
-    "RB": 0.326,
-    "WR": 0.129,
-    "TE": 0.253,
-    "all": 0.453
+    "QB": -0.062,
+    "RB": 0.332,
+    "WR": 0.144,
+    "TE": 0.243,
+    "all": 0.459
    },
    "hit": {
-    "RB": 0.595,
-    "WR": 0.603,
-    "QB": 0.464,
-    "TE": 0.583
+    "RB": 0.578,
+    "WR": 0.604,
+    "QB": 0.458,
+    "TE": 0.597
    },
    "mae": {
-    "RB": 59.929,
-    "WR": 44.617
+    "RB": 59.781,
+    "WR": 44.269
    },
-   "draft": 1053.9,
-   "draftYears": 7,
-   "draftCommon": 1080.3,
+   "draft": 1047.9,
+   "draftYears": 8,
+   "draftCommon": 1103,
    "draftPerSeason": {
+    "2018": 1005.5,
     "2019": 948.4,
     "2020": 914.1,
     "2021": 1193.6,
@@ -2489,6 +2712,7 @@
     "2025": 1029.5
    },
    "rhoPerSeason": {
+    "2018": 0.502,
     "2019": 0.51,
     "2020": 0.492,
     "2021": 0.467,
@@ -2497,79 +2721,19 @@
     "2024": 0.477,
     "2025": 0.491
    },
-   "rhoCommon": 0.425,
-   "hitRbCommon": 0.563,
-   "hitWrCommon": 0.632,
+   "rhoCommon": 0.433,
+   "hitRbCommon": 0.583,
+   "hitWrCommon": 0.611,
    "vsAdp": {
-    "diff": -248.15714285714293,
-    "lo": -330.28571428571433,
-    "hi": -159.55714285714294,
+    "diff": -255.33750000000006,
+    "lo": -322.9375,
+    "hi": -177.81250000000009,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -333.4250000000001,
-    "lo": -493.3000000000001,
-    "hi": -141.22500000000008,
-    "excludesZero": true
-   }
-  },
-  {
-   "key": "r_eff",
-   "label": "only: efficiency (how well he used it)",
-   "group": "ablation",
-   "note": "",
-   "years": 7,
-   "rho": {
-    "QB": 0.174,
-    "RB": 0.312,
-    "WR": 0.23,
-    "TE": 0.336,
-    "all": 0.47
-   },
-   "hit": {
-    "RB": 0.565,
-    "WR": 0.631,
-    "QB": 0.548,
-    "TE": 0.65
-   },
-   "mae": {
-    "RB": 60.643,
-    "WR": 43.573
-   },
-   "draft": 1020.8,
-   "draftYears": 7,
-   "draftCommon": 1047.7,
-   "draftPerSeason": {
-    "2019": 1019.8,
-    "2020": 904.4,
-    "2021": 1030.4,
-    "2022": 1069.7,
-    "2023": 976.8,
-    "2024": 1238.2,
-    "2025": 906.2
-   },
-   "rhoPerSeason": {
-    "2019": 0.535,
-    "2020": 0.472,
-    "2021": 0.464,
-    "2022": 0.5,
-    "2023": 0.379,
-    "2024": 0.504,
-    "2025": 0.439
-   },
-   "rhoCommon": 0.456,
-   "hitRbCommon": 0.542,
-   "hitWrCommon": 0.66,
-   "vsAdp": {
-    "diff": -281.2714285714286,
-    "lo": -337.4428571428572,
-    "hi": -216.31428571428572,
-    "excludesZero": true
-   },
-   "vsSleeper": {
-    "diff": -366.00000000000006,
-    "lo": -520.3750000000001,
-    "hi": -222.425,
+    "diff": -336.36000000000007,
+    "lo": -469.12000000000006,
+    "hi": -175.66000000000008,
     "excludesZero": true
    }
   },
@@ -2578,28 +2742,29 @@
    "label": "only: durability and injury record",
    "group": "ablation",
    "note": "",
-   "years": 7,
+   "years": 8,
    "rho": {
-    "QB": 0.014,
-    "RB": 0.159,
-    "WR": 0.267,
-    "TE": 0.25,
-    "all": 0.444
+    "QB": 0.028,
+    "RB": 0.154,
+    "WR": 0.252,
+    "TE": 0.233,
+    "all": 0.439
    },
    "hit": {
-    "RB": 0.458,
-    "WR": 0.663,
-    "QB": 0.488,
-    "TE": 0.667
+    "RB": 0.464,
+    "WR": 0.649,
+    "QB": 0.5,
+    "TE": 0.653
    },
    "mae": {
-    "RB": 63.111,
-    "WR": 43.073
+    "RB": 62.912,
+    "WR": 43.034
    },
-   "draft": 1010.7,
-   "draftYears": 7,
-   "draftCommon": 1025.8,
+   "draft": 1035.3,
+   "draftYears": 8,
+   "draftCommon": 984.2,
    "draftPerSeason": {
+    "2018": 1207.5,
     "2019": 1183.9,
     "2020": 970.4,
     "2021": 817.8,
@@ -2609,6 +2774,7 @@
     "2025": 905
    },
    "rhoPerSeason": {
+    "2018": 0.41,
     "2019": 0.504,
     "2020": 0.412,
     "2021": 0.407,
@@ -2617,19 +2783,81 @@
     "2024": 0.464,
     "2025": 0.443
    },
-   "rhoCommon": 0.446,
-   "hitRbCommon": 0.469,
-   "hitWrCommon": 0.708,
+   "rhoCommon": 0.438,
+   "hitRbCommon": 0.467,
+   "hitWrCommon": 0.678,
    "vsAdp": {
-    "diff": -291.3285714285715,
-    "lo": -378.1000000000001,
-    "hi": -209.85714285714286,
+    "diff": -267.86250000000007,
+    "lo": -349.05,
+    "hi": -186.36249999999998,
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -387.9750000000001,
-    "lo": -499.4000000000001,
-    "hi": -231.87500000000006,
+    "diff": -455.16,
+    "lo": -615.5000000000001,
+    "hi": -283.08000000000004,
+    "excludesZero": true
+   }
+  },
+  {
+   "key": "r_eff",
+   "label": "only: efficiency (how well he used it)",
+   "group": "ablation",
+   "note": "",
+   "years": 8,
+   "rho": {
+    "QB": 0.132,
+    "RB": 0.282,
+    "WR": 0.242,
+    "TE": 0.304,
+    "all": 0.468
+   },
+   "hit": {
+    "RB": 0.542,
+    "WR": 0.629,
+    "QB": 0.542,
+    "TE": 0.653
+   },
+   "mae": {
+    "RB": 60.733,
+    "WR": 43.245
+   },
+   "draft": 1021.5,
+   "draftYears": 8,
+   "draftCommon": 1044.3,
+   "draftPerSeason": {
+    "2018": 1026.6,
+    "2019": 1019.8,
+    "2020": 904.4,
+    "2021": 1030.4,
+    "2022": 1069.7,
+    "2023": 976.8,
+    "2024": 1238.2,
+    "2025": 906.2
+   },
+   "rhoPerSeason": {
+    "2018": 0.451,
+    "2019": 0.535,
+    "2020": 0.472,
+    "2021": 0.464,
+    "2022": 0.5,
+    "2023": 0.379,
+    "2024": 0.504,
+    "2025": 0.439
+   },
+   "rhoCommon": 0.457,
+   "hitRbCommon": 0.567,
+   "hitWrCommon": 0.65,
+   "vsAdp": {
+    "diff": -281.67500000000007,
+    "lo": -330.6625,
+    "hi": -226.0125,
+    "excludesZero": true
+   },
+   "vsSleeper": {
+    "diff": -395.06000000000006,
+    "lo": -526.9,
+    "hi": -261.68,
     "excludesZero": true
    }
   },
@@ -2658,7 +2886,7 @@
    },
    "draft": 944.4,
    "draftYears": 8,
-   "draftCommon": 965.2,
+   "draftCommon": 961.6,
    "draftPerSeason": {
     "2018": 714.9,
     "2019": 1238.1,
@@ -2679,9 +2907,9 @@
     "2024": 0.082,
     "2025": 0.099
    },
-   "rhoCommon": 0.127,
-   "hitRbCommon": 0.656,
-   "hitWrCommon": 0.674,
+   "rhoCommon": 0.112,
+   "hitRbCommon": 0.642,
+   "hitWrCommon": 0.667,
    "vsAdp": {
     "diff": -358.80000000000007,
     "lo": -485.22500000000014,
@@ -2689,9 +2917,9 @@
     "excludesZero": true
    },
    "vsSleeper": {
-    "diff": -448.55000000000007,
-    "lo": -477.3000000000001,
-    "hi": -433.05,
+    "diff": -477.76000000000005,
+    "lo": -541.48,
+    "hi": -433.8,
     "excludesZero": true
    }
   }

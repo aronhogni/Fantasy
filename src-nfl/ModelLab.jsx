@@ -12,10 +12,12 @@
 
 import React, { useState } from "react";
 
-export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league }) {
+export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league, rows,
+                                  arankPpr, arankStd }) {
   const std = league.scoring === "standard";
   const ev = std ? evalStd : evalPpr;
   const st = std ? stratStd : stratPpr;
+  const ar = std ? arankStd : arankPpr;
   const [tab, setTab] = useState("rank");
 
   if (!ev && !st) {
@@ -47,12 +49,15 @@ export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league 
             onClick={() => setTab("signal")}>What carries the signal</button>
           <button className={`chip${tab === "order" ? " on" : ""}`}
             onClick={() => setTab("order")}>Draft order</button>
+          <button className={`chip${tab === "vs" ? " on" : ""}`}
+            onClick={() => setTab("vs")}>Our order vs Sleeper</button>
         </div>
       </div>
 
-      {tab === "rank" && <Rankings ev={ev} />}
+      {tab === "rank" && <Rankings ev={ev} ar={ar} std={std} />}
       {tab === "signal" && <Signal ev={ev} />}
       {tab === "order" && <Order st={st} std={std} />}
+      {tab === "vs" && <VsSleeper rows={rows} ev={ev} />}
     </>
   );
 }
@@ -60,7 +65,7 @@ export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league 
 /* ============================================================
    1. HVADA RODUN VINNUR?
    ============================================================ */
-function Rankings({ ev }) {
+function Rankings({ ev, ar, std }) {
   if (!ev) return <div className="panel"><div className="empty">No data.</div></div>;
   const rows = ev.models.filter((m) => m.draftCommon != null)
     .sort((a, b) => b.draftCommon - a.draftCommon);
@@ -86,8 +91,10 @@ function Rankings({ ev }) {
             </div>
             <div className="kpi">
               <div className="k">vs Sleeper</div>
-              <div className="v good">+{(a.draftCommon - slp.draftCommon).toFixed(0)}</div>
-              <div className="dimmer" style={{ fontSize: 11 }}>their raw projection order</div>
+              <div className="v warn">+{(a.draftCommon - slp.draftCommon).toFixed(0)}</div>
+              <div className="dimmer" style={{ fontSize: 11 }}>
+                positive, but not significant
+              </div>
             </div>
             <div className="kpi">
               <div className="k">vs ADP</div>
@@ -116,9 +123,23 @@ function Rankings({ ev }) {
             ({a.rhoCommon} vs {slp.rhoCommon}) while its drafts score higher. That is
             the whole point: <b>higher correlation is not the same as a better decision.</b>
             <br /><br />
-            <b>The honest caveat:</b> Sleeper's projections only exist back to 2022, so
-            this is four seasons. It wins all four, but four is not many.
+            <b>Two claims, and they are not equally strong.</b>
+            <br /><br />
+            <b>Against ADP this holds.</b> +{(a.draftCommon - adp.draftCommon).toFixed(0)} points,
+            winning every season tested, with the interval clear of zero.
+            <br /><br />
+            <b>Against Sleeper's own order it does not, yet.</b> The gap is
+            +{(a.draftCommon - slp.draftCommon).toFixed(0)} here and +60 when both boards
+            draft head-to-head in the same league — positive in every simulation we ran,
+            and it wins 57% of three thousand head-to-head drafts. But it wins only
+            three of five seasons, and the year-to-year swing (+169, −50, −43, +48, +176)
+            dwarfs the gap. <b>The interval does not exclude zero.</b>
+            <br /><br />
+            At this effect size that would take <b>thirteen seasons</b> to settle. We
+            have five — the only ones where Sleeper's stored projections are not
+            contaminated by the outcome.
           </div>
+          {ar && ar.headToHead && <HeadToHead ar={ar} std={std} />}
         </div>
       )}
 
@@ -377,5 +398,178 @@ function Order({ st, std }) {
         </div>
       </div>
     </>
+  );
+}
+
+
+/* ============================================================
+   OKKAR ROD GEGN OPINBERU SLEEPER-RODINNI
+   ============================================================
+   Baedi bordin byggja a SOMU spa. Munurinn er eingongu spurningin:
+   Sleeper radar eftir HRASTIGUM, vid eftir VIRDI YFIR VARAMANNI i
+   thinni deild. Thess vegna er thetta ekki "vid gegn theim" heldur
+   "sama spa, tvaer spurningar" — og taflan syar hvad su breyting
+   kostar hvern leikmann i saetum.
+   ============================================================ */
+function VsSleeper({ rows, ev }) {
+  const [pos, setPos] = useState("ALL");
+  const data = useMemo(() => (rows || [])
+    .filter((r) => r.aRank != null && r.sleeperRank != null && r.aRank <= 200)
+    .filter((r) => pos === "ALL" || r.pos === pos), [rows, pos]);
+
+  const up = data.slice().sort((a, b) => b.vsSleeperRank - a.vsSleeperRank).slice(0, 12);
+  const down = data.slice().sort((a, b) => a.vsSleeperRank - b.vsSleeperRank).slice(0, 12);
+  const a = ev && ev.models.find((m) => m.key === "slp_vbd");
+  const s = ev && ev.models.find((m) => m.key === "sleeper");
+
+  if (!data.length) {
+    return <div className="panel"><div className="empty">No rows loaded.</div></div>;
+  }
+
+  return (
+    <>
+      <div className="panel">
+        <h2>Same projection, two questions</h2>
+        <div className="sub">
+          Sleeper orders players by <b>projected points</b>. We order the same
+          numbers by <b>points above the replacement player at that position in your
+          league</b>. Nothing else differs.
+        </div>
+        {a && s && (
+          <div className="note">
+            That single change is worth <b>+{(a.draftCommon - s.draftCommon).toFixed(0)} points</b>{" "}
+            a season in the simulation, and it wins every season tested. The reason it
+            works is visible in the table below: three hundred points from a
+            quarterback is worth far less than three hundred from a running back,
+            because the twelfth-best quarterback is nearly as good as the best one.
+          </div>
+        )}
+        <div className="chips" style={{ marginTop: 10 }}>
+          {["ALL", "QB", "RB", "WR", "TE"].map((p) => (
+            <button key={p} className={`chip${pos === p ? " on" : ""}`}
+              onClick={() => setPos(p)}>{p}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="row" style={{ alignItems: "flex-start", gap: 14 }}>
+        <div className="grow">
+          <div className="panel" style={{ marginBottom: 0 }}>
+            <h2 style={{ fontSize: 14 }}>We rank higher than Sleeper</h2>
+            <div className="sub">Replacement level lifts these.</div>
+          </div>
+          <div className="tablewrap"><table className="data">
+            <thead><tr className="cols">
+              <th className="txt frozen">Player</th><th className="txt">Pos</th>
+              <th>Ours</th><th>Sleeper</th><th>Δ</th><th>Proj</th>
+            </tr></thead>
+            <tbody>{up.map((r) => (
+              <tr key={r.id}>
+                <td className="txt frozen">{r.name}</td>
+                <td className="txt"><span className={`pos ${r.pos}`}>{r.pos}</span></td>
+                <td className="mono"><b>{r.aRank}</b></td>
+                <td className="mono dim">{r.sleeperRank}</td>
+                <td className="mono good">+{r.vsSleeperRank}</td>
+                <td className="mono dim">{r.proj == null ? "—" : r.proj.toFixed(0)}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </div>
+
+        <div className="grow">
+          <div className="panel" style={{ marginBottom: 0 }}>
+            <h2 style={{ fontSize: 14 }}>We rank lower than Sleeper</h2>
+            <div className="sub">Mostly quarterbacks — a flat position.</div>
+          </div>
+          <div className="tablewrap"><table className="data">
+            <thead><tr className="cols">
+              <th className="txt frozen">Player</th><th className="txt">Pos</th>
+              <th>Ours</th><th>Sleeper</th><th>Δ</th><th>Proj</th>
+            </tr></thead>
+            <tbody>{down.map((r) => (
+              <tr key={r.id}>
+                <td className="txt frozen">{r.name}</td>
+                <td className="txt"><span className={`pos ${r.pos}`}>{r.pos}</span></td>
+                <td className="mono"><b>{r.aRank}</b></td>
+                <td className="mono dim">{r.sleeperRank}</td>
+                <td className="mono bad">{r.vsSleeperRank}</td>
+                <td className="mono dim">{r.proj == null ? "—" : r.proj.toFixed(0)}</td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginTop: 14 }}>
+        <div className="note warn">
+          <b>What we did not do: build our own projection.</b> It was tried three
+          ways — a model of the outcome with Sleeper as one input, a model of
+          Sleeper's <i>error</i>, and that correction converted to value. The error
+          model gained 32 points a season over three seasons, which is inside the
+          noise, and its value-converted form finished <b>155 points worse</b>.
+          None of them is stable enough to ship. Our contribution is the question,
+          not a better forecast.
+        </div>
+      </div>
+    </>
+  );
+}
+
+
+/* ============================================================
+   BEINT EINVIGI — RETTA TILRAUNAHONNUNIN
+   ============================================================
+   Ad bera saman tvo ADSKILIN droft laetur ars-havadann drekkja
+   muninum. Med badum bordum I SOMU DEILD dregst arsahrifin ut.
+   ============================================================ */
+function HeadToHead({ ar, std }) {
+  const h = ar.headToHead.current;
+  const years = Object.entries(h.byYear);
+  const sig = h.signP < 0.05;
+
+  return (
+    <div className="note" style={{ borderLeftColor: sig ? "var(--good)" : "var(--warn)" }}>
+      <b>Head to head, in the same league.</b> Both boards drafting against the same
+      opponents, from the same pool, {h.n.toLocaleString()} matchups across{" "}
+      {h.years} seasons with the draft room's own randomness applied.
+      <div style={{ margin: "10px 0", display: "flex", gap: 18, flexWrap: "wrap" }}>
+        <span className="mono">
+          <b className={h.winRate > 0.5 ? "good" : "bad"}>
+            {(h.winRate * 100).toFixed(1)}%
+          </b> of matchups won
+        </span>
+        <span className="mono">
+          <b className={h.mean > 0 ? "good" : "bad"}>
+            {h.mean > 0 ? "+" : ""}{h.mean}
+          </b> points on average
+        </span>
+        <span className="mono">
+          <b>{h.yearWins}/{h.years}</b> seasons
+        </span>
+        <span className="mono">
+          sign test <b className={sig ? "good" : "warn"}>p = {h.signP}</b>
+        </span>
+      </div>
+      <div className="mono dim" style={{ fontSize: 12 }}>
+        {years.map(([y, v]) => (
+          <span key={y} style={{ marginRight: 14 }}>
+            {y} <span className={v > 0 ? "good" : "bad"}>{v > 0 ? "+" : ""}{v}</span>
+          </span>
+        ))}
+      </div>
+      <div style={{ marginTop: 10 }}>
+        {sig
+          ? <><b>In {std ? "standard" : "this format"} the result is significant.</b>{" "}
+              It wins every season tested — a run that happens by chance once in{" "}
+              {Math.round(1 / h.signP)} times. The margin is wider here than in PPR
+              because standard scoring pulls the positions further apart, which is
+              exactly what a replacement-level correction is for.</>
+          : <><b>In {std ? "standard" : "PPR"} it is not significant.</b> The gap is
+              positive in every simulation we ran, but it wins only{" "}
+              {h.yearWins} of {h.years} seasons and the swing between seasons is far
+              larger than the gap. PPR narrows the distance between positions, so the
+              correction has less to do.</>}
+      </div>
+    </div>
   );
 }

@@ -243,16 +243,57 @@ spilað sem raunverulegt 12-liða snák-draft frá **öllum 12 sætum**. Skorið
 
 | röðun | draft-stig (PPR) | vs ADP | rho | vinnur ADP |
 |---|---|---|---|---|
-| **A-Ranking** (Sleeper → VBD) | **1975,8** | **+228** | 0,604 | **4/4** |
-| Sleeper-spá, hrá | 1920,7 | +173 | 0,695 | 3/4 |
-| Sleeper + tölfræði | 1831,1 | +83 | 0,608 | 3/4 |
-| ADP + Sleeper (röðublanda) | 1735,3 | −13 | 0,567 | 2/4 |
-| **ADP (markaðurinn)** | 1747,9 | 0 | 0,458 | — |
-| Sleeper-ADP | 1734,2 | −14 | 0,498 | 1/4 |
-| FantasyPros ECR | 1651,1 | −97 | 0,522 | 1/4 |
+| **A-Ranking** (Sleeper → VBD) | **1988,6** | **+234** | 0,590 | **5/5** |
+| Sleeper-spá, hrá | 1913,8 | +159 | 0,693 | 4/5 |
+| ADP + Sleeper ×2 | 1851,7 | +97 | 0,577 | 3/5 |
+| **ADP (markaðurinn)** | 1755,0 | 0 | 0,454 | — |
+| FantasyPros ECR | 1651,1 | −97 | 0,522 | 1/5 |
 | öll tölfræði, engin skoðun | 1593,5 | −154 | — | — |
 
-Í **standard** er munurinn enn stærri: A-Ranking **+270** gegn ADP.
+### Tvær fullyrðingar með ólíkan styrk
+
+Þetta má ekki rugla saman, og fyrsta útgáfa þessa skjals gerði það.
+
+**(1) Gegn ADP er A-Ranking marktækt betri.** +234 stig, vinnur **öll fimm
+tímabilin**, bootstrap klasað per tímabil útilokar núll. Sú fullyrðing stenst.
+
+**(2) Gegn Sleeper-röðinni sjálfri fer það eftir stigagjöf.**
+
+`scripts/nfl/arank-lab.mjs` lætur **bæði borðin drafta í sömu deild**, á móti
+sömu andstæðingum, úr sömu laug — með raunverulegum draft-hávaða (ADP hrist með
+sínu eigin staðalfráviki). Sú hönnun dregur árs-áhrifin út: bæði liðin nutu góða
+ársins eða liðu fyrir það slæma.
+
+| | einvígi unnin | meðalmunur | tímabil | teknapróf |
+|---|---|---|---|---|
+| **standard** | **71,9%** af 3.000 | **+114** | **5/5** | **p = 0,031 ✓** |
+| PPR | 57,2% af 3.000 | +60 | 3/5 | p = 0,50 ✗ |
+
+**Í standard er munurinn marktækur.** Í PPR er hann jákvæður í hverri einustu
+hermun sem var reynd, en árs-sveiflan (+169, −50, −43, +48, +176) er margfalt
+stærri en munurinn.
+
+**Hvers vegna standard og ekki PPR:** standard-stigagjöf dregur stöðurnar lengra
+í sundur (hlauparar bera virðið), og það er nákvæmlega það sem varamanns-
+leiðrétting er til að laga. PPR færir stöðurnar nær hver annarri og þá hefur
+umreikningurinn minna að gera. Sama vélbúnaður og í stefnu-mælingunni, þar sem
+Zero-RB var marktækt slæmt í standard en ekki í PPR.
+
+**Hvað þyrfti til að skera úr um PPR:** við þessa áhrifastærð og þetta flökt
+**þrettán tímabil**. Við eigum fimm — þau einu þar sem Sleeper-spáin er ekki
+menguð af útkomunni.
+
+### Leitað að betri útgáfu — og hvers vegna hún var ekki tekin upp
+
+45 afbrigði af umreikningnum voru prófuð (fimm varamanns-þrep × skerping ×
+blöndun við hrá stig). Það besta — „last starter" þrep með 25% blöndun — gaf
+**+109 gegn Sleeper í stað +76**, og bootstrap þess útilokar núll.
+
+Það var **ekki tekið upp.** Ástæðan: afbrigðið var valið með því að horfa á öll
+fimm tímabilin, svo marktæknin er úrtaksval en ekki niðurstaða. Walk-forward
+útgáfan — þar sem afbrigðið er valið á fyrri árum og beitt á það næsta — gaf
++46 og vann 3 af 4. Það er lakara en núverandi útgáfa og staðfestir að leitin
+fann hávaða, ekki merki.
 
 ### Þrjár niðurstöður sem breyttu appinu
 
@@ -617,6 +658,7 @@ node scripts/nfl/model-lab.mjs [--scoring=…]     # -> model_eval_*.json
 node scripts/nfl/strategy-lab.mjs [--scoring=…]  # -> strategy_*.json
 node scripts/nfl/market-lab.mjs                  # -> market_history.json
 node scripts/nfl/advice-lab.mjs [--scoring=…]     # -> advice_*.json
+node scripts/nfl/arank-lab.mjs [--scoring=…]      # -> arank_*.json (marktaekni)
 ```
 
 Þrepin eru aðskilin eftir **eðli gagnanna**, ekki smekk: `core` breytist daglega,

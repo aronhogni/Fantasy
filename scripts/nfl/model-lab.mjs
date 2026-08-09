@@ -417,7 +417,7 @@ function buildModels() {
       key, label, group, note,
       fit: (tr, te, pos) => {
         const trOk = tr.filter((r) => r.y != null);
-        if (trOk.length < 60) return null;
+        if (trOk.length < 25) return null;
         const stats = standardize(trOk, cols);
         const Xtr = designMatrix(trOk, cols, stats);
         const ytr = trOk.map((r) => r.y);
@@ -486,6 +486,70 @@ function buildModels() {
   drop("production", F.production);
   drop("market", F.market);
   drop("experts", F.experts);
+
+  /* --- 3c2. OKKAR EIGIN SPA: LEIDRETTING A SKEKKJU SLEEPER ---
+
+     Fyrri tilraunir spadu UTKOMUNNI med Sleeper sem eina breytu af
+     morgum. Thad er illa skilyrt: likanid eyðir kroftum i ad laera
+     aftur thad sem Sleeper veit thegar, og ridge-refsingin skreppir
+     Sleeper-studulinn asamt ollum hinum.
+
+     RETTA LEIDIN AD BAETA STERKAN GRUNN ER AD SPA SKEKKJU HANS.
+     Markmidid er `raun - Sleeper`, og spain er `Sleeper + leidretting`.
+     Tha byrjar likanid a thvi ad hafa 100% rett fyrir ser thar sem
+     Sleeper hefur rett fyrir ser, og laerir adeins hvar hann skeikar
+     kerfisbundid — t.d. a gomlum leikmonnum eda theim sem skiptu um
+     lid. Ef engin kerfisbundin skekkja er til skilar hun ~0 og spain
+     verdur Sleeper obreyttur, sem er retta bakfallid.
+
+     THETTA ER SIDASTA ALVORU TILRAUNIN TIL EIGIN SPAR. Falli hun
+     lika er nidurstadan endanleg: vid spaum ekki betur en Sleeper,
+     og framlag okkar er umreikningurinn i virdi (A-Ranking). */
+  const residModel = (key, label, cols, note) => M.push({
+    key, label, group: "model", note,
+    fit: (tr, te, pos) => {
+      const trOk = tr.filter((r) => r.sleeperProj != null && r.y != null);
+      if (trOk.length < 25) return null;
+      const stats = standardize(trOk, cols);
+      const Xtr = designMatrix(trOk, cols, stats);
+      /* MARKMIDID ER SKEKKJAN, ekki utkoman. */
+      const ytr = trOk.map((r) => r.y - r.sleeperProj);
+      const lam = pickLambda(Xtr, ytr);
+      const m = ridgeFit(Xtr, ytr, lam);
+      if (!m) return null;
+      const corr = ridgePredict(m, designMatrix(te, cols, stats));
+      /* Leikmadur an Sleeper-spar faer ekkert grunngildi — hann fer
+         nedst, eins og i hinum Sleeper-likonunum. */
+      const base = te.map((r) => r.sleeperProj);
+      const lo = Math.min(...base.filter((v) => v != null)) - 1;
+      return te.map((r, i) => (base[i] == null ? lo : base[i] + corr[i]));
+    },
+  });
+
+  residModel("slp_resid", "Sleeper + our correction to its error",
+    [...F.production, ...F.opportunity, ...F.durability, ...F.profile,
+     ...F.team, ...F.market],
+    "Spair SKEKKJU Sleeper, ekki utkomunni.");
+  residModel("slp_resid_lite", "Sleeper + correction (age, team change, durability only)",
+    [...F.durability, ...F.profile, "teamChange"],
+    "Adeins thaer breytur sem spa gaeti kerfisbundid misst af.");
+
+  /* Og sama leidretting UMREIKNUÐ I VBD — thad er formið sem
+     A-Ranking notar, svo samanburdurinn se jafn. */
+  M.push({
+    key: "slp_resid_vbd", label: "Sleeper + correction -> VBD",
+    group: "mix", note: "Okkar spa, umreiknud i virdi yfir varamanni.",
+    fit: (tr, te, pos) => {
+      const base = M.find((x) => x.key === "slp_resid").fit(tr, te, pos);
+      if (!base) return null;
+      const REPL = { QB: 12, RB: 28, WR: 41, TE: 14 };
+      const sorted = base.slice().sort((a, b) => b - a);
+      const k = Math.min(sorted.length - 1, (REPL[pos] ?? 24) - 1);
+      const around = sorted.slice(Math.max(0, k - 1), k + 2);
+      const repl = around.length ? around.reduce((a, b) => a + b, 0) / around.length : 0;
+      return base.map((v) => v - repl);
+    },
+  });
 
   /* --- 3d. SAMEINING SKODANA — thad sem maelingin bendir a ---
 

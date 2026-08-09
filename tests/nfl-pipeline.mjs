@@ -238,6 +238,38 @@ if (has("features.json") && has("model_eval_ppr.json")) {
   console.log("  (features/model_eval vantar — slepp)");
 }
 
+/* ---------- 5d. STYRKUR FULLYRDINGANNA ----------
+   TVAER FULLYRDINGAR MED OLIKAN STYRK, OG APPID MA EKKI RUGLA THEIM
+   SAMAN. Gegn ADP er A-Ranking marktaekt betri; gegn Sleeper-rodinni
+   er hun jakvaed en osonnud i PPR og marktaek (tekna-prof) i standard.
+   Falli thetta profa ma ordalagid i vidmotinu ekki standa obreytt. */
+console.log("\n5d. styrkur fullyrdinganna");
+if (has("arank_ppr.json") && has("arank_standard.json")) {
+  for (const sc of ["ppr", "standard"]) {
+    const A = read(`arank_${sc}.json`);
+    const h = A.headToHead.current;
+    ok(A.seasons.length >= 5, `${sc}: ${A.seasons.length} hrein timabil`);
+    ok(h.n >= 1000, `${sc}: ${h.n} einvigi hermd`);
+    ok(h.mean > 0, `${sc}: punktmat A-Ranking er jakvaett (${h.mean})`);
+    ok(h.winRate > 0.5, `${sc}: vinnur meirihluta einviga (${(h.winRate * 100).toFixed(1)}%)`);
+
+    if (sc === "standard") {
+      /* Su fullyrding sem VIDMOTID kallar marktaeka. */
+      ok(h.yearWins === h.years,
+        `standard: vinnur OLL timabilin (${h.yearWins}/${h.years})`);
+      ok(h.signP < 0.05,
+        `standard: tekna-prof er marktaekt (p = ${h.signP})`);
+    } else {
+      /* Og su sem thad kallar OSONNADA. Profid ver ad hun se ekki
+         seld sem meira en hun er. */
+      ok(h.signP >= 0.05,
+        `ppr: tekna-prof er EKKI marktaekt (p = ${h.signP}) — vidmotid verdur ad segja thad`);
+    }
+  }
+} else {
+  console.log("  (arank-skrar vantar — slepp)");
+}
+
 /* ---------- 5c. DRAFT-STEFNUR ---------- */
 console.log("\n5c. draft-stefnur");
 if (has("strategy_ppr.json") && has("strategy_standard.json")) {

@@ -31,7 +31,7 @@ export const COLUMNS = [
 
   /* ---------- likanid ---------- */
   { key: "aRank", label: "A-Ranking", short: "A-Rank", band: "Model", hi: false,
-    note: "Okkar rod: spa Sleeper umreiknud i virdi yfir varamanni fyrir thina deild. MAELD 2022-2025: slaer ADP um +228 stig og Sleeper um +55, og vinnur oll fjogur arin." },
+    note: "Okkar rod: spa Sleeper umreiknud i virdi yfir varamanni fyrir thina deild. MAELD 2021-2025: slaer ADP um +234 stig og vinnur OLL FIMM arin (marktaekt). Gegn Sleeper-rodinni sjalfri er hun +60 og vinnur 3 af 5 — jakvaett i hverri hermun en EKKI marktaekt; thad thyrfti 13 timabil." },
   { key: "proj", label: "Projected points", short: "Proj", band: "Model",
     note: "Spa Sleeper i thinni stigagjof. MAELD sterkasta heimildin (rho 0,695 gegn 0,458 hja ADP). ESPN er notad ef Sleeper thegir." },
   { key: "sleeperRank", label: "Sleeper's own order", short: "Slp #", band: "Model", hi: false,

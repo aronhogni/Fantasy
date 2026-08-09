@@ -163,14 +163,32 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
   /* ============================================================
      A-RANKING = spa Sleeper -> VIRDI YFIR VARAMANNI i THINNI deild.
 
-     THETTA ER EINA RODIN I APPINU SEM SLAER BAEDI ADP OG SLEEPER,
-     og hun er maeld: walk-forward 2022-2025, 12-lida snakk, hermt
-     fra ollum 12 saetum, skorad a raunverulegum stigum.
+     TVAER FULLYRDINGAR OG THAER HAFA OLIKAN STYRK. Thad ma ekki
+     rugla saman.
 
-                       PPR      standard
-       A-Ranking     1975,8      1566,6      vinnur OLL 4 arin
-       Sleeper ein   1920,7      1413,7
-       ADP           1747,9      1296,9
+     (1) GEGN ADP ER HUN MARKTAEKT BETRI.
+         Walk-forward 2021-2025, 12-lida snakk, oll 12 saetin:
+           A-Ranking 1988,6  ·  ADP 1755,0  =  +233,6
+         Vinnur OLL FIMM arin. Bootstrap klosad per timabil utilokar
+         null. Thetta er fullyrding sem stenst.
+
+     (2) GEGN SLEEPER-RODINNI ER HUN LIKLEGA BETRI EN OSONNUD.
+           adskilin droft      +75,7   vinnur 3/5 ar
+           beint einvigi       +59,9   vinnur 3/5 ar, 57,2% af
+                                       3.000 einvigum
+         Punktmatid er JAKVAETT i hverri einustu hermun sem var
+         reynd, en ars-sveiflan (+169, -50, -43, +48, +176) er
+         margfalt staerri en munurinn. Vikmorkin utiloka EKKI null.
+
+         MAELT I `arank-lab.mjs`: med thessari ahrifastaerd og thessu
+         flakti thyrfti **13 timabil** til ad na marktaekni. Vid eigum
+         FIMM — thau einu thar sem Sleeper-spain er ekki menguð af
+         utkomunni (sja leka-hlidid i build-features).
+
+     VIDMOTID VERDUR AD BERA THENNAN MUN. Fyrsta utgafa thessarar
+     notu sagdi "slaer ADP um +228 OG Sleeper um +55, vinnur oll
+     fjogur arin" i einum andardraetti, eins og badar fullyrdingar
+     hefdu sama styrk. Su fyrri er maeld; su sidari er von.
 
      HVERS VEGNA THETTA VIRKAR: Sleeper spair STIGUM vel en radar
      eftir hrastigum. Draft snyst ekki um stig heldur um hvad thu
@@ -183,13 +201,35 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
      moti 0,695) en akvordunin er BETRI. Thad er sama regla og i
      FPL-verkefninu: haerri fylgni er ekki sama og betri akvordun.
      ============================================================ */
+  /* SPYRNUMENN OG VARNIR ERU UTAN A-RANKING — OG THAD ER EKKI
+     SMEKKUR HELDUR SAMKVAEMNI.
+
+     Hermunin sem rettlaetir A-Ranking (`accuracy.js`, `model-lab.mjs`,
+     `strategy-lab.mjs`) SLEPPTI K og DST alveg: `excludePos`. Ad rada
+     theim sidan inn i sama lista vaeri ad birta tolu sem ENGIN maeling
+     styður, vid hlidina a tolum sem eru maeldar, an thess ad greina
+     thar a milli.
+
+     Og talan yrdi rong i reynd. VBD segir DST1 vera i ~77. saeti
+     (spa 106 gegn 87 hja DST12 = VBD 19), sem myndi thyda vorn i 7.
+     umferd. Enginn draftar svona, og astaedan er utan likansins:
+     varnir eru afar sveiflukenndar milli vikna og haegt er ad skipta
+     um thaer vikulega, svo vaenta forskotid heldur ekki. VBD tekur
+     spana sem vissu.
+
+     Their eru thvi MED i skranni og fa sitt VBD, en `aRank` er
+     **null** hja theim og radgjofin snertir tha ekki. Vidmotid ma
+     birta tha ser — thad er RETT — en ekki i rodinni sem er maeld. */
+  const RANKED_POS = ["QB", "RB", "WR", "TE"];
   const ranked = withVbd.slice()
-    .filter((r) => r.vbd != null)
+    .filter((r) => r.vbd != null && RANKED_POS.includes(r.pos))
     .sort((a, b) => b.vbd - a.vbd);
   const ourRank = new Map(ranked.map((r, i) => [r.id, i + 1]));
   for (const r of withVbd) {
     r.rank = ourRank.get(r.id) ?? null;
     r.aRank = r.rank;
+    /* Merkt svo vidmotid geti sagt fra thvi frekar en ad syna eydu. */
+    r.unranked = !RANKED_POS.includes(r.pos) ? "K and DST were excluded from every simulation that validates this order" : null;
     r.value = valueVsMarket(r.rank, r.adp, league.teams);
     /* Hvad segir A-Ranking umfram hvora heimild fyrir sig? */
     r.vsSleeperRank = null;                 // fyllt ad nedan
@@ -197,7 +237,7 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
 
   /* Rod Sleeper eftir HRASTIGUM — til ad syna hvar VBD faerir mann. */
   const slpRanked = withVbd.slice()
-    .filter((r) => r.proj != null)
+    .filter((r) => r.proj != null && RANKED_POS.includes(r.pos))
     .sort((a, b) => b.proj - a.proj);
   const slpRank = new Map(slpRanked.map((r, i) => [r.id, i + 1]));
   for (const r of withVbd) {

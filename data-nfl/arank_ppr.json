@@ -1,0 +1,315 @@
+{
+ "generated": "2026-08-09T12:36:25.101Z",
+ "scoring": "ppr",
+ "teams": 12,
+ "rounds": 14,
+ "seasons": [
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "sleeperPerSeason": {
+  "2021": 1846.8,
+  "2022": 1940.2,
+  "2023": 2065.5,
+  "2024": 2114.5,
+  "2025": 1623.9
+ },
+ "adpPerSeason": {
+  "2021": 1748,
+  "2022": 1689,
+  "2023": 1762.4,
+  "2024": 1788.6,
+  "2025": 1743.5
+ },
+ "variants": [
+  {
+   "name": "last starter",
+   "shrink": 0,
+   "blend": 0.25,
+   "mean": 2027.3,
+   "perSeason": {
+    "2021": 2023.7,
+    "2022": 2148.4,
+    "2023": 2043,
+    "2024": 2198.1,
+    "2025": 1723.5
+   }
+  },
+  {
+   "name": "drafted count",
+   "shrink": 0,
+   "blend": 0.25,
+   "mean": 2018.7,
+   "perSeason": {
+    "2021": 2158.1,
+    "2022": 1936.7,
+    "2023": 2040.6,
+    "2024": 2140.3,
+    "2025": 1817.5
+   }
+  },
+  {
+   "name": "drafted count",
+   "shrink": 0.1,
+   "blend": 0.25,
+   "mean": 2011.6,
+   "perSeason": {
+    "2021": 2176.9,
+    "2022": 1964.1,
+    "2023": 2047.7,
+    "2024": 2145.1,
+    "2025": 1724.1
+   }
+  },
+  {
+   "name": "drafted count",
+   "shrink": 0,
+   "blend": 0,
+   "mean": 2009.5,
+   "perSeason": {
+    "2021": 2046.8,
+    "2022": 1805.8,
+    "2023": 2098.6,
+    "2024": 2146.1,
+    "2025": 1950
+   }
+  },
+  {
+   "name": "waiver level",
+   "shrink": 0,
+   "blend": 0,
+   "mean": 2002.5,
+   "perSeason": {
+    "2021": 2158.7,
+    "2022": 1898.1,
+    "2023": 2103.5,
+    "2024": 2110.2,
+    "2025": 1742.2
+   }
+  },
+  {
+   "name": "drafted count",
+   "shrink": 0.1,
+   "blend": 0,
+   "mean": 1998.6,
+   "perSeason": {
+    "2021": 2040.9,
+    "2022": 1749.4,
+    "2023": 2098.6,
+    "2024": 2144.4,
+    "2025": 1959.6
+   }
+  },
+  {
+   "name": "drafted count",
+   "shrink": 0.2,
+   "blend": 0,
+   "mean": 1995.9,
+   "perSeason": {
+    "2021": 2040.9,
+    "2022": 1749.4,
+    "2023": 2098.6,
+    "2024": 2133.1,
+    "2025": 1957.4
+   }
+  },
+  {
+   "name": "starters+flex (current)",
+   "shrink": 0,
+   "blend": 0,
+   "mean": 1993.9,
+   "perSeason": {
+    "2021": 2028.5,
+    "2022": 2040.1,
+    "2023": 2027.8,
+    "2024": 2052.6,
+    "2025": 1820.7
+   }
+  },
+  {
+   "name": "starters+flex (current)",
+   "shrink": 0.1,
+   "blend": 0.25,
+   "mean": 1993.8,
+   "perSeason": {
+    "2021": 2036.8,
+    "2022": 1951.9,
+    "2023": 2061,
+    "2024": 2186.2,
+    "2025": 1733
+   }
+  },
+  {
+   "name": "starters+flex (current)",
+   "shrink": 0,
+   "blend": 0.1,
+   "mean": 1992.9,
+   "perSeason": {
+    "2021": 1929.7,
+    "2022": 2079.2,
+    "2023": 2038.4,
+    "2024": 2152.1,
+    "2025": 1765.3
+   }
+  },
+  {
+   "name": "drafted count",
+   "shrink": 0.2,
+   "blend": 0.1,
+   "mean": 1988,
+   "perSeason": {
+    "2021": 2144.1,
+    "2022": 1706.1,
+    "2023": 2041.2,
+    "2024": 2121.2,
+    "2025": 1927.6
+   }
+  },
+  {
+   "name": "starters+flex (current)",
+   "shrink": 0.1,
+   "blend": 0.1,
+   "mean": 1985.8,
+   "perSeason": {
+    "2021": 1925.7,
+    "2022": 2040.1,
+    "2023": 2045.6,
+    "2024": 2152.1,
+    "2025": 1765.3
+   }
+  }
+ ],
+ "walkForward": {
+  "2022": {
+   "chosen": "drafted count shrink=0.1 blend=0.25",
+   "points": 1964.1
+  },
+  "2023": {
+   "chosen": "last starter shrink=0 blend=0.25",
+   "points": 2043
+  },
+  "2024": {
+   "chosen": "last starter shrink=0 blend=0.25",
+   "points": 2198.1
+  },
+  "2025": {
+   "chosen": "last starter shrink=0 blend=0.25",
+   "points": 1723.5
+  }
+ },
+ "tests": {
+  "current": {
+   "label": "A-Ranking (current)",
+   "mean": 1993.9,
+   "diff": 75.7,
+   "wins": 3,
+   "years": 5,
+   "boot": {
+    "lo": -19.9,
+    "hi": 168.4,
+    "excludesZero": false
+   },
+   "signP": 0.5,
+   "paired": {
+    "t": 1.4,
+    "se": 54,
+    "lo": -74.1,
+    "hi": 225.6,
+    "significant": false
+   },
+   "slotWins": 40,
+   "slots": 60
+  },
+  "best": {
+   "label": "A-Ranking (best variant: last starter, shrink=0, blend=0.25)",
+   "mean": 2027.3,
+   "diff": 109.1,
+   "wins": 4,
+   "years": 5,
+   "boot": {
+    "lo": 38.6,
+    "hi": 177,
+    "excludesZero": true
+   },
+   "signP": 0.1875,
+   "paired": {
+    "t": 2.71,
+    "se": 40.3,
+    "lo": -2.7,
+    "hi": 221,
+    "significant": false
+   },
+   "slotWins": 46,
+   "slots": 60
+  },
+  "walkForward": {
+   "label": "A-Ranking (walk-forward choice)",
+   "mean": 1982.2,
+   "diff": 46.1,
+   "wins": 3,
+   "years": 4,
+   "boot": {
+    "lo": 0.7,
+    "hi": 91.6,
+    "excludesZero": true
+   },
+   "signP": 0.3125,
+   "paired": {
+    "t": 1.64,
+    "se": 28.1,
+    "lo": -31.9,
+    "hi": 124.1,
+    "significant": false
+   },
+   "slotWins": 31,
+   "slots": 48
+  }
+ },
+ "headToHead": {
+  "current": {
+   "mean": 59.9,
+   "n": 3000,
+   "wins": 1715,
+   "winRate": 0.5717,
+   "byYear": {
+    "2021": 169.3,
+    "2022": -49.8,
+    "2023": -43.4,
+    "2024": 47.7,
+    "2025": 175.6
+   },
+   "yearWins": 3,
+   "years": 5,
+   "t": 1.22,
+   "se": 49.1,
+   "lo": -76.4,
+   "hi": 196.1,
+   "significant": false,
+   "signP": 0.5
+  },
+  "best": {
+   "mean": 56.9,
+   "n": 3000,
+   "wins": 1764,
+   "winRate": 0.588,
+   "byYear": {
+    "2021": 9.1,
+    "2022": -45.7,
+    "2023": -65.6,
+    "2024": 234.8,
+    "2025": 152
+   },
+   "yearWins": 3,
+   "years": 5,
+   "t": 0.97,
+   "se": 58.5,
+   "lo": -105.6,
+   "hi": 219.4,
+   "significant": false,
+   "signP": 0.5
+  }
+ }
+}

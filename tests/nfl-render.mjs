@@ -212,7 +212,19 @@ console.log("\n4b. model-lab-flipinn");
        meira en hun maeldi. */
     ok(t.includes("vs ADP"), "samanburdurinn vid ADP birtist");
     ok(t.includes("vs Sleeper"), "og vid Sleeper");
-    ok(/four seasons/i.test(t), "og varnaglinn um fjogur timabil");
+    /* TVAER FULLYRDINGAR MED OLIKAN STYRK VERDA AD SJAST SEM TVAER.
+       Fyrri utgafa vidmotsins sagdi "+228 gegn ADP OG +55 gegn
+       Sleeper, vinnur oll arin" i einum andardraetti, eins og badar
+       hefdu sama styrk. Su fyrri er maeld; su sidari er von i PPR. */
+    ok(/Two claims, and they are not equally strong/i.test(t),
+      "vidmotid adgreinir fullyrdingarnar tvaer");
+    ok(/Against ADP this holds/i.test(t), "og segir hvor stenst");
+    ok(/does not, yet/i.test(t), "og hvor gerir thad ekki");
+    ok(/thirteen seasons/i.test(t),
+      "og hvad thyrfti til: threttan timabil");
+    ok(/head to head/i.test(t) || /Head to head/.test(t),
+      "beina einvigid birtist");
+    ok(/sign test/i.test(t), "og teknaprofid med p-gildi");
     ok(/higher correlation is not the same/i.test(t),
       "og notan um ad haerri fylgni se ekki betri akvordun");
     const rows = document.querySelectorAll("table.data tbody tr");

@@ -156,8 +156,20 @@ export const DEFAULT_LEAGUE = {
  * maelist thad sem raunverulega skiptir mali: hvar VIKUR hann fra
  * markadinum, og BORGADI su vik sig?
  */
+/**
+ * `rival` (valfrjalst) — { slot, board }: annad lid i SOMU deild sem
+ * draftar eftir ODRU bordi. Skilar `rivalPoints`.
+ *
+ * HVERS VEGNA THETTA ER TIL: ad bera saman tvo ADSKILIN droft laetur
+ * ars-havadann (sd ~150 stig milli timabila) drekkja mun sem er ~75.
+ * Med badum bordum I SOMU DEILD dregst arsahrifin UT — bædi lidin
+ * nutu goda arsins eda lidu fyrir thad slaema — og eftir stendur
+ * adeins munurinn a bordunum. Thad er lika raunsaerra: i thinni deild
+ * ertu ad keppa vid folkid i herberginu, ekki vid medaltal aranna.
+ */
 export function simulateDraft({ board, fieldBoard, actual, slot,
-                                league = DEFAULT_LEAGUE, plan = null }) {
+                                league = DEFAULT_LEAGUE, plan = null,
+                                rival = null }) {
   const { teams, rounds } = league;
   const taken = new Set();
   /* Hvert lid ber sina eigin stodutalningu — LIKA motherjarnir.
@@ -170,7 +182,8 @@ export function simulateDraft({ board, fieldBoard, actual, slot,
     const order = r % 2 === 0 ? range(1, teams) : range(1, teams).reverse();
     for (const t of order) {
       const mine = t === slot;
-      const use = mine ? board : fieldBoard;
+      const use = mine ? board
+        : (rival && t === rival.slot ? rival.board : fieldBoard);
       /* `plan` er STODU-AAETLUN fyrir okkar lid: hvada stodur ma taka
          i hverri umferd. Notad af `strategy-lab.mjs` til ad maela
          "RB fyrst eda WR fyrst". Motherjarnir fylgja ALDREI aaetlun —
@@ -190,7 +203,12 @@ export function simulateDraft({ board, fieldBoard, actual, slot,
     }
   }
   const myRoster = rosters[slot];
-  return { points: startersPoints(myRoster, actual, league), roster: myRoster };
+  return {
+    points: startersPoints(myRoster, actual, league),
+    roster: myRoster,
+    rivalPoints: rival ? startersPoints(rosters[rival.slot], actual, league) : null,
+    rivalRoster: rival ? rosters[rival.slot] : null,
+  };
 }
 
 function range(a, b) { const o = []; for (let i = a; i <= b; i++) o.push(i); return o; }
