@@ -156,6 +156,43 @@ console.log("\n4. experts-flipinn");
   }
 }
 
+console.log("\n4a. market-flipinn");
+{
+  ok(await clickTab("Market"), "flipinn finnst");
+  ok(!text().includes("Something broke"), "engin villa");
+  const t = text();
+  ok(t.includes("Softest defences") || t.includes("did not load"),
+    "annadhvort markadstoflurnar eda skyr yfirlysing um ad thaer vanti");
+  if (t.includes("Softest defences")) {
+    ok(t.includes("Toughest defences"), "badar attir birtar");
+    const rows = document.querySelectorAll("table.data tbody tr");
+    ok(rows.length >= 30, `${rows.length} lid i markadstoflunni`);
+    /* VARNAGLINN VERDUR AD FYLGJA TOLUNNI. "Stig a sig" an thess ad
+       segja ad thad se OSUNDURLIDAD eftir stodu vaeri ad selja hana
+       sem meira en hun er. */
+    ok(/not.{0,20}broken down by position/i.test(t),
+      "og notan um ad talan se ekki sundurlidud eftir stodu");
+
+    /* 20-ARA MAELINGIN VERDUR AD VERA ADGENGILEG UR SAMA FLIPA.
+       Flipi sem synir markadstolur an thess ad segja hvad thaer eru
+       virdi selur their sem meira en thaer eru. */
+    const chips = [...document.querySelectorAll("button.chip")];
+    const hist = chips.find((c) => (c.textContent || "").includes("actually work"));
+    ok(!!hist, "flipinn 'does it actually work' er til");
+    if (hist) {
+      await act(async () => {
+        hist.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+      });
+      await settle(400);
+      const h = text();
+      ok(/player-weeks/i.test(h), "20-ara urtakid birtist");
+      ok(/0\.\d\d%/.test(h), "lyftingin er birt sem prosenta");
+      ok(/tiny/i.test(h), "og thad er SAGT ad hun se orsma");
+      ok(/receivers do not care/i.test(h), "WR-nidurstadan stendur");
+    }
+  }
+}
+
 console.log("\n4b. model-lab-flipinn");
 {
   ok(await clickTab("Model lab"), "flipinn finnst");

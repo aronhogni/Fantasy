@@ -31,6 +31,7 @@ import * as sl from "./sources/sleeper.mjs";
 import * as fp from "./sources/fantasypros.mjs";
 import * as es from "./sources/espn.mjs";
 import * as ad from "./sources/adp.mjs";
+import * as mk from "./sources/espnodds.mjs";
 import { normTeam, buildIndexes, matchByName, normName } from "../../src-nfl/names.js";
 
 const OUT = path.resolve(process.cwd(), "data-nfl");
@@ -110,6 +111,15 @@ async function stageCore() {
   /* --- leikjaskra + linur --- */
   const games = await nv.schedule([season, season - 1]);
 
+  /* --- MARKADURINN ---
+     nflverse-skrain ber linur en thaer eru gisnar i forleik (337 af
+     557 thegar thetta er skrifad). ESPN birtir DraftKings-linur fyrir
+     ALLAR umferdir strax, svo markadslagid er sott thadan. Baedi eru
+     hofd: nflverse fyrir soguna, ESPN fyrir yfirstandandi ar. */
+  const lines = await mk.gameLines(season);
+  const futures = await mk.futures(season);
+  const teamMarket = mk.teamMarketStrength(lines);
+
   /* --- SAMEINING --- */
   const players = joinPlayers({
     sleeperPlayers, nvPlayers, espnPool, idmap,
@@ -129,6 +139,12 @@ async function stageCore() {
     season,
     ppr: ecrPpr, half: ecrHalf, standard: ecrStd,
   }, { minRows: 1 });
+  await writeJson("market.json", {
+    season,
+    generated: new Date().toISOString(),
+    lines, futures, teams: teamMarket,
+    withLine: lines.filter((g) => g.total != null).length,
+  }, { minRows: 3 });
   await writeJson("meta.json", {
     season, week: state.week, seasonType: state.season_type,
     seasonStart: state.season_start_date,

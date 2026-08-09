@@ -73,11 +73,11 @@ export async function load(name) {
 
 /** Skrarnar sem raesingin tharf. Allt annad er letihladid. */
 export async function loadCore() {
-  const [meta, players, teams, schedule, status] = await Promise.all([
+  const [meta, players, teams, schedule, status, market] = await Promise.all([
     load("meta.json"), load("players.json"), load("teams.json"),
-    load("schedule.json"), load("status.json"),
+    load("schedule.json"), load("status.json"), load("market.json"),
   ]);
-  return { meta, players, teams, schedule, status };
+  return { meta, players, teams, schedule, status, market };
 }
 
 export const loadExperts = () => load("experts.json");
@@ -87,6 +87,8 @@ export const loadDefense = () => load("defense.json");
 export const loadTeamForm = () => load("team_form.json");
 export const loadCalibration = () => load("calibration.json");
 export const loadAdp = () => load("adp.json");
+export const loadMarket = () => load("market.json");
+export const loadMarketHistory = () => load("market_history.json");
 export const loadWeekly = (year) => load(`weekly/${year}.json`);
 
 /* Maelistofan. `standard` og `ppr` eru SITTHVOR skrain thvi

@@ -33,13 +33,13 @@ export const DEFAULT_LEAGUE = {
  * `experts`  data-nfl/experts.json (valfrjalst — skorpu bordin)
  * `schedule` data-nfl/schedule.json (valfrjalst — SoS)
  */
-export function buildRows({ players, seasons, accuracy, experts, schedule,
+export function buildRows({ players, seasons, accuracy, experts, schedule, market,
                             league = DEFAULT_LEAGUE, weights = null }) {
   if (!players || !players.length) return { rows: [], meta: { reason: "engin gogn" } };
 
   const lastBy = indexSeason(seasons, 2025);
   const sharp = buildSharpBoard(accuracy, experts);
-  const sos = buildSos(schedule, league);
+  const sos = buildSos(schedule, league, market);
 
   const scoringKey = league.scoring === "half-ppr" ? "half"
                    : league.scoring === "standard" ? "std" : "ppr";
@@ -133,6 +133,8 @@ export function buildRows({ players, seasons, accuracy, experts, schedule,
 
       sos: s ? s.all : null,
       playoffSos: s ? s.playoff : null,
+      teamScored: s ? (s.scored ?? null) : null,
+      defRank: s ? (s.allowedRank ?? null) : null,
     };
   });
 
@@ -291,8 +293,27 @@ export function buildSharpBoard(accuracy, experts) {
  * Lid an lina fær `null`, EKKI medaltalid — "vitum ekki" er ekki
  * "medal-erfitt".
  */
-export function buildSos(schedule, league) {
+export function buildSos(schedule, league, market = null) {
   const out = new Map();
+
+  /* MARKADURINN FYRST, nflverse SEM VARALEID.
+     nflverse-skrain ber adeins linur fyrir hluta leikja i forleik
+     (337 af 557 maelt 9.8.2026) medan ESPN birtir DraftKings-linur
+     fyrir 270 af 272 leikjum strax. Ad nota nflverse eina gaefi
+     tveimur thridju lida `null` i motstodu-styrk akkurat thegar
+     notandinn er ad drafta. */
+  if (market && market.teams && market.teams.length >= 30) {
+    for (const t of market.teams) {
+      out.set(t.team, {
+        all: t.allowed, playoff: t.playoffAllowed,
+        games: t.games, scored: t.scored,
+        allowedRank: t.allowedRank, scoredRank: t.scoredRank,
+        source: "market",
+      });
+    }
+    return out;
+  }
+
   if (!schedule) return out;
   const season = Math.max(...schedule.map((g) => g.season));
   const games = schedule.filter((g) => g.season === season && g.type === "REG");
@@ -311,7 +332,7 @@ export function buildSos(schedule, league) {
     out.set(team, {
       all: all.length ? round2(avg(all)) : null,
       playoff: po.length ? round2(avg(po)) : null,
-      games: all.length,
+      games: all.length, source: "nflverse",
     });
   }
   return out;

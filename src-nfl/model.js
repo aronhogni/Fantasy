@@ -285,6 +285,41 @@ export function impliedTeamTotals(total, spread) {
  * SKEKKJA SEM ER VITUD: vikur med 0 stig eru sleppt (log tekur ekki
  * 0) og thaer eru oftar i leikjum med lagt vaent skor. Maelingin
  * VANMETUR thvi teygnina. Talan er varfaerin, sem er retta attin.
+ *
+ * ============================================================
+ * HVE MIKID ER MARKADSLIDURINN VIRDI? MAELT A 20 ARUM.
+ * `scripts/nfl/market-lab.mjs`, 71.347 leikmanna-vikur 2006-2025,
+ * walk-forward. Lyfting = hlutfall ferskekkju sem lidurinn fjarlaegir
+ * UMFRAM thad sem grunnlina leikmannsins sjalfs nær:
+ *
+ *   stada  besta merki                        lyfting     r
+ *   QB     vaent stig eigin lids               0,33%    0,057
+ *   RB     sigurlikur ur peningalinu           0,42%    0,065
+ *   TE     sigurlikur ur peningalinu           0,08%    0,031
+ *   WR     vaent stig eigin lids               0,03%    0,023
+ *
+ * ÞETTA ER ORSMATT OG THAD MA EKKI FELA. Markadurinn er sterkasta
+ * inntakid THEGAR VERID ER AD RADA LEIKMONNUM (sja model-lab: 1667
+ * stig gegn 1581 fyrir framleidslu og 1319 fyrir lidsstyrk) — thvi
+ * ADP ber hver LEIKMADURINN ER. En thegar thu VEIST thegar hver hann
+ * er og spyrd bara um EINA VIKU, tha ber linan innan vid halft
+ * prosent af ferskekkjunni.
+ *
+ * HVERS VEGNA LIDURINN ER SAMT INNI: 0,3-0,4% er raunverulegt og
+ * stodugt, og hann kostar ekkert. En vidmotid ma aldrei lata hann
+ * lita ut fyrir ad rada rod.
+ *
+ * HVERS VEGNA VID SKIPTUM EKKI YFIR I SIGURLIKUR FYRIR RB thratt
+ * fyrir ad thaer maelist betri (0,42% gegn 0,29%): munurinn er
+ * 0,13 prosentustig. Ad endurbyggja likanid, endurkvarda teygnina og
+ * baeta vid heimild fyrir mun sem er minni en havadinn i sjalfri
+ * maelingunni vaeri flaekja an abata. Talan er skjolud hér svo
+ * akvordunin se rekjanleg — ekki fald.
+ *
+ * MERKID HEFUR EKKI BREYST I 20 AR: 0,038 (2006-2015) gegn 0,042
+ * (2016-2025), vikmorkin utiloka ekki null. Betri linur hafa ekki
+ * gert markadinn ad sterkara fantasy-merki.
+ * ============================================================
  */
 export const IMPLIED_BASE = 22.5;
 export const ELASTICITY = 0.22;          // sameiginlegt bakfall

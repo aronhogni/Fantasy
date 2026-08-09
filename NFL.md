@@ -359,6 +359,141 @@ hættir að slá bæði ADP og Sleeper.
 
 ---
 
+## 5c. Markaðurinn — veðbankalínur sem inntak
+
+`scripts/nfl/sources/espnodds.mjs` → `data-nfl/market.json`.
+
+ESPN birtir **DraftKings-línur fyrir hvern leik**, framtíðarmarkaði fyrir öllum
+32 liðum og marka-prop per leik — **án lykils og án kvóta**. Það heldur reglunni
+í kafla 2: engin heimild í NFL-hlutanum krefst lykils. FPL-verkefnið á
+`ODDS_API_KEY` en hann er kvótaður og hann er ekki notaður hér.
+
+Mælt 9.8.2026: **272 af 272 leikjum 2026 höfðu verðlagða línu.** Til
+samanburðar bar nflverse-skráin 337 af 557 — markaðslagið er því sótt frá ESPN
+fyrir yfirstandandi ár og nflverse notað fyrir söguna.
+
+### Formerkið — stærsta gildran
+
+**ESPN og nflverse nota ANDSTÆTT formerki á forgjöfinni.**
+
+| | heimalið favorit |
+|---|---|
+| ESPN `spread` | **neikvætt** (−3,5) |
+| nflverse `spread_line` | **jákvætt** (+3,5) |
+
+Staðfest á öllum 16 leikjum viku 1: `NE @ SEA, spread −3,5, details "SEA −3,5"`
+gegn `BAL @ IND, spread 3,5, details "BAL −3,5"`. Snúist þetta við læsi allt
+vikulega líkanið öfugt — sterku liðin fengju **lágt** vænt skor — og **ekkert
+brotnaði sýnilega**. Merkinu er því snúið einu sinni við inntöku, í
+nflverse-hefðina sem `impliedTeamTotals` gerir ráð fyrir.
+
+Vörður: `tests/nfl-market.mjs` kafli 1 (spegilpróf) og kafli 5, sem ber
+formerkið saman við `details`-strenginn í **öllum 265 leikjum sem nefna
+uppáhaldsliðið**.
+
+### Hvað markaðurinn svarar
+
+**Hvaða varnir eru lélegar?** Vörn liðs = **meðaltal væntra stiga andstæðinga
+þess** yfir tímabilið. Það er dómur markaðarins, dreginn úr 272 leikjum, og
+hann er til **strax í forleik** — ólíkt tölfræði sem þarf leiki til að verða til.
+
+| mýkstu varnir (sækja á) | | hörðustu varnir (forðast) | |
+|---|---|---|---|
+| ARI | 27,0 | DEN | 20,7 |
+| MIA | 26,0 | SEA | 20,7 |
+| WAS | 24,8 | HOU | 20,8 |
+
+**Hverjir skora?** Bestu sóknirnar: LAR 26,6 · DET 26,1 · BUF 26,1 stig/leik.
+
+**Úrslitakeppnin.** Vikur 15–17 eru taldar sér, því það er þar sem deildir
+vinnast. `Playoff D`-dálkurinn sýnir hvað andstæðingar liðsins eru spáðir í
+þeim vikum. **Varnaglinn stendur með tölunni:** fjórir mánuðir af meiðslum og
+skiptum liggja á milli drafts og viku 15, og línur fyrir þær vikur eru þær
+verst upplýstu á tímabilinu. Jafnteflabrjótur, ekki ástæða til að teygja sig.
+
+### Það sem er byggt en bíður tímabilsins
+
+**„Anytime Touchdown Scorer"** er beinasta svarið við „hver er líklegur til að
+skora". ESPN ber markaðinn — en **bókmakarar verðleggja hann ekki fyrr en
+nokkrum dögum fyrir leik**. Mælt 9.8.: hver leikur listaði 24 leikmenn og
+**enginn þeirra hafði verð**. Í loknum 2025-leik voru 1.697 prop með
+raunverulegum verðum.
+
+Þátturinn er því skrifaður og prófaður gegn 2025-sniðinu en skilar tómu í
+forleik — og segir það berum orðum í stað þess að sýna tómt borð sem lítur út
+eins og bilun. Sama gildir um vikulegu byrjunarliðs- og waiver-tólin: þau lesa
+vænt stig vikunnar sem þegar eru til, en marka-líkurnar bætast við í september.
+
+### Varnagli sem á að standa
+
+Markaðstalan er **ekki sundurliðuð eftir stöðu**. Vörn getur verið mjúk gegn
+hlaupum og hörð gegn sendingum, og þessi tala sér það ekki. Hún er til að velja
+milli tveggja svipaðra leikmanna, ekki til að yfirkeyra spá. Í `model-lab.mjs`
+mældist **liðsstyrkur einn og sér næstum gagnslaus** til að raða einstökum
+leikmönnum (1319 stig á móti 1667 hjá markaðs-ADP), og viðmótið segir það.
+
+### Virkar markaðurinn? 20 ára mæling
+
+`scripts/nfl/market-lab.mjs` → `data-nfl/market_history.json`.
+**71.347 leikmanna-vikur, 2006–2025.** Fyrir hverja viku er grunnlína hans eigið
+meðaltal þess tímabils **án þeirrar viku**, og mælt hversu mikið hver
+markaðstala skýrir af **afganginum** — því sem grunnlínan náði ekki. Stuðlar
+fittaðir á fyrri árum, mælt á árinu sjálfu.
+
+| markaðstala | QB | RB | WR | TE |
+|---|---|---|---|---|
+| vænt stig eigin liðs | **0,33%** | 0,29% | **0,03%** | 0,06% |
+| sigurlíkur úr peningalínu | 0,18% | **0,42%** | 0,01% | **0,08%** |
+| forgjöf liðsins | 0,18% | 0,41% | 0,01% | 0,07% |
+| heildarlína (O/U) ein og sér | 0,14% | −0,05% | −0,01% | −0,04% |
+| vænt stig **andstæðings** | 0,00% | 0,22% | −0,02% | 0,01% |
+
+*(hlutfall ferskekkju sem talan fjarlægir, utan úrtaks)*
+
+**Þrennt sem 20 árin skera úr um:**
+
+**1. Móttakarar hafa ekki gagn af leikstöðunni.** Hver einasta markaðstala er
+innan hávaða af núlli fyrir WR — best 0,03%. Lið sem er undir sendir meira og
+bætir upp það sem leikstaðan tók. Verkfæri sem lækkar móttakara vegna lágrar
+liðslínu er að selja þér eitthvað sem hefur **aldrei mælst**. Þetta staðfestir
+sjálfstætt teygni-mælinguna í kafla 3 (WR e = 0,069, t = 1,4).
+
+**2. Fyrir hlaupara er það forgjöfin, ekki heildarlínan.** Sigurlíkur (0,42%)
+slá vænt stig liðsins (0,29%), og **hrein heildarlína er einskis virði**
+(−0,05%). Það sem skiptir máli er hvort liðið hans verði **yfir**, ekki hvort
+leikurinn verði stigahár. Vænt stig andstæðingsins bera **neikvætt** formerki
+fyrir RB (r = −0,043) — sama staðreynd frá hinni hliðinni: hættulegur
+andstæðingur þýðir að liðið hans er á eftir, og lið sem eltir hættir að hlaupa.
+
+**3. Fyrir „er þetta góð vörn að mæta" slær tölfræði markaðinn — og hvorugt er
+mikils virði.** Stig sem vörnin hefur raunverulega gefið þeirri stöðu það sem af
+er: r = **+0,0191**. Vænt stig andstæðings: r = **−0,0146**. Markaðstalan ber
+meira að segja **rangt formerki**, því hún blandar saman gæðum varnarinnar og
+leikstöðunni.
+
+**Og þetta hefur ekki breyst.** Merkið mældist 0,038 að meðaltali 2006–2015 og
+0,042 árin 2016–2025 — vikmörkin útiloka ekki núll. Tuttugu ár af beittari
+veðmörkuðum hafa **ekki** gert þá að sterkara fantasy-merki.
+
+### Tvær staðreyndir sem virðast stangast á en gera það ekki
+
+> Í `model-lab.mjs` var markaðurinn **sterkasta inntakið af öllum** (1667 stig
+> á móti 1581 fyrir framleiðslu og 1319 fyrir liðsstyrk).
+> Hér ber hann **innan við hálft prósent**.
+
+Hvort tveggja er satt. Í fyrri mælingunni er spurningin *hver er þessi
+leikmaður* — og draft-staða svarar því betur en nokkur tölfræði. Hér er
+spurningin *hvað gerir hann á sunnudaginn, þegar við vitum þegar hver hann er* —
+og leikjalínan ber aðeins samhengið, sem er lítill hluti af dreifingunni.
+
+**Þess vegna er markaðsliðurinn í líkaninu áfram lítill** og viðmótið segir það.
+Hann var ekki færður úr væntum stigum yfir í sigurlíkur fyrir RB þótt þær
+mælist betri: munurinn er 0,13 prósentustig, minni en hávaðinn í mælingunni
+sjálfri, og að endurbyggja líkanið fyrir hann væri flækja án ábata. Talan er
+skjöluð í `model.js` svo ákvörðunin sé rekjanleg.
+
+---
+
 ## 6. Prófin
 
 Fimm söfn í `SUITES` (`npm test` keyrir þau með hinum 41).
@@ -390,6 +525,11 @@ node scripts/nfl/fetch-nfl.mjs --stage=experts   # ~230 sérfræðingaborð
 node scripts/nfl/fetch-nfl.mjs --stage=history   # 2019-2025 — handvirkt, breytist aldrei
 node scripts/nfl/measure-experts.mjs             # -> accuracy.json
 node scripts/nfl/calibrate.mjs                   # -> calibration.json (fastarnir)
+node scripts/nfl/fetch-ecr-history.mjs           # -> ecr_history.json (arlega)
+node scripts/nfl/build-features.mjs              # -> features.json (arlega)
+node scripts/nfl/model-lab.mjs [--scoring=…]     # -> model_eval_*.json
+node scripts/nfl/strategy-lab.mjs [--scoring=…]  # -> strategy_*.json
+node scripts/nfl/market-lab.mjs                  # -> market_history.json
 ```
 
 Þrepin eru aðskilin eftir **eðli gagnanna**, ekki smekk: `core` breytist daglega,

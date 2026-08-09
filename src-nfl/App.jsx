@@ -13,11 +13,13 @@ import PlayerTable from "./PlayerTable.jsx";
 import Schedule from "./Schedule.jsx";
 import Sources from "./Sources.jsx";
 import ModelLab from "./ModelLab.jsx";
+import Market from "./Market.jsx";
 
 const TABS = [
   ["draft", "🏈 Draft"],
   ["players", "👥 Players"],
   ["experts", "🧠 Experts"],
+  ["market", "💰 Market"],
   ["lab", "🔬 Model lab"],
   ["schedule", "📅 Schedule"],
   ["sources", "🔌 Sources"],
@@ -67,6 +69,7 @@ export default function App() {
          Fyrsta utgafan skrifadi `D.loadEval("ppr")` sem er KALL og
          skiladi lofordi; `loaders[k]()` reyndi tha ad kalla lofordid
          sem fall og flipinn stod tomur. */
+      marketHistory: () => D.loadMarketHistory(),
       evalPpr: () => D.loadEval("ppr"), evalStd: () => D.loadEval("standard"),
       stratPpr: () => D.loadStrategy("ppr"), stratStd: () => D.loadStrategy("standard"),
     };
@@ -84,6 +87,7 @@ export default function App() {
     else if (view === "experts") need(["accuracy", "experts"]);
     else if (view === "schedule") need(["defense", "teamForm"]);
     else if (view === "sources") need(["calibration", "adp"]);
+    else if (view === "market") need(["marketHistory"]);
     else if (view === "lab") need(["evalPpr", "evalStd", "stratPpr", "stratStd"]);
   }, [view, need]);
 
@@ -96,6 +100,7 @@ export default function App() {
       accuracy: extra.accuracy,
       experts: extra.experts,
       schedule: core.schedule,
+      market: core.market,
       league,
     });
   }, [core, extra.seasons, extra.accuracy, extra.experts, league]);
@@ -141,6 +146,10 @@ export default function App() {
       {view === "experts" && (
         <Experts accuracy={extra.accuracy} experts={extra.experts}
           rows={built.rows} meta={built.meta} />
+      )}
+      {view === "market" && (
+        <Market market={core.market} rows={built.rows} meta={meta}
+          history={extra.marketHistory} />
       )}
       {view === "lab" && (
         <ModelLab evalPpr={extra.evalPpr} evalStd={extra.evalStd}
