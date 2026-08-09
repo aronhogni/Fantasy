@@ -86,7 +86,7 @@ export function sellTenths(purchase10, current10) {
    allt í einu einræn upp í 0,8. Mæling á röngu inntaki gefur rétt svar
    við rangri spurningu.                                                 */
 export const DIFF_W = {
-  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, homeCore:0.20, sot:0.45, elo:0.15, mkt:0.8 },
+  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, homeCore:0,    sot:0.45, elo:0.15, mkt:0.8 },
   2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, homeCore:0.20, sot:0.45, elo:0.15, mkt:0.8 },
   3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, elo:0.15, mkt:0.8 },
   4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, elo:0.15, mkt:0.8 },
