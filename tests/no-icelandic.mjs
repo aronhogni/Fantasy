@@ -19,15 +19,24 @@
    getur hvorki greint "Yfirlit" fra ensku ordi ne sed hvad `record()`
    skrifadi i status.json.
 
-   TVENNT LEYFT, OG BADT LEITT UT UR data/ SVO LISTINN GETI EKKI STADNAD:
-     · NOFN leikmanna og lida (Gudmundsson, Sævarsson).
-     · PIPELINE-NOTUR. `record(...)` i fetch.mjs skrifar islenska prosu i
-       status.json og last_gw.json og appid birtir hana HRATT. Ad thyda
-       thaer er endurhonnun a ~20 kallstodum i 3.000-linu skriftu sem
-       keyrir mannlaus — sja CLAUDE.md 7b. Thaer eru fjarlaegdar sem
-       UNDIRSTRENGIR (longstu fyrst), ekki sem ORD: ordalisti leyfdi
-       sprautada butinn "lið £ ferðalög · alls" ad sleppa, af thvi ad
-       "ferðalög" er lika i status.json. Mutations-prof M4b sannadi thad.
+   EITT LEYFT, OG ThAD ER LEITT UT UR data/ SVO LISTINN GETI EKKI STADNAD:
+     · NOFN leikmanna og lida (Gudmundsson, Sævarsson, Senesi Barón).
+       Their eru fjarlaegdir sem UNDIRSTRENGIR (longstu fyrst), ekki sem
+       ORD: ordalisti leyfdi sprautada butinn "lið £ ferðalög · alls" ad
+       sleppa af thvi ad "ferðalög" var lika i status.json. Mutations-prof
+       M4b sannadi thad.
+
+   >>> PIPELINE-NOTURNAR ERU EKKI LENGUR UNDANThEGNAR (9.8.2026). <<<
+   Adur stod hér ad `record(...)`-notur maettu vera islenskar thvi thaer
+   vaeru "gogn, ekki vidmot". ThAD VAR RANGT I FRAMKVAEMD: `v.note` er birt
+   undir "Data sources" — bædi sem synilegur texti og sem tooltip — og
+   `comp_label` for beint i leikjalistann a leikmannaspjaldinu ("Ofurbikar"
+   a Aston Villa-manni, maelt 9.8.2026). Undanthagan sem var rett fyrir
+   FRETTIR og NOFN var gat fyrir texta sem VID skrifum sjalf.
+
+   Allir pipeline-strengir eru nu enskir og kafli D ver thad VID UPPRUNANN
+   (scripts/*.mjs), thvi kafli C getur ekki sed thad: hann leyfir islensku
+   sem kemur ur data/, og notan kom einmitt thadan.
 
    Keyrsla: loader-safn (sja run-tests.mjs).
    ============================================================ */
@@ -316,6 +325,123 @@ const ASCII_IS = [
     }
   ok(`engin ASCII-islenska a skjanum (${ASCII_IS.length} ordmyndir vaktadar)`,
      seen.size === 0, [...seen].slice(0, 6).join("\n     "));
+}
+
+/* ============================================================
+   D. PIPELINE-STRENGIR — ThAD SEM ER SKRIFAD I `data/`
+
+   HVERS VEGNA KAFLI A-C DUGDU EKKI: their lesa DOM-inn og leyfa
+   VILJANDI islensku sem kemur UR `data/` (lidsnofn, frettir FPL,
+   leikmannanofn med broddstofum). Su undanthaga er RETT fyrir gogn — en
+   hun var GAT fyrir texta sem VID skrifum sjalf i gagnaskrarnar:
+
+     `comp_label` var "Ofurbikar"/"Meistaradeild" og BIRTIST i
+     leikjalistanum a leikmannaspjaldinu (maelt 9.8.2026 a Aston
+     Villa-manni). Kafli C sa thad ekki thvi ordid kom ur data/.
+     `record(...)`-noturnar birtast undir "Data sources" i hlidarstiku —
+     bædi sem texti og sem tooltip.
+
+   ThESS VEGNA ER LEITAD I UPPRUNANUM: hver STRENGJA-BOKSTAFUR i
+   scripts/*.mjs. ATHUGASEMDIR ERU UNDANSKILDAR OG ThAD ER ASETT —
+   thaer eru throunar-skjolun (rokstudningur, maelingar, villusogur) og
+   eru islenskar eins og CLAUDE.md sjalf. Vidmot og gogn eru ensk;
+   rokstudningurinn er a islensku. Sja kafla 9 i CLAUDE.md.
+
+   scripts/nfl/* er UNDANSKILID: thad er sjalfstaett app med eigin
+   sofnum og eigin lotu.
+   ============================================================ */
+console.log("\n=== D. PIPELINE-STRENGIR (scripts/*.mjs) ===");
+{
+  const { readdirSync } = await import("node:fs");
+  const dir = new URL("../scripts/", import.meta.url).pathname;
+  const files = readdirSync(dir).filter(f => f.endsWith(".mjs"));
+  /* Sömu ordmyndir og kafli C plus thaer sem koma fyrir i pipeline-texta.
+     Broddstafir eru lika prófadir — bædi form leka.                    */
+  const PIPE_IS = new RegExp(
+    "[þðæöáíóúéýÞÐÆÖÁÍÓÚÉÝ]|\\b(" + [
+      "timabil", "timabils", "timabilum", "umferd", "umferdir", "umferdar",
+      "leikir", "leikja", "leikur", "adeins", "thetta", "thvi", "engin",
+      "engir", "ekkert", "gogn", "gognum", "skrifad", "lidid", "lidi",
+      "klst", "gluggi", "glugga", "vantar", "innan", "koll", "sott",
+      "paradir", "treverk", "nofn", "maelt", "radir", "sleppt", "svaedi",
+      "skotakort", "lokid", "leyst", "thekja", "byrjunarlid", "stadfest",
+      "hittni", "nothaeft", "lokatolur", "speglun",
+      /* ordin sem SLUPPU i fyrstu atrennu — sonnun thess ad listinn
+         verdur ad vaxa thegar hann fellur, ekki ad vera "nogu godur". */
+      "byrja", "byrjar", "oparadir", "oparad", "leidir", "lykill", "lykli",
+      "sia", "sott", "sotti", "fjarlaegd", "kvardi", "kvarda", "vollur",
+      "velli", "midja", "breidd", "fallin", "skyttu", "eldri",
+      /* ============================================================
+         SMAORDIN ERU STERKASTA MERKID — og thau eru thad sem gerir
+         listann ad einhverju odru en kapphlaupi vid sjalfan sig.
+         Ordalisti yfir NAFNORD verdur ALLTAF ofullkominn: hver ny nota
+         ber ny ord ("fittad", "lids-svidinu", "skilgreining") og tvaer
+         atrennur i rod slupptu einmitt thannig. En ISLENSK SETNING BER
+         NANAST ALLTAF SMAORD — og thau eru fa og lokud. Ekkert theirra
+         er enskt ord, svo falskar jakvaedar eru ekki vandamal.        */
+      "og", "er", "eru", "ekki", "sem", "med", "fyrir", "til", "thad",
+      "their", "thaer", "hun", "hann", "vid", "tha", "svo", "eda", "hvert",
+      "hverja", "thess", "thessi", "annad", "onnur", "bædi", "badir",
+    ].join("|") + ")\\b", "i");
+
+  /* STRENGIR ERU LESNIR MED SKANNA, EKKI REGEXI.
+     Fyrsta utgafan skar athugasemdir burt med regexi og flaggadi ThRJAR
+     falskar: `// aðeins PL-umferðir` er athugasemd AFTAN VID KODA a somu
+     linu, sem `^\s*\/\/` naer ekki, og thegar hun sat eftir ruglaðist
+     strengja-leitin a urfellingar-merkjum i kodanum. Skanni sem gengur
+     staf fyrir staf veit hvenaer hann er i streng og hvenaer i
+     athugasemd — og ruglast hvorki a `https://` ne a "don't".          */
+  const strings = src => {
+    const out = [];
+    let i = 0, prev = "";
+    while (i < src.length) {
+      const c = src[i], n = src[i + 1];
+      if (c === "/" && n === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
+      if (c === "/" && n === "*") { i += 2; while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++; i += 2; continue; }
+      /* REGLULEG SEGD ER EKKI STRENGUR — og `/["']/` felldi fyrstu
+         utgafuna: skanninn sa gaesalappirnar INNI i segdinni, opnadi
+         streng og gleypti 200 linur af koda i einn "streng". Segd er
+         thekkt a thvi ad `/` komi a eftir tákni sem getur ekki endad
+         segdargildi (venjuleg heuristik).                              */
+      if (c === "/" && "(,=:[!&|?{;+-*%~^".includes(prev)) {
+        i++;
+        while (i < src.length && src[i] !== "/") {
+          if (src[i] === "\\") i++;
+          else if (src[i] === "[") { while (i < src.length && src[i] !== "]") { if (src[i] === "\\") i++; i++; } }
+          else if (src[i] === "\n") break;
+          i++;
+        }
+        i++; continue;
+      }
+      if (c === '"' || c === "'" || c === "`") {
+        const q = c; let j = i + 1, buf = "";
+        while (j < src.length) {
+          if (src[j] === "\\") { buf += src[j + 1] ?? ""; j += 2; continue; }
+          if (src[j] === q) break;
+          buf += src[j]; j++;
+        }
+        out.push(buf); i = j + 1; prev = q; continue;
+      }
+      if (!/\s/.test(c)) prev = c;
+      i++;
+    }
+    return out;
+  };
+
+  const bad = [];
+  let checked = 0;
+  for (const f of files) {
+    for (const lit of strings(readFileSync(dir + f, "utf8"))) {
+      if (lit.length < 3) continue;
+      checked++;
+      if (PIPE_IS.test(lit)) bad.push(`${f}: ${lit.slice(0, 70)}`);
+    }
+  }
+  /* ThEKJA ER FULLYRDING (CLAUDE.md 5b): ef leitin finnur enga strengi er
+     hun haett ad maela og ma ekki vera graen.                          */
+  ok(`strengir skodadir i ${files.length} skriftum (${checked})`, checked > 300, `adeins ${checked}`);
+  ok(`engin islenska i pipeline-strengjum${bad.length ? ` — ${bad.length} fundust` : ""}`,
+     bad.length === 0, [...new Set(bad)].slice(0, 8).join("\n     "));
 }
 
 console.log(`\nENGIN ISLENSKA: ${pass} stodust, ${fail} fellu`);

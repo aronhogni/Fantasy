@@ -1991,7 +1991,7 @@ export default function App() {
             gognum. Thess vegna er thetta <a> en ekki <button>: smellur
             hledur adra sidu i stad thess ad skipta um `view`.
             An thessa hlekks vaeri hitt appid ofinnanlegt. */}
-        <a href="nfl.html" style={{ ...S.viewTab, textDecoration: "none",
+        <a href="nfl/" style={{ ...S.viewTab, textDecoration: "none",
                                     display: "inline-flex", alignItems: "center" }}>
           🏈 NFL
         </a>

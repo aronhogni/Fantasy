@@ -1,0 +1,135 @@
+name: nfl-data
+
+# ============================================================
+# NFL-gagna-pipeline. ALGERLEGA ADSKILID fra FPL-workflow-unum:
+# annad safn af skram (nfl/data/), annar keyrslutimi, engir lyklar.
+#
+# ENGIR LEYNDARDOMAR ERU NOTADIR HER. Allar 20+ NFL-heimildirnar eru
+# opnar (nflverse, Sleeper, FantasyPros, FFC, ESPN). Thad er ekki
+# tilviljun heldur val: heimild sem krefst lykils dettur ut thegar
+# lykillinn rennur ut, og thad gerist alltaf a versta tima.
+#
+# TVAER ADSKILDAR KEYRSLUR THVI GOGNIN BREYTAST A OLIKUM HRADA:
+#   core     ADP, meidsli, spar, linur — DAGLEGA (og tvisvar a dag
+#            i drafttid i agust, thegar ADP hreyfist mest)
+#   experts  ~230 serfraedingabord — thau uppfaerast nokkrum sinnum
+#            i viku og eru 200+ HTTP-koll, svo thau eiga ekki heima
+#            i hverri keyrslu
+#
+# `history` er EKKI hér. Timabil sem er lokid breytist aldrei; thad
+# er sott handvirkt og utkoman committud (sja README-NFL.md).
+# ============================================================
+
+on:
+  schedule:
+    # 09:00 UTC daglega — eftir naeturuppfaerslur ADP-heimildanna.
+    - cron: "0 9 * * *"
+    # 21:00 UTC i AGUST OG SEPTEMBER: draft-tidin. ADP faerist mest
+    # a kvoldin i BNA og bord sem er 12 klst gamalt i draft-viku er
+    # ekki nogu ferskt.
+    - cron: "0 21 * 8,9 *"
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Threp (core | experts | core,experts | history | all)"
+        required: false
+        default: "core,experts"
+
+permissions:
+  contents: write
+
+# Tvaer keyrslur samtimis myndu skrifa sama `nfl/data/` og onnur
+# taeki alltaf tapa i push. Betra ad bida.
+concurrency:
+  group: nfl-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Velja threp
+        id: stage
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.stage }}" ]; then
+            echo "value=${{ github.event.inputs.stage }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 21 * 8,9 *" ]; then
+            # Kvoldkeyrslan i drafttid: ADP hreyfist, bordin ekki.
+            echo "value=core" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=core,experts" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Saekja NFL-gogn
+        env:
+          # ENGIN skyndiminni i CI — thar eiga fersk gogn ad raeda.
+          # Skyndiminnid er throunartaeki og a ad frysta heiminn
+          # medan verid er ad maela, ekki i sjalfvirkri keyrslu.
+          NFL_NO_CACHE: "1"
+        working-directory: nfl
+        run: node scripts/fetch-nfl.mjs --stage=${{ steps.stage.outputs.value }}
+
+      - name: Maela serfraedinga (adeins thegar bordin voru sott)
+        if: contains(steps.stage.outputs.value, 'experts')
+        # Fellur EKKI keyrsluna: maelingin krefst `weekly/` sem er
+        # committad handvirkt, og ef thad vantar eiga fersku
+        # kjarnagognin samt ad komast inn.
+        continue-on-error: true
+        working-directory: nfl
+        run: node scripts/measure-experts.mjs
+
+      - name: Profa ad gognin seu nytileg
+        # HVERS VEGNA PROF I PIPELINE-INU: skrifud skra er ekki sama
+        # og NYTILEG skra. Markadslidurinn i FPL-verkefninu var
+        # daudur i heila viku medan oll profin voru graen — thau
+        # profudu formuluna en ekki faedid. Thetta profar faedid.
+        working-directory: nfl
+        run: node tests/pipeline.mjs
+
+      - name: Committa ef eitthvad breyttist
+        run: |
+          set -uo pipefail
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          # AFMARKAD `git add`, ALDREI `-A`. Tvaer lotur hafa unnid a
+          # thessu tre samtimis og `-A` sopadi vinnu annarrar inn i
+          # commit hinnar (CLAUDE.md kafli 2).
+          git add nfl/data
+          if git diff --staged --quiet; then
+            echo "Engar breytingar — slepp commit."
+            exit 0
+          fi
+          git commit -m "nfl: ${{ steps.stage.outputs.value }} $(date -u +%Y-%m-%dT%H:%MZ)"
+
+          # SAMA KAPPHLAUP OG I fetch.yml, sama lausn. FPL-workflow-in
+          # tvo committa `data/` a 30 min fresti; thetta committar
+          # `nfl/data/`. Skrarnar rekast ekki a en PUSHID gerir thad.
+          #
+          # Vid arekstur vinnur okkar ferska sokn (`-X theirs` — i
+          # rebase er "theirs" thad commit sem er endurspilad, the.
+          # okkar). Thad er rett hér af somu astaedu og thar:
+          # `nfl/data/` er endurmyndad I HEILD i hverri keyrslu.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "pushad i tilraun $i"
+              exit 0
+            fi
+            echo "push hafnad (tilraun $i) — endurstilli ofan a origin/main"
+            git fetch origin main || { echo "::error::git fetch brast"; exit 1; }
+            if ! git rebase -X theirs origin/main; then
+              git rebase --abort || true
+              echo "::error::rebase brast — engin gogn pushud"
+              exit 1
+            fi
+            sleep $((i * 4))
+          done
+          echo "::error::push mistokst eftir 5 tilraunir"
+          exit 1

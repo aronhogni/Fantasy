@@ -8,6 +8,10 @@ on:
     # aðeins þegar APPIÐ breytist — ekki við gagna-commit frá cron
     paths:
       - "src/**"
+      - "nfl/src/**"
+      - "nfl/index.html"
+      - "nfl/vite.config.js"
+      - "nfl/package.json"
       - "public/**"
       - "index.html"
       - "vite.config.js"
@@ -33,13 +37,25 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: "20"
-      - name: Setja upp pakka
+      - name: Setja upp pakka (FPL)
         run: npm install --no-audit --no-fund
-      - name: Byggja
+      - name: Byggja FPL
+        run: npm run build
+
+      # NFL-appid er sjalfstaett verkefni i `nfl/` med eigin pakka og
+      # eigin vite-stillingu (sja nfl/README.md um hvers vegna).
+      # ROD SKIPTIR MALI: FPL byggir i `dist/` og hreinsar hana, svo
+      # NFL VERDUR ad byggja A EFTIR — annars er `dist/nfl/` thurrkad ut.
+      - name: Setja upp pakka (NFL)
+        working-directory: nfl
+        run: npm install --no-audit --no-fund
+      - name: Byggja NFL
+        working-directory: nfl
         run: npm run build
       - name: Staðfesta útkomu
         run: |
           test -f dist/index.html || { echo "dist/index.html vantar"; exit 1; }
+          test -f dist/nfl/index.html || { echo "dist/nfl/index.html vantar"; exit 1; }
           echo "dist innihald:"; ls -la dist
           # 404.html = sama og index svo dýpri slóðir virki
           cp dist/index.html dist/404.html

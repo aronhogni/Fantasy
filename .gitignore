@@ -9,3 +9,6 @@ dist/
 .env
 .env.local
 .cache-nfl/
+nfl/.cache-nfl/
+nfl/node_modules/
+nfl/dist/

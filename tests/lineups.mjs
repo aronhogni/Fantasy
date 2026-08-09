@@ -170,7 +170,7 @@ console.log("─".repeat(84));
   ok(written?.obj?.players?.length === 0, "tomur leikmannalisti, ekkert hrun");
   ok(written?.obj?.probe && written.obj.probe.gated === false,
     "probe skrad og gated=false thegar engin plan-villa kemur");
-  ok(/bidur leikdags|an plan-villu/.test(rec.note), `status segir stoduna: "${rec.note}"`);
+  ok(/waiting for a matchday|without a plan error/.test(rec.note), `status segir stoduna: "${rec.note}"`);
 }
 
 /* ---------- 2b. RANNSOKNIN MA EKKI BRENNA KVOTANN ----------
@@ -194,7 +194,7 @@ console.log("─".repeat(84));
   const r2 = await run({ dir, responder: () => { throw new Error("ATTI EKKI AD KALLA"); } });
   ok(r2.calls.length === 0, `onnur keyrsla gerir ENGIN koll (${r2.calls.length})`);
   ok(r2.written?.obj?.probe?.at === r1.written.obj.probe.at, "geymda svarid er bori\u00f0 afram obreytt");
-  ok(/geymt svar/.test(r2.rec.note), `status segir ad svarid se geymt: "${r2.rec.note.slice(0, 60)}"`);
+  ok(/stored response/.test(r2.rec.note), `status segir ad svarid se geymt: "${r2.rec.note.slice(0, 60)}"`);
   /* BLOKKERAD svar a ad reynast aftur EFTIR EINN DAG, ekki sjo — annars
      tekur pipeline ekki eftir ad adgangur se kominn aftur. Thetta var
      raunveruleg afleiding: reikningurinn var lagfaerdur 4.8. en geymda
@@ -225,7 +225,7 @@ console.log("─".repeat(84));
     probe: { at:new Date().toISOString(), http:200, errors:{ plan:"no access" }, gated:true } };
   await writeFile(join(dir, "lineups.json"), JSON.stringify(gatedPrev));
   const r4 = await run({ dir, responder: () => { throw new Error("ATTI EKKI AD KALLA"); } });
-  ok(r4.calls.length === 0 && /LOKADUR/.test(r4.rec.note),
+  ok(r4.calls.length === 0 && /ENDPOINT CLOSED/.test(r4.rec.note),
     `lokad threp sest i stodunni UT UR geymdu svari: "${r4.rec.note.slice(0, 60)}"`);
 }
 
@@ -243,12 +243,12 @@ console.log("─".repeat(84));
     errors: { access: "Your account is suspended, check on https://dashboard.api-football.com." } };
   const { written, rec } = await run({ dir, responder: () => GATED });
   ok(written?.obj?.probe?.gated === true, "gated=true greint ur `plan`-villunni");
-  ok(/LOKADUR/.test(rec.note), `status segir ÞAÐ SKYRT: "${rec.note.slice(0, 70)}"`);
+  ok(/ENDPOINT CLOSED/.test(rec.note), `status segir ÞAÐ SKYRT: "${rec.note.slice(0, 70)}"`);
   ok(rec.ok === true, "keyrslan er samt ekki MERKT SEM BILUN — thetta er threp, ekki villa");
   const sus = await run({ dir, responder: () => SUSPENDED });
   ok(sus.written?.obj?.probe?.gated === true,
     "UPPSAGDUR reikningur greinist lika sem adgangsleysi (var false 2.8.)");
-  ok(/LOKADUR/.test(sus.rec.note), `og sest i stodunni: "${sus.rec.note.slice(0, 60)}"`);
+  ok(/ENDPOINT CLOSED/.test(sus.rec.note), `og sest i stodunni: "${sus.rec.note.slice(0, 60)}"`);
 }
 
 /* ---------- 4. Thegar heimildin brestur a leikdegi ---------- */
@@ -290,9 +290,9 @@ console.log("─".repeat(84));
   const dir = await sandbox();
   const { written } = await run({ dir, responder: p =>
     p.startsWith("/fixtures?") ? FIXTURES_OK : LINEUP_OK });
-  ok(/STADFEST|Stadfest/.test(written?.obj?.note || ""),
-    "notan kallar thetta STADFESTINGU");
-  ok(/FPL-status raedur/.test(written?.obj?.note || ""),
+  ok(/CONFIRMATION|Confirmed/.test(written?.obj?.note || ""),
+    "notan kallar thetta STADFESTINGU (enskt: CONFIRMATION)");
+  ok(/FPL status still governs/.test(written?.obj?.note || ""),
     "notan segir ad FPL-status radi aframhaldandi tiltækileika");
 }
 
