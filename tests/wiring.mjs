@@ -309,5 +309,59 @@ console.log("─".repeat(84));
   }
 }
 
+/* ============================================================
+   ER HVER SKRÁ SKJÖLLUÐ? — `data/SCHEMA.md` MÁ EKKI ROTNA
+
+   CLAUDE.md kafli 7 bendir á `data/SCHEMA.md` sem TILVÍSUNINA yfir það sem
+   pipeline skrifar. Vélræn athugun 9.8.2026 fann **fimmtán skrár sem ekkert
+   nefndi** — þar á meðal allar fjórar BSD-skrárnar — og á sama tíma heilan
+   kafla um `understat/season.json`, `understat/match/{id}.json` og
+   `understat/big_chances.json`, sem **hafa aldrei verið til** (`data/understat/`
+   er ekki til) og komu frá heimild sem var tekin úr sambandi.
+
+   Þetta er sama ætt og hvítlistinn hér að ofan: skjal sem lýsir skrám sem
+   eru ekki til, og sleppir þeim sem eru það, er VERRI en ekkert skjal — það
+   sendir næsta mann að leita að gögnum sem hann finnur aldrei.
+
+   Þrepið er lágt viljandi: aðeins að nafnið KOMI FYRIR. Að krefjast fulls
+   skema væri prófun á prósa og myndi rotna sjálft.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("SKJOLUN — nefnir data/SCHEMA.md hverja skra?");
+console.log("─".repeat(84));
+{
+  const schema = readFileSync(new URL("../data/SCHEMA.md", import.meta.url), "utf8");
+  const files = readdirSync(new URL("../data/", import.meta.url))
+    .filter(f => f.endsWith(".json"));
+  /* Skrár sem eru SKJÖLLUÐ SEM SNIÐMÁT (ein færsla, mörg tímabil).      */
+  const TEMPLATED = [[/^player_gw_\d{4}\.json$/, "player_gw_{season}.json"]];
+  const missing = [];
+  for (const f of files) {
+    if (schema.includes(f)) continue;
+    const t = TEMPLATED.find(([re]) => re.test(f));
+    if (t && schema.includes(t[1])) continue;
+    missing.push(f);
+  }
+  ok(missing.length === 0,
+     `allar ${files.length} skrar i data/ eru nefndar i SCHEMA.md${
+       missing.length ? " — VANTAR: " + missing.join(", ") : ""}`);
+
+  /* Og OFUGT: SCHEMA.md ma ekki lysa skra sem er ekki til. Adeins
+     `data/`-slodir eru skodadar (kaflar um API-svor eru ekki skrar).   */
+  const mentioned = [...schema.matchAll(/`(data\/)?([a-z0-9_]+\.json)`/g)]
+    .map(m => m[2]);
+  const TEMPLATE_NAMES = new Set(["player_gw_{season}.json"]);
+  const OK_ABSENT = new Set([
+    "bsd_live.json",        // yfirstandandi timabil — ekki til i forleik (skjalad)
+    "minutes.json", "bps.json", "set_pieces.json",   // undir "Ountfaert"
+  ]);
+  const ghosts = [...new Set(mentioned)]
+    .filter(n => !TEMPLATE_NAMES.has(n) && !OK_ABSENT.has(n)
+                 && !files.includes(n) && !/^player_gw_/.test(n));
+  ok(ghosts.length === 0,
+     `SCHEMA.md lysir engri skra sem er ekki til${
+       ghosts.length ? " — DRAUGAR: " + ghosts.join(", ") : ""}`);
+}
+
 console.log(`\nTENGINGAR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

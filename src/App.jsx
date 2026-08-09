@@ -780,10 +780,29 @@ export default function App() {
     (async () => {
       const s = await loadState("fpl_planner_v3");
       if (s) {
-        setEntryId(s.entryId ?? null); setPlan(s.plan ?? []);
+        /* GERD HVERS SVIDS ER ThVINGUD, EKKI TREYST.
+           `loadState` ver adeins gegn ONYTU JSON. GILT JSON med RANGRI
+           GERD for ospurt inn i state og felldi appid vid hledslu —
+           maelt a 14 skemmdum astondum, fjogur hrundu:
+             plan:"abc"          -> plan.filter is not a function
+             chips:[1,2,3]       -> les .color af undefined
+             benchSwaps:{1:"x"}  -> (benchSwaps[gw]||[]).forEach is not a function
+             rivals:{}           -> rivals.map is not a function
+           ErrorBoundary greip thau (kafli 8c) en eina utgangan thar er
+           "hreinsa vistada plonun" — sem eydir OLLU lidinu. Ad hunsa eitt
+           ONYTT svid er storum betra en ad kosta notandann allt hitt.
+           Gilt astand fer i gegn obreytt.                              */
+        const arr = (v, d = []) => Array.isArray(v) ? v : d;
+        const obj = v => (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
+        /* benchSwaps er hlutur AF FYLKJUM (umferd -> skipti). Thad dugar
+           thvi ekki ad thvinga ytri gerdina: `{"1":"x"}` er gildur hlutur
+           en "x".forEach fellur. Gildin eru thvingud lika.             */
+        const objOfArr = v => Object.fromEntries(
+          Object.entries(obj(v)).map(([k, val]) => [k, arr(val)]));
+        setEntryId(s.entryId ?? null); setPlan(arr(s.plan));
         setCaptain(s.captain ?? START_CAPTAIN); setVice(s.vice ?? null);
-        setBenchSwaps(s.benchSwaps ?? {}); setChips(s.chips ?? {}); setBuyPrices(s.buyPrices ?? {});
-        setRivals(s.rivals ?? []); setWatch(s.watch ?? []);
+        setBenchSwaps(objOfArr(s.benchSwaps)); setChips(obj(s.chips)); setBuyPrices(obj(s.buyPrices));
+        setRivals(arr(s.rivals)); setWatch(arr(s.watch));
       }
       setLoaded(true);
     })();
@@ -799,12 +818,20 @@ export default function App() {
       try {
         const r = await fetch(`${PROXY_URL}?path=fpl-picks&id=${entryId}&gw=${gw}`);
         const d = await r.json();
-        setGwPts(d?.entry_history?.points ?? null);
-        setTotalPts(d?.entry_history?.total_points ?? null);
+        /* TALA EDA NULL — ALDREI ThAD SEM KOM.
+           `bank != null` hleypti STRENG i gegn og hann for beint i
+           peninga-reikninginn, svo skjarinn bar `NaN` (maelt med
+           `bank:"mikid"`). Thetta er ytra svar sem vid stjornum ekki:
+           proxy-villa eda HTML-sida getur skilad hverju sem er. `null`
+           thydir "veit ekki" og appid kann thad thegar; NaN kann thad
+           ekki — sbr. regluna um ad tomt gildi se ALDREI 0.            */
+        const n = v => (typeof v === "number" && Number.isFinite(v)) ? v : null;
+        setGwPts(n(d?.entry_history?.points));
+        setTotalPts(n(d?.entry_history?.total_points));
         // FPL gefur banka í entry_history — nákvæmara en okkar áætlun
-        if (d?.entry_history?.bank != null) setApiBank(d.entry_history.bank);
+        if (n(d?.entry_history?.bank) != null) setApiBank(d.entry_history.bank);
         // FPL segir okkur raunverulega refsingu sem var tekin í umferðinni
-        setApiHit(d?.entry_history?.event_transfers_cost ?? null);
+        setApiHit(n(d?.entry_history?.event_transfers_cost));
         if (d?.error) {
           /* SKYRING I STAD ThOGNAR. Forleikur: FPL birtir ekki `picks` fyrir
              umferd sem er EKKI byrjud — /entry/{id}/event/{gw}/picks/ er 404.

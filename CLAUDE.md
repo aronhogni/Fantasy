@@ -325,6 +325,8 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 | `playerlist-sort.mjs` | 121 dálka-áttir lesnar úr DOM. **Tómt gildi má aldrei sitja á toppnum** ef dálkurinn hefur tölur, og skrun í botninn sannar að þau fóru NIÐUR en hurfu ekki. Áttin er lesin af örinni, ekki gefin sér |
 | `playerlist-narrow.mjs` | **Símahamurinn — sem ekkert próf hafði séð.** Stillir `innerWidth` OG `matchMedia` á 390 px svo báðar greinar keyri; mælir dálkabreiddir og að andlitsmyndin hverfi en liðsmerkið ekki |
 | `error-boundary.mjs` | Prófar ÚTGÖNGUNA, ekki bara að kassinn birtist |
+| `monkey.mjs` | 800 handahófskenndir smellir (4 föst fræ). **NET, EKKI VÖRÐUR — og það er mælt:** bilun á algengri braut (Teams-flipinn) fannst í báðum fræjum, en bilun á djúpu marki (röðun eftir Verði) **slapp í gegn í 800 smellum**. Segðu því aldrei „apinn ver X"; hver uppgötvun á að festast í alvöru verði |
+| `untrusted-input.mjs` | Tvær uppsprettur sem appið ræður engu um: 15 skemmd `fpl_planner_v3`-blob og 12 proxy-svör. **Vistað ástand er alvarlegra en vantandi gagnaskrá** — `data/` lagast við næstu sókn, en blobbið er í vafranum og fer hvergi, svo óheilt blob felldi appið við HVERJA hleðslu, að eilífu. Proxy-hlutinn: net-bilanir voru allar í lagi, **talna-gerðin var gatið** (`bank:"mikid"` → `NaN` á skjá) |
 | `leagues.mjs` | 500 slembin inntök: summa verðlauna má **aldrei** fara yfir pottinn og ekkert verðlaun vera neikvætt |
 
 **`tests/lib/e0.mjs`** byggir spá-heiminn fyrir ÖLL bakprófin — ein uppbygging
@@ -718,6 +720,17 @@ Tveir flipar með sama tákni er það sama og ekkert tákn.
   hreinsar alla `fpl_*`-lykla — **valið yfir harðkóðaðan lista** svo nýr lykill
   verði ekki útundan þegjandi. Grípur EKKI async-villur; þær eiga sinn eigin
   villukassa í `dataState`.
+- **EN VILLUVÖRNIN Á AÐ VERA SÍÐASTA ÚRRÆÐI, EKKI ÞAÐ FYRSTA** (9.8.2026).
+  `loadState` ver aðeins gegn **ónýtu JSON**; gilt JSON með **rangri gerð** fór
+  óspurt inn í state. Mælt á 14 skemmdum blobbum — **fjögur felldu appið**:
+  `plan:"abc"` · `chips:[1,2,3]` · `benchSwaps:{"1":"x"}` · `rivals:{}`.
+  Villuvörnin greip þau, en eina útgangan þar eyðir **öllu liðinu, fyrirliðanum,
+  skiptaáætluninni og chip-unum**. Gerð hvers sviðs er nú þvinguð við lestur, svo
+  eitt ónýtt svið kostar bara sig sjálft. `benchSwaps` er hlutur **af fylkjum**,
+  svo ytri gerðin ein dugar ekki — `{"1":"x"}` er gildur hlutur en `"x".forEach`
+  fellur; það tilfelli slapp fram hjá fyrstu lagfæringunni. Vörður:
+  `saved-state.mjs`, þar sem **gilt ástand verður að fara í gegn óbreytt** —
+  annars væri „lagfæringin" að henda raunverulegri plönun notandans.
 - **Skipta-glugginn (`selling`) má ekki fjarlægja.** Hann veit hvað þú ert að
   selja, hvað er í bankanum og hvað 3-per-félag reglan segir — leikmannalistinn
   veit ekkert af því.

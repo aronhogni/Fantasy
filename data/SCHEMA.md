@@ -858,23 +858,49 @@ Framendinn verður að þola `null`.
 
 ---
 
-## Understat
+## BSD (Bzzoiro Sports Data) — skot, xG og leikmannatölur
 
-### `understat/season.json`
-`{ season, teams, players, dates, vars_found }`
-Tómt fyrir tímabil — EPL-síðan hefur aðeins `PROMOTION` þangað til leikir hefjast.
+> **UNDERSTAT-KAFLINN SEM VAR HÉR ER FARINN.** Hann lýsti
+> `understat/season.json`, `understat/match/{id}.json` og
+> `understat/big_chances.json` — **engin þeirra var nokkurn tíma til**
+> (`data/understat/` er ekki til og hefur aldrei verið), og heimildin
+> sjálf var tekin úr `fetch.mjs`. Skjölun á skrám sem eru ekki til er
+> verri en engin skjölun: hún lætur næsta mann leita að gögnum sem hann
+> mun aldrei finna.
 
-### `understat/match/{id}.json`
-Skot per leik. `result` inniheldur `Goal`, `MissedShots`, `BlockedShot`,
-`SavedShot`, **`ShotOnPost`** (heppnismælir), `OwnGoal`.
-`situation`: `OpenPlay`, `FromCorner`, `SetPiece`, `Penalty`, `DirectFreekick`
-— þetta segir hver tók vítin í **RAUN**, sem stangast oftar á við klúbbnótuna
-en maður heldur.
+### `bsd_players.json` — leikmanna-samtölur fyrir lokið tímabil
+`{ updated, source, league_id, season_id, season, matches, measured, note,
+   players_total, players_matched_to_fpl, unmatched, unmatched_names, players[] }`
 
-### `understat/big_chances.json`
-`{ threshold_xg: 0.30, players: { <understat_id>: { player, missed, xg_sum } } }`
-Skot með xG yfir þröskuldi sem fóru **ekki** inn.
-Understat-ID ≠ FPL-ID — þarf vörpun.
+Hver röð: `bsd_id, name, pos, team, fpl_id, code, apps, minutes, rating,
+goals, assists, shots, xg, xg_per_shot, big_chances, shots_in_box,
+shots_out_box, sp_shots, sp_xg, op_xg, sp_xg_share, head_shots, head_xg,
+pen_shots, np_xg, woodwork, key_pass, crosses, crosses_acc, touches,
+dribbles, dribbles_won, duels_won, duels_lost, aerials…`
+
+**PÖRUNIN VIÐ FPL ER KROSSPRÓFUÐ, EKKI VONAST TIL.** Mælt á öllum 393
+pörunum gegn `season_baseline.json`: **0 raðir með mínútu-frávik yfir 90**
+(mesta 90 = einn leikur), 2 marka-frávik, og 47 assist-frávik **öll í sömu
+átt** — það er skjalfesti munurinn á FPL- og Opta-skilgreiningu (FPL gefur
+assist fyrir unnið víti). Vörður: `tests/bsd.mjs` kafli 3.
+
+### `bsd_shots.json` — hvert einasta skot með hnitum
+`{ updated, season, calib, shots: [{ code, team, gw, x, y, xg, sit, res, gm… }] }`
+
+**`calib` ER Í SKRÁNNI SJÁLFRI** svo völlurinn og deplarnir geti ekki rekið
+í sundur — `ShotMap.jsx` les hana þaðan og teiknar aldrei eftir harðkóðuðum
+kvarða. `x` er hlutfall af **FULLUM** velli (105 m), ólíkt ESPN sem er
+hlutfall af hálfum. Að rugla þeim saman gefur tvöfalda fjarlægð (sú villa
+var raunveruleg í ESPN-kortinu, sjá CLAUDE.md).
+
+### `bsd_teams.json` / `bsd_odds.json`
+Liða-samtölur og markaðslínur úr sömu heimild. `bsd_odds` er **valfrjáls**
+viðbót við `odds.json`, ekki staðgengill.
+
+### `bsd_live.json` — YFIRSTANDANDI tímabil
+Skrifuð af `fetchBsdLive()`. **Er ekki til í forleik** og það er rétt:
+`record("bsd_live", true, 0, "no season")`. Framendinn sækir hana og þolir
+404 — prófað í `tests/untrusted-input.mjs` og `data-resilience.mjs`.
 
 ---
 
@@ -884,9 +910,53 @@ Understat-ID ≠ FPL-ID — þarf vörpun.
 |---|---|
 | `minutes.json` | live-gögn (21. ágúst) |
 | `bps.json` | live-gögn |
-| `set_pieces.json` | Understat-skot + klúbbnótur |
-| `luck.json` | Understat `ShotOnPost` |
-| `understat_id_map.json` | vörpun frá vaastav |
+| `set_pieces.json` | klúbbnótur (spyrnuröð er þegar í `players.json`) |
+
+`luck.json` **er komin** og tréverkið kemur nú úr BSD (`woodwork`), ekki úr
+Understat. Vörpunarskráin sem áður var áformuð fyrir Understat-auðkenni á
+ekki lengur við — BSD ber `fpl_id` og `code` beint.
+
+---
+
+## SKRÁR SEM VANTAÐI Í ÞETTA SKJAL (bætt við 9.8.2026)
+
+Vélræn athugun (`ls data/*.json` borið við þetta skjal) fann **fimmtán**
+skrár sem enginn kafli nefndi — þar af allar fjórar BSD-skrárnar og þessar
+sex. Skjalið er tilvísunin sem CLAUDE.md kafli 7 bendir á, svo gat í því er
+gat í leiðarvísinum.
+
+### `season_baseline.json` — LOKATÖLUR fyrra tímabils
+`{ updated, label: "2025/26", note, players: [{ id, total_points, minutes,
+points_per_game, starts, goals_scored, assists, expected_goals,
+expected_assists, clean_sheets, yellow_cards, red_cards }] }`
+
+**Lyklað á FPL `id`, EKKI `code`.** (BSD-skrárnar eru lyklaðar á `code`, sem
+er fast yfir tímabil — þær tvær má því ekki para saman í hugsunarleysi.)
+Skrifað daglega **fram að GW1**, frýs svo. Viðmiðið sem BSD-pörunin er
+krossprófuð gegn.
+
+### `imminent.json` — mó/aó (yfirvofandi framlag)
+`{ updated, season, archive, gws, window, start_window, fetched_gws, players }`
+`archive: true` þýðir **fyrra tímabil** — í forleik er það rétt gildi.
+Ber `xa` í hverjum glugga; ef hún hyrfi myndi mó-formúlan lesa 0 og bætingin
+hverfa **þegjandi**. Vörður: `tests/stats.test.mjs`.
+
+### `injuries.json` — TEGUND meiðsla (API-Sports)
+`{ updated, plan, via, note, players, unmatched }`
+**FPL-status ræður áfram tiltækileika**; þetta auðgar hann bara („Hamstring
+Injury"). `via` segir hvers vegna hún er tóm — í forleik: engir leikdagar
+innan ±1 dags glugga fría þrepsins.
+
+### `team_shots.json` — liða-skot per svæði
+`{ updated, season, source, matches, note, no_zone, no_team, … }`
+`no_zone`/`no_team` eru **taldir**, ekki huntir — röð án svæðis er
+upplýsing um heimildina, ekki rusl.
+
+### `clubelo_history.json` / `fpl_fdr_history.json` — BAKPRÓFA-GÖGN
+Bæði `{ updated, source, note, seasons }`. **Framendinn les hvoruga** —
+þær fæða `tests/lib/e0.mjs` og bakprófin. `fpl_fdr_history` geymir
+raunverulegt `team_h_difficulty`/`team_a_difficulty` per leik 1819–2526, sem
+er ástæða þess að FFDR-samanburðurinn er við ALVÖRU FDR en ekki nálgun.
 
 ## Ekki fáanlegt
 
