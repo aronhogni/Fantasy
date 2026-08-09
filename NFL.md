@@ -719,6 +719,84 @@ Einstakar fylgni upp á 0,13–0,19 eru raunverulegar en alhæfast ekki.
 
 ---
 
+## 5g. Leitin að fleiri hreinum tímabilum
+
+Marktækni í PPR strandar á einu: **fimm tímabil.** Þessi kafli er skráin yfir
+hvert var leitað og hvað fékkst — því neikvæð niðurstaða sem er ekki skráð
+verður leitað að aftur.
+
+### Það sem fékkst
+
+**FantasyPros-samsteypan fór úr 6 tímabilum í 10** (2016–2025).
+DynastyProcess-safnið nær aftur til 2020; `partners.fantasypros.com` nær aftur
+til 2016. `last_updated` þar er 7.–11. september — á eða rétt eftir fyrsta leik
+— svo tímastimpillinn einn dugar **ekki** sem sönnun. Hvert ár var því
+lekaprófað: spáir frávik ECR frá ADP mannfjöldans útkomunni?
+
+| ár | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 |
+|---|---|---|---|---|---|---|---|
+| r | −0,044 | +0,120 | +0,092 | +0,079 | +0,108 | −0,005 | +0,052 |
+
+Öll undir 0,15. Til samanburðar mældist ESPN-ADP +0,25 til +0,35 og
+MyFantasyLeague +0,25 til +0,38 — báðar felldar.
+
+### Það sem fékkst ekki
+
+**Internet Archive — FantasyPros stiga-spár.** Hugmyndin var rétt í grunninn:
+snapshot frá 26. ágúst 2015 **getur ekki** borið upplýsingar úr tímabilinu 2015.
+Tímastimpillinn er sönnun, ekki mæling. En síðurnar eru einfaldlega ekki
+varðveittar í forleiks-glugganum nema stöku sinnum:
+
+| ár | QB | RB | WR | TE |
+|---|---|---|---|---|
+| 2015 | ✓ 26.8. | ✓ 26.8. | ✓ 27.8. | ✓ 27.8. |
+| 2018 | ✓ 24.8. | — | — | — |
+| 2021 | ✓ 24.8. | — | — | — |
+| 2022 | ✓ 30.8. | maí | — | — |
+| önnur | ekkert eða eftir 1. sept. | | | |
+
+Aðeins **2015** er heilt. Það dugar ekki til að lengja neitt.
+
+> **Villa í minni eigin skriftu sem prófið greip:** Wayback skilar *næsta*
+> snapshot við umbeðinn tíma, ekki snapshot innan ársins. Beiðni um `20170825`
+> skilaði **20160406** — apríl-mynd frá 2016 — og fyrsta útgáfan skrifaði hana
+> sem „2017-spá". Bæði 2016 og 2017 fengu **sömu myndina**. Það er ekki mengun
+> heldur **röng ársmerking**, sem er verri: talan er rétt fyrir annað ár.
+> Nú eru þrjú skilyrði: rétt ár, ekki eftir 1. sept., og **ekki fyrir 1. júlí**
+> (aprílmynd er hrein en úrelt — tekin fyrir sumarið).
+
+### Niðurstaða um marktækni
+
+**A-Ranking hvílir áfram á fimm tímabilum og það er þak, ekki leti.**
+Stiga-spár frá því fyrir 2021 eru ekki til opinberlega í ómenguðu formi. Leitað
+var í Sleeper (2018–2020 mengað), ESPN (spár aðeins yfirstandandi ár, ADP
+mengað), MyFantasyLeague (mengað), Internet Archive (ekki varðveitt) og
+FantasyPros-API (raðanir, ekki stig).
+
+### En tíu tímabil svöruðu annarri spurningu
+
+Með ECR yfir 10 tímabil er loks nóg afl til að bera **sérfræðinga saman við
+mannfjöldann**:
+
+| | meðaltal | ár unnin | bootstrap |
+|---|---|---|---|
+| PPR | −42,6 | 5/10 | [−107, +14] |
+| **standard** | **−42,5** | **2/10** | **[−82, −1] marktækt** |
+
+**Sérfræðingasamsteypan er marktækt verri en ADP mannfjöldans í standard**, og
+ekki betri í PPR. Það sást ekki með fimm tímabilum.
+
+### Spá-fyrirtækin sem FantasyPros safnar saman
+
+Lesið beint af varðveittu síðunum (`projector_sites.json`):
+CBS Sports · ESPN · numberFire · FFToday · STATS · NFL.com · Pro Football Focus ·
+Sports Illustrated.
+
+Ekkert þeirra birtir sögulegar spár á opnum endapunkti. Þau eru **nefnd hér því
+það er skráin yfir hverjir spá — ekki mat á þeim**, sem væri ekki hægt að gera.
+
+---
+
 ## 6. Prófin
 
 Fimm söfn í `SUITES` (`npm test` keyrir þau með hinum 41).
@@ -760,6 +838,7 @@ node scripts/nfl/arank-lab.mjs [--scoring=…]      # -> arank_*.json (marktaekn
 node scripts/nfl/arank-search.mjs [--scoring=…]   # 422 afbrigdi + fjolprofa-leidretting
 node scripts/nfl/projector-lab.mjs [--scoring=…]  # -> projectors_*.json (hver er bestur)
 node scripts/nfl/feature-probe.mjs                # -> feature_probe.json (nyjar breytur)
+node scripts/nfl/fetch-wayback-projections.mjs   # -> wayback_projections.json (haeg, handvirk)
 ```
 
 Þrepin eru aðskilin eftir **eðli gagnanna**, ekki smekk: `core` breytist daglega,

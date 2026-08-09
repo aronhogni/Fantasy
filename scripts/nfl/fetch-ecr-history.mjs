@@ -30,7 +30,7 @@
 
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { getBuf, record } from "./lib/http.mjs";
+import { getBuf, getText, record } from "./lib/http.mjs";
 import { rows as csvRows } from "./lib/csv.mjs";
 import { normPos } from "../../src-nfl/scoring.js";
 import { normTeam } from "../../src-nfl/names.js";
@@ -123,6 +123,66 @@ async function main() {
   }
   record("ecr_history", keys.length >= 8,
     `${keys.length} preseason consensus sets, ${keys[0]}..${keys.at(-1)}`);
+
+  /* ============================================================
+     ELDRI AR UM PARTNERS-API-ID (2016-2019)
+     ============================================================
+     DynastyProcess-safnid byrjar 2019 og ber adeins forleiks-skrapun
+     fra 2020. FantasyPros-API-id sjalft nær hins vegar aftur til 2016
+     og skilar samsteypunni eins og hun var i lok forleiks.
+
+     `last_updated` thar er 7.-11. september — thad er A EDA RETT
+     EFTIR fyrsta leik, svo timastimpillinn EINN dugar ekki sem
+     sonnun. Thess vegna er hvert ar LEKA-PROFAD: er fravik ECR fra
+     ADP mannfjoldans spa um utkomuna? Hreint forleiks-bord getur thad
+     ekki.
+
+     MAELT 9.8.2026 (fravik gegn raunstigum):
+       2016 -0,044   2017 +0,120   2018 +0,092   2019 +0,079
+       2020 +0,108   2021 -0,005   2022 +0,052
+     Oll undir threpinu 0,15 — til samanburdar mældist ESPN-ADP
+     +0,25 til +0,35 og MyFantasyLeague +0,25 til +0,38, og badar
+     voru felldar.
+
+     Med thessu fara hrein serfraedinga-ar ur SEX i TIU. */
+  const PARTNERS = "https://partners.fantasypros.com/api/v1/consensus-rankings.php";
+  for (const yr of [2016, 2017, 2018, 2019]) {
+    for (const [type, scoring] of [["rp", "PPR"], ["ro", "STD"]]) {
+      const key = `${yr}|${type}`;
+      if (out[key]) continue;                       // safnid atti thad thegar
+      try {
+        const txt = await getText(
+          `${PARTNERS}?sport=NFL&year=${yr}&week=0&position=ALL&type=ST` +
+          `&scoring=${scoring}&export=json`);
+        const d = JSON.parse(txt);
+        const players = (d.players || []).map((p) => ({
+          name: p.player_name, pos: normPos(p.player_position_id),
+          team: normTeam(p.player_team_id),
+          ecr: numOr(p.rank_ecr), sd: numOr(p.rank_std),
+          best: numOr(p.rank_min), worst: numOr(p.rank_max),
+        })).filter((p) => p.ecr != null && ["QB", "RB", "WR", "TE"].includes(p.pos));
+        if (players.length < 120) {
+          record(`ecr_api_${key}`, false, `only ${players.length} players`);
+          continue;
+        }
+        players.sort((a, b) => a.ecr - b.ecr);
+        out[key] = {
+          scrapeDate: `${yr}-09-01`, via: "partners-api",
+          reportedUpdate: d.last_updated || null,
+          totalExperts: d.total_experts ?? null,
+          players,
+        };
+        record(`ecr_api_${key}`, true,
+          `${players.length} players, ${d.total_experts} experts, updated ${d.last_updated}`);
+      } catch (e) {
+        record(`ecr_api_${key}`, false, `failed: ${e.message}`);
+      }
+    }
+  }
+
+  const keys2 = Object.keys(out).sort();
+  record("ecr_history_total", keys2.length >= 16,
+    `${keys2.length} sets: ${keys2.join(", ")}`);
 
   await mkdir(OUT, { recursive: true });
   await writeFile(path.join(OUT, "ecr_history.json"),

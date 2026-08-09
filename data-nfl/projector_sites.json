@@ -1,0 +1,188 @@
+{
+ "generated": "2026-08-09T13:51:27.381Z",
+ "note": "Companies whose projections FantasyPros aggregated, by season, read off the archived pages themselves.",
+ "byYear": {
+  "2015": [
+   {
+    "site": "CBS Sports",
+    "published": "8/25/2015"
+   },
+   {
+    "site": "ESPN",
+    "published": "8/25/2015"
+   },
+   {
+    "site": "numberFire",
+    "published": "8/22/2015"
+   },
+   {
+    "site": "FFToday",
+    "published": "8/24/2015"
+   },
+   {
+    "site": "Pro Football Focus",
+    "published": "8/25/2015"
+   }
+  ],
+  "2016": [
+   {
+    "site": "CBS Sports",
+    "published": "9/13"
+   },
+   {
+    "site": "ESPN",
+    "published": "9/13"
+   },
+   {
+    "site": "numberFire",
+    "published": "9/13"
+   },
+   {
+    "site": "STATS",
+    "published": "9/10"
+   },
+   {
+    "site": "FFToday",
+    "published": "9/11"
+   }
+  ],
+  "2017": [
+   {
+    "site": "CBS Sports",
+    "published": "9/13"
+   },
+   {
+    "site": "ESPN",
+    "published": "9/13"
+   },
+   {
+    "site": "numberFire",
+    "published": "9/13"
+   },
+   {
+    "site": "STATS",
+    "published": "9/10"
+   },
+   {
+    "site": "FFToday",
+    "published": "9/11"
+   }
+  ],
+  "2018": [
+   {
+    "site": "CBS Sports",
+    "published": "8/22"
+   },
+   {
+    "site": "ESPN",
+    "published": "8/21"
+   },
+   {
+    "site": "numberFire",
+    "published": "8/21"
+   },
+   {
+    "site": "FFToday",
+    "published": "8/22"
+   },
+   {
+    "site": "NFL.com",
+    "published": "8/20"
+   }
+  ],
+  "2022": [
+   {
+    "site": "CBS Sports",
+    "published": "8/30"
+   },
+   {
+    "site": "ESPN",
+    "published": "8/30"
+   },
+   {
+    "site": "numberFire",
+    "published": "8/30"
+   },
+   {
+    "site": "FFToday",
+    "published": "8/25"
+   },
+   {
+    "site": "NFL.com",
+    "published": "8/30"
+   },
+   {
+    "site": "Sports Illustrated",
+    "published": "8/25"
+   }
+  ]
+ },
+ "all": [
+  {
+   "site": "CBS Sports",
+   "years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2022
+   ]
+  },
+  {
+   "site": "ESPN",
+   "years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2022
+   ]
+  },
+  {
+   "site": "numberFire",
+   "years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2022
+   ]
+  },
+  {
+   "site": "FFToday",
+   "years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2022
+   ]
+  },
+  {
+   "site": "STATS",
+   "years": [
+    2016,
+    2017
+   ]
+  },
+  {
+   "site": "NFL.com",
+   "years": [
+    2018,
+    2022
+   ]
+  },
+  {
+   "site": "Pro Football Focus",
+   "years": [
+    2015
+   ]
+  },
+  {
+   "site": "Sports Illustrated",
+   "years": [
+    2022
+   ]
+  }
+ ]
+}
