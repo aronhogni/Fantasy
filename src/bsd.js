@@ -59,7 +59,7 @@ export function newAcc() {
     apps: 0, team_id: null, teams: new Map(), rating_sum: 0, rating_n: 0,
     shots: 0, xg: 0, big_chances: 0, shots_in_box: 0, shots_out_box: 0,
     sp_shots: 0, sp_xg: 0, op_xg: 0, head_shots: 0, head_xg: 0,
-    pen_shots: 0, woodwork: 0,
+    pen_shots: 0, pen_xg: 0, woodwork: 0,
   };
   for (const k of SUM_FIELDS) o[k] = 0;
   return o;
@@ -88,7 +88,13 @@ export function addShot(acc, s) {
   if (typeof x === "number") (x <= IN_BOX_X ? acc.shots_in_box++ : acc.shots_out_box++);
   if (SET_PIECE.has(s.sit)) { acc.sp_shots++; acc.sp_xg += xg; }
   else if (OPEN_PLAY.has(s.sit)) { acc.op_xg += xg; }
-  if (s.sit === "penalty") acc.pen_shots++;
+  /* VITASPYRNUR DREGNAR FRA — npxG.
+     Viti er 0,788 xG ad medaltali (maelt a 92 vitum) og segir ekkert um
+     faera-skopun; thad segir ad hann se VITASKYTTAN, sem er birt ser
+     (vitarod i Fost leikatridi). Maelt hja okkur: Bruno Fernandes fer ur
+     10,9 xG i 6,1 npxG (43% var viti), Palmer 10,6 -> 5,8, Le Fee
+     5,2 -> 2,0. An thessa raðar xG-dalkurinn vitaskyttum, ekki skyttum. */
+  if (s.sit === "penalty") { acc.pen_shots++; acc.pen_xg += xg; }
   if (s.body === "head") { acc.head_shots++; acc.head_xg += xg; }
   /* TREVERK — `luck.json` hefur borid woodwork: null sidan Understat do
      (6b) og 6e taldi thad oendurheimtanlegt. BSD skilar thvi sem EIGIN
@@ -129,6 +135,7 @@ export function finalize(acc, { bsd_id, name, pos, team, fpl_id, code }) {
     head_shots: s ? acc.head_shots : null,
     head_xg: s ? +acc.head_xg.toFixed(3) : null,
     pen_shots: s ? acc.pen_shots : null,
+    np_xg: s ? +(acc.xg - acc.pen_xg).toFixed(3) : null,
     woodwork: s ? acc.woodwork : null,
     key_pass: per(acc.key_pass),
     crosses: per(acc.total_cross), crosses_acc: per(acc.accurate_cross),

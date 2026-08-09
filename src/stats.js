@@ -303,6 +303,10 @@ export const STAT_DEFS = [
     dec:2, hi:true,
     note:"xG summed from individual shots, an independent measurement of FPL's own xG. Measured agreement across 391 matched players: r = 0.995. Where the two disagree, they are different xG models, not an error.",
     get:p=>num(p._b_xg) },
+  { key:"bsd_npxg", label:"npxG (penalties removed)", short:"npxG", group:"attack", band:"Shot quality",
+    dec:2, hi:true,
+    note:"xG with penalties taken out. A penalty is worth 0.788 xG on average and says nothing about creating chances — it says he is the designated taker, which is shown separately under set pieces. Measured here: Bruno Fernandes falls from 10.9 xG to 6.1 npxG (43% was penalties), Palmer 10.6 to 5.8, Le Fée 5.2 to 2.0. Without this the xG column ranks penalty takers, not shot creators.",
+    get:p=>num(p._b_npxg) },
   { key:"bsd_xg_per_shot", label:"xG per shot", short:"xG/shot", group:"attack", band:"Shot quality",
     dec:3, hi:true,
     note:"Average quality of the chances he gets. High = he shoots from good positions; low = he shoots from distance. This is the number that separates a poacher from a long-range shooter, and no FPL field carries it.",
@@ -1608,6 +1612,7 @@ export function makeEnricher({
         _cgames:     num(k?.games),
         /* Tomt = null (VANTAR), aldrei 0 — sbr. 6i. */
         _b_xg:       num(b?.xg),
+        _b_npxg:     num(b?.np_xg),
         _b_shots:    num(b?.shots),
         _b_xgs:      num(b?.xg_per_shot),
         _b_big:      num(b?.big_chances),

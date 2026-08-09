@@ -43,7 +43,7 @@ H("0. SKRAIN");
 if (!F) {
   console.log("  data/bsd_players.json vantar — safnid er sleppt (skrain er");
   console.log("  skrifud handvirkt med scripts/fetch-bsd.mjs).");
-  console.log(`\nBSD: ${pass} stodust, ${fail} féllu`);
+console.log(`\nBSD: ${pass} stodust, ${fail} féllu`);
   process.exit(0);
 }
 const P = F.players || [];
@@ -77,7 +77,7 @@ ok(leaked.length === 0,
 const NUMF = ["xg", "shots", "big_chances", "shots_in_box", "key_pass", "crosses",
               "touches", "tackles", "interceptions", "clearances", "blocks",
               "aerial_won", "rating", "dribbles_won", "was_fouled",
-              "sp_xg", "op_xg", "head_xg", "head_shots", "woodwork", "sp_xg_share"];
+              "sp_xg", "op_xg", "head_xg", "head_shots", "woodwork", "sp_xg_share", "np_xg"];
 const flat = [];
 for (const f of NUMF) {
   const vals = P.map(p => p[f]).filter(v => v != null);
@@ -262,6 +262,24 @@ ok(P.every(p => p.sp_xg_share == null || (p.sp_xg_share >= 0 && p.sp_xg_share <=
   const wood = P.reduce((s, p) => s + (p.woodwork || 0), 0);
   ok(wood > 80, `treverk talid: ${wood} (luck.json hefur borid null sidan Understat do)`);
 }
+
+/* ---------- 8. npxG ---------- */
+H("8. npxG — VITASPYRNUR DREGNAR FRA");
+{
+  const withShots2 = P.filter(p => p.shots > 0);
+  ok(withShots2.every(p => p.np_xg <= (p.xg ?? 0) + 1e-6),
+     "npxG fer aldrei yfir xG (thad er hlutmengi)");
+  ok(withShots2.filter(p => p.pen_shots > 0).every(p => p.np_xg < p.xg),
+     "hver sem tok viti hefur LAEGRA npxG en xG");
+  ok(withShots2.filter(p => !p.pen_shots).every(p => Math.abs(p.np_xg - p.xg) < 1e-6),
+     "sa sem tok ekkert viti hefur npxG == xG");
+  const pens = P.filter(p => (p.pen_shots || 0) >= 3);
+  ok(pens.length >= 3, `vitaskyttur i gognunum: ${pens.length}`);
+  const worst = pens.sort((a, b) => (b.xg - b.np_xg) - (a.xg - a.np_xg))[0];
+  ok(worst && (worst.xg - worst.np_xg) > 2,
+     `staersta vita-uppblasan: ${worst?.name} ${worst?.xg} -> ${worst?.np_xg}`);
+}
+
 
 console.log(`\nBSD: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);
