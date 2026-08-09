@@ -59,7 +59,7 @@ export function blend(sources) {
 }
 
 /**
- * Vogir ur maeldri nakvaemni. `accuracy` er `data-nfl/accuracy.json`.
+ * Vogir ur maeldri nakvaemni. `accuracy` er `data/accuracy.json`.
  *
  * REGLAN: vog er fall af thvi hversu langt YFIR NULLDREIFINGUNNI
  * heimildin maeldist, ekki af rodinni. Sa sem er nr. 1 og sa sem er
@@ -254,7 +254,7 @@ export function impliedTeamTotals(total, spread) {
  * til ad skora 15 — en EKKI i rettu hlutfalli, thvi hluti
  * framleidslunnar (magn) er ohaður arangri.
  *
- * Teygnin er MAELD i `scripts/nfl/calibrate.mjs` a **25.160
+ * Teygnin er MAELD i `scripts/calibrate.mjs` a **25.160
  * leikmanna-vikum 2020-2025** med leave-one-out grunnlinu, fittud
  * gegnum nullpunkt: log(stig/grunnlina) = e * log(vaent/22,5).
  *
@@ -288,7 +288,7 @@ export function impliedTeamTotals(total, spread) {
  *
  * ============================================================
  * HVE MIKID ER MARKADSLIDURINN VIRDI? MAELT A 20 ARUM.
- * `scripts/nfl/market-lab.mjs`, 71.347 leikmanna-vikur 2006-2025,
+ * `scripts/market-lab.mjs`, 71.347 leikmanna-vikur 2006-2025,
  * walk-forward. Lyfting = hlutfall ferskekkju sem lidurinn fjarlaegir
  * UMFRAM thad sem grunnlina leikmannsins sjalfs nær:
  *

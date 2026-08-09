@@ -10,7 +10,7 @@ let failed = 0;
 const SUITES = [
   ["model.mjs"], ["accuracy.mjs"], ["learn.mjs"], ["market.mjs"],
   ["advice.mjs"], ["lineup.mjs"], ["names.mjs"], ["pipeline.mjs"],
-  ["render.mjs", true],
+  ["render.mjs", true], ["audit.mjs", true],
 ];
 for (const [f, loader] of SUITES) {
   console.log(`\n${"=".repeat(56)}\n  ${f}\n${"=".repeat(56)}`);

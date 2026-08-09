@@ -515,6 +515,20 @@ function NextPick({ available, roster, taken, league, sync }) {
         Your next pick is <b>{rec.nextPick}</b>, {rec.wait} picks away.
       </div>
 
+      {/* K og DST eru utan A-Ranking af maeldri astaedu, en tha ma ekki
+          thegja um: annars endar draftid med tvo tom byrjunarsaeti. */}
+      {rec.mustFill && rec.mustFill.length > 0 && (
+        <div className={`note ${rec.mustFillUrgent ? "warn" : ""}`} style={{ marginTop: 8 }}>
+          <b>Still to fill: {rec.mustFill.map((m) =>
+            `${m.short} ${m.pos}`).join(", ")}.</b>{" "}
+          {rec.mustFillUrgent
+            ? `You have ${rec.picksLeft} picks left — take them now or start the season a player short.`
+            : `These never appear in the list below: they were excluded from every
+               simulation that validates the order, so ranking them would be a guess
+               dressed as a measurement. Take them late, from the K and DST table.`}
+        </div>
+      )}
+
       <div className="tablewrap" style={{ marginTop: 10 }}>
         <table className="data">
           <thead><tr className="cols">

@@ -2,10 +2,10 @@
 /* ============================================================
    fetch-wayback-projections.mjs — HREINAR SOGULEGAR SPAR.
 
-     node scripts/nfl/fetch-wayback-projections.mjs
+     node scripts/fetch-wayback-projections.mjs
 
-   -> data-nfl/wayback_projections.json
-   -> data-nfl/projector_sites.json
+   -> data/wayback_projections.json
+   -> data/projector_sites.json
 
    VANDAMALID SEM THETTA LEYSIR: allar spa-heimildir sem vid hofum
    fundid geyma UPPFAERD gogn fyrir lidin ar. Sleeper var mengud

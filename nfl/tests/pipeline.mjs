@@ -40,7 +40,7 @@ function pearson(a, b) {
 }
 
 if (!has("players.json")) {
-  console.log("  data-nfl vantar — keyrdu scripts/nfl/fetch-nfl.mjs");
+  console.log("  data/ vantar — keyrdu scripts/fetch-nfl.mjs");
   process.exit(1);
 }
 

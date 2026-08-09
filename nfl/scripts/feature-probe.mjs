@@ -2,9 +2,9 @@
 /* ============================================================
    feature-probe.mjs — BAETIR THETTA EINHVERJU VID SLEEPER?
 
-     node scripts/nfl/feature-probe.mjs
+     node scripts/feature-probe.mjs
 
-   -> data-nfl/feature_probe.json
+   -> data/feature_probe.json
 
    RETTA PROFID A NYRRI BREYTU ER EKKI "spair hun utkomunni" heldur
    "**spair hun thvi sem Sleeper MISSIR AF**". Sleeper-spain er
@@ -251,7 +251,7 @@ async function main() {
     coverage: { preseason: withPre, lateEarly: withSplit },
     candidates: results, jointLift: lift,
   }, null, 1));
-  console.log("\n-> data-nfl/feature_probe.json");
+  console.log("\n-> data/feature_probe.json");
 }
 
 /** Ridge a leifinni, thjalfad a fyrri arum. Skilar R2 utan urtaks. */

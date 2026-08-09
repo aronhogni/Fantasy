@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /* ============================================================
-   calibrate.mjs — MAELIR fastana i `src-nfl/model.js`.
+   calibrate.mjs — MAELIR fastana i `src/model.js`.
 
-     node scripts/nfl/calibrate.mjs
+     node scripts/calibrate.mjs
 
-   Skrifar `data-nfl/calibration.json` og prentar toflurnar.
+   Skrifar `data/calibration.json` og prentar toflurnar.
 
    HVERS VEGNA THETTA ER TIL: `model.js` ber tolur eins og
    `ELASTICITY = 0,55` og `DEF_WEIGHT = 0,35`. An thessarar skriftu
@@ -173,7 +173,7 @@ async function main() {
     thresholds,
   };
   await writeFile(path.join(OUT, "calibration.json"), JSON.stringify(out, null, 1));
-  console.log(`\n-> data-nfl/calibration.json`);
+  console.log(`\n-> data/calibration.json`);
 }
 
 /* ---------- minnstu kvadrat gegnum nullpunkt ---------- */

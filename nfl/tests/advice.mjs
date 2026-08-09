@@ -190,5 +190,50 @@ if (existsSync(path.join(DATA, "advice_standard.json"))) {
   console.log("  (advice_standard.json vantar — slepp)");
 }
 
+/* ---------- 8. DEILDIN SEM FOR I LOFTID = DEILDIN SEM VAR MAELD ---------- */
+/* Radgjofin var stadfest i deild med `maxPos`. Deildin sem appid notar
+   bar hana ekki, svo `recommend()` sleppti thakinu thogult og lifandi
+   radgjofin var ONNUR en su sem var profud: hun draftadi fimm tight
+   ends og engan leikstjornanda. Kodinn ma ekki reka thannig aftur. */
+console.log("\n8. deildin i appinu ber hermunar-reglurnar");
+{
+  const { DEFAULT_LEAGUE: APP } = await import("../src/build.js");
+  const { DEFAULT_LEAGUE: SIM } = await import("../src/accuracy.js");
+  ok(APP.maxPos != null, "deild appsins ber maxPos");
+  ok(JSON.stringify(APP.maxPos) === JSON.stringify(SIM.maxPos),
+    `maxPos eins og i hermuninni (${JSON.stringify(APP.maxPos)})`);
+  ok(APP.rounds > 0, `deild appsins ber rounds (${APP.rounds})`);
+  ok(APP.starters.K === 1 && APP.starters.DST === 1,
+    "og K/DST-saeti — utilokun theirra a heima i maelingunni, ekki i vidmotinu");
+
+  /* Hermd 14 umferdir a raunbordi: hopurinn verdur ad vera NOTHAEFUR. */
+  const { buildRows } = await import("../src/build.js");
+  const { recommend } = await import("../src/advice.js");
+  const rd = (f) => JSON.parse(readFileSync(path.join(DATA, f), "utf8"));
+  if (existsSync(path.join(DATA, "players.json"))) {
+    const L = { ...APP, teams: 12, scoring: "ppr" };
+    const b = buildRows({ players: rd("players.json"), league: L });
+    let avail = b.rows.filter((r) => r.adp != null);
+    const roster = [];
+    for (let k = 1; k <= 14; k++) {
+      const pick = k % 2 ? (k - 1) * 12 + 7 : (k - 1) * 12 + 6;
+      avail = avail.slice().sort((a, c) => a.adp - c.adp);
+      const rec = recommend({ available: avail, roster, pick, league: L });
+      const top = rec.picks[0];
+      if (!top) break;
+      roster.push(top);
+      avail = avail.filter((r) => r.id !== top.id);
+      const nxt = k % 2 ? k * 12 + 6 : k * 12 + 7;
+      avail = avail.slice(nxt - pick - 1);
+    }
+    const c = {};
+    for (const r of roster) c[r.pos] = (c[r.pos] || 0) + 1;
+    const shape = Object.entries(c).map(([p, n]) => `${p}${n}`).join(" ");
+    ok((c.QB || 0) >= 1, `radgjofin skilar ad minnsta kosti einum QB (${shape})`);
+    ok((c.TE || 0) <= 2, `og i mesta lagi tveimur TE (${shape})`);
+    ok((c.RB || 0) >= 2 && (c.WR || 0) >= 3, `og nogu morgum RB/WR i byrjunarlid (${shape})`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

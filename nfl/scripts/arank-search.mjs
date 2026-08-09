@@ -2,9 +2,9 @@
 /* ============================================================
    arank-search.mjs — VIDTAEK LEIT AD BETRI A-RANKING.
 
-     node scripts/nfl/arank-search.mjs [--scoring=ppr] [--runs=25]
+     node scripts/arank-search.mjs [--scoring=ppr] [--runs=25]
 
-   -> data-nfl/arank_search_<scoring>.json
+   -> data/arank_search_<scoring>.json
 
    MARKID ER SKYRT OG THAD ER STAERDFRAEDILEGT:
    med fimm timabilum og klosun eftir ari er LAEGSTA MOGULEGA p-gildi
@@ -274,7 +274,7 @@ async function main() {
     walkForward: { picks: wf, wins: wfWins, mean: round1(mean(wf.map((w) => w.diff))) },
     verdict,
   }, null, 1));
-  console.log(`\n-> data-nfl/arank_search_${SCORING}.json`);
+  console.log(`\n-> data/arank_search_${SCORING}.json`);
 }
 
 /* ---------- einvigi ---------- */

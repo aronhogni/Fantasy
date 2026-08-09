@@ -1,6 +1,6 @@
 /* ============================================================
    learn.js — HREIN tolfraedi. Ekkert React, engin gogn, engin netkoll.
-   Notad af `scripts/nfl/model-lab.mjs` og profad beint.
+   Notad af `scripts/model-lab.mjs` og profad beint.
 
    HVERS VEGNA EIGIN RIDGE EN EKKI SAFN: verkefnid ber engar
    dependencies umfram React og Vite, og ad baeta vid einu til ad

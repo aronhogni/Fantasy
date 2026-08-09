@@ -2,9 +2,9 @@
 /* ============================================================
    arank-lab.mjs — GERUM A-RANKING BETRI, OG MAELUM THAD RETT.
 
-     node scripts/nfl/arank-lab.mjs [--scoring=ppr|standard]
+     node scripts/arank-lab.mjs [--scoring=ppr|standard]
 
-   -> data-nfl/arank_<scoring>.json
+   -> data/arank_<scoring>.json
 
    A-Ranking = spa Sleeper -> virdi yfir varamanni. Hun slaer Sleeper
    um ~75 stig og vinnur oll timabilin, en med fimm timabilum eru
@@ -375,7 +375,7 @@ async function main() {
     tests: { current: resCurrent, best: resBest, walkForward: resWf },
     headToHead: { current: h2hCurrent, best: h2hBest },
   }, null, 1));
-  console.log(`\n-> data-nfl/arank_${SCORING}.json`);
+  console.log(`\n-> data/arank_${SCORING}.json`);
 }
 
 /** P(X >= k) fyrir X ~ Bin(n, 0.5) — einhliða tekna-prof. */

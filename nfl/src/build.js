@@ -22,16 +22,46 @@ export const DEFAULT_LEAGUE = {
   scoring: "ppr",                 // ppr | half-ppr | standard
   starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 },
   superflex: false,
+  /* ============================================================
+     STODU-THAKID VERDUR AD FYLGJA MED INN I APPID.
+     ============================================================
+     THAD GERDI THAD EKKI, OG THAD ER VERSTA AETT AF VILLU SEM TIL
+     ER HER: **thad sem var maelt var ekki thad sem for i loftid.**
+
+     `scripts/advice-lab.mjs` stadfesti radgjofina i deild med
+     `maxPos` (sja `DEFAULT_LEAGUE` i `accuracy.js`, thar sem rokin
+     fyrir tolunum standa). Thessi hlutur — deildin sem appid raunve-
+     rulega notar — bar hana ekki. `recommend()` sleppir thakinu
+     thogult thegar thad vantar, svo lifandi radgjofin var ONNUR en su
+     sem var profud.
+
+     MAELT med thvi ad herma 14 umferdir fra saeti 7 a raunverulegu
+     bordi dagsins i dag:
+
+       an thaks (thad sem for i loftid)   RB1 WR4 TE5 QB0
+       med thaki (thad sem var maelt)     RB3 WR7 TE2 QB2
+
+     Fyrri hopurinn er ekki lakari — hann er ONOTHAEFUR. Fimm tight
+     ends thar sem eitt saeti er, og enginn leikstjornandi.
+
+     `rounds` fylgir af somu astaedu: an hennar veit radgjofin ekki
+     hve morg vol eru eftir og getur ekki sagt ther ad thu eigir eftir
+     ad taka spyrnumann og vorn.
+
+     Vordur: `tests/advice.mjs` kafli 7 fellur ef thessi hlutur
+     hættir ad bera somu tolur og hermunardeildin.                */
+  maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 },
+  rounds: 15,                     // Sleeper-sjalfgefid: 9 byrjun + 6 bekkur
 };
 
 /**
  * Byggir leikmannarodirnar.
  *
- * `players`  data-nfl/players.json
- * `seasons`  data-nfl/seasons.json (valfrjalst — 2025-dalkar)
- * `accuracy` data-nfl/accuracy.json (valfrjalst — skorpu bordin)
- * `experts`  data-nfl/experts.json (valfrjalst — skorpu bordin)
- * `schedule` data-nfl/schedule.json (valfrjalst — SoS)
+ * `players`  data/players.json
+ * `seasons`  data/seasons.json (valfrjalst — 2025-dalkar)
+ * `accuracy` data/accuracy.json (valfrjalst — skorpu bordin)
+ * `experts`  data/experts.json (valfrjalst — skorpu bordin)
+ * `schedule` data/schedule.json (valfrjalst — SoS)
  */
 export function buildRows({ players, seasons, accuracy, experts, schedule, market,
                             league = DEFAULT_LEAGUE, weights = null }) {
@@ -59,7 +89,7 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
 
     /* --- SPAIN: SLEEPER EIN, EKKI BLANDA ---
 
-       MAELT (scripts/nfl/model-lab.mjs, walk-forward 2022-2025):
+       MAELT (scripts/model-lab.mjs, walk-forward 2022-2025):
        Sleeper-spain er sterkasta einstaka heimildin sem til er —
        rho 0,695 a moti 0,458 hja ADP og 0,522 hja FantasyPros-ECR.
 

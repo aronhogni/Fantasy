@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /* ============================================================
    fetch-nfl.mjs — allt gagna-pipeline-id fyrir NFL-hlutann.
-   Skrifar i `data-nfl/`. Enginn bakendi; appid les skrarnar beint.
+   Skrifar i `data/`. Enginn bakendi; appid les skrarnar beint.
 
    KEYRSLA
-     node scripts/nfl/fetch-nfl.mjs                 # allt
-     node scripts/nfl/fetch-nfl.mjs --stage=core    # bara thad ferskasta
-     node scripts/nfl/fetch-nfl.mjs --stage=history # sagan (haeg, sjaldan)
-     node scripts/nfl/fetch-nfl.mjs --stage=experts # serfraedingabordin
+     node scripts/fetch-nfl.mjs                 # allt
+     node scripts/fetch-nfl.mjs --stage=core    # bara thad ferskasta
+     node scripts/fetch-nfl.mjs --stage=history # sagan (haeg, sjaldan)
+     node scripts/fetch-nfl.mjs --stage=experts # serfraedingabordin
      NFL_NO_CACHE=1 ...                             # framhja skyndiminni
 
    THREP OG TIDNI — thetta er ekki smekkur heldur eðli gagnanna:
@@ -66,6 +66,13 @@ async function writeJson(name, data, { minRows = 1 } = {}) {
   await writeFile(file, json);
   const kb = Math.round(json.length / 1024);
   console.log(`  -> ${name}  ${rows} radir  ${kb} KB`);
+  /* HEPPNUD SKRIF ERU LIKA SKRAD. Adur var adeins hofnun skrad, og
+     thar sem `status.json` sameinar radir a heiti gat rod eins og
+     `write:teams.json: REFUSED` fra einni keyrslu ALDREI hreinsast —
+     engin heppnud keyrsla skrifadi neitt ofan a hana. Notandinn hefdi
+     seð rauda rod i Sources ad eilifu og laert ad hunsa spjaldid, sem
+     er nakvaemlega thad sem spjaldid ma ekki gera. */
+  record(`write:${name}`, true, `${rows} radir, ${kb} KB`);
   return true;
 }
 
@@ -442,7 +449,7 @@ function seasonAggregates(weekly) {
   return out;
 }
 
-/* MAELD THREP, ekki valin. `scripts/nfl/calibrate.mjs` reiknar thau
+/* MAELD THREP, ekki valin. `scripts/calibrate.mjs` reiknar thau
    ur dreifingu VIKNA HJA THEIM SEM ERU RAUNVERULEGA I BYRJUNARLIDI
    (topp 12 QB / 24 RB / 36 WR / 12 TE hverja viku, 2020-2025):
    boom = 85. hundradshluti, bust = 25. hundradshluti.

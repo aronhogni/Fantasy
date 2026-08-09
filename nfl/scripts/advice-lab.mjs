@@ -2,11 +2,11 @@
 /* ============================================================
    advice-lab.mjs — BAETIR RADGJOFIN VID A-RANKING?
 
-     node scripts/nfl/advice-lab.mjs [--scoring=ppr|standard]
+     node scripts/advice-lab.mjs [--scoring=ppr|standard]
 
-   -> data-nfl/advice_<scoring>.json
+   -> data/advice_<scoring>.json
 
-   A-Ranking radar leikmonnum. Radgjofin i `src-nfl/advice.js` gerir
+   A-Ranking radar leikmonnum. Radgjofin i `src/advice.js` gerir
    annad: hun tekur tillit til thess HVER VERDUR ENN LAUS vid naesta
    val thitt og maelir thvi med theim sem tapast ella.
 
@@ -130,7 +130,7 @@ async function main() {
     vsARank: { ...vsA, winYears: wins, years: ys.length },
     vsAdp,
   }, null, 1));
-  console.log(`\n-> data-nfl/advice_${SCORING}.json`);
+  console.log(`\n-> data/advice_${SCORING}.json`);
 }
 
 /* ---------- hermir ---------- */

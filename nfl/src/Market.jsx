@@ -377,7 +377,7 @@ function History({ history }) {
         <h2>Historical test</h2>
         <div className="note warn">
           <code>market_history.json</code> is not loaded. Run{" "}
-          <code>scripts/nfl/market-lab.mjs</code>.
+          <code>scripts/market-lab.mjs</code>.
         </div>
       </div>
     );

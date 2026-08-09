@@ -26,7 +26,7 @@ let fail = 0;
 const ok = (c, m) => { if (c) console.log(`  ok   ${m}`); else { console.log(`  FAIL ${m}`); fail++; } };
 
 if (!existsSync(path.join(DATA, "players.json"))) {
-  console.log("  data/players.json vantar — keyrdu scripts/nfl/fetch-nfl.mjs");
+  console.log("  data/players.json vantar — keyrdu scripts/fetch-nfl.mjs");
   process.exit(1);
 }
 

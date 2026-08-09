@@ -9,7 +9,7 @@
    sinar eigin nakvaemniseinkunnir, en thaer eru theirra maeling a
    sjalfum ser med theirra adferd. Vid tokum thaer med SEM HEIMILD,
    en vid REIKNUM OKKAR EIGIN lika, ur sogulegum bordum theirra gegn
-   raunverulegum stigum ur nflverse. Sja `scripts/nfl/accuracy.mjs`.
+   raunverulegum stigum ur nflverse. Sja `scripts/accuracy.mjs`.
 
    THRJAR OPNAR LEIDIR (stadfestar 9.8.2026, engir lyklar):
 

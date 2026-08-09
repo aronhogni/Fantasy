@@ -2,10 +2,10 @@
 /* ============================================================
    model-lab.mjs — HVAD SPAIR THVI HVERJIR VERDA GODIR?
 
-     node scripts/nfl/model-lab.mjs
-     node scripts/nfl/model-lab.mjs --scoring=standard
+     node scripts/model-lab.mjs
+     node scripts/model-lab.mjs --scoring=standard
 
-   -> data-nfl/model_eval.json   (+ "A-Ranking"-uppskriftin)
+   -> data/model_eval.json   (+ "A-Ranking"-uppskriftin)
 
    THRJAR SPURNINGAR, EITT MAELIBORD:
      1. Serfraedingar/markadur, tolfraedi eda lid — hvad ber merkid?
@@ -352,7 +352,7 @@ async function main() {
     featureGroups: F,
     models: summary,
   }, null, 1));
-  console.log(`\n-> data-nfl/model_eval_${SCORING}.json`);
+  console.log(`\n-> data/model_eval_${SCORING}.json`);
 }
 
 /* ============================================================

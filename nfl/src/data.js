@@ -4,7 +4,7 @@
 
    SAMA MYNSTUR OG FPL-APPID: gognin eru sott BEINT af
    raw.githubusercontent — enginn bakendi, engin bygging tharf ad
-   fylgja gagnauppfaerslu. Pipeline-id skrifar `data-nfl/` i repo-id
+   fylgja gagnauppfaerslu. Pipeline-id skrifar `data/` i repo-id
    og appid ser thad innan minutu.
 
    ÞUNGU SKRARNAR ERU LETIHLADAR. `players.json` (1,4 MB) tharf
@@ -25,7 +25,7 @@ const RAW = "https://raw.githubusercontent.com/aronhogni/Fantasy/main/nfl/data";
 const DEV = typeof import.meta.env !== "undefined" && import.meta.env.DEV;
 
 /* Slodin verdur ad bera `BASE_URL` — Vite thjonar undir `/Fantasy/`
-   eins og GitHub Pages gerir, svo bert "/data-nfl" gefur 404. */
+   eins og GitHub Pages gerir, svo bert "/data" gefur 404. */
 const DEV_BASE = DEV ? `${import.meta.env.BASE_URL}data`.replace(/\/\/+/g, "/") : null;
 
 export let BASE = DEV_BASE || RAW;

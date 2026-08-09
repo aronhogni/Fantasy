@@ -799,24 +799,75 @@ Ekkert þeirra birtir sögulegar spár á opnum endapunkti. Þau eru **nefnd hé
 
 ## 6. Prófin
 
-Fimm söfn í `SUITES` (`npm test` keyrir þau með hinum 41).
+**Tíu söfn í `SUITES`** (`nfl/tests/run.mjs`). Fjöldinn er reiknaður úr `SUITES`,
+ekki harðkóðaður. `npm test` í `nfl/` keyrir **aðeins** þessi — FPL-keyrarinn er
+aðskilinn viljandi, svo lota sem vinnur í öðru appinu geti ekki fellt hitt.
 
 | Safn | Hvað það ver |
 |---|---|
-| `nfl-model.mjs` | Hver birt tala. Kafli 2 er kjarninn: **QB0 skorar fleiri stig en RB0 en hefur lægra VBD** — falli það er appið að raða eftir hrástigum |
-| `nfl-accuracy.mjs` | **Kafli 3 er PRÓFSTEINNINN:** fullkomið borð verður að slá handahóf með >4 staðalvillum, og hálfgott borð verður að lenda **á milli**. Það felldi fyrstu útgáfu hermunarinnar |
-| `nfl-names.mjs` | Raunveruleg NFL-jaðartilfelli. Kafli 4: **tvíræður lykill skilar ENGU** — „síðasti vinnur" er þögla ranga pörunin |
-| `nfl-pipeline.mjs` | **Gögnin sjálf, ekki formúlurnar.** Nafna-pörun má ekki taka yfir; engin tómgildi; hvert birt svið hefur raunverulega dreifingu; PPR > half > std hjá hverjum móttakara |
-| `nfl-render.mjs` | **Eina prófið sem sér hvítan skjá.** Opnar hvern flipa með raunverulegum `data/` og krefst **talna, ekki bara þess að ekkert hrundi**. Kafli 7 ver að viðmótið sé enskt — líka ASCII-íslenska, sem stafa-skynjun sér ekki |
+| `model.mjs` | Hver birt tala. Kjarninn: **QB0 skorar fleiri stig en RB0 en hefur lægra VBD** — falli það er appið að raða eftir hrástigum |
+| `accuracy.mjs` | **PRÓFSTEINNINN:** fullkomið borð verður að slá handahóf með >4 staðalvillum, og hálfgott borð verður að lenda **á milli**. Það felldi fyrstu útgáfu hermunarinnar |
+| `learn.mjs` | Hryggjar-aðhvarfið: stöðlun, λ valið með krossprófun **innan** þjálfunargagna, bootstrap klasað eftir tímabili |
+| `market.mjs` | Vænt mörk úr línu, leikjaflæði, vörn andstæðings |
+| `advice.mjs` | Kaup-röðin. Kafli 7 ber hana við mælinguna á disknum. **Kafli 8 ver að deildin í appinu beri sömu reglur og hermunin** — sjá 6b |
+| `lineup.mjs` | Uppstillingin. Endar á **bakspors-leit**: 1.500 slembin lið og 15 deildarform, grásugan verður að vera sannanlega best og enginn á bekk má skora meira en gjaldgengt byrjunarsæti |
+| `names.mjs` | Raunveruleg NFL-jaðartilfelli. **Tvíræður lykill skilar ENGU** — „síðasti vinnur" er þögla ranga pörunin |
+| `pipeline.mjs` | **Gögnin sjálf, ekki formúlurnar.** Nafna-pörun má ekki taka yfir; engin tómgildi; hvert birt svið hefur raunverulega dreifingu; PPR > half > std hjá hverjum móttakara |
+| `render.mjs` | **Eina prófið sem sér hvítan skjá.** Opnar hvern flipa með raunverulegum `data/` og krefst **talna, ekki bara þess að ekkert hrundi**. Ver að viðmótið sé enskt — líka ASCII-íslenska, sem stafa-skynjun sér ekki |
+| `audit.mjs` | **Leitar að villum, ekki staðfestingu.** Sjá 6b |
 
-**Mynstur sem á að endurtaka:** `nfl-render.mjs` krefst þess að núlldreifingin
+**Mynstur sem á að endurtaka:** `render.mjs` krefst þess að núlldreifingin
 standi **á undan** stigatöflunni í DOM. Það er ekki stílpróf heldur efnislegt:
 tafla án vikmarka segir „þessi er bestur" þegar gögnin segja „þessi var heppnari".
 
 **Gildra sem kostaði tíma:** jsdom-prófið rendrar `App` **án** StrictMode og sá
 því ekki skyndiminnis-villuna sem hékk að eilífu í vafranum. AST- og jsdom-próf
-lesa kóða; þau sjá ekki skjáinn. Íslensku strengirnir í FPL-verkefninu fundust
-líka með því að **keyra appið**.
+lesa kóða; þau sjá ekki skjáinn.
+
+---
+
+## 6b. Úttektin 9.8.2026 — hvað hún fann
+
+`tests/audit.mjs` var skrifað til að spyrja **„hvað er að?"** í stað „virkar það
+sem ég ætlaði?". Það keyrir hvern flipa og hvern chip, allar níu samsetningar
+liðafjölda og stigagjafar, og fellur á NaN, `undefined`, `[object Object]`,
+React-viðvörunum, tölum utan marka og hruni við tómt inntak. **Sé það alltaf
+grænt er það ekki að leita nógu vítt.**
+
+Sjö villur fundust. Þrjár skiptu raunverulega máli:
+
+| # | Villa | Afleiðing |
+|---|---|---|
+| 1 | **Deildin í appinu bar enga `maxPos`** | `advice-lab` staðfesti ráðgjöfina **með** stöðuþaki; `build.js` bar það ekki og `recommend()` sleppir því þegjandi. **Það sem var mælt fór ekki í loftið.** Hermdar 14 umferðir: `RB1 WR4 TE5 QB0` án þaks á móti `RB3 WR7 TE2 QB2` með því. Fyrri hópurinn er ekki lakari — hann er ónothæfur. Vörður: `advice.mjs` kafli 8 |
+| 2 | **`useMemo` ekki fluttur inn í `ModelLab.jsx`** | Undirflipinn „vs Sleeper" **hrundi**. `render.mjs` sá það ekki því það smellti aldrei á hann. Vörður: kyrrstæð hook-skönnun á öllum `.jsx` |
+| 3 | **Dálkurinn `sleeperRank` laug** | Nótan sagði „það sem þú sérð í Sleeper-appinu sjálfu". Talan er **okkar** röðun á spá Sleeper eftir hrástigum — röð sem setur 14 QB í topp-20 í PPR og 20 af 20 í standard. Það er einmitt borðið sem VBD er til að laga. Röðin sem Sleeper birtir er ADP. Sama fullyrðing var á tveimur stöðum í Model lab |
+
+Fjórar minni: **K og DST komu hvergi fram í ráðgjöfinni** (þeir eru réttilega
+utan A-Ranking, en að raða þeim ekki má ekki þýða að þegja um þá — nú
+`mustFill`); **aðeins höfnuð skrif voru skráð** í `status.json`, svo rauð röð
+gat aldrei hreinsast; **`stale`-flaggið var aldrei birt** þótt 21 af 50 röðum
+væru bornar á milli þrepa; og **stöðnuð `data-nfl/`-slóð** í 15 skjölum og
+útskriftarlínum eftir flutninginn.
+
+**Tvö ný óháð akkeri komu úr úttektinni** — hvorugt var til áður:
+
+- **Spá Sleeper borin við okkar eigin stigareglu.** Sleeper sendir bæði birta
+  spá **og** magnsundurliðun. Sé `scoring.js` rétt verða þær að hittast. Mælt:
+  miðgildi |frávik| **0,00** og p90 **2,0** í öllum þremur stigagjöfum, 558
+  leikmenn, **enginn** yfir 15 stigum. Afgangurinn er fumbles og 2pt sem
+  sundurliðunin ber ekki. Sama ætt og „Arsenal mælist með 27 mörk á sig í
+  skotakortunum": tvær óskyldar leiðir að sömu tölu.
+- **Grásugan borin við tæmandi bakspors-leit** á 6.000 slembnum liðum í 15
+  deildarformum, þar með superflex og tvöfaldur flex: **alltaf best, engin
+  bekkjarbrot.** Rökin (sætamengin eru hreiðruð eða sundurlæg) voru rétt, en
+  rök eru ekki sönnun.
+
+**Það sem var mælt og reyndist í lagi** — ekki endurmæla: neikvæð spá hjá
+Duvernay (−1,4) og Davis (−0,9) er **tala Sleeper**, ekki okkar reikningur, og
+mennirnir eru í sæti 511–512 af 558; 46% af ESPN-fréttatöggum parast ekki en
+það eru varnarmenn og línumenn sem eiga réttilega ekkert erindi á borðið;
+auðkennin okkar **eru** Sleeper-auðkenni (tölur, liðsskammstöfun fyrir DST), svo
+draft-pörunin er rétt í grunninn.
 
 ---
 

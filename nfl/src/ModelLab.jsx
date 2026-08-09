@@ -2,7 +2,7 @@
    ModelLab.jsx — "hvad spair thvi hverjir verda godir?"
 
    THESSI FLIPI BIRTIR MAELINGAR, EKKI SKODANIR. Hver tala kemur ur
-   `scripts/nfl/model-lab.mjs` og `strategy-lab.mjs`, sem keyra
+   `scripts/model-lab.mjs` og `strategy-lab.mjs`, sem keyra
    walk-forward yfir 2015-2025 og skora a raunverulegum stigum.
 
    ORDALAG SEM SKIPTIR MALI: allt sem er innan vikmarka er SAGT VERA
@@ -10,7 +10,7 @@
    ur um meira en hun gerir.
    ============================================================ */
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
 export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league, rows,
                                   arankPpr, arankStd }) {
@@ -26,8 +26,8 @@ export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league,
         <h2>Model lab</h2>
         <div className="note warn">
           The measurement files have not been generated yet. Run{" "}
-          <code>scripts/nfl/model-lab.mjs</code> and{" "}
-          <code>scripts/nfl/strategy-lab.mjs</code>.
+          <code>scripts/model-lab.mjs</code> and{" "}
+          <code>scripts/strategy-lab.mjs</code>.
         </div>
       </div>
     );
@@ -128,7 +128,7 @@ function Rankings({ ev, ar, std }) {
             <b>Against ADP this holds.</b> +{(a.draftCommon - adp.draftCommon).toFixed(0)} points,
             winning every season tested, with the interval clear of zero.
             <br /><br />
-            <b>Against Sleeper's own order it does not, yet.</b> The gap is
+            <b>Against the raw projection order it does not, yet.</b> The gap is
             +{(a.draftCommon - slp.draftCommon).toFixed(0)} here and +60 when both boards
             draft head-to-head in the same league — positive in every simulation we ran,
             and it wins 57% of three thousand head-to-head drafts. But it wins only
@@ -431,9 +431,14 @@ function VsSleeper({ rows, ev }) {
       <div className="panel">
         <h2>Same projection, two questions</h2>
         <div className="sub">
-          Sleeper orders players by <b>projected points</b>. We order the same
-          numbers by <b>points above the replacement player at that position in your
-          league</b>. Nothing else differs.
+          Take Sleeper's projection and rank it by <b>raw projected points</b> and you
+          get one board. Rank the very same numbers by <b>points above the replacement
+          player at that position in your league</b> and you get another. Nothing else
+          differs — same projection, two questions.
+          <br /><br />
+          The raw board is the honest baseline for that comparison, not a straw man of
+          Sleeper: it is what the projection says on its own. It is <i>not</i> the order
+          the Sleeper app shows you, which is ADP — and ADP is measured separately above.
         </div>
         {a && s && (
           <div className="note">

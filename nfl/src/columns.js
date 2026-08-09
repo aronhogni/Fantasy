@@ -34,9 +34,15 @@ export const COLUMNS = [
     note: "Okkar rod: spa Sleeper umreiknud i virdi yfir varamanni fyrir thina deild. MAELD 2021-2025: slaer ADP um +234 stig og vinnur OLL FIMM arin (marktaekt). Gegn Sleeper-rodinni sjalfri er hun +60 og vinnur 3 af 5 — jakvaett i hverri hermun en EKKI marktaekt; thad thyrfti 13 timabil." },
   { key: "proj", label: "Projected points", short: "Proj", band: "Model",
     note: "Spa Sleeper i thinni stigagjof. MAELD sterkasta heimildin (rho 0,695 gegn 0,458 hja ADP). ESPN er notad ef Sleeper thegir." },
-  { key: "sleeperRank", label: "Sleeper's own order", short: "Slp #", band: "Model", hi: false,
-    note: "Rod eftir HRASTIGUM Sleeper — thad sem thu sedh i Sleeper-appinu sjalfu." },
-  { key: "vsSleeperRank", label: "A-Rank vs Sleeper order", short: "vs Slp", band: "Model",
+  /* HEITID LAUG. Thetta er OKKAR rod a spa Sleeper eftir hrastigum, EKKI
+     rodin sem Sleeper-appid synir (thar er Josh Allen QB1, ekki heildar-1).
+     Hrastigarod setur 14 QB i topp-20 i PPR og 20 af 20 i standard — hun
+     er einmitt bordid sem VBD er til ad laga, og ad kalla hana "thad sem
+     thu sérd i Sleeper" gerdi hana ad einhverju sem hun er ekki.
+     Rodin sem Sleeper birtir sjalfur er ADP-dalkurinn. */
+  { key: "sleeperRank", label: "Sleeper projection, raw order", short: "Raw #", band: "Model", hi: false,
+    note: "Rod eftir HRASTIGUM spar Sleeper, reiknud her. Thetta er EKKI rodin i Sleeper-appinu (hun er ADP) — hrastig setja QB efst thvi their skora mest, an tillits til varamanns." },
+  { key: "vsSleeperRank", label: "A-Rank vs raw order", short: "vs Raw", band: "Model",
     note: "Hve morgum saetum ofar A-Ranking setur hann en hra stigarod. Jakvaett = varamanns-leidrettingin lyftir honum." },
   { key: "vbd", label: "Value over replacement", short: "VBD", band: "Model",
     note: "Spa minus spa varamanns a somu stodu i THINNI deild. Thetta er talan sem radar — ekki hrastigin." },

@@ -18,6 +18,13 @@ import { POS_ELASTICITY, DEF_WEIGHT, FLEX_SPLIT, IMPLIED_BASE } from "./model.js
 export default function Sources({ status, meta, calibration, built }) {
   const src = (status && status.sources) || [];
   const bad = src.filter((s) => !s.ok);
+  /* STADAR RADIR ERU EKKI FERSKAR RADIR. Pipeline-id keyrir i threpum
+     (`--stage=core|history|experts`) og sameinar `status.json` a heiti,
+     svo rod sem thetta threp snerti ekki helst inni med `stale: true`.
+     Adur var thad ekki synt — 21 af 50 rodum voru gamlar og litu
+     nakvaemlega eins ut og ferskar. Heimild sem enginn ser bilar
+     hljodlega, og heimild sem litur ferskari ut en hun er, er verri. */
+  const stale = src.filter((s) => s.stale);
 
   return (
     <>
@@ -34,6 +41,14 @@ export default function Sources({ status, meta, calibration, built }) {
             them are blank, not guessed.
           </div>
         )}
+        {stale.length > 0 && (
+          <div className="note">
+            <b>{stale.length} of {src.length} rows are carried over</b> from an earlier
+            stage and were not refreshed by the last run
+            {status && status.stage ? ` (${status.stage})` : ""}. Their data is still on
+            disk and still valid — the timestamp tells you how old it is.
+          </div>
+        )}
         <div className="tablewrap" style={{ marginTop: 10 }}>
           <table className="data">
             <thead><tr className="cols">
@@ -48,6 +63,7 @@ export default function Sources({ status, meta, calibration, built }) {
                   <td className="txt frozen mono">{s.name}</td>
                   <td className="txt">
                     <span className={`badge ${s.ok ? "on" : "bad"}`}>{s.ok ? "ok" : "fail"}</span>
+                    {s.stale && <span className="badge warn" style={{ marginLeft: 6 }}>carried over</span>}
                   </td>
                   <td className="txt dim">{s.note}</td>
                   <td className="txt dimmer">{when(s.ts)}</td>

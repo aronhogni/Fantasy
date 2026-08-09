@@ -18,7 +18,7 @@ export default function Experts({ accuracy, experts, rows }) {
       <div className="panel">
         <h2>Expert accuracy</h2>
         <div className="note warn">
-          The measurement has not been run yet (<code>data-nfl/accuracy.json</code> is
+          The measurement has not been run yet (<code>data/accuracy.json</code> is
           missing). Nothing is shown rather than a placeholder ranking — an unmeasured
           leaderboard that looks measured is worse than no leaderboard.
         </div>

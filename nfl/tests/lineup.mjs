@@ -222,5 +222,90 @@ console.log("\n6. deildarsnid");
   ok(new Set(ids).size === ids.length, `oll saetaheiti einkvaem (${ids.join(",")})`);
 }
 
+/* ============================================================
+   GRASUGAN BORIN VID TAEMANDI LEIT
+   ============================================================
+   `optimalLineup` fyllir throngstu saetin fyrst og tekur alltaf besta
+   mann. Su rok eru RETT — saetamengin eru hreidrud eda sundurlaeg
+   (QB ⊂ SUPERFLEX, RB ⊂ FLEX ⊂ SUPERFLEX, QB ∩ FLEX = ∅) — en rok eru
+   ekki sonnun. Hér er bakspors-leit sem finnur SANNANLEGA bestu
+   uppstillinguna, borin vid grasuguna a slembnum hopum.
+
+   Og hitt sem skiptir mali: krafan sjalf. Enginn a bekknum ma skora
+   meira en sa sem situr i saeti sem hann VAR gjaldgengur i.
+
+   MAELT: 6.000 slembin lid, 15 deildarform (thar med superflex,
+   tvofaldur flex, WR/TE-flex) — grasugan var optimal i ollum og engin
+   bekkjarbrot. Prófid keyrir 1.500 til ad halda safninu snoggu.  */
+console.log("\ngrasugan gegn taemandi leit");
+{
+  const POS = ["QB", "RB", "WR", "TE", "K", "DST"];
+  let seed = 12345;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+  const brute = (players, slots) => {
+    const pool = players.map((p) => ({ ...p,
+      ev: p.bye ? 0 : (p.proj == null ? null : p.proj * (p.avail == null ? 1 : p.avail)) }));
+    let best = 0;
+    const used = new Set();
+    (function rec(i, sum) {
+      if (i === slots.length) { if (sum > best) best = sum; return; }
+      rec(i + 1, sum);                              // saetid ma standa autt
+      for (const p of pool) {
+        if (used.has(p.id) || p.ev == null || p.bye) continue;
+        if (p.avail != null && p.avail <= 0) continue;
+        if (!slots[i].pos.includes(p.pos)) continue;
+        used.add(p.id); rec(i + 1, sum + p.ev); used.delete(p.id);
+      }
+    })(0, 0);
+    return best;
+  };
+
+  const SHAPES = [
+    { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 },
+    { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+    { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, SUPERFLEX: 1 },
+    { QB: 2, RB: 2, WR: 3, TE: 1, FLEX: 1 },
+    { QB: 1, RB: 1, WR: 1, TE: 1, FLEX: 3 },
+  ];
+  let suboptimal = 0, benchViolations = 0, n = 0;
+  for (const starters of SHAPES) {
+    for (const flexPos of [["RB", "WR", "TE"], ["WR", "TE"], ["RB", "WR"]]) {
+      const slots = slotsFor({ starters, flexPos });
+      for (let t = 0; t < 100; t++) {
+        const roster = [];
+        const size = 8 + Math.floor(rnd() * 10);
+        for (let i = 0; i < size; i++) {
+          const r = rnd();
+          roster.push({ id: "p" + i, name: "P" + i,
+            pos: POS[Math.floor(rnd() * POS.length)],
+            proj: r < 0.10 ? null : Math.round(rnd() * 280) / 10,
+            avail: rnd() < 0.15 ? Math.round(rnd() * 10) / 10 : null,
+            bye: rnd() < 0.10 });
+        }
+        const got = optimalLineup(roster, slots);
+        const raw = got.starters.reduce((a, s) => a + (s.player ? s.player.ev : 0), 0);
+        n++;
+        if (raw < brute(roster, slots) - 1e-9) suboptimal++;
+
+        const startIds = new Set(got.starters.filter((s) => s.player).map((s) => s.player.id));
+        for (const b of roster) {
+          if (startIds.has(b.id) || b.bye || b.proj == null) continue;
+          if (b.avail != null && b.avail <= 0) continue;
+          const bev = b.proj * (b.avail == null ? 1 : b.avail);
+          for (const s of got.starters) {
+            if (!s.eligible.includes(b.pos)) continue;
+            const sev = s.player ? s.player.proj * (s.player.avail == null ? 1 : s.player.avail) : -1;
+            if (bev > sev + 1e-9) benchViolations++;
+          }
+        }
+      }
+    }
+  }
+  ok(suboptimal === 0, `${n} slembin lid, 15 deildarform — grasugan alltaf best (${suboptimal} tap)`);
+  ok(benchViolations === 0,
+    `enginn a bekk skorar meira en gjaldgengt byrjunarsaeti (${benchViolations} brot)`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

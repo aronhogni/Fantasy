@@ -2,9 +2,9 @@
 /* ============================================================
    projector-lab.mjs — HVER ER SOGULEGA BESTUR AD SPA?
 
-     node scripts/nfl/projector-lab.mjs [--scoring=ppr|standard]
+     node scripts/projector-lab.mjs [--scoring=ppr|standard]
 
-   -> data-nfl/projectors_<scoring>.json
+   -> data/projectors_<scoring>.json
 
    Notandinn spurdi: RotoWire, FantasyPros, serfraedingar, Sleeper,
    ESPN, NFL.com — hver er bestur? Svarid krefst thess ad hver
@@ -290,7 +290,7 @@ async function main() {
       { name: "Individual analysts on X", why: "no durable archive of pre-season boards" },
     ],
   }, null, 1));
-  console.log(`\n-> data-nfl/projectors_${SCORING}.json`);
+  console.log(`\n-> data/projectors_${SCORING}.json`);
 }
 
 /** Gildi heimildar fyrir rod. Haerra = betra. */

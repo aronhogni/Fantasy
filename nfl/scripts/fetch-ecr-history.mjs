@@ -2,9 +2,9 @@
 /* ============================================================
    fetch-ecr-history.mjs — SOGULEG SERFRAEDINGA-SAMSTEYPA.
 
-     node scripts/nfl/fetch-ecr-history.mjs
+     node scripts/fetch-ecr-history.mjs
 
-   -> data-nfl/ecr_history.json
+   -> data/ecr_history.json
 
    DynastyProcess speglar FantasyPros-radningar og geymir hverja
    skrapun med dagsetningu — 1,5 milljon radir, 2019-2025. Ur thvi
@@ -187,7 +187,7 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   await writeFile(path.join(OUT, "ecr_history.json"),
     JSON.stringify({ generated: new Date().toISOString(), cutoff: "Sep 3", sets: out }));
-  console.log("-> data-nfl/ecr_history.json");
+  console.log("-> data/ecr_history.json");
 }
 
 const numOr = (v) => {

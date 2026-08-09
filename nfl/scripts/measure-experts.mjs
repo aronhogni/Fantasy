@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /* ============================================================
-   measure-experts.mjs — KEYRIR maelinguna i `src-nfl/accuracy.js`
-   a raungognum og skrifar `data-nfl/accuracy.json`.
+   measure-experts.mjs — KEYRIR maelinguna i `src/accuracy.js`
+   a raungognum og skrifar `data/accuracy.json`.
 
-     node scripts/nfl/measure-experts.mjs
+     node scripts/measure-experts.mjs
 
    Krefst thess ad `--stage=experts` og `--stage=history` hafi verid
    keyrd (bordin og raunveruleikinn).

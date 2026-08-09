@@ -2,9 +2,9 @@
 /* ============================================================
    market-lab.mjs — HVADA MARKADSTALA SPAIR BEST, OG HVE LENGI?
 
-     node scripts/nfl/market-lab.mjs
+     node scripts/market-lab.mjs
 
-   -> data-nfl/market_history.json
+   -> data/market_history.json
 
    nflverse ber forgjof og heildarlinu fyrir HVERN leik aftur til
    1999 og peningalinur fra 2006. Thad er ~6.900 leikir og ~115.000
@@ -230,7 +230,7 @@ async function main() {
     signals: results, defenseHeadToHead: headToHead, byYear,
     stability: stab,
   }, null, 1));
-  console.log(`\n-> data-nfl/market_history.json`);
+  console.log(`\n-> data/market_history.json`);
 }
 
 /**

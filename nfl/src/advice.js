@@ -31,7 +31,7 @@
    oruggur i 20 saeta bid, en ADP 30 med stadalfravik 20 er thad
    ekki. FantasyFootballCalculator birtir `stdev` og hann er notadur.
 
-   MAELT (`scripts/nfl/advice-lab.mjs`): sja `MEASURED` nedst.
+   MAELT (`scripts/advice-lab.mjs`): sja `MEASURED` nedst.
    ============================================================ */
 
 /* ---------- lifunarlikur ---------- */
@@ -194,7 +194,7 @@ export function recommend({ available, roster = [], pick, league }) {
      RODAD EFTIR VBD (A-RANKING), EKKI EFTIR BRADANAUÐSYN.
 
      ÞETTA ER NIDURSTADA MAELINGAR, EKKI SMEKKUR.
-     `scripts/nfl/advice-lab.mjs` hermdi bædi: lid sem valdi eftir
+     `scripts/advice-lab.mjs` hermdi bædi: lid sem valdi eftir
      haestu bradanauðsyn gegn lidi sem valdi einfaldlega besta
      A-Ranking-manninn, 12-lida snakk, oll saeti, 2022-2025.
 
@@ -221,8 +221,41 @@ export function recommend({ available, roster = [], pick, league }) {
      ============================================================ */
   out.sort((a, b) => b.vbd - a.vbd);
 
+  /* ============================================================
+     SAETI SEM RODIN NAER ALDREI TIL — K OG DST
+     ============================================================
+     K og DST eru VILJANDI utan A-Ranking: their voru aldrei med i
+     neinni hermun sem stadfestir rodina, og rod an maelingar er
+     agiskun sem litur ut eins og maeling.
+
+     EN ad rada theim ekki ma ekki thyda ad thegja um tha. Hermd
+     drafting i 14 umferdum gaf hopinn RB3 WR7 TE2 QB2 — fullkomlega
+     nothaefan NEMA ad tvo byrjunarsaeti stodu tom alla leidina, thvi
+     radgjofin nefndi hvorugan einu sinni. Notandi sem fylgir henni i
+     blindni endar med enga spyrnu og enga vorn.
+
+     Thess vegna er skilad LISTA, ekki rod: hvada stodur deildin
+     BYRJAR med, ber engan i hopnum, og radgjofin mun aldrei stinga
+     upp a. `urgent` kviknar thegar valin sem eftir eru duga vart
+     lengur til ad fylla thau.                                    */
+  const st = league.starters || {};
+  const rounds = league.rounds || 14;
+  const picksLeft = Math.max(0, rounds - roster.length);
+  const mustFill = [];
+  for (const pos of Object.keys(st)) {
+    if (pos === "FLEX" || pos === "SUPERFLEX") continue;
+    if (expNext[pos]) continue;               // stada sem rodin naer til
+    const short = (st[pos] || 0) - (counts[pos] || 0);
+    if (short > 0) mustFill.push({ pos, short });
+  }
+  const needed = mustFill.reduce((a, m) => a + m.short, 0);
+
   return {
     pick, nextPick, wait,
+    /* Stodur sem thu verdur ad fylla en rodin nefnir aldrei. */
+    mustFill,
+    mustFillUrgent: needed > 0 && picksLeft <= needed + 1,
+    picksLeft,
     /* Sa sem bradanauðsyn hefdi valid. Hafdur med svo haegt se ad sja
        HVENAER thaer tvaer adferdir eru osammala — thad er sjalft
        upplysandi — en hann er EKKI tillagan. */
@@ -263,7 +296,7 @@ function reasonsFor(p, { urgency, eNext, survive, wait, counts, league }) {
 const round1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
 
 /* ============================================================
-   MAELDAR TOLUR — sja `scripts/nfl/advice-lab.mjs`
+   MAELDAR TOLUR — sja `scripts/advice-lab.mjs`
    ============================================================
    Fyllt inn thegar maelingin hefur keyrt. Ef thessi hlutur er tomur
    a vidmotid ad segja ad radgjofin se OMAELD.

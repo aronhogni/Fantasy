@@ -2,9 +2,9 @@
 /* ============================================================
    fetch-fftoday.mjs — SOGULEGAR FORLEIKS-SPAR, 2015 OG AFTUR.
 
-     node scripts/nfl/fetch-fftoday.mjs [--from=2015] [--to=2025]
+     node scripts/fetch-fftoday.mjs [--from=2015] [--to=2025]
 
-   -> data-nfl/fftoday_projections.json
+   -> data/fftoday_projections.json
 
    VANDAMALID: A-Ranking hvilir a fimm timabilum thvi Sleeper-spar
    eru adeins hreinar fra 2021. Allar adrar spa-heimildir sem voru
@@ -165,7 +165,7 @@ async function main() {
     generated: new Date().toISOString(),
     source: "FFToday preseason projections (playerproj.php, frozen per season)",
     scoringNote: "FFToday publishes standard; PPR and half are computed from " +
-                 "their own stat lines with src-nfl/scoring.js",
+                 "their own stat lines with src/scoring.js",
     selfCheck: { checked: checkedTotal, exact: checkedTotal - mismatchTotal },
     seasons, projections: out,
   }));

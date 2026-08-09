@@ -4,9 +4,9 @@
    per timabil, med ollu sem VAR VITAD FYRIR thad timabil og thvi
    sem gerdist i thvi.
 
-     node scripts/nfl/build-features.mjs
+     node scripts/build-features.mjs
 
-   -> data-nfl/features.json
+   -> data/features.json
 
    HVERS VEGNA THETTA ER SER SKREF: spurningin "hvad spair thvi hverjir
    verda godir" er ekki haegt ad svara an toflu thar sem INNTAK og
@@ -341,7 +341,7 @@ async function main() {
   }
 
   /* ---------- 5c. SERFRAEDINGA-SAMSTEYPA (ECR), SOGULEG ----------
-     Ur `data-nfl/ecr_history.json` (sja fetch-ecr-history.mjs).
+     Ur `data/ecr_history.json` (sja fetch-ecr-history.mjs).
      Thetta er SERFRAEDINGARNIR sjalfir, adgreint fra ADP sem er
      mannfjoldinn. Spurning notandans — "serfraedingar eda tolfraedi" —
      er ekki haegt ad svara an thess ad thessi tvo seu adskilin. */
@@ -567,7 +567,7 @@ async function main() {
       [k, { from: v.meta.start_date, to: v.meta.end_date, drafts: v.meta.total_drafts }])),
     rows,
   }));
-  console.log(`-> data-nfl/features.json  ${rows.length} radir`);
+  console.log(`-> data/features.json  ${rows.length} radir`);
 
   const byYear = {};
   for (const r of rows) byYear[r.season] = (byYear[r.season] || 0) + 1;

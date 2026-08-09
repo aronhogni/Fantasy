@@ -2,10 +2,10 @@
 /* ============================================================
    strategy-lab.mjs — I HVADA ROD A AD DRAFTA STODURNAR?
 
-     node scripts/nfl/strategy-lab.mjs
-     node scripts/nfl/strategy-lab.mjs --scoring=standard --teams=12
+     node scripts/strategy-lab.mjs
+     node scripts/strategy-lab.mjs --scoring=standard --teams=12
 
-   -> data-nfl/strategy_<scoring>.json
+   -> data/strategy_<scoring>.json
 
    SPURNINGIN: QB fyrst? RB fyrst? WR fyrst? Svarid er MAELANLEGT og
    thad er maelt hér — ekki rokraett.
@@ -203,7 +203,7 @@ async function main() {
     strategies: out,
     firstRoundBySlot: firstRound,
   }, null, 1));
-  console.log(`\n-> data-nfl/strategy_${SCORING}.json`);
+  console.log(`\n-> data/strategy_${SCORING}.json`);
 }
 
 /** Umreiknar spa i virdi yfir varamanni fyrir gefna deildarstaerd. */
