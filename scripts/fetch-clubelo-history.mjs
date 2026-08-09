@@ -66,11 +66,11 @@ function parseCsv(text) {
   return out;
 }
 
-console.log("Sæki 42 MB CSV …");
+console.log("Fetching 42 MB CSV …");
 const text = await (await fetch(URL_, { headers: { "User-Agent": UA },
   signal: AbortSignal.timeout(20000) })).text();
 const rows = parseCsv(text).filter(r => r.Division === "E0");
-console.log(`E0-raðir: ${rows.length}`);
+console.log(`E0 rows: ${rows.length}`);
 
 const seasons = {};
 let skipped = 0;
@@ -83,14 +83,14 @@ for (const r of rows) {
 }
 const counts = Object.fromEntries(Object.entries(seasons)
   .map(([s, v]) => [s, Object.keys(v).length]).sort());
-console.log("leikir per tímabil:", JSON.stringify(counts));
+console.log("matches per season:", JSON.stringify(counts));
 const total = Object.values(seasons).reduce((a, v) => a + Object.keys(v).length, 0);
 
 await writeFile("data/clubelo_history.json", JSON.stringify({
   updated: new Date().toISOString(),
   source: "xgabora/Club-Football-Match-Data-2000-2025 (speglar football-data.co.uk + ClubElo)",
-  note: "RAUNVERULEGT fyrir-leik ClubElo. Lykill: 'HomeTeam|AwayTeam' (E0-nofn) -> [homeElo, awayElo]. Lekaprof i scripts/fetch-clubelo-history.mjs.",
+  note: "REAL pre-match ClubElo. Key: 'HomeTeam|AwayTeam' (E0 names) -> [homeElo, awayElo]. Leak test in scripts/fetch-clubelo-history.mjs.",
   seasons,
 }));
-console.log(`\nSkrifað data/clubelo_history.json — ${total} leikir, ${Object.keys(seasons).length} tímabil` +
-  (skipped ? ` (${skipped} raðir án Elo)` : ""));
+console.log(`\nWrote data/clubelo_history.json — ${total} matches, ${Object.keys(seasons).length} seasons` +
+  (skipped ? ` (${skipped} rows without Elo)` : ""));

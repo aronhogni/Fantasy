@@ -380,7 +380,11 @@ console.log("\n=== D. PIPELINE-STRENGIR (scripts/*.mjs) ===");
          NANAST ALLTAF SMAORD — og thau eru fa og lokud. Ekkert theirra
          er enskt ord, svo falskar jakvaedar eru ekki vandamal.        */
       "og", "er", "eru", "ekki", "sem", "med", "fyrir", "til", "thad",
-      "their", "thaer", "hun", "hann", "vid", "tha", "svo", "eda", "hvert",
+      /* "their" ER EKKI HER: islenska "þeir" an broddstafa er STAFRETT
+         EINS OG ENSKA ORDID "their", svo hun felldi retta enska notu
+         ("`ai_score` is their own model"). Ord med enskri merkingu eru
+         VILJANDI utan listans — sama regla og "lid"/"min"/"man"/"sun". */
+      "thaer", "hun", "hann", "vid", "tha", "svo", "eda", "hvert",
       "hverja", "thess", "thessi", "annad", "onnur", "bædi", "badir",
     ].join("|") + ")\\b", "i");
 

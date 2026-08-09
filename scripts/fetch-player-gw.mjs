@@ -99,7 +99,7 @@ const SLIM_SCALE = { xg:100, xa:100, xgc:100, creat:10, infl:10, threat:1 };
 const out = {}, slimOut = {}, report = [];
 for (const [key, dir] of Object.entries(SEASONS)) {
   const e0Path = `data/fdcouk/E0-${key}.json`;
-  if (!existsSync(e0Path)) { report.push(`${key}: E0 vantar — sleppt`); continue; }
+  if (!existsSync(e0Path)) { report.push(`${key}: E0 missing — skipped`); continue; }
   const e0 = JSON.parse(await readFile(e0Path, "utf8")).rows
     .filter(r => r.HomeTeam && r.FTHG !== "" && r.FTHG != null);
   const e0Names = new Set(e0.flatMap(r => [r.HomeTeam, r.AwayTeam]));
@@ -124,12 +124,12 @@ for (const [key, dir] of Object.entries(SEASONS)) {
         const id = +r.id, code = +r.code;
         if (Number.isFinite(id) && Number.isFinite(code)) codeOf.set(id, code);
       }
-    } else report.push(`${key}: players_raw.csv HTTP ${pr.status} — engin code-vorpun`);
+    } else report.push(`${key}: players_raw.csv HTTP ${pr.status} — no code mapping`);
   }
 
   const res = await fetch(`${RAW}/${dir}/gws/merged_gw.csv`,
     { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
-  if (!res.ok) { report.push(`${key}: merged_gw.csv HTTP ${res.status} — sleppt`); continue; }
+  if (!res.ok) { report.push(`${key}: merged_gw.csv HTTP ${res.status} — skipped`); continue; }
   const rows = parseCsv(await res.text());
 
   const rowsOut = [];
@@ -211,17 +211,17 @@ for (const [key, dir] of Object.entries(SEASONS)) {
   slimOut[key] = slim;
   const pos = {};
   for (const r of rowsOut) pos[r[3]] = (pos[r[3]] || 0) + 1;
-  report.push(`${key}: ${kept} raðir (mín>0) · ${Object.entries(pos).map(([k, v]) => k + " " + v).join(" ")}` +
+  report.push(`${key}: ${kept} rows (min>0) · ${Object.entries(pos).map(([k, v]) => k + " " + v).join(" ")}` +
     `${unmatchedTeam.size ? ` · ÓPÖRUÐ LIÐ: ${[...unmatchedTeam].join(", ")}` : ""}` +
-    `${noFixture ? ` · ${noFixture} raðir án leiks` : ""}` +
-    `${noCode ? ` · ${noCode} án code` : ""}` +
-    `${dupSkipped ? ` · ${dupSkipped} TVITEKNAR (sami code+umferd+dagsetning)` : ""}`);
+    `${noFixture ? ` · ${noFixture} rows without a match` : ""}` +
+    `${noCode ? ` · ${noCode} without a code` : ""}` +
+    `${dupSkipped ? ` · ${dupSkipped} DUPLICATES (same code+gameweek+date)` : ""}`);
 }
 
 await writeFile("data/fpl_player_gw.json", JSON.stringify({
   updated: new Date().toISOString(),
   source: "vaastav/Fantasy-Premier-League — data/{season}/gws/merged_gw.csv",
-  note: "Columnar. ALLAR radir (lika 0 minutur, fra 29.7.2026). Parad vid E0 a (dagsetning, lid).",
+  note: "Columnar. ALL rows (including 0 minutes, since 29.7.2026). Paired with E0 on (date, club).",
   header: HEADER, seasons: out,
 }));
 /* Ein skra PER TIMABIL: appid hledur adeins thad timabil sem er valid.
@@ -233,10 +233,10 @@ for (const [key, slim] of Object.entries(slimOut)) {
     updated: new Date().toISOString(),
     season: key, label,
     source: "vaastav/Fantasy-Premier-League — merged_gw.csv + players_raw.csv (code)",
-    note: "Lyklad a FPL `code` (fast yfir timabil). ADEINS samlagningarhaefar "
-        + "tolur — verd, eignarhald og FPL-saeti eru arstidartolur og eru EKKI her. "
-        + "Tvofold umferd er logd saman i somu umferd. Desimalar heiltolu-kvardadir, "
-        + "sja `scale`.",
+    note: "Keyed on FPL `code` (fixed across seasons). ONLY additive "
+        + "figures — price, ownership and FPL rank are season-level and are NOT here. "
+        + "A double gameweek is summed into the same gameweek. Decimals are integer-scaled, "
+        + "see `scale`.",
     stats: SLIM_STATS, scale: SLIM_SCALE,
     /* `_seen` er afmorkunar-hjalp og a ekki i skrana. */
     players: Object.fromEntries(Object.entries(slim)
@@ -245,4 +245,4 @@ for (const [key, slim] of Object.entries(slimOut)) {
 }
 console.log(report.join("\n"));
 const total = Object.values(out).reduce((a, r) => a + r.length, 0);
-console.log(`\nSkrifað data/fpl_player_gw.json — ${total} raðir, ${Object.keys(out).length} tímabil`);
+console.log(`\nWrote data/fpl_player_gw.json — ${total} rows, ${Object.keys(out).length} seasons`);

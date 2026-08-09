@@ -154,7 +154,7 @@ console.log("─".repeat(84));
     "uppstilling badra lida skrad");
   ok(!o.players?.some(x => x.fpl_team === 3 || x.fpl_team === 4),
     "leikurinn 40 dogum sidar er EKKI sottur (utan glugga)");
-  ok(rec.ok === true && /2 koll/.test(rec.note), `status skrad: "${rec.note}"`);
+  ok(rec.ok === true && /2 calls/.test(rec.note), `status skrad: "${rec.note}"`);
 }
 
 /* ---------- 2. Forleikur: engin koll, en RANNSAKANDI KALL ---------- */
@@ -261,7 +261,7 @@ console.log("─".repeat(84));
     ? FIXTURES_OK : { http: 499, results: 0, response: [], errors: { rateLimit: "Too many requests" } } });
   ok(r1.written?.obj?.players?.length === 0 && Array.isArray(r1.written?.obj?.errors),
     "lineups-villa -> 0 leikmenn og villan SKRÁÐ, ekki thoguð");
-  ok(/villur/.test(r1.rec.note), `status ber villuna: "${r1.rec.note.slice(0, 60)}"`);
+  ok(/errors:/.test(r1.rec.note), `status ber villuna: "${r1.rec.note.slice(0, 60)}"`);
 
   const r2 = await run({ dir, responder: p => p.startsWith("/fixtures?")
     ? { http: 200, results: 0, errors: [], response: [] } : LINEUP_OK });

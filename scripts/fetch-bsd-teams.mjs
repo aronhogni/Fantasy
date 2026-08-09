@@ -163,9 +163,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   readEnvLocal();
   const KEY = process.env.BSD_KEY;
   if (!KEY) {
-    console.error("BSD_KEY vantar. Tvaer leidir:");
-    console.error("  1) echo 'BSD_KEY=<lykill>' >> .env.local     (i .gitignore, best)");
-    console.error("  2) BSD_KEY=<lykill> node scripts/fetch-bsd-teams.mjs");
+    console.error("BSD_KEY missing. Two ways:");
+    console.error("  1) echo 'BSD_KEY=<key>' >> .env.local     (in .gitignore, best)");
+    console.error("  2) BSD_KEY=<key> node scripts/fetch-bsd-teams.mjs");
     process.exit(1);
   }
   const SEASON = process.argv[2] || "337";
@@ -196,7 +196,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     events.push(...(d.results || []));
   }
   const finished = events.filter(e => e.status === "finished");
-  console.log(`BSD timabil ${SEASON}: ${finished.length} leikir lokid`);
+  console.log(`BSD season ${SEASON}: ${finished.length} matches finished`);
 
   const matches = [];
   const missed = [];
@@ -230,7 +230,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (id != null && typeof bc === "number") reported[id] = { big_chances: bc };
     }
     matches.push({ event_id: e.id, home, away, shots, reported });
-    if (++done % 50 === 0) console.log(`  leikir ${done}/${finished.length}`);
+    if (++done % 50 === 0) console.log(`  matches ${done}/${finished.length}`);
   };
   await pool(finished, 6, grabOne);
 
@@ -241,7 +241,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
      gagnatap. Thess vegna: reyna aftur, EINN i einu, og deyja fyrst ef
      eitthvad stendur enn eftir. Sama regla og i fetch-bsd.mjs.        */
   if (missed.length) {
-    console.log(`${missed.length} leikir duttu — onnur atrenna, radbundid`);
+    console.log(`${missed.length} matches dropped — second attempt, sequential`);
     const still = [];
     for (const id of missed) {
       const e = finished.find(x => x.id === id);
@@ -250,7 +250,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       if (!matches.some(m => m.event_id === id)) still.push(id);
     }
     if (still.length) {
-      console.error(`${still.length} leikir mistokust ENN — SKRIFA EKKI HALFT TIMABIL.`);
+      console.error(`${still.length} matches STILL failed — NOT WRITING A PARTIAL SEASON.`);
       process.exit(1);
     }
   }
@@ -262,9 +262,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
      ("engin big chances"), sem er nakvaemlega gildran sem kafli 3 og 6n
      fordast. Keyrslan deyr thvi fremur en ad skrifa tomt timabil.      */
   if (!matches.length) {
-    console.error(`Timabil ${SEASON}: ENGINN leikur med skotakorti. `
-      + `SKRIFA EKKERT — tom skra ofan a god gogn er verri en engin keyrsla.`);
-    console.error(`(BSD hefur skotakort adeins fyrir 2025/26, season_id 337 — maelt 8.8.2026.)`);
+    console.error(`Season ${SEASON}: NO match has a shot map. `
+      + `WRITING NOTHING — an empty file on top of good data is worse than no run at all.`);
+    console.error(`(BSD only has shot maps for 2025/26, season_id 337 — measured 8.8.2026.)`);
     process.exit(2);
   }
 
@@ -306,13 +306,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     matches: matches.length,
     big_chance_xg: BIG_CHANCE_XG, in_box_x: IN_BOX_X,
     derived_vs_reported_mae: mae,
-    note: "Big chances a sig og fyrir, leidd ur BSD-skotakorti (per-skot xG, "
-        + "throskuldur 0,18 sem var fittadur gegn lids-svidinu `big_chances`). "
-        + "BADAR tolur eru geymdar — okkar talning (bc_*) og BSD-birta talan "
-        + "(bc_reported_*) — svo rek sjaist STRAX i stad thess ad okkar tala "
-        + "reki thogult. ThEKJAN ER EITT TIMABIL: BSD hefur skotakort i ollum "
-        + "380 leikjum 2025/26 og ENGIN i eldri timabilum, svo thessi skra ma "
-        + "ALDREI faeda bakprof og dalkarnir eru tomir i odrum timabilum.",
+    note: "Big chances against and for, derived from the BSD shot map (per-shot xG, "
+        + "threshold 0.18, fitted against the club-level field `big_chances`). "
+        + "BOTH figures are kept — our own count (bc_*) and the BSD published figure "
+        + "(bc_reported_*) — so drift shows up IMMEDIATELY instead of our figure "
+        + "drift silently. COVERAGE IS ONE SEASON: BSD has shot maps for all "
+        + "380 matches in 2025/26 and NONE in earlier seasons, so this file must "
+        + "NEVER feed a backtest, and the columns are empty in other seasons.",
     no_team: agg.no_team, no_xg: agg.no_xg, no_shotmap: agg.no_shotmap,
     unmatched_to_fpl: agg.teams.filter(t => t.fpl_id == null).map(t => t.short || t.team_id),
     teams: agg.teams,
@@ -333,5 +333,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   writeFileSync(dest, JSON.stringify({ ...newest, seasons: bySeason }, null, 1));
   console.log(`\nskrifad ${dest}`);
   console.log(`lid ${agg.teams.length} · an lids ${agg.no_team} · an xG ${agg.no_xg} `
-            + `· an skotakorts ${agg.no_shotmap} · MAE okkar-gegn-birtu ${mae}`);
+            + `· without a shot map ${agg.no_shotmap} · MAE ours-vs-published ${mae}`);
 }

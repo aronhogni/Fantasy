@@ -787,10 +787,30 @@ raunverulega lak 31.7. og **getur staðnað**; orð með enskri merkingu (`lid`,
 `min`, `man`, `mid`, `sun`) eru viljandi utan hans, annars félli prófið á
 réttum enskum texta og væri slökkt innan viku.
 
-**Enn íslenskt og á að vera það:** `status.json`- og `last_gw.json`-nóturnar
-sem `record(...)` skrifar. Þær eru **gögn, ekki viðmót**, og að þýða þær er
-endurhönnun á ~20 kallstöðum í 3.371-línu skriftu sem keyrir mannlaus. Kafli A
-í prófinu leyfir þær beinlínis (fjarlægðar sem **undirstrengir**, ekki orð).
+### ÞETTA SNERI VIÐ 9.8.2026 — PIPELINE-STRENGIRNIR ERU LÍKA ENSKIR
+
+Hér stóð áður: *„Enn íslenskt og á að vera það: `status.json`- og
+`last_gw.json`-nóturnar sem `record(...)` skrifar. Þær eru **gögn, ekki
+viðmót**."* **Sú forsenda var röng í framkvæmd.** `v.note` er birt undir
+**Data sources** — bæði sem sýnilegur texti þegar heimild bíður eða brestur
+og sem tooltip á hverri röð. Og `comp_label` fór beint í leikjalistann á
+leikmannaspjaldinu: mælt 9.8.2026 bar spjald Aston Villa-manns **„Ofurbikar"**
+í enskri töflu, og eftir dráttinn hefði **„Meistaradeild"** birst á sex félögum.
+
+**Allir strengir sem pipeline skrifar eru nú enskir** — 100 talsins í sjö
+skriftum: keppnisheiti, `record(...)`-nótur, `note:`-svið í hverri gagnaskrá
+og rekstrar-loggarnir sem sjást í Actions.
+
+**ATHUGASEMDIR ERU ÁFRAM ÍSLENSKAR og það er ÁSETT.** Þær eru rökstuðningur
+og villusögur — sama efni og þetta skjal. Reglan er skýr:
+**viðmót og gögn á ensku, rökstuðningur á íslensku.**
+
+**Vörðurinn er nýr kafli D í `no-icelandic.mjs`** og hann les **upprunann**
+(`scripts/*.mjs`), ekki DOM-inn. Það er nauðsynlegt: kafli C leyfir íslensku
+sem kemur úr `data/` (leikmannanöfn, FPL-fréttir) — og nótan kom einmitt
+þaðan, svo hún gat aldrei fallið þar. Strengir eru lesnir með **skanna**, ekki
+regexi: fyrsta útgáfan notaði regex og `/["']/` (regluleg segð með gæsalöppum
+inni) lét hana gleypa 200 línur af kóða sem einn „streng".
 
 **Lærdómurinn sem gildir áfram:** AST-próf les kóða, ekki DOM — það sér aldrei
 það sem er á skjánum. Íslensku strengirnir 31.7. fundust með því að **keyra

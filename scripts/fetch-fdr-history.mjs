@@ -69,13 +69,13 @@ const e0Day = s => {
 const out = {}, report = [];
 for (const [key, dir] of Object.entries(SEASONS)) {
   const e0Path = `data/fdcouk/E0-${key}.json`;
-  if (!existsSync(e0Path)) { report.push(`${key}: E0 vantar — sleppt`); continue; }
+  if (!existsSync(e0Path)) { report.push(`${key}: E0 missing — skipped`); continue; }
   const e0 = JSON.parse(await readFile(e0Path, "utf8")).rows
     .filter(r => r.HomeTeam && r.FTHG !== "" && r.FTHG != null);
 
   const res = await fetch(`${RAW}/${dir}/fixtures.csv`,
     { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20000) });
-  if (!res.ok) { report.push(`${key}: fixtures.csv HTTP ${res.status} — sleppt`); continue; }
+  if (!res.ok) { report.push(`${key}: fixtures.csv HTTP ${res.status} — skipped`); continue; }
   const fx = parseCsvQuoted(await res.text())
     .filter(f => f.kickoff_time && f.team_h_score !== "" && f.team_h_difficulty);
 
@@ -98,7 +98,7 @@ for (const [key, dir] of Object.entries(SEASONS)) {
   /* --- 2. STAÐFESTING: gagntæk á 20 liðum og öll úrslit stemma --- */
   const names = new Set(Object.values(map));
   if (Object.keys(map).length !== 20 || names.size !== 20) {
-    report.push(`${key}: pörun ekki gagntæk (${Object.keys(map).length} id, ${names.size} nöfn) — SLEPPT`);
+    report.push(`${key}: mapping not bijective (${Object.keys(map).length} ids, ${names.size} names) — SKIPPED`);
     continue;
   }
   const byPair = new Map(e0.map(e => [`${e.HomeTeam}|${e.AwayTeam}`, e]));
@@ -112,7 +112,7 @@ for (const [key, dir] of Object.entries(SEASONS)) {
     ok++;
   }
   if (bad > 0 || ok !== e0.length) {
-    report.push(`${key}: ${ok} stemma, ${bad} stemma EKKI af ${e0.length} — SLEPPT`);
+    report.push(`${key}: ${ok} agree, ${bad} do NOT agree out of ${e0.length} — SKIPPED`);
     continue;
   }
   out[key] = season;
@@ -120,15 +120,15 @@ for (const [key, dir] of Object.entries(SEASONS)) {
   const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
   const hist = {};
   for (const v of vals) hist[v] = (hist[v] || 0) + 1;
-  report.push(`${key}: ${ok}/${e0.length} leikir · FDR-meðaltal ${mean.toFixed(3)} · ` +
+  report.push(`${key}: ${ok}/${e0.length} matches · mean FDR ${mean.toFixed(3)} · ` +
     Object.keys(hist).sort().map(k => `${k}:${(100 * hist[k] / vals.length).toFixed(0)}%`).join(" "));
 }
 
 await writeFile("data/fpl_fdr_history.json", JSON.stringify({
   updated: new Date().toISOString(),
   source: "vaastav/Fantasy-Premier-League (afrit af FPL-API), fixtures.csv",
-  note: "RAUNVERULEGT FPL-FDR per leik. Lykill: 'HomeTeam|AwayTeam' (E0-nofn) -> [team_h_difficulty, team_a_difficulty]. Parad eftir dagsetningu+urslitum og stadfest gagntaekt.",
+  note: "REAL FPL FDR per match. Key: 'HomeTeam|AwayTeam' (E0 names) -> [team_h_difficulty, team_a_difficulty]. Paired on date+result and confirmed bijective.",
   seasons: out,
 }));
 console.log(report.join("\n"));
-console.log(`\nSkrifað data/fpl_fdr_history.json — ${Object.keys(out).length} tímabil`);
+console.log(`\nWrote data/fpl_fdr_history.json — ${Object.keys(out).length} seasons`);

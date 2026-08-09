@@ -78,10 +78,10 @@ for (let i = 0; i < days.length; i++) {
     const sb = await getJSON(`${ESPN}/scoreboard?dates=${days[i]}`);
     for (const e of sb.events || []) events.push(e.id);
   } catch (e) { console.warn(`  dagur ${days[i]}: ${e.message}`); }
-  if (i % 30 === 0) console.log(`  dagar ${i}/${days.length} · leikir ${events.length}`);
+  if (i % 30 === 0) console.log(`  days ${i}/${days.length} · matches ${events.length}`);
 }
 const eventIds = [...new Set(events)];
-console.log(`leikir fundnir: ${eventIds.length}`);
+console.log(`matches found: ${eventIds.length}`);
 
 /* ---- 2) skot per leik ---- */
 const teams = {};                       // short -> talnasafn
@@ -150,7 +150,7 @@ for (const eid of eventIds) {
     add(T(side).for);
     add(T(other).against);
   }
-  if (++done % 40 === 0) console.log(`  leikir ${done}/${eventIds.length}`);
+  if (++done % 40 === 0) console.log(`  matches ${done}/${eventIds.length}`);
 }
 
 /* ---- 3) pora vid FPL-lidin ---- */
@@ -195,15 +195,15 @@ const payload = {
   updated: new Date().toISOString(),
   season: "2025/26", source: "espn_commentary",
   matches: eventIds.length,
-  note: `${eventIds.length} leikir. Svaedin koma UR TEXTA ESPN, ekki ur hnitunum — `
-      + `textinn er ohadur kvardanum. Sjalfsmork sleppt (skyttan tilheyrir ROngu lidi). `
-      + `BIG CHANCES ERU EKKI HER: their krefjast xG per skot og engin naanleg heimild `
-      + `gefur hana. Naerfaeri (close_*) er maeld nalgun a sama hlut, ekki big chance. `
-      + `KROSSPROFAD GEGN E0 (sjalfstaed heimild, team_form.json) 8.8.2026: oll 17 lidin `
-      + `sem eru i BADUM skrom stemma innan 0,71 skots/leik, medalfravik -0,47 (skot) og `
+  note: `${eventIds.length} matches. Zones come FROM THE ESPN TEXT, not from the coordinates — `
+      + `the text is independent of the scale. Own goals skipped (the shooter belongs to the WRONG club). `
+      + `BIG CHANCES ARE NOT HERE: they need per-shot xG and no reachable source `
+      + `provides it. Proximity (close_*) is a measured approximation of the same thing, not a big chance. `
+      + `CROSS-CHECKED AGAINST E0 (an independent source, team_form.json) 8.8.2026: all 17 clubs `
+      + `present in BOTH files agree within 0.71 shots/match, mean deviation -0.47 (shots) and `
       + `-0,43 (a mark). ESPN telur KERFISBUNDID ~3,5% faerri — sama formerki i ollum `
-      + `lidum, sem er munur a heimildum (commentary sleppir hluta blokkadra skota) en `
-      + `ekki villa i urdraettinum. Notid E0-tolurnar fyrir MAGN og ESPN fyrir SVAEDI.`,
+      + `clubs, which is a difference between sources (the commentary omits some blocked shots) but `
+      + `not an error in the extraction. Use the E0 figures for VOLUME and ESPN for ZONES.`,
   no_zone: noZone, no_team: noTeam,
   unmatched_to_fpl: unmatched,
   teams: out,
@@ -211,4 +211,4 @@ const payload = {
 const dest = new URL("../data/team_shots.json", import.meta.url).pathname;
 writeFileSync(dest, JSON.stringify(payload, null, 1));
 console.log(`\nskrifad ${dest}`);
-console.log(`lid: ${out.length} · an svaedis: ${noZone} · an lids: ${noTeam} · opörud: ${unmatched.join(",") || "engin"}`);
+console.log(`clubs: ${out.length} · without a zone: ${noZone} · without a club: ${noTeam} · unmatched: ${unmatched.join(",") || "none"}`);

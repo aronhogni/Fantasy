@@ -77,7 +77,7 @@ import { BIG_CHANCE_XG, IN_BOX_X, newAcc, addPlayerRow, addShot, resolveTeam,
 
 const KEY = process.env.BSD_KEY;
 if (!KEY) {
-  console.error("BSD_KEY vantar. Keyrsla: BSD_KEY=... node scripts/fetch-bsd.mjs");
+  console.error("BSD_KEY missing. Run: BSD_KEY=... node scripts/fetch-bsd.mjs");
   process.exit(1);
 }
 const API = "https://sports.bzzoiro.com/api/v2";
@@ -132,8 +132,8 @@ for (const off of [0, 200]) {
   events.push(...(d.results || []));
 }
 const finished = events.filter(e => e.status === "finished");
-console.log(`BSD timabil ${SEASON}: ${events.length} leikir, ${finished.length} lokid`);
-if (!finished.length) { console.error("engir loknir leikir — er timabilid byrjad?"); process.exit(1); }
+console.log(`BSD season ${SEASON}: ${events.length} matches, ${finished.length} finished`);
+if (!finished.length) { console.error("no finished matches — has the season started?"); process.exit(1); }
 
 /* ---- 2) leikmannatolur + skotakort per leik ---- */
 /* Uppsofnunin sjalf er i `src/bsd.js` — HREIN og profud. Hun er notud
@@ -187,7 +187,7 @@ const grab = async (e) => {
      og keyrslan DEYR fremur en ad skrifa hluta-timabil.                */
   if (!ps || !st) { missed.push(e.id); return; }
   fetched.set(e.id, { ps, st });
-  if (++done % 50 === 0) console.log(`  leikir ${done}/${finished.length}`);
+  if (++done % 50 === 0) console.log(`  matches ${done}/${finished.length}`);
 };
 const ingest = (e) => {
   const got = fetched.get(e.id);
@@ -232,14 +232,14 @@ await pool(finished, 6, grab);
 /* Onnur atrenna a tha sem duttu, rolegar (raðbundid). Standi eitthvad eftir
    er ThAD VILLA — vid skrifum ekki hluta-timabil.                        */
 if (missed.length) {
-  console.log(`  ${missed.length} leikir duttu — onnur atrenna`);
+  console.log(`  ${missed.length} matches dropped — second attempt`);
   const retry = finished.filter(e => missed.includes(e.id));
   missed.length = 0;
   for (const e of retry) await grab(e);
 }
 if (missed.length) {
-  console.error(`\nVILLA: ${missed.length} leikir naðust ekki (${missed.slice(0, 8).join(", ")}...).`);
-  console.error("Skrain er EKKI skrifud — hluta-timabil litur ut eins og maeling.");
+  console.error(`\nERROR: ${missed.length} matches could not be fetched (${missed.slice(0, 8).join(", ")}...).`);
+  console.error("The file is NOT written — a partial season looks like a measurement.");
   process.exit(1);
 }
 /* FOST ROD: event-id stigandi, ohad thvi i hvada rod svorin bárust. */
@@ -247,7 +247,7 @@ for (const e of [...finished].sort((a, b) => a.id - b.id)) ingest(e);
 
 /* Flest-leikid lid raedur; jafntefli brotnar a laegsta team_id (i bsd.js). */
 for (const o of agg.values()) resolveTeam(o);
-console.log(`leikmenn med tolur: ${agg.size} · leikir an skotakorts: ${noShot}`);
+console.log(`players with figures: ${agg.size} · matches without a shot map: ${noShot}`);
 
 /* ---- 3) nofn ---- */
 const ids = [...agg.keys()];
@@ -261,7 +261,7 @@ if (missing.length) {
   const again = await pool(missing, 3, id => get(`/players/${id}/`).catch(() => null));
   again.forEach((m, i) => { if (m) meta.set(missing[i], m); });
 }
-console.log(`nofn leyst: ${meta.size}/${ids.length}`);
+console.log(`names resolved: ${meta.size}/${ids.length}`);
 
 /* ---- 4) vorpun vid FPL ---- */
 const rawTeams = JSON.parse(readFileSync(new URL("../data/teams.json", import.meta.url), "utf8"));
@@ -328,14 +328,14 @@ const payload = {
   matches: finished.length,
   measured: { big_chance_xg: BIG_CHANCE_XG, in_box_x: IN_BOX_X },
   note:
-    "Per-skot xG ur BSD-skotakorti (100% thekja 2025/26). big_chances eru LEIDDAR "
-    + `ut ur skotum med xg >= ${BIG_CHANCE_XG} — fittad gegn raunverulega lids-svidinu `
-    + "big_chances a 748 lid-leikjum (MAE 0,746, r 0,774). PER-LEIKMANNS svidin "
-    + "big_chance_created/missed eru TIL i API-inu en ALLTAF NULL og eru thvi EKKI hér. "
-    + `Teigur = pos.x <= ${IN_BOX_X}; BSD-x er hlutfall af FULLUM velli (105 m), `
-    + "ANNAR kvardi en ESPN (halfur vollur) — maelt, ekki fluttur. "
-    + "Assist eru OPTA-skilgreining og eru ~29% faerri en FPL-assist (FPL gefur t.d. "
-    + "assist fyrir unnid viti) — thaer eru til samanburdar, ekki til ad skipta ut FPL-tolunni.",
+    "Per-shot xG from the BSD shot map (100% coverage 2025/26). big_chances are DERIVED "
+    + `from shots with xg >= ${BIG_CHANCE_XG} — fitted against the real club-level field `
+    + "big_chances over 748 club-matches (MAE 0.746, r 0.774). The PER-PLAYER fields "
+    + "big_chance_created/missed EXIST in the API but are ALWAYS NULL and are therefore NOT here. "
+    + `In the box = pos.x <= ${IN_BOX_X}; BSD x is a share of the FULL pitch (105 m), `
+    + "A DIFFERENT scale from ESPN (half pitch) — measured, not carried over. "
+    + "Assists use the OPTA definition and are ~29% fewer than FPL assists (FPL awards one, "
+    + "for example, for winning a penalty) — they are for comparison, not a replacement for the FPL figure.",
   players_total: players.length,
   players_matched_to_fpl: matched,
   unmatched: droppedNames.length,
@@ -345,7 +345,7 @@ const payload = {
 const dest = new URL("../data/bsd_players.json", import.meta.url).pathname;
 writeFileSync(dest, JSON.stringify(payload));
 console.log(`\nskrifad ${dest}`);
-console.log(`leikmenn ${players.length} · parad vid FPL ${matched} · oparad ${players.length - matched}`);
+console.log(`players ${players.length} · matched to FPL ${matched} · unmatched ${players.length - matched}`);
 
 /* ---- 6) SKOTAKORTID — SER SKRA, LETIHLADIN ----
    Lyklad a FPL `code` eins og onnur soguleg gogn (fast yfir timabil,
@@ -399,14 +399,14 @@ const shotPayload = {
   },
   calib: { goal_line: 0, six_yard_x: 5.5, pen_spot_x: 11.5, box_x: IN_BOX_X,
            box_y: [20.4, 79.6], six_yard_y: [36.5, 63.5], big_chance_xg: BIG_CHANCE_XG },
-  note: "EIN rod per skot. Leikmannakort = sia a `code`; lidskort FYRIR = sia a "
-      + "`team`; lidskort A SIG = sia a `opp`. x = fjarlaegd fra markinu sem sott "
-      + "er ad, hlutfall af FULLUM velli (105 m) — ANNAR kvardi en ESPN (halfur "
-      + "vollur). y = breidd 0-100, midja 50. Kvordunin i `calib` er MAELD ur "
-      + "thessum gognum: vitaspyrnur liggja a x 11,5 og y 50,00 nakvaemlega. "
-      + "`team`/`opp` eru null fyrir lid sem eru ekki i urvalsdeild 2026/27 "
-      + "(fallin lid) og `code` er null fyrir oparada skyttu — ALDREI 0. "
-      + "2025/26 eingongu; engin eldri timabil hafa skotakort.",
+  note: "ONE row per shot. A player map = filter on `code`; a club map FOR = filter on "
+      + "`team`; a club map AGAINST = filter on `opp`. x = distance from the goal being "
+      + "attacked, as a share of the FULL pitch (105 m) — a DIFFERENT scale from ESPN (half "
+      + "pitch). y = width 0-100, centre 50. The calibration in `calib` is MEASURED from "
+      + "this data: penalties sit at x 11.5 and y 50.00 exactly. "
+      + "`team`/`opp` are null for clubs not in the 2026/27 Premier League "
+      + "(relegated clubs) and `code` is null for an unmatched shooter — NEVER 0. "
+      + "2025/26 only; no earlier season has shot maps.",
   shots: flat,
   /* MEDALSTADA per leik, lyklud a FPL `code`. AÐEINS their sem eiga >= 5
      leiki: fjorir punktar syna ekkert um hvar madur spilar og skyid vaeri
@@ -422,4 +422,4 @@ const shotRows = flat.length;
 const nPlayers = new Set(flat.map(r => r[8]).filter(v => v != null)).size;
 const dest2 = new URL("../data/bsd_shots.json", import.meta.url).pathname;
 writeFileSync(dest2, JSON.stringify(shotPayload));
-console.log(`skrifad ${dest2} — ${shotRows} skot, ${nPlayers} leikmenn, ${teamIdx.length} lid`);
+console.log(`wrote ${dest2} — ${shotRows} shots, ${nPlayers} players, ${teamIdx.length} clubs`);

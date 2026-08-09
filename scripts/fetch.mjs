@@ -147,8 +147,8 @@ async function fetchFPL() {
     const sn = t.short_name;
     const coord = COORDS[sn];
     const nm = NAMES[sn];
-    if (!coord) console.warn(`VIÐVÖRUN: engin hnit fyrir ${sn} (${t.name})`);
-    if (!nm)    console.warn(`VIÐVÖRUN: engin nafnavörpun fyrir ${sn} (${t.name})`);
+    if (!coord) console.warn(`WARNING: no coordinates for ${sn} (${t.name})`);
+    if (!nm)    console.warn(`WARNING: no name mapping for ${sn} (${t.name})`);
     map[t.id] = {
       fpl: t.name, short: sn,
       clubelo: nm?.clubelo ?? null, fdcouk: nm?.fdcouk ?? null, understat: nm?.understat ?? null,
@@ -256,7 +256,7 @@ async function fetchFPL() {
     await writeJSON("season_baseline.json", {
       updated: status.updated,
       label: `${y - 1}/${String(y).slice(-2)}`,
-      note: "Lokatölur fyrra tímabils. Skrifað daglega FRAM AÐ GW1, frýs svo.",
+      note: "Final totals for last season. Written daily UP TO GW1, then frozen.",
       players: els.map(e => ({
         id: e.id, total_points: e.total_points, minutes: e.minutes,
         points_per_game: e.points_per_game, starts: e.starts,
@@ -281,7 +281,7 @@ async function fetchFPL() {
       // geymum explain ÓSKERT + tölfræði
       await writeJSON(path, live);
       liveCount++;
-    } catch (e) { console.warn(`live gw${gw} brást: ${e.message}`); }
+    } catch (e) { console.warn(`live gw${gw} failed: ${e.message}`); }
   }
   // núverandi umferð (gæti verið hálfnuð) — alltaf endursækja
   const cur = events.find(ev => ev.is_current);
@@ -384,13 +384,13 @@ async function computeConsistency() {
   }
   await writeJSON("consistency.json", {
     updated: status.updated, seasons,
-    note: "ARON-STUDULL (jofnudur). hit4_pct/blank_pct = hlutfall SPILADRA "
-        + "leikja med >=4 / <=2 stig, AFTURVIRKJAD (K=10 ad "
-        + "stodu-medaltali). aron = hit4_pct - blank_pct. LYSING A FORTID, "
-        + "EKKI SPA: maelt a 5 timabilum fylgir hit4 stigum/leik med r=0,90 "
-        + "og eftir ad stjornad er fyrir stig OG VERD innan stodu er engin "
-        + "varanleg leif (DEF 0,12 / MID 0,13, formerkin flakka). Bera skal "
-        + "saman menn i SOMU STODU a SVIPUDU VERDI.",
+    note: "ARON INDEX (consistency). hit4_pct/blank_pct = share of PLAYED "
+        + "matches with >=4 / <=2 points, SHRUNK (K=10 towards the "
+        + "positional mean). aron = hit4_pct - blank_pct. A DESCRIPTION OF THE PAST, "
+        + "NOT A FORECAST: measured over 5 seasons, hit4 tracks points/match at r=0.90, "
+        + "and once you control for points AND PRICE within a position there is no "
+        + "lasting residual (DEF 0.12 / MID 0.13, signs flip). Compare "
+        + "players in the SAME POSITION at a SIMILAR PRICE.",
   });
   record("consistency", true, files,
     `${files} seasons: ${Object.entries(seasons).map(([k, v]) => `${k} (${Object.keys(v).length})`).join(", ")}`);
@@ -450,11 +450,11 @@ async function computeDefconHistory() {
   }
   await writeJSON("defcon_history.json", {
     updated: status.updated, seasons,
-    note: "DC-hittni per timabil, LEITT ur player_gw_{s}.json (`dc` = FPL "
-        + "defensive_contribution, TALNING). Lyklad a FPL `code`. ADEINS "
-        + "timabil sem EIGA dc — DefCon er ny stigagjof fra 2025/26; eldri "
-        + "timabil vantar og eiga ad birtast sem VANTAR, ekki 0. Somu "
-        + "throskuldar og afturvirkni og defcon.json (DEF 10, MID/FWD 12, K=10).",
+    note: "DefCon hit rate per season, DERIVED from player_gw_{s}.json (`dc` = FPL "
+        + "defensive_contribution, A COUNT). Keyed on FPL `code`. ONLY "
+        + "seasons that HAVE dc — DefCon is a new scoring rule from 2025/26; older "
+        + "seasons are missing and must show as MISSING, not 0. Same "
+        + "thresholds and shrinkage as defcon.json (DEF 10, MID/FWD 12, K=10).",
   });
   record("defcon_history", true, files,
     `${files} seasons: ${Object.entries(seasons).map(([k, v]) => `${k} (${Object.keys(v).length} players)`).join(", ") || "none"}`);
@@ -568,7 +568,7 @@ async function computeDefcon(events, els) {
   }
 
   await writeJSON("defcon.json", { updated: status.updated, players: out, opportunity,
-    note: "hit_rate = threshold_hits/starts (HRÁ — ofmælist á litlum sýnum). hit_rate_adj = (hits + 10·p0)/(starts + 10), p0 = stöðu-meðaltal — notið HANA til birtingar, alltaf með starts við hlið. DEF þröskuldur 10 CBIT, MID/FWD 12 CBIRT. defcon_opportunity: vinnuálag varnar (hærra = fleiri CBIT-tækifæri) — AÐSKILINN mælikvarði frá CS%, ekki leggja saman." });
+    note: "hit_rate = threshold_hits/starts (RAW — overstates on small samples). hit_rate_adj = (hits + 10*p0)/(starts + 10), p0 = positional mean — USE THAT ONE for display, always with starts beside it. DEF threshold 10 CBIT, MID/FWD 12 CBIRT. defcon_opportunity: defensive workload (higher = more CBIT chances) — a SEPARATE measure from CS%, do not add them together." });
   record("defcon", true, out.length, `${Object.keys(opportunity).length} teams with an opportunity rating`);
 }
 
@@ -623,13 +623,13 @@ async function computePlayerForm(events, els) {
 
   await writeJSON("player_form.json", {
     updated: status.updated, gws_used: finished.length, players: out,
-    note: "Per-umferdar sogu leitt ur data/live/gw{n}.json — ENGIN ny koll. "
-        + "mins_trend = min/umferd sidustu 2 minus thriggja thar a undan (raðir per UMFERD, 0 talid med). "
-        + "Notad i rankScore (vog 0,01; maelt +0,066 topp-15, 5/5 timabil). "
-        + "Toemt fyrir GW4 — tha er trend 0 og skorid er eins og adur.",
+    note: "Per-gameweek history derived from data/live/gw{n}.json — NO new calls. "
+        + "mins_trend = minutes/gameweek over the last 2 minus the three before them (rows per GAMEWEEK, 0 counted). "
+        + "Used in rankScore (weight 0.01; measured +0.066 on the top 15, 5/5 seasons). "
+        + "Empty before GW4 — until then trend is 0 and the score is unchanged.",
   });
   record("player_form", true, Object.keys(out).length,
-    finished.length ? `${finished.length} umferdir, ${withTrend} med minututhroun`
+    finished.length ? `${finished.length} gameweeks, ${withTrend} with a minutes trend`
                     : "no finished gameweek (preseason) — the trend switches on at GW4");
 }
 
@@ -705,12 +705,12 @@ async function fetchLineups() {
     if (prev && prevAge < PROBE_TTL_DAYS) {
       await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [],
         players: [], probe: prev,
-        note: "Stadfest byrjunarlid ur API-Sports /fixtures/lineups. TOMT utan "
-            + "leikdags-glugga. `probe` er GEYMT svar (endurtekid a "
-            + `${PROBE_TTL_DAYS} daga fresti) — ekki nytt kall i hverri keyrslu.` });
+        note: "Confirmed line-ups from API-Sports /fixtures/lineups. EMPTY outside "
+            + "the matchday window. `probe` is a STORED response (repeated every "
+            + `${PROBE_TTL_DAYS} days) — not a fresh call on every run.` });
       record("api_lineups", true, 0,
-        `enginn leikur i glugga; geymt svar ${prevAge.toFixed(1)} daga gamalt`
-        + (prev.gated ? " — ENDAPUNKTUR LOKADUR" : ""));
+        `no match in window; stored response is ${prevAge.toFixed(1)} days old`
+        + (prev.gated ? " — ENDPOINT CLOSED" : ""));
       return;
     }
     const probe = await apiSports("/fixtures/lineups?fixture=1035037");
@@ -725,8 +725,8 @@ async function fetchLineups() {
     if (first) console.log("  SNID response[0]: lyklar=" + JSON.stringify(Object.keys(first))
       + ` team=${JSON.stringify(first.team?.name ?? null)}`
       + ` formation=${JSON.stringify(first.formation ?? null)}`
-      + ` startXI=${Array.isArray(first.startXI) ? first.startXI.length : "VANTAR"}`
-      + ` substitutes=${Array.isArray(first.substitutes) ? first.substitutes.length : "VANTAR"}`
+      + ` startXI=${Array.isArray(first.startXI) ? first.startXI.length : "MISSING"}`
+      + ` substitutes=${Array.isArray(first.substitutes) ? first.substitutes.length : "MISSING"}`
       + ` player0=${JSON.stringify(first.startXI?.[0]?.player ?? null)}`);
     /* "suspended" VANTADI HER og thad kostadi ranga stodu: 2.8.2026 var
        reikningurinn UPPSAGDUR ("Your account is suspended") en `gated` vard
@@ -735,14 +735,14 @@ async function fetchLineups() {
        hvort sem thad heitir plan, threp eda uppsogn.                     */
     const gated = /plan|subscription|not allowed|upgrade|suspend|access/i.test(err);
     record("api_lineups", true, 0,
-      gated ? `ENDAPUNKTUR LOKADUR a fria threpinu: ${err.slice(0, 120)}`
-            : err ? `enginn leikur i glugga; rannsokn gaf: ${err.slice(0, 120)}`
-                  : "enginn leikur i glugga (bidur leikdags) — endapunktur svarar an plan-villu");
+      gated ? `ENDPOINT CLOSED on the free tier: ${err.slice(0, 120)}`
+            : err ? `no match in window; the probe returned: ${err.slice(0, 120)}`
+                  : "no match in window (waiting for a matchday) — endpoint answers without a plan error");
     await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [], players: [],
       probe: { at: status.updated, http: probe.http, errors: probe.errors ?? null, gated },
-      note: "Stadfest byrjunarlid ur API-Sports /fixtures/lineups. TOMT utan "
-          + "leikdags-glugga (leikur innan 2 klst eda nybyrjadur). `probe` "
-          + "geymir svarid vid thvi hvort fria threpid leyfi endapunktinn." });
+      note: "Confirmed line-ups from API-Sports /fixtures/lineups. EMPTY outside "
+          + "the matchday window (a match within 2h or just started). `probe` "
+          + "stores the answer to whether the free tier allows the endpoint." });
     return;
   }
 
@@ -831,14 +831,14 @@ async function fetchLineups() {
   await writeJSON("lineups.json", { updated: status.updated,
     gws: [...new Set(fx.map(f => f.event))], calls,
     teams: outTeams, players: outPlayers, unmatched, errors: errs,
-    note: "Stadfest byrjunarlid (started=true) og bekkur (false) ur API-Sports "
-        + "/fixtures/lineups fyrir leiki innan gluggans. FPL-status raedur "
-        + "aframhaldandi tiltækileika; thetta er STADFESTING, ekki spa." });
+    note: "Confirmed starters (started=true) and bench (false) from API-Sports "
+        + "/fixtures/lineups for matches inside the window. FPL status still governs "
+        + "availability; this is CONFIRMATION, not a forecast." });
   const started = outPlayers.filter(p => p.started).length;
   record("api_lineups", !errs.length || !!outPlayers.length, outPlayers.length,
-    errs.length ? `${calls} koll (${reused} endurnyttir), ${started} byrja, villur: ${errs[0].slice(0, 90)}`
-                : `${calls} koll (${reused} leikir endurnyttir), ${outTeams.length} lid, `
-                  + `${started} byrja, ${unmatched.length} oparadir`);
+    errs.length ? `${calls} calls (${reused} reused), ${started} starting, errors: ${errs[0].slice(0, 90)}`
+                : `${calls} calls (${reused} matches reused), ${outTeams.length} clubs, `
+                  + `${started} starting, ${unmatched.length} unmatched`);
 }
 
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
@@ -854,14 +854,14 @@ async function eloFetch(url, tries = 4) {
          i viku (kafli 3). 20 s er rifleg mork fyrir eina CSV.            */
       const r = await fetch(url, { headers: { "User-Agent": UA },
                                    signal: AbortSignal.timeout(20000) });
-      if (r.status === 429 || r.status >= 500) throw new Error(`${r.status} (yfirálag?)`);
+      if (r.status === 429 || r.status >= 500) throw new Error(`${r.status} (overload?)`);
       if (!r.ok) throw new Error(`${r.status} ${url}`);
       const text = await r.text();
-      if (!text || text.length < 20) throw new Error("tómt svar");
+      if (!text || text.length < 20) throw new Error("empty response");
       return text;
     } catch (e) {
       lastErr = e;
-      console.warn(`ClubElo tilraun ${i + 1}/${tries} brást: ${e.message}`);
+      console.warn(`ClubElo attempt ${i + 1}/${tries} failed: ${e.message}`);
       /* ekki sofa eftir SIDUSTU tilraun — thad voru 6 s af hreinni bid.
          BIDIN LENGD 9.8.2026: hun var 2 s + 4 s = 6 s alls, sem er of
          stutt fyrir thad sem raunverulega gerist. Maelt: ClubElo svarar
@@ -884,7 +884,7 @@ async function fetchElo() {
   console.log(`ClubElo dags-haus: ${header.join(",")}`);
   const eng = rows.filter(r => r.Country === "ENG" && (r.Level === "1" || r.Level === "2"));
   // LOGGA öll ensk nöfn — þannig þarf aldrei að giska á stafsetningu aftur
-  console.log(`ClubElo ENG L1+L2 nöfn (${eng.length}): ${eng.map(r => r.Club).join(" | ")}`);
+  console.log(`ClubElo ENG L1+L2 names (${eng.length}): ${eng.map(r => r.Club).join(" | ")}`);
 
   // normaliserað: lágstafir, aðeins bókstafir/tölur (þolir bil, punkta, úrfellingar)
   const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -913,7 +913,7 @@ async function fetchElo() {
         rank: row.Rank ? +row.Rank : null, level: +row.Level, clubelo_name: row.Club };
       teams.push(rec); eloByFpl[row.Club] = Number(id);
     } else {
-      console.warn(`ClubElo: fann ekki ${t.short_name} (${t.name}) — prófaði: ${cands.join(", ")}`);
+      console.warn(`ClubElo: could not find ${t.short_name} (${t.name}) — tried: ${cands.join(", ")}`);
     }
   }
   await writeJSON("elo.json", { updated: status.updated, teams });
@@ -967,7 +967,7 @@ async function fetchFdcouk() {
     throw e;
   }
   const { header, rows } = parseCSV(text);
-  console.log(`fdcouk E0 kolónur: ${header.slice(0, 20).join(",")}…`);
+  console.log(`fdcouk E0 columns: ${header.slice(0, 20).join(",")}…`);
   await writeJSON("fdcouk/E0-2627.json", { header, rows });
   record("fdcouk_e0", true, rows.length);
 }
@@ -1003,10 +1003,10 @@ async function fetchHistoricalE0() {
       const untrusted = header.filter(h => /^PSC?[HDA]$/.test(h));
       await writeJSON(path, { season: ss, header, rows,
         untrusted_columns: untrusted,
-        untrusted_note: "Pinnacle-línur óáreiðanlegar frá 2025-07-23 — ekki nota í meðaltöl." });
+        untrusted_note: "Pinnacle lines unreliable since 2025-07-23 — do not use in averages." });
       allRows.push(...rows);
       fetchedSeasons++;
-      console.log(`fdcouk E0-${ss}: ${rows.length} leikir`);
+      console.log(`fdcouk E0-${ss}: ${rows.length} matches`);
       await new Promise(r => setTimeout(r, 600));
     } catch (e) { console.warn(`fdcouk E0-${ss}: ${e.message}`); }
   }
@@ -1039,7 +1039,7 @@ async function fetchHistoricalE0() {
   }
   await writeJSON("fdcouk/referees.json", {
     updated: status.updated, seasons: SEASONS, league_avg_yellow_pg: +leagueAvgY.toFixed(2),
-    note: "card_index > 1 = fleiri spjöld en meðal-dómari. Nýtist í bann-hættu leikmanna.",
+    note: "card_index > 1 = more cards than the average referee. Feeds player suspension risk.",
     referees: refOut,
   });
 
@@ -1079,7 +1079,7 @@ async function fetchHistoricalE0() {
   }
   await writeJSON("fdcouk/h2h.json", {
     updated: status.updated, seasons: SEASONS,
-    note: "Lyklað 'HomeTeam|AwayTeam' með fdcouk-nöfnum. Sögulegt mynstur, ekki spá.",
+    note: "Keyed 'HomeTeam|AwayTeam' with fdcouk names. A historical pattern, not a forecast.",
     pairs: h2hOut,
   });
 
@@ -1147,7 +1147,7 @@ async function fetchWeather() {
         wind_kmh: w.hourly?.wind_speed_10m?.[i] ?? null,
         gust_kmh: w.hourly?.wind_gusts_10m?.[i] ?? null });
       await new Promise(r => setTimeout(r, 300));
-    } catch (e) { console.warn(`veður fixture ${f.id}: ${e.message}`); }
+    } catch (e) { console.warn(`weather fixture ${f.id}: ${e.message}`); }
   }
   await writeJSON("weather.json", { updated: status.updated, fixtures: out });
   record("weather", true, out.length);
@@ -1203,7 +1203,7 @@ async function fetchEuro() {
   ]) {
     try {
       const r = await fetchT(durl, { headers: { "User-Agent": UA } });
-      if (!r.ok) { console.log(`Evrópa uppgötvun ${durl.slice(-30)}: HTTP ${r.status}`); continue; }
+      if (!r.ok) { console.log(`Europe discovery ${durl.slice(-30)}: HTTP ${r.status}`); continue; }
       const j = await r.json();
       // ESPN skilar ýmsum formum — grípum öll 'slug'/'id' sem líkjast keppnikóða
       const codes = new Set();
@@ -1216,13 +1216,13 @@ async function fetchEuro() {
       walk(j);
       discovered = [...codes];
       const relevant = discovered.filter(c => /uefa|^eng\.|fifa\.cwc/i.test(c));
-      console.log(`Evrópa uppgötvun: ${discovered.length} kóðar, viðeigandi (${relevant.length}): ${relevant.join(", ")}`);
+      console.log(`Europe discovery: ${discovered.length} codes, relevant (${relevant.length}): ${relevant.join(", ")}`);
       // Æfingarleikir: LOGGA en EKKI nota. Þeir mega ekki skekkja álagsreikning
       // (falskar tvöfaldar umferðir). Sjá FRIENDLY_BLOCK neðar.
       const friendlyCodes = discovered.filter(c => /friendly|friendlies|preseason|pre_season/i.test(c));
-      if (friendlyCodes.length) console.log(`Æfingarleikja-kóðar (EKKI notaðir): ${friendlyCodes.join(", ")}`);
+      if (friendlyCodes.length) console.log(`Friendly codes (NOT used): ${friendlyCodes.join(", ")}`);
       if (discovered.length) break;
-    } catch (e) { console.log(`Evrópa uppgötvun brást: ${e.message}`); }
+    } catch (e) { console.log(`Europe discovery failed: ${e.message}`); }
   }
 
   // --- (a) ESPN: nota uppgötvaða kóða ef til, annars kandídata ---
@@ -1238,17 +1238,17 @@ async function fetchEuro() {
   const ESPN_CODES = (discovered.length
     ? [...new Set([...discovered.filter(c => /uefa|^eng\.(fa|league_cup|charity)|fifa\.cwc/i.test(c)), ...CANDIDATES])]
     : CANDIDATES).filter(c => !FRIENDLY_BLOCK.test(c));
-  console.log(`Evrópa: prófa ${ESPN_CODES.length} kóða`);
+  console.log(`Europe: trying ${ESPN_CODES.length} codes`);
   const d1 = today.replace(/-/g, "");
   const end = new Date(Date.now() + 150 * 86400000).toISOString().slice(0, 10).replace(/-/g, "");
   for (const code of ESPN_CODES) {
     const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${code}/scoreboard?dates=${d1}-${end}`;
     try {
       const r = await fetchT(url, { headers: { "User-Agent": UA } });
-      if (!r.ok) { console.log(`Evrópa ESPN ${code}: HTTP ${r.status}`); continue; }
+      if (!r.ok) { console.log(`Europe ESPN ${code}: HTTP ${r.status}`); continue; }
       const j = await r.json();
       const evs = j.events || [];
-      console.log(`Evrópa ESPN ${code}: OK, ${evs.length} viðureignir`);
+      console.log(`Europe ESPN ${code}: OK, ${evs.length} fixtures`);
       if (evs.length) found.push(`espn:${code}(${evs.length})`);
       for (const e of evs) {
         const comp = (e.competitions || [])[0];
@@ -1260,7 +1260,7 @@ async function fetchEuro() {
         matches.push({ comp: code, date: e.date, home: teams[0], away: teams[1] });
       }
       await new Promise(r => setTimeout(r, 350));
-    } catch (e) { console.log(`Evrópa ESPN ${code}: ${e.message}`); }
+    } catch (e) { console.log(`Europe ESPN ${code}: ${e.message}`); }
   }
 
   // --- (b) football-data.org (aðeins ef lykill er til) ---
@@ -1274,10 +1274,10 @@ async function fetchEuro() {
         const r = await fetchT(
           `https://api.football-data.org/v4/competitions/${comp}/matches?dateFrom=${today}&dateTo=${dTo}`,
           { headers: { "X-Auth-Token": euroKey, "User-Agent": UA } });
-        if (!r.ok) { console.log(`Evrópa fd.org ${comp}: HTTP ${r.status}`); continue; }
+        if (!r.ok) { console.log(`Europe fd.org ${comp}: HTTP ${r.status}`); continue; }
         const j = await r.json();
         const ms = j.matches || [];
-        console.log(`Evrópa fd.org ${comp}: OK, ${ms.length} leikir`);
+        console.log(`Europe fd.org ${comp}: OK, ${ms.length} matches`);
         found.push(`fdorg:${comp}(${ms.length})`);
         for (const m of ms) {
           const h = m.homeTeam?.shortName || m.homeTeam?.name, a = m.awayTeam?.shortName || m.awayTeam?.name;
@@ -1287,10 +1287,10 @@ async function fetchEuro() {
           seen.add(key);
           matches.push({ comp, date: m.utcDate, home: h, away: a });
         }
-      } catch (e) { console.log(`Evrópa fd.org ${comp}: ${e.message}`); }
+      } catch (e) { console.log(`Europe fd.org ${comp}: ${e.message}`); }
     }
   } else {
-    console.log("Evrópa: EURO_API_KEY vantar — sleppi football-data.org (ESPN reynt samt)");
+    console.log("Europe: EURO_API_KEY missing — skipping football-data.org (ESPN still tried)");
   }
 
   // --- (c) ÞÁTTTAKA 2026/27: hverjir eru í Evrópu, þótt leikir séu ódregnir.
@@ -1301,7 +1301,7 @@ async function fetchEuro() {
       try {
         const r = await fetchT(`https://api.football-data.org/v4/competitions/${comp}/teams`,
           { headers: { "X-Auth-Token": euroKey, "User-Agent": UA } });
-        if (!r.ok) { console.log(`Þátttaka ${comp}: HTTP ${r.status}`); continue; }
+        if (!r.ok) { console.log(`Participation ${comp}: HTTP ${r.status}`); continue; }
         const j = await r.json();
         const season = j.season?.startDate ? j.season.startDate.slice(0, 4) : "?";
         const tms = j.teams || [];
@@ -1314,9 +1314,9 @@ async function fetchEuro() {
             eng++;
           }
         }
-        console.log(`Þátttaka ${comp}: tímabil ${season}, ${tms.length} lið, ${eng} ensk`);
+        console.log(`Participation ${comp}: season ${season}, ${tms.length} clubs, ${eng} English`);
         found.push(`part:${comp}(${eng}eng)`);
-      } catch (e) { console.log(`Þátttaka ${comp}: ${e.message}`); }
+      } catch (e) { console.log(`Participation ${comp}: ${e.message}`); }
     }
   }
 
@@ -1339,9 +1339,9 @@ async function fetchEuro() {
     }
     out.push({ comp: m.comp, date: m.date, home: m.home, away: m.away, home_fpl: hId, away_fpl: aId });
   }
-  if (stale) console.log(`Evrópa: sleppti ${stale} úreltum leikjum (dagsetning fyrir ${today})`);
-  if (friendlySkipped) console.log(`Evrópa: sleppti ${friendlySkipped} æfingarleikjum (ekki keppnisleikir)`);
-  if (unmatched.size) console.log(`Evrópa: ópöruð ensk-lík nöfn: ${[...unmatched].slice(0,8).join(" | ")}`);
+  if (stale) console.log(`Europe: skipped ${stale} stale matches (dated before ${today})`);
+  if (friendlySkipped) console.log(`Europe: skipped ${friendlySkipped} friendlies (not competitive matches)`);
+  if (unmatched.size) console.log(`Europe: unmatched English-looking names: ${[...unmatched].slice(0,8).join(" | ")}`);
 
   // Álag per lið: fjöldi Evrópuleikja og dagsetningar (framendinn parar við FPL-umferðir)
   const byTeam = {};
@@ -1352,13 +1352,22 @@ async function fetchEuro() {
     });
   });
 
+  /* ENSK HEITI — VIDMOTID ER ENSKT OG ThESSI ERU BIRT.
+     Voru islensk ("Meistaradeild", "Ofurbikar", "Ligubikar") og rotudu
+     beint inn i leikjalistann a leikmannaspjaldinu: maelt 9.8.2026 bar
+     spjald Aston Villa-manns "Ofurbikar" i enskri toflu, og eftir drattinn
+     hefdi "Meistaradeild" birst a sex felogum.
+
+     `src/model.js` (COMP_EN) thydir lika eftir `comp`-audkenninu, svo
+     appid er varid thott GOMUL gogn seu enn i data/. Bædi eru til
+     staðar viljandi: hér er upprunin lagfaerdur, thar er vornin.        */
   const COMP_LABEL = {
-    "uefa.champions":"Meistaradeild", "uefa.europa":"Evrópudeild",
-    "uefa.europa.conf":"Sambandsdeild", "uefa.super_cup":"Ofurbikar",
-    "eng.fa":"FA Cup", "eng.league_cup":"Ligubikar", "eng.charity":"Community Shield",
-    "uefa.champions_qual":"Meistarad. forkeppni", "uefa.europa_qual":"Evrópud. forkeppni",
-    "uefa.conf_qual":"Sambandsd. forkeppni",
-    "fifa.cwc":"HM félagsliða", CL:"Meistaradeild", EL:"Evrópudeild",
+    "uefa.champions":"Champions League", "uefa.europa":"Europa League",
+    "uefa.europa.conf":"Conference League", "uefa.super_cup":"Super Cup",
+    "eng.fa":"FA Cup", "eng.league_cup":"League Cup", "eng.charity":"Community Shield",
+    "uefa.champions_qual":"UCL qualifying", "uefa.europa_qual":"UEL qualifying",
+    "uefa.conf_qual":"UECL qualifying",
+    "fifa.cwc":"Club World Cup", CL:"Champions League", EL:"Europa League",
   };
   out.forEach(m => { m.comp_label = COMP_LABEL[m.comp] || m.comp; });
   Object.values(byTeam).forEach(arr => arr.forEach(x => { x.comp_label = COMP_LABEL[x.comp] || x.comp; }));
@@ -1366,7 +1375,7 @@ async function fetchEuro() {
   await writeJSON("euro_fixtures.json", {
     updated: status.updated, sources_ok: found,
     fixtures: out, by_team: byTeam, participation,
-    note: "Evrópu- og bikarleikir enskra liða. by_team lyklað á FPL team id. participation = hvaða keppni lið er í 2026/27 (nothæft þótt leikir séu ódregnir).",
+    note: "European and cup matches for English clubs. by_team is keyed on FPL team id. participation = which competition a club is in for 2026/27 (usable even before the draw is made).",
   });
   record("euro_fixtures", true, out.length,
     `${stale} stale skipped · ${found.length ? found.join(",") : "no source answered"}`);
@@ -1391,20 +1400,20 @@ async function fetchEuro() {
    ~8,4 köll/mán x 3 = ~25 kredit af 500.                                  */
 async function shouldFetchOdds() {
   let events = [];
-  try { events = JSON.parse(await readFile(`${DATA}/events.json`, "utf8")).events; } catch { return { go: true, why: "engin events" }; }
+  try { events = JSON.parse(await readFile(`${DATA}/events.json`, "utf8")).events; } catch { return { go: true, why: "no events" }; }
   const next = events.find(e => e.deadline_time && new Date(e.deadline_time) > new Date());
-  if (!next) return { go: false, why: "engin umferð framundan" };
+  if (!next) return { go: false, why: "no gameweek ahead" };
   const hrs = (new Date(next.deadline_time) - new Date()) / 3600000;
   const inSharp = hrs > 0 && hrs <= 36;
   const inPlan  = hrs >= 144 && hrs <= 192;      // 6-8 dagar
-  if (!inSharp && !inPlan) return { go: false, why: `${Math.round(hrs)} klst í frest GW${next.id} — utan glugga` };
+  if (!inSharp && !inPlan) return { go: false, why: `${Math.round(hrs)}h to the GW${next.id} deadline — outside the window` };
   // ekki sækja tvisvar í sama glugga
   try {
     const prev = JSON.parse(await readFile(`${DATA}/odds.json`, "utf8"));
     const age = (new Date() - new Date(prev.updated)) / 3600000;
     const win = inSharp ? "sharp" : "plan";
     if (prev.window === win && age < 30)
-      return { go: false, why: `${win}-gluggi þegar sóttur f. ${Math.round(age)} klst` };
+      return { go: false, why: `${win} window already fetched ${Math.round(age)}h ago` };
   } catch {}
   return { go: true, why: inSharp ? "sharp" : "plan", window: inSharp ? "sharp" : "plan", gw: next.id };
 }
@@ -1472,11 +1481,11 @@ async function fetchInjuries() {
       plan = `REIKNINGUR I VANDRAEDUM: ${String(accErr).slice(0, 90)}`;
       record("apisports_account", false, 0, plan);
     } else if (acc) {
-      plan = `${acc} · ${cur}/${lim} köll í dag`;
+      plan = `${acc} · ${cur}/${lim} calls today`;
       /* Vidvorun ADUR en kvotinn thrytur, ekki eftir. */
       const near = lim && cur != null && cur / lim > 0.8;
       record("apisports_account", true, cur ?? 0,
-        `${acc} · ${cur}/${lim} koll i dag${near ? " — YFIR 80% AF KVOTA" : ""}`);
+        `${acc} · ${cur}/${lim} calls today${near ? " — OVER 80% OF QUOTA" : ""}`);
     } else {
       plan = "svar an threps-upplysinga";
       record("apisports_account", false, 0, plan);
@@ -1484,7 +1493,7 @@ async function fetchInjuries() {
     console.log(`API-Sports: ${plan}`);
   } catch (e) {
     console.warn("API-Sports /status:", e.message);
-    record("apisports_account", false, 0, `/status brast: ${String(e.message).slice(0, 80)}`);
+    record("apisports_account", false, 0, `/status failed: ${String(e.message).slice(0, 80)}`);
   }
 
   /* EMPÍRÍSKT MÆLT (keyrsla 2026-07-26): season=2026 er LÆST á fría
@@ -1499,7 +1508,7 @@ async function fetchInjuries() {
   let d = await apiSports(`/injuries?league=39&season=${seasonYear}`);
   let via = `league+season=${seasonYear}`;
   if (!d.response?.length) {
-    if (errTxt(d)) console.warn(`API-Sports injuries (${via}): ${errTxt(d)} — nota leikdaga-leiðina`);
+    if (errTxt(d)) console.warn(`API-Sports injuries (${via}): ${errTxt(d)} — using the matchday route`);
     /* EMPÍRÍSKT MÆLT (keyrsla 2): fría þrepið leyfir aðeins ±1 DAGS
        glugga kringum daginn í dag ("try from <í gær> to <á morgun>").
        Við spyrjum því AÐEINS um leikdaga innan þess glugga — í reynd:
@@ -1575,30 +1584,30 @@ async function fetchInjuries() {
     else unmatched.push(`${rec.name_api} (${rec.team_api})`);
   }
   await writeJSON("injuries.json", { updated: status.updated, plan, via,
-    note: "Tegund og ástæða meiðsla úr API-Sports /injuries fyrir komandi leikdaga. FPL-status ræður áfram tiltækileika; þetta AUÐGAR hann. Fyrir tímabil (engir leikdagar framundan innan glugga) er listinn eðlilega tómur.",
+    note: "Injury type and reason from API-Sports /injuries for upcoming matchdays. FPL status still governs availability; this ENRICHES it. In preseason (no matchdays ahead inside the window) the list is empty, as it should be.",
     players: out, unmatched });
   /* "0 paraðir" er RETT utkoma fyrir timabil, ekki bilun — sja hlid 2 i
      kafla 6e i CLAUDE.md. Merkjum thad svo enginn fjarlaegi tenginguna
      a theim forsendum ad hun se brotin.                                  */
   record("apisports_injuries", true, out.length,
     out.length === 0 && /leikdag/i.test(via)
-      ? `${via} — RETT preseason-utkoma, 0 koll notud (fyrsta raunprofun 20.-21. agust)`
-      : `${via} · ${out.length} paraðir · ${unmatched.length} óparaðir · ${d.remaining ?? "?"} köll eftir í dag`);
+      ? `${via} — CORRECT preseason outcome, 0 calls used (first real test 20-21 August)`
+      : `${via} · ${out.length} matched · ${unmatched.length} unmatched · ${d.remaining ?? "?"} calls left today`);
 }
 
 async function fetchOdds() {
   const key = process.env.ODDS_API_KEY;
-  if (!key) { record("odds", false, 0, "ODDS_API_KEY vantar"); return; }
+  if (!key) { record("odds", false, 0, "ODDS_API_KEY missing"); return; }
   const gate = await shouldFetchOdds();
-  console.log(`Odds-hlið: ${gate.go ? "SÆKI" : "sleppi"} — ${gate.why}`);
-  if (!gate.go) { record("odds", true, 0, `sleppt: ${gate.why}`); return; }
+  console.log(`Odds gate: ${gate.go ? "FETCH" : "skip"} — ${gate.why}`);
+  if (!gate.go) { record("odds", true, 0, `skipped: ${gate.why}`); return; }
 
   const url = `https://api.the-odds-api.com/v4/sports/soccer_epl/odds/?apiKey=${key}`
     + `&regions=uk&markets=h2h,totals,spreads&oddsFormat=decimal&dateFormat=iso`;
   const r = await fetchT(url, { headers: { "User-Agent": UA } });
   const remaining = r.headers.get("x-requests-remaining");
   const used = r.headers.get("x-requests-used");
-  console.log(`Odds API: eftir=${remaining} notað=${used}`);
+  console.log(`Odds API: remaining=${remaining} used=${used}`);
   if (!r.ok) { record("odds", false, 0, `HTTP ${r.status}`); return; }
   const raw = await r.json();
 
@@ -1688,12 +1697,12 @@ async function fetchOdds() {
       diff: marketDiff(hxg), opp: hs, home: false, kickoff: g.commence_time,
       method, lambda: +lambda.toFixed(2), books: pick.map(b => b.title) };
   }
-  if (unmatched.size) console.warn(`Odds: ópöruð nöfn: ${[...unmatched].join(" | ")}`);
+  if (unmatched.size) console.warn(`Odds: unmatched names: ${[...unmatched].join(" | ")}`);
 
   await writeJSON("odds.json", {
     updated: status.updated, window: gate.window || null, gw: gate.gw || null,
     requests_remaining: remaining ? +remaining : null,
-    note: "CS% úr Poisson á væntum mörkum mótherja. 'opp' og 'kickoff' STAÐFESTA að línan gildi um réttan leik.",
+    note: "CS% from a Poisson on the opponent's expected goals. 'opp' and 'kickoff' CONFIRM that the line refers to the right match.",
     teams,
   });
   record("odds", true, games, `${gate.window} · ${Object.keys(teams).length} teams · ${remaining} credits left`);
@@ -1734,7 +1743,7 @@ async function fetchFast() {
     updated: new Date().toISOString(),
     current_gw: cur?.id ?? null, next_gw: next?.id ?? null,
     next_deadline: next?.deadline_time ?? null,
-    note: "Fljótandi svið uppfærð á 30 mín. Framendinn leggur þetta OFAN Á players.json.",
+    note: "Volatile fields refreshed every 30 min. The front end layers this ON TOP OF players.json.",
     players: volatile, price_changes: prices,
   });
 
@@ -1777,7 +1786,7 @@ async function fetchFast() {
     catch (e) { record("bsd_odds", false, 0, e.message); }
   }
 
-  console.log(`HRAÐUR: ${volatile.length} leikmenn m. frétt/vafa/verðbreytingu, ${prices.length} verðbreytingar`);
+  console.log(`FAST: ${volatile.length} players with news/doubt/price change, ${prices.length} price changes`);
   record("fast_news", true, volatile.length, `${prices.length} price changes`);
   await writeJSON("status_fast.json", status);
 }
@@ -1821,7 +1830,7 @@ async function bsdCurrentSeason() {
    yfir GW1-4 (sama regla og allt annad i kafla 3).                    */
 async function fetchBsdLineups() {
   const season = await bsdCurrentSeason();
-  if (!season) { record("bsd_lineups", true, 0, "ekkert timabil"); return; }
+  if (!season) { record("bsd_lineups", true, 0, "no season"); return; }
   const d = await bsdGet(`/events/?league_id=${BSD_LEAGUE}&season_id=${season}&status=notstarted&limit=30`);
   const now = Date.now();
   /* Adeins leikir innan 24 klst — glugginn maeldist ~11-13 klst, svo
@@ -1831,7 +1840,7 @@ async function fetchBsdLineups() {
     return Number.isFinite(t) && t > now && t - now < 24 * 3600e3;
   });
   if (!soon.length) {
-    record("bsd_lineups", true, 0, "engir leikir innan 24 klst (spa-glugginn er ~13 klst)");
+    record("bsd_lineups", true, 0, "no matches within 24h (the prediction window is ~13h)");
     return;
   }
   /* VID SKRIFUM OFAN A, EKKI YFIR: fyrri spar mega ekki tapast, thvi
@@ -1856,14 +1865,14 @@ async function fetchBsdLineups() {
   }
   await writeJSON("bsd_lineups.json", {
     updated: new Date().toISOString(), season_id: season,
-    note: "SPAD byrjunarlid ur BSD, geymt til MAELINGAR — ekki notad i neinni "
-        + "akvordun. Spain er ekki geymd afturvirkt (loknir leikir skila "
-        + "'confirmed'), svo hun tapast ef hun er ekki soft fyrir leik. "
-        + "Glugginn maeldist ~11-13 klst fyrir leik. `ai_score` er theirra "
-        + "eigin likan og hefur EKKI verid maelt gegn okkar 6h-likani.",
+    note: "PREDICTED line-ups from BSD, kept FOR MEASUREMENT — used in no "
+        + "decision. The prediction is not stored retroactively (finished matches return "
+        + "'confirmed'), so it is lost unless fetched before kick-off. "
+        + "The window measured at ~11-13h before kick-off. `ai_score` is their "
+        + "own model and has NOT been measured against our 6h model.",
     events: prev,
   });
-  record("bsd_lineups", true, got, `${soon.length} leikir i glugga, ${got} ny skot`);
+  record("bsd_lineups", true, got, `${soon.length} matches in window, ${got} new shots`);
 }
 /* Adeins thad sem tharf til maelingar: hver atti ad byrja og med hvada
    oryggi. Bekkurinn er 24-33 manns hja BSD og segir ekkert.           */
@@ -1891,7 +1900,7 @@ function sideOf(s) {
    var thvi MAELD OG SLEPPT sem suð.                                    */
 async function fetchBsdOdds() {
   const season = await bsdCurrentSeason();
-  if (!season) { record("bsd_odds", true, 0, "ekkert timabil"); return; }
+  if (!season) { record("bsd_odds", true, 0, "no season"); return; }
   const d = await bsdGet(`/events/?league_id=${BSD_LEAGUE}&season_id=${season}&status=notstarted&limit=20`);
   const out = {};
   let priced = 0;
@@ -1910,15 +1919,15 @@ async function fetchBsdOdds() {
   }
   await writeJSON("bsd_odds.json", {
     updated: new Date().toISOString(), season_id: season,
-    note: "VARALEID vid odds.json (Odds-API), ekki utskipting. BSD hefur "
-        + "ENGAN asiskan forgjafar-markad, svo linan er reiknud gegnum "
-        + "marketGoals() 'totals+h2h'-leidina — MAELD jafngod spread-leidinni "
-        + "a 2.658 E0-leikjum (r 0,3958 a moti 0,3950). Oddar BSD na adeins "
-        + "~4 daga fram, svo skrain er tom utan thess glugga og thad er RETT.",
+    note: "A FALLBACK for odds.json (Odds-API), not a replacement. BSD has "
+        + "NO Asian handicap market, so the line is computed through the "
+        + "marketGoals() 'totals+h2h' route — MEASURED as good as the spread route "
+        + "over 2,658 E0 matches (r 0.3958 against 0.3950). BSD odds only reach "
+        + "~4 days ahead, so the file is empty outside that window and that is CORRECT.",
     events: out,
   });
   record("bsd_odds", true, priced,
-         priced ? `${priced} leikir verdlagdir` : "engir leikir innan ~4 daga odds-gluggans");
+         priced ? `${priced} matches priced` : "no matches within the ~4 day odds window");
 }
 
 /* ---- YFIRSTANDANDI TIMABIL: BSD-LEIKMANNATOLUR ----
@@ -2030,9 +2039,9 @@ async function fetchBsdLive() {
   const label = await seasonLabelFromEvents();
   await writeJSON("bsd_live.json", {
     updated: status.updated, source: "bsd_v2_live", season_id: season, season: label,
-    note: "Yfirstandandi timabil ur BSD, VIÐBOTARLEGT: adeins nyir loknir leikir eru "
-        + "sottir og lagdir vid uppsafnadar summur (`_acc`). Somu formulur og "
-        + "bsd_players.json — badar nota src/bsd.js. Appid les `players`/`shots`.",
+    note: "Current season from BSD, INCREMENTAL: only newly finished matches are "
+        + "fetched and added to the accumulated totals (`_acc`). Same formulas as "
+        + "bsd_players.json — both use src/bsd.js. The app reads `players`/`shots`.",
     matches: done.size,
     events: [...done].sort((a, b) => a - b),
     players, shots, positions,
@@ -2046,7 +2055,7 @@ async function fetchBsdLive() {
    Allt hér er reiknað úr gögnum sem eru ÞEGAR sótt. Kostar ekkert.
    Hvert lag í sínu try/catch og telur raðir í status.json.              */
 
-const LONG_TRIP_KM = 300;   // þröskuldur fyrir "langt ferðalag"
+const LONG_TRIP_KM = 300;   // þröskuldur fyrir "long trip"
 
 // Haversine — fjarlægð milli leikvanga í km
 function haversineKm(lat1, lon1, lat2, lon2) {
@@ -2075,10 +2084,10 @@ async function deriveTravel() {
       km, is_long_trip: km > LONG_TRIP_KM,
     });
   }
-  if (missing) console.warn(`Ferðalengd: ${missing} leikir án hnita`);
+  if (missing) console.warn(`Travel: ${missing} matches without coordinates`);
   await writeJSON("travel.json", {
     updated: status.updated, long_trip_km: LONG_TRIP_KM,
-    note: "km = haversine milli leikvanga. Gildir um ÚTILIÐIÐ (away_fpl_id).",
+    note: "km = haversine between stadiums. Applies to the AWAY SIDE (away_fpl_id).",
     fixtures: out,
   });
   const longs = out.filter(x => x.is_long_trip).length;
@@ -2131,7 +2140,7 @@ async function deriveGameweekShape() {
 
   await writeJSON("gameweek_shape.json", {
     updated: status.updated,
-    note: "blanks = lið með 0 leiki í umferð, doubles = 2+. cup_exited null = óþekkt (bikarar ódregnir).",
+    note: "blanks = clubs with 0 matches in a gameweek, doubles = 2+. cup_exited null = unknown (cups not yet drawn).",
     cup_status: cupStatus, shape,
   });
   const nB = shape.reduce((a, s) => a + s.blanks.length, 0);
@@ -2194,13 +2203,13 @@ async function deriveRotation() {
   const flagged = out.filter(x => x.euro_before || x.euro_after).length;
   await writeJSON("rotation.json", {
     updated: status.updated,
-    note: "rest_days = dagar frá SÍÐASTA leik liðsins í hvaða keppni sem er (úr kickoff_time). euro_before/after = Evrópu-/bikarleikur 2-4 dögum fyrir/eftir.",
+    note: "rest_days = days since the club's LAST match in any competition (from kickoff_time). euro_before/after = a European or cup match 2-4 days before/after.",
     /* Mælt 29.7.2026: hvíld hefur ekkert forspárgildi um mínútur (27,0% á
        móti 27,3% spila 60+ eftir <4 daga hvíld, n=10.448). Talningin var
        tekin úr status svo hún lesist ekki sem hætta. Evrópu-nálægð er
        ÓMÆLD og heldur sér. */
     rest_measured: { short_rest_60plus: 0.270, other_60plus: 0.273,
-                     samples: 10448, verdict: "engin ahrif — ekki hættumerki" },
+                     samples: 10448, verdict: "no effect — not a warning sign" },
     rows: out,
   });
   record("rotation", true, out.length, `${flagged} with a European match nearby (rest measured useless, not flagged)`);
@@ -2231,7 +2240,7 @@ async function deriveLuck() {
       if (t) (wood[t] ||= { for: 0, against: 0 }).for++;
       if (o) (wood[o] ||= { for: 0, against: 0 }).against++;
     }
-    console.log(`treverk ur BSD: ${Object.keys(wood).length} lid`);
+    console.log(`woodwork from BSD: ${Object.keys(wood).length} clubs`);
   } catch { /* skrain ma vanta — tha helst null, sem er RETT */ }
 
   // 2) LIÐ-STIG: mörk vs xG úr E0 (heilt) + xGC úr FPL-markverði
@@ -2301,9 +2310,9 @@ async function deriveLuck() {
 
   await writeJSON("luck.json", {
     updated: status.updated,
-    note: "woodwork kemur ur BSD-skotakortinu (eigin utkomu-tegund 'post'), 2025/26 eingongu. " +
-          "goals ur E0 (heilt), xg ur FPL-summu sem VANTAR ~19% (leikmenn sem foru ur deildinni) " +
-          "-> xg_incomplete:true. Nyliðar og lid an BSD-gagna fa woodwork null (EKKI null-tolu).",
+    note: "woodwork comes from the BSD shot map (its own outcome type 'post'), 2025/26 only. " +
+          "goals from E0 (complete), xg from the FPL sum which is MISSING ~19% (players who left the league) " +
+          "-> xg_incomplete:true. Promoted clubs and clubs without BSD data get woodwork null (NOT a zero).",
     teams: teamOut,
     players: Object.values(playerAgg),
   });
@@ -2325,13 +2334,13 @@ async function deriveTeamForm() {
   try {
     const j = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2526.json`, "utf8"));
     rows = j.rows; header = j.header;
-  } catch { record("team_form", false, 0, "E0-2526 vantar"); return; }
+  } catch { record("team_form", false, 0, "E0-2526 missing"); return; }
   // FYRRA tímabil líka — MÆLING sýnir að 2-tímabila blöndun bætir miðjumanna-spá
   // um +0,014 í fylgni (45% vog á tímabilið á undan).
   try { rowsPrev = JSON.parse(await readFile(`${DATA}/fdcouk/E0-2425.json`, "utf8")).rows; } catch {}
 
   // REGLA: prenta raunverulega header-röð, ekki treysta lista
-  console.log(`E0-2526 header (${header.length} kolónur): ${header.join(",")}`);
+  console.log(`E0-2526 header (${header.length} columns): ${header.join(",")}`);
 
   const agg = {};
   for (const r of rows) {
@@ -2384,8 +2393,8 @@ async function deriveTeamForm() {
   });
   await writeJSON("team_form.json", {
     updated: status.updated, season: "2025-26", header_columns: header.length,
-    note: "ÚR E0, HEILT (380 leikir). Notið þetta fyrir LIÐ-styrk — FPL-summur " +
-          "vantar ~19% því leikmenn sem fóru úr deildinni eru fjarlægðir úr bootstrap.",
+    note: "FROM E0, COMPLETE (380 matches). Use this for CLUB strength — FPL sums " +
+          "are missing ~19% because players who left the league are removed from bootstrap.",
     teams: out,
   });
   const withData = out.filter(x => x.matches > 0).length;
@@ -2403,7 +2412,7 @@ async function deriveFormFeatures() {
   if (!finished.length) {
     await writeJSON("form_features.json", {
       updated: status.updated, gws_used: 0, mode: "preseason",
-      note: "Engar loknar umferðir — fittaða líkanið þarf ~5 umferðir. Framendinn notar fyrir-tímabils-ham.",
+      note: "No finished gameweeks — the fitted model needs ~5. The front end uses preseason mode.",
       players: [],
     });
     record("form_features", true, 0, "no finished gameweeks (preseason)");
@@ -2448,9 +2457,9 @@ async function deriveFormFeatures() {
     updated: status.updated, gws_used: gws.length,
     window_5: last5, window_10: last10,
     mode: gws.length >= 5 ? "fitted" : "warmup",
-    note: "Rúllandi eiginleikar úr live-gögnum, umferð fyrir umferð. " +
-          "mins5 er ríkjandi þáttur skv. mælingu út-af-úrtaki (2025/26, 19.448 sýni). " +
-          "mode:'warmup' þýðir undir 5 umferðir — framendinn á að lækka confidence.",
+    note: "Rolling features from live data, gameweek by gameweek. " +
+          "mins5 is the dominant term by out-of-sample measurement (2025/26, 19,448 samples). " +
+          "mode:'warmup' means fewer than 5 gameweeks — the front end should lower confidence.",
     players: out,
   });
   record("form_features", true, out.length, `${gws.length} gameweeks · mode=${gws.length >= 5 ? "fitted" : "warmup"}`);
@@ -2535,7 +2544,7 @@ async function buildLiveGwReport(gw) {
     players  = (await jread("players.json")).players;
     fixtures = await jread("fixtures.json");
     teams    = (await jread("teams.json")).teams;
-  } catch (e) { console.warn(`last_gw: live-leid brast (${e.message}) — fell a safn`); return null; }
+  } catch (e) { console.warn(`last_gw: the live route failed (${e.message}) — falling back to the archive`); return null; }
   if (!live?.elements?.length) return null;
 
   const tById = {}; teams.forEach(t => tById[t.id] = t);
@@ -2580,7 +2589,7 @@ async function buildLiveGwReport(gw) {
   const label = await seasonLabelFromEvents();
   await writeJSON("last_gw.json", {
     updated: status.updated, season: label, gw, archive: false,
-    source: "fpl-live", note: "Ur FPL event/{gw}/live/ um pipeline. Lida-tolur (skot, skot a mark) ur football-data.co.uk E0.",
+    source: "fpl-live", note: "From FPL event/{gw}/live/ via the pipeline. Club figures (shots, shots on target) from football-data.co.uk E0.",
     missing: MISSING_NOTE, fixtures: outFx, players: outPl,
   });
   return { season: label, players: outPl };
@@ -2605,7 +2614,7 @@ async function buildArchiveGwReport() {
       if (parsed.length) { gw = g; rows = parsed; break; }
     } catch { /* naesta nidur */ }
   }
-  if (!gw) { record("last_gw", false, 0, `engin gw-skra i speglun fyrir ${ARCHIVE_SEASON}`); return; }
+  if (!gw) { record("last_gw", false, 0, `no gameweek file in the mirror for ${ARCHIVE_SEASON}`); return; }
 
   let e0 = null;
   const e0File = `fdcouk/E0-${ARCHIVE_SEASON.slice(2,4)}${ARCHIVE_SEASON.slice(5)}.json`; // E0-2526.json
@@ -2814,7 +2823,7 @@ function shotFoot(text) {
 async function fetchEspnShots() {
   let base;
   try { base = JSON.parse(await readFile(`${DATA}/last_gw.json`, "utf8")); } catch {
-    record("espn_shots", false, 0, "last_gw.json vantar — keyrdu deriveLastGwReport fyrst");
+    record("espn_shots", false, 0, "last_gw.json missing — run deriveLastGwReport first");
     return;
   }
   const dates = [...new Set((base.fixtures || []).map(f => String(f.kickoff).slice(0,10)).filter(Boolean))];
@@ -2840,7 +2849,7 @@ async function fetchEspnShots() {
   let excluded = 0, matchedFx = 0;
   for (const f of base.fixtures || []) {
     const eid = espnByPair[`${f.h}|${f.a}`];
-    if (!eid) { console.warn(`espn: fann ekki ${f.h} v ${f.a}`); continue; }
+    if (!eid) { console.warn(`espn: could not find ${f.h} v ${f.a}`); continue; }
     let d;
     try { d = await getJSON(`${ESPN_SOCCER}/summary?event=${eid}`); }
     catch (e) { console.warn(`espn summary ${eid}: ${e.message}`); continue; }
@@ -2958,18 +2967,18 @@ async function fetchEspnShots() {
   await writeJSON("last_gw_shots.json", {
     updated: status.updated, season: base.season, gw: base.gw, archive: !!base.archive,
     source: "espn-site-api",
-    note: "Skot med hnitum ur ESPN commentary. X er FJARLAEGD FRA MARKI sem sott er ad "
-        + "(maelt: oll mork i CRY-ARS a lagu X thott badir skoruðu) — kortid er EINN vallarhelmingur. "
-        + "Woodwork er eigin skot-tegund hja ESPN ('Shot Hit Woodwork'). Svaedi og likamshluti "
-        + "eru lesin ur texta ESPN, ekki agiskud.",
+    note: "Shots with coordinates from ESPN commentary. X is the DISTANCE FROM THE GOAL BEING ATTACKED "
+        + "(measured: every goal in CRY-ARS sits at a low X even though both sides scored) — the map is ONE half of the pitch. "
+        + "Woodwork is its own shot type at ESPN ('Shot Hit Woodwork'). Zone and body part "
+        + "are read from the ESPN text, not guessed.",
     caveats: {
-      no_xg: "ESPN gefur ekki xG per skot, svo BIG CHANCES eru ekki reiknud. Umferdarskyrslan birtir xG per leikmann ur FPL i stadinn.",
+      no_xg: "ESPN gives no per-shot xG, so BIG CHANCES are not computed. The gameweek report shows per-player xG from FPL instead.",
       excluded: `${excluded} shots had no coordinates (0,0 = not recorded by ESPN) and are marked usable:false.`,
-      scale: "x er hlutfall af HALFUM velli: metrar fra marki = x * 52,5. Kvardad gegn svaedis-texta ESPN (markteigur 0,105 / vitateigur 0,314).",
-      no_touches: "Touches i teig og medalstadsetning eru ekki i ESPN-fædinu.",
-      created: "chances_created / cross_created / through_balls / setpiece_created eru LESIN UR TEXTA ESPN "
-             + "('Assisted by X with a cross following a corner') — 219 af 290 skotum (76%) nefna upplegg i GW38. "
-             + "Thetta eru krossar/through balls sem SKOPUDU SKOT, ekki hrar tolur.",
+      scale: "x is a share of HALF the pitch: metres from goal = x * 52.5. Calibrated against the ESPN zone text (six-yard box 0.105 / penalty area 0.314).",
+      no_touches: "Touches in the box and average position are not in the ESPN feed.",
+      created: "chances_created / cross_created / through_balls / setpiece_created are READ FROM THE ESPN TEXT "
+             + "('Assisted by X with a cross following a corner') — 219 of 290 shots (76%) mention an assist in GW38. "
+             + "These are crosses/through balls that CREATED A SHOT, not raw counts.",
     },
     fixtures: outFx, shots, players: Object.values(playerAgg),
   });
@@ -3141,17 +3150,17 @@ async function fetchPlayerSeasons() {
         if (live.has(String(code))) kept[code] = v; else dropped++;
       }
     }
-  } catch (e) { console.warn(`player_seasons: sia brast (${e.message}) — skrifa allt`); }
+  } catch (e) { console.warn(`player_seasons: the filter failed (${e.message}) — writing everything`); }
 
   const seasons = SEASON_DIRS.map(seasonLabel).filter(l => counts[l]);
   await writeJSON("player_seasons.json", {
     updated: status.updated, seasons, pool_sizes: counts,
     key: "code",
-    note: "Lokatolur fyrri timabila per leikmann ur vaastav-speglun FPL-gagna. "
-        + "PORAD A `code` (fast a leikmanni), EKKI `id` sem FPL endurnytir milli timabila. "
-        + "Saeti eru innan timabils og adeins medal theirra sem spiludu (minutur>0).",
+    note: "Final totals for earlier seasons per player from the vaastav mirror of FPL data. "
+        + "PAIRED ON `code` (fixed to a player), NOT `id`, which FPL reuses between seasons. "
+        + "Ranks are within a season and only among those who played (minutes>0).",
     field_availability: availability,
-    missing_note: "defensive_contribution kom fyrst 2025/26. Fyrir eldri timabil er hun null = VANTAR, ekki 0.",
+    missing_note: "defensive_contribution first appeared in 2025/26. For earlier seasons it is null = MISSING, not 0.",
     players: kept,
   });
   record("player_seasons", true, Object.keys(kept).length,
@@ -3217,7 +3226,7 @@ async function deriveImminent() {
     for (let g = 38; g >= 1; g--) {
       try { await getText(`${MIRROR}/${ARCHIVE_SEASON}/gws/gw${g}.csv`); top = g; break; } catch {}
     }
-    if (!top) { record("imminent", false, 0, "engin gw-skra i speglun"); return; }
+    if (!top) { record("imminent", false, 0, "no gameweek file in the mirror"); return; }
     gws = [];
     for (let g = Math.max(1, top - FETCH_WINDOW + 1); g <= top; g++) gws.push(g);
 
@@ -3281,10 +3290,10 @@ async function deriveImminent() {
         const short = shortById[p.team];
         if (short && short !== r.team) { r.team = short; moved++; }
       }
-      console.log(`  imminent: ${resolved} radir leystar a code, ${moved} faerdar a lid dagsins`);
+      console.log(`  imminent: ${resolved} rows resolved on code, ${moved} moved to today's club`);
     } catch (e) {
       /* Mistakist thetta er skrain EINS OG ADUR — verri, en ekki brotin. */
-      console.warn(`  imminent: gat ekki leyst code/lid (${e.message}) — radir bera lid fyrra timabils`);
+      console.warn(`  imminent: could not resolve code/club (${e.message}) — rows carry last season's club`);
     }
   }
 
@@ -3334,23 +3343,23 @@ async function deriveImminent() {
   await writeJSON("imminent.json", {
     updated: status.updated, season, archive, gws,
     window: IMM_WINDOW, start_window: START_WINDOW, fetched_gws: gws,
-    note: "Gluggi = sidustu " + IMM_WINDOW + " loknu umferdir. Studlarnir sjalfir eru reiknadir i "
-        + "src/stats.js (moScore/aoScore) svo profin keyri sama kóda og appid.",
+    note: "Window = the last " + IMM_WINDOW + " finished gameweeks. The coefficients themselves live in "
+        + "src/stats.js (moScore/aoScore) so the tests run the same code as the app.",
     measured: {
       samples: 13273, seasons: 3, gameweeks: 114,
-      mo: "Samsettur studull (xGI 0,8 + threat/25 0,3 + oheppni 0,2). Magnlidurinn "
-        + "var xG eitt fram ad 29.7.2026; xGI maeldist betri a 4 timabilum "
-        + "(lyfting 2,498 a moti 2,379 fyrir mork+assist, 3/4 timabil, engir nyir "
-        + "stikar). Ut af urtaki 2,888 "
-        + "a moti 2,696 (xG einn) og 2,779 (threat einn) — vinnur i 2/3 timabilum, jafnar i thvi thridja.",
-      ao: "BERT creativity/90. Samsettur AO-studull VAR profadur og FELL: 2,179 a moti 2,206 "
-        + "fyrir bera creativity, tapadi i 0/3 timabilum. xA-vogin valdist alltaf 0.",
-      pool: "Adeins leikmenn med 0-1 mark+assist i glugganum og 180+ minutur.",
-      start_prob: "start_feats/start_minutes eru fyrir BYRJUNAR-LIKUR (5 umferdir). "
-        + "MAELT a 65.557 synum: nakvaemni 88,0% a moti 88,2% fyrir 'byrjadi sidast' (JAFNT), "
-        + "en Brier 0,0888 a moti 0,1176 (-24%) og BEKKJAR-GILDRAN: laegsti tiundarhluti "
-        + "fangar 42-49% theirra sem falla a bekk thratt fyrir ad hafa byrjad (lyfting 2,09x). "
-        + "Hvild (<4 dagar) hafdi ENGIN ahrif og er thvi EKKI i likaninu.",
+      mo: "A composite index (xGI 0.8 + threat/25 0.3 + bad luck 0.2). The volume term "
+        + "was xG alone until 29.7.2026; xGI measured better over 4 seasons "
+        + "(lift 2.498 against 2.379 for goals+assists, 3/4 seasons, no new "
+        + "parameters). Out of sample 2.888 "
+        + "against 2.696 (xG alone) and 2.779 (threat alone) — wins in 2/3 seasons, ties in the third.",
+      ao: "BARE creativity/90. A composite AO index WAS tested and FAILED: 2.179 against 2.206 "
+        + "for bare creativity, losing in 0/3 seasons. The xA weight was always chosen as 0.",
+      pool: "Only players with 0-1 goals+assists in the window and 180+ minutes.",
+      start_prob: "start_feats/start_minutes feed the START PROBABILITY (5 gameweeks). "
+        + "MEASURED on 65,557 samples: accuracy 88.0% against 88.2% for 'started last time' (LEVEL), "
+        + "but Brier 0.0888 against 0.1176 (-24%) and the BENCH TRAP: the lowest decile "
+        + "catches 42-49% of those who drop to the bench despite having started (lift 2.09x). "
+        + "Rest (<4 days) had NO effect and is therefore NOT in the model.",
     },
     players: rows,
   });
@@ -3400,7 +3409,7 @@ async function main() {
   } catch (e) {
     record("fpl_bootstrap", false, 0, e.message);
     await writeJSON("status.json", status);
-    console.error("FPL brást — fell keyrslu (allt annað hangir á þessu).");
+    console.error("FPL failed — aborting the run (everything else depends on it).");
     process.exit(1);
   }
 
