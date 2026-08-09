@@ -494,6 +494,92 @@ skjöluð í `model.js` svo ákvörðunin sé rekjanleg.
 
 ---
 
+## 5d. Frá tölum að ákvörðun — hvern á að taka núna?
+
+Allt annað í þessu skjali svarar *hver er bestur*. Draft spyr annarrar
+spurningar: **hvern á að taka við þetta val**, þegar sumir lifa fram að því
+næsta og aðrir ekki. `src-nfl/advice.js` + `scripts/nfl/advice-lab.mjs`.
+
+### Uppskriftin sem gildir
+
+1. **Raðaðu eftir A-Ranking** (Sleeper-spá → VBD fyrir þína deild).
+2. **Taktu efsta mann sem staðan þín leyfir.**
+3. Notaðu **lifunarlíkur** til að vita hvort þú getir beðið — ekki til að
+   breyta röðinni.
+4. Ekki taka leikstjórnanda snemma. Það er eina stöðureglan sem mældist.
+
+Það er allt. Það hljómar of einfalt miðað við töluna af mælingum hér að framan
+— og það er einmitt niðurstaðan: **flest af því sem hljómar snjallt mældist
+gagnslaust eða skaðlegt.**
+
+### Hugmyndin sem var prófuð og felld
+
+Sjálfsagða viðbótin er að raða eftir **bráðanauðsyn**:
+
+```
+bráðanauðsyn(i) = VBD(i) − E[besta VBD á hans stöðu við næsta val þitt]
+```
+
+Hún tekur tillit til þess hversu bratt staðan versnar áður en röðin kemur
+aftur að þér. Hver einasta draft-leiðbeining sem til er mælir með þessu.
+**Það var mælt og það tapar:**
+
+| | ráðgjöf | A-Ranking | munur |
+|---|---|---|---|
+| PPR | 1998,9 | 1985,3 | +13,6 — innan vikmarka |
+| standard | 1501,5 | 1565,3 | **−63,8 — marktækt, vinnur 0 af 4 árum** |
+
+**Hvers vegna hún tapar:** bráðanauðsyn mælir **staðbundinn** bratta og
+verðlaunar því mann með lítið algilt virði ef hengiflug er fyrir aftan hann.
+Í herminum 2024 (standard) tók hún Tyreek Hill í vali 43 fram yfir Christian
+McCaffrey sem bar **VBD 82**. Þau 40+ stig fást aldrei aftur; brattinn sem hún
+var að forðast jafnast út hvort sem er.
+
+Í PPR eru stöðurnar nærri jafngildar og villan kostar lítið. Í standard, þar
+sem hlauparar bera virðið, kostar hún tímabilið. **Regla sem virkar í öðru
+sniðinu en ekki hinu er ekki líkan heldur tilviljun.**
+
+Bráðanauðsyn er því **birt** í appinu — það er upplýsandi að sjá hvenær
+aðferðirnar eru ósammála — en hún **ræður ekki**. Vörður: `nfl-advice.mjs`
+kafli 5 smíðar stöðu þar sem þær eru ósammála og krefst þess að VBD vinni.
+
+### Lifunarlíkur — ADP eitt og sér dugar ekki
+
+Leikmaður með ADP 30 og staðalfrávik **3** er nánast öruggur í 10 sæta bið.
+Sami ADP með staðalfráviki **20** er það alls ekki. Hvert einasta borð sem
+birtir ADP sem eina tölu hendir þeim mun.
+
+```
+P(enn laus við val p) = 1 − Φ((p − 0,5 − ADP) / sd)
+```
+
+FantasyFootballCalculator birtir `stdev` beint úr raunverulegum dröftum. Vanti
+hann er notað `k · √ADP`, og **k er mælt: 1,082** á 1.882 leikmanna-árum.
+
+> Fyrsta útgáfan setti **0,55** — helming af rétta gildinu. Sú villa hefði
+> látið hvern einasta leikmann líta út fyrir að vera miklu öruggari en hann er,
+> og ráðgjöfin hefði sagt þér að bíða eftir mönnum sem eru löngu farnir.
+> Hún sást aðeins af því að `advice-lab.mjs` fittar töluna í hverri keyrslu og
+> prentar hana við hliðina á þeirri sem kóðinn notar.
+
+### Hvað af öllum tölunum ræður raunverulega
+
+| lag | mælt framlag | notkun |
+|---|---|---|
+| **A-Ranking** (Sleeper → VBD) | **+228 gegn ADP, vinnur 4/4 ár** | ræður röðinni |
+| **þrep** | brýtur listann þar sem stökkin eru | hvenær má bíða |
+| **lifunarlíkur** | ADP + dreifing þess | hvort má bíða |
+| **stöðuregla** | QB snemma −77 (PPR) / −66 (standard) | ein regla, mælt |
+| virði gegn ADP | afleitt af A-Ranking | hvar markaðurinn er ósammála |
+| — | — | — |
+| sérfræðinga-ECR | 1651 gegn 1748 hjá ADP | samhengi, ekki röðun |
+| mótstöðu-styrkur | 0,13–0,42% | jafnteflabrjótur |
+| liðsstyrkur | 1319 gegn 1667 | bakgrunnur |
+| ending og skilvirkni | **skemma líkanið** | ekki í neinni röðun |
+| bráðanauðsyn | −63,8 í standard | birt, ræður ekki |
+
+---
+
 ## 6. Prófin
 
 Fimm söfn í `SUITES` (`npm test` keyrir þau með hinum 41).
@@ -530,6 +616,7 @@ node scripts/nfl/build-features.mjs              # -> features.json (arlega)
 node scripts/nfl/model-lab.mjs [--scoring=…]     # -> model_eval_*.json
 node scripts/nfl/strategy-lab.mjs [--scoring=…]  # -> strategy_*.json
 node scripts/nfl/market-lab.mjs                  # -> market_history.json
+node scripts/nfl/advice-lab.mjs [--scoring=…]     # -> advice_*.json
 ```
 
 Þrepin eru aðskilin eftir **eðli gagnanna**, ekki smekk: `core` breytist daglega,

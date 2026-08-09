@@ -111,6 +111,11 @@ const dashesIn = (t) => (t.match(/—/g) || []).length;
 console.log("\n2. draft-flipinn");
 {
   ok(text().includes("Positional scarcity"), "skortstadan birtist");
+  /* TILLAGAN SJALF — thad sem allar tolurnar eru til fyrir. */
+  ok(/Pick \d+ — take this/.test(text()), "tillagan fyrir naesta val birtist");
+  ok(/Lasts\?/.test(text()), "lifunarlikur eru birtar");
+  ok(/standard deviation/i.test(text()),
+    "og thad er sagt ad dreifing ADP se notud, ekki bara ADP");
   ok(text().includes("Connect your Sleeper draft"), "draft-tengingin birtist");
   const rows = document.querySelectorAll("table.data tbody tr");
   ok(rows.length > 50, `bordid ber ${rows.length} leikmenn`);

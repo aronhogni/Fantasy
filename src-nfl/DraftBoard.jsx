@@ -22,6 +22,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as D from "./data.js";
+import { recommend, MEASURED } from "./advice.js";
 
 export default function DraftBoard({ rows, meta, league, season, accuracy }) {
   const [taken, setTaken] = useState(() => new Set(D.loadState("taken", [])));
@@ -83,6 +84,9 @@ export default function DraftBoard({ rows, meta, league, season, accuracy }) {
           const m = new Set([...myPicks, ...mineIds]);
           setTaken(t); setMyPicks(m); persist(t, m);
         }} />
+
+      <NextPick available={available} roster={myRoster} taken={taken}
+        league={league} sync={sync} />
 
       <ScarcityBar scarcity={scarcity} league={league} />
 
@@ -438,4 +442,104 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
 function extractDraftId(s) {
   const m = String(s).match(/(\d{6,})/);
   return m ? m[1] : String(s).trim();
+}
+
+
+/* ============================================================
+   NAESTA VAL — thad sem allar tolurnar eru til fyrir
+   ============================================================
+   Bordid radar leikmonnum. Thessi kassi svarar spurningunni sem thu
+   stendur raunverulega frammi fyrir: hvern a ad taka NUNA, og hverja
+   ma bida eftir.
+
+   RODIN ER A-RANKING. Sja `advice.js`: bradanauðsyn — ad rada eftir
+   thvi hversu bratt stadan versnar — var maeld og hun TAPAR
+   (marktaekt i standard). Lifunarlikur eru birtar sem upplysing.
+   ============================================================ */
+function NextPick({ available, roster, taken, league, sync }) {
+  const pick = (taken ? taken.size : 0) + 1;
+  const rec = useMemo(() => {
+    if (!available.length) return null;
+    try {
+      return recommend({
+        available: available.map((r) => ({
+          id: r.id, name: r.name, pos: r.pos, vbd: r.vbd,
+          adp: r.adp, adpSd: r.adpSd, tier: r.tier, proj: r.proj,
+        })),
+        roster, pick, league,
+      });
+    } catch { return null; }
+  }, [available, roster, pick, league]);
+
+  if (!rec || !rec.picks.length) return null;
+  const top = rec.picks.slice(0, 5);
+  const differs = rec.urgencyPick && rec.urgencyPick.id !== rec.picks[0].id;
+
+  return (
+    <div className="panel">
+      <h2>Pick {pick} — take this</h2>
+      <div className="sub">
+        {sync && sync.draftId
+          ? `Pick ${pick} by the board below. `
+          : `Assuming you are on the clock at pick ${pick}. `}
+        Your next pick is <b>{rec.nextPick}</b>, {rec.wait} picks away.
+      </div>
+
+      <div className="tablewrap" style={{ marginTop: 10 }}>
+        <table className="data">
+          <thead><tr className="cols">
+            <th className="txt frozen">Player</th>
+            <th className="txt">Pos</th>
+            <th title="Value over replacement — this is what decides the order">VBD</th>
+            <th title="Chance he is still there at your next pick">Lasts?</th>
+            <th title="Best VBD his position should still offer at your next pick">Next best</th>
+            <th className="txt">Why</th>
+          </tr></thead>
+          <tbody>
+            {top.map((p, i) => (
+              <tr key={p.id} style={i === 0
+                ? { background: "rgba(53,196,122,.10)" } : undefined}>
+                <td className="txt frozen">
+                  {i === 0 && <span className="badge on" style={{ marginRight: 6 }}>take</span>}
+                  {p.name}
+                </td>
+                <td className="txt"><span className={`pos ${p.pos}`}>{p.pos}</span></td>
+                <td className="mono"><b>{p.vbd == null ? "—" : p.vbd.toFixed(1)}</b></td>
+                <td className={`mono ${p.survive != null && p.survive < 0.25 ? "bad"
+                  : p.survive != null && p.survive > 0.7 ? "good" : ""}`}>
+                  {p.survive == null ? <span className="null">—</span>
+                    : `${Math.round(p.survive * 100)}%`}
+                </td>
+                <td className="mono dim">{p.expectedNext == null ? "—" : p.expectedNext}</td>
+                <td className="txt dim" style={{ fontSize: 12 }}>
+                  {p.reasons.slice(0, 2).map((r) => r.text).join(" · ")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {differs && (
+        <div className="note">
+          <b>A note on scarcity.</b> If you ranked by how steeply each position
+          falls off before your next pick, this would say{" "}
+          <b>{rec.urgencyPick.name}</b> instead. It does not, because that rule was
+          measured: a team drafting on positional urgency finished{" "}
+          <b>{Math.abs(MEASURED.urgencyVsARank.standard.diff)} points behind</b> one
+          that simply took the best player, in standard scoring, losing all four
+          seasons tested. It trades away points you can never get back for a cliff
+          that flattens out anyway.
+        </div>
+      )}
+
+      <div className="dim" style={{ marginTop: 8, fontSize: 12 }}>
+        "Lasts?" uses each player's ADP <i>and its spread</i> — a player at ADP 30
+        with a standard deviation of 3 is a very different bet from one at 30 with a
+        deviation of 20. Where a bookmaker figure is missing we fall back to{" "}
+        <code>{MEASURED.sdRule}</code>, fitted on {MEASURED.sdRuleSample.toLocaleString()}{" "}
+        player-seasons.
+      </div>
+    </div>
+  );
 }
