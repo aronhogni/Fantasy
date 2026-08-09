@@ -587,6 +587,12 @@ export default function App() {
   const [gwPts, setGwPts] = useState(null);
   const [recPos, setRecPos] = useState("ALL");
   const [recRange, setRecRange] = useState(5);
+  /* FFDR-TAFLAN FÆR SITT EIGIÐ BIL. Hún hékk á `recRange`, sem er líka
+     bilið fyrir tillögurnar — að breyta öðru breytti hinu. Og bilið byrjaði
+     ALLTAF á næstu umferð, svo það var ekki hægt að skoða t.d. GW5–9.
+     null = fylgja `recRange` eins og áður (sjálfgefið).                  */
+  const [ffdrRange, setFfdrRange] = useState(null);   // [frá, til] eða null
+  const [ffdrOpen, setFfdrOpen] = useState(false);
   const [recMaxCost, setRecMaxCost] = useState("");   // hamarksverd i tillogum (tomt = ekkert thak)
   const [teamSort, setTeamSort] = useState("def");
   const [detail, setDetail] = useState(null); // {kind:"player"|"team", id}
@@ -2428,9 +2434,13 @@ export default function App() {
 
 
           {/* Lið: FFDR-röðun + DefCon (það eina sem er EKKI í FFDR) */}
+          {(() => {
+          const ffdrFrom = ffdrRange ? ffdrRange[0] : gw;
+          const ffdrTo   = ffdrRange ? ffdrRange[1] : Math.min(gw + recRange - 1, maxGw);
+          return (
           <section style={S.card}>
             <div style={S.recHead}>
-              <h2 style={S.h2}>{"Teams — FFDR GW"}{gw}–{Math.min(gw + recRange - 1, maxGw)}</h2>
+              <h2 style={S.h2}>{"Teams — FFDR GW"}{ffdrFrom}{ffdrFrom !== ffdrTo ? `–${ffdrTo}` : ""}</h2>
               <select style={S.chipSel} value={teamSort} onChange={e => setTeamSort(e.target.value)}>
                 <option value="def">{"FFDR defence"}</option>
                 <option value="att">{"FFDR attack"}</option>
@@ -2460,16 +2470,52 @@ export default function App() {
                 );
               })()}
             </div>
+            {/* BILIÐ — MINNKA/AUKA MEÐ EINUM SMELLI, eða velja nákvæmar
+                umferðir í kassaröðinni (sama og í Player stats). Áður var
+                bilið fast við `recRange` og byrjaði alltaf á næstu umferð. */}
+            <div style={S.ffdrBar}>
+              <button style={S.ffdrStep} title={"One gameweek fewer"}
+                onClick={() => setFfdrRange([ffdrFrom, Math.max(ffdrFrom, ffdrTo - 1)])}>−</button>
+              <span style={S.ffdrNow}>{"GW"} {ffdrFrom}{ffdrFrom !== ffdrTo ? `–${ffdrTo}` : ""}
+                <span style={S.ffdrN}>{ffdrTo - ffdrFrom + 1}</span></span>
+              <button style={S.ffdrStep} title={"One gameweek more"}
+                onClick={() => setFfdrRange([ffdrFrom, Math.min(maxGw, ffdrTo + 1)])}>+</button>
+              <button style={S.ffdrPick} aria-expanded={ffdrOpen}
+                onClick={() => setFfdrOpen(v => !v)}>{ffdrOpen ? "hide" : "pick"}</button>
+              {ffdrRange && (
+                <button style={S.ffdrPick} title={"Back to the default range"}
+                  onClick={() => { setFfdrRange(null); setFfdrOpen(false); }}>{"reset"}</button>
+              )}
+            </div>
+            {ffdrOpen && (
+              <div style={S.ffdrBoxes} role="group" aria-label={"Select gameweeks"}>
+                {Array.from({ length: maxGw }, (_, i) => i + 1).map(n => {
+                  const on = n >= ffdrFrom && n <= ffdrTo;
+                  return (
+                    <button key={n} title={`GW ${n}`} aria-pressed={on}
+                      style={{ ...S.ffdrBox, ...(on ? S.ffdrBoxOn : {}) }}
+                      onClick={() => setFfdrRange(r => {
+                        /* Sama og i Player stats: fyrsti smellur = upphaf,
+                           annar = endi, smellur FYRIR upphafid snyr bilinu. */
+                        const cur = r || [ffdrFrom, ffdrTo];
+                        if (cur[0] !== cur[1]) return [n, n];
+                        return n < cur[0] ? [n, cur[0]] : [cur[0], n];
+                      })}>{n}</button>
+                  );
+                })}
+              </div>
+            )}
             <div style={S.tblHead}>
               <span style={{ flex:1 }}>{"Team"}</span>
-              <span style={S.tblNum} title={"FFDR for defenders, average over the selected range"}>{"def"}</span>
+              <span style={S.tblNum} title={"FFDR for defenders, average over the selected gameweeks"}>{"def"}</span>
               <span style={S.tblNum} title={"FFDR for forwards"}>{"att"}</span>
+              <span style={S.tblN} title={"How many fixtures the team actually has in the range. A BLANK is skipped by the average, so a run with fewer fixtures can look easier than it is — this number makes that visible."}>{"n"}</span>
             </div>
             {(() => {
               // meðal-FFDR yfir valið bil, per staða
               const avg = (tid, pos) => {
                 let n = 0, sum = 0;
-                for (let g = gw; g < gw + recRange && g <= maxGw; g++) {
+                for (let g = ffdrFrom; g <= ffdrTo; g++) {
                   for (const fx of (fixByTeamGw[tid]?.[g] || [])) {
                     const d = fixDifficulty(tid, fx, pos);
                     if (d != null) { sum += d; n++; }
@@ -2477,14 +2523,24 @@ export default function App() {
                 }
                 return n ? +(sum / n).toFixed(2) : null;
               };
+              /* FJOLDI LEIKJA i bilinu — AUD UMFERD er sleppt ur medaltalinu
+                 (hun hefur engan leik ad meta), svo lid med blank litur
+                 LETTARA ut en thad er. Kafli 3d telur auda umferd ThYNGST
+                 i roteringu; hér er hun ad minnsta kosti SYNILEG.        */
+              const nFix = tid => {
+                let k = 0;
+                for (let g = ffdrFrom; g <= ffdrTo; g++) k += (fixByTeamGw[tid]?.[g] || []).length;
+                return k;
+              };
+              const span = ffdrTo - ffdrFrom + 1;
               const rows = teams.map(t => ({
-                t, def: avg(t.id, 2), att: avg(t.id, 4),
+                t, def: avg(t.id, 2), att: avg(t.id, 4), n: nFix(t.id),
               }));
               rows.sort((a, b) => {
                 const k = teamSort === "att" ? "att" : "def";
                 return (a[k] ?? 9) - (b[k] ?? 9);
               });
-              return rows.map(({ t, def, att }) => {
+              return rows.map(({ t, def, att, n }) => {
                 const mine = squadAt.some(x => byId[x.id]?.team === t.id);
                 const cell = v => v == null ? { bg:"transparent", fg:C.text3 }
                   : { bg: TIER_BG[tierOf(v)], fg: TIER_FG[tierOf(v)] };
@@ -2502,11 +2558,16 @@ export default function App() {
                     <span style={{ ...S.tblNum }}>
                       <span style={{ ...S.ffdrCell, background:ca.bg, color:ca.fg }}>{att ?? "—"}</span>
                     </span>
+                                      <span style={{ ...S.tblN, color: n < span ? C.red : C.text3 }}
+                      title={n < span ? `Only ${n} fixtures in ${span} gameweeks — a BLANK is skipped by the average, so this run is harder than the number looks`
+                                      : `${n} fixtures in ${span} gameweeks`}>{n}</span>
                   </div>
                 );
               });
             })()}
           </section>
+          );
+          })()}
 
           {/* Andstæðingar — sérstöðu-samanburður */}
           <section style={S.card}>
@@ -4039,6 +4100,22 @@ const S = {
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },
   tblRow: { display:"flex", alignItems:"center", gap:4, padding:"3px 0", borderBottom:`1px solid ${C.page}` },
   // ffdrCell = <span> í leikmanns-yfirliti (inline-block)
+  ffdrBar:{ display:"flex", alignItems:"center", gap:5, margin:"7px 0 4px" },
+  ffdrStep:{ border:`1px solid ${C.border}`, background:C.card, borderRadius:5,
+             width:20, height:20, lineHeight:1, cursor:"pointer", fontSize:12,
+             color:C.text2, padding:0 },
+  ffdrNow:{ fontSize:11, fontWeight:700, color:C.text, display:"flex",
+            alignItems:"center", gap:4 },
+  ffdrN:{ fontSize:9, fontWeight:700, background:C.cardAlt, color:C.text3,
+          borderRadius:4, padding:"1px 4px" },
+  ffdrPick:{ border:0, background:"none", cursor:"pointer", fontSize:10.5,
+             color:C.purple, textDecoration:"underline", padding:0, marginLeft:"auto" },
+  ffdrBoxes:{ display:"flex", flexWrap:"wrap", gap:2, marginBottom:6 },
+  ffdrBox:{ border:`1px solid ${C.border}`, background:C.card, borderRadius:3,
+            minWidth:19, height:17, fontSize:9, lineHeight:1, cursor:"pointer",
+            color:C.text3, padding:0 },
+  ffdrBoxOn:{ background:C.purple, color:"#fff", borderColor:C.purple, fontWeight:700 },
+  tblN:{ width:22, textAlign:"right", fontSize:10, fontVariantNumeric:"tabular-nums" },
   ffdrCell: { display:"inline-block", minWidth:32, textAlign:"center", fontFamily:mono,
     fontSize:10, fontWeight:700, padding:"1px 4px", borderRadius:4 },
   // ffdrTd = <td> í FFDR-töflunni. MÁ EKKI vera inline-block — brýtur töfluna.
