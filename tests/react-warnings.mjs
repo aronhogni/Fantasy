@@ -57,22 +57,142 @@ const click=async(txt)=>{
   await act(async()=>{ await new Promise(r=>setTimeout(r,80)); });
   return true;
 };
-// allir flipar + allir hamir + allir flokkar + hvert svaedi i skyrslunni
-const seq=["Umferðin","Skot-kort","Leikmenn","Leikirnir","Yfirlit",
-           "Stigatafla","Bekkjar-hætta","Óhjákvæmilegt","Assist óhjákvæmilegt","Tafla",
-           "Grunnur","Sókn","Væntingar","Vörn","Bónus og ICT","Verð og eignarhald",
-           "FPL-sæti","Spjöld og refsingar",
-           "Föst leikatriði","Aukaspyrnur","Horn","Skipulag"];
-let visited=0;
-for (const t of seq) if (await click(t)) visited++;
-// opna leikmannaspjald + samanburd
-const info=[...document.querySelectorAll("button")].filter(b=>b.title==="Upplýsingar");
+/* ============================================================
+   LEITARORDIN VORU A ISLENSKU OG VIDMOTID ER A ENSKU.
+
+   Thetta safn heimsotti **0 af 22** vidmotum og var samt GRAENT — i
+   hvert sinn sem `click()` fann engan hnapp skilaði hun `false` og
+   lykkjan hélt bara afram. Vidvorunar-profid sem atti ad verja allt
+   vidmotid var thvi ad verja EKKERT fra thvi ad appid var thytt
+   (commit "enska eingongu"), og tvær raunverulegar React-vidvaranir
+   (border/borderColor a umferdar-kossunum) lifdu i skjolinu.
+
+   TVENNT LAGAD, OG SEINNA ER MIKILVAEGARA:
+     1. Heitin eru ensk, eins og vidmotid.
+     2. `visited` ER NU FULLGILD FULLYRDING. Safn sem heimsaekir
+        ekkert ma ALDREI vera graent aftur — thad er nakvaemlega sama
+        thoegla bilunin og daudi markadslidurinn (CLAUDE.md kafli 3).
+   ============================================================ */
+/* SKIPULAGID ER PER FLIPA OG ThAD ER NAUDSYNLEGT, EKKI SNYRTIMENNSKA.
+   Fyrsta tilraunin var einn flatur listi og 20 vidmot mistokust thogult
+   af tveimur astaedum sem badar snuast um AD ASTANDID BREYTIST:
+     - "🔍 Search" er ekki gluggi heldur `setView("players")`, svo
+       FFDR-stykin ("pick"/"−"/"+") voru ekki lengur a skjanum.
+     - "Imminent" skiptir um ham i toflunni, svo flokkarnir hurfu.
+   Her er thvi flipinn SMELLTUR AFTUR a undan hverju undirstyki. Thad
+   kostar eina teiknun en gefur thekkt astand — og thekkjanlegt fall.  */
+const SURFACES=[
+  ["⚽ Planner",       ["🔍 Search","📊 FFDR","🎫 Chips","pick","−","+"]],
+  /* RODIN INNAN FLIPANS ER EKKI TILVILJUN. "Groups" og "Gameweeks" eru
+     SAMANBROT — smellur a thau FELUR allt sem er undir theim, og thau
+     muna sig (fpl_gwopen i localStorage), svo flipa-smellur opnar thau
+     ekki aftur. Their voru fremstir i fyrstu utgafu og felldu 12 vidmot
+     a eftir ser. Samanbrot og ham-skipti eru thvi SIDUST.             */
+  ["👥 Player stats",  ["All","GK","DEF","MID","FWD",
+                        "Basics","Attack","Defence","Consistency (Aron)","Upcoming fixtures",
+                        "Set pieces and cards","≡ compact",
+                        "Build table","Imminent","Groups","Gameweeks"]],
+  ["🛡️ Teams",        ["Gameweeks","What the keeper faces","Defence","Attack","Discipline and set pieces"]],
+  ["📊 Gameweek",      ["Overview","Shot map","Players","Matches"]],
+  ["🏆 Leaderboard",   ["All","GK","DEF","MID","FWD","Basics","Attack","Defence",
+                        "Upcoming fixtures","Set pieces and cards"]],
+  ["Set pieces",       []],
+];
+const TOTAL = SURFACES.reduce((n,[,subs])=>n+1+subs.length, 0);
+
+/* Lokar efsta yfirlagsglugga. Sidasta `✕` er thad sem tilheyrir honum —
+   sama regla og i smoke-profinu (tvo eins takn i DOM, sja CLAUDE.md 4). */
+const closeTop=async()=>{
+  const x=[...document.querySelectorAll("button")].filter(b=>b.textContent.trim()==="✕").at(-1);
+  if(!x) return false;
+  await act(async()=>{ x.dispatchEvent(new dom.window.MouseEvent("click",{bubbles:true})); });
+  await act(async()=>{ await new Promise(r=>setTimeout(r,80)); });
+  return true;
+};
+let visited=0; const missed=[];
+for (const [tab, subs] of SURFACES) {
+  if (await click(tab)) visited++; else missed.push(tab);
+  for (const s of subs) {
+    await closeTop();                 // yfirlagsgluggi fra fyrra styki
+    await click(tab);                 // aftur i thekkt astand
+    if (await click(s)) visited++; else missed.push(`${tab} > ${s}`);
+  }
+  await closeTop();
+}
+/* ============================================================
+   KVEIKT OG SLOKKT — ThAD ER ThAR SEM STIL-VIDVARANIRNAR BUA
+
+   Ad heimsaekja vidmot naegir EKKI. React kvartar yfir
+   `border`/`borderColor`-blondun adeins vid ENDURTEIKNUN thegar
+   eiginleiki er FJARLAEGDUR — thad er, thegar valid er tekid AF aftur.
+   Safnid smellti adeins a hluti EINU SINNI, svo tvaer raunverulegar
+   vidvaranir a umferdar-kossunum lifdu af thott vidmotid vaeri heimsott.
+   Profad med stokkbreytingu: `borderColor` sett aftur inn i `gwOn`
+   slapp i gegn adur en thessi kafli var skrifadur.
+
+   Hér er thvi kveikt OG slokkt a hverjum vali-hnappi sem ber eigin
+   "a"-stil: umferdar-kassar (Player stats og FFDR) og thettleikinn.  */
+const exact=async(txt,root=document)=>{
+  const b=[...root.querySelectorAll("button")].find(x=>x.textContent.trim()===txt);
+  if(!b) return false;
+  await act(async()=>{ b.dispatchEvent(new dom.window.MouseEvent("click",{bubbles:true})); });
+  await act(async()=>{ await new Promise(r=>setTimeout(r,80)); });
+  return true;
+};
+let toggles=0;
+/* Player stats: velja umferdarbil (kveikir gwOn/gwEdge) og hreinsa svo. */
+await click("👥 Player stats");
+/* SURFACES-lykkjan endar Player stats a "Gameweeks", sem BRYTUR SAMAN
+   kassarodina — og hun MAN sig (fpl_gwopen), svo flipa-smellur opnar
+   hana ekki. Opnud aftur hér, annars eru kassarnir ekki i DOM.       */
+if (![...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="9"))
+  await click("Gameweeks");
+if (await exact("3")) toggles++;
+if (await exact("9")) toggles++;
+if (await exact("All")) toggles++;          // hreinsar bilid -> stilar fjarlaegdir
+if (await exact("≡ compact")) toggles++;
+if (await exact("≡ compact")) toggles++;    // og til baka
+/* Planner/FFDR: sama leikur i FFDR-kassarodinni. */
+await click("⚽ Planner");
+/* Hnappurinn heitir "pick" LOKADUR en "hide" OPINN — SURFACES-lykkjan
+   opnadi hann thegar, svo leit ad "pick" fann ekkert. Leitad er thvi ad
+   kassanum sjalfum og adeins opnad ef hann vantar.                    */
+{
+  const boxOpen = () => [...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="6");
+  if (!boxOpen()) await click("pick");
+  if (boxOpen()) {
+    if (await exact("2")) toggles++;
+    if (await exact("6")) toggles++;
+    if (await exact("reset")) toggles++;    // -> ffdrBoxOn fjarlaegt
+  }
+}
+console.log(`  ${toggles>=6?"✓":"✗"} kveikt/slokkt a ${toggles} vali-hnoppum`);
+if (toggles < 6) warns.push("toggle-kaflinn na di ekki ad kveikja/slokkva (>=6 thurfa)");
+
+/* LEIKMANNASPJALD + SAMANBURDUR.
+   Leitad var ad `title==="Upplýsingar"` og hnappnum "Bera saman" —
+   HVORUGT er til i enska vidmotinu ("Information" og "⇄ Compare"), svo
+   thessi kafli var thogull nunulidur eins og listinn ad ofan. Nidurstadan
+   er nu TALIN, svo hann geti ekki dottid ut aftur an thess ad sjast.   */
+await click("⚽ Planner");
+const info=[...document.querySelectorAll("button")].filter(b=>b.title==="Information");
+let cardOk=false;
 if (info.length) {
   await act(async()=>{ info[0].dispatchEvent(new dom.window.MouseEvent("click",{bubbles:true})); });
   await act(async()=>{ await new Promise(r=>setTimeout(r,120)); });
-  await click("Bera saman");
+  cardOk = document.body.textContent.includes("Next GW forecast");
+  await click("⇄ Compare");
 }
-console.log(`  heimsott: ${visited}/${seq.length} vidmot`);
+console.log(`  ${cardOk?"✓":"✗"} leikmannaspjald + samanburdur opnast (${info.length} i-hnappar)`);
+if (!cardOk) warns.push("leikmannaspjaldid opnadist ekki — 'Information'/'⇄ Compare' fundust ekki");
+/* VORDURINN GEGN ThVI AD SAFNID VERDI TOMT AFTUR.
+   `visited` var adeins PRENTAD, svo 0/22 las eins og upplysing i stad
+   bilunar. Nu fellur safnid ef vidmot hverfa — endurnefning a hnappi
+   birtist tha sem RAUTT PROF en ekki sem thogul thekjuminnkun.        */
+const MIN_VISITED = Math.ceil(TOTAL * 0.9);
+const thin = visited < MIN_VISITED;
+console.log(`  ${thin ? "✗" : "✓"} heimsott: ${visited}/${TOTAL} vidmot (lagmark ${MIN_VISITED})`);
+if (thin) console.log("     fann ekki: " + [...new Set(missed)].slice(0,12).join(" | "));
 console.log(warns.length ? `  ✗ ${warns.length} React-vidvaranir:` : "  ✓ ENGIN React-vidvorun");
 [...new Set(warns)].slice(0,10).forEach(w=>console.log("     "+w));
-process.exit(warns.length?1:0);
+process.exit(warns.length || thin ? 1 : 0);

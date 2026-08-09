@@ -284,13 +284,7 @@ const S = {
   miniEmpty:{ fontSize:11, color:C.text3, padding:"3px 2px" },
   miniNote:{ fontSize:9.5, color:C.text3, padding:"3px 2px 0" },
 
-  derived:{ fontStyle:"normal", fontSize:9, opacity:0.65, marginLeft:2 },
 
-  nameBtn:{ display:"flex", alignItems:"center", gap:5, border:"none", background:"transparent",
-            cursor:"pointer", padding:0, maxWidth:200 },
-  nm:{ fontSize:12, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
-  tag:{ fontSize:9, fontWeight:700 },
-  flag:{ fontSize:9, fontWeight:700, color:C.red },
   legend:{ fontSize:10.5, color:C.text3, marginTop:10, paddingTop:8,
            borderTop:`1px solid ${C.border}`, lineHeight:1.5 },
 };

@@ -307,7 +307,7 @@ const S = {
   headGrid:{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(96px, 1fr))",
              gap:6, marginBottom:12 },
   hTile:{ border:`1px solid ${C.border}`, borderRadius:8, background:C.cardAlt, padding:"7px 9px" },
-  hTilePrice:{ background:"#f6f1f7", borderColor:"#e2d5e5" },
+  hTilePrice:{ background:"#f6f1f7", border:`1px solid #e2d5e5` },
   hVal:{ fontSize:18, fontWeight:700, color:C.text, fontFamily:mono, lineHeight:1.15,
          display:"flex", alignItems:"center", gap:5 },
   hKey:{ fontSize:10, color:C.text2, marginTop:2 },

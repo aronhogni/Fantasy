@@ -865,5 +865,45 @@ console.log(`\n${"─".repeat(72)}\nGOLF A STIG PER BYRJUN\n${"─".repeat(72)}`
   } catch { ok(true, "season_baseline.json vantar — raungagna-hluti sleppt"); }
 }
 
+/* ============================================================
+   GOLF A "MINUTUR PER xGI" — SAMA AETT OG CHIESA-VILLAN
+
+   `mins_per_xgi` deildi minutum med xGI AN golfs. xGI er birt med tveimur
+   aukastofum, svo 0,01 er UPPLAUSNARMORK gagnanna og ekki maeling. Maelt a
+   sogulegum gognum: Pope 2022/23 bar 3.261 minutur / 0,01 xGI = **326.100**,
+   og ALLAR 83 markmanns-radirnar med >=450 min voru undir 0,5 xGI. Varnar-
+   menn naedu 23.740. Talan var RETT reiknud og gagnslaus — nakvaemlega
+   Chiesa-mynstrid einu dalki ofar.
+
+   Throskuldurinn 0,5 er EKKI nyr fasti: `conversion` og `assist_conversion`
+   bera hann thegar af somu astaedu, svo thetta er samraemi en ekki val.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`);
+{
+  const d = STAT_BY_KEY.mins_per_xgi;
+  ok(!!d, "dalkurinn er til");
+  ok(d.get({ minutes: 3261, expected_goal_involvements: 0.01 }) == null,
+     "Pope-tilfellid (3.261 min / 0,01 xGI) gefur TOMT — var 326.100");
+  ok(d.get({ minutes: 3420, expected_goal_involvements: 0.49 }) == null,
+     "rett undir golfi er enn tomt");
+  const v = d.get({ minutes: 1000, expected_goal_involvements: 2 });
+  ok(v != null && Math.abs(v - 500) < 1e-9, `ofan golfs reiknast talan rett (${v})`);
+  ok(d.get({}) == null && d.get({ minutes: 900, expected_goal_involvements: 0 }) == null,
+     "tomt/0 xGI hrynur ekki og skilar null");
+  /* Raungogn: ekkert gildi ma vera fjarstaeda, og markmenn eiga ad hverfa. */
+  try {
+    const seasons = JSON.parse(readFileSync(new URL("../data/player_seasons.json", import.meta.url), "utf8"));
+    const rows = [];
+    for (const byS of Object.values(seasons.players || {}))
+      for (const r of Object.values(byS)) if ((+r.minutes || 0) >= 450) rows.push(r);
+    const vals = rows.map(r => d.get(r)).filter(v => v != null);
+    ok(vals.length > 300, `raungogn: ${vals.length} radir na golfinu`);
+    ok(Math.max(...vals) < 10000,
+       `haesta gildi er truverdugt (${Math.round(Math.max(...vals))} — var 326.100)`);
+    const gk = rows.filter(r => r.element_type === 1 && d.get(r) != null);
+    ok(gk.length === 0, `enginn markmadur ber toluna (${gk.length}) — xGI maelir sokn`);
+  } catch { ok(true, "player_seasons.json vantar — raungagna-hluti sleppt"); }
+}
+
 console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

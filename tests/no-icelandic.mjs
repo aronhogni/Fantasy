@@ -115,8 +115,19 @@ function harvest() {
    valid se OHAD tungumali (annars vaeri profid sjalft tungumals-bundid).  */
 async function walkEverything() {
   const chunks = [];
-  const tabBtns = () => [...container.querySelectorAll("button")]
-    .filter(b => /^(\u26bd|\ud83d\udc65|\ud83d\udcca|\ud83c\udfc6)/.test((b.textContent || "").trim()));
+  /* FLIPARNIR ERU VALDIR UT FRA FLIPASTIKUNNI SJALFRI, EKKI A IKONI.
+     Fyrri utgafa siadi a emoji-lista (\u26bd\ud83d\udc65\ud83d\udcca\ud83c\udfc6) og SLEPPTI thar med
+     **\ud83d\udee1\ufe0f Teams og Set pieces** \u2014 Teams er nyjasti flipinn og ber
+     BSD-gognin, svo islensku-lekaprofid las hann aldrei. Ikona-listi er
+     sama aett af hardkodun og islensku leitarordin i react-warnings:
+     hann eldist thogult. Stikan er fundin sem sameiginlegt for-element
+     Planner-hnappsins og allir hnappar hennar teknir.                  */
+  const tabBtns = () => {
+    const seed = [...container.querySelectorAll("button")]
+      .find(b => /^\u26bd/.test((b.textContent || "").trim()));
+    const bar = seed?.parentElement;
+    return bar ? [...bar.children].filter(el => el.tagName === "BUTTON") : [];
+  };
   const headBtns = () => [...container.querySelectorAll("button")]
     .filter(b => /^(\ud83d\udcca FFDR|\ud83c\udfab)/.test((b.textContent || "").trim()));
 
@@ -143,6 +154,10 @@ async function walkEverything() {
 
   /* fliparnir sjalfir */
   const tabs = tabBtns();
+  /* ThEKJAN ER FULLYRDING, EKKI LOGGA (sja CLAUDE.md 5b): ef flipar
+     haetta ad finnast a profid ad FALLA, ekki ad skanna minna i thogn.  */
+  if (tabs.length < 6)
+    throw new Error(`no-icelandic: fann adeins ${tabs.length} flipa (>=6 thurfa) — flipastikan fannst ekki`);
   for (let i = 0; i < tabs.length; i++) {
     const fresh = tabBtns()[i];
     if (!fresh) continue;

@@ -252,8 +252,9 @@ export const STAT_DEFS = [
     band:"Expected", dec:2, hi:true, note:"Official FPL figure (expected_goal_involvements_per_90).",
     get:p=>num(p.expected_goal_involvements_per_90) },
   { key:"mins_per_xgi", label:"Minutes per xGI", short:"Mins/xGI", group:"attack", band:"Expected",
-    dec:0, hi:false, derived:true, note:"Minutes per unit of expected involvement. LOWER IS BETTER — the underlying twin of Minutes per G+A, and less noisy than it.",
-    get:p=>safeDiv(num(p.minutes), num(p.expected_goal_involvements)) },
+    dec:0, hi:false, derived:true, note:"Minutes per unit of expected involvement. LOWER IS BETTER — the underlying twin of Minutes per G+A, and less noisy than it. Needs xGI > 0.5: below that the divisor is rounding noise and the ratio explodes (measured: keepers reach 326,100, i.e. 0.01 xGI in 3,261 minutes).",
+    get:p=>{ const x=num(p.expected_goal_involvements); if (x==null||x<0.5) return null;
+             return safeDiv(num(p.minutes), x); } },
   { key:"xgi_per_million", label:"xGI per £m", short:"xGI/£m", group:"attack", band:"Expected",
     dec:2, hi:true, derived:true, note:"Expected involvements per million — value of the UNDERLYING rather than of points already banked.",
     get:p=>{ const c=num(p.now_cost); return (c==null||c===0)?null

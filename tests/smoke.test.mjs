@@ -310,7 +310,13 @@ ok(c10 === 14, `10 umferdir -> 14 dalkar (${c10})`);
 const rotClose = [...container.querySelectorAll("button")].filter(b => b.textContent === "✕").at(-1);
 await act(async () => { rotClose.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await render();
-ok(!text().includes("róterings-par"), "spjaldið lokast");
+/* VAR TOM FULLYRDING. Leitad var ad "róterings-par" — íslenskum streng
+   sem er HVERGI i vidmotinu (hann er adeins til i kóða-athugasemd), og
+   eftir ad appid vard enskt gat hann alls ekki birst. Fullyrdingin var
+   thvi SONN hvort sem glugginn lokadist eda ekki. Nu er leitad ad
+   "Price cap", sem er sannanlega i glugganum sjalfum (profad tveimur
+   linum ofar) og hverfur thegar hann lokast.                          */
+ok(!/Price cap/.test(text()), "spjaldið lokast");
 
 console.log("\n=== 12. TIMALINAN I SIMABREIDD (skorunar-vordur) ===");
 /* HVERS VEGNA ThETTA PROF ER TIL: TL_WINDOW var FAST 13 og i 390px urdu

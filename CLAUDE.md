@@ -319,7 +319,11 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 | `bsd.mjs` / `bsd-pipeline.mjs` | Ekkert dautt svið má rata í skrána; hvert birt svið verður að hafa **raunverulega dreifingu** |
 | `defcon-shrink.mjs` / `dc-hit-display.mjs` | Afturvirknin á DC-hittni, og að **afturvirkjaða talan sé aðaltalan** á skjánum |
 | `smoke.test.mjs` | Appið í jsdom með raunverulegum `data/` og hermdu `fetch` |
-| `data-resilience.mjs` | Opnar hvern flipa og krefst marktæks innihalds — **eina sem sér hvítan skjá** |
+| `data-resilience.mjs` | Opnar hvern flipa og krefst marktæks innihalds — **eina sem sér hvítan skjá**. 16 atburðarásir: vantandi OG **skemmdar** skrár (hálfskrifað JSON, tómt svið, röng gerð), BSD-skrárnar báðar, og kjarna-tilfellið þar sem krafan er ekki flipar heldur **skýrð villa** |
+| `player-cards.mjs` | Opnar **öll 573 leikmannaspjöldin**, líka án BSD, og lokar liðsspjaldinu úr hverju. Spjaldið sameinar sex óbundnar heimildir; önnur próf opnuðu 1 eða 15. Stökkbreyting sem felldi EINN mann (nákvæmlega eitt skot) hrundi listanum úr 573 í 57 |
+| `ffdr-table.mjs` | „Teams — FFDR" lesin AF SKJÁNUM: **liturinn verður að segja það sama og talan** (`tierOf`), `n` borið við `fixtures.json` fyrir öll 20 liðin, og bilið virt. Endurreiknar EKKI FFDR — það væru tvær útfærslur |
+| `playerlist-sort.mjs` | 121 dálka-áttir lesnar úr DOM. **Tómt gildi má aldrei sitja á toppnum** ef dálkurinn hefur tölur, og skrun í botninn sannar að þau fóru NIÐUR en hurfu ekki. Áttin er lesin af örinni, ekki gefin sér |
+| `playerlist-narrow.mjs` | **Símahamurinn — sem ekkert próf hafði séð.** Stillir `innerWidth` OG `matchMedia` á 390 px svo báðar greinar keyri; mælir dálkabreiddir og að andlitsmyndin hverfi en liðsmerkið ekki |
 | `error-boundary.mjs` | Prófar ÚTGÖNGUNA, ekki bara að kassinn birtist |
 | `leagues.mjs` | 500 slembin inntök: summa verðlauna má **aldrei** fara yfir pottinn og ekkert verðlaun vera neikvætt |
 
@@ -356,6 +360,53 @@ morgun er ekki ásættanlegt.
   gögnum.
 - **Próf eiga að prófa hegðun, ekki orðalag.** Tvö próf féllu við endurnefningu
   á flipa því þau smelltu eftir nákvæmu heiti; notaðu ikon-forskeytið.
+
+### 5b. ÞÖGUL PRÓF — ÞRJÁR TÓMAR FULLYRÐINGAR (fundið 8.8.2026)
+
+Punkturinn hér að ofan („hegðun, ekki orðalag") reyndist **vanmetinn**: þar
+féllu prófin og því sáust þau. Verra tilfellið er þegar prófið **finnur ekki
+neitt og heldur bara áfram** — þá verður það grænt og hættir að mæla.
+
+**`react-warnings.mjs` heimsótti 0 af 22 viðmótum og var grænt.** Leitarorðin
+voru íslensk (`"Umferðin"`, `"Leikmenn"`, `"Grunnur"`) og viðmótið varð enskt
+í commit *„enska eingongu"*. `click()` skilaði `false` í hvert einasta sinn,
+lykkjan hélt áfram, og `visited` var **aðeins prentað** — svo `0/22` las eins
+og upplýsing en ekki bilun. Safnið sem á að verja ALLT viðmótið varði
+**ekkert** — og í skjólinu lifðu tvær raunverulegar React-viðvaranir
+(`border`/`borderColor`-blöndun á umferðar-kössunum, sem React segir sjálft að
+geti gefið rangan ramma). Þær fundust fyrst þegar nýtt próf (`ffdr-table.mjs`)
+opnaði FFDR-kassaröðina.
+
+Tvær aðrar tómar fullyrðingar í sömu ætt:
+
+| staður | fullyrðingin | hvers vegna hún var alltaf sönn |
+|---|---|---|
+| `smoke.test.mjs` | `!text().includes("róterings-par")` | strengurinn er **hvergi í viðmótinu** (aðeins í kóða-athugasemd), svo hún stóðst hvort sem glugginn lokaðist eða ekki |
+| `react-warnings.mjs` | `b.title === "Upplýsingar"` | heitir `"Information"`; blokkin var í `if (info.length)` og slapp þegjandi |
+
+**ÞRJÁR REGLUR SEM LEIÐA AF ÞESSU:**
+
+1. **ÞEKJA ER FULLYRÐING, EKKI LOGGA.** Ef próf telur hvað það heimsótti verður
+   talan að **fella** prófið þegar hún hrynur. `react-warnings.mjs` fellur nú
+   undir 90% (`MIN_VISITED`), og `player-cards.mjs` fellur ef færri en 500
+   spjöld finnast.
+2. **NEIKVÆÐ FULLYRÐING VERÐUR AÐ NEFNA STRENG SEM VAR SANNANLEGA ÞARNA.**
+   `!includes(X)` er einskis virði nema prófið hafi sýnt `includes(X)` áður.
+   Lokunarprófið leitar nú að `"Price cap"`, sem er staðfest tveimur línum ofar.
+3. **STÖKKBREYTTU ÞVÍ SEM ÞÚ LAGAR.** Öll þrjú voru sannreynd með því að
+   afturkalla lagfæringuna: viðvörunar-safnið sá EKKI `borderColor` fyrr en
+   kveikt/slökkt-kaflanum var bætt við — að **heimsækja** viðmót nægir ekki,
+   því React kvartar aðeins við endurteikningu þegar eiginleiki er FJARLÆGÐUR.
+
+**FJÓRÐA TILFELLIÐ, OG ÞAÐ VAR Í MÍNU EIGIN NÝJA PRÓFI** (`playerlist-sort.mjs`):
+fullyrðingin „ekkert tómt gildi ofan við tölu" **getur ekki brugðist** þegar tómu
+gildin fylla allan sýndargluggann — þá sést engin tala, `lastNum` verður −1 og
+skilyrðið slokknar. Stökkbreyting (`return dir` í stað `return 1`, sem fleytir
+null upp) **slapp í gegn** meðan tóm gildi á toppnum fóru úr 4 í 113.
+Rétta invariantið er **ósamhverft**: hafi dálkurinn tölur á annað borð má
+TOPPURINN aldrei vera tómur, í hvorugri átt. Lærdómurinn er almennur —
+*fullyrðing sem þarf tvennt til að bregðast (null OG tölu í sama glugga) er
+veikari en hún lítur út fyrir að vera.*
 
 ---
 
@@ -604,6 +655,15 @@ bókmakera-greinina og **eyddi Odds-API kvótanum**. CDN-cache 60 s. Leiðirnar
   `nowrap`, svo yfirflæði hverfur **vinstra** megin („Points ↓" varð „oints ↓").
 - **Breið tafla fær sinn eigin skrun-kassa** svo hún ryðji ekki SÍÐUNNI út á
   síma. Síðan skrunar hvergi lárétt (mælt: `scrollWidth − clientWidth = 0`).
+- **SÍMAHAMURINN VAR ALDREI PRÓFAÐUR — LAGAÐ 9.8.2026.** `narrow` kviknar á
+  `window.innerWidth < 560` og `matchMedia`. jsdom gefur `innerWidth = 1024`
+  og hefur **enga `matchMedia`**, svo `narrow` var **fast `false` í öllum
+  prófum** og effectinn skilaði sér strax út — annar helmingur töflunnar var
+  jafn óprófaður og hann væri ekki til. `playerlist-narrow.mjs` stillir
+  **báðum** upp (390 px) og mælir: nafnahólf **216 → 140 px**, tölur
+  **→ 66 px**, andlitsmyndir **0**, liðsmerki **áfram 31** (11 px hvert).
+  Þau tvö síðustu eru ólík hlutir: fyrsta útgáfa prófsins taldi allar `<img>`
+  og **felldi rétta hegðun** — merkin eiga að vera þarna.
 - **Hitakortið kvarðast innan SÍAÐA hópsins**, P10–P90 (ekki min-max — Haaland
   gerir min-max ónothæft), og `hi === false` **snýr kvarðanum**. Aðeins efsti og
   neðsti fjórðungur eru litaðir; annars verður taflan flís þar sem tónarnir

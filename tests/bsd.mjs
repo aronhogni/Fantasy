@@ -113,14 +113,21 @@ if (!base || base.label !== "2025/26") {
   for (const p of paired) {
     const b = B.get(p.fpl_id);
     if ((p.goals ?? 0) === b.goals_scored) exact++;
-    if (Math.abs((p.minutes ?? 0) - b.minutes) > 300) badMin++;
+    /* ThROSKULDURINN VAR 300 MINUTUR — OG ThAD VAR AGISKAD, EKKI MAELT.
+       300 minutur eru ThRIR heilir leikir; vixl milli fastamanns og
+       varamanns rumast innan theirra. Maelt a ollum 393 pörunum:
+         mesta frávik = 90 minutur (Robin Roefs), 0 radir yfir 90.
+       324 af 393 skeika um alt ad 90 af thvi ad BSD telur EINN leik
+       odruvisi (uppbotartimi/skiptingar), svo 90 er raunveruleg lofthaed
+       gagnanna og allt tharumfram er poerunar-villa, ekki taln-mismunur. */
+    if (Math.abs((p.minutes ?? 0) - b.minutes) > 90) badMin++;
   }
   const pct = 100 * exact / paired.length;
   ok(pct >= 97, `mork stemma nakvaemlega vid FPL i ${pct.toFixed(1)}% tilvika (>=97%)`);
   /* ThETTA ER VORDURINN SEM FANN VIXLID: Jacob/Alex Murphy og Gabriel
      Martinelli/Gabriel voru RANGT pörud og minutur skildu ad.          */
   ok(badMin === 0,
-     `engin pörun thar sem minutur skeikar >300 (vixlud nofn)${badMin ? ` — ${badMin} fundust` : ""}`);
+     `engin pörun thar sem minutur skeikar >90 (vixlud nofn)${badMin ? ` — ${badMin} fundust` : ""}`);
 
   /* NAFNID SJALFT ER STERKASTI VORDURINN.
      Minutu- og marka-throskuldarnir hér ad ofan SLEPPTU vixli milli
