@@ -842,7 +842,7 @@ async function fetchLineups() {
 }
 
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
-async function eloFetch(url, tries = 3) {
+async function eloFetch(url, tries = 4) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
     try {
@@ -862,8 +862,17 @@ async function eloFetch(url, tries = 3) {
     } catch (e) {
       lastErr = e;
       console.warn(`ClubElo tilraun ${i + 1}/${tries} brást: ${e.message}`);
-      /* ekki sofa eftir SIDUSTU tilraun — thad voru 6 s af hreinni bid */
-      if (i < tries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)));
+      /* ekki sofa eftir SIDUSTU tilraun — thad voru 6 s af hreinni bid.
+         BIDIN LENGD 9.8.2026: hun var 2 s + 4 s = 6 s alls, sem er of
+         stutt fyrir thad sem raunverulega gerist. Maelt: ClubElo svarar
+         HEDAN a 0,8-1,7 s en keyrslan i Actions fell a "aborted due to
+         timeout" og elo.json var 4 daga gamalt — svarid er IP-throttlun a
+         sameiginlegum CI-tolum, ekki haegur thjonn. Throttlun mælist i
+         tugum sekunda, svo 5 s / 20 s / 45 s gefur ~70 s af dreifdri bid
+         i stad 6. Verstu mork eru enn undir minutu og hálfri.
+         ATH: `http`, EKKI `https` — https hengur (maelt: 40 s an svars).
+         Ekki "uppfaera" thad.                                           */
+      if (i < tries - 1) await new Promise(r => setTimeout(r, [5000, 20000, 45000][i] ?? 45000));
     }
   }
   throw lastErr;
