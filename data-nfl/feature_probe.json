@@ -1,0 +1,200 @@
+{
+ "generated": "2026-08-09T13:14:42.832Z",
+ "seasons": [
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "n": 873,
+ "coverage": {
+  "preseason": 464,
+  "lateEarly": 709
+ },
+ "candidates": [
+  {
+   "key": "first4",
+   "label": "First 4 games of last season (PPG)",
+   "n": 709,
+   "r": -0.134,
+   "rho": -0.097,
+   "byPos": {
+    "RB": -0.224,
+    "WR": -0.046,
+    "TE": -0.176,
+    "QB": -0.009
+   }
+  },
+  {
+   "key": "prevOnReport",
+   "label": "(control) weeks on the injury report",
+   "n": 668,
+   "r": -0.103,
+   "rho": -0.085,
+   "byPos": {
+    "RB": -0.088,
+    "WR": -0.162,
+    "TE": -0.081,
+    "QB": 0.087
+   }
+  },
+  {
+   "key": "prevPpg",
+   "label": "(control) last season PPG",
+   "n": 753,
+   "r": -0.096,
+   "rho": -0.049,
+   "byPos": {
+    "RB": -0.12,
+    "WR": -0.021,
+    "TE": -0.106,
+    "QB": 0.013
+   }
+  },
+  {
+   "key": "prevMissed",
+   "label": "(control) games missed last season",
+   "n": 753,
+   "r": -0.093,
+   "rho": -0.061,
+   "byPos": {
+    "RB": -0.079,
+    "WR": -0.135,
+    "TE": 0.004,
+    "QB": -0.104
+   }
+  },
+  {
+   "key": "durability",
+   "label": "(control) durability, two seasons",
+   "n": 753,
+   "r": 0.086,
+   "rho": 0.078,
+   "byPos": {
+    "RB": -0.001,
+    "WR": 0.149,
+    "TE": 0.01,
+    "QB": 0.198
+   }
+  },
+  {
+   "key": "oppLateMinusEarly",
+   "label": "Finished with more opportunity than he started",
+   "n": 709,
+   "r": 0.084,
+   "rho": 0.086,
+   "byPos": {
+    "RB": 0.162,
+    "WR": -0.021,
+    "TE": -0.037,
+    "QB": 0.078
+   }
+  },
+  {
+   "key": "lateMinusEarly",
+   "label": "Finished stronger than he started (points)",
+   "n": 709,
+   "r": 0.061,
+   "rho": 0.069,
+   "byPos": {
+    "RB": 0.193,
+    "WR": -0.03,
+    "TE": -0.012,
+    "QB": 0.052
+   }
+  },
+  {
+   "key": "last4Opp",
+   "label": "Opportunity in the last 4 games",
+   "n": 709,
+   "r": 0.059,
+   "rho": 0.045,
+   "byPos": {
+    "RB": 0.032,
+    "WR": -0.011,
+    "TE": -0.186,
+    "QB": -0.114
+   }
+  },
+  {
+   "key": "last4",
+   "label": "Last 4 games of last season (PPG)",
+   "n": 709,
+   "r": -0.038,
+   "rho": -0.011,
+   "byPos": {
+    "RB": 0.007,
+    "WR": -0.035,
+    "TE": -0.085,
+    "QB": 0.073
+   }
+  },
+  {
+   "key": "preseasonOpp",
+   "label": "Preseason opportunity (att + rec)",
+   "n": 464,
+   "r": 0.032,
+   "rho": 0.049,
+   "byPos": {
+    "RB": -0.036,
+    "WR": -0.146,
+    "TE": null,
+    "QB": -0.057
+   }
+  },
+  {
+   "key": "logAdp",
+   "label": "(control) log ADP",
+   "n": 873,
+   "r": 0.029,
+   "rho": 0.03,
+   "byPos": {
+    "RB": 0.079,
+    "WR": -0.014,
+    "TE": 0.153,
+    "QB": 0.024
+   }
+  },
+  {
+   "key": "age",
+   "label": "(control) age",
+   "n": 873,
+   "r": -0.017,
+   "rho": -0.019,
+   "byPos": {
+    "RB": -0.042,
+    "WR": -0.073,
+    "TE": -0.063,
+    "QB": 0.158
+   }
+  },
+  {
+   "key": "preseasonPts",
+   "label": "Preseason fantasy points",
+   "n": 464,
+   "r": -0.013,
+   "rho": -0.002,
+   "byPos": {
+    "RB": 0.041,
+    "WR": -0.061,
+    "TE": null,
+    "QB": 0.042
+   }
+  },
+  {
+   "key": "preseasonG",
+   "label": "Preseason games appeared in",
+   "n": 464,
+   "r": -0.008,
+   "rho": -0.02,
+   "byPos": {
+    "RB": -0.019,
+    "WR": -0.072,
+    "TE": null,
+    "QB": 0.082
+   }
+  }
+ ],
+ "jointLift": -0.07106194450115844
+}

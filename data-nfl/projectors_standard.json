@@ -1,0 +1,237 @@
+{
+ "generated": "2026-08-09T13:21:39.550Z",
+ "scoring": "standard",
+ "commonSeasons": [
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "sources": [
+  {
+   "key": "__arank",
+   "label": "A-Ranking (ours)",
+   "kind": "ours",
+   "note": null,
+   "years": 5,
+   "seasons": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "draft": 1571.8,
+   "perSeason": {
+    "2021": 1592.8,
+    "2022": 1566.6,
+    "2023": 1606,
+    "2024": 1765.8,
+    "2025": 1328
+   },
+   "rho": 0.496,
+   "hitRB": 0.742,
+   "draftCommon": 1571.8
+  },
+  {
+   "key": "sleeperProj",
+   "label": "Sleeper — projection",
+   "kind": "projection",
+   "note": "Eina raunverulega stiga-spain sem er til sogulega.",
+   "years": 5,
+   "seasons": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "draft": 1439.3,
+   "perSeason": {
+    "2021": 1541.7,
+    "2022": 1488.4,
+    "2023": 1573.4,
+    "2024": 1529.9,
+    "2025": 1063.2
+   },
+   "rho": 0.728,
+   "hitRB": 0.742,
+   "draftCommon": 1439.3
+  },
+  {
+   "key": "sleeperAdp",
+   "label": "Sleeper — ADP",
+   "kind": "crowd",
+   "note": null,
+   "years": 5,
+   "seasons": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "draft": 1322.2,
+   "perSeason": {
+    "2021": 1274.4,
+    "2022": 1440.7,
+    "2023": 1408.2,
+    "2024": 1252.8,
+    "2025": 1234.8
+   },
+   "rho": 0.427,
+   "hitRB": 0.692,
+   "draftCommon": 1322.2
+  },
+  {
+   "key": "adp",
+   "label": "FantasyFootballCalculator — ADP",
+   "kind": "crowd",
+   "note": null,
+   "years": 11,
+   "seasons": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "draft": 1280.8,
+   "perSeason": {
+    "2015": 1240.4,
+    "2016": 1235.6,
+    "2017": 1187.6,
+    "2018": 1311.1,
+    "2019": 1295.7,
+    "2020": 1300.8,
+    "2021": 1329.9,
+    "2022": 1292.4,
+    "2023": 1316.9,
+    "2024": 1358.8,
+    "2025": 1219.9
+   },
+   "rho": 0.364,
+   "hitRB": 0.667,
+   "draftCommon": 1303.6
+  },
+  {
+   "key": "ecr",
+   "label": "FantasyPros — expert consensus",
+   "kind": "expert",
+   "note": "Samsteypa ~100 serfraedinga.",
+   "years": 6,
+   "seasons": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "draft": 1219.5,
+   "perSeason": {
+    "2020": 1147,
+    "2021": 1323.9,
+    "2022": 1281.1,
+    "2023": 1208.9,
+    "2024": 1282.5,
+    "2025": 1073.6
+   },
+   "rho": 0.419,
+   "hitRB": 0.694,
+   "draftCommon": 1234
+  }
+ ],
+ "unusable": [],
+ "leakGate": {
+  "espnAdp": [
+   {
+    "year": 2015,
+    "r": 0.225
+   },
+   {
+    "year": 2016,
+    "r": 0.266
+   },
+   {
+    "year": 2017,
+    "r": 0.191
+   },
+   {
+    "year": 2020,
+    "r": 0.222
+   },
+   {
+    "year": 2021,
+    "r": 0.219
+   },
+   {
+    "year": 2022,
+    "r": 0.196
+   },
+   {
+    "year": 2023,
+    "r": 0.322
+   },
+   {
+    "year": 2024,
+    "r": 0.197
+   }
+  ],
+  "mflAdp": [
+   {
+    "year": 2019,
+    "r": 0.401
+   },
+   {
+    "year": 2020,
+    "r": 0.328
+   },
+   {
+    "year": 2021,
+    "r": 0.372
+   },
+   {
+    "year": 2022,
+    "r": 0.286
+   },
+   {
+    "year": 2023,
+    "r": 0.461
+   },
+   {
+    "year": 2024,
+    "r": 0.357
+   },
+   {
+    "year": 2025,
+    "r": 0.247
+   }
+  ]
+ },
+ "notMeasurable": [
+  {
+   "name": "ESPN projections",
+   "why": "appliedTotal is served only for the current season"
+  },
+  {
+   "name": "NFL.com",
+   "why": "no open historical endpoint; researchinfo returns 503"
+  },
+  {
+   "name": "RotoWire, PFF, 4for4, Establish the Run",
+   "why": "paywalled"
+  },
+  {
+   "name": "Individual analysts on X",
+   "why": "no durable archive of pre-season boards"
+  }
+ ]
+}

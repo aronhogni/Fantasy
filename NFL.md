@@ -621,6 +621,104 @@ hann er notað `k · √ADP`, og **k er mælt: 1,082** á 1.882 leikmanna-árum.
 
 ---
 
+## 5e. Hver er sögulega bestur að spá? — og hverjir eru ómælanlegir
+
+`scripts/nfl/projector-lab.mjs` → `data-nfl/projectors_<scoring>.json`
+
+### Töflan (sömu fimm árin, 2021–2025)
+
+| | PPR | standard | rho | RB-hittni | ár |
+|---|---|---|---|---|---|
+| **A-Ranking (okkar)** | **1988,6** | **1571,8** | 0,576 | 72% | 5 |
+| Sleeper — spá | 1913,8 | 1439,3 | **0,692** | 72% | 5 |
+| Sleeper — ADP | 1761,8 | 1322,2 | 0,477 | 71% | 5 |
+| FantasyFootballCalculator — ADP | 1755,0 | 1303,6 | 0,384 | 65% | 11 |
+| FantasyPros — sérfræðingasamsteypa | 1685,7 | 1234,0 | 0,519 | 69% | 6 |
+
+**Sérfræðingasamsteypan er neðst.** Mannfjöldinn slær hana, og ein spá (Sleeper)
+slær mannfjöldann.
+
+### Tvær heimildir sem litu best út og voru felldar
+
+Fyrsta keyrslan setti **ESPN-ADP í fyrsta sæti með 2.094 stig** — ofar en
+A-Ranking og Sleeper. Sú niðurstaða var röng og mjög trúverðug.
+
+Lekahliðið sem greip Sleeper 2018–2020 (fylgni við leiki spilaða) **greindi hana
+ekki** — mengunin er hlutaleg. Rétta prófið er annað: **spáir frávik heimildar
+frá hinum mannfjöldunum útkomunni?** Hreint forleiks-borð getur það ekki.
+
+| ár | ESPN-frávik → raunstig | MFL-frávik → raunstig |
+|---|---|---|
+| 2021–2024 | +0,25 til +0,35 | +0,25 til +0,38 |
+| **2025** | **−0,357** | — |
+
+Dæmin taka af allan vafa:
+
+> **Sam LaPorta 2023 — ESPN-ADP 64, FFC-ADP 153, raunstig 239,3.** Nýliði sem
+> var ekki draftaður fyrr en um val 150 og endaði sem TE1.
+>
+> **Puka Nacua 2023 — MFL-ADP 98** (raunverulegt forleiks-ADP 200+).
+
+Og 2025 — eina árið sem er ekki liðið — snýr merkinu við. Bæði ESPN og
+MyFantasyLeague geyma ADP sem er **uppfært eftir á**; `PERIOD=DRAFT` hjá MFL
+nær yfir draft sem gerð eru allt árið. Þær eru felldar sjálfvirkt.
+
+### Hverjir eru ómælanlegir, og hvers vegna það er sjálft svar
+
+| heimild | staða |
+|---|---|
+| **ESPN-spár** | `appliedTotal` er aðeins þjónað fyrir **yfirstandandi** ár — 0 fyrir 2021/2023 |
+| **NFL.com** | `researchinfo` skilar 503; enginn opinn sögulegur endapunktur fannst |
+| **RotoWire · PFF · 4for4 · Establish the Run** | greiðsluveggur |
+| **Sérfræðingar á X** | engin varanleg skrá af forleiks-borðum |
+| **FantasyPros einstaklingar** | borð ná aftur til 2025 eins |
+
+Þeir eru **ekki útilokaðir af því þeir séu slæmir** — við getum ekki vitað það.
+Tól sem segðist vita hver þeirra er bestur væri að ljúga. Að vita *hverja er
+ekki hægt að mæla* er hluti af svarinu.
+
+### A-Ranking gegn bestu aðfenginni heimild
+
+| | munur | ár unnin | bootstrap |
+|---|---|---|---|
+| PPR | +74,8 | 4/5 | [+4,0, +153,9] **marktækt** |
+| standard | +132,5 | 5/5 | [+49,1, +215,9] **marktækt** |
+
+**Varnagli sem verður að fylgja:** þetta er *aðskilinna-drafta* hönnunin. Í
+**beinu einvígi** — bæði borðin í sömu deild — er PPR **3/5 og p = 0,50**, ekki
+marktækt. Standard er marktækt í báðum hönnunum (5/5, p = 0,031).
+
+**Rétta lesningin: í standard er munurinn staðfestur. Í PPR fer það eftir því
+hvernig spurt er, og það þýðir að hann er ekki staðfestur.**
+
+---
+
+## 5f. Gögn sem voru prófuð og bættu engu
+
+`scripts/nfl/feature-probe.mjs`. Rétta prófið á nýrri breytu er ekki „spáir hún
+útkomunni" heldur **„spáir hún því sem Sleeper missir af"** — fylgni við
+*skekkju* Sleeper.
+
+| hugmynd | r við skekkju | RB | niðurstaða |
+|---|---|---|---|
+| **Forleikur** — stig | −0,013 | +0,041 | **ekkert** |
+| **Forleikur** — tækifæri | +0,032 | −0,036 | **ekkert** |
+| **Forleikur** — leikir spilaðir | −0,008 | −0,019 | **ekkert** |
+| Fyrstu 4 leikir í fyrra | **−0,134** | −0,224 | neikvætt: heitur endir á byrjun spáir falli |
+| Endaði sterkar en byrjaði | +0,061 | **+0,193** | raunverulegt merki fyrir hlaupara |
+| Endaði með meira tækifæri | +0,084 | +0,162 | sama |
+| Vikur á meiðslaskrá | −0,103 | −0,088 | raunverulegt en hóflegt |
+
+**Forleikurinn ber ekkert.** Ég sótti 33 forleiks-leiki á ár frá ESPN (fullar
+leikskýrslur per leikmann, 3.471 raðir) og fylgnin við skekkju Sleeper er
+núll á öllum þremur mælikvörðum. Byrjunarlið spilar eina sókn; það sem eftir er
+mælir varamenn.
+
+Samsett gáfu nýju breyturnar **R² = −7,1% utan úrtaks** — þær gera spána verri.
+Einstakar fylgni upp á 0,13–0,19 eru raunverulegar en alhæfast ekki.
+
+---
+
 ## 6. Prófin
 
 Fimm söfn í `SUITES` (`npm test` keyrir þau með hinum 41).
@@ -659,6 +757,9 @@ node scripts/nfl/strategy-lab.mjs [--scoring=…]  # -> strategy_*.json
 node scripts/nfl/market-lab.mjs                  # -> market_history.json
 node scripts/nfl/advice-lab.mjs [--scoring=…]     # -> advice_*.json
 node scripts/nfl/arank-lab.mjs [--scoring=…]      # -> arank_*.json (marktaekni)
+node scripts/nfl/arank-search.mjs [--scoring=…]   # 422 afbrigdi + fjolprofa-leidretting
+node scripts/nfl/projector-lab.mjs [--scoring=…]  # -> projectors_*.json (hver er bestur)
+node scripts/nfl/feature-probe.mjs                # -> feature_probe.json (nyjar breytur)
 ```
 
 Þrepin eru aðskilin eftir **eðli gagnanna**, ekki smekk: `core` breytist daglega,
