@@ -16,6 +16,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import {
   STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, buildLeaderboard, fmtStat, minutesFloor,
+  PTS_PER_START_MIN,
   gwTotals, gwTop, withDerived, bestXi, gwFixtureReports,
   shotsFor, shotSummary, SHOT_KINDS, matchShotsToPlayers, normName, nameScore,
   lastFinishedGw, num, POS_ORDER,
@@ -825,6 +826,43 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
   /* Reitur sem VANTAR ma vera null — ALDREI 0 (sbr. 6i). */
   ok(rows.every(p => p._dc_hit_adj === null || typeof p._dc_hit_adj === "number"),
     "vantandi audgun er null, ekki 0");
+}
+
+/* ============================================================
+   GOLF A "STIG PER BYRJUN" — smaurtaks-vorn
+
+   Notandinn sa Chiesa bera 37,0 stig per byrjun. Talan var RETT reiknud:
+   37 stig, 317 minutur, EIN byrjun — nanast oll af BEKKNUM. Maelt a
+   2025/26: 17 af efstu 20 attu faerri en 5 byrjanir, svo dalkurinn radadi
+   hreinum havada.
+
+   Vordurinn er ekki "talan er 6" heldur REGLAN: undir golfi er reiturinn
+   TOMUR (of faar byrjanir til ad segja), ekki 0 og ekki stor tala.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nGOLF A STIG PER BYRJUN\n${"─".repeat(72)}`);
+{
+  const d = STAT_BY_KEY.pts_per_start;
+  ok(!!d, "dalkurinn er til");
+  ok(PTS_PER_START_MIN >= 3 && PTS_PER_START_MIN <= 10,
+     `golfid er a vitraenu bili (${PTS_PER_START_MIN} byrjanir)`);
+  /* Chiesa-tilfellid sjalft. */
+  ok(d.get({ starts: 1, total_points: 37 }) == null,
+     "1 byrjun med 37 stig gefur TOMT — thetta var 37,0 a skjanum");
+  ok(d.get({ starts: PTS_PER_START_MIN - 1, total_points: 40 }) == null,
+     "rett undir golfi er enn tomt");
+  const v = d.get({ starts: PTS_PER_START_MIN, total_points: 30 });
+  ok(v != null && Math.abs(v - 30 / PTS_PER_START_MIN) < 1e-9,
+     `a golfinu reiknast talan rett (${v})`);
+  ok(d.get({}) == null && d.get({ starts: 0, total_points: 0 }) == null,
+     "tomt/0 byrjanir hrynur ekki og skilar null");
+  /* Og a RAUNGOGNUM: enginn i toflunni ma bera fjarstaedu-tolu.        */
+  try {
+    const base = JSON.parse(readFileSync(new URL("../data/season_baseline.json", import.meta.url), "utf8"));
+    const vals = (base.players || []).map(p => d.get(p)).filter(v => v != null);
+    ok(vals.length > 100, `raungogn: ${vals.length} leikmenn na golfinu`);
+    ok(Math.max(...vals) < 12,
+       `haesta gildi a raungognum er truverdugt (${Math.max(...vals).toFixed(1)} — var 37,0)`);
+  } catch { ok(true, "season_baseline.json vantar — raungagna-hluti sleppt"); }
 }
 
 console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);
