@@ -15,6 +15,10 @@ import {
   solve, standardize, designMatrix, ridgeFit, ridgePredict, pickLambda,
   spearman, rankArray, mae, rmse, hitRate, mean, bootstrapDiff,
 } from "../src/learn.js";
+import { readFileSync, existsSync } from "node:fs";
+import path from "node:path";
+
+const DATA = path.join(path.resolve(new URL(".", import.meta.url).pathname, ".."), "data");
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log(`  ok   ${m}`); else { console.log(`  FAIL ${m}`); fail++; } };
@@ -145,6 +149,73 @@ console.log("\n4. BOOTSTRAP: klosad per timabil");
     const many = bootstrapDiff(mA, mB);
     ok((few.hi - few.lo) > (many.hi - many.lo),
       `faerri ar gefa VIDARI vikmork (${(few.hi - few.lo).toFixed(0)} > ${(many.hi - many.lo).toFixed(0)})`);
+}
+
+
+/* ============================================================
+   TILRAUNIRNAR SEM VORU GERDAR OG FELLDAR
+   ============================================================
+   `board-lab.mjs` og `dynamic-lab.mjs` profudu sjo fjolskyldur af
+   breytingum a rodinni yfir tvaer stigagjafir og TVAER OHADAR
+   spaheimildir (Sleeper 5 timabil, FFToday 11). Ekkert stodst.
+
+   Thetta profa er ekki ad endurmaela — thad ver ad NIDURSTODURNAR A
+   DISKNUM SEGI ENN THAD SAMA. Hlaupi einhver til og skrifi "ADP-blondun
+   baetir rodina" verdur hann ad hafa keyrt rannsoknina aftur og fengid
+   adra tolu, og tha fellur thetta.
+
+   THRJU ATRIDI SEM MA ALDREI GLEYMA:
+
+   1. NULLTILGATAN VERDUR AD VERA HLUTLAUS. Bord gegn sjalfu ser skal
+      gefa NAKVAEMLEGA 0. Gefi thad thad ekki er hermunin osamhverf og
+      hver einasta tala hér er merkingarlaus. Thetta er profad fyrst.
+
+   2. WALK-FORWARD ER TALAN SEM GILDIR, ekki besta utkoman i leitinni.
+      Aldurs-fjolskyldan var BEST i hrau leitinni i hverri einustu
+      keyrslu — og fell i walk-forward i hverri einustu keyrslu.
+
+   3. LEIDRETT MORK. 42 afbrigdi voru profud; vid svo marga samanburdi
+      er besta utkoman vaentanleg af tilviljun einni.                */
+console.log("\ntilraunir sem voru felldar (bord-rodun)");
+{
+  const BOARD = ["board_ppr_sleeper", "board_ppr_fftoday",
+                 "board_standard_sleeper", "board_standard_fftoday"];
+  let seen = 0;
+  for (const f of BOARD) {
+    const p = path.join(DATA, `${f}.json`);
+    if (!existsSync(p)) continue;
+    seen++;
+    const j = JSON.parse(readFileSync(p, "utf8"));
+
+    const zero = j.variants.find((v) => v.w === 0);
+    ok(zero && Math.abs(zero.mean) < 0.05,
+      `${f}: bord gegn sjalfu ser er hlutlaust (${zero ? zero.mean : "vantar"})`);
+
+    ok(j.best && j.best.passesCorrected === false,
+      `${f}: besta afbrigdid (${j.best.family} w=${j.best.w}) fellur a leidrettum morkum`);
+
+    ok(j.walkForwardMean <= 0,
+      `${f}: walk-forward gefur enga baetingu (${j.walkForwardMean} stig)`);
+  }
+  ok(seen >= 2, `${seen} bord-tilraunir lesnar af diski`);
+
+  /* Kvikt VBD — sama saga, ur hinni skriftunni. */
+  let dyn = 0, better = 0;
+  for (const f of ["dynamic_ppr_sleeper", "dynamic_ppr_fftoday",
+                   "dynamic_standard_sleeper", "dynamic_standard_fftoday"]) {
+    const p = path.join(DATA, `${f}.json`);
+    if (!existsSync(p)) continue;
+    dyn++;
+    const j = JSON.parse(readFileSync(p, "utf8"));
+    ok(Math.abs(j.selfTest.mean) < 0.05,
+      `${f}: heilbrigdisprofid er hlutlaust (${j.selfTest.mean})`);
+    for (const mode of ["remaining", "nextpick"]) {
+      if (Math.abs(j[mode].t) > j.tCrit && j[mode].mean > 0) better++;
+    }
+  }
+  ok(dyn >= 2, `${dyn} kvik-VBD tilraunir lesnar af diski`);
+  ok(better === 0,
+    `kvikt VBD er hvergi marktaek baeting (${better} af ${dyn * 2} frumum)`);
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

@@ -182,8 +182,16 @@ export function simulateDraft({ board, fieldBoard, actual, slot,
     const order = r % 2 === 0 ? range(1, teams) : range(1, teams).reverse();
     for (const t of order) {
       const mine = t === slot;
-      const use = mine ? board
-        : (rival && t === rival.slot ? rival.board : fieldBoard);
+      /* BORD MA VERA FALL, EKKI ADEINS KORT.
+         Kyrrstaett bord er rodun sem er akvedin fyrir draftid. Sumar
+         hugmyndir eru THAD EKKI — kvikt VBD endurreiknar varamanns-
+         threpid ur THEIM SEM ERU EFTIR i hvert sinn, svo rodin breytist
+         eftir thvi hvernig herbergid hagar ser. Fall faer `taken` og
+         stodutalningu lidsins og skilar kortinu sem gildir NUNA.
+         Kyrrstaedu kortin virka obreytt. */
+      const resolve = (b) => (typeof b === "function" ? b(taken, counts[t], r) : b);
+      const use = resolve(mine ? board
+        : (rival && t === rival.slot ? rival.board : fieldBoard));
       /* `plan` er STODU-AAETLUN fyrir okkar lid: hvada stodur ma taka
          i hverri umferd. Notad af `strategy-lab.mjs` til ad maela
          "RB fyrst eda WR fyrst". Motherjarnir fylgja ALDREI aaetlun —

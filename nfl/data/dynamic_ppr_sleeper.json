@@ -1,0 +1,85 @@
+{
+ "generated": "2026-08-09T23:47:55.618Z",
+ "provenance": {
+  "generated": "2026-08-09T23:47:55.619Z",
+  "argv": [
+   "--scoring=ppr",
+   "--proj=sleeper",
+   "--runs=8"
+  ],
+  "params": {
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": false
+   },
+   "proj": {
+    "value": "sleeper",
+    "fromDefault": false
+   },
+   "runs": {
+    "value": "8",
+    "fromDefault": false
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "scoring": "ppr",
+ "projection": "sleeper",
+ "seasons": [
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "tCrit": 2.776,
+ "selfTest": {
+  "mean": 0,
+  "se": 0,
+  "t": 0,
+  "wins": 0,
+  "years": 5,
+  "perYear": {
+   "2021": 0,
+   "2022": 0,
+   "2023": 0,
+   "2024": 0,
+   "2025": 0
+  }
+ },
+ "remaining": {
+  "mean": -30.8,
+  "se": 56.2,
+  "t": -0.548,
+  "wins": 2,
+  "years": 5,
+  "perYear": {
+   "2021": -103.6,
+   "2022": 129.5,
+   "2023": -128.7,
+   "2024": 80.4,
+   "2025": -131.5
+  }
+ },
+ "nextpick": {
+  "mean": -41.2,
+  "se": 45.3,
+  "t": -0.91,
+  "wins": 2,
+  "years": 5,
+  "perYear": {
+   "2021": -148.1,
+   "2022": 99.1,
+   "2023": 27.2,
+   "2024": -92.1,
+   "2025": -92.1
+  }
+ }
+}

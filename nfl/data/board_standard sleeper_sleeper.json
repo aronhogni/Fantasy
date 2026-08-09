@@ -1,0 +1,360 @@
+{
+ "generated": "2026-08-09T23:44:39.062Z",
+ "provenance": {
+  "generated": "2026-08-09T23:44:39.063Z",
+  "argv": [
+   "--scoring=standard sleeper",
+   "--proj=",
+   "--runs=8"
+  ],
+  "params": {
+   "scoring": {
+    "value": "standard sleeper",
+    "fromDefault": false
+   },
+   "proj": {
+    "value": "",
+    "fromDefault": false
+   },
+   "runs": {
+    "value": "8",
+    "fromDefault": false
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "scoring": "standard sleeper",
+ "projection": "sleeper",
+ "seasons": [],
+ "variants": [
+  {
+   "family": "adp",
+   "w": 0,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "adp",
+   "w": 0.05,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "adp",
+   "w": 0.1,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "adp",
+   "w": 0.15,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "adp",
+   "w": 0.2,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "adp",
+   "w": 0.3,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "adp",
+   "w": 0.4,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "ecr",
+   "w": 0.05,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "ecr",
+   "w": 0.1,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "ecr",
+   "w": 0.15,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "ecr",
+   "w": 0.2,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "ecr",
+   "w": 0.3,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "ecr",
+   "w": 0.4,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "durability",
+   "w": 0.05,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "durability",
+   "w": 0.1,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "durability",
+   "w": 0.15,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "durability",
+   "w": 0.2,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "durability",
+   "w": 0.3,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "durability",
+   "w": 0.4,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "age",
+   "w": 0.05,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "age",
+   "w": 0.1,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "age",
+   "w": 0.15,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "age",
+   "w": 0.2,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "age",
+   "w": 0.3,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "age",
+   "w": 0.4,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "team",
+   "w": 0.05,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "team",
+   "w": 0.1,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "team",
+   "w": 0.15,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "team",
+   "w": 0.2,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "team",
+   "w": 0.3,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  },
+  {
+   "family": "team",
+   "w": 0.4,
+   "mean": 0,
+   "se": null,
+   "t": 0,
+   "years": 0,
+   "wins": 0,
+   "perYear": {}
+  }
+ ],
+ "tried": 30,
+ "tCrit": 2.776,
+ "correctedT": 4.8,
+ "best": {
+  "family": "adp",
+  "w": 0.05,
+  "mean": 0,
+  "t": 0,
+  "passesCorrected": false
+ },
+ "walkForward": {},
+ "walkForwardMean": 0
+}

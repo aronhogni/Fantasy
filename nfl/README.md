@@ -797,6 +797,52 @@ Ekkert þeirra birtir sögulegar spár á opnum endapunkti. Þau eru **nefnd hé
 
 ---
 
+## 5h. Leitin að betri röðun — 9.8.2026, allt fellt
+
+Þegar FFToday tvöfaldaði söguna í 11 tímabil var hægt að spyrja aftur:
+**bætir eitthvað sem við eigum gögn um A-Ranking?** Sjö fjölskyldur voru mældar
+í `board-lab.mjs` og `dynamic-lab.mjs`, hver með sjö vogtölum, yfir
+**tvær stigagjafir × tvær óháðar spáheimildir**.
+
+| hugmynd | hvað hún gerir | niðurstaða |
+|---|---|---|
+| **ADP-blöndun** | vitund fjöldans lögð við VBD | walk-forward neikvætt í öllum fjórum frumum |
+| **ECR-blöndun** | samsteypa sérfræðinga lögð við | sama |
+| **Ending** (`prevG`) | leikir í fyrra sem z-skor | sama |
+| **Aldur** | ferilkúrfan sem z-skor | **best í hráu leitinni í HVERT einasta sinn — og féll í walk-forward í hvert einasta sinn** |
+| **Sókn liðsins** | `prevTeamPfG` | neikvætt við w ≥ 0,3 |
+| **Tiltækileiki sem margfaldari** | `proj × (prevG/17)^w` fyrir VBD | flatt, öll \|t\| < 0,3 |
+| **Skreppa spá að markaðnum** | spáin dregin að því sem ADP-sæti gefur | flatt, öll \|t\| < 0,75 |
+| **Kvikt VBD (`remaining`)** | varamannsþrep endurreiknað úr þeim sem eru eftir | **−89, −31, −97, +12** — nálægt marktækt VERRA |
+| **Kvikt VBD (`nextpick`)** | þrep = sá sem verður bestur við næsta val | −33, −41, −40, +45 |
+
+**Walk-forward er talan sem gildir:** −34,1 · −12,0 · −15,5 · −4,5 stig.
+42 afbrigði voru prófuð; við svo marga samanburði er besta útkoman væntanlega
+jákvæð af tilviljun einni, og Bonferroni-leiðrétt mörk fella hana alltaf.
+
+**ÞRJÁR REGLUR SEM ÞETTA STAÐFESTI:**
+
+1. **Núlltilgátan verður að vera hlutlaus.** Borð gegn sjálfu sér gefur
+   nákvæmlega 0 í öllum átta keyrslum. Gerði það það ekki væri hermunin
+   ósamhverf og hver einasta tala hér merkingarlaus. Það er fyrsta prófið.
+2. **Hrá leit finnur hávaða.** Aldur vann leitina fjórum sinnum af fjórum og
+   féll fjórum sinnum af fjórum.
+3. **Staðbundinn skortur tapar fyrir algildu virði — í ÞRIÐJA sinn.**
+   Bráðanauðsyn í ráðgjöfinni tapaði (−60 í standard), kvikt VBD tapar, og
+   skorts-blöndurnar tapa. Þrjár óháðar mælingar á sama undirliggjandi mistökum:
+   *„staðan er að klárast" verðlaunar mann með lítið algilt virði.*
+
+Verðir: `tests/learn.mjs` les niðurstöðurnar af diski og fellur ef einhver
+þeirra snýst við án nýrrar mælingar.
+
+**Og ein hugmynd í viðbót sem var mæld og felld:** að **blanda spánum tveimur**
+(Sleeper + FFToday). Innan stöðu og innan árs, z-stöðluð, er vogin **einræn
+niður á við** — r fer úr 0,599 (bara Sleeper) í 0,501 (bara FFToday) og hver
+skref þar á milli er verra en Sleeper einn. FFToday bætir engu ofan á Sleeper.
+**Gildi hennar er endurtekningin, ekki samlagningin.**
+
+---
+
 ## 6. Prófin
 
 **Tíu söfn í `SUITES`** (`nfl/tests/run.mjs`). Fjöldinn er reiknaður úr `SUITES`,
