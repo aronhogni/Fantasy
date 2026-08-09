@@ -1963,6 +1963,15 @@ export default function App() {
             {Ico ? <Ico size={14} title="" /> : null}{l}
           </button>
         ))}
+        {/* NFL-appid er SJALFSTAETT app a eigin sidu (`nfl.html`), ekki
+            flipi hér — thau deila engum koda, engum stilum og engum
+            gognum. Thess vegna er thetta <a> en ekki <button>: smellur
+            hledur adra sidu i stad thess ad skipta um `view`.
+            An thessa hlekks vaeri hitt appid ofinnanlegt. */}
+        <a href="nfl.html" style={{ ...S.viewTab, textDecoration: "none",
+                                    display: "inline-flex", alignItems: "center" }}>
+          🏈 NFL
+        </a>
       </div>
 
       {view === "gw" && (

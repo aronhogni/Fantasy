@@ -1,0 +1,188 @@
+/* ============================================================
+   styles.css — NFL-hlutinn. Sjalfstaett fra FPL-appinu VILJANDI:
+   thau deila engum stilum, svo breyting i odru geti ekki brotid hitt.
+   ============================================================ */
+
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel2: #1d212a;
+  --line: #272c38;
+  --text: #e7e9ee;
+  --dim: #98a0b0;
+  --dimmer: #6a7284;
+  --accent: #4da3ff;
+  --good: #35c47a;
+  --bad: #f2604c;
+  --warn: #e8b13a;
+  --mine: #2b6b47;
+  --watch: #4a3d78;
+  --neutral: #ecedf1;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+  /* Sidan skrunar HVERGI larett. Breidar toflur fa sinn eigin
+     skrun-kassa — annars rydur ein tafla allri sidunni ut a sima. */
+  overflow-x: hidden;
+}
+
+.shell { max-width: 1560px; margin: 0 auto; padding: 0 14px 60px; }
+
+/* ---------- haus ---------- */
+.top {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 0; border-bottom: 1px solid var(--line); margin-bottom: 14px;
+}
+.brand { font-weight: 700; font-size: 17px; letter-spacing: .2px; }
+.brand span { color: var(--dim); font-weight: 400; font-size: 13px; margin-left: 8px; }
+.spacer { flex: 1; }
+
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab {
+  background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+  padding: 7px 13px; border-radius: 7px; cursor: pointer; font-size: 13px;
+  font-family: inherit;
+}
+.tab:hover { color: var(--text); border-color: #39404f; }
+.tab.on { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
+
+/* Lyklabords-fokus: :focus-visible (ekki :focus), currentColor thvi
+   appid hefur baedi ljosa og dokka hnappa, og NEGATIFT offset thvi
+   umgjardir med overflow:hidden klippa ytri hring. */
+:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; border-radius: 4px; }
+
+/* ---------- spjold ---------- */
+.panel {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px; margin-bottom: 14px;
+}
+.panel h2 { margin: 0 0 4px; font-size: 15px; }
+.panel .sub { color: var(--dim); font-size: 12.5px; margin-bottom: 12px; }
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.grow { flex: 1; min-width: 0; }
+
+label.field { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--dim); }
+select, input[type="text"], input[type="number"], input[type="search"] {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 9px; font: inherit; font-size: 13px;
+}
+button.act {
+  background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 12px; cursor: pointer; font: inherit; font-size: 13px;
+}
+button.act:hover { border-color: var(--accent); }
+button.act.primary { background: var(--accent); color: #06121f; border-color: var(--accent); font-weight: 600; }
+button.act:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- toflur ---------- */
+.tablewrap {
+  overflow-x: auto; overflow-y: visible;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+}
+table.data { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+table.data th, table.data td {
+  padding: 5px 9px; font-size: 12.5px; white-space: nowrap;
+  border-bottom: 1px solid var(--line); box-sizing: border-box;
+}
+table.data thead th {
+  position: sticky; top: 0; z-index: 3;
+  background: var(--panel2); color: var(--dim);
+  text-align: right; font-weight: 600; cursor: pointer; user-select: none;
+}
+table.data thead tr.bands th {
+  top: 0; z-index: 4; text-align: center; color: var(--dimmer);
+  font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase;
+  border-bottom: 1px solid var(--line); cursor: default;
+}
+/* Dalkahausinn situr 22 px nedar ADEINS thegar band-rod er fyrir ofan
+   hann. An thessa skilyrdis skildi hann eftir 22 px gat i toflum sem
+   hafa enga band-rod (draft-bordid), og EFSTA RODIN faldist bak vid
+   hausinn — leikmadur nr. 1 var ekki synilegur a bordinu. */
+table.data.banded thead tr.cols th { top: 22px; }
+table.data td { text-align: right; color: var(--text); }
+table.data td.txt, table.data th.txt { text-align: left; }
+table.data tbody tr:hover td { background: #1b1f28; }
+
+/* Frosinn dalkur — BAKGRUNN BEINT, aldrei `inherit`.
+   I hausnum situr liturinn a sticky-umgjordinni, svo holfid erfir
+   rgba(0,0,0,0) og haus-heiti skruna synilega undir nafnadalkinn. */
+table.data th.frozen, table.data td.frozen {
+  position: sticky; left: 0; z-index: 2; background: var(--panel);
+}
+table.data thead th.frozen { z-index: 5; background: var(--panel2); }
+table.data tbody tr:hover td.frozen { background: #1b1f28; }
+.scrolled table.data th.frozen, .scrolled table.data td.frozen {
+  box-shadow: 6px 0 8px -6px rgba(0,0,0,.75);
+}
+
+.pos { font-weight: 700; font-size: 10.5px; padding: 1px 5px; border-radius: 4px; }
+.pos.QB { background: #3b2a52; color: #d0b6f5; }
+.pos.RB { background: #14432f; color: #86e3b4; }
+.pos.WR { background: #10354f; color: #8fcaf5; }
+.pos.TE { background: #4a3313; color: #f0c584; }
+.pos.K  { background: #333a45; color: #b9c2d1; }
+.pos.DST{ background: #442026; color: #f0a0a8; }
+
+.dim { color: var(--dim); }
+.dimmer { color: var(--dimmer); }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+.warn { color: var(--warn); }
+.mono { font-variant-numeric: tabular-nums; }
+
+/* "—" fyrir null. NULL ER EKKI NULL: thad er gratt og radast ALLTAF
+   sidast i BADAR attir. */
+.null { color: var(--dimmer); }
+
+.badge {
+  font-size: 10.5px; padding: 1px 6px; border-radius: 20px;
+  border: 1px solid var(--line); color: var(--dim);
+}
+.badge.on { background: var(--mine); color: #d6ffe9; border-color: transparent; }
+.badge.watch { background: var(--watch); color: #ded3ff; border-color: transparent; }
+.badge.bad { background: #4a1f22; color: #ffb4ba; border-color: transparent; }
+.badge.warn { background: #4a3a13; color: #ffd98a; border-color: transparent; }
+
+/* ---------- upplysingakassar ---------- */
+.note {
+  background: var(--panel2); border-left: 3px solid var(--accent);
+  padding: 9px 12px; border-radius: 0 7px 7px 0; color: var(--dim);
+  font-size: 12.5px; margin: 10px 0;
+}
+.note.warn { border-left-color: var(--warn); }
+.note b, .note strong { color: var(--text); }
+
+.kpis { display: flex; gap: 10px; flex-wrap: wrap; }
+.kpi {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; min-width: 96px;
+}
+.kpi .v { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi .k { font-size: 10.5px; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip {
+  background: var(--panel2); border: 1px solid var(--line); color: var(--dim);
+  padding: 4px 9px; border-radius: 20px; cursor: pointer; font-size: 12px;
+  font-family: inherit;
+}
+.chip.on { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
+
+.tierline td { border-top: 2px solid var(--accent); }
+
+.bar { height: 5px; border-radius: 3px; background: var(--accent); display: inline-block; vertical-align: middle; }
+
+.empty { padding: 40px 16px; text-align: center; color: var(--dim); }
+
+@media (max-width: 760px) {
+  .shell { padding: 0 8px 50px; }
+  .brand span { display: none; }
+  table.data th, table.data td { padding: 4px 6px; font-size: 12px; }
+}
