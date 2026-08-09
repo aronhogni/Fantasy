@@ -349,6 +349,8 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
   const [status, setStatus] = useState(null);
   const [live, setLive] = useState(false);
   const [info, setInfo] = useState(null);
+  /* Val sem bordid thekkir ekki — talid, ekki hent thegjandi. */
+  const [unmatched, setUnmatched] = useState(null);
   const timer = useRef(null);
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
@@ -380,13 +382,27 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
       setInfo({ type: d.type, teams: d.settings ? d.settings.teams : null,
                 rounds: d.settings ? d.settings.rounds : null,
                 status: d.status, picks: (picks || []).length });
+      /* VAL SEM BORDID THEKKIR EKKI MA EKKI HVERFA THEGJANDI.
+         Bordid ber ~1.130 leikmenn af ~11.400 hja Sleeper, svo djupt
+         val getur verid utan thess. Ad sleppa thvi ur `ids` er rett —
+         thad var hvort ed er ekki i tillogunum. En ad sleppa thvi ur
+         `mine` er thad EKKI: tha vantar mann i thinn eigin hop og
+         ekkert segir fra thvi. Nu er thad talid og synt. */
       const ids = [], mine = [];
+      let unknown = 0, unknownMine = 0;
       for (const p of picks || []) {
         const pid = String(p.player_id);
-        if (!byId.has(pid)) continue;
-        ids.push(pid);
-        if (sync.slot != null && p.draft_slot === Number(sync.slot)) mine.push(pid);
+        const known = byId.has(pid);
+        const isMine = sync.slot != null && p.draft_slot === Number(sync.slot);
+        if (known) { ids.push(pid); if (isMine) mine.push(pid); }
+        else { unknown++; if (isMine) unknownMine++; }
       }
+      setUnmatched({ total: unknown, mine: unknownMine,
+        names: (picks || []).filter((p) => !byId.has(String(p.player_id)))
+          .slice(0, 6)
+          .map((p) => (p.metadata &&
+            [p.metadata.first_name, p.metadata.last_name].filter(Boolean).join(" ")) ||
+            String(p.player_id)) });
       onPicks(ids, mine);
       setStatus(null);
     } catch (e) { setStatus(String(e.message || e)); }
@@ -461,6 +477,19 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
           {live && <span className="good"> · live</span>}
           {sync.slot == null && (
             <span className="warn"> · set your slot to auto-fill your roster</span>
+          )}
+        </div>
+      )}
+
+      {unmatched && unmatched.total > 0 && (
+        <div className={`note ${unmatched.mine > 0 ? "warn" : ""}`} style={{ marginTop: 8 }}>
+          <b>{unmatched.total} pick{unmatched.total > 1 ? "s" : ""} are not on this board</b>
+          {unmatched.mine > 0
+            ? ` — ${unmatched.mine} of them yours, so your roster below is short by that many.`
+            : " — deep picks outside the draftable pool, which is expected."}
+          {unmatched.names.length > 0 && (
+            <span className="dim"> {unmatched.names.join(", ")}
+              {unmatched.total > unmatched.names.length ? " …" : ""}</span>
           )}
         </div>
       )}

@@ -27,12 +27,21 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { simulateDraft, DEFAULT_LEAGUE } from "../src/accuracy.js";
 import { mean, bootstrapDiff } from "../src/learn.js";
+import { stamp } from "./lib/provenance.mjs";
 
 const OUT = path.resolve(process.cwd(), "data");
 const ARG = Object.fromEntries(process.argv.slice(2).map((a) => {
   const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? true];
 }));
 const SCORING = String(ARG.scoring || "ppr");
+/* HVADA SPA ER GRUNNURINN.
+   `sleeper` (sjalfgefid) naer yfir 5 hrein timabil. `fftoday` naer yfir
+   **11** — 2015-2025, oll gegnum sama leka-hlid (sja build-features).
+   Aetlunin er ekki ad skipta um heimild heldur ad geta spurt SOMU
+   spurningar a tvofalt lengri sogu: er A-Ranking betri en hra
+   stigarod, og er munurinn marktaekur? Fimm ar dugdu ekki i PPR. */
+const PROJ = String(ARG.proj || "sleeper");
+const PROJ_FIELD = PROJ === "fftoday" ? "ffProj" : "sleeperProj";
 const TEAMS = 12, ROUNDS = 14;
 const LEAGUE = { ...DEFAULT_LEAGUE, teams: TEAMS, rounds: ROUNDS };
 
@@ -81,18 +90,18 @@ async function main() {
 
   /* Timabil sem hafa hreina Sleeper-spa (leka-hlidid i
      build-features hefur thegar hent hinum). */
-  const years = [...new Set(rows.filter((r) => r.sleeperProj != null)
+  const years = [...new Set(rows.filter((r) => r[PROJ_FIELD] != null)
     .map((r) => r.season))].sort();
-  console.log(`timabil med hreina Sleeper-spa: ${years.join(", ")}`);
+  console.log(`timabil med hreina spa (${PROJ}): ${years.join(", ")}`);
 
   /* ---------- heimurinn per ar ---------- */
   const world = {};
   for (const y of years) {
     const yr = rows.filter((r) => r.season === y && r.adp != null &&
-                                  r.sleeperProj != null);
+                                  r[PROJ_FIELD] != null);
     if (yr.length < 120) continue;
     const pts = (r) => (SCORING === "ppr" ? r.pts : r.ptsStd);
-    const pool = yr.map((r) => ({ id: r.id, pos: r.pos, proj: r.sleeperProj,
+    const pool = yr.map((r) => ({ id: r.id, pos: r.pos, proj: r[PROJ_FIELD],
                                   adp: r.adp, actual: pts(r) }));
     world[y] = {
       pool,
@@ -351,8 +360,17 @@ async function main() {
     console.log(`\n  ${r.label}`);
     console.log(`    munur ${sgn(r.diff)} stig · vinnur ${r.wins}/${r.years} timabil · ` +
       `${r.slotWins}/${r.slots} saeti`);
-    console.log(`    bootstrap (klosad per ar) : [${sgn(r.boot.lo)}, ${sgn(r.boot.hi)}]  ` +
-      (r.boot.excludesZero ? "MARKTAEKT" : "utilokar ekki null"));
+    /* `bootstrapDiff` SKILAR NULL vid faerri en thrju sameiginleg ar —
+       thad er rett hegdun, thrju ar bera engin vikmork. En skriftan
+       kastadi tha `Cannot read properties of null`, sem segir lesanda
+       EKKERT um hvad var ad. Maelingaskyrsla a ad segja hvers vegna hun
+       getur ekki reiknad; hun a ekki ad deyja. */
+    if (!r.boot) {
+      console.log(`    bootstrap (klosad per ar) : of fa sameiginleg ar (${r.years})`);
+    } else {
+      console.log(`    bootstrap (klosad per ar) : [${sgn(r.boot.lo)}, ${sgn(r.boot.hi)}]  ` +
+        (r.boot.excludesZero ? "MARKTAEKT" : "utilokar ekki null"));
+    }
     console.log(`    tekna-prof a timabilum    : p = ${r.signP}  ` +
       (r.signP < 0.05 ? "MARKTAEKT" : "ekki marktaekt"));
     console.log(`    pardur t-prof (klasar=ar) : t = ${r.paired.t}, ` +
@@ -360,8 +378,15 @@ async function main() {
       (r.paired.significant ? "MARKTAEKT" : "ekki marktaekt"));
   }
 
-  await writeFile(path.join(OUT, `arank_${SCORING}.json`), JSON.stringify({
+  await writeFile(path.join(OUT, `arank_${SCORING}${PROJ === "fftoday" ? "_fftoday" : ""}.json`), JSON.stringify({
     generated: new Date().toISOString(),
+    /* HVERNIG THESSI SKRA VARD TIL. Skra sem ber ekki vidfongin sin er
+       mynd af einni keyrslu, ekki maeling — sja lib/provenance.mjs. */
+    provenance: stamp({
+      argv: process.argv.slice(2),
+      defaults: { scoring: "ppr", proj: "sleeper", runs: 20, teams: TEAMS, rounds: ROUNDS },
+      inputs: ["features.json"], dataDir: OUT,
+    }),
     scoring: SCORING, teams: TEAMS, rounds: ROUNDS, seasons: ys,
     sleeperPerSeason: Object.fromEntries(ys.map((y) => [y, round1(slpPerSeason[y])])),
     adpPerSeason: Object.fromEntries(ys.map((y) => [y, round1(adpPerSeason[y])])),
@@ -375,7 +400,7 @@ async function main() {
     tests: { current: resCurrent, best: resBest, walkForward: resWf },
     headToHead: { current: h2hCurrent, best: h2hBest },
   }, null, 1));
-  console.log(`\n-> data/arank_${SCORING}.json`);
+  console.log(`\n-> data/arank_${SCORING}${PROJ === "fftoday" ? "_fftoday" : ""}.json`);
 }
 
 /** P(X >= k) fyrir X ~ Bin(n, 0.5) — einhliða tekna-prof. */

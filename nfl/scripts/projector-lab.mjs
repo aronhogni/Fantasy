@@ -44,6 +44,7 @@ import { simulateDraft, DEFAULT_LEAGUE } from "../src/accuracy.js";
 import { mean, spearman, hitRate, bootstrapDiff } from "../src/learn.js";
 import { buildIndexes, matchByName } from "../src/names.js";
 
+import { stamp } from "./lib/provenance.mjs";
 const OUT = path.resolve(process.cwd(), "data");
 const ARG = Object.fromEntries(process.argv.slice(2).map((a) => {
   const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? true];
@@ -279,6 +280,9 @@ async function main() {
   }
 
   await writeFile(path.join(OUT, `projectors_${SCORING}.json`), JSON.stringify({
+    /* Hvernig thessi skra vard til — sja lib/provenance.mjs. */
+    provenance: stamp({ argv: process.argv.slice(2),
+      defaults: { scoring: "ppr" }, inputs: ["features.json"], dataDir: OUT }),
     generated: new Date().toISOString(),
     scoring: SCORING, commonSeasons: common,
     sources: ranked, unusable: skipped.map((r) => ({ label: r.label, years: r.years })),

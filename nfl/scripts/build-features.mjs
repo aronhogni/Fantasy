@@ -25,7 +25,7 @@
    fyrsta leik. Maelt: 2015-2025 eru oll tekin 25. agust - 9. sept.
    ============================================================ */
 
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { getText, getJSON, record, pool, sourceReport } from "./lib/http.mjs";
 import { objects, num, str } from "./lib/csv.mjs";
@@ -357,6 +357,32 @@ async function main() {
   }
 
   /* ---------- 6. RADIRNAR ---------- */
+  /* ============================================================
+     FFTODAY — ELDRI SPAR EN SLEEPER NAER TIL
+     ============================================================
+     Sleeper geymir adeins 2021-2025 (fyrri ar falla a leka-hlidinu).
+     FFToday birtir forleiks-spar aftur til 2015, sottar med
+     `scripts/fetch-fftoday.mjs`, og thar med er hugsanlega haegt ad
+     tvofalda gagnagrunn A-Ranking.
+
+     GOGNIN ERU EKKI TEKIN GILD FYRIR THAD — thau fara i GEGNUM SAMA
+     LEKA-HLID og Sleeper, a sama mengi (draftanlegi hopurinn) og med
+     sama tholmark. Heimild sem naer lengra aftur er einskis virdi ef
+     hun veit hvernig for.                                          */
+  const fftoday = new Map();
+  try {
+    const raw = JSON.parse(await readFile(path.join(OUT, "fftoday_projections.json"), "utf8"));
+    for (const yr of raw.seasons || []) {
+      const list = (raw.projections || {})[yr] || [];
+      const idxF = buildIndexes(list);
+      fftoday.set(Number(yr), { list, idx: idxF });
+    }
+    record("fftoday_load", fftoday.size >= 8,
+      `${fftoday.size} seasons of FFToday projections available`);
+  } catch {
+    record("fftoday_load", false, "fftoday_projections.json missing — run scripts/fetch-fftoday.mjs");
+  }
+
   const rows = [];
   for (let year = FIRST_OUTCOME; year <= LAST_OUTCOME; year++) {
     /* Nafna-porun ADP -> leikmadur. FFC ber engin sameiginleg audkenni,
@@ -425,6 +451,15 @@ async function main() {
           sleeperAdp: sleeperProj.get(`${id}|${year}`)
             ? (sc === "ppr" ? sleeperProj.get(`${id}|${year}`).adp
                             : sleeperProj.get(`${id}|${year}`).adpStd) : null,
+
+          /* --- FFTODAY: forleiks-spa aftur til 2015 --- */
+          ffProj: (() => {
+            const f = fftoday.get(year);
+            if (!f) return null;
+            const e = matchByName(f.idx, a.name, a.pos, a.team);
+            if (!e) return null;
+            return sc === "ppr" ? e.item.ppr : e.item.std;
+          })(),
 
           /* --- INNTAK UR N-1 --- */
           prevG: p1 ? p1.g : null,
@@ -545,6 +580,42 @@ async function main() {
     }
     record("sleeper_leak_gate", true,
       `${leakyYears.size} seasons rejected: ${[...leakyYears].sort().join(", ") || "none"}`);
+  }
+
+  /* ============================================================
+     SAMA HLID A FFTODAY
+     ============================================================
+     Heimild sem naer lengra aftur er EINSKIS VIRDI ef hun veit
+     hvernig for. FFToday er sott i dag fyrir ar sem eru longu lidin,
+     svo spurningin er nakvaemlega su sama og hja Sleeper: birtir
+     sidan forleiks-spa eda eitthvad sem hefur verid uppfaert?
+
+     Profid er ekki endurhugsad heldur ENDURNOTAD — sami maelikvardi
+     (fylgni spar vid FJOLDA LEIKINNA LEIKJA), sama mengi (adeins their
+     sem eiga ADP, svo varamanna-thatturinn ruglist ekki inn i) og sama
+     tholmark (0,40). Ar sem fellur er thurrkad ut.                */
+  {
+    const ffLeaky = new Set();
+    const byYear = new Map();
+    for (const r of rows) {
+      if (r.scoring !== "ppr" || r.ffProj == null || r.adp == null) continue;
+      if (!byYear.has(r.season)) byYear.set(r.season, []);
+      byYear.get(r.season).push(r);
+    }
+    for (const [yr, list] of [...byYear].sort((a, b) => a[0] - b[0])) {
+      if (list.length < 60) continue;
+      const rr = pearson(list.map((x) => x.ffProj), list.map((x) => x.g));
+      const leaky = Math.abs(rr) > LEAK_MAX;
+      if (leaky) ffLeaky.add(yr);
+      record(`fftoday_leak_${yr}`, !leaky,
+        `projection vs games played r=${rr.toFixed(3)} on ${list.length} drafted players` +
+        (leaky ? " — REJECTED, outcome-aware" : ""));
+    }
+    for (const r of rows) if (ffLeaky.has(r.season)) r.ffProj = null;
+    const kept = [...byYear.keys()].filter((y) => !ffLeaky.has(y)).sort();
+    record("fftoday_leak_gate", true,
+      `${ffLeaky.size} seasons rejected: ${[...ffLeaky].sort().join(", ") || "none"} · ` +
+      `${kept.length} clean: ${kept.join(", ")}`);
   }
 
   /* LEIKMADUR SEM SPILADI ALDREI FAER 0, EKKI NULL — og thad er retta

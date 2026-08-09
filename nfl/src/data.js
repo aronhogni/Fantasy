@@ -98,6 +98,10 @@ export const loadWeekly = (year) => load(`weekly/${year}.json`);
 export const loadEval = (scoring) => load(`model_eval_${scoring}.json`);
 export const loadStrategy = (scoring) => load(`strategy_${scoring}.json`);
 export const loadArank = (scoring) => load(`arank_${scoring}.json`);
+/* SAMA MAELING A OHADRI SPAHEIMILD. FFToday naer aftur til 2015 (11
+   timabil a moti 5 hja Sleeper) og fer gegnum sama leka-hlid. Thetta
+   er endurtekningarprofid — sja notu i ModelLab. */
+export const loadArankFf = (scoring) => load(`arank_${scoring}_fftoday.json`);
 
 /* ============================================================
    BEIN DRAFT-TENGING VID SLEEPER

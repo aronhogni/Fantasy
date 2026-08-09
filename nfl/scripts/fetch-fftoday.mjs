@@ -74,13 +74,20 @@ const COLS = {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function get(url, tries = 3) {
+/* Fleiri tilraunir OG lengri bid en adur (3 -> 6, linulegt -> veldi).
+   Sidan dettur ut undir alagi og gaf 912/551/504 radir i thremur EINS
+   keyrslum — thad var ekki thattarinn heldur netid. */
+async function get(url, tries = 6) {
   for (let i = 0; i < tries; i++) {
-    if (i) await sleep(1500 * i);
+    if (i) await sleep(800 * 2 ** (i - 1));
     try {
       const res = await fetch(url, { headers: { "User-Agent": UA } });
       if (!res.ok) continue;
-      return await res.text();
+      const t = await res.text();
+      /* Tom eda styfd sida er EKKI gild sida. Hun bar 200 og for
+         beint i thattarann, sem skilaði engum rodum an athugasemdar. */
+      if (!t || t.length < 2000 || !/<TR/i.test(t)) continue;
+      return t;
     } catch { /* reynt aftur */ }
   }
   return null;
@@ -93,22 +100,36 @@ async function main() {
   const out = {};
   let mismatchTotal = 0, checkedTotal = 0;
 
+  const skipped = [];
   for (const y of years) {
     const rows = [];
     let mismatch = 0, checked = 0;
+    let pageFails = 0; const failedPages = [];
     for (const [pid, pos] of Object.entries(POS)) {
       for (const page of [0, 1]) {
         const html = await get(
           `https://fftoday.com/rankings/playerproj.php?Season=${y}` +
           `&PosID=${pid}&LeagueID=1&cur_page=${page}`);
         await sleep(400);
-        if (!html) continue;
+        /* MISTEKIN KOLL ERU TALIN OG TIMABILID ER FELLT — sama regla og
+           BSD-sokning i FPL-verkefninu: "mistekin koll eru talin og
+           keyrslan deyr fremur en ad skrifa hluta-timabil".
+
+           Adur var `continue` og ekkert meira. Sida sem datt ut skildi
+           eftir gat sem enginn sa, og skrain bar mismunandi fjolda
+           leikmanna eftir thvi hvernig netid la thann daginn — 912,
+           551 og 504 radir i thremur keyrslum a sama inntaki. Utkoma
+           sem raedst af heppni er ekki maeling, og HALFT timabil er
+           verra en ekkert: thad litur ut eins og heilt. */
+        if (!html) { pageFails++; failedPages.push(`${y}/${pos}/p${page}`); continue; }
         for (const r of parse(html, pos)) {
           /* OKKAR FORMULA A THEIRRA TOLFRAEDI — ekki theirra stigatala.
              Sidan birtir `FPts` en su tala er i THEIRRA stigagjof, og
-             hun er EKKI su sama og okkar fyrir leikstjornendur:
-               Jalen Hurts 2023  FFToday 413,1  ·  okkar (4 stig/TD) 367,2
-               ... en med 6 stigum per sendingamark: 413,2
+             hun er EKKI su sama og okkar fyrir leikstjornendur.
+             REGLA THEIRRA VAR MAELD (minnstu ferningar a ollum 672 QB,
+             RMSE 0,031): 1 stig per 20 sendingajarda, 4 per sendinga-
+             mark, ENGIN refsing fyrir stolinn bolta, 1 per 10 hlaupa-
+             jarda, 6 per hlaupamark. Sja langu notuna vid sjalfsprofid.
              WR og TE passa hins vegar UPP A AUKASTAF.
              Ad taka theirra tolu og leggja grip ofan a hana — eins og
              fyrsta utgafan gerdi — hefdi flutt theirra QB-stigagjof
@@ -126,12 +147,37 @@ async function main() {
             checked++;
             if (Math.abs((ppr - rec) - r.fptsStd) > 1.5) mismatch++;
           } else {
-            /* QB: sannreynum ad dalkarnir seu a rettum stad med thvi
-               ad krefjast raunhaefra sviða. Sendingayardar utan
-               1.500-6.000 thyda ad vorpunin er skokk. */
+            /* QB — NAKVAEM SAMSEMD VID **MAELDA** REGLU THEIRRA.
+               Tvaer rangar utgafur a undan thessari:
+
+               1. "Sendingayardar utan 1.500-6.000" flaggadi **312 af
+                  672** leikstjornendum, og their voru allir VARAMENN
+                  med rettri lagri spa (Mike Glennon 309 yardar). Profid
+                  maeldi STAERD thegar thad atti ad maela DALKAVORPUN.
+
+               2. "Sama og okkar en med 6 stig per sendingamark" — su
+                  tala var lesin ut ur EINU daemi (Jalen Hurts 2023,
+                  413,2 a moti 413,1) og hitti thar fyrir tilviljun:
+                  tvaer skekkjur jofnudu hvor adra ut. Yfir oll 672
+                  var midgildisfravikid -1,04 og adeins 281 innan marka.
+
+               Reglan var thvi FITTUD med minnstu ferninga a ollum 672
+               (RMSE 0,031, sem er nakvaemlega namundun theirra):
+
+                 sendingajardar  1 stig per 20   (vid: per 25)
+                 sendingamark    4 stig          (vid: 4)
+                 stolinn bolti   0 stig          (vid: -2)
+                 hlaupajardar    1 stig per 10   (vid: per 10)
+                 hlaupamark      6 stig          (vid: 6)
+
+               ATH: `ppr`/`half`/`std` i skranni eru OSNORTIN af thessu.
+               Thau eru reiknud ur HRA-TOLFRAEDINNI med `scoring.js`,
+               eins og allt annad i verkefninu; thessi regla er notud
+               EINGONGU til ad sannreyna ad dalkarnir seu a rettum stad. */
             checked++;
-            const py = r.stats.passing_yards || 0;
-            if (py < 1500 || py > 6000) mismatch++;
+            const theirs = offensePoints(r.stats,
+              { ...BASE, passYd: 0.05, passTD: 4, passInt: 0, rushYd: 0.1, rushTD: 6 }, pos);
+            if (Math.abs(theirs - r.fptsStd) > 1.5) mismatch++;
           }
 
           rows.push({
@@ -146,6 +192,18 @@ async function main() {
       }
     }
     checkedTotal += checked; mismatchTotal += mismatch;
+
+    /* HALFT TIMABIL ER VERRA EN EKKERT — thad litur ut eins og heilt.
+       Datt einhver sida ut eftir sex tilraunir er arid SLEPPT, ekki
+       skrifad ad hluta. Gamla utgafan af thessum ramma skrifadi thad
+       sem bardst og lét fjoldann rada af heppni. */
+    if (pageFails > 0) {
+      skipped.push(`${y} (${pageFails} pages: ${failedPages.join(", ")})`);
+      record(`fftoday_${y}`, false,
+        `SKIPPED: ${pageFails} pages failed after retries — a partial season ` +
+        `looks like a whole one, so nothing is written for ${y}`);
+      continue;
+    }
     if (rows.length > 100) {
       out[y] = rows;
       record(`fftoday_${y}`, mismatch < checked * 0.05,
@@ -153,6 +211,9 @@ async function main() {
     } else {
       record(`fftoday_${y}`, false, `only ${rows.length} players`);
     }
+  }
+  if (skipped.length) {
+    console.log(`\n  SLEPPT vegna ofullkominnar sokningar: ${skipped.join(" · ")}`);
   }
 
   const seasons = Object.keys(out).map(Number).sort();

@@ -26,6 +26,7 @@ import { recommend, survivalProb, picksUntilNext, defaultSd, SD_K } from "../src
 import { startersPoints, DEFAULT_LEAGUE } from "../src/accuracy.js";
 import { mean, bootstrapDiff } from "../src/learn.js";
 
+import { stamp } from "./lib/provenance.mjs";
 const OUT = path.resolve(process.cwd(), "data");
 const ARG = Object.fromEntries(process.argv.slice(2).map((a) => {
   const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? true];
@@ -123,6 +124,9 @@ async function main() {
       : "\n  -> radgjofin baetir ENGU. Hun a ad fara ut, hversu skynsamleg sem hun hljomar.");
 
   await writeFile(path.join(OUT, `advice_${SCORING}.json`), JSON.stringify({
+    /* Hvernig thessi skra vard til — sja lib/provenance.mjs. */
+    provenance: stamp({ argv: process.argv.slice(2),
+      defaults: { scoring: "ppr" }, inputs: ["features.json"], dataDir: OUT }),
     generated: new Date().toISOString(),
     scoring: SCORING, teams: TEAMS, rounds: ROUNDS, seasons: ys.map(Number),
     sdRule: { fitted: Math.round(kFit * 1000) / 1000, used: SD_K, n: withSd.length },
@@ -152,11 +156,30 @@ function staticPicker(order) {
   };
 }
 
-/** Radgjofin: haesta bradanauðsyn. */
+/**
+ * BRADANAUÐSYNAR-ARMURINN — velur thann sem bradanauðsyn setur efst.
+ *
+ * HER VAR MAELINGIN HAETT AD MAELA NEITT. Fallid tok adur `r.picks[0]`.
+ * En `recommend()` RADAR eftir VBD (sja langu notuna i advice.js: rodin
+ * er A-Ranking og bradanauðsyn er upplysing sem raedur ekki), svo
+ * `picks[0]` ER haesti VBD — nakvaemlega sami madur og hinn armurinn
+ * velur. Baðir armar drofudu thvi somu leikmennina og munurinn maeldist
+ * **0,0 i ollum fimm timabilum, i badum stigagjofum**.
+ *
+ * Skrain a disknum bar samt -63,8 fra eldri utgafu kodans, THEGAR
+ * `recommend` radadi eftir bradanauðsyn. Og `tests/advice.mjs` var
+ * GRAENT allan timann — thvi thad las TOLUNA UR SKRANNI i stad thess ad
+ * endurleida hana. Nakvaemlega thogla profid sem CLAUDE.md 5b lysir:
+ * fullyrding sem finnur ekkert og heldur bara afram.
+ *
+ * `urgencyPick` er sa sem bradanauðsyn hefdi valid og er thvi retta
+ * inntakid i thennan arm. Nidurstadan sem rettlaetir akvordunina i
+ * advice.js er thar med endurgeranleg ur kodanum sem er i loftinu.
+ */
 function advicePicker() {
   return (avail, roster, pick) => {
     const r = recommend({ available: avail, roster, pick, league: LEAGUE });
-    return r.picks[0] || null;
+    return r.urgencyPick || r.picks[0] || null;
   };
 }
 

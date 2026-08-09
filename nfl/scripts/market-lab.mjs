@@ -31,6 +31,7 @@ import { offensePoints, normPos } from "../src/scoring.js";
 import { normTeam } from "../src/names.js";
 import { mean, spearman, bootstrapDiff } from "../src/learn.js";
 
+import { stamp } from "./lib/provenance.mjs";
 const OUT = path.resolve(process.cwd(), "data");
 const REL = "https://github.com/nflverse/nflverse-data/releases/download";
 
@@ -225,6 +226,9 @@ async function main() {
     : `  -> engin marktaek breyting milli timabila — merkid er STODUGT i 20 ar`);
 
   await writeFile(path.join(OUT, "market_history.json"), JSON.stringify({
+    /* Hvernig thessi skra vard til — sja lib/provenance.mjs. */
+    provenance: stamp({ argv: process.argv.slice(2),
+      defaults: {}, inputs: ["features.json", "market.json"], dataDir: OUT }),
     generated: new Date().toISOString(),
     seasons: [FIRST, LAST], sampleSize: sample.length,
     signals: results, defenseHeadToHead: headToHead, byYear,

@@ -1,5 +1,37 @@
 {
- "generated": "2026-08-09T12:36:25.101Z",
+ "generated": "2026-08-09T22:42:49.864Z",
+ "provenance": {
+  "generated": "2026-08-09T22:42:49.864Z",
+  "argv": [
+   "--runs=25"
+  ],
+  "params": {
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": true
+   },
+   "runs": {
+    "value": "25",
+    "fromDefault": false
+   },
+   "teams": {
+    "value": 12,
+    "fromDefault": true
+   },
+   "rounds": {
+    "value": 14,
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3093075,
+    "sha1": "18a1fbfe07b1",
+    "mtime": "2026-08-09T19:44:26.435Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
  "scoring": "ppr",
  "teams": 12,
  "rounds": 14,

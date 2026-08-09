@@ -1,5 +1,23 @@
 {
- "generated": "2026-08-09T11:02:12.759Z",
+ "provenance": {
+  "generated": "2026-08-09T22:47:17.183Z",
+  "argv": [],
+  "params": {},
+  "inputs": {
+   "features.json": {
+    "bytes": 3093075,
+    "sha1": "18a1fbfe07b1",
+    "mtime": "2026-08-09T19:44:26.435Z"
+   },
+   "market.json": {
+    "bytes": 3772,
+    "sha1": "28f3ce5588aa",
+    "mtime": "2026-08-09T22:35:23.221Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "generated": "2026-08-09T22:47:17.186Z",
  "seasons": [
   2006,
   2025

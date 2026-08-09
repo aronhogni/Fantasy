@@ -52,10 +52,44 @@ const HISTORY = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
 /* ---------- skrifun ---------- */
 
+/**
+ * ROD ER FARMUR, EKKI UMBUÐIR.
+ *
+ * THETTA KOSTADI RAUNVERULEG GOGN. Adur taldi vordurinn
+ * `Object.keys(data).length` a hlut-farmi. `market.json` er hlutur med
+ * sex lykla — `season`, `generated`, `lines`, `futures`, `teams`,
+ * `withLine` — svo `rows` var ALLTAF 6, oháð thvi hvad var i honum.
+ *
+ * 9.8.2026 kl. 21:25 skilaði ESPN engum linum. Skrain for ur **272
+ * linum og 32 lidum nidur i null**, vordurinn hleypti thvi i gegn
+ * (6 >= 3), workflow-id sagdi "success", og Market-flipinn var tomur i
+ * appinu. Nakvaemlega su bilun sem lagmarkid er til ad hindra — hun
+ * var bara ad telja rangan hlut.
+ *
+ * Nu er talid **staersta fylkid hvar sem thad liggur i farminum**, ekki
+ * adeins i efsta lagi. `ecr.json` synir hvers vegna: thar liggja 515
+ * leikmenn undir `ppr.players`, svo grunn leit finnur ekkert og talan
+ * yrdi 4 — skra sem er i fullkomnu lagi hefdi verid dæmd tom.
+ *
+ * Hlutur an nokkurs fylkis (`meta.json`) fellur aftur i lyklafjolda,
+ * sem er rett fyrir hann: thar ER hver lykill ein stadreynd.
+ */
+function rowCount(data, depth = 0) {
+  if (Array.isArray(data)) return data.length;
+  if (!data || typeof data !== "object") return 0;
+  let best = 0;
+  if (depth < 4) {
+    for (const v of Object.values(data)) {
+      const n = rowCount(v, depth + 1);
+      if (n > best) best = n;
+    }
+  }
+  return best || Object.keys(data).length;
+}
+
 async function writeJson(name, data, { minRows = 1 } = {}) {
   const file = path.join(OUT, name);
-  const rows = Array.isArray(data) ? data.length
-    : (data && typeof data === "object" ? Object.keys(data).length : 0);
+  const rows = rowCount(data);
   if (rows < minRows) {
     record(`write:${name}`, false,
       `REFUSED: ${rows} rows (minimum ${minRows}) — existing file left in place`);
@@ -146,22 +180,43 @@ async function stageCore() {
   await writeJson("ecr.json", {
     season,
     ppr: ecrPpr, half: ecrHalf, standard: ecrStd,
-  }, { minRows: 1 });
+  }, { minRows: 100 });  // 500+ leikmenn per snid
   /* Frettir og meidsli i eigin skra — thaer eru THAD SEM BREYTIST
      ORAST og eiga thvi ekki ad thvinga endurhledslu a `players.json`
      (1,4 MB) i hvert sinn sem frett baetist vid. */
+  /* MEIDSLA-FYLKID FER EKKI I SKRANA — MAELT, EKKI AKVEDID.
+     ESPN skilar 800 meidsla-rodum. Thaer voru skrifadar hingad og
+     namu **453 KB af 480**, sottar i hvert sinn sem My team er opnad.
+
+     Maelt 9.8.2026 a raungognum:
+       · appid les `news.injuries` HVERGI (adeins `news.articles`)
+       · 661 af 800 rodum eru status "Active" — thad er ekki meidsli
+       · `espnId` er NULL a ollum 800, svo porun getur adeins verid
+         eftir nafni, sem er thogla ranga porunin sem repo-id bannar
+       · a fantasy-stodum ber ESPN **NULL meidsli sem Sleeper missir**
+       · `injuryNote`: 0 radir koma ur ESPN, 28 ur Sleeper
+       · `injury`: ESPN stadfestir 14 sem Sleeper hafdi thegar
+
+     Sott er thad afram og notad sem BAKLEID i `joinPlayers` (linur
+     334-336) — hun kostar ekkert hja notandanum og gripur ef Sleeper
+     hættir ad senda svidid. Thad sem var tekid ut er ad SENDA hraa
+     fylkid i vafrann. */
+  record("espn_injuries_payload", true,
+    `${espnInj.length} rows fetched, kept as pipeline fallback only ` +
+    `(0 statuses Sleeper lacks, 0 notes — not shipped to the client)`);
   await writeJson("news.json", {
     season, generated: new Date().toISOString(),
     articles: newsFeed,
-    injuries: espnInj,
-  }, { minRows: 2 });
+  }, { minRows: 20 });   // 50 greinar i hverri keyrslu
 
   await writeJson("market.json", {
     season,
     generated: new Date().toISOString(),
     lines, futures, teams: teamMarket,
     withLine: lines.filter((g) => g.total != null).length,
-  }, { minRows: 3 });
+    /* 272 leikir a tomu timabili; 200 er golf sem lifandi keyrsla
+       nær alltaf en tom keyrsla nær aldrei. */
+  }, { minRows: 200 });
   await writeJson("meta.json", {
     season, week: state.week, seasonType: state.season_type,
     seasonStart: state.season_start_date,

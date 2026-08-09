@@ -35,6 +35,7 @@ import { getJSON, getText, record, pool } from "./lib/http.mjs";
 import { objects, num, str } from "./lib/csv.mjs";
 import { normPos } from "../src/scoring.js";
 import { normTeam, buildIndexes, matchByName } from "../src/names.js";
+import { stamp } from "./lib/provenance.mjs";
 import { mean, spearman, standardize, designMatrix, ridgeFit, ridgePredict,
          pickLambda } from "../src/learn.js";
 
@@ -246,6 +247,9 @@ async function main() {
     : "    -> baetir ekki maelanlega vid Sleeper.");
 
   await writeFile(path.join(OUT, "feature_probe.json"), JSON.stringify({
+    /* Hvernig thessi skra vard til — sja lib/provenance.mjs. */
+    provenance: stamp({ argv: process.argv.slice(2),
+      defaults: {}, inputs: ["features.json"], dataDir: OUT }),
     generated: new Date().toISOString(),
     seasons: years, n: data.length,
     coverage: { preseason: withPre, lateEarly: withSplit },

@@ -13,11 +13,13 @@
 import React, { useMemo, useState } from "react";
 
 export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league, rows,
-                                  arankPpr, arankStd }) {
+                                  arankPpr, arankStd, arankFfPpr, arankFfStd }) {
   const std = league.scoring === "standard";
   const ev = std ? evalStd : evalPpr;
   const st = std ? stratStd : stratPpr;
   const ar = std ? arankStd : arankPpr;
+  /* Sama maeling a OHADRI spaheimild yfir 11 timabil — sja Replication. */
+  const arFf = std ? arankFfStd : arankFfPpr;
   const [tab, setTab] = useState("rank");
 
   if (!ev && !st) {
@@ -54,7 +56,7 @@ export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league,
         </div>
       </div>
 
-      {tab === "rank" && <Rankings ev={ev} ar={ar} std={std} />}
+      {tab === "rank" && <Rankings ev={ev} ar={ar} arFf={arFf} std={std} />}
       {tab === "signal" && <Signal ev={ev} />}
       {tab === "order" && <Order st={st} std={std} />}
       {tab === "vs" && <VsSleeper rows={rows} ev={ev} />}
@@ -65,7 +67,7 @@ export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league,
 /* ============================================================
    1. HVADA RODUN VINNUR?
    ============================================================ */
-function Rankings({ ev, ar, std }) {
+function Rankings({ ev, ar, arFf, std }) {
   if (!ev) return <div className="panel"><div className="empty">No data.</div></div>;
   const rows = ev.models.filter((m) => m.draftCommon != null)
     .sort((a, b) => b.draftCommon - a.draftCommon);
@@ -140,6 +142,7 @@ function Rankings({ ev, ar, std }) {
             contaminated by the outcome.
           </div>
           {ar && ar.headToHead && <HeadToHead ar={ar} std={std} />}
+          {arFf && arFf.headToHead && <Replication ar={ar} ff={arFf} std={std} />}
         </div>
       )}
 
@@ -574,6 +577,92 @@ function HeadToHead({ ar, std }) {
               {h.yearWins} of {h.years} seasons and the swing between seasons is far
               larger than the gap. PPR narrows the distance between positions, so the
               correction has less to do.</>}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ENDURTEKNING A OHADRI SPAHEIMILD
+   ============================================================
+   ÞETTA ER PROFID SEM ENGINN GERIR, OG THAD BREYTTI NIDURSTODUNNI.
+
+   Allt sem stendur fyrir ofan er maelt a spa Sleeper yfir fimm hrein
+   timabil (2021-2025). Sama spurning var lögð fyrir ADRA heimild:
+   FFToday, sem birtir forleiks-spar aftur til 2015 — **11 timabil** —
+   og fer gegnum nakvaemlega sama leka-hlid (fylgni vid fjolda leikinna
+   leikja, sama mengi, sama tholmark 0,40). Öll 11 standast; 2018-2020,
+   arin sem Sleeper FELLUR a, eru hrein hja FFToday.
+
+   PPR: nidurstadan HELST. +99 stig, 8 af 11 timabilum.
+   STANDARD: hun GERIR THAD EKKI. -9 stig, 6 af 11.
+
+   Og thad eru ekki arin heldur heimildin. A SOMU fimm arum:
+       Sleeper  +42  +65   +5  +171  +288   (5/5)
+       FFToday  +68  -88 -108  -146  +193   (2/5)
+
+   Ályktunin sem verdur ad standa: i standard er "vinnur oll timabil"
+   eiginleiki SLEEPER-TALNANNA, ekki almennur eiginleiki thess ad
+   umreikna spa i virdi yfir varamanni. I PPR heldur merkid a tveimur
+   ohadum heimildum og tvofalt lengri sogu — sem er sterkari
+   vidbragd en marktaeknisprof a einni heimild gaeti nokkurn timann
+   gefid.                                                          */
+function Replication({ ar, ff, std }) {
+  const a = ar && ar.headToHead && ar.headToHead.current;
+  const f = ff.headToHead.current;
+  const holds = f.mean > 0 && f.yearWins > f.years / 2;
+  const shared = [2021, 2022, 2023, 2024, 2025];
+  return (
+    <div className="panel">
+      <h2>Does it replicate on a different projection?</h2>
+      <div className="sub">
+        Everything above uses Sleeper's projection over five clean seasons. This runs
+        the identical measurement on <b>FFToday</b>, an unrelated source that publishes
+        pre-season projections back to 2015 — <b>eleven seasons</b> — through the same
+        leak gate. Every one passes, including 2018–2020, the years Sleeper fails.
+      </div>
+
+      <div className="kpis">
+        <div className="kpi">
+          <div className="k">Sleeper · {a ? a.years : "—"} seasons</div>
+          <div className="v"><b className={a && a.mean > 0 ? "good" : "bad"}>
+            {a ? (a.mean > 0 ? "+" : "") + a.mean : "—"}</b></div>
+          <div className="k dim">{a ? `${a.yearWins}/${a.years} seasons` : ""}</div>
+        </div>
+        <div className="kpi">
+          <div className="k">FFToday · {f.years} seasons</div>
+          <div className="v"><b className={f.mean > 0 ? "good" : "bad"}>
+            {f.mean > 0 ? "+" : ""}{f.mean}</b></div>
+          <div className="k dim">{f.yearWins}/{f.years} seasons</div>
+        </div>
+      </div>
+
+      <div className="mono dim" style={{ fontSize: 12, marginTop: 8 }}>
+        {Object.entries(f.byYear).map(([y, v]) => (
+          <span key={y} style={{ marginRight: 14 }}>
+            {y} <span className={v > 0 ? "good" : "bad"}>{v > 0 ? "+" : ""}{v}</span>
+          </span>
+        ))}
+      </div>
+
+      <div className={`note ${holds ? "" : "warn"}`} style={{ marginTop: 12 }}>
+        {holds
+          ? <><b>In {std ? "standard" : "PPR"} the result replicates.</b> A second,
+              unrelated projection over eleven seasons gives the same direction and a
+              similar margin. Replication on independent data is stronger evidence than
+              any significance test on one source, because it cannot be produced by the
+              quirks of a single provider.</>
+          : <><b>In {std ? "standard" : "PPR"} it does not replicate.</b> On FFToday the
+              margin is {f.mean > 0 ? "+" : ""}{f.mean} points and it wins {f.yearWins} of{" "}
+              {f.years} seasons. And it is not the extra years — on the same five seasons
+              Sleeper gives{" "}
+              {a ? shared.map((y) => (a.byYear[y] > 0 ? "+" : "") + a.byYear[y]).join(", ") : "—"}
+              {" "}while FFToday gives{" "}
+              {shared.map((y) => (f.byYear[y] > 0 ? "+" : "") + f.byYear[y]).join(", ")}.
+              {" "}<b>So "wins every season" is a property of Sleeper's numbers here, not
+              of replacement-level value in general.</b> The ordering is still what the
+              app uses — it beats ADP on both sources — but do not read the season sweep
+              as settled.</>}
       </div>
     </div>
   );

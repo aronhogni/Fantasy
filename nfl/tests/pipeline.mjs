@@ -317,5 +317,81 @@ if (status) {
   console.log("  (status.json vantar — slepp)");
 }
 
+/* ============================================================
+   TOM KEYRSLA MA ALDREI THURRKA UT GOD GOGN
+   ============================================================
+   Reglan stod i haus `fetch-nfl.mjs` og var BROTIN i verki. Vordurinn
+   taldi `Object.keys(data).length`, svo hlut-farmur eins og
+   `market.json` — sex lyklar, oháð innihaldi — bar ALLTAF 6 radir.
+
+   9.8.2026 kl. 21:25 skilaði ESPN engum linum. Skrain for ur 272 linum
+   og 32 lidum nidur i NULL, vordurinn hleypti thvi i gegn (6 >= 3),
+   workflow-id sagdi "success" og Market-flipinn var tomur i appinu.
+
+   Regla sem hvilir a athugasemd er engin regla. Herman her keyrir
+   TALNINGUNA SJALFA a nakvaemlega theim formum sem pipeline-id skrifar. */
+console.log("\ntom keyrsla ma ekki thurrka ut god gogn");
+{
+  /* Sama utfaersla og i fetch-nfl.mjs. Hun er endurtekin viljandi:
+     profid a ad falla ef HEGDUNIN breytist, ekki ef nafn breytist. */
+  const rowCount = (d, depth = 0) => {
+    if (Array.isArray(d)) return d.length;
+    if (!d || typeof d !== "object") return 0;
+    let best = 0;
+    if (depth < 4) for (const v of Object.values(d)) {
+      const n = rowCount(v, depth + 1); if (n > best) best = n;
+    }
+    return best || Object.keys(d).length;
+  };
+
+  const CASES = [
+    { name: "market.json",   min: 200,
+      empty: { season: 2026, generated: "x", lines: [], futures: [], teams: [], withLine: 0 },
+      full:  { season: 2026, generated: "x", lines: new Array(272), futures: new Array(11),
+               teams: new Array(32), withLine: 272 } },
+    { name: "news.json",     min: 20,
+      empty: { season: 2026, generated: "x", articles: [], injuries: [] },
+      full:  { season: 2026, generated: "x", articles: new Array(50), injuries: new Array(800) } },
+    /* ECR er HREIDRAD: 515 leikmenn liggja undir `ppr.players`. Grunn
+       leit i efsta lagi hefdi gefid 4 og daemt heila skra toma. */
+    { name: "ecr.json",      min: 100,
+      empty: { season: 2026, ppr: { players: [], experts: [] },
+               half: { players: [] }, standard: { players: [] } },
+      full:  { season: 2026, ppr: { players: new Array(515), experts: new Array(95) },
+               half: { players: new Array(815) }, standard: { players: new Array(501) } } },
+    { name: "players.json",  min: 300,
+      empty: [], full: new Array(1130) },
+    { name: "teams.json",    min: 30,
+      empty: [], full: new Array(32) },
+    { name: "schedule.json", min: 200,
+      empty: [], full: new Array(557) },
+  ];
+  for (const c of CASES) {
+    ok(rowCount(c.empty) < c.min,
+      `${c.name}: tom keyrsla HAFNAD (${rowCount(c.empty)} < ${c.min})`);
+    ok(rowCount(c.full) >= c.min,
+      `${c.name}: heil keyrsla skrifud (${rowCount(c.full)} >= ${c.min})`);
+  }
+
+  /* Og lagmorkin i kodanum verda ad vera thau somu og hér. Annars ver
+     profid form sem pipeline-id notar ekki. */
+  const src = readFileSync(path.join(ROOT, "scripts", "fetch-nfl.mjs"), "utf8");
+  for (const c of CASES) {
+    const m = new RegExp(`writeJson\\("${c.name.replace(".", "\\.")}"[\\s\\S]{0,400}?minRows:\\s*(\\d+)`)
+      .exec(src);
+    ok(m && Number(m[1]) === c.min,
+      `${c.name}: minRows i kodanum er ${m ? m[1] : "ekki finnanlegt"} (a ad vera ${c.min})`);
+  }
+
+  /* Skrarnar a disknum verda LIKA ad standast sin eigin lagmork —
+     annars er tomt astand thegar komid inn og enginn tekur eftir. */
+  for (const c of CASES) {
+    const f = path.join(DATA, c.name);
+    if (!existsSync(f)) continue;
+    const n = rowCount(JSON.parse(readFileSync(f, "utf8")));
+    ok(n >= c.min, `${c.name} a disknum ber ${n} radir (lagmark ${c.min})`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

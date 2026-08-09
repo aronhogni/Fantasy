@@ -1,5 +1,25 @@
 {
- "generated": "2026-08-09T13:55:31.138Z",
+ "provenance": {
+  "generated": "2026-08-09T22:46:57.621Z",
+  "argv": [
+   "--scoring=standard"
+  ],
+  "params": {
+   "scoring": {
+    "value": "standard",
+    "fromDefault": false
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3093075,
+    "sha1": "18a1fbfe07b1",
+    "mtime": "2026-08-09T19:44:26.435Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "generated": "2026-08-09T22:46:57.624Z",
  "scoring": "standard",
  "commonSeasons": [
   2021,

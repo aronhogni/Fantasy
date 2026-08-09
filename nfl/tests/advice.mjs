@@ -179,6 +179,18 @@ console.log("\n7. maelingin a disknum");
 if (existsSync(path.join(DATA, "advice_standard.json"))) {
   const A = JSON.parse(readFileSync(path.join(DATA, "advice_standard.json"), "utf8"));
   ok(A.seasons.length >= 3, `${A.seasons.length} timabil hermd`);
+  /* ARMARNIR TVEIR VERDA AD VERA TVEIR.
+     `advicePicker` tok einu sinni `recommend().picks[0]` — en su rod ER
+     A-Ranking, svo baðir armar drofudu somu leikmennina og munurinn var
+     0,0 i ollum timabilum. Skrain bar samt gamla tolu (-63,8) og THETTA
+     PROF VAR GRAENT, thvi thad las toluna i stad thess ad spyrja hvort
+     hun gaeti enn ordid til. Fullyrding sem finnur ekkert og heldur
+     afram er engin fullyrding (CLAUDE.md 5b). */
+  const diffPerSeason = A.seasons
+    .filter((y) => A.bySeason.advice[y] != null && A.bySeason.aRank[y] != null)
+    .map((y) => Math.abs(A.bySeason.advice[y] - A.bySeason.aRank[y]));
+  ok(diffPerSeason.length > 0 && diffPerSeason.some((d) => d > 1),
+    `armarnir tveir drafta ekki eins (mesti munur ${Math.max(0, ...diffPerSeason).toFixed(1)})`);
   ok(A.vsARank.diff < 0,
     `bradanauðsyn tapar fyrir A-Ranking i standard (${A.vsARank.diff.toFixed(1)})`);
   ok(A.vsAdp.diff > 0 && A.vsAdp.excludesZero,
