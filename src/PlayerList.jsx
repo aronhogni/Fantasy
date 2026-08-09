@@ -241,6 +241,8 @@ function ColumnPicker({ keys, selected, onToggle, onClear, pinnedKeys, narrow })
     return { g, bands, n: ds.length };
   }).filter(x => x.n), [f, pinnedKeys]);
 
+  const nShown = groups.reduce((a, x) => a + x.n, 0);
+  const nAll = STAT_DEFS.filter(d => !pinnedKeys.has(d.key)).length;
   const pinned = [...pinnedKeys].map(k => STAT_BY_KEY[k]).filter(Boolean);
 
   return (
@@ -251,17 +253,26 @@ function ColumnPicker({ keys, selected, onToggle, onClear, pinnedKeys, narrow })
           <span style={{ ...S.pickCaret, transform: open ? "none" : "rotate(-90deg)" }}>▾</span>
           <b style={S.pickTitle}>{"Build your table"}</b>
         </button>
-        <span style={S.pickHint}>
-          {open
-            ? "Click a stat to add it as a column · click the column header to sort by it"
-            : interp("{0} columns chosen", [keys.length])}
-        </span>
+        {/* LEITIN VAR LENGST TIL HAEGRI — ~900 px fra thvi sem hun siar, og
+            notandinn bad um "search moguleika" sem VAR ThEGAR TIL. Hun
+            virkadi fullkomlega ("xg" skilar 20 dalkum); hun fannst bara
+            ekki. Nu stendur hun VID titilinn, thar sem augad er.        */}
         {open && (
           <input style={S.pickSearch} value={q} onChange={e => setQ(e.target.value)}
-            placeholder={"Search stats — name, short name or FPL key"} />
+            placeholder={"Search stats — e.g. xg, tackles, bonus"} />
         )}
+        {open && q && (
+          <button style={S.pickClearQ} title={"Clear the search"}
+            onClick={() => setQ("")}>{"✕"}</button>
+        )}
+        <span style={S.pickHint}>
+          {open
+            ? (q ? interp("{0} of {1} stats match", [nShown, nAll])
+                 : "Click a stat to add it as a column · click the column header to sort by it")
+            : interp("{0} columns chosen", [keys.length])}
+        </span>
         {keys.length > 0 && (
-          <button style={{ ...S.pickClear, ...(open ? {} : { marginLeft: "auto" }) }}
+          <button style={{ ...S.pickClear, marginLeft: "auto" }}
             onClick={onClear}>{"clear"} {keys.length}</button>
         )}
       </div>
@@ -1701,8 +1712,10 @@ const S = {
   pickCaret:{ fontSize:9, color:"#12456f", transition:"transform 120ms" },
   pickTitle:{ fontSize:11.5, color:"#12456f" },
   pickHint:{ fontSize:10.5, color:C.text3 },
-  pickSearch:{ marginLeft:"auto", border:`1px solid ${C.border}`, borderRadius:6,
+  pickSearch:{ border:`1px solid ${C.border}`, borderRadius:6,
                padding:"3px 7px", fontSize:11.5, minWidth:150, flex:"0 1 240px" },
+  pickClearQ:{ border:0, background:"none", cursor:"pointer", color:C.text3,
+               fontSize:11, padding:"0 2px" },
   pickClear:{ border:`1px solid #c9d8e8`, background:"#fff", color:"#12456f",
               borderRadius:6, padding:"3px 8px", fontSize:10.5, cursor:"pointer" },
   pickFixed:{ display:"flex", alignItems:"center", gap:4, flexWrap:"wrap", marginBottom:6 },

@@ -164,6 +164,32 @@ console.log("─".repeat(84));
     `engin cron-stjarna ("*" + "/30") inni i blokk-athugasemd${cronInComment.length ? ": " + cronInComment.join(", ") : ""}`);
 }
 
+/* ---- HRINGIR A SPJOLDUM VERDA AD VERA `inset` ----
+   Notandinn sa graena rammann um spjald skarast vid naestu rod. Orsokin:
+   hann var `outline` (2px + 1px offset), og OUTLINE TEIKNAST UTAN KASSANS
+   OG TELUR EKKI I UPPSETNINGU. Radabilid a vellinum er 1-5 px (maelt), svo
+   rammin la ofan a rodinni fyrir nedan.
+
+   ThETTA SEST HVORKI I BOUNDING-BOX-MAELINGU NE I KODALESTRI — eg leitadi
+   ad skorun a fjorum breiddum og fann ENGA, einmitt af thvi ad outline er
+   utan uppsetningar. Vollurinn er i venjulegu flaedi (kafli 8), svo hver
+   hringur A spjaldi verdur ad vera `inset` skuggi.                      */
+console.log(`\n${"─".repeat(84)}`);
+console.log("HRINGIR A SPJOLDUM ERU inset");
+console.log("─".repeat(84));
+{
+  const app = readFileSync(ROOT + "src/App.jsx", "utf8");
+  const i = app.indexOf("VALRAMMINN VAR `outline`");
+  const seg = i >= 0 ? app.slice(i, i + 1400) : "";
+  ok(i >= 0, "skyringin um outline-villuna er a sinum stad");
+  ok(/inset 0 0 0 \$\{[^}]*\}px \$\{C\.purple\}/.test(seg),
+     "valdi ramminn er inset (var `outline: 2px solid`)");
+  ok(/inset 0 0 0 \$\{[^}]*\}px \$\{C\.green\}/.test(seg),
+     "planadi ramminn er inset (var `outline: 2px dashed`)");
+  ok(!/\n\s*outline: swapSel/.test(app),
+     "ekkert spjald notar `outline` lengur — hann teiknast utan kassans");
+}
+
 /* ---- TIMAMORK A UTANHUSS-KOLLUM ----
    Maelt 2.8.2026: 8 af 10 `fetch`-kollum i pipeline hofdu ENGIN timamork,
    thar med sameiginlegi hjalparinn (getText) sem FPL, ESPN, GitHub-raw og

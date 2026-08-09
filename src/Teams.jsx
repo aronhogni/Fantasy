@@ -25,15 +25,63 @@ const C = {
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shotIndex }) {
+export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shotIndex, Crest }) {
+  /* UMFERDAR-BIL — EN AÐEINS FYRIR ThAD SEM ThAD GETUR HREYFT.
+     ENGIN lids-skra i repo-inu ber tolur per umferd: team_form, luck,
+     team_shots og bsd_teams eru ALLAR timabils-summur. Thad eina sem er
+     til per umferd eru SKOTIN (bsd_shots.json ber nu `gw` a hverju skoti),
+     svo bilid hreyfir skot-dalkana og ekkert annad. Hinir eru merktir
+     `season` — sama regla og i Player stats: thogull dalkur sem hreyfist
+     ekki er verri en dalkur sem segir ad hann geri thad ekki.          */
+  const [gwRange, setGwRange] = useState(null);       // [fra, til] eda null
+  const [gwOpen, setGwOpen] = useState(false);
   const [group, setGroup] = useState("keeper");
   /* Valid lid fyrir skotakortin. null = ekkert valid.               */
   const [pick, setPick] = useState(null);
   const [sort, setSort] = useState({ key: "sot_against_pg", dir: "asc" });
 
-  const rows = useMemo(
+  const base = useMemo(
     () => buildTeamRows({ teams, teamForm, luck, teamShots, bsdTeams }),
     [teams, teamForm, luck, teamShots, bsdTeams]);
+
+  /* Skot-dalkarnir endurreiknadir ur SIUDUM skotum. Somu formulur og
+     scripts/fetch-bsd-teams.mjs notar (per leik, xg/skot, big chance =
+     xg >= 0,18) — annars gaefu taflan og skran sitt hvad.              */
+  const rows = useMemo(() => {
+    if (!gwRange || !shotIndex?.byTeam) return base;
+    const [lo, hi] = gwRange;
+    const F = shotIndex.fields || {};
+    const inRange = sh => { const g = sh[F.gw]; return g != null && g >= lo && g <= hi; };
+    const agg = short => {
+      const ti = shotIndex.teams.indexOf(short);
+      if (ti < 0) return null;
+      const forr = (shotIndex.byTeam.get(ti) || []).filter(inRange);
+      const agst = (shotIndex.byOpp.get(ti) || []).filter(inRange);
+      const games = new Set();
+      for (const sh of forr.concat(agst)) games.add(sh[F.gw]);
+      const n = games.size || 0;
+      if (!n) return null;
+      const sum = (arr, f) => arr.reduce((a, x) => a + (f(x) || 0), 0);
+      const xgF = sum(forr, x => x[F.xg]), xgA = sum(agst, x => x[F.xg]);
+      const BC = 0.18;
+      return {
+        xg_pg: +(xgF / n).toFixed(2), xgc_pg: +(xgA / n).toFixed(2),
+        bc_pg: +(forr.filter(x => (x[F.xg] || 0) >= BC).length / n).toFixed(2),
+        bc_against_pg: +(agst.filter(x => (x[F.xg] || 0) >= BC).length / n).toFixed(2),
+        xg_per_shot: forr.length ? +(xgF / forr.length).toFixed(3) : null,
+        xg_per_shot_against: agst.length ? +(xgA / agst.length).toFixed(3) : null,
+      };
+    };
+    return base.map(r => {
+      const a = agg(r.short);
+      /* Lid an skota i bilinu fa null — EKKI 0. "Spiladi ekki" og
+         "skaut ekki" eru ekki sama hlutid (6i).                       */
+      if (!a) return { ...r, xg_pg: null, xgc_pg: null, bc_pg: null,
+                       bc_against_pg: null, xg_per_shot: null, xg_per_shot_against: null,
+                       goals_minus_xg: null, conceded_minus_xgc: null };
+      return { ...r, ...a, goals_minus_xg: null, conceded_minus_xgc: null };
+    });
+  }, [base, gwRange, shotIndex]);
 
   const defs = useMemo(() => TEAM_STAT_DEFS.filter(d => d.group === group), [group]);
   /* Ef skipt er um flokk og radad var eftir dalki sem er ekki lengur a
@@ -150,6 +198,44 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
         <p style={S.note}>{"Team data has not loaded."}</p>
       ) : (
         <>
+          {/* UMFERDAR-BIL. Hreyfir SKOT-dalkana (xG, big chances, xG/skot)
+              — thad eru einu lids-tolurnar sem eru til per umferd. Hinir
+              eru timabils-summur og bera `season`.                      */}
+          <div style={S.gwBar}>
+            <button style={S.gwToggle} aria-expanded={gwOpen}
+              onClick={() => setGwOpen(v => !v)}>
+              <span style={{ transform: gwOpen ? "none" : "rotate(-90deg)", display:"inline-block",
+                             fontSize:9, transition:"transform 120ms" }}>▾</span>
+              {" Gameweeks"}
+            </button>
+            {gwRange && (
+              <>
+                <span style={S.gwNow}>GW {gwRange[0]}–{gwRange[1]}</span>
+                <button style={S.gwClear} onClick={() => setGwRange(null)}>{"whole season"}</button>
+              </>
+            )}
+            {gwRange && (
+              <span style={S.gwWarn}>
+                {"only the shot columns follow the range — the rest are season totals"}
+              </span>
+            )}
+          </div>
+          {gwOpen && (
+            <div style={S.gwBoxes} role="group" aria-label={"Select gameweeks"}>
+              {Array.from({ length: 38 }, (_, i) => i + 1).map(n => {
+                const on = gwRange && n >= gwRange[0] && n <= gwRange[1];
+                return (
+                  <button key={n} title={`GW ${n}`} aria-pressed={!!on}
+                    style={{ ...S.gwBox, ...(on ? S.gwBoxOn : {}) }}
+                    onClick={() => setGwRange(r => {
+                      if (!r || r[0] !== r[1]) return [n, n];
+                      return n < r[0] ? [n, r[0]] : [r[0], n];
+                    })}>{n}</button>
+                );
+              })}
+            </div>
+          )}
+
           <div style={S.groupRow}>
             {TEAM_GROUPS.map(g => (
               <button key={g.key} type="button"
@@ -173,6 +259,7 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
                                  ...(pick === r.short ? { boxShadow: "inset 3px 0 0 #7b2d8e" } : null) }}
                         onClick={shotIndex ? () => setPick(pick === r.short ? null : r.short) : undefined}
                         title={shotIndex ? "Show this team's shot maps" : undefined}>
+                      {Crest ? <Crest team={r} size={14} /> : null}
                       <span style={S.short}>{r.short}</span>
                       <span style={S.name}>{r.name || ""}</span>
                     </td>

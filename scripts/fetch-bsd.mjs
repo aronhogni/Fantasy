@@ -383,6 +383,11 @@ for (const e of [...finished].sort((x, y) => x.id - y.id)) {
       SHOT_TYPE.indexOf(sh.type), SHOT_BODY.indexOf(sh.body), SHOT_SIT.indexOf(sh.sit),
       ti(BSD_TEAM[shooter]), ti(BSD_TEAM[conceder]),
       codeOf.get(sh.player_id) ?? null,
+      /* UMFERDIN — an hennar er ekki haegt ad sia lids-tolur eftir
+         umferdum, og ENGIN onnur skra i repo-inu ber lids-tolur per
+         umferd (team_form/luck/team_shots/bsd_teams eru allar
+         timabils-summur).                                            */
+      e.round_number ?? null,
     ]);
   }
 }
@@ -390,7 +395,7 @@ const shotPayload = {
   updated: payload.updated, season: payload.season, source: "bsd_shotmap",
   legend: {
     type: SHOT_TYPE, body: SHOT_BODY, sit: SHOT_SIT, teams: teamIdx,
-    fields: ["x", "y", "xg", "type", "body", "sit", "team", "opp", "code"],
+    fields: ["x", "y", "xg", "type", "body", "sit", "team", "opp", "code", "gw"],
   },
   calib: { goal_line: 0, six_yard_x: 5.5, pen_spot_x: 11.5, box_x: IN_BOX_X,
            box_y: [20.4, 79.6], six_yard_y: [36.5, 63.5], big_chance_xg: BIG_CHANCE_XG },

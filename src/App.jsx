@@ -529,7 +529,8 @@ export default function App() {
       put(byCode, s[iCode], s); put(byTeam, s[iTeam], s); put(byOpp, s[iOpp], s);
     }
     const teams = shotFile.legend?.teams || [];
-    return { byCode, byTeam, byOpp, teams, calib: shotFile.calib,
+    const fields = Object.fromEntries((shotFile.legend?.fields || []).map((f, i) => [f, i]));
+    return { byCode, byTeam, byOpp, teams, fields, calib: shotFile.calib,
              positions: shotFile.positions || {} };
   }, [shotFile]);
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
@@ -1992,7 +1993,7 @@ export default function App() {
       )}
       {view === "teams" && (
         <Teams teams={teams} teamForm={teamForm} luck={luck} teamShots={teamShots}
-          bsdTeams={bsdTeams} shotIndex={shotIndex} />
+          bsdTeams={bsdTeams} shotIndex={shotIndex} Crest={Crest} />
       )}
       {view === "sp" && (
         <SetPieces players={players} teams={teams} teamById={teamById} Crest={Crest}
@@ -3657,13 +3658,23 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
            er 15px og drukknar innan um myndina; hringurinn sest a einu
            augabragdi yfir allan vollinn. `inset` svo hann breyti ekki
            uppsetningu (spjoldin eru i flæði, sja kafla 8 i CLAUDE.md).    */
-        boxShadow: av.isRisk
-          ? `inset 0 0 0 2px ${av.solid || "#d92d3c"}${av.chance === 0 ? "" : "99"}`
-          : undefined,
-        // VALINN til skipta fær sterkan ramma; plönuð viðbót punktalínu
-        outline: swapSel === p.id ? `2px solid ${C.purple}`
-               : isPlanned ? `2px dashed ${C.green}` : "none",
-        outlineOffset: swapSel === p.id ? 2 : (isPlanned ? 1 : 0),
+        /* VALRAMMINN VAR `outline` OG LAK NIDUR I NAESTU ROD.
+           `outline` teiknast UTAN vid kassann og telur EKKI i uppsetningu:
+           2px + 1px offset = 3px sem liggja ofan a thvi sem er fyrir nedan.
+           Radabilid a vellinum er 1-5 px (maelt: rod 1 -> rod 2 er 1 px),
+           svo rammin skarst vid naestu rod. Notandinn sa thetta; hvorki
+           bounding-box-maeling ne prof gatu sed thad, einmitt AF ThVI ad
+           outline er utan uppsetningar.
+           Nu ERU ALLIR HRINGIR `inset` — eins og aettingi theirra fyrir ofan
+           (av.isRisk) sem var thegar rettur og bar skyringuna. Their eru
+           lagdir saman i EINN boxShadow med olikri dypt (2px / 4px) svo
+           spjald sem er BAEDI i haettu OG planad syni bada; spread-adur
+           seinni skuggi hefdi thurrkad thann fyrri ut (sbr. 6r).        */
+        boxShadow: [
+          av.isRisk ? `inset 0 0 0 2px ${av.solid || "#d92d3c"}${av.chance === 0 ? "" : "99"}` : "",
+          swapSel === p.id ? `inset 0 0 0 ${av.isRisk ? 4 : 2}px ${C.purple}`
+            : isPlanned ? `inset 0 0 0 ${av.isRisk ? 4 : 2}px ${C.green}` : "",
+        ].filter(Boolean).join(", ") || undefined,
       }}
       title={swapSel === p.id ? "Selected — click another to swap"
              : "Click to swap with another player"}>
