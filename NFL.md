@@ -231,6 +231,134 @@ en markaðurinn.
 
 ---
 
+## 5b. A-RANKING — hvað spáir því hverjir verða góðir?
+
+`scripts/nfl/build-features.mjs` → `model-lab.mjs` → `strategy-lab.mjs`.
+Walk-forward 2015–2025: fyrir hvert próf-ár er **eingöngu** þjálfað á árum á
+undan, `lambda` valið með krossprófun **innan** þjálfunargagna, og hvert borð
+spilað sem raunverulegt 12-liða snák-draft frá **öllum 12 sætum**. Skorið er
+það sem liðið **skoraði í raun**.
+
+### Niðurstaðan
+
+| röðun | draft-stig (PPR) | vs ADP | rho | vinnur ADP |
+|---|---|---|---|---|
+| **A-Ranking** (Sleeper → VBD) | **1975,8** | **+228** | 0,604 | **4/4** |
+| Sleeper-spá, hrá | 1920,7 | +173 | 0,695 | 3/4 |
+| Sleeper + tölfræði | 1831,1 | +83 | 0,608 | 3/4 |
+| ADP + Sleeper (röðublanda) | 1735,3 | −13 | 0,567 | 2/4 |
+| **ADP (markaðurinn)** | 1747,9 | 0 | 0,458 | — |
+| Sleeper-ADP | 1734,2 | −14 | 0,498 | 1/4 |
+| FantasyPros ECR | 1651,1 | −97 | 0,522 | 1/4 |
+| öll tölfræði, engin skoðun | 1593,5 | −154 | — | — |
+
+Í **standard** er munurinn enn stærri: A-Ranking **+270** gegn ADP.
+
+### Þrjár niðurstöður sem breyttu appinu
+
+**1. Ekkert tölfræðilíkan slær markaðinn.** Ridge á 30 breytum, öllum
+samsetningum, öllum úrfellingum — hvert einasta tapar fyrir hráu ADP, flest
+marktækt. Markaðurinn er nálægt skilvirkur og það er ekki hægt að læra sig
+framhjá honum með opinberri tölfræði.
+
+**2. Sleeper-spáin er sterkasta einstaka heimildin sem til er.**
+rho 0,695 gegn 0,458 hjá ADP og 0,522 hjá sérfræðingasamsteypunni.
+**Og sérhver tilraun til að bæta hana gerði hana verri** — að blanda henni við
+ADP kostaði 185 stig. Appið notar hana því **eina og óbreytta**; ESPN er
+aðeins varaleið þegar hún þegir. Fyrsta útgáfan blandaði Sleeper og ESPN með
+vog 1,0/0,8 og sú blanda var ágiskun sem þynnti sterkasta merkið.
+
+**3. Framlag appsins er ekki betri spá heldur RÉTTA SPURNINGIN.**
+Sleeper spáir stigum og raðar eftir hrástigum. Draft snýst ekki um stig heldur
+um stig **umfram þann sem er enn laus á sömu stöðu**. Umreikningur í VBD bætir
++55 stigum ofan á Sleeper og lætur röðina vinna **öll fjögur árin**.
+
+> **Takið eftir:** rho A-Ranking er **lægra** en Sleeper (0,604 á móti 0,695)
+> en ákvörðunin er betri. Þetta er sama regla og í FPL-verkefninu, nú mæld
+> innan þessa verkefnis: **hærri fylgni er ekki sama og betri ákvörðun.**
+
+### Hvað ber merkið? (hver hópur einn og sér, PPR)
+
+| inntak eitt og sér | draft-stig | rho (RB) |
+|---|---|---|
+| mannfjöldinn (ADP) | 1667 | 0,580 |
+| sérfræðingar (ECR) | 1590 | 0,549 |
+| **framleiðsla** — hvað hann gerði | 1581 | 0,452 |
+| **vinnuálag** — hvað hann fékk | 1556 | 0,429 |
+| **meiðslasaga og ending** | 1473 | 0,121 |
+| **skilvirkni** — hve vel hann nýtti það | 1443 | 0,288 |
+| **liðsstyrkur og hraði** | 1319 | 0,181 |
+| aldur og draft-staða | 1285 | 0,297 |
+
+**Beint svar við spurningunni:** markaðurinn > sérfræðingar > framleiðsla >
+vinnuálag > ending > skilvirkni > **liðsstyrkur**. Styrkur liðsins er nánast
+gagnslaus til að raða einstökum leikmönnum þótt hann virðist eiga að skipta
+máli. Meiðslasaga mælir eitthvað raunverulegt en raðar illa ein og sér — að
+vita hver helst heill segir ekki hver er góður.
+
+Úrfellingar sýna svo að **ending og skilvirkni SKEMMA** samsetta líkanið
+(að taka þær út bætir það um 27 og 41 stig). Þær eru hávaði, ekki upplýsingar,
+og eru því ekki í neinni röðun sem appið birtir.
+
+### Í hvaða röð á að drafta? (12 lið, 11 tímabil)
+
+| stefna | PPR | standard |
+|---|---|---|
+| WR þá RB | **+24** | −18 |
+| RB-RB | +8 | −20 |
+| QB ekki fyrr en í 9. umferð | +3 | −13 |
+| besti lausi maður (viðmið) | 0 | 0 |
+| Zero-RB (enginn RB í 1.–4.) | −28 | **−57 \*** |
+| WR-WR-WR | −40 | **−63 \*** |
+| **QB í 2. umferð** | **−43 \*** | **−17 \*** |
+| **QB í 1. umferð** | **−77 \*** | **−66 \*** |
+
+`*` = 95% bootstrap-vikmörk (klösuð per tímabil) útiloka núll.
+
+**Það sem er marktækt:**
+- **Leikstjórnandi snemma er versta einstaka ákvörðunin**, í báðum stigagjöfum,
+  í öllum 12 sætum. QB í 1. umferð vann aðeins 1 af 11 árum í PPR og **0 af 11**
+  í standard.
+- **Í standard eru Zero-RB og mótttakara-þungar byrjanir marktækt verri.**
+  Í PPR eru þær það ekki — PPR-reglan gerir móttakara raunverulega samkeppnisfæra.
+
+**Það sem er EKKI marktækt:** allt annað. Munurinn á RB-fyrst og WR-fyrst er
+innan vikmarka í PPR, og fyrstu-umferðar taflan (`Model lab` → `Draft order`)
+sýnir bil upp á 10–30 stig af ~1800 milli RB og WR eftir sæti. **Taktu QB-
+niðurstöðuna sem reglu og RB/WR-röðina sem hneigð.**
+
+Í stuttu máli fyrir 12-liða deild:
+
+| | PPR | standard |
+|---|---|---|
+| 1.–2. umferð | RB eða WR — jafngilt | **RB** |
+| leikstjórnandi | **bíddu**, 9. umferð eða síðar | **bíddu** |
+| þéttendi | ekki snemma nema hann sé sér á báti | ekki snemma |
+| Zero-RB | leyfilegt, kostar lítið | **ekki gera það** |
+
+### Lekavarnir sem eru raunverulega prófaðar
+
+Þessi kafli stæði og félli með einni villu: ef eitthvað „spá"-svið bæri
+upplýsingar úr tímabilinu sjálfu væri allt hér rangt og trúverðugt.
+
+- **ADP-glugginn** er staðfestur fyrir hvert ár (`adpWindows` í
+  `features.json`); allir enda 25. ágúst – 8. september, fyrir fyrsta leik.
+- **ECR-skrapanir** eru harðsíaðar við 3. september. Fyrsta útgáfan leyfði
+  fram til 8. og valdi þá 2023-borð frá **degi eftir að tímabilið hófst**.
+- **Sleeper-spár** eru prófaðar formlega: fylgni þeirra við *leiki spilaða* er
+  0,09–0,21 — sú sama og hjá ADP. Uppfærð tala myndi gefa ~0,7. Sönnunin sem
+  útilokar það endanlega: **Christian McCaffrey 2024, ADP 1,4, Sleeper spáði
+  277,9, hann spilaði 4 leiki og skoraði 47,8.**
+- **Leikmenn sem voru draftaðir en spiluðu aldrei fá 0, ekki `null`.** Að
+  sleppa þeim væri lifunar-skekkja sem gerði hverja einustu aðferð betri en
+  hún er.
+
+Vörður: `tests/nfl-pipeline.mjs` kaflar 5b–5c fella byggingu ef ADP-gluggi
+nær inn í tímabil, ef Sleeper-fylgni við leiki fer yfir 0,45, eða ef A-Ranking
+hættir að slá bæði ADP og Sleeper.
+
+---
+
 ## 6. Prófin
 
 Fimm söfn í `SUITES` (`npm test` keyrir þau með hinum 41).

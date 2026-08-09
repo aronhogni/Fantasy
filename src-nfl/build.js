@@ -57,18 +57,35 @@ export function buildRows({ players, seasons, accuracy, experts, schedule,
        ESPN er staerst en i odru sniði. */
     const adp = ffc ? ffc.adp : (adpSleeper ?? p.adpEspn ?? null);
 
-    /* --- spain: blanda, vogud eftir maeldri nakvaemni --- */
+    /* --- SPAIN: SLEEPER EIN, EKKI BLANDA ---
+
+       MAELT (scripts/nfl/model-lab.mjs, walk-forward 2022-2025):
+       Sleeper-spain er sterkasta einstaka heimildin sem til er —
+       rho 0,695 a moti 0,458 hja ADP og 0,522 hja FantasyPros-ECR.
+
+       OG SERHVER TILRAUN TIL AD BAETA HANA GERDI HANA VERRI:
+         Sleeper ein                 1920,7
+         Sleeper + tolfraedi         1831,1
+         Sleeper + ADP (rodublanda)  1735,3
+         ADP ein                     1747,9
+       Fyrsta utgafa thessarar skrar blandadi Sleeper vid ESPN med
+       vog 1,0/0,8. Su blanda var AGISKUN og maelingin segir ad hun
+       thynni sterkasta merkid med veikara.
+
+       ESPN er thvi ADEINS VARALEID thegar Sleeper thegir — ekki
+       medvog. Thad er munur sem sest ekki i tolunni en sest i
+       utkomunni.                                                    */
     const projSleeper = scoringKey === "half" ? p.projSleeperHalf
                       : scoringKey === "std" ? p.projSleeperStd
                       : p.projSleeper;
-    const b = blend([
-      { key: "sleeper", value: projSleeper, weight: (weights && weights.sleeper) ?? 1 },
-      /* ESPN-spain er i THEIRRA stigagjof og er thvi adeins notud i
-         PPR-sniði. Ad umreikna hana an hra-fylkja vaeri agiskun sem
-         liti ut eins og maeling. */
-      { key: "espn", value: scoringKey === "ppr" ? p.projEspn : null,
-        weight: (weights && weights.espn) ?? 0.8 },
-    ]);
+    const b = projSleeper != null
+      ? { value: projSleeper, used: ["sleeper"], coverage: 1, spread: null }
+      : blend([
+          /* ESPN-spain er i THEIRRA stigagjof og er thvi adeins notud i
+             PPR-sniði. Ad umreikna hana an hra-fylkja vaeri agiskun sem
+             liti ut eins og maeling. */
+          { key: "espn", value: scoringKey === "ppr" ? p.projEspn : null, weight: 1 },
+        ]);
 
     const last = lastBy.get(p.gsisId) || null;
     const sh = sharp.ranks.get(p.fpId) ?? null;
@@ -86,6 +103,7 @@ export function buildRows({ players, seasons, accuracy, experts, schedule,
       proj: b.value,
       projSpread: b.spread,
       projSources: b.used,
+      projFallback: projSleeper == null && b.value != null,
 
       adp, adpSleeper, adpEspn: p.adpEspn,
       auctionEspn: p.auctionEspn, ownedEspn: p.ownedEspn,
@@ -140,15 +158,50 @@ export function buildRows({ players, seasons, accuracy, experts, schedule,
     inPos.forEach((r, i) => { r.posTier = t[i]; });
   }
 
-  /* Okkar heildarrod = VBD nidur a vid. Hun er GRUNNURINN ad
-     `value`, sem er thad sem draft-bordid raunverulega notar. */
+  /* ============================================================
+     A-RANKING = spa Sleeper -> VIRDI YFIR VARAMANNI i THINNI deild.
+
+     THETTA ER EINA RODIN I APPINU SEM SLAER BAEDI ADP OG SLEEPER,
+     og hun er maeld: walk-forward 2022-2025, 12-lida snakk, hermt
+     fra ollum 12 saetum, skorad a raunverulegum stigum.
+
+                       PPR      standard
+       A-Ranking     1975,8      1566,6      vinnur OLL 4 arin
+       Sleeper ein   1920,7      1413,7
+       ADP           1747,9      1296,9
+
+     HVERS VEGNA THETTA VIRKAR: Sleeper spair STIGUM vel en radar
+     eftir hrastigum. Draft snyst ekki um stig heldur um hvad thu
+     faerd UMFRAM tha sem eru enn lausir a somu stodu. 300 stig fra
+     leikstjornanda eru minna virdi en 300 fra hlaupara thvi
+     QB-brekkan er flot. Umreikningurinn er allt framlagid — vid
+     spaum ekki betur en Sleeper, vid spyrjum rettu spurningarinnar.
+
+     TAKID EFTIR: rho A-Ranking er LAEGRA en hja Sleeper (0,604 a
+     moti 0,695) en akvordunin er BETRI. Thad er sama regla og i
+     FPL-verkefninu: haerri fylgni er ekki sama og betri akvordun.
+     ============================================================ */
   const ranked = withVbd.slice()
     .filter((r) => r.vbd != null)
     .sort((a, b) => b.vbd - a.vbd);
   const ourRank = new Map(ranked.map((r, i) => [r.id, i + 1]));
   for (const r of withVbd) {
     r.rank = ourRank.get(r.id) ?? null;
+    r.aRank = r.rank;
     r.value = valueVsMarket(r.rank, r.adp, league.teams);
+    /* Hvad segir A-Ranking umfram hvora heimild fyrir sig? */
+    r.vsSleeperRank = null;                 // fyllt ad nedan
+  }
+
+  /* Rod Sleeper eftir HRASTIGUM — til ad syna hvar VBD faerir mann. */
+  const slpRanked = withVbd.slice()
+    .filter((r) => r.proj != null)
+    .sort((a, b) => b.proj - a.proj);
+  const slpRank = new Map(slpRanked.map((r, i) => [r.id, i + 1]));
+  for (const r of withVbd) {
+    const s = slpRank.get(r.id);
+    r.sleeperRank = s ?? null;
+    r.vsSleeperRank = s != null && r.rank != null ? s - r.rank : null;
   }
 
   return {

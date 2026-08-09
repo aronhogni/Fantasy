@@ -12,11 +12,13 @@ import Experts from "./Experts.jsx";
 import PlayerTable from "./PlayerTable.jsx";
 import Schedule from "./Schedule.jsx";
 import Sources from "./Sources.jsx";
+import ModelLab from "./ModelLab.jsx";
 
 const TABS = [
   ["draft", "🏈 Draft"],
   ["players", "👥 Players"],
   ["experts", "🧠 Experts"],
+  ["lab", "🔬 Model lab"],
   ["schedule", "📅 Schedule"],
   ["sources", "🔌 Sources"],
 ];
@@ -61,6 +63,12 @@ export default function App() {
       seasons: D.loadSeasons, accuracy: D.loadAccuracy, experts: D.loadExperts,
       defense: D.loadDefense, teamForm: D.loadTeamForm, calibration: D.loadCalibration,
       adp: D.loadAdp,
+      /* Vistud SEM FOLL, ekki kollud strax — `need()` kallar thau.
+         Fyrsta utgafan skrifadi `D.loadEval("ppr")` sem er KALL og
+         skiladi lofordi; `loaders[k]()` reyndi tha ad kalla lofordid
+         sem fall og flipinn stod tomur. */
+      evalPpr: () => D.loadEval("ppr"), evalStd: () => D.loadEval("standard"),
+      stratPpr: () => D.loadStrategy("ppr"), stratStd: () => D.loadStrategy("standard"),
     };
     const got = await Promise.all(missing.map((k) => loaders[k]()));
     setExtra((prev) => {
@@ -76,6 +84,7 @@ export default function App() {
     else if (view === "experts") need(["accuracy", "experts"]);
     else if (view === "schedule") need(["defense", "teamForm"]);
     else if (view === "sources") need(["calibration", "adp"]);
+    else if (view === "lab") need(["evalPpr", "evalStd", "stratPpr", "stratStd"]);
   }, [view, need]);
 
   /* ---- rodirnar ---- */
@@ -132,6 +141,10 @@ export default function App() {
       {view === "experts" && (
         <Experts accuracy={extra.accuracy} experts={extra.experts}
           rows={built.rows} meta={built.meta} />
+      )}
+      {view === "lab" && (
+        <ModelLab evalPpr={extra.evalPpr} evalStd={extra.evalStd}
+          stratPpr={extra.stratPpr} stratStd={extra.stratStd} league={league} />
       )}
       {view === "schedule" && (
         <Schedule schedule={core.schedule} teams={core.teams}

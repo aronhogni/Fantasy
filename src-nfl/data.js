@@ -89,6 +89,12 @@ export const loadCalibration = () => load("calibration.json");
 export const loadAdp = () => load("adp.json");
 export const loadWeekly = (year) => load(`weekly/${year}.json`);
 
+/* Maelistofan. `standard` og `ppr` eru SITTHVOR skrain thvi
+   nidurstodurnar eru EKKI thaer somu — RB-thungar stefnur vinna i
+   standard en ekki i PPR. Ad birta eina tolu fyrir badar vaeri rangt. */
+export const loadEval = (scoring) => load(`model_eval_${scoring}.json`);
+export const loadStrategy = (scoring) => load(`strategy_${scoring}.json`);
+
 /* ============================================================
    BEIN DRAFT-TENGING VID SLEEPER
    ============================================================

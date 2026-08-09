@@ -26,6 +26,19 @@ const has = (f) => existsSync(path.join(DATA, f));
 let fail = 0;
 const ok = (c, m) => { if (c) console.log(`  ok   ${m}`); else { console.log(`  FAIL ${m}`); fail++; } };
 
+/** Pearson-fylgni — notud i leka-hlidinu. */
+function pearson(a, b) {
+  const n = a.length;
+  const ma = a.reduce((x, y) => x + y, 0) / n;
+  const mb = b.reduce((x, y) => x + y, 0) / n;
+  let s = 0, da = 0, db = 0;
+  for (let i = 0; i < n; i++) {
+    const u = a[i] - ma, v = b[i] - mb;
+    s += u * v; da += u * u; db += v * v;
+  }
+  return da && db ? s / Math.sqrt(da * db) : 0;
+}
+
 if (!has("players.json")) {
   console.log("  data-nfl vantar — keyrdu scripts/nfl/fetch-nfl.mjs");
   process.exit(1);
@@ -167,6 +180,90 @@ if (has("seasons.json")) {
     `boom-threpid greinir (${(boomZero * 100).toFixed(0)}% eiga enga boom-viku)`);
 } else {
   console.log("  (seasons.json vantar — slepp)");
+}
+
+/* ---------- 5b. MAELISTOFAN — leka-hlid a spa-heimildunum ---------- */
+console.log("\n5b. maelistofan");
+if (has("features.json") && has("model_eval_ppr.json")) {
+  const F = read("features.json");
+  const E = read("model_eval_ppr.json");
+
+  ok(F.rows.length > 3000, `${F.rows.length} leikmanna-timabil i maeliskra`);
+
+  /* ADP-GLUGGINN VERDUR AD ENDA FYRIR FYRSTA LEIK. Vaeri hann eftir
+     tha bæri "spain" upplysingar ur viku 1 og allur samanburdurinn
+     vaeri merkingarlaus i thagu markadarins. */
+  let leaky = 0;
+  for (const [k, w] of Object.entries(F.adpWindows || {})) {
+    const yr = Number(k.split("|")[0]);
+    if (w.to && new Date(w.to) > new Date(`${yr}-09-12`)) leaky++;
+  }
+  ok(leaky === 0, `enginn ADP-gluggi nær inn i timabilid (${leaky})`);
+
+  /* SLEEPER-SPAIN MA EKKI VERA UTKOMA I DULARGERVI. Vaeri hun
+     uppfaerd eftir a myndi hun fylgja LEIKJUM SPILUDUM sterkt —
+     hun veit ekki hverjir meiddust. Maelt: r ~ 0,09-0,21, sama og
+     hja ADP. */
+  const withSlp = F.rows.filter((r) => r.scoring === "ppr" && r.sleeperProj != null);
+  if (withSlp.length > 300) {
+    const r = pearson(withSlp.map((x) => x.sleeperProj), withSlp.map((x) => x.g));
+    const rAdp = pearson(withSlp.map((x) => -Math.log(x.adp)), withSlp.map((x) => x.g));
+    ok(r < 0.45,
+      `Sleeper-spa fylgir EKKI leikjum spiludum (r=${r.toFixed(3)}, ADP ${rAdp.toFixed(3)}) — engin leki`);
+  }
+
+  /* A-RANKING VERDUR AD SLA BADAR HEIMILDIR A SOMU ARUM.
+     Falli thetta er fullyrdingin i vidmotinu ekki lengur sonn og
+     hun VERDUR ad hverfa thadan lika. */
+  const g = (k) => E.models.find((m) => m.key === k);
+  const a = g("slp_vbd"), adp = g("adp"), slp = g("sleeper");
+  ok(a && adp && slp, "likonin thrju eru i skranni");
+  if (a && adp && slp) {
+    ok(a.draftCommon > adp.draftCommon,
+      `A-Ranking slaer ADP (${a.draftCommon} > ${adp.draftCommon})`);
+    ok(a.draftCommon > slp.draftCommon,
+      `A-Ranking slaer hra Sleeper-rod (${a.draftCommon} > ${slp.draftCommon})`);
+    const yrs = Object.keys(a.draftPerSeason)
+      .filter((y) => adp.draftPerSeason[y] != null);
+    const wins = yrs.filter((y) => a.draftPerSeason[y] > adp.draftPerSeason[y]).length;
+    ok(wins === yrs.length,
+      `A-Ranking vinnur ADP i OLLUM arum (${wins}/${yrs.length})`);
+    /* Fylgni A-Ranking er LAEGRI en Sleeper og thad er RETT — hun
+       radar eftir virdi, ekki stigum. Profid festir thad svo enginn
+       "lagfaeri" thad seinna. */
+    ok(a.rhoCommon < slp.rhoCommon,
+      `og rho er LAEGRA en hja Sleeper (${a.rhoCommon} < ${slp.rhoCommon}) — virdi, ekki stig`);
+  }
+} else {
+  console.log("  (features/model_eval vantar — slepp)");
+}
+
+/* ---------- 5c. DRAFT-STEFNUR ---------- */
+console.log("\n5c. draft-stefnur");
+if (has("strategy_ppr.json") && has("strategy_standard.json")) {
+  for (const sc of ["ppr", "standard"]) {
+    const S = read(`strategy_${sc}.json`);
+    ok(S.strategies.length > 10, `${sc}: ${S.strategies.length} stefnur maeldar`);
+    ok(S.seasons.length >= 8, `${sc}: ${S.seasons.length} timabil`);
+    const bpa = S.strategies.find((x) => x.key === "bpa");
+    const qb1 = S.strategies.find((x) => x.key === "qb1");
+    ok(bpa && qb1, `${sc}: vidmid og QB-1 eru til`);
+    /* MAELD NIDURSTADA SEM VIDMOTID FULLYRDIR: leikstjornandi i 1.
+       umferd er MARKTAEKT verri. Falli thetta ma fullyrdingin ekki
+       standa i vidmotinu. */
+    if (bpa && qb1) {
+      ok(qb1.mean < bpa.mean,
+        `${sc}: QB i 1. umferd er verri en besti lausi (${qb1.mean} < ${bpa.mean})`);
+      ok(qb1.vsBpa && qb1.vsBpa.excludesZero,
+        `${sc}: og munurinn er MARKTAEKUR [${qb1.vsBpa.lo.toFixed(0)}, ${qb1.vsBpa.hi.toFixed(0)}]`);
+    }
+    /* Fyrsta-umferdar taflan verdur ad na yfir oll saeti. */
+    ok(S.firstRoundBySlot.length === 4, `${sc}: fjorar stodur i fyrstu-umferdar toflu`);
+    ok(Object.keys(S.firstRoundBySlot[0].bySlot).length === S.teams,
+      `${sc}: oll ${S.teams} saetin hermd`);
+  }
+} else {
+  console.log("  (strategy-skrar vantar — slepp)");
 }
 
 /* ---------- 6. HEIMILDASKRAIN ---------- */

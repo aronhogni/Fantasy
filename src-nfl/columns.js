@@ -30,10 +30,14 @@ export const COLUMNS = [
   { key: "exp", label: "Years experience", short: "Exp", band: "", note: "Ar i deildinni. 0 = nyliði.", hi: null },
 
   /* ---------- likanid ---------- */
-  { key: "proj", label: "Projected points (blend)", short: "Proj", band: "Model",
-    note: "Blanda spaa fra Sleeper og ESPN, vogud eftir MAELDRI nakvaemni. Sja Experts-flipann." },
-  { key: "projSpread", label: "Source disagreement", short: "Src gap", band: "Model", hi: false,
-    note: "Munur haestu og laegstu spar. Har munur = heimildirnar eru osammala, ekki ad talan se ovis a jofnum grunni." },
+  { key: "aRank", label: "A-Ranking", short: "A-Rank", band: "Model", hi: false,
+    note: "Okkar rod: spa Sleeper umreiknud i virdi yfir varamanni fyrir thina deild. MAELD 2022-2025: slaer ADP um +228 stig og Sleeper um +55, og vinnur oll fjogur arin." },
+  { key: "proj", label: "Projected points", short: "Proj", band: "Model",
+    note: "Spa Sleeper i thinni stigagjof. MAELD sterkasta heimildin (rho 0,695 gegn 0,458 hja ADP). ESPN er notad ef Sleeper thegir." },
+  { key: "sleeperRank", label: "Sleeper's own order", short: "Slp #", band: "Model", hi: false,
+    note: "Rod eftir HRASTIGUM Sleeper — thad sem thu sedh i Sleeper-appinu sjalfu." },
+  { key: "vsSleeperRank", label: "A-Rank vs Sleeper order", short: "vs Slp", band: "Model",
+    note: "Hve morgum saetum ofar A-Ranking setur hann en hra stigarod. Jakvaett = varamanns-leidrettingin lyftir honum." },
   { key: "vbd", label: "Value over replacement", short: "VBD", band: "Model",
     note: "Spa minus spa varamanns a somu stodu i THINNI deild. Thetta er talan sem radar — ekki hrastigin." },
   { key: "tier", label: "Model tier", short: "Tier", band: "Model", hi: false,
@@ -107,8 +111,8 @@ export const COL = Object.fromEntries(COLUMNS.map((c) => [c.key, c]));
 
 /** Sjalfgefnir dalkar — thad sem svarar draft-spurningunni strax. */
 export const DEFAULT_COLS = [
-  "name", "pos", "team", "bye", "proj", "vbd", "tier",
-  "adp", "value", "ecr", "ecrSd", "sharpDelta", "lastPpg", "lastGames",
+  "name", "pos", "team", "bye", "aRank", "proj", "vbd", "tier",
+  "adp", "value", "ecr", "sharpDelta", "lastPpg", "lastGames",
 ];
 
 /** Bond i skra-rod — birtingar-rodin ER skra-rodin. */

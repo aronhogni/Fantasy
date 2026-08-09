@@ -156,6 +156,28 @@ console.log("\n4. experts-flipinn");
   }
 }
 
+console.log("\n4b. model-lab-flipinn");
+{
+  ok(await clickTab("Model lab"), "flipinn finnst");
+  ok(!text().includes("Something broke"), "engin villa");
+  const t = text();
+  const live = t.includes("A-Ranking") && !t.includes("have not been generated");
+  ok(live || t.includes("have not been generated"),
+    "annadhvort maelingarnar eda skyr yfirlysing um ad thaer vanti");
+  if (live) {
+    /* FULLYRDINGIN OG VARNAGLINN VERDA AD STANDA SAMAN. Tafla sem
+       segir "+228" an thess ad segja "fjogur timabil" er ad selja
+       meira en hun maeldi. */
+    ok(t.includes("vs ADP"), "samanburdurinn vid ADP birtist");
+    ok(t.includes("vs Sleeper"), "og vid Sleeper");
+    ok(/four seasons/i.test(t), "og varnaglinn um fjogur timabil");
+    ok(/higher correlation is not the same/i.test(t),
+      "og notan um ad haerri fylgni se ekki betri akvordun");
+    const rows = document.querySelectorAll("table.data tbody tr");
+    ok(rows.length > 8, `${rows.length} rodun i samanburdi`);
+  }
+}
+
 console.log("\n5. schedule-flipinn");
 {
   ok(await clickTab("Schedule"), "flipinn finnst");

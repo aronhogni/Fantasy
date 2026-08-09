@@ -157,7 +157,7 @@ export const DEFAULT_LEAGUE = {
  * markadinum, og BORGADI su vik sig?
  */
 export function simulateDraft({ board, fieldBoard, actual, slot,
-                                league = DEFAULT_LEAGUE }) {
+                                league = DEFAULT_LEAGUE, plan = null }) {
   const { teams, rounds } = league;
   const taken = new Set();
   /* Hvert lid ber sina eigin stodutalningu — LIKA motherjarnir.
@@ -169,8 +169,19 @@ export function simulateDraft({ board, fieldBoard, actual, slot,
   for (let r = 0; r < rounds; r++) {
     const order = r % 2 === 0 ? range(1, teams) : range(1, teams).reverse();
     for (const t of order) {
-      const use = t === slot ? board : fieldBoard;
-      const pick = bestAvailable(use, taken, actual, league, counts[t]);
+      const mine = t === slot;
+      const use = mine ? board : fieldBoard;
+      /* `plan` er STODU-AAETLUN fyrir okkar lid: hvada stodur ma taka
+         i hverri umferd. Notad af `strategy-lab.mjs` til ad maela
+         "RB fyrst eda WR fyrst". Motherjarnir fylgja ALDREI aaetlun —
+         their drafta eftir markadinum, sem er thad sem raunverulega
+         gerist i herberginu. */
+      const allow = mine && plan ? plan[r] : null;
+      let pick = bestAvailable(use, taken, actual, league, counts[t], allow);
+      /* Aaetlun sem ekki er haegt ad uppfylla (staðan uppurin eda
+         thak nad) MA EKKI stodva valid — tha vaeri verid ad maela
+         "hvad gerist ef thu sleppir vali", sem enginn gerir. */
+      if (!pick && allow) pick = bestAvailable(use, taken, actual, league, counts[t], null);
       if (!pick) continue;
       taken.add(pick);
       rosters[t].push(pick);
@@ -185,12 +196,13 @@ export function simulateDraft({ board, fieldBoard, actual, slot,
 function range(a, b) { const o = []; for (let i = a; i <= b; i++) o.push(i); return o; }
 
 /** Besti lausi leikmadur sem lidid MA enn taka. */
-function bestAvailable(board, taken, actual, league, posCount) {
+function bestAvailable(board, taken, actual, league, posCount, allow = null) {
   for (const [key] of board) {                 // bordid er thegar radad
     if (taken.has(key)) continue;
     const p = actual.get(key);
     const pos = p ? p.pos : null;
     if (pos && league.excludePos && league.excludePos.includes(pos)) continue;
+    if (allow && (!pos || !allow.includes(pos))) continue;
     const max = pos ? league.maxPos[pos] : null;
     if (max != null && (posCount[pos] || 0) >= max) continue;
     return key;
@@ -239,10 +251,11 @@ export function startersPoints(roster, actual, league = DEFAULT_LEAGUE) {
  * gerolika leikmenn og munurinn a theim er STAERRI en munurinn a
  * godu og slaemu bordi.
  */
-export function simulateAllSlots({ board, fieldBoard, actual, league = DEFAULT_LEAGUE }) {
+export function simulateAllSlots({ board, fieldBoard, actual,
+                                   league = DEFAULT_LEAGUE, plan = null }) {
   const pts = [];
   for (let slot = 1; slot <= league.teams; slot++) {
-    pts.push(simulateDraft({ board, fieldBoard, actual, slot, league }).points);
+    pts.push(simulateDraft({ board, fieldBoard, actual, slot, league, plan }).points);
   }
   const m = mean(pts);
   const sd = Math.sqrt(mean(pts.map((p) => (p - m) ** 2)));
