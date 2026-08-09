@@ -50,13 +50,18 @@ keyra nákvæmlega sama kóða og appið birtir.** Ekki afrita formúlur inn í
 
 | Hreint (ekkert React) | Birting eingöngu |
 |---|---|
-| `model.js` 745 l — FFDR, þrep, vænt stig, söluverð | `App.jsx` 4.162 l |
-| `stats.js` 1.608 l — dálkaskráin, mó/aó, byrjunar-líkur, auðgun | `PlayerList.jsx` 1.877 l |
-| `market.js` 152 l — odds → vænt mörk → FFDR-þyngd | `GwReport.jsx` 661 l |
-| `rotation.js` 242 l — róterings-par | `Compare.jsx` 621 l |
-| `teamstats.js` 243 l — liða-tölur | `Rotation.jsx` 373 l |
-| `advisor.js` 238 l — kaup-ráðgjöfin | `PlayerPanel.jsx` 355 l |
-| `bsd.js` 233 l — BSD-samlagning | `Leaderboard.jsx` · `Teams.jsx` · `SetPieces.jsx` · `Leagues.jsx` · `Imminent.jsx` · `ShotMap.jsx` · `Icons.jsx` · `Pitch.jsx` |
+| `model.js` — FFDR, þrep, vænt stig, söluverð | `App.jsx` (langstærst) |
+| `stats.js` — dálkaskráin, mó/aó, byrjunar-líkur, auðgun | `PlayerList.jsx` |
+| `market.js` — odds → vænt mörk → FFDR-þyngd | `GwReport.jsx` · `Compare.jsx` |
+| `rotation.js` — róterings-par | `Rotation.jsx` · `PlayerPanel.jsx` |
+| `teamstats.js` — liða-tölur | `Teams.jsx` · `Leaderboard.jsx` |
+| `advisor.js` — kaup-ráðgjöfin | `SetPieces.jsx` · `Leagues.jsx` · `Imminent.jsx` |
+| `bsd.js` — BSD-samlagning | `ShotMap.jsx` · `Icons.jsx` · `Pitch.jsx` |
+
+> **ENGAR LÍNUTÖLUR HÉR — ÞÆR REKA.** Taflan bar áður nákvæman línufjölda
+> per skrá; hann var **úreltur innan sólarhrings** (t.d. `App.jsx` 4.162 ->
+> 4.294, `teamstats.js` 243 -> 284). Tala sem er alltaf röng er verri en
+> engin tala. `wc -l src/*.js*` gefur hana rétta á sekúndubroti.
 
 `scripts/fetch.mjs` er 3.371 lína og skrifar allt í `data/`.
 
@@ -150,87 +155,36 @@ Gegn raunverulegum leikmannastigum (28.355 byrjunarliðs-umferðir) slær FFDR
 opinbert FDR í öllum fjórum stöðum; DEF er sterkast (r −0,275, léttasti
 sjöttungur gefur **+145%** á móti þeim þyngsta).
 
-### HEIMAVÖLLUR FYRIR GK/DEF — MÆLT OG KOMIÐ INN 9.8.2026 (`homeCore`)
+### HEIMAVÖLLUR FYRIR GK/DEF (`homeCore`, 9.8.2026)
 
-Notandinn sá einkennið: *„Liverpool úti og Man City heima ættu ekki að vera
-grænir fyrir Arsenal."* Undirliggjandi villan var verri en litirnir: með
-`home: 0` fyrir stöður 1–2 fékk varnarhópurinn **enga vallar-aðgreiningu**
-nema gegnum opinbera FDR-ið, og FPL gefur Arsenal-gegn-Liverpool sömu tölu (4)
-á báðum völlum. Útkoman var að **LIV úti 2,14 og LIV heima 2,14 voru
-NÁKVÆMLEGA EINS** — sömuleiðis MUN og CHE. Markaðslínan kann heimavöll en hún
-er aðeins til fyrir NÆSTU umferð.
+Einkennið sem notandinn sá: *„Liverpool úti og Man City heima ættu ekki að
+vera grænir fyrir Arsenal."* Undirliggjandi villan var verri en litirnir —
+með `home: 0` hafði varnarhópurinn **enga vallar-aðgreiningu** nema gegnum
+FDR, og FPL gefur Arsenal-gegn-Liverpool sömu tölu á báðum völlum, svo
+**LIV úti og LIV heima voru NÁKVÆMLEGA EINS (2,14)**.
 
-**`homeCore: 0.20` fyrir stöður 1 og 2**, dregið frá **aðeins þegar (a)
-markaðslínan tók ekki við OG (b) Elo-liðurinn var raunverulega notaður.**
+**Reglan:** `homeCore` = 0,20 fyrir DEF, **0 fyrir GK**, dregið frá aðeins
+þegar markaðslínan tók ekki við OG Elo var notað.
 
-**Mælt** á 10.640 lið-leikjum (14 tímabil):
+**Mælingin sjálf — töflurnar, LOSO, Covid-tímabilið og bæði skilyrðin — er
+í athugasemdinni við `DIFF_W` í `model.js`.** Þrennt sem er vert að muna
+hér því það er almennt:
 
-| home | r(d,GA) **kjarni** | r(d,GA) **með markaði** |
-|---|---|---|
-| 0,00 | 0,3225 | **0,3942** |
-| **0,20** | **0,3374** | 0,3864 |
-| 0,25 | 0,3377 | 0,3819 |
+1. **Lið-útkoma og stig leikmanns toppa á SITTHVORUM stað.** Fyrsta fittið
+   var á mörkum liðsins og gaf 0,20 fyrir báða hópa; gegn raunstigum fellur
+   GK einrænt yfir allt sviðið. **Stigin eru markmiðið** — sama lærdómur og
+   elo-vogin gaf.
+2. **Liður getur verið gildur aðeins þegar annað inntak er til.** Án Elo
+   brotnar einrænni þrepanna (8/14 á móti 12/14); með Elo batnar hún
+   (14/14). Liðurinn slokknar því sjálfur ef ClubElo dettur út.
+3. **Breiðari dreifing kallar á endurreiknuð `TIER_CUTS`** — hlutlausa
+   miðþrepið fór í 12,4% (gólf 12%) og var fært aftur í ~16,7%.
 
-LOSO velur 0,20–0,25 í **14/14 brotum, aldrei 0**; út fyrir úrtak betra í
-11/14. Eitt af þeim þremur sem tapa er **2020/21 — Covid, TÓMIR VELLIR**,
-sem styður að liðurinn mæli raunverulegan heimavöll.
-
-**HVERS VEGNA MARKAÐS-SKILYRÐIÐ:** bókmakarinn verðleggur heimavöll þegar, svo
-eigin liður tvítelur hann og spáin VERSNAR (0,3942 -> 0,3864). Sama bygging og
-`PREV_K`-nótan lýsir: ábatinn er í öllum umferðum nema næstu.
-
-**HVERS VEGNA ELO-SKILYRÐIÐ — ÞETTA ER KJARNINN OG ÞAÐ ER MÆLT.** Fyrsta
-útfærslan (án Elo-skilyrðis) felldi 5 próf í `ffdr-backtest.mjs`. Orsökin var
-ekki kvörðun heldur að **liðurinn er aðeins gildur þegar þyngdarmatið er
-nógu skarpt**. Einrænni-prófið, fjórir heimar × 14 tímabil:
-
-| heimur | h=0 | h=0,20 |
-|---|---|---|
-| approxFDR, **engin Elo** (bakprófið) | 12/14 | **8/14** |
-| approxFDR, með Elo | 13/14 | **14/14** |
-| raun-FDR, **engin Elo** | 13/14 | **11/14** |
-| raun-FDR, með Elo (**appið**) | 13/14 | **14/14** |
-
-**Elo ræður, ekki FDR-heimildin.** Án Elo er 0,20 hliðrun of stór fyrir grófara
-mat og hún blandar heima/úti-leikjum saman yfir þrepamörkin. Liðurinn
-**slokknar því sjálfur** ef ClubElo dettur út — í stað þess að skemma. Þar með
-er bakprófs-heimurinn ÓBREYTTUR og vörðurinn stendur óhaggaður (10/10).
-
-**KVÖRÐUN SEM FYLGDI:** `TIER_CUTS` -> `[1,94, 2,29, 2,57, 2,80, 3,09]`.
-Breiðari dreifing gaf hlutlausa miðþrepinu **12,4%** (gólfið er 12%); eftir
-endurreikning **16,4 / 16,9 / 16,0 / 17,2 / 16,5 / 17,0%** — jafnir sjöttungar.
-`SCALE_FIX`/`MEASURED` þurftu EKKI endurfit: hliðrunin er ósamhverf um núll,
-svo meðaltalið haggast ekki, og `ffdr-backtest` mælir töflu-frávikið 4,9pp
-(þakið er 6pp).
-
-**ÚTKOMAN HJÁ ARSENAL** (sama repró, aðeins `homeCore` breytt):
-
-| | fyrir | eftir |
-|---|---|---|
-| LIV **úti** | 2,14 grænn | **2,34 hlutlaus** |
-| LIV **heima** | 2,14 grænn | 1,94 grænn |
-| MCI **úti** | 2,67 dökkgulur | **2,87 ljósrauður** |
-| MCI **heima** | 2,21 grænn | 2,01 grænn |
-| þrep í notkun | 3 | **4** |
-
-Heima/úti eru nú aðgreind í ÖLLUM pörum. **Man City heima er þó ÁFRAM grænn og
-það er rétt** — sjá næstu nótu.
-
-**AÐ ARSENAL FÁI MIKIÐ GRÆNT ER EKKI VILLA.** `TIER_CUTS` eru **deildar-víðir**
-sextílar, ekki per lið, og Arsenal á bestu vörn deildarinnar (0,71 á sig/leik
-á móti ~1,3 að meðaltali). Flestir leikir þeirra lenda því neðarlega — og það
-er RÉTTA svarið við „hverjar eru líkurnar á hreinu blaði". Að gera þrepin
-afstæð innan liðs var **mælt og hafnað** (það henti ~30% af merkinu).
-Tölurnar sjálfar eru meira að segja **varfærnar**: birt CS% er 29,9% fyrir MCI
-heima og 28,7% fyrir LIV úti, á móti 43%/39% úr hráu Poisson-viðmiði og 50%
-raun-hreinblaðs-hlutfalli Arsenal 2025/26. Liturinn segir „í léttari hluta
-deildarinnar", ekki „auðveldur leikur".
-
-**VÖRÐUR SEM VAR ENDURORÐAÐUR, EKKI SLAKAÐUR** (`form-blend.mjs`): krafan
-`k=10 vinnur í 14/14` var á hnífsbrún — 2024/25 flakkaði um **0,0008**
-(0,02σ) við þessa viðbót. Hún er nú `>=13/14` **OG** að hvert tap sé innan
-hávaða (<0,005), sem gamla talan krafðist ekki. Stökkbreytt: `homeCore=0,80`
-FELLIR hana (versta tap 0,0056), `0,50` sleppur — vörðurinn hefur bit.
+**Arsenal fær áfram mikið grænt og það er RÉTT:** `TIER_CUTS` eru
+deildar-víðir sextílar og Arsenal á bestu vörn deildarinnar (0,71 á sig
+á móti ~1,30). Afstæð þrep innan liðs voru **mæld og hafnað** (hentu ~30%
+af merkinu). Birtu tölurnar eru meira að segja varfærnar: 29,9% CS fyrir
+MCI heima á móti 43% úr hráu Poisson-viðmiði.
 
 ### Ákvarðanir sem hafa þegar verið véfengdar — ekki taka þær upp aftur
 
@@ -295,6 +249,8 @@ töflu. Smáatriðin eru í `docs/MAELINGAR.md`.
 | DefCon í FFDR eða í röðun | DC fylgir *þyngri* leikjum — dregur í gagnstæða átt við hreint blað. Lifir á spjöldum og í dálkum | 3, 6l |
 | Form / „heitur leikmaður" | Innan leikmanns er þetta **afturhvarf**: −4,52pp eftir mark (t=−5,26). Hrein blöð liða raðast ekki í runur (lyfting 0,99) | 6c |
 | Stöður gegn ákveðnum liðum | Leifin flyst ekki milli tímabila í neinni stöðu — 38-leikja úrtakshávaði. `pos-vs-opponent.mjs` | 3 |
+| **xGChain / xGBuildup** | **Mælt 9.8.2026 á StatsBomb-opnu gögnunum (PL 2015/16, 380 leikir, 549 leikmenn, 10.450 leikmanna-leikir).** Bæta **ENGU** ofan á xG+xA: út fyrir úrtak (leikmanna-skipt) −0,0009 og −0,0014. Í öfugri röð, ofan á snertingar, −0,003. Ein og sér eru þær VERRI en xG+xA (r 0,370 og 0,344 á móti 0,469). Understat-arfurinn er ekki þess virði að elta | 4 |
+| **Snertingar í vítateig** | **STENST — eina ytri talan sem mældist raunveruleg.** Sama gagnasett: xG+xA gefur r 0,4741 út fyrir úrtak, **með snertingum 0,5093 (+0,036)**. Heldur eftir að stjórnað er fyrir ÞÁTTTÖKU (xGChain sem mínútu-staðgengill): 0,4731 → 0,5093. Það er því ekki „hann spilar meira" heldur HVAR hann snertir boltann. **Þetta er talan sem borgar sig að kaupa** — engin náanleg heimild gefur hana (FBref 403, BSD hefur hana ekki) | 4 |
 | **Dómara-spjöld í spá (B7)** | **Mælt 9.8.2026 á 15 tímabilum E0.** Spjaldatíðni dómara **flyst ekki**: r(N→N+1) = **0,182** að meðaltali en **6 af 14 pörum eru NEIKVÆÐ** (−0,370 til +0,619), 95% CI [0,008, 0,356]. Sama undirskrift og stöður-gegn-liðum. Og stærðin er hverfandi: allt bilið frá spjaldaglaðasta til rólegasta dómara er 1,93 gul/leik, sem **deilist á 22 byrjunarliðsmenn** = 0,088 stig/leikmann/leik með FULLKOMINNI vitneskju, ~**0,016 nýtanleg**. Vænt stig eru 2–7. **Gagnaskorturinn var aldrei bindandi — merkið er það** | 4 |
 | Varnarsinnaðir miðjumenn fá varnar-FFDR | 0,1σ; besta w hoppar milli tímabila og skiptir formerki | 3 |
 | Stöðu-forgildi í stað `ep_next` fyrir nýliða | Skekkjan er raunveruleg en **hver leiðrétting gerir spána VERRI** á lauginni sem appið beitir henni á (MAE 0,848 → 0,873). **Vörður: `exp-points.mjs`** fellur ef blint forgildi er sett inn | 3e |
@@ -329,9 +285,14 @@ FBref um `soccerdata` (403 + Python-pakki í Node-pipeline án dependencies).
 
 ## 5. Prófakerfið — `npm test`
 
-`tests/run-tests.mjs` keyrir **41 safn** (`SUITES`). **Fjöldinn er reiknaður úr
+`tests/run-tests.mjs` keyrir öll söfnin í `SUITES`. **Fjöldinn er REIKNAÐUR úr
 `SUITES`** — hann var harðkóðaður strengur sem staðnaði um leið og safni var
 bætt við. Söfn merkt `true` þurfa jsx-loaderinn.
+
+> **OG HANN STENDUR EKKI HELDUR HÉR.** Þetta skjal sagði **41** meðan
+> `SUITES` bar **48** — sama villan og setningin hér að ofan varar við, í
+> skjalinu sem varar við henni. Talan er í `npm test`-línunni og hvergi
+> annars staðar.
 
 Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 
@@ -339,7 +300,6 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 |---|---|
 | `model.test.mjs` | Hver birt tala: söluverð, frískipti, vænt stig, mælda taflan, verðspá. **Endurkvarðar litamörkin úr `data/`.** Kafli 5b: hver röð í `odds.json` verður að vera NÝTILEG |
 | `ffdr-walkforward.mjs` | 8 tímabil, 6.080 lið-leikir, FULL inntök (markaðslína endurbyggð úr B365, Elo fram í tímann). Er FFDR betri en **sitt besta inntak**, og er taflan rétt **kvörðuð** — ekki bara rétt röðuð |
-| `ffdr-vs-fdr.mjs` | FFDR gegn **raunverulegu** FPL-FDR, 10 tímabil |
 | `ffdr-player-points.mjs` | Rétta markmiðið: raunveruleg leikmannastig. Kafli E ver algilda þrepið |
 | `ffdr-backtest.mjs` | „Halda LITIRNIR?" á einu tímabili. Tölfræðileg vikmörk, ekki hörð mörk |
 | `rank-model.mjs` | `rankScore`, LOSO á 5 tímabilum, með **orakel-þakinu** |
@@ -365,6 +325,15 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 á einum stað, annars getur eitt bakpróf mælt annan heim en hitt og bæði virst
 græn á meðan þau eru ósamanburðarhæf. Notar **opinbera FDR-ið** (`fdrFor()`)
 þegar það er til.
+
+**ÞRJÁR SKRIFTUR ERU EKKI Í `SUITES` — OG ÞAÐ ER EKKI ALLT VILJANDI.**
+`ffdr-vs-fdr.mjs` og `euro-congestion.mjs` eru **mælinga-skýrslur, ekki verðir**:
+þær hafa engar `ok()`-fullyrðingar og skila alltaf 0, svo þær myndu ekki fella
+neitt þótt þær væru keyrðar. `ffdr-vs-fdr` prentar samanburðinn við opinbert FDR
+(FFDR vinnur á báðum mælikvörðum í **14/14 tímabilum**) og er keyrð handvirkt.
+**`pos-vs-opponent.mjs` VAR hins vegar raunverulegur vörður sem ENGINN keyrði** —
+hann ber `ok()` og `process.exit(fail ? 1 : 0)`, tekur 0 s, og var samt utan
+`SUITES`. Hann var settur inn 9.8.2026. Vörður sem keyrir ekki er ekki vörður.
 
 **`tests/euro-congestion.mjs` er EKKI í `npm test`** — hún sækir ~65 skrár og
 GitHub-kvótinn (60/klst.) gaf HTTP 403, svo safnið féll af ástæðu sem hafði
@@ -403,7 +372,7 @@ hann, aldrei skipta honum út.
 | **BSD** (`sports.bzzoiro.com`) | 200, ókeypis, enginn kvóti | Per-skot xG, skotakort, treverk, föst leikatriði. **Aðeins 2025/26** |
 | **API-Sports** | virk, 100 köll/dag | `/fixtures/lineups` (staðfest byrjunarlið). **Fyrsta raunprófun 20.–21. ágúst** |
 | **vaastav-speglun** | 200 | Söguleg per-umferðar CSV, 2019-20 til 2025-26 |
-| Understat | **gagnalaus** | `shotsData` og `rostersData` eru horfin; league-síður skila byte-eins skel |
+| Understat | **LIFANDI — en læst fyrir HTTP-biðlara** | **LEIÐRÉTT 9.8.2026.** Fyrri greining sagði „gögnin eru farin". Það var RANGT um deildarsíður: byte-eins 18.645 b skelin var **Cloudflare-vörn**, ekki gagnaleysi. Í alvöru vafra skilar `league/EPL/2024` **175 KB með lifandi xG** og `JSON.parse` er á sínum stað. curl fær skelina (18.645 b), curl með vafra-hausum fær ANNAÐ skeljar-svar (4.675 b) — hvorugt með gögnum, bæði merkt Cloudflare. Þyrfti JS-keyrslu (headless) eða clearance-vafrakökur; pipeline er Node **án dependencies** og það er arkitektúr-breyting. **Leikja-síðurnar eru samt raunverulega tómar**: `shotsData`/`rostersData` vantar EINNIG í vafra, aðeins `match_info` eftir (staðfest á match/26630, engin XHR sækir þau). **OG ÞAÐ SKIPTIR HVORT EÐ ER EKKI MÁLI:** eina talan sem Understat átti ein — xGChain/xGBuildup — mældist gagnslaus (kafli 4). Að endurvekja hana myndi ekki bæta spána |
 | FBref · SofaScore | **403** | Ónothæfar óháð því hve gott fæðið er |
 | FotMob | **404/gated** | Engin shotmap með gildu id |
 
