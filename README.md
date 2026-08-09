@@ -22,6 +22,11 @@ App- og gagna-breytingar kosta því engin Netlify-credit.
 
 - `ODDS_API_KEY` — the-odds-api.com, fyrir bókmakera-CS% (valfrjálst; appið virkar án)
 - `EURO_API_KEY` — football-data.org, fyrir Evrópu-/bikarleiki (valfrjálst)
+- `API_SPORTS_KEY` — api-football.com, staðfest byrjunarlið og tegund meiðsla (valfrjálst)
+- `BSD_KEY` — sports.bzzoiro.com, per-skot xG og skotakort (valfrjálst, ókeypis þrep)
+
+Vanti lykil sleppir pipeline þeirri heimild **þegjandi** (`FLAGS`) — ekkert hrynur,
+dálkarnir hennar verða einfaldlega tómir.
 
 Pipeline-inn sækir odds aðeins tvisvar per umferð (36 klst og 6–8 dögum fyrir frest)
 — ~25 credit/mán af 500 fríum.

@@ -84,7 +84,45 @@ export function sellTenths(purchase10, current10) {
    sóknarhópurinn fékk þá marketDiff(xga), þ.e. þyngd þess að halda hreinu
    blaði. Þegar rétta stærðin (eigin vænt mörk) kom í staðinn varð vogin
    allt í einu einræn upp í 0,8. Mæling á röngu inntaki gefur rétt svar
-   við rangri spurningu.                                                 */
+   við rangri spurningu.
+
+   ---- `homeCore` — HEIMAVÖLLUR FYRIR GK/DEF (9.8.2026) ----
+   `home` er dregið frá ALLTAF (MID/FWD). `homeCore` er dregið frá AÐEINS
+   þegar (a) markaðslínan tók ekki við OG (b) Elo-liðurinn var notaður.
+
+   VANDINN SEM ÞETTA LEYSTI: með `home: 0` hafði varnarhópurinn ENGA
+   vallar-aðgreiningu nema gegnum FDR, og FPL gefur Arsenal-gegn-Liverpool
+   sömu tölu (4) á báðum völlum — svo LIV ÚTI og LIV HEIMA voru NÁKVÆMLEGA
+   EINS (2,14). Notandinn sá það.
+
+   MÆLT á 10.640 lið-leikjum (14 tímabil) og á 28.355 byrjunarliðs-
+   umferðum (5 tímabil), í KJARNANUM (án markaðar):
+     h      GK |r| stig   DEF |r| stig   lið r(d,GA)
+     0,00     0,1783        0,2629        0,3384
+     0,10     0,1768        0,2661        0,3485
+     0,15     0,1752        0,2661        0,3513
+     0,20     0,1730        0,2652        0,3527   <- DEF
+     0,30     0,1674        0,2609        0,3516
+
+   GK = 0 ER MÆLT, EKKI GLEYMSKA: markvörður fellur EINRÆNT yfir allt
+   sviðið meðan lið-mörkin batna. Skýringin er raunveruleg — hann fær stig
+   fyrir VÖRSLUR jafnt og hreint blað, og útileikur gefur FLEIRI skot á
+   markið. Sama gildra og elo-vogin lenti í hér að ofan: lið-útkoman og
+   stig leikmanns toppa á SITTHVORUM stað, og STIGIN eru markmiðið.
+
+   SKILYRÐIN TVÖ:
+   1. EKKI MEÐ MARKAÐI — bókmakarinn verðleggur heimavöll þegar, svo eigin
+      liður tvítelur og spáin VERSNAR (0,3942 -> 0,3864).
+   2. EKKI ÁN ELO — án Elo er 0,20 of stór hliðrun fyrir grófara mat og
+      einrænni þrepanna brotnar. Mælt, einrænni-próf á 14 tímabilum:
+        engin Elo:  h=0 12/14  ->  h=0,20  8/14   (VERRA)
+        með Elo:    h=0 13/14  ->  h=0,20 14/14   (BETRA)
+      Liðurinn slokknar því SJÁLFUR ef ClubElo dettur út.
+
+   DEF heldur 0,20 en ekki 0,15: munurinn er 0,0009 í stigum (0,0014 í
+   mörkum, í hina áttina) og 0,15 vinnur aðeins 2/4 tímabil — hávaði á
+   móti 14-tímabila LOSO sem valdi 0,20–0,25 í 14/14 brotum.
+   TIER_CUTS voru endurreiknuð vegna breiðari dreifingar (sjá þau).      */
 export const DIFF_W = {
   1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, homeCore:0,    sot:0.45, elo:0.15, mkt:0.8 },
   2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, homeCore:0.20, sot:0.45, elo:0.15, mkt:0.8 },

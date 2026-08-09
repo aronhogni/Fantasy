@@ -469,6 +469,22 @@ Lausn: **endurtilraunalykkja (5 tilraunir) í BÁÐUM** workflow-um. Við áreks
 `data/` er endurmyndað Í HEILD í hverri keyrslu. Actions-útgáfur eru **v5** í
 öllum þrem workflow-um. Vörður: `workflow-push.mjs`.
 
+### `data/history/` — SKRIFAÐ, ÓLESIÐ, OG MÁ EKKI EYÐA
+
+`fetch.mjs` skrifar daglega verðmynd í `data/history/YYYY-MM-DD.json`
+(~80 KB/dag). **Ekkert les hana enn** — hún er hráefni í verðbreytinga-tímaröð
+sem verður fyrst nýtileg þegar tímabilið er byrjað.
+
+**Hún sleppur við `wiring.mjs`** því slóðin er sniðmát (`history/${today}.json`)
+og regexið þar les aðeins fasta strengi — svo hún er hvorki á hvítlistanum né
+flögguð. Það er gat í verðinum, ekki ákvörðun.
+
+**EYÐIÐ HENNI SAMT EKKI.** Dagleg verðmynd er **óendurheimtanleg**: hún verður
+ekki búin til eftir á. Að henda henni til að spara 1,3 MB væri að eyða einu
+heimildinni um verðþróun. Sama regla og „tóm keyrsla má aldrei þurrka út góð
+gögn" (8e). Vaxtarhraðinn (~29 MB/ár) er þess virði að fylgjast með, en
+lausnin væri grisjun eftir aldri — ekki eyðing.
+
 ### Handvirkar skriftur — EKKI í daglegu pipeline
 
 Tímabil sem er lokið breytist ekki, svo þessar eru keyrðar einu sinni og
