@@ -86,8 +86,8 @@ export function sellTenths(purchase10, current10) {
    allt í einu einræn upp í 0,8. Mæling á röngu inntaki gefur rétt svar
    við rangri spurningu.                                                 */
 export const DIFF_W = {
-  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, elo:0.15, mkt:0.8 },
-  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, sot:0.45, elo:0.15, mkt:0.8 },
+  1: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, homeCore:0.20, sot:0.45, elo:0.15, mkt:0.8 },
+  2: { fdr:0.45, own:0.55, opp:0, useDef:true, home:0, homeCore:0.20, sot:0.45, elo:0.15, mkt:0.8 },
   3: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, elo:0.15, mkt:0.8 },
   4: { fdr:0.45, own:0.55, opp:0, useDef:false, home:0.12, sot:0, elo:0.15, mkt:0.8 },
 };
@@ -343,8 +343,17 @@ export function lookupMeasured(key, d) {
    Tölurnar sjálfar (CS%, vænt stig) koma áfram úr mældu töflunum á
    samfellda d-gildinu — og eru NÚ rétt kvarðaðar, sem var tilgangurinn.
    Prófið endurreiknar sextílana úr data/ og fellur ef þeir reka
-   >0,12 frá þessum mörkum — þá er kominn tími á endurkvörðun.        */
-export const TIER_CUTS = [1.98, 2.32, 2.54, 2.77, 3.10];
+   >0,12 frá þessum mörkum — þá er kominn tími á endurkvörðun.
+
+   ENDURKVÖRÐUN 2026-08-09: `homeCore` (heimavöllur fyrir GK/DEF, sjá
+   DIFF_W) bætir ±0,20 ósamhverfri hliðrun við varnarhópinn í öllum
+   umferðum án markaðslínu. Dreifingin breikkar því og gömlu mörkin gáfu
+   **12,4% á hlutlausa miðþrepið** — rétt ofan við 12%-gólf prófsins og á
+   leið út. Mörkin hér eru sextílar NÝJU dreifingarinnar, reiknaðir með
+   nákvæmlega inntökum appsins; mælt eftir: **16,4 / 16,9 / 16,0 / 17,2 /
+   16,5 / 17,0%** — jafnir sjöttungar aftur.
+   Sama afleiðing og 27.7.: litirnir eru afstæð kvörðun og elta d.      */
+export const TIER_CUTS = [1.94, 2.29, 2.57, 2.80, 3.09];
 export function tierOf(d) {
   for (let i = 0; i < TIER_CUTS.length; i++) if (d < TIER_CUTS[i]) return i;
   return TIER_CUTS.length;  // þyngst — MÁ EKKI vera harðkóðað (var 5, svo
@@ -491,18 +500,28 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
        3) Markaðurinn blandast SÍÐAST því hann er þegar á rétta kvarðanum
           og er best kvarðaða inntakið — hann á ekki að þynnast eftir á. */
     let core = fx.fdr * W.fdr + (own * 3) * W.own + (them * 3) * W.opp;
+    let usedElo = false;
     if (W.elo) {
       const me_e = eloByTeam[teamId]?.elo, op_e = eloByTeam[fx.opp]?.elo;
       if (me_e && op_e) {
         const eScore = clamp((op_e - me_e) / ELO_SCALE + 3, 1, 5);
         core = (1 - W.elo) * core + W.elo * eScore;
+        usedElo = true;
       }
     }
     core = toMeasuredScale(core, W.useDef);
-    if (bkValid && W.mkt) {
+    const usedMarket = !!(bkValid && W.mkt);
+    if (usedMarket) {
       core = W.mkt * bkDiff + (1 - W.mkt) * core;
     }
-    const homeAdj = (W.home || 0) * (fx.home ? 1 : -1);
+    /* `homeCore` KREFST ThESS AD ELO HAFI VERID NOTAD — sja DIFF_W.
+       An Elo er thyngdarmatid of gruft til ad thola 0,20 hlidrun og
+       einraenni threpanna brotnar (maelt: 8/14 a moti 12/14). Med Elo
+       batnar hun (14/14 a moti 13/14). Lidurinn slokknar thvi SJALFUR
+       ef ClubElo dettur ut, i stad thess ad skemma.                    */
+    const homeAdj = ((W.home || 0)
+                     + ((!usedMarket && usedElo) ? (W.homeCore || 0) : 0))
+                    * (fx.home ? 1 : -1);
     return +clamp(core - homeAdj, 1, 5).toFixed(2);
   };
 }

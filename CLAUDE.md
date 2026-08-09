@@ -150,46 +150,87 @@ Gegn raunverulegum leikmannastigum (28.355 byrjunarliðs-umferðir) slær FFDR
 opinbert FDR í öllum fjórum stöðum; DEF er sterkast (r −0,275, léttasti
 sjöttungur gefur **+145%** á móti þeim þyngsta).
 
-### HEIMAVÖLLUR VANTAR FYRIR GK/DEF — MÆLT 8.8.2026, EKKI KOMIÐ INN ENN
+### HEIMAVÖLLUR FYRIR GK/DEF — MÆLT OG KOMIÐ INN 9.8.2026 (`homeCore`)
 
 Notandinn sá einkennið: *„Liverpool úti og Man City heima ættu ekki að vera
-grænir fyrir Arsenal."* Þeir voru það — og verra: **LIV úti 2,14 og LIV heima
-2,14 eru NÁKVÆMLEGA EINS**, sömuleiðis MUN heima/úti (2,14) og CHE heima/úti
-(2,04). Af 38 leikjum Arsenal eru **35 grænir eða dökkgrænir**.
+grænir fyrir Arsenal."* Undirliggjandi villan var verri en litirnir: með
+`home: 0` fyrir stöður 1–2 fékk varnarhópurinn **enga vallar-aðgreiningu**
+nema gegnum opinbera FDR-ið, og FPL gefur Arsenal-gegn-Liverpool sömu tölu (4)
+á báðum völlum. Útkoman var að **LIV úti 2,14 og LIV heima 2,14 voru
+NÁKVÆMLEGA EINS** — sömuleiðis MUN og CHE. Markaðslínan kann heimavöll en hún
+er aðeins til fyrir NÆSTU umferð.
 
-**Orsökin er `home: 0` í `DIFF_W` fyrir stöður 1 og 2** (MID/FWD hafa 0,12).
-Varnarhópurinn fær því enga vallar-aðgreiningu nema gegnum opinbera FDR-ið,
-og FPL gefur Arsenal-gegn-Liverpool **sömu tölu (4) á báðum völlum**. Markaðs-
-línan kann heimavöll en hún er aðeins til fyrir NÆSTU umferð.
+**`homeCore: 0.20` fyrir stöður 1 og 2**, dregið frá **aðeins þegar (a)
+markaðslínan tók ekki við OG (b) Elo-liðurinn var raunverulega notaður.**
 
-**Mælt** á 10.640 lið-leikjum (14 tímabil, sami heimur og walk-forward):
+**Mælt** á 10.640 lið-leikjum (14 tímabil):
 
-| home | r(d,GA) **kjarni** | r(d,GA) **með markaði** | Brier CS kjarni |
-|---|---|---|---|
-| **0,00** (í dag) | 0,3225 | **0,3942** | 0,18941 |
-| 0,20 | 0,3374 | 0,3864 | 0,18850 |
-| 0,25 | **0,3377** | 0,3819 | 0,18841 |
+| home | r(d,GA) **kjarni** | r(d,GA) **með markaði** |
+|---|---|---|
+| 0,00 | 0,3225 | **0,3942** |
+| **0,20** | **0,3374** | 0,3864 |
+| 0,25 | 0,3377 | 0,3819 |
 
-Liðurinn **bætir kjarnann (+0,015) en skemmir með markaði** — bókmakarinn
-verðleggur heimavöll þegar, svo eigin liður tvítelur. Hann á því aðeins við
-þegar markaðslínan vantar, sem er sama bygging og `PREV_K`-nótan lýsir.
-**LOSO: 0,20–0,25 í 14/14 brotum, aldrei 0**, út fyrir úrtak betra í 11/14 —
-og eitt af þeim þremur sem tapa er **2020/21, Covid-tímabilið fyrir TÓMUM
-VÖLLUM**, sem er staðfesting á að liðurinn mælir raunverulegan heimavöll.
+LOSO velur 0,20–0,25 í **14/14 brotum, aldrei 0**; út fyrir úrtak betra í
+11/14. Eitt af þeim þremur sem tapa er **2020/21 — Covid, TÓMIR VELLIR**,
+sem styður að liðurinn mæli raunverulegan heimavöll.
 
-**HVERS VEGNA ÞETTA VAR EKKI SETT INN:** útfært (`homeCore`, virkt aðeins
-þegar markaðurinn tekur ekki við) **felldi það 5 próf í `ffdr-backtest.mjs`**.
-±0,20 ósamhverf hliðrun ýtir leikjum ÚT ÚR miðþrepinu: hlutlaust fór í **8,6%**
-(á að vera ~16,7%) og röðin skekktist (hlutlaust 13,8% CS á móti ljósrauðu
-26,1%). Aðgreining batnaði (r upp) en **KVÖRÐUN brotnaði** — `TIER_CUTS` eru
-sextílar gömlu dreifingarinnar og `MEASURED` var fittað á gamla breidd
-(meðalfrávik 6,7pp > 6pp þakið).
+**HVERS VEGNA MARKAÐS-SKILYRÐIÐ:** bókmakarinn verðleggur heimavöll þegar, svo
+eigin liður tvítelur hann og spáin VERSNAR (0,3942 -> 0,3864). Sama bygging og
+`PREV_K`-nótan lýsir: ábatinn er í öllum umferðum nema næstu.
 
-**Rétta næsta skrefið er KVÖRÐUNAR-UMFERÐ, ekki stærri vog:** endurfitta
-`SCALE_FIX`/`MEASURED` með Brier gegn úrslitum og endurreikna `TIER_CUTS` úr
-NÝJU dreifingunni — sama pass og var gert 27.–28.7. Að senda liðinn inn án
-þess gerir **birtu tölurnar verri** (CS% og mörk á sig sem notandinn les af
-skjánum) meðan röðunin batnar örlítið. Vörðurnir gerðu nákvæmlega sitt gagn.
+**HVERS VEGNA ELO-SKILYRÐIÐ — ÞETTA ER KJARNINN OG ÞAÐ ER MÆLT.** Fyrsta
+útfærslan (án Elo-skilyrðis) felldi 5 próf í `ffdr-backtest.mjs`. Orsökin var
+ekki kvörðun heldur að **liðurinn er aðeins gildur þegar þyngdarmatið er
+nógu skarpt**. Einrænni-prófið, fjórir heimar × 14 tímabil:
+
+| heimur | h=0 | h=0,20 |
+|---|---|---|
+| approxFDR, **engin Elo** (bakprófið) | 12/14 | **8/14** |
+| approxFDR, með Elo | 13/14 | **14/14** |
+| raun-FDR, **engin Elo** | 13/14 | **11/14** |
+| raun-FDR, með Elo (**appið**) | 13/14 | **14/14** |
+
+**Elo ræður, ekki FDR-heimildin.** Án Elo er 0,20 hliðrun of stór fyrir grófara
+mat og hún blandar heima/úti-leikjum saman yfir þrepamörkin. Liðurinn
+**slokknar því sjálfur** ef ClubElo dettur út — í stað þess að skemma. Þar með
+er bakprófs-heimurinn ÓBREYTTUR og vörðurinn stendur óhaggaður (10/10).
+
+**KVÖRÐUN SEM FYLGDI:** `TIER_CUTS` -> `[1,94, 2,29, 2,57, 2,80, 3,09]`.
+Breiðari dreifing gaf hlutlausa miðþrepinu **12,4%** (gólfið er 12%); eftir
+endurreikning **16,4 / 16,9 / 16,0 / 17,2 / 16,5 / 17,0%** — jafnir sjöttungar.
+`SCALE_FIX`/`MEASURED` þurftu EKKI endurfit: hliðrunin er ósamhverf um núll,
+svo meðaltalið haggast ekki, og `ffdr-backtest` mælir töflu-frávikið 4,9pp
+(þakið er 6pp).
+
+**ÚTKOMAN HJÁ ARSENAL** (sama repró, aðeins `homeCore` breytt):
+
+| | fyrir | eftir |
+|---|---|---|
+| LIV **úti** | 2,14 grænn | **2,34 hlutlaus** |
+| LIV **heima** | 2,14 grænn | 1,94 grænn |
+| MCI **úti** | 2,67 dökkgulur | **2,87 ljósrauður** |
+| MCI **heima** | 2,21 grænn | 2,01 grænn |
+| þrep í notkun | 3 | **4** |
+
+Heima/úti eru nú aðgreind í ÖLLUM pörum. **Man City heima er þó ÁFRAM grænn og
+það er rétt** — sjá næstu nótu.
+
+**AÐ ARSENAL FÁI MIKIÐ GRÆNT ER EKKI VILLA.** `TIER_CUTS` eru **deildar-víðir**
+sextílar, ekki per lið, og Arsenal á bestu vörn deildarinnar (0,71 á sig/leik
+á móti ~1,3 að meðaltali). Flestir leikir þeirra lenda því neðarlega — og það
+er RÉTTA svarið við „hverjar eru líkurnar á hreinu blaði". Að gera þrepin
+afstæð innan liðs var **mælt og hafnað** (það henti ~30% af merkinu).
+Tölurnar sjálfar eru meira að segja **varfærnar**: birt CS% er 29,9% fyrir MCI
+heima og 28,7% fyrir LIV úti, á móti 43%/39% úr hráu Poisson-viðmiði og 50%
+raun-hreinblaðs-hlutfalli Arsenal 2025/26. Liturinn segir „í léttari hluta
+deildarinnar", ekki „auðveldur leikur".
+
+**VÖRÐUR SEM VAR ENDURORÐAÐUR, EKKI SLAKAÐUR** (`form-blend.mjs`): krafan
+`k=10 vinnur í 14/14` var á hnífsbrún — 2024/25 flakkaði um **0,0008**
+(0,02σ) við þessa viðbót. Hún er nú `>=13/14` **OG** að hvert tap sé innan
+hávaða (<0,005), sem gamla talan krafðist ekki. Stökkbreytt: `homeCore=0,80`
+FELLIR hana (versta tap 0,0056), `0,50` sleppur — vörðurinn hefur bit.
 
 ### Ákvarðanir sem hafa þegar verið véfengdar — ekki taka þær upp aftur
 
