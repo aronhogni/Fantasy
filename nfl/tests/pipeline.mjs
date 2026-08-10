@@ -393,5 +393,46 @@ console.log("\ntom keyrsla ma ekki thurrka ut god gogn");
   }
 }
 
+/* ============================================================
+   VIDFONG RATA EKKI OSTADFEST I SKRAARNAFN
+   ============================================================
+   Thrjar skrar med BILUM i nafni urdu til i data/. Rotin sest i
+   `provenance`-blokkinni sem thaer baru sjalfar:
+     argv: ["--scoring=ppr sleeper", "--proj=", "--runs=8"]
+   — skel sem klofnadi ekki rett, og skriftan limdi gildid OSTADFEST
+   inn i utkomunafnid. Verra: thad fann NULL RADIR og skriftan skrifadi
+   SAMT, med `seasons: []`.
+
+   ÞETTA PROFA LES SKRAAKERFID, EKKI KODATEXTA. Astaedan er beinlinis
+   su ad athugasemdin i `lib/args.mjs` NEFNIR skraarheitin — leit i
+   kodatexta hefdi fundid thau thar. Fullyrding sem athugasemd getur
+   uppfyllt er einskis virdi.                                        */
+console.log("\nskraarnofn i data/");
+{
+  const { readdirSync } = await import("node:fs");
+  const files = readdirSync(DATA);
+  const spaced = files.filter((f) => /\s/.test(f));
+  ok(spaced.length === 0, `ekkert skraarnafn ber bil (${spaced.join(", ") || "hreint"})`);
+
+  const empty = [];
+  for (const f of files.filter((x) => x.endsWith(".json"))) {
+    let j;
+    try { j = JSON.parse(readFileSync(path.join(DATA, f), "utf8")); } catch { continue; }
+    if (j && Array.isArray(j.seasons) && j.seasons.length === 0) empty.push(f);
+  }
+  ok(empty.length === 0, `engin maelingarskra med tomu seasons (${empty.join(", ") || "hreint"})`);
+
+  const labs = readdirSync(path.join(ROOT, "scripts")).filter((f) => /-lab\.mjs$/.test(f));
+  const loose = [];
+  for (const f of labs) {
+    /* Athugasemdir skornar burt ADUR en leitad er — sja ad ofan. */
+    const src = readFileSync(path.join(ROOT, "scripts", f), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    if (!/ARG\.scoring|ARG\.proj/.test(src)) continue;
+    if (!/parseArgs\(/.test(src)) loose.push(f);
+  }
+  ok(loose.length === 0, `hver rannsokn stadfestir vidfong sin (an: ${loose.join(", ") || "engin"})`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

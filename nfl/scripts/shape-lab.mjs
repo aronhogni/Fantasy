@@ -34,10 +34,14 @@ import { mean } from "../src/learn.js";
 import { replacementRanks } from "../src/model.js";
 import { stamp } from "./lib/provenance.mjs";
 
+import { parseArgs, requireSeasons } from "./lib/args.mjs";
 const OUT = path.resolve(process.cwd(), "data");
-const ARG = Object.fromEntries(process.argv.slice(2).map((a) => {
-  const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? true];
-}));
+/* Gildi sem raedur skraarnafni verdur ad koma ur leyfdum lista —
+   sja lib/args.mjs um skrarnar med bilum i nafni. */
+const ARG = parseArgs(process.argv.slice(2), {
+  proj: ["sleeper", "fftoday"],
+  runs: "number",
+});
 const PROJ = String(ARG.proj || "sleeper");
 const FIELD = PROJ === "fftoday" ? "ffProj" : "sleeperProj";
 const RUNS = Number(ARG.runs || 6);

@@ -28,10 +28,14 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { stamp } from "./lib/provenance.mjs";
 
+import { parseArgs } from "./lib/args.mjs";
 const OUT = path.resolve(process.cwd(), "data");
-const ARG = Object.fromEntries(process.argv.slice(2).map((a) => {
-  const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? true];
-}));
+/* Gildi sem raedur skraarnafni verdur ad koma ur leyfdum lista —
+   sja lib/args.mjs um skrarnar med bilum i nafni. */
+const ARG = parseArgs(process.argv.slice(2), {
+  scoring: ["ppr", "standard"],
+  teams: "number",
+});
 const TEAMS = Number(ARG.teams || 12);
 const SCORING = String(ARG.scoring || "ppr");
 const FIXED = { QB: 1, RB: 2, WR: 3, TE: 1 };

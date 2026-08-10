@@ -56,7 +56,12 @@ const ready = async () => {
     if (last >= 6) return true;
     await new Promise((r) => setTimeout(r, 250));
   }
+  const dump = await b.eval(
+    "return (document.body.innerText || '').slice(0, 240)").catch(() => "(ekkert)");
+  const url = await b.eval("return location.href").catch(() => "?");
   console.log(`     (sidasta talning: ${last}, villa: ${err || "engin"})`);
+  console.log(`     (slod: ${url})`);
+  console.log(`     (a skjanum: ${JSON.stringify(dump)})`);
   return false;
 };
 
@@ -66,6 +71,26 @@ ok(await ready(), "appid hledst og flipastikan teiknast");
 const TABS = await b.eval(
   "return [...document.querySelectorAll('button.tab')].map(t => t.textContent.trim())");
 const REAL = TABS.filter((t) => !/FPL/.test(t));
+
+/* ============================================================
+   ÞEKJA ER FULLYRDING, EKKI LOGGA
+   ============================================================
+   ÞETTA VAR GAT I ThESSU PROFI SJALFU. Thegar `ready()` brast vard
+   `REAL` TOMUR — og tha lykkja kaflar 1 til 4b yfir ekkert og prenta
+   "ok" fyrir hverja breidd. Safnid sagdi "ekkert larett yfirflaedi"
+   THEGAR THAD HAFDI EKKI SKODAD EINN EINASTA FLIPA.
+
+   Nakvaemlega bilunin sem CLAUDE.md 5b lysir: prof sem finnur ekkert
+   og heldur bara afram er graent og maelir EKKERT. Talan verdur ad
+   FELLA profid.                                                    */
+ok(REAL.length >= 6,
+  `${REAL.length} flipar til ad skoda — allt sem a eftir kemur lykkjar yfir thennan lista`);
+if (REAL.length < 6) {
+  console.log("\n  Flipalistinn er tomur eda of stuttur; allt sem a eftir kemur");
+  console.log("  vaeri lettvaegt graent. Haetti hér.");
+  b.close(); site.server.close();
+  process.exit(1);
+}
 
 /** Smellir a flipa eftir texta og bidur eftir teikningu. */
 const openTab = async (label) => {

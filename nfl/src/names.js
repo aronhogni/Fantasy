@@ -134,7 +134,27 @@ export function matchByName(idx, name, pos, team = null) {
   ]) {
     const hit = idx[via] && idx[via].get(`${keyFn(name)}|${pos || ""}`);
     if (hit) {
-      if (needTeam && team && hit.team && hit.team !== team) continue;
+      /* ============================================================
+         "KREFST LIDS" THYDIR AD LID VERDI AD VERA TIL — BADUM MEGIN
+         ============================================================
+         SKJOLUNIN HER AD OFAN SAGDI THETTA RETT OG KODINN GERDI THAD
+         EKKI: `team && hit.team && hit.team !== team` sleppur i gegn
+         thegar ANNAD HVORT lidid vantar. Frjalsir agentar og
+         FFC-radir an lids foru thvi i gegnum upphafsstafa-threpid an
+         nokkurrar stadfestingar — nakvaemlega thad sem sidasta setning
+         skjolunarinnar bannar: "threpi 3 an lids vaeri agiskun".
+
+         MAELT A RAUNGOGNUNUM adur en thessu var breytt: 86 paranir
+         komu um upphafsstaf og **85 theirra voru an lids okkar megin**
+         — A.J. Green, Julio Jones, T.J. Jones, Devin Smith, allt
+         arekstrarhaettu-eftirnofn. **ENGINN theirra er draftanlegur**
+         (0 med ADP undir 400). Strangari reglan kostar thvi ekkert sem
+         notandinn ser og fjarlaegir aetta hins vegar thogla ranga
+         porun sem thessi modull er til ad hindra.
+
+         Tvaer paranir sem eru TIL en OSAMANBURDARHAEFAR eru ekki
+         staerdfraedilega jafngildar; "veit ekki" er ekki "passar". */
+      if (needTeam && (!team || !hit.team || hit.team !== team)) continue;
       return { item: hit, via };
     }
   }

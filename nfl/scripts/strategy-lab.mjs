@@ -33,10 +33,14 @@ import { simulateDraft, DEFAULT_LEAGUE } from "../src/accuracy.js";
 import { mean, bootstrapDiff } from "../src/learn.js";
 
 import { stamp } from "./lib/provenance.mjs";
+import { parseArgs } from "./lib/args.mjs";
 const OUT = path.resolve(process.cwd(), "data");
-const ARG = Object.fromEntries(process.argv.slice(2).map((a) => {
-  const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? true];
-}));
+/* Gildi sem raedur skraarnafni verdur ad koma ur leyfdum lista —
+   sja lib/args.mjs um skrarnar med bilum i nafni. */
+const ARG = parseArgs(process.argv.slice(2), {
+  scoring: ["ppr", "standard"],
+  teams: "number",
+});
 const SCORING = String(ARG.scoring || "ppr");
 const TEAMS = Number(ARG.teams || 12);
 const ROUNDS = 14;

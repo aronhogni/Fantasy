@@ -39,10 +39,15 @@ import { simulateDraft, DEFAULT_LEAGUE } from "../src/accuracy.js";
 import { mean } from "../src/learn.js";
 import { stamp } from "./lib/provenance.mjs";
 
+import { parseArgs, requireSeasons } from "./lib/args.mjs";
 const OUT = path.resolve(process.cwd(), "data");
-const ARG = Object.fromEntries(process.argv.slice(2).map((a) => {
-  const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? true];
-}));
+/* Gildi sem raedur skraarnafni verdur ad koma ur leyfdum lista —
+   sja lib/args.mjs um skrarnar med bilum i nafni. */
+const ARG = parseArgs(process.argv.slice(2), {
+  scoring: ["ppr", "standard"],
+  proj: ["sleeper", "fftoday"],
+  runs: "number",
+});
 const SCORING = String(ARG.scoring || "ppr");
 const PROJ = String(ARG.proj || "sleeper");
 const FIELD = PROJ === "fftoday" ? "ffProj" : "sleeperProj";
@@ -138,6 +143,7 @@ async function main() {
     };
   }
   const ys = Object.keys(world).map(Number).sort();
+  requireSeasons(ys, "timabil med hreina spa");
 
   const noisyField = (pool, seed) => {
     let a = seed >>> 0;

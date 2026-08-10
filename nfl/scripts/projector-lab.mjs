@@ -45,10 +45,13 @@ import { mean, spearman, hitRate, bootstrapDiff } from "../src/learn.js";
 import { buildIndexes, matchByName } from "../src/names.js";
 
 import { stamp } from "./lib/provenance.mjs";
+import { parseArgs } from "./lib/args.mjs";
 const OUT = path.resolve(process.cwd(), "data");
-const ARG = Object.fromEntries(process.argv.slice(2).map((a) => {
-  const [k, v] = a.replace(/^--/, "").split("="); return [k, v ?? true];
-}));
+/* Gildi sem raedur skraarnafni verdur ad koma ur leyfdum lista —
+   sja lib/args.mjs um skrarnar med bilum i nafni. */
+const ARG = parseArgs(process.argv.slice(2), {
+  scoring: ["ppr", "standard"],
+});
 const SCORING = String(ARG.scoring || "ppr");
 const TEAMS = 12, ROUNDS = 14;
 const LEAGUE = { ...DEFAULT_LEAGUE, teams: TEAMS, rounds: ROUNDS };

@@ -20,7 +20,7 @@
       umbod.
    ============================================================ */
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as D from "./data.js";
 import { recommend, MEASURED } from "./advice.js";
 import { signed } from "./columns.js";
@@ -31,9 +31,18 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   const [posFilter, setPosFilter] = useState([]);
   const [sync, setSync] = useState(() => D.loadState("sync", { draftId: "", slot: null }));
 
-  const persist = (t, m) => {
-    D.saveState("taken", [...t]); D.saveState("myPicks", [...m]);
-  };
+  /* ============================================================
+     VISTUN FYLGIR ASTANDINU, EKKI KOLLUNUM
+     ============================================================
+     Adur var `persist(t, m)` kallad i hverri adgerd med THEIM mengjum
+     sem adgerdin bjó til. Thad virkar adeins ef adgerdin veit rett
+     astand — og pollunin gerdi thad EKKI (sja `onPicks`). Nidurstadan
+     var ad afturforin var ekki bara syn heldur VISTUD.
+
+     Effect a mengin sjalf getur ekki skeikad: hvad sem breytir theim,
+     og hvadan sem thad kemur, er thad SIDASTA astand sem er skrifad. */
+  useEffect(() => { D.saveState("taken", [...taken]); }, [taken]);
+  useEffect(() => { D.saveState("myPicks", [...myPicks]); }, [myPicks]);
 
   /* Bordid radar THEIM SEM A-RANKING NAER YFIR. K og DST eru utan
      hennar (sja notu i build.js) og eru syndir ser nedar. */
@@ -68,29 +77,51 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   const myRoster = useMemo(
     () => rows.filter((r) => myPicks.has(r.id)), [rows, myPicks]);
 
+  /* ============================================================
+     ALLAR BREYTINGAR ERU FOLL AF FYRRA ASTANDI, EKKI AF MYND AF THVI
+     ============================================================
+     ÞETTA VAR ALVARLEGASTA VILLAN I nfl/ OG HUN TOK FIMM SEKUNDUR AD
+     BIRTAST: notandinn smellti, sá rett, og sidan hvarf thad.
+
+     `onPicks` var orva-fall sem var buid til i hverri teikningu og
+     lokadist um `taken`/`myPicks` EINS OG THAU VORU THA. Pollunar-
+     effectid ber `[live, sync.draftId, sync.slot, byId]` i deps — EKKI
+     `onPicks` — svo `setInterval` helt afram ad kalla GOMLU utgafuna,
+     og vid hvern tikk var mengid endurbyggt ur urveltri mynd:
+
+         const t = new Set([...taken, ...ids]);   // `taken` er gamalt
+
+     Handvirkt val sem kom EFTIR ad effectid keyrdi var thvi ekki i
+     `taken` og hvarf — og `persist` skrifadi afturforina, svo hun lifdi
+     endurhledslu.
+
+     Foll af fyrra astandi geta ekki skeikad thannig: React gefur theim
+     alltaf NUVERANDI gildi, oháð thvi hvenaer lokunin vard til. Thess
+     vegna er `onPicks` lika `useCallback` med tomum deps — hun tharf
+     ekki ad endurnyjast, og tha getur ekkert i henni orðið gamalt.
+
+     Vordur: `tests/sleeper.mjs` kafli 2c bidur raunverulegar 5,5
+     sekundur og krefst thess ad handvirkt val lifi pollunar-tikk. */
+  const onPicks = useCallback((ids, mineIds) => {
+    setTaken((prev) => new Set([...prev, ...ids]));
+    setMyPicks((prev) => new Set([...prev, ...mineIds]));
+  }, []);
+
   const take = (r, mine) => {
-    const t = new Set(taken); t.add(r.id);
-    const m = new Set(myPicks); if (mine) m.add(r.id);
-    setTaken(t); setMyPicks(m); persist(t, m);
+    setTaken((prev) => new Set(prev).add(r.id));
+    if (mine) setMyPicks((prev) => new Set(prev).add(r.id));
   };
   const undo = (r) => {
-    const t = new Set(taken); t.delete(r.id);
-    const m = new Set(myPicks); m.delete(r.id);
-    setTaken(t); setMyPicks(m); persist(t, m);
+    setTaken((prev) => { const t = new Set(prev); t.delete(r.id); return t; });
+    setMyPicks((prev) => { const m = new Set(prev); m.delete(r.id); return m; });
   };
-  const reset = () => {
-    setTaken(new Set()); setMyPicks(new Set()); persist(new Set(), new Set());
-  };
+  const reset = () => { setTaken(new Set()); setMyPicks(new Set()); };
 
   return (
     <>
       <SleeperSync sync={sync} setSync={(s) => { setSync(s); D.saveState("sync", s); }}
         season={season} rows={rows} taken={taken}
-        onPicks={(ids, mineIds) => {
-          const t = new Set([...taken, ...ids]);
-          const m = new Set([...myPicks, ...mineIds]);
-          setTaken(t); setMyPicks(m); persist(t, m);
-        }} />
+        onPicks={onPicks} />
 
       <NextPick available={available} roster={myRoster} taken={taken}
         league={league} sync={sync} />
@@ -365,7 +396,11 @@ function MyRoster({ roster, league, onUndo }) {
    ============================================================ */
 function SleeperSync({ sync, setSync, season, rows, onPicks }) {
   const [user, setUser] = useState("");
+  /* Audkenni notandans er MUNAD thegar hann finnst. Thad er lykillinn
+     ad sjalfvirku saeti — sja `applyDraft`. */
+  const [userId, setUserId] = useState(null);
   const [leagues, setLeagues] = useState(null);
+  const [slotAuto, setSlotAuto] = useState(false);
   const [status, setStatus] = useState(null);
   const [live, setLive] = useState(false);
   const [info, setInfo] = useState(null);
@@ -378,10 +413,40 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
     setStatus("leita…");
     try {
       const u = await D.sleeperUser(user.trim());
+      setUserId(u.user_id || null);
       const ls = await D.sleeperLeagues(u.user_id, season);
       setLeagues(ls || []);
       setStatus(ls && ls.length ? null : "engar deildir a thessu timabili");
     } catch (e) { setStatus(String(e.message || e)); setLeagues(null); }
+  };
+
+  /* ============================================================
+     SAETID ER LESID UR DRAFTINU, EKKI SLEGID INN
+     ============================================================
+     ÞETTA VAR GATID SEM GERDI TENGINGUNA HALFA. An saetis strikadi
+     appid ut tha sem voru farnir — en hopurinn THINN fylltist aldrei,
+     svo "hvern a ad taka naest" vissi ekki hvad thu attir thegar. Rad
+     an vitneskju um hopinn er ekki rad.
+
+     Sleeper ber `draft_order` a draftinu sjalfu: `{ user_id: saeti }`.
+     Vid vitum `user_id` um leid og notandinn finnst, svo saetid er
+     LESID. Handvirki reiturinn stendur afram fyrir tha sem lima inn
+     slod an thess ad slá inn notandanafn — og fyrir tilfellid thegar
+     `draft_order` er null, sem Sleeper gerir adur en rodin er dregin.
+
+     `slotAuto` greinir a milli "vid lasum thetta" og "thu slóst thad
+     inn", thvi thad fyrra ma yfirskrifast vid naesta draft og thad
+     sidara ekki. */
+  const applyDraft = (d, uid) => {
+    const order = d && d.draft_order;
+    const slot = order && uid != null ? order[uid] : null;
+    const next = { ...sync, draftId: d.draft_id };
+    if (slot != null && Number.isFinite(Number(slot))) {
+      next.slot = Number(slot);
+      setSlotAuto(true);
+    }
+    setSync(next);
+    return slot != null;
   };
 
   const useLeague = async (lg) => {
@@ -390,8 +455,15 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
       const ds = await D.sleeperDrafts(lg.league_id);
       const d = (ds || [])[0];
       if (!d) { setStatus("ekkert draft i thessari deild"); return; }
-      setSync({ ...sync, draftId: d.draft_id });
-      setStatus(null);
+      /* `/league/{id}/drafts` ber ekki alltaf `draft_order`; sæki tha
+         draftid sjalft. Eitt aukakall er thess virdi — an saetis er
+         radgjofin blind a thinn eigin hop. */
+      let full = d;
+      if (!d.draft_order && d.draft_id) {
+        try { full = await D.sleeperDraft(d.draft_id); } catch { full = d; }
+      }
+      const got = applyDraft(full, userId);
+      setStatus(got ? null : "fann draftid — sláðu inn saetid thitt");
       setLeagues(null);
     } catch (e) { setStatus(String(e.message || e)); }
   };
@@ -402,6 +474,15 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
       setInfo({ type: d.type, teams: d.settings ? d.settings.teams : null,
                 rounds: d.settings ? d.settings.rounds : null,
                 status: d.status, picks: (picks || []).length });
+      /* Rodin er oft dregin EFTIR ad tengt er. Se saetid enn ekki komid
+         og `draft_order` bætist vid i millitidinni tokum vid thad. */
+      if (sync.slot == null && userId != null && d.draft_order) {
+        const s2 = d.draft_order[userId];
+        if (s2 != null && Number.isFinite(Number(s2))) {
+          setSlotAuto(true);
+          setSync((prev) => ({ ...prev, slot: Number(s2) }));
+        }
+      }
       /* VAL SEM BORDID THEKKIR EKKI MA EKKI HVERFA THEGJANDI.
          Bordid ber ~1.130 leikmenn af ~11.400 hja Sleeper, svo djupt
          val getur verid utan thess. Ad sleppa thvi ur `ids` er rett —
@@ -465,11 +546,13 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
             onChange={(e) => setSync({ ...sync, draftId: extractDraftId(e.target.value) })} />
         </label>
         <label className="field">
-          Your slot
+          Your slot{slotAuto && sync.slot != null &&
+            <span className="good" style={{ fontSize: 11, marginLeft: 5 }}>read from Sleeper</span>}
           <input type="number" min="1" max="16" value={sync.slot ?? ""}
             style={{ width: 70 }}
-            onChange={(e) => setSync({ ...sync, slot: e.target.value === "" ? null
-              : Number(e.target.value) })} />
+            onChange={(e) => { setSlotAuto(false);
+              setSync({ ...sync, slot: e.target.value === "" ? null
+                : Number(e.target.value) }); }} />
         </label>
         <button className={`act${live ? "" : " primary"}`}
           disabled={!sync.draftId}

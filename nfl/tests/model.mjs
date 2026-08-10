@@ -349,5 +349,53 @@ console.log("\ntherpavidd");
   }
 }
 
+/* ============================================================
+   OKUNNUGT STODUGILDI MA EKKI VERA THOGULT "HEILBRIGDUR"
+   ============================================================
+   `availability` skilar 1 thegar hun thekkir ekki gildid. Thad er
+   retta bakfallid — vid viljum ekki nulla mann vegna nys ords i
+   ordafori Sleeper — EN thad ma ekki gerast an thess ad nokkur sjai.
+
+   ÞETTA KOSTADI RAUNVERULEGA TOLU: `DNR` (Did Not Report) var ekki i
+   toflunni, svo Brandon Aiyuk — DRAFTANLEGUR mottakari sem var ekki
+   maettur — fekk tiltaekileika 1,0 og spain hans var oafslegin.
+
+   Profid ber ordin sem eru RAUNVERULEGA a diskinum vid toflunna. Nytt
+   ord fellir thad, og tha er thad AKVORDUN en ekki thogn.          */
+console.log("\nordafor tiltaekileika");
+{
+  const { AVAIL, AVAIL_KNOWN, availability } = await import("../src/model.js");
+  if (!existsSync(path.join(DATA, "players.json"))) {
+    console.log("  (players.json vantar — slepp)");
+  } else {
+    const P = JSON.parse(readFileSync(path.join(DATA, "players.json"), "utf8"));
+    const seen = new Set();
+    for (const p of P) {
+      if (p.injury) seen.add(p.injury);
+      if (p.status) seen.add(p.status);
+    }
+    const unknown = [...seen].filter((v) => !AVAIL_KNOWN.includes(v));
+    ok(unknown.length === 0,
+      `hvert stodugildi a disknum er i toflunni (okunnug: ${unknown.join(", ") || "engin"})`);
+
+    /* Og enginn ma fa FULLAN adgang med stodu sem er ekki Active. */
+    const slipping = P.filter((p) => availability(p.status, p.injury) === 1 &&
+      ((p.injury && p.injury !== "Active") || (p.status && p.status !== "Active")));
+    ok(slipping.length === 0,
+      `enginn faer fullan adgang med stodu sem er ekki Active ` +
+      `(${slipping.slice(0, 3).map((p) => `${p.name} ${p.status}/${p.injury}`).join(", ") || "0"})`);
+
+    /* Threpin verda ad vera einraen: verri stada gefur aldrei HAERRI
+       tolu. Snerist eitt gildi vid vaeri taflan ad segja ad meiddur
+       madur se aðgengilegri en heilbrigdur. */
+    const order = ["Out", "IR", "Doubtful", "DNR", "Questionable", "Probable", "Active"];
+    let mono = true;
+    for (let i = 1; i < order.length; i++) {
+      if (AVAIL[order[i]] < AVAIL[order[i - 1]]) mono = false;
+    }
+    ok(mono, `taflan er einraen: ${order.map((k) => `${k} ${AVAIL[k]}`).join(" <= ")}`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

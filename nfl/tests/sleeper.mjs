@@ -75,7 +75,7 @@ const SCENARIOS = {
   /* Draft i gangi — 20 vol komin, vid i saeti 7. */
   inProgress: {
     draft: { draft_id: "d2", status: "drafting", type: "snake",
-             settings: { teams: 12, rounds: 15 }, draft_order: { user7: 7 } },
+             settings: { teams: 12, rounds: 15 }, draft_order: { u1: 7 } },
     picks: REAL_IDS.slice(0, 20).map((id, i) =>
       mkPick(i, id, (i % 12) + 1)),
   },
@@ -277,6 +277,108 @@ console.log("\n2b. samstillingin gerir sitt verk");
   ok(firstTaken && !new RegExp(`take[\\s\\S]{0,40}${firstTaken.name}`).test(t),
     `${firstTaken ? firstTaken.name : "?"} er ekki lengur bodinn (hann er farinn)`);
 
+  root.unmount();
+}
+
+/* ============================================================
+   2bb. SAETID ER LESID UR DRAFTINU
+   ============================================================
+   AN SAETIS VAR TENGINGIN HALF. Appid strikadi ut tha sem voru farnir
+   — en hopurinn THINN fylltist aldrei, svo "hvern a ad taka naest"
+   vissi ekki hvad thu attir thegar. Rad an vitneskju um hopinn er
+   ekki rad.
+
+   Sleeper ber `draft_order` a draftinu: `{ user_id: saeti }`, og vid
+   vitum `user_id` um leid og notandanafnid finnst. Profid fer LEIDINA
+   SEM NOTANDINN FER — notandanafn, deild, tengja — og krefst thess ad
+   saetid komi af sjalfu ser.                                        */
+console.log("\n2bb. saetid les sig sjalft ur draft_order");
+{
+  scenario = SCENARIOS.inProgress; sleeperMode = "ok";
+  const root = await boot();
+
+  await setInput("Sleeper username", "adi");
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /Find leagues/i.test(b.textContent || "")));
+  await settle(600);
+  /* Deildin birtist sem chip — smellt a hana eins og notandinn gerir. */
+  const league = [...document.querySelectorAll("button.chip")]
+    .find((b) => /Deildin/.test(b.textContent || ""));
+  await click(league);
+  await settle(700);
+
+  const slotInput = [...document.querySelectorAll("label.field")]
+    .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
+  ok(slotInput && Number(slotInput.value) === 7,
+    `saetid lesid ur draft_order (fann "${slotInput ? slotInput.value : "?"}", a ad vera 7)`);
+  ok(/read from Sleeper/i.test(text()),
+    "og thad er MERKT sem lesid, ekki innslegid");
+
+  /* Og tha VIRKAR radgjofin a rettum hop: samstillum og teljum. */
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  await settle(900);
+  const mine = /(\d+) yours/.exec(text());
+  ok(mine && Number(mine[1]) === 2,
+    `hopurinn fylltist an thess ad slá inn neitt (${mine ? mine[1] : "?"} minir)`);
+  root.unmount();
+}
+
+/* ============================================================
+   2c. HANDVIRKT VAL MA EKKI AFTURKALLAST AF POLLINUM
+   ============================================================
+   ALVARLEGASTA VILLAN I nfl/ SAMKVAEMT UTTEKTINNI, og hun er lumsk
+   thvi hun tekur FIMM SEKUNDUR ad birtast — notandinn smellir, sér
+   rett, og sidan hverfur thad.
+
+   `onPicks` er orva-fall sem er buid til i hverri teikningu og lokast
+   um `taken` og `myPicks` EINS OG THAU VORU THA. Pollunar-effectid ber
+   `[live, sync.draftId, sync.slot, byId]` i deps — EKKI `onPicks` —
+   svo `setInterval` heldur afram ad kalla GOMLU utgafuna. Vid hvern
+   tikk er mengid endurbyggt ur urveltri mynd:
+
+       const t = new Set([...taken, ...ids]);   // `taken` er gamalt
+
+   Handvirkt val sem kom EFTIR ad effectid keyrdi er thvi ekki i `taken`
+   og hverfur. Og `persist(t, m)` SKRIFAR afturforina i localStorage,
+   svo hun lifir endurhledslu.
+
+   Profid bidur raunverulegar 5,5 sekundur. Thad er haegt, og thad er
+   thess virdi: thetta er eina leidin til ad sja villu sem er skilgreind
+   af timanum sem lidur.                                            */
+console.log("\n2c. handvirkt val lifir pollunina");
+{
+  scenario = SCENARIOS.inProgress; sleeperMode = "ok";
+  const root = await boot();
+
+  await setInput("Draft ID", "d2");
+  await setInput("Your slot", "7");
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  await settle(900);
+
+  /* Veljum mann sem er EKKI i Sleeper-volunum — hreint handvirkt val.
+     `take`-hnapparnir eru i bordinu; sa fyrsti er efsti lausi madurinn. */
+  const before = /(\d+) drafted/.exec(text());
+  const takeBtn = [...document.querySelectorAll("table.data tbody button")]
+    .find((b) => /take|mine|\+/i.test(b.textContent || "")) ||
+    [...document.querySelectorAll("table.data tbody td button")][0];
+  const clicked = await click(takeBtn);
+  const afterClick = /(\d+) drafted/.exec(text());
+  ok(clicked && afterClick && Number(afterClick[1]) > Number(before[1]),
+    `handvirkt val skradist (${before[1]} -> ${afterClick ? afterClick[1] : "?"})`);
+
+  /* Nu lidur einn pollunar-tikkur. */
+  await settle(5600);
+  const afterTick = /(\d+) drafted/.exec(text());
+  ok(afterTick && Number(afterTick[1]) >= Number(afterClick[1]),
+    `og lifir pollunina 5 sek sidar (${afterClick ? afterClick[1] : "?"} -> ` +
+    `${afterTick ? afterTick[1] : "?"})`);
+
+  /* Og afturforin ma ekki hafa verid SKRIFUD i localStorage. */
+  const saved = JSON.parse(localStorage.getItem("nfl_taken") || "[]");
+  ok(saved.length >= Number(afterClick[1]),
+    `og vistada mengid ber thad lika (${saved.length} audkenni)`);
   root.unmount();
 }
 

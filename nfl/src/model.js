@@ -487,12 +487,38 @@ const round3 = (x) => Math.round(x * 1000) / 1000;
  * mega AUDGA hana en aldrei skipta henni ut.
  */
 export const AVAIL = {
+  /* Spilar ekki. */
   Out: 0, IR: 0, PUP: 0, Suspended: 0, NA: 0, "Injured Reserve": 0,
+  /* Sleeper skammstafar sumt — og OKUNNUGT GILDI FELL I GEGN SEM
+     HEILBRIGT. `DNR` (Did Not Report) var ekki i toflunni, svo
+     Brandon Aiyuk — draftanlegur mottakari sem var ekki maettur — fekk
+     tiltaekileika 1,0 og spain hans var oafslegin. Talan var ekki
+     rong af thvi ad hun var illa valin heldur af thvi ad HUN VAR
+     ALDREI VALIN. */
+  Sus: 0, COV: 0, Inactive: 0, "Non Football Injury": 0,
+  "Practice Squad": 0, "Reserve/COVID-19": 0,
   Doubtful: 0.25,
+  /* DNR er HOLDOUT, ekki meidsli: hann GETUR spilad en er ekki maettur.
+     Grofur flokkur eins og hinir — sja notuna ad ofan um fals-nakvaemni
+     — og hann er MERKTUR sem mat, ekki maeling, i `AVAIL_MEASURED`. */
+  DNR: 0.5,
   Questionable: 0.75,
   Probable: 0.95,
   Active: 1, null: 1, undefined: 1,
 };
+
+/**
+ * OKUNNUGT GILDI MA EKKI VERA THOGULT "HEILBRIGDUR".
+ *
+ * `availability` skilar 1 thegar hun thekkir ekki gildid — sem er
+ * retta bakfallid (vid viljum ekki nulla mann vegna nys orðs i
+ * ordafori Sleeper) EN thad ma ekki gerast an thess ad nokkur sjai.
+ * Thess vegna er thetta safn til: profid ber ordin sem eru RAUNVERU-
+ * LEGA i `players.json` vid thennan lista og fellur ef nytt ord
+ * baetist vid. Tha er thad akvordun, ekki thogn.
+ */
+export const AVAIL_KNOWN = Object.keys(AVAIL)
+  .filter((k) => k !== "null" && k !== "undefined");
 
 export function availability(status, injury) {
   if (injury && AVAIL[injury] != null) return AVAIL[injury];

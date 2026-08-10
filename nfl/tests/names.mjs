@@ -157,5 +157,44 @@ console.log("\n6. hradi");
   ok(ms < 500, `5.000 porunum lokid a ${ms} ms (thak 500)`);
 }
 
+/* ============================================================
+   "KREFST LIDS" ThYDIR BADUM MEGIN
+   ============================================================
+   Skjolunin vid `matchByName` sagdi thetta rett og kodinn gerdi thad
+   EKKI: `team && hit.team && hit.team !== team` sleppur i gegn thegar
+   ANNAD HVORT lidid vantar, svo frjalsir agentar foru gegnum
+   upphafsstafa-threpid an stadfestingar.
+
+   Maelt adur en thessu var breytt: 86 paranir komu um upphafsstaf og
+   85 theirra voru AN LIDS okkar megin — A.J. Green, Julio Jones,
+   T.J. Jones, Devin Smith — og ENGINN theirra draftanlegur.
+
+   "Veit ekki" er ekki "passar". Thad er allur lærdómurinn.        */
+console.log("\nupphafsstafa-threpid krefst lids badum megin");
+{
+  const t = [
+    { name: "Jahmyr Gibbs", pos: "RB", team: "DET" },
+    { name: "Julio Jones", pos: "WR", team: null },
+  ];
+  const idx = buildIndexes(t);
+
+  ok(matchByName(idx, "J. Gibbs", "RB", "DET")?.via === "initial",
+    "rett lid badum megin -> passar");
+  ok(matchByName(idx, "J. Gibbs", "RB", "KC") === null,
+    "rangt lid -> passar EKKI");
+  ok(matchByName(idx, "J. Gibbs", "RB", null) === null,
+    "ekkert lid GEFID -> passar EKKI (var galopid adur)");
+  ok(matchByName(idx, "J. Jones", "WR", "ATL") === null,
+    "lid vantar i TOFLUNNI -> passar EKKI");
+
+  /* Og threpin fyrir ofan mega ALLS EKKI hafa hertst med: nakvaemt
+     nafn a ad passa an lids, annars vaeri lagfaeringin ad brjota
+     porunina sem virkadi. */
+  ok(matchByName(idx, "Jahmyr Gibbs", "RB", null)?.via === "exact",
+    "nakvaemt nafn passar afram an lids");
+  ok(matchByName(idx, "Jahmyr Gibbs", "RB", "KC")?.via === "exact",
+    "og lika thott lid stemmi ekki — thad threp krefst thess ekki");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
