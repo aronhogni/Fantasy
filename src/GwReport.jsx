@@ -501,7 +501,11 @@ function MatchTab({ fixtures, teamById, Crest }) {
 }
 function MRow({ l, h, a }) {
   const hv = h == null || h === "" ? "—" : h, av = a == null || a === "" ? "—" : a;
-  const hi = Number.isFinite(+h) && Number.isFinite(+a);
+  /* `+null` er 0 og 0 ER endanleg tala, svo vantandi gildi taldist gilt og
+     hin hlidin var FEITLETRUD sem "sigurvegari" gegn engu. Ekkert vinnur
+     gegn tomu gildi — badar hlidar verda ad vera til stadar.             */
+  const both = h != null && h !== "" && a != null && a !== "";
+  const hi = both && Number.isFinite(+h) && Number.isFinite(+a);
   return (
     <div style={S.mLine}>
       <span style={{ ...S.mNum, fontWeight: hi && +h > +a ? 700 : 400 }}>{hv}</span>

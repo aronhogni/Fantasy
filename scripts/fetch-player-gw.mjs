@@ -218,6 +218,12 @@ for (const [key, dir] of Object.entries(SEASONS)) {
     `${dupSkipped ? ` · ${dupSkipped} DUPLICATES (same code+gameweek+date)` : ""}`);
 }
 
+/* SAMA REGLA: 5,5 MB af per-umferdar sogu ma ekki hverfa thott ein
+   keyrsla finni ekkert (rong moppa, vaastav nidri).                      */
+if (!Object.keys(out).length) {
+  console.error("0 seasons collected — WRITING NOTHING.");
+  process.exit(2);
+}
 await writeFile("data/fpl_player_gw.json", JSON.stringify({
   updated: new Date().toISOString(),
   source: "vaastav/Fantasy-Premier-League — data/{season}/gws/merged_gw.csv",

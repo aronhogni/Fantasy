@@ -67,10 +67,26 @@ function parseCsv(text) {
 }
 
 console.log("Fetching 42 MB CSV …");
-const text = await (await fetch(URL_, { headers: { "User-Agent": UA },
-  signal: AbortSignal.timeout(20000) })).text();
+/* ThRENNT LAGAD 10.8.2026 — TOM KEYRSLA MA ALDREI ThURRKA UT GOD GOGN (8e).
+   1. ENGINN `r.ok`-CHECK VAR HER. GitHub skilar HTML-VILLUSIDU vid 404, hun
+      thattast i 0 radir og skrain var skrifud med `seasons: {}` OFAN A heil
+      sogugogn sem bakprofin lesa.
+   2. 20 s TOK YFIR ALLAN LIKAMANN, ekki bara tenginguna — 42 MB a haegri
+      tengingu var drepid thott ekkert vaeri ad. Nu 180 s.
+   3. Skriftan deyr fremur en ad skrifa tomt (sja nedar).                  */
+const res = await fetch(URL_, { headers: { "User-Agent": UA },
+  signal: AbortSignal.timeout(180000) });
+if (!res.ok) {
+  console.error(`HTTP ${res.status} fra ${URL_} — WRITING NOTHING.`);
+  process.exit(2);
+}
+const text = await res.text();
 const rows = parseCsv(text).filter(r => r.Division === "E0");
 console.log(`E0 rows: ${rows.length}`);
+if (!rows.length) {
+  console.error("0 E0 rows parsed — the source changed shape or returned an error page. WRITING NOTHING.");
+  process.exit(2);
+}
 
 const seasons = {};
 let skipped = 0;
@@ -86,6 +102,10 @@ const counts = Object.fromEntries(Object.entries(seasons)
 console.log("matches per season:", JSON.stringify(counts));
 const total = Object.values(seasons).reduce((a, v) => a + Object.keys(v).length, 0);
 
+if (!total) {
+  console.error("0 matches after pairing — WRITING NOTHING (an empty file would look like a measurement).");
+  process.exit(2);
+}
 await writeFile("data/clubelo_history.json", JSON.stringify({
   updated: new Date().toISOString(),
   source: "xgabora/Club-Football-Match-Data-2000-2025 (speglar football-data.co.uk + ClubElo)",

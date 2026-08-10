@@ -124,6 +124,13 @@ for (const [key, dir] of Object.entries(SEASONS)) {
     Object.keys(hist).sort().map(k => `${k}:${(100 * hist[k] / vals.length).toFixed(0)}%`).join(" "));
 }
 
+/* TOM UTKOMA MA EKKI YFIRSKRIFA (8e). Slodirnar eru cwd-afstaedar, svo
+   keyrsla ur rangri mopppu (eda vantandi data/fdcouk/) gaf `seasons: {}`
+   ofan a heil gogn sem bakprofin lesa. Sama vord og i fetch-bsd-teams.  */
+if (!Object.keys(out).length) {
+  console.error("0 seasons paired — WRITING NOTHING (run from the repo root; data/fdcouk/ must exist).");
+  process.exit(2);
+}
 await writeFile("data/fpl_fdr_history.json", JSON.stringify({
   updated: new Date().toISOString(),
   source: "vaastav/Fantasy-Premier-League (afrit af FPL-API), fixtures.csv",

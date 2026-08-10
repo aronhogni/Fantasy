@@ -639,7 +639,15 @@ export default function App() {
   const [rivalInput, setRivalInput] = useState("");
   const [rivalData, setRivalData] = useState({});    // {id: {name, gwPts, totalPts, captain, picks}}
 
-  const flash = m => { setToast(m); setTimeout(() => setToast(null), 2800); };
+  /* EITT TIMER I EINU. Adur var nyr timer settur an thess ad hreinsa thann
+     fyrri, svo tvaer tilkynningar innan 2,8 s enduðu a thvi ad SU FYRRI
+     faldi thá seinni adur en hun hafdi verid lesin.                      */
+  const toastTimer = React.useRef(null);
+  const flash = m => {
+    setToast(m);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => { setToast(null); toastTimer.current = null; }, 2800);
+  };
 
   /* ---------- Sækja gögn ---------- */
   useEffect(() => {
@@ -822,11 +830,23 @@ export default function App() {
 
   /* ---------- Sækja raunlið + stig úr FPL-slóð ---------- */
   useEffect(() => {
-    if (!PROXY_URL || !entryId) { setTotalPts(null); setGwPts(null); setSquadOverride(null); setApiHit(null); return; }
+    /* `apiBank` VAR EKKI NULLSTILLTUR vid aftengingu, svo gamall FPL-banki
+       hélt afram ad yfirskrifa aaetlada bankann eftir ad tengingin for.   */
+    if (!PROXY_URL || !entryId) { setTotalPts(null); setGwPts(null); setSquadOverride(null); setApiHit(null); setApiBank(null); return; }
+    /* KAPPHLAUPS-VORD — systur-effectarnir (live, gwStats, rivals) hafa thad
+       allir, thessi ekki. An thess getur SEINT svar fra fyrri umferd lent
+       EFTIR svari nyju umferdarinnar og yfirskrifad `squadOverride`,
+       fyrirlida, varafyrirlida, kaupverd og tengistodu med RONGU umferdinni.
+       Sest fyrst thegar flett er hratt milli umferda — thad er einmitt thad
+       sem madur gerir thegar tímabilid er byrjad.                        */
+    let alive = true;
     (async () => {
       try {
         const r = await fetch(`${PROXY_URL}?path=fpl-picks&id=${entryId}&gw=${gw}`);
         const d = await r.json();
+        /* EINN UTGANGUR DUGAR FYRIR ALLA SETJARA HER A EFTIR: hafi umferdin
+           (eda lidid) breyst medan bedid var er thetta svar urelt.        */
+        if (!alive) return;
         /* TALA EDA NULL — ALDREI ThAD SEM KOM.
            `bank != null` hleypti STRENG i gegn og hann for beint i
            peninga-reikninginn, svo skjarinn bar `NaN` (maelt med
@@ -858,9 +878,28 @@ export default function App() {
           })));
           // Ef API-ið skilar purchase_price (aðeins innskráð my-team gerir það)
           // þá notum við það. Annars heldur notandinn sínum skráðu verðum.
-          const pp = {};
-          d.picks.forEach(p => { if (p.purchase_price != null) pp[p.element] = p.purchase_price; });
-          if (Object.keys(pp).length) setBuyPrices(prev => ({ ...prev, ...pp }));
+          /* API-VERD MA EKKI ThURRKA UT HANDSKRAD VERD.
+             Adur var talan geymd BER (`pp[id] = 6.5`) og dreift yfir `prev`,
+             svo faersla sem notandinn hafdi skrad sjalfur ({p, src:"manual"})
+             hvarf — og `buySrcOf` merkti sidan API-toluna sem "manual",
+             sem er beinlinis rangt. Nu er hun geymd sem {p, src:"api"} OG
+             handskradar faerslur eru latnar i fridi.                       */
+          /* LESID UR `prev` INNI I UPPFAERSLUNNI, ekki ur lokun.
+             Effectinn hangir adeins a [entryId, gw], svo `buyPrices` ur
+             lokuninni vaeri UREL — og tha hefdi "ekki yfirskrifa handskrad"
+             lesid gamalt astand. Funksjonal uppfaersla ser alltaf thad nyjasta. */
+          const apiPrices = d.picks
+            .filter(p => p.purchase_price != null)
+            .map(p => [p.element, p.purchase_price]);
+          if (apiPrices.length) setBuyPrices(prev => {
+            const next = { ...prev };
+            for (const [id, price] of apiPrices) {
+              const cur = prev[id];
+              if (cur && typeof cur === "object" && cur.src === "manual") continue;
+              next[id] = { p: price, src: "api" };
+            }
+            return next;
+          });
           const c = d.picks.find(p => p.is_captain);
           const v = d.picks.find(p => p.is_vice_captain);
           if (c) setCaptain(c.element);
@@ -869,8 +908,9 @@ export default function App() {
           setConn(cc => ({ ...cc, state:"picks", picks:true,
             msg: interp("Connected ✓ — {0} players fetched from FPL for gameweek {1}.", [d.picks.length, gw]) }));
         }
-      } catch { setTotalPts(null); setGwPts(null); }
+      } catch { if (alive) { setTotalPts(null); setGwPts(null); } }
     })();
+    return () => { alive = false; };
   }, [entryId, gw]);
 
 
@@ -1614,7 +1654,14 @@ export default function App() {
       const fdrAvg = fxs.reduce((a, f) => a + f.fdr, 0) / fxs.length;
       const homeShare = fxs.filter(f => f.home).length / fxs.length;
       const price = (p.now_cost || 0) / 10;
-      const avail = p.status === "a" ? 1 : (p.chance_of_playing_next_round ?? 0) / 100;
+      /* VANTANDI LIKUR ERU EKKI 0%. `?? 0` gerdi stodu-"d" mann MED
+         ochekktar likur ad 0 -> `rank x 0` -> hann hvarf ur tillogum
+         alveg eins og meiddur madur. FPL skilar oft `null` einfaldlega
+         thvi frett er ekki komin. Null = "veit ekki": tha er varfaerid
+         mat 50%, ekki utilokun. Adeins RAUNVERULEG tala gildir sem hun er.  */
+      const chance = p.chance_of_playing_next_round;
+      const avail = p.status === "a" ? 1
+        : (typeof chance === "number" && Number.isFinite(chance)) ? chance / 100 : 0.5;
       const w = FIT[p.element_type] || FIT[3];
 
       let raw, mode;
@@ -1914,7 +1961,12 @@ export default function App() {
       out[g] = { bboost: +bb.toFixed(1), "3xc": +tc.toFixed(1) };
     }
     return out;
-  }, [players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, events, fhGws]);
+    /* `fixDifficulty` VANTADI I DEPS og `events` var thar an thess ad vera
+       notad. Afleidingin: "best i GW x" fyrir Bench Boost og Triple Captain
+       var reiknad med FYRIR-odds/fyrir-Elo thyngd og uppfaerdist ekki fyrr
+       en eitthvad OSKYLT breyttist. Chip-akvordun er dyr — hun a ad lesa
+       somu FFDR og allt annad a skjanum.                                */
+  }, [players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, fixDifficulty, fhGws]);
 
   // besta umferð fyrir hvert chip innan gildistíma
   const bestGwFor = (name, from, to) => {
@@ -2431,7 +2483,10 @@ export default function App() {
                 const hitShare = tc && inGw ? tc.points / inGw : 0;
                 const net = +(gain + hitShare).toFixed(1);
                 return (
-                  <div key={i} style={S.planItem}>
+                  /* STODUGUR LYKILL, EKKI VISITALA: hægt er ad eyda ur MIDJUM
+                     listanum, og tha faerast visitolur — React endurnytir tha
+                     rangan hnut og innslattur/aherslur lenda a rangri rod.  */
+                  <div key={`${t.gw}:${t.outId ?? t.out}:${t.inId ?? t.in}:${i}`} style={S.planItem}>
                     <span style={{ ...S.planGw, ...(tc?.hits > 0 ? S.planGwHit : {}) }}>GW{t.gw}</span>
                     {fhGws.has(t.gw) &&
                       <span style={S.planFh} title={"Free Hit — the squad reverts after the gameweek, the transfers only count in it"}>FH</span>}

@@ -79,7 +79,9 @@ export function PlayerHeadline({ p, buyTenths, sellTenths_, inSquad, onEditPrice
           sub={"season not started"} />
       )}
       <Tile v={f1(n(p.form))} k="Form" sub={"rolling 30 days"} />
-      <Tile v={`${p.selected_by_percent ?? "—"}%`} k={"Ownership"} />
+      {/* "—%" ber EININGU a tolu sem er ekki til — eina tilvikid i appinu.
+          Vantandi gildi er "—", punktur.                                  */}
+      <Tile v={p.selected_by_percent == null ? "—" : `${p.selected_by_percent}%`} k={"Ownership"} />
     </div>
   );
 }

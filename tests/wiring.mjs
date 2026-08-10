@@ -354,6 +354,7 @@ console.log("─".repeat(84));
   const OK_ABSENT = new Set([
     "bsd_live.json",        // yfirstandandi timabil — ekki til i forleik (skjalad)
     "pros_gw.json",         // verdur til vid FYRSTU umferd (collectPros), ekki i forleik
+    "pros_moves.json",      // per-stjornanda saga; verdur lika til vid fyrstu umferd
     "minutes.json", "bps.json", "set_pieces.json",   // undir "Ountfaert"
   ]);
   const ghosts = [...new Set(mentioned)]
@@ -362,6 +363,55 @@ console.log("─".repeat(84));
   ok(ghosts.length === 0,
      `SCHEMA.md lysir engri skra sem er ekki til${
        ghosts.length ? " — DRAUGAR: " + ghosts.join(", ") : ""}`);
+}
+
+/* ============================================================
+   TOM KEYRSLA MA ALDREI ThURRKA UT GOD GOGN — VELRAEN ATHUGUN
+
+   Reglan er skjolud (CLAUDE.md 8e) og `fetch-bsd-teams.mjs`/`fetch-bsd.mjs`
+   fylgja henni: their DEYJA fremur en ad skrifa hluta-timabil. ThRJAR
+   HANDVIRKAR SKRIFTUR GERDU ThAD EKKI (fundid i uttekt 10.8.2026):
+
+     fetch-clubelo-history  ENGINN `r.ok`-check — 404-HTML thattast i 0
+                            radir og `seasons: {}` for ofan a heil sogugogn
+     fetch-fdr-history      skrifadi skilyrdislaust
+     fetch-player-gw        skrifadi skilyrdislaust (5,5 MB)
+
+   Skrarnar sem thaer skrifa eru INNTAK BAKPROFANNA. Toemist ein theirra
+   fellur ekki appid — bakprofin baera bara faerri timabil, thogult.
+
+   Athugunin er GROF med vilja: hver skrifta sem skrifar i `data/` verdur
+   ad eiga BADI `process.exit(2)` OG hafa vord fyrir tomri utkomu. Hun les
+   ekki roksemdina, adeins ad hun se til — nakvaemari athugun vaeri onnur
+   utfaersla af sama vardi.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("TOM KEYRSLA MA EKKI YFIRSKRIFA — vordur i handvirku skriftunum");
+console.log("─".repeat(84));
+{
+  const dir = ROOT + "scripts/";
+  const oneOff = readdirSync(dir).filter(f => /^fetch-.*\.mjs$/.test(f));
+  ok(oneOff.length >= 4, `handvirkar saekjur fundnar (${oneOff.length})`);
+  const bad = [];
+  for (const f of oneOff) {
+    const raw = readFileSync(dir + f, "utf8");
+    const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    /* Skrifar hun yfirleitt i data/? Ef ekki er ekkert ad verja.        */
+    if (!/write(File|JSON)\(\s*[`"']?(data\/)?[a-z_]+\.json/i.test(code)) continue;
+    const dies = /process\.exit\(\s*2\s*\)/.test(code);
+    /* Vord fyrir tomri utkomu: `if (!x.length)` / `Object.keys(...).length`
+       i naegd vid exit. Grof leit: bædi ord verda ad koma fyrir.        */
+    const guards = /!\s*\w+\.length|Object\.keys\([^)]*\)\.length|!\s*total|!\s*games/.test(code);
+    if (!dies || !guards) bad.push(`${f}${!dies ? " (engin exit(2))" : ""}${!guards ? " (ekkert tomleika-vord)" : ""}`);
+  }
+  ok(bad.length === 0,
+     `hver saekja deyr fremur en ad skrifa tomt${bad.length ? " — " + bad.join(", ") : ""}`);
+
+  /* Og su sem for verst: `r.ok` VERDUR ad vera prófad adur en likaminn er
+     lesinn — annars er villusida thattud sem gogn.                      */
+  const clubelo = readFileSync(dir + "fetch-clubelo-history.mjs", "utf8");
+  ok(/res\.ok|response\.ok|\.ok\s*\)/.test(clubelo),
+     "fetch-clubelo-history stadfestir HTTP-stodu adur en CSV er thattad");
 }
 
 console.log(`\nTENGINGAR: ${pass} stóðust, ${fail} féllu`);

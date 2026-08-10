@@ -1732,6 +1732,23 @@ async function fetchOdds() {
   }
   if (unmatched.size) console.warn(`Odds: unmatched names: ${[...unmatched].join(" | ")}`);
 
+  /* TOMT SVAR MA EKKI ThURRKA UT NYTILEGAR LINUR (8e).
+     200-svar med ENGUM porudum leikjum (utan glugga, nofn breyttust, allir
+     leikir bunir) skrifadi `teams: {}` OFAN A gluggann sem var thegar
+     sottur — og markadslidurinn i FFDR datt ut thangad til naesta sokn
+     tokst. Thad er nakvaemlega sama einkenni og thegar hann var DAUDUR I
+     VIKU (CLAUDE.md 3): formulan i lagi, gognin sem hun fekk ekki.
+     Se ekkert parad haldast fyrri linur og stadan segir fra thvi.       */
+  if (!games) {
+    let prev = null;
+    try { prev = JSON.parse(await readFile(`${DATA}/odds.json`, "utf8")); } catch {}
+    const kept = prev && prev.teams && Object.keys(prev.teams).length;
+    record("odds", true, 0, kept
+      ? `no matched games — KEEPING the previous window (${kept} teams, ${prev.updated})`
+      : "no matched games and no previous file — odds.json not written");
+    if (kept) return;                      // skrifum EKKI yfir god gogn
+  }
+
   await writeJSON("odds.json", {
     updated: status.updated, window: gate.window || null, gw: gate.gw || null,
     requests_remaining: remaining ? +remaining : null,
@@ -1826,7 +1843,7 @@ async function fetchFast() {
      umferd sott NAKVAEMLEGA EINU SINNI) er inni i collectPros, ekki i cron.  */
   try {
     await collectPros({ getJSON, writeJSON, record,
-      readJSON: async f => JSON.parse(await readFile(`${DATA}/${f}`, "utf8")) }, events);
+      readJSON: async f => JSON.parse(await readFile(`${DATA}/${f}`, "utf8")) }, events, els);
   } catch (e) { record("pros", false, 0, e.message); }
 
   console.log(`FAST: ${volatile.length} players with news/doubt/price change, ${prices.length} price changes`);

@@ -396,8 +396,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const [season, setSeason] = useState(null);
   useEffect(() => {
     if (season != null) return;
+    /* BIDUM EFTIR `player_seasons.json` ADUR EN VID LAESUM VALINU.
+       Skrain kemur SEINT (i ~20-skraa halanum a eftir kjarnanum), svo se
+       flipinn opnadur strax var `olderSeasons` enn tomt og sjalfgildid
+       datt a OBYRJADA timabilid — tafla full af null. Og thad LEIDRETTIST
+       ALDREI, thvi `season != null` stoppar effectinn ad eilifu.
+       I forleik (`finishedGw === 0`) bidum vid thvi thangad til skrain er
+       komin; effectinn keyrir aftur thegar hun berst.                    */
+    if (finishedGw === 0 && !seasonsFile) return;
     setSeason(finishedGw >= 1 ? currentLabel : (olderSeasons[0] || currentLabel));
-  }, [season, finishedGw, currentLabel, olderSeasons]);
+  }, [season, finishedGw, currentLabel, olderSeasons, seasonsFile]);
   const isLive = season === currentLabel;
 
   /* ---------- UMFERDAR-BIL ----------

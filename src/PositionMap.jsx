@@ -54,7 +54,11 @@ export default function PositionMap({ positions, width = 300, label }) {
            style={{ display: "block", borderRadius: 6, background: C.turf,
                     border: `1px solid ${C.line}` }}>
         <line x1={0} y1={H / 2} x2={W} y2={H / 2} stroke={C.line} strokeWidth="1" />
-        <circle cx={W / 2} cy={H / 2} r={px(9.15)} fill="none" stroke={C.line} strokeWidth="1" />
+        {/* MIDJUHRINGURINN ER 9,15 m — OG `px()` TEKUR PROSENTU, EKKI METRA.
+            `px(9.15)` las 9,15% af breidd i stad 9,15/68 = 13,46%, svo
+            hringurinn var ~32% of litill midad vid teigana a SAMA SVG.
+            Teigarnir voru thegar reiknadir rett (21,1% = 40,3 m af 68).  */}
+        <circle cx={W / 2} cy={H / 2} r={px(9.15 / 68 * 100)} fill="none" stroke={C.line} strokeWidth="1" />
         {/* teigar: efst = mark motherjans (sokn), nedst = eigid mark */}
         <rect x={box.x} y={0} width={box.w} height={bxD} fill="none" stroke={C.line} />
         <rect x={box.x} y={H - bxD} width={box.w} height={bxD} fill="none" stroke={C.line} />
