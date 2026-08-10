@@ -336,6 +336,52 @@ console.log("15) 404 telst sem ekki-svar og lækkar THEKJU (ekki thogn)");
   ok(/2\/4/.test(r.note), `nota synir ${r.note}`);
 }
 
+console.log("15c) HTTP-STADA ER LESIN AF BYRJUNINNI, ekki leitad i slodinni");
+{
+  /* Lid med id 404 og VILLU 500: fyrsta utgafan notadi /\b404\b/ a allan
+     strengnum, svo `500 .../entry/404/event/7/picks/` hefdi verid flokkud
+     sem "lidid er ekki til" -> engar endurtilraunir og madurinn tapast
+     thegjandi. Profid saekir bara eitt lid (404) og telur kollin: raunveruleg
+     404 gefur EITT kall, 500 a ad gefa ENDURTILRAUNIR.                    */
+  const mk = (msg) => {
+    let n = 0;
+    const deps = {
+      async getJSON(url) {
+        if (/picks/.test(url)) { n++; throw new Error(msg.replace("{url}", url)); }
+        return [];
+      },
+      async writeJSON() {}, 
+      async readJSON(f) {
+        if (f === "pros.json") return { season: "2026/27", panel: [{ id: 404 }] };
+        throw new Error("ENOENT");
+      },
+      record() {},
+    };
+    return { deps, calls: () => n };
+  };
+  const past = new Date(Date.now() - 36e5).toISOString();
+  const a = mk("404 {url}");
+  await collectPros(a.deps, [{ id: 7, deadline_time: past }]);
+  ok(a.calls() === 1, `raunveruleg 404 -> eitt kall (fekk ${a.calls()})`);
+
+  const b = mk("500 {url}");
+  await collectPros(b.deps, [{ id: 7, deadline_time: past }]);
+  ok(b.calls() > 1, `500 a lidi nr. 404 -> ENDURTILRAUNIR (fekk ${b.calls()} koll)`);
+}
+
+console.log("15b) ALGERLEGA tom keyrsla skrifar EKKERT");
+{
+  /* FUNDID MED LIFANDI THURRKEYRSLU 10.8.2026 gegn 1.000 raunverulegum
+     lidum: oll 404 -> skrifad `{n:0, own:{}, in:{}}`. Rod med n=0 les eins
+     og "enginn gerdi neitt" i stad "sofnunin brast".                     */
+  const h = harness({ missing: [1, 2, 3, 4] });
+  await h.run();
+  ok(!h.wrote["pros_gw.json"], "engin skra skrifud thegar ENGINN svaradi");
+  const r = h.recs.find(x => x.name === "pros");
+  ok(r.ok === false, "status er raudur");
+  ok(/nothing written/.test(r.note || ""), `notan segir ad ekkert var skrifad (${r.note})`);
+}
+
 console.log("16) verri keyrsla ma ALDREI skrifa yfir betri (sbr. 8e)");
 {
   /* HER SKIPTIR UPPSETNINGIN OLLU. Fyrsta utgafa thessa profs gaf fyrri

@@ -34,6 +34,21 @@ async function pool(items, worker, conc = CONC) {
   return out;
 }
 
+/* HTTP-stada UR VILLUSKILABODUM. `getText` i fetch.mjs kastar
+   `${status} ${url}`, en profin herma `HTTP 404 fyrir ${url}` — thess vegna
+   er badum sniðum leyft, en STADAN ER LESIN AF BYRJUNINNI.
+
+   HVERS VEGNA EKKI /\b404\b/ A OLLUM STRENGNUM (fyrsta utgafan):
+   slodin sjalf ber tolur. Lid med id 404 gefur
+   `500 .../entry/404/event/7/picks/` — og su villa hefdi verid RANGLEGA
+   flokkud sem "lidid er ekki til", svo endurtilraunir hefdu verid slepptar
+   og madurinn tapast ur thekjunni thegjandi. Fundid vid samthaettingar-
+   yfirferd 10.8.2026 (`fetch.mjs` og profin nota ekki sama snidid).      */
+function httpStatus(e) {
+  const m = /^(?:HTTP\s+)?(\d{3})\b/.exec(e?.message || "");
+  return m ? +m[1] : null;
+}
+
 /* Eitt lid, ein umferd. Skilar `null` ef ekki naest — kallandinn TELUR thau
    og thekjan verdur fullyrding, ekki thogn.                                */
 async function one(getJSON, id, gw) {
@@ -43,7 +58,7 @@ async function one(getJSON, id, gw) {
     catch (e) {
       /* 404 = thetta lid a enga umferd (nytt lid, eda eytt). Ekki villa,
          og EKKI reynt aftur — annars eyddum vid throngum kvota i tomt.     */
-      if (/\b404\b/.test(e?.message || "")) return null;
+      if (httpStatus(e) === 404) return null;
       await new Promise(r => setTimeout(r, 400 * (a + 1)));
     }
   }
@@ -103,6 +118,20 @@ export async function collectPros(deps, events) {
   const res = await pool(ids, id => one(getJSON, id, gw));
   const got = res.filter(Boolean);
   const agg = aggregate(got);
+
+  /* ALGERLEGA TOM KEYRSLA SKRIFAR EKKERT.
+
+     FUNDID MED LIFANDI THURRKEYRSLU 10.8.2026: 1.000 raunveruleg koll thar
+     sem OLL svorudu 404 skrifudu `{ n: 0, own: {}, in: {}, ... }` i skrana.
+     Thad er ekki hraedilegt — appid syni tomt astand og naesta keyrsla
+     endursaekir — en rod med n=0 LES EINS OG "enginn gerdi neitt" i stad
+     "sofnunin brast", og thad er nakvaemlega su tegund thagnar sem
+     CLAUDE.md kafla 8 kallar "ómæld tala sem lítur út eins og mæling".
+     Betra er engin rod: `pros_gw.json` sem vantar umferdina segir satt.   */
+  if (agg.n === 0) {
+    record("pros", false, 0, `GW${gw}: no manager could be read (${panel.length} attempted) - nothing written`);
+    return;
+  }
 
   /* TOM KEYRSLA MA ALDREI THURRKA UT GOD GOGN (sama regla og BSD, 8e).
      Ef vid naum verr en adur i somu umferd, höldum vid gomlu tolunni.      */
