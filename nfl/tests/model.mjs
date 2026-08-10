@@ -17,6 +17,10 @@ import {
   weeklyProjection, availability, POS_ELASTICITY, DEF_WEIGHT,
   FLEX_SPLIT, IMPLIED_BASE,
 } from "../src/model.js";
+import { readFileSync, existsSync } from "node:fs";
+import path from "node:path";
+
+const DATA = path.join(path.resolve(new URL(".", import.meta.url).pathname, ".."), "data");
 
 let fail = 0;
 const ok = (cond, msg) => {
@@ -228,6 +232,53 @@ console.log("\n9. flex-skipting");
   ok(FLEX_SPLIT.TE > 0.15,
     `TE-hlutur er maeldur ~0,19 og ma ekki fara aftur i 0,10 (${FLEX_SPLIT.TE})`);
   ok(FLEX_SPLIT.WR > FLEX_SPLIT.RB, "WR endar oftar i flex en RB");
+}
+
+/* ============================================================
+   SPYRNUMENN — MAELDA REGLAN
+   ============================================================
+   A-Ranking raðar ekki K/DST og a ekki ad gera thad. En notandinn
+   VERDUR ad taka spyrnumann, svo `kicker-lab.mjs` maeldi hvad haegt er
+   ad segja. Thetta profa ver ad talan sem BIRTIST se enn su sem var
+   maeld — og ad hun se sogd med rettu formerki.                    */
+console.log("\nspyrnumenn: maelda reglan");
+{
+  const f = path.join(DATA, "kickers.json");
+  if (!existsSync(f)) {
+    console.log("  (kickers.json vantar — keyrdu scripts/kicker-lab.mjs)");
+  } else {
+    const K = JSON.parse(readFileSync(f, "utf8"));
+    ok(K.seasons.length >= 5, `${K.seasons.length} timabil maeld`);
+
+    /* Kjarninn: spyrnumenn flytjast NAESTUM EKKERT milli ara, og thad
+       er thad sem rettlaetir ad rada theim ekki. Falli thetta er
+       forsendan brostin og spjaldid segir rangt. */
+    ok(K.persistence.K.r < 0.35,
+      `K flyst naestum ekkert milli ara (r=${K.persistence.K.r})`);
+    for (const pos of ["RB", "WR", "TE"]) {
+      ok(K.persistence[pos].r > K.persistence.K.r + 0.3,
+        `${pos} flyst MIKLU betur (r=${K.persistence[pos].r} gegn ${K.persistence.K.r})`);
+    }
+
+    /* Reglan sjalf: jakvaed og einroma yfir arin. Snuist hun vid ma
+       spjaldid ekki halda afram ad radleggja hana. */
+    ok(K.rules.top5.gain > 0 && K.rules.top5.wins === K.rules.top5.years,
+      `topp-5 reglan er jakvaed oll arin (${K.rules.top5.gain} stig, ` +
+      `${K.rules.top5.wins}/${K.rules.top5.years})`);
+
+    /* Og hin reglan a ad vera GAGNSLAUS. Vaeri hun thad ekki vaeri
+       spjaldid ad segja notandanum ad sleppa einhverju sem virkar. */
+    ok(K.rules.bestOffence.wins < K.rules.bestOffence.years,
+      `"besta soknin" virkar EKKI oll arin (${K.rules.bestOffence.wins}/` +
+      `${K.rules.bestOffence.years}) — spjaldid segir thad rett`);
+
+    /* Staerdin ma ekki blasa upp. Se eftiraa-bilid ordid storkostlegt
+       er eitthvad ad urtakinu. */
+    ok(K.hindsightGain > 10 && K.hindsightGain < 120,
+      `K1 gegn K12 eftiraa er ${K.hindsightGain} stig — raunhaeft bil`);
+    ok(K.rules.top5.gain < K.hindsightGain,
+      "reglan nær minna en fullkomin vitneskja, eins og hun VERDUR ad gera");
+  }
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

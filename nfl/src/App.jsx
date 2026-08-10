@@ -77,6 +77,7 @@ export default function App() {
       stratPpr: () => D.loadStrategy("ppr"), stratStd: () => D.loadStrategy("standard"),
       arankPpr: () => D.loadArank("ppr"), arankStd: () => D.loadArank("standard"),
       arankFfPpr: () => D.loadArankFf("ppr"), arankFfStd: () => D.loadArankFf("standard"),
+      kickers: () => D.loadKickers(),
     };
     const got = await Promise.all(missing.map((k) => loaders[k]()));
     setExtra((prev) => {
@@ -87,7 +88,7 @@ export default function App() {
   }, [extra]);
 
   useEffect(() => {
-    if (view === "draft") need(["seasons", "accuracy", "experts"]);
+    if (view === "draft") need(["seasons", "accuracy", "experts", "kickers"]);
     else if (view === "players") need(["seasons", "accuracy", "experts"]);
     else if (view === "experts") need(["accuracy", "experts"]);
     else if (view === "schedule") need(["defense", "teamForm"]);
@@ -145,7 +146,7 @@ export default function App() {
 
       {view === "draft" && (
         <DraftBoard rows={built.rows} meta={built.meta} league={league}
-          season={meta.season} accuracy={extra.accuracy} />
+          season={meta.season} accuracy={extra.accuracy} kickers={extra.kickers} />
       )}
       {view === "players" && (
         <PlayerTable rows={built.rows} meta={built.meta} league={league} />

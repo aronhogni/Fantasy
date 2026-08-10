@@ -24,7 +24,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as D from "./data.js";
 import { recommend, MEASURED } from "./advice.js";
 
-export default function DraftBoard({ rows, meta, league, season, accuracy }) {
+export default function DraftBoard({ rows, meta, league, season, accuracy, kickers }) {
   const [taken, setTaken] = useState(() => new Set(D.loadState("taken", [])));
   const [myPicks, setMyPicks] = useState(() => new Set(D.loadState("myPicks", [])));
   const [posFilter, setPosFilter] = useState([]);
@@ -145,6 +145,35 @@ export default function DraftBoard({ rows, meta, league, season, accuracy }) {
           wildly week to week and can be swapped every Tuesday, which the projection
           cannot see.
         </div>
+        {/* ============================================================
+            EINA MAELDA REGLAN UM THESSI TVO SAETI
+            ============================================================
+            A-Ranking radar theim ekki og a ekki ad gera thad. En thogn
+            er ekki hlutleysi thegar akvordunin er ohjakvaemileg —
+            notandinn VERDUR ad taka spyrnumann. `kicker-lab.mjs` maeldi
+            tvaer reglur (adeins tvaer, svo engin thung leidretting fyrir
+            fjolda samanburda thurfi) og onnur theirra virkar. */}
+        {kickers && kickers.rules && (
+          <div className="note" style={{ marginTop: 10 }}>
+            <b>If you want a rule for the kicker: take one of last season's top five.</b>
+            {" "}Measured on {kickers.seasons.length} seasons — worth{" "}
+            <b>{kickers.rules.top5.gain > 0 ? "+" : ""}{kickers.rules.top5.gain} points
+            over a season</b> ({(kickers.rules.top5.gain / 17).toFixed(2)} a week) against
+            another starting kicker, positive in {kickers.rules.top5.wins} of{" "}
+            {kickers.rules.top5.years} seasons.
+            {" "}Picking the kicker on last year's best offence is <b>not</b> worth
+            anything ({kickers.rules.bestOffence.gain > 0 ? "+" : ""}
+            {kickers.rules.bestOffence.gain} points, {kickers.rules.bestOffence.wins} of{" "}
+            {kickers.rules.bestOffence.years} seasons).
+            <br /><br />
+            Keep the size in mind before spending a pick: a kicker's season carries over
+            to the next one barely at all (<b>r = {kickers.persistence.K.r}</b>, against{" "}
+            {kickers.persistence.RB.r} for backs and {kickers.persistence.WR.r} for
+            receivers), and even with perfect hindsight the gap from the best kicker to
+            the twelfth is only {kickers.hindsightGain} points a season —{" "}
+            {(kickers.hindsightGain / 17).toFixed(2)} a week. <b>It is a last-round pick.</b>
+          </div>
+        )}
         <div className="chips">
           {kdst.slice(0, 16).map((r) => (
             <button key={r.id} className="chip" onClick={() => take(r, true)}

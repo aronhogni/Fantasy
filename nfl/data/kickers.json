@@ -1,0 +1,159 @@
+{
+ "generated": "2026-08-09T23:58:39.027Z",
+ "provenance": {
+  "generated": "2026-08-09T23:58:39.028Z",
+  "argv": [],
+  "params": {},
+  "inputs": {
+   "seasons.json": {
+    "bytes": 1656673,
+    "sha1": "74431adb4ee0",
+    "mtime": "2026-08-09T19:44:26.444Z"
+   },
+   "team_form.json": {
+    "bytes": 42483,
+    "sha1": "6e1aee4ae774",
+    "mtime": "2026-08-09T19:44:26.445Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "persistence": {
+  "K": {
+   "n": 151,
+   "r": 0.16
+  },
+  "QB": {
+   "n": 157,
+   "r": 0.42
+  },
+  "RB": {
+   "n": 433,
+   "r": 0.7
+  },
+  "WR": {
+   "n": 649,
+   "r": 0.73
+  },
+  "TE": {
+   "n": 339,
+   "r": 0.69
+  }
+ },
+ "rules": {
+  "top5": {
+   "gain": 15.6,
+   "se": 6.4,
+   "t": 2.43,
+   "years": 6,
+   "wins": 6
+  },
+  "bestOffence": {
+   "gain": 6.2,
+   "se": 6.7,
+   "t": 0.93,
+   "years": 5,
+   "wins": 2
+  }
+ },
+ "perYear": {
+  "2020": {
+   "base": 121.5,
+   "top5": 126.3,
+   "bestOffence": null
+  },
+  "2021": {
+   "base": 124,
+   "top5": 137.4,
+   "bestOffence": 119.4
+  },
+  "2022": {
+   "base": 128.5,
+   "top5": 139.2,
+   "bestOffence": 125.2
+  },
+  "2023": {
+   "base": 128.3,
+   "top5": 130.2,
+   "bestOffence": 154.8
+  },
+  "2024": {
+   "base": 126.8,
+   "top5": 143.8,
+   "bestOffence": 144.6
+  },
+  "2025": {
+   "base": 129.5,
+   "top5": 175,
+   "bestOffence": 124.2
+  }
+ },
+ "spread": [
+  {
+   "season": 2019,
+   "k1": 163,
+   "k12": 126,
+   "median": 113
+  },
+  {
+   "season": 2020,
+   "k1": 172,
+   "k12": 133,
+   "median": 127
+  },
+  {
+   "season": 2021,
+   "k1": 171,
+   "k12": 138,
+   "median": 128
+  },
+  {
+   "season": 2022,
+   "k1": 163,
+   "k12": 138,
+   "median": 132
+  },
+  {
+   "season": 2023,
+   "k1": 178,
+   "k12": 145,
+   "median": 132
+  },
+  {
+   "season": 2024,
+   "k1": 192,
+   "k12": 140,
+   "median": 130
+  },
+  {
+   "season": 2025,
+   "k1": 202,
+   "k12": 142,
+   "median": 132
+  }
+ ],
+ "hindsightGain": 39.9,
+ "source": {
+  "perGame": {
+   "gain": 0.69,
+   "se": 0.3,
+   "wins": 6,
+   "years": 6
+  },
+  "games": {
+   "gain": 0.62,
+   "se": 0.4,
+   "wins": 3,
+   "years": 6
+  }
+ }
+}

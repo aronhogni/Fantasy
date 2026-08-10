@@ -102,6 +102,9 @@ export const loadArank = (scoring) => load(`arank_${scoring}.json`);
    timabil a moti 5 hja Sleeper) og fer gegnum sama leka-hlid. Thetta
    er endurtekningarprofid — sja notu i ModelLab. */
 export const loadArankFf = (scoring) => load(`arank_${scoring}_fftoday.json`);
+/* Spyrnumenn: eina maelda reglan sem til er um saeti sem A-Ranking
+   raðar ekki. Letihladin med draft-flipanum. */
+export const loadKickers = () => load("kickers.json");
 
 /* ============================================================
    BEIN DRAFT-TENGING VID SLEEPER
