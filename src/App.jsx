@@ -4,7 +4,7 @@ import Pitch from "./Pitch.jsx";
 import GwReport from "./GwReport.jsx";
 import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
 import SetPieces from "./SetPieces.jsx";
-import { SetPieceIcon } from "./Icons.jsx";
+import { SetPieceIcon, CrownIcon } from "./Icons.jsx";
 import Teams from "./Teams.jsx";
 import Compare from "./Compare.jsx";
 import Leagues from "./Leagues.jsx";
@@ -19,6 +19,7 @@ import PlayerList from "./PlayerList.jsx";
 import ShotMap from "./ShotMap.jsx";
 import PositionMap from "./PositionMap.jsx";
 import Leaderboard from "./Leaderboard.jsx";
+import BestOfBest from "./BestOfBest.jsx";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
@@ -535,6 +536,10 @@ export default function App() {
   const [news, setNews] = useState(null); // fljótandi gögn (30 mín cron)
   const [promoted, setPromoted] = useState(null); // B-deildargrunnur nýliða
   const [chipRules, setChipRules] = useState(null); // chip-reglur ÚR FPL-API
+  /* "Best of the best" — hopurinn sjalfur (pros.json) og thad sem hann gerdi
+     (pros_gw.json). Baedi vantar i forleik og thad er RETT astand.        */
+  const [pros, setPros] = useState(null);
+  const [prosPanel, setProsPanel] = useState(null);
   const [formFeat, setFormFeat] = useState(null);   // rúllandi eiginleikar (fittað líkan)
   const [teamForm, setTeamForm] = useState(null);   // HEILT lið-form úr E0
   const [luck, setLuck] = useState(null);           // xG/xGC per lið (FPL-summa)
@@ -669,6 +674,8 @@ export default function App() {
         try { setNews(await j("news.json")); } catch {}
         try { setPromoted(await j("promoted_baseline.json")); } catch {}
         try { setChipRules(await j("chips.json")); } catch {}
+        try { setProsPanel(await j("pros.json")); } catch {}
+        try { setPros(await j("pros_gw.json")); } catch {}
         try { setFormFeat(await j("form_features.json")); } catch {}
         try { setTeamForm(await j("team_form.json")); } catch {}
         try { setLuck(await j("luck.json")); } catch {}
@@ -1979,7 +1986,8 @@ export default function App() {
             prófin OG notandinn finna flipann eftir nafni.                 */}
         {[["planner","⚽ Planner"],["players","👥 Player stats"],["teams","🛡️ Teams"],
           ["gw","📊 Gameweek"],
-          ["board","🏆 Leaderboard"],["sp","Set pieces", SetPieceIcon]].map(([k,l,Ico]) => (
+          ["board","🏆 Leaderboard"],["best","Best of the best", CrownIcon],
+          ["sp","Set pieces", SetPieceIcon]].map(([k,l,Ico]) => (
           <button key={k} style={{ ...S.viewTab, ...(view === k ? S.viewTabOn : {}),
                                    ...(Ico ? S.viewTabIcon : {}) }}
             onClick={() => setView(k)}>
@@ -2016,6 +2024,11 @@ export default function App() {
       {view === "teams" && (
         <Teams teams={teams} teamForm={teamForm} luck={luck} teamShots={teamShots}
           bsdTeams={bsdTeams} shotIndex={shotIndex} Crest={Crest} />
+      )}
+      {view === "best" && (
+        <BestOfBest pros={pros} panelFile={prosPanel} players={players}
+          teamById={teamById} mineIds={squadIds}
+          onPickPlayer={id => setDetail({ kind:"player", id })} />
       )}
       {view === "sp" && (
         <SetPieces players={players} teams={teams} teamById={teamById} Crest={Crest}

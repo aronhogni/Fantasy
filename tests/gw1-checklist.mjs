@@ -64,12 +64,73 @@ if (finishedGw === 0) {
   const sb = J("season_baseline.json");
   ok(sb.label && (sb.players || []).length > 400,
     `season_baseline ber fyrra tímabil (${sb.label}, ${(sb.players || []).length} leikmenn)`);
+  /* SÉRFRÆÐINGA-HÓPURINN. Í forleik á hópurinn AÐ VERA TIL (hann er
+     byggður úr sögulegum ferlum, ekki úr þessu tímabili) en það sem hann
+     GERÐI á ekki að vera til — picks eru 404 fyrir fyrsta frest.        */
+  const pros = J("pros.json");
+  ok((pros.panel || []).length >= 500,
+    `pros.json ber hópinn (${(pros.panel || []).length} stjórnendur)`);
+  ok(!existsSync(`${D}pros_gw.json`),
+    "pros_gw.json er EKKI til í forleik (picks svara 404 fyrir fyrsta frest)");
   console.log("  → vökulistinn sjálfur virkjast þegar fyrsta umferðin klárast.");
 } else {
   /* ---------- TÍMABILIÐ ER BYRJAÐ: allt á að hafa VAKNAÐ ---------- */
   console.log(`\n${"─".repeat(84)}`);
   console.log(`VÖKULISTINN — GW${finishedGw} er lokið og heimildirnar eiga að fylgja`);
   console.log("─".repeat(84));
+
+  /* 0. SÉRFRÆÐINGA-HÓPURINN — "Best of the best".
+     Þetta er nákvæmlega tegund kóða sem þetta safn er til fyrir: hann
+     kviknar í fyrsta sinn mínútum eftir fyrsta frest og hefur ALDREI
+     keyrt á lifandi svari (picks eru 404 í forleik, líka fyrir umferðir
+     síðasta tímabils — mælt 9.8.2026).                                   */
+  {
+    const panelN = (J("pros.json").panel || []).length;
+    ok(existsSync(`${D}pros_gw.json`),
+      `pros_gw.json er til (hópurinn var lesinn eftir frest GW${finishedGw})`);
+    if (existsSync(`${D}pros_gw.json`)) {
+      const pg = J("pros_gw.json");
+      const gws = Object.keys(pg.gw || {}).map(Number).filter(Number.isFinite);
+      ok(gws.includes(finishedGw),
+        `pros_gw ber GW${finishedGw} (hefur: ${gws.join(", ") || "engar"})`);
+      const a = (pg.gw || {})[finishedGw];
+      if (a) {
+        ok(a.n / panelN >= 0.9,
+          `þekja ${a.n}/${panelN} — hlutföllin eru marktæk`);
+        /* Kaup OG sölur verða að vera til staðar. Tómt `in` þýðir að
+           síunin á `event` greip ekki — sem liti út eins og "enginn
+           keypti neitt" í stað "gögnin komu ekki".                      */
+        ok(Object.keys(a.in || {}).length > 0 && Object.keys(a.out || {}).length > 0,
+          `kaup (${Object.keys(a.in || {}).length}) og sölur (${Object.keys(a.out || {}).length}) skráðar`);
+        ok(a.rankMedian != null && a.value != null,
+          "meðaltöl hópsins eru raunverulegar tölur, ekki null");
+      }
+      /* MÆLINGIN SEM MÁ EKKI GLEYMAST. Elite-eignarhald er birt sem
+         STAÐREYND og fer ekki í líkanið fyrr en það hefur verið mælt
+         ofan á `ep_next` — nákvæmlega eins og almenni markaðurinn var
+         mældur (og féll: r = −0,0005). Þegar 10 umferðir liggja fyrir
+         er ekkert því til fyrirstöðu lengur, svo þetta FELLUR þangað
+         til mælingin er skjalfest.                                      */
+      if (gws.length >= 10) {
+        /* Merkið má vera í HVORU sem er: CLAUDE.md er lifandi skjalið, en
+           docs/MAELINGAR.md er sögulegt og „uppfærist ekki" skv. hausnum á
+           CLAUDE.md — svo það væri rangt að krefjast þess þar.            */
+        let doc = "";
+        for (const f of ["../CLAUDE.md", "../docs/MAELINGAR.md"]) {
+          try { doc += readFileSync(new URL(f, import.meta.url), "utf8"); } catch {}
+        }
+        /* MARKMIÐIÐ ER NIÐURSTAÐA, EKKI UMFJÖLLUN. Fyrsta útgáfan leitaði að
+           „pros_gw" eða „Best of the best" — en LÝSING á mælingunni sem á
+           eftir að gera hefði gert hana græna, og hún hefði því aldrei
+           fallið þótt enginn mældi neitt. Það er nákvæmlega tóma
+           fullyrðingin úr kafla 5b. Merkið hér að neðan má EKKI skrifa
+           fyrr en talan liggur fyrir.                                     */
+        ok(/ELITE-EO M[ÆAE]LT GEGN ep_next/i.test(doc),
+          `${gws.length} umferðir komnar — elite-EO á að vera MÆLT ofan á ep_next `
+          + 'og niðurstaðan skjalfest í CLAUDE.md (merki: "ELITE-EO MÆLT GEGN ep_next")');
+      }
+    }
+  }
 
   /* 1. live/gw{n}.json — hráefnið sem allt per-umferðar er leitt af */
   ok(existsSync(`${D}live/gw${finishedGw}.json`),

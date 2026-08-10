@@ -35,10 +35,11 @@ flestar tómar tölur í appinu.
 | Gögn lesin af | `raw.githubusercontent.com/.../main/data/*.json` | appið sækir beint, **enginn bakendi** |
 | Proxy | Netlify function `netlify/functions/odds.js` | **EINA** sem Netlify hýsir |
 
-**Sex flipar** (`view` í `App.jsx`): `⚽ Planner` (upprunalega appið) ·
+**Sjö flipar** (`view` í `App.jsx`): `⚽ Planner` (upprunalega appið) ·
 `👥 Player stats` (`PlayerList.jsx` — aðalverkfærið, sjá 6s) · `🛡️ Teams`
 (`Teams.jsx`) · `📊 Gameweek` (`GwReport.jsx`) · `🏆 Leaderboard`
-(`Leaderboard.jsx`) · `Set pieces` (`SetPieces.jsx`).
+(`Leaderboard.jsx`) · `Best of the best` (`BestOfBest.jsx`, kórónu-ikon) ·
+`Set pieces` (`SetPieces.jsx`).
 Allir nema Planner lesa **AÐEINS `data/`** — þeir hanga ekki á liðinu þínu og
 virka þótt ekkert sé tengt.
 
@@ -279,6 +280,13 @@ töflu. Smáatriðin eru í `docs/MAELINGAR.md`.
 | Heatmap úr BSD | `average_positions` er einn punktur per leikmann per leik, ekki þéttleikanet. Skot-þéttleiki ER raunverulegur — það er kortið sem er til | 6t-c |
 | **SJÖUNDA ÞREPIÐ** („yellow" milli hlutlauss og dökkguls) | **ÞREPIN ERU BIRTING, EKKI LÍKAN** — `d` er samfelld og vænt stig, róterings-par og ráðgjöfin lesa hana ÖLL, aldrei litinn. Fleiri þrep geta því í mesta lagi **tapað minna**. Sex þrep halda þegar **94–98%** af samfellda merkinu. Vegið `\|r\|` gegn raunstigum: k=6 **0,21584** á móti k=7 **0,21669** (+0,00085), **95% CI [−0,00188, +0,00288] — inniheldur núll**, P(k=7 betra) **67,3%**. Til samanburðar var „sleppa óheppnis-liðnum" hafnað við **P=74%**, sem er STERKARI vísbending en þessi. Merki um hávaðagólfið: k=4 mælist **101,0%** hjá GK, sem er ómögulegt (ekki hægt að fá MEIRA merki með því að henda upplýsingum). Kostnaðurinn er raunverulegur: sjöundi aðgreinanlegur litur (grænt og ljósgult voru ÞEGAR ógreinanleg á skjá, sjá kafla 3) og `rotation.js` vegur þrep 3/4/5 sem 1/2/3 og þyrfti endurmælingu. **Ef þrepum verður fjölgað á að rökstyðja það sem LÆSILEIKA, ekki sem forspá.** | 9.8.2026 |
 | `selected_by_percent` úr archive-skrá sem GW1-merki | **LEKI** — það er lokastaða, gegnsýrð af útkomunni (95,7% → 65,7% þegar lagað) | 6g |
+| **Skipta-hreyfing fjöldans sem merki** | **Mælt 9.8.2026 á 4 tímabilum, 104.160 leikmanna-umferðum.** Ein og sér lítur hún STERK út (r = +0,394 innan stöðu × verðs) og heldur sér gegn hráu formi (+0,248). En ofan á `ep_next` er hún **NÚLL**: r = −0,0005, 95% CI [−0,019, +0,019]. Og meðal þeirra sem SPILUÐU er hún **neikvæð** (−0,111): fjöldinn eltir síðustu umferð og yfirskýtur. Appið notar `ep_next` þegar — það er búið að verðleggja fréttirnar | 9.8.2026 |
+| **Fleiri þættir í vali sérfræðinga-hópsins** | Krossfittað út fyrir úrtak (n=30.795): recency eitt = **0,540**; + jöfnuður 0,542; + leitni 0,539; + fjöldi tímabila 0,539; ALLT 0,542. Vinningurinn er ±0,002 = suð. „Verðlaunum jafna menn" og „verðlaunum batnandi menn" hljóma bæði rétt og mælast bæði sem ekkert | 9.8.2026 |
+| **Klippa útlaga úr ferli stjórnanda** | Á FLÖTU meðaltali borgar það sig (0,214 → 0,224 að henda tveimur verstu). Með recency-vog **lækkar** það (0,410 → 0,401): gamalt slæmt tímabil er þegar vegið niður og nýtt slæmt tímabil er raunveruleg upplýsing. Flatt meðaltal er hvort eð er verst (0,317 á móti 0,540) | 9.8.2026 |
+| **Lítill sérfræðinga-hópur (5–10 manns)** | **Verri í BÁÐA ENDA.** Mæld framtíðar-frammistaða þeirra sem valdir eru efstir: N=1 → 0,919%, N=3 → 1,088%, N=5 → 0,854%, N=10 → 0,987%, **N=100 → 0,642%**. Topp-3 standa sig VERR en meðaltal topp-100 (afturhvarf til meðaltals — toppur hvers lista er að hluta heppni). Og 60/40 skipting úr 10 mönnum hefur ±16 prósentustiga vikmörk. Hópurinn er **1.000** | 9.8.2026 |
+| **Hygla þeim allra bestu innan hópsins** | Vog `10^(-alfa·skor)`: alfa=0 gefur SNR 13,279, alfa=0,25 gefur **13,363** (+0,6% = ekkert), alfa=1,0 gefur 12,032, alfa=2,0 gefur 5,735. Hvert skref eyðileggur virkt úrtak (1.000 → 146 við alfa=2) fyrir hverfandi faernibata. **Jöfn vog** | 9.8.2026 |
+| **Þröskuldur (top-1%/top-10% tíðni) sem valregla** | Split-half áreiðanleiki HÆLDI top-10%/15% (0,74–0,75 á móti 0,738 fyrir samfellda kvarðann) — og það var **mettun, ekki gæði**: 9.296 stjórnendur eru JAFNIR á skurðpunktinum, svo reglan raðar þeim alls ekki. Úrslitaprófið er hópsgæði út fyrir úrtak, og þar vinnur samfelldi kvarðinn (0,890% á móti 0,956% og 1,737%). **Áreiðanleiki er ekki gagnsemi** | 9.8.2026 |
+| **Velja hópinn eftir síðasta tímabili einu** | Freistandi því það þarf enga skönnun: 1,149% á móti **0,892%** fyrir recency yfir allan ferilinn (N=1000). Tvö síðustu tímabil gefa 0,958%. Full saga borgar skönnunina | 9.8.2026 |
 
 **Óframkvæmanlegt af ytri ástæðum:** QA-hlið gegn FFS-spám (borgunarveggur) ·
 FBref um `soccerdata` (403 + Python-pakki í Node-pipeline án dependencies).
@@ -328,6 +336,8 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 | `monkey.mjs` | 800 handahófskenndir smellir (4 föst fræ). **NET, EKKI VÖRÐUR — og það er mælt:** bilun á algengri braut (Teams-flipinn) fannst í báðum fræjum, en bilun á djúpu marki (röðun eftir Verði) **slapp í gegn í 800 smellum**. Segðu því aldrei „apinn ver X"; hver uppgötvun á að festast í alvöru verði |
 | `untrusted-input.mjs` | Tvær uppsprettur sem appið ræður engu um: 15 skemmd `fpl_planner_v3`-blob og 12 proxy-svör. **Vistað ástand er alvarlegra en vantandi gagnaskrá** — `data/` lagast við næstu sókn, en blobbið er í vafranum og fer hvergi, svo óheilt blob felldi appið við HVERJA hleðslu, að eilífu. Proxy-hlutinn: net-bilanir voru allar í lagi, **talna-gerðin var gatið** (`bank:"mikid"` → `NaN` á skjá) |
 | `leagues.mjs` | 500 slembin inntök: summa verðlauna má **aldrei** fara yfir pottinn og ekkert verðlaun vera neikvætt |
+| `pros.mjs` | Sérfræðinga-hópurinn. Valreglan (einræn, nýleiki vegur þyngra), talningin, EO **yfir 100%**, og söfnunin sjálf á **hermdum** svörum — `picks` svara 404 í forleik svo hún getur ekki verið prófuð lifandi fyrr en 21. ágúst. Kafli 12 ver að **ekkert sé sótt fyrr en fresturinn er liðinn**; kafli 13 ver kvótann (hver umferð sótt nákvæmlega einu sinni — annars 96.000 köll á dag); kafli 17 ver að fallið sé kallað úr `fetchFast` **og** að workflow-ið keyri `--fast` |
+| `pros-render.mjs` | **Fyllti helmingurinn af flipanum.** `data-resilience` opnar hann í öllum 16 bilunum en `pros_gw.json` er ekki til í forleik, svo það próf hittir alltaf á TÓMA ástandið. Hér eru tölurnar lesnar AF SKJÁNUM: hlutfall miðast við þá sem svöruðu (65,3%, ekki 62,0%), EO fer yfir 100%, vikmörkin sjást, umferðar-valarinn breytir raunverulega töflunni, og chip-athugasemdin hverfur í umferð án chips. Sex stökkbreytingar felldar |
 
 **`tests/lib/e0.mjs`** byggir spá-heiminn fyrir ÖLL bakprófin — ein uppbygging
 á einum stað, annars getur eitt bakpróf mælt annan heim en hitt og bæði virst
@@ -434,6 +444,7 @@ hann, aldrei skipta honum út.
 | **BSD** (`sports.bzzoiro.com`) | 200, ókeypis, enginn kvóti | Per-skot xG, skotakort, treverk, föst leikatriði. **Aðeins 2025/26** |
 | **API-Sports** | virk, 100 köll/dag | `/fixtures/lineups` (staðfest byrjunarlið). **Fyrsta raunprófun 20.–21. ágúst** |
 | **vaastav-speglun** | 200 | Söguleg per-umferðar CSV, 2019-20 til 2025-26 |
+| **FPL `entry/{id}`** (history · picks · transfers) | virk, opin | Sérfræðinga-hópurinn. `history` byggir hópinn (handvirkt, `scan-elite.mjs`); `picks` + `transfers` lesa hvað hann gerði, **eftir frest** — fyrir frest er 404 hjá öllum og það er regla leiksins, ekki API-galli. **Engin söguleg stigatafla er til**: `leagues-classic/314` skilar aðeins yfirstandandi tímabili, svo skönnun á lið-id er eina leiðin |
 | Understat | **LIFANDI — en læst fyrir HTTP-biðlara** | **LEIÐRÉTT 9.8.2026.** Fyrri greining sagði „gögnin eru farin". Það var RANGT um deildarsíður: byte-eins 18.645 b skelin var **Cloudflare-vörn**, ekki gagnaleysi. Í alvöru vafra skilar `league/EPL/2024` **175 KB með lifandi xG** og `JSON.parse` er á sínum stað. curl fær skelina (18.645 b), curl með vafra-hausum fær ANNAÐ skeljar-svar (4.675 b) — hvorugt með gögnum, bæði merkt Cloudflare. Þyrfti JS-keyrslu (headless) eða clearance-vafrakökur; pipeline er Node **án dependencies** og það er arkitektúr-breyting. **Leikja-síðurnar eru samt raunverulega tómar**: `shotsData`/`rostersData` vantar EINNIG í vafra, aðeins `match_info` eftir (staðfest á match/26630, engin XHR sækir þau). **OG ÞAÐ SKIPTIR HVORT EÐ ER EKKI MÁLI:** eina talan sem Understat átti ein — xGChain/xGBuildup — mældist gagnslaus (kafli 4). Að endurvekja hana myndi ekki bæta spána |
 | FBref · SofaScore | **403** | Ónothæfar óháð því hve gott fæðið er |
 | FotMob | **404/gated** | Engin shotmap með gildu id |
@@ -560,6 +571,7 @@ niðurstaðan committuð:
 | `fetch-player-gw.mjs` | `player_gw_*.json`, `fpl_player_gw.json` | per-umferðar sagan |
 | `fetch-fdr-history.mjs` | `fpl_fdr_history.json` | opinbera FDR-ið 1819–2526 |
 | `fetch-clubelo-history.mjs` | Elo-saga | |
+| `scan-elite.mjs` | `pros.json` | sérfræðinga-hópurinn; ~2 M köll, ~5 klst, **einu sinni á sumri** |
 
 ### Cron
 

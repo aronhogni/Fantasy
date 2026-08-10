@@ -136,3 +136,21 @@ export function SetPieceIcon({ size = 16, color, title }) {
     </Svg>
   );
 }
+
+/* ---- KORONA: flipinn "Best of the best" ----
+   SILHUETTAN ER ALLT I 13-14 PX (sja CLAUDE.md kafla 8, "Ikon"). Koronan er
+   valin thvi hun deilir engri grunnform-samsetningu med hinum ikonunum:
+   PenaltyIcon er lodrett tvennd, FreeKickIcon larett tvennd, CornerIcon
+   skalina — koronan er ZIKK-ZAKK-LINA ofan a lareottum grunni, sem er
+   ogleymanleg silhuetta jafnvel thegar toppapunktarnir renna saman.
+   FYLLT, ekki bara strikud: i smarri staerd les strikud korona eins og
+   opinn kassi. Grunnstrikid er adskilid svo thad haldi ser sem "band".  */
+export function CrownIcon({ size = 16, color, title = "Best of the best" }) {
+  return (
+    <Svg size={size} color={color} title={title}>
+      <path d="M2.4 5.2 L5 8.6 L8 3.6 L11 8.6 L13.6 5.2 L12.6 11.4 L3.4 11.4 Z"
+            fill="currentColor" stroke="currentColor" strokeWidth={1.1} />
+      <path d="M3.6 13.4 H12.4" />
+    </Svg>
+  );
+}

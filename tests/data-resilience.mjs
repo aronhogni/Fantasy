@@ -104,7 +104,11 @@ for (const [label, missing, broken = {}, kind = "flipar"] of SCENARIOS) {
     /* "Player stats" og "Teams" voru ekki profadir — og thad eru einmitt
        fliparnir sem BSD-gognin lenda i. Tholprof sem sleppir theim flipum
        sem nyjustu gognin fæda er tholprof a gomlu appi.                  */
-    for (const tab of ["Player stats", "Teams", "Gameweek", "Leaderboard", "Set pieces"]) {
+    /* "Best of the best" baettist vid 9.8.2026. Hann er SERSTAKLEGA vidkvaemur
+       her thvi hann les TVAER skrar sem eru EKKI til i forleik (pros.json og
+       pros_gw.json) — nakvaemlega tilfellid sem thetta safn er til fyrir.   */
+    for (const tab of ["Player stats", "Teams", "Gameweek", "Leaderboard",
+                       "Best of the best", "Set pieces"]) {
       const b = [...document.querySelectorAll("button")].find(x => x.textContent.includes(tab));
       if (!b) { perTab[tab] = "HNAPP VANTAR"; continue; }
       await act(async () => { b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });

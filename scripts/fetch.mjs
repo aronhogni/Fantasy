@@ -20,6 +20,7 @@ import { existsSync } from "node:fs";
    Hún var áður staðbundin hér og þar með óprófanleg — samt með vog 0,50
    í FFDR fyrir GK/DEF. Sjá tests/ffdr-walkforward.mjs.                  */
 import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../src/market.js";
+import { collectPros } from "./pros-collect.mjs";
 import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
          finalize, pairPlayers } from "../src/bsd.js";
 
@@ -239,10 +240,32 @@ async function fetchFPL() {
     team_h_difficulty:f.team_h_difficulty, team_a_difficulty:f.team_a_difficulty })));
   record("fpl_fixtures", true, fixtures.length);
 
-  // dagleg verðmynd -> data/history/YYYY-MM-DD.json (byggir verðbreytinga-tímaröð)
+  /* Dagleg verðmynd -> data/history/YYYY-MM-DD.json (byggir verðbreytinga-tímaröð).
+
+     `ep_next` / `ep_this` / `chance_next` BÆTTUST VIÐ 9.8.2026 OG ÁSTÆÐAN ER
+     MÆLING SEM VAR EKKI HÆGT AÐ KLÁRA. Spurningin var hvort skipta-hreyfing
+     fjöldans beri merki UMFRAM það sem líkanið veit þegar. Svarið fer eftir
+     því hvað er stjórnað fyrir (4 tímabil, 104.160 leikmanna-umferðir):
+
+       gegn hráu formi (fyrri 3 umferðir) ....... r = +0,248  [0,230, 0,264]
+       gegn `xP` úr vaastav-speglinum ........... r = −0,0005 [−0,019, +0,019]
+
+     Munurinn skiptir öllu — og HVORUGT svarið er hægt að treysta, því `xP`
+     í speglinum er SÓTT EFTIR að umferðin kláraðist. Það er engin leið að
+     sanna afturvirkt að talan hafi verið til FYRIR frest.
+
+     Þessi fjögur svið loka þeirri gátt í eitt skipti fyrir öll: dagleg mynd
+     TEKIN FYRIR frest getur ekki verið menguð af útkomunni. Kostnaðurinn er
+     ~4 svið á skrá sem er þegar skrifuð.
+
+     ÞETTA VERÐUR EKKI TIL EFTIR Á. Sama regla og verðmyndin sjálf (kafli 7):
+     dagleg mynd er óendurheimtanleg — byrji hún ekki núna er mælingin ekki
+     möguleg í vetur heldur.                                              */
   const snap = els.map(e => ({ id:e.id, now_cost:e.now_cost, cost_change_event:e.cost_change_event,
     selected_by_percent:e.selected_by_percent, transfers_in_event:e.transfers_in_event,
-    transfers_out_event:e.transfers_out_event, total_points:e.total_points }));
+    transfers_out_event:e.transfers_out_event, total_points:e.total_points,
+    ep_next:e.ep_next, ep_this:e.ep_this,
+    chance_next:e.chance_of_playing_next_round, status:e.status }));
   await writeJSON(`history/${today}.json`, snap);
   record("fpl_history_snapshot", true, snap.length, today);
 
@@ -1785,6 +1808,16 @@ async function fetchFast() {
     try { await fetchBsdOdds(); }
     catch (e) { record("bsd_odds", false, 0, e.message); }
   }
+
+  /* SERFRAEDINGA-HOPURINN ("Best of the best") TILHEYRIR HRADA KEYRSLUNNI AF
+     SOMU ASTAEDU OG BYRJUNARLIDIN: daglega keyrslan gengur kl. 05 UTC en
+     frestir eru 11-18 UTC, svo hun naedi umferdinni SOLARHRING of seint og
+     notandinn vill sja kaupin um leid og umferdin opnar. Kvotavornin (hver
+     umferd sott NAKVAEMLEGA EINU SINNI) er inni i collectPros, ekki i cron.  */
+  try {
+    await collectPros({ getJSON, writeJSON, record,
+      readJSON: async f => JSON.parse(await readFile(`${DATA}/${f}`, "utf8")) }, events);
+  } catch (e) { record("pros", false, 0, e.message); }
 
   console.log(`FAST: ${volatile.length} players with news/doubt/price change, ${prices.length} price changes`);
   record("fast_news", true, volatile.length, `${prices.length} price changes`);

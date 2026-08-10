@@ -353,6 +353,7 @@ console.log("─".repeat(84));
   const TEMPLATE_NAMES = new Set(["player_gw_{season}.json"]);
   const OK_ABSENT = new Set([
     "bsd_live.json",        // yfirstandandi timabil — ekki til i forleik (skjalad)
+    "pros_gw.json",         // verdur til vid FYRSTU umferd (collectPros), ekki i forleik
     "minutes.json", "bps.json", "set_pieces.json",   // undir "Ountfaert"
   ]);
   const ghosts = [...new Set(mentioned)]

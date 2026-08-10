@@ -150,9 +150,20 @@ GW4“.
 
 ### `history/YYYY-MM-DD.json` — dagleg verðmynd
 `[{ id, now_cost, cost_change_event, selected_by_percent, transfers_in_event,
-transfers_out_event, total_points }]`
+transfers_out_event, total_points, ep_next, ep_this, chance_next, status }]`
 
 Byggir verðbreytinga-tímaröð sem ekkert API selur. ~40 bæti á leikmann.
+
+**`ep_next` / `ep_this` / `chance_next` / `status` bættust við 9.8.2026** og
+ástæðan er mæling sem var **ekki hægt að klára**. Skipta-hreyfing fjöldans
+mælist sterk gegn hráu formi (r = +0,248 á 104.160 leikmanna-umferðum) en
+**núll** gegn `xP` (−0,0005). Munurinn ræður því hvort talan sé nothæf — en
+`xP` í vaastav-speglinum er sótt **eftir** að umferðin kláraðist, svo það er
+engin leið að sanna afturvirkt að hún hafi verið til fyrir frest.
+
+Dagleg mynd tekin **fyrir** frest getur ekki verið menguð af útkomunni og
+lokar gáttinni. **Þetta verður ekki til eftir á** — sama regla og verðmyndin
+sjálf.
 
 ### `chips.json` — REGLURNAR, ekki lýsigögn
 `[{ id, name, number, start_event, stop_event, chip_type }]`
@@ -1205,3 +1216,69 @@ röng, ekki gögnin.
 Vörður: `tests/player-gw-range.mjs` (31 próf) — summur, tvítekningar **og**
 að tvöfaldar umferðir haldi báðum leikjum, kvörðun desimala, og að GW30–38
 gefi raunverulegar tölur (443 leikmenn með mínútur).
+
+---
+
+## `pros.json` — sérfræðinga-hópurinn ("Best of the best")
+
+Skrifuð **handvirkt** af `scripts/scan-elite.mjs`, einu sinni fyrir hvert
+tímabil. Ekki hluti af daglegu pipeline.
+
+| svið | merking |
+|---|---|
+| `built` · `season` | hvenær hópurinn var byggður og fyrir hvaða tímabil |
+| `method` | valreglan í einni setningu (mæld, sjá `src/pros.js`) |
+| `scanned` · `candidates` | hve mörg lið voru skönnuð og hve mörg komust í úrtakið |
+| `panel[]` | `{ id, score, seasons, best, t1 }` — **1.000 stjórnendur** |
+
+`score` er **veg­ið meðaltal á log10(lokapersentíli), helmingunartími 1,5
+tímabil**, birt aftur á prósentu-kvarða (0,0132% = liðið endar að jafnaði í
+efstu 0,0132%). Lægra er betra.
+
+**Hvers vegna 1.000 en ekki 10:** mælt út fyrir úrtak á 80.000+ raunferlum —
+topp-3 eftir fyrri ferli standa sig **verr** en meðaltal topp-100
+(afturhvarf til meðaltals), og með 10 mönnum er 60/40 skipting ekki
+aðgreinanleg frá hlutkesti (±16 prósentustig). Full röksemdafærsla með
+öllum mælingunum er í hausnum á `src/pros.js`.
+
+**Hópurinn eldist:** valinn á gögnum t.o.m. 2021/22 hélt hann forskoti en
+tapaði 29% af því á fjórum árum. Endurbyggðu hann á hverju sumri.
+
+**Athugasemd um fyrstu byggingu (9.8.2026):** skönnunin sem byggði þennan
+hóp geymdi aðeins lið sem áttu **≥2 topp-1% tímabil eða topp-100 sæti** —
+sía sem `scripts/scan-elite.mjs` hefur **ekki** (hún skorar alla með ≥3
+tímabil). Skekkjan var **mæld** á id-bilinu 1–3000: við skor ≤0,20%, sem er
+skurðpunktur hópsins, vantaði **0 af 96**. Fyrst við 0,30% birtist einn
+(0,5%). Þeir sem síast burt eiga allir nákvæmlega eitt topp-1% tímabil og
+skora undir mörkunum. Næsta bygging notar skriftuna beint og hefur enga síu.
+
+## `pros_gw.json` — hvað hópurinn GERÐI, per umferð
+
+Skrifuð af `collectPros()` (`scripts/pros-collect.mjs`) úr **hröðu**
+keyrslunni, strax eftir frest. **Ekki til í forleik** — hún verður til við
+fyrstu umferð.
+
+| svið | merking |
+|---|---|
+| `panel_size` | stærð hópsins (svo þekja sé lesanleg) |
+| `gw[N].n` | hve margir **svöruðu** — hlutföll miðast við þessa tölu |
+| `gw[N].own` · `capt` · `vice` | talning per leikmanni (sparse) |
+| `gw[N].in` · `out` | keypt/selt **í þessari umferð** (síað á `event`) |
+| `gw[N].chips` | talning per chip |
+| `gw[N].transfers` · `hitCost` · `hitShare` · `value` · `bank` | meðaltöl, `null` ef enginn svaraði |
+| `gw[N].rankMedian` | miðgildi heildarraðar hópsins |
+
+**Ein talning, ekki 1.000 lið.** Sama regla og `bsd_shots.json`: við geymum
+samtölur, ekki hrá lið — 1.000 hópar × 15 leikmenn × 38 umferðir væri ~20 MB
+og þrjár afritanir af sömu tölu geta rekið í sundur.
+
+**Hver umferð er sótt nákvæmlega einu sinni.** Hraða keyrslan gengur á 15–30
+mín fresti; óvarið væru þetta ~96.000 köll á dag. Picks breytast ekki eftir
+frest. Kvótavörnin er í `collectPros`, ekki í cron — sama regla og annars
+staðar í þessu repo-i. Vörður: `tests/pros.mjs` kafli 13.
+
+**Engin tala héðan fer í líkanið.** Sama viðbótarprófun á almenna markaðnum
+(4 tímabil, 104.160 leikmanna-umferðir) sýndi að skipta-hreyfing fjöldans
+bætir **engu** ofan á `ep_next` (r = −0,0005) og er **neikvæð** meðal þeirra
+sem spiluðu í raun (−0,111). Hvort þessi hópur sé öðruvísi er ómælt þar til
+~10 umferðir liggja fyrir.
