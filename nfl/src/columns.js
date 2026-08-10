@@ -131,3 +131,25 @@ export const BANDS = (() => {
   }
   return out;
 })();
+
+/**
+ * FORMERKI ADEINS THEGAR TALAN ER RAUNVERULEGA YFIR EDA UNDIR NULL.
+ *
+ * `(-0.04).toFixed(1)` gefur `"-0.0"` i JS. I dalki sem heitir "Value"
+ * les thad eins og villa: thad segir "adeins undir markadi" thegar
+ * retta svarid er "a markadsverdi". Fjorir leikmenn i topp-tiu baru
+ * thad a Players-flipanum.
+ *
+ * ÞETTA VAR THEGAR LEYST — i `DraftBoard.jsx`, med thessari nakvaemu
+ * utfaerslu og thessari nakvaemu athugasemd. En hun var STOK THAR, svo
+ * leikmannalistinn erfdi hana ekki. Lærdómur sem er lærdur a einum
+ * stad og ekki fluttur er ekki lærdur, og thess vegna er hun hér.
+ *
+ * Þroskuldurinn ver ADEINS birtinguna; talan sjalf haggast ekki.
+ */
+export function signed(v, digits = 1) {
+  if (v == null || !Number.isFinite(v)) return "—";
+  if (Math.abs(v) < 0.5 / 10 ** digits) return (0).toFixed(digits);
+  const s = v.toFixed(digits);
+  return v > 0 ? `+${s}` : s;
+}

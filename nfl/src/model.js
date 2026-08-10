@@ -226,12 +226,43 @@ export function tierize(values, { gapSd = 1.0, minTier = 2, maxTiers = 14 } = {}
   const cut = m + gapSd * sd;
 
   const tiers = new Map();
-  let t = 1, sinceBreak = 0;
+  let t = 1, sinceBreak = 0, tierTop = xs[0];
   tiers.set(xs[0], 1);
   for (let i = 1; i < xs.length; i++) {
     sinceBreak++;
-    if (gaps[i - 1] >= cut && sinceBreak >= minTier && t < maxTiers) {
-      t++; sinceBreak = 0;
+    const bigGap = gaps[i - 1] >= cut;
+
+    /* ============================================================
+       ÞREP MA EKKI SPANNA MEIRA EN BILID SEM SKILGREINIR THREPASKIL
+       ============================================================
+       ÞETTA VAR RAUNVERULEG VILLA OG HUN SAST A SKJANUM: threp 1 hja
+       leikstjornendum bar **22 menn og spannadi 98,8 stig** — fra Josh
+       Allen (65,6) nidur i mann a -33,2 — medan threp 1 hja hlaupurum
+       spannadi 6,5. Threp segir "thessir eru skiptanlegir". 98,8 stig
+       er ekki skiptanleiki; thad er heil brekka kolluð einu nafni.
+
+       ORSOKIN VAR `minTier`, EKKI THROSKULDURINN. Bilid Allen -> Lamar
+       er 35,5 og throskuldurinn 13,3, svo skilin ATTU ad koma strax.
+       En `sinceBreak >= minTier` bannar skil fyrr en threpid hefur tvo
+       menn, svo Lamar dróst inn — og eftir thad er QB-brekkan slett
+       alla leid nidur i saeti 22 an nokkurs bils yfir throskuldi.
+
+       REGLAN HER THARF ENGA NYJA TOLU: fjarlaegdin INNAN threps verdur
+       ad vera minni en su fjarlaegd sem telst threpaskil. Annars er
+       threpid ad fullyrda thad sem thad neitar. `cut` er thegar maeld
+       ur bilunum sjalfum, svo hun er notud i badar attir.
+
+       OG HUN GENGUR FRAMAR `minTier`: threp med EINUM manni er rett
+       nidurstada thegar hann stendur einn (Allen gerir thad). Ad banna
+       thad faldi einmitt thad sem mestu skiptir a QB-bordinu.
+
+       ÞETTA ER BIRTINGARREGLA, EKKI LIKAN. `vbd` er samfelld og rodin,
+       radgjofin og hermanirnar lesa hana ALLAR — aldrei threpid. Þetta
+       breytir thvi engri maelingu; thad breytir thvi hvad taflan segir. */
+    const tooWide = (tierTop - xs[i]) > cut;
+
+    if ((bigGap && sinceBreak >= minTier) || (bigGap && tooWide) || tooWide) {
+      if (t < maxTiers) { t++; sinceBreak = 0; tierTop = xs[i]; }
     }
     tiers.set(xs[i], t);
   }

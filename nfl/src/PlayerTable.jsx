@@ -4,7 +4,7 @@
    ============================================================ */
 
 import React, { useMemo, useState, useRef, useCallback } from "react";
-import { COLUMNS, COL, DEFAULT_COLS } from "./columns.js";
+import { COLUMNS, COL, DEFAULT_COLS, signed } from "./columns.js";
 import * as D from "./data.js";
 
 const POSITIONS = ["QB", "RB", "WR", "TE", "K", "DST"];
@@ -184,9 +184,14 @@ function Cell({ c, r, scale }) {
 
 function fmt(v, key) {
   if (key === "lastTshare" || key === "lastWopr") return v.toFixed(3);
-  if (key === "value" || key === "sharpDelta") return (v > 0 ? "+" : "") + v.toFixed(1);
+  /* `signed` kemur ur columns.js og er SAMA utfaersla og draft-bordid
+     notar. Hun var til thar — en ekki hér, svo "-0.0" birtist i
+     Value-dalkinum hja fjorum leikmonnum i topp-tiu. Lærdómur sem er
+     lærður a einum stad og ekki fluttur er ekki lærður. */
+  if (key === "value" || key === "sharpDelta") return signed(v);
   if (key === "ownedEspn") return v.toFixed(0) + "%";
   if (key === "trendAdd") return v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v);
+  if (Math.abs(v) < 0.05) return (0).toFixed(1);            // aldrei "-0.0"
   if (Number.isInteger(v)) return String(v);
   return v.toFixed(1);
 }

@@ -281,5 +281,73 @@ console.log("\nspyrnumenn: maelda reglan");
   }
 }
 
+/* ============================================================
+   ÞREP MA EKKI SPANNA MEIRA EN THREPASKILIN SJALF
+   ============================================================
+   ÞETTA SAST A SKJANUM, EKKI I TOLU. Threp 1 hja leikstjornendum bar
+   22 menn og spannadi **98,8 stig** — Josh Allen (65,6) og madur a
+   -33,2 i sama threpi — medan threp 1 hja hlaupurum spannadi 6,5.
+   Threp segir "thessir eru skiptanlegir"; 98,8 stig er heil brekka
+   kolluð einu nafni.
+
+   Orsokin var `minTier`, ekki throskuldurinn: bilid Allen -> Lamar er
+   35,5 og throskuldurinn 13,3, svo skilin attu ad koma strax — en
+   `sinceBreak >= minTier` bannadi threp med einum manni og dro Lamar
+   inn. Eftir thad er QB-brekkan slett nidur i saeti 22.
+
+   Reglan tharf enga nyja tolu: fjarlaegdin INNAN threps verdur ad vera
+   minni en su sem telst threpaskil. Threp med einum manni er RETT
+   nidurstada thegar hann stendur einn.                             */
+console.log("\ntherpavidd");
+{
+  const { tierize } = await import("../src/model.js");
+
+  /* Tilbuid tilfelli: einn madur langt a undan, sidan slett brekka.
+     An reglunnar lenda ALLIR i threpi 1. */
+  const vals = [100, 60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30];
+  const t = tierize(vals);
+  ok(t[0] === 1 && t[1] !== 1,
+    `sa sem stendur einn faer sitt eigid threp (${t.slice(0, 4).join(",")})`);
+
+  const width = (tiers, xs) => {
+    const by = {};
+    xs.forEach((v, i) => { (by[tiers[i]] = by[tiers[i]] || []).push(v); });
+    return Math.max(...Object.values(by).map((g) => Math.max(...g) - Math.min(...g)));
+  };
+  /* Efri threpin mega ekki vera breidari en bil-throskuldurinn. Nedsta
+     threpid er undanskilid: `maxTiers` safnar hala i eitt threp
+     viljandi, og thar er hvort ed er enginn draftadur. */
+  const top = vals.slice(0, 8), tTop = tierize(top);
+  const gaps = [];
+  for (let i = 1; i < top.length; i++) gaps.push(top[i - 1] - top[i]);
+  const m = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  const sd = Math.sqrt(gaps.reduce((a, g) => a + (g - m) ** 2, 0) / gaps.length);
+  ok(width(tTop, top) <= m + sd + 0.001,
+    `ekkert threp breidara en throskuldurinn (${width(tTop, top).toFixed(1)} <= ${(m + sd).toFixed(1)})`);
+
+  /* Og a RAUNGOGNUNUM: hvorki eitt threp med ollum ne threp per mann. */
+  if (existsSync(path.join(DATA, "players.json"))) {
+    const { buildRows, DEFAULT_LEAGUE } = await import("../src/build.js");
+    const rd = (f) => JSON.parse(readFileSync(path.join(DATA, f), "utf8"));
+    const b = buildRows({ players: rd("players.json"), league: { ...DEFAULT_LEAGUE } });
+    for (const pos of ["QB", "RB", "WR", "TE"]) {
+      const g = b.rows.filter((r) => r.pos === pos && r.posTier != null);
+      if (g.length < 20) continue;
+      const byTier = {};
+      for (const r of g) (byTier[r.posTier] = byTier[r.posTier] || []).push(r.vbd);
+      /* Nedsta threpid er halinn — sleppt af sömu astaedu og ad ofan. */
+      const tiers = Object.keys(byTier).map(Number).sort((a, c) => a - c);
+      const upper = tiers.slice(0, -1);
+      const widest = Math.max(...upper.map((t2) =>
+        Math.max(...byTier[t2]) - Math.min(...byTier[t2])));
+      ok(widest < 40,
+        `${pos}: breidasta threp (an hala) spannar ${widest.toFixed(1)} stig`);
+      const top1 = byTier[tiers[0]];
+      ok(top1.length <= 6,
+        `${pos}: threp 1 ber ${top1.length} menn (ekki heila brekku)`);
+    }
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

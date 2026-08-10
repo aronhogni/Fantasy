@@ -10,8 +10,18 @@ let failed = 0;
 const SUITES = [
   ["model.mjs"], ["accuracy.mjs"], ["learn.mjs"], ["market.mjs"],
   ["advice.mjs"], ["lineup.mjs"], ["names.mjs"], ["pipeline.mjs"],
-  ["render.mjs", true], ["audit.mjs", true],
+  ["render.mjs", true], ["audit.mjs", true], ["layout.mjs", true],
+  /* `visual.mjs` raesir ALVORU Chrome og maelir raunverulegt utlit.
+     Hann tharf `npm run build` a undan ser og sleppir ser sjalfur ef
+     Chrome finnst ekki — en thad er SLEPPT, ekki graent. */
+  ["visual.mjs"],
 ];
+/* Utlitsprofid les `dist/nfl`, svo byggingin verdur ad vera fersk. */
+if (SUITES.some(([f]) => f === "visual.mjs")) {
+  const build = spawnSync("npm", ["run", "build"], { stdio: "ignore" });
+  if (build.status !== 0) console.log("(bygging brast — visual.mjs mun sleppa ser)");
+}
+
 for (const [f, loader] of SUITES) {
   console.log(`\n${"=".repeat(56)}\n  ${f}\n${"=".repeat(56)}`);
   const args = loader

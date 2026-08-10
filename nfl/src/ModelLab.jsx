@@ -142,11 +142,16 @@ function Rankings({ ev, ar, arFf, std, shapes, league }) {
             have five — the only ones where Sleeper's stored projections are not
             contaminated by the outcome.
           </div>
+          {/* `HeadToHead` skilar `.note` og a thvi heima HER INNI.
+              `Replication` og `Shapes` skila hins vegar `.panel` og
+              foru ut fyrir — spjald inni i spjaldi gefur ramma innan
+              ramma og tvofalda fyllingu. Utlitsprofid i alvoru vafra
+              greip thad. */}
           {ar && ar.headToHead && <HeadToHead ar={ar} std={std} />}
-          {arFf && arFf.headToHead && <Replication ar={ar} ff={arFf} std={std} />}
-          {shapes && shapes.shapes && <Shapes shapes={shapes} std={std} league={league} />}
         </div>
       )}
+      {arFf && arFf.headToHead && <Replication ar={ar} ff={arFf} std={std} />}
+      {shapes && shapes.shapes && <Shapes shapes={shapes} std={std} league={league} />}
 
       <div className="tablewrap">
         <table className="data">

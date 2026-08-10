@@ -23,6 +23,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as D from "./data.js";
 import { recommend, MEASURED } from "./advice.js";
+import { signed } from "./columns.js";
 
 export default function DraftBoard({ rows, meta, league, season, accuracy, kickers }) {
   const [taken, setTaken] = useState(() => new Set(D.loadState("taken", [])));
@@ -298,18 +299,8 @@ function BoardTable({ rows, onTake }) {
 const n = (v) => (v == null || !Number.isFinite(v)
   ? <span className="null">—</span> : v.toFixed(1));
 
-/**
- * Formerki adeins thegar talan er raunverulega yfir eda undir null.
- * `(-0.04).toFixed(1)` gefur "-0.0" i JS, og "-0,0" i dalki sem heitir
- * "Value" les eins og villa — hann segir "adeins undir markadi" thegar
- * rett svar er "a markadsverdi". Threskuldurinn ver adeins birtinguna;
- * talan sjalf haggast ekki.
- */
-function signed(v, digits = 1) {
-  const s = v.toFixed(digits);
-  if (Math.abs(v) < 0.5 / 10 ** digits) return (0).toFixed(digits);
-  return v > 0 ? `+${s}` : s;
-}
+/* `signed` bjo hér adur. Hun var flutt i columns.js thvi leikmanna-
+   listinn tharf hana lika og erfdi hana ekki — sja notuna thar. */
 
 /* ============================================================
    MITT LID

@@ -1039,6 +1039,63 @@ draft-pörunin er rétt í grunninn.
 
 ---
 
+## 6c. Útlitið — mælt í alvöru vafra
+
+`layout.mjs` keyrir í jsdom og `visual.mjs` keyrir **alvöru Chrome** í
+headless-ham gegnum DevTools-bókunina yfir WebSocket. Node 22+ ber `WebSocket`
+innbyggt, svo **þetta þarf enga nýja pakka** — sem skiptir máli í verkefni sem
+heldur `dependencies` í tveimur.
+
+**Af hverju bæði:** jsdom **reiknar ekkert útlit**. Breiddir eru núll, ekkert
+brotnar, ekkert skarast og `matchMedia` er ekki til. Grænt útlitspróf í jsdom er
+sönnun um DOM, ekki um útlit. Það sem jsdom *getur* er samt meira en flesta
+grunar: dálkafjöldi í haus á móti röð, `colSpan` sem summast ekki, CSS-klasar sem
+eru notaðir en hvergi skilgreindir, stytting og langritun í sama stíl, og
+andstæða reiknuð úr CSS-breytunum.
+
+`visual.mjs` mælir hitt: lárétt skrun á **fjórum breiddum × öllum flipum**, hvort
+haus-heiti klippist, hvort efsta röðin feli sig bak við fasta hausinn, hvort
+spjöld skarist, símahaminn með **raunverulegri `matchMedia`**, og villur í
+console við raunverulega hleðslu. Það tekur líka skjámyndir — **þær sanna
+ekkert, þær eru til að SKOÐA.**
+
+### Þrjár villur sem þetta fann
+
+| # | Villa | Hvernig hún fannst |
+|---|---|---|
+| 1 | **Þrep 1 hjá QB bar 22 menn og spannaði 98,8 stig** — Josh Allen (65,6) og maður á −33,2 sagðir skiptanlegir, meðan þrep 1 hjá RB spannaði 6,5 | **Á skjámynd.** Engin tala flaggaði því |
+| 2 | **`Replication` og `Shapes` sátu inni í öðru spjaldi** — rammi innan ramma, tvöföld fylling | Mæling í vafra |
+| 3 | **„−0,0" í Value-dálknum** hjá fjórum leikmönnum í topp-tíu | Skjámynd, svo vörður |
+
+**Villa 1 var ekki þröskuldurinn heldur `minTier`.** Bilið Allen → Jackson er
+35,5 og þröskuldurinn 13,3, svo skilin áttu að koma strax — en
+`sinceBreak >= minTier` bannaði þrep með einum manni og dró Jackson inn. Eftir
+það er QB-brekkan slétt niður í sæti 22. Reglan sem leysir það þarf **enga nýja
+tölu**: *fjarlægðin innan þreps verður að vera minni en sú sem telst þrepaskil.*
+Nú er þrep 1 hjá QB **Allen einn**, og þrepin lesa: Jackson/Maye/Daniels, svo
+Hurts/Burrow/Prescott. Það er uppbyggingin sem draftari þarf.
+
+**Villa 3 var þegar leyst — annars staðar.** `DraftBoard.jsx` bar rétta
+útfærslu *og* rétta athugasemd um `-0.0`. En hún var stök þar, svo
+leikmannalistinn erfði hana ekki. `signed()` býr nú í `columns.js` og bæði lesa
+hana. **Lærdómur sem er lærður á einum stað og ekki fluttur er ekki lærður.**
+
+### Stökkbreytingar sem staðfestu að prófin geti fallið
+
+Grænt próf sannar ekkert fyrr en það hefur fallið. Fjórar afturkallanir voru
+keyrðar og allar felldu réttan vörð með nafni og tölu: spjald sett aftur inn í
+spjald (`4b` féll og nefndi spjaldið), dálkar þvingaðir í 30 px (`2` féll og taldi
+upp fjögur klippt heiti), `signed()` fjarlægt úr `PlayerTable` (`6b` féll og fann
+bæði `-0.0` og `+0.0`), og `minTier` skilað í fyrra horf.
+
+### Það sem þetta sér samt ekki
+
+Hvernig þetta **lítur út** — hvort það sé fallegt, hvort stigveldið sé rétt,
+hvort eitthvað sé ljótt. Skjámyndirnar eru í `dist/shots/` og þær þarf að skoða.
+Vafraviðbótin var ekki tengd í þessari lotu, svo ég las þær sem myndir.
+
+---
+
 ## 7. Pipeline
 
 ```bash
