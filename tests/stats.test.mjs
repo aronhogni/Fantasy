@@ -627,7 +627,9 @@ if (existsSync(D + "imminent.json")) {
     "mínútu-röð aldrei fleiri en 5 stök (tvöföld umferð lögð saman)");
   ok(imm.measured?.start_prob && /2,09|2\.09/.test(String(imm.measured.start_prob)),
     "lyftingin skjalfest í skránni");
-  ok(/hvild|Hvild/i.test(String(imm.measured.start_prob)),
+  /* Enskt eftir thydinguna 9.8.2026; badar ritanir leyfdar thvi
+     committud gogn geta enn borid gomlu notuna.                     */
+  ok(/hvild|Hvild|\bRest\b/i.test(String(imm.measured.start_prob)),
     "skráin segir að hvíld hafi verið prófuð og HAFNAÐ");
 }
 

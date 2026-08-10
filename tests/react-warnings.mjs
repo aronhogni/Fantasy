@@ -96,8 +96,35 @@ const SURFACES=[
   ["📊 Gameweek",      ["Overview","Shot map","Players","Matches"]],
   ["🏆 Leaderboard",   ["All","GK","DEF","MID","FWD","Basics","Attack","Defence",
                         "Upcoming fixtures","Set pieces and cards"]],
+  ["Best of the best", []],
   ["Set pieces",       []],
 ];
+
+/* ============================================================
+   LISTINN VERDUR AD ThEKJA ALLA FLIPA SEM ERU TIL.
+   `SURFACES` er CURATED — hver flipi ber sina eigin undirstyki og thau
+   verda ad vera talin upp. En thess vegna ELDIST hann: "Best of the best"
+   baettist vid 10.8.2026 og listinn vissi ekkert af honum, svo safnid
+   hefdi haldid afram ad segja "47/47 vidmot" medan nyjasti flipinn var
+   aldrei heimsottur. Sama aett og islensku leitarordin sem gafu 0/22.
+
+   Lausnin er ekki ad haetta ad telja upp (undirstykin thurfa thad) heldur
+   ad LATA STIKUNA STADFESTA LISTANN: hver hnappur i flipastikunni verdur
+   ad eiga faerslu. Baetir einhver vid flipa an thess ad skra hann — fellur
+   thetta, i stad thess ad thekjan minnki thogult.
+   ============================================================ */
+{
+  const seed = [...document.querySelectorAll("button")]
+    .find(b => /^⚽/.test((b.textContent || "").trim()));
+  const bar = seed?.parentElement;
+  const onScreen = bar ? [...bar.children].filter(el => el.tagName === "BUTTON")
+                          .map(b => (b.textContent || "").trim()) : [];
+  const listed = SURFACES.map(([t]) => t);
+  const missing = onScreen.filter(t => !listed.some(l => t.includes(l.replace(/^\S+\s/, ""))));
+  if (!onScreen.length) warns.push("flipastikan fannst ekki — thekjan er omaelanleg");
+  if (missing.length) warns.push("flipar utan SURFACES: " + missing.join(", "));
+  console.log(`  ${onScreen.length && !missing.length ? "✓" : "✗"} SURFACES thekur alla ${onScreen.length} flipa a skjanum`);
+}
 const TOTAL = SURFACES.reduce((n,[,subs])=>n+1+subs.length, 0);
 
 /* Lokar efsta yfirlagsglugga. Sidasta `✕` er thad sem tilheyrir honum —

@@ -98,10 +98,13 @@ console.log("─".repeat(84));
 console.log(`\n${"─".repeat(84)}`);
 console.log("4. FYRIRVARINN — talan má ALDREI seljast sem spá");
 console.log("─".repeat(84));
-ok(/EKKI SPA|LYSING A FORTID/i.test(C.note || ""),
+/* Notan var thydd a ensku 9.8.2026 — sja CLAUDE.md kafla 9. Bædi form
+   eru leyfd svo profid falli ekki a gomlum committudum gognum medan
+   pipeline hefur ekki keyrt aftur.                                   */
+ok(/EKKI SPA|LYSING A FORTID|NOT A FORECAST|DESCRIPTION OF THE PAST/i.test(C.note || ""),
   "nótan segir berum orðum að þetta sé lýsing á fortíð, ekki spá");
 ok(/0,90|0\.90/.test(C.note || ""), "nótan ber mælda fylgnina við stig/leik (r=0,90)");
-ok(/VERD|verði/i.test(C.note || ""), "nótan nefnir að verð sé stjórnað fyrir");
+ok(/VERD|verði|PRICE/i.test(C.note || ""), "nótan nefnir að verð sé stjórnað fyrir");
 
 /* ---------- 5. VÖRÐUR: STUÐULLINN ER EKKI Í RÖÐUNINNI ---------- */
 console.log(`\n${"─".repeat(84)}`);

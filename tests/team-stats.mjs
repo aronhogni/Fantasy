@@ -205,8 +205,14 @@ console.log("─".repeat(84));
       .every(d => !/big chance/i.test(`${d.label} ${d.short}`)));
   ok("naerfaeris-dalkurinn segir BERUM ORDUM ad hann se ekki big chance",
     /not the same number|stand-in/i.test(TEAM_STAT_BY_KEY.close_against_pg.note));
-  ok("skran sjalf ber sama fyrirvara", /BIG CHANCES ERU EKKI HER/i.test(teamShots.note || ""));
-  ok("og hun ber krossprofunina vid E0", /KROSSPROFAD GEGN E0/i.test(teamShots.note || ""));
+  /* BADAR RITANIR: notan var thydd a ensku 9.8.2026 en `team_shots.json`
+     er skrifud af HANDVIRKRI skriftu, svo committuda skrain ber enn gomlu
+     islensku notuna thangad til hun er keyrd aftur. Prof sem taeki adeins
+     adra ritunina fellur vid naestu keyrslu — thogul timasprengja.      */
+  ok("skran sjalf ber sama fyrirvara",
+     /BIG CHANCES ERU EKKI HER|BIG CHANCES ARE NOT HERE/i.test(teamShots.note || ""));
+  ok("og hun ber krossprofunina vid E0",
+     /KROSSPROFAD GEGN E0|CROSS-CHECKED AGAINST E0/i.test(teamShots.note || ""));
 }
 
 /* ---------- 7. THOLIR TOM INNTOK ---------- */

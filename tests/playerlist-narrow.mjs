@@ -129,15 +129,36 @@ ok(`lidsmerkin eru samt AFRAM birt (${crests}) — thau kosta 11 px`, crests >= 
 ok(`nafnadalkurinn tekur < helming skjasins (${nameW}/${PHONE})`,
    nameW != null && nameW < PHONE / 2);
 
-/* ---------- FLIPARNIR VIRKA LIKA I SIMA ---------- */
+/* ---------- FLIPARNIR VIRKA LIKA I SIMA ----------
+   FLIPARNIR ERU LEIDDIR UT UR FLIPASTIKUNNI, EKKI TALDIR UPP.
+   Hér stod hardkodadur listi af FIMM flipum. "Best of the best" baettist
+   vid 10.8.2026 og listinn eltist EKKI — profid hefdi haldid afram ad
+   segja "allir flipar teiknast i simabreidd" medan nyjasti flipinn var
+   aldrei opnadur i sima. Nakvaemlega sama aett og emoji-listinn i
+   `no-icelandic.mjs` (sem sleppti Teams) og islensku leitarordin i
+   `react-warnings.mjs` (0 af 22). Hardkodadur listi eldist thogult.
+   Stikan sjalf veit hvada flipar eru til; profid spyr hana.           */
 {
-  let switched = 0;
-  for (const t of ["🛡️ Teams", "📊 Gameweek", "🏆 Leaderboard", "Set pieces", "👥 Player stats"]) {
-    const b = [...document.querySelectorAll("button")].find(x => x.textContent.includes(t.replace(/^\S+\s/, "")));
-    if (b) { await fire(b); switched++; }
-    if (/\bundefined\b|\bNaN\b/.test(txt())) { ok(`${t} an NaN i sima`, false); break; }
+  const tabBar = () => {
+    const seed = [...document.querySelectorAll("button")]
+      .find(b => /^⚽/.test((b.textContent || "").trim()));
+    const bar = seed?.parentElement;
+    return bar ? [...bar.children].filter(el => el.tagName === "BUTTON") : [];
+  };
+  const total = tabBar().length;
+  ok(`flipastikan fannst og ber ${total} flipa`, total >= 6, `fann ${total}`);
+
+  let switched = 0; const nanOn = [];
+  for (let i = 0; i < total; i++) {
+    const b = tabBar()[i];
+    if (!b) continue;
+    const name = (b.textContent || "").trim();
+    await fire(b);
+    switched++;
+    if (/\bundefined\b|\bNaN\b|\[object Object\]/.test(txt())) nanOn.push(name);
   }
-  ok(`allir flipar teiknast i simabreidd (${switched})`, switched >= 5);
+  ok(`allir ${total} flipar teiknast i simabreidd (${switched})`, switched === total);
+  ok("enginn flipi ber undefined/NaN i sima", nanOn.length === 0, nanOn.join(", "));
   ok("engin console-villa eftir flipa-flakk i sima", errors.length === 0, errors[0] || "");
 }
 
