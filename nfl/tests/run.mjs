@@ -11,6 +11,7 @@ const SUITES = [
   ["model.mjs"], ["accuracy.mjs"], ["learn.mjs"], ["market.mjs"],
   ["advice.mjs"], ["lineup.mjs"], ["names.mjs"], ["pipeline.mjs"],
   ["render.mjs", true], ["audit.mjs", true], ["layout.mjs", true],
+  ["saved-state.mjs", true], ["sleeper.mjs", true],
   /* `visual.mjs` raesir ALVORU Chrome og maelir raunverulegt utlit.
      Hann tharf `npm run build` a undan ser og sleppir ser sjalfur ef
      Chrome finnst ekki — en thad er SLEPPT, ekki graent. */

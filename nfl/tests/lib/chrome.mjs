@@ -67,10 +67,35 @@ export async function serve(distDir, dataDir, base = "/Fantasy/nfl/") {
            url: `http://127.0.0.1:${server.address().port}${base}` };
 }
 
-/** Raest Chrome og skilar CDP-tengingu. */
-export async function launch({ width = 1440, height = 900 } = {}) {
+/**
+ * Raest Chrome og skilar CDP-tengingu.
+ *
+ * BIDTIMINN ER RUMUR AF ASTAEDU. Fyrsta utgafan beid 60 x 120 ms = 7,2 s
+ * og STOÐST eitt og ser — en fell thegar hun keyrdi a eftir threttan
+ * odrum sofnum, thvi Chrome raesist haegar undir alagi. Su bilun sagdi
+ * "appid hledst ekki", sem er RONG greining: appid var i lagi og
+ * vafrinn var enn ad vakna.
+ *
+ * FLOKTANDI PROF ER VERRA EN EKKERT — thad kennir manni ad hunsa
+ * rautt. Thess vegna: rumur bidtimi, ONNUR TILRAUN ef su fyrsta
+ * brestur, og villuskilabod sem segja HVAD brast (raesing vafrans) svo
+ * enginn lesi thad sem utlitsvillu.
+ */
+export async function launch(opts = {}) {
+  try { return await launchOnce(opts); }
+  catch (e) {
+    /* Ein onnur tilraun med hreint bord — port getur verid upptekid
+       af Chrome sem er enn ad loka ser. */
+    await new Promise((r) => setTimeout(r, 1500));
+    return launchOnce(opts);
+  }
+}
+
+async function launchOnce({ width = 1440, height = 900 } = {}) {
   if (!CHROME) throw new Error("Chrome fannst ekki");
-  const port = 9000 + Number(process.hrtime.bigint() % 900n);
+  /* Portid er dregid af ferli-audkenni OG tima svo tvaer keyrslur i
+     rod lendi ekki a sama porti. */
+  const port = 9000 + ((process.pid * 7919 + Number(process.hrtime.bigint() % 997n)) % 900);
   const proc = spawn(CHROME, [
     "--headless=new", `--remote-debugging-port=${port}`,
     `--window-size=${width},${height}`,
@@ -82,14 +107,17 @@ export async function launch({ width = 1440, height = 900 } = {}) {
 
   /* Bidum eftir ad bokunin svari. Chrome tekur ~0,3-1,5 s ad raesa. */
   let info = null;
-  for (let i = 0; i < 60 && !info; i++) {
-    await new Promise((r) => setTimeout(r, 120));
+  for (let i = 0; i < 80 && !info; i++) {
+    await new Promise((r) => setTimeout(r, 250));
     try {
       const r = await fetch(`http://127.0.0.1:${port}/json/version`);
       if (r.ok) info = await r.json();
     } catch { /* enn ad raesa */ }
   }
-  if (!info) { proc.kill(); throw new Error("Chrome svaradi ekki"); }
+  if (!info) {
+    proc.kill();
+    throw new Error(`Chrome svaradi ekki a porti ${port} eftir 20 s — RAESINGARBILUN, ekki utlitsvilla`);
+  }
 
   const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
   const page = targets.find((t) => t.type === "page") || targets[0];
@@ -134,15 +162,38 @@ export async function launch({ width = 1440, height = 900 } = {}) {
       }
       return r.result.value;
     },
+    /**
+     * BIDID EFTIR `load` ER NAUÐSYNLEGT, EKKI KURTEISI.
+     *
+     * Fyrsta utgafan flakkadi og byrjadi strax ad spyrja um DOM. Thad
+     * STOÐST eitt og ser en fell thegar prófið keyrdi a eftir threttan
+     * odrum sofnum: `Runtime.evaluate` var bundid vid keyrsluhengi sem
+     * flakkid hafdi eytt, svo hvert kall skiladi 0 — i 30 sekundur —
+     * og PROFID SAGDI "appid hledst ekki" thott appid vaeri i lagi.
+     * Naesta kall a eftir fann flipana umsvifalaust, sem var visbend-
+     * ingin: thetta var HENGI-vandamal, ekki hledslu-vandamal.
+     *
+     * Rong greining i profi er verri en fall — hun sendir mann af stad
+     * ad leita ad villu sem er ekki til. Nu er beðið eftir `load` fra
+     * vafranum sjalfum adur en nokkud er spurt.
+     */
     async goto(url) {
+      const before = events.length;
       await send("Page.navigate", { url });
-      /* Bidum eftir ad React se buid ad teikna. `#root` med born
-         dugar; timamork svo profid hangi ekki ad eilifu. */
+      /* Bidum eftir ad vafrinn segi ad sidan se hladin. */
       for (let i = 0; i < 100; i++) {
-        await new Promise((r) => setTimeout(r, 150));
-        const ready = await this.eval(
-          "return !!document.querySelector('#root')?.children.length");
-        if (ready) return true;
+        if (events.slice(before).some((e) =>
+          e.method === "Page.loadEventFired" || e.method === "Page.frameStoppedLoading")) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      /* Og sidan eftir ad React hafi teiknad i thad hengi. */
+      for (let i = 0; i < 120; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+        try {
+          const ready = await this.eval(
+            "return !!document.querySelector('#root')?.children.length");
+          if (ready) return true;
+        } catch { /* hengi enn ad skipta um — reynt aftur */ }
       }
       return false;
     },

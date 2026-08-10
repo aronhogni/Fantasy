@@ -55,6 +55,75 @@ export const DEFAULT_LEAGUE = {
 };
 
 /**
+ * ÞVINGAR DEILDINA I GILT SNID — EINN ONYTUR REITUR KOSTAR BARA SIG.
+ *
+ * ÞETTA VAR RAUNVERULEG VILLA OG HUN VAR VARANLEG. Deildin er lesin
+ * ur `localStorage` og DREIFT YFIR sjalfgefnu gildin:
+ *
+ *   { ...DEFAULT_LEAGUE, ...loadState("league", {}) }
+ *
+ * Gerdarvordurinn i `loadState` ber saman `typeof` og `Array.isArray`
+ * — og HVER hlutur stenst thad prof, thvi sjalfgefna gildid er `{}`.
+ * Svo `{"teams":"abc"}` yfirskrifadi goda talningu, `replacementRanks`
+ * reiknadi `(st[pos]||0) * "abc"` og HVER EINASTA VBD-tala vard NaN.
+ * Blobbid er i vafranum og fer hvergi, svo skjarinn syndi NaN vid
+ * HVERJA hledslu — ad eilifu, thangad til notandinn hreinsadi geymslu
+ * sem hann veit ekki ad se til.
+ *
+ * Sama aett og `benchSwaps` i FPL-verkefninu: `{"1":"x"}` er gildur
+ * hlutur en `"x".forEach` fellur. **Ytri gerd dugar ekki thegar
+ * hluturinn ber hluti.**
+ *
+ * LAUSNIN ER EKKI AD HENDA VISTUDU ASTANDI. Thad vaeri ad henda
+ * raunverulegri deildarstillingu notandans i hvert sinn sem eitt svid
+ * er skakkt. Hver reitur er thvingadur FYRIR SIG og fellur i
+ * sjalfgefna gildid sitt eitt og ser.
+ */
+export function normalizeLeague(raw) {
+  const L = { ...DEFAULT_LEAGUE };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return L;
+
+  const int = (v, lo, hi) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= lo && n <= hi ? n : null;
+  };
+
+  const teams = int(raw.teams, 4, 20);
+  if (teams != null) L.teams = teams;
+
+  if (["ppr", "half-ppr", "standard"].includes(raw.scoring)) L.scoring = raw.scoring;
+
+  if (raw.starters && typeof raw.starters === "object" && !Array.isArray(raw.starters)) {
+    const st = {};
+    for (const [pos, n] of Object.entries(raw.starters)) {
+      const v = int(n, 0, 6);
+      if (v != null) st[pos] = v;
+    }
+    /* Deild an nokkurs byrjunarsaetis er ekki deild. Fannst ekkert
+       nothaeft er sjalfgefna snidid latid standa. */
+    if (Object.values(st).some((v) => v > 0)) L.starters = st;
+  }
+
+  if (raw.maxPos && typeof raw.maxPos === "object" && !Array.isArray(raw.maxPos)) {
+    const mp = {};
+    for (const [pos, n] of Object.entries(raw.maxPos)) {
+      const v = int(n, 1, 20);
+      if (v != null) mp[pos] = v;
+    }
+    if (Object.keys(mp).length) L.maxPos = mp;
+  }
+
+  if (Array.isArray(raw.flexPos) && raw.flexPos.every((p) => typeof p === "string")) {
+    L.flexPos = raw.flexPos;
+  }
+  const rounds = int(raw.rounds, 1, 40);
+  if (rounds != null) L.rounds = rounds;
+  if (typeof raw.superflex === "boolean") L.superflex = raw.superflex;
+
+  return L;
+}
+
+/**
  * Byggir leikmannarodirnar.
  *
  * `players`  data/players.json

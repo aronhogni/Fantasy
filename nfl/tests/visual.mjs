@@ -45,11 +45,18 @@ const b = await launch({ width: 1440, height: 900 });
 /* Bidum eftir ad flipar seu komnir — `#root` med born dugar ekki,
    thad er satt um leid og skelin teiknast. */
 const ready = async () => {
-  for (let i = 0; i < 60; i++) {
-    const n = await b.eval("return document.querySelectorAll('button.tab').length");
-    if (n >= 6) return true;
-    await new Promise((r) => setTimeout(r, 200));
+  /* 30 s. Undir alagi (threttan sofn a undan) tekur bædi Chrome-raesing
+     og fyrsta teikning lengri tima, og of stuttur bidtimi gaf floktandi
+     "appid hledst ekki" sem var RONG greining. */
+  let last = null, err = null;
+  for (let i = 0; i < 120; i++) {
+    try {
+      last = await b.eval("return document.querySelectorAll('button.tab').length");
+    } catch (e) { err = String(e.message).slice(0, 120); }
+    if (last >= 6) return true;
+    await new Promise((r) => setTimeout(r, 250));
   }
+  console.log(`     (sidasta talning: ${last}, villa: ${err || "engin"})`);
   return false;
 };
 

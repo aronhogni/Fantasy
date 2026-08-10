@@ -6,7 +6,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import * as D from "./data.js";
-import { buildRows, DEFAULT_LEAGUE } from "./build.js";
+import { buildRows, DEFAULT_LEAGUE, normalizeLeague } from "./build.js";
 import DraftBoard from "./DraftBoard.jsx";
 import Experts from "./Experts.jsx";
 import PlayerTable from "./PlayerTable.jsx";
@@ -28,10 +28,18 @@ const TABS = [
 ];
 
 export default function App() {
-  const [view, setView] = useState(() => D.loadState("view", "draft"));
-  const [league, setLeague] = useState(() => ({
-    ...DEFAULT_LEAGUE, ...D.loadState("league", {}),
-  }));
+  /* VISTAD FLIPAHEITI VERDUR AD VERA FLIPI SEM ER TIL.
+     `nfl_view = "eitthvad-annad"` gaf AUDAN SKJA — hver `view === k`
+     grein var osonn, svo ekkert var teiknad nema flipastikan. Og thad
+     var varanlegt: gildid situr i vafranum og fer hvergi. Flipi sem
+     hverfur i endurskrifun (eda gamalt heiti ur eldri utgafu) hefdi
+     gert nakvaemlega thad sama vid notanda sem hafdi hann opinn. */
+  const [view, setView] = useState(() => {
+    const saved = D.loadState("view", "draft");
+    return TABS.some(([k]) => k === saved) ? saved : "draft";
+  });
+  /* Hver reitur thvingadur fyrir sig — sja `normalizeLeague`. */
+  const [league, setLeague] = useState(() => normalizeLeague(D.loadState("league", {})));
   const [core, setCore] = useState(null);
   const [err, setErr] = useState(null);
   const [extra, setExtra] = useState({});      // letihladnar skrar

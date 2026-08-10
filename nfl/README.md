@@ -1039,6 +1039,53 @@ draft-pörunin er rétt í grunninn.
 
 ---
 
+## 6d. Vistað ástand og Sleeper-tengingin — 10.8.2026
+
+### Vistað ástand er alvarlegra en vantandi gögn
+
+Úr FPL-verkefninu orðrétt: *„`data/` lagast við næstu sókn, en blobbið er í
+vafranum og fer hvergi."* `loadState` bar þegar ytri gerðarvörn — en hún dugði
+ekki, því fallbackið fyrir deildina er **tómur hlutur** og *hver* hlutur stenst
+`typeof`-prófið. Svo var honum dreift **yfir** sjálfgefnu gildin.
+
+`saved-state.mjs` keyrir **28 skemmd blob**, öll gilt JSON. Tvö felldu appið:
+
+| blob | afleiðing |
+|---|---|
+| `nfl_league = {"teams":"abc"}` | `(st[pos]\|\|0) * "abc"` → **hver einasta VBD-tala NaN**, við hverja hleðslu, að eilífu |
+| `nfl_view = "ekki-flipi"` | hver `view === k` grein ósönn → **auður skjár**, varanlega |
+
+Lausnin er **ekki** að henda vistuðu ástandi — það væri að henda deildar-
+stillingu notandans í hvert sinn sem eitt svið er skakkt. `normalizeLeague`
+þvingar **hvern reit fyrir sig**, svo einn ónýtur kostar bara sig sjálfan, og
+flipaheiti er borið við `TABS`. Prófið krefst líka þess að **gilt ástand fari
+óbreytt í gegn** — annars væri „lagfæringin" að eyða plönun notandans.
+
+### Sleeper-tengingin hafði aldrei séð rétt löguð svör
+
+Úttektin hermdi aðeins **bilun** (HTTP 500). Hún sagði ekkert um það sem
+raunverulega gerist: að Sleeper svari rétt. `sleeper.mjs` keyrir sjö
+atburðarásir draft-kvöldsins gegn svörum í réttu sniði — draft óbyrjað, í gangi,
+búið, val á leikmanni utan borðsins, **vörn þar sem `player_id` er liðsskammstöfun
+en ekki tala**, draft án stillinga, og svið sem vantar — auk þriggja bilana
+(404, net dettur út, svarið er ekki JSON).
+
+**Og hún prófar að tengingin geri sitt verk, ekki bara að ekkert hrynji:** eftir
+samstillingu eru 20 leikmenn strikaðir út, **tveir réttir** lenda í mínum hóp
+(sæti 7 af 12), og sá sem var tekinn er ekki lengur boðinn. Stökkbreyting sem
+hunsaði sætið felldi það með tölunni 0.
+
+### Flöktandi próf er verra en ekkert
+
+`visual.mjs` féll í 2 af 3 heildarkeyrslum með *„appið hleðst ekki"* — en stóðst
+alltaf eitt og sér. Mælirinn sagði `0 flipar` í 30 sekúndur og næsta kall fann þá
+umsvifalaust. **Það var ekki hleðsluvandamál heldur CDP-hengi:** `Runtime.evaluate`
+var bundið við keyrsluhengi sem flakkið hafði eytt. Nú er beðið eftir
+`Page.loadEventFired` frá vafranum áður en nokkuð er spurt. **Röng greining í
+prófi er verri en fall — hún sendir mann af stað að leita að villu sem er ekki til.**
+
+---
+
 ## 6c. Útlitið — mælt í alvöru vafra
 
 `layout.mjs` keyrir í jsdom og `visual.mjs` keyrir **alvöru Chrome** í
