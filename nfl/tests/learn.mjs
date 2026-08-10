@@ -218,5 +218,44 @@ console.log("\ntilraunir sem voru felldar (bord-rodun)");
     `kvikt VBD er hvergi marktaek baeting (${better} af ${dyn * 2} frumum)`);
 }
 
+/* ============================================================
+   HEITT UPPHAF — STERKASTA MERKID I LEIFINNI, OG THAD DUGDI EKKI
+   ============================================================
+   `feature-probe` profadi 14 breytur gegn leif spar Sleeper. Allt var
+   undir |r| = 0,14 og jointLift var NEIKVAETT (-0,071). Einn reitur
+   stod eftir: "fyrstu 4 leikir sidasta timabils" gegn leifinni,
+   **r = -0,224 hja hlaupurum** — sa sem byrjadi heitt stendur UNDIR
+   spanni sinni, sem er afturhvarf til medaltals sem spain hefur ekki
+   melt.
+
+   Su tilgata var profud a REKSTRAR-maelikvardanum, ekki fylgninni:
+
+     fftoday  best +30,9 stig, t=0,70 · og w=0,15 gefur -144,6 (t=-2,12)
+     sleeper  HVER EINASTA vog tapar, 0/5 ar, t = -3,2
+
+   Merkid er ekki bara gagnslaust heldur SKADLEGT thegar thvi er beitt.
+   Einn reitur af 56 sem litur sterkur ut er vaentanlega sterkur af
+   tilviljun — og fylgni i toflu er tilgata, ekki nidurstada.        */
+console.log("\nheitt upphaf: sterkasta leifar-merkid");
+{
+  let seen = 0;
+  for (const f of ["first4_ppr_sleeper", "first4_ppr_fftoday"]) {
+    const p = path.join(DATA, `${f}.json`);
+    if (!existsSync(p)) continue;
+    seen++;
+    const j = JSON.parse(readFileSync(p, "utf8"));
+    ok(Math.abs(j.selfTest.mean) < 0.05,
+      `${f}: w=0 er hlutlaust (${j.selfTest.mean})`);
+    ok(j.verdict === "FELLUR",
+      `${f}: leidrettingin fellur (best ${j.best.mean} stig, t=${j.best.t})`);
+    /* Og hun ma ekki laumast inn bakdyramegin: se HAESTA vogin jakvaed
+       vaeri einhver freistadur til ad nota hana. */
+    const heavy = j.variants.filter((v) => v.w >= 0.15);
+    ok(heavy.every((v) => v.mean <= 0),
+      `${f}: haestu vogirnar eru allar neikvaedar (${heavy.map((v) => v.mean).join(", ")})`);
+  }
+  ok(seen >= 1, `${seen} heitt-upphaf tilraunir lesnar af diski`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

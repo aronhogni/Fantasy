@@ -872,6 +872,35 @@ skilja.
 
 ---
 
+## 5j. Sterkasta merkið í leifinni — og af hverju það dugði ekki
+
+`feature-probe` prófaði 14 breytur gegn **leif** spár Sleeper. Allt undir
+\|r\| = 0,14, og `jointLift` var **−0,071**: að setja þær allar inn gerir spána
+**verri** út fyrir úrtak.
+
+Einn reitur stóð eftir: **„fyrstu 4 leikir síðasta tímabils" gegn leifinni,
+r = −0,224 hjá hlaupurum.** Formerkið er það sem gerir hann áhugaverðan, ekki
+stærðin — sá sem byrjaði heitt í fyrra stendur **undir** spánni sinni í ár. Það
+er afturhvarf til meðaltals sem spáin hefur ekki melt, sama ætt og
+„form er afturhvarf" í FPL-verkefninu.
+
+`first4-lab.mjs` prófaði tilgátuna á **rekstrarmælikvarðanum**, ekki fylgninni:
+
+| heimild | besta afbrigði | þyngsta vog |
+|---|---|---|
+| FFToday, 6 tímabil | +30,9 stig, **t = 0,70** | w=0,15 → **−144,6** (t=−2,12) |
+| Sleeper, 5 tímabil | +0,2 stig, t = 0,01 | **hver einasta vog tapar, 0/5 ár, t ≈ −3,2** |
+
+**Merkið er ekki bara gagnslaust heldur skaðlegt þegar því er beitt.**
+
+Lærdómurinn er almennur og hann er dýrmætari en niðurstaðan sjálf:
+**fylgni í töflu er tilgáta, ekki niðurstaða.** Reiturinn var einn af 56
+(14 breytur × 4 stöður); sterkasti reiturinn í svo stórri töflu er væntanlega
+sterkur af tilviljun. Það sem sker úr er hvort hann lifi af að vera breytt í
+ákvörðun — og hann gerði það ekki.
+
+---
+
 ## 6. Prófin
 
 **Tíu söfn í `SUITES`** (`nfl/tests/run.mjs`). Fjöldinn er reiknaður úr `SUITES`,
