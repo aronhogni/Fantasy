@@ -105,6 +105,9 @@ export const loadArankFf = (scoring) => load(`arank_${scoring}_fftoday.json`);
 /* Spyrnumenn: eina maelda reglan sem til er um saeti sem A-Ranking
    raðar ekki. Letihladin med draft-flipanum. */
 export const loadKickers = () => load("kickers.json");
+/* Hvada deildarlogun eru MAELDAR. Notandi i 14-lida superflex a rett a
+   ad vita hvort tolurnar hans voru nokkurn timann profadar. */
+export const loadShapes = () => load("shapes_sleeper.json");
 
 /* ============================================================
    BEIN DRAFT-TENGING VID SLEEPER

@@ -116,15 +116,44 @@ export function blendWeights(accuracy, { topN = 20 } = {}) {
  */
 export const FLEX_SPLIT = { RB: 0.330, WR: 0.477, TE: 0.193 };
 
+/**
+ * SUPERFLEX ER EKKI FLEX MED LEIKSTJORNANDA I VIDBOT — thad er annad
+ * saeti, og thad var HUNSAD ALVEG.
+ *
+ * VILLAN: `replacementRanks` dreifdi FLEX-saetum eftir maeldu
+ * hlutfalli en tok ekki eftir `SUPERFLEX` ne `league.superflex`. I
+ * superflex-deild var QB-threpid thvi reiknad sem QB12 — NAKVAEMLEGA
+ * sama tala og i venjulegri deild — thott naerri tvofalt fleiri
+ * leikstjornendur byrji. Leikstjornendur voru thar med storlega
+ * VANMETNIR i einu af theim sniðum sem appid bydur upp a, og enginn
+ * dalkur syndi thad.
+ *
+ * MAELT EINS OG FLEX_SPLIT, ekki giskad: `superflex-lab.mjs` fyllir
+ * fost saeti fyrir hverja viku 2019-2025 (124 vikur, 1.488 saeti) og
+ * telur hvada stodu sa hefur sem endar i superflex-saetinu.
+ *
+ *   QB 86,0%  ·  RB 5,7%  ·  WR 4,7%  ·  TE 3,6%
+ *
+ * I 12-lida deild faerir thad QB-threpid ur 12 i 22. Ad giska a
+ * "QB naestum alltaf" hefdi verid naerri lagi — en omaeld tala sem
+ * situr vid hlidina a maeldum tolum og litur eins ut er versta
+ * utkoman.
+ */
+export const SUPERFLEX_SPLIT = { QB: 0.860, RB: 0.057, WR: 0.047, TE: 0.036 };
+
 export function replacementRanks(league) {
   const t = league.teams || 12;
   const st = league.starters || { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1 };
   const flex = (st.FLEX || 0) * t;
+  /* Baðar leidirnar ad segja "thessi deild er superflex" eru virtar:
+     saeti i `starters` eda flaggid a deildinni sjalfri. */
+  const sflex = ((st.SUPERFLEX || 0) || (league.superflex ? 1 : 0)) * t;
   const out = {};
   for (const pos of ["QB", "RB", "WR", "TE", "K", "DST"]) {
     const base = (st[pos] || 0) * t;
     const extra = FLEX_SPLIT[pos] ? Math.round(flex * FLEX_SPLIT[pos]) : 0;
-    out[pos] = base + extra;
+    const sExtra = SUPERFLEX_SPLIT[pos] ? Math.round(sflex * SUPERFLEX_SPLIT[pos]) : 0;
+    out[pos] = base + extra + sExtra;
   }
   return out;
 }

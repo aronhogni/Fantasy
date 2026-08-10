@@ -1,0 +1,53 @@
+{
+ "generated": "2026-08-10T00:20:33.651Z",
+ "provenance": {
+  "generated": "2026-08-10T00:20:33.651Z",
+  "argv": [
+   "--teams=12",
+   "--scoring=ppr"
+  ],
+  "params": {
+   "teams": {
+    "value": "12",
+    "fromDefault": false
+   },
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": false
+   }
+  },
+  "inputs": {},
+  "node": "v26.5.0"
+ },
+ "teams": 12,
+ "scoring": "ppr",
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "weeks": 124,
+ "filled": 1488,
+ "split": {
+  "QB": 0.86,
+  "RB": 0.057,
+  "WR": 0.047,
+  "TE": 0.036
+ },
+ "shift": {
+  "QB": 10,
+  "RB": 1,
+  "WR": 1,
+  "TE": 0
+ },
+ "medianDepth": {
+  "QB": 18,
+  "RB": 25,
+  "WR": 38,
+  "TE": 14
+ }
+}

@@ -901,6 +901,70 @@ sterkur af tilviljun. Það sem sker úr er hvort hann lifi af að vera breytt �
 
 ---
 
+## 5k. Gildir þetta í ÞINNI deild? — og villan sem það afhjúpaði
+
+Allt annað í verkefninu var mælt í **einni** deild: 12 lið, einn leikstjórnandi.
+Hún var valin því hún er algengust — en appið leyfir 8–16 lið og superflex, og
+**varamannsþrepið ER deildarstærð**. `shape-lab.mjs` keyrði 16 lagnir.
+
+**Villan sem fannst:** `replacementRanks` dreifði FLEX-sætum eftir mældu
+hlutfalli en **hunsaði SUPERFLEX alveg**. Í superflex-deild var QB-þrepið
+reiknað sem QB12 — nákvæmlega sama tala og í venjulegri deild — þótt nærri
+tvöfalt fleiri leikstjórnendur byrji. Leikstjórnendur voru því **stórlega
+vanmetnir** í einu af þeim sniðum sem appið býður upp á, og enginn dálkur sýndi það.
+
+**Mælt, ekki giskað** (`superflex-lab.mjs`, sama aðferð og `FLEX_SPLIT`):
+124 vikur 2019–2025, 1.488 superflex-sæti fyllt, talið hvaða stöðu sá hefur sem
+endar í sætinu.
+
+| staða | hlutfall |
+|---|---|
+| **QB** | **86,0%** |
+| RB | 5,7% |
+| WR | 4,7% |
+| TE | 3,6% |
+
+Í 12-liða deild færir það QB-þrepið **úr 12 í 22**. Að giska á „QB næstum alltaf"
+hefði verið nærri lagi — en ómæld tala sem situr við hliðina á mældum tölum og
+lítur eins út er versta útkoman.
+
+### Niðurstaðan yfir lagnir
+
+- **Gegn ADP: jákvætt í 12 af 12 gildum lögnum** (+169 til +322 stig).
+- **Gegn hrárri spá-röð: 14 af 16.**
+
+### Og hvað hún hvílir á
+
+Sama tafla á FFToday: **4 af 16**. Skýringin er mæld á nákvæmlega sömu 839 röðum:
+
+| | vs raunstig |
+|---|---|
+| Sleeper | **0,696** |
+| FFToday | 0,628 |
+| ADP | 0,452 |
+
+Per stöðu er FFToday **varla betri en ADP** (RB 0,596/0,589 · WR 0,565/0,556 ·
+TE 0,451/**0,453** — þar verri). Það er einfaldlega **ekkert umfram markaðinn til
+að umreikna.** VBD bregst ekki; inntakið ber ekkert.
+
+> **Fullyrðingin sem stenst er því nákvæmari en „A-Ranking slær ADP":**
+> *spá Sleeper, umreiknuð í virði yfir varamanni, slær ADP.* Umreikningurinn
+> endurtekst á báðum heimildum (14/16 og 10/16); **forskotið á markaðinn gerir það
+> ekki, og það er af því að FFToday-spáin ber ekkert umfram markaðinn.**
+> Appið notar Sleeper.
+
+### Fjórar lagnir bera **enga** ADP-tölu, viljandi
+
+Sögulegt ADP sem við eigum er úr **eins-QB** deildum. Í superflex- og 2QB-lögnum
+draftar völlurinn því eftir röngu borði og skilur eftir leikstjórnendur sem
+raunverulegt superflex-herbergi hefði tekið strax. Borð sem metur QB rétt „vinnur"
+þá gegn andstæðingi sem er að spila vitlaust — og sú tala mælir **mistök
+vallarins**, ekki gæði borðsins. 2QB-ADP er til fyrir yfirstandandi tímabil
+(`ffc_2qb_12`, 219 leikmenn úr 2.912 dröftum) en ekki sögulega, svo þetta er
+takmörkun sem er skráð, ekki löguð.
+
+---
+
 ## 6. Prófin
 
 **Tíu söfn í `SUITES`** (`nfl/tests/run.mjs`). Fjöldinn er reiknaður úr `SUITES`,

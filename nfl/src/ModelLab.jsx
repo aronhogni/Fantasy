@@ -13,7 +13,7 @@
 import React, { useMemo, useState } from "react";
 
 export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league, rows,
-                                  arankPpr, arankStd, arankFfPpr, arankFfStd }) {
+                                  arankPpr, arankStd, arankFfPpr, arankFfStd, shapes }) {
   const std = league.scoring === "standard";
   const ev = std ? evalStd : evalPpr;
   const st = std ? stratStd : stratPpr;
@@ -56,7 +56,8 @@ export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league,
         </div>
       </div>
 
-      {tab === "rank" && <Rankings ev={ev} ar={ar} arFf={arFf} std={std} />}
+      {tab === "rank" && <Rankings ev={ev} ar={ar} arFf={arFf} std={std}
+                                   shapes={shapes} league={league} />}
       {tab === "signal" && <Signal ev={ev} />}
       {tab === "order" && <Order st={st} std={std} />}
       {tab === "vs" && <VsSleeper rows={rows} ev={ev} />}
@@ -67,7 +68,7 @@ export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league,
 /* ============================================================
    1. HVADA RODUN VINNUR?
    ============================================================ */
-function Rankings({ ev, ar, arFf, std }) {
+function Rankings({ ev, ar, arFf, std, shapes, league }) {
   if (!ev) return <div className="panel"><div className="empty">No data.</div></div>;
   const rows = ev.models.filter((m) => m.draftCommon != null)
     .sort((a, b) => b.draftCommon - a.draftCommon);
@@ -143,6 +144,7 @@ function Rankings({ ev, ar, arFf, std }) {
           </div>
           {ar && ar.headToHead && <HeadToHead ar={ar} std={std} />}
           {arFf && arFf.headToHead && <Replication ar={ar} ff={arFf} std={std} />}
+          {shapes && shapes.shapes && <Shapes shapes={shapes} std={std} league={league} />}
         </div>
       )}
 
@@ -663,6 +665,95 @@ function Replication({ ar, ff, std }) {
               of replacement-level value in general.</b> The ordering is still what the
               app uses — it beats ADP on both sources — but do not read the season sweep
               as settled.</>}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   GILDIR THETTA I MINNI DEILD?
+   ============================================================
+   Allt annad i thessum flipa var maelt i EINNI deild: 12 lid, einn
+   leikstjornandi. Hun var valin thvi hun er algengust — en appid
+   leyfir 8 til 16 lid og superflex, og varamanns-threpid ER
+   deildarstaerd. Med 10 lidum er varamadurinn betri en med 14, svo
+   VBD-bilin thjappast; i superflex fer QB ur einu saeti af niu i tvo.
+
+   `shape-lab.mjs` keyrdi 16 logunum. Nidurstadan gegn ADP er
+   16 af 16 jakvaed — en HUN A HEIMILDINA AD BAKI SER, ekki adferdina
+   eina, og thad er sagt i Replication-spjaldinu fyrir ofan.        */
+function Shapes({ shapes, std, league }) {
+  const rows = Object.values(shapes.shapes)
+    .filter((r) => r.scoring === (std ? "standard" : "ppr"));
+  if (!rows.length) return null;
+
+  /* Hvada rod passar vid deildina sem notandinn hefur stillt? */
+  const sf = league.superflex || (league.starters && league.starters.SUPERFLEX);
+  const flex = (league.starters && league.starters.FLEX) || 1;
+  const qb = (league.starters && league.starters.QB) || 1;
+  const mine = sf ? "12-sflex" : qb >= 2 ? "12-2qb" : flex >= 2 ? "12-2flex"
+    : `${league.teams}-std`;
+
+  return (
+    <div className="panel">
+      <h2>Is this measured for your league?</h2>
+      <div className="sub">
+        Everything above was measured in one league shape — twelve teams, one
+        quarterback — because it is the most common. Replacement level <i>is</i> league
+        size, so the shape matters: with ten teams the replacement player is better than
+        with fourteen, which compresses every gap.
+      </div>
+      <div className="tablewrap" style={{ marginTop: 10 }}>
+        <table className="data">
+          <thead><tr className="cols">
+            <th className="txt frozen">Shape</th>
+            <th title="Against ranking the same projection by raw points">vs raw order</th>
+            <th title="Against drafting straight off ADP">vs ADP</th>
+            <th className="txt">Seasons won</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.shape} style={r.shape === mine
+                ? { background: "rgba(53,196,122,.10)" } : undefined}>
+                <td className="txt frozen">
+                  {r.shape === mine && <span className="badge on" style={{ marginRight: 6 }}>yours</span>}
+                  {r.shape}
+                </td>
+                <td className={`mono ${r.vsRaw.mean > 0 ? "good" : "bad"}`}>
+                  {r.vsRaw.mean > 0 ? "+" : ""}{r.vsRaw.mean}
+                </td>
+                <td className={`mono ${r.adpValid === false ? "null"
+                  : r.vsAdp.mean > 0 ? "good" : "bad"}`}>
+                  {r.adpValid === false ? "—" : <b>{r.vsAdp.mean > 0 ? "+" : ""}{r.vsAdp.mean}</b>}
+                </td>
+                <td className="txt dim">
+                  {r.adpValid === false
+                    ? "historical ADP is one-QB, so this comparison is void"
+                    : `${r.vsAdp.wins}/${r.vsAdp.years} against ADP`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="note" style={{ marginTop: 10 }}>
+        <b>Positive against ADP in {shapes.summary.beatsAdp} of{" "}
+        {shapes.summary.validShapes} shapes where that comparison is valid</b>, and
+        against raw order in {shapes.summary.beatsRaw} of {shapes.summary.shapes}.
+        {" "}The superflex and two-quarterback rows carry no ADP number on purpose: the
+        historical ADP we have is from <b>one-quarterback</b> drafts, so the field in
+        those simulations leaves quarterbacks on the board that a real superflex room
+        would take immediately. A board that values quarterbacks correctly would "win"
+        against opponents who are playing the wrong game, and that number would measure
+        their mistake rather than our ordering. The margin is widest in
+        shallow leagues and narrows as the league deepens, which is what a
+        replacement-level argument predicts: a deeper league means a worse replacement
+        player, so more of the pool is worth starting and the ordering has less room to
+        separate.
+        {!rows.some((r) => r.shape === mine) && (
+          <> <b>Your current shape is not one of the sixteen measured</b> — the numbers
+          above are the nearest evidence, not a measurement of your league.</>
+        )}
       </div>
     </div>
   );

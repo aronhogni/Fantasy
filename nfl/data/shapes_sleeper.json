@@ -1,0 +1,586 @@
+{
+ "generated": "2026-08-10T00:22:32.850Z",
+ "provenance": {
+  "generated": "2026-08-10T00:22:32.850Z",
+  "argv": [
+   "--proj=sleeper",
+   "--runs=6"
+  ],
+  "params": {
+   "proj": {
+    "value": "sleeper",
+    "fromDefault": false
+   },
+   "runs": {
+    "value": "6",
+    "fromDefault": false
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "projection": "sleeper",
+ "shapes": {
+  "ppr|8-std": {
+   "scoring": "ppr",
+   "shape": "8-std",
+   "teams": 8,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 8,
+    "RB": 19,
+    "WR": 28,
+    "TE": 10,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 66.8,
+    "t": 1.719,
+    "wins": 4,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 314.2,
+    "t": 5.431,
+    "wins": 5,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "ppr|10-std": {
+   "scoring": "ppr",
+   "shape": "10-std",
+   "teams": 10,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 10,
+    "RB": 23,
+    "WR": 35,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 70.3,
+    "t": 6.523,
+    "wins": 5,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 274.2,
+    "t": 4.202,
+    "wins": 5,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "ppr|12-std": {
+   "scoring": "ppr",
+   "shape": "12-std",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 12,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 24.2,
+    "t": 0.477,
+    "wins": 2,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 221.6,
+    "t": 3.461,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "ppr|14-std": {
+   "scoring": "ppr",
+   "shape": "14-std",
+   "teams": 14,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 14,
+    "RB": 33,
+    "WR": 49,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 129.4,
+    "t": 1.731,
+    "wins": 4,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 269.5,
+    "t": 5.395,
+    "wins": 5,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "ppr|16-std": {
+   "scoring": "ppr",
+   "shape": "16-std",
+   "teams": 16,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 16,
+    "RB": 37,
+    "WR": 56,
+    "TE": 19,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 95.1,
+    "t": 1.036,
+    "wins": 3,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 214.5,
+    "t": 5.586,
+    "wins": 5,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "ppr|12-2flex": {
+   "scoring": "ppr",
+   "shape": "12-2flex",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 2
+   },
+   "replacement": {
+    "QB": 12,
+    "RB": 32,
+    "WR": 35,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": -33.9,
+    "t": -0.453,
+    "wins": 2,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 192.6,
+    "t": 2.787,
+    "wins": 5,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "ppr|12-sflex": {
+   "scoring": "ppr",
+   "shape": "12-sflex",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "SUPERFLEX": 1
+   },
+   "replacement": {
+    "QB": 22,
+    "RB": 25,
+    "WR": 37,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 61,
+    "t": 0.932,
+    "wins": 3,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 140.5,
+    "t": 1.801,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": false,
+   "adpNote": "sogulegt ADP er ur eins-QB deildum — samanburdurinn vid ADP er ogildur her"
+  },
+  "ppr|12-2qb": {
+   "scoring": "ppr",
+   "shape": "12-2qb",
+   "teams": 12,
+   "starters": {
+    "QB": 2,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 24,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 2.4,
+    "t": 0.05,
+    "wins": 2,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 252.7,
+    "t": 1.906,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": false,
+   "adpNote": "sogulegt ADP er ur eins-QB deildum — samanburdurinn vid ADP er ogildur her"
+  },
+  "standard|8-std": {
+   "scoring": "standard",
+   "shape": "8-std",
+   "teams": 8,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 8,
+    "RB": 19,
+    "WR": 28,
+    "TE": 10,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 226.6,
+    "t": 7.411,
+    "wins": 5,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 227.8,
+    "t": 3.146,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "standard|10-std": {
+   "scoring": "standard",
+   "shape": "10-std",
+   "teams": 10,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 10,
+    "RB": 23,
+    "WR": 35,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 195.5,
+    "t": 9.316,
+    "wins": 5,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 231.9,
+    "t": 2.986,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "standard|12-std": {
+   "scoring": "standard",
+   "shape": "12-std",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 12,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 100.4,
+    "t": 2.994,
+    "wins": 5,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 234,
+    "t": 2.959,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "standard|14-std": {
+   "scoring": "standard",
+   "shape": "14-std",
+   "teams": 14,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 14,
+    "RB": 33,
+    "WR": 49,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 72.3,
+    "t": 1.555,
+    "wins": 4,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 217.7,
+    "t": 2.694,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "standard|16-std": {
+   "scoring": "standard",
+   "shape": "16-std",
+   "teams": 16,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 16,
+    "RB": 37,
+    "WR": 56,
+    "TE": 19,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 31.7,
+    "t": 0.501,
+    "wins": 3,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 169,
+    "t": 1.111,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "standard|12-2flex": {
+   "scoring": "standard",
+   "shape": "12-2flex",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 2
+   },
+   "replacement": {
+    "QB": 12,
+    "RB": 32,
+    "WR": 35,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 35.1,
+    "t": 1.963,
+    "wins": 4,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 236.3,
+    "t": 3.459,
+    "wins": 5,
+    "years": 5
+   },
+   "adpValid": true,
+   "adpNote": null
+  },
+  "standard|12-sflex": {
+   "scoring": "standard",
+   "shape": "12-sflex",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "SUPERFLEX": 1
+   },
+   "replacement": {
+    "QB": 22,
+    "RB": 25,
+    "WR": 37,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": 27,
+    "t": 0.917,
+    "wins": 3,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 79.7,
+    "t": 0.956,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": false,
+   "adpNote": "sogulegt ADP er ur eins-QB deildum — samanburdurinn vid ADP er ogildur her"
+  },
+  "standard|12-2qb": {
+   "scoring": "standard",
+   "shape": "12-2qb",
+   "teams": 12,
+   "starters": {
+    "QB": 2,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "replacement": {
+    "QB": 24,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "vsRaw": {
+    "mean": -7.1,
+    "t": -0.194,
+    "wins": 2,
+    "years": 5
+   },
+   "vsAdp": {
+    "mean": 321.9,
+    "t": 2.664,
+    "wins": 4,
+    "years": 5
+   },
+   "adpValid": false,
+   "adpNote": "sogulegt ADP er ur eins-QB deildum — samanburdurinn vid ADP er ogildur her"
+  }
+ },
+ "summary": {
+  "shapes": 16,
+  "validShapes": 12,
+  "beatsAdp": 12,
+  "beatsRaw": 14,
+  "worstVsAdp": {
+   "shape": "16-std",
+   "scoring": "standard",
+   "mean": 169
+  }
+ }
+}

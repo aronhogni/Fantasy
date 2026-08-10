@@ -271,5 +271,74 @@ console.log("\ntimabils-summa gegn vikulegri talningu");
   ok(seen >= 2, `${seen} vikulegar stadfestingar lesnar af diski`);
 }
 
+/* ============================================================
+   DEILDARLOGUN — GILDIR THETTA I FLEIRI EN EINNI DEILD?
+   ============================================================
+   Allt annad var maelt i 12-lida deild med einum leikstjornanda.
+   `shape-lab.mjs` keyrdi 16 logunum (8-16 lid, tvofaldur flex,
+   superflex, 2QB) yfir baðar stigagjafir.
+
+   OG THAD AFHJUPADI HVAD NIDURSTADAN HVILIR A. Med spa Sleeper slaer
+   A-Ranking ADP i 16 af 16 logunum (+169 til +322). Med FFToday i
+   adeins 4 af 16. Skyringin er maeld a NAKVAEMLEGA SOMU 839 rodum:
+
+     vs raunstig   sleeper 0,696 · fftoday 0,628 · ADP 0,452
+     per stodu er FFToday varla betri en ADP (RB 0,596/0,589,
+     TE 0,451/0,453 — thar VERRI)
+
+   Thad er ekkert umfram markadinn til ad umreikna. VBD bregst ekki;
+   inntakid ber ekkert. Appid notar Sleeper, sterkari heimildina.  */
+console.log("\ndeildarlogun");
+{
+  const p = path.join(DATA, "shapes_sleeper.json");
+  if (!existsSync(p)) {
+    console.log("  (shapes_sleeper.json vantar — keyrdu scripts/shape-lab.mjs)");
+  } else {
+    const S = JSON.parse(readFileSync(p, "utf8"));
+    const rows = Object.values(S.shapes);
+    ok(rows.length >= 12, `${rows.length} deildarlogun maeldar`);
+
+    /* Logunin sem appid er sjalfgefid stillt a VERDUR ad vera med. */
+    for (const k of ["ppr|12-std", "standard|12-std", "ppr|12-sflex", "ppr|10-std"]) {
+      ok(S.shapes[k] != null, `${k} er maeld`);
+    }
+
+    /* Kjarna-fullyrdingin sem vidmotid birtir. */
+    /* ADEINS GILDU LOGUNIN eru taldar — sogulegt ADP er ur eins-QB
+       deildum, svo superflex/2QB-samanburdurinn maelir mistok vallarins
+       en ekki gaedi bordsins. Ad telja thau med vaeri ad styrkja
+       nidurstoduna med tolu sem vid vitum ad er ogild. */
+    ok(S.summary.validShapes < rows.length,
+      `${rows.length - S.summary.validShapes} logun merkt ogild gegn ADP`);
+    ok(rows.filter((r) => r.adpValid === false)
+        .every((r) => /eins-QB/.test(r.adpNote || "")),
+      "hver ogild logun ber skyringu, ekki bara flagg");
+    ok(S.summary.beatsAdp >= S.summary.validShapes * 0.75,
+      `slaer ADP i ${S.summary.beatsAdp} af ${S.summary.validShapes} GILDUM logunum`);
+    ok(S.summary.beatsRaw >= rows.length * 0.6,
+      `slaer hra spa-rod i ${S.summary.beatsRaw} af ${rows.length}`);
+
+    /* Varamanns-threpid VERDUR ad vaxa med deildarstaerd — annars er
+       `replacementRanks` ekki ad lesa deildina og allar tolurnar hér
+       eru sama maelingin endurtekin. */
+    const t8 = S.shapes["ppr|8-std"], t16 = S.shapes["ppr|16-std"];
+    if (t8 && t16) {
+      ok(t16.replacement.RB > t8.replacement.RB * 1.5,
+        `varamanns-threp RB vex med deild (8 lid: ${t8.replacement.RB}, ` +
+        `16 lid: ${t16.replacement.RB})`);
+    }
+    /* Og superflex VERDUR ad faera QB-threpid nidur (fleiri QB byrja). */
+    const sf = S.shapes["ppr|12-sflex"], st = S.shapes["ppr|12-std"];
+    if (sf && st) {
+      /* MAELT, EKKI GISKAD: `superflex-lab.mjs` taldi 1.488 superflex-
+         saeti yfir 124 vikur — QB fyllir 86,0% theirra. I 12-lida deild
+         faerir thad threpid ur 12 i 22. Adur var thad 12 i BADUM
+         sniðum og leikstjornendur thvi storlega vanmetnir i superflex. */
+      ok(sf.replacement.QB >= st.replacement.QB + 8,
+        `superflex dypkar QB-threpid marktaekt (${st.replacement.QB} -> ${sf.replacement.QB})`);
+    }
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
