@@ -843,6 +843,35 @@ skref þar á milli er verra en Sleeper einn. FFToday bætir engu ofan á Sleepe
 
 ---
 
+## 5i. Forsendan sem allt hvíldi á — og var aldrei prófuð
+
+`startersPoints` leggur saman **tímabils-summu** og velur byrjunarliðið gráðuglega
+úr henni. Raunveruleg fantasy er 17 aðskildar vikulegar ákvarðanir, þar sem auð
+vika kostar, meiðsli í viku 6 eyðileggja seinni helminginn, og **dýpt** hefur
+gildi sem summan sér alls ekki. Væri röðun sem vinnur á tímabils-summu ekki sú
+sama og vinnur vikulega, þá væru **allar** aðrar mælingar í þessu verkefni að
+svara rangri spurningu.
+
+`weekly-lab.mjs` keyrir **sama draftið** og telur stigin báðar leiðir, á
+raunverulegum vikugögnum 2019–2025.
+
+| | tímabils-summa | vikulega | fylgni |
+|---|---|---|---|
+| PPR · Sleeper | +34,9 (2/5) | +62,3 (4/5) | **0,906** |
+| PPR · FFToday | +47,3 (4/7) | +49,3 (4/7) | **0,987** |
+| standard · Sleeper | +119,8 (5/5) | +94,1 (5/5) | **0,911** |
+| standard · FFToday | −22,6 (3/7) | −43,2 (3/7) | **0,889** |
+
+**Sömu sögu í öllum fjórum, sama formerki hvert einasta ár.** Tímabils-summan er
+nothæf nálgun og grunnurinn stendur. Vert að nefna: vikulega talningin er
+lítillega **hagstæðari** A-Ranking í þremur af fjórum — dýpt telur örlítið, en
+langt innan þess að breyta niðurstöðu.
+
+Vörður: `tests/accuracy.mjs` fellur ef fylgnin fer undir 0,7 eða formerkin
+skilja.
+
+---
+
 ## 6. Prófin
 
 **Tíu söfn í `SUITES`** (`nfl/tests/run.mjs`). Fjöldinn er reiknaður úr `SUITES`,

@@ -1,0 +1,90 @@
+{
+ "generated": "2026-08-10T00:04:40.711Z",
+ "provenance": {
+  "generated": "2026-08-10T00:04:40.712Z",
+  "argv": [
+   "--scoring=ppr",
+   "--proj=fftoday",
+   "--runs=6"
+  ],
+  "params": {
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": false
+   },
+   "proj": {
+    "value": "fftoday",
+    "fromDefault": false
+   },
+   "runs": {
+    "value": "6",
+    "fromDefault": false
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "scoring": "ppr",
+ "projection": "fftoday",
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "seasonTotal": {
+  "mean": 47.3,
+  "se": 65.3,
+  "t": 0.723,
+  "wins": 4,
+  "years": 7
+ },
+ "weekly": {
+  "mean": 49.3,
+  "se": 63.8,
+  "t": 0.773,
+  "wins": 4,
+  "years": 7
+ },
+ "correlation": 0.987,
+ "sameStory": true,
+ "perYear": {
+  "2019": {
+   "season": 84.1,
+   "weekly": 56.4
+  },
+  "2020": {
+   "season": 247,
+   "weekly": 222.4
+  },
+  "2021": {
+   "season": -61.7,
+   "weekly": -61.5
+  },
+  "2022": {
+   "season": -230.9,
+   "weekly": -195.5
+  },
+  "2023": {
+   "season": 124.5,
+   "weekly": 150.3
+  },
+  "2024": {
+   "season": -57.7,
+   "weekly": -80.1
+  },
+  "2025": {
+   "season": 225.6,
+   "weekly": 253.2
+  }
+ }
+}

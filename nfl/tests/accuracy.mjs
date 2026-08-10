@@ -17,6 +17,10 @@ import {
   spearman, topMae, positionHitRate, simulateDraft, simulateAllSlots,
   startersPoints, scoreBoard, rankExperts, DEFAULT_LEAGUE,
 } from "../src/accuracy.js";
+import { readFileSync, existsSync } from "node:fs";
+import path from "node:path";
+
+const DATA = path.join(path.resolve(new URL(".", import.meta.url).pathname, ".."), "data");
 
 let fail = 0;
 const ok = (c, m) => { if (c) console.log(`  ok   ${m}`); else { console.log(`  FAIL ${m}`); fail++; } };
@@ -228,6 +232,43 @@ console.log("\n7. endurgeranleiki");
   const b = simulateAllSlots({ board: field, fieldBoard: field, actual });
   ok(JSON.stringify(a.bySlot) === JSON.stringify(b.bySlot),
     "somu inntok gefa NAKVAEMLEGA somu utkomu — engin Math.random i herminum");
+}
+
+/* ============================================================
+   TIMABILS-SUMMAN GEGN VIKULEGRI TALNINGU
+   ============================================================
+   ALLT I THESSU VERKEFNI HVILIR A EINNI FORSENDU sem var aldrei
+   profud: `startersPoints` leggur saman TIMABILS-SUMMU og velur
+   byrjunarlid graduglega ur henni. Raunveruleg fantasy er 17
+   adskildar vikulegar akvardanir, thar sem aud vika kostar, meidsli i
+   viku 6 eydileggja seinni helminginn, og DYPT hefur gildi sem
+   summan sér alls ekki.
+
+   `weekly-lab.mjs` keyrir SAMA DRAFTID og telur stigin baðar leidir.
+   Maelt yfir 2019-2025 a badum spaheimildum:
+       fylgni adferdanna r = 0,987 · 0,906 · 0,889
+   Baðar segja somu soguna, med somu formerki hvert ar.
+
+   Falli thetta er timabils-summan haett ad vera nothaef nalgun og
+   ALLAR hinar maelingarnar eru ad svara rangri spurningu.          */
+console.log("\ntimabils-summa gegn vikulegri talningu");
+{
+  const files = ["weekly_check_ppr_sleeper", "weekly_check_ppr_fftoday",
+                 "weekly_check_standard_sleeper", "weekly_check_standard_fftoday"];
+  let seen = 0;
+  for (const f of files) {
+    const p = path.join(DATA, `${f}.json`);
+    if (!existsSync(p)) continue;
+    seen++;
+    const j = JSON.parse(readFileSync(p, "utf8"));
+    ok(j.correlation > 0.7,
+      `${f.replace("weekly_check_", "")}: adferdirnar fylgjast ad (r=${j.correlation})`);
+    ok((j.seasonTotal.mean > 0) === (j.weekly.mean > 0),
+      `${f.replace("weekly_check_", "")}: sama formerki ` +
+      `(${j.seasonTotal.mean} og ${j.weekly.mean})`);
+    ok(j.seasons.length >= 5, `${f.replace("weekly_check_", "")}: ${j.seasons.length} timabil`);
+  }
+  ok(seen >= 2, `${seen} vikulegar stadfestingar lesnar af diski`);
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
