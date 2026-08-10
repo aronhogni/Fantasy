@@ -242,12 +242,22 @@ if (import.meta.url === `file://${process.argv[1]}`) {
      eitthvad stendur enn eftir. Sama regla og i fetch-bsd.mjs.        */
   if (missed.length) {
     console.log(`${missed.length} matches dropped — second attempt, sequential`);
+    /* AFRIT OG TOEMT ADUR EN ENDURTEKID ER — ANNARS ER ThETTA ENDALAUS LYKKJA.
+       `grabOne` YTIR mistokum id-um AFTUR i `missed` (sja ofar). `for...of`
+       les fylkid LIFANDI, svo vidvarandi 404 lét lykkjuna eta sinar eigin
+       vidbaetur ad eilifu — og skriftan naedi ALDREI `exit 1`-vordinum sem
+       a ad koma i veg fyrir hluta-timabil. Hun hefdi hangid, ekki dait.
+       `fetch-bsd.mjs` leysti nakvaemlega thetta (afrit + `missed.length = 0`);
+       systurskriftan fekk aldrei lagfaeringuna.                          */
+    const retry = finished.filter(e => missed.includes(e.id));
+    missed.length = 0;
     const still = [];
-    for (const id of missed) {
-      const e = finished.find(x => x.id === id);
+    for (const e of retry) {
       await sleep(400);
-      try { await grabOne(e); } catch { still.push(id); }
-      if (!matches.some(m => m.event_id === id)) still.push(id);
+      /* EIN talning, ekki tvaer: adur var ytt bædi i `catch` OG i
+         `if (!matches.some(...))`, svo eitt mistekid kall taldist tvisvar. */
+      try { await grabOne(e); } catch { /* talid hér ad nedan */ }
+      if (!matches.some(m => m.event_id === e.id)) still.push(e.id);
     }
     if (still.length) {
       console.error(`${still.length} matches STILL failed — NOT WRITING A PARTIAL SEASON.`);

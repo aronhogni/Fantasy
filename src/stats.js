@@ -951,21 +951,32 @@ export function matchShotsToPlayers(rows, shotPlayers) {
   const byTeam = {};
   rowsOf(shotPlayers).forEach((sp, i) => (byTeam[sp.team] ||= []).push({ sp, i }));
 
+  /* HLUTURINN FYLGIR MED, EKKI VISITALAN — OG ThAD SKIPTIR MALI.
+     `i` er visitala i SIUDU fylki (`rowsOf` hendir null/ogildum rodum) en
+     uthlutunin las UR HRAA fylkinu (`shotPlayers[si]`). EIN null-faersla i
+     `bsd_players.json`/`last_gw_shots.json` hlidradi thvi ollum visitolum
+     a eftir henni og leikmenn fengu skot-tolur ANNARS MANNS — thogult.
+     Maelt 10.8.2026 med einni null-rod fremst: Salah fekk NULL og Gakpo
+     fekk 111 skot Salah. Thad er nakvaemlega villan sem athugasemdin hér
+     ad ofan segir ad thetta fall se til ad koma i veg fyrir (Gomes-parid).
+     Raungogn hafa engar null-radir i dag (0 af 206 og 0 af 393) svo thetta
+     var LEYND jardsprengja, ekki virk villa — en hun springur vid fyrstu
+     ogildu rod og hefdi ekki sest a skjanum.                            */
   const pairs = [];
   const R = rowsOf(rows);
   R.forEach((r, ri) => {
     for (const { sp, i } of (byTeam[r.team] || [])) {
       const sc = nameScore(r.name, sp.name);
-      if (sc >= 1) pairs.push({ ri, si: i, sc });
+      if (sc >= 1) pairs.push({ ri, si: i, sp, sc });
     }
   });
   // haesta skor fyrst; stodug rodun svo utkoman se endurtakanleg
   pairs.sort((a, b) => b.sc - a.sc || a.ri - b.ri || a.si - b.si);
 
   const takenRow = new Set(), takenShot = new Set(), assign = new Map();
-  for (const { ri, si } of pairs) {          // sc er thegar notad i rodun
+  for (const { ri, si, sp } of pairs) {      // sc er thegar notad i rodun
     if (takenRow.has(ri) || takenShot.has(si)) continue;
-    takenRow.add(ri); takenShot.add(si); assign.set(ri, shotPlayers[si]);
+    takenRow.add(ri); takenShot.add(si); assign.set(ri, sp);
   }
 
   let matched = 0, unmatched = 0;

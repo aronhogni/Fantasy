@@ -28,7 +28,7 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 export default function Leaderboard({ players, teams, teamById, Crest, onPickPlayer, seasonNote,
                                      imminent, shotsFile, fixtures, events, odds,
-                                     defcon, consist, season }) {
+                                     defcon, consist, season, bsd }) {
   /* EINN LESMATI EFTIR — YFIRLIT (8.8.2026). Thrennt fluttist eda for:
        · "Table"       -> undir Player stats sem "Build table". Su gat adeins
                           EINA tolu i einu; beidnin var ad velja MARGAR og
@@ -63,11 +63,19 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
      Audgunin er nu i src/stats.js og notud HER LIKA, svo topp-5 virki fyrir
      IG, IA, byrjunar-likur, FDR6 og DC-hittni eins og fyrir allt annad.  */
   const rows = useMemo(() => {
+    /* `bsd` VANTADI HER og thad var DAUDUR DALKUR-VILLAN aftur. An hennar
+       eru OLL `_b_*`-svidin null, svo 24 dalkar (Shot quality, Set-piece
+       threat, BSD-varnarbondin) urdu VARANLEGA tomir — og `nonEmpty`-sian
+       faldi thad thegjandi sem "enginn leikmadur hefur gildi enn".
+       Maelt 10.8.2026 a season="2025/26": 96 dalkar an bsd, 120 med.
+       I forleik faldist thetta thvi bsd-skrain er 2025/26 en `season` er
+       2026/27 — thad hefdi kviknad sjalft vid GW1 og enginn tengt thad
+       vid neitt. Sama aett og markadslidurinn sem var daudur i VIKU.   */
     const e = makeEnricher({ players, teamById, imminent, shotsFile, fixtures,
-                             events, odds, defcon, consist, season, isLive: true });
+                             events, odds, defcon, consist, season, bsd, isLive: true });
     return (players || []).map(p => ({ ...p, ...e(p).fields }));
   }, [players, teamById, imminent, shotsFile, fixtures, events, odds,
-      defcon, consist, season]);
+      defcon, consist, season, bsd]);
 
   /* ---------- TOMIR DALKAR ERU LEIDDIR UT, EKKI TALDIR UPP ----------
      Sumt getur ekki fyllst fyrr en seinna (Jofnudur krefst loknar umferdar,

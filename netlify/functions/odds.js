@@ -76,8 +76,17 @@ export const handler = async (event) => {
       const data = await getJSON(`${FPL_BASE}/fixtures/`);
       return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
     }
+    /* `id` ER STADFEST SEM TALA — annars er slodin opin i uppstreymid.
+       `fpl-league` gerdi thetta thegar; hér og i `fpl-picks` vantadi thad,
+       svo `id=1/transfers/?x=` sotti adra slod undir fantasy.premierleague.com
+       gegnum proxyid okkar. Strict-routing reglan (CLAUDE.md 7.2) a jafnt
+       vid um innihald slodar og um `path` sjalft.                          */
     if (path === "fpl-entry") {
       const id = event.queryStringParameters.id;
+      if (!/^\d+$/.test(String(id || ""))) {
+        return { statusCode: 400, headers: cors,
+                 body: JSON.stringify({ error: "id verdur ad vera tala" }) };
+      }
       const data = await getJSON(`${FPL_BASE}/entry/${id}/`);
       return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
     }
@@ -101,6 +110,10 @@ export const handler = async (event) => {
 
     if (path === "fpl-picks") {
       const { id, gw } = event.queryStringParameters;
+      if (!/^\d+$/.test(String(id || "")) || !/^\d+$/.test(String(gw || ""))) {
+        return { statusCode: 400, headers: cors,
+                 body: JSON.stringify({ error: "id og gw verda ad vera tolur" }) };
+      }
       const data = await getJSON(`${FPL_BASE}/entry/${id}/event/${gw}/picks/`);
       return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
     }
@@ -144,8 +157,31 @@ export const handler = async (event) => {
       return { statusCode: 200, headers: liveCache, body: JSON.stringify({ gw: +gw, any_live, fixtures }) };
     }
 
-    // Óþekkt path á að SVARA 400, ekki falla í bókmakera-greinina —
-    // það var kvóta-lekinn.
+    /* ÓÞEKKT path Á AÐ SVARA 400, ekki falla í bókmakera-greinina —
+       það var kvóta-lekinn.
+
+       OG `odds` ER NÚ MEÐTALIÐ (10.8.2026). Greinin var opin öllum
+       (`Access-Control-Allow-Origin: *`, engin auðkenning, ENGINN
+       CDN-cache) og hvert kall kostar 1 einingu af 500/mán. Hún er
+       STAÐFEST ÓNOTUÐ: framendinn kallar aðeins á `live`, `fpl-live`,
+       `fpl-picks`, `fpl-entry` og `fpl-league`, og pipeline sækir Odds-API
+       BEINT með `ODDS_API_KEY` og skrifar `data/odds.json` — appið les þá
+       skrá. Cache dugði ekki sem vörn: jafnvel 1 klst TTL leyfir ~720
+       köll á mánuði, sem er yfir kvótanum.
+
+       Sé hún tekin í notkun aftur: skila 200 hér OG setja
+       `Netlify-CDN-Cache-Control` á hana, eins og `fpl-league`.        */
+    if (path !== "live" && !path.startsWith("fpl-")) {
+      return { statusCode: 400, headers: cors, body: JSON.stringify({
+        error: `óþekkt eða óvirk path: ${path}`,
+        hint: path === "odds"
+          ? "bókmakera-greinin er óvirk — appið les data/odds.json úr pipeline"
+          : undefined,
+      }) };
+    }
+    /* Hingað kemst aðeins þekkt `fpl-*` sem féll ekki í greinarnar að ofan
+       (t.d. `fpl-bootstrap`/`fpl-fixtures`, sem framendinn les núna beint
+       af raw.githubusercontent). Þær svara enn — engin kvóta-áhætta.    */
     if (path !== "odds") {
       return { statusCode: 400, headers: cors, body: JSON.stringify({ error: `óþekkt path: ${path}` }) };
     }

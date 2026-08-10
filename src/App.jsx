@@ -605,6 +605,24 @@ export default function App() {
       .then(setShotFile)
       .catch(() => setShotFile("err"));
   }, [wantShots, shotFile]);
+
+  /* SERFRAEDINGA-HOPURINN ER LIKA LETIHLADINN, OG THAD ER MAELT:
+     `pros_gw.json` er 21 KB per umferd (1.000 lid), sem er ~814 KB i lok
+     timabils — maelt 10.8.2026 a raunhaefri dreifingu. `pros.json` er 69 KB
+     til vidbotar. Hvorugt kemur fyrstu hledslu vid: EINN flipi les thau.
+     Sama regla og bsd_shots (338 KB) og player_gw_*.json.               */
+  const wantPros = view === "best";
+  useEffect(() => {
+    if (!wantPros || pros != null) return;
+    setPros("loading");
+    (async () => {
+      try { setProsPanel(await (await fetch(`${RAW}/pros.json`)).json()); } catch {}
+      try {
+        const r = await fetch(`${RAW}/pros_gw.json`);
+        setPros(r.ok ? await r.json() : "missing");
+      } catch { setPros("err"); }
+    })();
+  }, [wantPros, pros]);
   const [lastGw, setLastGw] = useState(null);     // data/last_gw.json — sidasta lokna umferd
   const [lastGwShots, setLastGwShots] = useState(null); // data/last_gw_shots.json — ESPN-skot
   const [seasonsFile, setSeasonsFile] = useState(null); // data/player_seasons.json — fyrri timabil (lyklad a code)
@@ -674,8 +692,6 @@ export default function App() {
         try { setNews(await j("news.json")); } catch {}
         try { setPromoted(await j("promoted_baseline.json")); } catch {}
         try { setChipRules(await j("chips.json")); } catch {}
-        try { setProsPanel(await j("pros.json")); } catch {}
-        try { setPros(await j("pros_gw.json")); } catch {}
         try { setFormFeat(await j("form_features.json")); } catch {}
         try { setTeamForm(await j("team_form.json")); } catch {}
         try { setLuck(await j("luck.json")); } catch {}
@@ -1306,8 +1322,16 @@ export default function App() {
     if (preSeasonRef.current) return byId[id]?.now_cost ?? 0;
     // ekki enn keyptur -> ekkert kaupverð, notum núverandi
     if (!officialIds.has(id)) return byId[id]?.now_cost ?? 0;
+    /* GILDID SJALFT ER ThVINGAD, EKKI BARA YTRI GERDIN.
+       `loadState` thvingar ad `buyPrices` se HLUTUR, en gildin voru
+       ochekkud: `{"411":"abc"}` (eda `{p:"abc"}`) skilade streng beint i
+       `sellTenths` og skjarinn bar **£NaN** — banki, soluverd og hvert
+       skiptaverd med. Sama aett og `bank:"mikid"` ur proxyinu: NULL er
+       "veit ekki" og appid kann thad, NaN kann thad ekki.               */
     const rec = buyPrices[id];
-    return (rec && typeof rec === "object" ? rec.p : rec) ?? byId[id]?.now_cost ?? 0;
+    const raw = (rec && typeof rec === "object" ? rec.p : rec);
+    const n = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+    return n ?? byId[id]?.now_cost ?? 0;
   };
   const buySrcOf = (id) => {
     if (!officialIds.has(id)) return "planned";
@@ -2026,7 +2050,8 @@ export default function App() {
           bsdTeams={bsdTeams} shotIndex={shotIndex} Crest={Crest} />
       )}
       {view === "best" && (
-        <BestOfBest pros={pros} panelFile={prosPanel} players={players}
+        <BestOfBest pros={typeof pros === "string" ? null : pros}
+          panelFile={prosPanel} players={players}
           teamById={teamById} mineIds={squadIds}
           onPickPlayer={id => setDetail({ kind:"player", id })} />
       )}
@@ -2045,6 +2070,7 @@ export default function App() {
         <Leaderboard players={players} teams={teams} teamById={teamById} Crest={Crest}
           imminent={imminent} shotsFile={lastGwShots} fixtures={fixtures} events={events}
           odds={odds} defcon={defcon} consist={consist} season={currentSeasonLabel}
+          bsd={[bsd, bsdLive]}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           seasonNote={preSeason
             ? "The 2026/27 season has not started. The numbers here are the cumulative totals FPL is showing right now — they reset to zero when GW1 opens."
@@ -3070,7 +3096,7 @@ export default function App() {
                       <DStat k={"Goals"} v={num(st.goals_scored)} />
                       <DStat k={"Assists"} v={num(st.assists)} />
                       <DStat k="xG" v={xg == null ? "—" : (+xg).toFixed(2)}
-                        sub={xg != null && st.minutes > 0 ? (overP >= 0 ? `+${overP.toFixed(2)} yfir` : `${overP.toFixed(2)} undir`) : ""} />
+                        sub={xg != null && st.minutes > 0 ? (overP >= 0 ? `+${overP.toFixed(2)} over` : `${overP.toFixed(2)} under`) : ""} />
                       <DStat k="xA" v={xa == null ? "—" : (+xa).toFixed(2)} />
                       <DStat k={"Bonus / BPS"} v={`${num(st.bonus)} / ${num(st.bps)}`} />
                       {p.element_type <= 2 && <DStat k={"Clean sheets"} v={st.clean_sheets ? "yes" : "no"} sub={interp("{0} conceded", [num(st.goals_conceded)])} />}

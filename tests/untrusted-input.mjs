@@ -65,6 +65,9 @@ const CASES = [
   ["chips er fylki",        JSON.stringify({ chips: [1, 2, 3] })],
   ["captain ekki til",      JSON.stringify({ captain: 999999 })],
   ["buyPrices rusl",        JSON.stringify({ buyPrices: { "1": "dyrt", abc: { p: null } } })],
+  /* GILDIN, EKKI BARA YTRI GERDIN: `{"411":"abc"}` for adur beint i
+     `sellTenths` og skjarinn bar £NaN — banki og hvert soluverd med.   */
+  ["buyPrices gildi strengur", JSON.stringify({ buyPrices: { "411": "abc", "412": { p: "dyrt" } } })],
   ["rivals rusl",           JSON.stringify({ rivals: [{ id: null }, "x", 42] })],
   ["watch er hlutur",       JSON.stringify({ watch: { a: 1 } })],
   ["benchSwaps gildi rangt", JSON.stringify({ benchSwaps: { "1": "x" } })],
@@ -114,9 +117,15 @@ for (const [label, blob] of CASES) {
   /* Krafan er ekki "engin villa" heldur AD APPID SE NOTHAEFT: fliparnir
      eru a skjanum, svo notandinn getur haldid afram ad vinna.          */
   const usable = txt.includes("Planner") || txt.includes("Player stats");
-  if (crash || !usable) crashed++;
-  ok(`${label}: appid er nothaeft`, !crash && usable,
-     crash ? "KASTADI: " + crash.slice(0, 60) : `ekki nothaeft (${txt.trim().length} staf)`);
+  /* NaN A SKJA TELST FALL, EKKI ADEINS HRUN. Kaflinn hér profadi adeins
+     "er appid nothaeft" — svo `buyPrices:{"411":"abc"}` slapp: appid
+     stod uppi en bar **£NaN** i banka og soluverdi. Sama krafa og i
+     proxy-kaflanum ad nedan; ekkert astand ma setja NaN a skjainn.    */
+  const nan = /\bundefined\b|\bNaN\b|\[object Object\]/.test(txt);
+  if (crash || !usable || nan) crashed++;
+  ok(`${label}: appid er nothaeft og an NaN`, !crash && usable && !nan,
+     crash ? "KASTADI: " + crash.slice(0, 60)
+           : !usable ? `ekki nothaeft (${txt.trim().length} staf)` : "NaN/undefined a skja");
 }
 
 ok(`ekkert af ${CASES.length} astondum fellir appid`, crashed === 0, `${crashed} felldu`);

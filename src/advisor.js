@@ -144,7 +144,13 @@ export function advise(players, { weights = null } = {}) {
     const others = scored.filter((_, j) => j !== idx);
     const wins = others.map(o => {
       const gap = p.score - o.score;
-      const win = gap >= 0 ? pairWinProb(gap) : 1 - pairWinProb(gap);
+      /* JAFNTEFLI ER 50/50 — SAMHVERFA, EKKI KVORDUN.
+         `pairWinProb(0)` er 0,5064 thvi skurdpunkturinn A=0,0258 er MAELDUR
+         fyrir thann sem stendur OFAR. Vid gap = 0 er hins vegar ENGINN ofar,
+         og badir menn foru i `gap >= 0`-greinina — svo parid summadist i
+         1,0129 i stad 1. Kvordunin sjalf er ohreyfd fyrir gap != 0; thetta
+         lagfaerir adeins punktinn thar sem attin er oskilgreind.          */
+      const win = gap === 0 ? 0.5 : (gap > 0 ? pairWinProb(gap) : 1 - pairWinProb(gap));
       return { id: o.id, name: o.name, gap: +gap.toFixed(3), win };
     });
     const mean = wins.reduce((a, b) => a + b.win, 0) / wins.length;

@@ -57,8 +57,18 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
       if (ti < 0) return null;
       const forr = (shotIndex.byTeam.get(ti) || []).filter(inRange);
       const agst = (shotIndex.byOpp.get(ti) || []).filter(inRange);
+      /* TALID I LEIKJUM, EKKI UMFERDUM — TVOFOLD UMFERD ER TVEIR LEIKIR.
+         Adur var talid `games.add(sh[F.gw])`, thad er EINKVAEMAR UMFERDIR,
+         medan pipeline-skrain sem thessi tafla speglar deilir med
+         `t.matches` (fetch-bsd-teams.mjs). I tvofaldri umferd spilar lid
+         TVO leiki i EINNI umferd, svo nefnarinn var helmingi of lagur og
+         xg_pg / xgc_pg / bc_pg blesu upp um ~2x hja theim lidum — og
+         taflan var thar med osammala skranni sem hun a ad spegla.
+         Leikur er audkenndur af (umferd, motherji): fyrir SKOT LIDSINS er
+         motherjinn `opp`, fyrir SKOT A ThAD er hann `team`.            */
       const games = new Set();
-      for (const sh of forr.concat(agst)) games.add(sh[F.gw]);
+      for (const sh of forr) games.add(`${sh[F.gw]}:${sh[F.opp]}`);
+      for (const sh of agst) games.add(`${sh[F.gw]}:${sh[F.team]}`);
       const n = games.size || 0;
       if (!n) return null;
       const sum = (arr, f) => arr.reduce((a, x) => a + (f(x) || 0), 0);

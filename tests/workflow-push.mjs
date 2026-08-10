@@ -191,5 +191,71 @@ for (const file of ["fetch.yml", "fetch-fast.yml", "pages.yml"]) {
   ok(!old, `${file}: engin Node-20-afskrifuð action (${old ? old.join(", ") : "allt v5+"})`);
 }
 
+/* ============================================================
+   LYKLARNIR SEM `FLAGS` LES VERDA AD VERA I ThVI WORKFLOWI SEM KEYRIR
+   FALLID — ANNARS ER KODINN DAUDUR OG STADAN GRAEN
+
+   ThETTA HEFUR NU GERST TVISVAR, I SITTHVORA ATTINA:
+     31.7.2026  `fetch-fast.yml` gaf ekki API_SPORTS_KEY -> FLAGS.apisports
+                false -> `fetchLineups` sleppt ThEGJANDI (CLAUDE.md 7.1).
+     10.8.2026  `fetch.yml` gaf ekki BSD_KEY -> FLAGS.bsd false i DAGLEGU
+                keyrslunni, sem er EINA stadurinn thar sem `fetchBsdLive()`
+                er kallad ("DAGLEGA, EKKI --fast") -> bsd_live.json var
+                aldrei skrifud i CI.
+
+   Bædi tilvikin voru osynileg: fallid er til, kallid er til, profin lesa
+   KODANN og eru graen. Eina leidin til ad sja thetta er ad bera saman
+   TVAER SKRAR — hvad `FLAGS` les og hvad workflow-id gefur.
+
+   VID KREFJUMST EKKI ThESS AD OLL KEYRSLAN HAFI ALLA LYKLA. `--fast`
+   keyrir fa foll og tharf ekki EURO_API_KEY. Krafan er ThRENGRI og thvi
+   raunhaef: se fall kallad i keyrslu, verdur lykillinn sem kveikir a thvi
+   ad vera i ThEIRRI keyrslu.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nLYKLAR: FLAGS A MOTI WORKFLOW-UNUM\n${"─".repeat(72)}`);
+{
+  const fetchSrc = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url), "utf8");
+  const envOf = f => readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), "utf8");
+
+  /* Hvada FLAGS-svid les hvada umhverfisbreytu? Lesid UR KODANUM.     */
+  const flagBlock = fetchSrc.match(/const FLAGS = \{([\s\S]*?)\n\};/)?.[1] || "";
+  const flagKey = {};
+  for (const m of flagBlock.matchAll(/(\w+)\s*:\s*[^,\n]*process\.env\.(\w+)/g))
+    flagKey[m[1]] = m[2];
+  ok(Object.keys(flagKey).length >= 8,
+     `FLAGS-svid lesin ur fetch.mjs (${Object.keys(flagKey).length})`);
+
+  /* Hvada foll eru kolluð undir hvaða flaggi, og i hvorri keyrslunni?
+     `--fast` greinin er `fetchFast()`; hitt er daglega keyrslan.       */
+  const fastBody = fetchSrc.match(/async function fetchFast\(\)[\s\S]*?\n\}/)?.[0] || "";
+  const mainBody = fetchSrc.match(/async function main\(\)[\s\S]*?\n\}/)?.[0] || "";
+  ok(fastBody.length > 200 && mainBody.length > 200, "fetchFast() og main() fundust");
+
+  const flagsUsedIn = body => new Set(
+    [...body.matchAll(/FLAGS\.(\w+)/g)].map(m => m[1]));
+
+  for (const [file, body, label] of [
+    ["fetch.yml", mainBody, "dagleg keyrsla"],
+    ["fetch-fast.yml", fastBody, "--fast"],
+  ]) {
+    const yml = envOf(file);
+    const need = [...flagsUsedIn(body)]
+      .map(f => flagKey[f])
+      .filter(k => k && /_KEY$/.test(k));           // adeins leyndarmal, ekki ENABLE_*
+    /* LEITAD AD RAUNVERULEGRI STILLINGU, EKKI AD ORDINU.
+       Fyrsta utgafan gerdi `yml.includes(k)` — og stokkbreytingin (ad
+       fjarlaegja `BSD_KEY:` linuna) SLAPP, thvi ordid "BSD_KEY" stod enn
+       i ATHUGASEMDINNI sem eg skrifadi vid hlidina a henni. Fullyrding
+       sem athugasemd getur uppfyllt er einskis virdi. Krafan er thvi
+       `LYKILL: ${{ secrets… }}` a eigin linu.                          */
+    const assigned = k =>
+      new RegExp(`^\\s*${k}\\s*:\\s*\\$\\{\\{\\s*secrets\\.`, "m").test(yml);
+    const missing = [...new Set(need)].filter(k => !assigned(k));
+    ok(need.length > 0, `${label}: les ${new Set(need).size} lykil-flogg`);
+    ok(missing.length === 0,
+       `${file} gefur alla lykla sem ${label} tharf${missing.length ? " — VANTAR: " + missing.join(", ") : ""}`);
+  }
+}
+
 console.log(`\nPUSH-KAPPHLAUP: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

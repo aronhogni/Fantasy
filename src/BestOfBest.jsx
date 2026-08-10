@@ -102,7 +102,7 @@ function MoveTable({ rows, byId, teamById, onPick, mine, label, tint }) {
                     {p ? <span style={{ ...S.pill, background:POS_COLOR[p.element_type] || C.text3 }}>
                            {POS[p.element_type] || "?"}</span> : null}
                     <Name p={p} onPick={onPick} />
-                    <span style={{ fontSize:10.5, color:C.text3 }}>{t?.short_name || ""}</span>
+                    <span style={{ fontSize:10.5, color:C.text3 }}>{t?.short || ""}</span>
                     {/* GRAENT = I MINU LIDI. Fastur litakodi i ollu appinu
                         (CLAUDE.md kafla 8, "Litir og merki") — ekki finna upp nyjan. */}
                     {mine && mine.has(r.id)

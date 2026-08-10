@@ -1575,7 +1575,7 @@ const S = {
            background:"#fafafb", color:C.text3, borderRadius:2, cursor:"pointer",
            fontSize:9, padding:0, lineHeight:"16px", fontFamily:mono },
   gwOn:{ background:"#e8e2ee", color:C.purple, border:`1px solid #cdbcd8` },
-  gwEdge:{ background:C.purple, color:"#fff", border:`1px solid `, fontWeight:700 },
+  gwEdge:{ background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:700 },
   hBlind:{ background:"#faf7fb", color:"#8b7d9b" },
   blindMark:{ fontSize:9, color:"#9a8aa8", marginLeft:1 },
 

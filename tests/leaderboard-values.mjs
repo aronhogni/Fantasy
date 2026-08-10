@@ -214,5 +214,65 @@ ok(`listar profadir (${checkedLists}) og radir (${checkedRows})`,
 ok("hver birt tala tilheyrir sinum manni, rodin fylgir hausnum, saeti an gata",
    problems.length === 0, [...new Set(problems)].slice(0, 6).join(" | "));
 
+/* ============================================================
+   BSD ER TENGT VID STIGATOFLUNA — DAUDU DALKARNIR
+
+   Stigataflan fekk EKKI `bsd` inn i `makeEnricher` fram ad 10.8.2026, svo
+   oll `_b_*`-svidin voru null og 24 dalkar (Shot quality, Set-piece
+   threat, BSD-varnarbondin) voru VARANLEGA tomir. `nonEmpty`-sian faldi
+   thad sem "enginn leikmadur hefur gildi enn" — thogul thekjuminnkun a
+   akvordunarflet.
+
+   HVERS VEGNA HITT PROFID SA ThAD EKKI: kaflarnir ad ofan lesa thad sem ER
+   a skjanum og stadfesta ad thad se rett. Dalkur sem er ALDREI teiknadur
+   er ekki rangur — hann er fjarverandi, og fjarveru sest ekki thannig.
+   Thess vegna er hér borid saman VID OG AN `bsd`: se munur, tha eru
+   dalkar sem AETTU ad vera synilegir en eru thad ekki.
+
+   PROFAD A season="2025/26" thvi thad er timabilid sem BSD naer yfir. I
+   forleik faldist villan einmitt thvi `season` var 2026/27 og skrain
+   2025/26 — hun hefdi kviknad sjalfkrafa vid GW1.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nBSD-TENGINGIN VID STIGATOFLUNA\n${"─".repeat(72)}`);
+{
+  const teamsFile = J("teams.json");
+  const tl = Array.isArray(teamsFile) ? teamsFile : (teamsFile.teams || []);
+  const teamById = Object.fromEntries(tl.map(t => [t.id, t]));
+  const safe = f => { try { return J(f); } catch { return null; } };
+  const rowsRaw = (() => { const r = J("players.json"); return r.players || r; })();
+  const bsdFiles = [safe("bsd_players.json"), safe("bsd_live.json")];
+  const season = safe("season_baseline.json")?.label || "2025/26";
+
+  const build = extra => {
+    const e = makeEnricher({
+      players: rowsRaw, teamById, imminent: safe("imminent.json"),
+      shotsFile: safe("last_gw_shots.json"), fixtures: safe("fixtures.json"),
+      events: (safe("events.json")?.events ?? safe("events.json")),
+      odds: safe("odds.json"), defcon: safe("defcon.json"),
+      consist: safe("consistency.json"), season, isLive: true, ...extra,
+    });
+    return rowsRaw.map(p => { try { return { ...p, ...e(p).fields }; } catch { return p; } });
+  };
+  const filled = arr => new Set(STAT_DEFS.filter(d => arr.some(p => {
+    try { const v = d.get(p); return v != null && Number.isFinite(v); } catch { return false; }
+  })).map(d => d.key));
+
+  const withoutBsd = filled(build({}));
+  const withBsd = filled(build({ bsd: bsdFiles }));
+  const gained = [...withBsd].filter(k => !withoutBsd.has(k));
+  ok(`BSD-skrarnar bera dalka (${gained.length} fleiri en an theirra)`, gained.length >= 15,
+     `adeins ${gained.length} — er bsd_players.json a ${season}?`);
+
+  /* SJALF TENGINGIN: `Leaderboard.jsx` VERDUR ad taka vid `bsd` og senda
+     hana afram, og App VERDUR ad gefa hana. Lesid ur kodanum thvi thetta
+     er TENGING, ekki tala — sama adferd og `wiring.mjs`.               */
+  const lbSrc = readFileSync(new URL("src/Leaderboard.jsx", REPO), "utf8");
+  const appSrc = readFileSync(new URL("src/App.jsx", REPO), "utf8");
+  ok("Leaderboard TEKUR VID `bsd`", /function Leaderboard\([\s\S]{0,400}?\bbsd\b/.test(lbSrc));
+  ok("og sendir hana i makeEnricher", /makeEnricher\(\{[\s\S]{0,300}?\bbsd\b/.test(lbSrc));
+  ok("og hun er i deps-lista useMemo", /\}, \[players[\s\S]{0,200}?\bbsd\b\]/.test(lbSrc));
+  ok("App GEFUR Leaderboard `bsd`", /<Leaderboard[\s\S]{0,500}?bsd=\{/.test(appSrc));
+}
+
 console.log(`\nSTIGATAFLA: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

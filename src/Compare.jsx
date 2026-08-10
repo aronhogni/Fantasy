@@ -74,8 +74,14 @@ export const ROWS = [
   { k:"xaDelta",      label: "Assists − xA",    hi:true, dec:2, signed:true,
     get:r => (r.assists == null || r.expected_assists == null) ? null : r.assists - r.expected_assists },
   { k:"expected_goal_involvements", label:"xGI", hi:true, dec:2, get:r => r.expected_goal_involvements },
+  /* SAMA GOLF OG `mins_per_xgi` i stats.js — annars svarar sami maelikvardi
+     TVEIMUR tolum eftir thvi hvar hann er lesinn. xGI er birt med tveimur
+     aukastofum, svo 0,01 er upplausnarmork: an golfsins syndi Compare
+     sprengda tolu (markmenn upp i 326.100) thar sem leikmannalistinn synir
+     "—". Maelt: sami throskuldur og `conversion` ber thegar.             */
   { k:"minPerXgi",    label: "Mins per xGI",   hi:false, dec:0,
-    get:r => div(r.minutes, r.expected_goal_involvements) },
+    get:r => (r.expected_goal_involvements == null || r.expected_goal_involvements < 0.5)
+      ? null : div(r.minutes, r.expected_goal_involvements) },
 
   { grp: "Defence", defOnly:true },
   { defOnly:true, k:"clean_sheets", label:"CS",             hi:true,  get:r => r.clean_sheets },

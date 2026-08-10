@@ -349,6 +349,39 @@ ok(nameScore("Santiago Ignacio Bueno", "Santiago Bueno") >
   "rétti Bueno vinnur yfir samherja með sama eftirnafni");
 eq(nameScore("Mohamed Salah", "Erling Haaland"), 0, "ólík nöfn skora 0");
 
+/* ============================================================
+   ÓGILD RÖÐ MÁ EKKI HLIÐRA PÖRUNINNI — ÞÖGUL RANGFÆRSLA
+
+   `matchShotsToPlayers` byggði kandídata úr SÍUÐU fylki (`rowsOf` hendir
+   null/ógildum röðum) en sótti sigurvegarann úr HRÁA fylkinu. Ein null-röð
+   fremst hliðraði því öllum vísitölum á eftir henni og leikmenn fengu
+   skot-tölur ANNARS MANNS. Mælt: Salah fékk NULL og Gakpo fékk 111 skot
+   Salah — nákvæmlega villan sem fallið er til að koma í veg fyrir.
+
+   Raungögnin hafa engar ógildar raðir í dag (0 af 206 og 0 af 393), svo
+   prófið HÉR verður að nota tilbúin gögn: án þeirra er þetta jarðsprengja
+   sem enginn stígur á fyrr en heimildin skilar einni null-röð.
+   ============================================================ */
+{
+  const SHOTS = [
+    null,                                            // síuð burt -> hliðrun
+    { name: "Mohamed Salah", team: "LIV", shots: 111 },
+    { name: "Cody Gakpo",    team: "LIV", shots: 55 },
+  ];
+  const ROWS = [{ name: "Mohamed Salah", team: "LIV" },
+                { name: "Cody Gakpo",    team: "LIV" }];
+  const m = matchShotsToPlayers(ROWS, SHOTS);
+  const got = Object.fromEntries(m.rows.map(r => [r.name, r.shot?.name ?? null]));
+  ok(got["Mohamed Salah"] === "Mohamed Salah" && got["Cody Gakpo"] === "Cody Gakpo",
+     `ógild röð hliðrar EKKI pöruninni (${JSON.stringify(got)})`);
+  ok(m.rows.every(r => !r.shot || r.shot.name === r.name),
+     "enginn fær skot-tölur annars manns");
+  /* Og fleiri ógildar gerðir en null — sama sía, sama hætta. */
+  const m2 = matchShotsToPlayers(ROWS, ["strengur", 42, ...SHOTS.slice(1)]);
+  ok(m2.rows.every(r => !r.shot || r.shot.name === r.name),
+     "strengur/tala i skyttulista hliðrar ekki heldur");
+}
+
 if (report && shotsF) {
   const m = matchShotsToPlayers(withDerived(report.players), shotsF.players);
   eq(m.rows.length, report.players.length, "pörun breytir ekki fjölda raða");

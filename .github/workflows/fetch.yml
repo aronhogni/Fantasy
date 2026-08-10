@@ -20,8 +20,6 @@ jobs:
 
       - name: Sækja gögn
         env:
-          ENABLE_UNDERSTAT: "true"
-          ENABLE_UNDERSTAT_SHOTS: "true"
           ENABLE_ELO: "true"
           ENABLE_FDCOUK: "true"
           ENABLE_WEATHER: "true"
@@ -32,6 +30,16 @@ jobs:
           EURO_API_KEY: ${{ secrets.EURO_API_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           API_SPORTS_KEY: ${{ secrets.API_SPORTS_KEY }}
+          # BSD VANTADI HER — OG ThAD VAR SAMA VILLAN OG I fetch-fast.yml.
+          # `fetchBsdLive()` er kallad AÐEINS ur daglegu keyrslunni (merkt
+          # "DAGLEGA, EKKI --fast" i fetch.mjs), en thessi blokk gaf ekki
+          # BSD_KEY — svo FLAGS.bsd var false og bsd_live.json var ALDREI
+          # skrifud i CI. Fallid leit ut fyrir ad vera tengt, stadan var
+          # graen og enginn sa neitt. Nakvaemlega lineups-sagan (CLAUDE.md
+          # 7.1) endurtekin i hinni attina. Vordur: workflow-push.mjs
+          # ber nu saman lyklana sem FLAGS les vid thad sem HVERT workflow
+          # gefur, svo thetta geti ekki gerst i thridja sinn.
+          BSD_KEY: ${{ secrets.BSD_KEY }}
         run: node scripts/fetch.mjs
 
       - name: Committa ef eitthvað breyttist

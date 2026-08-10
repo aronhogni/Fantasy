@@ -1177,11 +1177,13 @@ async function fetchWeather() {
 }
 
 
-/* ========== 3b. UNDERSTAT SKOT PER LEIK — grunnur fyrir "big chances" ==========
-   Skot-gögn gefa það sem FPL birtir EKKI: npxG, fastaleikja-hættu, og
-   BIG CHANCES MISSED (skot með xG > 0.30 sem fór ekki inn).
-   Sæktu match-síður, EKKI player/{id} (700 köll). Hámark 1 kall/sek.        */
-const BIG_CHANCE_XG = 0.30;
+/* 3b. UNDERSTAT — KAFLINN ER FARINN OG FASTINN MED (10.8.2026).
+   Hér stod `const BIG_CHANCE_XG = 0.30;` sem ENGINN las (0 notkunarstadir)
+   og sem STANGADIST A vid maelda gildid: `src/bsd.js` notar **0,18**, fittad
+   gegn raunverulega lids-svidinu `big_chances` (MAE 0,746, r 0,774 a 748
+   lid-leikjum). Tvaer olikar tolur undir sama nafni i sama repo er gildra
+   fyrir naesta lesanda — hann hefdi getad "samraemt" i ranga att.
+   Understat-heimildin sjalf var tekin ur sambandi (kafli 6 i CLAUDE.md).  */
 
 
 /* ========== 9b. EVRÓPULEIKIR — álag/rótasjón (sjálf-greinandi) ==========
