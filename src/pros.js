@@ -295,6 +295,10 @@ export function chipTimeline(byGw, chipNames) {
    Birtum thetta vid hlid hverrar prosentu svo 62% ur 12 monnum liti EKKI
    eins ut og 62% ur 1.000.                                                 */
 export function marginPct(p, n) {
-  if (!n || p == null) return null;
-  return 2 * Math.sqrt(Math.max(p, 0) * (1 - Math.max(p, 0)) / n) * 100;
+  if (!n || p == null || !Number.isFinite(p)) return null;
+  /* KLEMMT I [0,1]. Adur skilaði thetta NaN fyrir p>1 — og p>1 er NAANLEGT:
+     EO er (eignarhald + fyrirlidi)/n og verdur 2,0 thegar allir eiga OG
+     allir fyrirlida. NaN a skja er verra en varfaerin tala.               */
+  const q = Math.min(1, Math.max(0, p));
+  return 2 * Math.sqrt(q * (1 - q) / n) * 100;
 }

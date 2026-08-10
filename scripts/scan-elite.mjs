@@ -87,12 +87,46 @@ async function worker(ids) {
   }
 }
 
+/* OKUNN TIMABIL — VILLAN SEM HEFDI FUNDIST FYRST SUMARID 2027.
+   `recencyScore` sleppir timabili sem er ekki i SEASON_SIZE (rett: vid
+   giskum ekki a staerd sem vid hofum ekki maelt). En AFLEIDINGIN er throgul:
+   thegar hopurinn er endurbyggdur naesta sumar er 2026/27 nyjasta timabilid
+   OG THAD THYNGST VEGID (h=3) — og thad hefdi einfaldlega horfid. Stjornandi
+   sem endadi i 150. saeti hefdi verid skorad eins og hans besta vaeri
+   700.000. Enginn hefdi tekid eftir; skorin hefdu bara verid vitlaus.
+
+   Thess vegna er PROBE-FASI: vid saekjum lítið urtak fyrst og deyjum
+   STRAX ef timabil finnst sem vid hofum enga maelda staerd fyrir. Betra er
+   ad falla a 200 kollum en ad skrifa rangan hop eftir fimm klukkustundir. */
+async function probeSeasons(sampleIds) {
+  const seen = new Set();
+  for (const id of sampleIds) {
+    const h = await getHistory(id);
+    for (const p of (h?.past || [])) if (p?.season_name) seen.add(p.season_name);
+  }
+  const unknown = [...seen].filter(s => !SEASON_SIZE[s]).sort();
+  return { seen, unknown };
+}
+
 async function main() {
   const total = TO - FROM + 1;
   console.log(`scan-elite: ${FROM.toLocaleString()} .. ${TO.toLocaleString()} `
               + `(${total.toLocaleString()} entries), ${CONC} concurrent`);
   console.log(`seasons with a measured size: ${Object.keys(SEASON_SIZE).length}, `
               + `minimum ${MIN_SEASONS} seasons per entry`);
+
+  /* Probe a thettasta svaedinu (laeg id = flest timabil per lid). */
+  const sample = Array.from({ length: 40 }, (_, k) => FROM + k * 7);
+  const { seen, unknown } = await probeSeasons(sample);
+  console.log(`probe: ${sample.length} entries, ${seen.size} distinct seasons seen`);
+  if (unknown.length) {
+    console.error(`ABORT: no measured size for season(s): ${unknown.join(", ")}`);
+    console.error("SEASON_SIZE in src/pros.js must be extended before rebuilding the panel.");
+    console.error("Measure it by grid-fitting `rank` against the published `rank_percentage`");
+    console.error("(round(100*rank/T) must reproduce the printed value; see the comment there).");
+    console.error("Without it the season is DROPPED SILENTLY - and it is the heaviest weighted one.");
+    process.exit(3);
+  }
 
   const timer = setInterval(() => {
     const el = (Date.now() - stat.t0) / 1000;

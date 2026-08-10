@@ -70,7 +70,15 @@ async function one(getJSON, id, gw) {
   /* Skiptin sem gerd voru FYRIR thennan frest bera `event === gw`. Skrain
      skilar ollu timabilinu, svo vid siumn — annars taldist hver umferd
      uppsafnad og "kaup vikunnar" yrdi "kaup timabilsins".                  */
-  const mine = Array.isArray(transfers) ? transfers.filter(t => t && t.event === gw) : [];
+  /* GERDIN ER GATID, EKKI NETID. `event === gw` er strong jafna og fellur
+     thegjandi ef FPL skilar `"7"` i stad `7` — tha hverfa OLL skipti og
+     notan segir "0 bought, 0 sold", sem les eins og "enginn keypti neitt".
+     Maelt 10.8.2026: strengur gaf 0 kaup thar sem tala gaf 1.
+     Somu aett og `bank:"mikid"` -> NaN (CLAUDE.md kafla 5, untrusted-input):
+     net-bilanirnar voru allar i lagi, TALNA-GERDIN var gatid.             */
+  const mine = Array.isArray(transfers)
+    ? transfers.filter(t => t && Number(t.event) === gw)
+    : [];
   return { picks, transfers: mine };
 }
 
@@ -107,14 +115,33 @@ export async function collectPros(deps, events) {
   if (!cur) { record("pros", true, 0, "no deadline has passed yet (preseason)"); return; }
   const gw = cur.id;
 
-  const prev = (await readJSON("pros_gw.json").catch(() => null)) || { season: null, gw: {} };
-  const done = prev.gw?.[gw];
-  if (done && done.n && coverageOk(done, panel.length)) {
-    record("pros", true, done.n, `GW${gw} already collected (${done.n}/${panel.length}) - skipped`);
+  /* EINKVAEM ID. Tvitekning i `pros.json` blaes UT ALLAR birtar tolur:
+     sami stjornandi telst tvisvar, `n` verdur haerra en hopurinn, thekjan
+     maelist 100% thott faerri hafi svarad, og hvert eignarhalds-hlutfall
+     verdur skekkt i sömu att. Maelt 10.8.2026: hopur med 5 radir og 3
+     einkvaem id gaf n=5 og eignarhald 5 i stad 3.
+     Skrain er byggd handvirkt einu sinni a ari — thad er nakvaemlega su
+     tegund skrar sem faer tvitekningu vid samslattur. Vid siumn her, i
+     NEYTANDANUM, thvi thad er sa sem tolurnar hanga a.
+
+     ROD SKIPTIR MALI: thetta VERDUR ad koma a undan kvotavorninni, sem les
+     `ids.length`. Fyrsta utgafan hafdi thad a eftir og fell i "Cannot access
+     'ids' before initialization" — en ADEINS a theirri braut thar sem fyrri
+     umferd var til, thvi `done && ...` skammhleypti annars framhja. Beina
+     profid mitt slapp; SAFNID greip thad.                                  */
+  const ids = [...new Set(panel.map(p => p.id).filter(x => Number.isInteger(x) && x > 0))];
+  if (!ids.length) {
+    record("pros", false, 0, "pros.json has no usable entry ids");
     return;
   }
 
-  const ids = panel.map(p => p.id);
+  const prev = (await readJSON("pros_gw.json").catch(() => null)) || { season: null, gw: {} };
+  const done = prev.gw?.[gw];
+  if (done && done.n && coverageOk(done, ids.length)) {
+    record("pros", true, done.n, `GW${gw} already collected (${done.n}/${ids.length}) - skipped`);
+    return;
+  }
+
   const res = await pool(ids, id => one(getJSON, id, gw));
   const got = res.filter(Boolean);
   const agg = aggregate(got);
@@ -129,7 +156,7 @@ export async function collectPros(deps, events) {
      CLAUDE.md kafla 8 kallar "ómæld tala sem lítur út eins og mæling".
      Betra er engin rod: `pros_gw.json` sem vantar umferdina segir satt.   */
   if (agg.n === 0) {
-    record("pros", false, 0, `GW${gw}: no manager could be read (${panel.length} attempted) - nothing written`);
+    record("pros", false, 0, `GW${gw}: no manager could be read (${ids.length} attempted) - nothing written`);
     return;
   }
 
@@ -142,12 +169,12 @@ export async function collectPros(deps, events) {
 
   const out = { ...prev, season: panelFile.season || prev.season,
                 updated: new Date().toISOString(),
-                panel_size: panel.length,
+                panel_size: ids.length,
                 gw: { ...(prev.gw || {}), [gw]: agg } };
   await writeJSON("pros_gw.json", out);
 
-  const cov = agg.n / panel.length;
-  record("pros", coverageOk(agg, panel.length), agg.n,
-         `GW${gw}: ${agg.n}/${panel.length} (${(100 * cov).toFixed(0)}%)`
+  const cov = agg.n / ids.length;
+  record("pros", coverageOk(agg, ids.length), agg.n,
+         `GW${gw}: ${agg.n}/${ids.length} (${(100 * cov).toFixed(0)}%)`
          + `, ${Object.keys(agg.in).length} bought, ${Object.keys(agg.out).length} sold`);
 }

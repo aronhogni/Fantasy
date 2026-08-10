@@ -151,6 +151,11 @@ console.log("9) vikmork — 62% ur 12 monnum er EKKI sama og 62% ur 1000");
   ok(few > 20, `12 manns -> +-${few?.toFixed(1)} stig (a ad vera >20)`);
   ok(many < 4, `1000 manns -> +-${many?.toFixed(1)} stig (a ad vera <4)`);
   ok(marginPct(0.5, 0) === null && marginPct(null, 10) === null, "onyt inntok -> null");
+  /* EO GETUR ORDID 2,0 (allir eiga OG allir fyrirlida). Adur skiladi thetta
+     NaN, sem hefdi lent A SKJA. Maelt 10.8.2026.                          */
+  ok(marginPct(1.5, 100) === 0 && marginPct(2, 100) === 0,
+     "hlutfall yfir 1 er KLEMMT, gefur ekki NaN");
+  ok(Number.isFinite(marginPct(1.5, 100)), "aldrei NaN");
 }
 
 console.log("10) skemmd svor fella ekki keyrsluna (sbr. untrusted-input)");
@@ -381,6 +386,68 @@ console.log("14c) BETRI thekja ma skrifa yfir verri i SOMU umferd");
   ok(!!out, "skrifar thegar thekjan BATNAR");
   ok(out.gw[7].n === 10, `n uppfaert i 10 (fekk ${out.gw[7]?.n})`);
   ok(out.gw[7].own[99] === undefined, "gamla, ofulla talningin er REPLACED, ekki lögd vid");
+}
+
+console.log("14d) TVITEKID ID i hopnum blaes ekki ut tolurnar");
+{
+  /* Maelt 10.8.2026: hopur med 5 radir og 3 einkvaem id gaf n=5, eignarhald
+     5 (i stad 3) og thekju 100%. Skrain er byggd handvirkt einu sinni a ari
+     — nakvaemlega su tegund skrar sem faer tvitekningu vid samslattur.     */
+  const panel = [{ id: 1 }, { id: 2 }, { id: 2 }, { id: 2 }, { id: 3 }];
+  const h = harness({ panel });
+  await h.run();
+  ok(h.calls.picks === 3, `adeins 3 koll fyrir 3 einkvaem id (fekk ${h.calls.picks})`);
+  const out = h.wrote["pros_gw.json"];
+  ok(out.gw[7].n === 3, `n = 3, ekki 5 (fekk ${out.gw[7]?.n})`);
+  ok(out.panel_size === 3, `panel_size = 3 (fekk ${out.panel_size})`);
+}
+
+console.log("14e) ONYT ID eru siud burt");
+{
+  const panel = [{ id: 1 }, { id: null }, { id: 0 }, { id: -5 }, { id: "abc" }, { id: 2 }];
+  const h = harness({ panel });
+  await h.run();
+  ok(h.calls.picks === 2, `adeins gild id sott (fekk ${h.calls.picks})`);
+  const h2 = harness({ panel: [{ id: null }, { id: "x" }] });
+  await h2.run();
+  ok(!h2.wrote["pros_gw.json"], "engin gild id -> ekkert skrifad");
+  ok(/no usable entry ids/.test(h2.recs[0]?.note || ""), "notan segir hvers vegna");
+}
+
+console.log("14f) `event` sem STRENGUR ma ekki fella skiptin burt");
+{
+  /* GERDIN ER GATID. Strong jafna (`t.event === gw`) felldi OLL skipti
+     thegjandi ef FPL skilar "7" i stad 7 — og notan sagdi "0 bought,
+     0 sold", sem les eins og "enginn keypti neitt". Sama aett og
+     `bank:"mikid"` -> NaN.                                               */
+  const mkH = (ev) => {
+    const wrote = {}; const recs = [];
+    const deps = {
+      async getJSON(url) {
+        if (/picks/.test(url)) return {
+          active_chip: null,
+          picks: [{ element: 11, is_captain: true, is_vice_captain: false, multiplier: 2 }],
+          entry_history: { event_transfers: 1, event_transfers_cost: 0, value: 1000, bank: 0, overall_rank: 5 },
+        };
+        return [{ element_in: 500, element_out: 600, event: ev },
+                { element_in: 501, element_out: 601, event: 6 }];
+      },
+      async writeJSON(p2, o) { wrote[p2] = o; },
+      async readJSON(f) {
+        if (f === "pros.json") return { season: "2026/27", panel: [{ id: 1 }, { id: 2 }] };
+        throw new Error("ENOENT");
+      },
+      record(n, okv, c, note) { recs.push({ n, ok: okv, note }); },
+    };
+    return { deps, wrote, recs };
+  };
+  for (const ev of [7, "7"]) {
+    const h = mkH(ev);
+    await collectPros(h.deps, [{ id: 7, deadline_time: new Date(Date.now() - 36e5).toISOString() }]);
+    const a = h.wrote["pros_gw.json"]?.gw?.[7];
+    ok(a && a.in[500] === 2, `event=${JSON.stringify(ev)}: kaupin skrad (${a?.in?.[500]})`);
+    ok(a && a.in[501] === undefined, `event=${JSON.stringify(ev)}: ONNUR umferd enn utilokud`);
+  }
 }
 
 console.log("15c) HTTP-STADA ER LESIN AF BYRJUNINNI, ekki leitad i slodinni");

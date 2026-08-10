@@ -171,7 +171,15 @@ export default function BestOfBest({ pros, panelFile, players, teamById, onPickP
       return d == null ? null : { id:+id, d, elite:eo(agg, +id), crowd:+p.selected_by_percent };
     }).filter(Boolean);
     rows.sort((a, b) => b.d - a.d);
-    return { up: rows.slice(0, 10), down: rows.slice(-10).reverse() };
+    /* SUNDURLAEGAR TOFLUR, EKKI SKARANDI SNEIDAR. `slice(0,10)` og
+       `slice(-10)` skarast thegar faerri en 20 leikmenn eru i talningunni —
+       maelt 10.8.2026: med 3 eigendum birtust ALLIR THRIR i BADUM toflum,
+       thar med i einni sem segir "experts own MORE" og annarri sem segir
+       "own LESS". Sama flokkur og "liturinn verdur ad segja thad sama og
+       talan" (CLAUDE.md kafla 3): skjarinn ma ekki fullyrda tvennt gagnstaett.
+       Skilyrdid er nu MERKI mismunarins, sem er lika rett merking.        */
+    return { up: rows.filter(r => r.d > 0).slice(0, 10),
+             down: rows.filter(r => r.d < 0).slice(-10).reverse() };
   }, [agg, byId]);
 
   /* Hlutfall hopsins sem spiladi SKIPTA-chip (wildcard/free hit) — thau

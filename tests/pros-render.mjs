@@ -339,6 +339,49 @@ console.log("\n10b) flipinn teiknast i simahami (390px + matchMedia)");
   r.unmount(); host.remove();
 }
 
+/* ---------- 10b2. MISMUNA-TOFLURNAR MA EKKI SKARAST ---------- */
+console.log("\n10b2) sami leikmadur ma ekki vera i BADUM mismuna-toflum");
+{
+  /* Maelt 10.8.2026: med adeins 3 eigendum birtust allir thrir i BADUM
+     toflum — einni sem segir "experts own MORE" og annarri "own LESS".
+     `slice(0,10)` og `slice(-10)` skarast undir 20 radir. Sami flokkur og
+     "liturinn verdur ad segja thad sama og talan": skjarinn ma ekki
+     fullyrda tvennt gagnstaett um sama mann.                              */
+  const few = players.slice(0, 3).map(p => p.id);
+  PROS_GW.gw = { 7: { n: 100,
+    own: { [few[0]]: 90, [few[1]]: 50, [few[2]]: 10 },
+    capt: {}, vice: {}, in: { [few[0]]: 40 }, out: { [few[1]]: 30 },
+    chips: {}, transfers: 1, hitCost: 0, hitShare: 0,
+    value: 1000, bank: 0, rankMedian: 1000 } };
+  PROS_GW.panel_size = PANEL;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r = createRoot(host);
+  await act(async () => { r.render(React.createElement(App)); });
+  await act(async () => { await new Promise(z => setTimeout(z, 250)); });
+  const b = [...host.querySelectorAll("button")].find(x => x.textContent.includes("Best of the best"));
+  if (b) {
+    await act(async () => { b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await new Promise(z => setTimeout(z, 150)); });
+  }
+  /* Finna badar mismuna-toflur og bera saman nofnin i theim. */
+  const heads = [...host.querySelectorAll("div")]
+    .filter(d => /^(Experts own more|Experts own less)$/.test((d.textContent || "").trim()));
+  ok(`badar mismuna-toflur fundust (${heads.length})`, heads.length === 2);
+  const namesOf = h => {
+    const tbl = h.parentElement?.querySelector("table");
+    return new Set([...(tbl?.querySelectorAll("tbody tr td:first-child") || [])]
+      .map(td => (td.textContent || "").trim()).filter(Boolean));
+  };
+  if (heads.length === 2) {
+    const A = namesOf(heads[0]), B = namesOf(heads[1]);
+    const both = [...A].filter(x => B.has(x));
+    ok(`engin leikmadur i badum toflum (${A.size} + ${B.size}, skorun ${both.length})`,
+       both.length === 0, both.join(", "));
+  }
+  r.unmount(); host.remove();
+}
+
 /* ---------- 10c. LEIKMADUR SEM ER EKKI LENGUR I players.json ---------- */
 console.log("\n10c) horfinn leikmadur");
 {
