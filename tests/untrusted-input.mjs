@@ -207,5 +207,61 @@ console.log(`\n${"─".repeat(72)}\nSVOR FRA PROXY-INU\n${"─".repeat(72)}`);
   }
 }
 
+/* ============================================================
+   C. PROXY-LEIDIRNAR SJALFAR — HVAD SVARAR 200 OG HVAD 400?
+
+   Hin lögin profa hvad appid gerir vid SVARID. Hér er profad hvad
+   `netlify/functions/odds.js` gerir vid BEIDNINA — og thad er annad mal:
+
+     · KVOTINN. `path=odds` var opin ollum (`Allow-Origin: *`, engin
+       audkenning, ENGINN CDN-cache) og hvert kall kostar 1 einingu af
+       500/man. Hun er stadfest onotud: framendinn kallar a `live` og
+       `fpl-*`, og pipeline saekir Odds-API BEINT. Lokad 10.8.2026.
+     · SLODIN. `fpl-entry`/`fpl-picks` limdu `id`/`gw` obreytt inn i
+       uppstreymis-slodina, svo `id=1/transfers/?x=` sotti ADRA slod undir
+       fantasy.premierleague.com gegnum okkar proxy. `fpl-league` stadfesti
+       thegar; hinar tvaer ekki.
+
+   PROFAD A HREINUM TEXTA, EKKI MED ThVI AD KEYRA FALLID: thad kraefdist
+   Netlify-umhverfis. Reglurnar eru fáar og skyrar og lesast beint.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nPROXY-LEIDIRNAR (netlify/functions/odds.js)\n${"─".repeat(72)}`);
+{
+  const fn = readFileSync(new URL("netlify/functions/odds.js", REPO), "utf8");
+  const code = fn.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  /* 1. KVOTA-LEIDIN ER LOKUD. */
+  ok('`path=odds` fer ekki lengur i bokmakera-kallid',
+     /path !== "live" && !path\.startsWith\("fpl-"\)/.test(code),
+     "hlidid sem lokar odds-greininni fannst ekki");
+
+  /* 2. HVER LEID SEM TEKUR `id`/`gw` STADFESTIR ThAU.
+     Lesid per grein svo nyr endapunktur an stadfestingar falli.        */
+  for (const route of ["fpl-entry", "fpl-picks", "fpl-league", "fpl-live"]) {
+    const i = code.indexOf(`path === "${route}"`);
+    if (i < 0) { ok(`${route}: greinin er til`, false); continue; }
+    /* Bodyid nær ad naesta `if (path ===` eda 900 stofum.               */
+    const rest = code.slice(i, i + 900);
+    const body = rest.slice(0, rest.indexOf('path === "', 10) > 0
+      ? rest.indexOf('path === "', 10) : rest.length);
+    ok(`${route}: stadfestir tolu-vidfang adur en kallad er upp`,
+       /\^\\d\+\$/.test(body) && /statusCode: 400/.test(body),
+       body.slice(0, 70).replace(/\s+/g, " "));
+  }
+
+  /* 3. OThEKKT LEID SVARAR 400 — grunnreglan sjalf.                    */
+  ok("othekkt path svarar 400", /statusCode: 400[\s\S]{0,120}óþekkt/.test(code));
+
+  /* 4. ENGIN LEID MA HLEYPA HANDAHOFSKENNDRI SLOD I UPPSTREYMID.
+     Leitad ad slodum sem lima vidfang inn AN thess ad thad hafi verid
+     stadfest — grof en virk athugun: hvert `${...}` i FPL-slod verdur ad
+     vera breyta sem `^\d+$` var profud a.                              */
+  const interpolated = [...code.matchAll(/\$\{FPL_BASE\}[^`]*\$\{(\w+)\}/g)].map(m => m[1]);
+  const unchecked = [...new Set(interpolated)].filter(v =>
+    !new RegExp(`\\^\\\\d\\+\\$[\\s\\S]{0,200}\\b${v}\\b|\\b${v}\\b[\\s\\S]{0,200}\\^\\\\d\\+\\$`).test(code));
+  ok(`hvert vidfang i FPL-slod er stadfest (${interpolated.length} stadir)`,
+     unchecked.length === 0, `ostadfest: ${unchecked.join(", ")}`);
+}
+
 console.log(`\nOTRAUST INNTAK: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

@@ -23,6 +23,14 @@ import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../sr
 import { collectPros } from "./pros-collect.mjs";
 import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
          finalize, pairPlayers } from "../src/bsd.js";
+/* EIN UTFAERSLA A BYRJUNAR-EIGINLEIKUNUM. Pipeline hafdi EIGIN afrit af
+   thessum reikningi og thad var ThEGAR farid ad reka: afritid skrifadi
+   `value: r.now_cost ?? null` medan `startFeatures` fellur a MEDALTALID
+   (48,69). `startProbability` skilar null um leid og EINN lidur er null —
+   svo leikmadur an verds hefdi thagnad um byrjunar-likur i stad thess ad
+   fa varfaerid mat. Enginn slikur i gognunum i dag (0 af 840), en tvaer
+   utfaerslur af somu formulu er nakvaemlega thad sem hausarnir banna.  */
+import { startFeatures } from "../src/stats.js";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const DATA = "data";
@@ -3365,12 +3373,16 @@ async function deriveImminent() {
       const half = Math.max(1, Math.floor(mins.length / 2));
       const late = mins.slice(-half).reduce((a, b) => a + b, 0) / half;
       const early = mins.slice(0, half).reduce((a, b) => a + b, 0) / half;
-      r.start_feats = {
-        starts5: +(mins.filter(v => v >= 60).length / mins.length).toFixed(3),
-        mins5: +(mins.reduce((a, b) => a + b, 0) / mins.length).toFixed(1),
-        trend: +(late - early).toFixed(1),
-        started_last: mins[mins.length - 1] >= 60 ? 1 : 0,
-        value: r.now_cost ?? null,
+      /* NAMUNDUNIN HELST OBREYTT svo skrain se stafrett eins og adur;
+         thad sem breytist er UPPSPRETTAN (ein utfaersla) og `value`-
+         varaleidin.                                                     */
+      const f = startFeatures(mins, r.now_cost);
+      if (f) r.start_feats = {
+        starts5: +f.starts5.toFixed(3),
+        mins5: +f.mins5.toFixed(1),
+        trend: +f.trend.toFixed(1),
+        started_last: f.started_last,
+        value: f.value,
       };
     }
   });

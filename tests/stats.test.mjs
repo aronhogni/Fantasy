@@ -654,6 +654,53 @@ if (existsSync(D + "imminent.json")) {
   // allar likur gildar
   const probs = withF.map(p => startProbability(p.start_feats)).filter(v => v != null);
   ok(probs.length === withF.length, "líkur reiknast fyrir alla með eiginleika");
+
+  /* ============================================================
+     PIPELINE VERDUR AD NOTA `startFeatures`, EKKI EIGID AFRIT
+
+     `fetch.mjs` hafdi EIGIN utfaerslu af sama reikningi og hun var ThEGAR
+     farin ad reka: afritid skrifadi `value: r.now_cost ?? null` medan
+     `startFeatures` fellur a MEDALTALID (48,69). `startProbability`
+     skilar null um leid og EINN lidur er null — svo leikmadur an verds
+     hefdi thagnad um byrjunar-likur i stad thess ad fa varfaerid mat.
+     Enginn slikur i gognunum (0 af 840), svo thetta var LEYND rek.
+
+     Vordurinn er tvennskonar: (a) skrain kallar a fallid, lesid ur koda,
+     og (b) gildin i `imminent.json` VERDA ad vera thau somu og fallid
+     gefur — thad er sterkara, thvi thad fellur lika ef einhver kallar a
+     fallid en breytir nidurstodunni a eftir.                          */
+  {
+    /* ATHUGASEMDIR BURT ADUR EN LEITAD ER. Fyrsta utgafan leitadi i hraum
+       texta og FELL a sjalfri ser: athugasemdin sem ég skrifadi vid
+       lagfaeringuna VITNAR i gamla kodann (`value: r.now_cost ?? null`),
+       svo "er gamla afritid farid?" svaradi NEI thott thad vaeri farid.
+       Sama gildra og i workflow-vardinum (`yml.includes`) — fullyrding
+       sem athugasemd getur uppfyllt eda fellt er einskis virdi.        */
+    const srcRaw = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url), "utf8");
+    const src = srcRaw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    ok(/import \{[^}]*startFeatures[^}]*\} from "\.\.\/src\/stats\.js"/.test(src),
+       "fetch.mjs flytur inn `startFeatures` ur src/stats.js");
+    ok(/startFeatures\(mins,/.test(src), "og kallar a hana i stad eigin afrits");
+    ok(!/value:\s*r\.now_cost\s*\?\?\s*null/.test(src),
+       "gamla afritid (`value: r.now_cost ?? null`) er farid");
+
+    /* Gildin sjalf: endurreikna ur `start_minutes` og bera vid skrana.  */
+    const bad = [];
+    for (const p of withF.slice(0, 200)) {
+      const f = startFeatures(p.start_minutes, p.start_feats.value);
+      if (!f) continue;
+      const want = { starts5: +f.starts5.toFixed(3), mins5: +f.mins5.toFixed(1),
+                     trend: +f.trend.toFixed(1), started_last: f.started_last };
+      for (const k of Object.keys(want))
+        if (Math.abs((p.start_feats[k] ?? NaN) - want[k]) > 1e-9)
+          bad.push(`${p.name || p.code}.${k}: skra ${p.start_feats[k]} vs fall ${want[k]}`);
+    }
+    ok(bad.length === 0, `skrain ber somu tolur og fallid (200 syni)`, bad.slice(0, 3).join(" | "));
+    /* `value` ma ALDREI vera null — thad er einmitt lidurinn sem drap
+       likurnar i gomlu utgafunni.                                       */
+    ok(withF.every(p => typeof p.start_feats.value === "number"),
+       "`value` er alltaf tala (aldrei null — thad skilar null-likum)");
+  }
   ok(probs.every(v => v >= 0 && v <= 1), "allar líkur á [0,1]");
   // TVOFOLD UMFERD: minutur lagdar saman, svo 180 er leyfilegt en 5 stok
   ok(withF.every(p => (p.start_minutes || []).length <= 5),

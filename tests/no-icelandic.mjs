@@ -144,10 +144,30 @@ async function walkEverything() {
   for (const b of headBtns()) { await click(b); chunks.push(harvest()); }
 
   /* leikmannaspjald — staersta texta-flotid */
-  const info = [...container.querySelectorAll("button")].filter(b => b.title === "Information");
-  if (info[0]) { await click(info[0]); chunks.push(harvest()); }
-  const closeX = [...container.querySelectorAll("button")].filter(b => (b.textContent || "").trim() === "✕");
-  if (closeX.length) await click(closeX.at(-1));
+  /* OLL SPJOLDIN A VELLINUM, EKKI EITT — ORDAFORDI DUGDI EKKI, ThEKJA
+     ThURFTI TIL. "yfir"/"undir" stodu a leikmannaspjaldinu og sluppu i
+     uttekt FABLE. Fyrsta vidbrogd min voru ad baeta ordunum a listann i
+     kafla C — og ThAD DUGDI EKKI: stokkbreyting (setja islenskuna aftur
+     inn) SLAPP samt, thvi profid opnadi adeins FYRSTA spjaldid og su
+     undir-merking birtist einungis hja leikmonnum sem eiga xG OG minutur.
+     Ordalistinn var aldrei vandamalid; ThEKJAN var thad. Nu eru oll 15
+     spjoldin a vellinum opnud — hvert theirra er nytt texta-flot.      */
+  const infoBtns = () => [...container.querySelectorAll("button")]
+    .filter(b => b.title === "Information");
+  const nCards = infoBtns().length;
+  for (let i = 0; i < nCards; i++) {
+    const b = infoBtns()[i];
+    if (!b) continue;
+    await click(b);
+    chunks.push(harvest());
+    const x = [...container.querySelectorAll("button")]
+      .filter(y => (y.textContent || "").trim() === "✕");
+    if (x.length) await click(x.at(-1));
+  }
+  /* ThEKJAN ER FULLYRDING (CLAUDE.md 5b): se ekkert spjald opnad er
+     kaflinn haettur ad maela og ma ekki vera graenn.                   */
+  if (nCards < 10)
+    throw new Error(`no-icelandic: adeins ${nCards} leikmannaspjold fundust (>=10 thurfa)`);
 
   /* roterings-spjaldid (FFDR-samanburdur) */
   /* "FFDR" er othytt, svo thetta virkar a badum malum. ATH: EKKI nota
@@ -315,6 +335,12 @@ const ASCII_IS = [
   "naestu", "thegar", "thetta", "thessi", "vantar", "bidur", "hafid",
   "faerslur", "adeins", "samtals", "medaltal", "heildar", "vaentanleg",
   "endurhlada", "stadfesta", "breyta", "loka", "opna", "veldu",
+  /* BAETT VID 10.8.2026 EFTIR UTTEKT: "yfir"/"undir" stodu a
+     leikmannaspjaldinu ("+0.42 yfir") og THESSI LISTI SA THAU EKKI.
+     Listinn er byggdur a thvi sem hefur RAUNVERULEGA lekid — hann er
+     thvi alltaf a eftir, og hver nyr leki a ad baetast vid hann, ekki
+     bara ad vera lagfaerdur i kodanum.                                */
+  "yfir", "undir", "hlutur", "hlutfall", "fjoldi", "nafn", "verd",
 ];
 {
   const seen = new Set();
