@@ -10,7 +10,7 @@
 
 import { aggregate, eo, movers, differential, coverageOk, marginPct,
          chipTimeline, MIN_PANEL_RESPONSE, recencyScore, seasonPct,
-         MIN_SEASONS } from "../src/pros.js";
+         MIN_SEASONS, HALF_LIFE } from "../src/pros.js";
 
 let fail = 0;
 const ok = (c, m) => { if (!c) { console.log("  FALL: " + m); fail++; } };
@@ -191,6 +191,21 @@ console.log("10b) VALREGLAN — recencyScore");
 
   ok(recencyScore(P([["2024/25", 100], ["2025/26", 100]])) === null,
      `undir ${MIN_SEASONS} timabilum -> null`);
+
+  /* HELMINGUNARTIMINN ER MAELDUR FASTI, EKKI SMEKKUR — og hann var
+     LEIDRETTUR 10.8.2026 (1,5 -> 3,0) thvi fyrra valid hamarkadi fylgni yfir
+     allan hopinn i stad gaeda TOPP 1.000. Profid negglir baedi gildid og
+     STEFNUNA: vid h=3 vegur timabil sem er 3 ara gamalt HELMING af thvi
+     nyjasta. Ef einhver breytir HALF_LIFE an maelingar fellur thetta.     */
+  ok(HALF_LIFE === 3.0, `HALF_LIFE er maeldur fasti 3.0 (er ${HALF_LIFE})`);
+  {
+    const n = 7;
+    const w = i => Math.pow(0.5, (n - 1 - i) / HALF_LIFE);
+    near(w(n - 1 - 3) / w(n - 1), 0.5, 1e-9,
+         "timabil sem er 3 ara gamalt vegur HELMING af thvi nyjasta");
+    ok(w(0) / w(n - 1) > 0.2,
+       "elsta timabil i 7-ara ferli vegur enn >20% (langt minni, ekki bara 2 ar)");
+  }
   ok(recencyScore([]) === null && recencyScore(null) === null, "tomt inntak -> null");
 
   /* Okunn timabil eru SLEPPT, ekki giskud — annars fengi 2005/06 persentíl
@@ -334,6 +349,38 @@ console.log("15) 404 telst sem ekki-svar og lækkar THEKJU (ekki thogn)");
   const r = h.recs.find(x => x.name === "pros");
   ok(r.ok === false, "thekja undir 90% => status ER EKKI graent");
   ok(/2\/4/.test(r.note), `nota synir ${r.note}`);
+}
+
+console.log("14b) SAMEINING — ny umferd ma ALDREI thurrka ut theer fyrri");
+{
+  /* Sama regla og BSD (CLAUDE.md 6): "skrain er lykluð a timabil og keyrsla
+     SAMEINAR". Ef GW8 skrifar yfir allt vaeri sagan tapud i hverri viku og
+     chip-dagatalid — sem er ALLT byggt a fyrri umferdum — yrdi tomt.      */
+  const gw7 = { n: 4, own: { 9: 4 }, capt: {}, vice: {}, in: { 5: 4 }, out: {}, chips: { bboost: 2 } };
+  const past = new Date(Date.now() - 36e5).toISOString();
+  const h = harness({ prevGw: { season: "2026/27", gw: { 7: gw7 } },
+                      events: [{ id: 8, deadline_time: past }] });
+  await h.run();
+  const out = h.wrote["pros_gw.json"];
+  ok(!!out, "skrifar");
+  ok(!!out.gw[7], "GW7 er ENN i skranni");
+  ok(!!out.gw[8], "GW8 var baett vid");
+  ok(out.gw[7].chips.bboost === 2, "gomlu chip-tolurnar oskaddar (dagatalid lifir)");
+  ok(out.gw[7].in[5] === 4, "gomlu kaupin oskoddu");
+}
+
+console.log("14c) BETRI thekja ma skrifa yfir verri i SOMU umferd");
+{
+  /* Fyrri keyrsla nadi 5 af 10 (undir morkum -> endursott). Ny naer 10.
+     Tha VERDUR hun ad skrifa — annars frysi ein slok keyrsla umferdina.   */
+  const panel = Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }));
+  const thin = { n: 5, own: { 99: 5 }, capt: {}, vice: {}, in: {}, out: {}, chips: {} };
+  const h = harness({ panel, prevGw: { season: "2026/27", gw: { 7: thin } } });
+  await h.run();
+  const out = h.wrote["pros_gw.json"];
+  ok(!!out, "skrifar thegar thekjan BATNAR");
+  ok(out.gw[7].n === 10, `n uppfaert i 10 (fekk ${out.gw[7]?.n})`);
+  ok(out.gw[7].own[99] === undefined, "gamla, ofulla talningin er REPLACED, ekki lögd vid");
 }
 
 console.log("15c) HTTP-STADA ER LESIN AF BYRJUNINNI, ekki leitad i slodinni");

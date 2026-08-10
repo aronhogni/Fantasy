@@ -1231,7 +1231,7 @@ tímabil. Ekki hluti af daglegu pipeline.
 | `scanned` · `candidates` | hve mörg lið voru skönnuð og hve mörg komust í úrtakið |
 | `panel[]` | `{ id, score, seasons, best, t1 }` — **1.000 stjórnendur** |
 
-`score` er **veg­ið meðaltal á log10(lokapersentíli), helmingunartími 1,5
+`score` er **veg­ið meðaltal á log10(lokapersentíli), helmingunartími 3
 tímabil**, birt aftur á prósentu-kvarða (0,0132% = liðið endar að jafnaði í
 efstu 0,0132%). Lægra er betra.
 
@@ -1242,7 +1242,17 @@ aðgreinanleg frá hlutkesti (±16 prósentustig). Full röksemdafærsla með
 öllum mælingunum er í hausnum á `src/pros.js`.
 
 **Hópurinn eldist:** valinn á gögnum t.o.m. 2021/22 hélt hann forskoti en
-tapaði 29% af því á fjórum árum. Endurbyggðu hann á hverju sumri.
+tapaði 29% af því á fjórum árum. Endurbyggðu hann á hverju sumri — árleg
+endurbygging heldur ~46% af hópnum.
+
+**Helmingunartíminn var 1,5 og það var mælt á RÖNGU markmiði (breytt
+10.8.2026).** Fyrsta valið hámarkaði fylgni (r) yfir alla 44.000 stjórnendur,
+og r toppar við h=1,75. En við tökum **topp 1.000**, ekki fylgni. Mælt á fjórum
+óháðum tímaskiptingum batnar hópurinn áfram: h=1,5 gefur 0,991% en **h=3,0
+gefur 0,929%** (−6,2% í persentíli). Batinn heldur við hverja hópsstærð
+(N=100 … 2.000) og með báðum gildis-umbreytingum. Ástæðan er að r ræðst af
+**miðjunni** en hópurinn er **ysta taglið**: langt minni greinir varanlega
+yfirburði, stutt minni raðar miðjunni.
 
 **Athugasemd um fyrstu byggingu (9.8.2026):** skönnunin sem byggði þennan
 hóp geymdi aðeins lið sem áttu **≥2 topp-1% tímabil eða topp-100 sæti** —

@@ -69,10 +69,14 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 /* SERTAEKI MOCK-INN VERDUR AD KOMA A UNDAN THEIM ALMENNA (CLAUDE.md kafla 5,
    "Gildrur i jsdom-profunum") — annars les almenni `raw`-handlerinn
    pros_gw.json af disknum, finnur hana ekki og skilar 404.               */
+const fetched = { pros_gw: 0, pros: 0 };
 globalThis.fetch = async url => {
   const s = String(url);
-  if (s.includes("pros_gw.json"))
+  if (s.includes("pros_gw.json")) {
+    fetched.pros_gw++;
     return { ok: true, status: 200, json: async () => PROS_GW };
+  }
+  if (s.includes("pros.json")) fetched.pros++;
   const n = s.split("/data/")[1];
   if (!n) return { ok: false, status: 404, json: async () => ({}) };
   try { return { ok: true, status: 200, json: async () => J(n) }; }
@@ -109,11 +113,21 @@ const root = createRoot(document.getElementById("root"));
 await act(async () => { root.render(React.createElement(App)); });
 await act(async () => { await new Promise(r => setTimeout(r, 250)); });
 
+/* LETIHLEDSLAN ER MAELD, EKKI TREYST. `pros_gw.json` er ~21 KB per umferd
+   (~814 KB i lok timabils) og `pros.json` 69 KB — hvorugt kemur fyrstu
+   hledslu vid. Sama regla og bsd_shots (CLAUDE.md kafla 6, skotakortin).
+   An thessarar fullyrdingar gaeti letihledslan verid fjarlaegd thegjandi.  */
+ok(`pros_gw.json EKKI sott vid raesingu (${fetched.pros_gw} soknir)`, fetched.pros_gw === 0);
+ok(`pros.json EKKI sott vid raesingu (${fetched.pros} soknir)`, fetched.pros === 0);
+
 const btn = [...document.querySelectorAll("button")]
   .find(b => b.textContent.includes("Best of the best"));
 ok("flipa-hnappurinn finnst", !!btn);
 await act(async () => { btn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
 await act(async () => { await new Promise(r => setTimeout(r, 120)); });
+
+ok(`pros_gw.json sott EFTIR ad flipinn var valinn (${fetched.pros_gw})`, fetched.pros_gw === 1);
+ok(`pros.json sott lika (${fetched.pros})`, fetched.pros === 1);
 
 const txt = () => document.body.textContent || "";
 const body = txt();
@@ -256,6 +270,156 @@ console.log("\n9) skemmd gogn fella ekki flipann");
     ok(`skemmt: ${label}`, !bad, bad);
     r.unmount(); host.remove();
   }
+}
+
+/* ---------- 10. SIMAHAMUR OG LARETT SKRUN ---------- */
+console.log("\n10) breidar toflur ma EKKI lata sidunna skruna larett");
+{
+  /* CLAUDE.md kafla 8: "Breid tafla faer sinn eigin skrun-kassa svo hun
+     rydji ekki SIDUNNI ut a sima. Sidan skrunar hvergi larett."
+
+     JSDOM GERIR ENGA UMBROTSREIKNINGA — `scrollWidth` er alltaf 0 — svo
+     ekki er haegt ad MAELA yfirflaedi her. Thad sem ER haegt ad fullyrda er
+     BYGGINGIN: hver tafla verdur ad hafa forfodur med overflowX auto/scroll.
+     Tafla sem sleppur ut ur skrun-kassa er einmitt hun sem rydur sidunni.  */
+  const tables = [...document.querySelectorAll("table")];
+  ok(`toflur fundust i flipanum (${tables.length})`, tables.length >= 4);
+  const loose = tables.filter(t => {
+    for (let e = t.parentElement; e; e = e.parentElement) {
+      const ox = e.style?.overflowX || "";
+      if (ox === "auto" || ox === "scroll") return false;
+    }
+    return true;
+  });
+  ok(`hver tafla er i eigin skrun-kassa (${tables.length - loose.length}/${tables.length})`,
+     loose.length === 0);
+
+  /* Ekkert i flipanum ma bera FASTA breidd sem er breidari en simi (390px). */
+  const wide = [...document.querySelectorAll("*")].filter(e => {
+    const w = e.style?.width || e.style?.minWidth || "";
+    const m = /^(\d+)px$/.exec(w);
+    return m && +m[1] > 390;
+  });
+  ok(`engin fost breidd yfir 390px (${wide.length} brot)`, wide.length === 0,
+     wide[0]?.tagName + " " + (wide[0]?.style?.width || wide[0]?.style?.minWidth));
+}
+
+console.log("\n10b) flipinn teiknast i simahami (390px + matchMedia)");
+{
+  /* CLAUDE.md kafla 8: `narrow` kviknar a innerWidth < 560 OG matchMedia.
+     jsdom gefur 1024 og HEFUR ENGA matchMedia, svo simahamurinn var
+     "fast false i ollum profum" thangad til playerlist-narrow.mjs stillti
+     badum upp. Sama er gert her — annars vaeri helmingur hegdunarinnar
+     oprofadur, sem er einmitt villan sem thad safn afhjupadi.             */
+  dom.window.innerWidth = 390;
+  dom.window.matchMedia = q => ({
+    matches: /max-width:\s*(390|480|559|560)px/.test(q) || /max-width/.test(q),
+    media: q, onchange: null,
+    addEventListener() {}, removeEventListener() {},
+    addListener() {}, removeListener() {}, dispatchEvent() { return false; },
+  });
+  PROS_GW.gw = { 6: GW6, 7: GW7 }; PROS_GW.panel_size = PANEL;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r = createRoot(host);
+  let crashed = null;
+  try {
+    await act(async () => { r.render(React.createElement(App)); });
+    await act(async () => { await new Promise(z => setTimeout(z, 250)); });
+    const b = [...host.querySelectorAll("button")].find(x => x.textContent.includes("Best of the best"));
+    if (b) {
+      await act(async () => { b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+      await act(async () => { await new Promise(z => setTimeout(z, 150)); });
+    }
+  } catch (e) { crashed = e.message; }
+  const t = host.textContent || "";
+  ok("teiknast an hruns i 390px", !crashed, crashed || "");
+  ok("efnid er enn thar i simahami", /Bought|Sold/.test(t), t.slice(0, 60));
+  ok("engin undefined/NaN i simahami", !/\bundefined\b|\bNaN\b/.test(t));
+  r.unmount(); host.remove();
+}
+
+/* ---------- 10c. LEIKMADUR SEM ER EKKI LENGUR I players.json ---------- */
+console.log("\n10c) horfinn leikmadur");
+{
+  /* FPL fjarlaegir leikmenn (log, uppsagnir). `pros_gw.json` er skrifud i
+     GW7 en `players.json` er endurmyndud daglega, svo id getur horfid UNDAN
+     talningunni. Tha ma hvorki koma `undefined` a skja ne hrun — hvorugt
+     segir notandanum neitt.                                              */
+  PROS_GW.gw = { 7: { ...GW7, in: { 999999: 300 }, out: { 999998: 200 },
+                      own: { 999999: 500 }, capt: { 999999: 250 } } };
+  PROS_GW.panel_size = PANEL;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r = createRoot(host);
+  let crashed = null;
+  try {
+    await act(async () => { r.render(React.createElement(App)); });
+    await act(async () => { await new Promise(z => setTimeout(z, 250)); });
+    const b = [...host.querySelectorAll("button")].find(x => x.textContent.includes("Best of the best"));
+    if (b) {
+      await act(async () => { b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+      await act(async () => { await new Promise(z => setTimeout(z, 150)); });
+    }
+  } catch (e) { crashed = e.message; }
+  const t = host.textContent || "";
+  ok("horfinn leikmadur fellir ekki flipann", !crashed, crashed || "");
+  ok("engin undefined/NaN thott nafnid vanti", !/\bundefined\b|\bNaN\b/.test(t));
+  ok('birt sem "unknown", ekki tomt', /unknown/.test(t));
+  ok("talan sjalf birtist samt (300)", /300/.test(t));
+  r.unmount(); host.remove();
+}
+
+/* ---------- 11. FULLT TIMABIL (38 UMFERDIR) ---------- */
+console.log("\n11) lok timabils — 38 umferdir i skranni");
+{
+  /* Flipinn hefur adeins verid profadur med TVEIMUR umferdum. I mai verda
+     thaer 38: chip-dagatalid faer 38 radir og valarinn 38 kosti. Thetta er
+     astandid sem varir LENGST og hafdi aldrei teiknast.                   */
+  const full = {};
+  for (let g = 1; g <= 38; g++) {
+    full[g] = { ...GW7, n: 900 + (g % 50),
+                chips: g === 19 ? { wildcard: 300, bboost: 80 } : (g % 5 ? {} : { bboost: 30 }) };
+  }
+  PROS_GW.gw = full; PROS_GW.panel_size = PANEL;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r = createRoot(host);
+  const t0 = Date.now();
+  let crashed = null;
+  try {
+    await act(async () => { r.render(React.createElement(App)); });
+    await act(async () => { await new Promise(z => setTimeout(z, 250)); });
+    const b = [...host.querySelectorAll("button")].find(x => x.textContent.includes("Best of the best"));
+    if (b) {
+      await act(async () => { b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+      await act(async () => { await new Promise(z => setTimeout(z, 200)); });
+    }
+  } catch (e) { crashed = e.message; }
+  const ms = Date.now() - t0;
+  const t = host.textContent || "";
+  ok("teiknast an hruns med 38 umferdir", !crashed, crashed || "");
+  /* Nyjasta umferdin A ad vera valin sjalfgefid — ekki sú fyrsta. */
+  ok("nyjasta umferdin (38) er sjalfgefin", /Gameweek 38/.test(t));
+  const sel = host.querySelector("select[aria-label='Gameweek']");
+  ok(`valarinn ber allar 38 umferdir (${sel?.querySelectorAll("option").length})`,
+     sel && sel.querySelectorAll("option").length === 38);
+  /* Chip-dagatalid a ad bera ALLAR umferdir, ekki bara thaer med chip. */
+  const rows = [...host.querySelectorAll("table")].map(x => x.querySelectorAll("tbody tr").length);
+  ok(`chip-dagatalid hefur 38 radir (staersta tafla: ${Math.max(...rows)})`,
+     rows.includes(38));
+  /* GW19 er sidasta umferd fyrra chip-settsins — wildcard-toppurinn.
+     VAENTA TALAN ER REIKNUD UR SOMU GOGNUM, ekki slegin inn: fyrsta utgafan
+     bar "32.2%" sem eg reiknadi i hausnum med rongu `n` (deildi med 931 i
+     stad 919) og profid fell a MINNI reiknivillu, ekki a kodanum. Hardkodud
+     vaentitala i profi er sama aett af villu og hardkodud safna-tala.     */
+  const n19 = 900 + (19 % 50);
+  const want19 = `${(100 * 300 / n19).toFixed(1)}%`;
+  ok(`wildcard-toppurinn i GW19 birtist (${want19} = 300/${n19})`,
+     t.includes(want19), t.match(/3[0-9]\.\d%/)?.[0]);
+  ok("engin undefined/NaN med fullt timabil", !/\bundefined\b|\bNaN\b/.test(t));
+  ok(`teiknast a vidunandi tima (${ms} ms)`, ms < 8000, ms + " ms");
+  r.unmount(); host.remove();
 }
 
 console.log(`\nPROS-BIRTING: ${pass} stóðust, ${fail} féllu`);

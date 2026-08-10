@@ -8,7 +8,7 @@
    maelingar; hver theirra felldi einfaldari kost.
 
    1. VALID ER `recencyScore` — vegid medaltal a log10(percentíl) med
-      HELMINGUNARTIMA 1,5 TIMABIL. Maelt ut fyrir urtak (fit a helmingi
+      HELMINGUNARTIMA 3 TIMABIL. Maelt ut fyrir urtak (fit a helmingi
       stjornenda, metid a hinum, n=30.795):
 
          recency eitt og sér .................. r = 0,540
@@ -20,6 +20,33 @@
 
       Vidbotarthaettirnir gefa ±0,002 = suð. "Verdlaunum jafna menn" og
       "verdlaunum batnandi menn" hljoma badir rett og MAELAST BADIR SEM NULL.
+
+   1b. HELMINGUNARTIMINN VAR 1,5 OG THAD VAR MAELT A RONGU MARKMIDI.
+      Fyrsta valid hamarkadi FYLGNI (r) yfir allan hopinn — 44.000 stjornendur
+      — og r toppar vid h=1,75. En vid notum ekki fylgni: vid tokum TOPP 1.000.
+      Thegar maelt er a THVI sem er notad heldur batinn afram langt fram yfir
+      1,75. Maelt a FJORUM ohadum timaskiptingum (train <= 2019/20, 2020/21,
+      2021/22, 2022/23), medaltal a framtidar-frammistodu hopsins:
+
+        h=1,0 .... 1,113%      h=2,0 .... 0,951%      h=3,0 .... 0,929%
+        h=1,25 ... 1,046%      h=2,5 .... 0,935%      h=4,0 .... 0,928%
+        h=1,5 .... 0,991%                             (r toppar vid 1,75)
+
+      Batinn helst vid HVERJA hopsstaerd (N=100: 0,881% -> 0,765%; N=250,
+      500, 1.000, 2.000 oll eins) OG med badum gildis-umbreytingum
+      (log-persentil og log-rodun). Delta a fjorum skiptingum er ALLTAF
+      negatift: -0,047, -0,009, -0,025, -0,028 (log10), medaltal -6,2% i
+      persentili. P(h=3 betra) per skipting: 99%, 69%, 88%, 90%.
+
+      HVERS VEGNA VIKUR r FRA HOPSGAEDUM: r maelir rodun yfir allan hopinn og
+      radast af MIDJUNNI; hopurinn er hins vegar YTSTI TAGLID. Long minni
+      hjalpar ad greina VARANLEGA yfirburdi i taglinu (madur med eitt
+      heppnis-timabil kemst ekki inn), en stutt minni radar midjunni betur.
+      Markmidid er taglid.
+
+      AUKAVINNINGUR: stodugleiki. Arleg endurbygging heldur 46% af hopnum
+      vid h=3 en adeins 30% vid h=1,5. Hopur sem endurnyjar 70% a ari er
+      sjalfur merki um ad valid se ad elta heppni.
 
    2. UTLAGAR ERU EKKI KLIPPTIR. A flotu medaltali borgar sig ad henda versta
       timabilinu (0,214 -> 0,224) — en med recency-voginni LAEKKAR thad
@@ -66,7 +93,7 @@
 export const MIN_PANEL_RESPONSE = 0.90;
 
 export const PANEL_SIZE = 1000;
-export const HALF_LIFE = 1.5;      // timabil; maelt 1,4-1,8 a THREMUR ohadum skiptingum
+export const HALF_LIFE = 3.0;      // timabil; sja "HELMINGUNARTIMINN" hér fyrir nedan
 export const MIN_SEASONS = 3;      // maelt: krafan skiptir nanast engu (0,899% vs 0,894%)
 
 /* ---------------------------------------------------------------------------
