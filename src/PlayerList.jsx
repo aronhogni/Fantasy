@@ -589,7 +589,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       };
     });
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
-      console.log(`[Leikmenn] cook ${out.length} radir: ${(performance.now()-t0).toFixed(1)} ms`);
+      console.log(`[Players] cook ${out.length} rows: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
   }, [players, teamById, seasonsFile, season, isLive, enrich, gwActive, gwFile, gwRange]);
 
@@ -671,7 +671,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       return true;
     });
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
-      console.log(`[Leikmenn] sia -> ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
+      console.log(`[Players] filter -> ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
   }, [rows, pos, q, minCost, maxCost, teamSel, onlyAvail, hidePicked, thresholds, cmpIds,
       onlyWatch, onlyMine, watchSet, mineSet]);
@@ -703,7 +703,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       return dir * (va - vb) || a.p.code - b.p.code; // stodug rodun
     });
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
-      console.log(`[Leikmenn] rodun ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
+      console.log(`[Players] sort ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
   }, [filtered, sortKey, sortDir]);
 

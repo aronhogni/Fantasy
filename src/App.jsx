@@ -324,7 +324,7 @@ function storageMode() {
   } catch {
     _storeMode = (typeof window !== "undefined" && window.storage) ? "artifact" : "memory";
     if (_storeMode === "memory")
-      console.warn("FPL: hvorki localStorage né window.storage í boði — ástand vistast EKKI.");
+      console.warn("FPL: neither localStorage nor window.storage is available — state will NOT be saved.");
   }
   return _storeMode;
 }
@@ -338,7 +338,7 @@ async function saveState(key, val) {
     else _memStore[key] = s;
     return true;
   } catch (e) {
-    console.warn(`FPL: vistun brást (${mode}):`, e?.message || e);
+    console.warn(`FPL: save failed (${mode}):`, e?.message || e);
     _memStore[key] = s;
     return false;
   }
@@ -353,7 +353,7 @@ async function loadState(key) {
     else raw = _memStore[key] ?? null;
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
-    console.warn(`FPL: lestur brást (${mode}):`, e?.message || e);
+    console.warn(`FPL: read failed (${mode}):`, e?.message || e);
     return null;
   }
 }
@@ -635,7 +635,7 @@ export default function App() {
         // verja gegn óvæntri lögun — bíða heldur en að hrynja
         const arr = (v, k) => Array.isArray(v) ? v : (Array.isArray(v?.[k]) ? v[k] : null);
         const plA = arr(pl,"players"), tmA = arr(tm,"teams"), fxA = arr(fx,"fixtures"), evA = arr(ev,"events");
-        if (!plA || !tmA || !fxA || !evA) throw new Error("kjarnagögn í óvæntri lögun");
+        if (!plA || !tmA || !fxA || !evA) throw new Error("core data in an unexpected shape");
         setPlayers(plA); setTeams(tmA); setFixtures(fxA); setEvents(evA);
         setDataState("ok");
         try { setDefcon(await j("defcon.json")); } catch {}
