@@ -965,6 +965,49 @@ takmörkun sem er skráð, ekki löguð.
 
 ---
 
+## 5l. Auðar vikur — fyrsta spurningin sem tímabils-summan gat ekki svarað
+
+Hvert einasta draft-ráðgjafarrit segir *„ekki safna mönnum sem eru í fríi sömu
+viku"*, og hér hafði það **aldrei verið mælt**. Ástæðan er tæknileg og hún
+skiptir öllu: `startersPoints` leggur saman **tímabils-summu**, og í þeirri
+talningu er auð vika **ósýnileg** — þrír hlauparar með bye í viku 7 skila
+nákvæmlega sömu árssummu og þrír með bye í viku 5, 9 og 11. Borðið gat hvorki
+verið verðlaunað né refsað, svo spurningin var **ósvaranleg með því tóli**.
+
+Vikulega talningin (byggð í 5i til að *staðfesta* að summan sé nothæf nálgun) er
+hér notuð til hins gagnstæða: að mæla það eina sem hún getur ekki séð.
+
+`bye-lab.mjs` draftar tvö borð í sömu deild — hreint VBD á móti VBD með frádrátt
+fyrir hvern mann sem deilir auðri viku með þeim sem liðið á þegar í sömu stöðu —
+og dæmir á **raunverulegum vikulegum stigum**. Bye-vikur eru leiddar úr
+vikugögnunum sjálfum (sú vika sem liðið kemur hvergi fyrir í).
+
+| vog | FFToday, 7 tímabil | Sleeper, 5 tímabil |
+|---|---|---|
+| w=2 | +5,7 | +35,4 |
+| w=5 | +24,8 | +15,5 |
+| w=10 | +20,8 | +28,3 |
+| w=20 | **+28,2** | +30,7 |
+| w=40 | +25,2 | **+37,6** |
+| besta `t` | 1,29 | 1,80 |
+
+**Tíu af tíu vogum jákvæðar, á tveimur óháðum spáheimildum** — en 8 af 12 árum
+og hvorugt stenst leiðrétt mörk. Merkið er því **sterkara en núll og veikara en
+mæling**.
+
+> **Niðurstaðan: það SÉST og það RÆÐUR ENGU.** Nákvæmlega sama ákvörðun og
+> Evrópuálagið í FPL-verkefninu, sem er sýnt sem samhengi en fer hvergi inn í
+> `fixDifficulty`, `expPointsFor` né `rankScore`. Að setja ómælda tölu í röðunina
+> væri að láta hana færa menn til; að þegja um hana væri að fela það eina sem
+> árslöng röðun getur ekki séð fyrir þig.
+
+Verðir: `advice.mjs` krefst þess að röðunin sé **óhögguð** af auðum vikum (sami
+hópur án bye-gagna verður að gefa nákvæmlega sömu röð), og `learn.mjs` fellur ef
+einhver vog verður neikvæð (þá á að hætta að sýna hana) eða ef einhver verður
+marktæk (þá má endurskoða hvort hún eigi að ráða).
+
+---
+
 ## 6. Prófin
 
 **Tíu söfn í `SUITES`** (`nfl/tests/run.mjs`). Fjöldinn er reiknaður úr `SUITES`,

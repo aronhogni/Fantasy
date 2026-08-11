@@ -257,5 +257,43 @@ console.log("\nheitt upphaf: sterkasta leifar-merkid");
   ok(seen >= 1, `${seen} heitt-upphaf tilraunir lesnar af diski`);
 }
 
+/* ============================================================
+   AUDAR VIKUR — MAELINGIN SEM RETTLAETIR AD RADA THEIM EKKI
+   ============================================================
+   Fyrsta spurningin i thessu verkefni sem TIMABILS-SUMMAN GAT EKKI
+   SVARAD: thrir hlauparar med bye i viku 7 skila nakvaemlega somu
+   arssummu og thrir med bye i viku 5, 9 og 11. Bordid gat hvorki
+   verid verdlaunad ne refsad, svo spurningin var osvaranleg thangad
+   til vikulega talningin var byggd.
+
+   Nidurstadan er millistig og hun er sogd sem slik: tiu af tiu vogum
+   jakvaedar a tveimur ohadum heimildum, en 8 af 12 arum og vikmorkin
+   innihalda null. Thess vegna SÉST hun og RÆÐUR ENGU.
+
+   Falli thetta profa hefur einhver annadhvort endurmælt (og tha ma
+   endurskoda birtinguna) eda breytt maelingunni an thess ad segja fra. */
+console.log("\naudar vikur: maelingin sjalf");
+{
+  let seen = 0, allPositive = true, anySignificant = false;
+  for (const f of ["bye_ppr_sleeper", "bye_ppr_fftoday"]) {
+    const p = path.join(DATA, `${f}.json`);
+    if (!existsSync(p)) continue;
+    seen++;
+    const j = JSON.parse(readFileSync(p, "utf8"));
+
+    ok(j.scoredWeekly === true,
+      `${f}: talid VIKULEGA (timabils-summa er blind a audar vikur)`);
+    ok(Math.abs(j.selfTest.mean) < 0.05,
+      `${f}: w=0 er hlutlaust (${j.selfTest.mean})`);
+    if (!j.variants.every((v) => v.mean > 0)) allPositive = false;
+    if (j.verdict === "STENST") anySignificant = true;
+  }
+  ok(seen >= 1, `${seen} bye-maelingar lesnar af diski`);
+  ok(allPositive,
+    "hver einasta vog er jakvaed — thad er astaedan fyrir ad SYNA hana");
+  ok(!anySignificant,
+    "en engin stenst leidrett mork — thad er astaedan fyrir ad RADA henni ekki");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

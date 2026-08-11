@@ -247,5 +247,46 @@ console.log("\n8. deildin i appinu ber hermunar-reglurnar");
   }
 }
 
+/* ============================================================
+   AUDAR VIKUR ERU TALDAR EN VEGA EKKERT
+   ============================================================
+   MAELT i bye-lab.mjs med VIKULEGRI talningu (timabils-summan er blind
+   a audar vikur og gat aldrei svarad thessu): tiu af tiu vogum
+   jakvaedar a tveimur ohadum spaheimildum, en 8 af 12 arum og
+   vikmorkin innihalda null.
+
+   Merkid faer thvi ad SJAST og ekki ad RADA. Thetta profa ver bædi:
+   ad talningin se rett OG ad hun hreyfi ENGAN i rodinni.           */
+console.log("\naudar vikur: taldar, ekki vegnar");
+{
+  const L = { ...(await import("../src/build.js")).DEFAULT_LEAGUE, teams: 12, scoring: "ppr" };
+  const avail = [
+    { id: "a", name: "A", pos: "RB", vbd: 100, adp: 5, bye: 7 },
+    { id: "b", name: "B", pos: "RB", vbd: 90, adp: 8, bye: 7 },
+    { id: "c", name: "C", pos: "WR", vbd: 80, adp: 12, bye: 9 },
+  ];
+  const roster = [
+    { id: "x", pos: "RB", bye: 7 }, { id: "y", pos: "RB", bye: 7 },
+    { id: "z", pos: "WR", bye: 9 },
+  ];
+
+  const rec = recommend({ available: avail, roster, pick: 30, league: L });
+  const clash = rec.byeClash.find((c) => c.pos === "RB");
+  ok(clash && clash.n === 2 && clash.bye === 7,
+    `tveir RB i frii viku 7 eru taldir (${JSON.stringify(rec.byeClash)})`);
+  ok(!rec.byeClash.some((c) => c.n < 2),
+    "einn madur i viku telst ekki arekstur");
+
+  /* KJARNINN: rodin ma ekki haggast. Sami hopur an bye-upplysinga
+     verdur ad gefa NAKVAEMLEGA somu rod. */
+  const noBye = recommend({
+    available: avail.map((p) => ({ ...p, bye: null })),
+    roster: roster.map((p) => ({ ...p, bye: null })), pick: 30, league: L });
+  ok(JSON.stringify(rec.picks.map((p) => p.id)) ===
+     JSON.stringify(noBye.picks.map((p) => p.id)),
+    `rodin er OHOGGUD af audum vikum (${rec.picks.map((p) => p.id).join(",")})`);
+  ok(noBye.byeClash.length === 0, "og an gagna er enginn arekstur talinn");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

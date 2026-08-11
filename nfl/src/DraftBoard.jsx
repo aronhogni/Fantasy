@@ -649,6 +649,35 @@ function NextPick({ available, roster, taken, league, sync }) {
 
       {/* K og DST eru utan A-Ranking af maeldri astaedu, en tha ma ekki
           thegja um: annars endar draftid med tvo tom byrjunarsaeti. */}
+      {/* ============================================================
+          AUDAR VIKUR ERU SYNDAR, EN THAER RADA ENGU
+          ============================================================
+          MAELT (scripts/bye-lab.mjs, VIKULEG talning yfir 2019-2025 a
+          badum spaheimildum — timabils-summan er BLIND a audar vikur
+          og gat aldrei svarad thessu):
+
+            fftoday, 7 ar   +5,7 til +28,2 stig · besta t = 1,29
+            sleeper, 5 ar   +15,5 til +37,6 stig · besta t = 1,80
+
+          TIU AF TIU VOGUM JAKVAEDAR, a tveimur ohadum heimildum — en
+          8 af 12 arum og teiknaprof p vel yfir 0,05. Merkid er thvi
+          sterkara en null og veikara en maeling.
+
+          Ad setja thad i RODUNINA vaeri ad lata omaelda tolu faera menn
+          til; sama akvordun og Evruálagid i FPL-verkefninu, sem er
+          synt sem samhengi en fer hvergi inn i rodun. Talan sem RADAR
+          er afram hrein VBD.                                        */}
+      {rec.byeClash && rec.byeClash.length > 0 && (
+        <div className="note" style={{ marginTop: 8 }}>
+          <b>Bye overlap in your roster:</b>{" "}
+          {rec.byeClash.map((c) => `${c.n} ${c.pos} in week ${c.bye}`).join(" · ")}.
+          {" "}This does <b>not</b> move anyone in the list below — measured across
+          2019–2025 on both projections it is worth somewhere between nothing and
+          about thirty points a season, and the interval includes zero. It is here
+          because it is the one thing a season-long ranking cannot see for you.
+        </div>
+      )}
+
       {rec.mustFill && rec.mustFill.length > 0 && (
         <div className={`note ${rec.mustFillUrgent ? "warn" : ""}`} style={{ marginTop: 8 }}>
           <b>Still to fill: {rec.mustFill.map((m) =>

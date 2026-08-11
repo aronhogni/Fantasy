@@ -179,7 +179,12 @@ export function simulateDraft({ board, fieldBoard, actual, slot,
          eftir thvi hvernig herbergid hagar ser. Fall faer `taken` og
          stodutalningu lidsins og skilar kortinu sem gildir NUNA.
          Kyrrstaedu kortin virka obreytt. */
-      const resolve = (b) => (typeof b === "function" ? b(taken, counts[t], r) : b);
+      /* Fallid faer LIKA hopinn sinn. Kyrrstaett bord tharf hann ekki,
+         en bord sem metur bye-arekstra getur ekki reiknad thá an thess
+         ad vita hverja lidid a THEGAR — og thad er nakvaemlega
+         spurningin sem draftari spyr i sjottu umferd. */
+      const resolve = (b) => (typeof b === "function"
+        ? b(taken, counts[t], r, rosters[t]) : b);
       const use = resolve(mine ? board
         : (rival && t === rival.slot ? rival.board : fieldBoard));
       /* `plan` er STODU-AAETLUN fyrir okkar lid: hvada stodur ma taka

@@ -250,8 +250,37 @@ export function recommend({ available, roster = [], pick, league }) {
   }
   const needed = mustFill.reduce((a, m) => a + m.short, 0);
 
+  /* ============================================================
+     AUDAR VIKUR — TALDAR, EKKI VEGNAR
+     ============================================================
+     Hopurinn getur borid thrja hlaupara sem eru allir i frii i viku 7.
+     Timabils-summan sem stadfestir rodina er BLIND a thad, svo thetta
+     var ekki haegt ad maela fyrr en vikulega talningin var byggd.
+
+     MAELT (bye-lab.mjs, vikulega, 2019-2025, badar spaheimildir): tiu
+     af tiu vogum jakvaedar en 8 af 12 arum og vikmorkin innihalda
+     null. Merkid faer thvi AD SJAST og EKKI ad rada — sama regla og
+     Evruálagid i FPL-verkefninu.                                    */
+  const byeClash = [];
+  {
+    const seen = new Map();
+    for (const r of roster) {
+      if (r.bye == null || !r.pos) continue;
+      const k = `${r.pos}|${r.bye}`;
+      seen.set(k, (seen.get(k) || 0) + 1);
+    }
+    for (const [k, n] of seen) {
+      if (n < 2) continue;
+      const [pos, bye] = k.split("|");
+      byeClash.push({ pos, bye: Number(bye), n });
+    }
+    byeClash.sort((a, b) => b.n - a.n);
+  }
+
   return {
     pick, nextPick, wait,
+    /* Audar vikur sem rekast a — UPPLYSING, ekki thattur i rodinni. */
+    byeClash,
     /* Stodur sem thu verdur ad fylla en rodin nefnir aldrei. */
     mustFill,
     mustFillUrgent: needed > 0 && picksLeft <= needed + 1,
