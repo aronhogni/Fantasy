@@ -29,7 +29,6 @@ const DEV = typeof import.meta.env !== "undefined" && import.meta.env.DEV;
 const DEV_BASE = DEV ? `${import.meta.env.BASE_URL}data`.replace(/\/\/+/g, "/") : null;
 
 export let BASE = DEV_BASE || RAW;
-export function setBase(b) { BASE = b; }
 
 const cache = new Map();
 
@@ -87,10 +86,8 @@ export const loadDefense = () => load("defense.json");
 export const loadTeamForm = () => load("team_form.json");
 export const loadCalibration = () => load("calibration.json");
 export const loadAdp = () => load("adp.json");
-export const loadMarket = () => load("market.json");
 export const loadMarketHistory = () => load("market_history.json");
 export const loadNews = () => load("news.json");
-export const loadWeekly = (year) => load(`weekly/${year}.json`);
 
 /* Maelistofan. `standard` og `ppr` eru SITTHVOR skrain thvi
    nidurstodurnar eru EKKI thaer somu — RB-thungar stefnur vinna i

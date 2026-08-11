@@ -307,5 +307,50 @@ console.log("\ngrasugan gegn taemandi leit");
     `enginn a bekk skorar meira en gjaldgengt byrjunarsaeti (${benchViolations} brot)`);
 }
 
+/* ============================================================
+   SKIPTI ERU PORUD EFTIR SAETI, EKKI VISITOLU
+   ============================================================
+   `lineupAdvice` pardi adur `shouldStart[i]` vid `shouldSit[i]` — tvo
+   OSKYLD fylki i theirri rod sem thau raktust upp. Utkoman gat verid
+   "settu inn mottakara, taktu ut leikstjornanda", sem er ekki skipti
+   heldur tvaer adskildar tillogur limdar saman; notandi sem fylgdi
+   henni hefdi endad med TOMT QB-SAETI.
+
+   Og `gain` bar vaent gildi ad fradregnu HRAU gildi — tvaer olikar
+   einingar i sama fradraetti.                                       */
+console.log("\nlineupAdvice: skipti eru sambaerileg");
+{
+  const slots = slotsFor({ starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1 } });
+  const roster = [
+    { id: "qb1", pos: "QB", proj: 22 }, { id: "qb2", pos: "QB", proj: 18 },
+    { id: "rb1", pos: "RB", proj: 18 }, { id: "rb2", pos: "RB", proj: 15 },
+    { id: "rb3", pos: "RB", proj: 14 },
+    { id: "wr1", pos: "WR", proj: 17 }, { id: "wr2", pos: "WR", proj: 16 },
+    { id: "wr3", pos: "WR", proj: 13 }, { id: "wr4", pos: "WR", proj: 12 },
+    { id: "te1", pos: "TE", proj: 11 },
+  ];
+  /* Uppstilling thar sem TVEIR eru rangir — og their eru a SITTHVORRI
+     stodu, sem er nakvaemlega tilfellid sem gamla porunin klufi. */
+  const current = ["qb2", "rb1", "rb3", "wr1", "wr2", "wr4", "te1", "rb2"];
+  const adv = lineupAdvice(current, roster, slots);
+
+  ok(adv.changes.length > 0, `${adv.changes.length} skipti logd til`);
+  for (const c of adv.changes) {
+    if (!c.out) continue;
+    /* Sa sem fer ut verdur ad vera gjaldgengur i saetid sem losnar. */
+    const slot = adv.optimal.starters.find((s) => s.slot === c.slot);
+    ok(slot && slot.eligible.includes(c.out.pos),
+      `${c.in.pos} inn i ${c.slot} <-> ${c.out.pos} ut (gjaldgengur i saetid)`);
+    /* Og abatinn ma ekki blanda einingum: hann er ev - ev, svo hann
+       verdur ad vera jakvaedur thegar skiptin eru raunveruleg bot. */
+    ok(c.gain == null || c.gain > 0,
+      `abatinn er jakvaedur eda null, ekki blanda (${c.gain})`);
+  }
+  /* Enginn ma vera logdur til TVISVAR — hann getur adeins farid ut einu sinni. */
+  const outs = adv.changes.map((c) => c.out && c.out.id).filter(Boolean);
+  ok(new Set(outs).size === outs.length,
+    `enginn logdur til ut oftar en einu sinni (${outs.join(", ") || "engir"})`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

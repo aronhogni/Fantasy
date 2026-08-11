@@ -21,6 +21,8 @@
    ============================================================ */
 
 import path from "node:path";
+import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { writeFile, mkdir } from "node:fs/promises";
 import { launch, serve, chromeAvailable } from "./lib/chrome.mjs";
 
@@ -36,6 +38,35 @@ const note = (m) => { console.log(`  ·    ${m}`); notes++; };
 if (!chromeAvailable()) {
   console.log("  Chrome fannst ekki — utlitsprofid er SLEPPT.");
   console.log("  (Thad er ekki thad sama og ad utlitid se i lagi.)");
+  process.exit(0);
+}
+
+/* ============================================================
+   BYGGINGIN VERDUR AD VERA TIL ADUR EN VID KENNUM APPINU UM
+   ============================================================
+   ÞETTA FLOKTI OG GREININGIN VAR RONG THANGAD TIL MAELIRINN SAGDI
+   SATT. Profid sagdi "appid hledst ekki" — en thegar skjatextinn var
+   prentadur stod thar:
+
+     HTTP ERROR 404 · No webpage was found for .../Fantasy/nfl/
+
+   Thad var MINN EIGIN profthjonn ad skila 404, thvi `dist/nfl/index.html`
+   var ekki til i thad skiptid. Astaedan er utan thessa verkefnis:
+   FPL-hlutinn byggir i SOMU `dist/`-moppu og `emptyOutDir` thurrkar
+   hana, og tvaer lotur vinna a thessu vinnutre samtimis.
+
+   VILLA I UMHVERFINU MA EKKI LITA UT EINS OG VILLA I APPINU. Nu er
+   byggingin stadfest fyrst, endurbyggd EINU SINNI ef hun vantar, og
+   se hun enn ekki til er thvi SLEPPT med skyringu — sem er annad en
+   ad segja ad utlitid se i lagi.                                    */
+if (!existsSync(path.join(DIST, "index.html"))) {
+  console.log("  dist/nfl vantar — bygg einu sinni…");
+  spawnSync("npm", ["run", "build"], { cwd: ROOT, stdio: "ignore" });
+}
+if (!existsSync(path.join(DIST, "index.html"))) {
+  console.log("  BYGGINGIN VANTAR ENN (dist/nfl/index.html).");
+  console.log("  Thad er UMHVERFID, ekki utlitid: FPL-hlutinn byggir i somu");
+  console.log("  dist/-moppu og emptyOutDir thurrkar hana. Profinu er SLEPPT.");
   process.exit(0);
 }
 

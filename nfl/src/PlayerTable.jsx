@@ -82,6 +82,26 @@ export default function PlayerTable({ rows, meta, league }) {
           {" "}{meta.withLast || 0} with 2025 data ·
           {" "}VBD is computed for <b>{league.teams}-team {league.scoring.toUpperCase()}</b>
         </div>
+        {/* ECR-SNIDID ER SAGT THEGAR THAD PASSAR EKKI VID DEILDINA.
+            Serfraedinga-rodin er raunverulega olik eftir sniði — 467 af
+            502 sameiginlegum leikmonnum hafa annad saeti i standard en i
+            PPR — svo PPR-tala i standard-deild er rong tala, ekki
+            namundud. Pipeline-id tengir nu hvert snid, en gagnaskra sem
+            var byggd fyrir tha breytingu ber adeins PPR. Tha er thad
+            SAGT i stad thess ad lita ut eins og rett tala. */}
+        {(() => {
+          const want = league.scoring === "half-ppr" ? "half" : league.scoring;
+          const got = (rows.find((r) => r.ecrScoring) || {}).ecrScoring;
+          if (!got || got === want) return null;
+          return (
+            <div className="warn" style={{ marginTop: 4, fontSize: 12.5 }}>
+              Expert rank shown is <b>{got.toUpperCase()}</b>, not{" "}
+              {league.scoring.toUpperCase()} — the per-format tables arrive with the
+              next pipeline run. Expect different names near the top: the consensus
+              reorders 467 of 502 players between formats.
+            </div>
+          );
+        })()}
       </div>
 
       <div className={`tablewrap${scrolled ? " scrolled" : ""}`}

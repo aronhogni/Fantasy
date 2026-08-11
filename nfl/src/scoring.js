@@ -126,43 +126,25 @@ export function kickerPoints(r, R = BASE) {
   return pts;
 }
 
-/**
- * Stig fyrir mork a sig hja vorn (DST). Threpin eru NFL-stadall.
- * Thetta er threp, ekki linulegt — 0 stig a sig er 10, 35+ er -4.
- */
-export function dstPointsAllowed(pa) {
-  if (pa == null) return 0;
-  if (pa === 0) return 10;
-  if (pa <= 6) return 7;
-  if (pa <= 13) return 4;
-  if (pa <= 20) return 1;
-  if (pa <= 27) return 0;
-  if (pa <= 34) return -1;
-  return -4;
-}
+/* ============================================================
+   DST-STIGAREIKNINGUR VAR FJARLAEGDUR — OG THAD ER ASETT
+   ============================================================
+   `dstPoints`, `dstPointsAllowed` og `pointsFor` mynduðu LOKADAN
+   HRING: `pointsFor` kalladi a hin tvo og EKKERT kalladi a `pointsFor`.
+   Enginn dalkur, engin hermun og ekkert prof snerti tha.
 
-/** Fantasy-stig fyrir vorn/serlid. `pointsAllowed` er utan radarinnar. */
-export function dstPoints(r, pointsAllowed, R = BASE) {
-  let pts = 0;
-  pts += n(r.def_sacks) * R.dstSack;
-  pts += n(r.def_interceptions) * R.dstInt;
-  pts += n(r.fumble_recovery_opp) * R.dstFumRec;
-  pts += n(r.def_tds) * R.dstTD;
-  pts += n(r.special_teams_tds) * R.dstTD;
-  pts += n(r.def_safeties) * R.dstSafety;
-  pts += dstPointsAllowed(pointsAllowed);
-  return pts;
-}
+   Og thad var ekki tilviljun heldur afleiding af gognunum: vid EIGUM
+   engin soguleg DST-stig. `seasons.json` ber QB/RB/WR/TE/K og ekkert
+   annad, og `defense.json` er vorn-gegn-stodu (hvad lid gefur fra ser)
+   sem er allt annad en fantasy-stig varnarinnar. Kodinn var thvi ekki
+   bara onotadur heldur ONOTHAEFUR med theim gognum sem til eru.
 
-/**
- * Ein leid inn: velur retta formulu eftir stodu.
- * `pos` er nflverse-stada (QB/RB/WR/TE/K/DST/…).
- */
-export function pointsFor(row, pos, R = BASE, pointsAllowed = null) {
-  if (pos === "K") return kickerPoints(row, R);
-  if (pos === "DST" || pos === "DEF") return dstPoints(row, pointsAllowed, R);
-  return offensePoints(row, R, pos);
-}
+   AD HAFA HANN TILBUINN VAERI VERRA EN AD HAFA HANN EKKI: hann var
+   aldrei profadur gegn thekktri tolu, svo fyrsta notkun hans yrdi lika
+   fyrsta profun hans — i beinni, i september. Thurfi DST-stig sidar
+   tharf FYRST heimild sem ber thau (BSD eda nflverse team-defense), og
+   tha er formulan skrifud gegn theirri heimild og profud vid hana.
+   ============================================================ */
 
 /* ---------- stodur sem fantasy notar ---------- */
 

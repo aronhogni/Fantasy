@@ -52,7 +52,7 @@ export const COLUMNS = [
     note: "Rod innan stodu eftir spa likansins." },
 
   /* ---------- markadurinn ---------- */
-  { key: "adp", label: "ADP (your league format)", short: "ADP", band: "Market", hi: false,
+  { key: "adp", label: "ADP (your scoring)", short: "ADP", band: "Market", hi: false,
     note: "Medal-draftstada i thvi sniði sem thu valdir. Ur FantasyFootballCalculator (raunveruleg droft)." },
   { key: "adpSleeper", label: "Sleeper ADP", short: "ADP Slp", band: "Market", hi: false,
     note: "ADP a Sleeper — vettvangnum sem thu draftar a. Tomgildi (999/400) eru fjarlaegð." },
@@ -69,7 +69,7 @@ export const COLUMNS = [
 
   /* ---------- serfraedingar ---------- */
   { key: "ecr", label: "Expert consensus rank", short: "ECR", band: "Experts", hi: false,
-    note: "Samsteypa ~93 serfraedinga hja FantasyPros. MAELD 2025: betri en 43% einstakra borda." },
+    note: "Samsteypa serfraedinga FantasyPros FYRIR THINA STIGAGJOF. Snidid skiptir mali: af 502 sameiginlegum leikmonnum hafa 467 annad saeti i standard en i PPR, og efstu fjorir snuast vid." },
   { key: "ecrTier", label: "FantasyPros tier", short: "FP tier", band: "Experts", hi: false,
     note: "Threp FantasyPros. Onnur skodun vid hlidina a okkar threpum, ekki i stad theirra." },
   { key: "ecrSd", label: "Expert disagreement", short: "ECR sd", band: "Experts", hi: null,
@@ -120,17 +120,6 @@ export const DEFAULT_COLS = [
   "name", "pos", "team", "bye", "aRank", "proj", "vbd", "tier",
   "adp", "value", "ecr", "sharpDelta", "lastPpg", "lastGames",
 ];
-
-/** Bond i skra-rod — birtingar-rodin ER skra-rodin. */
-export const BANDS = (() => {
-  const out = [];
-  for (const c of COLUMNS) {
-    const last = out[out.length - 1];
-    if (last && last.band === c.band) last.n++;
-    else out.push({ band: c.band, n: 1 });
-  }
-  return out;
-})();
 
 /**
  * FORMERKI ADEINS THEGAR TALAN ER RAUNVERULEGA YFIR EDA UNDIR NULL.

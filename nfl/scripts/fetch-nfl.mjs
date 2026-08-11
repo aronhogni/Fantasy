@@ -6,6 +6,7 @@
    KEYRSLA
      node scripts/fetch-nfl.mjs                 # allt
      node scripts/fetch-nfl.mjs --stage=core    # bara thad ferskasta
+     node scripts/fetch-nfl.mjs --stage=adp     # ADEINS ADP (lett, ma keyra oft)
      node scripts/fetch-nfl.mjs --stage=history # sagan (haeg, sjaldan)
      node scripts/fetch-nfl.mjs --stage=experts # serfraedingabordin
      NFL_NO_CACHE=1 ...                             # framhja skyndiminni
@@ -75,7 +76,22 @@ const HISTORY = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
  * sem er rett fyrir hann: thar ER hver lykill ein stadreynd.
  */
 function rowCount(data, depth = 0) {
-  if (Array.isArray(data)) return data.length;
+  if (Array.isArray(data)) {
+    /* FYLKI AF UMBUÐUM SKILAR FJOLDA UMBUÐANNA, EKKI FARMSINS.
+       `adp.json` er `{ season, ffc: [5 sett], generated }` og hvert
+       sett ber 258 leikmenn. Fyrsta utgafan skilaði 5 og hafnaði
+       skrifum sem voru i fullkomnu lagi — sami villuflokkur og hun
+       var skrifud til ad hindra, bara einu lagi ofar. Nu er dypsti
+       farmurinn talinn lika. */
+    let best = data.length;
+    if (depth < 4) {
+      for (const v of data) {
+        const n = rowCount(v, depth + 1);
+        if (n > best) best = n;
+      }
+    }
+    return best;
+  }
   if (!data || typeof data !== "object") return 0;
   let best = 0;
   if (depth < 4) {
@@ -165,7 +181,8 @@ async function stageCore() {
   /* --- SAMEINING --- */
   const players = joinPlayers({
     sleeperPlayers, nvPlayers, espnPool, idmap,
-    ecr: ecrPpr, ffcSets, sleeperProj: sleeperSeasonProj,
+    ecr: ecrPpr, ecrSets: { ppr: ecrPpr, half: ecrHalf, standard: ecrStd },
+    ffcSets, sleeperProj: sleeperSeasonProj,
     trendAdd, trendDrop, espnInj, season,
   });
 
@@ -176,7 +193,7 @@ async function stageCore() {
     season,
     ffc: ffcSets,
     generated: new Date().toISOString(),
-  }, { minRows: 1 });
+  }, { minRows: 100 });   // 258 leikmenn per sett
   await writeJson("ecr.json", {
     season,
     ppr: ecrPpr, half: ecrHalf, standard: ecrStd,
@@ -243,7 +260,7 @@ async function stageCore() {
    gagnaskekkja.
    ============================================================ */
 
-function joinPlayers({ sleeperPlayers, nvPlayers, espnPool, idmap, ecr,
+function joinPlayers({ sleeperPlayers, nvPlayers, espnPool, idmap, ecr, ecrSets,
                        ffcSets, sleeperProj, trendAdd, trendDrop, espnInj, season }) {
   const stats = { total: 0, gsis: 0, espn: 0, fp: 0, ffc: 0, byName: 0 };
 
@@ -274,6 +291,31 @@ function joinPlayers({ sleeperPlayers, nvPlayers, espnPool, idmap, ecr,
 
   const ecrByFp = new Map((ecr ? ecr.players : []).map((p) => [p.fpId, p]));
   const ecrIdx = buildIndexes(ecr ? ecr.players : []);
+
+  /* ============================================================
+     ECR ER SOTT I THREMUR SNIÐUM — OG THAU ERU RAUNVERULEGA OLIK
+     ============================================================
+     Adur var ADEINS PPR-taflan tengd vid leikmenn; hinar tvaer voru
+     sottar, skrifadar i `ecr.json` og LESNAR AF ENGUM. Dalkurinn
+     "Expert consensus rank" syndi thvi PPR-tolu i standard-deild,
+     vid hlidina a ADP-dalki sem SKIPTIR eftir sniði.
+
+     Og munurinn er ekki smaatriði. Maelt 10.8.2026 a thessum somu
+     skram: af 502 sameiginlegum leikmonnum hafa **467 annad saeti** i
+     standard en i PPR, og efstu fjorir snuast vid — Ja'Marr Chase er
+     ECR1 i PPR en Jahmyr Gibbs i standard.
+
+     Nu er hvert snid tengt fyrir sig og geymt undir `ecrByScoring`.
+     Flata `ecr`-svidid stendur afram sem PPR (eldri lesendur), en
+     `build.js` velur retta snidid ur toflunni.                     */
+  const ecrIdxByScoring = {};
+  for (const [k, set] of Object.entries(ecrSets || {})) {
+    if (!set || !Array.isArray(set.players)) continue;
+    ecrIdxByScoring[k] = {
+      byFp: new Map(set.players.map((p) => [p.fpId, p])),
+      idx: buildIndexes(set.players),
+    };
+  }
 
   /* FFC: ekkert sameiginlegt audkenni -> nafna-porun (merkt sem slik) */
   const ffcIdx = {};
@@ -324,6 +366,20 @@ function joinPlayers({ sleeperPlayers, nvPlayers, espnPool, idmap, ecr,
       if (m) { ecrRow = m.item; viaFp = `name:${m.via}`; }
     }
     if (ecrRow) stats.fp++;
+
+    /* Sama porun fyrir hvert snid: fp_id fyrst, nafn sem sidasta urraedi. */
+    const ecrByScoring = {};
+    for (const [k, tbl] of Object.entries(ecrIdxByScoring)) {
+      let row = fpId ? tbl.byFp.get(fpId) : null;
+      if (!row) {
+        const m = matchByName(tbl.idx, s.name, s.pos, team);
+        if (m) row = m.item;
+      }
+      if (row) {
+        ecrByScoring[k] = { ecr: row.ecr, tier: row.tier, sd: row.sd,
+                            best: row.best, worst: row.worst, posRank: row.posRank };
+      }
+    }
 
     /* --- FFC ADP i ollum settum --- */
     const ffc = {};
@@ -389,6 +445,8 @@ function joinPlayers({ sleeperPlayers, nvPlayers, espnPool, idmap, ecr,
       ecrBest: ecrRow ? ecrRow.best : null,
       ecrWorst: ecrRow ? ecrRow.worst : null,
       ecrPosRank: ecrRow ? ecrRow.posRank : null,
+      /* Per snid — sja notuna vid `ecrIdxByScoring`. */
+      ecrByScoring: Object.keys(ecrByScoring).length ? ecrByScoring : null,
       bye: ecrRow ? ecrRow.bye : null,
 
       /* --- markadssveiflur --- */
@@ -663,6 +721,82 @@ function compactBoards(boards) {
    KEYRSLA
    ============================================================ */
 
+
+/* ============================================================
+   THREP: ADP EITT OG SER — LETT, SVO HAEGT SE AD KEYRA THAD OFT
+   ============================================================
+   ADP HREYFIST DAGLEGA I AGUST og bord sem er tolf klukkustunda
+   gamalt i draftviku er ekki nogu ferskt. En `core` er thungt: thad
+   saekir 11.000 Sleeper-leikmenn, 1,5 milljon rada audkennisbru,
+   ESPN-laugina, ECR-sidur og markadslinur. Ad keyra thad a thriggja
+   tima fresti vaeri odonaskapur vid heimildirnar og haegt ad auki.
+
+   ÞETTA THREP SNERTIR ADEINS ADP: fimm HTTP-koll (FFC-settin og
+   Sleeper-spa/ADP), og thad SKRIFAR OFAN I `players.json` sem er
+   thegar til — endurbyggir ekki poruninna. Thad ma thvi keyra oft.
+
+   REGLAN "TOM KEYRSLA MA ALDREI THURRKA UT GOD GOGN" GILDIR HER LIKA
+   og hun er strangari: thad ma ekki heldur SKRIFA HALFA UPPFAERSLU.
+   Fai faerri en 100 leikmenn nytt ADP er engu breytt og thad er skrad.
+   ============================================================ */
+async function stageAdp() {
+  console.log("\n=== ADP ===");
+  const players = await readJson("players.json");
+  if (!Array.isArray(players) || players.length < 300) {
+    record("adp_stage", false,
+      "players.json missing or too small — run --stage=core first");
+    return;
+  }
+  const meta = await readJson("meta.json");
+  const season = (meta && meta.season) || new Date().getFullYear();
+
+  const [ffcSets, sleeperProj] = await Promise.all([
+    ad.ffcAll(season),
+    sl.projections(season).catch((e) => { record("sleeper_proj_adp", false, e.message); return null; }),
+  ]);
+  if (!ffcSets || !ffcSets.length) {
+    record("adp_stage", false, "no FFC sets returned — leaving players.json untouched");
+    return;
+  }
+
+  /* Porun a NAFNI innan stodu OG lids, eins og i `joinPlayers`. Vid
+     endurbyggjum ekki bruna — hun breytist ekki milli klukkustunda. */
+  const ffcIdx = {};
+  for (const set of ffcSets) ffcIdx[set.scoring] = buildIndexes(set.players);
+
+  let touched = 0;
+  for (const p of players) {
+    const next = {};
+    for (const [key, idx] of Object.entries(ffcIdx)) {
+      const m = matchByName(idx, p.name, p.pos, p.team);
+      if (m) {
+        next[key] = { adp: m.item.adp, sd: m.item.sd, high: m.item.high,
+                      low: m.item.low, times: m.item.times };
+      }
+    }
+    if (Object.keys(next).length) { p.adpFfc = next; touched++; }
+    if (sleeperProj) {
+      const sp = sleeperProj[p.id] || sleeperProj[String(p.id)];
+      if (sp) {
+        if (sp.adp != null) p.adpSleeper = sp.adp;
+        if (sp.adpStd != null) p.adpSleeperStd = sp.adpStd;
+        if (sp.adpHalf != null) p.adpSleeperHalf = sp.adpHalf;
+      }
+    }
+  }
+
+  if (touched < 100) {
+    record("adp_stage", false,
+      `only ${touched} players matched — refusing to write a half update`);
+    return;
+  }
+  await writeJson("players.json", players, { minRows: 300 });
+  await writeJson("adp.json", {
+    season, ffc: ffcSets, generated: new Date().toISOString(),
+  }, { minRows: 100 });
+  record("adp_stage", true, `${touched} players refreshed from ${ffcSets.length} FFC sets`);
+}
+
 async function main() {
   const t0 = Date.now();
   console.log(`NFL-pipeline — threp: ${STAGE}`);
@@ -678,6 +812,7 @@ async function main() {
     if (m && m.season) season = m.season;
   }
 
+  if (want("adp")) await stageAdp();
   if (want("history")) await stageHistory();
   if (want("experts")) await stageExperts(season);
 

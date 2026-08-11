@@ -56,10 +56,15 @@ export async function ffc(scoring, teams, year) {
 
 /** Öll settin sem appid getur thurft. */
 export async function ffcAll(year) {
+  /* EITT SETT PER STIGAGJOF, EKKI THRJU PER STIGAGJOF.
+     Maelt 10.8.2026: FFC skilar NAKVAEMLEGA somu gognum fyrir
+     teams=8/10/12/14 (5.614 droft, 258 leikmenn, somu tolur) og Error
+     fyrir 16 — thad HUNSAR lidafjoldann. Ad saekja thrju sett per
+     stigagjof var thvi ekki bara soun a niu kollum heldur bjó til
+     THA VILLANDI MYND ad ADP fylgdi deildarstaerdinni.
+     Stigagjofin er raunveruleg og er sott afram. */
   const combos = [];
-  for (const s of ["ppr", "half-ppr", "standard"]) {
-    for (const t of [10, 12, 14]) combos.push([s, t]);
-  }
+  for (const s of ["ppr", "half-ppr", "standard"]) combos.push([s, 12]);
   combos.push(["2qb", 12], ["dynasty", 12]);
   const got = await pool(combos, 3, ([s, t]) => ffc(s, t, year));
   return got.filter(Boolean);

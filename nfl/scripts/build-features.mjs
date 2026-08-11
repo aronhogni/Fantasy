@@ -635,7 +635,13 @@ async function main() {
     generated: new Date().toISOString(),
     firstOutcome: FIRST_OUTCOME, lastOutcome: LAST_OUTCOME,
     adpWindows: Object.fromEntries([...adp].map(([k, v]) =>
-      [k, { from: v.meta.start_date, to: v.meta.end_date, drafts: v.meta.total_drafts }])),
+      /* `v.meta` er VARIN hér eins og a hinum tveimur stodunum
+         (:261 og sources/adp.mjs:38). An hennar fellir eitt FFC-svar
+         an `meta` ALLA features-bygginguna — i sidustu skrifun, eftir
+         allt hitt verkid. */
+      [k, { from: v.meta ? v.meta.start_date : null,
+            to: v.meta ? v.meta.end_date : null,
+            drafts: v.meta ? v.meta.total_drafts : null }])),
     rows,
   }));
   console.log(`-> data/features.json  ${rows.length} radir`);

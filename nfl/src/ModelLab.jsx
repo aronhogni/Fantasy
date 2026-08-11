@@ -153,6 +153,20 @@ function Rankings({ ev, ar, arFf, std, shapes, league }) {
       {arFf && arFf.headToHead && <Replication ar={ar} ff={arFf} std={std} />}
       {shapes && shapes.shapes && <Shapes shapes={shapes} std={std} league={league} />}
 
+      {/* ADP-LIKANID ER FORSENDA THESSARAR TOFLU, EKKI SKRAUT.
+          Hver rod ber `m.draftCommon - adp.draftCommon`, svo vanti
+          ADP-likanid hrundi ALLUR flipinn i villuvornina — og
+          notandinn saeti uppi med "Something broke" i stad toflu sem
+          vantar eina dalk. Vordurinn ad ofan (lina 85) naer adeins
+          yfir KPI-spjaldid; hann natti ekki hingad. */}
+      {!adp && (
+        <div className="note warn">
+          <b>The ADP baseline is missing from this measurement file.</b> Every row here
+          is scored against it, so the table is hidden rather than shown with holes.
+          Re-run <code>scripts/model-lab.mjs</code>.
+        </div>
+      )}
+      {adp && (
       <div className="tablewrap">
         <table className="data">
           <thead><tr className="cols">
@@ -200,10 +214,13 @@ function Rankings({ ev, ar, arFf, std, shapes, league }) {
           </tbody>
         </table>
       </div>
+      )}
+      {adp && (
       <div className="dim" style={{ padding: "8px 2px", fontSize: 12 }}>
         Same seasons for every row ({common.join(", ")}) —
         comparing an eight-season average against a four-season one would not be a comparison.
       </div>
+      )}
     </>
   );
 }

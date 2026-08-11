@@ -100,7 +100,10 @@ export default function App() {
     if (view === "draft") need(["seasons", "accuracy", "experts", "kickers"]);
     else if (view === "players") need(["seasons", "accuracy", "experts"]);
     else if (view === "experts") need(["accuracy", "experts"]);
-    else if (view === "schedule") need(["defense", "teamForm"]);
+    /* E6: `Schedule` tekur hvorki `defense` ne `teamForm` vid — thaer
+       voru sottar og sendar inn sem eiginleikar sem hun destrukturerar
+       ekki einu sinni. Tvaer daudar netsoknir i hverri heimsokn. */
+    else if (view === "schedule") need([]);
     else if (view === "sources") need(["calibration", "adp"]);
     else if (view === "market") need(["marketHistory"]);
     else if (view === "myteam") need(["seasons", "accuracy", "experts", "news"]);
@@ -179,8 +182,7 @@ export default function App() {
           shapes={extra.shapes} />
       )}
       {view === "schedule" && (
-        <Schedule schedule={core.schedule} teams={core.teams}
-          defense={extra.defense} teamForm={extra.teamForm} season={meta.season} />
+        <Schedule schedule={core.schedule} teams={core.teams} season={meta.season} />
       )}
       {view === "sources" && (
         <Sources status={core.status} meta={meta} calibration={extra.calibration}

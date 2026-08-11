@@ -150,17 +150,50 @@ export function lineupAdvice(current, players, slots = DEFAULT_SLOTS) {
 
   const shouldStart = opt.starters
     .filter((s) => s.player && !curIds.has(s.player.id))
-    .map((s) => ({ slot: s.slot, player: s.player }));
+    .map((s) => ({ slot: s.slot, eligible: s.eligible, player: s.player }));
   const shouldSit = players
-    .filter((p) => curIds.has(p.id) && !optIds.has(p.id));
+    .filter((p) => curIds.has(p.id) && !optIds.has(p.id))
+    .map((p) => ({ ...p, ev: p.bye ? 0
+      : (p.proj == null ? null : p.proj * (p.avail == null ? 1 : p.avail)) }));
+
+  /* ============================================================
+     SKIPTI ERU PORUD EFTIR SAETI, EKKI EFTIR VISITOLU
+     ============================================================
+     Adur var `shouldStart[i]` pardur vid `shouldSit[i]` — tvo OSKYLD
+     fylki i theirri rod sem thau raktust upp. Utkoman gat verid
+     "settu inn mottakara, taktu ut leikstjornanda", sem er ekki
+     skipti heldur tvaer adskildar tillogur limdar saman. Notandi sem
+     fylgdi henni hefdi endad med tomt QB-saeti.
+
+     Og `gain` bar `s.player.ev - shouldSit[i].proj`: VAENT gildi ad
+     fradregnu HRAU gildi. Tvaer olikar einingar i sama fradraetti —
+     madur sem er 50% liklegur til ad spila var borinn saman vid mann
+     sem var talinn spila oruggega, og munurinn leit ut eins og abati.
+
+     Nu er hver innkoma pordu vid THANN sem situr i saeti sem hun er
+     GJALDGENG i, og bezti abatinn tekinn fyrst. Bædi gildin eru `ev`.  */
+  const used = new Set();
+  const changes = [];
+  for (const s of shouldStart) {
+    let best = null;
+    for (const out of shouldSit) {
+      if (used.has(out.id)) continue;
+      /* Sa sem fer ut verdur ad vera gjaldgengur i saetid sem losnar —
+         annars er thetta ekki skipti. */
+      if (s.eligible && !s.eligible.includes(out.pos)) continue;
+      if (!best || (out.ev ?? Infinity) < (best.ev ?? Infinity)) best = out;
+    }
+    if (best) used.add(best.id);
+    changes.push({
+      in: s.player, out: best || null, slot: s.slot,
+      gain: best && best.ev != null && s.player.ev != null
+        ? round1(s.player.ev - best.ev) : null,
+    });
+  }
 
   return {
     optimal: opt,
-    changes: shouldStart.map((s, i) => ({
-      in: s.player, out: shouldSit[i] || null, slot: s.slot,
-      gain: shouldSit[i] && shouldSit[i].proj != null && s.player.ev != null
-        ? round1(s.player.ev - shouldSit[i].proj) : null,
-    })),
+    changes,
     isOptimal: shouldStart.length === 0,
   };
 }

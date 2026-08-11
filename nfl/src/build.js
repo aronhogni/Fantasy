@@ -145,8 +145,34 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
 
   const rows = players.map((p) => {
     /* --- markadurinn i RETTU sniði --- */
-    const ffcKey = `${league.scoring}_${league.teams}`;
-    const ffc = p.adpFfc && p.adpFfc[ffcKey] ? p.adpFfc[ffcKey] : null;
+    /* ============================================================
+       ADP RAEDST AF STIGAGJOF, EKKI LIDAFJOLDA — MAELT
+       ============================================================
+       Lykillinn var `${scoring}_${teams}`, sem gerdi tvennt rangt:
+       i 8- og 16-lida deild fannst ENGINN lykill og appid fell thegjandi
+       aftur i Sleeper-ADP — tolu ur odru sniði, birta undir heitinu
+       "ADP (your league format)".
+
+       En dypri villan var forsendan sjalf. Maelt beint gegn FFC
+       10.8.2026: `teams=8`, `10`, `12` og `14` skila NAKVAEMLEGA SOMU
+       gognum — sami fjoldi drafta (5.614), sami fjoldi leikmanna (258)
+       og somu ADP-tolur upp a aukastaf. `teams=16` skilar Error.
+       Gognin a disknum stadfesta thad lika: `ppr_10`, `ppr_12` og
+       `ppr_14` eru byte-eins.
+
+       FFC HUNSAR LIDAFJOLDANN. Stigagjofin er hins vegar raunveruleg
+       (Gibbs 1,7 i PPR gegn 1,6 i standard; Chase i 4. saeti i PPR en
+       Taylor i standard). Lykillinn er thvi a stigagjof — og tha er
+       ekkert tapad i 8- eda 16-lida deild, THVI THAR VAR ALDREI NEITT
+       AD SAEKJA.
+
+       Gamla snidid er lesid afram: skrar sem eru thegar a disknum bera
+       `ppr_12`, og ny keyrsla skrifar `ppr`. */
+    const ffcTable = p.adpFfc || {};
+    const ffc = ffcTable[league.scoring]
+      || ffcTable[`${league.scoring}_12`]
+      || ffcTable[Object.keys(ffcTable).find((k) => k.startsWith(`${league.scoring}_`)) || ""]
+      || null;
     const adpSleeper = scoringKey === "half" ? p.adpSleeperHalf
                      : scoringKey === "std" ? p.adpSleeperStd
                      : p.adpSleeper;
@@ -211,8 +237,25 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
       adpHigh: ffc ? ffc.high : null, adpLow: ffc ? ffc.low : null,
       adpTimes: ffc ? ffc.times : null,
 
-      ecr: p.ecr, ecrTier: p.ecrTier, ecrSd: p.ecrSd,
-      ecrBest: p.ecrBest, ecrWorst: p.ecrWorst, ecrPosRank: p.ecrPosRank,
+      /* ECR FYLGIR STIGAGJOFINNI, EINS OG ADP GERIR.
+         Flata `ecr`-svidid er PPR; `ecrByScoring` ber hvert snid fyrir
+         sig (sja notuna i fetch-nfl.mjs). Vantad snid fellur i flata
+         svidid — eldri gagnaskra a disknum ber ekki toflunna enn, og
+         tha er PPR-talan retta svarid fyrir PPR-deild og naesta besta
+         fyrir hinar, tho hun se ekki nakvaem. */
+      ...(() => {
+        const key = league.scoring === "half-ppr" ? "half" : league.scoring;
+        const e = (p.ecrByScoring && p.ecrByScoring[key]) || null;
+        return {
+          ecr: e ? e.ecr : p.ecr,
+          ecrTier: e ? e.tier : p.ecrTier,
+          ecrSd: e ? e.sd : p.ecrSd,
+          ecrBest: e ? e.best : p.ecrBest,
+          ecrWorst: e ? e.worst : p.ecrWorst,
+          ecrPosRank: e ? e.posRank : p.ecrPosRank,
+          ecrScoring: e ? key : (p.ecr != null ? "ppr" : null),
+        };
+      })(),
       sharpRank: sh,
       /* Jakvaett = skorpu bordin eru HAERRI a honum (laegri tala) en
          samsteypan. Ad snua thessu vid er audvelt og banvaent, thvi

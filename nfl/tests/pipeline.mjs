@@ -335,7 +335,16 @@ console.log("\ntom keyrsla ma ekki thurrka ut god gogn");
   /* Sama utfaersla og i fetch-nfl.mjs. Hun er endurtekin viljandi:
      profid a ad falla ef HEGDUNIN breytist, ekki ef nafn breytist. */
   const rowCount = (d, depth = 0) => {
-    if (Array.isArray(d)) return d.length;
+    if (Array.isArray(d)) {
+      /* Fylki af UMBUÐUM skilar fjolda umbudanna, ekki farmsins —
+         `adp.json` er `{ ffc: [5 sett] }` med 258 leikmenn i hverju,
+         og talning sem stoppar a 5 hafnar skrifum sem eru i lagi. */
+      let best = d.length;
+      if (depth < 4) for (const v of d) {
+        const n = rowCount(v, depth + 1); if (n > best) best = n;
+      }
+      return best;
+    }
     if (!d || typeof d !== "object") return 0;
     let best = 0;
     if (depth < 4) for (const v of Object.values(d)) {
@@ -365,6 +374,13 @@ console.log("\ntom keyrsla ma ekki thurrka ut god gogn");
       empty: [], full: new Array(32) },
     { name: "schedule.json", min: 200,
       empty: [], full: new Array(557) },
+    /* Fylki af umbuðum: `ffc` ber fimm sett og hvert sett 258 leikmenn.
+       Talning sem stoppar a ytra fylkinu segir 5 og hafnar skrifum sem
+       eru i fullkomnu lagi. */
+    { name: "adp.json", min: 100,
+      empty: { season: 2026, ffc: [{ players: [] }], generated: "x" },
+      full: { season: 2026, generated: "x",
+              ffc: [{ players: new Array(258) }, { players: new Array(210) }] } },
   ];
   for (const c of CASES) {
     ok(rowCount(c.empty) < c.min,

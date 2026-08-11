@@ -37,33 +37,23 @@
 
 /* ---------- fylgni og villa ---------- */
 
+import { spearman as spearmanArrays } from "./learn.js";
+
 /** Spearman rho a pordum { pred, actual }. Jafntefli fa medalrod. */
 export function spearman(pairs) {
-  const n = pairs.length;
-  if (n < 3) return null;
-  const rp = ranksOf(pairs.map((p) => p.pred));
-  const ra = ranksOf(pairs.map((p) => p.actual));
-  const mp = mean(rp), ma = mean(ra);
-  let num = 0, dp = 0, da = 0;
-  for (let i = 0; i < n; i++) {
-    const a = rp[i] - mp, b = ra[i] - ma;
-    num += a * b; dp += a * a; da += b * b;
-  }
-  return dp && da ? num / Math.sqrt(dp * da) : null;
-}
+  /* EIN UTFAERSLA A RODUN, EKKI TVAER. `ranksOf` bjo hér og `rankArray`
+     i learn.js — sama algrim, sami jafntefla-medhondlun, tvo staðir ad
+     halda i takt. Jafngildi var STADFEST a fimm tilfellum (thar med
+     jafnteflum) adur en thessu var breytt; thaer gafu somu tolu upp a
+     tolf aukastafi.
 
-function ranksOf(xs) {
-  const idx = xs.map((x, i) => [x, i]).sort((a, b) => a[0] - b[0]);
-  const out = new Array(xs.length);
-  let i = 0;
-  while (i < idx.length) {
-    let j = i;
-    while (j + 1 < idx.length && idx[j + 1][0] === idx[i][0]) j++;
-    const r = (i + j) / 2 + 1;
-    for (let k = i; k <= j; k++) out[idx[k][1]] = r;
-    i = j + 1;
-  }
-  return out;
+     Undirskriftirnar eru afram tvaer THVI THAER SVARA OLIKU: hér koma
+     pordu gildin sem `{pred, actual}` (thad er formid sem bordin bera),
+     i learn.js koma tvo fylki (thad er formid sem likanid ber). Ad
+     thvinga eitt form upp a badar hefdi kostad umbreytingu a hverjum
+     kallstad — rokin eru sameinud, ekki vidmotin. */
+  if (!Array.isArray(pairs) || pairs.length < 3) return null;
+  return spearmanArrays(pairs.map((p) => p.pred), pairs.map((p) => p.actual));
 }
 
 const mean = (xs) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);

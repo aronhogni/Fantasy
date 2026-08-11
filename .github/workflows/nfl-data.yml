@@ -28,6 +28,14 @@ on:
     # a kvoldin i BNA og bord sem er 12 klst gamalt i draft-viku er
     # ekki nogu ferskt.
     - cron: "0 21 * 8,9 *"
+    # ADP EITT OG SER A THRIGGJA TIMA FRESTI I AGUST OG SEPTEMBER.
+    # `core` er thungt (11.000 Sleeper-leikmenn, 1,5 milljon rada
+    # audkennisbru, ESPN-laug, ECR-sidur) og a ekki ad keyra svona
+    # oft — en ADP hreyfist DAGLEGA i drafttid og thad er talan sem
+    # radgjofin les mest. `--stage=adp` er fimm HTTP-koll og tekur
+    # eina sekundu; thad skrifar ofan i players.json sem er thegar
+    # til og endurbyggir enga porun.
+    - cron: "0 0,3,6,12,15,18 * 8,9 *"
   workflow_dispatch:
     inputs:
       stage:
@@ -61,6 +69,11 @@ jobs:
           set -euo pipefail
           if [ -n "${{ github.event.inputs.stage }}" ]; then
             echo "value=${{ github.event.inputs.stage }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 0,3,6,12,15,18 * 8,9 *" ]; then
+            # ADP-keyrslan: FIMM HTTP-koll, ein sekunda. Hun endurbyggir
+            # enga porun heldur skrifar ny ADP-gildi ofan i players.json
+            # sem er thegar til. Thess vegna ma hun keyra svona oft.
+            echo "value=adp" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "0 21 * 8,9 *" ]; then
             # Kvoldkeyrslan i drafttid: ADP hreyfist, bordin ekki.
             echo "value=core" >> "$GITHUB_OUTPUT"
