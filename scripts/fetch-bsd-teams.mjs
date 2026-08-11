@@ -182,6 +182,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         throw new Error(`HTTP ${r.status} ${path}`);
       } catch (e) { if (i === tries - 1) throw e; await sleep(800 * (i + 1)); }
     }
+    /* SIDASTA TILRAUN SEM VAR 429/5xx `continue`-adi UT UR LYKKJUNNI og
+       fallid skilaði `undefined` — thogull bilun sem birtist fyrst sem
+       "Cannot read properties of undefined (reading 'results')" LANGT fra
+       upprunanum. `fetch-bsd.mjs` lagadi thetta; systurskriftan ekki.
+       Kvota-thak a ad segjast sem kvota-thak.                           */
+    throw new Error(`BSD gave up after ${tries} attempts: ${path}`);
   };
   const pool = async (items, n, fn) => {
     let i = 0;

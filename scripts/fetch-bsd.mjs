@@ -110,7 +110,7 @@ async function get(path, tries = 3) {
      skilaði thvi `undefined` — ThOGULL BILUN sem birtist fyrst sem
      "Cannot read properties of undefined (reading 'results')" langt fra
      upprunanum. Kvota-thak a ad segjast sem kvota-thak.                  */
-  throw new Error(`BSD gafst upp eftir ${tries} tilraunir: ${path}`);
+  throw new Error(`BSD gave up after ${tries} attempts: ${path}`);
 }
 /* keyrir `fn` yfir `items` med takmarkadri samhlida-vinnslu */
 async function pool(items, n, fn) {

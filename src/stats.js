@@ -700,9 +700,15 @@ export function minutesFloor(players, fraction = 0.25) {
    REGLAN ER ALMENN, ekki Meslier-undantekning: tala sem KREFST spilunar
    getur ekki verid >0 thegar minutur eru 0. Adeins verd, eignarhald og
    flutningar eru oháð spilun.                                            */
+/* VERDBREYTING KREFST ENGRA MINUTNA. `cost_change_start` var her en
+   `cost_change_event` gleymdist: 0-minutna leikmadur sem HAEKKAR i verdi i
+   yfirstandandi umferd (daemigert: nyr leikmadur i kastljosi) datt thvi ut
+   af "Price change (GW)"-stigatoflunni og taldist `isIncoherent` — sem er
+   fyrirvarinn um ad HEIMILDIN LJUGI. Hun lygur ekki hér; verd hreyfast an
+   thess ad spilad se.                                                    */
 const MINUTES_INDEPENDENT = new Set([
   "minutes", "now_cost", "selected_by_percent", "cost_change_start",
-  "net_transfers_event", "pts_per_million",
+  "cost_change_event", "net_transfers_event", "pts_per_million",
 ]);
 
 export function isIncoherent(p, statKey, v) {

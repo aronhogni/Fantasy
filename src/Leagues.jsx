@@ -66,9 +66,17 @@ export default function Leagues({ proxyUrl, entryId }) {
       if (raw) setLeagues(JSON.parse(raw) || []);
     } catch {}
   }, []);
+  /* TEKUR BADI GILDI OG UPPFAERSLUFALL. Samhlida sóknir (ein per deild)
+     skrifudu adur allar ur SAMA gamla afriti, svo nafn tapadist og
+     notanda-breyting i midri sokn var afturkolluð. Med falli les hver
+     uppfaersla NYJASTA astandid — og vistun i localStorage fer fram a
+     ThVI SEM VARD TIL, ekki a thvi sem kallandinn hélt.                  */
   const save = next => {
-    setLeagues(next);
-    try { localStorage.setItem("fpl_leagues", JSON.stringify(next)); } catch {}
+    setLeagues(prev => {
+      const val = typeof next === "function" ? next(prev) : next;
+      try { localStorage.setItem("fpl_leagues", JSON.stringify(val)); } catch {}
+      return val;
+    });
   };
 
   /* ---- sækja stöðu ---- */
@@ -82,8 +90,13 @@ export default function Leagues({ proxyUrl, entryId }) {
       if (j?.error) throw new Error(String(j.error));
       setData(d => ({ ...d, [id]: j }));
       /* Nafnid kemur ur svarinu — notandinn a ekki ad thurfa ad skrifa thad */
+      /* FUNKSJONAL UPPFAERSLA — `leagues` UR LOKUNINNI ER UREL.
+         `load()` var kallad per deild og hver svarun skrifadi ALLAN listann
+         ur sama gamla afriti: med tveimur deildum i einu tapadist nafn
+         hinnar, og hafi notandinn breytt potti/skiptingu MEDAN sokn stod
+         yfir var su breyting afturkolluð thegjandi. Nu er lesid ur `prev`.  */
       const nm = j?.league?.name;
-      if (nm) save(leagues.map(l => l.id === id ? { ...l, name: nm } : l));
+      if (nm) save(prev => prev.map(l => l.id === id ? { ...l, name: nm } : l));
     } catch (e) {
       setErr(interp("Could not load league {0}: {1}", [id, String(e.message).slice(0, 60)]));
     } finally { setBusy(b => ({ ...b, [id]: false })); }

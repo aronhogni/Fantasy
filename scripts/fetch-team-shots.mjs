@@ -62,6 +62,11 @@ async function getJSON(url, tries = 3) {
       throw new Error(`HTTP ${r.status}`);
     } catch (e) { if (i === tries - 1) throw e; await sleep(600 * (i + 1)); }
   }
+  /* SAMA GAT OG I BSD-SKRIFTUNUM: sidasta tilraun sem var 429 `continue`-adi
+     ut ur lykkjunni og fallid skilaði `undefined`. Hrunid kom tha vid
+     `d.header?.competitions` — langt fra upprunanum og litur ut eins og
+     gagnavilla i stad throttlingar.                                     */
+  throw new Error(`ESPN gave up after ${tries} attempts: ${url}`);
 }
 
 const [, , FROM = "2025-08-15", TO = "2026-05-25"] = process.argv;
@@ -201,7 +206,7 @@ const payload = {
       + `provides it. Proximity (close_*) is a measured approximation of the same thing, not a big chance. `
       + `CROSS-CHECKED AGAINST E0 (an independent source, team_form.json) 8.8.2026: all 17 clubs `
       + `present in BOTH files agree within 0.71 shots/match, mean deviation -0.47 (shots) and `
-      + `-0,43 (a mark). ESPN telur KERFISBUNDID ~3,5% faerri — sama formerki i ollum `
+      + `-0.43 (on target). ESPN counts SYSTEMATICALLY ~3.5% fewer — the same sign across all `
       + `clubs, which is a difference between sources (the commentary omits some blocked shots) but `
       + `not an error in the extraction. Use the E0 figures for VOLUME and ESPN for ZONES.`,
   no_zone: noZone, no_team: noTeam,

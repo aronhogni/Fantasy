@@ -411,6 +411,21 @@ console.log("\n=== D. PIPELINE-STRENGIR (scripts/*.mjs) ===");
          ("`ai_score` is their own model"). Ord med enskri merkingu eru
          VILJANDI utan listans — sama regla og "lid"/"min"/"man"/"sun". */
       "thaer", "hun", "hann", "vid", "tha", "svo", "eda", "hvert",
+      /* LAK 10.8.2026 I ANNARRI UTTEKT — FIMM strengir sem thessi listi sa
+         EKKI, thott hann hefdi verid hertur med smaordunum somu nott:
+           "engar dagsetningar i last_gw.json"     (record-nota, birt)
+           "kvoti at throtum ... threpid lokadi"   (fer i lineups.json)
+           "REIKNINGUR I VANDRAEDUM: ..."          (fer i injuries.json.plan)
+           "svar an threps-upplysinga"             (sama)
+           "ESPN telur KERFISBUNDID ~3,5% faerri"  (i team_shots.json)
+         Hvorugur listinn nadi theim: strengirnir eru STUTTIR og bera hvorki
+         "og/er/eru/ekki" ne nokkurt ordanna sem thegar voru skrad.
+         ThETTA ER SONNUNIN: SVARTLISTI VERDUR ALDREI TAEMANDI. Hann er
+         GOLF, ekki thak. Reglan stendur — hver raunverulegur leki staekkar
+         listann — en treystu honum ekki sem einu vorninni.               */
+      "engar", "dagsetningar", "kvoti", "throtum", "threp", "threpid",
+      "threps", "reikningur", "vandraedum", "upplysinga", "telur",
+      "kerfisbundid", "faerri", "formerki", "stodvad", "eftir",
       "hverja", "thess", "thessi", "annad", "onnur", "bædi", "badir",
     ].join("|") + ")\\b", "i");
 

@@ -1486,7 +1486,7 @@ let apiRemaining = null, apiBlocked = null;
 async function apiSports(path) {
   if (apiBlocked) return { http: 0, blocked: apiBlocked, errors: { budget: apiBlocked }, response: [] };
   if (apiRemaining != null && apiRemaining <= API_MIN_REMAINING) {
-    apiBlocked = `kvoti at throtum (${apiRemaining} eftir) — stodvad adur en threpid loka∂i`;
+    apiBlocked = `quota nearly spent (${apiRemaining} left) — stopped before the tier closed it`;
     console.warn(`API-Sports: ${apiBlocked}`);
     return { http: 0, blocked: apiBlocked, errors: { budget: apiBlocked }, response: [] };
   }
@@ -1517,7 +1517,7 @@ async function fetchInjuries() {
     const accErr = st.errors && !Array.isArray(st.errors)
       ? (st.errors.access || st.errors.token || Object.values(st.errors)[0]) : null;
     if (accErr) {
-      plan = `REIKNINGUR I VANDRAEDUM: ${String(accErr).slice(0, 90)}`;
+      plan = `ACCOUNT IN TROUBLE: ${String(accErr).slice(0, 90)}`;
       record("apisports_account", false, 0, plan);
     } else if (acc) {
       plan = `${acc} · ${cur}/${lim} calls today`;
@@ -1526,7 +1526,7 @@ async function fetchInjuries() {
       record("apisports_account", true, cur ?? 0,
         `${acc} · ${cur}/${lim} calls today${near ? " — OVER 80% OF QUOTA" : ""}`);
     } else {
-      plan = "svar an threps-upplysinga";
+      plan = "response without tier information";
       record("apisports_account", false, 0, plan);
     }
     console.log(`API-Sports: ${plan}`);
@@ -1629,7 +1629,12 @@ async function fetchInjuries() {
      kafla 6e i CLAUDE.md. Merkjum thad svo enginn fjarlaegi tenginguna
      a theim forsendum ad hun se brotin.                                  */
   record("apisports_injuries", true, out.length,
-    out.length === 0 && /leikdag/i.test(via)
+    /* REGEXID VARD MUNADARLAUST VID ThYDINGUNA 9.8.2026: `via` var
+       "leikdaga ..." en er nu "match days ...", svo /leikdag/i gat ALDREI
+       passad og thessi grein var oaananleg. Skilabodin "RETT preseason-
+       utkoma" birtust thvi aldrei — stadan sagdi "0 paradir" eins og bilun
+       vaeri. Ordalag i regexi er sama gildra og ordalag i profi.        */
+    out.length === 0 && /match day/i.test(via)
       ? `${via} — CORRECT preseason outcome, 0 calls used (first real test 20-21 August)`
       : `${via} · ${out.length} matched · ${unmatched.length} unmatched · ${d.remaining ?? "?"} calls left today`);
 }
@@ -2893,7 +2898,7 @@ async function fetchEspnShots() {
     return;
   }
   const dates = [...new Set((base.fixtures || []).map(f => String(f.kickoff).slice(0,10)).filter(Boolean))];
-  if (!dates.length) { record("espn_shots", false, 0, "engar dagsetningar i last_gw.json"); return; }
+  if (!dates.length) { record("espn_shots", false, 0, "no dates in last_gw.json"); return; }
 
   /* 1) finna ESPN-event-id fyrir hvern leik gegnum scoreboard voldu daganna */
   const espnByPair = {};
