@@ -12,7 +12,7 @@
    eftir frest, svo vid saekjum HVERJA UMFERD NAKVAEMLEGA EINU SINNI og
    sleppum henni sidan. Full umferd = ~2.000 koll, ~20 sek.                  */
 
-import { aggregate, coverageOk } from "../src/pros.js";
+import { aggregate, coverageOk, perManagerMoves, formationOutcome } from "../src/pros.js";
 
 const FPL = "https://fantasy.premierleague.com/api";
 
@@ -79,13 +79,24 @@ async function one(getJSON, id, gw) {
   const mine = Array.isArray(transfers)
     ? transfers.filter(t => t && Number(t.event) === gw)
     : [];
-  return { picks, transfers: mine };
+  /* `id` FYLGIR MED svo `aggregate` geti skrad HVERJIR spiludu hvert chip.
+     An thess yrdi `chipIds` tomt og spurningin "borgadi chip-id sig?" — sem
+     er tilgangur flipans — vaeri osvaranleg.                              */
+  return { id, picks, transfers: mine };
 }
 
 /* `deps` = { getJSON, writeJSON, readJSON, record } ur fetch.mjs, svo thetta
    erfir timamork, status-skraningu og skrifleid thadan.                     */
-export async function collectPros(deps, events) {
+export async function collectPros(deps, events, elements) {
   const { getJSON, writeJSON, readJSON, record } = deps;
+  /* STODU- OG VERD-TAFLA ur bootstrap. Send inn thvi fetchFast hefur hana
+     thegar — ekkert aukakall. Vantar hun verda lidsskipans-svidin tom, sem
+     er rett: vid giskum ekki a stodu ne verd.                            */
+  const meta = {};
+  for (const el of elements || []) {
+    if (el && el.id != null) meta[el.id] = { pos: el.element_type, cost: el.now_cost };
+  }
+  const metaOrNull = Object.keys(meta).length ? meta : null;
 
   const panelFile = await readJSON("pros.json").catch(() => null);
   const panel = panelFile?.panel;
@@ -144,7 +155,8 @@ export async function collectPros(deps, events) {
 
   const res = await pool(ids, id => one(getJSON, id, gw));
   const got = res.filter(Boolean);
-  const agg = aggregate(got);
+  const deadlineMs = cur.deadline_time ? Date.parse(cur.deadline_time) : null;
+  const agg = aggregate(got, metaOrNull, Number.isFinite(deadlineMs) ? deadlineMs : null);
 
   /* ALGERLEGA TOM KEYRSLA SKRIFAR EKKERT.
 
@@ -171,7 +183,75 @@ export async function collectPros(deps, events) {
                 updated: new Date().toISOString(),
                 panel_size: ids.length,
                 gw: { ...(prev.gw || {}), [gw]: agg } };
+  const prevOut = out;   // formationOutcome skrifar inn i fyrri umferd hennar
   await writeJSON("pros_gw.json", out);
+
+  /* CONTROL-HOPUR — SLEMBINN hopur af sömu staerd, sama talning.
+
+     HVERS VEGNA THETTA ER NAUDSYNLEGT: "hopurinn eydir 15,5 i vorn" er
+     MERKINGARLAUS tala an vidmids. Vid hofum vidmid fyrir EIGNARHALD
+     (`selected_by_percent` fra FPL) en fyrir EKKERT annad — hvorki
+     leikstodukerfi, bekkjar-kostnad, verd-punkta ne timasetningu skipta.
+     An control-hops er ekki haegt ad segja hvort nokkud af thessu se
+     serstakt vid tha bestu eda einfaldlega hvernig FPL er spilad.
+
+     Hopurinn er FASTUR yfir timabilid (ekki nytt urtak i hverri viku),
+     annars vaeri breyting milli vikna blanda af hegdun og urtaksskiptum.
+     Maelt 10.8.2026: 300 af 300 slembnum lid-id voru gild og oll byrja i
+     GW1, svo urtakid tharf enga yfirstaerd.                              */
+  const control = Array.isArray(panelFile.control)
+    ? [...new Set(panelFile.control.filter(x => Number.isInteger(x) && x > 0))] : [];
+  if (control.length) {
+    try {
+      const cres = await pool(control, id => one(getJSON, id, gw));
+      const cgot = cres.filter(Boolean);
+      if (cgot.length) {
+        const cagg = aggregate(cgot, metaOrNull, Number.isFinite(deadlineMs) ? deadlineMs : null);
+        /* Control ber EKKI `chipIds` ne `pairs` — vid fylgjum ekki
+           einstaklingum i honum, hann er adeins vidmid.                   */
+        delete cagg.chipIds; delete cagg.pairs;
+        cagg.size = control.length;
+        agg.control = cagg;
+      }
+    } catch (e) { record("pros_control", false, 0, e.message); }
+  }
+
+  /* PER-STJORNANDA SAGA i sina eigin skra. Hun er ekki lesin af appinu —
+     hun er til svo haegt se ad spyrja i mai: "hvad gerdi thessi stjornandi?"
+     Eftir timabilid er hun eina heimildin sem eftir er (id retirast og
+     picks svara 404).                                                     */
+  try {
+    const prevM = (await readJSON("pros_moves.json").catch(() => null)) || { m: {} };
+    const perGw = perManagerMoves(got);
+    const m = { ...(prevM.m || {}) };
+    for (const [id, rec] of Object.entries(perGw)) {
+      m[id] = { ...(m[id] || {}), [gw]: rec };
+    }
+    /* HVAD STOD SIG BEST — reiknad fyrir FYRRI umferd, thvi thad tharf rodun
+       BADUM megin vid hana. Skrifad inn i thá umferd i pros_gw, svo flipinn
+       thurfi ekki ad hlada 3,8 MB greiningarskrana.                        */
+    const gws = Object.keys(prevOut.gw || {}).map(Number).filter(n => n < gw).sort((a, b) => b - a);
+    const pgw = gws[0];
+    if (pgw != null && metaOrNull) {
+      const oc = formationOutcome(m, pgw, gw, metaOrNull);
+      if (oc.n > 0) { prevOut.gw[pgw] = { ...prevOut.gw[pgw], outcome: oc }; prevOut.__outcomeAdded = true; }
+    }
+
+    await writeJSON("pros_moves.json", {
+      season: panelFile.season || prevM.season || null,
+      updated: new Date().toISOString(),
+      managers: Object.keys(m).length,
+      note: "per-manager season history; entry ids are season-bound and picks 404 once the season ends",
+      m,
+    });
+  } catch (e) {
+    /* Greiningarskran ma ALDREI fella sofnunina sjalfa. */
+    record("pros_moves", false, 0, e.message);
+  }
+
+  /* Ef `outcome` var reiknad tharf pros_gw ad skrifast aftur — hun var
+     skrifud adur en per-stjornanda sagan var sameinuð.                    */
+  if (out.__outcomeAdded) { delete out.__outcomeAdded; await writeJSON("pros_gw.json", out); }
 
   const cov = agg.n / ids.length;
   record("pros", coverageOk(agg, ids.length), agg.n,

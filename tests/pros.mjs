@@ -10,7 +10,8 @@
 
 import { aggregate, eo, movers, differential, coverageOk, marginPct,
          chipTimeline, MIN_PANEL_RESPONSE, recencyScore, seasonPct,
-         MIN_SEASONS, HALF_LIFE } from "../src/pros.js";
+         MIN_SEASONS, HALF_LIFE, perManagerMoves, squadShape,
+         formationOutcome } from "../src/pros.js";
 
 let fail = 0;
 const ok = (c, m) => { if (!c) { console.log("  FALL: " + m); fail++; } };
@@ -113,6 +114,272 @@ console.log("6) movers — rodun eftir FJOLDA og `net` adgreinir");
   ok(movers(aggregate([]), "in").length === 0, "tomt -> tomur listi, ekki hrun");
 }
 
+console.log("6b) SKIPTA-POR — hvad var selt FYRIR hvad");
+{
+  /* `in` og `out` sitt i hvoru lagi segja EKKI ad thad hafi verid SAMA
+     skiptid. Spurningin "hvad selja their til ad fjarmagna X" er kjarninn i
+     thvi ad LAERA af theim, og hun er osvaranleg an poranna.               */
+  const E = [];
+  for (let i = 0; i < 4; i++) E.push(mkEntry({ ids: [1], capt: 1, vice: 1, tin: [50], tout: [60] }));
+  for (let i = 0; i < 3; i++) E.push(mkEntry({ ids: [1], capt: 1, vice: 1, tin: [50], tout: [61] }));
+  E.push(mkEntry({ ids: [1], capt: 1, vice: 1, tin: [50], tout: [62] }));   // adeins EINN
+  const a = aggregate(E);
+  ok(a.pairs["60>50"] === 4, `por 60>50 talid 4 (fekk ${a.pairs["60>50"]})`);
+  ok(a.pairs["61>50"] === 3, "annad por talid sjalfstaett");
+  /* Por sem einn madur gerdi er sud og ma ekki blasa upp skrana. */
+  ok(a.pairs["62>50"] === undefined, "por sem ADEINS EINN gerdi er ekki vistad");
+  /* Heildartalning helst ohreyfd — porin eru VIDBOT, ekki i stad. */
+  ok(a.in[50] === 8, `kaup-talning enn heil (${a.in[50]})`);
+  ok(a.out[62] === 1, "solu-talning heldur EINSTAKA manninum, thott porid se sleppt");
+}
+
+console.log("6c) CHIP-NOTENDUR — hverjir, svo haegt se ad maela hvort thad borgadi sig");
+{
+  /* "1 spiladi wildcard" gerir OMOGULEGT ad spyrja hvort chip-id hafi
+     borgad sig — til thess tharf ad fylgja SOMU monnum yfir naestu
+     umferdir. Thess vegna eru lid-id theirra vistud.                      */
+  const E = [
+    { ...mkEntry({ ids: [1], capt: 1, vice: 1, chip: "bboost" }), id: 111 },
+    { ...mkEntry({ ids: [1], capt: 1, vice: 1, chip: "bboost" }), id: 222 },
+    { ...mkEntry({ ids: [1], capt: 1, vice: 1, chip: "3xc" }),    id: 333 },
+    { ...mkEntry({ ids: [1], capt: 1, vice: 1 }),                 id: 444 },
+  ];
+  const a = aggregate(E);
+  ok(a.chipIds.bboost?.join(",") === "111,222", `bboost-notendur skradir (${a.chipIds.bboost})`);
+  ok(a.chipIds["3xc"]?.join(",") === "333", "3xc-notandi skradur");
+  ok(a.chipIds.wildcard === undefined, "ospiladh chip faer engan lykil");
+  ok(a.chips.bboost === 2 && a.chipIds.bboost.length === a.chips.bboost,
+     "talningin og id-listinn segja THAD SAMA");
+  /* Lid an `id` ma ekki setja null inn i listann. */
+  const b = aggregate([mkEntry({ ids: [1], capt: 1, vice: 1, chip: "bboost" })]);
+  ok(!b.chipIds.bboost || !b.chipIds.bboost.includes(null),
+     "vantandi id setur ekki null i listann");
+}
+
+console.log("6e) LIDSSKIPAN — leikstodukerfi, bekkur og verd-uppbygging");
+{
+  const meta = {};
+  const P = (id, pos, cost) => { meta[id] = { pos, cost }; return id; };
+  /* 3-4-3: 1 GK + 3 DEF + 4 MID + 3 FWD i byrjunarlidi, bekkur GK/DEF/MID/FWD */
+  const xi = [P(1,1,45), P(2,2,40),P(3,2,55),P(4,2,60),
+              P(5,3,50),P(6,3,70),P(7,3,95),P(8,3,120), P(9,4,90),P(10,4,145),P(11,4,75)];
+  const bn = [P(12,1,40), P(13,2,40), P(14,3,45), P(15,4,45)];
+  const picks = [...xi.map((e,i) => ({ element:e, position:i+1 })),
+                 ...bn.map((e,i) => ({ element:e, position:12+i }))];
+  const sh = squadShape(picks, meta);
+  ok(sh.formation === "3-4-3", `leikstodukerfi lesid ur BYRJUNARLIDI (${sh.formation})`);
+  ok(sh.startCost === 845, `byrjunarlid kostar 845 tiundir (${sh.startCost})`);
+  ok(sh.byPos[2] === 155 && sh.byPos[4] === 310, "eydsla per stodu rett");
+  ok(sh.benchCost === 170, `bekkur kostar 170 (${sh.benchCost})`);
+  ok(sh.benchPos.join(",") === "1,2,3,4", "bekkjar-samsetning skrad");
+
+  /* 4-4-2 verdur ad lesast ODRUVISI — annars vaeri talan skraut. */
+  /* SJALFSTAED ID-BIL. Fyrsta utgafa profsins endurnotadi 1-15 fyrir bædi
+     kerfin, svo `{...meta, ...meta2}` SKRIFADI YFIR hitt og oll thrju lidin
+     lasust sem 4-4-2. Kodinn hafdi rett fyrir ser; FIXTURAN var vitlaus.  */
+  const meta2 = {}; const Q = (id,pos,cost) => { meta2[id]={pos,cost}; return id; };
+  const xi2 = [Q(101,1,45), Q(102,2,40),Q(103,2,45),Q(104,2,50),Q(105,2,55),
+               Q(106,3,60),Q(107,3,70),Q(108,3,80),Q(109,3,90), Q(110,4,100),Q(111,4,110)];
+  const bn2 = [Q(112,1,40),Q(113,2,40),Q(114,3,45),Q(115,4,45)];
+  const sh2 = squadShape([...xi2.map((e,i)=>({element:e,position:i+1})),
+                          ...bn2.map((e,i)=>({element:e,position:12+i}))], meta2);
+  ok(sh2.formation === "4-4-2", `annad kerfi lesid rett (${sh2.formation})`);
+
+  /* BEKKURINN MA EKKI TELJA MED I KERFINU. Ef sian a `position <= 11`
+     brotnar yrdi 3-4-3 ad "4-5-4" — 15 menn i 11 saetum.                 */
+  ok(!/4-5-4|^\d+-\d+-4$/.test(sh.formation) || sh.formation === "3-4-3",
+     "bekkjarmenn eru EKKI i kerfinu");
+
+  /* OMAELD TALA FAER EKKI REIT: an stodu-upplysinga er kerfid null.      */
+  const bad = squadShape(picks, {});
+  ok(bad.formation === null && bad.startCost === null && bad.byPos === null,
+     "an `meta` er kerfid NULL, ekki \"0-0-0\"");
+  ok(squadShape([], meta) === null && squadShape(null, meta) === null, "tomt -> null");
+
+  /* Vantar EINN leikmann i toflunni -> kerfid er ekki fullgilt. */
+  const partial = { ...meta }; delete partial[7];
+  ok(squadShape(picks, partial).formation === null,
+     "vanti EINN leikmann er kerfid null (10 af 11 er ekki kerfi)");
+
+  /* aggregate safnar theim saman. */
+  const mkE = (pk, id) => ({ id, picks: { active_chip:null, picks:pk,
+    entry_history:{ event_transfers:0, event_transfers_cost:0, value:1000, bank:0, overall_rank:9 } } });
+  const a = aggregate([mkE(picks,1), mkE(picks,2),
+    mkE([...xi2.map((e,i)=>({element:e,position:i+1})), ...bn2.map((e,i)=>({element:e,position:12+i}))],3)],
+    { ...meta, ...meta2 });
+  ok(a.formations["3-4-3"] === 2 && a.formations["4-4-2"] === 1,
+     `kerfin tolud (${JSON.stringify(a.formations)})`);
+  ok(a.shapeN === 3, "shapeN telur thau sem gafu gilt kerfi");
+  ok(a.benchPos["1234"] === 3, "bekkjar-samsetning tolud (rodud, svo rod skiptir ekki mali)");
+  ok(Math.abs(a.byPos[4] - (310 + 310 + 210) / 3) < 1e-9, "medaltal eydslu per stodu");
+  /* AN meta ma EKKERT af thessu birtast. */
+  const b = aggregate([mkE(picks,1)]);
+  ok(b.shapeN === 0 && b.byPos === null && Object.keys(b.formations).length === 0,
+     "an `meta` eru lidsskipans-svid TOM, ekki gisk");
+}
+
+console.log("6h) SVIDIN SEM VID VORUM ThEGAR AD SAEKJA — stig, bekkjar-stig, autosubs, timasetning");
+{
+  /* AUDIT 10.8.2026: `entry_history` i picks-svarinu ber ~12 svid og vid
+     lasum FIMM. `points` og `points_on_bench` voru thar allan timann, og
+     `automatic_subs` og `time` a skiptum lika. Ekkert af thessu kostar
+     aukakall — vid vorum ad fleygja thvi.
+
+     `points_on_bench` er serstaklega verdmaett: thad maelir BEKKJAR-
+     AKVORDUN, sem er onnur faerni en leikmannaval.                       */
+  const deadline = Date.parse("2026-09-12T10:30:00Z");
+  const mk2 = (i, opts = {}) => ({
+    id: 500 + i,
+    picks: {
+      active_chip: null,
+      picks: Array.from({ length: 15 }, (_, k) => ({ element: k + 1, position: k + 1, is_captain: k === 0 })),
+      automatic_subs: opts.subs || [],
+      entry_history: { event: 7, points: opts.pts, points_on_bench: opts.bench,
+                       overall_rank: 41000 + i, bank: 7, value: 1013,
+                       event_transfers: 1, event_transfers_cost: 0 },
+    },
+    transfers: [{ element_in: 328, element_out: 401, event: 7,
+                  time: new Date(deadline - (opts.minsBefore ?? 60) * 60000).toISOString() }],
+  });
+  const a = aggregate([
+    mk2(0, { pts: 60, bench: 2, minsBefore: 20, subs: [{ element_in: 12 }] }),
+    mk2(1, { pts: 70, bench: 10, minsBefore: 1500 }),
+    mk2(2, { pts: 80, bench: 6, minsBefore: 3000 }),
+  ], null, deadline);
+  ok(a.points === 70, `medaltal stiga (${a.points})`);
+  ok(a.benchPoints === 6, `medaltal bekkjar-stiga (${a.benchPoints})`);
+  ok(Math.abs(a.autoSubs - 1 / 3) < 1e-9, `medaltal sjalfvirkra skiptinga (${a.autoSubs})`);
+  ok(a.transferMinsMedian === 1500, `midgildi minutna fyrir frest (${a.transferMinsMedian})`);
+  ok(Math.abs(a.transferLateShare - 1 / 3) < 1e-9,
+     `hlutfall a sidasta klukkutima (${a.transferLateShare})`);
+  /* An frests er timasetning EKKI reiknud — ekki giskad. */
+  const b = aggregate([mk2(0, { pts: 60, bench: 2 })], null, null);
+  ok(b.transferMinsMedian === null && b.transferLateShare === null,
+     "an frests er timasetning null, ekki 0");
+  /* Vantandi svid gefa null, EKKI 0 — "0 stig a bekk" og "vitum ekki" er
+     sitt hvad.                                                           */
+  const c = aggregate([{ id: 1, picks: { active_chip: null,
+    picks: [{ element: 1, position: 1 }], entry_history: {} } }], null, deadline);
+  ok(c.points === null && c.benchPoints === null,
+     "vantandi stig -> null, ekki 0");
+  ok(c.autoSubs === null, "vantandi automatic_subs -> null");
+  /* Per stjornanda fylgja stigin lika. */
+  const pm = perManagerMoves([mk2(0, { pts: 60, bench: 2, subs: [{ element_in: 12 }] })]);
+  ok(pm[500].pts === 60 && pm[500].b === 2 && pm[500].as === 1,
+     `stig/bekkur/autosubs per stjornanda (${JSON.stringify(pm[500])})`);
+}
+
+console.log("6f) VERD-PUNKTAR — byrjunarlid og bekkur SITT I HVORU LAGI");
+{
+  /* "4,5 markmadur eda 4,0?" er EKKI svaranleg med medaltali (4,25 er ekki
+     verd sem er til). Og bekkjar-markmadur a 4,0 er ALLT ONNUR akvordun en
+     byrjunar-markmadur a 4,5 — thess vegna verda thau ad vera adskilin.
+     Thetta var adur adeins sannreynt med ad-hoc kalli og ekki i safninu:
+     stokkbreyting sem sameinadi thau SLAPP.                              */
+  const meta = {};
+  const P = (id, pos, cost) => { meta[id] = { pos, cost }; return id; };
+  const xi = [P(1,1,45), P(2,2,40),P(3,2,55),P(4,2,60),
+              P(5,3,50),P(6,3,70),P(7,3,95),P(8,3,120), P(9,4,90),P(10,4,145),P(11,4,75)];
+  const bn = [P(12,1,40), P(13,2,40), P(14,3,45), P(15,4,45)];
+  const picks = [...xi.map((e,i) => ({ element:e, position:i+1 })),
+                 ...bn.map((e,i) => ({ element:e, position:12+i }))];
+  const a = aggregate([{ id:1, picks:{ active_chip:null, picks,
+    entry_history:{ event_transfers:0, event_transfers_cost:0, value:1000, bank:0, overall_rank:9 } } }], meta);
+  ok(a.priceStart[1][45] === 1, "byrjunar-markmadur a 4,5 talinn i priceStart");
+  ok(a.priceStart[1][40] === undefined, "4,0 er EKKI i byrjunarlidi");
+  ok(a.priceBench[1][40] === 1, "bekkjar-markmadur a 4,0 talinn i priceBench");
+  ok(a.priceBench[1][45] === undefined, "4,5 er EKKI a bekknum");
+  ok(a.priceStart[4][145] === 1 && a.priceBench[4][45] === 1,
+     "dyr sokn i byrjunarlidi, odyr a bekk — adgreint");
+  const startTot = Object.values(a.priceStart).reduce((s2,m2)=>s2+Object.values(m2).reduce((x,y)=>x+y,0),0);
+  const benchTot = Object.values(a.priceBench).reduce((s2,m2)=>s2+Object.values(m2).reduce((x,y)=>x+y,0),0);
+  ok(startTot === 11 && benchTot === 4, `11 i byrjunarlidi og 4 a bekk (${startTot}/${benchTot})`);
+}
+
+console.log("6g) HVAD STOD SIG BEST — formerki, vidmid og lagmarks-urtak");
+{
+  const meta = {};
+  const P = (id, pos, cost) => { meta[id] = { pos, cost }; return id; };
+  const sq = [P(1,1,45), P(2,2,40),P(3,2,55),P(4,2,60),
+              P(5,3,50),P(6,3,70),P(7,3,95),P(8,3,120), P(9,4,90),P(10,4,145),P(11,4,75),
+              P(12,1,40),P(13,2,40),P(14,3,45),P(15,4,45)];
+  /* Thrir batnandi (rodun LAEKKAR) og einn versnandi. */
+  const moves = {
+    10: { 7: { p: sq, r: 1000 }, 8: { r: 600 } },     // -400
+    11: { 7: { p: sq, r: 2000 }, 8: { r: 1500 } },    // -500
+    12: { 7: { p: sq, r: 3000 }, 8: { r: 2400 } },    // -600
+    13: { 7: { p: sq, r: 500 },  8: { r: 900 } },     // +400
+    14: { 7: { p: sq, r: 700 } },                     // vantar GW8 -> sleppt
+    15: { 8: { r: 700 } },                            // vantar GW7 -> sleppt
+  };
+  const o = formationOutcome(moves, 7, 8, meta);
+  ok(o.n === 4, `adeins their sem eru i BADUM umferdum (${o.n})`);
+  /* FORMERKID: negatift = batnadi. Ef thvi er vixlad verdur "best" "verst". */
+  ok(o.byFormation["3-4-3"].delta < 0,
+     `midgildi er NEGATIFT thegar flestum batnar (${o.byFormation["3-4-3"].delta})`);
+  ok(o.panelDelta < 0, "hopurinn i heild batnadi lika");
+  ok(o.byFormation["3-4-3"].n === 4, "fjoldinn per kerfi talinn");
+  /* An `meta` er ekkert kerfi og thvi engin utkoma — ekki gisk. */
+  const bad = formationOutcome(moves, 7, 8, {});
+  ok(bad.n === 0 && Object.keys(bad.byFormation).length === 0, "an `meta` -> engin utkoma");
+  ok(formationOutcome(null, 7, 8, meta).n === 0, "tomt inntak hrynur ekki");
+  /* Lid an rodunar i annarri umferd ma ekki teljast med. */
+  const noRank = { 20: { 7: { p: sq }, 8: { r: 100 } } };
+  ok(formationOutcome(noRank, 7, 8, meta).n === 0, "vanti rodun er lidid sleppt");
+}
+
+console.log("6d) PER-STJORNANDA SAGA — hvada stjornandi gerdi hvada breytingar");
+{
+  /* HVERS VEGNA THETTA VERDUR AD VISTAST JAFNODUM: lid-id eru
+     TIMABILS-BUNDIN. Lid 174 i 2026/27 er NYTT lid; `history` gefur adeins
+     timabil/stig/rodun og ENGIN id, svo id fyrra timabils er ofinnanlegt og
+     `event/{gw}/picks/` svarar 404 eftir timabilid (maelt a GW38 2025/26).
+     Sagan er thvi OENDURHEIMTANLEG ef hun er ekki vistud i vikunni.       */
+  const E = [
+    { ...mkEntry({ ids: [1], capt: 1, vice: 1, chip: "bboost", tin: [301], tout: [401] }), id: 11 },
+    { ...mkEntry({ ids: [1], capt: 1, vice: 1, tin: [302, 303], tout: [402, 403] }), id: 22 },
+    { ...mkEntry({ ids: [1], capt: 1, vice: 1 }), id: 33 },              // engin skipti
+    mkEntry({ ids: [1], capt: 1, vice: 1 }),                             // ekkert id
+  ];
+  const per = perManagerMoves(E);
+  ok(Object.keys(per).length === 3, `adeins lid MED id skrast (${Object.keys(per).length})`);
+  ok(JSON.stringify(per[11].t) === "[[401,301]]", `porid er [ut, inn] (${JSON.stringify(per[11].t)})`);
+  ok(per[11].c === "bboost", "chip skrad per stjornanda");
+  ok(per[22].t.length === 2, "tvo skipti bædi skrad");
+  ok(per[33].t === undefined && per[33].c === undefined,
+     "stjornandi sem gerdi EKKERT ber engin tom svid (38x1000 -> hvert byte telur)");
+  ok(per[33].r === 50000, "...en hann ber SAMT rodun, svo 'gerdi ekkert' og 'svaradi ekki' se ekki thad sama");
+  ok(perManagerMoves([]).id === undefined && Object.keys(perManagerMoves(null)).length === 0,
+     "tomt inntak hrynur ekki");
+  /* LIDSSKIPAN FYLGIR PER STJORNANDA — thad er thad sem gerir greiningu
+     eftir 2-3 timabil mogulega ("hvernig setja their sem VINNA upp lidid?").*/
+  {
+    const meta = { 1:{pos:1,cost:45}, 2:{pos:2,cost:40}, 3:{pos:2,cost:50}, 4:{pos:2,cost:55},
+                   5:{pos:3,cost:60}, 6:{pos:3,cost:70}, 7:{pos:3,cost:80}, 8:{pos:3,cost:90},
+                   9:{pos:4,cost:100}, 10:{pos:4,cost:110}, 11:{pos:4,cost:120},
+                   12:{pos:1,cost:40}, 13:{pos:2,cost:40}, 14:{pos:3,cost:45}, 15:{pos:4,cost:45} };
+    const pk = Array.from({ length:15 }, (_, i) => ({ element:i+1, position:i+1 }));
+    const per = perManagerMoves([{ id:77, picks:{ active_chip:null, picks:pk,
+      entry_history:{ overall_rank:123 } } }], meta);
+    /* HRAA LIDID: 15 id i STODUROD. Ur thvi eru kerfi, bekkjar-kostnadur og
+       eydsla ALLT reiknanleg sidar, thvi verd og stada eru thegar i repo-inu.
+       Ad geyma afleiddar tolur i stadinn laesir greininguna vid mitt val.  */
+    ok(per[77].p.join(",") === Array.from({length:15},(_,i)=>i+1).join(","),
+       "15 leikmenn i stoduroð (fyrstu 11 = byrjunarlid)");
+    ok(per[77].p.length === 15, "allir 15, ekki bara byrjunarlidid");
+    /* Rod skiptir MALI og ma ekki radast af komurod i svarinu. */
+    const shuffled = pk.slice().reverse();
+    const per2 = perManagerMoves([{ id:78, picks:{ active_chip:null, picks:shuffled,
+      entry_history:{ overall_rank:1 } } }]);
+    ok(per2[78].p.join(",") === per[77].p.join(","),
+       "rodun er eftir `position`, ekki eftir rod i svarinu");
+    const withCap = perManagerMoves([{ id:79, picks:{ active_chip:null,
+      picks: pk.map((x,i) => ({ ...x, is_captain: i === 6 })),
+      entry_history:{ overall_rank:1 } } }]);
+    ok(withCap[79].cap === 7, `fyrirlidinn skradur (${withCap[79].cap})`);
+  }
+}
+
 console.log("7) differential — vantandi almenn tala gefur null");
 {
   /* EO GETUR FARID YFIR 100% og A ad gera thad: madur sem ALLIR eiga OG
@@ -170,6 +437,18 @@ console.log("10) skemmd svor fella ekki keyrsluna (sbr. untrusted-input)");
   ok((() => { try { a = aggregate(junk); return true; } catch { return false; } })(),
      "aggregate kastar ekki a skemmdum inntokum");
   ok(a.own[5] === 1 && a.own[6] === 1, "gildu radirnar komast samt til skila");
+  /* `element: null` ma EKKI bua til draug-lykil. Adur var thetta oprofad:
+     ad fjarlaegja null-vordinn i `aggregate` slapp gegnum allt safnid, og
+     afleidingin hefdi verid leikmadur sem heitir "unknown" MED eignarhaldi
+     i toflunni. Fundid med lina-markvissri stokkbreytingu 10.8.2026 —
+     fyrri stokkbreytingin min hafdi HITT AD RANGRI LINU (4-stafa bil er
+     hlutstrengur i 6-stafa bili), svo hun profadi annad en eg taldi.     */
+  for (const map of ["own", "capt", "vice"]) {
+    ok(!Object.prototype.hasOwnProperty.call(a[map], "null"),
+       `${map} ber engan "null"-lykil (draug-leikmadur)`);
+    ok(!Object.prototype.hasOwnProperty.call(a[map], "undefined"),
+       `${map} ber engan "undefined"-lykil`);
+  }
   ok(a.out[7] === 1, "element_out telst thott element_in vanti");
   ok(a.value === null, "onyt talnagerd smitar ekki inn sem NaN");
   ok(!Number.isNaN(a.transfers), "ekkert NaN i medaltolum");
@@ -354,6 +633,64 @@ console.log("15) 404 telst sem ekki-svar og lækkar THEKJU (ekki thogn)");
   const r = h.recs.find(x => x.name === "pros");
   ok(r.ok === false, "thekja undir 90% => status ER EKKI graent");
   ok(/2\/4/.test(r.note), `nota synir ${r.note}`);
+}
+
+console.log("14a2) CONTROL-HOPUR — vidmid fyrir allt sem er EKKI eignarhald");
+{
+  /* "Bekkurinn kostar 17,0" er MERKINGARLAUS an vidmids. FPL gefur vidmid
+     fyrir eignarhald (`selected_by_percent`) og fyrir EKKERT annad, svo
+     leikstodukerfi, bekkjar-kostnadur, verd-punktar og timasetning hofdu
+     ekkert ad bera sig vid. Control er FASTUR slembinn hopur.            */
+  const wrote = {}; const recs = [];
+  let panelCalls = 0, ctrlCalls = 0;
+  const deps = {
+    async getJSON(url) {
+      const m = url.match(/entry\/(\d+)\/event/);
+      if (m) {
+        const id = +m[1];
+        (id > 900 ? (ctrlCalls++) : (panelCalls++));
+        return { active_chip: id > 900 ? null : "bboost",
+          picks: [{ element: 1, position: 1, is_captain: true, is_vice_captain: false }],
+          entry_history: { points: id > 900 ? 40 : 70, points_on_bench: id > 900 ? 11 : 2,
+                           overall_rank: id > 900 ? 2500000 : 40000,
+                           value: 1000, bank: 0, event_transfers: 1, event_transfers_cost: 0 } };
+      }
+      return [];
+    },
+    async writeJSON(p2, o) { wrote[p2] = o; },
+    async readJSON(f) {
+      if (f === "pros.json") return { season: "2026/27", panel: [{ id: 1 }, { id: 2 }],
+                                      control: [901, 902, 902, null, -3] };
+      throw new Error("ENOENT");
+    },
+    record(n, ok2, c, note) { recs.push({ n, ok: ok2, note }); },
+  };
+  await collectPros(deps, [{ id: 7, deadline_time: new Date(Date.now() - 36e5).toISOString() }]);
+  const a = wrote["pros_gw.json"].gw[7];
+  ok(panelCalls === 2, `hopurinn sottur (${panelCalls})`);
+  ok(ctrlCalls === 2, `control sottur og TVITEKNINGAR/onyt id siud (${ctrlCalls} af 5 radum)`);
+  ok(!!a.control, "control-talning skrifud");
+  ok(a.points === 70 && a.control.points === 40, "tolurnar eru ADSKILDAR");
+  ok(a.control.size === 2, `control.size ber staerd hopsins (${a.control.size})`);
+  /* Control er VIDMID, ekki einstaklingar sem vid fylgjum: hvorki chip-id
+     ne skipta-por eiga ad fylgja honum.                                  */
+  ok(a.control.chipIds === undefined && a.control.pairs === undefined,
+     "control ber hvorki chipIds ne pairs");
+  ok(a.chips.bboost === 2 && !a.control.chips?.bboost,
+     "chip-talning hopsins smitast EKKI i control");
+  /* Per-stjornanda sagan er ADEINS fyrir hopinn — 1.000 til vidbotar
+     myndu tvofalda 3,8 MB an thess ad svara nyrri spurningu.             */
+  const mv = wrote["pros_moves.json"].m;
+  ok(!mv["901"] && !!mv["1"], "per-stjornanda saga er adeins fyrir hopinn");
+}
+
+console.log("14a3) EKKERT control -> ekkert vidmid, og THAD ER RETT");
+{
+  const h = harness();      // panel an `control`
+  await h.run();
+  const a = h.wrote["pros_gw.json"].gw[7];
+  ok(a.control === undefined, "engin control-svid buin til ur engu");
+  ok(a.n === 4, "hopurinn sjalfur oskaddadur");
 }
 
 console.log("14b) SAMEINING — ny umferd ma ALDREI thurrka ut theer fyrri");

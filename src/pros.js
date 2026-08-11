@@ -179,10 +179,52 @@ const pct = (c, n) => (n > 0 ? c / n : null);
    EIN ROD PER LEIKMANN, EKKI THRJAR. Sama regla og bsd_shots: geymum talningu,
    ekki 1.000 lid — 1.000 hopar x 15 leikmenn per umferd vaeri ~20 MB a
    timabili og THRJAR afritanir af somu tolu geta rekid i sundur.           */
-export function aggregate(entries) {
+export function aggregate(entries, meta, deadlineMs) {
   const own = {}, capt = {}, vice = {}, tin = {}, tout = {}, chips = {};
+  /* SKIPTA-PORIN. `in` og `out` eru TALIN SITT I HVORU LAGI, svo "3 keyptu
+     Salah" og "3 seldu Haaland" segja EKKI ad thad hafi verid SAMA skiptid.
+     Spurningin "hvad selja their til ad fjarmagna X" er thvi osvaranleg an
+     poranna. Geymt sem "ut>inn" med talningu.
+
+     ADEINS POR SEM TVEIR EDA FLEIRI GERDU eru vistud: eitt por fra einum
+     manni er suð, og oll por yrdi ~1.200 radir per umferd. Sian heldur
+     skranni lítilli OG merkingu hennar skyrri (por sem hopurinn gerdi, ekki
+     hvad einn madur gerdi).                                              */
+  const pairs = {};
+  /* HVERJIR SPILUDU HVERT CHIP. Talan ein ("1 spiladi wildcard") gerir thad
+     OMOGULEGT ad spyrja hvort chip-id BORGADI SIG - til thess tharf ad
+     fylgja SOMU monnum yfir naestu umferdir. Vid geymum thvi lid-id theirra
+     sem spiludu (opinber FPL-id, thegar i pros.json). ~300 id = ~2,4 KB.
+     THETTA ER ASTAEDAN FYRIR FLIPANN: ad LAERA hvenaer a ad spila chip,
+     ekki bara ad sja hvad var spilad.                                    */
+  const chipIds = {};
+  /* Leikstodukerfi og verd-uppbygging, safnad yfir hopinn. `meta` vantar ->
+     thessi svid verda tom, og thad er RETT: engin agiskun.                */
+  const formations = {};
+  const benchPosCount = {};
+  /* VERD-PUNKTAR, EKKI BARA MEDALTAL. Spurningin "4,5 markmadur eda 4,0?"
+     er EKKI svaranleg med medaltali — 4,25 er ekki verd sem er til. Vid
+     teljum thvi hvert VERD fyrir sig, byrjunarlid og bekk SITT I HVORU
+     LAGI (bekkjar-markmadur a 4,0 er allt annar akvordun en byrjunar-
+     markmadur a 4,5).                                                    */
+  const priceStart = { 1: {}, 2: {}, 3: {}, 4: {} };
+  const priceBench = { 1: {}, 2: {}, 3: {}, 4: {} };
+  let shapeN = 0, benchSum = 0, startSum = 0;
+  const posSum = { 1: 0, 2: 0, 3: 0, 4: 0 };
   let n = 0, tr = 0, hits = 0, hitN = 0, val = 0, bank = 0, valN = 0;
   const ranks = [];
+  /* STIG OG BEKKJAR-STIG. Thetta var i svarinu ALLAN TIMANN — `entry_history`
+     ber ~12 svid og vid lasum 5. `points_on_bench` er MAELING A BEKKJAR-
+     AKVORDUN: hversu mikid skildu their eftir a bekknum. Thad er ein af
+     faum tolum sem maelir SKIPULAG fremur en leikmannaval.               */
+  let pts = 0, ptsN = 0, benchPts = 0, benchPtsN = 0;
+  /* SJALFVIRKAR SKIPTINGAR — kom bekkurinn inn? Ef bekkjar-RODIN er god
+     skila sjalfvirkar skiptingar stigum; ef hun er slok koma inn nullur. */
+  let subs = 0, subsN = 0;
+  /* HVENAER their gera skiptin, i MINUTUM fyrir frest. "Bida their til
+     sidustu stundar?" er hegdun sem enginn birtir og sem hverfur um leid
+     og umferdin er lidin.                                               */
+  const subMin = [];
 
   for (const e of entries || []) {
     const p = e && e.picks;
@@ -195,7 +237,11 @@ export function aggregate(entries) {
       if (pk.is_captain) capt[id] = (capt[id] || 0) + 1;
       if (pk.is_vice_captain) vice[id] = (vice[id] || 0) + 1;
     }
-    if (p.active_chip) chips[p.active_chip] = (chips[p.active_chip] || 0) + 1;
+    if (p.active_chip) {
+      chips[p.active_chip] = (chips[p.active_chip] || 0) + 1;
+      const eid = e.id ?? p.entry ?? null;
+      if (eid != null) (chipIds[p.active_chip] ||= []).push(eid);
+    }
 
     const h = p.entry_history || {};
     if (Number.isFinite(h.event_transfers)) { tr += h.event_transfers; }
@@ -205,16 +251,57 @@ export function aggregate(entries) {
     if (Number.isFinite(h.value)) { val += h.value; valN++; }
     if (Number.isFinite(h.bank)) bank += h.bank;
     if (Number.isFinite(h.overall_rank) && h.overall_rank > 0) ranks.push(h.overall_rank);
+    if (Number.isFinite(h.points)) { pts += h.points; ptsN++; }
+    if (Number.isFinite(h.points_on_bench)) { benchPts += h.points_on_bench; benchPtsN++; }
+    if (Array.isArray(p.automatic_subs)) { subs += p.automatic_subs.length; subsN++; }
 
+    if (meta) {
+      const sh = squadShape(p.picks, meta);
+      if (sh && sh.bands) {
+        for (const b of sh.bands) {
+          const t = b.start ? priceStart : priceBench;
+          if (t[b.pos]) t[b.pos][b.cost] = (t[b.pos][b.cost] || 0) + 1;
+        }
+      }
+      if (sh && sh.formation) {
+        formations[sh.formation] = (formations[sh.formation] || 0) + 1;
+        shapeN++; startSum += sh.startCost || 0;
+        for (const k of [1, 2, 3, 4]) posSum[k] += sh.byPos?.[k] || 0;
+        if (sh.benchCost != null) benchSum += sh.benchCost;
+        if (sh.benchPos) {
+          const key = sh.benchPos.slice().sort().join("");
+          benchPosCount[key] = (benchPosCount[key] || 0) + 1;
+        }
+      }
+    }
     for (const t of e.transfers || []) {
+      if (deadlineMs && t.time) {
+        const ms = Date.parse(t.time);
+        if (Number.isFinite(ms)) subMin.push(Math.round((deadlineMs - ms) / 60000));
+      }
       if (t.element_in != null) tin[t.element_in] = (tin[t.element_in] || 0) + 1;
       if (t.element_out != null) tout[t.element_out] = (tout[t.element_out] || 0) + 1;
+      if (t.element_in != null && t.element_out != null) {
+        const k = `${t.element_out}>${t.element_in}`;
+        pairs[k] = (pairs[k] || 0) + 1;
+      }
     }
   }
 
   ranks.sort((a, b) => a - b);
+  /* Por sem adeins EINN gerdi eru sud — sia thau ut adur en skrifad er. */
+  const pairsKept = {};
+  for (const k of Object.keys(pairs)) if (pairs[k] >= 2) pairsKept[k] = pairs[k];
   return {
     n, own, capt, vice, in: tin, out: tout, chips,
+    pairs: pairsKept, chipIds,
+    formations, benchPos: benchPosCount,
+    priceStart, priceBench,
+    shapeN,
+    startCost: shapeN ? startSum / shapeN : null,
+    benchCost: shapeN ? benchSum / shapeN : null,
+    byPos: shapeN ? { 1: posSum[1] / shapeN, 2: posSum[2] / shapeN,
+                      3: posSum[3] / shapeN, 4: posSum[4] / shapeN } : null,
     /* Medaltol. `null` thegar ENGINN svaradi — 0 vaeri maeld nulltala og
        "0 skipti ad medaltali" er allt onnur fullyrding en "vitum ekki".  */
     transfers: n ? tr / n : null,
@@ -223,7 +310,137 @@ export function aggregate(entries) {
     value:     valN ? val / valN : null,
     bank:      valN ? bank / valN : null,
     rankMedian: ranks.length ? ranks[Math.floor(ranks.length / 2)] : null,
+    points:      ptsN ? pts / ptsN : null,
+    benchPoints: benchPtsN ? benchPts / benchPtsN : null,
+    autoSubs:    subsN ? subs / subsN : null,
+    /* Midgildi minutna fyrir frest + hlutfall sem gerdi skiptin a
+       SIDASTA KLUKKUTIMANUM. Medaltal eitt vaeri villandi thvi dreifingin
+       er mjog skekkt (flestir snemma, kippur a sidustu stundu).          */
+    transferMinsMedian: subMin.length
+      ? subMin.slice().sort((a, b) => a - b)[Math.floor(subMin.length / 2)] : null,
+    transferLateShare: subMin.length
+      ? subMin.filter(x => x >= 0 && x <= 60).length / subMin.length : null,
   };
+}
+
+/* ---------------------------------------------------------------------------
+   LIDSSKIPAN — leikstodukerfi, bekkur og verd-uppbygging.
+
+   HVERS VEGNA THETTA ER REIKNAD VID SOFNUN OG EKKI SEINNA: `picks` gefur
+   adeins `element` og `position` (1-11 = byrjunarlid, 12-15 = bekkur). Stada
+   og VERD koma ur bootstrap — og verd BREYTAST i hverri viku. Ad reikna
+   verd-uppbyggingu i mai ut ur dagsmyndum vaeri samtenging yfir 38 vikur af
+   verdum sem er baedi brothaett og oendurheimtanleg ef eitt hlekkur vantar.
+   Vid geymum thvi UTKOMUNA, maelda a theim degi.
+
+   `formation` er DEF-MID-FWD i byrjunarlidi (markmadur er alltaf 1), t.d.
+   "3-4-3". Thad er staerdin sem notandinn spurdi um — 433/442/352.        */
+export function squadShape(picks, meta) {
+  const rows = (picks || [])
+    .map(p => ({ ...p, m: meta?.[p?.element] || null }))
+    .filter(r => r.element != null);
+  if (!rows.length) return null;
+  const start = rows.filter(r => (r.position ?? 99) <= 11);
+  const bench = rows.filter(r => (r.position ?? 99) >= 12);
+  const cnt = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  const spend = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let known = 0;
+  for (const r of start) {
+    if (!r.m || !cnt.hasOwnProperty(r.m.pos)) continue;
+    cnt[r.m.pos]++; spend[r.m.pos] += r.m.cost || 0; known++;
+  }
+  /* AN STODU-UPPLYSINGA ER LEIKSTODUKERFI EKKI TIL — thad er `null`, ekki
+     "0-0-0". Omaeld tala sem litur ut eins og maeling er versta utkoman.  */
+  const formation = known === 11 ? `${cnt[2]}-${cnt[3]}-${cnt[4]}` : null;
+  let benchCost = 0, benchKnown = 0;
+  for (const r of bench) { if (r.m) { benchCost += r.m.cost || 0; benchKnown++; } }
+  /* Hver leikmadur sem VERD + STADA + hvort hann byrjar. Ur thessu kemur
+     dreifingin sem svarar "4,5 GK eda 4,0 GK".                           */
+  const bands = rows.filter(r => r.m && r.m.cost != null)
+    .map(r => ({ pos: r.m.pos, cost: r.m.cost, start: (r.position ?? 99) <= 11 }));
+  return {
+    formation, bands,
+    startCost: known === 11 ? spend[1] + spend[2] + spend[3] + spend[4] : null,
+    byPos: known === 11 ? spend : null,
+    benchCost: benchKnown === 4 ? benchCost : null,
+    benchPos: benchKnown === 4 ? bench.map(r => r.m.pos) : null,
+  };
+}
+
+/* ---------------------------------------------------------------------------
+   PER-STJORNANDA SAGA — "hvada stjornandi gerdi hvada breytingar".
+
+   HVERS VEGNA THETTA VERDUR AD VISTAST JAFNODUM: lid-id i FPL eru
+   TIMABILS-BUNDIN. Lid 174 i 2026/27 er NYTT lid, ekki sama lid og 174 var i
+   fyrra, og `history`-endapunkturinn gefur adeins timabil/stig/rodun — ENGIN
+   id. Thess vegna er id fyrra timabils OFINNANLEGT, og `event/{gw}/picks/`
+   svarar 404 um leid og timabilinu lykur (maelt a GW38 2025/26).
+   Innan timabils gefur `entry/{id}/transfers/` allan feril lidsins i einu
+   kalli — en eftir 25. mai er hann horfinn ad eilifu.
+
+   Thess vegna: geymt i EIGIN skra (`pros_moves.json`), ekki i `pros_gw.json`.
+   Hun er GREININGARSKRA — appid les hana ALDREI vid raesingu, svo staerd
+   hennar kemur notandanum ekki vid.
+
+   Snidid er thjappad viljandi: `t` = [[ut, inn], …], `c` = chip (sleppt ef
+   ekkert), `r` = heildarrodun eftir umferdina. Tomum svidum er SLEPPT — 38
+   umferdir x 1.000 lid gerir hvert aukabyte ad megabyte.                   */
+export function perManagerMoves(entries) {
+  const out = {};
+  for (const e of entries || []) {
+    const p = e && e.picks;
+    if (!p || !Array.isArray(p.picks) || !p.picks.length) continue;
+    const id = e.id ?? p.entry ?? null;
+    if (id == null) continue;
+    const rec = {};
+    const t = (e.transfers || [])
+      .filter(x => x && x.element_out != null && x.element_in != null)
+      .map(x => [x.element_out, x.element_in]);
+    if (t.length) rec.t = t;
+    if (p.active_chip) rec.c = p.active_chip;
+    const r = p.entry_history?.overall_rank;
+    if (Number.isFinite(r) && r > 0) rec.r = r;
+    /* Stig umferdarinnar og stig sem SATU A BEKKNUM. Baedi voru i svarinu
+       allan timann. `b` er thad sem greinir god bekkjar-akvordun fra
+       slakri — og hun er onnur faerni en leikmannaval.                   */
+    const gp = p.entry_history?.points;
+    if (Number.isFinite(gp)) rec.pts = gp;
+    const bp = p.entry_history?.points_on_bench;
+    if (Number.isFinite(bp)) rec.b = bp;
+    if (Array.isArray(p.automatic_subs) && p.automatic_subs.length) {
+      rec.as = p.automatic_subs.length;
+    }
+    /* HRAA LIDID, EKKI AFLEIDDAR TOLUR. Vid geymum HVERJA leikmenn their
+       attu, i STODUROD (fyrstu 11 = byrjunarlid, 12-15 = bekkur i thvi
+       skipti sem hann kemur inn) — og fyrirlidann.
+
+       HVERS VEGNA HRATT ER BETRA: verd og stada leikmanns eru THEGAR i
+       repo-inu (`players.json` og dagleg mynd i `history/YYYY-MM-DD.json`),
+       svo kostnadur og leikstodukerfi eru REIKNANLEG hvenaer sem er ur
+       id-unum. Ad geyma i stadinn thaer tolur sem EG valdi ad reikna
+       (kerfi, bekkjar-kostnadur, eydsla) laesir greininguna vid mitt val:
+       spurning sem einhver spyr i mai 2028 — "hversu mikid af lidinu var
+       ur sama felagi?", "hve oft var varamarkmadur dyrari en 4,0?" — vaeri
+       osvaranleg. Hraa lidid svarar theim ollum.
+
+       Kostnadurinn er ~3,4 MB a timabili i skra sem appid les ALDREI.    */
+    rec.p = p.picks
+      .slice()
+      .sort((a, b) => (a?.position ?? 99) - (b?.position ?? 99))
+      .map(x => x?.element)
+      .filter(x => x != null);
+    const cap = p.picks.find(x => x?.is_captain);
+    if (cap?.element != null) rec.cap = cap.element;
+    /* VARAFYRIRLIDI per stjornanda. Adur var hann adeins i heildar-talningu,
+       svo spurningin "bjargadi varafyrirlidinn theim?" — sem er raunveruleg
+       og gerist nokkrum sinnum a timabili — var osvaranleg per manni.     */
+    const vc = p.picks.find(x => x?.is_vice_captain);
+    if (vc?.element != null) rec.vc = vc.element;
+    /* Stjornandi sem gerdi EKKERT faer samt rod — annars vaeri "hann var
+       med" og "hann svaradi ekki" sama thing i skranni.                   */
+    out[id] = rec;
+  }
+  return out;
 }
 
 /* Virkt eignarhald (EO) = eignarhald + fyrirlidaband. Fyrirlidi telur TVISVAR
@@ -233,6 +450,41 @@ export function eo(agg, id) {
   if (!agg || !agg.n) return null;
   const o = agg.own[id] || 0, c = agg.capt[id] || 0;
   return (o + c) / agg.n;
+}
+
+/* ---------------------------------------------------------------------------
+   HVADA LEIKSTODUKERFI STOD SIG BEST.
+
+   HER ER LODRETT LINA SEM MA EKKI STIGA YFIR: "hverjir NOTA kerfid" og
+   "hvernig kerfid STOD SIG" eru TVEIR OLIKIR HLUTIR. Midgildi rodunar
+   theirra sem spila 3-4-3 segir adeins ad godir menn spili 3-4-3 — thad er
+   VAL, ekki afrek. Til ad maela afrek tharf BREYTINGU a rodun THEIRRA SOMU
+   manna yfir umferdina sem their spiludu kerfid.
+
+   Thess vegna er thetta reiknad ur `pros_moves.json`: kerfi sem stjornandi
+   stillti upp i umferd N, og rodun hans FYRIR og EFTIR. `delta` er
+   NEGATIFT thegar honum gengur vel (rodun laekkar).
+
+   `panelDelta` fylgir med thvi rodunar-breyting radast ad mestu af thvi hvad
+   ALLUR hopurinn gerdi thá viku; ein tala an vidmids er merkingarlaus.    */
+export function formationOutcome(moves, prevGw, gw, meta) {
+  const byF = {};
+  const all = [];
+  for (const rec of Object.values(moves || {})) {
+    const a = rec?.[prevGw], b = rec?.[gw];
+    if (!a || !b) continue;
+    if (!Number.isFinite(a.r) || !Number.isFinite(b.r)) continue;
+    if (!Array.isArray(a.p) || a.p.length < 11) continue;
+    const sh = squadShape(a.p.map((e, i) => ({ element: e, position: i + 1 })), meta);
+    if (!sh?.formation) continue;
+    const d = b.r - a.r;
+    (byF[sh.formation] ||= []).push(d);
+    all.push(d);
+  }
+  const med = v => { const x = v.slice().sort((p, q) => p - q); return x.length ? x[Math.floor(x.length / 2)] : null; };
+  const out = {};
+  for (const [f, v] of Object.entries(byF)) out[f] = { n: v.length, delta: med(v) };
+  return { byFormation: out, panelDelta: med(all), n: all.length };
 }
 
 /* Er thekjan nog til ad birta hlutfoll? */

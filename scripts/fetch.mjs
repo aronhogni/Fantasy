@@ -273,7 +273,13 @@ async function fetchFPL() {
     selected_by_percent:e.selected_by_percent, transfers_in_event:e.transfers_in_event,
     transfers_out_event:e.transfers_out_event, total_points:e.total_points,
     ep_next:e.ep_next, ep_this:e.ep_this,
-    chance_next:e.chance_of_playing_next_round, status:e.status }));
+    chance_next:e.chance_of_playing_next_round, status:e.status,
+    /* MINUTUR, xGI OG FORM BAETTUST VID 10.8.2026 af nakvaemlega somu astaedu
+       og ep_next: spurningin "hvers vegna keyptu their hann THA?" er
+       osvaranleg eftir a. `players.json` er ENDURSKRIFUD daglega — hun er
+       nuverandi stada, ekki saga — svo thetta er eina staerdin i repo-inu
+       sem geymir samhengid a theim degi sem skiptin voru gerd.           */
+    minutes:e.minutes, xgi:e.expected_goal_involvements, form:e.form }));
   await writeJSON(`history/${today}.json`, snap);
   record("fpl_history_snapshot", true, snap.length, today);
 

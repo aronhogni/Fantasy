@@ -151,6 +151,40 @@ async function main() {
     console.error(`ABORT: only ${panel.length} entries scored — NOT writing ${OUT}`);
     process.exit(2);
   }
+  /* AUDGUN HOPSINS — 1.000 koll, ~10 sek, EINU SINNI a ari.
+     `entry/{id}/` ber thrennt sem hvergi annars stadar er ad hafa og sem
+     gerir spurningar moglegar sem talningin ein getur ekki svarad:
+       favourite_team  -> "eiga their OFTAR leikmenn ur SINU eigin felagi?"
+                          (klubb-slagsidan er maelanleg og hun er raunveruleg
+                          hja fjoldanum; hvort HOPURINN se laus vid hana er
+                          osvarad)
+       years_active    -> reynsla, adgreind fra faerni
+       region          -> thjoderni
+     Thetta er STODUGT innan timabils, svo thad er sott hér og EKKI i
+     vikulegu keyrslunni.                                                  */
+  console.log(`enriching ${panel.length} panel entries (favourite team, experience, region)…`);
+  let enriched = 0;
+  await Promise.all(Array.from({ length: 8 }, async (_, lane) => {
+    for (let i = lane; i < panel.length; i += 8) {
+      const p2 = panel[i];
+      for (let a = 0; a < 3; a++) {
+        try {
+          const r = await fetch(`${FPL}/entry/${p2.id}/`,
+            { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(25000) });
+          if (r.status === 429) { await sleep(2000 * (a + 1)); continue; }
+          if (!r.ok) break;
+          const d = await r.json();
+          if (Number.isFinite(d.favourite_team)) p2.ft = d.favourite_team;
+          if (Number.isFinite(d.years_active)) p2.ya = d.years_active;
+          if (d.player_region_iso_code_short) p2.cc = d.player_region_iso_code_short;
+          enriched++;
+          break;
+        } catch { await sleep(700 * (a + 1)); }
+      }
+    }
+  }));
+  console.log(`enriched ${enriched}/${panel.length}`);
+
   await mkdir("data", { recursive: true });
   await writeFile(OUT, JSON.stringify({
     built: new Date().toISOString().slice(0, 10),

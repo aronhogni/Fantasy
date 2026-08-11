@@ -70,6 +70,17 @@ if (finishedGw === 0) {
   const pros = J("pros.json");
   ok((pros.panel || []).length >= 500,
     `pros.json ber hópinn (${(pros.panel || []).length} stjórnendur)`);
+  /* VIÐMIÐSHÓPURINN er ekki skraut: án hans er „bekkurinn kostar 17,0"
+     merkingarlaus tala, því FPL gefur viðmið fyrir eignarhald og EKKERT
+     annað. Hann er valinn einu sinni og fastur — vanti hann er hver
+     samanburðartala í flipanum ómarktæk.                                */
+  ok((pros.control || []).length >= 500,
+    `pros.json ber VIÐMIÐSHÓPINN (${(pros.control || []).length} slembnir)`);
+  {
+    const p2 = new Set(pros.panel.map(x => x.id));
+    ok(!(pros.control || []).some(id => p2.has(id)),
+      "viðmiðshópurinn skarast EKKI við hópinn (annars væri hann ekki viðmið)");
+  }
   ok(!existsSync(`${D}pros_gw.json`),
     "pros_gw.json er EKKI til í forleik (picks svara 404 fyrir fyrsta frest)");
   console.log("  → vökulistinn sjálfur virkjast þegar fyrsta umferðin klárast.");
@@ -104,6 +115,12 @@ if (finishedGw === 0) {
           `kaup (${Object.keys(a.in || {}).length}) og sölur (${Object.keys(a.out || {}).length}) skráðar`);
         ok(a.rankMedian != null && a.value != null,
           "meðaltöl hópsins eru raunverulegar tölur, ekki null");
+        /* Viðmiðið verður að hafa vaknað líka — annars er hver
+           samanburðartala í flipanum tóm.                              */
+        ok(a.control && a.control.n > 0,
+          `viðmiðshópurinn var lesinn (${a.control?.n ?? 0} svöruðu)`);
+        ok(a.points != null && a.benchPoints != null,
+          "stig og bekkjar-stig komu með (voru í svarinu allan tímann)");
       }
       /* MÆLINGIN SEM MÁ EKKI GLEYMAST. Elite-eignarhald er birt sem
          STAÐREYND og fer ekki í líkanið fyrr en það hefur verið mælt

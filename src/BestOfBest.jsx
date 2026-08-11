@@ -281,6 +281,62 @@ export default function BestOfBest({ pros, panelFile, players, teamById, onPickP
           </div>
         ) : null}
 
+        {/* VIDMID. Tala an vidmids er merkingarlaus: "bekkurinn kostar
+            17,0" segir ekkert fyrr en madur veit hvad ALMENNUR stjornandi
+            gerir. `control` er FASTUR slembinn hopur af somu staerd.     */}
+        {agg.control ? (
+          <div style={{ ...S.scroll, marginTop:10 }}>
+            <table style={S.table}>
+              <thead><tr>
+                <th style={{ ...S.th, ...S.thL }}>{"This gameweek"}</th>
+                <th style={S.th}>{"The best"}</th>
+                <th style={S.th}>{"Average manager"}</th>
+                <th style={S.th}>{"Difference"}</th>
+              </tr></thead>
+              <tbody>
+                {[
+                  ["Points", agg.points, agg.control.points, 1, ""],
+                  ["Points left on bench", agg.benchPoints, agg.control.benchPoints, 1, ""],
+                  ["Transfers made", agg.transfers, agg.control.transfers, 2, ""],
+                  ["Points spent on hits", agg.hitCost, agg.control.hitCost, 1, ""],
+                  ["Squad value", agg.value, agg.control.value, 1, "money"],
+                  ["Bench cost", agg.benchCost, agg.control.benchCost, 1, "money"],
+                  ["Auto subs used", agg.autoSubs, agg.control.autoSubs, 2, ""],
+                  ["Minutes before deadline", agg.transferMinsMedian, agg.control.transferMinsMedian, 0, ""],
+                ].map(([lab, a, b, dp, kind]) => {
+                  const f = v => (v == null || !Number.isFinite(v) ? "—"
+                                  : kind === "money" ? `£${(v / 10).toFixed(1)}` : v.toFixed(dp));
+                  const d = (a == null || b == null || !Number.isFinite(a) || !Number.isFinite(b))
+                    ? null : a - b;
+                  /* Fyrir "stig a bekk" og "stig i hits" er LAEGRA betra, svo
+                     liturinn ma ekki radast af formerki eingongu — sama regla
+                     og `hi` i dalkaskranni (CLAUDE.md kafla 8).           */
+                  const lower = lab === "Points left on bench" || lab === "Points spent on hits";
+                  const good = d == null ? null : (lower ? d < 0 : d > 0);
+                  return (
+                    <tr key={lab}>
+                      <td style={{ ...S.td, ...S.tdL }}>{lab}</td>
+                      <td style={{ ...S.td, fontWeight:700 }}>{f(a)}</td>
+                      <td style={{ ...S.td, color:C.text3 }}>{f(b)}</td>
+                      <td style={{ ...S.td, color: good == null ? C.text3 : good ? C.green : C.red }}>
+                        {d == null ? "—"
+                          : (kind === "money" ? `${d > 0 ? "+" : ""}£${(d / 10).toFixed(1)}`
+                                              : `${d > 0 ? "+" : ""}${d.toFixed(dp)}`)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p style={S.note}>
+              {`Against ${agg.control.size || "—"} randomly chosen active managers, `
+               + "the same cohort all season so week-to-week change is behaviour and not a new sample. "
+               + "Ownership already had a baseline from FPL; formation, bench cost, price points "
+               + "and transfer timing did not."}
+            </p>
+          </div>
+        ) : null}
+
         <div style={{ display:"flex", gap:22, flexWrap:"wrap", marginTop:10 }}>
           <div style={S.stat}>
             <span style={S.statV}>{num(agg.transfers, 2)}</span>
@@ -337,6 +393,55 @@ export default function BestOfBest({ pros, panelFile, players, teamById, onPickP
         </p>
       ) : null}
 
+      <div style={S.card}>
+        <h3 style={S.h}>
+          {"Most owned"}
+          <span style={S.sub}>{`what ${agg.n} of the best actually hold`}</span>
+        </h3>
+        <div style={S.scroll}>
+          <table style={S.table}>
+            <thead><tr>
+              <th style={{ ...S.th, ...S.thL }}>{"Player"}</th>
+              <th style={S.th}>{"Owned"}</th>
+              <th style={S.th}>{"Share"}</th>
+              <th style={S.th}>{"Captained"}</th>
+              <th style={S.th}>{"Crowd"}</th>
+            </tr></thead>
+            <tbody>
+              {Object.keys(agg.own || {})
+                .map(id => ({ id:+id, c:agg.own[id] }))
+                .sort((a, b) => b.c - a.c).slice(0, 20)
+                .map(r => {
+                  const p = byId[r.id];
+                  const t = p && teamById ? teamById[p.team] : null;
+                  return (
+                    <tr key={r.id}>
+                      <td style={{ ...S.td, ...S.tdL }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          {p ? <span style={{ ...S.pill, background:POS_COLOR[p.element_type] || C.text3 }}>
+                                 {POS[p.element_type] || "?"}</span> : null}
+                          <Name p={p} onPick={onPickPlayer} />
+                          <span style={{ fontSize:10.5, color:C.text3 }}>{t?.short_name || ""}</span>
+                          {mine.has(r.id)
+                            ? <span title="In your squad" style={{ width:6, height:6, borderRadius:3,
+                                                                   background:C.green, display:"inline-block" }} />
+                            : null}
+                        </div>
+                      </td>
+                      <td style={S.td}>{r.c}</td>
+                      <td style={S.td}>{pc(r.c / agg.n, 1)}</td>
+                      <td style={S.td}>{agg.capt?.[r.id] ? pc(agg.capt[r.id] / agg.n, 1) : "—"}</td>
+                      <td style={{ ...S.td, color:C.text3 }}>
+                        {p?.selected_by_percent == null ? "—" : `${(+p.selected_by_percent).toFixed(1)}%`}
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div style={S.grid}>
         <div style={S.card}>
           <h3 style={S.h}>{"Captains"}<span style={S.sub}>{`out of ${agg.n} experts`}</span></h3>
@@ -392,6 +497,175 @@ export default function BestOfBest({ pros, panelFile, players, teamById, onPickP
           </p>
         </div>
       </div>
+
+      {/* LIDSSKIPAN — leikstodukerfi, bekkur og verd-uppbygging.
+          Thetta er spurningin "hvernig setja their upp lidid?" og hun er
+          adeins svaranleg thvi lidsskipan er REIKNUD VID SOFNUN, med theim
+          verdum sem giltu tha (verd breytast i hverri viku).            */}
+      {agg.shapeN ? (
+        <div style={S.card}>
+          <h3 style={S.h}>
+            {"Squad shape"}
+            <span style={S.sub}>{`how ${agg.shapeN} of them set the team up`}</span>
+          </h3>
+          <div style={S.grid}>
+            <div>
+              <div style={{ fontSize:11.5, fontWeight:700, color:C.text2, marginBottom:4 }}>
+                {"Formation"}
+              </div>
+              <div style={S.scroll}>
+                <table style={S.table}>
+                  <thead><tr>
+                    <th style={{ ...S.th, ...S.thL }}>{"DEF-MID-FWD"}</th>
+                    <th style={S.th}>{"Managers"}</th>
+                    <th style={S.th}>{"Share"}</th>
+                  </tr></thead>
+                  <tbody>
+                    {Object.entries(agg.formations || {})
+                      .sort((a, b) => b[1] - a[1]).slice(0, 8)
+                      .map(([f, c]) => (
+                        <tr key={f}>
+                          <td style={{ ...S.td, ...S.tdL }}>{f}</td>
+                          <td style={S.td}>{c}</td>
+                          <td style={S.td}>{pc(c / agg.shapeN, 1)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize:11.5, fontWeight:700, color:C.text2, marginBottom:4 }}>
+                {"Where the money goes"}
+              </div>
+              <div style={S.scroll}>
+                <table style={S.table}>
+                  <thead><tr>
+                    <th style={{ ...S.th, ...S.thL }}>{"Line"}</th>
+                    <th style={S.th}>{"Mean spend"}</th>
+                    <th style={S.th}>{"Of XI"}</th>
+                  </tr></thead>
+                  <tbody>
+                    {[[1, "Goalkeeper"], [2, "Defence"], [3, "Midfield"], [4, "Attack"]].map(([k, lab]) => {
+                      const v = agg.byPos?.[k];
+                      return (
+                        <tr key={k}>
+                          <td style={{ ...S.td, ...S.tdL }}>
+                            <span style={{ ...S.pill, background:POS_COLOR[k] }}>{POS[k]}</span>
+                            {" " + lab}
+                          </td>
+                          <td style={S.td}>{v == null ? "—" : `£${(v / 10).toFixed(1)}`}</td>
+                          <td style={S.td}>
+                            {v == null || !agg.startCost ? "—" : pc(v / agg.startCost, 0)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr>
+                      <td style={{ ...S.td, ...S.tdL, fontWeight:700 }}>{"Bench (4)"}</td>
+                      <td style={{ ...S.td, fontWeight:700 }}>
+                        {agg.benchCost == null ? "—" : `£${(agg.benchCost / 10).toFixed(1)}`}
+                      </td>
+                      <td style={S.td}>{"—"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          {/* VERD-PUNKTAR: "4,5 markmadur eda 4,0?" er ekki svaranleg med
+              medaltali — 4,25 er ekki verd sem er til.                   */}
+          <div style={{ marginTop:12 }}>
+            <div style={{ fontSize:11.5, fontWeight:700, color:C.text2, marginBottom:4 }}>
+              {"Price points they actually use"}
+            </div>
+            <div style={S.scroll}>
+              <table style={S.table}>
+                <thead><tr>
+                  <th style={{ ...S.th, ...S.thL }}>{"Line"}</th>
+                  <th style={{ ...S.th, ...S.thL }}>{"Starting XI (most common first)"}</th>
+                  <th style={{ ...S.th, ...S.thL }}>{"Bench"}</th>
+                </tr></thead>
+                <tbody>
+                  {[[1, "GK"], [2, "DEF"], [3, "MID"], [4, "FWD"]].map(([k, lab]) => {
+                    const fmt = src => Object.entries(src?.[k] || {})
+                      .map(([c, n]) => ({ c:+c, n }))
+                      .sort((a, b) => b.n - a.n).slice(0, 5)
+                      .map(x => `£${(x.c / 10).toFixed(1)} (${Math.round(100 * x.n / (agg.shapeN || 1))}%)`)
+                      .join("  ");
+                    return (
+                      <tr key={k}>
+                        <td style={{ ...S.td, ...S.tdL }}>
+                          <span style={{ ...S.pill, background:POS_COLOR[k] }}>{lab}</span>
+                        </td>
+                        <td style={{ ...S.td, ...S.tdL, fontFamily:mono, fontSize:11.5 }}>
+                          {fmt(agg.priceStart) || "—"}
+                        </td>
+                        <td style={{ ...S.td, ...S.tdL, fontFamily:mono, fontSize:11.5 }}>
+                          {fmt(agg.priceBench) || "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* HVAD STOD SIG BEST. `outcome` er adeins til fyrir umferdir sem
+              NAESTA umferd hefur verid sott fyrir — rodun tharf badum megin. */}
+          {agg.outcome?.n ? (
+            <div style={{ marginTop:12 }}>
+              <div style={{ fontSize:11.5, fontWeight:700, color:C.text2, marginBottom:4 }}>
+                {"How each formation actually did"}
+              </div>
+              <div style={S.scroll}>
+                <table style={S.table}>
+                  <thead><tr>
+                    <th style={{ ...S.th, ...S.thL }}>{"Formation"}</th>
+                    <th style={S.th}>{"Managers"}</th>
+                    <th style={S.th}>{"Rank move"}</th>
+                    <th style={S.th}>{"vs panel"}</th>
+                  </tr></thead>
+                  <tbody>
+                    {Object.entries(agg.outcome.byFormation || {})
+                      .filter(([, v]) => v.n >= 10)
+                      .sort((a, b) => a[1].delta - b[1].delta)
+                      .map(([f, v]) => {
+                        const rel = v.delta - (agg.outcome.panelDelta ?? 0);
+                        return (
+                          <tr key={f}>
+                            <td style={{ ...S.td, ...S.tdL }}>{f}</td>
+                            <td style={S.td}>{v.n}</td>
+                            <td style={{ ...S.td, color: v.delta < 0 ? C.green : v.delta > 0 ? C.red : C.text3 }}>
+                              {v.delta > 0 ? `+${v.delta.toLocaleString("en-GB")}` : v.delta.toLocaleString("en-GB")}
+                            </td>
+                            <td style={{ ...S.td, color: rel < 0 ? C.green : rel > 0 ? C.red : C.text3 }}>
+                              {rel > 0 ? `+${rel.toLocaleString("en-GB")}` : rel.toLocaleString("en-GB")}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+              <p style={S.note}>
+                {"Negative is better — the median rank move of the managers who lined up that way, "
+                 + "over the gameweek they used it. Shown against the whole panel's move, because "
+                 + "rank change is mostly driven by what everyone did that week. "
+                 + "Formations with fewer than 10 managers are omitted: who USES a shape is not "
+                 + "the same question as how it PERFORMED."}
+              </p>
+            </div>
+          ) : null}
+
+          <p style={S.note}>
+            {"Spend is the price at this deadline, recorded when the squads were read — "
+             + "prices move every week, so it cannot be reconstructed afterwards. "
+             + "A cheap bench means more of the budget is on the pitch."}
+          </p>
+        </div>
+      ) : null}
 
       <div style={S.card}>
         <h3 style={S.h}>

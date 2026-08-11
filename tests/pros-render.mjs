@@ -40,7 +40,32 @@ const PANEL = 1000;
 
 /* GW7: 620 af 1000 keyptu P[0]; ALLIR eiga P[2] OG allir gera hann ad
    fyrirlida -> EO 200%, sem verdur ad birtast sem >100%.                */
+/* Lidsskipan i fixturunni: 3-4-3 hja 600, 4-4-2 hja 350. Verd-punktar
+   valdir svo "4,5 GK eda 4,0 GK" se profanlegt.                          */
+const SHAPE = {
+  formations: { "3-4-3": 600, "4-4-2": 350 },
+  benchPos: { "1234": 900 },
+  shapeN: 950,
+  startCost: 845, benchCost: 170,
+  byPos: { 1: 45, 2: 155, 3: 335, 4: 310 },
+  priceStart: { 1: { 45: 700, 50: 250 }, 2: { 40: 400, 60: 300 },
+                3: { 50: 500, 120: 200 }, 4: { 90: 400, 145: 300 } },
+  priceBench: { 1: { 40: 900 }, 2: { 40: 800 }, 3: { 45: 700 }, 4: { 45: 600 } },
+  outcome: { n: 950, panelDelta: -1000,
+             byFormation: { "3-4-3": { n: 600, delta: -2500 },
+                            "4-4-2": { n: 350, delta: 500 },
+                            "5-3-2": { n: 4, delta: -99999 } } },
+};
+
 const GW7 = {
+  ...SHAPE,
+  /* CONTROL-HOPUR: sama talning, verri tolur. An vidmids er "bekkurinn
+     kostar 17,0" merkingarlaus tala.                                     */
+  control: { size: 1000, n: 900, points: 48, benchPoints: 12, transfers: 1.9,
+             hitCost: 3.4, value: 1002, benchCost: 205, autoSubs: 0.8,
+             transferMinsMedian: 240,
+             formations: { "4-4-2": 500, "3-4-3": 400 }, shapeN: 900,
+             byPos: { 1: 48, 2: 182, 3: 300, 4: 262 }, startCost: 792 },
   n: 950,
   own:  { [P[0]]: 700, [P[1]]: 400, [P[2]]: 950, [P[3]]: 120 },
   capt: { [P[2]]: 950, [P[0]]: 0 },
@@ -50,6 +75,9 @@ const GW7 = {
   chips: { bboost: 40, wildcard: 95 },          // 13,7% spiladu skipta-chip
   transfers: 1.6, hitCost: 1.2, hitShare: 0.31,
   value: 1013, bank: 4, rankMedian: 41250,
+  /* Svidin sem audit-ið 10.8.2026 skiladi — voru i svarinu allan timann. */
+  points: 62, benchPoints: 3, autoSubs: 0.4,
+  transferMinsMedian: 45, transferLateShare: 0.62,
 };
 const GW6 = { ...GW7, n: 940, in: { [P[1]]: 300 }, out: { [P[0]]: 150 },
               capt: { [P[1]]: 500 }, chips: {} };
@@ -166,6 +194,71 @@ ok("Triple Captain daalkur", body.includes("Triple Captain"));
 ok("bboost 40/950 birtist sem 4.2%", /4\.2%/.test(body));
 ok("BADAR umferdir i dagatalinu (6 og 7)",
    /Gameweek 6/.test(body) || document.body.textContent.includes("6"));
+
+/* ---------- 4a2. VIDMID: THEIR BESTU GEGN ALMENNUM STJORNANDA ---------- */
+console.log("\n4a2) vidmid gegn almennum stjornanda");
+ok("vidmids-taflan birtist", /Average manager/.test(body));
+ok("stig theirra bestu (62.0) og almennra (48.0)", /62\.0/.test(body) && /48\.0/.test(body));
+ok("bekkjar-stig bædi (3.0 og 12.0)", /3\.0/.test(body) && /12\.0/.test(body));
+ok("bekkjar-kostnadur bædi (£17.0 og £20.5)", /£17\.0/.test(body) && /£20\.5/.test(body));
+ok("staerd vidmids-hopsins nefnd (1000)", /1000 randomly chosen/.test(body));
+/* MUNURINN a bekkjar-stigum er -9 og LAEGRA ER BETRA thar — merkid ma ekki
+   radast af formerki eingongu.                                          */
+ok("munur birtur (-9.0 a bekkjar-stigum)", /-9\.0/.test(body));
+/* LITURINN VERDUR AD SEGJA THAD SAMA OG TALAN. Fyrir "stig a bekk" og
+   "stig i hits" er LAEGRA BETRA, svo -9 er GODUR munur og verdur ad vera
+   graenn. Fyrsta utgafa profsins skodadi adeins toluna, og stokkbreyting
+   sem slokkti a laegra-er-betra reglunni SLAPP — nakvaemlega gildran sem
+   CLAUDE.md kafla 8 lysir ("hi er FORSENDA, ekki skraut") og sem
+   compare-visual.mjs var byggt fyrir.                                    */
+{
+  const GREEN = "rgb(0, 185, 107)", RED = "rgb(217, 45, 60)";
+  const rowOf = label => [...document.querySelectorAll("tr")]
+    .find(tr => (tr.querySelector("td")?.textContent || "").trim() === label);
+  const diffColor = label => {
+    const tds = rowOf(label)?.querySelectorAll("td");
+    return tds ? tds[tds.length - 1].style.color : null;
+  };
+  ok(`færri stig a bekk er GRAENN munur (${diffColor("Points left on bench")})`,
+     diffColor("Points left on bench") === GREEN);
+  ok(`faerri stig i hits er GRAENN munur (${diffColor("Points spent on hits")})`,
+     diffColor("Points spent on hits") === GREEN);
+  /* Og fyrir STIG er HAERRA betra — svo +14 verdur lika ad vera graent.
+     Ef bædi vaeru eins gaeti reglan verid slokkt an ad thad saeist.      */
+  ok(`meiri stig er GRAENN munur (${diffColor("Points")})`,
+     diffColor("Points") === GREEN);
+  /* Skjarinn ma ekki vera allur graenn: eitthvad verdur ad geta ordid raudt.
+     Bekkjar-KOSTNADUR er laegri hja theim bestu (17,0 a moti 20,5) og
+     HAERRA er "betra" i thessari reglu, svo hann A ad vera raudur — thad
+     sannar ad liturinn radast af tolunni og ekki af rodinni.             */
+  ok(`bekkjar-kostnadur er RAUDUR (${diffColor("Bench cost")})`,
+     diffColor("Bench cost") === RED);
+}
+
+/* ---------- 4b. LIDSSKIPAN, VERD-PUNKTAR OG HVAD STOD SIG BEST ---------- */
+console.log("\n4b) lidsskipan, verd-punktar, arangur kerfa");
+ok("Squad shape birtist", body.includes("Squad shape"));
+ok("leikstodukerfi 3-4-3 birtist", /3-4-3/.test(body));
+ok("hlutfall kerfis (63.2%)", /63\.2%/.test(body), body.match(/6[0-9]\.\d%/)?.[0]);
+ok("eydsla i vorn birtist (£15.5)", /£15\.5/.test(body));
+ok("bekkjar-kostnadur birtist (£17.0)", /£17\.0/.test(body));
+/* VERD-PUNKTAR — thetta er spurningin "4,5 GK eda 4,0 GK". */
+ok("verd-punktar byrjunarlids birtast (£4.5)", /£4\.5/.test(body));
+ok("bekkjar-markmadur a 4,0 birtist (£4.0)", /£4\.0/.test(body));
+ok("dyr sokn i verd-punktum (£14.5)", /£14\.5/.test(body));
+/* HVAD STOD SIG BEST */
+ok("kaflinn um arangur kerfa birtist", /How each formation actually did/.test(body));
+ok("rodunar-breyting birtist (-2,500)", /-2,500/.test(body));
+ok("borid vid hopinn (-1,500)", /-1,500/.test(body), "delta -2500 minus panel -1000");
+/* KERFI MED FAA LID MA EKKI BIRTAST — 4 stjornendur er ekki maeling, og
+   -99999 vaeri staersta talan a skjanum ef sian brotnadi.               */
+ok("kerfi med adeins 4 lid er SLEPPT", !/5-3-2/.test(body) && !/99,999/.test(body));
+
+/* ---------- 4c. MEST EIGADIR ---------- */
+console.log("\n4c) mest eigadir");
+ok("Most owned birtist", body.includes("Most owned"));
+ok(`mest eigadi madurinn birtist (${NAME[P[2]]})`, body.includes(NAME[P[2]]));
+ok("eignarhalds-hlutfall birtist (100.0%)", /100\.0%/.test(body));
 
 /* ---------- 5. EO GETUR FARID YFIR 100% ---------- */
 console.log("\n5) mismunur vid fjoldann");

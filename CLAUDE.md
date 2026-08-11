@@ -290,7 +290,13 @@ töflu. Smáatriðin eru í `docs/MAELINGAR.md`.
 | **Velja hópinn eftir síðasta tímabili einu** | Freistandi því það þarf enga skönnun: 1,149% á móti **0,892%** fyrir recency yfir allan ferilinn (N=1000). Tvö síðustu tímabil gefa 0,958%. Full saga borgar skönnunina | 9.8.2026 |
 
 **Óframkvæmanlegt af ytri ástæðum:** QA-hlið gegn FFS-spám (borgunarveggur) ·
-FBref um `soccerdata` (403 + Python-pakki í Node-pipeline án dependencies).
+FBref um `soccerdata` (403 + Python-pakki í Node-pipeline án dependencies) ·
+**frjáls skipti (free transfers) annarra stjórnenda** — FPL birtir þau hvergi,
+hvorki í `picks`, `history` né `entry`; þau má aðeins **áætla** út úr
+`event_transfers` og hits yfir tímabilið, og áætlun sem lítur út eins og mæling
+er versta útkoman (kafli 3) · **söguleg stigatafla** — `leagues-classic/314`
+skilar aðeins yfirstandandi tímabili, svo „topp 100 í fyrra" er ekki til;
+skönnun á lið-id er eina leiðin og hún nær aldrei þeim sem hættu.
 
 ---
 

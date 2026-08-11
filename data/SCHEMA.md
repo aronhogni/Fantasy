@@ -1229,7 +1229,8 @@ tímabil. Ekki hluti af daglegu pipeline.
 | `built` · `season` | hvenær hópurinn var byggður og fyrir hvaða tímabil |
 | `method` | valreglan í einni setningu (mæld, sjá `src/pros.js`) |
 | `scanned` · `candidates` | hve mörg lið voru skönnuð og hve mörg komust í úrtakið |
-| `panel[]` | `{ id, score, seasons, best, t1 }` — **1.000 stjórnendur** |
+| `panel[]` | `{ id, score, seasons, best, t1, ft, ya, cc }` — **1.000 stjórnendur** |
+| `control[]` | **1.000 slembin lið-id** — viðmiðshópurinn, fastur yfir tímabilið |
 
 `score` er **veg­ið meðaltal á log10(lokapersentíli), helmingunartími 3
 tímabil**, birt aftur á prósentu-kvarða (0,0132% = liðið endar að jafnaði í
@@ -1240,6 +1241,14 @@ topp-3 eftir fyrri ferli standa sig **verr** en meðaltal topp-100
 (afturhvarf til meðaltals), og með 10 mönnum er 60/40 skipting ekki
 aðgreinanleg frá hlutkesti (±16 prósentustig). Full röksemdafærsla með
 öllum mælingunum er í hausnum á `src/pros.js`.
+
+`ft` = favourite_team (klúbbur hans sjálfs), `ya` = years_active, `cc` =
+landskóði. Sótt **einu sinni á ári** (1.000 köll, ~10 sek) því þetta er
+stöðugt innan tímabils. `ft` opnar spurningu sem talningin ein getur ekki
+svarað: **eiga þeir oftar leikmenn úr sínu eigin félagi?** Klúbb-slagsíðan er
+raunveruleg hjá fjöldanum; hvort hópurinn sé laus við hana er ómælt.
+Mælt við byggingu: 763 af 1.000 hafa sett félag, allir 1.000 hafa
+`years_active` (miðgildi **7**, bil 3–15), og 339 eru enskir, 84 norskir.
 
 **Hópurinn eldist:** valinn á gögnum t.o.m. 2021/22 hélt hann forskoti en
 tapaði 29% af því á fjórum árum. Endurbyggðu hann á hverju sumri — árleg
@@ -1275,8 +1284,92 @@ fyrstu umferð.
 | `gw[N].own` · `capt` · `vice` | talning per leikmanni (sparse) |
 | `gw[N].in` · `out` | keypt/selt **í þessari umferð** (síað á `event`) |
 | `gw[N].chips` | talning per chip |
+| `gw[N].chipIds` | **hvaða lið** spiluðu hvert chip (`{bboost:[id,…]}`) |
+| `gw[N].pairs` | **skipta-pör**: `{"út>inn": fjöldi}`, aðeins pör sem 2+ gerðu |
+| `gw[N].formations` | `{"3-4-3": 412, …}` — leikstöðukerfi byrjunarliðs |
+| `gw[N].benchPos` | `{"1234": 380, …}` — bekkjar-samsetning (raðað) |
+| `gw[N].byPos` · `startCost` · `benchCost` | meðal-eyðsla per línu, byrjunarlið, bekkur (tíundir) |
+| `gw[N].shapeN` | hve mörg lið gáfu **fullgilt** kerfi (11 þekktar stöður) |
+| `gw[N].priceStart` · `priceBench` | **verð-punktar** per stöðu: `{1:{45:700,50:250}}` — svarar „4,5 GK eða 4,0?" |
+| `gw[N].points` · `benchPoints` | meðal-stig umferðarinnar og **stig sem sátu á bekknum** |
+| `gw[N].autoSubs` | meðalfjöldi sjálfvirkra skiptinga — kom bekkurinn inn? |
+| `gw[N].transferMinsMedian` · `transferLateShare` | **hvenær** þeir skipta: mínútur fyrir frest, og hlutfall á síðasta klukkutíma |
+| `gw[N].control` | **viðmiðið**: sama talning fyrir 1.000 slembna stjórnendur |
+| `gw[N].outcome` | **hvað stóð sig best**: `{byFormation:{"3-4-3":{n,delta}}, panelDelta}` — miðgildi röðunar-breytingar þeirra sömu manna |
 | `gw[N].transfers` · `hitCost` · `hitShare` · `value` · `bank` | meðaltöl, `null` ef enginn svaraði |
 | `gw[N].rankMedian` | miðgildi heildarraðar hópsins |
+
+**`pairs` og `chipIds` bættust við 10.8.2026 og ástæðan er spurningin sem
+flipinn er til fyrir.** `in` og `out` talin sitt í hvoru lagi segja **ekki** að
+það hafi verið sama skiptið — „hvað selja þeir til að fjármagna X" var
+ósvaranleg. Og „1 spilaði wildcard" gerir ómögulegt að mæla **hvort chip-ið
+borgaði sig**: til þess þarf að fylgja sömu mönnum yfir næstu umferðir, svo
+lið-id þeirra sem spiluðu eru vistuð (opinber FPL-id, þegar í `pros.json`).
+
+Kostnaður mældur: +15% á skrána (814 → 935 KB yfir tímabil), og hún er
+**letihlaðin** svo það kemur fyrstu hleðslu ekki við. Pör sem **aðeins einn**
+gerði eru sleppt — eitt par frá einum manni er suð og öll pör væru ~1.200
+raðir á umferð.
+
+**Þetta verður ekki til eftir á.** Picks fyrir liðin umferð svara **404** um
+leið og tímabilinu lýkur (mælt á GW38 síðasta tímabils), svo það sem er ekki
+safnað í vikunni er farið að eilífu.
+
+### Viðmiðshópurinn (`control`) — af hverju hann er nauðsynlegur
+
+„Hópurinn eyðir 15,5 í vörn" er **merkingarlaus tala** án viðmiðs. FPL gefur
+viðmið fyrir **eignarhald** (`selected_by_percent`) og fyrir **ekkert annað** —
+hvorki leikstöðukerfi, bekkjar-kostnað, verð-punkta né tímasetningu skipta. Án
+viðmiðs er ekki hægt að segja hvort nokkuð af því sé sérstakt við þá bestu eða
+einfaldlega hvernig FPL er spilað.
+
+`control` er **1.000 slembin, virk lið**, valin með **föstu fræi** svo úrtakið
+sé endurgeranlegt, og **fast yfir tímabilið** — annars væri breyting milli vikna
+blanda af hegðun og nýju úrtaki. Mælt 10.8.2026: **300 af 300** slembnum
+lið-id voru gild og öll byrja í GW1, svo úrtakið þarf enga yfirstærð.
+
+Viðmiðið ber **hvorki `chipIds` né `pairs`** — við fylgjum ekki einstaklingum í
+því, og per-stjórnanda sagan er aðeins fyrir hópinn (1.000 til viðbótar myndu
+tvöfalda 3,8 MB án þess að svara nýrri spurningu).
+
+## `pros_moves.json` — hvaða stjórnandi gerði hvaða breytingar
+
+Skrifuð af sömu keyrslu og `pros_gw.json`. **Greiningarskrá: appið les hana
+aldrei**, svo stærð hennar kemur notandanum ekki við (~1,1 MB yfir tímabil).
+
+```
+m: { "<entryId>": { "<gw>": { p:[15 id í stöðuröð], cap:id,
+                              t:[[út,inn],…], c:"bboost", r:41250 } } }
+```
+
+`p` = **liðið sjálft**, 15 lið-id í **stöðuröð** (fyrstu 11 = byrjunarlið,
+12–15 = bekkur í þeirri röð sem hann kemur inn) · `cap` = fyrirliði ·
+`t` = skiptin sem **pör** · `c` = chip (sleppt ef ekkert) · `r` = heildarröðun.
+Tómum sviðum er sleppt. ~3,8 MB yfir tímabil.
+
+**HRÁTT LIÐ, EKKI AFLEIDDAR TÖLUR — og það er meðvitað.** Verð og staða
+leikmanns eru **þegar í repo-inu** (`players.json` og dagleg mynd í
+`history/YYYY-MM-DD.json`), svo leikstöðukerfi (4-3-3 / 4-4-2 / 3-5-2),
+bekkjar-kostnaður og eyðsla per línu eru **reiknanleg hvenær sem er** út úr
+id-unum. Að geyma í staðinn þær tölur sem *við völdum* að reikna læsir
+greininguna við það val: spurning sem einhver spyr 2028 — „hversu mikið af
+liðinu var úr sama félagi?", „hve oft var varamarkmaður dýrari en 4,0?",
+„hvað var skörunin milli tveggja bestu?" — væri ósvaranleg. Hráa liðið
+svarar þeim öllum.
+
+**Eftir 2–3 tímabil** er þetta gagnasettið sem svarar spurningunni sem
+flipinn er til fyrir: *hvernig stilla þeir sem endast í topp 1% liðinu upp?*
+Dýr sókn og ódýr vörn, eða jafnt? Hvað kostar bekkurinn? Hvaða kerfi?
+
+**Hvers vegna þetta verður að vistast jafnóðum:** lið-id í FPL eru
+**tímabils-bundin**. Lið 174 í 2026/27 er **nýtt** lið, og `history`
+gefur aðeins tímabil/stig/röðun — **engin id**. Id fyrra tímabils er því
+ófinnanlegt og `event/{gw}/picks/` svarar **404** um leið og tímabilinu
+lýkur (mælt á GW38 2025/26). Innan tímabils gefur `entry/{id}/transfers/`
+allan ferilinn í einu kalli; eftir 25. maí er hann **horfinn að eilífu**.
+
+Skráin má aldrei fella söfnunina sjálfa — hún er skrifuð í `try/catch` og
+skráir sig sérstaklega í `status` sem `pros_moves`.
 
 **Ein talning, ekki 1.000 lið.** Sama regla og `bsd_shots.json`: við geymum
 samtölur, ekki hrá lið — 1.000 hópar × 15 leikmenn × 38 umferðir væri ~20 MB
