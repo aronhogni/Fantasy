@@ -493,5 +493,90 @@ console.log("\ntrending-sagan");
   }
 }
 
+/* ============================================================
+   SKRAR SEM ENGINN LES — OG THAD ER AKVORDUN, EKKI GLEYMSKA
+   ============================================================
+   Uttektin kalladi thessar "munadarlausar" og spurdi hvort ætti ad
+   eyda theim. Svarid er NEI, og astaedan er su sama og fyrir
+   `data/history/` i FPL-verkefninu: **maeling sem ekki er haegt ad
+   endurgera er ekki maeling.**
+
+   Tvennt liggur her og thad er ekki thad sama:
+
+     INNTAK   ecr_history · fftoday_projections · wayback_projections
+              · projector_sites — sogulegar spar sem voru sottar einu
+              sinni og eru forsenda thess ad bakprofin seu endurgeranleg.
+              Sumt af thessu er EKKI haegt ad saekja aftur (Wayback-
+              myndir hverfa, FFToday getur breytt sniði).
+
+     UTKOMA   feature_probe · projectors_* · arank_search_ppr ·
+              superflex_split — nidurstodur sem README og vidmotid
+              VITNA I. Ad eyda theim vaeri ad eyda sonnunargagninu
+              fyrir fullyrdingu sem stendur afram a skjanum.
+
+   ÞESSI LISTI ER TIL SVO THAER SEU EKKI FJARLAEGDAR I "HREINSUN" —
+   og svo ad NY olesin skra vekji spurningu i stad thess ad laumast
+   inn. Baetist skra vid sem enginn les fellur thetta profa og tha er
+   thad AKVORDUN: annadhvort er hun notud eda hun fer a listann med
+   rokstudningi.                                                     */
+console.log("\nolesnar skrar eru asettar");
+{
+  const KNOWN_UNREAD = {
+    "ecr_history.json": "soguleg ECR 2016-2019, sott einu sinni (DynastyProcess + partners API)",
+    "fftoday_projections.json": "forleiks-spar 2015-2025, inntak i endurtekningarprofid",
+    "wayback_projections.json": "Wayback-myndir — EKKI haegt ad saekja aftur ef thaer hverfa",
+    "projector_sites.json": "hvada spamenn voru skodadir og hverjir foru gegnum leka-hlidid",
+    "feature_probe.json": "14 breytur gegn leif spar — nidurstadan sem README vitnar i",
+    "projectors_ppr.json": "rodun spamanna, PPR",
+    "projectors_standard.json": "rodun spamanna, standard",
+    "arank_search_ppr.json": "422-afbrigda leitin — sonnun fyrir ad leitin finni havada",
+    "superflex_split.json": "86,0% QB i superflex — talan sem `SUPERFLEX_SPLIT` byggir a",
+
+    /* LESNAR UM SMIDAD HEITI. Thessar eru NOTADAR — appid kallar
+       `loadArankFf(scoring)` og `loadEval(scoring)`, sem byggja heitid
+       ur stigagjofinni. Bokstaflega heitid kemur thvi hvergi fyrir i
+       kodanum og einfold leit finnur thaer ekki. Ad smida skanna sem
+       thenur ut sniðmat er haegt en hann verdur sjalfur ad giska; ad
+       telja thaer upp hér er nakvaemt og segir satt. */
+    "arank_ppr_fftoday.json": "lesin um loadArankFf(\"ppr\") — Replication-spjaldid",
+    "arank_standard_fftoday.json": "lesin um loadArankFf(\"standard\")",
+    "model_eval_standard.json": "lesin um loadEval(\"standard\")",
+
+    /* SKRIFADAR AF RANNSOKN, LESNAR AF SYSTURSKRA SINNI. Vordurinn i
+       learn.mjs les `advice_standard`, ekki `_ppr`; sa i accuracy.mjs
+       les `shapes_sleeper`, ekki `_fftoday`. Baðar eru samt maelingin
+       sjalf og eiga ad liggja vid hlidina a systur sinni — annars vaeri
+       adeins onnur helmingur samanburdarins geymdur. */
+    "advice_ppr.json": "PPR-helmingur bradanauðsynar-maelingarinnar (vordur les standard)",
+    "shapes_fftoday.json": "FFToday-helmingur deildarlagna — synir ad forskotid a ADP endurtekst EKKI",
+    "first4_standard_fftoday.json": "standard-fruma heitt-upphaf tilraunarinnar",
+  };
+
+  const { readdirSync } = await import("node:fs");
+  const readAll = (d) => readdirSync(path.join(ROOT, d))
+    .filter((f) => /\.(js|jsx|mjs)$/.test(f))
+    .map((f) => readFileSync(path.join(ROOT, d, f), "utf8")).join("\n");
+  const code = readAll("src") + readAll("tests") + readAll("scripts");
+
+  /* Lesid = heitid kemur fyrir, med eda an endingar. Sniðmat (t.d.
+     `arank_${scoring}.json`) eru ekki talin hér — thau eru profud
+     annars stadar; hér er spurningin adeins hvort einhver NEFNI hana. */
+  const files = readdirSync(DATA).filter((f) => f.endsWith(".json"));
+  const unread = files.filter((f) =>
+    !code.includes(f) && !code.includes(f.replace(/\.json$/, "")));
+
+  const undocumented = unread.filter((f) => !KNOWN_UNREAD[f]);
+  ok(undocumented.length === 0,
+    `hver olesin skra ber rokstudning (an: ${undocumented.join(", ") || "engin"})`);
+
+  /* Og listinn ma ekki standa eftir thegar skra er farin — annars
+     safnast upp rokstudningur fyrir skrar sem eru ekki til. */
+  const stale = Object.keys(KNOWN_UNREAD).filter((f) => !files.includes(f));
+  ok(stale.length === 0,
+    `listinn nefnir engar horfnar skrar (${stale.join(", ") || "hreinn"})`);
+
+  console.log(`     ${unread.length} olesnar, allar rokstuddar sem maelingar-heimild`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

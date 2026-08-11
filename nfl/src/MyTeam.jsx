@@ -33,18 +33,53 @@ export default function MyTeam({ rows, league, news, meta }) {
   }, [rows, ids, sleeperRoster]);
 
   const slots = useMemo(() => slotsFor(league), [league]);
+
+  /* ============================================================
+     AUD VIKA VAR HARDKODUD SEM `false`
+     ============================================================
+     `bye: false` thydir "enginn er nokkurn timann i frii", svo
+     uppstillingartolid hefdi sett mann i byrjunarlid a THEIRRI VIKU
+     SEM HANN SPILAR EKKI. Thad er ekki namundun heldur NULL STIG i
+     saeti sem atti ad bera 12 — og thad er einmitt sa flokkur villu
+     sem tolid er til ad hindra.
+
+     Gognin voru til allan timann: `r.bye` liggur a hverri rod og
+     `meta.week` segir hvada vika er i gangi. Tengingin vantadi.
+
+     VIKAN ER ADEINS LESIN A TIMABILINU. `meta.seasonType` er "pre" i
+     forleik og tha er `week` 1 — sem vaeri BORID SAMAN vid bye-viku 1
+     og gaefi ranga utkomu ef einhver baeri hana. Enginn ber viku 1
+     (fyrsta auda vikan er 5), svo villan vaeri thogul i ar og birtist
+     fyrst thegar deildin faerist. Skilyrdid er thvi a `seasonType`,
+     ekki a thvi hvort talan lítur ut fyrir ad passa.               */
+  const curWeek = meta && (meta.seasonType === "regular" || meta.seasonType === "post")
+    ? meta.week : null;
+
   const lineup = useMemo(() => optimalLineup(roster.map((r) => ({
     id: r.id, name: r.name, pos: r.pos, team: r.team,
     /* Vikuleg spa er ekki til i forleik — timabils-spain deilt med 17
        er thad sem vid hofum og thad er SAGT. */
     proj: r.proj != null ? r.proj / 17 : null,
-    avail: r.avail, bye: false, injury: r.injury,
-  })), slots), [roster, slots]);
+    avail: r.avail,
+    bye: curWeek != null && r.bye != null && r.bye === curWeek,
+    injury: r.injury,
+  })), slots), [roster, slots, curWeek]);
 
   const preseason = !meta || meta.seasonType === "pre" || meta.seasonType === "off";
 
+  /* Hverjir eru i frii THESSA viku — synt sem upplysing, ekki fald. */
+  const onBye = curWeek != null ? roster.filter((r) => r.bye === curWeek) : [];
+
   return (
     <>
+      {onBye.length > 0 && (
+        <div className="note warn">
+          <b>{onBye.length} on bye in week {curWeek}:</b>{" "}
+          {onBye.map((r) => `${r.name} (${r.team})`).join(", ")}.
+          {" "}They score nothing this week, so the lineup below leaves them out —
+          a player on bye is not a low projection, he is no projection.
+        </div>
+      )}
       <RosterSource rows={rows} ids={ids} setIds={setIds}
         season={meta && meta.season} onSleeper={setSleeperRoster}
         sleeperRoster={sleeperRoster} />

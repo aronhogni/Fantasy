@@ -352,5 +352,51 @@ console.log("\nlineupAdvice: skipti eru sambaerileg");
     `enginn logdur til ut oftar en einu sinni (${outs.join(", ") || "engir"})`);
 }
 
+/* ============================================================
+   AUD VIKA — TENGD VID RAUNVERULEGA VIKU, EKKI HARDKODUD
+   ============================================================
+   `MyTeam` sendi `bye: false` fyrir ALLA, sem thydir "enginn er
+   nokkurn timann i frii". Uppstillingartolid hefdi thvi sett mann i
+   byrjunarlid a theirri viku sem hann spilar EKKI — null stig i saeti
+   sem atti ad bera tolf.
+
+   `lineup.js` sjalft for alltaf rett med `bye`; villan var i thvi sem
+   var SENT inn. Thess vegna profar thetta HVORT TVEGGJA: ad tolid
+   virdi flaggid, og ad reglan sem býr thad til se rett.            */
+console.log("\naud vika");
+{
+  const slots = slotsFor({ starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1 } });
+
+  /* 1. Tolid sjalft: sa sem er i frii kemst ekki inn, thott hann spai haest. */
+  const roster = [
+    { id: "qb", pos: "QB", proj: 20 },
+    { id: "rb1", pos: "RB", proj: 30, bye: true },   // haestur EN i frii
+    { id: "rb2", pos: "RB", proj: 12 },
+    { id: "rb3", pos: "RB", proj: 11 },
+    { id: "wr1", pos: "WR", proj: 14 }, { id: "wr2", pos: "WR", proj: 13 },
+    { id: "wr3", pos: "WR", proj: 12 }, { id: "wr4", pos: "WR", proj: 10 },
+    { id: "te", pos: "TE", proj: 9 },
+  ];
+  const out = optimalLineup(roster, slots);
+  const ids = out.starters.map((s2) => s2.player && s2.player.id);
+  ok(!ids.includes("rb1"), "sa sem er i frii kemst ekki i byrjunarlid thott hann spai haest");
+  ok(ids.includes("rb2") && ids.includes("rb3"), "hinir tveir taka RB-saetin");
+
+  /* 2. REGLAN sem MyTeam notar: `bye === curWeek`, og ADEINS a
+        timabilinu. Herma badar greinar. */
+  const byeFlag = (seasonType, week, playerBye) => {
+    const curWeek = (seasonType === "regular" || seasonType === "post") ? week : null;
+    return curWeek != null && playerBye != null && playerBye === curWeek;
+  };
+  ok(byeFlag("regular", 7, 7) === true, "vika 7 og bye 7 -> i frii");
+  ok(byeFlag("regular", 7, 8) === false, "vika 7 og bye 8 -> spilar");
+  ok(byeFlag("regular", 7, null) === false, "engin bye-vika skrad -> spilar");
+  /* Forleikur: `week` er 1 og MA EKKI vera borid saman vid bye-viku.
+     Enginn ber bye 1 i ar, svo villan vaeri THOGUL thangad til
+     deildin faerist — thess vegna er skilyrdid a seasonType. */
+  ok(byeFlag("pre", 1, 1) === false, "forleikur: vika 1 er EKKI borin vid bye 1");
+  ok(byeFlag("off", 1, 1) === false, "utan timabils: sama");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

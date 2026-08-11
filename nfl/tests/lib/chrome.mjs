@@ -45,6 +45,38 @@ const MIME = {
  * RAUNVERULEGU gognin en ekki hermd.
  */
 export async function serve(distDir, dataDir, base = "/Fantasy/nfl/") {
+  /* ============================================================
+     BYGGINGIN ER LESIN I MINNI VID RAESINGU
+     ============================================================
+     `dist/` er DEILT med FPL-hlutanum og hans bygging keyrir
+     `emptyOutDir`. Tvaer lotur vinna a thessu vinnutre samtimis, svo
+     skra sem var til thegar thjonninn raestist getur verid horfin
+     thremur minutum sidar — og tha skiladi hann 404 i midri keyrslu.
+     Profid sagdi tha "appid hledst ekki", sem er rong greining: appid
+     var i lagi og BYGGINGIN var horfin undan thvi.
+
+     Ad lesa hana i minni tekur kapphlaupid ur myndinni fra okkar
+     hlid. Thad breytir engu um hvad er profad — bytin eru thau somu —
+     en profid getur ekki lengur kennt appinu um umhverfid.        */
+  const memo = new Map();
+  const preload = async (dir, prefix) => {
+    const { readdir } = await import("node:fs/promises");
+    const walk = async (d, rel = "") => {
+      let entries = [];
+      try { entries = await readdir(d, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        const sub = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory()) await walk(path.join(d, e.name), sub);
+        else {
+          try { memo.set(prefix + sub, await readFile(path.join(d, e.name))); }
+          catch { /* skra hvarf a medan — sleppum henni */ }
+        }
+      }
+    };
+    await walk(dir);
+  };
+  await preload(distDir, "");
+
   const server = createServer(async (req, res) => {
     try {
       let url = decodeURIComponent(req.url.split("?")[0]);
@@ -55,8 +87,11 @@ export async function serve(distDir, dataDir, base = "/Fantasy/nfl/") {
       const file = rel.startsWith("data/")
         ? path.join(dataDir, rel.slice(5)) : path.join(distDir, rel);
       /* Slodir sem eru ekki til fara i index.html — SPA-hegdun. */
-      const body = await readFile(file).catch(() =>
-        rel.includes(".") ? null : readFile(path.join(distDir, "index.html")));
+      /* Minnid fyrst (byggingin), disknum sidan (gognin, sem eru
+         stor og breytast ekki undir okkur). */
+      const body = memo.get(rel)
+        || await readFile(file).catch(() =>
+             rel.includes(".") ? null : (memo.get("index.html") || null));
       if (!body) { res.writeHead(404); return res.end(); }
       res.writeHead(200, { "content-type": MIME[path.extname(file)] || "text/plain" });
       res.end(body);
