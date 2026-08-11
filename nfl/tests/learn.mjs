@@ -295,5 +295,51 @@ console.log("\naudar vikur: maelingin sjalf");
     "en engin stenst leidrett mork — thad er astaedan fyrir ad RADA henni ekki");
 }
 
+/* ============================================================
+   AHAETTA VID VALID — RADID SEM OLL DRAFT-RIT GEFA, OG THAD MAELIST EKKI
+   ============================================================
+   "Taktu oruggan mann snemma og sveiflukenndan seint" er radlegging
+   sem er gefin alls stadar. `risk-lab.mjs` maeldi hana med THREMUR
+   ahaettumatum sem oll eru til a draft-degi (adpSd, ecrSd og
+   sveiflustudull vikustiga i fyrra) og FJORUM hattum, thar med talid
+   umferdarhada — sem thurfti ad bordid vissi hvada umferd vaeri, geta
+   sem var nyleg.
+
+   NIDURSTADA: 0 af 24 standast, a BADUM heimildum. Og thau sem NA
+   marktaekni eru oll NEIKVAED: ad sækjast eftir osamkomulagi
+   serfraedinga kostar 77 stig a timabils-summu og 130 vikulega.
+
+   TALID VAR BADAR LEIDIR AF ASETTU RADI. Vikulega talningin velur
+   byrjunarlid med FULLKOMINNI vitneskju um vikuna og VERDLAUNAR thvi
+   sveiflu — madur sem skorar 0-0-40 kemst i lid nakvaemlega tha viku
+   sem hann skorar 40. Raunveruleg fantasy velur fyrirfram og faer thad
+   ekki. Nidurstada sem stenst ADEINS vikulegu er thvi artefakt, og
+   profid greinir thaer ad. I fftoday-keyrslunni var nakvaemlega ein
+   slik — hun var flogguð og ekki send.                             */
+console.log("\nahaetta vid valid");
+{
+  let seen = 0;
+  for (const f of ["risk_ppr_sleeper", "risk_ppr_fftoday"]) {
+    const p = path.join(DATA, `${f}.json`);
+    if (!existsSync(p)) continue;
+    seen++;
+    const j = JSON.parse(readFileSync(p, "utf8"));
+    ok(j.scoredBothWays === true,
+      `${f}: talid BADAR leidir (summa OG vikulega)`);
+    ok(Math.abs(j.selfTest.season.mean) < 0.05 && Math.abs(j.selfTest.weekly.mean) < 0.05,
+      `${f}: w=0 er hlutlaust i badum talningum`);
+    ok(j.verdict === "FELLUR",
+      `${f}: ekkert afbrigdi stenst (${j.passesBoth.length} af ${j.variants.length})`);
+
+    /* Thyngstu vogirnar mega ekki vera jakvaedar — vaeru thaer thad
+       hefdi einhver freistast til ad nota thaer. */
+    const heavy = j.variants.filter((v) => v.w >= 15);
+    const heavyPos = heavy.filter((v) => v.season.mean > 20);
+    ok(heavyPos.length <= 1,
+      `${f}: thyngstu vogirnar eru ekki jakvaedar (${heavyPos.length} af ${heavy.length})`);
+  }
+  ok(seen >= 1, `${seen} ahaettu-maelingar lesnar af diski`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

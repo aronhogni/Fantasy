@@ -1008,6 +1008,46 @@ marktæk (þá má endurskoða hvort hún eigi að ráða).
 
 ---
 
+## 5m. Áhætta við valið — ráðið sem öll draft-rit gefa, og það mælist ekki
+
+*„Taktu örugga manninn snemma og sveiflukenndan seint."* Það er gefið alls
+staðar og hafði aldrei verið mælt hér. `risk-lab.mjs` prófaði **þrjú áhættumöt
+sem eru öll til á draft-degi** — `adpSd` (hve mikið markaðurinn er ósammála),
+`ecrSd` (hve mikið sérfræðingar eru ósammála) og sveiflustuðul vikustiga í fyrra
+— í **fjórum háttum**: forðast alls staðar, sækjast eftir alls staðar, forðast í
+umferðum 1–4, sækjast eftir frá umferð 9. Umferðarháðu hættirnir kröfðust þess að
+borðið vissi hvaða umferð væri í gangi.
+
+**0 af 24 standast, á báðum heimildum.** Og þau sem *ná* marktækni eru öll
+neikvæð:
+
+| afbrigði | tímabils-summa | vikulega |
+|---|---|---|
+| `ecrSd` sækjast eftir, w=15 | **−77,2** (t=−3,7) | **−130,0** (t=−5,1) |
+| `ecrSd` seint, w=15 | −44,3 (t=−2,8) | −80,2 (t=−4,4) |
+| `prevVol` forðast, w=15 | −100,2 (t=−2,2) | −123,1 (t=−2,6) |
+
+Að sækjast eftir ósamkomulagi sérfræðinga kostar á milli 77 og 130 stig á
+tímabili. Klassíska ráðið sjálft (`early`/`late`) mælist hvorki upp né niður.
+
+### Aðferðin sem gerir þetta marktækt: talið báðar leiðir
+
+Vikulega talningin velur byrjunarlið hverrar viku **með fullkominni vitneskju um
+þá viku**, og hún **verðlaunar því sveiflu**: maður sem skorar 0–0–40 kemst í
+byrjunarlið nákvæmlega þá viku sem hann skorar 40. Raunveruleg fantasy velur
+fyrirfram og fær það ekki.
+
+Þess vegna er allt mælt **báðar leiðir** — tímabils-summan er hlutlaus gagnvart
+sveiflu innan tímabils, vikulega ofmetur hana. Niðurstaða sem stenst aðeins þá
+vikulegu er **artefakt af fullkominni vitneskju**. Í FFToday-keyrslunni var
+nákvæmlega ein slík; hún var flögguð sem artefakt og fór hvergi.
+
+> Þetta er sami lærdómur og „hærri fylgni er ekki betri ákvörðun", einu lagi
+> dýpra: **réttari mælikvarði getur verið rangur mælikvarði**, og eina leiðin til
+> að sjá það er að mæla báða og bera saman.
+
+---
+
 ## 6. Prófin
 
 **Tíu söfn í `SUITES`** (`nfl/tests/run.mjs`). Fjöldinn er reiknaður úr `SUITES`,

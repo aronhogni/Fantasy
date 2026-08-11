@@ -1,0 +1,475 @@
+{
+ "generated": "2026-08-11T23:34:13.750Z",
+ "provenance": {
+  "generated": "2026-08-11T23:34:13.751Z",
+  "argv": [
+   "--scoring=ppr",
+   "--proj=fftoday",
+   "--runs=4"
+  ],
+  "params": {
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": false
+   },
+   "proj": {
+    "value": "fftoday",
+    "fromDefault": false
+   },
+   "runs": {
+    "value": "4",
+    "fromDefault": false
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "scoring": "ppr",
+ "projection": "fftoday",
+ "seasons": [
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "scoredBothWays": true,
+ "selfTest": {
+  "season": {
+   "mean": 0,
+   "t": 0,
+   "wins": 0,
+   "years": 6
+  },
+  "weekly": {
+   "mean": 0,
+   "t": 0,
+   "wins": 0,
+   "years": 6
+  }
+ },
+ "variants": [
+  {
+   "metric": "adpSd",
+   "mode": "avoid",
+   "w": 5,
+   "season": {
+    "mean": -29,
+    "t": -1.113,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -34.2,
+    "t": -1.158,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "adpSd",
+   "mode": "avoid",
+   "w": 15,
+   "season": {
+    "mean": -26,
+    "t": -0.866,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -27.6,
+    "t": -0.833,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "adpSd",
+   "mode": "seek",
+   "w": 5,
+   "season": {
+    "mean": -0.7,
+    "t": -0.036,
+    "wins": 1,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -4.6,
+    "t": -0.158,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "adpSd",
+   "mode": "seek",
+   "w": 15,
+   "season": {
+    "mean": -9.7,
+    "t": -0.188,
+    "wins": 4,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -17.2,
+    "t": -0.317,
+    "wins": 3,
+    "years": 6
+   }
+  },
+  {
+   "metric": "adpSd",
+   "mode": "early",
+   "w": 5,
+   "season": {
+    "mean": -6,
+    "t": -0.668,
+    "wins": 3,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -2.1,
+    "t": -0.2,
+    "wins": 4,
+    "years": 6
+   }
+  },
+  {
+   "metric": "adpSd",
+   "mode": "early",
+   "w": 15,
+   "season": {
+    "mean": -6.2,
+    "t": -0.395,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": 3.5,
+    "t": 0.143,
+    "wins": 3,
+    "years": 6
+   }
+  },
+  {
+   "metric": "adpSd",
+   "mode": "late",
+   "w": 5,
+   "season": {
+    "mean": 3.1,
+    "t": 0.157,
+    "wins": 3,
+    "years": 6
+   },
+   "weekly": {
+    "mean": 3.8,
+    "t": 0.183,
+    "wins": 3,
+    "years": 6
+   }
+  },
+  {
+   "metric": "adpSd",
+   "mode": "late",
+   "w": 15,
+   "season": {
+    "mean": -15.6,
+    "t": -0.821,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -23.8,
+    "t": -0.833,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "ecrSd",
+   "mode": "avoid",
+   "w": 5,
+   "season": {
+    "mean": -11.3,
+    "t": -0.372,
+    "wins": 3,
+    "years": 6
+   },
+   "weekly": {
+    "mean": 1.8,
+    "t": 0.048,
+    "wins": 3,
+    "years": 6
+   }
+  },
+  {
+   "metric": "ecrSd",
+   "mode": "avoid",
+   "w": 15,
+   "season": {
+    "mean": 31.5,
+    "t": 0.7,
+    "wins": 3,
+    "years": 6
+   },
+   "weekly": {
+    "mean": 27,
+    "t": 0.489,
+    "wins": 3,
+    "years": 6
+   }
+  },
+  {
+   "metric": "ecrSd",
+   "mode": "seek",
+   "w": 5,
+   "season": {
+    "mean": -23.2,
+    "t": -1.532,
+    "wins": 1,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -38.8,
+    "t": -2.693,
+    "wins": 1,
+    "years": 6
+   }
+  },
+  {
+   "metric": "ecrSd",
+   "mode": "seek",
+   "w": 15,
+   "season": {
+    "mean": -77.2,
+    "t": -3.713,
+    "wins": 1,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -130,
+    "t": -5.061,
+    "wins": 0,
+    "years": 6
+   }
+  },
+  {
+   "metric": "ecrSd",
+   "mode": "early",
+   "w": 5,
+   "season": {
+    "mean": -13.7,
+    "t": -0.843,
+    "wins": 1,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -10.5,
+    "t": -0.531,
+    "wins": 1,
+    "years": 6
+   }
+  },
+  {
+   "metric": "ecrSd",
+   "mode": "early",
+   "w": 15,
+   "season": {
+    "mean": -9.9,
+    "t": -0.32,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -10.5,
+    "t": -0.287,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "ecrSd",
+   "mode": "late",
+   "w": 5,
+   "season": {
+    "mean": -9.5,
+    "t": -0.779,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -19,
+    "t": -0.994,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "ecrSd",
+   "mode": "late",
+   "w": 15,
+   "season": {
+    "mean": -44.3,
+    "t": -2.801,
+    "wins": 1,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -80.2,
+    "t": -4.363,
+    "wins": 1,
+    "years": 6
+   }
+  },
+  {
+   "metric": "prevVol",
+   "mode": "avoid",
+   "w": 5,
+   "season": {
+    "mean": -14.1,
+    "t": -0.524,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -22.2,
+    "t": -0.659,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "prevVol",
+   "mode": "avoid",
+   "w": 15,
+   "season": {
+    "mean": -100.2,
+    "t": -2.168,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -123.1,
+    "t": -2.569,
+    "wins": 1,
+    "years": 6
+   }
+  },
+  {
+   "metric": "prevVol",
+   "mode": "seek",
+   "w": 5,
+   "season": {
+    "mean": -13.9,
+    "t": -0.319,
+    "wins": 3,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -9.2,
+    "t": -0.16,
+    "wins": 3,
+    "years": 6
+   }
+  },
+  {
+   "metric": "prevVol",
+   "mode": "seek",
+   "w": 15,
+   "season": {
+    "mean": -33.2,
+    "t": -0.43,
+    "wins": 3,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -16.3,
+    "t": -0.169,
+    "wins": 4,
+    "years": 6
+   }
+  },
+  {
+   "metric": "prevVol",
+   "mode": "early",
+   "w": 5,
+   "season": {
+    "mean": -0.1,
+    "t": -0.009,
+    "wins": 3,
+    "years": 6
+   },
+   "weekly": {
+    "mean": 6.2,
+    "t": 0.53,
+    "wins": 3,
+    "years": 6
+   }
+  },
+  {
+   "metric": "prevVol",
+   "mode": "early",
+   "w": 15,
+   "season": {
+    "mean": -58.9,
+    "t": -2.042,
+    "wins": 1,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -65.7,
+    "t": -1.793,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "prevVol",
+   "mode": "late",
+   "w": 5,
+   "season": {
+    "mean": -21.9,
+    "t": -1.135,
+    "wins": 2,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -19.3,
+    "t": -0.813,
+    "wins": 2,
+    "years": 6
+   }
+  },
+  {
+   "metric": "prevVol",
+   "mode": "late",
+   "w": 15,
+   "season": {
+    "mean": -41,
+    "t": -1.32,
+    "wins": 3,
+    "years": 6
+   },
+   "weekly": {
+    "mean": -53.7,
+    "t": -1.543,
+    "wins": 2,
+    "years": 6
+   }
+  }
+ ],
+ "tCrit": 2.776,
+ "corrected": 4.442,
+ "passesBoth": [],
+ "weeklyOnly": [
+  "ecrSd/seek/w15"
+ ],
+ "verdict": "FELLUR"
+}
