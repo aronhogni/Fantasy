@@ -1335,6 +1335,7 @@ async function fetchEuro() {
   // --- (c) ÞÁTTTAKA 2026/27: hverjir eru í Evrópu, þótt leikir séu ódregnir.
   // Þetta er nothæft fyrir álagsplönun MÁNUÐUM áður en dráttur er gerður.
   const participation = {};
+  const partOk = [];
   if (euroKey) {
     for (const comp of ["CL", "EL", "ECL"]) {
       try {
@@ -1355,9 +1356,60 @@ async function fetchEuro() {
         }
         console.log(`Participation ${comp}: season ${season}, ${tms.length} clubs, ${eng} English`);
         found.push(`part:${comp}(${eng}eng)`);
+        partOk.push(comp);
       } catch (e) { console.log(`Participation ${comp}: ${e.message}`); }
     }
   }
+
+  /* ---- THATTTAKA UR ESPN-LEIKJUNUM SEM VID SOTTUM HVORT ED ER ----
+
+     VILLAN SEM NOTANDINN FANN: "Man Utd er i Evropu en er ekki med
+     stjornu". Rett — `participation` bar ADEINS CL. Lykkjan hér ad ofan
+     bidur um CL, EL og ECL, en okeypis threp football-data.org gefur
+     adeins CL, svo EL og ECL FELLU THEGJANDI: villan for i console.log og
+     hvergi annad, `found` fekk enga faerslu, og status.json vissi ekkert.
+     Notandinn sa lid an stjornu og gat ekki vitad hvort thad thydi "ekki i
+     Evropu" eda "vid vitum thad ekki" — nakvaemlega greinarmunurinn sem
+     CLAUDE.md kafli 8 gerir milli `null` og `0`.
+
+     LAGFAERINGIN NOTAR GOGN SEM VORU THEGAR I HENDI: ESPN-undankeppnirnar
+     (`uefa.champions_qual`, `uefa.europa_qual`) eru sottar OG TOKUST — 10
+     og 13 leikir — en their leikir eru allir i fortidinni og duttu ut i
+     stale-siunni, svo thatttakan for med theim. Vid lesum hana ut ADUR en
+     siad er: lid sem SPILAR i undankeppni Evropu ER i Evropu.           */
+  /* LYKLARNIR VERDA AD VERA NAKVAEMLEGA THEIR SOMU OG I ESPN-LISTANUM
+     HER AD OFAN. Fyrsta utgafan min skrifadi "uefa.conference_qual" og
+     "uefa.conference" — en listinn notar `uefa.conf_qual` og
+     `uefa.europa.conf`, svo Sambandsdeildar-lid hefdu FENGID ENGA STJORNU:
+     nakvaemlega villan sem eg var ad laga, endurtekin i lagfaeringunni.
+     Vordur: tests/euro-participation.mjs ber thennan lykla-lista saman vid
+     ESPN-listann og fellur ef keppni baetist vid an merkis.             */
+  const COMP_TO_TAG = {
+    "uefa.champions": "CL",      "uefa.champions_qual": "CL",
+    "uefa.europa": "EL",         "uefa.europa_qual": "EL",
+    "uefa.europa.conf": "ECL",   "uefa.conf_qual": "ECL",
+  };
+  let fromFixtures = 0;
+  for (const m of matches) {
+    const tag = COMP_TO_TAG[m.comp];
+    if (!tag) continue;
+    for (const nm of [m.home, m.away]) {
+      const id = fplByNorm[norm(nm || "")] ?? null;
+      if (id == null) continue;
+      const cur = participation[id] = participation[id] || [];
+      if (!cur.includes(tag)) { cur.push(tag); fromFixtures++; }
+    }
+  }
+  if (fromFixtures) found.push(`part-from-fixtures(${fromFixtures})`);
+
+  /* THEKJAN ER SKRAD, EKKI THOGD. Ef EL/ECL vantar er stjarnan "i
+     Meistaradeildinni", ekki "i Evropu", og thad verdur ad sjast.       */
+  record("euro_participation", partOk.length > 0, Object.keys(participation).length,
+    partOk.length === 3
+      ? "CL + EL + ECL"
+      : `only ${partOk.join(", ") || "none"} from football-data.org`
+        + (fromFixtures ? `; ${fromFixtures} more from ESPN fixtures` : "")
+        + " - clubs in the missing competitions carry NO star");
 
   // Aðeins leikir sem varða ensk lið (það er allt sem hefur áhrif á FPL-álag)
   const out = [];

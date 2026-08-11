@@ -25,7 +25,7 @@ const C = {
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shotIndex, Crest }) {
+export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdTeams, shotIndex, Crest }) {
   /* UMFERDAR-BIL — EN AÐEINS FYRIR ThAD SEM ThAD GETUR HREYFT.
      ENGIN lids-skra i repo-inu ber tolur per umferd: team_form, luck,
      team_shots og bsd_teams eru ALLAR timabils-summur. Thad eina sem er
@@ -34,7 +34,6 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
      `season` — sama regla og i Player stats: thogull dalkur sem hreyfist
      ekki er verri en dalkur sem segir ad hann geri thad ekki.          */
   const [gwRange, setGwRange] = useState(null);       // [fra, til] eda null
-  const [gwOpen, setGwOpen] = useState(false);
   const [group, setGroup] = useState("keeper");
   /* Valid lid fyrir skotakortin. null = ekkert valid.               */
   const [pick, setPick] = useState(null);
@@ -47,9 +46,42 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
   /* Skot-dalkarnir endurreiknadir ur SIUDUM skotum. Somu formulur og
      scripts/fetch-bsd-teams.mjs notar (per leik, xg/skot, big chance =
      xg >= 0,18) — annars gaefu taflan og skran sitt hvad.              */
+  /* URSLIT UR fixtures.json — HIN per-umferdar heimildin, og hun var ekki
+     einu sinni send inn i thennan flipa (lagad 11.8.2026).
+     Athugasemdin her ad ofan sagdi "thad eina sem er til per umferd eru
+     SKOTIN". Thad var rangt: `fixtures.json` ber `event` og bæði mörkin a
+     hverjum leik, svo MORK, MORK A SIG, HREIN BLOD og leikjafjoldi eru
+     ollum stundum reiknanleg per umferdar-bili. Thar med fylgja lika
+     BADIR mismuna-dalkarnir (G-xG og GC-xGC) sem adur voru THVINGADIR I
+     NULL um leid og bil var valid — their thurfa hvorttveggja og hofdu
+     annan helminginn allan timann.                                      */
+  const fixAgg = useMemo(() => {
+    if (!gwRange || !Array.isArray(fixtures)) return null;
+    const [lo, hi] = gwRange;
+    const acc = new Map();          // team id -> { gf, ga, cs, n }
+    const bump = (id, gf, ga) => {
+      const a = acc.get(id) || { gf: 0, ga: 0, cs: 0, n: 0 };
+      a.gf += gf; a.ga += ga; a.cs += ga === 0 ? 1 : 0; a.n++;
+      acc.set(id, a);
+    };
+    for (const f of fixtures) {
+      /* ADEINS LOKNIR LEIKIR. Onnur skilyrdi (started/minutes) duga ekki:
+         leikur i gangi hefur hlutastodu, og hun myndi telja sem urslit.  */
+      if (!f?.finished) continue;
+      const g = f.event;
+      if (g == null || g < lo || g > hi) continue;
+      if (f.team_h_score == null || f.team_a_score == null) continue;
+      bump(f.team_h, f.team_h_score, f.team_a_score);
+      bump(f.team_a, f.team_a_score, f.team_h_score);
+    }
+    return acc;
+  }, [fixtures, gwRange]);
+
   const rows = useMemo(() => {
     if (!gwRange || !shotIndex?.byTeam) return base;
     const [lo, hi] = gwRange;
+    const idByShort = new Map(base.map(r => [r.short, r.id]));
+    const teamIdOf = sh => idByShort.get(sh);
     const F = shotIndex.fields || {};
     const inRange = sh => { const g = sh[F.gw]; return g != null && g >= lo && g <= hi; };
     const agg = short => {
@@ -69,7 +101,17 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
       const games = new Set();
       for (const sh of forr) games.add(`${sh[F.gw]}:${sh[F.opp]}`);
       for (const sh of agst) games.add(`${sh[F.gw]}:${sh[F.team]}`);
-      const n = games.size || 0;
+      /* LEIKJAFJOLDINN KEMUR NU UR fixtures.json THEGAR HANN ER TIL.
+         Lykillinn `umferd:motherji` getur EKKI adgreint tvo leiki gegn
+         SAMA lidi i somu umferd — sjaldgaeft en mogulegt thegar frestadur
+         leikur er settur i tvofalda umferd. Tha rynna badir leikirnir
+         saman i EINN og nefnarinn verdur of lagur, svo xg_pg / xgc_pg /
+         bc_pg BLASA UPP. Skotin bera engan leikja-lykil (adeins umferd,
+         lid og motherja), svo thau geta ekki leyst thetta sjalf — en
+         `fixtures.json` veit nakvaemlega hve margir leikir voru spiladir.
+         Skot-lykillinn er hafdur sem varaleid ef urslit vantar.        */
+      const fxN = fixAgg?.get(teamIdOf(short))?.n || 0;
+      const n = fxN || games.size || 0;
       if (!n) return null;
       const sum = (arr, f) => arr.reduce((a, x) => a + (f(x) || 0), 0);
       const xgF = sum(forr, x => x[F.xg]), xgA = sum(agst, x => x[F.xg]);
@@ -84,14 +126,31 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
     };
     return base.map(r => {
       const a = agg(r.short);
+      /* URSLITIN i bilinu — sjalfstaed fra skotunum. Lid sem spiladi engan
+         LOKINN leik faer null, ekki 0.                                  */
+      const fx = fixAgg?.get(r.id) || null;
+      const res = fx && fx.n ? {
+        goals_pg:    +(fx.gf / fx.n).toFixed(2),
+        conceded_pg: +(fx.ga / fx.n).toFixed(2),
+        cs_pct:      +(100 * fx.cs / fx.n).toFixed(1),
+        played:      fx.n,
+      } : { goals_pg: null, conceded_pg: null, cs_pct: null, played: null };
+
       /* Lid an skota i bilinu fa null — EKKI 0. "Spiladi ekki" og
          "skaut ekki" eru ekki sama hlutid (6i).                       */
-      if (!a) return { ...r, xg_pg: null, xgc_pg: null, bc_pg: null,
-                       bc_against_pg: null, xg_per_shot: null, xg_per_shot_against: null,
-                       goals_minus_xg: null, conceded_minus_xgc: null };
-      return { ...r, ...a, goals_minus_xg: null, conceded_minus_xgc: null };
+      const shots = a || { xg_pg: null, xgc_pg: null, bc_pg: null, bc_against_pg: null,
+                           xg_per_shot: null, xg_per_shot_against: null };
+      /* MISMUNIRNIR ERU REIKNADIR UR BILINU SJALFU. Adur voru their
+         thvingadir i null thvi annar helmingurinn (mork) fylgdi ekki
+         bilinu; nu gera badir. Krefjast BEGGJA — annars vaeri "mork
+         umfram xG" reiknad ur morkum eins bils og xG annars.           */
+      const gmx = (res.goals_pg != null && shots.xg_pg != null)
+        ? +(res.goals_pg - shots.xg_pg).toFixed(2) : null;
+      const cmx = (res.conceded_pg != null && shots.xgc_pg != null)
+        ? +(res.conceded_pg - shots.xgc_pg).toFixed(2) : null;
+      return { ...r, ...shots, ...res, goals_minus_xg: gmx, conceded_minus_xgc: cmx };
     });
-  }, [base, gwRange, shotIndex]);
+  }, [base, gwRange, shotIndex, fixAgg]);
 
   const defs = useMemo(() => TEAM_STAT_DEFS.filter(d => d.group === group), [group]);
   /* Ef skipt er um flokk og radad var eftir dalki sem er ekki lengur a
@@ -180,20 +239,13 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
         </div>
       </div>
 
-      <p style={S.note}>
-        {"How the teams themselves play — the numbers behind a goalkeeper or defence pick. "}
-        <b>{"Shots faced"}</b>{" is volume; "}<b>{"where they come from"}</b>{" is danger. "}
-        {"A team that concedes 12 shots from distance is a far better keeper pick than one that concedes 9 from inside the box."}
-      </p>
-      {bsdTeams ? (
-        <p style={S.note}>
-          <b>{"Big chances faced"}</b>{" is counted from the BSD shot map, where every shot "}
-          {"carries its own expected-goals value: a shot worth 0.18 or more counts. That "}
-          {"threshold was fitted against the big-chance count BSD publishes itself, so it is "}
-          {"measured rather than chosen. Only 2025/26 has a shot map, so the column is empty "}
-          {"for every other season — and empty means no data, not no chances."}
-        </p>
-      ) : (
+      {/* TVEIR SKYRINGAR-MALSGREINAR VORU FJARLAEGDIR 11.8.2026 ad beidni
+          notandans ("Taktu thetta ut"): almenn kynning a thvi hvad taflan
+          er, og BSD-skyringin a stora-faerum. VARNADAR-textinn her ad nedan
+          stendur AFRAM — hann er ekki skyring heldur VARUD um dalk sem er
+          ekki fylltur, og an hans les tomur dalkur eins og "engar stórar
+          faerir" i stad "engin gogn" (CLAUDE.md kafla 8).                */}
+      {bsdTeams ? null : (
         <p style={S.warn}>
           <b>{"Big chances faced is not filled in yet."}</b>{" The zones in this table come from "}
           {"ESPN, which gives the position of every shot but no expected-goals value for it, so "}
@@ -212,12 +264,12 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
               — thad eru einu lids-tolurnar sem eru til per umferd. Hinir
               eru timabils-summur og bera `season`.                      */}
           <div style={S.gwBar}>
-            <button style={S.gwToggle} aria-expanded={gwOpen}
-              onClick={() => setGwOpen(v => !v)}>
-              <span style={{ transform: gwOpen ? "none" : "rotate(-90deg)", display:"inline-block",
-                             fontSize:9, transition:"transform 120ms" }}>▾</span>
-              {" Gameweeks"}
-            </button>
+            {/* ALLTAF SYNILEGT, EKKI FALID BAK VID TAKKA (11.8.2026 ad
+                beidni). Samanbrotið sparadi 44 px (maelt 8.8.) en kostadi
+                thad ad valarinn var osynilegur thangad til smellt var —
+                og hann er adalstyringin i thessum flipa. Plássið er
+                odyrara en styring sem sest ekki.                        */}
+            <span style={S.gwToggle}>{"Gameweeks"}</span>
             {gwRange && (
               <>
                 <span style={S.gwNow}>GW {gwRange[0]}–{gwRange[1]}</span>
@@ -226,17 +278,20 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
             )}
             {gwRange && (
               <span style={S.gwWarn}>
-                {"only the shot columns follow the range — the rest are season totals"}
+                {"goals, conceded, clean sheets and the shot columns follow the range — "
+                 + "shots faced, corners, fouls and cards are season totals"}
               </span>
             )}
           </div>
-          {gwOpen && (
+          {(
             <div style={S.gwBoxes} role="group" aria-label={"Select gameweeks"}>
               {Array.from({ length: 38 }, (_, i) => i + 1).map(n => {
                 const on = gwRange && n >= gwRange[0] && n <= gwRange[1];
+                const edge = gwRange && (n === gwRange[0] || n === gwRange[1]);
                 return (
                   <button key={n} title={`GW ${n}`} aria-pressed={!!on}
-                    style={{ ...S.gwBox, ...(on ? S.gwBoxOn : {}) }}
+                    style={{ ...S.gwBox, ...(on ? S.gwBoxOn : {}),
+                             ...(edge ? S.gwBoxEdge : {}) }}
                     onClick={() => setGwRange(r => {
                       if (!r || r[0] !== r[1]) return [n, n];
                       return n < r[0] ? [n, r[0]] : [r[0], n];
@@ -364,6 +419,40 @@ export default function Teams({ teams, teamForm, luck, teamShots, bsdTeams, shot
 }
 
 const S = {
+  /* UMFERDAR-VALARINN — STILARNIR VORU ALDREI TIL (lagad 11.8.2026).
+     `S.gwBar`, `S.gwBox`, `S.gwBoxOn` og fjorir adrir voru NOTADIR i
+     markup-inu en HVERGI SKILGREINDIR, svo `{...undefined}` breiddist ut i
+     ekkert og allir 38 kassarnir teiknudust sem berur texti: "123456789..."
+     i einni bendu, an ramma og an lits a valdi bili. Notandinn sa thetta
+     strax og sagdi "eg vill ad valdar umferdir litist eins og i hinum
+     gluggum".
+
+     ESBUILD OG PROFIN SAGU THETTA ALDREI: `S.gwBox` er gild uppfletting sem
+     skilar `undefined`, og `{...undefined}` er logleg JS. Thetta er sami
+     flokkur og hvitur skjar sem esbuild samthykkir (CLAUDE.md kafla 2) —
+     og hann fannst med thvi ad HORFA A SKJAINN, ekki med thvi ad lesa koda.
+
+     Litirnir eru TEKNIR UR PlayerList.jsx svo baedi vidmotin lesist eins:
+     valid bil er ljosfjolublatt (#e8e2ee / #cdbcd8), endarnir fylltir
+     fjolubláir. Vordur: tests/team-gw.mjs.                              */
+  gwBar:{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap",
+          padding:"7px 0 2px" },
+  gwToggle:{ border:"none", background:"none", padding:0, cursor:"pointer",
+             font:"inherit", fontSize:11.5, fontWeight:700, color:C.text2,
+             display:"inline-flex", alignItems:"center", gap:4 },
+  gwNow:{ fontFamily:mono, fontSize:11, color:C.purple, fontWeight:700 },
+  gwClear:{ border:`1px solid ${C.border}`, background:"#fff", color:C.text2,
+            borderRadius:5, padding:"2px 7px", fontSize:11, cursor:"pointer" },
+  gwWarn:{ fontSize:10.5, color:C.text3 },
+  gwBoxes:{ display:"flex", gap:1, flexWrap:"nowrap", overflowX:"auto",
+            padding:"2px 0 6px" },
+  gwBox:{ flex:"1 1 0", minWidth:19, height:18, border:`1px solid ${C.border}`,
+          background:"#fafafb", color:C.text3, borderRadius:2, cursor:"pointer",
+          fontSize:9, padding:0, lineHeight:"16px", fontFamily:mono },
+  gwBoxOn:{ background:"#e8e2ee", color:C.purple, border:"1px solid #cdbcd8" },
+  gwBoxEdge:{ background:C.purple, color:"#fff", border:`1px solid ${C.purple}`,
+              fontWeight:700 },
+
   card: { background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 12 },
   headRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
   h2: { margin: 0, fontSize: 16, fontWeight: 700, color: C.text },

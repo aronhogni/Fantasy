@@ -350,8 +350,16 @@ export function squadShape(picks, meta) {
     cnt[r.m.pos]++; spend[r.m.pos] += r.m.cost || 0; known++;
   }
   /* AN STODU-UPPLYSINGA ER LEIKSTODUKERFI EKKI TIL — thad er `null`, ekki
-     "0-0-0". Omaeld tala sem litur ut eins og maeling er versta utkoman.  */
-  const formation = known === 11 ? `${cnt[2]}-${cnt[3]}-${cnt[4]}` : null;
+     "0-0-0". Omaeld tala sem litur ut eins og maeling er versta utkoman.
+
+     OG NAKVAEMLEGA EINN MARKMADUR VERDUR AD VERA I BYRJUNARLIDI. Strengurinn
+     sleppir markmanninum (`${cnt[2]}-${cnt[3]}-${cnt[4]}`), svo lid med TVO
+     markmenn i XI hefdi skilad "2-3-4" — sem summast i 9 og LITUR UT eins og
+     gilt kerfi. FPL sendir thetta aldrei, en gogn sem "lita rett ut" eru
+     nakvaemlega thad sem sleppur gegnum yfirferd. Fundid med slembiprofi
+     10.8.2026 (kafli 18).                                                */
+  const formation = (known === 11 && cnt[1] === 1)
+    ? `${cnt[2]}-${cnt[3]}-${cnt[4]}` : null;
   let benchCost = 0, benchKnown = 0;
   for (const r of bench) { if (r.m) { benchCost += r.m.cost || 0; benchKnown++; } }
   /* Hver leikmadur sem VERD + STADA + hvort hann byrjar. Ur thessu kemur

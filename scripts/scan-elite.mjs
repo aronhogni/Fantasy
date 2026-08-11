@@ -116,7 +116,24 @@ async function main() {
               + `minimum ${MIN_SEASONS} seasons per entry`);
 
   /* Probe a thettasta svaedinu (laeg id = flest timabil per lid). */
-  const sample = Array.from({ length: 40 }, (_, k) => FROM + k * 7);
+  /* URTAKID VERDUR AD HALDAST INNAN BILSINS. Fost skref (FROM + k*7) fara
+     ut fyrir TO thegar bilid er styttra en 280 — tha var verid ad saekja
+     id sem notandinn bad aldrei um, og probe-nidurstadan lysti odru bili
+     en thvi sem var skannad.                                            */
+  const span = Math.max(1, TO - FROM + 1);
+  /* THETT SKREF, EN INNAN BILSINS. Tvennt tharf ad haldast:
+       (a) urtakid ma ALDREI fara ut fyrir [FROM, TO] — fost 7-skref foru
+           ut fyrir thegar bilid var styttra en 280, svo probe-nidurstadan
+           lysti odru bili en thvi sem var skannad;
+       (b) urtakid ma EKKI dreifast yfir alla 2 milljonina. Timabil sem
+           vantar synir sig adeins hja lidum sem EIGA morg timabil, og
+           thau eru i laegstu id-unum. Jafndreift urtak yfir 2M lendir
+           naer eingongu a nyjum lidum med EITT timabil — og probe sem
+           ser adeins nyjasta timabilid getur ekki fundid ad eldra vanti.
+     Thess vegna: thetta skref (7) nema bilid se styttra.               */
+  const step = Math.max(1, Math.min(7, Math.floor(span / 40) || 1));
+  const sample = Array.from({ length: Math.min(40, span) }, (_, k) => FROM + k * step)
+    .filter(id => id <= TO);
   const { seen, unknown } = await probeSeasons(sample);
   console.log(`probe: ${sample.length} entries, ${seen.size} distinct seasons seen`);
   if (unknown.length) {

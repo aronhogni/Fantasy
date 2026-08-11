@@ -65,6 +65,21 @@ const OK_UNREAD = {
   "luck.json":                 "lesin sem `luck` (12 tilvik)",
   "rotation.json":             "lesin sem `rotation` (14 tilvik)",
   "lineups.json":              "lesin sem `lineups` — TENGD 1.8.2026",
+  /* RAUNVERULEG EFTIRSTODVA, EKKI UNDANTHAGA. Skrain lysir ser sjalf sem
+     "A FALLBACK for odds.json" — en EKKERT i src/ les hana, svo
+     varaleidin er DAUD: detti Odds-API ut syni appid engar likur thott
+     BSD-odds liggi i repo-inu. Ad tengja hana er ekki einnar linu verk
+     (odds.json er lyklud a lid med afleiddum sviðum, bsd_odds a
+     BSD-event-id), svo thad er MAELING og akvordun, ekki flyti-lagfaering.
+     Skrad her svo thad se ekki thogult — sja CLAUDE.md kafla 10.        */
+  "bsd_odds.json":             "VARALEID SEM ER EKKI TENGD — sja athugasemd",
+  /* VILJANDI OLESIN, OG THAD ER SKJALFEST i CLAUDE.md kafla 7: BSD-spa um
+     byrjunarlid er GEYMD svo haegt se ad MAELA hana sidar gegn 6h-likaninu.
+     Hun ma EKKI radast i neina akvordun fyrr en su maeling liggur fyrir
+     (kafli 3: maela fyrst). Sem sagt: rett astand, ekki eftirstodva.
+     Baettist a listann 11.8.2026 thegar `unread` haetti ad telja prof sem
+     lesendur og hun kom i ljos.                                         */
+  "bsd_lineups.json":          "geymd til MAELINGAR gegn 6h-likaninu, ekki notud i akvordun",
   /* ATH — RAUNVERULEG EFTIRSTODVA, EKKI UNDANTHAGA: E0-2627 er HRAGOGN
      yfirstandandi timabils. Pipeline les E0-2526 og E0-2425 (HARDKODAD,
      linur ~1772/1853/1858) og ENGIN kodaleid les 2627. I forleik er thad
@@ -76,10 +91,18 @@ const OK_UNREAD = {
      gleymt i agust.                                                      */
   "fdcouk/E0-2627.json":       "hragogn yfirstandandi timabils; pipeline les 2526/2425 — sja nota",
 };
+/* NEYTANDI ER APPID, EKKI PROFIN. `consumers` bar BADI appCode OG testCode,
+   svo skra sem ADEINS prof nefnir taldist "lesin" — og prof sem stadfestir
+   ad pipeline SKRIFI skrana er hringrok, ekki lesandi.
+   Thannig slapp `bsd_odds.json` i gegn: hun lysir ser sjalf sem "A FALLBACK
+   for odds.json", ekkert i src/ les hana, og eina tilvisunin var i
+   bsd-pipeline.mjs. Thad er nakvaemlega `lineups.json`-villan aftur
+   (CLAUDE.md kafla 7.1: "pipeline skrifadi hana en APPID LAS HANA ALDREI").
+   Fundid 11.8.2026 vid kerfisbundna leit ad theim villuflokki.          */
 const unread = uniq.filter(f => {
   const base = f.split("/").pop().replace(/\.json$/, "");
-  return !consumers.includes(f) && !new RegExp(`["'\`]${base}\\.json`).test(consumers)
-      && !new RegExp(`\\b${base}\\b`).test(consumers);
+  return !appCode.includes(f) && !new RegExp(`["'\`]${base}\\.json`).test(appCode)
+      && !new RegExp(`\\b${base}\\b`).test(appCode);
 });
 console.log(`\n  skrifað en ónefnt í src/: ${unread.length ? unread.join(", ") : "engar"}`);
 

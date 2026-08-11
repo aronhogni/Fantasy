@@ -253,6 +253,28 @@ export async function collectPros(deps, events, elements) {
      skrifud adur en per-stjornanda sagan var sameinuð.                    */
   if (out.__outcomeAdded) { delete out.__outcomeAdded; await writeJSON("pros_gw.json", out); }
 
+  /* SNIDS-VORDUR. Vid hofum ALDREI sed lifandi `picks`-svar — thad er 404
+     fram ad fyrsta fresti — svo hvert svid sem vid lesum er FORSENDA sem
+     verdur fyrst reynd 21. agust. Ef FPL endurnefnir eitt theirra skilar
+     `aggregate` throgulli `null` og talan hverfur af skjanum an thess ad
+     nokkud verdi rautt.
+
+     Thess vegna: ef ENGINN af theim sem svorudu skilar sviðinu er thad
+     EKKI "gogn vantar" heldur SNIDS-BREYTING, og hun a ad vera hovud.   */
+  if (agg.n > 0) {
+    const missing = [];
+    if (agg.points === null) missing.push("points");
+    if (agg.benchPoints === null) missing.push("points_on_bench");
+    if (agg.value === null) missing.push("value");
+    if (agg.rankMedian === null) missing.push("overall_rank");
+    if (metaOrNull && !agg.shapeN) missing.push("picks[].position");
+    if (missing.length) {
+      record("pros_schema", false, agg.n,
+        `GW${gw}: ${missing.join(", ")} missing for ALL ${agg.n} managers - `
+        + "this is a response-shape change, not absent data");
+    }
+  }
+
   const cov = agg.n / ids.length;
   record("pros", coverageOk(agg, ids.length), agg.n,
          `GW${gw}: ${agg.n}/${ids.length} (${(100 * cov).toFixed(0)}%)`

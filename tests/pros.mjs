@@ -186,15 +186,34 @@ console.log("6e) LIDSSKIPAN — leikstodukerfi, bekkur og verd-uppbygging");
   ok(sh2.formation === "4-4-2", `annad kerfi lesid rett (${sh2.formation})`);
 
   /* BEKKURINN MA EKKI TELJA MED I KERFINU. Ef sian a `position <= 11`
-     brotnar yrdi 3-4-3 ad "4-5-4" — 15 menn i 11 saetum.                 */
-  ok(!/4-5-4|^\d+-\d+-4$/.test(sh.formation) || sh.formation === "3-4-3",
-     "bekkjarmenn eru EKKI i kerfinu");
+     brotnar yrdi 3-4-3 ad "4-5-4" — 15 menn i 11 saetum.
+
+     FYRSTA UTGAFAN VAR TAUTOLOGIA og gat ALDREI fallid:
+       ok(!/4-5-4/.test(sh.formation) || sh.formation === "3-4-3", …)
+     Hægri hlidin var thegar sonnud tveimur linum ofar, svo `||` gerdi
+     fullyrdinguna alltaf sanna. Fundid vid sjalfs-uttekt a neikvaedum
+     fullyrdingum 11.8.2026 — sami flokkur og kafli 5b i CLAUDE.md lysir.
+     Nu er MAELT thad sem raunverulega skiptir mali: utileikmenn i
+     byrjunarlidi eru TIU. Vaeri bekkurinn talinn med yrdi summan 14.    */
+  const parts = sh.formation.split("-").map(Number);
+  ok(parts.reduce((a, b) => a + b, 0) === 10,
+     `utileikmenn i XI eru 10, ekki 14 (fekk ${parts.join("+")} = ${parts.reduce((a,b)=>a+b,0)})`);
+  ok(parts.length === 3 && parts.every(Number.isInteger), "kerfid er thrjar heilar tolur");
 
   /* OMAELD TALA FAER EKKI REIT: an stodu-upplysinga er kerfid null.      */
   const bad = squadShape(picks, {});
   ok(bad.formation === null && bad.startCost === null && bad.byPos === null,
      "an `meta` er kerfid NULL, ekki \"0-0-0\"");
   ok(squadShape([], meta) === null && squadShape(null, meta) === null, "tomt -> null");
+
+  /* TVEIR MARKMENN I BYRJUNARLIDI -> kerfid er NULL, ekki "2-3-4".
+     Strengurinn sleppir markmanninum, svo rangt lid hefdi skilad kerfi sem
+     summast i 9 og LITUR UT eins og gilt. Fundid med slembiprofi.       */
+  const twoGk = { ...meta, [2]: { pos: 1, cost: 40 } };   // leikmadur 2 verdur markmadur
+  ok(squadShape(picks, twoGk).formation === null,
+     `tveir markmenn i XI -> null (fekk ${squadShape(picks, twoGk).formation})`);
+  /* ...en verd-punktarnir standa samt, thvi their eru ekki adur en kerfid. */
+  ok(squadShape(picks, twoGk).bands.length === 15, "verd-punktar tapast ekki thott kerfid se null");
 
   /* Vantar EINN leikmann i toflunni -> kerfid er ekki fullgilt. */
   const partial = { ...meta }; delete partial[7];
@@ -850,6 +869,168 @@ console.log("16) verri keyrsla ma ALDREI skrifa yfir betri (sbr. 8e)");
   ok(!h.wrote["pros_gw.json"], "engin skrif thegar ny keyrsla er verri");
   const r = h.recs.find(x => x.name === "pros");
   ok(r.ok === false && /kept previous/.test(r.note), `skrair ad gomlu var haldid (${r.note})`);
+}
+
+console.log("17b) SNIDS-VORDUR — vantandi svid hja OLLUM er sniðs-breyting, ekki thogn");
+{
+  /* Lifandi `picks`-svar hefur ALDREI sest (404 fram ad fresti), svo hvert
+     svid er forsenda sem reynist fyrst 21. agust. Ef FPL endurnefnir eitt
+     theirra hverfur talan af skjanum an thess ad neitt verdi rautt.      */
+  const bare = {
+    async getJSON(url) {
+      if (/picks/.test(url)) return {
+        active_chip: null,
+        picks: [{ element: 1, position: 1, is_captain: true, is_vice_captain: false }],
+        entry_history: { event: 7 },        // OLL talnasvidin horfin
+      };
+      return [];
+    },
+    async writeJSON() {}, 
+    async readJSON(f) {
+      if (f === "pros.json") return { season: "2026/27", panel: [{ id: 1 }, { id: 2 }] };
+      throw new Error("ENOENT");
+    },
+    recs: [],
+    record(n, ok2, c, note) { bare.recs.push({ n, ok: ok2, note }); },
+  };
+  await collectPros(bare, [{ id: 7, deadline_time: new Date(Date.now() - 36e5).toISOString() }]);
+  const sch = bare.recs.find(r => r.n === "pros_schema");
+  ok(!!sch && sch.ok === false, "snids-breyting er SKRAD sem villa");
+  /* SVIDA-LISTINN ER BORINN SAMAN SEM MENGI, EKKI MED /points/.
+     Fyrsta utgafan notadi hlutstrengs-leit og "points_on_bench" INNIHELDUR
+     "points" — svo ad fjarlaegja `points` ur verdinum SLAPP i gegn.
+     Fjorda hlutstrengs-gildran i thessari lotu; thaer eru allar sama sagan:
+     leit ad broti thar sem bera atti saman heild.                        */
+  const listed = new Set(String(sch?.note || "").replace(/^GW\d+:\s*/, "")
+    .split(" missing")[0].split(",").map(x => x.trim()).filter(Boolean));
+  for (const f of ["points", "points_on_bench", "value", "overall_rank"]) {
+    ok(listed.has(f), `snids-notan nefnir "${f}" (fekk: ${[...listed].join(", ")})`);
+  }
+  ok(/response-shape change/.test(sch?.note || ""),
+     "notan greinir snids-breytingu fra vantandi gognum");
+
+  /* En EITT lid an svida ma EKKI kveikja hana — thad er venjuleg vontun. */
+  const mixed = harness({ entries: { 1: { active_chip: null,
+    picks: [{ element: 1, position: 1, is_captain: true, is_vice_captain: false }],
+    entry_history: { event: 7 } } } });
+  await mixed.run();
+  ok(!mixed.recs.find(r => r.n === "pros_schema"),
+     "eitt lid med tom svid kveikir EKKI vordinn (hinir svorudu)");
+}
+
+console.log("18) SLEMBIPROF — 500 handahofskennd inntok, VENSL sem verda ad halda");
+{
+  /* Sama adferd og `advisor.mjs` og `leagues.mjs`: handskrifadar fixturur
+     profa thad sem eg SA fyrir mer. Slembin inntok profa hitt. Her eru
+     prófud VENSL sem verda ad halda hvad sem tolurnar eru — ef eitthvad
+     theirra brotnar er birt tala rong, ekki bara oveant.                 */
+  let rng = 987654321;
+  const rnd = () => (rng = (rng * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+  let bad = 0, checked = 0;
+
+  for (let iter = 0; iter < 500; iter++) {
+    const nMgr = ri(1, 25);
+    /* RAUNVERULEG FPL-LID. Fyrsta utgafa generatorsins gaf stodum af
+       handahofi, svo byrjunarlid gat haft TVO markmenn — sem er omogulegt
+       i FPL. Thad felldi "kerfid summast i 10" og var MIN villa, ekki
+       kodans. Slembiprof sem framleidir omoguleg inntok profar ekkert.
+       Hopurinn er nu 2 GK / 5 DEF / 5 MID / 3 FWD eins og FPL kraefst.   */
+    const meta = {};
+    const POOL = { 1: [], 2: [], 3: [], 4: [] };
+    let nid = 1;
+    for (const [pos, count] of [[1, 4], [2, 12], [3, 12], [4, 8]]) {
+      for (let j = 0; j < count; j++) { meta[nid] = { pos, cost: ri(38, 150) }; POOL[pos].push(nid++); }
+    }
+    const pick = (pos, m) => {
+      const out = [], used = new Set();
+      while (out.length < m) { const x = POOL[pos][ri(0, POOL[pos].length - 1)];
+        if (!used.has(x)) { used.add(x); out.push(x); } }
+      return out;
+    };
+    const entries = [];
+    for (let k = 0; k < nMgr; k++) {
+      /* Gilt kerfi: 1 GK + 3-5 DEF + 2-5 MID + 1-3 FWD = 11. */
+      let d, m3, f;
+      do { d = ri(3, 5); m3 = ri(2, 5); f = 11 - 1 - d - m3; } while (f < 1 || f > 3);
+      const gk = pick(1, 2), df = pick(2, 5), md = pick(3, 5), fw = pick(4, 3);
+      const ids = [gk[0], ...df.slice(0, d), ...md.slice(0, m3), ...fw.slice(0, f),
+                   gk[1], ...df.slice(d), ...md.slice(m3), ...fw.slice(f)];
+      const nt = ri(0, 4);
+      entries.push({
+        id: 1000 + k,
+        picks: {
+          active_chip: rnd() < 0.2 ? ["bboost", "3xc", "wildcard", "freehit"][ri(0, 3)] : null,
+          picks: ids.map((e, i) => ({ element: e, position: i + 1,
+                                      is_captain: i === 0, is_vice_captain: i === 1 })),
+          automatic_subs: Array.from({ length: ri(0, 3) }, () => ({ element_in: ri(1, 40) })),
+          entry_history: { points: ri(0, 120), points_on_bench: ri(0, 40),
+                           overall_rank: ri(1, 9000000), value: ri(980, 1080),
+                           bank: ri(0, 60), event_transfers: nt,
+                           event_transfers_cost: ri(0, 3) * 4 },
+        },
+        transfers: Array.from({ length: nt }, () => ({
+          element_in: ri(1, 40), element_out: ri(1, 40), event: 7,
+          time: new Date(Date.now() - ri(0, 200000) * 1000).toISOString() })),
+      });
+    }
+    const a = aggregate(entries, meta, Date.now());
+    const fail = (m) => { if (bad++ < 3) console.log(`  FALL[${iter}]: ${m}`); };
+    checked++;
+
+    /* 1. n ma aldrei fara yfir fjolda inntaka. */
+    if (a.n !== nMgr) fail(`n=${a.n} en inntok voru ${nMgr}`);
+    /* 2. Enginn leikmadur ma vera i fleiri lidum en til eru. */
+    for (const [id, c] of Object.entries(a.own)) if (c > a.n) fail(`own[${id}]=${c} > n`);
+    /* 3. Summa eignarhalds = nakvaemlega 15 per lid. */
+    const tot = Object.values(a.own).reduce((x, y) => x + y, 0);
+    if (tot !== 15 * a.n) fail(`summa eignarhalds ${tot} != 15*${a.n}`);
+    /* 4. Fyrirlidar og varafyrirlidar: NAKVAEMLEGA einn per lid. */
+    const capT = Object.values(a.capt).reduce((x, y) => x + y, 0);
+    if (capT !== a.n) fail(`fyrirlidar ${capT} != ${a.n}`);
+    /* 5. EO >= eignarhalds-hlutfall (fyrirlidi baetist VID, dregst ekki fra). */
+    for (const id of Object.keys(a.own)) {
+      const e = eo(a, +id);
+      if (e < a.own[id] / a.n - 1e-9) fail(`EO(${id})=${e} < eignarhald`);
+    }
+    /* 6. ENGIN NaN i neinni birtri tolu — thetta er sviðið sem hefur
+          bitið thetta repo adur (bank:"mikid" -> NaN).                  */
+    for (const k of ["transfers", "hitCost", "hitShare", "value", "bank",
+                     "points", "benchPoints", "autoSubs", "startCost", "benchCost"]) {
+      if (a[k] != null && !Number.isFinite(a[k])) fail(`${k} er ${a[k]}`);
+    }
+    /* 7. Hlutfoll verda ad vera i [0,1]. */
+    if (a.hitShare != null && (a.hitShare < 0 || a.hitShare > 1)) fail(`hitShare ${a.hitShare}`);
+    if (a.transferLateShare != null && (a.transferLateShare < 0 || a.transferLateShare > 1))
+      fail(`transferLateShare ${a.transferLateShare}`);
+    /* 8. Vikmork mega aldrei vera NaN ne neikvaed. */
+    for (const id of Object.keys(a.capt)) {
+      const m = marginPct(a.capt[id] / a.n, a.n);
+      if (m == null || !Number.isFinite(m) || m < 0) fail(`marginPct ${m}`);
+    }
+    /* 9. Leikstodukerfi: adeins gild kerfi med 10 utileikmenn. */
+    for (const f of Object.keys(a.formations)) {
+      const parts = f.split("-").map(Number);
+      if (parts.length !== 3 || parts.some(x => !Number.isInteger(x)) ||
+          parts.reduce((x, y) => x + y, 0) !== 10) fail(`onytt kerfi "${f}"`);
+    }
+    /* 10. shapeN ma aldrei fara yfir n, og summa kerfa = shapeN. */
+    const fTot = Object.values(a.formations).reduce((x, y) => x + y, 0);
+    if (a.shapeN > a.n || fTot !== a.shapeN) fail(`shapeN ${a.shapeN} / summa ${fTot} / n ${a.n}`);
+    /* 11. Verd-punktar: 11 i byrjunarlidi og 4 a bekk per gilt lid. */
+    const ps = Object.values(a.priceStart).reduce((x, m2) => x + Object.values(m2).reduce((u, v) => u + v, 0), 0);
+    const pb = Object.values(a.priceBench).reduce((x, m2) => x + Object.values(m2).reduce((u, v) => u + v, 0), 0);
+    if (ps !== 11 * a.n || pb !== 4 * a.n) fail(`verd-punktar ${ps}/${pb} vid n=${a.n}`);
+    /* 12. Skipta-por mega aldrei vera fleiri en skiptin sjalf. */
+    const pairTot = Object.values(a.pairs).reduce((x, y) => x + y, 0);
+    const inTot = Object.values(a.in).reduce((x, y) => x + y, 0);
+    if (pairTot > inTot) fail(`por ${pairTot} > kaup ${inTot}`);
+    /* 13. chipIds og chips verda ad segja THAD SAMA. */
+    for (const [c, cnt] of Object.entries(a.chips)) {
+      if ((a.chipIds[c] || []).length !== cnt) fail(`chip ${c}: ${cnt} vs ${(a.chipIds[c] || []).length}`);
+    }
+  }
+  ok(bad === 0, `500 slembin inntok: ${bad} vensl brotin (profud ${checked})`);
 }
 
 console.log("17) TENGINGIN — collectPros ER kolluð ur fetchFast, OG hrada keyrslan er i cron");
