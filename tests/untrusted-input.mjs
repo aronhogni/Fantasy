@@ -249,8 +249,25 @@ console.log(`\n${"─".repeat(72)}\nPROXY-LEIDIRNAR (netlify/functions/odds.js)\
        body.slice(0, 70).replace(/\s+/g, " "));
   }
 
-  /* 3. OThEKKT LEID SVARAR 400 — grunnreglan sjalf.                    */
-  ok("othekkt path svarar 400", /statusCode: 400[\s\S]{0,120}óþekkt/.test(code));
+  /* 3. OThEKKT LEID SVARAR 400 — grunnreglan sjalf.
+
+     FULLYRDINGIN VAR BUNDIN VID ORDALAG OG FELL ThVI VID ThYDINGU
+     (11.8.2026). Hun var:
+         /statusCode: 400[\s\S]{0,120}óþekkt/
+     — hun leitadi ad ISLENSKA ORDINU "óþekkt" i kodanum. Strengurinn var
+     thyddur ("unknown or disabled path") thvi App.jsx:872 birtir hann
+     ORDRETT a skjanum, og tha fell profid thott hegdunin — 400 fyrir
+     othekkta leid — vaeri obreytt.
+
+     CLAUDE.md kafli 5 segir thetta berum ordum: PROF EIGA AD PROFA HEGDUN,
+     EKKI ORDALAG. Tvo prof hofdu thegar fallid vid endurnefningu a flipa
+     af somu astaedu. Nu er fullyrdingin BYGGINGARLEG: hlidid sjalft
+     (fundid i #1) verdur ad skila 400 i sinum eigin blokk. Thad er su
+     regla sem skiptir mali og hun er tungumals-ohad.                    */
+  const gate = code.search(/path !== "live" && !path\.startsWith\("fpl-"\)/);
+  ok("othekkt path svarar 400",
+     gate >= 0 && /statusCode: 400/.test(code.slice(gate, gate + 220)),
+     gate < 0 ? "hlidid fannst ekki" : code.slice(gate, gate + 120).replace(/\s+/g, " "));
 
   /* 4. ENGIN LEID MA HLEYPA HANDAHOFSKENNDRI SLOD I UPPSTREYMID.
      Leitad ad slodum sem lima vidfang inn AN thess ad thad hafi verid
