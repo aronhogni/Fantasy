@@ -72,7 +72,7 @@
    stadfest med STODU. Oparadir fa `fpl_id: null`, ALDREI 0.
    ============================================================ */
 import { writeFileSync, readFileSync } from "node:fs";
-import { BIG_CHANCE_XG, IN_BOX_X, newAcc, addPlayerRow, addShot, resolveTeam,
+import { BIG_CHANCE_XG, IN_BOX_X, BSD_TEAM, newAcc, addPlayerRow, addShot, resolveTeam,
          finalize, pairPlayers, FPL_POS } from "../src/bsd.js";
 
 const KEY = process.env.BSD_KEY;
@@ -86,12 +86,9 @@ const SEASON = process.argv[2] || "337"; // 337 = 2025/26 (lokid)
 
 /* MAELDIR FASTAR eru i `src/bsd.js` — ein heimild, sja hausinn thar. */
 
-/* HANDSTADFEST lidatafla: BSD team_id -> FPL short. */
-const BSD_TEAM = {
-  18: "ARS", 3: "AVL", 2: "BOU", 16: "BRE", 5: "BHA", 13: "CHE", 203: "COV",
-  14: "CRY", 20: "EVE", 6: "FUL", 204: "HUL", 200: "IPS", 19: "LEE", 1: "LIV",
-  12: "MCI", 17: "MUN", 4: "NEW", 15: "NFO", 9: "TOT", 7: "SUN",
-};
+/* HANDSTADFEST lidatafla: BSD team_id -> FPL short.
+   FLUTT I `src/bsd.js` 11.8.2026 — hun var afritud i thrjar skrar (her,
+   fetch-bsd-teams.mjs og fetch.mjs). Flutt inn med hinu maelda, sja thar. */
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function get(path, tries = 3) {

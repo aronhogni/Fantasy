@@ -24,6 +24,29 @@
 export const BIG_CHANCE_XG = 0.18;
 export const IN_BOX_X = 17;
 
+/* HANDSTADFEST LIDATAFLA: BSD team_id -> FPL short_name.
+   Fuzzy porun felldi Man United inn i Man City (badir verda "manchester"
+   eftir normaliseringu) — THOGUL RONG PORUN ER VERRI EN ENGIN, svo thessi
+   tafla er handstadfest og verdur ad vera thad.
+
+   HUN VAR AFRITUD I ThRJAR SKRAR (lagad 11.8.2026): scripts/fetch-bsd.mjs,
+   scripts/fetch-bsd-teams.mjs og scripts/fetch.mjs (thar undir nafninu
+   `BSD_TEAM_SHORT`). Afritin voru STAFRETT EINS thegar thau voru sameinud
+   — mælt: sami md5 af ollum thremur — svo sameiningin breytir engu i dag.
+   Astaedan til ad gera hana er su ad thau MUNDU reka i sundur: nyliðar
+   koma upp og fara nidur hvert sumar, og tha tharf ad breyta ThRIMUR
+   stodum. Su sem er gleymd gefur `null` lid — thogult.
+
+   Athugid ad hausinn her segir bervorðum ordum "EKKI AFRITA ThESSAR
+   FORMULUR TIL BAKA INN I fetch.mjs", og taflan var samt afritud thrisvar.
+   Vordur: tests/name-norm.mjs (ATHUGASEMDIR SKORNAR BURT ADUR EN LEITAD
+   ER — thessi athugasemd vitnar sjalf i gomlu nofnin).                  */
+export const BSD_TEAM = {
+  18: "ARS", 3: "AVL", 2: "BOU", 16: "BRE", 5: "BHA", 13: "CHE", 203: "COV",
+  14: "CRY", 20: "EVE", 6: "FUL", 204: "HUL", 200: "IPS", 19: "LEE", 1: "LIV",
+  12: "MCI", 17: "MUN", 4: "NEW", 15: "NFO", 9: "TOT", 7: "SUN",
+};
+
 /* SUMMANLEG svid ur /events/{id}/player-stats/.
    DAUD SVID ERU VILJANDI EKKI HER. Maelt 8.8.2026 a 15.189 leikmanna-
    leikjum: `big_chance_created`, `big_chance_missed`,
@@ -181,15 +204,28 @@ export function mergeLineupSnapshot(prev, { eventId, fixture, kickoff, lineups, 
   return out;
 }
 
-/* ---------- NAFNA-PORUN VID FPL ---------- */
-const TRANS = { "ß": "ss", "ı": "i", "ø": "o", "đ": "d", "ð": "d", "þ": "th", "æ": "ae", "œ": "oe", "ł": "l" };
-export function normName(s) {
-  let t = String(s || "").toLowerCase();
-  for (const [a, b] of Object.entries(TRANS)) t = t.split(a).join(b);
-  return t.normalize("NFD").replace(/[̀-ͯ]/g, "")
-          .replace(/[^a-z ]/g, " ").split(/\s+/).filter(Boolean).join(" ");
-}
-export function nameTokens(s) { return normName(s).split(" ").filter(w => w.length > 1); }
+/* ---------- NAFNA-PORUN VID FPL ----------
+   NORMUNIN OG TAKNUNIN KOMA UR src/names.js (11.8.2026). Adur var
+   `normName` skilgreint bædi her og i src/stats.js, badar utgafur
+   `export`-adar undir sama nafni og badar poradar vid somu FPL-nofn — svo
+   lagfaering a annarri hefdi ALDREI nad til hinnar.
+
+   Utgafan HER var su svakari: hun sendi `'` i BIL og `nameTokens` henti svo
+   eins-stafs takninu, svo "O'Riley" varo `[riley]` i stad `[oriley]`. Thad
+   er raunveruleg svidsmynd fyrir falska porun i lidi sem a bædi "O'Riley"
+   og "Riley". Hun vantadi einnig fjora stafi (ħ ŋ ĸ ŧ).
+
+   MAELT ADUR EN BREYTT VAR — sameiningin er HREINSUN, ekki lagfaering:
+   endurbyggt frambod (284 leikmenn, sama skorun undir badum normolurum)
+   gefur **0 breytta porun**, og endurbyggingin skilar committudu
+   bsd_players.json STAFRETT. Sja names.js fyrir alla toluna.
+
+   `nameScore` HER AD NEDAN FYLGDI EKKI MED OG ThAD ER ASETT: hun skilar
+   HLUTFALLI (0..1) thvi `pairPlayers` ber thad vid throskuldinn 0,6, en
+   stats.js-utgafan skilar FJOLDA + 0,5 fyrir sameiginlegt eftirnafn. Tvaer
+   stadfestar poranir — ekki steypa theim saman.                         */
+import { normName, nameTokens } from "./names.js";
+export { normName, nameTokens };
 /** Hlutfall sameiginlegra takna. De-dupe an `Set` (sbr. 6i-hagraedinguna). */
 export function nameScore(a, b) {
   const ta = nameTokens(a), tb = nameTokens(b);

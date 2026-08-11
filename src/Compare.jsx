@@ -15,7 +15,7 @@
    ============================================================ */
 
 import React, { useMemo, useState } from "react";
-import { num } from "./stats.js";
+import { num, liveSeasonRow } from "./stats.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -200,23 +200,11 @@ function fmtVal(row, v) {
 }
 
 /* Lifandi rod ur bootstrap svo yfirstandandi timabil noti somu svid. */
-function liveRow(p) {
-  const mins = num(p.minutes) ?? 0, starts = num(p.starts) ?? 0;
-  const dc = num(p.defensive_contribution);
-  return {
-    total_points:num(p.total_points), minutes:mins, starts,
-    goals_scored:num(p.goals_scored), assists:num(p.assists),
-    expected_goals:num(p.expected_goals), expected_goals_per_90:num(p.expected_goals_per_90),
-    expected_assists:num(p.expected_assists), expected_assists_per_90:num(p.expected_assists_per_90),
-    expected_goal_involvements:num(p.expected_goal_involvements),
-    expected_goals_conceded:num(p.expected_goals_conceded),
-    clean_sheets:num(p.clean_sheets), goals_conceded:num(p.goals_conceded),
-    saves:num(p.saves), bonus:num(p.bonus), bps:num(p.bps),
-    yellow_cards:num(p.yellow_cards), red_cards:num(p.red_cards),
-    defensive_contribution:dc, dc_per_start:(dc != null && starts > 0) ? dc / starts : null,
-    now_cost:num(p.now_cost),
-  };
-}
+/* `liveRow` ER NU `liveSeasonRow` UR stats.js (11.8.2026) — sama rod var
+   byggd her OG i PlayerPanel.jsx (`liveRecord`). Kjarninn skilar HRAU og
+   thessi tafla namundar sjalf i birtingu (`dec:` a hverjum dalki), svo
+   talan a skjanum er obreytt. Sja skyringuna i stats.js.               */
+const liveRow = liveSeasonRow;
 
 
 /* ============================================================

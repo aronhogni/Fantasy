@@ -46,20 +46,25 @@
              BSD_KEY=... node scripts/fetch-bsd-teams.mjs 337
    ============================================================ */
 import { writeFileSync, readFileSync } from "node:fs";
+/* MAELDU FASTARNIR OG LIDATAFLAN KOMA UR `src/bsd.js` (11.8.2026).
+   ADUR VORU ThEIR AFRITADIR HINGAD — `BIG_CHANCE_XG = 0.18` og
+   `IN_BOX_X = 17` stodu her sem eigin `export const` med athugasemdinni
+   "MAELDUR — sja fetch-bsd.mjs". Thad er nakvaemlega thad sem hausinn a
+   `src/bsd.js` bannar berum ordum ("EKKI AFRITA ThESSAR FORMULUR").
+
+   ThAD VAR VERRA EN TVITEKNING: `tests/team-stats.mjs` flytur BADA fastana
+   inn UR ThESSARI SKRA, svo profid sannreyndi AFRITID. Hefdi einhver
+   endurmaelt 0,18 i `src/bsd.js` hefdi profid haldid afram ad lesa 0,18 her
+   og verid graent — sama aett og B10 (prof sem sannreynir afrit sem gognin
+   fara aldrei gegnum).
+
+   ThAER ERU ENDURFLUTTAR UT hingad svo `tests/team-stats.mjs` haldi sinum
+   innflutningi — en nu lesa thau EINA heimildina.                       */
+import { BIG_CHANCE_XG, IN_BOX_X, BSD_TEAM } from "../src/bsd.js";
+export { BIG_CHANCE_XG, IN_BOX_X };
 
 const API = "https://sports.bzzoiro.com/api/v2";
 const LEAGUE = 1;
-export const BIG_CHANCE_XG = 0.18;   // MAELDUR — sja fetch-bsd.mjs
-export const IN_BOX_X = 17;          // MAELDUR — hlutfall af FULLUM velli
-
-/* HANDSTADFEST lidatafla (afrit ur fetch-bsd.mjs — fuzzy pörun felldi
-   Man United inn i Man City, thvi badir verda "manchester" eftir
-   normaliseringu, og thogul RONG pörun er verri en engin).            */
-const BSD_TEAM = {
-  18: "ARS", 3: "AVL", 2: "BOU", 16: "BRE", 5: "BHA", 13: "CHE", 203: "COV",
-  14: "CRY", 20: "EVE", 6: "FUL", 204: "HUL", 200: "IPS", 19: "LEE", 1: "LIV",
-  12: "MCI", 17: "MUN", 4: "NEW", 15: "NFO", 9: "TOT", 7: "SUN",
-};
 
 /* ============================================================
    HREINA FALLID — allt sem er haegt ad profa an lykils.

@@ -22,7 +22,7 @@ import { existsSync } from "node:fs";
 import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../src/market.js";
 import { collectPros } from "./pros-collect.mjs";
 import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
-         finalize, pairPlayers } from "../src/bsd.js";
+         finalize, pairPlayers, BSD_TEAM } from "../src/bsd.js";
 /* EIN UTFAERSLA A BYRJUNAR-EIGINLEIKUNUM. Pipeline hafdi EIGIN afrit af
    thessum reikningi og thad var ThEGAR farid ad reka: afritid skrifadi
    `value: r.now_cost ?? null` medan `startFeatures` fellur a MEDALTALID
@@ -1870,13 +1870,11 @@ async function fetchFast() {
    thess ad nokkurt prof felli (sama rok og `market.js`, kafli 1).      */
 const BSD_API = "https://sports.bzzoiro.com/api/v2";
 const BSD_LEAGUE = 1;                    // Premier League
-/* HANDSTADFEST lidatafla (sama og i scripts/fetch-bsd.mjs). Fuzzy pörun
-   felldi Man United inn i Man City — thogul rong pörun er verri en engin. */
-const BSD_TEAM_SHORT = {
-  18:"ARS", 3:"AVL", 2:"BOU", 16:"BRE", 5:"BHA", 13:"CHE", 203:"COV",
-  14:"CRY", 20:"EVE", 6:"FUL", 204:"HUL", 200:"IPS", 19:"LEE", 1:"LIV",
-  12:"MCI", 17:"MUN", 4:"NEW", 15:"NFO", 9:"TOT", 7:"SUN",
-};
+/* HANDSTADFEST lidatafla — athugasemdin her sagdi sjalf "sama og i
+   scripts/fetch-bsd.mjs", og thad var ThRIDJA afritid. Flutt i `src/bsd.js`
+   11.8.2026; `BSD_TEAM_SHORT` er nu bara staðbundid heiti a henni svo
+   kallstadirnir nedar (2093, 2106) haldist obreyttir.                   */
+const BSD_TEAM_SHORT = BSD_TEAM;
 async function bsdGet(path) {
   const r = await fetch(BSD_API + path, {
     headers: { Authorization: `Token ${process.env.BSD_KEY}`, "user-agent": "fantasy-tool" },

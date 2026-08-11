@@ -19,6 +19,11 @@
 
 import React, { useState } from "react";
 import { interp } from "./interp.js";
+/* `n` VAR STAFRETT AFRIT AF `num` UR stats.js (lagad 11.8.2026) — mælt a
+   17 jadartilfellum (null, "", "3.5abc", [], [5], Infinity, true …):
+   0 fravik. Innflutt undir sama stadbundna heitinu svo allir 15 kallstadir
+   haldist obreyttir. `liveSeasonRow` er sameinada timabils-rodin.        */
+import { num as n, liveSeasonRow } from "./stats.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -27,7 +32,6 @@ const C = {
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-const n = v => { const x = typeof v === "number" ? v : parseFloat(v); return Number.isFinite(x) ? x : null; };
 const f1 = v => v == null ? "—" : (+v).toFixed(1);
 const f2 = v => v == null ? "—" : (+v).toFixed(2);
 const i0 = v => v == null ? "—" : String(Math.round(v));
@@ -170,22 +174,26 @@ function makeRows(pos, live, seasonStarted) {
 
 /* Bua til "rod" ur LIFANDI bootstrap svo yfirstandandi timabil noti somu
    uppsetningu og tofluraðirnar ur player_seasons.json.                    */
+/* KJARNINN KEMUR UR stats.js (11.8.2026) — sama rod var byggd her OG i
+   Compare.jsx (`liveRow`). ThAD SEM ER EFTIR HER ER ThAD SEM ER SERSTAKT
+   FYRIR ThESSA TOFLU, og hver lidur hefur astaedu:
+
+     · `points_per_90` og `rank`/`rank_of` eru snid ThESSARAR toflu; Compare
+       reiknar sitt eigid pts/90 ur `total_points`/`minutes`.
+     · NAMUNDUN i TVO aukastafi er VILJANDI OG VERDUR AD HALDAST: lifandi
+       timabilid stendur VID HLID eldri timabila ur `player_seasons.json`,
+       og thau eru geymd med tveimur aukastofum (10.16 · 4.31 · 8.32).
+       An namundunar hefdi lifandi dalkurinn adra nakvaemni en dalkarnir
+       vid hlidina. Thess vegna skilar `liveSeasonRow` HRAU og namundunin
+       er HER — ekki i kjarnanum, thvi tha fengi Compare tvofalda
+       namundun (sja stats.js).                                          */
 function liveRecord(p) {
-  const mins = n(p.minutes) ?? 0, starts = n(p.starts) ?? 0;
-  const tp = n(p.total_points), dc = n(p.defensive_contribution);
+  const base = liveSeasonRow(p);
+  const tp = base.total_points, mins = base.minutes;
   return {
-    total_points: tp, minutes: mins, starts,
+    ...base,
     points_per_90: mins > 0 ? +(((tp ?? 0) / mins) * 90).toFixed(2) : null,
-    goals_scored: n(p.goals_scored), assists: n(p.assists),
-    expected_goals: n(p.expected_goals), expected_goals_per_90: n(p.expected_goals_per_90),
-    expected_assists: n(p.expected_assists), expected_assists_per_90: n(p.expected_assists_per_90),
-    expected_goal_involvements: n(p.expected_goal_involvements),
-    expected_goals_conceded: n(p.expected_goals_conceded),
-    clean_sheets: n(p.clean_sheets), goals_conceded: n(p.goals_conceded),
-    saves: n(p.saves), bonus: n(p.bonus), bps: n(p.bps),
-    yellow_cards: n(p.yellow_cards), red_cards: n(p.red_cards),
-    defensive_contribution: dc,
-    dc_per_start: (dc != null && starts > 0) ? +(dc / starts).toFixed(2) : null,
+    dc_per_start: base.dc_per_start != null ? +base.dc_per_start.toFixed(2) : null,
     rank: null, rank_of: null,           // lifandi saeti eru ekki reiknud
   };
 }

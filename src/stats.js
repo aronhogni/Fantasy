@@ -718,6 +718,53 @@ export function isIncoherent(p, statKey, v) {
   return (num(p.minutes) ?? 0) === 0;
 }
 
+/* ============================================================
+   LIFANDI TIMABILS-ROD — EIN UTFAERSLA (11.8.2026)
+
+   Thetta fall var skilgreint TVISVAR, i tveimur birtingar-skram:
+     src/Compare.jsx    `liveRow(p)`      — samanburdar-taflan
+     src/PlayerPanel.jsx `liveRecord(p)`  — timabils-taflan a spjaldinu
+   Baedi bjuggu til SOMU rod ur sama FPL-leikmanni, og thau HOFDU ThEGAR
+   REKID I SUNDUR a thremur stodum:
+     1. `points_per_90`  — adeins i PlayerPanel
+     2. `rank`/`rank_of` — adeins i PlayerPanel (alltaf null)
+     3. `dc_per_start`   — PlayerPanel NAMUNDADI (toFixed 2), Compare ekki
+
+   ThRIDJA ATRIDID ER EKKI REK HELDUR ASETNINGUR, og thad er astaedan
+   fyrir thvi ad thetta fall skilar **ONAMUNDUDUM** tolum:
+   PlayerPanel setur lifandi timabilid VID HLID eldri timabila sem koma ur
+   `player_seasons.json`, og thau eru geymd med TVEIMUR aukastofum (maelt:
+   10.16 · 4.31 · 8.32). Namundunin thar er thvi til ad lifandi dalkurinn
+   hafi SOMU nakvaemni og dalkarnir vid hlidina — ekki tilviljun.
+   Compare namundar sjalft i birtingu (`dec:1`).
+
+   ThVI ER REGLAN: KJARNINN SKILAR HRAU, HVER NOTANDI SNIDUR SITT.
+   Hefdi namundunin verid flutt hingad inn hefdi Compare fengid
+   TVOFALDA namundun (2 aukastafir -> 1), sem getur breytt birtri tolu
+   i jadartilfellum (1,049 -> "1,0" verdur 1,05 -> "1,1").
+
+   `points_per_90` og `rank` eru EKKI her heldur: thau eru snid
+   PlayerPanel-taflunnar, ekki eiginleikar leikmannsins.
+   ============================================================ */
+export function liveSeasonRow(p) {
+  const mins = num(p.minutes) ?? 0, starts = num(p.starts) ?? 0;
+  const dc = num(p.defensive_contribution);
+  return {
+    total_points: num(p.total_points), minutes: mins, starts,
+    goals_scored: num(p.goals_scored), assists: num(p.assists),
+    expected_goals: num(p.expected_goals), expected_goals_per_90: num(p.expected_goals_per_90),
+    expected_assists: num(p.expected_assists), expected_assists_per_90: num(p.expected_assists_per_90),
+    expected_goal_involvements: num(p.expected_goal_involvements),
+    expected_goals_conceded: num(p.expected_goals_conceded),
+    clean_sheets: num(p.clean_sheets), goals_conceded: num(p.goals_conceded),
+    saves: num(p.saves), bonus: num(p.bonus), bps: num(p.bps),
+    yellow_cards: num(p.yellow_cards), red_cards: num(p.red_cards),
+    defensive_contribution: dc,
+    dc_per_start: (dc != null && starts > 0) ? dc / starts : null,
+    now_cost: num(p.now_cost),
+  };
+}
+
 export function buildLeaderboard({
   players, statKey, pos = "all", minMinutes = 0, limit = 50,
   teamId = "all", search = "", onlyAvailable = false,
@@ -880,50 +927,22 @@ export function bestXi(rows) {
    STRANGARA en naesta besta — annars er thad tvirætt og fer i unmatched.
    Thad ver gegn "Hugo Bueno" vs "Santiago Ignacio Bueno" i sama lidi.
    OPARADIR FA null, EKKI 0 — "0 skot" vaeri stadhaefing sem vid eigum ekki. */
-const TRANSLIT = {
-  "ß":"ss", "ı":"i", "ø":"o", "ł":"l", "đ":"d",
-  "ð":"d", "þ":"th", "æ":"ae", "œ":"oe", "ħ":"h",
-  "ŋ":"n", "ŧ":"t", "ĸ":"k", "'":"", "’":"",
-};
-const TRANSLIT_RE = new RegExp("[" + Object.keys(TRANSLIT).join("") + "]", "g");
+/* NORMUNIN OG TAKNUNIN BUA I src/names.js (11.8.2026) — thaer voru
+   skilgreindar HER OG I src/bsd.js, badar `export`-adar undir nafninu
+   `normName`, og BADAR poradar vid somu FPL-nofn. Munurinn var
+   urfellingarmerkid ("matt oriley" a moti "matt o riley"). Maelt: 11 nofn
+   af 1.185 skildu, EN 0 porun af 284 breytist, thvi bædi hlidin fara
+   gegnum sama normolara. Sjá skyringuna i names.js.
 
-export const normName = s => str(s)
-  .toLowerCase()
-  .replace(TRANSLIT_RE, c => TRANSLIT[c] ?? c)
-  .normalize("NFD").replace(/[̀-ͯ]/g, "")
-  .replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+   ThAER ERU ENDURFLUTTAR UT HER VILJANDI: tests/name-match.mjs flytur
+   `normName`/`nameTokens` inn UR ThESSARI SKRA og ber thaer vid sjalfstaeda
+   vidmids-utfaerslu a 9.464 raunporum. Endurflutningurinn heldur theim
+   vordi virkum an afritunar.
 
-/* ---- MINNI A TAKNUN (memo) ----
-   `nameScore` er kollud ~25.000 sinnum i hverri "cook"-umferd i
-   leikmannalistanum (564 leikmenn x ~25 ESPN-skyttur x tvo nafnaform), en
-   OLIKU strengirnir eru adeins ~1.500. `normName` gerir NFD-normalization
-   OG fjorar regex-yfirferdir, svo SAMI strengurinn var normalizeradur
-   tugthusundum sinnum.
-
-   MAELT a raungognum (564 leikmenn, 206 ESPN-skyttur), median af 7:
-     nafna-porun i cook:  60,1 ms  ->  8,6 ms  med minninu
-                                   ->  4,7 ms  eftir ad Set-in foru ur
-                                                nameScore (12,8x samanlagt)
-   Skjalfest vidmid i CLAUDE.md kafla 6i er 8 ms fyrir alla cook-umferdina;
-   hun var komin i 66,8 ms thegar dalkar fyrir ESPN-ogn og byrjunar-likur
-   komu inn, thvi BADAR nafna-poranirnar keyra per leikmann.
-
-   ThETTA GETUR EKKI BREYTT NIDURSTODU: nameTokens er hreint fall af
-   strengnum. Vordur i tests/stats.test.mjs sannreynir ad fingerfar
-   porunarinnar (hver leikmadur -> hvada skytta) se ORDRETT eins og an
-   minnisins, og ad minnid skili SOMU toknum vid endurtekid kall.        */
-const TOKEN_MEMO = new Map();
-export const nameTokens = s => {
-  const k = str(s);
-  const hit = TOKEN_MEMO.get(k);
-  if (hit !== undefined) return hit;
-  const v = normName(k).split(" ").filter(t => t.length >= 2);
-  /* Thak: nofn eru fa, en ef einhver kallar nameScore a NOTANDA-INNSLATT
-     (leitarreit) gaeti minnid vaxid ohindrad. 4.000 er ~3x fjoldi nafna. */
-  if (TOKEN_MEMO.size > 4000) TOKEN_MEMO.clear();
-  TOKEN_MEMO.set(k, v);
-  return v;
-};
+   `nameScore` FYLGDI EKKI MED — sja names.js: hun er viljandi olik
+   utgafunni i bsd.js og maelir annad.                                   */
+export { normName, nameTokens } from "./names.js";
+import { normName, nameTokens } from "./names.js";
 
 /* Skor = fjoldi sameiginlegra orda, +0,5 ef SIDASTA ordid er sameiginlegt
    (eftirnafn a ad vega thyngra en fornafn).                               */
