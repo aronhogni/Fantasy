@@ -58,7 +58,7 @@ export const handler = async (event) => {
       const id = event.queryStringParameters.id;
       if (!/^\d+$/.test(String(id || ""))) {
         return { statusCode: 400, headers: cors,
-                 body: JSON.stringify({ error: "id verdur ad vera tala" }) };
+                 body: JSON.stringify({ error: "id must be a number" }) };
       }
       const data = await getJSON(`${FPL_BASE}/entry/${id}/`);
       return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
@@ -71,7 +71,7 @@ export const handler = async (event) => {
       const { id, page } = event.queryStringParameters;
       if (!/^\d+$/.test(String(id || ""))) {
         return { statusCode: 400, headers: cors,
-                 body: JSON.stringify({ error: "id verdur ad vera tala" }) };
+                 body: JSON.stringify({ error: "id must be a number" }) };
       }
       const p = /^\d+$/.test(String(page || "")) ? page : 1;
       const data = await getJSON(
@@ -85,7 +85,7 @@ export const handler = async (event) => {
       const { id, gw } = event.queryStringParameters;
       if (!/^\d+$/.test(String(id || "")) || !/^\d+$/.test(String(gw || ""))) {
         return { statusCode: 400, headers: cors,
-                 body: JSON.stringify({ error: "id og gw verda ad vera tolur" }) };
+                 body: JSON.stringify({ error: "id and gw must be numbers" }) };
       }
       const data = await getJSON(`${FPL_BASE}/entry/${id}/event/${gw}/picks/`);
       return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
@@ -102,7 +102,7 @@ export const handler = async (event) => {
     // Hráar leikmanna-tölur umferðar (stats + explain) — fyrir GW-frammistöðu
     if (path === "fpl-live") {
       const gw = event.queryStringParameters.gw;
-      if (!/^\d+$/.test(gw || "")) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "gw vantar" }) };
+      if (!/^\d+$/.test(gw || "")) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "gw must be a number" }) };
       const data = await getJSON(`${FPL_BASE}/event/${gw}/live/`);
       return { statusCode: 200, headers: liveCache, body: JSON.stringify(data) };
     }
@@ -112,7 +112,7 @@ export const handler = async (event) => {
     // finished, h:{score,goals,assists}, a:{...}}] } með leikmanna-ID-um.
     if (path === "live") {
       const gw = event.queryStringParameters.gw;
-      if (!/^\d+$/.test(gw || "")) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "gw vantar" }) };
+      if (!/^\d+$/.test(gw || "")) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "gw must be a number" }) };
       const fx = await getJSON(`${FPL_BASE}/fixtures/?event=${gw}`);
       const fixtures = (fx || []).map(f => {
         const stat = k => (f.stats || []).find(x => x.identifier === k) || { h: [], a: [] };
@@ -146,9 +146,9 @@ export const handler = async (event) => {
        `Netlify-CDN-Cache-Control` á hana, eins og `fpl-league`.        */
     if (path !== "live" && !path.startsWith("fpl-")) {
       return { statusCode: 400, headers: cors, body: JSON.stringify({
-        error: `óþekkt eða óvirk path: ${path}`,
+        error: `unknown or disabled path: ${path}`,
         hint: path === "odds"
-          ? "bókmakera-greinin er óvirk — appið les data/odds.json úr pipeline"
+          ? "the bookmaker branch is disabled — the app reads data/odds.json from the pipeline"
           : undefined,
       }) };
     }

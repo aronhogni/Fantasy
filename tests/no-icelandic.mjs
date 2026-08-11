@@ -376,11 +376,34 @@ const ASCII_IS = [
    scripts/nfl/* er UNDANSKILID: thad er sjalfstaett app med eigin
    sofnum og eigin lotu.
    ============================================================ */
-console.log("\n=== D. PIPELINE-STRENGIR (scripts/*.mjs) ===");
+/* NETLIFY-FOLLIN ERU MED FRA 11.8.2026 — OG ThAU VORU RAUNVERULEGUR LEKI.
+   Kafli D las AÐEINS `scripts/*.mjs`, svo `netlify/functions/odds.js` var
+   ALDREI skannad. Thar sátu SJO islenskir strengir i `error`-svidum:
+     "id verdur ad vera tala" (x2) · "id og gw verda ad vera tolur"
+     "gw vantar" (x2) · "óþekkt eða óvirk path: …" · hint-strengurinn
+   og their eru EKKI innri: `App.jsx:872` birtir thá ORDRETT a skjanum —
+     "Connected ✓ — but could not fetch the squad (gw vantar)."
+   svo urn villa i proxy-inu skrifadi islensku i vidmotid.
+
+   TVAER LEXIUR, BADAR I CLAUDE.md ThEGAR:
+     · SVID VARDARINS ER GOLF, EKKI ThAK. Reglan "allir strengir sem
+       pipeline skrifar eru enskir" var rett skrad en vordurinn las bara
+       eina mappu, svo hin var ovarin i marga manudi.
+     · ORDALISTINN VAR LIKA OFULLNAEGJANDI: "gw vantar" hefdi fallid
+       ("vantar" var a listanum) en "id verdur ad vera tala" hefdi SLOPPID
+       — ekkert ord i theim streng var a listanum. Bædi svidid OG listinn
+       thurftu ad staekka; annad hefdi gefid falska vissu.               */
+console.log("\n=== D. PIPELINE-STRENGIR (scripts/*.mjs + netlify/functions/*.js) ===");
 {
   const { readdirSync } = await import("node:fs");
   const dir = new URL("../scripts/", import.meta.url).pathname;
-  const files = readdirSync(dir).filter(f => f.endsWith(".mjs"));
+  const netDir = new URL("../netlify/functions/", import.meta.url).pathname;
+  /* Baðar mappur, en slodin er borin med svo villuskilabodin segi HVAR. */
+  const files = [
+    ...readdirSync(dir).filter(f => f.endsWith(".mjs")).map(f => ({ dir, f })),
+    ...readdirSync(netDir).filter(f => f.endsWith(".js"))
+        .map(f => ({ dir: netDir, f: f, label: "netlify/" + f })),
+  ];
   /* Sömu ordmyndir og kafli C plus thaer sem koma fyrir i pipeline-texta.
      Broddstafir eru lika prófadir — bædi form leka.                    */
   const PIPE_IS = new RegExp(
@@ -427,6 +450,15 @@ console.log("\n=== D. PIPELINE-STRENGIR (scripts/*.mjs) ===");
       "threps", "reikningur", "vandraedum", "upplysinga", "telur",
       "kerfisbundid", "faerri", "formerki", "stodvad", "eftir",
       "hverja", "thess", "thessi", "annad", "onnur", "bædi", "badir",
+      /* LAK 11.8.2026 UR netlify/functions/odds.js — mappan sem vordurinn
+         las aldrei. "gw vantar" hefdi fallid a "vantar", en
+         "id verdur ad vera tala" og "id og gw verda ad vera tolur" bera
+         EKKERT ord sem thegar var a listanum. Enn eitt daemi um ad
+         svartlistinn er golf: badir strengirnir eru stuttir og bera engin
+         af smaordunum sem attu ad na theim.
+         "tala"/"tolur" eru ohaett: enskan notar "number", ekki "tala".  */
+      "verdur", "verda", "vera", "tala", "tolur", "othekkt", "ovirk",
+      "ovirkur", "greinin", "bokmakera", "slodin", "slod",
     ].join("|") + ")\\b", "i");
 
   /* STRENGIR ERU LESNIR MED SKANNA, EKKI REGEXI.
@@ -474,17 +506,24 @@ console.log("\n=== D. PIPELINE-STRENGIR (scripts/*.mjs) ===");
   };
 
   const bad = [];
-  let checked = 0;
-  for (const f of files) {
-    for (const lit of strings(readFileSync(dir + f, "utf8"))) {
+  let checked = 0, netChecked = 0;
+  for (const { dir: d, f, label } of files) {
+    for (const lit of strings(readFileSync(d + f, "utf8"))) {
       if (lit.length < 3) continue;
       checked++;
-      if (PIPE_IS.test(lit)) bad.push(`${f}: ${lit.slice(0, 70)}`);
+      if (label) netChecked++;
+      if (PIPE_IS.test(lit)) bad.push(`${label || f}: ${lit.slice(0, 70)}`);
     }
   }
   /* ThEKJA ER FULLYRDING (CLAUDE.md 5b): ef leitin finnur enga strengi er
      hun haett ad maela og ma ekki vera graen.                          */
-  ok(`strengir skodadir i ${files.length} skriftum (${checked})`, checked > 300, `adeins ${checked}`);
+  ok(`strengir skodadir i ${files.length} skram (${checked})`, checked > 300, `adeins ${checked}`);
+  /* OG ThEKJAN ER TALIN PER MAPPU. Heildartalan (>300) er svo hatt yfir
+     netlify-hlutanum ad hun MYNDI STANDAST thott netlify faelli algerlega
+     ut — tha vaeri kaflinn thogull um mopuna sem lak, nakvaemlega su
+     bilun sem hann er nu til ad verja. Serstok fullyrding tharf til.  */
+  ok(`netlify-strengir skodadir (${netChecked})`, netChecked >= 15,
+     `adeins ${netChecked} — er netlify/functions enn i leitinni?`);
   ok(`engin islenska i pipeline-strengjum${bad.length ? ` — ${bad.length} fundust` : ""}`,
      bad.length === 0, [...new Set(bad)].slice(0, 8).join("\n     "));
 }
