@@ -450,5 +450,48 @@ console.log("\nskraarnofn i data/");
   ok(loose.length === 0, `hver rannsokn stadfestir vidfong sin (an: ${loose.join(", ") || "engin"})`);
 }
 
+/* ============================================================
+   TRENDING-SAGAN ER OENDURHEIMTANLEG — OG SKRIFUD, OLESIN
+   ============================================================
+   `/players/nfl/trending/{add|drop}` svarar fyrir SIDUSTU 24 KLST og
+   geymir enga sogu. Hvergi — hvorki hja Sleeper ne annars stadar — er
+   haegt ad na i hvad var saekt i gaer. Hver dagur an vistunar er
+   tapadur ad eilifu.
+
+   Skrarnar eru ENN OLESNAR af appinu, nakvaemlega eins og
+   `data/history/` i FPL-verkefninu, og af somu astaedu: thaer eru
+   hraefni i waiver-rodun sem VERDUR ekki haegt ad bakprofa an theirra.
+   Prof sem krefdist thess ad einhver LAESI thaer myndi thvinga fram
+   omaelda notkun; thetta profa krefst thess i stadinn ad thaer seu
+   SKRIFADAR og ad enginn hafi eytt theim i hreinsun.               */
+console.log("\ntrending-sagan");
+{
+  const { readdirSync, existsSync: ex } = await import("node:fs");
+  const dir = path.join(DATA, "trending");
+  if (!ex(dir)) {
+    ok(false, "data/trending/ er ekki til — vistunin er haett ad keyra");
+  } else {
+    const days = readdirSync(dir).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f));
+    ok(days.length >= 1, `${days.length} daglegar myndir vistadar`);
+
+    const newest = days.sort().at(-1);
+    const snap = JSON.parse(readFileSync(path.join(dir, newest), "utf8"));
+    ok(Array.isArray(snap.add) && snap.add.length >= 20,
+      `${newest}: ${(snap.add || []).length} i "add"`);
+    ok(Array.isArray(snap.drop) && snap.drop.length >= 20,
+      `${newest}: ${(snap.drop || []).length} i "drop"`);
+    ok(snap.captured && snap.lookbackHours,
+      "myndin ber timastimpil og hve langt aftur hun naer");
+
+    /* Skriftan verdur ad skrifa thaer — ekki bara ad thaer seu til.
+       Athugasemdir skornar burt fyrst: su sem utskyrir regluna nefnir
+       slodina og myndi annars uppfylla profid sjalf. */
+    const src = readFileSync(path.join(ROOT, "scripts", "fetch-nfl.mjs"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    ok(/trending\/\$\{day\}\.json|trending\/\$\{/.test(src),
+      "pipeline-id skrifar daglega mynd (lesid ur kodanum an athugasemda)");
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

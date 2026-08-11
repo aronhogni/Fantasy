@@ -166,6 +166,35 @@ async function stageCore() {
     es.news(60).catch((e) => { record("espn_news", false, e.message); return []; }),
   ]);
 
+  /* ============================================================
+     TRENDING ER VISTAD DAGLEGA — OG THAD ER OENDURHEIMTANLEGT
+     ============================================================
+     `/players/nfl/trending/{add|drop}` er LIFANDI ENDAPUNKTUR: hann
+     svarar fyrir sidustu 24 klukkustundir og GEYMIR ENGA SOGU. Hvergi
+     — hvorki hja Sleeper ne annars stadar — er haegt ad na i hvad var
+     saekt i vidbot i gaer. Hver dagur sem lidur an vistunar er
+     TAPADUR AD EILIFU.
+
+     Sama rok og `data/history/` i FPL-verkefninu: dagleg mynd verdur
+     ekki buin til eftir a. Og hér er tilgangurinn skyr — waiver-rodun
+     er ekki haegt ad BAKPROFA an sogu um hverjir voru saektir og
+     hvernig their reyndust. Ad byrja i dag thydir ad prófun er moguleg
+     i oktober; ad byrja i oktober thydir prófun i naesta tímabili.
+
+     ~10 KB a dag. Skrain er lykluð a dagsetningu og keyrsla sama dags
+     yfirskrifar sjalfa sig, svo margar keyrslur a dag safna ekki upp.
+
+     ÞETTA ER SKRIFAD, OLESID — eins og `data/history/` var. Thad er
+     asetningur og ma ekki eyda i "hreinsun".                        */
+  {
+    const day = new Date().toISOString().slice(0, 10);
+    const snap = {
+      date: day, captured: new Date().toISOString(), lookbackHours: 24,
+      add: trendAdd, drop: trendDrop,
+    };
+    await writeJson(`trending/${day}.json`, snap, { minRows: 20 });
+  }
+
   /* --- leikjaskra + linur --- */
   const games = await nv.schedule([season, season - 1]);
 
