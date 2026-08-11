@@ -1254,7 +1254,18 @@ export function sumGwRange(entry, file, from, to) {
      svo dalkarnir seu ekki tomir ad ósekju.                              */
   const mins = out.minutes ?? 0;
   const per90 = v => (mins > 0 && v != null) ? +((v / mins) * 90).toFixed(2) : null;
-  out.expected_goal_involvements = +(((out.expected_goals ?? 0) + (out.expected_assists ?? 0))).toFixed(2);
+  /* xGI VAR TILBUID SEM 0,00 ThEGAR BADA INNTOKIN VANTADI (lagad 11.8.2026).
+     `(xG ?? 0) + (xA ?? 0)` gefur `0.00` fyrir umferdar-bil sem BER ENGIN
+     xG-gogn — og "0,00" er stadhaefing: hun segir "hann atti engar vaentar
+     thatttokur", ekki "vid vitum ekki". Sama regla og allt annad i thessari
+     skra fylgir (CLAUDE.md kafla 8: NULL ER EKKI NULL, tomt gildi er SLEPPT
+     og fer sidast i baðar attir).
+     Se annad inntakid til er summan raunveruleg — tha telst hitt sem 0, thvi
+     "engin xA i bilinu" ER maeling ef vid hofum xG ur sama bili.          */
+  out.expected_goal_involvements =
+    (out.expected_goals == null && out.expected_assists == null)
+      ? null
+      : +(((out.expected_goals ?? 0) + (out.expected_assists ?? 0))).toFixed(2);
   out.expected_goals_per_90 = per90(out.expected_goals);
   out.expected_assists_per_90 = per90(out.expected_assists);
   out.expected_goal_involvements_per_90 = per90(out.expected_goal_involvements);

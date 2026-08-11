@@ -2146,7 +2146,7 @@ export default function App() {
       </div>
 
       {view === "gw" && (
-        <GwReport report={lastGw} shotsFile={lastGwShots} teamById={teamById} Crest={Crest} />
+        <GwReport report={lastGw} shotsFile={lastGwShots} />
       )}
       {view === "players" && (
         <PlayerList players={players} teams={teams} teamById={teamById} events={events}

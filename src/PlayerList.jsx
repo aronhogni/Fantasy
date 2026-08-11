@@ -168,7 +168,7 @@ function StatPicker({ value, onChange, style }) {
       <span style={S.pkCaret} aria-hidden="true">▾</span>
       {open && (
         <div ref={listRef} style={S.pkList} role="listbox">
-          {!pickable.length ? <div style={S.pkNone}>{"no stat matches \""}{q}“</div> : null}
+          {!pickable.length ? <div style={S.pkNone}>{"no stat matches “"}{q}{"”"}</div> : null}
           {items.map((it, i) => it.d ? (
             <div key={it.d.key} role="option"
               aria-selected={it.d.key === value}
@@ -965,8 +965,23 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                         { key: d.key, op, val }]);
     setFreshTh(`${d.key}|${op}`);
   };
+  /* OP-ROFINN MATTI BUA TIL TVAER EINS FAERSLUR (lagad 11.8.2026).
+     `thresholds` ma bera BADAR attir a sama dalki — "min 5" OG "max 9" er
+     gild sia. Lyklarnir i vidmótinu eru `t.key + t.op`, sem er einkvaemt
+     fyrir thau tvo. EN op-rofinn flettir `op` A STADNUM, svo ad ryta "max"
+     yfir i "min" a dalki sem A ThEGAR "min" gaf **tvaer faerslur med sama
+     key+op** — tveir eins React-lyklar, og tvaer sur sem sia hid sama.
+     `filterOnValue` ver sig gegn thessu (`filter(x => !(key && op))` adur en
+     hun bætir vid); rofinn gerdi thad ekki. Nu gerir hann thad sama: faerslan
+     sem ATTI nyja op-id er fjarlaegd, svo rofinn SAMEINAR i stad ad
+     tvitaka.                                                             */
   const setThAt = (i, patch) =>
-    setThresholds(t => t.map((x, j) => j === i ? { ...x, ...patch } : x));
+    setThresholds(t => {
+      const next = t.map((x, j) => j === i ? { ...x, ...patch } : x);
+      if (!("op" in patch)) return next;
+      const moved = next[i];
+      return next.filter((x, j) => j === i || !(x.key === moved.key && x.op === moved.op));
+    });
   const dropThAt = i => setThresholds(t => t.filter((_, j) => j !== i));
   /* HVADA DALKAR ERU UNDIR SIU — merkt i hausnum OG a flokkahnappnum, svo
      sian se synileg thott hun se i ODRUM flokki en theim sem er opinn.  */
@@ -1335,7 +1350,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                   hausinn a ad flokka, og thar flokkadi hann ekkert.        */}
               {mode === "custom" ? null : (
               <div style={S.bandRow}>
-                <div style={{ ...S.bandCell, ...cName, ...S.bandFrozen }}>{group === "core" ? "" : ""}</div>
+                <div style={{ ...S.bandCell, ...cName, ...S.bandFrozen }}>{""}</div>
                 <div style={{ ...S.bandCell, width: wNum * 2, minWidth: wNum * 2 }}>{"Today"}</div>
                 {bands.map((b, i) => (
                   <div key={i} style={{ ...S.bandCell, width: b.w, minWidth: b.w, maxWidth: b.w,
@@ -1672,15 +1687,15 @@ const S = {
   thChipName:{ border:"none", background:"transparent", color:C.purple, fontWeight:700,
                fontSize:10.5, padding:"0 6px", cursor:"pointer", height:"100%",
                maxWidth:110, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
-  thChipOp:{ border:"none", borderLeft:"1px solid #ecdff0", background:"#faf6fb",
+  thChipOp:{ borderTop:"none", borderRight:"none", borderBottom:"none", borderLeft:"1px solid #ecdff0", background:"#faf6fb",
              color:C.text2, fontSize:9.5, padding:"0 5px", cursor:"pointer", height:"100%" },
-  thChipVal:{ width:46, border:"none", borderLeft:"1px solid #ecdff0", outline:"none",
+  thChipVal:{ width:46, borderTop:"none", borderRight:"none", borderBottom:"none", borderLeft:"1px solid #ecdff0", outline:"none",
               fontFamily:mono, fontSize:11, textAlign:"right", padding:"0 3px",
               height:"100%", color:C.text, background:"#fff",
               /* number-spinnerarnir eta 16 px af 46 og gera reitinn ólæsilegan */
               MozAppearance:"textfield" },
   thChipUnit:{ fontSize:9.5, color:C.text3, paddingRight:2 },
-  thChipX:{ border:"none", borderLeft:"1px solid #ecdff0", background:"#faf6fb",
+  thChipX:{ borderTop:"none", borderRight:"none", borderBottom:"none", borderLeft:"1px solid #ecdff0", background:"#faf6fb",
             color:C.text3, fontSize:10, padding:"0 5px", cursor:"pointer", height:"100%" },
   groupBadge:{ marginLeft:4, background:C.purple, color:"#fff", borderRadius:8,
                fontSize:8.5, fontWeight:700, padding:"0 4px", verticalAlign:"middle" },

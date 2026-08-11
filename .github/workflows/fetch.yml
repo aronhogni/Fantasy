@@ -8,6 +8,18 @@ on:
 permissions:
   contents: write
 
+# SAMHLIDA KEYRSLUR MATTU SKARAST (lagad 11.8.2026). fetch-fast og nfl-data
+# hofdu bædi `concurrency`-hop; ThESSI, sem er thyngsta keyrslan og skrifar
+# FLEST svid i `data/`, hafdi ekki. Handvirk `workflow_dispatch` sem lendir
+# ofan i 05:00-cron-inu gaf ThVI TVAER dagkeyrslur samtimis — og thar sem
+# push-arekstrar leysast med `rebase -X theirs` gat utkoman verid gogn ur
+# BADUM keyrslum, skra fyrir skra, i stad heillar myndar ur einni.
+# `cancel-in-progress: false` er asett: keyrsla sem er komin halfa leid hefur
+# thegar brennt API-kvota, svo hun a ad fa ad ljuka — hin bidur.
+concurrency:
+  group: fetch-data
+  cancel-in-progress: false
+
 jobs:
   fetch:
     runs-on: ubuntu-latest

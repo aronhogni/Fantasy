@@ -153,6 +153,51 @@ export async function collectPros(deps, events, elements) {
     return;
   }
 
+  /* ============================================================
+     KVOTAVORNIN BROTNADI UNDIR ThROSKULDINUM (lagad 11.8.2026).
+
+     Skammhlaupid hér ad ofan er EINA vornin, og hun bitur ADEINS thegar
+     `coverageOk` er satt. Naist thekjan aldrei — t.d. ef meira en 10% af
+     1.000-manna hopnum eydir lidinu sinu, sem gefur VARANLEG 404 — verdur
+     `coverageOk` aldrei satt og ThVI endursaekir HVER hrada keyrsla allan
+     hopinn: ~1.000-2.000 koll. `fetch-fast` gengur a 30 min fresti auk
+     15-minutna-cron a leikdogum, svo thad eru 48-96 keyrslur a dag =
+     **allt ad ~96.000 koll a dag** fyrir gogn sem vid vitum thegar ad
+     naest ekki. Reglan i pros.mjs kafla 13 ("hver umferd sott nakvaemlega
+     einu sinni") gilti thvi adeins OFAN vid throskuldinn.
+
+     BAKKID ER BOKFAERT SER, EKKI I GAGNA-RODINNI. `attempts` er eigin
+     lykill i skranni; gagna-rodin fyrir umferdina er obreytt. Thad er asett
+     tvennt:
+       (a) rod med `n: 0` ma ALDREI verda til (sja naesta kafla) — bokhald
+           i rodinni hefdi kallad a hana;
+       (b) profin sem lesa `gw[...]`-rodina sja engan nyjan lykil.
+
+     ThRJAR TILRAUNIR, SVO SEX KLST. Fyrstu tvaer keyrslur fa ad reyna til
+     fulls (thekja getur batnad ef FPL var einfaldlega haegt); eftir thad er
+     ein tilraun a 6 klst fresti. Thad er 4 a dag i stad 96, og umferdin
+     naest samt um leid og hopurinn svarar aftur.                        */
+  const BACKOFF_H = 6, FREE_TRIES = 2;
+  const att = prev.attempts?.[gw] || { tries: 0, last: null };
+  const sinceH = att.last ? (Date.now() - Date.parse(att.last)) / 36e5 : Infinity;
+  if (att.tries >= FREE_TRIES && Number.isFinite(sinceH) && sinceH < BACKOFF_H) {
+    record("pros", true, done?.n ?? 0,
+      `GW${gw}: coverage stuck at ${done?.n ?? 0}/${ids.length} after ${att.tries} full attempts `
+      + `- backing off, ${(BACKOFF_H - sinceH).toFixed(1)}h to next try`);
+    return;
+  }
+  /* TILRAUNIN ER BOKFAERD ADUR EN HUN ER GERD. Vaeri hun bokfaerd eftir a
+     myndi keyrsla sem deyr i midju (timeout, kvoti, hrun) ALDREI telja, og
+     bakkid faeri thvi aldrei i gang — sem er einmitt tilfellid sem thad er
+     til fyrir.                                                          */
+  const markAttempt = async () => {
+    await writeJSON("pros_gw.json", {
+      ...prev,
+      attempts: { ...(prev.attempts || {}), [gw]: { tries: att.tries + 1, last: new Date().toISOString() } },
+    });
+  };
+  await markAttempt();
+
   const res = await pool(ids, id => one(getJSON, id, gw));
   const got = res.filter(Boolean);
   const deadlineMs = cur.deadline_time ? Date.parse(cur.deadline_time) : null;
@@ -182,6 +227,10 @@ export async function collectPros(deps, events, elements) {
   const out = { ...prev, season: panelFile.season || prev.season,
                 updated: new Date().toISOString(),
                 panel_size: ids.length,
+                /* Bokhaldid fylgir med — `prev` var lesid FYRIR markAttempt,
+                   svo an thessa myndi vel-heppnud keyrsla ThURRKA UT
+                   tilraunatoluna og bakkid byrjadi upp a nytt.          */
+                attempts: { ...(prev.attempts || {}), [gw]: { tries: att.tries + 1, last: new Date().toISOString() } },
                 gw: { ...(prev.gw || {}), [gw]: agg } };
   const prevOut = out;   // formationOutcome skrifar inn i fyrri umferd hennar
   await writeJSON("pros_gw.json", out);

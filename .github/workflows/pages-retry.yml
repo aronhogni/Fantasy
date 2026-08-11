@@ -45,7 +45,10 @@ jobs:
           ID=$(echo "$R" | jq -r .id); CONC=$(echo "$R" | jq -r .conclusion)
           ATT=$(echo "$R" | jq -r .run_attempt)
           echo "nyjasta pages-keyrsla: $ID · $CONC · tilraun $ATT"
-          if [ "$CONC" = "failure" ] && [ "$ATT" -lt 8 ]; then
+          # ThAKID VAR 8 HER EN 5 I HAUSNUM OG I ATBURDA-STYRDA JOBBINU
+          # (lagad 11.8.2026). Sama skrifta, thrjar tolur, tvaer olikar —
+          # og su sem gilti i reynd var su sem enginn las.
+          if [ "$CONC" = "failure" ] && [ "$ATT" -lt 5 ]; then
             gh api -X POST "repos/${{ github.repository }}/actions/runs/$ID/rerun-failed-jobs" \
               && echo "endurræst" || echo "endurræsing óhæf — í lagi"
           else

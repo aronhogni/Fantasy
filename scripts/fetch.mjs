@@ -73,11 +73,33 @@ const FETCH_TIMEOUT_MS = 20000;
    sjalfir og geta thvi ekki farid gegnum getText/getJSON.                 */
 const fetchT = (url, opts = {}) =>
   fetch(url, { ...opts, signal: AbortSignal.timeout(opts.timeoutMs || FETCH_TIMEOUT_MS) });
+/* ENDURTILRAUNIR (11.8.2026). `getText` gerdi EINA tilraun, og
+   `bootstrap-static` — sem ALLT annad haengir a — fer gegnum hana. Eitt
+   hikst hja FPL kl. 05:00 UTC felldi thvi ALLA dagkeyrsluna og hvert svid
+   i `data/` vard 24 klst gamalt. ClubElo-sokninn hafdi fjorar tilraunir;
+   kjarninn hafdi enga.
+
+   ADEINS ThAD SEM ER ThESS VERT: 429 og 5xx eru timabundin og eru
+   endurteknar. 404 er SVAR, ekki bilun — `fdcouk_e0` fyrir 2026/27 er 404
+   thangad til fyrsti leikur er buinn, og ad endurtaka thad thrisvar vaeri
+   bara haegara. Sama rok og i BSD-skriftunum.                            */
 async function getText(url, opts = {}) {
-  const r = await fetch(url, { headers: { "User-Agent": UA, ...(opts.headers || {}) },
-                               signal: AbortSignal.timeout(opts.timeoutMs || FETCH_TIMEOUT_MS) });
-  if (!r.ok) throw new Error(`${r.status} ${url}`);
-  return { text: await r.text(), res: r };
+  const tries = opts.tries ?? 3;
+  let last = null;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url, { headers: { "User-Agent": UA, ...(opts.headers || {}) },
+                                   signal: AbortSignal.timeout(opts.timeoutMs || FETCH_TIMEOUT_MS) });
+      if (r.ok) return { text: await r.text(), res: r };
+      if (r.status === 429 || r.status >= 500) { last = new Error(`${r.status} ${url}`); }
+      else throw new Error(`${r.status} ${url}`);        // 404 o.fl.: svar, ekki bilun
+    } catch (e) {
+      if (e?.message && /^\d{3} /.test(e.message) && !/^(429|5\d\d) /.test(e.message)) throw e;
+      last = e;
+    }
+    if (i < tries - 1) await new Promise(r => setTimeout(r, 800 * (i + 1)));
+  }
+  throw last || new Error(`gave up after ${tries} attempts: ${url}`);
 }
 async function getJSON(url, opts = {}) {
   const { text } = await getText(url, opts);
@@ -2345,8 +2367,20 @@ async function deriveRotation() {
    med skot-gognum" — sem gat ekki gerst.
    BSD skilar treverki sem EIGIN utkomu-tegund (`type: "post"`): 211 skot
    2025/26. Talan er thvi RAUNVERULEG i fyrsta sinn.                      */
+/* `teamAgg` OG `playerAgg` VORU HER OG ERU FARIN (11.8.2026).
+   Hvorugt var ALDREI skrifad i — greppad yfir allt fallid: `teamAgg` kom
+   fyrir EINU SINNI (skilgreiningin) og `playerAgg` tvisvar (skilgreiningin
+   og `Object.values(playerAgg)` i utskriftinni). `luck.json` hefur thvi
+   skilad `players: []` fra fyrsta degi, og gerir thad i skranni sem er
+   committud nuna.
+   Their eru arfur ur Understat-tímanum: `players`-svidid i SCHEMA.md bar
+   `understat_id`, `npxg`, `penalties_taken` … — svid ur heimild sem er
+   HORFIN (CLAUDE.md 6e) og kemur ekki aftur. Ekkert i framendanum les
+   `luck.players`.
+   Svidid er thvi tekid ut i stad thess ad vera "fyllt sidar": tomt fylki
+   sem lofar leikmanna-tolum er sama aett og daudur dalkur — thad les eins
+   og eiginleiki sem bidur, en enginn er ad byggja hann.                 */
 async function deriveLuck() {
-  const teamAgg = {}, playerAgg = {};
   /* Lids-treverk ur bsd_shots.json. Skrain er lyklud a FPL-skammstofun i
      `legend.teams`, svo hvert skot veit HVER skaut og HVER fekk a sig.  */
   const wood = {};                                   // short -> { for, against }
@@ -2435,7 +2469,6 @@ async function deriveLuck() {
           "goals from E0 (complete), xg from the FPL sum which is MISSING ~19% (players who left the league) " +
           "-> xg_incomplete:true. Promoted clubs and clubs without BSD data get woodwork null (NOT a zero).",
     teams: teamOut,
-    players: Object.values(playerAgg),
   });
   const withWood = teamOut.filter(t => t.woodwork_for != null).length;
   record("luck", true, teamOut.length,
@@ -2731,7 +2764,13 @@ async function buildArchiveGwReport() {
   for (let g = 38; g >= 1; g--) {
     try {
       const { text } = await getText(`${MIRROR}/${ARCHIVE_SEASON}/gws/gw${g}.csv`);
-      const parsed = parseCSV(text).rows.filter(r => r.element);
+      /* `parseCSVQuoted`, EKKI `parseCSV` (lagad 11.8.2026): thetta er SAMA
+         vaastav-skra sem `deriveImminent` les med quote-aware parsernum.
+         Naivi parserinn klippir a hverju kommu, svo nafn med kommu innan
+         gaesalappa ("Sanchez, Robert") hlidrar OLLUM dalkum theirrar radar
+         — thogult, og ADEINS i thessari skyrslu. Tveir parserar a somu skra
+         er hvorttveggja: rong tala og tala sem stangast a vid sjalfa sig. */
+      const parsed = parseCSVQuoted(text).rows.filter(r => r.element);
       if (parsed.length) { gw = g; rows = parsed; break; }
     } catch { /* naesta nidur */ }
   }

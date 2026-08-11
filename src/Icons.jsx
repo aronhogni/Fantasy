@@ -39,12 +39,12 @@ import React from "react";
    i 16-grid-inu og skalast thvi MED staerdinni (1,03 px vid 11px, 1,88 vid
    20px) — thad er rett hegdun: ikon sem heldur fastri pixla-thykkt vid
    allar staerdir verdur ofurthunnt i storri staerd og klessa i smarri.  */
-function Svg({ size = 16, color, title, children, strokeScale = 1 }) {
+function Svg({ size = 16, color, title, children }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" role={title ? "img" : "presentation"}
       aria-label={title || undefined} aria-hidden={title ? undefined : "true"}
       style={{ display: "block", flexShrink: 0, color: color || undefined }}
-      fill="none" stroke="currentColor" strokeWidth={1.5 * strokeScale}
+      fill="none" stroke="currentColor" strokeWidth={1.5}
       strokeLinecap="round" strokeLinejoin="round">
       {title ? <title>{title}</title> : null}
       {children}

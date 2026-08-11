@@ -360,14 +360,18 @@ E0 hefur alla 380 leiki, svo þetta er heilt. 17 lið með sögu, 3 nýliðar `m
 { result_enum_seen: [...],
   teams:   [{ fpl_id, short, matches, goals, conceded, xg, xgc,
               goals_minus_xg, conceded_minus_xgc,
-              woodwork_for, woodwork_against, source, xg_incomplete }],
-  players: [{ understat_id, player, shots, woodwork, goals, xg, npxg,
-              goals_minus_xg, penalties_taken, penalties_scored,
-              freekicks_taken, corners }] }
+              woodwork_for, woodwork_against, source, xg_incomplete }] }
 ```
 
-`woodwork` úr Understat `result: "ShotOnPost"` — **per SKOT**, svo það gefur
-tölu per leikmann. Það er betra en HHW/AHW hefði verið (sem eru ekki til).
+**`players`-sviðið var tekið út 11.8.2026.** Það var skjalfest hér með
+Understat-sviðum (`understat_id`, `npxg`, `penalties_taken` …) en var
+**alltaf tómt**: `playerAgg` í `deriveLuck` var skilgreint og aldrei skrifað
+í, svo `luck.json` skilaði `players: []` frá fyrsta degi. Understat-heimildin
+er horfin (CLAUDE.md 6e) og ekkert í framendanum las sviðið. Tómt fylki sem
+lofar leikmanna-tölum er sama ætt og dauður dálkur.
+
+`woodwork` kemur úr BSD-skotakortinu (`type: "post"`) — **per SKOT**, per lið.
+Það er betra en HHW/AHW hefði verið (sem eru ekki til).
 
 `result_enum_seen` listar öll ólík `result`-gildi sem raunverulega komu —
 ENUM-gildin voru óstaðfest og eru nú skjalfest úr keyrslu.

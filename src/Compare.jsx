@@ -37,7 +37,7 @@ function SafeImg({ src, style }) {
 const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
 /* Radirnar. `hi:false` = laegra er betra. `fmt` styrir birtingu.        */
-import { advise, contextFactors, ADVISOR_CAL } from "./advisor.js";
+import { advise, contextFactors } from "./advisor.js";
 import { indexImminentByTeam, matchImminent, startRisk } from "./stats.js";
 
 export const ROWS = [

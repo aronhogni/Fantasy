@@ -16,6 +16,12 @@ on:
       - "index.html"
       - "vite.config.js"
       - "package.json"
+      # LASSKRARNAR VANTADI (lagad 11.8.2026): uppfaersla a hadi sem
+      # snertir ADEINS lasskrana breytti byggingunni en RÆSTI HANA EKKI,
+      # svo Pages sat afram a gamla hadinu thangad til eitthvad annad
+      # breyttist. Nu telja thaer sem app-breyting, thvi thad eru thaer.
+      - "package-lock.json"
+      - "nfl/package-lock.json"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -38,7 +44,7 @@ jobs:
         with:
           node-version: "20"
       - name: Setja upp pakka (FPL)
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Byggja FPL
         run: npm run build
 
@@ -48,7 +54,7 @@ jobs:
       # NFL VERDUR ad byggja A EFTIR — annars er `dist/nfl/` thurrkad ut.
       - name: Setja upp pakka (NFL)
         working-directory: nfl
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Byggja NFL
         working-directory: nfl
         run: npm run build

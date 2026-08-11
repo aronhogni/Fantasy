@@ -207,7 +207,7 @@ export default function Rotation({
                       <td style={S.tdNum} colSpan={3}>
                         {(() => {
                           const n = t.cells.filter(c => needOf(c, hardFrom) > 0).length;
-                          return `${n} ${n === 1 ? "hard" : "hard"}`;
+                          return `${n} hard`;
                         })()}
                       </td>
                     </tr>

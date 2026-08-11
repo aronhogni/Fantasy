@@ -628,6 +628,52 @@ console.log("13b) ...en OFULL umferd ER sott aftur");
   ok(h.calls.picks === 4, `ofull thekja er sott aftur (fekk ${h.calls.picks})`);
 }
 
+console.log("13c) KVOTA-BAKK — thekja sem stendur fost ma ekki endursaekja 96x a dag");
+{
+  /* B12: skammhlaupid i 13 bitur ADEINS thegar `coverageOk` er satt. Naist
+     thekjan aldrei — t.d. ef >10% af hopnum eydir lidinu sinu, sem gefur
+     VARANLEG 404 — endursotti HVER hrada keyrsla allan hopinn. `fetch-fast`
+     gengur 48-96x a dag, svo thad var allt ad ~96.000 koll a dag fyrir gogn
+     sem vid vitum ad naest ekki.
+     Reglan i kafla 13 ("hver umferd sott nakvaemlega einu sinni") gilti thvi
+     adeins OFAN vid throskuldinn; hér er hin hlidin varin.                */
+  const thin = { n: 1, own: {}, capt: {}, vice: {}, in: {}, out: {}, chips: {} };
+  const now = Date.now();
+
+  /* (a) FYRSTU TVAER TILRAUNIR FA AD REYNA. Thekja getur batnad ef FPL var
+         einfaldlega haegt, svo bakkid ma ekki bita strax.                  */
+  for (const tries of [0, 1]) {
+    const h = harness({ prevGw: { season: "2026/27", gw: { 7: thin },
+                                  attempts: { 7: { tries, last: new Date(now - 60e3).toISOString() } } } });
+    await h.run();
+    ok(h.calls.picks === 4, `tilraun ${tries + 1} af 2 er LEYFD (${h.calls.picks} koll)`);
+  }
+
+  /* (b) ThRIDJA TILRAUN INNAN 6 KLST ER STOPPUD — ekkert kall.            */
+  const h3 = harness({ prevGw: { season: "2026/27", gw: { 7: thin },
+                                 attempts: { 7: { tries: 2, last: new Date(now - 60e3).toISOString() } } } });
+  await h3.run();
+  ok(h3.calls.picks === 0, `thridja tilraun innan 6 klst saekir EKKERT (${h3.calls.picks} koll)`);
+  const r3 = h3.recs.find(x => x.name === "pros");
+  ok(/backing off/.test(r3?.note || ""), `og segir hvers vegna (${r3?.note})`);
+
+  /* (c) EFTIR 6 KLST ER REYNT AFTUR — bakkid er BID, ekki uppgjof. Umferdin
+         naest um leid og hopurinn svarar aftur.                            */
+  const h4 = harness({ prevGw: { season: "2026/27", gw: { 7: thin },
+                                 attempts: { 7: { tries: 9, last: new Date(now - 7 * 36e5).toISOString() } } } });
+  await h4.run();
+  ok(h4.calls.picks === 4, `eftir 6 klst er reynt aftur thratt fyrir 9 tilraunir (${h4.calls.picks} koll)`);
+
+  /* (d) VEL-HEPPNUD KEYRSLA MA EKKI ThURRKA UT BOKHALDID — annars byrjar
+         bakkid upp a nytt i hvert sinn sem thekjan batnar tímabundid.      */
+  const h5 = harness({ prevGw: { season: "2026/27", gw: { 6: thin },
+                                 attempts: { 6: { tries: 2, last: new Date(now - 7 * 36e5).toISOString() } } } });
+  await h5.run();
+  const w5 = h5.wrote["pros_gw.json"];
+  ok(w5?.attempts?.[6]?.tries === 2, `bokhald annarra umferda helst (${JSON.stringify(w5?.attempts)})`);
+  ok(w5?.attempts?.[7]?.tries === 1, "og thessi umferd er bokfaerd");
+}
+
 console.log("14) venjuleg keyrsla — skiptin eru SIUD eftir umferd");
 {
   const h = harness();
@@ -846,7 +892,19 @@ console.log("15b) ALGERLEGA tom keyrsla skrifar EKKERT");
      og "enginn gerdi neitt" i stad "sofnunin brast".                     */
   const h = harness({ missing: [1, 2, 3, 4] });
   await h.run();
-  ok(!h.wrote["pros_gw.json"], "engin skra skrifud thegar ENGINN svaradi");
+  /* FULLYRDINGIN VAR "ENGIN SKRA SKRIFUD" OG ER NU "ENGIN GAGNA-ROD"
+     (11.8.2026). Kvota-bakkid (B12) bokfaerir tilraunina i `attempts`, sem
+     ER skrif — en thad sem thessi vordur er til fyrir er ad rod med `n: 0`
+     verdi ALDREI til, thvi hun les eins og "enginn gerdi neitt" i stad
+     "sofnunin brast". Vidmidid er thvi rodin sjalf, ekki hvort skrain var
+     snert. Bokhaldid ber ENGIN leikmanna-gogn.
+     Stokkbreytt: skrifi kodinn `gw[7] = agg` med n=0 fellur thetta.      */
+  const w15 = h.wrote["pros_gw.json"];
+  ok(!w15 || !Object.keys(w15.gw || {}).length,
+     `engin gagna-rod skrifud thegar ENGINN svaradi (${JSON.stringify(Object.keys(w15?.gw || {}))})`);
+  ok(!w15 || !("n" in (Object.values(w15.gw || {})[0] || {})),
+     "og engin rod ber `n`");
+  ok(!!w15?.attempts, "tilraunin ER bokfaerd (bakkid virkar adeins ef hun er)");
   const r = h.recs.find(x => x.name === "pros");
   ok(r.ok === false, "status er raudur");
   ok(/nothing written/.test(r.note || ""), `notan segir ad ekkert var skrifad (${r.note})`);
@@ -866,7 +924,15 @@ console.log("16) verri keyrsla ma ALDREI skrifa yfir betri (sbr. 8e)");
                       missing: [2, 3, 4, 5, 6, 7, 8, 9] });   // adeins 1 og 10 svara
   await h.run();
   ok(h.calls.picks === 10, `endursokn atti ser stad (${h.calls.picks} koll)`);
-  ok(!h.wrote["pros_gw.json"], "engin skrif thegar ny keyrsla er verri");
+  /* SAMA BREYTING OG I 15b: vidmidid er RODIN, ekki hvort skrain var snert.
+     Kvota-bakkid bokfaerir tilraunina; gomlu og BETRI tolurnar verda ad
+     stada obreyttar.                                                      */
+  const w16 = h.wrote["pros_gw.json"];
+  ok(!w16 || !w16.gw || w16.gw[7] === undefined || w16.gw[7].n === 5,
+     `betri rodin stendur obreytt (n=${w16?.gw?.[7]?.n})`);
+  ok(!w16?.gw?.[7] || w16.gw[7].own?.["9"] === 5 || w16.gw[7].own?.[9] === 5,
+     "og gognin sjalf eru gomlu gognin");
+  ok(!!w16?.attempts, "tilraunin ER bokfaerd");
   const r = h.recs.find(x => x.name === "pros");
   ok(r.ok === false && /kept previous/.test(r.note), `skrair ad gomlu var haldid (${r.note})`);
 }

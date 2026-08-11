@@ -30,7 +30,15 @@ import {
 
 const POS_COLOR = { GK:"#8b5cf6", DEF:"#2563eb", MID:"#00b96b", FWD:"#d92d3c" };
 
-export default function GwReport({ report, shotsFile, teamById, Crest }) {
+/* `teamById` OG `Crest` VORU ThRAEDD HER GEGN OG ERU FARIN (11.8.2026).
+   Thau komu inn i GwReport, foru nidur i Overview, ThADAN i XiCard,
+   RankList, PlayerTab, MatchTab og ShotTab — og VORU NOTUD I ENGRI theirra.
+   Overview "notadi" thau 14 sinnum hvert, en hvert einasta tilvik var
+   ENDURSENDING nidur; enginn teiknadi merki. Lidsmerki birtast einfaldlega
+   ekki i thessum flipa.
+   Thetta var thvi keDJA af props sem las eins og eiginleiki: naesti lesandi
+   sem vildi setja merki i töfluna hefdi haldid ad thau vaeru thegar tengd. */
+export default function GwReport({ report, shotsFile }) {
   const [tab, setTab] = useState("overview");
   const [fxSel, setFxSel] = useState("all");     // skot-kort: leikur
   const [teamSel, setTeamSel] = useState("all"); // skot-kort: lid
@@ -103,21 +111,21 @@ export default function GwReport({ report, shotsFile, teamById, Crest }) {
       )}
 
       {tab === "overview" && <Overview totals={totals} rows={rows} xi={xi}
-        teamById={teamById} Crest={Crest} shotsFile={shotsFile} />}
+        shotsFile={shotsFile} />}
 
       {tab === "shots" && <ShotTab shotsFile={shotsFile} fixtures={fixtures}
         fxSel={fxSel} setFxSel={setFxSel} teamSel={teamSel} setTeamSel={setTeamSel}
-        teamById={teamById} Crest={Crest} />}
+        />}
 
-      {tab === "players" && <PlayerTab joined={joined} teamById={teamById} Crest={Crest} />}
+      {tab === "players" && <PlayerTab joined={joined} />}
 
-      {tab === "matches" && <MatchTab fixtures={fixtures} teamById={teamById} Crest={Crest} />}
+      {tab === "matches" && <MatchTab fixtures={fixtures} />}
     </section>
   );
 }
 
 /* ================= YFIRLIT ================= */
-function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
+function Overview({ totals, rows, xi, shotsFile }) {
   const shotSum = useMemo(() => shotSummary(shotsFile?.shots || []), [shotsFile]);
   const over  = gwTop(rows, "gi_minus_xgi", 6, { hi: true,  minMinutes: 30 });
   const under = gwTop(rows, "gi_minus_xgi", 6, { hi: false, minMinutes: 30 });
@@ -138,7 +146,7 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
         <Tile k={"Blanks (60+ min, ≤2 pts)"} v={totals.blanks} />
         {shotsFile && <>
           <Tile k={"Shots"} v={shotSum.total} sub={interp("{0} in the box", [shotSum.in_box])} />
-          <Tile k={"Shots on target"} v={shotSum.on_target_total} sub={interp("{0}% conversion", [shotSum.accuracy])} />
+          <Tile k={"Shots on target"} v={shotSum.on_target_total} sub={interp("{0}% on target", [shotSum.accuracy ?? "—"])} />
           <Tile k={"Woodwork"} v={shotSum.woodwork} tone="amber" />
           <Tile k={"Blocked shots"} v={shotSum.blocked} />
         </>}
@@ -159,7 +167,7 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
           if (!line.length) return null;
           return (
             <div key={pos} style={S.xiLine}>
-              {line.map(r => <XiCard key={r.name + r.fixture} r={r} teamById={teamById} Crest={Crest} />)}
+              {line.map(r => <XiCard key={r.name + r.fixture} r={r} />)}
             </div>
           );
         })}
@@ -169,36 +177,36 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
         <div>
           <H>{"Over expectation"}</H>
           <div style={S.muted}>{"Goals + assists minus xGI. Clinical finishing or luck."}</div>
-          <RankList rows={over} val={r => signed(r.gi_minus_xgi)} teamById={teamById} Crest={Crest} />
+          <RankList rows={over} val={r => signed(r.gi_minus_xgi)} />
         </div>
         <div>
           <H>{"Under expectation"}</H>
           <div style={S.muted}>{"The chances were there but did not go in."}</div>
-          <RankList rows={under} val={r => signed(r.gi_minus_xgi)} teamById={teamById} Crest={Crest} />
+          <RankList rows={under} val={r => signed(r.gi_minus_xgi)} />
         </div>
       </div>
 
       <div style={S.two}>
         <div>
           <H>{"Top scorers"}</H>
-          <RankList rows={gwTop(rows, "points", 8)} val={r => r.points} teamById={teamById} Crest={Crest} />
+          <RankList rows={gwTop(rows, "points", 8)} val={r => r.points} />
         </div>
         <div>
           <H>{"BPS — the bonus points system"}</H>
           <div style={S.muted}>{"BPS decides who gets 3/2/1 bonus."}</div>
           <RankList rows={gwTop(rows, "bps", 8)} val={r => r.bps}
-            extra={r => interp("{0} bonus", [r.bonus])} teamById={teamById} Crest={Crest} />
+            extra={r => interp("{0} bonus", [r.bonus])} />
         </div>
       </div>
 
       <div style={S.two}>
         <div>
           <H>{"Def. contribution (DC)"}</H>
-          <RankList rows={gwTop(rows, "dc", 8)} val={r => r.dc} teamById={teamById} Crest={Crest} />
+          <RankList rows={gwTop(rows, "dc", 8)} val={r => r.dc} />
         </div>
         <div>
           <H>{"Saves"}</H>
-          <RankList rows={gwTop(rows, "saves", 8)} val={r => r.saves} teamById={teamById} Crest={Crest} />
+          <RankList rows={gwTop(rows, "saves", 8)} val={r => r.saves} />
         </div>
       </div>
     </>
@@ -206,7 +214,7 @@ function Overview({ totals, rows, xi, teamById, Crest, shotsFile }) {
 }
 
 /* ================= SKOT-KORT ================= */
-function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, teamById, Crest }) {
+function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel }) {
   /* Hookar ATH: allir hookar verda ad kallast ADUR en snuid er til baka,
      annars brotnar hook-rodun milli render-a (React rules of hooks).      */
   const teams = useMemo(
@@ -263,7 +271,7 @@ function ShotTab({ shotsFile, fixtures, fxSel, setFxSel, teamSel, setTeamSel, te
 
       <div style={S.tiles}>
         <Tile k={"Shots"} v={sum.total} />
-        <Tile k={"On target"} v={sum.on_target_total} sub={interp("{0}% conversion", [sum.accuracy ?? "—"])} />
+        <Tile k={"On target"} v={sum.on_target_total} sub={interp("{0}% on target", [sum.accuracy ?? "—"])} />
         <Tile k={"Goals"} v={sum.goal} />
         <Tile k={"Woodwork"} v={sum.woodwork} tone="amber" />
         <Tile k={"Blocked"} v={sum.blocked} />
@@ -387,7 +395,7 @@ function Pitch({ shots }) {
 }
 
 /* ================= LEIKMENN ================= */
-function PlayerTab({ joined, teamById, Crest }) {
+function PlayerTab({ joined }) {
   const [sort, setSort] = useState("points");
   const COLS = [
     ["points","Points"], ["minutes","Min"], ["goals","G"], ["assists","A"],
@@ -449,7 +457,7 @@ function PlayerTab({ joined, teamById, Crest }) {
 }
 
 /* ================= LEIKIRNIR ================= */
-function MatchTab({ fixtures, teamById, Crest }) {
+function MatchTab({ fixtures }) {
   return (
     <div style={S.mGrid}>
       {fixtures.map(f => {
@@ -531,7 +539,7 @@ function Tile({ k, v, sub, tone }) {
     </div>
   );
 }
-function XiCard({ r, teamById, Crest }) {
+function XiCard({ r }) {
   return (
     <div style={S.xiCard} title={interp("{0} — {1} pts, {2} BPS", [r.name, r.points, r.bps])}>
       <div style={{ ...S.xiPos, background: POS_COLOR[r.pos] }}>{r.pos}</div>
@@ -541,7 +549,7 @@ function XiCard({ r, teamById, Crest }) {
     </div>
   );
 }
-function RankList({ rows, val, extra, teamById, Crest }) {
+function RankList({ rows, val, extra }) {
   if (!rows?.length) return <div style={S.muted}>{"No numbers."}</div>;
   return (
     <div style={S.rl}>
