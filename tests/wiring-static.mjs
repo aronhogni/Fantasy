@@ -50,8 +50,22 @@ console.log("\n1) hver `S.x` sem er notadur verdur ad vera skilgreindur");
     "at","push","split","replace","trim","toFixed","test","match","has","get","set","add",
     "size","startsWith","endsWith","toLowerCase","toUpperCase","padEnd","padStart","reverse",
     "findIndex","flatMap","repeat","charAt","toLocaleString","json","then","catch","from"]);
+  /* ATHUGASEMDIR ERU SKORNAR BURT ADUR EN LEITAD ER (11.8.2026).
+     Vordurinn flaggadi `App.jsx: fixChip, fixNum` — og BADIR stilarnir voru
+     RETTILEGA fjarlaegdir asamt `FixChip`-vidmotinu sem notadi thá. Thad sem
+     hann fann var ATHUGASEMDIN sem skjalar fjarlaeginguna og NEFNIR
+     `S.fixChip`/`S.fixNum` med nafni.
+     Thetta er sama gildra og CLAUDE.md 5b lysir, i spegilmynd: thar getur
+     athugasemd LATID fullyrdingu STANDAST; hér laetur hun hana FALLA. Baedi
+     ger vordinn omarktaekan, og skjalid her ad ofan varar sjalft vid ad
+     falskt jakvaett svar verdur til thess ad einhver slokkvi a honum.
+     Strengir eru latnir i fridi — engin stila-skilgreining lifir i streng. */
+  const strip = src => src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
   let bad = 0, checked = 0;
-  for (const [f, s] of all) {
+  for (const [f, raw] of all) {
+    const s = strip(raw);
     const i = s.indexOf("const S = {");
     if (i < 0) continue;
     checked++;
@@ -121,9 +135,22 @@ console.log("\n2) hvert prop sem vidmot les verdur ad berast (eda hafa sjalfgild
 console.log("\n3) hver skra sem er sott verdur ad rata i vidmot");
 {
   const app = all.find(([f]) => f === "App.jsx")[1];
-  /* `setX(await j("y.json"))` og letihledslur — hvad er sott. */
-  const setters = [...app.matchAll(/set([A-Z]\w+)\(await j\("([^"]+)"\)\)/g)]
-    .map(m => ({ state: m[1][0].toLowerCase() + m[1].slice(1), file: m[2] }));
+  /* TVO SNID, ThVI SOKNIN VARD SAMHLIDA (11.8.2026).
+     Adur var hver valfrjals skra sott med `setX(await j("y.json"))` i rod.
+     C10 gerdi thaer samhlida med `Promise.allSettled` yfir
+     `[["y.json", setX], …]`-por, og tha hitti gamla regexid **ekkert** —
+     talan fell ur 28 i 0. Thekju-fullyrdingin nedar (`>= 10`) greip thad,
+     sem er einmitt thad sem hun er til fyrir; vaeri hun ekki thar hefdi
+     kaflinn ordid ThOGULL og haldid afram ad segja "engin sott skra er
+     onotud" um ENGA skra.
+     Bædi snidin eru leituð svo kaflinn thegi ekki hvort sem sokninni er
+     breytt til baka eda ny skra bætt vid a gamla snidinu.               */
+  const setters = [
+    ...[...app.matchAll(/set([A-Z]\w+)\(await j\("([^"]+)"\)\)/g)]
+      .map(m => ({ state: m[1][0].toLowerCase() + m[1].slice(1), file: m[2] })),
+    ...[...app.matchAll(/\[\s*"([^"]+\.json)"\s*,\s*set([A-Z]\w+)\s*\]/g)]
+      .map(m => ({ state: m[2][0].toLowerCase() + m[2].slice(1), file: m[1] })),
+  ];
   const unused = setters.filter(({ state }) => {
     /* Notad ef thad er sent sem prop, lesid i useMemo, eda birt. */
     /* MORKIN ERU EITT, EKKI TVO. `const [x, setX] = useState()` gefur

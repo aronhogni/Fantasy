@@ -19,7 +19,7 @@ import {
   PTS_PER_START_MIN,
   gwTotals, gwTop, withDerived, bestXi, gwFixtureReports,
   shotsFor, shotSummary, SHOT_KINDS, matchShotsToPlayers, normName, nameScore,
-  lastFinishedGw, num, POS_ORDER,
+  num, POS_ORDER,
   moScore, aoScore, inImminentPool, imminentBoard,
   startFeatures, startProbability, startRisk, START_MODEL,
   MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES, makeEnricher,
@@ -444,15 +444,6 @@ if (report) {
     "leikir raðast í tímaröð");
 }
 
-/* ================= lastFinishedGw ================= */
-console.log("\n=== 9. lastFinishedGw ===");
-eq(lastFinishedGw([{ id:1, finished:true }, { id:2, finished:false }]), 1, "síðasta lokna umferð");
-eq(lastFinishedGw([{ id:1, finished:true }, { id:3, finished:true }, { id:2, finished:false }]), 3, "hæsta lokna, ekki fyrsta");
-eq(lastFinishedGw([]), null, "engin umferð lokin → null");
-eq(lastFinishedGw(null), null, "null-öruggt");
-const ev = J("events.json").events;
-const lf = lastFinishedGw(ev);
-ok(lf === null || (lf >= 1 && lf <= 38), `raungögn: síðasta lokna = ${lf === null ? "engin (fyrir tímabil)" : lf}`);
 
 
 /* ================= 10. MO / AO — "ohjakvaemilegt" ================= */
@@ -560,7 +551,6 @@ console.log("\n=== 11. ILLGJARNT INNTAK (engin undantekning, ekkert NaN) ===");
     ["nameScore", a => M.nameScore(a, a)], ["moScore", a => M.moScore(a)],
     ["aoScore", a => M.aoScore(a)], ["inImminentPool", a => M.inImminentPool(a)],
     ["teamsWithCleanSheet", a => M.teamsWithCleanSheet(a)],
-    ["lastFinishedGw", a => M.lastFinishedGw(a)],
     ["minutesFloor", a => M.minutesFloor(a)],
     ["isIncoherent", a => M.isIncoherent(a, "goals_scored", 5)],
     ["fmtStat", a => M.fmtStat(a, 1.5)],

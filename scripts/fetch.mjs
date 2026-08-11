@@ -116,6 +116,52 @@ function parseCSV(text) {
   return { header, rows };
 }
 
+/* ============================================================
+   API-NAFNA-VISIR — EIN UTFAERSLA (11.8.2026)
+
+   `norm`, `teamIdByNorm`, `fplByTeam` og `matchFpl` voru skilgreind
+   ORDRETT TVISVAR: i `fetchLineups` og i `fetchInjuries`. Afritin voru
+   virkni-eins (adeins linuskil og breytu-nofn skildu: `nm`/`apiName`,
+   `c`/`cands`, `bl`/`byLast`), svo sameiningin breytir engri porun.
+
+   ThAU MATTU ALDREI REKA, OG ThAD ER EKKI SMEKKUR: bædi hlidin para
+   API-Sports-nofn vid FPL-id, og porunin er SKORDUD VID LID einmitt til ad
+   algeng eftirnofn skorist ekki. Vaeri eftirnafns-reglan hert a odrum
+   staðnum og ekki hinum fengju MEIDSLI og BYRJUNARLID sitthvora porun a
+   sama leikmanninn — og hvorugt myndi kvarta.
+
+   `matchFpl` skilar `null` fyrir oparad nafn, ALDREI 0: sja regluna um
+   null-vs-0. Fyrsta lykla-mengid er viljandi fjorþaett (web_name, fullt
+   nafn, eftirnafn, "F. Eftirnafn") thvi API-id skammstafar fornofn.
+   ============================================================ */
+async function apiNameIndex() {
+  const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
+  const teamsJs = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
+  const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
+  const norm = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  /* API-lidanafn -> FPL team id (leit i ollum nafna-afbrigdum teams_map) */
+  const teamIdByNorm = {};
+  for (const [id, t] of Object.entries(tmap))
+    for (const v of [t.fpl, t.fdcouk, t.clubelo, t.understat, t.short])
+      if (v) teamIdByNorm[norm(v)] = +id;
+  teamsJs.forEach(t => { teamIdByNorm[norm(t.name)] = t.id; });
+  const fplByTeam = {};
+  for (const p of players) {
+    const keys = new Set([norm(p.web_name), norm(`${p.first_name} ${p.second_name}`),
+      norm(p.second_name), norm(`${(p.first_name || "")[0] || ""} ${p.second_name}`)]);
+    (fplByTeam[p.team] ??= []).push({ id: p.id, keys });
+  }
+  const matchFpl = (nm, teamId) => {
+    const n = norm(nm), last = n.split(" ").pop();
+    const c = fplByTeam[teamId] || [];
+    let hit = c.find(x => x.keys.has(n));
+    if (!hit) { const bl = c.filter(x => x.keys.has(last)); if (bl.length === 1) hit = bl[0]; }
+    return hit?.id ?? null;
+  };
+  return { norm, teamIdByNorm, fplByTeam, matchFpl, players, teamsJs, tmap };
+}
+
 /* ---- Leikvangahnit, lyklað á FPL short_name (aðeins notuð fyrir lið í bootstrap) ---- */
 const COORDS = {
   ARS:[51.5549,-0.1084], AVL:[52.5092,-1.8848], BOU:[50.7348,-1.8391], BRE:[51.4907,-0.2889],
@@ -805,17 +851,9 @@ async function fetchLineups() {
     return;
   }
 
-  /* 1. API-fixture-id per dagsetning, parad vid FPL-leiki eftir lidum */
-  const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
-  const teamsJs = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
-  const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
-  const norm = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
-  const teamIdByNorm = {};
-  for (const [id, t] of Object.entries(tmap))
-    for (const v of [t.fpl, t.fdcouk, t.clubelo, t.understat, t.short])
-      if (v) teamIdByNorm[norm(v)] = +id;
-  teamsJs.forEach(t => { teamIdByNorm[norm(t.name)] = t.id; });
+  /* 1. API-fixture-id per dagsetning, parad vid FPL-leiki eftir lidum.
+     Nafna-visirinn er sameiginlegur — sja `apiNameIndex`.               */
+  const { norm, teamIdByNorm, matchFpl } = await apiNameIndex();
 
   /* Dagsetningar-kall er ekki gert se ALLT thegar til — annars kostadi hver
      keyrsla 1 kall til einskis medan glugginn er opinn.                   */
@@ -836,19 +874,6 @@ async function fetchLineups() {
     }
   }
   /* 2. Lineups per leik sem vid getum parad vid FPL-leik */
-  const fplByTeam = {};
-  for (const p of players) {
-    const keys = new Set([norm(p.web_name), norm(`${p.first_name} ${p.second_name}`),
-      norm(p.second_name), norm(`${(p.first_name || "")[0] || ""} ${p.second_name}`)]);
-    (fplByTeam[p.team] ??= []).push({ id: p.id, keys });
-  }
-  const matchFpl = (nm, teamId) => {
-    const n = norm(nm), last = n.split(" ").pop();
-    const c = fplByTeam[teamId] || [];
-    let hit = c.find(x => x.keys.has(n));
-    if (!hit) { const bl = c.filter(x => x.keys.has(last)); if (bl.length === 1) hit = bl[0]; }
-    return hit?.id ?? null;
-  };
   /* GEYMSLA PER LEIK: byrjunarlid breytist ekki eftir ad thad er birt, en
      glugginn er opinn i 5 klst og keyrslan gengur a 30 min fresti — an
      thessa voru SOMU lidin sott allt ad 10 sinnum. Vid berum afram thad sem
@@ -1657,30 +1682,7 @@ async function fetchInjuries() {
 
   // para API-nöfn við FPL-id: normalíserað fullt nafn + "F. Eftirnafn"
   // + web_name, ALLT skorðað við liðið (annars ranganir á algengum nöfnum)
-  const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
-  const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
-  const teamsJs = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
-  const norm = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
-  // API-liðanafn -> FPL team id (leit í öllum nafna-afbrigðum teams_map)
-  const teamIdByNorm = {};
-  for (const [id, t] of Object.entries(tmap))
-    for (const v of [t.fpl, t.fdcouk, t.clubelo, t.understat, t.short])
-      if (v) teamIdByNorm[norm(v)] = +id;
-  teamsJs.forEach(t => { teamIdByNorm[norm(t.name)] = t.id; });
-  const fplByTeam = {};
-  for (const p of players) {
-    const keys = new Set([norm(p.web_name), norm(`${p.first_name} ${p.second_name}`),
-      norm(p.second_name), norm(`${(p.first_name || "")[0] || ""} ${p.second_name}`)]);
-    (fplByTeam[p.team] ??= []).push({ id: p.id, keys });
-  }
-  const matchFpl = (apiName, teamId) => {
-    const n = norm(apiName);
-    const last = n.split(" ").pop();
-    const cands = fplByTeam[teamId] || [];
-    let hit = cands.find(c => c.keys.has(n));
-    if (!hit) { const byLast = cands.filter(c => c.keys.has(last)); if (byLast.length === 1) hit = byLast[0]; }
-    return hit?.id ?? null;
-  };
+  const { norm, teamIdByNorm, matchFpl, players } = await apiNameIndex();
 
   const out = [], unmatched = [];
   const seen = new Set();

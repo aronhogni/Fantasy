@@ -125,5 +125,37 @@ ok("radir an lids/rodunar eru sleppt",
    setPieceRanks([{ id: 1 }, { id: 2, team: 1 }, null].filter(Boolean)).size === 0);
 ok("setPieceBadges(null, ranks) skilar null", setPieceBadges(null, ranks) === null);
 
+
+/* ============================================================
+   APPID VERDUR AD NOTA RODUN INNAN LIDS, EKKI FPL-TOLUNA (C21, 11.8.2026)
+   `setPieceBadges`/`setPieceRanks` eru RETTA adferdin skv. hausnum a
+   SetPieces.jsx — og voru samt export sem APPID NOTADI EKKI: App.jsx bar
+   sina eigin `isPenTaker: pen === 1`.
+   Maelt: badar adferdir gefa SOMU 20 vitaskyttur i dag (63 leikmenn med
+   `penalties_order`), svo thetta var TVITEKNING, ekki villa. En thaer hefdu
+   rekid i sundur ThANN DAG sem FPL endurgrunnar vita-rodina — eins og hun
+   ThEGAR gerir fyrir horn (svid 4-10, svo `order === 1` naer thar aldrei) —
+   og tha i thogn: PEN-merkid hefdi horfid af ollum spjoldum.
+   ATHUGASEMDIR ERU SKORNAR BURT ADUR EN LEITAD ER: skyringin i App.jsx
+   vitnar sjalf i gamla kodann (`pen === 1`) og myndi annars uppfylla
+   fullyrdinguna sem hun utskyrir.
+   ============================================================ */
+console.log("\n=== C21: APPID LES RODUN, EKKI FPL-TOLUNA ===");
+{
+  const { readFileSync } = await import("node:fs");
+  const raw = readFileSync(new URL("../src/App.jsx", import.meta.url).pathname, "utf8");
+  const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  ok("App.jsx flytur inn setPieceRanks", /import\s+SetPieces\s*,\s*\{[^}]*setPieceRanks/.test(code));
+  ok("setPieceOf tekur `ranks`", /function setPieceOf\(p, ranks\)/.test(code));
+  ok("isPenTaker kemur ur rank === 1, ekki `pen === 1`",
+     /rank === 1/.test(code) && !/isPenTaker: pen === 1/.test(code));
+  /* Fullyrdingin ma ekki vera tóm: mynstrid VAR tharna. Se `setPieceOf`
+     horfid ur App.jsx er thetta safn ad maela ekkert.                     */
+  ok("setPieceOf er enn til i App.jsx (annars maelir thetta ekkert)",
+     /function setPieceOf\(/.test(code));
+  const calls = (code.match(/setPieceOf\(p, spRanks\)/g) || []).length;
+  ok(`allir kallstadir senda rodunina (${calls})`, calls >= 3);
+}
+
 console.log(`\nFOST LEIKATRIDI: ${pass}/${pass + fail} graen`);
 process.exit(fail ? 1 : 0);

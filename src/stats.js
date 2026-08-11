@@ -1086,11 +1086,14 @@ function sumBy(rows, key) {
 }
 
 /* Er umferdin raunverulega lokin? */
-export function lastFinishedGw(events) {
-  let last = null;
-  for (const e of rowsOf(events)) if (e.finished && (last == null || e.id > last)) last = e.id;
-  return last;
-}
+/* `lastFinishedGw` VAR HER OG ER FARID (11.8.2026): export sem ENGINN i
+   appinu kalladi — adeins profid sjalft. Appid faer sidustu loknu umferd ur
+   pipeline-inu (`lastGw.json` -> GwReport) og `cumLabel` byggir a FJOLDA
+   loknum umferda (`seasonGames`), ekki a haesta id-i.
+   Hun var EKKI tengd i stadinn af asettu radi: `cumLabel` og
+   `lastFinishedGw` skila somu tolu i FPL-veruleika (umferdir ljuka i rod) en
+   sitthvoru se umferd frestad — og ad breyta birtu merki eftir jadartilfelli
+   sem eg get ekki maelt i forleik vaeri agiskun i bunimgi lagfaeringar.    */
 
 /* ============================================================
    4. "OHJAKVAEMILEGT" — MO (mark) og AO (assist)

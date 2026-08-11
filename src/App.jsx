@@ -3,7 +3,7 @@ import { interp } from "./interp.js";
 import Pitch from "./Pitch.jsx";
 import GwReport from "./GwReport.jsx";
 import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
-import SetPieces from "./SetPieces.jsx";
+import SetPieces, { setPieceRanks } from "./SetPieces.jsx";
 import { SetPieceIcon, CrownIcon } from "./Icons.jsx";
 import Teams from "./Teams.jsx";
 import Compare from "./Compare.jsx";
@@ -404,11 +404,26 @@ function banRisk(p, gwNow, seasonStarted) {
     toGo, y, threshold, matches,
   };
 }
-// Vítataki / fastaleikir (1 = fyrsti í röð)
-function setPieceOf(p) {
+/* Vitataki / fastaleikir.
+   `isPenTaker` KEMUR NU UR RODUN INNAN LIDS, EKKI UR FPL-TOLUNNI
+   (lagad 11.8.2026). Adur var thad `pen === 1`, sem er nakvaemlega su
+   gildra sem `SetPieces.jsx` er skrifud til ad vara vid: FPL notar ANNAN
+   GRUNN fyrir horn (svid 4-10), svo `order === 1` naedi ThAR aldrei — og
+   ekkert lofar ad vita-svidid haldi sinum grunni. `setPieceRanks` radar
+   INNAN LIDS og `rank === 1` er thvi "fyrsti takarinn" oháð grunni.
+
+   ThETTA VAR TVITEKNING, EKKI VILLA I DAG: maelt a raungognum (63 leikmenn
+   med `penalties_order`) gefa BADAR adferdir SOMU 20 vitaskyttur, 0 fravik.
+   En `setPieceBadges` — sem er RETTA adferdin skv. hausnum a SetPieces.jsx —
+   var export sem appid notadi ekki, medan appid bar sina eigin utgafu. Their
+   hefdu rekid i sundur ThANN DAG sem FPL endurgrunnar vita-rodina, og tha i
+   thogn: PEN-merkid hefdi einfaldlega horfid af ollum spjoldum.
+   Vordur: tests/set-pieces.mjs.                                          */
+function setPieceOf(p, ranks) {
   const pen = p?.penalties_order, ck = p?.corners_and_indirect_freekicks_order, fk = p?.direct_freekicks_order;
   if (pen == null && ck == null && fk == null) return null;
-  return { pen, ck, fk, isPenTaker: pen === 1 };
+  const isPenTaker = (ranks?.get?.(p?.id) || []).some(b => b.key === "pen" && b.rank === 1);
+  return { pen, ck, fk, isPenTaker };
 }
 // Skiptingar-hætta: byrjaði sjaldan þrátt fyrir að vera heill.
 // FYRIR TÍMABIL sýnir FPL starts FYRRA tímabils (deilt með 38). Þegar
@@ -1037,6 +1052,9 @@ export default function App() {
      frá FYRRA tímabili þar til umferð er lokin. Þessi tvö flögg ákveða hvort
      þær megi lesa sem yfirstandandi — og margt neðar þarf þau, svo þau eru
      skilgreind hér, ekki hjá preSeason.                                     */
+  /* Fostu-leikatriða rodun INNAN LIDS — reiknud einu sinni, notud af
+     `setPieceOf` (sja thar hvers vegna FPL-tolan er ekki nog).          */
+  const spRanks = useMemo(() => setPieceRanks(players || []), [players]);
   const seasonStarted = !!events?.some(e => e.finished);
   const seasonGames = (events || []).filter(e => e.finished).length;
 
@@ -1764,7 +1782,7 @@ export default function App() {
       // Aðlaganir sem MÆLINGIN nær ekki yfir (tiltækileiki, bönn, fastaleikir)
       const br = banRisk(p, gw, seasonStarted);
       const banPen = !br ? 0 : br.level === "high" ? -2.5 : br.level === "mid" ? -1 : 0;
-      const spB = setPieceOf(p)?.isPenTaker ? 2.2 : 0;
+      const spB = setPieceOf(p, spRanks)?.isPenTaker ? 2.2 : 0;
       const rot = rotationRisk(p, seasonGames);
       const rotPen = !rot ? 0 : rot.level === "high" ? -2 : rot.level === "mid" ? -0.8 : 0;
       // DefCon-tækifæri fyrir vörn (aðskilið frá CS%)
@@ -3039,7 +3057,7 @@ export default function App() {
         const fxs = allFixturesFor(t.id, gw, CARD_FIXTURES);
         const av = isPlayer ? availOf(p) : null;
         const ban = isPlayer ? banRisk(p, gw, seasonStarted) : null;
-        const sp = isPlayer ? setPieceOf(p) : null;
+        const sp = isPlayer ? setPieceOf(p, spRanks) : null;
         const rot = isPlayer ? rotationRisk(p, seasonGames) : null;
         /* DC-HITTNI (afturvirkjud, sja TERMINAL_HANDOFF_4 og CLAUDE.md 6l):
            hit_rate_adj ur defcon.json — EKKI hraa hit_rate, hun ofmaelist a
@@ -3388,7 +3406,7 @@ export default function App() {
                           ? <span style={{ ...S.sAvail, background:a.bg, color:a.color }}
                               title={a.news || a.label}>{a.short}{a.chance != null && a.chance > 0 ? ` ${a.chance}%` : ""}</span>
                           : null; })()}
-                        {setPieceOf(p)?.isPenTaker && <span style={S.sPen} title={"First penalty taker (updated daily from FPL)"}>PEN</span>}
+                        {setPieceOf(p, spRanks)?.isPenTaker && <span style={S.sPen} title={"First penalty taker (updated daily from FPL)"}>PEN</span>}
                       </div>
                       <div style={S.sMeta}>
                         {t?.short} · {POS_LABEL[p.element_type]} · ep {p.ep_next}

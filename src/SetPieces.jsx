@@ -95,7 +95,7 @@ export function setPieceRanks(players) {
 
    Talid a RODUN INNAN LIDS (rank === 1), ekki a FPL-tolunni: horn na
    aldrei 1 (sja ofar), svo `order === 1` hefdi talid hornin ur.        */
-export function setPieceCount(p, ranks) {
+function setPieceCount(p, ranks) {
   const list = ranks?.get?.(p?.id);
   if (!list) return 0;
   return list.filter(b => b.rank === 1).length;

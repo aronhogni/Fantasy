@@ -35,7 +35,19 @@ const src = await readFile(new URL("../scripts/fetch.mjs", import.meta.url), "ut
 const start = src.indexOf("async function fetchLineups(");
 ok(start > 0, "fetchLineups finnst i scripts/fetch.mjs");
 const end = src.indexOf("\n}\n", start);
-const decl = src.slice(start, end + 3);
+/* NAFNA-VISIRINN FYLGIR MED (11.8.2026). `norm`/`teamIdByNorm`/`fplByTeam`/
+   `matchFpl` voru skilgreind ORDRETT inni i BADUM `fetchLineups` og
+   `fetchInjuries`; thau eru nu i sameiginlegu `apiNameIndex()`. Thetta safn
+   dregur fallid UT og keyrir thad i einangrun, svo hjalparfallid verdur ad
+   fylgja — annars er thad ekki i scope og profid fellur med
+   "apiNameIndex is not defined" (sem thad gerdi, og thad er RETT: safnid
+   a ad taka eftir thvi ad fallid oðlaðist nyja hað).                     */
+const axStart = src.indexOf("async function apiNameIndex(");
+ok(axStart > 0, "apiNameIndex finnst i scripts/fetch.mjs");
+const axDecl = src.slice(axStart, src.indexOf("\n}\n", axStart) + 3);
+ok(/matchFpl/.test(axDecl) && /teamIdByNorm/.test(axDecl),
+  "nafna-visirinn ber matchFpl OG teamIdByNorm (ein utfaersla fyrir bædi foll)");
+const decl = axDecl + "\n" + src.slice(start, end + 3);
 ok(/apiSports\(`\/fixtures\/lineups\?fixture=/.test(decl),
   "kallar a rettan endapunkt (/fixtures/lineups?fixture=)");
 ok(/\/fixtures\?league=39&date=/.test(decl),

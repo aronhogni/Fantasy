@@ -60,7 +60,7 @@ function Cell({ cell, teamById, hard }) {
 /* Val a sjondeildarhring. Sjalfgildi 6 (thad sem notandinn bad um) en
    listinn nær alla leid — horizonGws() klippir vid sidustu umferd, svo
    "allar" er ohaett i hvada umferd sem er. Taflan skrunar sjalf (S.scroll). */
-export const HORIZONS = [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 38];
+const HORIZONS = [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 38];
 
 export default function Rotation({
   targetIds, players, teamById, fixByTeamGw, fixDifficulty, gwNow, maxGw = 38,

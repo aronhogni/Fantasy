@@ -8,6 +8,12 @@ node_modules
 dist/
 .env
 .env.local
+# ALLAR .env-utgafur (11.8.2026). Adur voru ADEINS `.env` og `.env.local`
+# skradar, svo `.env.production`, `.env.local.bak` eda `.env.keys` hefdu
+# verid FYLGST MED — i PUBLIC repo-i, med fjorum API-lyklum i umferd.
+# Vordurinn a leyndarmalum er "aldrei lykil i commit", og hann a ekki ad
+# vera undir thvi ad nafnid se nakvaemlega eitt af tveimur.
+.env.*
 .cache-nfl/
 nfl/.cache-nfl/
 nfl/node_modules/
