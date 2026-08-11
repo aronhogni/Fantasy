@@ -58,7 +58,15 @@ export const BSD_TEAM = {
    Svid sem er alltaf 0 LITUR UT EINS OG MAELING en thydir "gognin eru
    ekki til" — gildran sem kafli 3 og 6n fordast.                      */
 const SUM_FIELDS = [
-  "minutes_played", "goals", "goal_assist", "total_shots", "shots_on_target",
+  /* `total_shots` og `shots_on_target` VORU HER OG ERU FARIN (11.8.2026):
+     thau voru summud i hverri umferd en `finalize` skilade theim ALDREI og
+     ekkert i repo-inu las thau (staðfest med grepp yfir src/, scripts/ og
+     tests/ — nul tilvik utan thessarar linu). Skot-fjoldinn sem appid
+     birtir er talinn UR SKOTAKORTINU (`addShot`), sem er maelda heimildin;
+     thessi tvo voru BSD-eigin samtolur vid hlidina, ospurd og obirt.
+     Ad summa svid sem hvergi kemur ut er sama aett og daud svid sem
+     athugasemdin fyrir ofan bannar.                                    */
+  "minutes_played", "goals", "goal_assist",
   "key_pass", "total_cross", "accurate_cross", "touches",
   "total_contest", "won_contest", "duel_won", "duel_lost", "aerial_won", "aerial_lost",
   "total_pass", "accurate_pass", "total_long_balls", "accurate_long_balls",
@@ -135,6 +143,29 @@ export function resolveTeam(acc) {
 }
 
 /** Safnari -> birt rod. TOM GILDI ERU null, ALDREI 0 (CLAUDE.md 6i). */
+/* SKOT-SVIDIN NOTA NU `per()` EINS OG ALLIR ADRIR TELJARAR (11.8.2026).
+   ADUR: `shots: s || null` og `<svid>: s ? … : null`, thar sem `s` er
+   FJOLDI SKOTA. Leikmadur sem SPILADI en skaut EKKI fekk thvi `null` —
+   sem birtist sem "—" og segir "gognin vantar", thott vid vitum
+   nakvaemlega hvad hann gerdi: hann skaut ekki. Thad er RAUNVERULEGT NULL
+   og reglan i CLAUDE.md kafla 8 er skyr: NULL ER EKKI NULL.
+
+   MAELT a committudu skranni (393 leikmenn): **77 hafa apps>0 og
+   shots===null** — 37 markmenn, 19 varnarmenn, 15 midjumenn, 6 framherjar.
+   Markmennirnir eru fyrirsjaanlegir, en utileikmennirnir eru thad ekki:
+     Lamare Bogarde (AVL M) 38 apps, 1.104 min, 0 skot
+     Adam Smith     (BOU D) 33 apps, 1.095 min, 0 skot
+   Fyrir thá tvo er "—" hreinlega ROENG birting.
+
+   ThAD SEM SETTI ThETTA UT AF: SAMA ROD ber thegar `touches: 0` og
+   `key_pass: 0` fyrir leikmann med 0 minutur (staðfest: Anthony Patterson,
+   23 apps, 0 min -> touches 0, key_pass 0, shots **null**). `shots` var
+   thvi EINA teljarinn i rodinni sem hagadi ser ekki eins og hinir; thetta
+   samraemir hann vid rodina sem hann bur i, thad byr ekki til nya reglu.
+
+   HLUTFOLL FYLGJA EKKI MED og thad er asetningur: `xg_per_shot` er 0/0
+   an skota og `sp_xg_share` krefst `acc.xg > 0`. Thar ER null rett svar —
+   ekki "vantar" heldur "OSKILGREINT".                                   */
 export function finalize(acc, { bsd_id, name, pos, team, fpl_id, code }) {
   const per = v => (acc.apps ? v : null);
   const s = acc.shots;
@@ -145,21 +176,21 @@ export function finalize(acc, { bsd_id, name, pos, team, fpl_id, code }) {
     minutes: per(acc.minutes_played),
     rating: acc.rating_n ? +(acc.rating_sum / acc.rating_n).toFixed(2) : null,
     goals: per(acc.goals), assists: per(acc.goal_assist),
-    shots: s || null,
-    xg: s ? +acc.xg.toFixed(3) : null,
+    shots: per(s),
+    xg: per(+acc.xg.toFixed(3)),
     xg_per_shot: s ? +(acc.xg / s).toFixed(4) : null,
-    big_chances: s ? acc.big_chances : null,
-    shots_in_box: s ? acc.shots_in_box : null,
-    shots_out_box: s ? acc.shots_out_box : null,
-    sp_shots: s ? acc.sp_shots : null,
-    sp_xg: s ? +acc.sp_xg.toFixed(3) : null,
-    op_xg: s ? +acc.op_xg.toFixed(3) : null,
+    big_chances: per(acc.big_chances),
+    shots_in_box: per(acc.shots_in_box),
+    shots_out_box: per(acc.shots_out_box),
+    sp_shots: per(acc.sp_shots),
+    sp_xg: per(+acc.sp_xg.toFixed(3)),
+    op_xg: per(+acc.op_xg.toFixed(3)),
     sp_xg_share: acc.xg > 0 ? +(acc.sp_xg / acc.xg).toFixed(3) : null,
-    head_shots: s ? acc.head_shots : null,
-    head_xg: s ? +acc.head_xg.toFixed(3) : null,
-    pen_shots: s ? acc.pen_shots : null,
-    np_xg: s ? +(acc.xg - acc.pen_xg).toFixed(3) : null,
-    woodwork: s ? acc.woodwork : null,
+    head_shots: per(acc.head_shots),
+    head_xg: per(+acc.head_xg.toFixed(3)),
+    pen_shots: per(acc.pen_shots),
+    np_xg: per(+(acc.xg - acc.pen_xg).toFixed(3)),
+    woodwork: per(acc.woodwork),
     key_pass: per(acc.key_pass),
     crosses: per(acc.total_cross), crosses_acc: per(acc.accurate_cross),
     touches: per(acc.touches),
@@ -216,9 +247,13 @@ export function mergeLineupSnapshot(prev, { eventId, fixture, kickoff, lineups, 
    og "Riley". Hun vantadi einnig fjora stafi (ħ ŋ ĸ ŧ).
 
    MAELT ADUR EN BREYTT VAR — sameiningin er HREINSUN, ekki lagfaering:
-   endurbyggt frambod (284 leikmenn, sama skorun undir badum normolurum)
-   gefur **0 breytta porun**, og endurbyggingin skilar committudu
-   bsd_players.json STAFRETT. Sja names.js fyrir alla toluna.
+   endurbyggt frambod (**393 leikmenn**, sama skorun undir badum
+   normolurum) gefur **0 breytta porun**.
+   ATH: fyrsta maelingin sagdi "284" og "0 fravik fra committudu skranni".
+   Badar tolur voru rangar — maeliskriftan las `unmatched_names` (284
+   strengi) i stad `players` (393). Rett maeling gefur SOMU nidurstodu.
+   Sja alla soguna i names.js; hun er skjolud thar af thvi ad tóm maeling
+   sem les eins og maeling er versta utkoman (CLAUDE.md kafli 3).
 
    `nameScore` HER AD NEDAN FYLGDI EKKI MED OG ThAD ER ASETT: hun skilar
    HLUTFALLI (0..1) thvi `pairPlayers` ber thad vid throskuldinn 0,6, en

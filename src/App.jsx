@@ -669,47 +669,71 @@ export default function App() {
         if (!plA || !tmA || !fxA || !evA) throw new Error("core data in an unexpected shape");
         setPlayers(plA); setTeams(tmA); setFixtures(fxA); setEvents(evA);
         setDataState("ok");
-        try { setDefcon(await j("defcon.json")); } catch {}
-        try { setDefconHist(await j("defcon_history.json")); } catch {}
-        try { setConsist(await j("consistency.json")); } catch {}
-        try { setBsd(await j("bsd_players.json")); } catch {}
-        /* Til fyrst thegar timabilid er byrjad — vantar i forleik og thad
-           er RETT (enginn lokinn leikur til ad telja).                  */
-        try { setBsdLive(await j("bsd_live.json")); } catch {}
-        try { setPlayerForm(await j("player_form.json")); } catch {}
-        try { setPipeStatus(await j("status.json")); } catch {}
-        /* HRADA KEYRSLAN SKRIFAR I status_fast.json OG APPID LAS HANA EKKI.
-           Thar med voru ALLAR heimildir hradar keyrslunnar osynilegar i
-           hlidarstikunni — thar a medal api_lineups. Vordur i profi.     */
-        try { setPipeStatusFast(await j("status_fast.json")); } catch {}
-        /* STADFEST BYRJUNARLID. Pipeline skrifadi lineups.json en APPID LAS
-           HANA ALDREI — eiginleikinn var fullbyggdur og maeldur en gognin
-           foru ekkert. Thridja tilvikid af somu tegund i thessari lotu
-           (rong keyrsla -> vantandi lykil -> enginn notandi).            */
-        try { setLineups(await j("lineups.json")); } catch {}
-        try { setElo(await j("elo.json")); } catch {}
-        try { setWeather(await j("weather.json")); } catch {}
-        try { setTravel(await j("travel.json")); } catch {}
-        /* season_baseline.json er EKKI lengur lesin: gamla "i ar vs i fyrra"-taflan
-           notadi hana, en SeasonTable les nu player_seasons.json sem porar a `code`
-           (fast a leikmanni) i stad `id` sem FPL endurnytir milli timabila.
-           Pipeline skrifar hana afram — hun er bara ekki sott i framendann.     */
-        try { setInjuries(await j("injuries.json")); } catch {}
-        try { setEloFx(await j("elo_fixtures.json")); } catch {}
-        try { setEuroFx(await j("euro_fixtures.json")); } catch {}
-        try { setNews(await j("news.json")); } catch {}
-        try { setPromoted(await j("promoted_baseline.json")); } catch {}
-        try { setChipRules(await j("chips.json")); } catch {}
-        try { setFormFeat(await j("form_features.json")); } catch {}
-        try { setTeamForm(await j("team_form.json")); } catch {}
-        try { setLuck(await j("luck.json")); } catch {}
-        try { setTeamShots(await j("team_shots.json")); } catch {}
-        try { setBsdTeams(await j("bsd_teams.json")); } catch {}
-        try { setLastGw(await j("last_gw.json")); } catch {}
-        try { setLastGwShots(await j("last_gw_shots.json")); } catch {}
-        try { setSeasonsFile(await j("player_seasons.json")); } catch {}
-        try { setSpNotes(await j("set_piece_notes.json")); } catch {}
-        try { setImminent(await j("imminent.json")); } catch {}
+        /* VALFRJALSU SKRARNAR ERU SOTTAR SAMHLIDA (lagad 11.8.2026).
+           ADUR voru thetta **28 `await` I ROD** eftir kjarnann, hver sin eigin
+           ferd til raw.githubusercontent. Kjarninn (players/teams/fixtures/
+           events) var thegar i `Promise.all`, en allt hitt — oddar, elo,
+           frettir, skotakort, byrjunarlid — bidadi i rod, svo a haegri
+           tengingu var bidin SUMMA allra 28 ferda i stad thess ad vera lengd
+           theirrar haegustu. Thad er thad sem notandinn ser sem "spjaldid er
+           tomt i nokkrar sekundur".
+
+           `allSettled` ER RETTA VERKFAERID, EKKI `all`: hver skra HER er
+           VALFRJALS og ma vanta (`bsd_live.json` er ekki til i forleik,
+           `defcon.json` adeins 2025/26). `Promise.all` hefdi latid EINA
+           vantandi skra fella allar hinar — thad vaeri afturfor fra
+           `try {} catch {}` sem var thar adur. Hver faersla heldur thvi sinni
+           eigin thoglu bilun, nakvaemlega eins og adur; thad eina sem
+           breytist er ROD ferdanna, ekki utkoman.
+
+           Athugasemdirnar sem stodu vid stakar skrar eru VID FAERSLURNAR
+           sjalfar hér ad nedan — thaer skjala villur sem kostudu tima og
+           thaer eiga ekki ad tynast i endurskipulagningu.                */
+        const OPTIONAL = [
+          ["defcon.json",            setDefcon],
+          ["defcon_history.json",    setDefconHist],
+          ["consistency.json",       setConsist],
+          ["bsd_players.json",       setBsd],
+          /* Til fyrst thegar timabilid er byrjad — vantar i forleik og thad
+             er RETT (enginn lokinn leikur til ad telja).                  */
+          ["bsd_live.json",          setBsdLive],
+          ["player_form.json",       setPlayerForm],
+          ["status.json",            setPipeStatus],
+          /* HRADA KEYRSLAN SKRIFAR I status_fast.json OG APPID LAS HANA EKKI.
+             Thar med voru ALLAR heimildir hradar keyrslunnar osynilegar i
+             hlidarstikunni — thar a medal api_lineups. Vordur i profi.     */
+          ["status_fast.json",       setPipeStatusFast],
+          /* STADFEST BYRJUNARLID. Pipeline skrifadi lineups.json en APPID LAS
+             HANA ALDREI — eiginleikinn var fullbyggdur og maeldur en gognin
+             foru ekkert. Thridja tilvikid af somu tegund i thessari lotu
+             (rong keyrsla -> vantandi lykil -> enginn notandi).            */
+          ["lineups.json",           setLineups],
+          ["elo.json",               setElo],
+          ["weather.json",           setWeather],
+          ["travel.json",            setTravel],
+          /* season_baseline.json er EKKI lengur lesin: gamla "i ar vs i fyrra"-taflan
+             notadi hana, en SeasonTable les nu player_seasons.json sem porar a `code`
+             (fast a leikmanni) i stad `id` sem FPL endurnytir milli timabila.
+             Pipeline skrifar hana afram — hun er bara ekki sott i framendann.     */
+          ["injuries.json",          setInjuries],
+          ["elo_fixtures.json",      setEloFx],
+          ["euro_fixtures.json",     setEuroFx],
+          ["news.json",              setNews],
+          ["promoted_baseline.json", setPromoted],
+          ["chips.json",             setChipRules],
+          ["form_features.json",     setFormFeat],
+          ["team_form.json",         setTeamForm],
+          ["luck.json",              setLuck],
+          ["team_shots.json",        setTeamShots],
+          ["bsd_teams.json",         setBsdTeams],
+          ["last_gw.json",           setLastGw],
+          ["last_gw_shots.json",     setLastGwShots],
+          ["player_seasons.json",    setSeasonsFile],
+          ["set_piece_notes.json",   setSpNotes],
+          ["imminent.json",          setImminent],
+        ];
+        await Promise.allSettled(OPTIONAL.map(([file, set]) =>
+          j(file).then(set, () => {})));
         const cur = evA.find(e => e.is_current) || evA.find(e => e.is_next);
         if (cur) setGw(cur.id);
       } catch (e) { setDataState("error"); }
@@ -811,15 +835,59 @@ export default function App() {
            Gilt astand fer i gegn obreytt.                              */
         const arr = (v, d = []) => Array.isArray(v) ? v : d;
         const obj = v => (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
-        /* benchSwaps er hlutur AF FYLKJUM (umferd -> skipti). Thad dugar
-           thvi ekki ad thvinga ytri gerdina: `{"1":"x"}` er gildur hlutur
-           en "x".forEach fellur. Gildin eru thvingud lika.             */
+        /* TOLU-SVIDIN VORU EKKI ThVINGUD (lagad 11.8.2026). Fyrri umferd
+           thessarar vinnu thvingadi GERD FYLKJA og HLUTA en let stoku
+           tolurnar og INNIHALD fylkjanna ospurt. Thau eru jafn ovarin:
+             entryId:"abc"                -> fer i `?path=fpl-entry&id=abc`
+             captain:"x"                  -> `x === s.id` er alltaf false,
+                                             svo fyrirlidinn HVERFUR thogult
+             plan:[{gw:"2"}]              -> `tr.gw > g` ber strengja-
+                                             samanburd; rod skiptanna raskast
+             watch:[{}]                   -> `v.includes(id)` finnur aldrei
+             rivals:["606"]               -> `r.id` er undefined -> kall med
+                                             `id=undefined`
+           `localStorage` er notanda-gogn sem VID skrifum, en notandinn (eda
+           onnur utgafa appsins, eda handvirk breyting) getur skrifad hvad sem
+           er — og reglan i kafla 8c er ad EITT onytt svid ma bara kosta sig
+           sjalft. Gilt astand fer i gegn OBREYTT.                         */
+        const int = v => {
+          const n = typeof v === "number" ? v : (typeof v === "string" ? Number(v) : NaN);
+          return Number.isInteger(n) ? n : null;
+        };
+        /* Fylki AF TOLUM: hver ogild faersla er sleppt, ekki nulluð — 0 er
+           gilt leikmanns-id i engum heimi, en `null` i vaktlista vaeri rod
+           sem birtist sem tomt spjald.                                    */
+        const intArr = v => arr(v).map(int).filter(x => x != null);
+        /* Fylki AF HLUTUM med tolu-svidum sem MEGA EKKI vanta.            */
+        const rowArr = (v, req) => arr(v).filter(r => r && typeof r === "object"
+          && req.every(k => int(r[k]) != null))
+          .map(r => ({ ...r, ...Object.fromEntries(req.map(k => [k, int(r[k])])) }));
+        /* benchSwaps er hlutur af fylkjum AF PORUM (umferd -> [[aId,bId]…]),
+           og ThAD ER EITT STIG DYPRA EN ThESSI ATHUGASEMD SAGDI ADUR.
+           Hun sagdi "hlutur AF FYLKJUM" og `objOfArr` thvingadi nakvaemlega
+           thad — en notkunarstadirnir (1367 og 2001) gera
+           `(benchSwaps[gw] || []).forEach(([aId, bId]) => …)`, sem
+           AFBYGGIR hverja faerslu sem par.
+           `{"3": [1, 2]}` er thvi "hlutur af fylkjum", stenst gamla profid,
+           OG FELLIR APPID: `1` er ekki iterable.
+
+           FUNDID 11.8.2026 AF NYJA HRINGFERDAR-PROFINU — og fyrst sem
+           villa i profgognunum MINUM (eg skrifadi `{"3":[1,2]}` sem "gilt
+           astand"), sem er einmitt hvernig raunveruleg skemmd blob verda
+           til: einu stigi of flatt. Ad thvinga bara ytri gerdina var sami
+           halfkaraði vordur og "gilt JSON" var adur.
+
+           Nu er hver faersla ThVINGUD I PAR AF TOLUM og ogild por sleppt —
+           eitt skemmt par kostar sig sjalft, ekki umferdina.            */
         const objOfArr = v => Object.fromEntries(
-          Object.entries(obj(v)).map(([k, val]) => [k, arr(val)]));
-        setEntryId(s.entryId ?? null); setPlan(arr(s.plan));
-        setCaptain(s.captain ?? START_CAPTAIN); setVice(s.vice ?? null);
+          Object.entries(obj(v)).map(([k, val]) => [k,
+            arr(val).filter(pair => Array.isArray(pair) && pair.length === 2
+                                    && pair.every(x => int(x) != null))
+                    .map(pair => pair.map(int))]));
+        setEntryId(int(s.entryId)); setPlan(rowArr(s.plan, ["gw", "outId", "inId"]));
+        setCaptain(int(s.captain) ?? START_CAPTAIN); setVice(int(s.vice));
         setBenchSwaps(objOfArr(s.benchSwaps)); setChips(obj(s.chips)); setBuyPrices(obj(s.buyPrices));
-        setRivals(arr(s.rivals)); setWatch(arr(s.watch));
+        setRivals(rowArr(s.rivals, ["id"])); setWatch(intArr(s.watch));
       }
       setLoaded(true);
     })();
@@ -1018,7 +1086,10 @@ export default function App() {
   const teamById = useMemo(() => {
     const m = {}; (teams || []).forEach(t => m[t.id] = t); return m;
   }, [teams]);
-  const crestFor = t => crestUrl(t?.code ?? CREST_FALLBACK[t?.short]);
+  /* `crestFor` VAR HER OG ER FARID (11.8.2026): thraedd sem prop inn i
+     FfdrTable, PlayerCard og RecCard — og NOTUD I ENGRI theirra (0 tilvik i
+     ollum thremur foll-likomum). `Crest` byggir sina eigin slod ur
+     `crestUrl`/`CREST_FALLBACK`, sem stada afram thvi Crest notar thau.   */
 
   const maxGw = events ? events.length : 38;
 
@@ -1049,11 +1120,11 @@ export default function App() {
     return m;
   }, [fixtures]);
 
-  const fixturesOfGw = useMemo(() =>
-    (fixtures || []).filter(f => f.event === gw)
-      .sort((a,z) => (a.kickoff_time||"").localeCompare(z.kickoff_time||"")),
-    [fixtures, gw]);
-
+  /* `fixturesOfGw` VAR HER OG ER FARID (11.8.2026): useMemo sem raðadi
+     leikjum umferdarinnar og var ALDREI LESID (eitt tilvik i skranni =
+     skilgreiningin sjalf). Leikjalistinn i GW-flipanum byggir sina eigin
+     rod i `GwFixtureList`. Daudur useMemo er ekki bara rusl — hann keyrir
+     vid hverja breytingu a `fixtures`/`gw` og les eins og hann matti mali. */
   // Lið-mælikvarðar úr opinberum gögnum (sl. tímabil)
   const teamMetrics = useMemo(() => {
     if (!players || !teams) return {};
@@ -1265,18 +1336,11 @@ export default function App() {
     return { cs: clamp(Math.round(raw), 3, 70), src: "measured" };
   }
   // Vænt mörk á sig
-  function xgaFor(teamId, fx) {
-    const short = teamById[teamId]?.short;
-    const bk = odds && short && odds[short];
-    const bkValid = bk && Number.isFinite(bk.xga) && fx &&
-      teamById[fx.opp]?.short === bk.opp &&
-      (!fx.kickoff || !bk.kickoff || fx.kickoff.slice(0,10) === bk.kickoff.slice(0,10));
-    if (bkValid) return bk.xga;
-    if (!fx) return null;
-    // MÆLD tafla: FDR -> mörk á sig (1.102 leikir). Fínt með liðsstyrk.
-    const d2 = fixDifficulty(teamId, fx, 2) ?? fx.fdr;
-    return +clamp(lookupMeasured("ga", d2), 0.3, 3.4).toFixed(1);
-  }
+  /* `xgaFor` VAR HER OG ER FARID (11.8.2026): reiknadi vaent mork a sig fyrir
+     lid i leik (markadslina, annars maelda FDR-taflan) og var thraett sem
+     prop inn i PlayerCard — sem notadi hana ALDREI. Spjaldid birtir CS%
+     (`csFor`), ekki xGA. Fallid las `odds`, `teamById`, `fixDifficulty` og
+     `lookupMeasured`, svo thad LAS EINS OG BURDARVIRKI en var enda-lokad.  */
   // Team xG (sóknar-vænting liðsins í þessum leik)
 
   /* ---------- Sameinaður leikjalisti: deild + Evrópa + bikar ---------- */
@@ -2318,7 +2382,7 @@ export default function App() {
                       fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]}
                       fxNext3={nextGwFixtures(byId[sq.id]?.team, gw)}
                       captain={captain} vice={vice}
-                      csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
+                      csFor={csFor}
                       dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
                       isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
                       isSellHint={recommendations.sellIds?.has(sq.id)}
@@ -2342,7 +2406,7 @@ export default function App() {
                     fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]} bench
                     fxNext3={nextGwFixtures(byId[sq.id]?.team, gw)}
                     captain={captain} vice={vice}
-                    csFor={csFor} xgaFor={xgaFor} crestFor={crestFor}
+                    csFor={csFor}
                     dc={dcOpp[byId[sq.id]?.team]} elo={eloByTeam[byId[sq.id]?.team]} gwNow={gw} sellTenths_={sellOf(sq.id)} diffOf={fixDifficulty}
                     isPlanned={plannedIn.has(sq.id) && !officialIds.has(sq.id)}
                     isSellHint={recommendations.sellIds?.has(sq.id)}
@@ -2438,7 +2502,7 @@ export default function App() {
           {/* FFDR-TAFLAN — plönunar-yfirsýn yfir öll lið */}
           {showFfdr && (
             <FfdrTable teams={teams} fixByTeamGw={fixByTeamGw} teamById={teamById}
-              diffOf={fixDifficulty} crestFor={crestFor}
+              diffOf={fixDifficulty}
               from={tlStart} span={tlWindow} maxGw={maxGw}
               onPickTeam={id => setDetail({ kind:"team", id })} />
           )}
@@ -2953,7 +3017,7 @@ export default function App() {
               {(recommendations.byPos[pos] || []).map(r => (
                 <RecCard key={r.p.id} r={r} team={teamById[r.p.team]} teamById={teamById}
                   dc={dcOpp[r.p.team]} elo={eloByTeam[r.p.team]} diffOf={fixDifficulty}
-                  crestFor={crestFor} csFor={csFor} range={recRange} onAdd={() => setDetail({ kind:"player", id:r.p.id })} />
+                  csFor={csFor} range={recRange} onAdd={() => setDetail({ kind:"player", id:r.p.id })} />
               ))}
             </div>
           </div>
@@ -3560,26 +3624,11 @@ function FixStrip({ gws, teamById, diffOf, teamId, pos }) {
   );
 }
 
-function FixChip({ fx, teamById, diff, pos }) {
-  if (!fx) return <div style={S.noFix}>—</div>;
-  const opp = teamById[fx.opp]?.short || "?";
-  const d = diff != null ? diff : fx.fdr;
-  /* ALGILT þrep — aldrei afstætt innan liðs. Sjá skýringuna þar sem
-     ffdrRange/tierRel voru fjarlægð (mælt á 28.355 leikmanna-umferðum). */
-  const t = tierOf(d);
-  const bg = TIER_BG[t], fg = TIER_FG[t];
-  return (
-    <div style={{ ...S.fixChip, background:bg, color:fg }}
-      title={diff != null
-        ? interp("{0} — absolute scale, comparable between teams", [TIER_NAME[t]])
-          + `\nFFDR ${d}`
-          + `\nFDR ${fx.fdr} · ${fx.home ? "home" : "away"}`
-        : `FDR ${fx.fdr}`}>
-      {oppLabel(opp, fx.home)}
-      {diff != null && <span style={S.fixNum}>{d.toFixed(1)}</span>}
-    </div>
-  );
-}
+/* `FixChip` VAR HER OG ER FARID (11.8.2026): fullbuinn leikja-flisi med
+   threpa-lit, tooltip og FFDR-tolu sem var ALDREI TEIKNADUR (0 tilvik af
+   `<FixChip`). Spjoldin nota `FixStrip` og tillogurnar `S.recFixChip`.
+   Stilarnir `S.fixChip` og `S.fixNum` foru med honum — their voru hans og
+   engra annarra.                                                        */
 
 /* ---- LEIKIR UMFERÐARINNAR ----
    Hópað eftir DEGI eins og opinbera FPL-síðan: dagsetning EINU SINNI sem
@@ -3693,7 +3742,7 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
    næstunni, fyrir þá stöðu sem þú ert að versla í.
    Raðað eftir MEÐAL-FFDR yfir valið svið (léttast fyrst).
    ============================================================ */
-function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span, maxGw, onPickTeam }) {
+function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, span, maxGw, onPickTeam }) {
   const [pos, setPos] = useState(2);   // 2 = varnar-hópur, 4 = sóknar-hópur
   /* ---------- EIGID UMFERDABIL ----------
      Adur var bilid NEGLT vid timalinuna (`from`/`span` ur `tlStart`/
@@ -3893,8 +3942,8 @@ function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, crestFor, from, span,
   );
 }
 
-function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xgaFor,
-  crestFor, dc, elo, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
+function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
+  dc, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
   onInfo, onTransfer, onRotation, onCardClick, swapSel, confirmed, fxNext3, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
@@ -4060,7 +4109,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor, xga
   );
 }
 
-function RecCard({ r, team, teamById, dc, elo, crestFor, csFor, diffOf, range, onAdd }) {
+function RecCard({ r, team, teamById, dc, elo, csFor, diffOf, range, onAdd }) {
   const { p, fxs } = r;
   const isDef = p.element_type <= 2;
   return (
@@ -4329,7 +4378,6 @@ const S = {
   pcIconSwap: { color:C.purple, border:"1px solid #d9c8f5", fontSize:10 },
   /* FFDR-samanburdur: gron umgjord svo hun se ekki misskilin sem skipti. */
   pcIconRot: { color:"#046b41", border:"1px solid #b7e6cd", fontSize:10 },
-  band: { position:"absolute", top:4, right:4, minWidth:15, height:15, borderRadius:8, fontFamily:mono, fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 },
   /* Sama utlit og `band` en I FLAEDI (pcIconsL) i stad absolute — thannig
      getur merkid ekki lent undir odru ikoni. Sja skyringu vid notkun.  */
   bandFlow: { minWidth:15, height:15, borderRadius:8, fontFamily:mono, fontSize:9,
@@ -4343,7 +4391,6 @@ const S = {
   pPrice: { fontFamily:mono, fontSize:10.5, color:C.text2 },
   pEp: { fontFamily:mono, fontSize:12, fontWeight:700, color:C.purple },
   pCsSmall: { fontFamily:mono, fontSize:8.5, fontWeight:700, marginLeft:4 },
-  fixChip: { display:"inline-block", fontFamily:mono, fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, margin:"4px 0 1px" },
   /* WRAP, EKKI CLIP — og thad er kjarninn. Fyrsta utgafa hafdi
      flexWrap:"nowrap" + overflow:"hidden": i simabreidd (spjald 73px) fóru
      flisarnar i 16px thott "NEW" thurfi 21px, svo SIDASTI STAFURINN VAR
@@ -4357,7 +4404,6 @@ const S = {
   fixMini: { fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"2px 2px",
     borderRadius:4, whiteSpace:"nowrap", flex:"0 0 auto" },
   fixBlank: { background:"#f1f1f4", color:C.text3 },
-  fixNum: { fontSize:7.5, opacity:0.7, marginLeft:3, fontWeight:400 },
   noFix: { fontFamily:mono, fontSize:10, color:C.text3, margin:"4px 0" },
 
   card: { background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"12px 14px" },

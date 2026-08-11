@@ -84,7 +84,7 @@
    Thess vegna stendur prosentan obreytt OG vidvorunin vid hlidina.
    ============================================================ */
 
-import { rankScore } from "./model.js";
+import { rankScore, RANK_W } from "./model.js";
 
 /* MAELDIR FASTAR — sja hausinn. Ekki breyta an nyrrar maelingar.
    (Fittad a ollum 5 timabilum; LOSO-svidid er A 0,022-0,027 og
@@ -119,11 +119,23 @@ const num = v => (typeof v === "number" && Number.isFinite(v) ? v : null);
                   startProb, available, dc, aron, note }]
    Skilar rodum i SOMU rod og inn kom, hverri med `share` (0-1) sem
    leggst saman i 1 yfir hopinn.                                      */
-export function advise(players, { weights = null } = {}) {
+/* `weights`-VIDFANGID VAR FJARLAEGT 11.8.2026 — ThAD GERDI EKKI ThAD SEM ThAD
+   SAGDIST GERA, OG HEFDI BROTID INVARIANT.
+   SKORID kemur ur `rankScore`, sem notar `RANK_W` UR model.js innbyrdis
+   (model.js:916 `const W = RANK_W`). Vidfangid var thvi ADEINS notad i
+   delta-skyringunum (lina ~177). Hefdi einhver kallad
+   `advise(xs, { weights: … })` hefdi SKORID komid ur RANK_W en DELTURNAR
+   ur odrum vogum — og tha haetta delturnar ad leggjast saman i skor-muninn,
+   sem er nakvaemlega thad sem tests/advisor.mjs kafli 4 sannreynir.
+   Enginn kallandi sendi thad (staðfest: Compare.jsx:250 og 13 kallstadir i
+   advisor.mjs, allir an vidfangs), svo thetta fjarlaegir daudan feril, ekki
+   virkni. Nu geta skor og deltur EKKI farid i sundur — thau lesa somu
+   fostu.                                                                */
+export function advise(players) {
   const list = (players || []).filter(Boolean);
   if (list.length < 2) return { rows: [], n: list.length, ok: false, reason: "need_two" };
 
-  const W = weights || RANK_W_SAFE();
+  const W = RANK_W;
   const scored = list.map(p => {
     const i = p.inputs || {};
     return {
@@ -197,11 +209,17 @@ export function advise(players, { weights = null } = {}) {
   };
 }
 
-/* Vogtolurnar eru i model.js; hér er adeins oruggur lestur svo
-   advisor.js geti verid profadur med hermdum vogum.                  */
-function RANK_W_SAFE() {
-  return { form: 0.13805, minsPerGame: 0.01607, price: 0.28235, ffdr: -0.59359, minsTrend: 0.01 };
-}
+/* `RANK_W_SAFE()` VAR HARDKODAD AFRIT AF `RANK_W` og er farid (11.8.2026).
+   Athugasemdin sagdi ad thad vaeri "adeins oruggur lestur svo advisor.js
+   geti verid profadur med hermdum vogum" — en enginn profadi med hermdum
+   vogum, og afritid bar FIMM maeldar tolur sem eru fittadar med ridge a
+   fimm timabilum (tests/rank-model.mjs). Endurmaeling i model.js hefdi ThVI
+   EKKI nad hingad: skorid hefdi breytst en delta-skyringarnar ekki, thogult.
+   Tolurnar voru stafrett eins vid sameininguna (form 0,13805 ·
+   minsPerGame 0,01607 · price 0,28235 · ffdr −0,59359 · minsTrend 0,01) svo
+   thetta breytir engri tolu i dag.
+   Enginn innflutnings-hringur: model.js flytur ekkert inn ur advisor.js.
+   Vordur: tests/advisor.mjs kafli 6.                                    */
 
 /* ---- SAMHENGI SEM VEGUR EKKI ----
    Birt vid hlidina med sinum fyrirvara. `weighted:false` er thad sem

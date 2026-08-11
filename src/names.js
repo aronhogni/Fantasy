@@ -24,9 +24,26 @@
        (O'Brien, O'Reilly, O'Nien, O'Riley, O'Shea, Jun'ai Byfield).
      · EN PORUNIN BREYTIST EKKI: bædi hlidin (BSD-nafnid OG FPL-nafnid)
        fara gegnum SAMA normolara, svo munurinn styttist ut. Endurbyggt
-       frambod, 284 leikmenn, SOMU skorun undir badum normolurum:
-       **0 porun af 284 breytist**, og endurbyggingin skilar committudu
-       skranni STAFRETT (0 fravik) svo hun er marktaek.
+       frambod, **393 leikmenn** (allir i `players`-fylkinu), SOMU skorun
+       undir badum normolurum: **0 porun af 393 breytist**.
+
+   >>> TOLURNAR HER VORU LAGFAERDAR 11.8.2026, SAMA DAG. <<<
+   Fyrsta maelingin sagdi "0 af 284" og "endurbyggingin skilar committudu
+   skranni STAFRETT (0 fravik)". BADAR tolur voru rangar og af SOMU rot:
+   maeliskriftan valdi fylkid med `Object.values(file).find(Array.isArray)`,
+   sem hitti a **`unmatched_names`** (284 STRENGI) i stad `players` (393
+   hluti). Strengir hafa hvorki `.team` ne `.bsd_id`, svo frambodid varð
+   TOMT og "0 fravik" thydd i raun "engin porun var reiknud".
+   Thetta er nakvaemlega tóma fullyrdingin sem CLAUDE.md kafli 5b varar vid
+   — i maelingu, ekki i profi, en sama aett: **tala sem er 0 af thvi ad
+   ekkert var maelt les eins og tala sem er 0 af thvi ad ekkert breyttist.**
+   Rett maeling (393) gefur SOMU NIDURSTODU, svo kodinn stendur ostuddur af
+   villunni; en endurbyggingin er 2 fra committudu skranni, ekki 0:
+   Bruno Guimarães (NEW) og Saša Lukić (FUL) fa `null` i endurbyggingunni.
+   Astaedan er thekkt og skadlaus — endurbyggingin sleppti thridja
+   skorunar-forminu (`nameScore(c.short_name, fp.web_name)`), thvi
+   `short_name` er ekki i utskriftinni. ThAU TVO ERU EINS UNDIR BADUM
+   NORMOLURUM, sem er einmitt thad sem skiptir mali her.
 
    ThETTA ER ThVI HREINSUN, EKKI VILLULAGFAERING. Astaedan til ad gera
    hana er su sem handoffid nefndi: lagfaering a ODRUM normolara naer

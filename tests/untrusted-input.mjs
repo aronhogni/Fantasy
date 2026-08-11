@@ -71,9 +71,30 @@ const CASES = [
   ["rivals rusl",           JSON.stringify({ rivals: [{ id: null }, "x", 42] })],
   ["watch er hlutur",       JSON.stringify({ watch: { a: 1 } })],
   ["benchSwaps gildi rangt", JSON.stringify({ benchSwaps: { "1": "x" } })],
+  /* EITT STIG OF FLATT — stenst "hlutur af fylkjum" en `forEach(([a,b]))`
+     afbyggir `1` og fellir appid. Fannst 11.8.2026 thegar eg skrifadi
+     thetta sjalfur sem "gilt astand" i hringferdar-profinu.            */
+  ["benchSwaps skalar i stad para", JSON.stringify({ benchSwaps: { "3": [1, 2] } })],
+  ["benchSwaps por af rusli",   JSON.stringify({ benchSwaps: { "3": [["a", "b"], [1], [1, 2, 3]] } })],
   ["allt rangt i einu",     JSON.stringify({ entryId: "abc", plan: null, captain: {}, vice: [],
                                              chips: "x", buyPrices: 7, rivals: {}, watch: 1,
                                              benchSwaps: null })],
+  /* TOLU-SVIDIN OG INNIHALD FYLKJANNA (bætt vid 11.8.2026).
+     Fyrri umferd thvingadi YTRI gerd (fylki/hlutur) en let stoku tolurnar
+     og INNIHALD fylkjanna ospurt, svo thessi tilfelli foru obreytt inn i
+     state:
+       entryId:"abc"      -> `?path=fpl-entry&id=abc`
+       captain:"12"       -> `"12" === 12` er false -> fyrirlidinn HVERFUR
+       plan:[{gw:"2"}]    -> `tr.gw > g` ber strengja-samanburd, rod raskast
+       watch:[{}]         -> `includes(id)` finnur aldrei neitt
+       rivals:["606"]     -> `r.id` undefined -> kall med `id=undefined`   */
+  ["entryId er strengur",   JSON.stringify({ entryId: "abc" })],
+  ["captain er strengur",   JSON.stringify({ captain: "12" })],
+  ["vice er hlutur",        JSON.stringify({ vice: { id: 3 } })],
+  ["plan gw er strengur",   JSON.stringify({ plan: [{ gw: "2", outId: "1", inId: "2" }] })],
+  ["plan faersla an gw",    JSON.stringify({ plan: [{ outId: 1, inId: 2 }, { gw: 3, outId: 4, inId: 5 }] })],
+  ["watch med hlutum",      JSON.stringify({ watch: [{}, null, "x", 7] })],
+  ["rivals med strengjum",  JSON.stringify({ rivals: ["606", { id: "607" }, { nafn: "engin id" }] })],
   /* VIDMIDID: gilt astand verdur ad fara i gegn OBREYTT — annars vaeri
      "lagfaeringin" ad henda raunverulegri plonun notandans.            */
   ["GILT astand",           JSON.stringify({ plan: [], captain: null, chips: {}, buyPrices: {},
@@ -129,6 +150,183 @@ for (const [label, blob] of CASES) {
 }
 
 ok(`ekkert af ${CASES.length} astondum fellir appid`, crashed === 0, `${crashed} felldu`);
+
+/* ============================================================
+   A2. GILT ASTAND VERDUR AD KOMAST HEILT I GEGN — HRINGFERD
+
+   Kaflinn hér ad ofan spyr adeins hvort appid STANDI UPPI. Thad er ekki
+   nog fyrir "GILT astand"-tilfellid: fullyrdingin "nothaeft og an NaN"
+   stenst LIKA ef gerd-thvingunin hendir OLLU sem notandinn atti. Sú
+   fullyrding gat thvi ekki fallid a thvi sem hun heitir eftir — sama
+   veikleiki og CLAUDE.md 5b lysir (fullyrding sem tharf tvennt til ad
+   bregdast, eda sem maelir annad en hun segir).
+
+   Hér er ThVI maelt hvort gildin LIFA: appid les blobbid, `saveState`
+   skrifar state-id aftur i localStorage, og vid berum thad saman. Ef
+   thvingunin er of hord (t.d. `rowArr` sem hendir gildum faerslum) sest
+   thad HER og hvergi annars stadar.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nHRINGFERD: GILT ASTAND HELDUR SER\n${"─".repeat(72)}`);
+{
+  const VALID = {
+    entryId: 606, captain: 5, vice: 7,
+    plan: [{ gw: 3, outId: 11, inId: 22 }, { gw: 5, outId: 33, inId: 44 }],
+    watch: [1, 2, 3], rivals: [{ id: 606 }, { id: 607 }],
+    chips: {}, buyPrices: { "11": { p: 55, src: "manual" } }, benchSwaps: { "3": [[1, 2]] },   /* POR, ekki skalar — sja objOfArr */
+    /* SENTINEL — `saveState` skrifar hann ALDREI. Se hann enn til eftir
+       teikningu var ekkert skrifad og hringferdin maelir ekkert. */
+    _sentinel: 1,
+  };
+  const dom = new JSDOM("<!doctype html><div id=root></div>",
+                        { url: "http://localhost/", pretendToBeVisual: true });
+  globalThis.window = dom.window; globalThis.document = dom.window.document;
+  Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
+  globalThis.HTMLElement = dom.window.HTMLElement;
+  globalThis.SVGElement = dom.window.SVGElement;
+  globalThis.getComputedStyle = dom.window.getComputedStyle;
+  globalThis.localStorage = dom.window.localStorage;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  dom.window.localStorage.setItem("fpl_planner_v3", JSON.stringify(VALID));
+  globalThis.fetch = async url => {
+    const n = String(url).split("/data/")[1];
+    if (!n) return { ok: false, status: 404, json: async () => { throw new Error("no proxy"); } };
+    try { return { ok: true, status: 200, json: async () => J(n) }; }
+    catch { return { ok: false, status: 404, json: async () => { throw new Error("404"); } }; }
+  };
+  const oe = console.error, ow = console.warn;
+  console.error = () => {}; console.warn = () => {};
+  let crash = null, txt = "";
+  try {
+    const { default: App } = await import(new URL("src/App.jsx", REPO).href);
+    const root = createRoot(document.getElementById("root"));
+    await act(async () => { root.render(React.createElement(App)); });
+    await act(async () => { await new Promise(r => setTimeout(r, 260)); });
+    txt = document.body.textContent || "";
+  } catch (e) { crash = e.message; }
+  console.error = oe; console.warn = ow;
+
+  const back = JSON.parse(dom.window.localStorage.getItem("fpl_planner_v3") || "{}");
+
+  /* ============================================================
+     ThRJAR VORDUR A MAELITAEKINU SJALFU — AN ThEIRRA MAELIR ThETTA EKKERT.
+
+     FYRSTA UTGAFA ThESSA KAFLA VAR TOM OG ThAD VAR STADFEST MED
+     STOKKBREYTINGU: eg neytti `rowArr` svo hun henti OLLUM plan-faerslum,
+     og "plan helst ALLT (2 faerslur)" STODST SAMT. Astaedan var ad
+     `try {} catch {}` gleypti bilunina og `back` var tha EKKERT ANNAD EN
+     ThAD SEM EG SKRIFADI INN SJALFUR — profid bar sitt eigid inntak til
+     baka og kalladi thad nidurstodu.
+
+     Thetta er sama aett og CLAUDE.md 5b lysir, og thridja tilvikid i
+     thessari lotu: **tala sem er "rett" af thvi ad ekkert var maelt les
+     eins og tala sem er rett af thvi ad allt virkar.**
+
+     1. APPID VARD AD KEYRA (ekki kasta, og teikna vidmotid).
+     2. `saveState` VARD AD SKRIFA. Sannreynt med SENTINEL: blobbid inn ber
+        `_sentinel`, sem `saveState` skrifar ALDREI (hun skrifar nakvaemlega
+        nio thekkt svid). Se hann enn i skranni var ENGIN skrif — og tha er
+        `back` inntakid mitt, ekki utkoman.
+     3. Fyrst tha eru gildin sjalf maelanleg.
+     ============================================================ */
+  ok("hringferd: appid keyrdi an hruns", !crash, crash ? "KASTADI: " + String(crash).slice(0, 70) : "");
+  ok("hringferd: vidmotid teiknadist", txt.includes("Planner") || txt.includes("Player stats"),
+     `${txt.trim().length} staf`);
+  ok("hringferd: `saveState` SKRIFADI (sentinel horfinn)", back._sentinel === undefined,
+     "sentinel er enn i skranni -> ekkert var skrifad, svo tolurnar nedar eru inntakid mitt");
+  ok(`entryId helst (${back.entryId})`, back.entryId === 606);
+  ok(`captain helst (${back.captain})`,  back.captain === 5);
+  ok(`vice helst (${back.vice})`,        back.vice === 7);
+  ok(`plan helst ALLT (${back.plan?.length} faerslur)`,
+     Array.isArray(back.plan) && back.plan.length === 2
+     && back.plan[0].gw === 3 && back.plan[0].outId === 11 && back.plan[0].inId === 22
+     && back.plan[1].gw === 5,
+     JSON.stringify(back.plan));
+  ok(`watch helst (${JSON.stringify(back.watch)})`,
+     Array.isArray(back.watch) && back.watch.join(",") === "1,2,3");
+  ok(`rivals helst (${back.rivals?.length})`,
+     Array.isArray(back.rivals) && back.rivals.length === 2
+     && back.rivals[0].id === 606 && back.rivals[1].id === 607,
+     JSON.stringify(back.rivals));
+  /* AUKASVID MEGA EKKI TAPAST: `buyPrices`-faerslan ber `src:"manual"` sem
+     `buySrcOf` les, og `rowArr` afritar hlutina — ekki byggja thá upp a nytt.
+     (Sama regla og i C6: API-verd ma ekki eyda handvirkri skraningu.)   */
+  ok(`buyPrices heldur `+"`src`", back.buyPrices?.["11"]?.src === "manual",
+     JSON.stringify(back.buyPrices));
+  ok(`benchSwaps helst (por)`, Array.isArray(back.benchSwaps?.["3"])
+     && back.benchSwaps["3"].length === 1
+     && back.benchSwaps["3"][0].join(",") === "1,2", JSON.stringify(back.benchSwaps));
+}
+
+/* ============================================================
+   A3. TOLU-ThVINGUNIN SJALF — MAELD, EKKI GEFIN SER
+
+   A2 sannar ad GILT astand lifir. Thad segir ekkert um hvort thvingunin
+   GERI NOKKUD, thvi gild gogn eru thegar tolur og fara obreytt i gegn hvort
+   sem hun er thar eda ekki. STADFEST MED STOKKBREYTINGU: eg afturkalladi
+   alla tolu-thvingunina (`int(s.entryId)` -> `s.entryId ?? null` o.s.frv.)
+   og BADIR fyrri kaflarnir voru GRAENIR — hvorugur gat sed thad.
+
+   Hér er thvi gefid TOLU-LIKT STRENGJA-astand, sem er raunveruleg skemmd
+   (eldri utgafa appsins skrifadi `entryId` sem streng ur innslattarreit), og
+   maelt hvort thad kemur ut sem TOLUR. Thetta er fullyrdingin sem fellur ef
+   thvingunin er fjarlægd.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nTOLU-ThVINGUN: STRENGIR VERDA TOLUR\n${"─".repeat(72)}`);
+{
+  const STRINGY = {
+    entryId: "606", captain: "5", vice: "7",
+    plan: [{ gw: "3", outId: "11", inId: "22" }],
+    watch: ["1", "2"], rivals: [{ id: "606" }],
+    chips: {}, buyPrices: {}, benchSwaps: { "3": [["1", "2"]] },
+  };
+  const dom = new JSDOM("<!doctype html><div id=root></div>",
+                        { url: "http://localhost/", pretendToBeVisual: true });
+  globalThis.window = dom.window; globalThis.document = dom.window.document;
+  Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
+  globalThis.HTMLElement = dom.window.HTMLElement;
+  globalThis.SVGElement = dom.window.SVGElement;
+  globalThis.getComputedStyle = dom.window.getComputedStyle;
+  globalThis.localStorage = dom.window.localStorage;
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  dom.window.localStorage.setItem("fpl_planner_v3",
+    JSON.stringify({ ...STRINGY, _sentinel: 1 }));
+  globalThis.fetch = async url => {
+    const n = String(url).split("/data/")[1];
+    if (!n) return { ok: false, status: 404, json: async () => { throw new Error("no proxy"); } };
+    try { return { ok: true, status: 200, json: async () => J(n) }; }
+    catch { return { ok: false, status: 404, json: async () => { throw new Error("404"); } }; }
+  };
+  const oe = console.error, ow = console.warn;
+  console.error = () => {}; console.warn = () => {};
+  let crash = null, txt = "";
+  try {
+    const { default: App } = await import(new URL("src/App.jsx", REPO).href);
+    const root = createRoot(document.getElementById("root"));
+    await act(async () => { root.render(React.createElement(App)); });
+    await act(async () => { await new Promise(r => setTimeout(r, 260)); });
+    txt = document.body.textContent || "";
+  } catch (e) { crash = e.message; }
+  console.error = oe; console.warn = ow;
+
+  const back = JSON.parse(dom.window.localStorage.getItem("fpl_planner_v3") || "{}");
+  ok("strengja-astand: appid keyrdi", !crash && (txt.includes("Planner") || txt.includes("Player stats")),
+     crash ? "KASTADI: " + String(crash).slice(0, 60) : `${txt.trim().length} staf`);
+  ok("strengja-astand: `saveState` SKRIFADI (sentinel horfinn)", back._sentinel === undefined,
+     "ekkert var skrifad -> tolurnar nedan eru inntakid mitt");
+  const isNum = v => typeof v === "number";
+  ok(`entryId varð TALA (${JSON.stringify(back.entryId)})`, isNum(back.entryId) && back.entryId === 606);
+  ok(`captain varð TALA (${JSON.stringify(back.captain)})`, isNum(back.captain) && back.captain === 5);
+  ok(`vice varð TALA (${JSON.stringify(back.vice)})`,       isNum(back.vice) && back.vice === 7);
+  ok(`plan.gw/outId/inId urdu TOLUR (${JSON.stringify(back.plan?.[0])})`,
+     back.plan?.length === 1 && isNum(back.plan[0].gw)
+     && isNum(back.plan[0].outId) && isNum(back.plan[0].inId));
+  ok(`watch varð TOLUR (${JSON.stringify(back.watch)})`,
+     Array.isArray(back.watch) && back.watch.length === 2 && back.watch.every(isNum));
+  ok(`rivals[].id varð TALA (${JSON.stringify(back.rivals?.[0])})`,
+     back.rivals?.length === 1 && isNum(back.rivals[0].id));
+  ok(`benchSwaps-por urdu TOLUR (${JSON.stringify(back.benchSwaps)})`,
+     back.benchSwaps?.["3"]?.[0]?.every?.(isNum) === true);
+}
 
 /* ============================================================
    B. SVOR FRA PROXY-INU — YTRI GOGN SEM GETA VERID HVAD SEM ER
