@@ -244,5 +244,49 @@ console.log("─".repeat(84));
   ok("500 slembin inntok: hlutdeild alltaf a (0,1) og summan 1", !broke, broke || "");
 }
 
+/* ---------- 7. VOGTOLURNAR ERU EIN HEIMILD (C2) ---------- */
+console.log(`\n${"─".repeat(84)}`);
+console.log("7. VOGTOLURNAR — EIN HEIMILD, OG `weights`-VIDFANGID ER FARID");
+console.log("─".repeat(84));
+{
+  /* `advise(xs, { weights })` GERDI EKKI ThAD SEM ThAD SAGDIST GERA:
+     SKORID kemur ur `rankScore`, sem les `RANK_W` innbyrdis, svo vidfangid
+     hafdi ADEINS ahrif a delta-skyringarnar. Hefdi einhver sent eigin vogir
+     hefdi skorid komid ur RANK_W en delturnar ur odrum vogum — og tha haetta
+     delturnar ad leggjast saman i skor-muninn, sem er einmitt thad sem
+     kafli 4 sannreynir. `RANK_W_SAFE()` var auk thess HARDKODAD AFRIT af
+     fimm MAELDUM vogum (ridge, 5 timabil), svo endurmaeling i model.js hefdi
+     ekki nad hingad.
+
+     ATHUGASEMDIR SKORNAR BURT: skyringin i advisor.js nefnir bædi
+     `RANK_W_SAFE` og gomlu tolurnar, og myndi annars uppfylla sina eigin
+     fullyrdingu.                                                          */
+  const { readFileSync } = await import("node:fs");
+  const raw = readFileSync(new URL("../src/advisor.js", import.meta.url).pathname, "utf8");
+  const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+
+  ok("advisor.js skilgreinir EKKI sinar eigin vogir", !/RANK_W_SAFE\s*\(/.test(code));
+  ok("og ber engar hardkodadar vogtolur", !/0\.13805|0\.01607|0\.28235|0\.59359/.test(code));
+  ok("hun flytur RANK_W inn ur model.js", /import\s*\{[^}]*RANK_W[^}]*\}\s*from\s*"\.\/model\.js"/.test(code));
+  ok("`advise` tekur ekki lengur `weights`", !/function advise\([^)]*weights/.test(code));
+  /* Fullyrdingarnar ma ekki vera tomar: `advise` OG `RANK_W` verda ad vera
+     tharna, annars er thetta safn ad maela fjarveru sinnar eigin leitar.  */
+  ok("`advise` er enn til (annars maelir thetta ekkert)", /export function advise\(/.test(code));
+  ok("`RANK_W` er raunverulega notad i skranni", /\bRANK_W\b/.test(code));
+
+  /* OG HEGDUNIN: delturnar VERDA ad leggjast saman i skor-muninn, sem er
+     einmitt thad sem brotnar ef skor og skyring lesa sitthvorar vogir.    */
+  const mk = (id, inputs) => ({ id, name: "P" + id, pos: "MID", inputs });
+  const r = advise([mk(1, { form: 6, minsPerGame: 85, price: 8, ffdr: 2.1, minsTrend: 5 }),
+                    mk(2, { form: 3, minsPerGame: 60, price: 5, ffdr: 2.9, minsTrend: -5 })]);
+  const avg = r.rows.reduce((a, x) => a + x.score, 0) / r.rows.length;
+  const bad = r.rows.filter(row => {
+    const sum = row.terms.reduce((a, t) => a + (t.delta || 0), 0);
+    return Math.abs(sum - (row.score - avg)) > 1e-9;
+  });
+  ok(`delturnar leggjast saman i skor-muninn fyrir ALLA (${r.rows.length})`, bad.length === 0,
+     bad.map(b => b.name).join(", "));
+}
+
 console.log(`\nRADGJOFIN: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

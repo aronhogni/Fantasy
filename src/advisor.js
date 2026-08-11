@@ -219,7 +219,9 @@ export function advise(players) {
    minsPerGame 0,01607 · price 0,28235 · ffdr −0,59359 · minsTrend 0,01) svo
    thetta breytir engri tolu i dag.
    Enginn innflutnings-hringur: model.js flytur ekkert inn ur advisor.js.
-   Vordur: tests/advisor.mjs kafli 6.                                    */
+   Vordur: tests/advisor.mjs kafli 7 (hann var EKKI til thegar thessi lina
+   var skrifud — skjolud tilvisun i vord sem er ekki til er verri en engin,
+   svo kaflinn var skrifadur).                                            */
 
 /* ---- SAMHENGI SEM VEGUR EKKI ----
    Birt vid hlidina med sinum fyrirvara. `weighted:false` er thad sem
