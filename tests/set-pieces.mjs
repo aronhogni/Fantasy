@@ -143,17 +143,26 @@ ok("setPieceBadges(null, ranks) skilar null", setPieceBadges(null, ranks) === nu
 console.log("\n=== C21: APPID LES RODUN, EKKI FPL-TOLUNA ===");
 {
   const { readFileSync } = await import("node:fs");
-  const raw = readFileSync(new URL("../src/App.jsx", import.meta.url).pathname, "utf8");
-  const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
-  ok("App.jsx flytur inn setPieceRanks", /import\s+SetPieces\s*,\s*\{[^}]*setPieceRanks/.test(code));
-  ok("setPieceOf tekur `ranks`", /function setPieceOf\(p, ranks\)/.test(code));
+  /* `setPieceOf` FLUTTIST I `availability.js` (F1, 11.8.2026) OG ThETTA SAFN
+     FELL — RETTILEGA. Fullyrdingin "setPieceOf er enn til" var sett inn
+     einmitt til ad safnid thegdi ekki ef fallid hyrfi; thad hvarf ekki, thad
+     FLUTTI, og vordurinn fylgir thvi. App.jsx heldur sinum hluta:
+     innflutningnum a `setPieceRanks` og kallstodunum.                     */
+  const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const rd = f => strip(readFileSync(new URL(f, import.meta.url).pathname, "utf8"));
+  const app = rd("../src/App.jsx"), av = rd("../src/availability.js");
+  const code = app + "\n" + av;
+  ok("App.jsx flytur inn setPieceRanks", /import\s+SetPieces\s*,\s*\{[^}]*setPieceRanks/.test(app));
+  ok("setPieceOf tekur `ranks`", /function setPieceOf\(p, ranks\)/.test(av));
   ok("isPenTaker kemur ur rank === 1, ekki `pen === 1`",
-     /rank === 1/.test(code) && !/isPenTaker: pen === 1/.test(code));
+     /rank === 1/.test(av) && !/isPenTaker: pen === 1/.test(code));
   /* Fullyrdingin ma ekki vera tóm: mynstrid VAR tharna. Se `setPieceOf`
-     horfid ur App.jsx er thetta safn ad maela ekkert.                     */
-  ok("setPieceOf er enn til i App.jsx (annars maelir thetta ekkert)",
-     /function setPieceOf\(/.test(code));
-  const calls = (code.match(/setPieceOf\(p, spRanks\)/g) || []).length;
+     horfid er thetta safn ad maela ekkert.                                */
+  ok("setPieceOf er enn til (annars maelir thetta ekkert)",
+     /function setPieceOf\(/.test(av));
+  ok("og hun bur i availability.js, ekki i App.jsx",
+     /function setPieceOf\(/.test(av) && !/function setPieceOf\(/.test(app));
+  const calls = (app.match(/setPieceOf\(p, spRanks\)/g) || []).length;
   ok(`allir kallstadir senda rodunina (${calls})`, calls >= 3);
 }
 
