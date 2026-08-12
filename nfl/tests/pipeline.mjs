@@ -550,6 +550,14 @@ console.log("\nolesnar skrar eru asettar");
     "advice_ppr.json": "PPR-helmingur bradanauðsynar-maelingarinnar (vordur les standard)",
     "shapes_fftoday.json": "FFToday-helmingur deildarlagna — synir ad forskotid a ADP endurtekst EKKI",
     "first4_standard_fftoday.json": "standard-fruma heitt-upphaf tilraunarinnar",
+
+    /* KVORDUNARTILRAUNIN. Hun var svar vid "hvernig lagum vid
+       Standard/FFToday -5,0%?" — greiningin var rett (thjoppun er
+       OJOFN milli stada og heimildirnar tvaer hafa OFUGAR skekkjur) en
+       lagfaeringin er EKKI LAERANLEG: studullinn flyst ekki milli ara
+       (RB rho = -0,358). Skrain er sonnunargagnid fyrir thvi ad
+       tilraunin var GERD og felld, svo hun verdi ekki endurtekin. */
+    "calib_standard_fftoday.json": "kvordun a spa-kvarda fyrir VBD — felld, studullinn flyst ekki",
   };
 
   const { readdirSync } = await import("node:fs");
