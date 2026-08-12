@@ -84,7 +84,16 @@ const ready = async () => {
     try {
       last = await b.eval("return document.querySelectorAll('button.tab').length");
     } catch (e) { err = String(e.message).slice(0, 120); }
-    if (last >= 6) return true;
+    /* ÞRIR, EKKI SEX — OG ÞAÐ ER EKKI LINUN.
+       Fra 12.8.2026 eru sex flipar FALDIR (notandinn bad um adeins
+       Draft + forsiduna), svo appid teiknar retteilega 3 hnappa:
+       Draft, My team og "More". Þessi lykkja spyr EINGONGU "teiknadist
+       flipastikan?" — thekjuna sjalfa ber `REAL.length >= 6` HÉR A
+       EFTIR, eftir ad "More" hefur verid opnad. Tvaer olikar
+       spurningar sem deildu einni tolu; nu eru thaer adskildar. Vaeri
+       throskuldurinn her einfaldlega laekkadur OG hinn fjarlaegdur
+       hefdi thekjan horfid thogult. */
+    if (last >= 3) return true;
     await new Promise((r) => setTimeout(r, 250));
   }
   const dump = await b.eval(
@@ -99,9 +108,28 @@ const ready = async () => {
 await b.goto(site.url);
 ok(await ready(), "appid hledst og flipastikan teiknast");
 
+/* ============================================================
+   FALDIR FLIPAR VERDA AD VERA OPNADIR ADUR EN THAD ER TALID
+   ============================================================
+   Frá 12.8.2026 eru sex flipar FALDIR (notandinn bad um ad sja adeins
+   Draft og forsiduna). Their eru afram til, afram virkir og afram
+   letihladnir — en their eru ekki i DOM fyrr en "More" er smellt.
+
+   AN THESSA HEFDI THEKJAN HRUNID UR 8 I 2 og lykkjurnar hér a eftir
+   hefdu skodad tvo flipa i stad atta. Talningin `REAL.length >= 6`
+   hefdi fellt profid, sem er RETT hegdun — en rett svar er ad OPNA
+   thá, ekki ad laekka throskuldinn. Ad laekka hann vaeri ad henda
+   thekju til ad halda profinu graenu.                              */
+const revealed = await b.eval(`
+  const more = [...document.querySelectorAll('button.tab')]
+    .find(t => /More/.test(t.textContent || ''));
+  if (more) { more.click(); await new Promise(r => setTimeout(r, 250)); return true; }
+  return false;`);
+console.log(`  ${revealed ? "faldir flipar opnadir (\"More\")" : "engir faldir flipar"}`);
+
 const TABS = await b.eval(
   "return [...document.querySelectorAll('button.tab')].map(t => t.textContent.trim())");
-const REAL = TABS.filter((t) => !/FPL/.test(t));
+const REAL = TABS.filter((t) => !/FPL/.test(t) && !/More/.test(t));
 
 /* ============================================================
    ÞEKJA ER FULLYRDING, EKKI LOGGA

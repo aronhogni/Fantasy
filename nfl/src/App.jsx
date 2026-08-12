@@ -6,7 +6,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import * as D from "./data.js";
-import { buildRows, DEFAULT_LEAGUE, normalizeLeague } from "./build.js";
+import { buildRows, normalizeLeague } from "./build.js";
 import DraftBoard from "./DraftBoard.jsx";
 import Experts from "./Experts.jsx";
 import PlayerTable from "./PlayerTable.jsx";
@@ -16,15 +16,38 @@ import ModelLab from "./ModelLab.jsx";
 import Market from "./Market.jsx";
 import MyTeam from "./MyTeam.jsx";
 
+/* ============================================================
+   FLIPARNIR — FALDIR, EKKI FJARLAEGDIR
+   ============================================================
+   Notandinn: "Thad ma svo fela alla flipa sem eg er ekki ad nota …
+   eg mun bara vilja sja Draft og svo dashbordid … Annad ma fela en
+   NOTA I BAKGRUNNI."
+
+   Sidasti hlutinn er allt sem thetta snyst um. Flipi sem er FJARLAEGDUR
+   tekur med ser tolur sem hitt appid les: `Model lab` er thar sem
+   maelingarnar sjalfar bua (hvada deildarlogun voru profadar, forskotid
+   gegn ADP), `Sources` er thad eina sem SYNIR thegar heimild brestur, og
+   `Experts` ber nakvaemnina sem `sharpDelta` a bordinu er reiknad ur.
+   Ad fela thau er birtingar-akvordun; ad fjarlaegja thau vaeri
+   likans-akvordun, og hun var ekki tekin.
+
+   ÞESS VEGNA ER `hidden` FLAGG OG EKKI STYTTUR LISTI:
+     · lykillinn er afram gildur i `nfl_view`, svo vistad flipaheiti
+       verdur ekki ogilt (thad gaf AUDAN SKJA einu sinni — sja nedar)
+     · `need(...)`-letihledslan er obreytt, svo gognin eru afram sott
+       thegar thau eru bedin
+     · faldi flipinn er afram NAANLEGUR gegnum "More", svo ekkert
+       verdur ostradanlegt i thogn. Vordur sem enginn getur opnad er
+       ekki vordur.                                                   */
 const TABS = [
   ["draft", "🏈 Draft"],
   ["myteam", "⭐ My team"],
-  ["players", "👥 Players"],
-  ["experts", "🧠 Experts"],
-  ["market", "💰 Market"],
-  ["lab", "🔬 Model lab"],
-  ["schedule", "📅 Schedule"],
-  ["sources", "🔌 Sources"],
+  ["players", "👥 Players", true],
+  ["experts", "🧠 Experts", true],
+  ["market", "💰 Market", true],
+  ["lab", "🔬 Model lab", true],
+  ["schedule", "📅 Schedule", true],
+  ["sources", "🔌 Sources", true],
 ];
 
 export default function App() {
@@ -38,14 +61,83 @@ export default function App() {
     const saved = D.loadState("view", "draft");
     return TABS.some(([k]) => k === saved) ? saved : "draft";
   });
-  /* Hver reitur thvingadur fyrir sig — sja `normalizeLeague`. */
-  const [league, setLeague] = useState(() => normalizeLeague(D.loadState("league", {})));
+  /* ============================================================
+     FLEIRI EN EIN DEILD — OG ASTANDID FYLGIR HVERRI
+     ============================================================
+     Adur bar appid EINA deild. Notandi i thremur deildum thurfti ad
+     slá stillingum inn upp a nytt vid hverja svissun, og verra: hann
+     hefdi haldid AFRAM ad nota borðið sem var reiknad ur annarri
+     deild an ad sja thad, thvi tolurnar lita eins ut.
+
+     Hver faersla ber allt sem deildin er:
+       { id, name, rules, imported, warnings, sync }
+     `rules` fer alltaf gegnum `normalizeLeague`, svo ein onyt faersla
+     kostar bara sig sjalfa.
+
+     `imported`, `warnings` og `sync` bua HER, ekki inni i
+     `DraftBoard`, af tveimur astaedum: (a) tha lifa reglu-yfirlitid,
+     lidsheitin og saetid ENDURHLEDSLU — adur hurfu thau vid F5 thott
+     deildin sjalf vaeri vistud, sem las eins og "innflutningurinn
+     tyndist"; (b) `DraftBoard` er endurraest (`key`) vid svissun, svo
+     hvad sem lifir bara i honum myndi hverfa i nakvaemlega thvi
+     augnabliki sem ny deild er flutt inn.                           */
+  const [entries, setEntries] = useState(loadEntries);
+  const [activeId, setActiveId] = useState(() => {
+    const saved = D.loadState("activeLeague", "");
+    return entries.some((e) => e.id === saved) ? saved : entries[0].id;
+  });
+
+  useEffect(() => { D.saveState("leagues", entries); }, [entries]);
+  useEffect(() => { D.saveState("activeLeague", activeId); }, [activeId]);
+
+  const active = entries.find((e) => e.id === activeId) || entries[0];
+  const league = active.rules;
+
+  const setSync = useCallback((next) => {
+    setEntries((prev) => prev.map((e) => (e.id === activeId
+      ? { ...e, sync: normalizeSync(typeof next === "function" ? next(e.sync) : next) }
+      : e)));
+  }, [activeId]);
+
+  /* Innflutningur baetir vid — hann SKIPTIR EKKI UT. Deild sem er
+     flutt inn tvisvar uppfaerist a sinum stad (reglur geta breytst i
+     Sleeper) i stad thess ad tvitakast. */
+  const importLeague = useCallback((entry) => {
+    setEntries((prev) => {
+      const rest = prev.filter((e) => e.id !== entry.id);
+      /* Otoludi sjalfgefni hlekkurinn er skipt ut fremur en safnad:
+         "My league" sem notandinn hefur aldrei hreyft er daudur flipi
+         um leid og raunveruleg deild er komin. Hafi hann breytt honum
+         er hann RAUNVERULEG stilling og fær ad standa. */
+      const keep = rest.filter((e) => !(e.id === LOCAL_ID && isPristine(e)));
+      const prevEntry = prev.find((e) => e.id === entry.id);
+      return [...keep, { ...entry, sync: entry.sync || (prevEntry && prevEntry.sync) ||
+                                          { draftId: "", slot: null } }].slice(-8);
+    });
+    setActiveId(entry.id);
+  }, []);
+
+  const removeLeague = useCallback((id) => {
+    D.dropScopedState(id);
+    setEntries((prev) => {
+      const rest = prev.filter((e) => e.id !== id);
+      /* Deildarlaust app er ekki app. Se sidustu deild lokad kemur
+         sjalfgefna stillingin i staðinn — tom skel vaeri hvitur skjar
+         med odrum formerkjum. */
+      const out = rest.length ? rest : [freshLocal()];
+      setActiveId((cur) => (cur === id ? out[0].id : cur));
+      return out;
+    });
+  }, []);
+  /* `showAll` er VILJANDI EKKI VISTAD. Notandinn bad um ad hitt vaeri
+     falid; vaeri thad vistad myndi ein heimsokn i `Model lab` gera thad
+     synilegt ad eilifu og beidnin snerist vid af sjalfu ser. */
+  const [showAll, setShowAll] = useState(false);
   const [core, setCore] = useState(null);
   const [err, setErr] = useState(null);
   const [extra, setExtra] = useState({});      // letihladnar skrar
 
   useEffect(() => { D.saveState("view", view); }, [view]);
-  useEffect(() => { D.saveState("league", league); }, [league]);
 
   /* ---- kjarna-hledsla ----
      `alive`-flagg i stad AbortController. Skyndiminnid i `data.js`
@@ -149,20 +241,47 @@ export default function App() {
           <span>{meta.season} · {preseason ? "preseason" : `week ${meta.week}`}</span>
         </div>
         <div className="spacer" />
-        <LeagueBar league={league} setLeague={setLeague} />
+        <ActiveLeague entry={active} />
       </header>
 
+      <LeagueSwitcher entries={entries} activeId={activeId}
+        onPick={setActiveId} onRemove={removeLeague} />
+
       <nav className="tabs" style={{ marginBottom: 14 }}>
-        {TABS.map(([k, lbl]) => (
-          <button key={k} className={`tab${view === k ? " on" : ""}`}
-            onClick={() => setView(k)}>{lbl}</button>
-        ))}
+        {/* Faldi flipinn er SYNDUR ef hann er sa sem er opinn — annars
+            hyrfi stikan undan notandanum um leid og hann opnadi hann
+            gegnum "More", og virki flipinn vaeri hvergi merktur. */}
+        {TABS.filter(([k, , hidden]) => !hidden || showAll || view === k)
+          .map(([k, lbl]) => (
+            <button key={k} className={`tab${view === k ? " on" : ""}`}
+              onClick={() => setView(k)}>{lbl}</button>
+          ))}
+        {!showAll && (
+          <button className="tab" onClick={() => setShowAll(true)}
+            title="Players, Experts, Market, Model lab, Schedule, Sources">
+            … More
+          </button>
+        )}
         <a className="tab" href="../" style={{ textDecoration: "none" }}>⚽ FPL</a>
       </nav>
 
+      {/* ============================================================
+          `key` ER EKKI SKRAUT HER.
+          ============================================================
+          `taken` og `myPicks` eru lesin i `useState`-upphafsgildi, sem
+          keyrir ADEINS vid mount. An `key` heldi bordid hopnum ur fyrri
+          deildinni eftir svissun — leikmenn strikadir ut i deild sem
+          thu tokst tha ekki i, og "hvern a ad taka naest" myndi telja
+          hop sem thu eigir ekki. Endurraesing er retta hegdunin: nytt
+          draft, nytt bord.                                            */}
       {view === "draft" && (
-        <DraftBoard rows={built.rows} meta={built.meta} league={league}
-          setLeague={setLeague} season={meta.season} accuracy={extra.accuracy}
+        <DraftBoard key={activeId} leagueKey={activeId}
+          rows={built.rows} meta={built.meta} league={league}
+          sync={active.sync} setSync={setSync}
+          imported={active.imported} warnings={active.warnings}
+          teams={active.teams}
+          onImportLeague={importLeague}
+          season={meta.season} accuracy={extra.accuracy}
           kickers={extra.kickers} shapes={extra.shapes} />
       )}
       {view === "players" && (
@@ -173,7 +292,8 @@ export default function App() {
           rows={built.rows} meta={built.meta} />
       )}
       {view === "myteam" && (
-        <MyTeam rows={built.rows} league={league} news={extra.news} meta={meta}
+        <MyTeam key={activeId} leagueKey={activeId}
+          rows={built.rows} league={league} news={extra.news} meta={meta}
           market={core.market} schedule={core.schedule} defense={extra.defense} />
       )}
       {view === "market" && (
@@ -199,48 +319,203 @@ export default function App() {
 }
 
 /* ============================================================
-   DEILDARSTILLINGAR — thaer eru EKKI skraut.
-   Deildarstaerd og stigagjof breyta BADUM: hvada ADP er lesid OG
-   hvar varamanns-threpid liggur. Ad hafa thaer fastar vaeri ad
-   reikna adra deild en notandinn spilar i.
-   ============================================================ */
-function LeagueBar({ league, setLeague }) {
-  const set = (k, v) => setLeague((l) => ({ ...l, [k]: v }));
+   DEILDARLISTINN — LESTUR, THVINGUN OG FLUTNINGUR
+   ============================================================
+   Sama regla og `normalizeLeague`: HVER REITUR ER THVINGADUR FYRIR
+   SIG. Listinn kemur ur `localStorage` og blob i vafranum fer hvergi,
+   svo eitt skakkt svid myndi annars fella appid vid HVERJA hledslu, ad
+   eilifu — thad er nakvaemlega villan sem `saved-state.mjs` var
+   skrifad fyrir. Faersla sem er onyt er SLEPPT; hinar standa.        */
+const LOCAL_ID = "local";
+
+const freshLocal = () => ({
+  id: LOCAL_ID, name: "My league", rules: normalizeLeague({}),
+  imported: null, warnings: [], teams: [], sync: { draftId: "", slot: null },
+});
+
+function normalizeSync(raw) {
+  const s = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const slot = Math.round(Number(s.slot));
+  return {
+    draftId: typeof s.draftId === "string" ? s.draftId : "",
+    slot: Number.isFinite(slot) && slot >= 1 && slot <= 32 ? slot : null,
+  };
+}
+
+function normalizeEntry(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  if (typeof raw.id !== "string" || !raw.id) return null;
+  return {
+    id: raw.id,
+    /* Heitid kemur UR SLEEPER og er thvi ovarid inntak. Tomt eda
+       ekki-strengur faer fast heiti i stad thess ad birta "undefined"
+       sem flipa. */
+    name: typeof raw.name === "string" && raw.name.trim()
+      ? raw.name.trim().slice(0, 60) : "League",
+    rules: normalizeLeague(raw.rules),
+    imported: raw.imported && typeof raw.imported === "object" &&
+              !Array.isArray(raw.imported) ? raw.imported : null,
+    /* LIDIN — thau eru VISTUD, og thad var akvordun sem var TEKIN
+       TIL BAKA. Fyrst voru thau adeins i `SleeperSync` med theim rokum
+       ad `/users` + `/rosters` se lifandi uppfletting og vistud mynd
+       gaeti verid gomul. Su rok eru rett en thau brutu ADALLEIDINA:
+       innflutningur breytir virku deildinni, sem endurraesir bordid, svo
+       listinn hvarf i SOMU andra sem hann var lesinn — notandinn smellti
+       "Connect" og saetavalid var farid. Stodugleiki vinnur ferskleika
+       hér, og listinn er endurnyjadur i hverri tengingu. */
+    teams: Array.isArray(raw.teams)
+      ? raw.teams.map((t) => {
+          if (!t || typeof t !== "object") return null;
+          const slot = Math.round(Number(t.slot));
+          return {
+            slot: Number.isFinite(slot) && slot >= 1 && slot <= 32 ? slot : null,
+            userId: typeof t.userId === "string" ? t.userId : null,
+            name: typeof t.name === "string" && t.name.trim()
+              ? t.name.trim().slice(0, 40) : "Unknown",
+          };
+        }).filter(Boolean).slice(0, 32)
+      : [],
+    warnings: Array.isArray(raw.warnings)
+      ? raw.warnings.filter((w) => typeof w === "string").slice(0, 12) : [],
+    sync: normalizeSync(raw.sync),
+  };
+}
+
+function loadEntries() {
+  const raw = D.loadState("leagues", []);
+  const list = (Array.isArray(raw) ? raw : []).map(normalizeEntry).filter(Boolean);
+  /* Tveir hlekkir med sama audkenni vaeru tveir flipar sem deila
+     astandi — sami hopur, tvo nofn. */
+  const seen = new Set();
+  const uniq = list.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
+  if (uniq.length) return uniq.slice(0, 8);
+
+  /* ENGINN LISTI ENN — flytjum gomlu EINU deildina inn.
+     `nfl_league` var eitt objekt og `nfl_taken`/`nfl_myPicks`/`nfl_sync`
+     voru olyklud. Notandi i midju drafti a ad halda thvi ollu. */
+  const legacy = freshLocal();
+  legacy.rules = normalizeLeague(D.loadState("league", {}));
+  legacy.sync = normalizeSync(D.loadState("sync", {}));
+  D.migrateScopedState(LOCAL_ID);
+  return [legacy];
+}
+
+/** Ohreyfdur sjalfgefinn hlekkur — engin stilling, engin innflutning. */
+function isPristine(e) {
+  return !e.imported &&
+         JSON.stringify(e.rules) === JSON.stringify(normalizeLeague({})) &&
+         !(e.sync && e.sync.draftId);
+}
+
+/* ============================================================
+   DEILDA-SVISSARINN
+   ============================================================
+   Hann birtist ADEINS thegar deildirnar eru fleiri en ein. Einn
+   hlekkur sem heitir "My league" er ekki val heldur havadi, og rod af
+   flipum sem ekki er haegt ad svissa milli les eins og bilun.
+
+   HEITID ER MERKID. Notandinn thekkir deildina sina a nafni, ekki a
+   audkenni — thess vegna er `name` ur Sleeper thad sem stendur a
+   flipanum og saetið/stigagjofin fylgja sem smatt samhengi, svo tveir
+   flipar med sama nafni (sama deild, tvo timabil) seu greinanlegir.   */
+function LeagueSwitcher({ entries, activeId, onPick, onRemove }) {
+  if (entries.length < 2) return null;
+  /* ============================================================
+     SAMNEFNDAR DEILDIR VERDA AD VERA GREINANLEGAR
+     ============================================================
+     Athugasemdin hér fyrir ofan fullyrdi ad `teams`/`scoring` gerdu
+     "sama deild, tvo timabil" greinanleg. ÞAÐ VAR RANGT og thad sast i
+     vafranum: 2026- og 2025-utgafur af "Patriots SB champs" eru BADAR
+     10 lid og BADAR PPR, svo flipirnir voru **staffrettur eins**. Sami
+     flokkur og fuzzy-liða-porunin sem felldi Man United inn i Man City:
+     thogul samsomun er verri en engin.
+
+     Timabilid er bara baett vid THEGAR nafnid rekst a — annars baeri
+     hver flipi "2026" ad eilifu fyrir upplysingar sem eru alltaf thaer
+     somu.                                                            */
+  const nameCount = new Map();
+  for (const e of entries) nameCount.set(e.name, (nameCount.get(e.name) || 0) + 1);
+
+  /* `league-switch` er STODUGT MERKI fyrir prof. Fyrsta utgafa
+     prófsins leitadi a nafni deildarinnar i OLLUM `.chip`-hnoppum og
+     fann thridja hnapp — "DST New England Patriots" af bordinu sjalfu.
+     Prof sem leitar a innihaldi i stad byggingar finnur thad sem thad
+     var ekki ad leita ad. */
   return (
-    <div className="row" style={{ gap: 8 }}>
-      <label className="field">
-        Teams
-        {/* LISTINN VERDUR AD BERA THAD SEM DEILDIN ER.
-            Innflutningur ur Sleeper getur gefid 11, 13 eda 20 lid, og
-            `<select>` med gildi sem er ekki i listanum birtist TOMUR —
-            svo notandinn hefdi seð auðan reit fyrir deild sem var rett
-            lesin, og hver hreyfing a honum hefdi thurrkad ut rettu
-            toluna. `normalizeLeague` leyfir 4–20, svo listinn gerir
-            thad lika. */}
-        <select value={league.teams}
-          onChange={(e) => set("teams", Number(e.target.value))}>
-          {[...new Set([...[8, 10, 12, 14, 16], league.teams])]
-            .filter((n) => Number.isFinite(n) && n >= 4 && n <= 20)
-            .sort((a, b) => a - b)
-            .map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-      </label>
-      <label className="field">
-        Scoring
-        <select value={league.scoring} onChange={(e) => set("scoring", e.target.value)}>
-          <option value="ppr">PPR</option>
-          <option value="half-ppr">Half PPR</option>
-          <option value="standard">Standard</option>
-        </select>
-      </label>
-      <label className="field">
-        Superflex
-        <select value={league.superflex ? "1" : "0"}
-          onChange={(e) => set("superflex", e.target.value === "1")}>
-          <option value="0">No</option>
-          <option value="1">Yes</option>
-        </select>
-      </label>
+    <div className="chips league-switch" style={{ marginBottom: 10, alignItems: "center" }}>
+      <span className="dim" style={{ fontSize: 12, marginRight: 2 }}>League</span>
+      {entries.map((e) => {
+        const on = e.id === activeId;
+        const sc = e.rules.scoring === "half-ppr" ? "Half"
+                 : e.rules.scoring === "standard" ? "Std" : "PPR";
+        /* Timabilid ef til, annars sidustu 4 stafir audkennisins — sem
+           er ekki fallegt en er SATT og einkvaemt. Tveir eins flipar
+           eru thad hvorugt. */
+        const dup = nameCount.get(e.name) > 1
+          ? (e.imported && e.imported.season) || `…${e.id.slice(-4)}`
+          : null;
+        return (
+          <span key={e.id} style={{ display: "inline-flex", alignItems: "center" }}>
+            <button className={`chip${on ? " on" : ""}`} onClick={() => onPick(e.id)}
+              title={`${e.rules.teams} teams · ${sc} · ${e.rules.rounds} rounds`}>
+              {e.name}
+              <span className="dim" style={{ marginLeft: 5, fontSize: 11 }}>
+                {dup ? `${dup} · ` : ""}{e.rules.teams} · {sc}
+              </span>
+            </button>
+            {/* Lokun er ADEINS a virku deildinni. Annars situr litid
+                x vid hverja og eitt feilskot eydir drafti sem
+                notandinn var ekki ad horfa a. */}
+            {on && (
+              <button className="chip" title={`Remove ${e.name}`}
+                onClick={() => onRemove(e.id)}
+                style={{ marginLeft: 2, padding: "2px 7px", lineHeight: 1 }}>×</button>
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================================================
+   VIRKA DEILDIN — LESIN, EKKI STILLT
+   ============================================================
+   HANDVIRKU REITIRNIR (Teams / Scoring / Superflex) VORU TEKNIR UT
+   12.8.2026, ad beidni notandans, THVI DEILDIN ER NU FLUTT INN.
+   Tveir reitir sem segja thad sama og innflutningurinn eru ekki bara
+   ofthorf heldur HAETTA: sa sem hreyfir "Scoring" eftir innflutning
+   reiknar deild sem er ekki lengur su sem Sleeper ber, og ekkert a
+   skjanum segdi honum thad.
+
+   ÞAD SEM MA EKKI FARA MED THEIM ER TALAN SJALF. `teams` og `scoring`
+   raeda hvada ADP er lesid OG hvar varamanns-threpid liggur, svo
+   notandinn verdur ad geta seð hvad bordid er ad reikna — annars er
+   thetta svartur kassi. Reitirnir urdu thvi TEXTI, ekki ekkert.
+
+   `imported` greinir "lesid ur Sleeper" fra "sjalfgefid". Deild sem
+   var aldrei flutt inn ber sjalfgefnu 12-lida PPR-toluna, og THAD MA
+   EKKI LESAST EINS OG DEILDIN THIN.                                */
+function ActiveLeague({ entry }) {
+  const L = entry.rules;
+  const sc = L.scoring === "half-ppr" ? "Half PPR"
+           : L.scoring === "standard" ? "Standard" : "PPR";
+  const st = L.starters || {};
+  const slots = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "K", "DST"]
+    .filter((p) => st[p] > 0)
+    .map((p) => (st[p] > 1 ? `${st[p]}${p}` : p)).join(" ");
+  return (
+    <div style={{ textAlign: "right", fontSize: 12.5, lineHeight: 1.45 }}>
+      <div>
+        <b>{L.teams}</b> teams · <b>{sc}</b> · <b>{L.rounds}</b> rounds
+        {L.superflex ? <span className="good"> · superflex</span> : null}
+      </div>
+      <div className="dim" style={{ fontSize: 11.5 }}>
+        {slots || "—"}
+        {entry.imported
+          ? <span className="good"> · from Sleeper</span>
+          : <span className="warn"> · default, no league connected</span>}
+      </div>
     </div>
   );
 }

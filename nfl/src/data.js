@@ -278,6 +278,50 @@ export function saveState(name, value) {
   catch { /* fullt geymslurými ma ekki fella appid */ }
 }
 
+/* ============================================================
+   ASTAND SEM ER BUNDID EINNI DEILD
+   ============================================================
+   `taken`, `myPicks` og `sync` eru EKKI global. Their tilheyra EINU
+   drafti. Notandi med thrjar deildir sem deildi theim mengjum saei
+   leikmenn sem hann tok i deild A strikada ut i deild B — og "hvern a
+   ad taka naest" myndi telja hop sem hann eigir ekki. Thess vegna er
+   lyklunum skeytt vid deildar-audkennid.
+
+   ÞAU ERU EKKI I DEILDARFAERSLUNNI SJALFRI af asettu radi: `taken`
+   staekkar i ~150 audkenni og breytist vid HVERT val, svo hun myndi
+   endurskrifa allan deildarlistann i hverjum tikk. Faerslan ber thad
+   sem er LITID og fast (reglur, lidsheiti, saeti); mengin bua ser.  */
+export const scoped = (name, leagueId) => `${name}:${leagueId || "local"}`;
+
+/**
+ * Flytur gamla olyklada astandid inn a fyrstu deildina. AN THESSA
+ * TAPAR NOTANDI SEM ER I MIDJU DRAFTI ollu sem hann hafdi valid um
+ * leid og uppfaerslan kemur — mengid er i vafranum og fer hvergi, en
+ * appid myndi hætta ad leita ad thvi.
+ *
+ * Gamli lykillinn er EKKI eyddur. Hann er nokkur kilobaet og eyding er
+ * oafturkræf; se eitthvad ad vorpuninni er frumgagnid enn til.
+ */
+export function migrateScopedState(leagueId) {
+  for (const name of ["taken", "myPicks", "sync"]) {
+    try {
+      const legacy = localStorage.getItem(KEY + name);
+      const target = KEY + scoped(name, leagueId);
+      if (legacy != null && localStorage.getItem(target) == null) {
+        localStorage.setItem(target, legacy);
+      }
+    } catch { /* full geymsla ma ekki fella appid */ }
+  }
+}
+
+/** Hendir astandi einnar deildar thegar henni er lokad. */
+export function dropScopedState(leagueId) {
+  for (const name of ["taken", "myPicks", "sync"]) {
+    try { localStorage.removeItem(KEY + scoped(name, leagueId)); }
+    catch { /* ekkert ad gera */ }
+  }
+}
+
 /** Hreinsar OLL `nfl_*` — valid, ekki harðkodadur listi. */
 export function clearState() {
   try {

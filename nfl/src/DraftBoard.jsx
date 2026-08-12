@@ -22,16 +22,25 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as D from "./data.js";
-import { recommend, MEASURED } from "./advice.js";
+import { pickSignature, pollDelay } from "./draft-sync.js";
+import { recommend, MEASURED, nextOwnPick, survivalProb } from "./advice.js";
 import { leagueFromSleeper, teamsFromLeague } from "./sleeper-league.js";
+import { edgeSentence } from "./rulebasis.js";
 import { signed } from "./columns.js";
 
-export default function DraftBoard({ rows, meta, league, setLeague, season, accuracy,
-                                     kickers, shapes }) {
-  const [taken, setTaken] = useState(() => new Set(D.loadState("taken", [])));
-  const [myPicks, setMyPicks] = useState(() => new Set(D.loadState("myPicks", [])));
+export default function DraftBoard({ rows, meta, league, season, accuracy, kickers,
+                                     shapes, leagueKey, sync, setSync,
+                                     imported, warnings, teams, onImportLeague }) {
+  /* MENGIN ERU BUNDIN DEILDINNI. Sja notu vid `scoped` i `data.js`:
+     deildu tvaer deildir sama `taken` vaeru leikmenn sem thu tokst i
+     annarri strikadir ut i hinni, og radgjofin taeldi hop sem thu
+     eigir ekki. `App.jsx` endurraesir thennan hlut (`key`) vid
+     svissun, svo thessi upphafsgildi eru LESIN UPP A NYTT tha. */
+  const kTaken = D.scoped("taken", leagueKey);
+  const kMine = D.scoped("myPicks", leagueKey);
+  const [taken, setTaken] = useState(() => new Set(D.loadState(kTaken, [])));
+  const [myPicks, setMyPicks] = useState(() => new Set(D.loadState(kMine, [])));
   const [posFilter, setPosFilter] = useState([]);
-  const [sync, setSync] = useState(() => D.loadState("sync", { draftId: "", slot: null }));
 
   /* ============================================================
      VISTUN FYLGIR ASTANDINU, EKKI KOLLUNUM
@@ -43,8 +52,8 @@ export default function DraftBoard({ rows, meta, league, setLeague, season, accu
 
      Effect a mengin sjalf getur ekki skeikad: hvad sem breytir theim,
      og hvadan sem thad kemur, er thad SIDASTA astand sem er skrifad. */
-  useEffect(() => { D.saveState("taken", [...taken]); }, [taken]);
-  useEffect(() => { D.saveState("myPicks", [...myPicks]); }, [myPicks]);
+  useEffect(() => { D.saveState(kTaken, [...taken]); }, [kTaken, taken]);
+  useEffect(() => { D.saveState(kMine, [...myPicks]); }, [kMine, myPicks]);
 
   /* Bordid radar THEIM SEM A-RANKING NAER YFIR. K og DST eru utan
      hennar (sja notu i build.js) og eru syndir ser nedar. */
@@ -78,6 +87,48 @@ export default function DraftBoard({ rows, meta, league, setLeague, season, accu
 
   const myRoster = useMemo(
     () => rows.filter((r) => myPicks.has(r.id)), [rows, myPicks]);
+
+  /* ============================================================
+     HVERJUM NA EG VID NAESTA VAL? — LITUR, EKKI NY TALA
+     ============================================================
+     Thetta er BIRTING a tolu sem er thegar maeld: `survivalProb`
+     (`advice.js`), thar sem stadalfravik ADP kemur ur raunverulegum
+     droftum hja FFC og `SD_K = 1,08` var FITTAD a 1.882
+     leikmanna-arum. Ekkert nytt er reiknad her og engin ny vog er
+     valin — bordid syair sama merki sem radgjofin notar.
+
+     ÞRJU SKILYRDI, OG HVERT THEIRRA MA SLOKKVA A LITNUM:
+       · saetid verdur ad vera thekkt — an thess er engin snakk-rod og
+         tha vaeri liturinn hreinn tilbuningur
+       · lidafjoldi verdur ad vera thekktur (hann er alltaf)
+       · leikmadurinn verdur ad bera ADP — `null` faer ENGAN lit, ekki
+         "0% likur". Tomt gildi er ekki nullgildi (sama regla og
+         alls stadar annars stadar i thessu repo-i).
+
+     THREPIN ERU LESLEIKI, EKKI LIKAN. `p` er samfelld; tveir tonar
+     eru til thess ad AUGAD greini hana i 200 rada toflu. Talan sjalf
+     er i `title` a nafninu, svo enginn thurfi ad giska hvad tonninn
+     thydir — og radgjofin les samfelldu toluna, aldrei tonninn.     */
+  const reach = useMemo(() => {
+    const m = new Map();
+    const slot = sync && sync.slot;
+    if (slot == null) return m;
+    const cur = taken.size + 1;
+    const np = nextOwnPick(cur, league.teams, slot, (league.rounds || 15) + 2);
+    if (np == null) return m;
+    for (const r of rows) {
+      if (r.adp == null) continue;
+      const p = survivalProb(r.adp, r.adpSd, np);
+      if (p != null) m.set(r.id, p);
+    }
+    return m;
+  }, [rows, taken.size, sync && sync.slot, league.teams, league.rounds]);
+
+  const nextOwn = useMemo(() => {
+    const slot = sync && sync.slot;
+    if (slot == null) return null;
+    return nextOwnPick(taken.size + 1, league.teams, slot, (league.rounds || 15) + 2);
+  }, [taken.size, sync && sync.slot, league.teams, league.rounds]);
 
   /* ============================================================
      ALLAR BREYTINGAR ERU FOLL AF FYRRA ASTANDI, EKKI AF MYND AF THVI
@@ -121,24 +172,22 @@ export default function DraftBoard({ rows, meta, league, setLeague, season, accu
 
   return (
     <>
-      {/* ÞETTA VAR VILLA OG HUN VAR THOGUL: vistunar-umgjordin tok
-          adeins vid GILDI, en `pull()` kallar `setSync(prev => ...)`
-          thegar `draft_order` baetist vid i midjum polli. Tha var
-          fallid sjalft sent i `saveState`, `JSON.stringify` a falli
-          skilar `undefined`, og strengurinn "undefined" lenti i
-          `localStorage` — svo saetid TAPADIST vid naestu hledslu, thott
-          skjarinn hefdi synt thad rett alla lotuna. Uppfaerslu-form
-          verdur ad leysast UT adur en thad er vistad. */}
-      <SleeperSync sync={sync}
-        setSync={(s) => setSync((prev) => {
-          const next = typeof s === "function" ? s(prev) : s;
-          D.saveState("sync", next);
-          return next;
-        })}
+      {/* `sync` BYR I `App.jsx` MED DEILDINNI.
+          Tvennt kalladi a thad. (1) Vistunar-umgjordin her tok adeins
+          vid GILDI, en `pull()` kallar `setSync(prev => ...)` thegar
+          `draft_order` baetist vid i midjum polli — tha var FALLID
+          sjalft sent i `saveState`, `JSON.stringify` a falli skilar
+          `undefined`, og strengurinn "undefined" lenti i
+          `localStorage`, svo saetid TAPADIST vid naestu hledslu thott
+          skjarinn hefdi synt thad rett alla lotuna. (2) Thessi hlutur
+          er endurraestur vid svissun, svo draft-id sem vaeri skrifad
+          hingad myndi hverfa i somu andra sem ny deild er flutt inn. */}
+      <SleeperSync sync={sync} setSync={setSync} league={league}
         season={season} rows={rows} taken={taken} onPicks={onPicks}
-        setLeague={setLeague} shapes={shapes} />
+        imported={imported} warnings={warnings} teams={teams}
+        onImportLeague={onImportLeague} shapes={shapes} />
 
-      <NextPick available={available} roster={myRoster} taken={taken}
+      <NextPick available={available} kdst={kdst} roster={myRoster} taken={taken}
         league={league} sync={sync} />
 
       <MarketMoving rows={rows} taken={taken} onTake={take} />
@@ -175,7 +224,8 @@ export default function DraftBoard({ rows, meta, league, setLeague, season, accu
 
       <div className="row" style={{ alignItems: "flex-start", gap: 14 }}>
         <div className="grow">
-          <BoardTable rows={shown.slice(0, 200)} onTake={take} taken={taken} />
+          <BoardTable rows={shown.slice(0, 200)} onTake={take} taken={taken}
+            reach={reach} nextOwn={nextOwn} />
         </div>
         <MyRoster roster={myRoster} league={league} onUndo={undo} />
       </div>
@@ -279,9 +329,23 @@ function ScarcityBar({ scarcity, league }) {
 /* ============================================================
    BORDID
    ============================================================ */
-function BoardTable({ rows, onTake }) {
+function BoardTable({ rows, onTake, reach, nextOwn }) {
+  const has = reach && reach.size > 0;
   return (
     <div className="tablewrap">
+      {/* Skyringin er SKILYRT vid ad liturinn se raunverulega a. Fost
+          skyring undir toflu an lita vaeri fullyrding um merki sem er
+          ekki thar — og hun vaeri thogul, thvi hun les eins hvort sem
+          saetid er thekkt eda ekki. */}
+      {has && (
+        <div className="dim" style={{ fontSize: 11.5, padding: "6px 9px 0" }}>
+          Will he last to your next pick
+          {nextOwn ? ` (#${nextOwn})` : ""}?
+          <span className="reach-key reach-hi">yes — you can wait</span>
+          <span className="reach-key reach-lo">no — take him now</span>
+          <span className="dim"> · unshaded = too close to call, or no ADP</span>
+        </div>
+      )}
       <table className="data">
         <thead>
           <tr className="cols">
@@ -303,9 +367,14 @@ function BoardTable({ rows, onTake }) {
         <tbody>
           {rows.map((r, i) => {
             const brk = i > 0 && rows[i - 1].tier !== r.tier;
+            const p = reach ? reach.get(r.id) : undefined;
+            const cls = [brk ? "tierline" : "", reachClass(p)]
+              .filter(Boolean).join(" ");
             return (
-              <tr key={r.id} className={brk ? "tierline" : ""}>
-                <td className="txt frozen">
+              <tr key={r.id} className={cls}>
+                <td className="txt frozen"
+                  title={p == null ? undefined
+                    : `${Math.round(p * 100)}% likely to last until your next pick`}>
                   {r.name}
                   {r.rookie && <span className="badge" style={{ marginLeft: 6 }}>R</span>}
                   {r.injury && r.injury !== "Active" && (
@@ -411,10 +480,11 @@ function MyRoster({ roster, league, onUndo }) {
    vegna er engin nafna-porun i thessu ferli — hun vaeri sidasta
    thad sem madur vill i beinni med 30 sekundur a klukkunni.
    ============================================================ */
-function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }) {
+function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
+                       imported, warnings, teams, onImportLeague }) {
   const [user, setUser] = useState("");
   /* Audkenni notandans er MUNAD thegar hann finnst. Thad er lykillinn
-     ad sjalfvirku saeti — sja `applyDraft`. */
+     ad sjalfvirku saeti — sja `resolveSlot`. */
   const [userId, setUserId] = useState(null);
   const [leagues, setLeagues] = useState(null);
   const [slotAuto, setSlotAuto] = useState(false);
@@ -423,13 +493,14 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }
   const [info, setInfo] = useState(null);
   /* Val sem bordid thekkir ekki — talid, ekki hent thegjandi. */
   const [unmatched, setUnmatched] = useState(null);
-  /* Thad sem var LESID ur deildinni: reglurnar, lidin, vidvaranirnar. */
   const [url, setUrl] = useState("");
-  const [imported, setImported] = useState(null);
-  const [warnings, setWarnings] = useState([]);
-  const [teams, setTeams] = useState(null);
   const [busy, setBusy] = useState(false);
   const timer = useRef(null);
+  /* Fingrafar sidasta svars, fjoldi vala og hvenaer valið hreyfdist
+     sidast — sja notuna vid `sig` og pollunar-hradann nedar. */
+  const lastSig = useRef(null);
+  const lastCount = useRef(null);
+  const lastMove = useRef(0);
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
   /* ============================================================
@@ -445,13 +516,34 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }
 
      Vorpunin sjalf er i `sleeper-league.js` — HREIN og profud, svo
      profin keyri somu vorpun og appid notar.                        */
-  const applyLeague = (bundle) => {
-    const res = leagueFromSleeper({ league: bundle.league, draft: bundle.draft, shapes });
-    if (bundle.league) setLeague(res.league);
-    setImported(res.imported);
-    setWarnings(res.warnings);
-    setTeams(teamsFromLeague(bundle));
-    return res;
+  /* ============================================================
+     SAETID ER LEYST **EINU SINNI**, ADUR EN NOKKUD ER SKRIFAD
+     ============================================================
+     ÞETTA VAR VILLA I FYRSTU UTGAFU FJOL-DEILDA-STUDNINGSINS og hun
+     er thess virdi ad skjala thvi hun er ALGJORLEGA THOGUL:
+
+     `setSync` i `App.jsx` lokast um `activeId` SEM HANN VAR VID
+     TEIKNINGU. Innflutningur breytir `activeId`, en React uppfaerir
+     hann ekki fyrr en naesta teikning — svo `setSync` sem er kallad i
+     SOMU adgerd og innflutningurinn skrifar saetid a **GOMLU**
+     deildina. Notandinn hefdi seð rett saeti a skjanum (nya faerslan
+     ber thad ur `onImportLeague`) meðan gamla deildin bar mengid, og
+     vid naestu svissun hefdi thad birst a rangri deild.
+
+     Lausnin er ekki ad "kalla setSync seinna" heldur ad hafa EINN
+     skrifstad: saetid er leyst ur svarinu, sett i faersluna sem er
+     flutt inn, og `setSync` er adeins notad thegar EKKERT er flutt inn
+     (mock-draft eda draft an deildar).                              */
+  const resolveSlot = (d, uid, bundle) => {
+    const order = d && d.draft_order;
+    const direct = order && uid != null ? Number(order[uid]) : NaN;
+    if (Number.isFinite(direct)) return direct;
+    if (uid != null && bundle) {
+      const mine = teamsFromLeague({ ...bundle, draft: d })
+        .find((t) => t.userId === String(uid));
+      if (mine && mine.slot != null) return mine.slot;
+    }
+    return null;
   };
 
   /* Ein slod — deildarslod, draft-slod eda bert audkenni. */
@@ -462,17 +554,36 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }
     setStatus("reading league…");
     try {
       const bundle = await D.sleeperResolve(input);
-      const res = applyLeague(bundle);
+      const res = leagueFromSleeper({
+        league: bundle.league, draft: bundle.draft, shapes });
+      const teamList = teamsFromLeague(bundle);
+
       const d = bundle.draft;
-      if (d && d.draft_id) {
-        applyDraft(d, userId, bundle);
+      const slot = d ? resolveSlot(d, userId, bundle) : null;
+      if (slot != null) setSlotAuto(true);
+
+      /* Draft an `league_id` er MOCK-DRAFT (Sleeper skilar thvi an
+         deildar). Tha eru engar reglur ad flytja inn — adeins volin —
+         og deildarflipi fyrir thad vaeri flipi sem ber sjalfgefnu
+         stillinguna undir nafni sem lítur ut eins og deild. */
+      if (bundle.league && res.imported.leagueId) {
+        onImportLeague({
+          id: res.imported.leagueId,
+          name: res.imported.name || "Sleeper league",
+          rules: res.league,
+          imported: res.imported,
+          warnings: res.warnings,
+          teams: teamList,
+          sync: { draftId: (d && d.draft_id) || "", slot },
+        });
+        setStatus(d && d.draft_id ? null
+          : `Rules imported from ${res.imported.name || "the league"} — ` +
+            `no draft has been created yet.`);
+      } else if (d && d.draft_id) {
+        setSync({ draftId: d.draft_id, slot: slot != null ? slot : sync.slot });
         setStatus(null);
       } else {
-        /* Deildin fannst en draftid er ekki til enn. Reglurnar eru
-           samt komnar og thaer eru thad sem bordid reiknar ur — thess
-           vegna er thetta UPPLYSING, ekki villa. */
-        setStatus(`Rules imported from ${res.imported.name || "the league"} — ` +
-                  `no draft has been created yet.`);
+        setStatus("Fann hvorki reglur ne draft a thessari slod");
       }
       setLeagues(null);
     } catch (e) {
@@ -517,23 +628,6 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }
      Leid 2 er ekki tilgata: a raunverulegri deild (12.8.2026) var
      `draft_order` NULL — Sleeper dregur rodina eftir a — svo leid 1
      gaf ekkert og saetid vard ad koma annars stadar fra. */
-  const applyDraft = (d, uid, bundle) => {
-    const order = d && d.draft_order;
-    let slot = order && uid != null ? order[uid] : null;
-    if (slot == null && uid != null && bundle) {
-      const mine = teamsFromLeague({ ...bundle, draft: d })
-        .find((t) => t.userId === String(uid));
-      if (mine && mine.slot != null) slot = mine.slot;
-    }
-    const next = { ...sync, draftId: d.draft_id };
-    if (slot != null && Number.isFinite(Number(slot))) {
-      next.slot = Number(slot);
-      setSlotAuto(true);
-    }
-    setSync(next);
-    return slot != null;
-  };
-
   /* Notandanafns-leidin fer nu GEGNUM somu vorpun. Adur las hun adeins
      draft-id og saeti; reglurnar komu ekki med, svo deildin i appinu
      var afram su sem sidast var slegin inn i hendi. */
@@ -581,19 +675,58 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }
           .map((p) => (p.metadata &&
             [p.metadata.first_name, p.metadata.last_name].filter(Boolean).join(" ")) ||
             String(p.player_id)) });
-      onPicks(ids, mine);
+
+      /* ============================================================
+         OBREYTT SVAR MA EKKI ENDURTEIKNA BORDID.
+         ============================================================
+         `onPicks(ids, mine)` sendi NYTT fylki i hverri pollun, lika
+         thegar ekkert hafdi gerst. Foreldrid byggdi tha nytt `Set`,
+         `available` reiknadist upp a nytt og 200 rada tafla,
+         tillagan, skortstadan og markadskassinn endurteiknudust —
+         a 5 sekundna fresti, allt draftid, fyrir engar upplysingar.
+
+         Fingrafarid er talan sjalf, ekki tilvisunin. Thad er lika
+         forsenda thess ad haegt se ad polla ORAR (nedar): hrad
+         pollun sem endurteiknar allt vaeri verri en haeg. */
+      const sig = pickSignature(ids, mine);
+      if (sig !== lastSig.current) {
+        lastSig.current = sig;
+        if (ids.length > (lastCount.current ?? 0)) lastMove.current = Date.now();
+        lastCount.current = ids.length;
+        onPicks(ids, mine);
+      }
       setStatus(null);
     } catch (e) { setStatus(String(e.message || e)); }
   };
 
+  /* ============================================================
+     HRADINN FYLGIR DRAFTINU, HANN ER EKKI FASTUR.
+     ============================================================
+     Her stod 5000 ms med rokunum "snakk-draft gefur 30-90 sek a val".
+     Thad er rett um RAUNDRAFT og RANGT um mock: botnar velja
+     samstundis, svo mock rennur oft a 1-3 sek a val og heilt draft a
+     fimm minutum. Notandinn sa nakvaemlega thad — listinn uppfaerdist
+     "of haegt", og hann var ekki ad lysa hegdun heldur ranga forsendu.
+
+     Reglan: se nytt val komid a SIDUSTU 25 SEKUNDUM er draftid a
+     hreyfingu og vid spyrjum a 1,5 sek. Annars 5 sek, sem er gamla
+     hegdunin — biðstada milli umferda a ekki ad kosta koll.
+
+     Thetta er odyrt AF THVI AD obreytt svar endurteiknar nu ekkert
+     (sja `sig` ofar). Vid erum gestir hja Sleeper og teljum thad:
+     versta tilfellið er 40 koll a minutu medan draft er i gangi, sem
+     er minna en vafrinn gerir vid ad hlada einni sidu.               */
   useEffect(() => {
     if (!live || !sync.draftId) return;
-    pull(sync.draftId);
-    /* 5 sekundur er valid af thvi ad snakk-draft gefur 30-90 sek a
-       val; hradara vaeri ad spyrja um ekkert. Sleeper setur ekki
-       kvota a thetta en vid erum gestir. */
-    timer.current = setInterval(() => pull(sync.draftId), 5000);
-    return () => clearInterval(timer.current);
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return;
+      await pull(sync.draftId);
+      if (stopped) return;
+      timer.current = setTimeout(tick, pollDelay(lastMove.current, Date.now()));
+    };
+    tick();
+    return () => { stopped = true; clearTimeout(timer.current); };
   }, [live, sync.draftId, sync.slot, byId]);
 
   return (
@@ -648,7 +781,8 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }
           thegjandi vaeri ad skipta um heim undir notandanum. Reglurnar
           eru thvi birtar berum ordum svo hann geti bori thaer vid
           Sleeper-appid sjalft.                                       */}
-      {imported && <ImportedRules imported={imported} />}
+      {imported && <ImportedRules imported={imported} league={league}
+        shapes={shapes} />}
 
       {/* Saetavalid. Se rodin ekki dregin er thad SAGT — `draft_order`
           var null a raunverulegri deild og thad er ekki bilun. */}
@@ -748,6 +882,53 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }
   );
 }
 
+/* ============================================================
+   ÞREPIN A LIFUNINNI — BIRTING, MAELD I THREMUR TILRAUNUM
+   ============================================================
+   `p` er samfelld og maeld (`survivalProb`); radgjofin les hana
+   samfellda og ser thetta fall ALDREI. Threpin eru eingongu til thess
+   ad augad greini hana i 200 rada toflu.
+
+   ÞRJAR UTGAFUR VORU MAELDAR A RAUNVERULEGU BORDI (10 lid, saeti 7,
+   20 vol komin, naesta val #27). Tvaer fyrstu voru taldar, thridja
+   var SKODUD A SKJANUM — og thad er astaedan fyrir thessari:
+
+   (1) `>=0,75 likely` + `0,45-0,75 coin flip`, annad olitad:
+       **192 af 205 rodum litadar (94%)**. Ekki rong — vid val 27 lifir
+       nanast hver sem hefur ADP yfir ~40 — en tonn sem 94% radanna
+       bera er BAKGRUNNUR, ekki merki.
+
+   (2) "Vissu"-endinn (>=0,97) tekinn ut sem "engin akvordun":
+       **2 af 205**, og NULL i "likely"-threpinu. Dreifingin er sterkt
+       TVITOPPA — vid fast val er nanast hver leikmadur annadhvort
+       longu farinn eda algerlega oruggur. Nanast olitad bord les eins
+       og bilun.
+
+   (3) Þrir tonar (graent/gult/raudt) TOLDUST rett (189/5/6) og voru
+       samt onytir: a SKJAMYND voru gult og raudt **ogreinanleg**.
+       Maelt: #262523 a moti #282024 er (2, 5, 1) i RGB. FPL-verkefnid
+       ber thegar thessa reglu — nagrannathrep verda ad vera >=20 i
+       RGB — og hun var brotin her. Tvaer tolur sem TELJAST rett geta
+       samt verid einn litur fyrir auganu.
+
+   (4) ÞETTA: TVEIR tonar, gagnstaedir, og midjan OLITUD.
+
+     >= 0,80    graent  lifir til naesta vals — obidu
+     0,40-0,80  olitad  VID VITUM EKKI — engin fullyrding
+     < 0,40     raudt   farinn adur en thu velur aftur
+     ADP vantar olitad  — engin tala, ekki "0%"
+
+   Bædi olituðu tilfellin thyda thvi NAKVAEMLEGA THAD SAMA: appid
+   fullyrdir ekkert. Thad er ekki tvirædni heldur ein regla, og hun er
+   satt bædi um jafnteflid og um vantandi ADP. Prosentan er i `title`.
+   ============================================================ */
+export function reachClass(p) {
+  if (p == null) return "";
+  if (p >= 0.80) return "reach-hi";
+  if (p >= 0.40) return "";
+  return "reach-lo";
+}
+
 /** Tekur vid heilli slod eda beru audkenni. */
 function extractDraftId(s) {
   const m = String(s).match(/(\d{6,})/);
@@ -765,7 +946,7 @@ function extractDraftId(s) {
    `exactScoring: false` er MERKT. Deild med `rec: 0,75` eda TE-premium
    er NALGUD, thvi spain er sott i thremur afbrigdum og ekki fleiri, og
    nalgun ma aldrei birtast sem vissa.                                */
-function ImportedRules({ imported: im }) {
+function ImportedRules({ imported: im, league, shapes }) {
   const st = im.starters || {};
   const ORDER = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "K", "DST"];
   const slots = ORDER.filter((p) => st[p] > 0)
@@ -793,6 +974,42 @@ function ImportedRules({ imported: im }) {
         {im.bench > 0 ? ` · ${im.bench} bench` : ""}
         {im.flexPos ? ` · flex takes ${im.flexPos.join("/")}` : ""}
       </div>
+      <MeasuredEdge league={league} shapes={shapes} />
+    </div>
+  );
+}
+
+/* ============================================================
+   HVAD ER RODIN THESS VIRDI I ÞESSARI DEILD?
+   ============================================================
+   Innflutningur segir HVAD deildin er. Thetta segir hvad bordid er
+   THESS VIRDI thar — og thad er onnur spurning. Deildarlogun er ekki
+   skraut: varamanns-threpid faerist med lidafjolda og saetum, og
+   maelda forskotid gegn ADP er OLIKT milli logana (t.d. +188,0 i
+   10-lida tveggja-FLEX PPR a moti +147,4 i 12-lida half).
+
+   TALAN KEMUR UR `src/rulebasis.js` og hun er ekki reiknud her.
+   Einingin ber thrjar reglur sem eru astaedan fyrir thvi ad thetta er
+   ekki bara tala i reit:
+     · OMAELD logun faer ENGA tolu — aldrei naesta tala birt eins og
+       hun se thessi logun
+     · OMARKTAEK logun les EKKI eins og marktaek — `text` ber tha enga
+       stigatolu
+     · VARFAERNA talan er birt, ekki besta
+
+   Thess vegna er `text` birt eins og hun kemur og EKKERT sniðið hér:
+   sniðum vid hana myndum vid geta latid omarktaeka tolu lesast eins og
+   marktaeka, sem er einmitt thad sem einingin er til ad forda.      */
+function MeasuredEdge({ league, shapes }) {
+  const e = useMemo(() => {
+    if (!league) return null;
+    try { return edgeSentence(league, shapes || null); } catch { return null; }
+  }, [league, shapes]);
+  if (!e || !e.text) return null;
+  return (
+    <div style={{ marginTop: 4, fontSize: 12.5 }}
+      className={e.measured && e.significant ? "good" : "dim"}>
+      {e.text}
     </div>
   );
 }
@@ -809,7 +1026,7 @@ function ImportedRules({ imported: im }) {
    thvi hversu bratt stadan versnar — var maeld og hun TAPAR
    (marktaekt i standard). Lifunarlikur eru birtar sem upplysing.
    ============================================================ */
-function NextPick({ available, roster, taken, league, sync }) {
+function NextPick({ available, kdst, roster, taken, league, sync }) {
   const pick = (taken ? taken.size : 0) + 1;
   const rec = useMemo(() => {
     if (!available.length) return null;
@@ -828,14 +1045,60 @@ function NextPick({ available, roster, taken, league, sync }) {
   const top = rec.picks.slice(0, 5);
   const differs = rec.urgencyPick && rec.urgencyPick.id !== rec.picks[0].id;
 
+  /* ============================================================
+     EITT NAFN, EKKI MATSEDILL.
+     ============================================================
+     Kassinn bar adur fimm radir med tolum og valkost vid hlidina, og
+     notandinn sagdi rett: "eg vill ekki thurfa ad velja neitt". Fimm
+     radir ERU val, hversu graent sem efsta merkid er.
+
+     RODIN SJALF HAGGAST EKKI — hun er maeld (A-Ranking, sja advice.js).
+     Thetta er birting: urskurdurinn stendur einn efst og rokstudning-
+     urinn er felldur nidur. Thad er MIKILVAEGT ad hann se enn thar og
+     opnanlegur: tolur an raka eru orakli, og allt i thessu verkefni
+     hvilir a thvi ad haegt se ad spyrja "af hverju".
+
+     K/DST ERU NEFNDIR MED NAFNI THEGAR AD THEIM KEMUR. Adur sagdi
+     kassinn "take them late, from the K and DST table" — sem er
+     nakvaemlega thad ad lata notandann velja. Their eru utan A-Ranking
+     af maeldri astaedu (spar theirra flytjast ekki milli ara), svo
+     urskurdurinn segir thad berum ordum i stad thess ad thegja. */
+  const needKdst = rec.mustFillUrgent && rec.mustFill && rec.mustFill.length > 0;
+  const kdstPick = needKdst && kdst && kdst.length
+    ? kdst.find((r) => rec.mustFill.some((m) => m.pos === r.pos)) || null
+    : null;
+  const verdict = kdstPick || top[0];
+  const vRow = available.find((r) => r.id === verdict.id)
+    || (kdst || []).find((r) => r.id === verdict.id) || null;
+  const why = kdstPick
+    ? `You have ${rec.picksLeft} picks left and still need ${
+        rec.mustFill.map((m) => m.pos).join(" and ")}. Take him now or start a player short.`
+    : (top[0].reasons && top[0].reasons.length
+        ? top[0].reasons[0].text
+        : "Highest value over replacement on the board.");
+
   return (
     <div className="panel">
       <h2>Pick {pick} — take this</h2>
+
+      <div className="verdict">
+        <div className="verdict-name">
+          <span className={`pos ${verdict.pos}`}>{verdict.pos}</span>
+          <b>{verdict.name}</b>
+          {vRow && vRow.team && <span className="dim"> · {vRow.team}</span>}
+          {vRow && vRow.bye != null && <span className="dim"> · bye {vRow.bye}</span>}
+        </div>
+        <div className="verdict-why">{why}</div>
+      </div>
+
       <div className="sub">
         {sync && sync.draftId
           ? `Pick ${pick} by the board below. `
           : `Assuming you are on the clock at pick ${pick}. `}
         Your next pick is <b>{rec.nextPick}</b>, {rec.wait} picks away.
+        {kdstPick && " Kicker and defence are ranked by projection alone — their"
+          + " year-to-year skill does not carry, so this is the one call in the app"
+          + " that is not backed by a backtest."}
       </div>
 
       {/* K og DST eru utan A-Ranking af maeldri astaedu, en tha ma ekki
@@ -874,13 +1137,15 @@ function NextPick({ available, roster, taken, league, sync }) {
           <b>Still to fill: {rec.mustFill.map((m) =>
             `${m.short} ${m.pos}`).join(", ")}.</b>{" "}
           {rec.mustFillUrgent
-            ? `You have ${rec.picksLeft} picks left — take them now or start the season a player short.`
+            ? `You have ${rec.picksLeft} picks left. The verdict above already names the one to take.`
             : `These never appear in the list below: they were excluded from every
                simulation that validates the order, so ranking them would be a guess
                dressed as a measurement. Take them late, from the K and DST table.`}
         </div>
       )}
 
+      <details className="reasoning">
+        <summary>Why him — and the four behind him</summary>
       <div className="tablewrap" style={{ marginTop: 10 }}>
         <table className="data">
           <thead><tr className="cols">
@@ -936,6 +1201,7 @@ function NextPick({ available, roster, taken, league, sync }) {
         <code>{MEASURED.sdRule}</code>, fitted on {MEASURED.sdRuleSample.toLocaleString()}{" "}
         player-seasons.
       </div>
+      </details>
     </div>
   );
 }

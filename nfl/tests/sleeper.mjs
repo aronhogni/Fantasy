@@ -139,6 +139,30 @@ const SCENARIOS = {
     },
     picks: REAL_IDS.slice(0, 20).map((id, i) => mkPick(i, id, (i % 10) + 1)),
   },
+  /* Deild B — draftid er til en EKKERT val komid. */
+  leagueB: {
+    draft: {
+      draft_id: "2222222222222222223", league_id: "2222222222222222222",
+      status: "pre_draft", type: "snake", season: "2026", draft_order: null,
+      slot_to_roster_id: { 1: 1, 2: 2, 3: 3 },
+      metadata: { scoring_type: "half_ppr" },
+      settings: { teams: 14, rounds: 12 },
+    },
+    picks: [],
+  },
+};
+
+/* ONNUR deild — vidsjarverdlega ODRUVISI: 14 lid, half-ppr, superflex,
+   ANNAD draft og ENGIN vol. Vaeri astandid deilt myndi hun erfa 20 vol
+   ur deild A og reglurnar ur henni, og hvorugt saest a bordinu sjalfu. */
+const LEAGUE_B = {
+  league_id: "2222222222222222222", draft_id: "2222222222222222223",
+  name: "Deildin B", season: "2026", status: "pre_draft", total_rosters: 14,
+  roster_positions: ["QB", "RB", "RB", "WR", "WR", "WR", "TE", "SUPER_FLEX",
+                     "BN", "BN", "BN", "BN"],
+  settings: { num_teams: 14, draft_rounds: 12, type: 0, best_ball: 0 },
+  scoring_settings: { rec: 0.5, pass_yd: 0.04, pass_td: 4, pass_int: -1,
+                      rush_yd: 0.1, rush_td: 6, rec_yd: 0.1, rec_td: 6, fum_lost: -2 },
 };
 
 /* Deildin sjalf — REGLURNAR. */
@@ -198,10 +222,13 @@ global.fetch = async (url) => {
          atburdarasir fara draft-leidina, og tha VERDUR thetta ad svara
          eins og deild sem er ekki til — annars faeri hver atburdaras
          gegnum deildar-vorpunina og profadi annad en hun aetlar. */
-      const known = /\/league\/1389356308104249344$/.test(s);
-      return known
-        ? { ok: true, status: 200, json: async () => LEAGUE_RESP }
-        : { ok: false, status: 404, json: async () => null };
+      if (/\/league\/1389356308104249344$/.test(s)) {
+        return { ok: true, status: 200, json: async () => LEAGUE_RESP };
+      }
+      if (/\/league\/2222222222222222222$/.test(s)) {
+        return { ok: true, status: 200, json: async () => LEAGUE_B };
+      }
+      return { ok: false, status: 404, json: async () => null };
     }
     if (/\/picks$/.test(s)) {
       return { ok: true, status: 200, json: async () => scenario.picks };
@@ -226,6 +253,17 @@ global.IS_REACT_ACT_ENVIRONMENT = true;
 const App = (await import("../src/App.jsx")).default;
 
 const settle = async (ms = 400) => { await act(async () => { await new Promise((r) => setTimeout(r, ms)); }); };
+/* Bid a SKILYRDI, ekki a klukku. Fost bid er flöktandi prof i dulargervi:
+   hun er of long i hverri keyrslu sem gengur og of stutt i theirri sem
+   fellur. */
+const waitFor = async (cond, ms = 3000) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    if (cond()) return true;
+    await settle(100);
+  }
+  return cond();
+};
 const text = () => document.body.textContent || "";
 const click = async (el) => {
   if (!el) return false;
@@ -442,10 +480,15 @@ console.log("\n2c. handvirkt val lifir pollunina");
     `og lifir pollunina 5 sek sidar (${afterClick ? afterClick[1] : "?"} -> ` +
     `${afterTick ? afterTick[1] : "?"})`);
 
-  /* Og afturforin ma ekki hafa verid SKRIFUD i localStorage. */
-  const saved = JSON.parse(localStorage.getItem("nfl_taken") || "[]");
+  /* Og afturforin ma ekki hafa verid SKRIFUD i localStorage.
+     LYKILLINN ER LYKLADUR A DEILD fra 12.8.2026 (`nfl_taken:<id>`) —
+     deildu tvaer deildir sama mengi vaeru leikmenn sem thu tokst i
+     annarri strikadir ut i hinni. Olyklada deildin heitir "local". */
+  const saved = JSON.parse(localStorage.getItem("nfl_taken:local") || "[]");
   ok(saved.length >= Number(afterClick[1]),
     `og vistada mengid ber thad lika (${saved.length} audkenni)`);
+  ok(localStorage.getItem("nfl_taken") == null,
+    "og olyklada lykillinn er EKKI skrifadur (annars tvo mengi i einu)");
   root.unmount();
 }
 
@@ -482,26 +525,49 @@ console.log("\n2d. deildarslod flytur inn REGLURNAR");
     return [...document.querySelectorAll("table.data tbody tr")].slice(0, 6)
       .map((tr) => (tr.children[col]?.textContent || "").trim()).join("|");
   };
-  const teamsSelect = () => [...document.querySelectorAll("label.field")]
-    .find((l) => /^\s*Teams/.test(l.textContent || ""))?.querySelector("select");
+  /* HANDVIRKU REITIRNIR VORU TEKNIR UT 12.8.2026 — deildin er flutt
+     inn, svo tveir reitir sem segja thad sama vaeru ofthorf OG haetta.
+     Vidmotid ber nu LESTEXTA (`ActiveLeague`), og hin RAUNVERULEGA
+     heimild um hvad bordid reiknar er `nfl_leagues`. Profid les BADAR:
+     textann (thad sem notandinn ser) og geymsluna (thad sem likanid
+     notar) — annars gaeti skjarinn sagt annad en reiknad er.        */
+  const savedEntries = () => JSON.parse(localStorage.getItem("nfl_leagues") || "[]");
+  const activeRules = () => {
+    const id = JSON.parse(localStorage.getItem("nfl_activeLeague") || '""');
+    const es = savedEntries();
+    return (es.find((e) => e.id === id) || es[0] || {}).rules || {};
+  };
+  const headerText = () => (document.querySelector("header.top") || {}).textContent || "";
 
   ok(vbdCol() >= 0, "VBD-dalkurinn er a bordinu (forsenda maelingarinnar)");
   const beforeVbd = vbdSnapshot();
-  const beforeTeams = teamsSelect()?.value;
-  ok(beforeTeams === "12", `fyrir innflutning: 12 lid (sjalfgefid) — fann ${beforeTeams}`);
+  ok(activeRules().teams === 12,
+    `fyrir innflutning: 12 lid (sjalfgefid) — fann ${activeRules().teams}`);
+  ok(/default, no league connected/.test(headerText()),
+    "og hausinn SEGIR ad thetta se sjalfgefid, ekki deildin thin");
 
   /* Notandinn limir inn thad sem hann hefur i vafranum. */
   await setInput("League or draft URL",
     "https://sleeper.com/leagues/1389356308104249344/predraft");
   await click([...document.querySelectorAll("button")]
     .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
-  await settle(900);
+  /* Innflutningur breytir `activeId`, sem ENDURRAESIR bordid og
+     endurreiknar `buildRows` yfir ~1.100 leikmenn. Vid 900 ms var
+     VBD-fullyrdingin GRAEN I EINNI KEYRSLU OG RAUD I NAESTU — og
+     flöktandi prof er verra en ekkert: thad sendir mann af stad ad
+     leita ad villu sem er ekki til. Bidum thangad til talan er komin
+     i stad thess ad giska a timann. */
+  await waitFor(() => activeRules().teams === 10, 4000);
+  await settle(400);
 
   const t = text();
 
   /* --- (a) reglurnar lentu i DEILDINNI, ekki bara a skjanum --- */
-  const afterTeams = teamsSelect()?.value;
-  ok(afterTeams === "10", `deildin er nu 10 lid (fann ${afterTeams})`);
+  ok(activeRules().teams === 10, `deildin er nu 10 lid (fann ${activeRules().teams})`);
+  ok(/10<\/b> teams|10 teams/.test(document.querySelector("header.top").innerHTML),
+    "og hausinn syair thad lika");
+  ok(/from Sleeper/.test(headerText()) && !/default, no league/.test(headerText()),
+    "og hann greinir \"lesid ur Sleeper\" fra \"sjalfgefid\"");
   const afterVbd = vbdSnapshot();
   ok(beforeVbd && afterVbd && beforeVbd !== afterVbd,
     "og VBD-tolurnar breyttust — varamanns-threpid fylgdi med");
@@ -519,7 +585,7 @@ console.log("\n2d. deildarslod flytur inn REGLURNAR");
      lesin taeldi radgjofin thrjar umferdir eftir og myndi aldrei segja
      ther ad taka spyrnumann ne vorn. Prófad a THVI SEM VAR VISTAD, sem
      er thad sem `advice.js` les. */
-  const savedLeague = JSON.parse(localStorage.getItem("nfl_league") || "{}");
+  const savedLeague = activeRules();
   ok(savedLeague.rounds === 16,
     `umferdir ur DRAFTINU: 16 (fann ${savedLeague.rounds})`);
   ok(savedLeague.rounds !== 3, "og EKKI 3 ur deildinni (gildran)");
@@ -532,9 +598,35 @@ console.log("\n2d. deildarslod flytur inn REGLURNAR");
   ok(!("BN" in (savedLeague.starters || {})),
     "bekkurinn lak ekki inn i byrjunarsaetin");
 
-  /* --- (d) vidvaranirnar --- */
-  ok(/keeper|dynasty/i.test(t), "keeper-deild er flogguð");
-  ok(/not one of the shapes/i.test(t), "og omaeld logun er flogguð");
+  /* --- (d) vidvaranirnar ---
+     MAELT 12.8.2026: thessi deild er `settings.type: 0` (redraft) og
+     `is_keeper` var null i ollum 150 volum sidasta drafts. Fyrsta
+     utgafan flaggadi hana samt sem keeper-deild af thvi ad
+     `max_keepers` er 1 — sem er Sleeper-sjalfgefid i HVERRI deild.
+     Vidvorun sem kviknar a venjulegri deild er havadi, og tha laerir
+     notandinn ad hunsa kassann. */
+  ok(!/keeper|dynasty/i.test(t),
+    "redraft-deild er EKKI flogguð sem keeper (fals-jakvaett sem var lagad)");
+  /* Vidvorunar-kassinn a nu ad vera TOMUR a thessari deild — badar
+     vidvaranirnar sem hun bar voru osannar (keeper ur `max_keepers`,
+     omaeld logun ur einn-flex-toflunni). Kassi sem er alltaf raudur
+     haettir ad segja neitt, svo thognin er krafan. Ad hann se ekki
+     dauður er varid i `sleeper-league.mjs` (keeper/dynasty/taxi/
+     uppbod/best-ball/TE-premium kvikna oll). */
+  ok(!/things the model cannot take|thing the model cannot take/i.test(t),
+    "og vidvorunar-kassinn er ALLS EKKI a thessari deild");
+
+  /* --- (d2) MAELDA FORSKOTID I ÞESSARI LOGUN ---
+     Innflutningur segir hvad deildin ER; thetta segir hvad bordid er
+     THESS VIRDI thar. Talan kemur ur `src/rulebasis.js` og er EKKI
+     reiknud i vidmótinu. 10-lida tveggja-FLEX PPR maelist +188,0 yfir
+     ADP i 11 af 11 timabilum, svo hun a ad standa a skjanum. */
+  ok(/Measured:/.test(t) && /over ADP/.test(t),
+    "maelda forskotid i thessari logun er birt");
+  ok(/188/.test(t),
+    "og talan er su sem half-lab maeldi fyrir 10-2flex ppr (+188)");
+  ok(!/has not been backtested/.test(t),
+    "og logunin er EKKI kollud omaeld (gamla fals-vidvorunin)");
 
   /* --- (e) draft-id fylltist af sjalfu ser --- */
   const idInput = [...document.querySelectorAll("label.field")]
@@ -599,6 +691,323 @@ console.log("\n2e. saetid valid med smelli (draft_order er null)");
   ok(mine && Number(mine[1]) === 2,
     `og TVEIR theirra eru minir (saeti 7 af 10) — fann ${mine ? mine[1] : "?"}`);
 
+  root.unmount();
+}
+
+/* ============================================================
+   2f. TVAER DEILDIR — OG ASTANDID MA EKKI BLANDAST
+   ============================================================
+   ÞETTA ER HAETTULEGASTA VILLAN I FJOL-DEILDA-STUDNINGI og hun er
+   thogul: deildu tvaer deildir sama `taken`/`myPicks` vaeru leikmenn
+   sem thu tokst i deild A strikadir ut i deild B, og "hvern a ad taka
+   naest" taeldi hop sem thu eigir ekki thar. Bordid liti fullkomlega
+   normalt ut — thad vaeri einfaldlega ad reikna annad draft.
+
+   Profid svissar A -> B -> A og krefst thess ad HVER deild haldi sinu.  */
+console.log("\n2f. tvaer deildir halda sinu astandi");
+{
+  scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
+  const root = await boot();
+
+  const switcherNames = () => [...document.querySelectorAll(".league-switch button.chip")]
+    .map((c) => (c.textContent || "").trim())
+    .filter((t) => t !== "\u00d7");
+  const draftedCount = () => {
+    const m = /(\d+) drafted/.exec(text());
+    return m ? Number(m[1]) : null;
+  };
+
+  /* --- deild A: flytjum inn og samstillum, 20 vol --- */
+  await setInput("League or draft URL",
+    "https://sleeper.com/leagues/1389356308104249344/predraft");
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
+  await settle(900);
+  await click([...document.querySelectorAll("button.chip")]
+    .find((c) => /7\.\s*mattitim/.test(c.textContent || "")));
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  await settle(1000);
+  const aDrafted = draftedCount();
+  ok(aDrafted >= 20, `deild A: ${aDrafted} strikadir ut`);
+
+  /* --- deild B: onnur deild, ANNAD draft, engin vol --- */
+  scenario = SCENARIOS.leagueB;
+  await setInput("League or draft URL",
+    "https://sleeper.com/leagues/2222222222222222222/predraft");
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
+  await settle(1000);
+
+  const names = switcherNames();
+  ok(names.some((n) => /Patriots/.test(n)) && names.some((n) => /Deildin B/.test(n)),
+    `svissarinn ber BADAR deildirnar (${names.join(" | ")})`);
+  /* "My league" var ohreyfdur sjalfgefinn hlekkur — hann a ad hafa
+     vikid, ekki safnast sem daudur flipi. */
+  ok(!names.some((n) => /My league/.test(n)),
+    "ohreyfdi sjalfgefni hlekkurinn vek fyrir raunverulegri deild");
+
+  const bDrafted = draftedCount();
+  ok(bDrafted === 0,
+    `deild B byrjar med TOMT bord (${bDrafted}) — astand deildar A lak ekki`);
+  const teamsB = /(\d+)<\/b> teams|(\d+) teams/.exec(document.body.innerHTML);
+  ok(/14/.test(text()), "og reglur deildar B eru komnar (14 lid)");
+
+  /* --- til baka i A: mengið verdur ad vera thar enn --- */
+  const chipA = [...document.querySelectorAll("button.chip")]
+    .find((c) => /Patriots/.test(c.textContent || ""));
+  await click(chipA);
+  await settle(700);
+  const backDrafted = draftedCount();
+  ok(backDrafted === aDrafted,
+    `til baka i A: ${backDrafted} strikadir ut (voru ${aDrafted})`);
+  const slotInput = [...document.querySelectorAll("label.field")]
+    .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
+  ok(slotInput && Number(slotInput.value) === 7,
+    `og saetid fylgdi deildinni (${slotInput ? slotInput.value : "?"})`);
+  ok(/10/.test(text()), "og reglur deildar A komu til baka");
+
+  /* Vistad astand verdur ad bera BADAR — annars hverfur onnur vid F5. */
+  const saved = JSON.parse(localStorage.getItem("nfl_leagues") || "[]");
+  ok(saved.length === 2, `badar deildir vistadar (${saved.length})`);
+  ok(saved.every((e) => e.rules && e.rules.teams >= 4),
+    "og hver ber sinar eigin reglur");
+  root.unmount();
+}
+
+/* ============================================================
+   2g. LITURINN A BORDINU — HVERJUM NA EG?
+   ============================================================
+   Liturinn er BIRTING a `survivalProb`, sem er maeld. Prófsteinninn er
+   ekki "er einhver rod litud" heldur:
+     · AN SAETIS ma ENGIN rod vera litud (litur ur ovissu er tilbuningur)
+     · MED saeti verda thaer ad vera litadar
+     · og efstu leikmenn (ADP 1-3) ma ALDREI vera "likely" — their eru
+       farnir langt fyrir val 14. Su fullyrding fellur ef threpin eru
+       snuin vid, sem er lumskasta villan her.                        */
+console.log("\n2g. litun eftir lifun");
+{
+  scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
+  const root = await boot();
+
+  const shaded = () => ({
+    hi: document.querySelectorAll("table.data tbody tr.reach-hi").length,
+    mid: document.querySelectorAll("table.data tbody tr.reach-mid").length,
+    lo: document.querySelectorAll("table.data tbody tr.reach-lo").length,
+    rows: document.querySelectorAll("table.data tbody tr").length,
+  });
+
+  const before = shaded();
+  ok(before.hi === 0 && before.mid === 0 && before.lo === 0,
+    `an saetis er EKKERT litad (${before.hi}/${before.mid}/${before.lo})`);
+  ok(!/Shading =/.test(text()), "og engin skyring birtist");
+
+  await setInput("League or draft URL",
+    "https://sleeper.com/leagues/1389356308104249344/predraft");
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
+  await settle(900);
+  await click([...document.querySelectorAll("button.chip")]
+    .find((c) => /7\.\s*mattitim/.test(c.textContent || "")));
+  /* SAMSTILLUM LIKA. An volanna er `taken` tomt, svo naesta val mitt er
+     #7 — fyrsta valid — og tha lifir nanast hver leikmadur. Thad er
+     rett en thad er ekki astandid sem liturinn er TIL FYRIR: hann er
+     til fyrir midjan draftinn, thar sem 20 vol eru komin og naesta val
+     mitt er #27. Prof sem maelir bara byrjunina profar auðvelda
+     tilfellid. */
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  await waitFor(() => /20 drafted/.test(text()), 4000);
+  await settle(400);
+
+  const after = shaded();
+  ok(after.mid === 0, `midjan er OLITUD — engin fullyrding (${after.mid})`);
+  ok(after.hi > 0 && after.lo > 0,
+    `med saeti litast BADIR endar (${after.hi} obida, ${after.mid} vafi, ` +
+    `${after.lo} farinn af ${after.rows})`);
+  /* ============================================================
+     TONARNIR VERDA AD VERA GREINANLEGIR A SKJA
+     ============================================================
+     Þrju-tona utgafan TALDIST rett (189/5/6) og var samt onyt: gult og
+     raudt voru ogreinanleg, (2, 5, 1) i RGB. Tvaer tolur sem teljast
+     rett geta verid einn litur fyrir auganu, svo talningin ein er
+     ekki nog — fjarlaegdin verdur ad vera FULLYRDING. Sama regla og
+     FPL-verkefnid ber um nagrannathrep.
+
+     LESID UR `styles.css`, EKKI UR `getComputedStyle`: jsdom hledur
+     ENGU stilblaði, svo `getComputedStyle(...).backgroundColor` er tomur
+     strengur og fullyrdingin hefdi verid `null === null` — thogul
+     fullyrding sem gat ekki brugdist. `layout.mjs` les CSS-skrana af
+     sama tilefni.                                                    */
+  const css = readFileSync(path.join(ROOT, "src", "styles.css"), "utf8");
+  const hex = (cls) => {
+    const re = new RegExp(`\\.reach-key\\.${cls}\\s*\\{[^}]*background:\\s*#([0-9a-fA-F]{6})`);
+    const m = re.exec(css);
+    return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : null;
+  };
+  const cHi = hex("reach-hi"), cLo = hex("reach-lo");
+  ok(cHi && cLo, `tonarnir lesast ur styles.css (${cHi} / ${cLo})`);
+  if (cHi && cLo) {
+    const d = Math.max(...cHi.map((v, i) => Math.abs(v - cLo[i])));
+    ok(d >= 20, `og eru sjonraent adgreindir — max RGB-fjarlaegd ${d} (>=20)`);
+  }
+  /* ============================================================
+     MERKID ER I FRAVIKINU — "TAKE HIM NOW" VERDUR AD VERA FATT
+     ============================================================
+     Tvaer utgafur mistokust adur (sja `reachClass`): 94% radanna
+     litadar i einum ton, og sidan 1%. Sa tonn sem KALLAR A ADGERD —
+     "farinn adur en thu velur aftur" — er sa sem verdur ad vera
+     sjaldgaefur; annars er hann bakgrunnur og notandinn les hann ekki.
+
+     Fullyrdingin er a HLUTFALLI, ekki a fjolda: fost tala staðnar um
+     leid og bordid staekkar (sama villan og hardkodada safna-talan). */
+  const act = (after.mid + after.lo) / after.rows;
+  ok(act > 0 && act < 0.35,
+    `og adgerda-tonarnir eru fair — ${Math.round(act * 100)}% ` +
+    `(${after.mid + after.lo} af ${after.rows})`);
+  /* Skyringin er prófuð a BYGGINGU, ekki a ordalagi — tvo prof i
+     FPL-verkefninu fellu vid endurnefningu a flipa af thvi ad thau
+     smelltu eftir nakvaemu heiti. Stodugu merkin eru depillinn sjalfur
+     (`.reach-key`, sami litur og rodin) og VALNUMERID, sem er thad eina
+     sem skyringin fullyrdir um. */
+
+  ok(/#27\b/.test(text()),
+    "og nefnir naesta val MITT (#27 — saeti 7 af 10, 20 vol komin)");
+
+  /* Toppurinn a bordinu ma EKKI vera "likely" — saeti 7 velur naest i
+     vali 14, og ADP 1-3 er longu farinn tha. Snuin threp faella thetta. */
+  const firstRows = [...document.querySelectorAll("table.data tbody tr")].slice(0, 3);
+  ok(firstRows.length === 3 && firstRows.every((tr) => !tr.classList.contains("reach-hi")),
+    "efstu thrir (ADP naest valinu) eru EKKI merktir \"obidu\"");
+  /* Og djupt a bordinu ma enginn vera "farinn" — ADP 100 er ekki
+     tekinn i vali 27. Snuin threp faella BADAR thessar. */
+  const deep = [...document.querySelectorAll("table.data tbody tr")].slice(60, 160);
+  ok(deep.some((tr) => tr.classList.contains("reach-hi")),
+    "en djupt a bordinu er \"obidu\"");
+  ok(!deep.some((tr) => tr.classList.contains("reach-lo")),
+    "og enginn djupt a bordinu er \"farinn\" (snuin threp faella thetta)");
+  const keys2 = document.querySelectorAll(".reach-key");
+  ok(keys2.length === 2, `skyringin ber tvo depla, ekki thrja (${keys2.length})`);
+
+  /* Talan sjalf verdur ad vera lesanleg — tonn an tolu er rada sem
+     enginn getur boriđ vid neitt. */
+  const titled = [...document.querySelectorAll("table.data tbody td.frozen[title]")]
+    .filter((td) => /% likely to last/.test(td.getAttribute("title") || ""));
+  ok(titled.length > 0, `${titled.length} rodir bera prosentuna i title`);
+  root.unmount();
+}
+
+/* ============================================================
+   2f2. SAMNEFNDAR DEILDIR VERDA AD VERA GREINANLEGAR
+   ============================================================
+   FANNST I VAFRANUM, EKKI I PROFI. 2026- og 2025-utgafur af sama
+   nafni ("Patriots SB champs") eru BADAR 10 lid og BADAR PPR, svo
+   flipirnir voru staffrettur EINS — og athugasemdin i `App.jsx`
+   fullyrdi ad `teams`/`scoring` gerdu thau greinanleg. Sama aett og
+   fuzzy-liða-porunin sem felldi Man United inn i Man City: thogul
+   samsomun er verri en engin.
+
+   Prófad i BADAR ATTIR: samnefndar fa timabilid, ossamnefndar fa thad
+   EKKI (annars baeri hver flipi "2026" ad eilifu).                   */
+console.log("\n2f2. samnefndar deildir");
+{
+  scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
+  localStorage.clear();
+  /* Tvaer faerslur, SAMA nafn, sama stigagjof og lidafjoldi — eina sem
+     skilur thaer er timabilid. */
+  const mk = (id, season) => ({
+    id, name: "Patriots SB champs",
+    rules: { teams: 10, scoring: "ppr", rounds: 15, superflex: false,
+             starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+             maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } },
+    imported: { leagueId: id, name: "Patriots SB champs", season, teams: 10,
+                rounds: 15, scoring: "ppr", exactScoring: true, bench: 5,
+                starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+                superflex: false, orderDrawn: false, draftId: "" },
+    warnings: [], teams: [], sync: { draftId: "", slot: null },
+  });
+  localStorage.setItem("nfl_leagues", JSON.stringify([mk("111111111111111111", "2026"),
+                                                     mk("222222222222222222", "2025")]));
+  localStorage.setItem("nfl_activeLeague", JSON.stringify("111111111111111111"));
+  const el = document.getElementById("root");
+  const root = createRoot(el);
+  await act(async () => { root.render(React.createElement(App)); });
+  await settle(800);
+
+  const chips = [...document.querySelectorAll(".league-switch button.chip")]
+    .map((c) => (c.textContent || "").trim())
+    .filter((t) => t !== "\u00d7");
+  ok(chips.length === 2, `badir flipar birtast (${chips.length})`);
+  ok(chips[0] !== chips[1],
+    `og their eru EKKI eins — "${chips[0]}" / "${chips[1]}"`);
+  ok(chips.some((c) => /2026/.test(c)) && chips.some((c) => /2025/.test(c)),
+    "timabilid er thad sem skilur thau");
+  root.unmount();
+
+  /* OSSAMNEFNDAR fa EKKI timabilid — annars vaeri thad havadi. */
+  localStorage.clear();
+  const a2 = mk("333333333333333333", "2026");
+  const b2 = { ...mk("444444444444444444", "2026"), name: "Deildin B" };
+  localStorage.setItem("nfl_leagues", JSON.stringify([a2, b2]));
+  localStorage.setItem("nfl_activeLeague", JSON.stringify(a2.id));
+  const root2 = createRoot(document.getElementById("root"));
+  await act(async () => { root2.render(React.createElement(App)); });
+  await settle(800);
+  const chips2 = [...document.querySelectorAll(".league-switch button.chip")]
+    .map((c) => (c.textContent || "").trim())
+    .filter((t) => t !== "\u00d7");
+  ok(chips2.length === 2 && !chips2.some((c) => /2026/.test(c)),
+    `ossamnefndar bera ekki timabil (${chips2.join(" | ")})`);
+  root2.unmount();
+}
+
+/* ============================================================
+   2h. UPPFAERSLAN MA EKKI THURRKA UT DRAFT SEM ER I GANGI
+   ============================================================
+   Fyrir 12.8.2026 var astandid OLYKLAD: `nfl_taken`, `nfl_myPicks`,
+   `nfl_sync` og `nfl_league`. Notandi sem er i MIDJU DRAFTI thegar
+   uppfaerslan kemur myndi opna appid og sja TOMT bord — mengid er enn
+   i vafranum, appid vaeri einfaldlega hætt ad leita ad thvi. Thad er
+   nakvaemlega sami flokkur og "tom keyrsla ma aldrei thurrka ut god
+   gogn": gagnid er oskert, tengingin slitin.
+
+   Profid skrifar GAMLA snidid beint i geymsluna, raesir appid og
+   krefst thess ad allt komi med.                                    */
+console.log("\n2h. gamalt astand flyst yfir");
+{
+  scenario = SCENARIOS.inProgress; sleeperMode = "ok";
+  localStorage.clear();
+  const legacyIds = REAL_IDS.slice(0, 9);
+  localStorage.setItem("nfl_taken", JSON.stringify(legacyIds));
+  localStorage.setItem("nfl_myPicks", JSON.stringify(legacyIds.slice(0, 3)));
+  localStorage.setItem("nfl_sync", JSON.stringify({ draftId: "d2", slot: 4 }));
+  localStorage.setItem("nfl_league", JSON.stringify({ teams: 14, scoring: "standard" }));
+
+  const el = document.getElementById("root");
+  const root = createRoot(el);
+  await act(async () => { root.render(React.createElement(App)); });
+  await settle(900);
+
+  const t = text();
+  const drafted = /(\d+) drafted/.exec(t);
+  ok(drafted && Number(drafted[1]) === 9,
+    `gomlu 9 volin komu med (${drafted ? drafted[1] : "?"})`);
+  const mine = /(\d+) yours/.exec(t);
+  ok(mine && Number(mine[1]) === 3, `og gomlu 3 minir (${mine ? mine[1] : "?"})`);
+
+  const idInput = [...document.querySelectorAll("label.field")]
+    .find((l) => /Draft ID/.test(l.textContent || ""))?.querySelector("input");
+  ok(idInput && idInput.value === "d2", `gamla draft-id kom med ("${idInput ? idInput.value : "?"}")`);
+  const slotInput = [...document.querySelectorAll("label.field")]
+    .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
+  ok(slotInput && Number(slotInput.value) === 4,
+    `og gamla saetid (${slotInput ? slotInput.value : "?"})`);
+
+  const es = JSON.parse(localStorage.getItem("nfl_leagues") || "[]");
+  ok(es.length === 1 && es[0].rules.teams === 14 && es[0].rules.scoring === "standard",
+    `gamla deildin vard fyrsti hlekkurinn (${es.length ? es[0].rules.teams + "/" + es[0].rules.scoring : "?"})`);
+  ok(/14/.test(document.querySelector("header.top").textContent || ""),
+    "og hausinn ber hana");
   root.unmount();
 }
 

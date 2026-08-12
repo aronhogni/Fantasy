@@ -24,8 +24,13 @@ import * as D from "./data.js";
 import { optimalLineup, slotsFor } from "./lineup.js";
 import { weeklyProjection, impliedTeamTotals } from "./model.js";
 
-export default function MyTeam({ rows, league, news, meta, market, schedule, defense }) {
-  const [ids, setIds] = useState(() => new Set(D.loadState("myPicks", [])));
+export default function MyTeam({ rows, league, news, meta, market, schedule, defense,
+                                 leagueKey }) {
+  /* HOPURINN ER BUNDINN DEILDINNI — sja `scoped` i `data.js`. Deildu
+     tvaer deildir sama `myPicks` vaeri uppstillingin reiknud ur
+     leikmonnum sem thu eigir i ANNARRI deild, og hun vaeri trulega
+     gild i badar. `App.jsx` endurraesir thennan hlut vid svissun. */
+  const [ids, setIds] = useState(() => new Set(D.loadState(D.scoped("myPicks", leagueKey), [])));
   const [sleeperRoster, setSleeperRoster] = useState(null);
 
   const roster = useMemo(() => {

@@ -203,6 +203,81 @@ const BONUS_FIELDS = [
   ["bonus_pass_yd_300", "300-yard passing bonus"],
 ];
 
+/* ============================================================
+   HANDSKRIFADUR LISTI RYRIR THEKJU I THOGN — THVI ER HANN SNUID VID
+   ============================================================
+   `BONUS_FIELDS` her fyrir ofan ber SEX svid. Sleeper hefur yfir
+   hundrad, og hvert eitt sem er ekki a listanum FOR THEGJANDI I GEGN
+   og deildin var merkt `exact: true` — the. "vid reiknum thetta rett"
+   — thott hun gaefi stig fyrir eitthvad sem spain okkar hefur aldrei
+   sed. Sama aett og hardkodadi safna-fjoldinn og handskrifadi
+   blind-dalka-listinn: listinn stadnar, thekjan rýrnar, og ekkert
+   segir fra thvi.
+
+   ÞETTA ER RAUNVERULEGT MAL FYRIR NOTANDANN, ekki snyrtimennska.
+   Hann spurdi: "getur verid erfidara fyrir WR ad fa stig en RB, sem
+   ytir RB framar?" Svarid er JA og daemin eru raunveruleg:
+
+     rec_fd  (stig fyrir fyrsta nidur vid mottoku)  hyglar WR og TE
+     rush_fd (fyrsta nidur vid hlaup)               hyglar RB
+     bonus_rush_att_20 (20+ hlaup i leik)           hyglar RB throat
+     rec_yd 0,05 i stad 0,1                         helmingar WR-yarda
+
+   Ekkert af THESSUM fjorum var a listanum. Deild med `rec_fd: 1` —
+   sem er ordid algengt (PPFD) — hefdi lesid sem hrein PPR-deild og
+   WR-arnir hefdu maelst kerfislaega LAGT, sem er nakvaemlega su
+   skekkja sem notandinn spurdi um.
+
+   REGLAN ER THVI SNUID VID: vid teljum upp thad sem vid VITUM ad se
+   ohaett, og ALLT ANNAD er flaggad. Nytt Sleeper-svid sem enginn hefur
+   sed birtist tha sem "unrecognised" i stad thess ad thegja.       */
+
+/** Sjalfgefin gildi Sleeper fyrir SOKNAR-svid. Frávik = onnur deild. */
+const OFF_DEFAULT = {
+  pass_yd: 0.04, pass_td: 4, pass_int: -1, pass_2pt: 2,
+  pass_fd: 0, pass_inc: 0, pass_att: 0, pass_cmp: 0, pass_sack: 0,
+  pass_cmp_40p: 0, pass_td_40p: 0, pass_td_50p: 0,
+  rush_yd: 0.1, rush_td: 6, rush_2pt: 2, rush_fd: 0, rush_att: 0,
+  rush_td_40p: 0, rush_td_50p: 0,
+  rec_yd: 0.1, rec_td: 6, rec_2pt: 2, rec_fd: 0, rec_att: 0,
+  rec_td_40p: 0, rec_td_50p: 0, rec_0_4: 0, rec_5_9: 0, rec_10_19: 0,
+  rec_20_29: 0, rec_30_39: 0, rec_40p: 0,
+  /* MAELT 12.8.2026 — TVO GILDI HER VORU RONG OG BADI FLOGGUDU
+     VENJULEGA DEILD. `fum` er EKKI `fum_lost`: Sleeper ber baedi svidin
+     og sjalfgefid er `fum: 0` (fumble) a moti `fum_lost: -2` (tapadur
+     fumble). Med `-2` her flaggadi hver einasta sjalfgefna deild
+     "fum 0 (usually -2)".
+     Stadfest a TVEIMUR ohadum deildum (2026- og 2025-utgafum sama
+     nafns): baðar bera `fum: 0`, og ekki EITT svid er olikt milli
+     theirra — sterkasta visbendingin sem til er um ad thetta se
+     sjalfgefid og ekki stilling notandans. */
+  fum: 0, fum_lost: -2, fum_rec_td: 6, fum_red_zone: 0,
+  bonus_rec_te: 0, bonus_rec_wr: 0, bonus_rec_rb: 0,
+  bonus_rush_yd_100: 0, bonus_rush_yd_200: 0,
+  bonus_rec_yd_100: 0, bonus_rec_yd_200: 0,
+  bonus_pass_yd_300: 0, bonus_pass_yd_400: 0,
+  bonus_rush_att_20: 0, bonus_rush_rec_yd_100: 0, bonus_rush_rec_yd_200: 0,
+  bonus_fd_te: 0, bonus_fd_wr: 0, bonus_fd_rb: 0, bonus_fd_qb: 0,
+  idp_blk_kick: 0,
+  /* `st_ff` og `st_fum_rec` eru 1 sjalfgefid, ekki 0 — sama maeling,
+     sama nidurstada. (Og thau eru serlids-svid: thau hagga hvorki
+     QB/RB/WR/TE-spa, svo thau attu aldrei ad geta flaggad deild.) */
+  st_td: 6, st_ff: 1, st_fum_rec: 1, st_tkl_solo: 0,
+};
+
+/* Svid sem snerta ADEINS spyrnumann, vorn eda IDP. Their eru UTAN
+   A-Ranking af maeldri astaedu (sja build.js), svo their mega vera
+   hvad sem er an thess ad spain okkar skekkist. Prefix-listi, thvi
+   thau eru tugir og OLL med sama forskeyti. */
+const IGNORE_PREFIX = ["def_", "idp_", "fgm", "fga", "xp", "pts_allow",
+  "yds_allow", "blk_", "sack", "int_ret", "safe", "tkl", "ff", "fum_rec",
+  "pr_", "kr_", "punt", "sf", "td_"];
+const IGNORE_EXACT = new Set(["rec", "int", "fum_rec", "def_st_td",
+  "def_st_ff", "def_st_fum_rec", "def_st_tkl_solo", "st_fum_rec"]);
+
+const ignorable = (k) => IGNORE_EXACT.has(k) ||
+  IGNORE_PREFIX.some((p) => k.startsWith(p));
+
 /**
  * `scoring_settings` -> `{ scoring, rec, exact, warnings }`
  *
@@ -244,18 +319,39 @@ export function scoringFromSettings(ss) {
     }
   }
 
-  const off = [];
-  for (const [k, want] of Object.entries(CANON)) {
-    const v = Number(s[k]);
-    if (Number.isFinite(v) && v !== want) off.push(`${k} ${v} (usually ${want})`);
+  /* Frávik fra sjalfgefnu — LEITT UT AF THVI SEM DEILDIN BER, ekki
+     af lista yfir thad sem vid munum ad athuga. */
+  const off = [], unknown = [];
+  /* Svidin sem BONUS_FIELDS nefndi thegar med mannamali eru ekki
+     nefnd aftur her — tvo skilabod um sama reit lesa eins og tvo
+     vandamal. */
+  const named = new Set(BONUS_FIELDS.map(([k]) => k));
+  for (const [k, raw] of Object.entries(s)) {
+    if (ignorable(k) || named.has(k)) continue;
+    const v = Number(raw);
+    if (!Number.isFinite(v)) continue;
+    if (Object.prototype.hasOwnProperty.call(OFF_DEFAULT, k)) {
+      if (v !== OFF_DEFAULT[k]) off.push(`${k} ${v} (usually ${OFF_DEFAULT[k]})`);
+    } else if (v !== 0) {
+      /* Svid sem vid hofum aldrei sed OG er ekki null. Vid vitum ekki
+         hvad thad gerir, og thad er nakvaemlega thess vegna sem thad
+         verdur ad sjast. */
+      unknown.push(`${k} ${v}`);
+    }
   }
   if (off.length) {
     exact = false;
     warnings.push(`Non-standard scoring: ${off.join(", ")}. The projections are ` +
                   `Sleeper's own at default values, so those positions shift.`);
   }
+  if (unknown.length) {
+    exact = false;
+    warnings.push(`Scoring settings we do not model: ${unknown.join(", ")}. ` +
+                  `They are real points in your league but are not in the ` +
+                  `projections, so affected positions will read low.`);
+  }
 
-  return { scoring, rec, exact, warnings };
+  return { scoring, rec, exact, warnings, offsets: off, unmodelled: unknown };
 }
 
 /* ============================================================
@@ -277,7 +373,7 @@ export function scoringFromSettings(ss) {
    Thad er ekki fínstilling, thad er ad forda omoguleika.
 
    Se logun deildarinnar ekki ein af theim sem VORU maeldar
-   (`shapes_sleeper.json`) er thad SAGT — sja `unmeasuredShape`.      */
+   er thad SAGT — sja `edgeSentence` i `src/rulebasis.js`.           */
 export function maxPosFor(starters, superflex) {
   const st = starters || {};
   const base = DEFAULT_LEAGUE.maxPos;
@@ -291,38 +387,6 @@ export function maxPosFor(starters, superflex) {
     out[pos] = Math.max(base[pos], need);
   }
   return out;
-}
-
-/* ============================================================
-   5. VAR THESSI LOGUN MAELD?
-   ============================================================
-   `shapes_sleeper.json` ber theer logunar sem `shape-lab.mjs` maeldi.
-   Notandi i 10-lida deild med tveimur FLEX-saetum a rett a ad vita
-   hvort tolurnar hans voru nokkurn timann profadar — ad thegja um thad
-   er ad lata omælda logun lesast eins og maelda.                    */
-export function unmeasuredShape(league, shapes) {
-  const table = shapes && shapes.shapes ? shapes.shapes : null;
-  if (!table) return null;                 // engin gogn -> engin fullyrding
-  const st = league.starters || {};
-  const same = (a, b) => {
-    const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
-    for (const k of keys) if ((a[k] || 0) !== (b[k] || 0)) return false;
-    return true;
-  };
-  for (const v of Object.values(table)) {
-    if (v.scoring !== league.scoring) continue;
-    if (v.teams !== league.teams) continue;
-    /* Hermunin telur ekki K/DST (sja `excludePos`), svo their eru
-       utan samanburdarins — annars vaeri HVER deild omaeld. */
-    const mine = { ...st }; delete mine.K; delete mine.DST;
-    if (same(mine, v.starters)) return null;
-  }
-  const shown = Object.entries(st)
-    .filter(([k]) => k !== "K" && k !== "DST")
-    .map(([k, n]) => `${n}${k}`).join(" ");
-  return `${league.teams}-team ${league.scoring} with ${shown} is not one of the ` +
-         `shapes in Model lab. Position caps were measured on 12-team ` +
-         `QB1 RB2 WR3 TE1 FLEX1 and are carried over unchanged.`;
 }
 
 /* ============================================================
@@ -490,17 +554,63 @@ export function leagueFromSleeper({ league: lg, draft, shapes } = {}) {
     warnings.push("Best ball league — there is no weekly lineup to set, so the " +
                   "My team tab's start/sit advice does not apply.");
   }
-  const keepers = num(lset.max_keepers) || 0;
-  if (keepers > 0 || L.previous_league_id) {
+  /* ============================================================
+     KEEPER-DEILD RAEÐST AF `settings.type`, EKKI AF `max_keepers`
+     ============================================================
+     FYRSTA UTGAFAN FLAGGADI RETTA DEILD SEM KEEPER-DEILD OG THAD VAR
+     FALS-JAKVAETT AF VERSTU GERD: vidvorun sem kviknar a ALGENGRI,
+     venjulegri deild er hávaði, og notandinn laerir a viku ad hunsa
+     kassann. Tha er raunveruleg vidvorun jafn gagnslaus og engin.
+     Athugasemdin vid vidvaranirnar i `DraftBoard.jsx` segir thetta
+     sjalf — og kodinn braut hana samt.
+
+     MAELT 12.8.2026 a deild 1389356308104249344 og forvera hennar:
+
+       settings.type          0        <- 0 redraft · 1 keeper · 2 dynasty
+       settings.max_keepers   1        <- SLEEPER-SJALFGEFID, segir EKKERT
+       previous_league_id     sett     <- deildin var endurnyjud, ekkert meira
+       is_keeper i 150 volum  null i OLLUM
+
+     Baðar visbendingarnar sem fyrsta utgafan notadi eru thvi rangar:
+     `max_keepers: 1` er sjalfgefna gildid i HVERRI deild, og
+     `previous_league_id` er sett a hverja deild sem er endurnyjud milli
+     tímabila — sem redraft-deildir eru alltaf.
+
+     `settings.type` er svidid sem Sleeper notar sjalft. `taxi_slots`
+     fylgir med thvi taxi-saeti eru dynasty-smid og eru merkid thegar
+     `type` vantar i svarinu.                                          */
+  const ltype = num(lset.type);
+  const taxi = num(lset.taxi_slots) || 0;
+  if (ltype >= 1 || taxi > 0) {
+    const kind = ltype === 2 ? "dynasty" : "keeper";
+    const keepers = num(lset.max_keepers) || 0;
     warnings.push(
-      `This looks like a keeper/dynasty league` +
-      (keepers > 0 ? ` (${keepers} keeper${keepers > 1 ? "s" : ""} each)` : "") +
+      `This is a ${kind} league` +
+      (keepers > 0 && ltype === 1 ? ` (${keepers} keeper${keepers > 1 ? "s" : ""} each)` : "") +
       `. ADP and ECR on the board are redraft numbers, so kept players are ` +
       `priced as if they were still in the pool.`);
   }
 
-  const shapeNote = unmeasuredShape(out, shapes);
-  if (shapeNote) warnings.push(shapeNote);
+  /* ============================================================
+     LOGUNAR-VIDVORUNIN VAR FJARLAEGD 12.8.2026 — HUN VAR ORDIN OSONN
+     ============================================================
+     Hér stod `unmeasuredShape(out, shapes)`, sem las ADEINS
+     `shapes_sleeper.json`. Sú skra ber aðeins EINN-FLEX logun, svo
+     BADAR raunverulegu deildir notandans fengu "this shape has not been
+     backtested":
+       Patriots   10-2flex ppr
+       Sofahetjur 12-2flex half
+     Bædi eru NU maeld (`half-lab` -> `data/measure/half.json`): +188,0
+     (11/11, t=4,10) og +147,4 (10/11, t=3,44). Vidvorunin var thvi
+     fals-jakvaett a hverri deild sem notandinn spilar i — sami flokkur
+     og keeper-vidvorunin sem var tekin ut sama dag, og sama afleiding:
+     kassi sem er alltaf raudur haettir ad segja neitt.
+
+     Uppflettingin a maeldri logun byr nu i `src/rulebasis.js`
+     (`edgeSentence`), sem les BAEDI toflurnar og ber theer thrjar
+     reglur sem gilda: omaeld logun faer ENGA tolu, omarktaek logun
+     les ekki eins og marktaek, og varfaerna talan er birt. Vidmotid
+     birtir hana; vorpunin fullyrdir ekkert um logun.                */
 
   return {
     league: out,

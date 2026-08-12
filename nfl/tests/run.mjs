@@ -10,7 +10,8 @@ let failed = 0;
 const SUITES = [
   ["model.mjs"], ["accuracy.mjs"], ["learn.mjs"], ["market.mjs"],
   ["advice.mjs"], ["lineup.mjs"], ["names.mjs"], ["pipeline.mjs"],
-  ["sleeper-league.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
+  ["sleeper-league.mjs"], ["wiring.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
+  ["standings.mjs"], ["waivers.mjs"],
   ["render.mjs", true], ["audit.mjs", true], ["layout.mjs", true],
   ["saved-state.mjs", true], ["sleeper.mjs", true],
   /* `visual.mjs` raesir ALVORU Chrome og maelir raunverulegt utlit.

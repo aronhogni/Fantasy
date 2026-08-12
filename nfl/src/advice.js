@@ -131,6 +131,53 @@ export function expectedBestAt(players, pos, nextPick) {
  * annad. Ad nota fastan N vaeri rangt fyrir alla nema thann sem
  * situr nakvaemlega i midjunni.
  */
+/**
+ * Valnumerid sem SAETI `slot` a i umferd `round`, i snakki.
+ *
+ * Ojafnar umferdir gefa `(round-1)*teams + slot`; jafnar umferdir eru
+ * ANDHVERFAR, svo saeti 1 velur SIDAST. Thetta er nakvaemlega sama
+ * vorpun og `picksUntilNext` notar, bara i hina attina — thaer VERDA
+ * ad vera samhljoda, annars segdi bordid annad en radgjofin.
+ */
+export function ownPickNo(round, teams, slot) {
+  return round % 2 === 1
+    ? (round - 1) * teams + slot
+    : (round - 1) * teams + (teams - slot + 1);
+}
+
+/**
+ * Naesta val ÞITT eftir valnumer `cur`. Skilar `null` vanti saeti eda
+ * lidafjolda — thad er rett: an saetis er engin snakk-rod og tha ma
+ * appid ekki lita einn einasta leikmann.
+ *
+ * `cur` er valid SEM ER A KLUKKUNNI. Skilyrdid er `> cur`, ekki
+ * `>= cur`, og thad er merkingarbaert i BADUM tilfellum:
+ *
+ *   · er valid THITT (cur === thitt val): tha er allt laust fyrir ther
+ *     NUNA, svo spurningin er um valid a EFTIR — "ef eg sleppi honum".
+ *   · er valid annars: tha er `> cur` einfaldlega naesta val thitt.
+ *
+ * Ein regla ber baedi tilfellin, svo thau geta ekki rekid i sundur.
+ */
+export function nextOwnPick(cur, teams, slot, maxRounds = 40) {
+  /* `Number(null)` ER 0 OG `Number("")` ER LIKA 0 — svo `Number.isFinite`
+     eitt hleypir theim BADUM i gegn sem gildu vali nr. 0. Thad er
+     einmitt tilfellid sem tharf ad stoppa: "vid vitum ekki hvar draftid
+     er" myndi tha lesast eins og "draftid er ekki byrjad", og bordid
+     litadi hvern leikmann eftir vali sem er ekki til. `== null` fyrst,
+     tolupróf sidan. */
+  if (cur == null || teams == null || slot == null) return null;
+  const t = Math.round(Number(teams)), s = Math.round(Number(slot));
+  const c = Math.round(Number(cur));
+  if (!Number.isFinite(t) || !Number.isFinite(s) || !Number.isFinite(c)) return null;
+  if (t < 2 || s < 1 || s > t) return null;
+  for (let r = 1; r <= maxRounds; r++) {
+    const p = ownPickNo(r, t, s);
+    if (p > c) return p;
+  }
+  return null;
+}
+
 export function picksUntilNext(pick, teams) {
   const round = Math.ceil(pick / teams);
   const idx = pick - (round - 1) * teams;            // 1..teams
@@ -317,7 +364,27 @@ function reasonsFor(p, { urgency, eNext, survive, wait, counts, league }) {
       `${p.pos} drops off by only ${Math.max(0, Math.round(urgency))} before your next pick` });
   }
 
-  if (need > 0) r.push({ kind: "need", text: `you still need ${need} at ${p.pos}` });
+  /* ============================================================
+     "ÞU THARFT ENN 2 WR" ER STADREYND, EKKI ROKSTUDNINGUR.
+     ============================================================
+     Notandinn las thennan streng og spurdi hvort akvordunin taeki
+     tillit til thess ad hann aetti engan WR. Hun gerir thad EKKI —
+     `out.sort((a, b) => b.vbd - a.vbd)` og ekkert annad. En strengur
+     sem stendur i dalki sem heitir "Why" les eins og hann hafi radid,
+     og thad er sama aett af villu og omaeld tala i eigin reit.
+
+     Stodu-thorf var maeld i thremur myndum og engin theirra slaer
+     "besta lausa mann": 19 stodu-plon (strategy-lab, ekkert marktaekt),
+     bradanauðsyn sem rod (advice-lab, -63,8 i standard, 0/4 ar) og
+     lifunarlikur sem jafnteflis-rof (tiebreak-lab, t=-0,06 / +0,79).
+     Thess vegna segir strengurinn nu sjalfur hvad hann er.
+
+     Vordur: `tests/advice.mjs` — spegilmynd hopsins verdur ad gefa
+     NAKVAEMLEGA somu rod, OG thorfin verdur samt ad vera nefnd.      */
+  if (need > 0) {
+    r.push({ kind: "need",
+             text: `you still need ${need} at ${p.pos} — noted, not ranked` });
+  }
   if (p.tier != null) r.push({ kind: "tier", text: `tier ${p.tier}` });
   return r;
 }

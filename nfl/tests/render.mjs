@@ -84,7 +84,24 @@ await act(async () => { root.render(React.createElement(App)); });
 await settle(400);
 
 const text = () => document.body.textContent || "";
+  /* FALDIR FLIPAR (12.8.2026): sex flipar eru ekki i DOM fyrr en
+     "More" er smellt. Their eru afram virkir — thad var birtingar-
+     akvordun, ekki likans-akvordun — svo prófid a ad OPNA thá, ekki
+     ad sleppa theim. Vaeri theim sleppt hyrfi thekjan thogult og
+     safnid yrdi graent an ad heimsaekja neitt.
+     `revealTabs` er ohaett ad kalla oft: hnappurinn er horfinn eftir
+     fyrsta smell. */
+  const revealTabs = async () => {
+    const more = [...document.querySelectorAll("button.tab")]
+      .find((x) => /More/.test(x.textContent || ""));
+    if (!more) return;
+    await act(async () => {
+      more.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    await settle(400);
+  };
 const clickTab = async (label) => {
+  await revealTabs();
   const btns = [...document.querySelectorAll("button.tab")];
   const b = btns.find((x) => (x.textContent || "").includes(label));
   if (!b) return false;
@@ -113,6 +130,39 @@ console.log("\n2. draft-flipinn");
   ok(text().includes("Positional scarcity"), "skortstadan birtist");
   /* TILLAGAN SJALF — thad sem allar tolurnar eru til fyrir. */
   ok(/Pick \d+ — take this/.test(text()), "tillagan fyrir naesta val birtist");
+  /* ============================================================
+     URSKURDURINN VERDUR AD NEFNA MANN — OG RETTA MANNINN.
+     ============================================================
+     "Pick N — take this" stod i profinu adur og THAD EITT er
+     fullyrding sem hausinn einn uppfyllir: hann er fastur strengur og
+     stendur thott enginn leikmadur se nefndur. Her er lesid nafnid
+     sjalft af skjanum og borið vid efstu rod rokstudningsins.
+
+     Og athugid: `textContent` i jsdom ber LIKA innihald sem er lokad
+     inni i <details>, svo fullyrdingarnar her fyrir nedan (Lasts?,
+     standard deviation) segja EKKERT um hvort thaer seu synilegar.
+     Thess vegna er urskurdurinn lesinn ur sinu eigin element. */
+  const vEl = document.querySelector(".verdict .verdict-name b");
+  ok(vEl && vEl.textContent.trim().length > 2,
+    `urskurdurinn nefnir mann ("${vEl ? vEl.textContent.trim() : "ekkert"}")`);
+  const vWhy = document.querySelector(".verdict .verdict-why");
+  ok(vWhy && vWhy.textContent.trim().length > 10,
+    "og segir i einni setningu hvers vegna");
+
+  /* Sami madur og efst i maelda listanum. Vaeri urskurdurinn tekinn
+     annars stadar fra vaeri hann annad likan an thess ad nokkud
+     brotni — og THAD er villan sem thetta prof er til fyrir. */
+  const firstRow = document.querySelector(".reasoning table.data tbody tr td.frozen");
+  ok(firstRow && firstRow.textContent.includes(vEl.textContent.trim()),
+    `urskurdurinn er efsti madur rokstudningsins ("${firstRow ? firstRow.textContent.trim() : "—"}")`);
+
+  /* Rokin eru TIL en LOKUD. Badar attir skipta mali: opid <details>
+     vaeri gamla utlitid aftur, og ekkert <details> vaeri orakli. */
+  const det = document.querySelector("details.reasoning");
+  ok(det && !det.open, "rokstudningurinn er til stadar en lokadur");
+  ok(det && det.querySelector("summary"),
+    "og hann hefur smellanlegan haus");
+
   ok(/Lasts\?/.test(text()), "lifunarlikur eru birtar");
   ok(/standard deviation/i.test(text()),
     "og thad er sagt ad dreifing ADP se notud, ekki bara ADP");

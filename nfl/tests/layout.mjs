@@ -81,7 +81,21 @@ const tabButtons = () => [...document.querySelectorAll("button.tab")];
    ekkert takn". I smarri staerd er SILHUETTAN allt.               */
 console.log("\n1. takn flipanna");
 {
-  const labels = tabButtons().map((b) => (b.textContent || "").trim());
+  /* FALDIR FLIPAR (12.8.2026): sex flipar eru ekki i DOM fyrr en "More"
+     er smellt. Their eru afram virkir — birtingar-akvordun, ekki
+     likans-akvordun — svo taknaprofid a ad na yfir THA ALLA. Vaeri
+     throskuldurinn einfaldlega laekkadur ur 6 i 3 myndi profid hætta ad
+     sja tvitekid takn a sex flipum, og "tveir flipar med sama takni er
+     thad sama og ekkert takn" er einmitt thad sem thessi kafli ver. */
+  const more = tabButtons().find((b) => /More/.test(b.textContent || ""));
+  /* `click` og EKKI beint `dispatchEvent`: an `act()` er React-astandid
+     ekki tæmt, svo faldu fliparnir voru enn ekki i DOM thegar talid var
+     og profid sa TVO flipa. Fullyrdingin FELL, sem er rett hegdun — en
+     hun benti a maelitaekid, ekki a appid. */
+  if (more) await click(more);
+  const labels = tabButtons()
+    .map((b) => (b.textContent || "").trim())
+    .filter((l) => !/More/.test(l));
   const icons = labels.map((l) => [...l].filter((c) => c.codePointAt(0) > 0x2000)[0] || null);
   const dupes = icons.filter((c, i) => c && icons.indexOf(c) !== i);
   ok(labels.length >= 6, `${labels.length} flipar`);

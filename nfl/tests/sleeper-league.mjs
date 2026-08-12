@@ -28,9 +28,10 @@
 
 import {
   parseSleeperInput, startersFromRoster, scoringFromSettings,
-  maxPosFor, unmeasuredShape, teamsFromLeague, leagueFromSleeper,
+  maxPosFor, teamsFromLeague, leagueFromSleeper,
 } from "../src/sleeper-league.js";
 import { DEFAULT_LEAGUE } from "../src/build.js";
+import { ownPickNo, nextOwnPick, picksUntilNext, survivalProb } from "../src/advice.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -246,27 +247,42 @@ console.log("\n4. stodu-thakid");
 }
 
 /* ============================================================
-   5. VAR LOGUNIN MAELD? — BADAR ATTIR
+   5. LOGUNAR-VIDVORUNIN MA EKKI KOMA AFTUR
    ============================================================
-   Fullyrding sem gefur alltaf sama svar er engin fullyrding
-   (CLAUDE.md 5b). Thess vegna er profad bædi ad MAELD logun skili
-   `null` OG ad omaeld skili nótu. Vaeri fallid einfaldlega
-   `return null` faelli sidari fullyrdingin.                          */
-console.log("\n5. var logunin maeld?");
+   `unmeasuredShape` var her og hun las ADEINS `shapes_sleeper.json`,
+   sem ber aðeins EINN-FLEX logun. BADAR raunverulegu deildir notandans
+   hafa TVO FLEX, svo baðar fengu "this shape has not been backtested" —
+   fals-jakvaett a hverri deild sem hann spilar i. Bædi eru maeld i
+   `data/measure/half.json`: +188,0 (11/11) og +147,4 (10/11).
+
+   Uppflettingin byr nu i `src/rulebasis.js`. Þessi kafli ver ad
+   vorpunin fullyrdi EKKERT um logun — og hann fellur ef vidvorunin er
+   sett aftur inn, hvadan sem hun kemur.                              */
+console.log("\n5. vorpunin fullyrdir ekkert um logun");
 {
-  const measured = { teams: 12, scoring: "ppr",
-    starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 } };
-  ok(unmeasuredShape(measured, shapes) === null,
-    "12-lida ppr QB1 RB2 WR3 TE1 FLEX1 ER maeld -> engin nota");
+  const r = leagueFromSleeper({ league: LEAGUE, draft: DRAFT, shapes });
+  ok(!r.warnings.some((w) => /shape|backtest|Model lab/i.test(w)),
+    `10-2flex ppr faer ENGA logunar-vidvorun (${r.warnings.join(" | ") || "engar"})`);
 
-  const built = leagueFromSleeper({ league: LEAGUE, draft: DRAFT, shapes });
-  const note = unmeasuredShape(built.league, shapes);
-  ok(typeof note === "string" && note.includes("10-team"),
-    "10-lida med tveimur FLEX er OMAELD -> nota");
-
-  /* Engin `shapes`-gogn -> ENGIN fullyrding. Tala ur engu vaeri verri
-     en engin tala. */
-  ok(unmeasuredShape(measured, null) === null, "engin shapes-gogn -> engin fullyrding");
+  /* Og sama gildir um Sofahetjur-logunina (12 lid, half, tvo FLEX,
+     HVORKI K NE DEF) — hun var lika flogguð rangt. */
+  const sofa = leagueFromSleeper({
+    league: { ...LEAGUE, league_id: "1389328159903580160", name: "Sofahetjur",
+              total_rosters: 12,
+              roster_positions: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "FLEX",
+                                 "BN", "BN", "BN", "BN", "BN", "BN"],
+              settings: { ...LEAGUE.settings, num_teams: 12, type: 0 },
+              scoring_settings: { ...LEAGUE.scoring_settings, rec: 0.5 } },
+    draft: { ...DRAFT, settings: { ...DRAFT.settings, teams: 12, rounds: 14 },
+             metadata: { scoring_type: "half_ppr" } },
+    shapes });
+  ok(!sofa.warnings.some((w) => /shape|backtest|Model lab/i.test(w)),
+    `12-2flex half faer enga heldur (${sofa.warnings.join(" | ") || "engar"})`);
+  ok(sofa.league.scoring === "half-ppr" && sofa.league.teams === 12 &&
+     sofa.league.rounds === 14 && !("K" in sofa.league.starters) &&
+     !("DST" in sofa.league.starters),
+    `og hun les rett: 12 lid, half-ppr, 14 umf., HVORKI K NE DST ` +
+    `(${JSON.stringify(sofa.league.starters)})`);
 }
 
 /* ============================================================
@@ -355,13 +371,50 @@ console.log("\n7. allt saman");
   ok(r.imported.bench === 5, "bekkurinn er talinn (5)");
   ok(r.imported.exactScoring === true, "stigagjofin er nakvaem");
 
-  /* Keeper-deild — ADP a bordinu er redraft, svo geymdir leikmenn eru
-     verdlagdir eins og their vaeru enn i lauginni. Thad verdur ad
-     segjast; thogn thar vaeri tolur sem lita rett ut og eru ekki. */
-  ok(r.warnings.some((w) => /keeper|dynasty/i.test(w)),
-    "keeper-deild er flogguð (max_keepers 1)");
-  ok(r.warnings.some((w) => /not one of the shapes/i.test(w)),
-    "og omaeld logun er flogguð");
+  /* ============================================================
+     KEEPER-VIDVORUNIN — FALS-JAKVAETT SEM VAR MAELT OG LAGAD
+     ============================================================
+     Fyrsta utgafan flaggadi THESSA deild sem keeper-deild af thvi ad
+     `max_keepers` er 1 og `previous_league_id` er sett. Baðar
+     visbendingarnar eru RANGAR: `max_keepers: 1` er Sleeper-sjalfgefid
+     i HVERRI deild, og `previous_league_id` er sett a hverja deild sem
+     er endurnyjud milli timabila — sem redraft-deildir eru alltaf.
+
+     Mælt 12.8.2026: `settings.type` er **0** (redraft) a bædi thessari
+     deild og forvera hennar, og `is_keeper` er **null i ollum 150
+     volum** sidasta drafts. Enginn var nokkurn timann geymdur.
+
+     Vidvorun sem kviknar a algengri, venjulegri deild er havadi, og
+     notandinn laerir a viku ad hunsa kassann — tha er raunveruleg
+     vidvorun jafn gagnslaus og engin. Prófad i BADAR ATTIR, thvi
+     "flaggar aldrei" er jafn gagnslaust og "flaggar alltaf".        */
+  ok(!r.warnings.some((w) => /keeper|dynasty/i.test(w)),
+    `redraft-deild (type 0) er EKKI flogguð sem keeper — ` +
+    `${r.warnings.filter((w) => /keeper|dynasty/i.test(w)).join("") || "hreint"}`);
+  /* RAUNVERULEG DEILD NOTANDANS BER NU ENGA VIDVORUN — og thad er
+     sterkasta fullyrdingin i thessum kafla. Adur bar hun TVAER og
+     BAÐAR voru osannar (keeper ur `max_keepers`, omaeld logun ur
+     einn-flex-toflunni). Kassi sem er alltaf raudur haettir ad segja
+     neitt, svo "thogn a rettri deild" er krafan.
+
+     Og hann er ekki dauður: kaflarnir hér a eftir krefjast thess ad
+     keeper (type 1/2), dynasty, taxi, uppbod, best ball, TE-premium og
+     osamraemi milli reglna og merkingar kviknir ALLIR.               */
+  ok(r.warnings.length === 0,
+    `raunveruleg deild ber ENGA vidvorun (${r.warnings.join(" | ") || "engar"})`);
+
+  for (const [type, word] of [[1, "keeper"], [2, "dynasty"]]) {
+    const kp = leagueFromSleeper({
+      league: { ...LEAGUE, settings: { ...LEAGUE.settings, type } }, draft: DRAFT, shapes });
+    ok(kp.warnings.some((w) => new RegExp(word, "i").test(w)),
+      `settings.type ${type} ER flogguð sem ${word}`);
+  }
+  /* Taxi-saeti eru dynasty-smid og eru merkid thegar `type` vantar. */
+  const taxi = leagueFromSleeper({
+    league: { ...LEAGUE, settings: { ...LEAGUE.settings, type: undefined, taxi_slots: 3 } },
+    draft: DRAFT, shapes });
+  ok(taxi.warnings.some((w) => /keeper|dynasty/i.test(w)),
+    "taxi-saeti flagga deildina thott `type` vanti");
 
   /* Deild an vidvarana ma EKKI bera vidvaranir — annars er kassinn
      alltaf raudur og haettir ad segja neitt. */
@@ -428,6 +481,153 @@ console.log("\n8. rusl-svor");
   const good = leagueFromSleeper({ league: LEAGUE, draft: DRAFT, shapes }).league;
   ok(good.teams === 10 && good.rounds === 15 && good.starters.FLEX === 2,
     "gild deild fer obreytt i gegn");
+}
+
+/* ============================================================
+   9. SNAKK-RODIN — LITURINN A BORDINU HANGIR A HENNI
+   ============================================================
+   Bordid litar leikmann eftir `survivalProb(adp, sd, naesta val mitt)`.
+   Se `nextOwnPick` skakkt um EITT val er liturinn skakkur a hverjum
+   einasta leikmanni — og hann vaeri trulegur, thvi hann myndi enn
+   halla i retta att. Thess vegna er rodin borin vid TALDA snakk-rod,
+   ekki vid formuluna sjalfa: tvo utfaerslur af somu formulu geta bædi
+   verid rangar a sama hatt.
+
+   `ownPickNo` VERDUR lika ad vera andhverfa `picksUntilNext`, sem
+   radgjofin notar. Vaeru thaer osamhljoda segdi bordid annad en
+   radgjofin — sama flokkur villu og tvær utfaerslur af FFDR.       */
+console.log("\n9. snakk-rodin");
+{
+  /* Taldur snakk-listi: hver eru MIN vol i 10-lida deild ur saeti 7? */
+  const enumerate = (teams, slot, rounds) => {
+    const mine = [];
+    let pick = 0;
+    for (let r = 1; r <= rounds; r++) {
+      const order = r % 2 === 1
+        ? Array.from({ length: teams }, (_, i) => i + 1)
+        : Array.from({ length: teams }, (_, i) => teams - i);
+      for (const s of order) { pick++; if (s === slot) mine.push(pick); }
+    }
+    return mine;
+  };
+
+  for (const [teams, slot] of [[10, 7], [12, 1], [12, 12], [8, 4], [14, 9]]) {
+    const want = enumerate(teams, slot, 6);
+    const got = Array.from({ length: 6 }, (_, i) => ownPickNo(i + 1, teams, slot));
+    ok(String(got) === String(want),
+      `${teams} lid, saeti ${slot}: ${got.join(",")} (taldi ${want.join(",")})`);
+  }
+
+  /* Andhverfan: `picksUntilNext` fra minu vali verdur ad lenda a
+     naesta vali minu. */
+  for (const [teams, slot] of [[10, 7], [12, 1], [12, 12], [8, 4]]) {
+    let good = true;
+    for (let r = 1; r <= 5; r++) {
+      const p = ownPickNo(r, teams, slot);
+      if (p + picksUntilNext(p, teams) !== ownPickNo(r + 1, teams, slot)) good = false;
+    }
+    ok(good, `${teams}/${slot}: picksUntilNext er andhverfa ownPickNo`);
+  }
+
+  /* `> cur`, EKKI `>= cur`. Er valid mitt a klukkunni er allt laust
+     fyrir mer NUNA, svo spurningin er um valid a EFTIR. Fullyrdingin
+     ma ekki geta stadist bædi — thess vegna er hun a BADUM tilfellum. */
+  const mine10x7 = enumerate(10, 7, 4);          // 7, 14, 27, 34
+  ok(String(mine10x7.slice(0, 4)) === "7,14,27,34",
+    `forsendan: min vol eru ${mine10x7.slice(0, 4).join(",")}`);
+  ok(nextOwnPick(7, 10, 7) === 14,
+    `a mínu vali (7) skilar NAESTA vali (14), fann ${nextOwnPick(7, 10, 7)}`);
+  ok(nextOwnPick(8, 10, 7) === 14,
+    `eftir mitt val (8) skilar 14, fann ${nextOwnPick(8, 10, 7)}`);
+  ok(nextOwnPick(1, 10, 7) === 7,
+    `fyrir mitt val (1) skilar 7, fann ${nextOwnPick(1, 10, 7)}`);
+  ok(nextOwnPick(14, 10, 7) === 27,
+    `a vali 14 skilar 27 (snakk-parid slokknar), fann ${nextOwnPick(14, 10, 7)}`);
+
+  /* AN SAETIS MA ENGINN LITUR BIRTAST. `null` er "vid vitum ekki",
+     og litur ur ovissu vaeri hreinn tilbuningur. */
+  for (const bad of [[null, 10, 7], [1, null, 7], [1, 10, null], [1, 10, 0],
+                     [1, 10, 11], [1, 1, 1], [1, "tíu", 7], [NaN, 10, 7]]) {
+    ok(nextOwnPick(bad[0], bad[1], bad[2]) === null,
+      `ogilt inntak gefur null: ${JSON.stringify(bad)}`);
+  }
+
+  /* Og thegar saetid ER thekkt verdur talan ad vera til — annars vaeri
+     "engin litun" utkoman i hverju raunverulegu drafti. */
+  ok(nextOwnPick(1, 10, 7) != null, "gilt inntak gefur tolu (annars litar bordid aldrei)");
+
+  /* Lifun: leikmadur med ADP langt fyrir mitt val a ad vera nanast
+     horfinn, og leikmadur langt eftir thad nanast viss. Baðar attir,
+     annars gaeti fullyrdingin ekki brugdist. */
+  const np = nextOwnPick(7, 10, 7);              // 14
+  const early = survivalProb(3, 2, np);
+  const late = survivalProb(60, 8, np);
+  ok(early < 0.05, `ADP 3 lifir EKKI til vals 14 (${early.toFixed(3)})`);
+  ok(late > 0.95, `ADP 60 lifir vissulega til vals 14 (${late.toFixed(3)})`);
+  ok(survivalProb(null, 2, np) === null, "engin ADP -> null, ekki 0");
+}
+
+/* ============================================================
+   ALLAR STIGAREGLUR, EKKI BARA THAER SEX SEM VID MUNDUM
+   ============================================================
+   Notandinn spurdi 12.8.2026: "getur verid erfidara fyrir WR ad fa
+   stig en RB, sem ytir RB framar?" Svarid er JA, og `BONUS_FIELDS`
+   bar adeins SEX svid af meira en hundrad hja Sleeper — svo deild med
+   `rec_fd: 1` (fyrsta-nidur-stig, ordid algengt) las sem hrein
+   PPR-deild og WR-arnir maeldust kerfislaega lagt.
+
+   Reglan er thvi SNUID VID: vid teljum upp thad sem er ohaett og
+   flaggum allt annad. Profid ver BADAR attir — nyja svid ma ekki
+   sleppa, og hrein deild ma ekki fa fals-viðvorun.                */
+console.log("\nstigareglur: allt sem vid reiknum EKKI verdur ad sjast");
+{
+  const PURE = { rec: 1, pass_yd: 0.04, pass_td: 4, pass_int: -1,
+                 rush_yd: 0.1, rush_td: 6, rec_yd: 0.1, rec_td: 6, fum_lost: -2 };
+
+  const pure = scoringFromSettings(PURE);
+  ok(pure.scoring === "ppr" && pure.exact === true,
+    `hrein PPR-deild er EXACT og fær enga viðvorun (${pure.warnings.length})`);
+
+  /* Fyrsta-nidur-stig. Thetta er tilfellid sem slapp adur. */
+  const fd = scoringFromSettings({ ...PURE, rec_fd: 1, rush_fd: 1 });
+  ok(fd.exact === false, "PPFD-deild er EKKI exact");
+  ok(fd.offsets.some((x) => x.startsWith("rec_fd")),
+    `rec_fd er nefnt (${fd.offsets.join(", ")})`);
+  ok(fd.offsets.some((x) => x.startsWith("rush_fd")), "og rush_fd lika");
+
+  /* Yarda-stig sem hyglar RB gegn WR — nakvaemlega spurning notandans. */
+  const halfYd = scoringFromSettings({ ...PURE, rec_yd: 0.05 });
+  ok(halfYd.exact === false && halfYd.offsets.some((x) => x.startsWith("rec_yd")),
+    "halfud motttoku-yarda-stig sjast");
+
+  const att20 = scoringFromSettings({ ...PURE, rec: 0, bonus_rush_att_20: 2 });
+  ok(att20.scoring === "standard" && att20.exact === false,
+    "20+ hlaup-bonus sest i standard-deild");
+
+  /* OKUNNUGT SVID — kjarninn i snuningnum. Vaeri listinn afram
+     handskrifadur faeri thetta thegjandi i gegn. */
+  const nw = scoringFromSettings({ ...PURE, some_future_field: 3 });
+  ok(nw.exact === false && nw.unmodelled.some((x) => x.startsWith("some_future_field")),
+    `okunnugt svid er flaggad (${nw.unmodelled.join(", ")})`);
+
+  /* Og null-gildi ma EKKI flagga: Sleeper sendir tugi svida a 0 og
+     deild med thau er hrein. Vaeri thetta ekki profad myndi hver
+     einasta deild lesa sem "custom" og viðvorunin yrdi merkingarlaus. */
+  const zeros = scoringFromSettings({ ...PURE, some_future_field: 0, another: 0 });
+  ok(zeros.exact === true && zeros.unmodelled.length === 0,
+    "svid sem eru 0 eru ekki flagguð");
+
+  /* Vorn, spyrnumadur og IDP mega vera hvad sem er — their eru utan
+     A-Ranking af maeldri astaedu, svo spain skekkist ekki. */
+  const dst = scoringFromSettings({ ...PURE, def_td: 6, fgm_50p: 5,
+    pts_allow_0: 10, idp_tkl: 1, yds_allow_0_100: 5 });
+  ok(dst.exact === true,
+    `vorn/spyrna/IDP hafa engin ahrif a exact (${dst.warnings.join(" | ")})`);
+
+  /* Og TE premium ma adeins gefa EITT skilabod, ekki tvo um sama reit. */
+  const te = scoringFromSettings({ ...PURE, bonus_rec_te: 0.5 });
+  ok(te.warnings.length === 1 && /TE premium/.test(te.warnings[0]),
+    `TE premium gefur eitt skilabod med mannamali (${te.warnings.length})`);
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

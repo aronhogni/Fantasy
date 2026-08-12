@@ -103,7 +103,24 @@ async function tabs() {
   return [...document.querySelectorAll("button.tab")]
     .map((b) => (b.textContent || "").trim()).filter(Boolean);
 }
+  /* FALDIR FLIPAR (12.8.2026): sex flipar eru ekki i DOM fyrr en
+     "More" er smellt. Their eru afram virkir — thad var birtingar-
+     akvordun, ekki likans-akvordun — svo prófid a ad OPNA thá, ekki
+     ad sleppa theim. Vaeri theim sleppt hyrfi thekjan thogult og
+     safnid yrdi graent an ad heimsaekja neitt.
+     `revealTabs` er ohaett ad kalla oft: hnappurinn er horfinn eftir
+     fyrsta smell. */
+  const revealTabs = async () => {
+    const more = [...document.querySelectorAll("button.tab")]
+      .find((x) => /More/.test(x.textContent || ""));
+    if (!more) return;
+    await act(async () => {
+      more.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    await settle(500);
+  };
 async function clickTab(label) {
+  await revealTabs();
   const b = [...document.querySelectorAll("button.tab")]
     .find((x) => (x.textContent || "").includes(label));
   if (!b) return false;
@@ -120,7 +137,11 @@ async function clickChips() {
   }
 }
 
-const TABS = await tabs();
+/* Faldir flipar opnadir ADUR EN thad er talid — annars hrynur thekjan
+   ur 8 i 2 og lykkjan hér a eftir heimsaekir tvo flipa. `TABS.length >= 6`
+   hefdi fellt profid, sem er rett hegdun; rett svar er ad opna thá. */
+await revealTabs();
+const TABS = (await tabs()).filter((t) => !/More/.test(t));
 console.log(`  flipar: ${TABS.join(" · ")}`);
 ok(TABS.length >= 6, `${TABS.length} flipar finnast`);
 
@@ -156,27 +177,74 @@ ok(otherErr.length === 0, `engar villur i console (${otherErr.length})`);
    Stillingarnar breyta ADP-setti, spa, varamanns-threpi OG radgjof.
    Hver samsetning er annar heimur og hver theirra verdur ad standa. */
 console.log("\n3. deildarstillingar");
-const setSelect = async (labelPart, value) => {
-  const labels = [...document.querySelectorAll("label.field")];
-  const l = labels.find((x) => (x.textContent || "").includes(labelPart));
-  if (!l) return false;
-  const sel = l.querySelector("select");
-  if (!sel) return false;
-  await act(async () => {
-    sel.value = value;
-    sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-  });
-  await settle(450);
-  return true;
+/* ============================================================
+   HANDVIRKU REITIRNIR ERU FARNIR — DEILDIN ER FLUTT INN
+   ============================================================
+   Þessi kafli stillti adur `<select>`-reitina "Teams" og "Scoring" i
+   hausnum. Their voru teknir ut 12.8.2026: deildin er lesin ur Sleeper,
+   svo tveir reitir sem segja thad sama voru ofthorf OG haetta (sa sem
+   hreyfdi "Scoring" eftir innflutning reiknadi deild sem Sleeper ber
+   ekki, og ekkert a skjanum sagdi honum thad).
+
+   ÞEKJAN MA EKKI FARA MED THEIM. Nu er deildin sett thar sem hun
+   raunverulega byr — `nfl_leagues` — og appid endurraest. Thad er
+   STRANGARA en adur: prófid fer sama leid og innflutningurinn fer, i
+   stad thess ad fara leid sem er ekki lengur til.
+
+   Vaeri thetta einfaldlega fellt ut hefdi thekjan horfid THEGJANDI —
+   sami flokkur og `react-warnings.mjs` sem heimsotti 0 af 22 vidmotum
+   og var graent. Thess vegna er `comboFails` talid og TALAN fellir
+   prófid, og `shapesSeen` sannar ad hver samsetning var raunverulega
+   heimsott.                                                          */
+let auditRoot = root;
+const bootWithLeague = async (rules) => {
+  /* FERSKUR `root` I HVERT SINN. `root.render` a SAMA rot uppfaerir
+     adeins — `useState`-upphafsgildin keyra ekki aftur, svo deildin sem
+     var skrifud i geymsluna hefdi ALDREI verid lesin og lykkjan hefdi
+     maelt sjalfgefna 12-lida deildina niu sinnum. Thad las eins og niu
+     graen prof. Vordurinn er `shapesSeen`, sem sa thad. */
+  auditRoot.unmount();
+  await settle(50);
+  localStorage.setItem("nfl_leagues", JSON.stringify([{
+    id: "audit", name: "Audit league", rules,
+    imported: { leagueId: "audit", name: "Audit league", teams: rules.teams,
+                rounds: rules.rounds, scoring: rules.scoring, exactScoring: true,
+                bench: 5, starters: rules.starters, superflex: false,
+                orderDrawn: false, draftId: "" },
+    warnings: [], teams: [], sync: { draftId: "", slot: null },
+  }]));
+  localStorage.setItem("nfl_activeLeague", JSON.stringify("audit"));
+  auditRoot = createRoot(document.getElementById("root"));
+  await act(async () => { auditRoot.render(React.createElement(App)); });
+  await settle(700);
 };
 
-await clickTab("Draft");
 let comboFails = 0;
-for (const teams of ["8", "12", "16"]) {
+const shapesSeen = [];
+for (const teams of [8, 12, 16]) {
   for (const scoring of ["ppr", "half-ppr", "standard"]) {
-    const a = await setSelect("Teams", teams);
-    const b = await setSelect("Scoring", scoring);
-    if (!a || !b) { comboFails++; continue; }
+    await bootWithLeague({
+      teams, scoring, rounds: 15, superflex: false,
+      starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 },
+      maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 },
+    });
+    await clickTab("Draft");
+
+    /* Deildin verdur ad hafa TEKID VID — annars maelir lykkjan sama
+       heiminn niu sinnum og les eins og niu graen prof. */
+    const hdr = (document.querySelector("header.top") || {}).textContent || "";
+    /* `\b${teams}\b` VIRKADI EKKI og gaf 0/9 — hausinn er
+       "…preseason8 teams…" thvi `textContent` límir saman texta an bila
+       (sama gildra og `MUNaNEW` -> `NaN` i FPL-verkefninu). Milli `n` og
+       `8` er ekkert ordamark. Leitum thvi a "N teams" med varnagla svo
+       "18 teams" geti ekki lesist sem "8 teams". */
+    if (!new RegExp(`(^|[^0-9])${teams} teams`).test(hdr)) {
+      console.log(`     ${teams}/${scoring}: deildin tok EKKI vid (haus: ${hdr.slice(0, 60)})`);
+      comboFails++;
+      continue;
+    }
+    shapesSeen.push(`${teams}/${scoring}`);
+
     const body = text();
     const bad = TRASH.filter(([re]) => re.test(body)).map(([, n]) => n);
     if (bad.length) { console.log(`     ${teams}/${scoring}: ${bad.join(",")}`); comboFails++; }
@@ -185,8 +253,14 @@ for (const teams of ["8", "12", "16"]) {
   }
 }
 ok(comboFails === 0, `allar 9 samsetningar lidafjolda og stigagjafar i lagi`);
-await setSelect("Teams", "12");
-await setSelect("Scoring", "ppr");
+ok(shapesSeen.length === 9,
+  `og allar NIU voru raunverulega heimsottar (${shapesSeen.length})`);
+/* Skilum heiminum i sjalfgefid astand fyrir kaflana sem a eftir koma. */
+await bootWithLeague({
+  teams: 12, scoring: "ppr", rounds: 15, superflex: false,
+  starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 },
+  maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 },
+});
 
 /* ============================================================
    4. TOLUR INNAN RAUNHAEFRA MARKA

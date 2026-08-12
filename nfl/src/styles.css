@@ -108,7 +108,37 @@ table.data thead tr.bands th {
 table.data.banded thead tr.cols th { top: 22px; }
 table.data td { text-align: right; color: var(--text); }
 table.data td.txt, table.data th.txt { text-align: left; }
+/* ---------- "na eg honum vid naesta val?" ----------
+   Litirnir eru OGAGNSAEIR, ekki `rgba`. Frosni nafnadalkurinn er
+   sticky og liggur YFIR toflunni sem skrunar undir honum, svo
+   halfgagnsaer bakgrunnur thar hleypir texta i gegn — nakvaemlega su
+   villa sem notan vid `.frozen` hér fyrir nedan varar vid. Tonarnir
+   eru thvi `--panel` (#171a21) blandad vid `--good` og `--bad`,
+   reiknad fram i tima svo hvert holf i rodinni — lika thad frosna —
+   fai SAMA ogagnsaeja lit.
+
+   ÞESSAR REGLUR VERDA AD STANDA A UNDAN `tr:hover`-reglunni. Þaer
+   hafa NAKVAEMLEGA somu serhaefni (0,2,4), svo rodin i skranni er
+   thad eina sem skilur thaer ad — og hover verdur ad vinna, annars
+   missir 200 rada tafla svorunina vid bendilinn. */
+/* MAELT A SKJAMYND, EKKI VALID: fyrri utgafa bar thrja tona og gult
+   (#262523) og raudt (#282024) voru **ogreinanleg** — (2, 5, 1) i RGB.
+   FPL-verkefnid ber regluna "nagrannathrep >=20 i RGB" og hun var
+   brotin hér. Nu tveir GAGNSTAEDIR tonar; fjarlaegdin er (31, 14, 11),
+   svo raudi rasin ein ber 31. Vordur: `layout.mjs`. */
+table.data tbody tr.reach-hi td  { background: #1b322d; }
+table.data tbody tr.reach-lo td  { background: #3a2528; }
+
 table.data tbody tr:hover td { background: #1b1f28; }
+
+/* Skyringar-depill — sami litur og rodin ber, svo skyringin geti ekki
+   sagt annad en taflan. */
+.reach-key {
+  display: inline-block; margin-left: 7px; padding: 1px 7px;
+  border-radius: 4px; font-size: 11px; color: var(--dim);
+}
+.reach-key.reach-hi  { background: #1b322d; }
+.reach-key.reach-lo  { background: #3a2528; }
 
 /* Frosinn dalkur — BAKGRUNN BEINT, aldrei `inherit`.
    I hausnum situr liturinn a sticky-umgjordinni, svo holfid erfir
@@ -159,6 +189,38 @@ table.data tbody tr:hover td.frozen { background: #1b1f28; }
 .note.warn { border-left-color: var(--warn); }
 .note b, .note strong { color: var(--text); }
 
+/* ============================================================
+   URSKURDURINN — eitt nafn, og hann a ad sjast an thess ad lesa.
+   ============================================================
+   Graena merkid i toflunni var thegar til stadar en drukknadi i fimm
+   rodum af tolum. Staerdin her er thvi ekki skraut heldur svarid:
+   thu att ad geta stadid vid tolvuna i drafti og sed nafnid.
+
+   Litur er `--good` en textinn er `--text`, ekki graenn — graent nafn a
+   graenum grunni er thad sem gerdi gomlu rodina osynilega.           */
+.verdict {
+  background: var(--panel2); border: 1px solid var(--good);
+  border-left: 4px solid var(--good);
+  border-radius: 9px; padding: 12px 14px; margin: 4px 0 12px;
+}
+.verdict-name {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  font-size: 21px; line-height: 1.25; color: var(--text);
+}
+.verdict-name b { font-weight: 700; }
+.verdict-name .dim { font-size: 13px; }
+.verdict-why { color: var(--dim); font-size: 12.5px; margin-top: 6px; }
+
+/* Rokin eru til stadar en loka. Ad fela thau alveg vaeri orakli —
+   verkefnid hvilir a thvi ad haegt se ad spyrja "af hverju". */
+.reasoning > summary {
+  cursor: pointer; color: var(--dim); font-size: 12.5px;
+  padding: 4px 0; user-select: none;
+}
+.reasoning > summary:hover { color: var(--text); }
+
+@media (max-width: 560px) { .verdict-name { font-size: 18px; } }
+
 .kpis { display: flex; gap: 10px; flex-wrap: wrap; }
 .kpi {
   background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
@@ -174,6 +236,17 @@ table.data tbody tr:hover td.frozen { background: #1b1f28; }
   font-family: inherit;
 }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
+
+/* Deilda-svissarinn. Hann situr MILLI hauss og flipastiku og er
+   raunverulegt samhengi, ekki stjornbord: allt sem er fyrir nedan er
+   reiknad ur theirri deild sem er valin hér. Þunn lina undir skilur
+   hann fra flipunum svo tvaer radir af hnoppum verdi ekki ein thvaga.
+   `layout.mjs` krefst thess ad hver klasi i JSX se skilgreindur — og
+   thad greip thennan thegar hann var adeins prof-merki. */
+.league-switch {
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+}
 
 .tierline td { border-top: 2px solid var(--accent); }
 
