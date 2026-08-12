@@ -12,6 +12,7 @@ const SUITES = [
   ["advice.mjs"], ["lineup.mjs"], ["names.mjs"], ["pipeline.mjs"],
   ["sleeper-league.mjs"], ["wiring.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
   ["standings.mjs"], ["waivers.mjs"],
+  ["usageblend.mjs"],
   ["render.mjs", true], ["audit.mjs", true], ["layout.mjs", true],
   ["saved-state.mjs", true], ["sleeper.mjs", true], ["dashboard.mjs", true],
   /* `visual.mjs` raesir ALVORU Chrome og maelir raunverulegt utlit.
