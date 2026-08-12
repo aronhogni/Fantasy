@@ -187,6 +187,7 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 |---|---|
 | **Ólínulegur aldursferill per stöðu** (`agecurve-lab.mjs`) | **HAFNAÐ.** Hrá leit jákvæð 8/10; **walk-forward jákvæð 4/10 og marktæk 0/10**, tvö hólf marktækt *negatíf*; LOSO 2/10. Valda fjölskyldan hoppar milli ára í hverju hólfi — sama undirskrift og CLAUDE.md 3 flaggar. `deltaR2` net of ADP er negatíft í **öllum 48 hólfum** |
 | **Annar VBD-grunnur** (`vbdbase-lab.mjs`) | **HAFNAÐ — og fann VILLU.** 16 afbrigði × 3 lögun × 3 stigagjafir: **0 af 153 hólfum standast bootstrap klasaðan PER LEIKMANN**, þótt **29 standist** hann klasaðan eftir tímabili. Sjá 4b — það er sjálfstætt mikilvægasta aðferðar-atriðið hér |
+| **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+24,4 stig**, t=2,275, 8/11 ár, CI [+3,7, +43,7], einræn 4/4. Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
 | **Óvissu-háð hnignun spárinnar** (`shrink-lab.mjs`) | **HAFNAÐ.** 12 óvissu-mælar × 3 forgildi × 6 vogir: **0 af 36 samsetningum jákvæðar í öllum 10 hólfum á báðum spáheimildum**. Besta samkvæma hrifin +0,5 stig af ~1900. Marktækni í **0/14** hólfum (besta \|t\| = 3,4 gegn kröfu 4,5–5,7) |
 
 **Aldur: skugginn er raunverulegur, hann flyst bara ekki.** RB-leifin fellur
@@ -240,6 +241,66 @@ half en í PPR, gagnstætt „móttökur eru stöðugri".
    Sleeper-borðið. Það er „Sleeper slær FFToday" (5k), ekki hnignun.
 3. **TVÆR `df`-VILLUR** í uppflettingu á krítísku gildi, **báðar sem lækkuðu
    þröskuldinn** (2,228 þar sem 2,776/3,182 var rétt). Lagfærðar.
+
+### 4d. `prevCarG` — frambjóðandi sem var EKKI tengdur
+
+`opp-lab` spurði annarrar spurningar en `feature-probe`: ekki „berr breytan
+fylgni við leif spárinnar?" (svarið var nei fyrir allar 14) heldur **„bætir
+lítil, einræn vog, LÖGÐ OFAN Á VBD-röðina, ákvörðunina?"** Þær eru ólíkar: röðun
+notar aðeins **röð**, og aðeins í toppnum.
+
+Ein breyta af ellefu stóðst öll fjögur skilyrðin — `prevCarG` — og hún var samt
+**ekki tengd**. Fimm ástæður, hver ein nóg:
+
+| # | varnagli |
+|---|---|
+| 1 | **Ábatinn er EKKI í toppnum.** `all` +30,5 · `top100` +30,6 · **`top50` aðeins +12,0** (t=1,79). Hún vinnur í sætum 50–150 — miðjuumferðir, ekki þar sem draftið er ákveðið |
+| 2 | **Ómarktæk í þeirri heimild sem appið notar.** FFToday 2015–20: +28,6 (5/6, t=2,35). **Sleeper 2021–25: +19,3 (3/5, t=0,97)** — sami veggur og 5b/5e: fimm tímabil |
+| 3 | **Marginal gegn placebo:** +24,4 á móti placebo-þaki **+21,7** |
+| 4 | **Fylgnin hefur ANDSTÆTT formerki.** Fylgni `prevCarG` við leif spárinnar er **−0,052**. Jákvæð ákvörðun, negatíf fylgni, í sama skripti — það er repo-ið eigin regla („hærri fylgni ≠ betri ákvörðun"), en það þýðir líka að **mekanisminn er óskýrður** |
+| 5 | **Mekanisminn er líklega ekki „tækifæri".** Per stöðu lifir merkið í **RB og QB**; `prevCarG` er ~0 fyrir nánast hvern WR/TE. Líklegasta lesningin er **RB-vinnuálag + hlaupandi QB**, ekki tækifæri í heild. Óprófað |
+
+#### Placebo-familían — mælitækið sem gerði töfluna læsilega
+
+**Átta placebo-breytur — ákveðinn hávaði — voru keyrðar gegnum sama netið.** Þær
+ná einstöku hólfi með **\|t\| = 3,50 og +58,2 stig**, og 2–24 placebo-hólf per
+lögun/snið koma út „marktæk". **Eitt jákvætt marktækt hólf er það sem hávaði
+lítur út eins og hér.** Pooled gefa þær meðaltal −1,2, sd 9,2, hámark
+\|t\| = **1,268** og forspárbil **[−24,2, +21,7]**.
+
+Án þeirrar familíu hefði per-hólfs taflan stutt nánast hvaða niðurstöðu sem er —
+og fyrsta 4-tímabila keyrslan hafði **10 af 11** breytum jákvæðar og hækkandi í
+`w`. `board-lab`'s Bonferroni-líka formúla hefði krafist \|t\| > 5,43 við þennan
+fjölda afbrigða, sem **ekkert 11-ára meðaltal getur náð** — hún hefði hafnað öllu
+og þar með mælt ekkert. Placebo-þakið kemur í staðinn.
+
+#### Tvær tilgátur sem féllu beint
+
+**Er merkið sterkara í PPR en í standard? NEI, skýrt nei.** Parað per tímabili,
+sömu leikmenn, sömu vogir, sama lögun, aðeins stigagjöfin ólík: ppr > standard í
+**3 af 11** breytum (sign-test p = 0,97 — ef eitthvað er þá hið gagnstæða), full
+röðun ppr > half > standard í **0 af 11**, og ppr−standard sem útilokar núll í
+**1 af 11** — á móti **1 af 8 placebo-um**, sem er nákvæmlega fals-jákvæðnin.
+Móttökur skora 1,0 í PPR og ~0 í standard; væri þetta móttöku-tækifæri hefði
+mismunurinn sýnt það. **Það er engin mæld ástæða til að bera ólíka vog per
+stigagjöf.**
+
+**Magn á móti nýtni — xGI-slær-xG hliðstæðan flyst EKKI.** volume +8,7
+(t=1,73) · efficiency **+9,6 (t=2,40, CI [+1,9, +17,3])** · context −21,0 ·
+trend +6,4. **volume − efficiency = −0,9, t=−0,15** — ógreinanlegt, og nýtnin er
+nafnbótarlega **þéttari**. Í FPL var magn-slær-nýtni **mæld ákvörðun**; hér er
+hún það ekki.
+
+`prevTeamPassRate` er skýrasta negatífa niðurstaðan: jákvæð vog kostar
+**−21,0 stig** (−30,7 í PPR), einræn 4/4 — eina „context"-breytan og það versta í
+töflunni.
+
+> **HEIÐARLEGT DEBET, skráð í skrána sjálfa:** negatífi helmingur vog-netsins var
+> **bætt við EFTIR** að Tier A sýndi magn-breyturnar með negatífa fylgni við
+> leifina. Það er **gagna-háð víkkun** og hún er talin í `variants`. Einhliða net
+> hefði gefið sér áttina, sem er einmitt það sem `feature-probe` gat ekki staðfest.
+
+---
 
 ### 4b. VILLA Í `computeVbd` — `0` var lesið sem „vantar"
 
