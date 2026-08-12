@@ -594,5 +594,83 @@ console.log("\nolesnar skrar eru asettar");
   console.log(`     ${unread.length} olesnar, allar rokstuddar sem maelingar-heimild`);
 }
 
+/* ============================================================
+   ADP PER SNIDI VERDUR AD KOMA FRA SAMA MANNI
+   ============================================================
+   `stageAdp` bar `sleeperProj[p.id]` — en `sl.projections()` SKILAR
+   FYLKI, ekki ordabok a Sleeper-audkenni, svo thetta var VISITALA i
+   fylkid. `stageCore` gerdi thad rett (Map a `sleeperId`); ADP-threpid
+   gerdi thad ekki, og svidid heitir auk thess `adpPpr` en ekki `adp`,
+   svo PPR-linan hafdi ALDREI keyrt.
+
+   MAELT 12.8.2026 gegn lifandi API: fylkid er 3.300 radir, svo 77 af
+   1.043 leikmonnum attu audkenni SEM LENDIR INNAN thess og fimm theirra
+   hefdu fengid ADP fra OSKYLDUM manni — thar a medal **Matt Prater,
+   41 ara spyrnumadur, sem hefdi fengid half-ADP 5,7 fra Christian
+   McCaffrey.** Hinir 966 fengu `undefined` og THOGDU.
+
+   ============================================================
+   FYRSTA UTGAFA THESSA VARDAR VAR SJALF RONG — OG THAD ER LAERDOMURINN
+   ============================================================
+   Hun krafdist thess ad spyrnumenn hefdu SAMA ADP i half og ppr, med
+   theim rokum ad "spyrnumenn fa engar mottokur". Hun FELL a raunverulegum
+   gognum: 15 af 66 spyrnumonnum/vornum bera half-ADP ~40-55 saetum LAEGRA
+   en PPR-ADP (Boswell 183,9 a moti 239,4; Lutz 201,2 a moti 253,3) — og
+   thad er KERFISLAEGT, ekki handahof. Handahofs-spilling myndi gefa
+   handahofs-tolur.
+
+   VILLAN I ROKUNUM: **ADP MAELIR HEGDUN, EKKI VIRDI.** Hun segir hvenaer
+   FOLK draftar mann, ekki hvad hann er verdur. Half-PPR-urtakid hja
+   Sleeper er minna og dregid af odrum hop, svo djupir leikmenn faerast
+   kerfislaegt. Ad krefjast jafngildis var ad leggja virdi og hegdun ad
+   jofnu — nakvaemlega sami flokkur og "NULL ER EKKI NULL".
+
+   VORDURINN ER THVI A UNDIRSKRIFT VILLUNNAR, ekki a jafngildi: rangur
+   madur gefur ADP ur ALLT ODRUM staerdargrod. Spyrnumadur i topp 100 i
+   einu snidi og fyrir utan 150 i odru er ekki urtaksmunur — thad er
+   annar madur. Prater (5,7 / 239) fellur; Boswell (183,9 / 239,4) ekki.  */
+console.log("\nADP per snidi kemur fra sama manni");
+{
+  const fmts = (p) => [p.adpSleeper, p.adpSleeperHalf, p.adpSleeperStd]
+    .filter((v) => v != null);
+
+  /* K/DST eru aldrei raunverulegt topp-100 val i neinu sniði. Beri einn
+     theirra topp-100 ADP i EINU sniði en djupt i odru er thad annar
+     madur, ekki urtaksmunur. */
+  const noRec = players.filter((p) => (p.pos === "K" || p.pos === "DST") &&
+    fmts(p).length >= 2);
+  const impossible = noRec.filter((p) => {
+    const v = fmts(p);
+    return Math.min(...v) < 100 && Math.max(...v) > 150;
+  });
+  for (const p of impossible.slice(0, 5)) {
+    console.log(`     ${p.name} (${p.pos}, id ${p.id}): ${fmts(p).join(" / ")}`);
+  }
+  ok(impossible.length === 0,
+    `enginn spyrnumadur/vorn med ADP ur tveimur staerdargrodum ` +
+    `(${impossible.length} af ${noRec.length})`);
+
+  /* Sama undirskrift hja OLLUM: topp-12 val i einu sniði og utan 150 i
+     odru er ekki snid-munur heldur onnur manneskja. Vikmorkin eru rúm
+     viljandi — raunverulegur snid-munur er tugir saeta, ekki hundrud. */
+  const all = players.filter((p) => fmts(p).length >= 2);
+  const wild = all.filter((p) => {
+    const v = fmts(p);
+    return Math.min(...v) < 12 && Math.max(...v) > 150;
+  });
+  for (const p of wild.slice(0, 5)) {
+    console.log(`     ${p.name} (${p.pos}): ${fmts(p).join(" / ")}`);
+  }
+  ok(wild.length === 0,
+    `enginn leikmadur med topp-12 ADP i einu sniði og >150 i odru ` +
+    `(${wild.length} af ${all.length})`);
+
+  /* ÞEKJA ER FULLYRDING: baðar fullyrdingarnar hér ofan eru sannar um
+     TOM gogn, svo talan verdur ad fella profid. */
+  ok(noRec.length >= 10,
+    `og thetta var raunverulega maelt a ${noRec.length} spyrnumonnum/vornum`);
+  ok(all.length >= 100, `og a ${all.length} leikmonnum med fleiri en eitt snid`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

@@ -811,6 +811,13 @@ async function stageAdp() {
     return;
   }
 
+  /* Map a `sleeperId`, EINS OG I `stageCore`. Sja notuna vid notkunina
+     nedar: fylkis-visitala gaf spyrnumanni ADP 5,7 og thagdi um hina. */
+  const projBySleeper = Array.isArray(sleeperProj)
+    ? new Map(sleeperProj.filter((x) => x && x.sleeperId != null)
+        .map((x) => [String(x.sleeperId), x]))
+    : null;
+
   /* Porun a NAFNI innan stodu OG lids, eins og i `joinPlayers`. Vid
      endurbyggjum ekki bruna — hun breytist ekki milli klukkustunda. */
   const ffcIdx = {};
@@ -827,10 +834,46 @@ async function stageAdp() {
       }
     }
     if (Object.keys(next).length) { p.adpFfc = next; touched++; }
-    if (sleeperProj) {
-      const sp = sleeperProj[p.id] || sleeperProj[String(p.id)];
+    if (projBySleeper) {
+      /* ============================================================
+         TVAER VILLUR I THESSUM FJORUM LINUM, BADAR THOGULAR
+         ============================================================
+         Adur stod:
+             const sp = sleeperProj[p.id] || sleeperProj[String(p.id)];
+             if (sp.adp != null) p.adpSleeper = sp.adp;
+
+         (1) `sl.projections()` SKILAR FYLKI, ekki ordabok a
+             Sleeper-audkenni. `sleeperProj[p.id]` er thvi VISITALA i
+             fylkid. `stageCore` gerir thetta RETT (`new Map(...)` a
+             linu 300) — thessi stadur gerdi thad ekki.
+
+             MAELT 12.8.2026 gegn lifandi API: fylkid er 3.300 radir, svo
+             77 af 1.043 leikmonnum eiga audkenni sem LENDIR INNAN thess,
+             og 5 theirra hefdu fengid ADP fra OSKYLDUM manni:
+
+               Matt Prater  (id 17,  41 ara spyrnumadur) <- Christian
+                                          McCaffrey, half-ADP 5,7
+               Joe Flacco   (id 19)  <- Jaxon Smith-Njigba, 7,3
+               Marcedes Lewis (id 111) <- Khalil Shakir, 130,4
+               Frank Gore   (id 232) <- Dylan Sampson, 151,5
+               Josh Johnson (id 260) <- David Njoku, 172
+
+             Spyrnumadur med ADP 5,7 i half-PPR-deild er ekki namundun
+             heldur toppval i sjottu umferd. Hinir 966 fengu `undefined`
+             og thogdu — thess vegna sast thetta aldrei.
+
+         (2) SVIDID HEITIR `adpPpr`, EKKI `adp`. `sp.adp` er thvi ALDREI
+             til (stadfest: `'adp' in row === false`), svo
+             `p.adpSleeper = sp.adp` HEFUR ALDREI KEYRT. Sleeper-blokkin
+             hér skrifadi thvi ekkert rett og fimm hluti rangt.
+
+         Porun er nu a `sleeperId` gegnum Map, eins og i `stageCore`, og
+         svidaheitin eru thau sem heimildin sendir. Vordur:
+         `pipeline.mjs` — half/std ADP verdur ad vera i somu staerdargrod
+         og PPR-ADP fyrir sama mann, sem fellur a fylkis-visitolu.      */
+      const sp = projBySleeper.get(String(p.id));
       if (sp) {
-        if (sp.adp != null) p.adpSleeper = sp.adp;
+        if (sp.adpPpr != null) p.adpSleeper = sp.adpPpr;
         if (sp.adpStd != null) p.adpSleeperStd = sp.adpStd;
         if (sp.adpHalf != null) p.adpSleeperHalf = sp.adpHalf;
       }
