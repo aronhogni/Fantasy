@@ -22,8 +22,9 @@
 import React, { useMemo, useState } from "react";
 import * as D from "./data.js";
 import { optimalLineup, slotsFor } from "./lineup.js";
+import { weeklyProjection, impliedTeamTotals } from "./model.js";
 
-export default function MyTeam({ rows, league, news, meta }) {
+export default function MyTeam({ rows, league, news, meta, market, schedule, defense }) {
   const [ids, setIds] = useState(() => new Set(D.loadState("myPicks", [])));
   const [sleeperRoster, setSleeperRoster] = useState(null);
 
@@ -55,15 +56,66 @@ export default function MyTeam({ rows, league, news, meta }) {
   const curWeek = meta && (meta.seasonType === "regular" || meta.seasonType === "post")
     ? meta.week : null;
 
-  const lineup = useMemo(() => optimalLineup(roster.map((r) => ({
-    id: r.id, name: r.name, pos: r.pos, team: r.team,
-    /* Vikuleg spa er ekki til i forleik — timabils-spain deilt med 17
-       er thad sem vid hofum og thad er SAGT. */
-    proj: r.proj != null ? r.proj / 17 : null,
-    avail: r.avail,
-    bye: curWeek != null && r.bye != null && r.bye === curWeek,
-    injury: r.injury,
-  })), slots), [roster, slots, curWeek]);
+  /* ============================================================
+     VIKULEG SPA — MAELD ADUR EN HUN VAR TENGD
+     ============================================================
+     `weeklyProjection()` var skrifad fra upphafi og LA OTENGT, thvi
+     husreglan segir ad omaeldur kodi fari ekki i loftid. Thad var ekki
+     haegt ad maela fyrr en markadslinur per viku voru sottar aftur i
+     timann (1.960 leikir 2019-2025, 100% med total og spread).
+
+     `startsit-lab.mjs` maeldi thad thannig ad spurningin vaeri RETT:
+     ekki "er spain nakvaem" heldur "BREYTIR HUN VALINU". Vikuleg spa
+     sem radar ollum eins er einskis virdi i start/sit — thu setur sama
+     lidid a vollinn. Maelikvardinn er thvi STIGIN sem lidid skoradi.
+
+       PPR       lokar 5,8% af bilinu upp i fullkomna vitneskju,
+                 7/7 ar jakvaed, t = 4,33, 95% [2,8%; 8,8%]
+                 = +0,70 stig per uppstillingu = ~12 a timabili
+       standard  3,0%, 6/7 ar, t = 2,83, 95% [0,6%; 5,3%]
+
+     5,8% hljomar litid og thad ER litid — en bilid sjalft er ~12 stig
+     per viku og megnid af thvi er OVITANLEGT. Talan segir hve mikid af
+     THVI SEM VAR HAEGT vannst, sem er eina heidarlega framsetningin.
+
+     I FORLEIK ER ENGIN VIKA og engin lina; tha fellur thetta i
+     timabils-spána deilda med 17, eins og adur.                    */
+  const weekly = useMemo(() => {
+    if (curWeek == null || !schedule) return null;
+    const games = schedule.filter((g) => g.week === curWeek &&
+      (g.type === "REG" || g.type === "POST" || !g.type));
+    if (!games.length) return null;
+    const implied = new Map(), opp = new Map();
+    for (const g of games) {
+      const t = impliedTeamTotals(g.total, g.spread);
+      if (t) { implied.set(g.home, t.home); implied.set(g.away, t.away); }
+      opp.set(g.home, g.away); opp.set(g.away, g.home);
+    }
+    const dvp = new Map();
+    for (const d of (defense || [])) dvp.set(`${d.team}|${d.pos}`, d);
+    return { implied, opp, dvp };
+  }, [schedule, defense, curWeek]);
+
+  const lineup = useMemo(() => optimalLineup(roster.map((r) => {
+    const base = r.proj != null ? r.proj / 17 : null;
+    let proj = base;
+    if (weekly && base != null && r.team) {
+      const o = weekly.opp.get(r.team);
+      const d = o ? weekly.dvp.get(`${o}|${r.pos}`) : null;
+      const wp = weeklyProjection({
+        base, pos: r.pos, implied: weekly.implied.get(r.team),
+        def: d ? { adj: d.adj, leagueMean: d.leagueMean } : null,
+        avail: 1, bye: false,
+      });
+      if (wp && wp.pts != null) proj = wp.pts;
+    }
+    return {
+      id: r.id, name: r.name, pos: r.pos, team: r.team, proj,
+      avail: r.avail,
+      bye: curWeek != null && r.bye != null && r.bye === curWeek,
+      injury: r.injury,
+    };
+  }), slots), [roster, slots, curWeek, weekly]);
 
   const preseason = !meta || meta.seasonType === "pre" || meta.seasonType === "off";
 

@@ -341,5 +341,60 @@ console.log("\nahaetta vid valid");
   ok(seen >= 1, `${seen} ahaettu-maelingar lesnar af diski`);
 }
 
+/* ============================================================
+   START/SIT — MAELT ADUR EN THAD VAR TENGT
+   ============================================================
+   `weeklyProjection()` la OTENGT fra upphafi thvi husreglan segir ad
+   omaeldur kodi fari ekki i loftid. Thad var ekki haegt ad maela fyrr
+   en markadslinur per viku voru sottar aftur i timann.
+
+   `startsit-lab.mjs` spurdi rettu spurninguna: ekki "er spain nakvaem"
+   heldur BREYTIR HUN VALINU. Vikuleg spa sem radar ollum eins er
+   einskis virdi i start/sit. Maelikvardinn er STIGIN sem lidid skoradi,
+   og talan er HLUTFALL BILSINS upp i fullkomna vitneskju — hratt
+   stiga-tal vaeri merkingarlaust, thvi megnid af bilinu er ovitanlegt.
+
+   Falli thetta hefur einhver breytt maelingunni eda vikulega spain
+   haett ad virka — og tha a hun ad fara UR vidmotinu aftur.        */
+console.log("\nstart/sit");
+{
+  let seen = 0;
+  for (const f of ["startsit_ppr", "startsit_standard"]) {
+    const p = path.join(DATA, `${f}.json`);
+    if (!existsSync(p)) continue;
+    seen++;
+    const j = JSON.parse(readFileSync(p, "utf8"));
+    const T = j.totals;
+
+    ok(T.verdict === "STENST",
+      `${f}: stenst (${T.pctOfGapClosed}% af bilinu, t=${T.t})`);
+    ok(T.positive >= T.years - 1,
+      `${f}: ${T.positive}/${T.years} ar jakvaed`);
+    ok(T.pointsPerLineup > 0,
+      `${f}: +${T.pointsPerLineup} stig per uppstillingu (${T.pointsPerSeason} a timabili)`);
+
+    /* MORKIN VERDA AD HALDA I HVERJU ARI: hendingu radid er ALLTAF
+       verst og fullkomin vitneskja ALLTAF best. Bregdist thad er
+       hermunin ekki ad maela thad sem hun heldur. */
+    for (const y of j.seasons) {
+      const s2 = j.perSeason[y];
+      ok(s2.floor < s2.flat, `${f} ${y}: hending (${s2.floor}) er verst`);
+      ok(s2.ceiling > s2.flat && s2.ceiling > s2.weekly,
+        `${f} ${y}: fullkomin vitneskja (${s2.ceiling}) er best`);
+    }
+
+    /* VIKULEGA SPAIN MA TAPA EINSTOKU ARI — hun gerir thad (standard
+       2019: 82,2 gegn 82,4). Ad krefjast thess ad hun vinni OLL ar
+       vaeri strangari krafa en maelingin sjalf gerir, og profid faeri
+       tha ad fullyrda meira en gognin segja. Krafan er ad ARAFJOLDINN
+       PASSI VID ThAD SEM SKRAIN SEGIR. */
+    const wonYears = j.seasons.filter((y) =>
+      j.perSeason[y].weekly >= j.perSeason[y].flat).length;
+    ok(wonYears === T.positive,
+      `${f}: ${wonYears} ar thar sem vikuleg >= flat, og skrain segir ${T.positive}`);
+  }
+  ok(seen >= 1, `${seen} start/sit maelingar lesnar af diski`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

@@ -1,0 +1,129 @@
+{
+ "generated": "2026-08-12T09:40:28.589Z",
+ "provenance": {
+  "generated": "2026-08-12T09:40:28.589Z",
+  "argv": [
+   "--scoring=standard"
+  ],
+  "params": {
+   "scoring": {
+    "value": "standard",
+    "fromDefault": false
+   },
+   "from": {
+    "value": 2019,
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   },
+   "schedule_history.json": {
+    "bytes": 233073,
+    "sha1": "a7ade72fb5d0",
+    "mtime": "2026-08-12T08:37:23.478Z"
+   },
+   "defense.json": {
+    "bytes": 103690,
+    "sha1": "31c9dd59d1fc",
+    "mtime": "2026-08-09T19:44:26.423Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "scoring": "standard",
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "perSeason": {
+  "2019": {
+   "lineups": 167,
+   "floor": 74.7,
+   "flat": 82.4,
+   "weekly": 82.2,
+   "ceiling": 92.5,
+   "gainedPerLineup": -0.1,
+   "gapPerLineup": 10.1,
+   "pctOfGapClosed": -1.23
+  },
+  "2020": {
+   "lineups": 168,
+   "floor": 76,
+   "flat": 83.9,
+   "weekly": 84.1,
+   "ceiling": 93.4,
+   "gainedPerLineup": 0.2,
+   "gapPerLineup": 9.5,
+   "pctOfGapClosed": 2.537
+  },
+  "2021": {
+   "lineups": 173,
+   "floor": 75.1,
+   "flat": 81.9,
+   "weekly": 82.2,
+   "ceiling": 92.2,
+   "gainedPerLineup": 0.4,
+   "gapPerLineup": 10.3,
+   "pctOfGapClosed": 3.618
+  },
+  "2022": {
+   "lineups": 188,
+   "floor": 69.1,
+   "flat": 77.7,
+   "weekly": 78.4,
+   "ceiling": 87.6,
+   "gainedPerLineup": 0.7,
+   "gapPerLineup": 9.9,
+   "pctOfGapClosed": 6.998
+  },
+  "2023": {
+   "lineups": 192,
+   "floor": 71.9,
+   "flat": 79.8,
+   "weekly": 80.3,
+   "ceiling": 89.1,
+   "gainedPerLineup": 0.5,
+   "gapPerLineup": 9.2,
+   "pctOfGapClosed": 5.233
+  },
+  "2024": {
+   "lineups": 180,
+   "floor": 72.1,
+   "flat": 80.7,
+   "weekly": 81,
+   "ceiling": 90.4,
+   "gainedPerLineup": 0.3,
+   "gapPerLineup": 9.6,
+   "pctOfGapClosed": 3.189
+  },
+  "2025": {
+   "lineups": 103,
+   "floor": 72.2,
+   "flat": 76,
+   "weekly": 76,
+   "ceiling": 84.6,
+   "gainedPerLineup": 0,
+   "gapPerLineup": 8.6,
+   "pctOfGapClosed": 0.424
+  }
+ },
+ "totals": {
+  "pctOfGapClosed": 2.967,
+  "t": 2.831,
+  "years": 7,
+  "positive": 6,
+  "pointsPerLineup": 0.286,
+  "pointsPerSeason": 4.9,
+  "tCrit": 2.228,
+  "verdict": "STENST"
+ }
+}

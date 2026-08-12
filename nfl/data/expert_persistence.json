@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-12T08:56:16.897Z",
+ "generated": "2026-08-12T09:38:38.650Z",
  "provenance": {
-  "generated": "2026-08-12T08:56:16.897Z",
+  "generated": "2026-08-12T09:38:38.651Z",
   "argv": [
    "--from=2015",
    "--to=2025"
@@ -251,5 +251,50 @@
    "QB/WR": 0.025
   }
  ],
+ "topKAnalysis": [
+  {
+   "K": 3,
+   "years": 8,
+   "percentile": 24.556,
+   "edge": 25.444,
+   "t": 4.825
+  },
+  {
+   "K": 5,
+   "years": 10,
+   "percentile": 25.691,
+   "edge": 24.309,
+   "t": 5.603
+  },
+  {
+   "K": 10,
+   "years": 10,
+   "percentile": 26.804,
+   "edge": 23.196,
+   "t": 10.128
+  },
+  {
+   "K": 20,
+   "years": 10,
+   "percentile": 28.035,
+   "edge": 21.965,
+   "t": 10.33
+  },
+  {
+   "K": 50,
+   "years": 10,
+   "percentile": 35.004,
+   "edge": 14.996,
+   "t": 8.707
+  },
+  {
+   "K": 100,
+   "years": 9,
+   "percentile": 39.56,
+   "edge": 10.44,
+   "t": 5.355
+  }
+ ],
+ "bestK": 20,
  "persistent": true
 }

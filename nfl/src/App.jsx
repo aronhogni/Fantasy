@@ -106,7 +106,7 @@ export default function App() {
     else if (view === "schedule") need([]);
     else if (view === "sources") need(["calibration", "adp"]);
     else if (view === "market") need(["marketHistory"]);
-    else if (view === "myteam") need(["seasons", "accuracy", "experts", "news"]);
+    else if (view === "myteam") need(["seasons", "accuracy", "experts", "news", "defense"]);
     else if (view === "lab") need(["evalPpr", "evalStd", "stratPpr", "stratStd", "arankPpr", "arankStd",
                             "arankFfPpr", "arankFfStd", "shapes"]);
   }, [view, need]);
@@ -168,7 +168,8 @@ export default function App() {
           rows={built.rows} meta={built.meta} />
       )}
       {view === "myteam" && (
-        <MyTeam rows={built.rows} league={league} news={extra.news} meta={meta} />
+        <MyTeam rows={built.rows} league={league} news={extra.news} meta={meta}
+          market={core.market} schedule={core.schedule} defense={extra.defense} />
       )}
       {view === "market" && (
         <Market market={core.market} rows={built.rows} meta={meta}

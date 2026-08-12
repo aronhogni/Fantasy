@@ -184,6 +184,58 @@ async function main() {
       `RB/TE ${rp["RB/TE"].toFixed(2)}  QB/WR ${rp["QB/WR"].toFixed(2)}`);
   }
 
+  /* ============================================================
+     4. HVE MARGA A AD TAKA? TOPP 3, 10 EDA 50?
+     ============================================================
+     Spurningin er MAELANLEG og hun var spurd beint. Fyrir hvert ar er
+     valid topp-K eftir MEDALRODUN YFIR OLL FYRRI AR — ekki bara
+     sidasta, thvi thad er munurinn a "bestur i fyrra" og "alltaf
+     bestur" — og maelt hvar their lenda i AR.
+
+     50% vaeri hrein hending. Lagra er betra.                       */
+  console.log("\n4. hvada K ber mest merki?");
+  console.log("  K    ar   hundradshluti   betri en hending   t");
+  const kResults = [];
+  for (const K of [3, 5, 10, 20, 50, 100]) {
+    const pcts = [];
+    for (let i = 1; i < ys.length; i++) {
+      const y = ys[i], prior = ys.slice(0, i);
+      const hist = {};
+      for (const p of prior) {
+        for (const r of byYear[p]) {
+          (hist[r.id] = hist[r.id] || []).push(r.overall / byYear[p].length);
+        }
+      }
+      /* KRAFA UM LAGMARKSSOGU. Madur sem sast eitt ar getur ordid
+         "bestur ad medaltali" a einu godu ari — thad vaeri ad velja
+         heppni og kalla hana haefileika. */
+      const eligible = Object.entries(hist)
+        .filter(([, v]) => v.length >= Math.min(3, prior.length));
+      if (eligible.length < K) continue;
+      const top = eligible.map(([id, v]) => [id, mean(v)])
+        .sort((a, b) => a[1] - b[1]).slice(0, K).map(([id]) => id);
+      const now = new Map(byYear[y].map((r) => [String(r.id), r.overall]));
+      const got = top.map((id) => now.get(String(id))).filter((v) => v != null);
+      if (got.length < Math.max(2, K * 0.3)) continue;
+      pcts.push(mean(got) / byYear[y].length * 100);
+    }
+    if (!pcts.length) continue;
+    const m = mean(pcts);
+    const sd = Math.sqrt(mean(pcts.map((v) => (v - m) ** 2)) * pcts.length /
+                         Math.max(1, pcts.length - 1));
+    const se = sd / Math.sqrt(pcts.length);
+    const edge = 50 - m, t = se ? edge / se : 0;
+    kResults.push({ K, years: pcts.length, percentile: r3(m), edge: r3(edge), t: r3(t) });
+    console.log(`  ${String(K).padEnd(4)} ${String(pcts.length).padStart(3)}   ${m.toFixed(1)}%` +
+      `          ${edge.toFixed(1)} stig       ${t.toFixed(2)}`);
+  }
+  /* Besta K er ekki thad med laegsta hundradshluta heldur thad med
+     STERKUSTU VISBENDINGU — topp-3 gefur besta punktmatid en helmingi
+     laegra t, thvi thad byggir a thremur monnum og faerri arum. */
+  const bestK = kResults.slice().sort((a, b) => b.t - a.t)[0];
+  console.log(`  -> sterkasta visbendingin er K=${bestK.K} (t=${bestK.t}); ` +
+    `laegsti hundradshluti er K=${kResults.slice().sort((a, b) => a.percentile - b.percentile)[0].K}`);
+
   /* ---------- DOMURINN ---------- */
   console.log(`\n${"=".repeat(72)}`);
   const persistent = avgRho > 0.3 && negative === 0;
@@ -210,6 +262,8 @@ async function main() {
     topTenFollowUp: followUp,
     avgPercentileOfPriorTopTen: r3(avgPct),
     withinYearPositionAgreement: within,
+    topKAnalysis: kResults,
+    bestK: bestK ? bestK.K : null,
     persistent,
   }, null, 1));
   console.log(`\n-> data/expert_persistence.json`);
