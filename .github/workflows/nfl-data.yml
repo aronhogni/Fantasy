@@ -16,8 +16,32 @@ name: nfl-data
 #            i viku og eru 200+ HTTP-koll, svo thau eiga ekki heima
 #            i hverri keyrslu
 #
-# `history` er EKKI hér. Timabil sem er lokid breytist aldrei; thad
-# er sott handvirkt og utkoman committud (sja README-NFL.md).
+#   history  vikuleg leikmanna-gogn — SJA NEDAR, forsendan breyttist
+#
+# ============================================================
+# `history` VAR EKKI HER, OG SU FORSENDA ER FALLIN
+# ============================================================
+# Hér stod: "Timabil sem er lokid breytist aldrei; thad er sott
+# handvirkt." Þad var RETT medan `HISTORY` i `fetch-nfl.mjs` bar
+# adeins LOKIN ar. 12.8.2026 var listinn LEIDDUR til ad innihalda
+# YFIRSTANDANDI timabil, og tha breytist skrain i hverri viku.
+#
+# ASTAEDAN ER TVAER MAELDAR NIDURSTODUR sem voru obrukanlegar an hennar:
+#   · `usage-lab`: notkun-til-thessa lokar 12,25% af start/sit-bilinu
+#     fra viku 10 (a moti 5,83%), per-leikmanns CI [2,54 · 8,49] i
+#     ollum thremur snidum — fyrsta hugmyndin sem stodst thann throskuld
+#   · `waiver-lab`: rest-of-season gjaldmidill slaer timabils-VBD um
+#     +13,2 stig/timabil (t=2,97, 6/7 ar)
+# Baðar tharfnast `weekly/{yfirstandandi ar}.json`, sem var ALDREI skrifud.
+#
+# ÞRIDJUDAGUR, EKKI MANUDAGUR: NFL-vikan endar a manudagskvoldi i BNA,
+# svo 12:00 UTC a thridjudegi er fyrsti timinn sem vikan er FULL. Ad
+# keyra a manudegi gaefi halfa viku sem las eins og heil.
+#
+# `weeklyMinRows` i `fetch-nfl.mjs` hleypir yfirstandandi ari i gegn med
+# 100 rodum (vika 1 ber ~390) medan lokin ar halda 1000 — annars hefdi
+# throskuldurinn HAFNAD fyrstu vikunum, einmitt thegar notkun-til-thessa
+# er thad eina sem er til.
 # ============================================================
 
 on:
@@ -36,6 +60,9 @@ on:
     # eina sekundu; thad skrifar ofan i players.json sem er thegar
     # til og endurbyggir enga porun.
     - cron: "0 0,3,6,12,15,18 * 8,9 *"
+    # 12:00 UTC A THRIDJUDEGI, SEPTEMBER-JANUAR: vikuleg gogn.
+    # Vikan er full eftir manudagskvoldid; sja skyringu i hausnum.
+    - cron: "0 12 * * 2"
   workflow_dispatch:
     inputs:
       stage:
@@ -74,6 +101,13 @@ jobs:
             # enga porun heldur skrifar ny ADP-gildi ofan i players.json
             # sem er thegar til. Thess vegna ma hun keyra svona oft.
             echo "value=adp" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.schedule }}" = "0 12 * * 2" ]; then
+            # VIKULEG GOGN. `history` skrifar `weekly/{ar}.json` fyrir
+            # oll ar 2019..yfirstandandi — thad eru ~7 nflverse-skrar og
+            # tekur um minutu. `core` fylgir med thvi `meta.json` verdur
+            # ad vera ferskt: `historyYears()` les timabilid UR HENNI, og
+            # i januar er dagsetningar-arid EKKI timabilid.
+            echo "value=core,history" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event.schedule }}" = "0 21 * 8,9 *" ]; then
             # Kvoldkeyrslan i drafttid: ADP hreyfist, bordin ekki.
             echo "value=core" >> "$GITHUB_OUTPUT"

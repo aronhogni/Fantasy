@@ -672,5 +672,96 @@ console.log("\nADP per snidi kemur fra sama manni");
   ok(all.length >= 100, `og a ${all.length} leikmonnum med fleiri en eitt snid`);
 }
 
+/* ============================================================
+   VIKULEG GOGN YFIRSTANDANDI TIMABILS — KEDJAN VERDUR AD VERA HEIL
+   ============================================================
+   TVAER MAELDAR NIDURSTODUR voru obrukanlegar af sömu astaedu, og hun
+   var ekki likan heldur PLUMBING:
+
+     · `usage-lab`: notkun-til-thessa lokar **12,25%** af
+       start/sit-bilinu fra viku 10 (a moti 5,83%), per-leikmanns CI
+       [2,54 · 8,49] i ollum thremur snidum
+     · `waiver-lab`: rest-of-season gjaldmidill slaer timabils-VBD um
+       **+13,2 stig/timabil** (t=2,97, 6/7 ar)
+
+   Baðar tharfnast `weekly/{yfirstandandi ar}.json`. Kedjan hefur THRJA
+   hlekki og ALLIR voru brotnir:
+     1. `HISTORY` var hardkodad `[2019..2025]` — 2026 var aldrei sott
+     2. `minRows: 1000` hefdi HAFNAD viku 1 (~390 radir)
+     3. `history` var ekki i cron-inu, svo skrain hefdi aldrei komid
+   Og fjordi: `data.js` bar engan `loadWeekly`.
+
+   ============================================================
+   FOLLIN ERU DREGIN UT OG KEYRD, EKKI FLUTT INN
+   ============================================================
+   `fetch-nfl.mjs` KEYRIR pipeline-id vid innflutning (thad hefur enga
+   main-vord), svo `import` af henni i profi saekir net og fellur. Foll
+   eru thess vegna dregin UT UR SKRANNI og keyrd — nakvaemlega sama
+   adferd og `workflow-push.mjs` i FPL-hlutanum notar til ad draga
+   shell-blokkina ut ur `.github/workflows/*.yml` og keyra hana a
+   alvoru git-hirslum. Textaleit ein hefdi adeins sagt "linan er thar";
+   hun hefdi ekki sagt hvad hun GERIR.                                 */
+console.log("\nvikuleg gogn — kedjan");
+{
+  const srcPath = path.join(DATA, "..", "scripts", "fetch-nfl.mjs");
+  const src = readFileSync(srcPath, "utf8");
+
+  /* --- 1. `HISTORY` er LEIDD, ekki hardkodud --- */
+  ok(!/const HISTORY = \[\s*2019[\s\S]{0,80}2025\s*\]/.test(src),
+    "`HISTORY` er EKKI lengur hardkodadur listi sem endar 2025");
+
+  const hy = /function historyYears\(\)\s*\{[\s\S]*?\n\}/.exec(src);
+  ok(!!hy, "`historyYears()` finnst i skranni");
+  if (hy) {
+    /* Keyrt med hermdu `readFileSync` sem skilar raunverulegri
+       `meta.json`, svo profid maeli somu leid og pipeline-id fer. */
+    const meta = readFileSync(path.join(DATA, "meta.json"), "utf8");
+    const fn = new Function("readFileSync", "path", "OUT", "HISTORY_FROM",
+      `${hy[0]}; return historyYears();`);
+    const years = fn(() => meta, path, DATA, 2019);
+    const m = JSON.parse(meta);
+    ok(Array.isArray(years) && years.length > 0, `skilar ari-lista (${years.length})`);
+    ok(years[0] === 2019, `byrjar 2019 (${years[0]})`);
+    ok(years[years.length - 1] === Number(m.season),
+      `OG ENDAR A YFIRSTANDANDI TIMABILI ${m.season} (${years[years.length - 1]})`);
+    ok(years.includes(Number(m.season)),
+      "svo `weekly/{yfirstandandi}.json` verdur skrifud");
+  }
+
+  /* --- 2. `minRows` hleypir viku 1 i gegn en ver lokin ar --- */
+  const wm = /function weeklyMinRows\([\s\S]*?\n\}/.exec(src);
+  ok(!!wm, "`weeklyMinRows()` finnst");
+  if (wm) {
+    const f = new Function(`${wm[0]}; return weeklyMinRows;`)();
+    /* Maelt: vika 1 arid 2025 ber 390 radir, vika 2 ber 385. */
+    ok(f(2026, 2026) <= 390,
+      `yfirstandandi ar hleypir viku 1 i gegn (${f(2026, 2026)} <= 390 radir)`);
+    ok(f(2025, 2026) === 1000,
+      `en lokid ar heldur throskuldinum (${f(2025, 2026)})`);
+    ok(f(2019, 2026) === 1000, "og gamalt ar lika");
+    /* Golfid ma ekki vera svo lagt ad tomt svar sleppi. */
+    ok(f(2026, 2026) >= 50,
+      `og thad er samt golf, ekki 0 (${f(2026, 2026)})`);
+  }
+
+  /* --- 3. cron-id keyrir `history` a timabilinu --- */
+  const wf = readFileSync(path.join(DATA, "..", "..", ".github", "workflows",
+    "nfl-data.yml"), "utf8");
+  const weekly = /- cron: "0 12 \* \* 2"/.test(wf);
+  ok(weekly, "vikulegt cron er i workflow-inu");
+  ok(/"0 12 \* \* 2"[\s\S]{0,600}?history/.test(wf),
+    "og thad kortlagast a threp sem inniheldur `history`");
+  /* `core` VERDUR ad fylgja: `historyYears()` les timabilid ur
+     `meta.json`, og i januar er dagsetningar-arid EKKI timabilid. */
+  ok(/"0 12 \* \* 2"[\s\S]{0,600}?core,history/.test(wf),
+    "og `core` fylgir svo `meta.json` se fersk");
+
+  /* --- 4. appid hefur loader --- */
+  const dj = readFileSync(path.join(DATA, "..", "src", "data.js"), "utf8");
+  ok(/export const loadWeekly\s*=/.test(dj), "`data.js` ber `loadWeekly`");
+  ok(/weekly\/\$\{season\}\.json/.test(dj),
+    "og hun bidur um yfirstandandi timabil, ekki fast ar");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

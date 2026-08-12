@@ -24,6 +24,7 @@
    ============================================================ */
 
 import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { record, sourceReport } from "./lib/http.mjs";
@@ -49,7 +50,63 @@ const want = (s) => STAGE === "all" || STAGE.split(",").includes(s);
    byggir a theim. Ad taka 2018 med gaefi radir thar sem lykil-
    breyturnar eru null og thaer myndu THYNNA maelinguna an thess ad
    nokkurt profa faelli. */
-const HISTORY = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
+/* ============================================================
+   SOGULEG AR — OG YFIRSTANDANDI TIMABIL VERDUR AD VERA MED
+   ============================================================
+   ÞETTA VAR HARDKODAD `[2019 .. 2025]` OG THAD BLOKKADI TVAER MAELDAR
+   NIDURSTODUR. `stageHistory` skrifar `data/weekly/{ar}.json`, og thad
+   er eina heimildin um notkun innan timabils. Med fastan lista endar
+   hun 2025, svo:
+
+     · `usage-lab` maeldi ad notkun-til-thessa loki 12,25% af
+       start/sit-bilinu fra viku 10 (a moti 5,83%), per-leikmanns CI
+       [2,54 · 8,49] i ollum thremur snidum — OG APPID GAT EKKI REIKNAD
+       HANA, thvi 2026 var aldrei sott.
+     · `waiver-lab` maeldi ad rest-of-season gjaldmidill slai
+       timabils-VBD um +13,2 stig/timabil (t=2,97, 6/7) — sama saga.
+
+   Baðar nidurstodur voru mældar og obrukanlegar af sömu astaedu, og
+   hun var ein lina. Listinn er nu LEIDDUR: fastur upphafspunktur
+   (2019, thegar `weeklyStats` naer aftur til) og yfirstandandi timabil
+   ur `meta.json`, sem er thegar skrifad af `stageCore`.
+
+   Timabil sem er ekki byrjad skilar engum rodum og `writeJson` HAFNAR
+   thvi (sja `weeklyMinRows`) — thad er rett hegdun, ekki bilun.       */
+const HISTORY_FROM = 2019;
+
+function historyYears() {
+  let cur = new Date().getFullYear();
+  try {
+    /* `meta.json` er heimildin thegar hun er til: hun ber timabilid sem
+       FPL-hlidin kallar `season`, og i januar er dagsetningar-arid EKKI
+       timabilid. Fyrsta utgafan notadi `getFullYear()` eitt og hefdi
+       thvi sott "2027" i januar 2027 medan timabilid 2026 var enn i
+       gangi — og skrifad tomt yfir gott. */
+    const raw = readFileSync(path.join(OUT, "meta.json"), "utf8");
+    const m = JSON.parse(raw);
+    if (m && Number.isFinite(Number(m.season))) cur = Number(m.season);
+  } catch { /* fyrsta keyrsla: dagsetningar-arid er naesta besta gisk */ }
+  const out = [];
+  for (let y = HISTORY_FROM; y <= cur; y++) out.push(y);
+  return out;
+}
+
+/**
+ * ÞAK A `minRows` FYRIR VIKULEGA SKRA — OG THAD VAR GILDRA.
+ *
+ * `weekly/{ar}.json` var skrifud med `minRows: 1000`, sem er rett fyrir
+ * lokid timabil (2025 ber 6.638 radir). En **vika 1 ber ~390 radir**
+ * (maelt: 390 arid 2025, 385 i viku 2), svo throskuldurinn hefdi
+ * HAFNAD yfirstandandi timabili thangad til ~vika 3 — og einmitt tha
+ * er notkun-til-thessa mest verd, thvi hun er thad EINA sem er til.
+ *
+ * Lokin ar halda 1000. Yfirstandandi ar faer 100, sem er nog til ad
+ * sanna ad thetta seu raunveruleg gogn (ein vika er ~390) en hleypir
+ * fyrstu vikunni i gegn.
+ */
+function weeklyMinRows(year, currentSeason) {
+  return Number(year) >= Number(currentSeason) ? 100 : 1000;
+}
 
 /* ---------- skrifun ---------- */
 
@@ -512,8 +569,11 @@ function joinPlayers({ sleeperPlayers, nvPlayers, espnPool, idmap, ecr, ecrSets,
 async function stageHistory() {
   console.log("\n=== SAGA ===");
 
-  const weekly = await nv.weeklyStats(HISTORY);
-  const teamWeekly = await nv.teamWeekly(HISTORY.filter((y) => y >= 2020));
+  const years = historyYears();
+  const current = years[years.length - 1];
+  console.log(`  ar: ${years[0]}-${current}`);
+  const weekly = await nv.weeklyStats(years);
+  const teamWeekly = await nv.teamWeekly(years.filter((y) => y >= 2020));
 
   /* Vikuleg gogn eru skrifud PER TIMABIL. Ein 7-ara skra vaeri
      ~12 MB og appid tharf nanast alltaf adeins sidasta arid. */
@@ -521,7 +581,8 @@ async function stageHistory() {
   for (const [yr, rows] of Object.entries(weekly)) {
     if (!rows || !rows.length) continue;
     totalRows += rows.length;
-    await writeJson(`weekly/${yr}.json`, rows, { minRows: 1000 });
+    await writeJson(`weekly/${yr}.json`, rows,
+      { minRows: weeklyMinRows(yr, current) });
   }
 
   /* Timabils-summur — thetta er thad sem bakprofid og "i fyrra"
@@ -536,7 +597,9 @@ async function stageHistory() {
   /* Lidshradi og sendihlutfall. */
   await writeJson("team_form.json", teamAggregates(teamWeekly), { minRows: 30 });
 
-  record("history", true, `${totalRows} player weeks across ${Object.keys(weekly).length} seasons`);
+  record("history", true,
+    `${totalRows} player weeks across ${Object.keys(weekly).length} seasons ` +
+    `(${years[0]}-${current})`);
   return { weekly, seasons };
 }
 

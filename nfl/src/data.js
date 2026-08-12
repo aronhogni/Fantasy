@@ -104,6 +104,33 @@ export const loadArankFf = (scoring) => load(`arank_${scoring}_fftoday.json`);
 /* Spyrnumenn: eina maelda reglan sem til er um saeti sem A-Ranking
    raðar ekki. Letihladin med draft-flipanum. */
 export const loadKickers = () => load("kickers.json");
+/* ============================================================
+   VIKULEG GOGN YFIRSTANDANDI TIMABILS — LETIHLADIN
+   ============================================================
+   ÞETTA VANTADI OG THAD BLOKKADI TVAER MAELDAR NIDURSTODUR:
+
+     · `usage-lab`: notkun-til-thessa lokar **12,25%** af
+       start/sit-bilinu fra viku 10 (a moti 5,83% hja
+       `weeklyProjection`), per-leikmanns CI [2,54 · 8,49] i OLLUM
+       thremur snidum — fyrsta hugmyndin sem stodst thann throskuld.
+     · `waiver-lab`: rest-of-season gjaldmidill slaer timabils-VBD um
+       **+13,2 stig/timabil** (t=2,97, 6/7 ar).
+
+   Baðar tharfnast thess sem hefur GERST i thessu timabili, og appid
+   hafdi enga leid ad na i thad. `data/weekly/{ar}.json` var til fyrir
+   2019-2025 en engin loader las hana, og pipeline-id skrifadi ekki
+   yfirstandandi timabil (hardkodad `HISTORY`).
+
+   HUN ER LETIHLADIN OG THAD ER EKKI SMAATRIDI: skrain er ~1,4 MB fyrir
+   lokid timabil. Hun er sott ADEINS thegar forsidan er opnud a
+   timabilinu, aldrei vid raesingu — sama regla og `experts.json`.
+
+   `null` I FORLEIK ER RETT SVAR, EKKI BILUN. Skrain er ekki til fyrr en
+   fyrsta vika er spilud, og `load()` skilar `null` vid 404. Sa sem
+   kallar VERDUR ad greina "engin vika spilud" fra "gogn brustu" — thad
+   fyrra er astandid i agust og ma ekki lesast eins og villa.          */
+export const loadWeekly = (season) => load(`weekly/${season}.json`);
+
 /* Hvada deildarlogun eru MAELDAR. Notandi i 14-lida superflex a rett a
    ad vita hvort tolurnar hans voru nokkurn timann profadar. */
 export const loadShapes = () => load("shapes_sleeper.json");
