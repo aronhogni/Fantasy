@@ -13,6 +13,8 @@
    8 MB adur en fyrsta talan birtist.
    ============================================================ */
 
+import { parseSleeperInput } from "./sleeper-league.js";
+
 const RAW = "https://raw.githubusercontent.com/aronhogni/Fantasy/main/nfl/data";
 
 /* I THROUN eru skrarnar a disknum og Vite thjonar theim ur rot
@@ -128,6 +130,20 @@ export async function sleeperLeagues(userId, season) {
   return r.json();
 }
 
+/** Deildin sjalf — REGLURNAR. Stigagjof, saeti, lidafjoldi, draft-id. */
+export async function sleeperLeague(leagueId) {
+  const r = await fetch(`${SLEEPER}/league/${leagueId}`);
+  if (!r.ok) throw new Error(`Deild fannst ekki (${r.status})`);
+  return r.json();
+}
+
+/** Notendur i deild — thadan koma LIDSHEITIN sem saetavalid byggir a. */
+export async function sleeperLeagueUsers(leagueId) {
+  const r = await fetch(`${SLEEPER}/league/${leagueId}/users`);
+  if (!r.ok) throw new Error(`Notendur fundust ekki (${r.status})`);
+  return r.json();
+}
+
 /** Hopar allra lida i deild — thadan kemur THINN hopur. */
 export async function sleeperRosters(leagueId) {
   const r = await fetch(`${SLEEPER}/league/${leagueId}/rosters`);
@@ -151,6 +167,85 @@ export async function sleeperPicks(draftId) {
   const r = await fetch(`${SLEEPER}/draft/${draftId}/picks`);
   if (!r.ok) throw new Error(`Val fundust ekki (${r.status})`);
   return r.json();
+}
+
+/* ============================================================
+   EIN SLOD -> ALLT SEM DEILDIN GEFUR
+   ============================================================
+   Notandinn limir inn thad sem hann HEFUR i vafranum, sem er nanast
+   alltaf deildarslodin (`/leagues/{id}/predraft`). Gamla reitið tok
+   adeins vid draft-id og gamla `extractDraftId` kalladi FYRSTA
+   tolustrenginn draft-id — svo deildarslod gaf `/draft/{leagueId}`
+   og 404 fyrir slod sem var alveg rett.
+
+   Bert audkenni er TVIRAETT (deildar- og draft-id eru bædi 19 stafa
+   snjokorn og ekki adgreinanleg a forminu), svo tha er DEILDIN reynd
+   fyrst og draftid til vara. Deildin fyrst thvi hun ber reglurnar OG
+   `draft_id`, svo su leid gefur allt i tveimur kollum.
+
+   `users`/`rosters` MEGA BRESTA an thess ad allt falli: their eru til
+   fyrir saetavalið eitt. Reglurnar eru komnar an theirra.           */
+export async function sleeperResolve(input) {
+  const { kind, id } = parseSleeperInput(input);
+  if (!id) throw new Error("Fann ekkert audkenni i slodinni");
+
+  let league = null, draft = null;
+
+  /* `r.ok` er EKKI eina hlidid. Sleeper svarar 404 med bodinu `null`
+     fyrir audkenni sem er ekki til (mælt 12.8.2026), en 200 med tomum
+     hlut er lika moguleiki — og tomur hlutur er `truthy`, svo hann
+     hefdi lesist eins og deild sem fannst og allt nedar hefdi bygt a
+     honum. Svarid gildir adeins ef thad ber SITT EIGID audkenni. */
+  const isLeague = (x) => !!(x && typeof x === "object" && x.league_id);
+  const isDraft = (x) => !!(x && typeof x === "object" && x.draft_id);
+
+  if (kind === "league" || kind === "id") {
+    try {
+      const got = await sleeperLeague(id);
+      if (isLeague(got)) league = got;
+      else if (kind === "league") throw new Error("Deildin fannst ekki");
+    } catch (e) { if (kind === "league") throw e; }
+  }
+  if (!league && (kind === "draft" || kind === "id")) {
+    const got = await sleeperDraft(id);
+    if (isDraft(got)) draft = got;
+    else throw new Error("Hvorki deild ne draft fannst med thessu audkenni");
+    if (draft.league_id) {
+      try {
+        const lg = await sleeperLeague(draft.league_id);
+        if (isLeague(lg)) league = lg;
+      } catch { /* draft an deildar (mock draft) — thad er gilt */ }
+    }
+  }
+
+  if (league && !draft) {
+    /* `league.draft_id` er thad sem Sleeper-vidmotid sjalft notar.
+       `/league/{id}/drafts` er varaleid fyrir deildir sem bera fleiri
+       en eitt draft (t.d. endurtekid mock). */
+    if (league.draft_id) {
+      try {
+        const got = await sleeperDraft(league.draft_id);
+        if (isDraft(got)) draft = got;
+      } catch { /* naest */ }
+    }
+    if (!draft) {
+      try {
+        const ds = await sleeperDrafts(league.league_id || id);
+        draft = (Array.isArray(ds) ? ds : []).find(isDraft) || null;
+      } catch { /* draft er ekki til enn */ }
+    }
+  }
+
+  let users = null, rosters = null;
+  const lid = league && league.league_id ? league.league_id : null;
+  if (lid) {
+    [users, rosters] = await Promise.all([
+      sleeperLeagueUsers(lid).catch(() => null),
+      sleeperRosters(lid).catch(() => null),
+    ]);
+  }
+
+  return { league, draft, users, rosters };
 }
 
 /* ============================================================

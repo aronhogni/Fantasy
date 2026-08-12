@@ -97,7 +97,11 @@ export default function App() {
   }, [extra]);
 
   useEffect(() => {
-    if (view === "draft") need(["seasons", "accuracy", "experts", "kickers"]);
+    /* `shapes` fylgir draft-flipanum THVI innflutt deild verdur ad
+       geta sagt hvort LOGUN hennar var maeld. Notandi i 10-lida deild
+       med tveimur FLEX-saetum a rett a ad vita hvort tolurnar hans voru
+       nokkurn timann profadar — 8,9 KB er ekki verdid a thvi ad thegja. */
+    if (view === "draft") need(["seasons", "accuracy", "experts", "kickers", "shapes"]);
     else if (view === "players") need(["seasons", "accuracy", "experts"]);
     else if (view === "experts") need(["accuracy", "experts"]);
     /* E6: `Schedule` tekur hvorki `defense` ne `teamForm` vid — thaer
@@ -158,7 +162,8 @@ export default function App() {
 
       {view === "draft" && (
         <DraftBoard rows={built.rows} meta={built.meta} league={league}
-          season={meta.season} accuracy={extra.accuracy} kickers={extra.kickers} />
+          setLeague={setLeague} season={meta.season} accuracy={extra.accuracy}
+          kickers={extra.kickers} shapes={extra.shapes} />
       )}
       {view === "players" && (
         <PlayerTable rows={built.rows} meta={built.meta} league={league} />
@@ -205,9 +210,19 @@ function LeagueBar({ league, setLeague }) {
     <div className="row" style={{ gap: 8 }}>
       <label className="field">
         Teams
+        {/* LISTINN VERDUR AD BERA THAD SEM DEILDIN ER.
+            Innflutningur ur Sleeper getur gefid 11, 13 eda 20 lid, og
+            `<select>` med gildi sem er ekki i listanum birtist TOMUR —
+            svo notandinn hefdi seð auðan reit fyrir deild sem var rett
+            lesin, og hver hreyfing a honum hefdi thurrkad ut rettu
+            toluna. `normalizeLeague` leyfir 4–20, svo listinn gerir
+            thad lika. */}
         <select value={league.teams}
           onChange={(e) => set("teams", Number(e.target.value))}>
-          {[8, 10, 12, 14, 16].map((n) => <option key={n} value={n}>{n}</option>)}
+          {[...new Set([...[8, 10, 12, 14, 16], league.teams])]
+            .filter((n) => Number.isFinite(n) && n >= 4 && n <= 20)
+            .sort((a, b) => a - b)
+            .map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       </label>
       <label className="field">

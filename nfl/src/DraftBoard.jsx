@@ -23,9 +23,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as D from "./data.js";
 import { recommend, MEASURED } from "./advice.js";
+import { leagueFromSleeper, teamsFromLeague } from "./sleeper-league.js";
 import { signed } from "./columns.js";
 
-export default function DraftBoard({ rows, meta, league, season, accuracy, kickers }) {
+export default function DraftBoard({ rows, meta, league, setLeague, season, accuracy,
+                                     kickers, shapes }) {
   const [taken, setTaken] = useState(() => new Set(D.loadState("taken", [])));
   const [myPicks, setMyPicks] = useState(() => new Set(D.loadState("myPicks", [])));
   const [posFilter, setPosFilter] = useState([]);
@@ -119,9 +121,22 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
 
   return (
     <>
-      <SleeperSync sync={sync} setSync={(s) => { setSync(s); D.saveState("sync", s); }}
-        season={season} rows={rows} taken={taken}
-        onPicks={onPicks} />
+      {/* ÞETTA VAR VILLA OG HUN VAR THOGUL: vistunar-umgjordin tok
+          adeins vid GILDI, en `pull()` kallar `setSync(prev => ...)`
+          thegar `draft_order` baetist vid i midjum polli. Tha var
+          fallid sjalft sent i `saveState`, `JSON.stringify` a falli
+          skilar `undefined`, og strengurinn "undefined" lenti i
+          `localStorage` — svo saetid TAPADIST vid naestu hledslu, thott
+          skjarinn hefdi synt thad rett alla lotuna. Uppfaerslu-form
+          verdur ad leysast UT adur en thad er vistad. */}
+      <SleeperSync sync={sync}
+        setSync={(s) => setSync((prev) => {
+          const next = typeof s === "function" ? s(prev) : s;
+          D.saveState("sync", next);
+          return next;
+        })}
+        season={season} rows={rows} taken={taken} onPicks={onPicks}
+        setLeague={setLeague} shapes={shapes} />
 
       <NextPick available={available} roster={myRoster} taken={taken}
         league={league} sync={sync} />
@@ -396,7 +411,7 @@ function MyRoster({ roster, league, onUndo }) {
    vegna er engin nafna-porun i thessu ferli — hun vaeri sidasta
    thad sem madur vill i beinni med 30 sekundur a klukkunni.
    ============================================================ */
-function SleeperSync({ sync, setSync, season, rows, onPicks }) {
+function SleeperSync({ sync, setSync, season, rows, onPicks, setLeague, shapes }) {
   const [user, setUser] = useState("");
   /* Audkenni notandans er MUNAD thegar hann finnst. Thad er lykillinn
      ad sjalfvirku saeti — sja `applyDraft`. */
@@ -408,8 +423,62 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
   const [info, setInfo] = useState(null);
   /* Val sem bordid thekkir ekki — talid, ekki hent thegjandi. */
   const [unmatched, setUnmatched] = useState(null);
+  /* Thad sem var LESID ur deildinni: reglurnar, lidin, vidvaranirnar. */
+  const [url, setUrl] = useState("");
+  const [imported, setImported] = useState(null);
+  const [warnings, setWarnings] = useState([]);
+  const [teams, setTeams] = useState(null);
+  const [busy, setBusy] = useState(false);
   const timer = useRef(null);
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
+
+  /* ============================================================
+     REGLURNAR ERU LESNAR, EKKI SLEGNAR INN
+     ============================================================
+     ÞETTA VAR STAERSTA GATID I TENGINGUNNI OG THAD VAR THOGULT.
+     Appid las VOLIN ur Sleeper en engar REGLUR. Lidafjoldi, stigagjof
+     og byrjunarsaeti voru slegin inn i hendi i flipastikunni — og thau
+     eru ekki skraut: `teams` og `scoring` raeda BADUM hvada ADP er
+     lesid OG hvar varamanns-threpid liggur (`model.js`). Deild sem er
+     slegin inn rangt reiknar adra deild en notandinn spilar i, og hun
+     gerir thad med tolum sem lita nakvaemlega eins ut.
+
+     Vorpunin sjalf er i `sleeper-league.js` — HREIN og profud, svo
+     profin keyri somu vorpun og appid notar.                        */
+  const applyLeague = (bundle) => {
+    const res = leagueFromSleeper({ league: bundle.league, draft: bundle.draft, shapes });
+    if (bundle.league) setLeague(res.league);
+    setImported(res.imported);
+    setWarnings(res.warnings);
+    setTeams(teamsFromLeague(bundle));
+    return res;
+  };
+
+  /* Ein slod — deildarslod, draft-slod eda bert audkenni. */
+  const connect = async (raw) => {
+    const input = String(raw == null ? url : raw).trim();
+    if (!input) return;
+    setBusy(true);
+    setStatus("reading league…");
+    try {
+      const bundle = await D.sleeperResolve(input);
+      const res = applyLeague(bundle);
+      const d = bundle.draft;
+      if (d && d.draft_id) {
+        applyDraft(d, userId, bundle);
+        setStatus(null);
+      } else {
+        /* Deildin fannst en draftid er ekki til enn. Reglurnar eru
+           samt komnar og thaer eru thad sem bordid reiknar ur — thess
+           vegna er thetta UPPLYSING, ekki villa. */
+        setStatus(`Rules imported from ${res.imported.name || "the league"} — ` +
+                  `no draft has been created yet.`);
+      }
+      setLeagues(null);
+    } catch (e) {
+      setStatus(String(e.message || e));
+    } finally { setBusy(false); }
+  };
 
   const findLeagues = async () => {
     setStatus("leita…");
@@ -439,9 +508,23 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
      `slotAuto` greinir a milli "vid lasum thetta" og "thu slóst thad
      inn", thvi thad fyrra ma yfirskrifast vid naesta draft og thad
      sidara ekki. */
-  const applyDraft = (d, uid) => {
+  /* THRJAR LEIDIR AD SAETINU, i thessari rod:
+       1. `draft_order[user_id]` — beint, thegar rodin er dregin
+       2. `slot_to_roster_id` -> `rosters[].owner_id` — virkar THOTT
+          rodin se ekki dregin
+       3. notandinn smellir a lidid sitt (eda slaer inn tolu)
+
+     Leid 2 er ekki tilgata: a raunverulegri deild (12.8.2026) var
+     `draft_order` NULL — Sleeper dregur rodina eftir a — svo leid 1
+     gaf ekkert og saetid vard ad koma annars stadar fra. */
+  const applyDraft = (d, uid, bundle) => {
     const order = d && d.draft_order;
-    const slot = order && uid != null ? order[uid] : null;
+    let slot = order && uid != null ? order[uid] : null;
+    if (slot == null && uid != null && bundle) {
+      const mine = teamsFromLeague({ ...bundle, draft: d })
+        .find((t) => t.userId === String(uid));
+      if (mine && mine.slot != null) slot = mine.slot;
+    }
     const next = { ...sync, draftId: d.draft_id };
     if (slot != null && Number.isFinite(Number(slot))) {
       next.slot = Number(slot);
@@ -451,23 +534,15 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
     return slot != null;
   };
 
+  /* Notandanafns-leidin fer nu GEGNUM somu vorpun. Adur las hun adeins
+     draft-id og saeti; reglurnar komu ekki med, svo deildin i appinu
+     var afram su sem sidast var slegin inn i hendi. */
   const useLeague = async (lg) => {
-    setStatus("saeki draft…");
+    setStatus("saeki deild…");
+    setBusy(true);
     try {
-      const ds = await D.sleeperDrafts(lg.league_id);
-      const d = (ds || [])[0];
-      if (!d) { setStatus("ekkert draft i thessari deild"); return; }
-      /* `/league/{id}/drafts` ber ekki alltaf `draft_order`; sæki tha
-         draftid sjalft. Eitt aukakall er thess virdi — an saetis er
-         radgjofin blind a thinn eigin hop. */
-      let full = d;
-      if (!d.draft_order && d.draft_id) {
-        try { full = await D.sleeperDraft(d.draft_id); } catch { full = d; }
-      }
-      const got = applyDraft(full, userId);
-      setStatus(got ? null : "fann draftid — sláðu inn saetid thitt");
-      setLeagues(null);
-    } catch (e) { setStatus(String(e.message || e)); }
+      await connect(lg.league_id);
+    } finally { setBusy(false); }
   };
 
   const pull = async (id) => {
@@ -525,11 +600,27 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
     <div className="panel">
       <h2>Connect your Sleeper draft</h2>
       <div className="sub">
-        Picks are pulled live and struck off the board. Nothing is sent anywhere —
-        the call goes from your browser straight to Sleeper.
+        Paste your league link and the rules come with it — teams, scoring, starting
+        slots, rounds and draft order. Picks are then pulled live and struck off the
+        board. Nothing is sent anywhere: the call goes from your browser straight to
+        Sleeper, and no login is needed because these endpoints are public.
       </div>
 
       <div className="row">
+        <label className="field" style={{ flex: "1 1 320px" }}>
+          League or draft URL
+          <input type="text" value={url} style={{ minWidth: 260, width: "100%" }}
+            placeholder="https://sleeper.com/leagues/1389356308104249344/predraft"
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && connect()} />
+        </label>
+        <button className="act primary" onClick={() => connect()}
+          disabled={busy || !url.trim()}>
+          {busy ? "Reading…" : "Connect"}
+        </button>
+
+        <span className="dim" style={{ margin: "0 6px" }}>or</span>
+
         <label className="field">
           Sleeper username
           <input type="text" value={user} onChange={(e) => setUser(e.target.value)}
@@ -538,13 +629,64 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
         <button className="act" onClick={findLeagues} disabled={!user.trim()}>
           Find leagues
         </button>
+      </div>
 
-        <span className="dim" style={{ margin: "0 6px" }}>or</span>
+      {leagues && leagues.length > 0 && (
+        <div className="chips" style={{ marginTop: 10 }}>
+          {leagues.map((l) => (
+            <button key={l.league_id} className="chip" onClick={() => useLeague(l)}>
+              {l.name} · {l.total_rosters} teams
+            </button>
+          ))}
+        </div>
+      )}
 
+      {/* ============================================================
+          ÞAÐ SEM VAR LESID — SYNT, EKKI GEFID SER
+          ============================================================
+          Innflutt deild breytir HVERRI tolu a bordinu. Ad gera thad
+          thegjandi vaeri ad skipta um heim undir notandanum. Reglurnar
+          eru thvi birtar berum ordum svo hann geti bori thaer vid
+          Sleeper-appid sjalft.                                       */}
+      {imported && <ImportedRules imported={imported} />}
+
+      {/* Saetavalid. Se rodin ekki dregin er thad SAGT — `draft_order`
+          var null a raunverulegri deild og thad er ekki bilun. */}
+      {teams && teams.length > 0 && sync.draftId && (
+        <div style={{ marginTop: 10 }}>
+          <div className="dim" style={{ fontSize: 12.5, marginBottom: 4 }}>
+            {sync.slot != null
+              ? <>Your team is slot <b>{sync.slot}</b>
+                  {slotAuto && <span className="good"> · read from Sleeper</span>}
+                  {" — "}<span className="dim">click another to change it</span></>
+              : <>Which team is yours? Your own picks only fill the roster below once
+                  this is set.</>}
+          </div>
+          <div className="chips">
+            {teams.map((t, i) => (
+              <button key={`${t.slot}|${t.userId || i}`}
+                className={`chip${t.slot != null && t.slot === sync.slot ? " on" : ""}`}
+                disabled={t.slot == null}
+                onClick={() => { setSlotAuto(false); setSync({ ...sync, slot: t.slot }); }}>
+                {t.slot != null ? `${t.slot}. ` : ""}{t.name}
+              </button>
+            ))}
+          </div>
+          {!imported?.orderDrawn && (
+            <div className="dim" style={{ fontSize: 12, marginTop: 4 }}>
+              The draft order has not been drawn on Sleeper yet, so these are roster
+              slots. They become the pick order once it is drawn, and the app re-reads
+              it while syncing.
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="row" style={{ marginTop: 10 }}>
         <label className="field">
-          Draft ID / URL
-          <input type="text" value={sync.draftId} style={{ minWidth: 230 }}
-            placeholder="https://sleeper.com/draft/nfl/123456789"
+          Draft ID
+          <input type="text" value={sync.draftId} style={{ minWidth: 190 }}
+            placeholder="filled in by Connect"
             onChange={(e) => setSync({ ...sync, draftId: extractDraftId(e.target.value) })} />
         </label>
         <label className="field">
@@ -563,17 +705,21 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
         </button>
       </div>
 
-      {leagues && leagues.length > 0 && (
-        <div className="chips" style={{ marginTop: 10 }}>
-          {leagues.map((l) => (
-            <button key={l.league_id} className="chip" onClick={() => useLeague(l)}>
-              {l.name} · {l.total_rosters} teams
-            </button>
-          ))}
+      {status && <div className="note warn" style={{ marginTop: 10 }}>{status}</div>}
+
+      {/* VIDVARANIR ERU EKKI SKRAUT. Hver ein er atriði sem likanid
+          getur EKKI heidrad — keeper-deild, TE-premium, IDP, uppbods-
+          draft. Ad flytja inn deildina og thegja um thau vaeri ad lata
+          nalgun lesast eins og maelingu. */}
+      {warnings.length > 0 && (
+        <div className="note warn" style={{ marginTop: 10 }}>
+          <b>{warnings.length} thing{warnings.length > 1 ? "s" : ""} the model cannot
+            take from your league:</b>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
         </div>
       )}
-
-      {status && <div className="note warn" style={{ marginTop: 10 }}>{status}</div>}
 
       {info && (
         <div className="dim" style={{ marginTop: 10, fontSize: 12.5 }}>
@@ -606,6 +752,49 @@ function SleeperSync({ sync, setSync, season, rows, onPicks }) {
 function extractDraftId(s) {
   const m = String(s).match(/(\d{6,})/);
   return m ? m[1] : String(s).trim();
+}
+
+/* ============================================================
+   REGLURNAR SEM VORU LESNAR — BIRTAR, EKKI FALDAR
+   ============================================================
+   Innflutningur breytir hverri einustu tolu a bordinu (varamanns-
+   threpid, VBD, ADP-dalkinn, radgjofina). Notandinn verdur ad geta
+   bori thad sem appid les vid thad sem Sleeper-appid syni honum —
+   annars er thetta svartur kassi sem segir "traustu mer".
+
+   `exactScoring: false` er MERKT. Deild med `rec: 0,75` eda TE-premium
+   er NALGUD, thvi spain er sott i thremur afbrigdum og ekki fleiri, og
+   nalgun ma aldrei birtast sem vissa.                                */
+function ImportedRules({ imported: im }) {
+  const st = im.starters || {};
+  const ORDER = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "K", "DST"];
+  const slots = ORDER.filter((p) => st[p] > 0)
+    .map((p) => (st[p] > 1 ? `${st[p]}${p}` : p)).join(" · ");
+
+  return (
+    <div className="note" style={{ marginTop: 10 }}>
+      <div>
+        <b>{im.name || "League"}</b>
+        {im.season ? <span className="dim"> · {im.season}</span> : null}
+        {im.status ? <span className="dim"> · {im.status.replace(/_/g, " ")}</span> : null}
+        <span className="good" style={{ marginLeft: 6 }}>rules imported</span>
+      </div>
+      <div style={{ marginTop: 3, fontSize: 12.5 }}>
+        <b>{im.teams}</b> teams ·{" "}
+        <b>{im.scoring === "half-ppr" ? "Half PPR" : im.scoring === "ppr" ? "PPR" : "Standard"}</b>
+        {im.rec != null && <span className="dim"> ({im.rec}/rec)</span>}
+        {!im.exactScoring && <span className="warn"> approximated</span>}
+        {" · "}<b>{im.rounds}</b> rounds
+        {im.draftType ? <span className="dim"> · {im.draftType}</span> : null}
+        {im.superflex ? <span className="good"> · superflex</span> : null}
+      </div>
+      <div className="dim" style={{ marginTop: 2, fontSize: 12.5 }}>
+        Starters: {slots || "—"}
+        {im.bench > 0 ? ` · ${im.bench} bench` : ""}
+        {im.flexPos ? ` · flex takes ${im.flexPos.join("/")}` : ""}
+      </div>
+    </div>
+  );
 }
 
 
