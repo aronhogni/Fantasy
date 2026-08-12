@@ -98,18 +98,36 @@ export const WAIVER_CAL = {
     note: "Gain is the difference in value over replacement for YOUR league, not " +
           "the difference in projected points. A-Ranking (the VBD order) beat raw " +
           "ADP by 233.6 points and won all five clean seasons; that is the measured " +
-          "claim this ranking rests on.",
+          "claim this ranking rests on. AND THE WEEKLY ALTERNATIVE IS MEASURED " +
+          "DEAD: waiver-lab puts a weekly-projection currency at -74.6 points a " +
+          "season against this one (CI [-91, -57]), and dropping the " +
+          "replacement-level adjustment entirely (raw weekly points) at -118 more. " +
+          "Chasing one week churns away season value. BUT THIS IS NOT THE BEST " +
+          "CURRENCY EITHER: rest-of-season VBD, pro-rated, beats season VBD by " +
+          "+13.2 points a season (t=2.97, 6 of 7 seasons, CI [5.9, 22.2], positive " +
+          "in 17 of 18 cells). It is not used here because it CANNOT BE: it needs " +
+          "the weeks that remain and the season-to-date usage behind them, and the " +
+          "app has neither in the browser yet (data/weekly/ stops at 2025 and " +
+          "data.js has no loadWeekly). In preseason the two are identical anyway. " +
+          "See README 4g; the switch is plumbing, and it is measured and waiting.",
   },
   minGain: {
     value: 10,
     measured: false,
-    note: "NOT MEASURED — a deliberately conservative floor, in season " +
-          "value-over-replacement points (about 0.6 a week over 17 weeks). It " +
-          "exists so that rounding (0.1) and the spread of a single projection " +
-          "source cannot on their own produce a recommendation. Measuring the " +
-          "right value needs a waiver lab that does not exist here: a season of " +
-          "weekly add/drop decisions scored against real weekly points. Until " +
-          "that runs, this number is a floor and not a finding.",
+    note: "STILL NOT MEASURED — but no longer for want of trying. The lab this " +
+          "note used to ask for now exists (scripts/waiver-lab.mjs, 169,368 " +
+          "simulated league-seasons, 2019-2025, every other seat running this " +
+          "same rule) and its answer is that the floor is NOT MEASURABLE: paired " +
+          "on identical drafts, floor 0 minus floor 10 is +0.5 points a season, " +
+          "CI [-0.7, +1.8]. Walk-forward selection of the floor does not beat " +
+          "floor 0 either (+3.9, t=1.37 in 10-team PPR; +1.3, t=0.48 in 12-team " +
+          "half). 10 is exactly as defensible as 0, and the two leagues do not " +
+          "measurably want different floors. So this stays `measured: false`: the " +
+          "value is a choice inside a measured indifference band, which is a " +
+          "different and honest thing from an unexamined guess. ONE CONDITIONAL " +
+          "FINDING travels with it: if `currency` ever becomes rest-of-season, an " +
+          "ABSOLUTE floor starts to hurt (floor 0 minus floor 10 = +5.4, CI " +
+          "[2.2, 8.2]) and must be pro-rated to the weeks that remain.",
   },
   confidence: {
     value: "gain >= minGain AND vbd > 0 AND projection is Sleeper's own AND availability 1",

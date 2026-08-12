@@ -187,6 +187,8 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 |---|---|
 | **Ólínulegur aldursferill per stöðu** (`agecurve-lab.mjs`) | **HAFNAÐ.** Hrá leit jákvæð 8/10; **walk-forward jákvæð 4/10 og marktæk 0/10**, tvö hólf marktækt *negatíf*; LOSO 2/10. Valda fjölskyldan hoppar milli ára í hverju hólfi — sama undirskrift og CLAUDE.md 3 flaggar. `deltaR2` net of ADP er negatíft í **öllum 48 hólfum** |
 | **Annar VBD-grunnur** (`vbdbase-lab.mjs`) | **HAFNAÐ — og fann VILLU.** 16 afbrigði × 3 lögun × 3 stigagjafir: **0 af 153 hólfum standast bootstrap klasaðan PER LEIKMANN**, þótt **29 standist** hann klasaðan eftir tímabili. Sjá 4b — það er sjálfstætt mikilvægasta aðferðar-atriðið hér |
+| **`minGain` í waiver-ráðgjöfinni** (`waiver-lab.mjs`) | **ÓMÆLANLEGT, og það er svarið.** Gólf 0 − gólf 10 = **+0,5**, CI [−0,7 · +1,8]; walk-forward slær ekki gólf 0. `measured: false` **stendur** — gildið er val innan mældrar afskiptaleysis-bandar. Sjá 4g |
+| **Rest-of-season sem gjaldmiðill** (`waiver-lab.mjs`) | **STENST** (+13,2 stig/tímabil, t=2,97, 6/7, CI [5,9 · 22,2], 17/18 hólf) — **en ekki tengjanlegt**: þarf vikurnar sem eftir eru, sem appið hefur ekki. Vikuleg spá sem gjaldmiðill er **mæld dauð** (−74,6). Sjá 4g |
 | **Notkun það sem er liðið af tímabilinu** (`usage-lab.mjs`) | **STENST — fyrsti vinningurinn.** `opp_prior` lokar **12,25 / 10,75 / 10,76%** af bilinu á móti 5,83 / 3,20 / 2,97, og **per-leikmanns CI útilokar núll í öllum þremur**. Ferillinn er niðurstaðan: **ekkert í vikum 1–4, +12,3 pp í vikum 10+** (6/6 tímabil). Sjá 4e — **ekki tengt enn**, plumbing vantar |
 | **Markaðurinn umfram `implied`** (`mktweek-lab.mjs`) | **FELLUR.** 0 af 45 hólfum standast öll fjögur skilyrðin i neinu sniði. Og **leikjaflæðis-folkloreið er RANGT**: hver staða gerir BETUR sem favorít, engin gerir betur á eftir — QB sem 10+ undirdogg er **−1,12**. Ósamhverfa: **12 af 12 CI innihalda núll** |
 | **Hvar liggja 94%** (`gap-lab.mjs`) | **Þakið er 29,3%** (TD 18,9 + nýtni 10,4). Vörn er **NULL-flaska** (enrichment 0,96×). Röð: availability → hlutverk → vörn ekki neitt. Sjá 4f |
@@ -411,6 +413,76 @@ margfalt stærri hjá QB (46,8%) en WR (8,7%).
 > **báðum** uppstillingum, svo (a) er **neðra mark**. Og óflokkaða leifin er
 > **31,5%**. Loks: vikulíkanið lokar **MINNA** af bilinu í TD-hlutlausum heimi
 > (4,30% á móti 5,83%) — **forskot þess er ekki merki sem drukknar í TD-hávaða**.
+
+### 4g. WAIVER — kóðinn bað um mælinguna og fékk „ekki mælanlegt"
+
+`WAIVER_CAL.minGain` bar `measured: false` og athugasemd sem **bað beinlínis um
+lab**. `waiver-lab.mjs` er nú til: **169.368 hermd deildar-tímabil**, 2019–2025,
+vikur 1–14, og **hvert annað sæti í deildinni keyrir sömu reglu** — annars mælist
+einokun á lausum mönnum, ekki reglan.
+
+#### Gólfið er ÓMÆLANLEGT — og það er svarið
+
+- Parað á sömu dröftum: **gólf 0 − gólf 10 = +0,5 stig á tímabili, CI [−0,7 · +1,8]**
+- Walk-forward val á gólfinu **slær ekki gólf 0**: +3,9 (t=1,37) í 10-liða PPR,
+  +1,3 (t=0,48) í 12-liða half
+- Deildirnar **vilja ekki mælanlega ólík gólf**
+
+`10` er þess vegna **nákvæmlega eins defensíbelt og 0**, og `measured: false`
+**stendur** — en ekki lengur af vanrækslu. Gildið er val **innan mældrar
+afskiptaleysis-bandar**, sem er annað og heiðarlegra en óskoðuð ágiskun.
+
+> **EITT SKILYRT ATRIÐI FYLGIR:** verði `currency` að rest-of-season byrjar
+> **ALGILT** gólf að skaða (gólf 0 − gólf 10 = **+5,4**, CI [2,2 · 8,2]) og verður
+> þá að vera **hlutfallsreiknað** á vikurnar sem eftir eru.
+
+#### Gjaldmiðillinn — tvær mældar niðurstöður, önnur nothæf
+
+| samanburður | stig/tímabil | t | ár | CI |
+|---|---|---|---|---|
+| **rosVbdPro − seasonVbd** | **+13,2** | **2,97** | **6/7** | **[5,9 · 22,2]** |
+| rosVbd − seasonVbd | +12,3 | 2,70 | — | [4,9 · 21,6] |
+| weekVbd − seasonVbd | **−74,6** | — | — | [−91 · −57] |
+| weekRaw − weekVbd | **−118** | — | — | — |
+
+**Vikuleg spá sem gjaldmiðill er MÆLD DAUÐ** — að elta eina viku þyrlar burt
+tímabils-virði — og að sleppa varamanns-þrepinu alveg (hrá vikuleg stig) er
+−118 til viðbótar. Það staðfestir sjálfstætt það sem `WAIVER_CAL.currency` hélt
+þegar fram: **ábatinn verður að vera í VBD**.
+
+**Rest-of-season vinnur samt yfir tímabils-VBD** (+13,2, jákvætt í **17 af 18**
+hólfum) og það er **ekki tengt af því að það ER EKKI HÆGT**: það þarf vikurnar sem
+eftir eru og notkun-til-þessa á bak við þær, og appið hefur hvorugt í vafranum
+(`data/weekly/` stoppar 2025, `data.js` ber engan `loadWeekly`). **Í forleik eru
+þau hvort eð er eins.** Sama plumbing og 4e þarf — og hún þjónar báðum.
+
+#### „Gera ekkert" er rétt oftar en maður vill
+
+- **42,9%** af öllum 2.205 hólfum
+- Reglan skilar **tómum lista** í **34,5%** af hóp-vikum (`seasonVbd@10`)
+- Aðeins **~60%** af framkvæmdum skiptum voru rétt eftir á
+- Vikulegt vinningshlutfall gegn aðgerðalausu sæti er aðeins **51–53%**
+
+Svo `pickupAdvice` sem skilar `[]` er **algengt og rétt**, og forsíðan segir það
+berum orðum.
+
+#### Mótherjarnir hálfa áhrifin
+
+Aðgerðalaus mótherja-völlur á móti virkum: **+9 til +34 stig** (meðaltal ≈ +24).
+Season-VBD í 12-half fer **23,6 → 45,4** ef aðeins mitt lið vinnur vírinn. Hefði
+hermunin sleppt því hefðu **allar tölur hér lesið um tvöfalt hærra** — sama villa
+og stöðuþak-aðeins-á-okkar-liði í `accuracy.js`.
+
+> **VARNAGLI SEM VERÐUR AÐ FYLGJA:** röðin `ros > season > week` heldur í **5 af 6**
+> næmis-afbrigðum og **flettist við k=8** í 12-half (ROS +7,8 á móti season +17,7).
+> Hnignunar-vogin `k` er nuisance-breyta sem er haldið fastri.
+
+Hliðin eru öll spennt (skriftan **fer út með 2–6 fremur en að skrifa**): regla
+gegn spegilmynd sinni = **nákvæmlega 0** (54 athuganir) · hraða ákvörðunar-leiðin
+staðfest gegn **`pickupAdvice` + `freeAgents` á 360 hóp-vikum** án fráviks ·
+**ROS-orakel +36 til +181, 9/9 hólf**, svo mælitækið sér sannanlega merki. Og
+eins-viku orakelið er **viljandi ekki hlið** og það er veikt (5/9, +6,9) — sem er
+sjálfstæð vísbending um vikulega gjaldmiðils-niðurstöðuna.
 
 ### 4b. VILLA Í `computeVbd` — `0` var lesið sem „vantar"
 
