@@ -549,3 +549,139 @@ export function blendedSeasonProj(args) {
 
   return (1 - w) * proj + w * GAMES_IN_SEASON * td;
 }
+
+/* ============================================================
+   VORPUNIN — ATTA TOLUR SEM LABID REIKNADI OG HENTI
+   ============================================================
+   `opp_prior` er `est = a + b·z` i STIGUM PER LEIK, thar sem `z` er
+   thversnids-z-skor stodunnar a window-`opp` thá viku. `(a, b)` var
+   reiknad i `accFit()` i `usage-lab.mjs` og HENT — skrain bar deltas,
+   t-gildi og ferla en engar fit-breytur, svo `blendedSeasonProj` gat
+   ekki keyrt og skiladi `null`.
+
+   Labid vistar thau nu: `results.{snid}.priorFit.forward.byPosition`.
+   Taflan hér er TEKIN UR SKRANNI (ekki afrituð ur samantekt) og
+   `usageblend.mjs` PINNAR hana svid fyrir svid — endurkeyrsla labsins
+   sem breytir tolu FELLIR profid, og tha uppfaerir madur TOFLUNA.
+
+   HVER FIT ER THETTA? Appid spair 2026, thar sem OLL fyrri timabil eru
+   thekkt, svo rettur fit er sa sem er fittadur a 2019-2025. Thad er
+   EKKI neitt af walk-forward fittunum (hvert theirra sleppir einu ari
+   og er til fyrir maelinguna sjalfa). `walkForward.*` er thess vegna
+   VILJANDI EKKI bakad.
+
+   STODUGLEIKI, MAELDUR: `b` skiptir ALDREI formerki — 0 af 72 fittum.
+   Drift milli sidasta walk-forward fits (2019-2024) og thessa (2019-2025):
+   RB/WR/TE 0,2-3,7% i ollum snidum, en QB **5,9% (ppr), 14,8% (half),
+   14,1% (standard)**.
+
+   QB ER OSTODUGASTA OG SAMTIMIS AHRIFALAUSASTA STODAN, og thad er engin
+   tilviljun: `b ~ 1,3` a skurdpunkti 18,3 thydir ad ±1σ af taekifaeri
+   faerir leikstjornanda um ~7%. Labid maelir sama: `opp -> stig` fylgni
+   er 0,171 hja QB a moti 0,445 RB / 0,352 WR / 0,252 TE. Vorpunin gerir
+   nanast ekkert fyrir QB hvort ed er, svo osodugleikinn kostar litid —
+   en hann er SKRIFADUR hér i stad thess ad vera thagad um.            */
+export const PRIOR_FIT = {
+  "ppr": {
+    QB: { a: 18.298, b: 1.355, n: 2226 },   /* drift 5.9%, formerki fast: ja */
+    RB: { a: 11.199, b: 3.906, n: 5159 },   /* drift 2.5%, formerki fast: ja */
+    WR: { a: 11.836, b: 2.882, n: 6027 },   /* drift 3.7%, formerki fast: ja */
+    TE: { a: 10.385, b: 2.11, n: 1722 },   /* drift 0.9%, formerki fast: ja */
+  },
+  "half-ppr": {
+    QB: { a: 18.541, b: 1.288, n: 2041 },   /* drift 14.8%, formerki fast: ja */
+    RB: { a: 10.272, b: 3.591, n: 4761 },   /* drift 1.0%, formerki fast: ja */
+    WR: { a: 10.266, b: 2.079, n: 5348 },   /* drift 0.3%, formerki fast: ja */
+    TE: { a: 8.693, b: 1.601, n: 1458 },   /* drift 1.3%, formerki fast: ja */
+  },
+  "standard": {
+    QB: { a: 18.432, b: 1.275, n: 2142 },   /* drift 14.1%, formerki fast: ja */
+    RB: { a: 8.922, b: 3.359, n: 4961 },   /* drift 0.3%, formerki fast: ja */
+    WR: { a: 7.981, b: 1.606, n: 5503 },   /* drift 0.2%, formerki fast: ja */
+    TE: { a: 6.479, b: 1.16, n: 1581 },   /* drift 1.6%, formerki fast: ja */
+  },};
+
+/* Skurdpunktur og halli eru i STIGUM PER LEIK — sami skali og
+   `projection/17`, sem er thad sem blondan skiptir ut. */
+export const PRIOR_FIT_SCALE = "points per game";
+
+/**
+ * `est = max(0, a + b·z)`.
+ *
+ * GOLFID VID 0 ER AKVORDUN LABSINS OG VERDUR AD ENDURGERAST. An thess
+ * gefur mjog negatift `z` leikmann med NEGATIF stig, sem `optimalLineup`
+ * setur sjalfkrafa a bekk sama hvad spain segir — og thad vaeri OMAELD
+ * hegdun sem laeddist inn med formulunni.
+ *
+ * `null` thegar stodan er ekki i toflunni (K/DST — vorpunin var aldrei
+ * maeld fyrir thau) eda `z` er ekki tala. `null` er "vitum ekki", og sa
+ * sem kallar VERDUR ad falla i spána, ekki i 0.
+ */
+export function estimateFromZ({ pos, scoring, z } = {}) {
+  const tbl = PRIOR_FIT[scoring];
+  if (!tbl) return null;
+  const f = tbl[pos];
+  if (!f) return null;
+  if (typeof z !== "number" || !Number.isFinite(z)) return null;
+  return Math.max(0, f.a + f.b * z);
+}
+
+/**
+ * Þversnidid: `mu` og `sd` yfir `values`.
+ *
+ * ÞRENNT SEM VERDUR AD VERA EINS OG I LABINU, annars er `z` onnur tala
+ * sem LITUR NAKVAEMLEGA EINS UT:
+ *   · `sd` er ÞYDIS-stadalfravik (deilt med N, ekki N-1)
+ *   · lagmark 8 endanleg gildi, annars ekkert `z`
+ *   · `sd <= 1e-9` -> ekkert `z` (allir eins; z vaeri deiling med ~0)
+ *
+ * Þversnidid i labinu er **stada × vika × timabil** innan draftanlegu
+ * laugarinnar. Sa sem kallar velur laugina og VERDUR ad gera thad eins
+ * — sja notuna vid `MAPPING_RISK`.
+ */
+export function crossSection(values, { minFinite = 8 } = {}) {
+  const xs = (Array.isArray(values) ? values : [])
+    .filter((v) => typeof v === "number" && Number.isFinite(v));
+  if (xs.length < minFinite) return null;
+  const mu = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const sd = Math.sqrt(xs.reduce((a, v) => a + (v - mu) ** 2, 0) / xs.length);
+  if (!(sd > 1e-9)) return null;
+  return { mu, sd, n: xs.length };
+}
+
+/** `z` ur einu gildi og thversnidi. `null` vid hvad sem er ovist. */
+export function zOf(value, cross) {
+  if (!cross || typeof value !== "number" || !Number.isFinite(value)) return null;
+  return (value - cross.mu) / cross.sd;
+}
+
+/* ============================================================
+   HAND-OFF AHAETTAN, SKRIFUD SVO HUN SE EKKI THOGUL
+   ============================================================
+   Labid skilgreinir laugina sem "hver leikmadur i `features.json` fyrir
+   thad timabil sem ber BAEDI ADP og timabils-spa". Appid hefur ekki
+   `features.json` i vafranum — thad hefur `rows` ur `buildRows`, sem er
+   byggt a `players.json`.
+
+   LAUGIN ER THVI EKKI NAKVAEMLEGA SU SAMA, og THAD BREYTIR `mu`/`sd`.
+   Vidari eda threngri hopur gefur annad `z` SEM LITUR EINS UT. Þetta er
+   eina thekkta frávikid milli maelingar og appsins og thad er EKKI
+   maelanlegt afturvirkt — `players.json` i dag er ekki `players.json`
+   arid 2021.
+
+   Naesta jafngildi sem appid getur gert: leikmenn i sama sniði sem bera
+   BAEDI `adp` og `proj`, innan stodunnar, i thessari viku. Það er sama
+   SKILYRDI, onnur SKRA. Frávikid er skrifad hér svo sa sem les tolurnar
+   viti ad thaer eru naest-besta jafngildi og ekki endurgerd.          */
+export const MAPPING_RISK = {
+  poolDiffers: true,
+  labPool: "every player in features.json for that season carrying BOTH an ADP " +
+           "and a season projection (for half-ppr, both a ppr and a standard row)",
+  appPool: "players in the built rows carrying BOTH adp and proj, within the " +
+           "position, for the current week",
+  measured: false,
+  note: "SAME CONDITION, DIFFERENT FILE. mu and sd are computed over the pool, so " +
+        "a wider or narrower pool gives a different z that looks identical. This " +
+        "cannot be measured backwards: today's players.json is not the 2021 one. " +
+        "It is the one known deviation between the measurement and the app.",
+};

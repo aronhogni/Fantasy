@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-12T20:31:28.467Z",
+ "generated": "2026-08-12T22:45:43.313Z",
  "provenance": {
-  "generated": "2026-08-12T20:31:28.467Z",
+  "generated": "2026-08-12T22:45:43.315Z",
   "argv": [],
   "params": {
    "from": {
@@ -33840,7 +33840,497 @@
       }
      }
     }
-   ]
+   ],
+   "priorFit": {
+    "cell": "opp_prior · last3",
+    "metric": "opp = carries + targets",
+    "window": "last3",
+    "form": "est = a + b * z   (points per game, then floored at 0)",
+    "floor": "the lab clamps the estimate with Math.max(0, est). That is a CHOICE, not a fit, and it must be reproduced: without it a far-negative z produces a player who is automatically benched no matter what the projection says.",
+    "scale": "points per game — the same scale as projection/17, which is what the blend replaces. Multiply by 17 to reach the season scale (usageblend.GAMES_IN_SEASON).",
+    "target": "the player's ACTUAL points in week w in THIS scoring format. Only player-weeks with a row in weekly/{season}.json and non-null points enter the fit, which is why (a, b) differ between ppr, half and standard even though opp does not.",
+    "minN": 200,
+    "minNNote": "accFit returns null below 200 accumulated player-weeks for the position. A null is a null, never a: 0, b: 0 — that would read as 'no slope was measured' when it means 'nothing was fitted'.",
+    "z": {
+     "form": "z = (windowValue - mu) / sd",
+     "windowValue": "mean of opp per game over the player's LAST 3 GAMES with week < w — games played, not calendar weeks, so a player who missed weeks 2-4 uses his games from weeks 1, 5, 6. A game counts toward opp unless BOTH carries and targets are absent; when one of the two is absent it counts as 0. The mean divides by the number of counted games, which may be fewer than 3.",
+     "leakGuard": "week < w, never <=. This is the most dangerous leak in the lab and in the app (usageblend.usageToDate takes throughWeek as EXCLUSIVE for the same reason).",
+     "crossSection": "position x week x season, within that format's draftable pool. NOT pooled over weeks and NOT pooled over positions: a WR's z says where he stands among WRs in THAT week, and mu/sd are recomputed for every (position, week).",
+     "pool": "the players the lab drafts from: every player in features.json for that season with both an ADP and a season projection (for half-ppr a player must carry both a ppr and a standard row). Players with zero games before week w ARE candidates but have no finite window value, so they enter neither mu, sd nor the fit.",
+     "minCandidates": 8,
+     "minFiniteValues": 8,
+     "minNote": "below 8 candidates the whole (position, week) is skipped — under 8 players a cross-section is not a cross-section — and below 8 FINITE window values there is no z either.",
+     "mu": "arithmetic mean of the finite window values in that cross-section",
+     "sd": "POPULATION standard deviation of the same values: divide the squared deviations by N, not by N-1. With sd <= 1e-9 there is no z and no estimate.",
+     "formatDependence": "mu and sd depend on the scoring format ONLY through pool membership; opp = carries + targets carries no scoring. (a, b) do depend on it.",
+     "crossSectionSize": {
+      "QB": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 24,
+       "mean": 23.3,
+       "max": 29,
+       "belowMin": 7
+      },
+      "RB": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 59,
+       "mean": 55.4,
+       "max": 64,
+       "belowMin": 7
+      },
+      "WR": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 67,
+       "mean": 62.9,
+       "max": 83,
+       "belowMin": 7
+      },
+      "TE": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 19,
+       "mean": 18.2,
+       "max": 26,
+       "belowMin": 7
+      }
+     },
+     "crossSectionSizeNote": "the number of players with a finite window value in each (position, week) cross-section, pooled over all seasons — the group mu and sd are actually taken over. The app cannot reproduce z from a group of a different size: a wider or narrower pool gives a different z that looks identical. belowMin counts cross-sections under 8 finite values, where there is no z at all."
+    },
+    "forward": {
+     "fittedOnSeasons": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "byPosition": {
+      "QB": {
+       "a": 18.298,
+       "b": 1.355,
+       "n": 2226
+      },
+      "RB": {
+       "a": 11.199,
+       "b": 3.906,
+       "n": 5159
+      },
+      "WR": {
+       "a": 11.836,
+       "b": 2.882,
+       "n": 6027
+      },
+      "TE": {
+       "a": 10.385,
+       "b": 2.11,
+       "n": 1722
+      }
+     },
+     "use": "THIS is what the app should bake for 2026: every prior season is known, so no season is held out. It is not any of the walk-forward fits and must not be picked from among them."
+    },
+    "walkForward": {
+     "2019": {
+      "fittedOnSeasons": [],
+      "byPosition": {
+       "QB": null,
+       "RB": null,
+       "WR": null,
+       "TE": null
+      },
+      "usable": false,
+      "why": "no prior seasons to fit on — the prior arms fall back to the projection and this season is measured as null, not as zero"
+     },
+     "2020": {
+      "fittedOnSeasons": [
+       2019
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.273,
+        "b": 1.774,
+        "n": 309
+       },
+       "RB": {
+        "a": 11.568,
+        "b": 4.218,
+        "n": 741
+       },
+       "WR": {
+        "a": 12.272,
+        "b": 2.217,
+        "n": 755
+       },
+       "TE": null
+      },
+      "usable": true,
+      "why": null
+     },
+     "2021": {
+      "fittedOnSeasons": [
+       2019,
+       2020
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 19.026,
+        "b": 1.56,
+        "n": 617
+       },
+       "RB": {
+        "a": 11.282,
+        "b": 4.064,
+        "n": 1397
+       },
+       "WR": {
+        "a": 12.694,
+        "b": 2.195,
+        "n": 1446
+       },
+       "TE": {
+        "a": 10.618,
+        "b": 2.797,
+        "n": 398
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2022": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.693,
+        "b": 1.445,
+        "n": 962
+       },
+       "RB": {
+        "a": 11.213,
+        "b": 3.843,
+        "n": 2156
+       },
+       "WR": {
+        "a": 12.564,
+        "b": 2.347,
+        "n": 2278
+       },
+       "TE": {
+        "a": 10.521,
+        "b": 2.32,
+        "n": 674
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2023": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.737,
+        "b": 1.554,
+        "n": 1210
+       },
+       "RB": {
+        "a": 11.287,
+        "b": 3.792,
+        "n": 2846
+       },
+       "WR": {
+        "a": 12.539,
+        "b": 2.395,
+        "n": 3025
+       },
+       "TE": {
+        "a": 10.561,
+        "b": 2.126,
+        "n": 866
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2024": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022,
+       2023
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.623,
+        "b": 1.437,
+        "n": 1495
+       },
+       "RB": {
+        "a": 11.255,
+        "b": 3.691,
+        "n": 3599
+       },
+       "WR": {
+        "a": 12.161,
+        "b": 2.732,
+        "n": 4024
+       },
+       "TE": {
+        "a": 10.527,
+        "b": 2.049,
+        "n": 1129
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2025": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022,
+       2023,
+       2024
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.487,
+        "b": 1.435,
+        "n": 1849
+       },
+       "RB": {
+        "a": 11.248,
+        "b": 3.81,
+        "n": 4349
+       },
+       "WR": {
+        "a": 12.178,
+        "b": 2.774,
+        "n": 4951
+       },
+       "TE": {
+        "a": 10.493,
+        "b": 2.091,
+        "n": 1384
+       }
+      },
+      "usable": true,
+      "why": null
+     }
+    },
+    "walkForwardNote": "the fit each held-out season was actually measured WITH, fitted on 2019..y-1 only. It is in the file because the measurement stands on it: without it the numbers in `grid` are not reproducible. It is NOT what the app should use.",
+    "stability": {
+     "QB": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 18.273,
+       "max": 19.026,
+       "mean": 18.64,
+       "sd": 0.253,
+       "cv": 0.014
+      },
+      "b": {
+       "min": 1.435,
+       "max": 1.774,
+       "mean": 1.534,
+       "sd": 0.131,
+       "cv": 0.085
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 18.298,
+       "b": 1.355,
+       "aMaxAbsDev": 0.728,
+       "bMaxAbsDev": 0.419,
+       "bMaxRelDevPct": 30.923,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 18.487,
+       "b": 1.435,
+       "n": 1849,
+       "forwardA": 18.298,
+       "forwardB": 1.355,
+       "forwardN": 2226,
+       "aAbsDev": 0.189,
+       "bAbsDev": 0.08,
+       "bRelDevPct": 5.904,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "RB": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 11.213,
+       "max": 11.568,
+       "mean": 11.309,
+       "sd": 0.13,
+       "cv": 0.011
+      },
+      "b": {
+       "min": 3.691,
+       "max": 4.218,
+       "mean": 3.903,
+       "sd": 0.197,
+       "cv": 0.051
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 11.199,
+       "b": 3.906,
+       "aMaxAbsDev": 0.369,
+       "bMaxAbsDev": 0.312,
+       "bMaxRelDevPct": 7.988,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 11.248,
+       "b": 3.81,
+       "n": 4349,
+       "forwardA": 11.199,
+       "forwardB": 3.906,
+       "forwardN": 5159,
+       "aAbsDev": 0.049,
+       "bAbsDev": 0.096,
+       "bRelDevPct": 2.458,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "WR": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 12.161,
+       "max": 12.694,
+       "mean": 12.401,
+       "sd": 0.226,
+       "cv": 0.018
+      },
+      "b": {
+       "min": 2.195,
+       "max": 2.774,
+       "mean": 2.443,
+       "sd": 0.252,
+       "cv": 0.103
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 11.836,
+       "b": 2.882,
+       "aMaxAbsDev": 0.858,
+       "bMaxAbsDev": 0.687,
+       "bMaxRelDevPct": 23.838,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 12.178,
+       "b": 2.774,
+       "n": 4951,
+       "forwardA": 11.836,
+       "forwardB": 2.882,
+       "forwardN": 6027,
+       "aAbsDev": 0.342,
+       "bAbsDev": 0.108,
+       "bRelDevPct": 3.747,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "TE": {
+      "fits": 5,
+      "heldOutSeasons": [
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 10.493,
+       "max": 10.618,
+       "mean": 10.544,
+       "sd": 0.048,
+       "cv": 0.005
+      },
+      "b": {
+       "min": 2.049,
+       "max": 2.797,
+       "mean": 2.277,
+       "sd": 0.309,
+       "cv": 0.136
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 10.385,
+       "b": 2.11,
+       "aMaxAbsDev": 0.233,
+       "bMaxAbsDev": 0.687,
+       "bMaxRelDevPct": 32.559,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 10.493,
+       "b": 2.091,
+       "n": 1384,
+       "forwardA": 10.385,
+       "forwardB": 2.11,
+       "forwardN": 1722,
+       "aAbsDev": 0.108,
+       "bAbsDev": 0.019,
+       "bRelDevPct": 0.9,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     }
+    },
+    "stabilityNote": "how much (a, b) move between walk-forward years, and how far each is from `forward`. A slope that changed sign between years would mean `forward` is not a number worth baking however carefully it is computed — that signature is exactly what sank 'positions against specific opponents' and the referee cards in the FPL project. bSignFlips is the field that says so."
+   }
   },
   "half": {
    "seasons": [
@@ -66280,7 +66770,497 @@
       }
      }
     }
-   ]
+   ],
+   "priorFit": {
+    "cell": "opp_prior · last3",
+    "metric": "opp = carries + targets",
+    "window": "last3",
+    "form": "est = a + b * z   (points per game, then floored at 0)",
+    "floor": "the lab clamps the estimate with Math.max(0, est). That is a CHOICE, not a fit, and it must be reproduced: without it a far-negative z produces a player who is automatically benched no matter what the projection says.",
+    "scale": "points per game — the same scale as projection/17, which is what the blend replaces. Multiply by 17 to reach the season scale (usageblend.GAMES_IN_SEASON).",
+    "target": "the player's ACTUAL points in week w in THIS scoring format. Only player-weeks with a row in weekly/{season}.json and non-null points enter the fit, which is why (a, b) differ between ppr, half and standard even though opp does not.",
+    "minN": 200,
+    "minNNote": "accFit returns null below 200 accumulated player-weeks for the position. A null is a null, never a: 0, b: 0 — that would read as 'no slope was measured' when it means 'nothing was fitted'.",
+    "z": {
+     "form": "z = (windowValue - mu) / sd",
+     "windowValue": "mean of opp per game over the player's LAST 3 GAMES with week < w — games played, not calendar weeks, so a player who missed weeks 2-4 uses his games from weeks 1, 5, 6. A game counts toward opp unless BOTH carries and targets are absent; when one of the two is absent it counts as 0. The mean divides by the number of counted games, which may be fewer than 3.",
+     "leakGuard": "week < w, never <=. This is the most dangerous leak in the lab and in the app (usageblend.usageToDate takes throughWeek as EXCLUSIVE for the same reason).",
+     "crossSection": "position x week x season, within that format's draftable pool. NOT pooled over weeks and NOT pooled over positions: a WR's z says where he stands among WRs in THAT week, and mu/sd are recomputed for every (position, week).",
+     "pool": "the players the lab drafts from: every player in features.json for that season with both an ADP and a season projection (for half-ppr a player must carry both a ppr and a standard row). Players with zero games before week w ARE candidates but have no finite window value, so they enter neither mu, sd nor the fit.",
+     "minCandidates": 8,
+     "minFiniteValues": 8,
+     "minNote": "below 8 candidates the whole (position, week) is skipped — under 8 players a cross-section is not a cross-section — and below 8 FINITE window values there is no z either.",
+     "mu": "arithmetic mean of the finite window values in that cross-section",
+     "sd": "POPULATION standard deviation of the same values: divide the squared deviations by N, not by N-1. With sd <= 1e-9 there is no z and no estimate.",
+     "formatDependence": "mu and sd depend on the scoring format ONLY through pool membership; opp = carries + targets carries no scoring. (a, b) do depend on it.",
+     "crossSectionSize": {
+      "QB": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 23,
+       "mean": 21.4,
+       "max": 26,
+       "belowMin": 7
+      },
+      "RB": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 53,
+       "mean": 51.6,
+       "max": 64,
+       "belowMin": 7
+      },
+      "WR": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 59,
+       "mean": 55.9,
+       "max": 67,
+       "belowMin": 7
+      },
+      "TE": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 17,
+       "mean": 15.5,
+       "max": 21,
+       "belowMin": 7
+      }
+     },
+     "crossSectionSizeNote": "the number of players with a finite window value in each (position, week) cross-section, pooled over all seasons — the group mu and sd are actually taken over. The app cannot reproduce z from a group of a different size: a wider or narrower pool gives a different z that looks identical. belowMin counts cross-sections under 8 finite values, where there is no z at all."
+    },
+    "forward": {
+     "fittedOnSeasons": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "byPosition": {
+      "QB": {
+       "a": 18.541,
+       "b": 1.288,
+       "n": 2041
+      },
+      "RB": {
+       "a": 10.272,
+       "b": 3.591,
+       "n": 4761
+      },
+      "WR": {
+       "a": 10.266,
+       "b": 2.079,
+       "n": 5348
+      },
+      "TE": {
+       "a": 8.693,
+       "b": 1.601,
+       "n": 1458
+      }
+     },
+     "use": "THIS is what the app should bake for 2026: every prior season is known, so no season is held out. It is not any of the walk-forward fits and must not be picked from among them."
+    },
+    "walkForward": {
+     "2019": {
+      "fittedOnSeasons": [],
+      "byPosition": {
+       "QB": null,
+       "RB": null,
+       "WR": null,
+       "TE": null
+      },
+      "usable": false,
+      "why": "no prior seasons to fit on — the prior arms fall back to the projection and this season is measured as null, not as zero"
+     },
+     "2020": {
+      "fittedOnSeasons": [
+       2019
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.271,
+        "b": 1.773,
+        "n": 309
+       },
+       "RB": {
+        "a": 10.508,
+        "b": 3.895,
+        "n": 712
+       },
+       "WR": {
+        "a": 10.19,
+        "b": 1.716,
+        "n": 730
+       },
+       "TE": null
+      },
+      "usable": true,
+      "why": null
+     },
+     "2021": {
+      "fittedOnSeasons": [
+       2019,
+       2020
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 19.019,
+        "b": 1.556,
+        "n": 617
+       },
+       "RB": {
+        "a": 10.215,
+        "b": 3.774,
+        "n": 1368
+       },
+       "WR": {
+        "a": 10.497,
+        "b": 1.721,
+        "n": 1421
+       },
+       "TE": {
+        "a": 8.633,
+        "b": 2.227,
+        "n": 369
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2022": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.688,
+        "b": 1.443,
+        "n": 962
+       },
+       "RB": {
+        "a": 10.12,
+        "b": 3.574,
+        "n": 2127
+       },
+       "WR": {
+        "a": 10.361,
+        "b": 1.882,
+        "n": 2253
+       },
+       "TE": {
+        "a": 8.534,
+        "b": 1.837,
+        "n": 645
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2023": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.731,
+        "b": 1.553,
+        "n": 1210
+       },
+       "RB": {
+        "a": 10.191,
+        "b": 3.514,
+        "n": 2817
+       },
+       "WR": {
+        "a": 10.34,
+        "b": 1.934,
+        "n": 2979
+       },
+       "TE": {
+        "a": 8.57,
+        "b": 1.69,
+        "n": 837
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2024": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022,
+       2023
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.617,
+        "b": 1.436,
+        "n": 1488
+       },
+       "RB": {
+        "a": 10.168,
+        "b": 3.432,
+        "n": 3501
+       },
+       "WR": {
+        "a": 10.265,
+        "b": 2.087,
+        "n": 3821
+       },
+       "TE": {
+        "a": 8.537,
+        "b": 1.624,
+        "n": 1091
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2025": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022,
+       2023,
+       2024
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.543,
+        "b": 1.478,
+        "n": 1790
+       },
+       "RB": {
+        "a": 10.19,
+        "b": 3.556,
+        "n": 4206
+       },
+       "WR": {
+        "a": 10.321,
+        "b": 2.085,
+        "n": 4638
+       },
+       "TE": {
+        "a": 8.567,
+        "b": 1.58,
+        "n": 1318
+       }
+      },
+      "usable": true,
+      "why": null
+     }
+    },
+    "walkForwardNote": "the fit each held-out season was actually measured WITH, fitted on 2019..y-1 only. It is in the file because the measurement stands on it: without it the numbers in `grid` are not reproducible. It is NOT what the app should use.",
+    "stability": {
+     "QB": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 18.271,
+       "max": 19.019,
+       "mean": 18.645,
+       "sd": 0.245,
+       "cv": 0.013
+      },
+      "b": {
+       "min": 1.436,
+       "max": 1.773,
+       "mean": 1.54,
+       "sd": 0.126,
+       "cv": 0.082
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 18.541,
+       "b": 1.288,
+       "aMaxAbsDev": 0.478,
+       "bMaxAbsDev": 0.485,
+       "bMaxRelDevPct": 37.655,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 18.543,
+       "b": 1.478,
+       "n": 1790,
+       "forwardA": 18.541,
+       "forwardB": 1.288,
+       "forwardN": 2041,
+       "aAbsDev": 0.002,
+       "bAbsDev": 0.19,
+       "bRelDevPct": 14.752,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "RB": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 10.12,
+       "max": 10.508,
+       "mean": 10.232,
+       "sd": 0.139,
+       "cv": 0.014
+      },
+      "b": {
+       "min": 3.432,
+       "max": 3.895,
+       "mean": 3.624,
+       "sd": 0.174,
+       "cv": 0.048
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 10.272,
+       "b": 3.591,
+       "aMaxAbsDev": 0.236,
+       "bMaxAbsDev": 0.304,
+       "bMaxRelDevPct": 8.466,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 10.19,
+       "b": 3.556,
+       "n": 4206,
+       "forwardA": 10.272,
+       "forwardB": 3.591,
+       "forwardN": 4761,
+       "aAbsDev": 0.082,
+       "bAbsDev": 0.035,
+       "bRelDevPct": 0.975,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "WR": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 10.19,
+       "max": 10.497,
+       "mean": 10.329,
+       "sd": 0.103,
+       "cv": 0.01
+      },
+      "b": {
+       "min": 1.716,
+       "max": 2.087,
+       "mean": 1.904,
+       "sd": 0.165,
+       "cv": 0.087
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 10.266,
+       "b": 2.079,
+       "aMaxAbsDev": 0.231,
+       "bMaxAbsDev": 0.363,
+       "bMaxRelDevPct": 17.46,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 10.321,
+       "b": 2.085,
+       "n": 4638,
+       "forwardA": 10.266,
+       "forwardB": 2.079,
+       "forwardN": 5348,
+       "aAbsDev": 0.055,
+       "bAbsDev": 0.006,
+       "bRelDevPct": 0.289,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "TE": {
+      "fits": 5,
+      "heldOutSeasons": [
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 8.534,
+       "max": 8.633,
+       "mean": 8.568,
+       "sd": 0.04,
+       "cv": 0.005
+      },
+      "b": {
+       "min": 1.58,
+       "max": 2.227,
+       "mean": 1.792,
+       "sd": 0.262,
+       "cv": 0.146
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 8.693,
+       "b": 1.601,
+       "aMaxAbsDev": 0.159,
+       "bMaxAbsDev": 0.626,
+       "bMaxRelDevPct": 39.101,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 8.567,
+       "b": 1.58,
+       "n": 1318,
+       "forwardA": 8.693,
+       "forwardB": 1.601,
+       "forwardN": 1458,
+       "aAbsDev": 0.126,
+       "bAbsDev": 0.021,
+       "bRelDevPct": 1.312,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     }
+    },
+    "stabilityNote": "how much (a, b) move between walk-forward years, and how far each is from `forward`. A slope that changed sign between years would mean `forward` is not a number worth baking however carefully it is computed — that signature is exactly what sank 'positions against specific opponents' and the referee cards in the FPL project. bSignFlips is the field that says so."
+   }
   },
   "standard": {
    "seasons": [
@@ -98720,7 +99700,497 @@
       }
      }
     }
-   ]
+   ],
+   "priorFit": {
+    "cell": "opp_prior · last3",
+    "metric": "opp = carries + targets",
+    "window": "last3",
+    "form": "est = a + b * z   (points per game, then floored at 0)",
+    "floor": "the lab clamps the estimate with Math.max(0, est). That is a CHOICE, not a fit, and it must be reproduced: without it a far-negative z produces a player who is automatically benched no matter what the projection says.",
+    "scale": "points per game — the same scale as projection/17, which is what the blend replaces. Multiply by 17 to reach the season scale (usageblend.GAMES_IN_SEASON).",
+    "target": "the player's ACTUAL points in week w in THIS scoring format. Only player-weeks with a row in weekly/{season}.json and non-null points enter the fit, which is why (a, b) differ between ppr, half and standard even though opp does not.",
+    "minN": 200,
+    "minNNote": "accFit returns null below 200 accumulated player-weeks for the position. A null is a null, never a: 0, b: 0 — that would read as 'no slope was measured' when it means 'nothing was fitted'.",
+    "z": {
+     "form": "z = (windowValue - mu) / sd",
+     "windowValue": "mean of opp per game over the player's LAST 3 GAMES with week < w — games played, not calendar weeks, so a player who missed weeks 2-4 uses his games from weeks 1, 5, 6. A game counts toward opp unless BOTH carries and targets are absent; when one of the two is absent it counts as 0. The mean divides by the number of counted games, which may be fewer than 3.",
+     "leakGuard": "week < w, never <=. This is the most dangerous leak in the lab and in the app (usageblend.usageToDate takes throughWeek as EXCLUSIVE for the same reason).",
+     "crossSection": "position x week x season, within that format's draftable pool. NOT pooled over weeks and NOT pooled over positions: a WR's z says where he stands among WRs in THAT week, and mu/sd are recomputed for every (position, week).",
+     "pool": "the players the lab drafts from: every player in features.json for that season with both an ADP and a season projection (for half-ppr a player must carry both a ppr and a standard row). Players with zero games before week w ARE candidates but have no finite window value, so they enter neither mu, sd nor the fit.",
+     "minCandidates": 8,
+     "minFiniteValues": 8,
+     "minNote": "below 8 candidates the whole (position, week) is skipped — under 8 players a cross-section is not a cross-section — and below 8 FINITE window values there is no z either.",
+     "mu": "arithmetic mean of the finite window values in that cross-section",
+     "sd": "POPULATION standard deviation of the same values: divide the squared deviations by N, not by N-1. With sd <= 1e-9 there is no z and no estimate.",
+     "formatDependence": "mu and sd depend on the scoring format ONLY through pool membership; opp = carries + targets carries no scoring. (a, b) do depend on it.",
+     "crossSectionSize": {
+      "QB": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 23,
+       "mean": 22.3,
+       "max": 28,
+       "belowMin": 7
+      },
+      "RB": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 58,
+       "mean": 54.3,
+       "max": 66,
+       "belowMin": 7
+      },
+      "WR": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 62,
+       "mean": 57.8,
+       "max": 69,
+       "belowMin": 7
+      },
+      "TE": {
+       "crossSections": 124,
+       "min": 0,
+       "median": 20,
+       "mean": 16.9,
+       "max": 22,
+       "belowMin": 7
+      }
+     },
+     "crossSectionSizeNote": "the number of players with a finite window value in each (position, week) cross-section, pooled over all seasons — the group mu and sd are actually taken over. The app cannot reproduce z from a group of a different size: a wider or narrower pool gives a different z that looks identical. belowMin counts cross-sections under 8 finite values, where there is no z at all."
+    },
+    "forward": {
+     "fittedOnSeasons": [
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+     ],
+     "byPosition": {
+      "QB": {
+       "a": 18.432,
+       "b": 1.275,
+       "n": 2142
+      },
+      "RB": {
+       "a": 8.922,
+       "b": 3.359,
+       "n": 4961
+      },
+      "WR": {
+       "a": 7.981,
+       "b": 1.606,
+       "n": 5503
+      },
+      "TE": {
+       "a": 6.479,
+       "b": 1.16,
+       "n": 1581
+      }
+     },
+     "use": "THIS is what the app should bake for 2026: every prior season is known, so no season is held out. It is not any of the walk-forward fits and must not be picked from among them."
+    },
+    "walkForward": {
+     "2019": {
+      "fittedOnSeasons": [],
+      "byPosition": {
+       "QB": null,
+       "RB": null,
+       "WR": null,
+       "TE": null
+      },
+      "usable": false,
+      "why": "no prior seasons to fit on — the prior arms fall back to the projection and this season is measured as null, not as zero"
+     },
+     "2020": {
+      "fittedOnSeasons": [
+       2019
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.119,
+        "b": 1.711,
+        "n": 323
+       },
+       "RB": {
+        "a": 9.282,
+        "b": 3.555,
+        "n": 712
+       },
+       "WR": {
+        "a": 7.952,
+        "b": 1.314,
+        "n": 741
+       },
+       "TE": null
+      },
+      "usable": true,
+      "why": null
+     },
+     "2021": {
+      "fittedOnSeasons": [
+       2019,
+       2020
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.828,
+        "b": 1.459,
+        "n": 684
+       },
+       "RB": {
+        "a": 8.895,
+        "b": 3.541,
+        "n": 1410
+       },
+       "WR": {
+        "a": 8.142,
+        "b": 1.334,
+        "n": 1466
+       },
+       "TE": {
+        "a": 6.661,
+        "b": 1.46,
+        "n": 393
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2022": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.532,
+        "b": 1.398,
+        "n": 1045
+       },
+       "RB": {
+        "a": 8.831,
+        "b": 3.35,
+        "n": 2183
+       },
+       "WR": {
+        "a": 8.039,
+        "b": 1.477,
+        "n": 2320
+       },
+       "TE": {
+        "a": 6.481,
+        "b": 1.357,
+        "n": 676
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2023": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.542,
+        "b": 1.512,
+        "n": 1311
+       },
+       "RB": {
+        "a": 8.798,
+        "b": 3.321,
+        "n": 2946
+       },
+       "WR": {
+        "a": 7.975,
+        "b": 1.491,
+        "n": 3119
+       },
+       "TE": {
+        "a": 6.408,
+        "b": 1.2,
+        "n": 931
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2024": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022,
+       2023
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.467,
+        "b": 1.411,
+        "n": 1589
+       },
+       "RB": {
+        "a": 8.746,
+        "b": 3.25,
+        "n": 3685
+       },
+       "WR": {
+        "a": 7.946,
+        "b": 1.613,
+        "n": 3976
+       },
+       "TE": {
+        "a": 6.336,
+        "b": 1.196,
+        "n": 1214
+       }
+      },
+      "usable": true,
+      "why": null
+     },
+     "2025": {
+      "fittedOnSeasons": [
+       2019,
+       2020,
+       2021,
+       2022,
+       2023,
+       2024
+      ],
+      "byPosition": {
+       "QB": {
+        "a": 18.42,
+        "b": 1.455,
+        "n": 1891
+       },
+       "RB": {
+        "a": 8.811,
+        "b": 3.35,
+        "n": 4406
+       },
+       "WR": {
+        "a": 8.009,
+        "b": 1.609,
+        "n": 4793
+       },
+       "TE": {
+        "a": 6.371,
+        "b": 1.141,
+        "n": 1441
+       }
+      },
+      "usable": true,
+      "why": null
+     }
+    },
+    "walkForwardNote": "the fit each held-out season was actually measured WITH, fitted on 2019..y-1 only. It is in the file because the measurement stands on it: without it the numbers in `grid` are not reproducible. It is NOT what the app should use.",
+    "stability": {
+     "QB": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 18.119,
+       "max": 18.828,
+       "mean": 18.485,
+       "sd": 0.229,
+       "cv": 0.012
+      },
+      "b": {
+       "min": 1.398,
+       "max": 1.711,
+       "mean": 1.491,
+       "sd": 0.115,
+       "cv": 0.077
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 18.432,
+       "b": 1.275,
+       "aMaxAbsDev": 0.396,
+       "bMaxAbsDev": 0.436,
+       "bMaxRelDevPct": 34.196,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 18.42,
+       "b": 1.455,
+       "n": 1891,
+       "forwardA": 18.432,
+       "forwardB": 1.275,
+       "forwardN": 2142,
+       "aAbsDev": 0.012,
+       "bAbsDev": 0.18,
+       "bRelDevPct": 14.118,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "RB": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 8.746,
+       "max": 9.282,
+       "mean": 8.894,
+       "sd": 0.196,
+       "cv": 0.022
+      },
+      "b": {
+       "min": 3.25,
+       "max": 3.555,
+       "mean": 3.395,
+       "sd": 0.124,
+       "cv": 0.037
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 8.922,
+       "b": 3.359,
+       "aMaxAbsDev": 0.36,
+       "bMaxAbsDev": 0.196,
+       "bMaxRelDevPct": 5.835,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 8.811,
+       "b": 3.35,
+       "n": 4406,
+       "forwardA": 8.922,
+       "forwardB": 3.359,
+       "forwardN": 4961,
+       "aAbsDev": 0.111,
+       "bAbsDev": 0.009,
+       "bRelDevPct": 0.268,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "WR": {
+      "fits": 6,
+      "heldOutSeasons": [
+       2020,
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 7.946,
+       "max": 8.142,
+       "mean": 8.011,
+       "sd": 0.073,
+       "cv": 0.009
+      },
+      "b": {
+       "min": 1.314,
+       "max": 1.613,
+       "mean": 1.473,
+       "sd": 0.129,
+       "cv": 0.087
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 7.981,
+       "b": 1.606,
+       "aMaxAbsDev": 0.161,
+       "bMaxAbsDev": 0.292,
+       "bMaxRelDevPct": 18.182,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 8.009,
+       "b": 1.609,
+       "n": 4793,
+       "forwardA": 7.981,
+       "forwardB": 1.606,
+       "forwardN": 5503,
+       "aAbsDev": 0.028,
+       "bAbsDev": 0.003,
+       "bRelDevPct": 0.187,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     },
+     "TE": {
+      "fits": 5,
+      "heldOutSeasons": [
+       2021,
+       2022,
+       2023,
+       2024,
+       2025
+      ],
+      "a": {
+       "min": 6.336,
+       "max": 6.661,
+       "mean": 6.451,
+       "sd": 0.129,
+       "cv": 0.02
+      },
+      "b": {
+       "min": 1.141,
+       "max": 1.46,
+       "mean": 1.271,
+       "sd": 0.133,
+       "cv": 0.105
+      },
+      "bNegative": 0,
+      "bSignFlips": false,
+      "vsForward": {
+       "a": 6.479,
+       "b": 1.16,
+       "aMaxAbsDev": 0.182,
+       "bMaxAbsDev": 0.3,
+       "bMaxRelDevPct": 25.862,
+       "note": "max over ALL walk-forward years, so it is dominated by the first fit, which stands on a single season. lastVsForward is the number that says whether the fit is still moving."
+      },
+      "lastVsForward": {
+       "lastHeldOutSeason": 2025,
+       "lastFittedOnSeasons": "2019..2024",
+       "a": 6.371,
+       "b": 1.141,
+       "n": 1441,
+       "forwardA": 6.479,
+       "forwardB": 1.16,
+       "forwardN": 1581,
+       "aAbsDev": 0.108,
+       "bAbsDev": 0.019,
+       "bRelDevPct": 1.638,
+       "note": "the only like-for-like comparison: both are contiguous sets, one season apart. This is what adding the newest season does to the slope."
+      }
+     }
+    },
+    "stabilityNote": "how much (a, b) move between walk-forward years, and how far each is from `forward`. A slope that changed sign between years would mean `forward` is not a number worth baking however carefully it is computed — that signature is exactly what sank 'positions against specific opponents' and the referee cards in the FPL project. bSignFlips is the field that says so."
+   }
   }
  },
  "verdict": {

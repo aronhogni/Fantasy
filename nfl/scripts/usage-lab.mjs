@@ -568,12 +568,120 @@ function accCorr(acc, pos, met, win, sdY) {
 }
 
 /* ============================================================
+   7b. VORPUNIN SEM VAR REIKNUD OG HENT — NU SKRIFUD NIDUR
+   ============================================================
+   `accFit` var kollud inni i `buildEstimates` og skilanum var hent
+   um leid og `est` hafdi verid reiknad. Skran bar thvi MAELINGUNA a
+   vorpuninni en ekki vorpunina sjalfa, svo `src/usageblend.js` gat
+   ekki tengt hana — `blendedSeasonProj` skilar `null` an (a, b) og
+   forsidan hegdar sér eins og labid hefdi aldrei verid keyrt.
+
+   ThETTA BREYTIR ENGRI MAELINGU. Fittid er lesid ur SAMA `priorAcc`,
+   a SAMA stad i rodinni (adur en timabilid sem er verid ad maela er
+   merged inn), med SAMA `minN`. Ekkert arm, ekkert delta og engin
+   vikmork sja thennan kalla. Vardad med samanburdi a skranni fyrir
+   og eftir: hvert `delta`, `t`, `ci` og `pctOfGapClosed` er obreytt.
+
+   TVENNT ER SKRIFAD OG ThAU ERU EKKI SAMA TALAN:
+     · `walkForward[y]` — fittid sem VAR notad thegar timabil `y` var
+       maelt, thad er fittad a 2019..y-1. Thetta settid er thad sem
+       maelingin sjalf stod a, svo thad tharf ad vera i skranni til
+       ad talan se endurgeranleg.
+     · `forward` — fittad a OLLUM timabilunum (2019-2025). ThAD er
+       thad sem appid a ad nota fyrir 2026, thvi tha er ekkert ar
+       haldid ut. Thad er ekki neitt af walk-forward fittunum og ma
+       ekki vera valid ur theim.
+   Stodugleikinn milli walk-forward ara er sjalfur nidurstada: vaeri
+   `b` a hreyfingu — eda skipti formerki — vaeri `forward` ekki tala
+   sem ma baka, hvad sem hun er reiknud vel. */
+const MET_OPP = METRICS.indexOf("opp");
+const WIN_LAST3 = WINDOWS.findIndex((w) => w.key === "last3");
+
+/** `{ QB: {a,b,n} | null, ... }` fyrir sendda holfid `opp · last3`. */
+function shippedFit(acc) {
+  const out = {};
+  for (const pos of POSITIONS) {
+    const f = accFit(acc, pos, MET_OPP, WIN_LAST3);
+    /* NULL, EKKI NULLTALA — sama regla og `corr[pos].noiseAbsMax`.
+       `a: 0, b: 0` laesist eins og "engin halli maeldist" thegar
+       merkingin er "undir 200 athugunum, ekkert var fittad". */
+    out[pos] = f ? { a: r3(f.a), b: r3(f.b), n: f.n } : null;
+  }
+  return out;
+}
+
+/** Hve mikid sveiflast (a, b) milli walk-forward ara, og gegn `forward`. */
+function fitStability(byYear, fwd) {
+  const out = {};
+  for (const pos of POSITIONS) {
+    const ys = Object.keys(byYear).map(Number).sort()
+      .filter((y) => byYear[y] && byYear[y][pos]);
+    if (!ys.length) { out[pos] = null; continue; }
+    const as = ys.map((y) => byYear[y][pos].a);
+    const bs = ys.map((y) => byYear[y][pos].b);
+    const st = (v) => {
+      const m = mean(v);
+      const sd = v.length > 1
+        ? Math.sqrt(v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1)) : 0;
+      return { min: r3(Math.min(...v)), max: r3(Math.max(...v)),
+               mean: r3(m), sd: r3(sd),
+               cv: Math.abs(m) > 1e-9 ? r3(Math.abs(sd / m)) : null };
+    };
+    const f = fwd[pos];
+    /* SIDASTA walk-forward fittid er thad EINA sem er samanburdarhaeft
+       vid `forward` a jofnum grunni: bædi eru samfelld sett sem endar
+       hvort a sinu ari (2019..N-1 a moti 2019..N), svo munurinn er
+       NAKVAEMLEGA "hvad gerir eitt ar til vidbotar". Vid-min og -max
+       yfir OLL arin eru radin af fyrsta fittinu, sem stendur a einu
+       timabili og enginn myndi nota — su tala er drofin, ekki drift. */
+    const lastY = ys[ys.length - 1];
+    const lastFit = byYear[lastY][pos];
+    out[pos] = {
+      fits: ys.length, heldOutSeasons: ys,
+      a: st(as), b: st(bs),
+      bNegative: bs.filter((x) => x < 0).length,
+      /* FORMERKI SEM SKIPTIST ER NIDURSTADA, ekki smaatridi: thad var
+         nakvaemlega undirskriftin sem felldi "stodur gegn akvednum
+         lidum" og domara-spjoldin i FPL-verkefninu. */
+      bSignFlips: bs.some((x) => x < 0) && bs.some((x) => x > 0),
+      vsForward: f ? {
+        a: f.a, b: f.b,
+        aMaxAbsDev: r3(Math.max(...as.map((x) => Math.abs(x - f.a)))),
+        bMaxAbsDev: r3(Math.max(...bs.map((x) => Math.abs(x - f.b)))),
+        bMaxRelDevPct: Math.abs(f.b) > 1e-9
+          ? r3(Math.max(...bs.map((x) => Math.abs(x - f.b) / Math.abs(f.b))) * 100)
+          : null,
+        note: "max over ALL walk-forward years, so it is dominated by the first fit, which " +
+          "stands on a single season. lastVsForward is the number that says whether the fit is " +
+          "still moving.",
+      } : null,
+      lastVsForward: (f && lastFit) ? {
+        lastHeldOutSeason: lastY,
+        lastFittedOnSeasons: `2019..${lastY - 1}`,
+        a: lastFit.a, b: lastFit.b, n: lastFit.n,
+        forwardA: f.a, forwardB: f.b, forwardN: f.n,
+        aAbsDev: r3(Math.abs(lastFit.a - f.a)),
+        bAbsDev: r3(Math.abs(lastFit.b - f.b)),
+        bRelDevPct: Math.abs(f.b) > 1e-9
+          ? r3(Math.abs(lastFit.b - f.b) / Math.abs(f.b) * 100) : null,
+        note: "the only like-for-like comparison: both are contiguous sets, one season apart. " +
+          "This is what adding the newest season does to the slope.",
+      } : null,
+    };
+  }
+  return out;
+}
+
+/* ============================================================
    8. MATID PER VIKA — Z, VORPUN, GLUGGAR
    ============================================================ */
 function buildEstimates({ pool, logs, wk, wkRow, weeks, baseOf,
                          priorAcc, globalAcc, residAcc, yAcc }) {
   const seasonAcc = newAcc();
   const estByWeek = new Map();
+  /* stada -> fjoldi manna med gilt `z` i hverju (stada x viku)
+     thvernsnidi fyrir sendda holfid. Ren talning — sja 7b. */
+  const zN = {};
   const byPos = {};
   for (const p of pool) (byPos[p.pos] = byPos[p.pos] || []).push(p);
 
@@ -680,6 +788,18 @@ function buildEstimates({ pool, logs, wk, wkRow, weeks, baseOf,
         }
       }
 
+      /* --- hve stort er thvernsnidid sem `z` er reiknad yfir? ---
+         REN TALNING, engin ahrif a nokkurt mat: `mu` og `sd` fyrir
+         sendda holfid eru tekin yfir NAKVAEMLEGA thessa menn, og appid
+         getur ekki endurgert `z` an ad vita hversu margir thad eru.
+         Skilgreining sem er adeins i kodanum er ekki flutt (sja 7b). */
+      {
+        const zz = z[MET_OPP][WIN_LAST3];
+        let c = 0;
+        for (let i = 0; i < N; i++) if (Number.isFinite(zz[i])) c++;
+        (zN[pos] = zN[pos] || []).push(c);
+      }
+
       /* --- midgildi raunverulegs halla, fyrir kvarda-samstillta placeboa --- */
       const bMed = new Float64Array(NWIN).fill(NaN);
       for (let w = 0; w < NWIN; w++) {
@@ -783,7 +903,7 @@ function buildEstimates({ pool, logs, wk, wkRow, weeks, baseOf,
     }
     estByWeek.set(week, perId);
   }
-  return { estByWeek, seasonAcc };
+  return { estByWeek, seasonAcc, zN };
 }
 
 /* ============================================================
@@ -978,6 +1098,12 @@ async function main() {
        maeling". Nulli sem laetst vera maeling er versta utkoman
        (CLAUDE.md kafli 3), svo arid er merkt og gert NULL. */
     const priorReady = {};
+    /* Vorpunin sem hvert ar var maelt MED — sja kafla 7b. Skrifud
+       nidur jafnodum, thvi `accMerge` skrifar yfir `priorAcc` og
+       "hvad hefdum vid sagt fyrir 2022" er OSVARANLEGT eftir a
+       (sama rok og `data/predictions/` i FPL-verkefninu). */
+    const priorFitByYear = {};
+    const zCount = {};              // stada -> allir thvernsnids-fjoldar
 
     for (const y of allYears) {
       let weekly;
@@ -1011,13 +1137,22 @@ async function main() {
       const projOf = new Map(pool.map((p) => [p.id, p.proj]));
       const baseOf = new Map(pool.map((p) => [p.id, (p.proj ?? 0) / 17]));
       priorReady[y] = priorAcc.size > 0;
+      /* LESID HER, EKKI SEINNA. `buildEstimates` les `priorAcc` en
+         skrifar ekki i hann (hun safnar i `seasonAcc`), svo thetta er
+         bita-eins vid thad sem `map: "prior"` faer nokkrum linum
+         nedar — og accMerge nedst i lykkjunni myndi gera thad
+         vitlaust. Kallid er lesandi og hefur engin hlidarahrif. */
+      priorFitByYear[y] = shippedFit(priorAcc);
 
       const logs = buildLogs(pool, weekly, fmt, y);
-      const { estByWeek, seasonAcc } = buildEstimates({ pool, logs, wk, wkRow, weeks,
+      const { estByWeek, seasonAcc, zN } = buildEstimates({ pool, logs, wk, wkRow, weeks,
         baseOf, priorAcc, globalAcc, residAcc, yAcc });
       /* `kOf` er hengt a matid svo `runArms` thurfi ekki adra
          uppflettingu — sama tafla, einn eigandi. */
       estByWeek.kOf = new Map([...logs].map(([id, L]) => [id, L.kAt]));
+      for (const pos of POSITIONS) {
+        if (zN[pos]) (zCount[pos] = zCount[pos] || []).push(...zN[pos]);
+      }
 
       const rosters = draftRosters(pool);
       const out = runArms({ arms, rosters, weeks, wk, projOf, estByWeek,
@@ -1070,6 +1205,42 @@ async function main() {
     const ys = Object.keys(perSeasonRaw).map(Number).sort();
     requireSeasons(ys, `timabil med vikugognum OG linum (${fmt})`);
     seasonsUsed[fmt] = ys;
+
+    /* ---------- VORPUNIN: WALK-FORWARD SETTID OG `forward` ----------
+       `priorAcc` inniheldur NU oll timabilin (sidasta `accMerge` er
+       nyafstadid), svo thetta er einmitt fittid sem appid a ad nota
+       fyrir 2026: ekkert ar haldid ut. Sja kafla 7b. */
+    const fwdFit = shippedFit(priorAcc);
+    const fitWF = Object.fromEntries(ys.map((y) => [y, {
+      fittedOnSeasons: ys.filter((x) => x < y),
+      byPosition: priorFitByYear[y] || null,
+      usable: !!priorReady[y],
+      why: priorReady[y] ? null
+        : "no prior seasons to fit on — the prior arms fall back to the projection and this " +
+          "season is measured as null, not as zero",
+    }]));
+    const fitStab = fitStability(priorFitByYear, fwdFit);
+    /* Thvernsnids-staerdin. Hun er hluti af `z`-skilgreiningunni i
+       framkvaemd: `mu` og `sd` eru tekin yfir THESSA menn, svo hopur
+       af annarri staerd gefur ANNAD z sem litur eins ut. */
+    const zSize = {};
+    for (const pos of POSITIONS) {
+      const v = (zCount[pos] || []).filter((x) => Number.isFinite(x));
+      zSize[pos] = v.length ? { crossSections: v.length, min: Math.min(...v),
+        median: median(v), mean: r1(mean(v)), max: Math.max(...v),
+        belowMin: v.filter((x) => x < 8).length } : null;
+    }
+    console.log(`\n  VORPUNIN \`opp_prior · last3\` (est = a + b*z, floored at 0):`);
+    for (const pos of POSITIONS) {
+      const f = fwdFit[pos], s = fitStab[pos];
+      console.log(`    ${pos}  forward a=${f ? f.a : "—"} b=${f ? f.b : "—"} ` +
+        `n=${f ? f.n : "—"}` + (s
+          ? `   | walk-forward b ${s.b.min}..${s.b.max} (sd ${s.b.sd}, ` +
+            `${s.bSignFlips ? "FORMERKI SKIPTIST" : "engin formerkja-skipti"}), ` +
+            `sidasta -> forward ${s.lastVsForward ? s.lastVsForward.bRelDevPct : "—"}%, ` +
+            `max yfir oll ar ${s.vsForward ? s.vsForward.bMaxRelDevPct : "—"}%`
+          : ""));
+    }
 
     /* ---------- hlutfall bilsins per arm, per bin, per timabil ---------- */
     const pctOf = (ai, bin) => {
@@ -1527,6 +1698,88 @@ async function main() {
           delta: bestAbsReal.delta.mean, t: bestAbsReal.delta.t },
       },
       playerBootstrap: bootRes,
+
+      /* ---------- VORPUNIN, SKRIFUD NIDUR — sja kafla 7b ----------
+         Skran bar adeins MAELINGUNA a thessu holfi. Vorpunin sjalf var
+         reiknud i `accFit` og hent, svo `src/usageblend.js` gat ekki
+         tengt hana. `mu`/`sd`-skilgreiningin er hofd BERUM ORDUM af
+         thvi ad appid verdur ad reikna `z` EINS — skilgreining sem er
+         adeins i kodanum er ekki flutt, og z sem er reiknad a odrum
+         thvernsnidi er ONNUR TALA sem litur eins ut.               */
+      priorFit: {
+        cell: "opp_prior · last3",
+        metric: "opp = carries + targets",
+        window: "last3",
+        form: "est = a + b * z   (points per game, then floored at 0)",
+        floor: "the lab clamps the estimate with Math.max(0, est). That is a CHOICE, not a fit, " +
+          "and it must be reproduced: without it a far-negative z produces a player who is " +
+          "automatically benched no matter what the projection says.",
+        scale: "points per game — the same scale as projection/17, which is what the blend " +
+          "replaces. Multiply by 17 to reach the season scale (usageblend.GAMES_IN_SEASON).",
+        target: "the player's ACTUAL points in week w in THIS scoring format. Only player-weeks " +
+          "with a row in weekly/{season}.json and non-null points enter the fit, which is why " +
+          "(a, b) differ between ppr, half and standard even though opp does not.",
+        minN: 200,
+        minNNote: "accFit returns null below 200 accumulated player-weeks for the position. A " +
+          "null is a null, never a: 0, b: 0 — that would read as 'no slope was measured' when " +
+          "it means 'nothing was fitted'.",
+        z: {
+          form: "z = (windowValue - mu) / sd",
+          windowValue: "mean of opp per game over the player's LAST 3 GAMES with week < w — " +
+            "games played, not calendar weeks, so a player who missed weeks 2-4 uses his games " +
+            "from weeks 1, 5, 6. A game counts toward opp unless BOTH carries and targets are " +
+            "absent; when one of the two is absent it counts as 0. The mean divides by the " +
+            "number of counted games, which may be fewer than 3.",
+          leakGuard: "week < w, never <=. This is the most dangerous leak in the lab and in the " +
+            "app (usageblend.usageToDate takes throughWeek as EXCLUSIVE for the same reason).",
+          crossSection: "position x week x season, within that format's draftable pool. NOT " +
+            "pooled over weeks and NOT pooled over positions: a WR's z says where he stands " +
+            "among WRs in THAT week, and mu/sd are recomputed for every (position, week).",
+          pool: "the players the lab drafts from: every player in features.json for that season " +
+            "with both an ADP and a season projection (for half-ppr a player must carry both a " +
+            "ppr and a standard row). Players with zero games before week w ARE candidates but " +
+            "have no finite window value, so they enter neither mu, sd nor the fit.",
+          minCandidates: 8,
+          minFiniteValues: 8,
+          minNote: "below 8 candidates the whole (position, week) is skipped — under 8 players a " +
+            "cross-section is not a cross-section — and below 8 FINITE window values there is " +
+            "no z either.",
+          mu: "arithmetic mean of the finite window values in that cross-section",
+          sd: "POPULATION standard deviation of the same values: divide the squared deviations " +
+            "by N, not by N-1. With sd <= 1e-9 there is no z and no estimate.",
+          formatDependence: "mu and sd depend on the scoring format ONLY through pool " +
+            "membership; opp = carries + targets carries no scoring. (a, b) do depend on it.",
+          /* MAELT, EKKI FULLYRT: hve margir menn eru raunverulega i
+             thvernsnidinu. An thessarar tolu er "thvernsnid stodunnar"
+             ekki endurgeranlegt — hopur af annarri staerd gefur annad
+             `z` sem litur nakvaemlega eins ut. */
+          crossSectionSize: zSize,
+          crossSectionSizeNote: "the number of players with a finite window value in each " +
+            "(position, week) cross-section, pooled over all seasons — the group mu and sd are " +
+            "actually taken over. The app cannot reproduce z from a group of a different size: " +
+            "a wider or narrower pool gives a different z that looks identical. belowMin counts " +
+            "cross-sections under 8 finite values, where there is no z at all.",
+        },
+        /* `forward` ER ThAD SEM APPID A AD NOTA og hun er ekki neitt af
+           walk-forward fittunum — hvert theirra sleppir einu ari. */
+        forward: {
+          fittedOnSeasons: ys,
+          byPosition: fwdFit,
+          use: "THIS is what the app should bake for 2026: every prior season is known, so no " +
+            "season is held out. It is not any of the walk-forward fits and must not be " +
+            "picked from among them.",
+        },
+        walkForward: fitWF,
+        walkForwardNote: "the fit each held-out season was actually measured WITH, fitted on " +
+          "2019..y-1 only. It is in the file because the measurement stands on it: without it " +
+          "the numbers in `grid` are not reproducible. It is NOT what the app should use.",
+        stability: fitStab,
+        stabilityNote: "how much (a, b) move between walk-forward years, and how far each is " +
+          "from `forward`. A slope that changed sign between years would mean `forward` is not " +
+          "a number worth baking however carefully it is computed — that signature is exactly " +
+          "what sank 'positions against specific opponents' and the referee cards in the FPL " +
+          "project. bSignFlips is the field that says so.",
+      },
     };
   }
 

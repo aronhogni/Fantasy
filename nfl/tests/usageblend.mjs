@@ -29,8 +29,7 @@
    ============================================================ */
 
 import {
-  USAGE_BLEND, GAMES_IN_SEASON, usageToDate, blendWeight, blendedSeasonProj,
-} from "../src/usageblend.js";
+  USAGE_BLEND, GAMES_IN_SEASON, usageToDate, blendWeight, blendedSeasonProj, PRIOR_FIT, estimateFromZ, crossSection, zOf, MAPPING_RISK } from "../src/usageblend.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -512,10 +511,66 @@ console.log("\n7. blondun: algebran, attin, og vorpunin sem vantar");
       walk(node[k], `${at}.${k}`);
     }
   })(LAB, "usage");
-  ok(fitKeys.length === 0,
-    `usage.json ber ENGA fitt-stika sem lykil (${fitKeys.length} fundnir)`);
+  /* ============================================================
+     VORPUNIN ER KOMIN — OG THETTA VAR NAKVAEMLEGA GILDRAN SEM BEID
+     ============================================================
+     Hér stod `ok(fitKeys.length === 0, ...)` med theim rokum ad findist
+     fitt-stika i skranni AETTI hun ad vera bokud. `usage-lab` vistar hana
+     nu (`results.{snid}.priorFit`) og THETTA PROF FELL — sem var thad sem
+     thad var til fyrir.
+
+     Verktakinn sem vistadi hana NEFNDI BLOKKINA `priorFit` VILJANDI, thott
+     `priorMapping` hefdi haldid safninu graenu: tha hefdi
+     `USAGE_BLEND.mapping.inFile: false` ordid LYGI i `src/` medan profin
+     sogdu allt i lagi. Ad velja nafnid sem fellir vordinn er retta
+     akvordunin og hun er skjolud hér svo hun se ekki afturkolluð.
+
+     Fullyrdingin snyst thvi VID: nu VERDUR fittid ad vera i skranni OG
+     bokada taflan verdur ad passa vid hana, svid fyrir svid.            */
+  ok(fitKeys.length > 0,
+    `usage.json BER nu fitt-stiku (${fitKeys.join(", ") || "engin"})`);
+
+  /* Bokada taflan a moti skranni — 24 tolur (4 stodur × 3 snid × a/b). */
+  const labKey = { ppr: "ppr", "half-ppr": "half", standard: "standard" };
+  let baked = 0, drift = [];
+  for (const [ours, lab] of Object.entries(labKey)) {
+    const fwd = LAB.results?.[lab]?.priorFit?.forward?.byPosition;
+    ok(!!fwd, `${lab}: \`priorFit.forward.byPosition\` er i skranni`);
+    if (!fwd) continue;
+    for (const pos of ["QB", "RB", "WR", "TE"]) {
+      const mine = PRIOR_FIT[ours]?.[pos];
+      const theirs = fwd[pos];
+      if (!mine || !theirs) { drift.push(`${ours}.${pos}: vantar`); continue; }
+      if (Math.abs(mine.a - theirs.a) > 1e-9) drift.push(`${ours}.${pos}.a ${mine.a} != ${theirs.a}`);
+      if (Math.abs(mine.b - theirs.b) > 1e-9) drift.push(`${ours}.${pos}.b ${mine.b} != ${theirs.b}`);
+      baked += 2;
+    }
+  }
+  ok(baked === 24, `24 tolur bornar saman (${baked})`);
+  ok(drift.length === 0, `bokada taflan passar vid skrana (${drift.slice(0, 3).join(" · ") || "hrein"})`);
+
+  /* ÞAD ER `forward`-FITTID SEM ER BAKAD, EKKI walk-forward.
+     Appid spair 2026 thar sem OLL fyrri timabil eru thekkt; hvert
+     walk-forward fit sleppir einu ari og er til fyrir maelinguna sjalfa. */
+  for (const [ours, lab] of Object.entries(labKey)) {
+    const on = LAB.results?.[lab]?.priorFit?.forward?.fittedOnSeasons;
+    ok(Array.isArray(on) && on.length >= 6 && on[on.length - 1] === 2025,
+      `${lab}: bakada fittid er fittad a ${Array.isArray(on) ? on.join("-") : "?"}`);
+  }
+
+  /* STODUGLEIKINN ER BIRTUR, EKKI THAGAD UM. `b` ma ekki skipta formerki
+     i neinu walk-forward ari; gerdi hann thad vaeri vorpunin ekki vorpun. */
+  for (const [ours, lab] of Object.entries(labKey)) {
+    const st = LAB.results?.[lab]?.priorFit?.stability;
+    if (!st) continue;
+    const flips = ["QB", "RB", "WR", "TE"].filter((p) => st[p]?.bSignFlips);
+    ok(flips.length === 0, `${lab}: \`b\` skiptir aldrei formerki (${flips.join(",") || "engin"})`);
+  }
+  /* AN `toDatePerGame` er thad ENN `null` — vorpunin er til en hun er
+     INNTAK, og sa sem kallar verdur ad reikna `z` yfir laugina sina.
+     `estimateFromZ` er leidin; sja `MAPPING_RISK`. */
   ok(blendedSeasonProj({ seasonProj: P, scoring: "ppr", gamesPlayed: 10 }) === null,
-    "vog > 0 an vorpunar -> null (ALDREI spain thegjandi)");
+    "vog > 0 an mats -> null (ALDREI spain thegjandi)");
   ok(blendedSeasonProj({ seasonProj: P, scoring: "ppr", gamesPlayed: 10,
     usage: { games: 10, opp: 22, ppg: 14.5 } }) === null,
     "og `usage.ppg` er EKKI notud sem varaleid (thad er annad arm)");
@@ -603,6 +658,118 @@ console.log("\n8. hver tala ber sinn grunn");
   }
   ok(/excludes zero/i.test(USAGE_BLEND.rejected.pointsPerGame.caveat),
     "varnaglinn um `ptsPG` er skrifadur, ekki gefinn ser");
+}
+
+/* ============================================================
+   VORPUNIN SJALF — `estimateFromZ`, `crossSection`, `zOf`
+   ============================================================
+   ÞESSI KAFLI VAR SKRIFADUR EFTIR A OG THAD ER LAERDOMURINN. Follin thrju
+   voru baett i `usageblend.js` an fullyrdinga, og stokkbreytingaprof
+   syndi thad umsvifalaust: **ad fjarlaegja golfid vid 0 og ad deila `sd`
+   med N-1 i stad N slupu BADI I GEGN** medan 200 adrar fullyrdingar voru
+   graenar. Nyr kodi an nyrra fullyrdinga er oprofadur kodi, hversu
+   graent safnid er ad odru leyti.                                     */
+console.log("\nvorpunin sjalf");
+{
+  /* --- GOLFID VID 0 ER AKVORDUN LABSINS OG VERDUR AD ENDURGERAST ---
+     An thess gefur mjog negatift `z` NEGATIF stig, sem `optimalLineup`
+     setur sjalfkrafa a bekk sama hvad spain segir. Þad vaeri omaeld
+     hegdun sem laeddist inn med formulunni. */
+  const lowRb = estimateFromZ({ pos: "RB", scoring: "ppr", z: -99 });
+  ok(lowRb === 0, `golfid heldur: z = -99 gefur 0, ekki negatift (${lowRb})`);
+  ok(estimateFromZ({ pos: "WR", scoring: "half-ppr", z: -50 }) === 0,
+    "og i half-ppr lika");
+  /* Og golfid ma EKKI klippa raunveruleg gildi. */
+  const midRb = estimateFromZ({ pos: "RB", scoring: "ppr", z: 0 });
+  ok(Math.abs(midRb - PRIOR_FIT.ppr.RB.a) < 1e-9,
+    `z = 0 gefur skurdpunktinn sjalfan (${midRb} vs ${PRIOR_FIT.ppr.RB.a})`);
+  const hiRb = estimateFromZ({ pos: "RB", scoring: "ppr", z: 2 });
+  ok(Math.abs(hiRb - (PRIOR_FIT.ppr.RB.a + 2 * PRIOR_FIT.ppr.RB.b)) < 1e-9,
+    `og z = 2 gefur a + 2b (${hiRb.toFixed(3)})`);
+  /* Einraent hækkandi i z — halli er jakvaedur i ollum 12 fittum. */
+  let mono = true;
+  for (const sc of ["ppr", "half-ppr", "standard"]) {
+    for (const pos of ["QB", "RB", "WR", "TE"]) {
+      let prev = -Infinity;
+      for (const z of [-1, -0.5, 0, 0.5, 1, 2, 3]) {
+        const v = estimateFromZ({ pos, scoring: sc, z });
+        if (v < prev - 1e-12) mono = false;
+        prev = v;
+      }
+    }
+  }
+  ok(mono, "einraent hækkandi i z i ollum 12 fittum");
+
+  /* --- STODUR SEM VORPUNIN VAR ALDREI MAELD FYRIR --- */
+  ok(estimateFromZ({ pos: "K", scoring: "ppr", z: 1 }) === null,
+    "spyrnumadur -> null (vorpunin var aldrei maeld fyrir hann)");
+  ok(estimateFromZ({ pos: "DST", scoring: "ppr", z: 1 }) === null, "vorn -> null");
+  ok(estimateFromZ({ pos: "RB", scoring: "te-premium", z: 1 }) === null,
+    "othekkt stigagjof -> null, EKKI naesta tafla");
+  for (const bad of [undefined, null, NaN, Infinity, "1", {}]) {
+    ok(estimateFromZ({ pos: "RB", scoring: "ppr", z: bad }) === null,
+      `ogilt z gefur null: ${JSON.stringify(bad)}`);
+  }
+  ok(estimateFromZ() === null, "ekkert inntak -> null, ekkert hrun");
+
+  /* --- `sd` ER ÞYDIS-STADALFRAVIK (deilt med N, EKKI N-1) ---
+     Þetta er tala sem LITUR EINS UT hvort sem er og gefur annad `z`.
+     Vidmid reiknad i hendi: [2,4,4,4,5,5,7,9] hefur mu = 5 og
+     thydis-sd = 2 nakvaemlega (urtaks-sd vaeri 2,138). */
+  const cs = crossSection([2, 4, 4, 4, 5, 5, 7, 9]);
+  ok(cs && Math.abs(cs.mu - 5) < 1e-12, `mu = 5 (${cs && cs.mu})`);
+  ok(cs && Math.abs(cs.sd - 2) < 1e-12,
+    `sd = 2 NAKVAEMLEGA — thydis, ekki urtaks (${cs && cs.sd})`);
+  ok(cs && Math.abs(cs.sd - 2.13809) > 0.1,
+    "og thad er sannanlega EKKI urtaks-sd (2,138)");
+  ok(cs && cs.n === 8, `n er talid (${cs && cs.n})`);
+
+  /* --- LAGMARKID ER 8 OG THAD ER LABSINS TALA --- */
+  ok(crossSection([1, 2, 3, 4, 5, 6, 7]) === null,
+    "7 gildi -> null (lagmark 8)");
+  ok(crossSection([1, 2, 3, 4, 5, 6, 7, 8]) !== null, "8 gildi -> thversnid");
+  ok(LAB.results?.ppr?.priorFit?.z?.minFiniteValues === 8,
+    "og 8 er talan sem labid notar, ekki valin hér");
+
+  /* --- FLOT DREIFING GEFUR EKKERT `z` --- */
+  ok(crossSection([5, 5, 5, 5, 5, 5, 5, 5, 5]) === null,
+    "sd ~ 0 -> null (z vaeri deiling med nulli)");
+  /* Rusl er SIAD, ekki talid sem 0 — annars faerdi eitt `null` mu nidur. */
+  const dirty = crossSection([2, 4, 4, 4, 5, 5, 7, 9, null, "x", NaN, undefined]);
+  ok(dirty && Math.abs(dirty.mu - 5) < 1e-12 && dirty.n === 8,
+    `rusl er siad, ekki talid sem 0 (n=${dirty && dirty.n}, mu=${dirty && dirty.mu})`);
+  ok(crossSection(null) === null && crossSection("nope") === null,
+    "rusl-inntak -> null");
+
+  /* --- `zOf` --- */
+  ok(Math.abs(zOf(7, cs) - 1) < 1e-12, `zOf(7) = 1 (mu 5, sd 2) -> ${zOf(7, cs)}`);
+  ok(Math.abs(zOf(5, cs) - 0) < 1e-12, "zOf(mu) = 0");
+  ok(Math.abs(zOf(1, cs) + 2) < 1e-12, "zOf(1) = -2");
+  ok(zOf(7, null) === null, "ekkert thversnid -> null");
+  for (const bad of [null, undefined, NaN, "7", {}]) {
+    ok(zOf(bad, cs) === null, `ogilt gildi -> null: ${JSON.stringify(bad)}`);
+  }
+
+  /* --- KEDJAN FRA ENDA TIL ENDA, med raunverulegum tolum --- */
+  const vals = [5, 8, 11, 14, 17, 20, 23, 26, 12, 15];
+  const c2 = crossSection(vals);
+  const z2 = zOf(26, c2);
+  const est = estimateFromZ({ pos: "RB", scoring: "ppr", z: z2 });
+  ok(c2 && z2 > 1 && est > PRIOR_FIT.ppr.RB.a,
+    `haesta taekifaerid gefur mat yfir skurdpunkti (z ${z2.toFixed(2)}, est ${est.toFixed(1)})`);
+  const zLow = zOf(5, c2);
+  const estLow = estimateFromZ({ pos: "RB", scoring: "ppr", z: zLow });
+  ok(estLow < est && estLow >= 0,
+    `og laegsta gefur laegra mat, aldrei negatift (${estLow.toFixed(1)})`);
+
+  /* --- HAND-OFF AHAETTAN VERDUR AD VERA SKRIFUD, EKKI THOGUL --- */
+  ok(MAPPING_RISK && MAPPING_RISK.poolDiffers === true,
+    "laugar-frávikid er MERKT, ekki thagad um");
+  ok(MAPPING_RISK.measured === false,
+    "og thad er merkt OMAELT (thad er ekki maelanlegt afturvirkt)");
+  ok(/features\.json/.test(MAPPING_RISK.labPool) &&
+     /adp/i.test(MAPPING_RISK.appPool),
+    "og badar laugar eru lystar berum ordum");
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
