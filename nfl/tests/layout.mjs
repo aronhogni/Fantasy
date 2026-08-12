@@ -109,6 +109,29 @@ console.log("\n1. takn flipanna");
    Klasi sem er notadur i JSX en er hvergi i styles.css STILLIR
    EKKERT — hann litur ut eins og honnun i kodanum en er ekkert a
    skjanum. Thetta er villuflokkur sem ekkert annad profa ser.     */
+/* ============================================================
+   AUKATEXTI A VOLDUM CHIP — CONTRAST SEM TALNING SER EKKI
+   ============================================================
+   `.chip.on` er accent-blar med DOKKAN texta; `.dim` setur `#98a0b0`,
+   graatt a blau, sem er nanast olesanlegt. Þad sast a SKJAMYND i
+   deilda-svissaranum ("10 · PPR" hvarf) og engin talning hefdi fundid
+   thad. Vordurinn er BYGGINGARLEGUR — regla VERDUR ad vera til fyrir
+   `.dim` innan i `.chip.on` — thvi jsdom reiknar engan stil og getur
+   thvi ekki maelt contrast sjalft.                                    */
+console.log("\n1b. voldid chip ber lesanlegan aukatexta");
+{
+  const css = readFileSync(path.join(ROOT, "src", "styles.css"), "utf8");
+  const rule = /\.chip\.on\s+\.dim\s*\{([^}]*)\}/.exec(css);
+  ok(!!rule, "regla fyrir `.chip.on .dim` er til");
+  if (rule) {
+    const body = rule[1];
+    ok(/color\s*:/.test(body),
+      `og hun setur lit (${body.trim().slice(0, 60)})`);
+    ok(!/var\(--dim\)/.test(body),
+      "og hann er EKKI `var(--dim)` — thad var einmitt villan");
+  }
+}
+
 console.log("\n2. CSS-klasar");
 const css = readFileSync(path.join(SRC, "styles.css"), "utf8");
 {

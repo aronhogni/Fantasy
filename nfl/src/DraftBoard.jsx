@@ -31,7 +31,7 @@ import { signed } from "./columns.js";
 export default function DraftBoard({ rows, meta, league, season, accuracy, kickers,
                                      shapes, leagueKey, sync, setSync,
                                      imported, warnings, teams, onImportLeague,
-                                     sleeperUser, setSleeperUser }) {
+                                     sleeperUser, setSleeperUser, onRereadRules }) {
   /* MENGIN ERU BUNDIN DEILDINNI. Sja notu vid `scoped` i `data.js`:
      deildu tvaer deildir sama `taken` vaeru leikmenn sem thu tokst i
      annarri strikadir ut i hinni, og radgjofin taeldi hop sem thu
@@ -187,7 +187,8 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
         sleeperUser={sleeperUser} setSleeperUser={setSleeperUser}
         season={season} rows={rows} taken={taken} onPicks={onPicks}
         imported={imported} warnings={warnings} teams={teams}
-        onImportLeague={onImportLeague} shapes={shapes} />
+        onImportLeague={onImportLeague} onRereadRules={onRereadRules}
+        shapes={shapes} />
 
       <NextPick available={available} kdst={kdst} roster={myRoster} taken={taken}
         league={league} sync={sync} />
@@ -484,7 +485,7 @@ function MyRoster({ roster, league, onUndo }) {
    ============================================================ */
 function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                        imported, warnings, teams, onImportLeague,
-                       sleeperUser, setSleeperUser }) {
+                       sleeperUser, setSleeperUser, onRereadRules }) {
   /* Nafnid er FORFYLLT ur vistada audkenninu — notandinn a ekki ad slá
      thad inn i hvert sinn, og forsidan tharf thad hvort ed er. */
   const [user, setUser] = useState(() => (sleeperUser && sleeperUser.name) || "");
@@ -791,7 +792,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
           eru thvi birtar berum ordum svo hann geti bori thaer vid
           Sleeper-appid sjalft.                                       */}
       {imported && <ImportedRules imported={imported} league={league}
-        shapes={shapes} />}
+        shapes={shapes} onReread={onRereadRules} />}
 
       {/* Saetavalid. Se rodin ekki dregin er thad SAGT — `draft_order`
           var null a raunverulegri deild og thad er ekki bilun. */}
@@ -955,7 +956,7 @@ function extractDraftId(s) {
    `exactScoring: false` er MERKT. Deild med `rec: 0,75` eda TE-premium
    er NALGUD, thvi spain er sott i thremur afbrigdum og ekki fleiri, og
    nalgun ma aldrei birtast sem vissa.                                */
-function ImportedRules({ imported: im, league, shapes }) {
+function ImportedRules({ imported: im, league, shapes, onReread }) {
   const st = im.starters || {};
   const ORDER = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "K", "DST"];
   const slots = ORDER.filter((p) => st[p] > 0)
@@ -968,6 +969,11 @@ function ImportedRules({ imported: im, league, shapes }) {
         {im.season ? <span className="dim"> · {im.season}</span> : null}
         {im.status ? <span className="dim"> · {im.status.replace(/_/g, " ")}</span> : null}
         <span className="good" style={{ marginLeft: 6 }}>rules imported</span>
+        {onReread && (
+          <button className="act" style={{ marginLeft: 8, padding: "1px 7px", fontSize: 11 }}
+            title="Read the rules from Sleeper again — league settings can change between seasons"
+            onClick={onReread}>re-read</button>
+        )}
       </div>
       <div style={{ marginTop: 3, fontSize: 12.5 }}>
         <b>{im.teams}</b> teams ·{" "}

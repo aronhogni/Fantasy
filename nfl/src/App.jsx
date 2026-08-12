@@ -7,6 +7,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import * as D from "./data.js";
 import { buildRows, normalizeLeague } from "./build.js";
+import { leagueFromSleeper } from "./sleeper-league.js";
 import DraftBoard from "./DraftBoard.jsx";
 import Experts from "./Experts.jsx";
 import PlayerTable from "./PlayerTable.jsx";
@@ -124,6 +125,7 @@ export default function App() {
     setActiveId(entry.id);
   }, []);
 
+
   const removeLeague = useCallback((id) => {
     D.dropScopedState(id);
     setEntries((prev) => {
@@ -161,6 +163,92 @@ export default function App() {
   const [core, setCore] = useState(null);
   const [err, setErr] = useState(null);
   const [extra, setExtra] = useState({});      // letihladnar skrar
+
+  /* ============================================================
+     REGLURNAR ERU ENDURLESNAR — EN EKKI VID RAESINGU
+     ============================================================
+     Vistadar reglur GETA ORDID URELTAR OG THOGULT. Maelt af
+     maelinga-lotunni: Sofahetjur foru ur 10 lidum i 12 milli tímabila,
+     og thad EITT faerir varamanns-threpid RB 27->32, WR 30->35, TE
+     14->17, QB 10->12. 75 af topp 100 hreyfast, 29 um fjogur saeti eda
+     meira, og Lamar Jackson fer ur 40 i 52. Ekkert a skjanum hefdi sagt
+     fra thvi: 10 er fullgild deild og talan liti alveg rett ut.
+
+     HVERS VEGNA THETTA ER HNAPPUR OG EKKI SJALFVIRKT:
+     Fyrsta utgafan endurlas reglurnar thegar notandinn SVISSADI a
+     draft-flipann, med theim rokum ad flipa-svissun se notanda-adgerd.
+     TVO PROF FELLDU THAD OG THAU HOFDU RETT FYRIR SER:
+       · `audit.mjs` kafli 9 sa **20** Sleeper-koll thar sem enginn var
+         leyfdur — hann smellir a hvern flipa, svo hver heimsokn a
+         draft-flipann varð net-kall til thridja adila
+       · `dashboard.mjs` kafli 1 sa **2** koll VID RAESINGU, thvi
+         effectid endurkeyrir i hvert sinn sem `rereadRules` er
+         endurmyndud (hun haðist af `entries` og `extra.shapes`, sem
+         breytast bædi meðan appid er ad hlada). `firstDraftView`-vordurinn
+         slepptu adeins ALLRA fyrsta kallinu, ekki theim sem komu i
+         naestu teikningum af sama mount-i.
+
+     Fyrri villan er hin mikilvaega: flipa-svissun er WEAK evidence um ad
+     notandinn vilji ad appid tali vid Sleeper. Vordurinn segir
+     "notandinn hefur ekki bedid um thad, og pollun sem enginn kveikti a
+     er baedi ovaent og donaleg vid gestgjafann" — og thad gildir um
+     flipa-flakk alveg eins og um raesingu. Sjalfvirknin var MIN
+     hugmynd, ekki notandans, og hun rakst a asettan vord.
+
+     Thess vegna er thetta HNAPPUR ("re-read" vid innfluttu reglurnar).
+     Hann er skyrt bod, hann er synilegur, og `Connect` endurles hvort ed
+     er. Forsidan er annad mal: THAR eru Sleeper-gogn allt innihaldið, svo
+     ad opna hana ER beidnin.
+
+     Bresti kallid stendur VISTADA deildin. Thad er rett: gamlar reglur
+     eru betri en engar, og bilunin er sogd i stad thess ad hverfa.     */
+  const [rulesNote, setRulesNote] = useState(null);
+
+  const rereadRules = useCallback(async (silent) => {
+    const e = entries.find((x) => x.id === activeId);
+    if (!e || !e.imported || !e.imported.leagueId) return;
+    try {
+      const bundle = await D.sleeperResolve(e.imported.leagueId);
+      if (!bundle.league) return;
+      const res = leagueFromSleeper({
+        league: bundle.league, draft: bundle.draft, shapes: extra.shapes || null });
+      const before = JSON.stringify(e.rules);
+      const after = JSON.stringify(res.league);
+      if (before === after) {
+        setRulesNote(silent ? null : { kind: "same", text: "Rules re-read — unchanged." });
+        return;
+      }
+      /* BREYTINGIN ER SOGD BERUM ORDUM, ekki bara framkvaemd. Deild sem
+         skiptir um lidafjolda endurreiknar hverja tolu a bordinu, og
+         notandi sem ser tolurnar hreyfast an skyringar hefur enga leid
+         ad vita hvort thad var deildin eda villa. */
+      const diffs = [];
+      if (e.rules.teams !== res.league.teams) {
+        diffs.push(`${e.rules.teams} -> ${res.league.teams} teams`);
+      }
+      if (e.rules.scoring !== res.league.scoring) {
+        diffs.push(`${e.rules.scoring} -> ${res.league.scoring}`);
+      }
+      if (e.rules.rounds !== res.league.rounds) {
+        diffs.push(`${e.rules.rounds} -> ${res.league.rounds} rounds`);
+      }
+      if (JSON.stringify(e.rules.starters) !== JSON.stringify(res.league.starters)) {
+        diffs.push("starting slots changed");
+      }
+      setEntries((prev) => prev.map((x) => (x.id === e.id
+        ? { ...x, rules: res.league, imported: res.imported, warnings: res.warnings }
+        : x)));
+      setRulesNote({ kind: "changed",
+        text: `${e.name}: rules changed on Sleeper — ` +
+              `${diffs.join(", ") || "settings differ"}. Every number on the board ` +
+              `was recomputed.` });
+    } catch (err) {
+      setRulesNote({ kind: "fail",
+        text: `Could not re-read the rules (${String(err.message || err)}). ` +
+              `The stored rules are still in use.` });
+    }
+  }, [entries, activeId, extra.shapes]);
+
 
   useEffect(() => { D.saveState("view", view); }, [view]);
 
@@ -279,6 +367,15 @@ export default function App() {
       <LeagueSwitcher entries={entries} activeId={activeId}
         onPick={setActiveId} onRemove={removeLeague} />
 
+      {rulesNote && (
+        <div className={`note${rulesNote.kind === "same" ? "" : " warn"}`}
+          style={{ marginTop: 0 }}>
+          {rulesNote.text}
+          <button className="act" style={{ marginLeft: 8, padding: "2px 8px", fontSize: 11.5 }}
+            onClick={() => setRulesNote(null)}>dismiss</button>
+        </div>
+      )}
+
       <nav className="tabs" style={{ marginBottom: 14 }}>
         {/* Faldi flipinn er SYNDUR ef hann er sa sem er opinn — annars
             hyrfi stikan undan notandanum um leid og hann opnadi hann
@@ -313,7 +410,7 @@ export default function App() {
           sync={active.sync} setSync={setSync}
           imported={active.imported} warnings={active.warnings}
           teams={active.teams}
-          onImportLeague={importLeague}
+          onImportLeague={importLeague} onRereadRules={() => rereadRules(false)}
           season={meta.season} accuracy={extra.accuracy}
           kickers={extra.kickers} shapes={extra.shapes} />
       )}

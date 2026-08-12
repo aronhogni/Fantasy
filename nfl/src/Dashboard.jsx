@@ -512,6 +512,35 @@ function Waivers({ fa, picks, league }) {
           deliberately blank rather than a list of everyone — most of those players
           are on someone's roster, and a list that ignores that is worse than none.
         </div>
+      ) : fa.mine == null ? (
+        /* Vitum ekki hvada lid er mitt -> engin skipti eru reiknanleg.
+           Adur sagdi thetta "nobody beats anyone on your roster", sem er
+           fullyrding um hop sem vid hofdum ekki. */
+        <div className="note warn" style={{ marginTop: 6 }}>
+          <b>{fa.pool.length} free agents</b>, but we do not know which team is
+          yours, so there is nothing to compare them against. Connect the league in
+          the Draft tab and click your team.
+        </div>
+      ) : fa.mine.length === 0 ? (
+        /* ============================================================
+           FYRIR DRAFT ER ENGINN WAIVER-LISTI — OG THAD SAST A SKJANUM
+           ============================================================
+           Adur stod hér "Nobody on waivers beats anyone on your roster"
+           meðan hopurinn var TOMUR og allir 1.043 leikmenn voru lausir.
+           Su setning er FULLYRDING um samanburd sem var aldrei gerdur:
+           hun les eins og yfirveguð nidurstada ("vid skodudum, thad er
+           ekkert") thegar sannleikurinn er "thad er ekkert til ad skoda
+           enn". Talan 1.043 var rett og RAMMINN var rangur.
+
+           Start/sit-hlutinn hafdi thegar retta orðalagið fyrir sama
+           astand; waiver-hlutinn hafdi thad ekki. Fannst med thvi ad
+           HORFA A SIDUNA, ekki i talningu.                            */
+        <div className="note" style={{ marginTop: 6 }}>
+          <b>Nothing drafted yet, so there is no waiver wire.</b> All{" "}
+          {fa.pool.length} players are still unowned — that is the draft pool, not a
+          list of pickups. This becomes useful once the season starts and rosters
+          have holes in them.
+        </div>
       ) : (
         <>
           <div className="dim" style={{ fontSize: 11.5, marginTop: 4 }}>

@@ -236,6 +236,21 @@ table.data tbody tr:hover td.frozen { background: #1b1f28; }
   font-family: inherit;
 }
 .chip.on { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
+/* ============================================================
+   AUKATEXTI INNAN I VOLDUM CHIP MA EKKI ERFA `--dim`
+   ============================================================
+   `.chip.on` er BJARTUR (accent-blar) med DOKKAN texta, en `.dim`
+   setur `#98a0b0` — graatt a blau, sem er nanast olesanlegt. Thad sast
+   a SKJAMYND: "Patriots SB champs 10 · PPR" i svissaranum, thar sem
+   "10 · PPR" hvarf nanast alveg medan sami texti a OVOLDUM chip er
+   fullkomlega lesanlegur. Talning hefdi aldrei fundid thetta; augad
+   fann thad.
+
+   `inherit` + `opacity` i stad FASTS litar er asett: tha fylgir
+   aukatextinn alltaf grunnlitnum sem `.chip.on` setur og getur ekki
+   rekid i sundur ef palettan breytist. Fastur litur hefdi thurft ad
+   vera uppfaerdur i takt vid `--accent` og hefdi thagnad annars.     */
+.chip.on .dim { color: inherit; opacity: .72; }
 
 /* Deilda-svissarinn. Hann situr MILLI hauss og flipastiku og er
    raunverulegt samhengi, ekki stjornbord: allt sem er fyrir nedan er

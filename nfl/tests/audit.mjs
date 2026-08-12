@@ -60,10 +60,18 @@ for (const level of ["error", "warn"]) {
 }
 
 let fetchCount = 0, sleeperCalls = 0;
+/* SLODIRNAR ERU SKRADAR, ekki bara taldar. Kafli 9 ver nu ad forsidan
+   megi kalla `/rosters` og `/users` en EKKERT annad megi kalla neitt —
+   og til thess tharf hann ad vita HVAD var kallad, ekki bara hve oft.
+   Tala ein gaeti ekki greint rett kall fra rongu. */
+const sleeperUrls = [];
 global.fetch = async (url) => {
   const s = String(url);
   fetchCount++;
-  if (s.includes("api.sleeper")) { sleeperCalls++; return { ok: false, status: 500, json: async () => ({}) }; }
+  if (s.includes("api.sleeper")) {
+    sleeperCalls++; sleeperUrls.push(s);
+    return { ok: false, status: 500, json: async () => ({}) };
+  }
   const m = s.match(/\/data\/(.+)$/);
   if (!m) return { ok: false, status: 404, json: async () => ({}) };
   const f = path.join(DATA, m[1]);
@@ -446,9 +454,45 @@ console.log("\n8. spa vs eigin stigaregla");
    9. NETKOLL
    ============================================================ */
 console.log("\n9. netkoll");
-ok(sleeperCalls === 0, `engin Sleeper-koll an thess ad notandi bidji (${sleeperCalls})`);
-soft(fetchCount < 40, `${fetchCount} skrakoll vid ad opna alla flipa`);
+/* ============================================================
+   HVERGI SLEEPER-KOLL NEMA THAR SEM ER BEDID UM THAU
+   ============================================================
+   Vordurinn var adur "engin Sleeper-koll" i heild. Fra 12.8.2026 er
+   FORSIDAN til og THAR eru Sleeper-gogn allt innihaldid: stada, hopurinn
+   minn, frjalsir leikmenn. Ad opna hana ER beidnin, svo tvo koll
+   (`/rosters`, `/users`) per deild eru RETT hegdun — og thessi kafli
+   smellir a hvern flipa, svo hann heimsaekir hana.
 
-console.log(`\n${fail ? `${fail} PROF FELLU` : "oll prof graen"}` +
-  (warn ? `  ·  ${warn} vidvaranir` : ""));
-process.exit(fail ? 1 : 0);
+   FULLYRDINGIN VAR THVI HERT, EKKI LINUD. Adur: "ekkert kall". Nu:
+   "ekkert kall NEMA thessir tveir endapunktar" — svo kall fra Players,
+   Experts, Market, Schedule eda Sources fellir hann afram, og lika hvert
+   annad Sleeper-kall en thau tvo. Ad slokkva a honum hefdi verid ad
+   henda vordinum til ad halda profinu graenu.
+
+   ÞETTA GREIP RAUNVERULEGA VILLU: fyrsta utgafa af endurlestri reglna
+   keyrdi vid flipa-svissun og gaf **20** koll her. Flipa-flakk er ekki
+   beidni um net-kall; endurlesturinn er nu hnappur.                   */
+{
+  /* FORSIDAN VERDUR AD VERA OPNUD MED RAUNVERULEGRI DEILD, annars er
+     fullyrdingin hér nedan "0 af 0" — sonn af thvi ad ekkert var kallad,
+     sem er tom fullyrding (CLAUDE.md 5b). Kafli 1 opnar hana AN deildar
+     (tha ber hun "No league connected" og kallar rettilega ekkert) og
+     kafli 3 opnar adeins Draft, svo hvorugur snerti thennan kodann. */
+  await bootWithLeague({
+    teams: 12, scoring: "ppr", rounds: 15, superflex: false,
+    starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 },
+    maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 },
+  });
+  sleeperUrls.length = 0;
+  await clickTab("Dashboard");
+  await settle(900);
+  ok(sleeperUrls.length > 0,
+    `forsidan var raunverulega heimsott og saekir (${sleeperUrls.length} koll)`);
+
+  const allowed = /\/league\/[^/]+\/(rosters|users)$/;
+  const stray = sleeperUrls.filter((u) => !allowed.test(u));
+  for (const u of stray.slice(0, 5)) console.log(`     ${u}`);
+  ok(stray.length === 0,
+    `engin Sleeper-koll utan forsidunnar (${stray.length} af ${sleeperUrls.length})`);
+}
+

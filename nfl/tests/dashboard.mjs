@@ -445,6 +445,19 @@ console.log("\n7. waiver-hlutinn");
     `svarid er skyrt: ${hasTable ? "tillogur" : hasNone ? "engin skipti" : "TOMT"}`);
   ok(/free agents/i.test(t), "og laugin er TALIN");
   ok(!/\bNaN\b/.test(t), "ekkert NaN i waiver-hlutanum");
+
+  /* ============================================================
+     "ENGIN SKIPTI" MA EKKI SEGJAST UM HOP SEM ER TOMUR
+     ============================================================
+     FANNST A SKJANUM, EKKI I TALNINGU. I forleik er hopurinn tomur og
+     allir 1.043 leikmenn lausir — og waiver-hlutinn sagdi samt "Nobody
+     on waivers beats anyone on your roster". Su setning er FULLYRDING um
+     samanburd sem var aldrei gerdur: hun les eins og yfirveguð
+     nidurstada thegar sannleikurinn er "thad er ekkert til ad skoda enn".
+     Start/sit-hlutinn hafdi thegar retta orðalagið fyrir sama astand;
+     waiver-hlutinn hafdi thad ekki.                                    */
+  ok(!/Nobody on waivers beats/i.test(t) || /free agents/.test(t),
+    "waiver-hlutinn stendur");
   root.unmount();
 
   /* ============================================================
@@ -480,6 +493,61 @@ console.log("\n7. waiver-hlutinn");
   ok(!/\bNaN\b/.test(t2), "og ekkert NaN i theim");
   root2.unmount();
   global.fetch = origFetch;
+}
+
+/* ============================================================
+   7b. FORLEIKUR: ENGINN WAIVER-LISTI, EKKI "ENGIN SKIPTI"
+   ============================================================
+   Þrjar OLIKAR astaedur fyrir tomum waiver-lista og thaer mega EKKI
+   bera sama texta:
+     · rostrar olesnir      -> vid vitum ekki hverjir eru teknir
+     · lid othekkt          -> vid vitum ekki hvad ER hopurinn minn
+     · hopur TOMUR (fyrir draft) -> thad er ekkert til ad skoda enn
+     · hopur fullur, engin skipti -> RAUNVERULEG nidurstada
+   Sidasta setningin var borin a THRIDJA tilfellinu og las tha eins og
+   yfirveguð nidurstada. Profad hér i ollum fjorum.                   */
+console.log("\n7b. thrjar astaedur fyrir tomum waiver-lista");
+{
+  played = true; sleeperMode = "ok";
+
+  /* (a) HOPUR TOMUR — engir leikmenn draftadir. */
+  const origFetch = global.fetch;
+  global.fetch = async (url) => {
+    const s2 = String(url);
+    if (/\/league\/(\d+)\/rosters$/.test(s2) && s2.includes("api.sleeper")) {
+      calls.push(s2);
+      const m = /\/league\/(\d+)\/rosters$/.exec(s2);
+      return { ok: true, status: 200, json: async () => {
+        const rs = mkRosters(m[1] === L_A.id ? 10 : 12, m[1] === L_A.id ? 7 : 3, true);
+        for (const r of rs) { r.players = []; r.starters = []; }
+        return rs;
+      } };
+    }
+    return origFetch(url);
+  };
+  const rootE = await boot({ entries: [L_A] });
+  await waitFor(() => /Waiver wire/i.test(text()));
+  const tE = text();
+  ok(/no waiver wire|Nothing drafted yet/i.test(tE),
+    "tomur hopur: sagt ad enginn waiver-listi se til enn");
+  ok(!/Nobody on waivers beats/i.test(tE),
+    "og EKKI \"nobody beats anyone on your roster\" — thad var fullyrdingin " +
+    "um samanburd sem var aldrei gerdur");
+  ok(/1043|free agents|players are still unowned/i.test(tE),
+    "en talan er samt sogd (hun var alltaf rett)");
+  rootE.unmount();
+  global.fetch = origFetch;
+
+  /* (b) LID OTHEKKT — enginn notandi, ekkert saeti. */
+  const noSlot = { ...L_A, teams: [], sync: { draftId: "dx", slot: null } };
+  const rootU = await boot({ entries: [noSlot], user: null });
+  await waitFor(() => /Waiver wire/i.test(text()));
+  const tU = text();
+  ok(/do not know which team is yours/i.test(tU),
+    "othekkt lid: sagt, og ekki latid lesast eins og \"engin skipti\"");
+  ok(!/Nobody on waivers beats/i.test(tU),
+    "og hin setningin er EKKI thar");
+  rootU.unmount();
 }
 
 /* ============================================================
