@@ -187,6 +187,9 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 |---|---|
 | **Ólínulegur aldursferill per stöðu** (`agecurve-lab.mjs`) | **HAFNAÐ.** Hrá leit jákvæð 8/10; **walk-forward jákvæð 4/10 og marktæk 0/10**, tvö hólf marktækt *negatíf*; LOSO 2/10. Valda fjölskyldan hoppar milli ára í hverju hólfi — sama undirskrift og CLAUDE.md 3 flaggar. `deltaR2` net of ADP er negatíft í **öllum 48 hólfum** |
 | **Annar VBD-grunnur** (`vbdbase-lab.mjs`) | **HAFNAÐ — og fann VILLU.** 16 afbrigði × 3 lögun × 3 stigagjafir: **0 af 153 hólfum standast bootstrap klasaðan PER LEIKMANN**, þótt **29 standist** hann klasaðan eftir tímabili. Sjá 4b — það er sjálfstætt mikilvægasta aðferðar-atriðið hér |
+| **Notkun það sem er liðið af tímabilinu** (`usage-lab.mjs`) | **STENST — fyrsti vinningurinn.** `opp_prior` lokar **12,25 / 10,75 / 10,76%** af bilinu á móti 5,83 / 3,20 / 2,97, og **per-leikmanns CI útilokar núll í öllum þremur**. Ferillinn er niðurstaðan: **ekkert í vikum 1–4, +12,3 pp í vikum 10+** (6/6 tímabil). Sjá 4e — **ekki tengt enn**, plumbing vantar |
+| **Markaðurinn umfram `implied`** (`mktweek-lab.mjs`) | **FELLUR.** 0 af 45 hólfum standast öll fjögur skilyrðin i neinu sniði. Og **leikjaflæðis-folkloreið er RANGT**: hver staða gerir BETUR sem favorít, engin gerir betur á eftir — QB sem 10+ undirdogg er **−1,12**. Ósamhverfa: **12 af 12 CI innihalda núll** |
+| **Hvar liggja 94%** (`gap-lab.mjs`) | **Þakið er 29,3%** (TD 18,9 + nýtni 10,4). Vörn er **NULL-flaska** (enrichment 0,96×). Röð: availability → hlutverk → vörn ekki neitt. Sjá 4f |
 | **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+24,4 stig**, t=2,275, 8/11 ár, CI [+3,7, +43,7], einræn 4/4. Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
 | **Óvissu-háð hnignun spárinnar** (`shrink-lab.mjs`) | **HAFNAÐ.** 12 óvissu-mælar × 3 forgildi × 6 vogir: **0 af 36 samsetningum jákvæðar í öllum 10 hólfum á báðum spáheimildum**. Besta samkvæma hrifin +0,5 stig af ~1900. Marktækni í **0/14** hólfum (besta \|t\| = 3,4 gegn kröfu 4,5–5,7) |
 
@@ -301,6 +304,113 @@ töflunni.
 > hefði gefið sér áttina, sem er einmitt það sem `feature-probe` gat ekki staðfest.
 
 ---
+
+### 4e. FYRSTA RAUNVERULEGA VINNINGURINN — notkun það sem er liðið af tímabilinu
+
+Sex mælingar 12.8.2026 felldu allar sínar hugmyndir. **Þessi féll ekki.**
+
+`weeklyProjection` byggir á árstíðar-spá deildri á 17 og notar **ekkert** af því
+sem hefur gerst í þessu tímabili. `usage-lab` mældi hvað það kostar.
+Sigurvegarinn er sá sami í öllum þremur sniðum: **`opp_prior`** — hlaup + sendingar
+til þessa, varpað gegnum fitt á **fyrri** tímabilum.
+
+| snið | incumbent → arm | delta | t | ár | **CI (per leikmann)** | placebo-þak |
+|---|---|---|---|---|---|---|
+| ppr | 5,83 → **12,25%** | +6,40 | 2,56 | 5/6 | **[2,54 · 8,49]** | +2,03 |
+| half | 3,20 → **10,75%** | +8,64 | 2,26 | 5/6 | **[0,61 · 7,86]** | +3,93 |
+| std | 2,97 → **10,76%** | +7,09 | 2,74 | 6/6 | **[0,60 · 8,04]** | +4,40 |
+
+**Per-leikmanns bootstrap útilokar núll í ÖLLUM ÞREMUR** — það er skilyrðið sem
+felldi allt annað í dag (`vbdbase-lab` fékk 0 af 153). Og það er ekki eitt
+heppið hólf: `opp_prior` er jákvæð í **48/52, 51/52, 47/52** hólfum.
+
+#### FERILLINN ER NIÐURSTAÐAN, EKKI TALAN
+
+| viku-bil | ppr | half | std |
+|---|---|---|---|
+| 1–4 | +0,8 (t 0,62) | +2,2 (t 0,35) | +4,2 (t 1,26) |
+| 5–9 | +2,0 (t 0,35) | +9,9 (t 3,35) | +5,9 (t 0,99) |
+| **10–18** | **+12,3 (t 4,21, 6/6, boot [4,6 · 14,5])** | **+12,1 (t 4,51, 6/6)** | **+10,5 (t 3,89, 6/6)** |
+
+Í vikum 10+ fer PPR úr því að loka 3,97% af bilinu í **18,0%** — 4,5×. Í vikum
+1–4 er **ekkert**, og **kröftug blöndun þar er SKAÐLEG** (`const0.5`: −4 til −9 pp).
+Vogin verður því að vera Bayesísk með **hægri byrjun** — nánast engin vog á
+tímabilið fyrr en ~6 leikir eru komnir. Föst vog er verri en engin.
+
+**Notkun slær stig, en aðeins hóflega** (+1,71/+1,72/+2,08) og það er **MAGN
+tækifæra**, ekki hlutdeild: `tshare`/`wopr` **einar eru VERRI** en `opp`
+(hlaup+sendingar). Per stöðu (ppr) ber **WR** merkið (+2,4 til +3,4); RB
+klofnar eins og `opp-lab` sagði (`ptsPG` +2,53 t=5,40 en `tshare`/`wopr` ≈ 0);
+QB/TE ≈ 0.
+
+**`first4`-afturhvarfið endurtekur sig EKKI vikulega.** Gegn leifinni eru
+fylgnin **jákvæð** (RB +0,146, WR +0,131). `first4` (−0,134) er
+**þvert á tímabil** — afturhvarf frá einu ári til annars — en **innan** tímabils
+spáir notkun-til-þessa því að slá sína eigin spá. Þau tvö stangast ekki á, og
+þetta er ástæðan fyrir því að notkun var mæld sérstaklega frá stigum.
+
+> **ÞRÖSKULDS-VILLA SEM FLIPPAÐI SVARINU.** Fyrsta útgáfa labsins tók
+> `max |t|` yfir placebo-hólf og fékk **22,238** — en besta *hávaða*-hólfið
+> fyrir sama fræ **tapaði** 1,536 pp. Hólfið var `const0.9`: að blanda 10%
+> hávaða hverja viku tapar litlu og tapar því **í hverju tímabili**, svo
+> dreifnin er örsmá og `|t|` risastórt. Það er þröskuldur fyrir „hve marktækt
+> getur hávaði litið út **í hvora átt sem er**"; spurningin er **einhliða**.
+> Með `maxPositiveT` fóru ppr og standard **úr falli í pass**. Sami galli var í
+> `cellsSignificant` (46/52 „marktæk" af því að þau voru marktækt VERRI).
+
+**EKKI TENGT ENN — OG ÞAÐ ER EKKI VAL.** `data/weekly/` ber 2019–2025 en
+**ekkert 2026**, og `src/data.js` ber engan `loadWeekly`. Appið **getur ekki**
+reiknað notkun-til-þessa í dag. Þrennt þarf, í þessari röð, og það þarf að vera
+til **fyrir viku 5**: (1) pípan skrifar `data/weekly/2026.json` yfir tímabilið,
+(2) `data.js` fær letihlaðinn `loadWeekly`, (3) `weekview.js` blandar með
+Bayesískum ferli sem er **nánast núll fram að viku 6**.
+
+### 4f. HVAR LIGGJA ÞAU 94% SEM EFTIR ERU — og varnar-flaskan var TÓM
+
+`gap-lab` sundurgreindi `ceiling − weekly` og **endurgerði akkerið upp á þrjá
+aukastafi** (ppr 5,831% = 5,831%, standard 2,967%). Að komast þangað krefðist
+þess að finna eitt raunverulegt: `optimalLineup` hrátt gefur **5,657%** og
+skeikar á **8 af 3.687** uppstillingum — **FLEX-jafnteflisbrot**.
+`startsit-lab` skeytir leifum RB,WR,TE svo jafntefli falla til RB, og
+viku-spár eru námundaðar á 0,1 svo jafntefli eru **raunveruleg**. Inntakið er nú
+raðað eftir stöðu (stöðug röðun heldur hóp-röð innan stöðu) og það endurgerir
+töluna á **0/3687** — með **einni** uppstillingar-vél, ekki tveimur.
+
+**ÞAKIÐ ER 29,3%, EKKI BARA TD.** Tvennt sem beiðnin gat ekki vitað:
+
+| | ppr | half | std |
+|---|---|---|---|
+| TD-slembni | 18,9% | — | — |
+| **nýtni** (sömu 8 sendingar, 55 jarda eða 120) | 10,4% | — | — |
+| **samtals óviðráðanlegt** | **29,3%** [26,3 · 31,7] | 33,4% | 40,6% |
+
+Tvær óskyldar aðferðir hittu TD innan 1,2 pp (þröskuldslaus 18,9%, foss 17,7%).
+
+**OG VARNAR-FLASKAN VAR TÓM.** Vörn (c) fangaði **26,7%** af bilinu — stærsti
+flokkurinn — en **enrichment hennar er 0,96×**: merkið flaggar eftirsjá
+**sjaldnar** en venjuleg vika. **Hlutfall án grunntíðni er merkingarlaust.**
+Án þess skrefs hefði þessi skýrsla sagt „byrjaðu á varnarlíkaninu", sem er
+nákvæmlega rangt.
+
+**Röðin, afvöxtuð með enrichment:**
+
+| # | flokkur | stig | hlutfall | enrichment | **merki-stig** |
+|---|---|---|---|---|---|
+| 1 | **availability** | 1,80 | 16,1% | **1,42×** | **0,53** |
+| 2 | **hlutverk** | 1,67 | 14,9% | 1,20× | 0,28 |
+| 3 | vörn | 2,98 | 26,7% | **0,96×** | **0,00** |
+
+Availability fyrst, hlutverk næst, **vörn ekki neitt** á þessum gögnum. Það er
+samhljóða `usage-lab`: hlutverk **ER** notkun, og það er einmitt það sem vann.
+
+(a) vex yfir tímabilið (8,5% → 17,4% → **20,6%**), og per stöðu er TD-slembni
+margfalt stærri hjá QB (46,8%) en WR (8,7%).
+
+> **TVENNT SEM VERÐUR AÐ FYLGJA TÖLUNUM:** full fjarvist er **ósýnileg** — 19,1%
+> af hóp-vikum (3.206: 742 bye, 2.464 fjarverandi) bera enga röð og falla úr
+> **báðum** uppstillingum, svo (a) er **neðra mark**. Og óflokkaða leifin er
+> **31,5%**. Loks: vikulíkanið lokar **MINNA** af bilinu í TD-hlutlausum heimi
+> (4,30% á móti 5,83%) — **forskot þess er ekki merki sem drukknar í TD-hávaða**.
 
 ### 4b. VILLA Í `computeVbd` — `0` var lesið sem „vantar"
 

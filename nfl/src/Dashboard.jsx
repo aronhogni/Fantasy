@@ -53,7 +53,8 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import * as D from "./data.js";
 import { standingsFrom, myRosterId, recordLine } from "./standings.js";
 import { optimalLineup, lineupAdvice, slotsFor } from "./lineup.js";
-import { currentWeek, weekContext, weekRows, onByeThisWeek } from "./weekview.js";
+import { currentWeek, weekContext, weekRows, onByeThisWeek,
+         weeklyEdgeNote } from "./weekview.js";
 import { freeAgents, pickupAdvice } from "./waivers.js";
 import { newsForRoster, injuredOn } from "./newsmatch.js";
 
@@ -235,7 +236,7 @@ function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy }) {
       <Standings table={table} mineId={mineId} />
       <RosterNews roster={myRows} news={news} />
       <StartSit lineup={lineup} advice={advice} bye={bye} week={week}
-        myRows={myRows} mineId={mineId} />
+        myRows={myRows} mineId={mineId} scoring={league.scoring} />
       <Waivers fa={fa} picks={picks} league={league} />
     </div>
   );
@@ -393,7 +394,8 @@ function RosterNews({ roster, news }) {
    `unfilled` og `unknown` eru BIRT. Saeti sem ekki tokst ad fylla er
    upplysing (vantar leikmann, eda allir a bekk meiddir/i frii) og
    leikmadur an spar er a bekk EN THAD ER EKKI DOMUR UM HANN.        */
-function StartSit({ lineup, advice, bye, week, myRows, mineId }) {
+function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring }) {
+  const edge = useMemo(() => weeklyEdgeNote(scoring), [scoring]);
   if (mineId == null) {
     return (
       <div style={{ marginTop: 14 }}>
@@ -537,11 +539,22 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId }) {
       )}
 
       {lineup && week != null && (
+        /* ============================================================
+           TALAN ER PER STIGAGJOF, EKKI EIN TALA FYRIR ALLAR DEILDIR
+           ============================================================
+           Adur stod "maelt 5,8% (t=4,33, 7/7)" a BADUM deildum. Sú tala
+           er PPR-talan. `mktweek-lab` maeldi incumbent-inn i ollum
+           thremur snidum 12.8.2026 — thad hafdi aldrei verid gert — og
+           i half-PPR er hun **3,199% med t=1,908 og adeins 5 af 7
+           timabilum jakvaed**, sem er EKKI marktaekt.
+
+           Notandinn spilar i baðum. Ad bera PPR-toluna a half-deildina
+           var ad lata omarktaeka tolu lesast eins og maelda. */
         <div className="dim" style={{ fontSize: 11.5, marginTop: 5 }}>
           <b>Sleeper</b> is their projection, season number over 17.{" "}
           <b>Ours</b> is that same number adjusted by the team's implied total from
-          the betting line and the opponent's defence against the position —{" "}
-          <b>measured</b> at 5.8% of the available gap (t = 4.33, 7 of 7 seasons).
+          the betting line and the opponent's defence against the position.{" "}
+          <span className={edge.significant ? "good" : "warn"}>{edge.text}</span>{" "}
           It has never run on a live week, so treat week 1 as its first real test.
         </div>
       )}

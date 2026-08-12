@@ -30,6 +30,59 @@
 
 import { weeklyProjection, impliedTeamTotals } from "./model.js";
 
+/* ============================================================
+   HVE MIKID ER VIKU-ADLOGUNIN THESS VIRDI — PER STIGAGJOF
+   ============================================================
+   `weeklyProjection` var maeld i PPR og talan 5,831% var borin a ALLAR
+   deildir i vidmótinu. Þad var RANGT fyrir half-PPR og thad kom i ljos
+   i `mktweek-lab` 12.8.2026, sem maeldi incumbent-inn i ollum thremur
+   snidum FYRST — thad hafdi aldrei verid gert:
+
+     ppr       5,831%   t=4,328   7/7 timabil jakvaed   MARKTAEKT
+     standard  2,967%   t=2,831   6/7  (-1,23 arid 2019)   MARKTAEKT
+     half      3,199%   t=1,908   5/7  (-1,07 arid 2020, -3,14 arid 2021)
+                                       EKKI MARKTAEKT (throskuldur 2,228)
+
+   Notandinn spilar i BADUM: Patriots er PPR, Sofahetjur er half-PPR.
+   Ad birta "maelt 5,8%" a half-deildinni var ad lata OMARKTAEKA tolu
+   lesast eins og maelda — versta utkoman i thessu repo-i, og hun var
+   thogul thvi talan var raunveruleg, bara ur odru sniði.
+
+   TAFLAN ER BOKUD HER OG VARIN GEGN `data/measure/mktweek.json` i
+   `dashboard.mjs`, svo hun geti ekki rekid i thogn — sama mynstur og
+   `HALF_LAB` i `rulebasis.js`. Endurkeyrsla labsins sem breytir tolunum
+   fellir profid; tha uppfaerir madur TOFLUNA, ekki profid.           */
+export const WEEKLY_MEASURED = {
+  ppr:        { pct: 5.831, t: 4.328, years: 7, positive: 7, significant: true },
+  standard:   { pct: 2.967, t: 2.831, years: 7, positive: 6, significant: true },
+  "half-ppr": { pct: 3.199, t: 1.908, years: 7, positive: 5, significant: false },
+};
+
+/**
+ * Hvad ma SEGJA um viku-adlogunina i thessari deild.
+ *
+ * Omaeld eda omarktaek stigagjof faer EKKI toluna birta sem maelingu —
+ * hun faer setningu sem segir ad hun se ekki marktaek. Sama regla og
+ * `edgeSentence` i `rulebasis.js`: `significant: false` thydir ad TALAN
+ * MA EKKI STANDA EIN.
+ */
+export function weeklyEdgeNote(scoring) {
+  const m = WEEKLY_MEASURED[scoring];
+  if (!m) {
+    return { measured: false, significant: false,
+      text: "The weekly adjustment has not been measured in this scoring format." };
+  }
+  if (!m.significant) {
+    return { measured: true, significant: false, pct: m.pct, t: m.t,
+      text: `In ${scoring} the weekly adjustment closes ${m.pct}% of the gap ` +
+            `but that is NOT significant (t = ${m.t}, positive in only ` +
+            `${m.positive} of ${m.years} seasons) — treat "Ours" as unproven here.` };
+  }
+  return { measured: true, significant: true, pct: m.pct, t: m.t,
+    text: `Measured: closes ${m.pct}% of the available gap in ${scoring} ` +
+          `(t = ${m.t}, positive in ${m.positive} of ${m.years} seasons).` };
+}
+
 /**
  * VIKAN ER ADEINS LESIN A TIMABILINU.
  *

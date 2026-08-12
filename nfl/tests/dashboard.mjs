@@ -496,6 +496,67 @@ console.log("\n7. waiver-hlutinn");
 }
 
 /* ============================================================
+   3d. VIKU-ABATINN ER PER STIGAGJOF — OG TAFLAN MA EKKI REKA
+   ============================================================
+   Adur stod "maelt 5,8% af bilinu (t=4,33, 7/7)" a BADUM deildum
+   notandans. Su tala er PPR-talan. `mktweek-lab` maeldi incumbent-inn i
+   ollum thremur snidum 12.8.2026 — thad hafdi ALDREI verid gert — og i
+   half-PPR er hun **3,199% med t=1,908 og adeins 5 af 7 timabilum
+   jakvaed**, sem er EKKI marktaekt (throskuldur 2,228).
+
+   Notandinn spilar i BAÐUM (Patriots ppr, Sofahetjur half-ppr), svo
+   PPR-talan a half-deildinni let OMARKTAEKA tolu lesast eins og maelda.
+
+   Þessi kafli ber bokudu tofluna vid `data/measure/mktweek.json`, svo
+   hun geti ekki rekid i thogn — sama mynstur og `HALF_LAB` i
+   `rulebasis.js`. Endurkeyrsla labsins sem breytir tolunum FELLIR
+   thetta, og tha uppfaerir madur TOFLUNA, ekki profid.               */
+console.log("\n3d. viku-abatinn er per stigagjof");
+{
+  const { WEEKLY_MEASURED, weeklyEdgeNote } = await import("../src/weekview.js");
+  const lab = JSON.parse(readFileSync(path.join(DATA, "measure", "mktweek.json"), "utf8"));
+
+  /* Bokada taflan VERDUR ad passa vid labid, snid fyrir snid. */
+  const keyOf = { ppr: "ppr", standard: "standard", "half-ppr": "half" };
+  for (const [ours, theirs] of Object.entries(keyOf)) {
+    const inc = lab.incumbent && lab.incumbent[theirs];
+    ok(!!inc, `${theirs} er i mktweek.json`);
+    if (!inc) continue;
+    const t = WEEKLY_MEASURED[ours];
+    ok(Math.abs(t.pct - inc.pctOfGapClosed) < 0.01,
+      `${ours}: bokad ${t.pct} == maelt ${inc.pctOfGapClosed}`);
+    ok(Math.abs(t.t - inc.t) < 0.01, `${ours}: t ${t.t} == ${inc.t}`);
+    ok(t.positive === inc.positive,
+      `${ours}: ${t.positive} af ${t.years} jakvaed == ${inc.positive}`);
+  }
+
+  /* MARKTAEKNIN ER REIKNUD, ekki bokud sem skodun: t a moti 2,228. */
+  const tCrit = 2.228;
+  for (const [ours, m] of Object.entries(WEEKLY_MEASURED)) {
+    ok(m.significant === (m.t > tCrit),
+      `${ours}: significant=${m.significant} samsvarar t=${m.t} vs ${tCrit}`);
+  }
+  ok(WEEKLY_MEASURED["half-ppr"].significant === false,
+    "half-ppr er MERKT omarktaekt — thad var atridid");
+  ok(WEEKLY_MEASURED.ppr.significant === true,
+    "og ppr er marktaekt (annars vaeri allt merkt omarktaekt og merkid daudt)");
+
+  /* SETNINGIN sjalf: omarktaek stigagjof ma EKKI lesast eins og maeld. */
+  const half = weeklyEdgeNote("half-ppr");
+  ok(/NOT significant/i.test(half.text) && /unproven/i.test(half.text),
+    `half-setningin segir ad hun se omarktaek: "${half.text.slice(0, 70)}…"`);
+  const ppr = weeklyEdgeNote("ppr");
+  ok(/^Measured:/.test(ppr.text) && !/NOT significant/i.test(ppr.text),
+    "ppr-setningin er fullyrding um maelingu");
+  ok(/5\.831/.test(ppr.text) && /3\.199/.test(half.text),
+    "og hver ber SINA tolu, ekki somu");
+  /* Othekkt snid faer ENGA tolu. */
+  const unknown = weeklyEdgeNote("te-premium");
+  ok(unknown.measured === false && !/\d\.\d/.test(unknown.text),
+    "othekkt stigagjof faer enga tolu birta");
+}
+
+/* ============================================================
    3c. FRETTIR OG MEIDSLI — BIRT, ALDREI TULKUD
    ============================================================
    Fréttir eru SAMHENGI. Reglan i `MyTeam.jsx` gildir her lika: "tolid

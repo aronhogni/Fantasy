@@ -1,0 +1,4630 @@
+{
+ "generated": "2026-08-12T20:32:57.614Z",
+ "provenance": {
+  "generated": "2026-08-12T20:32:57.614Z",
+  "argv": [
+   "--boot=400"
+  ],
+  "params": {
+   "from": {
+    "value": 2019,
+    "fromDefault": true
+   },
+   "boot": {
+    "value": "400",
+    "fromDefault": false
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   },
+   "schedule_history.json": {
+    "bytes": 233073,
+    "sha1": "a7ade72fb5d0",
+    "mtime": "2026-08-12T08:37:23.478Z"
+   },
+   "defense.json": {
+    "bytes": 103690,
+    "sha1": "31c9dd59d1fc",
+    "mtime": "2026-08-09T19:44:26.423Z"
+   },
+   "weekly/2019.json": {
+    "bytes": 1935898,
+    "sha1": "2d7a1d5770c1",
+    "mtime": "2026-08-09T19:44:26.448Z"
+   },
+   "weekly/2020.json": {
+    "bytes": 1982341,
+    "sha1": "6abb14c22113",
+    "mtime": "2026-08-09T19:44:26.451Z"
+   },
+   "weekly/2021.json": {
+    "bytes": 2089844,
+    "sha1": "4f73333f1657",
+    "mtime": "2026-08-09T19:44:26.454Z"
+   },
+   "weekly/2022.json": {
+    "bytes": 2065748,
+    "sha1": "368e48fd27b9",
+    "mtime": "2026-08-09T19:44:26.457Z"
+   },
+   "weekly/2023.json": {
+    "bytes": 2060086,
+    "sha1": "32d74340e7c9",
+    "mtime": "2026-08-09T19:44:26.460Z"
+   },
+   "weekly/2024.json": {
+    "bytes": 2064557,
+    "sha1": "61505f918891",
+    "mtime": "2026-08-09T19:44:26.463Z"
+   },
+   "weekly/2025.json": {
+    "bytes": 2112832,
+    "sha1": "65d7189fdd7e",
+    "mtime": "2026-08-09T19:44:26.466Z"
+   },
+   "startsit_ppr.json": {
+    "bytes": 2313,
+    "sha1": "7e61c9f67352",
+    "mtime": "2026-08-12T10:03:16.105Z"
+   },
+   "startsit_standard.json": {
+    "bytes": 2306,
+    "sha1": "8d3eb42a418d",
+    "mtime": "2026-08-12T10:03:16.105Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "question": "Hvar liggja thau 94% af flat->ceiling bilinu sem weeklyProjection lokar ekki?",
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "method": {
+  "exAnte": [
+   "flat = seasonProjection/17",
+   "weekly = weeklyProjection(base, implied, def), avail=1"
+  ],
+  "retrospective": [
+   "ceiling = perfect weekly knowledge",
+   "cause classification of every bench regret"
+  ],
+  "leakage": "Nothing from the classification enters flat or weekly. The classifier is analysis of what happened, not a forecast.",
+  "lineupEngine": "src/lineup.js optimalLineup, input sorted QB,RB,WR,TE to reproduce startsit-lab FLEX tie-breaks (measured: 0/3687 mismatches, 8/3687 unsorted)",
+  "pairing": "same-position pairs first, then cross-position by largest regret; the SUM is pairing-invariant and that is self-tested",
+  "cascade": "availability (started player only) -> role -> defense -> td -> unclassified; order is justified because each earlier cause corrupts the later signals",
+  "tdCounterfactual": "actual TD points replaced by expected TD points from the player's own opportunities (measured per-position rates); sums are preserved per position so the scale is unchanged",
+  "halfScoring": "half = (ppr + standard) / 2, exact algebra; half ADP does not exist historically so PPR ADP is used as a bound (same convention as half-lab.mjs)",
+  "clustering": "bootstrap clustered per player (the player the label is attached to)"
+ },
+ "thresholds": {
+  "perPosition": true,
+  "A_availability": {
+   "value": {
+    "QB": 0.6222222222222222,
+    "RB": 0.38095238095238093,
+    "WR": 0.4,
+    "TE": 0.38095238095238093
+   },
+   "definition": "p10 of opp/oppBase over player-weeks with oppBase>=5, PER POSITION",
+   "baseRate": 10
+  },
+  "B_role": {
+   "value": {
+    "QB": 0.23076923076923073,
+    "RB": 0.7593214904560235,
+    "WR": 0.7361105898243495,
+    "TE": 0.7460317460317458
+   },
+   "definition": "p80 of |relative deviation of team-opportunity share from prior-4-week mean|, PER POSITION",
+   "baseRate": 20
+  },
+  "C_defense": {
+   "value": {
+    "QB": 0.5276623297897012,
+    "RB": 0.5101433198885472,
+    "WR": 0.5013102120192603,
+    "TE": 0.7531092609723508
+   },
+   "definition": "p80 of |realized position points allowed / DvP expectation - 1|, both normalised to their own league mean, PER POSITION",
+   "baseRate": 20
+  },
+  "sensitivitySet": {
+   "A": {
+    "QB": 0.4260355029585799,
+    "RB": 0.23529411764705882,
+    "WR": 0.2857142857142857,
+    "TE": 0.27586206896551724
+   },
+   "B": {
+    "QB": 0.681159420289855,
+    "RB": 1,
+    "WR": 1,
+    "TE": 1
+   },
+   "C": {
+    "QB": 0.6762693185021911,
+    "RB": 0.6359875531084191,
+    "WR": 0.6303976510472499,
+    "TE": 0.9157888516258661
+   }
+  },
+  "note": "Percentiles, not chosen numbers. Per position because a pooled cut is fitted on the WR/RB mass and then never fires for QB — the first version reported role=0.0% for QB, which was a property of the threshold, not a fact about QBs."
+ },
+ "tdRatePerOpportunity": {
+  "QB": {
+   "att": 0.17772755127215425,
+   "car": 0.28304882890035726,
+   "tgt": 1.064516129032258
+  },
+  "RB": {
+   "att": 1.0476190476190477,
+   "car": 0.18929627221765638,
+   "tgt": 0.18268937578951955
+  },
+  "WR": {
+   "att": 0.6666666666666666,
+   "car": 0.25952626158599384,
+   "tgt": 0.2915972620763987
+  },
+  "TE": {
+   "att": 0.1553398058252427,
+   "car": 0.45066273932253315,
+   "tgt": 0.324052561416873
+  }
+ },
+ "ptsRatePerOpportunity": {
+  "ppr": {
+   "QB": {
+    "att": 0.43931780379298596,
+    "car": 0.7193595342066958,
+    "tgt": 2.087096774193549
+   },
+   "RB": {
+    "att": 1.1676190476190478,
+    "car": 0.6198128135618179,
+    "tgt": 1.5363462124842164
+   },
+   "WR": {
+    "att": 0.9919999999999999,
+    "car": 0.8422245108135951,
+    "tgt": 1.723214960596854
+   },
+   "TE": {
+    "att": 0.4361165048543689,
+    "car": 0.9016200294550825,
+    "tgt": 1.7528242239573395
+   }
+  },
+  "half": {
+   "QB": {
+    "att": 0.43931780379298596,
+    "car": 0.7193595342066958,
+    "tgt": 1.7080645161290329
+   },
+   "RB": {
+    "att": 1.1676190476190478,
+    "car": 0.6198128135618179,
+    "tgt": 1.1492529511695795
+   },
+   "WR": {
+    "att": 0.9919999999999999,
+    "car": 0.8422245108135951,
+    "tgt": 1.4071289595610372
+   },
+   "TE": {
+    "att": 0.4361165048543689,
+    "car": 0.9016200294550825,
+    "tgt": 1.4033479337269086
+   }
+  },
+  "standard": {
+   "QB": {
+    "att": 0.43931780379298596,
+    "car": 0.7193595342066958,
+    "tgt": 1.3290322580645166
+   },
+   "RB": {
+    "att": 1.1676190476190478,
+    "car": 0.6198128135618179,
+    "tgt": 0.762159689854946
+   },
+   "WR": {
+    "att": 0.9919999999999999,
+    "car": 0.8422245108135951,
+    "tgt": 1.0910429585252164
+   },
+   "TE": {
+    "att": 0.4361165048543689,
+    "car": 0.9016200294550825,
+    "tgt": 1.0538716434964752
+   }
+  }
+ },
+ "oppNeutralLevelErr": {
+  "ppr": 0.528,
+  "half": 0.604,
+  "standard": 0.706
+ },
+ "enrichment": {
+  "all": {
+   "poolN": 13569,
+   "swapN": 3546,
+   "signals": {
+    "availability": {
+     "poolRate": 5.675,
+     "swapRate": 8.037,
+     "enrichment": 1.416
+    },
+    "role": {
+     "poolRate": 9.234,
+     "swapRate": 11.111,
+     "enrichment": 1.203
+    },
+    "defense": {
+     "poolRate": 18.424,
+     "swapRate": 17.71,
+     "enrichment": 0.961
+    }
+   }
+  },
+  "QB": {
+   "poolN": 1942,
+   "swapN": 556,
+   "signals": {
+    "availability": {
+     "poolRate": 4.943,
+     "swapRate": 5.576,
+     "enrichment": 1.128
+    },
+    "role": {
+     "poolRate": 5.819,
+     "swapRate": 5.576,
+     "enrichment": 0.958
+    },
+    "defense": {
+     "poolRate": 18.641,
+     "swapRate": 16.906,
+     "enrichment": 0.907
+    }
+   }
+  },
+  "RB": {
+   "poolN": 4707,
+   "swapN": 1269,
+   "signals": {
+    "availability": {
+     "poolRate": 5.906,
+     "swapRate": 6.698,
+     "enrichment": 1.134
+    },
+    "role": {
+     "poolRate": 8.774,
+     "swapRate": 11.899,
+     "enrichment": 1.356
+    },
+    "defense": {
+     "poolRate": 18.738,
+     "swapRate": 18.913,
+     "enrichment": 1.009
+    }
+   }
+  },
+  "WR": {
+   "poolN": 5388,
+   "swapN": 1379,
+   "signals": {
+    "availability": {
+     "poolRate": 5.846,
+     "swapRate": 10.442,
+     "enrichment": 1.786
+    },
+    "role": {
+     "poolRate": 10.078,
+     "swapRate": 11.965,
+     "enrichment": 1.187
+    },
+    "defense": {
+     "poolRate": 17.409,
+     "swapRate": 17.476,
+     "enrichment": 1.004
+    }
+   }
+  },
+  "TE": {
+   "poolN": 1532,
+   "swapN": 342,
+   "signals": {
+    "availability": {
+     "poolRate": 5.287,
+     "swapRate": 7.31,
+     "enrichment": 1.383
+    },
+    "role": {
+     "poolRate": 12.01,
+     "swapRate": 13.743,
+     "enrichment": 1.144
+    },
+    "defense": {
+     "poolRate": 20.757,
+     "swapRate": 15.497,
+     "enrichment": 0.747
+    }
+   }
+  }
+ },
+ "anchors": {
+  "ppr": {
+   "seasons": [
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "perSeason": {
+    "2019": {
+     "lineups": 182,
+     "flat": 108.8,
+     "weekly": 109.5,
+     "ceiling": 121,
+     "gapPerLineup": 12.2,
+     "pctOfGapClosed": 5.719
+    },
+    "2020": {
+     "lineups": 159,
+     "flat": 107.5,
+     "weekly": 107.7,
+     "ceiling": 119.2,
+     "gapPerLineup": 11.6,
+     "pctOfGapClosed": 1.274
+    },
+    "2021": {
+     "lineups": 174,
+     "flat": 109.8,
+     "weekly": 110.3,
+     "ceiling": 122.3,
+     "gapPerLineup": 12.5,
+     "pctOfGapClosed": 4.028
+    },
+    "2022": {
+     "lineups": 141,
+     "flat": 106,
+     "weekly": 106.8,
+     "ceiling": 115.8,
+     "gapPerLineup": 9.8,
+     "pctOfGapClosed": 8.795
+    },
+    "2023": {
+     "lineups": 197,
+     "flat": 104.3,
+     "weekly": 105.8,
+     "ceiling": 117,
+     "gapPerLineup": 12.7,
+     "pctOfGapClosed": 11.836
+    },
+    "2024": {
+     "lineups": 191,
+     "flat": 111.2,
+     "weekly": 111.6,
+     "ceiling": 122.5,
+     "gapPerLineup": 11.2,
+     "pctOfGapClosed": 3.123
+    },
+    "2025": {
+     "lineups": 185,
+     "flat": 104.3,
+     "weekly": 105,
+     "ceiling": 116.9,
+     "gapPerLineup": 12.6,
+     "pctOfGapClosed": 6.042
+    }
+   },
+   "lineups": 1229,
+   "pctOfGapClosed": 5.831
+  },
+  "half": {
+   "seasons": [
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "perSeason": {
+    "2019": {
+     "lineups": 175,
+     "flat": 95.3,
+     "weekly": 96.3,
+     "ceiling": 105.7,
+     "gapPerLineup": 10.5,
+     "pctOfGapClosed": 9.756
+    },
+    "2020": {
+     "lineups": 159,
+     "flat": 94.9,
+     "weekly": 94.7,
+     "ceiling": 105.2,
+     "gapPerLineup": 10.3,
+     "pctOfGapClosed": -1.071
+    },
+    "2021": {
+     "lineups": 174,
+     "flat": 96.6,
+     "weekly": 96.2,
+     "ceiling": 107.6,
+     "gapPerLineup": 11,
+     "pctOfGapClosed": -3.141
+    },
+    "2022": {
+     "lineups": 143,
+     "flat": 92.4,
+     "weekly": 92.9,
+     "ceiling": 100.9,
+     "gapPerLineup": 8.5,
+     "pctOfGapClosed": 6.097
+    },
+    "2023": {
+     "lineups": 176,
+     "flat": 92.4,
+     "weekly": 92.7,
+     "ceiling": 103,
+     "gapPerLineup": 10.6,
+     "pctOfGapClosed": 3.15
+    },
+    "2024": {
+     "lineups": 184,
+     "flat": 94.8,
+     "weekly": 95.3,
+     "ceiling": 104.5,
+     "gapPerLineup": 9.7,
+     "pctOfGapClosed": 5.742
+    },
+    "2025": {
+     "lineups": 97,
+     "flat": 87.5,
+     "weekly": 87.6,
+     "ceiling": 96.4,
+     "gapPerLineup": 8.9,
+     "pctOfGapClosed": 1.861
+    }
+   },
+   "lineups": 1108,
+   "pctOfGapClosed": 3.199
+  },
+  "standard": {
+   "seasons": [
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "perSeason": {
+    "2019": {
+     "lineups": 167,
+     "flat": 82.4,
+     "weekly": 82.2,
+     "ceiling": 92.5,
+     "gapPerLineup": 10.1,
+     "pctOfGapClosed": -1.23
+    },
+    "2020": {
+     "lineups": 168,
+     "flat": 83.9,
+     "weekly": 84.1,
+     "ceiling": 93.4,
+     "gapPerLineup": 9.5,
+     "pctOfGapClosed": 2.537
+    },
+    "2021": {
+     "lineups": 173,
+     "flat": 81.9,
+     "weekly": 82.2,
+     "ceiling": 92.2,
+     "gapPerLineup": 10.3,
+     "pctOfGapClosed": 3.618
+    },
+    "2022": {
+     "lineups": 188,
+     "flat": 77.7,
+     "weekly": 78.4,
+     "ceiling": 87.6,
+     "gapPerLineup": 9.9,
+     "pctOfGapClosed": 6.998
+    },
+    "2023": {
+     "lineups": 192,
+     "flat": 79.8,
+     "weekly": 80.3,
+     "ceiling": 89.1,
+     "gapPerLineup": 9.2,
+     "pctOfGapClosed": 5.233
+    },
+    "2024": {
+     "lineups": 180,
+     "flat": 80.7,
+     "weekly": 81,
+     "ceiling": 90.4,
+     "gapPerLineup": 9.6,
+     "pctOfGapClosed": 3.189
+    },
+    "2025": {
+     "lineups": 103,
+     "flat": 76,
+     "weekly": 76,
+     "ceiling": 84.6,
+     "gapPerLineup": 8.6,
+     "pctOfGapClosed": 0.424
+    }
+   },
+   "lineups": 1171,
+   "pctOfGapClosed": 2.967
+  },
+  "expected": {
+   "ppr": 5.831,
+   "standard": 2.967
+  },
+  "selfTests": {
+   "sameEstimatorZeroSwaps": true,
+   "pairSumEqualsGap": true,
+   "benchRegretLeftMatches": {
+    "checked": 3508,
+    "bad": 0
+   },
+   "benchRegretAvoidableZero": {
+    "checked": 3508,
+    "bad": 0
+   },
+   "anchorPpr": {
+    "got": 5.831,
+    "want": 5.831
+   },
+   "anchorStandard": {
+    "got": 2.967,
+    "want": 2.967
+   }
+  }
+ },
+ "tdCeiling": {
+  "ppr": {
+   "perSeason": {
+    "2019": {
+     "gapFull": 11.5,
+     "gapTDn": 8.9,
+     "gapOppN": 7.7,
+     "tdShare": 22.632,
+     "outcomeNoiseShare": 32.928,
+     "pctOfGapClosedTDn": 3.816
+    },
+    "2020": {
+     "gapFull": 11.5,
+     "gapTDn": 9.7,
+     "gapOppN": 8.3,
+     "tdShare": 15.881,
+     "outcomeNoiseShare": 27.798,
+     "pctOfGapClosedTDn": 0.888
+    },
+    "2021": {
+     "gapFull": 12,
+     "gapTDn": 9.8,
+     "gapOppN": 8.7,
+     "tdShare": 18.173,
+     "outcomeNoiseShare": 26.902,
+     "pctOfGapClosedTDn": 4.264
+    },
+    "2022": {
+     "gapFull": 9,
+     "gapTDn": 7.6,
+     "gapOppN": 6.7,
+     "tdShare": 15.859,
+     "outcomeNoiseShare": 25.268,
+     "pctOfGapClosedTDn": 4.706
+    },
+    "2023": {
+     "gapFull": 11.2,
+     "gapTDn": 9,
+     "gapOppN": 7.9,
+     "tdShare": 19.38,
+     "outcomeNoiseShare": 29.654,
+     "pctOfGapClosedTDn": 10.788
+    },
+    "2024": {
+     "gapFull": 10.9,
+     "gapTDn": 9.1,
+     "gapOppN": 7.9,
+     "tdShare": 16.425,
+     "outcomeNoiseShare": 27.515,
+     "pctOfGapClosedTDn": 2.831
+    },
+    "2025": {
+     "gapFull": 11.8,
+     "gapTDn": 9.2,
+     "gapOppN": 8,
+     "tdShare": 22.177,
+     "outcomeNoiseShare": 32.786,
+     "pctOfGapClosedTDn": 2.769
+    }
+   },
+   "gapFullPerLineup": 11.182,
+   "tdShare": 18.903,
+   "outcomeNoiseShare": 29.262,
+   "efficiencyShare": 10.359,
+   "pctOfGapClosedTDn": 4.295,
+   "perSeasonTdShare": [
+    22.632,
+    15.881,
+    18.173,
+    15.859,
+    19.38,
+    16.425,
+    22.177
+   ],
+   "perSeasonOutcomeNoise": [
+    32.928,
+    27.798,
+    26.902,
+    25.268,
+    29.654,
+    27.515,
+    32.786
+   ],
+   "outcomeNoiseCI": {
+    "mean": 28.979,
+    "lo": 26.252,
+    "hi": 31.706,
+    "n": 7
+   },
+   "tdShareCI": {
+    "mean": 18.647,
+    "lo": 15.991,
+    "hi": 21.302,
+    "n": 7
+   },
+   "clustering": "season (7); these are lineup-level ratios, not sums of player events"
+  },
+  "half": {
+   "perSeason": {
+    "2019": {
+     "gapFull": 9.4,
+     "gapTDn": 7,
+     "gapOppN": 5.9,
+     "tdShare": 25.382,
+     "outcomeNoiseShare": 37.382,
+     "pctOfGapClosedTDn": 5.552
+    },
+    "2020": {
+     "gapFull": 10.4,
+     "gapTDn": 8.6,
+     "gapOppN": 7.4,
+     "tdShare": 17.885,
+     "outcomeNoiseShare": 29.421,
+     "pctOfGapClosedTDn": -1.667
+    },
+    "2021": {
+     "gapFull": 11.4,
+     "gapTDn": 8.9,
+     "gapOppN": 7.9,
+     "tdShare": 21.868,
+     "outcomeNoiseShare": 30.517,
+     "pctOfGapClosedTDn": -2.245
+    },
+    "2022": {
+     "gapFull": 8,
+     "gapTDn": 6.4,
+     "gapOppN": 5.8,
+     "tdShare": 19.92,
+     "outcomeNoiseShare": 27.699,
+     "pctOfGapClosedTDn": 1.733
+    },
+    "2023": {
+     "gapFull": 10.3,
+     "gapTDn": 7.4,
+     "gapOppN": 6.5,
+     "tdShare": 28.137,
+     "outcomeNoiseShare": 36.936,
+     "pctOfGapClosedTDn": 4.173
+    },
+    "2024": {
+     "gapFull": 9.1,
+     "gapTDn": 7.1,
+     "gapOppN": 6.2,
+     "tdShare": 22.68,
+     "outcomeNoiseShare": 32.462,
+     "pctOfGapClosedTDn": 5.422
+    },
+    "2025": {
+     "gapFull": 8.8,
+     "gapTDn": 6,
+     "gapOppN": 5.1,
+     "tdShare": 31.792,
+     "outcomeNoiseShare": 41.913,
+     "pctOfGapClosedTDn": 1.944
+    }
+   },
+   "gapFullPerLineup": 9.726,
+   "tdShare": 23.547,
+   "outcomeNoiseShare": 33.378,
+   "efficiencyShare": 9.831,
+   "pctOfGapClosedTDn": 2.13,
+   "perSeasonTdShare": [
+    25.382,
+    17.885,
+    21.868,
+    19.92,
+    28.137,
+    22.68,
+    31.792
+   ],
+   "perSeasonOutcomeNoise": [
+    37.382,
+    29.421,
+    30.517,
+    27.699,
+    36.936,
+    32.462,
+    41.913
+   ],
+   "outcomeNoiseCI": {
+    "mean": 33.761,
+    "lo": 29.024,
+    "hi": 38.499,
+    "n": 7
+   },
+   "tdShareCI": {
+    "mean": 23.952,
+    "lo": 19.484,
+    "hi": 28.42,
+    "n": 7
+   },
+   "clustering": "season (7); these are lineup-level ratios, not sums of player events"
+  },
+  "standard": {
+   "perSeason": {
+    "2019": {
+     "gapFull": 10.3,
+     "gapTDn": 6.9,
+     "gapOppN": 5.8,
+     "tdShare": 32.546,
+     "outcomeNoiseShare": 43.787,
+     "pctOfGapClosedTDn": -5.261
+    },
+    "2020": {
+     "gapFull": 9.2,
+     "gapTDn": 6.6,
+     "gapOppN": 5.6,
+     "tdShare": 28.156,
+     "outcomeNoiseShare": 39.517,
+     "pctOfGapClosedTDn": -1.348
+    },
+    "2021": {
+     "gapFull": 9.9,
+     "gapTDn": 7.5,
+     "gapOppN": 6.4,
+     "tdShare": 24.17,
+     "outcomeNoiseShare": 35.292,
+     "pctOfGapClosedTDn": 6.25
+    },
+    "2022": {
+     "gapFull": 9.2,
+     "gapTDn": 6.1,
+     "gapOppN": 4.7,
+     "tdShare": 34.105,
+     "outcomeNoiseShare": 49.511,
+     "pctOfGapClosedTDn": 7.915
+    },
+    "2023": {
+     "gapFull": 8.7,
+     "gapTDn": 6.5,
+     "gapOppN": 5.5,
+     "tdShare": 26.094,
+     "outcomeNoiseShare": 36.573,
+     "pctOfGapClosedTDn": 2.861
+    },
+    "2024": {
+     "gapFull": 9.3,
+     "gapTDn": 6.6,
+     "gapOppN": 5.8,
+     "tdShare": 28.853,
+     "outcomeNoiseShare": 38.071,
+     "pctOfGapClosedTDn": 2.508
+    },
+    "2025": {
+     "gapFull": 8.6,
+     "gapTDn": 5.7,
+     "gapOppN": 5,
+     "tdShare": 33.705,
+     "outcomeNoiseShare": 41.758,
+     "pctOfGapClosedTDn": -3.391
+    }
+   },
+   "gapFullPerLineup": 9.357,
+   "tdShare": 29.398,
+   "outcomeNoiseShare": 40.612,
+   "efficiencyShare": 11.214,
+   "pctOfGapClosedTDn": 1.362,
+   "perSeasonTdShare": [
+    32.546,
+    28.156,
+    24.17,
+    34.105,
+    26.094,
+    28.853,
+    33.705
+   ],
+   "perSeasonOutcomeNoise": [
+    43.787,
+    39.517,
+    35.292,
+    49.511,
+    36.573,
+    38.071,
+    41.758
+   ],
+   "outcomeNoiseCI": {
+    "mean": 40.644,
+    "lo": 36.131,
+    "hi": 45.157,
+    "n": 7
+   },
+   "tdShareCI": {
+    "mean": 29.661,
+    "lo": 26.075,
+    "hi": 33.248,
+    "n": 7
+   },
+   "clustering": "season (7); these are lineup-level ratios, not sums of player events"
+  }
+ },
+ "rollupByFormat": {
+  "ppr": {
+   "totalPoints": 11.182,
+   "events": 1773,
+   "clusters": 345,
+   "causes": {
+    "availability": {
+     "share": 16.12,
+     "points": 1.803,
+     "ci": [
+      13.6,
+      18.7
+     ],
+     "n": 253
+    },
+    "role": {
+     "share": 14.904,
+     "points": 1.667,
+     "ci": [
+      12.7,
+      17.2
+     ],
+     "n": 237
+    },
+    "defense": {
+     "share": 26.659,
+     "points": 2.981,
+     "ci": [
+      23.7,
+      29.6
+     ],
+     "n": 400
+    },
+    "td": {
+     "share": 10.796,
+     "points": 1.207,
+     "ci": [
+      9,
+      12.8
+     ],
+     "n": 252
+    },
+    "unclassified": {
+     "share": 31.522,
+     "points": 3.525,
+     "ci": [
+      29.1,
+      34.3
+     ],
+     "n": 631
+    }
+   }
+  },
+  "half": {
+   "totalPoints": 9.726,
+   "events": 1479,
+   "clusters": 319,
+   "causes": {
+    "availability": {
+     "share": 15.689,
+     "points": 1.526,
+     "ci": [
+      13,
+      18.5
+     ],
+     "n": 203
+    },
+    "role": {
+     "share": 15.322,
+     "points": 1.49,
+     "ci": [
+      12.8,
+      18.2
+     ],
+     "n": 200
+    },
+    "defense": {
+     "share": 29.659,
+     "points": 2.884,
+     "ci": [
+      26.4,
+      33.2
+     ],
+     "n": 380
+    },
+    "td": {
+     "share": 13.072,
+     "points": 1.271,
+     "ci": [
+      10.8,
+      15.5
+     ],
+     "n": 246
+    },
+    "unclassified": {
+     "share": 26.259,
+     "points": 2.554,
+     "ci": [
+      23.7,
+      29
+     ],
+     "n": 450
+    }
+   }
+  },
+  "standard": {
+   "totalPoints": 9.357,
+   "events": 1637,
+   "clusters": 334,
+   "causes": {
+    "availability": {
+     "share": 15.623,
+     "points": 1.462,
+     "ci": [
+      13,
+      18.2
+     ],
+     "n": 209
+    },
+    "role": {
+     "share": 14.256,
+     "points": 1.334,
+     "ci": [
+      12,
+      17
+     ],
+     "n": 223
+    },
+    "defense": {
+     "share": 35.364,
+     "points": 3.309,
+     "ci": [
+      32.1,
+      39
+     ],
+     "n": 503
+    },
+    "td": {
+     "share": 13.115,
+     "points": 1.227,
+     "ci": [
+      10.3,
+      15.9
+     ],
+     "n": 280
+    },
+    "unclassified": {
+     "share": 21.642,
+     "points": 2.025,
+     "ci": [
+      19.3,
+      23.8
+     ],
+     "n": 422
+    }
+   }
+  }
+ },
+ "rollupByPosition": {
+  "QB|ppr": {
+   "totalPoints": 1.631,
+   "events": 278,
+   "clusters": 44,
+   "causes": {
+    "availability": {
+     "share": 13.479,
+     "points": 0.22,
+     "ci": [
+      7.7,
+      18.9
+     ],
+     "n": 25
+    },
+    "role": {
+     "share": 4.702,
+     "points": 0.077,
+     "ci": [
+      0.9,
+      9.4
+     ],
+     "n": 13
+    },
+    "defense": {
+     "share": 35.038,
+     "points": 0.572,
+     "ci": [
+      28.7,
+      41.4
+     ],
+     "n": 68
+    },
+    "td": {
+     "share": 25.411,
+     "points": 0.414,
+     "ci": [
+      20.3,
+      30.9
+     ],
+     "n": 91
+    },
+    "unclassified": {
+     "share": 21.37,
+     "points": 0.349,
+     "ci": [
+      15.5,
+      28.1
+     ],
+     "n": 81
+    }
+   }
+  },
+  "RB|ppr": {
+   "totalPoints": 4.044,
+   "events": 634,
+   "clusters": 133,
+   "causes": {
+    "availability": {
+     "share": 14.466,
+     "points": 0.585,
+     "ci": [
+      10.5,
+      18.7
+     ],
+     "n": 74
+    },
+    "role": {
+     "share": 15.845,
+     "points": 0.641,
+     "ci": [
+      11.3,
+      21
+     ],
+     "n": 99
+    },
+    "defense": {
+     "share": 28.07,
+     "points": 1.135,
+     "ci": [
+      23.3,
+      33.7
+     ],
+     "n": 157
+    },
+    "td": {
+     "share": 10.74,
+     "points": 0.434,
+     "ci": [
+      7.4,
+      14.2
+     ],
+     "n": 90
+    },
+    "unclassified": {
+     "share": 30.88,
+     "points": 1.249,
+     "ci": [
+      26.9,
+      35.6
+     ],
+     "n": 214
+    }
+   }
+  },
+  "WR|ppr": {
+   "totalPoints": 4.535,
+   "events": 697,
+   "clusters": 135,
+   "causes": {
+    "availability": {
+     "share": 19.291,
+     "points": 0.875,
+     "ci": [
+      14.8,
+      23.9
+     ],
+     "n": 131
+    },
+    "role": {
+     "share": 15.7,
+     "points": 0.712,
+     "ci": [
+      12.3,
+      19.3
+     ],
+     "n": 90
+    },
+    "defense": {
+     "share": 22.706,
+     "points": 1.03,
+     "ci": [
+      18.7,
+      26.9
+     ],
+     "n": 147
+    },
+    "td": {
+     "share": 5.544,
+     "points": 0.251,
+     "ci": [
+      3.8,
+      7.9
+     ],
+     "n": 49
+    },
+    "unclassified": {
+     "share": 36.76,
+     "points": 1.667,
+     "ci": [
+      32.7,
+      40.8
+     ],
+     "n": 280
+    }
+   }
+  },
+  "TE|ppr": {
+   "totalPoints": 0.971,
+   "events": 164,
+   "clusters": 33,
+   "causes": {
+    "availability": {
+     "share": 12.631,
+     "points": 0.123,
+     "ci": [
+      6.2,
+      20.5
+     ],
+     "n": 23
+    },
+    "role": {
+     "share": 24.407,
+     "points": 0.237,
+     "ci": [
+      14.9,
+      34.2
+     ],
+     "n": 35
+    },
+    "defense": {
+     "share": 25.17,
+     "points": 0.245,
+     "ci": [
+      15.4,
+      35
+     ],
+     "n": 28
+    },
+    "td": {
+     "share": 11.006,
+     "points": 0.107,
+     "ci": [
+      4.3,
+      18.7
+     ],
+     "n": 22
+    },
+    "unclassified": {
+     "share": 26.786,
+     "points": 0.26,
+     "ci": [
+      17.8,
+      37
+     ],
+     "n": 56
+    }
+   }
+  },
+  "QB|half": {
+   "totalPoints": 1.511,
+   "events": 228,
+   "clusters": 43,
+   "causes": {
+    "availability": {
+     "share": 12.417,
+     "points": 0.188,
+     "ci": [
+      6.3,
+      18.6
+     ],
+     "n": 19
+    },
+    "role": {
+     "share": 6.077,
+     "points": 0.092,
+     "ci": [
+      1.3,
+      12.7
+     ],
+     "n": 11
+    },
+    "defense": {
+     "share": 32.373,
+     "points": 0.489,
+     "ci": [
+      25.6,
+      38.5
+     ],
+     "n": 53
+    },
+    "td": {
+     "share": 27.664,
+     "points": 0.418,
+     "ci": [
+      22.1,
+      33.1
+     ],
+     "n": 82
+    },
+    "unclassified": {
+     "share": 21.469,
+     "points": 0.324,
+     "ci": [
+      16.3,
+      28.8
+     ],
+     "n": 63
+    }
+   }
+  },
+  "RB|half": {
+   "totalPoints": 3.555,
+   "events": 545,
+   "clusters": 122,
+   "causes": {
+    "availability": {
+     "share": 14.458,
+     "points": 0.514,
+     "ci": [
+      10.2,
+      19.1
+     ],
+     "n": 63
+    },
+    "role": {
+     "share": 16.377,
+     "points": 0.582,
+     "ci": [
+      12.7,
+      20.9
+     ],
+     "n": 89
+    },
+    "defense": {
+     "share": 34.461,
+     "points": 1.225,
+     "ci": [
+      28.9,
+      41.2
+     ],
+     "n": 166
+    },
+    "td": {
+     "share": 11.066,
+     "points": 0.393,
+     "ci": [
+      7.4,
+      15.7
+     ],
+     "n": 81
+    },
+    "unclassified": {
+     "share": 23.638,
+     "points": 0.84,
+     "ci": [
+      19.9,
+      27.4
+     ],
+     "n": 146
+    }
+   }
+  },
+  "WR|half": {
+   "totalPoints": 3.677,
+   "events": 555,
+   "clusters": 121,
+   "causes": {
+    "availability": {
+     "share": 19.779,
+     "points": 0.727,
+     "ci": [
+      15.7,
+      24.4
+     ],
+     "n": 104
+    },
+    "role": {
+     "share": 15.359,
+     "points": 0.565,
+     "ci": [
+      11.5,
+      19.5
+     ],
+     "n": 68
+    },
+    "defense": {
+     "share": 23.823,
+     "points": 0.876,
+     "ci": [
+      19.3,
+      28.6
+     ],
+     "n": 129
+    },
+    "td": {
+     "share": 8.57,
+     "points": 0.315,
+     "ci": [
+      6.1,
+      11.6
+     ],
+     "n": 58
+    },
+    "unclassified": {
+     "share": 32.469,
+     "points": 1.194,
+     "ci": [
+      27.8,
+      37
+     ],
+     "n": 196
+    }
+   }
+  },
+  "TE|half": {
+   "totalPoints": 0.983,
+   "events": 151,
+   "clusters": 33,
+   "causes": {
+    "availability": {
+     "share": 9.869,
+     "points": 0.097,
+     "ci": [
+      3.8,
+      18.6
+     ],
+     "n": 17
+    },
+    "role": {
+     "share": 25.571,
+     "points": 0.251,
+     "ci": [
+      17.3,
+      33.6
+     ],
+     "n": 32
+    },
+    "defense": {
+     "share": 29.948,
+     "points": 0.294,
+     "ci": [
+      19.3,
+      38.2
+     ],
+     "n": 32
+    },
+    "td": {
+     "share": 14.744,
+     "points": 0.145,
+     "ci": [
+      7.7,
+      23.7
+     ],
+     "n": 25
+    },
+    "unclassified": {
+     "share": 19.867,
+     "points": 0.195,
+     "ci": [
+      14.5,
+      27.7
+     ],
+     "n": 45
+    }
+   }
+  },
+  "QB|standard": {
+   "totalPoints": 1.826,
+   "events": 285,
+   "clusters": 44,
+   "causes": {
+    "availability": {
+     "share": 9.64,
+     "points": 0.176,
+     "ci": [
+      5.2,
+      14.8
+     ],
+     "n": 16
+    },
+    "role": {
+     "share": 6.055,
+     "points": 0.111,
+     "ci": [
+      2.9,
+      10.2
+     ],
+     "n": 22
+    },
+    "defense": {
+     "share": 37.009,
+     "points": 0.676,
+     "ci": [
+      28,
+      45.8
+     ],
+     "n": 66
+    },
+    "td": {
+     "share": 24.94,
+     "points": 0.455,
+     "ci": [
+      18.3,
+      33
+     ],
+     "n": 101
+    },
+    "unclassified": {
+     "share": 22.356,
+     "points": 0.408,
+     "ci": [
+      16.4,
+      27.8
+     ],
+     "n": 80
+    }
+   }
+  },
+  "RB|standard": {
+   "totalPoints": 3.641,
+   "events": 617,
+   "clusters": 130,
+   "causes": {
+    "availability": {
+     "share": 17.208,
+     "points": 0.627,
+     "ci": [
+      12.7,
+      21.9
+     ],
+     "n": 90
+    },
+    "role": {
+     "share": 15.168,
+     "points": 0.552,
+     "ci": [
+      11.3,
+      19.7
+     ],
+     "n": 91
+    },
+    "defense": {
+     "share": 38.626,
+     "points": 1.406,
+     "ci": [
+      32.9,
+      44.5
+     ],
+     "n": 210
+    },
+    "td": {
+     "share": 9.973,
+     "points": 0.363,
+     "ci": [
+      7.2,
+      13.6
+     ],
+     "n": 90
+    },
+    "unclassified": {
+     "share": 19.025,
+     "points": 0.693,
+     "ci": [
+      15.3,
+      23.1
+     ],
+     "n": 136
+    }
+   }
+  },
+  "WR|standard": {
+   "totalPoints": 3.131,
+   "events": 574,
+   "clusters": 122,
+   "causes": {
+    "availability": {
+     "share": 18.562,
+     "points": 0.581,
+     "ci": [
+      14,
+      23.5
+     ],
+     "n": 85
+    },
+    "role": {
+     "share": 14.235,
+     "points": 0.446,
+     "ci": [
+      10.4,
+      19.2
+     ],
+     "n": 73
+    },
+    "defense": {
+     "share": 29.89,
+     "points": 0.936,
+     "ci": [
+      25.5,
+      34.7
+     ],
+     "n": 176
+    },
+    "td": {
+     "share": 11.3,
+     "points": 0.354,
+     "ci": [
+      8,
+      15
+     ],
+     "n": 70
+    },
+    "unclassified": {
+     "share": 26.012,
+     "points": 0.815,
+     "ci": [
+      22,
+      29.8
+     ],
+     "n": 170
+    }
+   }
+  },
+  "TE|standard": {
+   "totalPoints": 0.758,
+   "events": 161,
+   "clusters": 38,
+   "causes": {
+    "availability": {
+     "share": 10.277,
+     "points": 0.078,
+     "ci": [
+      2.6,
+      18
+     ],
+     "n": 18
+    },
+    "role": {
+     "share": 29.72,
+     "points": 0.225,
+     "ci": [
+      19,
+      42
+     ],
+     "n": 37
+    },
+    "defense": {
+     "share": 38.35,
+     "points": 0.291,
+     "ci": [
+      29.1,
+      48.5
+     ],
+     "n": 51
+    },
+    "td": {
+     "share": 7.21,
+     "points": 0.055,
+     "ci": [
+      3.3,
+      13.6
+     ],
+     "n": 19
+    },
+    "unclassified": {
+     "share": 14.443,
+     "points": 0.109,
+     "ci": [
+      8,
+      22.4
+     ],
+     "n": 36
+    }
+   }
+  }
+ },
+ "rollupByPositionNoDefenseStep": {
+  "QB": {
+   "totalPoints": 1.631,
+   "events": 278,
+   "clusters": 44,
+   "causes": {
+    "availability": {
+     "share": 13.479,
+     "points": 0.22,
+     "ci": [
+      7.7,
+      18.9
+     ],
+     "n": 25
+    },
+    "role": {
+     "share": 4.702,
+     "points": 0.077,
+     "ci": [
+      0.9,
+      9.4
+     ],
+     "n": 13
+    },
+    "defense": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "td": {
+     "share": 46.817,
+     "points": 0.764,
+     "ci": [
+      40.6,
+      53.8
+     ],
+     "n": 135
+    },
+    "unclassified": {
+     "share": 35.002,
+     "points": 0.571,
+     "ci": [
+      28.5,
+      42.2
+     ],
+     "n": 105
+    }
+   }
+  },
+  "RB": {
+   "totalPoints": 4.044,
+   "events": 634,
+   "clusters": 133,
+   "causes": {
+    "availability": {
+     "share": 14.466,
+     "points": 0.585,
+     "ci": [
+      10.5,
+      18.7
+     ],
+     "n": 74
+    },
+    "role": {
+     "share": 15.845,
+     "points": 0.641,
+     "ci": [
+      11.3,
+      21
+     ],
+     "n": 99
+    },
+    "defense": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "td": {
+     "share": 16.641,
+     "points": 0.673,
+     "ci": [
+      12.4,
+      20.5
+     ],
+     "n": 119
+    },
+    "unclassified": {
+     "share": 53.049,
+     "points": 2.145,
+     "ci": [
+      47.9,
+      58.9
+     ],
+     "n": 342
+    }
+   }
+  },
+  "WR": {
+   "totalPoints": 4.535,
+   "events": 697,
+   "clusters": 135,
+   "causes": {
+    "availability": {
+     "share": 19.291,
+     "points": 0.875,
+     "ci": [
+      14.8,
+      23.9
+     ],
+     "n": 131
+    },
+    "role": {
+     "share": 15.7,
+     "points": 0.712,
+     "ci": [
+      12.3,
+      19.3
+     ],
+     "n": 90
+    },
+    "defense": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "td": {
+     "share": 8.705,
+     "points": 0.395,
+     "ci": [
+      6.1,
+      11.6
+     ],
+     "n": 73
+    },
+    "unclassified": {
+     "share": 56.304,
+     "points": 2.554,
+     "ci": [
+      51.8,
+      60.9
+     ],
+     "n": 403
+    }
+   }
+  },
+  "TE": {
+   "totalPoints": 0.971,
+   "events": 164,
+   "clusters": 33,
+   "causes": {
+    "availability": {
+     "share": 12.631,
+     "points": 0.123,
+     "ci": [
+      6.2,
+      20.5
+     ],
+     "n": 23
+    },
+    "role": {
+     "share": 24.407,
+     "points": 0.237,
+     "ci": [
+      14.9,
+      34.2
+     ],
+     "n": 35
+    },
+    "defense": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "td": {
+     "share": 15.01,
+     "points": 0.146,
+     "ci": [
+      6.7,
+      24.1
+     ],
+     "n": 25
+    },
+    "unclassified": {
+     "share": 47.952,
+     "points": 0.466,
+     "ci": [
+      35.9,
+      62.9
+     ],
+     "n": 81
+    }
+   }
+  }
+ },
+ "rollupByWeekBand": {
+  "1-4|ppr": {
+   "totalPoints": 3.423,
+   "events": 558,
+   "clusters": 260,
+   "causes": {
+    "availability": {
+     "share": 8.455,
+     "points": 0.289,
+     "ci": [
+      5.8,
+      11.3
+     ],
+     "n": 35
+    },
+    "role": {
+     "share": 10.157,
+     "points": 0.348,
+     "ci": [
+      7.1,
+      13.7
+     ],
+     "n": 47
+    },
+    "defense": {
+     "share": 31.205,
+     "points": 1.068,
+     "ci": [
+      25,
+      37.8
+     ],
+     "n": 147
+    },
+    "td": {
+     "share": 11.555,
+     "points": 0.396,
+     "ci": [
+      8.6,
+      14.4
+     ],
+     "n": 92
+    },
+    "unclassified": {
+     "share": 38.627,
+     "points": 1.322,
+     "ci": [
+      33.3,
+      44.9
+     ],
+     "n": 237
+    }
+   }
+  },
+  "5-9|ppr": {
+   "totalPoints": 2.76,
+   "events": 456,
+   "clusters": 234,
+   "causes": {
+    "availability": {
+     "share": 17.422,
+     "points": 0.481,
+     "ci": [
+      13.3,
+      21.9
+     ],
+     "n": 77
+    },
+    "role": {
+     "share": 20.446,
+     "points": 0.564,
+     "ci": [
+      15.4,
+      26.9
+     ],
+     "n": 80
+    },
+    "defense": {
+     "share": 21.973,
+     "points": 0.606,
+     "ci": [
+      17.7,
+      27
+     ],
+     "n": 84
+    },
+    "td": {
+     "share": 12.037,
+     "points": 0.332,
+     "ci": [
+      8.1,
+      16.2
+     ],
+     "n": 66
+    },
+    "unclassified": {
+     "share": 28.122,
+     "points": 0.776,
+     "ci": [
+      23.1,
+      33.2
+     ],
+     "n": 149
+    }
+   }
+  },
+  "10-17|ppr": {
+   "totalPoints": 4.999,
+   "events": 759,
+   "clusters": 283,
+   "causes": {
+    "availability": {
+     "share": 20.649,
+     "points": 1.032,
+     "ci": [
+      16.4,
+      25.4
+     ],
+     "n": 141
+    },
+    "role": {
+     "share": 15.095,
+     "points": 0.755,
+     "ci": [
+      11.8,
+      18.4
+     ],
+     "n": 110
+    },
+    "defense": {
+     "share": 26.133,
+     "points": 1.306,
+     "ci": [
+      22.1,
+      30.8
+     ],
+     "n": 169
+    },
+    "td": {
+     "share": 9.59,
+     "points": 0.479,
+     "ci": [
+      7.4,
+      12.6
+     ],
+     "n": 94
+    },
+    "unclassified": {
+     "share": 28.533,
+     "points": 1.426,
+     "ci": [
+      24.8,
+      32.5
+     ],
+     "n": 245
+    }
+   }
+  },
+  "1-4|half": {
+   "totalPoints": 3.225,
+   "events": 501,
+   "clusters": 245,
+   "causes": {
+    "availability": {
+     "share": 8.523,
+     "points": 0.275,
+     "ci": [
+      5.4,
+      11.9
+     ],
+     "n": 30
+    },
+    "role": {
+     "share": 9.349,
+     "points": 0.301,
+     "ci": [
+      6.2,
+      12.9
+     ],
+     "n": 38
+    },
+    "defense": {
+     "share": 36.809,
+     "points": 1.187,
+     "ci": [
+      30.9,
+      43.2
+     ],
+     "n": 159
+    },
+    "td": {
+     "share": 13.863,
+     "points": 0.447,
+     "ci": [
+      10.5,
+      17.7
+     ],
+     "n": 92
+    },
+    "unclassified": {
+     "share": 31.456,
+     "points": 1.014,
+     "ci": [
+      26.5,
+      37.7
+     ],
+     "n": 182
+    }
+   }
+  },
+  "5-9|half": {
+   "totalPoints": 2.418,
+   "events": 371,
+   "clusters": 207,
+   "causes": {
+    "availability": {
+     "share": 14.069,
+     "points": 0.34,
+     "ci": [
+      10.2,
+      18.2
+     ],
+     "n": 58
+    },
+    "role": {
+     "share": 21.275,
+     "points": 0.514,
+     "ci": [
+      15.9,
+      27.6
+     ],
+     "n": 65
+    },
+    "defense": {
+     "share": 26.905,
+     "points": 0.65,
+     "ci": [
+      21.2,
+      32.4
+     ],
+     "n": 83
+    },
+    "td": {
+     "share": 14.407,
+     "points": 0.348,
+     "ci": [
+      9.7,
+      20
+     ],
+     "n": 64
+    },
+    "unclassified": {
+     "share": 23.343,
+     "points": 0.564,
+     "ci": [
+      18.3,
+      28.3
+     ],
+     "n": 101
+    }
+   }
+  },
+  "10-17|half": {
+   "totalPoints": 4.083,
+   "events": 607,
+   "clusters": 256,
+   "causes": {
+    "availability": {
+     "share": 22.306,
+     "points": 0.911,
+     "ci": [
+      17.7,
+      27.5
+     ],
+     "n": 115
+    },
+    "role": {
+     "share": 16.513,
+     "points": 0.674,
+     "ci": [
+      12.5,
+      20.9
+     ],
+     "n": 97
+    },
+    "defense": {
+     "share": 25.643,
+     "points": 1.047,
+     "ci": [
+      20.8,
+      30.9
+     ],
+     "n": 138
+    },
+    "td": {
+     "share": 11.657,
+     "points": 0.476,
+     "ci": [
+      8.7,
+      15.2
+     ],
+     "n": 90
+    },
+    "unclassified": {
+     "share": 23.881,
+     "points": 0.975,
+     "ci": [
+      20,
+      28.2
+     ],
+     "n": 167
+    }
+   }
+  },
+  "1-4|standard": {
+   "totalPoints": 2.889,
+   "events": 546,
+   "clusters": 252,
+   "causes": {
+    "availability": {
+     "share": 7.348,
+     "points": 0.212,
+     "ci": [
+      4.5,
+      11
+     ],
+     "n": 32
+    },
+    "role": {
+     "share": 9.15,
+     "points": 0.264,
+     "ci": [
+      6.2,
+      13.2
+     ],
+     "n": 43
+    },
+    "defense": {
+     "share": 41.225,
+     "points": 1.191,
+     "ci": [
+      35,
+      47.1
+     ],
+     "n": 194
+    },
+    "td": {
+     "share": 13.841,
+     "points": 0.4,
+     "ci": [
+      9.7,
+      18.3
+     ],
+     "n": 107
+    },
+    "unclassified": {
+     "share": 28.436,
+     "points": 0.822,
+     "ci": [
+      23.7,
+      33.3
+     ],
+     "n": 170
+    }
+   }
+  },
+  "5-9|standard": {
+   "totalPoints": 2.162,
+   "events": 386,
+   "clusters": 208,
+   "causes": {
+    "availability": {
+     "share": 22.039,
+     "points": 0.477,
+     "ci": [
+      17,
+      27.6
+     ],
+     "n": 72
+    },
+    "role": {
+     "share": 12.686,
+     "points": 0.274,
+     "ci": [
+      8.6,
+      16.9
+     ],
+     "n": 52
+    },
+    "defense": {
+     "share": 31.09,
+     "points": 0.672,
+     "ci": [
+      24.5,
+      38.3
+     ],
+     "n": 100
+    },
+    "td": {
+     "share": 13.33,
+     "points": 0.288,
+     "ci": [
+      10,
+      17.7
+     ],
+     "n": 64
+    },
+    "unclassified": {
+     "share": 20.855,
+     "points": 0.451,
+     "ci": [
+      17,
+      26.2
+     ],
+     "n": 98
+    }
+   }
+  },
+  "10-17|standard": {
+   "totalPoints": 4.306,
+   "events": 705,
+   "clusters": 268,
+   "causes": {
+    "availability": {
+     "share": 17.953,
+     "points": 0.773,
+     "ci": [
+      14.1,
+      22.6
+     ],
+     "n": 105
+    },
+    "role": {
+     "share": 18.471,
+     "points": 0.795,
+     "ci": [
+      15.2,
+      22.6
+     ],
+     "n": 128
+    },
+    "defense": {
+     "share": 33.578,
+     "points": 1.446,
+     "ci": [
+      28.5,
+      39.1
+     ],
+     "n": 209
+    },
+    "td": {
+     "share": 12.52,
+     "points": 0.539,
+     "ci": [
+      9,
+      15.9
+     ],
+     "n": 109
+    },
+    "unclassified": {
+     "share": 17.479,
+     "points": 0.753,
+     "ci": [
+      14.5,
+      20.8
+     ],
+     "n": 154
+    }
+   }
+  }
+ },
+ "cells": {
+  "QB|1-4|ppr": {
+   "totalPoints": 0.393,
+   "events": 82,
+   "clusters": 37,
+   "causes": {
+    "availability": {
+     "share": 3.487,
+     "points": 0.014,
+     "ci": [
+      0,
+      10.1
+     ],
+     "n": 2
+    },
+    "role": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "defense": {
+     "share": 40.541,
+     "points": 0.16,
+     "ci": [
+      24.7,
+      54.3
+     ],
+     "n": 21
+    },
+    "td": {
+     "share": 34.837,
+     "points": 0.137,
+     "ci": [
+      22.8,
+      50
+     ],
+     "n": 36
+    },
+    "unclassified": {
+     "share": 21.135,
+     "points": 0.083,
+     "ci": [
+      11.7,
+      32.7
+     ],
+     "n": 23
+    }
+   }
+  },
+  "QB|5-9|ppr": {
+   "totalPoints": 0.46,
+   "events": 71,
+   "clusters": 33,
+   "causes": {
+    "availability": {
+     "share": 11.563,
+     "points": 0.053,
+     "ci": [
+      2.8,
+      21.3
+     ],
+     "n": 6
+    },
+    "role": {
+     "share": 10.746,
+     "points": 0.049,
+     "ci": [
+      0.3,
+      23.2
+     ],
+     "n": 7
+    },
+    "defense": {
+     "share": 32.733,
+     "points": 0.151,
+     "ci": [
+      21.2,
+      44.1
+     ],
+     "n": 18
+    },
+    "td": {
+     "share": 27.295,
+     "points": 0.126,
+     "ci": [
+      15.9,
+      40.1
+     ],
+     "n": 20
+    },
+    "unclassified": {
+     "share": 17.663,
+     "points": 0.081,
+     "ci": [
+      10.2,
+      27.5
+     ],
+     "n": 20
+    }
+   }
+  },
+  "QB|10-17|ppr": {
+   "totalPoints": 0.778,
+   "events": 125,
+   "clusters": 38,
+   "causes": {
+    "availability": {
+     "share": 19.667,
+     "points": 0.153,
+     "ci": [
+      10.7,
+      27.7
+     ],
+     "n": 17
+    },
+    "role": {
+     "share": 3.506,
+     "points": 0.027,
+     "ci": [
+      0.2,
+      7.6
+     ],
+     "n": 6
+    },
+    "defense": {
+     "share": 33.617,
+     "points": 0.261,
+     "ci": [
+      22.7,
+      46.4
+     ],
+     "n": 29
+    },
+    "td": {
+     "share": 19.528,
+     "points": 0.152,
+     "ci": [
+      13.9,
+      26.6
+     ],
+     "n": 35
+    },
+    "unclassified": {
+     "share": 23.681,
+     "points": 0.184,
+     "ci": [
+      15.5,
+      32.3
+     ],
+     "n": 38
+    }
+   }
+  },
+  "RB|1-4|ppr": {
+   "totalPoints": 1.225,
+   "events": 199,
+   "clusters": 94,
+   "causes": {
+    "availability": {
+     "share": 4.292,
+     "points": 0.053,
+     "ci": [
+      1,
+      8.2
+     ],
+     "n": 6
+    },
+    "role": {
+     "share": 8.567,
+     "points": 0.105,
+     "ci": [
+      3.7,
+      14.8
+     ],
+     "n": 15
+    },
+    "defense": {
+     "share": 35.89,
+     "points": 0.44,
+     "ci": [
+      25.8,
+      47.7
+     ],
+     "n": 65
+    },
+    "td": {
+     "share": 9.853,
+     "points": 0.121,
+     "ci": [
+      5.8,
+      14.1
+     ],
+     "n": 31
+    },
+    "unclassified": {
+     "share": 41.399,
+     "points": 0.507,
+     "ci": [
+      31.7,
+      51.4
+     ],
+     "n": 82
+    }
+   }
+  },
+  "RB|5-9|ppr": {
+   "totalPoints": 0.929,
+   "events": 164,
+   "clusters": 89,
+   "causes": {
+    "availability": {
+     "share": 12.113,
+     "points": 0.113,
+     "ci": [
+      6.6,
+      18.4
+     ],
+     "n": 20
+    },
+    "role": {
+     "share": 21.027,
+     "points": 0.195,
+     "ci": [
+      13,
+      30.5
+     ],
+     "n": 32
+    },
+    "defense": {
+     "share": 22.955,
+     "points": 0.213,
+     "ci": [
+      14,
+      32.1
+     ],
+     "n": 28
+    },
+    "td": {
+     "share": 13.628,
+     "points": 0.127,
+     "ci": [
+      6.4,
+      22.5
+     ],
+     "n": 28
+    },
+    "unclassified": {
+     "share": 30.277,
+     "points": 0.281,
+     "ci": [
+      23.2,
+      38.3
+     ],
+     "n": 56
+    }
+   }
+  },
+  "RB|10-17|ppr": {
+   "totalPoints": 1.89,
+   "events": 271,
+   "clusters": 107,
+   "causes": {
+    "availability": {
+     "share": 22.214,
+     "points": 0.42,
+     "ci": [
+      14.3,
+      29.7
+     ],
+     "n": 48
+    },
+    "role": {
+     "share": 18.013,
+     "points": 0.341,
+     "ci": [
+      12.3,
+      24.7
+     ],
+     "n": 52
+    },
+    "defense": {
+     "share": 25.518,
+     "points": 0.482,
+     "ci": [
+      19.6,
+      32.2
+     ],
+     "n": 64
+    },
+    "td": {
+     "share": 9.895,
+     "points": 0.187,
+     "ci": [
+      4.9,
+      15.2
+     ],
+     "n": 31
+    },
+    "unclassified": {
+     "share": 24.361,
+     "points": 0.461,
+     "ci": [
+      19.2,
+      30.1
+     ],
+     "n": 76
+    }
+   }
+  },
+  "WR|1-4|ppr": {
+   "totalPoints": 1.492,
+   "events": 222,
+   "clusters": 101,
+   "causes": {
+    "availability": {
+     "share": 12.484,
+     "points": 0.186,
+     "ci": [
+      7.3,
+      18.5
+     ],
+     "n": 22
+    },
+    "role": {
+     "share": 12.475,
+     "points": 0.186,
+     "ci": [
+      7.4,
+      18
+     ],
+     "n": 24
+    },
+    "defense": {
+     "share": 25.392,
+     "points": 0.379,
+     "ci": [
+      18.6,
+      32.5
+     ],
+     "n": 53
+    },
+    "td": {
+     "share": 7.601,
+     "points": 0.113,
+     "ci": [
+      3.2,
+      13.1
+     ],
+     "n": 17
+    },
+    "unclassified": {
+     "share": 42.049,
+     "points": 0.628,
+     "ci": [
+      34.3,
+      50.6
+     ],
+     "n": 106
+    }
+   }
+  },
+  "WR|5-9|ppr": {
+   "totalPoints": 1.117,
+   "events": 179,
+   "clusters": 91,
+   "causes": {
+    "availability": {
+     "share": 25.934,
+     "points": 0.29,
+     "ci": [
+      18.6,
+      34.4
+     ],
+     "n": 45
+    },
+    "role": {
+     "share": 20.651,
+     "points": 0.231,
+     "ci": [
+      13.5,
+      29.5
+     ],
+     "n": 29
+    },
+    "defense": {
+     "share": 16.067,
+     "points": 0.179,
+     "ci": [
+      10.7,
+      22.9
+     ],
+     "n": 29
+    },
+    "td": {
+     "share": 6.259,
+     "points": 0.07,
+     "ci": [
+      2.7,
+      10.7
+     ],
+     "n": 14
+    },
+    "unclassified": {
+     "share": 31.089,
+     "points": 0.347,
+     "ci": [
+      22.4,
+      40.4
+     ],
+     "n": 62
+    }
+   }
+  },
+  "WR|10-17|ppr": {
+   "totalPoints": 1.926,
+   "events": 296,
+   "clusters": 113,
+   "causes": {
+    "availability": {
+     "share": 20.714,
+     "points": 0.399,
+     "ci": [
+      14.4,
+      27.9
+     ],
+     "n": 64
+    },
+    "role": {
+     "share": 15.328,
+     "points": 0.295,
+     "ci": [
+      10.8,
+      20.4
+     ],
+     "n": 37
+    },
+    "defense": {
+     "share": 24.473,
+     "points": 0.471,
+     "ci": [
+      17.4,
+      31.4
+     ],
+     "n": 65
+    },
+    "td": {
+     "share": 3.535,
+     "points": 0.068,
+     "ci": [
+      1.7,
+      6.4
+     ],
+     "n": 18
+    },
+    "unclassified": {
+     "share": 35.95,
+     "points": 0.693,
+     "ci": [
+      30,
+      42.3
+     ],
+     "n": 112
+    }
+   }
+  },
+  "TE|1-4|ppr": {
+   "totalPoints": 0.313,
+   "events": 55,
+   "clusters": 28,
+   "causes": {
+    "availability": {
+     "share": 11.785,
+     "points": 0.037,
+     "ci": [
+      1.6,
+      24.9
+     ],
+     "n": 5
+    },
+    "role": {
+     "share": 18.106,
+     "points": 0.057,
+     "ci": [
+      7.6,
+      31.7
+     ],
+     "n": 8
+    },
+    "defense": {
+     "share": 28.85,
+     "points": 0.09,
+     "ci": [
+      9.1,
+      47.6
+     ],
+     "n": 8
+    },
+    "td": {
+     "share": 7.804,
+     "points": 0.024,
+     "ci": [
+      1.8,
+      16.7
+     ],
+     "n": 8
+    },
+    "unclassified": {
+     "share": 33.455,
+     "points": 0.105,
+     "ci": [
+      22.4,
+      50.1
+     ],
+     "n": 26
+    }
+   }
+  },
+  "TE|5-9|ppr": {
+   "totalPoints": 0.254,
+   "events": 42,
+   "clusters": 21,
+   "causes": {
+    "availability": {
+     "share": 10.045,
+     "points": 0.026,
+     "ci": [
+      1.7,
+      21.6
+     ],
+     "n": 6
+    },
+    "role": {
+     "share": 34.965,
+     "points": 0.089,
+     "ci": [
+      13.4,
+      52.2
+     ],
+     "n": 12
+    },
+    "defense": {
+     "share": 24.856,
+     "points": 0.063,
+     "ci": [
+      12,
+      41.3
+     ],
+     "n": 9
+    },
+    "td": {
+     "share": 3.999,
+     "points": 0.01,
+     "ci": [
+      0.1,
+      9.3
+     ],
+     "n": 4
+    },
+    "unclassified": {
+     "share": 26.136,
+     "points": 0.066,
+     "ci": [
+      9.9,
+      47.3
+     ],
+     "n": 11
+    }
+   }
+  },
+  "TE|10-17|ppr": {
+   "totalPoints": 0.404,
+   "events": 67,
+   "clusters": 25,
+   "causes": {
+    "availability": {
+     "share": 14.912,
+     "points": 0.06,
+     "ci": [
+      4.3,
+      31.4
+     ],
+     "n": 12
+    },
+    "role": {
+     "share": 22.64,
+     "points": 0.092,
+     "ci": [
+      10.2,
+      41.9
+     ],
+     "n": 15
+    },
+    "defense": {
+     "share": 22.52,
+     "points": 0.091,
+     "ci": [
+      9,
+      37.4
+     ],
+     "n": 11
+    },
+    "td": {
+     "share": 17.891,
+     "points": 0.072,
+     "ci": [
+      5.7,
+      35.4
+     ],
+     "n": 10
+    },
+    "unclassified": {
+     "share": 22.037,
+     "points": 0.089,
+     "ci": [
+      11.3,
+      32.7
+     ],
+     "n": 19
+    }
+   }
+  },
+  "QB|1-4|half": {
+   "totalPoints": 0.376,
+   "events": 68,
+   "clusters": 33,
+   "causes": {
+    "availability": {
+     "share": 6.442,
+     "points": 0.024,
+     "ci": [
+      0,
+      17.4
+     ],
+     "n": 2
+    },
+    "role": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "defense": {
+     "share": 36.66,
+     "points": 0.138,
+     "ci": [
+      23.4,
+      49.5
+     ],
+     "n": 17
+    },
+    "td": {
+     "share": 30.199,
+     "points": 0.114,
+     "ci": [
+      18.2,
+      42.1
+     ],
+     "n": 28
+    },
+    "unclassified": {
+     "share": 26.699,
+     "points": 0.1,
+     "ci": [
+      14.7,
+      42.4
+     ],
+     "n": 21
+    }
+   }
+  },
+  "QB|5-9|half": {
+   "totalPoints": 0.412,
+   "events": 58,
+   "clusters": 32,
+   "causes": {
+    "availability": {
+     "share": 7.291,
+     "points": 0.03,
+     "ci": [
+      1.2,
+      15.3
+     ],
+     "n": 4
+    },
+    "role": {
+     "share": 11.357,
+     "points": 0.047,
+     "ci": [
+      0,
+      32.3
+     ],
+     "n": 5
+    },
+    "defense": {
+     "share": 33.479,
+     "points": 0.138,
+     "ci": [
+      16.4,
+      49.7
+     ],
+     "n": 14
+    },
+    "td": {
+     "share": 35.718,
+     "points": 0.147,
+     "ci": [
+      21,
+      54.4
+     ],
+     "n": 22
+    },
+    "unclassified": {
+     "share": 12.154,
+     "points": 0.05,
+     "ci": [
+      6.1,
+      21.4
+     ],
+     "n": 13
+    }
+   }
+  },
+  "QB|10-17|half": {
+   "totalPoints": 0.723,
+   "events": 102,
+   "clusters": 37,
+   "causes": {
+    "availability": {
+     "share": 18.448,
+     "points": 0.133,
+     "ci": [
+      7.8,
+      28.2
+     ],
+     "n": 13
+    },
+    "role": {
+     "share": 6.23,
+     "points": 0.045,
+     "ci": [
+      0.8,
+      14.4
+     ],
+     "n": 6
+    },
+    "defense": {
+     "share": 29.511,
+     "points": 0.213,
+     "ci": [
+      17.4,
+      42.1
+     ],
+     "n": 22
+    },
+    "td": {
+     "share": 21.753,
+     "points": 0.157,
+     "ci": [
+      16,
+      28.5
+     ],
+     "n": 32
+    },
+    "unclassified": {
+     "share": 24.058,
+     "points": 0.174,
+     "ci": [
+      14,
+      34.1
+     ],
+     "n": 29
+    }
+   }
+  },
+  "RB|1-4|half": {
+   "totalPoints": 1.195,
+   "events": 189,
+   "clusters": 91,
+   "causes": {
+    "availability": {
+     "share": 6.097,
+     "points": 0.073,
+     "ci": [
+      2.1,
+      11.6
+     ],
+     "n": 9
+    },
+    "role": {
+     "share": 8.004,
+     "points": 0.096,
+     "ci": [
+      3,
+      13.8
+     ],
+     "n": 14
+    },
+    "defense": {
+     "share": 46.846,
+     "points": 0.56,
+     "ci": [
+      35.9,
+      58
+     ],
+     "n": 80
+    },
+    "td": {
+     "share": 11.959,
+     "points": 0.143,
+     "ci": [
+      6.6,
+      17.9
+     ],
+     "n": 32
+    },
+    "unclassified": {
+     "share": 27.095,
+     "points": 0.324,
+     "ci": [
+      18.7,
+      35.7
+     ],
+     "n": 54
+    }
+   }
+  },
+  "RB|5-9|half": {
+   "totalPoints": 0.84,
+   "events": 132,
+   "clusters": 77,
+   "causes": {
+    "availability": {
+     "share": 8.898,
+     "points": 0.075,
+     "ci": [
+      3.7,
+      15.6
+     ],
+     "n": 14
+    },
+    "role": {
+     "share": 25.702,
+     "points": 0.216,
+     "ci": [
+      15.3,
+      36
+     ],
+     "n": 29
+    },
+    "defense": {
+     "share": 30.465,
+     "points": 0.256,
+     "ci": [
+      19.8,
+      43
+     ],
+     "n": 29
+    },
+    "td": {
+     "share": 14.195,
+     "points": 0.119,
+     "ci": [
+      5.3,
+      24
+     ],
+     "n": 26
+    },
+    "unclassified": {
+     "share": 20.74,
+     "points": 0.174,
+     "ci": [
+      14.1,
+      29.9
+     ],
+     "n": 34
+    }
+   }
+  },
+  "RB|10-17|half": {
+   "totalPoints": 1.521,
+   "events": 224,
+   "clusters": 95,
+   "causes": {
+    "availability": {
+     "share": 24.097,
+     "points": 0.366,
+     "ci": [
+      15.3,
+      34
+     ],
+     "n": 40
+    },
+    "role": {
+     "share": 17.805,
+     "points": 0.271,
+     "ci": [
+      11,
+      24.6
+     ],
+     "n": 46
+    },
+    "defense": {
+     "share": 26.938,
+     "points": 0.41,
+     "ci": [
+      19,
+      35.6
+     ],
+     "n": 57
+    },
+    "td": {
+     "share": 8.636,
+     "points": 0.131,
+     "ci": [
+      3.4,
+      15.9
+     ],
+     "n": 23
+    },
+    "unclassified": {
+     "share": 22.524,
+     "points": 0.343,
+     "ci": [
+      16.6,
+      29.9
+     ],
+     "n": 58
+    }
+   }
+  },
+  "WR|1-4|half": {
+   "totalPoints": 1.321,
+   "events": 192,
+   "clusters": 91,
+   "causes": {
+    "availability": {
+     "share": 12.414,
+     "points": 0.164,
+     "ci": [
+      7.4,
+      18.5
+     ],
+     "n": 17
+    },
+    "role": {
+     "share": 11.938,
+     "points": 0.158,
+     "ci": [
+      5.6,
+      18.5
+     ],
+     "n": 17
+    },
+    "defense": {
+     "share": 26.993,
+     "points": 0.356,
+     "ci": [
+      19.4,
+      35.3
+     ],
+     "n": 50
+    },
+    "td": {
+     "share": 10.25,
+     "points": 0.135,
+     "ci": [
+      5.5,
+      15.4
+     ],
+     "n": 23
+    },
+    "unclassified": {
+     "share": 38.405,
+     "points": 0.507,
+     "ci": [
+      30.5,
+      48.3
+     ],
+     "n": 85
+    }
+   }
+  },
+  "WR|5-9|half": {
+   "totalPoints": 0.934,
+   "events": 144,
+   "clusters": 81,
+   "causes": {
+    "availability": {
+     "share": 21.779,
+     "points": 0.203,
+     "ci": [
+      14.6,
+      29.2
+     ],
+     "n": 34
+    },
+    "role": {
+     "share": 19.508,
+     "points": 0.182,
+     "ci": [
+      12,
+      27.5
+     ],
+     "n": 22
+    },
+    "defense": {
+     "share": 20.736,
+     "points": 0.194,
+     "ci": [
+      13.6,
+      28.9
+     ],
+     "n": 32
+    },
+    "td": {
+     "share": 7.025,
+     "points": 0.066,
+     "ci": [
+      2.7,
+      12.3
+     ],
+     "n": 12
+    },
+    "unclassified": {
+     "share": 30.953,
+     "points": 0.289,
+     "ci": [
+      23.2,
+      39.1
+     ],
+     "n": 44
+    }
+   }
+  },
+  "WR|10-17|half": {
+   "totalPoints": 1.422,
+   "events": 219,
+   "clusters": 96,
+   "causes": {
+    "availability": {
+     "share": 25.306,
+     "points": 0.36,
+     "ci": [
+      17.4,
+      35.2
+     ],
+     "n": 53
+    },
+    "role": {
+     "share": 15.811,
+     "points": 0.225,
+     "ci": [
+      10.1,
+      21.3
+     ],
+     "n": 29
+    },
+    "defense": {
+     "share": 22.907,
+     "points": 0.326,
+     "ci": [
+      16,
+      29.5
+     ],
+     "n": 47
+    },
+    "td": {
+     "share": 8.024,
+     "points": 0.114,
+     "ci": [
+      4.8,
+      12
+     ],
+     "n": 23
+    },
+    "unclassified": {
+     "share": 27.953,
+     "points": 0.397,
+     "ci": [
+      22.3,
+      35
+     ],
+     "n": 67
+    }
+   }
+  },
+  "TE|1-4|half": {
+   "totalPoints": 0.333,
+   "events": 52,
+   "clusters": 30,
+   "causes": {
+    "availability": {
+     "share": 4.144,
+     "points": 0.014,
+     "ci": [
+      0,
+      10.7
+     ],
+     "n": 2
+    },
+    "role": {
+     "share": 14.464,
+     "points": 0.048,
+     "ci": [
+      4.2,
+      27.3
+     ],
+     "n": 7
+    },
+    "defense": {
+     "share": 39.897,
+     "points": 0.133,
+     "ci": [
+      21.4,
+      57.4
+     ],
+     "n": 12
+    },
+    "td": {
+     "share": 16.576,
+     "points": 0.055,
+     "ci": [
+      5,
+      31.5
+     ],
+     "n": 9
+    },
+    "unclassified": {
+     "share": 24.919,
+     "points": 0.083,
+     "ci": [
+      15.2,
+      37.3
+     ],
+     "n": 22
+    }
+   }
+  },
+  "TE|5-9|half": {
+   "totalPoints": 0.232,
+   "events": 37,
+   "clusters": 17,
+   "causes": {
+    "availability": {
+     "share": 13.785,
+     "points": 0.032,
+     "ci": [
+      3.9,
+      28
+     ],
+     "n": 6
+    },
+    "role": {
+     "share": 29.984,
+     "points": 0.069,
+     "ci": [
+      10.5,
+      48.9
+     ],
+     "n": 9
+    },
+    "defense": {
+     "share": 27.181,
+     "points": 0.063,
+     "ci": [
+      12.1,
+      43
+     ],
+     "n": 8
+    },
+    "td": {
+     "share": 7.048,
+     "points": 0.016,
+     "ci": [
+      1.9,
+      16.1
+     ],
+     "n": 4
+    },
+    "unclassified": {
+     "share": 22.002,
+     "points": 0.051,
+     "ci": [
+      7.8,
+      38.2
+     ],
+     "n": 10
+    }
+   }
+  },
+  "TE|10-17|half": {
+   "totalPoints": 0.418,
+   "events": 62,
+   "clusters": 28,
+   "causes": {
+    "availability": {
+     "share": 12.262,
+     "points": 0.051,
+     "ci": [
+      2.6,
+      27.2
+     ],
+     "n": 9
+    },
+    "role": {
+     "share": 31.976,
+     "points": 0.134,
+     "ci": [
+      15.3,
+      47.7
+     ],
+     "n": 16
+    },
+    "defense": {
+     "share": 23.553,
+     "points": 0.098,
+     "ci": [
+      6.3,
+      42.4
+     ],
+     "n": 12
+    },
+    "td": {
+     "share": 17.551,
+     "points": 0.073,
+     "ci": [
+      7.3,
+      32
+     ],
+     "n": 12
+    },
+    "unclassified": {
+     "share": 14.658,
+     "points": 0.061,
+     "ci": [
+      6.5,
+      24.6
+     ],
+     "n": 13
+    }
+   }
+  },
+  "QB|1-4|standard": {
+   "totalPoints": 0.528,
+   "events": 91,
+   "clusters": 36,
+   "causes": {
+    "availability": {
+     "share": 0.627,
+     "points": 0.003,
+     "ci": [
+      0,
+      2.1
+     ],
+     "n": 1
+    },
+    "role": {
+     "share": 3.378,
+     "points": 0.018,
+     "ci": [
+      0,
+      9.1
+     ],
+     "n": 2
+    },
+    "defense": {
+     "share": 42.097,
+     "points": 0.222,
+     "ci": [
+      27,
+      56.6
+     ],
+     "n": 24
+    },
+    "td": {
+     "share": 28.441,
+     "points": 0.15,
+     "ci": [
+      16,
+      42.1
+     ],
+     "n": 40
+    },
+    "unclassified": {
+     "share": 25.457,
+     "points": 0.135,
+     "ci": [
+      14.7,
+      40.2
+     ],
+     "n": 24
+    }
+   }
+  },
+  "QB|5-9|standard": {
+   "totalPoints": 0.436,
+   "events": 71,
+   "clusters": 31,
+   "causes": {
+    "availability": {
+     "share": 16.698,
+     "points": 0.073,
+     "ci": [
+      5.4,
+      27.3
+     ],
+     "n": 7
+    },
+    "role": {
+     "share": 3.608,
+     "points": 0.016,
+     "ci": [
+      0,
+      11.3
+     ],
+     "n": 4
+    },
+    "defense": {
+     "share": 31.845,
+     "points": 0.139,
+     "ci": [
+      13.8,
+      50.1
+     ],
+     "n": 13
+    },
+    "td": {
+     "share": 22.32,
+     "points": 0.097,
+     "ci": [
+      11.8,
+      38.2
+     ],
+     "n": 22
+    },
+    "unclassified": {
+     "share": 25.529,
+     "points": 0.111,
+     "ci": [
+      13.7,
+      37.4
+     ],
+     "n": 25
+    }
+   }
+  },
+  "QB|10-17|standard": {
+   "totalPoints": 0.862,
+   "events": 123,
+   "clusters": 39,
+   "causes": {
+    "availability": {
+     "share": 11.595,
+     "points": 0.1,
+     "ci": [
+      4.6,
+      20.2
+     ],
+     "n": 8
+    },
+    "role": {
+     "share": 8.934,
+     "points": 0.077,
+     "ci": [
+      4.2,
+      16.1
+     ],
+     "n": 16
+    },
+    "defense": {
+     "share": 36.501,
+     "points": 0.315,
+     "ci": [
+      26.3,
+      45.6
+     ],
+     "n": 29
+    },
+    "td": {
+     "share": 24.12,
+     "points": 0.208,
+     "ci": [
+      18,
+      32.4
+     ],
+     "n": 39
+    },
+    "unclassified": {
+     "share": 18.85,
+     "points": 0.162,
+     "ci": [
+      12.2,
+      26.7
+     ],
+     "n": 31
+    }
+   }
+  },
+  "RB|1-4|standard": {
+   "totalPoints": 1.093,
+   "events": 201,
+   "clusters": 98,
+   "causes": {
+    "availability": {
+     "share": 7.151,
+     "points": 0.078,
+     "ci": [
+      2.6,
+      12.3
+     ],
+     "n": 11
+    },
+    "role": {
+     "share": 8.284,
+     "points": 0.091,
+     "ci": [
+      4.1,
+      13.3
+     ],
+     "n": 14
+    },
+    "defense": {
+     "share": 43.819,
+     "points": 0.479,
+     "ci": [
+      33.7,
+      53.6
+     ],
+     "n": 82
+    },
+    "td": {
+     "share": 13.028,
+     "points": 0.142,
+     "ci": [
+      7.8,
+      19.1
+     ],
+     "n": 36
+    },
+    "unclassified": {
+     "share": 27.718,
+     "points": 0.303,
+     "ci": [
+      21.1,
+      35.2
+     ],
+     "n": 58
+    }
+   }
+  },
+  "RB|5-9|standard": {
+   "totalPoints": 0.86,
+   "events": 146,
+   "clusters": 81,
+   "causes": {
+    "availability": {
+     "share": 28.093,
+     "points": 0.242,
+     "ci": [
+      18.8,
+      39
+     ],
+     "n": 35
+    },
+    "role": {
+     "share": 13.208,
+     "points": 0.114,
+     "ci": [
+      6.1,
+      20.2
+     ],
+     "n": 22
+    },
+    "defense": {
+     "share": 34.528,
+     "points": 0.297,
+     "ci": [
+      23.6,
+      45.9
+     ],
+     "n": 38
+    },
+    "td": {
+     "share": 9.017,
+     "points": 0.078,
+     "ci": [
+      3.8,
+      14.5
+     ],
+     "n": 20
+    },
+    "unclassified": {
+     "share": 15.154,
+     "points": 0.13,
+     "ci": [
+      9.4,
+      21.3
+     ],
+     "n": 31
+    }
+   }
+  },
+  "RB|10-17|standard": {
+   "totalPoints": 1.688,
+   "events": 270,
+   "clusters": 102,
+   "causes": {
+    "availability": {
+     "share": 18.175,
+     "points": 0.307,
+     "ci": [
+      12.1,
+      25.6
+     ],
+     "n": 44
+    },
+    "role": {
+     "share": 20.623,
+     "points": 0.348,
+     "ci": [
+      15.1,
+      27.5
+     ],
+     "n": 55
+    },
+    "defense": {
+     "share": 37.351,
+     "points": 0.631,
+     "ci": [
+      28.7,
+      46.7
+     ],
+     "n": 90
+    },
+    "td": {
+     "share": 8.483,
+     "points": 0.143,
+     "ci": [
+      4.3,
+      13.2
+     ],
+     "n": 34
+    },
+    "unclassified": {
+     "share": 15.368,
+     "points": 0.259,
+     "ci": [
+      10.3,
+      21
+     ],
+     "n": 47
+    }
+   }
+  },
+  "WR|1-4|standard": {
+   "totalPoints": 1.028,
+   "events": 191,
+   "clusters": 90,
+   "causes": {
+    "availability": {
+     "share": 11.224,
+     "points": 0.115,
+     "ci": [
+      5.9,
+      18.5
+     ],
+     "n": 15
+    },
+    "role": {
+     "share": 10.414,
+     "points": 0.107,
+     "ci": [
+      5,
+      16.5
+     ],
+     "n": 17
+    },
+    "defense": {
+     "share": 34.289,
+     "points": 0.353,
+     "ci": [
+      26,
+      42.3
+     ],
+     "n": 64
+    },
+    "td": {
+     "share": 9.409,
+     "points": 0.097,
+     "ci": [
+      5.2,
+      14.4
+     ],
+     "n": 24
+    },
+    "unclassified": {
+     "share": 34.663,
+     "points": 0.356,
+     "ci": [
+      26.6,
+      43.4
+     ],
+     "n": 71
+    }
+   }
+  },
+  "WR|5-9|standard": {
+   "totalPoints": 0.714,
+   "events": 136,
+   "clusters": 73,
+   "causes": {
+    "availability": {
+     "share": 21.676,
+     "points": 0.155,
+     "ci": [
+      14.6,
+      30.3
+     ],
+     "n": 26
+    },
+    "role": {
+     "share": 14.187,
+     "points": 0.101,
+     "ci": [
+      6,
+      22.8
+     ],
+     "n": 17
+    },
+    "defense": {
+     "share": 24.205,
+     "points": 0.173,
+     "ci": [
+      16.3,
+      33.3
+     ],
+     "n": 36
+    },
+    "td": {
+     "share": 14.185,
+     "points": 0.101,
+     "ci": [
+      8.3,
+      20.4
+     ],
+     "n": 19
+    },
+    "unclassified": {
+     "share": 25.748,
+     "points": 0.184,
+     "ci": [
+      18.8,
+      34
+     ],
+     "n": 38
+    }
+   }
+  },
+  "WR|10-17|standard": {
+   "totalPoints": 1.389,
+   "events": 247,
+   "clusters": 100,
+   "causes": {
+    "availability": {
+     "share": 22.393,
+     "points": 0.311,
+     "ci": [
+      15.2,
+      30.5
+     ],
+     "n": 44
+    },
+    "role": {
+     "share": 17.088,
+     "points": 0.237,
+     "ci": [
+      11.2,
+      23.3
+     ],
+     "n": 39
+    },
+    "defense": {
+     "share": 29.555,
+     "points": 0.411,
+     "ci": [
+      22.1,
+      38.5
+     ],
+     "n": 76
+    },
+    "td": {
+     "share": 11.218,
+     "points": 0.156,
+     "ci": [
+      5.8,
+      18
+     ],
+     "n": 27
+    },
+    "unclassified": {
+     "share": 19.745,
+     "points": 0.274,
+     "ci": [
+      14.5,
+      26.3
+     ],
+     "n": 61
+    }
+   }
+  },
+  "TE|1-4|standard": {
+   "totalPoints": 0.239,
+   "events": 63,
+   "clusters": 28,
+   "causes": {
+    "availability": {
+     "share": 6.426,
+     "points": 0.015,
+     "ci": [
+      0.5,
+      15.1
+     ],
+     "n": 5
+    },
+    "role": {
+     "share": 20.421,
+     "points": 0.049,
+     "ci": [
+      5.5,
+      33.6
+     ],
+     "n": 10
+    },
+    "defense": {
+     "share": 57.265,
+     "points": 0.137,
+     "ci": [
+      41.9,
+      71.5
+     ],
+     "n": 24
+    },
+    "td": {
+     "share": 4.356,
+     "points": 0.01,
+     "ci": [
+      1.3,
+      10.3
+     ],
+     "n": 7
+    },
+    "unclassified": {
+     "share": 11.532,
+     "points": 0.028,
+     "ci": [
+      4.8,
+      23
+     ],
+     "n": 17
+    }
+   }
+  },
+  "TE|5-9|standard": {
+   "totalPoints": 0.153,
+   "events": 33,
+   "clusters": 23,
+   "causes": {
+    "availability": {
+     "share": 4.871,
+     "points": 0.007,
+     "ci": [
+      0.6,
+      10.6
+     ],
+     "n": 4
+    },
+    "role": {
+     "share": 28.667,
+     "points": 0.044,
+     "ci": [
+      9.7,
+      50.1
+     ],
+     "n": 9
+    },
+    "defense": {
+     "share": 41.769,
+     "points": 0.064,
+     "ci": [
+      21.8,
+      63.1
+     ],
+     "n": 13
+    },
+    "td": {
+     "share": 7.951,
+     "points": 0.012,
+     "ci": [
+      0.9,
+      17.9
+     ],
+     "n": 3
+    },
+    "unclassified": {
+     "share": 16.741,
+     "points": 0.026,
+     "ci": [
+      3.4,
+      34.5
+     ],
+     "n": 4
+    }
+   }
+  },
+  "TE|10-17|standard": {
+   "totalPoints": 0.366,
+   "events": 65,
+   "clusters": 27,
+   "causes": {
+    "availability": {
+     "share": 15.042,
+     "points": 0.055,
+     "ci": [
+      3.9,
+      29.1
+     ],
+     "n": 9
+    },
+    "role": {
+     "share": 36.231,
+     "points": 0.133,
+     "ci": [
+      23.4,
+      49.1
+     ],
+     "n": 18
+    },
+    "defense": {
+     "share": 24.573,
+     "points": 0.09,
+     "ci": [
+      12.1,
+      37.7
+     ],
+     "n": 14
+    },
+    "td": {
+     "share": 8.766,
+     "points": 0.032,
+     "ci": [
+      1.7,
+      20.6
+     ],
+     "n": 9
+    },
+    "unclassified": {
+     "share": 15.387,
+     "points": 0.056,
+     "ci": [
+      5.4,
+      25.6
+     ],
+     "n": 15
+    }
+   }
+  }
+ },
+ "sensitivity": {
+  "ppr": {
+   "totalPoints": 11.182,
+   "events": 1773,
+   "clusters": 345,
+   "causes": {
+    "availability": {
+     "share": 7.976,
+     "points": 0.892,
+     "ci": [
+      6.2,
+      10
+     ],
+     "n": 123
+    },
+    "role": {
+     "share": 10.08,
+     "points": 1.127,
+     "ci": [
+      8.2,
+      12
+     ],
+     "n": 148
+    },
+    "defense": {
+     "share": 18.853,
+     "points": 2.108,
+     "ci": [
+      16.1,
+      21.6
+     ],
+     "n": 265
+    },
+    "td": {
+     "share": 14.836,
+     "points": 1.659,
+     "ci": [
+      12.7,
+      17.4
+     ],
+     "n": 325
+    },
+    "unclassified": {
+     "share": 48.255,
+     "points": 5.396,
+     "ci": [
+      45.5,
+      51.4
+     ],
+     "n": 912
+    }
+   }
+  },
+  "half": {
+   "totalPoints": 9.726,
+   "events": 1479,
+   "clusters": 319,
+   "causes": {
+    "availability": {
+     "share": 7.723,
+     "points": 0.751,
+     "ci": [
+      6,
+      9.7
+     ],
+     "n": 102
+    },
+    "role": {
+     "share": 10.787,
+     "points": 1.049,
+     "ci": [
+      8.6,
+      12.8
+     ],
+     "n": 132
+    },
+    "defense": {
+     "share": 22.662,
+     "points": 2.204,
+     "ci": [
+      19.7,
+      26.1
+     ],
+     "n": 265
+    },
+    "td": {
+     "share": 17.558,
+     "points": 1.708,
+     "ci": [
+      14.9,
+      20.4
+     ],
+     "n": 310
+    },
+    "unclassified": {
+     "share": 41.271,
+     "points": 4.014,
+     "ci": [
+      38.3,
+      44.3
+     ],
+     "n": 670
+    }
+   }
+  },
+  "standard": {
+   "totalPoints": 9.357,
+   "events": 1637,
+   "clusters": 334,
+   "causes": {
+    "availability": {
+     "share": 8.211,
+     "points": 0.768,
+     "ci": [
+      6.1,
+      10.3
+     ],
+     "n": 106
+    },
+    "role": {
+     "share": 10.617,
+     "points": 0.993,
+     "ci": [
+      8.6,
+      13
+     ],
+     "n": 141
+    },
+    "defense": {
+     "share": 26.188,
+     "points": 2.45,
+     "ci": [
+      22.9,
+      29.5
+     ],
+     "n": 346
+    },
+    "td": {
+     "share": 18.746,
+     "points": 1.754,
+     "ci": [
+      15.8,
+      21.6
+     ],
+     "n": 371
+    },
+    "unclassified": {
+     "share": 36.237,
+     "points": 3.391,
+     "ci": [
+      32.9,
+      39.4
+     ],
+     "n": 673
+    }
+   }
+  }
+ },
+ "sensitivityNoDefenseStep": {
+  "ppr": {
+   "totalPoints": 11.182,
+   "events": 1773,
+   "clusters": 345,
+   "causes": {
+    "availability": {
+     "share": 16.12,
+     "points": 1.803,
+     "ci": [
+      13.6,
+      18.7
+     ],
+     "n": 253
+    },
+    "role": {
+     "share": 14.904,
+     "points": 1.667,
+     "ci": [
+      12.7,
+      17.2
+     ],
+     "n": 237
+    },
+    "defense": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "td": {
+     "share": 17.682,
+     "points": 1.977,
+     "ci": [
+      14.9,
+      20.8
+     ],
+     "n": 352
+    },
+    "unclassified": {
+     "share": 51.294,
+     "points": 5.736,
+     "ci": [
+      48.1,
+      55
+     ],
+     "n": 931
+    }
+   }
+  },
+  "half": {
+   "totalPoints": 9.726,
+   "events": 1479,
+   "clusters": 319,
+   "causes": {
+    "availability": {
+     "share": 15.689,
+     "points": 1.526,
+     "ci": [
+      13,
+      18.5
+     ],
+     "n": 203
+    },
+    "role": {
+     "share": 15.322,
+     "points": 1.49,
+     "ci": [
+      12.8,
+      18.2
+     ],
+     "n": 200
+    },
+    "defense": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "td": {
+     "share": 22.126,
+     "points": 2.152,
+     "ci": [
+      19.1,
+      25.5
+     ],
+     "n": 346
+    },
+    "unclassified": {
+     "share": 46.863,
+     "points": 4.558,
+     "ci": [
+      43.7,
+      50.1
+     ],
+     "n": 730
+    }
+   }
+  },
+  "standard": {
+   "totalPoints": 9.357,
+   "events": 1637,
+   "clusters": 334,
+   "causes": {
+    "availability": {
+     "share": 15.623,
+     "points": 1.462,
+     "ci": [
+      13,
+      18.2
+     ],
+     "n": 209
+    },
+    "role": {
+     "share": 14.256,
+     "points": 1.334,
+     "ci": [
+      12,
+      17
+     ],
+     "n": 223
+    },
+    "defense": {
+     "share": 0,
+     "points": 0,
+     "ci": [
+      0,
+      0
+     ],
+     "n": 0
+    },
+    "td": {
+     "share": 26.631,
+     "points": 2.492,
+     "ci": [
+      23.3,
+      30.2
+     ],
+     "n": 438
+    },
+    "unclassified": {
+     "share": 43.491,
+     "points": 4.069,
+     "ci": [
+      40.5,
+      46.5
+     ],
+     "n": 767
+    }
+   }
+  }
+ },
+ "invisible": {
+  "rosterWeeks": 16775,
+  "noRow": 3206,
+  "bye": 742,
+  "absent": 2464,
+  "pctOfRosterWeeks": 19.112,
+  "note": "Players with no weekly row are filtered out of BOTH lineups and contribute ZERO to ceiling-weekly. Category (a) therefore measures only PARTIAL availability failure and is a lower bound."
+ },
+ "unclassifiedNoBaselineShare": 25.096,
+ "verdict": {
+  "tdRandomness": {
+   "counterfactual": 18.903,
+   "cascade": 10.796,
+   "cascadeNoDefenseStep": 17.682,
+   "preferred": 18.903,
+   "agree": true,
+   "statement": "TD-slembni: throskuldalaus gagnverold 18.903%, kaskadi an null-bucketsins 17.682% (1.221 pp a milli). Kaskadinn MED vornar-threpinu gefur 10.796% og thad er vanmat — threpid stelur fra (d) med audgun 0,96x.",
+   "whyDefenseStepIsNull": "defense-merkid flaggar 17.71% skipta en 18.424% lauginnar — audgun 0.961x. Bucket sem er tilviljun."
+  },
+  "outcomeNoise": {
+   "share": 29.262,
+   "td": 18.903,
+   "efficiency": 10.359,
+   "perSeason": [
+    32.928,
+    27.798,
+    26.902,
+    25.268,
+    29.654,
+    27.515,
+    32.786
+   ],
+   "statement": "Utkomu-slembni (TD + skilvirkni) er 29.262% af bilinu. Adeins 70.738% er taekifaera-spaanlegt."
+  },
+  "closableCeiling": 70.738,
+  "achievedOfClosable": 8.243,
+  "nextWork": [
+   {
+    "cause": "availability",
+    "share": 16.12,
+    "points": 1.803,
+    "ci": [
+     13.6,
+     18.7
+    ],
+    "enrichment": 1.416,
+    "signalPoints": 0.53
+   },
+   {
+    "cause": "role",
+    "share": 14.904,
+    "points": 1.667,
+    "ci": [
+     12.7,
+     17.2
+    ],
+    "enrichment": 1.203,
+    "signalPoints": 0.281
+   },
+   {
+    "cause": "defense",
+    "share": 26.659,
+    "points": 2.981,
+    "ci": [
+     23.7,
+     29.6
+    ],
+    "enrichment": 0.961,
+    "signalPoints": 0
+   }
+  ],
+  "unclassified": {
+   "share": 31.522,
+   "points": 3.525,
+   "noBaselineShareOfIt": 25.096
+  },
+  "weeklyInTdNeutralWorld": {
+   "tdNeutral": 4.295,
+   "real": 5.831,
+   "lift": -1.536
+  }
+ }
+}
