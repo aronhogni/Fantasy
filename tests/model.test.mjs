@@ -679,5 +679,53 @@ console.log(`\n${"─".repeat(72)}\nLANDSLEIKJAHLE OG EVROPUVIKUR\n${"─".repea
   } catch { ok(true, "euro_fixtures.json vantar — raungagna-hluti sleppt"); }
 }
 
+/* ============================================================
+   MARKADS-LYKKJAN MA EKKI HENGJA SIG (fundid med slembiprofi 11.8.2026)
+
+   `lambdaFromOver(pOver, line)` hafdi OAFMARKADA innri lykkju:
+   `for (j = 0; j <= Math.floor(line); j++)`. Med `line = Infinity` (eda 1e12)
+   stoppadi hun ALDREI, og ytri helmingunin keyrir hana 60 sinnum.
+
+   HVERS VEGNA ThAD ER NAANLEGT: `scripts/fetch.mjs` reiknar
+   `line = totLine / totN` ur `point`-svidum bokmakera i Odds-API-svarinu.
+   `totN` er profad en GILDID er oafmarkad, svo eitt gallad `point` hengir
+   daglegu keyrsluna — Actions-minutur brenna thangad til 6-klst thakid slaer
+   inn, engin gogn skrifud, ENGIN VILLA skrad. Thogul bilun af verstu gerd.
+
+   ThETTA PROF KEYRIR FALLID I EIGIN BARNAFERLI MED TIMAThAKI. Thad er
+   nauðsyn, ekki ihaldssemi: JS er einthraedad, svo endalaus SYNC-lykkja er
+   ekki haegt ad tima ut innan sama ferlis — profid myndi einfaldlega hanga
+   med henni og `npm test` aldri ljuka.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nMARKADS-LYKKJAN: OHEMJULEG LINA MA EKKI HENGJA\n${"─".repeat(72)}`);
+{
+  const { execFileSync } = await import("node:child_process");
+  const call = lit => {
+    const code = `const {lambdaFromOver}=await import("${new URL("../src/market.js", import.meta.url).href}");`
+               + `process.stdout.write(String(lambdaFromOver(0.5,${lit})));`;
+    try {
+      return { out: execFileSync(process.execPath, ["--input-type=module", "-e", code],
+                                { timeout: 8000, encoding: "utf8" }).trim() };
+    } catch (e) {
+      return { hung: e.killed === true || e.signal === "SIGTERM" || /ETIMEDOUT/.test(String(e.code)) };
+    }
+  };
+  for (const lit of ["Infinity", "1e12", "1e308", "Number.MAX_VALUE"]) {
+    const r = call(lit);
+    ok(!r.hung && Number.isFinite(Number(r.out)),
+       `line=${lit} skilar tolu i stad ad hengja (${r.hung ? "HENGDI" : r.out})`);
+  }
+  /* OG FULLYRDINGIN MA EKKI VERA TOM: raunveruleg lina VERDUR ad fara
+     obreytt i gegn, annars vaeri "vornin" ad klippa gild gogn.          */
+  const real = call("2.5");
+  ok(!real.hung && Math.abs(Number(real.out) - 2.67406031372356) < 1e-9,
+     `raunlina 2,5 er obreytt (${real.out})`);
+  /* Tolu-STRENGUR ma ekki hrynja i 0 — fyrsta tilraun min ad thessari
+     lagfaeringu gerdi einmitt thad (Number.isFinite("2.5") er false).   */
+  const str = call('"2.5"');
+  ok(!str.hung && Math.abs(Number(str.out) - 2.67406031372356) < 1e-9,
+     `tolu-strengur "2.5" jafngildir 2,5 (${str.out})`);
+}
+
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

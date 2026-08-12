@@ -46,11 +46,41 @@ export const MARKET_CALIB = 1.0;
 export function lambdaFromOver(pOver, line) {
   // finna λ þannig að P(X > line) = pOver  (Poisson)
   const k = Math.floor(line);        // t.d. 2 fyrir línuna 2,5
+  /* INNRI LYKKJAN ER AFMORKUD (11.8.2026) — AN ThESS STOPPADI HUN ALDREI.
+     `for (j = 0; j <= k; j++)` med `k = Infinity` (eda 1e12) keyrir endalaust,
+     og ytri helmingunin gerir thad 60 sinnum. Fundid med slembiprofi:
+     `lambdaFromOver(0.5, Infinity)` og `(0.5, 1e12)` hengdu bædi ferlid.
+     `null`/`NaN`/negativ lina voru ThEGAR ohaett — `j <= NaN` og `j <= -1`
+     eru false, svo lykkjan sleppur.
+
+     NAANLEGT UR YTRA SVARI: `scripts/fetch.mjs` reiknar
+     `line = totLine / totN` ur `point`-svidum bokmakera i Odds-API-svarinu.
+     `totN` er profad (deiling med 0 utilokud) en GILDID er OAFMARKAD, svo eitt
+     gallad `point` — eda summa sem flaedir i Infinity — HENGIR daglegu
+     keyrsluna: jobbid brennur Actions-minutur thangad til 6-klst thakid slaer
+     inn, engin gogn skrifud og ENGIN VILLA skrad. Sama leid i bakprofunum
+     gegnum `tests/lib/e0.mjs` ur B365-CSV.
+
+     ADEINS EFRA ThAKID ER SETT, EKKI `k` SJALFT. Fyrsta tilraun min reiknadi
+     `k` upp a nytt med `Number.isFinite(line) ? line : 0` og ThAD VAR
+     AFTURFOR: `line = "2.5"` (tolu-STRENGUR, sem JSON getur vel borid) fell ur
+     2,674 i 0,693, thvi `Number.isFinite("2.5")` er false. `Math.floor`
+     thvingar strengi rett og ma thvi ekki hverfa. Med `Math.min(k, K_MAX)`
+     helst NaN NaN, -1 helst -1, "2.5" helst 2 — og adeins ohemjan er klippt.
+
+     20 ER RIFLEGT: haesta yfir/undir-lina i fotbolta er ~6,5 og
+     deildarmedaltalid 2,9. Stadfest a 0,5..10,5 med 0,5-threpum x 7 likum
+     (147 samanburdir): BITAEINS fyrir og eftir. Thetta er HENGI-VORN, ekki
+     tolu-breyting.
+     (data/odds.json var EKKI notad sem sonnun — hun geymir cs/xg/xga per lid,
+     ekki `line`, svo "stadfest a raunlinum" hefdi verid tom fullyrding.)   */
+  const K_MAX = 20;
+  const kEff = Math.min(k, K_MAX);
   let lo = 0.1, hi = 8;
   for (let i = 0; i < 60; i++) {
     const m = (lo + hi) / 2;
     let cum = 0, term = Math.exp(-m);
-    for (let j = 0; j <= k; j++) { cum += term; term *= m / (j + 1); }
+    for (let j = 0; j <= kEff; j++) { cum += term; term *= m / (j + 1); }
     (1 - cum < pOver) ? lo = m : hi = m;
   }
   return (lo + hi) / 2;
