@@ -355,6 +355,40 @@ tímabili með þeim. Mælt: **19% af mörkum 2025/26 vantar** í summu FPL-leik
 
 E0 hefur alla 380 leiki, svo þetta er heilt. 17 lið með sögu, 3 nýliðar `matches: 0`.
 
+### `predictions/gw{N}.json` — SPÁ-BÓKHALDIÐ
+
+```
+{ gw, generated, sources:{odds,elo,team_form,player_form}, note,
+  ffdr: [{ fixture, team, opp, home, def, def_tier, att, att_tier }],
+  rank: [{ id, code, team, pos, score, score_avail, avail,
+           inputs:{form,minsPerGame,price,ffdr,minsTrend},
+           start_prob, ep_next, status, fixtures }] }
+```
+
+**Þetta er EKKI birtingargagn — appið les það ekki.** Það er mælitæki:
+`scripts/snapshot-predictions.mjs` skrifar niður hvað við SPÁÐUM fyrir umferð,
+og `tests/calibration.mjs` ber það síðar við það sem gerðist.
+
+**Af hverju það verður að vera skrifað fyrirfram:** FFDR, `rankScore` og
+byrjunar-líkurnar eru reiknaðar úr gögnum sem BREYTAST í hverri viku (verð,
+form, elo, markaðslína). „Hvað hefðum við sagt fyrir GW5" er ÓSVARANLEGT þegar
+GW5 er liðin — inntökin eru horfin. Sama röksemd og `history/` (CLAUDE.md 7):
+**dagleg mynd verður ekki búin til eftir á.**
+
+**ÞRJÁR REGLUR — án þeirra væri bókhaldið sjálfs-uppfyllandi:**
+1. **Aðeins FYRIR frest.** Spá skrifuð eftir að leikur er byrjaður er ekki spá.
+2. **Aðeins EINU SINNI.** Röð sem er til er ALDREI endurskrifuð, ekki heldur
+   „með betri gögnum" — endurskrifuð spá er retro-fitting. Skráin er ÓNEMANDI.
+3. **Þunn inntök -> engin skrá.** Betra að umferð vanti en að hún beri spá
+   reiknaða úr hálfum gögnum; síðara les eins og mæling.
+
+`score` er hrátt `rankScore`; `score_avail` er það sama × tiltækileika — RÖÐIN
+SEM NOTANDINN SÉR. Bæði eru skráð svo kvörðunin geti mælt röðunar-vélina eina
+OG röðunina eins og hún birtist. `ep_next` er FPL-eigið xP og er VIÐMIÐIÐ.
+
+Vex um ~1 MB á umferð (38 MB/tímabil). **Eyðið henni ekki** — sama regla og
+`history/`: hún verður ekki búin til eftir á.
+
 ### `luck.json`
 ```
 { result_enum_seen: [...],

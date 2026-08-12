@@ -345,6 +345,8 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 | `leagues.mjs` | 500 slembin inntök: summa verðlauna má **aldrei** fara yfir pottinn og ekkert verðlaun vera neikvætt |
 | `pros.mjs` | Sérfræðinga-hópurinn. Valreglan (einræn, nýleiki vegur þyngra), talningin, EO **yfir 100%**, og söfnunin sjálf á **hermdum** svörum — `picks` svara 404 í forleik svo hún getur ekki verið prófuð lifandi fyrr en 21. ágúst. Kafli 12 ver að **ekkert sé sótt fyrr en fresturinn er liðinn**; kafli 13 ver kvótann (hver umferð sótt nákvæmlega einu sinni — annars 96.000 köll á dag); kafli 17 ver að fallið sé kallað úr `fetchFast` **og** að workflow-ið keyri `--fast` |
 | `pros-render.mjs` | **Fyllti helmingurinn af flipanum.** `data-resilience` opnar hann í öllum 16 bilunum en `pros_gw.json` er ekki til í forleik, svo það próf hittir alltaf á TÓMA ástandið. Hér eru tölurnar lesnar AF SKJÁNUM: hlutfall miðast við þá sem svöruðu (65,3%, ekki 62,0%), EO fer yfir 100%, vikmörkin sjást, umferðar-valarinn breytir raunverulega töflunni, og chip-athugasemdin hverfur í umferð án chips. Sex stökkbreytingar felldar |
+| `prediction-ledger.mjs` | **Spá-bókhaldið.** `scripts/snapshot-predictions.mjs` skrifar niður hvað við SPÁÐUM fyrir umferð (FFDR per leik, `rankScore` per leikmann með INNTÖKUNUM, byrjunar-líkur, `ep_next` sem viðmið) svo kvörðunin geti síðar spurt hvort mælingarnar HALDI. Hliðin eru prófuð á TILBÚNUM gögnum: 1 ms eftir frest -> ekkert · nákvæmlega á frestinum -> ekkert · röð sem er til -> ekkert (ÓNEMANDI) · þunn inntök -> ekkert. **Prófsteinninn er BYGGINGARLEGUR:** App.jsx VERÐUR að flytja `buildTeamMetrics` inn úr `teamstats.js` og má EKKI skilgreina hann sjálft — og hvert FFDR-gildi er endurreiknað og borið Á BITANUM. Tvær fyrri útgáfur þessa prófsteins voru rangar og prófið sagði það: DOM-samanburður fann 0 tölur (töflan sýnir GW-BIL, ekki eina umferð) |
+| `calibration.mjs` | **Heldur mælingin enn?** Ber bókhaldið við það sem gerðist: FFDR -> hrein blöð (PRÓFIÐ ER EINRÆNI, ekki stök prósenta), topp-15 -> raunstig gegn FPL-eigin `ep_next`, byrjunar-líkur -> Brier + bekkjar-gildran. **Fáar mælingar -> ENGIN tala** (`null` + `why`); tala úr einni umferð sem les eins út og tala úr átta tímabilum er versta útkoman. Vélin er sannreynd á TILBÚNUM gögnum þar sem svarið er þekkt fyrirfram (þrep 0 -> 0,75 nákvæmlega, Brier -> 0 nákvæmlega, snúið merki -> einræni brotin). **Kaflinn á raungögnum SEFUR** í forleik og fullyrðir samt að vélin hafi verið sannreynd, svo „sefur" getur ekki orðið „mælir ekkert" þegjandi |
 
 **`tests/lib/e0.mjs`** byggir spá-heiminn fyrir ÖLL bakprófin — ein uppbygging
 á einum stað, annars getur eitt bakpróf mælt annan heim en hitt og bæði virst
@@ -548,6 +550,36 @@ Lausn: **endurtilraunalykkja (5 tilraunir) í BÁÐUM** workflow-um. Við áreks
 `data/` vinnur okkar ferska sókn (`rebase -X theirs`) — það er rétt hér því
 `data/` er endurmyndað Í HEILD í hverri keyrslu. Actions-útgáfur eru **v5** í
 öllum þrem workflow-um. Vörður: `workflow-push.mjs`.
+
+### `data/predictions/` — SPÁ-BÓKHALDIÐ, OG ÞAÐ MÁ EKKI EYÐA
+
+`scripts/snapshot-predictions.mjs` (kallað úr **`fetch-fast`**, ekki daglegu
+keyrslunni — hún gengur kl. 05 UTC en frestur er ~17:30) skrifar
+`data/predictions/gw{N}.json` með því sem við SPÁÐUM: FFDR per leik, `rankScore`
+per leikmann með inntökunum, byrjunar-líkur og `ep_next` sem viðmið.
+
+**Appið les þetta ALDREI.** Það er mælitæki, ekki birtingargagn — þess vegna er
+`continue-on-error: true` á skrefinu: bókhaldið má aldrei fella gagna-keyrsluna.
+
+**AF HVERJU ÞAÐ VERÐUR AÐ VERA SKRIFAÐ FYRIRFRAM:** FFDR, `rankScore` og
+byrjunar-líkurnar eru reiknaðar úr gögnum sem BREYTAST í hverri viku (verð,
+form, elo, markaðslína). „Hvað hefðum við sagt fyrir GW5" er ÓSVARANLEGT þegar
+GW5 er liðin — inntökin eru horfin. **Sama röksemd og `history/`: dagleg mynd
+verður ekki búin til eftir á.**
+
+Þrjár reglur: **aðeins fyrir frest** · **aðeins einu sinni** (röð sem er til er
+ALDREI endurskrifuð — endurskrifuð spá er retro-fitting) · **þunn inntök ->
+engin skrá**. Verðir: `prediction-ledger.mjs`, `calibration.mjs`.
+
+> **`buildTeamMetrics` VAR FLUTT ÚR `App.jsx` Í `src/teamstats.js` VEGNA
+> ÞESSA.** Fyrsta útgáfa bókhaldsins ENDURREIKNAÐI liðsvísana og skrifaði
+> `+(x.gf / x.matches)`; `team_form.json` ber ENGIN `gf`/`ga`, hún ber
+> `goals_pg`/`conceded_pg` ÞEGAR per leik. Útkoman var **NaN fyrir öll 17
+> E0-liðin, merkt `src:"e0"` eins og hún væri mæling** — og afritið sleppti
+> `sotFor`/`sotAg`, `prev*`-aðlöguninni, `matches` og nýliða-staðgenglinum.
+> App.jsx var ALLTAF RÉTT; afritið laug. **Ekki afrita þennan útreikning aftur** —
+> báðir (viðmótið og bókhaldið) flytja hann inn, og `prediction-ledger.mjs`
+> fellur ef App.jsx skilgreinir hann sjálft.
 
 ### `data/history/` — SKRIFAÐ, ÓLESIÐ, OG MÁ EKKI EYÐA
 
