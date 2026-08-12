@@ -22,7 +22,12 @@
 import React, { useMemo, useState } from "react";
 import * as D from "./data.js";
 import { optimalLineup, slotsFor } from "./lineup.js";
-import { weeklyProjection, impliedTeamTotals } from "./model.js";
+/* VIKU-VORPUNIN VAR DREGIN UT I `weekview.js` 12.8.2026 — forsidan
+   (`Dashboard.jsx`) tharf NAKVAEMLEGA sama reikning fyrir badar deildir
+   notandans, og afrit hefdi verid onnur utfaersla af somu formulu. Sja
+   hausinn a `weekview.js` fyrir tvo skjolud tilfelli af thvi hvad thad
+   kostar (`buildTeamMetrics` og `makeEnricher` i FPL-appinu). */
+import { currentWeek, weekContext, weekRows, onByeThisWeek } from "./weekview.js";
 
 export default function MyTeam({ rows, league, news, meta, market, schedule, defense,
                                  leagueKey }) {
@@ -58,8 +63,7 @@ export default function MyTeam({ rows, league, news, meta, market, schedule, def
      (fyrsta auda vikan er 5), svo villan vaeri thogul i ar og birtist
      fyrst thegar deildin faerist. Skilyrdid er thvi a `seasonType`,
      ekki a thvi hvort talan lítur ut fyrir ad passa.               */
-  const curWeek = meta && (meta.seasonType === "regular" || meta.seasonType === "post")
-    ? meta.week : null;
+  const curWeek = currentWeek(meta);
 
   /* ============================================================
      VIKULEG SPA — MAELD ADUR EN HUN VAR TENGD
@@ -85,47 +89,18 @@ export default function MyTeam({ rows, league, news, meta, market, schedule, def
 
      I FORLEIK ER ENGIN VIKA og engin lina; tha fellur thetta i
      timabils-spána deilda med 17, eins og adur.                    */
-  const weekly = useMemo(() => {
-    if (curWeek == null || !schedule) return null;
-    const games = schedule.filter((g) => g.week === curWeek &&
-      (g.type === "REG" || g.type === "POST" || !g.type));
-    if (!games.length) return null;
-    const implied = new Map(), opp = new Map();
-    for (const g of games) {
-      const t = impliedTeamTotals(g.total, g.spread);
-      if (t) { implied.set(g.home, t.home); implied.set(g.away, t.away); }
-      opp.set(g.home, g.away); opp.set(g.away, g.home);
-    }
-    const dvp = new Map();
-    for (const d of (defense || [])) dvp.set(`${d.team}|${d.pos}`, d);
-    return { implied, opp, dvp };
-  }, [schedule, defense, curWeek]);
+  const weekly = useMemo(
+    () => weekContext({ schedule, defense, week: curWeek }),
+    [schedule, defense, curWeek]);
 
-  const lineup = useMemo(() => optimalLineup(roster.map((r) => {
-    const base = r.proj != null ? r.proj / 17 : null;
-    let proj = base;
-    if (weekly && base != null && r.team) {
-      const o = weekly.opp.get(r.team);
-      const d = o ? weekly.dvp.get(`${o}|${r.pos}`) : null;
-      const wp = weeklyProjection({
-        base, pos: r.pos, implied: weekly.implied.get(r.team),
-        def: d ? { adj: d.adj, leagueMean: d.leagueMean } : null,
-        avail: 1, bye: false,
-      });
-      if (wp && wp.pts != null) proj = wp.pts;
-    }
-    return {
-      id: r.id, name: r.name, pos: r.pos, team: r.team, proj,
-      avail: r.avail,
-      bye: curWeek != null && r.bye != null && r.bye === curWeek,
-      injury: r.injury,
-    };
-  }), slots), [roster, slots, curWeek, weekly]);
+  const lineup = useMemo(
+    () => optimalLineup(weekRows(roster, weekly), slots),
+    [roster, slots, weekly]);
 
   const preseason = !meta || meta.seasonType === "pre" || meta.seasonType === "off";
 
   /* Hverjir eru i frii THESSA viku — synt sem upplysing, ekki fald. */
-  const onBye = curWeek != null ? roster.filter((r) => r.bye === curWeek) : [];
+  const onBye = onByeThisWeek(roster, curWeek);
 
   return (
     <>

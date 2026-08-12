@@ -15,6 +15,7 @@ import Sources from "./Sources.jsx";
 import ModelLab from "./ModelLab.jsx";
 import Market from "./Market.jsx";
 import MyTeam from "./MyTeam.jsx";
+import Dashboard from "./Dashboard.jsx";
 
 /* ============================================================
    FLIPARNIR — FALDIR, EKKI FJARLAEGDIR
@@ -41,7 +42,13 @@ import MyTeam from "./MyTeam.jsx";
        ekki vordur.                                                   */
 const TABS = [
   ["draft", "🏈 Draft"],
-  ["myteam", "⭐ My team"],
+  ["home", "🏠 Dashboard"],
+  /* `myteam` er FALIN en EKKI FJARLAEGD. Forsidan svarar somu spurningu
+     fyrir BADAR deildir; `MyTeam` ber hins vegar `benchRegret` (var
+     bekkurinn oheppni eda villa?), sem kviknar fyrst thegar vika er
+     lidin og er ekki a forsidunni. Ad fjarlaegja hana vaeri ad henda
+     maelingu sem ekki hefur enn haft faeri a ad birtast. */
+  ["myteam", "⭐ My team", true],
   ["players", "👥 Players", true],
   ["experts", "🧠 Experts", true],
   ["market", "💰 Market", true],
@@ -129,6 +136,24 @@ export default function App() {
       return out;
     });
   }, []);
+  /* ============================================================
+     SLEEPER-AUDKENNI NOTANDANS BYR HER, EKKI I DRAFT-FLIPANUM
+     ============================================================
+     Notandanafnid var i `SleeperSync` og HVARF vid endurhledslu. Thad
+     var i lagi thar — draft-flipinn tharf thad adeins til ad finna
+     deildina — en forsidan tharf thad til ad vita HVER AF TIU LIDUM ER
+     MITT, og hun er su sida sem notandinn opnar i hverri viku. An thess
+     yrdi hann ad slá nafnid inn upp a nytt i hvert sinn, eda forsidan
+     yrdi ad giska, og gisk um "hvada lid er thitt" setur hop annars
+     manns a skjainn.
+
+     Vistad er `user_id` (snjokornid) OG nafnid: audkennid er stodugt en
+     nafnid er thad sem notandinn les. `myRosterId` i `standings.js`
+     tekur vid hvoru sem er. */
+  const [sleeperUser, setSleeperUser] = useState(
+    () => D.loadState("sleeperUser", { name: "", userId: null }));
+  useEffect(() => { D.saveState("sleeperUser", sleeperUser); }, [sleeperUser]);
+
   /* `showAll` er VILJANDI EKKI VISTAD. Notandinn bad um ad hitt vaeri
      falid; vaeri thad vistad myndi ein heimsokn i `Model lab` gera thad
      synilegt ad eilifu og beidnin snerist vid af sjalfu ser. */
@@ -203,6 +228,13 @@ export default function App() {
     else if (view === "sources") need(["calibration", "adp"]);
     else if (view === "market") need(["marketHistory"]);
     else if (view === "myteam") need(["seasons", "accuracy", "experts", "news", "defense"]);
+    /* Forsidan tharf `defense` (vorn gegn stodu -> viku-spa) og
+       `seasons`/`accuracy`/`experts` thvi `buildRows` byggir `vbd` og
+       `aRank` ur theim, og BADIR waiver-listinn og start/sit hanga a
+       theim tolum. `kickers` fylgir thvi 10-lida deildin BER
+       spyrnumann og vorn — sú deild tharf thau saeti fyllt. */
+    else if (view === "home") need(["seasons", "accuracy", "experts", "defense",
+                                    "news", "kickers"]);
     else if (view === "lab") need(["evalPpr", "evalStd", "stratPpr", "stratStd", "arankPpr", "arankStd",
                             "arankFfPpr", "arankFfStd", "shapes"]);
   }, [view, need]);
@@ -276,6 +308,7 @@ export default function App() {
           draft, nytt bord.                                            */}
       {view === "draft" && (
         <DraftBoard key={activeId} leagueKey={activeId}
+          sleeperUser={sleeperUser} setSleeperUser={setSleeperUser}
           rows={built.rows} meta={built.meta} league={league}
           sync={active.sync} setSync={setSync}
           imported={active.imported} warnings={active.warnings}
@@ -283,6 +316,11 @@ export default function App() {
           onImportLeague={importLeague}
           season={meta.season} accuracy={extra.accuracy}
           kickers={extra.kickers} shapes={extra.shapes} />
+      )}
+      {view === "home" && (
+        <Dashboard entries={entries} rows={built.rows} meta={meta}
+          schedule={core.schedule} defense={extra.defense}
+          sleeperUser={sleeperUser.userId || sleeperUser.name || null} />
       )}
       {view === "players" && (
         <PlayerTable rows={built.rows} meta={built.meta} league={league} />

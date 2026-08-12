@@ -13,7 +13,7 @@ const SUITES = [
   ["sleeper-league.mjs"], ["wiring.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
   ["standings.mjs"], ["waivers.mjs"],
   ["render.mjs", true], ["audit.mjs", true], ["layout.mjs", true],
-  ["saved-state.mjs", true], ["sleeper.mjs", true],
+  ["saved-state.mjs", true], ["sleeper.mjs", true], ["dashboard.mjs", true],
   /* `visual.mjs` raesir ALVORU Chrome og maelir raunverulegt utlit.
      Hann tharf `npm run build` a undan ser og sleppir ser sjalfur ef
      Chrome finnst ekki — en thad er SLEPPT, ekki graent. */

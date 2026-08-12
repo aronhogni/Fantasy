@@ -30,7 +30,8 @@ import { signed } from "./columns.js";
 
 export default function DraftBoard({ rows, meta, league, season, accuracy, kickers,
                                      shapes, leagueKey, sync, setSync,
-                                     imported, warnings, teams, onImportLeague }) {
+                                     imported, warnings, teams, onImportLeague,
+                                     sleeperUser, setSleeperUser }) {
   /* MENGIN ERU BUNDIN DEILDINNI. Sja notu vid `scoped` i `data.js`:
      deildu tvaer deildir sama `taken` vaeru leikmenn sem thu tokst i
      annarri strikadir ut i hinni, og radgjofin taeldi hop sem thu
@@ -183,6 +184,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
           er endurraestur vid svissun, svo draft-id sem vaeri skrifad
           hingad myndi hverfa i somu andra sem ny deild er flutt inn. */}
       <SleeperSync sync={sync} setSync={setSync} league={league}
+        sleeperUser={sleeperUser} setSleeperUser={setSleeperUser}
         season={season} rows={rows} taken={taken} onPicks={onPicks}
         imported={imported} warnings={warnings} teams={teams}
         onImportLeague={onImportLeague} shapes={shapes} />
@@ -481,8 +483,11 @@ function MyRoster({ roster, league, onUndo }) {
    thad sem madur vill i beinni med 30 sekundur a klukkunni.
    ============================================================ */
 function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
-                       imported, warnings, teams, onImportLeague }) {
-  const [user, setUser] = useState("");
+                       imported, warnings, teams, onImportLeague,
+                       sleeperUser, setSleeperUser }) {
+  /* Nafnid er FORFYLLT ur vistada audkenninu — notandinn a ekki ad slá
+     thad inn i hvert sinn, og forsidan tharf thad hvort ed er. */
+  const [user, setUser] = useState(() => (sleeperUser && sleeperUser.name) || "");
   /* Audkenni notandans er MUNAD thegar hann finnst. Thad er lykillinn
      ad sjalfvirku saeti — sja `resolveSlot`. */
   const [userId, setUserId] = useState(null);
@@ -596,6 +601,10 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
     try {
       const u = await D.sleeperUser(user.trim());
       setUserId(u.user_id || null);
+      /* Lyft upp i `App` og vistad — forsidan finnur "mitt lid" ur thvi. */
+      if (setSleeperUser) {
+        setSleeperUser({ name: user.trim(), userId: u.user_id || null });
+      }
       const ls = await D.sleeperLeagues(u.user_id, season);
       setLeagues(ls || []);
       setStatus(ls && ls.length ? null : "engar deildir a thessu timabili");
