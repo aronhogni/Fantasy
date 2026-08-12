@@ -1339,7 +1339,24 @@ export default function App() {
     return gk(a) - gk(z) || a.order - z.order;
   });
   const rows = { 1:[], 2:[], 3:[], 4:[] };
-  starters.forEach(s => { const p = byId[s.id]; if (p) rows[p.element_type].push(s); });
+  /* STODU-KORFAN ER PROFUD, EKKI GEFIN SER (lagad 11.8.2026).
+     `rows[p.element_type].push(s)` hrundi appinu VID HLEDSLU ef `element_type`
+     var ekki 1-4: `rows[99]` er undefined og `.push` kastar. `if (p)` var
+     thegar thar — thad vantadi vord a KORFUNA, ekki a leikmanninn.
+
+     ThETTA ER EKKI TILBUID TILFELLI: `element_type` kemur ur FPL
+     `bootstrap-static`, og FPL HEFUR ThEGAR bætt vid stodu-tegund (stjorar,
+     element_type 5, i sinum eigin keppnisformum). Nyr element_type i svarinu
+     hefdi thvi ekki gefid tomann flipa heldur HVITAN SKJA — ErrorBoundary
+     greip hann, og eina utgangan thar hreinsar OLL `fpl_*`-lyklana.
+
+     `stats.js:893` gerdi thetta ThEGAR rett (`if (byPos[r.pos])`), svo thetta
+     samraemir App.jsx vid mynstrid sem er annars stadar i repo-inu.
+     Leikmadur med othekkta stodu er SLEPPT ur vellinum — hann er ekki settur
+     i ranga korfu, thvi rong stada er verri en vantandi (sama regla og
+     THOGUL RONG PORUN i bsd.js).
+     Vordur: tests/extreme-values.mjs.                                     */
+  starters.forEach(s => { const p = byId[s.id]; if (p && rows[p.element_type]) rows[p.element_type].push(s); });
 
   /* ---------- Skipti ---------- */
   function commitTransfer(outId, inId) {
@@ -1392,7 +1409,10 @@ export default function App() {
     if (!a || !b || a.starter === b.starter) return false;
     const next = squadAt.map(s => s.id === aId ? { ...s, starter: b.starter } : s.id === bId ? { ...s, starter: a.starter } : s);
     const cnt = { 1:0, 2:0, 3:0, 4:0 };
-    next.filter(s => s.starter).forEach(s => { const p = byId[s.id]; if (p) cnt[p.element_type]++; });
+    /* Sama vord og a `rows` ad ofan: `cnt[99]++` kastar ekki (thad gerir
+       `NaN`) en thad BAETIR VID LYKLI sem leikstodu-profid nedar les ekki,
+       svo ologleg uppstilling hefdi slopped thegjandi.                    */
+    next.filter(s => s.starter).forEach(s => { const p = byId[s.id]; if (p && cnt[p.element_type] != null) cnt[p.element_type]++; });
     if (cnt[1] !== 1 || cnt[2] < 3 || cnt[3] < 2 || cnt[4] < 1 || cnt[2]+cnt[3]+cnt[4] !== 10) {
       flash("Illegal formation (1 GK, 3+ DEF, 2+ MID, 1+ FWD)."); return false;
     }
