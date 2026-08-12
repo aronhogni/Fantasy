@@ -496,6 +496,79 @@ console.log("\n7. waiver-hlutinn");
 }
 
 /* ============================================================
+   3c. FRETTIR OG MEIDSLI — BIRT, ALDREI TULKUD
+   ============================================================
+   Fréttir eru SAMHENGI. Reglan i `MyTeam.jsx` gildir her lika: "tolid
+   les thaer ekki og breytir engri tolu vegna theirra; ad lata
+   malgreiningu faera spa vaeri omaeld tala i reit".
+
+   OG NAFNA-BAKLEIDIN VERDUR AD VERA SYND. `newsmatch.js` parar a
+   `espnId` fyrst og a nafni ADEINS fyrir tha sem bera ekkert audkenni
+   — thvi "Josh Allen" (BUF, QB) og "Josh Allen" (JAX, LB) eru sami
+   strengur. Gamla utgafan i `MyTeam.jsx` leitadi a audkenni EDA nafni
+   fyrir hvern leikmann, svo sa sem BAR audkenni gat samt parast a
+   nafni vid annan mann. Profad her sem HREIN vorpun, thvi hun er hrein
+   og thad er odyrara en ad smida frettaskra i DOM.                   */
+console.log("\n3c. frettir eru birtar, ekki tulkadar");
+{
+  const { newsForRoster, injuredOn } = await import("../src/newsmatch.js");
+
+  const roster = [
+    { id: "1", name: "Josh Allen", pos: "QB", espnId: "3918298", injury: null },
+    { id: "2", name: "Bijan Robinson", pos: "RB", espnId: null, injury: "Questionable" },
+    { id: "3", name: "Active Guy", pos: "WR", espnId: "999", injury: "Active" },
+  ];
+  const news = { articles: [
+    { id: "a1", headline: "Allen throws four", published: "2026-08-10T00:00:00Z",
+      athletes: [{ espnId: "3918298", name: "Josh Allen" }] },
+    /* SAMA NAFN, ANNAR MADUR og annad audkenni. Hann er EKKI i hopnum,
+       svo thetta ma ALDREI parast. */
+    { id: "a2", headline: "Linebacker Josh Allen signs", published: "2026-08-09T00:00:00Z",
+      athletes: [{ espnId: "4241985", name: "Josh Allen" }] },
+    { id: "a3", headline: "Robinson limited", published: "2026-08-08T00:00:00Z",
+      athletes: [{ espnId: "4430807", name: "Bijan Robinson" }] },
+    { id: "a4", headline: "Nobody relevant", published: "2026-08-07T00:00:00Z",
+      athletes: [{ espnId: "5", name: "Someone Else" }] },
+  ] };
+
+  const m = newsForRoster({ roster, news });
+  ok(m.loaded === true, "frettaskra sem er til er merkt `loaded`");
+  ok(m.items.length === 2, `tvaer greinar passa (${m.items.length})`);
+  ok(m.items.some((a) => a.id === "a1") && m.items.some((a) => a.id === "a3"),
+    "rettar tvaer");
+  /* ÞETTA ER PROFSTEINNINN: samnefndi linebacker-inn ma EKKI parast. */
+  ok(!m.items.some((a) => a.id === "a2"),
+    "samnefndur madur sem er EKKI i hopnum parast EKKI (gamla villan)");
+  ok(m.viaId === 1 && m.viaName === 1,
+    `porun er TALIN: ${m.viaId} a audkenni, ${m.viaName} a nafni`);
+  ok(m.items.find((a) => a.id === "a3").matchedBy === "name",
+    "sa an audkennis var paradur a nafni og thad er MERKT");
+  ok(m.items[0].id === "a1", "nyjasta fyrst");
+
+  /* Vantandi frettaskra er "vitum ekki", ekki "engar frettir". */
+  const none = newsForRoster({ roster, news: null });
+  ok(none.loaded === false && none.items.length === 0,
+    "vantandi frettaskra -> `loaded: false`, ekki tomt sem stadreynd");
+
+  /* Meidsli: "Active" er EKKI meidsli og `null` er ekki heldur. */
+  const hurt = injuredOn(roster);
+  ok(hurt.length === 1 && hurt[0].id === "2",
+    `adeins raunverulegt meidsli flaggast (${hurt.length})`);
+  ok(!hurt.some((r) => r.injury === "Active"), "\"Active\" er ekki meidsli");
+  ok(injuredOn(null).length === 0 && injuredOn([]).length === 0,
+    "rusl gefur tomt, ekki hrun");
+
+  /* Tveir eins i SAMA hop -> parun omoguleg og TALIN, ekki gisk. */
+  const dup = newsForRoster({
+    roster: [{ id: "9", name: "Same Name", espnId: null },
+             { id: "10", name: "Same Name", espnId: null }],
+    news: { articles: [{ id: "b1", headline: "x", published: "2026-01-01T00:00:00Z",
+                         athletes: [{ name: "Same Name" }] }] } });
+  ok(dup.items.length === 0 && dup.ambiguous === 1,
+    `tviraett nafn er talid og EKKI parad (${dup.ambiguous})`);
+}
+
+/* ============================================================
    7b. FORLEIKUR: ENGINN WAIVER-LISTI, EKKI "ENGIN SKIPTI"
    ============================================================
    Þrjar OLIKAR astaedur fyrir tomum waiver-lista og thaer mega EKKI

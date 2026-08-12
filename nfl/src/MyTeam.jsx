@@ -28,6 +28,7 @@ import { optimalLineup, slotsFor } from "./lineup.js";
    hausinn a `weekview.js` fyrir tvo skjolud tilfelli af thvi hvad thad
    kostar (`buildTeamMetrics` og `makeEnricher` i FPL-appinu). */
 import { currentWeek, weekContext, weekRows, onByeThisWeek } from "./weekview.js";
+import { newsForRoster, injuredOn } from "./newsmatch.js";
 
 export default function MyTeam({ rows, league, news, meta, market, schedule, defense,
                                  leagueKey }) {
@@ -291,22 +292,19 @@ function Lineup({ lineup, slots, preseason }) {
    FRETTIR OG MEIDSLI — ADEINS UM THINA MENN
    ============================================================ */
 function Alerts({ roster, news }) {
-  const mine = useMemo(() => {
-    if (!news || !news.articles) return [];
-    const espnIds = new Set(roster.map((r) => r.espnId).filter(Boolean));
-    const names = new Set(roster.map((r) => (r.name || "").toLowerCase()));
-    return news.articles
-      .map((a) => {
-        const hit = (a.athletes || []).find((x) =>
-          (x.espnId && espnIds.has(x.espnId)) ||
-          (x.name && names.has(x.name.toLowerCase())));
-        return hit ? { ...a, who: hit.name } : null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => String(b.published).localeCompare(String(a.published)));
-  }, [roster, news]);
+  /* PORUNIN VAR DREGIN UT I `newsmatch.js` 12.8.2026 — forsidan tharf
+     nakvaemlega somu parun fyrir badar deildir, og afrit hefdi verid
+     onnur utfaersla af somu reglu.
 
-  const hurt = roster.filter((r) => r.injury && r.injury !== "Active");
+     OG UTDRATTURINN HERTI HANA: gamla utgafan hér leitadi a `espnId`
+     EDA nafni fyrir HVERN leikmann. Sa sem bar audkenni gat thvi
+     parast a NAFNI vid annan mann med sama nafn — "Josh Allen" (BUF,
+     QB) og "Josh Allen" (JAX, LB) eru sami strengur. Nu er nafnid
+     adeins reynt fyrir tha 39 sem bera EKKERT audkenni, og bakleidin
+     er TALIN svo hun geti ekki vaxid i thogn. */
+  const matched = useMemo(() => newsForRoster({ roster, news }), [roster, news]);
+  const mine = matched.items;
+  const hurt = injuredOn(roster);
 
   return (
     <>

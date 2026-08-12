@@ -416,7 +416,7 @@ export default function App() {
       )}
       {view === "home" && (
         <Dashboard entries={entries} rows={built.rows} meta={meta}
-          schedule={core.schedule} defense={extra.defense}
+          schedule={core.schedule} defense={extra.defense} news={extra.news}
           sleeperUser={sleeperUser.userId || sleeperUser.name || null} />
       )}
       {view === "players" && (

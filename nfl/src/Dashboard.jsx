@@ -55,8 +55,10 @@ import { standingsFrom, myRosterId, recordLine } from "./standings.js";
 import { optimalLineup, lineupAdvice, slotsFor } from "./lineup.js";
 import { currentWeek, weekContext, weekRows, onByeThisWeek } from "./weekview.js";
 import { freeAgents, pickupAdvice } from "./waivers.js";
+import { newsForRoster, injuredOn } from "./newsmatch.js";
 
-export default function Dashboard({ entries, rows, meta, schedule, defense, sleeperUser }) {
+export default function Dashboard({ entries, rows, meta, schedule, defense, news,
+                                    sleeperUser }) {
   /* Eitt svar per deild: `{ rosters, users, error }`. Lyklad a
      deildar-audkenni svo tvaer deildir geti ekki blandast — sama regla
      og `scoped` i `data.js`. */
@@ -137,7 +139,7 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, slee
 
       {real.map((e) => (
         <LeagueCard key={e.id} entry={e} rows={rows} live={live[e.imported.leagueId]}
-          week={week} ctx={ctx} sleeperUser={sleeperUser} busy={busy} />
+          week={week} ctx={ctx} news={news} sleeperUser={sleeperUser} busy={busy} />
       ))}
     </>
   );
@@ -146,7 +148,7 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, slee
 /* ============================================================
    EIN DEILD
    ============================================================ */
-function LeagueCard({ entry, rows, live, week, ctx, sleeperUser, busy }) {
+function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy }) {
   const league = entry.rules;
   const rosters = live && live.rosters;
   const users = live && live.users;
@@ -231,6 +233,7 @@ function LeagueCard({ entry, rows, live, week, ctx, sleeperUser, busy }) {
       {!live && busy && <div className="dim" style={{ marginTop: 8 }}>Reading…</div>}
 
       <Standings table={table} mineId={mineId} />
+      <RosterNews roster={myRows} news={news} />
       <StartSit lineup={lineup} advice={advice} bye={bye} week={week}
         myRows={myRows} mineId={mineId} />
       <Waivers fa={fa} picks={picks} league={league} />
@@ -306,6 +309,72 @@ function Standings({ table, mineId }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   1b. MEIDSLI OG FRETTIR A HOPNUM
+   ============================================================
+   Notandinn: „this season stats verda mjog relevant … i sambandi vid
+   frettir sem utskyra thá stats".
+
+   ÞETTA ER SAMHENGI OG ÞAÐ ER MERKT SEM SAMHENGI. Fréttir eru BIRTAR,
+   EKKI TULKADAR — sama regla og i `MyTeam.jsx`: „tolid les thaer ekki
+   og breytir engri tolu vegna theirra; ad lata malgreiningu faera spa
+   vaeri omaeld tala i reit". Ekkert her hreyfir `proj`, `vbd` ne rod.
+
+   MEIDSLI: opinber Sleeper-status raedur tiltaekileika, PUNKTUR. Allt
+   annad ma auðga hann, aldrei skipta honum ut (FPL-reglan, sem gildir
+   her lika).
+
+   NAFNA-BAKLEIDIN ER SYND. `newsmatch.js` telur hvad var parad a
+   audkenni og hvad a nafni; hafi nafna-parun verid notud er thad SAGT,
+   thvi „thogul rong parun er verri en engin" (BSD-liða-vorpunin, thar
+   sem fuzzy felldi Man United inn i Man City).                       */
+function RosterNews({ roster, news }) {
+  const m = useMemo(() => newsForRoster({ roster, news }), [roster, news]);
+  const hurt = useMemo(() => injuredOn(roster || []), [roster]);
+  if (!roster || !roster.length) return null;
+  if (!hurt.length && !m.items.length) return null;
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <Head>Injuries &amp; news</Head>
+
+      {hurt.length > 0 && (
+        <div className="note warn" style={{ marginTop: 6 }}>
+          <b>{hurt.length} flagged on your roster:</b>{" "}
+          {hurt.map((r) => `${r.name} (${r.injury})`).join(", ")}.
+          <span className="dim"> Official status decides availability —
+            everything else may inform it, never replace it.</span>
+        </div>
+      )}
+
+      {m.items.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          {m.items.slice(0, 4).map((a) => (
+            <div key={a.id} style={{ fontSize: 12.5, marginBottom: 3 }}>
+              <span className="dim">{a.who}</span>{" "}
+              <a href={a.url} target="_blank" rel="noreferrer"
+                style={{ color: "var(--text)" }}>{a.headline}</a>
+              {a.matchedBy === "name" && (
+                <span className="warn" title="Matched on name, not on id — this player carries no espnId"> ·
+                  name match</span>
+              )}
+            </div>
+          ))}
+          <div className="dim" style={{ fontSize: 11.5, marginTop: 3 }}>
+            {m.items.length} of the latest stories mention someone on your roster
+            {m.viaName > 0 && <span className="warn"> · {m.viaName} matched on
+              name rather than id</span>}
+            {m.ambiguous > 0 && <span className="warn"> · {m.ambiguous} skipped as
+              ambiguous</span>}.
+            <b> News is shown, never interpreted</b> — nothing here moves a
+            projection or a rank.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
