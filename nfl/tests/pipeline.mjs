@@ -557,7 +557,6 @@ console.log("\nolesnar skrar eru asettar");
        lagfaeringin er EKKI LAERANLEG: studullinn flyst ekki milli ara
        (RB rho = -0,358). Skrain er sonnunargagnid fyrir thvi ad
        tilraunin var GERD og felld, svo hun verdi ekki endurtekin. */
-    "calib_standard_fftoday.json": "kvordun a spa-kvarda fyrir VBD — felld, studullinn flyst ekki",
     "bye_ppr_sleeper.json": "audar vikur, vikuleg talning — synt sem samhengi, raedur engu",
     "bye_ppr_fftoday.json": "sama a ohadri heimild",
     "risk_ppr_sleeper.json": "ahaetta vid valid — 0 af 24 standast",
@@ -565,6 +564,8 @@ console.log("\nolesnar skrar eru asettar");
     "expert_persistence.json": "rod serfraedinga 2015-2025 — rho 0,370, 0 neikvaed por",
     "schedule_history.json": "linur 2019-2025; forsenda start/sit-bakprofsins",
     "startsit_standard.json": "standard-helmingur start/sit — vordur les ppr og standard",
+    "sharp_ppr.json": "bord topp-15 spamanna — slaer hvorki flata samsteypu ne A-Ranking",
+    "calib_standard_fftoday.json": "kvordun a spa-kvarda — felld, studullinn flyst ekki",
   };
 
   const { readdirSync } = await import("node:fs");

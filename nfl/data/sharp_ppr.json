@@ -1,0 +1,244 @@
+{
+ "generated": "2026-08-12T11:06:57.853Z",
+ "provenance": {
+  "generated": "2026-08-12T11:06:57.853Z",
+  "argv": [
+   "--scoring=ppr",
+   "--k=15",
+   "--runs=4",
+   "--from=2019"
+  ],
+  "params": {
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": false
+   },
+   "k": {
+    "value": "15",
+    "fromDefault": false
+   },
+   "runs": {
+    "value": "4",
+    "fromDefault": false
+   },
+   "from": {
+    "value": "2019",
+    "fromDefault": false
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "scoring": "ppr",
+ "K": 15,
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "selection": {
+  "2019": {
+   "picked": 15,
+   "withBoard": 13,
+   "names": [
+    "Joseph Dolan - Fantasy Points",
+    "Jake Ciely - The Athletic",
+    "Jeff Ratcliffe - FTN",
+    "Pat Fitzmaurice - FantasyPros",
+    "Jason Longfellow - Razzball",
+    "Dan Clasgens - Get Sports Info",
+    "Justin Boone - Yahoo",
+    "Scott Pianowski - Yahoo",
+    "Sean Koerner - The Action Network",
+    "Matthew Hill - DataForce Fantasy Football",
+    "Chris Meaney - FTN",
+    "Kevin Hanson - EDSFootball",
+    "Brendan Donahue - Sharp Football Analysis"
+   ]
+  },
+  "2020": {
+   "picked": 15,
+   "withBoard": 8,
+   "names": [
+    "Sean Koerner - The Action Network",
+    "Rob Waziak - Fantasy Life",
+    "Jake Ciely - The Athletic",
+    "Pat Fitzmaurice - FantasyPros",
+    "Justin Boone - Yahoo",
+    "Dan Clasgens - Get Sports Info",
+    "Site Rankings - FullTime Fantasy",
+    "Jeff Boggis - Fantasy Football Empire"
+   ]
+  },
+  "2021": {
+   "picked": 15,
+   "withBoard": 9,
+   "names": [
+    "Pat Fitzmaurice - FantasyPros",
+    "Rob Waziak - Fantasy Life",
+    "Allie Fontana - Fighting Chance Fantasy",
+    "Jake Ciely - The Athletic",
+    "Sean Koerner - The Action Network",
+    "Jeff Ratcliffe - FTN",
+    "Dan Clasgens - Get Sports Info",
+    "Richard Savill - Fantasy Six Pack",
+    "Jeff Boggis - Fantasy Football Empire"
+   ]
+  },
+  "2022": {
+   "picked": 15,
+   "withBoard": 7,
+   "names": [
+    "Sean Koerner - The Action Network",
+    "Rob Waziak - Fantasy Life",
+    "Jeff Boggis - Fantasy Football Empire",
+    "Allie Fontana - Fighting Chance Fantasy",
+    "Pat Fitzmaurice - FantasyPros",
+    "Dan Clasgens - Get Sports Info",
+    "Jake Ciely - The Athletic"
+   ]
+  },
+  "2023": {
+   "picked": 15,
+   "withBoard": 8,
+   "names": [
+    "Rob Waziak - Fantasy Life",
+    "Pat Fitzmaurice - FantasyPros",
+    "Justin Sablich - 5th Down Fantasy",
+    "Chris Raybon - The Action Network",
+    "Jeff Ratcliffe - FTN",
+    "Sean Koerner - The Action Network",
+    "Jeff Boggis - Fantasy Football Empire",
+    "Michael Hauff - FF Faceoff"
+   ]
+  },
+  "2024": {
+   "picked": 15,
+   "withBoard": 10,
+   "names": [
+    "Sean Koerner - The Action Network",
+    "Chris Raybon - The Action Network",
+    "Rob Waziak - Fantasy Life",
+    "Jeff Ratcliffe - FTN",
+    "Pat Fitzmaurice - FantasyPros",
+    "Justin Weigal - Fantasy Sharks",
+    "Clayton Cadieux - Fantasy Football From Up North",
+    "Justin Sablich - 5th Down Fantasy",
+    "Jared Smola - Draft Sharks",
+    "Dan Clasgens - Get Sports Info"
+   ]
+  },
+  "2025": {
+   "picked": 15,
+   "withBoard": 9,
+   "names": [
+    "Sean Koerner - The Action Network",
+    "Jeff Ratcliffe - FTN",
+    "Rob Waziak - Fantasy Life",
+    "Justin Boone - Yahoo",
+    "Pat Fitzmaurice - FantasyPros",
+    "Chris Raybon - The Action Network",
+    "Matthew Hill - DataForce Fantasy Football",
+    "Jared Smola - Draft Sharks",
+    "Mick Ciallela - Fantrax"
+   ]
+  }
+ },
+ "perYear": {
+  "2019": {
+   "experts": 13,
+   "sharpPlayers": 161,
+   "flatPlayers": 161
+  },
+  "2020": {
+   "experts": 8,
+   "sharpPlayers": 162,
+   "flatPlayers": 162
+  },
+  "2021": {
+   "experts": 9,
+   "sharpPlayers": 178,
+   "flatPlayers": 178
+  },
+  "2022": {
+   "experts": 7,
+   "sharpPlayers": 144,
+   "flatPlayers": 144
+  },
+  "2023": {
+   "experts": 8,
+   "sharpPlayers": 174,
+   "flatPlayers": 174
+  },
+  "2024": {
+   "experts": 10,
+   "sharpPlayers": 175,
+   "flatPlayers": 175
+  },
+  "2025": {
+   "experts": 9,
+   "sharpPlayers": 201,
+   "flatPlayers": 201
+  }
+ },
+ "vsAdp": {
+  "mean": 48.9,
+  "t": 1.419,
+  "wins": 4,
+  "years": 7,
+  "significant": false
+ },
+ "vsFlat": {
+  "mean": -32.8,
+  "t": -1.805,
+  "wins": 2,
+  "years": 7,
+  "significant": false
+ },
+ "vsArank": {
+  "mean": -116.1,
+  "t": -1.415,
+  "wins": 3,
+  "years": 7,
+  "significant": false
+ },
+ "perSeasonRaw": {
+  "vsAdp": {
+   "2019": 23.29895833333336,
+   "2020": 151.0020833333333,
+   "2021": -27.913541666666656,
+   "2022": 30.674999999999986,
+   "2023": -35.25520833333334,
+   "2024": -0.21770833333333664,
+   "2025": 200.4979166666666
+  },
+  "vsFlat": {
+   "2019": -9.634375,
+   "2020": 8.19999999999999,
+   "2021": -80.98437499999997,
+   "2022": -114.58541666666666,
+   "2023": 10.369791666666679,
+   "2024": -36.863541666666656,
+   "2025": -5.785416666666651
+  },
+  "vsArank": {
+   "2019": 62.028125000000024,
+   "2020": 88.06874999999998,
+   "2021": -276.17291666666677,
+   "2022": -240.43645833333332,
+   "2023": -323.0666666666668,
+   "2024": -305.9718750000001,
+   "2025": 182.8854166666667
+  }
+ }
+}

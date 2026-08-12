@@ -451,5 +451,60 @@ console.log("\nferskleiki gegn ADP");
   }
 }
 
+/* ============================================================
+   BORD BESTU SPAMANNANNA — HAEFILEIKINN ER RAUNVERULEGUR,
+   AVINNINGURINN ER ThAD EKKI
+   ============================================================
+   Tvennt var maelt i rod og thau segja EKKI thad sama:
+
+   1. `expert-persistence.mjs`: rod serfraedinga FLYST. rho 0,370 yfir
+      tiu arapor, NULL neikvaed, topp-10 i fyrra lendir i 34,5.
+      hundradshluta i ar. Haefileiki er raunverulegur og maelanlegur.
+
+   2. `sharp-lab.mjs`: bord theirra slaer samt EKKI markadinn.
+        gegn ADP             +48,9 stig · 4/7 ar · t=1,42  (ekki marktaekt)
+        gegn FLATRI samsteypu -32,8    · 2/7    · t=-1,81
+        gegn A-Ranking       -116,1    · 3/7    · t=-1,42
+
+   MIDJU-TALAN ER SU SEM SKIPTIR MALI OG HUN ER OVAENT: ad velja
+   FIMMTAN BESTU gerir bordid VERRA en ad medaltala alla sextiu. Rodun
+   theirra flyst — en samsteypa margra jafnar ut einstaklingsvillur
+   betur en samsteypa faerri godra. Vitund fjoldans slaer haefileikann.
+
+   VARNAGLI SEM MA EKKI FALLA UT: adeins 7 til 13 af 15 voldum attu
+   bord hvert ar, svo skorpu-bordid medaltalar ~9 menn gegn ~60 i thvi
+   flata. Hluti munarins gaeti verid URTAKSSTAERD fremur en val. Thad
+   breytir ekki nidurstodunni gagnvart A-Ranking, sem er skyr.
+
+   Valid var WALK-FORWARD: fyrir ar Y voru menn valdir ur arum < Y
+   eingongu. Ad velja thá sem reyndust bestir yfir allt timabilid og
+   herma sidan vaeri ad vita utkomuna fyrirfram.                    */
+console.log("\nbord bestu spamannanna");
+{
+  const p = path.join(DATA, "sharp_ppr.json");
+  if (!existsSync(p)) {
+    console.log("  (sharp_ppr.json vantar — keyrdu scripts/sharp-lab.mjs)");
+  } else {
+    const S = JSON.parse(readFileSync(p, "utf8"));
+    ok(S.seasons.length >= 5, `${S.seasons.length} timabil hermd`);
+    ok(S.K >= 10 && S.K <= 20, `K=${S.K} — innan thess bils sem maeldist sterkast`);
+
+    /* Kjarninn: thad SLAER EKKI A-Ranking. Snuist thad vid a ad
+       endurskoda hvort skorpu-bordid eigi ad rada. */
+    ok(!S.vsArank.significant || S.vsArank.mean < 0,
+      `slaer ekki A-Ranking (${S.vsArank.mean} stig, ${S.vsArank.wins}/${S.vsArank.years})`);
+
+    /* Og valid baetir ekki flotu samsteypuna — thad er nidurstadan sem
+       kom a ovart og hun a ad standa thangad til hun er endurmæld. */
+    ok(S.vsFlat == null || S.vsFlat.mean < 20,
+      `vegid bord baetir ekki flata samsteypu (${S.vsFlat ? S.vsFlat.mean : "—"})`);
+
+    /* Urtaksstaerdin verdur ad vera synileg — hun er varnaglinn. */
+    const withBoard = Object.values(S.selection || {}).map((v) => v.withBoard);
+    ok(withBoard.length > 0 && Math.min(...withBoard) >= 4,
+      `hvert ar byggir a minnst ${withBoard.length ? Math.min(...withBoard) : 0} bordum`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
