@@ -258,15 +258,33 @@ const BUDGET = 100.0;
 /* Andstæðingur: HEIMALEIKUR = STÓRIR STAFIR, ÚTILEIKUR = litlir stafir.
    Það gerir "(a)"-merkið óþarft og heldur flísunum þéttum.               */
 const oppLabel = (short, home) => !short ? "?" : (home ? short.toUpperCase() : short.toLowerCase());
-const fmtDate = iso => {
-  if (!iso) return "—";
+/* ONYT DAGSETNING ER SAMA OG VANTANDI (11.8.2026).
+   Fimm sniðgerdir profudu `!iso` — sem gripur null og tomann streng — en EKKI
+   hvort dagsetningin se NYTILEG. `new Date("ekki dagsetning")` er Invalid Date,
+   og tha er `getDay()` NaN, svo `days[NaN]` er **undefined** og `getDate()` er
+   **NaN**. Utkoman a skjanum var ordrett:
+     "10 fixturesundefined NaN. undefinedARSNaN:NaN"
+   Fundid i proflotu 11.8.2026 med `kickoff_time: "ekki dagsetning"` i
+   fixtures.json. ATH: `kickoff_time: null` var ThEGAR i lagi — thad var
+   ONYTUR STRENGUR sem slapp, sem er einmitt thad sem hálf-skrifud skra eda
+   sniðs-breyting hja FPL gefur.
+   Eitt fall svo profin fimm geti ekki rekid i sundur; `null` ut thydir
+   "notadu somu varaleid og fyrir vantandi gildi".                        */
+const asDate = iso => {
+  if (!iso) return null;
   const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+const fmtDate = iso => {
+  const d = asDate(iso);
+  if (!d) return "—";
   const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   return `${days[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}. ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 };
 const fmtClock = iso => {
-  if (!iso) return "—";
-  const d = new Date(iso), now = new Date();
+  const d = asDate(iso);
+  if (!d) return "—";
+  const now = new Date();
   const mins = Math.round((now - d) / 60000);
   if (mins < 2) return "now";
   if (mins < 60) return interp("{0} min ago", [mins]);
@@ -274,8 +292,8 @@ const fmtClock = iso => {
   return h < 24 ? interp("{0}h ago", [h]) : `${d.getDate()}.${d.getMonth()+1}.`;
 };
 const fmtDeadline = iso => {
-  if (!iso) return "—";
-  const d = new Date(iso);
+  const d = asDate(iso);
+  if (!d) return "—";
   return interp("{0}/{1} at {2}:{3}", [d.getDate(), d.getMonth()+1,
     String(d.getHours()).padStart(2,"0"), String(d.getMinutes()).padStart(2,"0")]);
 };
@@ -3500,13 +3518,13 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
   const MON  = ["Jan","Feb","March","April","May","June",
                 "July","August","Sep","Oct","Nov","Dec"];
   const dayLbl = iso => {
-    if (!iso) return "Not scheduled";
-    const d = new Date(iso);
+    const d = asDate(iso);
+    if (!d) return "Not scheduled";
     return `${DAYS[d.getDay()]} ${d.getDate()}. ${MON[d.getMonth()]}`;
   };
   const timeLbl = iso => {
-    if (!iso) return "—";
-    const d = new Date(iso);
+    const d = asDate(iso);
+    if (!d) return "—";
     return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
   };
   const groups = [];
