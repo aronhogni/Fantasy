@@ -575,5 +575,87 @@ console.log("\nsamhljoda osaetti vid ADP");
   }
 }
 
+/* ============================================================
+   PPR GEGN HALF-PPR — TVAER FULLYRDINGAR, ANDSTAEDAR
+   ============================================================
+   Notandinn draftar i BADUM snidum (Patriots 10-lida PPR, Sofahetjur
+   12-lida half-PPR) og spurdi hvort maelingin heldi i baðum. Half-PPR
+   var ALDREI i bakprofinu: `features.json` ber `ppr` og `standard`
+   eitt. `half-lab.mjs` reiknar hana upp a stig — PPR = STD +
+   mottokur, svo HALF = (STD + PPR)/2 — og maelir hana.
+
+   Profid ver TVAER nidurstodur i einu og freistingin er ad muna adra:
+
+     (a) FORSKOTID HELDUR I OLLUM THREMUR SNIDUM, i baðum raunverulegu
+         logununum, og med baðum ADP-vikmorkum. Falli thad hefur
+         eitthvad brotnad i kjarnanum.
+     (b) OG MUNURINN A SNIDUNUM ER EKKI MARKTAEKUR. Yrdi hann thad
+         thyrfti appid ad hafa ADRA hegdun per sniði — og tha a thetta
+         prof ad falla svo einhver taki thad upp med opnum augum.
+
+   ADP ER VIKMORK, EKKI TALA. Sogulegt half-ADP er ekki til (FFC ber
+   `half-ppr_12` adeins fyrir yfirstandandi ar), svo maelt er tvisvar —
+   med ppr-ADP og std-ADP sem markadsbord. Baðar verda ad standa;
+   annars vaeri nidurstadan haed af thvi hvort vikmarkid var valid.  */
+console.log("\nppr gegn half-ppr");
+{
+  const p = path.join(DATA, "measure", "half.json");
+  if (!existsSync(p)) {
+    console.log("  (half.json vantar — keyrdu scripts/half-lab.mjs)");
+  } else {
+    const H = JSON.parse(readFileSync(p, "utf8"));
+    ok(H.seasons.length >= 8, `${H.seasons.length} timabil maeld`);
+
+    /* PORUNIN. Paruð prof a oporudum urtokum er ekki paruð prof —
+       hrynji hun verdur samanburdurinn annad en hann segist vera. */
+    const { paired, unpaired } = H.pairing;
+    ok(paired > 1000 && unpaired / (paired + unpaired) < 0.15,
+      `porun heil: ${paired} por, ${unpaired} oporud ` +
+      `(${Math.round(unpaired / (paired + unpaired) * 100)}%)`);
+
+    /* (a) Forskotid heldur — ALLAR tolur, ekki medaltal theirra. */
+    let weakest = null;
+    for (const [shape, byFmt] of Object.entries(H.results)) {
+      for (const [fmt, bySrc] of Object.entries(byFmt)) {
+        for (const [src, q] of Object.entries(bySrc)) {
+          if (weakest == null || q.t < weakest.t) weakest = { shape, fmt, src, ...q };
+        }
+      }
+    }
+    ok(weakest && weakest.t > 2.26,
+      `slakasta talan er samt marktaek: ${weakest.shape}/${weakest.fmt}/${weakest.src} ` +
+      `+${weakest.mean} (t=${weakest.t})`);
+
+    const allPos = Object.values(H.results).every((byFmt) =>
+      Object.values(byFmt).every((bySrc) =>
+        Object.values(bySrc).every((q) => q.mean > 0 && q.wins >= Math.ceil(q.years * 0.75))));
+    ok(allPos, "og hver einasta utgafa vinnur i minnst 75% ara");
+
+    /* HALF VERDUR AD VERA MED — annars vaeri profid ad verja ppr og
+       standard og thegja um snidid sem notandinn draftar i. */
+    ok(Object.values(H.results).every((f) => f.half && f.half.adpPpr && f.half.adpStd),
+      "half-ppr er maeld i baðum logunum og baðum ADP-vikmorkum");
+
+    /* (b) Og munurinn a snidunum er EKKI marktaekur. */
+    let biggest = null;
+    for (const [shape, d] of Object.entries(H.differences)) {
+      for (const [k, q] of Object.entries(d)) {
+        if (q.t == null) continue;
+        if (biggest == null || Math.abs(q.t) > Math.abs(biggest.t)) biggest = { shape, k, ...q };
+      }
+    }
+    ok(biggest && Math.abs(biggest.t) < 2.26,
+      `staersti munur milli snida er EKKI marktaekur: ${biggest.shape} ` +
+      `${biggest.k} ${biggest.mean} (t=${biggest.t})`);
+
+    /* Og logunin sem notandinn draftar i verdur ad vera thar. Fast
+       heiti er visvitandi: yrdi henni skipt ut fyrir tilbuna logun
+       vaeri profid ad verja allt annad en deildina hans. */
+    for (const key of ["10-2flex", "12-2flex"]) {
+      ok(H.results[key] != null, `raunveruleg logun "${key}" er maeld`);
+    }
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

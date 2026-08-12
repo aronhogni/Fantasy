@@ -288,5 +288,84 @@ console.log("\naudar vikur: taldar, ekki vegnar");
   ok(noBye.byeClash.length === 0, "og an gagna er enginn arekstur talinn");
 }
 
+/* ============================================================
+   STODU-THORF MA EKKI HREYFA RODINA — OG `survive` EKKI HELDUR
+   ============================================================
+   Notandinn spurdi 12.8.2026: "eg se ad akvardanatakan tekur tillit
+   til thess ad eg a engan WR — er thad smart move?" Svarid er nei,
+   og appid gerir thad ekki. En hann var ekki ad imynda ser thetta:
+   `reasonsFor` skrifar "you still need 2 at WR" og TEXTI SEM LITUR UT
+   EINS OG ROKSTUDNINGUR LES EINS OG HANN HAFI RADID. Thess vegna eru
+   badar hlidar profadar: ordalagid ma segja fra thorfinni, en rodin
+   verdur ad vera oháð henni.
+
+   MAELT:
+     stodu-plan (19 utgafur, strategy-lab)  ekkert slaer BPA marktaekt
+     bradanauðsyn sem rod (advice-lab)      -63,8 i standard, 0/4 ar
+     lifunarlikur sem jafnteflis-rof        PPR -1,7 (4/10, t=-0,06)
+       (tiebreak-lab, NYTT 12.8.2026)       std +15,9 (7/10, t=0,79)  */
+console.log("\nstodu-thorf og lifunarlikur RADA ENGU");
+{
+  const { DEFAULT_LEAGUE: DL } = await import("../src/build.js");
+  const L = { ...DL, teams: 12, scoring: "ppr" };
+  const avail = [
+    { id: "rb1", name: "RB One", pos: "RB", vbd: 90, proj: 250, adp: 5, adpSd: 3, tier: 1 },
+    { id: "wr1", name: "WR One", pos: "WR", vbd: 88, proj: 240, adp: 6, adpSd: 3, tier: 1 },
+    { id: "rb2", name: "RB Two", pos: "RB", vbd: 70, proj: 230, adp: 20, adpSd: 5, tier: 2 },
+    { id: "wr2", name: "WR Two", pos: "WR", vbd: 60, proj: 220, adp: 25, adpSd: 5, tier: 2 },
+    { id: "te1", name: "TE One", pos: "TE", vbd: 55, proj: 210, adp: 30, adpSd: 6, tier: 2 },
+  ];
+
+  /* Hopur MED tveimur RB og ENGUM WR. Thorfin bendir hart a WR. */
+  const needWr = recommend({ available: avail,
+    roster: [{ id: "x", pos: "RB" }, { id: "y", pos: "RB" }], pick: 25, league: L });
+  /* Hopur med tveimur WR og engum RB — nakvaemlega spegilmyndin. */
+  const needRb = recommend({ available: avail,
+    roster: [{ id: "x", pos: "WR" }, { id: "y", pos: "WR" }], pick: 25, league: L });
+
+  ok(needWr.picks[0].id === "rb1",
+    `med engan WR er efsti madur samt haesta VBD (${needWr.picks[0].id})`);
+  ok(JSON.stringify(needWr.picks.map((p) => p.id)) ===
+     JSON.stringify(needRb.picks.map((p) => p.id)),
+    "spegilmynd hopsins gefur NAKVAEMLEGA somu rod");
+
+  /* Og ordalagid MA segja fra henni — en tha verdur thad ad vera til
+     stadar, annars vaeri thetta prof ad verja fjarveru sem enginn
+     saer. Neikvaed fullyrding an jakvaedrar systur er einskis virdi. */
+  const txt = needWr.picks.flatMap((p) => p.reasons.map((r) => r.text)).join(" | ");
+  ok(/need/i.test(txt), `thorfin er NEFND i rokunum (${txt.slice(0, 60)}…)`);
+  const wr1 = needWr.picks.find((p) => p.id === "wr1");
+  ok(wr1 && wr1.reasons.some((r) => r.kind === "need"),
+    "og hun hangir a rettum manni");
+
+  /* `survive` er reiknad og birt en ma ekki rada. Her er thad gert
+     berum ordum: madur med LAEGRI VBD en miklu laegri lifun ma ekki
+     stokkva yfir. `wr1` (88) lifir sidur en `rb1` (90) — reglan sem
+     var maeld hefdi tekid hann; rodin gerir thad ekki. */
+  ok(needWr.picks[0].vbd >= needWr.picks[1].vbd,
+    "rodin er einraen i VBD, hvad sem lifunarlikum lidur");
+  ok(needWr.picks.every((p) => p.survive === null || typeof p.survive === "number"),
+    "og lifunarlikur eru samt reiknadar og skiladar (upplysing)");
+}
+
+/* Og maelingin sjalf verdur ad vera a diski og ekki marktaek. Snuist
+   thad vid a ad taka akvordunina upp — ekki ad thegja um hana. */
+{
+  for (const sc of ["ppr", "standard"]) {
+    const f = path.join(DATA, "measure", `tiebreak_${sc}.json`);
+    if (!existsSync(f)) { console.log(`  (tiebreak_${sc}.json vantar)`); continue; }
+    const T = JSON.parse(readFileSync(f, "utf8"));
+    ok(T.summary.years >= 8, `${sc}: ${T.summary.years} ar hermd`);
+    ok(T.summary.t == null || Math.abs(T.summary.t) < 2.26,
+      `${sc}: jafnteflis-rofid er EKKI marktaekt (t=${T.summary.t})`);
+    /* Og reglan verdur ad hafa verid VIRK — nakvaemt null alls stadar
+       vaeri einkenni um obreytt bord, ekki nidurstada (sja notu i
+       tiebreak-lab.mjs). */
+    const any = Object.values(T.grid).some((g) =>
+      Object.entries(g).some(([k, v]) => Number(k) > 0 && v !== 0));
+    ok(any, `${sc}: reglan var raunverulega virk (bordid vék)`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
