@@ -474,5 +474,79 @@ console.log("\nval a skorpu-hopnum");
     "sagan raedur thegar hun er til, ekki eins-ars talan");
 }
 
+/* ============================================================
+   STADA AN BYRJUNARSAETIS HEFUR ENGAN VARAMANN
+   ============================================================
+   `computeVbd` bar `repl[pos] || list.length`. `replacementRanks` skilar
+   RETTILEGA `K: 0, DST: 0` fyrir deild an spyrnu-/varnarsaetis, en `||`
+   les 0 sem FJARVERANDI og fell i laugar-golfid — svo varamanns-gildid
+   vard VERSTI madur a stodunni og hver spyrnumadur maeldist risastor.
+
+   Þetta er reglan "NULL ER EKKI NULL" A HVOLFI: thar er haettan ad tomt
+   gildi lesist sem 0, hér ad 0 lesist sem tomt. Sama villa.
+
+   MAELT A RAUNVERULEGRI DEILD NOTANDANS (Sofahetjur: 12 lid, half-PPR,
+   HVORKI K NE DEF): besti spyrnumadur fekk VBD 110,0 i saeti **5** a
+   bordinu, fyrir ofan Ja'Marr Chase, og **13 af topp 20** voru K/DST.
+
+   PROFAD I BADAR ATTIR — thad er kjarninn. "K faer ekkert VBD" eitt vaeri
+   satt um app sem gefur ALDREI K neitt VBD, og tha vaeri 10-lida deildin
+   hans (sem HEFUR badar stodur) broting an ad nokkud segdi fra.        */
+console.log("\nstada an byrjunarsaetis");
+{
+  const mk = (pos, n, top) => Array.from({ length: n }, (_, i) => ({
+    id: `${pos}${i}`, pos, proj: top - i * 3,
+  }));
+  const pool = [...mk("QB", 30, 340), ...mk("RB", 60, 300), ...mk("WR", 70, 290),
+                ...mk("TE", 20, 220), ...mk("K", 40, 150), ...mk("DST", 32, 140)];
+
+  /* (a) DEILD AN K/DEF — nakvaemlega Sofahetjur. */
+  const noKick = { teams: 12, scoring: "half-ppr", rounds: 14,
+                   starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 } };
+  const rNo = replacementRanks(noKick);
+  ok(rNo.K === 0 && rNo.DST === 0,
+    `replacementRanks skilar 0 fyrir stodu an saetis (K=${rNo.K}, DST=${rNo.DST})`);
+
+  const outNo = computeVbd(pool, noKick);
+  const kNo = outNo.filter((r) => r.pos === "K");
+  const dNo = outNo.filter((r) => r.pos === "DST");
+  ok(kNo.every((r) => r.vbd == null),
+    `hver spyrnumadur faer null VBD i deild an K-saetis (${kNo.filter((r) => r.vbd != null).length} med tolu)`);
+  ok(dNo.every((r) => r.vbd == null), "og hver vorn lika");
+
+  /* Og ENGINN theirra ma sitja i toppnum a bordinu. */
+  const topNo = outNo.filter((r) => r.vbd != null).sort((a, b) => b.vbd - a.vbd);
+  ok(topNo.slice(0, 20).every((r) => r.pos !== "K" && r.pos !== "DST"),
+    `engir K/DST i topp 20 (${topNo.slice(0, 20).filter((r) => r.pos === "K" || r.pos === "DST").length})`);
+  ok(topNo.length > 100, `en bordid er samt fullt (${topNo.length} med VBD)`);
+
+  /* (b) DEILD MED K/DEF — Patriots. Þeir VERDA ad fa VBD, annars vaeri
+     "lagfaeringin" ad henda tveimur stodum ur deild sem hefur thaer. */
+  const withKick = { teams: 10, scoring: "ppr", rounds: 15,
+                     starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 } };
+  const rY = replacementRanks(withKick);
+  ok(rY.K === 10 && rY.DST === 10, `10-lida deild: K=${rY.K}, DST=${rY.DST}`);
+  const outY = computeVbd(pool, withKick);
+  ok(outY.filter((r) => r.pos === "K" && r.vbd != null).length > 0,
+    "spyrnumenn FA VBD i deild sem hefur K-saeti");
+  ok(outY.filter((r) => r.pos === "DST" && r.vbd != null).length > 0,
+    "og varnir lika");
+  /* Og their eru samt ekki i toppnum — VBD theirra er lagt, sem er rett. */
+  const topY = outY.filter((r) => r.vbd != null).sort((a, b) => b.vbd - a.vbd);
+  ok(topY.slice(0, 20).every((r) => r.pos !== "K" && r.pos !== "DST"),
+    "og their eru ekki i topp 20 thott their hafi VBD");
+
+  /* (c) ÞREPIN MA EKKI SMITAST. `build.js` reiknar `tierize` yfir OLL
+     vbd-gildi, svo K/DST med falskt hatt VBD faerdu raunverulega
+     leikmenn i onnur threp (maelt: 30 af 558). */
+  const tiersNo = tierize(outNo.map((r) => r.vbd));
+  ok(tiersNo.length === outNo.length,
+    "tierize skilar einu gildi per rod (null halda ser)");
+  const kTiers = outNo.map((r, i) => (r.pos === "K" ? tiersNo[i] : null))
+    .filter((v) => v !== null);
+  ok(kTiers.every((v) => v == null),
+    "og stada an saetis faer ekkert threp heldur");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

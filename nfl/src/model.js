@@ -175,7 +175,40 @@ export function computeVbd(players, league) {
   for (const [pos, list] of Object.entries(byPos)) {
     list.sort((a, b) => b.proj - a.proj);
     list.forEach((p, i) => { p.posRank = i + 1; });
-    const r = repl[pos] || list.length;
+    /* ============================================================
+       `0` ER RAUNVERULEGT GILDI HER, EKKI "VANTAR"
+       ============================================================
+       Adur stod `repl[pos] || list.length`. `replacementRanks` skilar
+       RETTILEGA `K: 0, DST: 0` fyrir deild sem hefur ENGIN spyrnu- eda
+       varnarsaeti — en `||` les 0 sem fjarverandi og fell tha i
+       laugar-golfid, svo varamanns-gildid vard VERSTI madur a stodunni
+       og hver spyrnumadur maeldist risastor.
+
+       ÞETTA ER REGLAN "NULL ER EKKI NULL" A HVOLFI: thar er haettan ad
+       tomt gildi lesist sem 0; hér var hættan ad 0 lesist sem tomt.
+       Baðar eru sama villa — gildi og fjarvera lögð ad jofnu.
+
+       MAELT A RAUNVERULEGRI DEILD (Sofahetjur: 12 lid, half-PPR, HVORKI
+       K NE DEF — nakvaemlega thad sem `startersFromRoster` gefur ur
+       `roster_positions` theirrar deildar):
+         · besti spyrnumadur fekk VBD 110,0 og sat i saeti **5** a
+           bordinu — fyrir ofan Puka Nacua og Ja'Marr Chase
+         · **13 af topp 20** og **29 af topp 50** voru K/DST
+         · og af thvi ad `build.js` reiknar `tierize` yfir OLL vbd-gildi
+           fengu **30 af 558** raunverulegum leikmonnum annad threp
+           (Derrick Henry 10->7, Saquon Barkley 10->7, Josh Allen 14->11)
+
+       HVERS VEGNA ÞETTA SLAPP: `build.js` siar K/DST ur `aRank` gegnum
+       `RANKED_POS`, svo RODIN sjalf var hrein og ekkert bakprof haggadist.
+       Talan lak adeins i `vbd`-dalkinn og — gegnum `tierize` — i birt
+       threp raunverulegra leikmanna. Fannst i `vbdbase-lab.mjs` og
+       endurgerd sjalfstætt adur en hun var lagfaerd.
+
+       STADA AN BYRJUNARSAETIS HEFUR ENGAN VARAMANN, svo VBD er
+       OSKILGREINT — ekki 0 og ekki laugar-golfid. `null` er thvi rett
+       svar, og thad radast sjalfkrafa sidast og birtist sem "—".      */
+    const r = repl[pos] != null ? repl[pos] : list.length;
+    if (r === 0) { baseline[pos] = null; continue; }
     /* Varamanns-gildid er MEDALTAL threggja i kringum threpid, ekki
        ein tala. Ein tala gerir allt VBD haad einum leikmanni sem gaeti
        verid meiddur eda utlagi. */
