@@ -18,3 +18,5 @@ dist/
 nfl/.cache-nfl/
 nfl/node_modules/
 nfl/dist/
+# StatsBomb-atburdir sem measure-box-touches.mjs cache-ar (~600 MB rannsoknargogn)
+scripts/.boxtouch-cache/
