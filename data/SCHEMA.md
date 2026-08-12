@@ -376,7 +376,11 @@ GW5 er liðin — inntökin eru horfin. Sama röksemd og `history/` (CLAUDE.md 7
 **dagleg mynd verður ekki búin til eftir á.**
 
 **ÞRJÁR REGLUR — án þeirra væri bókhaldið sjálfs-uppfyllandi:**
-1. **Aðeins FYRIR frest.** Spá skrifuð eftir að leikur er byrjaður er ekki spá.
+1. **Aðeins í 12 KLST GLUGGA fyrir frest.** Spá skrifuð eftir að leikur er
+   byrjaður er ekki spá — og spá skrifuð 222 klst fyrir frest er STRANGT VERRI
+   spá en sú sem við eigum nokkrum klst fyrir hann (`start_prob` var null hjá
+   577 af 577 í fyrstu röðinni sem skrifaðist). Glugginn er því hluti af
+   reglunni, ekki hagræðing.
 2. **Aðeins EINU SINNI.** Röð sem er til er ALDREI endurskrifuð, ekki heldur
    „með betri gögnum" — endurskrifuð spá er retro-fitting. Skráin er ÓNEMANDI.
 3. **Þunn inntök -> engin skrá.** Betra að umferð vanti en að hún beri spá

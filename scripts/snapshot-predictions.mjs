@@ -176,11 +176,42 @@ export function inputsUsable({ players, teams, fixtures, gw }) {
   return null;
 }
 
-/* ---- FRESTURINN: adeins FYRIR hann, og adeins einu sinni ---- */
-export function shouldWrite({ gw, deadlineMs, nowMs, exists }) {
+/* ---- FRESTURINN: I GLUGGA FYRIR HANN, og adeins einu sinni ----
+
+   GLUGGINN VAR EKKI TIL I FYRSTU UTGAFU OG ThAD VAR RAUNVERULEG VILLA.
+   Reglurnar "skrifa adeins fyrir frest" og "skrifa adeins einu sinni" eru
+   badar rettar — en SAMAN gafu thaer "skrifa VID FYRSTA TAEKIFAERI og
+   frysta". Hrada keyrslan gengur a 30 min fresti, svo GW1-rodin var skrifud
+   **12.8. kl. 09:45, 222 KLST fyrir frestinn** (21.8. kl. 17:30), med:
+       start_prob   0 af 577 (player_form tom i forleik)
+       minsTrend    0 af 577
+   Thad er STRANGT VERRI spa en su sem vid munum eiga nokkrum klst fyrir
+   frest — og kvordunin hefdi thvi maelt likanid a sinni EIGIN VERSTU
+   agiskun, sem hefdi latid thad lita verr ut en thad er.
+
+   GLUGGINN LEYSIR ThETTA AN AD GEFA UPP ONEMANLEIKANN: vid skrifum adeins
+   thegar fresturinn er I NAND, og tha aldrei aftur. 12 klst er valid svo
+   30-minutna cron-inn fai ~24 taekifaeri (ein keyrsla ma bresta) medan
+   gognin eru samt naer-endanleg: verd og fréttir hreyfast lítið sidasta
+   daginn, og STADFEST byrjunarlid eru hvort sem er EKKI til fyrir frest
+   (FPL-fresturinn er ~1,5 klst fyrir fyrsta leik, lidin birtast ~1 klst
+   fyrir hvern leik). Ad bida lengur kaupir thvi enga upplysingu.
+
+   HVERS VEGNA ThAD VAR OHAETT AD EYDA ROD SEM ThEGAR VAR SKRIFUD: onemanleiki
+   er til ad hindra RETRO-FITTING — ad breyta spa eftir ad utkoman er kunn.
+   GW1 var OSPILUD, svo engin utkoma var til; ad taka myndina a rettum tima i
+   stad ranga er ekki endurskrifun a spa heldur RETT TIMASETNING a maelingu.
+   Reglan i kodanum er samt einfold og omisnotanleg: skrifad adeins i
+   glugganum, aldrei tvisvar.                                              */
+export const WINDOW_H = 12;
+export function shouldWrite({ gw, deadlineMs, nowMs, exists, windowH = WINDOW_H }) {
   if (exists) return { write: false, why: `gw${gw} already recorded - never rewritten` };
   if (!Number.isFinite(deadlineMs)) return { write: false, why: "no deadline for the gameweek" };
   if (nowMs >= deadlineMs) return { write: false, why: "deadline has passed - a prediction made after kickoff is not a prediction" };
+  const hLeft = (deadlineMs - nowMs) / 36e5;
+  if (hLeft > windowH)
+    return { write: false, why: `${hLeft.toFixed(1)}h before the deadline - outside the ${windowH}h window, `
+                              + "an early snapshot would freeze a worse-informed prediction" };
   return { write: true, why: `${Math.round((deadlineMs - nowMs) / 60000)} min before the deadline` };
 }
 

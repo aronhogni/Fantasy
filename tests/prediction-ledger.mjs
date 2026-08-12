@@ -23,7 +23,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { buildSnapshot, shouldWrite, inputsUsable } from "../scripts/snapshot-predictions.mjs";
+import { buildSnapshot, shouldWrite, inputsUsable, WINDOW_H } from "../scripts/snapshot-predictions.mjs";
 import { buildTeamMetrics } from "../src/teamstats.js";
 
 const REPO = new URL("../", import.meta.url);
@@ -47,6 +47,30 @@ console.log("\n1) HLIDIN: adeins fyrir frest, adeins einu sinni");
      shouldWrite({ ...base, nowMs: base.deadlineMs - 2 * H }).write === true);
   ok("1 min FYRIR frest -> skrifad",
      shouldWrite({ ...base, nowMs: base.deadlineMs - 60e3 }).write === true);
+
+  /* ============================================================
+     GLUGGINN — OG HANN VANTADI, SEM VAR RAUNVERULEG VILLA I FRAMKVAEMD.
+     "Adeins fyrir frest" + "adeins einu sinni" gafu SAMAN "skrifa vid
+     fyrsta taekifaeri og frysta". Hrada keyrslan gengur a 30 min fresti, svo
+     GW1-rodin var raunverulega skrifud **222 KLST fyrir frestinn** med
+     `start_prob` null hja 577 af 577 og engum minutu-throun. Kvordunin hefdi
+     tha maelt likanid a ThESS EIGIN VERSTU agiskun.
+     Fullyrdingarnar her eru thvi a BADUM hlidum gluggans — vordur sem profar
+     adeins "skrifar fyrir frest" hefdi hleypt villunni gegn.            */
+  ok("222 klst fyrir frest -> EKKERT (utan gluggans)",
+     shouldWrite({ ...base, nowMs: base.deadlineMs - 222 * H }).write === false);
+  ok("24 klst fyrir frest -> EKKERT",
+     shouldWrite({ ...base, nowMs: base.deadlineMs - 24 * H }).write === false);
+  ok("12,1 klst -> EKKERT (rett utan)",
+     shouldWrite({ ...base, nowMs: base.deadlineMs - 12.1 * H }).write === false);
+  ok("11,9 klst -> SKRIFAR (rett innan)",
+     shouldWrite({ ...base, nowMs: base.deadlineMs - 11.9 * H }).write === true);
+  const early = shouldWrite({ ...base, nowMs: base.deadlineMs - 100 * H });
+  ok("og notan segir HVERS VEGNA of snemma er verra",
+     /window|worse-informed/i.test(early.why), early.why);
+  /* Glugginn ma ekki vera svo thunnur ad 30-minutna cron missi hann: 12 klst
+     gefa ~24 taekifaeri. Fullyrding a TOLUNNI, ekki bara a hegduninni.   */
+  ok(`glugginn er >= 6 klst svo cron a morg taekifaeri (${WINDOW_H}h)`, WINDOW_H >= 6);
   /* EFTIR FREST ER ThAD EKKI SPA. Sama regla og pros.mjs kafli 12.        */
   const after = shouldWrite({ ...base, nowMs: base.deadlineMs + 1 });
   ok("1 ms EFTIR frest -> EKKERT skrifad", after.write === false);

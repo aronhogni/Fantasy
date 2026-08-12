@@ -574,9 +574,20 @@ form, elo, markaðslína). „Hvað hefðum við sagt fyrir GW5" er ÓSVARANLEGT
 GW5 er liðin — inntökin eru horfin. **Sama röksemd og `history/`: dagleg mynd
 verður ekki búin til eftir á.**
 
-Þrjár reglur: **aðeins fyrir frest** · **aðeins einu sinni** (röð sem er til er
-ALDREI endurskrifuð — endurskrifuð spá er retro-fitting) · **þunn inntök ->
-engin skrá**. Verðir: `prediction-ledger.mjs`, `calibration.mjs`.
+Fjórar reglur: **aðeins í 12 KLST GLUGGA fyrir frest** · **aðeins einu sinni**
+(röð sem er til er ALDREI endurskrifuð — endurskrifuð spá er retro-fitting) ·
+**þunn inntök -> engin skrá**. Verðir: `prediction-ledger.mjs`, `calibration.mjs`.
+
+> **GLUGGINN VANTAÐI Í FYRSTU ÚTGÁFU OG ÞAÐ VAR RAUNVERULEG VILLA.** „Aðeins
+> fyrir frest" og „aðeins einu sinni" eru báðar réttar — en SAMAN gáfu þær
+> „skrifa við FYRSTA tækifæri og frysta". Hraða keyrslan gengur á 30 mín
+> fresti, svo GW1-röðin var raunverulega skrifuð **222 KLST fyrir frestinn**
+> með `start_prob` null hjá **577 af 577** og engum mínútu-þróun. Kvörðunin
+> hefði því mælt líkanið á ÞESS EIGIN VERSTU ágiskun og látið það líta verr út
+> en það er. 12 klst gefa 30-mínútna cron-inum ~24 tækifæri á meðan gögnin eru
+> nær-endanleg; **staðfest byrjunarlið eru hvort sem er EKKI til fyrir frest**
+> (FPL-fresturinn er ~1,5 klst fyrir fyrsta leik), svo lengri bið kaupir enga
+> upplýsingu.
 
 > **`buildTeamMetrics` VAR FLUTT ÚR `App.jsx` Í `src/teamstats.js` VEGNA
 > ÞESSA.** Fyrsta útgáfa bókhaldsins ENDURREIKNAÐI liðsvísana og skrifaði
