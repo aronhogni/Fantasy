@@ -136,8 +136,9 @@ const numOrNull = (v) => {
  * Ad nota vikulegu einkunnina sem draft-vog vaeri ad vega med
  * maelingu a annarri spurningu.
  */
-export async function accuracy(kind = "draft") {
-  const url = kind === "draft" ? `${WWW}/nfl/accuracy/draft.php` : `${WWW}/nfl/accuracy/`;
+export async function accuracy(kind = "draft", { year = null } = {}) {
+  const base = kind === "draft" ? `${WWW}/nfl/accuracy/draft.php` : `${WWW}/nfl/accuracy/`;
+  const url = year ? `${base}?year=${year}` : base;
   const html = await getText(url);
   // Sidan byggir toflu ur innfelldu JSON. `"rows":[` er einkvaemt,
   // en LOKASVIGID ER EKKI FINNANLEGT MED REGLULEGRI SEGD — radirnar
@@ -145,7 +146,7 @@ export async function accuracy(kind = "draft") {
   // theim. Fyrsta utgafan notadi `[\s\S]*?\]` og skilaði **10 rodum
   // af 100+**, sem leit ut eins og ad FantasyPros hefdi 10 serfraedinga.
   // Thess vegna er svigatalning notud, ekki regluleg segd.
-  const tag = `fp_accuracy_${kind || "weekly"}`;
+  const tag = `fp_accuracy_${kind || "weekly"}${year ? `_${year}` : ""}`;
   const at = html.indexOf('"rows":[');
   if (at < 0) { record(tag, false, "could not find the rows block"); return []; }
   const json = sliceBalanced(html, at + '"rows":'.length);
@@ -165,6 +166,14 @@ export async function accuracy(kind = "draft") {
 
   // Ar-merkid stendur i titli sidunnar ("2025 Fantasy Football Draft Accuracy").
   const yr = (html.match(/<title>\s*(\d{4})\s+Fantasy Football/) || [])[1] || null;
+  /* THEGAR ARS ER BEDID VERDUR THAD AD PASSA. FantasyPros skilar
+     yfirstandandi ari an villu ef `?year=` er ogilt, og tha vaerum vid
+     ad skra sama arid undir morgum artolum — ferill sem litur ut fyrir
+     ad vera langur en er sami dagurinn endurtekinn. */
+  if (year && String(yr) !== String(year)) {
+    record(tag, false, `asked for ${year}, page says ${yr || "unknown"}`);
+    return [];
+  }
   record(tag, out.length > 0,
     `${out.length} experts, seasons ${yr || "unknown"}`);
   return out.map((r) => ({ ...r, season: yr ? Number(yr) : null, kind }));

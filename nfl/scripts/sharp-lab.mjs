@@ -50,6 +50,7 @@ import { buildIndexes, matchByName } from "../src/names.js";
 import * as fp from "./sources/fantasypros.mjs";
 import { stamp } from "./lib/provenance.mjs";
 import { parseArgs, requireSeasons } from "./lib/args.mjs";
+import { loadAccuracy, pickExperts, median } from "./lib/experts.mjs";
 
 const OUT = path.resolve(process.cwd(), "data");
 const ARG = parseArgs(process.argv.slice(2),
@@ -64,38 +65,6 @@ const REPL = { QB: 12, RB: 28, WR: 41, TE: 14 };
 const UA = "Mozilla/5.0 (compatible; fantasy-tools/1.0)";
 const r1 = (x) => Math.round(x * 10) / 10;
 const r3 = (x) => Math.round(x * 1000) / 1000;
-const median = (a) => {
-  const s = a.slice().sort((x, y) => x - y), m = s.length >> 1;
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
-
-function sliceBalanced(s, at) {
-  let d = 0;
-  for (let i = at; i < s.length; i++) {
-    if (s[i] === "[") d++;
-    else if (s[i] === "]") { d--; if (!d) return s.slice(at, i + 1); }
-  }
-  return null;
-}
-
-/** Nakvaemni allra serfraedinga fyrir eitt ar. */
-async function accuracyFor(year) {
-  const html = await (await fetch(
-    `https://www.fantasypros.com/nfl/accuracy/draft.php?year=${year}`,
-    { headers: { "user-agent": UA } })).text();
-  /* Arid a sidunni VERDUR ad passa — annars vaerum vid ad maela sama
-     arid vid sjalft sig og fa fullkomna fylgni. */
-  if (String((html.match(/<title>\s*(\d{4})/) || [])[1]) !== String(year)) return null;
-  const at = html.indexOf('"rows":[');
-  if (at < 0) return null;
-  try {
-    return JSON.parse(sliceBalanced(html, at + '"rows":'.length))
-      .map((r) => ({ id: String(r.id), name: (r.expert && r.expert.label) || null,
-                     rank: Number(r.rank) }))
-      .filter((r) => r.id && r.rank);
-  } catch { return null; }
-}
-
 function vbdRank(pool) {
   const byPos = {};
   for (const p of pool) (byPos[p.pos] = byPos[p.pos] || []).push(p);
@@ -114,31 +83,10 @@ function vbdRank(pool) {
 
 async function main() {
   console.log(`saeki nakvaemni 2015-2025 …`);
-  const acc = {};
-  for (let y = 2015; y <= 2025; y++) {
-    const r = await accuracyFor(y);
-    if (r) acc[y] = r;
-    await new Promise((s) => setTimeout(s, 300));
-  }
-  const accYears = Object.keys(acc).map(Number).sort();
-  console.log(`  ${accYears.length} ar af nakvaemni`);
+  const { acc, years: accYears } = await loadAccuracy(2015, 2025, console.log);
 
-  /** Valdir serfraedingar fyrir ar Y — UR FYRRI ARUM EINGONGU. */
-  const pickExperts = (y) => {
-    const prior = accYears.filter((p) => p < y);
-    if (prior.length < 2) return [];
-    const hist = {};
-    for (const p of prior) {
-      for (const r of acc[p]) {
-        (hist[r.id] = hist[r.id] || { name: r.name, p: [] })
-          .p.push(r.rank / acc[p].length * 100);
-      }
-    }
-    return Object.entries(hist)
-      .filter(([, v]) => v.p.length >= Math.min(4, prior.length))
-      .map(([id, v]) => ({ id, name: v.name, mid: median(v.p) }))
-      .sort((a, b) => a.mid - b.mid).slice(0, K);
-  };
+  /* Valid sjalft byr i `lib/experts.mjs` — sami hopur og
+     `disagree-lab.mjs` notar, svo svorin seu samanburdarhaef. */
 
   const feats = JSON.parse(await readFile(path.join(OUT, "features.json"), "utf8"));
   const rows = feats.rows.filter((r) => r.scoring === SCORING);
@@ -149,8 +97,13 @@ async function main() {
   const results = { vsAdp: {}, vsFlat: {}, vsArank: {} };
 
   for (const y of years) {
-    const experts = pickExperts(y);
-    if (experts.length < 5) { console.log(`  ${y}: of fair valdir`); continue; }
+    const experts = pickExperts(acc, accYears, y, K);
+    /* GOLFIN VERDA AD FYLGJA K. Fyrsta utgafan krafdist fimm valinna
+       og fjogurra borda — thau voru sett fyrir K=15 og HOFNUDU K=1 og
+       K=3 thegjandi, sem eru einmitt spurningarnar "dugar einn besti
+       madur?" og "duga thrir?". Fast golf sem var rett fyrir eitt
+       tilvik gerdi hin osvaranleg. */
+    if (experts.length < Math.min(5, K)) { console.log(`  ${y}: of fair valdir`); continue; }
 
     /* Bordin theirra THAD AR. Sumir eiga ekkert bord — thad er ekki
        villa heldur algengt, og fjoldinn er birtur. */
@@ -161,7 +114,9 @@ async function main() {
       if (b && b.ranks.length > 50) boards.push({ ...e, ranks: b.ranks });
       await new Promise((s) => setTimeout(s, 150));
     }
-    if (boards.length < 4) { console.log(`  ${y}: adeins ${boards.length} bord — slepp`); continue; }
+    if (boards.length < Math.min(4, K)) {
+      console.log(`  ${y}: adeins ${boards.length} bord — slepp`); continue;
+    }
     chosen[y] = { picked: experts.length, withBoard: boards.length,
                   names: boards.map((b) => b.name) };
 
@@ -200,11 +155,14 @@ async function main() {
     }
 
     const toBoard = (m2) => {
-      const s = [...m2.entries()].filter(([, v]) => v.length >= 3)
+      const need = Math.min(3, Math.max(1, Math.ceil(boards.length / 2)));
+      const s = [...m2.entries()].filter(([, v]) => v.length >= need)
         .map(([id, v]) => [id, median(v)]).sort((a, b) => a[1] - b[1]);
       return new Map(s.map(([id], i) => [id, i + 1]));
     };
     const sharp = toBoard(sharpRanks), flat = toBoard(flatRanks);
+    /* Med einum manni er ekkert ad medaltala, svo krafan um thrja
+       sem hafa radad honum a ekki vid. */
     if (sharp.size < 100) { console.log(`  ${y}: skorpu-bordid ber adeins ${sharp.size} — slepp`); continue; }
 
     const actual = new Map(pool.map((p) => [p.id, { pos: p.pos, pts: p.actual }]));

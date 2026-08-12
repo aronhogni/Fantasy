@@ -82,6 +82,27 @@ export default function PlayerTable({ rows, meta, league }) {
           {" "}{meta.withLast || 0} with 2025 data ·
           {" "}VBD is computed for <b>{league.teams}-team {league.scoring.toUpperCase()}</b>
         </div>
+        {/* ============================================================
+            URTAKID A BAK VID "SHARP" VERDUR AD SJAST.
+            ============================================================
+            Dalkurinn heitir "Sharp Δ" og les eins og domur fimmtan
+            serfraedinga. Han byggir hins vegar adeins a theim sem eru
+            BUNIR ad birta bord thessa ars — i agust eru thad oft
+            innan vid helmingur. Sama regla og annars stadar i
+            verkefninu: tala an urtaksstaerdar er trúverdugri en hun a
+            skilid. Reglan sjalf er lika sogd, thvi hun breyttist
+            (ferill i stad eins ars) og gamla gagnaskra ber hana enn. */}
+        {meta.sharpMeasured && (
+          <div className="dim" style={{ marginTop: 4, fontSize: 12 }}>
+            <b>Sharp Δ</b> comes from {meta.sharpBoards || 0} board
+            {meta.sharpBoards === 1 ? "" : "s"} posted so far
+            {meta.sharpRule === "career"
+              ? " by experts picked on their career median (min 4 seasons, still publishing)"
+              : " by experts picked on a single season — the career history has not been fetched yet"}.
+            {" "}It is context, not the ranking: blending it into A-Ranking lost points in
+            backtest, so it stays a column.
+          </div>
+        )}
         {/* ECR-SNIDID ER SAGT THEGAR THAD PASSAR EKKI VID DEILDINA.
             Serfraedinga-rodin er raunverulega olik eftir sniði — 467 af
             502 sameiginlegum leikmonnum hafa annad saeti i standard en i

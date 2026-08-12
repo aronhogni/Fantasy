@@ -506,5 +506,74 @@ console.log("\nbord bestu spamannanna");
   }
 }
 
+/* ============================================================
+   SAMHLJODA OSAETTI VID ADP — MERKID ER RAUNVERULEGT, ROD ER THAD EKKI
+   ============================================================
+   Thetta er hardasta profid i thessari skra thvi thad ver TVAER
+   ANDSTAEDAR nidurstodur i einu, og freistingin er ad muna adra en
+   ekki hina:
+
+     (a) HLUTFYLGNIN ER JAKVAED I OLLUM ARUM. Vik skorpu-mannanna fra
+         ADP ber merki ofan a okkar EIGID vik. Falli thad ver profid
+         ad einhver hafi thagad merkid nidur.
+     (b) OG SAMT TAPADI THAD I DROTT-HERMUN. Baedi blandan og markvissa
+         hopa-reglan. Falli THAD ver profid ad einhver hafi vírad
+         thessu inn i rodina og kallad thad maelt.
+
+   Fylgni er ekki akvordun. Thad er sama lexia og `aron/verd` i
+   FPL-verkefninu, og hun a ad kosta prof ef hun gleymist. */
+console.log("\nsamhljoda osaetti vid ADP");
+{
+  const p = path.join(DATA, "measure", "disagree_ppr.json");
+  if (!existsSync(p)) {
+    console.log("  (disagree_ppr.json vantar — keyrdu scripts/disagree-lab.mjs)");
+  } else {
+    const D = JSON.parse(readFileSync(p, "utf8"));
+    const ys = Object.keys(D.perYear);
+    ok(ys.length >= 5, `${ys.length} timabil maeld`);
+
+    const part = ys.map((y) => D.perYear[y].rPartial).filter((x) => x != null);
+    ok(part.length === ys.length && part.every((x) => x > 0),
+      `hluta-fylgni jakvaed i ollum ${part.length} arum (min ${Math.min(...part)})`);
+
+    /* Urtakid verdur ad vera synilegt her lika — hluta-fylgni reiknud
+       ur 20 monnum vaeri tala an innihalds. */
+    const ranked = ys.map((y) => D.perYear[y].ranked);
+    ok(Math.min(...ranked) >= 100,
+      `faest ${Math.min(...ranked)} radadir leikmenn a ari`);
+
+    /* OG AKVORDUNIN. `blendGain`/`groupGain` eru t-tolur walk-forward
+       hagnadar gegn hreinu A-Ranking. Faeru thaer yfir throskuldinn
+       (2,9 med tveimur tilraunum) vaeri thetta ordid rod, ekki
+       samhengi — og THA a thetta prof ad falla svo einhver taki
+       akvordunina med opnum augum. */
+    const bg = D.summary.blendGain, gg = D.summary.groupGain;
+    ok(bg == null || bg < 2.9,
+      `blanda vid A-Ranking baetir ekki drottid (t=${bg})`);
+    /* `groupGain` er null thegar hopa-reglan velur P=0 i hverju ari —
+       thad er RETTA nidurstadan (engin refsing bætti fyrri ar) en
+       `null < 2.9` er fullyrding sem getur ekki brugdist. Thess vegna
+       er lika fullyrt um hagnadinn sjalfan, sem er alltaf tala. */
+    const pg = (D.walkForwardGroups || []).map((r) => r.gain);
+    ok(gg == null || gg < 2.9, `hopa-reglan: t=${gg}`);
+    ok(pg.length >= 5 && pg.reduce((a, b) => a + b, 0) / pg.length <= 0,
+      `hopa-reglan baetir ekki drottid (medaltal ${pg.length ? (pg.reduce((a, b) => a + b, 0) / pg.length).toFixed(1) : "—"})`);
+
+    /* Og dalkurinn ma ekki fara i rodina — profad a KODANUM, thvi
+       maelingin ein stodvar engan. `aRank` er reiknud ur `vbd`; se
+       `sharpDelta` eda `sharpRank` komid thangad inn er thetta ordin
+       rod og profid a ad segja thad. */
+    const build = readFileSync(path.join(DATA, "..", "src", "build.js"), "utf8");
+    /* Akkerid er KODI (`RANKED_POS`), ekki ordid "aRank" — thad kemur
+       fyrst fyrir inni i athugasemd og fullyrding sem athugasemd getur
+       uppfyllt er einskis virdi. */
+    const a0 = build.indexOf("const RANKED_POS");
+    ok(a0 > 0, "fann A-Ranking-utreikninginn i build.js");
+    const arankBlock = build.slice(a0, build.indexOf("ourRank", a0) + 200);
+    ok(!/sharp/i.test(arankBlock),
+      "sharpDelta er hvergi i A-Ranking-utreikningnum");
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

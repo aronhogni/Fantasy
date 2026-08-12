@@ -394,6 +394,7 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
       league,
       sharpMeasured: sharp.measured,
       sharpBoards: sharp.count,
+      sharpRule: sharp.rule,
       withProj: withVbd.filter((r) => r.proj != null).length,
       withAdp: withVbd.filter((r) => r.adp != null).length,
       withEcr: withVbd.filter((r) => r.ecr != null).length,
@@ -412,24 +413,78 @@ function indexSeason(seasons, year) {
 }
 
 /**
- * SKORPU BORDIN: samsteypa ADEINS theirra sem maeldust yfir
- * nulldreifingunni 2025.
+ * Velur skorpu-hopinn UR FERLI, ekki ur einu ari.
  *
- * HVERS VEGNA EKKI "TOPP 10": ad taka fasta tolu efstu gefur alltaf
- * tiu nofn, lika thegar enginn er betri en handahof. Threskuldurinn
- * er thvi NULLDREIFINGIN sjalf — sa sem er undir henni er ekki
- * heimild. Ef enginn kemst yfir hana er engin skorpu-rod til og
- * `measured: false` er skilad, sem vidmotid VERDUR ad birta.
+ * MAELT (`expert-persistence.mjs`, 11 ar, 2015-2025): rod
+ * serfraedinga flyst milli ara med rho 0,370 og EKKERT af 10 parum
+ * er neikvaett — hun er thvi raunveruleg, en veik. Eitt ar er thess
+ * vegna slaemur valari: efsti madur eins ars er oft midlungs naesta.
+ * Besta reglan sem maeldist er MIDGILDI percentila, lagmark 4 ar.
+ *
+ * ÞRJU SKILYRDI, OLL MAELD:
+ *   1. >= MIN_YEARS ar af nakvaemni — annars er "ferillinn" eitt ar.
+ *   2. Birti I FYRRA. Sa sem er haettur er onothaefur hversu godur
+ *      sem hann var (Joseph Dolan a besta midgildi allra og birti
+ *      sidast 2019). Thetta uppgotvadist thegar K=1 skiladi ENGU
+ *      bordi i sex arum af sjo.
+ *   3. Ad taka ut versta arid var maelt og er MAELANLEGA VERRA —
+ *      midgildi ther thegar thad hlutverk. Ekki baeta thvi vid.
+ *
+ * FALLBACK: an sogu er gamla reglan notud (nulldreifing eins ars).
+ * Hun er verri en hun er ekki rong, og hun heldur dalkinum lifandi
+ * fyrstu keyrsluna eftir uppfaerslu adur en sagan er sott.
  */
-export function buildSharpBoard(accuracy, experts) {
-  const empty = { ranks: new Map(), measured: false, count: 0, ids: [] };
-  if (!accuracy || !accuracy.nullDist || !experts || !experts.boards) return empty;
+const SHARP_MIN_YEARS = 4;
+const SHARP_TOP = 15;
 
+function pickSharpIds(accuracy, experts) {
+  const hist = experts && experts.accuracyHistory;
+  const years = hist ? Object.keys(hist).map(Number).sort((a, b) => a - b) : [];
+  if (years.length >= SHARP_MIN_YEARS) {
+    const last = years[years.length - 1];
+    const active = new Set((hist[last] || []).map((r) => String(r.id)));
+    const by = new Map();
+    for (const y of years) {
+      const rows = hist[y] || [];
+      const n = rows.length || 1;
+      for (const r of rows) {
+        const k = String(r.id);
+        if (!by.has(k)) by.set(k, []);
+        /* Percentill, ekki hra rod: fjoldi serfraedinga breytist milli
+           ara (60 -> 215), svo rod 20 er ekki sama frammistada 2016 og
+           2025. Hra rod vaeri thvi ad verdlauna thann sem maetti thegar
+           faerri kepptu. */
+        by.get(k).push((r.r / n) * 100);
+      }
+    }
+    const med = (a) => {
+      const t = a.slice().sort((x, y) => x - y), h = t.length >> 1;
+      return t.length % 2 ? t[h] : (t[h - 1] + t[h]) / 2;
+    };
+    const picked = [...by.entries()]
+      .filter(([id, v]) => v.length >= SHARP_MIN_YEARS && active.has(id))
+      .map(([id, v]) => [id, med(v)])
+      .sort((a, b) => a[1] - b[1])
+      .slice(0, SHARP_TOP)
+      .map(([id]) => Number(id));
+    if (picked.length >= 4) return { ids: picked, rule: "career" };
+  }
+  if (!accuracy || !accuracy.nullDist) return { ids: [], rule: "none" };
   const { mean, p95 } = accuracy.nullDist;
   const cut = p95 ?? mean;
-  const good = accuracy.experts
-    .filter((e) => e.kind !== "benchmark" && e.draft && e.draft.mean > cut)
-    .map((e) => e.id);
+  return {
+    ids: (accuracy.experts || [])
+      .filter((e) => e.kind !== "benchmark" && e.draft && e.draft.mean > cut)
+      .map((e) => e.id),
+    rule: "single-season",
+  };
+}
+
+export function buildSharpBoard(accuracy, experts) {
+  const empty = { ranks: new Map(), measured: false, count: 0, ids: [], rule: "none" };
+  if (!experts || !experts.boards) return empty;
+
+  const { ids: good, rule } = pickSharpIds(accuracy, experts);
   if (!good.length) return empty;
 
   const goodSet = new Set(good);
@@ -459,6 +514,7 @@ export function buildSharpBoard(accuracy, experts) {
     measured: true,
     count: nBoards,
     ids: good,
+    rule,
   };
 }
 

@@ -1,0 +1,1131 @@
+{
+ "generated": "2026-08-12T11:26:33.973Z",
+ "provenance": {
+  "generated": "2026-08-12T11:26:33.974Z",
+  "argv": [
+   "--scoring=ppr",
+   "--k=15"
+  ],
+  "params": {
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": false
+   },
+   "k": {
+    "value": "15",
+    "fromDefault": false
+   },
+   "gap": {
+    "value": 12,
+    "fromDefault": true
+   },
+   "from": {
+    "value": 2019,
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "perYear": {
+  "2019": {
+   "boards": 13,
+   "ranked": 161,
+   "buys": 0,
+   "fades": 2,
+   "buyResid": null,
+   "fadeResid": -22.9,
+   "restResid": 1.5,
+   "spread": null,
+   "rSharp": 0.185,
+   "rArank": 0.124,
+   "rPartial": 0.158,
+   "grid": {
+    "0": 0,
+    "0.1": 22,
+    "0.2": 56.8,
+    "0.3": 118.4,
+    "0.4": 90.1,
+    "0.5": 160.3
+   },
+   "pgrid": {
+    "0": 0,
+    "6": 0,
+    "12": 0,
+    "18": 0,
+    "24": 0,
+    "36": 0
+   }
+  },
+  "2020": {
+   "boards": 9,
+   "ranked": 162,
+   "buys": 1,
+   "fades": 14,
+   "buyResid": 28.4,
+   "fadeResid": -14.2,
+   "restResid": 0.8,
+   "spread": 42.6,
+   "rSharp": 0.033,
+   "rArank": -0.062,
+   "rPartial": 0.085,
+   "grid": {
+    "0": 0,
+    "0.1": -29.1,
+    "0.2": 86.1,
+    "0.3": 1,
+    "0.4": 1.9,
+    "0.5": -8.9
+   },
+   "pgrid": {
+    "0": 0,
+    "6": -92.9,
+    "12": -37.6,
+    "18": -20.6,
+    "24": -37.9,
+    "36": -38.5
+   }
+  },
+  "2021": {
+   "boards": 11,
+   "ranked": 178,
+   "buys": 9,
+   "fades": 14,
+   "buyResid": -12.9,
+   "fadeResid": -22,
+   "restResid": 4.9,
+   "spread": 9.2,
+   "rSharp": 0.143,
+   "rArank": 0.178,
+   "rPartial": 0.095,
+   "grid": {
+    "0": 0,
+    "0.1": 101.3,
+    "0.2": 115,
+    "0.3": 11.2,
+    "0.4": -13.7,
+    "0.5": -72.3
+   },
+   "pgrid": {
+    "0": 0,
+    "6": -2.6,
+    "12": -22.3,
+    "18": -66.7,
+    "24": -237.6,
+    "36": -142.8
+   }
+  },
+  "2022": {
+   "boards": 11,
+   "ranked": 144,
+   "buys": 2,
+   "fades": 3,
+   "buyResid": 68.7,
+   "fadeResid": -13.9,
+   "restResid": 1.5,
+   "spread": 82.6,
+   "rSharp": 0.114,
+   "rArank": 0.34,
+   "rPartial": 0.061,
+   "grid": {
+    "0": 0,
+    "0.1": -1.7,
+    "0.2": -24.8,
+    "0.3": -46.5,
+    "0.4": -32.8,
+    "0.5": 0.7
+   },
+   "pgrid": {
+    "0": 0,
+    "6": 3.4,
+    "12": 14.2,
+    "18": -100.9,
+    "24": -100.9,
+    "36": -93.1
+   }
+  },
+  "2023": {
+   "boards": 12,
+   "ranked": 174,
+   "buys": 0,
+   "fades": 12,
+   "buyResid": null,
+   "fadeResid": -30.2,
+   "restResid": 4.9,
+   "spread": null,
+   "rSharp": 0.156,
+   "rArank": 0.303,
+   "rPartial": 0.105,
+   "grid": {
+    "0": 0,
+    "0.1": -30.2,
+    "0.2": -15.8,
+    "0.3": -8.6,
+    "0.4": -46.6,
+    "0.5": -59.7
+   },
+   "pgrid": {
+    "0": 0,
+    "6": -9.1,
+    "12": -11.9,
+    "18": -11.9,
+    "24": -11.9,
+    "36": -11.9
+   }
+  },
+  "2024": {
+   "boards": 13,
+   "ranked": 175,
+   "buys": 4,
+   "fades": 13,
+   "buyResid": 31.9,
+   "fadeResid": -58.5,
+   "restResid": 5.5,
+   "spread": 90.4,
+   "rSharp": 0.172,
+   "rArank": 0.429,
+   "rPartial": 0.084,
+   "grid": {
+    "0": 0,
+    "0.1": 45,
+    "0.2": 56.4,
+    "0.3": 26.1,
+    "0.4": -42.4,
+    "0.5": -81.8
+   },
+   "pgrid": {
+    "0": 0,
+    "6": 38.6,
+    "12": -19.7,
+    "18": 59,
+    "24": 28.7,
+    "36": -62
+   }
+  },
+  "2025": {
+   "boards": 12,
+   "ranked": 201,
+   "buys": 7,
+   "fades": 7,
+   "buyResid": 61.3,
+   "fadeResid": -17,
+   "restResid": 0.4,
+   "spread": 78.4,
+   "rSharp": 0.155,
+   "rArank": 0.063,
+   "rPartial": 0.147,
+   "grid": {
+    "0": 0,
+    "0.1": -49.5,
+    "0.2": -4.3,
+    "0.3": 66.4,
+    "0.4": 172.8,
+    "0.5": 212
+   },
+   "pgrid": {
+    "0": 0,
+    "6": -84.3,
+    "12": -9.7,
+    "18": 8.4,
+    "24": 124.5,
+    "36": 134.4
+   }
+  }
+ },
+ "examples": {
+  "2019": {
+   "buys": [],
+   "fades": [
+    {
+     "name": "Tony Pollard",
+     "pos": "RB",
+     "adp": 83.3,
+     "sharp": 141,
+     "n": 13,
+     "actual": 89.2,
+     "base": 135.7,
+     "resid": -46.5
+    },
+    {
+     "name": "Kareem Hunt",
+     "pos": "RB",
+     "adp": 100.8,
+     "sharp": 196,
+     "n": 13,
+     "actual": 101.4,
+     "base": 100.7,
+     "resid": 0.7
+    }
+   ]
+  },
+  "2020": {
+   "buys": [
+    {
+     "name": "Sterling Shepard",
+     "pos": "WR",
+     "adp": 118.9,
+     "sharp": 87,
+     "n": 8,
+     "actual": 162.5,
+     "base": 134.1,
+     "resid": 28.4
+    }
+   ],
+   "fades": [
+    {
+     "name": "Leonard Fournette",
+     "pos": "RB",
+     "adp": 35.4,
+     "sharp": 80,
+     "n": 9,
+     "actual": 132,
+     "base": 167.7,
+     "resid": -35.7
+    },
+    {
+     "name": "Devin Singletary",
+     "pos": "RB",
+     "adp": 46.4,
+     "sharp": 70,
+     "n": 9,
+     "actual": 143.6,
+     "base": 154.2,
+     "resid": -10.6
+    },
+    {
+     "name": "Ronald Jones",
+     "pos": "RB",
+     "adp": 56.5,
+     "sharp": 107,
+     "n": 8,
+     "actual": 186.3,
+     "base": 123.9,
+     "resid": 62.4
+    },
+    {
+     "name": "Rob Gronkowski",
+     "pos": "TE",
+     "adp": 70.4,
+     "sharp": 106,
+     "n": 9,
+     "actual": 149.3,
+     "base": 152.1,
+     "resid": -2.8
+    },
+    {
+     "name": "Marlon Mack",
+     "pos": "RB",
+     "adp": 74.6,
+     "sharp": 119.5,
+     "n": 8,
+     "actual": 8.6,
+     "base": 117,
+     "resid": -108.4
+    },
+    {
+     "name": "Kerryon Johnson",
+     "pos": "RB",
+     "adp": 97.2,
+     "sharp": 129,
+     "n": 8,
+     "actual": 71.8,
+     "base": 82.9,
+     "resid": -11.1
+    },
+    {
+     "name": "Damien Harris",
+     "pos": "RB",
+     "adp": 101.1,
+     "sharp": 209.5,
+     "n": 8,
+     "actual": 91.3,
+     "base": 74.7,
+     "resid": 16.6
+    },
+    {
+     "name": "Sony Michel",
+     "pos": "RB",
+     "adp": 107.4,
+     "sharp": 134,
+     "n": 8,
+     "actual": 75.3,
+     "base": 83.6,
+     "resid": -8.3
+    }
+   ]
+  },
+  "2021": {
+   "buys": [
+    {
+     "name": "Tee Higgins",
+     "pos": "WR",
+     "adp": 61.3,
+     "sharp": 49,
+     "n": 11,
+     "actual": 219.1,
+     "base": 174.6,
+     "resid": 44.5
+    },
+    {
+     "name": "JuJu Smith-Schuster",
+     "pos": "WR",
+     "adp": 82.5,
+     "sharp": 64,
+     "n": 11,
+     "actual": 34.8,
+     "base": 167.6,
+     "resid": -132.8
+    },
+    {
+     "name": "Tyler Boyd",
+     "pos": "WR",
+     "adp": 97.3,
+     "sharp": 64,
+     "n": 11,
+     "actual": 183.8,
+     "base": 169.4,
+     "resid": 14.4
+    },
+    {
+     "name": "Michael Gallup",
+     "pos": "WR",
+     "adp": 135.4,
+     "sharp": 107,
+     "n": 11,
+     "actual": 91.5,
+     "base": 121.1,
+     "resid": -29.6
+    },
+    {
+     "name": "Trevor Lawrence",
+     "pos": "QB",
+     "adp": 144.7,
+     "sharp": 115,
+     "n": 11,
+     "actual": 216,
+     "base": 201.4,
+     "resid": 14.6
+    },
+    {
+     "name": "Tua Tagovailoa",
+     "pos": "QB",
+     "adp": 160.6,
+     "sharp": 118,
+     "n": 11,
+     "actual": 190.9,
+     "base": 178.5,
+     "resid": 12.4
+    },
+    {
+     "name": "Kirk Cousins",
+     "pos": "QB",
+     "adp": 160.9,
+     "sharp": 118,
+     "n": 11,
+     "actual": 307.3,
+     "base": 158,
+     "resid": 149.3
+    },
+    {
+     "name": "DeVante Parker",
+     "pos": "WR",
+     "adp": 162.3,
+     "sharp": 129,
+     "n": 11,
+     "actual": 103.5,
+     "base": 101.5,
+     "resid": 2
+    }
+   ],
+   "fades": [
+    {
+     "name": "Michael Thomas",
+     "pos": "WR",
+     "adp": 69.5,
+     "sharp": 141,
+     "n": 11,
+     "actual": 0,
+     "base": 168.3,
+     "resid": -168.3
+    },
+    {
+     "name": "Mecole Hardman",
+     "pos": "WR",
+     "adp": 100,
+     "sharp": 148,
+     "n": 11,
+     "actual": 140.9,
+     "base": 158.8,
+     "resid": -17.9
+    },
+    {
+     "name": "Alexander Mattison",
+     "pos": "RB",
+     "adp": 106.5,
+     "sharp": 156,
+     "n": 11,
+     "actual": 125.9,
+     "base": 127.4,
+     "resid": -1.5
+    },
+    {
+     "name": "Phillip Lindsay",
+     "pos": "RB",
+     "adp": 107.5,
+     "sharp": 146,
+     "n": 11,
+     "actual": 45.4,
+     "base": 124.7,
+     "resid": -79.3
+    },
+    {
+     "name": "Chuba Hubbard",
+     "pos": "RB",
+     "adp": 127.6,
+     "sharp": 217,
+     "n": 11,
+     "actual": 137.6,
+     "base": 110.8,
+     "resid": 26.8
+    },
+    {
+     "name": "Gabe Davis",
+     "pos": "WR",
+     "adp": 144.3,
+     "sharp": 197,
+     "n": 11,
+     "actual": 125.9,
+     "base": 117,
+     "resid": 8.9
+    },
+    {
+     "name": "Darrel Williams",
+     "pos": "RB",
+     "adp": 150.3,
+     "sharp": 185,
+     "n": 11,
+     "actual": 196,
+     "base": 80.1,
+     "resid": 115.9
+    },
+    {
+     "name": "Devontae Booker",
+     "pos": "RB",
+     "adp": 155.5,
+     "sharp": 237,
+     "n": 11,
+     "actual": 144.1,
+     "base": 77.3,
+     "resid": 66.8
+    }
+   ]
+  },
+  "2022": {
+   "buys": [
+    {
+     "name": "Antonio Gibson",
+     "pos": "RB",
+     "adp": 114.7,
+     "sharp": 56,
+     "n": 11,
+     "actual": 165.9,
+     "base": 116.8,
+     "resid": 49.1
+    },
+    {
+     "name": "T.J. Hockenson",
+     "pos": "TE",
+     "adp": 120.2,
+     "sharp": 89,
+     "n": 11,
+     "actual": 215.4,
+     "base": 127.2,
+     "resid": 88.2
+    }
+   ],
+   "fades": [
+    {
+     "name": "J.K. Dobbins",
+     "pos": "RB",
+     "adp": 38.8,
+     "sharp": 82,
+     "n": 11,
+     "actual": 81.2,
+     "base": 171.2,
+     "resid": -90
+    },
+    {
+     "name": "Raheem Mostert",
+     "pos": "RB",
+     "adp": 101.9,
+     "sharp": 141,
+     "n": 11,
+     "actual": 168.3,
+     "base": 142.2,
+     "resid": 26.1
+    },
+    {
+     "name": "Isiah Pacheco",
+     "pos": "RB",
+     "adp": 118,
+     "sharp": 147,
+     "n": 11,
+     "actual": 135,
+     "base": 112.9,
+     "resid": 22.1
+    }
+   ]
+  },
+  "2023": {
+   "buys": [],
+   "fades": [
+    {
+     "name": "Jerry Jeudy",
+     "pos": "WR",
+     "adp": 44.8,
+     "sharp": 72,
+     "n": 12,
+     "actual": 141.8,
+     "base": 205.6,
+     "resid": -63.8
+    },
+    {
+     "name": "Tua Tagovailoa",
+     "pos": "QB",
+     "adp": 84.9,
+     "sharp": 107.5,
+     "n": 12,
+     "actual": 284.4,
+     "base": 223.9,
+     "resid": 60.5
+    },
+    {
+     "name": "Rashaad Penny",
+     "pos": "RB",
+     "adp": 97.3,
+     "sharp": 144,
+     "n": 12,
+     "actual": 4.8,
+     "base": 152.6,
+     "resid": -147.8
+    },
+    {
+     "name": "Cordarrelle Patterson",
+     "pos": "RB",
+     "adp": 132.4,
+     "sharp": 240.5,
+     "n": 12,
+     "actual": 36.9,
+     "base": 122.5,
+     "resid": -85.6
+    },
+    {
+     "name": "D'Onta Foreman",
+     "pos": "RB",
+     "adp": 137.1,
+     "sharp": 224,
+     "n": 12,
+     "actual": 91.2,
+     "base": 128.4,
+     "resid": -37.2
+    },
+    {
+     "name": "Dawson Knox",
+     "pos": "TE",
+     "adp": 152.7,
+     "sharp": 202.5,
+     "n": 12,
+     "actual": 54.6,
+     "base": 144.8,
+     "resid": -90.2
+    },
+    {
+     "name": "Zamir White",
+     "pos": "RB",
+     "adp": 153.7,
+     "sharp": 259.5,
+     "n": 12,
+     "actual": 73.9,
+     "base": 133.4,
+     "resid": -59.5
+    },
+    {
+     "name": "Wan'Dale Robinson",
+     "pos": "WR",
+     "adp": 157.2,
+     "sharp": 221,
+     "n": 11,
+     "actual": 133.2,
+     "base": 88.8,
+     "resid": 44.4
+    }
+   ]
+  },
+  "2024": {
+   "buys": [
+    {
+     "name": "Jayden Daniels",
+     "pos": "QB",
+     "adp": 99.2,
+     "sharp": 75,
+     "n": 13,
+     "actual": 364.8,
+     "base": 249.5,
+     "resid": 115.3
+    },
+    {
+     "name": "Courtland Sutton",
+     "pos": "WR",
+     "adp": 110.8,
+     "sharp": 94,
+     "n": 13,
+     "actual": 240.3,
+     "base": 153.6,
+     "resid": 86.7
+    },
+    {
+     "name": "Caleb Williams",
+     "pos": "QB",
+     "adp": 116.7,
+     "sharp": 86,
+     "n": 13,
+     "actual": 260.5,
+     "base": 242.5,
+     "resid": 18
+    },
+    {
+     "name": "Trevor Lawrence",
+     "pos": "QB",
+     "adp": 126.7,
+     "sharp": 87,
+     "n": 13,
+     "actual": 152.2,
+     "base": 244.5,
+     "resid": -92.3
+    }
+   ],
+   "fades": [
+    {
+     "name": "Nick Chubb",
+     "pos": "RB",
+     "adp": 65,
+     "sharp": 147,
+     "n": 12,
+     "actual": 63.3,
+     "base": 164,
+     "resid": -100.7
+    },
+    {
+     "name": "Jonathon Brooks",
+     "pos": "RB",
+     "adp": 85.4,
+     "sharp": 116,
+     "n": 12,
+     "actual": 7.5,
+     "base": 131.2,
+     "resid": -123.7
+    },
+    {
+     "name": "Keon Coleman",
+     "pos": "WR",
+     "adp": 88.1,
+     "sharp": 125,
+     "n": 13,
+     "actual": 111.5,
+     "base": 175.7,
+     "resid": -64.2
+    },
+    {
+     "name": "Trey Benson",
+     "pos": "RB",
+     "adp": 108.5,
+     "sharp": 147,
+     "n": 13,
+     "actual": 47,
+     "base": 118.4,
+     "resid": -71.4
+    },
+    {
+     "name": "Justin Fields",
+     "pos": "QB",
+     "adp": 134.7,
+     "sharp": 287,
+     "n": 13,
+     "actual": 120.1,
+     "base": 250.4,
+     "resid": -130.3
+    },
+    {
+     "name": "Xavier Legette",
+     "pos": "WR",
+     "adp": 141.3,
+     "sharp": 204,
+     "n": 13,
+     "actual": 125.1,
+     "base": 135.7,
+     "resid": -10.6
+    },
+    {
+     "name": "Kimani Vidal",
+     "pos": "RB",
+     "adp": 143.9,
+     "sharp": 184,
+     "n": 13,
+     "actual": 32.7,
+     "base": 112.3,
+     "resid": -79.6
+    },
+    {
+     "name": "Dameon Pierce",
+     "pos": "RB",
+     "adp": 151.4,
+     "sharp": 253,
+     "n": 13,
+     "actual": 43.5,
+     "base": 112.5,
+     "resid": -69
+    }
+   ]
+  },
+  "2025": {
+   "buys": [
+    {
+     "name": "Brock Bowers",
+     "pos": "TE",
+     "adp": 27.1,
+     "sharp": 16,
+     "n": 12,
+     "actual": 176.2,
+     "base": 151.6,
+     "resid": 24.6
+    },
+    {
+     "name": "Trey McBride",
+     "pos": "TE",
+     "adp": 32.6,
+     "sharp": 22,
+     "n": 12,
+     "actual": 315.9,
+     "base": 142.2,
+     "resid": 173.7
+    },
+    {
+     "name": "Jaxon Smith-Njigba",
+     "pos": "WR",
+     "adp": 33,
+     "sharp": 19,
+     "n": 12,
+     "actual": 359.9,
+     "base": 177.5,
+     "resid": 182.4
+    },
+    {
+     "name": "George Kittle",
+     "pos": "TE",
+     "adp": 43.9,
+     "sharp": 32,
+     "n": 12,
+     "actual": 161.5,
+     "base": 158.7,
+     "resid": 2.8
+    },
+    {
+     "name": "Najee Harris",
+     "pos": "RB",
+     "adp": 153.9,
+     "sharp": 141,
+     "n": 12,
+     "actual": 11.6,
+     "base": 84.2,
+     "resid": -72.6
+    },
+    {
+     "name": "Ray Davis",
+     "pos": "RB",
+     "adp": 155.9,
+     "sharp": 144.5,
+     "n": 12,
+     "actual": 64.1,
+     "base": 82.4,
+     "resid": -18.3
+    },
+    {
+     "name": "Rico Dowdle",
+     "pos": "RB",
+     "adp": 171.1,
+     "sharp": 155.5,
+     "n": 12,
+     "actual": 216.3,
+     "base": 79.5,
+     "resid": 136.8
+    }
+   ],
+   "fades": [
+    {
+     "name": "Adam Thielen",
+     "pos": "WR",
+     "adp": 131.3,
+     "sharp": 181,
+     "n": 12,
+     "actual": 39.6,
+     "base": 102.6,
+     "resid": -63
+    },
+    {
+     "name": "Isaiah Likely",
+     "pos": "TE",
+     "adp": 150.2,
+     "sharp": 222,
+     "n": 12,
+     "actual": 61.7,
+     "base": 134.3,
+     "resid": -72.6
+    },
+    {
+     "name": "Mason Taylor",
+     "pos": "TE",
+     "adp": 151.9,
+     "sharp": 224,
+     "n": 12,
+     "actual": 88.9,
+     "base": 134.8,
+     "resid": -45.9
+    },
+    {
+     "name": "Michael Wilson",
+     "pos": "WR",
+     "adp": 152.3,
+     "sharp": 204,
+     "n": 12,
+     "actual": 220.6,
+     "base": 83.8,
+     "resid": 136.8
+    },
+    {
+     "name": "Tyler Lockett",
+     "pos": "WR",
+     "adp": 163.5,
+     "sharp": 226,
+     "n": 12,
+     "actual": 73.1,
+     "base": 92.2,
+     "resid": -19.1
+    },
+    {
+     "name": "Andrei Iosivas",
+     "pos": "WR",
+     "adp": 166.3,
+     "sharp": 228,
+     "n": 12,
+     "actual": 89.9,
+     "base": 98.5,
+     "resid": -8.6
+    },
+    {
+     "name": "Jaylen Wright",
+     "pos": "RB",
+     "adp": 171.8,
+     "sharp": 250,
+     "n": 11,
+     "actual": 48.2,
+     "base": 94.9,
+     "resid": -46.7
+    }
+   ]
+  }
+ },
+ "grid": {
+  "2019": {
+   "0": 0,
+   "0.1": 22,
+   "0.2": 56.8,
+   "0.3": 118.4,
+   "0.4": 90.1,
+   "0.5": 160.3
+  },
+  "2020": {
+   "0": 0,
+   "0.1": -29.1,
+   "0.2": 86.1,
+   "0.3": 1,
+   "0.4": 1.9,
+   "0.5": -8.9
+  },
+  "2021": {
+   "0": 0,
+   "0.1": 101.3,
+   "0.2": 115,
+   "0.3": 11.2,
+   "0.4": -13.7,
+   "0.5": -72.3
+  },
+  "2022": {
+   "0": 0,
+   "0.1": -1.7,
+   "0.2": -24.8,
+   "0.3": -46.5,
+   "0.4": -32.8,
+   "0.5": 0.7
+  },
+  "2023": {
+   "0": 0,
+   "0.1": -30.2,
+   "0.2": -15.8,
+   "0.3": -8.6,
+   "0.4": -46.6,
+   "0.5": -59.7
+  },
+  "2024": {
+   "0": 0,
+   "0.1": 45,
+   "0.2": 56.4,
+   "0.3": 26.1,
+   "0.4": -42.4,
+   "0.5": -81.8
+  },
+  "2025": {
+   "0": 0,
+   "0.1": -49.5,
+   "0.2": -4.3,
+   "0.3": 66.4,
+   "0.4": 172.8,
+   "0.5": 212
+  }
+ },
+ "pgrid": {
+  "2019": {
+   "0": 0,
+   "6": 0,
+   "12": 0,
+   "18": 0,
+   "24": 0,
+   "36": 0
+  },
+  "2020": {
+   "0": 0,
+   "6": -92.9,
+   "12": -37.6,
+   "18": -20.6,
+   "24": -37.9,
+   "36": -38.5
+  },
+  "2021": {
+   "0": 0,
+   "6": -2.6,
+   "12": -22.3,
+   "18": -66.7,
+   "24": -237.6,
+   "36": -142.8
+  },
+  "2022": {
+   "0": 0,
+   "6": 3.4,
+   "12": 14.2,
+   "18": -100.9,
+   "24": -100.9,
+   "36": -93.1
+  },
+  "2023": {
+   "0": 0,
+   "6": -9.1,
+   "12": -11.9,
+   "18": -11.9,
+   "24": -11.9,
+   "36": -11.9
+  },
+  "2024": {
+   "0": 0,
+   "6": 38.6,
+   "12": -19.7,
+   "18": 59,
+   "24": 28.7,
+   "36": -62
+  },
+  "2025": {
+   "0": 0,
+   "6": -84.3,
+   "12": -9.7,
+   "18": 8.4,
+   "24": 124.5,
+   "36": 134.4
+  }
+ },
+ "walkForward": [
+  {
+   "year": 2020,
+   "w": 0.5,
+   "gain": -8.9
+  },
+  {
+   "year": 2021,
+   "w": 0.5,
+   "gain": -72.3
+  },
+  {
+   "year": 2022,
+   "w": 0.2,
+   "gain": -24.8
+  },
+  {
+   "year": 2023,
+   "w": 0.2,
+   "gain": -15.8
+  },
+  {
+   "year": 2024,
+   "w": 0.2,
+   "gain": 56.4
+  },
+  {
+   "year": 2025,
+   "w": 0.2,
+   "gain": -4.3
+  }
+ ],
+ "walkForwardGroups": [
+  {
+   "year": 2020,
+   "p": 0,
+   "gain": 0
+  },
+  {
+   "year": 2021,
+   "p": 0,
+   "gain": 0
+  },
+  {
+   "year": 2022,
+   "p": 0,
+   "gain": 0
+  },
+  {
+   "year": 2023,
+   "p": 0,
+   "gain": 0
+  },
+  {
+   "year": 2024,
+   "p": 0,
+   "gain": 0
+  },
+  {
+   "year": 2025,
+   "p": 0,
+   "gain": 0
+  }
+ ],
+ "summary": {
+  "spread": 3.975,
+  "rSharp": 7.102,
+  "rArank": 3.032,
+  "rPartial": 7.884,
+  "blendGain": -0.688,
+  "groupGain": null
+ }
+}

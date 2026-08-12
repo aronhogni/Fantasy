@@ -81,7 +81,7 @@ export const COLUMNS = [
   { key: "sharpRank", label: "Sharp-weighted rank", short: "Sharp #", band: "Experts", hi: false,
     note: "Samsteypa ADEINS theirra borda sem maeldust YFIR nulldreifingu 2025. Rodin sem maelingin styður." },
   { key: "sharpDelta", label: "Sharp vs consensus", short: "Sharp Δ", band: "Experts",
-    note: "Hvad skorpu bordin eru haerri a honum en samsteypan. Jakvaett = their sem hittu i fyrra eru hrifnari." },
+    note: "Hvad skorpu bordin eru haerri a honum en samsteypan. Jakvaett = their sem eiga besta FERILINN eru hrifnari. Hopurinn er valinn a midgildi yfir >= 4 ar og their verda ad vera enn ad birta — eitt ar er of veikur valari (rho 0,370). SAMHENGI, EKKI ROD: vik theirra fra ADP ber raunverulegt merki (hluta-r 0,105 ofan a okkar eigid vik, 7/7 ar) en ad blanda thvi inn i A-Ranking TAPADI stigum i drott-hermun (-11,6, 1/6 ar). Lestu thad thvi sem skodun, ekki sem rod." },
 
   /* ---------- 2025 ---------- */
   { key: "lastPpg", label: "2025 points per game", short: "PPG 25", band: "2025",

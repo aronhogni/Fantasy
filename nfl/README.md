@@ -55,6 +55,7 @@ birtir; það er forsenda þess að þau séu marktæk.
 | `names.js` — nafna-pörun (síðasta úrræði) | `ErrorBoundary.jsx` |
 | `columns.js` — **ein** dálkaskrá | |
 | `data.js` — hleðsla + `localStorage` | |
+| `sleeper-league.js` — Sleeper-svar → deildarsnið | |
 
 ---
 
@@ -214,20 +215,83 @@ lesandinn getur ekki greint þar á milli af tölunum. Þess vegna:
 10–18. Helmingarnir fylgjast að með **rho 0,466** (**0,636** leiðrétt með
 Spearman-Brown, n=205). Gæði borðs eru **samkvæmt merki innan tímabils**.
 
-**Það sem þetta getur samt ekki sagt:** hvort sömu nöfnin endurtaka sig næsta
-ár. Það krefst annars mælds tímabils og 2026-borðin eiga eftir að spilast.
-Viðmótið segir þetta berum orðum og **verður að halda áfram að gera það**.
+**ÞETTA VAR MÆLT 12.8.2026 — hér stóð áður að það væri ekki hægt.** Textinn
+sagði að spurningin „endurtaka sömu nöfnin sig næsta ár?" krefðist annars
+mælds tímabils. Það var rangt: FantasyPros birtir nákvæmni-síðuna með
+`?year=` **aftur til 2015**, svo ellefu ár lágu fyrir allan tímann.
+`scripts/expert-persistence.mjs` mælir þau.
 
-### „Skorpu"-röðunin
+**Röðunin flyst — en veikt.** rho(N→N+1) = **0,370** og **ekkert af 10
+pörum er neikvætt**. Til samanburðar féll dómara-spjaldamælingin í
+FPL-verkefninu á 0,182 með 6 neikvæðum pörum af 14. Merkið er því
+raunverulegt, en eitt ár er samt veikur valari.
 
-`buildSharpBoard` byggir samsteypu **aðeins** úr þeim borðum sem mældust yfir
-**95. hundraðshluta** núlldreifingarinnar. Ekki „topp 10" — föst tala gefur
-alltaf tíu nöfn, líka þegar enginn er betri en handahóf. Komist enginn yfir
-þröskuldinn er **engin skorpu-röð til** og `measured: false` er skilað, sem
-viðmótið **verður** að birta.
+### „Skorpu"-röðunin — VALIÐ ER ÚR FERLI, EKKI ÚR EINU ÁRI
 
-`sharpDelta` = ECR − skorpu-röð. Jákvætt: þeir sem hittu í fyrra eru hrifnari
-en markaðurinn.
+`buildSharpBoard` velur **15 efstu á miðgildi percentila**, með þremur
+skilyrðum sem öll voru mæld:
+
+1. **Lágmark 4 ár.** Styttri „ferill" er eitt ár með annað nafn.
+2. **Verður að hafa birt í fyrra.** Sá sem er hættur er ónothæfur hversu
+   góður sem hann var — Joseph Dolan á besta miðgildi allra (1,4%) og birti
+   síðast 2019. Þetta uppgötvaðist þegar bakprófið með K=1 skilaði **engu
+   borði í sex árum af sjö**; það leit út eins og bilun og var svar.
+3. **Að fella út versta árið var mælt og er MÆLANLEGA VERRA.** Miðgildið
+   sinnir því hlutverki nú þegar. Ekki bæta því við.
+
+Percentill en ekki hrá röð: fjöldi sérfræðinga fór úr ~60 í 215 á tímabilinu,
+svo „sæti 20" er ekki sama frammistaða 2016 og 2025.
+
+**Fallback:** finnist engin saga (fyrsta keyrsla eftir uppfærslu) er gamla
+eins-árs reglan notuð — núlldreifingin og 95. hundraðshluti hennar. Hún er
+verri en hún er ekki röng, og `rule`-sviðið segir hvor var notuð.
+
+### OG BORÐIÐ ÞEIRRA SLÆR EKKI A-RANKING
+
+`scripts/sharp-lab.mjs`, 7 tímabil, walk-forward val:
+
+| samanburður | stig | ár | t |
+|---|---|---|---|
+| gegn ADP | **+51,9** | 4/7 | 1,92 |
+| gegn flatri samsteypu allra | **−51,2** | 1/7 | −2,30 marktækt |
+| gegn A-Ranking | **−111,3** | 3/7 | −1,41 |
+
+Að **velja** sérfræðinga tapar fyrir því að taka þá alla — og hvort tveggja
+tapar fyrir okkar eigin röð. Varnagli sem má ekki hverfa: aðeins 7–13 af 15
+völdum eiga borð hvert ár (á móti ~60 í flötu samsteypunni), svo hluti
+bilsins gæti verið úrtaksstærð.
+
+### EN VIK ÞEIRRA FRÁ ADP BER MERKI — SEM SAMHENGI, EKKI RÖÐ
+
+`scripts/disagree-lab.mjs` spurði þrengri spurningar: hvað gerist þar sem
+þeir eru **samhljóða** ósammála markaðnum? Mælt er afgangur — raunstig mínus
+það sem leikmenn á sömu slóðum í ADP **innan sömu stöðu** skoruðu.
+
+| mæling | niðurstaða | ár | t |
+|---|---|---|---|
+| samhljóða „buy" − samhljóða „fade" | **+60,6 stig** | 5/5 | 3,98 |
+| r(vik þeirra, afgangur) | 0,137 | 7/7 | 7,10 |
+| **hlutfylgni ofan á OKKAR eigið vik** | **0,105** | **7/7** | **7,88** |
+
+Merkið lifir því af stjórnun fyrir A-Ranking — það er ekki bara endurómur af
+okkar eigin viki frá markaðnum.
+
+**OG SAMT FER ÞAÐ EKKI Í RÖÐINA.** Tvær reglur voru prófaðar í
+drott-hermuninni, báðar með vog valda walk-forward:
+
+| regla | stig gegn hreinu A-Ranking | ár |
+|---|---|---|
+| blanda (öll röðin færð eftir miðgildi þeirra) | **−11,6** | 1/6 |
+| aðeins samhljóða hóparnir færðir um P sæti | **0** (P=0 valið öll árin) | 0/6 |
+
+**Fylgni er ekki ákvörðun** — sami lærdómur og `aron/verð` í FPL-verkefninu,
+þar sem hærri þrautseigja fylgdi lakari stigum á leik. `sharpDelta` er þess
+vegna **dálkur**, ekki röðun, og prófið `tests/learn.mjs` fellur ef einhver
+vírar hann inn í `aRank`.
+
+`sharpDelta` = ECR − skorpu-röð. Jákvætt: þeir sem eiga besta **ferilinn**
+eru hrifnari en markaðurinn. Úrtaksstærðin (hve mörg borð eru komin) stendur
+undir töflunni í Players — í ágúst eru það oft innan við helmingur.
 
 ---
 
@@ -1050,9 +1114,14 @@ nákvæmlega ein slík; hún var flögguð sem artefakt og fór hvergi.
 
 ## 6. Prófin
 
-**Tíu söfn í `SUITES`** (`nfl/tests/run.mjs`). Fjöldinn er reiknaður úr `SUITES`,
-ekki harðkóðaður. `npm test` í `nfl/` keyrir **aðeins** þessi — FPL-keyrarinn er
+Söfnin eru talin upp í `SUITES` (`nfl/tests/run.mjs`) og **fjöldinn er reiknaður
+úr þeim listanum**. `npm test` í `nfl/` keyrir **aðeins** þessi — FPL-keyrarinn er
 aðskilinn viljandi, svo lota sem vinnur í öðru appinu geti ekki fellt hitt.
+
+> **OG TALAN STÓÐ EKKI HELDUR HÉR.** Hér stóð „**Tíu** söfn í `SUITES`" í sömu
+> setningu sem segir að fjöldinn sé ekki harðkóðaður — meðan `SUITES` bar **15**.
+> Nákvæmlega sama villa og `CLAUDE.md` kafli 5 varar við, í setningunni sem varar
+> við henni. Talan er í `npm test`-úttakinu og hvergi annars staðar.
 
 | Safn | Hvað það ver |
 |---|---|
@@ -1066,6 +1135,8 @@ aðskilinn viljandi, svo lota sem vinnur í öðru appinu geti ekki fellt hitt.
 | `pipeline.mjs` | **Gögnin sjálf, ekki formúlurnar.** Nafna-pörun má ekki taka yfir; engin tómgildi; hvert birt svið hefur raunverulega dreifingu; PPR > half > std hjá hverjum móttakara |
 | `render.mjs` | **Eina prófið sem sér hvítan skjá.** Opnar hvern flipa með raunverulegum `data/` og krefst **talna, ekki bara þess að ekkert hrundi**. Ver að viðmótið sé enskt — líka ASCII-íslenska, sem stafa-skynjun sér ekki |
 | `audit.mjs` | **Leitar að villum, ekki staðfestingu.** Sjá 6b |
+| `sleeper-league.mjs` | **Deildin lesin úr Sleeper.** Hrein vörpun, svo prófið keyrir sama kóða og appið. Fastarnir eru **raunverulegt svar** (deild 1389356308104249344) og verja tvær gildrur sem tilbúið svar hefði ekki sýnt: umferðirnar koma úr **draftinu** (15), ekki úr deildinni (`draft_rounds: 3`), og sætið kemur úr `slot_to_roster_id` þegar `draft_order` er **null**. Kafli 8 keyrir 8 ruslsvör; gilt svar verður að fara **óbreytt** í gegn. Sjá 6e |
+| `sleeper.mjs` | Draft-kvöldið í jsdom. Kaflar 2d/2e bera innflutninginn: **VBD-tölurnar verða að breytast** þegar deildin er flutt inn, annars er innflutningurinn skraut |
 
 **Mynstur sem á að endurtaka:** `render.mjs` krefst þess að núlldreifingin
 standi **á undan** stigatöflunni í DOM. Það er ekki stílpróf heldur efnislegt:
@@ -1119,6 +1190,102 @@ mennirnir eru í sæti 511–512 af 558; 46% af ESPN-fréttatöggum parast ekki 
 það eru varnarmenn og línumenn sem eiga réttilega ekkert erindi á borðið;
 auðkennin okkar **eru** Sleeper-auðkenni (tölur, liðsskammstöfun fyrir DST), svo
 draft-pörunin er rétt í grunninn.
+
+---
+
+## 6e. Deildin er LESIN, ekki slegin inn — 12.8.2026
+
+Fram að þessu las appið **völin** úr Sleeper en **engar reglur**. Lið­afjöldi,
+stigagjöf og byrjunarsæti voru slegin inn í hendi í flipastikunni — og þau eru
+ekki skraut: `teams` og `scoring` ráða **báðum** hvaða ADP er lesið OG hvar
+varamanns-þrepið liggur (`model.js`). Deild sem er slegin inn rangt reiknar
+**aðra deild en notandinn spilar í**, og hún gerir það þögult, með tölum sem líta
+nákvæmlega eins út.
+
+Og slóðin sem notandinn **hefur** er deildarslóð (`/leagues/{id}/predraft`), ekki
+draft-slóð. Gamla `extractDraftId` tók fyrsta 6+ stafa tölustrenginn og kallaði
+hann draft-id, svo deildarslóð gaf `/draft/{leagueId}` og **404 fyrir slóð sem
+var alveg rétt**.
+
+Nú er ein slóð nóg. Vörpunin er í `src/sleeper-league.js` — **hrein**, svo prófin
+keyra sama kóða og appið notar.
+
+### Enga innskráningu — og það er mælt, ekki áætlað
+
+Notandinn bauð að útvega login með passcode. Það var **óþarft og verra**:
+Sleeper-endapunktarnir sem allt þetta þarf eru **opnir og með CORS-hausa**.
+Mælt 12.8.2026 gegn deild `1389356308104249344`, **engin skilríki**:
+
+| endapunktur | gefur |
+|---|---|
+| `/league/{id}` | `scoring_settings`, `roster_positions`, `total_rosters`, `draft_id` |
+| `/draft/{id}` | `type`, `settings.rounds`, `settings.teams`, `draft_order`, `slot_to_roster_id` |
+| `/league/{id}/users` · `/rosters` | liðsheiti og `owner_id` → sætavalið |
+
+Innskráning hefði sett **raunverulegt skilríki í vafra-app í opnu repo-i** og gefið
+**engin ný gögn**. Hún er ekki „óþörf í bili" heldur röng leið.
+
+### Tvær gildrur sem AÐEINS raunverulegt svar sýndi
+
+Báðar hefðu farið beint í loftið ef prófið hefði verið byggt á tilbúnu svari —
+og báðar eru nú fastar í `tests/sleeper-league.mjs`.
+
+| # | gildran | hvað hún hefði kostað |
+|---|---|---|
+| 1 | **`league.settings.draft_rounds` er 3** meðan `draft.settings.rounds` er **15** | Ráðgjöfin hefði talið þrjár umferðir eftir og **aldrei sagt þér að taka spyrnumann né vörn**. `advice.js` les `rounds` til að vita hve mörg völ eru eftir. **Draftið er heimildin um draftið**; deildin er heimildin um reglurnar |
+| 2 | **`draft.draft_order` er `null`** — Sleeper dregur röðina EFTIR á | Leiðin gegnum `draft_order` gaf ekkert, og **án sætis fyllist þinn hópur aldrei**, svo „hvern á að taka næst" veit ekki hvað þú átt. Sætið kemur nú úr `slot_to_roster_id` → `rosters[].owner_id` → `users[].display_name`, svo notandinn **smellir á liðið sitt**. Að röðin sé ódregin er **upplýsing, ekki bilun**, og það er sagt |
+
+### Stöðu-þakið var LÁTIÐ STANDA — og það var ákvörðun
+
+Freistnin var að skala `maxPos` eftir innfluttri deild: „tvö FLEX-sæti, þá má
+TE-þakið vera 4." Sú tala væri **ómæld** og hún myndi líta nákvæmlega eins út og
+mælda talan við hliðina — versta útkoman í þessu repo-i. `maxPos` var mælt í
+**12-liða deild með QB1/RB2/WR3/TE1/FLEX1** (`accuracy.js`).
+
+Þakið stendur því óbreytt. Eina breytingin sem er gerð er **réttleiks-gólf**:
+þakið má ekki vera lægra en fjöldi sæta sem VERÐUR að fylla (annars gæti hermunin
+ekki fyllt byrjunarliðið). Það er ekki fínstilling, það er að forða ómöguleika.
+Sé lögun deildarinnar ekki ein af þeim sem **voru** mældar
+(`shapes_sleeper.json`) er það **sagt** í viðvörun. Vörður:
+`sleeper-league.mjs` kafli 4 fellur ef einhver skalar þakið — mælt með
+stökkbreytingu.
+
+### Nálgun má aldrei lesast eins og vissa
+
+Appið ber **þrjár** stigagjafir og ekki fleiri, því spáin og ADP eru sótt í
+nákvæmlega þeim þremur afbrigðum (`pts_ppr`, `pts_half_ppr`, `pts_std`). Deild
+með `rec: 0,75`, TE-premium eða 6-stiga pass-TD er því **ekki reiknanleg** — hún
+er nálguð, og þá er `exactScoring: false` og viðvörunin nefnir raunverulega töluna.
+Sama regla og verðspáin í FPL-appinu.
+
+Innflutt deild fer gegnum `normalizeLeague`, svo **eitt ónýtt svið kostar bara
+sig sjálft** — sama vörn og `saved-state.mjs` ber um vistað ástand, og hún á við
+hér líka: svar frá ytri heimild er alveg eins óvarið og blob í vafranum.
+
+### Þögul villa sem fannst í leiðinni
+
+Vistunar-umgjörðin um `sync` tók **aðeins við gildi**, en `pull()` kallar
+`setSync(prev => …)` þegar `draft_order` bætist við í miðjum polli. Þá var
+**fallið sjálft** sent í `saveState`, `JSON.stringify` á falli skilar `undefined`,
+og strengurinn `"undefined"` lenti í `localStorage` — svo **sætið tapaðist við
+næstu hleðslu** þótt skjárinn hefði sýnt það rétt alla lotuna. Uppfærslu-form er
+nú leyst út áður en það er vistað.
+
+### Staðfest í raunverulegum vafra, ekki bara í jsdom
+
+`AST-próf lesa kóða; þau sjá ekki skjáinn` — svo þetta var keyrt í **alvöru
+Chrome gegn lifandi Sleeper-API**, sem er líka eina leiðin til að sjá hvort
+CORS-leiðin virkar í raun. Slóðin límd inn, `Connect`:
+
+- `Teams` fór **12 → 10**, `Scoring` PPR, 15 umferðir, `snake`
+- byrjunarsæti `QB · 2RB · 2WR · TE · 2FLEX · K · DST · 5 bench`
+- **VBD-tölurnar breyttust** — varamanns-þrepið fylgdi með (það er prófsteinninn;
+  fullyrðing um textann einan hefði verið græn þótt deildin hefði aldrei lent í
+  `league`-state)
+- öll tíu liðsheitin með sætistölu; smellur á `mattitim` setti sætið í **7**
+- tvær viðvaranir, báðar réttar: **keeper-deild** (`max_keepers: 1`, svo ADP á
+  borðinu er redraft) og **ómæld lögun**
+- ekkert `NaN`, engar console-villur, **ekkert lárétt yfirflæði** við 390 og 768 px
 
 ---
 
@@ -1273,7 +1440,8 @@ keyrslu, svo `rebase -X theirs` er rétt hér af sömu ástæðu.
 | Vikulegar spár og byrjunarliðs-tól | `weeklyProjection` er skrifað og prófað en hefur **aldrei keyrt á lifandi viku** |
 | Vænt stigaskor á flesta leiki | Aðeins **337 af 557** leikjum hafa línu í forleik. Leikur án línu fær **—**, ekki meðaltal |
 | Ár-á-ár nákvæmni sérfræðinga | 2026-borðin eiga eftir að spilast. **Þetta er stærsta ómælda spurningin í verkefninu** |
-| Sleeper í beinni | Kóðinn pollar `/draft/{id}/picks` á 5 sek en hefur ekki verið keyrður í raunverulegu drafti |
+| Sleeper í beinni | Kóðinn pollar `/draft/{id}/picks` á 5 sek en hefur ekki verið keyrður í raunverulegu drafti. **Innflutningur reglnanna er hins vegar staðfestur á lifandi deild** (sjá 6e) — það sem eftir stendur óprófað er pollunin meðan völ tínast inn |
+| Dregin draft-röð | `draft_order` var **null** 12.8.2026 og verður það þar til röðin er dregin. Sætin sem appið sýnir eru þá **hópsæti** úr `slot_to_roster_id`; þau verða valröðin þegar dregið er, og pollunin les hana þá sjálf. **Fyrsta raunprófun þess er draft-kvöldið** |
 | Trending add/drop sem waiver-merki | Í forleik er þetta meiðsla-frétt; á tímabili er það waiver-hlaupið |
 
 ---

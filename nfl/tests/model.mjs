@@ -397,5 +397,82 @@ console.log("\nordafor tiltaekileika");
   }
 }
 
+/* ============================================================
+   SKORPU-HOPURINN ER VALINN UR FERLI, EKKI UR EINU ARI
+   ============================================================
+   Reglan er maeld (`expert-persistence.mjs`) og hun hefur THRJU
+   skilyrdi sem OLL hafa kostad eitthvad ad uppgotva. Profad er a
+   tilbunum gognum svo hvert skilyrdi se prófad EITT OG SER — a
+   raungognum gaeti eitt theirra verid dautt an thess ad sjast. */
+console.log("\nval a skorpu-hopnum");
+{
+  const { buildSharpBoard } = await import("../src/build.js");
+
+  /* Fimm hafa langan og virkan feril (10,11,12,13,14) — their eiga
+     ad komast ad. Tveir eru undantekningarnar sem reglan snyst um:
+       2  godur ferill en HAETTUR (birtir ekki sidasta arid)
+       3  virkur en a adeins 2 ar
+     Fjoldi qualifying manna er 5, sem er yfir golfinu (4). */
+  const yearsList = [2021, 2022, 2023, 2024, 2025];
+  const LONG = [10, 11, 12, 13, 14];
+  const accuracyHistory = {};
+  for (const y of yearsList) {
+    const rows = LONG.map((id, i) => ({ id, r: i + 1 }));
+    if (y !== 2025) rows.push({ id: 2, r: 1 });     // haettur, en bestur medan hann var
+    if (y >= 2024) rows.push({ id: 3, r: 1 });      // of stuttur ferill
+    accuracyHistory[y] = rows;
+  }
+  const ranks = (n) => Object.fromEntries(
+    Array.from({ length: 60 }, (_, i) => [`p${i + 1}`, i + 1 + n]));
+  const experts = {
+    accuracyHistory,
+    boards: [...LONG, 2, 3].map((id) => ({ id, ranks: ranks(id % 5) })),
+  };
+
+  const S = buildSharpBoard(null, experts);
+  ok(S.rule === "career", `valid byggir a ferli (${S.rule})`);
+  ok(LONG.every((id) => S.ids.includes(id)),
+    `allir fimm med langan virkan feril eru med (${S.ids.length})`);
+  ok(!S.ids.includes(2), "sa sem er HAETTUR er ekki med thott ferillinn se godur");
+  ok(!S.ids.includes(3), "sa sem a adeins 2 ar er ekki med");
+  ok(S.ids[0] === 10, `bestur ad midgildi er efstur (${S.ids[0]})`);
+  ok(S.ranks.size > 0 && S.measured, `${S.ranks.size} leikmenn i skorpu-rodinni`);
+
+  /* Rodin verdur ad vera THETT 1..n — eyda i henni thydir ad
+     `sharpDelta` maeli annan kvarda en `ecr` og talan yrdi bjoguð. */
+  const vals = [...S.ranks.values()].sort((a, b) => a - b);
+  ok(vals[0] === 1 && vals[vals.length - 1] === vals.length,
+    `thett rod 1..${vals.length}`);
+
+  /* GOLFID: faerri en fjorir sem uppfylla reglurnar er EKKI
+     skorpu-hopur, og tha a fallbackid ad taka vid — thogul samsteypa
+     tveggja manna vaeri verri en gamla reglan. */
+  const thin = { accuracyHistory: Object.fromEntries(yearsList.map((y) =>
+                   [y, [{ id: 10, r: 1 }, { id: 11, r: 2 }]])),
+                 boards: experts.boards };
+  const T = buildSharpBoard(null, thin);
+  ok(T.rule !== "career", `tveir menn duga ekki i feril-reglu (${T.rule})`);
+
+  /* FALLBACK: an sogu er gamla eins-ars reglan notud. Hun ma ekki
+     hverfa — fyrsta keyrsla eftir uppfaerslu hefur enga sogu og
+     dalkurinn a ekki ad tæmast tha. */
+  const F = buildSharpBoard(
+    { nullDist: { mean: 0, p95: 0.5 },
+      experts: [{ id: 10, draft: { mean: 0.9 } }, { id: 11, draft: { mean: 0.1 } }] },
+    { boards: experts.boards });
+  ok(F.rule === "single-season", `an sogu er fallid aftur i eitt ar (${F.rule})`);
+  ok(F.ids.includes(10) && !F.ids.includes(11), "og threskuldurinn thar virkar enn");
+
+  /* OG SAGAN VERDUR AD VINNA THEGAR HUN ER TIL. Vaeri rodin ofug
+     (fallback fyrst) hefdi enginn tekid eftir thvi — badar leidir
+     skila gildum hop. */
+  const B = buildSharpBoard(
+    { nullDist: { mean: 0, p95: 0.5 },
+      experts: [{ id: 2, draft: { mean: 0.9 } }] },
+    experts);
+  ok(B.rule === "career" && !B.ids.includes(2),
+    "sagan raedur thegar hun er til, ekki eins-ars talan");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

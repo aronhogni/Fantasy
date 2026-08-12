@@ -1,12 +1,9 @@
 {
- "generated": "2026-08-12T11:06:57.853Z",
+ "generated": "2026-08-12T11:45:36.964Z",
  "provenance": {
-  "generated": "2026-08-12T11:06:57.853Z",
+  "generated": "2026-08-12T11:45:36.964Z",
   "argv": [
-   "--scoring=ppr",
-   "--k=15",
-   "--runs=4",
-   "--from=2019"
+   "--scoring=ppr"
   ],
   "params": {
    "scoring": {
@@ -14,16 +11,16 @@
     "fromDefault": false
    },
    "k": {
-    "value": "15",
-    "fromDefault": false
+    "value": 15,
+    "fromDefault": true
    },
    "runs": {
-    "value": "4",
-    "fromDefault": false
+    "value": 5,
+    "fromDefault": true
    },
    "from": {
-    "value": "2019",
-    "fromDefault": false
+    "value": 2019,
+    "fromDefault": true
    }
   },
   "inputs": {
@@ -68,7 +65,7 @@
   },
   "2020": {
    "picked": 15,
-   "withBoard": 8,
+   "withBoard": 9,
    "names": [
     "Sean Koerner - The Action Network",
     "Rob Waziak - Fantasy Life",
@@ -77,12 +74,13 @@
     "Justin Boone - Yahoo",
     "Dan Clasgens - Get Sports Info",
     "Site Rankings - FullTime Fantasy",
-    "Jeff Boggis - Fantasy Football Empire"
+    "Jeff Boggis - Fantasy Football Empire",
+    "Andy Holloway - The Fantasy Footballers"
    ]
   },
   "2021": {
    "picked": 15,
-   "withBoard": 9,
+   "withBoard": 11,
    "names": [
     "Pat Fitzmaurice - FantasyPros",
     "Rob Waziak - Fantasy Life",
@@ -92,12 +90,14 @@
     "Jeff Ratcliffe - FTN",
     "Dan Clasgens - Get Sports Info",
     "Richard Savill - Fantasy Six Pack",
-    "Jeff Boggis - Fantasy Football Empire"
+    "Dan Harris - FantasyPros",
+    "Scott Pianowski - Yahoo",
+    "Mike Wright - The Fantasy Footballers"
    ]
   },
   "2022": {
    "picked": 15,
-   "withBoard": 7,
+   "withBoard": 11,
    "names": [
     "Sean Koerner - The Action Network",
     "Rob Waziak - Fantasy Life",
@@ -105,12 +105,16 @@
     "Allie Fontana - Fighting Chance Fantasy",
     "Pat Fitzmaurice - FantasyPros",
     "Dan Clasgens - Get Sports Info",
-    "Jake Ciely - The Athletic"
+    "Jake Ciely - The Athletic",
+    "Jeff Ratcliffe - FTN",
+    "Scott Pianowski - Yahoo",
+    "Richard Savill - Fantasy Six Pack",
+    "Andy Singleton - Expand The Boxscore"
    ]
   },
   "2023": {
    "picked": 15,
-   "withBoard": 8,
+   "withBoard": 12,
    "names": [
     "Rob Waziak - Fantasy Life",
     "Pat Fitzmaurice - FantasyPros",
@@ -119,12 +123,16 @@
     "Jeff Ratcliffe - FTN",
     "Sean Koerner - The Action Network",
     "Jeff Boggis - Fantasy Football Empire",
-    "Michael Hauff - FF Faceoff"
+    "Michael Hauff - FF Faceoff",
+    "Dan Clasgens - Get Sports Info",
+    "Scott Pianowski - Yahoo",
+    "Andy Singleton - Expand The Boxscore",
+    "Nick Zylak - Fantasy Football Advice"
    ]
   },
   "2024": {
    "picked": 15,
-   "withBoard": 10,
+   "withBoard": 13,
    "names": [
     "Sean Koerner - The Action Network",
     "Chris Raybon - The Action Network",
@@ -135,22 +143,28 @@
     "Clayton Cadieux - Fantasy Football From Up North",
     "Justin Sablich - 5th Down Fantasy",
     "Jared Smola - Draft Sharks",
-    "Dan Clasgens - Get Sports Info"
+    "Dan Clasgens - Get Sports Info",
+    "Ryan Noonan - 4for4",
+    "Francisco (Chato) Romero - Estadio Fantasy",
+    "Mick Ciallela - Fantrax"
    ]
   },
   "2025": {
    "picked": 15,
-   "withBoard": 9,
+   "withBoard": 12,
    "names": [
     "Sean Koerner - The Action Network",
     "Jeff Ratcliffe - FTN",
     "Rob Waziak - Fantasy Life",
-    "Justin Boone - Yahoo",
     "Pat Fitzmaurice - FantasyPros",
     "Chris Raybon - The Action Network",
     "Matthew Hill - DataForce Fantasy Football",
     "Jared Smola - Draft Sharks",
-    "Mick Ciallela - Fantrax"
+    "Mick Ciallela - Fantrax",
+    "Francisco (Chato) Romero - Estadio Fantasy",
+    "Jeff Bell - Footballguys",
+    "Justin Weigal - Fantasy Sharks",
+    "Justin Sablich - 5th Down Fantasy"
    ]
   }
  },
@@ -161,84 +175,84 @@
    "flatPlayers": 161
   },
   "2020": {
-   "experts": 8,
+   "experts": 9,
    "sharpPlayers": 162,
    "flatPlayers": 162
   },
   "2021": {
-   "experts": 9,
+   "experts": 11,
    "sharpPlayers": 178,
    "flatPlayers": 178
   },
   "2022": {
-   "experts": 7,
+   "experts": 11,
    "sharpPlayers": 144,
    "flatPlayers": 144
   },
   "2023": {
-   "experts": 8,
+   "experts": 12,
    "sharpPlayers": 174,
    "flatPlayers": 174
   },
   "2024": {
-   "experts": 10,
+   "experts": 13,
    "sharpPlayers": 175,
    "flatPlayers": 175
   },
   "2025": {
-   "experts": 9,
+   "experts": 12,
    "sharpPlayers": 201,
    "flatPlayers": 201
   }
  },
  "vsAdp": {
-  "mean": 48.9,
-  "t": 1.419,
+  "mean": 51.9,
+  "t": 1.916,
   "wins": 4,
   "years": 7,
   "significant": false
  },
  "vsFlat": {
-  "mean": -32.8,
-  "t": -1.805,
-  "wins": 2,
+  "mean": -51.2,
+  "t": -2.3,
+  "wins": 1,
   "years": 7,
-  "significant": false
+  "significant": true
  },
  "vsArank": {
-  "mean": -116.1,
-  "t": -1.415,
+  "mean": -111.3,
+  "t": -1.413,
   "wins": 3,
   "years": 7,
   "significant": false
  },
  "perSeasonRaw": {
   "vsAdp": {
-   "2019": 23.29895833333336,
-   "2020": 151.0020833333333,
-   "2021": -27.913541666666656,
-   "2022": 30.674999999999986,
-   "2023": -35.25520833333334,
-   "2024": -0.21770833333333664,
-   "2025": 200.4979166666666
+   "2019": 48.6616666666667,
+   "2020": 130.50583333333333,
+   "2021": -17.359999999999992,
+   "2022": 70.23583333333332,
+   "2023": -0.4591666666666716,
+   "2024": -24.66166666666667,
+   "2025": 156.03916666666663
   },
   "vsFlat": {
-   "2019": -9.634375,
-   "2020": 8.19999999999999,
-   "2021": -80.98437499999997,
-   "2022": -114.58541666666666,
-   "2023": 10.369791666666679,
-   "2024": -36.863541666666656,
-   "2025": -5.785416666666651
+   "2019": -1.8316666666666719,
+   "2020": -26.03833333333333,
+   "2021": -111.36166666666664,
+   "2022": -139.625,
+   "2023": 28.082500000000007,
+   "2024": -52.657499999999985,
+   "2025": -54.95583333333332
   },
   "vsArank": {
-   "2019": 62.028125000000024,
-   "2020": 88.06874999999998,
-   "2021": -276.17291666666677,
-   "2022": -240.43645833333332,
-   "2023": -323.0666666666668,
-   "2024": -305.9718750000001,
-   "2025": 182.8854166666667
+   "2019": 67.02583333333335,
+   "2020": 112.50416666666655,
+   "2021": -262.7291666666667,
+   "2022": -196.00416666666663,
+   "2023": -273.5491666666666,
+   "2024": -360.71583333333314,
+   "2025": 134.14833333333337
   }
  }
 }

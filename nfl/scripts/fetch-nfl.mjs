@@ -693,6 +693,28 @@ async function stageExperts(season) {
   ]);
   const acc = accDraft;
 
+  /* ============================================================
+     FERILLINN, EKKI SIDASTA AR.
+     ============================================================
+     `accDraft` er EITT ar. Ad velja skorpu-hopinn ur thvi einu var
+     maelt (`expert-persistence.mjs`): rod serfraedinga flyst milli
+     ara med rho 0,370, svo eitt ar er veikur valari — sa sem var
+     efstur i fyrra er oft midlungs i ar. Mælda reglan er MIDGILDI
+     percentila yfir >= 4 ar OG ad hann se enn ad birta.
+
+     Thess vegna er sagan sott lika. Timabil sem er lokid breytist
+     aldrei, svo thetta eru odyr kollum sem skila alltaf thvi sama —
+     en their eru sottir i hverri keyrslu thvi skrain er endurmyndud
+     i heild og ma ekki reka i sundur vid hana. */
+  const accHistory = {};
+  for (let y = season - 11; y < season; y++) {
+    const rows = await fp.accuracy("draft", { year: y }).catch(() => []);
+    /* Ar sem skilar engu er SLEPPT, ekki skrifad tomt: tomt ar i
+       sogunni liti ut eins og "enginn birti thetta ar". */
+    if (rows.length) accHistory[y] = rows.map((r) => ({ id: r.fpExpertId, r: r.overall }));
+  }
+  console.log(`  ferill: ${Object.keys(accHistory).length} ar af nakvaemni`);
+
   /* Serfraedingalistinn kemur ur ECR-sidunni (hun ber `experts`-fylkid)
      og nakvaemnissidan baetir vid theim sem eru ekki med draft-bord.
      Sameinad mengi svo vid missum ekki af neinum. */
@@ -718,6 +740,7 @@ async function stageExperts(season) {
     season,
     accuracy: acc,              // DRAFT-nakvaemni — rett maeling fyrir draft
     accuracyWeekly: accWeekly,  // vikuleg nakvaemni — onnur spurning
+    accuracyHistory: accHistory,// { ar: [{id, r}] } — valid byggir a THESSU
     boards: compactBoards(now),
     boardsPrev: compactBoards(prev),
     consensus: consensusNow,
@@ -726,7 +749,7 @@ async function stageExperts(season) {
 
   record("experts", now.length > 0,
     `${now.length} boards ${season}, ${prev.length} boards ${season - 1}, ` +
-    `${acc.length} accuracy scores`);
+    `${acc.length} accuracy scores, ${Object.keys(accHistory).length} history seasons`);
 
   return { now, prev, acc };
 }
