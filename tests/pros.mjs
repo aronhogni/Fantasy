@@ -1122,5 +1122,25 @@ console.log("17) TENGINGIN — collectPros ER kolluð ur fetchFast, OG hrada key
      "fetch-fast.yml keyrir raunverulega `fetch.mjs --fast`");
 }
 
+console.log("14g) BANKI OG VERDMAETI HAFA SITTHVORN TELJARA (C3)");
+{
+  /* `bank` var summad undir SINU eigin finiteness-profi en medaltalid deilt
+     med `valN` — teljara `value`. `entry_history` er YTRA svar, svo svidin
+     geta vantad sitt i hvoru lagi; stjornandi med bank en an value blaes tha
+     upp medal-bankann (teljarinn of lagur, summan rett).
+     Hér bera BADIR bank (10 og 20 -> 15) en ADEINS EINN ber value, svo gamla
+     utfaerslan gaf 30. Fullyrdingin er thvi TALAN, ekki bara "ekki null".  */
+  const mk = (value, bank) => ({ picks: {
+    picks: [{ element: 1, is_captain: true, multiplier: 2 }],
+    entry_history: { value, bank, points: 50 }, active_chip: null } });
+  const r = aggregate([mk(1000, 10), mk(undefined, 20)], null, null);
+  ok(r.n === 2, `badir stjornendur talnir (${r.n})`);
+  ok(r.bank === 15, `medal-banki er 15, ekki 30 (${r.bank})`);
+  ok(r.value === 1000, `verdmaeti notar SINN teljara (${r.value})`);
+  /* Og null-reglan helst: enginn bank -> null, EKKI 0.                    */
+  const none = aggregate([{ picks: { picks: [{ element: 1 }], entry_history: { value: 1000 } } }], null, null);
+  ok(none.bank === null, `enginn bank -> null, ekki 0 (${none.bank})`);
+}
+
 console.log(fail ? `\npros: ${fail} fullyrdingar fellu` : "\npros: allt graent");
 process.exit(fail ? 1 : 0);

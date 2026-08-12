@@ -51,6 +51,24 @@ jobs:
           BSD_KEY: ${{ secrets.BSD_KEY }}
         run: node scripts/fetch.mjs --fast
 
+      - name: Skra spa (adeins FYRIR frest)
+        # SPA-BOKHALDID: skrifar data/predictions/gw{N}.json med thvi sem vid
+        # SPADUM — FFDR per leik, rankScore per leikmann, byrjunar-likur — svo
+        # tests/calibration.mjs geti sidar spurt hvort maelingarnar HALDI.
+        #
+        # HER, EKKI I DAGLEGU KEYRSLUNNI: hun gengur kl. 05 UTC en frestur er
+        # ~17:30 og leikir 12-19 UTC, svo dagkeyrslan er of langt fra honum.
+        # Hrada keyrslan gengur a 30 min fresti (og a 15 min a leikdogum) og
+        # naer thvi alltaf glugganum fyrir frest.
+        #
+        # `continue-on-error` ER ASETT: bokhaldid er MAELITAEKI, ekki gogn sem
+        # appid les. Bresti thad ma thad ALDREI fella gagna-keyrsluna sjalfa —
+        # sama rok og BSD er birtingar-heimild en ekki burdarvirki.
+        # Skriftan ver sig sjalf: hun skrifar ekkert eftir frest, aldrei tvisvar
+        # i somu umferd, og ekkert ur thunnum inntokum.
+        continue-on-error: true
+        run: node scripts/snapshot-predictions.mjs
+
       - name: Committa ef eitthvað breyttist
         run: |
           set -uo pipefail

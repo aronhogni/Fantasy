@@ -25,6 +25,7 @@ import { storageMode, saveState, loadState } from "./storage.js";
 import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk } from "./availability.js";
 import { Crest, PlayerImg, Kit, crestUrl, photoUrl, CREST_FALLBACK } from "./Crest.jsx";
 import FfdrTable from "./FfdrTable.jsx";
+import { buildTeamMetrics } from "./teamstats.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
@@ -1001,56 +1002,12 @@ export default function App() {
      rod i `GwFixtureList`. Daudur useMemo er ekki bara rusl — hann keyrir
      vid hverja breytingu a `fixtures`/`gw` og les eins og hann matti mali. */
   // Lið-mælikvarðar úr opinberum gögnum (sl. tímabil)
-  const teamMetrics = useMemo(() => {
-    if (!players || !teams) return {};
-    const m = {};
-    const agg = {};
-    players.forEach(p => {
-      const a = agg[p.team] = agg[p.team] || { xg:0, gkMins:0, gkXgc:0 };
-      // xG EINGÖNGU — expected_goal_involvements tvítelur (mark + assist á sama marki)
-      a.xg += parseFloat(p.expected_goals || 0);
-      if (p.element_type === 1 && p.minutes > a.gkMins) {
-        a.gkMins = p.minutes;
-        a.gkXgc = parseFloat(p.expected_goals_conceded || 0);
-      }
-    });
-    // team_form.json er HEILT (úr E0, 380 leikir). FPL-summur vantar ~19%
-    // því leikmenn sem fóru úr deildinni eru fjarlægðir úr bootstrap.
-    const tf = {};
-    (teamForm?.teams || []).forEach(x => { if (x.matches > 0) tf[x.fpl_id] = x; });
-    teams.forEach(t => {
-      const a = agg[t.id] || { xg:0, gkMins:0, gkXgc:0 };
-      const games = a.gkMins > 0 ? a.gkMins / 90 : 38;
-      let xg90 = +(a.xg / 38).toFixed(2);
-      let xgc90 = a.gkMins > 400 ? +(a.gkXgc / games).toFixed(2) : 1.4;
-      let src = "fpl";
-      let sotFor = null, sotAg = null, prevGoals = null, prevConc = null;
-      let prevSotFor = null, prevSotAg = null, matches = null;
-      if (tf[t.id]) {                       // HEILT — tekur forgang
-        const x = tf[t.id];
-        xg90 = x.goals_pg; xgc90 = x.conceded_pg;
-        sotFor = x.sot_pg ?? null; sotAg = x.sot_against_pg ?? null;
-        prevGoals = x.prev?.goals_pg ?? null; prevConc = x.prev?.conceded_pg ?? null;
-        prevSotFor = x.prev?.sot_pg ?? null; prevSotAg = x.prev?.sot_against_pg ?? null;
-        matches = x.matches ?? null;      // stýrir aðlögunar-vog (prevWeight)
-        src = "e0_complete";
-      }
-      // Nýliðar hafa enga PL-sögu (xG ~0). Notum B-deildargrunn með afslætti
-      // og MERKJUM sem staðgengil — má ekki líta út sem xG-mæling.
-      if (xg90 < 0.2) {
-        const pb = promoted && promoted[t.name.replace(/ (City|Town|United)$/, "")] ||
-                   promoted && promoted[t.name];
-        if (pb) {
-          xg90 = +(pb.goals_pg * 0.75).toFixed(2);      // B-deild -> PL afsláttur
-          xgc90 = +(pb.goals_against_pg * 1.35).toFixed(2); // fá meira á sig í PL
-          src = "championship_proxy";
-        } else { xg90 = 1.1; xgc90 = 1.6; src = "default"; }
-      }
-      m[t.id] = { xg90, xgc90, sotFor, sotAg, matches,
-        prevGoals, prevConc, prevSotFor, prevSotAg, mins: a.gkMins, src };
-    });
-    return m;
-  }, [players, teams, promoted, teamForm]);
+  /* LIDSVISARNIR BUA I `src/teamstats.js` (12.8.2026) — sja thar hvers vegna
+     their voru fluttir: spa-bokhaldid tharf SOMU tolur og skjarinn, og afrit
+     af thessum utreikningi gaf `NaN` merkt sem maeling. */
+  const teamMetrics = useMemo(
+    () => buildTeamMetrics({ players, teams, promoted, teamForm }),
+    [players, teams, promoted, teamForm]);
 
   // ---- ClubElo styrkur per lið ----
   /* Landsleikjahle REIKNAD ur leikjadagsetningum — sja intlBreaks(). */

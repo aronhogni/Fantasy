@@ -211,7 +211,7 @@ export function aggregate(entries, meta, deadlineMs) {
   const priceBench = { 1: {}, 2: {}, 3: {}, 4: {} };
   let shapeN = 0, benchSum = 0, startSum = 0;
   const posSum = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  let n = 0, tr = 0, hits = 0, hitN = 0, val = 0, bank = 0, valN = 0;
+  let n = 0, tr = 0, hits = 0, hitN = 0, val = 0, bank = 0, valN = 0, bankN = 0;
   const ranks = [];
   /* STIG OG BEKKJAR-STIG. Thetta var i svarinu ALLAN TIMANN — `entry_history`
      ber ~12 svid og vid lasum 5. `points_on_bench` er MAELING A BEKKJAR-
@@ -249,7 +249,13 @@ export function aggregate(entries, meta, deadlineMs) {
       hits += h.event_transfers_cost; if (h.event_transfers_cost > 0) hitN++;
     }
     if (Number.isFinite(h.value)) { val += h.value; valN++; }
-    if (Number.isFinite(h.bank)) bank += h.bank;
+    /* `bank` FEKK SINN EIGIN TELJARA (11.8.2026). Adur var summan lagd upp
+       undir SINU eigin finiteness-profi en medaltalid deilt med `valN` —
+       teljara `value`. Stjornandi sem ber `bank` en EKKI `value` (eda hvort
+       svidid vantar sitt i hvoru lagi, sem er raunhaeft thvi `entry_history`
+       er ytra svar) blaes thvi upp medal-bankann: teljarinn er of lagur en
+       summan rett. Tveir teljarar fyrir tvaer summur.                     */
+    if (Number.isFinite(h.bank)) { bank += h.bank; bankN++; }
     if (Number.isFinite(h.overall_rank) && h.overall_rank > 0) ranks.push(h.overall_rank);
     if (Number.isFinite(h.points)) { pts += h.points; ptsN++; }
     if (Number.isFinite(h.points_on_bench)) { benchPts += h.points_on_bench; benchPtsN++; }
@@ -308,7 +314,7 @@ export function aggregate(entries, meta, deadlineMs) {
     hitCost:   n ? hits / n : null,
     hitShare:  n ? hitN / n : null,
     value:     valN ? val / valN : null,
-    bank:      valN ? bank / valN : null,
+    bank:      bankN ? bank / bankN : null,
     rankMedian: ranks.length ? ranks[Math.floor(ranks.length / 2)] : null,
     points:      ptsN ? pts / ptsN : null,
     benchPoints: benchPtsN ? benchPts / benchPtsN : null,

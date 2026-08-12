@@ -282,3 +282,89 @@ export function sortTeamRows(rows, key, dir = "desc") {
     return dir === "asc" ? x - y : y - x;
   });
 }
+
+/* ============================================================
+   LIDSVISARNIR SEM FFDR HVILIR A — EIN UTFAERSLA (flutt 12.8.2026)
+
+   Thetta var inni i `App.jsx` sem `useMemo` og ThVI OSYNILEGT FYRIR UTAN
+   vidmotid. Thad var i lagi svo lengi sem ADEINS appid reiknadi FFDR — en
+   `scripts/snapshot-predictions.mjs` skrifar nu nidur hvad vid SPADUM, og
+   spa-bokhald sem reiknar lidsvisana UPP A NYTT maelir annad likan en
+   notandinn sa.
+
+   HVERS VEGNA ThETTA VAR FLUTT OG EKKI AFRITAD — ThAD VAR REYNT OG ThAD FELL:
+   fyrsta utgafa bokhaldsins endurreiknadi thetta og skrifadi
+   `+(x.gf / x.matches)`. `team_form.json` BER ENGIN `gf`/`ga` — hun ber
+   `goals_pg` og `conceded_pg`, ThEGAR per leik. Utkoman var `NaN` fyrir oll
+   17 lidin sem eiga E0-gogn, MERKT `src: "e0"` eins og hun vaeri maeling.
+   Afritid slepptum lika `sotFor`/`sotAg`, `prev*`-aðlöguninni, `matches`
+   (sem styrir `prevWeight`) og nyliða-staðgenglinum — fimm liðum sem FFDR
+   les. Profid `prediction-ledger.mjs` greip thad; enginn hefdi sed thad a
+   skjanum, thvi appid var alltaf rett.
+
+   Lardomurinn er sa sami og `market.js` og `bsd.js` voru stofnud fyrir
+   (CLAUDE.md kafli 1): tvaer utfaerslur af somu tolu er EIN utfaersla og EIN
+   thogul villa sem bidur. Nu flytja BADIR — vidmotid og bokhaldid — thetta
+   fall inn, svo thau geta ekki farid i sundur.
+
+   ThRJAR REGLUR SEM LIFA I ThESSUM KODA:
+     1. `team_form.json` TEKUR FORGANG yfir FPL-summur: hun er HEIL (E0, 380
+        leikir) medan FPL-summur vantar ~19% (leikmenn sem foru ur deildinni
+        eru fjarlaegdir ur bootstrap).
+     2. NYLIDAR FA STADGENGIL, EKKI NULL: B-deildar-mork x0,75 (sokn) og
+        x1,35 (vorn), MERKT `championship_proxy`. Nyliði an PL-sogu hefur
+        xG ~0 og myndi annars lesa eins og bestа vorn deildarinnar.
+     3. `src` ER ALLTAF SKRAD. Thrennt er ekki thad sama: maeling (`e0_complete`),
+        stadgengill (`championship_proxy`) og sjalfgildi (`default`).
+   ============================================================ */
+export function buildTeamMetrics({ players, teams, promoted, teamForm }) {
+  if (!players || !teams) return {};
+
+  const m = {};
+  const agg = {};
+  players.forEach(p => {
+    const a = agg[p.team] = agg[p.team] || { xg:0, gkMins:0, gkXgc:0 };
+    // xG EINGÖNGU — expected_goal_involvements tvítelur (mark + assist á sama marki)
+    a.xg += parseFloat(p.expected_goals || 0);
+    if (p.element_type === 1 && p.minutes > a.gkMins) {
+      a.gkMins = p.minutes;
+      a.gkXgc = parseFloat(p.expected_goals_conceded || 0);
+    }
+  });
+  // team_form.json er HEILT (úr E0, 380 leikir). FPL-summur vantar ~19%
+  // því leikmenn sem fóru úr deildinni eru fjarlægðir úr bootstrap.
+  const tf = {};
+  (teamForm?.teams || []).forEach(x => { if (x.matches > 0) tf[x.fpl_id] = x; });
+  teams.forEach(t => {
+    const a = agg[t.id] || { xg:0, gkMins:0, gkXgc:0 };
+    const games = a.gkMins > 0 ? a.gkMins / 90 : 38;
+    let xg90 = +(a.xg / 38).toFixed(2);
+    let xgc90 = a.gkMins > 400 ? +(a.gkXgc / games).toFixed(2) : 1.4;
+    let src = "fpl";
+    let sotFor = null, sotAg = null, prevGoals = null, prevConc = null;
+    let prevSotFor = null, prevSotAg = null, matches = null;
+    if (tf[t.id]) {                       // HEILT — tekur forgang
+      const x = tf[t.id];
+      xg90 = x.goals_pg; xgc90 = x.conceded_pg;
+      sotFor = x.sot_pg ?? null; sotAg = x.sot_against_pg ?? null;
+      prevGoals = x.prev?.goals_pg ?? null; prevConc = x.prev?.conceded_pg ?? null;
+      prevSotFor = x.prev?.sot_pg ?? null; prevSotAg = x.prev?.sot_against_pg ?? null;
+      matches = x.matches ?? null;      // stýrir aðlögunar-vog (prevWeight)
+      src = "e0_complete";
+    }
+    // Nýliðar hafa enga PL-sögu (xG ~0). Notum B-deildargrunn með afslætti
+    // og MERKJUM sem staðgengil — má ekki líta út sem xG-mæling.
+    if (xg90 < 0.2) {
+      const pb = promoted && promoted[t.name.replace(/ (City|Town|United)$/, "")] ||
+                 promoted && promoted[t.name];
+      if (pb) {
+        xg90 = +(pb.goals_pg * 0.75).toFixed(2);      // B-deild -> PL afsláttur
+        xgc90 = +(pb.goals_against_pg * 1.35).toFixed(2); // fá meira á sig í PL
+        src = "championship_proxy";
+      } else { xg90 = 1.1; xgc90 = 1.6; src = "default"; }
+    }
+    m[t.id] = { xg90, xgc90, sotFor, sotAg, matches,
+      prevGoals, prevConc, prevSotFor, prevSotAg, mins: a.gkMins, src };
+  });
+  return m;
+}
