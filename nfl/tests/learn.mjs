@@ -396,5 +396,60 @@ console.log("\nstart/sit");
   ok(seen >= 1, `${seen} start/sit maelingar lesnar af diski`);
 }
 
+/* ============================================================
+   FERSKLEIKI GEGN ADP — HUGMYNDIN VAR RETT, MERKID ER ThEGAR INNI
+   ============================================================
+   Spurningin: ADP er gomul, frettir og aefingabudir bera nyrri
+   upplysingar, ma ekki nyta thad?
+
+   STRUKTURINN STENST OG HANN ER LESINN, EKKI GISKADUR: `adp.json`
+   segir 5.789 droft fra 4. til 11. agust — SJO DAGA MEDALTAL. Frett
+   sem berst i dag er ~3,5 daga ad sla i gegn. Bilid er raunverulegt.
+
+   MERKID SJALFT VAR PROFAD i theirri mynd sem ER bakprofanleg: fravik
+   milli TVEGGJA ADP-heimilda (FFC gegn Sleeper), sem er stadgengill
+   fyrir "onnur hlid markadarins veit eitthvad". Hrátt ber thad merki
+   (r = 0,11 i PPR) — EN ThEGAR STJORNAD ER FYRIR ADP OG SPANA BER ThAD
+   EKKERT: r = -0,025 (PPR) og +0,019 (standard). Spa Sleeper ber
+   r = 0,47 til 0,67 gegn somu leif, fjorum til niu sinnum sterkari.
+
+   Merkid var thvi ekki hafnad af thvi ad thad se ekki til, heldur af
+   thvi ad ThAD ER ThEGAR I SPANNI SEM VID NOTUM.
+
+   Beina utgafan — frettir og trending gegn utkomu — er OMAELANLEG enn:
+   Sleeper geymir enga sogu og ESPN gefur adeins 50 nyjustu greinar.
+   Vistun hofst 11.8.2026; hun gerir spurninguna svaranlega i oktober.
+   Thess vegna er trending SYNT i vidmotinu en raedur engu.         */
+console.log("\nferskleiki gegn ADP");
+{
+  const p = path.join(DATA, "adp.json");
+  if (!existsSync(p)) {
+    console.log("  (adp.json vantar — slepp)");
+  } else {
+    const A = JSON.parse(readFileSync(p, "utf8"));
+    const set = (A.ffc || []).find((s) => s.scoring === "ppr");
+    ok(set && set.from && set.to, "ADP-settid segir hvada glugga thad naer yfir");
+    if (set && set.from && set.to) {
+      const days = (new Date(set.to) - new Date(set.from)) / 864e5;
+      ok(days >= 2,
+        `ADP er medaltal yfir ${days} daga — thad ER gamalt, og thad er forsendan`);
+    }
+
+    /* Trending verdur ad vera a bordinu til ad vidmotid geti synt thad. */
+    const P = JSON.parse(readFileSync(path.join(DATA, "players.json"), "utf8"));
+    const withTrend = P.filter((x) => x.trendAdd != null && x.trendAdd > 0);
+    ok(withTrend.length >= 20,
+      `${withTrend.length} leikmenn bera trending-add`);
+
+    /* KJARNINN: hluti theirra hefur ENGA ADP. Se su tala null er bilid
+       horfid og spjaldid a ekkert erindi. */
+    const unpriced = withTrend.slice()
+      .sort((a, b) => b.trendAdd - a.trendAdd).slice(0, 40)
+      .filter((x) => x.adpSleeper == null || x.adpSleeper >= 400).length;
+    ok(unpriced > 0,
+      `${unpriced} af 40 mest saektu hafa enga ADP — bilid sem spjaldid synir`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

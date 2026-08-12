@@ -126,6 +126,8 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
       <NextPick available={available} roster={myRoster} taken={taken}
         league={league} sync={sync} />
 
+      <MarketMoving rows={rows} taken={taken} onTake={take} />
+
       <ScarcityBar scarcity={scarcity} league={league} />
 
       <div className="panel">
@@ -744,6 +746,75 @@ function NextPick({ available, roster, taken, league, sync }) {
         deviation of 20. Where a bookmaker figure is missing we fall back to{" "}
         <code>{MEASURED.sdRule}</code>, fitted on {MEASURED.sdRuleSample.toLocaleString()}{" "}
         player-seasons.
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   MARKADURINN ER AD HREYFAST — OG ADP VEIT ThAD EKKI ENN
+   ============================================================
+   ADP ER 7 DAGA MEDALTAL. Thad er ekki agiskun heldur lesid ur
+   `adp.json`: FFC gefur 5.789 droft fra 4. til 11. agust. Frett sem
+   berst i dag er thvi ~3,5 daga ad sla i gegn ad medaltali og aldrei
+   ad fullu fyrr en glugginn hefur velt sér. Fólk draftar a gomlu
+   verdi, og thad er raunverulegt bil.
+
+   Sleeper-trending er hins vegar SIDUSTU 24 KLST. Munurinn a theim
+   tveimur er thvi thad sem herbergid er ad bregdast vid ADUR EN
+   verdid hreyfist. Maelt i dag: af 40 mest saektu leikmonnum eru
+   **27 med ENGA ADP** — their voru ekki draftadir fyrir viku.
+
+   ÞETTA ER EKKI ROD OG MA ALDREI VERDA ThAD.
+   Ad vera saektur mikid thydir "eitthvad gerdist", ekki "hann verdur
+   godur": byrjunarmadur meiddist, einhver faerdist upp i dyptarskra,
+   eda thad er einfaldlega aefingabudahype. Hvort thad SPAIR STIGUM er
+   OMAELT — og thad er omaelt af godri astaedu: Sleeper geymir enga
+   sogu um trending, svo bakprofid var ekki til fyrr en vid byrjudum ad
+   vista thad (11.8.2026). Med einu timabili af vistun verdur haegt ad
+   spyrja "borgar sig ad elta hreyfinguna?" i oktober.
+
+   Thangad til stendur thetta sem UPPLYSING: thu sérd hvad herbergid er
+   ad gera adur en verdid segir thér thad. Rodin sjalf haggast ekki.
+   ============================================================ */
+function MarketMoving({ rows, taken, onTake }) {
+  const moving = React.useMemo(() => rows
+    .filter((r) => r.trendAdd != null && r.trendAdd > 0 && !taken.has(r.id))
+    .sort((a, b) => b.trendAdd - a.trendAdd)
+    .slice(0, 12), [rows, taken]);
+  if (!moving.length) return null;
+
+  const unpriced = moving.filter((r) => r.adp == null).length;
+  const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+
+  return (
+    <div className="panel">
+      <h2>The room is moving on these</h2>
+      <div className="sub">
+        Sleeper adds over the last 24 hours. <b>ADP is a seven-day average</b> — the
+        board below prices players on what people were drafting up to a week ago, so
+        anything that happened this week is not in it yet.
+      </div>
+      <div className="chips" style={{ marginTop: 8 }}>
+        {moving.map((r) => (
+          <button key={r.id} className="chip" onClick={() => onTake(r, true)}
+            title={`${r.trendAdd} adds in 24h · ${r.adp == null ? "no ADP yet" : `ADP ${r.adp.toFixed(0)}`}`}>
+            <span className={`pos ${r.pos}`}>{r.pos}</span> {r.name}
+            {" "}<span className="dim">{fmt(r.trendAdd)}</span>
+            {r.adp == null && <span className="badge warn" style={{ marginLeft: 5 }}>no ADP</span>}
+          </button>
+        ))}
+      </div>
+      <div className="note" style={{ marginTop: 10 }}>
+        <b>{unpriced} of these {moving.length} have no ADP at all</b> — they were not
+        being drafted a week ago. That is the gap you are looking at.
+        <br /><br />
+        <b>This is not a ranking and it does not move anyone in the board below.</b>{" "}
+        Heavy adds mean <i>something happened</i> — a starter got hurt, someone climbed
+        the depth chart, or it is camp noise. Whether it predicts points is{" "}
+        <b>unmeasured</b>, and it is unmeasured for a reason: Sleeper keeps no history
+        of this, so there was nothing to backtest until we started archiving it on
+        11 August 2026. One season of archive makes the question answerable in October.
       </div>
     </div>
   );
