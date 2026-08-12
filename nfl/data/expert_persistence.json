@@ -1,0 +1,255 @@
+{
+ "generated": "2026-08-12T08:56:16.897Z",
+ "provenance": {
+  "generated": "2026-08-12T08:56:16.897Z",
+  "argv": [
+   "--from=2015",
+   "--to=2025"
+  ],
+  "params": {
+   "from": {
+    "value": "2015",
+    "fromDefault": false
+   },
+   "to": {
+    "value": "2025",
+    "fromDefault": false
+   }
+  },
+  "inputs": {},
+  "node": "v26.5.0"
+ },
+ "seasons": [
+  2015,
+  2016,
+  2017,
+  2018,
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "expertsPerYear": {
+  "2015": 140,
+  "2016": 145,
+  "2017": 130,
+  "2018": 154,
+  "2019": 162,
+  "2020": 191,
+  "2021": 230,
+  "2022": 247,
+  "2023": 236,
+  "2024": 225,
+  "2025": 212
+ },
+ "yearPairs": [
+  {
+   "from": 2015,
+   "to": 2016,
+   "n": 108,
+   "rho": 0.5
+  },
+  {
+   "from": 2016,
+   "to": 2017,
+   "n": 100,
+   "rho": 0.341
+  },
+  {
+   "from": 2017,
+   "to": 2018,
+   "n": 110,
+   "rho": 0.428
+  },
+  {
+   "from": 2018,
+   "to": 2019,
+   "n": 122,
+   "rho": 0.482
+  },
+  {
+   "from": 2019,
+   "to": 2020,
+   "n": 122,
+   "rho": 0.359
+  },
+  {
+   "from": 2020,
+   "to": 2021,
+   "n": 158,
+   "rho": 0.134
+  },
+  {
+   "from": 2021,
+   "to": 2022,
+   "n": 187,
+   "rho": 0.315
+  },
+  {
+   "from": 2022,
+   "to": 2023,
+   "n": 205,
+   "rho": 0.496
+  },
+  {
+   "from": 2023,
+   "to": 2024,
+   "n": 193,
+   "rho": 0.378
+  },
+  {
+   "from": 2024,
+   "to": 2025,
+   "n": 173,
+   "rho": 0.268
+  }
+ ],
+ "avgRho": 0.37,
+ "negativePairs": 0,
+ "topTenFollowUp": [
+  {
+   "from": 2015,
+   "to": 2016,
+   "survived": 9,
+   "avgPercentile": 22.759
+  },
+  {
+   "from": 2016,
+   "to": 2017,
+   "survived": 10,
+   "avgPercentile": 35.231
+  },
+  {
+   "from": 2017,
+   "to": 2018,
+   "survived": 10,
+   "avgPercentile": 25.779
+  },
+  {
+   "from": 2018,
+   "to": 2019,
+   "survived": 9,
+   "avgPercentile": 31.481
+  },
+  {
+   "from": 2019,
+   "to": 2020,
+   "survived": 9,
+   "avgPercentile": 32.17
+  },
+  {
+   "from": 2020,
+   "to": 2021,
+   "survived": 9,
+   "avgPercentile": 59.42
+  },
+  {
+   "from": 2021,
+   "to": 2022,
+   "survived": 10,
+   "avgPercentile": 43.158
+  },
+  {
+   "from": 2022,
+   "to": 2023,
+   "survived": 10,
+   "avgPercentile": 35.381
+  },
+  {
+   "from": 2023,
+   "to": 2024,
+   "survived": 9,
+   "avgPercentile": 21.136
+  },
+  {
+   "from": 2024,
+   "to": 2025,
+   "survived": 9,
+   "avgPercentile": 38.103
+  }
+ ],
+ "avgPercentileOfPriorTopTen": 34.462,
+ "withinYearPositionAgreement": [
+  {
+   "year": 2015,
+   "n": 140,
+   "RB/WR": 0.466,
+   "RB/TE": 0.36,
+   "QB/WR": 0.239
+  },
+  {
+   "year": 2016,
+   "n": 145,
+   "RB/WR": 0.24,
+   "RB/TE": 0.119,
+   "QB/WR": 0.107
+  },
+  {
+   "year": 2017,
+   "n": 130,
+   "RB/WR": 0.089,
+   "RB/TE": 0.237,
+   "QB/WR": 0.139
+  },
+  {
+   "year": 2018,
+   "n": 154,
+   "RB/WR": 0.466,
+   "RB/TE": 0.211,
+   "QB/WR": 0.311
+  },
+  {
+   "year": 2019,
+   "n": 162,
+   "RB/WR": 0.358,
+   "RB/TE": 0.101,
+   "QB/WR": 0.277
+  },
+  {
+   "year": 2020,
+   "n": 191,
+   "RB/WR": 0.192,
+   "RB/TE": 0.231,
+   "QB/WR": 0.07
+  },
+  {
+   "year": 2021,
+   "n": 230,
+   "RB/WR": 0.277,
+   "RB/TE": 0.226,
+   "QB/WR": 0.039
+  },
+  {
+   "year": 2022,
+   "n": 247,
+   "RB/WR": 0.446,
+   "RB/TE": 0.182,
+   "QB/WR": 0.367
+  },
+  {
+   "year": 2023,
+   "n": 236,
+   "RB/WR": 0.342,
+   "RB/TE": 0.074,
+   "QB/WR": -0.004
+  },
+  {
+   "year": 2024,
+   "n": 225,
+   "RB/WR": 0.397,
+   "RB/TE": 0.178,
+   "QB/WR": 0.093
+  },
+  {
+   "year": 2025,
+   "n": 212,
+   "RB/WR": 0.345,
+   "RB/TE": 0.196,
+   "QB/WR": 0.025
+  }
+ ],
+ "persistent": true
+}
