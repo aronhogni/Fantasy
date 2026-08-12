@@ -286,7 +286,28 @@ export function recommend({ available, roster = [], pick, league }) {
      upp a. `urgent` kviknar thegar valin sem eftir eru duga vart
      lengur til ad fylla thau.                                    */
   const st = league.starters || {};
-  const rounds = league.rounds || 14;
+  /* ============================================================
+     SJALFGEFID `rounds` VAR 14 HER OG 15 I `DEFAULT_LEAGUE`
+     ============================================================
+     Tvo olik sjalfgefin gildi fyrir SAMA reit, og thad hefur afleidingu:
+     `picksLeft = rounds - roster.length` styrir `mustFillUrgent`, sem er
+     thad eina sem segir ther ad taka spyrnumann eda vorn. Vid 14 taldi
+     radgjofin EINU VALI FAERRA en deildin ber, svo hun kallaði
+     "bradanauðsyn" einni umferd of snemma i hverri deild sem notar
+     sjalfgefna toluna.
+
+     ÞETTA ER NAKVAEMLEGA VILLAN SEM `build.js` SKJALAR UM `maxPos`:
+     "thad sem var maelt var ekki thad sem for i loftid". Þar bar
+     hermunin stodu-thak sem appid hafdi ekki; hér ber radgjofin
+     umferda-fjolda sem deildin hefur ekki. Bædi eru sama aett: TVAER
+     UTGAFUR AF SOMU DEILD.
+
+     `DEFAULT_LEAGUE` er heimildin. `advice.js` flytur hana EKKI inn
+     (thad byggi til hring: `build.js` -> `model.js` og `advice.js` er
+     lesin af `build.js`-notendum), svo talan er skrifud hér med
+     TILVISUN i heimildina og profid ber thaer saman — sja
+     `tests/advice.mjs`, sem fellur ef thaer reka i sundur.           */
+  const rounds = league.rounds || 15;
   const picksLeft = Math.max(0, rounds - roster.length);
   const mustFill = [];
   for (const pos of Object.keys(st)) {

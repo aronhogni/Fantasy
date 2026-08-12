@@ -367,5 +367,47 @@ console.log("\nstodu-thorf og lifunarlikur RADA ENGU");
   }
 }
 
+/* ============================================================
+   SJALFGEFIN GILDI MEGA EKKI REKA I SUNDUR MILLI SKRAA
+   ============================================================
+   `advice.js` bar `league.rounds || 14` medan `DEFAULT_LEAGUE.rounds`
+   er **15**. `picksLeft = rounds - roster.length` styrir
+   `mustFillUrgent`, sem er thad eina sem segir ther ad taka spyrnumann
+   eda vorn — svo vid 14 taldi radgjofin EINU VALI FAERRA en deildin ber
+   og kallaði bradanauðsyn einni umferd of snemma.
+
+   Sama aett og `maxPos`-villan sem `build.js` skjalar: "thad sem var
+   maelt var ekki thad sem for i loftid". Tvaer utgafur af somu deild.
+
+   Þessi kafli les GILDID UR KODANUM og ber thad vid `DEFAULT_LEAGUE`,
+   svo thau geti ekki rekid i sundur aftur — handskrifud tala hér vaeri
+   thridja utgafan af sama reit.                                      */
+console.log("\nsjalfgefin gildi reka ekki i sundur");
+{
+  const { DEFAULT_LEAGUE } = await import("../src/build.js");
+  const src = readFileSync(path.join(DATA, "..", "src", "advice.js"), "utf8");
+  const m = /league\.rounds\s*\|\|\s*(\d+)/.exec(src);
+  ok(!!m, "sjalfgefid `rounds` finnst i `advice.js`");
+  if (m) {
+    ok(Number(m[1]) === DEFAULT_LEAGUE.rounds,
+      `og thad er ${DEFAULT_LEAGUE.rounds}, eins og \`DEFAULT_LEAGUE\` ` +
+      `(fann ${m[1]})`);
+  }
+
+  /* Og afleidingin er profud, ekki adeins talan: deild an `rounds`
+     verdur ad gefa SAMA `picksLeft` og deild sem ber sjalfgefna toluna
+     berum ordum. Annars er samanburdurinn hér ofan bara textaleit. */
+  const roster = [];
+  const av = [{ id: "x", name: "X", pos: "RB", proj: 200, vbd: 50, adp: 10, tier: 1 }];
+  const a1 = recommend({ available: av, roster, pick: 1,
+    league: { ...DEFAULT_LEAGUE, rounds: undefined } });
+  const a2 = recommend({ available: av, roster, pick: 1, league: DEFAULT_LEAGUE });
+  ok(a1.picksLeft === a2.picksLeft,
+    `deild an \`rounds\` gefur sama \`picksLeft\` og sjalfgefna deildin ` +
+    `(${a1.picksLeft} / ${a2.picksLeft})`);
+  ok(a1.picksLeft === DEFAULT_LEAGUE.rounds,
+    `og thad er ${DEFAULT_LEAGUE.rounds} med tomum hop (fann ${a1.picksLeft})`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
