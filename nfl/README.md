@@ -191,6 +191,7 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 | **Rest-of-season sem gjaldmiðill** (`waiver-lab.mjs`) | **STENST** (+13,2 stig/tímabil, t=2,97, 6/7, CI [5,9 · 22,2], 17/18 hólf) — **en ekki tengjanlegt**: þarf vikurnar sem eftir eru, sem appið hefur ekki. Vikuleg spá sem gjaldmiðill er **mæld dauð** (−74,6). Sjá 4g |
 | **Notkun það sem er liðið af tímabilinu** (`usage-lab.mjs`) | **STENST — fyrsti vinningurinn.** `opp_prior` lokar **12,25 / 10,75 / 10,76%** af bilinu á móti 5,83 / 3,20 / 2,97, og **per-leikmanns CI útilokar núll í öllum þremur**. Ferillinn er niðurstaðan: **ekkert í vikum 1–4, +12,3 pp í vikum 10+** (6/6 tímabil). Sjá 4e — **ekki tengt enn**, plumbing vantar |
 | **Markaðurinn umfram `implied`** (`mktweek-lab.mjs`) | **FELLUR.** 0 af 45 hólfum standast öll fjögur skilyrðin i neinu sniði. Og **leikjaflæðis-folkloreið er RANGT**: hver staða gerir BETUR sem favorít, engin gerir betur á eftir — QB sem 10+ undirdogg er **−1,12**. Ósamhverfa: **12 af 12 CI innihalda núll** |
+| **Vörn gegn stöðu, sundurliðuð** (`defweek-lab.mjs`) | **FELLUR — 0 af 2.700 hólfum.** Andstæðings-leiðrétting **skaðar** (marktækt í half, t −5,87). Íhlutir flytjast ekki. `DEF_WEIGHT = 0,20` stendur. **OG ÞAÐ FANN VILLU Í MÆLIKVARÐANUM:** birta talan 5,831% var sjálf-smituð; hrein walk-forward er **3,482%**. Sjá 4h |
 | **Hvar liggja 94%** (`gap-lab.mjs`) | **Þakið er 29,3%** (TD 18,9 + nýtni 10,4). Vörn er **NULL-flaska** (enrichment 0,96×). Röð: availability → hlutverk → vörn ekki neitt. Sjá 4f |
 | **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+24,4 stig**, t=2,275, 8/11 ár, CI [+3,7, +43,7], einræn 4/4. Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
 | **Óvissu-háð hnignun spárinnar** (`shrink-lab.mjs`) | **HAFNAÐ.** 12 óvissu-mælar × 3 forgildi × 6 vogir: **0 af 36 samsetningum jákvæðar í öllum 10 hólfum á báðum spáheimildum**. Besta samkvæma hrifin +0,5 stig af ~1900. Marktækni í **0/14** hólfum (besta \|t\| = 3,4 gegn kröfu 4,5–5,7) |
@@ -483,6 +484,70 @@ staðfest gegn **`pickupAdvice` + `freeAgents` á 360 hóp-vikum** án fráviks 
 **ROS-orakel +36 til +181, 9/9 hólf**, svo mælitækið sér sannanlega merki. Og
 eins-viku orakelið er **viljandi ekki hlið** og það er veikt (5/9, +6,9) — sem er
 sjálfstæð vísbending um vikulega gjaldmiðils-niðurstöðuna.
+
+### 4h. TALAN 5,831% VAR SJÁLF-SMITUÐ — vörn gegn stöðu, 13.8.2026
+
+`defweek-lab` var sett á lægstu væntingu sem nokkurt lab hefur fengið hér:
+`gap-lab` hafði mælt varnar-flöskuna **tóma** (enrichment 0,96×). Það fann ekkert
+í vörninni — og fann í leiðinni **villu í mælikvarðanum sjálfum**.
+
+`data/defense.json` er **SEASON TOTAL**: hver röð ber `games` 14–17, þ.e. allt
+tímabilið (staðfest sjálfstætt: 773 raðir með 17, 334 með 16). Bakprófið notaði
+því vörn byggða úr **öllu** tímabilinu til að „spá" viku 3 — **leikurinn sem var
+spáður var inni í inntakinu**. Það er nákvæmlega leka-skilyrðið sem hvert lab í
+dag var látið forðast, og incumbent-inn sjálfur braut það.
+
+| snið | birt (smituð) | **walk-forward (hrein)** | t | ár |
+|---|---|---|---|---|
+| ppr | 5,831% | **3,482%** | 3,21 | 7/7 |
+| half-ppr | 3,199% | **2,860%** | 2,615 | 6/7 |
+| standard | 2,967% | **2,245%** | 2,862 | 6/7 |
+
+**Sönnun, ekki ályktun:** `leakySeasonK6` endurgerir 5,831 / 3,199 / 2,967 **upp á
+núll** úr `data/weekly/` (hlutföll skeika 8,7e-4), svo uppskiptingin er staðfest.
+Og orakelið segir sömu sögu úr annarri átt: **fullkomin** vitneskja um varnarstyrk
+**fyrir** leik lokar aðeins **4,938%** í ppr — **minna en birta talan**, sem er
+ómögulegt nema birta talan innihaldi leikinn.
+
+> **OG SMITIÐ FALDI NIÐURSTÖÐU.** Ég birti half-PPR sem **ómarktæka** (t = 1,908
+> úr `mktweek-lab`). Hrein mæling gefur **t = 2,615**, sem **stenst** þröskuld
+> 2,228. Smitið blés ekki aðeins upp ppr heldur faldi að half stendur. Báðar tölur
+> eru í `WEEKLY_MEASURED` (`pct` og `leakyPct`); **sú hreina er birt** og sú
+> smitaða er merkt og pinnuð.
+
+**ÞETTA ER MÆLINGIN, EKKI APPIÐ.** Í lifandi notkun byggir pípan `defense.json`
+úr **loknum** leikjum, svo vika sem er óspiluð er ekki í henni. Villan var í því
+**hvað við sögðum að talan væri**, ekki í því hvað appið reiknar.
+
+#### Vörnin sjálf — ekkert, og það er samhljóða `gap-lab`
+
+**0 af 2.700 hólfum** komast yfir placebo-þakið. Season-klösuð vikmörk gefa **39**
+marktæk hólf; per leikmanni **0 af 2.700** — sama undirskrift og 4c.
+
+| ás | ppr | half | standard |
+|---|---|---|---|
+| **andstæðings-leiðrétting** | −0,14 | **−0,188 (t −5,87, 0/7)** | +0,057 |
+| íhlutir m/EPA | +0,164 (t 0,50) | −0,05 | −0,014 |
+| íhlutir án EPA | −0,121 | −0,628 | −0,392 |
+
+Andstæðings-leiðrétting **skaðar**, marktækt í half. Og vænt stig á sig úr
+**íhlutum** flyst ekki — andstætt xG-í-FPL, þar sem vænta talan vann.
+
+**`DEF_WEIGHT = 0,20` stendur:** sveipur velur 0,5/0,3/0,1 eftir á, en
+walk-forward val **tapar í öllum þrem** (3,572 á móti 6,765 · 0,629 á móti 2,742 ·
+1,236 á móti 3,892) — sama og endurfitting í FPL.
+
+#### Tvennt sem akkeri fundu og var ekki spurt um
+
+- **`defense.json` er PPR-tafla og er notuð ÓBREYTT í standard og half.**
+  `defenseVsPosition` leggur saman `r.ppr` fyrir öll snið. Fannst þegar
+  endurgerðar-akkerið féll (3,487 á móti 2,967). Mælt sem nýr ás:
+  **ómælanlegt í báðar áttir** (−0,035 t −0,69 · −0,011 t −0,15). Flýtileiðin er
+  því defensíbel — **nú af mælingu**, ekki af því að enginn hafði litið.
+- **Föst varnartala — núll upplýsing — hreyfir mælikvarðann samt** ±0,42/0,58/0,86
+  pp, því 0,1-rúnnun býr til og slítur jafntefli. Það er **gólfið undir öllum
+  samanburði** í skránni. Þetta var skrifað sem akkeri og **féll á 2,07 pp**;
+  invariantið var rangt, ekki kóðinn.
 
 ### 4b. VILLA Í `computeVbd` — `0` var lesið sem „vantar"
 

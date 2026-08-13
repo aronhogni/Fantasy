@@ -513,43 +513,79 @@ console.log("\n7. waiver-hlutinn");
    thetta, og tha uppfaerir madur TOFLUNA, ekki profid.               */
 console.log("\n3d. viku-abatinn er per stigagjof");
 {
-  const { WEEKLY_MEASURED, weeklyEdgeNote } = await import("../src/weekview.js");
+  const { WEEKLY_MEASURED, weeklyEdgeNote, T_CRIT_7 } = await import("../src/weekview.js");
   const lab = JSON.parse(readFileSync(path.join(DATA, "measure", "mktweek.json"), "utf8"));
 
-  /* Bokada taflan VERDUR ad passa vid labid, snid fyrir snid. */
+  /* ============================================================
+     TVAER TOLUR, OG SU SEM ER BIRT ER SU HREINA
+     ============================================================
+     `defweek-lab` synir ad birta talan var SJALF-SMITUD: `defense.json`
+     er SEASON TOTAL (hver rod `games` 14-17), svo bakprofid notadi vorn
+     ur ollu timabilinu til ad "spa" viku 3 — leikurinn var i inntakinu.
+
+     `leakyPct` er su tala og hun er PINNAD vid `mktweek.json` (og
+     `startsit_*.json`, sem ber hana). `pct` er WALK-FORWARD talan og hun
+     er pinnad vid `defweek.json`. Su sidari er thad sem notandinn les.  */
+  const defLab = JSON.parse(readFileSync(path.join(DATA, "measure", "defweek.json"), "utf8"));
   const keyOf = { ppr: "ppr", standard: "standard", "half-ppr": "half" };
   for (const [ours, theirs] of Object.entries(keyOf)) {
+    const t = WEEKLY_MEASURED[ours];
+
+    /* --- SMITADA talan, pinnad vid mktweek --- */
     const inc = lab.incumbent && lab.incumbent[theirs];
     ok(!!inc, `${theirs} er i mktweek.json`);
-    if (!inc) continue;
-    const t = WEEKLY_MEASURED[ours];
-    ok(Math.abs(t.pct - inc.pctOfGapClosed) < 0.01,
-      `${ours}: bokad ${t.pct} == maelt ${inc.pctOfGapClosed}`);
-    ok(Math.abs(t.t - inc.t) < 0.01, `${ours}: t ${t.t} == ${inc.t}`);
-    ok(t.positive === inc.positive,
-      `${ours}: ${t.positive} af ${t.years} jakvaed == ${inc.positive}`);
+    if (inc) {
+      ok(Math.abs(t.leakyPct - inc.pctOfGapClosed) < 0.01,
+        `${ours}: smitud ${t.leakyPct} == mktweek ${inc.pctOfGapClosed}`);
+      ok(Math.abs(t.leakyT - inc.t) < 0.01, `${ours}: smitud t ${t.leakyT}`);
+    }
+
+    /* --- HREINA talan, pinnad vid defweek --- */
+    const wf = defLab.incumbentWalkForward && defLab.incumbentWalkForward[theirs];
+    ok(!!wf, `${theirs} ber \`incumbentWalkForward\` i defweek.json`);
+    if (wf) {
+      ok(Math.abs(t.pct - wf.pctOfGapClosed) < 0.01,
+        `${ours}: BIRT ${t.pct} == walk-forward ${wf.pctOfGapClosed}`);
+      ok(Math.abs(t.t - wf.t) < 0.01, `${ours}: birt t ${t.t} == ${wf.t}`);
+      ok(t.positive === wf.positive, `${ours}: ${t.positive} jakvaed == ${wf.positive}`);
+    }
+
+    /* --- OG SU HREINA VERDUR AD VERA LAEGRI I PPR --- */
+    if (ours === "ppr") {
+      ok(t.pct < t.leakyPct - 1,
+        `ppr: hreina talan er MERKJANLEGA laegri (${t.pct} < ${t.leakyPct})`);
+    }
   }
+  /* Smitid var ekki adeins ad blasa upp ppr heldur lika ad FELA ad half
+     stendur: smitud t = 1,908 (omarktaek), hrein t = 2,615 (marktaek). */
+  ok(WEEKLY_MEASURED["half-ppr"].leakyT < T_CRIT_7 &&
+     WEEKLY_MEASURED["half-ppr"].t > T_CRIT_7,
+    `half: smitud t ${WEEKLY_MEASURED["half-ppr"].leakyT} < ${T_CRIT_7} < ` +
+    `hrein t ${WEEKLY_MEASURED["half-ppr"].t} — smitid FALDI ad hun stendur`);
 
   /* MARKTAEKNIN ER REIKNUD, ekki bokud sem skodun: t a moti 2,228. */
-  const tCrit = 2.228;
   for (const [ours, m] of Object.entries(WEEKLY_MEASURED)) {
-    ok(m.significant === (m.t > tCrit),
-      `${ours}: significant=${m.significant} samsvarar t=${m.t} vs ${tCrit}`);
+    ok(m.significant === (m.t > T_CRIT_7),
+      `${ours}: significant=${m.significant} samsvarar t=${m.t} vs ${T_CRIT_7}`);
   }
-  ok(WEEKLY_MEASURED["half-ppr"].significant === false,
-    "half-ppr er MERKT omarktaekt — thad var atridid");
-  ok(WEEKLY_MEASURED.ppr.significant === true,
-    "og ppr er marktaekt (annars vaeri allt merkt omarktaekt og merkid daudt)");
+  /* OLL THRJU standa a hreinu tolunni — thad er nidurstadan, og hun er
+     ONNUR en su sem var birt i gaer. */
+  ok(Object.values(WEEKLY_MEASURED).every((m) => m.significant),
+    "oll thrju snid standa a HREINU tolunni");
 
   /* SETNINGIN sjalf: omarktaek stigagjof ma EKKI lesast eins og maeld. */
   const half = weeklyEdgeNote("half-ppr");
-  ok(/NOT significant/i.test(half.text) && /unproven/i.test(half.text),
-    `half-setningin segir ad hun se omarktaek: "${half.text.slice(0, 70)}…"`);
   const ppr = weeklyEdgeNote("ppr");
-  ok(/^Measured:/.test(ppr.text) && !/NOT significant/i.test(ppr.text),
-    "ppr-setningin er fullyrding um maelingu");
-  ok(/5\.831/.test(ppr.text) && /3\.199/.test(half.text),
-    "og hver ber SINA tolu, ekki somu");
+  ok(/walk-forward/i.test(ppr.text),
+    "setningin SEGIR ad talan se walk-forward (thad var atridid)");
+  ok(/3\.482/.test(ppr.text) && /2\.86/.test(half.text),
+    "og hver ber SINA HREINU tolu, ekki somu");
+  /* SMITADA TALAN MA EKKI BIRTAST. Hun var a skjanum fram ad 13.8.2026. */
+  ok(!/5\.831/.test(ppr.text),
+    "og smitada talan 5,831 er EKKI i textanum");
+  ok(!/3\.199/.test(half.text), "ne 3,199 i half");
+  ok(/weeks already played/i.test(ppr.text),
+    "og thad er sagt HVERS VEGNA hun er hrein");
   /* Othekkt snid faer ENGA tolu. */
   const unknown = weeklyEdgeNote("te-premium");
   ok(unknown.measured === false && !/\d\.\d/.test(unknown.text),

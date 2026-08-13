@@ -52,11 +52,54 @@ import { weeklyProjection, impliedTeamTotals } from "./model.js";
    `dashboard.mjs`, svo hun geti ekki rekid i thogn — sama mynstur og
    `HALF_LAB` i `rulebasis.js`. Endurkeyrsla labsins sem breytir tolunum
    fellir profid; tha uppfaerir madur TOFLUNA, ekki profid.           */
+/* ============================================================
+   TALAN VAR SMITUD AF LEIKNUM SEM HUN SPADI — LAGFAERT 13.8.2026
+   ============================================================
+   Adur stod her `pct: 5.831` og hun var borin a skjainn sem "measured".
+   `defweek-lab` synir ad hun er **SJALF-SMITUD**, og eg stadfesti thad:
+
+   `data/defense.json` er SEASON TOTAL — hver rod ber `games` 14-17, thad
+   er ALLT timabilid. Bakprofid notadi thvi vorn sem er byggd ur ollu
+   timabilinu til ad "spa" viku 3, svo leikurinn sem var spadur er
+   INNI I INNTAKINU. Þetta er nakvaemlega leka-skilyrdid sem hvert lab i
+   dag var latid forda — og incumbent-inn sjalfur braut thad.
+
+   Sonnun, ekki alyktun: `leakySeasonK6` endurgerir 5,831 / 3,199 / 2,967
+   UPP A NULL ur `data/weekly/` (hlutfoll skeika 8,7e-4), svo uppskiptingin
+   er staðfest. Og orakelid segir sömu sogu ur annarri att: FULLKOMIN
+   vitneskja um varnarstyrk FYRIR leik lokar adeins 4,938% i ppr — **minna
+   en birta talan** — sem er omogulegt nema birta talan innihaldi leikinn.
+
+      snid        birt (smitud)   WALK-FORWARD (hrein)   t      ar
+      ppr             5,831            3,482            3,21   7/7
+      half-ppr        3,199            2,860            2,615  6/7
+      standard        2,967            2,245            2,862  6/7
+
+   HREINA TALAN ER SU SEM ER BIRT NUNA. `leaky` er hofd med thvi
+   `startsit_*.json` a disknum ber hana og prof pinna hana — en hun ma
+   ekki vera thad sem notandinn les.
+
+   OG EITT SNYST VID: eg birti half-ppr sem OMARKTAEKA (t=1,908 ur
+   `mktweek-lab`). Hrein maeling gefur t=2,615, sem ER marktaekt gegn
+   throskuldi 2,228. Smitid var thvi ekki adeins ad blasa upp ppr heldur
+   lika ad fela ad half stendur. Baðar tolur eru i skranni; su hreina er
+   birt og su smitada er merkt.
+
+   ÞETTA ER MAELINGIN, EKKI APPID. I lifandi notkun byggir pipeline-id
+   `defense.json` ur LOKNUM leikjum, svo vika sem er ospiluð er ekki i
+   henni. Villan var i thvi HVAD VID SOGDUM ad talan vaeri, ekki i thvi
+   hvad appid reiknar.                                                */
 export const WEEKLY_MEASURED = {
-  ppr:        { pct: 5.831, t: 4.328, years: 7, positive: 7, significant: true },
-  standard:   { pct: 2.967, t: 2.831, years: 7, positive: 6, significant: true },
-  "half-ppr": { pct: 3.199, t: 1.908, years: 7, positive: 5, significant: false },
+  ppr: { pct: 3.482, t: 3.21, years: 7, positive: 7, significant: true,
+         leakyPct: 5.831, leakyT: 4.328, leakyPositive: 7 },
+  standard: { pct: 2.245, t: 2.862, years: 7, positive: 6, significant: true,
+              leakyPct: 2.967, leakyT: 2.831, leakyPositive: 6 },
+  "half-ppr": { pct: 2.860, t: 2.615, years: 7, positive: 6, significant: true,
+                leakyPct: 3.199, leakyT: 1.908, leakyPositive: 5 },
 };
+
+/** Throskuldurinn sem `startsit_*.json` notar (7 ar, tvihlida 5%). */
+export const T_CRIT_7 = 2.228;
 
 /**
  * Hvad ma SEGJA um viku-adlogunina i thessari deild.
@@ -78,9 +121,12 @@ export function weeklyEdgeNote(scoring) {
             `but that is NOT significant (t = ${m.t}, positive in only ` +
             `${m.positive} of ${m.years} seasons) — treat "Ours" as unproven here.` };
   }
+  /* TALAN ER SU HREINA. Su smitada (`leakyPct`) er ~1,7 pp haerri i ppr og
+     hun var birt fram ad 13.8.2026 — sja notuna vid `WEEKLY_MEASURED`. */
   return { measured: true, significant: true, pct: m.pct, t: m.t,
-    text: `Measured: closes ${m.pct}% of the available gap in ${scoring} ` +
-          `(t = ${m.t}, positive in ${m.positive} of ${m.years} seasons).` };
+    text: `Measured walk-forward: closes ${m.pct}% of the available gap in ` +
+          `${scoring} (t = ${m.t}, positive in ${m.positive} of ${m.years} ` +
+          `seasons). Defence strength is taken from weeks already played only.` };
 }
 
 /**
