@@ -514,6 +514,37 @@ console.log("\n7. waiver-hlutinn");
 console.log("\n3d. viku-abatinn er per stigagjof");
 {
   const { WEEKLY_MEASURED, weeklyEdgeNote, T_CRIT_7 } = await import("../src/weekview.js");
+
+  /* ------------------------------------------------------------
+     ÞROSKULDURINN VERDUR AD VERA SA SEM `rulebasis.js` BER
+     ------------------------------------------------------------
+     `T_CRIT_7` var 2,228, sem er t(0,975; df=10) — heitid sagdi "7 ar"
+     en talan var ur ellefu-ara rod. Rett er 2,447 (df = 7-1 = 6), og
+     `rulebasis.js` bar retta toflu allan timann.
+
+     ENGIN NIDURSTADA HAGGADIST (oll thrju t yfir badum throskuldum), svo
+     skekkjan var osynileg i utkomunni. Þad gerir hana ekki omerkilega:
+     throskuldur sem er 9% of lagur er DULID FRJALSLYNDI sem hefdi sagt
+     "marktaekt" um t = 2,3 einn dag. Þess vegna er hann nu borinn vid
+     toluna sem hitt einingin notar i stad thess ad standa einn.       */
+  {
+    const { tCritFor } = await import("../src/rulebasis.js")
+      .then((m) => ({ tCritFor: m.tCritFor || m.tCrit || null }))
+      .catch(() => ({ tCritFor: null }));
+    const src = readFileSync(path.join(ROOT, "src", "rulebasis.js"), "utf8");
+    const m = src.match(/7:\s*([0-9.]+)/);
+    ok(!!m, "`rulebasis.js` ber throskuld fyrir 7 ar i toflunni sinni");
+    if (m) {
+      ok(Math.abs(T_CRIT_7 - Number(m[1])) < 0.0005,
+        `T_CRIT_7 ${T_CRIT_7} == toflan i rulebasis.js (${m[1]})`);
+      ok(Number(m[1]) !== 2.228,
+        "og thad er ekki df=10-gildid 2,228 sem stod hér adur");
+    }
+    if (tCritFor) {
+      ok(Math.abs(tCritFor(7) - T_CRIT_7) < 0.0005,
+        `og \`tCrit(7)\` gefur somu tolu (${tCritFor(7)})`);
+    }
+  }
   const lab = JSON.parse(readFileSync(path.join(DATA, "measure", "mktweek.json"), "utf8"));
 
   /* ============================================================

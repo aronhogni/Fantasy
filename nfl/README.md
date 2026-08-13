@@ -326,7 +326,21 @@ til þessa, varpað gegnum fitt á **fyrri** tímabilum.
 
 **Per-leikmanns bootstrap útilokar núll í ÖLLUM ÞREMUR** — það er skilyrðið sem
 felldi allt annað í dag (`vbdbase-lab` fékk 0 af 153). Og það er ekki eitt
-heppið hólf: `opp_prior` er jákvæð í **48/52, 51/52, 47/52** hólfum.
+heppið hólf: `opp_prior` **bætir við kjarnann** (`deltaVsIncumbent > 0`) í
+**45/52, 50/52, 48/52** hólfum (ppr/half/std).
+
+> **ÞETTA STÓÐ SEM „48/52, 51/52, 47/52" OG PASSAÐI VIÐ HVORUGA LESNINGU.**
+> Talið úr `usage.json -> results.<snið>.grid.opp_prior.<gluggi>.<ferill>`:
+> `deltaVsIncumbent > 0` gefur **45/50/48** og `pctOfGapClosed > 0` gefur
+> **51/52/49**. Bókaða talan var hvorugt.
+>
+> Mælikvarðinn sem skiptir máli hér er `deltaVsIncumbent` — spurningin er hvort
+> `opp_prior` **bæti við** kjarnann, ekki hvort hún sé betri en ekkert. Hann er
+> nefndur berum orðum í tölunni af nákvæmlega þeirri ástæðu sem `DEAD_GAMES`
+> og VBD-bókunin kenndu sama dag: **tala án mælikvarða og án slóðar er
+> ósamanburðarhæf**, og sá sem „leiðréttir" hana seinna getur hæglega flett upp
+> í annarri töflu og bókað nýja villu ofan á þá gömlu. Ég gerði það sjálfur
+> einu sinni í dag.
 
 #### FERILLINN ER NIÐURSTAÐAN, EKKI TALAN
 

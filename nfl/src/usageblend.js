@@ -644,7 +644,21 @@ export function blendedSeasonProj(args) {
    og er til fyrir maelinguna sjalfa). `walkForward.*` er thess vegna
    VILJANDI EKKI bakad.
 
-   STODUGLEIKI, MAELDUR: `b` skiptir ALDREI formerki — 0 af 72 fittum.
+   STODUGLEIKI, MAELDUR: `b` skiptir ALDREI formerki — 0 af **69** fittum.
+
+   ÞETTA STOD SEM "72" OG ÞAD VAR REIKNAD, EKKI TALID. 4 stodur x 3 snid
+   x 6 walk-forward ar = 72, sem er retta reikningurinn og rangt svar:
+   TE hefur adeins **5** fit i hverju sniði (2021-2025, ekki 2020-2025).
+   Astaedan er `minN: 200` — `accFit` skilar `null` undir 200 uppsofnudum
+   leikmanna-vikum, og TE naer thvi ekki thegar 2020 er haldid ut. Talan
+   er thvi 3x6 + 3x6 + 3x6 + 3x5 = 69.
+
+   ÞAD SEM SKIPTIR MALI ER AD `null` ER TALID SEM FJARVERA, EKKI SEM FIT.
+   Hefdi labid skrifad `{a: 0, b: 0}` i stad `null` vaeri talan 72 og
+   fullyrdingin "b skiptir aldrei formerki" hefdi verid STYRKT af holfi
+   sem var aldrei fittad. Nakvaemlega su gildra sem `minNNote` a diski
+   varar vid berum ordum. Vordur: `tests/usageblend.mjs` kafli 10 TELUR
+   fittin ur skranni i stad thess ad reikna thau.
    Drift milli sidasta walk-forward fits (2019-2024) og thessa (2019-2025):
    RB/WR/TE 0,2-3,7% i ollum snidum, en QB **5,9% (ppr), 14,8% (half),
    14,1% (standard)**.

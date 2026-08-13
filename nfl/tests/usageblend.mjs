@@ -885,5 +885,65 @@ console.log("\n9. rokstudningurinn fyrir `DEAD_GAMES`");
     "en `K` ER maelt og er merkt sem slikt");
 }
 
+/* ============================================================
+   10. FITTIN ERU TALIN, EKKI REIKNUD
+   ============================================================
+   `usageblend.js` sagdi "0 af 72 fittum". 4 stodur x 3 snid x 6 ar = 72
+   er RETTUR REIKNINGUR og RANGT SVAR: TE hefur adeins 5 fit i hverju
+   sniði thvi `accFit` skilar `null` undir `minN: 200` uppsofnudum
+   leikmanna-vikum, og TE naer thvi ekki thegar 2020 er haldid ut.
+   Retta talan er 69.
+
+   ÞAD SEM ÞETTA ER RAUNVERULEGA UM: `null` VERDUR AD TELJAST SEM
+   FJARVERA. Hefdi labid skrifad `{a: 0, b: 0}` i stad `null` vaeri talan
+   72 og fullyrdingin "b skiptir aldrei formerki" hefdi verid STYRKT af
+   holfi sem var aldrei fittad — "omaeld tala sem litur ut eins og
+   maeling". `minNNote` a diski varar vid thessu berum ordum.
+
+   Þess vegna TELUR thetta prof fittin ur skranni. Fullyrding sem reiknar
+   ut vaentan fjolda getur ekki sed thegar holf vantar.               */
+console.log("\n10. fittin eru talin ur skranni, ekki reiknud");
+{
+  let total = 0, flips = 0, negative = 0, cells = 0;
+  const perFormat = {};
+  for (const f of ["ppr", "half", "standard"]) {
+    const st = LAB.results[f] && LAB.results[f].priorFit &&
+               LAB.results[f].priorFit.stability;
+    ok(!!st, `${f}: \`priorFit.stability\` er i skranni`);
+    if (!st) continue;
+    perFormat[f] = {};
+    for (const [pos, v] of Object.entries(st)) {
+      cells++;
+      total += v.fits;
+      perFormat[f][pos] = v.fits;
+      if (v.bSignFlips) flips++;
+      negative += v.bNegative;
+      /* `fits` verdur ad passa vid lengd `heldOutSeasons` — annars er
+         talan sjalf ekki i samraemi vid thad sem hun telur. */
+      ok(v.fits === (v.heldOutSeasons || []).length,
+        `${f}/${pos}: fits ${v.fits} == heldOutSeasons ` +
+        `${(v.heldOutSeasons || []).length}`);
+    }
+  }
+  ok(cells === 12, `THEKJA: 12 holf (4 stodur x 3 snid), fann ${cells}`);
+  ok(total === 69,
+    `fit alls ${total} — TALID, ekki reiknad (4x3x6 = 72 er rangt svarid)`);
+  ok(total !== 72,
+    "og thad er EKKI 72 — TE ber 5 fit, ekki 6, i hverju sniði");
+  for (const f of ["ppr", "half", "standard"]) {
+    ok(perFormat[f] && perFormat[f].TE === 5,
+      `${f}: TE ber 5 fit (minN 200 naest ekki thegar 2020 er haldid ut)`);
+  }
+  ok(flips === 0, `og \`b\` skiptir aldrei formerki (${flips} holf)`);
+  ok(negative === 0, `og er aldrei negatift (${negative} fit)`);
+
+  /* Og textinn verdur ad bera TOLUNA sem er talin. */
+  const src = readFileSync(path.join(ROOT, "src", "usageblend.js"), "utf8");
+  ok(src.includes(`0 af **${total}** fittum`) || src.includes(`0 af ${total} fittum`),
+    `athugasemdin i \`usageblend.js\` ber toluna ${total}`);
+  ok(!/0 af 72 fittum/.test(src),
+    "og ekki gomlu reiknudu toluna 72");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

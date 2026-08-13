@@ -98,8 +98,28 @@ export const WEEKLY_MEASURED = {
                 leakyPct: 3.199, leakyT: 1.908, leakyPositive: 5 },
 };
 
-/** Throskuldurinn sem `startsit_*.json` notar (7 ar, tvihlida 5%). */
-export const T_CRIT_7 = 2.228;
+/**
+ * Throskuldurinn fyrir 7 timabil, tvihlida 5%.
+ *
+ * ============================================================
+ * ÞETTA STOD SEM 2,228 OG ÞAD ER GILDID FYRIR df=10, EKKI df=6
+ * ============================================================
+ * 7 timabil gefa df = 7 - 1 = 6, og t(0,975; 6) = **2,447**. 2,228 er
+ * t(0,975; 10) — heitid sagdi "7 ar" en talan var ur ellefu-ara rod.
+ * `src/rulebasis.js` ber retta toflu og hun segir `7: 2.447`;
+ * `usage.json` skrifar `tCrit: 2.447` vid `years: 7`. Þrjar heimildir
+ * i sama repo-i og tvaer theirra voru samhljoda.
+ *
+ * ENGIN NIDURSTADA HAGGAST og thad er akkurat hvers vegna thetta lifdi:
+ * oll thrju hrein t-gildi eru yfir BADUM throskuldum (3,21 / 2,862 /
+ * 2,615) og smitada half-talan (1,908) er undir badum. Skekkjan var
+ * thvi osynileg i utkomunni — en throskuldur sem er 9% of lagur er
+ * DULID FRJALSLYNDI sem hefdi sagt "marktaekt" um t = 2,3 einn dag.
+ *
+ * Ekki harðkoda naesta throskuld: `rulebasis.js` ber toflu 3-11 og
+ * `tCrit(years)` er thad sem a ad kalla se fjoldinn annar en 7.
+ */
+export const T_CRIT_7 = 2.447;
 
 /**
  * Hvad ma SEGJA um viku-adlogunina i thessari deild.
