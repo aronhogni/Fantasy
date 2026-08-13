@@ -92,9 +92,21 @@ const mkEntry = (id, name, rules, season, slot) => ({
               exactScoring: true, bench: 5, superflex: false, orderDrawn: true,
               starters: rules.starters, flexPos: rules.flexPos, draftId: `d${id}`,
               status: "in_season", draftStatus: "complete", draftType: "snake",
-              /* `playoff_teams` er deildar-REGLA, ekki maeling — hun ma
-                 birtast i forleik. */
-              settings: { playoff_teams: 6 } },
+              /* ============================================================
+                 SNIÐID SEM PIPAN SKRIFAR, EKKI SNIÐ SEM ER TIL HAEGDA
+                 ============================================================
+                 Hér stod `settings: { playoff_teams: 6 }`.
+                 `leagueFromSleeper` skrifar EKKI `settings` i `imported` —
+                 fixturan bar thvi logun sem raunverulegur innflutningur
+                 getur ekki gefid. Og ENGIN fullyrding notadi svidid: thad
+                 var thar til ad rettlaeta hegdun sem var hvorki profud ne
+                 moguleg, medan cutið var DAUTT i appinu (sja
+                 `wiring.mjs` kafla 7).
+
+                 Nu er flata snidid notad — `playoffTeams`, sem er thad sem
+                 `imported` raunverulega ber — og `wiring.mjs` sannar ad
+                 `standingsFrom` lesi thad.                              */
+              playoffTeams: 6, playoffWeekStart: 15 },
   warnings: [],
   teams: [{ slot, userId: "u-me", name: "mattitim" }],
   sync: { draftId: `d${id}`, slot },
@@ -369,6 +381,41 @@ console.log("\n3b. an viku eru tolurnar EINS (thvi er einn dalkur)");
     "forleikur gefur enga viku");
   ok(weekContext({ schedule: [], defense: [], week: null }) === null,
     "og tha er engin viku-samhengi");
+
+  /* ============================================================
+     STAERDAR-AKKERI — PROFIN MAELDU SAMKVAEMNI, ALDREI STAERD
+     ============================================================
+     Stokkbreytingin `base = r.proj / 17 -> r.proj` LIFDI badar
+     jsdom-svidsmyndir. Oll viku-spa verdur 17x of stor — 240 stig i viku
+     fyrir WR sem a ad bera 14 — og bædi sofnin graen, thvi thau profudu
+     `proj === projSleeper` (samkvaemni) og "thaer eru olikar" a
+     timabili, HVERGI staerd.
+
+     Akkerid er thegar til i `usageblend.mjs`: "burdarasni hefur 15-25
+     hlaup/leik". Sama gerd vantadi hér. Bilin nedan eru RUM — thau eru
+     ekki kvordun, thau eru til thess ad utiloka staerdargradu-villu.  */
+  {
+    const anchor = weekRows([
+      { id: "a1", name: "RB", pos: "RB", team: "SF", proj: 238 },
+      { id: "a2", name: "QB", pos: "QB", team: "BUF", proj: 340 },
+      { id: "a3", name: "TE", pos: "TE", team: "KC", proj: 153 },
+    ], null);
+    const [rb, qb, te] = anchor;
+    ok(rb.proj > 4 && rb.proj < 30,
+      `byrjunarlids-RB ber 4-30 stig i viku (${rb.proj}) — ` +
+      `17x villa gaefi ${(rb.proj * 17).toFixed(0)}`);
+    ok(qb.proj > 8 && qb.proj < 35, `QB ber 8-35 (${qb.proj})`);
+    ok(te.proj > 2 && te.proj < 22, `TE ber 2-22 (${te.proj})`);
+    /* Og deilingin verdur ad vera SAMA tala sem `usageblend` flytur ut —
+       hun var skrifud tvisvar og athugasemdin var eina tengingin. */
+    const { GAMES_IN_SEASON } = await import("../src/usageblend.js");
+    ok(Math.abs(rb.proj - 238 / GAMES_IN_SEASON) < 1e-9,
+      `og talan er nakvaemlega \`proj / GAMES_IN_SEASON\` ` +
+      `(${238 / GAMES_IN_SEASON})`);
+    const src = readFileSync(path.join(ROOT, "src", "weekview.js"), "utf8");
+    ok(/GAMES_IN_SEASON/.test(src) && !/r\.proj \/ 17\b/.test(src),
+      "`weekview.js` flytur toluna inn i stad thess ad bera sitt eigid 17");
+  }
 
   const flat = weekRows(roster, null);
   ok(flat.every((r) => r.proj === r.projSleeper),

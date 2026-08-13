@@ -29,6 +29,12 @@
    ============================================================ */
 
 import { weeklyProjection, impliedTeamTotals } from "./model.js";
+/* ÞESSI TALA VAR SKRIFUD TVISVAR. `usageblend.js` flytur `GAMES_IN_SEASON`
+   ut MED ATHUGASEMD um ad thad se "sama tala og `weekview` deilir med" —
+   og `weekview` bar sitt eigid `17`. Tvo afrit af somu forsendu, og
+   athugasemdin sem nefndi thau bædi var eina tengingin.
+   Nu er hun ein, og `usageblend.mjs` kafli 5b ber hana. */
+import { GAMES_IN_SEASON } from "./usageblend.js";
 
 /* ============================================================
    HVE MIKID ER VIKU-ADLOGUNIN THESS VIRDI — PER STIGAGJOF
@@ -214,7 +220,7 @@ export function weekContext({ schedule, defense, week }) {
  */
 export function weekRows(roster, ctx) {
   return (roster || []).map((r) => {
-    const base = r.proj != null ? r.proj / 17 : null;
+    const base = r.proj != null ? r.proj / GAMES_IN_SEASON : null;
     let proj = base;
     if (ctx && base != null && r.team) {
       const o = ctx.opp.get(r.team);
