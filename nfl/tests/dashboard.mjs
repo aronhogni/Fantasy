@@ -51,6 +51,35 @@ const byAdp = players.filter((p) => p.adpSleeper != null && p.adpSleeper < 400)
 const TOP = byAdp.slice(0, 60).map((p) => String(p.id));
 
 /* ============================================================
+   HOPURINN VERDUR AD BERA MANN I FRII I ÞEIRRI VIKU SEM ER PROFUD
+   ============================================================
+   `bye`-lidurinn i `weekRows` var OPROFADUR i praxis og tvaer
+   stokkbreytingar lifdu thess vegna:
+
+     bye: ctx != null && r.bye === ctx.week   ->   bye: false      LIFDI
+     pickupAdvice(... week: null)                                 LIFDI
+
+   Astaedan var ekki i lidnum heldur i FIXTURUNNI: vikan er fest a 5 og
+   hopurinn var `TOP.slice(0, 5)` — Gibbs (6), Robinson (11), Chase (6),
+   Nacua (11), McCaffrey (8). ENGINN I FRII I VIKU 5. Þar med var
+   `onByeThisWeek` alltaf `[]`, `bye`-kassinn aldrei teiknadur, og
+   fullyrdingin `flat.every(r => r.bye === false)` VAR SONN LIKA UNDIR
+   STOKKBREYTINGUNNI.
+
+   Athugasemdin vid linuna i `weekview.js` segir hvad thetta kostar:
+   "`bye: false` hardkodad thydir enginn er nokkurn timann i frii, svo
+   uppstillingartolid setti mann i byrjunarlid a ÞEIRRI VIKU SEM HANN
+   SPILAR EKKI — null stig i saeti sem atti ad bera 12."
+
+   `BYE_WEEK` er 5 thvi thad er vikan sem hermda ESPN-svarid gefur.
+   Leikmadurinn er VALINN UR GOGNUNUM, ekki harðkodadur: nafn sem er
+   negld inn i prof rekur um leid og ADP breytist (`players.json` er
+   endurskrifud daglega).                                             */
+const BYE_WEEK = 5;
+const BYE_MAN = byAdp.slice(0, 60).find((p) => p.bye === BYE_WEEK) || null;
+const BYE_ID = BYE_MAN ? String(BYE_MAN.id) : null;
+
+/* ============================================================
    TVAER DEILDIR NOTANDANS — RAUNVERULEGAR TOLUR
    ============================================================
    10 lid PPR med K og DEF · 12 lid half-PPR AN theirra. Thaer eru
@@ -93,8 +122,15 @@ const mkRosters = (n, myRoster, played) =>
       /* MINN hopur ber raunveruleg audkenni; hinir bera SITT eigid
          skammt af toppnum, svo `freeAgents` hafi raunverulega tekna
          leikmenn ad sia burt. */
-      players: TOP.slice((rid - 1) * 5, rid * 5),
-      starters: mine ? TOP.slice(0, 5) : [],
+      /* MINN hopur faer mann i frii i viku 5 (sja `BYE_MAN`) — annars
+         er `bye`-lidurinn oprofadur og stokkbreyting a honum lifir. */
+      players: mine && BYE_ID
+        ? [...TOP.slice(0, 4), BYE_ID, ...TOP.slice((rid - 1) * 5, rid * 5)]
+            .filter((x, i, a) => a.indexOf(x) === i)
+        : TOP.slice((rid - 1) * 5, rid * 5),
+      starters: mine
+        ? (BYE_ID ? [...TOP.slice(0, 4), BYE_ID] : TOP.slice(0, 5))
+        : [],
       settings: played
         ? { wins: 10 - i, losses: i, ties: 0,
             fpts: 1500 - i * 40, fpts_decimal: 25,
@@ -341,6 +377,64 @@ console.log("\n3b. an viku eru tolurnar EINS (thvi er einn dalkur)");
     "og talan er samt raunveruleg (arstidar-spa deild a 17)");
   ok(flat.every((r) => r.bye === false),
     "engin auð vika thegar engin vika er thekkt");
+
+  /* ------------------------------------------------------------
+     OG ÞESSI FULLYRDING ER EINSKIS VIRDI EIN.
+     ------------------------------------------------------------
+     `bye === false` a ollum er SATT lika thegar lidurinn er
+     `bye: false` hardkodad — og su stokkbreyting LIFDI. Krafan er
+     OSAMHVERF, eins og i `playerlist-sort.mjs` i FPL-verkefninu:
+     nulltalan verdur ad standa NEDAR OG jakvaeda tilfellid verdur ad
+     koma UT. Þess vegna er raunverulegt frii profad hér samhlida.
+
+     Athugasemdin i `weekview.js` segir hvad hardkodad `false` kostar:
+     leikmadur i frii settur i byrjunarlid, "null stig i saeti sem atti
+     ad bera 12".                                                     */
+  /* SAMHENGID ER BYGGT MED `weekContext`, EKKI HANDSKRIFAD. Fyrsta
+     utgafa smiðaði `{ week: 7, defense: null, schedule: null }` og
+     `weekRows` fell a `ctx.opp.get` — sem er ANNAD tilfelli af thvi ad
+     endurutfaera i profi thad sem kodinn byggir. Rett er ad kalla
+     bygginguna, tha er profid ekki ad giska a innra snidid.           */
+  const byeCtx = weekContext({
+    schedule: [{ week: 7, home: "SF", away: "SEA" }],
+    defense: [], week: 7,
+  });
+  ok(byeCtx != null, "viku-samhengi fyrir viku 7 er byggt med `weekContext`");
+  const mix = weekRows([
+    { id: "b1", name: "Frii", pos: "RB", team: "SEA", proj: 170, bye: 7 },
+    { id: "b2", name: "Spilar", pos: "RB", team: "SF", proj: 170, bye: 11 },
+  ], byeCtx);
+  ok(mix[0].bye === true,
+    "leikmadur i frii i ÞESSARI viku faer `bye: true` (hardkodad `false` fellur hér)");
+  ok(mix[1].bye === false,
+    "og sa sem spilar faer `false` — badar attir, ekki bara ein");
+  /* `proj` HELST FULL TALA OG ÞAD ER ASETT — `lineup.js` utilokar eftir
+     FLAGGINU (`playable: false`, `ev: 0`), ekki eftir spanni. Fyrsta
+     utgafa thessarar fullyrdingar krafdist `proj === 0` og FELL a rettum
+     kodha; hun var min tilgata um utfaersluna, ekki krafa notandans.
+
+     Þess vegna er AFLEIDINGIN profud i stad milliliðarins: madurinn i
+     frii ma ekki komast i byrjunarlid. Þad er nakvaemlega thad sem
+     athugasemdin i `weekview.js` segir ad hardkodad `false` kostadi —
+     "null stig i saeti sem atti ad bera 12".                          */
+  {
+    const { optimalLineup, slotsFor } = await import("../src/lineup.js");
+    const slots = slotsFor({ starters: { RB: 1 }, flexPos: [] });
+    const best = optimalLineup(mix, slots);
+    /* `starters` er `[{ slot, eligible, player }]` — audkennid er inni i
+       `player`. Fyrsta utgafan las `x.id || x.player` og fékk HLUTINN,
+       svo `includes("b1")` var osatt af RANGRI astaedu og fullyrdingin
+       "hann er ekki i byrjunarlidi" var TOM. Hun stodst — og hefdi
+       stadist thott hann VAERI thar. Sidari fullyrdingin (`b2` ER thar)
+       er einmitt til thess ad thetta komi i ljos, og hun gerdi thad. */
+    const startedIds = (best.starters || [])
+      .map((x) => x && x.player && x.player.id).filter(Boolean);
+    ok(!startedIds.includes("b1"),
+      `madurinn i frii er EKKI i byrjunarlidi (${startedIds.join(",") || "tomt"})`);
+    ok(startedIds.includes("b2"),
+      "en sa sem spilar ER — annars vaeri fullyrdingin ofan sonn af thvi " +
+      "ad enginn var valinn");
+  }
   /* Og leikmadur an spar helst null — hann er ekki leikmadur med 0. */
   const noProj = weekRows([{ id: "9", name: "D", pos: "TE", team: "LV", proj: null }], null);
   ok(noProj[0].proj === null && noProj[0].projSleeper === null,
