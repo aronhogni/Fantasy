@@ -255,11 +255,32 @@ console.log("\n6. gilt `imported` helst obreytt");
     superflex: false, bench: 6,
     starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 2, K: 1, DST: 1 },
     flexPos: ["RB", "WR", "TE"], orderDrawn: false,
+    /* Urslitakeppnin. Þessi tvo svid voru baett vid 13.8. og ÞETTA PROF
+       FELLDI ÞAU SAMSTUNDIS (17 svid a moti 19) — sem er nakvaemlega
+       hegdunin sem er beðið um: nytt svid i `normalizeImported` verdur
+       ad koma hér lika, annars er thad othvingad i praxis eda profid
+       laetur eins og thad se ekki til. */
+    playoffTeams: 6, playoffWeekStart: 15,
   };
   const back = normalizeImported(real);
-  ok(JSON.stringify(back) === JSON.stringify(real),
-    "raunverulegt `imported` fer OBREYTT i gegn (svid fyrir og eftir: " +
-    `${Object.keys(real).length} / ${Object.keys(back || {}).length})`);
+  /* SAMANBURDUR A INNIHALDI, EKKI A LYKLA-ROD. `JSON.stringify`-jafnadur
+     er rod-nAemur, svo hann felldi thetta prof thegar tvo svid voru baett
+     vid i annarri rod en fixtúran ber — 19 svid a moti 19, oll gildi
+     eins, og samt "obreytt: nei". Þad er fullyrding um ritrod hlutar,
+     sem er ekki thad sem malid er: krafan er ad HVERT GILDI komist
+     obreytt i gegn og ad ekkert svid TYNIST ne baetist vid.          */
+  const keysReal = Object.keys(real).sort();
+  const keysBack = Object.keys(back || {}).sort();
+  ok(keysBack.join(",") === keysReal.join(","),
+    `\`imported\` ber somu svid fram og til baka (${keysReal.length} svid` +
+    `${keysBack.join(",") === keysReal.join(",") ? "" :
+      " — munur: " + keysReal.filter((k) => !keysBack.includes(k)).join(",") +
+      " / " + keysBack.filter((k) => !keysReal.includes(k)).join(",")})`);
+  const diff = keysReal.filter((k) =>
+    JSON.stringify(real[k]) !== JSON.stringify(back && back[k]));
+  ok(diff.length === 0,
+    `og hvert gildi er obreytt (${diff.length} vikja${
+      diff.length ? ": " + diff.join(", ") : ""})`);
 
   /* Og hvert svid ma adeins kosta SIG SJALFT — thad er allt malid.
      Vaeri einn skokk svid latid fella hlutinn i heild yrdi ein tala fra

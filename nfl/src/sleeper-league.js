@@ -632,6 +632,27 @@ export function leagueFromSleeper({ league: lg, draft, shapes } = {}) {
       starters: out.starters,
       flexPos: out.flexPos || null,
       orderDrawn: !!(D.draft_order && Object.keys(D.draft_order).length),
+      /* ============================================================
+         URSLITAKEPPNIN — REGLA DEILDARINNAR, OG HUN VAR EKKI BORIN MED
+         ============================================================
+         `standingsFrom` les `league.settings.playoff_teams` og
+         `settings.num_teams`. Forsidan sendir `entry.imported` inn og
+         hann bar HVORUGT, svo `playoffTeams` var ALLTAF `null`:
+         "Top N make the playoffs" birtist aldrei, `●`-merkid aldrei, og
+         heilbrigdisathugunin (`playoffTeams > numTeams`) gat aldrei
+         kviknad. `tests/standings.mjs` profar cutid i NIU fullyrdingum
+         a tilbunum `league.settings` — hrein rokfraedi, fullkomlega
+         profud, aldrei kollud med nytilegu inntaki.
+
+         Bædi svid eru THEGAR i `L.settings`, sem thetta fall les. Þau
+         voru einfaldlega ekki tekin med.
+
+         `playoffWeekStart` fylgir thvi hun er forsenda thess ad vita
+         hvada vikur telja: waiver-gjaldmidillinn "rest-of-season" (sja
+         `waivers.js`) tharf ad vita hvenaer reglulegu vikurnar HAETTA,
+         annars pro-rata-r hann yfir vikur sem lidid spilar ekki.        */
+      playoffTeams: num(L.settings && L.settings.playoff_teams),
+      playoffWeekStart: num(L.settings && L.settings.playoff_week_start),
     },
     warnings,
   };

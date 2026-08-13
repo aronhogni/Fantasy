@@ -261,7 +261,28 @@ export function myRosterId({ rosters, users, userId } = {}) {
 export function standingsFrom({ rosters, users, league, userId } = {}) {
   const byUser = usersById(users);
   const L = league && typeof league === "object" ? league : {};
-  const lset = L.settings && typeof L.settings === "object" ? L.settings : {};
+  /* ============================================================
+     BADAR LOGANIR A DEILDINNI — SLEEPER-SVARID OG `imported`
+     ============================================================
+     Fallid las adeins `L.settings.playoff_teams` (Sleeper-snidid). Appid
+     sendir `entry.imported`, sem er FLATT (`playoffTeams`, `teams`), svo
+     cutid var ALLTAF `null` i appinu medan niu prof stodust a tilbunum
+     `settings`. Hrein rokfraedi, fullkomlega profud, aldrei kollud med
+     nytilegu inntaki.
+
+     ÞETTA ER EIN VORPUN, EKKI TVAER UTFAERSLUR: sviðin eru leidd hér i
+     eitt `lset` og allt nedan vid les thad. Vaeri flata snidid lesid
+     sérstaklega sidar i fallinu vaeru tvaer leidir ad somu tolu og thaer
+     gaetu rekid i sundur — nakvaemlega gildran sem `buildTeamMetrics`
+     kostadi i FPL-verkefninu.                                        */
+  const raw = L.settings && typeof L.settings === "object" ? L.settings : {};
+  const lset = {
+    ...raw,
+    playoff_teams: raw.playoff_teams != null ? raw.playoff_teams : L.playoffTeams,
+    playoff_week_start: raw.playoff_week_start != null
+      ? raw.playoff_week_start : L.playoffWeekStart,
+    num_teams: raw.num_teams != null ? raw.num_teams : L.teams,
+  };
 
   const numTeams = count(lset.num_teams) ?? count(L.total_rosters);
 

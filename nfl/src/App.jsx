@@ -550,6 +550,9 @@ export function normalizeImported(raw) {
     exactScoring: !!raw.exactScoring,
     superflex: !!raw.superflex,
     bench: posInt(raw.bench, 40),
+    /* Urslitakeppnin — `standingsFrom` les thau (sja `sleeper-league.js`). */
+    playoffTeams: posInt(raw.playoffTeams, 32),
+    playoffWeekStart: posInt(raw.playoffWeekStart, 25),
     /* `starters` er hlutur af TOLUM. Fylki er gildur hlutur i JS, svo
        ytri gerdin ein dugar ekki — sama gildran og `benchSwaps`. */
     starters: raw.starters && typeof raw.starters === "object" &&

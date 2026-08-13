@@ -370,5 +370,101 @@ console.log("\n6. `sleeperUser` er sendur nidur");
     "og lasar EKKI reitinn (`value={sleeperUser}` vaeri las)");
 }
 
+/* ============================================================
+   7. FORSIDU-ROKFRAEDIN — OG DEILDIN SEM HUN FAER
+   ============================================================
+   `wiring.mjs` nadi yfir `draft-sync.js`, `rulebasis.js`, `advice.js` og
+   `sleeper-league.js` — EKKI yfir `standings.js`, `waivers.js`,
+   `weekview.js` ne `newsmatch.js`. Og gatid var raunverulegt:
+
+   `standingsFrom` las `league.settings.playoff_teams`. Forsidan sendir
+   `entry.imported`, sem BAR ÞAD EKKI, svo `playoffTeams` var ALLTAF
+   `null` i appinu — "Top N make the playoffs" birtist aldrei, `●`-merkid
+   aldrei, og heilbrigdisathugunin gat aldrei kviknad. Medan
+   `tests/standings.mjs` profadi cutid i NIU fullyrdingum a tilbunum
+   `settings` og var graent.
+
+   Hrein rokfraedi, fullkomlega profud, ALDREI KOLLUD MED NYTILEGU
+   INNTAKI. Þad er orðrétt lysingin i hausnum a thessu safni.
+
+   ÞESS VEGNA ER ÞETTA TVIÞAETT: kallid ER til (AST), OG svidin sem thad
+   les eru i thvi sem er sent (samanburdur a svidaheitum). Fyrra eitt
+   hefdi verid graent allan timann.                                    */
+console.log("\n7. forsidan er tengd — kall OG nytilegt inntak");
+{
+  const dash = stripImports(stripComments(read("Dashboard.jsx")));
+
+  for (const [file, fn] of [["standings.js", "standingsFrom"],
+                            ["waivers.js", "pickupAdvice"],
+                            ["weekview.js", "weekRows"],
+                            ["newsmatch.js", "newsForRoster"]]) {
+    const imported = new RegExp(`from\\s+["']\\./${file.replace(".", "\\.")}["']`)
+      .test(stripComments(read("Dashboard.jsx")));
+    ok(imported, `\`Dashboard.jsx\` flytur inn \`${file}\``);
+    /* Fallsheitid getur verid annad; profum ad EITTHVAD se kallad ur
+       skranni fremur en ad neglа eitt heiti sem gaeti verid endurnefnt. */
+    const called = new RegExp(`\\b${fn}\\s*\\(`).test(dash);
+    ok(called, `og \`${fn}(\` er KALLAD`);
+  }
+
+  /* ------------------------------------------------------------
+     OG DEILDIN SEM ER SEND VERDUR AD BERA SVIDIN SEM ERU LESIN
+     ------------------------------------------------------------
+     Þetta er hlutinn sem AST-prof getur venjulega ekki gert og hann er
+     moglegur hér thvi bædi hlidar eru hrein rokfraedi: vid getum kallad
+     `standingsFrom` med THVI SNIÐI sem `leagueFromSleeper` skrifar og
+     spurt hvort cutid komi ut.                                       */
+  const { leagueFromSleeper } = await import("../src/sleeper-league.js");
+  const { standingsFrom } = await import("../src/standings.js");
+
+  const built = leagueFromSleeper({
+    league: {
+      league_id: "1", name: "L", season: "2026", status: "in_season",
+      total_rosters: 10,
+      roster_positions: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "FLEX",
+                         "BN", "BN", "BN", "BN", "BN", "BN"],
+      scoring_settings: { rec: 1 },
+      settings: { num_teams: 10, playoff_teams: 6, playoff_week_start: 15,
+                  draft_rounds: 14 },
+    },
+    draft: { draft_id: "2", season: "2026", status: "complete", type: "snake",
+             settings: { rounds: 14, teams: 10 } },
+  });
+  ok(built.imported.playoffTeams === 6,
+    `\`imported.playoffTeams\` er borid med (${built.imported.playoffTeams})`);
+  ok(built.imported.playoffWeekStart === 15,
+    `og \`playoffWeekStart\` lika (${built.imported.playoffWeekStart})`);
+
+  const rosters = Array.from({ length: 10 }, (_, i) => ({
+    roster_id: i + 1, owner_id: "u" + i,
+    settings: { wins: 10 - i, losses: i, ties: 0, fpts: 1500 - i * 20,
+                fpts_against: 1400 },
+  }));
+  const users = rosters.map((r, i) => ({ user_id: "u" + i, display_name: "T" + i }));
+  const st = standingsFrom({ rosters, users, league: built.imported, userId: "u0" });
+  ok(st.playoffTeams === 6,
+    `\`standingsFrom\` les cutid UR \`imported\` (${st.playoffTeams}) — ` +
+    "thad var `null` adur");
+  ok(st.rows.filter((r) => r.inPlayoffs === true).length === 6,
+    `og merkir 6 lid i urslitakeppni ` +
+    `(${st.rows.filter((r) => r.inPlayoffs === true).length})`);
+
+  /* Og profid verdur ad geta brugdist: deild AN cutsins ma ekki gefa
+     tolu. Vaeri `6` sjalfgefid einhvers stadar vaeri fullyrdingin ofan
+     graen fyrir koda sem giskar. */
+  const none = standingsFrom({ rosters, users, league: { teams: 10 }, userId: "u0" });
+  ok(none.playoffTeams == null,
+    "deild an cuts gefur `null`, ekki agiskun (maelitaekid virkar)");
+  ok(none.rows.every((r) => r.inPlayoffs === null),
+    "og `inPlayoffs` er `null` a ollum — ekki `false`, sem vaeri fullyrding");
+
+  /* Heilbrigdisathugunin gat ALDREI kviknad thvi `numTeams` var alltaf
+     `null`. Nu getur hun — og hun a ad gera thad. */
+  const bad = standingsFrom({ rosters, users,
+    league: { playoffTeams: 99, teams: 10 }, userId: "u0" });
+  ok(bad.playoffTeams == null,
+    "cut > lidafjoldi er hafnad (`99` af 10 -> null) — athugunin er LIFANDI");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
