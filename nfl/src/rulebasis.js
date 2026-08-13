@@ -70,12 +70,35 @@ const tCrit = (years) => T_CRIT[Math.min(11, Math.max(3, years))] ?? 2.228;
 const isSig = (q) => q != null && q.t != null && q.years != null &&
   Math.abs(q.t) > tCrit(q.years);
 
-/** Stigagjof appsins -> lykill i maeldu toflunum. */
+/**
+ * Stigagjof appsins -> lykill i maeldu toflunum.
+ *
+ * ============================================================
+ * OÞEKKT STIGAGJOF SKILAR `null`, EKKI `"ppr"`
+ * ============================================================
+ * Hér stod `return "ppr"` sem sjalfgefid. `measuredEdge` notar lykilinn
+ * til ad fletta upp i MAELDU toflunum, svo deild med `scoring: null`
+ * hefdi fengid **+188,0 stiga "maelda" tolu ur PPR-toflunni** — tala ur
+ * odru sniði, birt undir heiti thessarar deildar. Þad er ordrett
+ * skilgreiningin a verstu utkomunni i thessu verkefni: omaeld tala sem
+ * litur ut eins og maeling.
+ *
+ * `usageblend.scoringKey` skilar `null` i sama tilfelli og athugasemdin
+ * thar nefnir einmitt thennan mun. Nu eru thaer samhljoda.
+ *
+ * ÞETTA GETUR EKKI GERST I DAG og thad er skrifad hér svo enginn fjarlaegi
+ * varnaglann sem "daudan koda": `normalizeLeague` hvitlistar `scoring`, svo
+ * appid getur ekki sent othekkt gildi. Varnaglinn er fyrir naesta
+ * innflutnings-veg — Sleeper gaeti kynnt nytt snid, og tha a thetta ad
+ * SKILA ENGU fremur en ad giska. Sama rok og `AVAIL_KNOWN` i FPL-hlutanum:
+ * ovirk vorn er vorn, ekki daudur kodi.
+ */
 export function scoringKeyOf(league) {
   const s = league && league.scoring;
+  if (s === "ppr") return "ppr";
   if (s === "half-ppr") return "half";
   if (s === "standard") return "standard";
-  return "ppr";
+  return null;
 }
 
 /**
@@ -135,7 +158,10 @@ export function describeLeague(league) {
 export function measuredEdge(league, shapes = null) {
   const shape = shapeKeyOf(league);
   if (!shape) return null;
+  /* `null` -> ENGIN TALA. Se stigagjofin othekkt vitum vid ekki hvada
+     tafla gildir, og "engin maeld tala" er retta svarid. */
   const fmt = scoringKeyOf(league);
+  if (!fmt) return null;
 
   /* 1. NAKVAEM SAMSVORUN i half-lab — logunin OG snidid maeld beint. */
   const direct = HALF_LAB[shape] && HALF_LAB[shape][fmt];

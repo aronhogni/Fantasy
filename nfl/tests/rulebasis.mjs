@@ -163,5 +163,55 @@ console.log("\n3. reglurnar sjalfar");
   ok(describeLeague(null) === "no league", "og lesmalid thegir lika");
 }
 
+/* ============================================================
+   OÞEKKT STIGAGJOF MA EKKI FA PPR-TOLUNA
+   ============================================================
+   `scoringKeyOf` skiladi `"ppr"` sjalfgefid. `measuredEdge` notar
+   lykilinn til ad fletta upp i MAELDU toflunum, svo deild med
+   `scoring: null` hefdi fengid +188,0 stiga "maelda" tolu UR PPR-TOFLUNNI
+   — tala ur odru sniði, birt undir heiti thessarar deildar.
+
+   `usageblend.scoringKey` skilar `null` i sama tilfelli; thaer voru
+   osamhljoda og athugasemdin thar nefndi einmitt muninn.
+
+   ÞETTA GETUR EKKI GERST I DAG (`normalizeLeague` hvitlistar `scoring`),
+   svo thetta er VARNAGLI. Hann er profadur svo hann verdi ekki
+   fjarlaegdur sem "daudur kodi" — sama rok og `AVAIL_KNOWN`: ovirk vorn
+   er vorn.                                                            */
+console.log("\nothekkt stigagjof faer ENGA tolu");
+{
+  const mk = (scoring) => ({ teams: 10, scoring,
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+    flexPos: ["RB", "WR", "TE"] });
+
+  /* Fyrst: thekktu snidin VERDA ad gefa tolu — annars vaeri `null` bara
+     "fallid virkar aldrei" og fullyrdingarnar nedan einskis virdi. */
+  const known = { ppr: "ppr", "half-ppr": "half", standard: "standard" };
+  for (const [sc, key] of Object.entries(known)) {
+    ok(scoringKeyOf(mk(sc)) === key, `${sc} -> "${key}"`);
+    const e = measuredEdge(mk(sc));
+    ok(e != null && e.mean != null,
+      `og ${sc} faer maelda tolu (${e ? e.mean : "null"})`);
+  }
+
+  /* Sidan: othekkt gefur ENGA tolu — hvorki lykil ne edge. */
+  for (const bad of [null, undefined, "tunglid", 42, "", "PPR", "half"]) {
+    ok(scoringKeyOf(mk(bad)) === null,
+      `\`scoring: ${JSON.stringify(bad)}\` -> lykill \`null\``);
+    ok(measuredEdge(mk(bad)) === null,
+      `og ENGIN maeld tala (annars vaeri PPR-talan birt sem hennar)`);
+  }
+  ok(scoringKeyOf(null) === null && scoringKeyOf(undefined) === null,
+    "og deild sem er sjalf `null` fellur ekki");
+
+  /* Og talan sem hefdi lekid er STAERD sem sest: PPR og standard eru
+     ~29 stigum ofan i sundur, svo thogul PPR-uppfletting a
+     standard-deild vaeri ekki namundunar-villa. */
+  const p = measuredEdge(mk("ppr")), st = measuredEdge(mk("standard"));
+  ok(p && st && Math.abs(p.mean - st.mean) > 10,
+    `og snidin eru raunverulega olik (${p.mean} a moti ${st.mean}) — ` +
+    "thogul uppfletting i rangri toflu vaeri EKKI namundun");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
