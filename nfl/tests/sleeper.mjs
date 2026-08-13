@@ -874,6 +874,37 @@ console.log("\n2g. litun eftir lifun");
   ok(/#27\b/.test(text()),
     "og nefnir naesta val MITT (#27 — saeti 7 af 10, 20 vol komin)");
 
+  /* ------------------------------------------------------------
+     OG KASSINN VERDUR AD SEGJA SOMU TOLUNA — LESID AF SKJANUM
+     ------------------------------------------------------------
+     Talan hér ofan kemur ur BORDINU (`nextOwn`). Radgjafarkassinn
+     skrifadi sina eigin (`Your next pick is X, Y picks away`) og thaer
+     voru samhljoda i 6 af 60 volum: i thessari nakvaemu svidsmynd sagdi
+     sami skjar "#27" og "next pick is 40, 19 picks away".
+
+     `tests/advice.mjs` kafli 12 ver hreinu rokfraedina og `wiring.mjs`
+     ver ad `nextPick` se SENT. HVORUGT LES SKJAINN. Fyrri fullyrdingin
+     hér (`/#27\b/`) er tilvist EINNAR tolu; hun getur ekki sed ad ONNUR
+     tala a sama skja se osatt vid hana. Þess vegna eru thaer bornar
+     saman hér, i DOM-inu, thar sem notandinn ser thaer.               */
+  {
+    const t = text();
+    const box = t.match(/Your next pick is\s*(\d+),\s*(\d+) picks? away/);
+    ok(!!box, `kassinn birtir naesta val og bid (${box ? box[0] : "FANNST EKKI"})`);
+    if (box) {
+      ok(box[1] === "27",
+        `og thad er SAMA talan sem bordid litar med — 27 (kassinn: ${box[1]})`);
+      ok(Number(box[2]) === 27 - 21,
+        `og bidin er samhljoda tolunni (${box[2]}, vaentanlegt ${27 - 21})`);
+    }
+    /* Valnumerid i hausnum a kassanum lika — thad var `taken.size + 1`
+       og telur nu oporud vol med (`pickNo`). */
+    const hdr = t.match(/Pick\s*(\d+)\s*—\s*take this/);
+    ok(!!hdr, `kassinn birtir valnumerid sjalft (${hdr ? hdr[0] : "FANNST EKKI"})`);
+    if (hdr) ok(hdr[1] === "21",
+      `og thad er 21 (20 vol komin) — ekki bara "einhver tala" (${hdr[1]})`);
+  }
+
   /* Toppurinn a bordinu ma EKKI vera "likely" — saeti 7 velur naest i
      vali 14, og ADP 1-3 er longu farinn tha. Snuin threp faella thetta. */
   const firstRows = [...document.querySelectorAll("table.data tbody tr")].slice(0, 3);
