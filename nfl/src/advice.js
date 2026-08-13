@@ -460,18 +460,54 @@ export const MEASURED = {
   sdRuleFitted: 1.082,
   sdRuleSample: 1882,
 
-  /* Hermun 2022-2025, 12-lida snakk, oll saeti, motherjar eftir ADP.
-     Bradanauðsyn gegn thvi ad taka einfaldlega besta A-Ranking-mann. */
+  /* ============================================================
+     ÞESSAR TOLUR ERU AFRIT AF DISKI OG ÞAER VORU URELTAR
+     ============================================================
+     `scripts/advice-lab.mjs` skrifar `data/advice_<scoring>.json`.
+     Þetta safn bar hins vegar tolur ur ELDRI keyrslu — TOLF talna
+     skekkja, fundin i yfirferd 12.8.2026:
+
+       urgencyVsARank.ppr       13,6 -> 16,44   (lo/hi og winYears lika)
+       urgencyVsARank.standard -63,8 -> -60,06
+       fjoldi tímabila            4  -> 5       (2021-2025, ekki 2022-2025)
+       aRankVsAdp.ppr          239,4 -> 264,08
+       aRankVsAdp.standard     267,1 -> 197,46  <- naestum vidsnuid
+
+     Sidasta lina er su alvarlegasta: bokada standard-talan var HAERRI
+     en ppr, sem er ondverdt vid maelinguna. Þad les eins og A-Ranking
+     vinni MEST i standard-deildum, sem er einfaldlega ekki thad sem
+     stendur a diski.
+
+     NIDURSTADAN HAGGAST SAMT EKKI OG ÞAD ER ATRIDID: ppr-CI inniheldur
+     enn null (-28,3 til +43,9) og standard er enn marktaekt NEGATIFT,
+     svo `urgencyDrivesOrder: false` stendur oskert. Skekkjan var i
+     TOLUNUM sem eru BIRTAR, ekki i akvordunininni. Þad gerir hana ekki
+     omerkilega — birt tala sem ekkert bakar upp er nakvaemlega thad sem
+     thetta verkefni segir vera verstu utkomuna.
+
+     Vordur: `tests/advice.mjs` kafli 13 les `data/advice_*.json` og
+     fellur ef eitt einasta svid rekur. Afrit an vardar rekur ALLTAF —
+     thad er ekki tilgata, thad er thad sem gerdist hér.
+
+     Hermun: 12-lida snakk, OLL 12 saetin, motherjar drafta eftir ADP,
+     skorad a raunverulegum stigum. Timabil 2021-2025.               */
   urgencyVsARank: {
-    ppr: { diff: 13.6, lo: -42.4, hi: 47.9, significant: false, winYears: 3, years: 4 },
-    standard: { diff: -63.8, lo: -100.4, hi: -21.9, significant: true, winYears: 0, years: 4 },
+    ppr: { diff: 16.44, lo: -28.3, hi: 43.94, significant: false, winYears: 4, years: 5 },
+    standard: { diff: -60.06, lo: -92.48, hi: -26.72, significant: true, winYears: 0, years: 5 },
   },
   /* NIDURSTADAN: bradanauðsyn radar EKKI. Sja langa notu i `recommend`. */
   urgencyDrivesOrder: false,
 
-  /* A-Ranking gegn hraru ADP i somu hermun — thad sem RAEDUR. */
+  /* A-Ranking gegn hraru ADP i SOMU hermun — thad sem RAEDUR.
+
+     ÞETTA ER ONNUR TALA EN "+234" I README OG ÞAER ERU EKKI I MOTSOGN.
+     README-taflan er WALK-FORWARD 2015-2025 (lambda valid med
+     krossprofun innan thjalfunargagna, 11 profar); thessi er hermunin
+     2021-2025 sem `advice-lab` keyrir. Sitthvor honnun, sitthvor tala.
+     Sama lexia og VBD-villan gaf: TALA AN HARNESS ER OSAMANBURDARHAEF. */
   aRankVsAdp: {
-    ppr: { diff: 239.4, significant: true },
-    standard: { diff: 267.1, significant: true },
+    ppr: { diff: 264.08, lo: 170.4, hi: 344.6, significant: true },
+    standard: { diff: 197.46, lo: 91.68, hi: 298.38, significant: true },
   },
+  seasons: [2021, 2022, 2023, 2024, 2025],
 };

@@ -656,7 +656,27 @@ endurgert sjálfstætt áður en það var lagfært:
 | besti spyrnumaður | **VBD 110,0, sæti 5** á borðinu — fyrir ofan Ja'Marr Chase | ekkert VBD |
 | K/DST í topp 20 | **13** | **0** |
 | K/DST í topp 50 | **29** | **0** |
-| raunverulegir leikmenn með annað þrep | **30 af 558** (Henry 10→7, Barkley 10→7, Allen 14→11) | — |
+| raunverulegir leikmenn með annað þrep | **16 af 555** | — |
+
+> **ÞESSAR FJÓRAR TÖLUR REKA — OG TVEIR HARNESS GEFA SITTHVORT SVAR.**
+> Þetta var bókað sem „30 af 558" og var **rétt þegar það var mælt**. Tölurnar
+> eru reiknaðar úr `data/players.json`, sem pipelinan endurskrifar **daglega**
+> (ADP og Sleeper-spár); milli 11.8. og 13.8. fór þrepa-talan í **16 af 555**
+> án þess að einni línu af kóða væri breytt.
+>
+> Og þær eru **harness-háðar**. `vbdbase-lab.mjs` mælir sömu villu og fær
+> **sæti 7**, **10** af topp 20 og **28** af topp 50 — því það kallar
+> `computeVbd` á öllum 1.038 leikmönnum með spá, meðan `buildRows` gefur 631
+> raðir. **Hvorugt er rangt; þau mæla sitthvora laug.** Taflan hér að ofan er
+> app-leiðin (`buildRows`), því hún er sú sem notandinn hefði séð.
+>
+> Yfirferð 12.8. las disk-töluna og bókaða töluna sem **mótsögn**. Hún var það
+> ekki — hún var **tvær ómerktar laugar**. Lærdómurinn er almennur og hann er
+> nákvæmlega sama ættar og reglan um línutölur í `CLAUDE.md`: **tala úr skrá
+> sem er endurskrifuð daglega er dæmi með dagsetningu, ekki fasti** — og
+> **tala án harness er ósamanburðarhæf.** Þess vegna ver prófið
+> **invariantið** (spyrnumaður beri `null` VBD, enginn K/DST í topp 20),
+> sem rekur ekki með gögnunum.
 
 **Hvers vegna þetta slapp:** `build.js` síar K/DST úr `aRank` gegnum
 `RANKED_POS`, svo **röðin sjálf var hrein og ekkert bakpróf haggaðist**. Talan

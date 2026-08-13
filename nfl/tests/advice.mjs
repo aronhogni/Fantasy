@@ -501,5 +501,94 @@ console.log("\n12. bordid og kassinn eru samhljoda");
   }
 }
 
+/* ============================================================
+   13. `MEASURED` ER AFRIT AF DISKI — OG AFRIT REKA
+   ============================================================
+   `MEASURED` er handskrifad afrit af `data/advice_<scoring>.json`.
+   Yfirferd 12.8.2026 fann TOLF talna skekkju: hermunin hafdi verid
+   endurkeyrd med fimm timabilum (2021-2025) en `advice.js` bar enn
+   fjogurra-ara tolurnar — og `aRankVsAdp.standard` var 267,1 thar sem
+   diskurinn segir 197,46, sem er naestum vidsnuid vid ppr og las eins
+   og A-Ranking ynni MEST i standard.
+
+   NIDURSTADAN HAGGADIST EKKI (`urgencyDrivesOrder: false` stendur i
+   badum settum), og ÞAD er einmitt hvers vegna thetta gat lifad: ekkert
+   prof las tolurnar, adeins alyktunina. Birt tala sem ekkert bakar upp
+   er versta utkoman i thessu verkefni, hvort sem hun breytir akvordun.
+
+   Þetta er sama aett og "sjalfgefin gildi reka ekki i sundur" hér ofan,
+   nema tha var samanburdurinn milli tveggja KODASKRA; hér er hann milli
+   koda og MAELINGAR.                                                 */
+console.log("\n13. `MEASURED` ber somu tolur og diskurinn");
+{
+  const files = { ppr: "advice_ppr.json", standard: "advice_standard.json" };
+  let seen = 0;
+  for (const [scoring, f] of Object.entries(files)) {
+    const p = path.join(DATA, f);
+    if (!existsSync(p)) {
+      /* Vantandi maeling er EKKI thogn: hun er sogd, og hun fellur ekki
+         profid thvi lob eru ekki i pipeline. En hun ma ekki lata
+         kaflann lita eins og hann hafi maelt neitt — thess vegna er
+         `seen` fullyrdingin nedan. */
+      console.log(`  (${f} vantar — keyrdu scripts/advice-lab.mjs --scoring=${scoring})`);
+      continue;
+    }
+    const j = JSON.parse(readFileSync(p, "utf8"));
+    seen++;
+
+    const u = MEASURED.urgencyVsARank[scoring];
+    const d = j.vsARank;
+    const near = (a, b) => Math.abs(Number(a) - Number(b)) < 0.05;
+    ok(near(u.diff, d.diff),
+      `${scoring}: urgencyVsARank.diff ${u.diff} == diskur ${d.diff.toFixed(2)}`);
+    ok(near(u.lo, d.lo) && near(u.hi, d.hi),
+      `${scoring}: CI [${u.lo}, ${u.hi}] == diskur ` +
+      `[${d.lo.toFixed(2)}, ${d.hi.toFixed(2)}]`);
+    ok(u.winYears === d.winYears && u.years === d.years,
+      `${scoring}: winYears/years ${u.winYears}/${u.years} == diskur ` +
+      `${d.winYears}/${d.years}`);
+    /* MARKTAEKNI ER ALYKTUN AF CI, EKKI SJALFSTAED TALA. Hafi hun rekid
+       fra CI-inu er annad hvort logid. */
+    ok(u.significant === !!d.excludesZero,
+      `${scoring}: significant ${u.significant} == (CI utilokar null: ` +
+      `${!!d.excludesZero})`);
+
+    const a = MEASURED.aRankVsAdp[scoring];
+    ok(near(a.diff, j.vsAdp.diff),
+      `${scoring}: aRankVsAdp.diff ${a.diff} == diskur ${j.vsAdp.diff.toFixed(2)}`);
+    ok(a.significant === !!j.vsAdp.excludesZero,
+      `${scoring}: aRankVsAdp.significant == diskur`);
+
+    ok(JSON.stringify(MEASURED.seasons) === JSON.stringify(j.seasons),
+      `${scoring}: timabilin ${JSON.stringify(MEASURED.seasons)} == diskur ` +
+      `${JSON.stringify(j.seasons)}`);
+
+    /* Og standard MA EKKI vera haerri en ppr i `aRankVsAdp` — thad var
+       einkennid sem afhjupadi vidsnuninguna. Þessi fullyrding er ekki
+       almenn tolfraedi heldur MINNI um thessa tilteknu villu, og hun er
+       merkt sem slikt: se maeling einhvern tima ad snua thessu vid a hun
+       ad falla og verda skodud, ekki ad thagna. */
+    if (scoring === "standard") {
+      ok(MEASURED.aRankVsAdp.standard.diff < MEASURED.aRankVsAdp.ppr.diff,
+        `standard (${MEASURED.aRankVsAdp.standard.diff}) < ppr ` +
+        `(${MEASURED.aRankVsAdp.ppr.diff}) — vidsnuningurinn kemur ekki aftur`);
+    }
+  }
+  ok(seen > 0, `THEKJA: ${seen} af 2 maelingum lesnar (0 vaeri togn, ekki graent)`);
+
+  /* Og `sdRule` er sama aett — hun er lika afrit. */
+  const sp = path.join(DATA, "advice_ppr.json");
+  if (existsSync(sp)) {
+    const j = JSON.parse(readFileSync(sp, "utf8"));
+    ok(Math.abs(MEASURED.sdRuleFitted - j.sdRule.fitted) < 0.005,
+      `sdRuleFitted ${MEASURED.sdRuleFitted} == diskur ${j.sdRule.fitted}`);
+    ok(MEASURED.sdRuleSample === j.sdRule.n,
+      `sdRuleSample ${MEASURED.sdRuleSample} == diskur ${j.sdRule.n}`);
+    /* Og kodinn verdur ad nota thad sem hann segir ad hann noti. */
+    ok(SD_K === j.sdRule.used,
+      `SD_K ${SD_K} er talan sem lab-id keyrdi med (${j.sdRule.used})`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

@@ -486,8 +486,16 @@ console.log("\nval a skorpu-hopnum");
    gildi lesist sem 0, hér ad 0 lesist sem tomt. Sama villa.
 
    MAELT A RAUNVERULEGRI DEILD NOTANDANS (Sofahetjur: 12 lid, half-PPR,
-   HVORKI K NE DEF): besti spyrnumadur fekk VBD 110,0 i saeti **5** a
-   bordinu, fyrir ofan Ja'Marr Chase, og **13 af topp 20** voru K/DST.
+   HVORKI K NE DEF, gegnum `buildRows`): besti spyrnumadur fekk VBD 110,0
+   i saeti **5** a bordinu, fyrir ofan Ja'Marr Chase, og **13 af topp 20**
+   voru K/DST.
+
+   ÞESSAR TOLUR ERU DAEMI MED DAGSETNINGU (13.8.2026) OG ÞAER REKA:
+   `players.json` er endurskrifud daglega, svo threpa-talan for ur 30 af
+   558 i 16 af 555 a tveimur dogum. Og annad harness (`vbdbase-lab.mjs`,
+   oll 1.038 med spa i stad 631 rada) gefur saeti 7 og 10 af topp 20 —
+   hvorugt rangt, sitthvor laug. ÞESS VEGNA FULLYRDIR ÞETTA PROF UM
+   INVARIANTID OG ALDREI UM TOLUNA.
 
    PROFAD I BADAR ATTIR — thad er kjarninn. "K faer ekkert VBD" eitt vaeri
    satt um app sem gefur ALDREI K neitt VBD, og tha vaeri 10-lida deildin
@@ -538,7 +546,8 @@ console.log("\nstada an byrjunarsaetis");
 
   /* (c) ÞREPIN MA EKKI SMITAST. `build.js` reiknar `tierize` yfir OLL
      vbd-gildi, svo K/DST med falskt hatt VBD faerdu raunverulega
-     leikmenn i onnur threp (maelt: 30 af 558). */
+     leikmenn i onnur threp (maelt 13.8.2026: 16 af 555 — sja hausinn,
+     talan rekur med daglegu gognunum og er thvi EKKI fullyrt hér). */
   const tiersNo = tierize(outNo.map((r) => r.vbd));
   ok(tiersNo.length === outNo.length,
     "tierize skilar einu gildi per rod (null halda ser)");

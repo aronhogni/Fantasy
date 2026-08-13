@@ -190,13 +190,32 @@ export function computeVbd(players, league) {
 
        MAELT A RAUNVERULEGRI DEILD (Sofahetjur: 12 lid, half-PPR, HVORKI
        K NE DEF — nakvaemlega thad sem `startersFromRoster` gefur ur
-       `roster_positions` theirrar deildar):
+       `roster_positions` theirrar deildar), GEGNUM `buildRows` — sem er
+       leidin sem NOTANDINN ser, ekki endurutfaersla:
          · besti spyrnumadur fekk VBD 110,0 og sat i saeti **5** a
            bordinu — fyrir ofan Puka Nacua og Ja'Marr Chase
          · **13 af topp 20** og **29 af topp 50** voru K/DST
          · og af thvi ad `build.js` reiknar `tierize` yfir OLL vbd-gildi
-           fengu **30 af 558** raunverulegum leikmonnum annad threp
-           (Derrick Henry 10->7, Saquon Barkley 10->7, Josh Allen 14->11)
+           fengu **16 af 555** raunverulegum leikmonnum annad threp
+
+       ÞESSAR FJORAR TOLUR REKA OG ÞAD ER EKKI VILLA. Þaer eru reiknadar
+       ur `data/players.json`, sem pipelinan endurskrifar DAGLEGA (ADP og
+       Sleeper-spar). Milli 11.8. og 13.8. for threpa-talan ur 30 af 558
+       i 16 af 555 an thess ad einni linu af kodanum vaeri breytt.
+       Tolurnar eru thvi DAEMI MED DAGSETNINGU (13.8.2026), ekki fastar.
+
+       OG ÞAER ERU HARNESS-HADAR. `vbdbase-lab.mjs` maelir SOMU villu og
+       fær saeti **7**, **10** af topp 20 og **28** af topp 50 — thvi thad
+       kallar `computeVbd` a ollum 1.038 leikmonnum med spa, medan
+       `buildRows` gefur 631 rader. Hvorugt er rangt; thau maela sitthvora
+       laug. Talan sem er BOKUD hér er app-leidin, thvi hun er su sem
+       notandinn hefdi sed. TALA AN HARNESS ER OSAMANBURDARHAEF — thad
+       var einmitt thad sem let tvaer rettar maelingar lita ut eins og
+       motsogn i yfirferd.
+
+       ÞESS VEGNA VER PROFID INVARIANTID, EKKI TOLUNA: `tests/model.mjs`
+       kafli 8 krefst thess ad hver spyrnumadur beri `null` VBD og ad
+       ENGINN K/DST se i topp 20 — hvorugt rekur med gognunum.
 
        HVERS VEGNA ÞETTA SLAPP: `build.js` siar K/DST ur `aRank` gegnum
        `RANKED_POS`, svo RODIN sjalf var hrein og ekkert bakprof haggadist.

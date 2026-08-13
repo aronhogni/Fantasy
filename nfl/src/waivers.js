@@ -97,7 +97,9 @@ export const WAIVER_CAL = {
     measured: true,
     note: "Gain is the difference in value over replacement for YOUR league, not " +
           "the difference in projected points. A-Ranking (the VBD order) beat raw " +
-          "ADP by 233.6 points and won all five clean seasons; that is the measured " +
+          "ADP by 233.6 points and won all five clean seasons (model_eval_ppr.json, " +
+          "models[0] `Sleeper projection -> VBD`, vsAdp.diff 233.56, CI " +
+          "[148.8, 296.1]); that is the measured " +
           "claim this ranking rests on. AND THE WEEKLY ALTERNATIVE IS MEASURED " +
           "DEAD: waiver-lab puts a weekly-projection currency at -74.6 points a " +
           "season against this one (CI [-91, -57]), and dropping the " +
