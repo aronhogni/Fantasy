@@ -439,7 +439,8 @@ export default function App() {
       {view === "myteam" && (
         <MyTeam key={activeId} leagueKey={activeId}
           rows={built.rows} league={league} news={extra.news} meta={meta}
-          market={core.market} schedule={core.schedule} defense={extra.defense} />
+          market={core.market} schedule={core.schedule} defense={extra.defense}
+          sleeperUser={sleeperUser.name || ""} />
       )}
       {view === "market" && (
         <Market market={core.market} rows={built.rows} meta={meta}

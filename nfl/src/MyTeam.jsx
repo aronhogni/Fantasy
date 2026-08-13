@@ -31,7 +31,7 @@ import { currentWeek, weekContext, weekRows, onByeThisWeek } from "./weekview.js
 import { newsForRoster, injuredOn } from "./newsmatch.js";
 
 export default function MyTeam({ rows, league, news, meta, market, schedule, defense,
-                                 leagueKey }) {
+                                 leagueKey, sleeperUser }) {
   /* HOPURINN ER BUNDINN DEILDINNI — sja `scoped` i `data.js`. Deildu
      tvaer deildir sama `myPicks` vaeri uppstillingin reiknud ur
      leikmonnum sem thu eigir i ANNARRI deild, og hun vaeri trulega
@@ -115,7 +115,7 @@ export default function MyTeam({ rows, league, news, meta, market, schedule, def
       )}
       <RosterSource rows={rows} ids={ids} setIds={setIds}
         season={meta && meta.season} onSleeper={setSleeperRoster}
-        sleeperRoster={sleeperRoster} />
+        sleeperRoster={sleeperRoster} sleeperUser={sleeperUser} />
 
       {roster.length === 0 ? (
         <div className="panel"><div className="empty">
@@ -135,8 +135,25 @@ export default function MyTeam({ rows, league, news, meta, market, schedule, def
 /* ============================================================
    HVADAN KEMUR HOPURINN
    ============================================================ */
-function RosterSource({ rows, ids, setIds, season, onSleeper, sleeperRoster }) {
-  const [user, setUser] = useState("");
+function RosterSource({ rows, ids, setIds, season, onSleeper, sleeperRoster,
+                        sleeperUser }) {
+  /* NOTANDANAFNID BYR I `App.jsx` OG ÞESSI FLIPI VISSI ÞAD EKKI.
+     `sleeperUser` var hift upp i `App` svo forsidan gaeti vitad hvert af
+     tiu lidum er mitt, og `Dashboard` og `DraftBoard` fengu thad — en
+     `MyTeam` ekki. Flipinn bad thvi notandann ad sla inn thad sem appid
+     GEYMDI ÞEGAR: hann sagdi "No roster yet. Load a Sleeper league
+     above" medan forsidan birti raunverulega hopinn fyrir somu deild.
+
+     Þetta er falinn flipi, en thad er nakvaemlega astaedan fyrir thvi ad
+     hann var faldur og EKKI fjarlaegdur (`App.jsx`: hann ber
+     `benchRegret`, sem er ekki a forsidunni). MAELING SEM ER VARDVEITT I
+     FLIPA SEM ER OTENGDUR ER VARDVEITT I ORDI EN EKKI I VERKI.
+
+     `useState(sleeperUser || "")` og ekki `value={sleeperUser}`: reiturinn
+     er afram STYRDUR AF NOTANDANUM — hann ma sla inn annad nafn hér an
+     thess ad thad breyti thvi sem forsidan notar. Gefna nafnid er
+     UPPHAFSGILDI, ekki las. */
+  const [user, setUser] = useState(sleeperUser || "");
   const [leagues, setLeagues] = useState(null);
   const [status, setStatus] = useState(null);
 

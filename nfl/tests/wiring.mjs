@@ -62,6 +62,46 @@ const read = (f) => readFileSync(path.join(SRC, f), "utf8");
    vandamal sem `no-icelandic.mjs` i FPL-verkefninu laerdi a erfida
    hattinn: fyrsta utgafan notadi regex og gleypti 200 linur af koda
    sem einn "streng". */
+/* ============================================================
+   INNFLUTNINGS-STRIPPUNIN VAR SJALF BILUD — LOGUD 13.8.2026
+   ============================================================
+   Hver kafli hér notadi
+     `stripImports(code)`
+   til ad undanskilja innflutningslinurnar svo thaer geti ekki talid sem
+   kall. `[\s\S]*?` fer YFIR LINUSKIL, svo med `m`-flagginu leitar hun ad
+   naesta `;` sem endar linu — hvar sem hann er. I `App.jsx` at hun
+   **2.749 stafi**, tha.m. allan `<Dashboard …/>` og `<MyTeam …/>`.
+
+   ÞAD VAR ÞOGULT. Fullyrdingarnar sem eftir voru fundu sin kall i thvi
+   sem LIFDI og urdu graenar; safnid sem er til thess ad greina "kall er
+   horfid" gat ekki greint "helmingur skrarinnar er horfinn". Nakvaemlega
+   sama aett og `react-warnings.mjs` sem heimsotti 0 af 22 vidmotum og var
+   graent (CLAUDE.md 5b) — og hér i safninu sem er skrifad UM thá villu.
+
+   Nu er strippunin LINU-BUNDIN: linur sem BYRJA a `import` eru felldar,
+   og fjol-linu innflutningur heldur afram thar til lina endar a `;`.
+   Ekkert er fellt sem er ekki innflutningur, og `assertStrip` nedan
+   fullyrdir thad berum ordum.                                        */
+function stripImports(src) {
+  const out = [];
+  let inImport = false;
+  for (const line of src.split("\n")) {
+    if (!inImport && /^\s*import\b/.test(line)) {
+      /* Ein lina sem endar a `;` er buin; annars heldur hun afram. */
+      if (!/;\s*$/.test(line)) inImport = true;
+      out.push(" ");
+      continue;
+    }
+    if (inImport) {
+      if (/;\s*$/.test(line)) inImport = false;
+      out.push(" ");
+      continue;
+    }
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
 function stripComments(s) {
   return s
     .replace(/\/\*[\s\S]*?\*\//g, " ")
@@ -82,7 +122,7 @@ console.log("\n1. pollunin er tengd");
   for (const fn of ["pickSignature", "pollDelay"]) {
     /* Kall, ekki nefning: `fn(` med svigi. Innflutningslinan sjalf er
        undanskilin svo hun geti ekki talid sem kall. */
-    const withoutImports = code.replace(/^\s*import[\s\S]*?;\s*$/gm, " ");
+    const withoutImports = stripImports(code);
     const calls = (withoutImports.match(new RegExp(`\\b${fn}\\s*\\(`, "g")) || []).length;
     ok(calls >= 1, `\`${fn}(\` er KALLAD i bordinu (${calls})`);
   }
@@ -113,7 +153,7 @@ console.log("\n2. maelda forskotid er tengt");
   const code = stripComments(read("DraftBoard.jsx"));
   ok(/from\s+["']\.\/rulebasis\.js["']/.test(code),
     "`DraftBoard.jsx` flytur inn `rulebasis.js`");
-  const withoutImports = code.replace(/^\s*import[\s\S]*?;\s*$/gm, " ");
+  const withoutImports = stripImports(code);
   ok(/\bedgeSentence\s*\(/.test(withoutImports),
     "`edgeSentence(` er KALLAD");
 
@@ -135,7 +175,7 @@ console.log("\n2. maelda forskotid er tengt");
 console.log("\n3. litunin er tengd");
 {
   const code = stripComments(read("DraftBoard.jsx"));
-  const withoutImports = code.replace(/^\s*import[\s\S]*?;\s*$/gm, " ");
+  const withoutImports = stripImports(code);
   for (const fn of ["nextOwnPick", "survivalProb"]) {
     ok(new RegExp(`\\b${fn}\\s*\\(`).test(withoutImports), `\`${fn}(\` er kallad`);
   }
@@ -166,15 +206,15 @@ console.log("\n3. litunin er tengd");
 console.log("\n4. innflutningurinn er tengdur");
 {
   const code = stripComments(read("DraftBoard.jsx"));
-  const withoutImports = code.replace(/^\s*import[\s\S]*?;\s*$/gm, " ");
+  const withoutImports = stripImports(code);
   for (const fn of ["leagueFromSleeper", "teamsFromLeague"]) {
     ok(new RegExp(`\\b${fn}\\s*\\(`).test(withoutImports), `\`${fn}(\` er kallad`);
   }
   const app = stripComments(read("App.jsx"));
-  ok(/\bnormalizeLeague\s*\(/.test(app.replace(/^\s*import[\s\S]*?;\s*$/gm, " ")),
+  ok(/\bnormalizeLeague\s*\(/.test(stripImports(app)),
     "`App.jsx` thvingar deildina gegnum `normalizeLeague(`");
   ok(/\bD\.scoped\s*\(|\bscoped\s*\(/.test(
-       stripComments(read("DraftBoard.jsx")).replace(/^\s*import[\s\S]*?;\s*$/gm, " ")),
+       stripImports(stripComments(read("DraftBoard.jsx")))),
     "og astandid er lyklad a deild (`scoped(`)");
 }
 
@@ -200,6 +240,52 @@ const x = 1;
     "og `setInterval(` i athugasemd telur ekki sem kall");
   ok(/const x = 1/.test(stripped), "en kodinn stendur eftir");
 
+  /* ------------------------------------------------------------
+     OG INNFLUTNINGS-STRIPPUNIN VERDUR AD FELLA ADEINS INNFLUTNING
+     ------------------------------------------------------------
+     Gamla regexid at 2.749 stafi ur `App.jsx` — tha.m. `<Dashboard/>` og
+     `<MyTeam/>` — og thad var ÞOGULT: fullyrdingarnar sem eftir voru
+     fundu sin kall i thvi sem lifdi og urdu graenar. Safn sem er til
+     thess ad greina "kall er horfid" gat ekki greint "helmingur
+     skrarinnar er horfinn".
+
+     Þessi kafli maelir thad: hver skra er strippud og TALIN, og
+     JSX-toggin sem eiga ad lifa VERDA ad lifa.                       */
+  const probe2 = [
+    'import React, { useState } from "react";',
+    'import * as D from "./data.js";',
+    'import {',
+    '  a, b,',
+    '} from "./x.js";',
+    'const y = 2;',
+    '  return <Foo bar={1} />;',
+  ].join("\n");
+  const st2 = stripImports(probe2);
+  ok(!/from "\.\/data\.js"/.test(st2), "einnar-linu innflutningur er felldur");
+  ok(!/from "\.\/x\.js"/.test(st2), "og fjol-linu innflutningur lika");
+  ok(/const y = 2/.test(st2) && /<Foo bar=/.test(st2),
+    "en kodinn OG JSX-id stendur eftir");
+
+  for (const f of ["App.jsx", "DraftBoard.jsx"]) {
+    const raw = stripComments(read(f));
+    const cut = stripImports(raw);
+    const lost = raw.length - cut.length;
+    /* Innflutningsblokkin i thessum skrám er undir 1.500 stofum. Hafi
+       meira horfid er strippunin ad eta koda — sem er nakvaemlega thad
+       sem gerdist. */
+    ok(lost < 1500,
+      `${f}: strippunin felldi ${lost} stafi (< 1500 = adeins innflutningur)`);
+  }
+  /* Og toggin sjalf. Þetta er fullyrdingin sem hefdi fellt gamla regexid
+     samstundis, og hun er hér thess vegna. */
+  {
+    const app = stripImports(stripComments(read("App.jsx")));
+    for (const tag of ["DraftBoard", "Dashboard", "MyTeam", "PlayerTable"]) {
+      ok(app.includes("<" + tag),
+        `\`<${tag}\` lifir strippunina i App.jsx`);
+    }
+  }
+
   /* Og skrarnar sem eru lesnar VERDA ad vera til og ekki tomar. */
   for (const f of ["DraftBoard.jsx", "App.jsx", "draft-sync.js",
                    "rulebasis.js", "advice.js", "sleeper-league.js"]) {
@@ -207,6 +293,81 @@ const x = 1;
     try { n = read(f).length; } catch { n = 0; }
     ok(n > 500, `${f} er lesin (${n} b)`);
   }
+}
+
+/* ============================================================
+   6. `sleeperUser` VERDUR AD KOMAST TIL ALLRA SEM ÞARFNAST HANS
+   ============================================================
+   Notandanafnid var hift upp i `App.jsx` svo forsidan gaeti vitad hvert
+   af tiu lidum er mitt. `Dashboard` fékk thad, `DraftBoard` fékk thad —
+   `MyTeam` EKKI. Flipinn bad thvi notandann ad sla inn thad sem appid
+   geymdi thegar: hann sagdi "No roster yet. Load a Sleeper league above"
+   medan forsidan birti raunverulega hopinn fyrir somu deild.
+
+   ÞETTA ER NAKVAEMLEGA GATID SEM ÞETTA SAFN ER TIL FYRIR og hvers vegna
+   thad er AST-prof: `MyTeam` er FALINN flipi, svo `data-resilience` opnar
+   hann i tomu astandi (thar sem "ekkert nafn" er RETT svar) og
+   `smoke.test` snertir hann ekki. Ekkert DOM-prof gat sed muninn a
+   "notandinn hefur ekki slegid inn nafn" og "appid gleymdi ad senda thad".
+
+   Sama aett og hift `sync` og `imported` — ástand sem er hift UPP verdur
+   ad vera sent NIDUR til hvers thess sem las thad adur, og listinn yfir
+   thá er ekki i haus fallsins.                                        */
+console.log("\n6. `sleeperUser` er sendur nidur");
+{
+  const app = stripComments(read("App.jsx"));
+  const noImports = stripImports(app).replace(/\n/g, " ");
+
+  /* Hver theirra thriggja sem les nafnid verdur ad FA thad. Talan er
+     fullyrding: faerist vidmot yfir a fjorda stad a hun ad falla hér og
+     verda skodud, ekki ad thagna. */
+  /* SKANNI, EKKI REGEX. Fyrsta utgafa notadi `<Tag[^>]*sleeperUser=` og
+     FELL a ollum thremur — thvi props eins og `onX={() => ...}` bera `>`
+     inni i sviga og `[^>]*` stoppar thar. Regexid var ekki ad maela thad
+     sem eg hélt; sama lexia og `no-icelandic.mjs` i FPL-verkefninu laerdi
+     thegar `/["']/` inni i regexi let hana gleypa 200 linur sem einn
+     streng. Hér er lesid fra taginu og fram ad naesta `<`, sem er
+     enda-mork props-listans i praxis.                                 */
+  const propsOf = (tag) => {
+    const i = noImports.indexOf("<" + tag + " ");
+    if (i < 0) return null;
+    const rest = noImports.slice(i + 1);
+    const end = rest.indexOf("<");
+    return end < 0 ? rest : rest.slice(0, end);
+  };
+  const consumers = ["DraftBoard", "Dashboard", "MyTeam"];
+  let wired = 0;
+  for (const name of consumers) {
+    const props = propsOf(name);
+    ok(props != null, `\`<${name}\` er teiknad i App.jsx`);
+    const has = props != null && /\bsleeperUser=/.test(props);
+    ok(has, `\`${name}\` faer \`sleeperUser\``);
+    if (has) wired++;
+  }
+  /* Og skanninn verdur ad geta brugdist — annars er thekjan hér ofan tom. */
+  ok(propsOf("Schedule") != null && !/\bsleeperUser=/.test(propsOf("Schedule")),
+    "og skanninn ser ad `Schedule` faer hann EKKI (maelitaekid virkar)");
+  ok(wired === consumers.length,
+    `THEKJA: ${wired} af ${consumers.length} vidmotum tengd`);
+
+  /* Og vidtakandinn verdur ad TAKA VID honum — prop sem er sent i
+     undirskrift sem nefnir hann ekki er thogul fjarvera. */
+  for (const f of ["MyTeam.jsx", "Dashboard.jsx"]) {
+    const sig = stripComments(read(f))
+      .match(/function\s+\w+\(\{([\s\S]*?)\}\)/);
+    ok(!!sig && /sleeperUser/.test(sig[1]),
+      `\`${f}\` tekur \`sleeperUser\` i undirskrift sinni`);
+  }
+
+  /* MYTEAM MA SAMT EKKI LASA REITINN. Gefna nafnid er UPPHAFSGILDI;
+     notandinn a ad geta slegid inn annad nafn thar an thess ad thad
+     breyti thvi sem forsidan notar. `value={sleeperUser}` vaeri las og
+     hefdi verid "lagfaering" sem taeki eiginleika ur appinu. */
+  const mt = stripComments(read("MyTeam.jsx"));
+  ok(/useState\(sleeperUser\s*\|\|\s*""\)/.test(mt),
+    "og notar hann sem UPPHAFSGILDI (`useState(sleeperUser || \"\")`)");
+  ok(!/value=\{sleeperUser\}/.test(mt),
+    "og lasar EKKI reitinn (`value={sleeperUser}` vaeri las)");
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
