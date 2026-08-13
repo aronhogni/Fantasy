@@ -183,6 +183,22 @@ console.log("\n3. litunin er tengd");
     "og threpin eru bædi notud (`reach-hi`, `reach-lo`)");
 
   /* ------------------------------------------------------------
+     OG `adpSd` VERDUR AD FARA MED — RAUNVERULEGA STADALFRAVIKID
+     ------------------------------------------------------------
+     `advice.js` fullyrdir ad raunverulegt `stdev` fra FFC se notad
+     ("ADP eitt dugar ekki"; `defaultSd` er BAKLEID). Stokkbreytingin
+     `survivalProb(r.adp, r.adpSd, np) -> (r.adp, null, np)` LIFDI —
+     ekkert prof sagdi ad breytan vaeri send.
+
+     OG AHRIFIN ERU LITIL, SEM ER LIKA VERT AD SEGJA: maelt a
+     `data/adp.json` (257 leikmenn med `sd`) breyta 2-3 rader af 257 um
+     lit vid val 27, `max |delta| = 0,155`. Fullyrdingin er thvi um
+     TENGINGUNA og hun er skrifud sem slik — hun heldur ekki fram ad
+     thetta se stor tala, thvi thad vaeri ekki satt.                   */
+  ok(/survivalProb\s*\(\s*r\.adp\s*,\s*r\.adpSd\s*,/.test(withoutImports),
+    "`survivalProb` faer `r.adpSd` — ekki `null`, sem er bakleidin");
+
+  /* ------------------------------------------------------------
      OG BORDID OG KASSINN VERDA AD LESA SOMU TOLUNA.
      ------------------------------------------------------------
      `tests/advice.mjs` kafli 12 ver ad `recommend` NOTI `nextPick`

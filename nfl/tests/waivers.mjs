@@ -610,5 +610,86 @@ console.log("\n11. WAIVER_CAL");
     `golfid er tala > 0 (${WAIVER_CAL.minGain.value})`);
 }
 
+/* ============================================================
+   FLEX MA EKKI TELJAST FAST SAETI — OG ÞAD VAR OPROFAD
+   ============================================================
+   `fixedSlotNeeds` sleppir FLEX viljandi: hann tekur yfirmengi stada,
+   svo hann bindur enga EINA stodu. Athugasemdin segir thad — en ekkert
+   prof sagdi thad, og stokkbreytingin
+
+     s.pos.length !== 1   ->   !s.pos.length
+
+   LIFDI. Hun laetur FLEX telja sem fast saeti a FYRSTU stodunni i
+   `s.pos`, sem i 10-lida 2FLEX-deildinni hans er RB:
+
+     RETT    : { QB: 1, RB: 2, WR: 2, TE: 1 }
+     STOKKBR.: { QB: 1, RB: 4, WR: 2, TE: 1 }      <- +2
+
+   ÞAD ER EKKI BIRTINGARVILLA. `cheapestDrop` notar tolurnar til ad
+   akveda hvern MA droppa, svo RB-krafan 4 i stad 2 blokkar LOGLEG
+   skipti — radgjofin segir tha "thu maetir ekki droppa hann" um mann
+   sem ma droppa, og haetir ad birta rettan pickup.
+
+   PROFID BER AFLEIDINGUNA, EKKI FALLID. `fixedSlotNeeds` er ekki flutt
+   ut (rett — hun er innri), svo krafan er maeld thar sem hun bitur: hopur
+   med NAKVAEMLEGA tveimur RB i 2FLEX-deild verdur ad geta droppat theim
+   thridja.                                                            */
+console.log("\nFLEX telst ekki fast saeti");
+{
+  const L = { teams: 10, scoring: "half-ppr",
+              starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+              flexPos: ["RB", "WR", "TE"], rounds: 15 };
+
+  /* Hopur: 1 QB, 3 RB, 2 WR, 1 TE. Fost saeti kalla a 2 RB, svo THRIDJI
+     RB er DROPPANLEGUR. Undir stokkbreytingunni kalla thau a 4 og hann
+     er ekki. */
+  const mine = [
+    { id: "q", name: "Q", pos: "QB", vbd: 40 },
+    { id: "r1", name: "R1", pos: "RB", vbd: 60 },
+    { id: "r2", name: "R2", pos: "RB", vbd: 50 },
+    { id: "r3", name: "R3", pos: "RB", vbd: 1 },     /* odyrasti — a ad falla */
+    { id: "w1", name: "W1", pos: "WR", vbd: 55 },
+    { id: "w2", name: "W2", pos: "WR", vbd: 45 },
+    { id: "t", name: "T", pos: "TE", vbd: 30 },
+  ];
+  const pool = [{ id: "new", name: "Nyr", pos: "WR", vbd: 70 }];
+
+  const res = pickupAdvice({ pool, mine, league: L, week: 5, minGain: 0 });
+  ok(Array.isArray(res) || (res && Array.isArray(res.moves || res.picks)),
+    "`pickupAdvice` skilar lista");
+  const moves = Array.isArray(res) ? res : (res.moves || res.picks || []);
+  ok(moves.length > 0,
+    `radgjofin finnur skipti (${moves.length}) — 70 a moti 1 er augljost`);
+  if (moves.length) {
+    const d = moves[0].drop;
+    ok(d && (d.id === "r3"),
+      `og hun droppar THRIDJA RB (${d ? d.id + " " + d.name : "ekkert"}) — ` +
+      "undir stokkbreytingunni er hann verndadur og skiptin blokkud");
+  }
+
+  /* ------------------------------------------------------------
+     OG PROFID VERDUR AD GETA BRUGDIST I HINA ATTINA.
+     ------------------------------------------------------------
+     Vaeri `fixedSlotNeeds` einfaldlega TOM myndi fullyrdingin ofan
+     standast lika — hver sem er maetti falla. Krafan er thvi TVIÞAETT:
+     thridji RB MA falla, en tveir fyrstu MA EKKI, thvi fost saeti kalla
+     a tvo. Þad er sama osamhverfan sem `playerlist-sort.mjs` kenndi.  */
+  const thin = [
+    { id: "q", name: "Q", pos: "QB", vbd: 40 },
+    { id: "r1", name: "R1", pos: "RB", vbd: 2 },
+    { id: "r2", name: "R2", pos: "RB", vbd: 3 },
+    { id: "w1", name: "W1", pos: "WR", vbd: 55 },
+    { id: "w2", name: "W2", pos: "WR", vbd: 45 },
+    { id: "t", name: "T", pos: "TE", vbd: 30 },
+  ];
+  const res2 = pickupAdvice({ pool: [{ id: "n2", name: "N2", pos: "WR", vbd: 90 }],
+    mine: thin, league: L, week: 5, minGain: 0 });
+  const m2 = Array.isArray(res2) ? res2 : (res2.moves || res2.picks || []);
+  const dropped2 = m2.length ? m2[0].drop && m2[0].drop.pos : null;
+  ok(dropped2 !== "RB",
+    `med ADEINS tveimur RB er hvorugur droppadur (fell: ${dropped2 || "ekkert"}) ` +
+    "— fost saeti eru virt, svo fullyrdingin ofan er ekki tom");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

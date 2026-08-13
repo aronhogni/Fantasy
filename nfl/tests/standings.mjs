@@ -628,5 +628,47 @@ console.log("\n9. rusl-svor");
     "gilt svar fer obreytt i gegn: 10 radir, 1815,34 a rostri 1, saeti 1 er rostur 5");
 }
 
+/* ============================================================
+   TVEIR ROSTRAR MED SAMA EIGANDA — SKEMMT SVAR, EKKI "FYRSTI"
+   ============================================================
+   `myRosterId` skilar `null` thegar tveir rostrar bera sama `owner_id`.
+   Þad er ekki mogulegt i Sleeper og vaeri skemmt svar; "fyrsti vinnur"
+   vaeri AGISKUN um hvada hopur er minn, og hun setur HOP ANNARS MANNS a
+   forsiduna hja notandanum — sem er verri utkoma en "vid vitum ekki".
+
+   Athugasemdin segir thad. Ekkert prof sagdi thad, og stokkbreytingin
+     if (direct.length > 1) return null   ->   return count(direct[0].roster_id)
+   LIFDI badar svidsmyndir.
+
+   Þetta tharf SKEMMT svar til ad bita, svo alvarleikinn er lagur — en
+   thad er nakvaemlega su gerd sem `untrusted-input.mjs` i FPL-verkefninu
+   var skrifad fyrir: uppspretta sem appid raedur engu um.             */
+console.log("\ntveir rostrar med sama eiganda");
+{
+  const dup = [
+    { roster_id: 1, owner_id: "u-me", settings: { wins: 5, losses: 1 } },
+    { roster_id: 2, owner_id: "u-me", settings: { wins: 1, losses: 5 } },
+    { roster_id: 3, owner_id: "u-other", settings: { wins: 3, losses: 3 } },
+  ];
+  const users = [{ user_id: "u-me", display_name: "Me" },
+                 { user_id: "u-other", display_name: "Other" }];
+
+  ok(myRosterId({ rosters: dup, users, userId: "u-me" }) == null,
+    "tveir rostrar med sama `owner_id` -> `null`, EKKI \"fyrsti vinnur\"");
+
+  /* Og fullyrdingin verdur ad geta brugdist: EINN rostr med thvi
+     audkenni verdur ad finnast, annars vaeri `null` bara "fallid finnur
+     aldrei neitt" og profid ofan einskis virdi. */
+  const okOne = dup.filter((r) => r.roster_id !== 2);
+  ok(myRosterId({ rosters: okOne, users, userId: "u-me" }) === 1,
+    "einn rostr med sama audkenni FINNST (1) — maelitaekid virkar");
+
+  /* Og nafna-leidin ma ekki hlaupa i skardið thegar audkennid er
+     tvirætt. Vaeri `null` fylgt eftir med nafna-uppflettingu vaeri
+     agiskunin komin inn bakdyrnar. */
+  ok(myRosterId({ rosters: dup, users, userId: "Me" }) == null,
+    "og nafnid \"Me\" gefur ekki heldur svar thegar audkennid er tviraett");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
