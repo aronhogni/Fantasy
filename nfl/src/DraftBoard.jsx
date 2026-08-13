@@ -39,8 +39,39 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      svissun, svo thessi upphafsgildi eru LESIN UPP A NYTT tha. */
   const kTaken = D.scoped("taken", leagueKey);
   const kMine = D.scoped("myPicks", leagueKey);
-  const [taken, setTaken] = useState(() => new Set(D.loadState(kTaken, [])));
-  const [myPicks, setMyPicks] = useState(() => new Set(D.loadState(kMine, [])));
+  /* ============================================================
+     AUDKENNIN ERU ÞVINGUD, EKKI ADEINS FYLKID
+     ============================================================
+     Þetta var `new Set(D.loadState(kTaken, []))`. Ytri gerdin var varin
+     (`[]` sjalfgefid) en HVERT STAK EKKI — sama villa og `imported` bar,
+     og hér er hun VERRI a einn hatt: hun hrynur EKKI og gefur ekkert
+     NaN. Hun gefur RANGAR TOLUR, og thaer eru skrifadar til baka:
+
+       ["4034","6794","11565"]   ->  3 drafted · Pick 4     (rett)
+       [{"a":1},{"b":2}]         ->  2 drafted · Pick 3
+       [null,null]               ->  1 drafted · Pick 2
+       [4034,6794]               ->  2 drafted · Pick 3 og ENGINN
+                                     strikadur ut a bordinu
+
+     Sidasta rodin magnar `pickNo`-villuna: GERDAR-DRIFT a audkenni
+     fleytir valnumerinu an thess ad strika nokkurn ut, svo bordid telur
+     ad tvo vol seu komin og synir samt bada leikmennina lausa.
+
+     TOLUR ERU UMBREYTTAR, EKKI FELLDAR. `4034` er audkenni sem ER til —
+     thad er thad sama og `"4034"` med annarri gerd (JSON-umferd um
+     eldri utgafu, handvirk breyting, annad tol). Ad fella thad vaeri ad
+     henda raunverulegu vali notandans; ad umbreyta thvi laetur bordid
+     strika rettan mann ut. `null`, hlutir og tomir strengir eru felldir,
+     thvi their bera ekkert audkenni.
+
+     Vordur: `saved-state.mjs` — blobbin fjogur hér ofan eru maeld, og
+     krafan er ad TALAN A SKJANUM se rett, ekki adeins ad appid lifi. */
+  const idSet = (v) => new Set((Array.isArray(v) ? v : [])
+    .map((x) => (typeof x === "string" ? x.trim()
+               : (typeof x === "number" && Number.isFinite(x)) ? String(x) : ""))
+    .filter(Boolean));
+  const [taken, setTaken] = useState(() => idSet(D.loadState(kTaken, [])));
+  const [myPicks, setMyPicks] = useState(() => idSet(D.loadState(kMine, [])));
   /* Vol sem Sleeper hefur skrad en bordid kann ekki ad para. Þau ERU
      komin, svo thau tilheyra valnumerinu — sja `pickNo` nedar. Ekki
      vistad: thad er lesid upp a nytt i hverri pollun og vistad gildi an

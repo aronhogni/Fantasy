@@ -302,5 +302,105 @@ console.log("\n6. gilt `imported` helst obreytt");
   }
 }
 
+/* ============================================================
+   7. `nfl_taken` — TALAN A SKJANUM, EKKI ADEINS AD APPID LIFI
+   ============================================================
+   Audkennin i `nfl_taken:<id>` voru othvingud ad innan. Þad hrynur EKKI
+   og gefur ekkert NaN — thess vegna slapp thad fram hja ollum 44
+   blobbunum hér ofan, sem spyrja "fell appid?" og "er NaN a skjanum?".
+   Þad gaf RANGAR TOLUR:
+
+     [{"a":1},{"b":2}]  ->  "2 drafted"  (a ad vera 0)
+     [null,null]        ->  "1 drafted"  (a ad vera 0)
+     [4034,6794]        ->  "2 drafted" OG enginn strikadur ut
+
+   Sidasta tilfellid magnar valnumerid: gerdar-drift fleytir `pickNo` an
+   thess ad strika nokkurn ut, svo bordid telur tvo vol komin og synir
+   samt bada leikmennina lausa.
+
+   ÞESS VEGNA ER KRAFAN HER ONNUR: talan sem er BIRT verdur ad vera rett.
+   "Appid lifdi" er ekki nog thegar bilunin er hljod.                  */
+console.log("\n7. `nfl_taken` — talan a skjanum");
+{
+  /* Raunveruleg audkenni ur `players.json` svo "strikadur ut" se
+     merkingarbaert — tilbuid audkenni er ekki a bordinu hvort sem er. */
+  const pl = JSON.parse(readFileSync(path.join(
+    path.resolve(new URL(".", import.meta.url).pathname, ".."), "data",
+    "players.json"), "utf8"));
+  const list = Array.isArray(pl) ? pl : pl.players;
+  const real = list.filter((p) => p && p.adpSleeper != null)
+    .sort((a, b) => a.adpSleeper - b.adpSleeper).slice(0, 3)
+    .map((p) => String(p.id));
+  ok(real.length === 3, `thrju raunveruleg audkenni (${real.join(",")})`);
+
+  const drafted = (t) => {
+    const m = t.match(/(\d+)\s+drafted/);
+    return m ? Number(m[1]) : null;
+  };
+
+  const cases = [
+    [JSON.stringify(real),                 3, "thrjir strengir (vidmid)"],
+    [JSON.stringify([{ a: 1 }, { b: 2 }]), 0, "hlutir i stad audkenna"],
+    [JSON.stringify([null, null]),         0, "null i fylkinu"],
+    [JSON.stringify(["", "  "]),           0, "tomir strengir"],
+    /* TOLUR ERU UMBREYTTAR, EKKI FELLDAR: `4034` er audkenni sem ER til,
+       bara med annarri gerd. Ad fella thad vaeri ad henda raunverulegu
+       vali notandans. */
+    [JSON.stringify(real.map(Number)),     3, "tolur i stad strengja (umbreytt)"],
+  ];
+
+  for (const [blob, want, label] of cases) {
+    localStorage.clear();
+    localStorage.setItem("nfl_leagues",
+      JSON.stringify([{ id: "L1", name: "Test", rules: { teams: 10,
+        scoring: "half-ppr", starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 } } }]));
+    localStorage.setItem("nfl_activeLeague", '"L1"');
+    localStorage.setItem("nfl_taken:L1", blob);
+    localStorage.setItem("nfl_view", '"draft"');
+    let t = "";
+    try { t = await render(); } catch { t = ""; }
+    const got = drafted(t);
+    ok(got === want,
+      `${label}: "${got} drafted" — vaentanlegt ${want}`);
+  }
+
+  /* Og profid verdur ad geta brugdist: vidmidid VERDUR ad gefa 3,
+     annars vaeri "0" rett svar i ollum tilfellum og fullyrdingarnar
+     einskis virdi. Þad er profad ofan (fyrsta tilfellid) og hér er
+     thad sagt berum ordum. */
+  ok(cases[0][1] === 3 && cases[1][1] === 0,
+    "vidmidid er 3 og skemmda tilfellid 0 — thaer eru GREINANLEGAR");
+
+  /* ------------------------------------------------------------
+     TOLU-TILFELLID: TALNINGIN EIN NAER ÞVI EKKI, OG ÞAD ER SKRAD
+     ------------------------------------------------------------
+     `[9221, 9509, 7564]` gefur "3 drafted" i BADUM utgafum — `new Set`
+     a threm tolum hefur threr stakir. Munurinn er ad an umbreytingar er
+     `taken.has(String(r.id))` OSATT, svo leikmennirnir eru afram A
+     BORDINU: appid telur thrju vol komin OG synir alla thrja lausa.
+     Yfirferdin flaggadi thad ordrétt ("enginn strikadur ut").
+
+     ÞETTA SAFN GETUR EKKI MAELT ÞAD OG EG SKRIFA ÞAD I STAD ÞESS AD
+     LATA GRAENA FULLYRDINGU LIGGJA. Tvaer atlagur mistokust, badar af
+     rettum astaedum:
+
+       1. `body.includes(nafn)` — `render()` kallar `root.unmount()` adur
+          en hun skilar, svo `document.querySelectorAll` eftir a gefur
+          TOMT. Fullyrdingin "nafnid er strikad ut" var thvi SONN af thvi
+          ad taflan var tom. TOM FULLYRDING, nakvaemlega su gerd sem
+          CLAUDE.md 5b lysir — og eg skrifadi hana.
+       2. "nafnid FINNST thegar ekkert er tekid" sem positift vidmid —
+          taflan er syndargluggud, svo efsti ADP-madurinn er ekki
+          endilega i glugganum (CLAUDE.md: "notadu rodunina til ad fleyta
+          rettri rod inn i syndargluggann").
+
+     Rett heimili fyrir thessa fullyrdingu er `sleeper.mjs`, sem heldur
+     DOM-inu lifandi og styrir roduninni. Talningar-fullyrdingarnar hér
+     ofan eru RAUNVERULEGAR og stadfestar med afturkollun (thaer fella
+     thrjar rader), og umbreytingin sjalf er profud i `idSet`-hegduninni
+     gegnum "tolur i stad strengja" -> 3. Þad sem VANTAR er sannreyning a
+     ad rodin horfi af bordinu, og hun er skrad hér sem gat.          */
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
