@@ -772,5 +772,118 @@ console.log("\nvorpunin sjalf");
     "og badar laugar eru lystar berum ordum");
 }
 
+/* ============================================================
+   9. ROKSTUDNINGURINN FYRIR `DEAD_GAMES` — BORINN VID DISKINN
+   ============================================================
+   `CURVE.deadBasis` sagdi "const0.5: -3.9 to -8.1 pp, const0: -11.4 to
+   -20.1 pp". ATTIN VAR RETT en hvorug talan var a diski: rett bil er
+   -4,6 til -9,4 og -21,1 til -25,6. Sidara var VANMAT um naestum helming.
+
+   OG SVO KOM ÞAD SEM GERIR ÞENNAN KAFLA ÞESS VIRDI: FYRSTA
+   LEIDRETTINGIN MIN VAR SJALF RONG. Eg las `curveTable.ptsPG.<gluggi>`
+   — sem er GLUGGINN sem notkun er maeld i og er TIMABILS-VID — fann
+   `const0.5` jakvaett i 5 af 6 holfum og skrifadi ad bokada
+   fullyrdingin vaeri ONDVERD vid maelinguna. Rett slod er
+   `.bins["w1-4"]`, vikubilid sem fullyrdingin talar um.
+
+   Sama villa og VBD-bokunin greiddi fyrir sama dag: tvaer RETTAR tolur
+   ur sitthvoru harness, bornar saman eins og thaer vaeru sama staerd.
+
+   ÞESS VEGNA VER ÞESSI KAFLI SLODINA, EKKI ADEINS TOLUNA. `deadClaim`
+   ber `source`, `bin`, `window` og `against`, og hér er tolunum flett
+   upp EFTIR THEIM SVIDUM — ekki eftir slod sem er skrifud i profid.
+   Fari bokunin ad benda a annan glugga fellur thetta prof, sem er
+   nakvaemlega hegdunin sem hefdi stodvad bædi villurnar.             */
+console.log("\n9. rokstudningurinn fyrir `DEAD_GAMES`");
+{
+  const C = USAGE_BLEND.curve;
+  const claim = C.deadClaim;
+  ok(claim && claim.const05 && claim.const0,
+    "`deadClaim` er maskinulesid, ekki adeins texti");
+  for (const f of ["source", "bin", "window", "against"]) {
+    ok(typeof claim[f] === "string" && claim[f].length > 2,
+      `\`deadClaim.${f}\` er skrifad (${claim[f]})`);
+  }
+  ok(/bins/.test(claim.source) && /w1-4/.test(claim.source),
+    "og `source` nefnir `bins[\"w1-4\"]` — SLODINA, ekki bara skrarheitid");
+
+  /* Uppflettingin fer eftir bokudu svidunum. */
+  const cell = (f, curve, bin) => {
+    const g = LAB.results[f] && LAB.results[f].grid &&
+              LAB.results[f].grid.ptsPG[claim.window];
+    return g && g[curve] && g[curve].bins && g[curve].bins[bin];
+  };
+
+  let cells = 0;
+  const drift = [];
+  for (const f of ["ppr", "half", "standard"]) {
+    for (const [key, curve] of [["const05", "const0.5"], ["const0", "const0"]]) {
+      const c = cell(f, curve, claim.bin);
+      if (!c) { drift.push(`${curve}/${f}: slodin finnst ekki`); continue; }
+      cells++;
+      if (Math.abs(claim[key][f] - c.delta) > 0.02)
+        drift.push(`${curve}/${f}: bokad ${claim[key][f]} != diskur ${c.delta.toFixed(2)}`);
+      const tKey = key + "T";
+      if (Math.abs(claim[tKey][f] - c.t) > 0.02)
+        drift.push(`${curve}/${f} t: bokad ${claim[tKey][f]} != diskur ${c.t.toFixed(2)}`);
+    }
+    /* Og seina bilid, sem er rokid FYRIR daudasvidinu. */
+    const late = cell(f, "const0.5", "w10-18");
+    if (late) {
+      cells++;
+      if (Math.abs(claim.const05Late[f] - late.delta) > 0.02)
+        drift.push(`const0.5/w10-18/${f}: bokad ${claim.const05Late[f]} != ${late.delta.toFixed(2)}`);
+    }
+  }
+  ok(cells === 9, `THEKJA: 9 holf lesin ur usage.json (fann ${cells})`);
+  ok(drift.length === 0,
+    `hvert bokad gildi ber diskinn (${drift.length} reka${
+      drift.length ? ": " + drift.join(" · ") : ""})`);
+
+  /* ALYKTANIRNAR VERDA AD FYLGJA TOLUNUM. Þad var gatid: talan var rong
+     og alyktunin sem hvildi a henni var samt skrifud eins og hun stædi. */
+  const early = ["ppr", "half", "standard"].map((f) => cell(f, "const0.5", claim.bin));
+  ok(early.every((c) => c.delta < 0),
+    `const0.5 tapar i w1-4 i OLLUM thremum snidum ` +
+    `(${early.filter((c) => c.delta < 0).length}/3)`);
+  ok(claim.constantBlendingHurtsEarly === true, "og flaggið segir thad sama");
+
+  const late = ["ppr", "half", "standard"].map((f) => cell(f, "const0.5", "w10-18"));
+  ok(late.every((c) => c.delta > 0),
+    `en VINNUR i w10-18 i ollum thremum (${late.filter((c) => c.delta > 0).length}/3)`);
+  ok(late.filter((c) => c.t >= 2).length === 3,
+    `og thad er marktaekt i ollum thremum (t >= 2 i ` +
+    `${late.filter((c) => c.t >= 2).length})`);
+  ok(claim.constantBlendingHelpsLate === true,
+    "og `constantBlendingHelpsLate` segir thad — merkid SNYST VID, " +
+    "sem er malefnalega rokid fyrir daudasvidinu");
+
+  const c0 = ["ppr", "half", "standard"].map((f) => cell(f, "const0", claim.bin));
+  ok(c0.every((c) => c.delta < -20) && c0.every((c) => c.t <= -3),
+    `const0 tapar meira en 20 pp i ollum thremum og marktaekt ` +
+    `(minnst ${Math.max(...c0.map((c) => c.delta)).toFixed(1)} pp, ` +
+    `t ${Math.max(...c0.map((c) => c.t)).toFixed(2)})`);
+
+  /* Textinn ma ekki bera GOMLU FULLYRDINGUNA. Leitad er ad ORDALAGI,
+     ekki ad tolustaf: fyrsta utgafa thessarar fullyrdingar leitadi ad
+     "-3.9" og felldi lagfaeringuna sina eigin, thvi `t -3.90` er ein af
+     nyju RETTU tolunum. Sama lexia og `\bNaN\b` i FPL-verkefninu. */
+  for (const gone of ["-3.9 to -8.1", "-11.4 to -20.1", "0.624/2.340/1.372"]) {
+    ok(!String(C.deadBasis).includes(gone),
+      `\`deadBasis\` ber ekki gomlu fullyrdinguna "${gone}"`);
+  }
+  ok("const0.5: -3.9 to -8.1 pp".includes("-3.9 to -8.1"),
+    "og leitin finnur hana se hun sett inn (maelitaekid virkar)");
+  ok(/w1-4/.test(C.deadBasis),
+    "`deadBasis` bendir a bilid sem rettlaetir thad (w1-4)");
+  ok(/REVERSES|reverses/.test(C.deadBasis),
+    "og nefnir vidsnuninginn seint a timabilinu");
+
+  ok(C.deadMeasured === false,
+    "`deadMeasured` er `false` — hvar svidid endar er val, ekki maeling");
+  ok(C.KMeasured === true,
+    "en `K` ER maelt og er merkt sem slikt");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

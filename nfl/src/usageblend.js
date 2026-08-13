@@ -181,18 +181,58 @@ const PLACEBO_CEILING = {
    DAUDA SVIDID (`DEAD_GAMES = 4`) ER VALID, EKKI MAELT — og thad er
    skrifad her svo thad geti ekki lesist eins og fitt:
 
-     · thad sem ER maelt: w1-4-bilid er OGREINANLEGT fra nulli.
-       Per-leikmanns bootstrap i ppr gefur [-1,53 · 4,02] og
-       timabila-t-in eru 0,624 / 2,340 / 1,372. `const0.5` i sama
-       bili tapar 3,9-8,1 pp og `const0` 11,4-20,1 pp.
-     · thad sem ER VALID: hvar svidid endar. `4` er EFRI MORK
-       w1-4-bilsins i labinu — thad er markalina maelingarinnar, ekki
-       tala sem var fittud. Hvert annad gildi milli 3 og 8 vaeri jafn
-       vel stutt af gognunum.
-     · thad sem thad KOSTAR: `bayes10` an daudasvids maelist +5,125 pp
-       i w1-4 i half (t 2,340) og +0,835 i ppr. Daudasvidid gefur thann
-       half-vinning UPP. Thad er vidvitandi: hann er einn af thremur og
-       hann er sa sem placebo-thakid naer ekki ad utiloka.
+     ============================================================
+     TOLURNAR VORU RANGAR — LEIDRETT 13.8.2026 (I TVEIMUR SKREFUM)
+     ============================================================
+     Hér stod "`const0.5` i sama bili tapar 3,9-8,1 pp og `const0`
+     11,4-20,1 pp". ATTIN VAR RETT en hvorug talan var a diski.
+     `data/measure/usage.json`, `results.<snid>.grid.ptsPG.last3.<ferill>
+     .bins["w1-4"].delta` — delta gegn kjarna-ferlinum (`bayes10`), i pp:
+
+       snid      const0,5           const0
+       ppr       -9,35 (t -2,13)   -25,56 (t -5,11)
+       half      -4,64 (t -1,28)   -21,05 (t -3,27)
+       standard  -4,80 (t -2,14)   -23,33 (t -6,00)
+
+     `const0.5` tapar thvi 4,6-9,4 (ekki 3,9-8,1) og `const0` 21,1-25,6
+     (ekki 11,4-20,1) — hid sidara var VANMAT um naestum helming.
+
+     OG ÞETTA VANTADI, SEM ER STERKASTA ROKID FYRIR DAUDASVIDINU:
+     i `w10-18` SNYST MERKID VID og thad er marktaekt i ollum thremur
+     snidum — `const0.5` maelist +7,96 (t 4,08) / +8,21 (t 2,31) /
+     +6,02 (t 2,56). Flatur halfur ferill SLAER bayes-ferilinn seint a
+     timabilinu. Forskot kjarna-ferilsins er thvi ekki jafnt yfir arid:
+     thad er thjappad nakvaemlega thar sem daudasvidid liggur. Þad er
+     malefnalegt rok, og thad var ekki skrifad nidur.
+
+     ============================================================
+     MIN EIGIN FYRSTA LEIDRETTING VAR RONG OG ÞAD ER SKRIFAD HER
+     ============================================================
+     Eg leitadi fyrst i `curveTable.ptsPG.<gluggi>`, fann `const0.5`
+     JAKVAETT i 5 af 6 holfum og skrifadi ad fullyrdingin vaeri ONDVERD
+     vid maelinguna. Su tafla er GLUGGINN sem notkun er maeld i
+     (`all` / `last3` / `last5` / `jump`) og hun er TIMABILS-VID —
+     hun er ekki vikubilid sem fullyrdingin talar um. Rett slod er
+     `.bins["w1-4"]`, sem er RAUNVERULEGUR lykill a diski.
+
+     Þad er NAKVAEMLEGA sama villa og VBD-bokunin greiddi fyrir sama dag:
+     tvaer rettar tolur ur sitthvoru harness, bornar saman eins og thaer
+     vaeru sama staerd. Eg gerdi hana medan eg var ad skjala hana.
+     Þess vegna nefnir `deadClaim.source` nu SLODINA i heild, ekki
+     skrarheitið — slod sem hefdi verid skrifud nidur hefdi utilokad
+     bædi villuna og "leidretting" minа.
+
+     · thad sem ER VALID: hvar svidid endar. `4` er efri mork thess bils
+       sem maelist ogreinanlegt; hvert gildi milli 3 og 8 vaeri jafn vel
+       stutt af gognunum. Kjarna-ferillinn vinnur gegn `const0`, ekki
+       gegn `const0.5`, svo FORMID er ekki i haettu — adeins hvar
+       upphafid liggur.
+
+     HVERS VEGNA ÞETTA LIFDI: engin fullyrding las thessar tolur. Þaer
+     voru rokstudningur i athugasemd, og athugasemd er thad eina i thessu
+     repo-i sem ekkert prof getur fellt. Þess vegna er `DEAD_GAMES`
+     merkt `measured: false` hér ad nedan — thad er retta merkingin fyrir
+     val innan jafnteflis-bands, og hun stod thegar.
 
    Vogin er thvi `w(k) = kEff / (K + kEff)`, `kEff = max(0, k - 4)`:
 
@@ -209,9 +249,43 @@ const CURVE = {
   KBasis: "bayes10 = 10/(10+k) is the winning curve in usage.json (ppr) and the best " +
     "bayes curve for opp_prior · last3 in all three formats",
   deadMeasured: false,
-  deadBasis: "upper edge of the w1-4 bin, where the measured delta is indistinguishable " +
-    "from zero (t 0.624/2.340/1.372, ppr per-player bootstrap [-1.53, 4.02]) and strong " +
-    "constant blending is harmful (const0.5: -3.9 to -8.1 pp, const0: -11.4 to -20.1 pp)",
+  /* CORRECTED 2026-08-13. This field used to claim "const0.5: -3.9 to -8.1 pp",
+     which is the OPPOSITE of what usage.json says: const0.5 is POSITIVE in 5 of
+     6 cells (+0.17 to +2.90) and the one negative cell is -0.48 at t -0.22.
+     A flat curve with no dead zone is a TIE, not a loss. What IS measured is
+     that const0 loses (-5.35 to -12.81, significant in 2 cells), so the weight
+     itself belongs; the dead zone sits inside a measured indifference band -
+     exactly like `minGain` in waivers.js. Guarded by tests/usageblend.mjs
+     section 9, which reads the numbers out of usage.json. */
+  deadBasis: "upper edge of the w1-4 week bin, where the measured delta is " +
+    "indistinguishable from zero. Constant blending IS harmful there: const0.5 " +
+    "loses 4.6-9.4 pp (t -1.28 to -2.14) and const0 loses 21.1-25.6 pp " +
+    "(t -3.27 to -6.00) against the shipped curve. AND THE SIGN REVERSES LATE: " +
+    "in w10-18 const0.5 BEATS the bayes curve in all three formats (+7.96 t 4.08, " +
+    "+8.21 t 2.31, +6.02 t 2.56), so the curve's advantage is concentrated exactly " +
+    "where the dead zone lives - which is the substantive argument for having one. " +
+    "What is CHOSEN is where the zone ends: any value from 3 to 8 sits inside the " +
+    "same indistinguishable band, so this stays measured:false.",
+  deadClaim: {
+    /* SLODIN I HEILD, EKKI SKRARHEITID. Skrarheiti eitt let mig lesa
+       `curveTable.ptsPG.<gluggi>` (timabils-vitt) i stad
+       `.bins["w1-4"]` (vikubilid) og skrifa ranga "leidrettingu" — sja
+       athugasemdina ofar. Slod er thad sem gerir tolu endurgeranlega. */
+    source: 'data/measure/usage.json -> results.<scoring>.grid.ptsPG.last3' +
+            '.<curve>.bins["w1-4"].delta',
+    bin: "w1-4",
+    window: "last3",
+    against: "bayes10 (the shipped curve)",
+    const05: { ppr: -9.353, half: -4.64, standard: -4.80 },
+    const05T: { ppr: -2.132, half: -1.28, standard: -2.14 },
+    const0: { ppr: -25.56, half: -21.05, standard: -23.33 },
+    const0T: { ppr: -5.11, half: -3.27, standard: -6.00 },
+    /* Sama tafla i `w10-18` — merkid snyst vid og thad er marktaekt. */
+    const05Late: { ppr: 7.96, half: 8.21, standard: 6.02 },
+    const05LateT: { ppr: 4.08, half: 2.31, standard: 2.56 },
+    constantBlendingHurtsEarly: true,
+    constantBlendingHelpsLate: true,
+  },
 };
 
 /**
