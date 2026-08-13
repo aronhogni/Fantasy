@@ -235,7 +235,28 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     setTaken((prev) => { const t = new Set(prev); t.delete(r.id); return t; });
     setMyPicks((prev) => { const m = new Set(prev); m.delete(r.id); return m; });
   };
-  const reset = () => { setTaken(new Set()); setMyPicks(new Set()); setOffBoard(0); };
+  /* ============================================================
+     RESET VERDUR AD SLITA SAMSTILLINGUNNI LIKA
+     ============================================================
+     Þetta hreinsadi `taken`/`myPicks`/`offBoard` en LET
+     Sleeper-tenginguna stada. Pollunin gengur a `sync.draftId`, svo
+     naesta polla (innan sekunda) kalladi `onPicks` med ollum volunum
+     aftur og bordid FYLLTIST UM LEID. Notandinn sa thvi engan mun.
+
+     Þad bitur nakvaemlega i tilfellinu sem beðið var um: MOCK-DRAFT.
+     Þu prufar eitt, vilt byrja upp a nytt — og "Reset board" gerdi
+     ekkert af thvi ad mock-draftid er enn tengt og enn med sin vol.
+
+     Þess vegna er `draftId` hreinsad med. `slot` (saetid) HELST: thad er
+     stilling notandans a deildinni, ekki hluti af thessu drafti, og hann
+     situr venjulega i sama saeti i naesta mock-i. Ad hreinsa hann vaeri
+     ad henda stillingu sem hann setti sjalfur.                        */
+  const reset = () => {
+    setTaken(new Set());
+    setMyPicks(new Set());
+    setOffBoard(0);
+    if (sync && sync.draftId) setSync((prev) => ({ ...prev, draftId: "" }));
+  };
 
   return (
     <>
@@ -279,7 +300,19 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
           <span className="dim" style={{ fontSize: 12.5 }}>
             {taken.size} drafted · {myPicks.size} yours
           </span>
-          <button className="act" onClick={reset} disabled={!taken.size}>Reset board</button>
+          {/* SKILYRDID VAR `!taken.size` OG ÞAD ER EKKI NOG: tengt
+              mock-draft med engum volum enn (eda vol sem bordid kann ekki
+              ad para) laesti hnappinn, svo notandinn gat ekki slitid sig
+              fra draftinu. Nu er hann virkur ef eitthvad er ad hreinsa —
+              vol, min vol, oporud vol EDA tenging. */}
+          <button className="act" onClick={reset}
+            disabled={!taken.size && !myPicks.size && !offBoard &&
+                      !(sync && sync.draftId)}
+            title={sync && sync.draftId
+              ? "Clears the board AND disconnects the draft — your seat is kept"
+              : "Clears every pick you have marked"}>
+            {sync && sync.draftId ? "Reset & disconnect" : "Reset board"}
+          </button>
         </div>
 
         {!meta.sharpMeasured && (

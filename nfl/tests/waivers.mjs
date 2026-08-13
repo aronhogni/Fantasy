@@ -39,6 +39,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { freeAgents, pickupAdvice, WAIVER_CAL } from "../src/waivers.js";
 import { buildRows } from "../src/build.js";
+import { slotsFor } from "../src/lineup.js";
 
 const DATA = path.resolve(new URL(".", import.meta.url).pathname, "..", "data");
 let fail = 0;
@@ -260,11 +261,42 @@ console.log("\n5. PROFSTEINN: sterkur hopur -> tomt, veikur hopur -> tillogur");
     `efsta tillagan er besti lausi madurinn: ${weakAdvice[0].add.name} ` +
     `(vaenti ${bestFree.name})`);
 
-  /* Sa sem fer ut a ad vera ODYRASTI sem ma fara — nakvaemlega hann,
+  /* Sa sem fer ut a ad vera ODYRASTI SEM MA FARA — nakvaemlega hann,
      ekki "einhver odyr". Fullyrding um "<=" vaeri sonn thott fallid
-     taeki hvern sem er af theim thremur odyrustu. */
-  const cheapest = w.mine.filter((m) => RANKED.includes(m.pos) && m.vbd != null)
-                         .sort((a, b) => a.vbd - b.vbd)[0];
+     taeki hvern sem er af theim thremur odyrustu.
+
+     ============================================================
+     "SEM MA FARA" ER EKKI ORDALAG — ÞAD ER SKILYRDID
+     ============================================================
+     Þessi utreikningur sleppti FOSTU BYRJUNARSAETUNUM og fell 13.8.2026:
+     hann vaenti Jacoby Brissett (-139,7) medan `pickupAdvice` droppadi
+     DJ Giddens (-139,0). Fallid var RETT — Brissett er EINI QB i hopnum
+     og fasta QB-saetid verndar hann; ad droppa hann skildi eftir tomt
+     byrjunarsaeti.
+
+     Fullyrdingin hafdi verid graen af TILVILJUN: thessir tveir eru
+     0,7 stigum i sundur, og daglega ADP-endurnyjunin (`players.json` er
+     endurskrifud af pipelinunni) fleytti QB-inum nidur fyrir hann.
+     ÞETTA ER SAMA LEXIA OG BOKUDU TOLURNAR I DAG: vaenting sem hangir a
+     tolu ur skra sem breytist daglega er ekki fullyrding, hun er
+     tilviljun sem bidur.
+
+     Nu er verndin reiknud med — sama regla og `fixedSlotNeeds` beitir:
+     stada sem er I NAKVAEMLEGA rettum fjolda fyrir fost saeti ma ekki
+     missa mann. */
+  const fixedNeed = {};
+  for (const sl of slotsFor(LEAGUE)) {
+    if (Array.isArray(sl.pos) && sl.pos.length === 1)
+      fixedNeed[sl.pos[0]] = (fixedNeed[sl.pos[0]] || 0) + 1;
+  }
+  const have = {};
+  for (const m of w.mine) if (m && m.pos) have[m.pos] = (have[m.pos] || 0) + 1;
+  const droppable = w.mine.filter((m) => RANKED.includes(m.pos) && m.vbd != null &&
+    (have[m.pos] || 0) > (fixedNeed[m.pos] || 0));
+  ok(droppable.length > 0,
+    `einhver ma fara (${droppable.length} af ${w.mine.length}) — ` +
+    "annars vaeri fullyrdingin nedan tom");
+  const cheapest = droppable.sort((a, b) => a.vbd - b.vbd)[0];
   ok(weakAdvice[0].drop.id === cheapest.id,
     `sa sem fer ut er ODYRASTI (${weakAdvice[0].drop.name} ${weakAdvice[0].drop.vbd}, ` +
     `vaenti ${cheapest.name} ${cheapest.vbd})`);
