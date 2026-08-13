@@ -192,6 +192,7 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 | **Notkun það sem er liðið af tímabilinu** (`usage-lab.mjs`) | **STENST — fyrsti vinningurinn.** `opp_prior` lokar **12,25 / 10,75 / 10,76%** af bilinu á móti 5,83 / 3,20 / 2,97, og **per-leikmanns CI útilokar núll í öllum þremur**. Ferillinn er niðurstaðan: **ekkert í vikum 1–4, +12,3 pp í vikum 10+** (6/6 tímabil). Sjá 4e — **ekki tengt enn**, plumbing vantar |
 | **Markaðurinn umfram `implied`** (`mktweek-lab.mjs`) | **FELLUR.** 0 af 45 hólfum standast öll fjögur skilyrðin i neinu sniði. Og **leikjaflæðis-folkloreið er RANGT**: hver staða gerir BETUR sem favorít, engin gerir betur á eftir — QB sem 10+ undirdogg er **−1,12**. Ósamhverfa: **12 af 12 CI innihalda núll** |
 | **Availability-taflan** (`avail-lab.mjs`) | **ÁGISKAÐA TAFLAN STENDUR.** Engin mæld tafla slær hana í neinu sniði. `Questionable = 0,75` er kvarðað 0,666 en ákvörðunin er **flöt**; `Doubtful` 0,25 á móti 0,009 er 28× skekkja sem kostar 0,143 pp. `practice_status` gefur upplýsingar en **ekki ákvarðanir** (+0,44 pp, CI innihaldur núll). **OG ÞAÐ AFHJÚPAÐI AÐ `gap-lab` ER BLINT Á AVAILABILITY** — sjá 4i |
+| **Handcuff / varamaður** (`handcuff-lab.mjs`) | **INNSAEI NOTANDANS VAR RETT OG STAERRA EN ÞAD HLJOMAR.** Fjarvistar-spikid er raunverulegt (QB +9,32, RB +4,86 yfir varamannsins eigin grunnlinu) en vikuna sem byrjunarmadurinn kemur til baka lifir adeins **19,6% (QB) / 8,1% (RB) / 2,0% (WR)** — og i raunverulegu akvordunininni er hann kominn aftur i 16–44% tilvika STRAX naestu viku, thar sem varamadurinn skorar **−11,77 (QB) / −2,53 (RB) / −5,01 (TE)**. „Hann skoradi vel i sidustu viku" er thvi EITRAD sem pickup-maelikvardi. **Appid er thegar rett** (`vbd`, ekki vikuleg stig) svo ekkert var tengt — sja 4j |
 | **Vörn gegn stöðu, sundurliðuð** (`defweek-lab.mjs`) | **FELLUR — 0 af 2.700 hólfum.** Andstæðings-leiðrétting **skaðar** (marktækt í half, t −5,87). Íhlutir flytjast ekki. `DEF_WEIGHT = 0,20` stendur. **OG ÞAÐ FANN VILLU Í MÆLIKVARÐANUM:** birta talan 5,831% var sjálf-smituð; hrein walk-forward er **3,482%**. Sjá 4h |
 | **Hvar liggja 94%** (`gap-lab.mjs`) | **Þakið er 29,3%** (TD 18,9 + nýtni 10,4). Vörn er **NULL-flaska** (enrichment 0,96×). Röð: availability → hlutverk → vörn ekki neitt. Sjá 4f |
 | **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+24,4 stig**, t=2,275, 8/11 ár, CI [+3,7, +43,7], einræn 4/4. Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
@@ -642,6 +643,81 @@ Pörun gsis↔gsis: **98,15%**, engin nafna-pörun. Lekaprófun: miðgildi **48,
 fyrir leik, 78% föstudags-stimplað, 8 af 10.061 röðum breyttar eftir kickoff
 (felldar). **2025 ber ekkert `date_modified`** og er því ekki leka-prófanlegt;
 næmnis-arm sem tekur það með gefur −0,808 pp, sama svar.
+
+### 4j. HANDCUFF — SPIKIÐ ER RAUNVERULEGT, OG „HANN SKORAÐI VEL Í SÍÐUSTU VIKU" ER GILDRA
+
+Notandinn spurði um handcuff-leikmenn og benti sjálfur á gildruna:
+
+> „kannski meiddist byrjunarliðsmaðurinn en hann er áætlaður strax í næsta leik,
+> þá verður gaurinn sem stóð sig mjög vel ekki relevant."
+
+**Þetta var mælt (`scripts/handcuff-lab.mjs`, 2019–2025, `data/measure/handcuff.json`)
+og innsæið er RÉTT — og stærra en það hljómar.**
+
+#### Spikið er raunverulegt og stórt
+
+Vika sem byrjunarmaðurinn spilar ekki, mælt gegn **varamannsins eigin
+grunnlínu** (PPR, `out+1`):
+
+| staða | spik | kemst yfir per-leikmanns bootstrap OG 8-sæta placebo-þak |
+|---|---|---|
+| QB | **+9,32** | **já** |
+| RB | **+4,86** | **já** |
+| TE | +2,35 | nei |
+| WR | −0,30 | nei |
+
+#### Vikuna sem byrjunarmaðurinn kemur til baka er það suð
+
+| staða | vikan eftir endurkomu | hlutfall spiksins sem lifir |
+|---|---|---|
+| QB | +1,56 | **19,6%** |
+| RB | −0,85 | **8,1%** |
+| WR | −1,69 | **2,0%** |
+| TE | +1,37 | 48,6% |
+
+**Tvær af fjórum stöðum eru ógreinanlegar frá núlli.** RB — sem er staðan sem
+fólk sækir á waiver — heldur **8%**.
+
+#### Og ákvörðunin sjálf: hann var startandi í fjarvistarvikunni, þú tókst hann upp
+
+| staða | byrjunarmaður kominn aftur | stig þá vikuna gegn varamanns-línu |
+|---|---|---|
+| QB | 16,0% | **−11,77** |
+| RB | 35,4% | **−2,53** |
+| WR | 44,4% | +1,65 |
+| TE | 40,6% | **−5,01** |
+
+> **„HANN SKORAÐI VEL Í SÍÐUSTU VIKU" ER EITRAÐUR MÆLIKVARÐI FYRIR PICKUP.**
+> Það er fullyrðing um viku sem er **þegar borguð**, og hún er **negatíf í 3 af
+> 4 stöðum** um leið og byrjunarmaðurinn er kominn aftur — sem hann er í
+> 16–44% tilvika strax næstu viku.
+>
+> **OG APPIÐ ER ÞEGAR RÉTT:** gjaldmiðillinn í `waivers.js` er `vbd`, ekki spáð
+> stig og ekki síðasta vika. `WAIVER_CAL.currency` bókar að vikuleg mynt mælist
+> **−74,6 stig/tímabil**. Þessi mæling er **óháð staðfesting á þeirri
+> ákvörðun** — úr allt öðru horni. **Ekkert var tengt á þessum gögnum**, því það
+> sem þau segja er *hvað á EKKI að gera*, og því er þegar fylgt.
+
+#### Hvað flyst — tvennt, og hvorugt er stórt
+
+- **Hlutdeild í spike-vikunni spáir því sem lifir hjá TE** (+2,53, CI leikmanna
+  [+0,39 · +2,31]) og **QB** (+3,61, CI [+0,64 · +3,95]). Ekki hjá RB (CI
+  innihaldur núll) né WR.
+- **Handcuff FYRIRFRAM** (varamaður á hlaupaglöðu liði, allt skilgreint úr
+  fyrstu fjórum leikjum) lifir í **QB/`teamPosTouchG`** (+3,67, t 3,55, 7/7 ár)
+  og **TE/`teamPosTouchG`** (+1,25, t 4,05, 7/7 ár). **RB fellur** (t 1,32, CI
+  [−0,43 · +1,50]) — og RB er staðan sem hugmyndin er alltaf sögð um.
+
+#### Helmingurinn sem er ekki mælanlegur, og hann er skráður sem slíkur
+
+„Hann er áætlaður strax í næsta leik" er **frétt**, og fréttir eru ekki
+bakprófanlegar hér: `news.json` er **rúllandi 50-greina gluggi án safns**,
+`injuryNote` er á **28 af ~1.040** leikmönnum og aðeins úr Sleeper (ESPN-fylkið
+var mælt og tekið út — **661 af 800** röðum sögðu „Active" og `espnId` var
+`null` á öllum 800), og `depth`/`depthPos` er **aðeins núverandi staða**.
+Þess vegna er „byrjunarmaður spilaði ekki" skilgreint **úr vikugögnunum sjálfum**
+og `depth` er **aldrei notað** í labinu. Nálgun sem lítur út eins og mæling er
+versta útkoman.
 
 ### 4b. VILLA Í `computeVbd` — `0` var lesið sem „vantar"
 
