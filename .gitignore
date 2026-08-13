@@ -20,3 +20,10 @@ nfl/node_modules/
 nfl/dist/
 # StatsBomb-atburdir sem measure-box-touches.mjs cache-ar (~600 MB rannsoknargogn)
 scripts/.boxtouch-cache/
+
+# Rannsoknar-skyndiminni fyrir maelinga-lob. HRAGOGN, ekki nidurstodur:
+# avail-lab.mjs saekir ~7 MB af nflverse-meidslaskram og cache-ar thau svo
+# endurkeyrsla se sekundur i stad minutna. Nidurstodan er i
+# nfl/data/measure/avail.json og HUN er committud; hraskrarnar eru
+# endurhladanlegar og eiga ekki ad vera i opinberu repo-i.
+nfl/scripts/.avail-cache/
