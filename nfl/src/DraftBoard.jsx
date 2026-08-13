@@ -41,6 +41,11 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   const kMine = D.scoped("myPicks", leagueKey);
   const [taken, setTaken] = useState(() => new Set(D.loadState(kTaken, [])));
   const [myPicks, setMyPicks] = useState(() => new Set(D.loadState(kMine, [])));
+  /* Vol sem Sleeper hefur skrad en bordid kann ekki ad para. Þau ERU
+     komin, svo thau tilheyra valnumerinu — sja `pickNo` nedar. Ekki
+     vistad: thad er lesid upp a nytt i hverri pollun og vistad gildi an
+     pollunar vaeri tala sem enginn getur leidrett. */
+  const [offBoard, setOffBoard] = useState(0);
   const [posFilter, setPosFilter] = useState([]);
 
   /* ============================================================
@@ -110,12 +115,38 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      eru til thess ad AUGAD greini hana i 200 rada toflu. Talan sjalf
      er i `title` a nafninu, svo enginn thurfi ad giska hvad tonninn
      thydir — og radgjofin les samfelldu toluna, aldrei tonninn.     */
+  /* ============================================================
+     VALNUMERID ER LEITT UT EINU SINNI, HER, OG SENT NIDUR
+     ============================================================
+     Þad var leitt ut a THREMUR stodum (`reach`, `nextOwn`, `NextPick`),
+     hvert ur `taken.size + 1`. Sama tala thrisvar er ekki bara
+     endurtekning heldur haetta — thaer gaetu rekid i sundur, og gerdu
+     thad: `NextPick` for adra leid ad naesta vali og skjarinn bar tvo
+     svor (sja hausinn a `picksUntilNext` i `advice.js`).
+
+     ============================================================
+     OG `taken.size` VAR EKKI RETTA TALAN
+     ============================================================
+     Sleeper-pollunin telur vol sem hun getur EKKI paradad vid bordid
+     (`unmatched.total`) — leikmenn sem eru ekki i `players.json`. Appid
+     BIRTIR thau ("3 picks are not on this board") en tok thau EKKI med
+     i valnumerid, svo bordid taldi ad thrju faerri vol vaeru komin.
+
+     Þad er ekki adeins tala a skjanum: `nextOwnPick(cur, ...)` skilar
+     FYRSTA eigin vali eftir `cur`, svo of lagt `cur` getur skilad vali
+     sem ER THEGAR LIDID — og lifunarlikur eru tha reiknadar til valnumers
+     sem kemur aldrei.
+
+     Þess vegna er `offBoard` lyft ur `SleeperSync`. Þad er TALA UR
+     SIDUSTU POLLUN, ekki summa — hver pollun telur ur ollum listanum,
+     svo hun er SETT og aldrei logd vid.                                */
+  const pickNo = taken.size + offBoard + 1;
+
   const reach = useMemo(() => {
     const m = new Map();
     const slot = sync && sync.slot;
     if (slot == null) return m;
-    const cur = taken.size + 1;
-    const np = nextOwnPick(cur, league.teams, slot, (league.rounds || 15) + 2);
+    const np = nextOwnPick(pickNo, league.teams, slot, (league.rounds || 15) + 2);
     if (np == null) return m;
     for (const r of rows) {
       if (r.adp == null) continue;
@@ -123,13 +154,13 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
       if (p != null) m.set(r.id, p);
     }
     return m;
-  }, [rows, taken.size, sync && sync.slot, league.teams, league.rounds]);
+  }, [rows, pickNo, sync && sync.slot, league.teams, league.rounds]);
 
   const nextOwn = useMemo(() => {
     const slot = sync && sync.slot;
     if (slot == null) return null;
-    return nextOwnPick(taken.size + 1, league.teams, slot, (league.rounds || 15) + 2);
-  }, [taken.size, sync && sync.slot, league.teams, league.rounds]);
+    return nextOwnPick(pickNo, league.teams, slot, (league.rounds || 15) + 2);
+  }, [pickNo, sync && sync.slot, league.teams, league.rounds]);
 
   /* ============================================================
      ALLAR BREYTINGAR ERU FOLL AF FYRRA ASTANDI, EKKI AF MYND AF THVI
@@ -156,9 +187,13 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
 
      Vordur: `tests/sleeper.mjs` kafli 2c bidur raunverulegar 5,5
      sekundur og krefst thess ad handvirkt val lifi pollunar-tikk. */
-  const onPicks = useCallback((ids, mineIds) => {
+  const onPicks = useCallback((ids, mineIds, offCount) => {
     setTaken((prev) => new Set([...prev, ...ids]));
     setMyPicks((prev) => new Set([...prev, ...mineIds]));
+    /* SETT, EKKI LOGD VID — `unknown` er talid ur ollum listanum i hverri
+       pollun. `null`/skokk gildi ma ekki verda `NaN` i valnumerinu. */
+    const n = Math.round(Number(offCount));
+    setOffBoard(Number.isFinite(n) && n >= 0 ? n : 0);
   }, []);
 
   const take = (r, mine) => {
@@ -169,7 +204,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     setTaken((prev) => { const t = new Set(prev); t.delete(r.id); return t; });
     setMyPicks((prev) => { const m = new Set(prev); m.delete(r.id); return m; });
   };
-  const reset = () => { setTaken(new Set()); setMyPicks(new Set()); };
+  const reset = () => { setTaken(new Set()); setMyPicks(new Set()); setOffBoard(0); };
 
   return (
     <>
@@ -190,7 +225,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
         onImportLeague={onImportLeague} onRereadRules={onRereadRules}
         shapes={shapes} />
 
-      <NextPick available={available} kdst={kdst} roster={myRoster} taken={taken}
+      <NextPick available={available} kdst={kdst} roster={myRoster} pick={pickNo} nextOwn={nextOwn}
         league={league} sync={sync} />
 
       <MarketMoving rows={rows} taken={taken} onTake={take} />
@@ -703,7 +738,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         lastSig.current = sig;
         if (ids.length > (lastCount.current ?? 0)) lastMove.current = Date.now();
         lastCount.current = ids.length;
-        onPicks(ids, mine);
+        onPicks(ids, mine, unknown);
       }
       setStatus(null);
     } catch (e) { setStatus(String(e.message || e)); }
@@ -1041,8 +1076,7 @@ function MeasuredEdge({ league, shapes }) {
    thvi hversu bratt stadan versnar — var maeld og hun TAPAR
    (marktaekt i standard). Lifunarlikur eru birtar sem upplysing.
    ============================================================ */
-function NextPick({ available, kdst, roster, taken, league, sync }) {
-  const pick = (taken ? taken.size : 0) + 1;
+function NextPick({ available, kdst, roster, league, sync, nextOwn, pick }) {
   const rec = useMemo(() => {
     if (!available.length) return null;
     try {
@@ -1051,10 +1085,13 @@ function NextPick({ available, kdst, roster, taken, league, sync }) {
           id: r.id, name: r.name, pos: r.pos, vbd: r.vbd,
           adp: r.adp, adpSd: r.adpSd, tier: r.tier, proj: r.proj,
         })),
-        roster, pick, league,
+        /* NAKVAEMLEGA SAMA TALA SEM BORDID LITAR MED — sja hausinn a
+           `picksUntilNext`. `null` (ekkert saeti thekkt) fellur i
+           afleidsluna, sem er rett i handvirku drafti. */
+        roster, pick, league, nextPick: nextOwn,
       });
     } catch { return null; }
-  }, [available, roster, pick, league]);
+  }, [available, roster, pick, league, nextOwn]);
 
   if (!rec || !rec.picks.length) return null;
   const top = rec.picks.slice(0, 5);

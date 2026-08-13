@@ -108,6 +108,45 @@ const BLOBS = [
   ["posFilter", '["ZZ"]',                       "stada sem er ekki til"],
   ["view", '"ekki-flipi"',                      "flipi sem er ekki til"],
   ["view", '{"a":1}',                           "hlutur i stad flipaheitis"],
+  /* ------------------------------------------------------------
+     `nfl_leagues` OG `nfl_sleeperUser` — LYKLARNIR SEM VORU UTUNDAN
+     ------------------------------------------------------------
+     Þetta safn profadi ADEINS gomlu einu-deildar lyklana (`nfl_league`,
+     `nfl_taken`, `nfl_sync`). Fjol-deildar lykillinn `nfl_leagues` og
+     `nfl_sleeperUser` voru **aldrei snertir**, svo hvert svid inni i
+     `imported` var oprofad — og fjogur theirra felldu appid i maelingu:
+     `status` sem tala (`.replace`), `flexPos` sem strengur (`.join`),
+     `leagueId` sem tala (`.slice`) og `name` sem hlutur
+     (`[object Object]` sem flipi).
+
+     UTGANGAN ER SU DYRASTA I APPINU: `loadEntries` les blobbid inn i
+     state og hledslan skrifar thad AFTUR ut, svo oheilt svid felldi
+     appid vid HVERJA hledslu, ad eilifu — og eini hnappurinn hreinsar
+     ALLAR deildir og allt bordid.                                    */
+  ["leagues", '[{"id":"a","name":"L","imported":{"leagueId":"1","status":3}}]',
+    "imported.status sem tala (.replace fell)"],
+  ["leagues", '[{"id":"a","name":"L","imported":{"leagueId":"1","flexPos":"RB/WR"}}]',
+    "imported.flexPos sem strengur (.join fell)"],
+  ["leagues", '[{"id":"a","name":"L","imported":{"leagueId":12345}}]',
+    "imported.leagueId sem tala (.slice fell)"],
+  ["leagues", '[{"id":"a","name":"L","imported":{"leagueId":"1","name":{"a":1}}}]',
+    "imported.name sem hlutur ([object Object])"],
+  ["leagues", '[{"id":"a","name":"L","imported":{"leagueId":"1","starters":[1,2,3]}}]',
+    "imported.starters sem fylki"],
+  ["leagues", '[{"id":"a","name":"L","imported":{"leagueId":"1","teams":"tiu","rounds":"fimmtan"}}]',
+    "imported.teams/rounds sem strengir"],
+  ["leagues", '[{"id":"a","name":"L","imported":"strengur"}]',
+    "imported sem strengur"],
+  ["leagues", '[{"id":"a","name":"L","imported":[]}]',
+    "imported sem fylki"],
+  ["leagues", '"strengur"',                     "leagues sem strengur"],
+  ["leagues", '[]',                             "tomur deildarlisti"],
+  ["leagues", '[{"name":"engin id"}]',          "faersla an audkennis"],
+  ["leagues", '[{"id":"a"},{"id":"a"}]',        "tvaer faerslur med sama audkenni"],
+  ["sleeperUser", '"aron"',                     "sleeperUser sem strengur"],
+  ["sleeperUser", '{"name":{"a":1}}',           "sleeperUser.name sem hlutur"],
+  ["sleeperUser", '{"name":42,"userId":[]}',    "name sem tala, userId sem fylki"],
+  ["sleeperUser", '[]',                         "sleeperUser sem fylki"],
 ];
 
 const render = async () => {
@@ -188,6 +227,58 @@ console.log("\ngilt astand helst obreytt");
   ok(!left.some((k) => k && k.startsWith("nfl_")),
     `clearState nær ollum nfl_* (eftir: ${left.join(", ") || "ekkert"})`);
   ok(left.includes("annad_app"), "og snertir ekki lykla annarra appa");
+}
+
+/* ============================================================
+   6. `imported` — GILT VERDUR AD FARA OBREYTT I GEGN
+   ============================================================
+   Kaflinn hér ofan sannar ad skokk svid komist ekki inn. Hann getur
+   EKKI sannad ad lagfaeringin se ekki einfaldlega `return null` a allt —
+   tha vaeri appid graent i ollum blobbum og notandinn hefdi tapad
+   innfluttu reglunum sinum vid hverja hledslu.
+
+   Þetta er sama krafan sem "gilt astand helst obreytt" ber fyrir
+   deildina, og hun er ASTAEDAN fyrir thvi ad thetta er prof og ekki
+   hreinsun.                                                          */
+console.log("\n6. gilt `imported` helst obreytt");
+{
+  const { normalizeImported } = await import("../src/App.jsx");
+  ok(typeof normalizeImported === "function",
+    "`normalizeImported` er flutt ut og profanleg");
+
+  /* Nakvaemlega thad snid sem `leagueFromSleeper` skrifar. */
+  const real = {
+    leagueId: "1389356308104249344", draftId: "1389356308104249345",
+    name: "Sofahetjur", season: "2026", status: "pre_draft",
+    draftStatus: "pre_draft", draftType: "snake",
+    teams: 10, rounds: 15, scoring: "ppr", rec: 1, exactScoring: true,
+    superflex: false, bench: 6,
+    starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 2, K: 1, DST: 1 },
+    flexPos: ["RB", "WR", "TE"], orderDrawn: false,
+  };
+  const back = normalizeImported(real);
+  ok(JSON.stringify(back) === JSON.stringify(real),
+    "raunverulegt `imported` fer OBREYTT i gegn (svid fyrir og eftir: " +
+    `${Object.keys(real).length} / ${Object.keys(back || {}).length})`);
+
+  /* Og hvert svid ma adeins kosta SIG SJALFT — thad er allt malid.
+     Vaeri einn skokk svid latid fella hlutinn i heild yrdi ein tala fra
+     Sleeper ad thvi ad allar reglurnar hyrfu. */
+  for (const [k, bad] of [["status", 3], ["flexPos", "RB/WR"],
+                          ["name", { a: 1 }], ["teams", "tiu"],
+                          ["starters", [1, 2, 3]], ["scoring", "tunglid"]]) {
+    const r = normalizeImported({ ...real, [k]: bad });
+    ok(r != null && r.leagueId === real.leagueId && r.rounds === real.rounds,
+      `skokk \`${k}\` kostar bara sig sjalft (leagueId og rounds standa)`);
+  }
+
+  /* `leagueId` ER burdarvirkid — `Dashboard` sier eftir honum. Hluta-
+     hlutur an hans myndi lita innfluttur ut og bera engin gogn. */
+  ok(normalizeImported({ name: "L", teams: 10 }) === null,
+    "`imported` an `leagueId` er `null`, ekki hluta-hlutur");
+  for (const bad of [null, undefined, "s", 42, [], true]) {
+    ok(normalizeImported(bad) === null, `\`${JSON.stringify(bad)}\` -> null`);
+  }
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

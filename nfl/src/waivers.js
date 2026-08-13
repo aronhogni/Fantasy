@@ -107,9 +107,13 @@ export const WAIVER_CAL = {
           "+13.2 points a season (t=2.97, 6 of 7 seasons, CI [5.9, 22.2], positive " +
           "in 17 of 18 cells). It is not used here because it CANNOT BE: it needs " +
           "the weeks that remain and the season-to-date usage behind them, and the " +
-          "app has neither in the browser yet (data/weekly/ stops at 2025 and " +
-          "data.js has no loadWeekly). In preseason the two are identical anyway. " +
-          "See README 4g; the switch is plumbing, and it is measured and waiting.",
+          "app cannot yet supply both. THE PLUMBING HALF IS NOW DONE: data.js has " +
+          "loadWeekly(season) and the pipeline archives the current season " +
+          "weekly (nfl-data.yml, Tuesdays). What is still missing is the SEASON " +
+          "ITSELF - data/weekly/ stops at 2025 because 2026 has not been played. " +
+          "In preseason the two currencies are identical anyway, so nothing is " +
+          "lost today; the switch becomes live and testable in week 2. " +
+          "See README 4g.",
   },
   minGain: {
     value: 10,

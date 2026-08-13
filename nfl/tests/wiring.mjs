@@ -141,6 +141,23 @@ console.log("\n3. litunin er tengd");
   }
   ok(/reach-hi/.test(code) && /reach-lo/.test(code),
     "og threpin eru bædi notud (`reach-hi`, `reach-lo`)");
+
+  /* ------------------------------------------------------------
+     OG BORDID OG KASSINN VERDA AD LESA SOMU TOLUNA.
+     ------------------------------------------------------------
+     `tests/advice.mjs` kafli 12 ver ad `recommend` NOTI `nextPick`
+     thegar thad er gefid. Thad prof getur EKKI sagt hvort appid gefi
+     thad — og thad var einmitt villan: badar afleidslur voru rettar og
+     bædi profud, en `NextPick` sendi klukkuvalid i stad saetisins og
+     skjarinn bar tvaer tolur (#27 og 40 i somu deild).
+
+     Hyrfi `nextPick={...}` ur kallinu myndi `recommend` falla thegjandi
+     i afleidsluna og gamla villan vaeri komin aftur MED OLL PROF GRAEN.
+     Þess vegna er tengingin fullyrding hér.                          */
+  ok(/nextPick:\s*nextOwn/.test(withoutImports),
+    "`recommend` faer `nextPick: nextOwn` — bordid og kassinn lesa somu toluna");
+  ok(/<NextPick[^>]*nextOwn=\{nextOwn\}/.test(code.replace(/\n/g, " ")),
+    "og `nextOwn` er raunverulega sent nidur i `NextPick`");
 }
 
 /* ============================================================

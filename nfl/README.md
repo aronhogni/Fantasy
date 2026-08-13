@@ -191,6 +191,7 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 | **Rest-of-season sem gjaldmiðill** (`waiver-lab.mjs`) | **STENST** (+13,2 stig/tímabil, t=2,97, 6/7, CI [5,9 · 22,2], 17/18 hólf) — **en ekki tengjanlegt**: þarf vikurnar sem eftir eru, sem appið hefur ekki. Vikuleg spá sem gjaldmiðill er **mæld dauð** (−74,6). Sjá 4g |
 | **Notkun það sem er liðið af tímabilinu** (`usage-lab.mjs`) | **STENST — fyrsti vinningurinn.** `opp_prior` lokar **12,25 / 10,75 / 10,76%** af bilinu á móti 5,83 / 3,20 / 2,97, og **per-leikmanns CI útilokar núll í öllum þremur**. Ferillinn er niðurstaðan: **ekkert í vikum 1–4, +12,3 pp í vikum 10+** (6/6 tímabil). Sjá 4e — **ekki tengt enn**, plumbing vantar |
 | **Markaðurinn umfram `implied`** (`mktweek-lab.mjs`) | **FELLUR.** 0 af 45 hólfum standast öll fjögur skilyrðin i neinu sniði. Og **leikjaflæðis-folkloreið er RANGT**: hver staða gerir BETUR sem favorít, engin gerir betur á eftir — QB sem 10+ undirdogg er **−1,12**. Ósamhverfa: **12 af 12 CI innihalda núll** |
+| **Availability-taflan** (`avail-lab.mjs`) | **ÁGISKAÐA TAFLAN STENDUR.** Engin mæld tafla slær hana í neinu sniði. `Questionable = 0,75` er kvarðað 0,666 en ákvörðunin er **flöt**; `Doubtful` 0,25 á móti 0,009 er 28× skekkja sem kostar 0,143 pp. `practice_status` gefur upplýsingar en **ekki ákvarðanir** (+0,44 pp, CI innihaldur núll). **OG ÞAÐ AFHJÚPAÐI AÐ `gap-lab` ER BLINT Á AVAILABILITY** — sjá 4i |
 | **Vörn gegn stöðu, sundurliðuð** (`defweek-lab.mjs`) | **FELLUR — 0 af 2.700 hólfum.** Andstæðings-leiðrétting **skaðar** (marktækt í half, t −5,87). Íhlutir flytjast ekki. `DEF_WEIGHT = 0,20` stendur. **OG ÞAÐ FANN VILLU Í MÆLIKVARÐANUM:** birta talan 5,831% var sjálf-smituð; hrein walk-forward er **3,482%**. Sjá 4h |
 | **Hvar liggja 94%** (`gap-lab.mjs`) | **Þakið er 29,3%** (TD 18,9 + nýtni 10,4). Vörn er **NULL-flaska** (enrichment 0,96×). Röð: availability → hlutverk → vörn ekki neitt. Sjá 4f |
 | **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+24,4 stig**, t=2,275, 8/11 ár, CI [+3,7, +43,7], einræn 4/4. Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
@@ -548,6 +549,85 @@ walk-forward val **tapar í öllum þrem** (3,572 á móti 6,765 · 0,629 á mó
   pp, því 0,1-rúnnun býr til og slítur jafntefli. Það er **gólfið undir öllum
   samanburði** í skránni. Þetta var skrifað sem akkeri og **féll á 2,07 pp**;
   invariantið var rangt, ekki kóðinn.
+
+### 4i. AVAILABILITY — ágiskaða taflan var RÉTT, og `gap-lab` gat ekki séð hana
+
+Ég sagði að availability væri **lyftistöng #1** (enrichment 1,42× úr `gap-lab`).
+`avail-lab` mældi það og **fyrri fullyrðingin var byggð á blindum mælikvarða**.
+
+> **`gap-lab` ER PROVANLEGA BLINT Á AVAILABILITY.** Fullkomin vitneskja um hverjir
+> spila gefur **NÁKVÆMLEGA `avail = 1`** — 5,831 / 3,199 / 2,967 upp á þrjá
+> aukastafi — því **allir í þeim hópi bera þegar röð**. Sá sem spilaði ekki hefur
+> enga röð í `weekly/*.json` og fellur úr **báðum** uppstillingum. `gap-lab`
+> skrifaði þennan varnagla sjálft („(a) er neðra mark"), en ég las töluna
+> **16,1% / 1,42×** eins og hún væri heildin. Hún var **hlutabrestur eingöngu**.
+
+Rétta stærðin krefst **annars harness** þar sem fjarvist er sýnileg (hópur =
+allir sem lið þeirra spilar, bye undanskilið):
+
+| | % af bilinu lokað |
+|---|---|
+| `avail = 1` (engin availability) | **8,16%** |
+| **núverandi ágiskaða tafla** | **23,39%** |
+| orakel (fullkomin vitneskja) | **47,78%** |
+
+**Taflan sem er í `model.js` er því að vinna +15,2 pp** — margfalt meira en allt
+sem var mælt í dag. Og hún var **ágiskuð**.
+
+#### Er `Questionable = 0,75` rétt? Á ákvörðuninni: JÁ
+
+Kvörðun og ákvörðun eru **tvær ólíkar tölur** og hér skilja þær:
+
+| | kvarðað | núverandi | kostnaður á ákvörðun |
+|---|---|---|---|
+| Questionable | **0,666** (QB 0,55 · TE 0,75) | 0,75 | ferillinn er **flatur**: 0,75 → 23,39% · 0,80 → 23,63% · 0,90 → 23,55% |
+| Doubtful | **0,009** | 0,25 | **28× skekkja, kostar 0,143 pp** |
+
+Walk-forward val á `Questionable` í stað 0,75 er vert **−0,166 pp**. Og
+`Doubtful` 0,25 á móti 0,009 skiptir engu **því 0,25 raðar honum þegar undir
+hvern heilbrigðan kost** — röðun notar bara röð.
+
+**Engin mæld tafla slær ágiskaða töfluna, í neinu sniði, í hvorugu harness.**
+Placebos tapa um 24–27 pp, svo ábati núverandi töflu er **raunverulegt merki**,
+ekki spá-rýrnun. Ágiskunin í `src/model.js` var **góð ágiskun**.
+
+#### `practice_status`: upplýsingar já, ákvarðanir nei
+
+DNP/Limited/Full gefur **næstum 2× einræna** dreifingu (0,855 / 0,682 / 0,416) á
+1.105 röðum — raunverulegt merki. Sem **ákvörðun**: **+0,44 pp, t 0,61,
+per-leikmanns CI [−0,395 · +1,333] inniheldur núll.**
+
+Stiginn skýrir hvers vegna:
+
+| þrep | ábati |
+|---|---|
+| **`Out → 0` eitt** | **+11,63 pp af +13,8** (84%) |
+| + Doubtful | +2,01 |
+| + Questionable | +1,60 |
+| + practice | −0,99 / +0,44 |
+
+**Availability ER Out-dálkurinn og nánast ekkert annað — og `Out` er þegar rétt.**
+
+Líkamshluti: **nei** (r = 0,429 á 7 hólfum, CI innihaldur núll; T3 yfir T2 er
++0,07 pp). Gróf-flokkaða útgáfan prentar r = 0,74 á **fjórum** punktum — ekki lesa
+hana.
+
+#### Þar sem 26,45 pp liggja — og hvorugur dálkurinn nær þeim
+
+Höfuðrýmið er **26,45 pp** (t 9,31, CI [20,8 · 32,8]) og það er **EKKI í
+meiðslaskýrslunni**: báðir dálkar eru nú mældir út. Það er í **óvæntum
+inactives** — `NotListed`-hólf með P(röð) 0,853 sem ekkert í skýrslunni greinir.
+
+> `Probable: 0,95` er **dautt þrep**: NFL afnam merkinguna 2016 og hún kemur **0
+> sinnum** fyrir. Hún er samt **ekki fjarlægð** og það er ásett: `AVAIL_KNOWN`
+> er til svo **nýtt orð frá Sleeper falli á prófi** í stað þess að fá þögult
+> `avail = 1` (Aiyuk-villan, `DNR`). Óvirk röð í vörn-uppflettitöflu er
+> **vörn**, ekki dauður kóði.
+
+Pörun gsis↔gsis: **98,15%**, engin nafna-pörun. Lekaprófun: miðgildi **48,6 klst**
+fyrir leik, 78% föstudags-stimplað, 8 af 10.061 röðum breyttar eftir kickoff
+(felldar). **2025 ber ekkert `date_modified`** og er því ekki leka-prófanlegt;
+næmnis-arm sem tekur það með gefur −0,808 pp, sama svar.
 
 ### 4b. VILLA Í `computeVbd` — `0` var lesið sem „vantar"
 

@@ -178,6 +178,32 @@ export function nextOwnPick(cur, teams, slot, maxRounds = 40) {
   return null;
 }
 
+/**
+ * Bid fra `pick` ad naesta vali SAMA SAETIS — thegar `pick` ER thitt val.
+ *
+ * ============================================================
+ * ÞETTA FALL LEIDIR SAETID UT AF VALNUMERINU, OG ÞAD ER FORSENDA
+ * ============================================================
+ * `slot` hér ad nedan er REIKNAD ur `pick`. Thad er rett nakvaemlega
+ * thegar `pick` er MITT val — tha er saetid sem a `pick` mitt saeti.
+ * Se `pick` valid SEM ER A KLUKKUNNI (og einhver annar a thad) leidir
+ * fallid ut SAETI HINS og skilar bidinni HANS.
+ *
+ * ÞAÐ VAR RAUNVERULEG VILLA OG HUN VAR A SKJANUM: `NextPick` sendi
+ * `taken.size + 1` (klukkuvalid) hingad medan bordid lit sig med
+ * `nextOwnPick(cur, teams, sync.slot)` — sem notar RAUNVERULEGA saetid.
+ * I 10-lida deild med saeti 7 og 20 vol komin sagdi sami skjar
+ * samtimis **"naesta val #27"** (bordid) og **"naesta val 40, bid 19"**
+ * (kassinn). Tolurnar voru samhljoda i **6 af 60 volum (10%)** — bara
+ * thegar valid a klukkunni var mitt. Sami leikmadur bar 0% i kassanum
+ * og 31% i sinni eigin rod.
+ *
+ * Þess vegna tekur `recommend` nu vid `nextPick` BERUM ORDUM thegar
+ * saetid er thekkt, og thessi afleidsla er ADEINS bakleid fyrir
+ * handvirkt draft an Sleeper-samstillingar. Vordur:
+ * `tests/advice.mjs` kafli 12 — hann ber toluna sem BORDID litar med
+ * vid toluna sem KASSINN birtir og fellur ef thaer skilja.
+ */
 export function picksUntilNext(pick, teams) {
   const round = Math.ceil(pick / teams);
   const idx = pick - (round - 1) * teams;            // 1..teams
@@ -195,7 +221,12 @@ export function picksUntilNext(pick, teams) {
  *
  * `available`  [{ id, name, pos, vbd, adp, adpSd, tier, ... }]
  * `roster`     [{ pos }] — thad sem thu att thegar
- * `pick`       heildar-valnumer thitt NUNA
+ * `pick`       valid sem er A KLUKKUNNI (thad naesta sem verdur tekid)
+ * `nextPick`   MITT naesta val, BERUM ORDUM. Se thad gefid er thad notad
+ *              og engu giskad; vanti thad er thad leitt ut med
+ *              `picksUntilNext` — sem gerir tha rad fyrir ad `pick` se
+ *              mitt. Sja hausinn a `picksUntilNext` fyrir villuna sem
+ *              thessi breyta er til ad utiloka.
  * `league`     { teams, starters, maxPos }
  *
  * ROKIN ERU HLUTI AF UTKOMUNNI, EKKI SKRAUT. Radgjof sem segir
@@ -203,10 +234,14 @@ export function picksUntilNext(pick, teams) {
  * osammala, og notandi sem getur ekki verid osammala haettir ad nota
  * tolurnar og fer ad nota magatilfinninguna.
  */
-export function recommend({ available, roster = [], pick, league }) {
+export function recommend({ available, roster = [], pick, league, nextPick: nextIn }) {
   const teams = league.teams || 12;
-  const wait = picksUntilNext(pick, teams);
-  const nextPick = pick + wait;
+  /* Gefid `nextPick` VINNUR. Hafnad er adeins tolu sem er ekki eftir
+     `pick` — hun gaefi negatifa bid og "0% lifun" a alla. */
+  const nextPick = Number.isFinite(nextIn) && nextIn > pick
+    ? Math.round(nextIn)
+    : pick + picksUntilNext(pick, teams);
+  const wait = nextPick - pick;
 
   /* Hvad a hver stada ad vera vid naesta val? */
   const expNext = {};

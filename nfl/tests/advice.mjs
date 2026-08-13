@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import {
   survivalProb, normalCdf, defaultSd, expectedBestAt, picksUntilNext,
-  recommend, SD_K, MEASURED,
+  recommend, SD_K, MEASURED, nextOwnPick,
 } from "../src/advice.js";
 
 const DATA = path.resolve(new URL(".", import.meta.url).pathname, "..", "data");
@@ -407,6 +407,98 @@ console.log("\nsjalfgefin gildi reka ekki i sundur");
     `(${a1.picksLeft} / ${a2.picksLeft})`);
   ok(a1.picksLeft === DEFAULT_LEAGUE.rounds,
     `og thad er ${DEFAULT_LEAGUE.rounds} med tomum hop (fann ${a1.picksLeft})`);
+}
+
+/* ============================================================
+   12. BORDID OG KASSINN VERDA AD SEGJA SOMU TOLUNA
+   ============================================================
+   VILLAN SEM ÞESSI KAFLI ER TIL VEGNA VAR A SKJANUM, EKKI I KODANUM:
+   bordid litadi sig med `nextOwnPick(cur, teams, sync.slot)` — sem
+   notar RAUNVERULEGA saetid — medan `NextPick` sendi `taken.size + 1`
+   inn i `recommend`, sem LEIDDI saetid ut af thvi valnumeri og fékk
+   thvi saeti THESS SEM VAR A KLUKKUNNI.
+
+   I 10-lida deild, saeti 7, 20 vol komin sagdi SAMI SKJAR samtimis
+   "naesta val #27" og "naesta val 40, bid 19". Sami leikmadur bar 0% i
+   kassanum og 31% i sinni eigin rod.
+
+   ============================================================
+   HVERS VEGNA ÞETTA ER EKKI PROFANLEGT MED EINU KALLI
+   ============================================================
+   Hvorugt fallid er BILAD. `nextOwnPick` er rett, `picksUntilNext` er
+   rett, og badir hofdu graen prof. Villan var i ad tvaer rettar
+   afleidslur voru bornar a SITTHVORT inntak og bædi svorin birt.
+   Fullyrdingin verdur thvi ad vera SAMANBURDUR og hun verdur ad
+   ganga yfir MORG vol — vaeri hun profud vid eitt val gaeti hun lent a
+   einu af theim 6 af 60 thar sem tolurnar EIGA ad vera jafnar.
+
+   Og hun ma ekki vera "kalladu badar og ber saman": thad profar
+   afleidslurnar, ekki TENGINGUNA. Þess vegna er `recommend` kallad
+   eins og `NextPick` kallar thad.                                   */
+console.log("\n12. bordid og kassinn eru samhljoda");
+{
+  const { DEFAULT_LEAGUE } = await import("../src/build.js");
+  const av = [
+    { id: "a", name: "A", pos: "RB", proj: 240, vbd: 90, adp: 3,  adpSd: 6, tier: 1 },
+    { id: "b", name: "B", pos: "WR", proj: 230, vbd: 80, adp: 12, adpSd: 8, tier: 1 },
+    { id: "c", name: "C", pos: "QB", proj: 300, vbd: 60, adp: 30, adpSd: 10, tier: 2 },
+    { id: "d", name: "D", pos: "TE", proj: 150, vbd: 40, adp: 45, adpSd: 12, tier: 2 },
+  ];
+  const teams = 10, slot = 7, maxRounds = 17;
+
+  let checked = 0, agreed = 0, drift = 0;
+  for (let cur = 1; cur <= 60; cur++) {
+    /* THAD SEM BORDID GERIR */
+    const boardNext = nextOwnPick(cur, teams, slot, maxRounds);
+    if (boardNext == null) continue;
+    /* THAD SEM KASSINN GERIR — nakvaemlega sama kall og `NextPick` */
+    const rec = recommend({ available: av, roster: [], pick: cur,
+      league: { ...DEFAULT_LEAGUE, teams }, nextPick: boardNext });
+    checked++;
+    if (rec.nextPick === boardNext) agreed++;
+    /* Og bidin verdur ad vera samhljoda tolunni, ekki bara jafn stor */
+    if (rec.wait !== boardNext - cur) drift++;
+  }
+  ok(checked >= 50, `bornir saman ${checked} vol (>=50)`);
+  ok(agreed === checked,
+    `radgjofin ber SOMU toluna sem bordid litar med i OLLUM ${checked} volum ` +
+    `(samhljoda ${agreed})`);
+  ok(drift === 0, `og \`wait\` er samhljoda tolunni i ollum volum (drift ${drift})`);
+
+  /* ------------------------------------------------------------
+     OG PROFID VERDUR AD GETA BRUGDIST.
+     ------------------------------------------------------------
+     Fullyrdingin hér ofan er hattulega nalaegt tomri fullyrdingu: eg
+     GEF `nextPick` og athuga svo hvort thad hafi verid notad. Vaeri
+     `nextPick` thagad nidur myndi `recommend` falla i afleidsluna —
+     og THAD er nakvaemlega gamla hegdunin. Þess vegna er hún maeld hér
+     berum ordum: an breytunnar VERDA tolurnar ad skilja.            */
+  let oldAgreed = 0, oldChecked = 0;
+  for (let cur = 1; cur <= 60; cur++) {
+    const boardNext = nextOwnPick(cur, teams, slot, maxRounds);
+    if (boardNext == null) continue;
+    const rec = recommend({ available: av, roster: [], pick: cur,
+      league: { ...DEFAULT_LEAGUE, teams } });          // <- EKKERT `nextPick`
+    oldChecked++;
+    if (rec.nextPick === boardNext) oldAgreed++;
+  }
+  ok(oldAgreed < oldChecked,
+    `an \`nextPick\` SKILJA thaer — ${oldAgreed} af ${oldChecked} samhljoda, ` +
+    `svo fullyrdingin hér ofan er ekki tom`);
+  ok(oldAgreed > 0,
+    `en ekki alltaf (${oldAgreed} vol thar sem valid a klukkunni ER mitt) — ` +
+    `annars vaeri gamla hegdunin bara "alltaf rong" og villan hefdi sest`);
+
+  /* Rusl-inntak ma ALDREI gefa negatifa bid. `nextPick` fyrir `pick`
+     er ekki "hann kemur adur" heldur skokk gagn — og "0% lifun" a alla
+     leikmenn les eins og maeld nidurstada. */
+  for (const bad of [null, undefined, NaN, "40", -5, 0, 10, 10.5, Infinity]) {
+    const r = recommend({ available: av, roster: [], pick: 10,
+      league: { ...DEFAULT_LEAGUE, teams }, nextPick: bad });
+    ok(r.nextPick > 10 && r.wait > 0 && Number.isFinite(r.wait),
+      `\`nextPick: ${String(bad)}\` gefur samt gilda bid ` +
+      `(naesta ${r.nextPick}, bid ${r.wait})`);
+  }
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

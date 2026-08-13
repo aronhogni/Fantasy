@@ -152,8 +152,18 @@ export default function App() {
      Vistad er `user_id` (snjokornid) OG nafnid: audkennid er stodugt en
      nafnid er thad sem notandinn les. `myRosterId` i `standings.js`
      tekur vid hvoru sem er. */
-  const [sleeperUser, setSleeperUser] = useState(
-    () => D.loadState("sleeperUser", { name: "", userId: null }));
+  /* SAMA REGLA OG `imported`: hvert svid thvingad. `sleeperUser.name`
+     for i `<input value={...}>` og i `myRosterId(...)`; hlutur eda tala
+     thar er skokk gerd sem React kvartar undan og uppflettingin getur
+     ekki notad. Ytri gerdin ein dugar ekki. */
+  const [sleeperUser, setSleeperUser] = useState(() => {
+    const u = D.loadState("sleeperUser", null);
+    const o = u && typeof u === "object" && !Array.isArray(u) ? u : {};
+    return {
+      name: typeof o.name === "string" ? o.name.slice(0, 60) : "",
+      userId: typeof o.userId === "string" && o.userId ? o.userId.slice(0, 40) : null,
+    };
+  });
   useEffect(() => { D.saveState("sleeperUser", sleeperUser); }, [sleeperUser]);
 
   /* `showAll` er VILJANDI EKKI VISTAD. Notandinn bad um ad hitt vaeri
@@ -477,6 +487,82 @@ function normalizeSync(raw) {
   };
 }
 
+/* ============================================================
+   `imported` — HVERT SVID ER ÞVINGAD, EKKI BARA YTRI GERDIN
+   ============================================================
+   Þetta var ADEINS `typeof raw.imported === "object"`, sem er
+   NAKVAEMLEGA sama villan og FPL-appid greiddi fyrir (CLAUDE.md kafli 8:
+   "gilt JSON med RANGRI GERD for ospurt inn i state" — `benchSwaps`
+   `{"1":"x"}` er gildur hlutur en `"x".forEach` fellur).
+
+   Maelt a 5 blobbum og FJOGUR ollu villu — allt fjögur i BIRTINGU, thar
+   sem villuvornin er eina urraedid:
+
+     · `status: 3`          -> `im.status.replace is not a function`
+     · `flexPos: "RB/WR"`   -> `im.flexPos.join is not a function`
+     · `leagueId: 12345`    -> `im.leagueId.slice is not a function`
+     · `name: { a: 1 }`     -> birtist sem `[object Object]` sem flipi
+
+   OG UTGANGAN ER SU DYRASTA I APPINU. `loadEntries` les `localStorage`
+   beint inn i state og hleðslan skrifar blobbid AFTUR ur, byte fyrir
+   byte — svo oheilt svid felldi appid vid HVERJA hledslu, ad eilifu.
+   Eini hnappurinn hreinsar alla `nfl_*`-lykla: ALLAR deildir, allt
+   bordid, allt saetavalid. Þess vegna ma eitt skokk svid adeins kosta
+   SIG SJALFT.
+
+   OG ÞAD GETUR LEGID I DVALA. `imported` er lesid a Draft-flipa VIRKU
+   deildarinnar; oheilt svid i deild 2 gerir ekkert fyrr en notandinn
+   svissar — og tha er engin adgerd til ad tengja hrunid vid.
+
+   Vordur: `tests/saved-state.mjs` kafli 6, sem profar bædi ATTIRNAR:
+   skokk svid ma ekki komast inn, OG GILT `imported` VERDUR AD FARA
+   OBREYTT I GEGN — annars vaeri "lagfaeringin" ad henda innfluttu
+   reglunum sem notandinn kom med.                                   */
+function str(v, max) {
+  return typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null;
+}
+function posInt(v, max) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 0 && n <= max ? n : null;
+}
+export function normalizeImported(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  /* `leagueId` ER BURDARVIRKID, ekki skraut: `Dashboard` sier eftir
+     honum og `sleeperResolve` sekir eftir honum. Vanti hann er thetta
+     ekki innflutt deild og `null` er retta svarid — ekki hluta-hlutur
+     sem lítur innfluttur ut. */
+  const leagueId = str(raw.leagueId, 40);
+  if (!leagueId) return null;
+  return {
+    leagueId,
+    draftId: str(raw.draftId, 40),
+    name: str(raw.name, 60),
+    season: str(raw.season, 8),
+    status: str(raw.status, 32),
+    draftStatus: str(raw.draftStatus, 32),
+    draftType: str(raw.draftType, 32),
+    teams: posInt(raw.teams, 32),
+    rounds: posInt(raw.rounds, 40),
+    scoring: ["ppr", "half-ppr", "standard"].includes(raw.scoring)
+      ? raw.scoring : null,
+    rec: Number.isFinite(Number(raw.rec)) ? Number(raw.rec) : null,
+    exactScoring: !!raw.exactScoring,
+    superflex: !!raw.superflex,
+    bench: posInt(raw.bench, 40),
+    /* `starters` er hlutur af TOLUM. Fylki er gildur hlutur i JS, svo
+       ytri gerdin ein dugar ekki — sama gildran og `benchSwaps`. */
+    starters: raw.starters && typeof raw.starters === "object" &&
+              !Array.isArray(raw.starters)
+      ? Object.fromEntries(Object.entries(raw.starters)
+          .filter(([k, v]) => typeof k === "string" && posInt(v, 20) != null)
+          .map(([k, v]) => [k.slice(0, 12), posInt(v, 20)]))
+      : {},
+    flexPos: Array.isArray(raw.flexPos)
+      ? raw.flexPos.filter((p) => typeof p === "string").slice(0, 8) : null,
+    orderDrawn: !!raw.orderDrawn,
+  };
+}
+
 function normalizeEntry(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   if (typeof raw.id !== "string" || !raw.id) return null;
@@ -488,8 +574,7 @@ function normalizeEntry(raw) {
     name: typeof raw.name === "string" && raw.name.trim()
       ? raw.name.trim().slice(0, 60) : "League",
     rules: normalizeLeague(raw.rules),
-    imported: raw.imported && typeof raw.imported === "object" &&
-              !Array.isArray(raw.imported) ? raw.imported : null,
+    imported: normalizeImported(raw.imported),
     /* LIDIN — thau eru VISTUD, og thad var akvordun sem var TEKIN
        TIL BAKA. Fyrst voru thau adeins i `SleeperSync` med theim rokum
        ad `/users` + `/rosters` se lifandi uppfletting og vistud mynd

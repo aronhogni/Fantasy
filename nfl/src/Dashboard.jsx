@@ -641,7 +641,17 @@ function Waivers({ fa, picks, league }) {
                   <tr className="cols">
                     <th className="txt frozen">Add</th>
                     <th className="txt">Drop</th>
-                    <th title="Gain in value over replacement, across the rest of the season">Gain</th>
+                    {/* HEITID SEGIR HVAD TALAN ER, ORDRETT UR MAELINGUNNI.
+                        Þad sagdi "across the rest of the season", sem er
+                        NAKVAEMLEGA su mynt sem `WAIVER_CAL.currency.note`
+                        segir ad se **maeld betri en ekki nothaef** (+13,2
+                        stig/tímabil en tharf vikurnar sem eftir eru).
+                        Talan sem er birt er SEASON VBD — og hun stendur
+                        vid hlidina a vikulegum tolum a stærd 4-7, svo
+                        `+336` las eins og vikuleg spa hefdi sprungid.
+                        Rong mynt i tooltip er ekki ordalag: hun laetur
+                        notandann bera saman tvaer olikar staerdir. */}
+                    <th title="Gain in season-long value over replacement for this league — NOT weekly points, and not rest-of-season. See Model lab.">Gain</th>
                     <th className="txt">Why</th>
                   </tr>
                 </thead>
