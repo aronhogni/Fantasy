@@ -34,7 +34,8 @@
 
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { simulateDraft, DEFAULT_LEAGUE, startersPoints } from "../src/accuracy.js";
+import { simulateDraft, DEFAULT_LEAGUE, startersPoints,
+         weekPoints } from "../src/accuracy.js";
 import { mean } from "../src/learn.js";
 import { stamp } from "./lib/provenance.mjs";
 
@@ -57,24 +58,16 @@ const REPL = { QB: 12, RB: 28, WR: 41, TE: 14 };
 const r1 = (x) => Math.round(x * 10) / 10;
 const r3 = (x) => Math.round(x * 1000) / 1000;
 
-/* Byrjunarlid VIKUNNAR: QB1 RB2 WR3 TE1 FLEX1, besta samsetning.
-   Saetamengin eru hreidrud, svo throngt-fyrst er sannanlega best —
-   sama rok og i `lineup.js`, og thad er profad thar. */
-function weekPoints(roster, byWeek, week) {
-  const pool = roster.map((id) => {
-    const w = byWeek.get(`${id}|${week}`);
-    return w ? { id, pos: w.pos, pts: w.pts } : null;
-  }).filter(Boolean);
-  const by = { QB: [], RB: [], WR: [], TE: [] };
-  for (const p of pool) if (by[p.pos]) by[p.pos].push(p.pts);
-  for (const k in by) by[k].sort((a, b) => b - a);
-  let sum = 0;
-  const take = (pos, n) => { const t = by[pos].splice(0, n); sum += t.reduce((a, b) => a + b, 0); };
-  take("QB", 1); take("RB", 2); take("WR", 3); take("TE", 1);
-  const flex = [...by.RB, ...by.WR, ...by.TE].sort((a, b) => b - a);
-  if (flex.length) sum += flex[0];
-  return sum;
-}
+/* BYRJUNARLID VIKUNNAR ER FLUTT I `src/accuracy.js` (14.8.2026).
+   Hér stod afrit sem var hardkodad a QB1/RB2/WR3/TE1/FLEX1 — og
+   NAKVAEMLEGA sama afrit var i `bye-lab.mjs`. Tvo afrit af sama
+   utreikningi er aettin sem `buildTeamMetrics` i FPL-verkefninu
+   afhjupadi, og thau voru lika BLIND a deildarlogun: 10-lida deildin
+   med tvo FLEX var ekki maelanleg vikulega. `weekPoints(roster,
+   byWeek, week, LEAGUE)` er sama regla, lesin ur `league.starters`.
+   Jafngildi stadfest a 15.300 samanburdum a raungognum (2019, 2021,
+   2025 x 300 hopar x 17 vikur): 0 mismunir, staersta fleytitolu-
+   frávik 2,8e-14. */
 
 function staticBoard(pool) {
   const byPos = {};
@@ -165,8 +158,10 @@ async function main() {
             rival: { slot: swap ? i : j, board: raw },
           });
           sD.push(res.points - res.rivalPoints);
-          const mineW = w.weeks.reduce((a, wk) => a + weekPoints(res.roster, w.byWeek, wk), 0);
-          const rivW = w.weeks.reduce((a, wk) => a + weekPoints(res.rivalRoster, w.byWeek, wk), 0);
+          const mineW = w.weeks.reduce((a, wk) =>
+            a + weekPoints(res.roster, w.byWeek, wk, LEAGUE), 0);
+          const rivW = w.weeks.reduce((a, wk) =>
+            a + weekPoints(res.rivalRoster, w.byWeek, wk, LEAGUE), 0);
           wD.push(mineW - rivW);
         }
       }

@@ -15,7 +15,9 @@
 
 import {
   spearman, topMae, positionHitRate, simulateDraft, simulateAllSlots,
-  startersPoints, scoreBoard, rankExperts, DEFAULT_LEAGUE,
+  startersPoints, startersRaw, weekPoints, scoreBoard, rankExperts,
+  roundRobin, leagueRecords, playoffChampion, simulateSeason, scoreLeague,
+  DEFAULT_LEAGUE,
 } from "../src/accuracy.js";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -198,6 +200,296 @@ console.log("\n5. stig byrjunarlids");
   const withoutFlex = startersPoints(roster, actual,
     { ...DEFAULT_LEAGUE, starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 0 } });
   near(withoutFlex, 1270, 0.01, "an flex fellur besti afgangur ut");
+}
+
+/* ============================================================
+   5b. VIKULEGA BYRJUNARLIDID — EIN UTFAERSLA, EKKI THRJAR
+   ============================================================
+   `weekly-lab.mjs` og `bye-lab.mjs` baru HVOR SITT afrit af thessari
+   reglu, hardkodad a QB1/RB2/WR3/TE1/FLEX1. Bædi afritin voru rett en
+   bædi voru BLIND a deildarlogun, svo 10-lida deild notandans med TVO
+   FLEX var ekki vikulega maelanleg yfirleitt. Reglan var flutt i
+   `startersRaw`/`weekPoints` 14.8.2026.
+
+   PROFID BER HANA VID GOMLU REGLUNA ORDRETT. Vaeri hun aðeins profuð
+   vid sjalfa sig gaeti hun rekið i sundur fra thvi sem `weekly_check_*`
+   og `bye_*` a diskinum voru maeld med — og thaer tolur eru bokadar i
+   README.                                                            */
+console.log("\n5b. vikulegt byrjunarlid — ein utfaersla");
+{
+  /* GAMLA REGLAN, ordrett eins og hun stod i weekly-lab.mjs. */
+  const legacyWeekPoints = (roster, byWeek, week) => {
+    const by = { QB: [], RB: [], WR: [], TE: [] };
+    for (const id of roster) {
+      const w = byWeek.get(`${id}|${week}`);
+      if (w && by[w.pos]) by[w.pos].push(w.pts);
+    }
+    for (const k in by) by[k].sort((a, b) => b - a);
+    let sum = 0;
+    const take = (pos, n) => { sum += by[pos].splice(0, n).reduce((a, b) => a + b, 0); };
+    take("QB", 1); take("RB", 2); take("WR", 3); take("TE", 1);
+    const flex = [...by.RB, ...by.WR, ...by.TE].sort((a, b) => b - a);
+    if (flex.length) sum += flex[0];
+    return sum;
+  };
+  let a = 4242;
+  const rnd = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; };
+  const POS = ["QB", "RB", "WR", "TE", "K"];
+  const byWeek = new Map();
+  const ids = [];
+  for (let i = 0; i < 60; i++) {
+    const id = `x${i}`, pos = POS[Math.floor(rnd() * POS.length)];
+    ids.push(id);
+    for (let w = 1; w <= 17; w++) {
+      /* Sumar vikur vantar VILJANDI — thad er aud vika, og hun er
+         nakvaemlega thad sem summan sér ekki. */
+      if (rnd() < 0.12) continue;
+      byWeek.set(`${id}|${w}`, { pos, pts: Math.round(rnd() * 400) / 10 });
+    }
+  }
+  let mismatch = 0, checked = 0, sawNonZero = 0;
+  const LG = { ...DEFAULT_LEAGUE, teams: 12, rounds: 14 };
+  for (let trial = 0; trial < 200; trial++) {
+    const roster = [];
+    for (let i = 0; i < 14; i++) roster.push(ids[Math.floor(rnd() * ids.length)]);
+    for (let w = 1; w <= 17; w++) {
+      const x = legacyWeekPoints(roster, byWeek, w);
+      const y = weekPoints(roster, byWeek, w, LG);
+      checked++;
+      if (x > 0) sawNonZero++;
+      if (Math.abs(x - y) > 1e-9) mismatch++;
+    }
+  }
+  /* THEKJA ER FULLYRDING: hefdi `byWeek` verid tomt vaeri "0 mismunir"
+     satt og einskis virdi. */
+  ok(sawNonZero > checked * 0.9,
+    `${sawNonZero} af ${checked} vikum bera raunveruleg stig (annars profar thetta ekkert)`);
+  ok(mismatch === 0,
+    `sameinada utfaerslan er ORDRETT sama tala og gamla afritid (${checked} vikur)`);
+
+  /* OG HUN LES DEILDINA. Gamla afritid gat thetta ekki.
+     TVEIR OLIKIR THAETTIR eru profadir SITT I HVORU LAGI: fjoldi FLEX
+     og fjoldi FASTRA saeta. Fyrsta utgafan profadi bara logun sem
+     breytti BADUM, og stokkbreyting sem hardkodadi FOSTU saetin slapp
+     thvi i gegn — FLEX-lidurinn einn dugdi til ad tolurnar skildu. */
+  const wide = { ...DEFAULT_LEAGUE, teams: 10,
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 } };
+  const wr2 = { ...DEFAULT_LEAGUE,
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1 } };   // SAMA flex, faerri WR
+  let differs = 0, differsFixed = 0;
+  for (let trial = 0; trial < 60; trial++) {
+    const roster = [];
+    for (let i = 0; i < 15; i++) roster.push(ids[Math.floor(rnd() * ids.length)]);
+    for (let w = 1; w <= 14; w++) {
+      if (weekPoints(roster, byWeek, w, wide) !== weekPoints(roster, byWeek, w, LG)) differs++;
+      if (weekPoints(roster, byWeek, w, wr2) !== weekPoints(roster, byWeek, w, LG)) differsFixed++;
+    }
+  }
+  ok(differs > 0,
+    `tveggja-FLEX logunin gefur ADRA tolu en WR3-lognin (${differs} vikur)`);
+  ok(differsFixed > 0,
+    `og WR2 gefur ADRA tolu en WR3 vid OBREYTT flex (${differsFixed} vikur) ` +
+    "— annars vaeru fostu saetin hardkodud");
+
+  /* `by` VELUR, `pts` TELUR. Thad er munurinn a "uppstillt med
+     fullkominni vitneskju" og "uppstillt ur spa". */
+  const two = new Map([
+    ["a", { pos: "RB", pts: 5 }], ["b", { pos: "RB", pts: 30 }],
+  ]);
+  const one = { ...DEFAULT_LEAGUE, starters: { QB: 0, RB: 1, WR: 0, TE: 0, FLEX: 0 } };
+  near(startersRaw(["a", "b"], (k) => two.get(k), one), 30, 1e-9,
+    "an `by` er valid eftir stigum vikunnar");
+  near(startersRaw(["a", "b"], (k) => ({ ...two.get(k), by: k === "a" ? 99 : 1 }), one),
+    5, 1e-9, "med `by` velur spain — og STIGIN eru afram raunstigin");
+}
+
+/* ============================================================
+   5c. DEILDIN — SKRA, STADA OG URSLITAKEPPNI
+   ============================================================
+   VIKULEG VIDUREIGN VAR OMAELD I OLLU VERKEFNINU. `h2h-lab.mjs` maelir
+   hana og thessi kafli ver vélina sem hun stendur a. Nullprofid sjalft
+   (bord gegn sjalfu ser -> nakvaemlega 50%) er I LABINU og er HLID thar;
+   hér eru bygginga-fullyrdingarnar sem thad hlid getur ekki sed, thvi
+   speglunin fellir tha ut.                                            */
+console.log("\n5c. deildin — skra, stada, urslitakeppni");
+{
+  for (const teams of [8, 10, 12, 14]) {
+    const sched = roundRobin(teams, 14, null);
+    let bad = 0;
+    ok(sched.length === 14, `${teams} lid: 14 umferdir`);
+    for (const wk of sched) {
+      const seen = new Set();
+      if (wk.length !== teams / 2) bad++;
+      for (const [a, b] of wk) {
+        if (a === b || seen.has(a) || seen.has(b)) bad++;
+        seen.add(a); seen.add(b);
+      }
+      if (seen.size !== teams) bad++;
+    }
+    ok(bad === 0, `${teams} lid: hver vika er FULLKOMIN porun (0 villur)`);
+  }
+
+  /* Skrain ma ekki vera sama umferdin 14 sinnum — tha vaeri hver deild
+     ad spila sama leikinn allt timabilid. */
+  const s12 = roundRobin(12, 14, null);
+  const uniq = new Set(s12.map((wk) => JSON.stringify(wk)));
+  ok(uniq.size >= 11, `12 lid: ${uniq.size} olikar umferdir af 14`);
+
+  /* --- stada --- */
+  {
+    const teams = 4;
+    const schedule = [[[1, 2], [3, 4]], [[1, 3], [2, 4]], [[1, 4], [2, 3]]];
+    const scores = [null,
+      [0, 100, 100, 100],       // lid 1 vinnur allt
+      [0, 50, 90, 90],
+      [0, 90, 50, 90],
+      [0, 90, 90, 50]];
+    const { rec, seeds } = leagueRecords({ scores, schedule });
+    ok(rec[1].w === 3 && rec[1].l === 0, "lid 1 er 3-0");
+    ok(seeds[0] === 1, "og er efst i rodun");
+    const sw = rec.slice(1).reduce((a, x) => a + x.w, 0);
+    const sl = rec.slice(1).reduce((a, x) => a + x.l, 0);
+    ok(sw === sl, `sigrar (${sw}) = tôp (${sl}) — bokhaldid gengur upp`);
+    ok(rec.slice(1).every((x) => x.w + x.l + x.t === 3), "hvert lid spilar 3 leiki");
+
+    /* JAFNTEFLI ER JAFNTEFLI, og stig skera ur i rodun. */
+    const tied = [null, [0, 100], [0, 100], [0, 80], [0, 60]];
+    const one = [[[1, 2], [3, 4]]];
+    const t2 = leagueRecords({ scores: tied, schedule: one });
+    ok(t2.rec[1].t === 1 && t2.rec[2].t === 1, "jafnt skor -> jafntefli hja badum");
+    ok(t2.rec[1].w === 0 && t2.rec[1].l === 0, "og hvorki sigur ne tap");
+  }
+
+  /* --- urslitakeppnin --- */
+  {
+    /* Saeti 1..6, og efra saetid skorar alltaf meira: efsta saetid
+       VERDUR ad vinna. Falli thad er brackettid rangt tengt. */
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8];
+    const scores = [null];
+    for (let t = 1; t <= 8; t++) scores.push([0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 100 - t, 100 - t, 100 - t]);
+    const po = playoffChampion({ seeds, scores, weeks: [15, 16, 17], size: 6 });
+    ok(po.champion === 1, "efsta saetid vinnur thegar thad skorar mest");
+    ok(po.rounds.length === 3, `thrjar umferdir (${po.rounds.length})`);
+    ok(po.rounds[0].byes.length === 2, "saeti 1 og 2 sitja fyrstu vikuna");
+    ok(po.rounds[0].pairs.some(([a, b]) => a === 3 && b === 6) &&
+       po.rounds[0].pairs.some(([a, b]) => a === 4 && b === 5),
+      "3v6 og 4v5 i fyrstu umferd");
+    ok(!po.rounds.flatMap((r) => r.pairs).flat().includes(7),
+      "saeti 7 kemst ekki i urslitakeppnina");
+
+    /* ENDURRODUN: efsta saetid a ad maeta THVI LAEGSTA sem eftir er. */
+    ok(po.rounds[1].pairs.some(([a, b]) => a === 1 && b === 4),
+      "endurrodad i undanurslitum: 1 gegn laegsta saeti sem eftir er");
+
+    /* SNUID VID: neðsta saetid skorar mest og VERDUR ad vinna. Vaeri
+       niðurstadan alltaf saeti 1 vaeri brackettid ad lesa rodun en
+       ekki stig. */
+    const rev = [null];
+    for (let t = 1; t <= 8; t++) rev.push([0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 90 + t, 90 + t, 90 + t]);
+    ok(playoffChampion({ seeds, scores: rev, weeks: [15, 16, 17], size: 6 }).champion === 6,
+      "sjotta saetid vinnur thegar THAD skorar mest");
+
+    /* Fjogurra-lida bracket er tvaer umferdir, ekki thrjar. */
+    const po4 = playoffChampion({ seeds, scores, weeks: [16, 17], size: 4 });
+    ok(po4.rounds.length === 2, `fjogur lid -> tvaer umferdir (${po4.rounds.length})`);
+    ok(po4.champion === 1, "og efsta saetid vinnur");
+  }
+
+  /* --- heil deild: draftid, vikurnar og titillinn hanga saman --- */
+  {
+    const { actual, list } = world(21);
+    const byWeek = new Map();
+    /* Vikustigin eru timabils-stigin deild a 17 med hávaða, svo betri
+       leikmadur se raunverulega betri i vikutalningunni lika. */
+    let a = 77;
+    const rnd = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; };
+    for (const p of list) {
+      for (let w = 1; w <= 17; w++) {
+        byWeek.set(`${p.key}|${w}`, { pos: p.pos, pts: Math.max(0, p.pts / 17 * (0.4 + rnd() * 1.2)) });
+      }
+    }
+    const league = { ...DEFAULT_LEAGUE, teams: 12, rounds: 14 };
+    const field = boardFrom(list.map((p) => p.key));
+    const schedule = roundRobin(12, 14, null);
+    const boards = new Array(13).fill(field);
+    const S = simulateSeason({ boards, fieldBoard: field, actual, byWeek,
+      league, schedule, regWeeks: 14, playoffWeeks: [15, 16, 17], playoffTeams: 6 });
+    ok(S.rec.slice(1).every((r) => r.w + r.l + r.t === 14),
+      "hvert lid spilar nakvaemlega 14 leiki");
+    ok(S.champion != null && S.champion >= 1 && S.champion <= 12,
+      `nakvaemlega einn meistari (lid ${S.champion})`);
+    ok(S.seeds.length === 12 && new Set(S.seeds).size === 12,
+      "rodun ber oll lidin, hvert einu sinni");
+    ok(S.rec.slice(1).every((r) => r.pf > 0), "hvert lid skorar stig");
+
+    /* SAMA DEILD, ONNUR SKRA -> onnur rod, SOMU stig. Thad sannar ad
+       skrain radi vidureignum en ekki hopum. */
+    const S2 = scoreLeague({ rosters: S.rosters, byWeek, league,
+      schedule: roundRobin(12, 14, (() => { let b = 5;
+        return () => { b = (b * 1664525 + 1013904223) >>> 0; return b / 4294967296; }; })()),
+      regWeeks: 14, playoffWeeks: [15, 16, 17], playoffTeams: 6 });
+    const pf1 = S.rec.slice(1).map((r) => Math.round(r.pf * 100));
+    const pf2 = S2.rec.slice(1).map((r) => Math.round(r.pf * 100));
+    ok(JSON.stringify(pf1) === JSON.stringify(pf2),
+      "onnur skra breytir ENGU um stigin sem lidin skora");
+    ok(JSON.stringify(S.rec.slice(1).map((r) => r.w)) !==
+       JSON.stringify(S2.rec.slice(1).map((r) => r.w)),
+      "en hun breytir SIGRUNUM — annars vaeri skrain ekki i notkun");
+
+    /* PER-SAETIS BORD OG AAETLANIR. `boards`/`plans` VERDA ad virka per
+       saeti, annars getur h2h-labid ekki haft tvo arma i somu deild. */
+    const only = new Array(13).fill(null);
+    only[5] = [["QB"], ...Array(13).fill(null)];
+    const S3 = simulateSeason({ boards, plans: only, fieldBoard: field, actual,
+      byWeek, league, schedule, regWeeks: 14 });
+    const qb5 = S3.rosters[5].map((k) => actual.get(k)).filter((p) => p.pos === "QB").length;
+    const qb6 = S3.rosters[6].map((k) => actual.get(k)).filter((p) => p.pos === "QB").length;
+    ok(actual.get(S3.rosters[5][0]).pos === "QB",
+      "aaetlun saetis 5 thvingadi QB i 1. umferd");
+    ok(qb5 >= 1 && actual.get(S3.rosters[6][0]).pos !== "QB",
+      `og saeti 6 er OSNORTID (${qb6} QB, fyrsta val ${actual.get(S3.rosters[6][0]).pos})`);
+
+    /* ============================================================
+       NULL-EIGINLEIKI HERMISINS — SAMA BORD I BADUM ORMUM
+       ============================================================
+       `h2h-lab.mjs` hvilir a thessu og hefur thad sem HLID: se sama
+       bordid sett i bada arma og fruman spegluð (medferd i saeti i og
+       vidmid i j, sidan ofugt) VERDA sigrar, stig og titlar ad
+       standast a UPP A NULL. Gerist thad ekki hallar herminn a arm og
+       hver tala i labinu er merkingarlaus.
+
+       ATH: thetta er nakvaemt AD BYGGINGU (spegillinn skiptir ormunum)
+       og verndar thvi ARM-bokhaldid, ekki saetis-skekkju. Saetis-
+       skekkjan er raunveruleg og STOR — hun er maeld i labinu (N3) og
+       er einmitt astaedan fyrir spegluninni. Profid hér er ad ganga ur
+       skugga um ad speglunin se raunverulega framkvaemd i vélinni sem
+       labid kallar.                                                  */
+    let dw = 0, dp = 0, dc = 0, cells = 0;
+    for (let i = 1; i <= 12; i++) {
+      const j = i % 12 + 1;
+      let wT = 0, wC = 0, pT = 0, pC = 0, cT = 0, cC = 0;
+      for (const swapArm of [false, true]) {
+        const ti = swapArm ? j : i, ci = swapArm ? i : j;
+        const b = new Array(13).fill(field);
+        b[ti] = field; b[ci] = field;            // SAMA bordid i badum ormum
+        const R = simulateSeason({ boards: b, fieldBoard: field, actual, byWeek,
+          league, schedule, regWeeks: 14, playoffWeeks: [15, 16, 17], playoffTeams: 6 });
+        wT += R.rec[ti].w + R.rec[ti].t / 2; wC += R.rec[ci].w + R.rec[ci].t / 2;
+        pT += R.rec[ti].pf; pC += R.rec[ci].pf;
+        cT += R.champion === ti ? 1 : 0; cC += R.champion === ci ? 1 : 0;
+      }
+      cells++;
+      dw = Math.max(dw, Math.abs(wT - wC));
+      dp = Math.max(dp, Math.abs(pT - pC));
+      dc = Math.max(dc, Math.abs(cT - cC));
+    }
+    ok(cells === 12, `${cells} spegladar frumur profadar`);
+    ok(dw === 0, `NULL: staersti munur a sigrum er ${dw} (verdur ad vera 0)`);
+    ok(dp === 0, `NULL: staersti munur a stigum er ${dp}`);
+    ok(dc === 0, `NULL: staersti munur a titlum er ${dc}`);
+  }
 }
 
 /* ---------- 6. HEILDARMATID ---------- */

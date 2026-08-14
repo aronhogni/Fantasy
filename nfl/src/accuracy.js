@@ -157,9 +157,16 @@ export const DEFAULT_LEAGUE = {
  * adeins munurinn a bordunum. Thad er lika raunsaerra: i thinni deild
  * ertu ad keppa vid folkid i herberginu, ekki vid medaltal aranna.
  */
+/**
+ * `boards` (valfrjalst) — fylki/kort saeti -> bord fyrir OLL saetin.
+ * Thad er sama vidmot og `rival` gefur, adeins almennara: h2h-lab tharf
+ * heila deild thar sem hvert saeti getur haft sitt bord. Saeti sem
+ * vantar i `boards` fellur a `fieldBoard`, svo gamla kallformid er
+ * ohaggad og OLL bordin fara gegnum SOMU `bestAvailable`.
+ */
 export function simulateDraft({ board, fieldBoard, actual, slot,
                                 league = DEFAULT_LEAGUE, plan = null,
-                                rival = null }) {
+                                rival = null, boards = null, plans = null }) {
   const { teams, rounds } = league;
   const taken = new Set();
   /* Hvert lid ber sina eigin stodutalningu — LIKA motherjarnir.
@@ -185,14 +192,20 @@ export function simulateDraft({ board, fieldBoard, actual, slot,
          spurningin sem draftari spyr i sjottu umferd. */
       const resolve = (b) => (typeof b === "function"
         ? b(taken, counts[t], r, rosters[t]) : b);
-      const use = resolve(mine ? board
-        : (rival && t === rival.slot ? rival.board : fieldBoard));
+      const own = boards ? (boards[t] || null) : null;
+      const use = resolve(own || (mine ? board
+        : (rival && t === rival.slot ? rival.board : fieldBoard)));
       /* `plan` er STODU-AAETLUN fyrir okkar lid: hvada stodur ma taka
          i hverri umferd. Notad af `strategy-lab.mjs` til ad maela
          "RB fyrst eda WR fyrst". Motherjarnir fylgja ALDREI aaetlun —
          their drafta eftir markadinum, sem er thad sem raunverulega
          gerist i herberginu. */
-      const allow = mine && plan ? plan[r] : null;
+      /* `plans[t]` er stodu-aaetlun EINSTAKS saetis. Gamla `plan` gildir
+         afram um `slot` eingongu; hun er hér thvi `strategy-lab` maelir
+         eina aaetlun i einu, en deildar-hermunin tharf TVAER i somu
+         deild (stefnan og vidmidid) og gat thad ekki. */
+      const allow = (plans && plans[t]) ? plans[t][r]
+        : (mine && plan ? plan[r] : null);
       let pick = bestAvailable(use, taken, actual, league, counts[t], allow);
       /* Aaetlun sem ekki er haegt ad uppfylla (staðan uppurin eda
          thak nad) MA EKKI stodva valid — tha vaeri verid ad maela
@@ -211,6 +224,10 @@ export function simulateDraft({ board, fieldBoard, actual, slot,
     roster: myRoster,
     rivalPoints: rival ? startersPoints(rosters[rival.slot], actual, league) : null,
     rivalRoster: rival ? rosters[rival.slot] : null,
+    /* OLL saetin. Deildar-hermunin tharf tha alla — hun skorar hverja
+       viku fyrir hvert lid — en thetta er VIDBOT: gomlu svidin eru
+       ohreyfd og `rosters[0]` er tomt (saeti eru 1-vaeg). */
+    rosters,
   };
 }
 
@@ -238,20 +255,45 @@ function bestAvailable(board, taken, actual, league, posCount, allow = null) {
  * lineup-hegdun frekar en draftid, og thad er onnur spurning.
  */
 export function startersPoints(roster, actual, league = DEFAULT_LEAGUE) {
+  return Math.round(startersRaw(roster, (k) => actual.get(k), league) * 10) / 10;
+}
+
+/**
+ * KJARNI BYRJUNARLIDS-REGLUNNAR — EIN UTFAERSLA FYRIR ALLT REPO-ID.
+ *
+ * HVERS VEGNA THETTA VAR DREGID UT: `weekly-lab.mjs` og `bye-lab.mjs`
+ * baru HVOR SITT afrit af nakvaemlega thessari reglu (`weekPoints`),
+ * hardkodad a QB1/RB2/WR3/TE1/FLEX1. Tvo afrit af sama utreikningi er
+ * sama aettin af villu og `buildTeamMetrics` i FPL-verkefninu, thar sem
+ * afritid las `gf` sem skrain bar ekki og skrifadi NaN fyrir 17 lid —
+ * merkt eins og maeling. Her voru afritin RETT en thau voru lika BLIND
+ * a deildarlogun, svo 10-lida deildin med TVO FLEX gat ekki verid maeld
+ * vikulega yfirleitt.
+ *
+ * `lookup(key)` skilar `{ pos, pts }` eda `null`. Beri hun LIKA `by`
+ * er RODUNIN gerd eftir `by` en STIGIN logd saman ur `pts` — thad er
+ * munurinn a "byrjunarlid valid med fullkominni vitneskju" og
+ * "byrjunarlid valid ur spa og skorad a raunstigum". README 5m segir
+ * hvers vegna thad skiptir mali: vikuleg talning med fullkominni
+ * vitneskju VERDLAUNAR sveiflu, svo nidurstada sem stenst adeins thar
+ * er artefakt. Baðar leidir eru maelanlegar ur SOMU utfaerslu.
+ */
+export function startersRaw(roster, lookup, league = DEFAULT_LEAGUE) {
   const byPos = {};
   for (const k of roster) {
-    const p = actual.get(k);
+    const p = lookup(k);
     if (!p) continue;
-    (byPos[p.pos] = byPos[p.pos] || []).push(p.pts);
+    (byPos[p.pos] = byPos[p.pos] || []).push(p);
   }
-  for (const k of Object.keys(byPos)) byPos[k].sort((a, b) => b - a);
+  const key = (p) => (p.by != null ? p.by : p.pts);
+  for (const k of Object.keys(byPos)) byPos[k].sort((a, b) => key(b) - key(a));
 
   let total = 0;
   const used = {};
   for (const [pos, n] of Object.entries(league.starters)) {
     if (pos === "FLEX") continue;
     const list = byPos[pos] || [];
-    for (let i = 0; i < n; i++) { total += list[i] || 0; }
+    for (let i = 0; i < n; i++) { total += list[i] ? list[i].pts : 0; }
     used[pos] = n;
   }
   // FLEX: besti afgangur ur leyfdum stodum
@@ -261,9 +303,28 @@ export function startersPoints(roster, actual, league = DEFAULT_LEAGUE) {
     const list = byPos[pos] || [];
     for (let i = used[pos] || 0; i < list.length; i++) pool.push(list[i]);
   }
-  pool.sort((a, b) => b - a);
-  for (let i = 0; i < flexN; i++) total += pool[i] || 0;
-  return Math.round(total * 10) / 10;
+  pool.sort((a, b) => key(b) - key(a));
+  for (let i = 0; i < flexN; i++) total += pool[i] ? pool[i].pts : 0;
+  return total;
+}
+
+/**
+ * Stig byrjunarlids EINNAR VIKU. `byWeek` er kort a `${key}|${week}`
+ * -> { pos, pts } — sama snid og vikuskrarnar i `data/weekly/` gefa og
+ * sama lykill og `weekly-lab`/`bye-lab` notudu adur.
+ *
+ * ENGIN NAMUNDUN HER, viljandi: vikutolur eru lagdar saman i timabil og
+ * namundun a hverri viku myndi hlada upp skekkju sem timabils-summan
+ * hefur ekki. `startersPoints` namundar afram thvi hun er birt tala.
+ */
+export function weekPoints(roster, byWeek, week, league = DEFAULT_LEAGUE,
+                           selectBy = null) {
+  return startersRaw(roster, (k) => {
+    const r = byWeek.get(`${k}|${week}`);
+    if (!r) return null;
+    if (!selectBy) return r;
+    return { pos: r.pos, pts: r.pts, by: selectBy(k, week) };
+  }, league);
 }
 
 /**
@@ -287,6 +348,216 @@ export function simulateAllSlots({ board, fieldBoard, actual,
     max: Math.round(Math.max(...pts) * 10) / 10,
     bySlot: pts,
   };
+}
+
+/* ============================================================
+   DEILDIN — VIKULEG VIDUREIGN OG URSLITAKEPPNI
+   ============================================================
+   STAERSTA OMAELDA SPURNINGIN I VERKEFNINU var thessi: allt her er
+   maelt i STIGUM, en fantasy vinnst ekki a stigum heldur a VIKULEGUM
+   VIDUREIGNUM. Bord sem skorar meira yfir timabilid getur tapad
+   fleiri vikum, og ekkert i repo-inu hefdi tekid eftir thvi.
+
+   REGLURNAR ERU LESNAR, EKKI VALDAR. Baðar deildir notandans svara
+   `playoff_week_start: 15` og `playoff_teams: 6` (raunsvor Sleeper,
+   sja `tests/standings.mjs`), og `fpts` i sama svari er sannanlega
+   vikur 1-14 eingongu — 1815,34 a rostri 1, en 2268,18 yfir vikur
+   1-17. Reglulega timabilid er thvi 14 vikur og urslitakeppnin
+   vikur 15-17.
+
+   HVERS VEGNA THETTA ER HER OG EKKI I LABINU: `weekPoints` var
+   afritad i tvo lob, og eina vornin gegn thvi ad thridja afritid reki
+   i sundur er ad byggingin bui a EINUM stad sem profin keyra.
+   ============================================================ */
+
+/**
+ * Umferdaskra: hringadferdin (circle method). Skilar `weeks` umferdum
+ * thar sem hvert lid spilar NAKVAEMLEGA einn leik i hverri umferd.
+ *
+ * 14 vikur i 10-lida deild er 9 + 5, svo sum lid maetast tvisvar og
+ * onnur einu sinni. Thad er EKKI ohreinindi heldur raunsaett (raunverulegar
+ * deildir hafa oskipulega skra), og spegluninni er nakvaemlega aetlad ad
+ * fella ut hvad thad snyr ser. `rnd` slembar umferdaRODINA, svo hver
+ * hermd deild fai sina skra en engin skra se ogild.
+ */
+export function roundRobin(teams, weeks, rnd = null) {
+  if (teams % 2 !== 0) throw new Error("roundRobin: teams must be even");
+  const ids = range(1, teams);
+  const base = [];
+  for (let r = 0; r < teams - 1; r++) {
+    const pairs = [];
+    for (let i = 0; i < teams / 2; i++) pairs.push([ids[i], ids[teams - 1 - i]]);
+    base.push(pairs);
+    ids.splice(1, 0, ids.pop());          // fyrsta lidid stendur, hin snuast
+  }
+  const out = [];
+  while (out.length < weeks) {
+    const order = base.map((_, i) => i);
+    if (rnd) {
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+    }
+    for (const i of order) {
+      if (out.length >= weeks) break;
+      out.push(base[i]);
+    }
+  }
+  return out;
+}
+
+/**
+ * Stada ur vikuskorum og skra. `scores[t][w]` er stig lids `t` i viku
+ * `w` (saeti eru 1-vaeg). Skilar rod per lid OG rodun (`seeds`).
+ *
+ * JAFNTEFLI ER TALID SEM JAFNTEFLI, ekki hálfur sigur i `wins` —
+ * Sleeper ber `wins`/`losses`/`ties` sem thrju svid og `recordLine` i
+ * `standings.js` birtir thau thrju. Rodunin notar `wins + ties/2`,
+ * sem er sama regla og vinningshlutfall.
+ *
+ * JAFNTEFLI I RODUN eru leyst med stigum (`pf`) — thad er regla
+ * Sleeper og hun er MAELD: `fpts` er thad eina sem svarid ber til ad
+ * skera ur. Sidan saetisnumer, svo rodunin se sannanlega deterministisk.
+ */
+export function leagueRecords({ scores, schedule }) {
+  const teams = scores.length - 1;
+  const rec = [null];
+  for (let t = 1; t <= teams; t++) rec.push({ team: t, w: 0, l: 0, t: 0, pf: 0, pa: 0 });
+  for (let i = 0; i < schedule.length; i++) {
+    const week = i + 1;
+    for (const [a, b] of schedule[i]) {
+      const sa = scores[a][week], sb = scores[b][week];
+      rec[a].pf += sa; rec[a].pa += sb;
+      rec[b].pf += sb; rec[b].pa += sa;
+      if (sa > sb) { rec[a].w++; rec[b].l++; }
+      else if (sb > sa) { rec[b].w++; rec[a].l++; }
+      else { rec[a].t++; rec[b].t++; }
+    }
+  }
+  const seeds = rec.slice(1).slice().sort((x, y) =>
+    (y.w + y.t / 2) - (x.w + x.t / 2) || y.pf - x.pf || x.team - y.team)
+    .map((r) => r.team);
+  return { rec, seeds };
+}
+
+/**
+ * Urslitakeppnin. `seeds` er rodun (best fyrst), `scores[t][w]` stigin.
+ *
+ * SEX LID / THRJAR VIKUR (raunstillingin i badum deildum): saeti 1-2
+ * sitja fyrstu vikuna, 3v6 og 4v5 spila. Endurrodun fyrir undanurslit —
+ * sa sem er efstur maetir THEIM LAEGSTA sem eftir er, sem er reglan hja
+ * Sleeper og i NFL sjalfu.
+ *
+ * FJOGUR LID / TVAER VIKUR er maelt sem NAEMNI, ekki sem valkostur:
+ * `playoff_teams` er REGLA deildarinnar og svarid segir 6. Fjorir eru
+ * med thvi ad fjoldinn er thad eina i thessari uppsetningu sem vid
+ * hefdum getad valid, og tha a hann ad vera SYNILEGUR sem naemni.
+ *
+ * JAFNTEFLI I URSLITALEIK: efra saeti kemst afram. Thad er venjan og
+ * thad er DETERMINISTISKT — myntkast baetti vid havada sem er ekki i
+ * gognunum. Jafntefli a fleytitolum eru hvort sem er naer omoguleg.
+ */
+export function playoffChampion({ seeds, scores, weeks, size = 6 }) {
+  const alive = seeds.slice(0, size);
+  const seedOf = new Map(seeds.map((t, i) => [t, i + 1]));
+  const game = (a, b, w) => {
+    const sa = scores[a][w], sb = scores[b][w];
+    if (sa > sb) return a;
+    if (sb > sa) return b;
+    return seedOf.get(a) < seedOf.get(b) ? a : b;
+  };
+  const rounds = [];
+  let field = alive.slice();
+  let wi = 0;
+  /* Fyrsta umferd er adeins spiluð ef fleiri en helmingurinn af
+     naestu tveggja-velda staerd eru med — 6 lid gefa tvo leiki og
+     tvo hvildarsaeti, 4 lid gefa enga. */
+  const byes = nextPow2(size) === size ? 0 : nextPow2(size) - size;
+  if (byes > 0) {
+    if (weeks.length < 1) return null;
+    const w = weeks[wi++];
+    const resting = field.slice(0, byes);
+    const playing = field.slice(byes);
+    const winners = [];
+    const pairs = [];
+    for (let i = 0; i < playing.length / 2; i++) {
+      const a = playing[i], b = playing[playing.length - 1 - i];
+      pairs.push([a, b]);
+      winners.push(game(a, b, w));
+    }
+    rounds.push({ week: w, pairs, winners, byes: resting });
+    field = [...resting, ...winners]
+      .sort((x, y) => seedOf.get(x) - seedOf.get(y));
+  }
+  while (field.length > 1) {
+    if (wi >= weeks.length) return null;
+    const w = weeks[wi++];
+    const winners = [], pairs = [];
+    for (let i = 0; i < field.length / 2; i++) {
+      const a = field[i], b = field[field.length - 1 - i];
+      pairs.push([a, b]);
+      winners.push(game(a, b, w));
+    }
+    rounds.push({ week: w, pairs, winners, byes: [] });
+    field = winners.sort((x, y) => seedOf.get(x) - seedOf.get(y));
+  }
+  return { champion: field[0], rounds };
+}
+
+function nextPow2(n) { let p = 1; while (p < n) p *= 2; return p; }
+
+/**
+ * HEIL DEILD: draft -> vikuskor -> stada -> urslitakeppni.
+ *
+ * `boards[t]` er bord saetis `t` (fall eda kort, sama og `simulateDraft`
+ * tekur). `byWeek` er `${key}|${week}` -> { pos, pts }. `actual` er
+ * timabils-summan sem BORDIN og stodu-thakid lesa — hun er afram sama
+ * kortid og allar adrar maelingar nota, svo draftid sjalft er
+ * OBREYTT fra theim.
+ *
+ * `selectBy(key, week)` (valfrjalst) velur byrjunarlid ur odru en
+ * raunstigum vikunnar — sja `startersRaw`.
+ */
+export function simulateSeason({ boards, plans = null, fieldBoard, actual, byWeek,
+                                 league = DEFAULT_LEAGUE, schedule,
+                                 regWeeks = 14, playoffWeeks = [15, 16, 17],
+                                 playoffTeams = 6, selectBy = null }) {
+  /* `board`/`slot` eru afram gefin (og eru markadsbordid) svo gamla
+     leidin i `simulateDraft` se aldrei kolluð med `null`. Saeti sem
+     `boards` sleppir draftar tha eftir markadinum, sem er retta
+     sjalfgefna hegdunin. */
+  const draft = simulateDraft({ board: fieldBoard, fieldBoard, actual, slot: 1,
+    league, boards, plans });
+  return { rosters: draft.rosters,
+           ...scoreLeague({ rosters: draft.rosters, byWeek, league, schedule,
+             regWeeks, playoffWeeks, playoffTeams, selectBy }) };
+}
+
+/**
+ * Skorar HOPA sem thegar eru draftadir. Adskilid fra draftinu thvi
+ * SAMA deildin er skoruð oftar en einu sinni: einu sinni med
+ * byrjunarlidi vikunnar valdu af fullkominni vitneskju og einu sinni
+ * valdu af GANGANDI spa (`selectBy`). Vaeri draftid endurtekid fyrir
+ * hvora leid vaeri thad ekki sama deildin og naemnisprofid maeldi tvennt
+ * i einu.
+ */
+export function scoreLeague({ rosters, byWeek, league = DEFAULT_LEAGUE, schedule,
+                              regWeeks = 14, playoffWeeks = [15, 16, 17],
+                              playoffTeams = 6, selectBy = null }) {
+  const { teams } = league;
+  const maxWeek = Math.max(regWeeks, ...playoffWeeks);
+  const scores = [null];
+  for (let t = 1; t <= teams; t++) {
+    const row = new Float64Array(maxWeek + 1);
+    for (let w = 1; w <= maxWeek; w++) {
+      row[w] = weekPoints(rosters[t], byWeek, w, league, selectBy);
+    }
+    scores.push(row);
+  }
+  const { rec, seeds } = leagueRecords({ scores, schedule: schedule.slice(0, regWeeks) });
+  const po = playoffChampion({ seeds, scores, weeks: playoffWeeks, size: playoffTeams });
+  return { scores, rec, seeds, playoff: po, champion: po ? po.champion : null };
 }
 
 /* ---------- heildarmatid ---------- */

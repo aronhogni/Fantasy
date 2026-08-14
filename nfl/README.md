@@ -197,6 +197,7 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 | **Hvar liggja 94%** (`gap-lab.mjs`) | **Þakið er 29,3%** (TD 18,9 + nýtni 10,4). Vörn er **NULL-flaska** (enrichment 0,96×). Röð: availability → hlutverk → vörn ekki neitt. Sjá 4f |
 | **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+24,4 stig**, t=2,275, 8/11 ár, CI [+3,7, +43,7], einræn 4/4. Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
 | **Óvissu-háð hnignun spárinnar** (`shrink-lab.mjs`) | **HAFNAÐ.** 12 óvissu-mælar × 3 forgildi × 6 vogir: **0 af 36 samsetningum jákvæðar í öllum 10 hólfum á báðum spáheimildum**. Besta samkvæma hrifin +0,5 stig af ~1900. Marktækni í **0/14** hólfum (besta \|t\| = 3,4 gegn kröfu 4,5–5,7) |
+| **Vikulegar viðureignir í stað stiga** (`h2h-lab.mjs`) | **NULL-NIÐURSTAÐA, OG HÚN ER VERÐMÆT: stigin voru fullnægjandi staðgengill allan tímann.** A-Ranking gegn ADP heldur á SIGRUM (**+2,4 til +3,8 af 14**, marktækt í 4/4 lögnum, met 9,6-4,4 á móti 7,2-6,8) og stiga-dálkurinn endurgerir bókuðu +233,6 sem **+223**. Stefnu-röðin færist ekki: rho(sigrar, stig) = **0,961–0,989** á móti sjálfsáreiðanleika 0,935–0,968 — og **rho(stig, bókuð röð) er LÆGRA (0,768–0,828)**, svo mælikvarðinn færir röðina minna en hermirinn gerir. **Meistaraprósenta ber ekki merkið** í 5 tímabilum (+17,8pp, CI innihaldur núll) þótt „komast í úrslitakeppni" geri það (+35,1pp). Sjá 5n |
 
 **Aldur: skugginn er raunverulegur, hann flyst bara ekki.** RB-leifin fellur
 einrænt og steypist við 29–31 (**−22,3 stig** net of ADP), WR −15,4, og hnykkurinn
@@ -1831,6 +1832,204 @@ nákvæmlega ein slík; hún var flögguð sem artefakt og fór hvergi.
 > Þetta er sami lærdómur og „hærri fylgni er ekki betri ákvörðun", einu lagi
 > dýpra: **réttari mælikvarði getur verið rangur mælikvarði**, og eina leiðin til
 > að sjá það er að mæla báða og bera saman.
+
+---
+
+## 5n. Vikulegar viðureignir — mælikvarðinn sem allt hitt var mælt án
+
+**Hver einasta niðurstaða í þessu verkefni var mæld í STIGUM.** A-Ranking slær
+ADP um +233,6 stig, „WR fyrst" slær BPA um +23,5, bye-vogin gefur +28. Fantasy
+vinnst ekki á stigum. Hún vinnst á **vikulegum viðureignum** og á úrslitakeppni.
+Borð sem skorar meira yfir tímabilið getur tapað fleiri vikum — 2.000 stig sem
+koma í þremur 200-stiga vikum og ellefu 130-stiga vikum er verri deildarútkoma en
+1.950 sem koma jafnt — og **ekkert í repo-inu hefði tekið eftir því**, því engin
+mæling hér hafði mótherja í viku.
+
+`scripts/h2h-lab.mjs` → `data/measure/h2h.json`. Handvirk, **tengir ekkert inn í
+`src/`**, er ekki í `npm test`.
+
+### Reglurnar eru LESNAR, ekki valdar
+
+| regla | gildi | hvaðan |
+|---|---|---|
+| reglulegt tímabil | **vikur 1–14** | `fpts` í raunsvari Sleeper er 1815,34 á rosteri 1 en vikur 1–17 gefa 2268,18 |
+| úrslitakeppni | **vikur 15–17** | `playoff_week_start: 15` |
+| lið í úrslitakeppni | **6** | `playoff_teams: 6` í **báðum** deildum |
+| röðun | `wins + ties/2`, síðan stig | regla Sleeper |
+
+Svörin sjálf eru orðrétt í `tests/standings.mjs`. Lögunin (10 lið PPR 2FLEX ·
+12 lið half-PPR 2FLEX · 12-1FLEX almenna) er sú sama og `half-lab`, `opp-lab`,
+`vbdbase-lab` og `waiver-lab` bera, og **varamannsþrepið er borið vélrænt við
+`data/measure/waiver.json`**; skriftan deyr ef það stemmir ekki.
+
+### NÚLLPRÓFIÐ FYRST — OG ÞAÐ ER HLIÐ
+
+Borð sem spilar gegn **sjálfu sér** verður að gefa nákvæmlega 50%. Mælt á
+**15 frumum, 680 hermdum deildum**:
+
+| | stærsti munur |
+|---|---|
+| sigrar | **0** |
+| meistaratitlar | **0** |
+| stig | **0** |
+| vikuleg sigurprósenta frá 50% | **0** |
+
+**Og það er sagt berum orðum hvernig núllið fæst: speglunin gerir það nákvæmt AÐ
+BYGGINGU.** Hver fruma er keyrð í báðar áttir (meðferð í sæti A og viðmið í B,
+síðan öfugt), svo armarnir eru skiptanlegir og núllið getur ekki brugðist nema
+armabókhaldið sjálft sé bilað. **Það þýðir að núllprófið ver EKKI sætis-skekkju**
+— og hún er raunveruleg og stór. Þess vegna eru þrjú hlið til viðbótar:
+
+- **Bókhaldið** (9 deildir, 0 villur): sigrar = töp, hvert lið spilar nákvæmlega
+  14 leiki, hver vika er fullkomin pörun, nákvæmlega einn meistari.
+- **Sætis-dreifingin, óspegluð** — allir á SAMA borði: bilið milli besta og versta
+  sætis er **3,87 · 3,20 · 2,87 sigrar** af 14 (og 170–241 stig). Það er
+  **STÆRRA en áhrifin sem verið er að mæla**, og er ástæðan fyrir spegluninni.
+  Talan er birt, ekki falin.
+- **Akkeri í BÁÐA enda**, í öllum þremur lögnum: orakel-borð (raunstig
+  tímabilsins) **+3,5 til +3,9 sigrar** gegn A-Ranking, andhverft ADP **−10,0 til
+  −10,3**, slembin röð **−9,8 til −10,2**. Öll níu vikmörk útiloka núll.
+
+> **Fjórða núllið er inni í mælingunni sjálfri.** Í stefnutöflunni er
+> `bpa`-röðin meðferð == viðmið, og hún les **0 sigra / 0 stig / 0 titla** í öllum
+> þremur lögnum. Núll sem keyrir í töflunni sem er birt er sterkara en núll sem
+> keyrir í lykkju við hliðina á henni.
+
+### Q1 — A-RANKING GEGN ADP HELDUR, OG HELDUR VEL
+
+10 frækorn × öll sæti × speglun × 5 tímabil = **1.000–1.200 hermdar deildir á
+frumu**. Vikmörkin eru **bootstrap klasaður per tímabili** (`bootstrapDiff`,
+2.000 ítranir) — raðir innan árs eru ekki óháðar.
+
+| lögun | met | sigrar | vika-móti-viku | úrslitakeppni | tímabils-stig |
+|---|---|---|---|---|---|
+| 10-2flex (Patriots) | **9,7-4,3** á móti 7,2-6,8 | **+2,58** [+0,45, +4,44] | 66,2% | 87,4% á móti 65,4% | +236 |
+| 12-2flex (Sófahetjur, ADP=ppr) | **9,8-4,2** á móti 7,2-6,8 | **+2,52** [+0,86, +4,21] | 67,1% | 86,9% á móti 53,8% | +244 |
+| 12-2flex (ADP=std) | **10,8-3,2** á móti 6,9-7,1 | **+3,81** [+2,89, +4,73] | 75,1% | 98,4% á móti 49,9% | +283 |
+| 12-1flex (bókaða lögnin) | **9,6-4,4** á móti 7,2-6,8 | **+2,36** [+1,09, +3,58] | 65,8% | 90,9% á móti 55,9% | **+223** |
+
+**Jákvætt í 4 af 4, marktækt í 4 af 4.** Tvennt sem gerir töfluna trúverðuga:
+
+1. **Stiga-dálkurinn endurgerir bókuðu töluna.** Í lögninni sem +233,6 var mælt í
+   mælist hér **+223** — sjálfstæð laug, önnur vélin, sama svar. Sigra-dálkurinn
+   er því ekki „önnur mæling" heldur **sama mælingin talin öðruvísi**.
+2. **Það lifir af að taka fullkomnu vitneskjuna af.** Byrjunarlið vikunnar er
+   valið tvisvar á SAMA draftinu — af raunstigum vikunnar og af **gangandi spá**
+   (hrist ppg, vikur < w). Án hindsight: **+2,25 · +2,41 · +3,12 · +1,90**, öll
+   marktæk. README 5m varar við að vikuleg talning með fullkominni vitneskju
+   verðlauni sveiflu; hér er sýnt að niðurstaðan er ekki það artefakt.
+
+### MEISTARATITILL ER HÁVAÐASAMASTI MÆLIKVARÐINN — OG ÞAÐ ER NIÐURSTAÐA
+
+Stærsta mælda áhrifið í öllu repo-inu færir titla-líkurnar úr **8,1% í 25,9%**
+(12-1flex) — meira en þreföldun. **Og það er samt ekki marktækt** (95% vikmörk
+[−7,0pp, +47,9pp], 3/5 ár). Ástæðan er ekki að áhrifin séu lítil heldur að
+klasarnir eru **fimm tímabil** og meistaratitill er einn atburður á deild.
+
+| mælikvarði (12-1flex) | munur | marktækt? |
+|---|---|---|
+| sigrar | +2,36 | **já** |
+| komast í úrslitakeppni | +35,1pp | **já** |
+| efsta sæti | +33,5pp | **já** |
+| **meistaratitill** | **+17,8pp** | **NEI** |
+
+> **Reglan sem af þessu leiðir:** *meistaraprósenta úr fáum tímabilum er hávaði í
+> prósentubúningi.* Hún er birt af því að hún er spurningin sem fólk spyr, en
+> **„komast í úrslitakeppni" er talan sem ber merkið.** Næmni á
+> úrslitakeppnisstærð (4 lið í vikum 16–17 í stað 6 í 15–17) breytir engu um
+> þetta: titillinn er ómarktækur í 3 af 3 lögnum þar líka.
+
+### Q2 — STEFNU-RÖÐIN BREYTIST EKKI, OG ÞAÐ ER NIÐURSTAÐAN
+
+19 stefnur × 3 lagnir × 7 tímabil × klofin frækorn = **1.120–1.344 deildir á
+stefnu**. Sama draftið talið **fjórum sinnum**: tímabils-stig, vikustig, sigrar,
+titlar.
+
+| lögun | rho(sigrar, tímabils-stig) | rho(stig, bókuð röð) | sjálfsáreiðanleiki sigra |
+|---|---|---|---|
+| 10-2flex | **0,989** | 0,828 | 0,935 |
+| 12-2flex | **0,961** | 0,768 | 0,947 |
+| 12-1flex | **0,979** | 0,812 | 0,968 |
+
+**Að skipta um MÆLIKVARÐA færir röðina minna en að skipta um HERMI — í 3 af 3
+lögnum.** Það er samanburðurinn sem sker úr, og hann var byggður inn viljandi:
+án hans er „röðin breyttist" ómælanleg fullyrðing, því einhver munur er alltaf.
+Sjálfsáreiðanleikinn (sami mælikvarði, tvö óháð frækorn) setur þakið: 0,935–0,968.
+**rho(sigrar, stig) liggur AÐ ÞAKINU** — röðin er eins nálægt því að vera sú sama
+og hávaðinn leyfir henni að mælast.
+
+> **Þetta er null-niðurstaða og hún er bókuð sem slík, ekki sem bilun:**
+> **tímabils-stig voru fullnægjandi staðgengill allan tímann.** Öll hin
+> mælitækin í verkefninu voru að svara réttri spurningu með rangri einingu — og
+> einingin skipti ekki máli.
+
+**Það sem er marktækt er allt NEIKVÆTT.** Yfir allar þrjár lagnir og báða
+mælikvarða: **engin stefna slær BPA marktækt**, hvorki á sigrum né stigum.
+Marktæku frumurnar eru **17 á sigrum og 20 á stigum — allar 37 neikvæðar**
+(`zero_rb`, `zero_rb6`, `qb1`, `qb2`, `wr_wr`, `wr_wr_wr`, `te1`, `te2`,
+`hero_rb`). Það sem er mælanlegt er **hvað má EKKI gera**, ekki hvað á að gera,
+og báðir mælikvarðarnir segja það eins.
+
+**Toppurinn á röðinni hér er ekki sá bókaði, og orsökin er mæld en ekki metrikin.**
+Bókaða taflan setur `wr_rb` efst; hér er það `rb_rb`/`rb_rb_rb`/`balanced` — á
+**báðum** mælikvörðum. Ein mælanleg orsök liggur í lauginni: `strategy-lab`
+draftar úr `features.json` **eingöngu**, og 12×14 draft þarf 168 leikmenn.
+
+| ár | laug | vantar |
+|---|---|---|
+| 2016 | 161 | 7 |
+| 2017 | 161 | 7 |
+| 2018 | 167 | 1 |
+| **2022** | **145** | **23** |
+
+Í 4 af 11 árum gekk laugin upp og **síðustu umferðirnar skiluðu engum manni** —
+nákvæmlega þar sem stöðu-áætlun á að borga sig eða ekki. `h2h-lab` draftar úr
+öllum sem eiga vikugögn (586–648) og raðar taglinu eftir gangandi forgildi, sama
+lausn og `waiver-lab` skjalar. **Þetta er takmörkun á bókuðu töflunni sem fannst
+við að endurmæla hana, ekki niðurstaða um mælikvarðann.**
+
+### Raunveruleika-akkeri — samhengi, EKKI hlið
+
+Eina lokna deildin sem við eigum er Patriots 2025 (raunsvar Sleeper). `ppts` þar
+er **besta mögulega byrjunarlið**, sem er nákvæmlega það sem hermunin reiknar.
+
+| | raun | hermt |
+|---|---|---|
+| staðalfrávik sigra | 1,41 | 2,09 |
+| stig (besta byrjunarlið, vikur 1–14) | 2016,3 | 1753,1 |
+
+Bilið er **263,2 stig, þar af er spyrnumaðurinn 123,7** — reiknað úr sömu
+vikuskrám (K er í `data/weekly/`, DST er það ekki). Afgangurinn er vörn og
+waiver-hreyfing. **Þetta er ekki hlið** og má ekki verða það: hermda deildin ber
+hvorki K/DEF né waiver, svo hún **á** að liggja lægra.
+
+### Hvað stenst og hvað gerir það ekki
+
+| bókað | á sigrum |
+|---|---|
+| A-Ranking slær ADP (+233,6 stig, 5/5) | **STENST** — +2,4 til +3,8 sigrar, marktækt í 4/4 lögnum, og heldur án hindsight-uppstillingar |
+| Röð stefnanna í `strategy_ppr.json` | **STENST sem röð** (rho 0,96–0,99) — en hvorugur mælikvarðinn finnur stefnu sem slær BPA |
+| „hrá spá-röð" (+74,7 stig) | **VEIKARA** — +0,11 til +1,69 sigrar, marktækt í 2 af 4 frumum |
+| Meistaraprósenta sem mælikvarði | **BER EKKI MERKIÐ** í 5 tímabilum — notið „komast í úrslitakeppni" |
+
+### Það sem er ÓMÆLT hér, og það er skráð
+
+- **Waiver og skipti.** Hóparnir eru fastir allt tímabilið; `waiver-lab` mælir
+  waiver-regluna og að blanda því saman hér væri að mæla tvennt í einu. Meiddur
+  maður er 0 stig í tíu vikur og enginn getur skipt honum út.
+- **K og DST** eru utan draftsins og því tóm sæti hjá ÖLLUM liðum — þau falla út
+  úr hverjum mun. `data/weekly/` ber enga DST.
+- **Skrá-styrkur.** Hringaðferð með slembaðri umferðaröð, ekki raunveruleg
+  Sleeper-skrá og engar deildir. Spegluninni er ætlað að fella það út, ekki að
+  herma það.
+- **Sögulegt half-PPR ADP er ekki til** (5l/half-lab), svo 12-liða deildin er
+  mæld með **báðum** (ppr og std) sem vikmörkum.
+
+Verðir: `tests/accuracy.mjs` kaflar **5b** (vikulega byrjunarliðið er EIN
+útfærsla, borin orðrétt við gamla afritið á 3.400 vikum) og **5c** (skráin,
+staðan, bracketið og **null-eiginleiki hermisins**). Sex stökkbreytingar felldar,
+þar á meðal „jafntefli telst sigur", „efsta sæti mætir röngum andstæðingi" og
+„áætlun lekur á öll sæti".
 
 ---
 

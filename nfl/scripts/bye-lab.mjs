@@ -38,7 +38,7 @@
 
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { simulateDraft, DEFAULT_LEAGUE } from "../src/accuracy.js";
+import { simulateDraft, DEFAULT_LEAGUE, weekPoints } from "../src/accuracy.js";
 import { mean } from "../src/learn.js";
 import { stamp } from "./lib/provenance.mjs";
 import { parseArgs, requireSeasons } from "./lib/args.mjs";
@@ -59,22 +59,8 @@ const REPL = { QB: 12, RB: 28, WR: 41, TE: 14 };
 const r1 = (x) => Math.round(x * 10) / 10;
 const r3 = (x) => Math.round(x * 1000) / 1000;
 
-/* Byrjunarlid VIKUNNAR — sama regla og i lineup.js (throngstu saetin
-   fyrst; saetamengin eru hreidrud svo thad er sannanlega best). */
-function weekPoints(roster, byWeek, week) {
-  const by = { QB: [], RB: [], WR: [], TE: [] };
-  for (const id of roster) {
-    const w = byWeek.get(`${id}|${week}`);
-    if (w && by[w.pos]) by[w.pos].push(w.pts);
-  }
-  for (const k in by) by[k].sort((a, b) => b - a);
-  let sum = 0;
-  const take = (pos, n) => { sum += by[pos].splice(0, n).reduce((a, b) => a + b, 0); };
-  take("QB", 1); take("RB", 2); take("WR", 3); take("TE", 1);
-  const flex = [...by.RB, ...by.WR, ...by.TE].sort((a, b) => b - a);
-  if (flex.length) sum += flex[0];
-  return sum;
-}
+/* BYRJUNARLID VIKUNNAR ER FLUTT I `src/accuracy.js` (14.8.2026) —
+   sja notu i `weekly-lab.mjs`. Hér stod annad afrit af somu reglu. */
 
 function vbdValues(pool) {
   const byPos = {};
@@ -209,8 +195,10 @@ async function main() {
             });
             /* VIKULEG TALNING — thad er eina leidin til ad aud vika
                kosti nokkud. Timabils-summan er blind a hana. */
-            const mine = W.weeks.reduce((a, wk) => a + weekPoints(res.roster, W.byWeek, wk), 0);
-            const riv = W.weeks.reduce((a, wk) => a + weekPoints(res.rivalRoster, W.byWeek, wk), 0);
+            const mine = W.weeks.reduce((a, wk) =>
+              a + weekPoints(res.roster, W.byWeek, wk, LEAGUE), 0);
+            const riv = W.weeks.reduce((a, wk) =>
+              a + weekPoints(res.rivalRoster, W.byWeek, wk, LEAGUE), 0);
             d.push(mine - riv);
           }
         }
