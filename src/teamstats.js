@@ -172,15 +172,15 @@ export const TEAM_STAT_DEFS = [
     dec: 2, hi: false, src: "E0",
     note: "Shots on target faced per match. This is the number that turns into saves — an off-target shot is worth nothing to a keeper.",
     get: r => r.sot_against_pg },
-  { key: "box_against_pg", label: "In-box shots faced", short: "In box", group: "keeper",
+  { key: "box_against_pg", label: "In-box shots faced per match", short: "In box", group: "keeper",
     dec: 2, hi: false, src: "ESPN",
     note: "Shots faced from inside the penalty area (ESPN zone text, full season).",
     get: r => r.box_against_pg },
-  { key: "close_against_pg", label: "Close-range faced", short: "Close", group: "keeper",
+  { key: "close_against_pg", label: "Close-range faced per match", short: "Close", group: "keeper",
     dec: 2, hi: false, src: "ESPN",
     note: "Shots faced from very close range (the six-yard area). This is the closest the available data gets to \"big chances faced\" — big chances need per-shot xG, which no reachable source provides, so this is a measured stand-in and not the same number.",
     get: r => r.close_against_pg },
-  { key: "long_against_pg", label: "Long shots faced", short: "Long", group: "keeper",
+  { key: "long_against_pg", label: "Long shots faced per match", short: "Long", group: "keeper",
     dec: 2, hi: true, src: "ESPN",
     note: "Shots faced from outside the box. HIGHER IS BETTER here: long shots are the cheapest shots to concede — they rarely go in and they still count as saves.",
     get: r => r.long_against_pg },
@@ -188,6 +188,17 @@ export const TEAM_STAT_DEFS = [
     dec: 3, hi: true, pct: true, src: "ESPN",
     note: "Of every shot the team faces, the fraction taken from outside the box. A high share means the defence keeps opponents out — the same shot count is far less dangerous.",
     get: r => r.long_share },
+  /* HEITID SEGIR "per match" — TILKYNNT AF NOTANDA 14.8.2026.
+     Notandinn las "Big chances faced: 2" sem TIMABILS-TOLU og sagdi rettilega
+     ad thad gaeti ekki stadist fyrir markmann i 38 leikjum. Talan var rett
+     (deildin liggur 1,05-3,05 per leik, medaltal 2,07 — ARS best a 1,05) en
+     HEITID sagdi thad ekki: notan ein bar "per match".
+     FIMM dalkar brutu venjuna sem hinir atta fylgja ("Shots faced per match",
+     "Goals conceded per match", "xGC per match" ...): box_against_pg,
+     close_against_pg, long_against_pg, bc_against_pg og bc_pg. Tala an einingar
+     er agiskun notandans um eininguna, og hann agiskadi — eðlilega — a ranga.
+     `short` var lika tvitekid: "BigC" var BAEDI a soknar- og markvardar-
+     dalknum, svo their voru ogreinanlegir i throngri toflu.               */
   /* BIG CHANCES A SIG — ThAD SEM SPURT VAR UM. Talid ur BSD-skotakorti:
      hvert skot ber sina eigin xG og skot yfir 0,18 telst big chance
      (throskuldurinn var FITTADUR gegn lids-svidinu `big_chances` sem BSD
@@ -195,7 +206,7 @@ export const TEAM_STAT_DEFS = [
      EITT TIMABIL: BSD hefur skotakort i 2025/26 og engin eldri, svo
      dalkurinn er TOMUR i odrum timabilum — og thad er rett, "engin gogn"
      er ekki "engin big chance".                                        */
-  { key: "bc_against_pg", label: "Big chances faced", short: "BigC", group: "keeper",
+  { key: "bc_against_pg", label: "Big chances faced per match", short: "BigC/m", group: "keeper",
     dec: 2, hi: false, src: "BSD", season_locked: true,
     note: "Big chances faced per match — shots against with an expected-goals value of 0.18 or more, counted from the BSD shot map. This is the number a goalkeeper actually has to survive: two teams can concede the same shot count and face completely different danger. Only 2025/26 has a shot map, so this is empty for other seasons.",
     get: r => r.bc_against_pg },
@@ -237,13 +248,13 @@ export const TEAM_STAT_DEFS = [
     get: r => r.shots_pg },
   { key: "sot_pg", label: "On target per match", short: "SoT", group: "attack",
     dec: 2, hi: true, src: "E0", note: "Shots on target per match.", get: r => r.sot_pg },
-  { key: "box_pg", label: "In-box shots", short: "In box", group: "attack",
+  { key: "box_pg", label: "In-box shots per match", short: "In box", group: "attack",
     dec: 2, hi: true, src: "ESPN", note: "Shots taken from inside the box (ESPN zone text).",
     get: r => r.box_pg },
-  { key: "close_pg", label: "Close-range shots", short: "Close", group: "attack",
+  { key: "close_pg", label: "Close-range shots per match", short: "Close", group: "attack",
     dec: 2, hi: true, src: "ESPN", note: "Shots taken from very close range (six-yard area).",
     get: r => r.close_pg },
-  { key: "bc_pg", label: "Big chances created", short: "BigC", group: "attack",
+  { key: "bc_pg", label: "Big chances created per match", short: "BigC/m", group: "attack",
     dec: 2, hi: true, src: "BSD", season_locked: true,
     note: "Big chances the team creates per match — shots worth 0.18 expected goals or more, from the BSD shot map. Only 2025/26 has a shot map.",
     get: r => r.bc_pg },

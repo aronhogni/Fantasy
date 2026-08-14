@@ -432,5 +432,41 @@ console.log("─".repeat(84));
     /bySeason\[seasonName\] = payload/.test(src) && /old\.seasons \|\|/.test(src));
 }
 
+/* ============================================================
+   EININGIN VERDUR AD STANDA I HEITINU (tilkynnt af notanda 14.8.2026)
+
+   Notandinn sa "Big chances faced: 2" og sagdi — rettilega — ad thad gaeti
+   ekki verid timabils-tala fyrir markmann i 38 leikjum. Talan var RETT
+   (deildin liggur 1,05-3,05 PER LEIK) en heitid nefndi ekki eininguna;
+   adeins notan gerdi thad, og notu les enginn adur en hann les toluna.
+   FIMM af threttan `_pg`-dalkum brutu venjuna sem hinir atta fylgdu.
+
+   Reglan er leidd UT UR LYKLINUM, ekki handskrifud: hver dalkur sem endar a
+   `_pg` er per-leiks-tala og VERDUR ad segja thad i `label`. Nyr `_pg`-dalkur
+   erfir kröfuna sjalfkrafa — handskrifadur listi hefdi stadnad (CLAUDE.md 8).
+   ============================================================ */
+console.log("\nEININGIN I HEITINU");
+{
+  const pg = TEAM_STAT_DEFS.filter(d => /_pg$/.test(d.key));
+  ok(`${pg.length} dalkar eru per-leiks-tolur (forsenda kaflans)`, pg.length >= 10);
+  const silent = pg.filter(d => !/per match/i.test(d.label));
+  ok("hver per-leiks-dalkur segir \"per match\" i heitinu",
+     silent.length === 0, silent.map(d => `${d.key}: "${d.label}"`).join(" · "));
+  /* Og dalkur sem er EKKI per leik ma ekki segjast vera thad.            */
+  const lying = TEAM_STAT_DEFS.filter(d => !/_pg$/.test(d.key) && /per match/i.test(d.label));
+  ok("enginn dalkur segist vera per leik an thess ad vera thad",
+     lying.length === 0, lying.map(d => d.key).join(" · "));
+  /* `short` er thad sem sest i throngri toflu. Krafan er INNAN FLOKKS, ekki
+     yfir alla skrana: taflan synir EINN flokk i einu, svo "Shots" i sokn og
+     "Shots" hja markverdi rekast aldrei a. Fyrsta utgafa thessarar
+     fullyrdingar var yfir ALLA skrana og felldi fimm log-mæt por —
+     of strong krafa er lika rong krafa.                                  */
+  const perGroup = {};
+  for (const d of TEAM_STAT_DEFS) ((perGroup[d.group] ||= {})[d.short] ||= []).push(d.key);
+  const dupes = Object.entries(perGroup).flatMap(([g, m]) =>
+    Object.entries(m).filter(([, v]) => v.length > 1).map(([sh, v]) => `${g}/${sh}: ${v.join(",")}`));
+  ok("engin tvitekin `short`-heiti INNAN flokks", dupes.length === 0, dupes.join(" · "));
+}
+
 console.log(`\nLIDA-TOLUR: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

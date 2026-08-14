@@ -1,13 +1,18 @@
 /* ============================================================
-   SJONRAENI SAMANBURDURINN — profar ad MYNDIN SE RETT
+   SAMANBURDURINN — profar ad TAFLAN SEGI RETT
 
-   Villandi mynd er VERRI en engin mynd. Fyrir "Min. per stig", "Verd",
-   "GC" og "gul spjold" er LAEGRA betra; ef sulan er einfaldlega lengri
-   thegar talan er haerri thá er lengsta sulan VERSTI leikmadurinn og
-   notandinn les hana afturabak. Thess vegna profar thetta safn EKKI ad
-   sulur seu til, heldur ad thaer segi rett.
+   SULURNAR ERU FARNAR (14.8.2026, ad beidni notanda): samanburdur er nu
+   ALLTAF TAFLA og `VisualRows`/`barGeom` voru fjarlaegd. Safnid var ekki
+   eytt heldur ENDURSKRIFAD, thvi reglan sem thad ver er ohreyfd og hun er
+   thad sem skiptir mali:
 
-   Maelt 29.7.2026: 16/16 graen.
+   Fyrir "Min. per stig", "Verd", "GC" og "gul spjold" er LAEGRA betra. Ef
+   merkingin fylgir einfaldlega HAESTU tolunni er GRAENI reiturinn a VERSTA
+   manninum og notandinn les tofluna afturabak. Villandi mynd er verri en
+   engin mynd — og villandi TAFLA er nakvaemlega jafn slaem.
+
+   Thess vegna profar thetta safn ekki ad reitir seu til, heldur ad graena
+   merkingin liggi a RETTUM manni i badar attir.
    ============================================================ */
 import { readFileSync } from "node:fs";
 const REPO = new URL("../", import.meta.url);
@@ -27,28 +32,11 @@ const ok = (n, c, x="") => {
   else { fail++; console.log(`  ✗ ${n}${x ? "   " + x : ""}`); } };
 const near = (a, b, t, n) => ok(n, a != null && Math.abs(a - b) <= t, `${a} vs ${b}`);
 
-const { barGeom, ROWS } = await import(new URL("src/Compare.jsx", REPO).href);
+const { ROWS } = await import(new URL("src/Compare.jsx", REPO).href);
 
-console.log("\n=== 1. SULU-RUMFRAEDI ===");
-const plain = { hi: true }, signed = { hi: true, signed: true };
-/* Venjuleg tala: 0 -> max(theirra i rodinni). Kvardinn er PER ROD. */
-near(barGeom(plain, 10, 0, 20)?.width, 50, 1e-9, "helmingur af haesta gildi = 50% breidd");
-near(barGeom(plain, 20, 0, 20)?.width, 100, 1e-9, "haesta gildi fyllir brautina");
-ok("venjuleg sula byrjar vinstra megin", barGeom(plain, 10, 0, 20)?.left === 0);
-/* VANTANDI GILDI FAER ENGA SULU — sula af lengd 0 laesist eins og maelt 0. */
-ok("null gefur ENGA sulu (ekki 0-lengd)", barGeom(plain, null, 0, 20) === null);
-ok("NaN gefur enga sulu", barGeom(plain, NaN, 0, 20) === null);
-/* Fravikssula: ut fra midju, baedi attir. */
-const neg = barGeom(signed, -1.79, -1.79, 1.5);
-const pos = barGeom(signed, 1.5, -1.79, 1.5);
-near(neg?.width, 50, 1e-6, "staersta fravik nær ut i kant (50% fra midju)");
-near(neg?.left, 0, 1e-6, "negatift fravik teiknast VINSTRA vid midju");
-near(pos?.left, 50, 1e-6, "positift fravik byrjar A midju");
-near(pos?.width, 50 * (1.5/1.79), 1e-6, "fravik kvardast a staersta fravikid");
-/* Kvardinn ma ekki blandast milli rada: BPS (800) og xG (20) i sama
-   kvarda gaefi osynilegar xG-sulur.                                   */
-near(barGeom(plain, 15, 0, 20)?.width, 75, 1e-9, "xG-rod kvardast a sinn eigin max");
-near(barGeom(plain, 600, 0, 800)?.width, 75, 1e-9, "BPS-rod kvardast a sinn eigin max");
+/* SULU-RUMFRAEDIN VAR HER (kafli 1) og for med `barGeom`. Reglan sem hun
+   varði — "vantandi gildi faer ENGA sulu, thvi sula af lengd 0 laesist eins
+   og maeld nulltala" — lifir afram i toflunni sem "—" og er profud i kafla 3. */
 
 console.log("\n=== 2. `hi` ER SKILGREINT A HVERRI ROD ===");
 const lower = ROWS.filter(r => r.k && r.hi === false).map(r => r.k);
@@ -56,7 +44,7 @@ ok(`radir thar sem laegra er betra eru skilgreindar (${lower.length})`, lower.le
 for (const k of ["cost", "minPerPt", "goals_conceded", "yellow_cards"])
   ok(`"${k}" er merkt sem laegra-er-betra`, lower.includes(k));
 
-console.log("\n=== 3. RENDER: ER GRAENA SULAN A RETTUM MANNI? ===");
+console.log("\n=== 3. RENDER: ER GRAENA MERKINGIN A RETTUM MANNI? ===");
 const D = new URL("data/", REPO).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
 const dom = new JSDOM("<!doctype html><div id=root></div>", { url:"http://localhost/", pretendToBeVisual:true });
@@ -96,53 +84,58 @@ const fab = [...document.querySelectorAll("button")].find(b=>b.textContent.inclu
 ok("samanburdar-hnappur birtist med tolu", !!fab);
 await fire(fab);
 
-const seg = [...document.querySelectorAll("button")].filter(b=>/▤ Visual|≡ Table/.test(b.textContent));
-ok("ham-rofi: sjonraent / tafla", seg.length === 2);
-ok("SJONRAENT er sjalfgefid thegar TVEIR eru valdir (thad var bedin)",
-   seg[0]?.getAttribute("aria-pressed") === "true");
+/* ENGINN HAM-ROFI LENGUR — taflan er eina snidid. Neikvaed fullyrding med
+   SANNADRI FORSENDU: rofinn VAR i thessum sama DOM adur (kafli 3 las hann
+   og krafdist thess ad "Visual" vaeri sjalfgefid fyrir tvo leikmenn).     */
+ok("ham-rofinn (Visual/Table) er FARINN",
+   [...document.querySelectorAll("button")].filter(b=>/▤ Visual|≡ Table/.test(b.textContent)).length === 0);
+ok("engar sulur eftir i samanburdinum",
+   [...document.querySelectorAll('div[style*="border-radius: 2px"][style*="position: absolute"]')].length === 0);
 
-/* Lesa hverja rod: label + gildi + hvort graena merkid se a theim rétta. */
-const rowEls = [...document.querySelectorAll("div")].filter(d =>
-  (d.style.gridTemplateColumns || "").includes("minmax(96px"));
-ok(`sjonraenar radir teiknadar (${rowEls.length})`, rowEls.length > 10);
-const read = rowEls.map(r => {
-  const lbl = r.firstElementChild.textContent.replace("▼","").trim();
-  const lines = [...r.lastElementChild.children].map(l => {
-    const f = l.querySelector('div[style*="position: absolute"][style*="border-radius: 2px"]');
-    return { txt: l.lastElementChild.textContent.trim(),
-             w: f ? parseFloat(f.style.width) : null,
-             green: f ? /0, 185, 107/.test(f.style.background || f.style.backgroundColor) : false };
-  });
-  return { lbl, lines };
-});
+/* Lesa TOFLUNA: hver rod er <tr> med label i fyrsta reit og gildum a eftir.
+   Graena merkingin er bakgrunnur reitsins (S.tdBest).                     */
+const trs = [...document.querySelectorAll("tr")].filter(t => t.querySelectorAll("td").length >= 3);
+ok(`toflu-radir teiknadar (${trs.length})`, trs.length > 10);
+/* S.tdBest = { background:"#e6f9f0", color:"#046b41", fontWeight:700 }.
+   jsdom skilar honum sem rgb(230, 249, 240). Fyrsta utgafa thessa profs
+   leitadi ad GAMLA sulu-graena litnum (#00b96b) og fann ThVI EKKERT — 0
+   radir profadar, og badar "rettu" fullyrdingarnar stodust TOMAR. Talningar-
+   fullyrdingarnar (`lowChecked >= 2`) voru thad eina sem greip thad.      */
+const isGreen = td => {
+  const bg = (td.style.background || "") + " " + (td.style.backgroundColor || "");
+  return /#e6f9f0/i.test(bg) || /rgb\(\s*230,\s*249,\s*240\s*\)/.test(bg);
+};
+const numOf = td => { const t = td.textContent.replace(/[£%+]/g, "").replace(",", ".").trim();
+                      const v = parseFloat(t); return Number.isFinite(v) ? v : null; };
 const byLabel = {};
-for (const r of read) byLabel[r.lbl] = r;
-
-/* KJARNAPROFID: i laegra-er-betra rod verdur graena sulan ad vera SU STYTTRI. */
-let checked = 0, wrong = [];
-for (const row of ROWS) {
-  if (!row.k || row.hi !== false || row.signed) continue;
-  const r = byLabel[row.label]; if (!r) continue;
-  const g = r.lines.find(l => l.green), o = r.lines.find(l => !l.green && l.w != null);
-  if (!g || !o || g.w == null) continue;
-  checked++;
-  if (g.w > o.w) wrong.push(`${row.label}: graent ${g.w.toFixed(1)}% > ${o.w.toFixed(1)}%`);
+for (const tr of trs) {
+  const tds = [...tr.querySelectorAll("td")];
+  const lbl = tds[0].textContent.replace("▼", "").trim();
+  byLabel[lbl] = tds.slice(1).map(td => ({ v: numOf(td), green: isGreen(td), txt: td.textContent.trim() }));
 }
-ok(`laegra-er-betra radir profadar a raungognum (${checked})`, checked >= 2);
-ok("i laegra-er-betra rodum er GRAENA sulan su STYTTRI", wrong.length === 0, wrong.join(" · "));
+ok(`radir lesnar med heiti (${Object.keys(byLabel).length})`, Object.keys(byLabel).length > 10);
 
-/* Og hin attin: i haerra-er-betra rod verdur graena sulan ad vera SU LENGRI. */
-let hiChecked = 0, hiWrong = [];
+/* KJARNAPROFID, BADAR ATTIR: graeni reiturinn verdur ad bera LAEGSTU toluna
+   i laegra-er-betra rod og HAESTU i haerra-er-betra rod.                  */
+let lowChecked = 0, lowWrong = [], hiChecked = 0, hiWrong = [];
 for (const row of ROWS) {
-  if (!row.k || row.hi !== true || row.signed) continue;
-  const r = byLabel[row.label]; if (!r) continue;
-  const g = r.lines.find(l => l.green), o = r.lines.find(l => !l.green && l.w != null);
-  if (!g || !o || g.w == null) continue;
-  hiChecked++;
-  if (g.w < o.w) hiWrong.push(`${row.label}: graent ${g.w.toFixed(1)}% < ${o.w.toFixed(1)}%`);
+  if (!row.k || row.signed) continue;
+  const cells = byLabel[row.label]; if (!cells) continue;
+  const nums = cells.filter(c => c.v != null);
+  const g = cells.find(c => c.green && c.v != null);
+  if (!g || nums.length < 2) continue;
+  const best = row.hi === false ? Math.min(...nums.map(c => c.v)) : Math.max(...nums.map(c => c.v));
+  if (row.hi === false) { lowChecked++; if (g.v !== best) lowWrong.push(`${row.label}: graent ${g.v} != laegsta ${best}`); }
+  else { hiChecked++; if (g.v !== best) hiWrong.push(`${row.label}: graent ${g.v} != haesta ${best}`); }
 }
+ok(`laegra-er-betra radir profadar a raungognum (${lowChecked})`, lowChecked >= 2);
+ok("i laegra-er-betra rodum ber GRAENI reiturinn LAEGSTU toluna", lowWrong.length === 0, lowWrong.join(" · "));
 ok(`haerra-er-betra radir profadar (${hiChecked})`, hiChecked >= 5);
-ok("i haerra-er-betra rodum er GRAENA sulan su LENGRI", hiWrong.length === 0, hiWrong.join(" · "));
+ok("i haerra-er-betra rodum ber GRAENI reiturinn HAESTU toluna", hiWrong.length === 0, hiWrong.join(" · "));
 
-console.log(`\nSJONRAENN SAMANBURDUR: ${pass}/${pass+fail} graen`);
+/* VANTANDI GILDI ER "—", ALDREI 0 (reglan sem sulu-fjarveran bar adur). */
+const dashCells = Object.values(byLabel).flat().filter(c => c.txt === "—");
+ok("vantandi gildi birtast sem \"—\" (ekki 0)", dashCells.every(c => c.v == null));
+
+console.log(`\nSAMANBURDAR-TAFLA: ${pass}/${pass+fail} graen`);
 process.exit(fail ? 1 : 0);
