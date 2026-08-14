@@ -42,6 +42,11 @@
    ============================================================ */
 
 import { DEFAULT_LEAGUE, normalizeLeague } from "./build.js";
+/* Sjalfgefnu DST-reglurnar bua i `scoring.js` MED maelingunni sinni og
+   eru fluttar inn hedan — ekki afritadar. Afrit vaeri onnur utfaersla
+   af somu toflu, og thetta repo ber tvo skjolud tilfelli af thvi hvad
+   thad kostar (`buildTeamMetrics`, `makeEnricher`). */
+import { BASE as BASE_DST } from "./scoring.js";
 
 /* ============================================================
    1. SLODIN
@@ -277,6 +282,120 @@ const IGNORE_EXACT = new Set(["rec", "int", "fum_rec", "def_st_td",
 
 const ignorable = (k) => IGNORE_EXACT.has(k) ||
   IGNORE_PREFIX.some((p) => k.startsWith(p));
+
+/* ============================================================
+   3b. DST-REGLURNAR — LESNAR UR DEILDINNI, EKKI HARDKODADAR
+   ============================================================
+   `IGNORE_PREFIX` her fyrir ofan hunsar `def_`, `pts_allow`, `sack`,
+   `safe`, `ff`, `fum_rec` og `blk_` VILJANDI — thau hagga ekki
+   QB/RB/WR/TE-spanni og attu thess vegna aldrei ad flagga deild.
+   **Thetta fall les nakvaemlega thau svid**, og thad er ekki mots0gn:
+   thau eru gagnslaus fyrir soknarspaina og thau eru ALLT sem DST er.
+
+   HVERS VEGNA THETTA ER LESID OG EKKI SOTT I `BASE`: `BASE.dstPtsAllowed`
+   ber `pts_allow_14_20 = 1` af maeldri astaedu (sja `scoring.js`), en
+   thad er *Sleeper-sjalfgefid*, ekki *thin deild*. Deild sem hefur
+   breytt throskuldunum — og thad er algengt, thad er fyrsta thing sem
+   fólk fiktar i — myndi fa RETTA TOLU UR RANGRI TOFLU.
+
+   VANTI REGLA ER THAD SAGT, EKKI GISKAD. `missing` ber hvert svid sem
+   deildin nefnir ekki; sa sem kallar ma birta thad. Ad thegja og nota
+   sjalfgefid gildi vaeri omaeld tala med utlit maeldrar.               */
+
+/** Sleeper-svid -> okkar DST-lyklar. EIN vorpun, engin onnur. */
+const DST_FIELD = [
+  ["sack", "dstSack"],
+  ["int", "dstInt"],
+  ["fum_rec", "dstFumRec"],
+  ["safe", "dstSafety"],
+  ["def_td", "dstTD"],
+  ["blk_kick", "dstBlock"],
+  ["ff", "dstFumForced"],
+];
+/** Throskuldarnir, i sömu röð og `BASE.dstPtsAllowed`. */
+const DST_BRACKET = [
+  ["pts_allow_0", 0], ["pts_allow_1_6", 6], ["pts_allow_7_13", 13],
+  ["pts_allow_14_20", 20], ["pts_allow_21_27", 27], ["pts_allow_28_34", 34],
+  ["pts_allow_35p", Infinity],
+];
+/* Svid sem eru RAUNVERULEG DST-stig i deildinni en sem gognin okkar geta
+   EKKI reiknad. Gildin eru Sleeper-sjalfgefin og thau eru hofd hér til
+   ad venjuleg deild fai ENGA vidvorun — sama regla og `fum: 0` ofar,
+   sem flaggadi hverja einustu sjalfgefnu deild thegar hun var rong.
+   Frávik fra thessum tolum ER hins vegar sagt. */
+const DST_UNMODELLED = {
+  /* serlids-endurheimt og -fumble. nflverse `fumble_recovery_opp` og
+     `def_fumbles_forced` blanda theim vid varnar-tolurnar, svo their eru
+     TALDIR MED en a ROMGU verdi. Maelt: +1 i 27 af 544 lidsvikum. */
+  def_st_ff: 1, def_st_fum_rec: 1, st_ff: 1, st_fum_rec: 1,
+  st_td: 6, st_tkl_solo: 0, def_st_tkl_solo: 0,
+  def_2pt: 0, def_forced_punts: 0, fg_blkd: 0, blk_kick_ret_yd: 0,
+  yds_allow_0_100: 0, yds_allow_100_199: 0, yds_allow_200_299: 0,
+  yds_allow_300_349: 0, yds_allow_350_399: 0, yds_allow_400_449: 0,
+  yds_allow_450_499: 0, yds_allow_500_549: 0, yds_allow_550p: 0,
+  yds_allow: 0, pts_allow: 0,
+};
+
+/**
+ * `scoring_settings` -> DST-reglur fyrir `dstPoints`.
+ *
+ * Skilar `{ rules, exact, missing, unmodelled, warnings }` thar sem
+ * `rules` er hlutur sem ma senda beint sem `R` i `dstPoints`.
+ *
+ * `exact === false` thydir „deildin ber DST-reglu sem vid reiknum ekki"
+ * — og eins og annars stadar i thessari skra verdur thad ad SJAST.
+ */
+export function dstRulesFromSettings(ss) {
+  const s = ss && typeof ss === "object" ? ss : {};
+  const num = (k) => (Number.isFinite(Number(s[k])) && s[k] !== null && s[k] !== ""
+    ? Number(s[k]) : null);
+
+  const rules = {};
+  const missing = [];
+  for (const [key, ours] of DST_FIELD) {
+    const v = num(key);
+    if (v == null) { missing.push(key); rules[ours] = BASE_DST[ours]; }
+    else rules[ours] = v;
+  }
+  /* `def_st_td` er svidid sem Sleeper-stigin okkar poruðust vid; `st_td`
+     er samheiti sem sumar deildir bera i stadinn. Baðar leidir, i
+     thessari rod, og hvorug thegjandi. */
+  const stTd = num("def_st_td") ?? num("st_td");
+  if (stTd == null) { missing.push("def_st_td"); rules.dstStTD = BASE_DST.dstStTD; }
+  else rules.dstStTD = stTd;
+
+  /* Throskuldarnir. VANTI EINN ER TAFLAN EKKI HALFNOTUD — hun er
+     endurbyggd ur sjalfgefnu OG svidid er skrad i `missing`. Half tafla
+     vaeri verri en engin: hun gefur rett svar a sumum bilum og rangt a
+     odrum, og ekkert i utkomunni segir hvar. */
+  const table = [];
+  for (let i = 0; i < DST_BRACKET.length; i++) {
+    const [key, hi] = DST_BRACKET[i];
+    const v = num(key);
+    if (v == null) { missing.push(key); table.push([hi, BASE_DST.dstPtsAllowed[i][1]]); }
+    else table.push([hi, v]);
+  }
+  rules.dstPtsAllowed = table;
+
+  const unmodelled = [];
+  for (const [k, def] of Object.entries(DST_UNMODELLED)) {
+    const v = num(k);
+    if (v != null && v !== def) unmodelled.push(`${k} ${v} (usually ${def})`);
+  }
+
+  const warnings = [];
+  if (missing.length) {
+    warnings.push(`This league does not list ${missing.join(", ")} in its DST ` +
+      `scoring, so Sleeper's default is used for those. Every other DST rule ` +
+      `below is read from your league.`);
+  }
+  if (unmodelled.length) {
+    warnings.push(`DST rules we cannot compute: ${unmodelled.join(", ")}. They ` +
+      `are real points in your league, so the DST numbers read low.`);
+  }
+  return { rules, exact: !missing.length && !unmodelled.length,
+           missing, unmodelled, warnings };
+}
 
 /**
  * `scoring_settings` -> `{ scoring, rec, exact, warnings }`
@@ -600,7 +719,7 @@ export function leagueFromSleeper({ league: lg, draft, shapes } = {}) {
      backtested":
        Patriots   10-2flex ppr
        Sofahetjur 12-2flex half
-     Bædi eru NU maeld (`half-lab` -> `data/measure/half.json`): +188,0
+     Bædi eru NU maeld (`half-lab` -> `data/measure/half.json`): +186,1
      (11/11, t=4,10) og +147,4 (10/11, t=3,44). Vidvorunin var thvi
      fals-jakvaett a hverri deild sem notandinn spilar i — sami flokkur
      og keeper-vidvorunin sem var tekin ut sama dag, og sama afleiding:

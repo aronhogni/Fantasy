@@ -783,6 +783,202 @@ var mælt og tekið út — **661 af 800** röðum sögðu „Active" og `espnId
 og `depth` er **aldrei notað** í labinu. Nálgun sem lítur út eins og mæling er
 versta útkoman.
 
+### 4k. DST — SÆTIÐ SEM VAR ÓRÁÐLAGT, OG MÆLINGIN VALDI ANNAN EIGINLEIKA EN BEÐIÐ VAR UM
+
+Notandinn spilar í tveimur deildum. Önnur byrjar **hvorki spyrnumann né vörn**;
+hin byrjar **DST** — og appið sagði ekkert um það sæti. Eitt af níu
+byrjunarsætum var utan tölunnar.
+
+Beiðnin var „byggið DST-röðun". **Mælingin sagði nei og byggt var annað.**
+
+#### Það sem var TIL og það sem VANTAÐI — talið áður en nokkuð var skrifað
+
+`scoring.js` bar athugasemd sem sagði að `dstPoints` hefði verið fjarlægt
+viljandi því „við eigum engin DST-gögn". Sú fullyrðing var **rétt um
+`seasons.json` og `defense.json` og röng um pipeline-heimildina**:
+
+| liður | staða áður | hvar |
+|---|---|---|
+| `def_sacks`, `def_interceptions` | **sótt og VÖRPUÐ**, en `teamAggregates` henti þeim | `sources/nflverse.mjs` → `team_form.json` |
+| `def_tds` | **sótt, ekki vörpuð** — í `objects()`-listanum, ekki í röðinni | sama |
+| `def_safeties`, `def_fumbles_forced` | í CSV, aldrei nefnd | `stats_team_week_{ár}.csv` |
+| `fumble_recovery_opp`, `fumble_recovery_tds` | í CSV, aldrei nefnd | sama |
+| `def_punt_blocks`, `def_pat_blocks`, `def_fg_blocks` | í CSV, aldrei nefnd | sama |
+| `special_teams_tds` | í CSV (og í `WEEK_COLS` fyrir leikmenn) | sama |
+| stig á sig | **leiðanlegt** úr `homeScore`/`awayScore` | `schedule.json` + `schedule_history.json` |
+| **sérliðs-endurheimt aðgreind frá varnar-endurheimt** | **VANTAR OG FÆST EKKI** | — |
+
+Skráin er **138 dálkar** og ber alla tíu stigagefandi liðina. Ekkert vantaði
+nema sá síðasti — og hann er mældur kostnaður, ekki ágiskaður (5,0%, neðar).
+
+#### AKKERIÐ — þrjár heimildir, og tvær þeirra eru Sleeper ósammála sjálfum sér
+
+`scripts/dst-lab.mjs` ber okkar tölu við **tvær óháðar Sleeper-heimildir**
+(sama tveggja-leiða akkering og skotakortin í FPL-hlutanum, `CLAUDE.md` 6b):
+
+| | n | r | MAE | **rétt upp á stigið** |
+|---|---|---|---|---|
+| **gegn raunverulegri deild** (`league/{id}/matchups` → `players_points`) | 209 | **0,996** | **0,124** | **90,43%** |
+| gegn `stats/nfl/2025/{vika}` (öll 32 liðin) | 544 | **0,997** | **0,108** | **91,18%** |
+
+**Kerfisbundna bilið var raunveruleg regla sem vantaði, ekki hávaði** — og hún
+fannst með því að **flokka leifina**, ekki með því að lesa kóðann:
+
+| villa sem akkerið fann | kostnaður |
+|---|---|
+| **`fumble_recovery_tds` er varnar-TD** og nflverse geymir hann í **öðru sviði** en `def_tds` | MAE **0,306 → 0,112** |
+| **`def_fumbles_forced` er stigagefandi (1)** og vantaði alveg | rétt upp á stigið **50,9% → 90,9%** |
+| **CSV skilar STRENGJUM** og `n()` í `scoring.js` krefst `typeof === "number"` | hvert svið varð **0**; meðaltal **0,47 stig/viku í stað 7,33** og akkerið las bias nákvæmlega **−7,08** |
+
+Þriðja er lærdómurinn sem á erindi út fyrir DST: **akkerið var skrifað ÁÐUR en
+nokkur tala var mæld, og það er þess vegna sem hinar tölurnar eru marktækar.**
+Hefði ferillinn milli ára verið reiknaður fyrst hefði hann gefið **r = 0,258**
+úr nánast tómri formúlu — og litið alveg venjulega út við hliðina á réttu
+tölunni **0,304**.
+
+##### Stig á sig eru EKKI lokastaðan — mælt, ekki ályktað
+
+| formúla | rétt af 527 |
+|---|---|
+| heil lokastaða andstæðingsins | 90,3% |
+| aðeins sóknarstig andstæðingsins (TD+FG+PAT+2pt) | 94,7% |
+| **lokastaða − 6·(varnar-TD andstæðings) − 2·(safety andstæðings)** | **99,6%** |
+
+Endurkomu-TD á sérliði er **talinn með** (útgáfan sem dró hann líka frá féll í
+95,1%). Tvær raðir standa eftir (ARI vikur 5 og 15) þar sem Sleeper færði
+`fumble_recovery_tds` andstæðingsins á sóknina.
+
+##### SLEEPER ER ÓSAMMÁLA SJÁLFUM SÉR — og deildin er heimildin
+
+`stats`-endapunkturinn birtir `pts_std` með **`pts_allow_14_20 = 0`**.
+Raunveruleg deild skorar þá röð **1**. Mælt á 195 sameiginlegum röðum:
+**43 af 43** þar sem stig á sig eru 14–20 eru **nákvæmlega +1** í deildinni,
+og **152 raðir utan bilsins eru jafnar**. Ekkert annað bil skeikar.
+
+Þröskuldarnir eru **leiddir út per staka `pts_allow`-tölu (0…52)**, ekki teknir
+úr skjölun: hvert einasta gildi ber **eina** leif (pa=14…20 gefur 0 í 130 af
+132 röðum í `stats`-heimildinni; pa=21…27 í 149 af 155).
+
+**Þess vegna les appið reglurnar úr deildinni** (`dstRulesFromSettings`) og
+notar `BASE` aðeins þegar deildin nefnir regluna ekki — **og segir þá frá því**
+(`missing`). Sá sem akkerar gegn `stats`-endapunktinum verður að nota 0, annars
+mælist hann +1 úr engu: með deildar-töflunni fer sú keyrsla úr **91,2% í 70,6%**,
+sem er **ekki villa í formúlunni**.
+
+##### Leifin sem eftir stendur er TALIN, ekki kölluð hávaði
+
+| flokkur | raðir af 544 |
+|---|---|
+| **sérliðs-endurheimt skoruð 2, Sleeper skorar 1** (nflverse aðgreinir hana ekki) | **27** (5,0%) |
+| forced-fumble talning nflverse ≠ Sportradar | 8 |
+| sack-talning nflverse ≠ Sportradar | 7 |
+| óleyst | 6 |
+
+Sá fyrsti er **efra þak á nákvæmninni með þessum gögnum** og hann er
+skjalaður í `scoring.js`, ekki falinn. Sex heimildir voru ekki eltar: það er
+ekki þess virði að sækja aðra heimild fyrir 5% af 27 röðum þegar ákvörðunin
+sjálf reyndist vera allt annað mál (neðar).
+
+#### 1. FLYST ÁRANGUR VARNAR? — já milli ára, nei milli vikna
+
+7 tímabil, **3.742 liðsvikur**:
+
+| | n | r |
+|---|---|---|
+| **milli ára**, stig í leik | 192 | **0,304** |
+| tveggja ára bil | 160 | 0,076 |
+| stök vika gegn slétt viku (sama tímabil) | 224 | 0,220 |
+| fyrri helmingur gegn seinni | 224 | 0,188 |
+| **vika N → vika N+1** | 3.518 | **0,049** |
+
+Til samanburðar: **spyrnumenn 0,16**, RB/WR/TE **0,68–0,73**. Vörnin er því
+**tvöfalt stöðugri en spyrnumaður** milli ára — og það er einmitt ástæðan fyrir
+því að freistnin að raða henni er raunveruleg. Topp-8 í fyrra halda sér í
+topp-8 í **43,8%** tilvika (tilviljun 25%), og „draftaðu topp-5 í fyrra" er
+**+15,5 ± 3,6 stig** yfir tímabilið (t=4,30, **6/6 ár**).
+
+**Vika-til-viku er hins vegar 0,049.** „Heit vörn" er ekki til.
+
+#### 2. OG SAMT — RÖÐUN TAPAR, STREYMI VINNUR MARGFALT
+
+Gangandi áfram, efsti valinn hverja viku, mælt gegn **meðaltali þeirra sem
+spila þá viku** (ekki allra 32 — lið í fríi er ekki kostur):
+
+| regla | stig | umfram | t | ár |
+|---|---|---|---|---|
+| röð eftir stigum **í fyrra** | 8,10 | +0,77 | 1,16 | 3/6 |
+| röð eftir stigum **það sem af er** | 8,47 | +1,14 | 1,83 | 5/6 |
+| **STREYMI: lægsta vænta skor mótherja** | **11,15** | **+3,82** | **5,75** | **6/6** |
+| eigið vænta skor | 8,96 | +1,63 | 2,74 | 6/6 |
+| streymi + hálft vægi á röðina | 9,62 | +2,30 | 4,01 | 6/6 |
+| streymi + fullt vægi á röðina | 9,25 | +1,92 | 3,48 | 6/6 |
+| orakel (fullkomin vitneskja) | 22,86 | +15,53 | — | 6/6 |
+| **placebo-fjölskylda (8 slembin arm)** | — | **þak +0,26** | — | — |
+
+**Í raunverulega hópnum snýst röðin við.** 12-liða deild draftar 12 varnir, svo
+það sem má raunverulega skipta um er **restin**. Hópur takmarkaður við þá sem
+voru **ekki** í topp-12 í fyrra:
+
+| regla | umfram | t | ár |
+|---|---|---|---|
+| röð eftir stigum í fyrra | **−0,82** | −1,66 | **0/6** |
+| **STREYMI** | **+3,96** | **6,86** | **6/6** |
+
+Röðin er því ekki bara veik á vírnum heldur **neikvæð, í öllum sex árum**. Og
+**hvert vægi á hana lækkar ábatann** (+3,82 → +2,30 → +1,92): hún er ekki
+bara gagnslaus, hún þynnir merkið.
+
+Heilt tímabil, beint einvígi: að **halda** bestu vörn fyrra árs gefur
+**63,2 stigum minna** en að streyma (t=3,01, **5/6 tímabil**). Eina árið sem
+streymið tapar er 2022 (DAL, −29).
+
+> **HÆRRI FYLGNI ≠ BETRI ÁKVÖRÐUN, ENN EINU SINNI.** Ferillinn milli ára
+> (r 0,304) er **raunverulegur og margfalt sterkari en spyrnumannsins**, og
+> hann er samt **ekki nothæfur**: hann lifir *innan* topp-12 sem eru draftaðir,
+> og á vírnum er hann neikvæður. Þetta er sama niðurstaða og `aron/verð` í
+> FPL-hlutanum og `prevCarG` hér — merki sem mælist er ekki merki sem má nota.
+
+#### Hvað var byggt
+
+**Streymi, ekki röð.** `dstStream` í `src/weekview.js` og hlutinn
+**„Defence this week"** í `src/Dashboard.jsx`, sýndur **aðeins** í deild sem ber
+`DEF` í `roster_positions` — kassi sem kviknar á deild án varnarsætis er
+hávaði, og hávaði er lærður sem eitthvað sem maður hunsar.
+
+**`RANKED_POS` í `waivers.js` og `aRank`-útilokunin í `build.js` STANDA
+ÓBREYTT.** Þær voru réttar; þær eru nú mældar fyrir DST sérstaklega en ekki
+aðeins fyrir K. **Engin season-röð á vörnum var byggð** — hún væri ómæld tala
+við hliðina á mældri.
+
+`Gain` er **ekki** birt per vörn og það er ásett: labið mælir hvað **efsti**
+kosturinn skorar umfram meðaltal, ekki hvað hver vörn skorar. Að hengja +3,82 á
+hverja röð væri að selja hópmælingu sem einstaklingsspá.
+
+**NULL-agi.** Þrjár ólíkar tegundir af engu, og þær mega ekki ruglast saman:
+lið í **fríi** (engin röð í leikjaskrá), leikur **án línu** (mótherji þekktur,
+tala ekki til) og **forleikur** (ekkert vikusamhengi). Allar þrjár skila `null`,
+birtast sem „—" og **sitja síðast í BÁÐAR áttir** (`compareOppImplied`; naive
+`a - b` gerir `null` að 0 og fleytir liði í fríi **efst** í „lægsta vænta skor",
+sem er sannprófað í `tests/dst.mjs` kafla 8). Í 2026-skránni eru **línur
+opnar í vikum 1–3 og hálfri viku 4** af 18 — þetta er raunverulegt ástand, ekki
+jaðartilfelli.
+
+#### Það sem er EKKI þess virði að gera — skráð svo það verði ekki reynt aftur
+
+- **DST-röðun í `aRank` eða á draftborðið.** Mælt og fellt hér að ofan.
+- **Að blanda fyrra tímabili inn í vikulega valið.** Mælt: kostar 1,5–1,9 stig
+  á viku.
+- **„Heit vörn" / síðustu vikur sem merki.** r = 0,049 vika-til-viku.
+- **Að elta sérliðs-aðgreininguna í aðra heimild.** 27 raðir af 544, +1 stig
+  hver, og formúlan er nú þegar rétt upp á stigið í 90%+ tilvika. Kostnaður og
+  ábati eru ekki í sama stærðarflokki.
+- **Að nota `stats`-endapunktinn sem sannleiksgildi.** Hann er ósammála
+  deildinni sem notandinn spilar í, í 22% liðsvikna.
+- **`yds_allow_*`-bónusar.** Ekki reiknaðir — deild sem ber þá fær það **sagt**
+  (`unmodelled`), ekki þagað.
+- **Hvað það KOSTAR að ná efsta kostinum** (waiver-forgangur, FAAB). Labið
+  mælir hvað hann skorar, ekki hvað hann kostar. **Ómælt og því ófullyrt.**
+
 ### 4b. VILLA Í `computeVbd` — `0` var lesið sem „vantar"
 
 `vbdbase-lab` fann raunverulega villu og hún **fyrir í annarri af deildum
@@ -2062,6 +2258,7 @@ aðskilinn viljandi, svo lota sem vinnur í öðru appinu geti ekki fellt hitt.
 | `standings.mjs` | Staðan. **`fpts_decimal` er hundraðshlutar**, mælt gegn óháðri leið (summa `/matchups/`: /100 hittir 10/10 upp á sent, /10 hittir 0). 15 stökkbreytingar felldar |
 | `waivers.mjs` | Frjálsir leikmenn og skipti. **`rosters: null` → `pool = null`**, ekki allir. „Ekki pikka neinn upp" er prófað sem svar. 12 stökkbreytingar felldar, ein slapp í fyrstu tilraun og var endurskorin |
 | `sleeper.mjs` | Draft-kvöldið í jsdom. Kaflar 2d/2e bera innflutninginn: **VBD-tölurnar verða að breytast** þegar deildin er flutt inn, annars er innflutningurinn skraut |
+| `dst.mjs` | Vörnin. Kafli 1 ber **27 bakaðar tölur** við `data/measure/dst.json`. Kafli 3 er ekki „skilar hún tölu" heldur **DEN vika 1 2025 = 16, nákvæmlega eins og Sleeper**. Kafli 5 telur upp **sex leiðir að engu svari** og krefst `null` af hverri — og sannar líka að `0` kemst í gegn, því próf sem sýnir aðeins að null verði null stenst þótt fallið skili alltaf null. Kafli 7 aðgreinir **frí, línulausan leik og forleik**, sem eru þrjár ólíkar tegundir af engu. **19 stökkbreytingar felldar**, taldar upp í hausnum; þrjár þeirra fundust við keyrslu en ekki lestur. Kafli 9 er AST-vörður: `dstStream` má ekki vera fullprófað og aldrei kallað |
 
 **Mynstur sem á að endurtaka:** `render.mjs` krefst þess að núlldreifingin
 standi **á undan** stigatöflunni í DOM. Það er ekki stílpróf heldur efnislegt:
@@ -2485,7 +2682,17 @@ node scripts/arank-search.mjs [--scoring=…]   # 422 afbrigdi + fjolprofa-leidr
 node scripts/projector-lab.mjs [--scoring=…]  # -> projectors_*.json (hver er bestur)
 node scripts/feature-probe.mjs                # -> feature_probe.json (nyjar breytur)
 node scripts/fetch-wayback-projections.mjs   # -> wayback_projections.json (haeg, handvirk)
+node scripts/dst-lab.mjs                      # -> measure/dst.json (sja 4k)
 ```
+
+`dst-lab.mjs` er **handvirk og á ekki heima í pipeline-inu**: hún sækir sjö
+nflverse-tímabil, 18 Sleeper-vikur og 17 deildar-umferðir (~45 köll, allt í
+`.cache-nfl/`), og tímabil sem er lokið breytist aldrei. Hún er keyrð þegar
+`BASE`-DST-reglurnar, `dstPoints` eða `dstPointsAllowed` breytast — og þá fellur
+`tests/dst.mjs` kafli 1 þar til bökuðu tölurnar í `src/scoring.js`
+(`DST_ANCHOR`) og `src/weekview.js` (`DST_STREAM_MEASURED`) eru uppfærðar.
+**Þá uppfærir maður töfluna, ekki prófið.**
+
 
 Þrepin eru aðskilin eftir **eðli gagnanna**, ekki smekk: `core` breytist daglega,
 `experts` nokkrum sinnum í viku, `history` aldrei fyrir lokið tímabil.

@@ -1,0 +1,485 @@
+{
+ "generated": "2026-08-14T23:11:46.486Z",
+ "provenance": {
+  "generated": "2026-08-14T23:11:46.486Z",
+  "argv": [],
+  "params": {
+   "anchorLeague": {
+    "value": "1257117602308689920",
+    "fromDefault": true
+   },
+   "anchorSeason": {
+    "value": 2025,
+    "fromDefault": true
+   },
+   "years": {
+    "value": [
+     2019,
+     2020,
+     2021,
+     2022,
+     2023,
+     2024,
+     2025
+    ],
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "schedule.json": {
+    "bytes": 201198,
+    "sha1": "f6c271b30fe5",
+    "mtime": "2026-08-14T21:05:24.846Z"
+   },
+   "schedule_history.json": {
+    "bytes": 233073,
+    "sha1": "a7ade72fb5d0",
+    "mtime": "2026-08-12T08:37:23.478Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "teamWeeks": 3742,
+ "rules": {
+  "note": "BASE in src/scoring.js — the league's own settings win at runtime via dstRulesFromSettings",
+  "dstPtsAllowed": [
+   [
+    0,
+    10
+   ],
+   [
+    6,
+    7
+   ],
+   [
+    13,
+    4
+   ],
+   [
+    20,
+    1
+   ],
+   [
+    27,
+    0
+   ],
+   [
+    34,
+    -1
+   ],
+   [
+    null,
+    -4
+   ]
+  ]
+ },
+ "anchor": {
+  "vsLeague": {
+   "label": "vs real league (league rules)",
+   "n": 209,
+   "r": 0.996,
+   "mae": 0.124,
+   "bias": 0.077,
+   "exact": 189,
+   "exactPct": 90.431
+  },
+  "vsLeaguePublishedRules": {
+   "label": "vs real league (published rules)",
+   "n": 209,
+   "r": 0.995,
+   "mae": 0.292,
+   "bias": -0.167,
+   "exact": 154,
+   "exactPct": 73.684
+  },
+  "vsPublished": {
+   "label": "vs Sleeper stats (published rules)",
+   "n": 544,
+   "r": 0.997,
+   "mae": 0.108,
+   "bias": 0.05,
+   "exact": 496,
+   "exactPct": 91.176
+  },
+  "vsPublishedLeagueRules": {
+   "label": "vs Sleeper stats (league rules)",
+   "n": 544,
+   "r": 0.995,
+   "mae": 0.331,
+   "bias": 0.294,
+   "exact": 384,
+   "exactPct": 70.588
+  },
+  "residualClasses": {
+   "special-teams fumble recovery scored 2, Sleeper scores 1": 27,
+   "sack count differs between nflverse and Sportradar": 7,
+   "unresolved": 6,
+   "forced-fumble count differs between nflverse and Sportradar": 8
+  },
+  "sleeperSelfDisagreement": {
+   "agree": 160,
+   "differ": 49,
+   "deltas": {
+    "1": 49
+   },
+   "note": "Sleeper's stats endpoint scores pts_allow_14_20 as 0; a real league scores it 1. The league is the authority."
+  }
+ },
+ "persistence": {
+  "yearOverYear": {
+   "n": 192,
+   "r": 0.304,
+   "pairs": [
+    {
+     "from": 2019,
+     "to": 2020,
+     "n": 32,
+     "r": 0.362
+    },
+    {
+     "from": 2020,
+     "to": 2021,
+     "n": 32,
+     "r": 0.436
+    },
+    {
+     "from": 2021,
+     "to": 2022,
+     "n": 32,
+     "r": 0.422
+    },
+    {
+     "from": 2022,
+     "to": 2023,
+     "n": 32,
+     "r": 0.226
+    },
+    {
+     "from": 2023,
+     "to": 2024,
+     "n": 32,
+     "r": 0.146
+    },
+    {
+     "from": 2024,
+     "to": 2025,
+     "n": 32,
+     "r": 0.353
+    }
+   ]
+  },
+  "lag2": {
+   "n": 160,
+   "r": 0.076
+  },
+  "top8Repeat": {
+   "hits": 21,
+   "of": 48,
+   "pct": 43.75,
+   "chancePct": 25
+  },
+  "oddEven": {
+   "n": 224,
+   "r": 0.22,
+   "fullSeasonReliability": 0.361
+  },
+  "halves": {
+   "n": 224,
+   "r": 0.188
+  },
+  "weekToWeek": {
+   "n": 3518,
+   "r": 0.049
+  },
+  "spread": [
+   {
+    "season": 2019,
+    "best": "NE",
+    "dst1": 247,
+    "dst12": 144,
+    "median": 117,
+    "worst": 62
+   },
+   {
+    "season": 2020,
+    "best": "BAL",
+    "dst1": 167,
+    "dst12": 122,
+    "median": 113,
+    "worst": 50
+   },
+   {
+    "season": 2021,
+    "best": "DAL",
+    "dst1": 198,
+    "dst12": 136,
+    "median": 124,
+    "worst": 70
+   },
+   {
+    "season": 2022,
+    "best": "NE",
+    "dst1": 198,
+    "dst12": 129,
+    "median": 127,
+    "worst": 73
+   },
+   {
+    "season": 2023,
+    "best": "DAL",
+    "dst1": 191,
+    "dst12": 150,
+    "median": 137,
+    "worst": 71
+   },
+   {
+    "season": 2024,
+    "best": "DEN",
+    "dst1": 191,
+    "dst12": 135,
+    "median": 120,
+    "worst": 49
+   },
+   {
+    "season": 2025,
+    "best": "SEA",
+    "dst1": 188,
+    "dst12": 128,
+    "median": 111,
+    "worst": 56
+   }
+  ],
+  "hindsightDst1MinusDst12": 62.29,
+  "draftLastYearTop5": {
+   "gain": 15.54,
+   "se": 3.62,
+   "t": 4.3,
+   "years": 6,
+   "positive": 6
+  }
+ },
+ "decision": {
+  "fullPool": {
+   "prevSeasonRank": {
+    "gain": 0.77,
+    "t": 1.16,
+    "weeks": 101,
+    "years": 6,
+    "positive": 3,
+    "pickScores": 8.1,
+    "baseline": 7.33
+   },
+   "seasonToDate": {
+    "gain": 1.14,
+    "t": 1.83,
+    "weeks": 101,
+    "years": 6,
+    "positive": 5,
+    "pickScores": 8.47,
+    "baseline": 7.33
+   },
+   "stream": {
+    "gain": 3.82,
+    "t": 5.75,
+    "weeks": 101,
+    "years": 6,
+    "positive": 6,
+    "pickScores": 11.15,
+    "baseline": 7.33
+   },
+   "ownImplied": {
+    "gain": 1.63,
+    "t": 2.74,
+    "weeks": 101,
+    "years": 6,
+    "positive": 6,
+    "pickScores": 8.96,
+    "baseline": 7.33
+   },
+   "oracle": {
+    "gain": 15.53,
+    "t": 39.08,
+    "weeks": 101,
+    "years": 6,
+    "positive": 6,
+    "pickScores": 22.86,
+    "baseline": 7.33
+   },
+   "oppOffenseToDate": {
+    "gain": 2.01,
+    "t": 3.43,
+    "weeks": 101,
+    "years": 6,
+    "positive": 6,
+    "pickScores": 9.34,
+    "baseline": 7.33
+   },
+   "streamPlusRank": {
+    "gain": 1.92,
+    "t": 3.48,
+    "weeks": 101,
+    "years": 6,
+    "positive": 6,
+    "pickScores": 9.25,
+    "baseline": 7.33
+   },
+   "streamPlusHalfRank": {
+    "gain": 2.3,
+    "t": 4.01,
+    "weeks": 101,
+    "years": 6,
+    "positive": 6,
+    "pickScores": 9.62,
+    "baseline": 7.33
+   }
+  },
+  "waiverPool": {
+   "prevSeasonRank": {
+    "gain": -0.82,
+    "t": -1.66,
+    "weeks": 101,
+    "years": 6,
+    "positive": 0,
+    "pickScores": 6.12,
+    "baseline": 6.94
+   },
+   "seasonToDate": {
+    "gain": 0.89,
+    "t": 1.64,
+    "weeks": 101,
+    "years": 6,
+    "positive": 5,
+    "pickScores": 7.83,
+    "baseline": 6.94
+   },
+   "stream": {
+    "gain": 3.96,
+    "t": 6.86,
+    "weeks": 101,
+    "years": 6,
+    "positive": 6,
+    "pickScores": 10.9,
+    "baseline": 6.94
+   },
+   "ownImplied": {
+    "gain": 1.29,
+    "t": 2.12,
+    "weeks": 101,
+    "years": 6,
+    "positive": 5,
+    "pickScores": 8.24,
+    "baseline": 6.94
+   },
+   "oracle": {
+    "gain": 13.18,
+    "t": 33.31,
+    "weeks": 101,
+    "years": 6,
+    "positive": 6,
+    "pickScores": 20.12,
+    "baseline": 6.94
+   },
+   "oppOffenseToDate": {
+    "gain": 1.57,
+    "t": 2.88,
+    "weeks": 101,
+    "years": 6,
+    "positive": 5,
+    "pickScores": 8.51,
+    "baseline": 6.94
+   },
+   "streamPlusOppOffense": {
+    "gain": 2.19,
+    "t": 3.66,
+    "weeks": 101,
+    "years": 6,
+    "positive": 5,
+    "pickScores": 9.14,
+    "baseline": 6.94
+   }
+  },
+  "placebo": {
+   "arms": [
+    -0.13,
+    0.26,
+    0.17,
+    -0.42,
+    -0.51,
+    -0.8,
+    -0.56,
+    -0.25
+   ],
+   "mean": -0.28,
+   "max": 0.26
+  },
+  "holdVsStream": {
+   "seasons": [
+    {
+     "season": 2020,
+     "holdTeam": "NE",
+     "hold": 102,
+     "stream": 200,
+     "delta": 98
+    },
+    {
+     "season": 2021,
+     "holdTeam": "BAL",
+     "hold": 94,
+     "stream": 211,
+     "delta": 117
+    },
+    {
+     "season": 2022,
+     "holdTeam": "DAL",
+     "hold": 187,
+     "stream": 158,
+     "delta": -29
+    },
+    {
+     "season": 2023,
+     "holdTeam": "NE",
+     "hold": 118,
+     "stream": 189,
+     "delta": 71
+    },
+    {
+     "season": 2024,
+     "holdTeam": "DAL",
+     "hold": 110,
+     "stream": 187,
+     "delta": 77
+    },
+    {
+     "season": 2025,
+     "holdTeam": "DEN",
+     "hold": 136,
+     "stream": 181,
+     "delta": 45
+    }
+   ],
+   "gain": 63.17,
+   "se": 20.97,
+   "t": 3.01,
+   "positive": 5,
+   "years": 6
+  },
+  "correlates": {
+   "oppImplied": -0.283,
+   "ownImplied": 0.136,
+   "prevSeasonPg": 0.084,
+   "seasonToDate": 0.073,
+   "oppOffenseToDate": -0.157,
+   "actualPointsAllowed": -0.661,
+   "n": 3038
+  }
+ }
+}

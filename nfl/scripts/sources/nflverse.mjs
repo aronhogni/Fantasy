@@ -376,6 +376,26 @@ export async function teamWeekly(seasons) {
         patt: num(r.attempts), pyd: num(r.passing_yards), ptd: num(r.passing_tds),
         car: num(r.carries), ryd: num(r.rushing_yards), rtd: num(r.rushing_tds),
         pepa: num(r.passing_epa), repa: num(r.rushing_epa),
+        /* ============================================================
+           `sacks`/`ints` ERU VORPUD OG ENGINN LES THAU — OG `def_tds`
+           ER LESID UR CSV OG ALDREI VARPAD. Baedi var satt 14.8.2026 og
+           hvorugt er villa; thad er einfaldlega OKLARADUR THRADUR.
+
+           `teamAggregates` i `fetch-nfl.mjs` summar ADEINS
+           patt/car/pyd/ryd/ptd/rtd/pepa/repa, svo thessi tvo svid detta
+           ut a leidinni i `team_form.json`.
+
+           DST-HLIDIN LES EKKI HEDAN. `scripts/dst-lab.mjs` saekir
+           `stats_team_week` beint med SINUM eigin dalkalista (21 svid,
+           thar a medal `def_safeties`, `def_fumbles_forced`,
+           `fumble_recovery_opp` og `fumble_recovery_tds` sem eru hvorugt
+           her) og sendir rodina i `dstPoints` i `src/scoring.js`.
+
+           Svidin eru LATIN STANDA fremur en ad vera fjarlaegd: thau
+           kosta ekkert, thau eru rett, og naesta lidsmaeling sem tharf
+           varnartolur a ad finna thau her. En sa sem baetir vid DST-svidi
+           HER a ad vita ad thad birtist hvergi fyrr en `teamAggregates`
+           summar thad lika.                                          */
         sacks: num(r.def_sacks), ints: num(r.def_interceptions),
       }));
       record(`nflverse_team_${yr}`, true, `${out[yr].length} team weeks`);

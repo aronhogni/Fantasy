@@ -54,7 +54,8 @@ import * as D from "./data.js";
 import { standingsFrom, myRosterId, recordLine } from "./standings.js";
 import { optimalLineup, lineupAdvice, slotsFor } from "./lineup.js";
 import { currentWeek, weekContext, weekRows, onByeThisWeek,
-         weeklyEdgeNote } from "./weekview.js";
+         weeklyEdgeNote, dstStream, dstStreamNote,
+         compareOppImplied } from "./weekview.js";
 import { freeAgents, pickupAdvice } from "./waivers.js";
 import { newsForRoster, injuredOn } from "./newsmatch.js";
 
@@ -213,6 +214,36 @@ function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy }) {
 
   const bye = onByeThisWeek(myRows || [], week);
 
+  /* ============================================================
+     DST — BIRT ADEINS I DEILD SEM BYRJAR VORN
+     ============================================================
+     Notandinn spilar i TVEIMUR deildum og adeins onnur ber `DEF` i
+     `roster_positions`. Ad syna listann i badum vaeri rad um saeti sem
+     er ekki til, og su tegund havada er nakvaemlega thad sem
+     keeper-vidvorunin i `sleeper-league.js` kostadi: kassi sem kviknar
+     a venjulegri deild er lærður sem eitthvad sem madur hunsar, og tha
+     er raunverulegt rad jafn gagnslaust og ekkert.                  */
+  const dstTeams = useMemo(
+    () => (rows || []).filter((r) => r && r.pos === "DST")
+      .map((r) => ({ team: r.team || r.id, name: r.name })), [rows]);
+  const dstTaken = useMemo(() => {
+    if (!Array.isArray(rosters)) return null;   // NULL, ekki tomt mengi
+    const s = new Set();
+    for (const r of rosters) {
+      for (const p of (r && r.players) || []) {
+        if (dstTeams.some((t) => t.team === String(p))) s.add(String(p));
+      }
+    }
+    return s;
+  }, [rosters, dstTeams]);
+  const myDst = useMemo(() => {
+    const r = (myRows || []).find((x) => x && x.pos === "DST");
+    return r ? (r.team || r.id) : null;
+  }, [myRows]);
+  const dst = useMemo(() => (league.starters && league.starters.DST
+    ? dstStream({ ctx, teams: dstTeams, taken: dstTaken, mine: myDst }) : null),
+    [ctx, dstTeams, dstTaken, myDst, league.starters]);
+
   return (
     <div className="panel">
       <div className="row" style={{ alignItems: "baseline" }}>
@@ -237,6 +268,7 @@ function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy }) {
       <RosterNews roster={myRows} news={news} />
       <StartSit lineup={lineup} advice={advice} bye={bye} week={week}
         myRows={myRows} mineId={mineId} scoring={league.scoring} />
+      <DstStream dst={dst} rostersRead={Array.isArray(rosters)} />
       <Waivers fa={fa} picks={picks} league={league} />
     </div>
   );
@@ -583,6 +615,105 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring }) {
    `confident: false` er MERKT. Thad er ekki likindatala — thad thydir
    ad eitt inntakid se utan thess sem var maelt (`minGain` er ekki
    maeld tala, hun er varfaerid golf).                                */
+/* ============================================================
+   3b. VORNIN — MATCHUP-LISTI, EKKI ROD
+   ============================================================
+   ÞETTA SAETI VAR ORADLAGT. Deildin byrjar vorn og appid sagdi ekkert
+   um hana; eitt af niu byrjunarsaetum var utan tolunnar.
+
+   OG THAD SEM ER BIRT ER THAD SEM MAELDIST, EKKI THAD SEM VAR BEDID UM.
+   Fyrsta beidnin var „rod a vornunum". Labid (`scripts/dst-lab.mjs`)
+   maeldi hana FYRST og hun fell: +0,77 stig a viku (t=1,16, 3/6 ar) og
+   **-0,82 medal theirra sem eru raunverulega lausir** (0/6 ar).
+   Streymi eftir motherja gefur +3,82 (t=5,75, 6/6). Þess vegna er
+   thetta VIKULEGUR LISTI og thess vegna er ENGIN season-rod her — hun
+   vaeri omaeld tala vid hlidina a maeldri, sem er versta utkoman i
+   thessu repo-i.
+
+   `Gain` er ekki birt per vorn og thad er asett: labid maelir hvad
+   EFSTI kosturinn skorar umfram medaltal, ekki hvad HVER vorn skorar.
+   Ad hengja +3,82 a hverja rod vaeri ad selja hopmaelingu sem
+   einstaklingsspa.                                                  */
+function DstStream({ dst, rostersRead }) {
+  /* Atttin er STYRD OG SYNILEG. Sjalfgefid er „laegst best" thvi thad
+     er tillagan; hitt er til svo notandinn geti sed versta leikinn
+     lika — og svo ad null-medferdin se profanleg i BADAR attir, sem er
+     eina leidin til ad vita ad hun se rett. */
+  const [dir, setDir] = useState("asc");
+  if (!dst) return null;
+  const note = dstStreamNote();
+  const rows = dst.rows.slice().sort((a, b) => compareOppImplied(a, b, dir) ||
+    String(a.team).localeCompare(String(b.team)));
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <Head>Defence this week</Head>
+
+      {dst.why ? (
+        <div className="note" style={{ marginTop: 6 }}>{dst.why}</div>
+      ) : (
+        <div className="dim" style={{ fontSize: 11.5, marginTop: 4 }}>
+          Start the defence facing the lowest expected opponent score
+          {dst.best.length > 0 && <>: <b>{dst.best.map((r) => r.team).join(" · ")}</b></>}
+        </div>
+      )}
+      {!rostersRead && (
+        <div className="note warn" style={{ marginTop: 6 }}>
+          <b>Rosters were not read</b>, so we cannot say which defences are already
+          owned. Every row below is shown as if it were free, which it is not.
+        </div>
+      )}
+
+      <div className="tablewrap" style={{ marginTop: 6 }}>
+        <table className="data">
+          <thead>
+            <tr className="cols">
+              <th className="txt frozen">Defence</th>
+              <th className="txt">Opponent</th>
+              <th
+                title="Points the opponent is expected to score, from the betting line (total and spread). Lower is better for your defence."
+                style={{ cursor: "pointer" }}
+                onClick={() => setDir(dir === "asc" ? "desc" : "asc")}>
+                Opp. pts {dir === "asc" ? "↑" : "↓"}
+              </th>
+              <th className="txt">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.team} className={r.mine ? "reach-hi" : ""}>
+                <td className="txt frozen">
+                  {r.team} <span className="dim">{r.name}</span>
+                </td>
+                <td className="txt dim">
+                  {/* BYE ER EKKI „ANDSTAEDINGUR OKUNNUR". Lid i frii
+                      spilar ekki; lina sem er ekki opnud thydir ad vid
+                      vitum thad ekki enn. Tvo olik svor, tvo olik ord. */}
+                  {r.bye ? "bye" : r.opp}
+                </td>
+                <td className="mono">
+                  {r.oppImplied == null
+                    ? <span className="null">—</span>
+                    : <b className={r.rank != null && r.rank <= 5 ? "good" : ""}>
+                        {r.oppImplied.toFixed(1)}
+                      </b>}
+                </td>
+                <td className="txt dim">
+                  {r.mine ? "yours" : r.taken ? "rostered" : "free"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="dim" style={{ fontSize: 11, marginTop: 6, whiteSpace: "normal" }}>
+        {note.text}
+      </div>
+    </div>
+  );
+}
+
 function Waivers({ fa, picks, league }) {
   return (
     <div style={{ marginTop: 14 }}>

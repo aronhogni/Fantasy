@@ -263,6 +263,182 @@ export function weekRows(roster, ctx) {
   });
 }
 
+/* ============================================================
+   DST — STREYMI, EKKI ROD. MAELINGIN VALDI EIGINLEIKANN.
+   ============================================================
+   Notandinn spilar i deild sem BYRJAR vorn, og appid sagdi ekkert um
+   thad saeti. Fyrsta hugmyndin var „radadu vornunum" — og hun var maeld
+   FYRST, af thvi ad svarid gat verid nei. Thad var nei.
+
+   `scripts/dst-lab.mjs`, 2019-2025, 3.742 lidsvikur, gongum-afram
+   (aldrei tímabil sem er verid ad spa i inntakinu):
+
+     regla (efsti valinn, hverja viku)        umfram medal-vorn   t     ar
+     ------------------------------------------------------------------
+     rod eftir stigum i FYRRA                     +0,77          1,16   3/6
+     rod eftir stigum THAD SEM AF ER              +1,14          1,83   5/6
+     **STREYMI: laegsta vaenta skor motherja**    **+3,82**      5,75   6/6
+     eigid vaent skor                             +1,63          2,74   6/6
+     orakel (fullkomin vitneskja)                +15,53            —    6/6
+
+   OG I RAUNVERULEGA HOPNUM SNYST RODIN VID. Deild med 12 lid draftar
+   12 varnir, svo thad sem ma raunverulega skipta um er restin. Med
+   hopnum takmorkudum vid tha sem VORU EKKI i topp-12 i fyrra:
+
+     rod eftir stigum i fyrra                     **-0,82**     -1,66   0/6
+     STREYMI                                      **+3,96**      6,86   6/6
+
+   Rodin er thvi ekki bara veik a vírnum heldur NEGATIF, og hun er
+   negatif i ollum sex arum. Ad blanda henni saman vid streymid SKADAR
+   lika: +3,82 eitt sér -> +2,30 med halfu vaegi a rodina -> +1,92 med
+   fullu. Hver einasti dropi af rodinni kostar.
+
+   Placebo-fjolskylda (8 slembin skor gegnum sama net) nær hæst +0,26.
+   Streymid er 15x thad thak.
+
+   Og einbeitt gegn heilu timabili: ad HALDA bestu vorn fyrra ars gefur
+   63,2 stigum MINNA en ad streyma (t=3,01, 5/6 timabil) — eina arid sem
+   streymid tapar er 2022 (DAL, -29).
+
+   ÞVI ER ENGIN DST-ROD BYGGD. `RANKED_POS` i `waivers.js` og
+   `aRank`-utilokunin i `build.js` STANDA OBREYTT — thaer voru rettar og
+   eru nu maeldar fyrir DST serstaklega, ekki adeins fyrir K.
+
+   HVAD ER *EKKI* MAELT HER, og ma thvi ekki fullyrda: hvort thad borgi
+   sig ad EYDA vaiver-forgangi i vornina. Labid maelir hvad efsti
+   kosturinn skorar, ekki hvad thad kostar ad na honum.               */
+export const DST_STREAM_MEASURED = {
+  source: "data/measure/dst.json · dst-lab.mjs · 2019-2025",
+  seasons: 7, teamWeeks: 3742,
+  /* Efsti valinn per viku, umfram medaltal theirra sem spila thá viku. */
+  stream: { gain: 3.82, t: 5.75, years: 6, positive: 6 },
+  streamWaiverPool: { gain: 3.96, t: 6.86, years: 6, positive: 6 },
+  prevSeasonRank: { gain: 0.77, t: 1.16, years: 6, positive: 3 },
+  prevSeasonRankWaiverPool: { gain: -0.82, t: -1.66, years: 6, positive: 0 },
+  seasonToDate: { gain: 1.14, t: 1.83, years: 6, positive: 5 },
+  oracle: { gain: 15.53 },
+  streamPlusHalfRank: { gain: 2.30 },
+  streamPlusRank: { gain: 1.92 },
+  placeboMax: 0.26,
+  holdVsStream: { gain: 63.17, t: 3.01, years: 6, positive: 5 },
+  /* Ferillinn milli ara — hann ER til, hann er bara ekki nothaefur. */
+  yearOverYear: { r: 0.304, n: 192 },
+  weekToWeek: { r: 0.049, n: 3518 },
+};
+
+/**
+ * Hvad ma SEGJA um DST-streymid. Sama mynstur og `weeklyEdgeNote`:
+ * talan stendur ALDREI ein thegar hun er ekki marktaek.
+ */
+export function dstStreamNote() {
+  const m = DST_STREAM_MEASURED;
+  return {
+    measured: true, significant: true,
+    text: `Measured walk-forward on ${m.seasons} seasons ` +
+      `(${m.teamWeeks} team-weeks): starting the defence with the lowest ` +
+      `expected opponent score is worth +${m.stream.gain} points a week over ` +
+      `an average defence (t = ${m.stream.t}, positive in ` +
+      `${m.stream.positive} of ${m.stream.years} seasons). Ranking defences by ` +
+      `last season instead is worth +${m.prevSeasonRank.gain} ` +
+      `(t = ${m.prevSeasonRank.t}) — and among the defences actually left on ` +
+      `waivers it is ${m.prevSeasonRankWaiverPool.gain}. That is why this is a ` +
+      `weekly matchup list and not a season ranking.`,
+  };
+}
+
+/**
+ * NULL SITUR SIDAST I BADAR ATTIR.
+ *
+ * Vorn an markadslinu (leikur sem bokmakarar hafa ekki opnad) og vorn i
+ * frii bera BADAR `oppImplied = null`, og thaer mega hvorugum megin
+ * fljota upp. Fyrsta utgafan skiladi `a - b` og `null` varð `0` i
+ * frádraettinum — sem setti hvern lidslausan mann EFST i „laegsta
+ * vaenta skor", thar sem hann las eins og fullkomin viðureign.
+ *
+ * `dir` er `"asc"` (laegst best — sjalfgefid fyrir DST) eda `"desc"`.
+ */
+export function compareOppImplied(a, b, dir = "asc") {
+  const av = a && a.oppImplied != null && Number.isFinite(a.oppImplied);
+  const bv = b && b.oppImplied != null && Number.isFinite(b.oppImplied);
+  if (!av && !bv) return 0;
+  if (!av) return 1;
+  if (!bv) return -1;
+  return dir === "desc" ? b.oppImplied - a.oppImplied : a.oppImplied - b.oppImplied;
+}
+
+/**
+ * Vikuleg DST-tillaga: hvada vorn a ad byrja.
+ *
+ * `ctx`    ur `weekContext` (markadslina og motherji per lid)
+ * `teams`  `[{ team, name, bye }]` — allar 32 varnir ur `players.json`
+ * `taken`  audkenni varna sem EINHVER i deildinni a (Sleeper `players`)
+ * `mine`   audkenni minnar varnar, eda null
+ *
+ * Skilar rodum thar sem `oppImplied` getur verid `null` — og tha ER thad
+ * null alla leid a skjainn. Bye-vika og lina sem er ekki opnud eru
+ * ADGREINDAR (`bye`), thvi thad eru olik svor: „hann spilar ekki" a móti
+ * „vid vitum thad ekki enn".
+ */
+export function dstStream({ ctx, teams, taken, mine } = {}) {
+  const list = Array.isArray(teams) ? teams.filter((t) => t && t.team) : [];
+  if (!list.length) {
+    return { week: ctx ? ctx.week : null, rows: [], best: [],
+             why: "No defences were loaded." };
+  }
+  /* `taken` ma vera Set, fylki eda ekkert. Samraemt EINU SINNI hér svo
+     hvor greinin sem er nedar geti ekki lesid hann odruvisi. */
+  const own = taken instanceof Set ? taken
+    : new Set(Array.isArray(taken) ? taken : []);
+
+  if (!ctx) {
+    /* Forleikur eda engin vika. VID BUUM EKKI TIL TOLU UR ENGU — sama
+       regla og `weekRows` med `ctx == null`. */
+    return { week: null, best: [],
+      rows: list.map((t) => ({ team: t.team, name: t.name || t.team, opp: null,
+        oppImplied: null, ownImplied: null, bye: false, rank: null,
+        taken: own.has(t.team), mine: mine != null && t.team === mine })),
+      why: "The season has not started, so there is no matchup to read yet." };
+  }
+
+  const rows = list.map((t) => {
+    const opp = ctx.opp.get(t.team) ?? null;
+    const raw = ctx.implied.get(t.team);
+    /* MOTHERJANS vaenta skor er thad sem vornin gefur fra ser. `implied`
+       ber EIGID vaent skor hvers lids, svo thetta er flettingin a
+       motherjanum — ekki minus a minu eigin. Fyrsta utgafan las mitt og
+       taldi hatt eigid skor gott fyrir vornina, sem maelist +1,63 en er
+       ONNUR breyta og adeins 40% af merkinu. */
+    const oppImplied = opp != null && ctx.implied.get(opp) != null
+      ? ctx.implied.get(opp) : null;
+    return {
+      team: t.team, name: t.name || t.team, opp,
+      /* `bye` er RAUNVERULEG frivika: engin rod i leikjaskra thessarar
+         viku. Adgreint fra „engin lina" — sja skjolun ad ofan. */
+      bye: opp == null,
+      oppImplied,
+      ownImplied: raw != null ? raw : null,
+      taken: own.has(t.team),
+      mine: mine != null && t.team === mine,
+    };
+  });
+  rows.sort((a, b) => compareOppImplied(a, b, "asc") ||
+                      String(a.team).localeCompare(String(b.team)));
+  rows.forEach((r, i) => { r.rank = r.oppImplied == null ? null : i + 1; });
+
+  /* Tillagan er ur theim sem eru LAUSIR (eda minir). Vorn sem annar a er
+     ekki tillaga heldur upplysing, og hun er samt synd — „hann er
+     tekinn" er svar, ekki thogn. */
+  const best = rows.filter((r) => r.oppImplied != null && (!r.taken || r.mine)).slice(0, 3);
+  const lines = rows.filter((r) => r.oppImplied != null).length;
+  return {
+    week: ctx.week, rows, best,
+    why: lines ? null
+      : "No betting lines are open for this week yet, so there is nothing to " +
+        "rank on. This list is a matchup list — without a line it is empty, " +
+        "not zero.",
+  };
+}
+
 /** Hverjir eru i frii thessa viku. Synt sem upplysing, ekki fald. */
 export function onByeThisWeek(roster, week) {
   if (week == null) return [];
