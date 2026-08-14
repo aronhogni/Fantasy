@@ -151,12 +151,36 @@ export function kickerPoints(r, R = BASE) {
 /** Stodurnar sem eiga heima i fantasy-deild. Adrar eru siadar burt. */
 export const FANTASY_POS = ["QB", "RB", "WR", "TE", "K", "DST"];
 
-/** nflverse/Sleeper nota olik heiti fyrir vorn. Samraemt hedan. */
+/**
+ * nflverse/Sleeper nota olik heiti fyrir vorn. Samraemt hedan.
+ *
+ * ============================================================
+ * STADA SEM ER EKKI I `FANTASY_POS` FER OBREYTT UT — ASETT
+ * ============================================================
+ * Hér stod `return FANTASY_POS.includes(s) ? s : s`, thar sem BADAR
+ * greinar eru sama gildid: skilyrdid var einskis virdi og las eins og
+ * sia sem sfar ekki. Þad er verri gerd af daudum koda en onotad fall,
+ * thvi hann laetur lesandann alyta ad eitthvad se siad hér.
+ *
+ * OG HANN MA EKKI VERDA `: null`, sem er tha eina sem hann liti ut fyrir
+ * ad hafa aetlað ad vera. Tvennt i pipeline-inu byggir a thvi ad staða
+ * utan fantasy fari OBREYTT ut:
+ *   · `nflverse.depth()` skrifar `pos: normPos(r.position) ||
+ *     normPos(r.depth_position)` og heldur rodinni ef `pos` er satt.
+ *     Med `null` myndi ALLUR varnar-hluti djupt-listans hverfa thegjandi.
+ *   · kallendur sia sjalfir (`["QB","RB","WR","TE","K"].includes(pos)`),
+ *     sem er retti stadurinn: sian tilheyrir spurningunni, ekki vorpuninni.
+ * `null` er thvi geymt fyrir "ekkert var gefid" (fyrsta linan) og er
+ * ADGREINANLEGT fra "gefid, en ekki fantasy-stada".
+ *
+ * Vordur: `tests/waivers.mjs` kafli 10b — stadu-orðaforðinn sem
+ * `rankedPos` ber sig vid kemur hedan, og hann var OPROFADUR.
+ */
 export function normPos(p) {
   if (!p) return null;
   const s = String(p).toUpperCase();
   if (s === "DEF" || s === "D/ST" || s === "DST") return "DST";
   if (s === "PK") return "K";
   if (s === "FB") return "RB";     // fullbakkar eru RB i ollum deildum
-  return FANTASY_POS.includes(s) ? s : s;
+  return s;
 }

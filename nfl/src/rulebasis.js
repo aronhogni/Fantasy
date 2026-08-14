@@ -212,13 +212,44 @@ export function measuredEdge(league, shapes = null) {
  * Ein lina sem ma setja undir urskurdinn, med ollum thremur reglunum
  * innbyggdum. Skilar `null` thegar ekkert ma segja — tha a kallandinn
  * ad thegja um toluna, ekki fylla i hana.
+ *
+ * ============================================================
+ * TVAER OLIKAR ASTAEDUR, TVAER OLIKAR SETNINGAR
+ * ============================================================
+ * Hér stod EIN setning fyrir hvert `null` ur `measuredEdge`: "this
+ * league shape has not been backtested". Hun var rett svo lengi sem
+ * `scoringKeyOf` skiladi `"ppr"` sjalfgefid, thvi tha gat ADEINS logunin
+ * verid orsokin. Um leid og sa varnagli fór ad skila `null` (sja notuna
+ * thar) opnadist onnur leid inn i sama `null` — OÞEKKT STIGAGJOF — og
+ * setningin nefndi tha RANGA ORSOK: logunin ma vera fullmaeld (`10-2flex`
+ * ber +188,0 i 11 af 11 timabilum) medan thad er stigagjofin sem vid
+ * hofum aldrei maelt.
+ *
+ * Rong orsok i vidvorun er ekki ordalag. Notandi sem les "shape has not
+ * been backtested" um `10-2flex` sér setningu sem hann getur SANNAD ranga
+ * — og laerir thar med ad hunsa kassann; sami skadi og fals-vidvorunin
+ * sem thessi eining var smiðuð til ad fjarlaegja.
+ *
+ * `reason` er thvi vél-laesilegi adgreinirinn ("shape" / "scoring") svo
+ * kallandi (og profid) geti krafist thess ad THAER SEU TVAER. Prof sem
+ * adeins spyr "kom einhver setning?" gat ekki sed thennan mun.
  */
 export function edgeSentence(league, shapes = null) {
   const e = measuredEdge(league, shapes);
   if (!e) {
+    /* Logunin fyrst: vitum vid ekki hve mörg lid eru i deildinni er
+       ekkert vitad um logun, og tha er thad orsokin. Se logunin lesin
+       en stigagjofin othekkt er thad HITT tilfellid. */
+    if (shapeKeyOf(league) && !scoringKeyOf(league)) {
+      return { text: "This league's scoring is not one that was backtested — the " +
+                     "measurements cover PPR, half-PPR and standard only. The shape " +
+                     "itself may well be measured; the scoring is what is missing, " +
+                     "so no measured margin is shown.",
+               measured: false, significant: false, reason: "scoring" };
+    }
     return { text: "This league shape has not been backtested — the order is the " +
                    "same model, but there is no measured margin for it.",
-             measured: false, significant: false };
+             measured: false, significant: false, reason: "shape" };
   }
   const shapeTxt = `${e.shape.replace("-", "-team ")}`;
   if (!e.significant) {

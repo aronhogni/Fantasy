@@ -684,11 +684,32 @@ function Waivers({ fa, picks, league }) {
             </div>
           )}
 
+          {/* ============================================================
+              FOTNOTAN NEFNDI RANGA ORSOK — LAGFAERT 14.8.2026
+              ============================================================
+              Hér stod ad rodir sem eru ekki graenar hvili "partly on the
+              gain floor (a conservative guess)". Þad er OSATT um hverja
+              einustu rod sem er a skjanum: `pickupAdvice` siar eftir
+              golfinu ADUR en rod verdur til (`gain < floor -> continue`),
+              svo HVER birt rod hefur thegar stadid thad — og `confidenceOf`
+              profar thad viljandi ekki, thvi skilyrdi sem getur ekki
+              brugdist er ekki skilyrdi.
+
+              Astaedan er ALLTAF ein af threm: undir varamanns-threpi,
+              ESPN-bakfall i stad Sleeper-spar, eda ekki heill. Og hun er
+              thegar SOGD i `why` per rod, svo fotnotan a ad segja HVERJAR
+              thaer eru — ekki nefna tolu sem kemur thessu ekki vid.
+
+              Sami flokkur og fals-vidvorunin i `edgeSentence`: vidvorun sem
+              nefnir orsok sem notandinn getur sannad ranga kennir honum ad
+              hunsa vidvaranir.                                          */}
           {picks && picks.some((p) => !p.confident) && (
             <div className="dim" style={{ fontSize: 11.5, marginTop: 5 }}>
-              Rows not in green rest on at least one input that was never measured
-              (the minimum-gain floor is a conservative guess, not a fitted number),
-              so treat those as a nudge rather than a recommendation.
+              Rows not in green fail one of the three inputs behind the gain: the
+              player projects below your league's replacement level, his projection is
+              the ESPN fallback rather than Sleeper's own, or he is not fully
+              available. Each such row says which, in Why. The minimum-gain floor is
+              not one of them — every row here has already cleared it.
             </div>
           )}
         </>

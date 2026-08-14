@@ -765,6 +765,137 @@ console.log("\n3d. viku-abatinn er per stigagjof");
 }
 
 /* ============================================================
+   3e. TALAN SEM STENDUR A HVERJU SPJALDI — LESIN AF SKJANUM
+   ============================================================
+   Kafli 3d profar `weeklyEdgeNote` SEM HREINT FALL og thad er ekki nog:
+   ekkert las TEIKNUDU deildar-spjaldid, svo stokkbreytingin
+
+     weeklyEdgeNote(scoring)   ->   weeklyEdgeNote("ppr")
+
+   i `Dashboard.jsx` LIFDI — badar deildir hefdu tha bordid PPR-toluna
+   3,482% og half-deildin lesid hana sem sina. Þad er NAKVAEMLEGA villan
+   sem kafli 3d var skrifadur til ad fjarlaegja (adur stod 5,8% a badum),
+   endurvakin einum stad sidar i kedjunni og osynileg fyrir hreinu profin.
+
+   Fullyrdingin er thvi TVIHLIDA og PER SPJALDI: half-spjaldid VERDUR ad
+   bera 2,860 OG MA EKKI bera 3,482; ppr-spjaldid hid gagnstaeda. Krafa
+   sem adeins segir "einhver tala er thar" — eda "2,86 er einhvers stadar
+   a sidunni" — hefdi verid graen undir stokkbreytingunni, thvi sidan ber
+   BADAR deildir og thar med badar tolur.                              */
+console.log("\n3e. hvert spjald ber SINA tolu (lesid af skjanum)");
+{
+  played = true; sleeperMode = "ok";
+  const root = await boot();
+  await waitFor(() => /Measured walk-forward/.test(text()));
+
+  /* SPJALDIÐ ER SOTT MEDAN DOM-ID ER LIFANDI. `root.unmount()` tæmir
+     `document`, svo texti sem er lesinn EFTIR a er tomur strengur — og
+     `!/3\.482/.test("")` er SONN. Þad er tom fullyrding af verstu gerd
+     (CLAUDE.md 5b), svo textinn er FANGADUR hér, adur en nokkud er
+     tekid nidur. */
+  const panelText = (name) => {
+    const p = [...document.querySelectorAll("div.panel")]
+      .find((el) => [...el.querySelectorAll("h2")]
+        .some((h) => (h.textContent || "").trim() === name));
+    return p ? (p.textContent || "") : null;
+  };
+  const ppr = panelText("Patriots SB champs");     // 10 lid, PPR
+  const half = panelText("Sofahetjur");            // 12 lid, half-PPR
+
+  ok(ppr != null && half != null, "badi spjoldin finnast sem ser `div.panel`");
+  ok(ppr !== half, "og thau eru TVO spjold, ekki sama hnutur tvisvar");
+  /* FORSENDAN: setningin er raunverulega a BADUM. An hennar vaeri
+     "3,482 er ekki a half-spjaldinu" satt af thvi ad thar er engin
+     setning — sama gildran og `!includes(X)` an sonnunar a X. */
+  ok(/Measured walk-forward/.test(ppr || "") && /Measured walk-forward/.test(half || ""),
+    "og BADI bera viku-setninguna (annars vaeru neikvaedu krofurnar tomar)");
+
+  ok(/3\.482/.test(ppr || ""), "ppr-spjaldid ber 3,482 — PPR-toluna");
+  ok(!/2\.860|2\.86\b/.test(ppr || ""), "og EKKI half-toluna 2,860");
+  ok(/2\.860|2\.86\b/.test(half || ""), "half-spjaldid ber 2,860 — HALF-toluna");
+  ok(!/3\.482/.test(half || ""),
+    "og EKKI 3,482 — hardkodad `weeklyEdgeNote(\"ppr\")` fellur HER");
+  /* Og hvorugt ber smitudu tolurnar sem voru birtar fram ad 13.8.2026. */
+  ok(!/5\.831/.test(ppr || "") && !/3\.199/.test(half || ""),
+    "hvorugt spjald ber smitudu tolurnar (5,831 / 3,199)");
+
+  root.unmount();
+}
+
+/* ============================================================
+   3f. FOTNOTAN UNDIR WAIVER-LISTANUM NEFNDI RANGA ORSOK
+   ============================================================
+   Hun sagdi ad rodir sem eru ekki graenar hvili ad hluta a
+   `minGain`-golfinu ("a conservative guess, not a fitted number"). Þad er
+   OSATT um hverja einustu birta rod: `pickupAdvice` siar eftir golfinu
+   ADUR en rod verdur til (`gain < floor -> continue`), og `confidenceOf`
+   profar thad viljandi ekki — "skilyrdi sem getur ekki brugdist er ekki
+   skilyrdi". Astaedan er alltaf ein af threm (undir varamanns-threpi ·
+   ESPN-bakfall · ekki heill) og hun stendur thegar i `why`.
+   `tests/waivers.mjs` kafli 8b ber vel-laesilega svidid vid fallid; hér
+   er SETNINGIN SEM NOTANDINN LES borin vid thad sama.
+
+   ÞEKJA ER FULLYRDING, OG HUN FELLDI FYRSTU UTGAFU ÞESSA KAFLA. Hann var
+   fyrst i sömu svidsmynd og 3e (hopur = topp-5 ADP), thar sem ENGIN
+   tillaga verdur til — fotnotan var hvergi og allar `every`-krofurnar
+   voru samt graenar a TOMU fylki. Þess vegna er hopurinn hér HRAKINN
+   (ADP 241-250, sami hopur og kafli 7 notar): hann gefur 272 tillogur,
+   241 theirra utan graena flokksins, svo fotnotan VERDUR til.         */
+console.log("\n3f. waiver-fotnotan nefnir RETTA orsokina");
+{
+  played = true; sleeperMode = "ok";
+  const weakIds = byAdp.slice(240, 250).map((p) => String(p.id));
+  const origFetch = global.fetch;
+  global.fetch = async (url) => {
+    const s2 = String(url);
+    const m = /\/league\/(\d+)\/rosters$/.exec(s2);
+    if (m && s2.includes("api.sleeper")) {
+      calls.push(s2);
+      return { ok: true, status: 200, json: async () => {
+        const rs = mkRosters(m[1] === L_A.id ? 10 : 12, m[1] === L_A.id ? 7 : 3, true);
+        for (const r of rs) {
+          if (String(r.owner_id) === "u-me") { r.players = weakIds; r.starters = weakIds.slice(0, 5); }
+        }
+        return rs;
+      } };
+    }
+    return origFetch(url);
+  };
+  const root = await boot({ entries: [L_A] });
+  await waitFor(() => /Rows not in green/.test(text()));
+
+  /* Fangad MEDAN DOM-ID ER LIFANDI — `root.unmount()` taemir `document`
+     og `!/x/.test("")` er SONN. Tom fullyrding af verstu gerd. */
+  const foot = [...document.querySelectorAll("div.dim")]
+    .map((el) => el.textContent || "")
+    .filter((t) => /Rows not in green/.test(t));
+  /* Waiver-taflan er sott UR DOM-INU og ekki ur `textContent`:
+     `textContent` limir hausana saman i "AddDropGainWhy", svo `\bAdd\b`
+     finnur hana ekki — sama limingar-gildra og `MUNaNEW` -> `NaN` i
+     FPL-verkefninu, bara i hina attina. */
+  const waiverRows = [...document.querySelectorAll("table.data")]
+    .filter((tb) => {
+      const h = [...tb.querySelectorAll("thead th")].map((th) => (th.textContent || "").trim());
+      return h.includes("Add") && h.includes("Drop");
+    })
+    .reduce((n, tb) => n + tb.querySelectorAll("tbody tr").length, 0);
+
+  ok(waiverRows > 0, `forsendan: hrakinn hopur FAER tillogur (${waiverRows} rodir)`);
+  ok(foot.length > 0,
+    `og fotnotan um rodir utan graena flokksins er a skjanum (${foot.length})`);
+  ok(foot.every((t) => !/minimum-gain floor is a conservative guess/.test(t)),
+    "hun segir EKKI ad golfid se astaedan (gamla ranga orsokin)");
+  ok(foot.every((t) => /replacement level/.test(t) && /ESPN fallback/.test(t) &&
+                       /not fully\s+available/.test(t)),
+    "hun nefnir thau THRJU skilyrdi sem `confidenceOf` raunverulega profar");
+  ok(foot.every((t) => /already cleared it/.test(t)),
+    "og segir berum ordum ad hver birt rod hafi thegar stadid golfid");
+
+  root.unmount();
+  global.fetch = origFetch;
+}
+
+/* ============================================================
    3c. FRETTIR OG MEIDSLI — BIRT, ALDREI TULKUD
    ============================================================
    Fréttir eru SAMHENGI. Reglan i `MyTeam.jsx` gildir her lika: "tolid

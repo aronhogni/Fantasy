@@ -420,12 +420,29 @@ spáir notkun-til-þessa því að slá sína eigin spá. Þau tvö stangast ekk
 > Með `maxPositiveT` fóru ppr og standard **úr falli í pass**. Sami galli var í
 > `cellsSignificant` (46/52 „marktæk" af því að þau voru marktækt VERRI).
 
-**EKKI TENGT ENN — OG ÞAÐ ER EKKI VAL.** `data/weekly/` ber 2019–2025 en
-**ekkert 2026**, og `src/data.js` ber engan `loadWeekly`. Appið **getur ekki**
-reiknað notkun-til-þessa í dag. Þrennt þarf, í þessari röð, og það þarf að vera
-til **fyrir viku 5**: (1) pípan skrifar `data/weekly/2026.json` yfir tímabilið,
-(2) `data.js` fær letihlaðinn `loadWeekly`, (3) `weekview.js` blandar með
-Bayesískum ferli sem er **nánast núll fram að viku 6**.
+**EKKI TENGT ENN — EN PÍPULAGNIRNAR ERU KOMNAR.** `data/weekly/` ber 2019–2025
+og **ekkert 2026**, því tímabilið hefur ekki verið spilað. Appið **getur ekki**
+reiknað notkun-til-þessa í dag — en það er **skráin sem vantar, ekki leiðin að
+henni**. Þrennt þarf, í þessari röð, og það þarf að vera til **fyrir viku 5**:
+
+1. pípan skrifar `data/weekly/2026.json` yfir tímabilið — **KOMIÐ**:
+   `historyYears()` les yfirstandandi tímabil úr `meta.json` (var harðkóðað
+   `[2019..2025]`), `weeklyMinRows` hleypir viku 1 í gegn og cron þriðjudaga
+   keyrir `core,history`. Skráin sjálf verður til við fyrstu spiluðu viku.
+   Vörður: `pipeline.mjs`, „vikuleg gögn — keðjan".
+2. `data.js` fær letihlaðinn `loadWeekly` — **KOMIÐ**: `src/data.js` ber
+   `export const loadWeekly = (season) => load("weekly/${season}.json")`, og
+   `null` í forleik er **rétt svar, ekki bilun**. Vörður: sami kafli.
+3. `weekview.js` blandar með Bayesískum ferli sem er **nánast núll fram að viku
+   6** — **EKKI KOMIÐ**. Þetta er það eina sem eftir er af þrennunni.
+
+> **ÞESSI MÁLSGREIN FULLYRTI AÐ LESARINN VÆRI EKKI TIL — EFTIR AÐ HANN VAR
+> SKRIFAÐUR**, og sama fullyrðing stóð á tveimur stöðum (hér og í 4g) á meðan
+> `WAIVER_CAL.currency` í `src/waivers.js` hafði hana rétta. Úrelt „vantar" í
+> skjali er dýrari en úrelt „komið": næsta lota byrjar á að byggja það sem er
+> þegar til, og finnur það ekki fyrr en hún er hálfnuð. Vörður:
+> `tests/waivers.mjs` kafli 11b, sem ber báðar fullyrðingarnar við `src/data.js`
+> — þess vegna er gamla orðalagið **umritað hér og ekki vitnað orðrétt**.
 
 ### 4f. HVAR LIGGJA ÞAU 94% SEM EFTIR ERU — og varnar-flaskan var TÓM
 
@@ -511,10 +528,13 @@ tímabils-virði — og að sleppa varamanns-þrepinu alveg (hrá vikuleg stig) 
 þegar fram: **ábatinn verður að vera í VBD**.
 
 **Rest-of-season vinnur samt yfir tímabils-VBD** (+13,2, jákvætt í **17 af 18**
-hólfum) og það er **ekki tengt af því að það ER EKKI HÆGT**: það þarf vikurnar sem
-eftir eru og notkun-til-þessa á bak við þær, og appið hefur hvorugt í vafranum
-(`data/weekly/` stoppar 2025, `data.js` ber engan `loadWeekly`). **Í forleik eru
-þau hvort eð er eins.** Sama plumbing og 4e þarf — og hún þjónar báðum.
+hólfum) og það er **ekki tengt af því að gögnin eru ekki komin**: það þarf
+vikurnar sem eftir eru og notkun-til-þessa á bak við þær. `data/weekly/` stoppar
+í 2025 — **2026 hefur ekki verið spilað** — en leiðin að skránni er komin:
+`data.js` ber `loadWeekly(season)` og pípan skrifar yfirstandandi tímabil (sjá
+4e, þar sem tvö af þremur skrefum eru **KOMIN**). **Í forleik eru gjaldmiðlarnir
+tveir hvort eð er eins**, svo ekkert er tapað í dag; skiptin verða lifandi og
+prófanleg í viku 2. Sama plumbing og 4e þarf — og hún þjónar báðum.
 
 #### „Gera ekkert" er rétt oftar en maður vill
 

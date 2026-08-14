@@ -213,5 +213,76 @@ console.log("\nothekkt stigagjof faer ENGA tolu");
     "thogul uppfletting i rangri toflu vaeri EKKI namundun");
 }
 
+/* ============================================================
+   SETNINGIN VERDUR AD NEFNA RETTA ORSOK — TVAER ASTAEDUR, TVAER SETNINGAR
+   ============================================================
+   `scoringKeyOf` var latid skila `null` fyrir othekkt snid (kaflinn hér
+   ofan). Þad opnadi ANNAN veg inn i sama `null` ur `measuredEdge` — og
+   `edgeSentence` bar EINA setningu fyrir bada: "this league shape has not
+   been backtested". Hun nefndi thvi RANGA ORSOK i othekktu sniði:
+   `10-2flex` er fullmaeld logun (+188,0 i 11 af 11 timabilum), svo
+   setningin er fullyrding sem notandinn getur SANNAD ranga — og kassi sem
+   notandinn getur sannad rangan er kassi sem hann haettir ad lesa. Þad er
+   nakvaemlega sami skadi og fals-vidvorunin sem thessi eining var smiðuð
+   til ad fjarlaegja.
+
+   PROFSTEINNINN ER AD THAER SEU TVAER. Fullyrding sem adeins spyr "kom
+   einhver setning?" — eda jafnvel "ber hun enga tolu?" — var GRAEN medan
+   orsokin var rong, thvi hun stodst i BADUM tilfellum. Þess vegna er
+   krafan hér ad strengirnir seu OLIKIR og ad hvor nefni sitt.          */
+console.log("\nsetningin nefnir RETTA orsokina");
+{
+  const MEASURED_SHAPE = { teams: 10,
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 }, flexPos: ["RB", "WR", "TE"] };
+
+  /* FORSENDAN: logunin ER maeld. An thessarar fullyrdingar vaeri
+     "logunar-setningin er rong hér" adeins tilgata mín. */
+  const proof = measuredEdge({ ...MEASURED_SHAPE, scoring: "ppr" });
+  ok(proof && proof.exact && proof.mean === 188.0,
+    `forsenda: 10-2flex ER maeld logun (+${proof && proof.mean}) — ` +
+    "svo \"shape has not been backtested\" um hana er SANNANLEGA osatt");
+
+  const unknownScoring = edgeSentence({ ...MEASURED_SHAPE, scoring: "tunglid" });
+  /* OMAELD LOGUN: 11 lid var aldrei maeld, i neinu sniði. */
+  const unknownShape = edgeSentence({ teams: 11, scoring: "ppr",
+    starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1 }, flexPos: ["RB", "WR", "TE"] });
+
+  ok(unknownScoring.measured === false && unknownShape.measured === false,
+    "hvorug faer `measured: true` — engin tala er birt i hvorugu tilfelli");
+
+  /* ÞETTA ER SJALFT PROFID: strengirnir mega ekki vera sami strengur. */
+  ok(unknownScoring.text !== unknownShape.text,
+    "TVAER ASTAEDUR GEFA TVAER OLIKAR SETNINGAR (ein setning fyrir badar " +
+    "nefndi ranga orsok i annarri)");
+  ok(unknownScoring.reason === "scoring" && unknownShape.reason === "shape",
+    `og orsokin er vél-laesileg ("${unknownScoring.reason}" / "${unknownShape.reason}")`);
+
+  /* Hvor um sig NEFNIR sitt — og nefnir EKKI hitt. Neikvaedu
+     fullyrdingarnar eru gildar thvi jakvaedu fullyrdingarnar tveimur
+     linum ofar sanna ad strengirnir eru raunverulega thar. */
+  ok(/scoring/i.test(unknownScoring.text),
+    `othekkt stigagjof: setningin nefnir stigagjofina ("${unknownScoring.text.slice(0, 64)}…")`);
+  ok(!/shape has not been backtested/i.test(unknownScoring.text),
+    "og hun segir EKKI ad logunin se omaeld — thad er ranga orsokin");
+  ok(/shape has not been backtested/i.test(unknownShape.text),
+    `omaeld logun: setningin nefnir logunina ("${unknownShape.text.slice(0, 64)}…")`);
+
+  /* Og hvorug ber tolu — regla 1 gildir afram i BADUM leidum. */
+  ok(!/\+\d/.test(unknownScoring.text) && !/\+\d/.test(unknownShape.text),
+    "hvorug ber stigatolu");
+
+  /* Deild an lidafjolda er LOGUNAR-tilfelli, ekki stigagjafar: vitum vid
+     ekki hve mörg lid eru i henni vitum vid ekkert um logunina. */
+  const noTeams = edgeSentence({ scoring: "tunglid", starters: { QB: 1 } });
+  ok(noTeams.reason === "shape",
+    `deild an lidafjolda er logunar-tilfelli ("${noTeams.reason}")`);
+
+  /* MAELD deild ma ekki fa hvoruga — annars vaeri greiningin ofan bara
+     "fallid segir alltaf ad eitthvad vanti". */
+  const good = edgeSentence({ ...MEASURED_SHAPE, scoring: "ppr" });
+  ok(good.measured === true && /Measured:/.test(good.text),
+    "og maeld deild faer HVORUGA setninguna");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

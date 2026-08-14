@@ -135,8 +135,24 @@ export const WAIVER_CAL = {
           "ABSOLUTE floor starts to hurt (floor 0 minus floor 10 = +5.4, CI " +
           "[2.2, 8.2]) and must be pro-rated to the weeks that remain.",
   },
+  /* ============================================================
+     GILDID VERDUR AD VERA THAD SEM `confidenceOf` RAUNVERULEGA PROFAR
+     ============================================================
+     Hér stod `"gain >= minGain AND vbd > 0 AND ..."` og fyrsti lidurinn
+     var EKKI i fallinu — hann getur ekki verid thar: `pickupAdvice` siar
+     eftir golfinu ADUR (`gain < floor -> continue`), svo hver rod sem
+     kemst til `confidenceOf` hefur THEGAR stadid thad. Skilyrdi sem getur
+     ekki brugdist er ekki skilyrdi, og skjalað skilyrdi sem kodinn profar
+     ekki er verra en ekkert: thad er FULLYRDING um vel-laesilegt svid
+     (`confidence.value`) sem stemmir ekki vid hegdunina — og hun laug lika
+     a skjanum, i fotnotunni i `Dashboard.jsx` sem sagdi ad graen-lausar
+     rodir hvildu a golfinu.
+
+     Vordur: `tests/waivers.mjs` kafli 8b ber thennan streng vid
+     `confidenceOf` sjalft (fjolda skilyrda OG hegdun per skilyrdi), svo
+     thau geta ekki rekid i sundur aftur.                              */
   confidence: {
-    value: "gain >= minGain AND vbd > 0 AND projection is Sleeper's own AND availability 1",
+    value: "vbd > 0 AND projection is Sleeper's own AND availability 1",
     measured: false,
     note: "`confident` is NOT a probability and must never be shown as one. It is " +
           "true only when every input behind the gain is one of the measured ones: " +
@@ -144,7 +160,11 @@ export const WAIVER_CAL = {
           "he is startable rather than bench dust), the projection is Sleeper's own " +
           "(the strongest single source measured — ESPN is a fallback only), and he " +
           "is fully available. Any item that fails one of these carries the reason " +
-          "in `why`.",
+          "in `why`. THE GAIN FLOOR IS DELIBERATELY NOT ONE OF THEM: `pickupAdvice` " +
+          "filters on it before this runs, so every row that exists has already " +
+          "cleared it and testing it again could never fail. That is why `minGain` " +
+          "being unmeasured is NOT the reason a row is outside green — the reason is " +
+          "always one of the three above, and it is named in `why`.",
   },
 };
 

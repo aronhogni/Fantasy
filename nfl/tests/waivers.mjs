@@ -519,6 +519,117 @@ console.log("\n8. golfid og `confident`");
 }
 
 /* ============================================================
+   8b. `confidence.value` VERDUR AD VERA THAD SEM FALLID PROFAR
+   ============================================================
+   Svidid sagdi:
+
+     "gain >= minGain AND vbd > 0 AND projection is Sleeper's own AND
+      availability 1"
+
+   og FYRSTI LIDURINN ER EKKI I `confidenceOf`. Hann getur ekki verid thar:
+   `pickupAdvice` siar eftir golfinu ADUR en rod verdur til, svo hver rod
+   sem kemst thangad hefur THEGAR stadid thad — "skilyrdi sem getur ekki
+   brugdist er ekki skilyrdi", eins og athugasemdin i fallinu segir.
+
+   ÞETTA VAR EKKI BARA ATHUGASEMD Á VILLIGOTUM. Sama ranga orsok stod a
+   SKJANUM: fotnotan i `Dashboard.jsx` sagdi ad rodir sem eru ekki graenar
+   hvili ad hluta a golfinu, sem er osatt um hverja einustu birta rod.
+
+   Prof sem ADEINS les `value` (kafli 11 gerdi thad — hann krefst thess ad
+   svidid se til og ekki tomt) getur ekki sed thennan mun. Þess vegna er
+   strengurinn hér borinn vid FALLID SJALFT i tvennu lagi:
+     (a) FJOLDI skilyrda: `reasons.push` i `confidenceOf` a moti " AND "-
+         lidum i `value`. Nyr lidur a odrum stad fellir thetta.
+     (b) HEGDUN per skilyrdi: rod sem fellur a NAKVAEMLEGA einu skilyrdi
+         verdur ad missa `confident` og NEFNA thad.
+   Og loks ad golfid raedur ENGU um flaggið — `confident` er obreytt hvort
+   golfid er 0 eda 45, thott rodirnar seu ekki thaer somu.               */
+console.log("\n8b. `confidence.value` gegn `confidenceOf`");
+{
+  /* --- (a) FJOLDINN, LESINN UR SKRANNI ---
+     Athugasemdir eru STRIPPADAR fyrst. An thess hefdi `grep` fundid
+     ordin i athugasemdinni sem NEFNIR golfid ("Golfid a abatanum er ekki
+     profad her") og fullyrdingin "fallid nefnir ekki golfid" hefdi verid
+     ósatt af ástæðu sem er akkurat andstæð merkingunni. Sama mynstur og
+     kafli 5 i `wiring.mjs`. */
+  const raw = readFileSync(path.join(DATA, "..", "src", "waivers.js"), "utf8");
+  const stripped = raw.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+  const fnMatch = /function confidenceOf\(a\)\s*\{[\s\S]*?\n\}/.exec(stripped);
+  ok(!!fnMatch, "`confidenceOf` finnst i skranni");
+  const fn = fnMatch ? fnMatch[0] : "";
+  /* MAELITAEKID SJALFT: hafi regexid gripid tomt (eda alla skrana) er
+     talningin nedan einskis virdi. */
+  ok(fn.length > 200 && fn.length < 2000,
+    `og thad er raunverulegt fall-lik, ekki tomt ne oll skrain (${fn.length} stafir)`);
+
+  const pushes = (fn.match(/reasons\.push\(/g) || []).length;
+  const claimed = String(WAIVER_CAL.confidence.value).split(/\s+AND\s+/);
+  ok(pushes === 3, `fallid ber ${pushes} skilyrdi (reasons.push)`);
+  ok(claimed.length === pushes,
+    `og \`confidence.value\` telur upp NAKVAEMLEGA thau somu ` +
+    `(${claimed.length} lidir a moti ${pushes} skilyrdum)`);
+  ok(!/minGain|floor|gain/.test(fn),
+    "og fallid nefnir hvorki `minGain`, golf ne `gain` — thad profar thau EKKI");
+  ok(!/minGain|gain >=/.test(String(WAIVER_CAL.confidence.value)),
+    `svo gildid ma ekki heldur gera thad ("${WAIVER_CAL.confidence.value}")`);
+  ok(/vbd/.test(claimed[0]) && /Sleeper/.test(claimed[1]) &&
+     /availability/.test(claimed[2]),
+    "og lidirnir eru thrir sem fallid raunverulega profar (vbd · Sleeper · availability)");
+
+  /* --- (b) HEGDUN PER SKILYRDI ---
+     Tilbunar rodir eru RETTA verkfaerid hér OG hvergi annars i thessu
+     safni: raunlaugin (kafli 8) getur ekki gefid mann sem fellur a
+     NAKVAEMLEGA einu skilyrdi. Allir eru RB svo stodu-verndin hleypi
+     hverju skipti i gegn, og `drop` ber vbd -50 svo abatinn se rifligur. */
+  const mineSyn = [{ id: "m1", name: "Droppa", pos: "RB", team: "SF", vbd: -50,
+                     proj: 40, avail: 1 }];
+  const mk = (id, over) => ({ id, name: id, pos: "RB", team: "KC", vbd: 40,
+                              proj: 200, avail: 1, ...over });
+  const poolSyn = [
+    mk("clean"),
+    mk("below", { vbd: -1 }),                       // undir varamanns-threpi
+    mk("fallback", { projFallback: true }),         // ESPN-bakfall
+    mk("hurt", { avail: 0.75, injury: "Questionable" }),
+    mk("thin", { vbd: -45 }),                       // abati 5 — UNDIR golfinu
+  ];
+  const byId = (list) => new Map(list.map((r) => [String(r.add.id), r]));
+
+  const advDefault = pickupAdvice({ pool: poolSyn, mine: mineSyn, league: LEAGUE });
+  const d = byId(advDefault);
+  ok(d.get("clean") && d.get("clean").confident === true,
+    "rod sem stendur oll thrju skilyrdin ER `confident` (annars maeldi " +
+    "hitt ekkert)");
+  for (const [id, needle] of [["below", /replacement level/],
+                              ["fallback", /ESPN fallback/],
+                              ["hurt", /availability/]]) {
+    const r = d.get(id);
+    ok(!!r, `rod "${id}" er til`);
+    ok(r && r.confident === false, `"${id}" fellur a sinu skilyrdi -> ekki confident`);
+    ok(r && r.why.some((w) => w.kind === "caution" && needle.test(w.text)),
+      `og astaedan er NEFND i \`why\` (${needle})`);
+  }
+
+  /* --- (c) GOLFID SIAR, EN THAD RAEDUR ENGU UM `confident` ---
+     Þetta er fullyrdingin sem fotnotan a skjanum hvilir a: HVER birt rod
+     hefur thegar stadid golfid, svo golfid getur ekki verid astaedan
+     fyrir thvi ad hun se utan graena flokksins.                        */
+  const lo = pickupAdvice({ pool: poolSyn, mine: mineSyn, league: LEAGUE, minGain: 0 });
+  const hi = pickupAdvice({ pool: poolSyn, mine: mineSyn, league: LEAGUE, minGain: 45 });
+  ok(lo.every((r) => r.gain >= 0) && advDefault.every((r) => r.gain >= WAIVER_CAL.minGain.value) &&
+     hi.every((r) => r.gain >= 45),
+    "hver BIRT rod hefur thegar stadid sitt golf (0 · " +
+    `${WAIVER_CAL.minGain.value} · 45)`);
+  ok(byId(lo).has("thin") && !d.has("thin"),
+    "og golfid siar raunverulega (abati 5 sest vid golf 0, ekki vid 10)");
+  const loM = byId(lo), hiM = byId(hi);
+  const shared = [...hiM.keys()].filter((k) => loM.has(k));
+  ok(shared.length >= 3, `${shared.length} rodir eru i badum keyrslum`);
+  ok(shared.every((k) => loM.get(k).confident === hiM.get(k).confident),
+    "og `confident` er NAKVAEMLEGA obreytt milli golfa — golfid er ekki " +
+    "skilyrdi i henni");
+}
+
+/* ============================================================
    9. ENGIN `NaN`, ENGIN `undefined`, VID NEINU INNTAKI
    ============================================================
    SKANNAD ER THAD SEM SKRAIN BYR TIL, ekki laugin: `pool` og `mine`
@@ -614,6 +725,70 @@ console.log("\n10. K og DST eru utan rodunar");
 }
 
 /* ============================================================
+   10b. STADU-ORÐAFORÐINN SJALFUR — `normPos` VAR OPROFADUR
+   ============================================================
+   `RANKED_POS` ber sig vid `r.pos`, og hvert `pos` a bordinu er skrifad
+   af pipeline-inu gegnum `normPos` i `src/scoring.js`. Vorpunin var samt
+   ALGJORLEGA oprofud: hun er flutt inn i tiu pipeline-skriftur og engin
+   fullyrding i neinu safni snerti hana.
+
+   Þad kom i ljos vid ad fjarlaegja `return FANTASY_POS.includes(s) ? s : s`
+   — daudan skilyrdis-lid thar sem BADAR greinar eru sama gildid.
+   Fjarlaegingin sjalf er byte-jafngild, en spurningin sem hun opnar er
+   ekki: liturinn litur ut fyrir ad hafa aetlað ad vera `: null`, og
+   stokkbreytingin `: null` **LIFDI OLL 22 SOFNIN**. Vorpun sem 26 kollum
+   i pipeline-inu byggja a hafdi thvi ekkert net undir sér.
+
+   HVERS VEGNA HÉR: `scoring.js` hefur ekkert eigid safn (adeins
+   `audit.mjs` flytur `offensePoints` inn, i odru skyni), og
+   stadu-orðaforðinn er nakvaemlega thad sem thetta safn ber sig vid i
+   kafla 10. Faedist safn fyrir `scoring.js` a thetta ad flytjast thangad.
+
+   `: null` VAERI RAUNVERULEG VILLA, ekki bara onnur skodun:
+   `nflverse.depth()` skrifar `pos: normPos(r.position) ||
+   normPos(r.depth_position)` og heldur rodinni ADEINS ef `pos` er satt,
+   svo allur varnar-hluti djupt-listans hefdi horfid THEGJANDI.         */
+console.log("\n10b. `normPos` — orðaforðinn sem rodunin ber sig vid");
+{
+  const { normPos, FANTASY_POS } = await import("../src/scoring.js");
+
+  /* Þau sem VORPUNIN A ad breyta — annars vaeri hun ekki til. */
+  for (const [inp, want] of [["DEF", "DST"], ["D/ST", "DST"], ["dst", "DST"],
+                             ["PK", "K"], ["FB", "RB"], ["fb", "RB"]]) {
+    ok(normPos(inp) === want, `"${inp}" -> "${want}"`);
+  }
+  /* Og thau sem hun a ad LATA I FRIDI. */
+  for (const p of FANTASY_POS) {
+    ok(normPos(p.toLowerCase()) === p, `"${p.toLowerCase()}" -> "${p}"`);
+  }
+
+  /* NULL ER "EKKERT VAR GEFID" OG ÞAD ER EINA TILFELLID. */
+  for (const v of [null, undefined, "", 0, false]) {
+    ok(normPos(v) === null, `${JSON.stringify(v)} -> null (ekkert var gefid)`);
+  }
+
+  /* ÞETTA ER PROFSTEINNINN: staða utan fantasy fer OBREYTT ut, hun er
+     EKKI thogguð i `null`. Þad er `depth()`-tilfellid ofan, og thad er
+     stokkbreytingin sem lifdi oll 22 sofnin. */
+  for (const p of ["LB", "CB", "OT", "P", "DE"]) {
+    ok(normPos(p) === p,
+      `"${p}" fer OBREYTT ut (\`: null\` felur varnar-rodir djupt-listans)`);
+    ok(!FANTASY_POS.includes(normPos(p)),
+      `og hun er samt EKKI fantasy-stada — sian tilheyrir kallandanum`);
+  }
+  /* Og adgreiningin sjalf: "gefid en ekki fantasy" a moti "ekkert gefid". */
+  ok(normPos("LB") !== normPos(null),
+    "\"gefid en ekki fantasy\" og \"ekkert gefid\" eru SITTHVAD");
+
+  /* Loks: engin FANTASY_POS-stada ma hverfa — thad er forsendan fyrir thvi
+     ad rodunin i kafla 10 finni nokkurn mann. */
+  ok(FANTASY_POS.every((p) => normPos(p) === p),
+    `allar ${FANTASY_POS.length} fantasy-stodur lifa vorpunina`);
+  ok(RANKED.every((p) => normPos(p) === p),
+    "og thar med hver stada sem `rankedPos` radar");
+}
+
+/* ============================================================
    11. KVORDUNIN SEGIR SJALF HVAD ER MAELT
    ============================================================
    Talan sem er VALIN og talan sem er MAELD lita nakvaemlega eins ut i
@@ -640,6 +815,46 @@ console.log("\n11. WAIVER_CAL");
     "gjaldmidillinn (VBD) og stodulistinn ERU maeld");
   ok(typeof WAIVER_CAL.minGain.value === "number" && WAIVER_CAL.minGain.value > 0,
     `golfid er tala > 0 (${WAIVER_CAL.minGain.value})`);
+}
+
+/* ============================================================
+   11b. „VANTAR" SEM ER KOMID — NOTAN OG README VERDA AD VERA SAMHLJODA
+   ============================================================
+   `WAIVER_CAL.currency.note` og README (4e og 4g) segja BADIR fra sömu
+   pipulogn: `data.js` -> `loadWeekly(season)`. Notan var UPPFAERD thegar
+   hun var skrifud; README var thad EKKI og sagdi a TVEIMUR stodum
+   "`data.js` ber engan `loadWeekly`" eftir ad hann var til.
+
+   UREL "VANTAR" ER DYRARI EN UREL "KOMID": naesta lota les skjalid, byrjar
+   a ad byggja thad sem er thegar til, og finnur thad ekki fyrr en hun er
+   halfnud. Þess vegna er thetta vordur og ekki bara lagfaering — hann ber
+   BADAR fullyrdingarnar vid SKRANA sjalfa, svo hvorug getur stadnad ein.
+
+   ÞETTA ER ORDALAGS-PROF OG ÞAD ER ASETT: fullyrdingin er sjalf um TEXTA
+   (skjal sem lysir kodanum), svo textinn ER hluturinn sem er maeldur. Þad
+   er ekki thad sama og prof sem smellir eftir nakvaemu flipa-heiti.     */
+console.log("\n11b. notan og README gegn `data.js`");
+{
+  const dataSrc = readFileSync(path.join(DATA, "..", "src", "data.js"), "utf8");
+  const hasLoader = /export const loadWeekly\s*=/.test(dataSrc);
+  ok(hasLoader, "forsendan: `data.js` ber raunverulega `loadWeekly`");
+
+  /* Notan i kodanum. */
+  ok(/loadWeekly/.test(WAIVER_CAL.currency.note) === hasLoader,
+    "`currency.note` nefnir `loadWeekly` — og hann er til");
+  ok(!/data\.js (?:has|ber) (?:no|engan)/i.test(WAIVER_CAL.currency.note),
+    "og hun segir EKKI ad hann vanti");
+
+  /* README — BADIR stadirnir. */
+  const readme = readFileSync(path.join(DATA, "..", "README.md"), "utf8");
+  const claims = readme.match(/[^\n]*ber engan `loadWeekly`[^\n]*/g) || [];
+  ok(!hasLoader || claims.length === 0,
+    `README segir hvergi ad \`loadWeekly\` vanti (${claims.length} slikar linur` +
+    `${claims.length ? `: "${claims[0].slice(0, 60)}…"` : ""})`);
+  /* OG HUN VERDUR AD NEFNA HANN — annars vaeri fullyrdingin ofan sonn um
+     skjal sem thegir um pipulognina alveg. */
+  ok(/loadWeekly/.test(readme),
+    "en hun NEFNIR hann (annars vaeri krafan ofan tom)");
 }
 
 /* ============================================================
