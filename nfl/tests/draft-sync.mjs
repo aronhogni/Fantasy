@@ -45,6 +45,24 @@ console.log("1. fingrafarid — obreytt svar ma ekki endurteikna");
 
   ok(pickSignature(null, null) === pickSignature([], []),
     "null telst tomt, ekki hrun");
+
+  /* ============================================================
+     OPORUD VOL VERDA AD VERA I FINGRAFARINU (14.8.2026)
+     ============================================================
+     `offBoard` — talan sem heldur valnumerinu rettu thegar valid er a
+     manni utan `players.json` — berst foreldrinu ADEINS gegnum
+     `onPicks`, og `onPicks` er adeins kallad thegar fingrafarid
+     breytist. Oporad val baetir hvorki i `ids` ne `mine`, svo talan
+     komst aldrei ut: atta thekkt vol + THRJU oporud gafu valnumer 9 i
+     stad 12 (maelt i `draft-live.mjs` kafla 5).
+
+     Hlidid sem sparar endurteikningu var lika hlid a upplysingunni. */
+  ok(pickSignature(["a", "b"], [], 0) !== pickSignature(["a", "b"], [], 1),
+    "oporad val breytir fingrafarinu thott `ids` haggist ekki");
+  ok(pickSignature(["a", "b"], []) === pickSignature(["a", "b"], [], 0),
+    "og sjalfgefid er 0, svo eldri kollun heldur merkingu sinni");
+  ok(pickSignature(["a"], [], null) === pickSignature(["a"], [], 0),
+    "`null` oporud vol eru 0, ekki NaN i strengnum");
 }
 
 console.log("\n2. hradinn fylgir draftinu");

@@ -173,11 +173,32 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      svo hun er SETT og aldrei logd vid.                                */
   const pickNo = taken.size + offBoard + 1;
 
+  /* ============================================================
+     UMFERDIRNAR ERU NAKVAEMLEGA THAER SEM DEILDIN HEFUR
+     ============================================================
+     Hér stod `(league.rounds || 15) + 2`. Tveir aukaumferdirnar voru
+     slaki an heimildar og their LUGU I SIDUSTU UMFERD, sem er einmitt
+     umferdin thar sem svarid skiptir mestu:
+
+       10 lid, 15 umferdir, saeti 7. A minu vali i 15. umferd skilar
+       `nextOwnPick(..., 17)` valinu **154** — vali sem er ekki til i
+       150 vala drafti. Bordid litar tha hvern einasta mann "obidu"
+       (hann lifir svo sannarlega til vals sem kemur aldrei) og
+       kassinn skrifar "Your next pick is 154". Notandi sem trystir
+       thvi sleppir manni i SIDASTA vali sinu.
+
+     `null` er rett svar og thad er BORID ALLA LEID: bordid litar tha
+     ekkert (engin fullyrding) og kassinn segir berum ordum ad thetta se
+     sidasta valid. Sja `lastPick` i `advice.js` — thad er ANNAD en
+     `nextPick: null`, sem thydir afram "eg veit ekki saetið, giskadu"
+     og er rett i handvirku drafti.                                   */
+  const rounds = league.rounds || 15;
+
   const reach = useMemo(() => {
     const m = new Map();
     const slot = sync && sync.slot;
     if (slot == null) return m;
-    const np = nextOwnPick(pickNo, league.teams, slot, (league.rounds || 15) + 2);
+    const np = nextOwnPick(pickNo, league.teams, slot, rounds);
     if (np == null) return m;
     for (const r of rows) {
       if (r.adp == null) continue;
@@ -185,13 +206,16 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
       if (p != null) m.set(r.id, p);
     }
     return m;
-  }, [rows, pickNo, sync && sync.slot, league.teams, league.rounds]);
+  }, [rows, pickNo, sync && sync.slot, league.teams, rounds]);
 
   const nextOwn = useMemo(() => {
     const slot = sync && sync.slot;
     if (slot == null) return null;
-    return nextOwnPick(pickNo, league.teams, slot, (league.rounds || 15) + 2);
-  }, [pickNo, sync && sync.slot, league.teams, league.rounds]);
+    return nextOwnPick(pickNo, league.teams, slot, rounds);
+  }, [pickNo, sync && sync.slot, league.teams, rounds]);
+  /* Saetið er thekkt EN ekkert val er eftir — thad er allt annad astand
+     en "saetið er othekkt", og adeins fyrra ma slokkva a lifunartolunum. */
+  const lastPick = (sync && sync.slot) != null && nextOwn == null;
 
   /* ============================================================
      ALLAR BREYTINGAR ERU FOLL AF FYRRA ASTANDI, EKKI AF MYND AF THVI
@@ -218,9 +242,45 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
 
      Vordur: `tests/sleeper.mjs` kafli 2c bidur raunverulegar 5,5
      sekundur og krefst thess ad handvirkt val lifi pollunar-tikk. */
+  /* ============================================================
+     SLEEPER MA TAKA TIL BAKA — SAMMENGI GETUR ÞAÐ EKKI
+     ============================================================
+     ÞETTA VAR `new Set([...prev, ...ids])` OG ÞAÐ ER EINSTEFNA. Listinn
+     fra Sleeper getur STYST, og hann gerir thad af thremur astaedum sem
+     allar gerast a draftkvoldi:
+
+       · umsjonarmadur EYDIR vali (rangur madur, botur sem for af stad)
+       · saetid er leidrett — thu smelltir a rangt lid og lagadir thad,
+         og tha eru `mine` ONNUR vol en adur
+       · thu tengist ODRU drafti (annad mock) an thess ad hreinsa fyrst
+
+     Med sammengi lifdu gomlu volin i öllum thremur. Þad er ekki adeins
+     nafn a lista: `pickNo = taken.size + offBoard + 1`, svo eitt val sem
+     gleymist aldrei skekkir valnumerid — OG THAR MED naesta eigid val og
+     hverja lifunartolu — ALLT SEM EFTIR ER AF DRAFTINU. Maelt: val dregid
+     til baka vid val 20 skildi bordid eftir a 21 ad eilifu.
+
+     Lausnin er MISMUNUR, ekki sammengi: thad sem VAR i sidasta
+     Sleeper-svari en er ekki i thessu er fjarlaegt, og thad sem er i
+     thessu er baett vid. Handvirk vol (`take`) voru aldrei i
+     Sleeper-svarinu og geta thvi ekki lent i fjarlaegdu mengi — thau
+     lifa af, sem er retta hegdunin: thau eru thin skraning, ekki hans.
+
+     Refin er SANNLEIKURINN UM SIDASTA SVAR og hun ma ekki reikna sig
+     ut ur `taken` (thar eru handvirku volin lika). */
+  const lastSync = useRef({ ids: new Set(), mine: new Set() });
   const onPicks = useCallback((ids, mineIds, offCount) => {
-    setTaken((prev) => new Set([...prev, ...ids]));
-    setMyPicks((prev) => new Set([...prev, ...mineIds]));
+    const nextIds = new Set(ids), nextMine = new Set(mineIds);
+    const prevSync = lastSync.current;
+    const reconcile = (prev, gone, add) => {
+      const out = new Set(prev);
+      for (const id of gone) if (!add.has(id)) out.delete(id);
+      for (const id of add) out.add(id);
+      return out;
+    };
+    setTaken((prev) => reconcile(prev, prevSync.ids, nextIds));
+    setMyPicks((prev) => reconcile(prev, prevSync.mine, nextMine));
+    lastSync.current = { ids: nextIds, mine: nextMine };
     /* SETT, EKKI LOGD VID — `unknown` er talid ur ollum listanum i hverri
        pollun. `null`/skokk gildi ma ekki verda `NaN` i valnumerinu. */
     const n = Math.round(Number(offCount));
@@ -255,6 +315,10 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     setTaken(new Set());
     setMyPicks(new Set());
     setOffBoard(0);
+    /* Minnid um sidasta svar fer LIKA. Annars vaeri "hreinsa" hálft:
+       mismunar-reglan i `onPicks` bæri afram vol ur drafti sem er buid
+       ad slita, og fyrsta pollun naesta drafts hefdi rangan grunn. */
+    lastSync.current = { ids: new Set(), mine: new Set() };
     if (sync && sync.draftId) setSync((prev) => ({ ...prev, draftId: "" }));
   };
 
@@ -278,7 +342,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
         shapes={shapes} />
 
       <NextPick available={available} kdst={kdst} roster={myRoster} pick={pickNo} nextOwn={nextOwn}
-        league={league} sync={sync} />
+        lastPick={lastPick} league={league} sync={sync} />
 
       <MarketMoving rows={rows} taken={taken} onTake={take} />
 
@@ -769,10 +833,18 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
          thad var hvort ed er ekki i tillogunum. En ad sleppa thvi ur
          `mine` er thad EKKI: tha vantar mann i thinn eigin hop og
          ekkert segir fra thvi. Nu er thad talid og synt. */
+      /* TVITEKIN ROD MA EKKI TELJAST TVISVAR. Umsjonarmadur sem lagfaerir
+         val getur skilid eftir tvaer radir a sama leikmanni. `taken` er
+         MENGI og taldi hann einu sinni, en `ids.length` fór i
+         fingrafarid og `unknown` i valnumerid — svo talan hefdi hlaupid
+         fram um eitt. Eitt audkenni = eitt val. */
       const ids = [], mine = [];
       let unknown = 0, unknownMine = 0;
+      const seen = new Set();
       for (const p of picks || []) {
         const pid = String(p.player_id);
+        if (seen.has(pid)) continue;
+        seen.add(pid);
         const known = byId.has(pid);
         const isMine = sync.slot != null && p.draft_slot === Number(sync.slot);
         if (known) { ids.push(pid); if (isMine) mine.push(pid); }
@@ -797,7 +869,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
          Fingrafarid er talan sjalf, ekki tilvisunin. Thad er lika
          forsenda thess ad haegt se ad polla ORAR (nedar): hrad
          pollun sem endurteiknar allt vaeri verri en haeg. */
-      const sig = pickSignature(ids, mine);
+      const sig = pickSignature(ids, mine, unknown);
       if (sig !== lastSig.current) {
         lastSig.current = sig;
         if (ids.length > (lastCount.current ?? 0)) lastMove.current = Date.now();
@@ -825,6 +897,32 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
      (sja `sig` ofar). Vid erum gestir hja Sleeper og teljum thad:
      versta tilfellið er 40 koll a minutu medan draft er i gangi, sem
      er minna en vafrinn gerir vid ad hlada einni sidu.               */
+  /* ============================================================
+     FINGRAFARID TILHEYRIR EINU DRAFTI — ANNAD DRAFT, NYTT BLAD
+     ============================================================
+     ÞETTA VAR VILLA SEM AÐEINS SEST I LIFANDI KEYRSLU, og hun bitur
+     nakvaemlega thann sem gerir thad sem "Reset & disconnect" var
+     smiðad fyrir: hann hreinsar bordid i midju mock-i og tengir sig
+     aftur vid SAMA draft.
+
+     `lastSig` lifdi reset-id. Svarid fra Sleeper var oskert thad sama og
+     adur, svo fingrafarid var oskert thad sama — og hlidid sem a ad
+     spara endurteikningu las thad sem "ekkert hefur gerst". `onPicks`
+     var ALDREI kallad. Utkoman: tengingin sagdist vera lifandi, `info`
+     taldi "24 picks made", og bordid stod TOMT med valnumer 1 thangad
+     til naesti madur var valinn. Maelt i hermun: 0 af 24 volum komu til
+     baka.
+
+     Fingrafarid er minni um SVAR VID EINU DRAFTI. Skipti draftid um
+     audkenni — eda se thad hreinsad — a thad minni ekkert erindi.    */
+  useEffect(() => {
+    lastSig.current = null;
+    lastCount.current = null;
+    lastMove.current = 0;
+    setUnmatched(null);
+    setInfo(null);
+  }, [sync.draftId]);
+
   useEffect(() => {
     if (!live || !sync.draftId) return;
     let stopped = false;
@@ -836,7 +934,13 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
     };
     tick();
     return () => { stopped = true; clearTimeout(timer.current); };
-  }, [live, sync.draftId, sync.slot, byId]);
+    /* `userId` ER I DEPS OG THAD ER EKKI SNYRTIMENNSKA: `pull` les hann
+       thegar `draft_order` er dregid i midju drafti. An hans heldi
+       pollunin afram med `userId = null` ur theirri teikningu sem var
+       thegar samstillingin var raest — og saetid hefdi aldrei lesist hja
+       theim sem slaer inn notandanafnid EFTIR ad hann tengdi. Sama aett
+       og urvelta lokunin sem `onPicks` var lagfaerd fyrir. */
+  }, [live, sync.draftId, sync.slot, byId, userId]);
 
   return (
     <div className="panel">
@@ -1031,10 +1135,22 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
    fullyrdir ekkert. Thad er ekki tvirædni heldur ein regla, og hun er
    satt bædi um jafnteflid og um vantandi ADP. Prosentan er i `title`.
    ============================================================ */
+/* ============================================================
+   ÞREPID ER TEKID AF TOLUNNI SEM ER BIRT, EKKI AF HRAU `p`
+   ============================================================
+   `title` skrifar `Math.round(p * 100)` en threpid las hrátt `p`, svo
+   vid mörkin sagdi sama rod tvennt: `p = 0,7951` ber **"80% likely to
+   last"** i tooltip og er samt OLITUÐ, thvi 0,7951 < 0,80. Maelt i
+   lifandi drafti: **3 radir** i einu 150-vala drafti.
+
+   Þetta er lítil tala og hun er samt villa af verstu tegund i thessu
+   repo-i: liturinn og talan eru TVAER framsetningar a EINNI maelingu og
+   thaer sogdu ekki thad sama. Rúnnun a ad gerast einu sinni.        */
 export function reachClass(p) {
   if (p == null) return "";
-  if (p >= 0.80) return "reach-hi";
-  if (p >= 0.40) return "";
+  const pct = Math.round(p * 100);
+  if (pct >= 80) return "reach-hi";
+  if (pct >= 40) return "";
   return "reach-lo";
 }
 
@@ -1140,7 +1256,7 @@ function MeasuredEdge({ league, shapes }) {
    thvi hversu bratt stadan versnar — var maeld og hun TAPAR
    (marktaekt i standard). Lifunarlikur eru birtar sem upplysing.
    ============================================================ */
-function NextPick({ available, kdst, roster, league, sync, nextOwn, pick }) {
+function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPick }) {
   const rec = useMemo(() => {
     if (!available.length) return null;
     try {
@@ -1152,10 +1268,30 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick }) {
         /* NAKVAEMLEGA SAMA TALA SEM BORDID LITAR MED — sja hausinn a
            `picksUntilNext`. `null` (ekkert saeti thekkt) fellur i
            afleidsluna, sem er rett i handvirku drafti. */
-        roster, pick, league, nextPick: nextOwn,
+        roster, pick, league, nextPick: nextOwn, lastPick,
       });
     } catch { return null; }
-  }, [available, roster, pick, league, nextOwn]);
+  }, [available, roster, pick, league, nextOwn, lastPick]);
+
+  /* ============================================================
+     DRAFTID GETUR KLARAST — OG THA ER "TAKE THIS" LYGI
+     ============================================================
+     Vid val 151 i 150 vala drafti helt kassinn afram: "Pick 151 — take
+     this", med lifunartolum ad vali sem er ekki til. Ekkert hrundi og
+     thad er einmitt vandinn — skjar sem heldur afram ad rada thegar
+     ekkert er eftir ad velja les eins og hann viti eitthvad.        */
+  const totalPicks = (league.teams || 0) * (league.rounds || 15);
+  if (totalPicks > 0 && pick > totalPicks) {
+    return (
+      <div className="panel">
+        <h2>Draft complete</h2>
+        <div className="sub">
+          All {totalPicks} picks are in ({league.teams} teams × {league.rounds || 15}{" "}
+          rounds). Your roster is on the right; nothing below is a decision any more.
+        </div>
+      </div>
+    );
+  }
 
   if (!rec || !rec.picks.length) return null;
   const top = rec.picks.slice(0, 5);
@@ -1211,7 +1347,12 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick }) {
         {sync && sync.draftId
           ? `Pick ${pick} by the board below. `
           : `Assuming you are on the clock at pick ${pick}. `}
-        Your next pick is <b>{rec.nextPick}</b>, {rec.wait} picks away.
+        {/* ENGIN TALA THEGAR ENGIN TALA ER TIL. Rounds+2-slakinn let
+            kassann skrifa "Your next pick is 154" i 150 vala drafti —
+            tala sem er rong OG truverdug, sem er versta utkoman. */}
+        {rec.nextPick == null
+          ? <b>This is your last pick — you have none after it.</b>
+          : <>Your next pick is <b>{rec.nextPick}</b>, {rec.wait} picks away.</>}
         {kdstPick && " Kicker and defence are ranked by projection alone — their"
           + " year-to-year skill does not carry, so this is the one call in the app"
           + " that is not backed by a backtest."}

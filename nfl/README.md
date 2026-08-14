@@ -2258,6 +2258,7 @@ aðskilinn viljandi, svo lota sem vinnur í öðru appinu geti ekki fellt hitt.
 | `standings.mjs` | Staðan. **`fpts_decimal` er hundraðshlutar**, mælt gegn óháðri leið (summa `/matchups/`: /100 hittir 10/10 upp á sent, /10 hittir 0). 15 stökkbreytingar felldar |
 | `waivers.mjs` | Frjálsir leikmenn og skipti. **`rosters: null` → `pool = null`**, ekki allir. „Ekki pikka neinn upp" er prófað sem svar. 12 stökkbreytingar felldar, ein slapp í fyrstu tilraun og var endurskorin |
 | `sleeper.mjs` | Draft-kvöldið í jsdom. Kaflar 2d/2e bera innflutninginn: **VBD-tölurnar verða að breytast** þegar deildin er flutt inn, annars er innflutningurinn skraut |
+| `draft-live.mjs` | **Draftið KEYRT, ekki ljósmyndað** — 150 val, eitt í einu, gegnum raunverulega `DraftBoard`. Sjá 6d: það fann **sjö villur** sem `sleeper.mjs` gat ekki séð, því allar voru skilgreindar af tímanum sem líður |
 | `dst.mjs` | Vörnin. Kafli 1 ber **27 bakaðar tölur** við `data/measure/dst.json`. Kafli 3 er ekki „skilar hún tölu" heldur **DEN vika 1 2025 = 16, nákvæmlega eins og Sleeper**. Kafli 5 telur upp **sex leiðir að engu svari** og krefst `null` af hverri — og sannar líka að `0` kemst í gegn, því próf sem sýnir aðeins að null verði null stenst þótt fallið skili alltaf null. Kafli 7 aðgreinir **frí, línulausan leik og forleik**, sem eru þrjár ólíkar tegundir af engu. **19 stökkbreytingar felldar**, taldar upp í hausnum; þrjár þeirra fundust við keyrslu en ekki lestur. Kafli 9 er AST-vörður: `dstStream` má ekki vera fullprófað og aldrei kallað |
 
 **Mynstur sem á að endurtaka:** `render.mjs` krefst þess að núlldreifingin
@@ -2594,6 +2595,105 @@ en ekki tala**, draft án stillinga, og svið sem vantar — auk þriggja bilana
 samstillingu eru 20 leikmenn strikaðir út, **tveir réttir** lenda í mínum hóp
 (sæti 7 af 12), og sá sem var tekinn er ekki lengur boðinn. Stökkbreyting sem
 hunsaði sætið felldi það með tölunni 0.
+
+### 6b-2. EN EITT AUGNABLIK ER EKKI DRAFT — 150 VÖL, EITT Í EINU (14.8.2026)
+
+`sleeper.mjs` frystir hermt svar, tengist og fullyrðir um það sem sést. Það er
+gagnlegt og það er **ekki það sem gerist 21. ágúst**: þar tínast 150 völ inn í
+90 mínútur, og villurnar sem kosta draftið eru þær sem **byggjast upp** — tala
+sem skeikar um eitt og skeikar síðan áfram, mengi sem gleymir aldrei, fingrafar
+sem sest ekki upp á nýtt. Ekkert þeirra er sýnilegt á einni mynd.
+
+`draft-live.mjs` keyrir því draftið: 10 lið, 15 umferðir, snákur, gegnum
+raunverulega `DraftBoard` með Sleeper-endapunkti sem færist fram val fyrir val.
+Við **hvert einasta val** er borið saman valnúmerið á skjánum, sætis- og
+umferða-vörpunin (sjálfstæð útfærsla, ekki innflutt úr `advice.js` — annars bæri
+prófið fallið við sjálft sig), að borðið og ráðgjafarkassinn segi **sömu tölu**,
+að þeir sem eru farnir hverfi og komi aldrei aftur, að mín völ lendi í mínum hóp,
+og að hvergi sé `NaN`/`undefined`/`[object Object]` (með `\b`, sjá 5b).
+
+> **HRAÐINN ER SKALAÐUR, EKKI ÞEKJAN.** `pollDelay` skilar 1500/5000 ms, svo 150
+> völ væru >4 mínútur af hreinni bið. Prófið skiptir út `setTimeout` fyrir
+> umbúðir sem stytta **nákvæmlega þessar tvær tölur** (lesnar úr `POLL`) og láta
+> allar aðrar bíðir óhaggaðar — almenn skölun („allt yfir 1000 ms verður 10")
+> gæti flýtt React-tímaseljara og falið raunverulega bið. **Engu vali er sleppt.**
+> Dýra fullyrðingin (litur borinn við prósentuna í hverri röð) er keyrð á 10.
+> hverju vali og **það er sagt** fremur en falið. Heildartími: ~20 sekúndur.
+
+**Sjö villur, allar ósýnilegar á einni mynd.** Hver ein var stökkbreytt til baka
+og prófið féll (níu stökkbreytingar alls):
+
+| # | villa | hvað hún kostar á draftkvöldi |
+|---|---|---|
+| 1 | **`onPicks` var SAMMENGI og gat ekki minnkað** | Sleeper-listinn styttist í raun: umsjónarmaður eyðir vali, sætið er leiðrétt, eða þú tengist öðru mock-i. Borðið hélt manninum, og `pickNo = taken.size + offBoard + 1` skekktist því **allt sem eftir var af draftinu**. Mælt: val dregið til baka við val 20 skildi borðið eftir á 21 að eilífu. Leyst með **mismun** (það sem var í síðasta svari en er ekki í þessu er fjarlægt) — handvirk völ voru aldrei í svarinu og lifa því af |
+| 2 | **Rangt sæti valið og leiðrétt skildi hóp hins mannsins eftir** | Sama orsök: `myPicks` var sammengi. Smellur á rangt lið og leiðrétting gaf **fjögur** eigin völ þar sem tvö voru rétt — og ráðgjöfin taldi hóp sem þú átt ekki |
+| 3 | **Óporuð völ komust aldrei í valnúmerið** | `offBoard` berst foreldrinu aðeins gegnum `onPicks`, og `onPicks` er aðeins kallað þegar **fingrafarið** breytist. Val á manni utan `players.json` bætir engu í `ids` né `mine`, svo fingrafarið stóð kyrrt. Mælt: átta þekkt + fimm óporuð gáfu valnúmer **9 í stað 14**. Hliðið sem átti að spara endurteikningu var líka hlið á upplýsingunni |
+| 4 | **„Reset & disconnect" og tengja aftur skildi borðið TÓMT** | `lastSig` lifði reset-ið, svo óbreytt svar frá sama drafti las eins og „ekkert hefur gerst" og `onPicks` var **aldrei** kallað. Tengingin sagðist lifandi, `info` taldi „24 picks made", borðið stóð á valnúmeri 1. Mælt: **0 af 24 völum** komu til baka. Þetta var breytt 12.8. og hafði aldrei keyrt í beinni |
+| 5 | **Síðasta umferðin lofaði vali sem er ekki til** | `nextOwnPick(..., (rounds \|\| 15) + 2)` — tveir aukaumferðir sem voru **slaki án heimildar**. Í 150 vala drafti sagði kassinn „Your next pick is **154**" og borðið litaði hvern mann „óbíðu". Notandi sem treystir því sleppir manni í **síðasta vali sínu**. `null` er rétt svar og er nú borið alla leið: `lastPick` í `advice.js` er **annað** en `nextPick: null`, sem þýðir áfram „ég veit ekki sætið, giskaðu" og er rétt í handvirku drafti |
+| 6 | **Kassinn hélt áfram að ráðleggja eftir að draftinu lauk** | „Pick 151 — take this" með lifunartölum að vali sem er ekki til. Ekkert hrundi, og það er einmitt vandinn. Nú: **Draft complete** |
+| 7 | **Liturinn og talan sögðu ekki það sama** | `title` skrifaði `Math.round(p * 100)` en þrepið las hrátt `p`, svo röð með **„80% likely to last"** var ólituð (0,7951 < 0,80). Þrjár raðir í einu drafti. Rúnnun á að gerast einu sinni |
+
+Tvær smærri lagfæringar fylgdu, báðar stökkbreyttar: **tvítekin óporuð röð**
+taldist tvisvar í `offBoard` (umsjónarmaður sem lagfærir val skilur eftir tvær
+raðir), og **`userId` vantaði í deps pollunarinnar** — notandi sem tengist
+FYRST og slær nafnið inn Á EFTIR (nákvæmlega röðin sem viðmótið býður) fékk
+aldrei sætið sitt lesið, því lykkjan lifði í lokun með `userId = null`. Sama
+villu-ætt og felldi `onPicks` upphaflega.
+
+> **TVÆR STÖKKBREYTINGAR SLUPPU Í FYRSTU UMFERÐ og það var prófið sem var veikt,
+> ekki lagfæringin.** Tvítekningin var prófuð á leikmanni sem borðið **þekkir** —
+> þar bítur hún ekki, því `taken` er mengi. Og `userId`-kaflinn sló nafnið inn Á
+> UNDAN, svo lokunin var þá þegar rétt. Báðir kaflar voru endurskornir þangað til
+> stökkbreytingin féll. **Stökkbreyting sem sleppur er niðurstaða, ekki óþægindi.**
+
+> **OG PRÓFIÐ FANN VILLU Í ELDRA PRÓFI.** `sleeper.mjs` skilaði `scenario.picks`
+> fyrir **hvaða draft sem var spurt um**, svo þegar kafli 2f svissar `scenario`
+> yfir í deild B fór draft deildar **A** að svara tómum lista fyrir sitt eigið
+> draft. Mock sem lýgur — og hann var ósýnilegur nákvæmlega á meðan `onPicks` gat
+> ekki minnkað mengið. Um leið og pollunin fylgir Sleeper niður líka las tómi
+> listinn eins og „umsjónarmaður núllstillti draftið", sem er **réttur lestur**.
+> Villan var í herminum. Hann er nú lyklaður á draft-auðkenni.
+
+#### Og það sem EKKI tókst að fella — talið upp berum orðum
+
+Skýrsla sem telur aðeins upp fundnar villur segir ekki hvað var reynt, og þá er
+ekki hægt að vita hvað er óprófað enn. Þetta stóðst **allt** og var raunverulega
+reynt:
+
+| atburðarás | niðurstaða |
+|---|---|
+| Sleeper svarar **500**, dettur út (`TypeError`), eða skilar **ekki-JSON** í miðju drafti, og batnar | Borðið heldur því sem það hafði (fer **aldrei** í 0), engin `NaN`, engin villuvörn — og nær **öllum** völum sem bárust á meðan þegar sambandið kemur aftur. Fingrafarið hleypir batanum í gegn af því að það breyttist á meðan |
+| **Sjálfval springur** — átta völ milli tveggja pollana | Öll átta skila sér, valnúmerið stekkur rétt, og eigið val inni í sprengingunni ratar í hópinn |
+| **Þitt eigið val er sjálfvalið** meðan þú horfir á borðið | Ratar í hópinn samstundis. Prófað 15 sinnum í heilu drafti (`myPickMissed === 0`) |
+| **Draftið sett í hlé** og haldið áfram | Staðan sést, ekkert breytist á meðan, og pollunin tekur við sér aftur |
+| **Völ berast úr röð** | Níu völ skiluð í viðsnúinni röð: öll skila sér, valnúmerið er rétt og mitt val ratar í hópinn. Valnúmerið er **talning**, ekki `max(pick_no)`, og talning er óháð röð |
+| **`draft_order` er null og birtist í miðju drafti** | Sætið les sig sjálft og fyrri völ sætisins rata í hópinn eftir á |
+| **Síðan endurhlaðin í miðju drafti** | Völ, hópur, valnúmer, næsta eigið val og draft-auðkenni koma öll til baka. Samstillingin er **slökkt** eftir endurhleðslu og það er ásett (ekkert kall án þess að beðið sé um það) — krafan er að hnappurinn segi það, og hann gerir það. Hún nær svo því sem gerðist á meðan |
+| **Tengt öðru drafti eftir reset** | Byrjar á sínum eigin völum, ekki gömlu |
+| **Tveir flipar á sama drafti** | Hvorugur fellur, báðir teikna, vistaða mengið þurrkast ekki út. Sjá varnaglann að neðan |
+| **Svissað um deild í miðju drafti og til baka** | Hvor deild heldur sínum völum, sínum hóp, sínu valnúmeri og sínum reglum. **En samstillingin slokknar** — sjá að neðan |
+| **Deildarslóð → reglur → sæti → tengja → ráðleggja**, alla leið | Reglurnar úr Sleeper drífa tölurnar sannanlega: `re-read` sem skiptir deildinni úr PPR í standard **breytir VBD-dálkinum** og byrjunarsætunum. Umferðirnar koma úr **draftinu**, ekki deildinni |
+| **Tvítekin röð á leikmanni sem borðið þekkir** | Kostar ekkert — `taken` er mengi |
+
+> **EINN VARNAGLI SEM VAR EKKI LAGAÐUR, OG HANN ER SKRÁÐUR FREMUR EN ÞAGGAÐUR.**
+> Tveir flipar sem eru **báðir opnir** deila `localStorage`. Flipi sem er opinn en
+> ekki samstilltur ber eldra mengi, og breyti notandinn einhverju í honum skrifar
+> hann það yfir. Ég smíðaði lagfæringu (skrifa ekki óbreytt gildi) og **tók hana
+> út aftur**: mér tókst ekki að smíða atburðarás þar sem hún skiptir máli — við
+> mount les hvor flipi það sem stendur í geymslunni, svo fyrsta skriftin er alltaf
+> eins og það sem er þar. **Ómæld lagfæring er nákvæmlega það sem þetta verkefni
+> segir vera verstu útkomuna**, svo hún fer ekki inn. Reglan á draftkvöldi er
+> einföld: **einn flipi**.
+
+> **OG EIN GILDRA ER FEST SEM HEGÐUN FREMUR EN LAGFÆRÐ.** Svissun um deild í
+> miðju drafti **slekkur á samstillingunni**: `live` er ástand í `SleeperSync`
+> og borðið er endurræst (`key={activeId}`), svo hún fer með. Að vista `live`
+> myndi þýða að appið byrjaði að polla af sjálfu sér við næstu hleðslu, sem
+> **tveir aðrir verðir banna berum orðum** (`audit.mjs` kafli 9, `dashboard.mjs`
+> kafli 1: *„pollun sem enginn kveikti á er bæði óvænt og dónaleg við
+> gestgjafann"*). Krafan er því að það **sjáist**, og `draft-live.mjs` kafli 14
+> festir hvort tveggja: hnappurinn segir „Start live sync" og hvergi stendur
+> „· live". Sama gildir eftir endurhleðslu. **Á draftkvöldi: ekki svissa.**
 
 ### Flöktandi próf er verra en ekkert
 

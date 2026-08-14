@@ -227,6 +227,18 @@ export function picksUntilNext(pick, teams) {
  *              `picksUntilNext` — sem gerir tha rad fyrir ad `pick` se
  *              mitt. Sja hausinn a `picksUntilNext` fyrir villuna sem
  *              thessi breyta er til ad utiloka.
+ * `lastPick`   satt thegar VITAD ER ad ekkert val kemur a eftir (saetid
+ *              er thekkt og draftid a enga umferd eftir handa ther).
+ *
+ *              ÞETTA ER ANNAD EN `nextPick: null` OG MUNURINN ER ALLT.
+ *              `nextPick: null` thydir "eg veit ekki hvar thu situr" —
+ *              tha er rett ad LEIDA bidina ut, og handvirkt draft an
+ *              Sleeper byggir a thvi (sja kafla 12 i `tests/advice.mjs`,
+ *              sem krefst thess ad rusl-inntak gefi samt gilda bid).
+ *              `lastPick` thydir "eg veit ad hun er engin", og tha er
+ *              hver lifunartala tilbuningur: leikmadur "lifir" ekki til
+ *              vals sem er ekki til. Þa eru `survive` og `expectedNext`
+ *              **null** — tomt gildi, ekki 0.
  * `league`     { teams, starters, maxPos }
  *
  * ROKIN ERU HLUTI AF UTKOMUNNI, EKKI SKRAUT. Radgjof sem segir
@@ -234,19 +246,25 @@ export function picksUntilNext(pick, teams) {
  * osammala, og notandi sem getur ekki verid osammala haettir ad nota
  * tolurnar og fer ad nota magatilfinninguna.
  */
-export function recommend({ available, roster = [], pick, league, nextPick: nextIn }) {
+export function recommend({ available, roster = [], pick, league, nextPick: nextIn,
+                            lastPick = false }) {
   const teams = league.teams || 12;
   /* Gefid `nextPick` VINNUR. Hafnad er adeins tolu sem er ekki eftir
      `pick` — hun gaefi negatifa bid og "0% lifun" a alla. */
-  const nextPick = Number.isFinite(nextIn) && nextIn > pick
-    ? Math.round(nextIn)
-    : pick + picksUntilNext(pick, teams);
-  const wait = nextPick - pick;
+  const nextPick = lastPick ? null
+    : (Number.isFinite(nextIn) && nextIn > pick
+        ? Math.round(nextIn)
+        : pick + picksUntilNext(pick, teams));
+  const wait = nextPick == null ? null : nextPick - pick;
 
-  /* Hvad a hver stada ad vera vid naesta val? */
+  /* Hvad a hver stada ad vera vid naesta val? Se ekkert val eftir er
+     svarid ENGIN TALA — hlutinn stendur samt (hann greinir stodur sem
+     rodin naer til fra theim sem hun naer ekki til, sja `mustFill`). */
   const expNext = {};
   for (const pos of ["QB", "RB", "WR", "TE"]) {
-    expNext[pos] = expectedBestAt(available, pos, nextPick);
+    expNext[pos] = nextPick == null
+      ? { value: null, n: 0 }
+      : expectedBestAt(available, pos, nextPick);
   }
 
   const counts = {};
@@ -259,8 +277,8 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
     if (max != null && (counts[p.pos] || 0) >= max) continue;
 
     const eNext = expNext[p.pos].value;
-    const urgency = p.vbd - eNext;
-    const survive = survivalProb(p.adp, p.adpSd, nextPick);
+    const urgency = eNext == null ? null : p.vbd - eNext;
+    const survive = nextPick == null ? null : survivalProb(p.adp, p.adpSd, nextPick);
 
     out.push({
       ...p,
@@ -391,7 +409,8 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
     /* Sa sem bradanauðsyn hefdi valid. Hafdur med svo haegt se ad sja
        HVENAER thaer tvaer adferdir eru osammala — thad er sjalft
        upplysandi — en hann er EKKI tillagan. */
-    urgencyPick: out.slice().sort((a, b) => b.urgency - a.urgency)[0] || null,
+    urgencyPick: nextPick == null ? null
+      : out.slice().sort((a, b) => b.urgency - a.urgency)[0] || null,
     picks: out,
     expectedNext: Object.fromEntries(
       Object.entries(expNext).map(([k, v]) => [k, round1(v.value)])),
@@ -412,7 +431,14 @@ function reasonsFor(p, { urgency, eNext, survive, wait, counts, league }) {
       `${Math.round(survive * 100)}% likely to still be here in ${wait} picks` });
   }
 
-  if (urgency > 25) {
+  /* `urgency == null` er "ekkert val eftir". `null < 5` er **satt** i JS
+     (null verdur 0), svo an thessarar vardar hefdi kassinn skrifad
+     "RB drops off by only 0 before your next pick" i sidasta valinu —
+     setning um val sem er ekki til. Sama gildra og `null >= 2` i
+     graenu runununum i FPL-verkefninu. */
+  if (urgency == null) {
+    /* engin fullyrding um bid */
+  } else if (urgency > 25) {
     r.push({ kind: "drop", text:
       `${Math.round(urgency)} points better than what ${p.pos} should offer next time` });
   } else if (urgency < 5) {

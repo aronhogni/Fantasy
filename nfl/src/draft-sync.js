@@ -27,9 +27,24 @@
  * fingrafarinu, og `mine` lika — saetið getur ratast inn eftir a
  * (`draft_order` er oft dregid EFTIR ad tengt er) og tha breytist
  * hverjir eru minir an thess ad `ids` haggist.
+ *
+ * ============================================================
+ * `unknown` VANTADI OG ÞAD KOSTADI VALNUMERID (fundid 14.8.2026)
+ * ============================================================
+ * `offBoard` — vol sem bordid kann ekki ad para — berst foreldrinu
+ * ADEINS gegnum `onPicks`, og `onPicks` er adeins kallad thegar
+ * fingrafarid breytist. Vol a manni sem er utan `players.json`
+ * baetir ENGU vid `ids` ne `mine`, svo fingrafarid stod kyrrt og
+ * `offBoard` var afram 0. Maelt i lifandi hermun: atta thekkt vol +
+ * THRJU oporud gafu valnumer **9 i stad 12**.
+ *
+ * Þad er nakvaemlega villan sem `offBoard` var smiðad til ad laga —
+ * talan var reiknud rett og komst aldrei ut. Hlidid sem atti ad
+ * spara endurteikningu var lika hlid a upplysingunni.
  */
-export function pickSignature(ids, mine) {
-  return `${(ids || []).length}|${(ids || []).join(",")}|${(mine || []).join(",")}`;
+export function pickSignature(ids, mine, unknown = 0) {
+  return `${(ids || []).length}|${(ids || []).join(",")}|${(mine || []).join(",")}` +
+         `|${Number(unknown) || 0}`;
 }
 
 /** Sjalfgefnu tolurnar, a einum stad svo profin geti lesid thaer. */

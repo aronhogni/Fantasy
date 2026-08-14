@@ -230,11 +230,29 @@ global.fetch = async (url) => {
       }
       return { ok: false, status: 404, json: async () => null };
     }
+    /* ============================================================
+       VOLIN ERU LYKLUD A DRAFT-AUDKENNI, EKKI A `scenario`
+       ============================================================
+       Adur skiladi `/picks` alltaf `scenario.picks`, hvada draft sem
+       var spurt um. Kafli 2f svissar `scenario` yfir i deild B MEDAN
+       samstilling deildar A er enn i gangi — svo draft A fór ad svara
+       TOMUM lista fyrir sitt eigid draft. Þad er mock sem lygur, og
+       hann var osynilegur svo lengi sem `onPicks` gat ekki minnkad
+       mengið: sammengið hunsadi tomma listann.
+
+       Um leid og pollunin fylgir Sleeper NIDUR lika (afturkolluð vol,
+       sja `draft-live.mjs` kafla 3) les tomi listinn eins og
+       "umsjonarmadur nullstillti draftid" — sem er RETT lestur. Villan
+       var i hermunum, ekki i appinu.                                */
+    const byDraft = (id) => Object.values(SCENARIOS)
+      .find((sc) => sc.draft && sc.draft.draft_id === id) || scenario;
     if (/\/picks$/.test(s)) {
-      return { ok: true, status: 200, json: async () => scenario.picks };
+      const id = (/\/draft\/([^/]+)\/picks/.exec(s) || [])[1];
+      return { ok: true, status: 200, json: async () => byDraft(id).picks };
     }
     if (/\/draft\//.test(s)) {
-      return { ok: true, status: 200, json: async () => scenario.draft };
+      const id = (/\/draft\/([^/?]+)/.exec(s) || [])[1];
+      return { ok: true, status: 200, json: async () => byDraft(id).draft };
     }
     return { ok: true, status: 200, json: async () => ({}) };
   }

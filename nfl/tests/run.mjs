@@ -15,6 +15,11 @@ const SUITES = [
   ["usageblend.mjs"], ["dst.mjs"],
   ["render.mjs", true], ["audit.mjs", true], ["layout.mjs", true],
   ["saved-state.mjs", true], ["sleeper.mjs", true], ["dashboard.mjs", true],
+  /* `draft-live.mjs` KEYRIR draft — 150 vol i gegnum raunverulega
+     `DraftBoard` med Sleeper-endapunkti sem faerist fram. `sleeper.mjs`
+     syar EITT augnablik; thetta syair thann tima sem lidur, sem er thar
+     sem talnaskekkjur byggjast upp. */
+  ["draft-live.mjs", true],
   /* `visual.mjs` raesir ALVORU Chrome og maelir raunverulegt utlit.
      Hann tharf `npm run build` a undan ser og sleppir ser sjalfur ef
      Chrome finnst ekki — en thad er SLEPPT, ekki graent. */
