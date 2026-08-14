@@ -23,7 +23,7 @@
    innihald, og `writeJson` ber saman vid thad sem fyrir er.
    ============================================================ */
 
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, stat } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -108,6 +108,66 @@ function weeklyMinRows(year, currentSeason) {
   return Number(year) >= Number(currentSeason) ? 100 : 1000;
 }
 
+/* ============================================================
+   GLUGGINN FYRIR VIKULEGA SPA — OG HANN ER LAERDUR AF VILLU
+   ============================================================
+   `sl.projections(season, week)` er vistud sem `weekly-proj/{ar}-w{n}.json`
+   og hun er SKRIFUD EINU SINNI. Tvaer reglur sem eru BADAR rettar —
+   "adeins fyrir vikuna" og "adeins einu sinni" — gefa SAMAN ranga
+   hegdun: *skrifa vid FYRSTA taekifaeri og frysta*.
+
+   ÞETTA GERDIST I FPL-HLUTANUM OG ER SKJOLAD I CLAUDE.md KAFLA 7: GW1-rodin
+   var raunverulega skrifud **222 KLST fyrir frestinn** med `start_prob`
+   null hja 577 af 577. Kvordunin hefdi thvi maelt likanid a THESS EIGIN
+   VERSTU agiskun. Lausnin thar var 12 klst gluggi; hér er hun sama hugsun
+   med adra reiknivél.
+
+   ÞRIR TIMAR AF FJORUM ERU FASTIR:
+     · `core` keyrir 09:00 UTC DAGLEGA — eitt taekifaeri a dag, ekki 48
+       eins og 30-minutna cron-inn i FPL. Glugginn verdur thvi ad vera
+       DAGAR, ekki klukkustundir, annars missir ein sleppt cron-keyrsla
+       vikuna alveg (GitHub thynnir og sleppir cron).
+     · 72 klst gefa **thrju** taekifaeri. Sama vardstada og "30-minutna
+       cron-inn faer ~24 taekifaeri" i FPL, faerd yfir a daglegan cron.
+
+   AKKERID ER `date` UR `schedule.json` A MIDNAETTI UTC, EKKI RAUNVERULEGUR
+   BYRJUNARTIMI — OG THAD ER VILJANDI VARFAERID. `gametime` i nflverse er
+   **austurstrandartimi** (ET), svo raunverulegur upphafsleikur viku 1
+   2026 er 2026-09-09 20:20 ET = **2026-09-10 00:20 UTC**. Ad reikna thad
+   retta krefdist sumar-/vetrartima-medferðar sem myndi skeika i annad
+   hvora attina, og BADIR ENDAR ERU EKKI JAFN DYRIR: skekkja sem er of
+   SEIN skrifar spa EFTIR ad leikur er byrjadur og thad er leki. Midnaetti
+   UTC a leikdegi er thvi ~24 klst FYRR en satt er, og su att er sú retta.
+
+   Vikan er lesin UR `schedule.json`, ekki ur `state.week` hja Sleeper:
+   i forleik ber Sleeper `week: 1, seasonType: "pre"`, sem er vika 1 af
+   FORLEIK og ekki sama tala. Leikjaskrain veit hvenaer leikirnir eru.  */
+const PROJ_WINDOW_H = 72;
+
+/**
+ * Naesta OSPILADA deildarvika og hvort vid seum inni i glugganum hennar.
+ * Skilar `null` ef engin slik vika er til (timabilid er buid).
+ */
+function upcomingWeek(games, season, nowMs, windowH = PROJ_WINDOW_H) {
+  const firstOf = new Map();          // vika -> ms a midnaetti UTC leikdags
+  for (const g of games || []) {
+    if (Number(g.season) !== Number(season)) continue;
+    if (g.type !== "REG" || !g.date || !g.week) continue;
+    const t = Date.parse(`${g.date}T00:00:00Z`);
+    if (!Number.isFinite(t)) continue;
+    const cur = firstOf.get(g.week);
+    if (cur == null || t < cur) firstOf.set(g.week, t);
+  }
+  let best = null;
+  for (const [week, t] of firstOf) {
+    if (t <= nowMs) continue;                       // vikan er byrjud
+    if (best == null || t < best.anchor) best = { week, anchor: t };
+  }
+  if (!best) return null;
+  const opens = best.anchor - windowH * 3600e3;
+  return { ...best, opens, inWindow: nowMs >= opens };
+}
+
 /* ---------- skrifun ---------- */
 
 /**
@@ -187,6 +247,68 @@ async function readJson(name) {
   try { return JSON.parse(await readFile(path.join(OUT, name), "utf8")); }
   catch { return null; }
 }
+
+/* ============================================================
+   DAGSETTAR SKRAR — SKRIFADAR EINU SINNI, ALDREI OFAN I
+   ============================================================
+   Sex heimildir eru vistadar med dagsetningu i heitinu. Reglan er su
+   sama og `data/predictions/` i FPL-verkefninu og hun er STRANGARI en
+   `writeJson`:
+
+     `writeJson`  ma skrifa ofan i — `players.json` ER myndin i dag og
+                  gamla myndin hefur ekkert gildi.
+     `writeOnce`  ma ALDREI skrifa ofan i — rod sem er til er SAGA, og
+                  endurskrifud saga er retro-fitting.
+
+   Þetta er hvorki varkarni ne smekkur. "Hvad sagdi dyptartaflan i viku
+   5" er OSVARANLEG spurning eftir ad vika 5 er lidin: inntokin eru
+   horfin. Skrifi seinni keyrsla sama dags ofan i tha fyrri er myndin
+   ekki lengur mynd af theim tima sem hun segist vera.
+
+   ÞRJAR HLIDAR, OG THAER ERU ALLAR NAUDSYNLEGAR:
+     1. skra sem er til -> ekkert gert (ONEMANDI, engin villa skrad)
+     2. thunn gogn      -> ekkert skrifad, OG thad er skrad sem villa
+     3. saman: fyrsta keyrsla dagsins sem faer NYTILEG gogn vinnur
+
+   (2) er ekki thad sama og (1) og ma ekki verda thad. Tom keyrsla sem
+   thegdi vaeri "vistunin er i lagi" a skjanum medan dagurinn tapadist.
+   Maelt doemi ur thessu repo-i: 13.8.2026 skiladi ESPN **3 greinum** og
+   `news.json` var (rettilega) HAFNAD — hefdi frettasafnid skrifad tha
+   thunnu mynd og fryst hana vaeri dagurinn geymdur RANGUR ad eilifu.  */
+async function writeOnce(name, data, { minRows = 1 } = {}) {
+  const file = path.join(OUT, name);
+  try {
+    await stat(file);
+    /* HLID 1 — ONEMANDI. Ekkert `record` hér: dagur sem er thegar
+       vistadur er ekki frett og ma ekki fylla `status.json` af rodum
+       sem lita ut eins og adgerdir. */
+    return false;
+  } catch { /* skrain er ekki til — halt afram */ }
+
+  const rows = rowCount(data);
+  if (rows < minRows) {
+    /* HLID 2 — thogn vaeri villan. */
+    record(`archive:${name}`, false,
+      `REFUSED: ${rows} rows (minimum ${minRows}) — day not archived, ` +
+      `a later run today may still write it`);
+    return false;
+  }
+  await mkdir(path.dirname(file), { recursive: true });
+  const json = JSON.stringify(data);
+  await writeFile(file, json);
+  const kb = Math.round(json.length / 1024);
+  console.log(`  -> ${name}  ${rows} radir  ${kb} KB  (NY dagsett skra)`);
+  record(`archive:${name}`, true, `${rows} rows, ${kb} KB — archived, never rewritten`);
+  return true;
+}
+
+/** Er dagsett skra thegar til? Notad til ad SLEPPA DYRRI SOKN. */
+async function archived(name) {
+  try { await stat(path.join(OUT, name)); return true; }
+  catch { return false; }
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 /* ============================================================
    THREP 1 — KJARNI
@@ -327,8 +449,254 @@ async function stageCore() {
     generated: new Date().toISOString(),
   });
 
+  /* Vistunin sidast: hun ma aldrei tefja ne fella fersku kjarnagognin. */
+  await archiveDaily({ season, games, ffcSets, newsFeed });
+
   return { season, players, games };
 }
+
+/* ============================================================
+   VISTUNIN — FIMM SERIUR SEM VERDA EKKI TIL EFTIR A
+   ============================================================
+   Fjorar vidbaetur her og ein i `stageHistory`. Rokin eru EKKI ad thetta
+   se gagnlegt einhvern tima seinna — thau eru ad thad se OMOGULEGT ad
+   byggja seinna. Sama regla og `data/history/` og `data/predictions/` i
+   FPL-verkefninu (CLAUDE.md kafli 7): **dagleg mynd verdur ekki buin til
+   eftir a.**
+
+   Hvad hver serie svarar, og hvad var THEGAR maelt um hana:
+
+   `weekly-proj/`  Vikuleg Sleeper-spa. `src/weekview.js` deilir I DAG
+                   arstidar-spa a 17 og BER ATHUGASEMD UM THAD. Thetta er
+                   heimildin sem kaemi i stadinn. **Ekkert er tengt hér —
+                   `weekview.js` er ekki snert** (annad safn a hana); thetta
+                   laetur gognin VERDA TIL svo tengingin se maelanleg.
+   `news/`         `news.json` er RULLANDI 50-greina gluggi an safns.
+                   `handcuff-lab` skjalar thetta sem astaeduna fyrir thvi
+                   ad HELMINGURINN af handcuff-spurningunni ("er
+                   byrjunarmadurinn ad koma til baka?") er OMAELANLEGUR:
+                   "hann er aetladur i naesta leik" er FRETT.
+   `weekly-ecr/`   Vikuleg samsteypa med start/sit-einkunn. Lyklud a
+                   `scrape_date` ur gognunum — sja notuna i fantasypros.mjs.
+   `adp-history/`  `adp.json` er ENDURSKRIFUD DAGLEGA. Agust-september er
+                   fyrsta ar seriu sem thrju lob bida a.
+   `depth/`        Dyptartafla. `players.json` ber `depth`/`depthPos` fyrir
+                   757 af 1.038 en **adeins nuverandi stodu**, og thad er
+                   nakvaemlega thess vegna sem `handcuff-lab` NEITADI ad
+                   nota hana ("`depth` er aldrei notad i labinu").
+
+   ============================================================
+   VISTUNIN MA ALDREI FELLA GAGNA-KEYRSLUNA
+   ============================================================
+   Hvert threp er i sinu `try`. Þetta er sama akvordun og
+   `continue-on-error: true` a spa-bokhaldinu i FPL-workflow-inu: safnid
+   er MAELITAEKI, ekki birtingargagn, og bilun i maelitaeki ma ekki taka
+   ADP-ið og meidslin med ser. Villan er samt SKRAD (`record`), svo hun
+   er synileg i Sources — thogul bilun er thad eina sem er verra en bilun.  */
+async function archiveDaily({ season, games, ffcSets, newsFeed }) {
+  console.log("\n--- vistun (dagsettar seriur) ---");
+  const day = today();
+
+  /* ---- 1. FRETTIR ----
+     Gognin eru THEGAR sott fyrir `news.json`; hér er engin ny sokn.
+     Sami `minRows: 20` og adalskrain — sja `writeOnce` hlid (2) og
+     ESPN-daginn sem skilaði 3 greinum. */
+  try {
+    await writeOnce(`news/${day}.json`, {
+      date: day, captured: new Date().toISOString(), season,
+      articles: newsFeed,
+    }, { minRows: 20 });
+  } catch (e) { record("archive:news", false, `failed: ${e.message}`); }
+
+  /* ---- 2. ADP (FFC, oll snid — half-PPR thar med) ----
+     Lika thegar sott. `minRows: 100` er sama golf og `adp.json` og
+     `rowCount` telur DYPSTA farminn (258 leikmenn per sett), ekki
+     fjolda settanna. */
+  try {
+    await writeOnce(`adp-history/${day}.json`, {
+      date: day, captured: new Date().toISOString(), season,
+      ffc: ffcSets,
+    }, { minRows: 100 });
+  } catch (e) { record("archive:adp-history", false, `failed: ${e.message}`); }
+
+  /* ---- 3. VIKULEG SPA ----
+     Gluggi FYRST, sokn a eftir. Sja `upcomingWeek` — utan gluggans er
+     thetta ONEMANDI og enginn kall er gerdur. */
+  try {
+    const up = upcomingWeek(games, season, Date.now());
+    if (!up) {
+      record("archive:weekly-proj", true,
+        `no unplayed REG week left in ${season} — nothing to snapshot`);
+    } else {
+      const name = `weekly-proj/${season}-w${up.week}.json`;
+      if (await archived(name)) {
+        console.log(`     weekly-proj: vika ${up.week} thegar vistud`);
+      } else if (!up.inWindow) {
+        /* SKRAD SEM `ok`, EKKI SEM VILLA. Ad vera utan gluggans er RETT
+           hegdun; rod sem segir "failed" hér myndi kenna notandanum ad
+           hunsa rauda rod i Sources — nakvaemlega thad sem spjaldid ma
+           ekki gera (`writeJson`-notan um REFUSED sem hreinsast aldrei). */
+        const h = Math.round((up.opens - Date.now()) / 3600e3);
+        record("archive:weekly-proj", true,
+          `week ${up.week} window opens in ${h}h ` +
+          `(${PROJ_WINDOW_H}h before first kickoff) — nothing fetched`);
+      } else {
+        const rows = await sl.projections(season, up.week);
+        /* ============================================================
+           ADEINS RADIR SEM BERA SPA — OG ROKIN ERU HLIDID, EKKI STAERDIN
+           ============================================================
+           Maelt 14.8.2026 gegn lifandi API: vika 1 2026 ber **3.300 radir
+           en adeins 580 med `pts_ppr`** (419 arid 2025). Hinar 2.720 bera
+           `ppr: null` OG null i hverju odru svidi.
+
+           STAERDIN ER RAUNVERULEG en hun er EKKI astaedan:
+             allar radir   1.147,6 KB/viku -> 20,2 MB/timabil
+             adeins spa      204,0 KB/viku ->  3,6 MB/timabil
+
+           ASTAEDAN ER AD `minRows` VERDUR ANNARS TOM FULLYRDING. `rowCount`
+           finnur staersta fylkid i farminum, svo med ollum rodum er talan
+           **ALLTAF 3.300** — oháð thvi hvort ein einasta spa se i henni.
+           Golfid `minRows: 100` hefdi thvi hleypt i gegn viku thar sem
+           Sleeper skilaði 3.300 rodum af nullum og fryst hana ad eilifu.
+           Þad er nakvaemlega villan sem `rowCount` var skrifud til ad laga
+           i `market.json` ("rod er farmur, ekki umbudir") — sama gildra,
+           einu lagi innar: **rod an spar er umbud, ekki farmur.**
+
+           `rowsFromSource` heldur talunni sem var, svo hlutfallid se
+           LESID UR GOGNUNUM og ekki agiskad seinna.                     */
+        const withPts = rows.filter((r) => r.ppr != null);
+        await writeOnce(name, {
+          season, week: up.week, date: day,
+          captured: new Date().toISOString(),
+          firstKickoffUtcFloor: new Date(up.anchor).toISOString(),
+          windowHours: PROJ_WINDOW_H,
+          rowsFromSource: rows.length,
+          withPoints: withPts.length,
+          players: withPts,
+        }, { minRows: 100 });
+      }
+    }
+  } catch (e) { record("archive:weekly-proj", false, `failed: ${e.message}`); }
+
+  /* ---- 4. VIKULEG ECR (DynastyProcess-speglun) ----
+     Heitid kemur ur GOGNUNUM (`scrape_date`), svo dagur sem speglunin
+     hefur ekki uppfaert skrifar ekkert. Þess vegna er sott adur en
+     nafnid er thekkt — 267 KB, thad er odyrasta kallid i keyrslunni. */
+  try {
+    const w = await fp.weeklyEcr();
+    if (w) {
+      await writeOnce(`weekly-ecr/${w.scrapeDate}.json`, {
+        scrapeDate: w.scrapeDate, captured: new Date().toISOString(),
+        season, players: w.players,
+      }, { minRows: 100 });
+    }
+  } catch (e) { record("archive:weekly-ecr", false, `failed: ${e.message}`); }
+
+  /* ============================================================
+     ---- 5. DYPTARTAFLA ----
+     ============================================================
+     ÞETTA ER DYRASTA SOKNIN I VISTUNINNI: 8,5 MB (.gz) sem vex daglega.
+     Þess vegna er `archived()` SPURT A UNDAN — kvoldkeyrslan i drafttid
+     (21:00 UTC) myndi annars saekja 8,5 MB til ad henda theim.
+
+     ============================================================
+     OG ROKIN FYRIR THESSARI ERU ONNUR EN FYRIR HINUM FJORUM — MAELT
+     ============================================================
+     Hinar fjorar seriur eru OENDURHEIMTANLEGAR: heimildin skrifar ofan
+     i sjalfa sig og gaerdagurinn er farinn. **Dyptartaflan er thad EKKI**,
+     og thad var maelt 14.8.2026 adur en thetta var skrifad:
+
+       `depth_charts_2025.csv` ber **554.215 radir og 219 EINKVAEMA DAGA**
+       (2025-08-03 -> 2026-03-14), thar af **151 daga INNAN timabilsins**.
+
+     nflverse geymir thvi dyptar-soguna sjalft i nyja snidinu. Ad segja
+     "annars tapast hun" vaeri OMAELD FULLYRDING SEM LITUR UT EINS OG
+     MAELING, og thad er versta utkoman (README kafli 1).
+
+     Vistunin stendur samt, af thremur rokum sem eru minni en "tapast
+     ad eilifu" og eru sogd hér i sinni raunverulegu staerd:
+       1. **NYTILEIKI.** Sagan er fáanleg adeins sem 8,5 MB skra sem vex
+          daglega. Lab sem vill vita hver var RB1 hja einu lidi i viku 5
+          getur ekki lesid hana; 121 KB dagsmynd getur thad.
+       2. **VATRYGGING, OG HUN ER EKKI TILGATA.** nflverse **BREYTTI
+          SNIDINU** milli 2024 og 2025 (sja notuna vid `depthCharts`) og
+          thad braut lesturinn ÞEGJANDI. Heimild sem hefur breytt sniði
+          einu sinni getur gert thad aftur — eda styft skrana thegar
+          timabili lykur.
+       3. Skrarnar eru **fastar** i git og fylgja bakprofunum.
+
+     ============================================================
+     STAERDIN, MAELD I FJORUM AFBRIGDUM (975 radir per dag)
+     ============================================================
+       A verbatim, eins og fallid skilar        159,6 KB/dag ->  57 MB/ar
+       B **an `dt` og `week`  <- VALID**        121,5 KB/dag ->  43 MB/ar
+       C adeins team/id/name/pos/depth           73,3 KB/dag ->  26 MB/ar
+       D ALLAR stodur (3.228 radir)             408,2 KB/dag -> 146 MB/ar
+
+     **B er valid og C er thad ekki**, thott C se odyrari: `espnId` er
+     bru, og `slot`/`formation` eru raunveruleg upplysing (hver er WR3 i
+     "3WR 1TE" er ONNUR spurning en hver er WR3 i dyptar-rod). B fjarlaegir
+     ADEINS TVITEKNINGU og engin gildi: `dt` er **fasti innan dagsmyndar**
+     og er geymt einu sinni sem `sourceDt`, og `week` er **alltaf null** i
+     nyja snidinu. Sama akvordun og BSD-skotin i FPL-hlutanum, thar sem
+     543 KB urdu 338 KB af thvi ad somu gogn voru geymd thrivegis — og
+     rokin thar voru ekki staerdin heldur ad afritin gaetu rekid i sundur.
+     43 MB/ar er i somu staerdargrod og `data/history/` (~29 MB/ar) sem
+     CLAUDE.md kafli 7 skjalar sem "thess virdi ad fylgjast med".
+
+     ============================================================
+     `FANTASY_DEPTH_POS` ER EKKI OTHORF SIA — SJA `normPos`
+     ============================================================
+     Maelt i dag skilar `depthCharts(2026)` **975 radir og adeins
+     fantasy-stodur**, thvi `normPos` skilar `null` fyrir "RCB"/"LDE" og
+     fallid sinar tha burt. Sian hér vaeri thvi engin adgerd — I DAG.
+
+     EN `src/scoring.js` ER I MIDRI BREYTINGU A NAKVAEMLEGA THESSU: notan
+     vid `normPos` fullyrdir berum ordum ad staða utan fantasy fari
+     OBREYTT ut og ad fallid "MA EKKI VERDA `: null`", medan kodinn i somu
+     breytingu ER `: null`. Hvernig sem thad leysist ma **radasettid i
+     thessari skra ekki haggast** — annars myndi dagsmyndin faera sig ur
+     975 rodum i 3.228 (146 MB/ar) vid breytingu i ALLT ODRU falli, og
+     serian yrdi osamanburdarhaef vid sjalfa sig.
+
+     `rowsBeforePosFilter` er geymt svo utkoman theirrar spurningar se
+     LESIN UR GOGNUNUM og ekki agiskud seinna.                          */
+  try {
+    /* `depth/{dagur}.json` — EKKI `{timabil}-{dagur}`, sem gaf
+       "2026-2026-08-14". Timabilid er i farminum (`season`), thar sem
+       thad tharf ad vera hvort sem er: i januar er dagsetningar-arid
+       EKKI timabilid (sama gildra og `historyYears()` var lagfaerd fyrir),
+       svo `depth/2027-01-05.json` ber `season: 2026` og thad er rett.
+       Heitid er tha eins og `trending/`, `news/` og `adp-history/`:
+       einn dagur, ein skra. */
+    const name = `depth/${day}.json`;
+    if (await archived(name)) {
+      console.log("     depth: dagurinn thegar vistadur");
+    } else {
+      const all = await nv.depthCharts(season, { latestOnly: true });
+      const kept = all.filter((r) => FANTASY_DEPTH_POS.has(r.pos));
+      /* `dt` og `week` STRIPPUD — sja B ad ofan. Engin ONNUR breyting a
+         rodunum: gildin sjalf eru thau sem fallid skilaði. */
+      const players = kept.map(({ dt, week, ...rest }) => rest);
+      await writeOnce(name, {
+        season, date: day, captured: new Date().toISOString(),
+        /* `sourceDt` er timastimpill nflverse a dagsmyndinni og hann er
+           EKKI sami hlutur og `date`: their skonnudu kl. 08:10 UTC, vid
+           vistum kl. 09:5x. Baedi eru geymd svo enginn thurfi ad giska. */
+        sourceDt: kept.length ? kept[0].dt : null,
+        posKept: [...FANTASY_DEPTH_POS],
+        rowsBeforePosFilter: all.length,
+        players,
+      }, { minRows: 200 });
+    }
+  } catch (e) { record("archive:depth", false, `failed: ${e.message}`); }
+}
+
+/* QB/RB/WR/TE/K. `normPos` gerir FB -> RB og PK -> K, svo baedir
+   flokkarnir rata inn an sertilfellis. Maelt i dagsmyndinni 2026-08-14:
+   WR 398, RB 216 (FB innifalid), TE 201, QB 119, K 41 = **975 radir,
+   32 lid, 32 menn i QB-dyptarrod 1**. */
+const FANTASY_DEPTH_POS = new Set(["QB", "RB", "WR", "TE", "K"]);
 
 /* ============================================================
    SAMEININGIN — thetta er hjartað og thad sem getur verid rangt
@@ -575,6 +943,9 @@ async function stageHistory() {
   const weekly = await nv.weeklyStats(years);
   const teamWeekly = await nv.teamWeekly(years.filter((y) => y >= 2020));
 
+  /* SNAP-HLUTFOLL SAMEINUD INN I VIKULEGU RADIRNAR. */
+  await mergeSnapCounts(weekly, years);
+
   /* Vikuleg gogn eru skrifud PER TIMABIL. Ein 7-ara skra vaeri
      ~12 MB og appid tharf nanast alltaf adeins sidasta arid. */
   let totalRows = 0;
@@ -601,6 +972,103 @@ async function stageHistory() {
     `${totalRows} player weeks across ${Object.keys(weekly).length} seasons ` +
     `(${years[0]}-${current})`);
   return { weekly, seasons };
+}
+
+/* ============================================================
+   SNAP-HLUTFOLL — "OEDYRASTA EINSTAKA BAETINGIN A MAELINGUNNI"
+   ============================================================
+   `nv.snapCounts` var til og var **aldrei kallad**. Hun er sameinud inn i
+   `weekly/{ar}.json` fremur en skrifud i eigin skra, og thad er akvordun:
+   `usage-lab`, `handcuff-lab` og `gap-lab` lesa OLL vikulegu radirnar, og
+   heimild sem tharf serstakan lestur og eigin porun er heimild sem
+   labbid sleppir. Sama rok og "svid sem enginn les".
+
+   HVERS VEGNA THETTA SVARAR SPURNINGU SEM STIGIN GERA EKKI:
+   `gap-lab` raðadi lyftistongunum **availability -> HLUTVERK -> vorn**, og
+   `usage-lab` sagdi berum orðum ad "hlutverk ER notkun". Snap-hlutfall er
+   hreinasti maelirinn a hlutverk sem til er: leikmadur sem fer ur 35% i
+   75% af snoppum hefur nytt hlutverk ADUR en stigin hans syna thad, og
+   hann er osynilegur i `tgt`/`car` thangad til bolturinn kemur.
+
+   ============================================================
+   BRUIN ER `pfr_player_id`, OG HUN VAR MAELD ADUR EN THETTA VAR SKRIFAD
+   ============================================================
+   Snap-skrarnar bera **PFR-audkenni** ("BankKe01"); vikulegu radirnar
+   bera **gsis** ("00-0034381"). `nv.players()` ber BADI i somu rod, svo
+   brun er til og NAFNA-PORUN ER OTHORF — sem er reglan i thessu repo-i
+   (nafna-porun villti "Jacob og Alex Murphy" i FPL-verkefninu).
+
+   MAELT 14.8.2026 a 2025:
+     26.612 snap-radir · 2.189 einkvaem PFR-audkenni
+     **2.181 leyst um bruna (99,6%)**
+     **6.624 af 6.638 vikulegum rodum audgadar (99,8%)**
+     14 radir eftir (9 WR, 4 RB, 1 QB) — their bera einfaldlega enga
+     snap-rod og fa **null, ekki 0** (NULL ER EKKI NULL: snap-hlutfall 0
+     thydir "spiladi ekki eitt snapp", sem er allt annad en "vantar").
+
+   ============================================================
+   TOM SOKN MA ALDREI THURRKA UT GOD GOGN — OG HER VAR RAUNVERULEG HAETTA
+   ============================================================
+   `snap_counts_2026.csv` er **404** (maelt 14.8.2026; hvorki .csv ne .csv.gz
+   er til fyrr en fyrsti leikur er spiladur). Fallid skilar tha `[]`, og
+   utfaerslan hér **laetur radirnar OSNERTAR** i thvi tilfelli i stad thess
+   ad skrifa `snaps: null` yfir tholu. Thad er ekki tilgata: skrifudum vid
+   null-svid i hverja rod myndi keyrslan i naestu viku **eyda** snoppunum
+   sem su a undan hafdi sott, um leid og GitHub skilaði 404 i eitt skipti.  */
+async function mergeSnapCounts(weekly, years) {
+  let bridge;
+  try {
+    const players = await nv.players();
+    bridge = new Map();
+    for (const p of players) if (p.pfrId && p.id) bridge.set(p.pfrId, p.id);
+  } catch (e) {
+    record("snap_merge", false,
+      `bridge unavailable (${e.message}) — weekly rows left untouched`);
+    return;
+  }
+  if (bridge.size < 1000) {
+    record("snap_merge", false,
+      `bridge has only ${bridge.size} pfr ids — refusing to enrich on a thin bridge`);
+    return;
+  }
+
+  let enriched = 0, seen = 0, skipped = [];
+  for (const yr of years) {
+    const rows = weekly[yr];
+    if (!rows || !rows.length) continue;
+    const snaps = await nv.snapCounts(yr);
+    /* HLIDID: engin snap-rod -> ARID ER SLEPPT OSNERT. Sja notuna. */
+    if (!snaps.length) { skipped.push(yr); continue; }
+
+    const byKey = new Map();
+    for (const s of snaps) {
+      const g = bridge.get(s.pfrId);
+      if (!g || s.week == null) continue;
+      byKey.set(`${g}|${s.week}`, s);
+    }
+    if (byKey.size < 100) {
+      record(`snap_merge_${yr}`, false,
+        `only ${byKey.size} bridged snap rows — ${yr} left untouched`);
+      skipped.push(yr);
+      continue;
+    }
+    let hit = 0;
+    for (const r of rows) {
+      seen++;
+      const s = byKey.get(`${r.id}|${r.week}`);
+      /* Rod an snap-gagna faer null, EKKI 0. */
+      r.snaps = s ? s.snaps : null;
+      r.snapPct = s ? s.pct : null;
+      if (s) { hit++; enriched++; }
+    }
+    record(`snap_merge_${yr}`, true,
+      `${hit}/${rows.length} weekly rows carry snaps ` +
+      `(${((100 * hit) / rows.length).toFixed(1)}%)`);
+  }
+  record("snap_merge", true,
+    `${enriched} of ${seen} player weeks enriched via pfr_player_id bridge ` +
+    `(${bridge.size} ids)` +
+    (skipped.length ? `; no snap file for ${skipped.join(", ")} (left untouched)` : ""));
 }
 
 /**
@@ -952,6 +1420,25 @@ async function stageAdp() {
   await writeJson("adp.json", {
     season, ffc: ffcSets, generated: new Date().toISOString(),
   }, { minRows: 100 });
+  /* ============================================================
+     ADP-SNAPSHOTID ER LIKA HER, OG THAD ER EKKI TVITEKNING
+     ============================================================
+     `adp-history/{dagur}.json` er skrifud i BADUM threpum. Astaedan er
+     cron-id: i agust-september keyrir `--stage=adp` a **00, 03, 06, 12,
+     15, 18 UTC** en `core` adeins kl. 09. Vaeri vistunin adeins i `core`
+     tapadist dagurinn i hvert sinn sem 09-keyrslan brysti, thott ADP
+     hefdi verid sott sex sinnum sama dag.
+
+     `writeOnce` er ONEMANDI a skra sem er til, svo thetta er ekki
+     kapphlaup: fyrsta keyrsla dagsins (00:00 UTC) skrifar, thaer fimm
+     sem eftir eru gera ekkert. Ad tvaer kallstadir bendi a sama fall er
+     ODYRARA en ad daginn vanti.                                       */
+  try {
+    await writeOnce(`adp-history/${today()}.json`, {
+      date: today(), captured: new Date().toISOString(), season,
+      ffc: ffcSets,
+    }, { minRows: 100 });
+  } catch (e) { record("archive:adp-history", false, `failed: ${e.message}`); }
   record("adp_stage", true, `${touched} players refreshed from ${ffcSets.length} FFC sets`);
 }
 

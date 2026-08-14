@@ -763,5 +763,574 @@ console.log("\nvikuleg gogn — kedjan");
     "og hun bidur um yfirstandandi timabil, ekki fast ar");
 }
 
+/* ============================================================
+   TRENDING-VORDURINN — DAGURINN I DAG, EKKI "EINHVER DAGUR"
+   ============================================================
+   Kaflinn "trending-sagan" ad ofan spyr hvort **einhver** dagsmynd se til
+   og hvort NYJASTA myndin se heilbrigd. Þad er ekki nog og thad er maelt:
+   `days.length >= 1` er satt i eilifd eftir ad vistunin haettir ad keyra,
+   og `newest` er tha alltaf sami gamli dagurinn — sem LES EINS OG ALLT SE
+   I LAGI. Nakvaemlega thogla tomma fullyrdingin ur CLAUDE.md 5b: prof sem
+   finnur eitthvad og heldur afram.
+
+   Vordurinn hér spyr um **daginn i dag** og hann er tengdur vid cron-id:
+   `core` keyrir 09:00 UTC og hefur i verki lokid **09:53-09:56** (maelt a
+   fjorum keyrslum: 09:54, 09:55, 09:56, 09:53). Eftir 10:00 UTC er skra
+   dagsins thvi komin — eda eitthvad er brotid.
+
+   ============================================================
+   HANN SEFUR UTAN AGUST-JANUAR, OG THAD ER FORSENDA
+   ============================================================
+   `/players/nfl/trending` er waiver-maelir. I mars er engin waiver-hreyfing
+   og enginn draftar; skra sem vantar tha er ekki bilun. Vaeri vordurinn
+   virkur allt arid yrdi hann flokkandi i sex manudi — og "flöktandi prof
+   er verra en ekkert" (README 6d). Flökt kennir manni ad slokkva a
+   profinu, og tha er thad slokkt i agust lika.
+
+   ÞRJAR GREINAR OG THAER PRENTA ALLAR HVERS VEGNA. Vordur sem sefur an
+   thess ad segja thad er ekki adgreinanlegur fra vordi sem er farinn.  */
+console.log("\ntrending-vordurinn (dagurinn i dag)");
+{
+  const now = new Date();
+  const month = now.getUTCMonth() + 1;
+  const hour = now.getUTCHours();
+  const day = now.toISOString().slice(0, 10);
+  /* Agust (8) -> januar (1). Timabilid byrjar i september og NFL-vikan
+     endar a manudagskvoldi, svo januar er inni; drafttidin er agust. */
+  const inSeason = month >= 8 || month === 1;
+
+  if (!inSeason) {
+    console.log(`  ·    manudur ${month} er utan agust-januar — vordurinn SEFUR`);
+  } else if (hour < 10) {
+    console.log(`  ·    ${hour}:xx UTC er fyrir 10:00 — 09:00-cron-id er ekki lent`);
+  } else {
+    const file = path.join(DATA, "trending", `${day}.json`);
+    ok(existsSync(file),
+      `dagsmynd ${day} er til (kl. ${hour}:xx UTC, cron var kl. 09:00)`);
+    if (existsSync(file)) {
+      const snap = JSON.parse(readFileSync(file, "utf8"));
+      /* Skra sem er til en tom er verri en skra sem vantar: hun slekkur
+         a hlidinu ad ofan OG a hlidinu i `writeJson`. */
+      ok(Array.isArray(snap.add) && snap.add.length >= 20,
+        `og hun ber ${(snap.add || []).length} i "add" (24-klst gluggi)`);
+      ok(snap.date === day, `og hun segist vera fra ${day} (${snap.date})`);
+    }
+  }
+}
+
+/* ============================================================
+   DAGSETTU SERIURNAR — SEX HEIMILDIR SEM VORU ALDREI KALLADAR
+   ============================================================
+   `sl.projections(season, week)`, `nv.snapCounts`, `nv.depthCharts`,
+   `fp.WEEKLY_MIRROR`, frettasafnid og FFC-ADP voru OLL til i kodanum og
+   **enginn kalladi thau**. Prof sem laesi adeins "er fallid rett?" hefdi
+   verid graent allan thann tima — thad er `wiring.mjs`-gatid i sinni
+   hreinustu mynd, faert yfir a pipeline-id.
+
+   ÞETTA ER KEYRT A TILBUNUM GOGNUM, EKKI A LIFANDI SVORUM. Astaedan er
+   maeld: `snap_counts_2026.csv` er **404** i dag (timabilid er ekki byrjad)
+   og gluggi vikulegu spárinnar opnast ekki fyrr en **6.9.2026**. Hvorug
+   leidin er thvi keyranleg i beinni i agust, og "kodi sem kviknar fyrst
+   einn morgun er ekki asaettanlegur omaeldur" (CLAUDE.md kafli 5).
+
+   FOLLIN ERU DREGIN UT UR SKRANNI, EINS OG KAFLINN "vikuleg gogn" GERIR:
+   `fetch-nfl.mjs` keyrir pipeline-id vid innflutning, svo `import` saekir
+   net og fellur.                                                        */
+console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
+{
+  const { mkdtempSync, existsSync: ex, writeFileSync, readFileSync: rf,
+          mkdirSync, readdirSync: rd } = await import("node:fs");
+  const os = await import("node:os");
+  const srcPath = path.join(ROOT, "scripts", "fetch-nfl.mjs");
+  const src = readFileSync(srcPath, "utf8");
+  const bare = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+
+  /* Sama `rowCount` og adalkaflinn notar — hun er endurtekin thar
+     viljandi svo profid falli ef HEGDUNIN breytist. */
+  const rowCount = (d, depth = 0) => {
+    if (Array.isArray(d)) {
+      let best = d.length;
+      if (depth < 4) for (const v of d) {
+        const n = rowCount(v, depth + 1); if (n > best) best = n;
+      }
+      return best;
+    }
+    if (!d || typeof d !== "object") return 0;
+    let best = 0;
+    if (depth < 4) for (const v of Object.values(d)) {
+      const n = rowCount(v, depth + 1); if (n > best) best = n;
+    }
+    return best || Object.keys(d).length;
+  };
+
+  /* ---------- A. `writeOnce` — thrju hlid, hvert fyrir sig ---------- */
+  const woSrc = /async function writeOnce\([\s\S]*?\n\}/.exec(src);
+  ok(!!woSrc, "`writeOnce()` finnst i skranni");
+  if (woSrc) {
+    const tmp = mkdtempSync(path.join(os.tmpdir(), "nfl-archive-"));
+    const logged = [];
+    const { mkdir, writeFile, stat } = await import("node:fs/promises");
+    const make = () => new Function("stat", "mkdir", "writeFile", "path", "OUT",
+      "rowCount", "record", `${woSrc[0]}; return writeOnce;`)(
+      stat, mkdir, writeFile, path, tmp, rowCount,
+      (name, ok2, note) => { logged.push({ name, ok: ok2, note }); });
+
+    const writeOnce = make();
+    const FULL = { add: new Array(100).fill(0).map((_, i) => ({ id: i })) };
+
+    /* HLID 3 — heil gogn skrifast. */
+    const wrote = await writeOnce("probe/2026-01-01.json", FULL, { minRows: 20 });
+    ok(wrote === true, "heil gogn: skrifud (true)");
+    ok(ex(path.join(tmp, "probe/2026-01-01.json")), "og skrain er a disknum");
+
+    /* HLID 1 — skra sem er TIL er ONEMANDI og ma ekki skrifast ofan i. */
+    const before = rf(path.join(tmp, "probe/2026-01-01.json"), "utf8");
+    logged.length = 0;
+    const again = await writeOnce("probe/2026-01-01.json",
+      { add: new Array(999).fill(0).map((_, i) => ({ id: i })) }, { minRows: 20 });
+    const after = rf(path.join(tmp, "probe/2026-01-01.json"), "utf8");
+    ok(again === false, "skra sem er til: EKKERT skrifad (false)");
+    ok(before === after,
+      "OG INNIHALDID ER OBREYTT — endurskrifud saga er retro-fitting");
+    /* ONEMANDI: engin rod i `status.json`. Dagur sem er thegar vistadur
+       er ekki adgerd og ma ekki fylla heimildaskrana. */
+    ok(logged.length === 0, "og hun skrair sig EKKI (onemandi, ekki villa)");
+
+    /* HLID 2 — thunn gogn: ekkert skrifad, OG thad ER skrad. */
+    logged.length = 0;
+    const thin = await writeOnce("probe/2026-01-02.json",
+      { add: [{ id: 1 }, { id: 2 }] }, { minRows: 20 });
+    ok(thin === false, "thunn gogn: ekkert skrifad");
+    ok(!ex(path.join(tmp, "probe/2026-01-02.json")),
+      "og EKKERT skilid eftir — halfskrifud dagsmynd er verri en engin");
+    ok(logged.length === 1 && logged[0].ok === false,
+      "en hun ER skrad sem villa (thogn hér vaeri bilunin)");
+    ok(logged.length === 1 && /REFUSED/.test(logged[0].note || ""),
+      `og notan segir hvers vegna ("${(logged[0] || {}).note || ""}")`);
+
+    /* Og su tholu-mynd sem THETTA repo maeldi: 13.8.2026 skilaði ESPN
+       3 greinum. Sama tala, sama hlid. */
+    logged.length = 0;
+    const espn = await writeOnce("probe/2026-01-03.json",
+      { articles: [{ h: 1 }, { h: 2 }, { h: 3 }] }, { minRows: 20 });
+    ok(espn === false,
+      "ESPN-dagurinn (3 greinar, maelt 13.8.2026) hefdi EKKI verid fryst rangur");
+  }
+
+  /* ---------- B. `upcomingWeek` — glugginn ---------- */
+  const uwSrc = /function upcomingWeek\([\s\S]*?\n\}/.exec(src);
+  ok(!!uwSrc, "`upcomingWeek()` finnst i skranni");
+  /* Glugginn er LESINN UR KODANUM, ekki endurritadur hér. Faeri hann ur
+     72 klst i 24 myndi "thrju taekifaeri"-fullyrdingin nedar falla — sem
+     er retta hegdunin, thvi hun er astaedan fyrir tolunni. */
+  const pw = /const PROJ_WINDOW_H = (\d+);/.exec(src);
+  ok(!!pw, `\`PROJ_WINDOW_H\` er fasti i skranni (${pw ? pw[1] : "?"} klst)`);
+  const WINDOW_H = pw ? Number(pw[1]) : 72;
+  ok(WINDOW_H >= 48,
+    `og hann er >= 48 klst — daglegur cron tharf fleiri en eitt taekifaeri (${WINDOW_H})`);
+  if (uwSrc) {
+    const upcomingWeek = new Function("PROJ_WINDOW_H",
+      `${uwSrc[0]}; return upcomingWeek;`)(WINDOW_H);
+    /* Tilbuin leikjaskra: thrjar vikur, viku-bil eins og i raunveruleikanum. */
+    const games = [
+      { season: 2026, week: 1, type: "REG", date: "2026-09-09" },
+      { season: 2026, week: 1, type: "REG", date: "2026-09-13" },
+      { season: 2026, week: 2, type: "REG", date: "2026-09-17" },
+      { season: 2026, week: 3, type: "REG", date: "2026-09-24" },
+      /* Annad timabil OG annad snid mega ekki smitast inn. */
+      { season: 2025, week: 5, type: "REG", date: "2025-10-05" },
+      { season: 2026, week: 1, type: "PRE", date: "2026-08-01" },
+    ];
+    const ms = (s) => Date.parse(s);
+
+    const far = upcomingWeek(games, 2026, ms("2026-08-14T09:00:00Z"));
+    ok(far && far.week === 1, `14.8.: naesta vika er 1 (${far && far.week})`);
+    ok(far && far.inWindow === false,
+      "OG VID ERUM UTAN GLUGGANS — 26 dagar fyrir leik skrifar EKKERT");
+
+    /* 72 klst fyrir akkerid (midnaetti UTC a 9.9.) = 6.9. kl. 00:00. */
+    const justBefore = upcomingWeek(games, 2026, ms("2026-09-05T09:00:00Z"));
+    ok(justBefore && justBefore.inWindow === false,
+      "5.9. kl. 09 er enn utan (glugginn opnar 6.9. kl. 00)");
+    const inside = upcomingWeek(games, 2026, ms("2026-09-06T09:00:00Z"));
+    ok(inside && inside.week === 1 && inside.inWindow === true,
+      "6.9. kl. 09 er INNAN gluggans -> vika 1 er vistud");
+    /* THRJU TAEKIFAERI — thad er kjarninn i thvi ad velja 72 klst med
+       daglegum cron. Eitt sleppt cron ma ekki kosta vikuna. */
+    const chances = ["2026-09-06", "2026-09-07", "2026-09-08"]
+      .filter((d) => (upcomingWeek(games, 2026, ms(`${d}T09:00:00Z`)) || {}).inWindow);
+    ok(chances.length === 3,
+      `og 09:00-cron-id faer ${chances.length} taekifaeri (thrju)`);
+
+    /* Vika sem ER BYRJUD ma ALDREI vera valin — thad vaeri leki. */
+    const during = upcomingWeek(games, 2026, ms("2026-09-11T09:00:00Z"));
+    ok(during && during.week === 2,
+      `eftir upphaf viku 1 faerist akkerid a viku 2 (${during && during.week})`);
+    /* Sidasta vikan lidin -> null, ekki hrun og ekki vika 1 aftur. */
+    const over = upcomingWeek(games, 2026, ms("2026-12-01T09:00:00Z"));
+    ok(over === null, "timabilid buid -> null (engin skra, ekkert hrun)");
+    /* Akkerid er MIDNAETTI UTC a leikdegi — viljandi ~24 klst FYRR en
+       raunverulegt upphaf (20:20 ET = 00:20 UTC naesta dag). Skekkjan
+       ma adeins vera i thessa att. */
+    ok(inside && inside.anchor === ms("2026-09-09T00:00:00Z"),
+      "akkerid er midnaetti UTC a leikdegi (varfaerin att)");
+    ok(inside.anchor < ms("2026-09-10T00:20:00Z"),
+      "og thad er FYRIR raunverulegt upphaf — engin spa eftir kickoff");
+  }
+
+  /* ---------- C. `mergeSnapCounts` — tom sokn ma ekki thurrka ut ---------- */
+  const msSrc = /async function mergeSnapCounts\([\s\S]*?\n\}/.exec(src);
+  ok(!!msSrc, "`mergeSnapCounts()` finnst i skranni");
+  if (msSrc) {
+    const mkMerge = (nv, log = []) => ({
+      fn: new Function("nv", "record", `${msSrc[0]}; return mergeSnapCounts;`)(
+        nv, (n, o, note) => log.push({ n, ok: o, note })),
+      log,
+    });
+    /* Bru af raunhaefri staerd — fallid hafnar thynnri bru viljandi. */
+    const bridgePlayers = new Array(1500).fill(0)
+      .map((_, i) => ({ id: `00-000${i}`, pfrId: `Pfr${i}` }));
+
+    /* C1 — venjulega tilfellid.
+       AUDKENNIN ERU VILJANDI UTAN `00-000*`-bilsins sem fylli-brun notar:
+       fyrsta utgafa thessa profs let `00-0002` renna saman vid fylli-rod
+       (`00-000${i}` fyrir i=2) og MADURINN SEM ATTI AD VERA AN SNAP-GAGNA
+       fekk snoppin ur fyllingunni. Profid felldi tha rettan kóda. */
+    {
+      const weekly = { 2026: [
+        { id: "TEST-A", week: 1, ppr: 10 },
+        { id: "TEST-B", week: 1, ppr: 5 },     // a ENGA snap-rod
+      ] };
+      const snaps = new Array(120).fill(0)
+        .map((_, i) => ({ pfrId: `Pfr${i}`, week: 1, snaps: 10, pct: 0.5 }));
+      snaps.push({ pfrId: "PfrA", week: 1, snaps: 61, pct: 0.87 });
+      const nv = {
+        players: async () => [...bridgePlayers, { id: "TEST-A", pfrId: "PfrA" }],
+        snapCounts: async () => snaps,
+      };
+      const { fn } = mkMerge(nv);
+      await fn(weekly, [2026]);
+      ok(weekly[2026][0].snaps === 61 && weekly[2026][0].snapPct === 0.87,
+        "snap-hlutfall sameinast um pfr-bruna (61 snopp, 0,87)");
+      /* NULL ER EKKI NULL: sa sem a enga snap-rod faer null, EKKI 0.
+         Snap-hlutfall 0 thydir "spiladi ekki eitt snapp" og er allt
+         annad mal en "vantar". */
+      ok(weekly[2026][1].snaps === null && weekly[2026][1].snapPct === null,
+        "rod an snap-gagna faer NULL, ekki 0");
+    }
+
+    /* C2 — ÞETTA ER PROFSTEINNINN. `snap_counts_2026.csv` er 404 i dag.
+       Tom sokn ma ekki skrifa null yfir tholu sem er thegar til. */
+    {
+      const weekly = { 2026: [{ id: "00-0001", week: 1, ppr: 10, snaps: 61, snapPct: 0.87 }] };
+      const nv = {
+        players: async () => bridgePlayers,
+        snapCounts: async () => [],            // 404, maelt 14.8.2026
+      };
+      const { fn, log } = mkMerge(nv);
+      await fn(weekly, [2026]);
+      ok(weekly[2026][0].snaps === 61 && weekly[2026][0].snapPct === 0.87,
+        "TOM SNAP-SOKN (404): tholur sem voru til STANDA OSNERTAR");
+      ok(log.some((l) => /no snap file/.test(l.note || "")),
+        "og thad er skrad hvad var sleppt (ekki thogult)");
+    }
+
+    /* C3 — thunn bru: ekkert audgad, allt latid i frid. */
+    {
+      const weekly = { 2026: [{ id: "00-0001", week: 1, snaps: 61 }] };
+      const nv = {
+        players: async () => [{ id: "00-0001", pfrId: "PfrA" }],   // 1 rod
+        snapCounts: async () => [{ pfrId: "PfrA", week: 1, snaps: 5, pct: 0.1 }],
+      };
+      const { fn, log } = mkMerge(nv);
+      await fn(weekly, [2026]);
+      ok(weekly[2026][0].snaps === 61,
+        "thunn bru (1 audkenni): radirnar eru EKKI audgadar");
+      ok(log.some((l) => l.ok === false && /thin bridge/.test(l.note || "")),
+        "og hofnunin er skrad");
+    }
+
+    /* C4 — bruin sjalf brestur (nflverse nidri). */
+    {
+      const weekly = { 2026: [{ id: "00-0001", week: 1, snaps: 61 }] };
+      const nv = {
+        players: async () => { throw new Error("HTTP 500"); },
+        snapCounts: async () => { throw new Error("skal ekki kallast"); },
+      };
+      const { fn, log } = mkMerge(nv);
+      await fn(weekly, [2026]);
+      ok(weekly[2026][0].snaps === 61, "bru sem brestur: radirnar OSNERTAR");
+      ok(log.some((l) => l.ok === false && /bridge unavailable/.test(l.note || "")),
+        "og bilunin er skrad, ekki gleypt");
+    }
+  }
+
+  /* ---------- D. `depthCharts` — TVO SNID, og thad gamla las 0 radir ----------
+     nflverse skipti um snid milli 2024 og 2025 og gamli lesturinn skiladi
+     **0 rodum sem `ok`**. Herman keyrir thattarann a BADUM hausum. */
+  {
+    const nvSrc = readFileSync(path.join(ROOT, "scripts", "sources", "nflverse.mjs"), "utf8");
+    const dcSrc = /export async function depthCharts\([\s\S]*?\n\}/.exec(nvSrc);
+    ok(!!dcSrc, "`depthCharts()` finnst i nflverse.mjs");
+    if (dcSrc) {
+      const { rows: csvRows } = await import("../scripts/lib/csv.mjs");
+      const { num, str } = await import("../scripts/lib/csv.mjs");
+      const { normPos } = await import("../src/scoring.js");
+      const { normTeam: nt } = await import("../src/names.js");
+      const build = (text, log = []) => ({
+        fn: new Function("getText", "csvRows", "num", "str", "normPos", "normTeam",
+          "record", "REL", `${dcSrc[0].replace(/^export /, "")}; return depthCharts;`)(
+          async () => text, csvRows, num, str, normPos, nt,
+          (n, o, note) => log.push({ n, ok: o, note }), "http://x"),
+        log,
+      });
+
+      /* D1 — NYJA snidid (2025+). Tvaer dagsmyndir svo `latestOnly` se profud. */
+      const NEW = [
+        "dt,team,player_name,espn_id,gsis_id,pos_grp_id,pos_grp,pos_id,pos_name,pos_abb,pos_slot,pos_rank",
+        "2026-08-13T08:15:32Z,ARI,Gamli Madur,111,00-0000111,11,3WR 1TE,1,Quarterback,QB,9,1",
+        "2026-08-14T08:10:38Z,ARI,Kyler Murray,222,00-0000222,11,3WR 1TE,1,Quarterback,QB,9,1",
+        "2026-08-14T08:10:38Z,ARI,Trey McBride,333,00-0000333,11,3WR 1TE,2,Tight End,TE,10,1",
+        "2026-08-14T08:10:38Z,ARI,Spyrnu Madur,444,00-0000444,17,Special Teams,3,Place Kicker,PK,1,1",
+        "2026-08-14T08:10:38Z,ARI,Full Bakki,555,00-0000555,11,3WR 1TE,4,Fullback,FB,5,2",
+        "2026-08-14T08:10:38Z,ARI,Vinstri Kantur,666,00-0000666,16,Base 4-3 D,5,Left Defensive End,LDE,1,1",
+        "2026-08-14T08:10:38Z,ARI,Enginn Gsis,777,NA,11,3WR 1TE,6,Wide Receiver,WR,1,3",
+        "",
+      ].join("\n");
+      /* ============================================================
+         VAENTINGIN ER LEIDD AF `normPos`, EKKI HARDKODUD — OG THAD ER
+         EKKI VARKARNI HELDUR NAUDSYN
+         ============================================================
+         Radirnar hér eru 7: 5 fantasy-stodur, 1 varnarstada (LDE) og
+         1 an `gsis_id` (fellur alltaf). Hvort LDE-rodin kemur ut
+         raedst ALGERLEGA af `normPos` i `src/scoring.js` — og thad fall
+         er I MIDRI BREYTINGU A NAKVAEMLEGA THESSU: notan thar segir ad
+         staða utan fantasy fari OBREYTT ut og "MA EKKI VERDA `: null`",
+         medan kodinn i somu breytingu ER `: null`.
+         Hardkodud tala hér vaeri thvi prof sem fellur (eda staest) af
+         astaedu sem hefur EKKERT ad gera med thattarann sem er profadur.
+         Spurningin sem THESSI kafli eigi ad svara er "les thattarinn
+         nyja snidid?", ekki "hvad gerir `normPos` vid LDE?".            */
+      const defOut = normPos("LDE") ? 1 : 0;
+      {
+        const { fn, log } = build(NEW);
+        const all = await fn(2026);
+        ok(all.length === 5 + defOut,
+          `nyja snidid: ${5 + defOut} radir lesnar ur 7 ` +
+          `(ein an gsis fellur; varnarstada ${defOut ? "kemur ut" : "siast burt"} ` +
+          `— normPos("LDE") = ${JSON.stringify(normPos("LDE"))}) — fekkst ${all.length}`);
+        /* Fantasy-radirnar eru THAER SEM VISTUNIN GEYMIR og thaer eru
+           OHAGGADAR af theirri spurningu. Fullyrding a theim er thvi
+           sterkari en a heildartolunni. */
+        const fanOnly = all.filter((r) => ["QB", "RB", "WR", "TE", "K"].includes(r.pos));
+        ok(fanOnly.length === 5,
+          `og fantasy-radirnar eru 5 hvernig sem normPos leysist (${fanOnly.length})`);
+        /* ÞETTA ER VILLAN SEM VAR: 0 radir og `ok`. */
+        ok(all.length > 0 && log[0] && log[0].ok === true,
+          "og hun skrair sig sem `ok` MED radir (adur: 0 radir OG `ok`)");
+        ok(/new schema/.test((log[0] || {}).note || ""),
+          "notan nefnir hvort snidid var lesid");
+        const qb = all.find((r) => r.name === "Kyler Murray");
+        ok(qb && qb.pos === "QB" && qb.depth === 1 && qb.slot === 9,
+          "`pos_rank` -> `depth` (dyptar-rod) og `pos_slot` -> `slot` (leikskipulag)");
+        ok(qb && qb.week === null && qb.dt === "2026-08-14T08:10:38Z",
+          "`week` er null i nyja snidinu og `dt` ber timastimpilinn — hvorugt logid");
+        /* `pos` VAR OSKRIFAD I FYRSTU UTGAFU THESSA THATTARA og sian
+           notadi thad samt, svo utkoman bar 975 radir MED `pos:
+           undefined`. Fullyrding sem nefnir svidid berum orðum. */
+        ok(all.every((r) => r.pos != null),
+          "HVER rod ber `pos` (fyrsta utgafan sleppti thvi ur utkomunni)");
+        ok(all.some((r) => r.pos === "K"), "PK -> K");
+        ok(all.some((r) => r.pos === "RB"), "FB -> RB");
+        const latest = await fn(2026, { latestOnly: true });
+        ok(latest.length === 4 + defOut,
+          `latestOnly skilar ADEINS nyjustu myndinni ` +
+          `(${latest.length} af ${5 + defOut})`);
+        ok(!latest.some((r) => r.name === "Gamli Madur"),
+          "og gaerdagurinn er ekki i henni");
+        ok(latest.every((r) => r.dt === "2026-08-14T08:10:38Z"),
+          "og HVER rod i henni ber sama `dt` — thess vegna ma hann strippast");
+      }
+
+      /* D2 — GAMLA snidid (<= 2024) verdur ad halda afram ad lesast. */
+      const OLD = [
+        "season,club_code,week,game_type,depth_team,last_name,first_name,football_name,formation,gsis_id,jersey_number,position,elias_id,depth_position,full_name",
+        "2024,ATL,1,REG,1,Lindstrom,Christopher,Chris,Offense,00-0035630,63,G,LIN451080,RG,Chris Lindstrom",
+        "2024,ATL,3,REG,2,Dwelley,Ross,Ross,Offense,00-0034073,85,TE,DWE123456,TE,Ross Dwelley",
+        "",
+      ].join("\n");
+      {
+        const { fn, log } = build(OLD);
+        const all = await fn(2024);
+        ok(all.length >= 1, `gamla snidid les afram (${all.length} radir)`);
+        const te = all.find((r) => r.name === "Ross Dwelley");
+        ok(te && te.pos === "TE" && te.week === 3 && te.depth === 2,
+          "og `week`/`depth_team` koma rett ut (vika 3, dypt 2)");
+        ok(te && te.dt === null, "`dt` er null i gamla snidinu");
+        ok(/legacy schema/.test((log[0] || {}).note || ""),
+          "notan segir ad thetta se gamla snidid");
+      }
+
+      /* D3 — skra sem er BARA HAUS ma ekki lesast sem "i lagi". */
+      {
+        const { fn, log } = build(
+          "dt,team,player_name,espn_id,gsis_id,pos_grp_id,pos_grp,pos_id,pos_name,pos_abb,pos_slot,pos_rank\n");
+        const all = await fn(2027);
+        ok(all.length === 0 && log[0] && log[0].ok === false,
+          "haus an rada -> 0 radir OG skrad sem VILLA");
+      }
+    }
+  }
+
+  /* ---------- E. `weeklyEcr` — lyklud a `scrape_date`, ekki a i dag ---------- */
+  {
+    const fpSrc = readFileSync(path.join(ROOT, "scripts", "sources", "fantasypros.mjs"), "utf8");
+    const weSrc = /export async function weeklyEcr\([\s\S]*?\n\}/.exec(fpSrc);
+    ok(!!weSrc, "`weeklyEcr()` finnst i fantasypros.mjs");
+    if (weSrc) {
+      const { objects, str } = await import("../scripts/lib/csv.mjs");
+      const { normPos } = await import("../src/scoring.js");
+      const build = (text, log = []) => ({
+        fn: new Function("getText", "objects", "str", "normPos", "numOrNull",
+          "record", "WEEKLY_MIRROR",
+          `${weSrc[0].replace(/^export /, "")}; return weeklyEcr;`)(
+          async () => text, objects, str, normPos,
+          (v) => { if (v == null || v === "" || v === "-") return null;
+                   const x = Number(v); return Number.isFinite(x) ? x : null; },
+          (n, o, note) => log.push({ n, ok: o, note }), "http://x"),
+        log,
+      });
+      const CSV = [
+        '"page","page_pos","scrape_date","fantasypros_id","player_name","pos","team","rank","ecr","sd","best","worst","player_bye_week","player_owned_avg","player_opponent","player_ecr_delta","recommendation","pos_rank","start_sit_grade","r2p_pts"',
+        '"qb","QB",2025-12-30,"19196","Joe Burrow","QB","CIN",1,1.42,0.7,1,4,"10",96.5,"vs. ARI",NA,"start","QB1","A+","22.1"',
+        '"qb","QB",2025-12-23,"23046","Drake Maye","QB","NE",2,2.03,1,1,6,"14",97.5,"at NYJ",2,"start","QB2","A","21.3"',
+        "",
+      ].join("\n");
+      const { fn } = build(CSV);
+      const w = await fn();
+      ok(w && w.players.length === 2, `2 radir lesnar (${w && w.players.length})`);
+      /* ÞETTA ER KJARNINN: heitid kemur ur GOGNUNUM. I dag ber lifandi
+         skrain `2025-12-30` — sidustu viku FYRRA timabils. Vaeri hun
+         vistud undir dagsetningu dagsins hefdum vid skrifad ~60 EINS
+         skrar sem allar heita eitt en innihalda annad. */
+      ok(w && w.scrapeDate === "2025-12-30",
+        `lykillinn er NYJASTA scrape_date ur gognunum (${w && w.scrapeDate})`);
+      ok(w && w.scrapeDate !== new Date().toISOString().slice(0, 10),
+        "og hann er EKKI dagurinn i dag (maelt: speglunin er fra 2025-12-30)");
+      const b = w.players[0];
+      ok(b.grade === "A+" && b.posRank === "QB1" && b.ecr === 1.42,
+        "start/sit-einkunn, stodu-rod og ECR koma med");
+      /* Tom/thunn skra -> null, ekki hlutur med tomu fylki. Kallandinn
+         hleypir tha engu i `writeOnce`. */
+      const empty = build('"page","scrape_date","fantasypros_id","player_name"\n');
+      ok((await empty.fn()) === null, "tom skra -> null (ekkert vistad)");
+      ok(empty.log.some((l) => l.ok === false), "og thad er skrad");
+    }
+  }
+
+  /* ---------- F. ERU THAU RAUNVERULEGA KOLLUD? ----------
+     Follin voru rett ADUR — thau voru bara aldrei kollud. Athugasemdir
+     eru skornar burt fyrst: hver einasta notu hér nefnir slodina sem
+     hun utskyrir og myndi annars uppfylla profid sjalf. */
+  ok(/archiveDaily\(/.test(bare), "`archiveDaily` er KOLLUD, ekki bara skilgreind");
+  ok(/sl\.projections\(\s*season\s*,\s*up\.week\s*\)/.test(bare),
+    "`sl.projections` er kollud MED VIKU (adur: adeins arstidar-summa)");
+  ok(/nv\.snapCounts\(/.test(bare), "`nv.snapCounts` er kollud");
+  ok(/mergeSnapCounts\(\s*weekly/.test(bare),
+    "og sameiningin er kollud UR `stageHistory` med vikulegu rodunum");
+  ok(/nv\.depthCharts\(/.test(bare), "`nv.depthCharts` er kollud");
+  ok(/fp\.weeklyEcr\(/.test(bare), "`fp.weeklyEcr` er kollud (WEEKLY_MIRROR var kallandalaus)");
+  /* ============================================================
+     GLUGGINN VERDUR AD VERA SPURDUR, EKKI BARA REIKNADUR
+     ============================================================
+     `upcomingWeek` er profud i kafla B og hun er RETT — en kafli B kallar
+     hana BEINT. Hyrfi `if (!up.inWindow)` ur `archiveDaily` yrdi kafli B
+     AFRAM GRAENN medan vikuleg spa vaeri fryst 26 dogum fyrir leik, sem er
+     nakvaemlega villan sem glugginn er til ad hindra (GW1-rodin i FPL,
+     skrifud 222 klst fyrir frest). Þetta er `wiring.mjs`-gatid: hreint
+     fall getur verid fullkomlega profad og samt aldrei kallad — eda
+     kallad og svarid hunsad.                                            */
+  ok(/if\s*\(\s*!up\.inWindow\s*\)/.test(bare),
+    "og SVARID ER SPURT — `!up.inWindow` stydur soknina");
+  ok(/upcomingWeek\(\s*games/.test(bare),
+    "og hun er kollud med leikjaskranni (ekki `state.week`)");
+  /* Dyra soknin (8,5 MB) ma ekki fara fram ef dagurinn er thegar vistadur. */
+  ok(/archived\(name\)/.test(bare),
+    "`archived()` er spurt A UNDAN dyru soknunum (8,5 MB dyptartafla)");
+
+  ok(/news\/\$\{day\}\.json/.test(bare), "frettasafnid er skrifad");
+  ok(/adp-history\/\$\{/.test(bare), "ADP-serian er skrifud");
+  /* ADP-serian verdur ad vera i BADUM threpum: `--stage=adp` keyrir
+     00,03,06,12,15,18 UTC i agust-september en `core` adeins kl. 09. */
+  const adpHits = (bare.match(/adp-history\/\$\{/g) || []).length;
+  ok(adpHits >= 2,
+    `og i BADUM threpum (${adpHits} kallstadir — core kl. 09, adp kl. 00 o.s.frv.)`);
+
+  /* ---------- F2. VIKULEG SPA: `minRows` MA EKKI VERA TOM FULLYRDING ----------
+     Maelt: vika 1 2026 ber 3.300 radir en adeins 580 med `pts_ppr`.
+     Vaeru allar radirnar vistadar yrdi `rowCount` **alltaf 3.300** og
+     golfid `minRows: 100` gaeti ALDREI fallid — thad myndi frysta viku
+     med 3.300 nullum sem "i lagi". Sama gildra og `market.json` ("rod er
+     farmur, ekki umbudir"), einu lagi innar. */
+  {
+    const mk = (n) => new Array(n).fill(0).map((_, i) => ({ sleeperId: `${i}`, ppr: null }));
+    const allNull = { season: 2026, week: 1, players: mk(3300) };
+    ok(rowCount(allNull) === 3300,
+      `3.300 radir af nullum bera rowCount ${rowCount(allNull)} — golfid 100 SER THAER EKKI`);
+    const filtered = { season: 2026, week: 1, players: mk(3300).filter((r) => r.ppr != null) };
+    ok(rowCount(filtered) < 100,
+      `sidud er talan ${rowCount(filtered)} og golfid FELLUR — thess vegna er siad`);
+    /* Og kodinn verdur ad vista thad siada, ekki hrau radirnar. */
+    ok(/players:\s*withPts/.test(bare),
+      "`weekly-proj` vistar `withPts`, EKKI allar 3.300 radirnar");
+    ok(/rowsFromSource:\s*rows\.length/.test(bare),
+      "og upprunalega talan er geymd svo hlutfallid se lesid, ekki agiskad");
+  }
+
+  /* ---------- G. LAGMORKIN I KODANUM ERU THAU SOMU OG HER ----------
+     Sama vordur og adalkaflinn hefur a `writeJson`: annars ver profid
+     tolur sem pipeline-id notar ekki. */
+  const MINS = [
+    ["news/", 20], ["adp-history/", 100], ["weekly-proj/", 100],
+    ["weekly-ecr/", 100], ["depth/", 200],
+  ];
+  for (const [pfx, min] of MINS) {
+    /* LEITAD FRA SLODINNI FRAM, EKKI FRA `writeOnce(` FRAM. Tveir af
+       fimm kollum bera slodina i `const name = ...` og gefa hana svo
+       afram (`writeOnce(name, ...)`), thvi `archived(name)` er spurt a
+       undan — fyrsta utgafa thessa vardar krafdist thess ad slodin vaeri
+       ORDRETT INNI I kallinu og fann thvi ekki `weekly-proj/` ne
+       `depth/`. Hann sagdi "ekki finnanlegt" um kóda sem var rettur.
+       Leitad er i `bare` (an athugasemda) svo dæmi i notu telji ekki. */
+    const at = bare.indexOf(`\`${pfx}`);
+    const win = at >= 0 ? bare.slice(at, at + 1200) : "";
+    const m = /minRows:\s*(\d+)/.exec(win);
+    ok(at >= 0 && m && Number(m[1]) === min,
+      `${pfx}: minRows i kodanum er ${m ? m[1] : "ekki finnanlegt"} (a ad vera ${min})`);
+  }
+
+  /* ---------- H. ÞAER SEM ERU KOMNAR A DISKINN STANDAST SIN EIGIN MORK ----------
+     ÞEKJA ER FULLYRDING: serie sem er ekki byrjud er sleppt med skyringu,
+     en serie sem ER byrjud og ber thunna skra er bilun sem enginn saei. */
+  const started = [];
+  for (const [dir, min] of [["news", 20], ["adp-history", 100],
+                            ["weekly-proj", 100], ["weekly-ecr", 100],
+                            ["depth", 200], ["trending", 20]]) {
+    const p = path.join(DATA, dir);
+    if (!ex(p)) continue;
+    const files = rd(p).filter((f) => f.endsWith(".json"));
+    if (!files.length) continue;
+    started.push(`${dir}(${files.length})`);
+    let worst = null;
+    for (const f of files) {
+      const n = rowCount(JSON.parse(rf(path.join(p, f), "utf8")));
+      if (worst == null || n < worst.n) worst = { f, n };
+    }
+    ok(worst.n >= min,
+      `${dir}/: thynnsta skra ber ${worst.n} radir (lagmark ${min}, ${worst.f})`);
+  }
+  console.log(`     seriur byrjadar: ${started.join(", ") || "engin enn"}`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

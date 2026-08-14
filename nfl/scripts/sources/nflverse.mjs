@@ -19,7 +19,10 @@
    ============================================================ */
 
 import { getText, record, pool } from "../lib/http.mjs";
-import { objects, num, num0, str } from "../lib/csv.mjs";
+/* `rows` er flutt inn undir odru heiti VILJANDI: thrju foll hér inni
+   skilgreina sina eigin `const rows`, og skuggi a innfluttu bindingu er
+   loglegur en villandi fyrir thann sem les. */
+import { objects, rows as csvRows, num, num0, str } from "../lib/csv.mjs";
 import { offensePoints, kickerPoints, normPos } from "../../src/scoring.js";
 import { normTeam } from "../../src/names.js";
 
@@ -168,23 +171,137 @@ export async function snapCounts(season) {
   }
 }
 
-/** Dyptartoflur — hver er nr. 1 a sinni stodu. */
-export async function depthCharts(season) {
+/* ============================================================
+   DYPTARTOFLUR — TVO OSAMRYMANLEG SNID, OG VID LASUM ADEINS THAD GAMLA
+   ============================================================
+   Fallid var skrifad gegn snidinu sem nflverse notadi til og med 2024:
+
+     season,club_code,week,game_type,depth_team,last_name,first_name,
+     football_name,formation,gsis_id,jersey_number,position,elias_id,
+     depth_position,full_name
+
+   MAELT 14.8.2026 med Range-fyrirspurn a hausinn i fjorum arum:
+   **2025 OG 2026 BERA ALLT ANNAD SNID.**
+
+     dt,team,player_name,espn_id,gsis_id,pos_grp_id,pos_grp,pos_id,
+     pos_name,pos_abb,pos_slot,pos_rank
+
+   Af theim dolkum sem gamla listinn bad um er **`gsis_id` sa EINI** sem
+   er til i nyja snidinu. `objects(txt, pick)` sleppir thogult theim sem
+   vantar, svo `r.position` og `r.depth_position` urdu BADIR undefined,
+   `pos` vard null og sian `r.id && r.pos` HENTI HVERRI EINUSTU ROD.
+
+   `depthCharts(2026)` skiladi thvi **0 rodum og skradi sig sem `ok`**
+   (`record(..., true, "0 rows")`). Thad er nakvaemlega thogla bilunin
+   sem CLAUDE.md 5b lysir: fullyrding sem finnur ekkert og heldur afram.
+   Enginn hafdi tekid eftir thvi thvi fallid var ALDREI KALLAD — sem er
+   sjalft astaedan fyrir thessari vinnu.
+
+   TVENNT ANNAD SEM MAELINGIN SAGDI OG SEM BREYTIR NOTKUNINNI:
+
+   1. **NYJA SNIDID BER ENGA `week`. Thad ber `dt` — SKONNUNAR-TIMASTIMPIL**,
+      og skrain SAFNAR UPP: `depth_charts_2026.csv` bar **147 einkvaem `dt`**
+      (2026-03-22 -> 2026-08-14), 433.107 radir, 3.256 radir per dagsmynd.
+      nflverse heldur thvi sjalft dyptar-sogunni i nyja snidinu — en
+      skrain er **41 MB (8,5 MB sem .gz)** og vex daglega, svo hun er ekki
+      nytileg sem beinn lestur i appinu ne i labi.
+   2. `.csv.gz` ER TIL fyrir dyptartoflur (8,5 MB a moti 41 MB) og
+      `getBuf` afthjappar sjalfkraft. Hun er sott fyrst.
+
+   `latestOnly` skilar ADEINS nyjustu dagsmyndinni (haesta `dt`). Thad er
+   thad sem daglega vistunin i `fetch-nfl.mjs` skrifar.
+
+   UTKOMAN ER SAMA LOGUN UR BADUM SNIDUM: `week` er null i nyja snidinu
+   og `dt` er null i gamla. Hvorugt er logið upp i annad — vika sem er
+   ekki i gognunum verdur ekki til med thvi ad giska a hana.
+
+   ATH: hér er lesid med `rows()` og VISITOLUM, ekki `objects()`. Thad er
+   ekki smekkur: `objects()` a 433.107 rodum byggir jafnmarga hluti og
+   thad er ~200 MB af minni fyrir skra sem vid notum 985 radir ur.       */
+export async function depthCharts(season, { latestOnly = false } = {}) {
+  const tag = `nflverse_depth_${season}`;
+  let txt = null, lastErr = null;
+  /* `.gz` fyrst — hun er 5x minni yfir vir og `getBuf` afthjappar. */
+  for (const u of [`${REL}/depth_charts/depth_charts_${season}.csv.gz`,
+                   `${REL}/depth_charts/depth_charts_${season}.csv`]) {
+    try { txt = await getText(u); break; } catch (e) { lastErr = e; }
+  }
+  if (txt == null) {
+    record(tag, false, `failed: ${lastErr ? lastErr.message : "no file"}`);
+    return [];
+  }
+
   try {
-    const txt = await getText(`${REL}/depth_charts/depth_charts_${season}.csv`);
-    const rows = objects(txt, ["season", "club_code", "week", "gsis_id",
-      "football_name", "full_name", "depth_team", "position", "depth_position",
-      "formation", "elias_id", "game_type"]);
-    const out = rows.map((r) => ({
-      team: str(r.club_code), week: num(r.week), id: str(r.gsis_id),
-      name: str(r.full_name) || str(r.football_name),
-      depth: num(r.depth_team), pos: normPos(r.position) || normPos(r.depth_position),
-      formation: str(r.formation),
-    })).filter((r) => r.id && r.pos);
-    record(`nflverse_depth_${season}`, true, `${out.length} rows`);
+    const r = csvRows(txt);
+    if (r.length < 2) { record(tag, false, "file has a header but no rows"); return []; }
+    const head = r[0];
+    const at = (n) => head.indexOf(n);
+
+    /* SNIDID ER GREINT AF HAUSNUM, EKKI AF ARINU. Ad skipta a `season
+       >= 2025` vaeri ad harдkoda thad sem nflverse getur breytt aftur —
+       og thad er nakvaemlega thad sem brotnadi hér. */
+    const iDt = at("dt");
+    const isNew = iDt >= 0;
+
+    const out = [];
+    if (isNew) {
+      const iTeam = at("team"), iName = at("player_name"), iGsis = at("gsis_id");
+      const iAbb = at("pos_abb"), iRank = at("pos_rank"), iSlot = at("pos_slot");
+      const iGrp = at("pos_grp"), iEspn = at("espn_id");
+
+      /* Hvad er nyjasta dagsmyndin? Fundid i einni ferd adur en nokkud
+         er byggt, svo vid buum ekki 433.000 hluti til ad henda theim. */
+      let newest = "";
+      if (latestOnly) {
+        for (let i = 1; i < r.length; i++) {
+          const d = r[i][iDt];
+          if (d && d > newest) newest = d;
+        }
+      }
+      for (let i = 1; i < r.length; i++) {
+        const row = r[i];
+        if (latestOnly && row[iDt] !== newest) continue;
+        const id = str(row[iGsis]);
+        const pos = normPos(str(row[iAbb]));
+        if (!id || !pos) continue;
+        out.push({
+          team: normTeam(str(row[iTeam])), week: null, dt: str(row[iDt]),
+          id, espnId: iEspn >= 0 ? str(row[iEspn]) : null,
+          name: str(row[iName]), pos,
+          /* `pos_rank` er rod INNAN stodu (1 = byrjunarmadur) og er thvi
+             sama staerd og `depth_team` i gamla snidinu. `pos_slot` er
+             sæti i leikskipulaginu (formation slot) og er ANNAD mal —
+             thau eru baedi hofd og hvorugt er kallad thad sem thad er ekki. */
+          depth: num(row[iRank]), slot: num(row[iSlot]),
+          formation: iGrp >= 0 ? str(row[iGrp]) : null,
+        });
+      }
+      record(tag, out.length > 0,
+        `${out.length} rows, new schema (dt)` +
+        (latestOnly ? `, latest snapshot ${newest}` : ""));
+    } else {
+      const iTeam = at("club_code"), iWeek = at("week"), iGsis = at("gsis_id");
+      const iFull = at("full_name"), iFb = at("football_name");
+      const iDepth = at("depth_team"), iPos = at("position");
+      const iDepthPos = at("depth_position"), iForm = at("formation");
+      for (let i = 1; i < r.length; i++) {
+        const row = r[i];
+        const id = str(row[iGsis]);
+        const pos = normPos(str(row[iPos])) || normPos(str(row[iDepthPos]));
+        if (!id || !pos) continue;
+        out.push({
+          team: normTeam(str(row[iTeam])), week: num(row[iWeek]), dt: null,
+          id, espnId: null,
+          name: str(row[iFull]) || str(row[iFb]), pos,
+          depth: num(row[iDepth]), slot: null,
+          formation: iForm >= 0 ? str(row[iForm]) : null,
+        });
+      }
+      record(tag, out.length > 0, `${out.length} rows, legacy schema (week)`);
+    }
     return out;
   } catch (e) {
-    record(`nflverse_depth_${season}`, false, `failed: ${e.message}`);
+    record(tag, false, `failed: ${e.message}`);
     return [];
   }
 }

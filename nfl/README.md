@@ -2307,6 +2307,176 @@ keyrslu, svo `rebase -X theirs` er rétt hér af sömu ástæðu.
 
 ---
 
+## 7b. DAGSETTAR SERÍUR — sex heimildir sem voru í kóðanum og enginn kallaði
+
+Tímabilið byrjar í september og draftið er **21.8.2026**. Sex heimildir voru
+þegar skrifaðar, prófaðar að hluta og **kölluð af engum**; fimm þeirra bera
+gögn sem **verða ekki til eftir á**. Þetta var tengt 14.8.2026.
+
+> **RÖKIN ERU EIN OG ÞAU ERU ÞAU SÖMU SEM `data/history/` HVÍLIR Á
+> (CLAUDE.md kafli 7): dagleg mynd verður ekki búin til eftir á.**
+> „Hvað sagði dýptartaflan / fréttin / vikuspáin í viku 5?" er **ósvaranleg**
+> spurning eftir að vika 5 er liðin — inntökin eru horfin. Að byrja í dag
+> þýðir að mæling er möguleg í október; að byrja í október þýðir mæling á
+> næsta tímabili.
+
+| sería | hvað hún svarar | mæld stærð |
+|---|---|---|
+| `trending/` | waiver-hlaupið (var þegar til) | **6,8 KB/dag** |
+| `news/` | „er byrjunarmaðurinn að koma til baka?" | **23,7 KB/dag** |
+| `adp-history/` | FFC-ADP í öllum sniðum, half-PPR þar með | **127,3 KB/dag** |
+| `depth/` | hver er RB1/RB2 á hverju liði, hvern dag | **121,7 KB/dag** |
+| `weekly-ecr/` | vikuleg ECR + start/sit-einkunn | **193,9 KB** per nýtt `scrape_date` |
+| `weekly-proj/` | vikuleg Sleeper-spá (580 raðir með spá) | **204 KB/viku**, 18 á tímabili |
+| `weekly/{ár}` | **+ snap-hlutföll**, sameinuð inn í raðirnar | engin ný skrá |
+
+**Vöxturinn:** fjórar daglegu seríurnar eru **279,5 KB/dag = 100 MB/ár**, og
+vikulegu tvær leggja **~57 KB/dag** við á tímabili (`weekly-ecr` ~194 KB/viku,
+`weekly-proj` ~204 KB/viku) — **~336 KB/dag samanlagt á tímabili**. Það er
+stærra en `data/history/` í FPL-hlutanum (~80 KB/dag, ~29 MB/ár), sem er þar
+skjalað sem „þess virði að fylgjast með". **Lausnin væri grisjun eftir aldri,
+ekki eyðing** — sama regla og þar.
+
+### Reglan er strangari en `writeJson` og það er ástæða
+
+`writeJson` **má** skrifa ofan í: `players.json` *er* myndin í dag og gamla
+myndin hefur ekkert gildi. `writeOnce` má **aldrei** — röð sem er til er
+**saga**, og endurskrifuð saga er retro-fitting. Þrjú hlið, öll nauðsynleg:
+
+| hlið | hegðun | af hverju |
+|---|---|---|
+| skrá er til | **ónæmandi**, ekkert skráð | dagur sem er þegar vistaður er ekki aðgerð og má ekki fylla `status.json` |
+| þunn gögn | ekkert skrifað, **OG það er skráð** | þögn hér væri „vistunin er í lagi" á skjánum meðan dagurinn tapaðist |
+| bæði | fyrsta keyrsla dagsins sem fær **nýtileg** gögn vinnur | |
+
+Miðröðin er mæld, ekki tilgáta: **13.8.2026 skilaði ESPN 3 greinum** og
+`news.json` var (réttilega) hafnað. Hefði fréttasafnið skrifað þá þunnu mynd
+og fryst hana væri dagurinn geymdur **rangur að eilífu**.
+
+### Glugginn á vikulegu spánni — villan sem FPL-hlutinn gerði fyrst
+
+„Aðeins fyrir vikuna" og „aðeins einu sinni" eru **báðar réttar** og gefa
+**saman** ranga hegðun: *skrifa við fyrsta tækifæri og frysta*. Í FPL-hlutanum
+varð GW1-röðin þannig skrifuð **222 klst fyrir frestinn** með `start_prob` null
+hjá 577 af 577 (CLAUDE.md kafli 7).
+
+`PROJ_WINDOW_H = 72`. Þrír þættir eru mældir, ekki valdir:
+
+- **72 klst, ekki 12 eins og í FPL.** Þar er cron á 30 mín (~24 tækifæri);
+  hér keyrir `core` **einu sinni á dag**, svo 72 klst gefa **þrjú** tækifæri.
+  GitHub þynnir og sleppir cron-keyrslum; ein sleppt keyrsla má ekki kosta vikuna.
+- **Akkerið er `date` úr `schedule.json` á miðnætti UTC, ekki raunverulegur
+  byrjunartími.** `gametime` í nflverse er **austurstrandartími**, svo fyrsti
+  leikur viku 1 2026 er 2026-09-09 20:20 ET = **2026-09-10 00:20 UTC**.
+  Miðnætti UTC á leikdegi er ~24 klst **fyrr** en satt er, og **báðir endar eru
+  ekki jafn dýrir**: skekkja sem er of sein skrifar spá eftir að leikur er
+  byrjaður og það er leki.
+- **Vikan er lesin úr leikjaskránni, ekki úr `state.week`.** Í forleik ber
+  Sleeper `week: 1, seasonType: "pre"` — það er vika 1 af **forleik** og ekki
+  sama tala.
+
+### Þrennt sem mælingin afhjúpaði og var ekki spurt um
+
+**1. `depthCharts()` skilaði 0 röðum og skráði sig sem `ok`.** nflverse
+**skipti um snið** milli 2024 og 2025: gamla skráin ber
+`season,club_code,week,…,position,depth_position`, nýja ber
+`dt,team,player_name,espn_id,gsis_id,…,pos_abb,pos_slot,pos_rank`. Af þeim
+dálkum sem lesturinn bað um er **`gsis_id` sá eini** sem er til í nýja sniðinu,
+svo `pos` varð `undefined` og sían henti **hverri einustu röð**. Þetta sást
+aldrei því fallið var **aldrei kallað** — þögla tóma fullyrðingin úr CLAUDE.md
+5b, í pipeline-i í stað prófs. Sniðið er nú **greint af hausnum, ekki af árinu**.
+
+**2. Dýptartaflan er EKKI óendurheimtanleg — og það er skráð sem slíkt.**
+`depth_charts_2025.csv` ber **554.215 raðir og 219 einkvæma daga**
+(2025-08-03 → 2026-03-14), þar af **151 dag innan tímabilsins**. nflverse
+geymir söguna sjálft í nýja sniðinu. Að segja „annars tapast hún" væri **ómæld
+fullyrðing sem lítur út eins og mæling**. Vistunin stendur samt af þrem rökum
+sem eru **minni** en „tapast að eilífu": nýtileiki (sagan er annars 8,5 MB skrá
+sem vex daglega og lab getur ekki lesið), vátrygging (**heimildin hefur þegar
+breytt sniði einu sinni**), og að skrárnar séu fastar í git.
+
+**3. Snap-hlutföllin brúast um `pfr_player_id` og það var mælt fyrst.**
+Snap-skrárnar bera PFR-auðkenni („BankKe01"), vikulegu raðirnar bera gsis.
+`nv.players()` ber bæði, svo **nafna-pörun er óþörf**. Mælt á 2025: 26.612
+snap-raðir, 2.189 einkvæm PFR-auðkenni, **2.181 leyst um brúna (99,6%)**,
+**6.624 af 6.638 vikuröðum auðgaðar (99,8%)**. Þær 14 sem eftir eru fá **null,
+ekki 0** — snap-hlutfall 0 þýðir „spilaði ekki eitt snapp", sem er allt annað
+en „vantar".
+
+> **`snap_counts_2026.csv` ER 404** (mælt 14.8.2026 — hvorki `.csv` né
+> `.csv.gz` er til fyrr en fyrsti leikur er spilaður). Sameiningin lætur þá
+> raðirnar **ósnertar** í stað þess að skrifa `snaps: null` yfir tölu. Það er
+> ekki varkárni: skrifuðum við null-svið í hverja röð myndi keyrslan í næstu
+> viku **eyða** snöppunum sem sú á undan hafði sótt, um leið og GitHub skilaði
+> 404 í eitt skipti.
+
+### Tvær tölur sem eru síaðar, og hvorug vegna stærðar
+
+Báðar eru síaðar til að **hliðið verði ekki tóm fullyrðing**:
+
+- **`weekly-proj/` geymir aðeins raðir sem bera spá.** Vika 1 2026 ber **3.300
+  raðir en aðeins 580 með `pts_ppr`**. `rowCount` finnur stærsta fylkið, svo
+  með öllum röðum væri talan **alltaf 3.300** og `minRows: 100` gæti **aldrei**
+  fallið — það hefði fryst viku með 3.300 nullum sem „í lagi". Sama gildra og
+  `market.json` („röð er farmur, ekki umbúðir"), einu lagi innar: **röð án spár
+  er umbúð, ekki farmur.** Hliðarábati: 204 KB í stað 1.147 KB.
+- **`depth/` geymir aðeins fantasy-stöður** (QB/RB/WR/TE/K; `normPos` gerir
+  FB→RB og PK→K). Mælt: **975 raðir af 3.228**, 122 KB á móti 408 KB.
+  `dt` og `week` eru strippuð úr röðunum — `dt` er **fasti innan dagsmyndar**
+  og er geymdur einu sinni sem `sourceDt`, `week` er **alltaf null** í nýja
+  sniðinu. Það er tvítekning, ekki gildi (sama ákvörðun og BSD-skotin í
+  FPL-hlutanum, 543 KB → 338 KB).
+
+> **`FANTASY_DEPTH_POS` ER EKKI ÓÞÖRF SÍA OG ÞAÐ SANNAÐI SIG Í KEYRSLU.**
+> `normPos` skilaði `null` fyrir „RCB" þegar þetta var skrifað og
+> **breyttist í gegnumstreymi meðan verkið var í gangi** (önnur lota).
+> Raðafjöldi dagsmyndarinnar hélst **nákvæmlega 975 og 122 KB** í bæði skiptin,
+> því sían pinnar mengið. Án hennar hefði serían farið úr 975 röðum í 3.228
+> (100 → 146 MB/ár) við breytingu í **allt öðru falli** og orðið
+> ósamanburðarhæf við sjálfa sig.
+
+### Vörðurinn — og hann getur fellt gagna-keyrsluna
+
+`tests/pipeline.mjs` fékk 60+ nýjar fullyrðingar. Allt er keyrt á **tilbúnum
+gögnum** því hvorug leiðin er keyranleg í beinni í ágúst (`snap_counts_2026`
+er 404 og gluggi vikuspárinnar opnast **6.9.2026**) — „kóði sem kviknar fyrst
+einn morgun er ekki ásættanlegur ómældur".
+
+**Trending-vörðurinn er nýr og hann er tengdur við cron-ið:** í
+**ágúst–janúar** og **eftir 10:00 UTC** fellur hann ef dagsmynd **dagsins í
+dag** vantar. 09:00-keyrslan hefur í verki lokið **09:53–09:56** (mælt á fjórum
+keyrslum), svo eftir kl. 10 er skráin komin — eða vistunin er brotin.
+Hann **sefur í febrúar–júlí**: í mars er engin waiver-hreyfing og vörður sem
+flöktir í sex mánuði kennir manni að slökkva á honum — og þá er hann slökktur
+í ágúst líka.
+
+> Gamli kaflinn spurði `days.length >= 1`, sem er **satt í eilífð** eftir að
+> vistunin hættir að keyra, og las alltaf **nýjustu** myndina — svo hann hefði
+> lesið eins og allt væri í lagi. Þekja er fullyrðing; „einhver dagur" er það
+> ekki.
+
+**11 stökkbreytingar felldar**, hver ein á sínum verði: `minRows` fjarlægt ·
+tilvistarhliðið úr `writeOnce` · gluggahliðið hunsað í kallandanum · **báðar
+never-wipe hliðar** úr snap-sameiningunni · þunn-brú hliðið · `pos` sleppt úr
+dýptar-útkomunni · `latestOnly` hunsað · **nýja sniðið ekki greint (upprunalega
+villan)** · `weekly-ecr` lyklað á daginn í dag í stað `scrape_date` ·
+ADP-serían aðeins í `core` · dagsmynd dagsins fjarlægð.
+
+> **`weekly-ecr/` ER LYKLAÐ Á `scrape_date` ÚR GÖGNUNUM, EKKI Á DAGINN Í DAG.**
+> Speglunin ber **`2025-12-30`** í dag — síðustu viku **fyrra** tímabils,
+> nákvæmlega eins og athugasemdin við `WEEKLY_MIRROR` sagði. Væri hún vistuð
+> undir dagsetningu dagsins hefðum við skrifað ~60 **eins** skrár sem allar
+> heita eitt en innihalda annað — ferill sem lítur út fyrir að vera langur en
+> er sami dagurinn endurtekinn. Sama regla og `accuracy()` hefur þegar: hún
+> fellur ef `?year=` skilar öðru ári en um var beðið.
+
+**Ekkert af þessu er LESIÐ af appinu** og það er ásetningur, eins og
+`data/history/` og `data/predictions/` í FPL-hlutanum. Þær eru **mælitæki, ekki
+birtingargagn** — þess vegna er hvert þrep í sínu `try`: bilun í mælitæki má
+ekki taka ADP-ið og meiðslin með sér. **Ekki eyða þeim í „hreinsun".**
+
+---
+
 ## 8. Bíður tímabilsins
 
 | atriði | af hverju blokkað |

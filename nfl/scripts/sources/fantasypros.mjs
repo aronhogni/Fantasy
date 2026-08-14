@@ -36,6 +36,7 @@
    ============================================================ */
 
 import { getText, getJSON, record, pool, tryGet } from "../lib/http.mjs";
+import { objects, str } from "../lib/csv.mjs";
 import { normPos } from "../../src/scoring.js";
 
 const PARTNERS = "https://partners.fantasypros.com/api/v1/consensus-rankings.php";
@@ -258,6 +259,76 @@ export async function consensus({ year, scoring = "PPR", pos = "ALL" } = {}) {
  */
 export const WEEKLY_MIRROR =
   "https://raw.githubusercontent.com/dynastyprocess/data/master/files/fp_latest_weekly.csv";
+
+/* ============================================================
+   VIKULEG ECR — KONSTANTINN VAR TIL, KALLANDINN VAR ENGINN
+   ============================================================
+   `WEEKLY_MIRROR` var flutt ut og **enginn kalladi hana**. Hun er eina
+   heimildin i settinu um vikulega samsteypu-rod MED start/sit-einkunn,
+   og eins og allt annad vikulegt er hun OENDURHEIMTANLEG: speglunin ber
+   EINA mynd (`fp_latest_weekly`) sem er skrifud OFAN I SJALFA SIG i
+   hverri viku. Vika sem lidur an vistunar er farin.
+
+   MAELT 14.8.2026 gegn lifandi skra: 200, **267 KB, 811 radir**, 28
+   dalkar — `ecr`, `sd`, `best`, `worst`, `pos_rank`, `start_sit_grade`,
+   `recommendation`, `player_opponent`, `r2p_pts`.
+
+   ============================================================
+   SKRAIN ER LYKLUD A `scrape_date` UR GOGNUNUM, EKKI A DAGINN I DAG
+   ============================================================
+   Þetta er ekki snyrtimennska heldur forsenda thess ad rodin se ekki
+   LOGIN. Maelt i dag ber skrain `scrape_date = 2025-12-30` — sidustu
+   viku FYRRA timabils, nakvaemlega eins og notan ad ofan segir. Vaeri
+   hun vistud undir `2026-08-14` vaerum vid ad segja ad thetta se ECR
+   dagsins i dag, og i forleik hefdum vid skrifad ~60 EINS skrar sem
+   allar heita eitt en innihalda annad — ferill sem litur ut fyrir ad
+   vera langur en er sami dagurinn endurtekinn.
+
+   Su villa er ÞEGAR SKJOLUD i thessari skra: `accuracy()` fellur ef
+   `?year=` skilar odru ari en um var bedid, "annars vaerum vid ad skra
+   sama arid undir morgum artolum". Sama regla, onnur heimild.
+
+   Sem hlidarverkun verdur vistunin OSJALFRATT ONEMANDI: dagur sem
+   speglunin hefur ekki uppfaert skrifar ekkert nytt.                   */
+export async function weeklyEcr() {
+  const tag = "fp_weekly_mirror";
+  let txt;
+  try { txt = await getText(WEEKLY_MIRROR); }
+  catch (e) { record(tag, false, `failed: ${e.message}`); return null; }
+
+  const rows = objects(txt, ["page", "page_pos", "scrape_date", "fantasypros_id",
+    "player_name", "pos", "team", "rank", "ecr", "sd", "best", "worst",
+    "player_bye_week", "player_owned_avg", "player_opponent",
+    "player_ecr_delta", "recommendation", "pos_rank", "start_sit_grade",
+    "r2p_pts"]);
+
+  const players = rows.map((r) => ({
+    fpId: str(r.fantasypros_id), name: str(r.player_name),
+    pos: normPos(r.pos), team: str(r.team),
+    rank: numOrNull(r.rank), ecr: numOrNull(r.ecr), sd: numOrNull(r.sd),
+    best: numOrNull(r.best), worst: numOrNull(r.worst),
+    posRank: str(r.pos_rank), grade: str(r.start_sit_grade),
+    rec: str(r.recommendation), opp: str(r.player_opponent),
+    delta: numOrNull(r.player_ecr_delta), owned: numOrNull(r.player_owned_avg),
+    bye: numOrNull(r.player_bye_week), proj: numOrNull(r.r2p_pts),
+    page: str(r.page), pagePos: str(r.page_pos),
+  })).filter((p) => p.name && p.fpId);
+
+  /* Dagsetningin er tekin ur GOGNUNUM. Beri radirnar fleiri en eina er
+     su NYJASTA lykillinn — thad er myndin sem speglunin er ad birta. */
+  const dates = [...new Set(rows.map((r) => str(r.scrape_date)).filter(Boolean))].sort();
+  const scrapeDate = dates.at(-1) || null;
+
+  if (!players.length || !scrapeDate) {
+    record(tag, false,
+      `unusable: ${players.length} rows, scrape date ${scrapeDate || "missing"}`);
+    return null;
+  }
+  record(tag, true,
+    `${players.length} weekly ranks, scraped ${scrapeDate}` +
+    (dates.length > 1 ? ` (${dates.length} dates in file)` : ""));
+  return { scrapeDate, dates, players };
+}
 
 /** Audkennisbru fra DynastyProcess: fantasypros_id <-> sleeper/gsis/espn. */
 export const IDMAP_MIRROR =

@@ -42,6 +42,50 @@ name: nfl-data
 # 100 rodum (vika 1 ber ~390) medan lokin ar halda 1000 — annars hefdi
 # throskuldurinn HAFNAD fyrstu vikunum, einmitt thegar notkun-til-thessa
 # er thad eina sem er til.
+#
+# ============================================================
+# DAGSETTAR SERIUR — OG HVERS VEGNA CRON-ID BREYTTIST EKKI
+# ============================================================
+# 14.8.2026 var sex heimildum sem VORU I KODANUM en ENGINN KALLADI
+# tengt i dagsettar skrar (sja `archiveDaily` i `fetch-nfl.mjs` og
+# nyjan kafla i nfl/README.md):
+#
+#   trending/       (var thegar til)      ~7 KB/dag
+#   news/           frettir               ~24 KB/dag
+#   adp-history/    FFC-ADP, oll snid    ~127 KB/dag
+#   depth/          dyptartafla          ~122 KB/dag
+#   weekly-ecr/     vikuleg ECR          ~194 KB per NY `scrape_date`
+#   weekly-proj/    vikuleg Sleeper-spa  ~204 KB per viku (18 a timabili)
+#   weekly/{ar}     + snap-hlutfoll      (sameinad, engin ny skra)
+#
+# CRON-ID ER OBREYTT OG THAD ER ASETT. Allar fjorar daglegu seriurnar
+# rida a `core`, sem keyrir HVORT SEM ER kl. 09:00 daglega; snap-
+# sameiningin ridur a `history` (thridjudaga kl. 12); og ADP-serian er
+# LIKA i `--stage=adp` thvi thad threp keyrir 00,03,06,12,15,18 UTC i
+# agust-september medan `core` keyrir adeins kl. 09 — falli 09-keyrslan
+# ma dagurinn ekki tapast thott ADP hafi verid sott sex sinnum.
+#
+# `writeOnce` er ONEMANDI a skra sem er thegar til, svo fleiri keyrslur
+# a dag safna EKKI upp og skrifa ALDREI ofan i. Dyrasta soknin
+# (dyptartaflan, 8,5 MB sem .gz) er SLEPPT ALVEG thegar dagurinn er
+# vistadur — `archived()` er spurt a undan `getText`.
+#
+# ============================================================
+# PROFID GETUR NU FELLT KEYRSLUNA UT AF TRENDING — VILJANDI
+# ============================================================
+# `tests/pipeline.mjs` ber nyjan vord: i AGUST-JANUAR og EFTIR 10:00 UTC
+# fellur hann ef dagsmynd DAGSINS I DAG vantar i `trending/`. Þad er
+# tengt vid thennan cron: 09:00-keyrslan hefur i verki lokid 09:53-09:56
+# (maelt a fjorum keyrslum), svo eftir kl. 10 er skran komin — eda
+# vistunin er brotin.
+#
+# AFLEIDINGIN ER RAUNVERULEG OG ER TEKIN VILJANDI: falli vordurinn i
+# `--stage=adp`-keyrslu (sem skrifar ekki trending) kemst FERSKT ADP
+# ekki inn i thad skipti. Þad er skiptin sem var valin — endapunkturinn
+# geymir 24 KLST og hvergi er haegt ad na i gaerdaginn, svo thogull
+# dagur sem tapast er dyrari en ein ADP-keyrsla sem bidur.
+# Vordurinn SEFUR i februar-juli svo hann verdi ekki flokkandi i
+# sex manudi ("flokt kennir manni ad slokkva a profinu").
 # ============================================================
 
 on:
