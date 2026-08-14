@@ -113,7 +113,7 @@ mælingar fer bakprófið niður — og það er rétt hjá því.
 | `TIER_CUTS` | `model.js` | **sextílar raunverulegrar FFDR-dreifingar**, endurreiknaðir úr `data/` |
 | `TIER_NEUTRAL = 2` | `model.js` | hlutlausa gráa miðþrepið |
 | `MARKET_DIFF_A/B` = 1,05 / 1,65 | `market.js` | hvar taflan er lesin út frá markaðslínunni |
-| `RANK_W` | `stats.js` | röðunarskorið fyrir tillögur |
+| `RANK_W` | `model.js` | röðunarskorið fyrir tillögur (stóð `stats.js` til 14.8.2026 — `RANK_W` og `rankScore` búa BÆÐI í `model.js`; `advisor.js` flytur þau þaðan) |
 | `START_MODEL` | `stats.js` | byrjunar-líkurnar (5 breytur) |
 | `ADVISOR_CAL` `{A:0.0258, B:0.4066}`, `ADVISOR_MAX_GAP = 3.5` | `advisor.js` | kaup-prósentan |
 | `MIN_START_PROB = 0.15` | `rotation.js` | byrjunar-golf í róterings-pari |
@@ -201,7 +201,7 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
   (≥20 í RGB). `tierOf` skilar `TIER_CUTS.length` sem þyngsta þrepi — **aldrei
   harðkóðaðri tölu**, svo fjöldi þrepa megi breytast.
 - **Litirnir eru afstæð kvörðun; tölurnar sjálfar haggast ekki.**
-- **`rankScore` (`stats.js`) er það sem RAÐAR tillögum**, ekki `FIT`. Það slær
+- **`rankScore` (`model.js`) er það sem RAÐAR tillögum**, ekki `FIT`. Það slær
   bæði aðferð appsins og FPL-eigið xP, og `rank-model.mjs` ber orakel-þak sem
   sýnir að hærri tala væri **leki, ekki afrek**.
 - **Wildcard og Free Hit eyða EKKI söfnuðum frískiptum** (FPL-regla frá
@@ -328,7 +328,7 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 | `ffdr-backtest.mjs` | „Halda LITIRNIR?" á einu tímabili. Tölfræðileg vikmörk, ekki hörð mörk |
 | `rank-model.mjs` | `rankScore`, LOSO á 5 tímabilum, með **orakel-þakinu** |
 | `advisor.mjs` | Kaup-prósentan. 500 slembin inntök verja að hlutdeild sé alltaf á (0,1) og summan nákvæmlega 1. Kafli 5 sannar að ómældu tölurnar hreyfa hana EKKI |
-| `stats.test.mjs` | Dálkaskráin öll: hvert `get()` þolir tóm inntök, 102 einkvæmir lyklar, hver dálkur ber `note`, haus-heiti passa í hausinn, **hvert band er samfellt**. Kafli 14 ver auðgunina |
+| `stats.test.mjs` | Dálkaskráin öll: hvert `get()` þolir tóm inntök, allir lyklar einkvæmir (124 í dag — talan er REIKNUÐ í prófinu, ekki hörð), hver dálkur ber `note`, haus-heiti passa í hausinn, **hvert band er samfellt**. Kafli 14 ver auðgunina |
 | `rotation.mjs` | Kafli 3 er PRÓFSTEINNINN: spegilmynd verður að vinna þann sem er BETRI Í HEILD, annars er þetta röðun í dulargervi |
 | `mo-candidates.mjs` | mó á 4 tímabilum með **bootstrap klösuðum per leikmann** — CI verður að útiloka núll |
 | `workflow-push.mjs` | Push-kapphlaupið. Dregur shell-blokkina ÚT ÚR `.github/workflows/*.yml` og keyrir á ALVÖRU git-hirslum. Ber líka saman kóða OG workflow (`env`-blokk sem vantaði) |
@@ -785,10 +785,29 @@ Tveir flipar með sama tákni er það sama og ekkert tákn.
   hefur bæði ljósa og dökka hnappa) og **negatíft** `outline-offset` (umgjörðir
   með `overflow:hidden` klipptu ytri hring).
 - **Föst leikatriði: „fyrsti taki" er LÆGSTA RÖÐUN INNAN LIÐSINS**, ekki
-  `order === 1`. FPL notar annan grunn fyrir horn (svið 4–10), svo **0 af 20
-  liðum** náðu 1 og hornatakar fengu aldrei ikon. Vörður: `set-pieces.mjs`.
-  Sá sem tekur fleiri en eina tegund er feitletraður — talið á **röðun innan
-  liðs**, ekki FPL-tölunni, af sömu ástæðu.
+  `order === 1`. Vörður: `set-pieces.mjs`. Sá sem tekur fleiri en eina tegund
+  er feitletraður — talið á **röðun innan liðs**, ekki FPL-tölunni, af sömu
+  ástæðu.
+  > **OG GRUNNURINN BREYTTIST — 13.8.2026.** Hér stóð að FPL notaði „annan
+  > grunn fyrir horn (svið 4–10), svo **0 af 20 liðum** náðu 1". Milli
+  > dagskeyrslanna 12.8. og 13.8. fór `corners_and_indirect_freekicks_order`
+  > úr **2–12 (0/20 með 1)** í **1–6 (18/20 með 1)**; `pen` og `fk` eru bæði
+  > 1–5, svo öll þrjú sviðin hafa nú SAMA grunn. Pipeline snertir töluna ekki
+  > (`fetch.mjs:262` afritar hana), svo þetta var FPL sjálft.
+  > **Reglan stóðst óbreytt** — röðun innan liðs er rétt á báðum grunnum — og
+  > hún er ENN nauðsynleg: FUL og NEW hafa enga 1.
+  > **Það sem brotnaði var vörðurinn OG textinn á skjánum.** Þrjár
+  > fullyrðingar í `set-pieces.mjs` voru um FPL-númerin en ekki um regluna og
+  > féllu; `stats.js` bar nótu sem sagði **„MEASURED: … the range is 4–10 and
+  > NO club has a 1"** í tooltip og `SetPieces.jsx` prentaði **„4–10 and never
+  > reach 1"** í flipann sjálfan. Föst tala um lifandi gögn úreldist þegjandi —
+  > og hér með orðinu MEASURED framan við. **Sviðin eru nú REIKNUÐ**
+  > (`spRanges` í `SetPieces.jsx`) og birt þaðan; nótan segir regluna eina.
+  > **Afturför-vörðurinn er tvískiptur og það er mælt nauðsynlegt:** með nýja
+  > grunninum finnur `order === 1` taka fyrir 18 af 20 liðum, svo lifandi
+  > gögn ein duga ekki lengur til að fella hann. Vörðurinn liggur á TILBÚNU
+  > liði (röðun 4/7/9) sem getur aldrei orðið tómt, auk lifandi liðanna án 1,
+  > TALINNA. Sjá 5b um tómar fullyrðingar.
 - **Grænar runur** (`greenRuns` í `model.js`): grænt = þrep **undir** hlutlausu,
   og **auð umferð SLÍTUR runu** (blank = 0 stig). `null >= 2` er `false` í JS,
   svo `!= null` er prófað sérstaklega. Ramminn krefst `borderSpacing: 0` með
@@ -813,7 +832,9 @@ Tveir flipar með sama tákni er það sama og ekkert tákn.
   eitt ónýtt svið kostar bara sig sjálft. `benchSwaps` er hlutur **af fylkjum**,
   svo ytri gerðin ein dugar ekki — `{"1":"x"}` er gildur hlutur en `"x".forEach`
   fellur; það tilfelli slapp fram hjá fyrstu lagfæringunni. Vörður:
-  `saved-state.mjs`, þar sem **gilt ástand verður að fara í gegn óbreytt** —
+  `untrusted-input.mjs` (hét `saved-state.mjs` í þessu skjali fram til
+  14.8.2026 og sú skrá er EKKI til í FPL — aðeins undir `nfl/`), þar sem
+  **gilt ástand verður að fara í gegn óbreytt** —
   annars væri „lagfæringin" að henda raunverulegri plönun notandans.
 - **Skipta-glugginn (`selling`) má ekki fjarlægja.** Hann veit hvað þú ert að
   selja, hvað er í bankanum og hvað 3-per-félag reglan segir — leikmannalistinn

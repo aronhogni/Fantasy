@@ -81,10 +81,17 @@ const OK_UNREAD = {
      lesendur og hun kom i ljos.                                         */
   "bsd_lineups.json":          "geymd til MAELINGAR gegn 6h-likaninu, ekki notud i akvordun",
   /* ATH — RAUNVERULEG EFTIRSTODVA, EKKI UNDANTHAGA: E0-2627 er HRAGOGN
-     yfirstandandi timabils. Pipeline les E0-2526 og E0-2425 (HARDKODAD,
-     linur ~1772/1853/1858) og ENGIN kodaleid les 2627. I forleik er thad
-     rett — skrain er 404 hja football-data thangad til fyrsti leikur er
-     spiladur (kafli 6e) og lidsstyrkur a ad koma ur FYRRA timabili.
+     yfirstandandi timabils. `team_form` les E0-2526 og E0-2425 (HARDKODAD,
+     linur 2491/2496 — nefndar ~1772/1853/1858 her adur og THAER TOLUR VORU
+     UREALDAR) og blandar EKKI inn yfirstandandi timabili.
+     LEIDRETT 14.8.2026: "ENGIN kodaleid les 2627" var RANGT — hun er lesin
+     i `buildLiveGwReport` (linu 2742) fyrir leikjatolur umferdarinnar. Rétta
+     fullyrdingin er ad TEAM_FORM les hana ekki. Nota sem lysir kodanum verdur
+     ad vera jafn rett og kodinn; thessi laug um tvennt i einu.
+     I forleik er thad rett ad blanda ekki — skrain er 404 hja football-data
+     thangad til fyrsti leikur er spiladur (kafli 6e; OG ATH: 2627-slodin
+     301-redirectar a EC.csv/National League a meðan, sja `fetchFdcouk`) og
+     lidsstyrkur a ad koma ur FYRRA timabili.
      ThEGAR TIMABILID BYRJAR tharf ad akveda hvort team_form eigi ad blanda
      inn yfirstandandi E0. Thad er INNTAKS-breyting a lidsstyrk og fellur
      thvi undir regluna i kafla 3: maela fyrst. Skrad her svo thad se ekki

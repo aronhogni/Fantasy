@@ -8,6 +8,22 @@
    FPL notar ANNAN GRUNN fyrir horn. Arsenal: Rice=5, Saka=6, Madueke=7,
    Odegaard=8 — Rice ER hornataki lidsins thott talan se 5.
 
+   ENDURMAELT 14.8.2026 — FPL ENDURGRUNNADI HORNIN 13.8.2026:
+     corners_and_indirect_freekicks_order   1-6   -> 1 hja 18/20 lidum
+   (mælt ur committudum data/players.json: 9.8-12.8 baru 2-12 med 0/20 a 1;
+   13.8 og 14.8 bera 1-6 med 18/20. `fetch.mjs:262` afritar toluna obreytta,
+   svo thetta er FPL sjalft, ekki pipeline.) Arsenal: Rice ber nu 1.
+   pen og fk eru bædi 1-5, svo ALLIR ThRIR sviðin hafa nu sama grunn.
+
+   REGLAN STOD ThETTA AF — rod innan lids er rett a badum grunnum — OG HUN ER
+   ENN NAUDSYNLEG: FUL og NEW hafa enga 1. ThRJAR FULLYRDINGAR FELLU samt, og
+   allar thrjar voru fullyrdingar um FPL-numerin, ekki um regluna:
+     "HORN na aldrei 1" · "...THOTT enginn hafi toluna 1" · "hans FPL-tala er EKKI 1"
+   Ef thaer hefdu verid SLOKTAR i stad thess ad vera endurskrifadar vaeri
+   afturfor-vordurinn horfinn: `order === 1` virkar nu fyrir 18 af 20 lidum.
+   Vordurinn er thess vegna a TILBUNU lidi (4/7/9) sem getur aldrei ordid
+   tomt, plus lifandi lidunum an 1, TOLDUM. Sja CLAUDE.md 5b.
+
    TVAER THOGULAR VILLUR SEM THETTA VER:
      1. "adeins fyrsti taki" (order === 1) syndi EKKERT fyrir horn.
      2. setPieceBadges notadi `order <= 3` svo HORNATAKAR FENGU ALDREI IKON.
@@ -28,7 +44,7 @@ const ok = (n, c, x = "") => {
   else { fail++; console.log(`  ✗ ${n}${x ? "   " + x : ""}`); }
 };
 
-const { SP_KINDS, setPieceRanks, setPieceBadges } =
+const { SP_KINDS, setPieceRanks, setPieceBadges, spRanges } =
   await import(new URL("src/SetPieces.jsx", REPO).href);
 const players = J("players.json").players;
 const teams = J("teams.json").teams;
@@ -45,8 +61,39 @@ for (const k of SP_KINDS) {
   ok(`${k.key}: einhver rodun er skrad`, vals.length > 0, String(vals.length));
 }
 const ckVals = players.map(p => p.corners_and_indirect_freekicks_order).filter(v => v != null);
-ok("HORN na aldrei 1 (astaedan fyrir rod-innan-lids)", Math.min(...ckVals) > 1,
-   `laegsta hornarodun er ${Math.min(...ckVals)}`);
+/* HER STOD: ok("HORN na aldrei 1", Math.min(...ckVals) > 1) — og hun FELL
+   13.8.2026 thegar FPL endurgrunnadi hornin (2-12 -> 1-6). Hun var fullyrding
+   um FPL, ekki um regluna okkar, og hun var thvi ALDREI vordur um kodann.
+   Svidid er REPORTAD hér fyrir ofan (thad er raunverulega gagnlegt: nu sest
+   svona breyting) og reglan sjalf er vardin i kafla 2.                      */
+const ckMinByTeam = new Map();
+for (const p of players) {
+  const o = p.corners_and_indirect_freekicks_order;
+  if (o == null) continue;
+  ckMinByTeam.set(p.team, Math.min(ckMinByTeam.get(p.team) ?? Infinity, o));
+}
+const ckNoOne = [...ckMinByTeam.entries()].filter(([, m]) => m > 1).map(([t]) => t);
+console.log(`     ck: ${ckNoOne.length} lid hafa ENGA 1 (thar finnur \`order === 1\` engan taka)`);
+ok("hornarodun er skrad fyrir minnst 15 lid (annars maelir kaflinn litid)",
+   ckMinByTeam.size >= 15, `${ckMinByTeam.size} lid`);
+
+/* `spRanges` BER TOLURNAR SEM BIRTAST I FLIPANUM — thess vegna er hun mæld
+   hér gegn ODHADRI talningu i thessu profi. Skyringin nedst i Set pieces
+   sagdi "4-10 and never reach 1" sem FASTAN TEXTA og vard osonn a skjanum
+   13.8.2026; nu er hun reiknud, og tha verdur ad verja reikninginn.       */
+const R = spRanges(players);
+ok("spRanges skilar svidi fyrir allar thrjar tegundir",
+   SP_KINDS.every(k => R[k.key] && Number.isFinite(R[k.key].min)), JSON.stringify(R));
+ok(`spRanges ck-svid passar vid odhada talningu (${R.ck?.min}-${R.ck?.max})`,
+   R.ck.min === Math.min(...ckVals) && R.ck.max === Math.max(...ckVals),
+   `${R.ck?.min}-${R.ck?.max} a moti ${Math.min(...ckVals)}-${Math.max(...ckVals)}`);
+ok(`spRanges telur lid an 1 rett (${R.ck?.teamsNoOne})`,
+   R.ck.teamsNoOne === ckNoOne.length, `${R.ck?.teamsNoOne} a moti ${ckNoOne.length}`);
+ok("spRanges: lid med 1 + lid an 1 = oll lid sem hafa rodun",
+   R.ck.teamsWithOne + R.ck.teamsNoOne === R.ck.teams,
+   `${R.ck?.teamsWithOne}+${R.ck?.teamsNoOne} a moti ${R.ck?.teams}`);
+ok("spRanges(null) hrynur ekki", JSON.stringify(spRanges(null)) === JSON.stringify({pen:null,fk:null,ck:null}),
+   JSON.stringify(spRanges(null)));
 
 console.log("\n=== 2. ROD INNAN LIDS FINNUR TAKA FYRIR ALLAR THRJAR ===");
 const ranks = setPieceRanks(players);
@@ -61,10 +108,46 @@ for (const k of SP_KINDS) {
   ok(`${k.key}: fyrsti taki finnst hja ${n}/${teams.length} lidum`, n === teams.length,
      `vantar ${teams.length - n}`);
 }
-/* AFTURFOR-VORDUR: ef einhver skilar `order === 1`-reglunni fellur thetta,
-   thvi tha finnst enginn hornataki.                                       */
-ok("HORN hafa fyrsta taka THOTT enginn hafi toluna 1",
-   primaryTeams.ck.size === teams.length && ckVals.every(v => v !== 1));
+/* AFTURFOR-VORDUR — TVISKIPTUR, OG ThAD ER MAELT NAUDSYNLEGT.
+   Gamla utgafan var: `primaryTeams.ck.size === teams.length && ckVals.every(v => v !== 1)`.
+   Sidari lidurinn var fullyrding um FPL og fell 13.8.2026. Verra: SU FULLYRDING
+   VAR ThAD EINA SEM GERDI VORDINN BITANDI. Med nyja grunninum (1-6, 18 af 20
+   lidum med 1) myndi `order === 1` finna taka fyrir 18 lid, svo fyrri lidurinn
+   einn saman fellur adeins um 2 lid — og se sa dagur ad FPL gefi OLLUM lidum 1
+   fellur hann ekki neitt. Thess vegna:
+     (a) TILBUID lid sem getur ALDREI ordid tomt — rodun 4/7/9, engin 1;
+     (b) lifandi lidin sem hafa enga 1, TALIN (0 i dag vaeri ekki bilun, en tha
+         ma kaflinn ekki thegja um ad hann se ekki lengur ad maela thau).
+   Sja CLAUDE.md 5b: fullyrding sem tharf gagna-serkenni til ad bregdast er
+   veikari en hun litur ut fyrir ad vera.                                    */
+{
+  const SYN = [
+    { id: -101, team: 999, corners_and_indirect_freekicks_order: 7 },
+    { id: -102, team: 999, corners_and_indirect_freekicks_order: 4 },
+    { id: -103, team: 999, corners_and_indirect_freekicks_order: 9 },
+  ];
+  const sr = setPieceRanks(SYN);
+  const firstSyn = SYN.find(p => (sr.get(p.id) || []).some(b => b.key === "ck" && b.rank === 1));
+  ok("TILBUID: lid an nokkurrar 1 (4/7/9) fær samt hornataka",
+     firstSyn != null, JSON.stringify([...sr.entries()]));
+  ok("TILBUID: takinn er sa med LAEGSTU toluna (4), ekki `order === 1`",
+     firstSyn?.corners_and_indirect_freekicks_order === 4,
+     String(firstSyn?.corners_and_indirect_freekicks_order));
+  ok("TILBUID: engin 1 er til i thvi lidi (svo `order === 1` finnur ENGAN)",
+     SYN.every(p => p.corners_and_indirect_freekicks_order !== 1));
+}
+ok("LIFANDI: fyrsti hornataki finnst hja OLLUM lidum", primaryTeams.ck.size === teams.length,
+   `vantar ${teams.length - primaryTeams.ck.size}`);
+if (ckNoOne.length) {
+  const missing = ckNoOne.filter(t => {
+    const list = players.filter(p => p.team === t && p.corners_and_indirect_freekicks_order != null);
+    return !list.some(p => (ranks.get(p.id) || []).some(b => b.key === "ck" && b.rank === 1));
+  });
+  ok(`LIFANDI: ${ckNoOne.length} lid an nokkurrar 1 fá samt taka (thau eru afturfor-provid)`,
+     missing.length === 0, `vantar hja ${missing.length}`);
+} else {
+  console.log("     (0 lid an 1 i dag — tilbuna tilvikid eitt ber vordinn)");
+}
 
 console.log("\n=== 3. ROD ER SAMKVAEM OG EINKVAEM INNAN LIDS ===");
 let dupRank = 0, gaps = 0, checked = 0;
@@ -92,7 +175,7 @@ const withCk = players.filter(p => {
   return bs.some(b => b.key === "ck");
 });
 ok(`hornatakar fa ikon (${withCk.length} leikmenn)`, withCk.length >= teams.length,
-   `an leidrettingar var thetta 0 (order <= 3 og horn byrja i 4)`);
+   `an leidrettingar var thetta 0 (order <= 3 medan horn byrjadu i 2-4)`);
 ok("setPieceBadges an `ranks` skilar null (betra en rangt)",
    setPieceBadges(players[0], null) === null);
 ok("leikmadur an rodunar fær null",
@@ -112,10 +195,64 @@ if (ars) {
     const b = (ranks.get(first.id) || []).find(x => x.key === "ck");
     ok(`ARS hornataki = ${first.web_name} (FPL-rodun ${first.corners_and_indirect_freekicks_order})`,
        b?.rank === 1, JSON.stringify(b));
-    ok("hans FPL-tala er EKKI 1 — svo gamla reglan hefdi sleppt honum",
-       first.corners_and_indirect_freekicks_order !== 1,
+    /* HER STOD: ok("hans FPL-tala er EKKI 1"). Rice bar 5 thegar thetta var
+       skrifad og ber 1 eftir 13.8.2026, svo fullyrdingin fell — an thess ad
+       neitt vaeri ad reglunni. Rétta invariantid er ekki "talan er ekki 1"
+       heldur "takinn er sa med LAEGSTU toluna", sem gildir a badum grunnum. */
+    ok("ARS hornataki er sa med LAEGSTU FPL-toluna (gildir a hvorum grunni sem er)",
+       first.corners_and_indirect_freekicks_order ===
+         Math.min(...ck.map(p => p.corners_and_indirect_freekicks_order)),
        String(first.corners_and_indirect_freekicks_order));
   }
+}
+/* OG TILVIKID SEM AFHJUPADI VILLUNA LIFIR ENN — i odru lidi. Arsenal var
+   daemid 31.7.2026 (Rice=5); eftir endurgrunnun FPL eru thad FUL og NEW sem
+   hafa enga 1. Kaflinn velur ThAU UR GOGNUNUM, ekki ur harðkodadu nafni, svo
+   hann fylgir FPL i naestu endurgrunnun i stad thess ad falla.            */
+if (ckNoOne.length) {
+  const tid = ckNoOne[0];
+  const list = players.filter(p => p.team === tid && p.corners_and_indirect_freekicks_order != null)
+    .sort((a, b) => a.corners_and_indirect_freekicks_order - b.corners_and_indirect_freekicks_order);
+  const nm = teams.find(t => t.id === tid)?.short || tid;
+  const b = (ranks.get(list[0].id) || []).find(x => x.key === "ck");
+  ok(`${nm} hefur ENGA 1 (laegsta ${list[0].corners_and_indirect_freekicks_order}) og ` +
+     `${list[0].web_name} er samt taki — gamla reglan hefdi sleppt honum`,
+     b?.rank === 1, JSON.stringify(b));
+}
+
+/* ============================================================
+   5b. SKYRINGIN A SKJANUM — WIRINGID, EKKI BARA FORMULAN
+
+   `spRanges` er mæld i kafla 1, en THAD VAR ALDREI FORMULAN SEM BRAST:
+   skyringin nedst i flipanum bar FASTAN texta ("corners 4-10 and never
+   reach 1") sem vard OSONN 13.8.2026. Prof sem maelir bara `spRanges`
+   myndi vera graent thott skyringin vaeri enn hardkodud — sama aett af
+   villu og dauði markadslidurinn (CLAUDE.md 3) og auðgunin (8).
+   Thess vegna er hlutinn RENDERADUR og talan LESIN UT UR HONUM.
+   `renderToStaticMarkup` naegir: hluturinn notar adeins useMemo/useState.
+   ============================================================ */
+console.log("\n=== 5b. SVIDID SEST I FLIPANUM (renderad) ===");
+{
+  const React = (await import("react")).default;
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const SetPieces = (await import(new URL("src/SetPieces.jsx", REPO).href)).default;
+  const teamById = Object.fromEntries(teams.map(t => [t.id, t]));
+  const html = renderToStaticMarkup(React.createElement(SetPieces, {
+    players, teams, teamById, Crest: () => null, notes: null,
+    onPickPlayer: () => {}, bsd: null,
+  }));
+  const txt = html.replace(/<[^>]*>/g, " ").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ");
+  const exp = R.ck.min === R.ck.max ? String(R.ck.min) : `${R.ck.min}–${R.ck.max}`;
+  ok(`flipinn birtir RAUNVERULEGA ck-svidid (${exp})`, txt.includes(exp), txt.slice(-260));
+  ok(`flipinn birtir pen-svidid (${R.pen.min}–${R.pen.max})`,
+     txt.includes(`${R.pen.min}–${R.pen.max}`), txt.slice(-260));
+  /* NEIKVAED FULLYRDING MED SANNADRI FORSENDU (CLAUDE.md 5b regla 2):
+     strengurinn "4–10" VAR i thessum sama texta fyrir lagfaeringuna. */
+  ok("gamla hardkodada svidid (\"4–10\") er EKKI lengur i textanum",
+     !txt.includes("4–10"), txt.slice(-260));
+  ok(`fjoldi lida an 1 sest i textanum (${R.ck.teamsNoOne})`,
+     R.ck.teamsNoOne === 0 || txt.includes(String(R.ck.teamsNoOne)), txt.slice(-260));
+  ok("engin NaN/undefined i skyringunni", !/\bNaN\b|\bundefined\b/.test(txt));
 }
 
 console.log("\n=== 6. ILLGJARNT INNTAK ===");
@@ -133,9 +270,10 @@ ok("setPieceBadges(null, ranks) skilar null", setPieceBadges(null, ranks) === nu
    sina eigin `isPenTaker: pen === 1`.
    Maelt: badar adferdir gefa SOMU 20 vitaskyttur i dag (63 leikmenn med
    `penalties_order`), svo thetta var TVITEKNING, ekki villa. En thaer hefdu
-   rekid i sundur ThANN DAG sem FPL endurgrunnar vita-rodina — eins og hun
-   ThEGAR gerir fyrir horn (svid 4-10, svo `order === 1` naer thar aldrei) —
-   og tha i thogn: PEN-merkid hefdi horfid af ollum spjoldum.
+   rekid i sundur ThANN DAG sem FPL endurgrunnar vita-rodina — og tha i thogn:
+   PEN-merkid hefdi horfid af ollum spjoldum. ADVORUNIN VAR EKKI TILGATA:
+   13.8.2026 endurgrunnadi FPL hornarodunina (2-12 -> 1-6) an nokkurrar
+   tilkynningar. Ad thad hafi verid horn og ekki viti var HEPPNI.
    ATHUGASEMDIR ERU SKORNAR BURT ADUR EN LEITAD ER: skyringin i App.jsx
    vitnar sjalf i gamla kodann (`pen === 1`) og myndi annars uppfylla
    fullyrdinguna sem hun utskyrir.

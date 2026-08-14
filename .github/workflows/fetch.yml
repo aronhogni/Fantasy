@@ -35,7 +35,6 @@ jobs:
           ENABLE_ELO: "true"
           ENABLE_FDCOUK: "true"
           ENABLE_WEATHER: "true"
-          ENABLE_ESPN: "false"
           ENABLE_EURO: "true"
           ENABLE_TRAVEL: "true"
           ENABLE_DERIVED: "true"

@@ -214,6 +214,33 @@ const payload = {
   teams: out,
 };
 const dest = new URL("../data/team_shots.json", import.meta.url).pathname;
+/* ============================================================
+   TOM KEYRSLA MA ALDREI ThURRKA UT GOD GOGN (baett vid 14.8.2026).
+   Fimm systur-skriftur hafa thennan vord — `fetch-bsd.mjs`,
+   `fetch-bsd-teams.mjs`, `fetch-clubelo-history.mjs`, `fetch-fdr-history.mjs`
+   og `fetch-player-gw.mjs` — en ThESSI EIN skrifadi skilyrdislaust: hver
+   villubraut hér ad ofan er `console.warn` + `continue`, svo throttlun hja
+   ESPN, rangt dagsetningarbil eda net-bilun hefdi skilad `teams: []` og
+   skrifad thad YFIR heilt tímabil (8.986 b, 17 fellog). Skriftan er handvirk
+   og keyrd sjaldan — thad gerir thetta VERRA, ekki betra: tapid uppgotvast
+   ekki fyrr en einhver opnar flipann.
+   Reglan er su sama og i `fetch-bsd-teams.mjs`: DEYJA fremur en ad skrifa
+   tomt ofan a heilt (CLAUDE.md 6, "BSD — reglurnar sem gilda um hana").
+   ============================================================ */
+if (!out.length) {
+  console.error(`REFUSING TO WRITE: the run produced 0 clubs (${noZone} without a zone, ${noTeam} without a club).`);
+  console.error(`${dest} is UNTOUCHED - the previous data stands.`);
+  process.exit(2);
+}
+try {
+  const before = JSON.parse(readFileSync(dest, "utf8"));
+  const had = Array.isArray(before?.teams) ? before.teams.length : 0;
+  if (had > out.length) {
+    console.error(`REFUSING TO WRITE: the file has ${had} clubs but this run produced ${out.length}.`);
+    console.error("A worse run must not overwrite a better one - re-run, or delete the file deliberately.");
+    process.exit(2);
+  }
+} catch { /* engin fyrri skra: fyrsta keyrsla, ekkert ad verja */ }
 writeFileSync(dest, JSON.stringify(payload, null, 1));
 console.log(`\nskrifad ${dest}`);
 console.log(`clubs: ${out.length} · without a zone: ${noZone} · without a club: ${noTeam} · unmatched: ${unmatched.join(",") || "none"}`);

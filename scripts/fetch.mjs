@@ -41,7 +41,16 @@ const FLAGS = {
   elo:             (process.env.ENABLE_ELO ?? "true")        === "true",
   fdcouk:          (process.env.ENABLE_FDCOUK ?? "true")     === "true",
   weather:         (process.env.ENABLE_WEATHER ?? "true")    === "true",
-  espn:            (process.env.ENABLE_ESPN ?? "false")      === "true",
+  /* `espn` VAR HER OG VAR ALDREI LESIN (fjarlaegd 14.8.2026).
+     Flaggid var skilgreint med sjalfgildi "false" OG `fetch.yml` setti
+     `ENABLE_ESPN: "false"` — en `fetchEspnShots()` er kollud undir
+     `FLAGS.derived`, svo ESPN var sótt i HVERRI keyrslu hvad sem flagginu
+     leid (`status.json`: espn_shots ok:true, 290 skot). Uppsetningin sagdi
+     thvi hid gagnstaeda vid thad sem gerdist, i baðum attum.
+     ESPN ER EINA LIFANDI SKOT-HEIMILDIN (CLAUDE.md 6) og vid VILJUM hana, svo
+     retta lagfaeringin er ad fjarlaegja logina — ekki ad vira hana og hætta a
+     ad slokkva a virkri heimild vid naesta workflow-misritun. Vantar
+     `ENABLE_*` er nu MAELT i `workflow-push.mjs` svo dautt flagg finnist.  */
   euro:            (process.env.ENABLE_EURO ?? "true")       === "true",
   travel:          (process.env.ENABLE_TRAVEL ?? "true")     === "true",
   derived:         (process.env.ENABLE_DERIVED ?? "true")    === "true",
@@ -1052,8 +1061,39 @@ async function fetchFdcouk() {
   }
   const { header, rows } = parseCSV(text);
   console.log(`fdcouk E0 columns: ${header.slice(0, 20).join(",")}…`);
-  await writeJSON("fdcouk/E0-2627.json", { header, rows });
-  record("fdcouk_e0", true, rows.length);
+  /* ============================================================
+     DEILDIN VERDUR AD VERA E0 — MAELT 14.8.2026, VILLAN VAR LIFANDI.
+     football-data 301-REDIRECTAR `mmz4281/2627/E0.csv` yfir a `EC.csv`
+     (National League) medan PL-skrain er ekki til enn. `fetch` fylgir
+     redirectum thegjandi, og hér var ADEINS 404 sannreynt — svo skrain
+     data/fdcouk/E0-2627.json bar 12 radir med `Div: "EC"` (Altrincham,
+     Boreham Wood, Southend) og status.json sagdi `fdcouk_e0 ok:true`.
+     ThRENNT gerdi thetta verra en tomt svar:
+       1. Graen heimild sem ber gogn ur ANNARRI deild.
+       2. `gw1-checklist.mjs` spyr "er E0-2627 til med rodum?" — sem var
+          ThEGAR uppfyllt af utandeildar-rodum, svo gatlistinn hefdi
+          orðið graenn af RANGRI astaedu 21. agust.
+       3. Se akvordunin i CLAUDE.md um ad blanda yfirstandandi timabili
+          inn i lidsstyrk tekin adur en redirectid hverfur, blandast
+          National League inn i PL-styrk.
+     ThAD ER ENGIN NAFNA-VORPUN HER: `Div` er dalkur i skranni sjalfri,
+     svo thetta er sannreyning, ekki agiskun. Ohreint svar er MEDHONDLAD
+     EINS OG 404 — "bidur timabils" — thvi thad er nakvaemlega thad sem
+     redirectid thydir: PL-skrain er ekki til enn.
+     ============================================================ */
+  const divs = [...new Set(rows.map(r => r.Div).filter(Boolean))];
+  const e0Rows = rows.filter(r => r.Div === "E0");
+  if (!e0Rows.length) {
+    record("fdcouk_e0", true, 0,
+      `waiting for the season — the 2627 E0 path serves ${divs.join("/") || "no Div column"} `
+      + `(football-data redirects it until the PL file exists), so nothing was written`);
+    return;
+  }
+  /* Blandad svar er ekki "nogu gott": ef E0-radir eru til en adrar deildir
+     fljota med er adeins E0 skrifad, og talan i status segir bædi.        */
+  await writeJSON("fdcouk/E0-2627.json", { header, rows: e0Rows });
+  record("fdcouk_e0", true, e0Rows.length,
+    divs.length > 1 ? `E0 only; the file also carried ${divs.filter(d => d !== "E0").join("/")}` : null);
 }
 
 /* ========== 5b. SÖGULEG E0 — H2H, dómarar, heima/úti, lokalínur ==========
@@ -2122,7 +2162,7 @@ async function fetchBsdLive() {
   const acc = {};                                          // bsd id -> accumulator
   for (const [k, v] of Object.entries(prev.acc || {})) acc[k] = { ...v, teams: new Map(v.teams || []) };
   const P = id => (acc[id] ||= newAcc());
-  const shots = [...(prev.shots || [])];
+  /* `shots` VAR HER OG VAR ALLTAF TOMT — sja notuna i skrifunum ad nedan. */
   const positions = { ...(prev.positions || {}) };
   let added = 0;
 
@@ -2184,12 +2224,23 @@ async function fetchBsdLive() {
   const label = await seasonLabelFromEvents();
   await writeJSON("bsd_live.json", {
     updated: status.updated, source: "bsd_v2_live", season_id: season, season: label,
+    /* NOTAN LOFADI SVIDI SEM VAR ALLTAF TOMT (leidrett 14.8.2026).
+       Her stod "The app reads `players`/`shots`" — en `shots` var skrifad `[]`
+       i hverri keyrslu: hvergi i skriftunni er `shots.push`, skotin fara i
+       `addShot(...)` inni i safnaranum, og appid les skotakort ur
+       `bsd_shots.json`. Svidid var thvi hvorki fyllt ne lesid.
+       Nota sem lofar sviði sem er tomt er verri en engin nota: hun laetur
+       tomt svid lita ut eins og "engin skot i thessari umferd".
+       Svidid er FJARLAEGT fremur en fyllt — skotakortin eiga sina eigin
+       skra og tvitekin gogn geta rekid i sundur (CLAUDE.md 6, "EIN rod per
+       skot, ekki thrjar").                                              */
     note: "Current season from BSD, INCREMENTAL: only newly finished matches are "
         + "fetched and added to the accumulated totals (`_acc`). Same formulas as "
-        + "bsd_players.json — both use src/bsd.js. The app reads `players`/`shots`.",
+        + "bsd_players.json — both use src/bsd.js. The app reads `players`. "
+        + "Shot maps live in bsd_shots.json, not here.",
     matches: done.size,
     events: [...done].sort((a, b) => a - b),
-    players, shots, positions,
+    players, positions,
     _acc: Object.fromEntries(Object.entries(acc).map(([k, v]) => [k, { ...v, teams: [...v.teams] }])),
   });
   record("bsd_live", true, players.length,
@@ -2772,7 +2823,17 @@ async function buildArchiveGwReport() {
          gaesalappa ("Sanchez, Robert") hlidrar OLLUM dalkum theirrar radar
          — thogult, og ADEINS i thessari skyrslu. Tveir parserar a somu skra
          er hvorttveggja: rong tala og tala sem stangast a vid sjalfa sig. */
-      const parsed = parseCSVQuoted(text).rows.filter(r => r.element);
+      /* `.rows` VAR HER OG DRAP SKYRSLUNA I ThRJA DAGA (lagad 14.8.2026).
+         `parseCSV` skilar `{header, rows}` en `parseCSVQuoted` skilar FYLKINU
+         sjalfu. Skiptin yfir i quote-aware parserinn (11.8) toku ekki `.rows`
+         med ser, svo `.rows` var `undefined`, `.filter` kastadi, `catch`
+         gleypti — og lykkjan gekk g=38..1 til einskis, 38 kollum a hverri
+         dagskeyrslu, og endadi a "no gameweek file in the mirror".
+         MAELT UR SOGUNNI: status.json bar last_gw ok:true 11.8 (GW38, 312
+         radir, E0 10/10) og ok:false 12.8-14.8. data/last_gw.json fraus a
+         11.8 og GwReport-flipinn hefur birt thann fasta snapshot sidan.
+         Vordurinn er `tests/archive-gw-report.mjs`.                        */
+      const parsed = parseCSVQuoted(text).filter(r => r.element);
       if (parsed.length) { gw = g; rows = parsed; break; }
     } catch { /* naesta nidur */ }
   }
@@ -3584,7 +3645,30 @@ async function main() {
   try { await computeConsistency(); }          catch (e) { record("consistency", false, 0, e.message); }
   try { await computePlayerForm(events, els); } catch (e) { record("player_form", false, 0, e.message); }
   if (FLAGS.apisports) { try { await fetchLineups(); } catch (e) { record("api_lineups", false, 0, e.message); } }
+  /* ============================================================
+     ALDUR ELO ER TALINN, EKKI ADEINS SIDASTA UTKOMA (14.8.2026).
+     `elo` er inntak i FFDR (`DIFF_W.elo = 0.15` i ollum fjorum stodu-hopum)
+     og sokn hennar er TIMANAEM: hun brast 11.8 og 13.8 med timeout, en var
+     graen 10., 12. og 14. — ~2 daga af 5. Bilun EYDIR EKKI `elo.json`, svo
+     likanid keyrir afram a GOMLUM tolum og ekkert i pipeline sagdi fra thvi:
+     ein raud lina hverfur um leid og naesta keyrsla tekst, og STADAN sem
+     eftir stendur ("gogn fra i fyrradag, birt sem i dag") var osynileg.
+     `eloStale` i model.js varar vid i VIDMOTINU vid 2 og 5 daga — thetta er
+     sama spurning, spurd i pipeline, thar sem enginn var ad spyrja.
+     ATH: thetta er ekki "tom keyrsla thurrkar ut god gogn" (8e) heldur hitt
+     einkennid af sama meidi: GOMUL gogn birt sem NY.                     */
   if (FLAGS.elo)    { try { await fetchElo(); }              catch (e) { record("elo", false, 0, e.message); } }
+  try {
+    const eloFile = JSON.parse(await readFile(`${DATA}/elo.json`, "utf8"));
+    const ageH = (Date.now() - Date.parse(eloFile.updated)) / 36e5;
+    if (Number.isFinite(ageH)) {
+      const days = ageH / 24;
+      record("elo_age", days < 2, Math.round(ageH),
+        days < 2 ? `${ageH.toFixed(1)}h old`
+                 : `STALE: ${days.toFixed(1)} days old - FFDR is running on old Elo `
+                   + `(the fetch failing does not delete elo.json, so the model keeps going quietly)`);
+    }
+  } catch { record("elo_age", false, 0, "elo.json missing - FFDR has no Elo input at all"); }
   if (FLAGS.fdcouk) { try { await fetchFdcouk(); }           catch (e) { record("fdcouk_e0", false, 0, e.message); }
                       try { await fetchHistoricalE0(); }     catch (e) { record("fdcouk_history", false, 0, e.message); }
                       try { await fetchPromotedBaseline(); } catch (e) { record("promoted_baseline", false, 0, e.message); } }

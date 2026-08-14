@@ -977,5 +977,81 @@ console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`
   } catch { ok(true, "player_seasons.json vantar — raungagna-hluti sleppt"); }
 }
 
+/* ============================================================
+   15. `pos` ER VIRT — OG BADAR TOFLUR SEGJA ThAD SAMA
+
+   MAELT 14.8.2026: 12 dalkar bera `pos` og `buildLeaderboard` virdi thad,
+   en leikmannataflan HVERGI. Framherjar birtu `Clean sheet %: 32%`,
+   `Goals conceded: 36` og `xGC per 90: 1.26` (70 framherjar med
+   `clean_sheets`, 39 med `cs_pct`) medan stigataflan hafdi 0 i somu dalkum.
+   Markmenn baru `_mo`/`_ao` — 10 birtu `0.00` — thott notan a dalknum segdi
+   "goalkeepers never get it".
+   Kaflinn er ALMENNUR viljandi: hann telur sig EKKI til 12 dalka heldur
+   leidir listann UT UR `STAT_DEFS`, svo nyr `pos`-dalkur er sjalfkrafa
+   varinn. Sama regla og "blindir dalkar eru LEIDDIR UT, ekki handskrifadir"
+   (CLAUDE.md 8) — handskrifadur listi staðnar.
+   ============================================================ */
+console.log("\n15) `pos` er virt i BADUM lesmatum");
+{
+  const P = JSON.parse(readFileSync(new URL("../data/players.json", import.meta.url), "utf8")).players;
+  const posDefs = STAT_DEFS.filter(d => Array.isArray(d.pos) && d.pos.length);
+  ok(posDefs.length >= 10, `${posDefs.length} dalkar bera \`pos\` (forsenda kaflans)`);
+
+  let leaks = 0, leakEx = [];
+  for (const d of posDefs) {
+    const bad = P.filter(p => !d.pos.includes(p.element_type) && d.get(p) != null);
+    if (bad.length) { leaks++; leakEx.push(`${d.key}:${bad.length}`); }
+  }
+  ok(leaks === 0, `enginn pos-dalkur lekur ut fyrir stodu sina`, leakEx.join(" "));
+
+  /* Og ad talan se ENN TIL innan stodunnar — vordur ma ekki tæma dalkinn.
+     `live_only`/`derived` dalkar eru undanskildir HER thvi their lesa reiti
+     sem AUDGUNIN setur (`_mo`, `_start_p` …) og hrá `players.json` ber thá
+     ekki; mo/ao eru maeld beint a audguninni nedar i kaflanum.           */
+  let empty = 0, emptyEx = [];
+  for (const d of posDefs.filter(x => !x.live_only)) {
+    const inPos = P.filter(p => d.pos.includes(p.element_type) && d.get(p) != null);
+    if (!inPos.length) { empty++; emptyEx.push(d.key); }
+  }
+  ok(empty === 0, "hver pos-dalkur ber ENN tolur innan sinnar stodu", emptyEx.join(" "));
+
+  /* SAMA SVAR I BADUM LESMATUM — thetta er sjalft einkennid sem kom upp. */
+  const lb = buildLeaderboard({ players: P, season: "2025/26", limit: 5 });
+  const groups = Array.isArray(lb) ? lb : (lb?.groups || []);
+  let mismatch = 0;
+  for (const g of groups) for (const c of (g.cols || g.items || [])) {
+    const d = STAT_BY_KEY[c.key];
+    if (!d || !Array.isArray(d.pos)) continue;
+    const rows = c.rows || c.top || [];
+    const outOf = rows.filter(r => r.element_type != null && !d.pos.includes(r.element_type));
+    if (outOf.length) mismatch++;
+  }
+  ok(mismatch === 0, "stigataflan ber engan leikmann ut fyrir stodu-svid dalksins", String(mismatch));
+
+  /* MARKMENN OG mo/ao — beint a audguninni, ekki adeins a getternum, thvi
+     omaeld tala a ekki ad VERDA TIL (sja `makeEnricher`).                */
+  const T = JSON.parse(readFileSync(new URL("../data/teams.json", import.meta.url), "utf8")).teams;
+  const teamById = Object.fromEntries(T.map(t => [t.id, t]));
+  const IM = JSON.parse(readFileSync(new URL("../data/imminent.json", import.meta.url), "utf8"));
+  const en = makeEnricher({ players: P, teamById, imminent: IM, season: "2025/26" });
+  let gkMo = 0, outMo = 0;
+  for (const p of P) {
+    const f = en(p).fields;
+    if (p.element_type === 1) { if (f._mo != null || f._ao != null) gkMo++; }
+    else if (f._mo != null) outMo++;
+  }
+  ok(gkMo === 0, `enginn markmadur faer mo/ao ur audguninni (${gkMo}, var 17)`);
+  /* NEIKVAED FULLYRDING MED SANNADRI FORSENDU (CLAUDE.md 5b regla 2):
+     utileikmenn VERDA ad hafa toluna, annars er "0 hja markmonnum"
+     einskis virdi — tha vaeri hun 0 hja ollum.                          */
+  ok(outMo > 50, `utileikmenn bera hana ENN (${outMo}) — annars maelir fullyrdingin ofan ekkert`);
+  /* Og notan a dalknum verdur ad segja thad sem kodinn gerir. */
+  ok(/goalkeepers never get it/i.test(STAT_BY_KEY.mo.note)
+     && /goalkeepers never get it/i.test(STAT_BY_KEY.ao.note),
+     "notan segir enn ad markmenn fai hana ekki");
+  ok(STAT_BY_KEY.mo.pos?.join() === "2,3,4" && STAT_BY_KEY.ao.pos?.join() === "2,3,4",
+     "og dalkarnir bera pos:[2,3,4] svo vordurinn se i skranni, ekki adeins i audguninni");
+}
+
 console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

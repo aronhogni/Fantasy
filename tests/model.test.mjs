@@ -727,5 +727,23 @@ console.log(`\n${"─".repeat(72)}\nMARKADS-LYKKJAN: OHEMJULEG LINA MA EKKI HENG
      `tolu-strengur "2.5" jafngildir 2,5 (${str.out})`);
 }
 
+/* ============================================================
+   TVAER SKILGREININGAR A SOMU TOLU — BUNDNAR SAMAN (14.8.2026)
+   `LG_XG` (model.js) og `LG_XG_MARKET` (market.js) eru badar
+   deildarmedaltal marka per lid-leik og badar 1,45. Skrarnar eru VILJANDI
+   oháðar (market.js flytur ekkert inn ur model.js), en tvitekid gildi an
+   vardar er bod um thogult misraemi: breytti einhver odru vaeri
+   markadslidurinn ad reikna a odru deildarmedaltali en kjarninn, og EKKERT
+   hefdi sagt fra thvi. Fullyrdingin er a JOFNUDI theirra, ekki a tolunni —
+   maelist deildarmedaltalid upp a nytt eiga BADAR ad faerast.
+   ============================================================ */
+{
+  const { LG_XG_MARKET } = await import("../src/market.js");
+  const { LG_XG } = await import("../src/model.js");
+  ok(LG_XG === LG_XG_MARKET,
+     `LG_XG (model.js ${LG_XG}) == LG_XG_MARKET (market.js ${LG_XG_MARKET})`);
+  ok(LG_XG > 1.2 && LG_XG < 1.8, `og talan er truverdugt deildarmedaltal (${LG_XG})`);
+}
+
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

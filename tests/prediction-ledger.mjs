@@ -23,7 +23,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { buildSnapshot, shouldWrite, inputsUsable, WINDOW_H } from "../scripts/snapshot-predictions.mjs";
+import { buildSnapshot, shouldWrite, inputsUsable, WINDOW_H, windowOpen, ledgerGaps } from "../scripts/snapshot-predictions.mjs";
 import { buildTeamMetrics } from "../src/teamstats.js";
 
 const REPO = new URL("../", import.meta.url);
@@ -121,7 +121,8 @@ console.log("\n3) PROFSTEINNINN: FFDR i bokhaldi == FFDR a skja");
     gw, players, teams, fixtures,
     teamForm: tryJ("team_form.json"), odds: tryJ("odds.json"),
     elo: tryJ("elo.json"), playerForm: tryJ("player_form.json"),
-    promoted: tryJ("promoted_baseline.json"), nowTs: Date.now(),
+    promoted: tryJ("promoted_baseline.json"), imminent: tryJ("imminent.json"),
+    nowTs: Date.now(),
   });
   ok(`bokhaldid var byggt (gw${gw}: ${snap.ffdr.length} ffdr-radir, ${snap.rank.length} leikmenn)`,
      snap.ffdr.length >= 2 && snap.rank.length > 400);
@@ -254,10 +255,16 @@ console.log("\n4) RODIN: nog til ad kvarda, engin tilbuin tala");
   const players = arr(tryJ("players.json"), "players");
   const teams = arr(tryJ("teams.json"), "teams");
   const fixtures = arr(tryJ("fixtures.json"), "fixtures");
+  /* `imminent` VANTADI HER OG ThAD FALDI VILLU I ThRJA DAGA (lagad 14.8.2026).
+     Profid byggdi inntakid sjalft og SLEPPTI thvi sem keyrslan gefur, svo
+     `start_prob` var null i profinu — og fullyrdingin fyrir nedan sagdi ad
+     null vaeri RETT SVAR. Med thvi var villan skjolfest sem hegdun.
+     Profid les nu SOMU skrar og keyrslan; sja kafla 4b sem ber thad saman. */
   const snap = buildSnapshot({ gw: 1, players, teams, fixtures,
     teamForm: tryJ("team_form.json"), odds: tryJ("odds.json"),
     elo: tryJ("elo.json"), playerForm: tryJ("player_form.json"),
-    promoted: tryJ("promoted_baseline.json"), nowTs: Date.UTC(2026, 7, 20) });
+    promoted: tryJ("promoted_baseline.json"), imminent: tryJ("imminent.json"),
+    nowTs: Date.UTC(2026, 7, 20) });
 
   const top = snap.rank[0];
   ok("rodin er RODUD eftir skori", snap.rank.every((r, i) => i === 0 || snap.rank[i - 1].score >= r.score));
@@ -266,19 +273,57 @@ console.log("\n4) RODIN: nog til ad kvarda, engin tilbuin tala");
   ok("tiltaekileiki er skradur SER, ekki blandadur i skorid",
      typeof top.avail === "number" && top.score !== undefined && top.score_avail !== undefined);
   ok("FPL-eigid xP er skrad sem vidmid", snap.rank.some(r => r.ep_next != null));
-  /* BYRJUNAR-LIKURNAR ERU null I FORLEIK OG ThAD ER RETT — `startFeatures`
-     krefst per-umferdar minutna (`data/live/`), sem eru ekki til fyrr en
-     timabilid byrjar. Fyrsta utgafa thessarar fullyrdingar heimtadi tolu og
-     FELL a rettum kodha. Rett krafa er ThVI SKILYRT: svidid VERDUR ad vera
-     til i hverri rod (svo kvordunin geti lesid thad), og thad verdur ad vera
-     TALA UM LEID OG `player_form` er komin — ekki fyrr.                  */
-  ok("start_prob-svidid er til i HVERRI rod (null i forleik er rett svar)",
+  /* ============================================================
+     BYRJUNAR-LIKURNAR — FULLYRDINGIN SEM SKJOLFESTI VILLUNA.
+     Her stod: "start_prob er null i forleik OG ThAD ER RETT, thvi
+     `startFeatures` krefst per-umferdar minutna ur `data/live/`", og
+     skilyrt a `player_form.gws_used > 0`. Hvorttveggja var RANGT:
+       · `start_prob` kemur EKKI ur `player_form` heldur ur `start_feats`
+         i `imminent.json`, sem er til NUNA (840 af 841 rodum).
+       · Talan var null af thvi ad `buildSnapshot` sendi TOLU thar sem
+         `startFeatures` heimtar FYLKI — svo hun hefdi verid null ALLT
+         timabilid, ekki adeins i forleik.
+     Profid staðfesti null sem rett svar og gerdi villuna thannig ad reglu.
+     RETTA INVARIANTID ER PORUN, EKKI TIMABILS-FASI: leikmadur sem A
+     `start_feats` verdur ad hafa TOLU; leikmadur sem a thau ekki verdur ad
+     hafa null (NULL ER EKKI NULL). Thad gildir i forleik og i timabili.
+     ============================================================ */
+  ok("start_prob-svidid er til i HVERRI rod (svo kvordunin geti lesid thad)",
      snap.rank.every(r => "start_prob" in r));
-  const pfLive = (tryJ("player_form.json")?.gws_used || 0) > 0;
-  ok(pfLive ? "player_form er komin -> byrjunar-likur VERDA ad vera tolur"
-            : "forleikur: player_form tom (gws_used 0), svo null er rett",
-     pfLive ? snap.rank.some(r => r.start_prob != null)
-            : snap.rank.every(r => r.start_prob === null));
+  {
+    const im = tryJ("imminent.json");
+    const feats = new Map();
+    for (const r of (Array.isArray(im?.players) ? im.players : []))
+      if (r?.code != null && r.start_feats) feats.set(String(r.code), r.start_feats);
+    ok(`imminent.json ber start_feats (${feats.size} radir) — forsenda naestu fullyrdinga`,
+       feats.size > 100, String(feats.size));
+    const have = snap.rank.filter(r => feats.has(String(r.code)));
+    const lack = snap.rank.filter(r => !feats.has(String(r.code)));
+    ok(`leikmenn MED start_feats fa TOLU (${have.length} radir)`,
+       have.length > 0 && have.every(r => typeof r.start_prob === "number"
+                                       && r.start_prob > 0 && r.start_prob <= 1),
+       `${have.filter(r => typeof r.start_prob !== "number").length} an tolu`);
+    ok(`leikmenn AN start_feats fa null, ekki 0 (${lack.length} radir)`,
+       lack.every(r => r.start_prob === null),
+       `${lack.filter(r => r.start_prob !== null).length} med tolu`);
+    /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1). */
+    ok(`thekja start_prob er skrad i skranni (${snap.coverage?.start_prob})`,
+       snap.coverage?.start_prob === have.length, JSON.stringify(snap.coverage));
+    ok("thekjan er EKKI 0 — talan sem var 0 af 584 fyrir lagfaeringuna",
+       (snap.coverage?.start_prob || 0) > 0, JSON.stringify(snap.coverage));
+    /* OG AD KEYRSLAN SJALF SENDI ThETTA INN. Profid getur sent `imminent`
+       medan skriftan sleppir thvi — thad var NAKVAEMLEGA astandid fyrir
+       lagfaeringuna, i hina attina. Sami lærdomur og `lineups.mjs`: prof sem
+       les KODANN sagdi "ja, fallid er kallad" medan workflow-id sleppti thvi
+       thegjandi (CLAUDE.md 7.1).                                          */
+    const runner = readFileSync(new URL("../scripts/snapshot-predictions.mjs", import.meta.url), "utf8");
+    const call = runner.slice(runner.lastIndexOf("buildSnapshot({"));
+    ok("keyrslan sendir `imminent` inn i buildSnapshot",
+       /imminent:\s*tryJ\("imminent\.json"\)/.test(call), call.slice(0, 320));
+    ok("og hun kallar EKKI `startFeatures` (fylkid sem hun hafdi ekki)",
+       !/startFeatures\s*\(/.test(runner.replace(/\/\*[\s\S]*?\*\//g, "")),
+       "startFeatures er enn kollud");
+  }
   /* NULL ER EKKI NULL: leikmadur an FFDR (lid an leiks) ma ekki fa 0.      */
   const blank = snap.rank.filter(r => r.fixtures === 0);
   ok(`lid an leiks -> ffdr null, ekki 0 (${blank.length} leikmenn)`,
@@ -287,6 +332,61 @@ console.log("\n4) RODIN: nog til ad kvarda, engin tilbuin tala");
   ok("heimildirnar eru skradar (hvad var til thegar spain var gerd)",
      snap.sources && typeof snap.sources.odds === "boolean" && typeof snap.sources.elo === "boolean");
   ok("notan segir ad rodin se onemandi", /never rewritten/i.test(snap.note || ""));
+}
+
+/* ---------------------------------------------------------------
+   5. EFTIRLITID — ThOGN VAR EINA RAUNVERULEGA HAETTAN
+
+   `continue-on-error: true` a skrefinu i `fetch-fast.yml` er VILJANDI
+   (bokhaldid ma ekki fella gagna-keyrsluna) — en thad thydir ad bilun
+   innan gluggans skilur eftir sig ENGA slod. Kodinn sem bregst vid thvi
+   kviknar fyrst 21.8. kl. 05:30 UTC, svo hann er profadur a TILBUNUM
+   gognum, eins og `bsd-pipeline.mjs` og `defcon-shrink.mjs`.
+   --------------------------------------------------------------- */
+console.log("\n5) EFTIRLIT: gluggi opinn + engin rod = RAUTT");
+{
+  const H = 36e5, DL = Date.UTC(2026, 7, 21, 17, 30);
+  ok("utan gluggans er `windowOpen` false (13 klst fyrir)",
+     windowOpen({ deadlineMs: DL, nowMs: DL - 13 * H }) === false);
+  ok("a mörkunum (12,0 klst) er hann OPINN — sama mark og shouldWrite",
+     windowOpen({ deadlineMs: DL, nowMs: DL - WINDOW_H * H }) === true
+     && shouldWrite({ gw: 1, deadlineMs: DL, nowMs: DL - WINDOW_H * H, exists: false }).write === true);
+  ok("rett fyrir 12,1 klst er hvorugt opid (samhljoda mork)",
+     windowOpen({ deadlineMs: DL, nowMs: DL - 12.1 * H }) === false
+     && shouldWrite({ gw: 1, deadlineMs: DL, nowMs: DL - 12.1 * H, exists: false }).write === false);
+  ok("eftir frestinn er glugginn lokadur", windowOpen({ deadlineMs: DL, nowMs: DL + 60e3 }) === false);
+  ok("an frests er hann lokadur (engin gisking)", windowOpen({ deadlineMs: NaN, nowMs: DL }) === false);
+
+  /* HOLUR: frestur lidinn OG engin rod = VARANLEGT tap, alltaf raudt.    */
+  const EV = [{ id: 1, deadline_time: "2026-08-21T17:30:00Z" },
+              { id: 2, deadline_time: "2026-08-28T17:30:00Z" },
+              { id: 3, deadline_time: "2026-09-04T17:30:00Z" }];
+  const after = Date.parse("2026-08-29T00:00:00Z");
+  ok("baðar lidnar umferdir skradar -> engar holur",
+     ledgerGaps({ events: EV, nowMs: after, has: () => true }).length === 0);
+  ok("GW1 vantar eftir sinn frest -> hola",
+     JSON.stringify(ledgerGaps({ events: EV, nowMs: after, has: id => id !== 1 })) === "[1]");
+  ok("badar vantar -> tvaer holur",
+     JSON.stringify(ledgerGaps({ events: EV, nowMs: after, has: () => false })) === "[1,2]");
+  /* ThAD SEM MATTI EKKI GERAST: umferd sem er ENN OSPILUD ma ekki teljast
+     hola — annars vaeri linan raud allt timabilid og enginn laesi hana.  */
+  ok("OSPILUD umferd (GW3) er EKKI hola thott engin rod se til",
+     !ledgerGaps({ events: EV, nowMs: after, has: () => false }).includes(3));
+  ok("i forleik (fyrir alla fresti) eru engar holur",
+     ledgerGaps({ events: EV, nowMs: Date.parse("2026-08-14T00:00:00Z"), has: () => false }).length === 0);
+  ok("illgilt inntak hrynur ekki", ledgerGaps({ events: null, nowMs: after, has: () => false }).length === 0);
+
+  /* OG AD SKRIFTAN SKRIFI RAUNVERULEGA LINUNA — wiring, ekki bara formula. */
+  const runner = readFileSync(new URL("../scripts/snapshot-predictions.mjs", import.meta.url), "utf8");
+  ok("skriftan skrifar `prediction_ledger` i status.json",
+     /sources \|\|= \{\}\)\.prediction_ledger/.test(runner));
+  ok("hun skrifar linuna i OLLUM utkomum (skip, thunn inntok, hrun, skrifad)",
+     (runner.match(/recordLedger\(/g) || []).length >= 5,
+     String((runner.match(/recordLedger\(/g) || []).length));
+  ok("og notan er AUDKENNANLEG thegar glugginn er opinn en ekkert skrifad",
+     /WINDOW OPEN but nothing recorded/.test(runner) && /WINDOW OPEN but the snapshot threw/.test(runner));
+  ok("`continue-on-error` er enn a skrefinu (bokhaldid ma ekki fella keyrsluna)",
+     /continue-on-error:\s*true/.test(readFileSync(new URL("../.github/workflows/fetch-fast.yml", import.meta.url), "utf8")));
 }
 
 console.log(`\nSPA-BOKHALD: ${pass} stodust, ${fail} fellu`);

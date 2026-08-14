@@ -154,6 +154,11 @@ export function marketDiff(expectedGoalsAgainst) {
    Fleiri vænt mörk = LÉTTARI leikur, svo stærðin er spegluð um
    deildarmeðaltalið og fer svo gegnum SÖMU línulegu umbreytingu — þannig
    liggur meðalleikur í 2,44 á báðum kvörðum og þeir eru samanburðarhæfir. */
+/* SAMA TALA OG `LG_XG` I model.js OG ThAD ER EKKI TILVILJUN: bædi eru
+   deildarmedaltal marka per lid-leik. Thau eru VILJANDI adskilin (market.js
+   flytur ekkert inn ur model.js) en maettu ALDREI reka i sundur — 1,45 hér
+   og 1,50 thar vaeri thogull osamraemi milli markadsliðarins og kjarnans.
+   `model.test.mjs` bindur thau saman (baett vid 14.8.2026).            */
 export const LG_XG_MARKET = 1.45;      // deildarmeðaltal marka per lið-leik
 export function marketAttackDiff(expectedGoalsFor) {
   return marketDiff(2 * LG_XG_MARKET - expectedGoalsFor);

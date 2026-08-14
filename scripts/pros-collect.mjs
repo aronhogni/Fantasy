@@ -233,7 +233,28 @@ export async function collectPros(deps, events, elements) {
                 attempts: { ...(prev.attempts || {}), [gw]: { tries: att.tries + 1, last: new Date().toISOString() } },
                 gw: { ...(prev.gw || {}), [gw]: agg } };
   const prevOut = out;   // formationOutcome skrifar inn i fyrri umferd hennar
+  /* SKRIFAD SNEMMA VILJANDI: bresti control-sokn eda greiningarskrain
+     hér a eftir er panel-talning umferdarinnar SAMT komin a disk. En thad
+     thydir ad ALLT sem baetist vid `out` EFTIR thetta verdur ad skrifast
+     aftur — sja `dirty` hér a eftir.                                      */
   await writeJSON("pros_gw.json", out);
+  /* ============================================================
+     CONTROL-HOPURINN TAPADIST I GW1 — MAELT OG LAGAD 14.8.2026.
+     `agg.control` var sett EFTIR thessa skrif (og `agg` ER `out.gw[gw]`, sama
+     tilvisun), en endurskrifin var skilyrt a `out.__outcomeAdded`, sem
+     krefst FYRRI umferdar. I GW1 er engin fyrri umferd -> ekkert flagg ->
+     ENGIN endurskrif: ~1.000 koll voru gerd (`pros.json` ber `control: 1000`;
+     athugasemdin i kodanum sagdi "300" og var ureald) og nidurstadan HENT.
+     Naesta viku les keyrslan `prev` af diski — an control fyrir GW1 — og
+     thekju-vordurinn (`:151`) kemur i veg fyrir endursofnun. GW1-vidmidid
+     hefdi thvi verid TAPAD AD EILIFU, og panel-tolur an vidmids eru
+     merkingarlausar (thad er allur tilgangur hopsins).
+     Og thad var ekki adeins GW1: hver umferd thar sem `oc.n === 0` eda
+     `metaOrNull` er falsy hefdi lika tapad sinni control-rod.
+     LAUSNIN heldur BADUM eiginleikum: snemm-skrifin standa (hrun-vorn) og
+     `dirty` tryggir ad allt sem baetist vid eftir thau endi a diski.
+     ============================================================ */
+  let dirty = false;
 
   /* CONTROL-HOPUR — SLEMBINN hopur af sömu staerd, sama talning.
 
@@ -261,6 +282,7 @@ export async function collectPros(deps, events, elements) {
         delete cagg.chipIds; delete cagg.pairs;
         cagg.size = control.length;
         agg.control = cagg;
+        dirty = true;              // sja `dirty` ofar: annars tapast thetta i GW1
       }
     } catch (e) { record("pros_control", false, 0, e.message); }
   }
@@ -283,7 +305,7 @@ export async function collectPros(deps, events, elements) {
     const pgw = gws[0];
     if (pgw != null && metaOrNull) {
       const oc = formationOutcome(m, pgw, gw, metaOrNull);
-      if (oc.n > 0) { prevOut.gw[pgw] = { ...prevOut.gw[pgw], outcome: oc }; prevOut.__outcomeAdded = true; }
+      if (oc.n > 0) { prevOut.gw[pgw] = { ...prevOut.gw[pgw], outcome: oc }; dirty = true; }
     }
 
     await writeJSON("pros_moves.json", {
@@ -298,9 +320,12 @@ export async function collectPros(deps, events, elements) {
     record("pros_moves", false, 0, e.message);
   }
 
-  /* Ef `outcome` var reiknad tharf pros_gw ad skrifast aftur — hun var
-     skrifud adur en per-stjornanda sagan var sameinuð.                    */
-  if (out.__outcomeAdded) { delete out.__outcomeAdded; await writeJSON("pros_gw.json", out); }
+  /* Ef NOKKUD baettist vid eftir snemm-skrifin (control-hopurinn, `outcome`,
+     eda hvad sem sidar kemur) tharf pros_gw ad skrifast aftur. `__outcomeAdded`
+     var adur flaggid og thad naedi ADEINS yfir `outcome` — control-hopurinn
+     var thvi hentur i hverri umferd an fyrri umferdar. Nu er flaggid EITT
+     fyrir allar vidbaetur, svo nyr lidur getur ekki gleymst med sama haetti. */
+  if (dirty) await writeJSON("pros_gw.json", out);
 
   /* SNIDS-VORDUR. Vid hofum ALDREI sed lifandi `picks`-svar — thad er 404
      fram ad fyrsta fresti — svo hvert svid sem vid lesum er FORSENDA sem

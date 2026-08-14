@@ -3165,3 +3165,126 @@ npm run dev                              # sjáðu völlinn í raun (ég gat ekk
 
 Byrjaðu þar: **staðfestu útlitið sjónrænt** og **prófaðu API-Sports-lykilinn
 beint** áður en næsta eiginleiki fer inn.
+
+---
+
+## 14.8.2026 — ÚTTEKT Á HANDOVER-FPL.md, MÆLT OG LAGAÐ
+
+Handover-skjalið (13.8.2026) var sannreynt lið fyrir lið með keyrðum
+endurgerðum. Meirihlutinn stóðst; hér er það sem MÆLDIST, þar með talið það
+sem skjalið sagði rangt og það sem það sá ekki.
+
+### Fjórar fullyrðingar handover-skjalsins sem stóðust EKKI
+
+| fullyrðing | mælt |
+|---|---|
+| A.4: „null = 0,5 er hin MÆLDA ákvörðun" | **Hvorug talan er mæld.** Hvorki `0` (`availForKickoff`) né `0,5` (App.jsx, snapshot) á sér mælingu; `tests/exp-points.mjs:20-25` segir beinum orðum að `chance_of_playing_next_round` sé framtíðar-upplýsing og **ekki mælanleg** þar. `availForKickoff` er auk þess ELDRI (31.7.) en 0,5-reglan (10.8.) og sama `?? 0` stendur í þremur frystum afritum — arfur, ekki ásetningur. **Ósnert**: að samræma á 0,5 væri að velja ómælda tölu, sem er nákvæmlega það sem kafli 3 bannar. Áhrif í dag: **0 af 70** óheilbrigðum leikmönnum bera null-líkur (33 committaðar útgáfur skoðaðar) |
+| A.5: „hálfskrifað JSON gefur hlut þar sem fylki á að vera" | **Rangt ógnarlíkan.** 2.000 klipppunktar á `last_gw_shots.json`: **1.999 SyntaxError, 0** tilfelli af hlut-í-stað-fylkis. Hálfskrifað JSON kastar í `r.json()` og er ÞEGAR varið. Raunverulega leiðin er snið-breyting eða mis-víruð prop — `players` ER þegar hlutur í `player_form.json`, `player_seasons.json` og öllum `player_gw_*.json`. Lagað samt (`rowsOf`), en af réttri ástæðu |
+| B.2: „elo ok:false núna; `homeCore` slekkur á sér" | **Úrelt OG rangur gangvirki.** Elo var `ok:true` í 14.8-keyrslunni; bilanir 11.8 og 13.8, grænt 10., 12. og 14. — ~2 dagar af 5, hléskennt. Og bilun EYÐIR EKKI `elo.json`, svo `usedElo` helst satt og `homeCore` er ÁFRAM Á með gömlum tölum. Hættan er ekki að liður slokkni heldur að **gömul gögn séu birt sem ný** |
+| B.3: „ekkert les E0-2627" | **Ósatt** — `buildLiveGwReport` (`fetch.mjs:2742`) les hana. Rétta fullyrðingin er að `team_form` geri það ekki. Nótan í `wiring.mjs` var sjálf úrelt, líka línunúmerin |
+
+### Þrennt sem handover-skjalið sá ekki
+
+**1. `data/fdcouk/E0-2627.json` bar NATIONAL LEAGUE og heimildin var græn.**
+Mælt beint: `curl -w "%{http_code} %{redirect_url}"` gefur
+`301 -> .../2627/EC.csv` fyrir 2627 og `200` fyrir 2526. `fetch` fylgir
+redirectum og `fetchFdcouk` sannreyndi AÐEINS 404, svo skráin bar 12 raðir,
+allar `Div: "EC"` (Altrincham v Southend, 08/08/2026) og `status.json` sagði
+`fdcouk_e0 ok:true, count:12`. **`gw1-checklist` atriði 8 („er skráin til með
+röðum?") var þegar uppfyllt af utandeildar-röðum** og hefði orðið grænt af
+rangri ástæðu 21. ágúst. Vörður: `Div === "E0"` í `fetchFdcouk` (óhreint svar
+meðhöndlað eins og 404), `tests/fdcouk-e0.mjs` (21 fullyrðing), og
+checklistinn prófar nú deildina. Skráin var **fjarlægð**.
+
+**2. `start_prob` í spá-bókhaldinu var null fyrir ALLA — og hefði verið það
+allt tímabilið.** `buildSnapshot` kallaði
+`startProbability(startFeatures(mins, …))` þar sem `mins` var **tala**
+(`Number(p.minutes) || 0`); `startFeatures` heimtar **fylki** af mínútum
+síðustu umferða → `Array.isArray` false → `[]` → `length < 2` → null.
+Kvörðunin (Brier + bekkjar-gildran) hefði því aldrei getað mælt þá vídd.
+Handover-skjalið las þetta sem „gate er einu skilyrði of fátt"; orsökin var
+dýpri. Rétt heimild er sú sem appið notar: `start_feats` í `imminent.json`.
+Pörun á `code` (fast yfir tímabil, 841 raðir/841 einkvæm): **459 af 584**
+parast, allir með `start_feats`; hinir 125 eiga engin gögn og fá réttilega
+null. Mælt eftir lagfæringu: `start_prob` **0/584 → 459/584**.
+Prófið sem átti að verja þetta **staðfesti villuna sem hegðun** — það kallaði
+`buildSnapshot` ÁN `imminent` og fullyrti svo að null væri „rétt svar í
+forleik". Nú les það sömu skrár og keyrslan.
+
+**3. Control-hópurinn tapaðist í GW1 — ~1.000 köll í ekkert.** `agg.control`
+er sett EFTIR `writeJSON` og endurskrifin var skilyrt á `__outcomeAdded`, sem
+krefst FYRRI umferðar. Í GW1 er engin, svo hópurinn var sóttur og hent; þekju-
+vörðurinn hefði komið í veg fyrir endursöfnun. `pros.json` ber `control: 1000`
+(athugasemdin í kóðanum sagði 300 og var úrelt). **Og prófið gat ekki fallið**:
+harnessið geymdi `wrote[p] = o` — SÖMU TILVÍSUN og kóðinn hélt áfram að breyta —
+svo `control` sást í prófinu þótt hún væri aldrei skrifuð. Harnessið
+serialiserar nú, og fullyrðingin er á NÁKVÆMLEGA þremur skrifum
+(tilraun · hrun-vörn · endurskrif); `>= 2` var mín eigin tóma fullyrðing því
+`markAttempt()` skrifar alltaf einu sinni fyrst.
+
+### FPL endurgrunnaði hornaröðunina 13.8.2026
+
+Mælt úr committuðum `data/players.json` (6 útgáfur):
+
+| keyrslur | `corners_and_indirect_freekicks_order` | lið með 1 |
+|---|---|---|
+| 9.8 – 12.8 | 2 – 12 | **0 af 20** |
+| 13.8 – 14.8 | **1 – 6** | **18 af 20** |
+
+`pen` og `fk` eru bæði 1–5, svo öll þrjú sviðin hafa nú sama grunn.
+`fetch.mjs:262` afritar töluna óbreytta → FPL sjálft. Reglan (röðun innan
+liðs) stóðst óbreytt og er enn nauðsynleg: **FUL** (Iwobi 2, Bobb 3, Kevin 4)
+og **NEW** (Hall 2, J.Murphy 3, L.Miley 4, Elanga 5) hafa enga 1.
+Þrjár fullyrðingar féllu og **allar voru um FPL-númerin, ekki um regluna**.
+Tvær aðrar birtingar voru orðnar ÓSANNAR á skjánum: `stats.js`-nótan
+(„MEASURED: … the range is 4–10 and NO club has a 1") og legend-textinn í
+flipanum („4–10 and never reach 1"). Sviðin eru nú REIKNUÐ (`spRanges`).
+**Vörðurinn þurfti að breytast í eðli sínu:** með nýja grunninum finnur
+`order === 1` taka fyrir 18 af 20 liðum, svo lifandi gögn ein duga ekki lengur
+— tilbúið lið (4/7/9) ber vörðinn, plús lifandi liðin án 1, talin.
+
+### Stöðu-lekinn í leikmannatöflunni (A.2 — stærri en skjalið sagði)
+
+Skjalið nefndi mó/aó á markmönnum. Mælt: **12 dálkar bera `pos` og
+leikmannataflan virti það hvergi** — `buildLeaderboard` gerir það. Framherjar
+birtu `Clean sheet %: 32%`, `Goals conceded: 36`, `xGC per 90: 1.26`
+(70 framherjar með `clean_sheets`, 39 með `cs_pct`) meðan stigataflan hafði 0
+í sömu dálkum: **tvær töflur sögðu sitthvað um sama dálk**. Markmenn: 17 báru
+`_mo`/`_ao`, **10 birtu `0.00`** og 13 `0.0` — ómæld tala sem leit út eins og
+mæling, þvert á nótu dálksins sjálfs.
+Skjalið lagði til `pos:[2,3,4]` + lagfæringu á `PlayerList.jsx:78`; það hefði
+lagað **stigatöfluna eina**, því `numericDefs` þar hleypir 124 af 124 gegnum
+OG er **aldrei kölluð** (dautt fall). Vörðurinn er því á **getternum sjálfum**,
+sem báðar töflur, þröskuldarnir, hitakortið og prófin lesa. Óþekkt staða
+(`element_type` vantar) fer ÓSNERT í gegn — fimm einingapróf féllu á fyrstu
+útgáfu sem síaði hana líka, og „vantar" er ekki „utan sviðs".
+
+### Dauðir samhengis-þættir í ráðgjöfinni (A.3)
+
+Mælt á öllum 584: `start` 465 gildi, `aron` 473, **`dc` 0 og `bc` 0**.
+`dc` fletti upp í FYLKI eftir sæti (`defcon.players[p.id]`) og
+`defcon_opportunity` býr á `defcon.opportunity[TEAM_ID]`. Hermt í-tímabils-
+fylki sýndi að **299 af 300 uppflettingum hittu á annan leikmann**, svo hefði
+sviðið einhvern tíma verið sett á raðirnar hefði þetta birt tölu ANNARS manns.
+`bigChances` átti **engan framleiðanda** í `src/` — `advisor.js` var eini
+lesandinn. Eftir tengingu: `dc` 255 (GK+DEF, sama staða og skorið notar),
+`bigChances` 316. Vörður er á SVIÐUM, ekki skrám: hvert svið sem
+`contextFactors` les verður að eiga stað í `src/` sem setur það.
+
+### Fjórða hlut-í-stað-fylkis staðurinn fannst þegar prófið var skrifað
+
+`makeEnricher` hafði þrjá (`shotsFile`, `defcon`, `bsd`) — nýja
+atburðarásin í `data-resilience.mjs` felldi líka **`threatByTeam` í
+`SetPieces.jsx`**, sem enginn hafði nefnt. `|| []` ver aðeins null/undefined;
+`{} || []` er `{}`.
+
+### Verðir sem voru stökkbreyttir (afturkallað, staðfest að þeir falla)
+
+`set-pieces` (rank-innan-liðs → FPL-tala: 8 fullyrðingar féllu; hardkóðað svið
+aftur í legend: 2) · `archive-gw-report` (`.rows` aftur: 13, þ.m.t. 39 köll;
+naívur parser: 6) · `fdcouk-e0` (vörður fjarlægður: 10) · `prediction-ledger`
+(`startFeatures(mins)` aftur: 4) · `pros` (`dirty` → `__outcomeAdded`: 5) ·
+`stats.test` (pos-vörður fjarlægður: 1; GK-vörður: 1) · `advisor`
+(`bigChances`-framleiðandi fjarlægður: 2; fylkis-uppfletting aftur: 1) ·
+`data-resilience` (`rowsOf` → `|| []`: 1) · `workflow-push` (dautt
+`ENABLE_ESPN` sett aftur: 1).

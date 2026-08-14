@@ -1918,7 +1918,7 @@ export default function App() {
         <Logo />
         <div className="head-right" style={S.headRight}>
           {/* VISAR A LEIKMENN-FLIPANN. browse-hamurinn var TVIVERKNADUR:
-              flipinn gerir thad sama betur (108 dalkar, throskuldar,
+              flipinn gerir thad sama betur (124 dalkar, throskuldar,
               vaktlisti, samanburdur, fjogur timabil) medan thessi gluggi
               hafdi adeins nafna-leit + stodu-siu.
               HEITID BREYTTIST UR "Leikmenn" I "Leita": tveir hnappar hetu
@@ -3356,6 +3356,9 @@ export default function App() {
           currentLabel={currentSeasonLabel} seasonStarted={seasonStarted}
           advisorById={recommendations.advisorById} imminent={imminent}
           defcon={defcon} consist={consist} horizon={recRange}
+          /* BSD FYLGIR MED svo `bigChances` i radgjofinni hafi heimild —
+             hann var eini samhengis-thatturinn an framleidanda (14.8.2026). */
+          bsd={[bsd, bsdLive]}
           onRemove={id => setCmpIds(v => v.filter(x => x !== id))}
           onClear={() => { setCmpIds([]); setCmpOpen(false); }}
           onClose={() => setCmpOpen(false)} />

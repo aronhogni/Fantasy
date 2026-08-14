@@ -288,5 +288,60 @@ console.log("─".repeat(84));
      bad.map(b => b.name).join(", "));
 }
 
+/* ============================================================
+   SVID-WIRING — HVER SAMHENGIS-ThATTUR VERDUR AD HAFA FRAMLEIDANDA
+
+   MAELT 14.8.2026: tveir af fjorum thattum voru DAUDIR i framleidslu og
+   thessi svita var graen, thvi hun byggir inntakid SJALF
+   (`{dc:95, aron:0.4, startProb:0.95, bigChances:9}`). Hun profadi thvi
+   formuluna og ALDREI tenginguna:
+     · `dc` las `defcon.players[p.id]` — FYLKI flett upp eftir saeti, og
+       `defcon_opportunity` bur a `defcon.opportunity[TEAM_ID]`.  -> 0 gildi
+     · `bigChances` var HVERGI sett i `src/` — `advisor.js` var eini lesandinn.
+   Vordurinn er a SVIDUM, ekki skram (sbr. `wiring.mjs` sem telur SKRAR):
+   fyrir hvert svid sem `contextFactors` les verdur ad vera til STADUR I `src/`
+   sem SETUR thad — annars er thatturinn skraut. Textalestur er nog og er
+   VILJANDI valinn: hann fellur lika thegar svidid er sett i skra sem enginn
+   sendir inn, sem er einmitt hvernig `bigChances` gat horfid.
+   ============================================================ */
+console.log("\nWIRING: hvert svid sem contextFactors les hefur framleidanda");
+{
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const SRC = new URL("../src/", import.meta.url).pathname;
+  const files = readdirSync(SRC).filter(f => /\.jsx?$/.test(f));
+  const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const code = Object.fromEntries(files.map(f => [f, strip(readFileSync(SRC + f, "utf8"))]));
+  const advisorSrc = code["advisor.js"] || "";
+
+  /* Sviðin eru LEIDD UT UR advisor.js, ekki handskrifud — handskrifadur listi
+     staðnar um leid og fimmta thaetti er baett vid (CLAUDE.md 8).          */
+  const fields = [...new Set([...advisorSrc.matchAll(/num\(p\?\.([A-Za-z_]\w*)\)/g)].map(m => m[1]))];
+  ok(`svidin eru leidd ut ur advisor.js (${fields.join(", ")})`, fields.length >= 4, String(fields.length));
+
+  const producers = {};
+  for (const [f, src] of Object.entries(code)) {
+    if (f === "advisor.js") continue;
+    for (const k of fields) {
+      /* "Framleidandi" = stadur sem SETUR svidid i hlut: `k:` eda `k =`.  */
+      if (new RegExp(`\\b${k}\\s*:`).test(src) || new RegExp(`\\b${k}\\s*=[^=]`).test(src))
+        (producers[k] ||= []).push(f);
+    }
+  }
+  const orphan = fields.filter(k => !producers[k]?.length);
+  ok("hvert svid hefur framleidanda i src/", orphan.length === 0,
+     orphan.length ? `AN FRAMLEIDANDA: ${orphan.join(", ")}` : "");
+  for (const k of fields)
+    ok(`  ${k} <- ${(producers[k] || []).join(", ") || "ENGINN"}`, !!producers[k]?.length);
+
+  /* OG ad rangi uppflettingar-hatturinn se HORFINN. Neikvaed fullyrding med
+     sannadri forsendu: mynstrid `defcon?.players?.[` VAR i Compare.jsx.    */
+  ok("enginn les `defcon.players[...]` sem uppflettingu eftir leikmanns-id",
+     !/defcon\?\.players\?\.\[/.test(Object.values(code).join("\n")));
+  /* `defcon.players` ER fylki — svo rétta leidin er `.find(...)` eda
+     lids-taflan `opportunity[...]`. Bædi eru til i repo-inu.              */
+  ok("Compare les `opportunity[...]` (sama leid og stats.js)",
+     /opportunity\b/.test(code["Compare.jsx"] || ""));
+}
+
 console.log(`\nRADGJOFIN: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

@@ -222,13 +222,43 @@ const liveRow = liveSeasonRow;
         notandinn bad um "oll gogn" — en their eru UTAN talunnar af thvi
         ad maelingin hafnadi theim, og bædi verdur ad sjast.
    ============================================================ */
-function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, horizon }) {
+function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, horizon, bsd, season }) {
   const immByTeam = useMemo(() => indexImminentByTeam(imminent), [imminent]);
+  /* ============================================================
+     TVEIR AF FJORUM SAMHENGIS-ThATTUM VORU DAUDIR — MAELT 14.8.2026.
+     `contextFactors` (advisor.js) getur birt `start` · `dc` · `aron` · `bc`.
+     Mælt a ollum 584 leikmonnum med RAUNVERULEGA inntakinu sem thessi hluti
+     byggdi: `start` 465 gildi, `aron` 473, **`dc` 0 og `bc` 0**. Profin voru
+     graen thvi `tests/advisor.mjs` byggir inntakid SJALFT
+     (`{dc:95, aron:0.4, startProb:0.95, bigChances:9}`) — thau profudu
+     formuluna, aldrei tenginguna.
+     (a) `dc` las `defcon?.players?.[p.id]`. `defcon.players` er FYLKI, svo
+         `[p.id]` er uppfletting eftir SAETI — og `defcon_opportunity` er ekki
+         a leikmanna-rodum, hun bur a `defcon.opportunity[TEAM_ID]`
+         (`stats.js` les hana rett). Verra en null: hermt i-timabils-fylki
+         sýndi ad 299 af 300 uppflettingum hittu a ANNAN leikmann, svo hefdi
+         svidid einhvern tima verid sett a radirnar hefdi thetta birt tolu
+         ANNARS manns. Thogul rong porun er verri en engin (CLAUDE.md 6).
+     (b) `p.bigChances` var HVERGI sett i framleidslu — `advisor.js` var eini
+         lesandinn i öllu repo-inu. Talan er til: `big_chances` i
+         `bsd_players.json` (sama sem `_b_big` i leikmannalistanum).
+     BSD er lykluð a `code` (fast yfir timabil) og VELIN VELUR SKRA EFTIR
+     TIMABILI, eins og `makeEnricher` gerir: `bsd_live` er yfirstandandi
+     timabil og `bsd_players` er 2025/26, svo ranga skrain gaefi tomt.
+     ============================================================ */
+  const dcByTeam = defcon?.opportunity || null;
+  const bigByCode = useMemo(() => {
+    const files = Array.isArray(bsd) ? bsd.filter(Boolean) : (bsd ? [bsd] : []);
+    const pick = files.find(f => f && f.season === season) || null;
+    const m = new Map();
+    for (const r of (Array.isArray(pick?.players) ? pick.players : []))
+      if (r?.code != null && r.big_chances != null) m.set(String(r.code), r.big_chances);
+    return m;
+  }, [bsd, season]);
 
   const input = useMemo(() => picked.map(p => {
     const a = advisorById?.[p.id];
     const im = matchImminent(p, immByTeam, teamById?.[p.team]?.short);
-    const dcRec = defcon?.players?.[p.id] ?? defcon?.players?.[String(p.id)];
     const cRec = consist?.seasons
       ? Object.values(consist.seasons).map(sn => sn?.[String(p.code)]).filter(Boolean).pop()
       : null;
@@ -242,10 +272,16 @@ function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, hor
          er gild nidurstada. Talan er leidd ur `start_feats` gegnum
          `startRisk`, eins og dalkurinn i listanum.                     */
       startProb: im?.start_feats ? (startRisk(im.start_feats)?.p ?? null) : null,
-      dc: num(dcRec?.defcon_opportunity),
+      /* SOMU STODUR SEM SKORID NOTAR (`App.jsx` scoreOf: `element_type <= 2`).
+         Talan er LIDS-tala um varnarálag (`own_xgc90`, `opp_attack_avg`), svo
+         hun segir ekkert um framherja — og samhengis-thattur sem birtist a
+         rongum manni er verri en enginn. Ekki ny stodu-regla, heldur SAMA
+         regla og talan er thegar notud eftir annars stadar.              */
+      dc: p.element_type <= 2 ? num(dcByTeam?.[p.team]?.defcon_opportunity) : null,
       aron: num(cRec?.aron),
+      bigChances: bigByCode.get(String(p.code)) ?? null,
     };
-  }), [picked, advisorById, immByTeam, defcon, consist, teamById]);
+  }), [picked, advisorById, immByTeam, dcByTeam, bigByCode, consist, teamById]);
 
   const res = useMemo(() => advise(input), [input]);
   if (!res.ok) return null;
@@ -368,7 +404,7 @@ function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, hor
 
 export default function Compare({ ids, players, teamById, seasonsFile, photoUrl, Crest,
                                   currentLabel, seasonStarted, onRemove, onClear, onClose,
-                                  advisorById, imminent, defcon, consist, horizon }) {
+                                  advisorById, imminent, defcon, consist, horizon, bsd }) {
   const seasons = useMemo(() => {
     const older = (seasonsFile?.seasons || []);
     return [{ key: currentLabel, live: true }, ...older.map(s => ({ key: s }))];
@@ -444,7 +480,8 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                 thyrfti madur ad skruna fram hja ollum tolunum til ad fa
                 nidurstoduna, sem er ofug rod.                            */}
             <Advisor picked={picked} advisorById={advisorById} imminent={imminent}
-              defcon={defcon} consist={consist} teamById={teamById} horizon={horizon} />
+              defcon={defcon} consist={consist} teamById={teamById} horizon={horizon}
+              bsd={bsd} season={currentLabel} />
 
             <div style={S.note}>
               {"Compared over a"} <b>{"whole season"}</b>{", not an arbitrary gameweek range: per-gameweek numbers only exist in"} <code>live/gw*.json</code> {"and they only fill up once 2026/27 begins. Season comparison works right away and reaches 3 years back."}

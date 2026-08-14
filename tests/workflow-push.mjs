@@ -254,6 +254,24 @@ console.log(`\n${"─".repeat(72)}\nLYKLAR: FLAGS A MOTI WORKFLOW-UNUM\n${"─".
     ok(need.length > 0, `${label}: les ${new Set(need).size} lykil-flogg`);
     ok(missing.length === 0,
        `${file} gefur alla lykla sem ${label} tharf${missing.length ? " — VANTAR: " + missing.join(", ") : ""}`);
+
+    /* ============================================================
+       ENABLE_* ER LIKA BORID SAMAN — VID KODANN, EKKI ADEINS VID SIG.
+       Sian hér fyrir ofan sleppir `ENABLE_*` viljandi (thau eru ekki
+       leyndarmal), og i thvi skjoli lifdi ThOGUL MOTSOGN: `fetch.yml` setti
+       `ENABLE_ESPN: "false"` medan `FLAGS.espn` var skilgreind og ALDREI
+       lesin, svo ESPN var sott i hverri keyrslu. Uppsetningin sagdi eitt og
+       kodinn gerdi annad — og HVORUGT var rautt.
+       Tvaer attir, og badar tharf:
+         (a) `ENABLE_X` i workflow sem ENGIN `FLAGS`-lina les  -> dautt.
+         (b) `FLAGS`-flagg sem kodinn LES en workflow nefnir ekki -> reidir
+             sig thogult a sjalfgildid.
+       ============================================================ */
+    const enableInYml = [...new Set([...yml.matchAll(/^\s*(ENABLE_[A-Z_]+)\s*:/gm)].map(m => m[1]))];
+    const enableInCode = new Set([...fetchSrc.matchAll(/process\.env\.(ENABLE_[A-Z_]+)/g)].map(m => m[1]));
+    const dead = enableInYml.filter(k => !enableInCode.has(k));
+    ok(dead.length === 0,
+       `${file}: engin ENABLE_* sem kodinn les ekki${dead.length ? " — DAUD: " + dead.join(", ") : ""}`);
   }
 }
 

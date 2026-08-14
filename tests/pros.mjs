@@ -534,7 +534,7 @@ const { collectPros } = await import("../scripts/pros-collect.mjs");
 
 function harness({ panel = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }], events,
                    prevGw = null, entries = null, missing = [] } = {}) {
-  const wrote = {}, recs = [];
+  const wrote = {}, recs = [], writes = [];
   const calls = { picks: 0, transfers: 0 };
   const deps = {
     async getJSON(url) {
@@ -558,7 +558,15 @@ function harness({ panel = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }], events,
       }
       throw new Error("oveant url " + url);
     },
-    async writeJSON(p, o) { wrote[p] = o; },
+    /* SERIALISERAD, EKKI TILVISUN — ANNARS GETUR PROFID EKKI BRUGDIST.
+       `wrote[p] = o` geymdi SAMA HLUT sem kodinn helt afram ad breyta, svo
+       allt sem var sett EFTIR skrifin sast i profinu eins og thad hefdi
+       verid skrifad. Control-hopurinn var einmitt thannig: hann var settur
+       eftir `writeJSON` og aldrei skrifadur i GW1, en profid sa hann samt
+       og var graent (fundid 14.8.2026). Ekta skrif serialiserar; harnessid
+       verdur ad gera thad lika. `writes` heldur RODINNI svo haegt se ad
+       fullyrda um hversu oft var skrifad.                                */
+    async writeJSON(p, o) { wrote[p] = JSON.parse(JSON.stringify(o)); writes.push({ p, o: wrote[p] }); },
     async readJSON(f) {
       if (f === "pros.json") {
         if (panel === null) throw new Error("ENOENT");
@@ -572,7 +580,7 @@ function harness({ panel = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }], events,
     },
     record(name, ok, count, note) { recs.push({ name, ok, count, note }); },
   };
-  return { deps, wrote, recs, calls,
+  return { deps, wrote, recs, calls, writes,
            run: ev => collectPros(deps, ev ?? events
          ?? [{ id: 7, deadline_time: new Date(Date.now() - 36e5).toISOString() }]) };
 }
@@ -706,7 +714,7 @@ console.log("14a2) CONTROL-HOPUR — vidmid fyrir allt sem er EKKI eignarhald");
      fyrir eignarhald (`selected_by_percent`) og fyrir EKKERT annad, svo
      leikstodukerfi, bekkjar-kostnadur, verd-punktar og timasetning hofdu
      ekkert ad bera sig vid. Control er FASTUR slembinn hopur.            */
-  const wrote = {}; const recs = [];
+  const wrote = {}; const recs = []; const writes = [];
   let panelCalls = 0, ctrlCalls = 0;
   const deps = {
     async getJSON(url) {
@@ -722,7 +730,9 @@ console.log("14a2) CONTROL-HOPUR — vidmid fyrir allt sem er EKKI eignarhald");
       }
       return [];
     },
-    async writeJSON(p2, o) { wrote[p2] = o; },
+    /* Serialiserad, sja harness() — tilvisun gerdi thennan kafla ohaefan
+       til ad greina "skrifad" fra "sett eftir skrifin".                   */
+    async writeJSON(p2, o) { wrote[p2] = JSON.parse(JSON.stringify(o)); writes.push({ p: p2, o: wrote[p2] }); },
     async readJSON(f) {
       if (f === "pros.json") return { season: "2026/27", panel: [{ id: 1 }, { id: 2 }],
                                       control: [901, 902, 902, null, -3] };
@@ -735,13 +745,50 @@ console.log("14a2) CONTROL-HOPUR — vidmid fyrir allt sem er EKKI eignarhald");
   ok(panelCalls === 2, `hopurinn sottur (${panelCalls})`);
   ok(ctrlCalls === 2, `control sottur og TVITEKNINGAR/onyt id siud (${ctrlCalls} af 5 radum)`);
   ok(!!a.control, "control-talning skrifud");
-  ok(a.points === 70 && a.control.points === 40, "tolurnar eru ADSKILDAR");
-  ok(a.control.size === 2, `control.size ber staerd hopsins (${a.control.size})`);
+  /* ============================================================
+     GW1-TILFELLID SEM TAPADI ~1.000 KOLLUM (fundid og lagad 14.8.2026).
+     `agg.control` er sett EFTIR fyrstu `writeJSON`, og endurskrifin var
+     skilyrt a `__outcomeAdded`, sem KREFST fyrri umferdar. Thessi kafli
+     keyrir med EINNI umferd (id 7, engin fyrri) — nakvaemlega staða GW1 —
+     svo control var sott og hent. Vidmid vantadi thvi i fyrstu umferd, og
+     thekju-vordurinn kemur i veg fyrir endursofnun sidar: TAPAD AD EILIFU.
+     Fullyrdingarnar hér eru a SERIALISERUDU skrifunum (sja harness): ad
+     lesa `a.control` eitt gerdi thetta osynilegt, thvi profid helt sömu
+     tilvisun og kodinn hélt afram ad breyta.
+     ============================================================ */
+  const gwWrites = writes.filter(w => w.p === "pros_gw.json");
+  /* NAKVAEM TALA, EKKI `>= 2` — OG ThAD VAR MIN EIGIN TOMA FULLYRDING.
+     Fyrsta utgafa thessa kafla sagdi `gwWrites.length >= 2` og STODST undir
+     stokkbreytingu, thvi `markAttempt()` skrifar skrana ADUR en sokn byrjar
+     (tilraunin er bokfaerd fyrirfram, viljandi). Tvo skrif verda thvi til
+     hvad sem gerist. ThRIU eru rett tala thegar control er til:
+       [0] markAttempt — adeins `attempts`, ENGIN `gw`-talning
+       [1] hrun-vorn   — panel-talningin, AN control
+       [2] endurskrif  — sama rod MED control
+     Sama gildra og CLAUDE.md 5b lysir: fullyrding sem tharf tvennt til ad
+     bregdast er veikari en hun litur ut fyrir ad vera.                   */
+  ok(gwWrites.length === 3,
+     `thrju skrif: attempt + hrun-vorn + endurskrif med control (${gwWrites.length})`);
+  ok(gwWrites[0]?.o?.gw?.[7] === undefined,
+     "fyrsta skrifin er adeins tilraunar-bokhald (engin gw-talning)");
+  ok(!!gwWrites[1]?.o?.gw?.[7] && !gwWrites[1]?.o?.gw?.[7]?.control,
+     "onnur skrifin bera talninguna EN EKKI control (hrun-vornin, OBREYTT)");
+  ok(!!gwWrites.at(-1)?.o?.gw?.[7]?.control,
+     "SIDASTA skrifin ber control — ekki adeins hluturinn i minni");
+  ok(!("__outcomeAdded" in (gwWrites.at(-1)?.o || {})),
+     "innra flaggid lekur ekki i skrana");
+  /* NULL-VARID VILJANDI: vanti `control` a thetta ad vera FALLIN FULLYRDING,
+     ekki TypeError. Vid stokkbreytingu 14.8.2026 kastadi thessi lina og STOPPADI
+     kaflann, svo fullyrdingarnar fyrir nedan (thaer sem lysa villunni best)
+     keyrdu aldrei. Prof sem hrynur segir "eitthvad brast"; prof sem fellur
+     segir HVAD brast.                                                       */
+  ok(a.points === 70 && a.control?.points === 40, "tolurnar eru ADSKILDAR");
+  ok(a.control?.size === 2, `control.size ber staerd hopsins (${a.control?.size})`);
   /* Control er VIDMID, ekki einstaklingar sem vid fylgjum: hvorki chip-id
      ne skipta-por eiga ad fylgja honum.                                  */
-  ok(a.control.chipIds === undefined && a.control.pairs === undefined,
+  ok(a.control?.chipIds === undefined && a.control?.pairs === undefined,
      "control ber hvorki chipIds ne pairs");
-  ok(a.chips.bboost === 2 && !a.control.chips?.bboost,
+  ok(a.chips.bboost === 2 && !a.control?.chips?.bboost,
      "chip-talning hopsins smitast EKKI i control");
   /* Per-stjornanda sagan er ADEINS fyrir hopinn — 1.000 til vidbotar
      myndu tvofalda 3,8 MB an thess ad svara nyrri spurningu.             */
@@ -823,7 +870,7 @@ console.log("14f) `event` sem STRENGUR ma ekki fella skiptin burt");
      0 sold", sem les eins og "enginn keypti neitt". Sama aett og
      `bank:"mikid"` -> NaN.                                               */
   const mkH = (ev) => {
-    const wrote = {}; const recs = [];
+    const wrote = {}; const recs = []; const writes = [];
     const deps = {
       async getJSON(url) {
         if (/picks/.test(url)) return {
@@ -834,7 +881,9 @@ console.log("14f) `event` sem STRENGUR ma ekki fella skiptin burt");
         return [{ element_in: 500, element_out: 600, event: ev },
                 { element_in: 501, element_out: 601, event: 6 }];
       },
-      async writeJSON(p2, o) { wrote[p2] = o; },
+      /* Serialiserad, sja harness() — tilvisun gerdi thennan kafla ohaefan
+       til ad greina "skrifad" fra "sett eftir skrifin".                   */
+    async writeJSON(p2, o) { wrote[p2] = JSON.parse(JSON.stringify(o)); writes.push({ p: p2, o: wrote[p2] }); },
       async readJSON(f) {
         if (f === "pros.json") return { season: "2026/27", panel: [{ id: 1 }, { id: 2 }] };
         throw new Error("ENOENT");

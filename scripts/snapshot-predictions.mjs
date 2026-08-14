@@ -34,7 +34,11 @@
    ============================================================ */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { makeFixDifficulty, tierOf, rankScore } from "../src/model.js";
-import { startFeatures, startProbability } from "../src/stats.js";
+/* `startFeatures` er VILJANDI EKKI FLUTT INN: hun tekur fylki af minutum og
+   pipeline reiknar tha vidd ThEGAR i `imminent.json` (`start_feats`). Innflutt
+   fall sem enginn kallar er bod um ad kalla thad rangt — sem var einmitt
+   villan her (sja buildSnapshot).                                          */
+import { startProbability } from "../src/stats.js";
 /* LIDSVISARNIR ERU FLUTTIR INN, EKKI ENDURREIKNADIR. Fyrsta utgafa thessarar
    skriftu endurreiknadi thá og skrifadi `+(x.gf / x.matches)` — `team_form.json`
    ber ENGIN `gf`/`ga`, hun ber `goals_pg`/`conceded_pg` ThEGAR per leik. Utkoman
@@ -52,7 +56,34 @@ const arr = (v, k) => Array.isArray(v) ? v : (Array.isArray(v?.[k]) ? v[k] : nul
 
 /* HREINT: tekur gogn, skilar bokhalds-rod. Engin skrif, engin klukka —
    thess vegna er thad profanlegt a tilbunum gognum ADUR en 21. agust.  */
-export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, elo, playerForm, promoted, nowTs }) {
+export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, elo, playerForm, promoted, imminent, nowTs }) {
+  /* ============================================================
+     BYRJUNAR-LIKURNAR KOMU UR ENGU — MAELT OG LAGAD 14.8.2026.
+     Her stod `startProbability(startFeatures(mins, p.now_cost))` thar sem
+     `mins` var TALA (`Number(p.minutes) || 0`). `startFeatures` tekur FYLKI
+     af minutum sidustu umferda: `Array.isArray(mins)` var false -> `m = []`
+     -> `m.length < 2` -> null -> `startProbability(null)` -> null.
+     ThVI VAR `start_prob` NULL FYRIR ALLA 584, OG HEFDI VERID ThAD ALLT
+     TIMABILID — ekki adeins i forleik. Kvordunin (Brier + bekkjar-gildran,
+     `calibration.mjs`) hefdi thvi ALDREI getad maelt thessa vidd.
+     Prófin voru graen af thvi ad thau profudu FORMULUNA, ekki hvort gognin
+     sem hun faer seu nytileg — sami aettbogi og dauði markadslidurinn
+     (CLAUDE.md 3) og auðgunin i `cook` (CLAUDE.md 8).
+     RETTA HEIMILDIN ER SU SEM APPID NOTAR: `imminent.json` ber `start_feats`
+     (5-umferda gluggi, reiknadur i pipeline) og App.jsx les hann beint
+     (`im?.start_feats ? startProbability(im.start_feats) : null`). Bokhaldid
+     verdur ad reikna a NAKVAEMLEGA somu tolum — sami lærdomur og flutningur
+     `buildTeamMetrics` (CLAUDE.md 7.1): afrit af utreikningi laug.
+     PORUN A `code`, EKKI NAFNI: `code` er fast yfir timabil og
+     `imminent.json` ber thad (841 rodum, 841 einkvaem). Appid notar nafna-
+     porun innan lids, sem er einmitt uppflettingin sem gaf falskt null i
+     sumarglugganum (CLAUDE.md 3, Meslier/38 leikmenn a rongu lidi). Hér er
+     ekkert ad giska: 459 af 584 parast, allir 459 med `start_feats`; hinir
+     125 eiga engin gogn i glugganum og fa RETTILEGA null.
+     ============================================================ */
+  const startFeatsByCode = new Map();
+  for (const r of (Array.isArray(imminent?.players) ? imminent.players : []))
+    if (r && r.code != null && r.start_feats) startFeatsByCode.set(String(r.code), r.start_feats);
   const teamMetrics = buildTeamMetrics({ players, teams, promoted, teamForm });
   const teamById = {}; for (const t of teams) teamById[t.id] = t;
   const eloByTeam = {};
@@ -132,7 +163,10 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
     const chance = p.chance_of_playing_next_round;
     const avail = p.status === "a" ? 1
       : (typeof chance === "number" && Number.isFinite(chance)) ? chance / 100 : 0.5;
-    const sp = startProbability(startFeatures(mins, p.now_cost ?? null));
+    /* `startFeatures` er EKKI kollud her — sja hausinn a buildSnapshot.
+       `start_feats` kemur reiknadur ur pipeline, eins og appid les hann. */
+    const sf = startFeatsByCode.get(String(p.code));
+    const sp = sf ? startProbability(sf) : null;
     const raw = rankScore(inputs);
     rank.push({
       id: p.id, code: p.code, team: p.team, pos: p.element_type,
@@ -157,7 +191,22 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
   return {
     gw,
     generated: new Date(nowTs).toISOString(),
-    sources: { odds: !!odds, elo: !!elo, team_form: !!teamForm, player_form: !!playerForm },
+    /* ThEKJA ER TALA, EKKI BOOLEAN — og hun a ad vera i skranni.
+       `!!playerForm` sagdi "ja, skrain var til" medan hun bar engar radir,
+       og `start_prob` var null fyrir alla 584 an thess ad nokkud i skranni
+       segdi fra thvi. Kvordun sem reiknar Brier yfir NULL radir gefur tolu
+       sem lítur eins ut og maeling — versta utkoman (CLAUDE.md 3). Nu telur
+       skrain sjalf hversu margar radir baru hverja vidd, svo `calibration`
+       getur sagt "of faar maelingar -> ENGIN tala" i stad thess ad thegja. */
+    sources: { odds: !!odds, elo: !!elo, team_form: !!teamForm, player_form: !!playerForm,
+               imminent: !!imminent },
+    coverage: {
+      players: rank.length,
+      start_prob: rank.filter(r => r.start_prob != null).length,
+      mins_trend: rank.filter(r => r.inputs?.minsTrend != null).length,
+      ffdr: rank.filter(r => r.inputs?.ffdr != null).length,
+      ep_next: rank.filter(r => r.ep_next != null).length,
+    },
     note: "PREDICTIONS RECORDED BEFORE THE DEADLINE. Written once and never "
         + "rewritten - a prediction re-recorded after the fact is not a prediction. "
         + "Compared against outcomes by tests/calibration.mjs.",
@@ -203,6 +252,71 @@ export function inputsUsable({ players, teams, fixtures, gw }) {
    stad ranga er ekki endurskrifun a spa heldur RETT TIMASETNING a maelingu.
    Reglan i kodanum er samt einfold og omisnotanleg: skrifad adeins i
    glugganum, aldrei tvisvar.                                              */
+/* ============================================================
+   EFTIRLIT — ThOGN VAR EINA RAUNVERULEGA HAETTAN (14.8.2026)
+
+   `snapshot-predictions.mjs` keyrir med `continue-on-error: true` i
+   `fetch-fast.yml`, og ThAD ER RETT: bokhaldid er maelitaeki og ma aldrei
+   fella gagna-keyrsluna. En thad thydir lika ad bilun INNAN 12-tima
+   gluggans (opnast 21.8. kl. 05:30 UTC fyrir GW1) er ALGERLEGA ThOGUL —
+   skrefið verdur graent i Actions, engin skra verdur til, og GW1-rodin
+   verdur ALDREI endurskopud thvi inntokin eru horfin eftir frestinn.
+   Ekkert i repo-inu hefdi sagt fra thvi: `calibration.mjs` SEFUR thegar
+   `data/predictions/` er tom (rett hegdun, en tha maelir hun ekki neitt),
+   og `gw1-checklist.mjs` nefnir bokhaldid ekki.
+
+   ThVI SKRIFAR SKRIFTAN SJALF LINU I `status.json` I HVERT SKIPTI. Hun
+   birtist undir "Data sources" i hlidarstikunni, thar sem notandinn les
+   heimildir hvort sem er (CLAUDE.md 7: "Baetir thu vid heimild: skradu hana
+   thar, annars er hun osynileg thegar hun brotnar").
+
+   REGLAN UM LITINN: skip er GRAENT (utan gluggans er ekkert ad gera, og
+   "thegar skrad" er rett svar), en **gluggi opinn + engin skra = RAUTT**.
+   Thad er nakvaemlega su samsetning sem enginn hefdi tekid eftir.        */
+export function windowOpen({ deadlineMs, nowMs, windowH = WINDOW_H }) {
+  if (!Number.isFinite(deadlineMs)) return false;
+  const hLeft = (deadlineMs - nowMs) / 36e5;
+  return hLeft > 0 && hLeft <= windowH;
+}
+
+/* Patchar EINA rod i status.json. Les-breyta-skrifa: `fetch.mjs` hefur
+   thegar skrifad skrana i sama starfi (skrefinu a undan), svo vid maegum
+   ekki byggja hana upp a nytt — adeins baeta okkar linu vid.             */
+function recordLedger(gw, okFlag, count, note, gaps = []) {
+  try {
+    const p = DATA + "status.json";
+    const st = JSON.parse(readFileSync(p, "utf8"));
+    /* HOLUR ERU VARANLEGT TAP OG ThVI ALLTAF RAUTT. "Gluggi opinn + engin
+       skra" varar vid ADUR en rodin tapast; thetta segir ad hun ER topud.
+       Ohja: eftir frestinn flettir FPL `is_next` a naestu umferd, svo su
+       fyrri hverfur ur athugun skriftunnar og tapid vaeri annars osynilegt
+       — graen lina AF ThVI ad glugginn er lokadur.                        */
+    const gapTxt = gaps.length
+      ? ` · MISSING ledger rows for GW${gaps.slice(0, 6).join(", GW")}`
+        + (gaps.length > 6 ? ` (+${gaps.length - 6} more)` : "")
+        + " - those deadlines have passed and the inputs are gone"
+      : "";
+    (st.sources ||= {}).prediction_ledger = {
+      ok: !!okFlag && !gaps.length, count, note: `GW${gw}: ${note}${gapTxt}`,
+    };
+    writeFileSync(p, JSON.stringify(st));
+  } catch (e) {
+    /* Status-skrain er EKKI mikilvaegari en bokhaldid sjalft: ef hun er
+       ekki til (t.d. handvirk keyrsla an pipeline) ma thetta ekki fella
+       skriftuna. Loggad, ekki kastad.                                    */
+    console.log(`snapshot: could not record status (${e.message})`);
+  }
+}
+
+/* HREINT: hvada umferdir eru ThEGAR tapadar? Frestur lidinn OG engin rod.
+   Tekid ut ur keyrslunni svo thad se profanlegt an klukku og an skra.    */
+export function ledgerGaps({ events, nowMs, has }) {
+  return (Array.isArray(events) ? events : [])
+    .filter(e => e && Number.isInteger(e.id) && Date.parse(e.deadline_time) < nowMs)
+    .filter(e => !has(e.id))
+    .map(e => e.id);
+}
+
 export const WINDOW_H = 12;
 export function shouldWrite({ gw, deadlineMs, nowMs, exists, windowH = WINDOW_H }) {
   if (exists) return { write: false, why: `gw${gw} already recorded - never rewritten` };
@@ -224,26 +338,54 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const gw = cur.id;
   const deadlineMs = Date.parse(cur.deadline_time);
   const file = `${OUT}gw${gw}.json`;
+  const inWindow = windowOpen({ deadlineMs, nowMs: Date.now() });
+  const gaps = ledgerGaps({ events, nowMs: Date.now(),
+                            has: id => existsSync(`${OUT}gw${id}.json`) });
+  if (gaps.length) console.log(`snapshot: LEDGER GAPS - no row for GW${gaps.join(", GW")}`);
   const gate = shouldWrite({ gw, deadlineMs, nowMs: Date.now(), exists: existsSync(file) });
-  if (!gate.write) { console.log(`snapshot gw${gw}: skipped - ${gate.why}`); process.exit(0); }
+  if (!gate.write) {
+    console.log(`snapshot gw${gw}: skipped - ${gate.why}`);
+    /* SKIP MA VERA GRAENT — NEMA GLUGGINN SE OPINN OG SKRAIN VANTI.      */
+    recordLedger(gw, !inWindow || existsSync(file), existsSync(file) ? 1 : 0, gate.why, gaps);
+    process.exit(0);
+  }
 
   const players = arr(tryJ("players.json"), "players");
   const teams = arr(tryJ("teams.json"), "teams");
   const fixtures = arr(tryJ("fixtures.json"), "fixtures");
   const bad = inputsUsable({ players, teams, fixtures, gw });
-  if (bad) { console.log(`snapshot gw${gw}: NOT written - ${bad}`); process.exit(0); }
-
-  const snap = buildSnapshot({
-    gw, players, teams, fixtures,
-    teamForm: tryJ("team_form.json"), odds: tryJ("odds.json"),
-    elo: tryJ("elo.json"), playerForm: tryJ("player_form.json"),
-    promoted: tryJ("promoted_baseline.json"), nowTs: Date.now(),
-  });
-  if (dry) {
-    console.log(`snapshot gw${gw} (dry): ${snap.ffdr.length} ffdr rows, ${snap.rank.length} players`);
+  if (bad) {
+    console.log(`snapshot gw${gw}: NOT written - ${bad}`);
+    /* GLUGGINN ER OPINN (vid komumst hingad) OG VID SKRIFUM EKKI -> RAUTT. */
+    recordLedger(gw, false, 0, `WINDOW OPEN but nothing recorded - ${bad}`, gaps);
     process.exit(0);
   }
-  mkdirSync(OUT, { recursive: true });
-  writeFileSync(file, JSON.stringify(snap));
-  console.log(`snapshot gw${gw}: written (${snap.ffdr.length} ffdr rows, ${snap.rank.length} players) - ${gate.why}`);
+
+  try {
+    const snap = buildSnapshot({
+      gw, players, teams, fixtures,
+      teamForm: tryJ("team_form.json"), odds: tryJ("odds.json"),
+      elo: tryJ("elo.json"), playerForm: tryJ("player_form.json"),
+      promoted: tryJ("promoted_baseline.json"), imminent: tryJ("imminent.json"),
+      nowTs: Date.now(),
+    });
+    if (dry) {
+      console.log(`snapshot gw${gw} (dry): ${snap.ffdr.length} ffdr rows, ${snap.rank.length} players`
+                + ` · coverage ${JSON.stringify(snap.coverage)}`);
+      process.exit(0);
+    }
+    mkdirSync(OUT, { recursive: true });
+    writeFileSync(file, JSON.stringify(snap));
+    console.log(`snapshot gw${gw}: written (${snap.ffdr.length} ffdr rows, ${snap.rank.length} players) - ${gate.why}`);
+    recordLedger(gw, true, snap.rank.length,
+      `gw${gw} recorded ${gate.why} · start_prob ${snap.coverage.start_prob}/${snap.coverage.players}`
+      + ` · mins_trend ${snap.coverage.mins_trend}/${snap.coverage.players}`, gaps);
+  } catch (e) {
+    /* HRUN INNAN GLUGGANS ER ThAD SEM MA ALDREI ThEGJA. `continue-on-error`
+       i workflow-inu er VILJANDI (bokhaldid ma ekki fella gagna-keyrsluna) —
+       en thad thydir ad hrun her skilur eftir sig ENGA slod nema thessa.   */
+    console.log(`snapshot gw${gw}: FAILED - ${e.message}`);
+    recordLedger(gw, false, 0, `WINDOW OPEN but the snapshot threw: ${e.message}`, gaps);
+    process.exit(0);
+  }
 }

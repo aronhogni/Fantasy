@@ -33,11 +33,22 @@ const J = f => JSON.parse(readFileSync(D + f, "utf8"));
    thad er leidin sem getur hvitad skjainn. Thrjar tegundir eru profadar:
      jsonVilla  — hálf-skrifud skra (pipeline drapst i midju skrifi)
      tomtSvid   — rett skra en lykil-fylkid er null
-     rangGerd   — fylki thar sem hlutur a ad vera (skema-breyting)                */
+     rangGerd   — fylki thar sem hlutur a ad vera (skema-breyting)
+     hlutur    — HLUTUR ThAR SEM FYLKI A AD VERA (gagnstaeda atttin)
+
+   FJORDA TEGUNDIN VANTADI OG ThAD VAR RAUNVERULEGT GAT (14.8.2026).
+   `rangGerd` profar fylki-i-stad-hlutar; ENGIN atburdarás profadi
+   HLUT-I-STAD-FYLKIS, sem er einmitt su lögun sem `|| []` hleypir gegn
+   (`{} || []` er `{}`) og sem kastar "object is not iterable". Maelt: thrjar
+   valkvaedar skrar (`last_gw_shots`, `defcon`, `bsd_players`) felldu appid
+   inni i <PlayerList>. Og hun er EKKI tilbuin: sviðid `players` er ThEGAR
+   hlutur i `player_form.json`, `player_seasons.json` og `player_gw_*.json`,
+   svo mis-vírud prop eda snids-breyting gefur nakvaemlega thetta.        */
 const BREAK = {
   jsonVilla: () => { throw new SyntaxError("Unexpected end of JSON input"); },
   tomtSvid : o => ({ ...o, players: null, rows: null, shots: null }),
   rangGerd : () => [],
+  hlutur   : o => ({ ...o, players: {}, rows: {}, shots: {} }),
 };
 
 /* [heiti, vantandi, skemmt: {skra: tegund}] */
@@ -65,6 +76,13 @@ const SCENARIOS = [
   ["bsd_shots RONG GERD",         new Set(), { "bsd_shots.json": "rangGerd" }],
   ["player_seasons TOMT SVID",    new Set(), { "player_seasons.json": "tomtSvid" }],
   ["fixtures RONG GERD",          new Set(), { "fixtures.json": "rangGerd" }],
+  /* HLUTUR I STAD FYLKIS — thessar thrjar felldu appid fyrir 14.8.2026.    */
+  ["last_gw_shots HLUTUR",        new Set(), { "last_gw_shots.json": "hlutur" }],
+  ["defcon HLUTUR",               new Set(), { "defcon.json": "hlutur" }],
+  ["bsd_players HLUTUR",          new Set(), { "bsd_players.json": "hlutur" }],
+  ["imminent HLUTUR",             new Set(), { "imminent.json": "hlutur" }],
+  ["ALLAR FJORAR HLUTUR",         new Set(), { "last_gw_shots.json": "hlutur", "defcon.json": "hlutur",
+                                               "bsd_players.json": "hlutur", "imminent.json": "hlutur" }],
 ];
 
 let fail = 0;

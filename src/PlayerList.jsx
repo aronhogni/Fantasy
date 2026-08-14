@@ -35,7 +35,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { interp } from "./interp.js";
 import { RAW } from "./dataUrl.js";
 import ImminentPanel from "./Imminent.jsx";
-import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName,
+import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName, passesThreshold,
          sumGwRange, gwBlindKeys, makeEnricher } from "./stats.js";
 
 const C = {
@@ -80,7 +80,7 @@ const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
 /* ============================================================
    STATPICKER — leitanlegur dalkavalari
 
-   AF HVERJU EKKI <select>: dalkarnir eru 108 i 12 flokkum. Native-select
+   AF HVERJU EKKI <select>: dalkarnir eru 124 i 6 flokkum. Native-select
    getur adeins hoppad a fyrsta staf, svo ad finna "Vaentar assist" thydir
    ad skruna gegnum allan listann. Notandinn bad um leit.
 
@@ -112,7 +112,7 @@ function StatPicker({ value, onChange, style }) {
       /* Leitad er i THRENNU: dalksheiti, flokksheiti OG `key`. Lyklarnir eru
          a ENSKU (threat, creativity, bps, ict_index) og thad er thad sem
          FPL-folk slaer inn — islenska heitid a "threat" er "Ogn", svo an
-         lykla-leitar gaefi "threat" ENGA nidurstodu. Maelt: 108 -> 12 fyrir
+         lykla-leitar gaefi "threat" ENGA nidurstodu. Maelt: 124 -> 12 fyrir
          "vaent", 5 fyrir "spjold", og "threat" fann ekkert fyrr en nu.     */
       /* Leitad er i FIMM: dalksheiti, HAUS-heiti (`short`), band, flokkur
          OG `key`. `short` var vidbot 8.8.2026 — hausinn segir "CBI" og thad
@@ -673,8 +673,13 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                 : t.key === "selected_by_percent" ? r.own
                 : (d && r.src ? d.get(r.src) : null);
         if (v == null) return false;                 // "vantar" fellur ut ur throskuldi
-        if (t.op === ">=" && !(v >= t.val)) return false;
-        if (t.op === "<=" && !(v <= t.val)) return false;
+        /* Reglan sjalf bur i `passesThreshold` (stats.js) — hun var her
+           inni og thа gat profid adeins lesid kodann: stokkbreyting sem
+           fjarlaegdi namundunina SLAPP I GEGN. Sja hausinn thar.        */
+        const tDef = t.key === "now_cost" ? { dec: 1 }
+                   : t.key === "selected_by_percent" ? { dec: 1 }
+                   : d;
+        if (!passesThreshold(tDef, v, t.op, t.val)) return false;
       }
       return true;
     });
@@ -846,12 +851,12 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
      thurfti thad — svo "xG" fekk lika 88 px og notandinn thurfti ad skruna
      langt til hlidar ad engu gagni. Nu er breiddin reiknud ur heitinu og
      ur thvi hve breid TALAN getur ordid (`dec`), klippt i [46, 88].
-     Mælt: 108 dalkar foru ur 9.504 px i 6.010 px = 37% styttri skrunleid. */
+     Mælt (tha 108 dalkar): ur 9.504 px i 6.010 px = 37% styttri skrunleid. */
   /* HAUSINN MA BROTNA I TVAER LINUR — thad er thad sem gefur sparnadinn.
      Med EINNI linu stjorna islensku heitin breiddinni ("Byrjunarhlutfall")
      og 17 dalkar lentu i thakinu; maelt gaf thad adeins 21,6%. Med tveimur
      linum stjornar TALAN breiddinni og sparnadurinn verdur 36,5%
-     (9.504 px -> 6.031 px yfir alla 108 dalka). Hausinn er EIN rod, svo
+     (9.504 px -> 6.031 px yfir alla dalkana). Hausinn er EIN rod, svo
      ha0 hans er einskiptis-kostnadur — ekki per rod.
      Nedri morkin eru LENGSTA ORDID i heitinu, ekki heitid deilt i tvo:
      annars vaeri ord klippt i midju thott plass vaeri til.               */
@@ -1138,6 +1143,31 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         </div>
       )}
 
+      {/* ============================================================
+          HELDUR VID: "UMFERDAR-BILID VIRKAR EKKI" (tilkynnt 14.8.2026)
+
+          Notandinn valdi Consistency, breytti umferdum og EKKERT gerdist.
+          Hegdunin var RETT — 44 af 124 dalkum eru arstidar-tolur sem geta
+          ekki fylgt bili — en HUN VAR OSYNILEG: eina merkid var `∑` i 9 px
+          og #9a8aa8 a #faf7fb. Og Consistency er VERSTA tilfellid: thad er
+          EINI flokkurinn thar sem ALLIR dalkar eru blindir (4 af 4), svo
+          thar breytist bokstaflega ekkert a skjanum.
+          Maelt per flokk: core 9/21 · attack 21/60 · defence 9/28 ·
+          aron 4/4 · fixtures 0/5 · setp 1/6.
+          Regla: se EKKERT a skjanum ad fara ad hlyda bilinu verdur ad
+          SEGJA ThAD — merking sem sest ekki er engin merking (sama logmal
+          og ikonin i kafla 8: i smarri staerd er silhuettan allt).
+          ============================================================ */}
+      {gwActive && visibleCols.length > 0 && visibleCols.every(d => blindKeys.has(d.key)) && (
+        <div style={S.warn}>
+          <b>{"These are season totals, not GW "}{gwRange[0]}{"–"}{gwRange[1]}{"."}</b>{" "}
+          {"Every column in "}<b>{STAT_GROUPS.find(g => g.key === group)?.label || group}</b>
+          {" is a whole-season figure, so changing the gameweek range cannot change them."}
+          {" For range-aware numbers use "}<b>{"Basics"}</b>{", "}<b>{"Attack"}</b>{" or "}
+          <b>{"Defence"}</b>{" — points, minutes, goals and the rest follow the range there."}
+        </div>
+      )}
+
       {finishedGw === 0 && isLive && (
         <div style={S.warn}>
           <b>{currentLabel} {"has not started"}</b> {"— every season field is zero for all"}
@@ -1403,7 +1433,8 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     {/* Merking a dalkinum sjalfum, ekki adeins i skyringu:
                         notandinn les tofluna, ekki fotnotur. */}
                     {gwActive && blindKeys.has(d.key)
-                      ? <span style={S.blindMark} title={"season figure"}>∑</span> : null}
+                      ? <span style={S.blindMark}
+                              title={"Season total - does not follow the gameweek range"}>{"season"}</span> : null}
                     {arrow(d.key)}
                   </div>
                 ))}
@@ -1599,10 +1630,14 @@ const S = {
            fontSize:9, padding:0, lineHeight:"16px", fontFamily:mono },
   gwOn:{ background:"#e8e2ee", color:C.purple, border:`1px solid #cdbcd8` },
   gwEdge:{ background:C.purple, color:"#fff", border:`1px solid ${C.purple}`, fontWeight:700 },
-  hBlind:{ background:"#faf7fb", color:"#8b7d9b" },
-  blindMark:{ fontSize:9, color:"#9a8aa8", marginLeft:1 },
+  /* MERKING SEM SEST. Var `∑` i 9 px, #9a8aa8 a #faf7fb — omerkjanlegt, og
+     notandinn tilkynnti bilid sem BILUN 14.8.2026. Nu ber hausinn ordid
+     "season" i lesanlegri staerd og bakgrunnurinn er greinanlegur.      */
+  hBlind:{ background:"#f3ecf7", color:"#6b5b7b" },
+  blindMark:{ fontSize:9, fontWeight:700, color:"#fff", background:"#8b7d9b",
+              borderRadius:3, padding:"1px 3px", marginLeft:3, letterSpacing:0.2 },
 
-  /* ---- leitanlegur dalkavalari (108 dalkar; select var oskrunanlegur) ---- */
+  /* ---- leitanlegur dalkavalari (124 dalkar; select var oskrunanlegur) ---- */
   pkWrap:{ position:"relative", minWidth:150, flex:"0 1 190px" },
   pkInput:{ width:"100%", boxSizing:"border-box", font:"inherit", fontSize:12,
             padding:"4px 18px 4px 7px", border:`1px solid ${C.border}`,

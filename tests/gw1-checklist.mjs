@@ -187,9 +187,17 @@ if (finishedGw === 0) {
   ok(sb.label === "2025/26",
     `season_baseline er FROSIÐ á 2025/26 („í ár vs. í fyrra" þarf það) — er ${sb.label}`);
 
-  /* 8. E0-leikjatölur yfirstandandi tímabils verða til við fyrsta leik */
-  ok(existsSync(`${D}fdcouk/E0-2627.json`) && (J("fdcouk/E0-2627.json").rows || []).length >= 1,
-    "fdcouk/E0-2627.json er til með röðum (varð til við fyrsta leik)");
+  /* 8. E0-leikjatölur yfirstandandi tímabils verða til við fyrsta leik.
+        DEILDIN ER PRÓFUÐ, EKKI BARA AÐ RAÐIR SÉU TIL — mælt 14.8.2026:
+        football-data 301-redirectar 2627/E0.csv á EC.csv (National League)
+        þar til PL-skráin verður til, svo skráin bar 12 raðir með `Div:"EC"`
+        og ÞETTA ATRIÐI hefði orðið grænt af rangri ástæðu. Röð sem er til
+        er ekki sama og röð úr réttri deild. Vörður í `fetchFdcouk`. */
+  const e0cur = existsSync(`${D}fdcouk/E0-2627.json`) ? (J("fdcouk/E0-2627.json").rows || []) : [];
+  const e0divs = [...new Set(e0cur.map(r => r.Div).filter(Boolean))];
+  ok(e0cur.length >= 1, "fdcouk/E0-2627.json er til með röðum (varð til við fyrsta leik)");
+  ok(e0cur.length >= 1 && e0cur.every(r => r.Div === "E0"),
+    `og ALLAR raðir eru úr E0 (Premier League) — deildir í skránni: ${e0divs.join("/") || "engin"}`);
 
   /* 9. Meiðslin (API-Sports): heimildin á ekki að vera rauð. Fjöldi para
         er EKKI prófaður — milli umferða eru engir leikdagar í ±1 dags

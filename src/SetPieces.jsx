@@ -54,6 +54,19 @@ export const SP_KINDS = [
    FPL notar ANNAN GRUNN fyrir horn. Daemi (Arsenal): Rice=5, Saka=6,
    Madueke=7, Odegaard=8 — Rice ER hornataki lidsins thott talan se 5.
 
+   OG SVO ENDURGRUNNADI FPL HORNIN, 13.8.2026: milli dagskeyrslanna 12.8 og
+   13.8 fór svidid ur 2-12 (1 hja 0/20) i 1-6 (1 hja 18/20). Pipeline snertir
+   ekki toluna (`fetch.mjs:262` afritar hana), svo thetta var FPL sjalft.
+   REGLAN LIFDI ThETTA AF OBREYTT — rod innan lids er rett a badum grunnum —
+   og tvo lid (FUL, NEW) hafa enn ENGA 1, svo hun er enn NAUDSYNLEG.
+   ThAD SEM BROTNADI VAR VORDURINN: fullyrdingin "horn na aldrei 1" var
+   fullyrding um FPL, ekki um regluna okkar, og hun fell. Verra: hefdi hun
+   verid slokud i stad thess ad vera endurskrifud vaeri ekkert eftir sem
+   fellur ef einhver ferdi `order === 1` inn aftur — sú regla virkar nu fyrir
+   18 af 20 lidum. Vordurinn er thess vegna TVISKIPTUR i set-pieces.mjs:
+   TILBUID lid (rodun 4/7/9) sem getur ALDREI ordid tomt, plus lifandi
+   lidin sem hafa enga 1, TALIN.  Sja CLAUDE.md 5b um tomar fullyrdingar.
+
    TVAER LIFANDI VILLUR SEM THETTA LEIDRETTIR:
      1. "adeins fyrsti taki" (order === 1) syndi EKKERT fyrir horn.
      2. setPieceBadges notadi `order <= 3`, svo HORNATAKAR FENGU ALDREI
@@ -84,6 +97,35 @@ export function setPieceRanks(players) {
     }
   }
   return byId;
+}
+
+/* SVIDIN EINS OG THAU ERU I DAG — REIKNUD, EKKI SKRIFAD I TEXTA.
+   13.8.2026 endurgrunnadi FPL hornarodunina (2-12 med 0/20 lidum a 1 ->
+   1-6 med 18/20 a 1) og THRIR STADIR i appinu fullyrtu aframhaldandi
+   "4-10 og aldrei 1": thessi haus, skyringin i flipanum og `note` a
+   ck-dalkinum — sa sidasti med ordinu MEASURED fyrir framan. Fost tala um
+   lifandi gogn urealdist thogult. Skyringin i flipanum les nu ur THESSU
+   falli, svo hun getur ekki farid a skjon vid gognin aftur.
+   `teamsNoOne` er talan sem SKIPTIR MALI: lid sem hafa ENGA 1 eru einu
+   tilvikin thar sem `order === 1` finnur engan taka.                      */
+export function spRanges(players) {
+  const out = {};
+  for (const k of SP_KINDS) {
+    const vals = [], byTeam = new Map();
+    for (const p of players || []) {
+      const o = p?.[k.field];
+      if (o == null) continue;
+      vals.push(o);
+      byTeam.set(p.team, Math.min(byTeam.get(p.team) ?? Infinity, o));
+    }
+    out[k.key] = vals.length ? {
+      min: Math.min(...vals), max: Math.max(...vals), n: vals.length,
+      teams: byTeam.size,
+      teamsWithOne: [...byTeam.values()].filter(m => m === 1).length,
+      teamsNoOne:   [...byTeam.values()].filter(m => m > 1).length,
+    } : null;
+  }
+  return out;
 }
 
 /* HVERSU MARGAR TEGUNDIR TEKUR HANN FYRSTUR?
@@ -120,7 +162,16 @@ export function setPieceBadges(p, ranks, { maxRank = 2 } = {}) {
 const SP_XG_MIN = 1.0;
 function threatByTeam(bsd) {
   const best = {};
-  for (const p of (bsd?.players || [])) {
+  /* `Array.isArray`, EKKI `|| []` — FUNDID 14.8.2026 AF NYRRI ATBURDARAS.
+     `|| []` ver adeins null/undefined; HLUTUR thar sem fylki a ad vera
+     (`players: {}`) sleppur gegn (`{} || []` er `{}`) og `for...of` kastar
+     "object is not iterable", sem felldi ThENNAN flipa i ErrorBoundary.
+     Fannst thegar "hlutur i stad fylkis" var bætt vid `data-resilience.mjs`;
+     hun var utan theirra 16 atburdarasa sem safnid hafdi. Sama lagfaering og
+     thrju stodin i `makeEnricher` (`rowsOf`), en hér er hun STADBUNDIN: flipinn
+     a ekki ad thurfa ad flytja inn ur stats.js fyrir eina gerdar-vorn.   */
+  for (const p of (Array.isArray(bsd?.players) ? bsd.players : [])) {
+    if (!p || typeof p !== "object") continue;
     if (!p.team || !(p.sp_xg >= SP_XG_MIN)) continue;
     const cur = best[p.team];
     if (!cur || p.sp_xg > cur.sp_xg) best[p.team] = p;
@@ -146,6 +197,13 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
      ADEINS FYRSTI TAKI: rodun 2-5 skiptir ekki mali fyrir fantasy-val og
      hun tvofaldadi haedina a hverju spjaldi.                             */
   const ranks = useMemo(() => setPieceRanks(players), [players]);
+  /* Svidin fyrir skyringuna nedst — reiknud, aldrei skrifad i texta (sja
+     hausinn a spRanges). `rangeTxt` skilar "1-6" eda "—" se ekkert skrad. */
+  const ranges = useMemo(() => spRanges(players), [players]);
+  const rangeTxt = k => {
+    const r = ranges[k];
+    return r ? (r.min === r.max ? String(r.min) : `${r.min}–${r.max}`) : "—";
+  };
   /* Reiknad EINU SINNI fyrir alla, ekki per rod: annars vaeri thetta
      20 lid x 3 tegundir uppflettingar i hverri teiknun.                */
   const multi = useMemo(() => {
@@ -276,9 +334,15 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
         <span style={S.legIcon}><FreeKickIcon size={13} color="#1b5e9c" title="Free kicks" /> {"free kicks"}</span> ·{" "}
         <span style={S.legIcon}><CornerIcon size={13} color="#0a7a4a" title="Corners" /> {"corners"}</span>.
         {" "}<b>{"\"First taker\" is the team's LOWEST FPL order, not the number 1."}</b>{" "}
-        {"Measured on real data: penalties and free kicks are numbered 1–5, but corners"}
-        {" "}<b>{"4–10 and never reach 1"}</b>{" "}
-        {"— FPL uses a different base there. An older version required the number 1 and so never showed a corner taker."}
+        {/* TOLURNAR ERU REIKNADAR UR GOGNUNUM SEM ERU A SKJANUM. Her stod
+            "corners 4-10 and never reach 1" sem FOST TALA; FPL endurgrunnadi
+            hornin 13.8.2026 og setningin vard OSONN a skjanum. Sja spRanges. */}
+        {interp("Measured on today's data: penalties {0}, free kicks {1}, corners {2}.",
+          [rangeTxt("pen"), rangeTxt("fk"), rangeTxt("ck")])}
+        {ranges.ck?.teamsNoOne
+          ? " " + interp("{0} of {1} clubs have no number 1 at all for corners, which is why the lowest order is what counts — an older version required the number 1 and so showed no corner taker for them.",
+              [ranges.ck.teamsNoOne, ranges.ck.teams])
+          : " " + "FPL has renumbered this base mid-season before, so the lowest order is what counts rather than the number 1."}
         {" "}{"The order is hand-entered by FPL and can be stale early in the season — verify against recent matches before basing a captaincy pick on it."}
       </div>
     </section>

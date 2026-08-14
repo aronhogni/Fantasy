@@ -84,7 +84,8 @@ const safeDiv = (a, b) => (b == null || b === 0 || a == null ? null : a / b);
 const per90of = (key) => (p) => per90(num(p[key]), num(p.minutes));
 
 export const STAT_GROUPS = [
-  /* 7 flokkar. ENDURSKIPULAGT 7.8.2026 (faerri og breidari) og svo 8.8.
+  /* 6 flokkar (sagdi "7" fram til 14.8.2026 — talid: core, attack, defence,
+     aron, fixtures, setp). ENDURSKIPULAGT 7.8.2026 (faerri og breidari) og svo 8.8.
      ad beidni: ICT/ogn/skopun/ahrif foru UR Grunni I SOKN — their maela
      sokn, ekki grunn-upplysingar um leikmann, og i Grunni voru their
      komnir a milli verds og eignarhalds.                              */
@@ -412,11 +413,11 @@ export const STAT_DEFS = [
 
   /* --- band: Imminent --- */
   { key:"mo", label:"Imminent goal (IG)", short:"IG", group:"attack", band:"Imminent",
-    dec:2, hi:true, live_only:true, derived:true,
+    dec:2, hi:true, live_only:true, derived:true, pos:[2,3,4],
     note:"OUR MEASURED SCORE: xGI × 0.8 + threat/25 × 0.3 + bad luck × 0.2 over the last 4 finished gameweeks. Only for players with 0–1 involvements in that window — the point is \"he is about to score\". Measured: the top decile returns 2.89× the average over the next four gameweeks. Live figure; goalkeepers never get it (never measured for them).",
     get:p=>num(p._mo) },
   { key:"ao", label:"Imminent assist (IA)", short:"IA", group:"attack", band:"Imminent",
-    dec:1, hi:true, live_only:true, derived:true,
+    dec:1, hi:true, live_only:true, derived:true, pos:[2,3,4],
     note:"OUR MEASURED SCORE: plain creativity/90 over the form window. A composite version was tested and LOST in 0 of 3 seasons, so the plain figure stands. Live figure; goalkeepers never get it.",
     get:p=>num(p._ao) },
 
@@ -635,7 +636,14 @@ export const STAT_DEFS = [
     get:p=>num(p.direct_freekicks_order) },
   { key:"ck_order", label:"Corner order", short:"Corners", group:"setp", band:"Set-piece order",
     dec:0, hi:false, live_only:true,
-    note:"Corner and indirect free-kick order. MEASURED: FPL numbers corners on a different scale — the range is 4–10 and NO club has a 1, so \"first taker\" here means the lowest number at that club, not the number 1.",
+    /* FOST TALA UM LIFANDI GOGN — VILLAN SEM ThESSI NOTA VAR. Her stod
+       "MEASURED: ... the range is 4-10 and NO club has a 1". FPL endurgrunnadi
+       hornarodunina 13.8.2026 (2-12 -> 1-6, 18 af 20 lidum med 1) og notan
+       vard OSONN a skjanum — MED ordinu MEASURED fyrir framan, sem er einmitt
+       versta utkoman skv. CLAUDE.md. Notan segir nu REGLUNA (sem stendur a
+       badum grunnum) og engan svid-tolu; lifandi svidid er reiknad i
+       `spRanges` og birt i Set pieces-flipanum.                            */
+    note:"Corner and indirect free-kick order, as FPL enters it by hand. FPL has renumbered this base mid-season before, so \"first taker\" means the LOWEST number at that club — never the number 1. The Set pieces tab shows today's actual range.",
     get:p=>num(p.corners_and_indirect_freekicks_order) },
   { key:"yellow_cards", label:"Yellow cards", short:"Yellow", group:"setp", band:"Cards",
     dec:0, hi:false, note:"Yellow cards (−1 point each). LOWER IS BETTER.",
@@ -659,6 +667,73 @@ export const STAT_DEFS = [
    erfir stodugleikann AN ThESS ad upplysingar baetist vid, og radar
    odyrum monnum efst. `pts_per_million` er eftir thvi ad hun er
    OPINBER FPL-tala (value_season) sem notendur bera saman vid annad.  */
+
+/* ============================================================
+   `pos` ER VIRT A EINUM STAD — GETTERNUM SJALFUM (14.8.2026)
+
+   VILLAN: 12 dalkar bera `pos` (t.d. `clean_sheets` pos:[1,2,3], `saves`
+   pos:[1]) og `buildLeaderboard` VIRDIR thad (`stats.js` kafli um hana:
+   `if (def.pos && !def.pos.includes(p.element_type)) continue`) — en
+   LEIKMANNATAFLAN virti thad HVERGI. Utkoman var ad TVAER TOFLUR SOGDU
+   SITTHVAD UM SAMA DALK: mælt 14.8.2026 birti taflan `Clean sheet %: 32%`,
+   `Goals conceded: 36` og `xGC per 90: 1.26` A FRAMHERJUM (70 framherjar
+   med `clean_sheets`/`goals_conceded`/`xgc_per_90`, 39 med `cs_pct`) medan
+   stigataflan hafdi 0 framherja i somu dalkum.
+   OG VERRA: 17 markmenn baru `_mo`/`_ao` — 10 birtu `0.00` og 13 `0.0` —
+   thott notan a dalkunum segdi sjalf "goalkeepers never get it (never
+   measured for them)". `App.jsx` hafdi vordinn (`p.element_type !== 1`) og
+   spjaldid slepptii theim; taflan prentadi ThVI OMAELDA TOLU SEM LEIT UT
+   EINS OG MAELING — versta utkoman skv. CLAUDE.md.
+
+   HVERS VEGNA HER OG EKKI I `PlayerList.jsx`: `numericDefs` thar
+   (`d => !d.pos || d.pos.length`) hleypti 124 af 124 gegn OG var auk thess
+   ALDREI KOLLUD — dautt fall. Ad laga thad hefdi lagad EINA toflu. Getterinn
+   er sameiginlegi flöskuhalsinn: taflan, stigataflan, threskuldarnir,
+   hitakortid og prófin lesa hann ÖLL, svo einn vordur gildir fyrir allt.
+   NULL, EKKI 0: leikmadur utan stodu-sviðs hefur ekki "0 varslur", talan
+   ER EKKI TIL fyrir hann — og null radast alltaf sidast i badar attir.
+   ============================================================ */
+/* OThEKKT STADA ER EKKI "UTAN STODU". Fyrsta utgafan var
+   `allowed.includes(p.element_type) ? inner(p) : null`, sem skilar null fyrir
+   HVERJA rod sem ber ekki `element_type` — og thaer eru til: einingaprofin
+   nota tilbuin hlut ("fake") og eldri samantektir bera ekki alltaf stoduna.
+   Fimm profanir fellu samstundis. Reglan er su sama sem gildir um null i
+   ollu repo-inu: vantar upplysing er hun EKKI merki um utilokun. Vid siumn
+   ThVI ADEINS thegar stodan er ThEKKT OG utan sviðsins.                  */
+for (const d of STAT_DEFS) {
+  if (!Array.isArray(d.pos) || !d.pos.length) continue;
+  const inner = d.get, allowed = d.pos;
+  d.get = p => (p?.element_type != null && !allowed.includes(p.element_type)) ? null : inner(p);
+}
+
+/* ============================================================
+   ThROSKULDUR ER BORINN SAMAN A ThEIRRI NAKVAEMNI SEM DALKURINN BIRTIR
+
+   TILKYNNT AF NOTANDA 14.8.2026: sia "start prob >= 90" henti Ampadu og
+   Botman UT medan holfid vid hlidina sagdi 90. Baðir bera 0,897 -> 89,7 og
+   `start_prob` hefur `dec: 0`, svo TAFLAN namundadi i 90 en SIAN bar saman
+   89,7 >= 90. Taflan var thvi i motsogn vid sjalfa sig.
+
+   Reglan: sian les SOMU TOLU og augad. Gildid er namundad ad `dec`
+   dalksins; throskuldurinn er ThAD SEM NOTANDINN SKRIFADI og stendur
+   onamundadur. Thetta er almennt — hver dalkur med `dec` hafdi sömu
+   gildru (xG 0,6449 birt sem 0,64) — og namundunin er leidd UT UR
+   skranni svo nyr dalkur erfi hana sjalfkrafa.
+
+   HREINT FALL OG UTFLUTT VILJANDI: medan thetta var inni i `PlayerList.jsx`
+   gat profid adeins LESID kodann, og stokkbreyting (namundun fjarlaegd)
+   SLAPP I GEGN thvi textinn stod eftir. Sama lexia og `buildTeamMetrics`
+   (CLAUDE.md 7.1): rokfraedi sem prof tharf ad sanna a ekki heima i JSX.
+   ============================================================ */
+export function passesThreshold(def, v, op, target) {
+  if (v == null || !Number.isFinite(+v)) return false;   // "vantar" fellur ut
+  if (!Number.isFinite(+target)) return true;            // halfskrifad gildi siar ekki
+  const dec = Number.isFinite(def?.dec) ? def.dec : null;
+  const shown = dec == null ? +v : +(+v).toFixed(dec);
+  if (op === ">=") return shown >= +target;
+  if (op === "<=") return shown <= +target;
+  return true;
+}
 
 export const STAT_BY_KEY = Object.fromEntries(STAT_DEFS.map(d => [d.key, d]));
 
@@ -1212,7 +1287,7 @@ export function moScore(w) {
 
    Skilar rod med FPL-SVIDAHEITUM (total_points, expected_goals, ...) ur
    thjoppudu per-umferdar skranni. Thad er ASETT: STAT_DEFS lesa FPL-heiti,
-   svo ALLIR 108 dalkar — lika afleiddu (per-90, hlutfoll, nyting) — virka
+   svo ALLIR dalkarnir (124 i dag) — lika afleiddu (per-90, hlutfoll, nyting) — virka
    OBREYTTIR a bilinu. Ef eg hefdi buid til ny heiti hefdi thurft annad
    dalkasett fyrir bila-syn, og tha vaeru tvaer dalkaskrar (sja 6i: einmitt
    thad sem a ekki ad gerast).
@@ -1575,7 +1650,21 @@ export function makeEnricher({
 
   /* ESPN-skot sidustu umferdar, porad a nafn + lid med othraeddum sigurvegara. */
   const shotByTeam = {};
-  for (const sp of shotsFile?.players || []) (shotByTeam[sp.team] ||= []).push(sp);
+  /* `rowsOf`, EKKI `|| []` — MAELT 14.8.2026. Ollum thremur valkvaedum
+     skrunum hér (`shotsFile`, `defcon`, `bsd`) var flett upp med `|| []`, sem
+     ver ADEINS null/undefined. Hlutur thar sem fylki a ad vera (`players: {}`)
+     kastar "object is not iterable" — profad beint: allar thrjar felldu appid
+     inni i <PlayerList> og lentu i ErrorBoundary. `rowsOf` er skrifud fyrir
+     NAKVAEMLEGA thetta (sja hausinn hennar) og var samt ekki notud i
+     `makeEnricher`; hun siar lika `[null]`, sem `|| []` hleypir gegn.
+     ThAD ER EKKI NETID SEM ER OGNIN: 2.000 klipptar utgafur af
+     `last_gw_shots.json` gafu 1.999 SyntaxError og NULL tilfelli af "hlutur i
+     stad fylkis" — halfskrifad JSON kastar i `r.json()` og er thegar varid.
+     Ognin er SNIDS-BREYTING i pipeline eda mis-vírud prop: `players` ER
+     ThEGAR hlutur i `player_form.json`, `player_seasons.json` og ollum
+     `player_gw_*.json`, en fylki i thessum thremur. Sami aettbogi og
+     "pipeline skrifadi lineups.json en appid las hana aldrei".          */
+  for (const sp of rowsOf(shotsFile?.players)) (shotByTeam[sp.team] ||= []).push(sp);
   const findShot = (p) => {
     const cands = shotByTeam[teamById?.[p.team]?.short] || [];
     let best = null, bs = 0, second = 0;
@@ -1605,7 +1694,7 @@ export function makeEnricher({
   const csByShort = odds || {};
   const dcById = defcon?.opportunity || {};
   const dcHitById = {};
-  for (const r of defcon?.players || []) dcHitById[r.fpl_id] = r;
+  for (const r of rowsOf(defcon?.players)) dcHitById[r.fpl_id] = r;
   /* DC-hittni: yfirstandandi timabil -> defcon.json (lyklad a fpl_id),
      sogulegt -> defcon_history.json (lyklad a `code`, sem er FAST yfir
      timabil olikt id). DefCon er ny stigagjof fra 2025/26; eldri timabil
@@ -1621,7 +1710,7 @@ export function makeEnricher({
   const files = Array.isArray(bsd) ? bsd.filter(Boolean) : (bsd ? [bsd] : []);
   const pick = files.find(f => f && f.season === season) || null;
   const bsdByCode = (pick)
-    ? Object.fromEntries((pick.players || []).map(r => [String(r.code), r]))
+    ? Object.fromEntries(rowsOf(pick.players).map(r => [String(r.code), r]))
     : null;
 
   return function enrich(p) {
@@ -1644,8 +1733,17 @@ export function makeEnricher({
         _w_minutes: im?.window?.minutes ?? null, _w_xg: im?.window?.xg ?? null,
         _w_xa: im?.window?.xa ?? null, _w_threat: im?.window?.threat ?? null,
         _w_creativity: im?.window?.creativity ?? null,
-        _mo: im && inImminentPool(im.window) ? moScore(im.window) : null,
-        _ao: im && inImminentPool(im.window) ? aoScore(im.window) : null,
+        /* MARKMENN FA HVORKI mo NE ao — OG ThAD ER MAELINGAR-REGLA, EKKI
+           SNYRTING. Vordurinn var i App.jsx (`p.element_type !== 1`) en
+           TYNDIST thegar audgunin var midlud i `makeEnricher` (8.8.2026):
+           17 markmenn baru toluna, 10 birtu `0.00` og 13 `0.0`, medan notan
+           a dalknum sagdi "goalkeepers never get it (never measured for
+           them)". `mo-candidates.mjs` maelir ADEINS utileikmenn.
+           Dalkarnir bera nu lika `pos:[2,3,4]` (vordurinn a getternum), en
+           talan er EKKI REIKNUD hér heldur — omaeld tala a ekki ad verda til,
+           hvad tha ad thurfa sidari sigti.                              */
+        _mo: p.element_type !== 1 && im && inImminentPool(im.window) ? moScore(im.window) : null,
+        _ao: p.element_type !== 1 && im && inImminentPool(im.window) ? aoScore(im.window) : null,
         _start_p: risk?.p ?? null,
         _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
         _home6: fa?.home ?? null, _fix6: fa?.n ?? null,

@@ -11,9 +11,12 @@
       1 fra banni" thegar hann hefur null. Thess vegna: EKKERT fyrr en
       umferd er lokin.
    2. `setPieceOf` les RODUN INNAN LIDS (`rank === 1`), ekki FPL-toluna.
-      FPL notar annan grunn fyrir horn (svid 4-10) svo `order === 1` naer
-      thar aldrei. Maelt: badar adferdir gefa somu 20 vitaskyttur i dag —
-      thetta er vorn gegn ThOGULLI bilun, ekki lagfaering a birtri tolu.
+      Grunnurinn sem FPL notar fyrir horn er EKKI fastur: hann var 2-12 (engin
+      1) fram til 12.8.2026 og 1-6 (18 af 20 lidum med 1) fra 13.8.2026, svo
+      `order === 1` naedi thar ekki i gamla grunninum og naer i 18 lid i nyja.
+      Rod innan lids er rett a BADUM. Maelt: badar adferdir gefa somu 20
+      vitaskyttur i dag — thetta er vorn gegn ThOGULLI bilun, ekki lagfaering
+      a birtri tolu.
    3. `rotationRisk` deilir med 38 FYRIR timabil og med loknum umferdum
       eftir thad. Sami arfur og i (1): `starts` er fyrra timabilid i
       forleik.
@@ -62,9 +65,10 @@ export function banRisk(p, gwNow, seasonStarted) {
 /* Vitataki / fastaleikir.
    `isPenTaker` KEMUR NU UR RODUN INNAN LIDS, EKKI UR FPL-TOLUNNI
    (lagad 11.8.2026). Adur var thad `pen === 1`, sem er nakvaemlega su
-   gildra sem `SetPieces.jsx` er skrifud til ad vara vid: FPL notar ANNAN
-   GRUNN fyrir horn (svid 4-10), svo `order === 1` naedi ThAR aldrei — og
-   ekkert lofar ad vita-svidid haldi sinum grunni. `setPieceRanks` radar
+   gildra sem `SetPieces.jsx` er skrifud til ad vara vid: FPL notadi ANNAN
+   GRUNN fyrir horn (svid 2-12, engin 1) svo `order === 1` naedi ThAR aldrei —
+   og ekkert lofar ad vita-svidid haldi sinum grunni. ThAD LOFAR ENGINN NEINU:
+   13.8.2026 endurgrunnadi FPL hornin sjalf i 1-6. `setPieceRanks` radar
    INNAN LIDS og `rank === 1` er thvi "fyrsti takarinn" oháð grunni.
 
    ThETTA VAR TVITEKNING, EKKI VILLA I DAG: maelt a raungognum (63 leikmenn
