@@ -345,16 +345,59 @@ heppið hólf: `opp_prior` **bætir við kjarnann** (`deltaVsIncumbent > 0`) í
 
 #### FERILLINN ER NIÐURSTAÐAN, EKKI TALAN
 
+Taflan hér er **topphólf hvers sniðs** (sama hólf og taflan að ofan), ekki
+hólfið sem er sent. Það er skrifað berum orðum af því að **einmitt sú tvíræðni
+kostaði þrjár villur** í `usageblend.js` (sjá næsta undirkafla): `+12,1` er
+`opp_prior · jump · const0.5`, ekki senda armið.
+
 | viku-bil | ppr | half | std |
 |---|---|---|---|
 | 1–4 | +0,8 (t 0,62) | +2,2 (t 0,35) | +4,2 (t 1,26) |
 | 5–9 | +2,0 (t 0,35) | +9,9 (t 3,35) | +5,9 (t 0,99) |
 | **10–18** | **+12,3 (t 4,21, 6/6, boot [4,6 · 14,5])** | **+12,1 (t 4,51, 6/6)** | **+10,5 (t 3,89, 6/6)** |
 
-Í vikum 10+ fer PPR úr því að loka 3,97% af bilinu í **18,0%** — 4,5×. Í vikum
-1–4 er **ekkert**, og **kröftug blöndun þar er SKAÐLEG** (`const0.5`: −4 til −9 pp).
-Vogin verður því að vera Bayesísk með **hægri byrjun** — nánast engin vog á
-tímabilið fyrr en ~6 leikir eru komnir. Föst vog er verri en engin.
+**Senda armið** (`opp_prior · last3 · bayes10`) gefur aðrar tölur í half og std:
+w1-4 **+0,8 / +5,1 / +1,8** og w10-18 **+12,3 / +10,2 / +9,0**.
+
+Í vikum 10+ fer PPR úr því að loka 3,97% af bilinu í **18,0%** — 4,5×.
+
+##### `DEAD_GAMES = 4` — ÞRJÁR VILLUR Á SÖMU FULLYRÐINGU (leiðrétt 14.8.2026)
+
+Hér stóð: *„Í vikum 1–4 er **ekkert**, og **kröftug blöndun þar er SKAÐLEG**
+(`const0.5`: −4 til −9 pp)."* **Hvorugur helmingurinn stenst á senda arminu.**
+Töluröðin var lesin úr `grid.ptsPG` — **öðru armi** — í „leiðréttingu" degi
+áður; sú leiðrétting skrifaði slóðina niður en akkeraði hana á ranga breytu.
+
+Á senda arminu (`opp_prior · last3`), `bins["w1-4"]`, **gegn viðmiðinu**:
+
+| ferill | ppr | half | std |
+|---|---|---|---|
+| `bayes10` (sent) | +0,8 (t 0,62) | **+5,1 (t 2,34)** | +1,8 (t 1,37) |
+| `const0.5` | −3,9 (t −1,14) | +2,0 (t 0,34) | +4,2 (t 1,26) |
+| `const0` | −19,7 (t −5,37) | −11,4 (t −1,29) | −13,5 (t −2,39) |
+
+1. **`const0.5` er EKKI skaðleg** í w1-4: tap aðeins í ppr og **marktækt
+   hvergi**. `const0` tapar hins vegar 11–20 pp — **það** er rökin fyrir því að
+   hafa **vog**, og þau stóðu alltaf.
+2. **„Merkið snýst við seint" var mælikvarða-villa.** `bins[].delta` er
+   `arm − VIÐMIÐ` (`usage-lab.mjs` ~1290), svo jákvætt `const0.5` í w10-18
+   slær **spána**, ekki senda ferilinn. Frádrátturinn gefur
+   **−0,95 / −0,49 / +1,49** — hún slær sendan feril **aðeins í std**
+   (punktmat; skráin ber engin vikmörk fyrir arm-gegn-armi).
+3. **Dauða sviðið hefur MÆLDAN KOSTNAÐ.** Það nullar allt `w1-4` (`k = 0..3`),
+   svo það fleygir w1-4-hagnaði senda ferilsins — sem er **marktækt jákvæður í
+   half-PPR (t 2,34)**, eina marktæka hólfið í bilinu.
+
+`DEAD_GAMES = 4` er því **val sem mælingin styður ekki**, og `deadMeasured`
+stendur í `false` af þeirri ástæðu — ekki af því að það sitji „innan
+jafnteflis-bands". **Talan er samt EKKI breytt:** sendi ferillinn *með* dauðu
+sviði var aldrei í netinu (`usage-lab` mælir `bayes10 = 10/(10+k)`, án sviðs),
+svo bæði 4 og 0 eru ómældar. Tillagan (`DEAD_GAMES = 0` eða 2) krefst **nýs
+ferils í labinu**; að skipta ómældri 4 fyrir ómælda 0 væri sama tegund
+ákvörðunar í aðra átt. Vörður: `tests/usageblend.mjs` kafli 9, sem flettir
+tölunum upp **eftir bókuðu sviðunum** (`variable`/`window`/`bin`) og skannar
+`JSON.stringify(USAGE_BLEND)` **og hráan skrártexta** — fyrri útgáfa skannaði
+aðeins `deadBasis`, og þess vegna lifðu **þrjú** afrit annars staðar í skránni.
 
 **Notkun slær stig, en aðeins hóflega** (+1,71/+1,72/+2,08) og það er **MAGN
 tækifæra**, ekki hlutdeild: `tshare`/`wopr` **einar eru VERRI** en `opp`

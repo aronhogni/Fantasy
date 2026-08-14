@@ -26,11 +26,25 @@
    ============================================================
    THRJU ATRIDI SEM MEGA EKKI GLEYMAST VID LESTUR
    ============================================================
-   1. FERILLINN ER NIDURSTADAN, EKKI TALAN. I vikum 1-4 maelist
-      EKKERT (sja `bins` her nidri) og krofug blondun THAR er
-      SKADLEG — `const0.5` (fost 50% vog) tapar 3,9-8,1 pp i w1-4 og
-      `const0` tapar 11-20 pp. Vogin er thess vegna Bayesisk med
-      DAUDU SVIDI i byrjun; sja `CURVE`.
+   1. FERILLINN ER NIDURSTADAN, EKKI TALAN — OG THETTA ATRIDI BAR
+      FJORDA AFRITID AF RANGRI TOLU (leidrett 14.8.2026, sja `CURVE`).
+      Her stod "i w1-4 maelist EKKERT og krofug blondun THAR er
+      SKADLEG — `const0.5` tapar 3,9-8,1 pp og `const0` 11-20 pp".
+      A SENDA ARMINU (`opp_prior · last3`, gegn VIDMIDINU) er hvorugt
+      alveg rett:
+        · sendi ferillinn (`bayes10`) i w1-4:  +0,8 (t 0,62) /
+          +5,1 (t 2,34) / +1,8 (t 1,37) — MARKTAEKT JAKVAETT i half,
+          svo "maelist EKKERT" er ekki rett um oll thrju snidin;
+        · `const0.5` i w1-4:  -3,9 (t -1,1) / +2,0 (t 0,3) /
+          +4,2 (t 1,3) — tap ADEINS i ppr og hvergi marktaekt, svo
+          "SKADLEG" stendur ekki;
+        · `const0` (spain hent) tapar 11,4-19,7 pp og THAD stendur —
+          thess vegna a VOGIN sjalf rett a ser.
+      DAUDA SVIDID (`DEAD_GAMES = 4`) er thvi EKKI stutt af maelingu
+      sem gagnleg adgerd; thad er VAL innan bands og gognin benda
+      helst gegn thvi. Sja `CURVE.deadBasis` — thar er thad skrifad
+      berum ordum i stad thess ad vera rokstutt med tolu sem var
+      tekin ur odru armi.
    2. VORPUNIN opp -> STIG ER **EKKI** I `usage.json`. Skran ber
       samantektir (delta, t, vikmork, ferla) en ENGA fitt-stika. Thess
       vegna tekur `blendedSeasonProj` vid `toDatePerGame` — thegar
@@ -82,9 +96,22 @@ const ARM = {
 
    Ad senda thrjar olikar reglur vaeri ad velja sigurvegara ur 52 holfum
    thrisvar — nakvaemlega thad sem placebo-thakid i labinu er til ad
-   vara vid (havadi naer +2,03/+3,93/+4,40 gegnum sama net). OG BADIR
-   `const0.5`-reitirnir eru DAEMDIR UR LEIK af atridi 1 her ofar: fost
-   50% vog tapar i vikum 1-4.
+   vara vid (havadi naer +2,03/+3,93/+4,40 gegnum sama net). THAD er
+   rokid fyrir EINU holfi og thad stendur eitt og ohaggad.
+
+   HER STOD ANNAD ROK OFAN A THAD OG THAD VAR AFTURKALLAD 14.8.2026:
+   "OG BADIR `const0.5`-reitirnir eru DAEMDIR UR LEIK af atridi 1 her
+   ofar: fost 50% vog tapar i vikum 1-4." Su fullyrding var `ptsPG`-tala
+   (sja `CURVE.deadBasis`): a senda arminu tapar `const0.5` i w1-4
+   ADEINS i ppr (-3,93, t -1,14) og er JAKVAED i half (+2,04) og
+   standard (+4,16). `const0.5` er thvi EKKI daemd ur leik af nokkurri
+   maelingu — hun er einfaldlega ekki holfid sem var valid, og
+   fjolsamanburdar-rokid stendur thvi EITT undir akvordunni.
+
+   THETTA ER FIMMTA AFRITID af somu afturkolludu tolu i thessari skra
+   og thad var EKKI i listanum sem var tilkynntur. Thess vegna skannar
+   `usageblend.mjs` kafli 9 nu HRAAN SKRARTEXTA og ekki adeins
+   `deadBasis` — afrit i athugasemd er jafn skadlegt og afrit i svidi.
 
    `last3 · bayes10` er thvi valid sem EITT holf, og thad er maelt
    jakvaett i OLLUM THREMUR med timabila-bootstrap sem UTILOKAR NULL:
@@ -140,7 +167,17 @@ const SHIPPED = {
     seasonBootstrap: [0.945, 8.958], seasonBootstrapExcludesZero: true,
     /* Sama saga: thakid i standard er t = 2,302 og thetta holf er
        2,130. Besta holf standard (`last3 · const0.5`, t 2,742) SLAER
-       thakid — en thad er `const0.5`, sem er daemt ur leik. */
+       thakid.
+
+       HER STOD "— en thad er `const0.5`, sem er daemt ur leik" og THAD
+       VAR AFTURKALLAD 14.8.2026 (sjotta afritid af somu tolu). Ekkert
+       daemir `const0.5` ur leik: i standard er hun +4,16 pp i w1-4, sem
+       er BETRA en sendi ferillinn (+1,81). Rett lesning er ohagstaedari
+       fyrir okkur og hun a ad standa: i STANDARD er sendi reiturinn
+       maelanlega lakari en toppholfid (4,747 a moti 7,094) og naer ekki
+       placebo-thakinu, medan toppholfid naer thvi. Vid sendum hann samt,
+       og astaedan er FJOLSAMANBURDUR — eitt holf fyrir oll snid — ekki
+       galli i `const0.5`. Sja blokkina "HVERS VEGNA EITT HOLF". */
     beatsPlaceboCeiling: false, beatsScaledPlaceboCeiling: true,
     bins: { "w1-4": { delta: 1.807, t: 1.372, wins: 4 },
             "w5-9": { delta: 2.35, t: 0.44, wins: 3 },
@@ -178,61 +215,104 @@ const PLACEBO_CEILING = {
    sigur-ferillinn i ppr og fyrir `opp_prior · last3` er hun besti
    bayes-ferillinn i ollum thremur snidum.
 
-   DAUDA SVIDID (`DEAD_GAMES = 4`) ER VALID, EKKI MAELT — og thad er
-   skrifad her svo thad geti ekki lesist eins og fitt:
+   DAUDA SVIDID (`DEAD_GAMES = 4`) ER VALID, EKKI MAELT — og eftir
+   thrjar tilraunir til ad boka rokin fyrir thvi er nidurstadan ad
+   MAELINGIN STYDUR THAD EKKI. Thad er skrifad her, ekki fjarlaegt:
 
      ============================================================
-     TOLURNAR VORU RANGAR — LEIDRETT 13.8.2026 (I TVEIMUR SKREFUM)
+     THRIDJA VILLAN A SOMU FULLYRDINGU — LEIDRETT 14.8.2026
      ============================================================
-     Hér stod "`const0.5` i sama bili tapar 3,9-8,1 pp og `const0`
-     11,4-20,1 pp". ATTIN VAR RETT en hvorug talan var a diski.
-     `data/measure/usage.json`, `results.<snid>.grid.ptsPG.last3.<ferill>
-     .bins["w1-4"].delta` — delta gegn kjarna-ferlinum (`bayes10`), i pp:
+     Fullyrdingin "krofug blondun i w1-4 er SKADLEG" hefur nu verid
+     bokud thrisvar og verid rong thrisvar:
 
-       snid      const0,5           const0
-       ppr       -9,35 (t -2,13)   -25,56 (t -5,11)
-       half      -4,64 (t -1,28)   -21,05 (t -3,27)
-       standard  -4,80 (t -2,14)   -23,33 (t -6,00)
+       1. UPPHAFLEGA: "`const0.5` tapar 3,9-8,1 pp og `const0`
+          11,4-20,1 pp" — an slodar og an armis.
+       2. "LEIDRETTINGIN" 13.8.: fljutt yfir i
+          `grid.ptsPG.last3.<ferill>.bins["w1-4"]` og bokad
+          `const0.5` -9,35/-4,64/-4,80 og `const0`
+          -25,56/-21,05/-23,33. Slodin var loks skrifud nidur — en
+          hun benti a `ptsPG`, sem er ANNAD ARM. Sent er `opp_prior`
+          (`ARM.variable`). Talan var thvi RETT LESIN ur RANGRI TOFLU:
+          nakvaemlega sama villa sem threpi ofar hafdi verid skjolud
+          sama dag, gerd i sjalfri skjoluninni.
+       3. HER (14.8.): re-akkerad a SENDA ARMID.
 
-     `const0.5` tapar thvi 4,6-9,4 (ekki 3,9-8,1) og `const0` 21,1-25,6
-     (ekki 11,4-20,1) — hid sidara var VANMAT um naestum helming.
+     A SENDA ARMINU (`opp_prior · last3`), `.bins["w1-4"]`, i pp gegn
+     VIDMIDINU:
 
-     OG ÞETTA VANTADI, SEM ER STERKASTA ROKID FYRIR DAUDASVIDINU:
-     i `w10-18` SNYST MERKID VID og thad er marktaekt i ollum thremur
-     snidum — `const0.5` maelist +7,96 (t 4,08) / +8,21 (t 2,31) /
-     +6,02 (t 2,56). Flatur halfur ferill SLAER bayes-ferilinn seint a
-     timabilinu. Forskot kjarna-ferilsins er thvi ekki jafnt yfir arid:
-     thad er thjappad nakvaemlega thar sem daudasvidid liggur. Þad er
-     malefnalegt rok, og thad var ekki skrifad nidur.
+       snid      bayes10 (sent)     const0,5            const0
+       ppr        +0,84 (t 0,62)    -3,93 (t -1,14)   -19,70 (t -5,37)
+       half       +5,13 (t 2,34)    +2,04 (t  0,34)   -11,41 (t -1,29)
+       standard   +1,81 (t 1,37)    +4,16 (t  1,26)   -13,51 (t -2,39)
 
-     ============================================================
-     MIN EIGIN FYRSTA LEIDRETTING VAR RONG OG ÞAD ER SKRIFAD HER
-     ============================================================
-     Eg leitadi fyrst i `curveTable.ptsPG.<gluggi>`, fann `const0.5`
-     JAKVAETT i 5 af 6 holfum og skrifadi ad fullyrdingin vaeri ONDVERD
-     vid maelinguna. Su tafla er GLUGGINN sem notkun er maeld i
-     (`all` / `last3` / `last5` / `jump`) og hun er TIMABILS-VID —
-     hun er ekki vikubilid sem fullyrdingin talar um. Rett slod er
-     `.bins["w1-4"]`, sem er RAUNVERULEGUR lykill a diski.
+     TVAER NIDURSTODUR SEM SNUA ROKUNUM VID:
 
-     Þad er NAKVAEMLEGA sama villa og VBD-bokunin greiddi fyrir sama dag:
-     tvaer rettar tolur ur sitthvoru harness, bornar saman eins og thaer
-     vaeru sama staerd. Eg gerdi hana medan eg var ad skjala hana.
-     Þess vegna nefnir `deadClaim.source` nu SLODINA i heild, ekki
-     skrarheitið — slod sem hefdi verid skrifud nidur hefdi utilokad
-     bædi villuna og "leidretting" minа.
+     (a) "`const0.5` er SKADLEG i w1-4" ER OSONN a senda arminu. Hun
+         tapar ADEINS i ppr (-3,93) og thar ekki marktaekt (t -1,14);
+         i half og standard er hun JAKVAED. Bokada bilid "-4,6 til
+         -9,4" var `ptsPG`-tala og lysir engu holfi sem vid sendum.
+         `const0` tapar hins vegar 11,4-19,7 pp og er marktaekt i
+         ppr og standard — svo VOGIN sjalf a rett a ser. Thad var
+         alltaf hid rettmaeta rok og thad stendur oskert.
 
-     · thad sem ER VALID: hvar svidid endar. `4` er efri mork thess bils
-       sem maelist ogreinanlegt; hvert gildi milli 3 og 8 vaeri jafn vel
-       stutt af gognunum. Kjarna-ferillinn vinnur gegn `const0`, ekki
-       gegn `const0.5`, svo FORMID er ekki i haettu — adeins hvar
-       upphafid liggur.
+     (b) VIDSNUNINGURINN SEINT A TIMABILINU VAR MAELIKVARDA-VILLA,
+         EKKI MERKI. Hér stod ad `const0.5` "SLAER bayes-ferilinn" i
+         `w10-18` i ollum thremur snidum, byggt a +7,96/+8,21/+6,02.
+         Thaer tolur eru POSITIFAR GEGN VIDMIDINU — sem er ekki thad
+         sama og ad slá `bayes10`. `bins[...].delta` er skilgreint i
+         `usage-lab.mjs` (~lina 1290) sem `arm - INCUMBENT` per ari,
+         og vidmidid er `weeklyProjection` (spa/17), EKKI sendi
+         ferillinn. Ad bera einn positifan delta vid null svarar
+         "slaer hun spana?", ekki "slaer hun okkar ferl?".
+         Rett samanburdur dregur toluna fra tolu senda ferilsins:
 
-     HVERS VEGNA ÞETTA LIFDI: engin fullyrding las thessar tolur. Þaer
-     voru rokstudningur i athugasemd, og athugasemd er thad eina i thessu
-     repo-i sem ekkert prof getur fellt. Þess vegna er `DEAD_GAMES`
-     merkt `measured: false` hér ad nedan — thad er retta merkingin fyrir
-     val innan jafnteflis-bands, og hun stod thegar.
+           w10-18, `const0.5` - `bayes10`   ppr -0,95 · half -0,49 · standard +1,49
+           w1-4,   `const0.5` - `bayes10`   ppr -4,77 · half -3,09 · standard +2,35
+
+         `const0.5` SLAER thvi senda ferilinn ADEINS i standard, og
+         ekki i ppr ne half. "Merkid snyst vid i ollum thremur" var
+         aldrei satt — ekki heldur a `ptsPG`, thar sem sama fradrattur
+         gefur +0,94 / -0,21 / +1,64 (tvo af thremur).
+         ATH: thessi fradrattur er PUNKTMAT. Bootstrap-id i skranni er
+         arm-gegn-vidmidi, ekki arm-gegn-armi, svo ENGIN vikmork eda
+         t-gildi eru til fyrir muninn og hann ma ekki bokast marktaekur.
+
+     HVAD ÞETTA GERIR VID `DEAD_GAMES = 4`:
+
+     Daudasvidid setur `w = 0` fyrir `k <= 4`. Vikubilid `w1-4` hefur
+     `k = 0..3` (`kAt[w]` = leikir med viku < w), svo daudasvidid
+     nullar UT NAKVAEMLEGA thad bil — appid endurtekur vidmidid i
+     vikum 1-5. Talan sem svidid FLEYGIR er thvi w1-4-delta senda
+     ferilsins sjalfs: **+0,84 / +5,13 / +1,81**, og i half er hun
+     MARKTAEKT JAKVAED (t 2,34) — eina marktaeka holfid i bilinu.
+     `bayes10` i labinu ER `10/(10+k)` an daudasvids (`CURVES` i
+     `usage-lab.mjs`), svo sendi ferillinn er EKKI maeldi ferillinn;
+     svidid er omaeld vidbot ofan a hann.
+
+     Rokin sem eftir stoda eru thvi: (i) laesileiki/varkarni — vog a
+     tvo leiki er hávaði sem notandinn a erfitt med ad rettlaeta, og
+     (ii) `const0` tapar stort, svo einhver form-hemill a vera. Hvorugt
+     er MAELING a ad `DEAD_GAMES = 4` bæti spána. Þess vegna stendur
+     `deadMeasured: false` — og nu af RETTRI astaedu: ekki "val innan
+     jafnteflis-bands" heldur "val sem gognin benda helst GEGN".
+
+     TILLAGA, EKKI BREYTING: `DEAD_GAMES = 0` (eda 2) er thad sem
+     thessi tafla stydur, og half-PPR er holfid sem borgar fyrir 4.
+     Talan er EKKI breytt her — sendi ferillinn med daudasvidi var
+     aldrei i netinu, svo bæði 4 og 0 thurfa MAELINGU (nyr ferill i
+     `usage-lab.mjs`) adur en vogin er hreyfd. Ad skipta ur omaeldri
+     4 i omaelda 0 vaeri sama tegund af akvordun, i adra att.
+
+     HVERS VEGNA THETTA LIFDI THRJAR UMFERDIR: engin fullyrding las
+     tolurnar. Thaer voru rokstudningur i athugasemd — thad eina i
+     thessu repo-i sem ekkert prof getur fellt — og thegar prof var
+     loks skrifad (kafli 9) las thad SLODINA SEM VAR BOKUD, sem var
+     `ptsPG`. Prof sem sannreynir bokada tolu gegn diski en tekur
+     ARMID sem gefid getur ekki sed thessa villu. Thess vegna ber
+     `deadClaim` nu `variable` og profid flettir upp EFTIR THVI SVIDI,
+     og kafli 9 skannar `JSON.stringify(USAGE_BLEND)` OG hraan
+     skrartexta — thvi tvo afritin sem lifdu (haus skrarinnar og
+     `rejected.constantWeight`) voru bædi utan `deadBasis`.
 
    Vogin er thvi `w(k) = kEff / (K + kEff)`, `kEff = max(0, k - 4)`:
 
@@ -241,6 +321,103 @@ const PLACEBO_CEILING = {
 
    Einraen, bundin vid [0, 1), og NUL fram ad 5 leikjum — sem er thad
    sem "naestum engin vog fyrr en ~6 leikir eru komnir" tydir i tolum.  */
+/* Lab-lyklarnir i theirri rod sem ollum trioum i thessari skra er
+   skrifad i. `LAB_KEY` her nidri vorpar app-lyklum a thessa. */
+const DEAD_FMT = ["ppr", "half", "standard"];
+
+/* Tala med formerki, einn aukastafur. TRIO ER DREGID UT UR BOKUDU
+   TOFLUNNI, ALDREI AFRITAD I TEXTA: sex afrit af somu afturkolludu tolu
+   (haus, tvaer athugasemdir, `deadBasis`, `USAGE_BLEND.note`,
+   `rejected.constantWeight`) lifdu tvaer "leidrettingar" af thvi hvert
+   afrit var sjalfstaedur strengur. Strengur sem er BYGGDUR ur toflunni
+   getur ekki rekid fra henni.                                          */
+const sgn1 = (v) => `${v >= 0 ? "+" : "-"}${Math.abs(v).toFixed(1)}`;
+const trioOf = (o) => DEAD_FMT.map((f) => sgn1(o[f])).join("/");
+
+/* App-lyklarnir i SOMU ROD og `DEAD_FMT`, svo `SHIPPED` (app-lyklar) og
+   bokada taflan (lab-lyklar) megi maetast an annarrar vorpunar-toflu. */
+const DEAD_FMT_APP = ["ppr", "half-ppr", "standard"];
+
+/* `arm - sendi ferillinn` per snid, REIKNAD.
+   Bokada taflan ber `arm - VIDMID` (thad er thad sem `bins[].delta` er),
+   svo samanburdur vid senda ferilinn ER FRADRATTUR og ma ekki lesast af
+   formerki einu — thad var maelikvarda-villan sem bjo til "merkid snyst
+   vid seint". Talan er reiknud her og ALDREI skrifud i texta.          */
+const sgn2 = (v) => `${v >= 0 ? "+" : "-"}${Math.abs(v).toFixed(2)}`;
+const diffTrio = (booked, bin) => DEAD_FMT
+  .map((f, i) => sgn2(booked[f] - SHIPPED[DEAD_FMT_APP[i]].bins[bin].delta))
+  .join(" / ");
+
+/* ============================================================
+   ROKSTUDNINGURINN FYRIR `DEAD_GAMES`, RE-AKKERADUR A SENDA ARMID
+   ============================================================
+   `variable` ER NYTT SVID OG THAD ER ATRIDID. Fyrri utgafa bar
+   `source`, `bin`, `window` og `against` — en EKKI breytuna, svo
+   profid las `grid.ptsPG[...]` (harkodad i profinu) og gat ekki sed
+   ad bokunin var akkerud a ANNAD ARM en thad sem er sent. Nu flettir
+   profid upp eftir `variable` LIKA, svo bokun a rangt arm fellur.
+
+   `against` ER LIKA LEIDRETT. Hun sagdi "bayes10 (the shipped curve)"
+   og thad var ROG: `bins[...].delta` er `arm - INCUMBENT` (sja
+   `usage-lab.mjs` ~1290), thar sem incumbent er `weeklyProjection`
+   (spa/17). Ad lesa positifa tolu sem "slaer senda ferilinn" var
+   maelikvarda-villan sem bjo til "merkid snyst vid seint" — sja
+   athugasemdina ofar.                                                 */
+const DEAD_CLAIM = {
+  /* SLODIN I HEILD MED BREYTUNNI. Slod an breytu er ekki slod. */
+  source: 'data/measure/usage.json -> results.<scoring>.grid.opp_prior.last3' +
+          '.<curve>.bins["w1-4"].{delta,t}',
+  variable: "opp_prior",
+  window: "last3",
+  bin: "w1-4",
+  lateBin: "w10-18",
+  shippedCurve: "bayes10",
+  against: "the incumbent (weeklyProjection = season projection / 17). NOT bayes10: " +
+    "bins[].delta is arm minus incumbent, so a positive value means 'beats the " +
+    "projection', not 'beats our curve'.",
+
+  /* --- w1-4, delta gegn vidmidinu, i pp --- */
+  const05: { ppr: -3.934, half: 2.037, standard: 4.156 },
+  const05T: { ppr: -1.139, half: 0.345, standard: 1.259 },
+  const0: { ppr: -19.696, half: -11.409, standard: -13.514 },
+  const0T: { ppr: -5.374, half: -1.295, standard: -2.385 },
+
+  /* --- w10-18, delta gegn vidmidinu, i pp --- */
+  const05Late: { ppr: 11.329, half: 9.695, standard: 10.522 },
+  const05LateT: { ppr: 3.81, half: 3.735, standard: 3.89 },
+
+  /* SENDI FERILLINN SJALFUR ER EKKI BOKADUR HER — hann er thegar i
+     `SHIPPED[snid].bins` og profid les hann THADAN. Sjounda afritid af
+     somu tolu vaeri nakvaemlega sjukdomurinn sem thetta commit laeknar. */
+
+  /* --- ALYKTANIRNAR, OG THAER FYLGJA TOLUNUM ---
+     Flogg fyrir `const0.5 - bayes10` i badum bilum. Tolurnar sjalfar eru
+     REIKNADAR (`diffTrio`) og eru thvi ekki skrifadar hér — sjounda
+     afritid vaeri sami sjukdomur. THAU ERU PUNKTMOT: bootstrap-id i
+     skranni er arm-gegn-VIDMIDI, svo ENGIN vikmork eru til fyrir muninn
+     a tveimur armum og hann ma ekki bokast marktaekur.                  */
+  beatsShippedCurveEarly: { ppr: false, half: false, standard: true },
+  beatsShippedCurveLate: { ppr: false, half: false, standard: true },
+  armDiffHasNoInterval: true,
+
+  /* BADAR THESSAR VORU `true` OG BADAR VORU RANGAR. */
+  constantBlendingHurtsEarly: false,
+  constantBlendingHelpsLate: false,
+
+  /* THAD SEM DAUDA SVIDID FLEYGIR: w1-4-delta senda ferilsins sjalfs.
+     `w1-4` hefur `k = 0..3`, svo `kEff = max(0, k-4) = 0` yfir allt
+     bilid — appid endurtekur vidmidid i vikum 1-5. Talan er lesin ur
+     `SHIPPED[...].bins["w1-4"]` af profinu, ekki bokud aftur her. */
+  deadZoneDiscardsShippedGain: true,
+  deadZoneDiscardsSignificantGain: "half-ppr",
+  evidenceSupportsDeadZone: false,
+  recommendation: "DEAD_GAMES = 0 (or 2) is what this table supports; 4 is not. " +
+    "NOT CHANGED HERE: the shipped curve WITH a dead zone was never in the grid " +
+    "(usage-lab's bayes10 is 10/(10+k), no dead zone), so both 4 and 0 are " +
+    "unmeasured. Swapping one unmeasured number for another is the same kind of " +
+    "decision in the other direction; it needs a new curve in usage-lab.mjs first.",
+};
+
 const CURVE = {
   form: "w(k) = kEff / (K + kEff), kEff = max(0, k - DEAD_GAMES)",
   K: 10,
@@ -248,44 +425,38 @@ const CURVE = {
   KMeasured: true,
   KBasis: "bayes10 = 10/(10+k) is the winning curve in usage.json (ppr) and the best " +
     "bayes curve for opp_prior · last3 in all three formats",
+
+  /* `false` STENDUR — EN AF ANNARRI ASTAEDU EN ADUR.
+     Fram til 14.8.2026 stod her ad svidid saeti "inni i maeldu
+     jafnteflis-bandi", rokstutt med `ptsPG`-tolum. A senda arminu er
+     lesningin ohagstaedari: bilid sem svidid nullar UT ber MARKTAEKT
+     JAKVAETT merki i half-PPR (+5,13, t 2,34). `false` er thvi ekki
+     "val innan jafnteflis" heldur "val sem maelingin stydur EKKI".
+     Ad setja thetta i `true` vaeri versta utkoman i thessu repo-i. */
   deadMeasured: false,
-  /* CORRECTED 2026-08-13. This field used to claim "const0.5: -3.9 to -8.1 pp",
-     which is the OPPOSITE of what usage.json says: const0.5 is POSITIVE in 5 of
-     6 cells (+0.17 to +2.90) and the one negative cell is -0.48 at t -0.22.
-     A flat curve with no dead zone is a TIE, not a loss. What IS measured is
-     that const0 loses (-5.35 to -12.81, significant in 2 cells), so the weight
-     itself belongs; the dead zone sits inside a measured indifference band -
-     exactly like `minGain` in waivers.js. Guarded by tests/usageblend.mjs
-     section 9, which reads the numbers out of usage.json. */
-  deadBasis: "upper edge of the w1-4 week bin, where the measured delta is " +
-    "indistinguishable from zero. Constant blending IS harmful there: const0.5 " +
-    "loses 4.6-9.4 pp (t -1.28 to -2.14) and const0 loses 21.1-25.6 pp " +
-    "(t -3.27 to -6.00) against the shipped curve. AND THE SIGN REVERSES LATE: " +
-    "in w10-18 const0.5 BEATS the bayes curve in all three formats (+7.96 t 4.08, " +
-    "+8.21 t 2.31, +6.02 t 2.56), so the curve's advantage is concentrated exactly " +
-    "where the dead zone lives - which is the substantive argument for having one. " +
-    "What is CHOSEN is where the zone ends: any value from 3 to 8 sits inside the " +
-    "same indistinguishable band, so this stays measured:false.",
-  deadClaim: {
-    /* SLODIN I HEILD, EKKI SKRARHEITID. Skrarheiti eitt let mig lesa
-       `curveTable.ptsPG.<gluggi>` (timabils-vitt) i stad
-       `.bins["w1-4"]` (vikubilid) og skrifa ranga "leidrettingu" — sja
-       athugasemdina ofar. Slod er thad sem gerir tolu endurgeranlega. */
-    source: 'data/measure/usage.json -> results.<scoring>.grid.ptsPG.last3' +
-            '.<curve>.bins["w1-4"].delta',
-    bin: "w1-4",
-    window: "last3",
-    against: "bayes10 (the shipped curve)",
-    const05: { ppr: -9.353, half: -4.64, standard: -4.80 },
-    const05T: { ppr: -2.132, half: -1.28, standard: -2.14 },
-    const0: { ppr: -25.56, half: -21.05, standard: -23.33 },
-    const0T: { ppr: -5.11, half: -3.27, standard: -6.00 },
-    /* Sama tafla i `w10-18` — merkid snyst vid og thad er marktaekt. */
-    const05Late: { ppr: 7.96, half: 8.21, standard: 6.02 },
-    const05LateT: { ppr: 4.08, half: 2.31, standard: 2.56 },
-    constantBlendingHurtsEarly: true,
-    constantBlendingHelpsLate: true,
-  },
+
+  /* TEXTINN ER BYGGDUR UR `DEAD_CLAIM`, EKKI SKRIFADUR OFAN I HANA. */
+  deadBasis:
+    "upper edge of the w1-4 week bin. THE MEASUREMENT DOES NOT SUPPORT THIS ZONE " +
+    "and that is recorded rather than papered over. On the SHIPPED arm " +
+    `(${DEAD_CLAIM.variable} · ${DEAD_CLAIM.window}), vs the incumbent, in w1-4: ` +
+    `const0.5 is ${trioOf(DEAD_CLAIM.const05)} pp ` +
+    `(t ${trioOf(DEAD_CLAIM.const05T)}) — a loss in PPR only and significant nowhere, ` +
+    "so constant blending is NOT harmful there. What IS measured is that const0 " +
+    `loses ${trioOf(DEAD_CLAIM.const0)} pp (t ${trioOf(DEAD_CLAIM.const0T)}), ` +
+    "so the weight itself belongs. THE LATE SIGN REVERSAL WAS A METRIC ERROR: " +
+    "const0.5 is positive in w10-18 against the INCUMBENT, which is not the same as " +
+    "beating bayes10 — subtracting the two gives " +
+    `${diffTrio(DEAD_CLAIM.const05Late, DEAD_CLAIM.lateBin)}, so it beats ` +
+    "the shipped curve in standard only (point estimate; the file carries no " +
+    `interval for an arm-vs-arm difference; in w1-4 the same subtraction is ` +
+    `${diffTrio(DEAD_CLAIM.const05, DEAD_CLAIM.bin)}). AND THE ZONE HAS A MEASURED COST: it ` +
+    "zeroes the whole w1-4 bin (k = 0..3), discarding the shipped curve's own gain " +
+    "there, which is significantly POSITIVE in half-PPR (t 2.34). DEAD_GAMES = 4 is " +
+    "therefore a CHOICE the evidence leans against, kept only because the shipped " +
+    "curve with a dead zone was never itself measured; see deadClaim.recommendation.",
+
+  deadClaim: DEAD_CLAIM,
 };
 
 /**
@@ -308,6 +479,16 @@ const POINTS_FIELD = { ppr: "ppr", "half-ppr": "half", standard: "std" };
 /** Lykill labsins per snid — profid ber tofluna vid skrana med thessu. */
 const LAB_KEY = { ppr: "ppr", "half-ppr": "half", standard: "standard" };
 
+/* Trio ur `SHIPPED[...].bins` fyrir eitt vikubil — DREGID UT, EKKI
+   AFRITAD. `USAGE_BLEND.note` bar "+12,3/+12,1/+9,0" fyrir w10-18 og
+   MIDJUTALAN VAR UR ODRU HOLFI: 12,142 er `opp_prior · jump · const0.5`
+   (toppholf half i README-toflunni), ekki senda armid, sem gefur 10,182.
+   Tvaer rettar tolur ur sitthvoru holfi, settar i somu rod, laesast eins
+   og ein maeling. Nu er rodin BYGGD ur senda arminu og getur ekki
+   blandast.                                                            */
+const shippedBinTrio = (bin) =>
+  Object.keys(LAB_KEY).map((f) => sgn1(SHIPPED[f].bins[bin].delta)).join("/");
+
 export const USAGE_BLEND = {
   arm: ARM,
   shipped: SHIPPED,
@@ -317,9 +498,15 @@ export const USAGE_BLEND = {
   labKey: LAB_KEY,
   gamesInSeason: GAMES_IN_SEASON,
   measured: true,
+  /* TRIOIN ERU BYGGD UR `SHIPPED[...].bins`, ekki skrifud. Baedi voru
+     ROKID SEM ROKSTUDDI DAUDA SVIDID og bædi voru skekkt: w10-18-rodin
+     blandadi tveimur holfum og "nothing in weeks 1-4" var osatt um half. */
   note: "Season-to-date opportunity (carries + targets) beats the season projection " +
-    "from about week 6 on. Measured in usage.json (2.342 arms, 7 seasons); the gain is " +
-    "concentrated in weeks 10-18 (+12.3/+12.1/+9.0 pp) and is nothing in weeks 1-4.",
+    "from about week 6 on. Measured in usage.json (2.342 arms, 7 seasons); on the " +
+    `shipped arm the gain is concentrated in weeks 10-18 (${shippedBinTrio("w10-18")} pp) ` +
+    `and is small in weeks 1-4 (${shippedBinTrio("w1-4")} pp) — small, but NOT nothing: ` +
+    "in half-PPR that early bin is significantly positive (t 2.34), and the dead zone " +
+    "in the curve discards it. See curve.deadBasis.",
 
   /* ============================================================
      VORPUNIN — THAD SEM VANTAR, OG THAD BIDUR TENGINGARINNAR
@@ -376,8 +563,26 @@ export const USAGE_BLEND = {
     tshare: { bestDelta: { ppr: 3.054, "half-ppr": 4.126, standard: 4.968 } },
     wopr: { bestDelta: { ppr: 1.548, "half-ppr": 4.42, standard: 4.484 } },
     constantWeight: {
-      note: "A constant weight is worse than none in weeks 1-4: const0.5 loses 3.9-8.1 pp " +
-        "and const0 (season-to-date only) loses 11.4-20.1 pp.",
+      /* THRIDJA AFRITID AF AFTURKOLLUDU BILUNUM og thad lifdi BADAR
+         fyrri "leidrettingar" af thvi kafli 9 skannadi adeins
+         `deadBasis`. Textinn er nu BYGGDUR ur `CURVE.deadClaim`, svo
+         hann getur ekki rekid fra henni; profid skannar auk thess
+         `JSON.stringify(USAGE_BLEND)` OG hraan skrartexta.
+
+         OG ATHUGID HVAD LEIDRETTINGIN 13.8. GERDI: gamla `const0`-bilid
+         "11,4-20,1" VAR RETT a senda arminu (-11,41 til -19,70). Thad var
+         "leidrett" i 21,1-25,6 — `ptsPG`-bilid — og kallad "vanmat um
+         naestum helming". Leidrettingin faerdi RETTA tolu i ranga. */
+      note: "NOT withdrawn but RE-ANCHORED: a constant weight is not uniformly worse " +
+        `than the shipped curve in weeks 1-4. On the shipped arm (${DEAD_CLAIM.variable} · ` +
+        `${DEAD_CLAIM.window}, vs the incumbent) const0.5 is ${trioOf(DEAD_CLAIM.const05)} pp ` +
+        `(t ${trioOf(DEAD_CLAIM.const05T)}) — a loss in PPR only, significant nowhere. ` +
+        `What IS rejected is const0 (season-to-date only), which loses ` +
+        `${trioOf(DEAD_CLAIM.const0)} pp (t ${trioOf(DEAD_CLAIM.const0T)}) and is ` +
+        "significant in PPR and standard. That is the measured case for having a weight " +
+        "at all; it is NOT a case for the dead zone. See curve.deadBasis.",
+      const05RejectedEarly: false,
+      const0RejectedEarly: true,
     },
     pointsPerGame: {
       note: "ptsPG (points per game so far) needs no mapping but is measured below opp: " +

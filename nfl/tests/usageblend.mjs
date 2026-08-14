@@ -185,8 +185,13 @@ console.log("\n2. magn slaer hlutdeild (reiknad ur skranni)");
     ok(near(USAGE_BLEND.rejected.wopr.bestDelta[f], wop, 0.001),
       `${f}: bokad wopr-thak ${USAGE_BLEND.rejected.wopr.bestDelta[f]} == ${wop.toFixed(3)}`);
   }
-  /* Og fasta vogin er raunverulega skadleg i w1-4 — talan sem
-     rettlaetir dauda svidid i ferlinum. */
+  /* `const0` (spain hent alveg) tapar raunverulega i w1-4 — thad er
+     rokid fyrir thvi ad hafa VOG a spana.
+
+     HER STOD "talan sem rettlaetir dauda svidid i ferlinum" OG THAD VAR
+     RANGT (leidrett 14.8.2026, sja kafla 9): `const0` rettlaetir vogina,
+     ekki daudasvidid. `const0.5` — sem er raunverulega ferillinn an
+     daudasvids — tapar EKKI i w1-4 a senda arminu. */
   for (const f of FORMATS) {
     const grid = LAB.results[USAGE_BLEND.labKey[f]].grid.opp_prior;
     const worst = Math.min(...Object.keys(grid).map((w) => grid[w].const0["bins"]["w1-4"].delta));
@@ -775,114 +780,380 @@ console.log("\nvorpunin sjalf");
 /* ============================================================
    9. ROKSTUDNINGURINN FYRIR `DEAD_GAMES` — BORINN VID DISKINN
    ============================================================
-   `CURVE.deadBasis` sagdi "const0.5: -3.9 to -8.1 pp, const0: -11.4 to
-   -20.1 pp". ATTIN VAR RETT en hvorug talan var a diski: rett bil er
-   -4,6 til -9,4 og -21,1 til -25,6. Sidara var VANMAT um naestum helming.
+   SAMA FULLYRDING, THRJAR VILLUR. Hun er thess virdi ad rekja thvi
+   hver villa slapp fram hja profinu sem atti ad na henni:
 
-   OG SVO KOM ÞAD SEM GERIR ÞENNAN KAFLA ÞESS VIRDI: FYRSTA
-   LEIDRETTINGIN MIN VAR SJALF RONG. Eg las `curveTable.ptsPG.<gluggi>`
-   — sem er GLUGGINN sem notkun er maeld i og er TIMABILS-VID — fann
-   `const0.5` jakvaett i 5 af 6 holfum og skrifadi ad bokada
-   fullyrdingin vaeri ONDVERD vid maelinguna. Rett slod er
-   `.bins["w1-4"]`, vikubilid sem fullyrdingin talar um.
+     1. "const0.5: -3.9 to -8.1 pp, const0: -11.4 to -20.1 pp" — engin
+        slod, ekkert arm. Ekkert prof las hana.
+     2. LEIDRETT 13.8. i `grid.ptsPG.last3...bins["w1-4"]` og THA VAR
+        THESSI KAFLI SKRIFADUR — en hann harkodadi `.ptsPG` i sinni eigin
+        uppflettingu. Profid sannreyndi thvi bokunina gegn NAKVAEMLEGA
+        theim stad sem bokunin benti a, sem er ekki sannreyning: bæði
+        bokun og prof voru a RONGU ARMI. Sent er `opp_prior`.
+     3. LEIDRETT 14.8. — hér.
 
-   Sama villa og VBD-bokunin greiddi fyrir sama dag: tvaer RETTAR tolur
-   ur sitthvoru harness, bornar saman eins og thaer vaeru sama staerd.
+   ÞRIR LAERDOMAR SEM ERU BYGGDIR INN I THENNAN KAFLA:
 
-   ÞESS VEGNA VER ÞESSI KAFLI SLODINA, EKKI ADEINS TOLUNA. `deadClaim`
-   ber `source`, `bin`, `window` og `against`, og hér er tolunum flett
-   upp EFTIR THEIM SVIDUM — ekki eftir slod sem er skrifud i profid.
-   Fari bokunin ad benda a annan glugga fellur thetta prof, sem er
-   nakvaemlega hegdunin sem hefdi stodvad bædi villurnar.             */
+   (a) UPPFLETTINGIN VERDUR AD FARA EFTIR BOKUDU SVIDUNUM, OG ARMID ER
+       EITT AF THEIM. `deadClaim.variable` er nytt og hér er thad borid
+       vid `USAGE_BLEND.arm.variable`. Prof sem tekur armid sem gefid
+       getur ekki sed bokun a rangt arm — thad var gatid i utgafu 2.
+   (b) MERKID ER `arm - INCUMBENT`, EKKI `arm - bayes10`. Sja
+       `usage-lab.mjs` ~1290. Positift `const0.5` i w10-18 slaer thvi
+       SPANA, ekki senda ferilinn; til thess tharf FRADRATT. Utgafa 2
+       las merkid og skrifadi "const0.5 BEATS the bayes curve".
+   (c) ÞEKJA ER FULLYRDING. Finnist holf ekki er thad FALL, ekki hlaup.
+
+   OG SKONNUNIN A AFTURKOLLUDUM TOLUM NAER NU YFIR ALLA SKRANA.
+   Fyrri utgafa skannadi ADEINS `C.deadBasis` — thess vegna lifdu thrju
+   afrit: haus skrarinnar, `rejected.constantWeight.note` og tvaer
+   athugasemdir. Nu er skannad `JSON.stringify(USAGE_BLEND)` (hvert
+   bokad svid) OG hraan skrartexta (hver athugasemd).
+
+   ATH UM SKONNUNINA: sagan i skranni MA nefna afturkolludu tolurnar —
+   hun er skjolun a villunni. Sagan er skrifud a islensku med KOMMU
+   ("3,9-8,1") og lifandi fullyrdingar a ensku med PUNKTI ("3.9-8.1"),
+   svo skannad er ad punkt-forminu. Hver strengur ber sitt eigid
+   sjalfsprof (maelitaekid verdur ad finna hann se hann settur inn) —
+   fyrsta utgafa thessa kafla leitadi ad "-3.9" og felldi lagfaeringuna
+   sina eigin, thvi `t -3.90` er ein af nyju RETTU tolunum.           */
 console.log("\n9. rokstudningurinn fyrir `DEAD_GAMES`");
 {
   const C = USAGE_BLEND.curve;
   const claim = C.deadClaim;
+  const SRC = readFileSync(path.join(ROOT, "src", "usageblend.js"), "utf8");
+  const LABF = ["ppr", "half", "standard"];
+  /* Lab-lykill -> app-lykill, svo `SHIPPED` (app-lyklar) og `deadClaim`
+     (lab-lyklar) geti maetst an thess ad vorpunin se harkodud tvisvar. */
+  const APP = Object.fromEntries(
+    Object.entries(USAGE_BLEND.labKey).map(([app, lab]) => [lab, app]));
+
   ok(claim && claim.const05 && claim.const0,
     "`deadClaim` er maskinulesid, ekki adeins texti");
-  for (const f of ["source", "bin", "window", "against"]) {
+  for (const f of ["source", "variable", "window", "bin", "lateBin", "against"]) {
     ok(typeof claim[f] === "string" && claim[f].length > 2,
       `\`deadClaim.${f}\` er skrifad (${claim[f]})`);
   }
-  ok(/bins/.test(claim.source) && /w1-4/.test(claim.source),
-    "og `source` nefnir `bins[\"w1-4\"]` — SLODINA, ekki bara skrarheitid");
 
-  /* Uppflettingin fer eftir bokudu svidunum. */
-  const cell = (f, curve, bin) => {
-    const g = LAB.results[f] && LAB.results[f].grid &&
-              LAB.results[f].grid.ptsPG[claim.window];
-    return g && g[curve] && g[curve].bins && g[curve].bins[bin];
+  /* ---- (a) BOKUNIN VERDUR AD VERA A SENDA ARMINU ----
+     ÞETTA ER FULLYRDINGIN SEM HEFDI STODVAD VILLU 2. Hun snyr ekki ad
+     tolu heldur ad thvi HVADA MAELINGU talan er tekin ur. */
+  const A = USAGE_BLEND.arm;
+  ok(claim.variable === A.variable,
+    `\`deadClaim.variable\` er SENDA ARMID: "${claim.variable}" == "${A.variable}"`);
+  ok(claim.window === A.window,
+    `og sami gluggi sem er sendur: "${claim.window}" == "${A.window}"`);
+  ok(claim.shippedCurve === A.curve,
+    `og `.concat(`\`shippedCurve\` er sendi ferillinn ("${claim.shippedCurve}")`));
+  ok(claim.source.includes(claim.variable) && claim.source.includes(claim.window) &&
+     /bins/.test(claim.source) && claim.source.includes(claim.bin),
+    "`source` nefnir BREYTU, glugga og `bins[bil]` — full slod, ekki skrarheiti");
+  ok(!/ptsPG/.test(claim.source),
+    "og hun bendir EKKI a `ptsPG` (thad var villa 2)");
+
+  /* ---- (b) `against` MA EKKI SEGJA "bayes10" ---- */
+  ok(/incumbent/i.test(claim.against) && /NOT bayes10|not bayes10/.test(claim.against),
+    "`against` segir ad merkid se gegn VIDMIDINU, ekki gegn `bayes10`");
+
+  /* ---- UPPFLETTINGIN: EINGONGU UR BOKUDU SVIDUNUM ----
+     Ekkert her nefnir breytu, glugga ne bil berum ordum. Faeri bokunin
+     a annad arm faerdi hun profid MED ser — thess vegna er akkerid
+     fullyrdingin her ofar (`claim.variable === A.variable`), ekki
+     slodin i thessu falli. */
+  const cell = (labFmt, curve, bin) => {
+    const g = LAB.results?.[labFmt]?.grid?.[claim.variable]?.[claim.window];
+    return g?.[curve]?.bins?.[bin] || null;
   };
+  /* Senda ferilsins eigin bil — LESID UR `SHIPPED`, ekki bokad aftur. */
+  const shippedBin = (labFmt, bin) =>
+    USAGE_BLEND.shipped[APP[labFmt]].bins[bin];
 
-  let cells = 0;
-  const drift = [];
-  for (const f of ["ppr", "half", "standard"]) {
-    for (const [key, curve] of [["const05", "const0.5"], ["const0", "const0"]]) {
-      const c = cell(f, curve, claim.bin);
-      if (!c) { drift.push(`${curve}/${f}: slodin finnst ekki`); continue; }
-      cells++;
-      if (Math.abs(claim[key][f] - c.delta) > 0.02)
-        drift.push(`${curve}/${f}: bokad ${claim[key][f]} != diskur ${c.delta.toFixed(2)}`);
-      const tKey = key + "T";
-      if (Math.abs(claim[tKey][f] - c.t) > 0.02)
-        drift.push(`${curve}/${f} t: bokad ${claim[tKey][f]} != diskur ${c.t.toFixed(2)}`);
+  /* Hvert bokad trio med sinu (ferli, bili). Bætir madur trioi vid
+     tofluna an thess ad setja thad hér fellur thekju-talan. */
+  const BOOKED = [
+    { key: "const05", tKey: "const05T", curve: "const0.5", bin: claim.bin },
+    { key: "const0", tKey: "const0T", curve: "const0", bin: claim.bin },
+    { key: "const05Late", tKey: "const05LateT", curve: "const0.5", bin: claim.lateBin },
+  ];
+
+  let cmp = 0;
+  const drift = [], missing = [];
+  for (const b of BOOKED) {
+    /* BADAR ATTIR VERDA AD VERA TALDAR SEM FJARVERA, EKKI SEM HRUN:
+       holf sem vantar A DISKI og trio sem vantar I BOKUNINNI. Fyrsta
+       utgafa las `claim[b.key][f]` blint og HRUNDI thegar trio var
+       fjarlaegt — fall, en ekki fullyrding sem segir HVAD vantar. */
+    const bookedD = claim[b.key], bookedT = claim[b.tKey];
+    if (!bookedD || !bookedT) {
+      missing.push(`bokun vantar: deadClaim.${b.key}/${b.tKey}`);
+      continue;
     }
-    /* Og seina bilid, sem er rokid FYRIR daudasvidinu. */
-    const late = cell(f, "const0.5", "w10-18");
-    if (late) {
-      cells++;
-      if (Math.abs(claim.const05Late[f] - late.delta) > 0.02)
-        drift.push(`const0.5/w10-18/${f}: bokad ${claim.const05Late[f]} != ${late.delta.toFixed(2)}`);
+    for (const f of LABF) {
+      const c = cell(f, b.curve, b.bin);
+      if (!c) { missing.push(`diskur vantar: ${b.curve}/${f}/${b.bin}`); continue; }
+      if (typeof bookedD[f] !== "number" || typeof bookedT[f] !== "number") {
+        missing.push(`bokun vantar snid: ${b.key}.${f}`);
+        continue;
+      }
+      cmp++;
+      if (Math.abs(bookedD[f] - c.delta) > 0.02)
+        drift.push(`${b.key}/${f}: bokad ${bookedD[f]} != diskur ${c.delta.toFixed(3)}`);
+      cmp++;
+      if (Math.abs(bookedT[f] - c.t) > 0.02)
+        drift.push(`${b.tKey}/${f}: bokad ${bookedT[f]} != diskur ${c.t.toFixed(3)}`);
     }
   }
-  ok(cells === 9, `THEKJA: 9 holf lesin ur usage.json (fann ${cells})`);
+  /* ÞEKJA ER FULLYRDING, EKKI LOGGA. 3 trio x 3 snid x (delta + t). */
+  ok(missing.length === 0,
+    `hvert bokad holf finnst a diski (${missing.join(", ") || "oll"})`);
+  ok(cmp === 18, `THEKJA: 18 tolur bornar vid diskinn (fann ${cmp})`);
   ok(drift.length === 0,
     `hvert bokad gildi ber diskinn (${drift.length} reka${
       drift.length ? ": " + drift.join(" · ") : ""})`);
 
-  /* ALYKTANIRNAR VERDA AD FYLGJA TOLUNUM. Þad var gatid: talan var rong
-     og alyktunin sem hvildi a henni var samt skrifud eins og hun stædi. */
-  const early = ["ppr", "half", "standard"].map((f) => cell(f, "const0.5", claim.bin));
-  ok(early.every((c) => c.delta < 0),
-    `const0.5 tapar i w1-4 i OLLUM thremum snidum ` +
-    `(${early.filter((c) => c.delta < 0).length}/3)`);
-  ok(claim.constantBlendingHurtsEarly === true, "og flaggið segir thad sama");
+  /* ---- OG ENGIN BOKUD TALA MA SLEPPA UT UR SAMANBURDINUM ----
+     Fast thak (`cmp === 18`) ver gegn tolu sem HORFUR, en ekki gegn tolu
+     sem er BÆTT VID an vardar — nyr trio-reitur i `deadClaim` vaeri
+     obundinn diskinum og gaeti verid hvad sem er. Þetta er sama villa og
+     "talid sem hlutfall, ekki fast thak" i FPL-verkefninu.
 
-  const late = ["ppr", "half", "standard"].map((f) => cell(f, "const0.5", "w10-18"));
-  ok(late.every((c) => c.delta > 0),
-    `en VINNUR i w10-18 i ollum thremum (${late.filter((c) => c.delta > 0).length}/3)`);
-  ok(late.filter((c) => c.t >= 2).length === 3,
-    `og thad er marktaekt i ollum thremum (t >= 2 i ` +
-    `${late.filter((c) => c.t >= 2).length})`);
-  ok(claim.constantBlendingHelpsLate === true,
-    "og `constantBlendingHelpsLate` segir thad — merkid SNYST VID, " +
-    "sem er malefnalega rokid fyrir daudasvidinu");
+     Trio-reitir eru LEIDDIR UT ur hlutnum (hvert svid sem ber tolu fyrir
+     oll thrju snidin), ekki taldir upp — handskrifadur listi myndi
+     stadna nakvaemlega eins og bokunin sjalf gerdi. */
+  const trioFields = Object.keys(claim).filter((k) => {
+    const v = claim[k];
+    return v && typeof v === "object" && !Array.isArray(v) &&
+      LABF.every((f) => typeof v[f] === "number");
+  });
+  const covered = new Set(BOOKED.flatMap((b) => [b.key, b.tKey]));
+  const uncovered = trioFields.filter((k) => !covered.has(k));
+  ok(trioFields.length >= 6,
+    `THEKJA: ${trioFields.length} tolu-trio i \`deadClaim\` (${trioFields.join(", ")})`);
+  ok(uncovered.length === 0,
+    `og hvert eitt er i \`BOOKED\` og thvi borid vid diskinn ` +
+    `(oborin: ${uncovered.join(", ") || "engin"})`);
 
-  const c0 = ["ppr", "half", "standard"].map((f) => cell(f, "const0", claim.bin));
-  ok(c0.every((c) => c.delta < -20) && c0.every((c) => c.t <= -3),
-    `const0 tapar meira en 20 pp i ollum thremum og marktaekt ` +
-    `(minnst ${Math.max(...c0.map((c) => c.delta)).toFixed(1)} pp, ` +
-    `t ${Math.max(...c0.map((c) => c.t)).toFixed(2)})`);
-
-  /* Textinn ma ekki bera GOMLU FULLYRDINGUNA. Leitad er ad ORDALAGI,
-     ekki ad tolustaf: fyrsta utgafa thessarar fullyrdingar leitadi ad
-     "-3.9" og felldi lagfaeringuna sina eigin, thvi `t -3.90` er ein af
-     nyju RETTU tolunum. Sama lexia og `\bNaN\b` i FPL-verkefninu. */
-  for (const gone of ["-3.9 to -8.1", "-11.4 to -20.1", "0.624/2.340/1.372"]) {
-    ok(!String(C.deadBasis).includes(gone),
-      `\`deadBasis\` ber ekki gomlu fullyrdinguna "${gone}"`);
+  /* ---- SENDI FERILLINN LIKA, UM SOMU UPPFLETTINGU ----
+     `SHIPPED[...].bins` er thegar borid vid diskinn i kafla 1 gegnum
+     `ARM`; hér er thad gert AFTUR gegnum `claim`-svidin, svo trioin i
+     `note`/`deadBasis` (sem eru BYGGD ur `SHIPPED`) hangi a sama akkeri. */
+  let scmp = 0;
+  for (const f of LABF) {
+    for (const bin of [claim.bin, claim.lateBin]) {
+      const disk = cell(f, claim.shippedCurve, bin);
+      ok(!!disk, `sendi ferillinn ${f}/${bin} er a diski`);
+      if (!disk) continue;
+      scmp++;
+      ok(Math.abs(shippedBin(f, bin).delta - disk.delta) < 0.02 &&
+         Math.abs(shippedBin(f, bin).t - disk.t) < 0.02,
+        `${f}/${bin}: bokad ${shippedBin(f, bin).delta} (t ${shippedBin(f, bin).t}) ` +
+        `== diskur ${disk.delta} (t ${disk.t})`);
+    }
   }
-  ok("const0.5: -3.9 to -8.1 pp".includes("-3.9 to -8.1"),
-    "og leitin finnur hana se hun sett inn (maelitaekid virkar)");
-  ok(/w1-4/.test(C.deadBasis),
-    "`deadBasis` bendir a bilid sem rettlaetir thad (w1-4)");
-  ok(/REVERSES|reverses/.test(C.deadBasis),
-    "og nefnir vidsnuninginn seint a timabilinu");
+  ok(scmp === 6, `THEKJA: 6 holf senda ferilsins (fann ${scmp})`);
 
+  /* ---- ALYKTANIRNAR VERDA AD FYLGJA TOLUNUM ----
+     ÞAD VAR GATID I OLLUM THREMUR UMFERDUM: talan var endurbokud en
+     alyktunin sem hvildi a henni stod obreytt. Hvert flagg er hér
+     REIKNAD ur diskinum og borid vid bokunina. */
+  const early = LABF.map((f) => cell(f, "const0.5", claim.bin));
+  const hurtsEarly = early.every((c) => c.delta < 0);
+  ok(hurtsEarly === false,
+    `const0.5 tapar EKKI i w1-4 i ollum thremur (tapar i ` +
+    `${early.filter((c) => c.delta < 0).length}/3: ` +
+    `${early.map((c) => c.delta.toFixed(2)).join(" / ")})`);
+  ok(claim.constantBlendingHurtsEarly === hurtsEarly,
+    `og flaggid segir thad sama (${claim.constantBlendingHurtsEarly})`);
+  ok(early.every((c) => Math.abs(c.t) < 2),
+    `og ekkert holfid er marktaekt (|t| ` +
+    `${early.map((c) => Math.abs(c.t).toFixed(2)).join(" / ")})`);
+
+  /* SEINA BILID — OG HER ER FRADRATTURINN, sem er atridid i (b).
+     Positift gegn vidmidinu er EKKI "slaer senda ferilinn". */
+  const late = LABF.map((f) => cell(f, "const0.5", claim.lateBin));
+  ok(late.every((c) => c.delta > 0),
+    `const0.5 er positift i w10-18 gegn VIDMIDINU i ollum thremum ` +
+    `(${late.map((c) => c.delta.toFixed(2)).join(" / ")})`);
+  const beatsLate = LABF.map((f) =>
+    cell(f, "const0.5", claim.lateBin).delta - shippedBin(f, claim.lateBin).delta);
+  ok(beatsLate.filter((d) => d > 0).length === 1,
+    `en gegn SENDA FERLINUM slaer hun adeins EITT snid ` +
+    `(${beatsLate.map((d) => d.toFixed(2)).join(" / ")})`);
+  const helpsLate = beatsLate.every((d) => d > 0);
+  ok(claim.constantBlendingHelpsLate === helpsLate && helpsLate === false,
+    "`constantBlendingHelpsLate` er `false` — vidsnuningurinn var " +
+    "maelikvarda-villa, ekki merki");
+  for (const f of LABF) {
+    const d = cell(f, "const0.5", claim.lateBin).delta - shippedBin(f, claim.lateBin).delta;
+    ok(claim.beatsShippedCurveLate[f] === (d > 0),
+      `${f}: \`beatsShippedCurveLate\` ${claim.beatsShippedCurveLate[f]} == (${d.toFixed(2)} > 0)`);
+    const e = cell(f, "const0.5", claim.bin).delta - shippedBin(f, claim.bin).delta;
+    ok(claim.beatsShippedCurveEarly[f] === (e > 0),
+      `${f}: \`beatsShippedCurveEarly\` ${claim.beatsShippedCurveEarly[f]} == (${e.toFixed(2)} > 0)`);
+  }
+  ok(claim.armDiffHasNoInterval === true,
+    "og fradratturinn er merktur PUNKTMAT — skran ber engin vikmork " +
+    "fyrir arm-gegn-armi");
+
+  /* `const0` ER hid raunverulega rok fyrir thvi ad hafa VOG. Talan er
+     11,4-19,7 a senda arminu — ekki 21,1-25,6 (`ptsPG`) og ekki
+     11,4-20,1 (upphaflega, sem var RETT bil a thessu armi). */
+  const c0 = LABF.map((f) => cell(f, "const0", claim.bin));
+  ok(c0.every((c) => c.delta < -10),
+    `const0 tapar meira en 10 pp i ollum thremum ` +
+    `(${c0.map((c) => c.delta.toFixed(1)).join(" / ")})`);
+  ok(c0.filter((c) => c.t <= -2).length === 2,
+    `og er marktaekt i TVEIMUR af thremur, ekki ollum ` +
+    `(t ${c0.map((c) => c.t.toFixed(2)).join(" / ")})`);
+  ok(claim.const0RejectedEarly === undefined ||
+     USAGE_BLEND.rejected.constantWeight.const0RejectedEarly === true,
+    "og `rejected.constantWeight` merkir `const0` sem thad sem er hafnad");
+  ok(USAGE_BLEND.rejected.constantWeight.const05RejectedEarly === false,
+    "en EKKI `const0.5` — hun var afturkollud 14.8.");
+
+  /* ---- KOSTNADUR DAUDA SVIDSINS, REIKNADUR UR DISKINUM ----
+     Svidid nullar `w1-4` (k = 0..3), svo thad fleygir w1-4-delta senda
+     ferilsins. Se eitthvad af thvi MARKTAEKT JAKVAETT er svidid ekki
+     "innan jafnteflis-bands" heldur maelanlegur kostnadur. */
+  const disc = LABF.map((f) => shippedBin(f, claim.bin));
+  const sigPos = LABF.filter((f, i) => disc[i].delta > 0 && disc[i].t >= 2);
+  ok(sigPos.length >= 1,
+    `daudasvidid fleygir MARKTAEKT JAKVAEDU merki i ${sigPos.length} sniði ` +
+    `(${sigPos.join(",")}: ${disc.map((d) => `${d.delta}/t${d.t}`).join(" · ")})`);
+  ok(claim.deadZoneDiscardsShippedGain === true &&
+     claim.evidenceSupportsDeadZone === false,
+    "og bokunin segir thad berum ordum: maelingin stydur EKKI svidid");
+  ok(USAGE_BLEND.labKey[claim.deadZoneDiscardsSignificantGain] === sigPos[0],
+    `og nefnir RETTA snidid ("${claim.deadZoneDiscardsSignificantGain}" -> ` +
+    `"${sigPos[0]}")`);
+  ok(typeof claim.recommendation === "string" &&
+     /DEAD_GAMES = 0/.test(claim.recommendation) &&
+     /NOT CHANGED|not changed/.test(claim.recommendation),
+    "tillagan er skrifud OG thad er sagt ad talan se EKKI breytt");
+  /* OG TALAN ER RAUNVERULEGA OBREYTT. Tillaga sem er komin i kodann
+     thegjandi vaeri verri en engin tillaga. */
+  ok(C.DEAD_GAMES === 4,
+    "`DEAD_GAMES` er OBREYTT (4) — tillagan tharf maelingu, ekki commit");
   ok(C.deadMeasured === false,
-    "`deadMeasured` er `false` — hvar svidid endar er val, ekki maeling");
+    "`deadMeasured` er `false` — nu af RETTRI astaedu (val sem gognin " +
+    "benda gegn), ekki \"val innan jafnteflis\"");
   ok(C.KMeasured === true,
     "en `K` ER maelt og er merkt sem slikt");
+
+  /* ---- TRIOIN I TEXTANUM ERU BORIN VID DISKINN ----
+     `USAGE_BLEND.note` bar "+12.3/+12.1/+9.0" thar sem MIDJUTALAN var ur
+     odru holfi (`opp_prior · jump · const0.5` = 12,142) medan senda armid
+     gefur 10,182. Trioid er nu BYGGT ur `SHIPPED`, en thad ma ekki verja
+     sig sjalft — hér er thad LESID UR TEXTANUM og borid vid diskinn. */
+  const trioIn = (s, tag) => {
+    const m = String(s).match(new RegExp(`${tag}[^(]*\\(([+-][\\d.]+/[+-][\\d.]+/[+-][\\d.]+)`));
+    return m ? m[1].split("/").map(Number) : null;
+  };
+  const lateTrio = trioIn(USAGE_BLEND.note, "weeks 10-18");
+  ok(!!lateTrio && lateTrio.length === 3,
+    `\`note\` ber w10-18 trio (${lateTrio ? lateTrio.join("/") : "FANN EKKERT"})`);
+  if (lateTrio) {
+    const want = LABF.map((f) => cell(f, claim.shippedCurve, claim.lateBin).delta);
+    ok(lateTrio.every((v, i) => Math.abs(v - want[i]) < 0.06),
+      `og hvert gildi er senda armsins eigid (${lateTrio.join("/")} vs ` +
+      `${want.map((v) => v.toFixed(1)).join("/")})`);
+    ok(Math.abs(lateTrio[1] - 12.142) > 0.5,
+      `og midjutalan er EKKI toppholf half (12,1) heldur ${lateTrio[1]}`);
+  }
+  const earlyTrio = trioIn(USAGE_BLEND.note, "weeks 1-4");
+  ok(!!earlyTrio, `\`note\` ber w1-4 trio (${earlyTrio ? earlyTrio.join("/") : "FANN EKKERT"})`);
+  if (earlyTrio) {
+    const want = LABF.map((f) => cell(f, claim.shippedCurve, claim.bin).delta);
+    ok(earlyTrio.every((v, i) => Math.abs(v - want[i]) < 0.06),
+      `og thau eru senda armsins (${earlyTrio.join("/")})`);
+  }
+  ok(!/is nothing in weeks 1-4/.test(USAGE_BLEND.note),
+    "`note` segir EKKI LENGUR \"nothing in weeks 1-4\" (half er marktaekt thar)");
+
+  /* OG FRADRATTAR-TRIOIN I `deadBasis` — thau eru KJARNI leidrettingar (b),
+     svo thau eru lesin AF TEXTANUM og borin vid diskinn eins og allt annad.
+     `subtracting the two gives X / Y / Z` og `in w1-4 ... is X / Y / Z`. */
+  const diffIn = (tag) => {
+    const m = String(C.deadBasis).match(
+      new RegExp(`${tag}\\s*([+-][\\d.]+ / [+-][\\d.]+ / [+-][\\d.]+)`));
+    return m ? m[1].split(" / ").map(Number) : null;
+  };
+  for (const [tag, bin] of [["subtracting the two gives", claim.lateBin],
+                            ["the same subtraction is", claim.bin]]) {
+    const got = diffIn(tag);
+    ok(!!got && got.length === 3,
+      `\`deadBasis\` ber fradrattar-trio fyrir ${bin} (${got ? got.join(" / ") : "FANN EKKERT"})`);
+    if (!got) continue;
+    const want = LABF.map((f) =>
+      cell(f, "const0.5", bin).delta - shippedBin(f, bin).delta);
+    ok(got.every((v, i) => Math.abs(v - want[i]) < 0.011),
+      `og hvert gildi er `.concat(
+        `\`const0.5 - ${claim.shippedCurve}\` ur diskinum ` +
+        `(${got.join(" / ")} vs ${want.map((v) => v.toFixed(2)).join(" / ")})`));
+    /* OG THAD MA EKKI VERA HRAA `bins`-TALAN — thad var villan. */
+    const raw = LABF.map((f) => cell(f, "const0.5", bin).delta);
+    ok(got.some((v, i) => Math.abs(v - raw[i]) > 0.5),
+      `og thad er EKKI hraa delta-gegn-vidmidi talan (${raw.map((v) => v.toFixed(2)).join(" / ")})`);
+  }
+
+  /* ---- AFTURKOLLUDU TOLURNAR: BOKUD SVID **OG** HRAR SKRARTEXTI ----
+     Fyrri utgafa skannadi ADEINS `deadBasis` og thess vegna lifdu thrju
+     afrit annars stadar i skranni. */
+  const BLOB = JSON.stringify(USAGE_BLEND);
+
+  /* TVEIR LISTAR OG SKILIN MILLI THEIRRA ERU MAELD, EKKI VALIN.
+     Fyrsta utgafa thessarar skonnunar setti allt i EINN lista og FELL —
+     a sjalfri skjoluninni: sagan hér i skranni VERDUR ad geta nefnt
+     ranga slodina og ranga `against`-textann, annars er ekki haegt ad
+     skrifa nidur hvad var rangt. Sama gildra og "-3.9" i utgafu 2.
+
+     TOLU-FULLYRDING (`CLAIMS`) er BONNUD ALLS STADAR: hun er
+     rokstudningur, og rokstudningur i athugasemd er einmitt thad sem
+     lifdi thrjar umferdir. Sagan nefnir thaer a islensku med KOMMU.
+
+     KENNI-STRENGUR (`IDENT`) — slod eda merkimidi — er bannadur i
+     LIFANDI SVIDUM (`BLOB`) en leyfdur i sogunni, thvi hann ER heitid a
+     villunni. Ahaettan sem hann ber er thegar vardud berum ordum ofar:
+     `!/ptsPG/.test(claim.source)` og `against`-fullyrdingin.           */
+  const CLAIMS = [
+    "3.9-8.1", "-3.9 to -8.1",          // upphaflega const0.5-bilid
+    "11.4-20.1", "-11.4 to -20.1",      // upphaflega const0-bilid
+    "4.6-9.4", "-4.6 to -9.4",          // ptsPG "leidrettingin"
+    "21.1-25.6", "-21.1 to -25.6",      // ptsPG "leidrettingin"
+    "+7.96", "+8.21", "+6.02",          // ptsPG w10-18 tolurnar
+    "+12.3/+12.1",                      // blandada `note`-trioid
+  ];
+  const IDENT = [
+    "bayes10 (the shipped curve)",      // ranga `against`
+    "grid.ptsPG.last3",                 // ranga slodin
+  ];
+  for (const gone of CLAIMS) {
+    ok(!BLOB.includes(gone), `ekkert bokad svid ber "${gone}"`);
+    ok(!SRC.includes(gone),
+      `og hun er hvergi i `.concat(`\`src/usageblend.js\` heldur ("${gone}")`));
+    /* MAELITAEKID VERDUR AD FINNA HANA SE HUN SETT INN. Neikvaed
+       fullyrding an thessa er einskis virdi (CLAUDE.md 5b regla 2). */
+    ok(`x ${gone} y`.includes(gone), `og leitin finnur hana se hun sett inn`);
+  }
+  for (const gone of IDENT) {
+    ok(!BLOB.includes(gone), `ekkert LIFANDI svid ber "${gone}"`);
+    ok(`x ${gone} y`.includes(gone), `og leitin finnur hana se hun sett inn`);
+    /* OG SAGAN NEFNIR HANA — annars er skjolunin horfin. */
+    ok(SRC.includes(gone),
+      `en sagan i skranni NEFNIR hana (annars er villan oskjolud)`);
+  }
+  /* OG SAGAN MA NEFNA THAER — a islensku med KOMMU. Se sagan horfin er
+     skjolunin horfin, og tha er villan opin fyrir fjordu umferd. */
+  ok(SRC.includes("3,9-8,1") && SRC.includes("11,4-20,1"),
+    "en SAGAN nefnir upphaflegu tolurnar (komma-form) — skjolunin stendur");
+  ok(/ptsPG/.test(SRC) && /villa 2|VILLAN A SOMU|ANNAD ARM/.test(SRC),
+    "og hun nefnir ad `ptsPG` var RANGA ARMID");
+
+  ok(/w1-4/.test(C.deadBasis), "`deadBasis` nefnir bilid (w1-4)");
+  ok(/DOES NOT SUPPORT|does not support/.test(C.deadBasis),
+    "og segir berum ordum ad maelingin stydji svidid EKKI");
+  ok(/METRIC ERROR|metric error/.test(C.deadBasis),
+    "og ad vidsnuningurinn seint hafi verid maelikvarda-villa");
 }
 
 /* ============================================================
