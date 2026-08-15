@@ -14,7 +14,7 @@
    ordid RANGT fyrir BADAR deildir notandans:
 
      Patriots   10 lid, 2 FLEX, ppr   -> "not one of the shapes"
-                                          en maelt: +188,0 (11/11, t=4,10)
+                                          en maelt: +186,1 (11/11, t=4,09)
      Sofahetjur 12 lid, 2 FLEX, half  -> "not one of the shapes"
                                           en maelt: +147,4 (10/11, t=3,44)
 
@@ -49,10 +49,19 @@
    HALF ER REIKNUD UPP A STIG, ekki interpoluð: PPR = STD + mottokur,
    svo HALF = (STD + PPR)/2. Algebra, ekki nalgun.                    */
 export const HALF_LAB = {
+  /* 10-LIDA TOLURNAR VORU ENDURREIKNADAR 14.8.2026 (README 4b-2).
+     Adur: ppr 188,0 (t 4,101) · half 175,6 (t 3,485) · std 159,4 (t 3,118).
+     `replacementRanks` uthlutadi 21 flex-saeti fyrir 20 i thessari deild
+     og aukasaetid fell allt a WR, svo varamanns-threp WR var WR30 i stad
+     WR29. Ekkert formerki og engin marktaekni breyttist — half BATNADI
+     meira ad segja (t 3,485 -> 3,837) — en tolurnar eru adrar og thaer
+     eru BIRTAR i vidmotinu, svo thaer verda ad vera thaer sem maelingin
+     skrifadi. 12-lida deildin er BITAEINS obreytt: 24 saeti deilast
+     nakvaemlega, svo lagfaeringin snertir hana ekki. */
   "10-2flex": {
-    ppr:      { mean: 188.0, t: 4.101, wins: 11, years: 11 },
-    half:     { mean: 175.6, t: 3.485, wins: 11, years: 11 },
-    standard: { mean: 159.4, t: 3.118, wins: 9,  years: 11 },
+    ppr:      { mean: 186.1, t: 4.092, wins: 11, years: 11 },
+    half:     { mean: 182.9, t: 3.837, wins: 11, years: 11 },
+    standard: { mean: 158.6, t: 3.099, wins: 9,  years: 11 },
   },
   "12-2flex": {
     ppr:      { mean: 188.4, t: 3.990, wins: 10, years: 11 },
@@ -78,7 +87,7 @@ const isSig = (q) => q != null && q.t != null && q.years != null &&
  * ============================================================
  * Hér stod `return "ppr"` sem sjalfgefid. `measuredEdge` notar lykilinn
  * til ad fletta upp i MAELDU toflunum, svo deild med `scoring: null`
- * hefdi fengid **+188,0 stiga "maelda" tolu ur PPR-toflunni** — tala ur
+ * hefdi fengid **+186,1 stiga "maelda" tolu ur PPR-toflunni** — tala ur
  * odru sniði, birt undir heiti thessarar deildar. Þad er ordrett
  * skilgreiningin a verstu utkomunni i thessu verkefni: omaeld tala sem
  * litur ut eins og maeling.
@@ -222,7 +231,7 @@ export function measuredEdge(league, shapes = null) {
  * verid orsokin. Um leid og sa varnagli fór ad skila `null` (sja notuna
  * thar) opnadist onnur leid inn i sama `null` — OÞEKKT STIGAGJOF — og
  * setningin nefndi tha RANGA ORSOK: logunin ma vera fullmaeld (`10-2flex`
- * ber +188,0 i 11 af 11 timabilum) medan thad er stigagjofin sem vid
+ * ber +186,1 i 11 af 11 timabilum) medan thad er stigagjofin sem vid
  * hofum aldrei maelt.
  *
  * Rong orsok i vidvorun er ekki ordalag. Notandi sem les "shape has not

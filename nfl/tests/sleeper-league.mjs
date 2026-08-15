@@ -253,7 +253,7 @@ console.log("\n4. stodu-thakid");
    sem ber aðeins EINN-FLEX logun. BADAR raunverulegu deildir notandans
    hafa TVO FLEX, svo baðar fengu "this shape has not been backtested" —
    fals-jakvaett a hverri deild sem hann spilar i. Bædi eru maeld i
-   `data/measure/half.json`: +188,0 (11/11) og +147,4 (10/11).
+   `data/measure/half.json`: +186,1 (11/11) og +147,4 (10/11).
 
    Uppflettingin byr nu i `src/rulebasis.js`. Þessi kafli ver ad
    vorpunin fullyrdi EKKERT um logun — og hann fellur ef vidvorunin er

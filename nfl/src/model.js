@@ -141,6 +141,55 @@ export const FLEX_SPLIT = { RB: 0.330, WR: 0.477, TE: 0.193 };
  */
 export const SUPERFLEX_SPLIT = { QB: 0.860, RB: 0.057, WR: 0.047, TE: 0.036 };
 
+const REPL_POS = ["QB", "RB", "WR", "TE", "K", "DST"];
+
+/**
+ * Hamilton (largest-remainder): deilir `total` HEILUM saetum a stodur i
+ * hlutfalli vid `weights`, og summan er NAKVAEMLEGA `total`.
+ *
+ * HVERS VEGNA THETTA I STAD `Math.round` PER STODU (lagfaert 14.8.2026):
+ * `Math.round` namundar hverja stodu SER, svo summan er tilviljun.
+ * Maelt yfir 13 logun: saetin summudust ekki i FIMM theirra.
+ *
+ *   10-lida 2FLEX (deild notandans!)  RB 7 + WR 10 + TE 4 = 21 fyrir 20
+ *   14-lida 2FLEX                     RB 9 + WR 13 + TE 5 = 27 fyrir 28
+ *    8-lida 1FLEX                     RB 3 + WR  4 + TE 2 =  9 fyrir 8
+ *   14-lida 1FLEX                     RB 5 + WR  7 + TE 3 = 15 fyrir 14
+ *
+ * OG THAD ER EKKI "NAMUNDUNARSUD" HELDUR SKEKKJA MED FORMERKI. Aukasaetid
+ * i 10-lida deildinni fell ALLT a WR (0,477 x 20 = 9,54 -> 10), svo
+ * varamanns-threp WR var reiknad EINU SAETI OF DJUPT og hver einasti
+ * sendingamottakari fekk VBD sem `FLEX_SPLIT` styður ekki.
+ *
+ * HAMILTON ER EKKI NY MAELING. `FLEX_SPLIT` og `SUPERFLEX_SPLIT` eru
+ * MAELDU tolurnar og thaer eru obreyttar; thetta er einungis rett
+ * heiltolu-lesning a theim. Kvota-eiginleikinn er thad sem gerir hana
+ * retta: hver stada fær `floor(kvoti)` eda `ceil(kvoti)`, aldrei fjaer.
+ *
+ * Jafntefli a brotum eru brotin a FASTRI STODU-ROD (`REPL_POS`), svo sama
+ * deild geti ekki fengid tvaer nidurstodur eftir thvi i hvada rod
+ * `weights` var byggt.
+ */
+function apportion(total, weights) {
+  const keys = REPL_POS.filter((k) => weights[k] > 0);
+  const out = {};
+  for (const k of keys) out[k] = 0;
+  const sum = keys.reduce((a, k) => a + weights[k], 0);
+  if (!keys.length || !(sum > 0) || !(total > 0)) return out;
+
+  const frac = [];
+  let used = 0;
+  for (const k of keys) {
+    const q = total * (weights[k] / sum);
+    out[k] = Math.floor(q);
+    used += out[k];
+    frac.push([k, q - Math.floor(q), REPL_POS.indexOf(k)]);
+  }
+  frac.sort((a, b) => (b[1] - a[1]) || (a[2] - b[2]));
+  for (let i = 0; i < total - used; i++) out[frac[i % frac.length][0]]++;
+  return out;
+}
+
 export function replacementRanks(league) {
   const t = league.teams || 12;
   const st = league.starters || { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1 };
@@ -148,12 +197,60 @@ export function replacementRanks(league) {
   /* Baðar leidirnar ad segja "thessi deild er superflex" eru virtar:
      saeti i `starters` eda flaggid a deildinni sjalfri. */
   const sflex = ((st.SUPERFLEX || 0) || (league.superflex ? 1 : 0)) * t;
+
+  /* ============================================================
+     `league.flexPos` VAR HUNSAD — LAGFAERT 14.8.2026
+     ============================================================
+     `FLEX_SPLIT` var lesid harðkodad RB/WR/TE, svo deild thar sem
+     flexid tekur adeins RB/WR (`REC_FLEX` og aettingjar hennar) yti
+     samt TE-threpinu dypra fyrir saeti sem enginn TE getur tekid.
+     `sleeper-league.js` LES thennan lista ur `roster_positions` og
+     `build.js` thvingar hann — hann var til allan timann og var
+     einfaldlega ekki spurdur.
+
+     HLUTFOLLIN ERU ENDURNORMOLUD a thaer stodur sem flexid tekur, og
+     THAD ER VAL SEM MAELINGIN STYDUR EKKI TIL FULLS: `FLEX_SPLIT` var
+     maelt a RB/WR/TE-flexi, svo sannur RB/WR-split er OMAELDUR.
+     Endurnormolun er samt eina svarid sem tapar ekki saetum — RB+WR
+     eitt summast i 0,807, svo an hennar yrdu 20 saeti ad 16 og
+     varamanns-threpin RANGARI en thau eru i dag. Talan sem er MAELD
+     hér er FJOLDI saetanna (flex x lid); skiptingin innan hlutmengis
+     er varfaerin nalgun og er sogd vera thad.
+
+     Hvorug deild notandans notar thetta (baðar RB/WR/TE), svo thetta
+     er vord ad framtid, ekki lagfaering a lifandi tolu.            */
+  /* ============================================================
+     SIAN MA ALDREI TAEMA LISTANN — annars hverfa saetin ÞEGJANDI
+     ============================================================
+     `filter` gat skilad TOMUM lista (`flexPos: ["QB"]`, `["K","DST"]`,
+     eda bara lagstafir — `build.js` hleypir hverjum streng i gegn).
+     Tomur listi gefur `apportion` engan lykil, svo hann skilar `{}` og
+     OLL flex-saetin hurfu an nokkurs merkis: 10-lida 2FLEX faer tha
+     QB10/RB20/WR20/TE10 — 0 af 20 flex-saetum uthlutad.
+
+     ÞAD ER NAKVAEMLEGA VILLAN SEM ÞESSI LAGFAERING VAR SKRIFUD GEGN,
+     i annarri mynd: saetin summast ekki. Su gamla gaf EINU of mikid,
+     thessi gefur TUTTUGU of litid — og hvorug segir neitt.
+
+     Tom sia er thvi meðhondlud eins og enginn listi: fallid aftur i
+     `FLEX_SPLIT` i heild. Ad tapa saetunum vaeri VERRA en varfaerna
+     nalgunin sem endurnormolunin er sogd vera hér ad ofan.        */
+  const pick = (list, split) => {
+    if (!Array.isArray(list) || !list.length) return Object.keys(split);
+    const kept = list.filter((p) => split[p] > 0);
+    return kept.length ? kept : Object.keys(split);
+  };
+  const flexPos = pick(league.flexPos, FLEX_SPLIT);
+  const sflexPos = pick(league.superflexPos, SUPERFLEX_SPLIT);
+
+  const fw = {}; for (const p of flexPos) fw[p] = FLEX_SPLIT[p];
+  const sw = {}; for (const p of sflexPos) sw[p] = SUPERFLEX_SPLIT[p];
+  const fa = apportion(flex, fw);
+  const sa = apportion(sflex, sw);
+
   const out = {};
-  for (const pos of ["QB", "RB", "WR", "TE", "K", "DST"]) {
-    const base = (st[pos] || 0) * t;
-    const extra = FLEX_SPLIT[pos] ? Math.round(flex * FLEX_SPLIT[pos]) : 0;
-    const sExtra = SUPERFLEX_SPLIT[pos] ? Math.round(sflex * SUPERFLEX_SPLIT[pos]) : 0;
-    out[pos] = base + extra + sExtra;
+  for (const pos of REPL_POS) {
+    out[pos] = (st[pos] || 0) * t + (fa[pos] || 0) + (sa[pos] || 0);
   }
   return out;
 }

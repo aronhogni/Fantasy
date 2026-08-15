@@ -77,7 +77,7 @@ console.log("\n2. deildirnar sem notandinn draftar i");
      um BADAR deildir notandans — eina vidvorunin sem badar bàru, og
      hun var OSONN. Falli thetta er fals-vidvorunin komin aftur. */
   const p = measuredEdge(PAT), s = measuredEdge(SOF);
-  ok(p && p.exact && p.significant && p.mean === 188.0,
+  ok(p && p.exact && p.significant && p.mean === 186.1,
     `Patriots ER maeld: +${p && p.mean} (t=${p && p.t}) — engin fals-vidvorun`);
   ok(s && s.exact && s.significant && s.mean === 147.4,
     `Sofahetjur ER maeld: +${s && s.mean} (t=${s && s.t})`);
@@ -168,7 +168,7 @@ console.log("\n3. reglurnar sjalfar");
    ============================================================
    `scoringKeyOf` skiladi `"ppr"` sjalfgefid. `measuredEdge` notar
    lykilinn til ad fletta upp i MAELDU toflunum, svo deild med
-   `scoring: null` hefdi fengid +188,0 stiga "maelda" tolu UR PPR-TOFLUNNI
+   `scoring: null` hefdi fengid +186,1 stiga "maelda" tolu UR PPR-TOFLUNNI
    — tala ur odru sniði, birt undir heiti thessarar deildar.
 
    `usageblend.scoringKey` skilar `null` i sama tilfelli; thaer voru
@@ -220,7 +220,7 @@ console.log("\nothekkt stigagjof faer ENGA tolu");
    ofan). Þad opnadi ANNAN veg inn i sama `null` ur `measuredEdge` — og
    `edgeSentence` bar EINA setningu fyrir bada: "this league shape has not
    been backtested". Hun nefndi thvi RANGA ORSOK i othekktu sniði:
-   `10-2flex` er fullmaeld logun (+188,0 i 11 af 11 timabilum), svo
+   `10-2flex` er fullmaeld logun (+186,1 i 11 af 11 timabilum), svo
    setningin er fullyrding sem notandinn getur SANNAD ranga — og kassi sem
    notandinn getur sannad rangan er kassi sem hann haettir ad lesa. Þad er
    nakvaemlega sami skadi og fals-vidvorunin sem thessi eining var smiðuð
@@ -238,7 +238,7 @@ console.log("\nsetningin nefnir RETTA orsokina");
   /* FORSENDAN: logunin ER maeld. An thessarar fullyrdingar vaeri
      "logunar-setningin er rong hér" adeins tilgata mín. */
   const proof = measuredEdge({ ...MEASURED_SHAPE, scoring: "ppr" });
-  ok(proof && proof.exact && proof.mean === 188.0,
+  ok(proof && proof.exact && proof.mean === 186.1,
     `forsenda: 10-2flex ER maeld logun (+${proof && proof.mean}) — ` +
     "svo \"shape has not been backtested\" um hana er SANNANLEGA osatt");
 

@@ -1215,7 +1215,7 @@ function ImportedRules({ imported: im, league, shapes, onReread }) {
    Innflutningur segir HVAD deildin er. Thetta segir hvad bordid er
    THESS VIRDI thar — og thad er onnur spurning. Deildarlogun er ekki
    skraut: varamanns-threpid faerist med lidafjolda og saetum, og
-   maelda forskotid gegn ADP er OLIKT milli logana (t.d. +188,0 i
+   maelda forskotid gegn ADP er OLIKT milli logana (t.d. +186,1 i
    10-lida tveggja-FLEX PPR a moti +147,4 i 12-lida half).
 
    TALAN KEMUR UR `src/rulebasis.js` og hun er ekki reiknud her.

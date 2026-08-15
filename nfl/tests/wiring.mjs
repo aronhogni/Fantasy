@@ -145,7 +145,7 @@ console.log("\n1. pollunin er tengd");
    2. MAELDA FORSKOTID — `rulebasis.js` VERDUR AD VERA TENGD
    ============================================================
    `rulebasis.js` ber toluna sem svarar "hvad er rodin thess virdi i
-   ÞESSARI deild" (+188,0 i 10-lida tveggja-FLEX PPR, +147,4 i 12-lida
+   ÞESSARI deild" (+186,1 i 10-lida tveggja-FLEX PPR, +147,4 i 12-lida
    half). `tests/rulebasis.mjs` ver toluna sjalfa. Hér er varid ad hun
    se BIRT — annars er hun maeld, profud og osynileg.                */
 console.log("\n2. maelda forskotid er tengt");

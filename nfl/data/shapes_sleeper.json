@@ -1,19 +1,16 @@
 {
- "generated": "2026-08-10T00:22:32.850Z",
+ "generated": "2026-08-14T22:25:13.945Z",
  "provenance": {
-  "generated": "2026-08-10T00:22:32.850Z",
-  "argv": [
-   "--proj=sleeper",
-   "--runs=6"
-  ],
+  "generated": "2026-08-14T22:25:13.946Z",
+  "argv": [],
   "params": {
    "proj": {
     "value": "sleeper",
-    "fromDefault": false
+    "fromDefault": true
    },
    "runs": {
-    "value": "6",
-    "fromDefault": false
+    "value": 6,
+    "fromDefault": true
    }
   },
   "inputs": {
@@ -42,19 +39,19 @@
     "QB": 8,
     "RB": 19,
     "WR": 28,
-    "TE": 10,
+    "TE": 9,
     "K": 0,
     "DST": 0
    },
    "vsRaw": {
-    "mean": 66.8,
-    "t": 1.719,
-    "wins": 4,
+    "mean": 99,
+    "t": 2.912,
+    "wins": 5,
     "years": 5
    },
    "vsAdp": {
-    "mean": 314.2,
-    "t": 5.431,
+    "mean": 344.7,
+    "t": 7.618,
     "wins": 5,
     "years": 5
    },
@@ -142,21 +139,21 @@
    },
    "replacement": {
     "QB": 14,
-    "RB": 33,
+    "RB": 32,
     "WR": 49,
     "TE": 17,
     "K": 0,
     "DST": 0
    },
    "vsRaw": {
-    "mean": 129.4,
-    "t": 1.731,
+    "mean": 104.9,
+    "t": 1.343,
     "wins": 4,
     "years": 5
    },
    "vsAdp": {
-    "mean": 269.5,
-    "t": 5.395,
+    "mean": 246.6,
+    "t": 5.799,
     "wins": 5,
     "years": 5
    },
@@ -314,19 +311,19 @@
     "QB": 8,
     "RB": 19,
     "WR": 28,
-    "TE": 10,
+    "TE": 9,
     "K": 0,
     "DST": 0
    },
    "vsRaw": {
-    "mean": 226.6,
-    "t": 7.411,
+    "mean": 254.8,
+    "t": 9.065,
     "wins": 5,
     "years": 5
    },
    "vsAdp": {
-    "mean": 227.8,
-    "t": 3.146,
+    "mean": 240.3,
+    "t": 3.197,
     "wins": 4,
     "years": 5
    },
@@ -414,21 +411,21 @@
    },
    "replacement": {
     "QB": 14,
-    "RB": 33,
+    "RB": 32,
     "WR": 49,
     "TE": 17,
     "K": 0,
     "DST": 0
    },
    "vsRaw": {
-    "mean": 72.3,
-    "t": 1.555,
+    "mean": 71.7,
+    "t": 1.526,
     "wins": 4,
     "years": 5
    },
    "vsAdp": {
-    "mean": 217.7,
-    "t": 2.694,
+    "mean": 201.8,
+    "t": 2.758,
     "wins": 4,
     "years": 5
    },

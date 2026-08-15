@@ -637,12 +637,36 @@ console.log("\n2d. deildarslod flytur inn REGLURNAR");
   /* --- (d2) MAELDA FORSKOTID I ÞESSARI LOGUN ---
      Innflutningur segir hvad deildin ER; thetta segir hvad bordid er
      THESS VIRDI thar. Talan kemur ur `src/rulebasis.js` og er EKKI
-     reiknud i vidmótinu. 10-lida tveggja-FLEX PPR maelist +188,0 yfir
+     reiknud i vidmótinu. 10-lida tveggja-FLEX PPR maelist +186,1 yfir
      ADP i 11 af 11 timabilum, svo hun a ad standa a skjanum. */
   ok(/Measured:/.test(t) && /over ADP/.test(t),
     "maelda forskotid i thessari logun er birt");
-  ok(/188/.test(t),
-    "og talan er su sem half-lab maeldi fyrir 10-2flex ppr (+188)");
+  /* ÞESSI FULLYRDING VAR HARDKODUD `/188/` OG HUN FELL 14.8.2026 —
+     RETTILEGA. `half-lab` var endurkeyrd eftir ad flex-uthlutunin var
+     lagfaerd (README 4b-2) og talan for i +186,1. Hardkodud tala hér
+     hefdi thurft handvirka uppfaerslu i hvert sinn sem maelingin er
+     endurtekin, og su uppfaersla er nakvaemlega thad sem gleymist.
+
+     RETTA FULLYRDINGIN ER TENGINGIN, EKKI TALAN: skjarinn a ad bera
+     toluna sem `HALF_LAB` ber fyrir ÞESSA logun og ÞESSA stigagjof.
+     Gildid sjalft er akkerad annars stadar — `tests/rulebasis.mjs`
+     kafli 1 ber HVERT gildi i `HALF_LAB` vid `data/measure/half.json`
+     a diski. Tvaer fullyrdingar, sitt hvor spurningin, hvorug
+     hringlaga.
+
+     OG HUN MA EKKI VERDA TOM: talan verdur lika ad vera OLIK tolu
+     hinnar deildarinnar, annars gaeti uppfletting i rangri toflu
+     lesist sem rett (186,1 a moti 147,4). Þad var upprunalega
+     ahyggjan og hun stendur. */
+  const { HALF_LAB } = await import("../src/rulebasis.js");
+  const patPpr = HALF_LAB["10-2flex"].ppr.mean;
+  const sofHalf = HALF_LAB["12-2flex"].half.mean;
+  ok(Math.abs(patPpr - sofHalf) > 5,
+    `forsenda: snidin eru sannanlega olik (${patPpr} a moti ${sofHalf})`);
+  ok(t.includes(String(patPpr)),
+    `og talan a skjanum er su sem HALF_LAB ber fyrir 10-2flex ppr (+${patPpr})`);
+  ok(!t.includes(String(sofHalf)),
+    `og EKKI tala hinnar deildarinnar (+${sofHalf}) — uppfletting i rangri toflu`);
   ok(!/has not been backtested/.test(t),
     "og logunin er EKKI kollud omaeld (gamla fals-vidvorunin)");
 

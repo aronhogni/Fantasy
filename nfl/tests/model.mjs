@@ -9,13 +9,14 @@
    Kafli 6  vorn gegn stodu: liðurinn ma ALDREI rada rodun
    Kafli 7  tiltaekileiki: opinber stada raedur
    Kafli 8  virdi gegn markadi: formerkid les rett
+   Kafli 8b flex-saetin SUMMAST og `flexPos` er virt (14.8.2026)
    ============================================================ */
 
 import {
   blend, blendWeights, replacementRanks, computeVbd, tierize,
   valueVsMarket, impliedTeamTotals, gameScriptMult, defenseMult,
   weeklyProjection, availability, POS_ELASTICITY, DEF_WEIGHT,
-  FLEX_SPLIT, IMPLIED_BASE,
+  FLEX_SPLIT, SUPERFLEX_SPLIT, IMPLIED_BASE,
 } from "../src/model.js";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -71,8 +72,15 @@ console.log("\n2. virdi yfir varamanni");
   const r14 = replacementRanks({ teams: 14, starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1 } });
   ok(r14.RB > r10.RB && r14.WR > r10.WR,
     "staerri deild faerir varamanns-threpid nedar");
-  ok(r10.RB === 20 + Math.round(10 * FLEX_SPLIT.RB),
-    `RB-threp i 10-lida = 20 + flex-hluti (${r10.RB})`);
+  /* ÞESSI FULLYRDING ENDURSKRIFADI VILLUNA SEM KAFLI 8b LAGADI.
+     Hun stod adur `20 + Math.round(10 * FLEX_SPLIT.RB)` — thad er ekki
+     sjalfstaett vidmid heldur SAMA formula og kodinn notadi, svo hun
+     hefdi verid graen fyrir hvada namundun sem er. Nu er kvotinn
+     sjalfur vidmidid: RB fær sinn hlut af flex-saetunum, namundadan i
+     eina hvora att, og aldrei fjaer. */
+  const rbQuota = 10 * FLEX_SPLIT.RB / (FLEX_SPLIT.RB + FLEX_SPLIT.WR + FLEX_SPLIT.TE);
+  ok(r10.RB - 20 === Math.floor(rbQuota) || r10.RB - 20 === Math.ceil(rbQuota),
+    `RB-threp i 10-lida = 20 + flex-hluti innan kvota (${r10.RB}, kvoti ${rbQuota.toFixed(2)})`);
 
   /* SUPERFLEX / 2QB er ekki bara "meiri stig" — thad faerir
      QB-threpid ur 12 nidur i ~24 og thad er OLL breytingin. */
@@ -555,6 +563,223 @@ console.log("\nstada an byrjunarsaetis");
     .filter((v) => v !== null);
   ok(kTiers.every((v) => v == null),
     "og stada an saetis faer ekkert threp heldur");
+}
+
+/* ============================================================
+   8b. FLEX-SAETIN VERDA AD SUMMAST — OG `flexPos` VERDUR AD VERA VIRT
+   ============================================================
+   Fram til 14.8.2026 uthlutadi `replacementRanks` flex-saetum med
+   `Math.round` PER STODU og hunsadi `league.flexPos`. Hvorttveggja stod
+   skrad i README 4b sem "maelt og viljandi olagfaert", med theim rokum
+   ad lagfaering hreyfdi hvert varamanns-threp og thar med hverja bokada
+   maelingu. Su ahyggja var RETT en OMAELD.
+
+   `scripts/flexsplit-lab.mjs` maeldi hana (14.8.2026, `buildRows`-leidin,
+   555 rader, `players.json` sha1 6b3459ff55f7, 13 logun): saetin
+   summudust ekki i FIMM af theim, thar a medal **10-lida 2FLEX deild
+   notandans** — 21 saeti
+   fyrir 20, og aukasaetid fell ALLT a WR. Bordid hreyfdist:
+   rho 0,9993, tveir i topp 12 vixludust, 20 af topp 50 haggast, einn nyr
+   inn i topp 50. 12-lida deildin var BITAEINS obreytt (24 saeti deilast
+   nakvaemlega). Ekkert bokad hlutfall skipti formerki ne marktaekni.
+
+   ÞETTA PROF PINNAR NIDURSTODUNA I BADAR ATTIR:
+     (a) SUMMU-INVARIANT — uthlutudu saetin eru NAKVAEMLEGA thau sem
+         deildin hefur. Þad rekur ekki med gognunum og er thvi
+         fullyrding, ekki daemi.
+     (b) KVOTA-EIGINLEIKINN sem SJALFSTAETT VIDMID — hver stada fær
+         `floor(kvoti)` eda `ceil(kvoti)`. Þetta er ekki endurkeyrsla a
+         Hamilton heldur einkennun hennar; profid getur thvi ekki
+         "stadfest" sina eigin namundun.
+     (c) `flexPos` VIRT — deild thar sem flexid tekur RB/WR MA EKKI
+         uthluta TE einu saeti.
+     (d) INVARIANTID ER FALSANLEGT, SANNAD MED GOMLU HEGDUNINNI. Gamla
+         utfaerslan er geymd i `scripts/lib/flexsplit-legacy.mjs` og
+         VERDUR ad falla a (a) — annars vaeri kafli (a) fullyrding sem
+         getur ekki brugdist, sem er nakvaemlega gildran i CLAUDE.md 5b.
+         Þad er stokkbreytingarprofid, innbyggt i vordinn.
+     (e) OG GAMLA HEGDUNIN MA EKKI KOMAST INN I `src/`.
+   ============================================================ */
+console.log("\n8b. flex-saetin summast og flexPos er virt");
+{
+  const { replacementRanksLegacy } =
+    await import("../scripts/lib/flexsplit-legacy.mjs");
+  const POS = ["QB", "RB", "WR", "TE", "K", "DST"];
+  const slots = (league, r) => {
+    const st = league.starters;
+    return POS.reduce((a, p) => a + (r[p] || 0) - (st[p] || 0) * league.teams, 0);
+  };
+  const want = (league) => {
+    const st = league.starters;
+    return ((st.FLEX || 0) + ((st.SUPERFLEX || 0) || (league.superflex ? 1 : 0)))
+      * league.teams;
+  };
+
+  /* --- (a) + (b) yfir NET af logunum, ekki eitt daemi --- */
+  const grid = [];
+  for (let teams = 8; teams <= 16; teams++) {
+    for (const flex of [0, 1, 2, 3]) {
+      for (const sf of [0, 1]) {
+        const st = { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: flex };
+        if (sf) st.SUPERFLEX = 1;
+        grid.push({ teams, starters: st, superflex: false });
+      }
+    }
+  }
+  let sumBad = 0, quotaBad = 0;
+  for (const L of grid) {
+    const r = replacementRanks(L);
+    if (slots(L, r) !== want(L)) sumBad++;
+    /* Kvotinn er reiknadur ur `FLEX_SPLIT` sjalfu, ENDURNORMOLADU — sama
+       SKILGREINING og hlutfollin bera, en ekki sami kodi og uthlutar.
+       Adeins holf AN superflex, thvi thar er uthlutunin ein og bein; med
+       badum lidum vaeri ekki haegt ad lesa hlut hvers ur summunni.
+       Superflex-holfin eru tekin i eigin lykkju hér a eftir. */
+    if (L.starters.SUPERFLEX) continue;
+    const tot = FLEX_SPLIT.RB + FLEX_SPLIT.WR + FLEX_SPLIT.TE;
+    const flexSlots = (L.starters.FLEX || 0) * L.teams;
+    for (const p of ["RB", "WR", "TE"]) {
+      const q = flexSlots * FLEX_SPLIT[p] / tot;
+      const got = r[p] - (L.starters[p] || 0) * L.teams;
+      if (!(got === Math.floor(q) || got === Math.ceil(q))) quotaBad++;
+    }
+  }
+  /* Superflex-holfin, ser: FLEX = 0 svo allt sem er ofan a fostu saetunum
+     kemur ur SUPERFLEX_SPLIT og kvotinn er laesilegur. */
+  let sfQuotaBad = 0, sfCells = 0;
+  for (let teams = 8; teams <= 16; teams++) {
+    const L = { teams, starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 0, SUPERFLEX: 1 } };
+    const r = replacementRanks(L);
+    sfCells++;
+    if (slots(L, r) !== want(L)) sumBad++;
+    for (const p of ["QB", "RB", "WR", "TE"]) {
+      const q = teams * SUPERFLEX_SPLIT[p];   // summast thegar i 1,0
+      const got = r[p] - (L.starters[p] || 0) * teams;
+      if (!(got === Math.floor(q) || got === Math.ceil(q))) sfQuotaBad++;
+    }
+  }
+  ok(sfCells === 9 && sfQuotaBad === 0,
+    `superflex: ${sfCells} logun, hver stada innan kvota (${sfQuotaBad} utan)`);
+  /* ÞEKJA ER FULLYRDING: hrynji netid nidur i eitt holf ma profid ekki
+     lesast graent. */
+  ok(grid.length === 72, `netid er 72 logun (${grid.length})`);
+  ok(sumBad === 0, `flex-saetin summast i OLLUM 72 logunum (${sumBad} brotin)`);
+  ok(quotaBad === 0, `og hver stada er innan kvota sins (${quotaBad} utan)`);
+
+  /* --- (d) STOKKBREYTINGIN: gamla hegdunin VERDUR ad falla a (a) --- */
+  let legacyBad = 0;
+  for (const L of grid) if (slots(L, replacementRanksLegacy(L)) !== want(L)) legacyBad++;
+  ok(legacyBad > 0,
+    `summu-invariantid ER falsanlegt: gamla hegdunin brotnar i ${legacyBad} af 72 logunum`);
+
+  /* --- (c) `flexPos` VIRT --- */
+  const recFlex = { teams: 10, starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+                    flexPos: ["RB", "WR"] };
+  const rRec = replacementRanks(recFlex);
+  ok(rRec.TE === 10,
+    `flexPos ["RB","WR"] gefur TE ENGIN flex-saeti (TE=${rRec.TE}, aetti ad vera 1x10)`);
+  ok(slots(recFlex, rRec) === 20,
+    `og oll 20 saetin fara samt til RB/WR (${slots(recFlex, rRec)})`);
+  ok(replacementRanksLegacy(recFlex).TE === 14,
+    "gamla hegdunin gaf TE fjogur saeti sem enginn TE gat tekid (TE=14)");
+
+  /* OG SAETIN VERDA AD FARA I RETTUM HLUTFOLLUM, EKKI BARA AD SUMMAST.
+     ============================================================
+     ÞETTA VAR HOLA I FYRSTU UTGAFU ÞESSA KAFLA og hun fannst med
+     stokkbreytingu: `sum = 1` i stad `keys.reduce(...)` — thad er, ENGIN
+     endurnormolun a hlutmengid — stodst BADE summu-invariantid OG
+     kvota-eiginleikann. Leifar-umferdin hringsolar og fyllir upp i 20,
+     svo summan er rett medan skiptingin er RONG (RB 9 i stad 8).
+
+     Handreiknad ur MAELDU hlutfollunum, endurnormoludum:
+       RB/WR-flex:  RB 0,330/0,807 x 20 =  8,18 -> 8   (20 + 8  = 28)
+                    WR 0,477/0,807 x 20 = 11,82 -> 12  (20 + 12 = 32)
+       WR/TE-flex:  WR 0,477/0,670 x 20 = 14,24 -> 14  (20 + 14 = 34)
+                    TE 0,193/0,670 x 20 =  5,76 -> 6   (10 + 6  = 16)
+     Talan a haegri hond er reiknuð UR TOFLUNNI, ekki ur kodanum.       */
+  ok(rRec.RB === 28 && rRec.WR === 32,
+    `RB/WR-flex i rettum hlutfollum: RB=${rRec.RB} (28), WR=${rRec.WR} (32)`);
+  const wrTe = { teams: 10, starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+                 flexPos: ["WR", "TE"] };
+  const rWt = replacementRanks(wrTe);
+  ok(rWt.RB === 20 && rWt.WR === 34 && rWt.TE === 16,
+    `WR/TE-flex: RB=${rWt.RB} (20), WR=${rWt.WR} (34), TE=${rWt.TE} (16)`);
+
+  const teFlex = { teams: 12, starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1 },
+                   flexPos: ["WR", "TE"] };
+  const rTe = replacementRanks(teFlex);
+  ok(rTe.RB === 24, `flexPos ["WR","TE"] gefur RB engin flex-saeti (RB=${rTe.RB})`);
+  ok(slots(teFlex, rTe) === 12, `og saetin summast samt (${slots(teFlex, rTe)})`);
+
+  /* --- (d2) TOM SIA MA ALDREI TAEMA FLEXID --------------------------
+     Sian `flexPos.filter((p) => FLEX_SPLIT[p] > 0)` gat skilad TOMUM
+     lista, og tha fekk `apportion` engan lykil og skiladi `{}`:
+     10-lida 2FLEX faer QB10/RB20/WR20/TE10 og 20 flex-saeti hverfa
+     ÞEGJANDI. Þad er SAMA villu-aett og kafli 8b var skrifadur gegn —
+     saetin summast ekki — bara i hina attina og tuttugufalt staerri.
+
+     Allar fjorar leidirnar eru naanlegar ur `build.js`: `normalizeLeague`
+     hleypir HVERJUM streng i gegn (`raw.flexPos.every(typeof === string)`),
+     svo lagstafir, ohaef stada eda tomt fylki komast oll alla leid. */
+  for (const bad of [["QB"], ["K", "DST"], ["rb", "wr"], []]) {
+    const lg = { teams: 10, starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+                 flexPos: bad };
+    const r = replacementRanks(lg);
+    ok(slots(lg, r) === 20,
+      `flexPos ${JSON.stringify(bad)} tapar ENGU flex-saeti (${slots(lg, r)} af 20)`);
+    /* og fallbackid er FULLA taflan — ekki einhver onnur skipting */
+    const full = replacementRanks({ teams: 10, starters: lg.starters });
+    ok(JSON.stringify(r) === JSON.stringify(full),
+      `flexPos ${JSON.stringify(bad)} fellur i FLEX_SPLIT i heild, eins og enginn listi`);
+  }
+  /* Sama gildra i superflex-arminum, sem hefur sina eigin siu. */
+  {
+    const lg = { teams: 12, starters: { QB: 1, RB: 2, WR: 2, TE: 1, SUPERFLEX: 1 },
+                 superflexPos: ["K"] };
+    const r = replacementRanks(lg);
+    ok(slots(lg, r) === 12,
+      `superflexPos ["K"] tapar ENGU saeti (${slots(lg, r)} af 12)`);
+  }
+
+  /* --- (e) GAMLA HEGDUNIN MA EKKI KOMAST INN I `src/` --- */
+  {
+    const SRC = path.join(path.resolve(new URL(".", import.meta.url).pathname, ".."), "src");
+    const { readdirSync } = await import("node:fs");
+    const files = readdirSync(SRC).filter((f) => /\.jsx?$/.test(f));
+    ok(files.length > 20, `${files.length} skrar i src/ skannadar`);
+    const leaked = files.filter((f) =>
+      readFileSync(path.join(SRC, f), "utf8").includes("flexsplit-legacy"));
+    ok(leaked.length === 0,
+      `ekkert i src/ flytur inn gomlu hegdunina (${leaked.join(", ") || "ekkert"})`);
+  }
+
+  /* --- RAUNVERULEGU DEILDIRNAR, PINNADAR ---
+     ÞESSAR TOLUR REKA EKKI. Andstaett tolunum i kaflanum hér ad ofan eru
+     thaer FALL AF `FLEX_SPLIT` OG DEILDARLOGUN EINGONGU — `players.json`
+     kemur thar ekki nærri. Breytist `FLEX_SPLIT` A THETTA PROF AD FALLA:
+     tha verdur ad endurreikna `shapes_*.json`, `measure/half.json`,
+     `measure/ecr_duel.json` og bokudu tolurnar i README 4b/5k/6f. */
+  const patriots = { teams: 10, scoring: "ppr", rounds: 15,
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+    flexPos: ["RB", "WR", "TE"] };
+  const sofahetjur = { teams: 12, scoring: "half-ppr", rounds: 14,
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+    flexPos: ["RB", "WR", "TE"] };
+  const rP = replacementRanks(patriots), rS = replacementRanks(sofahetjur);
+  ok(rP.QB === 10 && rP.RB === 27 && rP.WR === 29 && rP.TE === 14
+     && rP.K === 10 && rP.DST === 10,
+    `Patriots (10, 2FLEX): QB${rP.QB}/RB${rP.RB}/WR${rP.WR}/TE${rP.TE}/K${rP.K}/DST${rP.DST}`);
+  ok(rS.QB === 12 && rS.RB === 32 && rS.WR === 35 && rS.TE === 17
+     && rS.K === 0 && rS.DST === 0,
+    `Sofahetjur (12, 2FLEX): QB${rS.QB}/RB${rS.RB}/WR${rS.WR}/TE${rS.TE}/K${rS.K}/DST${rS.DST}`);
+  /* Og HVAR breytingin la: adeins WR i 10-lida deildinni, EKKERT i
+     12-lida. Þad er nidurstada maelingarinnar, ekki hlidarathugasemd. */
+  const lP = replacementRanksLegacy(patriots), lS = replacementRanksLegacy(sofahetjur);
+  ok(lP.WR === 30 && rP.WR === 29 && lP.RB === rP.RB && lP.TE === rP.TE
+     && lP.QB === rP.QB,
+    `lagfaeringin hreyfdi ADEINS WR i 10-lida deildinni (30 -> 29)`);
+  ok(JSON.stringify(lS) === JSON.stringify(rS),
+    "og 12-lida deildin er BITAEINS obreytt — 24 saeti deilast nakvaemlega");
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

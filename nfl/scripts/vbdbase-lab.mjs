@@ -476,8 +476,29 @@ async function zeroSlotDefect() {
   const tSkill = tierize(skill.map((r) => r.vbd));
   const tierSkill = new Map(); skill.forEach((r, i) => tierSkill.set(r.id, tSkill[i]));
   const moved = skill.filter((r) => tierAll.get(r.id) !== tierSkill.get(r.id));
+  /* ============================================================
+     ER VILLAN ENN TIL? SKRAIN VARD AD GETA SAGT BADAR SOGUR
+     ============================================================
+     Villan var LAGFAERD i `src/model.js` 13.8.2026 (README 4b), en
+     thessi blokk hélt afram ad bera fasta strengi sem sogdu "reported,
+     not patched". Vid naestu keyrslu (14.8., eftir flex-lagfaeringuna)
+     urdu ALLAR tolurnar null/0 medan textinn hélt afram ad fullyrda ad
+     villan vaeri olagfaerd — SKRA SEM STANGAST A VID SJALFA SIG.
+
+     `still` er thvi MAELT, ekki fullyrt, og strengirnir fylgja henni.
+     Blokkin er ekki lengur UPPGOTVUN heldur AFTURFOR-VORDUR: fari
+     `computeVbd` aftur i `repl[pos] || list.length` kviknar hun aftur.
+     Ekta vordur segir bædi "enn i lagi" og "brotid"; sa sem getur
+     adeins sagt annad er logga.                                     */
+  const still = !!bestK || board.slice(0, 20).some((p) => p.pos === "K" || p.pos === "DST");
   return {
     measured: true,
+    stillPresent: still,
+    status: still
+      ? "PRESENT — computeVbd is giving a position with zero starting slots a real VBD"
+      : "FIXED — a position with no starting slot gets vbd null, as it should. This block " +
+        "is now a regression guard: the numbers below are all null/0 BECAUSE the bug is gone, " +
+        "not because the measurement failed.",
     league: "12 teams, QB/2RB/2WR/TE/2FLEX, no K and no DEF slot — the user's own " +
             "Sofahetjur league as sleeper-league.js reads it",
     replacementRankForK: repl.K, replacementRankForDst: repl.DST,
@@ -502,7 +523,18 @@ async function zeroSlotDefect() {
     whyItWasInvisible: "build.js excludes K and DST from aRank via RANKED_POS, so the " +
       "A-Ranking ORDER is clean. The bad number reaches the vbd column for K/DST and, " +
       "through tierize(withVbd.map(r => r.vbd)), the cross-position tier of real players.",
-    notFixedHere: "this lab does not touch src/ — reported, not patched",
+    /* Sogulega talan, geymd svo "0 i topp 20" lesist sem SIGUR en ekki
+       sem tom maeling. Hun var maeld 12.8.2026 a thaverandi
+       `players.json` (558 leikmenn med spa) — daemi med dagsetningu,
+       ekki fasti, sja README 4b. */
+    whenPresentItLookedLike: {
+      measuredOn: "2026-08-12", skillPlayersTotal: 558,
+      vbdGivenToBestKicker: 110, bestKickerBoardSlot: 7,
+      kickersAndDefensesInTop20: 10, kickersAndDefensesInTop50: 28,
+      note: "vbdbase-lab harness (all players with a projection); the app path " +
+            "(buildRows) measured slot 5, 13 of top 20, 29 of top 50 the same week",
+    },
+    labDoesNotPatch: "this lab does not touch src/ — it reports; the fix lives in src/model.js",
   };
 }
 

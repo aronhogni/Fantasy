@@ -1,0 +1,2213 @@
+{
+ "generated": "2026-08-14T22:48:05.283Z",
+ "provenance": {
+  "generated": "2026-08-14T22:48:05.284Z",
+  "argv": [],
+  "params": {},
+  "inputs": {
+   "players.json": {
+    "bytes": 1355854,
+    "sha1": "6b3459ff55f7",
+    "mtime": "2026-08-14T21:05:24.845Z"
+   },
+   "seasons.json": {
+    "bytes": 1656673,
+    "sha1": "74431adb4ee0",
+    "mtime": "2026-08-09T19:44:26.444Z"
+   },
+   "schedule.json": {
+    "bytes": 201198,
+    "sha1": "f6c271b30fe5",
+    "mtime": "2026-08-14T21:05:24.846Z"
+   },
+   "market.json": {
+    "bytes": 77393,
+    "sha1": "f82cc75d95e7",
+    "mtime": "2026-08-09T23:41:33.223Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "harness": "buildRows (src/build.js) — the app path, the same pool the user sees",
+ "pool": {
+  "players": 1143,
+  "sha1": "6b3459ff55f7"
+ },
+ "note": "shipped = src/model.js (Hamilton, flexPos honoured); legacy = the pre-2026-08-14 behaviour kept in scripts/lib/flexsplit-legacy.mjs. shift = legacy - shipped. Numbers here are dated examples: data/players.json is rewritten daily by the pipeline. The invariant (flex slots must sum) does not drift; the rank movement numbers do.",
+ "shapes": {
+  "10-2flex": {
+   "label": "10 lid, 2 FLEX (Patriots)",
+   "teams": 10,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 2,
+    "K": 1,
+    "DST": 1
+   },
+   "flexPos": [
+    "RB",
+    "WR",
+    "TE"
+   ],
+   "replacementShipped": {
+    "QB": 10,
+    "RB": 27,
+    "WR": 29,
+    "TE": 14,
+    "K": 10,
+    "DST": 10
+   },
+   "replacementLegacy": {
+    "QB": 10,
+    "RB": 27,
+    "WR": 30,
+    "TE": 14,
+    "K": 10,
+    "DST": 10
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 20,
+    "flexSlotsAllocated": 20,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 20,
+    "flexSlotsAllocated": 21,
+    "sums": false
+   },
+   "ranksIdentical": false,
+   "board": {
+    "compared": 555,
+    "spearman": 0.999262,
+    "kendallSwapsMoved": 429,
+    "identicalOrder": false,
+    "maxShiftAll": 29,
+    "maxVbdDelta": 4.5,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 2,
+      "maxShift": 1,
+      "meanShift": 1,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 7,
+      "maxShift": 2,
+      "meanShift": 1.1,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 20,
+      "maxShift": 5,
+      "meanShift": 2.3,
+      "membershipSame": 49,
+      "membershipChanged": 1
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 60,
+      "maxShift": 7,
+      "meanShift": 2.5,
+      "membershipSame": 98,
+      "membershipChanged": 2
+     }
+    ],
+    "tierChanged": 9,
+    "posTierChanged": 0,
+    "moversTop50": [
+     {
+      "name": "Chase Brown",
+      "pos": "RB",
+      "shipped": 10,
+      "legacy": 11,
+      "shift": 1
+     },
+     {
+      "name": "Jaxon Smith-Njigba",
+      "pos": "WR",
+      "shipped": 11,
+      "legacy": 10,
+      "shift": -1
+     },
+     {
+      "name": "Kenneth Walker",
+      "pos": "RB",
+      "shipped": 17,
+      "legacy": 18,
+      "shift": 1
+     },
+     {
+      "name": "Omarion Hampton",
+      "pos": "RB",
+      "shipped": 18,
+      "legacy": 19,
+      "shift": 1
+     },
+     {
+      "name": "CeeDee Lamb",
+      "pos": "WR",
+      "shipped": 19,
+      "legacy": 17,
+      "shift": -2
+     },
+     {
+      "name": "Colston Loveland",
+      "pos": "TE",
+      "shipped": 22,
+      "legacy": 23,
+      "shift": 1
+     },
+     {
+      "name": "Nico Collins",
+      "pos": "WR",
+      "shipped": 23,
+      "legacy": 22,
+      "shift": -1
+     },
+     {
+      "name": "Josh Jacobs",
+      "pos": "RB",
+      "shipped": 36,
+      "legacy": 39,
+      "shift": 3
+     },
+     {
+      "name": "David Montgomery",
+      "pos": "RB",
+      "shipped": 37,
+      "legacy": 40,
+      "shift": 3
+     },
+     {
+      "name": "Chris Olave",
+      "pos": "WR",
+      "shipped": 38,
+      "legacy": 36,
+      "shift": -2
+     },
+     {
+      "name": "Rashee Rice",
+      "pos": "WR",
+      "shipped": 39,
+      "legacy": 37,
+      "shift": -2
+     },
+     {
+      "name": "DeVonta Smith",
+      "pos": "WR",
+      "shipped": 40,
+      "legacy": 38,
+      "shift": -2
+     },
+     {
+      "name": "Bucky Irving",
+      "pos": "RB",
+      "shipped": 43,
+      "legacy": 47,
+      "shift": 4
+     },
+     {
+      "name": "Malik Nabers",
+      "pos": "WR",
+      "shipped": 44,
+      "legacy": 43,
+      "shift": -1
+     },
+     {
+      "name": "Quinshon Judkins",
+      "pos": "RB",
+      "shipped": 45,
+      "legacy": 50,
+      "shift": 5
+     },
+     {
+      "name": "Lamar Jackson",
+      "pos": "QB",
+      "shipped": 46,
+      "legacy": 51,
+      "shift": 5
+     },
+     {
+      "name": "Garrett Wilson",
+      "pos": "WR",
+      "shipped": 47,
+      "legacy": 44,
+      "shift": -3
+     },
+     {
+      "name": "Tee Higgins",
+      "pos": "WR",
+      "shipped": 48,
+      "legacy": 45,
+      "shift": -3
+     },
+     {
+      "name": "Emeka Egbuka",
+      "pos": "WR",
+      "shipped": 49,
+      "legacy": 46,
+      "shift": -3
+     },
+     {
+      "name": "Tetairoa McMillan",
+      "pos": "WR",
+      "shipped": 50,
+      "legacy": 48,
+      "shift": -2
+     }
+    ]
+   }
+  },
+  "12-2flex": {
+   "label": "12 lid, 2 FLEX (Sofahetjur)",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 2
+   },
+   "flexPos": [
+    "RB",
+    "WR",
+    "TE"
+   ],
+   "replacementShipped": {
+    "QB": 12,
+    "RB": 32,
+    "WR": 35,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 12,
+    "RB": 32,
+    "WR": 35,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 24,
+    "flexSlotsAllocated": 24,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 24,
+    "flexSlotsAllocated": 24,
+    "sums": true
+   },
+   "ranksIdentical": true,
+   "board": {
+    "compared": 555,
+    "spearman": 1,
+    "kendallSwapsMoved": 0,
+    "identicalOrder": true,
+    "maxShiftAll": 0,
+    "maxVbdDelta": 0,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 50,
+      "membershipChanged": 0
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 0,
+    "posTierChanged": 0,
+    "moversTop50": []
+   }
+  },
+  "sl-8-std": {
+   "label": "shape-lab 8-std",
+   "teams": 8,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "flexPos": null,
+   "replacementShipped": {
+    "QB": 8,
+    "RB": 19,
+    "WR": 28,
+    "TE": 9,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 8,
+    "RB": 19,
+    "WR": 28,
+    "TE": 10,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 8,
+    "flexSlotsAllocated": 8,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 8,
+    "flexSlotsAllocated": 9,
+    "sums": false
+   },
+   "ranksIdentical": false,
+   "board": {
+    "compared": 555,
+    "spearman": 0.99978,
+    "kendallSwapsMoved": 270,
+    "identicalOrder": false,
+    "maxShiftAll": 16,
+    "maxVbdDelta": 2.7,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 2,
+      "maxShift": 1,
+      "meanShift": 1,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 5,
+      "maxShift": 2,
+      "meanShift": 1.2,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 11,
+      "maxShift": 2,
+      "meanShift": 1.1,
+      "membershipSame": 49,
+      "membershipChanged": 1
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 53,
+      "maxShift": 5,
+      "meanShift": 1.8,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 1,
+    "posTierChanged": 0,
+    "moversTop50": [
+     {
+      "name": "CeeDee Lamb",
+      "pos": "WR",
+      "shipped": 10,
+      "legacy": 11,
+      "shift": 1
+     },
+     {
+      "name": "Trey McBride",
+      "pos": "TE",
+      "shipped": 11,
+      "legacy": 10,
+      "shift": -1
+     },
+     {
+      "name": "Justin Jefferson",
+      "pos": "WR",
+      "shipped": 17,
+      "legacy": 18,
+      "shift": 1
+     },
+     {
+      "name": "Drake London",
+      "pos": "WR",
+      "shipped": 18,
+      "legacy": 19,
+      "shift": 1
+     },
+     {
+      "name": "Colston Loveland",
+      "pos": "TE",
+      "shipped": 19,
+      "legacy": 17,
+      "shift": -2
+     },
+     {
+      "name": "Chris Olave",
+      "pos": "WR",
+      "shipped": 29,
+      "legacy": 30,
+      "shift": 1
+     },
+     {
+      "name": "Sam LaPorta",
+      "pos": "TE",
+      "shipped": 30,
+      "legacy": 29,
+      "shift": -1
+     },
+     {
+      "name": "Terry McLaurin",
+      "pos": "WR",
+      "shipped": 44,
+      "legacy": 45,
+      "shift": 1
+     },
+     {
+      "name": "Harold Fannin",
+      "pos": "TE",
+      "shipped": 45,
+      "legacy": 44,
+      "shift": -1
+     },
+     {
+      "name": "Jayden Daniels",
+      "pos": "QB",
+      "shipped": 49,
+      "legacy": 50,
+      "shift": 1
+     },
+     {
+      "name": "Luther Burden",
+      "pos": "WR",
+      "shipped": 50,
+      "legacy": 51,
+      "shift": 1
+     }
+    ]
+   }
+  },
+  "sl-10-std": {
+   "label": "shape-lab 10-std",
+   "teams": 10,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "flexPos": null,
+   "replacementShipped": {
+    "QB": 10,
+    "RB": 23,
+    "WR": 35,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 10,
+    "RB": 23,
+    "WR": 35,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 10,
+    "flexSlotsAllocated": 10,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 10,
+    "flexSlotsAllocated": 10,
+    "sums": true
+   },
+   "ranksIdentical": true,
+   "board": {
+    "compared": 555,
+    "spearman": 1,
+    "kendallSwapsMoved": 0,
+    "identicalOrder": true,
+    "maxShiftAll": 0,
+    "maxVbdDelta": 0,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 50,
+      "membershipChanged": 0
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 0,
+    "posTierChanged": 0,
+    "moversTop50": []
+   }
+  },
+  "sl-12-std": {
+   "label": "shape-lab 12-std",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "flexPos": null,
+   "replacementShipped": {
+    "QB": 12,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 12,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 12,
+    "flexSlotsAllocated": 12,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 12,
+    "flexSlotsAllocated": 12,
+    "sums": true
+   },
+   "ranksIdentical": true,
+   "board": {
+    "compared": 555,
+    "spearman": 1,
+    "kendallSwapsMoved": 0,
+    "identicalOrder": true,
+    "maxShiftAll": 0,
+    "maxVbdDelta": 0,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 50,
+      "membershipChanged": 0
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 0,
+    "posTierChanged": 0,
+    "moversTop50": []
+   }
+  },
+  "sl-14-std": {
+   "label": "shape-lab 14-std",
+   "teams": 14,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "flexPos": null,
+   "replacementShipped": {
+    "QB": 14,
+    "RB": 32,
+    "WR": 49,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 14,
+    "RB": 33,
+    "WR": 49,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 14,
+    "flexSlotsAllocated": 14,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 14,
+    "flexSlotsAllocated": 15,
+    "sums": false
+   },
+   "ranksIdentical": false,
+   "board": {
+    "compared": 555,
+    "spearman": 0.999795,
+    "kendallSwapsMoved": 325,
+    "identicalOrder": false,
+    "maxShiftAll": 16,
+    "maxVbdDelta": 2.2,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 5,
+      "maxShift": 2,
+      "meanShift": 1.2,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 12,
+      "maxShift": 3,
+      "meanShift": 1.3,
+      "membershipSame": 23,
+      "membershipChanged": 1
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 24,
+      "maxShift": 3,
+      "meanShift": 1.4,
+      "membershipSame": 49,
+      "membershipChanged": 1
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 50,
+      "maxShift": 4,
+      "meanShift": 1.5,
+      "membershipSame": 99,
+      "membershipChanged": 1
+     }
+    ],
+    "tierChanged": 18,
+    "posTierChanged": 0,
+    "moversTop50": [
+     {
+      "name": "Amon-Ra St. Brown",
+      "pos": "WR",
+      "shipped": 7,
+      "legacy": 8,
+      "shift": 1
+     },
+     {
+      "name": "Jonathan Taylor",
+      "pos": "RB",
+      "shipped": 8,
+      "legacy": 7,
+      "shift": -1
+     },
+     {
+      "name": "Brock Bowers",
+      "pos": "TE",
+      "shipped": 10,
+      "legacy": 12,
+      "shift": 2
+     },
+     {
+      "name": "James Cook",
+      "pos": "RB",
+      "shipped": 11,
+      "legacy": 10,
+      "shift": -1
+     },
+     {
+      "name": "Ashton Jeanty",
+      "pos": "RB",
+      "shipped": 12,
+      "legacy": 11,
+      "shift": -1
+     },
+     {
+      "name": "Nico Collins",
+      "pos": "WR",
+      "shipped": 17,
+      "legacy": 19,
+      "shift": 2
+     },
+     {
+      "name": "Kenneth Walker",
+      "pos": "RB",
+      "shipped": 18,
+      "legacy": 17,
+      "shift": -1
+     },
+     {
+      "name": "Justin Jefferson",
+      "pos": "WR",
+      "shipped": 19,
+      "legacy": 20,
+      "shift": 1
+     },
+     {
+      "name": "Drake London",
+      "pos": "WR",
+      "shipped": 20,
+      "legacy": 21,
+      "shift": 1
+     },
+     {
+      "name": "Omarion Hampton",
+      "pos": "RB",
+      "shipped": 21,
+      "legacy": 18,
+      "shift": -3
+     },
+     {
+      "name": "A.J. Brown",
+      "pos": "WR",
+      "shipped": 23,
+      "legacy": 24,
+      "shift": 1
+     },
+     {
+      "name": "George Pickens",
+      "pos": "WR",
+      "shipped": 24,
+      "legacy": 25,
+      "shift": 1
+     },
+     {
+      "name": "Jeremiyah Love",
+      "pos": "RB",
+      "shipped": 25,
+      "legacy": 23,
+      "shift": -2
+     },
+     {
+      "name": "Tetairoa McMillan",
+      "pos": "WR",
+      "shipped": 37,
+      "legacy": 38,
+      "shift": 1
+     },
+     {
+      "name": "Mike Evans",
+      "pos": "WR",
+      "shipped": 38,
+      "legacy": 39,
+      "shift": 1
+     },
+     {
+      "name": "Breece Hall",
+      "pos": "RB",
+      "shipped": 39,
+      "legacy": 37,
+      "shift": -2
+     },
+     {
+      "name": "Tyler Warren",
+      "pos": "TE",
+      "shipped": 42,
+      "legacy": 45,
+      "shift": 3
+     },
+     {
+      "name": "Kyren Williams",
+      "pos": "RB",
+      "shipped": 43,
+      "legacy": 42,
+      "shift": -1
+     },
+     {
+      "name": "Travis Etienne",
+      "pos": "RB",
+      "shipped": 44,
+      "legacy": 43,
+      "shift": -1
+     },
+     {
+      "name": "Javonte Williams",
+      "pos": "RB",
+      "shipped": 45,
+      "legacy": 44,
+      "shift": -1
+     },
+     {
+      "name": "Terry McLaurin",
+      "pos": "WR",
+      "shipped": 46,
+      "legacy": 47,
+      "shift": 1
+     },
+     {
+      "name": "D'Andre Swift",
+      "pos": "RB",
+      "shipped": 47,
+      "legacy": 46,
+      "shift": -1
+     },
+     {
+      "name": "Sam LaPorta",
+      "pos": "TE",
+      "shipped": 49,
+      "legacy": 51,
+      "shift": 2
+     },
+     {
+      "name": "Josh Jacobs",
+      "pos": "RB",
+      "shipped": 50,
+      "legacy": 49,
+      "shift": -1
+     }
+    ]
+   }
+  },
+  "sl-16-std": {
+   "label": "shape-lab 16-std",
+   "teams": 16,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "flexPos": null,
+   "replacementShipped": {
+    "QB": 16,
+    "RB": 37,
+    "WR": 56,
+    "TE": 19,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 16,
+    "RB": 37,
+    "WR": 56,
+    "TE": 19,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 16,
+    "flexSlotsAllocated": 16,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 16,
+    "flexSlotsAllocated": 16,
+    "sums": true
+   },
+   "ranksIdentical": true,
+   "board": {
+    "compared": 555,
+    "spearman": 1,
+    "kendallSwapsMoved": 0,
+    "identicalOrder": true,
+    "maxShiftAll": 0,
+    "maxVbdDelta": 0,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 50,
+      "membershipChanged": 0
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 0,
+    "posTierChanged": 0,
+    "moversTop50": []
+   }
+  },
+  "sl-12-2flex": {
+   "label": "shape-lab 12-2flex",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 2
+   },
+   "flexPos": null,
+   "replacementShipped": {
+    "QB": 12,
+    "RB": 32,
+    "WR": 35,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 12,
+    "RB": 32,
+    "WR": 35,
+    "TE": 17,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 24,
+    "flexSlotsAllocated": 24,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 24,
+    "flexSlotsAllocated": 24,
+    "sums": true
+   },
+   "ranksIdentical": true,
+   "board": {
+    "compared": 555,
+    "spearman": 1,
+    "kendallSwapsMoved": 0,
+    "identicalOrder": true,
+    "maxShiftAll": 0,
+    "maxVbdDelta": 0,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 50,
+      "membershipChanged": 0
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 0,
+    "posTierChanged": 0,
+    "moversTop50": []
+   }
+  },
+  "sl-12-sflex": {
+   "label": "shape-lab 12-sflex",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "SUPERFLEX": 1
+   },
+   "flexPos": null,
+   "replacementShipped": {
+    "QB": 22,
+    "RB": 25,
+    "WR": 37,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 22,
+    "RB": 25,
+    "WR": 37,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 12,
+    "flexSlotsAllocated": 12,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 12,
+    "flexSlotsAllocated": 12,
+    "sums": true
+   },
+   "ranksIdentical": true,
+   "board": {
+    "compared": 555,
+    "spearman": 1,
+    "kendallSwapsMoved": 0,
+    "identicalOrder": true,
+    "maxShiftAll": 0,
+    "maxVbdDelta": 0,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 50,
+      "membershipChanged": 0
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 0,
+    "posTierChanged": 0,
+    "moversTop50": []
+   }
+  },
+  "sl-12-2qb": {
+   "label": "shape-lab 12-2qb",
+   "teams": 12,
+   "starters": {
+    "QB": 2,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "flexPos": null,
+   "replacementShipped": {
+    "QB": 24,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 24,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 12,
+    "flexSlotsAllocated": 12,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 12,
+    "flexSlotsAllocated": 12,
+    "sums": true
+   },
+   "ranksIdentical": true,
+   "board": {
+    "compared": 555,
+    "spearman": 1,
+    "kendallSwapsMoved": 0,
+    "identicalOrder": true,
+    "maxShiftAll": 0,
+    "maxVbdDelta": 0,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 50,
+      "membershipChanged": 0
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 0,
+    "posTierChanged": 0,
+    "moversTop50": []
+   }
+  },
+  "14-2flex": {
+   "label": "14 lid, 2 FLEX (README-daemid)",
+   "teams": 14,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 2
+   },
+   "flexPos": [
+    "RB",
+    "WR",
+    "TE"
+   ],
+   "replacementShipped": {
+    "QB": 14,
+    "RB": 37,
+    "WR": 41,
+    "TE": 20,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 14,
+    "RB": 37,
+    "WR": 41,
+    "TE": 19,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 28,
+    "flexSlotsAllocated": 28,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 28,
+    "flexSlotsAllocated": 27,
+    "sums": false
+   },
+   "ranksIdentical": false,
+   "board": {
+    "compared": 555,
+    "spearman": 0.999752,
+    "kendallSwapsMoved": 280,
+    "identicalOrder": false,
+    "maxShiftAll": 18,
+    "maxVbdDelta": 1.7,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 12,
+      "membershipChanged": 0
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 0,
+      "maxShift": 0,
+      "meanShift": 0,
+      "membershipSame": 24,
+      "membershipChanged": 0
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 8,
+      "maxShift": 2,
+      "meanShift": 1.3,
+      "membershipSame": 50,
+      "membershipChanged": 0
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 35,
+      "maxShift": 5,
+      "meanShift": 1.5,
+      "membershipSame": 100,
+      "membershipChanged": 0
+     }
+    ],
+    "tierChanged": 0,
+    "posTierChanged": 0,
+    "moversTop50": [
+     {
+      "name": "Colston Loveland",
+      "pos": "TE",
+      "shipped": 26,
+      "legacy": 28,
+      "shift": 2
+     },
+     {
+      "name": "George Pickens",
+      "pos": "WR",
+      "shipped": 27,
+      "legacy": 26,
+      "shift": -1
+     },
+     {
+      "name": "Josh Allen",
+      "pos": "QB",
+      "shipped": 28,
+      "legacy": 27,
+      "shift": -1
+     },
+     {
+      "name": "Tyler Warren",
+      "pos": "TE",
+      "shipped": 36,
+      "legacy": 38,
+      "shift": 2
+     },
+     {
+      "name": "Chris Olave",
+      "pos": "WR",
+      "shipped": 37,
+      "legacy": 36,
+      "shift": -1
+     },
+     {
+      "name": "Bucky Irving",
+      "pos": "RB",
+      "shipped": 38,
+      "legacy": 37,
+      "shift": -1
+     },
+     {
+      "name": "Sam LaPorta",
+      "pos": "TE",
+      "shipped": 44,
+      "legacy": 45,
+      "shift": 1
+     },
+     {
+      "name": "Malik Nabers",
+      "pos": "WR",
+      "shipped": 45,
+      "legacy": 44,
+      "shift": -1
+     }
+    ]
+   }
+  },
+  "10-2flex-recflex": {
+   "label": "10 lid, 2 FLEX sem tekur adeins WR/TE",
+   "teams": 10,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 2,
+    "TE": 1,
+    "FLEX": 2
+   },
+   "flexPos": [
+    "WR",
+    "TE"
+   ],
+   "replacementShipped": {
+    "QB": 10,
+    "RB": 20,
+    "WR": 34,
+    "TE": 16,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 10,
+    "RB": 27,
+    "WR": 30,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 20,
+    "flexSlotsAllocated": 20,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 20,
+    "flexSlotsAllocated": 21,
+    "sums": false
+   },
+   "ranksIdentical": false,
+   "board": {
+    "compared": 555,
+    "spearman": 0.953199,
+    "kendallSwapsMoved": 506,
+    "identicalOrder": false,
+    "maxShiftAll": 137,
+    "maxVbdDelta": 34.5,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 12,
+      "maxShift": 10,
+      "meanShift": 4.4,
+      "membershipSame": 9,
+      "membershipChanged": 3
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 24,
+      "maxShift": 14,
+      "meanShift": 7.5,
+      "membershipSame": 18,
+      "membershipChanged": 6
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 50,
+      "maxShift": 21,
+      "meanShift": 10,
+      "membershipSame": 40,
+      "membershipChanged": 10
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 98,
+      "maxShift": 43,
+      "meanShift": 13.6,
+      "membershipSame": 90,
+      "membershipChanged": 10
+     }
+    ],
+    "tierChanged": 32,
+    "posTierChanged": 0,
+    "moversTop50": [
+     {
+      "name": "Puka Nacua",
+      "pos": "WR",
+      "shipped": 1,
+      "legacy": 4,
+      "shift": 3
+     },
+     {
+      "name": "Jahmyr Gibbs",
+      "pos": "RB",
+      "shipped": 2,
+      "legacy": 1,
+      "shift": -1
+     },
+     {
+      "name": "Ja'Marr Chase",
+      "pos": "WR",
+      "shipped": 3,
+      "legacy": 5,
+      "shift": 2
+     },
+     {
+      "name": "Bijan Robinson",
+      "pos": "RB",
+      "shipped": 4,
+      "legacy": 2,
+      "shift": -2
+     },
+     {
+      "name": "Jaxon Smith-Njigba",
+      "pos": "WR",
+      "shipped": 5,
+      "legacy": 10,
+      "shift": 5
+     },
+     {
+      "name": "Brock Bowers",
+      "pos": "TE",
+      "shipped": 6,
+      "legacy": 7,
+      "shift": 1
+     },
+     {
+      "name": "Amon-Ra St. Brown",
+      "pos": "WR",
+      "shipped": 7,
+      "legacy": 12,
+      "shift": 5
+     },
+     {
+      "name": "Christian McCaffrey",
+      "pos": "RB",
+      "shipped": 8,
+      "legacy": 3,
+      "shift": -5
+     },
+     {
+      "name": "CeeDee Lamb",
+      "pos": "WR",
+      "shipped": 9,
+      "legacy": 17,
+      "shift": 8
+     },
+     {
+      "name": "Trey McBride",
+      "pos": "TE",
+      "shipped": 10,
+      "legacy": 16,
+      "shift": 6
+     },
+     {
+      "name": "Jonathan Taylor",
+      "pos": "RB",
+      "shipped": 11,
+      "legacy": 6,
+      "shift": -5
+     },
+     {
+      "name": "Nico Collins",
+      "pos": "WR",
+      "shipped": 12,
+      "legacy": 22,
+      "shift": 10
+     },
+     {
+      "name": "Justin Jefferson",
+      "pos": "WR",
+      "shipped": 13,
+      "legacy": 24,
+      "shift": 11
+     },
+     {
+      "name": "Drake London",
+      "pos": "WR",
+      "shipped": 14,
+      "legacy": 25,
+      "shift": 11
+     },
+     {
+      "name": "A.J. Brown",
+      "pos": "WR",
+      "shipped": 15,
+      "legacy": 26,
+      "shift": 11
+     },
+     {
+      "name": "George Pickens",
+      "pos": "WR",
+      "shipped": 16,
+      "legacy": 27,
+      "shift": 11
+     },
+     {
+      "name": "Josh Allen",
+      "pos": "QB",
+      "shipped": 17,
+      "legacy": 21,
+      "shift": 4
+     },
+     {
+      "name": "Colston Loveland",
+      "pos": "TE",
+      "shipped": 18,
+      "legacy": 23,
+      "shift": 5
+     },
+     {
+      "name": "James Cook",
+      "pos": "RB",
+      "shipped": 19,
+      "legacy": 8,
+      "shift": -11
+     },
+     {
+      "name": "Ashton Jeanty",
+      "pos": "RB",
+      "shipped": 20,
+      "legacy": 9,
+      "shift": -11
+     },
+     {
+      "name": "Chase Brown",
+      "pos": "RB",
+      "shipped": 21,
+      "legacy": 11,
+      "shift": -10
+     },
+     {
+      "name": "Chris Olave",
+      "pos": "WR",
+      "shipped": 22,
+      "legacy": 36,
+      "shift": 14
+     },
+     {
+      "name": "Rashee Rice",
+      "pos": "WR",
+      "shipped": 23,
+      "legacy": 37,
+      "shift": 14
+     },
+     {
+      "name": "DeVonta Smith",
+      "pos": "WR",
+      "shipped": 24,
+      "legacy": 38,
+      "shift": 14
+     },
+     {
+      "name": "Tyler Warren",
+      "pos": "TE",
+      "shipped": 25,
+      "legacy": 29,
+      "shift": 4
+     },
+     {
+      "name": "Zay Flowers",
+      "pos": "WR",
+      "shipped": 26,
+      "legacy": 41,
+      "shift": 15
+     },
+     {
+      "name": "Ladd McConkey",
+      "pos": "WR",
+      "shipped": 27,
+      "legacy": 42,
+      "shift": 15
+     },
+     {
+      "name": "Malik Nabers",
+      "pos": "WR",
+      "shipped": 28,
+      "legacy": 43,
+      "shift": 15
+     },
+     {
+      "name": "Derrick Henry",
+      "pos": "RB",
+      "shipped": 29,
+      "legacy": 13,
+      "shift": -16
+     },
+     {
+      "name": "Saquon Barkley",
+      "pos": "RB",
+      "shipped": 30,
+      "legacy": 14,
+      "shift": -16
+     },
+     {
+      "name": "De'Von Achane",
+      "pos": "RB",
+      "shipped": 31,
+      "legacy": 15,
+      "shift": -16
+     },
+     {
+      "name": "Garrett Wilson",
+      "pos": "WR",
+      "shipped": 32,
+      "legacy": 44,
+      "shift": 12
+     },
+     {
+      "name": "Sam LaPorta",
+      "pos": "TE",
+      "shipped": 33,
+      "legacy": 34,
+      "shift": 1
+     },
+     {
+      "name": "Tee Higgins",
+      "pos": "WR",
+      "shipped": 34,
+      "legacy": 45,
+      "shift": 11
+     },
+     {
+      "name": "Emeka Egbuka",
+      "pos": "WR",
+      "shipped": 35,
+      "legacy": 46,
+      "shift": 11
+     },
+     {
+      "name": "Kenneth Walker",
+      "pos": "RB",
+      "shipped": 36,
+      "legacy": 18,
+      "shift": -18
+     },
+     {
+      "name": "Tetairoa McMillan",
+      "pos": "WR",
+      "shipped": 37,
+      "legacy": 48,
+      "shift": 11
+     },
+     {
+      "name": "Omarion Hampton",
+      "pos": "RB",
+      "shipped": 38,
+      "legacy": 19,
+      "shift": -19
+     },
+     {
+      "name": "Mike Evans",
+      "pos": "WR",
+      "shipped": 39,
+      "legacy": 49,
+      "shift": 10
+     },
+     {
+      "name": "Jaylen Waddle",
+      "pos": "WR",
+      "shipped": 40,
+      "legacy": 52,
+      "shift": 12
+     },
+     {
+      "name": "Jeremiyah Love",
+      "pos": "RB",
+      "shipped": 41,
+      "legacy": 20,
+      "shift": -21
+     },
+     {
+      "name": "Terry McLaurin",
+      "pos": "WR",
+      "shipped": 42,
+      "legacy": 55,
+      "shift": 13
+     },
+     {
+      "name": "Parker Washington",
+      "pos": "WR",
+      "shipped": 43,
+      "legacy": 56,
+      "shift": 13
+     },
+     {
+      "name": "Lamar Jackson",
+      "pos": "QB",
+      "shipped": 44,
+      "legacy": 51,
+      "shift": 7
+     },
+     {
+      "name": "Luther Burden",
+      "pos": "WR",
+      "shipped": 45,
+      "legacy": 58,
+      "shift": 13
+     },
+     {
+      "name": "Harold Fannin",
+      "pos": "TE",
+      "shipped": 46,
+      "legacy": 54,
+      "shift": 8
+     },
+     {
+      "name": "Rome Odunze",
+      "pos": "WR",
+      "shipped": 47,
+      "legacy": 59,
+      "shift": 12
+     },
+     {
+      "name": "Christian Watson",
+      "pos": "WR",
+      "shipped": 48,
+      "legacy": 60,
+      "shift": 12
+     },
+     {
+      "name": "Jameson Williams",
+      "pos": "WR",
+      "shipped": 49,
+      "legacy": 63,
+      "shift": 14
+     },
+     {
+      "name": "Drake Maye",
+      "pos": "QB",
+      "shipped": 50,
+      "legacy": 53,
+      "shift": 3
+     }
+    ]
+   }
+  },
+  "12-1flex-rbwr": {
+   "label": "12 lid, FLEX tekur adeins RB/WR",
+   "teams": 12,
+   "starters": {
+    "QB": 1,
+    "RB": 2,
+    "WR": 3,
+    "TE": 1,
+    "FLEX": 1
+   },
+   "flexPos": [
+    "RB",
+    "WR"
+   ],
+   "replacementShipped": {
+    "QB": 12,
+    "RB": 29,
+    "WR": 43,
+    "TE": 12,
+    "K": 0,
+    "DST": 0
+   },
+   "replacementLegacy": {
+    "QB": 12,
+    "RB": 28,
+    "WR": 42,
+    "TE": 14,
+    "K": 0,
+    "DST": 0
+   },
+   "auditShipped": {
+    "flexSlotsWanted": 12,
+    "flexSlotsAllocated": 12,
+    "sums": true
+   },
+   "auditLegacy": {
+    "flexSlotsWanted": 12,
+    "flexSlotsAllocated": 12,
+    "sums": true
+   },
+   "ranksIdentical": false,
+   "board": {
+    "compared": 555,
+    "spearman": 0.998593,
+    "kendallSwapsMoved": 413,
+    "identicalOrder": false,
+    "maxShiftAll": 27,
+    "maxVbdDelta": 3,
+    "top": [
+     {
+      "n": 12,
+      "inScope": 12,
+      "moved": 2,
+      "maxShift": 1,
+      "meanShift": 1,
+      "membershipSame": 11,
+      "membershipChanged": 1
+     },
+     {
+      "n": 24,
+      "inScope": 24,
+      "moved": 12,
+      "maxShift": 3,
+      "meanShift": 1.7,
+      "membershipSame": 23,
+      "membershipChanged": 1
+     },
+     {
+      "n": 50,
+      "inScope": 50,
+      "moved": 27,
+      "maxShift": 5,
+      "meanShift": 2,
+      "membershipSame": 48,
+      "membershipChanged": 2
+     },
+     {
+      "n": 100,
+      "inScope": 100,
+      "moved": 65,
+      "maxShift": 9,
+      "meanShift": 2.5,
+      "membershipSame": 98,
+      "membershipChanged": 2
+     }
+    ],
+    "tierChanged": 15,
+    "posTierChanged": 0,
+    "moversTop50": [
+     {
+      "name": "Ashton Jeanty",
+      "pos": "RB",
+      "shipped": 11,
+      "legacy": 12,
+      "shift": 1
+     },
+     {
+      "name": "Chase Brown",
+      "pos": "RB",
+      "shipped": 12,
+      "legacy": 13,
+      "shift": 1
+     },
+     {
+      "name": "Brock Bowers",
+      "pos": "TE",
+      "shipped": 13,
+      "legacy": 11,
+      "shift": -2
+     },
+     {
+      "name": "Derrick Henry",
+      "pos": "RB",
+      "shipped": 14,
+      "legacy": 15,
+      "shift": 1
+     },
+     {
+      "name": "Saquon Barkley",
+      "pos": "RB",
+      "shipped": 15,
+      "legacy": 16,
+      "shift": 1
+     },
+     {
+      "name": "De'Von Achane",
+      "pos": "RB",
+      "shipped": 16,
+      "legacy": 19,
+      "shift": 3
+     },
+     {
+      "name": "Nico Collins",
+      "pos": "WR",
+      "shipped": 17,
+      "legacy": 14,
+      "shift": -3
+     },
+     {
+      "name": "Kenneth Walker",
+      "pos": "RB",
+      "shipped": 18,
+      "legacy": 20,
+      "shift": 2
+     },
+     {
+      "name": "Justin Jefferson",
+      "pos": "WR",
+      "shipped": 19,
+      "legacy": 17,
+      "shift": -2
+     },
+     {
+      "name": "Drake London",
+      "pos": "WR",
+      "shipped": 20,
+      "legacy": 18,
+      "shift": -2
+     },
+     {
+      "name": "George Pickens",
+      "pos": "WR",
+      "shipped": 23,
+      "legacy": 24,
+      "shift": 1
+     },
+     {
+      "name": "Jeremiyah Love",
+      "pos": "RB",
+      "shipped": 24,
+      "legacy": 25,
+      "shift": 1
+     },
+     {
+      "name": "Trey McBride",
+      "pos": "TE",
+      "shipped": 25,
+      "legacy": 23,
+      "shift": -2
+     },
+     {
+      "name": "Garrett Wilson",
+      "pos": "WR",
+      "shipped": 33,
+      "legacy": 34,
+      "shift": 1
+     },
+     {
+      "name": "Tee Higgins",
+      "pos": "WR",
+      "shipped": 34,
+      "legacy": 35,
+      "shift": 1
+     },
+     {
+      "name": "Emeka Egbuka",
+      "pos": "WR",
+      "shipped": 35,
+      "legacy": 36,
+      "shift": 1
+     },
+     {
+      "name": "Colston Loveland",
+      "pos": "TE",
+      "shipped": 36,
+      "legacy": 33,
+      "shift": -3
+     },
+     {
+      "name": "Breece Hall",
+      "pos": "RB",
+      "shipped": 39,
+      "legacy": 40,
+      "shift": 1
+     },
+     {
+      "name": "Jaylen Waddle",
+      "pos": "WR",
+      "shipped": 40,
+      "legacy": 39,
+      "shift": -1
+     },
+     {
+      "name": "Kyren Williams",
+      "pos": "RB",
+      "shipped": 42,
+      "legacy": 44,
+      "shift": 2
+     },
+     {
+      "name": "Travis Etienne",
+      "pos": "RB",
+      "shipped": 43,
+      "legacy": 46,
+      "shift": 3
+     },
+     {
+      "name": "Javonte Williams",
+      "pos": "RB",
+      "shipped": 44,
+      "legacy": 47,
+      "shift": 3
+     },
+     {
+      "name": "Terry McLaurin",
+      "pos": "WR",
+      "shipped": 45,
+      "legacy": 42,
+      "shift": -3
+     },
+     {
+      "name": "D'Andre Swift",
+      "pos": "RB",
+      "shipped": 46,
+      "legacy": 48,
+      "shift": 2
+     },
+     {
+      "name": "Parker Washington",
+      "pos": "WR",
+      "shipped": 47,
+      "legacy": 45,
+      "shift": -2
+     },
+     {
+      "name": "Josh Jacobs",
+      "pos": "RB",
+      "shipped": 48,
+      "legacy": 53,
+      "shift": 5
+     },
+     {
+      "name": "David Montgomery",
+      "pos": "RB",
+      "shipped": 50,
+      "legacy": 54,
+      "shift": 4
+     }
+    ]
+   }
+  }
+ },
+ "summary": {
+  "shapesMeasured": 13,
+  "shapesWhereRanksChange": 6,
+  "shapesWhereSlotsDoNotSumLegacy": 5,
+  "shapesWhereSlotsDoNotSumShipped": 0,
+  "realLeagues": {
+   "10-2flex": {
+    "ranksIdentical": false,
+    "spearman": 0.999262,
+    "movedTop50": 20,
+    "maxShiftTop50": 5,
+    "membershipChangedTop50": 1,
+    "boardIdentical": false
+   },
+   "12-2flex": {
+    "ranksIdentical": true,
+    "spearman": 1,
+    "movedTop50": 0,
+    "maxShiftTop50": 0,
+    "membershipChangedTop50": 0,
+    "boardIdentical": true
+   }
+  }
+ }
+}

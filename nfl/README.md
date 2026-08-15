@@ -185,17 +185,17 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 
 | hugmynd | niðurstaða |
 |---|---|
-| **Ólínulegur aldursferill per stöðu** (`agecurve-lab.mjs`) | **HAFNAÐ.** Hrá leit jákvæð 8/10; **walk-forward jákvæð 4/10 og marktæk 0/10**, tvö hólf marktækt *negatíf*; LOSO 2/10. Valda fjölskyldan hoppar milli ára í hverju hólfi — sama undirskrift og CLAUDE.md 3 flaggar. `deltaR2` net of ADP er negatíft í **öllum 48 hólfum** |
-| **Annar VBD-grunnur** (`vbdbase-lab.mjs`) | **HAFNAÐ — og fann VILLU.** 16 afbrigði × 3 lögun × 3 stigagjafir: **0 af 153 hólfum standast bootstrap klasaðan PER LEIKMANN**, þótt **29 standist** hann klasaðan eftir tímabili. Sjá 4b — það er sjálfstætt mikilvægasta aðferðar-atriðið hér |
-| **`minGain` í waiver-ráðgjöfinni** (`waiver-lab.mjs`) | **ÓMÆLANLEGT, og það er svarið.** Gólf 0 − gólf 10 = **+0,5**, CI [−0,7 · +1,8]; walk-forward slær ekki gólf 0. `measured: false` **stendur** — gildið er val innan mældrar afskiptaleysis-bandar. Sjá 4g |
-| **Rest-of-season sem gjaldmiðill** (`waiver-lab.mjs`) | **STENST** (+13,2 stig/tímabil, t=2,97, 6/7, CI [5,9 · 22,2], 17/18 hólf) — **en ekki tengjanlegt**: þarf vikurnar sem eftir eru, sem appið hefur ekki. Vikuleg spá sem gjaldmiðill er **mæld dauð** (−74,6). Sjá 4g |
+| **Ólínulegur aldursferill per stöðu** (`agecurve-lab.mjs`) | **HAFNAÐ.** Hrá leit jákvæð 8/10; **walk-forward jákvæð 4/10 og marktæk 1/10** (var 0/10 fyrir flex-lagfæringuna 14.8., sjá 4b-2 — hólfið sem breyttist er `sleeper\|ppr\|10-2flex`), tvö hólf marktækt *negatíf*; LOSO 3/10 (var 2/10). Valda fjölskyldan hoppar milli ára í hverju hólfi — sama undirskrift og CLAUDE.md 3 flaggar. `deltaR2` net of ADP er negatíft í **öllum 48 hólfum** |
+| **Annar VBD-grunnur** (`vbdbase-lab.mjs`) | **HAFNAÐ — og fann VILLU.** 16 afbrigði × 3 lögun × 3 stigagjafir: **0 af 153 hólfum standast bootstrap klasaðan PER LEIKMANN**, þótt **28 standist** hann klasaðan eftir tímabili. Sjá 4b — það er sjálfstætt mikilvægasta aðferðar-atriðið hér |
+| **`minGain` í waiver-ráðgjöfinni** (`waiver-lab.mjs`) | **ÓMÆLANLEGT Á SENDU REGLUNNI, og það er svarið.** Gólf 0 − gólf 10 = **−0,4**, CI [−2,1 · +1,4] (var +0,5, CI [−0,7 · +1,8] fyrir flex-lagfæringuna 14.8. — sjá 4g). `measured: false` **stendur** — gildið er val innan mældrar afskiptaleysis-bandar. Sjá 4g |
+| **Rest-of-season sem gjaldmiðill** (`waiver-lab.mjs`) | **STENST** (+13,6 stig/tímabil, t=3,33, 7/7, CI [7,1 · 21,9], 17/18 hólf) — **en ekki tengjanlegt**: þarf vikurnar sem eftir eru, sem appið hefur ekki. Vikuleg spá sem gjaldmiðill er **mæld dauð** (−74,1). Sjá 4g |
 | **Notkun það sem er liðið af tímabilinu** (`usage-lab.mjs`) | **STENST — fyrsti vinningurinn.** `opp_prior` lokar **12,25 / 10,75 / 10,76%** af bilinu á móti 5,83 / 3,20 / 2,97, og **per-leikmanns CI útilokar núll í öllum þremur**. Ferillinn er niðurstaðan: **ekkert í vikum 1–4, +12,3 pp í vikum 10+** (6/6 tímabil). Sjá 4e — **ekki tengt enn**, plumbing vantar |
 | **Markaðurinn umfram `implied`** (`mktweek-lab.mjs`) | **FELLUR.** 0 af 45 hólfum standast öll fjögur skilyrðin i neinu sniði. Og **leikjaflæðis-folkloreið er RANGT**: hver staða gerir BETUR sem favorít, engin gerir betur á eftir — QB sem 10+ undirdogg er **−1,12**. Ósamhverfa: **12 af 12 CI innihalda núll** |
 | **Availability-taflan** (`avail-lab.mjs`) | **ÁGISKAÐA TAFLAN STENDUR.** Engin mæld tafla slær hana í neinu sniði. `Questionable = 0,75` er kvarðað 0,666 en ákvörðunin er **flöt**; `Doubtful` 0,25 á móti 0,009 er 28× skekkja sem kostar 0,143 pp. `practice_status` gefur upplýsingar en **ekki ákvarðanir** (+0,44 pp, CI innihaldur núll). **OG ÞAÐ AFHJÚPAÐI AÐ `gap-lab` ER BLINT Á AVAILABILITY** — sjá 4i |
 | **Handcuff / varamaður** (`handcuff-lab.mjs`) | **INNSAEI NOTANDANS VAR RETT OG STAERRA EN ÞAD HLJOMAR.** Fjarvistar-spikid er raunverulegt (QB +9,32, RB +4,86 yfir varamannsins eigin grunnlinu) en vikuna sem byrjunarmadurinn kemur til baka lifir adeins **19,6% (QB) / 8,1% (RB) / 2,0% (WR)** — og i raunverulegu akvordunininni er hann kominn aftur i 16–44% tilvika STRAX naestu viku, thar sem varamadurinn skorar **−11,77 (QB) / −2,53 (RB) / −5,01 (TE)**. „Hann skoradi vel i sidustu viku" er thvi EITRAD sem pickup-maelikvardi. **Appid er thegar rett** (`vbd`, ekki vikuleg stig) svo ekkert var tengt — sja 4j |
 | **Vörn gegn stöðu, sundurliðuð** (`defweek-lab.mjs`) | **FELLUR — 0 af 2.700 hólfum.** Andstæðings-leiðrétting **skaðar** (marktækt í half, t −5,87). Íhlutir flytjast ekki. `DEF_WEIGHT = 0,20` stendur. **OG ÞAÐ FANN VILLU Í MÆLIKVARÐANUM:** birta talan 5,831% var sjálf-smituð; hrein walk-forward er **3,482%**. Sjá 4h |
 | **Hvar liggja 94%** (`gap-lab.mjs`) | **Þakið er 29,3%** (TD 18,9 + nýtni 10,4). Vörn er **NULL-flaska** (enrichment 0,96×). Röð: availability → hlutverk → vörn ekki neitt. Sjá 4f |
-| **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+24,4 stig**, t=2,275, 8/11 ár, CI [+3,7, +43,7], einræn 4/4. Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
+| **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+23,8 stig**, t=2,286, 8/11 ár, CI [+3,7, +42,4], einræn 4/4 (endurmælt 14.8., var +24,4 / CI [+3,7, +43,7] — sjá 4b-2). Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
 | **Óvissu-háð hnignun spárinnar** (`shrink-lab.mjs`) | **HAFNAÐ.** 12 óvissu-mælar × 3 forgildi × 6 vogir: **0 af 36 samsetningum jákvæðar í öllum 10 hólfum á báðum spáheimildum**. Besta samkvæma hrifin +0,5 stig af ~1900. Marktækni í **0/14** hólfum (besta \|t\| = 3,4 gegn kröfu 4,5–5,7) |
 | **Vikulegar viðureignir í stað stiga** (`h2h-lab.mjs`) | **NULL-NIÐURSTAÐA, OG HÚN ER VERÐMÆT: stigin voru fullnægjandi staðgengill allan tímann.** A-Ranking gegn ADP heldur á SIGRUM (**+2,4 til +3,8 af 14**, marktækt í 4/4 lögnum, met 9,6-4,4 á móti 7,2-6,8) og stiga-dálkurinn endurgerir bókuðu +233,6 sem **+223**. Stefnu-röðin færist ekki: rho(sigrar, stig) = **0,961–0,989** á móti sjálfsáreiðanleika 0,935–0,968 — og **rho(stig, bókuð röð) er LÆGRA (0,768–0,828)**, svo mælikvarðinn færir röðina minna en hermirinn gerir. **Meistaraprósenta ber ekki merkið** í 5 tímabilum (+17,8pp, CI innihaldur núll) þótt „komast í úrslitakeppni" geri það (+35,1pp). Sjá 5n |
 
@@ -263,9 +263,9 @@ Ein breyta af ellefu stóðst öll fjögur skilyrðin — `prevCarG` — og hún
 
 | # | varnagli |
 |---|---|
-| 1 | **Ábatinn er EKKI í toppnum.** `all` +30,5 · `top100` +30,6 · **`top50` aðeins +12,0** (t=1,79). Hún vinnur í sætum 50–150 — miðjuumferðir, ekki þar sem draftið er ákveðið |
-| 2 | **Ómarktæk í þeirri heimild sem appið notar.** FFToday 2015–20: +28,6 (5/6, t=2,35). **Sleeper 2021–25: +19,3 (3/5, t=0,97)** — sami veggur og 5b/5e: fimm tímabil |
-| 3 | **Marginal gegn placebo:** +24,4 á móti placebo-þaki **+21,7** |
+| 1 | **Ábatinn er EKKI í toppnum.** `all` +29,8 · `top100` +30,2 · **`top50` aðeins +11,4** (t=1,69). Hún vinnur í sætum 50–150 — miðjuumferðir, ekki þar sem draftið er ákveðið |
+| 2 | **Ómarktæk í þeirri heimild sem appið notar.** FFToday 2015–20: +26,8 (5/6, t=2,31). **Sleeper 2021–25: +20,2 (3/5, t=1,02)** — sami veggur og 5b/5e: fimm tímabil |
+| 3 | **Marginal gegn placebo:** +23,8 á móti placebo-þaki **+21,3** |
 | 4 | **Fylgnin hefur ANDSTÆTT formerki.** Fylgni `prevCarG` við leif spárinnar er **−0,052**. Jákvæð ákvörðun, negatíf fylgni, í sama skripti — það er repo-ið eigin regla („hærri fylgni ≠ betri ákvörðun"), en það þýðir líka að **mekanisminn er óskýrður** |
 | 5 | **Mekanisminn er líklega ekki „tækifæri".** Per stöðu lifir merkið í **RB og QB**; `prevCarG` er ~0 fyrir nánast hvern WR/TE. Líklegasta lesningin er **RB-vinnuálag + hlaupandi QB**, ekki tækifæri í heild. Óprófað |
 
@@ -274,8 +274,8 @@ Ein breyta af ellefu stóðst öll fjögur skilyrðin — `prevCarG` — og hún
 **Átta placebo-breytur — ákveðinn hávaði — voru keyrðar gegnum sama netið.** Þær
 ná einstöku hólfi með **\|t\| = 3,50 og +58,2 stig**, og 2–24 placebo-hólf per
 lögun/snið koma út „marktæk". **Eitt jákvætt marktækt hólf er það sem hávaði
-lítur út eins og hér.** Pooled gefa þær meðaltal −1,2, sd 9,2, hámark
-\|t\| = **1,268** og forspárbil **[−24,2, +21,7]**.
+lítur út eins og hér.** Pooled gefa þær meðaltal −1,1, sd 8,9, hámark
+\|t\| = **1,227** og forspárbil **[−23,4, +21,3]**.
 
 Án þeirrar familíu hefði per-hólfs taflan stutt nánast hvaða niðurstöðu sem er —
 og fyrsta 4-tímabila keyrslan hafði **10 af 11** breytum jákvæðar og hækkandi í
@@ -289,19 +289,21 @@ og þar með mælt ekkert. Placebo-þakið kemur í staðinn.
 sömu leikmenn, sömu vogir, sama lögun, aðeins stigagjöfin ólík: ppr > standard í
 **3 af 11** breytum (sign-test p = 0,97 — ef eitthvað er þá hið gagnstæða), full
 röðun ppr > half > standard í **0 af 11**, og ppr−standard sem útilokar núll í
-**1 af 11** — á móti **1 af 8 placebo-um**, sem er nákvæmlega fals-jákvæðnin.
+**0 af 11** — á móti **1 af 8 placebo-um**, sem er nákvæmlega fals-jákvæðnin.
+(Var **1 af 11**, `prevTeamPassRate`, fyrir 14.8.; það hólf hvarf við
+flex-lagfæringuna og **niðurstaðan styrktist** — hún var alltaf sú sama.)
 Móttökur skora 1,0 í PPR og ~0 í standard; væri þetta móttöku-tækifæri hefði
 mismunurinn sýnt það. **Það er engin mæld ástæða til að bera ólíka vog per
 stigagjöf.**
 
-**Magn á móti nýtni — xGI-slær-xG hliðstæðan flyst EKKI.** volume +8,7
-(t=1,73) · efficiency **+9,6 (t=2,40, CI [+1,9, +17,3])** · context −21,0 ·
-trend +6,4. **volume − efficiency = −0,9, t=−0,15** — ógreinanlegt, og nýtnin er
+**Magn á móti nýtni — xGI-slær-xG hliðstæðan flyst EKKI.** volume +8,5
+(t=1,72) · efficiency **+9,9 (t=2,46, CI [+2,2, +17,5])** · context −19,8 ·
+trend +6,6. **volume − efficiency = −1,5, t=−0,24** — ógreinanlegt, og nýtnin er
 nafnbótarlega **þéttari**. Í FPL var magn-slær-nýtni **mæld ákvörðun**; hér er
 hún það ekki.
 
 `prevTeamPassRate` er skýrasta negatífa niðurstaðan: jákvæð vog kostar
-**−21,0 stig** (−30,7 í PPR), einræn 4/4 — eina „context"-breytan og það versta í
+**−19,8 stig** (−29,8 í PPR), einræn 4/4 — eina „context"-breytan og það versta í
 töflunni.
 
 > **HEIÐARLEGT DEBET, skráð í skrána sjálfa:** negatífi helmingur vog-netsins var
@@ -501,35 +503,62 @@ einokun á lausum mönnum, ekki reglan.
 
 #### Gólfið er ÓMÆLANLEGT — og það er svarið
 
-- Parað á sömu dröftum: **gólf 0 − gólf 10 = +0,5 stig á tímabili, CI [−0,7 · +1,8]**
-- Walk-forward val á gólfinu **slær ekki gólf 0**: +3,9 (t=1,37) í 10-liða PPR,
-  +1,3 (t=0,48) í 12-liða half
+- Parað á sömu dröftum, **á sendu reglunni** (`seasonVbd`, gólf 10):
+  **gólf 0 − gólf 10 = −0,4 stig á tímabili, t=−0,37, CI [−2,1 · +1,4]**
+- Walk-forward val á gólfinu **slær ekki gólf 0 í 12-liða half**: +1,3 (t=0,48)
 - Deildirnar **vilja ekki mælanlega ólík gólf**
 
 `10` er þess vegna **nákvæmlega eins defensíbelt og 0**, og `measured: false`
 **stendur** — en ekki lengur af vanrækslu. Gildið er val **innan mældrar
 afskiptaleysis-bandar**, sem er annað og heiðarlegra en óskoðuð ágiskun.
 
+> **ÞESSAR TÖLUR HREYFÐUST 14.8.2026 OG EIN ÞEIRRA SKIPTI HLIÐ.** Flex-úthlutunin
+> var lagfærð (4b-2) og WR-þrepið í 10-liða deildinni fór úr WR30 í WR29. Áður
+> stóð hér: gólf 0 − gólf 10 = **+0,5, CI [−0,7 · +1,8]**, og *„walk-forward val
+> á gólfinu slær ekki gólf 0: **+3,9 (t=1,37)** í 10-liða PPR"*. Eftir
+> lagfæringuna er 10-liða talan **+3,3 en t=2,29**, sem fer yfir `t > 2`-hliðið í
+> `waiver-lab`, svo `verdict.minGainMeasurable` **fór úr `false` í `true`**.
+>
+> **NIÐURSTAÐA APPSINS BREYTIST SAMT EKKI, og hér er af hverju — þrennt:**
+> **(1)** Hliðið mælist á þeirri **gjaldmiðils-mynd sem deildin vinnur á**, og
+> það er `rosVbd` — sem er **ekki tengdur** (gögnin eru ekki til, sjá næsta
+> undirkafla). **Senda reglan** (`seasonVbd`) er áfram ómælanleg og CI hennar
+> inniheldur núll. **(2)** Það gerist í **einni** deild af tveimur; 12-liða
+> deildin er bitaeins óbreytt. **(3)** Hliðið er `t > 2`, sem er **lausara en
+> t-taflan sem þetta repo notar annars staðar** (7 tímabil → 2,447); við þann
+> þröskuld hefði ekkert skipt hlið.
+>
+> **Og lærdómurinn er stærri en talan:** hólf sem færist úr t=1,37 í t=2,29 við
+> það eitt að varamanns-þrep WR færist um **eitt sæti** var aldrei sterk
+> vísbending. Þetta er sama undirskrift og placebo-familían í 4d — *eitt jákvætt
+> marktækt hólf er það sem hávaði lítur út eins og hér.*
+
 > **EITT SKILYRT ATRIÐI FYLGIR:** verði `currency` að rest-of-season byrjar
-> **ALGILT** gólf að skaða (gólf 0 − gólf 10 = **+5,4**, CI [2,2 · 8,2]) og verður
-> þá að vera **hlutfallsreiknað** á vikurnar sem eftir eru.
+> **ALGILT** gólf að skaða (gólf 0 − gólf 10 = **+7,1**, CI [3,8 · 10,0]; var
+> +5,4, CI [2,2 · 8,2]) og verður þá að vera **hlutfallsreiknað** á vikurnar sem
+> eftir eru. Áttin og niðurstaðan eru óbreyttar, talan er stærri.
 
 #### Gjaldmiðillinn — tvær mældar niðurstöður, önnur nothæf
 
 | samanburður | stig/tímabil | t | ár | CI |
 |---|---|---|---|---|
-| **rosVbdPro − seasonVbd** | **+13,2** | **2,97** | **6/7** | **[5,9 · 22,2]** |
-| rosVbd − seasonVbd | +12,3 | 2,70 | — | [4,9 · 21,6] |
-| weekVbd − seasonVbd | **−74,6** | — | — | [−91 · −57] |
-| weekRaw − weekVbd | **−118** | — | — | — |
+| **rosVbdPro − seasonVbd** | **+13,6** | **3,33** | **7/7** | **[7,1 · 21,9]** |
+| rosVbd − seasonVbd | +13,3 | 3,52 | 7/7 | [7,3 · 21,1] |
+| weekVbd − seasonVbd | **−74,1** | −7,76 | 0/7 | [−90,6 · −56,2] |
+| weekRaw − weekVbd | **−115,7** | −17,72 | 0/7 | [−128,9 · −104,5] |
+
+> Endurmælt 14.8.2026 eftir flex-lagfæringuna (4b-2). Áður: **+13,2** (t 2,97,
+> 6/7, [5,9 · 22,2]) · +12,3 · −74,6 · −118. **Hver einasta stefna og hver
+> einasta ályktun stendur**; ROS fer úr 6/7 í **7/7** og t hækkar. Munurinn
+> kemur eingöngu úr `10-2flex`-hólfunum — 12-liða hólfin eru bitaeins.
 
 **Vikuleg spá sem gjaldmiðill er MÆLD DAUÐ** — að elta eina viku þyrlar burt
 tímabils-virði — og að sleppa varamanns-þrepinu alveg (hrá vikuleg stig) er
 −118 til viðbótar. Það staðfestir sjálfstætt það sem `WAIVER_CAL.currency` hélt
 þegar fram: **ábatinn verður að vera í VBD**.
 
-**Rest-of-season vinnur samt yfir tímabils-VBD** (+13,2, jákvætt í **17 af 18**
-hólfum) og það er **ekki tengt af því að gögnin eru ekki komin**: það þarf
+**Rest-of-season vinnur samt yfir tímabils-VBD** (+13,6, jákvætt í **17 af 18**
+hólfum, 8 þeirra marktæk hvert fyrir sig — var 6) og það er **ekki tengt af því að gögnin eru ekki komin**: það þarf
 vikurnar sem eftir eru og notkun-til-þessa á bak við þær. `data/weekly/` stoppar
 í 2025 — **2026 hefur ekki verið spilað** — en leiðin að skránni er komin:
 `data.js` ber `loadWeekly(season)` og pípan skrifar yfirstandandi tímabil (sjá
@@ -539,9 +568,9 @@ prófanleg í viku 2. Sama plumbing og 4e þarf — og hún þjónar báðum.
 
 #### „Gera ekkert" er rétt oftar en maður vill
 
-- **42,9%** af öllum 2.205 hólfum
-- Reglan skilar **tómum lista** í **34,5%** af hóp-vikum (`seasonVbd@10`)
-- Aðeins **~60%** af framkvæmdum skiptum voru rétt eftir á
+- **43,4%** af öllum 2.205 hólfum (var 42,9% fyrir 14.8.)
+- Reglan skilar **tómum lista** í **34,7%** af hóp-vikum (`seasonVbd@10`)
+- Aðeins **~62%** af framkvæmdum skiptum voru rétt eftir á (`seasonVbd`)
 - Vikulegt vinningshlutfall gegn aðgerðalausu sæti er aðeins **51–53%**
 
 Svo `pickupAdvice` sem skilar `[]` er **algengt og rétt**, og forsíðan segir það
@@ -549,10 +578,18 @@ berum orðum.
 
 #### Mótherjarnir hálfa áhrifin
 
-Aðgerðalaus mótherja-völlur á móti virkum: **+9 til +34 stig** (meðaltal ≈ +24).
-Season-VBD í 12-half fer **23,6 → 45,4** ef aðeins mitt lið vinnur vírinn. Hefði
-hermunin sleppt því hefðu **allar tölur hér lesið um tvöfalt hærra** — sama villa
-og stöðuþak-aðeins-á-okkar-liði í `accuracy.js`.
+Aðgerðalaus mótherja-völlur á móti virkum: **0 til +34 stig** yfir 27 VBD-hólf
+(meðaltal +18,4). Season-VBD í 12-half fer **23,6 → 45,4** ef aðeins mitt lið
+vinnur vírinn. Hefði hermunin sleppt því hefðu **allar tölur hér lesið um
+tvöfalt hærra** — sama villa og stöðuþak-aðeins-á-okkar-liði í `accuracy.js`.
+
+> Bilið stóð sem **+9 til +34 (meðaltal ≈ +24)**; neðra markið var endurmælt
+> 14.8. og fór í **+0,3** (`10-2flex|half|rosVbdPro`). Meðaltalið hreyfist varla
+> (19,0 → 18,4) og **12-liða hólfin níu eru bitaeins** — allur munurinn er í
+> `10-2flex`, sem er lögnin sem flex-lagfæringin snerti (4b-2). **Áhrifin eru
+> ekki lengur með gólf**, og það er rétt lesning: í einstöku hólfi er
+> mótherja-áhrifið hverfandi. Fullyrðingin sem stendur er **stefnan og
+> meðaltalið**, ekki lægsta talan.
 
 > **VARNAGLI SEM VERÐUR AÐ FYLGJA:** röðin `ros > season > week` heldur í **5 af 6**
 > næmis-afbrigðum og **flettist við k=8** í 12-half (ROS +7,8 á móti season +17,7).
@@ -1040,22 +1077,226 @@ síðast og birtist sem „—". Vörður: `model.mjs`, prófað í **báðar á
 eitt væri satt um app sem gefur K aldrei neitt, og þá væri 10-liða deildin hans
 brotin án að nokkuð segði frá. Þrjár stökkbreytingar felldar.
 
-> **TVENNT ANNAÐ FANNST OG VAR EKKI BREYTT**, því hvort um sig hreyfir **hvert
-> varamanns-þrep** og þar með allar mælingar sem `shapes_sleeper.json` og
-> `half.json` bera:
+> **TVENNT ANNAÐ FANNST OG VAR EKKI BREYTT** (11.–13.8.), því hvort um sig
+> hreyfir **hvert varamanns-þrep** og þar með allar mælingar sem
+> `shapes_sleeper.json` og `half.json` bera:
 > - `replacementRanks` úthlutar flex-sætum með `Math.round` **per stöðu**, svo
 >   úthlutuðu sætin summast ekki: 10-liða 2FLEX fær **21 sæti fyrir 20**
 >   (RB 7 + WR 10 + TE 4), 14-liða 2FLEX fær **27 fyrir 28**.
 > - `league.flexPos` er **hunsað**: `FLEX_SPLIT` er harðkóðað RB/WR/TE, svo
 >   `REC_FLEX`-deild myndi samt ýta RB dýpra. Hvorugt er lifandi í deildum
 >   notandans (báðar nota RB/WR/TE-flex).
+>
+> **BÁÐAR VORU MÆLDAR OG BÁÐAR LAGFÆRÐAR 14.8.2026 — sjá 4b-2.** Ástæðan til að
+> láta þær standa var að lagfæringin gæti ómerkt allt sem var mælt. Sú áhyggja
+> var **rétt en ómæld**, og ómæld áhyggja er sama tegund af tölu og ómæld vog:
+> hún getur verið bæði stór og lítil og ekkert í skjalinu greindi þar á milli.
+
+### 4b-2. FLEX-SÆTIN SUMMUÐUST EKKI — mælt 14.8.2026, og LAGFÆRT
+
+Spurningin var einföld og hún hafði ekki verið spurð: **hreyfist borðið?**
+`scripts/flexsplit-lab.mjs` svarar henni. Gamla hegðunin er geymd í
+`scripts/lib/flexsplit-legacy.mjs` **nákvæmlega þess vegna** — spurningin er
+ósvaranleg eftir á nema báðir armarnir séu til, og lab sem bæri núverandi kóða
+við sjálfan sig fengi rho = 1,000 af rangri ástæðu.
+
+**Harness:** `buildRows` — app-leiðin, 555 raðir með `aRank`, `players.json`
+sha1 `6b3459ff55f7`, 14.8.2026. Legacy-armurinn er settur inn með **textaskiptum
+úr `src/model.js`** í hverri keyrslu, svo hann getur ekki rekið frá honum; tvö
+hlið deyja fremur en að mæla kóðann gegn sjálfum sér.
+
+#### Fyrst: hvað er rangt, og hversu einhliða það er
+
+Sætin summuðust ekki í **5 af 13** lögnum, og `flexPos` var hunsað í einni til
+viðbótar. Og það er **ekki námundunarsuð heldur skekkja með formerki** — í
+10-liða deildinni fór aukasætið **allt á WR**:
+
+| lögn | gamalt | rétt (Hamilton) | sæti |
+|---|---|---|---|
+| **10-liða 2FLEX (Patriots)** | RB 27 · **WR 30** · TE 14 | RB 27 · **WR 29** · TE 14 | **21 fyrir 20** |
+| 8-liða 1FLEX | RB 19 · WR 28 · **TE 10** | RB 19 · WR 28 · **TE 9** | 9 fyrir 8 |
+| 14-liða 1FLEX | **RB 33** · WR 49 · TE 17 | **RB 32** · WR 49 · TE 17 | 15 fyrir 14 |
+| 14-liða 2FLEX | RB 37 · WR 41 · **TE 19** | RB 37 · WR 41 · **TE 20** | 27 fyrir 28 |
+| 10-liða 2FLEX, flex tekur WR/TE | RB 27 · WR 30 · TE 14 | **RB 20** · WR 34 · TE 16 | 21 fyrir 20 **og** `flexPos` |
+| 12-liða 1FLEX, flex tekur RB/WR | RB 28 · WR 42 · **TE 14** | RB 29 · WR 43 · **TE 12** | summaðist, en `flexPos` hunsað |
+
+`WRRB_FLEX` og `REC_FLEX` eru **raunverulegir Sleeper-reitir** sem
+`startersFromRoster` þekkir nú þegar (`FLEX_KINDS`), svo seinni villan var
+aðgengileg úr hvaða innfluttri deild sem er — hún var bara ekki í þessum tveimur.
+
+> **OG APPIÐ VAR ÓSAMKVÆMT VIÐ SJÁLFT SIG:** `lineup.js` (`slotsFor`) og
+> `accuracy.js` (`startersRaw`) **lásu `flexPos` allan tímann** þegar þau fylltu
+> byrjunarliðið; það var **eingöngu VBD-grunnlínan** sem gerði það ekki. Deild
+> með `REC_FLEX` stillti því upp réttu liði og verðlagði það á röngum varamanni.
+> Vörður: `tests/model.mjs` kafli 8b, liður (c).
+
+> **OG LAGFÆRINGIN OPNAÐI SJÁLF ÞRIÐJU MYNDINA AF SÖMU VILLU — fundin við
+> yfirferð 15.8.2026, löguð í sömu ferð.** Síunin `flexPos.filter((p) =>
+> FLEX_SPLIT[p] > 0)` gat skilað **tómum lista** — `["QB"]`, `["K","DST"]`,
+> eða einfaldlega lágstafir, því `normalizeLeague` hleypir **hverjum streng**
+> í gegn. Tómur listi gefur `apportion` engan lykil, hann skilar `{}`, og
+> **öll flex-sætin hverfa þegjandi**: 10-liða 2FLEX fær QB10/RB20/WR20/TE10,
+> þ.e. **0 af 20** úthlutað. Það er nákvæmlega sá ósamræmi sem 4b-2 var
+> skrifað gegn — sætin summast ekki — bara í **hina áttina og tuttugufalt
+> stærra**: gamla hegðunin gaf einu sæti of mikið, þessi gaf tuttugu of lítið.
+> Tóm sía er nú meðhöndluð eins og enginn listi (fall aftur í `FLEX_SPLIT` í
+> heild). **Hvorug deild notandans kemst nálægt þessu** (báðar RB/WR/TE úr
+> Sleeper, og `SUPER_FLEX` er þátta á undan `FLEX_KINDS`), svo engin birt tala
+> hreyfist — þetta er vörn að framtíð. Vörður: `tests/model.mjs` kafli 8b,
+> liður (d2); stökkbreyting sem tekur fallbackið út fellir **7 fullyrðingar**.
+
+`FLEX_SPLIT` segir að WR eigi **9,54 af 20** sætum; kóðinn gaf 10. **Hamilton
+(largest-remainder) er því ekki ný mæling heldur rétt heiltölu-lesning á þeirri
+sem var þegar til** — hlutföllin sjálf haggast ekki.
+
+#### Svarið: borðið hreyfist í 10-liða deildinni og EKKI í 12-liða
+
+| | Patriots (10, 2FLEX) | Sófahetjur (12, 2FLEX) |
+|---|---|---|
+| varamanns-þrep | **WR 30 → 29**, annað eins | **bitaeins óbreytt** |
+| Spearman rho | **0,999262** | **1,000000** |
+| raðir sem hreyfast | 429 af 555 | **0** |
+| topp 12 | **2 hreyfast (max 1 sæti)**, hópurinn sá sami | 0 |
+| topp 24 | 7 hreyfast (max 2), hópurinn sá sami | 0 |
+| topp 50 | 20 hreyfast (max 5), **1 nýr í hópnum** | 0 |
+| topp 100 | 60 hreyfast (max 7), 2 nýir | 0 |
+
+**12-liða deildin er óbreytt af arithmetískri ástæðu, ekki af heppni:** 24 sæti
+deilast nákvæmlega (RB 7,92 · WR 11,448 · TE 4,632 → 8/11/5 = 24) hvort sem
+námundað er per stöðu eða með Hamilton.
+
+**Í 10-liða deildinni er áttin sú sama alla leið:** WR-þrepið var einu sæti of
+djúpt, svo hver WR fékk VBD sem `FLEX_SPLIT` styður ekki. **Sendinga-móttakarar
+falla og hlauparar hækka.** Efsta hreyfingin er á **1.10 — vendipunkti
+10-liða drafts**:
+
+| | gamalt | rétt |
+|---|---|---|
+| Chase Brown (RB) | 11 | **10** |
+| Jaxon Smith-Njigba (WR) | 10 | **11** |
+| Josh Jacobs · David Montgomery (RB) | 39 · 40 | 36 · 37 |
+| Quinshon Judkins (RB) | 50 | **45** |
+| Garrett Wilson · Tee Higgins (WR) | 44 · 45 | 47 · 48 |
+| Mike Evans (WR) | 49 | **51 — út úr topp 50** |
+
+#### Og hvað það kostaði: **ekkert bókað hlutfall skipti formerki eða marktækni**
+
+Átta lab lesa `replacementRanks` (`handcuff-lab` gerir það líka en notar
+`normalizeLeague({})` — 12 lið, einn flex — og er því **bitaeins óbreytt**).
+
+> **TALNINGIN VAR ÓFULLKOMIN: ELLEFU SKRIFTUR FLYTJA INN `replacementRanks`,
+> EKKI TÍU** (leiðrétt 15.8.2026). Sú sem vantaði er **`h2h-lab.mjs`**, og hún
+> vantaði af saklausri ástæðu — hún var skrifuð **eftir** lagfæringuna, svo hún
+> hefur aldrei séð gamla kóðann og átti aldrei „fyrir"-arm. Hún ber það meira að
+> segja sjálf: `data/measure/h2h.json` var skrifuð `2026-08-14T22:57` og geymir
+> `shapeGuard.legacyDrift` = *„10-2flex.WR: waiver.json 30 vs her 29 … skýrt af
+> apportion-lagfæringunni"*. **En það þýðir að committuð mæling hvíldi á
+> ócommittuðum kóða** þangað til þessi ferð — h2h.json var í `ecd8533`, `model.js`
+> hvergi. Væri lagfæringunni hent núna stæði eftir mæling sem **enginn committaður
+> kóði getur endurgert**. Það er sjálfstæð ástæða til að hún lendi, og hún er
+> skráð hér svo talningin „átta/ellefu" sé rétt næst þegar einhver telur.
+**Þrjú voru keyrð í BÁÐUM örmum** — og akkerið fyrst, því annars væri
+samanburðurinn ómarktækur: **`shapes_sleeper.json`, `shapes_fftoday.json`,
+`measure/half.json` og `measure/ecr_duel.json` voru endurgerðar UPP Á BITANN úr
+gamla kóðanum** áður en honum var breytt, svo hver munur hér á eftir er
+lagfæringin og ekkert annað. Hin fimm (`vbdbase`, `shrink`, `opp`, `agecurve`,
+`waiver` — sem öll bera `10-2flex`) voru **endurgerð með lagfærða kóðanum og
+borin við committuðu skrárnar**, sem eru sami hlutur og legacy-armurinn af
+nákvæmlega sömu ástæðu.
+
+| bókuð fullyrðing | fyrir | eftir |
+|---|---|---|
+| `shape-lab` gegn ADP | **12 af 12** gildum lögnum, +169 til **+314,2** | **12 af 12 eins; efra markið +344,7** |
+| `shape-lab` gegn hrárri röð | **14 af 16** | **eins** |
+| sama á FFToday | 3 af 12 · 10 af 16 · verst −133,1 | **eins** |
+| `half-lab` Sófahetjur | +147,4 (10/11, t 3,44) | **bitaeins eins** |
+| `half-lab` Patriots ppr | +188,0 (11/11, t 4,10) | **+186,1** (11/11, t 4,09) |
+| `half-lab` Patriots **half** | +175,6 (11/11, t 3,48) | **+182,9** (11/11, t 3,84) |
+| `ecr-duel` Patriots | +148,0 (8/10, t 2,04) | +145,1 (**9/10**, t 2,06) |
+
+Fjögur hólf í `shape-lab` breytast (8-std og 14-std × tvær stigagjafir) og
+**hvorugt merki snýst**: ppr 8-std gegn hrárri röð fer **+66,8 (t 1,72, 4/5) →
++99,0 (t 2,91, 5/5)** og ppr 14-std **+129,4 (t 1,73) → +104,9 (t 1,34)** — bæði
+punktmöt jákvæð fyrir og eftir, og hvorugt fer yfir eða undir marktæknimörkin á
+þann veg að niðurstaðan breytist. **Hin lögnin tólf eru bitaeins.**
+
+#### Hin fimm labin: 10-liða hólfin hreyfast, 12-liða hólfin eru BITAEINS
+
+Þetta er sterkasta einstaka staðfestingin á að lagfæringin geri það sem hún á að
+gera og ekkert annað. Í hverju einasta labi var hvert hólf borið saman:
+
+| lab | hólf sem breytast | hólf sem eru bitaeins |
+|---|---|---|
+| `vbdbase` | **96** (öll `10-2flex`) | **210** (öll `12-2flex` og `12-generic`) |
+| `shrink` | **2** (bæði `10-2flex\|ppr`) | **12** |
+| `agecurve` | **2** (bæði `10-2flex`) | **8** |
+| `waiver` | `10-2flex`-hólfin | níu `12-*`-hólf, þar á meðal `12-2flex\|half` **upp á aukastaf** |
+
+**Ekki eitt einasta 12-liða hólf hreyfðist í neinu labi.** Það er ekki heppni:
+24 flex-sæti deilast nákvæmlega, svo úthlutunin er sú sama hvor leiðin sem er
+farin — og þar með er hermunin, RNG-röðin og hvert einasta bootstrap-bil óbreytt.
+
+**Ályktanirnar standa allar**, en tvær tölur skiptu hlið og þær eru skrifaðar
+niður þar sem þær eiga heima, ekki faldar hér:
+
+| lab | hvað breyttist | stendur ályktunin? |
+|---|---|---|
+| `vbdbase` | **0 af 153** óbreytt; tímabils-klösuðu hólfin 31 → 28 | **já** — sjá 4c |
+| `shrink` | `verdict.headline` **stafrétt eins**, `qualifyingCombinations` áfram tómt | **já** |
+| `opp` | `prevCarG` +24,4 → **+23,8**; placebo-þak +21,7 → +21,3; `ppr−standard` útilokar núll í **1/11 → 0/11** | **já, og styrktist** — sjá 4d |
+| `agecurve` | walk-forward marktæk **0/10 → 1/10**, LOSO 2/10 → 3/10; `held` áfram `false` | **já** — sjá 4a |
+| `waiver` | `minGainMeasurable` **`false` → `true`** (10-liða, á ótengdum gjaldmiðli) | **já fyrir sendu regluna** — sjá 4g, þar sem hliðið er tekið í sundur |
+
+> **TVÖ HLIÐ SEM SKIPTU UM SVAR VIÐ EITT SÆTI ERU EKKI SÖNNUN UM AÐ EITTHVAÐ HAFI
+> BROTNAÐ — ÞAU ERU MÆLING Á ÞVÍ HVE ÞUNN ÞAU VORU.** `agecurve`-hólfið og
+> `waiver`-gólfhliðið færðust bæði yfir marktæknimörk við það eitt að
+> varamanns-þrep WR færðist um **eitt sæti** í **einni** af lögnunum. Repo-ið á
+> þegar orðin yfir þetta (4d: *„eitt jákvætt marktækt hólf er það sem hávaði
+> lítur út eins og hér"*), og báðar hafnanirnar standa af sjálfstæðum ástæðum
+> sem eru útskýrðar á sínum stað.
+
+> **HVAÐ ÞESSI LAGFÆRING ER OG HVAÐ HÚN ER EKKI.** Hún er **rétt lesning á
+> mældri tölu**, ekki mæld bæting. Við þessa áhrifastærð er ekki hægt að mæla
+> hvort nýja borðið **draftar betur** — `shape-lab` og `half-lab` lesa flatt, og
+> það á að standa hér berum orðum. Rökin eru: 20 sæti eru til, 21 voru gefin,
+> aukasætið fór allt á eina stöðu, og `FLEX_SPLIT` segir aðra tölu en kóðinn
+> notaði. **Að selja hana sem forspárbætingu væri ómæld tala sem lítur út eins
+> og mæling.**
+
+> **`flexPos`-helmingurinn er VÖRÐ AÐ FRAMTÍÐ, ekki lagfæring á lifandi tölu** —
+> báðar deildir notandans nota RB/WR/TE-flex. Og eitt í honum er **ekki mælt og
+> er sagt vera það**: hlutföllin eru **endurnormöluð** á þær stöður sem flexið
+> tekur, en `FLEX_SPLIT` var mælt á RB/WR/TE-flexi, svo sannur RB/WR-split er
+> **ómældur**. Endurnormölun er samt eina svarið sem tapar ekki sætum (RB+WR eitt
+> summast í 0,807, svo 20 sæti yrðu 16). **Fjöldi sætanna er mældur; skiptingin
+> innan hlutmengis er varfærin nálgun.**
+
+**Vörður: `tests/model.mjs` kafli 8b**, og hann er byggður á invariantinu því
+tölurnar hér að ofan reka með `players.json`: sætin **summast** yfir 72+9 lagnir,
+hver staða er **innan kvóta síns** (sjálfstæð einkennun, ekki endurkeyrsla á
+Hamilton), `flexPos` er virt, og **gamla hegðunin verður að FALLA á
+summu-invariantinu** (23 af 72) — annars væri það fullyrðing sem getur ekki
+brugðist. **Fimm stökkbreytingar felldar**, og sú fimmta afhjúpaði holu í fyrstu
+útgáfu kaflans: `sum = 1` (engin endurnormölun) stóðst **bæði** summuna og
+kvótann, því leifar-umferðin hringsólar og fyllir upp í 20 á meðan skiptingin er
+röng. Handreiknuð hlutföll fyrir hlutmengin voru sett inn af þeirri ástæðu.
 
 ### 4c. Bootstrap KLASAÐUR PER LEIKMANN — aðferðin sem breytti niðurstöðu
 
-Þetta er almennt og það á að standa: `vbdbase-lab` fékk **29 hólf** sem
+Þetta er almennt og það á að standa: `vbdbase-lab` fékk **28 hólf** sem
 standast bootstrap klasaðan **eftir tímabili** — sem er staðallinn í
 `bootstrapDiff` hér — og **0 af 153** sem standast hann klasaðan **per
 leikmann**.
+
+> **TALAN VINSTRA MEGIN REKUR, TALAN HÆGRA MEGIN GERIR ÞAÐ EKKI, og það er
+> nákvæmlega punkturinn.** Hér stóð **29**; endurmælt 14.8.2026 (eftir
+> flex-lagfæringuna, 4b-2) telst jákvæð-og-marktæk tímabils-klösuð hólf
+> **28 af 288** — og fyrir lagfæringuna taldist sama viðmið **31**, ekki 29.
+> Bókaða talan var því **þegar örlítið skökk**, og hún er þess eðlis: hún
+> hoppar um nokkur hólf við hverja endurmælingu því hún er **fjöldi hólfa sem
+> rétt sleppa yfir mörk**. **`0 af 153` hreyfðist ekki um eitt hólf** — hvorki
+> við lagfæringuna né á milli laugar-mynda. Sterki mælikvarðinn er stöðugur og
+> sá veiki er það ekki; það er sjálfstæð staðfesting á kaflanum.
 
 Tímabils-klösun endursýnir **árin** en heldur leikmanna-lauginni fastri, svo hún
 getur ekki séð að öll niðurstaðan hvílir á því **hvaða ~155 leikmenn** voru
@@ -1913,8 +2154,16 @@ lítur eins út er versta útkoman.
 
 ### Niðurstaðan yfir lagnir
 
-- **Gegn ADP: jákvætt í 12 af 12 gildum lögnum** (+169 til +322 stig).
+- **Gegn ADP: jákvætt í 12 af 12 gildum lögnum** (+169 til **+344,7** stig).
 - **Gegn hrárri spá-röð: 14 af 16.**
+
+> **EFRA MARKIÐ STÓÐ Í „+322" OG PASSAÐI VIÐ HVORUGA ARMINN** (leiðrétt
+> 15.8.2026). Talan er `shapes_sleeper.json -> ppr|8-std -> vsAdp.mean`, sem
+> var **314,2** fyrir flex-lagfæringuna og er **344,7** eftir hana. „+322" var
+> hvorugt — hún var röng ÁÐUR en 4b-2 var mæld, svo lagfæringin bjó hana ekki
+> til heldur afhjúpaði hana. Neðra markið (+169, `standard|16-std`) og talningin
+> **12 af 12** eru réttar í báðum örmum. Sama ætt og `DEAD_GAMES`-villan í 4e:
+> tala sem er lesin úr töflu, skrifuð niður og aldrei borin aftur við töfluna.
 
 ### Og hvað hún hvílir á
 
@@ -2432,7 +2681,7 @@ Deildarnar hans eru ekki sama deild:
 | lið · stigagjöf | 10 · PPR | 12 · **half-PPR** |
 | byrjunarlið | QB RB2 WR2 TE FLEX2 **K DEF** | QB RB2 WR2 TE FLEX2 (**hvorugt**) |
 | umferðir | 15 | 14 |
-| mælt forskot A-Ranking | **+188,0** (11/11, t=4,10) | **+147,4** (10/11, t=3,44) |
+| mælt forskot A-Ranking | **+186,1** (11/11, t=4,09) | **+147,4** (10/11, t=3,44) |
 
 `taken`, `myPicks` og `sync` eru því **lykluð á deild** (`D.scoped`), og
 `DraftBoard`/`MyTeam` eru endurræst með `key={activeId}`. Deildu tvær deildir
@@ -2463,8 +2712,14 @@ varamanns-þrepið liggur.
 ### Endurlestur reglna er HNAPPUR — og tvö próf sönnuðu það
 
 Vistaðar reglur geta orðið úreltar **þögult**: Sófahetjur fóru úr 10 liðum í 12
-milli tímabila, og það eitt færir varamanns-þrepið RB 27→32, WR 30→35, TE 14→17,
-QB 10→12 — **75 af topp 100 hreyfast**, Lamar Jackson úr 40 í 52.
+milli tímabila, og það eitt færir varamanns-þrepið RB 27→32, WR 29→35, TE 14→17,
+QB 10→12 — **83 af topp 100 hreyfast**, Lamar Jackson úr 38 í 52.
+
+> Tölurnar voru **75 af topp 100** og **40 → 52**, og þrepið stóð sem
+> „WR 30→35". Þær eru endurreiknaðar 14.8.2026: `WR 30` var flex-úthlutunar-
+> villan sem 4b-2 lagfærði, og hinar tvær eru `players.json`-tölur sem reka
+> daglega. **Fullyrðingin sem skiptir máli er hlutfallið, ekki talan** — að
+> skipta um deildarstærð umskrifar meirihluta borðsins.
 
 Fyrsta útgáfan endurlas reglurnar við **flipa-svissun**, með þeim rökum að
 svissun sé notanda-aðgerð. Tvö próf felldu það:
@@ -2782,6 +3037,7 @@ node scripts/arank-search.mjs [--scoring=…]   # 422 afbrigdi + fjolprofa-leidr
 node scripts/projector-lab.mjs [--scoring=…]  # -> projectors_*.json (hver er bestur)
 node scripts/feature-probe.mjs                # -> feature_probe.json (nyjar breytur)
 node scripts/fetch-wayback-projections.mjs   # -> wayback_projections.json (haeg, handvirk)
+node scripts/flexsplit-lab.mjs                # -> measure/flexsplit.json (sja 4b-2)
 node scripts/dst-lab.mjs                      # -> measure/dst.json (sja 4k)
 ```
 
@@ -2793,6 +3049,12 @@ nflverse-tímabil, 18 Sleeper-vikur og 17 deildar-umferðir (~45 köll, allt í
 (`DST_ANCHOR`) og `src/weekview.js` (`DST_STREAM_MEASURED`) eru uppfærðar.
 **Þá uppfærir maður töfluna, ekki prófið.**
 
+`flexsplit-lab.mjs` er **ekki í neinu þrepi og á ekki að vera það**: hún ber
+sendan kóða við hegðun sem er ekki lengur til (`lib/flexsplit-legacy.mjs`).
+Hún er keyrð þegar `FLEX_SPLIT`, `SUPERFLEX_SPLIT` eða úthlutunin sjálf
+breytist — og þá **verður** líka að endurgera `shapes_*.json`,
+`measure/half.json` og `measure/ecr_duel.json`, því `HALF_LAB` í
+`src/rulebasis.js` er borin við diskinn í hverri keyrslu prófanna.
 
 Þrepin eru aðskilin eftir **eðli gagnanna**, ekki smekk: `core` breytist daglega,
 `experts` nokkrum sinnum í viku, `history` aldrei fyrir lokið tímabil.
