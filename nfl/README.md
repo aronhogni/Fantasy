@@ -195,9 +195,9 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 | **Handcuff / varamaður** (`handcuff-lab.mjs`) | **INNSAEI NOTANDANS VAR RETT OG STAERRA EN ÞAD HLJOMAR.** Fjarvistar-spikid er raunverulegt (QB +9,32, RB +4,86 yfir varamannsins eigin grunnlinu) en vikuna sem byrjunarmadurinn kemur til baka lifir adeins **19,6% (QB) / 8,1% (RB) / 2,0% (WR)** — og i raunverulegu akvordunininni er hann kominn aftur i 16–44% tilvika STRAX naestu viku, thar sem varamadurinn skorar **−11,77 (QB) / −2,53 (RB) / −5,01 (TE)**. „Hann skoradi vel i sidustu viku" er thvi EITRAD sem pickup-maelikvardi. **Appid er thegar rett** (`vbd`, ekki vikuleg stig) svo ekkert var tengt — sja 4j |
 | **Vörn gegn stöðu, sundurliðuð** (`defweek-lab.mjs`) | **FELLUR — 0 af 2.700 hólfum.** Andstæðings-leiðrétting **skaðar** (marktækt í half, t −5,87). Íhlutir flytjast ekki. `DEF_WEIGHT = 0,20` stendur. **OG ÞAÐ FANN VILLU Í MÆLIKVARÐANUM:** birta talan 5,831% var sjálf-smituð; hrein walk-forward er **3,482%**. Sjá 4h |
 | **Hvar liggja 94%** (`gap-lab.mjs`) | **Þakið er 29,3%** (TD 18,9 + nýtni 10,4). Vörn er **NULL-flaska** (enrichment 0,96×). Röð: availability → hlutverk → vörn ekki neitt. Sjá 4f |
-| **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+23,8 stig**, t=2,286, 8/11 ár, CI [+3,7, +42,4], einræn 4/4 (endurmælt 14.8., var +24,4 / CI [+3,7, +43,7] — sjá 4b-2). Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. Hinar tíu breyturnar: engin stenst |
+| **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+23,8 stig**, t=2,286, 8/11 ár, CI [+3,7, +42,4], einræn 4/4 (endurmælt 14.8., var +24,4 / CI [+3,7, +43,7] — sjá 4b-2). Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. **Endurmaeld a SIGRUM 15.8. (`h2h-lab` Q3): +0,09 af 14 gegn placebo-thaki +0,35 — maelikvardinn bjargar henni ekki.** Hinar tíu breyturnar: engin stenst |
 | **Óvissu-háð hnignun spárinnar** (`shrink-lab.mjs`) | **HAFNAÐ.** 12 óvissu-mælar × 3 forgildi × 6 vogir: **0 af 36 samsetningum jákvæðar í öllum 10 hólfum á báðum spáheimildum**. Besta samkvæma hrifin +0,5 stig af ~1900. Marktækni í **0/14** hólfum (besta \|t\| = 3,4 gegn kröfu 4,5–5,7) |
-| **Vikulegar viðureignir í stað stiga** (`h2h-lab.mjs`) | **NULL-NIÐURSTAÐA, OG HÚN ER VERÐMÆT: stigin voru fullnægjandi staðgengill allan tímann.** A-Ranking gegn ADP heldur á SIGRUM (**+2,4 til +3,8 af 14**, marktækt í 4/4 lögnum, met 9,6-4,4 á móti 7,2-6,8) og stiga-dálkurinn endurgerir bókuðu +233,6 sem **+223**. Stefnu-röðin færist ekki: rho(sigrar, stig) = **0,961–0,989** á móti sjálfsáreiðanleika 0,935–0,968 — og **rho(stig, bókuð röð) er LÆGRA (0,768–0,828)**, svo mælikvarðinn færir röðina minna en hermirinn gerir. **Meistaraprósenta ber ekki merkið** í 5 tímabilum (+17,8pp, CI innihaldur núll) þótt „komast í úrslitakeppni" geri það (+35,1pp). Sjá 5n |
+| **Vikulegar viðureignir í stað stiga** (`h2h-lab.mjs`) | **NULL-NIÐURSTAÐA, OG HÚN ER VERÐMÆT: stigin voru fullnægjandi staðgengill allan tímann.** A-Ranking gegn ADP heldur á SIGRUM (**+2,4 til +3,8 af 14**, marktækt í 4/4 lögnum, met 9,6-4,4 á móti 7,2-6,8) og stiga-dálkurinn endurgerir bókuðu +233,6 sem **+223**. Stefnu-röðin færist ekki: rho(sigrar, stig) = **0,961–0,989** á móti sjálfsáreiðanleika 0,935–0,968 — og **rho(stig, bókuð röð) er LÆGRA (0,768–0,828)**, svo mælikvarðinn færir röðina minna en hermirinn gerir. **Meistaraprósenta ber ekki merkið** í 5 tímabilum (+17,8pp, CI innihaldur núll) þótt „komast í úrslitakeppni" geri það (+35,1pp). **Og Q3 spurdi hinnar attarinnar — bjargar maelikvardinn einhverju sem FELL? NEI:** `prevCarG` (4d) maelist **+0,09 sigrar af 14** (t=0,48, 3/7, CI [-0,24, +0,45]) gegn **placebo-thaki +0,35**, og stigin ur SOMU drofttum **+16,7 gegn thaki +42,2** — sami domur a badum. Sja 5n |
 
 **Aldur: skugginn er raunverulegur, hann flyst bara ekki.** RB-leifin fellur
 einrænt og steypist við 29–31 (**−22,3 stig** net of ADP), WR −15,4, og hnykkurinn
@@ -268,6 +268,14 @@ Ein breyta af ellefu stóðst öll fjögur skilyrðin — `prevCarG` — og hún
 | 3 | **Marginal gegn placebo:** +23,8 á móti placebo-þaki **+21,3** |
 | 4 | **Fylgnin hefur ANDSTÆTT formerki.** Fylgni `prevCarG` við leif spárinnar er **−0,052**. Jákvæð ákvörðun, negatíf fylgni, í sama skripti — það er repo-ið eigin regla („hærri fylgni ≠ betri ákvörðun"), en það þýðir líka að **mekanisminn er óskýrður** |
 | 5 | **Mekanisminn er líklega ekki „tækifæri".** Per stöðu lifir merkið í **RB og QB**; `prevCarG` er ~0 fyrir nánast hvern WR/TE. Líklegasta lesningin er **RB-vinnuálag + hlaupandi QB**, ekki tækifæri í heild. Óprófað |
+
+> **ENDURMAELT A SIGRUM 15.8.2026 — OG THAD BREYTIR ENGU.** `h2h-lab.mjs` Q3 keyrir
+> NAKVAEMLEGA thetta net (10 vogir x 3 svid x 3 lognun, atta placeboar) i gegnum
+> deildarhermi thar sem maelikvardinn er SIGRAR i stad stiga. `prevCarG` maelist
+> **+0,09 sigrar af 14** (t=0,48, 3/7 ar, CI [-0,24, +0,45]) gegn **placebo-thaki
+> +0,35** — bord **-0,26** — og per-leikmanns bootstrappid inniheldur null
+> ([-0,30, +0,81]). `top50` er **-0,05**, svo varnagli 1 her ad ofan gildir enn og
+> hefur snuist i minus. **Sigrar bjarga henni ekki.** Sja 5n/Q3.
 
 #### Placebo-familían — mælitækið sem gerði töfluna læsilega
 
@@ -2433,6 +2441,108 @@ nákvæmlega þar sem stöðu-áætlun á að borga sig eða ekki. `h2h-lab` dra
 lausn og `waiver-lab` skjalar. **Þetta er takmörkun á bókuðu töflunni sem fannst
 við að endurmæla hana, ekki niðurstaða um mælikvarðann.**
 
+### Q3 — BJARGAR SIGRA-MAELIKVARDINN HAFNADRI HUGMYND? NEI
+
+Q1 og Q2 spyrja hvort bokudu tolurnar HALDI i sigrum. Q3 spyr hinnar
+spurningarinnar: **bjargar thad ad skipta um maelikvarda einhverju sem FELL a
+stigum?** Eini frambjodandinn sem er nogu naerri morkunum til ad svarid se ekki
+fyrirfram vitad er `prevCarG` (4d): +23,8 stig, t=2,286, 8/11 ar — en
+placebo-thakid var +21,3, svo hun slapp yfir thad um **+2,5 ein**.
+
+**Medferdin er A-Ranking bordid endurradad eftir `z(VBD) + w * z(prevCarG)`, z
+INNAN STODU** — ordrett regla `opp-lab`. Vidmidid er hreint A-Ranking.
+Z-stodlun a VBD er einraen umbreyting svo `w = 0` gefur NAKVAEMLEGA sama bord.
+Gridid er thad sama og `opp-lab` sveiflar: 10 vogir (-0,10 til +0,10) x 3 svid
+(`all` / `top100` / `top50`) x 3 lognun x 7 timabil = **810 reitir**, hver
+skoradur i BADUM einingum ur SOMU drofttum.
+
+**OG PLACEBO-FJOLSKYLDAN VAR PORTUD LIKA, THVI AN HENNAR ER TAFLAN OLAESILEG.**
+`startersPoints` er graedug best-ball rodun, svo HVER SEM ER truflun a
+stodu-blondu grunnbordsins getur lesid jakvaett. Atta deterministiskar
+sud-breytur fara gegnum nakvaemlega sama net, sama pooling og sama
+walk-forward; thaer gefa nulldreifinguna og krafan a raunverulega breytu er ad
+sla HANA, ekki nullid.
+
+| | sigrar (af 14) | t | ar | 95% CI (ars-klasad) | stig, SOMU droft |
+|---|---|---|---|---|---|
+| `prevCarG`, osamhverfi lidurinn | **+0,09** | 0,48 | 3/7 | **[-0,24, +0,45]** | **+16,7** (t=1,07) |
+| placebo-thak (forspabil fyrir eitt nytt fraekast) | **+0,35** | — | — | — | **+42,2** |
+| **bord yfir thakid** | **-0,26** | | | | **-25,5** |
+
+Placebo-atta gefa medaltal **-0,04**, sd **0,16**, haesta einstaka gildi
+**+0,17** og haesta \|t\| **1,85**; **eitt af atta** les „marktaekt" a
+ars-klasada bootstrappinu, sem er nakvaemlega fals-jakvaednin sem thakid er til
+ad verja gegn.
+
+**Skilyrdin thrju — og tvo fella hana:**
+
+| # | skilyrdi | nidurstada |
+|---|---|---|
+| 1 | **per-LEIKMANNS bootstrap** utilokar null (200 itranir, laugin endursynd MED endurtekningu) | **FELLUR** — punktur +0,28, CI **[-0,30, +0,81]**. Sama hlid og felldi `vbdbase-lab` i 153 holfum af 153 (4c) |
+| 2 | **slaer placebo-thakid** | **FELLUR** — +0,09 gegn thaki +0,35, bord **-0,26** |
+| 3 | **heldur walk-forward** | stenst ad forminu (+0,11 gegn placebo-leit -0,12) en **3/6 ar, t = 0,18** |
+
+`placebo1` for gegnum NAKVAEMLEGA sama per-leikmanns bootstrap og gefur
+**-0,28, CI [-0,69, +0,50]** — jafn ogreinanlegt fra nulli og raunverulega
+breytan, i sitt hvora attina.
+
+**Toppurinn er enn ekki thar sem abatinn er — og nu er hann NEIKVAEDUR thar.**
+Varnagli 1 i 4d sagdi ad af +23,8 stigum vaeru adeins +11,4 i `top50`. A sigrum
+er `all` **+0,18** (thak +0,44), `top100` **+0,14** (thak +0,41) og **`top50`
+-0,05** (thak +0,25). Svidid sem draftid raest i liggur undir nulli.
+
+**Heimildaskiptingin segir thad sama og 4d.** Sleeper-arin 2021-25 gefa **+0,12
+(2/5)**. FFToday-helmingurinn ber adeins **tvo ar** her (vikugognin byrja 2019)
+og er thvi birtur sem samhengi en ekki sem prof: +0,04 (1/2).
+
+> **OG WALK-FORWARD A STIGUM SNERIST VID — thad er sjalfstaett rok fyrir
+> placebo-fjolskyldunni og thad er bokad af thvi ad thad hefdi getad ordid
+> nidurstada.** `prevCarG` maelist **-12,2 (3/6)** medan **placebo-LEITIN**
+> maelist **+71,1 (6/6)**. Leit yfir 240 gagnslaus afbrigdi valdi eitthvad sem
+> virkadi naesta ar — betur en raunverulega breytan gerdi. Vaeri thakid ekki
+> maelt vaeri su tala laesileg sem sonnun um hvad sem er.
+
+#### Nullhlidid a Q3 hefur THRJA lidi, og sa thridji er ekki skraut
+
+`w = 0` verdur ad gefa nakvaemlega sama bord OG nakvaemlega 0 i duellinu.
+Hvorutveggja er profad — 21 fruma (3 lognun x 7 timabil): bordamunur **0**,
+max\|sigrar\| **0**, max\|stig\| **0**. Thridji lidurinn er **sentinel**:
+staersti munur sem einhver vog naer i sama neti verdur ad vera **> 0**, annars
+gaeti nullid verid satt af thvi einu ad velin lesi ALLTAF 0. Hann maelist
+**3,94 sigrar**.
+
+**Stokkbreytt og stadfest — og ein af fjorum kom a ovart:**
+
+| | breyting | nidurstada |
+|---|---|---|
+| M1 | `tail.sort` snuid vid | bordamunur 9, duel **0** — bordasamanburdurinn EINN sa thetta, thvi taglid er sjaldan draftad |
+| M2 | taglsgolfid -1e5 -> -100 | **hlidid sagdi ekkert, og thad var RETT**: hausinn er z-stodladur (sd = 1) svo -100+ppg liggur enn langt undir honum og bordid er obreytt |
+| M3 | 0,02 x placebo laett i hausinn vid `w = 0` | bordamunur 9, max\|sigrar\| 0,125, max\|stig\| 21,5 — exit 3 |
+| M4 | bordid latid hunsa `w` alveg | bordamunur 0, duel 0, **sentinel 0 -> FELLUR**. Thetta er tilfellid thar sem nullprofid er fullkomlega graent OG maelir ekkert |
+
+#### Og thad almenna: maelikvardi sem faerir rodina MINNA en sitt eigid sud getur ekki snuid neinu vid
+
+`prevCarG` var eina hugmyndin sem thurfti ad maela. Hinar thrjar sem var hafnad
+i kafla 4 falla um vegalengd sem enginn maelikvardi bruar, og Q2 segir hvers
+vegna: **rho(sigrar, stig) er 0,961-0,989 medan sjalfsareidanleiki
+sigra-maelikvardans er adeins 0,935-0,968.** Ad skipta um einingu faerir rodina
+MINNA en maelikvardinn flokkar vid sjalfan sig.
+
+| hafnad | fjarlaegd fra morkum | gaeti sigra-maelikvardi snuid thvi? |
+|---|---|---|
+| `vbdbase-lab` (annar VBD-grunnur) | **0 af 153 holfum** standast per-leikmanns bootstrap | **nei.** 0 er ekki jadartilfelli — og per-leikmanns hlidid er nakvaemlega thad hlid sem fellir `prevCarG` her lika |
+| `shrink-lab` (ovissu-had hnignun) | **0 af 36** samsetningum jakvaedar i ollum 10 holfum a BADUM spaheimildum; besta \|t\| **3,4** gegn kroffu 4,5-5,7 | **nei.** Merkid tharf ad vaxa um 30-70%; maelikvardi sem faerir minna en sitt eigid sud getur ekki gefid thann vaxt |
+| `agecurve-lab` (olinulegur aldursferill) | walk-forward marktaek **1 af 10**, tvo holf marktaekt NEIKVAED, `deltaR2` net of ADP negatift i **ollum 48** | **nei.** Og orsokin er thekkt: Sleeper-spain hefur thegar etid aldursmerkid (kafli 4). Eining utkomunnar breytir engu um thad |
+
+**Thetta er ekki latur rokstudningur heldur nidurstadan sjalf.** Stigin voru
+fullnaegjandi stadgengill allan timann, og Q3 er beina profid a thvi: sami
+draftur, tveir maelikvardar, **sami domur a badum**.
+
+> **Keyrslutiminn for ur ~100 s i ~670 s** og thad er nanast allt Q3: 810 reitir
+> x 7 timabil (~220 s) og per-leikmanns bootstrappid (200 itranir, ~370 s).
+> `--q3runs` og `--pboot` stjorna hvoru fyrir sig; sjalfgefnu gildin eru thau
+> sem tolurnar her voru maeldar med.
+
 ### Raunveruleika-akkeri — samhengi, EKKI hlið
 
 Eina lokna deildin sem við eigum er Patriots 2025 (raunsvar Sleeper). `ppts` þar
@@ -2456,6 +2566,7 @@ hvorki K/DEF né waiver, svo hún **á** að liggja lægra.
 | Röð stefnanna í `strategy_ppr.json` | **STENST sem röð** (rho 0,96–0,99) — en hvorugur mælikvarðinn finnur stefnu sem slær BPA |
 | „hrá spá-röð" (+74,7 stig) | **VEIKARA** — +0,11 til +1,69 sigrar, marktækt í 2 af 4 frumum |
 | Meistaraprósenta sem mælikvarði | **BER EKKI MERKIÐ** í 5 tímabilum — notið „komast í úrslitakeppni" |
+| `prevCarG` (4d), sem slapp yfir placebo-thakid a stigum um adeins +2,5 | **FELLUR LIKA A SIGRUM** — +0,09 af 14 gegn thaki +0,35; per-leikmanns CI [-0,30, +0,81]. Sja Q3 |
 
 ### Það sem er ÓMÆLT hér, og það er skráð
 

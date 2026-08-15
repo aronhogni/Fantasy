@@ -89,6 +89,28 @@
    ekki tvaer utfaerslur heldur eitt inntak i eina.
 
    ============================================================
+   Q3 — BJARGAR SIGRA-MAELIKVARDINN HOFNUDU HUGMYNDINNI?
+   ============================================================
+   Q1 og Q2 spyrja hvort BOKUDU nidurstodurnar haldi i sigrum. Q3 spyr
+   hins vegar hvort maelikvardinn BJARGI einhverju sem var HAFNAD a
+   stigum. Eini frambjodandinn sem er nogu naerri morkunum til ad thad
+   se ekki fyrirfram vitad er `prevCarG` (hlaup per leik, fyrra
+   timabil) ur `opp-lab.mjs` — README 4d: +23,8 stig, t=2,286, 8/11 ar,
+   en placebo-thakid var +21,3 svo hun slapp yfir um +2,5 EIN.
+
+   THAD SEM ER PORTAD ER PLACEBO-FJOLSKYLDAN, EKKI BARA BREYTAN.
+   `startersPoints` er graeðug best-ball rodun, svo HVER SEM ER
+   truflun a stodu-blondu grunnbordsins getur lesid jakvaett. An
+   nulldreifingar ur akvednu sudi er taflan olæsileg — thad stendur
+   ordrett i `opp-lab.mjs` og i README 4d, og thad gildir NAKVAEMLEGA
+   eins um sigra og um stig. Atta placeboar, sama deterministiska sudid,
+   sama grid, sami walk-forward.
+
+   TVEIR MAELIKVARDAR UR SOMU DROFTUM. Hver Q3-fruma skilar BAEDI
+   sigra-mun OG stiga-mun (`seasonDiff`) ur NAKVAEMLEGA sama drafti, svo
+   "bjargar sigra-maelikvardinn henni?" er PORUD spurning en ekki
+   samanburdur a tveimur maelingum sem voru gerdar i sitthvorum heimi.
+   ============================================================
    THAD SEM ER OMAELT HER OG HVERS VEGNA (sja `unmeasured`)
    ============================================================
    · WAIVER OG SKIPTI. Hoparnir eru fastir allt timabilid. `waiver-lab`
@@ -116,12 +138,16 @@ import { parseArgs, requireSeasons } from "./lib/args.mjs";
 const DATA = path.resolve(process.cwd(), "data");
 const ARG = parseArgs(process.argv.slice(2), {
   runs: "number", sruns: "number", boot: "number", from: "number",
+  q3runs: "number", pboot: "number",
 });
-const DEFAULTS = { runs: 10, sruns: 4, boot: 2000, from: 2019 };
+const DEFAULTS = { runs: 10, sruns: 4, boot: 2000, from: 2019,
+                   q3runs: 2, pboot: 200 };
 const RUNS  = Number(ARG.runs  ?? DEFAULTS.runs);    // fraekorn per (ar, fruma)
 const SRUNS = Number(ARG.sruns ?? DEFAULTS.sruns);   // fraekorn i stefnu-toflunni
 const BOOT  = Number(ARG.boot  ?? DEFAULTS.boot);
 const FROM  = Number(ARG.from  ?? DEFAULTS.from);
+const Q3RUNS = Number(ARG.q3runs ?? DEFAULTS.q3runs); // fraekorn per Q3-reit
+const PBOOT  = Number(ARG.pboot  ?? DEFAULTS.pboot);  // per-leikmanns bootstrap
 
 const REG_WEEKS = 14;                  // MAELT: `fpts` = vikur 1-14
 const PO_WEEKS = [15, 16, 17];         // MAELT: playoff_week_start = 15
@@ -329,9 +355,29 @@ function buildWorld(y, weekly, featIdx) {
     actual14[fmt] = new Map(P.map((p, i) => [p.id, { pos: p.pos, pts: tot14[fmt][i] }]));
   }
 
+  /* --- Q3-BREYTURNAR: `prevCarG` OG PLACEBOARNIR ---
+     `prevCarG` er stigagjafar-obundin (hun er tolfraedi FYRRA timabils)
+     og er thvi tekin ur ppr-rodinni — nakvaemlega eins og `opp-lab`
+     gerir. Placeboarnir eru deterministiskt suð ur (id, timabil,
+     fraekorn) og hafa thvi FULLA thekju medan `prevCarG` hefur ~88%.
+     Su osamhverfa er ARFUR UR `opp-lab` og er hoggvin i stein her:
+     thettari truflun getur adeins gert placebo-thakid HAERRA, sem er
+     rett attin — hun gerir throskuldinn fyrir raunverulegu breytuna
+     erfidari, ekki audveldari. `coverage.prevCarG` ber toluna.        */
+  const feat = new Map();
+  let carRows = 0, carHead = 0;
+  for (let i = 0; i < N; i++) {
+    const a = featIdx.get(`${y}|${P[i].id}|ppr`);
+    const f = { prevCarG: a && a.prevCarG != null ? a.prevCarG : null };
+    for (let k = 1; k <= 8; k++) f[`placebo${k}`] = placeboValue(P[i].id, y, k);
+    feat.set(P[i].id, f);
+    if (f.prevCarG != null) { carRows++; if (proj.ppr[i] != null) carHead++; }
+  }
+
   return { y, N, P, idx, prior, priorFrom, proj, adp, adpSd, byWeek, wf,
-           actual, actual14, totAll, tot14,
+           actual, actual14, totAll, tot14, feat,
            coverage: { players: N, projected, withAdp,
+                       prevCarG: carRows, prevCarGInHead: carHead,
                        priorSource: prev ? "prevSeason+projection" : "projection only (engin fyrri vikugogn)" } };
 }
 
@@ -409,6 +455,191 @@ function oracleBoard(W, fmt) {
 function reverseBoard(W, src) {
   const keys = [...adpBoard(W, src).keys()].reverse();
   return new Map(keys.map((k, i) => [k, i + 1]));
+}
+
+/* ============================================================
+   3b. Q3-VELIN — TRUFLUD A-RANKING OG PLACEBO-FJOLSKYLDAN
+   ============================================================
+   Allt her ad nedan er PORTAD UR `opp-lab.mjs` og engu er breytt sem
+   getur haggad tolunum: `placeboValue`, `zWithinPos`, vogar-gridid og
+   svidin eru ordrett thau somu. Thad sem ER annad er MAELIKVARDINN
+   (sigrar i stad stiga) og herminn (deildarhermir i stad tveggja
+   lida) — og thad er nakvaemlega spurningin sem er verid ad spyrja.  */
+
+/** Deterministiskt suð ur (id, timabil, fraekorn) — engin slembivél.
+    ORDRETT ur `opp-lab.mjs`; se thessu breytt er nulldreifingin
+    her ekki lengur sama nulldreifing og thar. */
+function placeboValue(id, season, seed) {
+  let h = (2166136261 ^ seed * 16777619) >>> 0;
+  const s = `${id}|${season}`;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  const u = ((h >>> 8) & 0xffff) / 65536, v = (h & 0xff) / 256;
+  return u + v - 1;
+}
+
+const Q3_PLACEBOS = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `placebo${i}`);
+const Q3_VAR = "prevCarG";
+const Q3_VARS = [Q3_VAR, ...Q3_PLACEBOS];
+
+/* Vogar-gridid er ORDRETT gridid i `opp-lab`: tvihlida, -0,10 til
+   +0,10 i tiu threpum. Tvihlida er ASETT — einhlida grid GEFUR SER
+   attina ("meira taekifaeri er betra") og thad er akkurat thad sem
+   `feature-probe` gat ekki stadfest. */
+const Q3_WEIGHTS = [-0.10, -0.08, -0.06, -0.04, -0.02, 0,
+                    0.02, 0.04, 0.06, 0.08, 0.10];
+const Q3_NONZERO = Q3_WEIGHTS.filter((w) => w !== 0);
+const Q3_MAGS = [0.02, 0.04, 0.06, 0.08, 0.10];
+/* Svidin: `top50` er ~fjorar fyrstu umferdir i 12-lida deild, thar sem
+   draftid raest. README 4d varnagli 1 sagdi einmitt ad abatinn a STIGUM
+   vaeri EKKI thar — spurningin her er hvort sigrar segi annad. */
+const Q3_SCOPES = [{ key: "all", n: null },
+                   { key: "top100", n: 100 },
+                   { key: "top50", n: 50 }];
+
+/** Z-STODLUN INNAN STODU — ordrett regla `opp-lab`: stada med faerri en
+    8 gildum ber engan z, vantandi gildi er 0 (hlutlaust). Taekifaeri er
+    stodubundid i einingum (RB ~20 snertingar/leik, WR ~7 kost/leik) svo
+    laugarvid z-stodlun myndi maela "draftadu fleiri RB", sem
+    `strategy-lab` hefur thegar svarad. */
+function zWithinPos(list, get) {
+  const st = {};
+  for (const p of list) {
+    const v = get(p);
+    if (v == null || !Number.isFinite(v)) continue;
+    (st[p.pos] = st[p.pos] || []).push(v);
+  }
+  const par = {};
+  let covered = 0;
+  for (const [pos, vals] of Object.entries(st)) {
+    if (vals.length < 8) continue;
+    const m = mean(vals);
+    const s = Math.sqrt(mean(vals.map((v) => (v - m) ** 2))) || 1;
+    par[pos] = { m, s };
+    covered += vals.length;
+  }
+  if (!covered) return null;
+  const f = (p) => {
+    const v = get(p), q = par[p.pos];
+    return q == null || v == null || !Number.isFinite(v) ? 0 : (v - q.m) / q.s;
+  };
+  f.covered = covered;
+  return f;
+}
+
+/**
+ * A-RANKING TRUFLAD MED `w * z(breyta)`.
+ *
+ * KVARDINN ER SA SAMI OG I `opp-lab` OG THAD ER FORSENDA THESS AD
+ * VOGIRNAR SEU SAMBAERILEGAR. `opp-lab` raðar eftir `z(VBD) + w*z(X)`;
+ * `arankBoard` her raðar eftir HRAU VBD (stigum). Vaeri `w*z(X)` lagt
+ * ofan a hrátt VBD vaeri w=0,10 hverfandi truflun — 0,1 stig — og
+ * "maelingin" vaeri ad maela ekki neitt. Thess vegna er VBD z-stoðlad
+ * her lika, YFIR HAUSINN (thá sem eiga spa) eins og laugin i `opp-lab`
+ * er.
+ *
+ * Z-STODLUN A VBD ER EINRAEN UMBREYTING, svo rodin vid w=0 er
+ * NAKVAEMLEGA rodin sem `arankBoard` gefur. Thad er ekki fullyrding
+ * heldur profad i Q3-nullhlidinu: bordin eru borin saman LYKIL FYRIR
+ * LYKIL og duellid verdur ad lesa nakvaemlega 0.
+ *
+ * TAGLID (their sem eiga enga spa) er ORHREYFT. Thad er rett: `opp-lab`
+ * hefur ekkert tagl — laug hennar ER hausinn — og truflun a tagli sem
+ * er hvort ed er draftad sidast maelir ekkert.
+ */
+function oppBoard(W, fmt, repl, varKey, w, scopeN) {
+  /* baseline per stodu — ORDRETT sama adgerd og `arankBoard` */
+  const byPos = {};
+  for (let i = 0; i < W.N; i++) {
+    const v = W.proj[fmt][i];
+    if (v == null) continue;
+    (byPos[W.P[i].pos] = byPos[W.P[i].pos] || []).push(v);
+  }
+  const base = {};
+  for (const [pos, vals] of Object.entries(byPos)) {
+    vals.sort((a, b) => b - a);
+    const k = Math.min(vals.length - 1, (repl[pos] ?? 24) - 1);
+    const around = vals.slice(Math.max(0, k - 1), k + 2);
+    base[pos] = around.length ? mean(around) : 0;
+  }
+
+  const head = [], tail = [];
+  for (let i = 0; i < W.N; i++) {
+    const v = W.proj[fmt][i];
+    if (v == null) { tail.push([W.P[i].id, -1e5 + W.prior[i]]); continue; }
+    head.push({ id: W.P[i].id, pos: W.P[i].pos, vbd: v - (base[W.P[i].pos] ?? 0) });
+  }
+  if (!head.length) return arankBoard(W, fmt, repl);
+
+  const m = mean(head.map((h) => h.vbd));
+  const sd = Math.sqrt(mean(head.map((h) => (h.vbd - m) ** 2))) || 1;
+
+  let zf = null, inScope = null;
+  if (w !== 0) {
+    zf = zWithinPos(head, (h) => (W.feat.get(h.id) || {})[varKey]);
+    if (scopeN != null) {
+      /* Svidid er skorid ur GRUNNBORDINU (VBD-rodinni), ekki ur
+         truflada bordinu — annars vaeri svidid sjalft had voginni. */
+      const order = head.slice().sort((a, b) => b.vbd - a.vbd);
+      inScope = new Set(order.slice(0, scopeN).map((h) => h.id));
+    }
+  }
+
+  const scored = head.map((h) => {
+    const z = (h.vbd - m) / sd;
+    if (!zf || (inScope && !inScope.has(h.id))) return [h.id, z];
+    return [h.id, z + w * zf(h)];
+  });
+  scored.sort((a, b) => b[1] - a[1]);
+  tail.sort((a, b) => b[1] - a[1]);
+  return new Map([...scored, ...tail].map(([id], i) => [id, i + 1]));
+}
+
+/**
+ * ENDURSYND LAUG — KLASI ER LEIKMADURINN, EKKI TIMABILID.
+ *
+ * `bootstrapDiff` (repo-stadallinn og `boot()` her ad nedan) endursynir
+ * ARIN og heldur leikmanna-lauginni FASTRI. README 4c er skyr um hvad
+ * thad kostar: `vbdbase-lab` fekk 28 holf sem stodust ars-klasada
+ * bootstrappid og **0 af 153** sem stodust hann klasadan per leikmann.
+ * Thess vegna er hann keyrdur her lika.
+ *
+ * Sama klonunar-adferd og `vbdbase-lab` skjalar: leikmadur sem er
+ * dreginn tvisvar faer nytt id (`id#i`) svo tvo lid geti "eignast"
+ * hann. Thad er ekki raunverulegt draft — en THAD ER SAMA LAUGIN FYRIR
+ * BADI BORDIN i hverri itrun, svo porunin heldur og munurinn er enn
+ * munurinn a bordunum.
+ */
+function resampleWorld(W, fmt, seed) {
+  const rnd = rngOf(seed);
+  const N = W.N;
+  const P = new Array(N);
+  const prior = new Float64Array(N);
+  const proj = { [fmt]: new Array(N).fill(null) };
+  const adp = { adpPpr: new Array(N).fill(null), adpStd: new Array(N).fill(null) };
+  const adpSd = new Array(N).fill(null);
+  const byWeek = new Map(), actual = new Map(), feat = new Map();
+  const src = W.byWeek[fmt], act = W.actual[fmt];
+  for (let i = 0; i < N; i++) {
+    const o = Math.floor(rnd() * N);
+    const op = W.P[o], id = `${op.id}#${i}`;
+    P[i] = { id, name: op.name, pos: op.pos };
+    prior[i] = W.prior[o];
+    proj[fmt][i] = W.proj[fmt][o];
+    adp.adpPpr[i] = W.adp.adpPpr[o];
+    adp.adpStd[i] = W.adp.adpStd[o];
+    adpSd[i] = W.adpSd[o];
+    feat.set(id, W.feat.get(op.id));
+    actual.set(id, act.get(op.id));
+    for (let k = 1; k <= MAXW; k++) {
+      const r = src.get(`${op.id}|${k}`);
+      if (r) byWeek.set(`${id}|${k}`, r);
+    }
+  }
+  return { y: W.y, N, P, prior, proj, adp, adpSd, feat,
+           byWeek: { [fmt]: byWeek }, actual: { [fmt]: actual } };
 }
 
 /** SLEMBIN ROD. Vidmid sem er hvorugt akkerid. */
@@ -567,6 +798,32 @@ function boot(perYear, keyT, keyC) {
             : { diff: r3(mean(d)), lo: null, hi: null, excludesZero: null,
                 t: tOf(d), wins: d.filter((x) => x > 0).length, years: d.length,
                 why: "faerri en 3 timabil — ENGIN vikmork" };
+}
+
+/** Ein timarod af MUNUM (medferd - vidmid) -> vikmork gegn nulli.
+    Sami klasi og `boot()`: TIMABILID. `opp-lab.bootSeasons` gerir
+    nakvaemlega thetta og talan er thvi sambaerileg. */
+function bootZero(per, boot = BOOT) {
+  const A = {}, Z = {};
+  for (const [y, v] of Object.entries(per)) {
+    if (v == null || !Number.isFinite(v)) continue;
+    A[y] = v; Z[y] = 0;
+  }
+  const vals = Object.values(A);
+  /* TOM ROD MA ALDREI LESA `0`. `mean([])` er 0 i `src/learn.js` (deilt
+     med `xs.length || 1`), svo helmingur sem a ENGIN ar myndi birtast
+     sem maeld nulltala. Su villa er nakvaemlega "omaeld tala sem litur
+     ut eins og maeling". */
+  if (!vals.length) {
+    return { mean: null, t: null, wins: 0, years: 0, lo: null, hi: null,
+             excludesZero: null, per: {}, why: "engin timabil" };
+  }
+  const b = bootstrapDiff(A, Z, boot, 777);
+  return { mean: r2(mean(vals)), t: tOf(vals),
+           wins: vals.filter((x) => x > 0).length, years: vals.length,
+           lo: b ? r3(b.lo) : null, hi: b ? r3(b.hi) : null,
+           excludesZero: b ? b.excludesZero : null,
+           per: Object.fromEntries(Object.entries(A).map(([k, v]) => [k, r3(v)])) };
 }
 
 /* ============================================================
@@ -1121,6 +1378,436 @@ async function main() {
   }
 
   /* ============================================================
+     Q3 — BJARGAR SIGRA-MAELIKVARDINN `prevCarG`?
+     ============================================================
+     README 4d: `prevCarG` maeldist +23,8 stig, t=2,286, 8/11 ar, CI
+     [+3,7, +42,4] — OG placebo-thakid var +21,3, svo hun slapp yfir um
+     +2,5. Hun var EKKI tengd. Spurningin her er ein: er svarid annad
+     thegar maelikvardinn er SIGRAR?
+
+     THRJU SKILYRDI, OLL THRJU, og thau eru thau somu og repo-id notar
+     nu thegar (README 4c og 4d):
+       1  per-LEIKMANNS bootstrap utilokar null (ekki per timabil)
+       2  slaer PLACEBO-THAKID (ekki nullid)
+       3  heldur walk-forward (val a fyrri arum eingongu)
+     ============================================================ */
+    console.log(`\n${"=".repeat(78)}`);
+  console.log("  Q3 BJARGAR SIGRA-MAELIKVARDINN `prevCarG`? (README 4d: +23,8 stig, plsb-thak +21,3)");
+  console.log("=".repeat(78));
+
+  const q3Years = seasons;                 // 2019-2025, sama regla og Q2
+  console.log(`  thekja \`prevCarG\`: ` + q3Years.map((y) =>
+    `${y} ${worlds[y].coverage.prevCarGInHead}/${worlds[y].coverage.projected}`).join(" · "));
+
+  /* --- 3b-1 NULLHLIDID: w=0 VERDUR AD VERA SAMA BORD, LYKIL FYRIR LYKIL ---
+     Tvennt er profad og hvorugt daemir hitt: (a) bordin eru borin saman
+     BEINT (rod fyrir rod) og (b) duellid er keyrt og verdur ad lesa
+     nakvaemlega 0. (a) an (b) vaeri prof a kóda; (b) an (a) gaeti verid
+     satt af thvi ad tvo ólik bord skila somu utkomu i thessum drofttum.
+
+     OG THRIDJI LIDURINN ER SENTINELINN, thvi "0 = 0" er einskis virdi
+     nema synt se ad velin GETI lesid annad en 0 (CLAUDE.md 5b: thekja
+     er fullyrding, ekki logga).
+
+     STOKKBREYTT OG STADFEST 15.8.2026 — thrjar breytingar, thrjar
+     olikar nidurstodur, og THAER ERU EKKI ALLAR THAER SEM BUIST VAR VID:
+       M1  `tail.sort` snuid vid       -> bordamunur 9, duel 0.
+           Bordasamanburdurinn EINN sa thetta. Duellid gerdi thad ekki
+           thvi taglid er sjaldan draftad — (a) an (b) hefdi thagad.
+       M2  taglsgolfid -1e5 -> -100    -> HLIDID SAGDI EKKERT, OG THAD
+           VAR RETT: hausinn er z-stoðladur (sd=1) svo -100+ppg liggur
+           enn langt undir honum og bordid er obreytt. Stokkbreyting sem
+           breytir ENGU er ekki bilun i hlidinu.
+       M3  0,02*placebo3 laett i hausinn vid w=0
+                                       -> bordamunur 9, max|sigrar|
+           0,125, max|stig| 21,5. Baðir lidir fellu, exit 3.
+       M4  bordid latid hunsa `w` alveg -> bordamunur 0, duel 0, en
+           SENTINEL 0 og hlidid FELL. Thetta er tilfellid thar sem
+           nullprofid er fullkomlega graent OG maelir ekkert.          */
+  const q3Null = { boardMismatches: 0, cells: 0, maxAbsWins: 0, maxAbsPts: 0,
+                   sentinelMaxAbsWins: 0, passed: false };
+  for (const sh of SHAPES) {
+    for (const y of q3Years) {
+      const W = worlds[y];
+      const a = arankBoard(W, sh.fmt, repl[sh.key]);
+      const b = oppBoard(W, sh.fmt, repl[sh.key], Q3_VAR, 0, null);
+      if (a.size !== b.size) q3Null.boardMismatches++;
+      else for (const [id, r] of a) if (b.get(id) !== r) { q3Null.boardMismatches++; break; }
+      const acc = runCell({ shape: sh, W,
+        treat: { board: (X) => oppBoard(X, sh.fmt, repl[sh.key], Q3_VAR, 0, null) },
+        ctrl: { board: (X) => arankBoard(X, sh.fmt, repl[sh.key]) },
+        runs: 1, seedBase: 5501, adpSrc: ADP_SRC[sh.fmt][0] });
+      const c = cellStats(acc);
+      q3Null.cells++;
+      q3Null.maxAbsWins = Math.max(q3Null.maxAbsWins, Math.abs(c.winsDiff));
+      q3Null.maxAbsPts = Math.max(q3Null.maxAbsPts, Math.abs(c.seasonDiff));
+    }
+  }
+
+  /* HELMINGURINN SEM ER ODYR ER PROFADUR STRAX — thad er engin astaeda
+     til ad eyda fjorum minutum i grid sem er thegar merkingarlaust.
+     Sentinel-helmingurinn tharf gridid og er profadur a eftir thvi.  */
+  if (q3Null.boardMismatches || q3Null.maxAbsWins !== 0 || q3Null.maxAbsPts !== 0) {
+    console.error(`\n  Q3-NULLHLIDID FELL STRAX: bordamunur ${q3Null.boardMismatches} · ` +
+      `max|sigrar| ${q3Null.maxAbsWins} · max|stig| ${q3Null.maxAbsPts}`);
+    await writeOut({ gate: false, nullTest, accounting: acct, seatSpread, anchors,
+      q1, q2, q3: { nullGate: q3Null }, note:
+      "Q3-NULLHLIDID FELL. w=0 er ekki sama bord og A-Ranking, svo hver Q3-tala " +
+      "vaeri maeling a bordamun sem enginn bad um." });
+    process.exit(3);
+  }
+
+  /* ============================================================
+     Q3-GRIDID
+     ============================================================
+     9 breytur (1 raunveruleg + 8 placebo) x 10 vogir x 3 svid x 3
+     lognun x 7 timabil. Hver reitur skilar BAEDI sigra-mun og
+     stiga-mun ur SOMU drofttum.                                       */
+  const q3grid = {};
+  const q3Started = Date.now();
+  let q3cells = 0;
+  for (const sh of SHAPES) {
+    const src = ADP_SRC[sh.fmt][0];
+    q3grid[sh.key] = {};
+    for (const sc of Q3_SCOPES) {
+      q3grid[sh.key][sc.key] = {};
+      for (const vk of Q3_VARS) {
+        q3grid[sh.key][sc.key][vk] = {};
+        for (const w of Q3_NONZERO) {
+          const perW = {}, perP = {}, perC = {}, perPo = {};
+          for (const y of q3Years) {
+            const c = cellStats(runCell({ shape: sh, W: worlds[y],
+              treat: { board: (X) => oppBoard(X, sh.fmt, repl[sh.key], vk, w, sc.n) },
+              ctrl: { board: (X) => arankBoard(X, sh.fmt, repl[sh.key]) },
+              runs: Q3RUNS, seedBase: 6607, adpSrc: src }));
+            perW[y] = c.winsDiff; perP[y] = c.seasonDiff;
+            perC[y] = c.champT - c.champC; perPo[y] = c.poRateT - c.poRateC;
+            q3Null.sentinelMaxAbsWins = Math.max(q3Null.sentinelMaxAbsWins, Math.abs(c.winsDiff));
+          }
+          q3grid[sh.key][sc.key][vk][w] = { wins: perW, pts: perP, champ: perC, po: perPo };
+          q3cells++;
+        }
+      }
+    }
+    console.log(`  ${sh.key} · ${q3cells} reitir · ${Math.round((Date.now() - q3Started) / 1000)} s`);
+  }
+
+  /* HLIDID SJALFT MA EKKI VERA TOMT. Segdi nullhlidid "0" af thvi ad
+     VELIN les alltaf 0 vaeri thad tom fullyrding — nakvaemlega gildran
+     sem CLAUDE.md 5b lysir. `sentinelMaxAbsWins` er staersti munur sem
+     einhver vog OG einhver breyta naer i sama neti; se hann 0 getur
+     nullhlidid ekki brugdist og keyrslan deyr. */
+  q3Null.passed = q3Null.boardMismatches === 0 && q3Null.maxAbsWins === 0 &&
+                  q3Null.maxAbsPts === 0 && q3Null.sentinelMaxAbsWins > 0;
+  console.log(`  Q3-NULLHLID: ${q3Null.cells} frumur · bordamunur ${q3Null.boardMismatches} · ` +
+    `max|sigrar| ${q3Null.maxAbsWins} · max|stig| ${q3Null.maxAbsPts} · ` +
+    `sentinel (velin SER mun) ${r3(q3Null.sentinelMaxAbsWins)} -> ` +
+    `${q3Null.passed ? "STENST" : "FELLUR"}`);
+  if (!q3Null.passed) {
+    await writeOut({ gate: false, nullTest, accounting: acct, seatSpread, anchors,
+      q1, q2, q3: { nullGate: q3Null }, note:
+      "Q3-NULLHLIDID FELL. w=0 er ekki sama bord og A-Ranking (eda velin ser " +
+      "engan mun yfirleitt) og hver Q3-tala er merkingarlaus." });
+    console.error("\n  Q3-NULLHLIDID FELL — skrifa EKKERT nema hlidid.\n");
+    process.exit(3);
+  }
+
+  /* ---------- POOLING: OSAMHVERFI LIDURINN ----------
+     `opp-lab` skjalar hvers vegna medaltal yfir ALLAR vogir er RANGT i
+     tvihlida gridi: fyrir einraent merki eyda +w og -w hvor odrum.
+     Retta sundurlidunin er
+        samhverfur  = (E[w>0] + E[w<0]) / 2   — hvad truflunin SJALF gerir
+        osamhverfur = (E[w>0] - E[w<0]) / 2   — ATTIN, eina talan sem
+                                                getur verid merki       */
+  const q3cellsOf = (vk, metric, keep) => {
+    const acc = Object.fromEntries(q3Years.map((y) => [y, []]));
+    for (const sh of SHAPES) for (const sc of Q3_SCOPES) for (const w of Q3_NONZERO) {
+      if (keep && !keep({ shape: sh.key, scope: sc.key, w })) continue;
+      const per = q3grid[sh.key][sc.key][vk][w][metric];
+      for (const y of q3Years) if (per[y] != null) acc[y].push(per[y]);
+    }
+    const out = {};
+    for (const y of q3Years) if (acc[y].length) out[y] = mean(acc[y]);
+    return out;
+  };
+  const q3Directional = (vk, metric, keep) => {
+    const pos = q3cellsOf(vk, metric, (c) => c.w > 0 && (!keep || keep(c)));
+    const neg = q3cellsOf(vk, metric, (c) => c.w < 0 && (!keep || keep(c)));
+    const out = {};
+    for (const y of q3Years) if (pos[y] != null && neg[y] != null) out[y] = (pos[y] - neg[y]) / 2;
+    return out;
+  };
+
+  /* ---------- PLACEBO-THAKID ----------
+     Atta placebo-breytur gefa atta pooled osamhverf gildi. Thakid er
+     FORSPABIL FYRIR EITT NYTT FRAEKAST, ekki stadalvilla medaltalsins:
+     spurningin er hvort raunveruleg breyta se GREINANLEG fra einu
+     kasti af sudi, ekki hvar sud-medaltalid liggur. Sama formula og
+     `opp-lab` notar.                                                   */
+  const T_TAB = { 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8: 2.306 };
+  const placeboCeiling = (metric, keep) => {
+    const st = Q3_PLACEBOS.map((k) => bootZero(q3Directional(k, metric, keep)));
+    const ms = st.map((q) => q.mean).filter((x) => x != null);
+    if (ms.length < 3) return { n: ms.length, mean: null, sd: null, lo: null, hi: null,
+      max: null, min: null, maxAbsT: null, significant: null, each: [],
+      why: "faerri en 3 placebo-gildi — ENGIN nulldreifing" };
+    const m = mean(ms);
+    const sd = Math.sqrt(mean(ms.map((x) => (x - m) ** 2)) * ms.length /
+                         Math.max(1, ms.length - 1));
+    const tp = T_TAB[Math.max(3, Math.min(8, ms.length - 1))] || 2.306;
+    const half = tp * sd * Math.sqrt(1 + 1 / ms.length);
+    return { n: ms.length, mean: r3(m), sd: r3(sd),
+             lo: r3(m - half), hi: r3(m + half),
+             max: r3(Math.max(...ms)), min: r3(Math.min(...ms)),
+             maxAbsT: r3(Math.max(...st.map((q) => Math.abs(q.t ?? 0)))),
+             significant: st.filter((q) => q.excludesZero).length,
+             each: st.map((q, i) => ({ key: Q3_PLACEBOS[i], mean: q.mean, t: q.t,
+                                       wins: q.wins, years: q.years })) };
+  };
+
+  /* ---------- EIN TALA PER BREYTU, A BADUM MAELIKVORDUM ---------- */
+  const q3StatOf = (vk) => {
+    const dirW = bootZero(q3Directional(vk, "wins"));
+    const dirP = bootZero(q3Directional(vk, "pts"));
+    const byMag = Q3_MAGS.map((m) =>
+      r3(bootZero(q3Directional(vk, "wins", (c) => Math.abs(c.w) === m)).mean));
+    let mUp = 0;
+    for (let i = 1; i < byMag.length; i++) if (Math.abs(byMag[i]) > Math.abs(byMag[i - 1])) mUp++;
+    return {
+      wins: dirW, points: dirP,
+      champ: bootZero(q3Directional(vk, "champ")),
+      playoffs: bootZero(q3Directional(vk, "po")),
+      symmetricWins: bootZero(q3cellsOf(vk, "wins")),
+      symmetricPoints: bootZero(q3cellsOf(vk, "pts")),
+      byScope: Object.fromEntries(Q3_SCOPES.map((sc) =>
+        [sc.key, bootZero(q3Directional(vk, "wins", (c) => c.scope === sc.key))])),
+      byScopePoints: Object.fromEntries(Q3_SCOPES.map((sc) =>
+        [sc.key, bootZero(q3Directional(vk, "pts", (c) => c.scope === sc.key))])),
+      byShape: Object.fromEntries(SHAPES.map((sh) =>
+        [sh.key, bootZero(q3Directional(vk, "wins", (c) => c.shape === sh.key))])),
+      byMagnitude: Object.fromEntries(Q3_MAGS.map((m, i) => [m, byMag[i]])),
+      magnitudeMonotoneSteps: mUp,
+    };
+  };
+  const q3Var = q3StatOf(Q3_VAR);
+  const q3Plc = Object.fromEntries(Q3_PLACEBOS.map((k) => [k, q3StatOf(k)]));
+  const ceilWins = placeboCeiling("wins");
+  const ceilPts = placeboCeiling("pts");
+  const ceilByScope = Object.fromEntries(Q3_SCOPES.map((sc) =>
+    [sc.key, placeboCeiling("wins", (c) => c.scope === sc.key)]));
+
+  /* HEIMILDASKIPTINGIN — README 4d varnagli 2: `prevCarG` var omarktaek
+     i theirri spaheimild sem appid raunverulega notar (Sleeper
+     2021-25). Her eru adeins TVO FFToday-ar (2019-20) svo skiptingin er
+     BIRT EN EKKI PROFUD — tvo ar bera engin vikmork og thad er sagt. */
+  const subYears = (per, keep) => Object.fromEntries(
+    Object.entries(per).filter(([y]) => keep(Number(y))));
+  const dirWins = q3Directional(Q3_VAR, "wins");
+  const dirPts = q3Directional(Q3_VAR, "pts");
+  const q3Era = {
+    sleeper: { wins: bootZero(subYears(dirWins, (y) => y >= 2021)),
+               points: bootZero(subYears(dirPts, (y) => y >= 2021)) },
+    fftoday: { wins: bootZero(subYears(dirWins, (y) => y < 2021)),
+               points: bootZero(subYears(dirPts, (y) => y < 2021)) },
+    note: "adeins 2019-2020 eru FFToday-ar her (vikugogn byrja 2019), svo " +
+      "sa helmingur ber TVO ar og engin vikmork. BIRT SEM SAMHENGI.",
+  };
+
+  console.log(`\n  ${"breyta".padEnd(12)}${"sigrar".padStart(9)}${"t".padStart(8)}` +
+    `${"ar".padStart(7)}${"95% CI (ars-klasad)".padStart(22)}${"stig".padStart(9)}${"t".padStart(8)}`);
+  const showRow = (name, q) => console.log(`  ${name.padEnd(12)}` +
+    `${sgn(q.wins.mean, 3).padStart(9)}${String(q.wins.t).padStart(8)}` +
+    `${(q.wins.wins + "/" + q.wins.years).padStart(7)}` +
+    `${`[${sgn(q.wins.lo, 3)}, ${sgn(q.wins.hi, 3)}]`.padStart(22)}` +
+    `${sgn(q.points.mean, 1).padStart(9)}${String(q.points.t).padStart(8)}`);
+  showRow(Q3_VAR, q3Var);
+  for (const k of Q3_PLACEBOS) showRow(k, q3Plc[k]);
+  console.log(`  PLACEBO-THAK (sigrar): medaltal ${sgn(ceilWins.mean, 3)} · sd ${ceilWins.sd} · ` +
+    `haest ${sgn(ceilWins.max, 3)} · forspabil [${sgn(ceilWins.lo, 3)}, ${sgn(ceilWins.hi, 3)}] · ` +
+    `haesta |t| ${ceilWins.maxAbsT} · ${ceilWins.significant} af 8 "marktaek"`);
+  console.log(`  PLACEBO-THAK (stig)  : medaltal ${sgn(ceilPts.mean, 1)} · ` +
+    `forspabil [${sgn(ceilPts.lo, 1)}, ${sgn(ceilPts.hi, 1)}] · haesta |t| ${ceilPts.maxAbsT}`);
+  console.log(`  ${Q3_VAR} per svid (sigrar): ` + Q3_SCOPES.map((sc) =>
+    `${sc.key} ${sgn(q3Var.byScope[sc.key].mean, 3)} (thak ${sgn(ceilByScope[sc.key].hi, 3)})`).join(" · "));
+  console.log(`  ${Q3_VAR} heimildaskipting: sleeper 2021-25 ${sgn(q3Era.sleeper.wins.mean, 3)} ` +
+    `(${q3Era.sleeper.wins.wins}/${q3Era.sleeper.wins.years}) · ` +
+    `fftoday 2019-20 ${sgn(q3Era.fftoday.wins.mean, 3)} (${q3Era.fftoday.wins.wins}/${q3Era.fftoday.wins.years})`);
+
+  /* ---------- WALK-FORWARD ----------
+     Fyrir hvert ar er (vog, svid) valid A ARUNUM A UNDAN og beitt a
+     arid sjalft. Keyrt TVISVAR: a raunverulegu breytunni og a
+     PLACEBOUNUM EINGONGU — leit yfir gagnslaus afbrigdi getur lika
+     "valid" eitthvad sem virkar naesta ar af tilviljun, og su tala er
+     thad sem raunverulega breytan verdur ad sla.                      */
+  const q3Wf = (vars, metric) => {
+    const cands = [];
+    for (const sh of SHAPES) for (const sc of Q3_SCOPES) for (const vk of vars)
+      for (const w of Q3_NONZERO) {
+        cands.push({ label: `${vk} w=${w} ${sc.key} ${sh.key}`,
+                     per: q3grid[sh.key][sc.key][vk][w][metric] });
+      }
+    const per = {}, chosen = {};
+    for (let i = 1; i < q3Years.length; i++) {
+      const y = q3Years[i], prior = q3Years.slice(0, i);
+      let best = null;
+      for (const c of cands) {
+        const vals = prior.map((p) => c.per[p]).filter((x) => x != null);
+        if (vals.length < prior.length) continue;
+        const m = mean(vals);
+        if (best == null || m > best.m) best = { m, c };
+      }
+      if (!best || best.c.per[y] == null) continue;
+      per[y] = best.c.per[y];
+      chosen[y] = best.c.label;
+    }
+    return { ...bootZero(per), chosen, candidates: cands.length };
+  };
+  const wfVar = q3Wf([Q3_VAR], "wins");
+  const wfPlc = q3Wf(Q3_PLACEBOS, "wins");
+  const wfVarPts = q3Wf([Q3_VAR], "pts");
+  const wfPlcPts = q3Wf(Q3_PLACEBOS, "pts");
+  console.log(`  walk-forward (sigrar): ${Q3_VAR} ${sgn(wfVar.mean, 3)} ` +
+    `(${wfVar.wins}/${wfVar.years}, t=${wfVar.t}) · placebo-leit ${sgn(wfPlc.mean, 3)} ` +
+    `(${wfPlc.wins}/${wfPlc.years})`);
+  console.log(`  walk-forward (stig)  : ${Q3_VAR} ${sgn(wfVarPts.mean, 1)} ` +
+    `(${wfVarPts.wins}/${wfVarPts.years}) · placebo-leit ${sgn(wfPlcPts.mean, 1)} ` +
+    `(${wfPlcPts.wins}/${wfPlcPts.years})`);
+
+  /* ---------- PER-LEIKMANNS BOOTSTRAP ----------
+     README 4c: ars-klasada bootstrappid endursynir ARIN en heldur
+     leikmanna-lauginni fastri, svo thad getur ekki sed ad ollu
+     nidurstadan hvili a thvi HVADA ~170 leikmenn voru draftanlegir.
+     Her er laugin endursynd.
+
+     HVAD ER KEYRT OG HVERS VEGNA EKKI ALLT: ein itrun med ollu gridinu
+     (9 breytur x 10 vogir x 3 svid x 3 lognun x 7 ar) vaeri ~8.500
+     deildir og keyrslan tharf hundrud itrana. Bootstrappid er thvi
+     keyrt a HEADLINE-STILLINGUNNI: svid `all`, |w| = 0,10, osamhverfi
+     lidurinn, pooled yfir badar lognur og oll ar — og THAD ER SAMA TALA
+     og reiturinn `byScope.all` vid |w|=0,10 i toflunni ad ofan.
+     Placebo1 fer gegnum NAKVAEMLEGA sama bootstrap svo synilegt se ad
+     velin lesi ekki jakvaett a sudi.                                  */
+  const pBootVars = [Q3_VAR, "placebo1"];
+  const pAcc = Object.fromEntries(pBootVars.map((k) => [k, []]));
+  const pPoint = {};
+  for (const vk of pBootVars) {
+    const per = {};
+    for (const y of q3Years) {
+      const vals = [];
+      for (const sh of SHAPES) {
+        const a = q3grid[sh.key].all[vk][0.10].wins[y];
+        const b = q3grid[sh.key].all[vk][-0.10].wins[y];
+        if (a != null && b != null) vals.push((a - b) / 2);
+      }
+      if (vals.length) per[y] = mean(vals);
+    }
+    pPoint[vk] = bootZero(per);
+  }
+  console.log(`\n  per-leikmanns bootstrap (${PBOOT} itranir, laugin endursynd) …`);
+  const pT0 = Date.now();
+  for (let b = 0; b < PBOOT; b++) {
+    const acc = Object.fromEntries(pBootVars.map((k) => [k, []]));
+    for (const sh of SHAPES) {
+      const src = ADP_SRC[sh.fmt][0];
+      for (const y of q3Years) {
+        const RW = resampleWorld(worlds[y], sh.fmt, (y * 100003 + b * 7919 + 17) >>> 0);
+        for (const vk of pBootVars) {
+          const d = [];
+          for (const w of [0.10, -0.10]) {
+            const c = cellStats(runCell({ shape: sh, W: RW,
+              treat: { board: (X) => oppBoard(X, sh.fmt, repl[sh.key], vk, w, null) },
+              ctrl: { board: (X) => arankBoard(X, sh.fmt, repl[sh.key]) },
+              runs: 1, seedBase: (7001 + b * 104729) >>> 0, adpSrc: src }));
+            d.push(c.winsDiff);
+          }
+          acc[vk].push((d[0] - d[1]) / 2);
+        }
+      }
+    }
+    for (const vk of pBootVars) pAcc[vk].push(mean(acc[vk]));
+    if (b === 0) {
+      const est = Math.round((Date.now() - pT0) / 1000 * PBOOT);
+      console.log(`     ~${est} s aaetlad`);
+    }
+  }
+  const playerBoot = {};
+  for (const vk of pBootVars) {
+    const s = pAcc[vk].slice().sort((a, b) => a - b);
+    const lo = s[Math.floor(s.length * 0.025)], hi = s[Math.floor(s.length * 0.975)];
+    playerBoot[vk] = { point: pPoint[vk].mean, seasonClusteredCi: [pPoint[vk].lo, pPoint[vk].hi],
+      seasonClusteredExcludesZero: pPoint[vk].excludesZero,
+      iters: s.length, lo: r3(lo), hi: r3(hi), median: r3(s[Math.floor(s.length * 0.5)]),
+      excludesZero: lo > 0 || hi < 0 };
+    console.log(`     ${vk.padEnd(12)} punktur ${sgn(pPoint[vk].mean, 3)} · ` +
+      `per-leikmanns 95% CI [${sgn(playerBoot[vk].lo, 3)}, ${sgn(playerBoot[vk].hi, 3)}]` +
+      ` -> ${playerBoot[vk].excludesZero ? "UTILOKAR NULL" : "inniheldur null"}` +
+      `  (ars-klasad [${sgn(pPoint[vk].lo, 3)}, ${sgn(pPoint[vk].hi, 3)}])`);
+  }
+
+  /* ---------- DOMURINN — REIKNADUR, EKKI SKRIFADUR ---------- */
+  const q3Verdict = {
+    criterion1_playerBootstrapExcludesZero: playerBoot[Q3_VAR].excludesZero,
+    criterion2_beatsPlaceboCeiling: q3Var.wins.mean > ceilWins.hi,
+    criterion3_walkForward: wfVar.mean > 0 && wfVar.mean > wfPlc.mean,
+    marginOverCeiling: r3(q3Var.wins.mean - ceilWins.hi),
+    rescued: false,
+  };
+  q3Verdict.rescued = q3Verdict.criterion1_playerBootstrapExcludesZero &&
+                      q3Verdict.criterion2_beatsPlaceboCeiling &&
+                      q3Verdict.criterion3_walkForward;
+  console.log(`\n  DOMUR: (1) per-leikmanns CI ${q3Verdict.criterion1_playerBootstrapExcludesZero ? "JA" : "NEI"}` +
+    ` · (2) yfir placebo-thaki ${q3Verdict.criterion2_beatsPlaceboCeiling ? "JA" : "NEI"}` +
+    ` (bord ${sgn(q3Verdict.marginOverCeiling, 3)} sigrar)` +
+    ` · (3) walk-forward ${q3Verdict.criterion3_walkForward ? "JA" : "NEI"}` +
+    `  ->  ${q3Verdict.rescued ? "SIGRAR BJARGA HENNI" : "SIGRAR BJARGA HENNI EKKI"}`);
+
+  const q3 = {
+    question: "Bjargar thad ad skipta ur STIGUM i SIGRA einhverri hugmynd sem " +
+      "var hafnad? Eini frambjodandinn sem er naerri morkunum er `prevCarG` " +
+      "(README 4d: +23,8 stig gegn placebo-thaki +21,3).",
+    design: {
+      treatment: "A-Ranking bordid endurradad eftir `z(VBD) + w * z(prevCarG)`, " +
+        "z INNAN STODU fyrir breytuna og yfir hausinn fyrir VBD — ordrett " +
+        "regla `opp-lab.mjs`. Taglid (their sem eiga enga spa) er ohreyft.",
+      control: "hreint A-Ranking bordid. z-stodlun a VBD er einraen umbreyting " +
+        "svo w=0 gefur NAKVAEMLEGA sama bord — profad lykil fyrir lykil.",
+      weights: Q3_WEIGHTS,
+      scopes: Q3_SCOPES.map((s) => s.key),
+      seasons: q3Years,
+      runsPerCell: Q3RUNS,
+      leaguesPerCellSeason: "T x 2 (oll saetapor, spegluð) x runs",
+      placebos: `${Q3_PLACEBOS.length} deterministiskar sud-breytur gegnum ` +
+        "NAKVAEMLEGA sama grid — nulldreifingin er MAELD, ekki formula",
+      pooling: "osamhverfi lidurinn (E[w>0] - E[w<0])/2 per timabili, medaltal " +
+        "yfir vogir x svid x lognun. Samhverfi lidurinn er birtur ser: hann er " +
+        "thad sem TRUFLUNIN SJALF gerir og hann er ekki merki.",
+      ceiling: "forspabil fyrir EITT NYTT placebo-fraekast (medaltal +- t * sd * " +
+        "sqrt(1+1/n)) — ekki stadalvilla medaltalsins",
+      playerBootstrap: `${PBOOT} itranir, laugin endursynd MED ENDURTEKNINGU ` +
+        "(klonun faer nytt id, sama laug fyrir BADI bordin) a headline-" +
+        "stillingunni: svid `all`, |w|=0,10, badar lognur, oll ar",
+    },
+    nullGate: q3Null,
+    coverage: Object.fromEntries(q3Years.map((y) => [y,
+      { head: worlds[y].coverage.projected, withPrevCarG: worlds[y].coverage.prevCarGInHead }])),
+    variable: q3Var, placebos: q3Plc,
+    placeboCeiling: { wins: ceilWins, points: ceilPts, byScope: ceilByScope },
+    era: q3Era,
+    walkForward: { wins: wfVar, winsPlacebo: wfPlc, points: wfVarPts, pointsPlacebo: wfPlcPts },
+    playerBootstrap: playerBoot,
+    verdict: q3Verdict,
+    /* GRIDID ER AUDITTRAILID og thad fer i skrana: hver pooled tala her ad
+       ofan er leidd ur thvi og verdur ad vera endurreiknanleg. EN hráar
+       fleytitolur (0,10416666666666667) threfalda skrana an thess ad baeta
+       EINNI marktaekri tolu vid. Rundad a fjora aukastafi VID SKRIF; hver
+       einasti utreikningur her ad ofan notar full nakvaemni.
+       `opp-lab` skjalar hina hlidina a thessu: hun bar era-skiptingu PER REIT
+       sem enginn las og skráin var 4 MB. Munurinn er ad gridid ER lesid. */
+    grid: JSON.parse(JSON.stringify(q3grid, (k, v) =>
+      (typeof v === "number" && !Number.isInteger(v) ? Math.round(v * 1e4) / 1e4 : v))),
+  };
+
+  /* ============================================================
      NAEMNI — FJOGUR LID I URSLITAKEPPNI I STAD SEX
      ============================================================ */
   const poSens = {};
@@ -1216,21 +1903,21 @@ async function main() {
      SKRIFA
      ============================================================ */
   const secs = Math.round((Date.now() - t0) / 100) / 10;
-  const verdict = buildVerdict({ q1, q2, anchors });
+  const verdict = buildVerdict({ q1, q2, anchors, q3 });
   console.log(`\n${"=".repeat(78)}`);
   for (const line of verdict.lines) console.log(`  ${line}`);
   console.log("=".repeat(78));
 
   await writeOut({
     gate: true, nullTest, accounting: acct, seatSpread, anchors,
-    q1, q2, playoffSensitivity: poSens, realism, verdict, bookedPoolDepth,
+    q1, q2, q3, playoffSensitivity: poSens, realism, verdict, bookedPoolDepth,
     coverage: Object.fromEntries(seasons.map((y) => [y, worlds[y].coverage])),
     sumCheck, shapeGuard, projYears, seasons, runtimeSec: secs,
   });
   console.log(`\n-> data/measure/h2h.json  (${secs} s)`);
 }
 
-function buildVerdict({ q1, q2, anchors }) {
+function buildVerdict({ q1, q2, anchors, q3 }) {
   const lines = [];
   const q1cells = [];
   for (const [sk, byS] of Object.entries(q1)) {
@@ -1300,9 +1987,31 @@ function buildVerdict({ q1, q2, anchors }) {
       "maelanlegt er hvad ma EKKI gera (zero-RB, QB snemma, WR-WR-WR) — og THAD " +
       "segja badir malikvardarnir eins."
     : "Q2 minnst ein stefna slaer BPA marktaekt — rodin er thvi ekki oll havadi.");
+  /* ============================================================
+     Q3 — OG HANN ER REIKNADUR UR TOLUNUM, EKKI SKRIFADUR
+     ============================================================
+     Se `rescued` falskt er thad NIDURSTADA og hun a ad standa berum
+     ordum: sigra-maelikvardinn bjargar EKKI `prevCarG`. Alla-vega ma
+     linan ekki verda "hun er naerri" — hun ber toluna.               */
+  if (q3) {
+    const V = q3.verdict, C = q3.placeboCeiling.wins;
+    lines.push(`Q3 \`prevCarG\` a SIGRUM: osamhverft ${sgn(q3.variable.wins.mean, 3)} sigrar af ` +
+      `${REG_WEEKS} (t=${q3.variable.wins.t}, ${q3.variable.wins.wins}/${q3.variable.wins.years}), ` +
+      `placebo-thak ${sgn(C.hi, 3)} — bord ${sgn(V.marginOverCeiling, 3)}.`);
+    lines.push(`Q3 skilyrdin thrju: per-leikmanns CI ` +
+      `${V.criterion1_playerBootstrapExcludesZero ? "STENST" : "FELLUR"} · ` +
+      `placebo-thak ${V.criterion2_beatsPlaceboCeiling ? "STENST" : "FELLUR"} · ` +
+      `walk-forward ${V.criterion3_walkForward ? "STENST" : "FELLUR"} -> ` +
+      `${V.rescued ? "SIGRAR BJARGA HENNI" : "SIGRAR BJARGA HENNI EKKI"}.`);
+    lines.push(`Q3 stigin ur SOMU drofttum: ${sgn(q3.variable.points.mean, 1)} ` +
+      `(t=${q3.variable.points.t}) gegn placebo-thaki ${sgn(q3.placeboCeiling.points.hi, 1)} — ` +
+      "sami domur a badum malikvordum, sem er thad sem rho(sigrar,stig) 0,96-0,99 spair.");
+  }
+
   return { lines, winsPositiveCells: winsPos, winsSignificantCells: winsSig,
            champPositiveCells: champPos, q1cellCount: q1cells.length,
-           orderComparison: cmp, significantDirections: dirs };
+           orderComparison: cmp, significantDirections: dirs,
+           q3: q3 ? q3.verdict : null };
 }
 
 async function writeOut(body) {
