@@ -21,7 +21,7 @@
    yfir thaer nitjan stokkbreytingar sem VORU keyrdar og felldu prof.
    ============================================================ */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { BASE, DST_ANCHOR, dstPoints, dstPointsAllowed, dstBracket }
   from "../src/scoring.js";
@@ -458,6 +458,183 @@ console.log("\n9. eiginleikinn er TENGDUR vid forsiduna");
   /* Talan a skjanum ma ekki vera onnur en su sem var maeld. */
   ok(!/3\.82|\+3,82/.test(code),
     "abatinn er EKKI hardkodadur i .jsx — hann kemur ur `DST_STREAM_MEASURED`");
+}
+
+/* ============================================================
+   10. PROSINN SJALFUR — TOLURNAR OG VIRUNAR-FULLYRDINGIN
+   ============================================================
+   Kafli 1 ber `DST_ANCHOR` vid `data/measure/dst.json`. Thad er
+   vélsvid gegn vélsvidi og thad HELT — medan prosinn i somu tveimur
+   skram bar 195/43/152 ur eldri keyrslu og akkerid bar 209/160/49.
+   Profid las adeins vélsvidid, svo prosinn gat rekid ad eilifu:
+   "athugasemd sem ekkert prof getur fellt" (CLAUDE.md 5b).
+
+   Hér eru tolurnar LESNAR UT UR PROSANUM og bornar vid akkerid.
+
+   OG SEINNI HELMINGURINN ER MIKILVAEGARI: README fullyrti ad appid
+   laesi DST-reglur deildarinnar gegnum `dstRulesFromSettings`. Thad
+   gerdi thad aldrei — null kallendur i `src/`. Vordurinn telur
+   kallendurna og krefst thess ad SKJALIN SEGI THAD SAMA, i badar
+   attir.                                                             */
+console.log("\n10. prosinn: tolur og virunar-fullyrding");
+{
+  const ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
+  const readme = readFileSync(path.join(ROOT, "README.md"), "utf8");
+  const scoringSrc = readFileSync(path.join(ROOT, "src", "scoring.js"), "utf8");
+
+  /* --- 10a. tolurnar thrjar, LESNAR UT UR PROSANUM --- */
+  const A = DST_ANCHOR.sleeperSelfDisagreement;
+  const n = A.agree + A.differ;
+
+  /* Fullyrdingin er ONYT nema strengirnir seu SANNANLEGA THARNA
+     (CLAUDE.md 5b regla 2), svo hvert akkeri er fyrst fundid og
+     TALID adur en tolurnar eru bornar saman. */
+  const readmeBlock = readme.match(
+    /Mælt á \*\*(\d+) sameiginlegum röðum\*\*:\s*\n\*\*(\d+) eru jafnar\*\* og \*\*(\d+) skeika\*\*/);
+  ok(!!readmeBlock, "README ber setninguna um sameiginlegu radirnar (akkeri fannst)");
+  if (readmeBlock) {
+    const [, rn, rAgree, rDiffer] = readmeBlock.map(Number);
+    ok(rn === n, `README: ${rn} sameiginlegar radir = akkerid ${n}`);
+    ok(rAgree === A.agree, `README: ${rAgree} jafnar = akkerid ${A.agree}`);
+    ok(rDiffer === A.differ, `README: ${rDiffer} skeika = akkerid ${A.differ}`);
+  }
+
+  const scoringBlock = scoringSrc.match(
+    /Maelt a (\d+) sameiginlegum rodum: (\d+) eru jafnar og (\d+) skeika/);
+  ok(!!scoringBlock, "`scoring.js` ber somu setningu (akkeri fannst)");
+  if (scoringBlock) {
+    const [, sn, sAgree, sDiffer] = scoringBlock.map(Number);
+    ok(sn === n, `scoring.js: ${sn} sameiginlegar radir = akkerid ${n}`);
+    ok(sAgree === A.agree, `scoring.js: ${sAgree} jafnar = akkerid ${A.agree}`);
+    ok(sDiffer === A.differ, `scoring.js: ${sDiffer} skeika = akkerid ${A.differ}`);
+  }
+
+  /* Histogrammid er EITT STAK og prosinn segir bæði stakid og fjoldann.
+     Thad er fullyrdingin sem ber "ekkert annad bil skeikar".
+
+     AKKERID BER `delta: 1` (eitt stak, samanthjappad) en MAELISKRAIN ber
+     `deltas: {"1": 49}` (allt histogrammid). Baedi eru lesin: akkerid er
+     thad sem prosinn vitnar i, maeliskrain er thad sem sannar ad stakid
+     se AÐEINS eitt. Ad lesa bara annad vaeri ad trua samanthjoppuninni. */
+  ok(A.delta === 1, `akkerid: stakid er +${A.delta}`);
+  {
+    const M = JSON.parse(readFileSync(path.join(DATA, "measure", "dst.json"), "utf8"));
+    const H = M.anchor.sleeperSelfDisagreement.deltas || {};
+    const keys = Object.keys(H);
+    ok(keys.length === 1 && keys[0] === String(A.delta) && H[keys[0]] === A.differ,
+      `measure/dst.json: histogrammid er EITT stak, +${A.delta} x${A.differ}`);
+  }
+  ok(new RegExp(`\\+1 × ${A.differ}`).test(readme),
+    `README nefnir stakid berum ordum ("+1 × ${A.differ}")`);
+  ok(new RegExp(`\\+1 x${A.differ}`).test(scoringSrc),
+    `scoring.js nefnir stakid berum ordum ("+1 x${A.differ}")`);
+
+  /* GAMLA TALNASETTID MA EKKI SNUA AFTUR. Neikvaed fullyrding sem
+     nefnir streng sem VAR sannanlega tharna (hann var i badum skram
+     fram ad thessari lotu). */
+  ok(!/195 sameiginlegum/.test(readme) && !/43 af 43/.test(readme),
+    "gamla settid (195 / 43 af 43) er farid ur README");
+  ok(!/43 af 43/.test(scoringSrc),
+    "gamla settid (43 af 43) er farid ur `scoring.js`");
+
+  /* --- 10b. VIRUNIN: kallendur taldir, badar attir --- */
+  /* FYRSTA UTGAFA THESSA VARDAR TALDI BER NOFN OG FLAGGADI
+     `scoring.js:dstBracket` SEM VIRUN. Thad var RANGT og vardurinn
+     kenndi mér thad sjalfur: `dstPoints` kallar `dstBracket` inni i
+     SINNI EIGIN skilgreiningu. Innri samsetning lab-eignarinnar er ekki
+     virun i appid.
+
+     RETTA SPURNINGIN I ES-EININGUM ER INNFLUTNINGUR. Ekkert i `src/`
+     getur notad fallid an thess ad flytja thad inn, svo listinn yfir
+     innflutninga ER listinn yfir kallendur — og hann er odyr ad lesa
+     og omogulegur ad ruglast a vid innri samsetningu.                */
+  const SRC = path.join(ROOT, "src");
+  const NAMES = ["dstPoints", "dstBracket", "dstPointsAllowed",
+                 "dstRulesFromSettings"];
+  const DEFN = new Set(["scoring.js", "sleeper-league.js"]);
+  const callers = [];
+  const files = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { walk(p); continue; }
+      if (/\.(js|jsx)$/.test(e.name)) files.push(p);
+    }
+  };
+  walk(SRC);
+
+  for (const p of files) {
+    const code = readFileSync(p, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/^[ \t]*\/\/.*$/gm, " ");
+    /* Hver innflutnings-blokk, hvort sem hun er a einni linu eda morgum. */
+    for (const m of code.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']+["']/g)) {
+      for (const nm of NAMES) {
+        if (new RegExp(`\\b${nm}\\b`).test(m[1])) callers.push(`${path.basename(p)} flytur inn ${nm}`);
+      }
+    }
+    /* OG GATID INNAN SKILGREININGARSKRANNA: `leagueFromSleeper` (sem
+       App.jsx KALLAR) gaeti kallad `dstRulesFromSettings` an thess ad
+       nokkur innflutningur saeist. Innganga lab-eignarinnar ma thvi
+       birtast NAKVAEMLEGA EINU SINNI i sinni eigin skra — sem er
+       skilgreiningin sjalf. */
+    if (DEFN.has(path.basename(p))) {
+      for (const nm of ["dstPoints", "dstRulesFromSettings"]) {
+        const hits = (code.match(new RegExp(`\\b${nm}\\b`, "g")) || []).length;
+        if (hits > 1) callers.push(`${path.basename(p)} nefnir ${nm} ${hits}x (> skilgreiningin ein)`);
+      }
+    }
+  }
+
+  /* THEKJA ER FULLYRDING: leitin verdur ad hafa SED skrarnar.
+     Fyndi hun 0 skrar vaeri `callers.length === 0` satt af rangri
+     astaedu — nakvaemlega tomma fullyrdingin ur CLAUDE.md 5b. */
+  let scanned = 0;
+  const count = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) count(p);
+      else if (/\.(js|jsx)$/.test(e.name)) scanned++;
+    }
+  };
+  count(SRC);
+  ok(scanned >= 15, `leitin sa ${scanned} skrar i src/ (>= 15)`);
+  /* THEKJA ER FULLYRDING, ekki logga: leitin verdur ad SANNA ad hun
+     finni innflutninga a annad bord. Fyndi regexid ekkert (t.d. eftir
+     breytingu a snidi) vaeri `callers.length === 0` satt af rangri
+     astaedu — tomma fullyrdingin ur CLAUDE.md 5b. `dstStream` ER
+     fluttur inn i Dashboard.jsx, svo hann er jakvaeda vidmidid. */
+  let importsSeen = 0;
+  for (const p of files) {
+    const code = readFileSync(p, "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
+    for (const m of code.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'][^"']+["']/g)) {
+      if (/\bdstStream\b/.test(m[1])) importsSeen++;
+    }
+  }
+  ok(importsSeen >= 1,
+    `innflutnings-leitin finnur SANNANLEGA innflutning (dstStream x${importsSeen})`);
+
+  const wired = callers.length > 0;
+  ok(!wired,
+    `DST-stigafollin hafa ${callers.length} kallendur i src/` +
+    (wired ? ` — ${callers.join(", ")}` : " (lab-heimild, eins og skjalad er)"));
+
+  /* README VERDUR AD SEGJA THAD SAMA. Thetta er hlidid sem fellur ef
+     einhver virar follin an thess ad leidretta kaflann — OG ef
+     einhver skrifar kaflann aftur i fyrra horf an thess ad vira.
+
+     GAMLA SETNINGIN ER VITNAD I VILJANDI i leidrettingunni ("Hér stod
+     adur: ..."), svo ber leit ad henni FELLUR A EIGIN LAGFAERINGU. Hun
+     ma thvi birtast NAKVAEMLEGA EINU SINNI og AÐEINS i tilvitnun. */
+  const claimHits = (readme.match(/Þess vegna les appið reglurnar úr deildinni/g) || []).length;
+  ok(claimHits === 1,
+    `gamla virunar-setningin birtist ${claimHits}x (a ad vera 1: tilvitnunin)`);
+  ok(/Hér stóð áður: \*„Þess vegna les appið reglurnar úr deildinni/.test(readme),
+    "og hun er INNAN tilvitnunar, ekki sem lifandi fullyrding");
+  const claimsLabOnly = /núll kallendur í `src\/`/.test(readme);
+  ok(claimsLabOnly, "README segir berum ordum ad kallendur seu null i src/");
+  ok(wired !== claimsLabOnly,
+    "skjalid og kodinn segja THAD SAMA um virunina");
 }
 
 console.log(`\n${fail ? `${fail} PROF FELLU` : "oll DST-profin graen"}`);

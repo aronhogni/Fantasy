@@ -896,19 +896,59 @@ Endurkomu-TD á sérliði er **talinn með** (útgáfan sem dró hann líka frá
 ##### SLEEPER ER ÓSAMMÁLA SJÁLFUM SÉR — og deildin er heimildin
 
 `stats`-endapunkturinn birtir `pts_std` með **`pts_allow_14_20 = 0`**.
-Raunveruleg deild skorar þá röð **1**. Mælt á 195 sameiginlegum röðum:
-**43 af 43** þar sem stig á sig eru 14–20 eru **nákvæmlega +1** í deildinni,
-og **152 raðir utan bilsins eru jafnar**. Ekkert annað bil skeikar.
+Raunveruleg deild skorar þá röð **1**. Mælt á **209 sameiginlegum röðum**:
+**160 eru jafnar** og **49 skeika** — og leifar-histogrammið er **eitt stak,
+`+1 × 49`**. Að hver einasta skekkja sé sömu stærðar og sama formerkis er það
+sem gerir „ekkert annað bil skeikar" trúverðugt; dreifðist hún á fleiri bil
+bæri histogrammið fleiri en eitt stak. Bils-eignunin sjálf (pa=14…20) kemur úr
+per-gildis-leiðslunni hér að neðan, ekki úr þessari talningu.
+
+> Hér stóð áður **195 / 43 / 152**. Þær tölur voru úr eldri keyrslu og
+> `DST_ANCHOR.sleeperSelfDisagreement` í `scoring.js` hafði borið 209/160/49
+> síðan lab-ið var endurkeyrt — prósi og vélsvið sögðu sitt hvað í sömu skrá.
+> Prófið las **aðeins vélsviðið**, svo prósinn var óvarinn. Kafli 10 í
+> `tests/dst.mjs` les nú tölurnar **út úr prósanum** í báðum skrám og ber þær
+> við akkerið.
 
 Þröskuldarnir eru **leiddir út per staka `pts_allow`-tölu (0…52)**, ekki teknir
 úr skjölun: hvert einasta gildi ber **eina** leif (pa=14…20 gefur 0 í 130 af
 132 röðum í `stats`-heimildinni; pa=21…27 í 149 af 155).
 
-**Þess vegna les appið reglurnar úr deildinni** (`dstRulesFromSettings`) og
-notar `BASE` aðeins þegar deildin nefnir regluna ekki — **og segir þá frá því**
-(`missing`). Sá sem akkerar gegn `stats`-endapunktinum verður að nota 0, annars
-mælist hann +1 úr engu: með deildar-töflunni fer sú keyrsla úr **91,2% í 70,6%**,
-sem er **ekki villa í formúlunni**.
+Sá sem akkerar gegn `stats`-endapunktinum verður að nota 0, annars mælist hann
++1 úr engu: með deildar-töflunni fer sú keyrsla úr **91,2% í 70,6%**, sem er
+**ekki villa í formúlunni**.
+
+##### DST-STIGAGJÖFIN ER AKKERI, EKKI KÓÐI Á LEIÐINNI Á SKJÁ
+
+Hér stóð áður: *„Þess vegna les appið reglurnar úr deildinni
+(`dstRulesFromSettings`) og notar `BASE` aðeins þegar deildin nefnir regluna
+ekki — og segir þá frá því (`missing`)."* **Sú setning var ósönn og hafði alltaf
+verið það.** `dstPoints`, `dstBracket`, `dstPointsAllowed` og
+`dstRulesFromSettings` hafa **núll kallendur í `src/`** — aðeins
+`scripts/dst-lab.mjs` og `tests/dst.mjs` kalla þau. `missing`/`unmodelled`/
+`warnings` ná því aldrei á skjá, og engin DST-verðlagning er til í waiver né
+MyTeam.
+
+**Og það á ekki að laga með því að víra þau, því hin leiðin var mæld og vann.**
+Vikuleg DST-ákvörðun appsins er **streymi eftir væntu skori mótherjans**
+(+3,82, t 5,75, **6/6 ár**), og að raða vörnum eftir stigum tapar fyrir því
+(röðun eftir stigum í fyrra +0,77, t 1,16, 3/6; blöndun **kostar** 3,82 → 1,92).
+Að reikna DST-stig úr deildarreglum og raða eftir þeim er nákvæmlega sú
+töpuðu leið. DST er auk þess **viljandi utan A-Ranking** í draftinu
+(`build.js`, `advice.js`), svo þar er heldur enginn staður fyrir töluna.
+
+**Til hvers eru föllin þá?** Þau eru **heimildin fyrir tölunum í þessum kafla**:
+`DST_ANCHOR` (r 0,996 / MAE 0,124 / 90,4% upp á stigið gegn raunverulegri deild)
+er til af því að formúlan var skrifuð og akkeruð gegn tveimur óháðum heimildum.
+Það er nákvæmlega skilyrðið sem `scoring.js` setti sjálfur áður en fallið mátti
+koma aftur. Akkerað lab-fall sem ber sitt eigið próf er ekki dauður kóði í sama
+skilningi og `ppts` í `standings.js` — **en munurinn verður að vera skrifaður,
+annars les næsti maður README og heldur að appið geri þetta.**
+
+Vörður: **`tests/dst.mjs` kafli 10**. Hann telur raunverulega kallendur í `src/`
+og fellur **í báðar áttir** — bæði ef einhver vírar þau án þess að leiðrétta
+þennan kafla, og ef kaflinn er endurskrifaður svo hann fullyrði vírun sem er
+ekki til.
 
 ##### Leifin sem eftir stendur er TALIN, ekki kölluð hávaði
 
@@ -3382,6 +3422,66 @@ Báðar eru síaðar til að **hliðið verði ekki tóm fullyrðing**:
 > því sían pinnar mengið. Án hennar hefði serían farið úr 975 röðum í 3.228
 > (100 → 146 MB/ár) við breytingu í **allt öðru falli** og orðið
 > ósamanburðarhæf við sjálfa sig.
+
+### Tímabils-merkið á vikulegri ECR var RANGT — mælt og lagað 16.8.2026
+
+`weekly-ecr/2025-12-30.json` bar **`"season": 2026`** á gögnum frá **viku 17 af
+tímabilinu 2025**. Skráarnafnið kemur úr `scrape_date` og var rétt; **sviðið**
+var `season`, breytan sem heldur utan um tímabil **keyrslunnar**. Lab sem
+joinar á `season` hefði því borið desember-2025 saman við 2026 — **þögul röng
+pörun**, sama ætt og BSD-liðavörpunin í FPL-hlutanum, og verri en engin pörun
+því hún les eins og mæling.
+
+`seasonOfScrape(scrapeDate)` leysir þetta: tímabil Y nær **september Y → febrúar
+Y+1**, svo janúar og febrúar tilheyra fyrra ári (`month >= 3 ? year : year - 1`).
+Ónýt dagsetning skilar **`null`, ekki ágiskun** — „við vitum ekki" er rétt svar,
+2026 var það ekki.
+
+**Skráin sem lá á disknum var leiðrétt** (809 raðir, `players`-farmurinn
+**bæti-eins**, `scrapeDate` og `captured` ósnert — aðeins afleidda merkið).
+Það er ekki brot á `writeOnce`: reglan bannar að **endurskrifa sögu**, og hér
+var ekkert mælt gildi snert, aðeins merki sem var sannanlega rangt.
+
+Vörður: **`tests/pipeline.mjs` → „tímabils-merkið"**. Hann prófar formúluna á
+sex dagsetningum þar sem svarið er þekkt fyrirfram (bæði mörk: 2026-02-08 → 2025
+og 2026-03-01 → 2026), fimm ónýtum inntökum → `null`, **og skrárnar á disknum**.
+Sá síðasti er sá sem hefði fundið villuna — formúlan var aldrei til, svo próf á
+henni einni hefði verið grænt í tómarúmi. Fimm stökkbreytingar felldar (þ.á m.
+„skilaðu bara árinu úr nafninu", sem er nákvæmlega gamla hegðunin).
+
+### `trending/` sækir tvisvar á dag og MORGUNMYNDIN TAPAST — mælt, EKKI lagað
+
+Talið 16.8.2026 yfir sex daga sem serían nær yfir. `core` keyrir **tvisvar**
+(~09:20 og ~21:15 UTC) og trending notar `writeJson`, ekki `writeOnce`, svo
+kvöldkeyrslan skrifar ofan í morgunmyndina:
+
+| skrá | `captured` sem lifði | morgunkeyrsla sama dags |
+|---|---|---|
+| `2026-08-11` … `2026-08-16` | **21:14–21:49 UTC, allar sex** | 09:19–09:56, **allar sex horfnar** |
+
+**100% morgunsýnanna eru töpuð**, ekki eitt tilvik eins og fyrri úttekt sagði.
+Endapunkturinn er 24-klst gluggi, svo myndirnar tvær eru **ólík gögn**, ekki
+tvö eintök af sama.
+
+**OG SAMT VAR ÞESSU EKKI BREYTT — ástæðan er mæld.** Það sem lifir er
+**samkvæmt sýnatökuþrep**: allar sex skrárnar eru teknar á sama tíma sólarhrings
+(21:14–21:49), svo serían er **innbyrðis samanburðarhæf**. Hún er ekki brotin;
+hún er grófari en hún gæti verið. `writeOnce` hér myndi færa sýnatökuna í
+09:xx og búa til **rof í miðri seríu** — sex kvöldmyndir og svo morgunmyndir —
+sem er verra fyrir tímaröð en að missa af hinu sýninu.
+
+Rétta lausnin er **tíma-lyklun** (`2026-08-14T0953.json`), sem heldur báðum og
+býr ekki til rof. Hún breytir hins vegar **lögun seríunnar** og dags-vörðurinn
+í `pipeline.mjs` er lyklaður á `{dagur}.json`, svo hún kostar samstillta
+breytingu á vistun og verði. **Það er ekki verk sem á að vinna fimm dögum fyrir
+draft**, og serían tapar engu sem hún hefur þegar. Skráð hér svo ákvörðunin sé
+ákvörðun en ekki gleymska.
+
+> **Athugið að þetta er EKKI brot á `writeOnce`-kenningunni** þótt fyrri úttekt
+> hafi flokkað það þannig. `writeOnce` bannar að endurskrifa **sögu**;
+> trending-endapunkturinn er **lifandi 24-klst gluggi** og ný sókn er ný mæling,
+> ekki endurritun á þeirri gömlu. Munurinn er raunverulegur og athugasemdin í
+> `fetch-nfl.mjs` sagði hann rétt allan tímann.
 
 ### Vörðurinn — og hann getur fellt gagna-keyrsluna
 

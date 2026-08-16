@@ -275,6 +275,31 @@ async function readJson(name) {
    Maelt doemi ur thessu repo-i: 13.8.2026 skiladi ESPN **3 greinum** og
    `news.json` var (rettilega) HAFNAD — hefdi frettasafnid skrifad tha
    thunnu mynd og fryst hana vaeri dagurinn geymdur RANGUR ad eilifu.  */
+/* ============================================================
+   TIMABILID KEMUR UR DAGSETNINGU GAGNANNA, EKKI UR KEYRSLUNNI
+   ============================================================
+   `weekly-ecr/2025-12-30.json` bar **`"season": 2026`** a gognum fra
+   viku 17 timabilsins **2025**. Skrarnafnid var lagfaert a sinum tima
+   (thad kemur ur `scrapeDate`) en SVIDID var thad ekki: thad var
+   `season`, breytan sem heldur utan um yfirstandandi timabil
+   KEYRSLUNNAR. Lab sem joinar a `season` bar thvi 2025-gogn saman vid
+   2026 an thess ad nokkud saeist.
+
+   Sama aett og BSD-lida-vorpunin i FPL-hlutanum: **thogul rong porun
+   er verri en engin**. Og sama regla og "tomt gildi er sleppt, ekki
+   sett i 0" — rangt merki les eins og maeling.
+
+   NFL-timabil Y nær fra september Y fram i februar Y+1, svo januar og
+   februar tilheyra FYRRA ari. Onyt dagsetning skilar `null`, ekki
+   agiskun: "vid vitum ekki" er rett svar, 2026 var thad ekki.       */
+function seasonOfScrape(isoDate) {
+  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(String(isoDate || ""));
+  if (!m) return null;
+  const year = Number(m[1]), month = Number(m[2]);
+  if (!(month >= 1 && month <= 12)) return null;
+  return month >= 3 ? year : year - 1;
+}
+
 async function writeOnce(name, data, { minRows = 1 } = {}) {
   const file = path.join(OUT, name);
   try {
@@ -585,9 +610,12 @@ async function archiveDaily({ season, games, ffcSets, newsFeed }) {
   try {
     const w = await fp.weeklyEcr();
     if (w) {
+      /* `seasonOfScrape`, EKKI `season` — sja athugasemdina vid fallid.
+         Vikuleg ECR sem er sott i agust getur borid desember-mynd fra
+         FYRRA timabili, og tha er `season` keyrslunnar rangt svar. */
       await writeOnce(`weekly-ecr/${w.scrapeDate}.json`, {
         scrapeDate: w.scrapeDate, captured: new Date().toISOString(),
-        season, players: w.players,
+        season: seasonOfScrape(w.scrapeDate), players: w.players,
       }, { minRows: 100 });
     }
   } catch (e) { record("archive:weekly-ecr", false, `failed: ${e.message}`); }
@@ -647,20 +675,33 @@ async function archiveDaily({ season, games, ffcSets, newsFeed }) {
      ============================================================
      `FANTASY_DEPTH_POS` ER EKKI OTHORF SIA — SJA `normPos`
      ============================================================
-     Maelt i dag skilar `depthCharts(2026)` **975 radir og adeins
-     fantasy-stodur**, thvi `normPos` skilar `null` fyrir "RCB"/"LDE" og
-     fallid sinar tha burt. Sian hér vaeri thvi engin adgerd — I DAG.
+     ATHUGID: HER STOD RANGT MAL OG GOGNIN SJALF AFSONNUDU THAD.
+     Athugasemdin sagdi ad `depthCharts(2026)` skiladi "975 radir og
+     adeins fantasy-stodur, thvi `normPos` skilar `null` fyrir
+     RCB/LDE", og alyktadi ad sian vaeri "engin adgerd". Hvorugt er satt:
+     `normPos` (`src/scoring.js`) skilar `s` OBREYTTU fyrir okunna stodu —
+     `normPos("RCB") === "RCB"` — og vorpunin thar (DEF/D-ST -> DST,
+     PK -> K, FB -> RB) er thess vegna vorpun, ekki sia.
 
-     EN `src/scoring.js` ER I MIDRI BREYTINGU A NAKVAEMLEGA THESSU: notan
-     vid `normPos` fullyrdir berum ordum ad staða utan fantasy fari
-     OBREYTT ut og ad fallid "MA EKKI VERDA `: null`", medan kodinn i somu
-     breytingu ER `: null`. Hvernig sem thad leysist ma **radasettid i
-     thessari skra ekki haggast** — annars myndi dagsmyndin faera sig ur
-     975 rodum i 3.228 (146 MB/ar) vid breytingu i ALLT ODRU falli, og
-     serian yrdi osamanburdarhaef vid sjalfa sig.
+     SIAN ER THVI BURDARVIRKI. Lesid ur `rowsBeforePosFilter` i thremur
+     dagsmyndum i rod:
+
+       2026-08-14   3.228 -> 975   (2.253 felldar, 69,8%)
+       2026-08-15   3.226 -> 974   (2.252 felldar, 69,8%)
+       2026-08-16   3.225 -> 973   (2.252 felldar, 69,8%)
+
+     Tvo thridju hlutar dyptartoflunnar eru varnar- og serlidsstodur sem
+     engin fantasy-deild stillir upp. Vaeri `FANTASY_DEPTH_POS` fjarlaegd
+     faeri dagsmyndin ur ~975 rodum i ~3.226 — threfold skra, ~146 MB/ar
+     i stad ~44 — og serian yrdi osamanburdarhaef vid sjalfa sig.
+
+     Radasettid i thessari skra ma thvi ekki haggast, og astaedan er
+     NAKVAEMLEGA OFUG vid thad sem hér stod: ekki "sian gerir ekkert
+     hvort sem er", heldur "sian gerir allt".
 
      `rowsBeforePosFilter` er geymt svo utkoman theirrar spurningar se
-     LESIN UR GOGNUNUM og ekki agiskud seinna.                          */
+     LESIN UR GOGNUNUM og ekki agiskud seinna — og thad var einmitt su
+     geymsla sem gerdi thessa leidrettingu moglega.                     */
   try {
     /* `depth/{dagur}.json` — EKKI `{timabil}-{dagur}`, sem gaf
        "2026-2026-08-14". Timabilid er i farminum (`season`), thar sem

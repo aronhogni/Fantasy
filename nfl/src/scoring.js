@@ -78,11 +78,22 @@ export const BASE = {
          `stats/nfl/{ar}/{vika}` birtir `pts_std` med
          **`pts_allow_14_20 = 0`** en RAUNVERULEG deild skorar hana
          **1** (`league/{id}/matchups/{vika}` -> `players_points`).
-         Maelt: 43 af 43 tilfellum thar sem pa er 14-20 eru NAKVAEMLEGA
-         +1 i deildinni, og 152 rodir utan bilsins eru jafnar.
+         Maelt a 209 sameiginlegum rodum: 160 eru jafnar og 49 skeika —
+         og LEIFAR-HISTOGRAMMID ER EITT STAK, `+1 x49`. Ad hver einasta
+         skekkja se somu staerdar og sama formerkis er thad sem gerir
+         "eitt bil skeikar" truverdugt; vaeri thetta dreift a fleiri bil
+         baeri histogrammid fleiri en eitt stak. Bils-eignunin sjalf
+         (pa=14..20) kemur ur per-gildis-leidslunni fimm linum ofar,
+         ekki ur thessari talningu.
          **DEILDIN ER HEIMILDIN**, svo taflan hér ber 1 — en sa sem
          akkerar gegn `stats`-endapunktinum verdur ad nota 0, annars
          maelist hann +1 ur engu.
+
+         TOLURNAR THRJAR (209/160/49) ERU EKKI HANDSKRIFADAR: thaer eru
+         `DST_ANCHOR.sleeperSelfDisagreement` og `tests/dst.mjs` kafli 10
+         LES THAER UT UR THESSARI ATHUGASEMD og fellur ef thaer reka fra
+         akkerinu. Fyrri utgafa bar 195/152/43 — tolur ur eldri keyrslu
+         sem ekkert prof gat fellt.
      ============================================================ */
   dstSack: 1, dstInt: 2, dstFumRec: 2, dstTD: 6, dstSafety: 2, dstBlock: 2,
   dstFumForced: 1,       // forced fumble — MAELT, vantadi i fyrstu utgafu

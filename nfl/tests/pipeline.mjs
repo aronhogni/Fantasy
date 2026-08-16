@@ -1332,5 +1332,66 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
   console.log(`     seriur byrjadar: ${started.join(", ") || "engin enn"}`);
 }
 
+/* ============================================================
+   TIMABILS-MERKID A VIKULEGRI ECR — A TILBUNUM DAGSETNINGUM
+   ============================================================
+   `weekly-ecr/2025-12-30.json` bar `"season": 2026`: svidid var
+   `season` keyrslunnar en gognin eru vika 17 af 2025. Prófid les
+   BAEDI (a) formuluna, keyrda a dagsetningum thar sem svarid er
+   thekkt fyrirfram, og (b) skrarnar sem thegar liggja a disknum.
+
+   (b) er thad sem hefdi fundid villuna: formulan var aldrei til, svo
+   prof a henni einni hefdi verid graent i tomarumi. Sama mynstur og
+   `mins-trend.mjs` kafli 0 — kodi sem kviknar seinna er dreginn UT og
+   keyrdur a tilbunum gognum, en TENGINGIN vid diskinn er profud lika. */
+console.log("\ntimabils-merkid a vikulegri ECR");
+{
+  const src = readFileSync(path.join(ROOT, "scripts", "fetch-nfl.mjs"), "utf8");
+  const seasonSrc = /function seasonOfScrape\([\s\S]*?\n\}/.exec(src);
+  ok(!!seasonSrc, "`seasonOfScrape()` finnst i skranni");
+  if (seasonSrc) {
+    const seasonOfScrape = new Function(`${seasonSrc[0]}; return seasonOfScrape;`)();
+
+    /* Timabil Y = sept Y -> feb Y+1. Mork bæði megin eru profud. */
+    const CASES = [
+      ["2025-12-30", 2025, "desember tilheyrir sinu eigin ari"],
+      ["2026-01-05", 2025, "JANUAR tilheyrir FYRRA ari (urslitakeppni)"],
+      ["2026-02-08", 2025, "februar lika (Super Bowl)"],
+      ["2026-03-01", 2026, "mars er fyrsta manad nyja timabilsins"],
+      ["2026-08-16", 2026, "agust — drafttid"],
+      ["2026-09-10", 2026, "vika 1"],
+    ];
+    for (const [d, want, why] of CASES) {
+      ok(seasonOfScrape(d) === want, `${d} -> ${want} (${why}); fekkst ${seasonOfScrape(d)}`);
+    }
+    /* ONYT DAGSETNING -> null, EKKI agiskun. "Vid vitum ekki" er rett
+       svar; tala sem er buin til er thad ekki. */
+    for (const bad of [null, "", "2026-08", "hvad sem er", "2026-13-01"]) {
+      ok(seasonOfScrape(bad) === null, `onyt dagsetning ${JSON.stringify(bad)} -> null`);
+    }
+    /* Og hun ma ALDREI vera einfaldlega "arid i nafninu" — thad var
+       gamla hegdunin i dulargervi. Neikvaeda fullyrdingin nefnir
+       tilfelli sem VAR sannanlega rangt adur. */
+    ok(seasonOfScrape("2026-01-05") !== 2026,
+      "og hun er ekki bara arid ur nafninu (2026-01-05 er IKKI 2026)");
+  }
+
+  /* TENGINGIN: skrarnar a disknum verda ad bera rett merki. */
+  const dir = path.join(DATA, "weekly-ecr");
+  if (existsSync(dir)) {
+    const { readdirSync } = await import("node:fs");
+    const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+    ok(files.length >= 1, `weekly-ecr/ ber ${files.length} skrar (thekja > 0)`);
+    for (const f of files) {
+      const j = JSON.parse(readFileSync(path.join(dir, f), "utf8"));
+      const want = seasonSrc
+        ? new Function(`${seasonSrc[0]}; return seasonOfScrape;`)()(j.scrapeDate)
+        : null;
+      ok(j.season === want,
+        `${f}: season ${j.season} = ${want} (scrapeDate ${j.scrapeDate})`);
+    }
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
