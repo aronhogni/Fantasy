@@ -309,10 +309,52 @@ async function fetchFPL() {
   }));
   await writeJSON("players.json", { updated: status.updated, players: pick });
 
-  // events.json (umferðir)
+  /* ============================================================
+     events.json (umferðir) — OG FJOLDA-SVIDIN ERU GEYMD SEM ARKIV (16.8.2026)
+
+     Vid afritudum 7 af 29 lyklum. Hinir 22 eru mest afleiddir eda ONYTIR
+     (`deadline_time_epoch`, `can_enter`, `cup_leagues_created` …) — EN TOLF
+     theirra eru ThAD SEM FJOLDINN GERDI, og thau eru OENDURHEIMTANLEG:
+
+       most_captained · most_vice_captained · most_selected ·
+       most_transferred_in · top_element · top_element_info · highest_score ·
+       highest_scoring_entry · chip_plays · transfers_made · ranked_count ·
+       data_checked
+
+     TVAER OHADAR ASTAEDUR TIL AD SKRIFA ThAU NUNA:
+       1. FPL geymir thau ADEINS fyrir YFIRSTANDANDI timabil og nullstillir
+          vid vendingu. "Hvad gerdi fjoldinn i GW7 2026/27" er ekki til
+          neins stadar i thessu repo-i og verdur ekki til eftir a.
+       2. `chip_plays` og `transfers_made` BREYTAST INNAN UMFERDAR (telja
+          upp fram ad frestinum), svo ferillinn fæst adeins ur ENDURTEKNUM
+          myndum — ein mynd eftir a er endapunktur, ekki throun.
+     Sama roksemd og `data/history/` og `data/predictions/` (CLAUDE.md 7):
+     dagleg mynd verdur ekki buin til eftir a.
+
+     MAELT 16.8.2026 a lifandi bootstrap (38 umferdir, forleikur, oll
+     fjolda-sviðin enn null/tom): 5.578 b -> 15.572 b (+9.994 b). Talan
+     vex thegar sviðin fyllast; `top_element_info` og `chip_plays` eru einu
+     hlutirnir/fylkin i hopnum.
+
+     OG ThETTA ER ARKIV, EKKI MERKI — MORKIN ERU MAELD OG ThAU STANDA.
+     CLAUDE.md kafli 4: "Skipta-hreyfing fjoldans sem merki" var maeld a 4
+     timabilum, 104.160 leikmanna-umferdum, og er NULL ofan a `ep_next`
+     (r = -0,0005, 95% CI [-0,019, +0,019]) og NEIKVAED medal theirra sem
+     spiludu (-0,111). Ad GEYMA toluna er annad en ad NOTA hana. Ekkert i
+     `src/` ma lesa thessi svid, og ad vira eitthvert theirra inn i rodun
+     eda radgjof krefst NYRRAR MAELINGAR fyrst. Vordur: `tests/wiring.mjs`
+     (kafli "ARKIV-SVID").
+     ============================================================ */
   await writeJSON("events.json", { updated: status.updated, events: events.map(ev => ({
     id:ev.id, name:ev.name, deadline_time:ev.deadline_time, finished:ev.finished,
-    is_current:ev.is_current, is_next:ev.is_next, average_entry_score:ev.average_entry_score })) });
+    is_current:ev.is_current, is_next:ev.is_next, average_entry_score:ev.average_entry_score,
+    // ---- ARKIV: skrifad, ALDREI lesid af appinu (sja hausinn) ----
+    most_captained:ev.most_captained, most_vice_captained:ev.most_vice_captained,
+    most_selected:ev.most_selected, most_transferred_in:ev.most_transferred_in,
+    top_element:ev.top_element, top_element_info:ev.top_element_info,
+    highest_score:ev.highest_score, highest_scoring_entry:ev.highest_scoring_entry,
+    chip_plays:ev.chip_plays, transfers_made:ev.transfers_made,
+    ranked_count:ev.ranked_count, data_checked:ev.data_checked })) });
 
   record("fpl_bootstrap", true, els.length, `${teams.length} teams, ${events.length} gameweeks`);
 
@@ -1043,6 +1085,48 @@ async function fetchElo() {
   } catch (e) { record("elo_fixtures", false, 0, e.message); }
 }
 
+/* ============================================================
+   ALDURS-RODIN ER HREINT FALL — OG HUN VANTADI EINA GREIN (16.8.2026)
+
+   `elo_age`-blokkin i `main()` var skrifud til ad drepa NAKVAEMLEGA eina
+   thogn: "GOMUL gogn birt sem NY". Hun bar samt sjalf sama einkenni.
+   Kodinn var:
+       const ageH = (Date.now() - Date.parse(eloFile.updated)) / 36e5;
+       if (Number.isFinite(ageH)) { record("elo_age", ...) }
+   — MED ENGRI `else`-grein. Ytra `catch` grípur adeins skra sem VANTAR eda
+   thattast ekki; skra sem thattast fint en ber `updated: null`, `updated`
+   vantandi eda rusl gefur `ageH = NaN`, skilyrdid slokknar OG RODIN HVERFUR
+   UR "Data sources" alveg. Enginn rauður litur, engin gra lina — ekkert.
+   Thad er versta utkoman af theim thremur: vord sem thagnar er verri en
+   ekkert vord, thvi hun laetur lita ut fyrir ad hafa verid spurt.
+
+   LATENT I DAG (`elo.json.updated` er gilt ISO), svo thetta fannst med
+   lestri en ekki i keyrslu — og thess vegna er thad DREGID UT I HREINT FALL
+   sem `tests/wiring.mjs` keyrir a TILBUNUM gognum (sama mynstur og
+   `mins-trend.mjs` kafli 0 og `lineups.mjs`: fetch.mjs kallar `main()` a
+   einingarsviði og verdur thvi ekki flutt inn).
+
+   REGLAN SEM ThETTA FESTIR: fallid skilar ALLTAF rod. Engin leið ut an
+   `record`.
+   ============================================================ */
+export function eloAgeRow(eloFile, nowMs = Date.now()) {
+  const stamp = eloFile == null ? undefined : eloFile.updated;
+  const ageH = (nowMs - Date.parse(stamp)) / 36e5;
+  if (!Number.isFinite(ageH)) {
+    /* Gildid sjalft er i notunni: "unparseable" eitt og ser segir ekki hvort
+       sviðid vanti, se null eda beri annad snid en ISO.                    */
+    const seen = stamp === undefined ? "missing" : `"${String(stamp).slice(0, 40)}"`;
+    return { ok: false, count: 0,
+      note: `elo.json has no usable 'updated' timestamp (${seen}) - the age cannot be `
+          + "computed, so FFDR may be running on old Elo with nothing saying so" };
+  }
+  const days = ageH / 24;
+  return { ok: days < 2, count: Math.round(ageH),
+    note: days < 2 ? `${ageH.toFixed(1)}h old`
+                   : `STALE: ${days.toFixed(1)} days old - FFDR is running on old Elo `
+                     + "(the fetch failing does not delete elo.json, so the model keeps going quietly)" };
+}
+
 /* ========== 5. FOOTBALL-DATA.CO.UK — CSV ========== */
 async function fetchFdcouk() {
   /* E0 yfirstandandi timabil. FYRIR TIMABIL ER SKRAIN EKKI TIL og
@@ -1770,6 +1854,71 @@ async function fetchOdds() {
   console.log(`Odds API: remaining=${remaining} used=${used}`);
   if (!r.ok) { record("odds", false, 0, `HTTP ${r.status}`); return; }
   const raw = await r.json();
+
+  /* ============================================================
+     HRAA SVARID ER GEYMT — ThAD ER OENDURHEIMTANLEGT (16.8.2026)
+
+     Umbreytingin her ad nedan devig-ar allt nidur i FAA SKALARA per lid
+     (cs/xg/xga/diff/lambda) og tekur ThRJA bokmakera af theim sem svara.
+     ThAD SEM TAPAST VID ThAD ER EKKI HAEGT AD BYGGJA UPP AFTUR:
+       · linu-HREYFING (opnun a moti lokun — vid sækjum tvisvar per umferd,
+         i "plan"-glugga 6-8 daga fyrir og i "sharp"-glugga innan 36 klst)
+       · MISRAEMI MILLI BOKA — hvar their eru osammala er einmitt thar sem
+         markadslinan ber minnsta upplysingu
+       · allir bokmakerar utan PREFERRED, og oll utkoma sem hvorki er h2h,
+         totals ne spreads
+     Og fria threpid hja the-odds-api hefur ENGAN sogulegan endapunkt: svarid
+     sem vid hentum i dag er farid ad eilifu. Sama roksemd og `data/history/`
+     og `data/predictions/` (CLAUDE.md 7).
+
+     ThRJAR REGLUR — allar af sama meidi og 8e ("tom keyrsla ma aldrei
+     thurrka ut god gogn"):
+       1. NY, DAGSETT SKRA — EKKI inn i `odds.json`, sem er yfirskrifud i
+          hverjum glugga. Arkiv sem er yfirskrifad er ekki arkiv.
+       2. TOMT SVAR SKRIFAR EKKERT. Tom skra i arkivinu læsi eins og
+          "bokmakerarnir birtu engar linur", sem er onnur fullyrding.
+       3. SKRA SEM ER TIL ER ALDREI YFIRSKRIFUD (hlidin i `shouldFetchOdds`
+          leyfa ekki tvaer soknir i sama glugga innan 30 klst, svo arekstur
+          thydir ad eitthvad annad er ad — og tha er gamla myndin retthaerri).
+
+     ARKIV, EKKI MERKI: ekkert i `src/` les thessa skra og markadslinan sem
+     LIKANID notar kemur afram ur `odds.json` einni. Ad vira hraa svarid inn
+     i FFDR, rodun eda radgjof krefst NYRRAR MAELINGAR fyrst (CLAUDE.md 3).
+     Vordur: `tests/wiring.mjs` (kafli "ARKIV-SVID").
+
+     OG ARKIVID MA ALDREI FELLA SOKNINA. Blokkin er i EIGIN try/catch: bresti
+     skrifin (diskur, rettindi, hvad sem er) heldur `fetchOdds` afram og
+     `odds.json` — sem LIKANID les — verdur til eins og adur. An thess vaeri
+     ytra `catch` i `main()` buid ad skra `odds` sem BILADA og markadslidurinn
+     dottinn ut ur FFDR af thvi ad GEYMSLA brast. Sama regla og
+     `continue-on-error` a spa-bokhaldinu (CLAUDE.md 7): maelitaeki ma aldrei
+     fella gagna-keyrsluna.
+     ============================================================ */
+  try {
+    const nRaw = Array.isArray(raw) ? raw.length : 0;
+    const day = status.updated.slice(0, 10);
+    const win = gate.window || "unknown";
+    const rel = `odds_raw/${day}-${win}.json`;
+    if (!nRaw) {
+      record("odds_raw", false, 0,
+        "empty payload - nothing archived (an empty archive row would read as 'the books had no lines')");
+    } else if (existsSync(`${DATA}/${rel}`)) {
+      record("odds_raw", true, nRaw, `${rel} already exists - kept (an archive row is never rewritten)`);
+    } else {
+      await writeJSON(rel, {
+        updated: status.updated, window: win, gw: gate.gw ?? null,
+        requests_remaining: remaining ? +remaining : null,
+        note: "RAW the-odds-api response, stored VERBATIM and never rewritten. Archive only - "
+            + "nothing in the app reads it. Line movement, opening-vs-closing and per-book "
+            + "disagreement cannot be reconstructed from odds.json, and the free tier has no "
+            + "historical endpoint. Wiring any of it into the model requires a fresh measurement first.",
+        response: raw,
+      });
+      record("odds_raw", true, nRaw, `${rel} · ${nRaw} matches archived verbatim`);
+    }
+  } catch (e) {
+    record("odds_raw", false, 0, `archive failed: ${e.message} - odds.json itself is unaffected`);
+  }
 
   // Nafnavörpun Odds API -> FPL short_name (normaliserað)
   const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -3658,16 +3807,13 @@ async function main() {
      ATH: thetta er ekki "tom keyrsla thurrkar ut god gogn" (8e) heldur hitt
      einkennid af sama meidi: GOMUL gogn birt sem NY.                     */
   if (FLAGS.elo)    { try { await fetchElo(); }              catch (e) { record("elo", false, 0, e.message); } }
+  /* EIN LEID INN, EIN LEID UT: `eloAgeRow` skilar ALLTAF rod (sja hausinn a
+     fallinu). Aður var `record` inni i `if (Number.isFinite(ageH))` an
+     `else`, svo onothaeft `updated` let rodina hverfa thegjandi.         */
   try {
     const eloFile = JSON.parse(await readFile(`${DATA}/elo.json`, "utf8"));
-    const ageH = (Date.now() - Date.parse(eloFile.updated)) / 36e5;
-    if (Number.isFinite(ageH)) {
-      const days = ageH / 24;
-      record("elo_age", days < 2, Math.round(ageH),
-        days < 2 ? `${ageH.toFixed(1)}h old`
-                 : `STALE: ${days.toFixed(1)} days old - FFDR is running on old Elo `
-                   + `(the fetch failing does not delete elo.json, so the model keeps going quietly)`);
-    }
+    const row = eloAgeRow(eloFile);
+    record("elo_age", row.ok, row.count, row.note);
   } catch { record("elo_age", false, 0, "elo.json missing - FFDR has no Elo input at all"); }
   if (FLAGS.fdcouk) { try { await fetchFdcouk(); }           catch (e) { record("fdcouk_e0", false, 0, e.message); }
                       try { await fetchHistoricalE0(); }     catch (e) { record("fdcouk_history", false, 0, e.message); }

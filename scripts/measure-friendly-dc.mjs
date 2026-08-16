@@ -3,7 +3,7 @@
 
    EKKI I `npm test`, EKKI I PIPELINE, ENGIR LYKLAR. Keyrsla:
        node scripts/measure-friendly-dc.mjs
-       node scripts/measure-friendly-dc.mjs --json  (skrifar i scratch)
+       node scripts/measure-friendly-dc.mjs --json [SLOD]  (sjalfgefid tmpdir/fpl-measure/)
 
    SPURNINGIN: hvada leikmadur faer mest DefCon per leik i aefingaleikjum?
    FPL birtir EKKERT ur aefingaleikjum (`data/` ber 0 loknar umferdir og
@@ -48,7 +48,9 @@
      3. ThREPID ER FPL-REGLA UM DEILDARLEIKI, notud her a annad samhengi.
    ============================================================ */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { nameScore } from "../src/stats.js";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -56,6 +58,28 @@ const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
 const FM = "https://www.fotmob.com/api/data";
 const D = new URL("../data/", import.meta.url).pathname;
 const WRITE_JSON = process.argv.includes("--json");
+
+/* ============================================================
+   `--json` SKRIFADI I ANNARRAR LOTU SCRATCHPAD (lagad 16.8.2026)
+
+   Her stod HARDKODUD slod:
+       /private/tmp/claude-501/-Users-.../15a4c5c8-.../scratchpad/friendly-dc.json
+   Thad er lotu-bundin mappa hja EINNI Claude-lotu a EINNI macOS-vel. Hun
+   hverfur thegar lotan er hreinsud og er ekki til a neinni annarri vel, svo
+   `--json` felli med ENOENT (og `writeFileSync` bjo ekki einu sinni til
+   mopuna). Skrifta sem skrifar i horfna mappu er ekki "handvirkt tol", hun
+   er bilud — og hun bilar ThEGAR MADUR ThARF HANA, ekki fyrr.
+
+   NU: `--json [SLOD]`. An slodar er skrifad i `os.tmpdir()/fpl-measure/`,
+   sem er til a hverri vel og mengar ekki repo-id (rannsoknar-uttak, ekki
+   nidurstada — sbr. `scripts/.boxtouch-cache/`). Moppan er buin til.
+   ============================================================ */
+function jsonTarget(argv, fallbackName) {
+  const i = argv.indexOf("--json");
+  const next = i >= 0 ? argv[i + 1] : null;
+  const given = next && !next.startsWith("-") ? next : null;
+  return given ? resolve(process.cwd(), given) : join(tmpdir(), "fpl-measure", fallbackName);
+}
 
 /* ENDURTILRAUNIR ERU NAUDSYNLEGAR, EKKI SKRAUT: fyrsta keyrslan (14.8.2026)
    naadi ADEINS 29 af 71 leikjum og hin 42 "brugdust" — an thess ad nokkud
@@ -234,8 +258,8 @@ console.log(`\n   ALL (including under ${MIN_MINS} min), top 10 by DC/match:`);
 rows.slice(0, 10).forEach(a => console.log(line(a)));
 
 if (WRITE_JSON) {
-  const out = "/private/tmp/claude-501/-Users-arongeorgsson-Fantasy/"
-            + "15a4c5c8-d10a-4f11-af10-e88b359f557b/scratchpad/friendly-dc.json";
+  const out = jsonTarget(process.argv, "friendly-dc.json");
+  mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify({ matches, rows, unmatched: [...unmatched] }, null, 1));
   console.log(`\n   written ${out}`);
 }

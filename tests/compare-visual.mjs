@@ -107,6 +107,33 @@ const isGreen = td => {
 };
 const numOf = td => { const t = td.textContent.replace(/[£%+]/g, "").replace(",", ".").trim();
                       const v = parseFloat(t); return Number.isFinite(v) ? v : null; };
+/* ============================================================
+   ▼-MERKID — FULLYRT ADUR EN ThAD ER STRIPPAD BURT
+
+   Lykkjan her ad nedan gerir `replace("▼","")` a rod-heitinu. Sa hreinsun var
+   RUIN 14.8.2026 til 16.8.2026: `VisualRows` var eini stadurinn sem teiknadi
+   merkid, thad for med sulunum, og hreinsunin hafdi ekkert ad hreinsa. Hun
+   RUMADI thvi merki sem hun sannadi aldrei ad vaeri til — nakvaemlega tóma
+   fullyrdingin sem CLAUDE.md 5b lysir. Skyringartextinn undir toflunni lofadi
+   merkinu allan timann ("▼ in a row label marks a number where lower is
+   better"), svo notandinn las tofluna an theirrar visbendingar.
+
+   Vaentingin er LEIDD UT UR `ROWS` (ekki handskrifud), en TALAN sjalf verdur
+   ad geta fallid: maelt 16.8.2026 eru thetta 9 radir (minPerPt, cost,
+   minPerGi, minPerXgi, goals_conceded, expected_goals_conceded, gcDelta,
+   yellow_cards, red_cards). Golfid ver gegn thvi ad "0 merkt = 0 vaentanleg"
+   lesist sem graent.                                                       */
+const labelOf = tr => [...tr.querySelectorAll("td")][0].textContent.replace("▼", "").trim();
+const markedLabels = trs.filter(tr => [...tr.querySelectorAll("td")][0].textContent.includes("▼"))
+                        .map(labelOf).sort();
+const renderedLabels = new Set(trs.map(labelOf));
+const wantLabels = ROWS.filter(r => r.k && r.hi === false && renderedLabels.has(r.label))
+                       .map(r => r.label).sort();
+ok(`laegra-er-betra radir a skjanum (${wantLabels.length})`, wantLabels.length >= 9, wantLabels.join(", "));
+ok(`▼ merkt a nakvaemlega theim rodum (${markedLabels.length})`,
+   markedLabels.length === wantLabels.length && markedLabels.every((l, i) => l === wantLabels[i]),
+   `merkt: [${markedLabels.join(", ")}] vaentanlegt: [${wantLabels.join(", ")}]`);
+
 const byLabel = {};
 for (const tr of trs) {
   const tds = [...tr.querySelectorAll("td")];
@@ -136,6 +163,31 @@ ok("i haerra-er-betra rodum ber GRAENI reiturinn HAESTU toluna", hiWrong.length 
 /* VANTANDI GILDI ER "—", ALDREI 0 (reglan sem sulu-fjarveran bar adur). */
 const dashCells = Object.values(byLabel).flat().filter(c => c.txt === "—");
 ok("vantandi gildi birtast sem \"—\" (ekki 0)", dashCells.every(c => c.v == null));
+
+console.log("\n=== 4. RADGJOFIN: SAMHENGIS-KASSINN A RAUNGOGNUM ===");
+/* AF HVERJU DOM EN EKKI TEXTALEITAR-VORDUR: `tests/advisor.mjs` atti vord
+   sem lyfti thvi ad `bigChances:` finnist einhvers stadar i `src/`. Hann var
+   graenn medan framleidslan var 0 af 587 — `Compare.jsx` sendi
+   `season={currentLabel}` ("2026/27") en BSD-skrain ber "2025/26", svo
+   uppflettingin skiladi engu. Textinn var settur, tengingin daud. Eina
+   fullyrdingin sem getur greint tharna a milli er ad LESA KASSANN.
+
+   Hér er EKKERT endurreiknad: prófid flettir hvorki upp `code` ne les
+   `bsd_players.json`. Thad les thad sem stendur a skjanum (sbr.
+   buildTeamMetrics-atvikid, CLAUDE.md 7).                                  */
+const advSubs = [...document.querySelectorAll("div")]
+  .filter(d => d.children.length === 0 && d.textContent.trim() === "Shown, but not in the score");
+ok(`samhengis-kassinn er teiknadur (${advSubs.length} dalkar)`, advSubs.length >= 1);
+const ctxLabels = [...document.querySelectorAll("span")].map(s => s.textContent.trim());
+ok(`byrjunar-likur birtast sem samhengi (${ctxLabels.filter(t => t === "Chance of 60+ minutes").length})`,
+   ctxLabels.includes("Chance of 60+ minutes"));
+const bcSpans = [...document.querySelectorAll("span")].filter(s => s.textContent.trim() === "Big chances");
+ok(`"Big chances" birtist hja minnst einum leikmanni (${bcSpans.length})`, bcSpans.length >= 1,
+   "0 = radgjofin les rangt timabil ur BSD (season vs currentLabel)");
+/* Og talan verdur ad vera TALA — tomur reitur vaeri sama villan i dulargervi. */
+const bcVals = bcSpans.map(s => parseFloat((s.nextElementSibling?.textContent || "").trim()));
+ok("hvert \"Big chances\"-gildi er tala", bcVals.length > 0 && bcVals.every(Number.isFinite),
+   bcVals.join(", "));
 
 console.log(`\nSAMANBURDAR-TAFLA: ${pass}/${pass+fail} graen`);
 process.exit(fail ? 1 : 0);

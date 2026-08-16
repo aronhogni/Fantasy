@@ -279,9 +279,42 @@ export function windowOpen({ deadlineMs, nowMs, windowH = WINDOW_H }) {
   return hLeft > 0 && hLeft <= windowH;
 }
 
-/* Patchar EINA rod i status.json. Les-breyta-skrifa: `fetch.mjs` hefur
-   thegar skrifad skrana i sama starfi (skrefinu a undan), svo vid maegum
-   ekki byggja hana upp a nytt — adeins baeta okkar linu vid.             */
+/* ============================================================
+   PATCHAR EINA ROD I `status.json` — OG ROKSTUDNINGURINN HER VAR RANGUR
+
+   Her stod: "`fetch.mjs` hefur thegar skrifad skrana i sama starfi
+   (skrefinu a undan)". ThAD ER OSATT og var thad alltaf. Leidrett 16.8.2026:
+
+     · Thessi skrifta keyrir ADEINS i hrada starfinu (`fetch-fast.yml`,
+       skrefid "Skra spa"), a eftir `node scripts/fetch.mjs --fast`.
+     · `--fast`-leidin skrifar `status_fast.json` — HUN SNERTIR ALDREI
+       `status.json`. Su skra er skrifud i DAGLEGU keyrslunni kl. 05 UTC.
+   Skrefid a undan skrifar thvi ADRA skra en tha sem vid patchum.
+
+   UTKOMAN ER SAMT RETT SKRA, en ekki af theirri astaedu sem stod her.
+   App.jsx les BADAR stoduskrar og blandar theim (`{...status,
+   ...status_fast}`, hrada skrain vinnur a somu lyklum), svo rod i
+   `status.json` SEST i "Data sources" — og `prediction_ledger` er hvergi
+   annars stadar skrifud, svo enginn lykla-arekstur er til stadar.
+   Retta setningin er thvi: vid patchum skra sem VID SKRIFUDUM EKKI I
+   thessu starfi, og hun er samt su skra sem hlidarstikan les.
+
+   ThAD SEM ThETTA ThYDIR I RAUN, OG ER RETT AD VITA:
+     1. Skrain sem vid lesum getur verid ALLT AD SOLARHRINGS GOMUL. Vid
+        maegum thess vegna ekki byggja hana upp a nytt — les-breyta-skrifa,
+        adeins okkar lykill. Thad er OBREYTT og er enn rett.
+     2. ThAD ER KAPPHLAUP VID DAGLEGU KEYRSLUNA (05 UTC). Skrifi hun
+        `status.json` a milli thess sem vid lesum og skrifum, skrifum vid
+        gomlu myndina til baka med okkar rod ofan a. Glugginn okkar er 12
+        klst fyrir frest (~05:30 UTC fyrir GW1-frest kl. 17:30) svo thetta
+        er RAUNVERULEGT bil, ekki fraedilegt.
+        ThAD ER LATID STANDA VILJANDI: hvor keyrsla um sig endurmyndar
+        `data/` I HEILD i naestu umferd (sama rok og `rebase -X theirs` i
+        push-kapphlaupinu, CLAUDE.md 7), svo tapid er i mesta lagi EIN
+        stodurod i alt ad einn dag — medan lasing eda vidbotar-skra vaeri
+        ny bilunar-leid i maelitaeki sem ma aldrei fella gagna-keyrsluna.
+        Skrad her svo naesti madur endurtaki ekki greininguna.
+   ============================================================ */
 function recordLedger(gw, okFlag, count, note, gaps = []) {
   try {
     const p = DATA + "status.json";
@@ -329,9 +362,38 @@ export function shouldWrite({ gw, deadlineMs, nowMs, exists, windowH = WINDOW_H 
   return { write: true, why: `${Math.round((deadlineMs - nowMs) / 60000)} min before the deadline` };
 }
 
+/* ============================================================
+   `--dry` VAR EKKI ThURR — OG ThAD LOKADI AEFINGUNNI FYRIR GW1 (16.8.2026)
+
+   Hausinn a thessari skra lofar: `--dry` "skrifar ekkert". Kodinn las
+   flaggid i fyrstu linu keyrslunnar en SPURDI ThAD EKKI fyrr en EFTIR
+   hlidin — og bædi skip-leidin og thunn-inntok-leidin kalla `recordLedger`,
+   sem er LES-BREYTA-SKRIFA a `data/status.json`.
+
+   AFLEIDINGIN VAR EKKI FRAEDILEG. Utan gluggans (eina astandid sem er
+   MOGULEGT fyrir 21. agust) fell keyrslan i skip-greinina, SKRIFADI i
+   `status.json` og for ut — an thess ad na nokkurn timann i `buildSnapshot`.
+   `--dry` gerdi thvi nakvaemlega hvorugt thess sem thad er til fyrir:
+     · thad skrifadi (thott thad heiti "dry")
+     · og thad prentadi ENGA thekju, sem er eina astaedan til ad keyra thad
+   Sa sem vildi aefa bokhaldid ADUR en glugginn opnast — sem er allur
+   tilgangurinn med thurrkeyrslu a einskota maelitaeki — fekk ekkert.
+
+   REGLAN NUNA, OG HUN ER TVISKIPT:
+     1. `--dry` SKRIFAR EKKERT. Hvorki `data/predictions/` ne `status.json`.
+        Vordur: `tests/prediction-ledger.mjs` kafli 6 keyrir skriftuna sem
+        undirferli og ber SAMAN BAETI a `status.json` fyrir og eftir.
+     2. `--dry` SEGIR HVAD ThAD HEFDI GERT: hlid-astaeduna (`gate.why`) OG
+        thekju-blokkina sem hefdi verid skrifud. Thess vegna heldur thurr
+        keyrsla AFRAM i gegnum lokad hlid — hun er ad SVARA spurningunni
+        "hvad myndi rodin bera ef glugginn vaeri opinn nuna", og thad er
+        einmitt su spurning sem er osvaranleg eftir a (CLAUDE.md 7).
+        Rauntima-keyrslan (an `--dry`) haettir afram vid lokad hlid.
+   ============================================================ */
 /* ---------------- keyrsla ---------------- */
 if (import.meta.url === `file://${process.argv[1]}`) {
   const dry = process.argv.includes("--dry");
+  if (dry) console.log("snapshot: DRY RUN - nothing will be written (no data/predictions/, no status.json)");
   const events = arr(tryJ("events.json"), "events") || [];
   const cur = events.find(e => e.is_next) || events.find(e => e.is_current);
   if (!cur) { console.log("snapshot: no next gameweek in events.json - nothing to do"); process.exit(0); }
@@ -344,10 +406,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (gaps.length) console.log(`snapshot: LEDGER GAPS - no row for GW${gaps.join(", GW")}`);
   const gate = shouldWrite({ gw, deadlineMs, nowMs: Date.now(), exists: existsSync(file) });
   if (!gate.write) {
-    console.log(`snapshot gw${gw}: skipped - ${gate.why}`);
-    /* SKIP MA VERA GRAENT — NEMA GLUGGINN SE OPINN OG SKRAIN VANTI.      */
-    recordLedger(gw, !inWindow || existsSync(file), existsSync(file) ? 1 : 0, gate.why, gaps);
-    process.exit(0);
+    console.log(`snapshot gw${gw}: ${dry ? "would skip" : "skipped"} - ${gate.why}`);
+    if (!dry) {
+      /* SKIP MA VERA GRAENT — NEMA GLUGGINN SE OPINN OG SKRAIN VANTI.      */
+      recordLedger(gw, !inWindow || existsSync(file), existsSync(file) ? 1 : 0, gate.why, gaps);
+      process.exit(0);
+    }
+    /* ThURR KEYRSLA HELDUR AFRAM I GEGNUM LOKAD HLID — sja hausinn: hun er
+       ad synja hvad rodin BAERI, ekki ad herma eftir utgongunni.          */
   }
 
   const players = arr(tryJ("players.json"), "players");
@@ -357,7 +423,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (bad) {
     console.log(`snapshot gw${gw}: NOT written - ${bad}`);
     /* GLUGGINN ER OPINN (vid komumst hingad) OG VID SKRIFUM EKKI -> RAUTT. */
-    recordLedger(gw, false, 0, `WINDOW OPEN but nothing recorded - ${bad}`, gaps);
+    if (!dry) recordLedger(gw, false, 0, `WINDOW OPEN but nothing recorded - ${bad}`, gaps);
     process.exit(0);
   }
 
@@ -370,8 +436,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       nowTs: Date.now(),
     });
     if (dry) {
-      console.log(`snapshot gw${gw} (dry): ${snap.ffdr.length} ffdr rows, ${snap.rank.length} players`
-                + ` · coverage ${JSON.stringify(snap.coverage)}`);
+      /* ThEKJAN ER ASTAEDAN FYRIR ThURRKEYRSLU — hun segir hvort rodin vaeri
+         MARKTAEK ef glugginn opnadist nuna (`start_prob` 0 af 577 var
+         nakvaemlega thad sem glugginn var settur inn til ad hindra).      */
+      console.log(`snapshot gw${gw} (dry): gate ${gate.write ? "OPEN" : "CLOSED"} - ${gate.why}`);
+      console.log(`snapshot gw${gw} (dry): would write ${snap.ffdr.length} ffdr rows, `
+                + `${snap.rank.length} players · coverage ${JSON.stringify(snap.coverage)}`);
+      console.log(`snapshot gw${gw} (dry): sources ${JSON.stringify(snap.sources)}`);
+      console.log(`snapshot gw${gw} (dry): NOTHING WRITTEN (target would be ${file})`);
       process.exit(0);
     }
     mkdirSync(OUT, { recursive: true });
@@ -385,7 +457,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
        i workflow-inu er VILJANDI (bokhaldid ma ekki fella gagna-keyrsluna) —
        en thad thydir ad hrun her skilur eftir sig ENGA slod nema thessa.   */
     console.log(`snapshot gw${gw}: FAILED - ${e.message}`);
-    recordLedger(gw, false, 0, `WINDOW OPEN but the snapshot threw: ${e.message}`, gaps);
+    /* OG HRUN I ThURRKEYRSLU MA HELDUR EKKI SKRIFA. Thetta var thridja
+       leidin ad `status.json` fram hja `dry` — hun hefdi bara verid
+       sjaldgaefari en hinar tvaer, sem gerir hana verri, ekki betri.     */
+    if (!dry) recordLedger(gw, false, 0, `WINDOW OPEN but the snapshot threw: ${e.message}`, gaps);
     process.exit(0);
   }
 }

@@ -3,7 +3,7 @@
 
    EKKI I `npm test`, EKKI I PIPELINE, ENGIR LYKLAR. Keyrsla:
        node scripts/measure-friendly-form.mjs
-       node scripts/measure-friendly-form.mjs --json
+       node scripts/measure-friendly-form.mjs --json [SLOD]  (sjalfgefid tmpdir/fpl-measure/)
 
    TVAER SPURNINGAR I EINNI KEYRSLU:
      1. ERU FOTMOB-TOLURNAR RETTAR? Thaer eru bornar saman vid ESPN — ohada
@@ -29,7 +29,9 @@
    Thess vegna er `starter_score` adalrodun og mork/xG eru SAMHENGI vid hlidina.
    ============================================================ */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { nameScore } from "../src/stats.js";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -38,6 +40,25 @@ const FM = "https://www.fotmob.com/api/data";
 const ESPN = "https://site.api.espn.com/apis/site/v2/sports/soccer/club.friendly";
 const D = new URL("../data/", import.meta.url).pathname;
 const WRITE = process.argv.includes("--json");
+
+/* ============================================================
+   `--json` SKRIFADI I ANNARRAR LOTU SCRATCHPAD (lagad 16.8.2026)
+
+   Somu villu og i `measure-friendly-dc.mjs`: hardkodud, lotu-bundin macOS-
+   slod (`/private/tmp/claude-501/.../15a4c5c8-.../scratchpad/`) sem hverfur
+   vid hreinsun og er ekki til a neinni annarri vel. `writeFileSync` bjo auk
+   thess ekki til mopuna, svo `--json` fell med ENOENT — og adeins tha, thegar
+   einhver thurfti flaggid.
+
+   NU: `--json [SLOD]`. An slodar: `os.tmpdir()/fpl-measure/`. Moppan er buin
+   til. Rannsoknar-uttak fer ekki i repo-id (sbr. `scripts/.boxtouch-cache/`).
+   ============================================================ */
+function jsonTarget(argv, fallbackName) {
+  const i = argv.indexOf("--json");
+  const next = i >= 0 ? argv[i + 1] : null;
+  const given = next && !next.startsWith("-") ? next : null;
+  return given ? resolve(process.cwd(), given) : join(tmpdir(), "fpl-measure", fallbackName);
+}
 
 const errs = {};
 const get = async (url, tries = 4) => {
@@ -322,8 +343,8 @@ Object.entries(tAgg).sort((a, b) => b[1].xg - a[1].xg).forEach(([k, v]) =>
   console.log(`   ${k.padEnd(5)} ${String(v.shots).padStart(5)} ${v.xg.toFixed(2).padStart(6)} ${String(v.box).padStart(13)}`));
 
 if (WRITE) {
-  const out = "/private/tmp/claude-501/-Users-arongeorgsson-Fantasy/"
-            + "15a4c5c8-d10a-4f11-af10-e88b359f557b/scratchpad/friendly-form.json";
+  const out = jsonTarget(process.argv, "friendly-form.json");
+  mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify({ matches, rows, pairs, unmatched: [...unmatched] }, null, 1));
   console.log(`\n   written ${out}`);
 }

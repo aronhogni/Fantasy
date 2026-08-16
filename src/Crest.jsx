@@ -55,7 +55,49 @@ const KIT = {
 };
 
 
-export const photoUrl = code => code ? `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png` : null;
+/* ---- ANDLITSMYNDIR: TVAER FOTUR, EKKI EIN ------------------------------
+   MAELT 16.8.2026 a OLLUM 587 leikmonnum i `data/players.json` (HEAD-koll,
+   engin urtaksstaerd — heil talning):
+
+     slod                                              200      vantar
+     premierleague/photos/players/110x140/p{code}.png  381      206 (35,1%)
+     premierleague25/photos/players/110x140/{code}.png 411      176
+     ONNUR HVOR                                        478      109 (18,6%)
+
+   Sviðid vantar TAKID "p" i nyju fotunni og hun heitir eftir timabili.
+   HVORUG er yfirfota hinnar: 97 menn eru ADEINS i premierleague25 og 67
+   ADEINS i gomlu (their sem skiptu um felag — Meslier, Bruno G., Garnacho,
+   Rogers, Lacroix). Thess vegna KEDJA, ekki skipti.
+
+   Hja theim sem skipta mali er batinn storstur: af theim sem meira en 5%
+   eiga fer vantandi mynd ur 11 i 1, og af theim sem spiladu einhverjar
+   minutur ur 106 i 19. Their 109 sem eftir standa eru raunverulega
+   myndalausir hja FPL: 90 theirra hafa NULL minutur i deildinni og 52 eru
+   hja COV/HUL/IPS. Thad er RETT nidurstada og treyju-fallbackid a vid.
+
+   PROFADAR OG FELLDAR (403 fyrir bædi virkan og vantandi leikmann):
+   `.webp` i ollum staerdum · `photo-2/` · pulselive-lenid · premierleague24
+   · premierleague26 (thess vegna er hun EKKI sett inn "fyrirfram" — hun
+   svarar 403 fyrir alla i dag og myndi adeins baeta vid einu tomu kalli).
+
+   Myndamirrun i repo-id var maeld og HAFNAD: 478 myndir eru 44,7 MB
+   (medaltal 91 KB — "110x140"-slodin skilar 220x280 skra), hun getur
+   hvort ed er ekki naad i thad sem er ekki til, og repo-id er PUBLIC.  */
+const PHOTO_URLS = [
+  code => `https://resources.premierleague.com/premierleague25/photos/players/110x140/${code}.png`,
+  code => `https://resources.premierleague.com/premierleague/photos/players/110x140/p${code}.png`,
+];
+export const photoUrl = code => code ? PHOTO_URLS[0](code) : null;
+
+/* NAESTA SLOD UT FRA THEIRRI SEM BRAST — tekur adeins `src`, thvi allir
+   fjorir notendur (PlayerImg, RowPhoto, SafeImg, ImmPhoto) fa slodina
+   senda, ekki `code`. Skilar null thegar ekkert er eftir ad reyna, og tha
+   — og ADEINS tha — a kallandinn ad falla a treyju/staf.               */
+export function photoNext(src) {
+  const m = /^(.*)\/premierleague25\/photos\/players\/([^/]+)\/(\d+)\.png$/.exec(String(src || ""));
+  return m ? `${m[1]}/premierleague/photos/players/${m[2]}/p${m[3]}.png` : null;
+}
+
 export const crestUrl = code => code ? `https://resources.premierleague.com/premierleague/badges/50/t${code}.png` : null;
 
 
@@ -91,5 +133,6 @@ export function PlayerImg({ code, short, size = 34 }) {
   const url = photoUrl(code);
   if (!url || !ok) return <Kit short={short} size={size} />;
   return <img src={url} alt="" style={{ height:size, width:"auto", objectFit:"contain" }}
-    onError={() => setOk(false)} loading="lazy" />;
+    onError={e => { const n = photoNext(e.target.src); if (n) e.target.src = n; else setOk(false); }}
+    loading="lazy" />;
 }

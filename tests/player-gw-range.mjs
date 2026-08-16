@@ -189,7 +189,11 @@ if (g) {
        full.total_points === +sea.total_points, `vs ${sea.total_points}`);
     ok(`heilt bil 1-38 == arstid (minutur ${full.minutes})`,
        full.minutes === +sea.minutes, `vs ${sea.minutes}`);
-    ok("svidin heita FPL-heitum (svo allir 108 dalkar virki obreyttir)",
+    /* TALAN ER REIKNUD, EKKI ENDURSOGD. Her stod "108 dalkar" medan
+       `STAT_DEFS` bar 124 — fost tala um lifandi skra urelltist thegjandi,
+       nakvaemlega eins og hardkodada safna-talan (CLAUDE.md 5) og
+       "4-10"-nótan i set pieces (CLAUDE.md 8).                           */
+    ok(`svidin heita FPL-heitum (svo allir ${M.STAT_DEFS.length} dalkar virki obreyttir)`,
        "total_points" in full && "expected_goals" in full && "goals_scored" in full);
     const r = M.sumGwRange(g.players[code], g, 30, 38);
     ok(`hlutabil GW30-38 er MINNA en heilt (${r.total_points} < ${full.total_points})`,

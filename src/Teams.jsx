@@ -205,6 +205,63 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
     return v.toFixed(d.dec ?? 2);
   };
 
+  /* HEIMILDA-TEXTARNIR — LESNIR UR SKRANUM, ALDREI HARDKODADIR.
+     Skyringar-blokkin sem sat undir toflunni bar thessar setningar sem
+     FASTAN TEXTA ("380 matches", "817 shots carried no zone text") og EIN
+     theirra var ordin ROng: hun sagdi xG og xGC koma ur FPL-summu sem
+     vaeri "roughly 19% short". Thau hafa komid ur BSD-skotakortinu fra
+     8.8.2026 (per-skot xG, r 0,369 -> 0,818 gegn raunmorkum, sja
+     buildTeamRows) og `luck.json` leggur nu ADEINS til RAUNMORKIN i
+     mismuna-dalkana. Fost tala um lifandi gogn urelldist thogult — sama
+     villa og horna-rodunin 13.8.2026 — svo tolurnar eru lesnar ur
+     skranum sem bera thaer.
+
+     HEILDAR-LEIKJAFJOLDI E0 ER EKKI REIKNANLEGUR HER OG ER THVI EKKI
+     SAGDUR: `team_form.json` ber engan heildarfjolda, og summa leikja per
+     lidi deilt med tveimur telur adeins leiki milli lida sem BADI eru enn
+     i deildinni — follnu lidin thrju vantar, svo talan yrdi 323 en ekki
+     380. Leikir PER LID standa i skranni og eru sagdir i stadinn.      */
+  const srcText = useMemo(() => {
+    const perClub = Math.max(0, ...(teamForm?.teams || []).map(t => Number(t.matches) || 0));
+    const bsdM = Number(bsdTeams?.matches) || 0;
+    const espnM = Number(teamShots?.matches) || 0;
+    const noZone = Number(teamShots?.no_zone) || 0;
+    return {
+      E0: "football-data E0" + (teamForm?.season ? ` ${teamForm.season}` : "")
+        + (perClub ? `, ${perClub} matches per club` : ""),
+      BSD: "BSD shot map, expected goals counted per shot"
+        + (bsdM ? `, ${bsdM} matches` : "")
+        + (bsdTeams?.season ? ` (${bsdTeams.season} only)` : ""),
+      ESPN: "ESPN commentary" + (espnM ? `, ${espnM} matches` : "")
+        + (noZone ? ` (${noZone} shots carried no zone text and are counted in the totals only)` : ""),
+    };
+  }, [teamForm, bsdTeams, teamShots]);
+
+  /* HVER DALKUR BER SINA EIGIN SKYRINGU (16.8.2026, ad beidni notandans).
+     Skyringar-blokkin undir toflunni sagdi fyrir ALLA dalka thad sem atti
+     vid um EINN ("for everything a team concedes, lower is better — except
+     long shots faced"). Attin er nu LESIN UR `d.hi`, svo nyr dalkur erfir
+     retta setningu i stad thess ad vera undanskilinn i texta sem enginn
+     man eftir ad uppfaera — sama regla og `spRanges` i SetPieces.jsx.   */
+  const titleFor = d => {
+    const up = d.hi !== false;
+    const dir = up ? "Higher is better." : "Lower is better.";
+    /* MERKINGIN ER BUNDIN VID `cellStyle` — SAMA SKILYRDI, svo skyringin
+       getur ekki lofad lit sem taflan setur ekki: dalkur med faerri en
+       thremur tolum faer engan (`ext` sleppir honum) og ofullkominn dalkur
+       faer enga fullyrdingu.                                            */
+    const marked = !d.incomplete && ext[d.key] != null;
+    const mark = marked
+      ? (up ? " The highest value in the column is marked best (green), the lowest worst (red)."
+            : " The lowest value in the column is marked best (green), the highest worst (red).")
+      : "";
+    const inc = d.incomplete
+      ? "\n\nKnown to be incomplete — the amber header says so: compare it between teams, "
+        + "do not read it as an absolute, and it carries no best/worst marking for that reason."
+      : "";
+    return `${d.label}\n\n${d.note}\n\n${dir}${mark}\n\nSource: ${srcText[d.src] || d.src}${inc}`;
+  };
+
   const head = (key, label, title, right = true) => (
     <th key={key} title={title}
       style={{ ...S.th, ...(right ? S.thRight : S.thName),
@@ -218,14 +275,13 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
   );
 
   const missing = !teamForm && !luck && !teamShots && !bsdTeams;
-  /* NYLIDAR EIGA ENGA ROD I ENSKU URVALSDEILDINNI I FYRRA, svo hver einasta
-     tala theirra er "—". Autt an skyringar les eins og NULL SKOT A SIG, sem
-     vaeri versta mislesturinn i thessari toflu einmitt af thvi ad hun a ad
-     velja markvord. Nofnin eru leidd UT UR GOGNUNUM, ekki handskrifud —
-     annars staðnar listinn vid naestu uppfaerslu deildarinnar.            */
-  const promoted = useMemo(
-    () => rows.filter(r => TEAM_STAT_DEFS.every(d => d.get(r) == null)).map(r => r.short),
-    [rows]);
+  /* MALSGREININ UM NYLIDANA VAR FJARLAEGD 16.8.2026 ad beidni notandans
+     ("Taktu thetta ut"), og `promoted`-listinn sem faeddi hana for med
+     henni — hann atti engan annan lesanda.
+     HEGDUNIN STENDUR OBREYTT: COV/HUL/IPS eiga enga rod i ensku
+     urvalsdeildinni i fyrra og hver einasta tala theirra er thvi NULL sem
+     birtist sem "—", aldrei 0 (CLAUDE.md kafla 8). Vordur: team-stats.mjs
+     kafli 4.                                                            */
 
   return (
     <section style={S.card}>
@@ -314,7 +370,7 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
               <thead>
                 <tr>
                   {head("__name", "Team", "Sort by team", false)}
-                  {defs.map(d => head(d.key, d.short, `${d.label}\n\n${d.note}\n\nSource: ${d.src}${d.incomplete ? " (incomplete — see note)" : ""}`))}
+                  {defs.map(d => head(d.key, d.short, titleFor(d)))}
                 </tr>
               </thead>
               <tbody>
@@ -380,37 +436,23 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
             );
           })()}
 
-          {promoted.length > 0 && (
-            <p style={S.note}>
-              <b>{promoted.join(", ")}</b>{promoted.length > 1 ? " have " : " has "}
-              {"no row here: they did not play in the Premier League last season, so "}
-              {"every number is missing rather than zero. Their first numbers arrive once "}
-              {"the season is under way."}
-            </p>
-          )}
+          {/* SKYRINGAR-BLOKKIN OG HEIMILDA-RODIN VORU FJARLAEGDAR 16.8.2026
+              ad beidni notandans; efni theirra fluttist i `titleFor` og
+              birtist nu vid ad benda a HAUS hvers dalks. Rokin fyrir thvi
+              ad flytja fremur en ad afrita: blokkin sagdi eitt fyrir alla
+              dalka og ein setning hennar var ordin ROng (xG/xGC ur FPL,
+              "~19% short") longu adur en nokkur tok eftir.
 
+              LITA-LYKILLINN STENDUR EFTIR — og hann er ekki texti heldur
+              LYKILL. An hans er graent og raut holf i toflunni tvo litud
+              holf an nafns, og "hverfdu yfir dalkinn til ad komast ad thvi
+              hvad liturinn thydir" er ekki lykill heldur thraut. Hann ber
+              engan skyringar-texta lengur: attin (haerra/laegra er betra)
+              er ekki hin sama i ollum dalkum og a thvi heima i dalkinum
+              sjalfum, ekki i einni setningu undir toflunni.             */}
           <div style={S.legend}>
             <span style={{ ...S.chip, ...S.best }}>{"best"}</span>
             <span style={{ ...S.chip, ...S.worst }}>{"worst"}</span>
-            <span style={S.legendTxt}>
-              {"Best and worst follow the column, not the size: for everything a team concedes, "}
-              {"lower is better — except long shots faced, where higher is better. "}
-              <b style={{ color: "#8a6100" }}>{"Amber headers"}</b>
-              {" mark numbers that are known to be incomplete — compare them between teams, "}
-              {"do not read them as absolute."}
-            </span>
-          </div>
-
-          <div style={S.srcRow}>
-            {teamForm && <span style={S.src}>{"Shots, goals, cards, clean sheets — football-data E0, 380 matches"}</span>}
-            {luck && <span style={S.src}>{"xG and xGC — FPL player totals, roughly 19% short (players who left the league)"}</span>}
-            {bsdTeams && <span style={S.src}>
-              {`Big chances and xG per shot — BSD shot map, ${bsdTeams.matches || 0} matches (2025/26 only)`}
-            </span>}
-            {teamShots && <span style={S.src}>
-              {`Shot zones — ESPN commentary, ${teamShots.matches || 0} matches`}
-              {teamShots.no_zone ? ` (${teamShots.no_zone} shots carried no zone text and are counted in the totals only)` : ""}
-            </span>}
           </div>
         </>
       )}
@@ -502,9 +544,9 @@ const S = {
   worst: { background: "#fdecee", color: "#8f2230", fontWeight: 700 },
   legend: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 10 },
   chip: { fontSize: 10, fontWeight: 700, borderRadius: 4, padding: "1px 6px" },
-  legendTxt: { fontSize: 11, color: C.text3 },
-  srcRow: { display: "flex", flexDirection: "column", gap: 2, marginTop: 8 },
-  src: { fontSize: 10.5, color: C.text3 },
+  /* `legendTxt`, `srcRow` og `src` voru fjarlaegd med textanum sem thau
+     stiludu (16.8.2026). Daudur stil-hlutur er sama aett og `S.vGrp`: hann
+     litur ut eins og eitthvad se enn teiknad med honum.                 */
   code: { fontFamily: mono, fontSize: 10.5, background: "#fff", padding: "1px 4px",
     borderRadius: 3, border: `1px solid ${C.border}` },
 };

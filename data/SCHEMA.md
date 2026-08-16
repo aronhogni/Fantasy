@@ -92,7 +92,27 @@ team_h, team_a, team_h_score, team_a_score, team_h_difficulty, team_a_difficulty
 `event: null` = ótímasettur (frestað).
 
 ### `events.json`
-`[{ id, name, deadline_time, finished, is_current, is_next, average_entry_score }]`
+`[{ id, name, deadline_time, finished, is_current, is_next, average_entry_score,`
+` most_captained, most_vice_captained, most_selected, most_transferred_in,`
+` top_element, top_element_info, highest_score, highest_scoring_entry,`
+` chip_plays, transfers_made, ranked_count, data_checked }]`
+
+**Seinni línan er ARKIV — skrifað, aldrei lesið** (bætt við 16.8.2026). FPL
+geymir fjölda-sviðin **aðeins fyrir yfirstandandi tímabil** og núllstillir þau
+við vendingu, og `chip_plays`/`transfers_made` **breytast INNAN umferðar**
+(telja upp fram að fresti), svo ferillinn fæst aðeins úr endurteknum myndum.
+Sama röksemd og `history/` og `predictions/`: dagleg mynd verður ekki búin til
+eftir á. **Mælt 16.8.2026** á lifandi bootstrap (38 umferðir, forleikur, öll
+fjölda-sviðin enn null/tóm): **5.578 b → 15.572 b** (+9.994 b); talan vex þegar
+sviðin fyllast.
+
+> **ÞETTA ER GEYMSLA, EKKI MERKI.** CLAUDE.md kafli 4 skráir
+> **„Skipta-hreyfing fjöldans sem merki" sem MÆLT OG HAFNAÐ** — 4 tímabil,
+> 104.160 leikmanna-umferðir, r = −0,0005 ofan á `ep_next` með 95% CI
+> [−0,019, +0,019], og −0,111 meðal þeirra sem spiluðu. **Ekkert í `src/` má
+> lesa þessi svið, og að vira eitthvert þeirra inn í röðun, FFDR, vænt stig
+> eða ráðgjöfina krefst NÝRRAR MÆLINGAR fyrst.** Vörður: `tests/wiring.mjs`
+> kafli „ARKIV-SVID" fellur ef `src/` nefnir eitthvert þeirra.
 
 ### `live/gw{n}.json` — aðeins loknar umferðir
 Óskert FPL-svar. **`explain`-blokkin er geymd ÓSKERT** — hún er eina óyggjandi
@@ -242,6 +262,31 @@ Framendinn verður að staðfesta bæði áður en talan er notuð, annars sýni
 GW1-líkur í GW5. Falla annars á ClubElo eða FDR+xGC.
 
 Kvóti: 2 kredit/dag af 500/mán. Sótt á cron, **ekki** gegnum Netlify.
+
+### `odds_raw/{date}-{window}.json` — HRÁA SVARIÐ, ARKIV (16.8.2026)
+```
+{ updated, window, gw, requests_remaining, note, response: <hrátt the-odds-api svar> }
+```
+`window` er `sharp` (innan 36 klst frá fresti) eða `plan` (6–8 dagar) — sömu
+tvö glugga og `shouldFetchOdds` opnar, svo **tvær skrár per umferð**.
+
+**Af hverju hún er til:** umbreytingin í `odds.json` devig-ar niður í fáa
+skalara per lið og tekur **þrjá** bókmakara af þeim sem svara. Það sem tapast
+er óendurheimtanlegt: **línu-hreyfing** (opnun á móti lokun), **misræmi milli
+bóka** — sem er einmitt þar sem línan ber minnsta upplýsingu — og allir bókar
+utan `PREFERRED`. Fría þrepið hjá the-odds-api hefur **engan sögulegan
+endapunkt**, svo svarið sem er hent í dag er farið að eilífu.
+
+**Þrjár reglur** (sama ætt og 8e „tóm keyrsla má aldrei þurrka út góð gögn"):
+ný **dagsett** skrá, ekki inn í `odds.json` sem er yfirskrifuð í hverjum
+glugga · **tómt svar skrifar ekkert** (tóm skrá í arkívi læsi eins og
+„bókmakararnir birtu engar línur") · **skrá sem er til er aldrei yfirskrifuð**.
+Staðan skráir sig undir `odds_raw`.
+
+> **ARKIV, EKKI MERKI.** Ekkert í `src/` les hana og markaðslínan sem líkanið
+> notar kemur áfram úr `odds.json` einni. Að vira hráa svarið inn í FFDR,
+> röðun eða ráðgjöf **krefst nýrrar mælingar fyrst** (CLAUDE.md 3 og 4).
+> Vörður: `tests/wiring.mjs` kafli „ARKIV-SVID".
 
 ---
 

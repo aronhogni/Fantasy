@@ -1619,9 +1619,19 @@ export default function App() {
       const spB = setPieceOf(p, spRanks)?.isPenTaker ? 2.2 : 0;
       const rot = rotationRisk(p, seasonGames);
       const rotPen = !rot ? 0 : rot.level === "high" ? -2 : rot.level === "mid" ? -0.8 : 0;
-      // DefCon-tækifæri fyrir vörn (aðskilið frá CS%)
+      /* DefCon-tækifæri fyrir vörn (aðskilið frá CS%).
+         MARKMENN VORU HER INNI OG THAD VAR OMAELD TALA (lagad 16.8.2026).
+         Skilyrdid var `element_type <= 2`, sem er GK **og** DEF. Maelt a
+         `data/player_gw_2526.json`: markmenn eiga **663 leikja-umferdir og
+         NULL DefCon-stig, hamark 0** — a moti DEF 6,30 ad medaltali, MID
+         5,86, FWD 2,60. Their geta ekki unnid stigin, svo `dcB` gaf theim
+         -0,23 til +0,87 a skorid fyrir taekifaeri sem er ekki til.
+         Sama brot og mo/ao a markmonnum (`stats.js` ~1745, "MAELINGA-REGLA,
+         EKKI SNYRTING"). THETTA ER THRENGING, ekki ny vog: kafli 4 hafnadi
+         DefCon i RODUN og `rankScore` ber hann hvergi — hann lifir adeins
+         a skorinu sem er BIRT, og nu adeins hja theim sem geta unnid hann. */
       let dcB = 0;
-      if (p.element_type <= 2) {
+      if (p.element_type === 2) {
         const o = dcOpp[p.team]?.defcon_opportunity;
         if (typeof o === "number") dcB = (o - 60) / 30;
       }
@@ -2516,30 +2526,17 @@ export default function App() {
                 <option value="att">{"FFDR attack"}</option>
               </select>
             </div>
-            <div style={S.muted}>
-              {"FFDR is"} <b>{"the output"}</b> {"— ClubElo, xGC and the market line are inputs to it and are therefore not shown separately. Lower FFDR = easier. (The DefCon opportunity is its own signal and appears on player cards and in the team overview.)"}
-              {/* ALDUR INNTAKANNA — THOGULL BILUN VAR MOGULEG.
-                  elo.json er FFDR-inntak og var 31.7.2026 EINN OG HALFUR
-                  DAGUR gomul thvi ClubElo brast ("fetch failed" i
-                  status.json) — en ekkert i vidmotinu sagdi thad. Sama
-                  mynstur sem gerdi markadslidinn daudan i VIKU (kafli 3):
-                  formulan var i lagi, gognin sem hun fekk voru ekki.
-                  Aldurinn er thvi synilegur ThAR SEM FFDR ER BIRT, ekki
-                  adeins sem rauð lina i heimildalistanum.               */}
-              {(() => {
-                /* Threpin sjalf eru i model.js (eloStale) svo thau seu
-                   profanleg — vafrinn getur ekki sett sig i 'gamalt' stod. */
-                const st = eloStale(elo?.updated);
-                if (!st) return null;
-                return (
-                  <div style={{ marginTop:6, fontSize:10.5, lineHeight:1.5,
-                                color: st.level === "bad" ? C.red : C.amber }}>
-                    {st.level === "bad" ? "⚠ " : ""}
-                    {interp("Elo data is {0} days old — ClubElo has not responded since then.", [st.days.toFixed(1)])}
-                  </div>
-                );
-              })()}
-            </div>
+            {/* SKYRINGAR-MALSGREININ VAR FJARLAEGD 16.8.2026 ad beidni
+                notandans — hun stod i hverri hledslu og sagdi thad sama.
+                ALDUR INNTAKANNA FYLGDI EKKI MED I RUSLID og ma ekki gera
+                thad: elo.json er FFDR-inntak og var 31.7.2026 EINN OG
+                HALFUR DAGUR gomul thvi ClubElo brast ("fetch failed" i
+                status.json) — en ekkert i vidmotinu sagdi thad. Sama
+                mynstur sem gerdi markadslidinn daudan i VIKU (kafli 3):
+                formulan var i lagi, gognin sem hun fekk voru ekki.
+                `eloStale` byr nu i ClubElo-rodinni i Data sources-bordanum
+                nedst (leit: "ClubElo —"), sem er EINN stadur fyrir ferskleika
+                allra heimilda i stad thess ad dreifa honum um vidmotid.   */}
             {/* BILIÐ — MINNKA/AUKA MEÐ EINUM SMELLI, eða velja nákvæmar
                 umferðir í kassaröðinni (sama og í Player stats). Áður var
                 bilið fast við `recRange` og byrjaði alltaf á næstu umferð. */}
@@ -2713,107 +2710,6 @@ export default function App() {
               );
             })}
           </section>
-
-          {/* API-staða */}
-          <section style={S.card}>
-            <h2 style={S.h2}>{"Data sources"}</h2>
-            <div style={S.srcRow}><span style={S.dotOk} />FPL bootstrap — {players.length} {"players,"} {teams.length} {"teams"}</div>
-            <div style={S.srcRow}>
-              <span style={news ? S.dotOk : S.dotWait} />
-              {"Injuries and prices —"} {news
-                ? interp("{0} flagged · updated {1}", [(news.players || []).length, fmtClock(news.updated)])
-                : "waiting for the fast run"}
-            </div>
-            <div style={S.srcRow}><span style={S.dotOk} />FPL fixtures — {fixtures.length} {"fixtures + FDR"}</div>
-            <div style={S.srcRow}><span style={S.dotOk} />{"FPL events — deadlines,"} {events.length} {"gameweeks"}</div>
-            <div style={S.srcRow}>
-              <span style={oddsState === "ok" ? S.dotOk : S.dotWait} />
-              {"Bookmaker CS%"} {oddsState === "ok"
-                ? interp("({0} teams, from the pipeline)", [Object.keys(odds || {}).length])
-                : oddsState === "loading" ? "(fetching…)"
-                : oddsState === "empty" ? "(file exists, no matches priced)"
-                : "(odds.json missing — run fetch-data)"}
-            </div>
-            <div style={S.srcRow}>
-              <span style={Object.keys(eloByTeam || {}).length ? S.dotOk : S.dotWait} />
-              ClubElo — {Object.keys(eloByTeam || {}).length}/{teams?.length ?? 0} {"teams"}
-              {eloFx?.fixtures?.length ? interp(" · {0} matches with CS probabilities", [eloFx.fixtures.length]) : ""}
-            </div>
-            <div style={S.srcRow}>
-              <span style={weatherReady ? S.dotOk : S.dotWait} />
-              {"Weather —"} {weatherReady ? interp("{0} matches", [(weather.fixtures || []).filter(w => w.temp_c != null).length]) : "outside the 16-day forecast"}
-            </div>
-            {/* API-SPORTS: "0 paraðir" LAS SEM BILUN en er RETT preseason-utkoma.
-                Fria threpid leyfir adeins leikdaga innan +/-1 dags og fyrir
-                timabil eru their ekki til — 0 kollum eytt, engin villa.
-                Fyrsta raunprofun er 20.-21. agust (CLAUDE.md kafli 6).
-                FPL-status raedur afram tiltaekileika; thetta AUDGAR hann
-                med TEGUND meidsla sem FPL-news gefur ekki.                 */}
-            <div style={S.srcRow} title={injuries?.via || ""}>
-              <span style={injuries?.players?.length ? S.dotOk : S.dotWait} />
-              {"Injury types (API-Sports) —"} {
-                !injuries ? "waiting for the first run"
-                : injuries.error ? interp("error: {0}", [String(injuries.error).slice(0, 30)])
-                : injuries.players?.length ? interp("{0} matched", [injuries.players.length])
-                : "no match days in the window (waiting for GW1)"}
-            </div>
-            <div style={S.srcRow}>
-              <span style={Object.keys(dcOpp || {}).length ? S.dotOk : S.dotWait} />
-              {"DefCon opportunity —"} {Object.keys(dcOpp || {}).length} {"teams"}
-              {defcon?.opportunity && Object.keys(defcon.opportunity).length ? " (pipeline)" : " (computed in the app)"}
-            </div>
-            <div style={S.srcRow}>
-              <span style={defcon?.players?.length ? S.dotOk : S.dotWait} />
-              DefCon hit-rate — {defcon?.players?.length || 0} {"players"} {defcon?.players?.length ? "" : "(waiting for matches)"}
-            </div>
-            {/* PIPELINE-HEIMILDIR ur status.json.
-                AÐUR: hrait lykilheiti ("fdcouk_e0") og note klippt i 34 stafi,
-                svo "404 https://www.football-data.co.u" birtist sem villa —
-                thott 404 fyrir timabil se EDLILEGT astand. Nu: islensk heiti,
-                THRJU stig (i lagi / bidur / villa) og full skyring i tooltip.
-                Understat er ekki lengur i listanum — hun var tekin ur notkun
-                (sja kafla 6b i CLAUDE.md); ESPN kom i stadinn.               */}
-            {(pipeStatus?.sources || pipeStatusFast?.sources) && (() => {
-              /* BADAR STODUSKRARNAR. Hrada keyrslan (30 min) skrifar i
-                 status_fast.json og appid las hana ALDREI — thar med voru
-                 allar heimildir hennar osynilegar, thar a medal api_lineups
-                 (stadfest byrjunarlid) sem er EINGONGU sott thar. Hrada
-                 keyrslan er nyrri, svo hun hefur forgang a somu lykla.   */
-              const sources = { ...(pipeStatus?.sources || {}),
-                                ...(pipeStatusFast?.sources || {}) };
-              const SHOW = {
-                api_lineups:    "Confirmed lineups",
-                apisports_account: "API-Sports account",
-                fdcouk_e0:      "Match stats E0 (current)",
-                fdcouk_history: "Match stats E0 (history)",
-                espn_shots:     "Shots with coordinates (ESPN)",
-                last_gw:        "Gameweek report",
-                player_seasons: "Players' earlier seasons",
-                travel:         "Travel distances",
-                rotation:       "Rotation",
-                team_form:      "Team form",
-                luck:           "Luck meter",
-                form_features:  "Rolling form",
-                gameweek_shape: "Gameweek shape",
-                euro_fixtures:  "European fixtures",
-              };
-              return Object.entries(sources)
-                .filter(([k]) => SHOW[k])
-                .map(([k, v]) => {
-                  // "bidur" = keyrslan tokst en gognin eru ekki til enn
-                  const waiting = v.ok && (!v.count || v.count === 0);
-                  const dot = !v.ok ? S.dotErr : waiting ? S.dotWait : S.dotOk;
-                  return (
-                    <div key={k} style={S.srcRow} title={v.note || ""}>
-                      <span style={dot} />{SHOW[k]} — {
-                        !v.ok ? interp("error: {0}", [(v.note || "unknown").slice(0, 40)])
-                        : waiting ? (v.note || "waiting for data")
-                        : v.count}
-                    </div>
-                  );
-                });
-            })()}
-          </section>
         </div>
       </div>
 
@@ -2875,6 +2771,166 @@ export default function App() {
         ))}
       </section>
       </>)}
+
+      {/* ---------- DATA SOURCES — BORDI NEDST, YFIR ALLA BREIDD ----------
+          Stod adur sem spjald i hlidarstiku Planner-flipans og sast thvi
+          ADEINS thar. Faert hingad 16.8.2026 ad beidni notandans: heimildirnar
+          eiga vid ALLA flipa (Player stats, Teams, Gameweek ... lesa allar
+          somu `data/`-skrarnar), svo their eiga heima nedst i skelinni.
+
+          TVAER RADIR BAETTUST VID UM LEID OG THAD VAR EKKI SNYRTING:
+          `prediction_ledger` og `elo_age` eru BAEDI skrifud i status.json af
+          pipeline-inni en HVORUGT var i `SHOW`, svo raud lina fra theim for
+          a disk, var committud — og synd ENGUM. Spa-bokhaldid hefur EITT
+          skot per umferd (kafli 7) og glugginn fyrir GW1 opnast 21.8.
+          Athugasemdin i `snapshot-predictions.mjs` fullyrdir ad rodin
+          "birtist undir Data sources"; hun var osonn thangad til nuna.     */}
+      <footer style={{ marginTop:18, paddingTop:12, borderTop:`1px solid ${C.border}` }}>
+        <h2 style={{ ...S.h2, marginBottom:6 }}>{"Data sources"}</h2>
+        <div style={{ display:"grid", gap:"0 18px",
+                      gridTemplateColumns:"repeat(auto-fill, minmax(270px, 1fr))" }}>
+          <div style={S.srcRow}><span style={S.dotOk} />FPL bootstrap — {players.length} {"players,"} {teams.length} {"teams"}</div>
+          <div style={S.srcRow}>
+            <span style={news ? S.dotOk : S.dotWait} />
+            {"Injuries and prices —"} {news
+              ? interp("{0} flagged · updated {1}", [(news.players || []).length, fmtClock(news.updated)])
+              : "waiting for the fast run"}
+          </div>
+          <div style={S.srcRow}><span style={S.dotOk} />FPL fixtures — {fixtures.length} {"fixtures + FDR"}</div>
+          <div style={S.srcRow}><span style={S.dotOk} />{"FPL events — deadlines,"} {events.length} {"gameweeks"}</div>
+          <div style={S.srcRow}>
+            <span style={oddsState === "ok" ? S.dotOk : S.dotWait} />
+            {"Bookmaker CS%"} {oddsState === "ok"
+              ? interp("({0} teams, from the pipeline)", [Object.keys(odds || {}).length])
+              : oddsState === "loading" ? "(fetching…)"
+              : oddsState === "empty" ? "(file exists, no matches priced)"
+              : "(odds.json missing — run fetch-data)"}
+          </div>
+          {(() => {
+            /* FERSKLEIKI ELO — FLUTTUR HINGAD UR FFDR-SPJALDINU 16.8.2026.
+               Notandinn bad um ad malsgreinin thar faeri, en VIDVORUNIN ma
+               ekki fara med henni: elo.json er FFDR-inntak og var 31.7.2026
+               EINN OG HALFUR DAGUR gomul thvi ClubElo brast — og ekkert i
+               vidmotinu sagdi thad. Threpin sjalf eru i model.js (eloStale)
+               svo thau seu profanleg (vafrinn getur ekki sett sig i "gamalt"
+               stod). Thessi profun er STERKARI en `elo_age` ur status.json:
+               stodvist pipeline-in fryst `elo_age` en thessi telur afram.  */
+            const st = eloStale(elo?.updated);
+            const nElo = Object.keys(eloByTeam || {}).length;
+            return (
+              <div style={S.srcRow} title={st ? "ClubElo has not responded since then" : ""}>
+                <span style={st?.level === "bad" ? S.dotErr : nElo ? S.dotOk : S.dotWait} />
+                ClubElo — {nElo}/{teams?.length ?? 0} {"teams"}
+                {eloFx?.fixtures?.length ? interp(" · {0} matches with CS probabilities", [eloFx.fixtures.length]) : ""}
+                {st && <span style={{ color: st.level === "bad" ? C.red : C.amber, fontWeight:700 }}>
+                  {" · "}{st.level === "bad" ? "⚠ " : ""}{interp("{0} days old", [st.days.toFixed(1)])}</span>}
+              </div>
+            );
+          })()}
+          <div style={S.srcRow}>
+            <span style={weatherReady ? S.dotOk : S.dotWait} />
+            {"Weather —"} {weatherReady ? interp("{0} matches", [(weather.fixtures || []).filter(w => w.temp_c != null).length]) : "outside the 16-day forecast"}
+          </div>
+          {/* API-SPORTS: "0 paraðir" LAS SEM BILUN en er RETT preseason-utkoma.
+              Fria threpid leyfir adeins leikdaga innan +/-1 dags og fyrir
+              timabil eru their ekki til — 0 kollum eytt, engin villa.
+              Fyrsta raunprofun er 20.-21. agust (CLAUDE.md kafli 6).
+              FPL-status raedur afram tiltaekileika; thetta AUDGAR hann
+              med TEGUND meidsla sem FPL-news gefur ekki.                 */}
+          <div style={S.srcRow} title={injuries?.via || ""}>
+            <span style={injuries?.players?.length ? S.dotOk : S.dotWait} />
+            {"Injury types (API-Sports) —"} {
+              !injuries ? "waiting for the first run"
+              : injuries.error ? interp("error: {0}", [String(injuries.error).slice(0, 30)])
+              : injuries.players?.length ? interp("{0} matched", [injuries.players.length])
+              : "no match days in the window (waiting for GW1)"}
+          </div>
+          <div style={S.srcRow}>
+            <span style={Object.keys(dcOpp || {}).length ? S.dotOk : S.dotWait} />
+            {"DefCon opportunity —"} {Object.keys(dcOpp || {}).length} {"teams"}
+            {defcon?.opportunity && Object.keys(defcon.opportunity).length ? " (pipeline)" : " (computed in the app)"}
+          </div>
+          <div style={S.srcRow}>
+            <span style={defcon?.players?.length ? S.dotOk : S.dotWait} />
+            DefCon hit-rate — {defcon?.players?.length || 0} {"players"} {defcon?.players?.length ? "" : "(waiting for matches)"}
+          </div>
+          {/* PIPELINE-HEIMILDIR ur status.json.
+              AÐUR: hrait lykilheiti ("fdcouk_e0") og note klippt i 34 stafi,
+              svo "404 https://www.football-data.co.u" birtist sem villa —
+              thott 404 fyrir timabil se EDLILEGT astand. Nu: laesileg heiti,
+              THRJU stig (i lagi / bidur / villa) og full skyring i tooltip.
+              Understat er ekki lengur i listanum — hun var tekin ur notkun
+              (sja kafla 6b i CLAUDE.md); ESPN kom i stadinn.               */}
+          {(pipeStatus?.sources || pipeStatusFast?.sources) && (() => {
+            /* BADAR STODUSKRARNAR. Hrada keyrslan (30 min) skrifar i
+               status_fast.json og appid las hana ALDREI — thar med voru
+               allar heimildir hennar osynilegar, thar a medal api_lineups
+               (stadfest byrjunarlid) sem er EINGONGU sott thar. Hrada
+               keyrslan er nyrri, svo hun hefur forgang a somu lykla.   */
+            const sources = { ...(pipeStatus?.sources || {}),
+                              ...(pipeStatusFast?.sources || {}) };
+            const SHOW = {
+              api_lineups:    "Confirmed lineups",
+              apisports_account: "API-Sports account",
+              fdcouk_e0:      "Match stats E0 (current)",
+              fdcouk_history: "Match stats E0 (history)",
+              espn_shots:     "Shots with coordinates (ESPN)",
+              last_gw:        "Gameweek report",
+              player_seasons: "Players' earlier seasons",
+              travel:         "Travel distances",
+              rotation:       "Rotation",
+              team_form:      "Team form",
+              luck:           "Luck meter",
+              form_features:  "Rolling form",
+              gameweek_shape: "Gameweek shape",
+              euro_fixtures:  "European fixtures",
+              /* THESSI VAR SKRIFUD EN ALDREI SYND (baett vid 16.8.2026).
+                 `prediction_ledger` er eina merkid um hvort spa-bokhaldid
+                 hafi raunverulega skrifad rod i sinum 12 klst glugga —
+                 EINSKOTA taekifaeri per umferd (kafli 7: inntokin eru
+                 horfin eftir a). Athugasemdin i `snapshot-predictions.mjs`
+                 fullyrti ad rodin birtist her; hun gerdi thad ekki, svo
+                 raud lina hefdi farid a disk og verid synd ENGUM.
+                 `elo_age` var lika utan SHOW en er VILJANDI aframhaldandi
+                 utan hans: hun segir aldurinn eins og hann var i SIDUSTU
+                 pipeline-keyrslu (23,2 klst) medan ClubElo-rodin her ad
+                 ofan telur hann LIFANDI i vafranum (2,7 dagar). Tvaer
+                 tolur um sama hlut, sin med hvoru svari, er verra en ein. */
+              prediction_ledger: "Prediction ledger",
+              /* ARKIVID VERDUR AD SJAST ThOTT ENGINN LESI ThAD.
+                 `odds_raw` skrifar hratt Odds-API-svar i dagsetta skra
+                 (kafli 7 / SCHEMA). Appid les hana ALDREI — en einmitt
+                 thess vegna er thogul bilun her verst: enginn dalkur
+                 tæmist, ekkert lit breytist, og linu-hreyfingin sem
+                 fæst hvergi annars stadar tapast varanlega. Sama rok og
+                 `data/history/`: dagleg mynd verdur ekki buin til eftir a. */
+              odds_raw:          "Raw odds archive",
+            };
+            return Object.entries(sources)
+              .filter(([k]) => SHOW[k])
+              .map(([k, v]) => {
+                // "bidur" = keyrslan tokst en gognin eru ekki til enn
+                const waiting = v.ok && (!v.count || v.count === 0);
+                const dot = !v.ok ? S.dotErr : waiting ? S.dotWait : S.dotOk;
+                return (
+                  /* NOTAN ER KLIPPT I BADAR ATTIR OG FULL I TOOLTIP.
+                     Bordinn er rist (auto-fill 270px) svo 150 stafa nota
+                     — t.d. spa-bokhaldsins — teygdi eina rod yfir fjorar
+                     linur og skekkti allar hinar. 40 stafir stodu thegar
+                     a villunni; "bidur" hafdi ekkert thak.              */
+                  <div key={k} style={S.srcRow} title={v.note || ""}>
+                    <span style={dot} />{SHOW[k]} — {
+                      !v.ok ? interp("error: {0}", [(v.note || "unknown").slice(0, 40)])
+                      : waiting ? ((v.note || "waiting for data").length > 46
+                          ? (v.note || "").slice(0, 46).trimEnd() + "…"
+                          : (v.note || "waiting for data"))
+                      : v.count}
+                  </div>
+                );
+              });
+          })()}
+        </div>
+      </footer>
 
       {/* ---------- Yfirlit: leikmaður eða lið ---------- */}
       {detail && (() => {
@@ -2994,22 +3050,8 @@ export default function App() {
                     );
                   })()}
 
-                  {/* HVAR HANN SPILAR — medalstada per leik.
-                      EKKI heatmap: BSD skjalar `heatmap` en skilar henni
-                      aldrei (0 af 15.189 rodum). Thetta er thad sem ER til. */}
-                  {(() => {
-                    const pos = shotIndex?.positions?.[String(p.code)];
-                    if (!pos?.length) return null;
-                    return (
-                      <>
-                        <div style={S.dGroupHead}>
-                          Where he plays <span style={{ fontWeight: 400, opacity: 0.65 }}>
-                            2025/26 · one dot per match, not a touch heatmap</span>
-                        </div>
-                        <PositionMap positions={pos} label={p.web_name} />
-                      </>
-                    );
-                  })()}
+                  {/* "Hvar hann spilar" STOD HER og var faert NEDST i gluggann
+                      16.8.2026 ad beidni notandans — leit: PositionMap.      */}
 
                   <SeasonTable p={p} seasonsFile={seasonsFile}
                     currentLabel={currentSeasonLabel} seasonStarted={seasonStarted} />
@@ -3171,6 +3213,26 @@ export default function App() {
                 })}
                 {!fxs.length && <div style={S.muted}>{"No fixtures listed."}</div>}
               </div>
+
+              {/* HVAR HANN SPILAR — medalstada per leik.
+                  EKKI heatmap: BSD skjalar `heatmap` en skilar henni
+                  aldrei (0 af 15.189 rodum). Thetta er thad sem ER til.
+                  FAERT NEDST 16.8.2026 (var a undan SeasonTable): kortid er
+                  samhengi, ekki tala sem akvordun byggist a, svo thad a ad
+                  vera nedan vid leikina en ofan vid adgerdirnar.          */}
+              {isPlayer && (() => {
+                const pos = shotIndex?.positions?.[String(p.code)];
+                if (!pos?.length) return null;
+                return (
+                  <>
+                    <div style={S.dGroupHead}>
+                      Where he plays <span style={{ fontWeight: 400, opacity: 0.65 }}>
+                        2025/26 · one dot per match, not a touch heatmap</span>
+                    </div>
+                    <PositionMap positions={pos} label={p.web_name} />
+                  </>
+                );
+              })()}
 
               {/* aðgerðir */}
               <div style={S.dActions}>
@@ -3747,6 +3809,13 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
 function RecCard({ r, team, teamById, dc, elo, csFor, diffOf, range, onAdd }) {
   const { p, fxs } = r;
   const isDef = p.element_type <= 2;
+  /* EITT MENGI FYRIR BADA — TEIKNADA REITI OG CS-MEDALTALID.
+     Adur teiknadi strimillinn `fxs.slice(0, range || 6)` en CS-vaentingin
+     lagdi saman ALLA `fxs`. I dag er thad OSYNILEGT: leikjaskra 2026/27
+     hefur 0 audar og 0 tvofaldar umferdir, svo mengin eru eins. Vid
+     FYRSTU tvofoldu umferd hefdi kortid synt `range` reiti en talan
+     verid medaltal af FLEIRUM — tala og mynd um sama hlut, ekki eins.  */
+  const shown = fxs.slice(0, range || 6);
   return (
     <div style={S.recCard} onClick={onAdd}>
       <div style={S.recTop}>
@@ -3761,7 +3830,7 @@ function RecCard({ r, team, teamById, dc, elo, csFor, diffOf, range, onAdd }) {
         <div style={S.recScore}>{r.score}</div>
       </div>
       <div style={S.recFix}>
-        {fxs.slice(0, range || 6).map((f,i) => {
+        {shown.map((f,i) => {
           const d = diffOf ? (diffOf(p.team, f, p.element_type) ?? f.fdr) : f.fdr;
           /* ALGILT — tillögur bera leikmenn ÞVERT á lið, svo afstætt þrep
              innan liðs væri hér beinlínis misvísandi (sjá PlayerCard).  */
@@ -3786,7 +3855,7 @@ function RecCard({ r, team, teamById, dc, elo, csFor, diffOf, range, onAdd }) {
           if (r.ffdrAvg != null) chips.push(["FFDR", r.ffdrAvg,
             "Average FFDR over the range (absolute scale) — lower is easier"]);
           if (isDef) {
-            const vals = fxs.map(f => csFor(p.team, f).cs).filter(v => Number.isFinite(v));
+            const vals = shown.map(f => csFor(p.team, f).cs).filter(v => Number.isFinite(v));
             /* VILLA SEM VAR: "|| 0" taldi vantandi CS sem NULL og dro
                medaltalid nidur — Raya syndi 9% thegar laegsta mogulega er 15%.
                Vantandi gildum er SLEPPT, og "—" ef ekkert er til.           */

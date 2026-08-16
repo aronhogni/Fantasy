@@ -21,6 +21,7 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
+import { TEAM_STAT_BY_KEY } from "../src/teamstats.js";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
@@ -223,11 +224,135 @@ console.log("\n5) TEXTARNIR SEM VORU TEKNIR UT ERU FARNIR");
      `${t.trim().length} stafir`);
   ok("kynningin er farin", !/How the teams themselves play/.test(t));
   ok("BSD-skyringin er farin", !/threshold was fitted against the big-chance count/.test(t));
+  /* 16.8.2026: nylida-malsgreinin og skyringar-blokkin undir toflunni.
+     BADAR eru sannanlega TEIKNADAR i thessu safni fram ad theirri breytingu
+     — flipinn er opinn og >800 stafir samkvaemt fullyrdingunni her ad ofan
+     — svo thessi thrju "farin" geta fallid.                              */
+  ok("nylida-malsgreinin er farin",
+     !/did not play in the Premier League last season/.test(t));
+  ok("skyringar-textinn undir toflunni er farinn",
+     !/Best and worst follow the column/.test(t) && !/Amber headers/.test(t));
+  ok("heimilda-rodin undir toflunni er farin",
+     !/football-data E0, 380 matches/.test(t) && !/Shot zones — ESPN commentary/.test(t));
+  /* EN LITA-LYKILLINN STENDUR — an hans eru graent og raut holf tvo litud
+     holf an nafns. Hann er lykill, ekki skyring, og for thvi ekki med.   */
+  ok("lita-lykillinn (best/worst) stendur eftir", /best/.test(t) && /worst/.test(t));
   /* En VARUDIN um otylltan dalk verdur ad standa — hun er ekki skyring
      heldur vorn gegn thvi ad tomur dalkur lesist sem "engar faerir".   */
   const hasBsd = (() => { try { J("bsd_teams.json"); return true; } catch { return false; } })();
   if (!hasBsd) ok("varudin um otylltan dalk stendur", /is not filled in yet/.test(t));
   else ok("BSD er til, svo varudin a ekki vid", true);
+}
+
+/* ============================================================
+   6) SKYRINGARNAR ERU I HAUSNUM — LESNAR AF SKJANUM
+
+   Skyringar-blokkin og heimilda-rodin undir toflunni voru fjarlaegdar
+   16.8.2026 og efni theirra flutt i `title` a hverjum dalka-haus. Kafli 5
+   sannar ad textinn se FARINN; ef ekkert kaemi i stadinn vaeri thad
+   nakvaemlega tapadur rokstudningur, svo hann verdur ad finnast HER.
+
+   THRENNT SEM BLOKKIN GAT EKKI GERT OG ThETTA VER:
+     1. HUN SAGDI EITT FYRIR ALLA DALKA. "For everything a team concedes,
+        lower is better — except long shots faced" er handskrifud undantekning
+        sem stadnar vid naesta dalk. Attin er nu lesin ur `d.hi`, svo hun er
+        profud PER DALK (skot a sig: laegra betra · langskot: haerra betra).
+     2. HUN BAR FASTAR TOLUR. "380 matches" og "817 shots carried no zone
+        text" voru hardkodadar. Thaer eru nu lesnar ur skranum og eru bornar
+        vid ThAER SOMU SKRAR her — sama regla og `spRanges` i SetPieces.
+     3. EIN SETNING HENNAR VAR ORDIN ROng: "xG and xGC — FPL player totals,
+        roughly 19% short". Thau koma ur BSD-skotakortinu fra 8.8.2026
+        (r 0,369 -> 0,818). Sa strengur ma hvergi snua aftur.
+   ============================================================ */
+console.log("\n6) HVER DALKUR BER SINA SKYRINGU I HAUSNUM");
+{
+  /* HEILT TIMABIL AFTUR: kaflar 3-4 skildu eftir valid bil, og i throngu
+     bili geta of faar tolur verid i dalki til ad besta/versta se merkt —
+     tha vaeri fullyrdingin um litina had thvi hvad var smellt adur.     */
+  const back = [...document.querySelectorAll("button")].find(b => b.textContent.trim() === "whole season");
+  if (back) await act(async () => { back.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  await act(async () => { await new Promise(r => setTimeout(r, 80)); });
+  /* OG FLOKKURINN ER VALINN BERUM ORDUM. Kafli 4 skildi eftir SOKNAR-
+     flokkinn, svo `Shots` var soknar-dalkurinn og `Long` / `xG/shot` voru
+     alls ekki a skjanum — fullyrdingarnar mældu tha rangan dalk og tomt
+     mengi. Markvardar-flokkurinn er lika sa eini sem ber ALLAR THRJAR
+     heimildirnar (E0, ESPN, BSD) og sertilfellid um langskotin.        */
+  const gk = [...document.querySelectorAll("button")]
+    .find(b => b.textContent.trim() === "What the keeper faces");
+  ok("markvardar-flokkurinn finnst", !!gk);
+  if (gk) await act(async () => { gk.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  await act(async () => { await new Promise(r => setTimeout(r, 80)); });
+
+  const ths = [...document.querySelectorAll("th")];
+  /* POSITIV FORSENDA FYRST — an hennar vaeri hvert "inniheldur" hér ad
+     nedan satt um TOMT mengi (CLAUDE.md 5b, thekja er fullyrding).      */
+  const cols = ths.slice(1);                    // fyrsti er lids-dalkurinn
+  ok(`hausrodin er teiknud (${cols.length} tolu-dalkar)`, cols.length >= 8, `${cols.length}`);
+  ok("lids-dalkurinn ber sina eigin skyringu", /Sort by team/.test(ths[0]?.title || ""));
+
+  const titles = cols.map(th => th.getAttribute("title") || "");
+  ok("hver einasti dalkur ber skyringu", titles.every(t => t.length > 40),
+     `tomir: ${titles.filter(t => t.length <= 40).length}`);
+  ok("hver skyring nefnir heimild sina", titles.every(t => /\nSource: /.test(t)),
+     titles.filter(t => !/\nSource: /.test(t)).length + " an heimildar");
+  ok("hver skyring segir hvor attin er betri",
+     titles.every(t => /(Higher|Lower) is better\./.test(t)),
+     titles.filter(t => !/(Higher|Lower) is better\./.test(t)).length + " an attar");
+
+  /* Skyringin sjalf (`note` ur teamstats.js) verdur ad fylgja med — thad er
+     idiomid ur stats.js og eina skyldusvidid i dalkaskranni.             */
+  const byShort = k => titles[cols.findIndex(th => th.textContent.replace(/[↑↓]/g, "").trim() === k)] || "";
+  const tShots = byShort("Shots"), tLong = byShort("Long"), tXgShot = byShort("xG/shot");
+  ok("skyring dalks ber `note` ur dalkaskranni",
+     tShots.includes(TEAM_STAT_BY_KEY.shots_against_pg.note), tShots.slice(0, 60));
+
+  /* 1. ATTIN ER PER DALK — thetta er thad sem ein setning gat ekki sagt. */
+  ok("skot a sig: LAEGRA er betra", /Lower is better\./.test(tShots), tShots.slice(0, 80));
+  ok("langskot a sig: HAERRA er betra (sertilfellid)",
+     /Higher is better\./.test(tLong), tLong.slice(0, 80));
+  ok("og skyringin segir hvad litirnir thyda",
+     /marked best \(green\), the (lowest|highest) worst \(red\)/.test(tShots));
+
+  /* 2. TOLURNAR ERU LESNAR UR SKRANUM — bornar vid somu skrar. */
+  const ts = J("team_shots.json"), tf = J("team_form.json");
+  let bsd = null; try { bsd = J("bsd_teams.json"); } catch { /* ma vanta */ }
+  const perClub = Math.max(0, ...(tf.teams || []).map(t => Number(t.matches) || 0));
+  const espnT = titles.filter(t => /ESPN commentary/.test(t));
+  ok(`ESPN-dalkar nefna leikjafjolda skrarinnar (${ts.matches})`,
+     espnT.length > 0 && espnT.every(t => t.includes(`ESPN commentary, ${ts.matches} matches`)),
+     `${espnT.length} dalkar`);
+  /* `.every` A TOMU MENGI ER SATT — og stokkbreyting (gamla tooltip-snidid)
+     let thessa fullyrdingu OG timabils-fullyrdinguna hér ad nedan LIFA
+     medan hinar tiu fellu, thvi `espnT`/`bsdT` urdu tom. Thaer krefjast
+     thvi FJOLDANS lika (CLAUDE.md 5b: thekja er fullyrding).            */
+  ok(`og svaedalausu skotin eru TALIN, ekki hardkodud (${ts.no_zone})`,
+     espnT.length > 0 && (!ts.no_zone
+       || espnT.every(t => t.includes(`${ts.no_zone} shots carried no zone text`))));
+  const e0T = titles.filter(t => /football-data E0/.test(t));
+  ok(`E0-dalkar nefna leiki per lid ur skranni (${perClub})`,
+     e0T.length > 0 && e0T.every(t => t.includes(`${perClub} matches per club`)), `${e0T.length} dalkar`);
+  /* E0-HEILDARTALAN MA EKKI KOMA AFTUR: hun var hardkodud "380 matches" og
+     er EKKI reiknanleg ur team_form.json (summa/2 gefur 323 thvi follnu
+     lidin thrju vantar). Se hun sett inn aftur er hun agiskun i buningi
+     maelingar.                                                           */
+  ok("og enginn heldur fram E0-heildartolu sem er ekki reiknanleg",
+     !titles.some(t => /football-data E0[^\n]*380 matches/.test(t)));
+  if (bsd) {
+    const bsdT = titles.filter(t => /BSD shot map/.test(t));
+    ok(`BSD-dalkar nefna leikjafjolda skrarinnar (${bsd.matches})`,
+       bsdT.length > 0 && bsdT.every(t => t.includes(`${bsd.matches} matches`)), `${bsdT.length} dalkar`);
+    ok(`og timabilid er SOTT ur skranni (${bsd.season})`,
+       bsdT.length > 0 && bsdT.every(t => t.includes(`(${bsd.season} only)`)));
+  }
+
+  /* 3. GAMLA, RANGA SETNINGIN MA HVERGI VERA — hvorki a skjanum ne i
+     skyringu. POSITIVA HLIDIN VID HLIDINA: xG/skot-dalkurinn nefnir BSD,
+     svo "FPL-strengurinn finnst ekki" getur ekki verid satt af thvi ad
+     enginn texti se til.                                                */
+  ok("xG-heimildin er BSD-skotakortid", /BSD shot map/.test(tXgShot), tXgShot.slice(-90));
+  const all = titles.join("\n") + (document.body.textContent || "");
+  ok("hvergi stendur lengur ad xG/xGC komi ur FPL-summu",
+     !/FPL player totals/.test(all) && !/roughly 19% short/.test(all));
 }
 
 console.log(`\nTEAMS-UMFERDIR: ${pass} stóðust, ${fail} féllu`);

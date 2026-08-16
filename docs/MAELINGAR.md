@@ -3288,3 +3288,305 @@ naívur parser: 6) · `fdcouk-e0` (vörður fjarlægður: 10) · `prediction-led
 (`bigChances`-framleiðandi fjarlægður: 2; fylkis-uppfletting aftur: 1) ·
 `data-resilience` (`rowsOf` → `|| []`: 1) · `workflow-push` (dautt
 `ENABLE_ESPN` sett aftur: 1).
+
+---
+
+## 16.8.2026 — ÚTTEKT Á HANDOVER-FPL-2.md, OG SJÖ ATRIÐI FRÁ NOTANDA
+
+Handover-skjalið (15.8.2026, Fable) var sannreynt lið fyrir lið með keyrðum
+endurgerðum, eins og útttektin 14.8. Meirihlutinn stóðst. Samhliða komu sjö
+athugasemdir frá notandanum sjálfum, og **tvær þeirra voru spurningar um tölur
+sem reyndust RÉTTAR** — sem er sín eigin niðurstaða og er skráð hér svo hún
+verði ekki „löguð" seinna.
+
+### A. Tvær tölur sem notandinn véfengdi — BÁÐAR RÉTTAR
+
+**A1. „CS EXPECTATION 37% fyrir Raya næstu 5 — getur ekki verið rétt."**
+Talan er **einfalt meðaltal** yfir leikina fimm, ekki margfeldi:
+
+| GW | mótherji | H/A | FFDR (staða 2) | grein í fossinum | CS |
+|---|---|---|---|---|---|
+| 1 | COV | H | 1,45 | **bookie** | 45% |
+| 2 | AVL | A | 2,35 | probability | 28% |
+| 3 | CHE | H | 1,84 | probability | 40% |
+| 4 | SUN | A | 1,70 | probability | 39% |
+| 5 | BHA | A | 1,79 | probability | 34% |
+
+186/5 = 37,2 → **37**. Hinar túlkanirnar passa ekki: margfeldi (CS í ÖLLUM
+fimm) = **0,668%**, summa = 186. Við `range` 6 les reiturinn 39%, við 8 les
+hann 40% — hann eltir meðaltalið, aldrei margfeldi.
+
+**Kvörðunin var mæld, ekki fullyrt.** Uppsett `cleanSheetProb` var keyrt yfir
+14-tímabila spá-heiminn sem `tests/lib/e0.mjs` byggir, **10.640 lið-leikir**:
+spáð meðaltal **27,53%** á móti raun **27,23%**, hver tíundarhlutur innan
+3,2pp. Og fyrir varnir í Arsenal-flokki (≤0,90 á sig per leik, **n=874**):
+**spáð 40,0%, raun 38,1%.** Það er nákvæmlega sviðið sem talan liggur á.
+
+**Innsæið var akkerað á RANGA viðmiðinu og það er þegar skjalað:** Arsenal
+fékk 19/38 = 50,0% hrein blöð 2025/26 og hrátt Poisson (`e^-0,711`) gefur
+**49,1%** — en kafli 3 í `CLAUDE.md` skráir einmitt að hráa Poisson-viðmiðið
+sé of bjartsýnt og hafi verið hafnað (29,9% fyrir MCI heima á móti 43%).
+Eitt tímabil er auk þess ein raungerð: SE ≈ 8,1pp á 19/38.
+
+**GW1 er dregin niður af MARKAÐNUM, ekki líkaninu.** Á sömu 20 leikjum er
+líkanið **+3,7pp HÆRRA** en bókmakarinn að meðaltali; fyrir ARS–COV segir
+líkanið 53% en markaðurinn 45%, og fossinn tekur markaðinn. **Engin villa.**
+
+**A2. „Vitlaus CS í Upcoming fixtures — 6 umferðir og efsti með 23%."**
+Talan er rétt en **HÓPHEITIÐ er villandi**. `23%` finnst í nákvæmlega tveimur
+hólfum: `Team clean sheet prob.` fyrir **BRE** og **LEE**, báðir með
+`cs=23, xga=1,46` (`e^-1,46` = 23,2%) — rétt bókmakaralína fyrir **GW1 EINA**.
+Dálkurinn ber bandið „Team, next match" en situr við hliðina á þremur
+dálkum undir bandinu „Next 6 gameweeks", í hóp sem heitir „Upcoming fixtures".
+
+**Og hann var ALDREI efstur:** smellur á dálkinn setur **ARS 45%** á toppinn
+(asc setur BOU/COV 7%). Stigataflan fyrir sama dálk sýnir `1. Gabriel ARS 45%`.
+Sex-umferða meðaltal `csFor` raðar líka ARS efst (39%); þeir sem liggja nálægt
+23% yfir 6 umferðir eru SUN/BOU (23%), COV (22%), IPS (21%), HUL (15%) — **botninn**.
+**Enginn 6-umferða CS-samtala er til í appinu**, svo það var ekkert að bera hana við.
+
+### B. TVÆR RAUNVERULEGAR VILLUR SEM FUNDUST VIÐ AÐ RENNA A1/A2 TIL BOTNS
+
+**B1. `_team_cs` hafði ENGA ferskleika-vörn þótt `csFor` hefði hana.**
+`csFor` (`App.jsx` ~1135) sannreynir bókmakaralínuna gegn **mótherja OG
+dagsetningu** áður en hún er notuð. `stats.js` fletti upp á **lids-skammstöfun
+EINNI**. Í dag meinlaust (`odds.json` er `window:"plan"`, `gw:1`, allar 20
+raðirnar passa við GW1) — **en sókninni er sleppt þegar hún var nýleg**
+(`status.json` í dag: *„skipped: plan window already fetched 23h ago"*), svo um
+leið og tímabilið byrjar og skráin dregst aftur úr hefði dálkurinn birt línu
+fyrir leik **sem er þegar búinn, án nokkurs merkis**. Það er nákvæmlega
+„gömul gögn birt sem ný" (sama ætt og `homeCore`-lærdómurinn og dauði
+markaðsliðurinn). Sama tveggja-þátta próf er nú í `makeEnricher`.
+**Mælt eftir lagfæringu:** óbreytt í dag **587/587** leikmenn með gildi
+(15 ólík), en **0/587** bæði þegar `kickoff` er úrelt og þegar `opp` passar ekki.
+
+**B2. `RecCard` teiknaði annað mengi en það sem það lagði saman.**
+Strimillinn rendraði `fxs.slice(0, range || 6)` en CS-væntingin lagði saman
+**ALLA** `fxs`. Í dag ósýnilegt: leikjaskrá 2026/27 hefur **0 auðar og 0
+tvöfaldar umferðir**, svo mengin eru eins. Við fyrstu tvöföldu umferð hefði
+kortið sýnt `range` reiti meðan talan var meðaltal af fleirum. Eitt mengi (`shown`) núna.
+
+### C. ANDLITSMYNDIRNAR — SLÓÐIN VAR EINNI KYNSLÓÐ Á EFTIR
+
+Notandinn: *„Það vantar myndir af fullt af leikmönnum."* **Heil talning á
+öllum 587 leikmönnum í `data/players.json`** (HEAD-köll, ekkert úrtak):
+
+| slóð | 200 | vantar |
+|---|---|---|
+| `premierleague/photos/players/110x140/p{code}.png` (sú sem var notuð) | 381 | **206 (35,1%)** |
+| `premierleague25/photos/players/110x140/{code}.png` | 411 | 176 |
+| **önnur hvor** | **478** | **109 (18,6%)** |
+
+Nýja fotan **sleppir „p"-forskeytinu** og heitir eftir tímabili. **Hvorug er
+yfirfota hinnar:** 97 menn eru aðeins í `premierleague25` og **67 aðeins í
+þeirri gömlu** (þeir sem skiptu um félag — Meslier, Bruno G., Garnacho,
+Rogers, Lacroix). **Þess vegna KEÐJA, ekki skipti.**
+
+Sjálfstæð staðfesting á 70-manna úrtaki: vantandi myndir fara **15 → 5**, og
+`p25` bjargar m.a. **Zubimendi, Hincapie, Mosquera, Truffert, Rayan**.
+
+Ábatinn liggur þar sem hann skiptir máli: hjá þeim sem meira en **5%** eiga
+fer vantandi mynd **11 → 1**, og hjá þeim sem spiluðu einhverjar mínútur
+**106 → 19**. Þeir **109** sem eftir standa eru raunverulega myndalausir hjá
+FPL: **90** þeirra hafa NÚLL mínútur og **52** eru hjá COV/HUL/IPS.
+**Það er RÉTT niðurstaða** og treyju-fallbackið á við — myndirnar birtast
+sjálfkrafa um leið og FPL myndar þá.
+
+**Prófað og fellt** (403 fyrir bæði virkan og vantandi leikmann): `.webp` í
+öllum stærðum · `photo-2/` · pulselive-lénið · `premierleague24` ·
+`premierleague26` (**þess vegna er hún EKKI sett inn fyrirfram** — hún svarar
+403 fyrir alla í dag og bætti aðeins við tómu kalli).
+
+**Myndamirrun í repo-ið var MÆLD OG HAFNAÐ:** 478 myndir eru **44,7 MB**
+(meðaltal 91 KB — „110x140"-slóðin skilar 220x280 skrá), hún getur hvort eð er
+ekki náð í það sem er ekki til, og repo-ið er **public** (höfundaréttur).
+BSD ber ekkert mynd-svið; SofaScore/Transfermarkt falla á sama prófi og
+þyrftu proxy-inn, sem er strict-routed af ásettu ráði.
+
+### D. MARKMENN FÁ ENGIN DEFCON-STIG — OG BÁRU SAMT DEFCON-LIÐ Í SKORINU
+
+`App.jsx` gaf `dcB` fyrir `element_type <= 2`, sem er **GK OG DEF**.
+Mælt á `data/player_gw_2526.json`:
+
+| staða | leikja-umferðir | DefCon alls | meðaltal | hámark |
+|---|---|---|---|---|
+| **GK** | **663** | **0** | **0,00** | **0** |
+| DEF | 3.057 | 19.248 | 6,30 | 27 |
+| MID | 4.392 | 25.756 | 5,86 | 29 |
+| FWD | 1.082 | 2.816 | 2,60 | 15 |
+
+**663 markmanna-umferðir, aldrei eitt DefCon-stig.** `defcon.json` spannar
+53–86 í tækifæri, svo `dcB = (o−60)/30` gaf 65 markmönnum **−0,23 til +0,87**
+á birta skorið fyrir tækifæri sem er ekki til. Sama brot og mó/aó á
+markmönnum („MÆLINGA-REGLA, EKKI SNYRTING", `stats.js` ~1745).
+**Þetta er ÞRENGING, ekki ný vog:** kafli 4 hafnaði DefCon **í röðun** og
+`rankScore` ber hann hvergi — hann lifir áfram á skorinu sem er BIRT, nú
+aðeins hjá þeim sem geta unnið hann. Sama gildir um `dc`-línuna í
+ráðgjafarglugganum.
+
+**Aukafundur sem er sofandi en ómældur:** `fetch.mjs:605` er
+`const threshold = pos === 2 ? 10 : 12;` með athugasemdinni „GK teljum sem
+DEF-lík" — en `pos === 2` er DEF EIN, svo GK fellur þegjandi í 12 og
+athugasemdin lýsir hinu gagnstæða við kóðann. Meinlaust í dag því GK-inntakið
+er alltaf 0, **en `DC_P0_FALLBACK` ber `GK: 0,02`**, sem myndi draga markmenn
+að tilbúinni 2% hittni ef dálkurinn birtist þeim nokkurn tíma.
+
+### E. TVÆR ENDAPUNKTA-MÆLINGAR SEM FELLDU FULLYRÐINGAR Í `CLAUDE.md`
+
+Báðar mældar beint í dag, **með venjulegum UA-haus og ENGUM token**:
+
+| endapunktur | niðurstaða |
+|---|---|
+| `fotmob.com/api/matchDetails` | **404** (þetta var talan sem skjalið bar) |
+| `fotmob.com/api/data/matchDetails?matchId=…` | **200, 259.341 bæti** af raunverulegu JSON |
+| `fotmob.com/api/data/matches?date=…` | **200, 288.828 bæti** |
+| `football-data.co.uk/mmz4281/2627/E0.csv` | **301 → `2627/EC.csv`** → 200, 13 línur |
+
+FotMob-svarið ber `Tackles`, `Clearances`, `Interceptions`, `Blocks`,
+`Recoveries`, `Minutes played` **og `shotmap`** — sem fellir röksemdina
+„Engin shotmap með gildu id" orðrétt. **En staðan er SKIPT og má ekki
+einfalda:** skot-heimildin sjálf er enn token-varin þar sem
+`measure-box-touches.mjs` og `fetch-team-shots.mjs` sækja hana, svo „FotMob
+virkar" væri ný röng fullyrðing í stað gamallar.
+
+**fdcouk-2627 gefur EKKI 404** heldur 301 í utandeildar-skrá (`Div: "EC"` —
+Altrincham, Southend, Boreham Wood, Tamworth, Boston Utd, Aldershot). Kóðinn
+var **þegar réttur** (`Div === "E0"`-vörðurinn frá 14.8.); það voru **skjölin**
+sem sögðu enn „404 → 200", og GW1-tékklistinn hefði því leitað að merki sem
+er ekki til. Til samanburðar skilar `2526/E0.csv` 200 með 380 `E0`-röðum.
+
+### F. HANDOVER-ATRIÐIN — HVAÐ STÓÐST
+
+`bigChances` **0 af 587** í framleiðslu, staðfest með keyrslu: `Compare.jsx`
+sendi `season={currentLabel}` = **„2026/27"** meðan `bsd_players.json` ber
+„2025/26" og `bsd_live.json` er ekki til fyrr en eftir 21.8. Með
+`season={season}` (eigið ástand gluggans, sjálfgefið 2025/26 — **EKKI**
+`seasons[0]`, sem er lifandi færslan) fara þeir í **316 af 587**.
+**Vörðurinn var holur:** `tests/advisor.mjs` lét sér nægja regex sem fann
+strenginn `bigChances:` einhvers staðar í `src/` — hann var **grænn 53/53**
+meðan framleiðslan var 0/587, og hélst grænn þegar lagfæringin var afturkölluð.
+Raunverulegi vörðurinn les DOM-inn.
+
+`▼`-merkið: skýringin lofaði því en **0 af 32 röðum** báru það eftir að
+`VisualRows` var eytt 14.8.; prófið gerði `.replace("▼","")`, sem er **no-op**
+þegar merkið er hvergi. Nú **9 raðir** (nákvæmlega `hi:false`-mengið).
+
+Stöðu-lekinn í GW-bils-ham: `sumGwRange`-raðir bera ekkert `element_type`, svo
+kvörnpunkturinn hleypti þeim öllum í gegn. Mælt á 2025/26, GW1–38:
+**410 raðir leka 1.535 stöðu-læstum gildum** — DEF 150 raðir/417 gildi,
+MID 207/576, FWD 53/542; versti framherji (Gyökeres) bar **11** gildi, þar á
+meðal `Clean sheet %: 46,2`, `Goals conceded: 14`, `Saves: 0`.
+Og **árstíðarhamurinn var ekki hreinn heldur**: raðirnar bera SÖGULEGT
+`element_type` meðan sían og merkimiðinn lesa það LIFANDI, svo tvær raðir
+(**Marmoush og Georginio**, live=4 hist=3) leka **16 gildum** í dag — af tíu
+leikmönnum sem skiptu um stöðu milli tímabila. **Ein lína**
+(`element_type: p.element_type` í sama spread) lagar hvort tveggja, og eftir
+hana er lekinn **0 og 0**.
+
+**Vörðurinn harðkóðar EKKI lyklana sem eru fluttir:** hann skannar `src`-blokkina
+út úr `PlayerList.jsx`, dregur út hvert `x: p.y` par og endurbyggir röðina úr
+`sumGwRange` eins og appið gerir — svo nýr fluttur lykill fellur ekki utan hans
+þegjandi (sama regla og `gwBlindKeys` er LEIDD, ekki handskrifuð).
+
+### G. „SEASONS-FLIPINN ER ÓLÆSILEGUR" — BREIDDIN VISSI EKKI AF MERKINU
+
+Enginn flipi heitir „Seasons". Það sem notandinn sá er **`season`-merkið á
+dálkahausum, klippt**: `wOf` frátók `const marker = 9` fyrir **röðunar-örina
+eina**, en merkið (sem kom 14.8. í stað ólæsilega `∑`) situr í sama
+`S.hCell`, sem er `nowrap; overflow:hidden; justifyContent:flex-end` — svo
+yfirflæðið hverfur **vinstra megin**, nákvæmlega eins og þegar „Points ↓"
+varð „oints ↓".
+
+**Mælt í rendruðum DOM** (2025/26, GW-bil 30–38): **44 blindir dálkar, 43
+merktir**, og **ALLIR 43 voru of mjóir** — minnsta vöntun **23 px** — og
+**25 misstu heitið að fullu**, svo sýnilegi hausinn var brot úr orðinu
+„season" og ekkert annað (`Aron` 55 px þar sem þarf 89; `4+ pts` 60/102;
+`n` 46/70). „Consistency (Aron)" er verst því **4 af 4** dálkum hennar eru
+merktir, svo öll hausröðin er ólæsileg í einu.
+**Eftir lagfæringu: 0 klippt** (Aron 55→90, 4+ pts 60→103, n 46→71, breiðasti
+129 undir 142 px þakinu).
+
+Tvær reglur féllu út úr þessu og hvorug er handskrifaður listi:
+**merkið er sleppt þegar heitið endar þegar á „season"** (þess vegna 43 en
+ekki 44 — `Chg season` las áður sem **„Chg season season"**), og
+**merkið er sleppt undir 560 px**. Símahamurinn negldi hvert hólf í 66 px
+(kafli 6i) og merkin þyrftu ~110 px hvert; haus sem er klipptur niður í
+„season" segir auk þess ekki HVAÐA dálkur hann er, svo hann tapar meiru en
+hann skilar. Merkingin ríður áfram á `hBlind`-tóninum, tooltip-inu og
+borðanum. **Kostnaðurinn er skráður:** á síma er tooltip-ið óaðgengilegt, svo
+per dálk er þetta litur einn.
+
+**Vörðurinn gat ekki fallið og það var kjarni málsins:** `stats.test.mjs`
+**endurritaði `wOf` með sínu eigin `marker = 9`**, svo afritið var grænt eftir
+að merkið bættist við — sama ætt og `buildTeamMetrics`-atvikið. Breiddin,
+merkja-reglan og fastinn eru nú **útflutt** (`headWidth`, `headBadge`,
+`BADGE_W`) og bæði viðmótið og prófið lesa SÖMU útfærsluna.
+`BADGE_W = 43` er **leidd af mældu stafabreiddinni** (kafli 6i), ekki valin:
+ui-monospace kvarðast línulega, svo `6,35 × 9/10,5 = 5,44` px/staf, og
+`6 × (5,44 + 0,2 letterSpacing) + 6 padding + 3 marginLeft = 42,9 → 43`.
+Canvas er ekki til staðar í jsdom (og pipeline hefur engar dependencies), svo
+**afleiðslan sjálf er prófuð** í stað þess að fastinn sé sleginn inn.
+
+Og `playerlist-gw-filter.mjs:141` fullyrti „**læsilegt** season-merki" með
+`/season/i.test(text())` — sem klipping getur ekki haggað; það er þriðja tóma
+fullyrðingin í þessari ætt (kafli 5b). Hún mælir nú hólfið sjálft.
+`playerlist-narrow.mjs` hafði heldur **aldrei kveikt á umferðar-bili**, svo
+símahamurinn hafði aldrei rendrað merki yfirleitt.
+
+### I. BANNER-TEXTINN VAR SJÁLFUR HANDSKRIFAÐUR LISTI — OG HANN VAR RANGUR
+
+„Season totals"-borðinn (A.4 í handoverinu) nefndi **rangan hóp** í
+sérsniðnum ham (`group` frýs á „core" því hann er aðeins settur úr
+hópa-valaranum) og fullyrti að ekkert á skjánum gæti breyst meðan sýnilegi,
+pinnaði **Points**-dálkurinn fer 239 → 98 fyrir Haaland þegar bilið breytist
+(**374 leikmenn** breytast milli GW1–38 og GW1–10).
+
+Tvær ákvarðanir voru teknar berum orðum í stað þess að giska:
+**pinnaðir dálkar eru TALDIR** — sem þýðir að borðinn hverfur réttilega úr
+sérsniðnum ham, því þar fylgir alltaf eitthvað bilinu; í staðinn fær sá
+hamur **eigið orðalag sem nefnir ENGAN hóp**. Í hópa-ham er hegðunin
+óbreytt (pinnaða parið þar, Verð og Eignarhald, er hvort tveggja blint), svo
+viðvörunin frá 14.8.2026 kviknar áfram.
+
+Og **tillögulistinn („Basics, Attack eða Defence") var LEIDDUR**, með
+skilyrðinu `!blind && !live_only`. Hann reyndist **þegar rangur**: réttur
+listi er **Basics, Attack, Defence OG „Set pieces and cards"** (spjalda-dálkar
+fylgja bilinu). `live_only`-helmingur skilyrðisins er sá sem heldur
+„Upcoming fixtures" úti — sá hópur á **0 blinda dálka en 5 af 5 `live_only`**,
+svo leiðsla af `blindKeys` EINUM hefði mælt með framsýnum hóp sem getur ekki
+fylgt bilinu.
+
+### H. VIÐMÓTSBREYTINGAR AÐ BEIÐNI NOTANDA — OG HVAÐ MÁTTI EKKI FARA MEÐ
+
+Fjórar skýringar-málsgreinar voru teknar út (FFDR-málsgreinin, COV/HUL/IPS-nótan,
+legend-blokkin í Teams og elo-aldurs-setningin), og **Data sources** færður úr
+hliðarstiku Planner-flipans í **borða neðst yfir alla breidd**. Þrennt er
+skjalfest hér því það var EKKI snyrting:
+
+1. **Elo-aldurinn fór EKKI með málsgreininni.** `eloStale` býr nú í
+   ClubElo-röðinni í borðanum. Athugasemdin sem verið var að eyða skráði
+   sjálf hvers vegna hann var settur þar sem FFDR er birt: 31.7.2026 var
+   `elo.json` einn og hálfan dag gömul því ClubElo brást og **ekkert í
+   viðmótinu sagði það**. Mælist í dag **2,7 dagar**. Client-megin prófunin
+   er auk þess **sterkari** en `elo_age` úr `status.json`: stöðvist pipeline-in
+   frýs `elo_age` en þessi telur áfram.
+2. **`prediction_ledger` var skrifuð í `status.json` en var EKKI í `SHOW`** —
+   svo rauð lína frá spá-bókhaldinu hefði farið á disk, verið committuð og
+   **sýnd engum**. Athugasemdin í `snapshot-predictions.mjs` fullyrti að
+   röðin birtist undir Data sources; **hún var ósönn.** Bókhaldið á
+   **eitt skot** per umferð og glugginn fyrir GW1 opnast 21.8.
+   **`elo_age` var LÍKA utan `SHOW` en er þar áfram viljandi:** hún segir
+   aldurinn eins og hann var í síðustu pipeline-keyrslu (23,2 klst) meðan
+   ClubElo-röðin telur hann lifandi (2,7 dagar). Tvær tölur um sama hlut,
+   sín með hvoru svari, er verra en ein.
+3. **Legend-textinn í Teams bar STAÐA FULLYRÐINGU sem var röng síðan 8.8.2026:**
+   „xG and xGC — FPL player totals, roughly 19% short". Liða-xG/xGC koma úr
+   **BSD-skotakortinu** (per-skot xG) og eru ekki lengur `incomplete`.
+   `luck.json` leggur nú aðeins til RAUN-mörkin fyrir G−xG. `luck &&`-skilyrðið
+   á línunni lét hana líta lifandi út meðan báðir helmingar voru ósannir.
+   Skýringarnar liggja nú á hverjum dálki (hover) og **stefnan er leidd af
+   `d.hi`**, ekki handskrifuðum undantekningarlista („nema langskot") —
+   nýr `hi:true`-dálkur hefði þagað þvert á textann. Talnagildi í
+   nótunum eru **reiknuð** úr gögnunum (`teamShots.no_zone`, `bsdTeams.season`),
+   ekki fest: „380 matches" var ekki reiknanlegt þar (summa per félag / 2 gefur
+   **323** af því að fallnu félögin þrjú vantar) og var því orðað án tölunnar.

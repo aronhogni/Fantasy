@@ -16,6 +16,7 @@
 
 import React, { useMemo, useState } from "react";
 import { num, liveSeasonRow } from "./stats.js";
+import { photoNext } from "./Crest.jsx";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -32,7 +33,10 @@ const per90 = (v, m) => (!m || m <= 0 || v == null) ? null : (v / m) * 90;
 function SafeImg({ src, style }) {
   const [ok, setOk] = useState(true);
   if (!ok) return null;
-  return <img src={src} alt="" style={style} loading="lazy" onError={() => setOk(false)} />;
+  /* TVAER FOTUR — sja maelinguna i Crest.jsx. Myndin hverfur fyrst
+     thegar BADAR hafa brugdist.                                        */
+  return <img src={src} alt="" style={style} loading="lazy"
+    onError={e => { const n = photoNext(e.target.src); if (n) e.target.src = n; else setOk(false); }} />;
 }
 const div = (a, b) => (b == null || b === 0 || a == null) ? null : a / b;
 
@@ -400,9 +404,19 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                 taflan fyrir nedan er ROKSTUDNINGURINN. Vaeri hun nedst
                 thyrfti madur ad skruna fram hja ollum tolunum til ad fa
                 nidurstoduna, sem er ofug rod.                            */}
+            {/* SEASON = GLUGGANS EIGIN STADA, EKKI `currentLabel`. Maelt
+                16.8.2026: med `currentLabel` ("2026/27") fann uppflettingin
+                enga BSD-skra — `bsd_players.json` ber "2025/26" og
+                `bsd_live.json` verdur ekki til fyrr en eftir 21.8. — svo
+                `bigByCode` var TOM og "Big chances" birtist ALDREI: 0 af 587
+                leikmonnum med gildi. Med `season` (sjalfgefid "2025/26" i
+                forleik) eru their 316 af 587. Thetta laetur radgjofina lesa
+                SOMU skra og taflan fyrir nedan les — og somu reglu og
+                `makeEnricher` i stats.js beitir. EKKI `seasons[0]`: sa
+                lykill er lifandi faerslan sem var einmitt vandamalid.     */}
             <Advisor picked={picked} advisorById={advisorById} imminent={imminent}
               defcon={defcon} consist={consist} teamById={teamById} horizon={horizon}
-              bsd={bsd} season={currentLabel} />
+              bsd={bsd} season={season} />
 
             <div style={S.note}>
               {"Compared over a"} <b>{"whole season"}</b>{", not an arbitrary gameweek range: per-gameweek numbers only exist in"} <code>live/gw*.json</code> {"and they only fill up once 2026/27 begins. Season comparison works right away and reaches 3 years back."}
@@ -459,7 +473,21 @@ export default function Compare({ ids, players, teamById, seasonsFile, photoUrl,
                     }
                     return (
                       <tr key={row.k} style={S.tr}>
-                        <td style={S.tdK} title={row.note || ""}>{row.label}</td>
+                        {/* ▼ = LAEGRA ER BETRA. Merkid hvarf med `VisualRows`
+                            14.8.2026 en TEXTINN undir toflunni lofar thvi
+                            afram ("▼ in a row label marks a number where lower
+                            is better"). Maelt 16.8.2026: 32 radir teiknadar,
+                            NULL med merki, medan 9 radir bera `hi:false`.
+                            `hi` er FORSENDA (CLAUDE.md 8) — villandi mynd er
+                            verri en engin — svo merkid er endurreist i stad
+                            thess ad fella setninguna. `hi === false` en ekki
+                            `!row.hi`: adeins berum ordum merkt rod faer ▼.  */}
+                        <td style={S.tdK} title={row.note || ""}>
+                          {row.label}
+                          {row.hi === false
+                            ? <span style={S.vLo} title={"Lower is better"}>▼</span>
+                            : null}
+                        </td>
                         {vals.map((v, i) => (
                           <td key={i} style={{ ...S.td, ...(best != null && v === best ? S.tdBest : {}) }}>
                             {fmtVal(row, v)}
@@ -520,10 +548,10 @@ const S = {
   advTermV:{ fontFamily:mono, fontWeight:700, flex:"0 0 auto" },
   advTermCtx:{ fontFamily:mono, color:C.text3, flex:"0 0 auto" },
   advFoot:{ fontSize:10.5, color:C.text3, lineHeight:1.45, margin:"9px 0 0" },
-  /* ---- sjonraena snidid ---- */
-  vGrp:{ fontSize:10.5, fontWeight:700, letterSpacing:0.6, textTransform:"uppercase",
-         color:C.text3, padding:"10px 0 3px", borderBottom:`1px solid ${C.border}`,
-         marginBottom:3 },
+  /* Eini stillinn sem lifdi sulurnar af: ▼-merkid i rod-heitinu. `vGrp` var
+     eftir sem DAUDUR still (eina tilvikid i ollu repo-inu var eigin
+     skilgreining) og var fjarlaegdur 16.8.2026.                            */
+  vLo:{ fontSize:8, color:C.text3, flexShrink:0, marginLeft:3 },
 
   wrap:{ position:"fixed", inset:0, background:"rgba(20,20,25,0.5)", zIndex:70,
          display:"flex", alignItems:"flex-start", justifyContent:"center", padding:"24px 12px", overflowY:"auto" },

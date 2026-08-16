@@ -97,7 +97,35 @@ const OK_UNREAD = {
      thvi undir regluna i kafla 3: maela fyrst. Skrad her svo thad se ekki
      gleymt i agust.                                                      */
   "fdcouk/E0-2627.json":       "hragogn yfirstandandi timabils; pipeline les 2526/2425 — sja nota",
+  /* ============================================================
+     ARKIV-SVID — SKRIFUD VILJANDI, LESIN AF ENGUM, OG ThAU MEGA EKKI
+     VERDA MERKI AN NYRRAR MAELINGAR (baettust vid 16.8.2026)
+
+     Bædi atridin her ad nedan eru GEYMSLA a gognum sem hverfa annars ad
+     eilifu — sama roksemd og `data/history/` og `data/predictions/`
+     (CLAUDE.md 7): dagleg/lifandi mynd verdur ekki buin til eftir a.
+     FPL nullstillir fjolda-svidin vid timabils-vendingu og fria threpid
+     hja the-odds-api hefur ENGAN sogulegan endapunkt.
+
+     OG MORKIN ERU MAELD OG ThAU STANDA: CLAUDE.md kafli 4 skrair
+     "Skipta-hreyfing fjoldans sem merki" sem MAELT OG HAFNAD — 4 timabil,
+     104.160 leikmanna-umferdir, r = -0,0005 ofan a `ep_next` med 95% CI
+     [-0,019, +0,019], og NEIKVAED (-0,111) medal theirra sem spiludu.
+     AD GEYMA GOGN ER ANNAD EN AD NOTA ThAU. Ad vira eitthvert thessara
+     svida inn i FFDR, `rankScore`, vaent stig eda radgjofina KREFST NYRRAR
+     MAELINGAR FYRST — thessi setning er skrifud a geymslu-degi, ekki
+     seinna, einmitt svo naesti madur finni hana adur en hann tengir.
+     Vordur sem framfylgir thvi: kaflinn "ARKIV-SVID" nedar i thessari skra.
+     ============================================================ */
+  "events.json:crowd_fields":  "ARKIV: most_captained/chip_plays/transfers_made o.fl. — geymt, ALDREI lesid; "
+                             + "merki-notkun krefst nyrrar maelingar (CLAUDE.md 4)",
+  "odds_raw/{date}-{window}.json": "ARKIV: hratt Odds-API-svar, dagsett og onemandi — linu-hreyfing og "
+                             + "misraemi milli boka fæst hvergi annars stadar; merki-notkun krefst nyrrar maelingar (CLAUDE.md 4)",
 };
+/* Lyklarnir sem eru ARKIV en ekki venjuleg skraarheiti. Their eru TALDIR
+   UPP her svo athugunin nedar geti fallid — hvitlista-faersla sem ekkert
+   les er nakvaemlega su thogn sem thetta safn er til ad drepa.          */
+const ARCHIVE_ONLY = ["events.json:crowd_fields", "odds_raw/{date}-{window}.json"];
 /* NEYTANDI ER APPID, EKKI PROFIN. `consumers` bar BADI appCode OG testCode,
    svo skra sem ADEINS prof nefnir taldist "lesin" — og prof sem stadfestir
    ad pipeline SKRIFI skrana er hringrok, ekki lesandi.
@@ -442,6 +470,171 @@ console.log("─".repeat(84));
   const clubelo = readFileSync(dir + "fetch-clubelo-history.mjs", "utf8");
   ok(/res\.ok|response\.ok|\.ok\s*\)/.test(clubelo),
      "fetch-clubelo-history stadfestir HTTP-stodu adur en CSV er thattad");
+}
+
+/* ============================================================
+   ARKIV-SVID — GEYMT ER EKKI ThAD SAMA OG NOTAD
+
+   Tvennt er skrifad i `data/` VILJANDI OLESID (sja hvitlistann ad ofan):
+     (a) fjolda-svidin i `events.json` (most_captained, chip_plays,
+         transfers_made, top_element_info …) — FPL geymir thau adeins fyrir
+         yfirstandandi timabil og tvo theirra breytast INNAN umferdar
+     (b) `data/odds_raw/{date}-{window}.json` — hraa the-odds-api svarid,
+         thar sem linu-hreyfing og misraemi milli boka liggur
+
+   HAETTAN ER EKKI GEYMSLAN HELDUR HITT: einhver (eg sjalfur, eftir manud)
+   ser fallegt svid i skra og tengir thad. CLAUDE.md kafli 4 hefur ThEGAR
+   maelt fjoldann sem merki og hafnad honum (r = -0,0005 ofan a `ep_next`,
+   CI [-0,019, +0,019]; -0,111 medal theirra sem spiludu).
+   Vordurinn er thvi ORFAAR LINUR MED TENNUR: nefni `src/` eitthvert
+   thessara svida FELLUR ThETTA SAFN, og su sem tengir verdur ad maela
+   fyrst og fjarlaegja fullyrdinguna vitandi vits.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("ARKIV-SVID — skrifud, viljandi olesin");
+console.log("─".repeat(84));
+{
+  /* 1. Hvitlista-faerslurnar VERDA ad vera til og bera maelinga-tilvisunina.
+        An thessa vaeri hin fullyrdingin ovarin gegn thvi ad rokin hverfi.  */
+  for (const k of ARCHIVE_ONLY) {
+    const why = OK_UNREAD[k] || "";
+    ok(/CLAUDE\.md 4/.test(why) && /maelingar/i.test(why),
+       `hvitlistinn ber ARKIV-astaeduna fyrir "${k}" (og visar i maelinguna)`, why || "VANTAR");
+  }
+
+  /* 2. Pipeline SKRIFAR thau raunverulega — annars er allt hitt tomt tal.  */
+  ok(/most_captained:\s*ev\.most_captained/.test(fetchSrc) && /chip_plays:\s*ev\.chip_plays/.test(fetchSrc),
+     "fetch.mjs afritar fjolda-svidin i events.json");
+  ok(/writeJSON\(\s*rel\s*,/.test(fetchSrc) && /odds_raw\/\$\{day\}-\$\{win\}\.json/.test(fetchSrc),
+     "fetch.mjs skrifar hraa Odds-svarid i dagsetta skra undir odds_raw/");
+  ok(/record\(\s*"odds_raw"/.test(fetchSrc),
+     "og skrair sig i stodunni (annars er hun osynileg thegar hun brotnar)");
+  /* TOM KEYRSLA MA ALDREI SKRIFA, OG SKRA SEM ER TIL ER ALDREI YFIRSKRIFUD
+     (CLAUDE.md 8e). Badar greinarnar verda ad vera til stadar.            */
+  ok(/if \(!nRaw\)/.test(fetchSrc) && /existsSync\(`\$\{DATA\}\/\$\{rel\}`\)/.test(fetchSrc),
+     "tomt svar skrifar ekkert OG skra sem er til er ekki yfirskrifud");
+  /* ARKIVID MA ALDREI FELLA SOKNINA. Bresti skrifin ma `fetchOdds` ekki
+     kastast ut i ytra `catch` i main() — tha vaeri `odds` skrad BILAD og
+     markadslidurinn dottinn ur FFDR af thvi ad GEYMSLA brast.           */
+  ok(/record\("odds_raw", false, 0, `archive failed: \$\{e\.message\}/.test(fetchSrc),
+     "arkiv-skrifin eru i eigin try/catch — geymsla ma ekki fella markadslinuna");
+
+  /* 3. OG ENGINN LES ThAU. Thetta er fullyrdingin sem ma falla.           */
+  const CROWD = ["most_captained", "most_vice_captained", "most_selected",
+                 "most_transferred_in", "top_element", "top_element_info",
+                 "highest_score", "highest_scoring_entry", "chip_plays",
+                 "transfers_made", "ranked_count", "data_checked"];
+  const leaked = CROWD.filter(f => new RegExp(`\\b${f}\\b`).test(appCode));
+  ok(leaked.length === 0,
+     `ekkert i src/ les fjolda-svidin (${CROWD.length} svid skodud)`,
+     leaked.length ? `TENGT AN MAELINGAR: ${leaked.join(", ")} — sja CLAUDE.md 4` : "");
+  /* ODDS_RAW: ThAD ER GOGNIN SEM ERU BONNUD, EKKI ORDID (16.8.2026).
+     Fyrsta utgafan var `!/\bodds_raw\b/.test(appCode)` og hun felldi
+     RETTA breytingu: `odds_raw` var bætt i `SHOW`-vorpunina i App.jsx svo
+     ARKIV-RODIN SJAIST undir "Data sources". Thad er ekki lestur a arkivinu
+     — thad les `status.json.sources.odds_raw`, sem er HEILSUFAR heimildar,
+     og kafli 7 heimtar beinlinis ad hver heimild skrai sig thar ("annars er
+     hun osynileg thegar hun brotnar"). Ad fela hana vaeri ad endurtaka
+     nakvaemlega villuna sem `prediction_ledger` var: skrifud, aldrei synd.
+
+     Bannid er thvi a GOGNUNUM: enginn ma sækja skrana (`odds_raw/…`) ne
+     lesa `response`-farminn ur henni. Status-lykillinn einn er leyfdur, og
+     hann er hvitlistadur ThRONGT — sem strengur i vorpun, ekki i slod.    */
+  /* ATHUGASEMDIR ERU EKKI KODI. Rokstudningurinn fyrir arkivinu NEFNIR
+     `odds_raw` a islensku bædi i App.jsx og hér; fyrsta utgafan las thad
+     sem nytingu og féll a sinni eigin skjolun. Sama gildra og "MEASURED"-
+     notan sem urelti sig thegjandi (kafli 8) — bara ofugt formerki.      */
+  const appNoCmt = appCode.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+  const rawPath  = /odds_raw\s*\/|["'`]odds_raw["'`]\s*\+|\/data\/odds_raw/.test(appNoCmt);
+  const rawUse   = [...appNoCmt.matchAll(/\bodds_raw\b/g)]
+    .filter(m => !/^odds_raw:\s*["'`]/.test(appNoCmt.slice(m.index, m.index + 40)));
+  ok(!rawPath && rawUse.length === 0,
+     `ekkert i src/ SÆKIR odds_raw-arkivid (status-lykill i SHOW er leyfdur)`,
+     rawPath ? "SLOD I ARKIVID FANNST — sja CLAUDE.md 4"
+             : rawUse.length ? `TENGT AN MAELINGAR: ${rawUse.length} nyting — sja CLAUDE.md 4` : "");
+  /* FORSENDAN — an hennar getur fullyrdingin hér ad ofan ekki brugdist
+     (tomur `appCode` vaeri graenn). Um leid ver hun sjalfa SHOW-rodina:
+     hverfi hun ur App.jsx er arkivid ordid osynilegt aftur.              */
+  ok(/odds_raw:\s*["'`]/.test(appNoCmt),
+     "en STATUS-RODIN er i SHOW — arkivid sest thegar thad brestur (kafli 7)");
+  /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1): listinn ma
+     ekki tæmast thegjandi og skilja eftir graena tolu.                    */
+  ok(CROWD.length === 12, `arkiv-listinn telur 12 svid (${CROWD.length})`);
+}
+
+/* ============================================================
+   `elo_age` — RODIN SEM GAT HORFID ThEGJANDI
+
+   `main()` reiknadi `ageH` og kalladi `record("elo_age", ...)` INNI I
+   `if (Number.isFinite(ageH))` — MED ENGRI `else`. Ytra `catch` grípur
+   adeins skra sem VANTAR; skra sem thattast fint en ber `updated: null`,
+   vantandi `updated` eda rusl gefur NaN, skilyrdid slokknar og rodin
+   hverfur UR "Data sources" alveg. Blokkin var skrifud (14.8.2026) til ad
+   drepa nakvaemlega thessa thogn — "GOMUL gogn birt sem NY" — og bar hana
+   sjalf. Latent i dag (`elo.json.updated` er gilt ISO), svo hun fannst med
+   lestri en aldrei i keyrslu.
+
+   `fetch.mjs` kallar `main()` a einingarsviði og verdur thvi EKKI FLUTT
+   INN. Fallid er dregid UT UR upprunanum og keyrt her a tilbunum gognum —
+   sama leid og `lineups.mjs` notar a `fetchLineups`.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("elo_age — hver utkoma skrair ROD, lika onothaeft `updated`");
+console.log("─".repeat(84));
+{
+  const s = fetchSrc.indexOf("export function eloAgeRow(");
+  ok(s >= 0, "eloAgeRow er dregid ut i hreint fall (profanlegt an nets)");
+  const decl = s >= 0 ? fetchSrc.slice(s, fetchSrc.indexOf("\n}\n", s) + 3) : "";
+  const eloAgeRow = s >= 0
+    ? new Function(decl.replace(/^export /, "") + "\nreturn eloAgeRow;")()
+    : () => undefined;
+
+  const NOW = Date.UTC(2026, 7, 16, 12, 0, 0);
+  const hAgo = h => new Date(NOW - h * 36e5).toISOString();
+
+  const fresh = eloAgeRow({ updated: hAgo(2) }, NOW);
+  ok(fresh && fresh.ok === true && /2\.0h old/.test(fresh.note),
+     "ferskt (2 klst) -> graen rod", JSON.stringify(fresh));
+  const stale = eloAgeRow({ updated: hAgo(120) }, NOW);
+  ok(stale && stale.ok === false && /STALE: 5\.0 days/.test(stale.note),
+     "5 daga gamalt -> raud rod sem segir hve gomul", JSON.stringify(stale));
+  /* ThETTA ER GREININ SEM VANTADI. Fjogur onothaef `updated` og OLL verda
+     ad skila rod — ekki `undefined`, ekki thogn.                          */
+  const BROKEN = [
+    ["updated vantar",       {}],
+    ["updated: null",        { updated: null }],
+    ["updated: rusl",        { updated: "rusl" }],
+    /* ATH: `updated: 0` VAR HER OG ThAD VAR RANGT PROFTILVIK — `Date.parse(0)`
+       thvingar i strenginn "0" sem er GILD dagsetning (ar 2000), svo rodin
+       fer rettilega i STALE-greinina. Profid a ad nota gildi sem er
+       raunverulega othattanlegt.                                          */
+    ["updated: hlutur",      { updated: {} }],
+    ["skrain sjalf er null", null],
+  ];
+  for (const [name, file] of BROKEN) {
+    const row = eloAgeRow(file, NOW);
+    /* `count` VERDUR AD VERA TALA, ekki NaN. Fyrsta utgafa fullyrdingarinnar
+       kraafdist adeins ad rod VAERI TIL — og stokkbreyting sem let NaN falla
+       i gegnum STALE-greinina (`Math.round(NaN)`, "STALE: NaN days old")
+       SLAPP thvi i gegn. NaN i stodu-rod er ekki betra en engin rod.     */
+    ok(!!row && row.ok === false && typeof row.note === "string" && row.note.length > 20
+       && Number.isFinite(row.count) && !/NaN/.test(row.note),
+       `${name} -> ROD ER SKRAD, an NaN (var: engin rod)`, JSON.stringify(row));
+    ok(!!row && /updated/.test(row.note || ""),
+       `${name} -> notan nefnir hvad er ad`, String(row && row.note));
+  }
+  /* Og ad kall-stadurinn noti fallid — hreint fall sem enginn kallar er
+     jafn thogult og gamla `if`-id (sama lærdomur og `lineups.mjs`).      */
+  ok(/const row = eloAgeRow\(eloFile\)/.test(fetchSrc)
+     && /record\("elo_age", row\.ok, row\.count, row\.note\)/.test(fetchSrc),
+     "main() kallar eloAgeRow og skrair rodina SKILYRDISLAUST");
+  /* ATHUGASEMDIR ERU FJARLAEGDAR ADUR EN LEITAD ER. Fyrsta utgafa thessarar
+     fullyrdingar FELL a RETTUM koda: hausinn a `eloAgeRow` VITNAR i gomlu
+     linuna ordrett (`if (Number.isFinite(ageH))`) sem villusogu, og leitin
+     fann tilvitnunina. Prof sem les kodha verdur ad lesa KODHA.          */
+  const fetchCode = fetchSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok(!/if \(Number\.isFinite\(ageH\)\)/.test(fetchCode),
+     "gamla skilyrdid an `else` er farid ur main()");
 }
 
 console.log(`\nTENGINGAR: ${pass} stóðust, ${fail} féllu`);

@@ -300,9 +300,26 @@ console.log("─".repeat(84));
      · `bigChances` var HVERGI sett i `src/` — `advisor.js` var eini lesandinn.
    Vordurinn er a SVIDUM, ekki skram (sbr. `wiring.mjs` sem telur SKRAR):
    fyrir hvert svid sem `contextFactors` les verdur ad vera til STADUR I `src/`
-   sem SETUR thad — annars er thatturinn skraut. Textalestur er nog og er
-   VILJANDI valinn: hann fellur lika thegar svidid er sett i skra sem enginn
-   sendir inn, sem er einmitt hvernig `bigChances` gat horfid.
+   sem SETUR thad — annars er thatturinn skraut.
+
+   OG ThESSI VORDUR ER EKKI NOGUR — HANN VAR AFSANNADUR 16.8.2026.
+   Her stod: "Textalestur er nog og er VILJANDI valinn: hann fellur lika thegar
+   svidid er sett i skra sem enginn sendir inn, sem er einmitt hvernig
+   `bigChances` gat horfid." Sa rokstudningur var rangur. `bigChances` VAR sett
+   i `Compare.jsx` — kaflinn her ad nedan fann strenginn og var graenn — medan
+   framleidslan gaf **0 gildi af 587**: `<Advisor season={currentLabel}>` sendi
+   "2026/27" en `bsd_players.json` ber "2025/26" og `bsd_live.json` er ekki til
+   fyrr en eftir 21.8., svo `files.find(f => f.season === season)` skiladi null.
+   Setningin var thvi rett skrifud og daud i keyrslu — nakvaemlega bilunin sem
+   vordurinn atti ad grípa, og hann getur thad ekki thvi hann les KODA en ekki
+   ThAD SEM BIRTIST. Textalestur getur sannad ad svid se SETT; hann getur aldrei
+   sannad ad thad beri GILDI.
+   Raunverulegi vordurinn er thvi i `tests/compare-visual.mjs` kafla 4: hann
+   teiknar radgjofina i jsdom med raungognum og krefst thess ad "Big chances"
+   standi i samhengis-kassanum med TOLU. Sa kafli fellur vid season-villuna
+   (stadfest med stokkbreytingu) medan thessi kafli helst graenn.
+   Kaflinn her stendur afram — hann er odyr og hann ver ANNAD: ad ekkert svid
+   se munadarlaust og ad rangi `defcon.players[...]`-hatturinn se horfinn.
    ============================================================ */
 console.log("\nWIRING: hvert svid sem contextFactors les hefur framleidanda");
 {

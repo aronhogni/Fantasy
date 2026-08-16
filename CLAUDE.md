@@ -453,7 +453,7 @@ hann, aldrei skipta honum út.
 | Heimild | Staða | Hlutverk |
 |---|---|---|
 | **FPL** `bootstrap-static` / `live` | virk | Kjarninn: leikmenn, verð, status, fréttir, xP |
-| **football-data.co.uk (E0)** | 200 fyrir lokin tímabil | **B365-oddar fyrir bakprófin.** 404 á 2026/27 er ekki bilun — skráin verður til við fyrsta leik |
+| **football-data.co.uk (E0)** | 200 fyrir lokin tímabil | **B365-oddar fyrir bakprófin.** **LEIÐRÉTT 16.8.2026: 2026/27 gefur EKKI 404.** Mælt með `curl -w "%{http_code} %{redirect_url}"`: `2627/E0.csv` skilar **301 → `2627/EC.csv`**, sem `fetch` fylgir í 200 með 13 röðum af **utandeildar**-leikjum (`Div: "EC"` — Altrincham, Southend, Boreham Wood …). Skráin verður til við fyrsta leik en **vantandi skrá lítur út eins og gild skrá á meðan**. `fetchFdcouk` sannreynir því `Div === "E0"` (14.8.2026) og meðhöndlar óhreint svar eins og 404 — sjá `tests/fdcouk-e0.mjs`. Vörður gegn nákvæmlega þessu: 12 EC-raðir stóðu í `data/` undir grænu ljósi |
 | **ClubElo** | virk | Elo-inntak í FFDR |
 | **Odds API** (um Netlify-proxy) | virk, kvótaður | Markaðslínan; `h2h,totals,spreads`. Sótt tvisvar per umferð |
 | **ESPN** site-API | 200 | **Eina lifandi skot-heimildin**: hnit, útkoma, stöng, svæði, upplegg úr texta. Gefur **enga xG** |
@@ -463,7 +463,7 @@ hann, aldrei skipta honum út.
 | **FPL `entry/{id}`** (history · picks · transfers) | virk, opin | Sérfræðinga-hópurinn. `history` byggir hópinn (handvirkt, `scan-elite.mjs`); `picks` + `transfers` lesa hvað hann gerði, **eftir frest** — fyrir frest er 404 hjá öllum og það er regla leiksins, ekki API-galli. **Engin söguleg stigatafla er til**: `leagues-classic/314` skilar aðeins yfirstandandi tímabili, svo skönnun á lið-id er eina leiðin |
 | Understat | **LIFANDI — en læst fyrir HTTP-biðlara** | **LEIÐRÉTT 9.8.2026.** Fyrri greining sagði „gögnin eru farin". Það var RANGT um deildarsíður: byte-eins 18.645 b skelin var **Cloudflare-vörn**, ekki gagnaleysi. Í alvöru vafra skilar `league/EPL/2024` **175 KB með lifandi xG** og `JSON.parse` er á sínum stað. curl fær skelina (18.645 b), curl með vafra-hausum fær ANNAÐ skeljar-svar (4.675 b) — hvorugt með gögnum, bæði merkt Cloudflare. Þyrfti JS-keyrslu (headless) eða clearance-vafrakökur; pipeline er Node **án dependencies** og það er arkitektúr-breyting. **Leikja-síðurnar eru samt raunverulega tómar**: `shotsData`/`rostersData` vantar EINNIG í vafra, aðeins `match_info` eftir (staðfest á match/26630, engin XHR sækir þau). **OG ÞAÐ SKIPTIR HVORT EÐ ER EKKI MÁLI:** eina talan sem Understat átti ein — xGChain/xGBuildup — mældist gagnslaus (kafli 4). Að endurvekja hana myndi ekki bæta spána |
 | FBref · SofaScore | **403** | Ónothæfar óháð því hve gott fæðið er |
-| FotMob | **404/gated** | Engin shotmap með gildu id |
+| FotMob | **SKIPT: shotmap gated · `matchDetails` OPIÐ** | **LEIÐRÉTT 16.8.2026 — hér stóð „404/gated · Engin shotmap með gildu id" og hvort tveggja var orðið hálf-rangt.** Mælt beint í dag, með **venjulegum UA-haus og ENGUM token**: `/api/matchDetails` → **404**, en slóðin færðist og `/api/data/matchDetails?matchId=…` → **200, 259 KB af raunverulegu JSON**; `/api/data/matches?date=…` → 200, 289 KB. Svarið ber `Tackles`, `Clearances`, `Interceptions`, `Blocks`, `Recoveries`, `Minutes played` — **og `shotmap`**, sem fellir gömlu röksemdina orðrétt. **EN STAÐAN ER SKIPT OG MÁ EKKI EINFALDA:** skot-heimildin sjálf er enn token-varin þar sem `measure-box-touches.mjs:16` og `fetch-team-shots.mjs:21` sækja hana, svo „FotMob virkar" væri ný röng fullyrðing í stað gamallar. **Að taka hana í notkun er SÉR ÁKVÖRÐUN** sem þarf að standast BSD-regluna (birtingar-heimild, ekki burðarvirki) og DefCon-í-röðun höfnunina í kafla 4. `measure-friendly-form.mjs` ber ESPN-krossprófunina skrifaða en hún hefur **aldrei haft gögn** — staðan er `UNVERIFIED` þar til alvöru PL-leikir hefjast 21.8. |
 
 **Ekki endurmæla þetta.** Fjórar heimildir voru prófaðar á mörgum hostum og
 mörgum tímabilum og féllu; sjá 6b og 6e.
@@ -629,6 +629,8 @@ niðurstaðan committuð:
 | `fetch-fdr-history.mjs` | `fpl_fdr_history.json` | opinbera FDR-ið 1819–2526 |
 | `fetch-clubelo-history.mjs` | Elo-saga | |
 | `scan-elite.mjs` | `pros.json` | sérfræðinga-hópurinn; ~2 M köll, ~5 klst, **einu sinni á sumri** |
+| `measure-friendly-dc.mjs` | ekkert (skýrsla; `--json <slóð>`) | **VANTAÐI Í ÞESSA TÖFLU til 16.8.2026** — óskráð mælingaskrifta er skrifta sem enginn getur endurtekið. Sækir FotMob `/api/data/matchDetails` (sjá kafla 6) fyrir varnar-tölur úr æfingaleikjum |
+| `measure-friendly-form.mjs` | ekkert (skýrsla; `--json <slóð>`) | Sama; ber FotMob við ESPN-liðstölur. **Staðan er `UNVERIFIED`** — krossprófunin er skrifuð en hefur aldrei haft gögn, fyrst 21.8. **Vináttuleikir sem form-merki eru MÆLDIR OG FELLDIR: mínúturnar eru merkið, mörkin ekki** (skjalað í haus beggja skriftanna — ekki endurmæla) |
 
 ### Cron
 
@@ -689,6 +691,26 @@ bókmakera-greinina og **eyddi Odds-API kvótanum**. CDN-cache 60 s. Leiðirnar
 - **Sjálfvirk felun á tómum dálkum faldi einu sinni RAUNVERULEGA VILLU**
   (dauður `team_dc`). Tómir dálkar eru **leiddir út, ekki taldir upp**, og
   fjöldinn er sagður í fótnótu.
+- **ANDLITSMYNDIR ERU TVÆR FOTUR OG KEÐJA, EKKI EIN SLÓÐ** (16.8.2026).
+  Heil talning á öllum 587 leikmönnum: gamla slóðin
+  (`premierleague/.../p{code}.png`) vantar **206 (35,1%)**, nýja
+  (`premierleague25/.../{code}.png`, **án „p"-forskeytis**) vantar 176, en
+  **önnur hvor** vantar aðeins **109 (18,6%)**. Hvorug er yfirfota hinnar —
+  97 menn eru aðeins í þeirri nýju og **67 aðeins í þeirri gömlu** (þeir sem
+  skiptu um félag). Því er `photoNext` keðja í `Crest.jsx` og allir fjórir
+  notendur ganga hana áður en þeir falla á treyju/staf. Þeir **109** sem
+  eftir standa eru **raunverulega myndalausir hjá FPL** (90 með núll mínútur,
+  52 hjá COV/HUL/IPS) og treyju-fallbackið er rétt svar. `premierleague26`
+  er **ekki** sett inn fyrirfram: hún svarar 403 fyrir alla í dag.
+  **Myndamirrun í repo-ið var mæld og hafnað** — 478 myndir eru 44,7 MB, hún
+  nær ekki í það sem er ekki til, og repo-ið er public.
+- **BÓKMAKARALÍNA GILDIR UM EINN LEIK — SANNREYNDU MÓTHERJA OG DAGSETNINGU**
+  (16.8.2026). `csFor` gerði það; `_team_cs`-dálkurinn fletti upp á
+  lids-skammstöfun EINNI. Meinlaust meðan `odds.json` er fersk, en sókninni er
+  **sleppt** þegar hún var nýleg („skipped: plan window already fetched 23h
+  ago"), svo dálkurinn hefði birt línu fyrir **leik sem er þegar búinn** án
+  nokkurs merkis. Sama tveggja-þátta próf er nú á báðum stöðum; mælt: óbreytt
+  **587/587** í dag, **0/587** bæði með úreltu `kickoff` og röngum `opp`.
 
 ### Dálkaskráin (`STAT_DEFS` í `stats.js`)
 
@@ -739,6 +761,17 @@ bókmakera-greinina og **eyddi Odds-API kvótanum**. CDN-cache 60 s. Leiðirnar
   Hart hámark víkur fyrir orði sem getur ekki brotnað.
 - **Röðunar-örin er tekin frá á ÖLLUM dálkum** — hausinn er hægri-jafnaður og
   `nowrap`, svo yfirflæði hverfur **vinstra** megin („Points ↓" varð „oints ↓").
+- **ALLT SEM SITUR Í HAUSNUM VERÐUR AÐ VERA Í BREIDDINNI — LÍKA MERKI**
+  (16.8.2026). `season`-merkið kom 14.8. í stað ólæsilega `∑`, en `wOf` frátók
+  áfram aðeins **örina** (`marker = 9`). Mælt: **44 af 124 dálkum** bera merkið,
+  hver vantar ≥17 px, og **25 af 44 misstu heitið að fullu** — sýnilegi hausinn
+  var brot úr orðinu „season". Þetta er nákvæmlega gildran í liðnum hér að ofan,
+  bara með merki í stað stafs. **Og vörðurinn gat ekki fallið:** `stats.test.mjs`
+  ENDURRITAÐI `wOf` með sínu eigin `marker = 9`, svo afritið var grænt eftir að
+  merkið bættist við — sama ætt og `buildTeamMetrics`-atvikið (kafli 7).
+  Breiddin, merkja-reglan og fastinn eru nú **útflutt** (`headWidth`,
+  `headBadge`, `BADGE_W`) og bæði viðmótið og prófið lesa SÖMU útfærsluna.
+  **`BADGE_W` er LEIDD af mældu stafabreiddinni, ekki valin.**
 - **Breið tafla fær sinn eigin skrun-kassa** svo hún ryðji ekki SÍÐUNNI út á
   síma. Síðan skrunar hvergi lárétt (mælt: `scrollWidth − clientWidth = 0`).
 - **SÍMAHAMURINN VAR ALDREI PRÓFAÐUR — LAGAÐ 9.8.2026.** `narrow` kviknar á
@@ -918,7 +951,7 @@ og vaknar við fyrstu loknu umferð. Ekki treysta á minnið hér.
 | API-Sports meiðsla-**tegund** | fría þrepið sér aðeins ±1 dag frá leikdegi | `injuries.json` → `via`, `players`, `unmatched` |
 | `/fixtures/lineups` staðfest byrjunarlið | sami gluggi | pörun við skammstöfuð nöfn |
 | „í ár vs. í fyrra"-taflan | byggð og villuvarin, hefur **aldrei keyrt** | birtist hún rétt? |
-| `fdcouk_e0` 2026/27 | CSV verður til við fyrsta leik | 404 → 200 |
+| `fdcouk_e0` 2026/27 | CSV verður til við fyrsta leik | **EKKI „404 → 200" — það merki er ekki til.** Slóðin 301-ar í `EC.csv` (utandeild) þangað til, svo prófsteinninn er `Div === "E0"`, ekki HTTP-staðan (sjá kafla 6) |
 | Mínútuþróun (`player_form.json`) | `data/live/` er tóm í forleik | kviknar við GW4 |
 | DC-hittni (`defcon.json`) | DefCon er ný stigagjöf; aðeins 2025/26 hefur gögn | `hit_rate_adj` til staðar |
 | BSD spáð byrjunarlið | glugginn er **~11–13 klst** fyrir leik — FPL-fresturinn er ~1,5 klst fyrir FYRSTA leik umferðarinnar, svo laugardagsleikir eru spáðir EFTIR frestinn | **mæla gegn 6h-líkaninu yfir GW1–4 áður en henni er treyst** |

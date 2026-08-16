@@ -111,6 +111,71 @@ const numW = [...(body()[0]?.children || [])].slice(1).map(wOf).filter(v => v !=
 ok(`tolu-dalkar eru <= 66 px (mest ${Math.max(...numW)})`,
    numW.length > 3 && Math.max(...numW) <= 66, `breidastur ${Math.max(...numW)}`);
 
+/* ============================================================
+   "season"-MERKID I SIMA — AKVORDUN, EKKI TILVILJUN (16.8.2026)
+
+   Merkid (43 px) baettist i hausinn 14.8.2026. I sima er hvert tolu-holf
+   negld i 66 px, svo merkid eitt aetti ekki eftir plass fyrir heitid: haus
+   sem segir "season" og ekkert annad segir ekki HVADA dalkur thetta er.
+   Valid stod milli thess ad hækka 66 px thakid fyrir 43 af 124 dalkum —
+   sem eydileggur simahaminn sem thad thak var smidad fyrir (kafli 6i) —
+   og thess ad SLEPPA merkinu i sima. Heitid vann.
+   MERKINGIN MA SAMT EKKI HVERFA MED THVI: bakgrunnur holfsins (`hBlind`)
+   og skyringin i tooltip-inu fylgja HINU skilyrdinu og eru profud her.
+   Thetta safn hafdi ALDREI valid umferdar-bil, svo thad hafdi aldrei sed
+   merkid — hvorki teiknad ne sleppt.                                    */
+{
+  /* Samanbrotid man sig i localStorage, svo strikid getur thegar verid
+     opid — toggla thvi ADEINS ef kassarnir finnast ekki.                */
+  const gwBtn = n => [...document.querySelectorAll("button")]
+    .filter(b => b.textContent.trim() === String(n))
+    .find(b => b.closest('[aria-label="Select gameweek range"]'));
+  if (!gwBtn(30)) {
+    const toggle = [...document.querySelectorAll("button")]
+      .find(b => /Gameweeks/.test(b.textContent));
+    if (toggle) await fire(toggle);
+  }
+  ok("umferdar-valarinn er adgengilegur i sima", !!gwBtn(30));
+  if (gwBtn(30)) {
+    await fire(gwBtn(30)); await fire(gwBtn(38));
+    await act(async () => { await new Promise(r => setTimeout(r, 600)); });
+    const aron = [...document.querySelectorAll("button")]
+      .find(b => b.textContent.trim().startsWith("Consistency"));
+    if (aron) await fire(aron);
+    await act(async () => { await new Promise(r => setTimeout(r, 200)); });
+
+    const heads = [...document.querySelectorAll("[aria-sort]")];
+    const blindHeads = heads.filter(h => /SEASON FIGURE/i.test(h.getAttribute("title") || ""));
+    /* FORSENDA: an blindra dalka a skjanum maeldi kaflinn ekkert.        */
+    ok(`${blindHeads.length} arstidar-dalkar eru a skjanum i sima (forsenda)`,
+       blindHeads.length >= 4, `heild ${heads.length}`);
+    const withBadge = heads.filter(h =>
+      [...h.childNodes].some(n => n.nodeType === 1 && n.textContent.trim() === "season"));
+    ok("merkid er SLEPPT i sima (annars aeti thad allan dalkinn)",
+       withBadge.length === 0, `${withBadge.length} merki teiknud`);
+    /* EN MERKINGIN LIFIR: litur + tooltip. Hvorugt kostar pixel.         */
+    ok("arstidar-dalkar bera samt litinn (hBlind) i sima",
+       blindHeads.every(h => /243, *236, *247/.test(h.style.background
+         || h.style.backgroundColor || "")),
+       blindHeads[0]?.style?.background || "(enginn litur)");
+    ok("og skyringin er afram i tooltip-inu",
+       blindHeads.every(h => /does not follow the gameweek range/i.test(h.getAttribute("title") || "")));
+    /* OG THAKID HELST — thetta er astaedan fyrir akvordunni.             */
+    /* Nafnadalkurinn er undanskilinn — hann er frosinn og 140 px ad honnun
+       (maelt haer ad ofan); thakid a vid TOLU-dalkana.                   */
+    const hw = heads.filter(h => !/Player/.test(h.textContent))
+      .map(h => parseFloat(h.style.width)).filter(Number.isFinite);
+    ok(`haus-holfin eru enn <= 66 px med umferdar-bili (mest ${Math.max(...hw)})`,
+       hw.length > 3 && Math.max(...hw) <= 66);
+    /* Og hverfum svo aftur i heilt timabil svo restin af safninu maeli
+       sama astand og adur.                                              */
+    const whole = [...document.querySelectorAll("button")]
+      .find(b => b.textContent.trim() === "whole season");
+    if (whole) await fire(whole);
+    await act(async () => { await new Promise(r => setTimeout(r, 300)); });
+  }
+}
+
 /* LEIKMANNAMYNDIN ER FALIN — "hvert pixel tharf ad fara i nafnid".
    ATH: LIÐSMERKID (11 px badge) er ÁFRAM birt og a ad vera thad. Fyrsta
    utgafa profsins taldi ALLAR <img> og felldi thvi rett hegdun — 31

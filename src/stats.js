@@ -1692,6 +1692,40 @@ export function makeEnricher({
   }
 
   const csByShort = odds || {};
+
+  /* BOKMAKARA-LINAN GILDIR ADEINS UM THANN LEIK SEM HUN VAR SETT FYRIR.
+     `csFor` (App.jsx ~1135) sannreynir hana gegn MOTHERJA OG DAGSETNINGU
+     adur en hun er notud; thessi dalkur (`_team_cs`) gerdi hvorugt — hann
+     fletti upp a lids-skammstofun EINNI. I dag er thad meinlaust:
+     `odds.json` er `window:"plan"`, `gw:1`, og allar 20 radirnar passa vid
+     GW1. EN sokninni er SLEPPT thegar hun var gerd nyleg (status.json i
+     dag: "skipped: plan window already fetched 23h ago"), svo um leid og
+     timabilid byrjar og skrain dragist aftur ur myndi dalkurinn birta
+     linu fyrir leik SEM ER THEGAR BUINN — an nokkurs merkis. Thad er
+     nakvaemlega "gomul gogn birt sem ny" (kafli 3, homeCore-lærdomurinn).
+     Nu er sama tveggja-thatta profid og i `csFor`, og fellur a null.   */
+  const nextFixByTeam = {};
+  for (const f of fixtures || []) {
+    if (f.event !== nextGw) continue;
+    for (const [team, opp] of [[f.team_h, f.team_a], [f.team_a, f.team_h]]) {
+      if (nextFixByTeam[team]) continue;      // fyrsti leikur umferdarinnar
+      nextFixByTeam[team] = { oppShort: teamById?.[opp]?.short ?? null,
+                              kickoff: f.kickoff_time ?? null };
+    }
+  }
+  const teamCsOf = (teamId, short) => {
+    const bk = short ? csByShort[short] : null;
+    const nx = nextFixByTeam[teamId];
+    if (!bk || !nx) return null;
+    const cs = num(bk.cs);
+    if (cs == null) return null;
+    /* Motherjinn verdur ad passa. Dagsetningin er profud ADEINS thegar
+       BADAR hlidar bera hana — vantandi dagsetning er ekki sonnun um
+       osamraemi, sama regla og i `csFor`.                              */
+    if (nx.oppShort !== bk.opp) return null;
+    if (nx.kickoff && bk.kickoff && nx.kickoff.slice(0,10) !== bk.kickoff.slice(0,10)) return null;
+    return cs;
+  };
   const dcById = defcon?.opportunity || {};
   const dcHitById = {};
   for (const r of rowsOf(defcon?.players)) dcHitById[r.fpl_id] = r;
@@ -1747,7 +1781,7 @@ export function makeEnricher({
         _start_p: risk?.p ?? null,
         _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
         _home6: fa?.home ?? null, _fix6: fa?.n ?? null,
-        _team_cs: short && csByShort[short] ? num(csByShort[short].cs) : null,
+        _team_cs: teamCsOf(p.team, short),
         /* dcById[p.team] er HLUTUR og num(hlutur) er null — thess vegna
            `.defcon_opportunity`. Sá dalkur var DAUDUR fra faedingu og
            faldi sig sjalfur sem tomur (kafli 6l).                       */

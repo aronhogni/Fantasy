@@ -137,8 +137,50 @@ const warned = /season totals, not GW\s*30[–-]38/i.test(text());
 ok("CONSISTENCY: appid segir beinum ordum ad thetta seu arstidar-tolur", warned,
    "engin skyring a skjanum — thetta er nakvaemlega bilunin sem var tilkynnt");
 ok("...og bendir a flokk sem VIRKAR", warned && /Basics/.test(text()));
-/* Merking a dalkinum sjalfum verdur ad vera LESANLEG — `∑` i 9 px dugdi ekki. */
-ok("dalkarnir sjalfir bera lesanlegt 'season'-merki", /season/i.test(text()));
+/* ============================================================
+   MERKID VERDUR AD VERA LESANLEGT — OG "LESANLEGT" ER MAELING, EKKI ORD
+
+   Her stod: ok("dalkarnir sjalfir bera lesanlegt 'season'-merki",
+                /season/i.test(text()))
+   Sú fullyrding sagdi LESANLEGT en sannadi adeins AD ORDID VAERI TIL i
+   textContent — og klipping snertir textContent ekki. Hun var thvi graen
+   allan timann sem hausinn var raunverulega olæsilegur: `wOf` tok fra 9 px
+   fyrir rodunar-orina eina medan holfid teiknadi LIKA 43 px merki, og
+   holfid er `nowrap` + `overflow:hidden` + haegri-jafnad, svo thad var
+   HEITID sem hvarf (vinstra megin) en merkid stod eftir.
+   MAELT 16.8.2026: 43 merktir dalkar, ALLIR of throngir um >= 23 px og 25
+   theirra syndu ekkert nema brot ur ordinu "season" ("Aron" fekk 55 px thar
+   sem tharf 89). Notandinn tilkynnti thetta sem "the Seasons thing in
+   Player stats is unreadable".
+   Nu er MAELT: breiddin sem holfid FAER (inline `style.width` — sama tala og
+   vafrinn notar) verdur ad ruma heiti + or + merki. Reikningurinn er
+   fluttur inn ur PlayerList.jsx; afrit her vaeri sama gildran og felldi
+   `stats.test.mjs`.
+   ============================================================ */
+{
+  const PL = await import(new URL("src/PlayerList.jsx", REPO).href);
+  const GLYPH = 6.32;                       // maelt, sja PlayerList/CLAUDE.md
+  const heads = [...document.querySelectorAll("[aria-sort]")];
+  const isBadge = n => n.nodeType === 1 && n.textContent.trim() === "season";
+  const badged = heads.filter(h => [...h.childNodes].some(isBadge));
+  /* FORSENDA SONNUD FYRST: an merktra hausa maeldi kaflinn ekkert. */
+  ok(`${badged.length} haus-holf bera "season"-merkid (forsenda maelingarinnar)`,
+     badged.length >= 4, `heild: ${heads.length} haus-holf`);
+  const tight = [];
+  for (const h of badged) {
+    const label = [...h.childNodes].filter(n => n.nodeType === 3)
+      .map(n => n.textContent).join("").replace(/[↑↓]/g, "").trim();
+    const w = parseFloat(h.style.width);
+    const need = label.length * GLYPH + PL.HEAD_ARROW_W + PL.BADGE_W + 11;
+    if (!(w + 0.5 >= need)) tight.push(`"${label}" faer ${w} px en tharf ${Math.round(need)}`);
+  }
+  ok("hvert merkt haus-holf rumar HEITID lika, ekki adeins merkid",
+     tight.length === 0, `${tight.length} klippt: ${tight.slice(0, 3).join(" · ")}`);
+  /* Og heitid er raunverulega thar — annars vaeri "rumar heitid" tomt. */
+  ok("merktu hausarnir bera heiti, ekki adeins merkid",
+     badged.every(h => [...h.childNodes].filter(n => n.nodeType === 3)
+       .map(n => n.textContent).join("").replace(/[↑↓\s]/g, "").length > 0));
+}
 
 /* --- 3b. BASICS: her A talan ad geta breyst, svo advorunin ma EKKI birtast --- */
 await click(btn("Basics"));

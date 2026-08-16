@@ -78,6 +78,118 @@ const HEAD_H = BAND_H + LABEL_H;
 const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
 
 /* ============================================================
+   UMFERDAR-BILS-BORDINN — HREIN ROKFRAEDI, UTFLUTT VILJANDI
+
+   Bordinn fullyrdir vid notandann ad ekkert a skjanum geti breyst thott
+   hann faeri umferdirnar. Fullyrding ma ekki bua i JSX-skilyrdi: thar getur
+   profid adeins LESID hana, og nakvaemlega thess vegna lifdi hun rong fra
+   14.8. til 16.8.2026 (sja skyringuna vid bordann sjalfan). Sami rokstudn-
+   ingur og `passesThreshold` og `buildTeamMetrics` (CLAUDE.md 7.1).
+   ============================================================ */
+/* `shown` = ALLIR dalkar a skjanum (fastir + valdir) · `picked` = their sem
+   notandinn valdi sjalfur · `blind` = `gwBlindKeys()`.
+   Skilar "all" (ekkert a skjanum fylgir bilinu) · "picked" (adeins fostu
+   dalkarnir fylgja thvi) · null (eitthvad valid fylgir thvi).           */
+export function rangeBanner({ mode, shown, picked, blind }) {
+  const all = shown.length > 0 && shown.every(d => blind.has(d.key));
+  if (all) return "all";
+  if (mode === "custom" && picked.length > 0 && picked.every(d => blind.has(d.key)))
+    return "picked";
+  return null;
+}
+
+/* FLOKKARNIR SEM FYLGJA BILINU ERU LEIDDIR UT, EKKI TALDIR UPP.
+   Handskrifad "Basics, Attack or Defence" stod i bordanum og var ThEGAR
+   ORDID RANGT: "Set pieces and cards" ber thrja dalka (gul spjold, raud,
+   spjold per 90) sem fylgja bilinu og var samt ekki nefndur. Sama villa og
+   handskrifadi lyklalistinn sem `gwBlindKeys` var leidd ut til ad losna vid
+   — 13 af 22 lyklum rangir (CLAUDE.md 8).
+   SKILYRDID ER TVITHAETT OG `blind` EITT DUGAR EKKI: `gwBlindKeys` sleppir
+   `live_only`-dalkum viljandi (their bera eigid "now"-merki), svo "Upcoming
+   fixtures" (5 af 5 live_only) maelist 0 blindur og hefdi lesist eins og
+   hann fylgdi bilinu. Hann horfir FRAM og getur thad aldrei.
+   Maelt 16.8.2026: core 11 · attack 27 · defence 19 · setp 3 · aron 0 ·
+   fixtures 0.                                                           */
+export function rangeAwareGroupsOf(blind, defs = STAT_DEFS, groups = STAT_GROUPS) {
+  return groups.filter(g =>
+    defs.some(d => d.group === g.key && !blind.has(d.key) && !d.live_only));
+}
+
+/* ============================================================
+   HAUS-RUMFRAEDIN — UTFLUTT SVO PROFID SPEGLI HANA EKKI
+
+   `stats.test.mjs` bar AFRIT af thessum reikningi (sitt eigid `wOf` med
+   sinu eigin `marker = 9`). Afritid var graent eftir ad merki baettist i
+   hausinn 14.8.2026 og skjarinn var klipptur — thad maeldi tofluna eins og
+   hun var ARID ADUR. Sama lexia og `buildTeamMetrics` og `passesThreshold`
+   (CLAUDE.md 7.1): rokfraedi sem prof tharf ad sanna a ekki heima i JSX.
+   ============================================================ */
+/* MAELT 6.8.2026 med canvas.measureText a 700 10.5px ui-monospace: stafur
+   er 6,32 px. 6,35 er sú tala plus oryggismork (sja langa skyringu vid
+   `wOf`-kallid nedar).                                                   */
+export const HEAD_PXC = 6.35;
+export const HEAD_ARROW_W = 9;              // rodunar-orin, tekin fra a OLLUM
+/* MERKID SEM BAETTIST VID 14.8.2026 OG ENGINN SAGDI BREIDDINNI FRA.
+   Notandinn: "the Seasons thing in Player stats is unreadable". Ekki nyr
+   flipi — hausinn sjalfur var klipptur: `wOf` tok fra 9 px fyrir orina eina
+   medan holfid teiknadi LIKA merkid. Holfid er `nowrap` + `overflow:hidden`
+   + haegri-jafnad, svo yfirflaedid hverfur VINSTRA megin (sama og
+   "Points ↓" -> "oints ↓"): merkid stod eftir og HEITID hvarf.
+   MAELT 16.8.2026 a raungognum (2025/26, GW-bil virkt): 44 dalkar bera
+   merkid, allir voru of throngir um >= 17 px og 25 theirra syndu EKKERT
+   nema brot ur ordinu "season". Verst: "Aron" 55 px thar sem tharf 89,
+   "4+ pts" 60/102, "n" 46/70, "Chg season" 86/127.
+
+   BREIDDIN ER LEIDD AF SOMU MAELDU TOLU OG HEITID, EKKI VALIN:
+   canvas er ekki til i thessu umhverfi (jsdom an `canvas`-pakkans, og
+   pipeline-id er an dependencies), svo hun er reiknud UT UR 6,35 px/staf.
+   Ui-monospace er jafnbreitt letur, svo stafbreidd skalast beint med
+   leturstaerd: 9 px merki gefur 6,35 · 9/10,5 = 5,44 px/staf.
+     6 stafir · (5,44 + 0,2 letterSpacing) = 33,9
+     + padding "1px 3px" (6) + marginLeft 3            = 42,9  ->  43 px
+   Breytist textinn eda stillingarnar breytist talan MED THEIM — hun er
+   ekki fasti sem hægt er ad gleyma ad uppfaera (thad var einmitt villan). */
+export const BADGE_LABEL = "season";
+export const BADGE_LETTER_SPACING = 0.2;
+export const BADGE_W = Math.ceil(
+  BADGE_LABEL.length * (HEAD_PXC * 9 / 10.5 + BADGE_LETTER_SPACING) + 3 + 3 + 3);
+
+export const headLabel = d => String(d?.short ?? d?.label ?? "");
+
+/* HVENAER ER MERKID TEIKNAD — EIN REGLA, LESIN BAEDI AF BREIDDINNI OG AF JSX.
+   Vaeru thetta tvo skilyrdi gaeti annad kviknad an hins og vid vaerum komin
+   aftur i klipptan haus.
+   TVAER UNDANTEKNINGAR, BADAR ASETTAR:
+     1. SIMI (`narrow`). Thar er hvert holf negld i 66 px (maelt i kafla 6i:
+        frosni nafnadalkurinn tok meira en halfan skjainn) og merkid eitt er
+        43 px — thad aetti EKKI eftir plass fyrir heitid. Valid stendur milli
+        "merki an heitis" og "heiti an merkis", og heitid vinnur: haus sem
+        segir "season" og ekkert annad segir ekki HVADA dalkur thetta er, svo
+        thad tapar MEIRA en thad skilar. Merkingin lifir afram i bakgrunni
+        holfsins (`hBlind`) og i bordanum efst, sem segir hana BERUM ORDUM.
+        KOSTNADURINN ER RAUNVERULEGUR og verdur ad standa her: i sima naer
+        madur ekki i tooltip, svo per-dalks visbendingin er tha litur einn.
+        Hinn kosturinn — ad hækka 66 px thakid fyrir merktu dalkana — hefdi
+        gefid ~110 px a dalk fyrir 44 dalka af 124 og gert simahaminn ad
+        skruni sem hann var smidadur til ad forðast.
+     2. HEITI SEM ENDAR ThEGAR A "season" ("Chg season") — annars stendur
+        "Chg season season" i hausnum. Regla, ekki lyklalisti.            */
+export function headBadge(d, { gwActive, blind, narrow } = {}) {
+  if (!gwActive || narrow || !d?.key || !blind?.has(d.key)) return false;
+  return !new RegExp(`${BADGE_LABEL}$`, "i").test(headLabel(d));
+}
+
+/* Breidd dalks i px. `badge` = ber hausinn "season"-merkid.              */
+export function headWidth(d, badge = false) {
+  const label = headLabel(d);
+  const marker = HEAD_ARROW_W + (badge ? BADGE_W : 0);
+  const lab = label.length * HEAD_PXC + marker + 13;   // 10 padding + 1 bord + 2 svigrum
+  const dec = d?.dec ?? 0;
+  const val = (4 + (dec ? dec + 1 : 0)) * 6.2 + 12;    // tala (11px mono)
+  return Math.round(Math.max(46, Math.min(142, Math.max(lab, val))));
+}
+
+/* ============================================================
    STATPICKER — leitanlegur dalkavalari
 
    AF HVERJU EKKI <select>: dalkarnir eru 124 i 6 flokkum. Native-select
@@ -578,8 +690,24 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                              : seasonsFile?.players?.[String(p.code)]?.[season]);
       /* GAGNAHLUTURINN sem dalkarnir lesa: soguleg rod ef timabil er valid,
          annars lifandi. VERD og STADA koma ALLTAF ur lifandi gognum.      */
+      /* `element_type` VERDUR AD FYLGJA MED — ANNARS ER STODU-HLIDID SLOKKT.
+         Stodu-laestu dalkarnir (14 talsins) sia i stats.js med
+         `p?.element_type != null && !allowed.includes(...)`: OThEKKT stada
+         utilokar ALDREI (null er ekki merki um utilokun, sja hausinn thar).
+         `sumGwRange` skilar ADEINS FPL-summum og afleiddum /90-tolum — engri
+         stodu — svo i umferdar-bils-ham var hlidid einfaldlega aldrei spurt.
+         MAELT 16.8.2026 a 2025/26 GW1-38: 410 radir baru 1.535 stodu-laest
+         gildi (DEF 150 radir, MID 207, FWD 53) — Gyokeres syndi "Clean sheet
+         % 46,2", "Goals conceded 14" og "Saves 0". Sama vandamal i
+         TIMABILS-ham en af hinni astaedunni: arkiv-rodin ber stodu THESS
+         timabils medan sian (`r.p.element_type`) og stodu-merkid lesa
+         lifandi stodu, svo 2 radir (Marmoush, Georginio: live 4, hist 3)
+         syndu 16 varnargildi. Lifandi `p` er einrátt her — nakvaemlega sama
+         tala og sian og merkid nota — og hun skrifast YFIR hist-stoduna.
+         Eftir: 0 og 0 i badum homum.                                      */
       const src = isLive ? p : (hist ? { ...hist, now_cost: p.now_cost,
-                                         selected_by_percent: p.selected_by_percent } : null);
+                                         selected_by_percent: p.selected_by_percent,
+                                         element_type: p.element_type } : null);
       const { risk, fields } = enrich(p);
       /* AUDGADIR REITIR — allir med `_` forskeyti svo their blandist ekki
          vid FPL-svid. STAT_DEFS med live_only:true lesa thessa.          */
@@ -631,6 +759,29 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     }
     return STAT_DEFS.filter(d => d.group === group && !pinnedKeys.has(d.key));
   }, [group, mode, customKeys, pinnedKeys]);
+
+  /* ---------- HVAD ER RAUNVERULEGA A SKJANUM, OG HVAD GETUR FYLGT BILINU ----
+     `visibleCols` sleppir FOSTU dalkunum — their eru birtir ser. Spurningin
+     "breytist ekkert thott eg faeri umferdirnar?" snyr ad ollu sem SEST, svo
+     hun verdur ad telja tha lika (i `custom` er "Points" fastur og hann
+     fylgir bilinu ALLTAF).                                                */
+  const pinnedDefs = useMemo(
+    () => [...pinnedKeys].map(k => STAT_BY_KEY[k]).filter(Boolean), [pinnedKeys]);
+  const shownCols = useMemo(() => [...pinnedDefs, ...visibleCols],
+    [pinnedDefs, visibleCols]);
+
+  const rangeAwareGroups = useMemo(() => rangeAwareGroupsOf(blindKeys), [blindKeys]);
+
+  /* TVEIR ADSKILDIR BORDAR, TVAER ADSKILDAR FULLYRDINGAR (sja
+     `rangeBanner` ofar — rokfraedin sjalf er thar, prófanleg):
+       "all"     — EKKERT a skjanum getur fylgt bilinu. I flokka-ham eru
+                   fostu dalkarnir verd og eignarhald, BADIR blindir, svo
+                   hegdunin fra 14.8.2026 er obreytt.
+       "picked"  — allir dalkarnir sem notandinn VALDI eru blindir en fastur
+                   dalkur (Points) fylgir bilinu. Adeins i `custom`.      */
+  const banner = useMemo(
+    () => rangeBanner({ mode, shown: shownCols, picked: visibleCols, blind: blindKeys }),
+    [mode, shownCols, visibleCols, blindKeys]);
 
   const watchSet = useMemo(() => new Set(watch || []), [watch]);
   const mineSet = useMemo(
@@ -887,10 +1038,11 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
      tooltip-inu, sem hver dalkur hefur nu (krafa i stats.js). Bands-rodin
      fyrir ofan gefur stuttum heitum samhengid: "/90" eitt er radgata,
      "/90" undir "Goals" er thad ekki.                                   */
-  const PXC = 6.35;
-  const hLabel = d => String(d?.short ?? d?.label ?? "");
+  /* REIKNINGURINN SJALFUR ER I `headWidth` OFAR (utflutt svo profid speglai
+     hann ekki). Hér er adeins tengingin: hvada dalkur ber merkid i dag.  */
+  const hLabel = headLabel;
+  const showBadge = d => headBadge(d, { gwActive, blind: blindKeys, narrow });
   const wOf = d => {
-    const label = hLabel(d);
     /* PLASS FYRIR MERKI SEM BAETAST VID HEITID I HAUSNUM:
          (†-merkid var her og tok 7 px. Thad var TEKID UT 8.8.2026 ad
           beidni notandans — "afleidd tala" er skyring, ekki nokkud sem
@@ -902,12 +1054,15 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
        Orin var EKKI talin og thad klippti heitid: hausinn er haegri-
        jafnadur og `nowrap`, svo yfirflaedi hverfur VINSTRA megin —
        "Points ↓" birtist sem "oints ↓" (maelt 7.8.2026). Plassid er
-       tekid frá A OLLUM dalkum thvi rodunin faerist milli theirra.     */
-    const marker = 9;                              // adeins rodunar-orin
-    const lab = label.length * PXC + marker + 13;   // 10 padding + 1 bord + 2 svigrum
-    const dec = d?.dec ?? 0;
-    const val = (4 + (dec ? dec + 1 : 0)) * 6.2 + 12; // tala (11px mono)
-    return Math.round(Math.max(46, Math.min(142, Math.max(lab, val))));
+       tekid frá A OLLUM dalkum thvi rodunin faerist milli theirra.
+         "season"  merkid a arstidar-dalkum thegar umferdar-bil er virkt.
+       Thad var EKKI talid fra 14.8. til 16.8.2026 og klippti hausinn a
+       nakvaemlega sama hatt og orin gerdi adur — 44 dalkar, 25 theirra
+       misstu heitid ad fullu. Sja `BADGE_W` ofar; merkid er skilyrt, svo
+       plassid er tekid fra ADEINS thegar thad er raunverulega teiknad
+       (fastur 43 px kostnadur a alla 124 dalka vaeri sama villa og
+       †-merkid sem var tekid ut her ad ofan).                          */
+    return headWidth(d, showBadge(d));
   };
   /* Fostu dalkarnir (Verd, Eign %) sátu i 88 px thott heitin seu stutt. */
   const wNum = narrow ? 60 : wOf({ short: "Owned %", dec: 1 });
@@ -1157,14 +1312,52 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           Regla: se EKKERT a skjanum ad fara ad hlyda bilinu verdur ad
           SEGJA ThAD — merking sem sest ekki er engin merking (sama logmal
           og ikonin i kafla 8: i smarri staerd er silhuettan allt).
-          ============================================================ */}
-      {gwActive && visibleCols.length > 0 && visibleCols.every(d => blindKeys.has(d.key)) && (
+
+          OG BORDINN LAUG I `custom` — LAGAD 16.8.2026. Thrennt i sama
+          malsgrein: (1) hann nefndi `group`, sem er FROSINN i "core" i
+          bygginga-ham (hann er adeins settur ur flokka-rodinni), svo med
+          dalkana Shots/xG/Big chances a skjanum sagdi hann "Every column in
+          Basics"; (2) hann taldi ADEINS `visibleCols`, sem sleppir FOSTU
+          dalkunum — "Points" er fastur i `custom` og for ur 98 i 18 vid
+          umferdar-skipti medan bordinn sagdi ad ekkert gaeti breyst; (3)
+          hann mælti med "Basics" i somu andra og hann lysti Basics
+          arstidar-toflu.
+          NUNA: hann les `mode` og telur ThAD SEM SEST (fastir + valdir).
+          I `custom` er "Points" fastur og fylgir bilinu ALLTAF, svo
+          "ekkert a skjanum breytist" GETUR ThAR ALDREI VERID SATT — sa
+          bordi er thvi ekki syndur thar. En hitt getur vel gerst: allir
+          dalkarnir sem notandinn VALDI eru arstidar-tolur, og tha er sagt
+          nakvaemlega thad, an thess ad nefna nokkurn flokk.               */}
+      {gwActive && banner === "all" && (
         <div style={S.warn}>
           <b>{"These are season totals, not GW "}{gwRange[0]}{"–"}{gwRange[1]}{"."}</b>{" "}
-          {"Every column in "}<b>{STAT_GROUPS.find(g => g.key === group)?.label || group}</b>
+          {"Every column on screen"}
+          {/* FLOKKURINN ER NEFNDUR ADEINS I FLOKKA-HAM. `group` er frosinn i
+              bygginga-ham (hann er adeins settur ur flokka-rodinni), svo thar
+              vaeri heitid RANGT — thad var einmitt villan.               */}
+          {mode === "custom" ? "" : <>{" in "}
+            <b>{STAT_GROUPS.find(g => g.key === group)?.label || group}</b></>}
           {" is a whole-season figure, so changing the gameweek range cannot change them."}
-          {" For range-aware numbers use "}<b>{"Basics"}</b>{", "}<b>{"Attack"}</b>{" or "}
-          <b>{"Defence"}</b>{" — points, minutes, goals and the rest follow the range there."}
+          {rangeAwareGroups.length ? <>
+            {" For range-aware numbers use "}
+            {rangeAwareGroups.map((g, i) => (
+              <React.Fragment key={g.key}>
+                {i === 0 ? "" : i === rangeAwareGroups.length - 1 ? " or " : ", "}
+                <b>{g.label}</b>
+              </React.Fragment>
+            ))}
+            {" — points, minutes, goals and the rest follow the range there."}
+          </> : null}
+        </div>
+      )}
+      {gwActive && banner === "picked" && (
+        <div style={S.warn}>
+          <b>{"The columns you picked are season totals, not GW "}
+             {gwRange[0]}{"–"}{gwRange[1]}{"."}</b>{" "}
+          {"Every column you added is a whole-season figure, so changing the gameweek"}
+          {" range cannot change them — only the pinned "}<b>{"Points"}</b>
+          {" column follows the range. Column headers that carry the "}
+          <b>{"season"}</b>{" tag are the ones that cannot."}
         </div>
       )}
 
@@ -1431,10 +1624,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     {thByKey[d.key] ? <span style={S.hFunnel} title={"filtered"}>▼</span> : null}
                     {hLabel(d)}
                     {/* Merking a dalkinum sjalfum, ekki adeins i skyringu:
-                        notandinn les tofluna, ekki fotnotur. */}
-                    {gwActive && blindKeys.has(d.key)
+                        notandinn les tofluna, ekki fotnotur.
+                        SAMA SKILYRDI OG BREIDDIN LES (`showBadge`) — vaeru
+                        thau tvo gaeti merkid kviknad an thess ad plass vaeri
+                        tekid fra, sem er nakvaemlega villan sem var lagfaerd
+                        16.8.2026. Bakgrunnurinn (`hBlind`) og skyringin i
+                        tooltip-inu fylgja HINU skilyrdinu, thvi merkingin a
+                        ad haldast lika thegar merkid vikur (simi).       */}
+                    {showBadge(d)
                       ? <span style={S.blindMark}
-                              title={"Season total - does not follow the gameweek range"}>{"season"}</span> : null}
+                              title={"Season total - does not follow the gameweek range"}>{BADGE_LABEL}</span> : null}
                     {arrow(d.key)}
                   </div>
                 ))}

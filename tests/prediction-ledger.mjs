@@ -389,5 +389,70 @@ console.log("\n5) EFTIRLIT: gluggi opinn + engin rod = RAUTT");
      /continue-on-error:\s*true/.test(readFileSync(new URL("../.github/workflows/fetch-fast.yml", import.meta.url), "utf8")));
 }
 
+/* ---------------------------------------------------------------
+   6. `--dry` SKRIFAR EKKERT — OG ThAD GERDI ThAD (lagad 16.8.2026)
+
+   Hausinn a `snapshot-predictions.mjs` lofar: "--dry (skrifar ekkert)".
+   Flaggid var lesid i fyrstu linu keyrslunnar en EKKI SPURT fyrr en eftir
+   hlidin, og skip-leidin kallar `recordLedger`, sem er les-breyta-SKRIFA a
+   `data/status.json`. Utan gluggans — eina astandid sem er MOGULEGT fyrir
+   21. agust — gerdi `--dry` thvi hvorugt thess sem thad er til fyrir: thad
+   SKRIFADI, og thad prentadi ENGA thekju thvi thad for aldrei i
+   `buildSnapshot`.
+
+   ThETTA ER EKKI PROFAD MED ThVI AD LESA KODANN. Kodalestur er nakvaemlega
+   sa vordur sem hefdi verid graenn allan timann (`const dry = ...` var a
+   sinum stad). Skriftan er keyrd SEM UNDIRFERLI og BAETIN i `data/status.json`
+   borin saman fyrir og eftir, auk innihalds `data/predictions/`. Ef hun
+   skrifar samt er upprunalega myndin sett aftur — profid ma ekki skilja
+   eftir sig thad sem thad er ad kvarta yfir.
+   --------------------------------------------------------------- */
+console.log("\n6) --dry SKRIFAR EKKERT (keyrt sem undirferli, baeti borin saman)");
+{
+  const { execFileSync } = await import("node:child_process");
+  const { readdirSync, existsSync, writeFileSync } = await import("node:fs");
+  const statusPath = D + "status.json";
+  const predDir = D + "predictions/";
+
+  const before = readFileSync(statusPath);
+  const predBefore = existsSync(predDir) ? readdirSync(predDir).sort().join(",") : "(engin mappa)";
+  /* FORSENDA SEM VERDUR AD VERA SONN: skrain er til og er ekki tom, annars
+     vaeri "obreytt" fullyrdingin tom (CLAUDE.md 5b regla 2).             */
+  ok(`status.json er til og hefur innihald (${before.length} b) — forsenda naestu fullyrdingar`,
+     before.length > 50);
+
+  let out = "", ranOk = true;
+  try {
+    out = execFileSync(process.execPath,
+      [new URL("../scripts/snapshot-predictions.mjs", import.meta.url).pathname, "--dry"],
+      { encoding: "utf8", timeout: 120000 });
+  } catch (e) { ranOk = false; out = String(e.stdout || "") + String(e.stderr || ""); }
+  ok("thurr keyrsla gekk upp (exit 0)", ranOk, out.slice(-400));
+
+  const after = readFileSync(statusPath);
+  const predAfter = existsSync(predDir) ? readdirSync(predDir).sort().join(",") : "(engin mappa)";
+  const unchanged = before.equals(after);
+  if (!unchanged) writeFileSync(statusPath, before);      // skilum myndinni aftur
+  ok("`--dry` skrifadi EKKI i data/status.json (bæti fyrir == baeti eftir)",
+     unchanged, `${before.length} b -> ${after.length} b (upprunalega myndin var sett aftur)`);
+  ok("`--dry` bjo hvorki til ne breytti data/predictions/",
+     predBefore === predAfter, `${predBefore} -> ${predAfter}`);
+
+  /* OG HUN VERDUR AD SEGJA HVAD HUN HEFDI GERT. Thurrkeyrsla sem thegir er
+     jafn gagnslaus og su sem skrifar: hun er til svo haegt se ad aefa
+     bokhaldid ADUR en einskota glugginn opnast.                          */
+  ok("thurr keyrsla prentar hlid-astaeduna", /gate (OPEN|CLOSED) - /.test(out), out.slice(0, 300));
+  ok("og thekju-blokkina sem hun HEFDI skrifad",
+     /would write \d+ ffdr rows, \d+ players · coverage \{/.test(out), out.slice(0, 500));
+  ok("og segir berum ordum ad ekkert hafi verid skrifad",
+     /NOTHING WRITTEN/.test(out) && /DRY RUN/.test(out), out.slice(0, 200));
+  /* ThEKJAN I UTPRENTINU MA EKKI VERA TOM SKEL — `start_prob` var 0 af 577
+     thegar glugginn vantadi, og thad er einmitt talan sem thurrkeyrslan er
+     til ad syna fyrirfram.                                               */
+  const cov = out.match(/coverage (\{[^}]*\})/);
+  ok("thekju-blokkin er lesanlegt JSON med `players` yfir 400",
+     !!cov && (JSON.parse(cov[1]).players ?? 0) > 400, cov ? cov[1] : "ENGIN thekja i utprenti");
+}
+
 console.log(`\nSPA-BOKHALD: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

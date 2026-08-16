@@ -15,6 +15,7 @@
 
 import React, { useState, useMemo } from "react";
 import { imminentBoard, nameScore } from "./stats.js";
+import { photoNext } from "./Crest.jsx";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -38,7 +39,10 @@ const C = {
 function ImmPhoto({ img, name }) {
   const [ok, setOk] = useState(true);
   if (!img || !ok) return <span style={S.immImgFb}>{(name || "?").slice(0, 1)}</span>;
-  return <img src={img} alt="" style={S.immImg} loading="lazy" onError={() => setOk(false)} />;
+  /* TVAER FOTUR — sja maelinguna i Crest.jsx. Stafurinn kemur fyrst ef
+     BADAR bregdast, ekki eftir fyrstu.                                  */
+  return <img src={img} alt="" style={S.immImg} loading="lazy"
+    onError={e => { const n = photoNext(e.target.src); if (n) e.target.src = n; else setOk(false); }} />;
 }
 
 export default function ImminentPanel({ imminent, teamById, Crest, photoUrl, players, onPickPlayer }) {
