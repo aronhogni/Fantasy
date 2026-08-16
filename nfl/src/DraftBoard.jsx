@@ -32,13 +32,20 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
                                      shapes, leagueKey, sync, setSync,
                                      imported, warnings, teams, onImportLeague,
                                      sleeperUser, setSleeperUser, onRereadRules }) {
-  /* MENGIN ERU BUNDIN DEILDINNI. Sja notu vid `scoped` i `data.js`:
-     deildu tvaer deildir sama `taken` vaeru leikmenn sem thu tokst i
-     annarri strikadir ut i hinni, og radgjofin taeldi hop sem thu
-     eigir ekki. `App.jsx` endurraesir thennan hlut (`key`) vid
-     svissun, svo thessi upphafsgildi eru LESIN UPP A NYTT tha. */
-  const kTaken = D.scoped("taken", leagueKey);
-  const kMine = D.scoped("myPicks", leagueKey);
+  /* MENGIN ERU BUNDIN DRAFTINU, EKKI DEILDINNI. Sja `boardScope` i
+     `data.js`: deildu tvo mock i somu deild sama `taken` bæri hid
+     seinna vol hins fyrra — og valnumerid, naesta eigid val og hver
+     lifunartala byggja OLL a `taken.size`. Se ekkert draft tengt er
+     bordid handvirk skraning og fylgir deildinni einni.
+
+     `App.jsx` endurraesir thennan hlut (`key`) vid SVISSUN a deild, svo
+     upphafsgildin hér eru lesin upp a nytt tha. Draft-audkenni breytist
+     hins vegar an endurraesingar (SleeperSync byr i thessu tre og myndi
+     missa lifandi tenginguna vid hvern staf sem er slegin i reitinn),
+     svo skiptin eru medhondlud berum ordum nedar. */
+  const scope = D.boardScope(leagueKey, sync && sync.draftId);
+  const kTaken = D.scoped("taken", scope);
+  const kMine = D.scoped("myPicks", scope);
   /* ============================================================
      AUDKENNIN ERU ÞVINGUD, EKKI ADEINS FYLKID
      ============================================================
@@ -72,12 +79,53 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     .filter(Boolean));
   const [taken, setTaken] = useState(() => idSet(D.loadState(kTaken, [])));
   const [myPicks, setMyPicks] = useState(() => idSet(D.loadState(kMine, [])));
+  /* Refin er SANNLEIKURINN UM SIDASTA SVAR FRA SLEEPER — sja langa notuna
+     vid `onPicks`. Hun er skilgreind HER en ekki thar thvi skipti um bord
+     verda ad geta nullstillt hana, og thau gerast ofar i skranni. */
+  const lastSync = useRef({ ids: new Set(), mine: new Set() });
   /* Vol sem Sleeper hefur skrad en bordid kann ekki ad para. Þau ERU
      komin, svo thau tilheyra valnumerinu — sja `pickNo` nedar. Ekki
      vistad: thad er lesid upp a nytt i hverri pollun og vistad gildi an
      pollunar vaeri tala sem enginn getur leidrett. */
   const [offBoard, setOffBoard] = useState(0);
   const [posFilter, setPosFilter] = useState([]);
+  /* Hve morg vol komu UR GEYMSLUNNI en ekki fra Sleeper. Sja `RestoredNote`. */
+  const [restored, setRestored] = useState(() => taken.size);
+
+  /* ============================================================
+     SKIPT UM BORD AN ENDURRAESINGAR
+     ============================================================
+     `useState`-upphafsgildi keyra ADEINS vid mount. Draft-audkennid
+     getur breyst an mounts (nytt mock i somu deild), og tha vaeri
+     astandid afram bord fyrra draftsins — OG VERRA: vistunar-effectid
+     hér nedar myndi skrifa vol fyrra draftsins undir lykil hins nyja.
+
+     Þetta er "adlaga astand thegar props breytast"-mynstrid: setja
+     astand BEINT I TEIKNINGU. React keyrir hlutinn strax aftur med nyja
+     gildinu adur en nokkud er teiknad eda nokkurt effect keyrir, svo
+     kTaken og `taken` geta ekki verid ur sitthvoru bordinu i sama
+     effecti. Ad gera thetta i `useEffect` vaeri EINNI TEIKNINGU OF SEINT
+     og vistunin fengi ad hlaupa a undan.
+
+     Merkid er ASTAND en ekki `useRef`: ref sem er skrifud i teikningu
+     sem React hendir (StrictMode teiknar tvisvar) laetur seinni
+     teikninguna sleppa lestrinum og astandid situr eftir rangt.       */
+  const [stateScope, setStateScope] = useState(scope);
+  if (stateScope !== scope) {
+    const t = idSet(D.loadState(kTaken, []));
+    setStateScope(scope);
+    setTaken(t);
+    setMyPicks(idSet(D.loadState(kMine, [])));
+    /* `offBoard` er tala ur SIDUSTU POLLUN og su pollun var a odru
+       drafti. Hun er ekki vistud, svo nyja bordid byrjar a 0 og faer
+       sina eigin tolu vid fyrstu pollun. */
+    setOffBoard(0);
+    /* Og minnid um sidasta Sleeper-svar er minni um ANNAD draft. Vaeri
+       thad ekki nullstillt myndi mismunar-reglan i `onPicks` reyna ad
+       fjarlaegja vol hins draftsins ur thessu bordi. */
+    lastSync.current = { ids: new Set(), mine: new Set() };
+    setRestored(t.size);
+  }
 
   /* ============================================================
      VISTUN FYLGIR ASTANDINU, EKKI KOLLUNUM
@@ -88,9 +136,17 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      var ad afturforin var ekki bara syn heldur VISTUD.
 
      Effect a mengin sjalf getur ekki skeikad: hvad sem breytir theim,
-     og hvadan sem thad kemur, er thad SIDASTA astand sem er skrifad. */
-  useEffect(() => { D.saveState(kTaken, [...taken]); }, [kTaken, taken]);
-  useEffect(() => { D.saveState(kMine, [...myPicks]); }, [kMine, myPicks]);
+     og hvadan sem thad kemur, er thad SIDASTA astand sem er skrifad.
+
+     `saveScoped` en ekki `saveState`: tomt bord BYR EKKI TIL LYKIL (annars
+     aetti hvert millistig draft-audkennis sitt tomma bord i geymslunni)
+     en tomt bord SKRIFAST a lykil sem er til (annars kaemi "Reset" til
+     baka vid naestu hledslu). */
+  useEffect(() => { D.saveScoped(kTaken, [...taken]); }, [kTaken, taken]);
+  useEffect(() => { D.saveScoped(kMine, [...myPicks]); }, [kMine, myPicks]);
+  /* Bord safnast upp — eitt per mock — svo thau elstu eru grisjud. Adeins
+     draft-bord; handvirka bordid er eina eintakid af sinum volum. */
+  useEffect(() => { D.touchBoardScope(scope); }, [scope]);
 
   /* Bordid radar THEIM SEM A-RANKING NAER YFIR. K og DST eru utan
      hennar (sja notu i build.js) og eru syndir ser nedar. */
@@ -267,9 +323,20 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      lifa af, sem er retta hegdunin: thau eru thin skraning, ekki hans.
 
      Refin er SANNLEIKURINN UM SIDASTA SVAR og hun ma ekki reikna sig
-     ut ur `taken` (thar eru handvirku volin lika). */
-  const lastSync = useRef({ ids: new Set(), mine: new Set() });
+     ut ur `taken` (thar eru handvirku volin lika). Hun er skilgreind
+     OFAR i skranni (vid `taken`) thvi skipti um bord nullstilla hana.
+
+     OG ÞAD DUGAR EKKI EITT AD MISMUNURINN SE RETTUR. Refin er `useRef`,
+     svo hun byrjar TOM vid hverja hledslu medan `taken` kemur ur
+     geymslunni. Fyrsta pollun eftir mount hefur thvi ekkert i `gone` og
+     getur EKKERT ANNAD EN BAETT VID — mismunurinn fellur nidur i
+     sammengi thvert yfir F5. Þad er onnur helft villunnar sem
+     `boardScope` lagar; sja notuna thar. Hin helftin — handvirk vol eru
+     VILJANDI utan mismunarins — laekki ekki heldur, og hvorug er
+     lagfaeranleg her: THAU EIGA AD LIFA innan sins drafts.            */
   const onPicks = useCallback((ids, mineIds, offCount) => {
+    /* Sleeper hefur talad — bordid er ekki lengur "endurheimt ur vafra". */
+    setRestored(0);
     const nextIds = new Set(ids), nextMine = new Set(mineIds);
     const prevSync = lastSync.current;
     const reconcile = (prev, gone, add) => {
@@ -288,10 +355,12 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   }, []);
 
   const take = (r, mine) => {
+    setRestored(0);
     setTaken((prev) => new Set(prev).add(r.id));
     if (mine) setMyPicks((prev) => new Set(prev).add(r.id));
   };
   const undo = (r) => {
+    setRestored(0);
     setTaken((prev) => { const t = new Set(prev); t.delete(r.id); return t; });
     setMyPicks((prev) => { const m = new Set(prev); m.delete(r.id); return m; });
   };
@@ -312,6 +381,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      situr venjulega i sama saeti i naesta mock-i. Ad hreinsa hann vaeri
      ad henda stillingu sem hann setti sjalfur.                        */
   const reset = () => {
+    setRestored(0);
     setTaken(new Set());
     setMyPicks(new Set());
     setOffBoard(0);
@@ -319,6 +389,14 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
        mismunar-reglan i `onPicks` bæri afram vol ur drafti sem er buid
        ad slita, og fyrsta pollun naesta drafts hefdi rangan grunn. */
     lastSync.current = { ids: new Set(), mine: new Set() };
+    /* OG GEYMSLAN LIKA, BERUM ORDUM. Ad slita tenginguna faerir bordid
+       yfir a deildar-lykilinn (`boardScope`), svo `setTaken(tomt)` hér
+       aetti aldrei leid i lykil DRAFTSINS — hann sæti oskertur eftir og
+       endurtenging vid sama draft hefdi skilad volunum ur geymslu i stad
+       thess ad lesa thau upp a nytt fra Sleeper. Hnappur sem segist
+       hreinsa verdur ad hreinsa thad sem hann synir. */
+    D.saveScoped(kTaken, []);
+    D.saveScoped(kMine, []);
     if (sync && sync.draftId) setSync((prev) => ({ ...prev, draftId: "" }));
   };
 
@@ -334,12 +412,30 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
           skjarinn hefdi synt thad rett alla lotuna. (2) Thessi hlutur
           er endurraestur vid svissun, svo draft-id sem vaeri skrifad
           hingad myndi hverfa i somu andra sem ny deild er flutt inn. */}
+      {/* HNAPPURINN ER HER, EKKI NIDRI I BORDS-STIKUNNI (16.8.2026).
+          Beidni notandans: "settu reset takkann ofar, vid hlidina a live
+          connect". Rokin eru staerri en thaegindin — hann er thurfandi a
+          NAKVAEMLEGA thvi augnabliki sem draft er sett upp: nytt mock,
+          nytt audkenni, kveikt a samstillingu. Adur sat hann 300 px nedar
+          vid hlidina a "N drafted", svo hann thurfti ad leita ad honum
+          medan bordid syndi vol einhvers annars.
+
+          `taken`/`myPicks` bua HER (thau eru bordid), svo adgerdin er
+          send NIDUR i staðinn fyrir ad lyfta mengjunum upp. */}
       <SleeperSync sync={sync} setSync={setSync} league={league}
         sleeperUser={sleeperUser} setSleeperUser={setSleeperUser}
         season={season} rows={rows} taken={taken} onPicks={onPicks}
         imported={imported} warnings={warnings} teams={teams}
         onImportLeague={onImportLeague} onRereadRules={onRereadRules}
-        shapes={shapes} />
+        shapes={shapes}
+        onReset={reset}
+        /* Virkur ef eitthvad er ad hreinsa — vol, min vol, oporud vol EDA
+           tenging. Skilyrdid var `!taken.size` og thad laesti hnappnum a
+           tengdu mock-i sem hafdi engin porud vol, svo notandinn gat ekki
+           slitid sig fra draftinu. */
+        resetOff={!taken.size && !myPicks.size && !offBoard &&
+                  !(sync && sync.draftId)}
+        restored={restored} restoredMine={myPicks.size} />
 
       <NextPick available={available} kdst={kdst} roster={myRoster} pick={pickNo} nextOwn={nextOwn}
         lastPick={lastPick} league={league} sync={sync} />
@@ -364,19 +460,6 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
           <span className="dim" style={{ fontSize: 12.5 }}>
             {taken.size} drafted · {myPicks.size} yours
           </span>
-          {/* SKILYRDID VAR `!taken.size` OG ÞAD ER EKKI NOG: tengt
-              mock-draft med engum volum enn (eda vol sem bordid kann ekki
-              ad para) laesti hnappinn, svo notandinn gat ekki slitid sig
-              fra draftinu. Nu er hann virkur ef eitthvad er ad hreinsa —
-              vol, min vol, oporud vol EDA tenging. */}
-          <button className="act" onClick={reset}
-            disabled={!taken.size && !myPicks.size && !offBoard &&
-                      !(sync && sync.draftId)}
-            title={sync && sync.draftId
-              ? "Clears the board AND disconnects the draft — your seat is kept"
-              : "Clears every pick you have marked"}>
-            {sync && sync.draftId ? "Reset & disconnect" : "Reset board"}
-          </button>
         </div>
 
         {!meta.sharpMeasured && (
@@ -648,7 +731,8 @@ function MyRoster({ roster, league, onUndo }) {
    ============================================================ */
 function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                        imported, warnings, teams, onImportLeague,
-                       sleeperUser, setSleeperUser, onRereadRules }) {
+                       sleeperUser, setSleeperUser, onRereadRules,
+                       onReset, resetOff, restored, restoredMine }) {
   /* Nafnid er FORFYLLT ur vistada audkenninu — notandinn a ekki ad slá
      thad inn i hvert sinn, og forsidan tharf thad hvort ed er. */
   const [user, setUser] = useState(() => (sleeperUser && sleeperUser.name) || "");
@@ -1050,7 +1134,46 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
           onClick={() => setLive((v) => !v)}>
           {live ? "Stop syncing" : "Start live sync"}
         </button>
+
+        {/* SKILRUM MILLI ADALADGERDAR OG THEIRRAR EYDANDI. Hnappurinn er
+            eydandi og situr vid hlidina a theim sem er sottur oftast, svo
+            `spacer` yttir honum ut a hinn kant radarinnar og hann ber
+            hvorki `primary`-litinn ne feitletrunina. ENGIN STADFESTINGAR-
+            GLUGGI: modal gluggi a draftkvoldi stodvar allt medan klukkan
+            gengur, og verðið af thvi ad ytta a hann oviljandi er ein
+            endurtenging — sem er odyrara en glugginn.
+
+            HEITID SEGIR HVAD GERIST. "Reset & disconnect" thegar draft er
+            tengt (samstillingin fer LIKA, annars fyllist bordid um leid
+            aftur ur naestu pollun) og "Reset board" thegar ekki. */}
+        <div className="spacer" />
+        <button className="act" onClick={onReset} disabled={resetOff}
+          title={sync.draftId
+            ? "Clears the board AND disconnects the draft — your seat is kept"
+            : "Clears every pick you have marked"}>
+          {sync.draftId ? "Reset & disconnect" : "Reset board"}
+        </button>
       </div>
+
+      {/* ============================================================
+          BORD SEM FYLLIST AF SJALFU SER MA EKKI THEGJA
+          ============================================================
+          Villan sem `boardScope` lagar var ekki adeins rong tala heldur
+          THOGUL rong tala: notandinn opnadi nytt mock og bordid bar 59
+          vol sem hann kannadist ekki vid, an thess ad neitt segdi hvadan
+          thau kaemu. Nu segir bordid thad — og adeins tha:
+          fullyrdingin er "thetta kom UR VAFRANUM", svo hun hverfur um
+          leid og Sleeper hefur talad eda notandinn hreyft eitt val. */}
+      {restored > 0 && (
+        <div className="note" style={{ marginTop: 10 }}>
+          <b>{restored} pick{restored > 1 ? "s" : ""} restored from this browser</b>
+          {restoredMine > 0 ? ` (${restoredMine} marked as yours)` : ""}
+          {sync.draftId
+            ? " — saved earlier for this same draft. Nothing has been read from Sleeper yet."
+            : " — marked by hand, with no draft connected."}
+          {" Use Reset if this is a new draft."}
+        </div>
+      )}
 
       {status && <div className="note warn" style={{ marginTop: 10 }}>{status}</div>}
 

@@ -848,7 +848,10 @@ console.log("\n10. tvofold pollun (tveir flipar)");
   const counts = [...t.matchAll(/(\d+) drafted/g)].map((m) => Number(m[1]));
   ok(counts.length === 2, `badir flipar teikna bordid (${counts.join(", ")})`);
   ok(!/\bNaN\b|Something broke/.test(t), "tvofold pollun fellir hvorugan");
-  const saved = JSON.parse(localStorage.getItem(`nfl_taken:${LEAGUE_ID}`) || "[]");
+  /* LYKILLINN ER DEILD **OG DRAFT** fra 16.8.2026 — sja kafla 15. Var
+     `nfl_taken:<deild>`, sem tvo mock i somu deild deildu. */
+  const saved = JSON.parse(
+    localStorage.getItem(`nfl_taken:${LEAGUE_ID}@${DRAFT_ID}`) || "[]");
   ok(saved.length >= 12, `vistada mengid er ekki thurrkad ut af hinum flipanum (${saved.length})`);
   rootB.unmount(); second.remove();
   rootA.unmount();
@@ -1002,6 +1005,206 @@ console.log("\n14. svissad um deild i midju drafti");
   await click(btn(/Start live sync/), 150);
   const caught = await waitFor(() => draftedOnScreen() === 33, 5000);
   ok(caught, `og nær theim sem baettust vid a medan (${draftedOnScreen()})`);
+  root.unmount();
+}
+
+/* ============================================================
+   15. ANNAD MOCK I SOMU DEILD — BORDID MA EKKI ERFAST
+   ============================================================
+   ÞETTA GERDIST HJA NOTANDANUM 16.8.2026, FIMM DOGUM FYRIR ALVORU
+   DRAFTID: hann keyrdi eitt mock, byrjadi annad, og bordid sagdi
+   "Pick 60 - take this" a drafti sem var rett ad byrja.
+
+   MEKANISMINN — endurgerdur her og BADIR helmingar tharf til:
+
+     1. `taken` var vistad a DEILDINNI (`nfl_taken:<deild>`), svo bædi
+        mock lasu SAMA mengi.
+     2. `lastSync` — vidmidid sem mismunar-reglan i `onPicks` dregur fra
+        — er `useRef` og byrjar TOM vid hverja hledslu. Fyrsta pollun
+        eftir mount hefur thvi ekkert i `gone` og GETUR EKKERT ANNAD EN
+        BAETT VID.
+
+   Þess vegna er ENDURHLEDSLAN i midjunni her og hun er ekki skraut:
+   MAELT, an hennar (sama lota, samfelld) VIRKAR bordid rett — mismunurinn
+   fjarlaegir vol fyrra draftsins. Prof sem slepti F5 hefdi verid graent a
+   villunni. Handvirku volin i (e) eru hin leidin ad somu villu i SOMU
+   lotu: thau eru VILJANDI utan mismunarins (thin skraning, ekki Sleepers)
+   svo ekkert fjarlaegdi thau nokkurn timann.
+
+   FJOGUR SKILYRDI TOGA HVERT A ANNAD og thau eru oll her:
+     (a) annad draft ERFIR EKKI — annars er alvoru draftid mengad
+     (b) F5 I MIDJU DRAFTI SKILAR BORDINU — thess vegna er thad vistad
+     (c) SAMA draft aftur SKILAR bordinu — ekki tomt bord i beinni
+     (d) HANDVIRK skraning an tengingar lifir lika
+   Ad festa eitt theirra og gleyma hinum er audvelt; thess vegna er
+   hvert theirra sér-fullyrding hér.                                  */
+const MOCK_B_ID = "7777666655554444";
+console.log("\n15. annad mock i somu deild erfir ekki thad fyrra");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  let root = await boot();
+  await connectAndSync();
+  for (let n = 1; n <= 59; n++) pushPick(n);
+  const gotA = await waitFor(() => draftedOnScreen() === 59, 9000);
+  ok(gotA, `mock A: 59 vol strikud ut (${draftedOnScreen()})`);
+  ok(pickHeader() === 60, `mock A stendur a vali 60 (${pickHeader()})`);
+  root.unmount();
+
+  /* (b) F5 — og bordid VERDUR ad koma til baka. Þetta er skilyrdid sem
+     togar a moti (a): mengid er vistad NAKVAEMLEGA thess vegna, og ad
+     tapa thvi i midju drafti vaeri verri villa en su sem er verid ad
+     laga. Tekid her lika thott kafli 8 profi thad, thvi hér er thad
+     hin hlidin a sama peningi og verdur ad falla MED honum ef
+     skorðunin er tekin ur sambandi. */
+  root = createRoot(document.getElementById("root"));
+  await act(async () => { root.render(React.createElement(App)); });
+  await settle(700);
+  ok(draftedOnScreen() === 59, `(b) eftir F5 er mock A oskert (${draftedOnScreen()})`);
+  ok(pickHeader() === 60, `og valnumerid enn 60 (${pickHeader()})`);
+  /* Og bordid THEGIR EKKI um thad. Þogul endurfylling var thad sem gerdi
+     villuna oskiljanlega — 59 vol birtust an thess ad neitt segdi hvadan. */
+  ok(/59 picks restored from this browser/.test(text()),
+    "og bordid segir berum ordum ad volin komi ur vafranum");
+
+  /* (a) NYTT mock i somu deild. Ekkert reset, ekkert annad — bara nytt
+     audkenni, nakvaemlega thad sem notandinn gerdi. */
+  live.secondDraft = {
+    draft: { ...mkDraft(), draft_id: MOCK_B_ID, league_id: null },
+    picks: [],
+  };
+  for (let n = 1; n <= 3; n++) {
+    const { round, slot } = slotOfPick(n);
+    live.secondDraft.picks.push({ ...mkPick(n, POOL[100 + n]), round, draft_slot: slot });
+  }
+  await setInput("Draft ID", MOCK_B_ID);
+  await click(btn(/Start live sync/), 200);
+  const clean = await waitFor(() => draftedOnScreen() === 3, 6000);
+  ok(clean, `(a) mock B byrjar a SINUM thremur volum (${draftedOnScreen()})`);
+  ok(pickHeader() === 4, `og valnumerid er 4, ekki 63 (${pickHeader()})`);
+  const bMine = yoursOnScreen();
+  ok(bMine === (slotOfPick(1).slot === MY_SLOT ? 1 : 0) +
+               (slotOfPick(2).slot === MY_SLOT ? 1 : 0) +
+               (slotOfPick(3).slot === MY_SLOT ? 1 : 0),
+    `og hopurinn er mock B-s, ekki mock A-s (${bMine} minir)`);
+
+  /* Mengin bua i SITTHVORUM lykli — sagt berum ordum, thvi thad er
+     einmitt fullyrdingin sem villan braut. */
+  const kA = `nfl_taken:${LEAGUE_ID}@${DRAFT_ID}`;
+  const kB = `nfl_taken:${LEAGUE_ID}@${MOCK_B_ID}`;
+  ok(JSON.parse(localStorage.getItem(kA) || "[]").length === 59,
+    `mock A a sinn eigin lykil med 59 volum (${kA})`);
+  ok(JSON.parse(localStorage.getItem(kB) || "[]").length === 3,
+    `mock B a sinn eigin lykil med 3 (${kB})`);
+
+  /* (c) OG TIL BAKA I MOCK A — sama draft skilar sinu bordi. Þetta er
+     hin attin og hun var LOGUD adur (kafli 9): "reset og tengja aftur"
+     skildi bordid eftir TOMT. Baðar attir verda ad vera rettar. */
+  await setInput("Draft ID", DRAFT_ID);
+  const back = await waitFor(() => draftedOnScreen() === 59, 6000);
+  ok(back, `(c) aftur i mock A: 59 vol koma til baka (${draftedOnScreen()})`);
+  ok(pickHeader() === 60, `og valnumerid er 60 aftur (${pickHeader()})`);
+
+  /* (d) HANDVIRK SKRANING. Reset slitur tenginguna, og tha er bordid ekki
+     lengur bundid neinu drafti — en thad verdur samt ad lifa F5, thvi tha
+     er ENGIN Sleeper-heimild til ad lesa thad upp a nytt. */
+  await click(btn(/Reset & disconnect/), 200);
+  ok(draftedOnScreen() === 0, `(d) reset taemir bordid (${draftedOnScreen()})`);
+  let marked = 0;
+  for (let i = 0; i < 3; i++) {
+    const b = boardTable() && boardTable().querySelector("tbody tr button");
+    if (await click(b, 60)) marked++;
+  }
+  ok(marked === 3 && draftedOnScreen() === 3,
+    `thrju vol skrad i hendi (${draftedOnScreen()})`);
+  root.unmount();
+  root = createRoot(document.getElementById("root"));
+  await act(async () => { root.render(React.createElement(App)); });
+  await settle(700);
+  ok(draftedOnScreen() === 3,
+    `(d) handvirka skraningin lifir F5 an tengingar (${draftedOnScreen()})`);
+  ok(/3 picks restored from this browser/.test(text()) &&
+     /marked by hand/.test(text()),
+    "og hun er merkt sem handvirk, ekki sem draft-bord");
+  /* Og hun bytr i SINUM lykli — hvorugt draftid vissi af henni. */
+  ok(JSON.parse(localStorage.getItem(`nfl_taken:${LEAGUE_ID}`) || "[]").length === 3,
+    "handvirka bordid a sinn eigin lykil (deildin ein, ekkert `@`)");
+  ok(JSON.parse(localStorage.getItem(kB) || "[]").length === 3,
+    "og mock B er oskert — handvirku volin runnu ekki inn i thad");
+  /* ============================================================
+     OG "RESET" HREINSADI GEYMSLUNA, EKKI ADEINS SKJAINN
+     ============================================================
+     Reset i (d) var gert MEDAN mock A var a skjanum, svo bord mock A a
+     ad vera tomt — og thad er profad hér thvi thad er audvelt ad gera
+     rangt: `setTaken(tomt)` eitt hefdi ALDREI ratad i lykil mock A.
+     Reset slitur tenginguna, sem faerir bordid samstundis yfir a
+     deildar-lykilinn, svo vistunar-effectid skrifar tomid a RANGAN
+     lykil. Mock A hefdi tha komid oskert til baka vid endurtengingu og
+     hnappurinn hefdi logið. */
+  ok(JSON.parse(localStorage.getItem(kA) || "[]").length === 0,
+    "og \"Reset\" tæmdi lykil mock A i geymslunni, ekki bara skjainn");
+  root.unmount();
+}
+
+/* ============================================================
+   15b. RESET-HNAPPURINN SITUR THAR SEM AKVORDUNIN ER TEKIN
+   ============================================================
+   Beidni notandans 16.8.2026: "settu reset takkann ofar, vid hlidina a
+   live connect". Hann var i bords-stikunni vid hlidina a "N drafted",
+   ~300 px nedar en reitirnir sem draft er sett upp i — svo hann thurfti
+   ad leita ad honum medan bordid syndi vol einhvers annars.
+
+   PROFAD SEM STADSETNING OG HEGDUN, ekki sem orðalag: hnappurinn er
+   fundinn eftir heiti (kafli 9 gerir thad lika) en fullyrdingarnar eru
+   um hvar hann SITUR, hvad hann heitir i hvoru astandi og hvenaer hann
+   er virkur. Heiti sem eina akkerid felldi tvo sofn i FPL-appinu vid
+   endurnefningu; hér ber heitid merkingu (thad SEGIR ad tengingin fari
+   lika) svo thad er profad, en stadsetningin er lesin ur DOM-trenu.  */
+console.log("\n15b. reset-hnappurinn er kominn upp i tengi-spjaldid");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const root = await boot();
+
+  const connectPanel = () => [...document.querySelectorAll(".panel")]
+    .find((p) => /Connect your Sleeper draft/.test(
+      p.querySelector("h2")?.textContent || "")) || null;
+  const resetBtn = () => {
+    const p = connectPanel();
+    return p ? [...p.querySelectorAll("button")]
+      .find((b) => /^Reset/.test((b.textContent || "").trim())) || null : null;
+  };
+
+  ok(!!resetBtn(), "hnappurinn er INNI i \"Connect your Sleeper draft\"-spjaldinu");
+  /* Og hvergi annars stadar — tveir reset-hnappar vaeru verri en enginn. */
+  ok([...document.querySelectorAll("button")]
+      .filter((b) => /^Reset/.test((b.textContent || "").trim())).length === 1,
+    "og hann er BARA a einum stad");
+  ok(/^Reset board$/.test(resetBtn().textContent.trim()),
+    `an tengingar heitir hann "Reset board" ("${resetBtn().textContent.trim()}")`);
+  ok(resetBtn().disabled, "og hann er slokktur thegar ekkert er ad hreinsa");
+
+  /* Radin: adalhnappurinn fyrst, skilrum, eydandi hnappurinn sidast.
+     Hann ma ekki lenda undir fingrinum a theim sem aetlar a "Start live
+     sync" — thad er ein ytting fra thvi ad henda bordinu. */
+  const row = [...connectPanel().querySelectorAll(".row")]
+    .find((r) => /Start live sync|Stop syncing/.test(r.textContent || ""));
+  ok(!!row, "hann er i SOMU rod og samstillingar-hnappurinn");
+  const labels = [...row.querySelectorAll("button")].map((b) => b.textContent.trim());
+  ok(labels.findIndex((l) => /^Reset/.test(l)) >
+     labels.findIndex((l) => /live sync|Stop syncing/.test(l)),
+    `og A EFTIR honum i rodinni (${labels.join(" | ")})`);
+  ok(!!row.querySelector(".spacer"), "med skilrum a milli theirra");
+  ok(!resetBtn().classList.contains("primary"),
+    "og hann ber ekki adallitinn — eydandi adgerd a ekki ad kalla a sig");
+
+  /* TENGT MOCK MED ENGUM PORUDUM VOLUM verdur samt ad vera haegt ad
+     slita. Þetta var villa adur (`!taken.size` eitt) og hun laesti
+     notandann inni i drafti sem hann var haettur i. */
+  await connectAndSync();
+  await settle(200);
+  ok(/^Reset & disconnect$/.test(resetBtn().textContent.trim()),
+    `tengdur heitir hann "Reset & disconnect" ("${resetBtn().textContent.trim()}")`);
+  ok(draftedOnScreen() === 0 && !resetBtn().disabled,
+    "og hann er VIRKUR thott ekkert val se komid — tengingin ein dugar");
   root.unmount();
 }
 

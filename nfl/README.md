@@ -2794,10 +2794,78 @@ Deildarnar hans eru ekki sama deild:
 | umferðir | 15 | 14 |
 | mælt forskot A-Ranking | **+186,1** (11/11, t=4,09) | **+147,4** (10/11, t=3,44) |
 
-`taken`, `myPicks` og `sync` eru því **lykluð á deild** (`D.scoped`), og
-`DraftBoard`/`MyTeam` eru endurræst með `key={activeId}`. Deildu tvær deildir
+`taken`, `myPicks` og `sync` eru því **lykluð** (`D.scoped`), og
+`DraftBoard`/`MyTeam` eru endurræst með `key`. Deildu tvær deildir
 sama mengi væru leikmenn sem þú tókst í A strikaðir út í B og ráðgjöfin teldi
 hóp sem þú eigir ekki þar.
+
+#### DEILDIN VAR EKKI NÓG — BORÐIÐ TILHEYRIR DRAFTINU (16.8.2026)
+
+Hér stóð að lyklarnir væru „á deild". Það var rétt lýsing á kóðanum og **röng
+skorðun**, og munurinn er allur í ágúst: eitt mock á eftir öðru **í sömu deild**.
+Notandinn hitti þetta lifandi fimm dögum fyrir alvöru draftið — nýtt mock sem
+var rétt að byrja sagði **„Pick 60 — take this"** og „Your next pick is 66".
+
+**Mekanisminn er tvíþættur og bæði þarf til:**
+
+1. `taken` var vistað á **deildinni**, svo bæði mock lásu sama mengi.
+2. `lastSync` — viðmiðið sem mismunar-reglan í `onPicks` dregur frá (villa 1 í
+   töflunni neðar) — er `useRef` og byrjar **tóm við hverja hleðslu**. Fyrsta
+   pollun eftir mount hefur því ekkert í `gone` og **getur ekkert annað en bætt
+   við**. Mismunurinn sem var smíðaður til að hleypa Sleeper að taka til baka
+   **fellur niður í sammengi þvert yfir F5**.
+
+> **ÞESS VEGNA ER ENDURHLEÐSLAN Í MIÐJU PRÓFINU OG HÚN ER EKKI SKRAUT.** Mælt:
+> í **samfelldri lotu virkar borðið rétt** — mismunurinn fjarlægir völ fyrra
+> draftsins (59 → 3). Próf sem sleppti F5 hefði verið **grænt á villunni**.
+> Handvirku völin eru hin leiðin að sömu villu í **sömu lotu**: þau eru
+> viljandi utan mismunarins (þín skráning, ekki hans), svo ekkert fjarlægði þau
+> nokkurn tímann — mælt 3 handvirk + 3 ný = **6**.
+
+**Lausnin er skorðunin sjálf, ekki refin:** `D.boardScope(leagueId, draftId)`
+gefur `deild@draft` þegar draft er tengt og `deild` eina þegar ekki. Draft-borð
+geta þá ekki lesið hvert annað, og handvirk skráning heldur sínum stað.
+
+**Fjögur skilyrði toga hvert á annað og þau eru öll vörður** (`draft-live.mjs`
+kafli 15, tíu stökkbreytingar felldar):
+
+| # | skilyrði | af hverju það togar á móti |
+|---|---|---|
+| a | annað draft **erfir ekki** | ella er alvöru draftið mengað af hverju mock-i |
+| b | **F5 í miðju drafti skilar borðinu** | mengið er vistað nákvæmlega þess vegna; að tapa því í beinni væri verri villa en sú sem er verið að laga |
+| c | **sama draft aftur skilar borðinu** | villa 4 í töflunni neðar var einmitt tómt borð í beinni |
+| d | **handvirk skráning lifir** F5 án tengingar | þá er engin Sleeper-heimild til að lesa hana upp á nýtt |
+
+**Þrjár afleiddar reglur, hver með sinn vörð** (`saved-state.mjs` kafli 8):
+
+- **Hálfslegið auðkenni er ekki borð.** Notandinn slær í reitinn og hvert
+  innsláttar-atvik gefur nýtt gildi — „1", „13", „138"… Skorðunin krefst því
+  **berrar tölu af raunhæfri lengd**; allt annað fellur á deildina.
+- **Tómt borð býr ekki til lykil, en tómt borð skrifast á lykil sem er til.**
+  Fyrri helmingurinn ver gegn hálfskrifuðum borðum í geymslunni, sá seinni gegn
+  því að „Reset" komi til baka við næstu hleðslu. `D.saveScoped`.
+- **Borðum er grisjað** (`touchBoardScope`, síðast-notað röð, þak 8) því hvert
+  mock skilur eitt eftir sig — **nema handvirka borðinu**, sem er eina eintakið
+  af sínum völum og má aldrei detta út af aldri.
+
+**Og „Reset" hreinsar geymsluna, ekki bara skjáinn.** Að slíta tenginguna færir
+borðið samstundis yfir á deildar-lykilinn, svo `setTaken(tómt)` eitt hefði
+**aldrei ratað í lykil draftsins** — hann hefði setið óskertur og endurtenging
+hefði skilað völunum úr geymslu. Hnappur sem segist hreinsa verður að hreinsa
+það sem hann sýnir.
+
+**Borð sem fyllist af sjálfu sér þegir ekki lengur.** Villan var ekki aðeins
+röng tala heldur **þögul** röng tala: 59 völ birtust án þess að neitt segði
+hvaðan. Borðið segir það nú — *„59 picks restored from this browser"* — og
+aðeins þá: fullyrðingin er „þetta kom úr vafranum", svo hún hverfur um leið og
+Sleeper hefur talað eða notandinn hreyft eitt val.
+
+**Reset-hnappurinn fluttist upp í tengi-spjaldið**, að beiðni notandans, og
+rökin eru stærri en þægindin: hann er þurfandi á nákvæmlega því augnabliki sem
+draft er sett upp. Hann situr **aftast í röðinni**, aftan við skilrúm og án
+aðallitarins — eyðandi aðgerð á ekki að kalla á sig við hliðina á þeirri sem er
+sótt oftast. **Enginn staðfestingargluggi:** modal á draftkvöldi stöðvar allt
+meðan klukkan gengur, og verðið af óviljandi ýtingu er ein endurtenging.
 
 **Gamalt ólyklað ástand flyst yfir** (`migrateScopedState`). Notandi í **miðju
 drafti** þegar uppfærslan kemur hefði annars opnað appið og séð **tómt borð** —
@@ -2997,6 +3065,7 @@ og prófið féll (níu stökkbreytingar alls):
 | 4 | **„Reset & disconnect" og tengja aftur skildi borðið TÓMT** | `lastSig` lifði reset-ið, svo óbreytt svar frá sama drafti las eins og „ekkert hefur gerst" og `onPicks` var **aldrei** kallað. Tengingin sagðist lifandi, `info` taldi „24 picks made", borðið stóð á valnúmeri 1. Mælt: **0 af 24 völum** komu til baka. Þetta var breytt 12.8. og hafði aldrei keyrt í beinni |
 | 5 | **Síðasta umferðin lofaði vali sem er ekki til** | `nextOwnPick(..., (rounds \|\| 15) + 2)` — tveir aukaumferðir sem voru **slaki án heimildar**. Í 150 vala drafti sagði kassinn „Your next pick is **154**" og borðið litaði hvern mann „óbíðu". Notandi sem treystir því sleppir manni í **síðasta vali sínu**. `null` er rétt svar og er nú borið alla leið: `lastPick` í `advice.js` er **annað** en `nextPick: null`, sem þýðir áfram „ég veit ekki sætið, giskaðu" og er rétt í handvirku drafti |
 | 6 | **Kassinn hélt áfram að ráðleggja eftir að draftinu lauk** | „Pick 151 — take this" með lifunartölum að vali sem er ekki til. Ekkert hrundi, og það er einmitt vandinn. Nú: **Draft complete** |
+| 8 | **Annað mock í sömu deild erfði það fyrra** (16.8.2026, kafli 15) | Borðið var lyklað á **deild**, ekki draft, og `lastSync` byrjar tóm við hverja hleðslu — svo fyrsta pollun eftir F5 gat **ekkert annað en bætt við**. Mælt: mock A með 59 völum, F5, nýtt mock með þremur → **62 og „Pick 63"**. Það sem notandinn sá var sama villa með tómu mock-i: **„Pick 60 — take this"** á drafti sem var rétt að byrja. Í samfelldri lotu virkar borðið rétt, svo próf án F5 hefði verið grænt. Sjá kaflann um `boardScope` ofar |
 | 7 | **Liturinn og talan sögðu ekki það sama** | `title` skrifaði `Math.round(p * 100)` en þrepið las hrátt `p`, svo röð með **„80% likely to last"** var ólituð (0,7951 < 0,80). Þrjár raðir í einu drafti. Rúnnun á að gerast einu sinni |
 
 Tvær smærri lagfæringar fylgdu, báðar stökkbreyttar: **tvítekin óporuð röð**

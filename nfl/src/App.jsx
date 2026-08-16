@@ -100,6 +100,9 @@ export default function App() {
 
   const active = entries.find((e) => e.id === activeId) || entries[0];
   const league = active.rules;
+  /* Bordid sem er i gangi: deildin ein thegar ekkert draft er tengt,
+     deild+draft thegar thad er. Sja `boardScope` i `data.js`. */
+  const boardKey = D.boardScope(activeId, active.sync && active.sync.draftId);
 
   const setSync = useCallback((next) => {
     setEntries((prev) => prev.map((e) => (e.id === activeId
@@ -436,8 +439,18 @@ export default function App() {
         <Experts accuracy={extra.accuracy} experts={extra.experts}
           rows={built.rows} meta={built.meta} />
       )}
+      {/* HOPURINN ER LESINN UR SAMA BORDI OG DRAFTID SKRIFAR. `MyTeam`
+          les `myPicks` og skrifar thad aldrei; skrifadi hann `DraftBoard`
+          undir deildinni EINNI en bordid undir draftinu (sja `boardScope`
+          i `data.js`) vaeri flipinn ad lesa lykil sem enginn skrifar
+          lengur og hopurinn vaeri TOMUR eftir alvoru draft. Lykillinn er
+          leiddur ut a EINUM stad og sendur hingad, ekki reiknadur upp a
+          nytt — tvaer utfaerslur af somu skorðun er nakvaemlega thad sem
+          `buildTeamMetrics` kostadi i FPL-appinu.
+
+          `key` fylgir med: `ids` er lesid i `useState`-upphafsgildi. */}
       {view === "myteam" && (
-        <MyTeam key={activeId} leagueKey={activeId}
+        <MyTeam key={boardKey} leagueKey={boardKey}
           rows={built.rows} league={league} news={extra.news} meta={meta}
           market={core.market} schedule={core.schedule} defense={extra.defense}
           sleeperUser={sleeperUser.name || ""} />

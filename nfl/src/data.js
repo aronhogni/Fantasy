@@ -312,13 +312,81 @@ export function saveState(name, value) {
    drafti. Notandi med thrjar deildir sem deildi theim mengjum saei
    leikmenn sem hann tok i deild A strikada ut i deild B — og "hvern a
    ad taka naest" myndi telja hop sem hann eigir ekki. Thess vegna er
-   lyklunum skeytt vid deildar-audkennid.
+   lyklunum skeytt vid audkenni — DEILDAR fyrir handvirka skraningu,
+   DEILDAR OG DRAFTS thegar draft er tengt (sja `boardScope` nedar).
 
    ÞAU ERU EKKI I DEILDARFAERSLUNNI SJALFRI af asettu radi: `taken`
    staekkar i ~150 audkenni og breytist vid HVERT val, svo hun myndi
    endurskrifa allan deildarlistann i hverjum tikk. Faerslan ber thad
    sem er LITID og fast (reglur, lidsheiti, saeti); mengin bua ser.  */
 export const scoped = (name, leagueId) => `${name}:${leagueId || "local"}`;
+
+/* ============================================================
+   OG DEILDIN VAR EKKI NOG — VOLIN TILHEYRA DRAFTINU (16.8.2026)
+   ============================================================
+   Athugasemdin hér ad ofan sagdi thegar "their tilheyra EINU drafti".
+   Kodinn skoradi thau vid DEILDINA. Thad er ekki sama hlutur, og
+   munurinn er allur i agust: EITT mock a eftir odru i somu deild.
+
+   MAELT (`draft-live.mjs` kafli 15, endurgerd ur lysingu notandans):
+   mock A med 59 volum, sidan F5, sidan tengt vid nytt mock B med
+   THREMUR volum -> bordid syndi **62** og "Pick 63". Med tomu mock B
+   (thad sem hann sa) syndi thad 59 og **"Pick 60 - take this"** a
+   drafti sem var rett ad byrja.
+
+   MEKANISMINN ER TVITHAETTUR og bædi tharf til:
+     1. `taken` var vistad a DEILDINNI, svo mock B las mengi mock A.
+     2. `lastSync` — vidmidid sem mismunar-reglan i `onPicks` dregur
+        fra — er `useRef`, svo hun byrjar TOM vid hverja hledslu.
+        Fyrsta pollun eftir mount hefur thvi `gone = tomt mengi` og
+        GETUR EKKERT ANNAD EN BAETT VID. Mismunurinn sem var smiðadur
+        til ad hleypa Sleeper ad taka til baka fellur nidur i sammengi
+        thvert yfir hledslu.
+
+   Ad festa (2) eina vaeri ekki nog: handvirk vol eru VILJANDI utan
+   mismunarins (their eru thin skraning, ekki Sleepers), svo thau lakau
+   afram milli drafta i SOMU lotu — maelt: 3 handvirk + 3 ny = 6.
+   Skorðunin sjalf er thvi lagfaeringin, ekki refin.
+
+   MOCK-DRAFT AN DEILDAR fellur undir `local`, eins og adur; thad sem
+   greinir thau ad er draft-audkennid, sem er einkvaemt hja Sleeper.
+
+   AUDKENNID VERDUR AD LITA HEILT UT. Notandinn slaer/limir i reitinn,
+   og hvert innslattar-atvik gefur nytt gildi — "1", "13", "138"… Vaeri
+   hvert theirra sitt bord myndi bordid tæmast i hverjum staf og skilja
+   eftir hálfskrifud bord i geymslunni. Sleeper-audkenni eru 18-19
+   stafa tolu-snjokorn, svo krafan er BER TALA af raunhaefri lengd;
+   allt annad (thar med talid gamla `sync`-astandid ur profum og
+   handskrifad rusl) fellur a deildina eins og adur. Vordurinn gegn
+   hálfskrifudum bordum er samt EKKI thessi krafa heldur `saveScoped`
+   hér nedar — ein regla sem gildir hvad sem sniðinu lidur.           */
+const DRAFT_ID_RE = /^[0-9]{6,32}$/;
+export const boardScope = (leagueId, draftId) => {
+  const base = leagueId || "local";
+  const d = typeof draftId === "string" ? draftId.trim() : "";
+  return DRAFT_ID_RE.test(d) ? `${base}@${d}` : base;
+};
+
+/**
+ * Vistar lista undir skoruðum lykli — EN BYR ALDREI TIL TOMAN LYKIL.
+ *
+ * Ad skrifa `[]` a lykil sem er ekki til er merkingarlaust (`loadState`
+ * skilar sjalfgefna gildinu hvort sem er) og thad er OSKAÐLEGT: medan
+ * draft-audkenni er slegid inn faerist bordid gegnum hvert millistig
+ * audkennisins, og an thessarar reglu aetti notandinn eitt tomt bord i
+ * geymslunni fyrir hvern staf sem hann slo.
+ *
+ * ÞVI ER SNUID VID THEGAR LYKILLINN ER TIL: tom vistun a lykil sem er
+ * til er EKKI hunsud. "Reset" hreinsar bordid og thad VERDUR ad rata i
+ * geymsluna, annars kaemi thad aftur vid naestu hledslu.
+ */
+export function saveScoped(key, list) {
+  try {
+    const arr = Array.isArray(list) ? list : [];
+    if (!arr.length && localStorage.getItem(KEY + key) == null) return;
+  } catch { /* geymsla ekki laesileg — latum `saveState` um thad */ }
+  saveState(key, list);
+}
 
 /**
  * Flytur gamla olyklada astandid inn a fyrstu deildina. AN THESSA
@@ -341,12 +409,57 @@ export function migrateScopedState(leagueId) {
   }
 }
 
-/** Hendir astandi einnar deildar thegar henni er lokad. */
-export function dropScopedState(leagueId) {
+/**
+ * Hendir astandi eins bords thegar thvi er lokad.
+ *
+ * TEKUR VID BAEDI DEILD OG BORDI. Se `id` deild (`local`) fara LIKA oll
+ * bord hennar (`local@123…`) — annars saeti hvert draft sem deildin
+ * hafdi tengst eftir sem munadarlaus lykill thegar deildinni er lokad,
+ * og theim fjolgar med hverju mock-i. Prefix-leitin getur ekki hitt a
+ * ADRA deild: skilin eru `@`, sem kemur hvergi fyrir i deildar-audkenni.
+ */
+export function dropScopedState(id) {
+  const base = id || "local";
   for (const name of ["taken", "myPicks", "sync"]) {
-    try { localStorage.removeItem(KEY + scoped(name, leagueId)); }
-    catch { /* ekkert ad gera */ }
+    try { localStorage.removeItem(KEY + scoped(name, base)); } catch { /* ekkert */ }
+    try {
+      const pre = `${KEY}${name}:${base}@`;
+      const doomed = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(pre)) doomed.push(k);
+      }
+      for (const k of doomed) localStorage.removeItem(k);
+    } catch { /* ekkert ad gera */ }
   }
+}
+
+/**
+ * Skrair bord sem var opnad og HENDIR THEIM ELSTU.
+ *
+ * Hvert mock-draft er sitt bord (sja `boardScope`), svo agust-vikan ein
+ * getur skilid eftir tugi theirra. Hvert er ~1-2 KB, sem er engin
+ * kreppa — en "safnast ad eilifu" er samt rangt svar, og geymslan er
+ * sameiginleg med ollu odru sem appid vistar.
+ *
+ * SIDAST-NOTAD ROD, EKKI TIMASTIMPILL: rodin i listanum ER upplysingin
+ * og hun getur ekki skekkst thott klukka notandans hoppi.
+ *
+ * ADEINS DRAFT-BORD (`@`) eru talin. Deildar-bordid sjalft — handvirka
+ * skraningin — ma ALDREI detta ut af aldri; thad er eina eintakid af
+ * volum sem enginn Sleeper-endapunktur getur skilad aftur.
+ */
+export function touchBoardScope(scope, max = 8) {
+  try {
+    if (typeof scope !== "string" || !scope.includes("@")) return;
+    const prev = loadState("boards", []);
+    const list = (Array.isArray(prev) ? prev : [])
+      .filter((s) => typeof s === "string" && s !== scope);
+    list.push(scope);
+    const drop = list.splice(0, Math.max(0, list.length - max));
+    for (const s of drop) dropScopedState(s);
+    saveState("boards", list);
+  } catch { /* full geymsla ma ekki fella appid */ }
 }
 
 /** Hreinsar OLL `nfl_*` — valid, ekki harðkodadur listi. */

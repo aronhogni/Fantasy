@@ -402,5 +402,107 @@ console.log("\n7. `nfl_taken` — talan a skjanum");
      ad rodin horfi af bordinu, og hun er skrad hér sem gat.          */
 }
 
+/* ============================================================
+   8. BORDIN — SKORÐUNIN, TOMU LYKLARNIR OG GRISJUNIN
+   ============================================================
+   Villan 16.8.2026 (sja `draft-live.mjs` kafla 15) var ad `taken` var
+   vistad a DEILDINNI en tilheyrdi DRAFTINU. Kafli 15 profar hana i
+   gegnum lifandi bord; hér eru reglurnar sjalfar profadar berum ordum,
+   thvi thaer bera thrjar akvardanir sem eru ekki synilegar a skjanum:
+
+     · hvad telst draft (og hvad gerir thad EKKI, svo ad hálfslegid
+       audkenni bui ekki til sitt eigid bord)
+     · tomt bord BYR EKKI TIL lykil, en tomt bord SKRIFAST a lykil sem er
+       til — annars kaemi "Reset" til baka vid naestu hledslu
+     · bordum er GRISJAD, thvi hvert mock skilur eitt eftir sig
+
+   Sidasta reglan hefur eitt undantekningarlaust skilyrdi og thad er
+   profad: handvirka bordid (an `@`) ma ALDREI grisjast. Þad er eina
+   eintakid af theim volum — enginn Sleeper-endapunktur getur skilad
+   theim aftur.                                                        */
+console.log("\n8. bordin — skorðun, tomir lyklar og grisjun");
+{
+  const D = await import("../src/data.js");
+  localStorage.clear();
+
+  /* (a) hvad telst draft */
+  ok(D.boardScope("L1", "") === "L1", "ekkert draft -> deildin ein");
+  ok(D.boardScope("", "") === "local", "engin deild -> `local`");
+  ok(D.boardScope("L1", "1389356308125192192") === "L1@1389356308125192192",
+    "draft-audkenni -> deild@draft");
+  ok(D.boardScope("L1", "  1389356308125192192  ") === "L1@1389356308125192192",
+    "og bil umhverfis er snyrt burt");
+  /* Hálfslegid audkenni ma ekki verda bord. Notandinn slaer i reitinn og
+     hvert atvik gefur nytt gildi — "1", "13", "138"… Vaeri hvert theirra
+     bord vaeri bordid taemt i hverjum staf. */
+  for (const bad of ["1", "138", "12345", "d2", "abc", "12a45678", null, undefined]) {
+    ok(D.boardScope("L1", bad) === "L1",
+      `\`${String(bad)}\` er ekki draft-audkenni -> deildin ein`);
+  }
+
+  /* (b) tomur listi byr ekki til lykil — en skrifast a lykil sem er til */
+  localStorage.clear();
+  D.saveScoped("taken:L1@111111", []);
+  ok(localStorage.getItem("nfl_taken:L1@111111") == null,
+    "tomt bord skrifar EKKI nyjan lykil");
+  D.saveScoped("taken:L1@111111", ["a", "b"]);
+  ok(JSON.parse(localStorage.getItem("nfl_taken:L1@111111")).length === 2,
+    "en bord med volum gerir thad");
+  D.saveScoped("taken:L1@111111", []);
+  ok(JSON.parse(localStorage.getItem("nfl_taken:L1@111111")).length === 0,
+    "og tha SKRIFAST tomt yfir — annars kaemi \"Reset\" til baka");
+
+  /* (c) grisjun: nyjustu 3 lifa, thau eldri fara */
+  localStorage.clear();
+  for (let i = 1; i <= 5; i++) {
+    D.saveScoped(`taken:L1@${1000000 + i}`, [`p${i}`]);
+    D.touchBoardScope(`L1@${1000000 + i}`, 3);
+  }
+  const boardKeys = () => {
+    const out = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("nfl_taken:")) out.push(k);
+    }
+    return out.sort();
+  };
+  ok(boardKeys().length === 3, `thrju yngstu bordin lifa (${boardKeys().length})`);
+  ok(!boardKeys().includes("nfl_taken:L1@1000001") &&
+     boardKeys().includes("nfl_taken:L1@1000005"),
+    "og thad er ELSTA sem fer, ekki thad nyjasta");
+  /* Endurheimsokn a bord faerir thad fremst — annars felli virkt draft
+     ut af aldri medan mock sem var opnad einu sinni sæti eftir. */
+  D.touchBoardScope("L1@1000003", 3);
+  D.saveScoped("taken:L1@1000009", ["p9"]);
+  D.touchBoardScope("L1@1000009", 3);
+  ok(boardKeys().includes("nfl_taken:L1@1000003"),
+    "bord sem er heimsott aftur faerist fremst og lifir");
+
+  /* (d) HANDVIRKA BORDID er utan grisjunar */
+  D.saveScoped("taken:L1", ["hand1", "hand2"]);
+  for (let i = 10; i <= 20; i++) {
+    D.saveScoped(`taken:L1@${2000000 + i}`, [`q${i}`]);
+    D.touchBoardScope(`L1@${2000000 + i}`, 3);
+  }
+  ok(JSON.parse(localStorage.getItem("nfl_taken:L1") || "[]").length === 2,
+    "handvirka bordid stendur af ser ellefu mock i rod");
+
+  /* (e) ad loka deild tekur bordin hennar MED — annars saeti eitt per
+     mock eftir sem munadarlaus lykill. */
+  localStorage.clear();
+  D.saveScoped("taken:L1", ["h"]);
+  D.saveScoped("taken:L1@331111", ["a"]);
+  D.saveScoped("myPicks:L1@331111", ["a"]);
+  D.saveScoped("taken:L2@332222", ["b"]);
+  D.dropScopedState("L1");
+  ok(localStorage.getItem("nfl_taken:L1") == null &&
+     localStorage.getItem("nfl_taken:L1@331111") == null &&
+     localStorage.getItem("nfl_myPicks:L1@331111") == null,
+    "deild sem er lokad tekur oll bord sin med");
+  ok(localStorage.getItem("nfl_taken:L2@332222") != null,
+    "en snertir EKKI adra deild (`@` skilur ad, svo prefix getur ekki hlaupid yfir)");
+  localStorage.clear();
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
