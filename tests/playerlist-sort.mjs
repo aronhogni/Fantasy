@@ -29,7 +29,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { STAT_DEFS } from "../src/stats.js";
+import { STAT_DEFS, STAT_GROUPS } from "../src/stats.js";
 
 const REPO = new URL("../", import.meta.url);
 const D = new URL("data/", REPO).pathname;
@@ -133,14 +133,27 @@ const dirOf = h => {
   return t.includes("↑") ? "asc" : t.includes("↓") ? "desc" : null;
 };
 
-/* FLEIRI EN EINN FLOKKUR — annars profast null-reglan varla.
-   Sjalfgefni flokkurinn ("Basics") er nanast fullur af gognum og bar
-   adeins EINN dalk med tomu gildi. "Defence" ber markmanns-dalka (vorslur,
-   vorslud viti) sem eru null hja ollum utivallarmonnum, og "Attack" ber
-   BSD-dalka sem vantar hja oporudum. Thad er thar sem reglan reynir a. */
+/* FLOKKARNIR ERU LEIDDIR UT UR `STAT_GROUPS`, EKKI TALDIR UPP.
+   Her stod handskrifad ["Basics", "Defence", "Attack", "Set pieces and
+   cards"] — og tveir flokkar voru thvi ALDREI skannadir: "Consistency
+   (Aron)" og "Upcoming fixtures". Handskrifadur listi er thekkt villuaett i
+   thessu repo-i (`gwBlindKeys`, 13 af 22 lyklum rangir; CLAUDE.md 8), og
+   hann bilar ThEGJANDI: nyr flokkur baetist vid, ekkert fellur, thekjan
+   minnkar. Nu fellur profid ef flokka-hnappur finnst ekki, og talningin
+   nedar er FULLYRDING um ad allir flokkarnir hafi verid heimsottir.
+   AF HVERJU ThETTA ER MARKTAEKT: "Defence" ber markmanns-dalka (vorslur,
+   vorslud viti) sem eru null hja ollum utivallarmonnum og "Attack" ber
+   BSD-dalka sem vantar hja oporudum — thad er thar sem null-reglan reynir a.
+   MAELT 17.8.2026 vid ad leida listann ut: dalka-attir foru ur 121 i 134
+   (flokkarnir tveir baeta vid 13) og null-berandi dalkar STODU I STAD, 2.
+   Vinningurinn er thvi ekki fleiri null i dag heldur ad flokkarnir tveir
+   eru ekki lengur ovaktadir — og ad naesti flokkur verdur skannadur an
+   thess ad nokkur muni eftir thvi.                                       */
+let scannedGroups = 0;
 async function scanGroup(label) {
   const btn = [...document.querySelectorAll("button")].find(b => b.textContent.trim() === label);
   if (!btn) { problems.push(`flokkurinn "${label}" fannst ekki`); return; }
+  scannedGroups++;
   await fire(btn);
   const hrow2 = headerRow();
   if (!hrow2) { problems.push(`haus-rod fannst ekki i "${label}"`); return; }
@@ -193,8 +206,12 @@ async function scanColumn(cells, i, group) {
     problems.push(`${name}: "desc" er ekki minnkandi (${nd.slice(0, 5).join(", ")})`);
 }
 
-for (const g of ["Basics", "Defence", "Attack", "Set pieces and cards"]) await scanGroup(g);
+for (const g of STAT_GROUPS) await scanGroup(g.label);
 
+/* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1).               */
+ok(`allir ${STAT_GROUPS.length} flokkarnir voru heimsottir (${scannedGroups})`,
+   scannedGroups === STAT_GROUPS.length,
+   `${scannedGroups} af ${STAT_GROUPS.length} — flokkur sem er ekki heimsottur er ekki varinn`);
 ok(`dalkar lesnir i badar attir (${checkedCols})`, checkedCols >= 30, `adeins ${checkedCols}`);
 /* AD TOM GILDI SJAIST SJALDAN A TOPPNUM ER REGLAN AD VIRKA, ekki thekjubrestur
    — thau eru einmitt SEND NIDUR. Thetta er ANTI-TOMLEIKA-fullyrding: hun
@@ -216,7 +233,11 @@ ok(`dalkar lesnir i badar attir (${checkedCols})`, checkedCols >= 30, `adeins ${
    margir dalkar eiga faerri en 31 gildi i thessum gognum — eiginleiki
    GAGNANNA, ekki kodans — og fast tal um lifandi gogn urealdist thegjandi
    (sama aett og "MEASURED: the range is 4-10", CLAUDE.md 8). Ef hun fer i 0
-   er skonnunin haett ad sja null og fullyrdingarnar ofan eru ordnar tomar. */
+   er skonnunin haett ad sja null og fullyrdingarnar ofan eru ordnar tomar.
+   ENDURMAELT 17.8.2026 thegar flokka-listinn var leiddur ut (6 flokkar i
+   stad 4, 134 dalka-attir i stad 121): talan er ENN 2, somu tveir dalkar.
+   Golfid var EKKI faert upp i 2 af nakvaemlega sama tilefni og thad var
+   faert nidur ur 3 — thad er anti-tomleika-golf, ekki soguleg mynd.      */
 ok(`tom gildi sjast a toppnum i ${nullBearing} tilvikum (maelt 2: Chg GW, Net trans)`,
    nullBearing >= 1, `ENGIN null i skonnuninni — fullyrdingarnar ofan maela ekkert`);
 

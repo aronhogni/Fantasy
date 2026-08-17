@@ -35,7 +35,10 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { interp } from "./interp.js";
 import { RAW } from "./dataUrl.js";
 import ImminentPanel from "./Imminent.jsx";
-import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName, passesThreshold,
+/* `passesThreshold` var flutt UT ur thessum innflutningi 17.8.2026 med
+   throskuldar-siunni. Fallid stendur afram i `stats.js` og a nu engan
+   notanda i appinu.                                                    */
+import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName,
          sumGwRange, gwBlindKeys, makeEnricher } from "./stats.js";
 
 const C = {
@@ -134,16 +137,39 @@ export function rangeBlindKind(defs) {
    "every season field is zero" a skja sem synir ICT 381,4. Fallid er HREINT
    og utflutt af somu astaedu og `rangeBanner`: fullyrding sem bur i
    JSX-skilyrdi verdur adeins LESIN af profi, aldrei KEYRD (CLAUDE.md 7.1).
-   `live_only`-dalkar eru undanskildir — their EIGA ad bera tolur i forleik
-   (FDR6, byrjunar-likur) og myndu svaefa bordann an thess ad neitt vaeri
-   ad. Talid er a THVI SEM SEST, thvi thad er fullyrdingin sem er bori fram. */
-export function staleSeasonRows(rows = [], cols = []) {
-  const seasonal = cols.filter(d => d && !d.live_only && typeof d.get === "function");
-  if (!seasonal.length) return 0;
+
+   TALID ER A DALKUM SEM SAFNAST UPP YFIR UMFERDIR, og skilyrdid er ThAD
+   SAMA sem `rangeBanner` notar (`!rangeBlind`) — ekki nytt skilyrdi.
+   ROKIN: `finished_gw === 0` thydir ad ENGIN umferd er lokin, svo dalkur sem
+   SAFNAST UPP yfir umferdir getur adeins verid non-null fra fyrra timabili.
+   Nullstilli FPL arstidina fer talan i 0 og gamli textinn — sem er tha
+   ordinn sannur — birtist af sjalfu ser.
+
+   FYRSTA UTGAFAN TALDI ALLA `!live_only`-DALKA OG MAELDI ThVI EKKERT
+   (maelt 17.8.2026). `now_cost` (Price) er ekki `live_only`, er non-null hja
+   OLLUM og er verd DAGSINS — engin arstidar-summa. Talan var thvi 587 af 587
+   og `now_cost` EINN gefur 587: hun var `Price > 0` i dulargervi. Verra:
+   verdid nullstillist ALDREI, svo bordinn hefdi haldid afram ad fullyrda
+   "587 af 587 bera enn arstidar-tolur" longu eftir ad FPL nullstillti
+   arstidina — nakvaemlega sama villuaett (fost fullyrding um lifandi gogn)
+   sem bordinn var skrifadur til ad losna vid.
+   Maelt a `players.json` i dag: 587/587 -> **405 af 587** med rettu
+   skilyrdinu. `minutes > 0` eru 400; fimm til bera stig/mork AN minutna
+   (FPL-oheild, sbr. `isIncoherent`), svo 405 er rett tala en ekki 400.
+
+   TALID ER A ALLRI DALKASKRANNI, EKKI A ThVI SEM SEST. Fyrsta utgafan tok
+   syndu dalkana og thad er gildra i sjalfu ser: "Upcoming fixtures" ber
+   0 uppsafnada dalka (5 af 5 `live_only`), svo talan hefdi ordid 0 thar og
+   bordinn flett yfir i "every season field is zero" — osatt a sama skja.
+   Fullyrdingin er um GOGNIN, ekki um dalkavalid, svo maelingin er thad lika. */
+export function staleSeasonRows(rows = [], blind = new Set(), defs = STAT_DEFS) {
+  const acc = defs.filter(d =>
+    d && typeof d.get === "function" && !rangeBlind(d, blind));
+  if (!acc.length) return 0;
   let n = 0;
   for (const r of rows) {
     if (!r?.src) continue;
-    if (seasonal.some(d => {
+    if (acc.some(d => {
       let v; try { v = d.get(r.src); } catch { return false; }
       return v != null && v !== 0;
     })) n++;
@@ -302,141 +328,17 @@ export function headWidth(d, badge = false) {
   return Math.round(Math.max(46, Math.min(142, Math.max(lab, val))));
 }
 
-/* ============================================================
-   STATPICKER — leitanlegur dalkavalari
-
-   AF HVERJU EKKI <select>: dalkarnir eru 124 i 6 flokkum. Native-select
-   getur adeins hoppad a fyrsta staf, svo ad finna "Vaentar assist" thydir
-   ad skruna gegnum allan listann. Notandinn bad um leit.
-
-   LEITIN ER BROTTFELLD A BRODDSTOFUM: "vaent" verdur ad finna "Væntar",
-   "throskuldur" ad finna "Þröskuldur". Islenskt vidmot thar sem leitin
-   krefst broddstafa er leit sem virkar ekki i reynd.
-   Leitad er i BAEDI dalksheiti OG flokksheiti, svo "vorn" gefur allan
-   varnar-flokkinn.
-   ============================================================ */
+/* BROTTFELLD BRODDSTOFUM VID LEIT — `fold` er notud af `ColumnPicker`.
+   HUN FOR MED `StatPicker` I FYRSTU ATRENNU 17.8.2026 og thad var alvoru
+   hrun: hun var skilgreind MILLI haus-athugasemdar StatPicker og fallsins
+   sjalfs, svo blokkin sem var klippt ut tok hana med. `ColumnPicker` vill
+   hana enn og "Build table" felldi appid med `fold is not defined`.
+   ThAD VAR APAPROFID SEM FANN ThAD (`monkey.mjs`, frae 424242, smellur
+   #156) — ekkert af hinum profunum opnar bygginga-haminn med leit.       */
 const fold = t => String(t ?? "").toLowerCase()
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/þ/g, "th").replace(/ð/g, "d").replace(/æ/g, "ae").replace(/ø|ö/g, "o");
 
-function StatPicker({ value, onChange, style }) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [hi, setHi] = useState(0);
-  const boxRef = useRef(null);
-  const listRef = useRef(null);
-  const cur = STAT_BY_KEY[value];
-
-  /* Flatur listi MED flokks-skilum svo orvalyklar hoppi rett — ad radast
-     eftir flokkum en fletjast fyrir lyklabord er thad sem gerir hann
-     nothaefan an mus.                                                    */
-  const items = useMemo(() => {
-    const f = fold(q);
-    const out = [];
-    for (const g of STAT_GROUPS) {
-      /* Leitad er i THRENNU: dalksheiti, flokksheiti OG `key`. Lyklarnir eru
-         a ENSKU (threat, creativity, bps, ict_index) og thad er thad sem
-         FPL-folk slaer inn — islenska heitid a "threat" er "Ogn", svo an
-         lykla-leitar gaefi "threat" ENGA nidurstodu. Maelt: 124 -> 12 fyrir
-         "vaent", 5 fyrir "spjold", og "threat" fann ekkert fyrr en nu.     */
-      /* Leitad er i FIMM: dalksheiti, HAUS-heiti (`short`), band, flokkur
-         OG `key`. `short` var vidbot 8.8.2026 — hausinn segir "CBI" og thad
-         er thad sem notandinn slaer inn, en fulla heitid er
-         "Clearances/blocks/int". Lykla-leitin var thegar naudsynleg af sömu
-         aestaedu i íslenska vidmotinu og heldur ser: FPL-folk slaer "bps".  */
-      const ds = STAT_DEFS.filter(d => d.group === g.key)
-        .filter(d => !f || fold(d.label).includes(f) || fold(g.label).includes(f)
-                        || fold(d.short).includes(f) || fold(d.band).includes(f)
-                        || fold(d.key).replace(/_/g, " ").includes(f)
-                        || fold(d.key).includes(f));
-      if (!ds.length) continue;
-      out.push({ grp: g.label });
-      for (const d of ds) out.push({ d, grp: g.label });
-    }
-    return out;
-  }, [q]);
-  const pickable = items.filter(i => i.d);
-
-  useEffect(() => { setHi(0); }, [q]);
-  useEffect(() => {
-    if (!open) return;
-    const away = e => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", away);
-    return () => document.removeEventListener("mousedown", away);
-  }, [open]);
-  /* Halda upplystu atridi i sjonmali — annars leidir orvalyklarnir
-     valid ut ur skrunglugganum og notandinn ser ekkert gerast.          */
-  useEffect(() => {
-    if (!open || !listRef.current) return;
-    const el = listRef.current.querySelector('[data-hi="1"]');
-    if (el?.scrollIntoView) el.scrollIntoView({ block: "nearest" });
-  }, [hi, open]);
-
-  const commit = i => { const it = pickable[i]; if (!it) return;
-                        onChange(it.d.key); setOpen(false); setQ(""); };
-  const key = e => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setHi(v => Math.min(v + 1, pickable.length - 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setHi(v => Math.max(v - 1, 0)); }
-    else if (e.key === "Enter") { e.preventDefault(); commit(hi); }
-    else if (e.key === "Escape") { setOpen(false); setQ(""); }
-  };
-
-  return (
-    <div ref={boxRef} style={{ ...S.pkWrap, ...(style || {}) }}>
-      <input style={S.pkInput} role="combobox" aria-expanded={open}
-        aria-label={"Search for a stat"}
-        placeholder={cur?.label || "pick a stat"}
-        value={open ? q : (cur?.label || "")}
-        onFocus={() => setOpen(true)}
-        onChange={e => { setQ(e.target.value); setOpen(true); }}
-        onKeyDown={key} />
-      <span style={S.pkCaret} aria-hidden="true">▾</span>
-      {open && (
-        <div ref={listRef} style={S.pkList} role="listbox">
-          {!pickable.length ? <div style={S.pkNone}>{"no stat matches “"}{q}{"”"}</div> : null}
-          {items.map((it, i) => it.d ? (
-            <div key={it.d.key} role="option"
-              aria-selected={it.d.key === value}
-              data-hi={pickable.indexOf(it) === hi ? "1" : "0"}
-              style={{ ...S.pkOpt,
-                       ...(pickable.indexOf(it) === hi ? S.pkOptHi : {}),
-                       ...(it.d.key === value ? S.pkOptSel : {}) }}
-              onMouseEnter={() => setHi(pickable.indexOf(it))}
-              onMouseDown={e => { e.preventDefault(); commit(pickable.indexOf(it)); }}
-              title={it.d.note || ""}>
-              {it.d.label}
-              {/* HAUS-HEITID BIRT MED — annars getur notandinn ekki tengt
-                  "Clearances/blocks/int" hér vid "CBI" i toflunni.       */}
-              {it.d.short && it.d.short !== it.d.label
-                ? <span style={S.pkShort}>{it.d.short}</span> : null}
-              {it.d.live_only ? <span style={S.pkLive} title={"Does NOT follow the selected season"}>{"now"}</span> : null}
-            </div>
-          ) : <div key={"g" + i} style={S.pkGrp}>{it.grp}</div>)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ============================================================
-   COLUMNPICKER — "BYGGDU TOFLUNA"
-
-   Kemur i stad "Table"-hamsins i stigatoflunni, sem gat adeins EINA tolu i
-   einu: madur valdi "xG" og fekk xG-tofluna. Beidnin var onnur og bad um
-   samanburd — MARGAR tolur i einu, valdar med smell.
-
-   THRJAR AKVARDANIR SEM ERU ASETTAR:
-     1. VALROD, EKKI SKRA-ROD. Sa sem er valinn fyrst stendur fyrst i
-        toflunni. Skra-rod hefdi verid "snyrtilegri" en tha getur madur ekki
-        stillt tveimur tolum hlid vid hlid, sem er allt sem thetta er til
-        fyrir.
-     2. FLOKKAR OG BOND HALDA SER i valaranum. 100 chip-a fletja i eina hrugu
-        er oleaesileg; sama flokkun sem taflan notar gerir listann skannanlegan
-        og er ÞEGAR til (`band` ur kafla 6r).
-     3. LEITIN ER BROTTFELLD A BRODDSTOFUM og les LIKA `short`, `band` og
-        `key` — sama regla og throskulds-valarinn, thvi FPL-folk slaer inn
-        "bps" og "cbi", ekki islensk eda long heiti.
-   ============================================================ */
 function ColumnPicker({ keys, selected, onToggle, onClear, pinnedKeys, narrow }) {
   const [q, setQ] = useState("");
   /* SAMANBROTID ER NAUDSYNLEGT, EKKI SNYRTING — og thad varð BRYNNA thegar
@@ -566,7 +468,10 @@ function ViewToggles({ dense, setDense }) {
    flipa-skipti af; annars vaeri thad sott aftur i hvert sinn.          */
 const GW_CACHE = new Map();
 
-export default function PlayerList({ players, teams, teamById, events, seasonsFile,
+/* `teams` var tekid ur vidfanga-listanum 17.8.2026 — thad var adeins notad
+   i lida-siunni sem for. App.jsx sendir thad afram og thad er meinlaust;
+   propp sem er ekki tekid vid kostar ekkert og skrain er ekki min.      */
+export default function PlayerList({ players, teamById, events, seasonsFile,
                                      imminent, shotsFile, fixtures, odds, defcon, defconHist, consist,
                                      bsd, photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
                                      watch, onWatch, mineIds }) {
@@ -709,16 +614,17 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
      RANGIR, svo merkingin birtist hvergi.                               */
   const blindKeys = useMemo(() => gwBlindKeys(), []);
 
-  /* ---------- sior ---------- */
+  /* ---------- sior ----------
+     `minCost`/`maxCost` (verd-bil), `teamSel` (lida-sia), `onlyAvail`
+     ("fit to play") og `onlyMine` ("my squad") voru FJARLAEGD 17.8.2026
+     ad beidni notandans, asamt throskuldar-siunni. Ekkert theirra var
+     vistad i `localStorage` (adeins `fpl_gwopen`, `fpl_dense` og
+     `fpl_cols` eru vistadir hedan), svo gamalt vistad astand ber tha
+     hvergi og enginn les-vordur brotnar vid brottnamid.                */
   const [pos, setPos] = useState("all");
   const [q, setQ] = useState("");
-  const [minCost, setMinCost] = useState("");
-  const [maxCost, setMaxCost] = useState("");
-  const [teamSel, setTeamSel] = useState([]);
-  const [onlyAvail, setOnlyAvail] = useState(false);
   const [hidePicked, setHidePicked] = useState(false);
   const [onlyWatch, setOnlyWatch] = useState(false);
-  const [onlyMine, setOnlyMine] = useState(false);
   const [group, setGroup] = useState("core");
 
   /* ---------- THRIR LESMATAR (8.8.2026) ----------
@@ -754,21 +660,23 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const toggleCol = k => setCustomKeys(v =>
     v.includes(k) ? v.filter(x => x !== k) : [...v, k]);
 
-  /* THROSKULDAR — LIFA UTAN FLOKKS OG UTAN TIMABILS.
-     Thetta er kjarninn i beidninni 8.8.2026: "smelli a 90%, breyti i 85%,
-     fer svo i naesta flokk (threat) og held afram ad filtera thar."
-     Thess vegna er `thresholds` EINN listi sem engin flokka-skipti hreyfa,
-     og hver lidur er RITANLEGUR a sinum stad (sja FilterChip) i stad thess
-     ad thurfa ad setja hann inn upp a nytt.                            */
-  const [thresholds, setThresholds] = useState([]);   // [{key, op, val}]
-  /* Sidasti throskuldur sem VARD TIL vid smell a tolu — reiturinn hans
-     faer fokus og textinn valinn, svo "85" komi beint i stad "90".     */
-  const [freshTh, setFreshTh] = useState(null);       // "key|op"
+  /* THROSKULDAR-SIAN VAR TEKIN UT 17.8.2026 — OG HUN VAR LIKA VILLAN.
+     Beidnin 8.8.2026 var: "ef eg smelli a akvedid stat, t.d. start
+     prosentu 90%, tha poppar thad upp sem filter MOGULEIKI sem eg get svo
+     breytt". Utfaerslan setti siuna A SAMSTUNDIS: hvert einasta tolu-holf
+     bar `onClick={() => filterOnValue(d, v)}`, svo smellur a tolu — t.d.
+     til ad LESA rodina — beitti "min <talan>" strax.
+     ENDURGERT I JSDOM 17.8.2026: einn smellur a "239" i Points-dalki
+     Haalands for listann ur **587 af 587 i 1 af 587**. Notandinn lysti
+     thessu sem "eg smelli a listann og filteringin dettur sjalfkrafa inn"
+     — thad var ekki fokus- eda render-villa heldur handler a holfinu.
+     Vidbotarahrif sem hvarf med: `autoFocus` a nyja chip-inu greip fokus
+     ur toflunni i sama smelli.
+     Med siunni for `passesThreshold`-notkunin ur thessari skra. Fallid
+     sjalft stendur afram i `stats.js` (onnur lota a thа skra); thad a nu
+     ENGAN notanda i appinu og ma fjarlaegja thar ef sa sem a skrana vill. */
   const [sortKey, setSortKey] = useState("total_points");
   const [sortDir, setSortDir] = useState("desc");
-  const [thKey, setThKey] = useState("expected_goal_involvements_per_90");
-  const [thOp, setThOp] = useState(">=");
-  const [thVal, setThVal] = useState("");
 
   /* ---------- "cook": ein umferd yfir gognin ----------
      Allt sem radun og sia thurfa er reiknad HER, einu sinni. Enginn
@@ -906,67 +814,42 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     () => rangeBlindKind(banner === "picked" ? visibleCols : shownCols),
     [banner, shownCols, visibleCols]);
   /* Talid ADEINS thegar bordinn getur birst — annars 587 x 60 getter-koll
-     i hverri teikningu fyrir bordа sem er ekki a skjanum.               */
+     i hverri teikningu fyrir bordа sem er ekki a skjanum. Og thad hangir
+     EKKI a `shownCols` (sja `staleSeasonRows`): talan er um gognin, svo
+     hun er reiknud einu sinni per rada-mengi i stad einu sinni per
+     dalkavali.                                                          */
   const staleSeason = useMemo(
-    () => (finishedGw === 0 && isLive ? staleSeasonRows(rows, shownCols) : 0),
-    [finishedGw, isLive, rows, shownCols]);
+    () => (finishedGw === 0 && isLive ? staleSeasonRows(rows, blindKeys) : 0),
+    [finishedGw, isLive, rows, blindKeys]);
 
   const watchSet = useMemo(() => new Set(watch || []), [watch]);
   const mineSet = useMemo(
     () => (mineIds instanceof Set ? mineIds : new Set(mineIds || [])), [mineIds]);
 
-  /* ---------- sia ---------- */
+  /* ---------- sia ----------
+     FIMM SIUR VORU TEKNAR UT 17.8.2026 ad beidni notandans: throskuldar-
+     sian ("Threshold: ▾" og smellur a tolu), verd-bilid, lida-sian,
+     "fit to play" og "my squad". Eftir standa stada, leit, vaktlisti og
+     "hide selected" — thaer sem hann bad um ad halda.
+     ThETTA ER ALLT EDA EKKERT: sia sem er tekin ur vidmotinu en skilin
+     eftir i thessu falli myndi threngja listann OSYNILEGA, sem er verra
+     en sian sjalf var. Vordurinn er RADA-TALNING i DOM
+     (`playerlist-gw-filter.mjs` kafli 4), ekki lestur a thessum kafla.  */
   const filtered = useMemo(() => {
     const t0 = (typeof performance !== "undefined" ? performance.now() : 0);
     const needle = normName(q);
-    const lo = parseFloat(String(minCost).replace(",", "."));
-    const hi = parseFloat(String(maxCost).replace(",", "."));
-    const teamSet = new Set(teamSel.map(Number));
     const picked = new Set(cmpIds || []);
     const out = rows.filter(r => {
       if (pos !== "all" && r.p.element_type !== +pos) return false;
-      if (teamSet.size && !teamSet.has(r.p.team)) return false;
-      if (onlyAvail && !r.avail) return false;
       if (hidePicked && picked.has(r.p.id)) return false;
       if (onlyWatch && !watchSet.has(r.p.id)) return false;
-      if (onlyMine && !mineSet.has(r.p.id)) return false;
-      if (Number.isFinite(lo) && r.cost < lo) return false;
-      if (Number.isFinite(hi) && r.cost > hi) return false;
       if (needle && !r.search.includes(needle)) return false;
-      for (const t of thresholds) {
-        /* HALFSKRIFAD GILDI SIAR EKKI. Reiturinn i chip-inu er ritanlegur,
-           svo `val` er tomur strengur eitt augnablik medan notandinn skiptir
-           90 fyrir 85 — og `5 >= ""` er TRUE i JS (tomur strengur verdur 0),
-           svo an thessarar vardar hefdi sian hoppad i "minnst 0" og listinn
-           blikkad i fulla lengd vid hvern innslatt.                       */
-        if (!Number.isFinite(t.val)) continue;
-        const d = STAT_BY_KEY[t.key];
-        /* VERD OG EIGNARHALD ERU ALLTAF DAGSINS — LIKA I SIUNNI.
-           Thessir tveir dalkar eru undantekningin fra "lestu ur `r.src`":
-           holfin birta dagsins tolu fyrir ALLA 573 (kafli 6i), en
-           arkiv-rodin er null hja 115 theirra sem spiludu ekki 2025/26.
-           Laesum vid `r.src` myndi "mest GBP15,5" henda theim 115 UT —
-           thott verdid theirra sjaist i toflunni og uppfylli skilyrdid.
-           Maelt: 573 -> 458 an thessarar undantekningar, 573 -> 573 med. */
-        const v = t.key === "now_cost" ? r.cost
-                : t.key === "selected_by_percent" ? r.own
-                : (d && r.src ? d.get(r.src) : null);
-        if (v == null) return false;                 // "vantar" fellur ut ur throskuldi
-        /* Reglan sjalf bur i `passesThreshold` (stats.js) — hun var her
-           inni og thа gat profid adeins lesid kodann: stokkbreyting sem
-           fjarlaegdi namundunina SLAPP I GEGN. Sja hausinn thar.        */
-        const tDef = t.key === "now_cost" ? { dec: 1 }
-                   : t.key === "selected_by_percent" ? { dec: 1 }
-                   : d;
-        if (!passesThreshold(tDef, v, t.op, t.val)) return false;
-      }
       return true;
     });
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Players] filter -> ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [rows, pos, q, minCost, maxCost, teamSel, onlyAvail, hidePicked, thresholds, cmpIds,
-      onlyWatch, onlyMine, watchSet, mineSet]);
+  }, [rows, pos, q, hidePicked, cmpIds, onlyWatch, watchSet]);
 
   /* ---------- rodun ----------
      NULL ALLTAF SIDAST, i BADAR attir. Thetta er algengasta villan:
@@ -1032,6 +915,17 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         if (v != null && Number.isFinite(v)) vals.push(v);
       }
       if (vals.length < 8) continue;              // ortitid urtak -> enginn litur
+      /* DALKUR AN EINHALLA "BETRA" FAER ENGAN LIT (17.8.2026).
+         `heatScale` a adeins tvo kosti: haerra er betra, eda laegra er
+         betra (`invert`). `starts_per_90` er hvorugt — nota dalksins segir
+         sjalf ad ~1,0 se KJORID og ad yfir 1 thydi "byrjar en er skipt af,
+         EDA urtakid er ortitid". Med `hi:true` malaði hitakortid thvi
+         sterkasta graena a Jocelin.T (2,37 ur 1 byrjun, 38 minutum) og
+         kalladi hann besta mann toflunnar — a dalki sem varar sjalfur vid
+         nakvaemlega thvi. `hi` er FORSENDA, ekki skraut (kafli 8):
+         villandi mynd er verri en engin mynd. Rodun er OSNERT — hun er
+         gagnleg; thad er LITURINN sem fullyrdir "bestur".              */
+      if (d.no_heat) continue;
       vals.sort((a, b) => a - b);
       const lo = vals[Math.floor(vals.length * 0.10)];
       const hi = vals[Math.floor(vals.length * 0.90)];
@@ -1237,69 +1131,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const arrow = k => sortKey !== k ? "" : (sortDir === "asc" ? " ↑" : " ↓");
   const aria = k => sortKey !== k ? "none" : (sortDir === "asc" ? "ascending" : "descending");
 
-  /* ---------- SMELLUR A TOLU = THROSKULDUR ----------
-     Beidnin, orðrett: "ef ég smelli á ákveðið stat, t.d. start prósentu
-     90%, þá poppar það upp sem filter möguleiki sem ég get svo breytt".
-     Attin er LEIDD UT UR `hi` og ekki gefin: a "Verd" og "Min/framlag" er
-     LAEGRA betra, svo smellur thar setur HAM ("mest 5,4") — annars vaeri
-     smellurinn ad sia burt einmitt tha sem hann var ad benda a.
-     Talan er tekin EINS OG HUN BIRTIST (`dec`), ekki hra: notandinn smellti
-     a "90%", ekki a 0,8967 — throskuldur sem sier hann sjalfan ut er villa. */
-  const filterOnValue = (d, v) => {
-    if (v == null || !Number.isFinite(v)) return;
-    const op = d.hi === false ? "<=" : ">=";
-    const val = +v.toFixed(d.dec ?? 0);
-    setThresholds(t => [...t.filter(x => !(x.key === d.key && x.op === op)),
-                        { key: d.key, op, val }]);
-    setFreshTh(`${d.key}|${op}`);
-  };
-  /* OP-ROFINN MATTI BUA TIL TVAER EINS FAERSLUR (lagad 11.8.2026).
-     `thresholds` ma bera BADAR attir a sama dalki — "min 5" OG "max 9" er
-     gild sia. Lyklarnir i vidmótinu eru `t.key + t.op`, sem er einkvaemt
-     fyrir thau tvo. EN op-rofinn flettir `op` A STADNUM, svo ad ryta "max"
-     yfir i "min" a dalki sem A ThEGAR "min" gaf **tvaer faerslur med sama
-     key+op** — tveir eins React-lyklar, og tvaer sur sem sia hid sama.
-     `filterOnValue` ver sig gegn thessu (`filter(x => !(key && op))` adur en
-     hun bætir vid); rofinn gerdi thad ekki. Nu gerir hann thad sama: faerslan
-     sem ATTI nyja op-id er fjarlaegd, svo rofinn SAMEINAR i stad ad
-     tvitaka.                                                             */
-  const setThAt = (i, patch) =>
-    setThresholds(t => {
-      const next = t.map((x, j) => j === i ? { ...x, ...patch } : x);
-      if (!("op" in patch)) return next;
-      const moved = next[i];
-      return next.filter((x, j) => j === i || !(x.key === moved.key && x.op === moved.op));
-    });
-  const dropThAt = i => setThresholds(t => t.filter((_, j) => j !== i));
-  /* HVADA DALKAR ERU UNDIR SIU — merkt i hausnum OG a flokkahnappnum, svo
-     sian se synileg thott hun se i ODRUM flokki en theim sem er opinn.  */
-  const thByKey = useMemo(() => {
-    const m = {};
-    thresholds.forEach(t => (m[t.key] ||= []).push(t));
-    return m;
-  }, [thresholds]);
-  const thPerGroup = useMemo(() => {
-    const m = {};
-    for (const t of thresholds) {
-      const g = STAT_BY_KEY[t.key]?.group;
-      if (g) m[g] = (m[g] ?? 0) + 1;
-    }
-    return m;
-  }, [thresholds]);
-
-  /* Einfoldu sirnar (stada, leit, verd, gatmerki) — chip sem hreinsar sig. */
+  /* Sirnar sem eftir standa (stada, leit, vaktlisti, faldir) — chip sem
+     hreinsar sig. Verd-, lida-, "fit to play"- og "my squad"-chipin foru
+     med siunum sinum 17.8.2026; chip an siu vaeri hnappur sem hreinsar
+     ekki neitt.                                                         */
   const chips = [];
   if (pos !== "all") chips.push([POS[+pos], () => setPos("all")]);
   if (q) chips.push([`“${q}”`, () => setQ("")]);
-  if (minCost !== "") chips.push([`price min £${minCost}`, () => setMinCost("")]);
-  if (maxCost !== "") chips.push([`price max £${maxCost}`, () => setMaxCost("")]);
-  teamSel.forEach(id => chips.push([teamById?.[id]?.short || id,
-    () => setTeamSel(v => v.filter(x => x !== id))]));
-  if (onlyAvail) chips.push(["fit to play", () => setOnlyAvail(false)]);
   if (hidePicked) chips.push(["hide selected", () => setHidePicked(false)]);
   if (onlyWatch) chips.push(["★ watchlist", () => setOnlyWatch(false)]);
-  if (onlyMine) chips.push(["my squad", () => setOnlyMine(false)]);
-  const filterCount = chips.length + thresholds.length;
+  const filterCount = chips.length;
 
   if (!players?.length) {
     return <section style={S.card}><div style={S.muted}>{"Fetching player data…"}</div></section>;
@@ -1342,17 +1183,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           </select>
           {filterCount > 0 && mode !== "imm" &&
             <button style={S.clearAll} onClick={() => {
-              setPos("all"); setQ(""); setMinCost(""); setMaxCost(""); setTeamSel([]);
-              setOnlyAvail(false); setHidePicked(false); setThresholds([]);
-              setOnlyWatch(false); setOnlyMine(false);
+              setPos("all"); setQ(""); setHidePicked(false); setOnlyWatch(false);
             }}>{"clear all"}</button>}
         </div>
       </div>
 
       {/* IMMINENT ER SJALFSTAETT SPJALD — engar sior, engin tafla. Thad les
           adeins imminent.json og hefur sina eigin markhopa-reglu (0-1 framlag,
-          180+ min), svo verd-bil og stodu-sia sem gilda um tofluna eiga thar
-          ekki heima og hefdu logið um hvad er verid ad syna.               */}
+          180+ min), svo sirnar sem gilda um tofluna eiga thar ekki heima og
+          hefdu logið um hvad er verid ad syna. (Daemid sem stod her — verd-
+          bilid — er ekki lengur til; reglan er ohreyfd.)                   */}
       {mode === "imm" ? (
         <ImminentPanel imminent={imminent} teamById={teamById} Crest={Crest}
           photoUrl={photoUrl} players={players} onPickPlayer={onPickPlayer} />
@@ -1530,11 +1370,11 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
 
           TALAN ER MAELD I HVERRI TEIKNINGU, EKKI SKRIFUD. Fost tala um
           lifandi gogn ureldist thegjandi — nakvaemlega thad gerdist vid
-          "MEASURED: the range is 4-10" i `ck_order` 13.8.2026. Og hun er
-          maeld a THVI SEM SEST (arstidar-dalkunum a skjanum), thvi thad er
-          nakvaemlega fullyrdingin sem bordinn ber fram; `live_only`-dalkar
-          eru undanskildir thvi their EIGA ad bera tolur i forleik og
-          myndu annars svaefa bordann.
+          "MEASURED: the range is 4-10" i `ck_order` 13.8.2026.
+          Hun er maeld a dalkum sem SAFNAST UPP yfir umferdir (`staleSeasonRows`,
+          sja skilyrdid thar); fyrsta utgafan taldi verd og eignarhald med og
+          las thvi 587 af 587 sem `Price > 0` i dulargervi — tala sem hefdi
+          ALDREI farid nidur, ekki einu sinni eftir nullstillingu FPL.
           Nullstilli FPL toluna verdur `staleSeason` 0 og gamli textinn —
           sem er tha ordinn sannur — birtist af sjalfu ser.               */}
       {finishedGw === 0 && isLive && (
@@ -1543,7 +1383,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           {staleSeason > 0 ? <>
             {"— but FPL has not reset its season totals yet, so these are still last season's numbers:"}
             {" "}<b>{staleSeason}</b>{" of "}{players.length}
-            {" players still show non-zero season figures here, and with no gameweek played they can only be "}
+            {" players still carry totals that only played gameweeks can add up, and with none played they can only be "}
             <b>{olderSeasons[0] || "last season"}</b>{" totals. Pick that season in the dropdown to read it on purpose"}
             {" — the archive is per season and does not move."}
           </> : <>
@@ -1567,41 +1407,14 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         </div>
         <input style={S.search} placeholder={"Search — name or team"} value={q}
           onChange={e => setQ(e.target.value)} />
-        <label style={S.costWrap} title={"Price range in millions"}>
-          <span style={S.costLbl}>£</span>
-          <input style={S.costIn} type="number" step="0.1" placeholder={"from"}
-            value={minCost} onChange={e => setMinCost(e.target.value)} />
-          <span style={S.costLbl}>–</span>
-          <input style={S.costIn} type="number" step="0.1" placeholder={"to"}
-            value={maxCost} onChange={e => setMaxCost(e.target.value)} />
-        </label>
-        <select style={S.sel} value="" onChange={e => {
-          const id = +e.target.value;
-          if (id) setTeamSel(v => v.includes(id) ? v : [...v, id]);
-        }}>
-          <option value="">{"+ team"}</option>
-          {(teams || []).slice().sort((a, b) => String(a.short).localeCompare(String(b.short)))
-            .map(t => <option key={t.id} value={t.id}>{t.short}</option>)}
-        </select>
-        {/* "available only" SAGDI EKKI HVAD THAD GERIR — notandinn spurdi
-            hvort thad vaeri "bara their sem eg hef efni a". Thad er FPL
-            `status === "a"`: heilbrigdur og leikheimill. Verd kemur thessu
-            ekkert vid; verd-bilid vid hlidina gerir thad.               */}
-        <label style={S.check}
-          title={"Hides injured, suspended and doubtful players (FPL status other than \"available\"). Nothing to do with price — use the £ range for that."}>
-          <input type="checkbox" checked={onlyAvail}
-            onChange={e => setOnlyAvail(e.target.checked)} />{"fit to play"}
-        </label>
+        {/* HER VORU VERD-BILID, LIDA-SIAN OG "fit to play" — fjarlaegd
+            17.8.2026 ad beidni notandans asamt "my squad" og throskuldar-
+            siunni. Sjalf `status`-talan er ekki horfin: hun sest afram a
+            hverri rod og a leikmannaspjaldinu, thad er sian sem for.    */}
         <label style={S.check} title={"Starred players only"}>
           <input type="checkbox" checked={onlyWatch}
             onChange={e => setOnlyWatch(e.target.checked)} />{"★ watchlist ("}{watchSet.size})
         </label>
-        {mineSet.size > 0 && (
-          <label style={S.check} title={"Only players in my squad"}>
-            <input type="checkbox" checked={onlyMine}
-              onChange={e => setOnlyMine(e.target.checked)} />{"my squad ("}{mineSet.size})
-          </label>
-        )}
         {!!(cmpIds || []).length && (
           <label style={S.check}>
             <input type="checkbox" checked={hidePicked}
@@ -1610,78 +1423,14 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
         )}
       </div>
 
-      {/* ---------- almennur throskuldur a HVAÐA tolu sem er ----------
-          Thrjatiu sliderar a skja i einu eru onothaefir; thetta gefur
-          sama kraft i einu chipi.
-          I SOMU ROD OG ADRAR SIUR (8.8.2026): thetta ER sia, og eigin rod
-          fyrir hana kostadi 26 px af theim 415 sem foru i umgjord. Rodin
-          brotnar sjalf thegar plass thrytur.                            */}
-      <div style={{ ...S.thRow, ...S.thRowInline }}>
-        <span style={S.thLbl}>{"Threshold:"}</span>
-        <StatPicker value={thKey} onChange={setThKey} />
-        {/* ORD, EKKI TAKN. "≥" og "≤" eru vanaspurning: notandinn tharf ad
-            muna hvor bogi opnast hvert, og thad er ekki thess vert i einu
-            filter-vidmoti. "minnst 5" og "mest 5" lesast rett i fyrstu
-            tilraun og thurfa engan lykil.                                */}
-        <select style={S.selOp} value={thOp} onChange={e => setThOp(e.target.value)}>
-          <option value=">=">{"min"}</option>
-          <option value="<=">{"max"}</option>
-        </select>
-        <input style={S.thVal} type="number" step="any" placeholder={"number"}
-          value={thVal} onChange={e => setThVal(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") addTh(); }} />
-        <button style={S.addBtn} onClick={addTh}>{"add"}</button>
-      </div>
-
       {/* ---------- VIRKAR SIUR ----------
-          EIGIN RAMMI MED TOLU, EKKI LAUS CHIP-ROD. Beidnin var ad "hafa
-          augljost hvada filteringar eru i gangi": throskuldur getur legid a
-          dalki i ODRUM flokki en theim sem er opinn, svo lista sem er auðvelt
-          ad missa ur augsyn er ekki nog. Hver throskuldur er RITANLEGUR HER
-          — tala, atti og eyding — svo enginn thurfi ad setja hann inn upp a
-          nytt til ad breyta 90 i 85.                                      */}
+          EIGIN RAMMI MED TOLU, EKKI LAUS CHIP-ROD: beidnin var ad "hafa
+          augljost hvada filteringar eru i gangi". Throskuldar-chipin (sem
+          voru ritanleg a stadnum) foru med throskuldar-siunni 17.8.2026;
+          eftir standa einfoldu sirnar, hver med sinu hreinsi-chipi.     */}
       {filterCount > 0 && (
         <div style={S.filterBar}>
           <span style={S.filterHd}>{"Filters"} <span style={S.filterN}>{filterCount}</span></span>
-          {thresholds.map((t, i) => {
-            const d = STAT_BY_KEY[t.key];
-            return (
-              <span key={t.key + t.op} style={S.thChip}>
-                {/* Heitid er HNAPPUR: hann opnar flokkinn sem dalkurinn er i,
-                    svo hægt se ad SJA toluna sem er sídad eftir.          */}
-                {/* Smellur a heitid SYNIR dalkinn — og "syna" thydir sitt
-                    hvad i lesmatunum: i flokka-ham ad opna flokkinn hans, i
-                    bygginga-ham ad SETJA hann i tofluna. Sian sjalf er su
-                    sama; hun er bara ekki synileg a sama hatt.            */}
-                <button style={S.thChipName}
-                  title={`${d?.label || t.key} — click to show this column${d?.note ? "\n\n" + d.note : ""}`}
-                  onClick={() => {
-                    if (!d) return;
-                    if (mode === "custom") {
-                      if (!customSet.has(d.key) && !pinnedKeys.has(d.key)) toggleCol(d.key);
-                    } else setGroup(d.group);
-                  }}>
-                  {d?.short || d?.label || t.key}
-                </button>
-                <button style={S.thChipOp}
-                  title={"Switch between a minimum and a maximum"}
-                  onClick={() => setThAt(i, { op: t.op === ">=" ? "<=" : ">=" })}>
-                  {t.op === ">=" ? "min" : "max"}
-                </button>
-                <input style={S.thChipVal} type="number" step="any" value={t.val}
-                  aria-label={`${d?.label || t.key} ${t.op === ">=" ? "minimum" : "maximum"}`}
-                  autoFocus={freshTh === `${t.key}|${t.op}`}
-                  onFocus={e => e.target.select()}
-                  onChange={e => {
-                    const v = parseFloat(String(e.target.value).replace(",", "."));
-                    setThAt(i, { val: Number.isFinite(v) ? v : e.target.value });
-                  }} />
-                {d?.pct ? <span style={S.thChipUnit}>%</span> : null}
-                <button style={S.thChipX} aria-label={"Remove filter"}
-                  onClick={() => dropThAt(i)}>✕</button>
-              </span>
-            );
-          })}
           {chips.map(([label, clear], i) => (
             <button key={i} style={S.chip} onClick={clear}>{label} ✕</button>
           ))}
@@ -1715,15 +1464,6 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           <button key={g.key} style={{ ...S.groupBtn, ...(group === g.key ? S.groupOn : {}) }}
             onClick={() => setGroup(g.key)}>
             {g.label}
-            {/* TALAN A HNAPPNUM ER SVARID VID "hann eltir ef eg skipti um
-                flokk": sian a Threat helst thegar Sokn er opnud, og hun
-                SEGIR FRA SER hérna i stad thess ad thegja i lokuðum flokki. */}
-            {thPerGroup[g.key]
-              ? <span style={S.groupBadge}
-                  title={interp("{0} filter(s) on columns in this group", [thPerGroup[g.key]])}>
-                  {thPerGroup[g.key]}
-                </span>
-              : null}
           </button>
         ))}
         <ViewToggles dense={dense} setDense={setDense} />
@@ -1733,14 +1473,11 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       {/* ---------- tafla ---------- */}
       {!sorted.length ? (
         <div style={S.empty}>
-          <b>{"No player matches."}</b> {"Active filters:"} {filterCount
-            ? [...thresholds.map(t => `${STAT_BY_KEY[t.key]?.label || t.key} `
-                + `${t.op === ">=" ? "min" : "max"} ${t.val}`),
-               ...chips.map(([l]) => l)].join(" · ")
-            : "none"}.
+          <b>{"No player matches."}</b> {"Active filters:"}{" "}
+          {filterCount ? chips.map(([l]) => l).join(" · ") : "none"}.
           {filterCount > 0 && <> <button style={S.link} onClick={() => {
-            setThresholds([]); setMinCost(""); setMaxCost("");
-          }}>{"clear thresholds and price range"}</button></>}
+            setPos("all"); setQ(""); setOnlyWatch(false); setHidePicked(false);
+          }}>{"clear filters"}</button></>}
         </div>
       ) : (
         <div ref={scrollRef} style={{ ...S.scroll, ...(fitH ? { maxHeight: fitH } : {}) }}>
@@ -1796,17 +1533,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                 {visibleCols.map(d => (
                   <div key={d.key} style={{ ...S.hCell, ...cFor(d),
                          ...(gwActive && blindKeys.has(d.key) ? S.hBlind : {}),
-                         ...(thByKey[d.key] ? S.hFiltered : {}) }}
+                         }}
                     title={`${d.label}${d.short && d.short !== d.label ? ` (${d.short})` : ""}`
                          + `${d.derived ? " · computed by us from FPL fields" : ""}`
                          + `\n\n${d.note || ""}`
-                         + `\n\nClick the header to sort. Click any value in the column to filter on it.`
+                         + `\n\nClick the header to sort.`
                          + (gwActive && blindKeys.has(d.key)
                             ? `\n\nSEASON FIGURE: does not follow the gameweek range, shows the total.` : "")}
                     aria-sort={aria(d.key)} tabIndex={0}
                     onClick={() => sortOn(d.key, d.hi !== false)}
                     onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn(d.key, d.hi !== false); } }}>
-                    {thByKey[d.key] ? <span style={S.hFunnel} title={"filtered"}>▼</span> : null}
                     {hLabel(d)}
                     {/* Merking a dalkinum sjalfum, ekki adeins i skyringu:
                         notandinn les tofluna, ekki fotnotur.
@@ -1896,22 +1632,15 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                       {inCmp ? "✓" : "⇄"}
                     </button>}
                   </div>
-                  {/* FOSTU DALKARNIR ERU SMELLANLEGIR EINS OG ALLIR HINIR.
-                      Their voru thad EKKI — hvorki onClick ne title — thott
-                      skyringin undir toflunni segi "Click any value to filter
-                      on it" og hvert einasta annad holf geri thad. Notandinn
-                      smellti a verd og EKKERT gerdist, an nokkurrar skyringar.
-                      Stadfest ad thetta se ohaett: throskuldurinn les
-                      `now_cost.get(r.src)` sem skilar SOMU tolu og birt er
-                      (maelt: "Price min 15,5" skilar nakvaemlega Haaland a
-                      GBP15,5), svo sian getur ekki siad ut thann sem smellt
-                      var a — sem er reglan i kafla 6r.                     */}
+                  {/* TOLU-HOLFIN ERU EKKI LENGUR SMELLANLEG (17.8.2026).
+                      `onClick` a hverju holfi setti throskuld A SAMSTUNDIS og
+                      thad var villan sem notandinn tilkynnti — sja skyringuna
+                      vid `sortKey` ofar. Holfin bera afram `title` med heiti
+                      og gildi; thad var HITT sem thau gerdu.               */}
                   {(() => { const d = STAT_BY_KEY.now_cost, bg = heatBg(d, r.cost);
                     return <div style={{ ...S.cell, ...cNum, ...S.strong,
                                          ...(bg ? { background: bg } : {}) }}
-                      title={`${d.label}: £${r.cost.toFixed(1)}`
-                             + `\nClick to filter (max £${r.cost.toFixed(1)}).`}
-                      onClick={() => filterOnValue(d, r.cost)}>
+                      title={`${d.label}: £${r.cost.toFixed(1)}`}>
                       £{r.cost.toFixed(1)}</div>; })()}
                   {mode === "custom" ? (() => {
                     /* STIGIN FYLGJA VOLDU TIMABILI OG UMFERDAR-BILI eins og
@@ -1924,9 +1653,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                       <div style={{ ...S.cell, ...cNum, ...S.strong,
                                     ...(v == null ? S.miss : S.cellHit),
                                     ...(() => { const bg = heatBg(pd, v); return bg ? { background: bg } : {}; })() }}
-                        title={v == null ? "Points: no data"
-                          : `Points: ${v}\nClick to filter (min ${v}).`}
-                        onClick={v == null ? undefined : () => filterOnValue(pd, v)}>
+                        title={v == null ? "Points: no data" : `Points: ${v}`}>
                         {v == null ? "—" : fmtStat(pd, v)}
                       </div>
                     );
@@ -1934,17 +1661,12 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                     (() => { const d = STAT_BY_KEY.selected_by_percent, bg = heatBg(d, r.own);
                       return <div style={{ ...S.cell, ...cNum,
                                            ...(bg ? { background: bg } : {}) }}
-                        title={`${d.label}: ${r.own.toFixed(1)}%`
-                               + `\nClick to filter (min ${r.own.toFixed(1)}).`}
-                        onClick={() => filterOnValue(d, r.own)}>
+                        title={`${d.label}: ${r.own.toFixed(1)}%`}>
                         {r.own.toFixed(1)}</div>; })()
                   )}
                   {visibleCols.map(d => {
                     const v = r.src ? d.get(r.src) : null;
-                    /* SMELLUR A TOLU SETUR SIU A HANA. Tomt holf er EKKI
-                       smellanlegt: "engin gogn" er ekki tala og throskuldur
-                       ur henni vaeri tilbuningur.
-                       BYRJUNAR-LIKUR FA LIT — thad var eini dalkurinn sem
+                    /* BYRJUNAR-LIKUR FA LIT — thad var eini dalkurinn sem
                        hafdi hann adur (i tvitekna hola dalknum lengst til
                        haegri, sem er nu farinn) og hann a hann skilid:
                        "start prob" er einmitt talan sem a ad hropa.        */
@@ -1961,10 +1683,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
                         title={v == null ? interp("{0}: no data", [d.label])
                           : (isSp && r.startLevel === "trap"
                              ? `${d.label}: ${fmtStat(d, v)} — started last time but is at risk of the bench.`
-                               + `\nClick to filter on this value.`
-                             : `${d.label}: ${fmtStat(d, v)}`
-                               + `\nClick to filter (${d.hi === false ? "max" : "min"} ${(+v.toFixed(d.dec ?? 0))}).`)}
-                        onClick={v == null ? undefined : () => filterOnValue(d, v)}>
+                             : `${d.label}: ${fmtStat(d, v)}`)}>
                         {v == null ? "—" : fmtStat(d, v)}
                       </div>
                     );
@@ -1977,7 +1696,7 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       )}
 
       <div style={S.legend}>
-        <b>{"Click any value to filter on it"}</b> {"— it becomes an editable chip above the table that stays with you when you switch column group. Click a header to sort, a name to open the card,"} <b>⇄</b> {"to compare. Hover any header for what the number is and what counts as good."}
+        <b>{"Click a header to sort"}</b>{", a name to open the card,"} <b>⇄</b> {"to compare. Hover any header for what the number is and what counts as good."}
         {" "}<b>—</b> {"= data missing (not zero) and always sorts"} <b>{"last"}</b>{", in both directions; a column that is empty for everyone in"}
         {" "}{season} {"is still shown, because \"no data\" is information too."}
         {" "}<b style={{ color:"#e8a71c" }}>★</b> {"adds to the watchlist (saved between visits); the star in the header shows the watchlist only."}
@@ -1987,13 +1706,6 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
     </section>
   );
 
-  function addTh() {
-    const v = parseFloat(String(thVal).replace(",", "."));
-    if (!Number.isFinite(v) || !STAT_BY_KEY[thKey]) return;
-    setThresholds(t => [...t.filter(x => !(x.key === thKey && x.op === thOp)),
-                        { key: thKey, op: thOp, val: v }]);
-    setThVal("");
-  }
 }
 
 const S = {
@@ -2022,28 +1734,6 @@ const S = {
               borderRadius:3, padding:"1px 3px", marginLeft:3, letterSpacing:0.2 },
 
   /* ---- leitanlegur dalkavalari (124 dalkar; select var oskrunanlegur) ---- */
-  pkWrap:{ position:"relative", minWidth:150, flex:"0 1 190px" },
-  pkInput:{ width:"100%", boxSizing:"border-box", font:"inherit", fontSize:12,
-            padding:"4px 18px 4px 7px", border:`1px solid ${C.border}`,
-            borderRadius:6, background:"#fff", color:C.text },
-  pkCaret:{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)",
-            fontSize:9, color:C.text3, pointerEvents:"none" },
-  pkList:{ position:"absolute", zIndex:40, top:"calc(100% + 2px)", left:0,
-           minWidth:"100%", width:"max-content", maxWidth:300, maxHeight:290,
-           overflowY:"auto", background:"#fff", border:`1px solid ${C.border}`,
-           borderRadius:8, boxShadow:"0 10px 28px rgba(0,0,0,0.16)", padding:3 },
-  pkGrp:{ fontSize:9.5, fontWeight:700, letterSpacing:0.5, textTransform:"uppercase",
-          color:C.text3, padding:"6px 6px 2px" },
-  pkOpt:{ fontSize:12, padding:"4px 7px", borderRadius:5, cursor:"pointer",
-          color:C.text, display:"flex", alignItems:"center", gap:5,
-          whiteSpace:"nowrap" },
-  pkOptHi:{ background:"#f0eef4" },
-  pkOptSel:{ fontWeight:700, color:C.purple },
-  pkLive:{ fontSize:8.5, fontWeight:700, color:"#0a7d4f", background:"#e6f7ef",
-           borderRadius:3, padding:"0 3px" },
-  pkShort:{ fontSize:9, fontFamily:mono, color:C.text3, background:"#f2f2f5",
-            borderRadius:3, padding:"0 3px", marginLeft:"auto" },
-  pkNone:{ fontSize:12, color:C.text3, padding:"8px 7px" },
 
   card:{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:14, marginBottom:12 },
   head:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap" },
@@ -2057,8 +1747,6 @@ const S = {
   headCtl:{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap",
             justifyContent:"flex-end" },
   sel:{ border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 7px", fontSize:11.5, maxWidth:200 },
-  selOp:{ font:"inherit", fontSize:12, padding:"4px 6px", border:`1px solid ${C.border}`,
-          borderRadius:6, background:"#fff", color:C.text },
   clearAll:{ border:`1px solid ${C.border}`, background:C.card, color:C.text2,
              borderRadius:6, padding:"3px 9px", fontSize:11, cursor:"pointer" },
   warn:{ fontSize:11.5, color:"#7a5600", background:C.amberBg, border:"1px solid #f0dcae",
@@ -2072,20 +1760,8 @@ const S = {
   posOn:{ background:C.purple, color:"#fff", border:`1px solid ${C.purple}` },
   search:{ border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 8px", fontSize:11.5,
            flex:"1 1 170px", minWidth:130 },
-  costWrap:{ display:"inline-flex", alignItems:"center", gap:3, border:`1px solid ${C.border}`,
-             borderRadius:6, padding:"2px 6px", background:C.card },
-  costLbl:{ fontSize:11, color:C.text3 },
-  costIn:{ width:48, border:"none", outline:"none", fontSize:11.5, fontFamily:mono,
-           background:"transparent", color:C.text },
   check:{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:C.text2, cursor:"pointer" },
 
-  thRow:{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap", marginBottom:7 },
-  thRowInline:{ marginTop:-4, marginBottom:6 },
-  thLbl:{ fontSize:11, color:C.text3 },
-  thVal:{ width:70, border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 6px",
-          fontSize:11.5, fontFamily:mono },
-  addBtn:{ border:"none", background:C.purple, color:"#fff", borderRadius:6,
-           padding:"4px 10px", fontSize:11, fontWeight:600, cursor:"pointer" },
   chip:{ border:`1px solid #d9c7dc`, background:"#f6f1f7", color:C.purple, borderRadius:12,
          padding:"2px 8px", fontSize:10.5, cursor:"pointer" },
 
@@ -2100,24 +1776,6 @@ const S = {
              color:C.purple, display:"flex", alignItems:"center", gap:4 },
   filterN:{ background:C.purple, color:"#fff", borderRadius:9, minWidth:14,
             textAlign:"center", padding:"0 4px", fontSize:9.5, letterSpacing:0 },
-  thChip:{ display:"inline-flex", alignItems:"center", gap:0,
-           border:`1px solid #cdb5d2`, background:"#fff", borderRadius:12,
-           overflow:"hidden", height:22 },
-  thChipName:{ border:"none", background:"transparent", color:C.purple, fontWeight:700,
-               fontSize:10.5, padding:"0 6px", cursor:"pointer", height:"100%",
-               maxWidth:110, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
-  thChipOp:{ borderTop:"none", borderRight:"none", borderBottom:"none", borderLeft:"1px solid #ecdff0", background:"#faf6fb",
-             color:C.text2, fontSize:9.5, padding:"0 5px", cursor:"pointer", height:"100%" },
-  thChipVal:{ width:46, borderTop:"none", borderRight:"none", borderBottom:"none", borderLeft:"1px solid #ecdff0", outline:"none",
-              fontFamily:mono, fontSize:11, textAlign:"right", padding:"0 3px",
-              height:"100%", color:C.text, background:"#fff",
-              /* number-spinnerarnir eta 16 px af 46 og gera reitinn ólæsilegan */
-              MozAppearance:"textfield" },
-  thChipUnit:{ fontSize:9.5, color:C.text3, paddingRight:2 },
-  thChipX:{ borderTop:"none", borderRight:"none", borderBottom:"none", borderLeft:"1px solid #ecdff0", background:"#faf6fb",
-            color:C.text3, fontSize:10, padding:"0 5px", cursor:"pointer", height:"100%" },
-  groupBadge:{ marginLeft:4, background:C.purple, color:"#fff", borderRadius:8,
-               fontSize:8.5, fontWeight:700, padding:"0 4px", verticalAlign:"middle" },
 
   /* ---- lesmata-rofi ---- */
   modeRow:{ display:"flex", gap:3 },
@@ -2243,8 +1901,6 @@ const S = {
      Beinn litur her + `frozenShadow` a kantinum = holfid hylur og THAD
      SEST ad efnid heldur afram undir thvi.                              */
   hName:{ justifyContent:"flex-start", textAlign:"left", background:C.cardAlt },
-  hFiltered:{ background:"#f3eaf5", color:C.purple },
-  hFunnel:{ fontSize:7.5, color:C.purple, marginRight:2 },
   frozenShadow:{ boxShadow:"6px 0 8px -6px rgba(0,0,0,0.28)" },
   /* whiteSpace:"normal" + 2 linur: sja wOf. `lineHeight` er sett svo tvaer
      linur passi i haus-hædina an ad ýta rodunum nidur.                   */

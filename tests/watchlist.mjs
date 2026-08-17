@@ -121,17 +121,22 @@ ok("bordinn er a HOLFINU (boxShadow inset), ekki a rodinni",
    /cellMine:\{[^}]*inset/.test(src));
 
 console.log("\nGRAENN BORDI A FROSNA HOLFINU — LIFANDI");
-/* Siar a "mitt lid" svo lidsmenn seu vissulega i syndu rodunum — annars
-   gaeti profid stadist bara vegna thess ad enginn theirra var a skjanum. */
-const mineBox = [...document.querySelectorAll("input[type=checkbox]")]
-  .find(c => (c.parentElement?.textContent||"").includes("my squad"));
-ok("hakkassi fyrir \"mitt lid\" er til", !!mineBox);
-if (mineBox) {
-  await fire(mineBox);
+/* HER VAR SIAD A "my squad"-HAKKASSANN — HANN ER FARINN (17.8.2026).
+   Sian var tekin ur `PlayerList.jsx` ad beidni notandans asamt fjorum
+   odrum, svo thessi kafli gat ekki lengur byrjad a henni. Hann var EKKI
+   felldur ut: bordinn er thad sem kaflinn ver, ekki sian sem for.
+   I stadinn er lesid BEINT ur sjalfgefnu utsyninni, og forsendan er
+   MAELD i stad thess ad vera bui til med siu: 6 af 31 syndum rodum eru
+   lidsmenn (sjalfgefid lid + sjalfgefin rodun eftir stigum). Baðar
+   attirnar eru fullyrtar — ad einhver rod se merkt OG ad ekki seu ALLAR
+   merktar — thvi bordi sem liggur a ollum segir ekkert.                */
+{
   const cells = rowStars().map(b => b.parentElement);
   const banded = cells.filter(c => /inset/.test(c.style.boxShadow||""));
-  ok("hver synd rod i minu lidi ber bordann", cells.length>0 && banded.length===cells.length,
-     `${banded.length}/${cells.length}`);
+  ok(`lidsmenn eru i syndu rodunum (${banded.length} af ${cells.length}) — forsenda kaflans`,
+     banded.length > 0, "enginn lidsmadur a skja: kaflinn maelir ekkert");
+  ok("...og bordinn liggur EKKI a ollum rodum (annars merkir hann ekkert)",
+     banded.length < cells.length, `${banded.length}/${cells.length}`);
   ok("bordinn er a HOLFINU, ekki adeins a rodinni",
      banded.length>0 && banded[0].parentElement !== banded[0] &&
      !/inset/.test(banded[0].parentElement.style.boxShadow||""));

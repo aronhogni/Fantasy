@@ -182,6 +182,79 @@ ok("...og bendir a flokk sem VIRKAR", warned && /Basics/.test(text()));
        .map(n => n.textContent).join("").replace(/[↑↓\s]/g, "").length > 0));
 }
 
+/* ============================================================
+   3c. `live_only`-DALKAR — BORDINN ThAGDI YFIR ThEIM I TVO DAGA
+
+   MAELT 16.8.2026 med GW30-38 virkt a "Upcoming fixtures":
+     HAUS   [Player, Price, Owned %, FDR6, Home, Games, CS next, Team DC]
+     MERKI  []
+     bordi  enginn
+   Fimm dalkar syndu DAGSINS framsyni medan hausinn sagdi GW 30-38 og
+   EKKERT a skjanum sagdi fra. Orsokin var ein lina: `rangeBanner` profadi
+   `blind` EITT, og `gwBlindKeys` sleppir `live_only`-dalkum VILJANDI a
+   theim forsendum ad their "beri eigid now-merki" — sem their gera EKKI:
+   merkid er adeins til i dalkavalaranum, aldrei i haus toflunnar.
+   `rangeAwareGroupsOf` hafdi ThEGAR verid lagfaert fyrir somu gildru og bar
+   hana skrifada i athugasemd sinni; bordinn sat eftir. Tvo skilyrdi um sama
+   hlut er hvernig thau fara i sundur — thau eru nu EITT (`rangeBlind`).
+
+   AF HVERJU BORDI EN EKKI MERKI I HAUSNUM: merkid var maelda leidin sem var
+   HAFNAD — hausbreiddin er maeld i px og merki sem baettist vid an thess ad
+   breiddin vissi af thvi klippti 25 haus-heiti (kafli 3a hér ad ofan).
+
+   OG RESTIN SEM STENDUR EFTIR, SOGD BERUM ORDUM: "Set pieces and cards" ber
+   LIKA `live_only`-dalka (`fk_order`, `ck_order`) en ThAR er bordinn
+   RETTILEGA thogull, thvi hinir thrir dalkarnir (spjold) fylgja bilinu i
+   alvoru. Their tveir eru thvi syndir omerktir medan hausinn segir GW 30-38.
+   Vidbotar-bordi fyrir "sumt fylgir bilinu" var ekki settur inn: hann
+   kviknar tha lika i Grunni (`start_prob` er live_only) og bordi sem sest
+   alltaf er ekki lengur upplysing. Samsetningin er FULLYRT hér ad nedan svo
+   hun geti ekki breyst thegjandi.
+   ============================================================ */
+{
+  const { STAT_BY_KEY } = await import("../src/stats.js");
+  const PL = await import(new URL("src/PlayerList.jsx", REPO).href);
+  const fx = STAT_DEFS.filter(d => d.group === "fixtures");
+  /* FORSENDAN FYRST — an hennar maelir kaflinn ekkert: thad ER hopur thar
+     sem `blind` eitt hefdi thagad.                                       */
+  ok(`"Upcoming fixtures" er ${fx.filter(d => d.live_only).length}/${fx.length} live_only og ${fx.filter(d => blind.has(d.key)).length}/${fx.length} blindur — `
+     + "`blind` eitt hefdi thagad",
+     fx.length > 0 && fx.every(d => d.live_only) && fx.every(d => !blind.has(d.key)));
+  ok("...og `rangeBlind` telur tha ALLA ofaera um ad fylgja bilinu",
+     fx.every(d => PL.rangeBlind(d, blind)));
+
+  await click(btn("Upcoming fixtures"));
+  await settle(400);
+  const t = text();
+  /* STERKA FULLYRDINGIN: bordinn er a skjanum og NEFNIR bilid.           */
+  ok("UPCOMING FIXTURES: bordinn segir ad ekkert a skjanum fylgi GW 30-38",
+     /(?:not|follows) GW\s*30[–-]38/i.test(t),
+     "fimm framsynir dalkar an nokkurs merkis — thetta var bilunin");
+  /* ORDALAGID MA EKKI LJUGA I HINA ATTINA. Strengurinn "season totals, not
+     GW" er SANNANLEGA TIL — kafli 3a hér ad ofan krefst hans ordrett i
+     Consistency — svo thessi neikvaeda fullyrding er ekki tom (CLAUDE.md 5b). */
+  ok("...an thess ad kalla FDR6 og CS next 'season totals'",
+     !/season totals, not GW/i.test(t));
+  /* ENGINN LIFANDI DALKUR MA VERA ThOGULL: annadhvort ber hausinn merki eda
+     bordinn tekur hann. Ordad sem VALKOSTUR svo hin leidin (merki i haus)
+     falli ekki a profinu ef hun verdur einhvern tima maeld nothaef.      */
+  const badged = [...document.querySelectorAll("[aria-sort]")]
+    .filter(h => /season/.test(h.textContent)).length;
+  ok(`hver framsynn dalkur er annadhvort merktur (${badged}) eda undir bordanum`,
+     badged === fx.length || /(?:not|follows) GW\s*30[–-]38/i.test(t));
+
+  /* SET PIECES: samsetningin sem skyrir thognina thar — LEIDD, ekki talin. */
+  const sp = STAT_DEFS.filter(d => d.group === "setp");
+  const spLive = sp.filter(d => d.live_only).map(d => d.key);
+  const spAware = sp.filter(d => !PL.rangeBlind(d, blind)).map(d => d.key);
+  ok(`"Set pieces and cards" ber BAEDI live_only (${spLive.join(",")}) og bils-faera dalka (${spAware.join(",")})`,
+     spLive.length > 0 && spAware.length > 0);
+  await click(btn("Set pieces and cards"));
+  await settle(300);
+  ok("...svo bordinn thegir thar RETTILEGA — sumt a skjanum fylgir bilinu",
+     !/(?:not|follows) GW\s*30[–-]38/i.test(text()));
+}
+
 /* --- 3b. BASICS: her A talan ad geta breyst, svo advorunin ma EKKI birtast --- */
 await click(btn("Basics"));
 await settle(300);
@@ -189,16 +262,100 @@ ok("BASICS: engin 'season totals'-advorun (thar fylgja dalkar bilinu)",
    !/season totals, not GW/i.test(text()));
 
 /* ============================================================
-   4. SIAN OG TAFLAN MEGA ALDREI SEGJA SITTHVAD (tilkynnt 14.8.2026)
+   4. SIURNAR SEM VORU TEKNAR UT — OG SMELLURINN SEM SIADI SJALFUR
 
-   Notandinn siadi "start prob >= 90" og Ampadu og Botman DUTTU UT — medan
-   holfid vid hlidina sagdi 90. Baðir bera 0,897 -> 89,7 og dalkurinn hefur
-   `dec: 0`, svo taflan namundadi i 90 en sian bar saman 89,7 >= 90.
-   Notandinn giskadi rett: aukastafir.
-   Vordurinn er a REGLUNNI (sian les somu tolu og augad), ekki a thessum
-   tveimur monnum — their eru bara tilvikid sem afhjupadi hana.
+   TILKYNNT AF NOTANDA 17.8.2026: "nuna smelli eg a listann og filteringin
+   dettur sjalfkrafa inn." ENDURGERT I JSDOM ADUR EN NOKKUD VAR FJARLAEGT:
+   einn smellur a holfid "239" (Points, Haaland) for listann ur
+   **587 af 587 i 1 af 587** og holfid bar `title` "Points: 239 / Click to
+   filter (min 239)". Mekanisminn var ekki fokus- eda render-villa heldur
+   `onClick={() => filterOnValue(d, v)}` A HVERJU EINASTA TOLU-HOLFI: sian
+   var sett a SAMSTUNDIS, svo smellur til ad LESA rod beitti henni.
+
+   Fjarlaegt ad beidni: throskuldar-sian ("Threshold: ▾" + smellurinn),
+   verd-bilid, lida-sian, "fit to play" og "my squad".
+   Eftir standa stada, leit, vaktlisti og "hide selected".
+
+   TVAER FULLYRDINGAR, OG HVORUG DUGAR AN HINNAR:
+     · stjornbordin eru horfin ur DOM (annars er thetta bara falid)
+     · RADA-TALNINGIN er full (annars gaeti sia lifad afram i `filtered`
+       an nokkurs stjornbords — thad vaeri VERRA en sian sjalf)
    ============================================================ */
-H("4. SIAN LES SOMU TOLU OG AUGAD");
+H("4. SIURNAR SEM VORU TEKNAR UT (17.8.2026)");
+{
+  await click(btn("Basics"));
+  await settle(200);
+  const t0 = text();
+  const gone = [["Threshold:", /Threshold:/], ["fit to play", /fit to play/],
+                ["my squad", /my squad/], ["+ team", /\+ team/]];
+  for (const [name, re] of gone)
+    ok(`stjornbordid "${name}" er horfid ur vidmotinu`, !re.test(t0));
+  /* Verd-reitirnir: number-innslattur med "from"/"to" er ekki lengur til. */
+  const priceIn = [...document.querySelectorAll("input")]
+    .filter(i => i.type === "number" && /from|to/.test(i.placeholder || ""));
+  ok("verd-bilid (fra/til) er horfid", priceIn.length === 0, `fann ${priceIn.length}`);
+
+  /* ---- RADA-TALNINGIN: ekkert threngir listann osynilega ---- */
+  const shownOf = () => (text().match(/Players(\d+) of (\d+)/) || [])
+    .slice(1).map(Number);
+  const [shown, total] = shownOf();
+  ok(`listinn er OSIADUR vid opnun: ${shown} af ${total}`, shown === total,
+     "sia sem lifir i `filtered` an stjornbords er verri en sian sjalf");
+
+  /* ANTI-TOMLEIKI: talan GETUR hreyfst — annars saannar hun ekkert.
+     Stodu-flipinn er ein af sunum sem VORU EKKI teknar ut.            */
+  await click(btn("GK")); await settle(200);
+  const [gk, tot2] = shownOf();
+  ok(`stodu-sian virkar enn (GK: ${gk} af ${tot2}) — talan er ekki fost`,
+     gk > 0 && gk < tot2);
+  await click(btn("All")); await settle(200);
+  ok("...og 'All' skilar ollum aftur", shownOf()[0] === total);
+
+  /* ---- SMELLURINN SJALFUR: ENDURGERDIN, NU SEM VORDUR ---- */
+  const dataRows = () => [...document.querySelectorAll("div")].filter(d => {
+    const f = d.children[0];
+    return f && f.tagName === "DIV" &&
+           [...f.children].some(c => c.tagName === "BUTTON" && /^[☆★]$/.test(c.textContent.trim()));
+  });
+  const bodyRows = () => dataRows().filter(d => !/Player/.test(d.children[0]?.textContent || ""));
+  const row = bodyRows()[0];
+  ok("gagna-rod fannst (forsenda smellsins)", !!row);
+  if (row) {
+    const cell = [...row.children][3];
+    const val = (cell?.textContent || "").trim();
+    /* FORSENDAN SONNUD FYRST: holfid ber TOLU. An hennar vaeri smellurinn
+       a tomt holf og fullyrdingin haetti ad maela (CLAUDE.md 5b).      */
+    ok(`smellt er a holf sem ber raunverulega tolu ("${val}")`,
+       Number.isFinite(parseFloat(val)));
+    /* Og titillinn lofar ekki lengur siun — thad var textinn sem sagdi
+       notandanum ad thetta VAERI hegdunin. Strengurinn "Click to filter"
+       var sannanlega tharna: hann stod i thessu sama holfi 17.8.2026.  */
+    ok("holfid lofar ekki lengur siun i `title`",
+       !/Click to filter/i.test(cell?.getAttribute("title") || ""),
+       JSON.stringify(cell?.getAttribute("title") || ""));
+    await click(cell);
+    const [after, tot3] = shownOf();
+    ok(`smellur a tolu SIAR EKKI: ${after} af ${tot3} (var 1 af 587 fyrir lagfaeringu)`,
+       after === tot3);
+    ok("...og enginn Filters-rammi kviknar af smellinum", !/Filters\d/.test(text()));
+  }
+}
+
+/* ============================================================
+   5. NAMUNDUNARREGLAN — FEATURE-ID ER FARID, FALLID ER ThAD EKKI
+
+   Kaflinn var "SIAN OG TAFLAN MEGA ALDREI SEGJA SITTHVAD" (14.8.2026):
+   notandinn siadi "start prob >= 90" og Ampadu og Botman duttu ut medan
+   holfid sagdi 90 (0,897 -> 89,7, `dec: 0`).
+   SIAN SEM NOTADI ThETTA ER FARIN (kafli 4) en `passesThreshold` stendur
+   afram i `stats.js` og hefur nu ENGAN notanda i appinu. Kaflinn er samt
+   ekki felldur ut: fallid er utflutt, oprofad annars stadar, og prof sem
+   er eytt um leid og notandinn hverfur skilur eftir sig oprofadan kóða.
+   EIN FULLYRDING VAR FELLD UT — "PlayerList kallar `passesThreshold`" —
+   thvi hun er nu OSONN OG A AD VERA ThAD. Hegdunin sem hun atti ad verja
+   er varin i kafla 4, a DOM-inu, sem er sterkari fullyrding hvort sem er.
+   ============================================================ */
+H("5. NAMUNDUNARREGLAN (`passesThreshold`) — FALLID STENDUR, NOTANDINN ER FARINN");
 {
   const { fmtStat, STAT_BY_KEY } = await import("../src/stats.js");
   const d = STAT_BY_KEY.start_prob;
@@ -247,10 +404,6 @@ H("4. SIAN LES SOMU TOLU OG AUGAD");
   /* NULL ER EKKI NULL og halfskrifad gildi siar ekki (CLAUDE.md 8). */
   ok("null fellur alltaf ut", passesThreshold(d, null, ">=", 0) === false);
   ok("halfskrifadur throskuldur siar EKKERT", passesThreshold(d, 5, ">=", NaN) === true);
-  /* OG AD APPID NOTI ThETTA FALL — annars er kaflinn ad maela safn. */
-  const src = readFileSync(new URL("../src/PlayerList.jsx", import.meta.url), "utf8");
-  ok("PlayerList kallar `passesThreshold` (ekki sinn eigin samanburd)",
-     /passesThreshold\(/.test(src) && !/t\.op === "\u003e=" && !\(v \u003e= t\.val\)/.test(src));
 }
 
 console.log(`\nUMFERDAR-BIL: ${pass} stodust, ${fail} fellu`);

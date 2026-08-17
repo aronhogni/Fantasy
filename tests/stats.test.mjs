@@ -23,6 +23,7 @@ import {
   moScore, aoScore, inImminentPool, imminentBoard,
   startFeatures, startProbability, startRisk, START_MODEL,
   MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES, makeEnricher, gwBlindKeys,
+  SCOPE_NOTES, FIELDS_READ, readsFields,
 } from "../src/stats.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
@@ -163,6 +164,33 @@ eq(fmtStat(STAT_BY_KEY.goals_minus_xg, 1.8), "+1.80", "formerki á signed tölum
 eq(fmtStat(STAT_BY_KEY.goals_minus_xg, -1.8), "-1.80", "neikvætt formerki");
 eq(fmtStat(STAT_BY_KEY.cs_pct, 40), "40%", "prósent birt með %");
 eq(fmtStat(STAT_BY_KEY.total_points, null), "—", "null birtist sem strik");
+/* NEIKVAED UPPHAED: FORMERKID FYRIR FRAMAN GJALDMIDILINN (17.8.2026).
+   `£-0.2` las eins og gjaldmidillinn heiti "£-". FULLYRDINGIN ER TVIHLIDA:
+   fyrst ad neikvaeda formid se rett, SVO ad thad jakvaeda hafi ekki
+   brotnad — og loks ad thetta se raunverulegt tilfelli og ekki jadar:
+   311 af 459 rodum i "Chg season" (2025/26) eru neikvaedar.             */
+eq(fmtStat(STAT_BY_KEY.cost_change_start, -0.2), "-£0.2", "neikvæð upphæð: −£0,2, ekki £-0,2");
+eq(fmtStat(STAT_BY_KEY.cost_change_start, 0.3), "+£0.3", "jákvæð upphæð heldur + og £");
+eq(fmtStat(STAT_BY_KEY.cost_change_event, -1.5), "-£1.5", "sama regla á GW-verðbreytingu");
+/* ASCII-MINUS, EKKI U+2212 — OG ThAD ER MAELT, EKKI SMEKKUR. Profin sem lesa
+   tolur AF SKJANUM (playerlist-sort.mjs) svipta burt `[£%,+]` og
+   `parseFloat`-a afganginn; U+2212 lifir tha af og gefur NaN. Toluhlutinn
+   kemur auk thess fra `toFixed`, sem er ASCII, svo tvo tákn fyrir sama
+   formerki i somu toflu vaeri ny osamkvaemni.                            */
+{
+  const s = fmtStat(STAT_BY_KEY.cost_change_start, -0.2);
+  ok(!/−/.test(s) && Number.isFinite(parseFloat(s.replace(/[£%,+]/g, ""))),
+    `neikvæð upphæð er þáttanleg eins og skjá-prófin gera það (${s} -> ${parseFloat(s.replace(/[£%,+]/g,""))})`);
+}
+{
+  const rows = J("player_seasons.json").players;
+  let neg = 0, n = 0;
+  for (const seas of Object.values(rows)) {
+    const h = seas["2025/26"]; if (!h || h.cost_change_start == null) continue;
+    n++; if (+h.cost_change_start < 0) neg++;
+  }
+  ok(neg > n / 3, `neikvæð verðbreyting er meirihluti dálksins, ekki jaðartilfelli (${neg}/${n})`);
+}
 
 /* ================= 3. buildLeaderboard ================= */
 console.log("\n=== 3. STIGATAFLAN — röðun, þak og síur ===");
@@ -749,6 +777,159 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
       STAT_DEFS.map(hLabel).sort((a,b)=>b.length-a.length)[0]}")`);
   ok(STAT_DEFS.every(d => d.label.length <= 32), "engin FULL heiti óhóflega löng");
 
+  /* TVEIR DALKAR MED SAMA HEITI ERU EINN DALKUR I AUGUM NOTANDANS.
+     MAELT 17.8.2026: Sokn bar TVO holf merkt `Shots` (BSD, arstidartala) og
+     TVO merkt `In box`, 30 dalka a milli, ur sitthvorri heimildinni og yfir
+     sitthvort timabilid — a rod Danso las thad `Shots 11 … In box 11 …
+     Shots 4 … In box 4`. Verra: `label` sjalft rakst a i tveimur porum
+     ("Chances created", "Hit the woodwork"), og LABEL er thad sem stendur i
+     dalkavalaranum, i sia-chip-inu og i tooltip — thar er EKKERT band til
+     ad greina thau ad.
+
+     "/90" MA ENDURTAKA SIG OG ThAD ER ASETNINGUR, ekki undantekning sem
+     thurfti ad skra: thad er ekki heiti heldur VIDSKEYTI sem er lesid MED
+     bandinu ("Goals · /90"). Fullyrdingin normaliserar thvi eftir REGLU —
+     heiti sem byrjar a "/" er lesid sem band + heiti — i stad thess ad
+     halda undanthagulista, sem myndi stadna.                            */
+  {
+    const ident = d => { const sh = String(d.short ?? d.label);
+                         return sh.startsWith("/") ? `${d.band} ${sh}` : sh; };
+    const dupOf = (fn) => {
+      const m = new Map();
+      for (const d of STAT_DEFS) { const k = fn(d); m.set(k, [...(m.get(k) || []), d.key]); }
+      return [...m].filter(([, v]) => v.length > 1);
+    };
+    /* FORSENDA SONNUD FYRST (CLAUDE.md 5b regla 2): "/90" VERDUR ad vera
+       raunverulega endurtekid, annars er normaliseringin ad verja ekkert. */
+    const slash = STAT_DEFS.filter(d => String(d.short ?? d.label).startsWith("/"));
+    ok(slash.length > 1 && new Set(slash.map(d => d.short)).size < slash.length,
+      `"/90" er raunverulega endurtekid haus-heiti (${slash.length} dálkar) — normaliseringin ver eitthvað`);
+    const dupShort = dupOf(ident), dupLabel = dupOf(d => d.label);
+    eq(dupShort.length, 0,
+      `ekkert HAUS-heiti tvítekið (band les "/90")${dupShort.length ? " — " + JSON.stringify(dupShort[0]) : ""}`);
+    eq(dupLabel.length, 0,
+      `ekkert FULLT heiti tvítekið${dupLabel.length ? " — " + JSON.stringify(dupLabel[0]) : ""}`);
+    /* Og innan flokks lika — thad er threngra tilfellid sem notandinn sa. */
+    const dupInGroup = dupOf(d => `${d.group}|${ident(d)}`);
+    eq(dupInGroup.length, 0, "og ekkert tvítekið innan sama flokks");
+  }
+
+  /* ---- 13b. SAMHENGIS-NOTURNAR ERU LEIDDAR, EKKI HANDSKRIFADAR ----
+     "2025/26 only" stod i 5 af 24 BSD-dalkum og "one gameweek" i 1 af 8
+     ESPN-dalkum; 76%-golfid stod i 1 af 3 dalkum sem koma UR SAMA REGEXI.
+     Reglurnar bua nu i `SCOPE_NOTES` og eru lagdar a eftir thvi HVADA REITI
+     getterinn les (Proxy-konnun) og hvada bandi dalkurinn er i.
+     ThRIR HLUTIR ERU PROFADIR, og saman geta their ekki verid tomir:
+       1. hver regla verdur ad na til raunverulegs hops (annars er hun daud)
+       2. textinn stendur NAKVAEMLEGA EINU SINNI i hverri notu sem hun tekur til
+       3. og HVERGI i notu sem hun tekur ekki til — annars vaeri afrit komid
+          aftur inn handvirkt og reglan yrdi skraut.                       */
+  {
+    ok(SCOPE_NOTES.length >= 4, `${SCOPE_NOTES.length} samhengis-reglur skilgreindar`);
+    const counts = {};
+    for (const s of SCOPE_NOTES) {
+      const hit = STAT_DEFS.filter(s.applies);
+      counts[s.id] = hit.length;
+      ok(hit.length > 0 && hit.length < STAT_DEFS.length,
+        `regla "${s.id}" nær til ${hit.length} dálka af ${STAT_DEFS.length} (hvorki tóm né allt)`);
+      const once = hit.filter(d => d.note.split(s.text).length - 1 === 1);
+      eq(hit.length - once.length, 0,
+        `"${s.id}": textinn stendur nákvæmlega einu sinni í hverri nótu sem hún tekur til`);
+      const leaked = STAT_DEFS.filter(d => !s.applies(d) && d.note.includes(s.text));
+      eq(leaked.length, 0,
+        `"${s.id}": og hvergi annars staðar${leaked.length ? " — " + leaked[0].key : ""}`);
+    }
+    /* HOPARNIR SJALFIR ERU MAELDIR — annars gaeti `applies` skropid saman i
+       einn dalk og allt her ad ofan verid graent afram. OG THAD ER MAELT:
+       fullyrding a bord vid `counts.bsd >= 20` SLAPP i stokkbreytingu sem
+       tok EINN dalk ut ur reglunni (`&& d.key !== "bsd_rating"`). Krafan er
+       thvi ekki a REGLUNA heldur a UTKOMUNA: hver dalkur sem les reit ur
+       heimildinni VERDUR ad bera fyrirvarann, hvernig sem reglan er skrifud. */
+    const byPrefix = pre => STAT_DEFS.filter(d =>
+      [...(FIELDS_READ.get(d.key) || [])].some(k => k.startsWith(pre)));
+    for (const [pre, id] of [["_b_", "bsd"], ["_espn_", "espn"]]) {
+      const fed = byPrefix(pre), text = SCOPE_NOTES.find(s => s.id === id).text;
+      const silent = fed.filter(d => !d.note.includes(text));
+      ok(fed.length > 5, `${fed.length} dálkar lesa ${pre}-reit (forsendan er ekki tóm)`);
+      eq(silent.length, 0,
+        `HVER dálkur sem les ${pre}-reit ber fyrirvarann${silent.length ? " — " + silent.map(d=>d.key).join(",") : ""}`);
+    }
+    eq(counts.espn, 8, "allir átta ESPN-dálkarnir bera umferðar-fyrirvarann");
+    eq(counts["espn-floor"], 3,
+      "og öll ÞRJÚ sem koma úr sama regexi bera 76%-gólfið (var 1 af 3)");
+    ok(counts.per90 >= 20, `/90-fyrirvarinn nær yfir alla ${counts.per90} hlutfalls-dálkana`);
+    /* KONNUNIN SJALF: `FIELDS_READ` verdur ad vera SAMA taflan og `readsFields`
+       gefur — vaeri hun byggd fyrir mistok a einu probe-gildi myndu heilar
+       greinar hverfa og reglurnar naedu til faerri dalka THOGULT.        */
+    const drift = STAT_DEFS.filter(d => {
+      const a = [...(FIELDS_READ.get(d.key) || [])].sort().join(",");
+      const b = [...readsFields(d)].sort().join(",");
+      return a !== b && !b.includes("element_type");   // pos-umbudirnar bæta honum við
+    });
+    eq(drift.length, 0,
+      `FIELDS_READ er sama könnun og readsFields${drift.length ? " — " + drift[0].key : ""}`);
+    ok([...(FIELDS_READ.get("bsd_xg_per_shot") || [])].includes("_b_xgs"),
+      "könnunin sér reitinn sem getterinn les í raun (_b_xgs)");
+  }
+
+  /* ---- 13c. NAKVAEMNIN MA EKKI VERA MEIRI EN HEIMILDIN BER ----
+     `value_form` bar `dec: 2` en FPL sendir EINN aukastaf og ekkert annad.
+     Annar aukastafurinn var thvi alltaf "0" sem VID bjuggum til — omaeld
+     nakvaemni sem litur ut eins og maeling. Maelt a BADUM heimildum
+     (lifandi players.json og ollum fimm timabilunum i player_seasons.json). */
+  {
+    const decOf = v => { const s = String(v); const i = s.indexOf("."); return i < 0 ? 0 : s.length - i - 1; };
+    const vals = [];
+    for (const p of players) if (p.value_form != null) vals.push(p.value_form);
+    for (const seas of Object.values(J("player_seasons.json").players))
+      for (const h of Object.values(seas)) if (h.value_form != null) vals.push(h.value_form);
+    const maxDec = Math.max(...vals.map(decOf));
+    ok(vals.length > 500, `${vals.length} value_form-gildi mæld (fullyrðingin er ekki tóm)`);
+    eq(STAT_BY_KEY.value_form.dec, maxDec,
+      `"Form per £m" birtir ekki fleiri aukastafi en heimildin ber (var 2)`);
+  }
+
+  /* ---- 13d. "Games" TALDI UMFERDIR, EKKI LEIKI ----
+     `consistency.json` er byggt ur `player_gw_*.json` thar sem TVOFOLD
+     UMFERD ER LOGD SAMAN I EINA FAERSLU, svo `games` er UMFERDAFJOLDI.
+     Fullyrdingin er tvihlida: fyrst er munurinn MAELDUR a raungognum
+     (annars gaeti heitid verid hvad sem er), svo er krafist ad heitid og
+     notan segi "gameweek" en ekki "games played".                       */
+  {
+    const cons = J("consistency.json").seasons?.["2025/26"] || {};
+    const seas = J("player_seasons.json").players;
+    let n = 0, fewer = 0, worst = null;
+    for (const [code, rows] of Object.entries(seas)) {
+      const h = rows["2025/26"], c = cons[code];
+      if (!h || !c || h.starts == null) continue;
+      n++;
+      if (c.games < h.starts) { fewer++;
+        if (!worst || h.starts - c.games > worst.d) worst = { code, d: h.starts - c.games, n: c.games, s: h.starts }; }
+    }
+    ok(n > 100 && fewer > 0,
+      `MÆLT: ${fewer} af ${n} eiga færri "games" en byrjanir (tvöfaldar umferðir)`
+      + (worst ? ` — verst n=${worst.n} við ${worst.s} byrjanir` : ""));
+    const d = STAT_BY_KEY.aron_games;
+    ok(/gameweek/i.test(d.label) || /gameweek/i.test(d.short ?? ""),
+      `heitið segir GAMEWEEK, ekki "Games" ("${d.label}" / "${d.short}")`);
+    ok(/GAMEWEEKS/.test(d.note) && /double gameweek/i.test(d.note),
+      "og nótan segir að tvöföld umferð sé lögð saman í eina");
+  }
+
+  /* ---- 13e. AFTURVIRKNIN ER NEFND A OLLUM ThREMUR, EKKI EINUM ----
+     `hit4_pct` OG `blank_pct` fara BADAR gegnum (x + K·p0)/(n + K) i
+     fetch.mjs, og `aron` ER mismunur theirra. Nótan sagdi thad adeins a
+     einum theirra. Fullyrdingin les FORMULUNA ur pipeline-skranni svo hun
+     geti ekki verid graenn texti um koda sem er haettur ad afturvirkja.   */
+  {
+    const src = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url).pathname, "utf8");
+    ok(/hit4_pct\s*=[^\n]*K \* p4/.test(src) && /blank_pct\s*=[^\n]*K \* pb/.test(src),
+      "pipeline afturvirkjar BÁÐAR hlutfallstölurnar (k=10)");
+    for (const k of ["aron_hit4", "aron_blank", "aron_net"])
+      ok(/shrunk|shrink/i.test(STAT_BY_KEY[k].note) && /k=10/i.test(STAT_BY_KEY[k].note),
+        `${k}: nótan nefnir afturvirknina (k=10)`);
+  }
+
   /* SKYRING A HVERJUM DALKI ER SKYLDA. Stytt haus-heiti ("CBI", "GA−xGI",
      "/90") er RADGATA an tooltip-s, svo styttingin og skyringin eru ein og
      sama akvordunin: annad ma ekki koma an hins.                          */
@@ -1115,6 +1296,33 @@ console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`
    varinn. Sama regla og "blindir dalkar eru LEIDDIR UT, ekki handskrifadir"
    (CLAUDE.md 8) — handskrifadur listi staðnar.
    ============================================================ */
+/* ============================================================
+   `no_heat` — FLAGG SEM ER LESID, EKKI ADEINS SKILGREINT
+
+   `heatScale` kann adeins tvennt: haerra betra eda laegra betra
+   (`invert`). `starts_per_90` er hvorugt — nota dalksins segir sjalf ad
+   ~1,0 se kjorid og ad BADIR endar seu verri en midjan. Med `hi:true`
+   malaði hitakortid sterkasta graena a 1-byrjunar leikmann (2,37 ur 38
+   minutum) og kalladi hann besta mann toflunnar.
+
+   VORDURINN ER A TENGINGUNNI, EKKI A GILDINU: `team_dc` var skilgreindur
+   dalkur sem var DAUDUR fra faedingu og faldi sig sem toman (kafli 6l).
+   Flagg sem `PlayerList.jsx` les aldrei vaeri nakvaemlega thad aftur.
+   ============================================================ */
+{
+  console.log("\n15c) `no_heat` er LESID i PlayerList, ekki bara skilgreint");
+  const flagged = STAT_DEFS.filter(d => d.no_heat);
+  ok(flagged.length > 0, `forsenda: einhver dalkur ber \`no_heat\` (${flagged.length})`);
+  ok(flagged.some(d => d.key === "starts_per_90"),
+     "starts_per_90 ber hann — dalkurinn an einhalla 'betra'");
+  const plSrc = readFileSync(new URL("../src/PlayerList.jsx", import.meta.url), "utf8");
+  const noCmt = plSrc.replace(/\/\*[\s\S]*?\*\//g, " ");
+  ok(/\bno_heat\b/.test(noCmt),
+     "PlayerList.jsx LES `no_heat` (ekki adeins nefnt i athugasemd)");
+  ok(/heatScale/.test(noCmt) && noCmt.indexOf("no_heat") > noCmt.indexOf("heatScale"),
+     "lesturinn er inni i `heatScale`-smiðinni, thar sem hann getur haft ahrif");
+}
+
 console.log("\n15) `pos` er virt i BADUM lesmatum");
 {
   const P = JSON.parse(readFileSync(new URL("../data/players.json", import.meta.url), "utf8")).players;

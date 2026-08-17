@@ -172,5 +172,92 @@ await new Promise(r => setTimeout(r, 60));
   ok("serflokkurinn 'Threat' er FARINN (dalkarnir eru i Attack)", !byExact("Threat"));
 }
 
+/* ============================================================
+   4. FORLEIKS-BORDINN — HANN FULLYRTI EITTHVAD SEM VAR OSATT A SAMA SKJA
+
+   Bordinn sagdi: "<timabil> has not started — every season field is zero
+   for all 587 players, so this view has no numbers to sort."
+   MAELT A SAMA SKJA I SOMU ANDRA (16.8.2026): B.Fernandes ICT 381,4 ·
+   Creativity 1938,5 · Haaland Threat 1520,0. `players.json` er LIFANDI
+   bootstrap FPL og FPL hafdi ekki nullstillt hana.
+
+   HER ER VARIN TALAN SJALF, ekki ordalagid. Tvaer ovinsaelustu utkomurnar
+   eru BADAR "graenar" hja naivri fullyrdingu:
+     · talan er 0     -> bordinn fullyrdir gamla ranga textann aftur
+     · talan er ALLIR -> hun er ekki maeling heldur fasti i dulargervi
+   Og sidara tilvikid VAR RAUNVERULEGT (maelt 17.8.2026): fyrsta utgafa
+   `staleSeasonRows` taldi alla `!live_only`-dalka, og `now_cost` (Price) er
+   non-null hja OLLUM 587 — svo talan var 587 af 587, sem er `Price > 0`.
+   Verst: verdid nullstillist aldrei, svo bordinn hefdi haldid afram ad
+   fullyrda thetta longu eftir ad FPL nullstillti arstidina. Nakvaemlega
+   sama villuaett og "MEASURED: the range is 4-10" (CLAUDE.md 8/12).
+   ============================================================ */
+{
+  const { STAT_DEFS, gwBlindKeys } = await import(new URL("src/stats.js", REPO).href);
+  const PL = await import(new URL("src/PlayerList.jsx", REPO).href);
+  const players = J("players.json").players;
+  const blind = gwBlindKeys();
+  const rows = players.map(p => ({ src: p, p }));
+  const n = PL.staleSeasonRows(rows, blind);
+
+  console.log(`\nFORLEIKS-BORDINN (staleSeasonRows = ${n} af ${players.length})`);
+  /* ANTI-TOMLEIKI I BADAR ATTIR — thad er thessi fullyrding sem bitur. */
+  ok(`talan er maeling en ekki fasti: 0 < ${n} < ${players.length}`,
+     n > 0 && n < players.length,
+     n === players.length ? "ALLIR — thetta er `Price > 0` i dulargervi, ekki arstidar-tala"
+                          : "ENGINN — bordinn fullyrdir tha gamla ranga textann");
+  /* FORSENDAN SEM GERIR EFRI MORKIN MARKTAEK: Price ER non-null hja ollum,
+     svo gamla skilyrdid HEFDI raunverulega skilad 587. Neikvaed fullyrding
+     verdur ad nefna eitthvad sem var sannanlega tharna (CLAUDE.md 5b).   */
+  ok(`Price er non-null hja OLLUM ${players.length} (thess vegna maeldi gamla skilyrdid ekkert)`,
+     players.every(p => (p.now_cost ?? 0) > 0));
+  const priceDef = STAT_DEFS.filter(d => d.key === "now_cost");
+  ok("...og `staleSeasonRows` telur Price EKKI med (0 rader af honum einum)",
+     PL.staleSeasonRows(rows, blind, priceDef) === 0,
+     `fekk ${PL.staleSeasonRows(rows, blind, priceDef)}`);
+
+  /* SJALFHREINSUNIN ER KRAFAN, EKKI TALAN: thegar FPL nullstillir arstidina
+     A bordinn ad verda rettur AN ThESS ad nokkur snerti kodann. Hermt med
+     thvi ad nulla hverja tolu i lifandi rodinni NEMA thaer sem eru dagsins
+     (verd, eignarhald, stada) — thad er nakvaemlega thad sem FPL gerir.  */
+  const KEEP = new Set(["id", "code", "team", "element_type", "now_cost", "selected_by_percent"]);
+  const resetRows = players.map(p => {
+    const q = { ...p };
+    for (const [k, v] of Object.entries(q)) {
+      if (KEEP.has(k)) continue;
+      if (typeof v === "number") q[k] = 0;
+      else if (typeof v === "string" && v !== "" && !isNaN(+v)) q[k] = "0";
+    }
+    return { src: q, p: q };
+  });
+  ok("nullstilli FPL arstidina fer talan i 0 af sjalfu ser (bordinn laeknast an breytingar)",
+     PL.staleSeasonRows(resetRows, blind) === 0,
+     `fekk ${PL.staleSeasonRows(resetRows, blind)} — bordinn myndi fullyrda um arstidar-tolur sem eru farnar`);
+
+  /* ---- OG TALAN A SKJANUM ER SAMA TALAN ---- */
+  await fire(byTab("👥"));
+  const sel = [...document.querySelectorAll("select")]
+    .find(s => [...s.options].some(o => /\d{4}\/\d{2}/.test(o.textContent)));
+  const liveOpt = sel && [...sel.options].find(o => /not started/.test(o.textContent));
+  ok("timabils-valarinn ber yfirstandandi timabil merkt '(not started)'", !!liveOpt);
+  if (liveOpt) {
+    await act(async () => {
+      sel.value = liveOpt.value;
+      sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+    await settle();
+    const t = document.body.textContent || "";
+    ok(`bordinn birtir MAELDU toluna (${n} of ${players.length}), ekki skrifada`,
+       t.includes(`${n} of ${players.length}`),
+       "— fost tala i texta ureldist thegjandi");
+    /* Neikvaeda fullyrdingin nefnir streng sem VAR sannanlega tharna:
+       thetta stod ordrett i bordanum til 16.8.2026.                     */
+    ok("...og segir EKKI lengur 'every season field is zero' a skja sem synir tolur",
+       !/every season field is zero/i.test(t));
+    ok("bordinn nefnir timabilid sem tolurnar tilheyra i raun",
+       /still last season's numbers/i.test(t) && /2025\/26/.test(t));
+  }
+}
+
 console.log(`\nLIFANDI DÁLKAR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

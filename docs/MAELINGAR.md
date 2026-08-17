@@ -3807,3 +3807,55 @@ stigum: reglan í `model.test.mjs`, skjárinn í `smoke.test.mjs`.
 > tvær af fimm fullyrðingum stóðust **í tómarúmi** (leitarsvæðið var tómt, svo
 > „nefnir ekki bekkjarmanninn" var sjálfkrafa satt). Hann var færður fram fyrir
 > kafla 3, þar sem ástandið er enn það sem prófið setti upp.
+
+---
+
+## 17.8.2026 — SÍUR TEKNAR ÚT, OG SMELLURINN SEM SÍAÐI SJÁLFUR
+
+Notandinn: *„Það má taka þessa filteringu út og verðið Threshold ▾ — því núna
+smelli ég á listann og filteringin dettur sjálfkrafa inn"*, síðan *„og líka
+team filteringu"* og *„taka líka fit to play og my team hakið"*.
+
+**Orsökin var mæld áður en nokkuð var fjarlægt, og hún var ekki fókus né
+endurteikning:** hvert einasta tölu-hólf bar `onClick={() => filterOnValue(d, v)}`
+með tooltip *„Click to filter (min N)"*. **Einn smellur á 239 hjá Haaland fór
+með listann úr 587 af 587 niður í 1 af 587**, og `autoFocus` á nýja chip-inu tók
+fókusinn úr töflunni í leiðinni. Eiginleikinn var beðinn um 8.8. sem *möguleiki*
+á síun; hann síaði samstundis.
+
+Fjarlægt: þröskulda-sían öll (stýring, chips, `filterOnValue`, haus-merki,
+flokka-merki og smell-höndlararnir í hólfunum), verð min/max, liða-sían,
+„fit to play", „my squad" — auk `StatPicker` (eini neytandinn), **29 dauðra
+stílalykla** og ónotaðrar `teams`-prop. `hidePicked`/`onlyWatch` standa óbreytt.
+**Engin `localStorage`-snerting:** PlayerList geymir aðeins `fpl_gwopen`,
+`fpl_dense`, `fpl_cols`, svo ekkert gamalt blob getur borið fjarlægðan lykil.
+
+> **APAPRÓFIÐ FANN RAUNVERULEGT HRUN SEM ÚRFELLINGIN OLLI.** `fold` (broddstafa-
+> felling fyrir leit) stóð milli haus-athugasemdar `StatPicker` og fallsins
+> sjálfs, svo úrklippan tók hana með — en `ColumnPicker` notar hana enn og
+> **„Build table" féll með `fold is not defined`**. Það felldi líka
+> `react-warnings.mjs`. Ekkert annað safn opnar þá braut með leit.
+
+### Forleiks-borðinn fullyrti „587 af 587" og það var `Price > 0` í dulargervi
+
+Fyrri útgáfa taldi **alla** `!live_only` dálka, og `now_cost` er nenni-núll hjá
+öllum 587 — svo talan var alltaf full þekja. Verra: verð **endurstillist aldrei**,
+svo borðinn hefði haldið áfram að fullyrða þetta **eftir** að FPL endurstillir —
+nákvæmlega fúinn sem hann var skrifaður til að forðast. Hann telur nú dálka sem
+**safnast yfir umferðir** (sama `rangeBlind`-forsenda og `rangeBanner` notar; með
+`finished_gw === 0` getur nenni-núll þar aðeins verið síðasta tímabil), mælt yfir
+**alla skrána** en ekki sýnilegu dálkana — því „Upcoming fixtures" á 0 slíka og
+hefði flett borðanum yfir í ósönnu greinina. Skjárinn les nú **405 af 587**
+(`minutes > 0` er 400; fimm til bera stig/mörk án mínútna — þekkta FPL-ósamræmið).
+
+### `no_heat` — hitakortið mátti ekki fullyrða „bestur"
+
+`heatScale` kann aðeins tvennt: hærra betra eða lægra betra. `starts_per_90` er
+hvorugt — nótan segir sjálf að **báðir endar séu verri en miðjan** (~1,0 er
+kjörið). Með `hi:true` fékk Jocelin.T (**2,37 úr EINNI byrjun í 38 mínútum**)
+sterkasta græna litinn og las sem besti maður töflunnar, á dálki sem varar
+sjálfur við nákvæmlega því. Röðun er óbreytt — það var **liturinn** sem laug.
+Vörðurinn liggur á **tengingunni**, ekki gildinu: `stats.test.mjs` kafli 15c
+krefst þess að `PlayerList.jsx` LESI reitinn inni í `heatScale`-smíðinni, svo
+hann verði ekki flagg sem enginn les (`team_dc`-bilunin, kafli 6l).
+Stökkbreyting: lesturinn fjarlægður → 2 fallnar.
