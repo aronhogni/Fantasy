@@ -250,11 +250,42 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      og er rett i handvirku drafti.                                   */
   const rounds = league.rounds || 15;
 
+  /* ============================================================
+     SAETI SEM PASSAR EKKI VID DEILDINA ER OTHEKKT SAETI, EKKI SIDASTA VAL
+     ============================================================
+     `nextOwnPick` skilar `null` af THREMUR olikum astaedum og adeins EIN
+     theirra thydir "thu att ekkert val eftir":
+
+       (a) inntak vantar            -> vitum ekki
+       (b) `slot > teams`           -> saetid a ekki heima i thessari deild
+       (c) umferdirnar eru bunar    -> SIDASTA VALID
+
+     Bordid lagdi (b) og (c) ad jofnu og fullyrdingin sem kom ut var
+     **rong og truverdug**: i 10-lida deild med saeti 12 stod
+     **"This is your last pick — you have none after it." vid val 1**,
+     hver lifunartala var `—` og bordid litadi ekkert. Maelt i jsdom:
+     saeti 7 -> "next pick 7, 6 picks away"; saeti 11 og 12 -> sidasta-val
+     fullyrdingin, strax.
+
+     ÞAD ER EKKI TILGATA UM NOTANDA SEM SLAER VITLAUST INN. Reiturinn
+     leyfir 1-16 an tillits til deildarinnar, `normalizeSync` geymir
+     1-32, OG — algengara — mock-draft i annarri staerd les saetid sitt
+     beint ur `draft_order`: 12-lida mock gefur saeti 11 eda 12 inn i
+     10-lida deild an thess ad nokkur slaí neitt inn.
+
+     `slotOk` skilur thau ad. Se saetid ogilt hegdar bordid ser eins og
+     ekkert saeti se thekkt — engin litun, engin fullyrding — og
+     `SleeperSync` SEGIR fra thvi (kassinn "Slot N does not exist in a
+     T-team league"). Ad thegja vaeri ad skipta einni rangri fullyrdingu
+     ut fyrir tomt bord an skyringar. */
+  const slotRaw = (sync && sync.slot) != null ? Number(sync.slot) : null;
+  const slotOk = slotRaw != null && Number.isFinite(slotRaw) &&
+                 slotRaw >= 1 && slotRaw <= (Number(league.teams) || 0);
+
   const reach = useMemo(() => {
     const m = new Map();
-    const slot = sync && sync.slot;
-    if (slot == null) return m;
-    const np = nextOwnPick(pickNo, league.teams, slot, rounds);
+    if (!slotOk) return m;
+    const np = nextOwnPick(pickNo, league.teams, slotRaw, rounds);
     if (np == null) return m;
     for (const r of rows) {
       if (r.adp == null) continue;
@@ -262,16 +293,16 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
       if (p != null) m.set(r.id, p);
     }
     return m;
-  }, [rows, pickNo, sync && sync.slot, league.teams, rounds]);
+  }, [rows, pickNo, slotOk, slotRaw, league.teams, rounds]);
 
   const nextOwn = useMemo(() => {
-    const slot = sync && sync.slot;
-    if (slot == null) return null;
-    return nextOwnPick(pickNo, league.teams, slot, rounds);
-  }, [pickNo, sync && sync.slot, league.teams, rounds]);
-  /* Saetið er thekkt EN ekkert val er eftir — thad er allt annad astand
-     en "saetið er othekkt", og adeins fyrra ma slokkva a lifunartolunum. */
-  const lastPick = (sync && sync.slot) != null && nextOwn == null;
+    if (!slotOk) return null;
+    return nextOwnPick(pickNo, league.teams, slotRaw, rounds);
+  }, [pickNo, slotOk, slotRaw, league.teams, rounds]);
+  /* Saetið er thekkt OG gilt EN ekkert val er eftir — thad er allt annad
+     astand en "saetið er othekkt", og adeins fyrra ma slokkva a
+     lifunartolunum. */
+  const lastPick = slotOk && nextOwn == null;
 
   /* ============================================================
      ALLAR BREYTINGAR ERU FOLL AF FYRRA ASTANDI, EKKI AF MYND AF THVI
@@ -467,6 +498,54 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
             <b>Sharp rankings are not available.</b> The accuracy measurement has not
             run, so every source is weighted equally. Columns marked <i>Sharp</i> are
             blank rather than showing an unmeasured number that would look measured.
+          </div>
+        )}
+        {/* ============================================================
+            SHARP Δ ER PPR-TALA I HVAÐA DEILD SEM ER — OG ÞAÐ VAR ÓSAGT
+            ============================================================
+            `sharpDelta = ecr - sharpRank` (`build.js`) notar FLATA
+            `p.ecr`-svidid, sem er PPR. Skorpu bordin sjalf eru lika PPR
+            og adeins PPR — `fantasypros.mjs` sækir tha med
+            `scoring = "PPR"` sjalfgefid — svo talan er innbyrdis
+            samkvaem: PPR gegn PPR. Hun er thad EKKI gagnvart
+            ECR-DALKINUM vid hlidina, sem fylgir stigagjof deildarinnar.
+
+            MAELT 16.8.2026 gegnum `buildRows` (leidin sem notandinn ser):
+              · half-PPR, topp 60: **54 rodir** thar sem birt ECR mínus
+                birt Sharp # er EKKI birta Sharp Δ
+              · standard, topp 60: **56 rodir**, og i **17** theirra
+                SNYST FORMERKID VID
+              · versta tilfellid: Derrick Henry i standard ber ECR **12**
+                og Sharp Δ **+2** (les: skorpu bordin eru hrifnari), medan
+                skorpu rodin hans er **36** — gegn ECR-inu sem stendur vid
+                hlidina er talan **-24**
+
+            ÞETTA SLAPP FRAM HJA VERDINUM SEM VAR SKRIFADUR GEGN NAKVAEMLEGA
+            THESSU. `PlayerTable` varar vid thegar ECR-dalkurinn er PPR i
+            deild sem er thad ekki — en su vordur les `ecrScoring`, og
+            ECR-dalkurinn er nu RETT snid. Sharp Δ laumast framhja af thvi
+            ad hun ber ekkert svid sem segir hvad hun er.
+
+            TALAN ER EKKI BREYTT. Ad reikna hana gegn snid-ECR-inu vaeri
+            ad blanda PPR-skorpurod vid standard-samsteypu — verri villa i
+            hina attina — og hvada rod skorpu bordin gaefu i standard er
+            OMAELT (their birta thad ekki). Þad sem var lagfaert er
+            THOGNIN: grunnurinn er nu sagdur, alltaf, i hvada sniði sem er.
+
+            Vordur: `tests/render.mjs` kafli 2 (setningin er a skjanum) og
+            `tests/model.mjs` kafli 8b (talan ER pprEcr - sharpRank, svo
+            enginn "lagfaeri" hana thegjandi i hina attina).           */}
+        {meta.sharpMeasured && (
+          <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
+            <b>Sharp Δ is measured against the PPR consensus</b>, not against the ECR
+            column beside it: the expert boards we score accuracy on are published in
+            PPR only.
+            {league.scoring !== "ppr" && (
+              <> Your league is{" "}
+                <b>{league.scoring === "half-ppr" ? "half-PPR" : "standard"}</b>, so the
+                two columns will not subtract to each other — and for a handful of
+                players the sign differs. Read Sharp Δ on its own.</>
+            )}
           </div>
         )}
       </div>
@@ -736,9 +815,40 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   /* Nafnid er FORFYLLT ur vistada audkenninu — notandinn a ekki ad slá
      thad inn i hvert sinn, og forsidan tharf thad hvort ed er. */
   const [user, setUser] = useState(() => (sleeperUser && sleeperUser.name) || "");
-  /* Audkenni notandans er MUNAD thegar hann finnst. Thad er lykillinn
-     ad sjalfvirku saeti — sja `resolveSlot`. */
-  const [userId, setUserId] = useState(null);
+  /* ============================================================
+     AUDKENNID VAR **EKKI** MUNAD — OG NOTAN HER SAGDI AD THAD VAERI
+     ============================================================
+     Her stod: "Audkenni notandans er MUNAD thegar hann finnst. Thad er
+     lykillinn ad sjalfvirku saeti." Fyrri setningin var OSONN. Gildid
+     var `useState(null)` — thad lifdi hvorki F5 ne svissun a deild, thvi
+     `App.jsx` endurraesir thennan hlut (`key={activeId}`). NAFNID var
+     forfyllt ur `sleeperUser` (linan fyrir ofan) en AUDKENNID, sem er
+     thad EINA sem `resolveSlot` getur notad, var thad ekki — thott
+     `sleeperUser.userId` liggi vistad i geymslunni vid hlidina a nafninu.
+
+     MAELT (`tests/sleeper.mjs` kafli 2bb2, tvaer lotur):
+     lota 1 les saetid rett ur `draft_order` (7 af 10). Eftir endurhledslu
+     — sama vafra, sama vistada notandanafni, nafnareiturinn FORFYLLTUR —
+     skilar nakvaemlega sama draft **engu saeti**.
+
+     ÞRENNT SLOKKNAR MED SAETINU, OG EKKERT THEIRRA ER THOGULT UM SIG:
+       · `reach` er tomt, svo BORDID LITAR EKKERT
+       · `myPicks` fyllist aldrei (`isMine` krefst `sync.slot != null`)
+       · radgjafarkassinn fellur i afleidsluna og GEFUR SER ad valid a
+         klukkunni se mitt. I 10-lida deild er thad rangt i 9 volum af
+         10: vid val 21 skrifadi hann "Your next pick is 40" thar sem
+         rett svar fyrir saeti 7 er **27**.
+
+     Og `pull()` ber varaleid fyrir rodina sem er dregin i midju drafti
+     (`sync.slot == null && userId != null && d.draft_order`) — hun var
+     DAUD af somu astaedu, sem er verst a nakvaemlega thvi kvoldi sem hun
+     var skrifud fyrir.
+
+     Vordur: `tests/sleeper.mjs` kafli 2bb2. Hann keyrir TVAER lotur med
+     endurhledslu a milli — an hennar getur fullyrdingin ekki brugdist,
+     thvi lota 1 var alltaf rett. */
+  const [userId, setUserId] = useState(
+    () => (sleeperUser && sleeperUser.userId) || null);
   const [leagues, setLeagues] = useState(null);
   const [slotAuto, setSlotAuto] = useState(false);
   const [status, setStatus] = useState(null);
@@ -1176,6 +1286,77 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
       )}
 
       {status && <div className="note warn" style={{ marginTop: 10 }}>{status}</div>}
+
+      {/* ============================================================
+          DRAFTID OG DEILDIN GETA VERID SITTHVOR LOGUNIN — OG THAU VORU
+          THOGUL UM THAD
+          ============================================================
+          MOCK-DRAFT BER ENGA `league_id`, svo `connect` flytur ENGAR
+          reglur inn — adeins draft-audkennid og saetid (sja thar). Bordid
+          heldur thvi afram ad reikna med DEILDINNI sem er valin medan
+          volin koma ur MOCK-INU. Er mock-id i annarri staerd er hver
+          snakk-tala rong:
+
+            12-lida mock, saeti 3, deildin i appinu 10 lid
+            -> vid val 21 segir kassinn "next pick 40" (10-lida vorpun)
+               thar sem rett svar i mock-inu er **22**
+
+          Ekkert hrundi og ekkert var tomt; talan var einfaldlega ur
+          annarri deild. Og se saetid haerra en lidafjoldi deildarinnar
+          (12-lida mock gefur saeti 11 eda 12) slokknar `slotOk` i
+          `DraftBoard` og bordid haettir ad lita — retta hegdunin, en hun
+          vaeri OSKYRD an thessarar linu.
+
+          TOLURNAR ERU LESNAR, EKKI GISKADAR: `info` kemur ur
+          `/draft/{id}` sjalfu (`settings.teams` / `settings.rounds`), svo
+          thetta er samanburdur a tveimur skradum stadreyndum.
+
+          VID BREYTUM EKKI DEILDINNI SJALFKRAFA. Notandinn gaeti verid ad
+          aefa sig fyrir sina deild i mock-i af annarri staerd viljandi;
+          ad yfirskrifa reglurnar hans thegjandi vaeri staerri villa en
+          su sem er verid ad laga. Vid SEGJUM fra og latum hann rada.  */}
+      {/* SAETID FYRST, OG THAD HANGIR EKKI A `info`. Fyrsta utgafa thessa
+          kassa las bædi ur `info`, sem er ADEINS til medan samstillingin
+          er i gangi (`pull` skrifar hana). Notandi sem slaer 12 i reitinn
+          i 10-lida deild AN thess ad kveikja a samstillingu hefdi thvi
+          fengid olitad bord og enga skyringu — sama thogn og adur, bara i
+          minna tilfelli. */}
+      {(() => {
+        const lt = Number(league && league.teams);
+        if (sync.slot == null || !Number.isFinite(lt)) return null;
+        if (sync.slot >= 1 && sync.slot <= lt) return null;
+        return (
+          <div className="note warn" style={{ marginTop: 10 }}>
+            <b>Slot {sync.slot} does not exist in a {lt}-team league.</b>{" "}
+            The board is treating your seat as unknown: nobody is shaded, and the
+            pick advice falls back to assuming the pick on the clock is yours. Set a
+            slot between 1 and {lt}, or import the league this draft belongs to.
+          </div>
+        );
+      })()}
+
+      {info && (() => {
+        const dt = Number(info.teams), dr = Number(info.rounds);
+        const lt = Number(league && league.teams), lr = Number(league && league.rounds);
+        const bad = [];
+        if (Number.isFinite(dt) && Number.isFinite(lt) && dt !== lt) {
+          bad.push(`${dt} teams in the draft against ${lt} in this league`);
+        }
+        if (Number.isFinite(dr) && Number.isFinite(lr) && dr !== lr) {
+          bad.push(`${dr} rounds against ${lr}`);
+        }
+        if (!bad.length) return null;
+        return (
+          <div className="note warn" style={{ marginTop: 10 }}>
+            <b>This draft is not the shape of the league the board is using</b>
+            {` — ${bad.join(", ")}.`}
+            {" "}Picks are struck off correctly, but every snake number — your next
+            pick, the wait, and the "will he last?" shading — is worked out from the
+            league settings above, not from the draft. Import the league this draft
+            belongs to, or set teams and rounds to match, before you trust them.
+          </div>
+        );
+      })()}
 
       {/* VIDVARANIR ERU EKKI SKRAUT. Hver ein er atriði sem likanid
           getur EKKI heidrad — keeper-deild, TE-premium, IDP, uppbods-

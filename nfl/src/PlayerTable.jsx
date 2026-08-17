@@ -101,6 +101,20 @@ export default function PlayerTable({ rows, meta, league }) {
               : " by experts picked on a single season — the career history has not been fetched yet"}.
             {" "}It is context, not the ranking: blending it into A-Ranking lost points in
             backtest, so it stays a column.
+            {/* GRUNNURINN VERDUR AD FYLGJA TOLUNNI — sja langa notu i
+                `DraftBoard.jsx` vid somu setningu. Skorpu bordin eru PPR
+                og adeins PPR, svo deltan er maeld gegn PPR-samsteypunni
+                medan ECR-dalkurinn hér vid hlidina fylgir stigagjof
+                deildarinnar. I standard snyst formerkid vid a 17 af topp
+                60 og vordurinn sem var skrifadur gegn thessu (`ecrScoring`
+                nedar) getur ekki sed thad. */}
+            {" "}It is measured against the <b>PPR</b> consensus — the boards we score
+            are published in PPR only
+            {league.scoring !== "ppr"
+              ? `, so it does not subtract against the ${
+                  league.scoring === "half-ppr" ? "half-PPR" : "standard"
+                } ECR column beside it.`
+              : "."}
           </div>
         )}
         {/* ECR-SNIDID ER SAGT THEGAR THAD PASSAR EKKI VID DEILDINA.

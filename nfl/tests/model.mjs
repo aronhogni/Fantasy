@@ -782,5 +782,71 @@ console.log("\n8b. flex-saetin summast og flexPos er virt");
     "og 12-lida deildin er BITAEINS obreytt — 24 saeti deilast nakvaemlega");
 }
 
+/* ============================================================
+   8c. SHARP Δ ER PPR-TALA — OG HUN A AD VERA THAD
+   ============================================================
+   `sharpDelta = p.ecr - sharpRank` (`build.js`) notar FLATA `ecr`-svidid,
+   sem er PPR, medan `ecr`-DALKURINN sem er birtur vid hlidina fylgir
+   stigagjof deildarinnar. Talan er thvi innbyrdis samkvaem (PPR gegn PPR)
+   en hun gengur EKKI upp gagnvart dalkinum: maelt 16.8.2026 i standard,
+   topp 60, snyst FORMERKID vid a **17 rodum** — Derrick Henry ber ECR 12
+   og Sharp Δ +2 medan skorpu rodin hans er 36.
+
+   ÞVI ER FULLYRT UM GRUNNINN, EKKI UM MISMUNINN. Ad "lagfaera" hana yfir
+   i snid-ECR-id vaeri ad blanda PPR-skorpurod vid standard-samsteypu —
+   verri villa, og i hina attina. Skorpu bordin eru sott i PPR og ADEINS
+   PPR (`sources/fantasypros.mjs`, `scoring = "PPR"`), svo grunnurinn ER
+   rettur; thad sem vantadi var ad SEGJA hann. Vidmotid gerir thad nu
+   (`DraftBoard.jsx` og `PlayerTable.jsx`) og thetta prof pinnar toluna,
+   svo thau tvo geti ekki rekid i sundur thegjandi.
+
+   FULLYRDINGIN VERDUR AD VERA I ODRU SNIDI EN PPR, annars er hun tom: i
+   PPR eru bædi svidin sama talan og hun gaeti ekki brugdist.          */
+console.log("\n8c. Sharp Delta er maeld gegn PPR-ECR, i hvada sniði sem er");
+{
+  const { buildRows } = await import("../src/build.js");
+  const rd8c = (f) => { try { return JSON.parse(readFileSync(path.join(DATA, f), "utf8")); }
+                        catch { return null; } };
+  const players = rd8c("players.json");
+  const experts = rd8c("experts.json");
+  const accuracy = rd8c("accuracy.json");
+  const league = { teams: 12, scoring: "standard", rounds: 15,
+                   starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 },
+                   maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } };
+  const common = { players, seasons: rd8c("seasons.json"), accuracy, experts,
+                   schedule: rd8c("schedule.json"), market: rd8c("market.json") };
+  const b = buildRows({ ...common, league });
+  const raw = new Map(players.map((p) => [p.id, p]));
+  const rows = b.rows.filter((r) => r.sharpDelta != null && r.sharpRank != null);
+  ok(rows.length > 50, `nog rodir bera Sharp Delta i standard (${rows.length})`);
+
+  const wrongBasis = rows.filter((r) => {
+    const ppr = raw.get(r.id) && raw.get(r.id).ecr;
+    return ppr == null || Math.round((ppr - r.sharpRank) * 10) / 10 !== r.sharpDelta;
+  });
+  ok(wrongBasis.length === 0,
+    `hver Sharp Delta er PPR-ECR minus skorpu rod (${wrongBasis.length} frávik)`);
+
+  /* ÞEKJA ER FULLYRDING: se ekkert snid-ECR odruvisi en PPR-ECR var
+     prufan hér ad ofan sonn af tilviljun og hefdi verid jafn graen eftir
+     "lagfaeringu" yfir i snid-ECR. Munurinn er thvi TALINN. */
+  const differ = rows.filter((r) => {
+    const ppr = raw.get(r.id) && raw.get(r.id).ecr;
+    return ppr != null && r.ecr != null && r.ecr !== ppr;
+  });
+  ok(differ.length > 20,
+    `og snid-ECR er raunverulega annad en PPR-ECR a ${differ.length} rodum ` +
+    `— an thess vaeri fullyrdingin ad ofan tom`);
+
+  /* Og i PPR gengur dalkurinn upp vid deltuna — grunnurinn er ekki
+     "onnur tafla" heldur SAMA taflan thegar snidin fara saman. */
+  const bp = buildRows({ ...common, league: { ...league, scoring: "ppr" } });
+  const mismatchPpr = bp.rows.filter((r) => r.sharpDelta != null && r.ecr != null &&
+    r.sharpRank != null &&
+    Math.round((r.ecr - r.sharpRank) * 10) / 10 !== r.sharpDelta);
+  ok(mismatchPpr.length === 0,
+    `i PPR gengur dalkurinn upp vid deltuna (${mismatchPpr.length} frávik)`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

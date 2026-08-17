@@ -139,6 +139,20 @@ const SCENARIOS = {
     },
     picks: REAL_IDS.slice(0, 20).map((id, i) => mkPick(i, id, (i % 10) + 1)),
   },
+  /* ============================================================
+     MOCK-DRAFT I ANNARRI STAERD EN DEILDIN
+     ============================================================
+     ENGIN `league_id` — thad er nakvaemlega thad sem Sleeper skilar
+     fyrir mock. `connect` flytur thvi ENGAR reglur inn og bordid heldur
+     afram ad reikna med theirri deild sem er valin, medan volin koma ur
+     mock-inu. 12 lid gegn 10 er thvi TVAER olikar snakk-vorpanir a sama
+     skja.                                                             */
+  mock12: {
+    draft: { draft_id: "m12", league_id: null, status: "drafting", type: "snake",
+             season: "2026", draft_order: null,
+             settings: { teams: 12, rounds: 15 } },
+    picks: [],
+  },
   /* Deild B — draftid er til en EKKERT val komid. */
   leagueB: {
     draft: {
@@ -444,6 +458,178 @@ console.log("\n2bb. saetid les sig sjalft ur draft_order");
   const mine = /(\d+) yours/.exec(text());
   ok(mine && Number(mine[1]) === 2,
     `hopurinn fylltist an thess ad slá inn neitt (${mine ? mine[1] : "?"} minir)`);
+  root.unmount();
+}
+
+/* ============================================================
+   2bb2. SAETID VERDUR AD LESAST **EFTIR ENDURHLEDSLU LIKA**
+   ============================================================
+   Kafli 2bb hér ad ofan gat ekki brugdist vid thessari villu, og thad er
+   akkurat lexian: hann keyrir EINA lotu, og i einni lotu var allt rett.
+
+   `SleeperSync` bar `useState(null)` fyrir `userId` — audkennid sem
+   `resolveSlot` tharf — medan NAFNID var forfyllt ur vistada
+   `sleeperUser`. Bædi svidin liggja i somu vistudu faerslunni. Hluturinn
+   er endurraestur vid HVERJA hledslu og vid HVERJA svissun a deild
+   (`key={activeId}` i App.jsx), svo audkennid var horfid en nafnid stod
+   — og notandinn sa forfylltan reit og ekkert saeti.
+
+   ÞAD ER DRAFTKVOLD-TILFELLID SJALFT: opna appid, lima inn draft-slod.
+   An saetis litar bordid ENGAN, hopurinn fyllist aldrei, og
+   radgjafarkassinn giskar ad valid a klukkunni se mitt — sem er rangt i
+   9 volum af 10 i 10-lida deild.
+
+   PROFID ER TVISKIPT AF NAUDSYN: lota 1 kennir appinu audkennid (og
+   stadfestir ad thad se VISTAD, annars vaeri lota 2 ad profa annad),
+   lota 2 hledur upp a nytt og tengir SAMA draft an thess ad slá inn
+   neitt. Fullyrding an endurhledslu i millitidinni getur ekki fellt
+   thetta.                                                            */
+console.log("\n2bb2. saetid lifir endurhledslu");
+{
+  scenario = SCENARIOS.inProgress; sleeperMode = "ok";
+  let root = await boot();
+
+  /* --- lota 1: finna notandann, tengja, saetid les sig --- */
+  await setInput("Sleeper username", "adi");
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /Find leagues/i.test(b.textContent || "")));
+  await settle(600);
+  const stored = JSON.parse(localStorage.getItem("nfl_sleeperUser") || "null");
+  ok(stored && stored.userId === "u1",
+    `lota 1: audkennid er VISTAD (${stored ? stored.userId : "ekkert"})`);
+
+  /* Leidin sem er profud er `pull()`-greinin — "rodin var dregin EFTIR
+     ad thu tengdir" — thvi hun er su sem gengur a draftkvoldi og hun var
+     DAUD af somu orsok: hun krefst `userId != null`. */
+  const startSync = async () => {
+    await setInput("Draft ID", "d2");
+    await click([...document.querySelectorAll("button")]
+      .find((b) => /live sync|Start/i.test(b.textContent || "")));
+    await settle(800);
+  };
+  const slotOf = () => [...document.querySelectorAll("label.field")]
+    .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
+
+  await startSync();
+  const slot1 = slotOf();
+  ok(slot1 && Number(slot1.value) === 7,
+    `lota 1: saetid lesid ur draft_order (${slot1 ? slot1.value || "tomt" : "?"})`);
+
+  /* --- endurhledsla: sama geymsla, nyr mount, og saetid HREINSAD svo
+         thad VERDI ad lesast upp a nytt (nytt draft gerir nakvaemlega
+         thetta). --- */
+  await act(async () => { root.unmount(); });
+  const saved = JSON.parse(localStorage.getItem("nfl_leagues") || "[]");
+  for (const e of saved) e.sync = { draftId: "", slot: null };
+  localStorage.setItem("nfl_leagues", JSON.stringify(saved));
+
+  root = createRoot(document.getElementById("root"));
+  await act(async () => { root.render(React.createElement(App)); });
+  await settle(700);
+
+  const nameBox = [...document.querySelectorAll("label.field")]
+    .find((l) => /Sleeper username/i.test(l.textContent || ""))?.querySelector("input");
+  /* NEIKVAED FULLYRDING VERDUR AD NEFNA EITTHVAD SEM VAR SANNANLEGA THAR:
+     nafnid ER forfyllt, og thad er einmitt thess vegna sem fjarvera
+     audkennisins var osynileg. */
+  ok(nameBox && nameBox.value === "adi",
+    `lota 2: nafnareiturinn er forfylltur ("${nameBox ? nameBox.value : ""}")`);
+
+  await startSync();
+  const slot2 = slotOf();
+  ok(slot2 && Number(slot2.value) === 7,
+    `lota 2: saetid les sig UPP A NYTT an innslattar (${slot2 ? slot2.value || "tomt" : "?"})`);
+  ok(/read from Sleeper/i.test(text()),
+    "og thad er merkt sem lesid, ekki innslegid");
+  root.unmount();
+}
+
+/* ============================================================
+   2bb3. SAETI SEM ER EKKI TIL I DEILDINNI ER OTHEKKT SAETI
+   ============================================================
+   `nextOwnPick` skilar `null` bædi thegar saetid er UTAN deildarinnar
+   (`slot > teams`) og thegar draftid er BUID. Bordid lagdi thau ad jofnu
+   og skrifadi thvi **"This is your last pick — you have none after it."
+   vid val 1** i 10-lida deild med saeti 11 eda 12.
+
+   Þad er ekki tilbuid tilfelli: reiturinn leyfir 1-16 an tillits til
+   deildarinnar, `normalizeSync` geymir 1-32, og 12-lida MOCK les saeti
+   11 eda 12 beint ur `draft_order` inn i 10-lida deild.
+
+   Krafan er fjorthaett og hver hluti getur brugdist einn: gilt saeti i
+   somu keyrslu hegdar ser afram rett (annars vaeri "engin fullyrding"
+   uppfyllt med thvi ad slokkva a kassanum), engin sidasta-vals
+   fullyrding, og vidvorunin nefnir toluna.                           */
+console.log("\n2bb3. saeti utan deildar er ekki \"sidasta val\"");
+{
+  scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
+  const root = await boot();
+  await setInput("League or draft URL",
+    "https://sleeper.com/leagues/1389356308104249344/predraft");
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /^(Connect|Reading)/i.test(b.textContent || "")));
+  await waitFor(() => /rules imported/i.test(text()), 4000);
+
+  await setInput("Your slot", "7");
+  await settle(300);
+  const okLine = /Your next pick is\s*(\d+),\s*(\d+) picks? away/.exec(text());
+  ok(!!okLine, `saeti 7: kassinn ber naesta val (${okLine ? okLine[0] : "ekkert"})`);
+  ok(!/does not exist in a/.test(text()), "og engin vidvorun um saetid");
+
+  await setInput("Your slot", "12");
+  await settle(300);
+  ok(!/This is your last pick/.test(text()),
+    "saeti 12 i 10-lida deild segir EKKI \"this is your last pick\"");
+  ok(/Slot 12 does not exist in a 10-team league/.test(text()),
+    "heldur segir berum ordum ad saetid se ekki til");
+  root.unmount();
+}
+
+/* ============================================================
+   2bb4. MOCK I ANNARRI STAERD — SAGT, EKKI THAGAD
+   ============================================================
+   Mock-draft ber enga `league_id`, svo `connect` flytur ENGAR reglur inn
+   (rett: mock er ekki deild). Bordid reiknar thvi afram med deildinni
+   sem er valin medan volin koma ur mock-inu, og se mock-id i annarri
+   staerd er HVER snakk-tala ur rangri deild:
+
+     12-lida mock, saeti 3, deildin i appinu 10 lid
+     -> vid val 21 skrifadi kassinn "next pick 40" (10-lida vorpun)
+        thar sem rett svar i mock-inu er **22**
+
+   Ekkert hrundi, ekkert var tomt og engin tala var NaN — hun var bara ur
+   annarri deild. Talan sjalf er ekki lagfaerd (vid vitum ekki hvort
+   notandinn er ad aefa sig viljandi i annarri staerd); thad sem var
+   lagfaert er THOGNIN. `info` kemur ur `/draft/{id}` sjalfu, svo thetta
+   er samanburdur a tveimur skradum stadreyndum.
+
+   Fullyrdingin er tviskipt svo hun geti brugdist i badar attir: SAMA
+   staerd ma ekki gefa vidvorun (annars vaeri hun bara alltaf a).      */
+console.log("\n2bb4. mock i annarri staerd en deildin er SAGT");
+{
+  scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
+  const root = await boot();
+  await setInput("League or draft URL",
+    "https://sleeper.com/leagues/1389356308104249344/predraft");
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /^(Connect|Reading)/i.test(b.textContent || "")));
+  await waitFor(() => /rules imported/i.test(text()), 4000);
+
+  /* Fyrst DEILDARINS EIGID draft — sama logun, engin vidvorun. */
+  await click([...document.querySelectorAll("button")]
+    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  await waitFor(() => /picks made/.test(text()), 3000);
+  ok(/10 teams/.test(text()), "eigid draft: 10 lid lesin ur draftinu");
+  ok(!/not the shape of the league/.test(text()),
+    "og THA er engin vidvorun (annars vaeri hun bara alltaf a)");
+
+  /* Sidan 12-lida mock i somu deild. */
+  await setInput("Draft ID", "m12");
+  await waitFor(() => /12 teams/.test(text()), 3000);
+  ok(/This draft is not the shape of the league the board is using/.test(text()),
+    "12-lida mock i 10-lida deild: vidvorunin birtist");
+  ok(/12 teams in the draft against 10 in this league/.test(text()),
+    "og hun nefnir BADAR tolurnar, ekki bara ad eitthvad se ad");
   root.unmount();
 }
 

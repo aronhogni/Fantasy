@@ -174,6 +174,60 @@ console.log("\n2. draft-flipinn");
   ok(digitsIn(text()) > dashesIn(text()) * 2,
     `tolur eru fleiri en strik (${digitsIn(text())} vs ${dashesIn(text())})`);
   ok(sleeperCalls === 0, "engin Sleeper-koll an thess ad notandi bidji um thad");
+
+  /* ============================================================
+     STAERDARGRADA — VILLAN SEM ENGIN FULLYRDING GAT SED
+     ============================================================
+     ÞETTA VANTADI OG THAD ER SKRIFAD BERUM ORDUM: spanni a bordinu maetti
+     margfalda med 17 og hvert einasta prof helst graent. Þau spyrja um
+     ROD ("RB0 hefur haerra VBD en QB0"), um TENGSL ("urskurdurinn er
+     efsti madur rokstudningsins"), um FJOLDA ("meira en 50 rodir",
+     "meira en 400 tolustafir") og um NULL. Ekkert theirra spyr hvort
+     talan se AF RETTRI STAERD — og skala-villa heldur rodinni obreyttri,
+     svo hun laumast gegnum thau oll.
+
+     ÞETTA ER LESID AF SKJANUM, EKKI UT UR `buildRows`. Anker sem kallar
+     sama fall og appid er ad bera formuluna vid sjalfa sig; hér er lesid
+     ur toflunni sem notandinn ser, thvi thad er thar sem skalinn getur
+     tapast (sniðun, /90-deiling, umreikningur milli stigagjafa).
+
+     MORKIN ERU LIFFRAEDILEG, EKKI BOKAD DAGSGILDI. Efsti madur mældist
+     331,4 stig 16.8.2026 og su tala REKUR i hverri daglegri keyrslu —
+     bokud vaeri hun rong innan vikunnar (sama lexia og K/DST-tolurnar i
+     `model.js`). 120-600 er thad sem heilt NFL-timabil getur borid i
+     hvada sniði sem er. 17x villa gefur 5.634 og fellur; 1/17 gefur 19,5
+     og fellur lika — fullyrdingin er TVIHLIDA.                        */
+  {
+    const boardTable = [...document.querySelectorAll("table.data")]
+      .find((t) => /Bye/.test(t.querySelector("thead")?.textContent || "")) || null;
+    const head = [...(boardTable?.querySelectorAll("thead th") || [])]
+      .map((th) => (th.textContent || "").trim());
+    const iVbd = head.indexOf("VBD"), iProj = head.indexOf("Proj");
+    ok(iVbd > 0 && iProj > 0,
+      `dalkarnir VBD og Proj finnast i hausnum (${iVbd}, ${iProj})`);
+
+    const trs = [...(boardTable?.querySelectorAll("tbody tr") || [])];
+    const cellNum = (tr, i) => Number((tr?.querySelectorAll("td")[i]?.textContent || "").trim());
+    const proj = cellNum(trs[0], iProj), vbd = cellNum(trs[0], iVbd);
+    ok(Number.isFinite(proj) && proj >= 120 && proj <= 600,
+      `efsti madur ber spa af NFL-staerd (${proj} stig, mork 120-600)`);
+    /* VBD er MISMUNUR og thvi minni tala — en hann fylgir sama skala,
+       svo hann fellur med spanni ef skalinn brenglast. */
+    ok(Number.isFinite(vbd) && vbd >= 30 && vbd <= 400,
+      `og VBD hans er af somu staerdargradu (${vbd}, mork 30-400)`);
+    /* Og rodin er raunverulega efst — annars vaeri thetta ad maela
+       einhverja rod, ekki thá sem bordid setti fremst. */
+    const vbd2 = cellNum(trs[1], iVbd);
+    ok(Number.isFinite(vbd2) && vbd2 <= vbd,
+      `og rod 2 er ekki haerri (${vbd2} <= ${vbd})`);
+  }
+
+  /* GRUNNUR SHARP Δ ER SAGDUR A SKJANUM. `sharpDelta` er PPR-ECR minus
+     skorpu rod (sja `model.mjs` kafla 8c) medan ECR-dalkurinn fylgir
+     stigagjof deildarinnar — i standard snyst formerkid vid a 17 af topp
+     60. Talan er rett; thognin var thad ekki. */
+  ok(/measured against the PPR consensus/i.test(text()),
+    "grunnur Sharp Delta (PPR) er sagdur a draft-bordinu");
 }
 
 console.log("\n3. players-flipinn");
