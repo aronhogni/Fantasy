@@ -1020,11 +1020,43 @@ i `docs/MAELINGAR.md`; reglurnar sem leiða af theim eru hér:
   bera yfir eru **LEIDD** (`liveOnlyRawFields`, Proxy-könnun á hverjum
   getter), ekki handskrifuð — handskrifaður listi staðnar (sbr. `gwBlindKeys`).
 
-> **MARKMENN FÁ ENGIN DEFCON-STIG — MÆLT, EKKI ÁLYKTAÐ.** Núll stig í
-> **hverri einustu** leikja-umferð 2025/26. Dálkarnir fimm bera nú `pos:[2,3,4]`.
-> **TVENNT ER ENN ÓLAGAÐ:** nefnarinn í DC-hittni eru **leikir, ekki byrjanir**
-> þótt nóturnar segi „starts" (deildar-hittni les 0,1361 en er 0,1907 — **+40%**,
-> og `p0` er vanmetið af sömu villu svo aðlagaða talan erfir hana tvisvar);
-> og **lifandi smiðurinn gefur markmönnum DefCon frá GW1** — hermt: **211 af 757
-> markmanna-umferðum (27,9%)** ná þröskuldinum, drifið af endurheimtum
-> (að grípa boltann). Það byrjar að birtast **21. ágúst**.
+### DefCon — þrennt sem var rangt, allt lagað 17.8.2026
+
+> **MARKMENN FÁ ENGIN DEFCON-STIG — MÆLT, EKKI ÁLYKTAÐ.** `player_gw_2526.json`:
+> **757 leikja-umferðir, 750 byrjanir, NÚLL stig, hámark 0** — á móti DEF 6,24
+> að meðaltali (hámark 27), MID 5,75 (29), FWD 2,86 (21). Dálkarnir fimm bera
+> `pos:[2,3,4]`, og **báðir smiðirnir sleppa þeim núna**.
+
+1. **Nefnarinn voru LEIKIR, ekki BYRJANIR** þótt báðar nóturnar segðu „starts".
+   Gáttin var `if (mins <= 0) continue`, svo hver innkoma af bekknum — þar sem
+   10/12-þröskuldurinn er **ónæðanlegur** á 15 mínútum — taldist sem **miss**.
+   Mælt: útileikmenn **0,1361 á leiki en 0,1907 á byrjanir (+40%)**; DEF
+   0,2134 → 0,2632, MID 0,1133 → 0,1675, FWD 0,0078 → 0,0134. **Skekkjan kom
+   tvisvar við:** `p0` er reiknað úr sömu summum, svo aðlagaða talan dró alla
+   að meðaltali sem var sjálft vanmetið. Raðir 537 → 435 (40 markmenn +
+   ~62 sem byrjuðu aldrei og fá nú **enga röð** í stað 0%).
+2. **Lifandi smiðurinn hefði byrjað að gefa markmönnum DefCon 21. ágúst.**
+   Hann reiknar mælikvarðann sjálfur og sendi þá í `cbirt`-greinina, sem hjá
+   markmanni er drifin af **endurheimtum** — að grípa boltann (Roefs 333,
+   Raya 304). Hermt með nákvæmlega þeirri formúlu: **211 af 757 umferðum
+   (27,9%)** ná þröskuldinum. Sást ekki því `defcon.json.players` er tóm í
+   forleik. Þröskuldarnir tveir voru auk þess ósammála um markmenn
+   (`POS_THRESH.GK = 10` en `pos === 2 ? 10 : 12` gaf þeim 12) — merki um að
+   GK-tilfellið hefði aldrei verið ákveðið. `DC_P0_FALLBACK`-færslurnar fyrir
+   GK voru **fjarlægðar**: tilbúið 2% forgildi má ekki liggja í leyni.
+3. **`cbit_per_90` / `cbirt_per_90` voru per BYRJUN, ekki per 90.** Reiknað
+   var `total / starts`, svo talan var hærri hjá þeim sem spilar 90 mín en
+   þeim sem er skipt af eftir 60 — þótt hún heiti per 90.
+
+> **TVÆR TÓMAR FULLYRÐINGAR FUNDUST VIÐ AÐ VERJA ÞETTA, OG BÁÐAR VORU MÍNAR.**
+> (a) Fyrsta útgáfa lagfæringarinnar bjó til `agg[id]` **á undan** byrjana-
+> hliðinu og hljóp svo `continue`, svo leikmaður sem byrjaði aldrei sat eftir
+> með `starts: 0, hit_rate: 0` — nákvæmlega tilbúna nulltalan sem verið var að
+> laga. Prófið fann það. (b) Vörðurinn á per-90 var `/a\.mins/.test(body)`,
+> sem stenst áfram vegna `a.mins += minutes` í söfnuninni; stökkbreytingin
+> slapp í gegn (**0 fallnar**). Hann mælir nú **töluna sjálfa**, og til þess
+> þarf leikmann sem **byrjar en er skipt af** — annars eru mínútur nákvæmlega
+> 90 per byrjun og báðar formúlur gefa sömu tölu (72/540×90 = 12 = 72/6).
+> **Fullyrðing sem getur ekki greint tvær formúlur í sundur mælir hvoruga.**
+> Verðir: `defcon-shrink.mjs` kafli 6 (29 fullyrðingar, þrjár stökkbreytingar
+> staðfestar).

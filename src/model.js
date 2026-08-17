@@ -939,3 +939,73 @@ export function priceMovePrediction({ net, selectedByPct, chg }) {
   if (net < -threshold) return "down";
   return null;
 }
+
+/* ============================================================
+   „ÞÚ NOTAR HANN ALDREI" — LEIKMAÐUR SEM SITUR ALLA ÁÆTLUNINA
+
+   Beiðni notandans: þegar hann er búinn að stilla upp liðinu fyrir næstu
+   5–6 umferðir og einhver leikmaður KEMST ALDREI Í BYRJUNARLIÐIÐ, á appið
+   að benda á að líklega eigi að selja hann.
+
+   OG UNDANTEKNINGIN ER KJARNI MÁLSINS, EKKI SNYRTING: ódýrasti bekkjar-
+   maðurinn Á að sitja. Það er hlutverkið hans. Að selja hann losar EKKERT
+   fé því ekkert ódýrara er til, svo ábendingin væri ekki bara gagnslaus
+   heldur röng — hún segði „gerðu skipti" þar sem ekkert skipti er mögulegt.
+
+   VERÐGÓLFIÐ ER REIKNAÐ, EKKI SLEGIÐ INN. Notandinn nefndi 4,0 / 4,5 og
+   mælt á `players.json` í dag stemmir það nákvæmlega (GK £4,0 · DEF £4,0 ·
+   MID £4,5 · FWD £4,5). En FPL færir verð á hverri nóttu og bætir við
+   leikmönnum í janúar; hardkóðað gólf yrði rangt þegjandi — nákvæmlega
+   sama ætt og „MEASURED: the range is 4-10" nótan sem úreltist (kafli 8).
+   Gólfið er því lægsta verð sem TIL ER í stöðunni, lesið úr lauginni.
+
+   ÞETTA ER EKKI SPÁ OG MÁ EKKI LÍTA ÚT EINS OG SPÁ. Hún les EKKERT nema
+   áætlun notandans sjálfs: engin FFDR, engin vænt stig, ekkert `rankScore`.
+   Fullyrðingin er „þú ætlar aldrei að spila honum", sem er staðreynd um
+   áætlunina, ekki mat á leikmanninum. Þess vegna á hún hvergi heima í
+   röðun (kafli 4 hafnaði DefCon í röðun af skyldri ástæðu: liður sem er
+   réttur á spjaldi er ekki þar með réttur í röðun).
+   ============================================================ */
+
+/* Lægsta verð sem er TIL í hverri stöðu, í tíundum. Reiknað úr lauginni. */
+export function priceFloors(players = []) {
+  const f = {};
+  for (const p of players) {
+    const k = p?.element_type, c = Number(p?.now_cost);
+    if (!k || !Number.isFinite(c)) continue;
+    if (f[k] == null || c < f[k]) f[k] = c;
+  }
+  return f;
+}
+
+/* `perGw`: [{ gw, squad: [{ id, starter }] }] — liðið EINS OG ÞAÐ VERÐUR
+   í hverri umferð, með plönuðum skiptum og bekkjar-víxlum þegar komið.
+   Skilar þeim sem BYRJA ALDREI, fæstu byrjanir fyrst.                  */
+export function neverStarted({ perGw = [], byId = {}, floors = {} } = {}) {
+  if (!perGw.length) return [];
+  const seen = new Map();          // id -> { gws, starts }
+  for (const { squad } of perGw) {
+    for (const s of squad || []) {
+      const r = seen.get(s.id) || { id: s.id, gws: 0, starts: 0 };
+      r.gws++; if (s.starter) r.starts++;
+      seen.set(s.id, r);
+    }
+  }
+  const out = [];
+  for (const r of seen.values()) {
+    if (r.starts > 0) continue;
+    /* Í HÓPNUM ALLA ÁÆTLUNINA — annars er hann þegar á förum og
+       ábendingin væri að segja notandanum það sem hann veit.          */
+    if (r.gws < perGw.length) continue;
+    const p = byId[r.id];
+    if (!p) continue;
+    const floor = floors[p.element_type];
+    /* ÓDÝRASTI BEKKJARMAÐUR: ekkert ódýrara er til, svo salan losar
+       ekkert fé. Hann Á að sitja — það er hlutverkið.                 */
+    if (floor != null && Number(p.now_cost) <= floor) continue;
+    out.push({ id: r.id, gws: r.gws, starts: 0,
+               freesTenths: Number(p.now_cost) - (floor ?? Number(p.now_cost)) });
+  }
+  /* Mest fé fyrst — það er stærðin sem ákvörðunin snýst um.           */
+  return out.sort((a, b) => b.freesTenths - a.freesTenths || a.id - b.id);
+}

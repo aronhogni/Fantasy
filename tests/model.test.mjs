@@ -17,7 +17,7 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   gwSpans, intlBreaks, euroWeeks, euroTeams, BREAK_MIN_DAYS, compLabel, COMP_EN } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, availForKickoff, parseEntryId,
-         eloStale, parseReturn } from "../src/model.js";
+         eloStale, parseReturn, neverStarted, priceFloors } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -744,6 +744,62 @@ console.log(`\n${"─".repeat(72)}\nMARKADS-LYKKJAN: OHEMJULEG LINA MA EKKI HENG
      `LG_XG (model.js ${LG_XG}) == LG_XG_MARKET (market.js ${LG_XG_MARKET})`);
   ok(LG_XG > 1.2 && LG_XG < 1.8, `og talan er truverdugt deildarmedaltal (${LG_XG})`);
 }
+
+/* ============================================================
+   "ThU NOTAR HANN ALDREI" — neverStarted + priceFloors
+
+   Reglan sem SKIPTIR MALI er UNDANTEKNINGIN: odyrasti bekkjarmadurinn A ad
+   sitja og ma ALDREI vera flaggadur, thvi salan losar ekkert fe. Profid er
+   thvi TVIHLIDA i hverjum kafla — annars vaeri "0 flogg" graent af thvi ad
+   fallid flaggar aldrei neitt.
+   ============================================================ */
+console.log("\n=== ThU NOTAR HANN ALDREI (neverStarted) ===");
+{
+  const P = [
+    { id:1, element_type:2, now_cost:40 },   // odyrasti DEF — GOLF
+    { id:2, element_type:2, now_cost:55 },   // dyrari DEF sem situr
+    { id:3, element_type:3, now_cost:45 },   // odyrasti MID — GOLF
+    { id:4, element_type:3, now_cost:90 },   // dyr MID sem situr
+    { id:5, element_type:2, now_cost:65 },   // byrjar alltaf
+    { id:6, element_type:1, now_cost:40 },   // odyrasti GK — GOLF
+  ];
+  const byId = Object.fromEntries(P.map(p => [p.id, p]));
+  const floors = priceFloors(P);
+  eq(floors[1], 40, "golf GK reiknad ur lauginni");
+  eq(floors[2], 40, "golf DEF reiknad ur lauginni");
+  eq(floors[3], 45, "golf MID reiknad ur lauginni");
+
+  const sq = st => P.map(p => ({ id:p.id, starter: st.includes(p.id) }));
+  const perGw = [5,6,7,8,9,10].map(gw => ({ gw, squad: sq([5]) }));
+  const res = neverStarted({ perGw, byId, floors });
+  const ids = res.map(r => r.id);
+
+  ok(ids.length > 0, `forsenda: eitthvad er flaggad (${ids.length})`);
+  ok(ids.includes(2) && ids.includes(4),
+     `their sem sitja OG eru yfir golfi eru flaggadir (${ids.join(",")})`);
+  ok(!ids.includes(1) && !ids.includes(3) && !ids.includes(6),
+     "ODYRASTI BEKKJARMADUR ER ALDREI FLAGGADUR — ekkert odyrara er til");
+  ok(!ids.includes(5), "sa sem byrjar er ekki flaggadur");
+  eq(res[0].id, 4, "sa sem losar MEST fe kemur fyrstur (£9,0 -> golf £4,5)");
+  eq(res[0].freesTenths, 45, "losad fe = verd - golf, i tiundum");
+
+  /* EIN BYRJUN NAEGIR TIL AD FALLA UT — "aldrei" tydir aldrei. */
+  const perGw2 = perGw.map((x,i) => i === 3 ? { ...x, squad: sq([5,2]) } : x);
+  ok(!neverStarted({ perGw2: null, perGw: perGw2, byId, floors }).some(r => r.id === 2),
+     "ein byrjun i einni umferd og hann er EKKI lengur 'aldrei notadur'");
+
+  /* SA SEM ER SELDUR I MIDRI AAETLUN ER EKKI FLAGGADUR — hann er a forum. */
+  const perGw3 = perGw.map((x,i) => i < 2 ? x
+    : { ...x, squad: x.squad.filter(s => s.id !== 4) });
+  ok(!neverStarted({ perGw: perGw3, byId, floors }).some(r => r.id === 4),
+     "leikmadur sem hverfur ur hopnum i midri aaetlun er ekki flaggadur");
+
+  /* TOM AAETLUN SEGIR EKKERT — hun ma ekki flagga ollum. */
+  eq(neverStarted({ perGw: [], byId, floors }).length, 0, "tom aaetlun -> ekkert flagg");
+  /* Og an golfs (tom laug) ma hun ekki hrynja. */
+  ok(Array.isArray(neverStarted({ perGw, byId, floors: {} })), "tomt golf hrynur ekki");
+}
+
 
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

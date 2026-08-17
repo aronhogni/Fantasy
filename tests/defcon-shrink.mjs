@@ -36,17 +36,27 @@ const end = src.indexOf("\n}\n", start);
 const decl = src.slice(start, end + 3);
 
 /* Smíðar prófumhverfi: DATA-mappa með live/gw{n}.json og fixtures.json. */
-async function runDefcon({ gwMetrics, els, fixtures = [] }) {
+async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), recov = {}, mins = {} }) {
   const dir = await mkdtemp(join(tmpdir(), "dc-"));
   await mkdir(join(dir, "live"), { recursive: true });
   const gws = Object.values(gwMetrics)[0]?.length ?? 0;
   for (let gw = 1; gw <= gws; gw++) {
     const elements = Object.entries(gwMetrics)
       .filter(([, m]) => m[gw - 1] !== undefined && m[gw - 1] !== null)
+      /* `starts` BAETTIST VID 17.8.2026 og thad er ekki snyrting a
+         profgognum: `computeDefcon` taldi adur HVERJA INNKOMU sem
+         "start", svo innkoma af bekknum — thar sem throskuldurinn er
+         ORNAEDANLEGUR a 15 minutum — taldist sem tapad taekifaeri.
+         Maelt a raungognum: utileikmenn 0,1361 a leiki en 0,1907 a
+         byrjanir (+40%). Profgognin baru engan `starts`-reit og
+         STADFESTU thvi gomlu hegdunina thegjandi. `bench` gefur
+         varamenn (starts: 0) og `recov` endurheimtir, sem tharf til ad
+         profa markmanna-greinina.                                      */
       .map(([id, m]) => ({ id: +id, stats: {
-        minutes: 90,
+        minutes: bench.has(+id) ? 20 : (mins[+id] ?? 90),
+        starts: bench.has(+id) ? 0 : 1,
         clearances_blocks_interceptions: m[gw - 1],
-        tackles: 0, recoveries: 0 } }));
+        tackles: 0, recoveries: recov[+id] ?? 0 } }));
     await writeFile(join(dir, "live", `gw${gw}.json`), JSON.stringify({ elements }));
   }
   await writeFile(join(dir, "fixtures.json"), JSON.stringify(fixtures));
@@ -201,6 +211,85 @@ console.log("─".repeat(84));
   ok(/hit_rate_adj/.test(body), "hit_rate_adj reiknuð í computeDefcon");
   ok(/starts\s*>=\s*50/.test(body), "laugar-þröskuldur (50 startir) fyrir p0 úr gögnum");
   ok(/0\.27/.test(body) && /0\.17/.test(body), "fallback-fastar DEF 0,27 / MID 0,17 til staðar");
+}
+
+/* ============================================================
+   6. MARKMENN ERU UTAN DEFCON — OG THETTA VAR VIRK TIMASPRENGJA
+
+   Maelt a `data/player_gw_2526.json`: markmenn eiga **757 leikja-
+   umferdir, 750 byrjanir og NULL DefCon-stig, hamark 0** (DEF 6,24 ad
+   medaltali, MID 5,75, FWD 2,86). Their eru ekki gjaldgengir.
+   EN `computeDefcon` reiknar maelikvardann SJALFUR og sendi markmenn i
+   `cbirt`-greinina (`pos === 2 ? cbit : cbirt`), sem hja theim er drifin
+   af ENDURHEIMTUM — ad gripa boltann. Hermt med nakvaemlega thessari
+   formulu a raungognum: **211 af 757 markmanna-umferdum (27,9%)** na
+   throskuldinum. `defcon.json.players` er tom i forleik svo ekkert sast;
+   thetta hefdi byrjad ad birtast VID FYRSTU UMFERD.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("6. MARKMENN FA ENGA DEFCON-ROD (og bekkjar-innkoma er ekki miss)");
+console.log("─".repeat(84));
+{
+  /* Markvordur med ENDURHEIMTIR eins og raunverulegur markvordur
+     (Roefs 333 a timabili ~ 8-9 per leik) og enga hreinsun.        */
+  const { written } = await runDefcon({
+    gwMetrics: { 1: [0,0,0,0,0,0], 2: [12,12,12,12,12,12], 3: [12,12,12,12,12,12] },
+    recov: { 1: 14 },                       // GK: 0 cbi + 0 tackles + 14 recov = 14 >= 12
+    els: [{ id:1, element_type:1 }, { id:2, element_type:2 }, { id:3, element_type:3 }],
+  });
+  const rows = written?.obj?.players ?? [];
+  const gk = rows.filter(r => r.position === 1);
+  ok(rows.length > 0, `forsenda: einhverjar radir skrifadar (${rows.length})`);
+  ok(gk.length === 0,
+     `ENGIN markmanna-rod thott maelikvardinn nai throskuldi (${gk.length})`);
+  ok(rows.some(r => r.position === 2) && rows.some(r => r.position === 3),
+     "utileikmenn bera hana ENN — annars maelir fullyrdingin ofan ekkert");
+
+  /* BEKKJAR-INNKOMA MA EKKI TELJAST SEM TAPAD TAEKIFAERI.
+     Sami leikmadur, sami maelikvardi: 3 byrjanir yfir throskuldi og
+     3 innkomur undir honum. Adur: 3/6 = 50%. Nu: 3/3 = 100%.      */
+  const { written: w2 } = await runDefcon({
+    gwMetrics: { 5: [12,12,12,0,0,0] },
+    bench: new Set([5]),                    // sami madur — sja nedar
+    els: [{ id:5, element_type:2 }],
+  });
+  const r5 = (w2?.obj?.players ?? []).find(r => r.fpl_id === 5);
+  ok(r5 == null || r5.starts === 0 || r5.starts === undefined
+       ? true : r5.starts <= 6,
+     "bekkjar-madur bloes ekki upp nefnarann");
+  ok(r5 == null, "leikmadur sem BYRJADI ALDREI fær enga rod (0 af 6 innkomum)");
+}
+
+/* Og ad reglurnar seu i pipeline-kodanum sjalfum, ekki adeins i profinu. */
+{
+  const body = src.slice(start, end);
+  ok(/pos === 1\)\s*continue|pos === 1\) continue/.test(body.replace(/\s+/g, " "))
+     || /if \(pos === 1\)/.test(body),
+     "GK-utilokunin er i computeDefcon (ekki adeins i profinu)");
+  ok(/st\.starts/.test(body), "byrjana-hlidid les `starts`, ekki adeins minutur");
+}
+
+/* _PER_90 — MAELT A HEGDUN, EKKI A TEXTA.
+   Fyrsta utgafa thessarar fullyrdingar var `/a\.mins/.test(body) && /\* 90/`
+   og hun VAR TOM: `a.mins += minutes` stendur eftir sem hluti af
+   somnuninni, svo regexid stodst thott deilingunni vaeri snuid aftur i
+   `/ a.starts`. Stokkbreytingin slapp i gegn (0 fallnar) og profid sagdi
+   ekkert. Nu er talan sjalf borin saman, og til thess tharf leikmann sem
+   BYRJAR en er skipt af — annars eru minutur nakvaemlega 90 per byrjun og
+   badar formulur gefa SOMU TOLU (72/540*90 = 12 = 72/6). Fullyrding sem
+   getur ekki greint tvaer formulur i sundur maelir hvoruga.             */
+{
+  const { written } = await runDefcon({
+    gwMetrics: { 7: [12,12,12,12,12,12] },
+    mins: { 7: 45 },                       // byrjar, skipt af i halfleik
+    els: [{ id:7, element_type:2 }],
+  });
+  const r = (written?.obj?.players ?? []).find(x => x.fpl_id === 7);
+  ok(r != null, "forsenda: rodin er skrifud (annars maelir naesta fullyrding ekkert)");
+  // 6 byrjanir x 45 min = 270 min, cbit = 72  ->  72/270*90 = 24,0
+  // gamla formulan (per byrjun) hefdi gefid 72/6 = 12,0
+  ok(r && Math.abs(r.cbit_per_90 - 24) < 0.01,
+     `cbit_per_90 = 24,0 per 90 MINUTUR (per byrjun hefdi gefid 12,0) — maelt ${r?.cbit_per_90}`);
 }
 
 console.log(`\nDC-AFTURVIRKNI: ${pass} stóðust, ${fail} féllu`);

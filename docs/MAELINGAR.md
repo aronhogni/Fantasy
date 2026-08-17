@@ -3673,3 +3673,137 @@ birt** (`no_zone`) svo thognin hafi staerd i skranni sjalfri.
 `pen_order` sagdi: *„The strongest single captaincy signal in the data."*
 `grep -i captain docs/MAELINGAR.md` skilar EINU — heiti Triple Captain-chipsins.
 **Engin fyrirlida-maeling er til i thessu repo-i.** Setningin var fjarlaegd.
+
+---
+
+## 17.8.2026 — DEFCON-PIPELINE: ÞRENNT RANGT, ALLT MÆLT
+
+Framhald af dálka-úttektinni. Þrjú atriði sem hún fann en náði ekki að laga.
+
+### Nefnarinn voru leikir, ekki byrjanir
+
+`computeDefconHistory` og `computeDefcon` gættu báðar á `mins <= 0` og settu
+töluna í reit sem heitir `starts`. Mælt á `data/player_gw_2526.json`
+(`starts` er svið nr. 1 í `stats`-fylkinu og er til í öllum árgöngum frá
+2223):
+
+| staða | leikir | byrjanir | hittni á leiki | hittni á byrjanir | meðal-DC | hámark |
+|---|---|---|---|---|---|---|
+| MID | 5.288 | 3.553 | 0,1133 | **0,1675** | 5,75 | 29 |
+| DEF | 3.904 | 3.150 | 0,2134 | **0,2632** | 6,24 | 27 |
+| FWD | 1.412 | 823 | 0,0078 | **0,0134** | 2,86 | 21 |
+| **GK** | **757** | **750** | **0,0000** | **0,0000** | **0,00** | **0** |
+
+Útileikmenn í heild: **0,1361 → 0,1907, +40%.** Og skekkjan kom **tvisvar
+við**: `p0` (samdráttar-forgildið) er reiknað úr sömu summum, svo aðlagaða
+talan dró alla að meðaltali sem var sjálft vanmetið.
+
+**Ekkert tímabil tapaðist við breytinguna** — mælt fyrir og eftir: aðeins
+2025/26 stenst `anyHit`-gáttina í báðum tilvikum (2122 ber **engar byrjanir**
+yfirleitt, en það tímabil var þegar fellt út því `dc` er skrifað sem 0 þar).
+Raðir 537 → 435: 40 markmenn plús ~62 útileikmenn sem byrjuðu aldrei og fá nú
+**enga röð** í stað hittni sem var reiknuð úr innkomum einum.
+
+### Lifandi smiðurinn hefði byrjað að gefa markmönnum DefCon 21. ágúst
+
+Sögulegi smiðurinn skrifaði markmönnum `hit_rate: 0` — slæmt en satt.
+`computeDefcon` **reiknar mælikvarðann sjálfur** og sendi þá í `cbirt`-greinina
+(`pos === 2 ? cbit : cbirt`), sem hjá markmanni er drifin af **endurheimtum**.
+Hermt með nákvæmlega þeirri formúlu á raungögnum: **211 af 757 markmanna-
+umferðum (27,9%)** ná þröskuldinum. `defcon.json.players` er tóm í forleik svo
+ekkert sást — þetta hefði kviknað við fyrstu umferð.
+
+Þröskuldarnir tveir voru ósammála um markmenn (`POS_THRESH.GK = 10` en
+`pos === 2 ? 10 : 12` gaf þeim 12) og athugasemdin sagði „GK teljum sem
+DEF-lík", sem lýsti hinu gagnstæða við kóðann — merki um að GK-tilfellið hefði
+aldrei verið ákveðið. `DC_P0_FALLBACK`-færslurnar fyrir GK (0,02) voru
+fjarlægðar: tilbúið forgildi má ekki liggja í leyni fyrir hóp sem er útilokaður.
+
+### `_per_90` var per byrjun
+
+`total / starts` er meðaltal **per leik**, svo talan var hærri hjá þeim sem
+spilar 90 mínútur en þeim sem er skipt af eftir 60 — þótt hún héti per 90.
+Enginn lesandi er í `src/`, svo `0 → null` er óhætt.
+
+### TVÆR TÓMAR FULLYRÐINGAR, BÁÐAR MÍNAR EIGIN
+
+**(a)** Fyrsta útgáfa lagfæringarinnar bjó til `agg[id]` **á undan** byrjana-
+hliðinu og hljóp svo `continue`. Leikmaður sem byrjaði aldrei sat því eftir
+með `starts: 0, hit_rate: 0` — nákvæmlega tilbúna nulltalan sem verið var að
+laga, endurgerð í lagfæringunni sjálfri. Prófið fann það (1 fallin).
+
+**(b)** Vörðurinn á per-90 var `/a\.mins/.test(body) && /\* 90/.test(body)`.
+Hann **stenst áfram** eftir að deilingunni er snúið til baka, því
+`a.mins += minutes` stendur eftir í söfnuninni. Stökkbreytingin gaf **0
+fallnar** og prófið sagði ekkert. Hann mælir nú töluna sjálfa — og til þess
+þarf leikmann sem **byrjar en er skipt af**: með 90 mínútum per byrjun gefa
+báðar formúlur nákvæmlega sömu tölu (72/540×90 = 12 = 72/6), svo prófgögnin
+hefðu ekki getað greint þær í sundur. **Fullyrðing sem getur ekki greint tvær
+formúlur í sundur mælir hvoruga.** Með 45 mínútum: 24,0 á móti 12,0.
+
+Þrjár stökkbreytingar staðfestar: GK-útilokun fjarlægð → 2 fallnar; byrjana-
+hlið fjarlægt → 2 fallnar; per-90 aftur í per byrjun → 1 fallin (var 0 áður en
+fullyrðingin var lagfærð). `defcon-shrink.mjs`: **29 stóðust, 0 féllu.**
+
+---
+
+## 17.8.2026 — „ÞÚ NOTAR HANN ALDREI" (neverStarted)
+
+Beiðni notandans: *„Ég vil að appið sýni mér þann leikmann sem er minnst
+notaður þegar ég er búinn að stilla upp liði fyrir kannski næstu 5–6 umferðir
+og nota aldrei ákveðinn leikmann (þá vill ég að appið bendi á að líklega ætti
+að selja hann) — þetta á ekki að gerast fyrir ódýrustu bench fodderana."*
+
+**Undantekningin er kjarni reglunnar, ekki snyrting.** Ódýrasti bekkjarmaðurinn
+**á** að sitja; það er hlutverkið hans. Að selja hann losar **ekkert fé** því
+ekkert ódýrara er til, svo ábendingin væri ekki bara gagnslaus heldur **röng** —
+hún segði „gerðu skipti" þar sem ekkert skipti er mögulegt.
+
+**Verðgólfið er REIKNAÐ, ekki slegið inn.** Notandinn nefndi 4,0/4,5 og mælt á
+`players.json` stemmir það nákvæmlega í dag:
+
+| staða | lægsta verð | fjöldi á því verði |
+|---|---|---|
+| GK | £4,0 | 20 af 65 |
+| DEF | £4,0 | 49 af 193 |
+| MID | £4,5 | 25 af 259 |
+| FWD | £4,5 | 12 af 70 |
+
+En FPL færir verð á hverri nóttu og bætir við leikmönnum í janúar; harðkóðað
+gólf yrði rangt þegjandi — sama ætt og „MEASURED: the range is 4-10" nótan.
+Gólfið er því lægsta verð sem **er til** í stöðunni, lesið úr lauginni.
+
+**Hún les EKKERT nema áætlun notandans** — enga FFDR, engin vænt stig, ekkert
+`rankScore`. Fullyrðingin er staðreynd um plönunina („þú ætlar aldrei að spila
+honum"), ekki mat á leikmanninum, og hún á hvergi heima í röðun.
+
+**Þrjú skilyrði sem komu úr því að prófa hana á raungögnum:**
+1. **Aðeins þegar notandinn hefur raunverulega planað.** Án þess væri
+   ábendingin sjálfgefin: ósnertur bekkur „byrjar aldrei" í hverri umferð, svo
+   appið hefði bent á sölu áður en notandinn gerði nokkuð.
+2. **Sá sem hverfur úr hópnum í miðri áætlun er ekki flaggaður** — hann er
+   þegar á förum og ábendingin væri að segja notandanum það sem hann veit.
+3. **Þrjár umferðir eru lágmark.** „Aldrei" um eina umferð er ekki upplýsing.
+
+**Prófliðið sannaði regluna óvart:** bekkur sjálfgefna liðsins er **allur á
+verðgólfi** (Dubravka £4,0 · Thomas £4,0 · Hughes £4,0 · Walle Egeli £4,5), svo
+`neverStarted` skilar réttilega **engu**. Til að sýna borðann þurfti að benkja
+Haaland (£15,5) í öllum sex umferðunum — þá les hann *„frees up to £11,0"*
+(15,5 − gólf 4,5).
+
+**Ein útfærsla, ekki þrjár.** Lykkjan sem byggir liðið í tiltekinni umferð stóð
+þegar tvisvar (`squadAt`, `chipValue`); þetta hefði orðið þriðja afritið.
+Hún er nú `squadForGw` og báðar lesa hana — `buildTeamMetrics`-atvikið var
+nákvæmlega þetta.
+
+**Stökkbreytingar:** verðgólfs-undantekningin fjarlægð → 1 fallin í
+`model.test` **og 2 í `smoke.test`** (bekkjar-maðurinn birtist og „frees up to
+£0,0" kemur fram); „aldrei" slakað í „sjaldan" → 1 fallin. Vörður er á báðum
+stigum: reglan í `model.test.mjs`, skjárinn í `smoke.test.mjs`.
+
+> **ATH — VÖRÐUR SEM ER TÓMUR ÞANGAÐ TIL HANN ER SETTUR Á RÉTTAN STAÐ.**
+> Fyrsta útgáfa DOM-varðarins var sett **aftast** í `smoke.test.mjs`, eftir
+> kafla sem breyta umferð og endurstilla plönun. Borðinn var þá horfinn, og
+> tvær af fimm fullyrðingum stóðust **í tómarúmi** (leitarsvæðið var tómt, svo
+> „nefnir ekki bekkjarmanninn" var sjálfkrafa satt). Hann var færður fram fyrir
+> kafla 3, þar sem ástandið er enn það sem prófið setti upp.

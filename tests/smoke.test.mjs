@@ -93,8 +93,13 @@ const RIVAL_PICKS = [...START_IDS.slice(0, 13), ...outsiders];
    skiptir máli að prófa er sóknar-, birtingar- og vistunarflæðið —
    ekki atburðakerfi jsdom. Hnappa-tengingin er prófuð sér (tómt =
    villuboð).                                                          */
+/* BEKKJAR-VIXL I OLLUM SEX UMFERDUNUM — forsenda fyrir "Never in your XI".
+   Haaland (411, £15,5) er settur a bekkinn GW1-6 a moti Walle Egeli (321).
+   An planadrar planunar A bordinn ad THEGJA (profad nedar), svo thetta er
+   BADAR hlidar sama vardar.                                            */
+const BENCH_ALL = {}; for (let g = 1; g <= 6; g++) BENCH_ALL[g] = [[411, 321]];
 dom.window.localStorage.setItem("fpl_planner_v3",
-  JSON.stringify({ rivals: [{ id: "909" }], captain: 411 }));
+  JSON.stringify({ rivals: [{ id: "909" }], captain: 411, benchSwaps: BENCH_ALL }));
 
 const { default: App } = await import("../src/App.jsx");
 
@@ -125,6 +130,33 @@ console.log("\n=== 2b. PENINGATÖLURNAR Á MÆLABORÐINU ===");
 // Fyrir tímabil, án skipta: banki + liðsverð Á að vera nákvæmlega £100.0
 ok(text().includes("total £100.0"), "banki + liðsverð = £100.0 (fjárlögin ganga upp)");
 ok(/Bank/.test(text()) && !/£NaN|£undefined/.test(text()), "engin brotin peningatala");
+
+/* ============================================================
+   "ThU NOTAR HANN ALDREI" — bordinn les EINGONGU aaetlun notandans
+
+   Reglan sjalf er i `model.js` (neverStarted) og einingaprofud thar.
+   HER er spurningin hvort hun rati A SKJAINN og hvort UNDANTEKNINGIN
+   haldi i raunverulegum gognum: odyrasti bekkjarmadurinn ma ALDREI
+   birtast, thvi salan losar ekkert fe.
+   ============================================================ */
+console.log("\n=== ThU NOTAR HANN ALDREI ===");
+{
+  const t = text();
+  ok(t.includes("Never in your XI"),
+     "bordinn birtist thegar planad bekkjar-vixl skilur mann eftir");
+  ok(/Never in your XI — GW1–6/.test(t), "glugginn er 6 umferdir og hann segir thad");
+  ok(t.includes("Haaland") && /frees up to £11\.0/.test(t),
+     "nefnir manninn OG hve mikid fe salan losar (£15,5 - golf £4,5)");
+  /* UNDANTEKNINGIN A RAUNGOGNUM: bekkurinn i proflidinu er ALLUR a
+     verdgolfi (Dubravka £4,0 GK, Thomas/Hughes £4,0 DEF, Walle Egeli
+     £4,5 FWD). Enginn theirra ma vera nefndur.                       */
+  const seg = t.slice(t.indexOf("Never in your XI"),
+                      t.indexOf("Never in your XI") + 400);
+  ok(!/Dubravka|Thomas|Hughes/.test(seg),
+     "ODYRASTI BEKKJARMADUR ER ALDREI NEFNDUR — ekkert odyrara er til");
+  /* Og talan ma ekki vera 0 — thad vaeri abending an tilgangs. */
+  ok(!/frees up to £0\.0/.test(seg), "engin abending sem losar £0,0");
+}
 
 console.log("\n=== 3. UMFERÐASKIPTI Á TÍMALÍNU ===");
 const gwBtns = [...container.querySelectorAll("button")].filter(b => /^\d+$/.test(b.textContent.trim()));
@@ -404,7 +436,6 @@ ok(!!connBtn, "Tengja-hnappur finnst");
    ad thad segi hvad a ad lima, og ad gamla ostadfesta "tengt" se farid.  */
 ok(!/Tengt lið .* sæki raunlið/.test(text()),
   "GAMLA HEGDUNIN ER FARIN: engin 'tengt' stadfesting an sannreyningar");
-
 console.log(`\n========================================`);
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

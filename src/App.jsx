@@ -29,7 +29,7 @@ import { buildTeamMetrics } from "./teamstats.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
-  cleanSheetProb, rankScore, eloStale, parseEntryId,
+  cleanSheetProb, rankScore, eloStale, parseEntryId, neverStarted, priceFloors,
   intlBreaks, euroWeeks, euroTeams, compLabel } from "./model.js";
 
 /* ============================================================
@@ -1203,24 +1203,58 @@ export default function App() {
     Object.entries(chips).filter(([k]) => k.startsWith("freehit")).map(([, g]) => g)
   ), [chips]);
 
-  /* ---------- Lið í valdri umferð ---------- */
-  const squadAt = useMemo(() => {
+  /* ---------- Lið í TILTEKINNI umferð — EIN ÚTFÆRSLA ----------
+     Þessi lykkja stóð ÞRISVAR áður en „þú notar hann aldrei" bættist við
+     (`squadAt`, `chipValue`, og hún hefði orðið þriðja afritið). Afrituð
+     útfærsla er ekki stílspurning hér: `buildTeamMetrics`-atvikið (kafli 7)
+     var nákvæmlega þetta — afritið skrifaði NaN fyrir öll 17 liðin og
+     merkti það `src:"e0"` eins og það væri mæling, meðan frumritið var
+     alltaf rétt. Bæði `squadAt` og áætlunar-skönnunin lesa nú þetta.   */
+  const squadForGw = useCallback(g => {
     let sq = (squadOverride || START_SQUAD).map(s => ({ ...s }));
     [...plan].sort((a,z) => a.gw - z.gw).forEach(tr => {
-      if (tr.gw > gw) return;
+      if (tr.gw > g) return;
       // FH-skipti gilda aðeins í sinni umferð
-      if (fhGws.has(tr.gw) && tr.gw !== gw) return;
+      if (fhGws.has(tr.gw) && tr.gw !== g) return;
       const i = sq.findIndex(s => s.id === tr.outId);
       if (i >= 0) sq[i] = { ...sq[i], id: tr.inId };
     });
-    (benchSwaps[gw] || []).forEach(([aId, bId]) => {
+    (benchSwaps[g] || []).forEach(([aId, bId]) => {
       const ia = sq.findIndex(s => s.id === aId), ib = sq.findIndex(s => s.id === bId);
       if (ia >= 0 && ib >= 0) {
         const t = sq[ia].starter; sq[ia] = { ...sq[ia], starter: sq[ib].starter }; sq[ib] = { ...sq[ib], starter: t };
       }
     });
     return sq;
-  }, [plan, gw, benchSwaps, squadOverride, fhGws]);
+  }, [plan, benchSwaps, squadOverride, fhGws]);
+
+  /* ---------- Lið í valdri umferð ---------- */
+  const squadAt = useMemo(() => squadForGw(gw), [squadForGw, gw]);
+
+  /* ---------- „ÞÚ NOTAR HANN ALDREI" ----------
+     Skannar áætlunina fram í tímann og finnur þá sem KOMAST ALDREI í
+     byrjunarliðið. Reglan sjálf (og verðgólfs-undantekningin, sem er
+     kjarni hennar) býr í `model.js` svo prófin keyri sama kóða og skjárinn.
+     GLUGGINN ER 6 UMFERÐIR — það er það sem notandinn stillir upp — og
+     ÞRJÁR ERU LÁGMARK: „aldrei" um eina umferð er ekki upplýsing.      */
+  const unusedPlan = useMemo(() => {
+    const to = Math.min(gw + 5, maxGw);
+    const gws = [];
+    for (let g = gw; g <= to; g++) gws.push({ gw: g, squad: squadForGw(g) });
+    if (gws.length < 3) return { rows: [], from: gw, to };
+    /* AÐEINS ÞEGAR NOTANDINN HEFUR RAUNVERULEGA PLANAÐ EITTHVAÐ.
+       Án þessa væri ábendingin sjálfgefin: ósnertur bekkur „byrjar aldrei"
+       í hverri umferð, svo appið hefði bent á sölu áður en notandinn gerði
+       nokkuð — og fullyrðingin „þú ætlar aldrei að spila honum" væri þá
+       ekki hans ákvörðun heldur sjálfgefna stillingin. Beiðnin var
+       skýr um þetta: „þegar ég er BÚINN AÐ STILLA UPP liði fyrir næstu
+       5-6 umferðir". Bekkjar-víxl eða skipti innan gluggans dugar.     */
+    const planned = plan.some(t => t.gw >= gw && t.gw <= to)
+                 || gws.some(x => (benchSwaps[x.gw] || []).length > 0);
+    if (!planned) return { rows: [], from: gw, to, idle: true };
+    return { rows: neverStarted({ perGw: gws, byId, floors: priceFloors(players) }),
+             from: gw, to };
+  }, [squadForGw, gw, maxGw, byId, players, plan, benchSwaps]);
 
   const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt]);
   /* ThRJAR NAESTU UMFERDIR fyrir spjaldid — fylking PER UMFERD (tom = auð,
@@ -2233,6 +2267,41 @@ export default function App() {
               urðu hærri en bilið SKÖRUÐUST raðirnar og bekkurinn klipptist
               neðan af. Nú deila raðirnar plássinu (space-evenly) og
               völlurinn VEX ef efnið þarf meira — skörun er ómöguleg.       */}
+          {/* „ÞÚ NOTAR HANN ALDREI" — les EINGÖNGU áætlun notandans.
+              Engin FFDR, engin vænt stig, ekkert `rankScore`: fullyrðingin
+              er staðreynd um plönunina („þú ætlar aldrei að spila honum"),
+              ekki mat á leikmanninum, og hún er orðuð þannig. Ódýrasti
+              bekkjarmaðurinn er ALDREI hér — hann á að sitja og salan
+              losar ekkert fé (sjá `neverStarted` í model.js).            */}
+          {unusedPlan.rows.length > 0 && (
+            <div style={{ ...S.card, marginBottom:10, borderColor:C.amber }}>
+              <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:4 }}>
+                {"Never in your XI — GW"}{unusedPlan.from}–{unusedPlan.to}
+              </div>
+              <div style={{ ...S.muted, marginBottom:6 }}>
+                {"You have planned "}{unusedPlan.to - unusedPlan.from + 1}
+                {" gameweeks and these players start in none of them. Selling one frees the money shown — the cheapest bench player at each position is left out, because nothing cheaper exists."}
+              </div>
+              {unusedPlan.rows.map(r => {
+                const p = byId[r.id];
+                if (!p) return null;
+                return (
+                  <div key={r.id} style={S.srcRow}>
+                    <span style={{ ...S.posDot, background: POS_COLOR[p.element_type] }} />
+                    <span style={{ fontWeight:700, cursor:"pointer" }}
+                      onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>
+                    <span style={S.muted}>{teamById[p.team]?.short} · £{(p.now_cost/10).toFixed(1)}</span>
+                    <span style={{ flex:1 }} />
+                    <span style={{ color:C.amber, fontWeight:700 }}>
+                      {"frees up to £"}{(r.freesTenths/10).toFixed(1)}</span>
+                    <button style={S.dBtn} onClick={() => { setSelling(p.id); setSearchQ(""); }}>
+                      {"Replace"}</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="pitch-split" style={S.pitchSplit}>
           <div className="pitch-col" style={S.pitchCol}>
           <Pitch>

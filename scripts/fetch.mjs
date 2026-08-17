@@ -555,7 +555,7 @@ async function computeConsistency() {
 
 async function computeDefconHistory() {
   const DC_K = 10;
-  const DC_P0_FALLBACK = { GK: 0.02, DEF: 0.27, MID: 0.17, FWD: 0.10 };
+  const DC_P0_FALLBACK = { DEF: 0.27, MID: 0.17, FWD: 0.10 };   // GK: utilokadir, sja ofar
   const POS_THRESH = { GK: 10, DEF: 10, MID: 12, FWD: 12 };
   const seasons = {};
   let files = 0;
@@ -569,11 +569,34 @@ async function computeDefconHistory() {
     const out = {};
     for (const [code, row] of Object.entries(d.players || {})) {
       const pos = row.p;
+      /* MARKMENN EIGA ENGA DEFCON-TOLU — MAELT, EKKI ALYKTAD (17.8.2026).
+         `data/player_gw_2526.json`: markmenn eiga **757 leikja-umferdir,
+         750 byrjanir og NULL DefCon-stig, hamark 0** — a moti DEF 6,24 ad
+         medaltali (hamark 27), MID 5,75 (29), FWD 2,86 (21). Their eru
+         ekki gjaldgengir i stigagjofina. Adur skrifudust 40 GK-radir med
+         `hit_rate: 0` og raunverulegri `starts`-tolu, svo taflan sagdi
+         "0% af 36" — MAELINGAR-FULLYRDING um taekifaeri sem eru ekki til.
+         Sama regla og mo/ao a markmonnum ("MAELINGA-REGLA, EKKI SNYRTING").
+         `DC_P0_FALLBACK.GK = 0,02` er thar med daudur og gat aldrei verid
+         annad en tilbuid forgildi.                                       */
+      if (pos === "GK") continue;
       const th = POS_THRESH[pos] ?? 12;
+      /* NEFNARINN ERU BYRJANIR, EKKI LEIKIR (lagad 17.8.2026).
+         Gatid var `if (mins <= 0) continue` og talan sem for i `starts`
+         taldi thvi HVERJA INNKOMU. Sannad: hun jafngildir leikja-talningu
+         fyrir 537 af 537 leikmonnum en byrjunum fyrir adeins 81.
+         Hver innkoma af bekknum — thar sem 10/12-throskuldurinn er
+         ORNAEDANLEGUR a 10-20 minutum — taldist ThVI SEM MISS.
+         Maelt a 2025/26, utileikmenn: hittni a leiki **0,1361** en a
+         byrjanir **0,1907 (+40%)**; per stodu DEF 0,2134 -> 0,2632,
+         MID 0,1133 -> 0,1675, FWD 0,0078 -> 0,0134.
+         OG SKEKKJAN KOM TVISVAR VID: `p0` (samdrattar-forgildid) er
+         reiknad ur SOMU summum, svo adlagada talan dro alla ad medaltali
+         sem var sjalft vanmetid. Badar noturnar a skjanum sogdu "starts"
+         allan timann — kodinn, ekki textinn, var rangur.                */
       let starts = 0, hits = 0;
       for (const g of Object.values(row.gw || {})) {
-        const mins = g[inv.mins] ?? 0;
-        if (mins <= 0) continue;
+        if ((g[inv.starts] ?? 0) <= 0) continue;
         const dc = g[inv.dc];
         if (dc == null) continue;          // timabil an DefCon -> ekki talid
         starts++;
@@ -635,8 +658,33 @@ async function computeDefcon(events, els) {
       const minutes = st.minutes || 0;
       if (minutes <= 0) continue;
       const pos = posOf[id];
-      const a = agg[id] || (agg[id] = { starts:0, hits:0, cbit:0, cbirt:0 });
-      a.starts++;
+      /* MARKMENN ERU UTAN DEFCON — OG HER VAR ThAD VIRK TIMASPRENGJA.
+         Sogulegi smiðurinn skrifadi theim `hit_rate: 0` (slaemt en satt).
+         ThESSI reiknar maelikvardann SJALFUR og sendi markmenn i
+         `cbirt`-greinina, sem hja theim er drifin af ENDURHEIMTUM — ad
+         gripa boltann (Roefs 333, Raya 304 a timabilinu). Hermt a
+         raunverulegum 2025/26-gognum med NAKVAEMLEGA thessari formulu:
+         **211 af 757 markmanna-umferdum (27,9%)** na throskuldinum
+         (Pope 48%, Roefs 46%, Darlow 43%). `defcon.json.players` er tom i
+         forleik, svo ekkert sast — thetta hefdi byrjad ad birtast VID
+         FYRSTU UMFERD sem stig-hittni fyrir stig sem markmenn geta ekki
+         unnid. Maelt: 757 umferdir, 0 DefCon-stig, hamark 0.
+         Throskuldarnir tveir voru lika osammala um markmenn (`POS_THRESH.GK
+         = 10` en `pos === 2 ? 10 : 12` gaf theim 12) — merki um ad
+         GK-tilfellid hefdi aldrei verid akvedid. Utilokun leysir hvort
+         tveggja.                                                        */
+      if (pos === 1) continue;
+      /* BYRJANIR, EKKI INNKOMUR — sama leidretting og i sogulega smiðnum.
+         `live/gw*.json` ber `starts` beint; an thess taldist hver innkoma
+         af bekknum sem tapad taekifaeri og hittnin maeldist ~40% of lag.
+         HLIDID VERDUR AD KOMA A UNDAN `agg[id]`-smiðinni: fyrsta utgafa
+         min bjo til rodina fyrst og hljop svo `continue`, svo leikmadur
+         sem BYRJADI ALDREI sat eftir med `starts: 0` og `hit_rate: 0` —
+         tilbuin nulltala, nakvaemlega villan sem verid var ad laga.
+         Profid (kafli 6) fann thad.                                     */
+      if ((st.starts ?? 0) <= 0) continue;
+      const a = agg[id] || (agg[id] = { starts:0, hits:0, cbit:0, cbirt:0, mins:0 });
+      a.starts++; a.mins += minutes;
       // ÓSTAÐFEST: notum defensive_contribution stigin úr explain sem sanngildi ef til,
       // annars reiknum úr cbi+tackles(+recoveries). Loggum fyrsta þekkta manninn til að staðfesta.
       const cbi = st.clearances_blocks_interceptions ?? 0;
@@ -645,7 +693,10 @@ async function computeDefcon(events, els) {
       const cbit = cbi + tk;
       const cbirt = cbi + tk + rec;
       a.cbit += cbit; a.cbirt += cbirt;
-      const threshold = pos === 2 ? 10 : 12; // DEF vs MID/FWD (GK teljum sem DEF-lík)
+      /* pos: 2=DEF, 3=MID, 4=FWD (1=GK er utilokad ofar). Athugasemdin hér
+         sagdi adur "GK teljum sem DEF-lik" en `pos === 2` er DEF EIN, svo
+         markmenn fengu 12 — hun lysti hinu gagnstaeda vid kodann.       */
+      const threshold = pos === 2 ? 10 : 12; // DEF vs MID/FWD
       const metric = pos === 2 ? cbit : cbirt;
       // staðfesta má gegn 'defensive_contribution' stigum í explain
       if (metric >= threshold) a.hits++;
@@ -654,8 +705,14 @@ async function computeDefcon(events, els) {
   const out = Object.entries(agg).map(([id, a]) => ({
     fpl_id: Number(id), position: posOf[id], starts: a.starts, threshold_hits: a.hits,
     hit_rate: a.starts ? +(a.hits / a.starts).toFixed(3) : 0,
-    cbit_per_90: a.starts ? +(a.cbit / a.starts).toFixed(2) : 0,
-    cbirt_per_90: a.starts ? +(a.cbirt / a.starts).toFixed(2) : 0,
+    /* "_per_90" VAR PER BYRJUN, EKKI PER 90 (lagad 17.8.2026).
+       Reiknad var `total / starts`, sem er medaltal PER LEIK — talan var
+       thvi haerri hja theim sem spila 90 minutur en hja theim sem er
+       skipt af eftir 60, thott hun heiti per 90. Nafn sem lysir annarri
+       einingu en talan er sama aett og "starts" sem taldi innkomur.
+       Minutur eru nu lagdar saman (`a.mins`) og deilt med theim.       */
+    cbit_per_90: a.mins ? +(a.cbit / a.mins * 90).toFixed(2) : null,
+    cbirt_per_90: a.mins ? +(a.cbirt / a.mins * 90).toFixed(2) : null,
   }));
 
   /* ---- AFTURVIRKJUD HITTNI (hit_rate_adj) — TERMINAL_HANDOFF_4 §2 ----
@@ -671,7 +728,7 @@ async function computeDefcon(events, els) {
      Dæmi ur handoffinu: 9/12 hratt = 75% -> (9+10*0,32)/22 = 56%.
      HRAA TALAN OG n HALDA SER — afturvirknin er VIDBOT, ekki yfirskrift. */
   const DC_K = 10;
-  const DC_P0_FALLBACK = { 1: 0.02, 2: 0.27, 3: 0.17, 4: 0.10 };
+  const DC_P0_FALLBACK = { 2: 0.27, 3: 0.17, 4: 0.10 };   // 1=GK utilokadur, sja ofar
   const pool = {};
   for (const p of out) {
     const q = pool[p.position] || (pool[p.position] = { hits: 0, starts: 0 });
