@@ -1,0 +1,158 @@
+{
+ "generated": "2026-08-17T18:15:22.948Z",
+ "provenance": {
+  "generated": "2026-08-17T18:15:22.948Z",
+  "argv": [],
+  "params": {
+   "runs": {
+    "value": 40,
+    "fromDefault": true
+   },
+   "day": {
+    "value": 21,
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-17T18:00:44.674Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "draftDay": "08-21",
+ "seasons": [
+  2021,
+  2022,
+  2023,
+  2024
+ ],
+ "agreement": {
+  "2021": {
+   "n": 178,
+   "augDate": "2021-08-20",
+   "finalDate": "2021-09-03",
+   "rhoAll": 0.992,
+   "rhoTop50": 0.995,
+   "medAbsMove": 0.6,
+   "medAbsMoveTop50": 0.1,
+   "maxMoveTop50": 1.4
+  },
+  "2022": {
+   "n": 140,
+   "augDate": "2022-08-19",
+   "finalDate": "2022-09-02",
+   "rhoAll": 0.997,
+   "rhoTop50": 0.989,
+   "medAbsMove": 0.5,
+   "medAbsMoveTop50": 0.2,
+   "maxMoveTop50": 1.4
+  },
+  "2023": {
+   "n": 155,
+   "augDate": "2023-08-18",
+   "finalDate": "2023-09-01",
+   "rhoAll": 0.99,
+   "rhoTop50": 0.992,
+   "medAbsMove": 0.5,
+   "medAbsMoveTop50": 0.2,
+   "maxMoveTop50": 1.2
+  },
+  "2024": {
+   "n": 158,
+   "augDate": "2024-08-16",
+   "finalDate": "2024-08-30",
+   "rhoAll": 0.997,
+   "rhoTop50": 0.99,
+   "medAbsMove": 0.5,
+   "medAbsMoveTop50": 0.2,
+   "maxMoveTop50": 1.7
+  }
+ },
+ "leagues": [
+  {
+   "key": "patriots",
+   "label": "Patriots SB champs (10, PPR)"
+  },
+  {
+   "key": "sofahetjur",
+   "label": "Sofahetjur (12, half-PPR)"
+  }
+ ],
+ "results": {
+  "patriots": {
+   "ecrPpr": {
+    "per": {
+     "2021": -93.1,
+     "2022": 50.5,
+     "2023": -73,
+     "2024": -85.6
+    },
+    "mean": -50.3,
+    "t": -1.486,
+    "wins": 1,
+    "years": 4,
+    "nullPer": {
+     "2021": 0,
+     "2022": 0,
+     "2023": 0,
+     "2024": 0
+    },
+    "nullMean": 0,
+    "nullAbsMax": 0
+   }
+  },
+  "sofahetjur": {
+   "ecrPpr": {
+    "per": {
+     "2021": -127.5,
+     "2022": 84.3,
+     "2023": -80.8,
+     "2024": -74.7
+    },
+    "mean": -49.7,
+    "t": -1.075,
+    "wins": 1,
+    "years": 4,
+    "nullPer": {
+     "2021": 0,
+     "2022": 0,
+     "2023": 0,
+     "2024": 0
+    },
+    "nullMean": 0,
+    "nullAbsMax": 0
+   },
+   "ecrStd": {
+    "per": {
+     "2021": -55.9,
+     "2022": 79.5,
+     "2023": 2.1,
+     "2024": -212.2
+    },
+    "mean": -46.6,
+    "t": -0.755,
+    "wins": 2,
+    "years": 4,
+    "nullPer": {
+     "2021": 0,
+     "2022": 0,
+     "2023": 0,
+     "2024": 0
+    },
+    "nullMean": 0,
+    "nullAbsMax": 0
+   }
+  }
+ },
+ "verdict": {
+  "stability": "MAELT OG STERKT: forleiks-samsteypan haggast varla milli midjum agust og fyrsta leik. rho >= 0,99 i 4/4 arum, midgildi hreyfingar 0,5 saeti, og staersta hreyfing innan TOPP 50 er 1,7 saeti.",
+  "duel": "OSKORID: agust-bordid maelist ~-50 stig, 3 af 4 arum negativt, en |t| <= 1.486 thar sem 3.182 vaeri krafist vid n=4. Attin er verd athygli; staerdin er EKKI stadfest.",
+  "whyNotMoreYears": "Speglunin (db_fpecr) ber engar agust/september-skrapanir 2019, standard-myndin 2020 naer ekki 120 leikmonnum, og 2025 hefur adeins tvaer skrapanir (1. og 8. agust) svo baðar myndir eru eins. Fleiri ar eru ekki i bodi ur thessari heimild.",
+  "variantsAreNotIndependent": "ppr-rod, std-rod og baðar deildirnar hvila a SOMU fjorum timabilum og somu laug. Samhljoda afbrigdi eru thvi EKKI thrjar stadfestingar og maega ekki teljast sem aukid urtak.",
+  "nullBenchmark": "Sama bord baðum megin gefur nakvaemlega 0 (staersta flakk 0), svo hermunin sjalf baetir engum hávada vid samanburdinn.",
+  "actionable": "Notandinn draftar 21. agust og getur ekki notad september-bordid, svo thetta breytir engri vog. Thad sem thad STYDUR er ad gogn seu endurnyjud a draft-degi og ad seinar frettir seu lesnar ser."
+ }
+}

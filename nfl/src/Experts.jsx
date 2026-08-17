@@ -9,6 +9,10 @@
    ============================================================ */
 
 import React, { useMemo, useState } from "react";
+/* SAMA FUNKTION SEM BORDID NOTAR — sja notuna i `Disagreement`. Ad
+   endurskrifa valregluna hér vaeri onnur utfaersla sem gaeti rekid i
+   sundur vid hana; thad er nakvaemlega villan sem var verid ad laga. */
+import { buildSharpBoard } from "./build.js";
 
 export default function Experts({ accuracy, experts, rows }) {
   const [tab, setTab] = useState("board");
@@ -195,11 +199,34 @@ const hitPct = (x) => (x == null ? <span className="null">—</span>
    ekki "hver er godur" heldur "hvar viкur skorpu hopurinn fra
    markadinum". Thad eru leikmennirnir sem skila mun.
    ============================================================ */
-function Disagreement({ rows, accuracy }) {
+function Disagreement({ rows, accuracy, experts }) {
   const list = useMemo(() => rows
     .filter((r) => r.sharpDelta != null && r.ecr != null && r.ecr <= 200)
     .sort((a, b) => Math.abs(b.sharpDelta) - Math.abs(a.sharpDelta))
     .slice(0, 60), [rows]);
+
+  /* ============================================================
+     REGLAN ER SPURD, EKKI SKRIFUD UPP EFTIR MINNI
+     ============================================================
+     Hér stod: "Only the boards that finished above the 95th percentile
+     of the random baseline are in the sharp group." Su regla ER i
+     `pickSharpIds` — en hun er **VARALEIDIN** (`rule: "single-season"`),
+     sem er adeins notud finnist ENGIN ferils-saga. Lifandi gogn 17.8.2026
+     segja `rule: "career"`: midgildi percentila yfir >= 4 ar OG ad hann
+     hafi birt i fyrra.
+
+     Textinn lysti thvi RONGU vali — og verra: hann lysti ODRU vali en
+     bordid notadi, i flipanum sem er til thess ad bera varnaglana. Sami
+     flokkur og "thogul prof": setning sem enginn bar vid kodann.
+
+     NU ER HUN LEIDD AF SOMU FUNKTION SEM BORDID KALLAR
+     (`buildSharpBoard`), svo hun getur ekki rekid i sundur vid hana.
+     URTAKSSTAERDIN FYLGIR MED af thvi ad hun er BINDANDI i agust: 15
+     eru valdir en adeins their sem hafa BIRT bord i ar telja, og 17.8.
+     voru thad **7 af 15**. Tafla sem heitir "sharp" og hvilir a sjo
+     bordum a ad segja thad sjalf.                                    */
+  const sharp = useMemo(
+    () => buildSharpBoard(accuracy, experts), [accuracy, experts]);
 
   if (!list.length) {
     return <div className="panel"><div className="note warn">
@@ -212,9 +239,29 @@ function Disagreement({ rows, accuracy }) {
       <div className="panel">
         <h2>Sharp boards vs the consensus</h2>
         <div className="sub">
-          Only the boards that finished above the 95th percentile of the random
-          baseline are in the sharp group. Positive means they rank him higher
-          than the field does.
+          {sharp.rule === "career" ? (
+            <>
+              The sharp group is the <b>{sharp.ids.length}</b> experts with the best
+              median accuracy percentile across <b>4 or more</b> seasons who also
+              published last year — a career, not a single good year. Positive means
+              they rank him higher than the field does.
+            </>
+          ) : (
+            <>
+              No multi-season history was available, so the fallback rule is in use:
+              only boards that finished above the <b>95th percentile</b> of the random
+              baseline last season are in the sharp group. Positive means they rank him
+              higher than the field does.
+            </>
+          )}
+        </div>
+        {/* URTAKSSTAERDIN ER FULLYRDING, EKKI NEDANMALSGREIN. */}
+        <div className={`note ${sharp.count < sharp.ids.length / 2 ? "warn" : ""}`}>
+          This rests on <b>{sharp.count}</b> board{sharp.count === 1 ? "" : "s"} of the{" "}
+          <b>{sharp.ids.length}</b> experts selected: the rest have not posted a board
+          for this season yet. A player is ranked only if a majority of those{" "}
+          {sharp.count} boards name him, so the deep end of this table is thinner than
+          the top.
         </div>
       </div>
       <div className="tablewrap">

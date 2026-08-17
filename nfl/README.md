@@ -1501,6 +1501,97 @@ vírar hann inn í `aRank`.
 eru hrifnari en markaðurinn. Úrtaksstærðin (hve mörg borð eru komin) stendur
 undir töflunni í Players — í ágúst eru það oft innan við helmingur.
 
+**Mælt 17.8.2026, fjórum dögum fyrir draft: 7 af 15.** `rule` er `career`, svo
+`meta.sharpMeasured` er **true** og Sharp-dálkarnir eru raunveruleg tala — borðið
+er *ekki* að vega alla jafnt í kyrrþey. Hinir átta voru staðfestir sem
+**raunverulega óbirtir**, ekki sem sóknarvilla: hver þeirra var prófaður í
+PPR, half og standard **og** í fjórum stöðulistum (QB/RB/WR/TE) og skilaði engu
+borði. Einn — Wolf of Roto Street (960) — á **half-PPR borð (271 leikmenn) en
+ekkert PPR borð**; það var *ekki* tengt, sjá „Mælt og ekki tengt" hér að neðan.
+
+### Textinn í Experts sagði ANNAÐ VAL en borðið notaði (lagað 17.8.2026)
+
+Panillinn „Sharp boards vs the consensus" sagði að hópurinn væri *„boards that
+finished above the 95th percentile of the random baseline"*. Það er
+**varaleiðin** (`rule: "single-season"`), ekki reglan sem er í notkun
+(`career`). Flipinn sem er til þess að bera varnaglana bar því ranga reglu.
+
+Setningin er nú **leidd af `buildSharpBoard`**, sömu köllun sem borðið gerir, og
+úrtaksstærðin stendur með henni (*„This rests on 7 boards of the 15 experts
+selected"*) — með `warn`-stíl þegar færri en helmingur er kominn. Vörður:
+**`tests/render.mjs` kafli 4b**, sem opnar undirflipann sem ekkert próf hafði
+opnað (kafli 4 lendir alltaf á `tab === "board"` — sama ætt og `pros-render.mjs`
+í FPL-verkefninu). Prófið ber DOM við **óháðan útreikning**, ekki við harðkóðaðan
+streng, svo það stendur ekki áfram ef reglan breytist. **Þrjár stökkbreytingar
+felldar:** upprunalega orðalagið, `sharp.count` → `sharp.ids.length` (15 í stað
+7), og að fella úrtaksstærðina út.
+
+### Kostar það stig að drafta 21. ágúst? — mælt, og svarið er tvíþætt
+
+`scripts/ecr-timing.mjs` → `data/measure/ecr_timing.json`.
+
+Notandinn spurði hvort fleiri sérfræðingar væru búnir að senda inn. Þeir eru —
+**128 borð 12.8. → 140 borð 17.8.** — en spurningin sem það vekur er önnur:
+**borðið sem hann fær 21. ágúst er ekki síðasta orð þeirra.** `db_fpecr`
+(DynastyProcess) geymir hverja skröpun með dagsetningu, svo samsteypan *eins og
+hún var* 21. ágúst er raunveruleg söguleg stærð. Tvær myndir á ári, látnar
+drafta gegn hver annarri í hans eigin deildum.
+
+**(1) SAMSTEYPAN HAGGAST VARLA — og það er sterka niðurstaðan.**
+
+| ár | ágúst | final | rho (allir) | rho (topp 50) | miðg. hreyfing | topp 50 | max topp 50 |
+|---|---|---|---|---|---|---|---|
+| 2021 | 08-20 | 09-03 | 0,992 | 0,995 | 0,6 | 0,1 | 1,4 |
+| 2022 | 08-19 | 09-02 | 0,997 | 0,989 | 0,5 | 0,2 | 1,4 |
+| 2023 | 08-18 | 09-01 | 0,990 | 0,992 | 0,5 | 0,2 | 1,2 |
+| 2024 | 08-16 | 08-30 | 0,997 | 0,990 | 0,5 | 0,2 | 1,7 |
+
+**Stærsta hreyfing innan topp 50 er 1,7 sæti** á öllu bilinu, í 4/4 árum. Sá
+sem draftar í miðjum ágúst er með sama borð og þeir skila af sér í september.
+
+**(2) EINVÍGIÐ ER ÓSKORIÐ OG ER SAGT ÞAÐ.** Ágúst-borðið mælist **−50 stig**
+(−50,3 / −49,7 / −46,6 í þremur afbrigðum), 3 af 4 árum negatíft — en
+**|t| ≤ 1,49 þar sem 3,18 væri krafist við n=4**. Þrennt sem má ekki lesa
+öðruvísi:
+
+- **Fjögur ár er allt sem heimildin á.** 2019 hefur enga ágúst/september-skröpun,
+  standard-myndin 2020 nær ekki 120 leikmönnum, og **2025 hefur aðeins tvær
+  skrapanir (1. og 8. ágúst)** svo báðar myndir eru sama myndin. Safnið þynntist;
+  það er ekki okkar val.
+- **Þrjú afbrigði sem eru sammála eru EKKI þrjár staðfestingar.** Þau hvíla á
+  sömu fjórum tímabilum og sömu laug, svo þau deila hávaðanum. Að telja
+  samhljóðan þeirra sem aukið úrtak væri sami flokkur villu og „hærri fylgni er
+  betri ákvörðun".
+- **Null-viðmiðið er nákvæmlega 0** (sama borð báðum megin, stærsta flakk 0), svo
+  hermunin sjálf bætir engum hávaða við. Munurinn er borðanna, en hann er of
+  lítill fyrir fjögur ár.
+
+**Vogin var ekki hreyfð og átti ekki að vera.** Hann draftar 21. ágúst og getur
+ekki notað september-borðið; það sem mælingin styður er að **gögn séu endurnýjuð
+á draft-degi** og að seinar fréttir séu lesnar sér. Talan var mæld við
+`--runs=40`, ekki 6: við 6 flökti árs-talan um ±30 stig milli afbrigða af því að
+draft-hávaðinn var ekki fullnægjandi meðaltalaður, og **flökt úr eigin keyrslu
+hefði verið lesið sem munur á borðunum.**
+
+### Mælt og ekki tengt — heimildir sem voru skoðaðar 17.8.2026
+
+Spurningin var „eru komnar fleiri sérfræðinga-raðningar sem væri sniðugt að
+horfa til?". Svarið er **nei, og þekjan er þegar full** — bókað hér svo það
+verði ekki endurmælt.
+
+| heimild / hugmynd | niðurstaða |
+|---|---|
+| **Fleiri FantasyPros-sérfræðingar** | **Þekjan er full.** Sameinað mengi auðkenna úr þremur ECR-síðum (ppr 89 · half 92 · standard 88) er **94**; pipeline-ið reynir **229** (ppr-auðkenni + öll 215 nákvæmnis-auðkenni). Aðeins **2 auðkenni** (7671, 6468) eru í half/standard-síðunum og aldrei reynd — og **hvorugt á nákvæmnis-sögu**, svo hvorugt getur fengið vog í skorpu-borðinu. Að tengja þau bætti engu nema í flötu samsteypuna, sem FantasyPros reiknar sjálft |
+| **Half-PPR borð sem varaleið fyrir PPR** | Myndi færa skorpu-hópinn úr **7 í 8** (Wolf of Roto Street). **EKKI TENGT:** það blandaði half-PPR röð inn í PPR-skorpusamsteypu, og munurinn milli sniða er mældur og raunverulegur (467 af 502 leikmönnum eiga annað sæti í standard en PPR). Það er líka **breyting á því hvernig sérfræðingar eru sameinaðir** og þyrfti að standast mælingar-þröskuldinn — fjórum dögum fyrir draft er það rangur tími |
+| **ESPN-eigin raðningar** | **ÞEGAR SÓTTAR** — `draftRanksByRankType` (`rankPpr`/`rankStd`) í `sources/espn.mjs`. Þær eru **ómælanlegar**: ESPN geymir enga sögulega mynd, svo engin nákvæmni er til að vega þær með |
+| **NFL.com fantasy-API** | **404** á `/v2/players/researchinfo` og `/v1/players/editorranks` |
+| **`db_fpecr` (DynastyProcess) sem ný heimild** | **ÞEGAR NOTUÐ** af `fetch-ecr-history.mjs`. Nýja notkunin hér er önnur spurning (5c), ekki ný heimild. Skrapanirnar eru **vikulegar** og **þynntust 2025** (tvær í ágúst-glugganum) |
+| **`db_fpecr_latest.csv` sem ECR-heimild** | Óþarfi: partners-API-ið gefur sömu tölu **ferskari** (uppfærð 8/17 í keyrslunni í dag) og með þrepum og dreifingu |
+| **`WEEKLY_MIRROR` / vikuleg ECR** | **TENGD OG VIRK** — `fetch-nfl.mjs` kallar `weeklyEcr()` og skrifar `weekly-ecr/{scrape_date}.json`. Í forleik ber speglunin **síðustu viku fyrra tímabils** (`2025-12-30`, ein skrá), og það er rétt: lyklun á `scrape_date` gerir vistunina ónæma svo ~60 eins skrár verða ekki til |
+
+**FBref, SofaScore, FotMob og Understat voru ekki endurmæld** — þau eru skjöluð
+sem 403/gated/Cloudflare og sú spurning er lokuð.
+
 ---
 
 ## 5b. A-RANKING — hvað spáir því hverjir verða góðir?
@@ -3259,6 +3350,7 @@ node scripts/feature-probe.mjs                # -> feature_probe.json (nyjar bre
 node scripts/fetch-wayback-projections.mjs   # -> wayback_projections.json (haeg, handvirk)
 node scripts/flexsplit-lab.mjs                # -> measure/flexsplit.json (sja 4b-2)
 node scripts/dst-lab.mjs                      # -> measure/dst.json (sja 4k)
+node scripts/ecr-timing.mjs [--day=21]        # -> measure/ecr_timing.json (sja kafla 5)
 ```
 
 `dst-lab.mjs` er **handvirk og á ekki heima í pipeline-inu**: hún sækir sjö

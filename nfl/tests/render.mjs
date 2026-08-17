@@ -265,6 +265,93 @@ console.log("\n4. experts-flipinn");
   }
 }
 
+/* ============================================================
+   4b. "WHERE THEY DISAGREE" — UNDIRFLIPINN SEM ENGINN OPNADI
+   ============================================================
+   Kafli 4 her ofan opnar Experts-flipann en LENDIR ALLTAF a
+   `tab === "board"`, svo helmingurinn af flipanum var oprofadur —
+   sama aett og `pros-render.mjs` i FPL-verkefninu, thar sem almenna
+   profid hitti alltaf a toma astandid.
+
+   OG I SKJOLINU LIFDI RONG SETNING. Panillinn sagdi ad skorpu
+   hopurinn vaeri "boards that finished above the 95th percentile of
+   the random baseline" — sem er VARALEIDIN (`rule: "single-season"`),
+   ekki reglan sem er i notkun (`rule: "career"`). Textinn lysti thvi
+   ODRU vali en bordid notadi, i flipanum sem er TIL THESS ad bera
+   varnaglana.
+
+   PROFID BER DOM VID OHADA UTREIKNINGU, ekki vid hardkodadan streng:
+   `buildSharpBoard` er kollud her ur SOMU gognum og appid les, og
+   krafan er ad talan a skjanum se SU TALA. Vaeri strengurinn
+   hardkodadur myndi profid halda afram ad standa thott reglan
+   breyttist — thad er nakvaemlega villan sem var verid ad laga.
+
+   URTAKSSTAERDIN ER KRAFA AF THVI AD HUN ER BINDANDI I AGUST: 15 eru
+   valdir en adeins their sem hafa BIRT bord i ar telja (7 af 15 maelt
+   17.8.2026). Tafla sem heitir "sharp" og hvilir a sjo bordum a ad
+   segja thad sjalf.
+   ============================================================ */
+console.log("\n4b. experts — 'where they disagree'");
+{
+  ok(await clickTab("Experts"), "flipinn finnst");
+  const chips = [...document.querySelectorAll("button.chip")];
+  const dis = chips.find((c) => (c.textContent || "").includes("disagree"));
+  ok(!!dis, "undirflipinn 'Where they disagree' er til");
+  if (dis) {
+    await act(async () => {
+      dis.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    await settle(400);
+    const t = text();
+    ok(!t.includes("Something broke"), "engin villa");
+
+    /* OHAD UTREIKNINGUR A SANNLEIKANUM — sama funktion sem bordid notar. */
+    const { buildSharpBoard } = await import("../src/build.js");
+    const acc = JSON.parse(readFileSync(path.join(DATA, "accuracy.json"), "utf8"));
+    const exp = JSON.parse(readFileSync(path.join(DATA, "experts.json"), "utf8"));
+    const S = buildSharpBoard(acc, exp);
+
+    if (!S.measured) {
+      ok(/No sharp board is available/.test(t),
+        "an skorpu bords er thad SAGT, ekki synt tomt");
+    } else {
+      /* Fyrst er STADFEST ad panillinn se a skjanum — annars vaeri hver
+         neikvaed fullyrding her a eftir TOM (CLAUDE.md 5b: `!includes(X)`
+         er einskis virdi nema `includes(X)` hafi verid synt adur). */
+      ok(/Sharp boards vs the consensus/.test(t), "panillinn er a skjanum");
+
+      /* URTAKSSTAERDIN, OG HUN VERDUR AD VERA RETTA TALAN. */
+      const m = t.match(/This rests on\s*(\d+)\s*boards?\s*of the\s*(\d+)\s*experts/);
+      ok(!!m, "urtaksstaerdin er sogd berum ordum");
+      if (m) {
+        ok(Number(m[1]) === S.count,
+          `bordafjoldinn a skjanum er sa raunverulegi (${m[1]} = ${S.count})`);
+        ok(Number(m[2]) === S.ids.length,
+          `og valda mengid lika (${m[2]} = ${S.ids.length})`);
+      }
+
+      /* REGLAN SEM ER SOGD VERDUR AD VERA REGLAN SEM VAR NOTUD. Baðar
+         greinar eru profadar gegn `S.rule`, svo hvorug getur stadid
+         thegar hin er i gildi. */
+      if (S.rule === "career") {
+        ok(/median accuracy percentile/.test(t) && /4 or more/.test(t),
+          "ferils-reglan er sogd (midgildi percentila, >= 4 ar)");
+        ok(!/95th percentile/.test(t),
+          "og varaleidin er EKKI sogd (hun VAR thad — villan sem var logud)");
+      } else {
+        ok(/95th percentile/.test(t), "varaleidin er sogd thegar hun er i gildi");
+        ok(!/median accuracy percentile/.test(t), "og ferils-reglan er thad EKKI");
+      }
+
+      /* Og taflan sjalf ber tolur, ekki eintom strik. */
+      const drows = [...document.querySelectorAll("table.data tbody tr")];
+      ok(drows.length >= 10, `${drows.length} leikmenn i osaettis-toflunni`);
+      ok(digitsIn(drows.slice(0, 10).map((r) => r.textContent).join("")) > 20,
+        "og hun ber raunverulegar tolur");
+    }
+  }
+}
+
 console.log("\n3b. my-team-flipinn");
 {
   ok(await clickTab("My team"), "flipinn finnst");
