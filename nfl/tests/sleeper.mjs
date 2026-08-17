@@ -620,16 +620,43 @@ console.log("\n2bb4. mock i annarri staerd en deildin er SAGT");
     .find((b) => /live sync|Start/i.test(b.textContent || "")));
   await waitFor(() => /picks made/.test(text()), 3000);
   ok(/10 teams/.test(text()), "eigid draft: 10 lid lesin ur draftinu");
-  ok(!/not the shape of the league/.test(text()),
+  /* ============================================================
+     VIDVORUNIN VARD STODULJOS — 17.8.2026
+     ============================================================
+     Hun var malsgrein ("This draft is not the shape of the league the
+     board is using") og notandinn DRAFTADI heilt mock med hana a
+     skjanum an ad sja hana. Nu er hun STADA a tengingunni: graent /
+     gult / raut, med ordunum vid hlidina og `data-conn` i DOM-inum.
+
+     Fullyrdingarnar hér eru afram TVISKIPTAR — sama logun ma ekki gefa
+     vidvorun — en thaer lesa nu bædi merkid OG toluparid. Sja
+     `draft-live.mjs` kafla 16/16b, sem baetir vid ad snakk-tolurnar komi
+     ur DRAFTINU og ad gult geti ekki teiknast graent.                */
+  const conn = () => {
+    const d = document.querySelector("[data-conn]");
+    return d ? d.getAttribute("data-conn") : null;
+  };
+  ok(conn() === "good", `eigid draft -> graent stoduljos (fann "${conn()}")`);
+  ok(/Sleeper: connected/.test(text()),
+    "og thad stendur i ordum (strengurinn er sannanlega tharna)");
+  ok(!/wrong shape/.test(text()),
     "og THA er engin vidvorun (annars vaeri hun bara alltaf a)");
 
   /* Sidan 12-lida mock i somu deild. */
   await setInput("Draft ID", "m12");
   await waitFor(() => /12 teams/.test(text()), 3000);
-  ok(/This draft is not the shape of the league the board is using/.test(text()),
-    "12-lida mock i 10-lida deild: vidvorunin birtist");
-  ok(/12 teams in the draft against 10 in this league/.test(text()),
+  ok(conn() === "warn",
+    `12-lida mock i 10-lida deild: ljosid verdur GULT (fann "${conn()}")`);
+  ok(/wrong shape/.test(text()), "og ordin segja thad lika");
+  ok(/draft has 12 teams, league has 10/.test(text()),
     "og hun nefnir BADAR tolurnar, ekki bara ad eitthvad se ad");
+  /* AFLEIDINGIN SEM GAMLI TEXTINN NEFNDI EKKI: varamanns-threpin, og thar
+     med rodin sjalf. Gamli textinn sagdi ad adeins snakk-tolurnar vaeru ur
+     deildinni — sem er nu OSATT (thaer eru ur draftinu) og vanmat thad sem
+     eftir stendur. Sja README 6b-3. */
+  ok(/VBD number on this board is computed for your league/
+       .test(text().replace(/\s+/g, " ")),
+    "og hun nefnir VBD — ekki adeins snakk-tolurnar");
   root.unmount();
 }
 
@@ -844,14 +871,32 @@ console.log("\n2d. deildarslod flytur inn REGLURNAR");
      hinnar deildarinnar, annars gaeti uppfletting i rangri toflu
      lesist sem rett (186,1 a moti 147,4). Þad var upprunalega
      ahyggjan og hun stendur. */
+  /* ============================================================
+     OG SU FULLYRDING VAR LESIN AF ALLRI SIDUNNI — ThAD VAR VILLAN
+     ============================================================
+     `!t.includes("147.4")` **fell a origin/main 17.8.2026 an thess ad
+     neitt vaeri ad kodanum**: bordid syndi Devaughn Vele med `-147.4` i
+     virdis-dalki, svo undirstrengurinn VAR a sidunni. Uppflettingin var
+     alltaf rett — 186,1 stod a skjanum og su fullyrding var graen.
+     **Profid var rangt, ekki kodinn.**
+
+     Sama gildra og `\bNaN\b` i CLAUDE.md 5b: `includes` a tolu hittir
+     hverja LENGRI tolu sem ber hana, og bordid ber 500+ tolur. Setningin
+     er thvi lesin UR SINU EIGIN SVIDI (`[data-edge]`) i stad allrar
+     sidunnar — og su jakvaeda fullyrdingin batnar af thvi lika, thvi
+     "186.1 er einhvers stadar a sidunni" var jafnveik i hina attina.  */
   const { HALF_LAB } = await import("../src/rulebasis.js");
   const patPpr = HALF_LAB["10-2flex"].ppr.mean;
   const sofHalf = HALF_LAB["12-2flex"].half.mean;
+  const edgeEl = document.querySelector("[data-edge]");
+  const edgeTxt = edgeEl ? (edgeEl.textContent || "") : "";
   ok(Math.abs(patPpr - sofHalf) > 5,
     `forsenda: snidin eru sannanlega olik (${patPpr} a moti ${sofHalf})`);
-  ok(t.includes(String(patPpr)),
-    `og talan a skjanum er su sem HALF_LAB ber fyrir 10-2flex ppr (+${patPpr})`);
-  ok(!t.includes(String(sofHalf)),
+  ok(!!edgeEl && edgeEl.getAttribute("data-edge") === "measured",
+    `setningin ber sitt eigid svid og er MAELD (${edgeEl ? edgeEl.getAttribute("data-edge") : "vantar"})`);
+  ok(edgeTxt.includes(String(patPpr)),
+    `og talan I HENNI er su sem HALF_LAB ber fyrir 10-2flex ppr (+${patPpr})`);
+  ok(!edgeTxt.includes(String(sofHalf)),
     `og EKKI tala hinnar deildarinnar (+${sofHalf}) — uppfletting i rangri toflu`);
   ok(!/has not been backtested/.test(t),
     "og logunin er EKKI kollud omaeld (gamla fals-vidvorunin)");

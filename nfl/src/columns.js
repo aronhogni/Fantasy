@@ -31,7 +31,26 @@ export const COLUMNS = [
 
   /* ---------- likanid ---------- */
   { key: "aRank", label: "A-Ranking", short: "A-Rank", band: "Model", hi: false,
-    note: "Okkar rod: spa Sleeper umreiknud i virdi yfir varamanni fyrir thina deild. MAELD 2021-2025: slaer ADP um +234 stig og vinnur OLL FIMM arin (marktaekt). Gegn Sleeper-rodinni sjalfri er hun +60 og vinnur 3 af 5 — jakvaett i hverri hermun en EKKI marktaekt; thad thyrfti 13 timabil." },
+    /* ============================================================
+       TALAN VAR RETT EN HARNESSID VAR OSAGT — LAGAD 17.8.2026
+       ============================================================
+       Hér stod "slaer ADP um +234 stig og vinnur OLL FIMM arin", og talan
+       er rett — EN hun var maeld i `arank-lab.mjs` a TEAMS=12, ROUNDS=14,
+       byrjunarlidi {QB1,RB2,WR3,TE1,FLEX1}, sem gefur varamanns-threp
+       **WR42**. Hvorug deild notandans er thad: hans eru WR29 og WR35.
+
+       ÞETTA ER REPO-INS EIGIN REGLA BROTIN INNI I TOOLTIP-I: "TALA AN
+       HARNESS ER OSAMANBURDARHAEF" (notan vid `aRankVsAdp` i `advice.js`).
+       Og logunar-tolurnar eru TIL — `HALF_LAB` i `rulebasis.js` ber
+       10-2flex ppr = +186,1 og 12-2flex half = +147,4 — og eru birtar i
+       draft-flipanum gegnum `edgeSentence`, sem les RETTU tofluna fyrir
+       thina deild.
+
+       Lausnin er ekki ad skipta einni logun ut fyrir adra i tooltip-i sem
+       er lesid i ollum deildum, heldur ad NEFNA harnessid og benda a
+       toluna sem er logunar-bundin. Vordur: `sleeper.mjs` (d2) ver ad
+       logunar-talan a skjanum se su retta.                            */
+    note: "Okkar rod: spa Sleeper umreiknud i virdi yfir varamanni fyrir thina deild. MAELD 2021-2025 I 12-LIDA DEILD med QB/RB2/WR3/TE/FLEX (varamanns-threp WR42): slaer ADP um +234 stig og vinnur OLL FIMM arin (marktaekt). ÞIN LOGUN GETUR VERID ONNUR og tha er talan onnur — draft-flipinn birtir maelda forskotid fyrir thina eigin logun (t.d. +186,1 i 10-lida tveggja-FLEX PPR). Gegn Sleeper-rodinni sjalfri er hun +60 og vinnur 3 af 5 — jakvaett i hverri hermun en EKKI marktaekt; thad thyrfti 13 timabil." },
   { key: "proj", label: "Projected points", short: "Proj", band: "Model",
     note: "Spa Sleeper i thinni stigagjof. MAELD sterkasta heimildin (rho 0,695 gegn 0,458 hja ADP). ESPN er notad ef Sleeper thegir." },
   /* HEITID LAUG. Thetta er OKKAR rod a spa Sleeper eftir hrastigum, EKKI

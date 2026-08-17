@@ -187,7 +187,21 @@ table.data tbody tr:hover td.frozen { background: #1b1f28; }
   font-size: 12.5px; margin: 10px 0;
 }
 .note.warn { border-left-color: var(--warn); }
+.note.bad  { border-left-color: var(--bad); }
 .note b, .note strong { color: var(--text); }
+
+/* ============================================================
+   STODULJOS SLEEPER-TENGINGARINNAR
+   ============================================================
+   LITURINN ER EKKI EINA MERKID og thad er asett: kassinn ber ordin
+   ("connected" / "wrong shape" / "not connected") OG `data-conn`-svid.
+   Litur sem er eina merkid er fullyrding sem sa sem greinir ekki
+   graent fra gulu getur ekki lesid — og sem prof sem lesa DOM-inn
+   geta ekki heldur lesid.                                         */
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.dot.good { background: var(--good); }
+.dot.warn { background: var(--warn); }
+.dot.bad  { background: var(--bad); }
 
 /* ============================================================
    URSKURDURINN — eitt nafn, og hann a ad sjast an thess ad lesa.

@@ -3161,6 +3161,115 @@ samstillingu eru 20 leikmenn strikaðir út, **tveir réttir** lenda í mínum h
 (sæti 7 af 12), og sá sem var tekinn er ekki lengur boðinn. Stökkbreyting sem
 hunsaði sætið felldi það með tölunni 0.
 
+### 6b-3. SEX WR Í SJÖ UMFERÐUM — RÖÐIN VAR EKKI BILUÐ, HÚN VAR SVAR VIÐ ANNARRI DEILD (17.8.2026)
+
+Notandinn draftaði raunverulegt mock á Sleeper — **10 lið, sæti 5** — og fylgdi
+ráðgjöfinni í hverju vali. Eftir sjö umferðir:
+
+    1.5 Puka Nacua WR · 2.6 Amon-Ra St. Brown WR · 3.5 Brock Bowers TE
+    4.6 Rashee Rice WR · 5.5 DeVonta Smith WR · 6.6 Mike Evans WR
+    7.5 Parker Washington WR
+
+**Fyrsta tilgátan var röng og hún var trúverðug.** Hún var að stöðuþörf hefði
+verið mæld og hafnað (`urgencyDrivesOrder: false`) og að borðið skilaði því WR
+eftir WR í fullu PPR. Notandinn hafnaði líka forsendunni sem lá undir: *„það eru
+flex stöður í sumum deildum, svo það má alveg taka 4xWR"* — og hann hefur rétt
+fyrir sér. Með 2 FLEX er WR1/WR2/WR3/WR4 fullkomlega lögleg uppstilling og sex WR
+í sjö umferðum er **hvorki ólöglegt né endilega slæmt**. `maxPos`-þak eða
+„jafnaðu stöðurnar"-regla hefði bannað löglega byggingu, og var **ekki** sett inn.
+
+**Rétta spurningin var því: hvers vegna slær sjötti WR besta RB á VBD?** Og
+svarið var ekki í röðuninni:
+
+> **BORÐIÐ VAR AÐ REIKNA FYRIR 12-LIÐA DEILD MEÐAN DRAFTIÐ VAR 10 LIÐA.**
+
+Mock-draft ber **enga `league_id`**, svo `connect` flytur engar reglur inn —
+aðeins völin og sætið. Deildin í appinu stóð því á 12-liða sniði meðan völin komu
+úr 10-liða mock-i. Vörnin var til: kassinn *„This draft is not the shape of the
+league the board is using — 10 teams in the draft against 12 in this league"*
+stóð **á skjánum allan tímann**. Notandinn sá hana ekki, því hún var málsgrein í
+vegg af málsgreinum — og hún **nefndi ranga afleiðingu**.
+
+#### Mælt á hans eigin gögnum, sama laug, sama dag
+
+| staða | þrep 10-liða (hans) | þrep 12-liða (sjálfgefið) | lyfting á VBD |
+|---|---|---|---|
+| QB | QB10 | QB12 | +3,6 |
+| RB | RB27 | RB28 | +1,0 |
+| TE | TE14 | TE14 | **0,0** |
+| WR | **WR29** | **WR42** | **+26,9** |
+
+**Það er ekki jöfn lyfting heldur skekkja með formerki.** WR er dýpsta staðan,
+svo þrepið færist **þrettán sæti** meðan RB færist eitt og TE ekkert. VBD
+sendingamóttakara tvöfaldast nærri: Rashee Rice **29,6 → 58,5** · DeVonta Smith
+**29,5 → 58,4** · Mike Evans **22,5 → 51,4** · Parker Washington **12,7 → 41,6**.
+
+Og útkoman var mæld alla leið — hermt draft frá sæti 5, sjö umferðir, mótherjar
+eftir ADP:
+
+| lögun borðsins | hópurinn eftir 7 umferðir |
+|---|---|
+| **rétt 10-liða PPR 2WR/2FLEX** | **RB4 · TE2 · WR1** |
+| 12-liða sjálfgefið 3WR/1FLEX | RB1 · TE2 · WR3 · QB1 — og toppur borðsins í umferðum 4–7 er WR-eftir-WR (McConkey/Higgins/Egbuka/McMillan, Evans/Waddle/McLaurin/Washington) |
+| 10-liða **3WR/1FLEX** (WR35) | **WR5 · TE2** — næst hans raunverulegu röð |
+
+Með réttri lögun **ræður borðið RB fjórum sinnum** og nefnir Parker Washington
+aðeins í sjöundu umferð. **`urgencyDrivesOrder: false` stendur óskert** — röðunin
+var aldrei spurð; hún var spurð um aðra deild.
+
+#### Þrjú einkenni, ein rót — og öll þrjú voru sýnileg
+
+| einkenni | orsök |
+|---|---|
+| „**Pick 151** — take this" í 10×15 drafti sem endar á **150** | Hliðið var til (`totalPicks` í `NextPick`, skrifað 14.8. gegn nákvæmlega þessu) en las **`league.teams * league.rounds`** = 12×15 = **180**. Lagfæringin frá 14.8. var ekki röng — hún spurði ranga heimild |
+| „only 0% likely to last your next **13** picks" | `nextOwnPick(..., league.teams)` gaf 12-liða vörpun á 10-liða draft. Hver lifunartala var úr annarri deild |
+| **sex WR** | varamanns-þrepin, taflan hér að ofan |
+
+**Reglan sem gildir — og hún var ÞEGAR skráð í `sleeper-league.js` um `rounds`:
+DRAFTIÐ ER HEIMILDIN UM DRAFTIÐ.** Þar var henni beitt á innflutninginn; á borðið
+var henni ekki beitt. `snakeTeams`/`rounds`/`totalPicks` í `DraftBoard` eru nú
+lesin úr `/draft/{id}` (`settings.teams`/`settings.rounds`) þegar draft er tengt,
+með deildina sem varaleið — það er rétt, því án tengingar er deildin eina
+heimildin sem til er.
+
+**VBD kemur ÁFRAM ÚR DEILDINNI og það er ásetningur.** Þetta eru reglur
+notandans og appið yfirskrifar þær ekki þegjandi (sama ákvörðun og stóð þar áður:
+hann gæti verið að æfa sig í mock-i af annarri stærð viljandi). Það sem breyttist
+er **þögnin**: mismunurinn er nú **staða á tengingunni**, ekki málsgrein í miðjum
+texta.
+
+#### Stöðuljósið er þriggja stöðu og það er mælt af reynslu hans
+
+Beiðni notandans var tveggja stöðu: *„status ljos sem er rautt eda graent eftir
+thvi hvort tenging tokst"*. **Tveggja stöðu ljós hefði verið GRÆNT allan þann
+mock-draft** — tengingin heppnaðist; það var lögunin sem var röng. Því:
+
+| ljós | merking |
+|---|---|
+| **grænt** | tengt, og draftið er sama lögun sem borðið reiknar |
+| **gult** | tengt, EN lögunin stemmir ekki — tölurnar eru úr annarri deild |
+| **rautt** | tengingin brast |
+
+Liturinn er **ekki eina merkið**: kassinn ber orðin (`connected` / `wrong shape` /
+`not connected`) og `data-conn`-svið, svo hann les eins fyrir þann sem greinir
+ekki grænt frá gulu og fyrir próf sem lesa DOM-inn.
+
+**Vörður: `draft-live.mjs` kaflar 16 og 16b.** Kafli 16 lætur lögunina **reka í
+sundur** (deild 12 lið, draft 10) og krefst þriggja hluta: snakk-tölurnar komi úr
+draftinu (næsta val 14, ekki 18), þakið komi úr draftinu (*„All 150 picks are
+in"*, hvergi „Pick 151"), og að **gul lögun geti ALDREI teiknast græn**. Kafli 16b
+er andstæðan og hann er nauðsynlegur: án hans væri kafli 16 uppfyllanlegur með
+ljósi sem er **aldrei** grænt (sama regla og 5b: neikvæð fullyrðing verður að
+nefna streng sem var sannanlega þarna).
+
+> **HVERS VEGNA ENGIN AF 24 SÖFNUNUM GAT FELLT ÞETTA:** hvert einasta próf gaf
+> **sömu lögun á bæði deild og draft**. Fullyrðingin „valnúmerið er rétt" gat því
+> ekki brugðist — báðar heimildirnar sögðu 10 lið, svo það var sama hvor var
+> spurð. Sama ætt og `maxPos`-villan sem `build.js` skjalar (*„það sem var mælt
+> var ekki það sem fór í loftið"*) og `react-warnings.mjs` í FPL-verkefninu, sem
+> heimsótti 0 af 22 viðmótum og var grænt. **Próf sem getur ekki greint tvær
+> heimildir í sundur prófar hvoruga.**
+
 ### 6b-2. EN EITT AUGNABLIK ER EKKI DRAFT — 150 VÖL, EITT Í EINU (14.8.2026)
 
 `sleeper.mjs` frystir hermt svar, tengist og fullyrðir um það sem sést. Það er

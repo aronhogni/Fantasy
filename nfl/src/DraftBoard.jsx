@@ -89,6 +89,57 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      pollunar vaeri tala sem enginn getur leidrett. */
   const [offBoard, setOffBoard] = useState(0);
   const [posFilter, setPosFilter] = useState([]);
+  /* ============================================================
+     LOGUN DRAFTSINS — LESIN UR DRAFTINU, EKKI UR DEILDINNI
+     ============================================================
+     ÞETTA VAR RAUNVERULEG VILLA A SKJANUM HJA NOTANDANUM 17.8.2026 og
+     hun kostadi hann mock-draft: kassinn skrifadi **"Pick 151 — take
+     this"** i 10-lida 15-umferda drafti, sem endar a vali **150**.
+
+     Villan er EKKI su ad hlidid vanti — thad er til (`totalPicks` i
+     `NextPick`, skrifad gegn nakvaemlega thessu) — heldur ad hlidid
+     spurdi RANGA HEIMILD: `league.teams * league.rounds`. Deildin i
+     appinu bar 12 lid, svo thakid var 180 og val 151 slapp i gegn. Sama
+     gildir um hverja adra snakk-tolu: `nextOwnPick(..., league.teams)`
+     gaf 12-lida vorpun a 10-lida draft, svo "naesta val" og hver
+     lifunartala voru ur ANNARRI DEILD. "13 picks away" i kassanum hans
+     er 12-lida bid; rett svar var 9.
+
+     REGLAN SEM GILDIR — og hun er ThEGAR skrad i `sleeper-league.js`
+     um `rounds`: **DRAFTID ER HEIMILDIN UM DRAFTID.** Þar var hun
+     beitt a innflutninginn; hér var hun ekki beitt a bordid.
+
+     ÞAD ER ADEINS SNAKK-STAERDFRAEDIN SEM FLYTUR HINGAD. Varamanns-
+     threpin (VBD) koma afram ur DEILDINNI, thvi thau eru reglur
+     notandans og appid yfirskrifar thaer ekki thegjandi (sja notuna vid
+     mismunar-vidvorunina nedar). Þad er ekki thogn: mismunurinn er nu
+     STADA a tengingunni, ekki malsgrein i miðjum texta.               */
+  const [draftShape, setDraftShape] = useState(null);
+  /* ============================================================
+     AÐEINS ÞEGAR HUN BREYTIST — MÆLT, EKKI VARFAERNI
+     ============================================================
+     Fyrsta utgafan sendi hlutinn UPP i hverri pollun. `pull` byr NYJAN
+     hlut i hvert sinn, svo tilvisunin var alltaf ny og HELDUR DraftBoard
+     endurteiknadi sig — 200 rada tafla, skortstikan og radgjafarkassinn —
+     a 1,5 sek fresti i beinni.
+
+     ÞAD MAELDIST: `draft-live.mjs` (sem styttir pollunar-bidina i 6 ms)
+     for ur ~20 sekundum i **yfir tolf minutur** og var enn i fyrsta
+     kafla. Profid sem keyrir draftid er thvi lika maelitaeki a
+     endurteikningu — ekki asett, en gagnlegt.
+
+     Fallid ber saman GILDIN og skilar fyrra astandi ef ekkert hreyfdist,
+     svo React sleppir endurteikningu alveg. Adeins thau fjogur svid sem
+     bordid les eru borin saman.                                        */
+  const onShape = useCallback((next) => {
+    setDraftShape((prev) => {
+      if (prev === next) return prev;
+      if (!prev || !next) return next || null;
+      const same = prev.teams === next.teams && prev.rounds === next.rounds
+        && prev.type === next.type && prev.status === next.status;
+      return same ? prev : next;
+    });
+  }, []);
   /* Hve morg vol komu UR GEYMSLUNNI en ekki fra Sleeper. Sja `RestoredNote`. */
   const [restored, setRestored] = useState(() => taken.size);
 
@@ -248,7 +299,26 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      sidasta valid. Sja `lastPick` i `advice.js` — thad er ANNAD en
      `nextPick: null`, sem thydir afram "eg veit ekki saetið, giskadu"
      og er rett i handvirku drafti.                                   */
-  const rounds = league.rounds || 15;
+  /* ============================================================
+     SNAKK-TOLURNAR KOMA UR DRAFTINU THEGAR THAD ER TENGT
+     ============================================================
+     `draftShape` er lesid ur `/draft/{id}` (`settings.teams` /
+     `settings.rounds`) — skrad stadreynd, ekki agiskun. Vanti hun
+     (handvirkt draft, engin tenging) fellur allt i deildina, sem er
+     rett: tha er deildin eina heimildin sem til er.
+
+     TOLURNAR ERU ThVINGADAR. `settings` er ytra svar og `NaN` i
+     lidafjolda myndi gera hverja snakk-tolu ad `NaN` — sama aett og
+     `{"teams":"abc"}` i `normalizeLeague`.                            */
+  const dTeams = Math.round(Number(draftShape && draftShape.teams));
+  const dRounds = Math.round(Number(draftShape && draftShape.rounds));
+  const hasDraftTeams = Number.isFinite(dTeams) && dTeams >= 2 && dTeams <= 32;
+  const hasDraftRounds = Number.isFinite(dRounds) && dRounds >= 1 && dRounds <= 40;
+  const snakeTeams = hasDraftTeams ? dTeams : (Number(league.teams) || 12);
+  const rounds = hasDraftRounds ? dRounds : (league.rounds || 15);
+  /* Hve morg vol eru i draftinu ALLS. Þetta er thakid sem "Pick 151"
+     bratt — og thad er nu talid ur draftinu sjalfu. */
+  const totalPicks = snakeTeams * rounds;
 
   /* ============================================================
      SAETI SEM PASSAR EKKI VID DEILDINA ER OTHEKKT SAETI, EKKI SIDASTA VAL
@@ -279,13 +349,18 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      T-team league"). Ad thegja vaeri ad skipta einni rangri fullyrdingu
      ut fyrir tomt bord an skyringar. */
   const slotRaw = (sync && sync.slot) != null ? Number(sync.slot) : null;
+  /* SAETID ER SAETI I DRAFTINU, svo thad er borid vid lidafjolda
+     DRAFTSINS. Adur var thad borid vid deildina, sem gaf tvennt rangt i
+     einu i mock-i af annarri staerd: 12-lida mock gaf saeti 11-12 sem
+     "er ekki til" i 10-lida deild (bordid slokknadi), og 10-lida mock
+     gaf saeti sem "er til" i 12-lida deild en var vitlaust vegid. */
   const slotOk = slotRaw != null && Number.isFinite(slotRaw) &&
-                 slotRaw >= 1 && slotRaw <= (Number(league.teams) || 0);
+                 slotRaw >= 1 && slotRaw <= snakeTeams;
 
   const reach = useMemo(() => {
     const m = new Map();
     if (!slotOk) return m;
-    const np = nextOwnPick(pickNo, league.teams, slotRaw, rounds);
+    const np = nextOwnPick(pickNo, snakeTeams, slotRaw, rounds);
     if (np == null) return m;
     for (const r of rows) {
       if (r.adp == null) continue;
@@ -293,12 +368,12 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
       if (p != null) m.set(r.id, p);
     }
     return m;
-  }, [rows, pickNo, slotOk, slotRaw, league.teams, rounds]);
+  }, [rows, pickNo, slotOk, slotRaw, snakeTeams, rounds]);
 
   const nextOwn = useMemo(() => {
     if (!slotOk) return null;
-    return nextOwnPick(pickNo, league.teams, slotRaw, rounds);
-  }, [pickNo, slotOk, slotRaw, league.teams, rounds]);
+    return nextOwnPick(pickNo, snakeTeams, slotRaw, rounds);
+  }, [pickNo, slotOk, slotRaw, snakeTeams, rounds]);
   /* Saetið er thekkt OG gilt EN ekkert val er eftir — thad er allt annad
      astand en "saetið er othekkt", og adeins fyrra ma slokkva a
      lifunartolunum. */
@@ -459,6 +534,11 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
         imported={imported} warnings={warnings} teams={teams}
         onImportLeague={onImportLeague} onRereadRules={onRereadRules}
         shapes={shapes}
+        /* LOGUN DRAFTSINS ER LYFT UPP. Hun var lokud inni i thessum hlut
+           og var ADEINS notud til ad prenta vidvorun — medan bordid
+           reiknadi hverja snakk-tolu ur deildinni. Talan var til allan
+           timann; hun var einfaldlega ekki spurd. */
+        onShape={onShape}
         onReset={reset}
         /* Virkur ef eitthvad er ad hreinsa — vol, min vol, oporud vol EDA
            tenging. Skilyrdid var `!taken.size` og thad laesti hnappnum a
@@ -469,7 +549,11 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
         restored={restored} restoredMine={myPicks.size} />
 
       <NextPick available={available} kdst={kdst} roster={myRoster} pick={pickNo} nextOwn={nextOwn}
-        lastPick={lastPick} league={league} sync={sync} />
+        lastPick={lastPick} league={league} sync={sync}
+        /* ThAKID KEMUR HINGAD REIKNAD, ur logun DRAFTSINS. Adur reiknadi
+           `NextPick` thad sjalft ur `league` og hleypti thvi "Pick 151"
+           i gegn i 150 vala drafti. */
+        totalPicks={totalPicks} snakeTeams={snakeTeams} snakeRounds={rounds} />
 
       <MarketMoving rows={rows} taken={taken} onTake={take} />
 
@@ -811,7 +895,7 @@ function MyRoster({ roster, league, onUndo }) {
 function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                        imported, warnings, teams, onImportLeague,
                        sleeperUser, setSleeperUser, onRereadRules,
-                       onReset, resetOff, restored, restoredMine }) {
+                       onShape, onReset, resetOff, restored, restoredMine }) {
   /* Nafnid er FORFYLLT ur vistada audkenninu — notandinn a ekki ad slá
      thad inn i hvert sinn, og forsidan tharf thad hvort ed er. */
   const [user, setUser] = useState(() => (sleeperUser && sleeperUser.name) || "");
@@ -1009,9 +1093,14 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   const pull = async (id) => {
     try {
       const [d, picks] = await Promise.all([D.sleeperDraft(id), D.sleeperPicks(id)]);
-      setInfo({ type: d.type, teams: d.settings ? d.settings.teams : null,
-                rounds: d.settings ? d.settings.rounds : null,
-                status: d.status, picks: (picks || []).length });
+      const shape = { type: d.type, teams: d.settings ? d.settings.teams : null,
+                      rounds: d.settings ? d.settings.rounds : null,
+                      status: d.status, picks: (picks || []).length };
+      setInfo(shape);
+      /* OG UPP. Bordid tharf `teams`/`rounds` DRAFTSINS til ad reikna
+         snakk-tolurnar — an thessarar linu voru thaer reiknadar ur
+         deildinni og "Pick 151" var moguleg i 150 vala drafti. */
+      if (onShape) onShape(shape);
       /* Rodin er oft dregin EFTIR ad tengt er. Se saetid enn ekki komid
          og `draft_order` bætist vid i millitidinni tokum vid thad. */
       if (sync.slot == null && userId != null && d.draft_order) {
@@ -1115,6 +1204,10 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
     lastMove.current = 0;
     setUnmatched(null);
     setInfo(null);
+    /* Og logunin uppi LIKA. Vaeri hun ekki nullstillt bæri bordid afram
+       lidafjolda draftsins sem var slitid — og reiknadi snakk-tolur ur
+       drafti sem er ekki tengt. Sama aett og `lastSync`-refin. */
+    if (onShape) onShape(null);
   }, [sync.draftId]);
 
   useEffect(() => {
@@ -1335,25 +1428,104 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         );
       })()}
 
-      {info && (() => {
-        const dt = Number(info.teams), dr = Number(info.rounds);
+      {/* ============================================================
+          STODULJOSID — TENGING **OG** LOGUN, I EINU MERKI
+          ============================================================
+          BEIDNI NOTANDANS 17.8.2026: "status ljos sem er rautt eda graent
+          eftir thvi hvort tenging tokst, restina af textanum ma fara."
+
+          ÞAD ER SAMT ThRIGGJA STODU LJOS OG ThAD ER MAELT AF REYNSLU HANS,
+          ekki smekk: hann DRAFTADI heilt mock-draft med thessa vidvorun
+          A SKJANUM ("10 teams in the draft against 12 in this league") og
+          sa hana ekki, thvi hun var malsgrein i vegg af malsgreinum. Tvo
+          stodu ljos — tengt eda ekki — hefdi verid GRAENT allan thann
+          tima. Tenging sem heppnadist a rangri logun er ekki "i lagi".
+
+            graent  = tengt, og draftid er sama logun sem bordid reiknar
+            gult    = tengt, EN logunin stemmir ekki — tolurnar eru ur
+                      annarri deild
+            raut    = tengingin brast
+
+          ============================================================
+          OG GAMLA FULLYRDINGIN NEFNDI RANGA AFLEIDINGU
+          ============================================================
+          Hér stod: "Picks are struck off correctly, but every snake number
+          ... is worked out from the league settings". Snakk-tolurnar eru nu
+          LESNAR UR DRAFTINU (sja `snakeTeams` ofar), svo thaer eru rettar.
+          Eftir stendur afleidingin sem gamli textinn ThAGDI UM og sem er
+          MIKLU staerri: **varamanns-threpin — og thar med RODIN sjalf.**
+
+          MAELT 17.8.2026 a hans eigin gognum (10-lida PPR 2WR/2FLEX a moti
+          12-lida sjalfgefnu 3WR/1FLEX, sama laug, sama dagur):
+
+            stada | threp 10-lida | threp 12-lida | lyfting a VBD
+            QB    | QB10          | QB12          | +3,6
+            RB    | RB27          | RB28          | +1,0
+            TE    | TE14          | TE14          |  0,0
+            WR    | WR29          | **WR42**      | **+26,9**
+
+          Þad er ekki jofn lyfting heldur SKEKKJA MED FORMERKI: WR er
+          dypsta stadan, svo threpid faerist ThRETTAN saeti medan RB faerist
+          eitt og TE ekkert. VBD sendingamottakara TVOFALDAST naerri:
+          Rashee Rice 29,6 -> 58,5 · DeVonta Smith 29,5 -> 58,4 · Mike
+          Evans 22,5 -> 51,4 · Parker Washington 12,7 -> 41,6.
+
+          UTKOMAN VAR MAELD ALLA LEID: hermt draft fra saeti 5, 7 umferdir,
+          motherjar eftir ADP. Med RETTRI 10-lida logun skilar bordid
+          **RB4 TE2 WR1**; med 12-lida sjalfgefnu **WR-eftir-WR** (topp
+          bordsins i umferdum 4-7 er McConkey/Higgins/Egbuka/McMillan og
+          Evans/Waddle/McLaurin/Washington). Notandinn draftadi sex WR og
+          fylgdi radgjofinni i hverju vali — **rodin var ekki biluð, hun
+          var svarid vid annarri deild.**
+
+          VID BREYTUM SAMT EKKI DEILDINNI SJALFKRAFA (sama akvordun og
+          stod hér adur): hann gaeti verid ad aefa sig i mock-i af annarri
+          staerd viljandi, og ad yfirskrifa reglurnar hans thegjandi vaeri
+          staerri villa en su sem er verid ad laga. Vid gerum thad
+          OMOGULEGT AD MISSA, ekki thogult ad hlyda.
+
+          Vordur: `tests/draft-live.mjs` kafli 9 — logun sem stemmir ekki
+          MA EKKI teiknast graen.                                        */}
+      {(() => {
+        const dt = Number(info && info.teams), dr = Number(info && info.rounds);
         const lt = Number(league && league.teams), lr = Number(league && league.rounds);
         const bad = [];
-        if (Number.isFinite(dt) && Number.isFinite(lt) && dt !== lt) {
-          bad.push(`${dt} teams in the draft against ${lt} in this league`);
+        if (info) {
+          if (Number.isFinite(dt) && Number.isFinite(lt) && dt !== lt) {
+            bad.push(`draft has ${dt} teams, league has ${lt}`);
+          }
+          if (Number.isFinite(dr) && Number.isFinite(lr) && dr !== lr) {
+            bad.push(`draft has ${dr} rounds, league has ${lr}`);
+          }
         }
-        if (Number.isFinite(dr) && Number.isFinite(lr) && dr !== lr) {
-          bad.push(`${dr} rounds against ${lr}`);
-        }
-        if (!bad.length) return null;
+        /* Raut er ADEINS bilun. `status` ber lika hlutlausar tilkynningar
+           ("Rules imported ... no draft has been created yet"), svo hana
+           ma ekki lesa sem bilun — tha vaeri ljosid raut vid retta
+           innflutningu. Bilun er ThEGAR TENGING VAR REYND OG EKKERT KOM. */
+        const failed = !!status && !info && !imported;
+        const state = failed ? "bad" : bad.length ? "warn" : info ? "good" : null;
+        if (state == null) return null;
+        const label = state === "good" ? "connected"
+          : state === "warn" ? "wrong shape" : "not connected";
         return (
-          <div className="note warn" style={{ marginTop: 10 }}>
-            <b>This draft is not the shape of the league the board is using</b>
-            {` — ${bad.join(", ")}.`}
-            {" "}Picks are struck off correctly, but every snake number — your next
-            pick, the wait, and the "will he last?" shading — is worked out from the
-            league settings above, not from the draft. Import the league this draft
-            belongs to, or set teams and rounds to match, before you trust them.
+          <div className={`note ${state === "good" ? "" : state}`}
+            style={{ marginTop: 10 }} data-conn={state}>
+            <b>
+              <span className={`dot ${state}`} aria-hidden="true" />
+              {" "}Sleeper: {label}
+            </b>
+            {state === "warn" && (
+              <>
+                {" "}— {bad.join(", ")}. <b>Every VBD number on this board is
+                computed for your league, not for this draft</b>, and receivers move
+                most: a 12-team shape puts the replacement receiver at WR42 where a
+                10-team one puts him at WR29, which adds about <b>27 points of VBD to
+                every WR</b> and nothing to tight ends. That changes the order, not
+                just the snake numbers. Import the league this draft belongs to, or
+                set teams and rounds to match, before you trust the ranking.
+              </>
+            )}
+            {state === "bad" && <> — {status}</>}
           </div>
         );
       })()}
@@ -1540,8 +1712,27 @@ function MeasuredEdge({ league, shapes }) {
     try { return edgeSentence(league, shapes || null); } catch { return null; }
   }, [league, shapes]);
   if (!e || !e.text) return null;
+  /* ============================================================
+     `data-edge` ER TIL FYRIR VORDINN, OG THAD ER MAELT AF FALLI
+     ============================================================
+     `sleeper.mjs` (d2) sannreynir ad talan a skjanum se su sem `HALF_LAB`
+     ber fyrir ThESSA logun — og ad hun se EKKI tala hinnar deildarinnar,
+     thvi uppfletting i rangri toflu myndi annars lesast eins og rett.
+
+     Su neikvaeda fullyrding var `!body.textContent.includes("147.4")` og
+     hun **fell a origin/main 17.8.2026 an thess ad neitt vaeri ad**:
+     bordid syndi Devaughn Vele med `-147.4` i virdis-dalki, svo
+     undirstrengurinn VAR tharna. Nakvaemlega sama gildra og `\bNaN\b` i
+     CLAUDE.md 5b — `includes` a tolu hittir hverja LENGRI tolu sem ber
+     hana. Profid var rangt, kodinn rettur, og "graent eftir lagfaeringu"
+     hefdi thvi verid falsk lagfaering.
+
+     Setningin ber thvi sitt eigid svid svo vordurinn geti lesid HANA og
+     ekki alla siduna. Ekki fjarlaegja: an thess getur fullyrdingin hvorki
+     verid nakvaem ne stodug.                                          */
   return (
     <div style={{ marginTop: 4, fontSize: 12.5 }}
+      data-edge={e.measured && e.significant ? "measured" : "unproven"}
       className={e.measured && e.significant ? "good" : "dim"}>
       {e.text}
     </div>
@@ -1560,7 +1751,8 @@ function MeasuredEdge({ league, shapes }) {
    thvi hversu bratt stadan versnar — var maeld og hun TAPAR
    (marktaekt i standard). Lifunarlikur eru birtar sem upplysing.
    ============================================================ */
-function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPick }) {
+function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPick,
+                    totalPicks, snakeTeams, snakeRounds }) {
   const rec = useMemo(() => {
     if (!available.length) return null;
     try {
@@ -1583,14 +1775,30 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
      Vid val 151 i 150 vala drafti helt kassinn afram: "Pick 151 — take
      this", med lifunartolum ad vali sem er ekki til. Ekkert hrundi og
      thad er einmitt vandinn — skjar sem heldur afram ad rada thegar
-     ekkert er eftir ad velja les eins og hann viti eitthvad.        */
-  const totalPicks = (league.teams || 0) * (league.rounds || 15);
-  if (totalPicks > 0 && pick > totalPicks) {
+     ekkert er eftir ad velja les eins og hann viti eitthvad.
+
+     ============================================================
+     OG HLIDID VAR TIL EN SPURDI RANGA HEIMILD — 17.8.2026
+     ============================================================
+     Hér stod `(league.teams || 0) * (league.rounds || 15)`. Notandinn
+     sa ThVI **"Pick 151 — take this"** i 10-lida 15-umferda drafti sem
+     endar a 150: deildin i appinu bar 12 lid, svo thakid var 180.
+     Hlidid var graent i hverju profi thvi hvert prof gaf SOMU logun a
+     bædi deild og draft — nakvaemlega tilfellid sem getur ekki fallid.
+
+     Talan kemur nu ad ofan, reiknud ur logun DRAFTSINS (`snakeTeams`
+     x `snakeRounds`), med deildina sem varaleid. Vordur:
+     `tests/draft-live.mjs` kafli 9.                                  */
+  const bound = Number.isFinite(Number(totalPicks)) && Number(totalPicks) > 0
+    ? Math.round(Number(totalPicks))
+    : (league.teams || 0) * (league.rounds || 15);
+  if (bound > 0 && pick > bound) {
     return (
       <div className="panel">
         <h2>Draft complete</h2>
         <div className="sub">
-          All {totalPicks} picks are in ({league.teams} teams × {league.rounds || 15}{" "}
+          All {bound} picks are in ({snakeTeams || league.teams} teams ×{" "}
+          {snakeRounds || league.rounds || 15}{" "}
           rounds). Your roster is on the right; nothing below is a decision any more.
         </div>
       </div>

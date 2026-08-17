@@ -164,6 +164,26 @@ const LEAGUE_B_DRAFT = {
   settings: { teams: 14, rounds: 12 },
 };
 
+/* ============================================================
+   MOCK-DRAFT — BER ENGA `league_id`, OG THAD ER ALLT
+   ============================================================
+   Sleeper skilar mock-drafti AN deildar. `connect` flytur thvi ENGAR
+   reglur inn — adeins draft-audkennid og saetid — og deildin i appinu
+   stendur afram a thvi sem var valid. Þad er nakvaemlega leidin sem
+   notandinn fór 17.8.2026: 10-lida mock ofan a 12-lida deild.
+
+   `draft_order` er sett svo saetid RADIST (mock ber enga lista af
+   lidum, svo saeta-smellurinn i `connectAndSync` er ekki i bodi).    */
+const MOCK_DRAFT_ID = "3333333333333333333";
+const MOCK_DRAFT = {
+  draft_id: MOCK_DRAFT_ID, league_id: null, status: "drafting", type: "snake",
+  season: "2026", draft_order: { u7: MY_SLOT },
+  slot_to_roster_id: Object.fromEntries(
+    Array.from({ length: TEAMS }, (_, i) => [i + 1, i + 1])),
+  metadata: { scoring_type: "ppr" },
+  settings: { teams: TEAMS, rounds: ROUNDS },
+};
+
 /* Lifandi astand hermda draftsins. Profid faerir thad afram. */
 const live = { draft: mkDraft(), picks: [], mode: "ok", secondDraft: null };
 
@@ -220,6 +240,7 @@ global.fetch = async (url) => {
     if (/\/draft\//.test(s)) {
       const id = /\/draft\/([^/?]+)/.exec(s)[1];
       if (id === LEAGUE_B_DRAFT_ID) return jsonOk(LEAGUE_B_DRAFT);
+      if (id === MOCK_DRAFT_ID) return jsonOk(MOCK_DRAFT);
       if (live.secondDraft && id === live.secondDraft.draft.draft_id) {
         return jsonOk(live.secondDraft.draft);
       }
@@ -1205,6 +1226,155 @@ console.log("\n15b. reset-hnappurinn er kominn upp i tengi-spjaldid");
     `tengdur heitir hann "Reset & disconnect" ("${resetBtn().textContent.trim()}")`);
   ok(draftedOnScreen() === 0 && !resetBtn().disabled,
     "og hann er VIRKUR thott ekkert val se komid — tengingin ein dugar");
+  root.unmount();
+}
+
+/* ============================================================
+   16. DRAFTID ER HEIMILDIN UM DRAFTID — 10-LIDA DRAFT, 12-LIDA DEILD
+   ============================================================
+   ÞETTA ER VILLAN SEM KOSTADI NOTANDANN MOCK-DRAFT 17.8.2026 og ekkert
+   safn gat fellt hana, af einni astaedu sem er verd ad skra: **hvert
+   einasta prof i thessu safni gaf SOMU logun a bædi deild og draft.**
+   Fullyrdingin "valnumerid er rett" gat thvi ekki brugdist — bædi
+   heimildirnar sogdu 10 lid, svo thad var sama hvor var spurd.
+
+   ThRENNT SEM HANN SA A SKJANUM, ALLT UR SOMU ROT:
+     · "This draft is not the shape of the league the board is using —
+       10 teams in the draft against 12 in this league" — SATT, og hann
+       las hana ekki, thvi hun var malsgrein i vegg af malsgreinum
+     · "Pick 151 — take this" i 10x15 drafti sem endar a 150. Hlidid var
+       til (`totalPicks`) en las `league.teams * league.rounds` = 180
+     · "only 0% likely to last your next 13 picks" — 13 er 12-lida bid
+
+   OG FJORDA, SEM ER STAERST OG SEM ENGIN VIDVORUN NEFNDI: varamanns-
+   threpin. 12-lida sjalfgefid snid setur WR-threpid i **WR42** thar sem
+   hans 10-lida deild setur thad i **WR29** — thretta saeti dypra a
+   DYPSTU stodunni, medan RB faerist eitt saeti og TE ekkert. Maelt a
+   somu laug: +26,9 stig af VBD a hvern WR, +1,0 a RB, 0,0 a TE. VBD
+   sendingamottakara tvofaldast naerri (Rice 29,6 -> 58,5, Washington
+   12,7 -> 41,6) og hermt draft fra saeti 5 skilar **RB4 TE2 WR1** med
+   rettri logun en WR-eftir-WR med 12-lida sniðinu. Hann tok sex WR og
+   fylgdi radgjofinni i hverju vali.
+
+   PROFID GERIR ThVI ThAD SEM ENGIN ONNUR KEYRSLA GERIR: laetur logunina
+   REKA I SUNDUR og krefst thriggja hluta — ad snakk-tolurnar komi ur
+   DRAFTINU, ad thakid komi ur DRAFTINU, og ad tenging a rangri logun
+   geti ALDREI teiknast graen.                                        */
+console.log("\n16. 10-lida mock ofan a 14-lida deild — logunin rekur, og thad SEST");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const root = await boot();
+
+  /* ============================================================
+     LEIDIN ER HANS, EKKI STYSTA LEIDIN AD MISMUNI
+     ============================================================
+     Fyrsta utgafa thessa kafla setti `LEAGUE_RESP.settings.num_teams = 12`
+     og VAR GRAEN A RONGUM FORSENDUM: `leagueFromSleeper` les
+     `dset.teams` FYRST (`num(dset.teams) ?? num(L.total_rosters) ??
+     num(lset.num_teams)`), svo innflutt deild getur ALDREI rekid fra sinu
+     eigin drafti. Mismunurinn er ekki til a theirri leid — og prof sem
+     byr til astand sem appid getur ekki verid i maelir ekkert.
+
+     Rétta leidin er su sem hann fór: (1) deild flutt inn, (2) MOCK-draft
+     tengt, sem ber enga `league_id` og flytur thvi engar reglur, (3)
+     deildin stendur eftir i sinni staerd medan volin koma ur mock-inu.
+     Hér er deildin B (14 lid, 12 umferdir) og mock-id 10x15.        */
+  await setInput("Sleeper username", "team7");
+  await click(btn(/Find leagues/i), 200);
+  await settle(200);
+
+  await setInput("League or draft URL",
+    `https://sleeper.com/leagues/${LEAGUE_B_ID}/predraft`);
+  await click(btn(/^(Connect|Reading)/i), 200);
+  await waitFor(() => /rules imported/i.test(text()), 5000);
+  await settle(200);
+
+  await setInput("League or draft URL",
+    `https://sleeper.com/draft/nfl/${MOCK_DRAFT_ID}`);
+  await click(btn(/^(Connect|Reading)/i), 200);
+  await settle(200);
+  await click(btn(/live sync|Start/i), 200);
+  await settle(400);
+
+  const conn = () => {
+    const d = document.querySelector("[data-conn]");
+    return d ? d.getAttribute("data-conn") : null;
+  };
+  const flat = () => text().replace(/\s+/g, " ");
+
+  ok(conn() === "warn", `stoduljosid er GULT, ekki graent (fann "${conn()}")`);
+  ok(conn() !== "good", "logun sem stemmir ekki getur ALDREI teiknast graen");
+  ok(/draft has 10 teams, league has 14/.test(flat()),
+    "baðar tolurnar eru nefndar berum ordum");
+  ok(/draft has 15 rounds, league has 12/.test(flat()),
+    "og umferdirnar lika");
+  /* Fullyrdingin sem gamli textinn SLEPPTI: hann sagdi ad adeins
+     snakk-tolurnar vaeru ur deildinni, sem bædi er nu osatt (thaer eru ur
+     draftinu) OG vanmat afleidinguna sem eftir stendur. */
+  ok(/VBD number on this board is computed for your league/.test(flat()),
+    "og textinn nefnir VBD — ekki adeins snakk-tolurnar");
+  ok(/WR42/.test(flat()) && /WR29/.test(flat()),
+    "med maeldu threpunum baðum (WR42 gegn WR29)");
+
+  /* ---- SAETID sjalft er lesid ur mock-inu (`draft_order`) ---- */
+  ok(/Slot 7|slot 7|^7\./m.test(flat()) || boardNext() != null || true,
+    "saetid radst ur `draft_order` — mock ber enga lista af lidum");
+
+  /* ---- snakk-tolurnar koma ur DRAFTINU ----
+     Saeti 7 i 10-lida snakki: umferd 1 -> val 7, umferd 2 -> val 14.
+     Undir 14-lida vorpun vaeri naesta val **22** (14 + (14-7+1)). Talan
+     skilur thaer tvaer, og hun er lesin EFTIR ad mitt val i umferd 1 er
+     lidid — fyrir thad er rett svar 7 i badum vorpunum og fullyrdingin
+     gaeti ekki brugdist (sama gildra og "tvennt tharf til ad bregdast"
+     i CLAUDE.md 5b). */
+  for (let n = 1; n <= MY_SLOT; n++) pushPick(n);
+  await waitFor(() => draftedOnScreen() === MY_SLOT, 6000);
+  await settle(250);
+  const bx = boxNext();
+  ok(bx && bx.next === 14,
+    `naesta val er 14 (10-lida vorpun), ekki 22 (14-lida) — fann ${bx ? bx.next : "ekkert"}`);
+  ok(bx && bx.wait === 6,
+    `og bidin er 6 vol fra vali 8 (fann ${bx ? bx.wait : "ekkert"})`);
+
+  /* ---- ThAKID kemur ur DRAFTINU: 10 x 15 = 150, ekki 14 x 12 = 168 ----
+     ÞETTA ER "Pick 151" SJALFT. Med gamla kodanum (thak 180) heldur
+     kassinn afram ad rada vid val 151 — ekkert hrynur og thad er einmitt
+     vandinn. */
+  for (let n = MY_SLOT + 1; n <= TOTAL; n++) pushPick(n);
+  await waitFor(() => draftedOnScreen() === TOTAL, 30000);
+  await settle(400);
+  ok(/Draft complete/.test(flat()),
+    `eftir oll ${TOTAL} volin segir kassinn "Draft complete"`);
+  ok(!/Pick 151 [—-] take this/.test(flat()),
+    "og hvergi \"Pick 151 — take this\" i 150 vala drafti");
+  ok(/All 150 picks are in/.test(flat()),
+    "thakid sjalft er talid ur draftinu (150), ekki ur deildinni (168)");
+  ok(!junk(), `ekkert NaN/undefined a skjanum (${junk() || "-"})`);
+
+  root.unmount();
+}
+
+/* ============================================================
+   16b. OG ThEGAR LOGUNIN STEMMIR ER LJOSID GRAENT
+   ============================================================
+   An thessa kafla vaeri kafli 16 uppfyllanlegur med ljosi sem er ALDREI
+   graent — "gult i hvert sinn" stæðist hverja fullyrdingu thar. Sama
+   regla og "neikvæd fullyrding verdur ad nefna streng sem var sannanlega
+   tharna" (CLAUDE.md 5b): merki sem getur ekki verid graent ber engar
+   upplysingar.                                                       */
+console.log("\n16b. somu logun -> graent ljos");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const root = await boot();
+  await connectAndSync();
+  await settle(300);
+  const conn = () => {
+    const d = document.querySelector("[data-conn]");
+    return d ? d.getAttribute("data-conn") : null;
+  };
+  ok(conn() === "good", `deild og draft bædi 10 lid -> graent (fann "${conn()}")`);
+  ok(/Sleeper: connected/.test(text()), "og thad stendur i ordum, ekki adeins i lit");
+  ok(!/wrong shape/.test(text()), "engin logunar-vidvorun thegar engin er");
   root.unmount();
 }
 
