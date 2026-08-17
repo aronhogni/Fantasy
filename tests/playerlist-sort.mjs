@@ -197,11 +197,28 @@ for (const g of ["Basics", "Defence", "Attack", "Set pieces and cards"]) await s
 
 ok(`dalkar lesnir i badar attir (${checkedCols})`, checkedCols >= 30, `adeins ${checkedCols}`);
 /* AD TOM GILDI SJAIST SJALDAN A TOPPNUM ER REGLAN AD VIRKA, ekki thekjubrestur
-   — thau eru einmitt SEND NIDUR. Maelt: 4 af 121 dalka-attum bera tomt gildi
-   i efstu 31 rodunum. Throskuldurinn er thvi 3 (maelt 4), og SONNUNIN a thvi
-   ad tomu gildin hafi farid NIDUR en ekki HORFID er skrunprofid hér a eftir. */
-ok(`tom gildi sjast a toppnum i ${nullBearing} tilvikum (maelt 4 af 121)`,
-   nullBearing >= 3, `adeins ${nullBearing}`);
+   — thau eru einmitt SEND NIDUR. Thetta er ANTI-TOMLEIKA-fullyrding: hun
+   sannar ad null-greinin hafi yfirleitt verid keyrd, svo fullyrdingarnar
+   tvaer hér ad ofan ("null ofan vid tolu" og "toppurinn tomur") seu ekki
+   sjalfkrafa graenar. SONNUNIN a thvi ad tomu gildin hafi farid NIDUR en
+   ekki HORFID er skrunprofid hér a eftir — hun er sterka fullyrdingin.
+
+   THROSKULDURINN VAR 3 (maelt 4) OG HANN VAR AD MAELA VILLU (16.8.2026).
+   Thrjar af theim fjorum dalka-attum voru `Order` (pen_order), `FK` og
+   `Corners` — dalkar sem voru TOMIR HJA OLLUM 587 i sjalfgefnu utsyninni
+   af thvi ad getterarnir lasu hra FPL-svid sem `player_seasons.json` ber
+   ekki. Their toldust "null-berandi" af thvi ad their voru bilaðir.
+   Thegar sviðin voru borin yfir a `src` hurfu their ur talningunni og
+   `Net trans` kom i stadinn (rett null i stad tilbuins 0), svo talan er
+   nu 2: `Chg GW` og `Net trans`.
+
+   ThESS VEGNA ER GOLFID 1, EKKI FAST SOGULEGT TAL. Talan raest af thvi hve
+   margir dalkar eiga faerri en 31 gildi i thessum gognum — eiginleiki
+   GAGNANNA, ekki kodans — og fast tal um lifandi gogn urealdist thegjandi
+   (sama aett og "MEASURED: the range is 4-10", CLAUDE.md 8). Ef hun fer i 0
+   er skonnunin haett ad sja null og fullyrdingarnar ofan eru ordnar tomar. */
+ok(`tom gildi sjast a toppnum i ${nullBearing} tilvikum (maelt 2: Chg GW, Net trans)`,
+   nullBearing >= 1, `ENGIN null i skonnuninni — fullyrdingarnar ofan maela ekkert`);
 
 /* ---------- SONNUNIN: TOMU GILDIN ERU NEDST, EKKI HORFIN ---------- */
 {

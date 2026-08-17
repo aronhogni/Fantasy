@@ -124,11 +124,27 @@ eq(STAT_BY_KEY.pts_per_90.get({ minutes: 0, total_points: 5 }), null, "0 mínút
 eq(STAT_BY_KEY.mins_per_gi.get({ minutes: 900, goals_scored: 0, assists: 0 }), null,
   "ekkert framlag → null, ekki deiling með núlli");
 
-/* NYJAR OPINBERAR TOLUR — sannreyna ad thaer komi ur rettum svidum. */
-eq(STAT_BY_KEY.saves_per_90.get({ saves_per_90: 1.62 }), 1.62, "Vörslur/90 úr FPL saves_per_90");
-eq(STAT_BY_KEY.dc_per_90.get({ defensive_contribution_per_90: 3.4 }), 3.4, "DC/90 úr FPL-sviði");
-eq(STAT_BY_KEY.cs_per_90.get({ clean_sheets_per_90: 0.51 }), 0.51, "Hreint blað/90 úr FPL-sviði");
-eq(STAT_BY_KEY.starts_per_90.get({ starts_per_90: 1 }), 1, "Byrjunarhlutfall úr FPL-sviði");
+/* NYJAR OPINBERAR TOLUR — sannreyna ad thaer komi ur rettum svidum.
+   MINUTUR ERU NU HLUTI FORSENDUNNAR (16.8.2026). Thessar fjorar lesa FPL-svid
+   BEINT, og FPL geymir thar `0` fyrir leikmann sem hefur ALDREI SPILAD — tala
+   sem er ekki maeling. Maelt: 54 leikmenn med `minutes: 0` synduU "0.00" i
+   thessum dalkum medan systkini theirra i SOMU ROD (`cbi_per_90`,
+   `tackles_per_90`, `recoveries_per_90`, sem fara gegnum `per90of`) syndu
+   rettilega "—". Tvaer reglur um sama hlut i sama vidmoti.
+   Verra: `gc_per_90` og `xgc_per_90` eru `hi:false`, svo thessi fals-null
+   sat EFST — 164 leikmenn sem hafa aldrei spilad, taldir bestir.
+   Profgognin baru engar minutur og STADFESTU thvi gomlu hegdunina; nu bera
+   thau thaer, og null-tilfellid er profad VID HLIDINA svo fullyrdingin
+   se tvihlida (sbr. kafla 5b: fullyrding sem tharf tvennt til ad bregdast). */
+eq(STAT_BY_KEY.saves_per_90.get({ minutes: 900, saves_per_90: 1.62 }), 1.62, "Vörslur/90 úr FPL saves_per_90");
+eq(STAT_BY_KEY.dc_per_90.get({ minutes: 900, defensive_contribution_per_90: 3.4 }), 3.4, "DC/90 úr FPL-sviði");
+eq(STAT_BY_KEY.cs_per_90.get({ minutes: 900, clean_sheets_per_90: 0.51 }), 0.51, "Hreint blað/90 úr FPL-sviði");
+eq(STAT_BY_KEY.starts_per_90.get({ minutes: 900, starts_per_90: 1 }), 1, "Byrjunarhlutfall úr FPL-sviði");
+for (const [k, f] of [["saves_per_90","saves_per_90"], ["dc_per_90","defensive_contribution_per_90"],
+                      ["cs_per_90","clean_sheets_per_90"], ["starts_per_90","starts_per_90"],
+                      ["gc_per_90","goals_conceded_per_90"], ["xgc_per_90","expected_goals_conceded_per_90"]])
+  eq(STAT_BY_KEY[k].get({ minutes: 0, [f]: 0 }), null,
+     `${k}: 0 minutur -> null, ekki FPL-nullid`);
 
 /* FPL-SAETI-DALKARNIR VORU FJARLAEGDIR 7.8.2026 (beidni notanda: "hvad er
    thetta ad segja okkur?"). Attta dalkar syndu ROD FPL a somu tolum og eru
@@ -860,7 +876,19 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
   near(STAT_BY_KEY.bonus_per_bps.get(f), 3, 1e-9, "Bónus per 100 BPS = 12/(400/100)");
   near(STAT_BY_KEY.cards_per_90.get(f), 0.4, 1e-9, "Spjöld/90 = (3+1)/900×90");
   near(STAT_BY_KEY.xgi_per_million.get(f), 0.8, 1e-9, "xGI per m = 6,0/7,5");
-  near(STAT_BY_KEY.xg_share.get(f), 10, 1e-9, "xG-hlutur = 4,0/40");
+  /* xG-HLUTUR LES NU BADAR HLIDAR UR LIFANDI RODINNI (16.8.2026).
+     Adur var teljarinn `p.expected_goals` — sem i sogulegu timabili er
+     ARSTIDAR-talan — medan nefnarinn `_team_xg` er summa yfir tha sem eru
+     I DAG skradir hja felaginu. Tvaer olikar heimildir i sama brotinu gafu
+     Ogbene 148% (rett 10%), Lukic 74% (rett 5%) og Isak 40% fyrir timabil
+     thar sem rett var 31% — hann var hja Newcastle en deilt var med
+     lidsstyrk Liverpool. Dalkurinn er `live_only` og notan segir "does not
+     follow the selected season", svo LEIDRETTINGIN ER AD STANDA VID THAD:
+     `_live_xg` kemur ur somu lifandi rod og nefnarinn.
+     Profid ber thvi baedi hlidar sem AUDGUNIN setur, ekki hrat FPL-svid. */
+  near(STAT_BY_KEY.xg_share.get({ ...f, _live_xg: 4.0 }), 10, 1e-9, "xG-hlutur = 4,0/40 (badar hlidar lifandi)");
+  eq(STAT_BY_KEY.xg_share.get(f), null,
+     "arstidar-xG EIN og ser gefur EKKERT — teljarinn verdur ad vera lifandi");
   near(STAT_BY_KEY.cbi_per_90.get(f), 9, 1e-9, "Hreins/blokk /90");
 
   /* NYTING kraefst xG >= 0,5 — annars er hun merkingarlaus (1 mark ur
@@ -940,6 +968,24 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
   /* Reitur sem VANTAR ma vera null — ALDREI 0 (sbr. 6i). */
   ok(rows.every(p => p._dc_hit_adj === null || typeof p._dc_hit_adj === "number"),
     "vantandi audgun er null, ekki 0");
+
+  /* ---- 14c. xG-HLUTUR MA ALDREI FARA YFIR 100% ----------------------
+     Einkennid sem notandinn sa: Ogbene 148%, Szmodics 114%, Lukic 74%.
+     Teljarinn fylgdi arstidinni en nefnarinn deginum i dag, svo brotid
+     bar tvo olik timabil — og hja nyliðafelogunum var nefnarinn 0.
+     Leikmadur er HLUTI af summu lidsins, svo hlutur yfir 100% er ekki
+     "ha tala" heldur SONNUN um ad hlidarnar komi ur sitthvorri heimild.
+     Fullyrdingin er tvihlida: fyrst ad dalkurinn REIKNIST yfirleitt
+     (annars vaeri "0 yfir 100%" graent af thvi ad hann er tomur).      */
+  const shares = rows.map(p => STAT_BY_KEY.xg_share.get(p)).filter(v => v != null);
+  const over = shares.filter(v => v > 100);
+  ok(shares.length === 0 || over.length === 0,
+     `xG-hlutur fer aldrei yfir 100% (${over.length} af ${shares.length})`,
+     over.length ? `haest: ${Math.max(...over).toFixed(1)}%` : "");
+  /* I forleik er lifandi xG ~0 hja ollum, svo tom skra ER rett svar —
+     en hun ma ekki thegja um thad. Talan er PRENTUD, ekki fullyrt a. */
+  console.log(`     (xG-hlutur: ${shares.length} leikmenn med tolu i dag`
+    + `${shares.length ? `, haest ${Math.max(...shares).toFixed(1)}%` : " — forleikur, lifandi xG er 0"})`);
 
   /* ---- 14b. `_team_cs` — BOKMAKARALINAN VERDUR AD EIGA VID NAESTA LEIK ----
      `csFor` (App.jsx) sannreynir linuna gegn MOTHERJA OG DAGSETNINGU adur en
@@ -1075,6 +1121,23 @@ console.log("\n15) `pos` er virt i BADUM lesmatum");
   const posDefs = STAT_DEFS.filter(d => Array.isArray(d.pos) && d.pos.length);
   ok(posDefs.length >= 10, `${posDefs.length} dalkar bera \`pos\` (forsenda kaflans)`);
 
+  /* Audgunin eins og appid setur hana upp fyrir SOGULEGT timabil. */
+  const rd = f => { try { return JSON.parse(readFileSync(new URL("../data/" + f, import.meta.url), "utf8")); }
+                    catch { return null; } };
+  const teamsF = rd("teams.json");
+  const teamById2 = Object.fromEntries(((Array.isArray(teamsF) ? teamsF : teamsF?.teams) || [])
+    .map(t => [t.id, t]));
+  const seasons = rd("player_seasons.json");
+  const enrich2526 = makeEnricher({
+    players: P, teamById: teamById2, imminent: rd("imminent.json"),
+    fixtures: rd("fixtures.json")?.fixtures ?? rd("fixtures.json"),
+    events: rd("events.json")?.events ?? rd("events.json"),
+    odds: rd("odds.json")?.teams ?? rd("odds.json"),
+    defcon: rd("defcon.json"), defconHist: rd("defcon_history.json"),
+    consist: rd("consistency.json"), bsd: [rd("bsd_players.json")],
+    season: "2025/26", isLive: false,
+  });
+
   let leaks = 0, leakEx = [];
   for (const d of posDefs) {
     const bad = P.filter(p => !d.pos.includes(p.element_type) && d.get(p) != null);
@@ -1083,15 +1146,36 @@ console.log("\n15) `pos` er virt i BADUM lesmatum");
   ok(leaks === 0, `enginn pos-dalkur lekur ut fyrir stodu sina`, leakEx.join(" "));
 
   /* Og ad talan se ENN TIL innan stodunnar — vordur ma ekki tæma dalkinn.
-     `live_only`/`derived` dalkar eru undanskildir HER thvi their lesa reiti
-     sem AUDGUNIN setur (`_mo`, `_start_p` …) og hrá `players.json` ber thá
-     ekki; mo/ao eru maeld beint a audguninni nedar i kaflanum.           */
+     ThESSI HELMINGUR LES AUDGADAR RADIR, EKKI HRAT `players.json` (16.8.2026).
+     Astaedan er maeld: thegar `pos:[2,3,4]` var sett a DefCon-dalkana fimm
+     (markmenn baru "0% af 36" fyrir stig sem their geta ekki unnid) fellu
+     `dc_hit_adj`, `dc_hit_raw` og `dc_starts` HER — ekki af thvi ad
+     lagfaeringin taemdi tha, heldur af thvi ad their lesa `_dc_*`-reiti sem
+     AUDGUNIN setur og hra rodin ber aldrei. Fullyrdingin var thvi ad maela
+     annad en skjarinn synir. Undanthagulistinn (`!live_only`) hefdi thurft
+     ad vaxa i hvert sinn sem `pos` baettist a audgadan dalk — handskrifadur
+     listi sem stadnar (CLAUDE.md 8). Audgadar radir leysa thad i eitt skipti.
+     `isLive:false` + 2025/26 er notad thvi `defcon.json.players` er TOM i
+     forleik; sagan (`defcon_history.json`) er thar sem tolurnar bua.     */
+  const encRows = P.map(p => {
+    const hist = seasons?.players?.[String(p.code)]?.["2025/26"];
+    const base = hist ? { ...hist, now_cost: p.now_cost, element_type: p.element_type } : p;
+    return { ...base, ...enrich2526(p).fields };
+  });
   let empty = 0, emptyEx = [];
   for (const d of posDefs.filter(x => !x.live_only)) {
-    const inPos = P.filter(p => d.pos.includes(p.element_type) && d.get(p) != null);
+    const inPos = encRows.filter(p => d.pos.includes(p.element_type) && d.get(p) != null);
     if (!inPos.length) { empty++; emptyEx.push(d.key); }
   }
   ok(empty === 0, "hver pos-dalkur ber ENN tolur innan sinnar stodu", emptyEx.join(" "));
+  /* Og lekinn ma ekki koma aftur inn um audgunina heldur. */
+  let encLeak = 0, encLeakEx = [];
+  for (const d of posDefs) {
+    const bad = encRows.filter(p => !d.pos.includes(p.element_type) && d.get(p) != null);
+    if (bad.length) { encLeak++; encLeakEx.push(`${d.key}:${bad.length}`); }
+  }
+  ok(encLeak === 0, "enginn pos-dalkur lekur ut fyrir stodu sina I AUDGUDUM RODUM",
+     encLeakEx.join(" "));
 
   /* SAMA SVAR I BADUM LESMATUM — thetta er sjalft einkennid sem kom upp. */
   const lb = buildLeaderboard({ players: P, season: "2025/26", limit: 5 });

@@ -21,6 +21,7 @@ import { existsSync } from "node:fs";
    í FFDR fyrir GK/DEF. Sjá tests/ffdr-walkforward.mjs.                  */
 import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../src/market.js";
 import { collectPros } from "./pros-collect.mjs";
+import { IN_BOX, shotZone } from "./espn-zones.mjs";
 import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
          finalize, pairPlayers, BSD_TEAM } from "../src/bsd.js";
 /* EIN UTFAERSLA A BYRJUNAR-EIGINLEIKUNUM. Pipeline hafdi EIGIN afrit af
@@ -3141,21 +3142,9 @@ const SHOT_TYPE = {
   "Shot On Target":"on_target", "Shot Off Target":"off_target",
   "Shot Blocked":"blocked", "Shot Hit Woodwork":"woodwork",
 };
-const ZONE_RE = [
-  [/the centre of the box/i, "box_centre"],
-  [/the left side of the box/i, "box_left"],
-  [/the right side of the box/i, "box_right"],
-  [/very close range/i, "close_range"],
-  [/the penalty spot/i, "penalty_spot"],
-  [/more than 35 yards/i, "far"],
-  [/outside the box/i, "outside"],
-];
-const IN_BOX = new Set(["box_centre","box_left","box_right","close_range","penalty_spot"]);
-
-function shotZone(text) {
-  for (const [re, z] of ZONE_RE) if (re.test(text)) return z;
-  return null;
-}
+/* SVAEDA-TAFLAN BYR I `scripts/espn-zones.mjs` OG ER FLUTT INN — hun var
+   afrituð ordrett hér OG i `fetch-team-shots.mjs`, og badi afritin
+   vantadi markteiginn. Sja hausinn thar fyrir maelinguna (1.166 skot). */
 /* ---- UPPLOGN UR ESPN-TEXTA ----
    ESPN skrifar: "Attempt saved. X (Team) right footed shot from the centre of
    the box is saved. Assisted by Y with a cross following a corner."
@@ -3218,7 +3207,7 @@ async function fetchEspnShots() {
 
   /* 2) sumary per leik -> skot, lida-tolur, uppstilling */
   const shots = [], outFx = [], playerAgg = {};
-  let excluded = 0, matchedFx = 0;
+  let excluded = 0, matchedFx = 0, noZone = 0;
   for (const f of base.fixtures || []) {
     const eid = espnByPair[`${f.h}|${f.a}`];
     if (!eid) { console.warn(`espn: could not find ${f.h} v ${f.a}`); continue; }
@@ -3284,6 +3273,11 @@ async function fetchEspnShots() {
       const usable = x != null && y != null && !(x === 0 && y === 0);
       if (!usable) excluded++;
       const zone = shotZone(text);
+      /* SKOT AN SVAEDIS ER TALID OG BIRT. `a.in_box` telur adeins thegar
+         `zone` er thekkt, svo ohreyft svaedi les eins og „ekki i teig" i
+         summunni — nakvaemlega villan sem markteigurinn olli. Talan hér
+         gerir stærd theirrar thagnar SYNILEGA i skranni sjalfri.        */
+      if (!zone && !own) noZone++;
 
       const asst = parseAssist(text);
       shots.push({
@@ -3346,6 +3340,10 @@ async function fetchEspnShots() {
     caveats: {
       no_xg: "ESPN gives no per-shot xG, so BIG CHANCES are not computed. The gameweek report shows per-player xG from FPL instead.",
       excluded: `${excluded} shots had no coordinates (0,0 = not recorded by ESPN) and are marked usable:false.`,
+      no_zone: `${noZone} shots carry no zone: ESPN's text did not place them ("from a free kick", or no "from" clause at all). `
+             + `zone:null means THE SOURCE DID NOT SAY, never "outside the box" — but the per-player in_box total can only `
+             + `count what it knows, so an unplaced shot is absent from it. The zone vocabulary was measured over 1,166 `
+             + `shots (50 matches) and every phrase ESPN uses is matched; see scripts/espn-zones.mjs.`,
       scale: "x is a share of HALF the pitch: metres from goal = x * 52.5. Calibrated against the ESPN zone text (six-yard box 0.105 / penalty area 0.314).",
       no_touches: "Touches in the box and average position are not in the ESPN feed.",
       created: "chances_created / cross_created / through_balls / setpiece_created are READ FROM THE ESPN TEXT "

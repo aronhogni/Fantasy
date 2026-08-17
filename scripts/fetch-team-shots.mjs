@@ -37,17 +37,11 @@ const SHOT_TYPE = {
   "Shot On Target": "on_target", "Shot Off Target": "off_target",
   "Shot Blocked": "blocked", "Shot Hit Woodwork": "woodwork",
 };
-const ZONE_RE = [
-  [/the centre of the box/i, "box_centre"],
-  [/the left side of the box/i, "box_left"],
-  [/the right side of the box/i, "box_right"],
-  [/very close range/i, "close_range"],
-  [/the penalty spot/i, "penalty_spot"],
-  [/more than 35 yards/i, "far"],
-  [/outside the box/i, "outside"],
-];
-const IN_BOX = new Set(["box_centre", "box_left", "box_right", "close_range", "penalty_spot"]);
-const zoneOf = t => { for (const [re, z] of ZONE_RE) if (re.test(t)) return z; return null; };
+/* SVAEDA-TAFLAN ER FLUTT INN, EKKI AFRITUD (16.8.2026). Hun stod ordrett
+   eins hér og i `fetch.mjs` og BAEDI afritin vantadi markteiginn; tvo
+   afrit af sama urdraetti geta rekid i sundur an thess ad neitt segi fra.
+   Maelingin a ordafordanum er i hausnum a `scripts/espn-zones.mjs`.    */
+import { IN_BOX, CLOSE, OUTSIDE, shotZone as zoneOf } from "./espn-zones.mjs";
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function getJSON(url, tries = 3) {

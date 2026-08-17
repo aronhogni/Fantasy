@@ -3590,3 +3590,86 @@ skjalfest hér því það var EKKI snyrting:
    nótunum eru **reiknuð** úr gögnunum (`teamShots.no_zone`, `bsdTeams.season`),
    ekki fest: „380 matches" var ekki reiknanlegt þar (summa per félag / 2 gefur
    **323** af því að fallnu félögin þrjú vantar) og var því orðað án tölunnar.
+
+---
+
+## 16.–17.8.2026 — LEIKMANNADALKARNIR ALLIR 124 ENDURREIKNADIR
+
+Notandinn sagdi: *„Fardu yfir allar birtar tolur i player stats og
+double-checkadu thaer, mer synist einhverjar ekki vera rettar."* **Hann hafdi
+rett fyrir ser.** Allir 124 dalkar voru bornir vid **sjalfstaeda endurreikninga
+ur hraustu heimildunum** OG lesnir AF SKJANUM i jsdom. Thad sem fannst:
+
+### Rangar tolur (ekki orðalag — TOLUR)
+
+| dalkur | einkenni | rett |
+|---|---|---|
+| **`xg_share`** | Ogbene **148%**, Szmodics 114%, Lukic **74%** i sjalfgefnu utsyninni; Isak 40% thar sem rett var 31% | teljarinn fylgdi ARSTIDINNI en nefnarinn (`_team_xg`) er summa yfir tha sem eru **i dag** skradir hja felaginu — tvo timabil i sama broti, og hja nyliðunum var nefnarinn **0** |
+| **`net_transfers_event`** | hardur **`0`** hja ollum 587 i hverju sogulegu timabili | `?? 0` badum megin breytti VANTANDI i `0 − 0`; svidin eru hvergi i `player_seasons.json` (0 af 459 rodum) |
+| **`mins_per_gi`** | Meslier **`0`** og EFSTUR a hlutfalls-dalki | vordurinn varði adeins nefnarann; `11 mork / 0 minutur` gaf „framlag a hverjum 0 minutum" |
+| **`bsd_blocks`** | **sokn-tala i VORNAR-flokki** med `hi:true` — B.Fernandes 30, Haaland 24, medan midvordur med 132 hreinsanir syndi 5 | thetta eru HANS EIGIN skot sem voru blokkerud. Sannad tvivegis: `type === 3` i `bsd_shots.json` endurgerir toluna nakvaemlega fyrir 388 af 393 og ±1 fyrir 393/393; og ad bæta henni vid CBI brytur 0,90× hlutfallid vid FPL nakvaemlega thar sem skotmagnid er (MID 1,11×, FWD 1,27×) |
+| **fimm `*_per_90` ur FPL-svidum** | `0.00` hja 54 leikmonnum med **0 minutur**, medan systkini i SOMU ROD syndu rettilega „—" | FPL geymir `0` fyrir tha sem aldrei spiludu. Verst: `gc_per_90`/`xgc_per_90` eru `hi:false`, svo **164 leikmenn sem aldrei spiludu satu EFST** sem bestu varnirnar |
+| **`espn_in_box`** | 22 af 170 rangir, **11,8% kerfisbundid vanmat**; Semenyo/Pau/Awoniyi lasu hart **`0`** | ESPN-oradid „the left/right side of the **six yard box**" atti ENGA grein i svaeda-toflunni, svo skotin fengu `zone: null` og toldust **utan teigs**. Semenyo skoradi ur markteignum |
+| **`pen_order`/`fk_order`/`ck_order`** | **tomir hja ollum 587** i sjalfgefnu utsyninni | getterarnir lesa hra FPL-svid; `player_seasons.json` ber thau ekki. Maelt eftir lagfaeringu: **0 -> 55** bera vitaroðina |
+
+### Markmenn og DefCon
+
+Maelt a `data/player_gw_2526.json`: markmenn eiga **NULL DefCon-stig i hverri
+einustu leikja-umferd**, undir hverri sigtun sem reynd var (DEF ~6,2 ad
+medaltali, MID ~5,8, FWD ~2,9). Samt syndi taflan `DC hit% 0% · DC n 36` fyrir
+Raya — **maelingar-fullyrding um taekifaeri sem eru ekki til**. `pos:[2,3,4]`
+er nu a ollum fimm DefCon-dalkunum, sama fordaemi og mo/ao-lagfaeringin.
+
+**TVENNT ER ENN OLAGAD OG THAD ER EKKI SNYRTING:**
+1. **Nefnarinn i DC-hittni eru LEIKIR, ekki BYRJANIR** thott badar noturnar
+   segi „starts". Sannad: talan jafngildir leikja-talningu fyrir **537 af 537**
+   leikmonnum en byrjunum fyrir adeins 81. Hver innkoma af bekknum — thar sem
+   12-CBIRT threskuldurinn er ORNAEDANLEGUR — telst sem MISS. Deildar-hittni
+   les 0,1361 en er raunverulega **0,1907 (+40%)**, og af thvi ad `p0`
+   (samdrattar-forgildid) er vanmetid af SOMU villu erfir adlagada talan
+   skekkjuna TVISVAR. **73 af 339 utileikmonnum skeika ≥5 prosentustigum**
+   (Danso birtir 42% thar sem rett er 54%; Cook 39% a moti 88%).
+2. **Lifandi smiðurinn gefur markmonnum DefCon fra GW1.** `computeDefcon`
+   endurreiknar mælikvardann sjalfur og sendir markmenn i `cbirt`-greinina,
+   sem hja theim er drifin af ENDURHEIMTUM (Roefs 333, Raya 304 — ad grípa
+   boltann). Hermt a raunverulegum 2025/26-gognum: **211 af 757 markmanna-
+   umferdum (27,9%) na threskuldinum.** `defcon.json.players` er tom i
+   forleik, svo ekkert sest enn — thetta byrjar ad birtast **21. agust**.
+
+### Vordur sem var ad maela VILLU, ekki reglu
+
+`playerlist-sort.mjs` krafdist ad tom gildi saeust a toppnum i **minnst 3**
+dalka-attum („maelt 4 af 121") — anti-tomleika-fullyrding. Eftir
+lagfaeringarnar fell hun i **2**, og astaedan var sonnun um ad lagfaering hefdi
+virkad: **thrjar af theim fjorum voru `Order`, `FK` og `Corners`** — dalkarnir
+sem voru TOMIR VEGNA VILLU. Their toldust „null-berandi" af thvi ad their voru
+bilaðir. Fast sogulegt tal um lifandi gogn urealdist thegjandi (sama aett og
+„MEASURED: the range is 4-10"); golfid er nu **1**, thvi talan raest af thvi
+hve margir dalkar eiga faerri en 31 gildi — eiginleiki GAGNANNA, ekki kodans.
+
+### Tvaer profa-fullyrdingar sem gatu ekki fallid
+
+- §15 „hver pos-dalkur ber ENN tolur innan sinnar stodu" keyrdi a **hrau**
+  `players.json`. Thegar `pos` baettist a DefCon-dalkana fellu thrir — ekki af
+  thvi ad lagfaeringin taemdi tha, heldur af thvi ad their lesa `_dc_*`-reiti
+  sem AUDGUNIN setur. Fullyrdingin var ad maela annad en skjarinn synir; hun
+  les nu audgadar radir, svo undanthagulistinn tharf ekki ad vaxa i hvert sinn.
+- Profgognin fyrir `*_per_90` baru engar minutur og STADFESTU thvi gomlu
+  hegdunina. Nu bera thau thaer, og null-tilfellid er profad VID HLIDINA.
+
+### Svaeda-taflan var AFRITUD og badi afritin voru rong
+
+`ZONE_RE` stod ordrett i BADUM `fetch.mjs` og `fetch-team-shots.mjs`, og bædi
+vantadi markteiginn. Hun byr nu i `scripts/espn-zones.mjs` sem badar flytja
+inn — thaer geta ekki rekid i sundur. Ordaforðinn var maeldur a **1.166
+skotum (50 leikir)**: `six yard box` 57 skot (0,020–0,110 = markteigur),
+`difficult angle` 31 skot, og `the penalty spot` **0 af 1.166** — DAUD grein
+sem stod i toflunni. Rodin skiptir mali: „a difficult angle **and long range**"
+verdur ad koma a undan „a difficult angle". Skot an svaedis eru nu **TALIN og
+birt** (`no_zone`) svo thognin hafi staerd i skranni sjalfri.
+
+### Omaeld fullyrding sem stod i TOOLTIP a skjanum
+
+`pen_order` sagdi: *„The strongest single captaincy signal in the data."*
+`grep -i captain docs/MAELINGAR.md` skilar EINU — heiti Triple Captain-chipsins.
+**Engin fyrirlida-maeling er til i thessu repo-i.** Setningin var fjarlaegd.

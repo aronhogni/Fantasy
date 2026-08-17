@@ -981,3 +981,50 @@ Forsendan er brostin; heimildin er samt ekki fjarlægð því hún á enn
 Allt annað er í repo-inu: prófin (þau **framkvæma** ákvarðanirnar í köflum 3–4
 og eru þar með áreiðanlegri en prósa), `README.md`, `data/SCHEMA.md`,
 `docs/MAELINGAR.md` og commit-sagan.
+
+---
+
+## 12. LEIKMANNADALKARNIR — SJO TOLUR SEM VORU RANGAR (17.8.2026)
+
+Allir **124 dalkar** i Player stats voru endurreiknadir ur hraustu heimildunum
+og lesnir AF SKJANUM. Sjo báru **rangar tolur** (ekki orðalag). Malingarnar eru
+i `docs/MAELINGAR.md`; reglurnar sem leiða af theim eru hér:
+
+- **Teljari og nefnari verða að koma úr SÖMU heimild og sama tímabili.**
+  `xg_share` deildi árstíðar-xG með summu þeirra sem eru **í dag** hjá
+  félaginu og sýndi Ogbene **148%**. Hlutur getur ekki farið yfir 100% —
+  fari hann þangað er það **sönnun** um tvær heimildir, ekki há tala.
+  Vörður: `stats.test.mjs` kafli 14c.
+- **`?? 0` BÁÐUM MEGIN BÝR TIL TÖLU SEM ER EKKI TIL.** `net_transfers_event`
+  sýndi `0` hjá öllum 587 í hverju sögulegu tímabili af því að bæði sviðin
+  vantar þar. Sama regla og „NULL ER EKKI NÚLL" — hún gildir líka um
+  **mismun tveggja vantandi talna**.
+- **Vörður á nefnara einum dugar ekki.** `mins_per_gi` varði deilingu með
+  núlli en ekki `minutes: 0`, svo Meslier (`11 mörk / 0 mínútur`) fékk `0`
+  og sat **efstur** á hlutfalls-dálki.
+- **FPL geymir `0` fyrir þann sem aldrei spilaði — það er ekki mæling.**
+  Fimm `*_per_90` dálkar lásu FPL-sviðið beint og sýndu `0.00` þar sem
+  systkini þeirra í sömu röð sýndu réttilega „—". Á `hi:false`-dálki setti
+  það **164 leikmenn sem aldrei spiluðu efst** sem bestu varnirnar.
+- **FLOKKURINN ER SJÁLFUR FULLYRÐING.** `bsd_blocks` sat í Vörn með `hi:true`
+  og nótunni „skot andstæðinganna sem hann blokkaði" — það eru **hans eigin
+  skot sem voru blokkeruð**. Dálkur í röngum flokki er ekki nótu-villa;
+  hann verður að flytjast.
+- **Afrituð tafla er tvær töflur sem reka í sundur.** `ZONE_RE` stóð orðrétt
+  í tveimur skriftum og **bæði afritin vantaði markteiginn**, svo 22 af 170
+  leikmönnum báru rangt `In box` og þrír lásu hart `0` þótt þeir hefðu skorað
+  úr markteignum. Hún býr nú í `scripts/espn-zones.mjs` sem báðar flytja inn.
+- **Dálkur sem les hrátt FPL-svið deyr í sögulegu tímabili.**
+  `pen_order`/`fk_order`/`ck_order` voru **tómir hjá öllum 587** í sjálfgefnu
+  útsýninni því `player_seasons.json` ber ekki þau svið. Sviðin sem þarf að
+  bera yfir eru **LEIDD** (`liveOnlyRawFields`, Proxy-könnun á hverjum
+  getter), ekki handskrifuð — handskrifaður listi staðnar (sbr. `gwBlindKeys`).
+
+> **MARKMENN FÁ ENGIN DEFCON-STIG — MÆLT, EKKI ÁLYKTAÐ.** Núll stig í
+> **hverri einustu** leikja-umferð 2025/26. Dálkarnir fimm bera nú `pos:[2,3,4]`.
+> **TVENNT ER ENN ÓLAGAÐ:** nefnarinn í DC-hittni eru **leikir, ekki byrjanir**
+> þótt nóturnar segi „starts" (deildar-hittni les 0,1361 en er 0,1907 — **+40%**,
+> og `p0` er vanmetið af sömu villu svo aðlagaða talan erfir hana tvisvar);
+> og **lifandi smiðurinn gefur markmönnum DefCon frá GW1** — hermt: **211 af 757
+> markmanna-umferðum (27,9%)** ná þröskuldinum, drifið af endurheimtum
+> (að grípa boltann). Það byrjar að birtast **21. ágúst**.

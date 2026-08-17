@@ -86,16 +86,69 @@ const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
    14.8. til 16.8.2026 (sja skyringuna vid bordann sjalfan). Sami rokstudn-
    ingur og `passesThreshold` og `buildTeamMetrics` (CLAUDE.md 7.1).
    ============================================================ */
+/* EIN SPURNING, EITT SKILYRDI: GETUR THESSI DALKUR FYLGT UMFERDAR-BILI?
+   `blind` eitt DUGAR EKKI og thad var maelt: `gwBlindKeys` sleppir
+   `live_only`-dalkum viljandi (rokstudningurinn thar er ad their "beri
+   eigid now-merki") — EN ThAD MERKI ER ADEINS TIL I DALKAVALARANUM, aldrei
+   i haus toflunnar. MAELT 16.8.2026 med GW30-38 virkt a "Upcoming fixtures":
+   HAUS [Player, Price, Owned %, FDR6, Home, Games, Team CS, Team DC] ·
+   MERKI [] · bordi: enginn. Fimm dalkar syndu dagsins framsyni medan
+   hausinn sagdi GW 30-38 og EKKERT a skjanum sagdi fra.
+   `rangeAwareGroupsOf` var lagfaert fyrir nakvaemlega thessa gildru 16.8.
+   og bar hana skrifada i athugasemd sinni; `rangeBanner` sat eftir med
+   `blind` eitt. Skilyrdid er thvi EITT fall sem BADIR lesa — tvo skilyrdi
+   um sama hlut er hvernig thau fara i sundur.
+   AF HVERJU EKKI HITT: ad teikna "now"-merki i haus toflunnar var
+   valkosturinn og hann var HAFNAD — hausinn er maeldur i px (`headWidth`)
+   og 14.8.-16.8.2026 kostadi merki sem BAETTIST VID an thess ad breiddin
+   vissi af thvi 25 klippt haus-heiti. Bordinn segir thad sama an thess ad
+   snerta rumfraedina.                                                    */
+export const rangeBlind = (d, blind) => blind.has(d.key) || !!d.live_only;
+
 /* `shown` = ALLIR dalkar a skjanum (fastir + valdir) · `picked` = their sem
    notandinn valdi sjalfur · `blind` = `gwBlindKeys()`.
    Skilar "all" (ekkert a skjanum fylgir bilinu) · "picked" (adeins fostu
    dalkarnir fylgja thvi) · null (eitthvad valid fylgir thvi).           */
 export function rangeBanner({ mode, shown, picked, blind }) {
-  const all = shown.length > 0 && shown.every(d => blind.has(d.key));
+  const all = shown.length > 0 && shown.every(d => rangeBlind(d, blind));
   if (all) return "all";
-  if (mode === "custom" && picked.length > 0 && picked.every(d => blind.has(d.key)))
+  if (mode === "custom" && picked.length > 0 && picked.every(d => rangeBlind(d, blind)))
     return "picked";
   return null;
+}
+
+/* OG ORÐALAGID VERDUR AD FYLGJA MED. Bordinn sagdi "These are season
+   totals" — satt um `blind`-dalka, ROLTOM um `live_only`: FDR6 og Team CS
+   eru DAGSINS framsyni, ekki arstidar-summa. Um leid og live_only telst med
+   i "all" (ofar) gaeti bordinn thvi fullyrt eitthvad sem er osatt a sama
+   skja og hann stendur a — sama villuaett og forleiks-bordinn (sja nedar).
+   Kindin er thvi LEIDD UT af thvi sem sest, ekki valin i JSX.           */
+export function rangeBlindKind(defs) {
+  if (!defs || !defs.length) return null;
+  const live = defs.filter(d => d.live_only).length;
+  return live === 0 ? "season" : live === defs.length ? "live" : "mixed";
+}
+
+/* HVE MARGAR RADIR BERA ENN ARSTIDAR-TOLU I OBYRJUDU TIMABILI — MAELING,
+   EKKI AGISKUN. Sja langa skyringu vid forleiks-bordann nedar: hann sagdi
+   "every season field is zero" a skja sem synir ICT 381,4. Fallid er HREINT
+   og utflutt af somu astaedu og `rangeBanner`: fullyrding sem bur i
+   JSX-skilyrdi verdur adeins LESIN af profi, aldrei KEYRD (CLAUDE.md 7.1).
+   `live_only`-dalkar eru undanskildir — their EIGA ad bera tolur i forleik
+   (FDR6, byrjunar-likur) og myndu svaefa bordann an thess ad neitt vaeri
+   ad. Talid er a THVI SEM SEST, thvi thad er fullyrdingin sem er bori fram. */
+export function staleSeasonRows(rows = [], cols = []) {
+  const seasonal = cols.filter(d => d && !d.live_only && typeof d.get === "function");
+  if (!seasonal.length) return 0;
+  let n = 0;
+  for (const r of rows) {
+    if (!r?.src) continue;
+    if (seasonal.some(d => {
+      let v; try { v = d.get(r.src); } catch { return false; }
+      return v != null && v !== 0;
+    })) n++;
+  }
+  return n;
 }
 
 /* FLOKKARNIR SEM FYLGJA BILINU ERU LEIDDIR UT, EKKI TALDIR UPP.
@@ -112,8 +165,68 @@ export function rangeBanner({ mode, shown, picked, blind }) {
    fixtures 0.                                                           */
 export function rangeAwareGroupsOf(blind, defs = STAT_DEFS, groups = STAT_GROUPS) {
   return groups.filter(g =>
-    defs.some(d => d.group === g.key && !blind.has(d.key) && !d.live_only));
+    defs.some(d => d.group === g.key && !rangeBlind(d, blind)));
 }
+
+/* ============================================================
+   HVADA HRA FPL-SVID VERDA AD KOMA UR LIFANDI RODINNI — LEIDD UT
+
+   VILLAN (maelt 16.8.2026 med raungognum i DOM): `pen_order`, `fk_order` og
+   `ck_order` voru TOMIR HJA OLLUM 587 i SJALFGEFNU SYNINNI. Sjalfgefid
+   timabil i forleik er sidasta lokna (2025/26), thad er SOGULEGT, og
+   `player_seasons.json` ber ENGA spyrnu-rod — 0 af 1.500 rodum. Radirnar
+   fengu thvi null medan lifandi `players.json` ber 65/54/79 gildi og OLL 20
+   lidin eiga 1 i ollum thremur. Dalkarnir eru allir `live_only` og notan
+   theirra segir "Today's order — it does not follow the selected season";
+   a skjanum fylgdi hun timabilinu, beint ofan i tomid. Dalkur sem er syndur
+   en alltaf tomur er SAMA UTKOMA og dalkur sem er falinn — sja `team_dc`,
+   sem var daudur fra faedingu og fal sig sjalfur (CLAUDE.md 6l).
+   Audgudu `_`-svidin komust ohindrud i gegn (`Object.assign(src, fields)`);
+   thessi thrju eru HRA FPL-svid og attu enga leid.
+
+   LISTINN ER LEIDDUR UT, EKKI HANDSKRIFADUR (gwBlindKeys, 13 af 22 lyklum
+   rangir — CLAUDE.md 8): hver `get` er keyrdur a Proxy sem SKRAIR hvada
+   svid hann les. Sjo probe-gildi thvi getterar mega hafa greinar (0/1/2/3/4
+   eru raunveruleg `element_type`-gildi).
+
+   OG SNIDID ER TVIHLIDA — thad er ekki varud heldur NAUDSYN: probe-inn synir
+   ad `xg_share` (live_only) les `expected_goals`, sem er SVID TIMABILSINS og
+   er lesid af 8 odrum dalkum. Vaeri thad borid yfir myndi soguleg tafla
+   syna xG DAGSINS i "xG", "xGI", "xG/90" ... Reglan er thvi: svid sem
+   ADEINS live_only-dalkar lesa. Svid sem badir lesa er tviraett og
+   tviraedid ma aldrei skrifa yfir maelda tolu.
+   MAELT 16.8.2026: safnid er nakvaemlega
+   {penalties_order, direct_freekicks_order, corners_and_indirect_freekicks_order}
+   — `element_type` og `expected_goals` falla ut a réttum forsendum
+   (`element_type` er hvort sem er thvingad ur lifandi rodinni nedar).  */
+export function liveOnlyRawFields(defs = STAT_DEFS) {
+  const PROBES = [1, 0, 4, null, 2, 3, 100];
+  const readsOf = d => {
+    const seen = new Set();
+    for (const v of PROBES) {
+      const probe = new Proxy({}, { get(_, k) { if (typeof k === "string") seen.add(k); return v; } });
+      /* Grein sem tholir ekki thetta probe-gildi kastar; hin gildin na henni. */
+      try { d.get(probe); } catch { /* viljandi thogult */ }
+    }
+    return seen;
+  };
+  const live = new Set(), seasonal = new Set();
+  for (const d of defs) {
+    if (typeof d?.get !== "function") continue;
+    for (const k of readsOf(d)) (d.live_only ? live : seasonal).add(k);
+  }
+  return [...live].filter(k => !k.startsWith("_") && !seasonal.has(k)).sort();
+}
+export const LIVE_RAW_FIELDS = liveOnlyRawFields();
+/* Svidin borin af lifandi rodinni yfir a sogulegu rodina. Vanti svidid i
+   lifandi rodinni verdur thad `undefined` — sem `num()` les sem null og
+   holfid synir "—". Thad er RETT: dalkurinn segir "i dag", og se engin
+   tala til i dag a hann ekki ad syna tolu fra i fyrra i stadinn.       */
+const carryLive = p => {
+  const o = {};
+  for (const k of LIVE_RAW_FIELDS) o[k] = p[k];
+  return o;
+};
 
 /* ============================================================
    HAUS-RUMFRAEDIN — UTFLUTT SVO PROFID SPEGLI HANA EKKI
@@ -705,9 +818,14 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
          syndu 16 varnargildi. Lifandi `p` er einrátt her — nakvaemlega sama
          tala og sian og merkid nota — og hun skrifast YFIR hist-stoduna.
          Eftir: 0 og 0 i badum homum.                                      */
+      /* OG SOMU LEID FARA HRA LIVE_ONLY-SVIDIN. Their eru LEIDD UT
+         (`LIVE_RAW_FIELDS` ofar, sja langa skyringu thar): spyrnu-rodirnar
+         thrjar voru tomar hja OLLUM i sjalfgefnu syninni thott lifandi
+         rodin baeri 65/54/79 gildi, thvi arkiv-rodin ber thau hvergi.  */
       const src = isLive ? p : (hist ? { ...hist, now_cost: p.now_cost,
                                          selected_by_percent: p.selected_by_percent,
-                                         element_type: p.element_type } : null);
+                                         element_type: p.element_type,
+                                         ...carryLive(p) } : null);
       const { risk, fields } = enrich(p);
       /* AUDGADIR REITIR — allir med `_` forskeyti svo their blandist ekki
          vid FPL-svid. STAT_DEFS med live_only:true lesa thessa.          */
@@ -782,6 +900,16 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
   const banner = useMemo(
     () => rangeBanner({ mode, shown: shownCols, picked: visibleCols, blind: blindKeys }),
     [mode, shownCols, visibleCols, blindKeys]);
+  /* HVERS KONAR dalkar bera bordann — arstidar-summur, dagsins tolur eda
+     hvorttveggja. Ord bordans raedst af thessu; sja `rangeBlindKind`.   */
+  const bannerKind = useMemo(
+    () => rangeBlindKind(banner === "picked" ? visibleCols : shownCols),
+    [banner, shownCols, visibleCols]);
+  /* Talid ADEINS thegar bordinn getur birst — annars 587 x 60 getter-koll
+     i hverri teikningu fyrir bordа sem er ekki a skjanum.               */
+  const staleSeason = useMemo(
+    () => (finishedGw === 0 && isLive ? staleSeasonRows(rows, shownCols) : 0),
+    [finishedGw, isLive, rows, shownCols]);
 
   const watchSet = useMemo(() => new Set(watch || []), [watch]);
   const mineSet = useMemo(
@@ -1328,16 +1456,27 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
           bordi er thvi ekki syndur thar. En hitt getur vel gerst: allir
           dalkarnir sem notandinn VALDI eru arstidar-tolur, og tha er sagt
           nakvaemlega thad, an thess ad nefna nokkurn flokk.               */}
+      {/* OG ORÐALAGID FYLGIR `bannerKind`, ekki fostum texta: "Upcoming
+          fixtures" ber 5 af 5 `live_only`-dalka og "These are season totals"
+          hefdi verid ONNUR rong fullyrding i stad thagnarinnar sem var
+          lagfaerd. Kindin er leidd ut af thvi sem sest.                  */}
       {gwActive && banner === "all" && (
         <div style={S.warn}>
-          <b>{"These are season totals, not GW "}{gwRange[0]}{"–"}{gwRange[1]}{"."}</b>{" "}
+          <b>{bannerKind === "live" ? "These are today's numbers, not GW "
+            : bannerKind === "mixed" ? "Nothing on screen follows GW "
+            : "These are season totals, not GW "}
+             {gwRange[0]}{"–"}{gwRange[1]}{"."}</b>{" "}
           {"Every column on screen"}
           {/* FLOKKURINN ER NEFNDUR ADEINS I FLOKKA-HAM. `group` er frosinn i
               bygginga-ham (hann er adeins settur ur flokka-rodinni), svo thar
               vaeri heitid RANGT — thad var einmitt villan.               */}
           {mode === "custom" ? "" : <>{" in "}
             <b>{STAT_GROUPS.find(g => g.key === group)?.label || group}</b></>}
-          {" is a whole-season figure, so changing the gameweek range cannot change them."}
+          {bannerKind === "live"
+            ? " looks ahead or shows where he stands today, so changing the gameweek range cannot change them."
+            : bannerKind === "mixed"
+            ? " is either a whole-season figure or a figure for today, so changing the gameweek range cannot change them."
+            : " is a whole-season figure, so changing the gameweek range cannot change them."}
           {rangeAwareGroups.length ? <>
             {" For range-aware numbers use "}
             {rangeAwareGroups.map((g, i) => (
@@ -1352,19 +1491,65 @@ export default function PlayerList({ players, teams, teamById, events, seasonsFi
       )}
       {gwActive && banner === "picked" && (
         <div style={S.warn}>
-          <b>{"The columns you picked are season totals, not GW "}
+          <b>{bannerKind === "live"
+              ? "The columns you picked are today's numbers, not GW "
+              : bannerKind === "mixed"
+              ? "None of the columns you picked follow GW "
+              : "The columns you picked are season totals, not GW "}
              {gwRange[0]}{"–"}{gwRange[1]}{"."}</b>{" "}
-          {"Every column you added is a whole-season figure, so changing the gameweek"}
-          {" range cannot change them — only the pinned "}<b>{"Points"}</b>
-          {" column follows the range. Column headers that carry the "}
-          <b>{"season"}</b>{" tag are the ones that cannot."}
+          {bannerKind === "live"
+            ? "Every column you added looks ahead or shows where he stands today, so changing"
+            : bannerKind === "mixed"
+            ? "Every column you added is either a whole-season figure or a figure for today, so changing"
+            : "Every column you added is a whole-season figure, so changing"}
+          {" the gameweek range cannot change them — only the pinned "}<b>{"Points"}</b>
+          {" column follows the range."}
+          {/* MERKID ER BENDING, EKKI REGLA: `live_only`-dalkar bera ThAD EKKI
+              (`headBadge` les `blind`), svo "the ones that cannot" var of
+              stor fullyrding um leid og live_only telst med. Sagt nu adeins
+              thegar allir dalkarnir eru raunverulega merktir.            */}
+          {bannerKind === "season"
+            ? <>{" Column headers that carry the "}<b>{"season"}</b>{" tag are the ones that cannot."}</>
+            : null}
         </div>
       )}
 
+      {/* ============================================================
+          FORLEIKS-BORDINN — HANN FULLYRTI EITTHVAD SEM VAR OSATT A SAMA SKJA
+
+          Her stod: "<timabil> has not started — every season field is zero
+          for all 587 players, so this view has no numbers to sort."
+          MAELT 16.8.2026 A SAMA SKJA I SOMU ANDRA: B.Fernandes ICT 381,4 ·
+          Creativity 1938,5 · Penalties missed 2 · Haaland Threat 1520,0 —
+          somu tolur og hja theim i 2025/26. `players.json` er lifandi
+          bootstrap FPL og FPL hafdi EKKI nullstillt hana: 400 af 587
+          leikmonnum bera enn minutur > 0.
+          Rokin eru einfold og thau eru ORUGG: `finished_gw === 0` thydir ad
+          ENGIN umferd er lokin, svo hver tala sem er ekki null getur ADEINS
+          verid fra sidasta timabili. Bordinn segir thad nuna.
+
+          TALAN ER MAELD I HVERRI TEIKNINGU, EKKI SKRIFUD. Fost tala um
+          lifandi gogn ureldist thegjandi — nakvaemlega thad gerdist vid
+          "MEASURED: the range is 4-10" i `ck_order` 13.8.2026. Og hun er
+          maeld a THVI SEM SEST (arstidar-dalkunum a skjanum), thvi thad er
+          nakvaemlega fullyrdingin sem bordinn ber fram; `live_only`-dalkar
+          eru undanskildir thvi their EIGA ad bera tolur i forleik og
+          myndu annars svaefa bordann.
+          Nullstilli FPL toluna verdur `staleSeason` 0 og gamli textinn —
+          sem er tha ordinn sannur — birtist af sjalfu ser.               */}
       {finishedGw === 0 && isLive && (
         <div style={S.warn}>
-          <b>{currentLabel} {"has not started"}</b> {"— every season field is zero for all"}
-          {" "}{players.length} {"players, so this view has no numbers to sort. Pick"} <b>{olderSeasons[0] || "an earlier season"}</b> {"in the dropdown."}
+          <b>{currentLabel} {"has not started"}</b>{" "}
+          {staleSeason > 0 ? <>
+            {"— but FPL has not reset its season totals yet, so these are still last season's numbers:"}
+            {" "}<b>{staleSeason}</b>{" of "}{players.length}
+            {" players still show non-zero season figures here, and with no gameweek played they can only be "}
+            <b>{olderSeasons[0] || "last season"}</b>{" totals. Pick that season in the dropdown to read it on purpose"}
+            {" — the archive is per season and does not move."}
+          </> : <>
+            {"— every season field is zero for all"}
+            {" "}{players.length} {"players, so this view has no numbers to sort. Pick"} <b>{olderSeasons[0] || "an earlier season"}</b> {"in the dropdown."}
+          </>}
         </div>
       )}
       {/* Baðar skyringa-linurnar voru teknar ut 9.8.2026 ad beidni: thaer

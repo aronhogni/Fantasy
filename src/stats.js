@@ -83,6 +83,29 @@ const safeDiv = (a, b) => (b == null || b === 0 || a == null ? null : a / b);
 
 const per90of = (key) => (p) => per90(num(p[key]), num(p.minutes));
 
+/* OPINBERU /90-SVIDIN VERDA AD HEGDA SER EINS OG OKKAR EIGIN (16.8.2026)
+
+   FPL geymir sin `*_per_90`-svid SEM 0 thegar minuturnar eru 0 — talan er
+   ekki "vantar", hun er bokstaflega 0 i skranni. Dalkur sem las svidid bert
+   prentadi thvi `0,00` VID HLIDINA A "—" i somu rod, thvi /90-dalkarnir sem
+   VID reiknum (`per90of`) skila null gegnum `per90`. Tveir dalkar i somu rod
+   sem svara somu spurningu a sitthvorn hattinn.
+
+   MAELT a data/players.json: 187 leikmenn med 0 minutur bera 0 i OLLUM NIU
+   opinberu /90-svidunum (`starts_per_90`, `saves_per_90`, `clean_sheets_
+   per_90`, `goals_conceded_per_90`, `expected_goals_conceded_per_90`,
+   `defensive_contribution_per_90`, `expected_goals_per_90`, `expected_
+   assists_per_90`, `expected_goal_involvements_per_90`) medan `cbi_per_90`,
+   `tackles_per_90` og `recoveries_per_90` syndu "—" i somu rod. Staðfest a
+   skja a Heaton/Forster/Steele.
+
+   NULL ER EKKI NULL (CLAUDE.md 8): "0,00 vorslur per 90" a manni sem hefur
+   aldrei spilad er OMAELD TALA SEM LITUR UT EINS OG MAELING, og hun flytur
+   sig a toppinn i "asc"-rodun. `per90of`-hegdunin er su retta; thetta fall
+   faerir opinberu svidin a hana AN thess ad reikna thau upp a nytt — talan
+   sjalf kemur afram fra FPL.                                              */
+const officialPer90 = (key) => (p) => ((num(p.minutes) ?? 0) > 0 ? num(p[key]) : null);
+
 export const STAT_GROUPS = [
   /* 6 flokkar (sagdi "7" fram til 14.8.2026 — talid: core, attack, defence,
      aron, fixtures, setp). ENDURSKIPULAGT 7.8.2026 (faerri og breidari) og svo 8.8.
@@ -136,8 +159,8 @@ export const STAT_DEFS = [
     get:p=>num(p.starts) },
   { key:"starts_per_90", label:"Starts per 90 mins", short:"Starts/90", group:"core", band:"Minutes",
     dec:2, hi:true,
-    note:"Official FPL starts_per_90 = starts ÷ (minutes ÷ 90). IT IS NOT THE SHARE OF GAMES STARTED, so it goes ABOVE 1.00 — measured: 186 of 365 players are over 1, up to 2.37 (1 start in 38 minutes). Above 1 = he starts but comes off early, or the sample is tiny. Around 1.0 = starts and plays the full match — that is the ideal. Below 1 = much of his time comes off the bench (1 start in 351 minutes = 0.26). For \"will he start the NEXT one?\" use Start prob, not this.",
-    get:p=>num(p.starts_per_90) },
+    note:"Official FPL starts_per_90 = starts ÷ (minutes ÷ 90). IT IS NOT THE SHARE OF GAMES STARTED, so it goes ABOVE 1.00 — measured: 186 of 365 players are over 1, up to 2.37 (1 start in 38 minutes). THERE IS NO BETTER DIRECTION HERE: around 1.0 = starts and plays the full match, which is the ideal, so BOTH ends of the column are worse than the middle and a high value is not a good one. Above 1 = he starts but comes off early, or the sample is tiny. Below 1 = much of his time comes off the bench (1 start in 351 minutes = 0.26). For \"will he start the NEXT one?\" use Start prob, not this.",
+    get: officialPer90("starts_per_90") },
   { key:"start_prob", label:"Start probability", short:"Start prob", group:"core", band:"Minutes",
     dec:0, hi:true, pct:true, live_only:true, derived:true,
     note:"OUR MEASURED MODEL, not an FPL field: probability of 60+ minutes in the NEXT gameweek, from starts and minutes over the last 5 finished gameweeks. Measured on 65,557 samples — the model is no more accurate than \"he started last time\" (88%) but far better CALIBRATED (Brier −24%), so the RANKING is what it is for: the lowest decile catches 2.09× the bench drops. Live figure — it does not follow the selected season.",
@@ -202,8 +225,16 @@ export const STAT_DEFS = [
     get:p=>{ const c=num(p.cost_change_event); return c==null?null:c/10; } },
   { key:"net_transfers_event", label:"Net transfers (GW)", short:"Net trans", group:"core",
     band:"Price and ownership", dec:0, hi:true, signed:true, derived:true,
-    note:"Transfers in minus transfers out in the current gameweek — what drives the price change.",
-    get:p=>{ const i=num(p.transfers_in_event)??0, o=num(p.transfers_out_event)??0; return i-o; } },
+    note:"Transfers in minus transfers out in the current gameweek — what drives the price change. Live only: the archive carries neither side, so a historical season is empty rather than zero.",
+    /* NULL ER EKKI NULL. `?? 0` A BADUM HLIDUM bjó til TILBUINN 0 fyrir hvern
+       einasta leikmann i hverju SOGULEGU timabili og hverju umferdar-bili —
+       sjalfgefna synin. MAELT 16.8.2026: 0 af 459 rodum i
+       player_seasons.json (2024/25) bera `transfers_in_event`/
+       `transfers_out_event`, og samt skiladi dalkurinn tolu (0) fyrir allar
+       352 sem attu rod. Sama logun og notud er annars stadar i skranni:
+       vanti BAEDI svidin er talan EKKI TIL.                               */
+    get:p=>{ const i=num(p.transfers_in_event), o=num(p.transfers_out_event);
+             return (i == null && o == null) ? null : (i ?? 0) - (o ?? 0); } },
 
   /* ================= SOKN ================= */
   /* --- band: Goals --- */
@@ -230,8 +261,15 @@ export const STAT_DEFS = [
     get:p=>per90((num(p.goals_scored)??0)+(num(p.assists)??0), num(p.minutes)) },
   { key:"mins_per_gi", label:"Minutes per G+A", short:"Mins/GA", group:"attack", band:"G+A",
     dec:0, hi:false, derived:true,
-    note:"How long you wait for a goal or an assist. LOWER IS BETTER. Empty if he has no involvement at all.",
-    get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0); return gi>0?safeDiv(num(p.minutes),gi):null; } },
+    note:"How long you wait for a goal or an assist. LOWER IS BETTER. Empty if he has no involvement at all — and also if he has not played, because a rate needs minutes on both sides.",
+    /* MINUTURNAR VERDA AD VERA >0 LIKA, EKKI BARA NEFNARINN. Meslier kemur
+       fra FPL med `goals_scored: 11` og `minutes: 0` (heimildin lygur, sja
+       `isIncoherent`), svo gi>0 stodst og 0/11 = 0 — "mark eda stodusending
+       a NULL minutna fresti", efst i dalki thar sem LAEGRA ER BETRA.
+       Systurdalkurinn `mins_per_xgi` slapp fyrir TILVILJUN: xGI-golfid 0,5
+       utilokar hann. Tilviljun er ekki vordur.                            */
+    get:p=>{ const m=num(p.minutes); if (m == null || m <= 0) return null;
+             const gi=(num(p.goals_scored)??0)+(num(p.assists)??0); return gi>0?safeDiv(m,gi):null; } },
 
   /* --- band: Expected --- */
   { key:"expected_goals", label:"xG (expected goals)", short:"xG", group:"attack", band:"Expected",
@@ -239,19 +277,19 @@ export const STAT_DEFS = [
     get:p=>num(p.expected_goals) },
   { key:"expected_goals_per_90", label:"xG per 90", short:"xG/90", group:"attack", band:"Expected",
     dec:2, hi:true, note:"Official FPL figure (expected_goals_per_90).",
-    get:p=>num(p.expected_goals_per_90) },
+    get: officialPer90("expected_goals_per_90") },
   { key:"expected_assists", label:"xA (expected assists)", short:"xA", group:"attack", band:"Expected",
     dec:2, hi:true, note:"Expected assists: the quality of the chances he created for others.",
     get:p=>num(p.expected_assists) },
   { key:"expected_assists_per_90", label:"xA per 90", short:"xA/90", group:"attack", band:"Expected",
     dec:2, hi:true, note:"Official FPL figure (expected_assists_per_90).",
-    get:p=>num(p.expected_assists_per_90) },
+    get: officialPer90("expected_assists_per_90") },
   { key:"expected_goal_involvements", label:"xGI (expected G+A)", short:"xGI", group:"attack",
     band:"Expected", dec:2, hi:true, note:"Expected goal involvements: xG + xA. The best single underlying number for an attacker.",
     get:p=>num(p.expected_goal_involvements) },
   { key:"expected_goal_involvements_per_90", label:"xGI per 90", short:"xGI/90", group:"attack",
     band:"Expected", dec:2, hi:true, note:"Official FPL figure (expected_goal_involvements_per_90).",
-    get:p=>num(p.expected_goal_involvements_per_90) },
+    get: officialPer90("expected_goal_involvements_per_90") },
   { key:"mins_per_xgi", label:"Minutes per xGI", short:"Mins/xGI", group:"attack", band:"Expected",
     dec:0, hi:false, derived:true, note:"Minutes per unit of expected involvement. LOWER IS BETTER — the underlying twin of Minutes per G+A, and less noisy than it. Needs xGI > 0.5: below that the divisor is rounding noise and the ratio explodes (measured: keepers reach 326,100, i.e. 0.01 xGI in 3,261 minutes).",
     get:p=>{ const x=num(p.expected_goal_involvements); if (x==null||x<0.5) return null;
@@ -262,9 +300,35 @@ export const STAT_DEFS = [
              : safeDiv(num(p.expected_goal_involvements), c/10); } },
   { key:"xg_share", label:"Share of team xG", short:"xG share", group:"attack", band:"Expected",
     dec:0, hi:true, pct:true, derived:true, live_only:true,
-    note:"How much of his team's expected goals comes from him. Normalises for team strength — 25% in a weak side can beat 10% in a strong one. Live figure, does not follow the selected season.",
-    get:p=>{ const t=num(p._team_xg); if (!t) return null;
-             const v=num(p.expected_goals); return v==null?null:(v/t)*100; } },
+    note:"How much of his team's expected goals comes from him. BOTH SIDES ARE TODAY'S FIGURE: his live xG over his current club's live xG. Normalises for team strength — 25% in a weak side can beat 10% in a strong one. Live figure, does not follow the selected season or the selected gameweek range, and it is empty until enough of the season has been played for the club total to exist.",
+    /* TELJARINN OG NEFNARINN VERDA AD KOMA UR SOMU HEIMILD (16.8.2026)
+
+       VILLAN: `_team_xg` er summa yfir tha sem eru SKRADIR A LIDID I DAG i
+       lifandi players.json, en `p.expected_goals` var lesid AF RODINNI —
+       sem er timabils-rodin thegar sogulegt timabil eda umferdar-bil er
+       valid. Teljarinn fylgdi thvi timabilinu og nefnarinn deginum i dag,
+       og hlutfallid var thar med ekki hlutfall af neinu.
+
+       MAELT A SKJA: Ogbene 148% (rett 10%), Szmodics 114%, Lukic 74% i
+       SJALFGEFNU syninni (rett 5%), Isak 40% fyrir timabil thar sem rett
+       tala er 31% (hann var hja Newcastle, deilt med leikmannahopi
+       Liverpool i dag). COV og HUL hafa nefnara nakvaemlega 0. Og dalkurinn
+       fylgdi umferdar-bilinu (Haaland GW1-38 31%, GW1-1 2%) THOTT hann beri
+       `live_only: true` og notan segdi ad hann fylgdi ekki timabilinu.
+
+       LAUSNIN ER SAMNINGURINN SJALFUR, ekki ny tafla: dalkurinn segist vera
+       LIFANDI, svo baðar hlidar eru lifandi. `_live_xg` er sett i
+       `makeEnricher` vid hlidina a `_team_xg`, ur SAMA `p`, svo their geta
+       ekki rekið i sundur. AF THVI LEIDIR ad hlutfallid getur ALDREI farid
+       yfir 100% — leikmadurinn er sjalfur i summunni. Vordur i
+       stats.test.mjs kafla 15.
+
+       EKKI ER HAEGT AD LAGA THETTA PER TIMABIL: radirnar i
+       player_seasons.json bera EKKERT lids-svid (stadfest), svo sogulegt
+       lids-xG er ekki til i theirri heimild. Tomur dalkur er retta svarid,
+       ekki tilbuinn nefnari.                                              */
+    get:p=>{ const t=num(p._team_xg), v=num(p._live_xg);
+             if (!t || v == null) return null; return (v/t)*100; } },
 
   /* --- band: Over/under --- */
   { key:"goals_minus_xg", label:"Goals − xG", short:"G−xG", group:"attack", band:"Over/under",
@@ -321,6 +385,31 @@ export const STAT_DEFS = [
     dec:0, hi:true,
     note:"Shots taken inside the penalty area, from shot coordinates. The box edge was fitted against BSD's own team-level inside-box counts over 760 team-matches (MAE 0.13). BSD's x axis is a share of the FULL pitch, a different scale from ESPN's — measured here rather than carried over.",
     get:p=>num(p._b_inbox) },
+  /* FLUTT UR VORN I SOKN 16.8.2026 — FLOKKURINN VAR SJALFUR FULLYRDINGIN.
+
+     Dalkurinn stod undir "Defence / Defensive detail" med heitinu "Blocked
+     shots", `hi: true` og notunni "Opposition shots he blocked". Hann er
+     NAKVAEMLEGA HITT: skot LEIKMANNSINS SJALFS sem motherjinn blokkadi.
+
+     SANNAD TVAER OHADAR LEIDIR:
+       1. Talning a `type === "block"` i bsd_shots.json per leikmann
+          endurgerir toluna: 388 af 393 NAKVAEMLEGA og 393 af 393 innan +-1.
+       2. Toppurinn er soknar-listi — Gakpo 33, Cunha 32, Igor Jesus 31,
+          B.Fernandes 30, Szoboszlai 24 — medan midvordurinn Danso med 132
+          hreinsanir syndi 5. Ad leggja toluna vid hreinsanir+stodvanir
+          bryti hreina 0,90x hlutfallid vid CBI FPL nakvaemlega thar sem
+          skotmagnid er (DEF ~1,0 · MID 1,11x · FWD 1,27x), og
+          r(blokk, skot) er 0,86 / 0,92 / 0,68.
+
+     RETT NOTA EIN HEFDI EKKI DUGAD: flokkurinn og bandid eru lesin sem
+     fullyrding um HVAD talan er, longu adur en nokkur opnar tooltip.
+     `hi: false` af somu astaedu — blokkerad skot er skot sem skiladi engu.
+     Lestu hana VID HLIDINA A skotafjoldanum: 0 blokkud skot hja manni sem
+     skytur aldrei er ekki afrek.                                          */
+  { key:"bsd_blocks", label:"His shots blocked by opponents", short:"Blocked",
+    group:"attack", band:"Shot quality", dec:0, hi:false,
+    note:"HIS OWN shots that an opponent blocked — not blocks he made. Counted from BSD's shot map (outcome type \"block\"), which reproduces it exactly for 388 of 393 players and within one for all 393. LOWER IS BETTER only at a given shot volume, so read it next to Shots: a player who never shoots also has none blocked. The BSD feed does not go back before 2025/26, so earlier seasons are empty.",
+    get:p=>num(p._b_blk) },
 
   /* --- band: Set-piece threat ---
      MAELT 8.8.2026: 31,2% allra skota koma ur fostum leikatridum (horn
@@ -424,7 +513,15 @@ export const STAT_DEFS = [
   /* --- band: Penalties --- */
   { key:"pen_order", label:"Penalty order", short:"Order", group:"attack", band:"Penalties",
     dec:0, hi:false, live_only:true,
-    note:"1 = first penalty taker at his club. LOWER IS BETTER. The strongest single captaincy signal in the data. Today's order — it does not follow the selected season.",
+    /* "The strongest single captaincy signal in the data" STOD HER OG VAR
+       OMAELD (fjarlaegt 16.8.2026). `grep -i captain docs/MAELINGAR.md`
+       skilar EINU — heiti Triple Captain-chipsins. Engin fyrirlida-maeling
+       er til i thessu repo-i, hvorki a vitaskyttum ne odru, svo hvorki
+       "sterkasta" ne samanburdurinn sem thad ordalag gefur i skyn a ser
+       nokkra stod. Omaeld tala sem litur ut eins og maeling er versta
+       utkoman (kafli 3) — og thetta var hun i TOOLTIP a skjanum.
+       Afgangurinn af notunni er rettur og naegur.                       */
+    note:"1 = first penalty taker at his club. LOWER IS BETTER. Today's order — it does not follow the selected season.",
     get:p=>num(p.penalties_order) },
   { key:"penalties_missed", label:"Penalties missed", short:"Missed", group:"attack", band:"Penalties",
     dec:0, hi:false, note:"Penalties missed (−2 points each).",
@@ -480,8 +577,8 @@ export const STAT_DEFS = [
     note:"Clean sheets he was credited with. FPL's rule is 60+ minutes without conceding WHILE HE IS ON THE PITCH, so it is counted per player and not per team.",
     get:p=>num(p.clean_sheets) },
   { key:"cs_per_90", label:"Clean sheets per 90", short:"CS/90", group:"defence", band:"Clean sheets",
-    dec:2, hi:true, pos:[1,2,3], note:"Official FPL figure (clean_sheets_per_90) — divides by minutes, unlike CS % which divides by starts.",
-    get:p=>num(p.clean_sheets_per_90) },
+    dec:2, hi:true, pos:[1,2,3], note:"Official FPL figure (clean_sheets_per_90) — divides by minutes, unlike CS % which divides by starts. Empty at zero minutes, where FPL stores a 0 that is not a measurement.",
+    get: officialPer90("clean_sheets_per_90") },
   { key:"cs_pct", label:"Clean sheet %", short:"CS %", group:"defence", band:"Clean sheets",
     dec:0, hi:true, pos:[1,2,3], derived:true, pct:true,
     note:"Clean sheets ÷ starts — the share of his starts that ended in a clean sheet.",
@@ -492,27 +589,30 @@ export const STAT_DEFS = [
     dec:0, hi:false, pos:[1,2,3], note:"Goals conceded while he was on the pitch. LOWER IS BETTER — defenders and keepers lose a point per two conceded.",
     get:p=>num(p.goals_conceded) },
   { key:"gc_per_90", label:"Conceded per 90", short:"GC/90", group:"defence", band:"Conceded",
-    dec:2, hi:false, pos:[1,2,3], note:"Official FPL figure (goals_conceded_per_90). LOWER IS BETTER.",
-    get:p=>num(p.goals_conceded_per_90) },
+    dec:2, hi:false, pos:[1,2,3], note:"Official FPL figure (goals_conceded_per_90). LOWER IS BETTER. Empty at zero minutes, where FPL stores a 0 that is not a measurement — and where \"lower is better\" would otherwise put every player who has never played at the top.",
+    get: officialPer90("goals_conceded_per_90") },
   { key:"expected_goals_conceded", label:"xGC (expected conceded)", short:"xGC", group:"defence",
     band:"Conceded", dec:2, hi:false, pos:[1,2,3],
     note:"Expected goals conceded — the quality of the chances his team gave away. LOWER IS BETTER, and it is a far better guide to future clean sheets than goals conceded.",
     get:p=>num(p.expected_goals_conceded) },
   { key:"xgc_per_90", label:"xGC per 90", short:"xGC/90", group:"defence", band:"Conceded",
-    dec:2, hi:false, pos:[1,2,3], note:"Official FPL figure (expected_goals_conceded_per_90). LOWER IS BETTER.",
-    get:p=>num(p.expected_goals_conceded_per_90) },
+    dec:2, hi:false, pos:[1,2,3], note:"Official FPL figure (expected_goals_conceded_per_90). LOWER IS BETTER. Empty at zero minutes, where FPL stores a 0 that is not a measurement.",
+    get: officialPer90("expected_goals_conceded_per_90") },
   { key:"gc_minus_xgc", label:"Conceded − xGC", short:"GC−xGC", group:"defence", band:"Conceded",
     dec:2, hi:false, pos:[1,2,3], derived:true, signed:true,
-    note:"Below zero = the defence (or the keeper) holds up better than the chances imply. Above zero = they have been unlucky or the keeper is at fault, and clean sheets should come.",
-    get:p=>{ const g=num(p.goals_conceded), x=num(p.expected_goals_conceded); return (g==null||x==null)?null:g-x; } },
+    note:"Below zero = the defence (or the keeper) holds up better than the chances imply. Above zero = they have been unlucky or the keeper is at fault, and clean sheets should come. Empty if he has not played: 0 − 0 is not a defensive record.",
+    /* 0 - 0 = 0 er ekki "nakvaemlega eins og vaenst var", thad er ENGIN
+       maeling — og med `hi: false` sat sa hopur (164 leikmenn) efst. */
+    get:p=>{ if ((num(p.minutes) ?? 0) <= 0) return null;
+             const g=num(p.goals_conceded), x=num(p.expected_goals_conceded); return (g==null||x==null)?null:g-x; } },
 
   /* --- band: Goalkeeping --- */
   { key:"saves", label:"Saves", group:"defence", band:"Goalkeeping",
     dec:0, hi:true, pos:[1], note:"Saves made. Every third save is a point, so a busy keeper in a weak side can out-score a quiet one.",
     get:p=>num(p.saves) },
   { key:"saves_per_90", label:"Saves per 90", short:"Saves/90", group:"defence", band:"Goalkeeping",
-    dec:2, hi:true, pos:[1], note:"Official FPL figure (saves_per_90).",
-    get:p=>num(p.saves_per_90) },
+    dec:2, hi:true, pos:[1], note:"Official FPL figure (saves_per_90). Empty at zero minutes, where FPL stores a 0 that is not a measurement.",
+    get: officialPer90("saves_per_90") },
   { key:"save_pct", label:"Save %", group:"defence", band:"Goalkeeping",
     dec:0, hi:true, pos:[1], derived:true, pct:true,
     note:"Saves ÷ (saves + goals conceded). ROUGH: FPL does not publish shots on target per keeper, so a deflected goal counts against him the same as a howler.",
@@ -525,23 +625,38 @@ export const STAT_DEFS = [
   /* --- band: DefCon ---
      DC ER VILJANDI UTAN FFDR (kafli 3 i CLAUDE.md): hun maelir vinnualag
      varnar og fylgir oft THYNGRI leikjum, svo hun dregur i gagnstaeda att
-     vid hreint blad. Hun lifir a spjoldum og i thessari toflu.          */
+     vid hreint blad. Hun lifir a spjoldum og i thessari toflu.
+
+     MARKMENN FA ENGA DEFCON-TOLU — `pos: [2,3,4]` A OLLUM FIMM (16.8.2026).
+     MAELT a data/player_gw_2526.json: markmenn eiga 757 leiki med minutur og
+     samtals **0** DefCon i theim ollum, medan utileikmenn eru med 5,55 ad
+     medaltali (DEF ~6,2 · MID ~5,8 · FWD ~2,9). FPL telur einfaldlega ekki
+     DefCon-adgerdir a markverdi. Samt birti taflan `Raya: DC hit% 0% ·
+     DC raw% 0% · DC n 36` — MAELINGAR-FULLYRDING UM TAEKIFAERI SEM ERU EKKI
+     TIL, og 65 markmenn baru "DC 0" og "DC/90 0,00".
+     NULL, EKKI 0: markmadur hefur ekki "0 DefCon", talan ER EKKI TIL fyrir
+     hann. Nakvaemlega sama fordaemi og mo/ao-vordurinn nedar i thessari skra
+     (sja athugasemdina vid `_mo`/`_ao` i `makeEnricher`): omaeld tala a ekki
+     ad verda til, hvad tha ad thurfa sidari sigti.                        */
   { key:"defensive_contribution", label:"DefCon total", short:"DC", group:"defence", band:"DefCon",
-    dec:0, hi:true, note:"FPL DefCon points earned. DC is DELIBERATELY outside our FFDR difficulty model: it tracks defensive WORKLOAD, which rises in HARDER matches, so blending it with clean-sheet difficulty would make the two signals eat each other.",
+    dec:0, hi:true, pos:[2,3,4],
+    note:"THE ACTION COUNT, not the points: clearances, blocks, interceptions and tackles for defenders, plus recoveries for midfielders and forwards. Verified on all 459 archived rows — Tarkowski 376 = CBI 325 + tackles 51. The POINTS are awarded when a match total reaches the threshold, which is what DC hit % measures. Goalkeepers are not counted at all. DC is DELIBERATELY outside our FFDR difficulty model: it tracks defensive WORKLOAD, which rises in HARDER matches, so blending it with clean-sheet difficulty would make the two signals eat each other.",
     get:p=>num(p.defensive_contribution) },
   { key:"dc_per_90", label:"DefCon per 90", short:"DC/90", group:"defence", band:"DefCon",
-    dec:2, hi:true, note:"Official FPL figure (defensive_contribution_per_90).",
-    get:p=>num(p.defensive_contribution_per_90) },
+    dec:2, hi:true, pos:[2,3,4],
+    note:"Official FPL figure (defensive_contribution_per_90) — actions per 90, not points. Empty at zero minutes, where FPL stores a 0 that is not a measurement.",
+    get: officialPer90("defensive_contribution_per_90") },
   { key:"dc_hit_adj", label:"DC hit % (adjusted)", short:"DC hit%", group:"defence", band:"DefCon",
-    dec:0, hi:true, pct:true, derived:true,
-    note:"Share of his starts that reached the DefCon threshold (10 for defenders, 12 for midfielders and forwards), SHRUNK for sample size (empirical Bayes, k=10 towards the position mean). USE THIS ONE, not the raw figure — and read the games column next to it.",
+    dec:0, hi:true, pct:true, derived:true, pos:[2,3,4],
+    note:"Share of his starts that reached the DefCon threshold (10 for defenders, 12 for midfielders and forwards), SHRUNK for sample size (empirical Bayes, k=10 towards the position mean). USE THIS ONE, not the raw figure — and read the games column next to it. Goalkeepers have no DefCon threshold and are left empty.",
     get:p=>{ const v=num(p._dc_hit_adj); return v==null?null:v*100; } },
   { key:"dc_hit_raw", label:"DC hit % (raw)", short:"DC raw%", group:"defence", band:"DefCon",
-    dec:0, hi:true, pct:true, derived:true,
+    dec:0, hi:true, pct:true, derived:true, pos:[2,3,4],
     note:"Raw hit rate (hits ÷ starts). IT OVERESTIMATES on small samples — measured against an external benchmark, 75% at n=12 turned out to be about 30% in truth. Shown for transparency only; the adjusted figure is the one that counts.",
     get:p=>{ const v=num(p._dc_hit_raw); return v==null?null:v*100; } },
   { key:"dc_starts", label:"DC games (n)", short:"DC n", group:"defence", band:"DefCon",
-    dec:0, hi:true, derived:true, note:"How many games sit behind the hit rate. Small n means the raw percentage says very little.",
+    dec:0, hi:true, derived:true, pos:[2,3,4],
+    note:"How many games sit behind the hit rate. Small n means the raw percentage says very little.",
     get:p=>num(p._dc_starts) },
 
   /* --- band: Defensive actions --- */
@@ -553,7 +668,12 @@ export const STAT_DEFS = [
     dec:2, hi:true, derived:true, note:"Clearances, blocks and interceptions per 90 minutes played.",
     get: per90of("clearances_blocks_interceptions") },
   { key:"tackles", label:"Tackles", short:"Tack", group:"defence", band:"Defensive actions",
-    dec:0, hi:true, note:"Tackles. Counts towards DefCon for midfielders and forwards.",
+    dec:0, hi:true,
+    /* NOTAN SAGDI "for midfielders and forwards" — RANGT. Tacklingar eru T-id
+       i CBIT og telja fyrir VARNARMENN LIKA (stadfest a 459 rodum: DefCon
+       varnarmanns = CBI + tacklingar upp a mann). Thad sem er BUNDID vid
+       midju og sokn eru ENDURHEIMTUR.                                     */
+    note:"Tackles. Counts towards DefCon in EVERY outfield position — for defenders it is the T in CBIT, and for midfielders and forwards it is added to recoveries.",
     get:p=>num(p.tackles) },
   { key:"tackles_per_90", label:"Tackles per 90", short:"Tack/90", group:"defence",
     band:"Defensive actions", dec:2, hi:true, derived:true, note:"Tackles per 90 minutes played.",
@@ -569,7 +689,10 @@ export const STAT_DEFS = [
      FPL bundlar hreinsanir, stodvanir og stodvud skot i EINA tolu (CBI).
      BSD heldur theim ADSKILDUM, svo hér sest HVAD madurinn gerir — midjumadur
      med 60 stodvanir og 5 hreinsanir er annar leikmadur en oful sama tala i
-     hina attina. 2025/26 eingongu.                                        */
+     hina attina. 2025/26 eingongu.
+     ATH: `bsd_blocks` var HER en var flutt i SOKN 16.8.2026 — hun er ekki
+     stodvun sem hann gerdi heldur HANS EIGID skot sem var stodvad. Sja
+     skyringuna vid dalkinn i "Shot quality".                              */
   { key:"bsd_tackles", label:"Tackles (BSD)", short:"Tack (B)", group:"defence",
     band:"Defensive detail", dec:0, hi:true,
     note:"Tackles as counted by BSD. Shown next to the FPL tackle count deliberately: two independent sources for the same action, so a gap is visible rather than hidden.",
@@ -582,10 +705,6 @@ export const STAT_DEFS = [
     band:"Defensive detail", dec:0, hi:true,
     note:"Clearances on their own, split out of FPL's combined CBI total. High clearances usually means a defender under sustained pressure, which pulls against clean sheets.",
     get:p=>num(p._b_clr) },
-  { key:"bsd_blocks", label:"Blocked shots", short:"Blocks", group:"defence",
-    band:"Defensive detail", dec:0, hi:true,
-    note:"Opposition shots he blocked, split out of FPL's combined CBI total.",
-    get:p=>num(p._b_blk) },
   { key:"bsd_aerial", label:"Aerial duels won", short:"Aerials", group:"defence",
     band:"Defensive detail", dec:0, hi:true,
     note:"Aerial duels won across the season (BSD). No FPL field carries this at all.",
@@ -621,13 +740,23 @@ export const STAT_DEFS = [
     dec:0, hi:true, live_only:true,
     note:"Counted per GAMEWEEK, not per match: below 6 = a blank gameweek is coming, above 6 = a double. A blank is worse than any hard fixture, because it is a guaranteed zero.",
     get:p=>num(p._fix6) },
-  { key:"team_cs_prob", label:"Team clean sheet prob.", short:"Team CS", group:"fixtures",
+  /* HAUSINN VERDUR AD BERA TIMASVIDID SJALFUR. Bands-rodin er EKKI teiknud
+     i "Build table"-ham, svo "Team CS" stod vid hlidina a "Games = 6" an
+     thess ad ordid "next match" saest nokkurs stadar — og talan er
+     BOKMAKARALINA FYRIR EINN LEIK. "CS next" er jafn langt (7 stafir) svo
+     breiddar-reikningurinn haggast ekki.                                  */
+  { key:"team_cs_prob", label:"Team clean sheet, next match", short:"CS next", group:"fixtures",
     band:"Team, next match", dec:0, hi:true, pct:true, live_only:true,
-    note:"Probability of a clean sheet in the next match, from the bookmaker line (odds.json) — not from our model. The market is the single strongest input we have for defensive difficulty.",
+    note:"Probability of a clean sheet in the NEXT MATCH ONLY, from the bookmaker line (odds.json) — not from our model, and not an average over the six fixtures beside it. The market is the single strongest input we have for defensive difficulty.",
     get:p=>num(p._team_cs) },
-  { key:"team_dc", label:"Team DefCon chance", short:"Team DC", group:"fixtures",
-    band:"Team, next match", dec:0, hi:true, live_only:true,
-    note:"How much defensive work his team is likely to have in the next match — the opportunity side of DefCon. High means a busy defence, which is good for DC points and bad for a clean sheet.",
+  /* SITT EIGID BAND — bandið "Team, next match" var RANGT UM THESSA TOLU.
+     `defcon.json` merkir hverja rod `"fixtures_used": 6`, svo taekifaeris-
+     talan er SEX-LEIKJA samtala. Hun sat undir haus sem sagdi "next match"
+     og notan endurtok "in the next match". STAT_DEFS-rodin heldur bandinu
+     samfelldu: `team_cs_prob` er a undan og engin onnur rod ber "Team".  */
+  { key:"team_dc", label:"Team DefCon chance (next 6)", short:"Team DC", group:"fixtures",
+    band:"Team, next 6", dec:0, hi:true, live_only:true,
+    note:"How much defensive work his team is likely to have over the NEXT SIX fixtures — the opportunity side of DefCon, built from his team's own xGC and the opponents' attacking strength (defcon.json records fixtures_used = 6). High means a busy defence, which is good for DC points and bad for a clean sheet. It is NOT a next-match figure, unlike the clean-sheet column beside it.",
     get:p=>num(p._team_dc) },
 
   /* ================= FOST LEIKATRIDI OG SPJOLD ================= */
@@ -1759,7 +1888,12 @@ export function makeEnricher({
     return {
       im, risk,
       fields: {
+        /* BADAR HLIDAR "SHARE OF TEAM xG" KOMA HEDAN — sja skyringuna vid
+           `xg_share`. `_live_xg` er xG THESSA leikmanns i lifandi
+           players.json og `_team_xg` er summa lidsins ur somu skra, svo
+           teljari og nefnari geta ekki fylgt sitthvorum heimi.           */
         _team_xg: teamXg[p.team] ?? null,
+        _live_xg: num(p.expected_goals),
         _espn_shots: sh?.shots ?? null, _espn_sot: sh?.on_target ?? null,
         _espn_in_box: sh?.in_box ?? null, _espn_woodwork: sh?.woodwork ?? null,
         _espn_created: sh?.chances_created ?? null, _espn_cross: sh?.cross_created ?? null,
