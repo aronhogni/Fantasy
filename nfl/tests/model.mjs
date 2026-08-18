@@ -563,6 +563,79 @@ console.log("\nstada an byrjunarsaetis");
     .filter((v) => v !== null);
   ok(kTiers.every((v) => v == null),
     "og stada an saetis faer ekkert threp heldur");
+
+  /* ============================================================
+     (c-2) OG (c) VAR FOLSK UNDANTEKNING — LEIDRETT 18.8.2026
+     ============================================================
+     Kafli (c) hér ad ofan profar threpa-hreinleikann ADEINS a `outNo`,
+     deildar-logun **AN** K/DST — thar sem `vbd` theirra er hvort eð er
+     null, svo threpid verdur null AF SJALFU SER. **Fullyrdingin gat
+     ekki brugdist i thvi formi.** Kafli (b) byggir logun MED K/DST og
+     profar VBD theirra, en spyr ekki um threpin. Tvaer helftir sem
+     hvorug spurdi — sama aett og `NextPick`-thakid, sem var graent i
+     hverju prof thvi hvert prof gaf deild og drafti SOMU logun.
+
+     Villan sem lifdi i skjolinu, maeld 18.8.2026 a raunbordi notandans
+     (10 lid, PPR, MED K- og DST-saeti): threpaskilin i `tierize` eru
+     reiknud ur DREIFINGU BILANNA (`cut = medaltal + sd`), svo 76
+     K/DST-gildi i midjunni faerdu throskuldinn:
+       James Cook    aRank  8 -> threp 7 i stad 6
+       De'Von Achane aRank 10 -> threp 8 i stad 7
+     Tveir af 1.067, badir i TOPP TIU.
+
+     Nu er profad i BADAR ATTIR og a THVI FORMI SEM GAT BILAD:
+       · K/DST fa **null** threp i deild sem HEFUR saetin — eins og
+         `rank`, `aRank` og `value`
+       · `posTier` theirra stendur OSKERT, thvi hann er INNAN stodu
+       · og threpin eru NAKVAEMLEGA thau sem faest se K/DST hent alveg
+         ur lauginni. Su sidasta er ekki endurutfaersla heldur
+         SJALFSTAETT VIDMID: hun byggir laugina med filter i stad map og
+         ber vid `buildRows`-leidina sem notandinn ser.               */
+  {
+    const { buildRows, RANKED_POS } = await import("../src/build.js");
+    ok(Array.isArray(RANKED_POS) && RANKED_POS.length === 4,
+      `RANKED_POS er EIN skra og hun er flutt ut (${RANKED_POS.join(",")})`);
+
+    const f = path.join(DATA, "players.json");
+    if (!existsSync(f)) {
+      console.log("  (players.json vantar — 8c-2 sleppt)");
+    } else {
+      const pl = JSON.parse(readFileSync(f, "utf8"));
+      /* Deildin sem HEFUR bædi saetin — annars maelir kaflinn ekkert. */
+      const L = { teams: 10, scoring: "ppr", rounds: 15,
+                  starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+                  superflex: false, maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } };
+      const { rows } = buildRows({ players: pl, league: L });
+      const kd = rows.filter((r) => !RANKED_POS.includes(r.pos));
+      const real = rows.filter((r) => RANKED_POS.includes(r.pos));
+
+      /* THEKJA FYRST. Baerist ekkert K/DST med VBD gaeti kaflinn ekki
+         maelt og vaeri samt graenn — nakvaemlega gildran i (c). */
+      const kdWithVbd = kd.filter((r) => r.vbd != null);
+      ok(kdWithVbd.length > 20,
+        `THEKJA: ${kdWithVbd.length} K/DST bera VBD i thessari deild (annars maelir 8c-2 ekkert)`);
+      ok(real.filter((r) => r.tier != null).length > 300,
+        `og ${real.filter((r) => r.tier != null).length} raunverulegir leikmenn bera threp`);
+
+      ok(kd.every((r) => r.tier == null),
+        `K/DST fa ekkert thverstodu-threp (${kd.filter((r) => r.tier != null).length} med tolu)`);
+      ok(kdWithVbd.some((r) => r.posTier != null),
+        "en `posTier` theirra stendur — hann er INNAN stodu og smitast ekki");
+
+      /* Sjalfstaeda vidmidid: threpin eiga ad vera thau somu se K/DST
+         hent ur lauginni ALVEG. Byggd med filter, ekki map. */
+      const wanted = tierize(real.map((r) => r.vbd));
+      const off = real.filter((r, i) => r.tier !== wanted[i]);
+      ok(off.length === 0,
+        `threpin eru osmituð (${off.length} vikja: ${off.slice(0, 3)
+          .map((r) => `${r.name} ${r.tier}`).join(", ") || "engir"})`);
+
+      /* Og lagfaeringin ma EKKI hafa hent K/DST-VBD — kafli (b) segir
+         ad deild med K-saeti hafi raunverulegan K-varamann. */
+      ok(kdWithVbd.length === kd.filter((r) => r.proj != null).length,
+        "og hver K/DST med spa ber enn VBD — utilokunin er a THREPUM, ekki a VBD");
+    }
+  }
 }
 
 /* ============================================================

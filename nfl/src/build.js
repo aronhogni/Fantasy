@@ -17,6 +17,18 @@ import { computeVbd, tierize, valueVsMarket, blend, availability } from "./model
  * hvernig stig eru talin. Ad velja Half PPR en syna PPR-ADP vaeri
  * ad bera saman tvo olika heima.
  */
+/**
+ * STODURNAR SEM RODIN NAER YFIR — EIN SKRA, EKKI TVAER.
+ *
+ * Þessi listi var TVISVAR skrifadur inni i `buildRows`, sinn i hvorum
+ * hluta fallsins, og thad var einmitt hvernig utilokunin gat verid HALF:
+ * annar hlutinn sia0i K/DST ur `aRank` medan hinn sleppti theim inn i
+ * threpin. Tvo afrit af sama lista er tvaer utgafur af somu reglu — sama
+ * aett og "tvo olik sjalfgefin `rounds`" i advice.js. Ein skra, eitt
+ * gildi, og hann er FLUTTUR UT svo profin geti spurt hann.
+ */
+export const RANKED_POS = ["QB", "RB", "WR", "TE"];
+
 export const DEFAULT_LEAGUE = {
   teams: 12,
   scoring: "ppr",                 // ppr | half-ppr | standard
@@ -285,7 +297,52 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
      verdur ad reiknast eftir ad deildarsnid er thekkt. Ad reikna
      thad i pipeline-inu vaeri ad negla eina deildarstaerd. */
   const withVbd = computeVbd(rows, league);
-  const tiers = tierize(withVbd.map((r) => r.vbd));
+
+  /* ============================================================
+     ÞVERSTODU-ÞREPIN VORU BLONDUD — UTILOKUNIN A K/DST VAR HALF
+     ============================================================
+     `aRank`, `rank` og `value` eru **null** hja K/DST (sja `RANKED_POS`
+     nedar og rokin thar: their voru utan HVERRAR hermunar sem stadfestir
+     rodina). En `tierize` var kolluð yfir OLL vbd-gildi, og threpaskilin
+     eru reiknud UR DREIFINGU BILANNA (`cut = medaltal + sd`), svo 76
+     K/DST-gildi i midjunni faerdu throskuldinn — og thar med threp
+     raunverulegra leikmanna.
+
+     MAELT 18.8.2026 a raunbordi i 10-lida PPR-deild notandans (sem HEFUR
+     bædi K- og DST-saeti, svo hin lagfaeringin — README 4b, `repl[pos]
+     === 0 -> null` — sneri ekki vid thessu):
+
+       James Cook    aRank  8 · VBD 90,9 · threp **7** i stad **6**
+       De'Von Achane aRank 10 · VBD 87,5 · threp **8** i stad **7**
+
+     TVEIR AF 1.067, OG BADIR I TOPP TIU. Þad er ekki tilviljun: bilin
+     eru staerst i toppnum, svo throskuldur sem hnikast hittir einmitt
+     thar sem threpaskil eru raunverulega tekin alvarlega.
+
+     HVERS VEGNA PROFID SA THETTA EKKI: `tests/model.mjs` kafli 8 (c)
+     profadi threpa-hreinleikann ADEINS a deildar-logun AN K/DST — thar
+     sem `vbd` theirra er hvort eð er null, svo threpid verdur null af
+     sjalfu ser. Fullyrdingin gat ekki brugdist i thvi formi. Kafli (b)
+     i sama prof byggir logun MED K/DST og profar VBD theirra, en ekki
+     threpin. **Tvaer helftir sem hvorug spurdi.** Sama aett og
+     `NextPick`-thakid, sem var graent i hverju profi thvi hvert prof gaf
+     deild og drafti SOMU logun.
+
+     LAGFAERINGIN ER SAMKVAEMNI, EKKI NY TALA: threp eru reiknud a somu
+     laug og rodin sem their tilheyra, og K/DST fa **null** — eins og
+     `rank`, `aRank` og `value`. `posTier` theirra stendur oskert (hann
+     er INNAN stodu og smitast ekki), og thad er talan sem svarar
+     einhverju um vorn.
+
+     `computeVbd` ER RETT SEM HUN ER og ma ekki "lagfaerast" i somu att:
+     varamanns-gildin eru PER STODU, svo K/DST hafa engin ahrif a VBD
+     annarra (maelt: 0 leikmenn af 1.067 haggast se theim hent ur
+     lauginni). Og deild sem HEFUR K-saeti hefur raunverulegan
+     K-varamann; ad nulla thad vaeri ad henda stodu sem deildin ber.
+     Vordur: `tests/model.mjs` kafli 8c-2.                            */
+  const tierPool = withVbd.map((r) =>
+    (RANKED_POS.includes(r.pos) ? r.vbd : null));
+  const tiers = tierize(tierPool);
   withVbd.forEach((r, i) => { r.tier = tiers[i]; });
 
   /* THREP INNAN STODU — ONNUR SPURNING, ONNUR TALA.
@@ -362,7 +419,6 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
      Their eru thvi MED i skranni og fa sitt VBD, en `aRank` er
      **null** hja theim og radgjofin snertir tha ekki. Vidmotid ma
      birta tha ser — thad er RETT — en ekki i rodinni sem er maeld. */
-  const RANKED_POS = ["QB", "RB", "WR", "TE"];
   const ranked = withVbd.slice()
     .filter((r) => r.vbd != null && RANKED_POS.includes(r.pos))
     .sort((a, b) => b.vbd - a.vbd);

@@ -3218,6 +3218,82 @@ for this"`) og kassinn birtir hana. Sama krafa og `unranked` gerir um K og DST.
 > henni**; `advice.mjs` kafli 14 felldi hana. Sama ósamhverfa og
 > `playerlist-sort.mjs` í FPL-verkefninu.
 
+**`injury` var EKKI sett í `DEFAULT_COLS`** — rökin eru í 6h.
+
+---
+
+## 6h. ÞVERSTÖÐU-ÞREPIN VORU BLÖNDUÐ — hálf útilokun á K/DST, 18.8.2026
+
+**Þetta er sama villan og README 4b lýsir, í deildarlöguninni sem 4b gat ekki
+séð.** 4b lagfærði leiguna sem hefur **engin** K/DST-sæti (`repl[pos] === 0`
+→ `null` VBD). Deild notandans **hefur bæði sætin**, svo þar fá K/DST
+raunverulegt VBD — og útilokunin á þeim var **hálf**:
+
+| | K/DST í 10-liða deild með sætin |
+|---|---|
+| `rank`, `aRank`, `value` | **null** — `RANKED_POS` síar þau |
+| `vbd` | tala, og **það er rétt** (deildin hefur K-varamann) |
+| `posTier` | tala, og það er rétt (innan stöðu, smitast ekki) |
+| **`tier`** (þverstöðu) | **tala — og hún smitaði** |
+
+`tierize` reiknar þrepaskil úr **dreifingu bilanna** (`cut = meðaltal + sd`), svo
+**76 K/DST-gildi í miðjunni færðu þröskuldinn**. Mælt 18.8.2026 á raunborði:
+
+| leikmaður | aRank | VBD | þrep birt | þrep rétt |
+|---|---|---|---|---|
+| James Cook (RB) | 8 | 90,9 | **7** | 6 |
+| De'Von Achane (RB) | 10 | 87,5 | **8** | 7 |
+
+**Tveir af 1.067 — og báðir í topp tíu.** Það er ekki tilviljun: bilin eru stærst
+í toppnum, svo þröskuldur sem hnikast hittir einmitt þar sem þrepaskil eru tekin
+alvarlega. Á draft-borðinu er `tier` líka það sem dregur **skiptilínurnar** milli
+raða, svo villan sást sem lína á vitlausum stað.
+
+**HVERS VEGNA PRÓFIÐ SÁ ÞETTA EKKI — FÖLSK UNDANTEKNING.** `tests/model.mjs`
+kafli 8 **(c)** prófaði þrepa-hreinleikann **aðeins** á löguninni **án** K/DST —
+þar sem `vbd` þeirra er hvort eð er `null`, svo þrepið verður `null` af sjálfu
+sér. **Fullyrðingin gat ekki brugðist í því formi.** Kafli **(b)** byggir lögun
+**með** K/DST og prófar VBD þeirra, en spyr ekki um þrepin. **Tvær helftir sem
+hvorug spurði** — sama ætt og `NextPick`-þakið, sem var grænt í hverju prófi því
+hvert próf gaf deild og drafti SÖMU lögun.
+
+**Orsökin í kóðanum var TVÖ AFRIT AF SAMA LISTA.** `const RANKED_POS` var
+skrifað **tvisvar inni í `buildRows`**, sinn í hvorum hluta fallsins — annar
+síaði K/DST úr `aRank`, hinn sleppti þeim inn í þrepin. Tvö afrit af sömu reglu
+eru tvær útgáfur af henni; listinn er nú **eitt útflutt gildi** á
+einingarsviði og prófið spyr hann.
+
+**`computeVbd` er RÉTT sem hún er og má ekki „lagfærast" í sömu átt.**
+Varamanns-gildin eru **per stöðu**, svo K/DST hafa engin áhrif á VBD annarra —
+**mælt: 0 leikmenn af 1.067 haggast** sé þeim hent úr lauginni. Og deild sem
+hefur K-sæti hefur raunverulegan K-varamann; að nulla það væri að henda stöðu
+sem deildin ber. Útilokunin á að vera á **þrepunum**, ekki á VBD.
+
+**Vörður: `tests/model.mjs` kafli 8c-2**, á því formi sem gat bilað — 10-liða
+deild **með** bæði sætin, þekjan fullyrt fyrst (76 K/DST verða að bera VBD,
+annars mælir kaflinn ekkert), og þrepin borin við **sjálfstætt viðmið** sem
+byggir laugina með `filter` í stað `map`. Tvær stökkbreytingar felldar:
+`tierPool` aftur í blandaða laug endurgerði **nákvæmlega** James Cook 7 og
+De'Von Achane 8; `RANKED_POS` með K/DST inni felldi þrjár fullyrðingar.
+
+> **OG EITT PRÓF FÉLL AF RÉTTUM ÁSTÆÐUM VIÐ ÞETTA.** `tests/learn.mjs` festi
+> „`sharpDelta` er hvergi í A-Ranking-útreikningnum" með akkerinu
+> `const RANKED_POS` — og þegar listinn fluttist upp á einingarsvið benti
+> akkerið á hausinn á skránni og blokkin gleypti nánast alla `buildRows`,
+> `sharpDelta` þar með. Nýja akkerið er `const ranked = withVbd.slice()`:
+> **AST-akkeri sem er NAFN getur færst; akkeri sem er SETNING getur það ekki án
+> þess að röðunin sjálf breytist** — sem er einmitt það sem á að fella prófið.
+> Þekja er líka fullyrt núna (blokkin verður að vera >200 stafir og bera
+> „aRank"), því `slice` sem verður tóm er þögul græn fullyrðing.
+
+**`injury` var EKKI sett í `DEFAULT_COLS`.** Það var skoðað og hafnað:
+`DEFAULT_COLS` gildir um **Players-flipann, sem er falinn**, og listinn er
+vistaður í `localStorage` — svo breytingin sæist aðeins hjá notanda sem hefur
+aldrei opnað dálkavalarann. Draft-borðið, sem er flipinn sem er notaður
+21. ágúst, ber **merkið á röðinni sjálfri** og það er nú rautt þegar
+`avail === 0` (6g). Að fjölga sjálfgefnum dálkum úr 14 í 15 á földum flipa var
+því hreyfing án ábata.
+
 ---
 
 ## 6d. Vistað ástand og Sleeper-tengingin — 10.8.2026

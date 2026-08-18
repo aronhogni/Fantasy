@@ -651,12 +651,33 @@ console.log("\nsamhljoda osaetti vid ADP");
        `sharpDelta` eda `sharpRank` komid thangad inn er thetta ordin
        rod og profid a ad segja thad. */
     const build = readFileSync(path.join(DATA, "..", "src", "build.js"), "utf8");
-    /* Akkerid er KODI (`RANKED_POS`), ekki ordid "aRank" — thad kemur
-       fyrst fyrir inni i athugasemd og fullyrding sem athugasemd getur
-       uppfyllt er einskis virdi. */
-    const a0 = build.indexOf("const RANKED_POS");
+    /* Akkerid er KODI, ekki ordid "aRank" — thad kemur fyrst fyrir inni
+       i athugasemd og fullyrding sem athugasemd getur uppfyllt er
+       einskis virdi.
+
+       AKKERID FLUTTIST 18.8.2026 OG PROFID FELL, SEM VAR RETT. Þad var
+       `const RANKED_POS`, sem stod inni i `buildRows` VIÐ rodunina. Sa
+       listi var afritadur tvisvar i sama falli og thad var einmitt
+       hvernig K/DST-utilokunin gat verid HALF (sja `tests/model.mjs`
+       8c-2); afritin voru sameinud i EITT gildi a einingarsvidi. Þa
+       benti akkerid a hausinn a skranni og blokkin gleypti nanast alla
+       `buildRows` — ThAR A MEDAL `sharpDelta`-utreikninginn — svo
+       fullyrdingin fell.
+
+       Nyja akkerid er `const ranked = withVbd.slice()`, sem er
+       BOKSTAFLEGA fyrsta lina rodunarinnar og getur ekki verid i
+       athugasemd (hun ber `=` og `(`). Lexian er almenn: **AST-akkeri
+       sem er nafn getur faerst; akkeri sem er SETNING getur thad ekki
+       an ad rodunin sjalf breytist**, sem er einmitt thad sem a ad
+       fella profid. */
+    const a0 = build.indexOf("const ranked = withVbd.slice()");
     ok(a0 > 0, "fann A-Ranking-utreikninginn i build.js");
     const arankBlock = build.slice(a0, build.indexOf("ourRank", a0) + 200);
+    /* Og blokkin verdur ad vera RAUNVERULEG blokk. Faerdist `ourRank`
+       upp fyrir `ranked` yrdi `slice` TOM og fullyrdingin haetti ad
+       maela — thogul graen fullyrding, sem er verri en fall. */
+    ok(arankBlock.length > 200 && /aRank/.test(arankBlock),
+      `THEKJA: blokkin er ${arankBlock.length} stafir og ber "aRank"`);
     ok(!/sharp/i.test(arankBlock),
       "sharpDelta er hvergi i A-Ranking-utreikningnum");
   }
