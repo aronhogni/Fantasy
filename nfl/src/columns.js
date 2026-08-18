@@ -76,7 +76,7 @@ export const COLUMNS = [
   { key: "adpSleeper", label: "Sleeper ADP", short: "ADP Slp", band: "Market", hi: false,
     note: "ADP a Sleeper — vettvangnum sem thu draftar a. Tomgildi (999/400) eru fjarlaegð." },
   { key: "adpEspn", label: "ESPN ADP", short: "ADP ESPN", band: "Market", hi: false,
-    note: "ADP a ESPN. Munur a honum og Sleeper-ADP er merki, ekki havadi: vettvangarnir meta olikt." },
+    note: "ADP a ESPN, ordrett. Munur a honum og Sleeper-ADP er merki, ekki havadi: vettvangarnir meta olikt. VARNAGLI: ESPN gefur OSKRIFADUM leikmanni sentinel um 170 — 81% af rodum liggja i [169,171], thar a medal menn sem eru ekki i NFL — svo tala thar thydir 'aldrei draftadur', ekki verd. Hun er ThVI EKKI notud sem markadsverd; sja `adp`." },
   { key: "value", label: "Value vs market", short: "Value", band: "Market",
     note: "Hversu morgum UMFERDUM sidar markadurinn tekur hann en okkar rod segir. Jakvaett = kaup." },
   { key: "auctionEspn", label: "Auction value (ESPN)", short: "Auction", band: "Market",
@@ -134,9 +134,40 @@ export const COLUMNS = [
 /** Uppfletting eftir lykli. */
 export const COL = Object.fromEntries(COLUMNS.map((c) => [c.key, c]));
 
-/** Sjalfgefnir dalkar — thad sem svarar draft-spurningunni strax. */
+/**
+ * Sjalfgefnir dalkar — thad sem svarar draft-spurningunni strax.
+ *
+ * ============================================================
+ * `injury` VAR EKKI HER OG HANN A AD VERA — 18.8.2026
+ * ============================================================
+ * Notandinn bad um thad berum ordum eftir ad ein villa hafdi kostad
+ * rettan svar: `avail` var aldrei sendur i `recommend()` og George
+ * Kittle, a PUP-lista, bar "+5,4 umferdir kaup" (README 6g). Radgjofin
+ * er lagfaerd, en BROWSING-listinn er onnur spurning og hann er
+ * lesinn AN radgjafarinnar.
+ *
+ * SAETID ER VALID, EKKI HANDAHOF. Hann kemur EFTIR `bye` og THAR AF
+ * ASTAEDU: `PlayerTable` byggir band-rodina med thvi ad hopa
+ * SAMLIGGJANDI dalka eftir `band`. `name/pos/team/bye` bera ekkert
+ * band; `injury` ber "Context". Vaeri hann settur milli `pos` og `team`
+ * klofnadi bandalausi hopurinn i tvo hluta med einmanna "Context" a
+ * milli — thrju bond thar sem tvo eiga ad vera. Eftir `bye` er hann
+ * fimmti dalkur, sem er innan skjas an skruns, og bondin eru tvo.
+ *
+ * ATH: thetta er SJALFGEFID GILDI og `PlayerTable` les
+ * `loadState("cols", DEFAULT_COLS)`. Notandi sem hefur ADUR breytt
+ * dalkavalinu ber sinn eigin lista og faer thennan dalk ekki — thess
+ * vegna er merkid vid NAFNID (bædi hér og a draft-bordinu) hitt sem
+ * ber upplysinguna, og thad er nu RAUTT vid `avail === 0` i BADUM
+ * toflunum. Tvaer leidir ad somu upplysingu, ekki ein.
+ *
+ * Vordur: `tests/render.mjs` kafli 3 (dalkurinn ER i sjalfgefna
+ * settinu OG merkid birtist ThOTT dalkurinn se ekki valinn) og
+ * `tests/visual.mjs` koflum 1-2 (raunverulegt Chrome: engin larett
+ * skrun a 390/768/1440 og ekkert klippt haus-heiti).
+ */
 export const DEFAULT_COLS = [
-  "name", "pos", "team", "bye", "aRank", "proj", "vbd", "tier",
+  "name", "pos", "team", "bye", "injury", "aRank", "proj", "vbd", "tier",
   "adp", "value", "ecr", "sharpDelta", "lastPpg", "lastGames",
 ];
 

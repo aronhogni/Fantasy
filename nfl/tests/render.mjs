@@ -310,6 +310,75 @@ console.log("\n3. players-flipinn");
      getur metid. Hausinn ber hana sem `title`. */
   ok(heads.every((h) => h.getAttribute("title") || h.textContent.trim() === ""),
     "hver dalkahaus ber skyringu (title)");
+
+  /* ============================================================
+     MEIDSLASTADAN ER I SJALFGEFNA SETTINU — OG A SKJANUM
+     ============================================================
+     Notandinn bad um thetta berum ordum (README 6h). Fullyrdingin er
+     TVISKIPT af thvi ad `DEFAULT_COLS` er adeins SJALFGEFID gildi:
+     `PlayerTable` les `loadState("cols", DEFAULT_COLS)`, svo notandi
+     sem hefur adur breytt dalkavalinu faer thennan dalk EKKI. Vaeri
+     dalkurinn eina leidin vaeri upplysingin thvi horfin hja theim sem
+     mest hefur notad appid.
+
+       (a) dalkurinn ER i sjalfgefna settinu og HAUSINN hans er a skjanum
+       (b) og merkid vid NAFNID birtist LIKA — su leid er oháð
+           dalkavalinu og hun er thess vegna su sem stendur eftir
+       (c) og liturinn er RAUDUR vid `avail === 0`, ekki gulur; hér stod
+           sami {Out, IR}-nafnalisti og i `DraftBoard.jsx` og adeins
+           annar var lagfaerdur fyrst.
+
+     Fjoldinn er REIKNADUR ur `DEFAULT_COLS`, ekki bokadur: harðkoðuð
+     tala stadnar um leid og dalki er baett vid (sja CLAUDE.md 5).     */
+  {
+    const { DEFAULT_COLS, COL } = await import("../src/columns.js");
+    ok(DEFAULT_COLS.includes("injury"),
+      `(a) "injury" er i DEFAULT_COLS (${DEFAULT_COLS.length} dalkar)`);
+    ok(heads.length === DEFAULT_COLS.length,
+      `og hausinn ber nakvaemlega thann fjolda (${heads.length} = ${DEFAULT_COLS.length})`);
+    const want = COL.injury.short;
+    ok(heads.some((h) => (h.textContent || "").includes(want)),
+      `og heitid "${want}" er a skjanum`);
+
+    /* (b) + (c) — merkid, sem er ohad dalkavalinu. Positift fyrst:
+       taflan VERDUR ad bera slikan mann, annars maelir (c) ekkert. */
+    const badges = [...document.querySelectorAll("table.data tbody td.frozen span.badge")]
+      .filter((b) => (b.textContent || "").trim() !== "R");
+    ok(badges.length > 0,
+      `(b) ${badges.length} meidsla-merki a nafnahólfunum (ohad dalkavalinu)`);
+    /* ============================================================
+       LISTINN AF STODUM ER LESINN UR `AVAIL`, EKKI HANDSKRIFADUR
+       ============================================================
+       OG ThAD ER EKKI SNYRTING — FYRSTA UTGAFA ThESSA PROFS
+       HANDSKRIFADI HANN OG VAR RONG. Hun bar `DNR` i "spilar ekki"
+       settid og profid felldi `DNR`-merkid fyrir ad vera gult. Merkid
+       var RETT: `AVAIL.DNR = 0,5`, thvi DNR er **holdout, ekki
+       meidsli** — hann GETUR spilad en er ekki maettur (sja notuna vid
+       `AVAIL` i model.js).
+
+       ThAD ER NAKVAEMLEGA VILLAN SEM ThESSI KAFLI VER, I PROFINU
+       SJALFU: handskrifadur listi af stodum sem rekur fra heimildinni.
+       `AVAIL` er heimildin, i kodanum og hér.                        */
+    const { AVAIL } = await import("../src/model.js");
+    const wontPlay = new Set(Object.keys(AVAIL)
+      .filter((k) => k !== "null" && k !== "undefined" && AVAIL[k] === 0));
+    ok(wontPlay.size > 5,
+      `ThEKJA: ${wontPlay.size} stodur i AVAIL thyda "spilar ekki" (lesid, ekki skrifad)`);
+    const zeroBadges = badges.filter((b) => wontPlay.has((b.textContent || "").trim()));
+    ok(zeroBadges.length > 0,
+      `ThEKJA: ${zeroBadges.length} merki a skjanum bera slika stodu`);
+    const wrong = zeroBadges.filter((b) => !b.classList.contains("bad"));
+    ok(wrong.length === 0,
+      `(c) og allir theirra eru RAUDIR (${wrong.length} gulir: ${
+        wrong.slice(0, 3).map((b) => b.textContent.trim()).join(", ") || "engir"})`);
+    /* Og andstaeda attin: stada sem er EKKI 0 ma ekki vera raud, annars
+       vaeri "lagfaeringin" ad hrópa um hvern sem er skrad ur af aefingu. */
+    const soft = badges.filter((b) => !wontPlay.has((b.textContent || "").trim())
+      && (b.textContent || "").trim() !== "");
+    ok(soft.length === 0 || soft.every((b) => !b.classList.contains("bad")),
+      `og stada sem thydir EKKI "spilar ekki" er gul (${soft.length} slik: ${
+        [...new Set(soft.map((b) => b.textContent.trim()))].join(", ") || "engin"})`);
+  }
 }
 
 console.log("\n4. experts-flipinn");

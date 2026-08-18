@@ -188,11 +188,53 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
     const adpSleeper = scoringKey === "half" ? p.adpSleeperHalf
                      : scoringKey === "std" ? p.adpSleeperStd
                      : p.adpSleeper;
-    /* ADP er tekid ur FFC thegar thad er til (raunveruleg droft i
-       rettri staerd), annars Sleeper, annars ESPN. Rodin er ekki
-       handahof: FFC ber urtaksstaerd, Sleeper er retti vettvangurinn,
-       ESPN er staerst en i odru sniði. */
-    const adp = ffc ? ffc.adp : (adpSleeper ?? p.adpEspn ?? null);
+    /* ============================================================
+       ADP: FFC, ANNARS SLEEPER. **ESPN ER EKKI LENGUR I KEDJUNNI.**
+       ============================================================
+       Rodin er ekki handahof: FFC ber urtaksstaerd (raunveruleg droft i
+       rettri staerd), Sleeper er retti vettvangurinn.
+
+       ESPN VAR THRIDJI HLEKKURINN OG HANN SKILADI ADEINS TILBUNINGI.
+       ESPN gefur leikmanni sem ER ALDREI DRAFTADUR sinn eigin
+       `averageDraftPosition` — sentinel um 170 med orlitlum flokti
+       (169,88–170,96), thvi talan er MEDALTAL: madur sem er tekinn einu
+       sinni og oskrifadur i 99 deildum lendir a 169,95.
+
+       MAELT 18.8.2026 a `data/players.json`:
+         · 982 leikmenn bera `adpEspn`; **799 (81%) liggja i [169, 171]**
+         · thar a medal **Joe Flacco, Frank Gore, Philip Rivers,
+           Marcedes Lewis, Justin Tucker** — menn sem eru ekki i NFL.
+           Sentinel, ekki verd.
+         · thettleikinn er 4–8 leikmenn per 5 stiga bil nedan vid 165 og
+           **630 i bilinu 165–170**. Ekki throskuldur sem eg valdi;
+           fasaskipti sem maelist.
+
+       OG HLEKKURINN VAR TOMUR AF RAUNVERULEGU VERDI — ThAD ER RODIN SEM
+       AFGREIDIR SPURNINGUNA AN ThROSKULDS. I badum deildarlogunum
+       (10-lida PPR og 12-lida half) tok `adp` gildi ur ESPN i
+       **654 / 677** rodum og **NULL af theim var undir 165**: hver
+       leikmadur sem ESPN VEIT raunverulega draftstodu a er lika
+       thekktur hja FFC eda Sleeper. Ad taka ESPN ut kostar thvi
+       **nakvaemlega enga** raunverulega tolu og fjarlaegir 654
+       tilbuningsverd.
+
+       AFLEIDINGIN VAR RAUNVERULEG A SKJANUM: `valueVsMarket` las
+       sentinel-inn sem markadsverd, svo **Darren Waller (TE) bar
+       "+3,4 umferdir" KAUP** — og `adpSd` er `null` hja ollum
+       ESPN-rodum (0 af 654), svo lifunarlikurnar keyrdu
+       `1,08*sqrt(ADP)`-varaleidina a tilbuinni tolu og bordid litadi
+       hann eftir henni.
+
+       ThETTA ER SAMA HLID OG `sane()` I `scripts/sources/espn.mjs`:
+       ESPN-spa yfir threfoldu meti er ekki lagfaerd heldur SLEPPT. Og
+       Sleeper-hlidin er ThEGAR til — `adpSleeper`-nótan i columns.js
+       segir "Tomgildi (999/400) eru fjarlaegd". Ein heimild var skoluð
+       og hin ekki.
+
+       `adpEspn` STENDUR AFRAM SEM SITT EIGID SVID og sinn eigin dalkur:
+       thad er ESPN-talan orðrétt, undir nafni ESPN, og nótan segir nu
+       ad sentinel-inn se i henni. Vordur: `tests/pipeline.mjs`.       */
+    const adp = ffc ? ffc.adp : (adpSleeper ?? null);
 
     /* --- SPAIN: SLEEPER EIN, EKKI BLANDA ---
 

@@ -3286,13 +3286,119 @@ De'Von Achane 8; `RANKED_POS` með K/DST inni felldi þrjár fullyrðingar.
 > Þekja er líka fullyrt núna (blokkin verður að vera >200 stafir og bera
 > „aRank"), því `slice` sem verður tóm er þögul græn fullyrðing.
 
-**`injury` var EKKI sett í `DEFAULT_COLS`.** Það var skoðað og hafnað:
-`DEFAULT_COLS` gildir um **Players-flipann, sem er falinn**, og listinn er
-vistaður í `localStorage` — svo breytingin sæist aðeins hjá notanda sem hefur
-aldrei opnað dálkavalarann. Draft-borðið, sem er flipinn sem er notaður
-21. ágúst, ber **merkið á röðinni sjálfri** og það er nú rautt þegar
-`avail === 0` (6g). Að fjölga sjálfgefnum dálkum úr 14 í 15 á földum flipa var
-því hreyfing án ábata.
+### `injury` ER NÚNA SJÁLFGEFINN DÁLKUR — notandinn bað um það
+
+Fyrsta útgáfa þessa kafla sagði að `injury` hefði verið **skoðað og hafnað**
+sem sjálfgefinn dálkur, með þeim rökum að Players-flipinn sé **falinn** og að
+draft-borðið beri merkið hvort sem er. **Notandinn bað um dálkinn berum orðum**
+og það er rétt hjá honum: „ég þarf að kveikja á honum sjálfur" er handvirkt
+skref í tóli sem á að svara spurningunni óspurt, og röksemdin „hann er á
+öðrum flipa" er ekki svar.
+
+**Sætið er valið, ekki handahóf.** Hann kemur **eftir `bye`**, sem er fimmti
+dálkur og innan skjás án skruns. `PlayerTable` byggir band-röðina með því að
+hópa **samliggjandi** dálka eftir `band`: `name/pos/team/bye` bera ekkert band,
+`injury` ber „Context". Væri hann settur milli `pos` og `team` klofnaði
+bandalausi hópurinn í tvo hluta með einmanna „Context" á milli — **þrjú bönd
+þar sem tvö eiga að vera**.
+
+**LAYOUT-KOSTNAÐURINN VAR MÆLDUR Í ALVÖRU CHROME, EKKI ÁGISKAÐUR** (`visual.mjs`,
+sem er eina prófið sem reiknar útlit): eftir að dálkurinn var settur inn er
+**ekkert lárétt yfirflæði á 1440, 1024, 768 né 390 px**, **ekkert klippt
+haus-heiti**, og símahamurinn óbreyttur (skrunkassi 342 px, taflan skrunar
+**innan** hans). Dálkurinn er `type: "text"` með `short: "Status"` — 6 stafir,
+innan 12-stafa marksins.
+
+**OG DÁLKURINN ER EKKI EINA LEIÐIN, VILJANDI.** `PlayerTable` les
+`loadState("cols", DEFAULT_COLS)`, svo notandi sem hefur **áður** breytt
+dálkavalinu ber sinn eigin lista og fær þennan dálk **ekki**. Hefði dálkurinn
+verið eina svarið væri upplýsingin horfin hjá þeim sem mest hefur notað appið.
+Þess vegna eru **tvær leiðir að sömu upplýsingu**: dálkurinn, og merkið við
+nafnið — sem er óháð dálkavalinu.
+
+**OG MERKIÐ VAR GULT Á RÖNGUM MÖNNUM Á PLAYERS-FLIPANUM LÍKA.** Nákvæmlega
+sami `{Out, IR}`-nafnalisti og í `DraftBoard.jsx` (6g), sami texti, í
+`PlayerTable.jsx` — og aðeins annar var lagfærður fyrst. **Mælt: fjögur PUP-merki
+komu gul** eftir að borðið var lagað. Þessi skrá ber sjálf setninguna
+*„lærdómur sem er lærður á einum stað og ekki fluttur er ekki lærður"* (um
+`signed()`), og hún gilti um þetta líka.
+
+**Vörður: `render.mjs` kafli 3**, þrískiptur af því að `DEFAULT_COLS` er aðeins
+sjálfgefið gildi — (a) dálkurinn er í settinu og hausinn á skjánum, fjöldinn
+**reiknaður úr `DEFAULT_COLS`** og ekki bókaður · (b) merkið birtist **óháð**
+dálkavalinu · (c) liturinn er rauður við `avail === 0` **og gulur annars**.
+Þrjár stökkbreytingar felldar: dálkurinn tekinn úr settinu (2 fullyrðingar),
+nafnalistinn aftur inn (**endurgerði PUP-in gulu**), og merkið **alltaf** rautt
+— sú síðasta féll á (c)-andstæðunni, sem er til einmitt til að „lagfæringin"
+verði ekki að hrópa um hvern sem er skráður úr af æfingu.
+
+> **OG PRÓFIÐ SJÁLFT VAR RANGT Í FYRSTU ÚTGÁFU, AF NÁKVÆMLEGA ÞEIRRI VILLU SEM
+> ÞAÐ VER.** Það **handskrifaði** listann af stöðum sem þýða „spilar ekki" og
+> bar `DNR` með — svo það **felldi DNR-merkið fyrir að vera gult**. Merkið var
+> rétt: `AVAIL.DNR = 0,5`, því DNR er **holdout, ekki meiðsli** — hann getur
+> spilað en er ekki mættur. Listinn er nú **lesinn úr `AVAIL`**
+> (`AVAIL[k] === 0`, 12 stöður), í prófinu eins og í kóðanum. Handskrifaður
+> listi af stöðum var villan í `DraftBoard.jsx`, í `PlayerTable.jsx` og í
+> prófinu sem átti að finna hana.
+
+---
+
+## 6i. ESPN-SENTINEL VAR MARKAÐSVERÐ — 654 tilbúin ADP, 18.8.2026
+
+ESPN gefur leikmanni sem **er aldrei draftaður** sinn eigin
+`averageDraftPosition`: sentinel um **170** með örlitlu flökti
+(169,88–170,96). Flöktið er ekki hávaði heldur **meðaltal** — maður sem er
+tekinn einu sinni og óskrifaður í 99 deildum lendir á 169,95.
+
+Hann komst í `adp` gegnum **þriðja hlekkinn** í keðjunni
+(`ffc ?? adpSleeper ?? adpEspn`) og `valueVsMarket` las hann sem verð.
+
+**Mælt 18.8.2026 á `data/players.json`:**
+
+| | |
+|---|---|
+| leikmenn með `adpEspn` | 982 |
+| þar af í `[169, 171]` | **799 (81%)** |
+| þéttleiki undir 165 | **4–8 leikmenn per 5 stiga bil** |
+| þéttleiki 165–170 | **630** í einu bili |
+| í klasanum: | **Joe Flacco, Frank Gore, Philip Rivers, Marcedes Lewis, Justin Tucker** |
+
+Síðasta línan er sönnunin: **170 leikmenn í klasanum hafa hvorki lið né
+Sleeper-spá.** Þeir eru ekki í NFL. Talan er „aldrei draftaður", ekki verð.
+
+**AFLEIÐINGIN VAR Á SKJÁNUM:** `Darren Waller` (TE) bar **„+3,4 umferðir"
+kaup**, `Mike Gesicki` +2,2, `Kenyon Sadiq` +1,8 — allir reiknaðir af tölu sem
+þýðir að markaðurinn tók þá aldrei. Og **`adpSd` er `null` hjá öllum 654
+ESPN-röðum**, svo lifunarlíkurnar keyrðu `1,08·√ADP`-varaleiðina á tilbúinni
+tölu og borðið litaði þá eftir henni.
+
+**RÖÐIN AFGREIÐIR SPURNINGUNA ÁN ÞRÖSKULDS — og það er atriðið.** Að velja
+„sentinel er allt yfir X" væri ómæld tala. Það þurfti ekki:
+
+> Í **báðum** deildarlögunum (10-liða PPR og 12-liða half) tók `adp` gildi úr
+> ESPN í **654 / 677** röðum og **NÚLL af þeim var undir 165**. Hver leikmaður
+> sem ESPN **veit** draftstöðu á er líka þekktur hjá FFC eða Sleeper. ESPN var
+> því hlekkur sem skilaði **aðeins sentinel**.
+
+Að taka ESPN úr keðjunni kostar þannig **nákvæmlega enga** raunverulega tölu og
+fjarlægir 654 tilbúningsverð. `adp` er nú `ffc ?? adpSleeper ?? null`.
+
+**Þetta er sama hlið og `sane()` í `scripts/sources/espn.mjs`**, sem sleppir
+ESPN-spá yfir þreföldu meti í stað þess að lagfæra hana. **Og Sleeper-hliðið
+var ÞEGAR til** — `adpSleeper`-nótan segir „Tómgildi (999/400) eru fjarlægð".
+**Ein heimild var skoluð og hin ekki.**
+
+**`adpEspn` stendur áfram** sem sitt eigið svið og sinn eigin dálkur: það er
+ESPN-talan orðrétt, undir nafni ESPN. **Nótan segir nú frá sentinel-inum** —
+að fjarlægja hann þar hefði kallað á þröskuld, og hann er ekki það sem fæðir
+„Value" eða „Lasts?".
+
+**Vörður: `tests/pipeline.mjs`** — þekjan fyrst (skráin **verður** að bera
+sentinel-inn og menn án liðs, annars mælir kaflinn ekkert og væri samt grænn),
+svo í báðum deildarlögunum: ekkert `adp` er ESPN-talan, og enginn þeirra 654
+sem **aðeins** ESPN þekkir ber `value`. Stökkbreyting (ESPN aftur í keðjuna)
+felldi **fjórar** fullyrðingar og endurgerði nöfnin: Matt Prater, Joe Flacco,
+Frank Gore.
 
 ---
 

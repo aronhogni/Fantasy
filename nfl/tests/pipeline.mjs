@@ -1393,5 +1393,89 @@ console.log("\ntimabils-merkid a vikulegri ECR");
   }
 }
 
+/* ============================================================
+   ESPN-SENTINEL MA ALDREI VERDA MARKADSVERD
+   ============================================================
+   ESPN gefur leikmanni sem er ALDREI DRAFTADUR sinn eigin
+   `averageDraftPosition` — sentinel um 170 med orlitlu flokti, thvi
+   talan er MEDALTAL (tekinn einu sinni, oskrifadur i 99 deildum ->
+   169,95). Hann komst i `adp` gegnum thridja hlekkinn i kedjunni og
+   `valueVsMarket` las hann sem verd: **Darren Waller "+3,4 umferdir"
+   KAUP**, byggt a tolu sem thydir "hann var ekki draftadur".
+
+   MAELT 18.8.2026 og ThAD ER RODIN SEM AFGREIDIR SPURNINGUNA AN
+   ThROSKULDS: i BADUM deildarlogunum tok `adp` gildi ur ESPN i 654 /
+   677 rodum og **NULL af theim var undir 165** — hver leikmadur sem
+   ESPN VEIT draftstodu a er lika thekktur hja FFC eda Sleeper. ESPN
+   var thvi hlekkur sem skiladi ADEINS sentinel.
+
+   ThRJAR FULLYRDINGAR, OG ThEKJAN ER FYRST:
+     (a) skran BER sentinel-inn (annars maelir kaflinn ekkert og vaeri
+         samt graenn — CLAUDE.md 5b)
+     (b) ekkert `adp` sem `buildRows` skilar er JAFNT sentinel-gildi
+         leikmannsins — thad er stokkbreytingar-naema fullyrdingin
+     (c) og `value` er null hja theim, i stad tolu med formerki
+   ============================================================ */
+console.log("\nESPN-sentinel verdur aldrei markadsverd");
+{
+  const f = path.join(DATA, "players.json");
+  if (!existsSync(f)) {
+    console.log("  (players.json vantar)");
+  } else {
+    const players = JSON.parse(readFileSync(f, "utf8"));
+    const { buildRows } = await import("../src/build.js");
+
+    /* (a) ThEKJA — sentinel-inn ER i skranni. */
+    const withE = players.filter((p) => p.adpEspn != null);
+    const clustered = withE.filter((p) => p.adpEspn >= 169 && p.adpEspn <= 171);
+    ok(withE.length > 100, `ThEKJA: ${withE.length} leikmenn bera adpEspn`);
+    ok(clustered.length > withE.length * 0.5,
+      `ThEKJA: ${clustered.length} af ${withE.length} liggja i [169,171] — sentinel-inn er thar`);
+    /* Og hann inniheldur menn sem geta ekki verid draftadir. Nafna-frjals
+       proof: leikmadur an lids OG an Sleeper-spar. */
+    const ghosts = clustered.filter((p) => !p.team && p.projSleeper == null);
+    ok(ghosts.length > 0,
+      `ThEKJA: ${ghosts.length} theirra hafa hvorki lid ne Sleeper-spa (t.d. ${
+        ghosts.slice(0, 3).map((p) => p.name).join(", ")})`);
+
+    /* (b) + (c) i BADUM deildarlogunum sem notandinn notar. */
+    const shapes = [
+      ["10-lida PPR", { teams: 10, scoring: "ppr", rounds: 15,
+        starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+        superflex: false, maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } }],
+      ["12-lida half", { teams: 12, scoring: "half-ppr", rounds: 14,
+        starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+        superflex: false, maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } }],
+    ];
+    for (const [label, L] of shapes) {
+      const { rows } = buildRows({ players, league: L });
+      const raw = new Map(players.map((p) => [p.id, p]));
+      /* ThEKJA innan logunar: bordid ber raunverulegt ADP a einhverjum,
+         annars vaeri (b) satt af thvi ad ekkert ADP er til. */
+      const withAdp = rows.filter((r) => r.adp != null);
+      ok(withAdp.length > 100, `${label}: ThEKJA — ${withAdp.length} rader bera ADP`);
+
+      const fromEspn = withAdp.filter((r) => {
+        const p = raw.get(r.id);
+        return p && p.adpEspn != null && Math.abs(p.adpEspn - r.adp) < 1e-9;
+      });
+      ok(fromEspn.length === 0,
+        `${label}: ekkert ADP er ESPN-talan (${fromEspn.length}: ${
+          fromEspn.slice(0, 3).map((r) => `${r.name} ${r.adp}`).join(", ") || "engir"})`);
+
+      /* Og enginn theirra sem ADEINS ESPN thekkir ber virdi gegn markadi. */
+      const espnOnly = rows.filter((r) => {
+        const p = raw.get(r.id);
+        return p && p.adpEspn != null && r.adp == null;
+      });
+      ok(espnOnly.length > 50,
+        `${label}: ThEKJA — ${espnOnly.length} rader hafa ADEINS ESPN-tolu`);
+      ok(espnOnly.every((r) => r.value == null),
+        `${label}: og engin theirra ber "value" (${
+          espnOnly.filter((r) => r.value != null).length} med tolu)`);
+    }
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

@@ -208,8 +208,19 @@ function Cell({ c, r, scale }) {
       <td className="txt frozen">
         <span>{r.name}</span>
         {r.rookie && <span className="badge" style={{ marginLeft: 6 }}>R</span>}
+        {/* ROD LITSINS KEMUR UR `avail`, EKKI UR NAFNALISTA — SAMA
+            LAGFAERING OG I `DraftBoard.jsx`, OG HUN VAR FLUTT HINGAD
+            VILJANDI. Her stod `r.injury === "Out" || r.injury === "IR"`,
+            svo PUP/NA/Suspended/DNR/Practice Squad komu GUL thott
+            `AVAIL` i model.js gefi theim ollum 0. Ellefu gildi thydja
+            "spilar ekki" og tvo af theim voru nefnd.
+
+            "Lærdomur sem er lærdur a einum stad og ekki fluttur er ekki
+            lærdur" — thad stendur i thessari skra um `signed()` og thad
+            gilti um thetta lika: sama villa a tveimur stodum, sami
+            texti, og adeins onnur var lagfaerd fyrst. */}
         {r.injury && r.injury !== "Active" && (
-          <span className={`badge ${r.injury === "Out" || r.injury === "IR" ? "bad" : "warn"}`}
+          <span className={`badge ${r.avail === 0 ? "bad" : "warn"}`}
             style={{ marginLeft: 6 }} title={r.injuryNote || ""}>{r.injury}</span>
         )}
       </td>
