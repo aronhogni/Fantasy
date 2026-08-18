@@ -25,6 +25,7 @@ import { objects, num, str } from "./lib/csv.mjs";
 import { readFile } from "node:fs/promises";
 import { IMPLIED_BASE } from "../src/model.js";
 import { normTeam } from "../src/names.js";
+import { flexOccupancy, LEGACY_SHAPE } from "./lib/flex-occupancy.mjs";
 
 const OUT = path.resolve(process.cwd(), "data");
 const SEASONS = [2020, 2021, 2022, 2023, 2024, 2025];
@@ -148,8 +149,10 @@ async function main() {
   /* ============================================================
      3. FLEX-SKIPTING — hvada stodur enda i flex i raun
      ============================================================ */
-  const flex = measureFlexSplit(weeks);
-  console.log(`\nflex-skipting (maeld 2020-2025):`);
+  const flexFull = flexOccupancy(weeks, LEGACY_SHAPE);
+  const flex = flexFull.shares;
+  console.log(`\nflex-skipting (maeld 2020-2025, ${flexFull.n} flex-saeti i ` +
+    `${flexFull.weeksSeen} vikum — 12 lid, WR3, EITT flex, full PPR):`);
   for (const [pos, v] of Object.entries(flex)) {
     console.log(`    ${pos}: ${(v * 100).toFixed(1)}%`);
   }
@@ -170,6 +173,17 @@ async function main() {
     elasticity, elasticityLoso: { RB: losoRb, spread: round3(losoSpread) },
     defenseWeight: { best: dw.best, curve: dw.curve, baseRmse: dw.baseRmse },
     flexSplit: flex,
+    /* VIKMORKIN SEM TOLUNA VANTADI. `flexSplit` var EIN punkttala an
+       nokkurs bils, i skra thar sem teygnin ber `se` og `n` og
+       varnarvogin ber utan-urtaks-feril. Per-timabils-skiptingin var
+       alltaf maelanleg med somu talningu og var einfaldlega ekki birt —
+       og hun er STOR: TE-hlutur hleypur fra 0,130 til 0,352. */
+    flexSplitPerSeason: flexFull.perSeason,
+    flexSplitShape: { ...LEGACY_SHAPE, flexSlots: flexFull.flexSlots,
+      startersUsed: flexFull.startersUsed,
+      note: "12 lid, RB2/WR3/TE1, EITT flex, full PPR. HVORUG DEILD NOTANDANS " +
+        "er thessi logun — sja data/measure/tesplit.json um somu talningu a " +
+        "hans lognum (TE 0,073 og 0,083)" },
     thresholds,
   };
   await writeFile(path.join(OUT, "calibration.json"), JSON.stringify(out, null, 1));
@@ -262,36 +276,20 @@ function fitDefenseWeight(weeks, byPlayerSeason, implied) {
   return { best, bestRmse, baseRmse, curve, n: samples.length };
 }
 
-/**
- * Hve oft endar hver stada i FLEX? Maelt thannig: i hverri viku,
- * rada leikmonnum eftir stigum; their sem lenda utan fastra saeta
- * (RB1-2, WR1-3, TE1) en innan flex-marka i 12-lida deild.
- */
-function measureFlexSplit(weeks) {
-  const counts = { RB: 0, WR: 0, TE: 0 };
-  const bySW = new Map();
-  for (const r of weeks) {
-    if (!["RB", "WR", "TE"].includes(r.pos)) continue;
-    const k = `${r.season}|${r.week}`;
-    (bySW.get(k) || bySW.set(k, []).get(k)).push(r);
-  }
-  for (const list of bySW.values()) {
-    const rank = {};
-    for (const pos of ["RB", "WR", "TE"]) {
-      list.filter((r) => r.pos === pos).sort((a, b) => b.ppr - a.ppr)
-        .forEach((r, i) => { rank[r.id] = { pos, i: i + 1 }; });
-    }
-    const startersUsed = { RB: 24, WR: 36, TE: 12 };   // 12 lid
-    const pool = list.filter((r) => {
-      const x = rank[r.id];
-      return x && x.i > startersUsed[x.pos];
-    }).sort((a, b) => b.ppr - a.ppr).slice(0, 12);
-    for (const r of pool) counts[r.pos]++;
-  }
-  const tot = counts.RB + counts.WR + counts.TE || 1;
-  return { RB: round3(counts.RB / tot), WR: round3(counts.WR / tot),
-           TE: round3(counts.TE / tot) };
-}
+/* ============================================================
+   FLEX-SKIPTINGIN VAR DREGIN UT — `scripts/lib/flex-occupancy.mjs`
+   ============================================================
+   `measureFlexSplit` bjo HER og var hardkodud a EINA logun: 12 lid,
+   RB2/WR3/TE1, EITT flex, full PPR. Talan sem hun gaf — TE 0,193 — er
+   i `src/model.js` og THADAN i varamanns-threp ALLRA deilda, lika
+   theirra sem eru allt annad snid.
+
+   HVORUG DEILD NOTANDANS ER SU LOGUN. Hun var thvi dregin ut svo
+   SAMA TALNINGIN vaeri keyranleg a odrum lognum og per timabili
+   (`vbdbase-lab --tesweep` gerir baedi). ADEINS FLUTT — kallid hér
+   notar `LEGACY_SHAPE` og var sannreynt BITAEINS gegn gomlu
+   utfaerslunni a somu gognum adur en hun var fjarlaegd.
+   ============================================================ */
 
 /** Threp ur dreifingu vikna hja theim sem eru raunverulega i byrjunarlidi. */
 function measureThresholds(weeks) {

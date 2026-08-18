@@ -134,6 +134,7 @@ import { replacementRanks } from "../src/model.js";
 import { mean, bootstrapDiff, spearman } from "../src/learn.js";
 import { stamp } from "./lib/provenance.mjs";
 import { parseArgs, requireSeasons } from "./lib/args.mjs";
+import { loadTeModels, TE_GRID, TE_SHIPPED, teKey } from "./lib/te-sweep.mjs";
 
 const DATA = path.resolve(process.cwd(), "data");
 const ARG = parseArgs(process.argv.slice(2), {
@@ -148,6 +149,35 @@ const BOOT  = Number(ARG.boot  ?? DEFAULTS.boot);
 const FROM  = Number(ARG.from  ?? DEFAULTS.from);
 const Q3RUNS = Number(ARG.q3runs ?? DEFAULTS.q3runs); // fraekorn per Q3-reit
 const PBOOT  = Number(ARG.pboot  ?? DEFAULTS.pboot);  // per-leikmanns bootstrap
+
+/* ============================================================
+   `--tesweep` — SVEIPUR A `FLEX_SPLIT.TE`, MAELDUR I SIGRUM
+   ============================================================
+   `vbdbase-lab --tesweep` maelir sama sveip i STIGUM. Thessi maelir
+   hann i SIGRUM, og astaedan er sú sem thetta lab var skrifad ut a:
+   bord sem skorar meira getur tapad fleiri vikum. Stig og sigrar
+   fylgjast ad um 0,961-0,989 i bokudu tolunum, svo VAENTINGIN ER
+   SAMHLJODA — og se hun ekki thad er thad merki um mælitækid, ekki
+   uppgotvun (README 5n).
+
+   NULLHLIDID ER HER NAKVAEMT AD BYGGINGU OG THVI HART: `arankBoard`
+   faer varamanns-threpin sem VIDFANG, svo te = 0,193 UR PATCHADA
+   AFRITINU verdur ad gefa NAKVAEMLEGA sama bord og sendi kodinn — og
+   thvi NULL i sigrum, stigum og titlum. Se thad ekki 0 er patch-leidin
+   ad maela annan heim og keyrslan DEYR.
+
+   Sveipurinn keyrir EFTIR ollum fjorum nullhlidunum (N1-N4) og skrifar
+   SINA EIGIN skra. `h2h.json` er thvi obreytt — bokud Q1/Q2/Q3-tala
+   getur ekki haggast af thvi ad thetta flagg var til.
+   ============================================================ */
+if (ARG.tesweep !== undefined && ARG.tesweep !== true && ARG.tesweep !== "1") {
+  console.error(`\n  --tesweep tekur ekkert gildi (eda =1), fekk ` +
+    `${JSON.stringify(ARG.tesweep)}\n`);
+  process.exit(2);
+}
+const TESWEEP = ARG.tesweep !== undefined;
+const TERUNS = Number(ARG.teruns ?? 6);     // fraekorn per (ar, te-gildi)
+const TEPBOOT = Number(ARG.tepboot ?? 120); // per-leikmanns itranir, 0 = sleppa
 
 const REG_WEEKS = 14;                  // MAELT: `fpts` = vikur 1-14
 const PO_WEEKS = [15, 16, 17];         // MAELT: playoff_week_start = 15
@@ -1155,6 +1185,232 @@ async function main() {
     await writeOut({ gate: false, nullTest, accounting: acct, seatSpread, anchors,
       note: "AKKERI FELLU — pipan breytir ekki gaedum i sigra." });
     process.exit(3);
+  }
+
+  /* ============================================================
+     TE-SVEIPURINN — `--tesweep`. EIGIN SKRA, EIGIN URSKURDUR.
+     ============================================================
+     Hann situr HER og ekki fyrr: N1-N4 verda ad hafa stadist adur en
+     nokkur sveip-tala er lesin. Nullprofid sannar ad herminn hallar
+     ekki a arm, bokhaldid ad skra og talning stemma, og akkerin ad
+     pipan BREYTI gaedum i sigra — an theirra vaeri "0,193 er fin"
+     ekki nidurstada heldur maelitaeki sem ser ekkert.                */
+  if (TESWEEP) {
+    const teModels = await loadTeModels();
+    const teRepl = {};
+    for (const sh of SHAPES) {
+      for (const te of TE_GRID) {
+        teRepl[`${sh.key}|${teKey(te)}`] =
+          teModels.get(te).replacementRanks({ ...sh.league, scoring: sh.fmt });
+      }
+    }
+    /* HART HLID: te = 0,193 UR PATCHADA AFRITINU verdur ad gefa
+       BITAEINS somu threp og sendi kodinn. Se thad ekki er allt hitt
+       maelt i odrum heimi. */
+    const teAnchor = { checked: 0, mismatches: [] };
+    for (const sh of SHAPES) {
+      const a = teRepl[`${sh.key}|${teKey(TE_SHIPPED)}`], b = repl[sh.key];
+      for (const pos of POSES) {
+        teAnchor.checked++;
+        if (a[pos] !== b[pos]) {
+          teAnchor.mismatches.push(`${sh.key}.${pos}: patch ${a[pos]} vs sent ${b[pos]}`);
+        }
+      }
+    }
+    if (teAnchor.mismatches.length) {
+      console.error(`\n  TE-AKKERID FELL: ${teAnchor.mismatches.join(" · ")}\n` +
+        "  Patchada afritid gefur onnur varamanns-threp en `src/model.js`. Skrifa EKKERT.\n");
+      process.exit(2);
+    }
+
+    console.log(`\n${"=".repeat(78)}`);
+    console.log("  TE-SVEIPUR — FLEX_SPLIT.TE GEGN SENDU 0,193, MAELT I SIGRUM");
+    console.log("=".repeat(78));
+    console.log(`  akkeri: patchad te=0,193 == sent i ollum ${teAnchor.checked} ` +
+      "(logun x stada)  OK");
+
+    const teCells = {};
+    for (const sh of SHAPES) {
+      for (const src of ADP_SRC[sh.fmt]) {
+        const ctrl = { board: (X) => arankBoard(X, sh.fmt, repl[sh.key]) };
+        for (const te of TE_GRID) {
+          const vk = teKey(te);
+          const treat = { board: (X) => arankBoard(X, sh.fmt, teRepl[`${sh.key}|${vk}`]) };
+          const perYear = {};
+          for (const y of projYears) {
+            perYear[y] = cellStats(runCell({ shape: sh, W: worlds[y], treat, ctrl,
+              runs: TERUNS, seedBase: 5501, adpSrc: src, wf: true }));
+          }
+          const lvl = (k) => r3(mean(Object.values(perYear).map((c) => c[k])));
+          teCells[`${sh.key}|${src}|${vk}`] = {
+            te, seat: teRepl[`${sh.key}|${vk}`],
+            leagues: Object.values(perYear).reduce((a, c) => a + c.leagues, 0),
+            level: { winsT: lvl("winsT"), winsC: lvl("winsC"),
+                     recordT: recordOf(lvl("winsT")), recordC: recordOf(lvl("winsC")),
+                     champT: lvl("champT"), champC: lvl("champC"),
+                     poRateT: lvl("poRateT"), poRateC: lvl("poRateC") },
+            wins: boot(perYear, "winsT", "winsC"),
+            seasonPoints: boot(perYear, "seasonT", "seasonC"),
+            champ: boot(perYear, "champT", "champC"),
+            playoffs: boot(perYear, "poRateT", "poRateC"),
+            wfWins: boot(perYear, "wfWinsT", "wfWinsC"),
+            weekWinRate: r3(mean(Object.values(perYear).map((c) => c.weekWinRate))),
+            perYear,
+          };
+        }
+      }
+    }
+
+    /* HLID 2: nullid VERDUR ad vera nakvaemlega 0 i hverri frumu thar
+       sem te = sent gildi. Talan er reiknud ur SOMU velinni, svo
+       hvad sem gerist thar gerist lika i hinum frumunum. */
+    const teNull = { cells: 0, bad: [] };
+    for (const k of Object.keys(teCells)) {
+      if (!k.endsWith(`|${teKey(TE_SHIPPED)}`)) continue;
+      teNull.cells++;
+      const c = teCells[k];
+      if (c.wins.diff !== 0 || c.seasonPoints.diff !== 0 || c.champ.diff !== 0) {
+        teNull.bad.push(`${k}: sigrar ${c.wins.diff} · stig ${c.seasonPoints.diff} · ` +
+          `titlar ${c.champ.diff}`);
+      }
+    }
+    if (teNull.bad.length) {
+      console.error(`\n  TE-NULLHLIDID FELL — sent gildi gefur EKKI 0:\n   ` +
+        `${teNull.bad.join("\n   ")}\n  Skrifa EKKERT.\n`);
+      process.exit(2);
+    }
+    console.log(`  nullhlid: te=0,193 gefur nakvaemlega 0 i ollum ${teNull.cells} frumum  OK`);
+
+    /* ---------- PER-LEIKMANNS BOOTSTRAP A SIGRA-MUNINN ----------
+       Ars-klasad bootstrappid (`boot`) endursynir ARIN. README 4c:
+       `vbdbase-lab` fekk 28 holf sem stodust thad og 0 af 153 sem
+       stodust leikmanna-klasad. Bord-breyting sem birtir adeins
+       ars-klasad bil er ad of-fullyrda, og thad gildir eins her.     */
+    const tePlayerBoot = {};
+    if (TEPBOOT > 0) {
+      console.log(`\n  per-leikmanns bootstrap a sigrum (${TEPBOOT} itranir) …`);
+      const t0 = Date.now();
+      const acc = {};
+      for (const sh of SHAPES) for (const te of TE_GRID) acc[`${sh.key}|${teKey(te)}`] = [];
+      for (let b = 0; b < TEPBOOT; b++) {
+        for (const sh of SHAPES) {
+          const src = ADP_SRC[sh.fmt][0];
+          const per = {};
+          for (const te of TE_GRID) per[teKey(te)] = [];
+          for (const y of projYears) {
+            const RW = resampleWorld(worlds[y], sh.fmt, (y * 100003 + b * 7919 + 17) >>> 0);
+            const ctrl = { board: (X) => arankBoard(X, sh.fmt, repl[sh.key]) };
+            for (const te of TE_GRID) {
+              const vk = teKey(te);
+              const c = cellStats(runCell({ shape: sh, W: RW,
+                treat: { board: (X) => arankBoard(X, sh.fmt, teRepl[`${sh.key}|${vk}`]) },
+                ctrl, runs: 1, seedBase: (8101 + b * 104729) >>> 0, adpSrc: src }));
+              per[vk].push(c.winsDiff);
+            }
+          }
+          for (const te of TE_GRID) acc[`${sh.key}|${teKey(te)}`].push(mean(per[teKey(te)]));
+        }
+        if (b === 0) {
+          console.log(`     ~${Math.round((Date.now() - t0) / 1000 * TEPBOOT)} s aaetlad`);
+        }
+      }
+      for (const [k, a] of Object.entries(acc)) {
+        const d = a.slice().sort((x, z) => x - z);
+        const lo = d[Math.floor(d.length * 0.025)], hi = d[Math.floor(d.length * 0.975)];
+        tePlayerBoot[k] = { iters: d.length, lo: r3(lo), hi: r3(hi),
+          median: r3(d[Math.floor(d.length * 0.5)]), excludesZero: lo > 0 || hi < 0 };
+      }
+    }
+
+    /* ---------- TAFLAN ---------- */
+    for (const sh of SHAPES) {
+      const src = ADP_SRC[sh.fmt][0];
+      console.log(`\n  ${sh.label}  ·  ADP ${src}`);
+      console.log(`  ${"TE".padEnd(10)}${"saeti".padEnd(20)}${"sigrar".padStart(8)}` +
+        `${"  ars-CI".padEnd(20)}${"  leikm.-CI".padEnd(20)}${"stig".padStart(8)}` +
+        `${"urslitak.".padStart(11)}${"  an hindsight".padEnd(16)}`);
+      for (const te of TE_GRID) {
+        const c = teCells[`${sh.key}|${src}|${teKey(te)}`];
+        const pb = tePlayerBoot[`${sh.key}|${teKey(te)}`];
+        const ci = (x) => (x && x.lo != null
+          ? `[${sgn(x.lo, 2)},${sgn(x.hi, 2)}]${x.excludesZero ? "*" : " "}` : "-");
+        console.log(`  ${(String(te) + (te === TE_SHIPPED ? " SENT" : "")).padEnd(10)}` +
+          `RB${String(c.seat.RB).padEnd(3)} WR${String(c.seat.WR).padEnd(3)} ` +
+          `TE${String(c.seat.TE).padEnd(6)}${sgn(c.wins.diff).padStart(8)}` +
+          `  ${ci(c.wins).padEnd(18)}  ${ci(pb).padEnd(18)}` +
+          `${sgn(c.seasonPoints.diff, 0).padStart(8)}` +
+          `${sgn(c.playoffs.diff, 3).padStart(11)}  ${sgn(c.wfWins.diff).padEnd(14)}`);
+      }
+    }
+
+    /* ---------- URSKURDUR, REIKNADUR ---------- */
+    const bar = [];
+    for (const sh of SHAPES) {
+      const src = ADP_SRC[sh.fmt][0];
+      for (const te of TE_GRID) {
+        if (te === TE_SHIPPED) continue;
+        const c = teCells[`${sh.key}|${src}|${teKey(te)}`];
+        const pb = tePlayerBoot[`${sh.key}|${teKey(te)}`];
+        if (c.wins.diff > 0 && c.wins.excludesZero &&
+            (TEPBOOT === 0 || (pb && pb.excludesZero))) {
+          bar.push({ shape: sh.key, te, wins: c.wins.diff, ci: [c.wins.lo, c.wins.hi],
+                     playerCi: pb ? [pb.lo, pb.hi] : null });
+        }
+      }
+    }
+    const nTe = SHAPES.length * (TE_GRID.length - 1);
+    const teVerdict = bar.length === 0
+      ? `NO TE SHARE BEATS THE SHIPPED 0.193 IN WINS AT THIS REPO'S BAR. ` +
+        `${nTe} (shape x TE share) cells were measured as a paired head-to-head league — ` +
+        `same seasons, same room, mirrored seats — and not one clears a positive win ` +
+        `difference plus BOTH the season-clustered and the player-clustered 95% interval. ` +
+        `The null gate is exact by construction here (the shipped share reads 0.000 wins in ` +
+        `all ${teNull.cells} cells), so a flat table is measured indifference and not a ` +
+        `blind harness: the same machine sees the oracle and reverse-ADP anchors move wins.`
+      : `${bar.length} of ${nTe} cells clear a positive win difference plus both intervals: ` +
+        bar.map((x) => `TE=${x.te} in ${x.shape} (${sgn(x.wins)} wins, ` +
+          `season CI [${sgn(x.ci[0])},${sgn(x.ci[1])}])`).join("; ") +
+        `. Read that against ${nTe} comparisons before wiring anything.`;
+    console.log(`\n${"=".repeat(78)}\n  URSKURDUR\n${"=".repeat(78)}`);
+    for (const p of teVerdict.split(". ")) console.log(`  ${p}.`);
+
+    await mkdir(path.join(DATA, "measure"), { recursive: true });
+    await writeFile(path.join(DATA, "measure", "tesplit_h2h.json"), JSON.stringify({
+      generated: new Date().toISOString(),
+      provenance: stamp({ argv: process.argv.slice(2),
+        defaults: { ...DEFAULTS, teruns: 6, tepboot: 120 },
+        inputs: ["features.json",
+                 ...[2019, 2020, 2021, 2022, 2023, 2024, 2025].map((y) => `weekly/${y}.json`)],
+        dataDir: DATA }),
+      question: "Draftar annad FLEX_SPLIT.TE en 0,193 BETUR — maelt i SIGRUM, ekki " +
+        "i samraemi vid markadinn?",
+      design: {
+        metric: "pardur deildar-hermun: te-bordid i saeti i, SENDA bordid i saeti j, " +
+          "oll onnur saeti eftir markadinum, hver fruma SPEGLUD",
+        onlyChannel: "`FLEX_SPLIT` kemst inn i thetta lab EINGONGU gegnum " +
+          "`replacementRanks` -> `arankBoard`. Ekkert annad les hana.",
+        rbwrHeldFixed: "RB:WR = 0,330:0,477 innbyrdis; ADEINS TE er sveipad",
+        patchNotCopy: "varamanns-threpin koma ur PATCHADA afriti af src/model.js " +
+          "(lib/te-sweep.mjs), ekki ur afriti af `apportion` — sja notu thar",
+        gates: "N1-N4 (nullprof, bokhald, saetis-dreifing, akkeri) PLUS te-akkerid " +
+          "(patchad 0,193 == sent) og te-nullhlidid (0,193 gefur nakvaemlega 0)",
+        runs: TERUNS, playerBootIters: TEPBOOT,
+      },
+      teGrid: TE_GRID, shipped: TE_SHIPPED,
+      splits: Object.fromEntries(TE_GRID.map((te) => [teKey(te), teModels.get(te).split])),
+      seats: teRepl,
+      anchor: { ...teAnchor, passed: true },
+      nullGate: { ...teNull, passed: true,
+        note: "sent gildi VERDUR ad gefa nakvaemlega 0 — sama bord, sama frækorn" },
+      nullTest, accounting: acct, seatSpread, anchors,
+      cells: teCells,
+      playerBootstrap: tePlayerBoot,
+      standsAtBar: bar,
+      verdict: teVerdict,
+    }, null, 1));
+    console.log(`\n-> data/measure/tesplit_h2h.json`);
+    console.log(`  (${Math.round((Date.now() - t0) / 1000)} s)`);
+    return;
   }
 
   /* ============================================================

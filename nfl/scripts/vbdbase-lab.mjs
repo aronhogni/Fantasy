@@ -68,11 +68,44 @@ import { replacementRanks, computeVbd, tierize, FLEX_SPLIT } from "../src/model.
 import { mean, bootstrapDiff } from "../src/learn.js";
 import { stamp } from "./lib/provenance.mjs";
 import { parseArgs, requireSeasons } from "./lib/args.mjs";
+import { loadTeModels, TE_GRID, TE_SHIPPED, teKey } from "./lib/te-sweep.mjs";
+import { flexOccupancy, LEGACY_SHAPE } from "./lib/flex-occupancy.mjs";
 
 const OUT = path.resolve(process.cwd(), "data");
 const ARG = parseArgs(process.argv.slice(2), {
   runs: "number", boot: "number", from: "number", bootpairs: "number",
 });
+/* ============================================================
+   `--tesweep` — SVEIPUR A `FLEX_SPLIT.TE`, SAMA VELIN
+   ============================================================
+   ER THETTA NY SKRIFTA? NEI, OG THAD ER ASETT. Spurningin "draftar
+   annad TE-hlutfall betur?" er NAKVAEMLEGA sama spurning og thetta lab
+   spyr um alla adra varamanns-grunna: pardur einvigi i somu deild,
+   sjalfsprof, ars-klasad bootstrap, leikmanna-klasad bootstrap og
+   walk-forward val. Ny skrifta hefdi tharft AFRIT af theim ollum.
+
+   `--tesweep` skiptir thvi ADEINS UT AFBRIGDA-SKRANNI og utkomu-
+   skraarheitinu. Se flaggid EKKI gefid er `vbdbase.json` bitaeins su
+   sama sem adur — engin bokud tala hreyfist.
+
+   THVERT AKKERI SEM GERIR SVEIPINN SANNANLEGAN: `k1-raw` er borid
+   MED i sveipnum thott thad se ekki te-afbrigdi. `k1-raw` er "sama
+   regla, engin namundun" med SENDU threpunum, og te=0,193 er "sama
+   regla, engin namundun" med threpunum ur PATCHADA afritinu. Thau
+   VERDA thvi ad vera BITAEINS — se thad ekki, er patch-leidin ad maela
+   annan heim en sendi kodinn og keyrslan DEYR.
+   ============================================================ */
+/* Flaggid er BINART og thad er stadfest. `--tesweep=jaeja` er ekki
+   flagg heldur innslattarvilla, og flagg sem raedur utkomu-skraarheiti
+   ma ekki lesa hvad sem er (sja lib/args.mjs um skrarnar med bilum i
+   nafni). */
+if (ARG.tesweep !== undefined && ARG.tesweep !== true && ARG.tesweep !== "1") {
+  console.error(`\n  --tesweep tekur ekkert gildi (eda =1), fekk ` +
+    `${JSON.stringify(ARG.tesweep)}\n`);
+  process.exit(2);
+}
+const TESWEEP = ARG.tesweep !== undefined;
+const OUT_FILE = TESWEEP ? "tesplit.json" : "vbdbase.json";
 const RUNS = Number(ARG.runs ?? 4);          // havada-keyrslur a vellinum
 const BOOT = Number(ARG.boot ?? 400);        // leikmanna-bootstrap, 0 = sleppa
 const BOOT_PAIRS = Number(ARG.bootpairs ?? 4);
@@ -749,8 +782,23 @@ async function main() {
   }
 
   /* ---------- afbrigdin ---------- */
+  /* TE-SVEIPURINN. Hvert te-gildi er sitt PATCHADA afrit af
+     `src/model.js` (sja lib/te-sweep.mjs) — ekki afrit af `apportion`
+     hingad. `k1-raw` er med sem THVERT AKKERI: hun er sama reglan med
+     SENDU threpunum, svo te=0,193 verdur ad gefa bitaeins somu rod. */
+  const teModels = TESWEEP ? await loadTeModels() : null;
   const fixed = fixedVariants();
-  const variants = [
+  const variants = TESWEEP ? [
+    { key: "current", label: "current (computeVbd, k=1)", kind: "self" },
+    { key: "k1-raw", label: "k=1, an namundunar (SENDU threpin — thvert akkeri)",
+      kind: "fixed", spec: { k: 1, flexMix: 0 } },
+    ...TE_GRID.map((te) => ({
+      key: teKey(te), label: `FLEX_SPLIT.TE = ${te}` +
+        (te === TE_SHIPPED ? " (SENT GILDI)" : ""),
+      kind: "teShare", te, replFn: teModels.get(te).replacementRanks,
+      split: teModels.get(te).split, spec: { k: 1, flexMix: 0 },
+    })),
+  ] : [
     ...fixed,
     ...STARTABLE_STATS.map((stat) => ({
       key: `startable-${stat}`, label: `startable ${stat} (ur vikugognum a undan)`,
@@ -782,6 +830,12 @@ async function main() {
     if (v.kind === "fixed") {
       return boardFromSpec(pool, league, fmt,
         { ...v.spec, ranks: replacementRanks(league) });
+    }
+    /* TE-SVEIPUR. `v.replFn` er `replacementRanks` UR PATCHADA AFRITINU
+       af `src/model.js` — Hamilton-uthlutunin er thvi su sama, adeins
+       hlutfollin onnur. Ekkert afrit af `apportion` er til hér. */
+    if (v.kind === "teShare") {
+      return boardFromSpec(pool, league, fmt, { ...v.spec, ranks: v.replFn(league) });
     }
     if (v.kind === "teFixed") {
       const ranks = { ...replacementRanks(league) };
@@ -1042,6 +1096,7 @@ async function main() {
      (thau eru fittud a raunverulegum fyrri arum). Vikmorkin maela thvi
      utkomu-ovissu vid gefnu saeti, ekki valovissu — og thad er sagt.  */
   const playerBoot = {};
+  const playerBootRel = {};   // TESWEEP: afstaett vid te=0,193
   if (BOOT > 0) {
     console.log(`\nbootstrap klasad per leikmann (${BOOT} itranir) …`);
     for (const s of SHAPES) {
@@ -1075,6 +1130,37 @@ async function main() {
             if (iterMean[v.key].length) acc[v.key].push(mean(iterMean[v.key]));
           }
         }
+        /* SVEIPURINN ER AFSTAEDUR OG THVI VERDUR VIKMORKID AD VERA THAD LIKA.
+           `playerBoot` maelir hvert afbrigdi gegn SENDA bordinu, sem er
+           NAMUNDAD — svo te=0,193 hefur thar sitt eigid namundunar-frav og
+           er EKKI nulllinan. Spurningin sem uttektin spyr er "annad
+           TE-hlutfall gegn 0,193", og hun verdur ad vera pardur MUNUR I
+           SOMU ITRUN; annars dregst leikmanna-floktid fra tvisvar og bilid
+           vaeri BREIDARA en gognin segja.
+
+           THETTA VERDUR AD REIKNAST A UNDAN `a.sort()` hér ad nedan. Sortid
+           er a STADNUM og eydir itrunar-porununni — vaeri thetta reiknad
+           eftir a vaeri porunin milli tveggja RADADRA rada, sem er engin
+           porun heldur samanburdur a hundradshlutum. Thogul villa af thvi
+           tagi hefdi threngt hvert bil og latid sveipinn lita marktaekan ut. */
+        if (TESWEEP) {
+          const ref = acc[teKey(TE_SHIPPED)] || [];
+          for (const v of variants) {
+            if (v.kind !== "teShare" || v.te === TE_SHIPPED) continue;
+            const a = acc[v.key];
+            if (a.length < 50 || a.length !== ref.length) {
+              playerBootRel[`${s.key}|${fmt}|${v.key}`] = null;
+              continue;
+            }
+            const d = a.map((x, i) => x - ref[i]).sort((x, z) => x - z);
+            const lo = d[Math.floor(d.length * 0.025)], hi = d[Math.floor(d.length * 0.975)];
+            playerBootRel[`${s.key}|${fmt}|${v.key}`] = {
+              runs: d.length, lo: r1(lo), hi: r1(hi),
+              median: r1(d[Math.floor(d.length / 2)]),
+              excludesZero: lo > 0 || hi < 0,
+            };
+          }
+        }
         for (const v of variants) {
           const a = acc[v.key];
           if (a.length < 50) { playerBoot[`${s.key}|${fmt}|${v.key}`] = null; continue; }
@@ -1089,6 +1175,193 @@ async function main() {
       }
     }
     console.log("");
+  }
+
+  /* ============================================================
+     6e. TE-SVEIPURINN — AFSTAETT VID SENT GILDI, OG AKKERID
+     ============================================================
+     TVENNT SEM VERDUR AD VERA RETT ADUR EN EIN TALA ER LESIN:
+
+     (1) THVERT AKKERI. `k1-raw` er sama reglan (k=1, engin namundun)
+         med SENDU threpunum ur `src/model.js`; `te0.193` er sama reglan
+         med threpunum ur PATCHADA afritinu. Their VERDA ad vera
+         bitaeins. Se thad ekki er patch-leidin ad maela annan heim en
+         appid og hvert tolugildi i sveipnum er merkingarlaust.
+
+     (2) NULLLINAN ER `te0.193`, EKKI 0. Adalmaelingin ber hvert
+         afbrigdi vid SENDA bordid, sem er NAMUNDAD (`computeVbd`
+         namundar `vbd` i einn aukastaf adur en radad er), svo te=0,193
+         les ~-2 stig af namundun einni. Sveipurinn spyr um MUNINN A
+         TE-HLUTFOLLUM og hann er thvi reiknadur sem pardur mismunur
+         per timabili gegn te=0,193 — sama porun, somu frækorn, sami
+         vollur.                                                       */
+  const teSweepOut = {};
+  if (TESWEEP) {
+    const refKey = teKey(TE_SHIPPED);
+    const anchor = { pairs: 0, mismatches: [] };
+    for (const s of SHAPES) {
+      for (const fmt of FORMATS) {
+        for (const fld of FIELDS) {
+          const a = results[`${s.key}|${fmt}|${fld}|k1-raw`];
+          const b = results[`${s.key}|${fmt}|${fld}|${refKey}`];
+          anchor.pairs++;
+          for (const y of ys) {
+            if (a.perSeason[y] !== b.perSeason[y]) {
+              anchor.mismatches.push(`${s.key}|${fmt}|${fld}|${y}: ` +
+                `k1-raw ${a.perSeason[y]} vs te0.193 ${b.perSeason[y]}`);
+            }
+          }
+        }
+      }
+    }
+    if (anchor.mismatches.length) {
+      console.error(`\n  THVERA AKKERID FELL — te=0,193 er EKKI sama bord og ` +
+        `sendu threpin gefa:\n   ${anchor.mismatches.slice(0, 6).join("\n   ")}\n` +
+        `  (${anchor.mismatches.length} frávik af ${anchor.pairs * ys.length}).\n` +
+        "  Patchada afritid maelir annan heim en `src/model.js`. Skrifa EKKERT.\n");
+      process.exit(2);
+    }
+    console.log(`\nthvert akkeri: te0.193 == k1-raw i ollum ` +
+      `${anchor.pairs * ys.length} (fruma x timabil)  OK`);
+
+    /* Saetin sjalf, per logun — tolurnar sem sveipurinn snyst um. */
+    const seats = {};
+    for (const s of SHAPES) {
+      seats[s.key] = Object.fromEntries(TE_GRID.map((te) =>
+        [teKey(te), teModels.get(te).replacementRanks(s.league)]));
+    }
+    /* LAUGAR-THAKID. Se TE-saetid >= fjoldi thett-enda i lauginni thad ar
+       er grunngildid EKKI "madurinn i saetinu" heldur versti thett-endi
+       sem nokkur draftar — og tha maelir sveipurinn EKKERT thegar hann
+       faerir saetid enn dypra. `depthOverrun` ad ofan segir thetta um
+       sent gildi; hér er thad talid fyrir HVERT te-gildi, thvi annars
+       vaeri flatur efri endi lesinn sem "engin ahrif" i stad "ekki
+       maelanlegt". */
+    const saturation = {};
+    for (const s of SHAPES) {
+      saturation[s.key] = Object.fromEntries(TE_GRID.map((te) => {
+        const r = seats[s.key][teKey(te)].TE;
+        return [teKey(te), { seat: r,
+          seasonsAtOrPastPoolFloor: ys.filter((y) => r >= perYearDepth.TE[y]).length,
+          seasons: ys.length }];
+      }));
+    }
+
+    for (const s of SHAPES) {
+      for (const fmt of FORMATS) {
+        for (const fld of FIELDS) {
+          const ref = results[`${s.key}|${fmt}|${fld}|${refKey}`];
+          for (const te of TE_GRID) {
+            const vk = teKey(te);
+            const q = results[`${s.key}|${fmt}|${fld}|${vk}`];
+            const per = {};
+            for (const y of ys) {
+              per[y] = (q.perSeason[y] == null || ref.perSeason[y] == null)
+                ? null : r1(q.perSeason[y] - ref.perSeason[y]);
+            }
+            const st = seasonStats(per);
+            const zA = {}, zB = {};
+            for (const y of ys) if (per[y] != null) { zA[y] = per[y]; zB[y] = 0; }
+            const bs = bootstrapDiff(zA, zB, 2000, 4242);
+            teSweepOut[`${s.key}|${fmt}|${fld}|${vk}`] = {
+              te, seat: seats[s.key][vk], perSeason: per, ...st,
+              bootSeason: bs ? { lo: r1(bs.lo), hi: r1(bs.hi),
+                                 excludesZero: bs.excludesZero } : null,
+              bootPlayer: playerBootRel[`${s.key}|${fmt}|${vk}`] ?? null,
+              vsShippedBoard: q.mean,
+            };
+          }
+        }
+      }
+    }
+
+    /* Utprentun: EIN TAFLA PER RAUNVERULEGA DEILD. Adrar frumur eru i
+       skranni; hér eru thaer tvaer sem akvordunin snyst um. */
+    const DECIDE = [["10-2flex", "ppr"], ["12-2flex", "half"], ["12-std", "ppr"]];
+    console.log(`\n${"=".repeat(96)}\n  TE-SVEIPUR — AFSTAETT VID FLEX_SPLIT.TE = 0,193` +
+      `\n${"=".repeat(96)}`);
+    for (const [sk, fmt] of DECIDE) {
+      const sh = SHAPES.find((x) => x.key === sk);
+      console.log(`\n  ${sh.label}  ·  snid ${fmt}  ·  ADP ${PRIMARY_FIELD[fmt]}`);
+      console.log(`  ${"TE-hlutur".padEnd(11)}${"saeti".padEnd(20)}` +
+        `${"stig".padStart(8)}${"t".padStart(8)}${"ar+".padStart(6)}` +
+        `${"  ars-CI".padEnd(20)}${"  leikm.-CI".padEnd(20)}laug`);
+      for (const te of TE_GRID) {
+        const vk = teKey(te);
+        const q = teSweepOut[`${sk}|${fmt}|${PRIMARY_FIELD[fmt]}|${vk}`];
+        const sat = saturation[sk][vk];
+        const bs = q.bootSeason, pb = q.bootPlayer;
+        const ci = (x) => (x ? `[${sgn(x.lo)},${sgn(x.hi)}]${x.excludesZero ? "*" : " "}` : "-");
+        console.log(`  ${(String(te) + (te === TE_SHIPPED ? " SENT" : "")).padEnd(11)}` +
+          `RB${String(q.seat.RB).padEnd(3)} WR${String(q.seat.WR).padEnd(3)} ` +
+          `TE${String(q.seat.TE).padEnd(6)}` +
+          `${sgn(q.mean).padStart(8)}${(q.t == null ? "-" : q.t.toFixed(2)).padStart(8)}` +
+          `${`${q.wins}/${q.years}`.padStart(6)}  ${ci(bs).padEnd(18)}  ${ci(pb).padEnd(18)}` +
+          `${sat.seasonsAtOrPastPoolFloor ? `THAK ${sat.seasonsAtOrPastPoolFloor}/${sat.seasons}` : ""}`);
+      }
+    }
+    /* ============================================================
+       HVAR 0,193 KOM FRA — OG HVAD SAMA TALNINGIN SEGIR UM HANS DEILDIR
+       ============================================================
+       Thetta er EKKI ny maelingaradferd heldur NAKVAEMLEGA su sem setti
+       toluna (`calibrate.mjs` -> `lib/flex-occupancy.mjs`), keyrd a
+       odrum lognum. Astaedan er einfold og hun er sjalfstaed nidurstada:
+       talan var maeld i 12-lida deild med WR3 og EINU flexi i fullri
+       PPR, og HVORUG deild notandans er su logun.
+
+       TVENNT SEM VANTADI OG ER MAELANLEGT MED SOMU TALNINGU:
+         · talan per LOGUN  (hun er ekki fasti — flexid faerist)
+         · talan per TIMABILI (hun hafdi ENGIN vikmork; teygnin i sömu
+           skra ber `se` og `n`, varnarvogin ber utan-urtaks-feril)   */
+    const occ = {};
+    try {
+      const wk = [];
+      for (const y of [2020, 2021, 2022, 2023, 2024, 2025]) {
+        wk.push(...JSON.parse(await readFile(path.join(OUT, "weekly", `${y}.json`), "utf8")));
+      }
+      const OCC_SHAPES = [
+        ["calibrate.mjs (12 lid, WR3, 1 FLEX, ppr) — THADAN KEMUR 0,193", LEGACY_SHAPE],
+        ...SHAPES.map((sh) => [`${sh.label}`, {
+          teams: sh.league.teams, starters: sh.league.starters,
+          flexPos: sh.league.flexPos,
+          scoring: sh.key === "12-2flex" ? "half" : "ppr",
+        }]),
+      ];
+      console.log(`\n  TIÐNI-TALNINGIN SEM SETTI 0,193, KEYRD A ODRUM LOGNUM:`);
+      console.log(`  ${"logun".padEnd(56)}${"RB".padStart(7)}${"WR".padStart(7)}` +
+        `${"TE".padStart(7)}${"n".padStart(7)}   TE-bil yfir 6 timabil`);
+      for (const [label, sh] of OCC_SHAPES) {
+        const o = flexOccupancy(wk, sh);
+        const tes = Object.values(o.perSeason).map((v) => v.shares.TE);
+        occ[label] = { shape: sh, shares: o.shares, n: o.n, flexSlots: o.flexSlots,
+          startersUsed: o.startersUsed, perSeason: o.perSeason,
+          teMin: Math.min(...tes), teMax: Math.max(...tes) };
+        console.log(`  ${label.slice(0, 55).padEnd(56)}` +
+          `${o.shares.RB.toFixed(3).padStart(7)}${o.shares.WR.toFixed(3).padStart(7)}` +
+          `${o.shares.TE.toFixed(3).padStart(7)}${String(o.n).padStart(7)}` +
+          `   [${Math.min(...tes).toFixed(3)} - ${Math.max(...tes).toFixed(3)}]`);
+      }
+    } catch (e) {
+      occ.__error = `weekly/*.json vantar eda er olesanleg: ${e.message}`;
+      console.log(`\n  (tidni-talningin sleppt: ${occ.__error})`);
+    }
+
+    teSweepOut.__meta = {
+      grid: TE_GRID, shipped: TE_SHIPPED,
+      splits: Object.fromEntries(TE_GRID.map((te) => [teKey(te), teModels.get(te).split])),
+      seats, saturation, crossAnchor: { ...anchor, passed: true },
+      zeroLine: "te0.193 — adalmaelingin ber vid NAMUNDAD sent bord, svo " +
+        "te=0,193 er ~-2 stig af namundun einni og ER nulllinan hér",
+      rbwrHeldFixed: "RB:WR = 0,330:0,477 innbyrdis; ADEINS TE er sveipad",
+      poolFloorMeaning: "THAK n/11 = saetid er a eda framar laugar-golfi thett-enda " +
+        "i n timabilum, svo grunngildid er versti thett-endi og dypri saeti maela EKKERT",
+      occupancy: occ,
+      occupancyMeaning: "SAMA talning sem setti 0,193 (lib/flex-occupancy.mjs), keyrd " +
+        "a hans lognum. HUN ER TIÐNI, EKKI AKVORDUN: hun telur hver HEFDI fyllt " +
+        "flex-saetid hja alvitrum stjornanda og er thvi ad hluta maeling a HVE " +
+        "MARGIR spila stoduna, ekki a virdi jadar-mannsins. Thess vegna er hun " +
+        "SAMHENGI hér og sveipurinn ad ofan er dómarinn.",
+    };
   }
 
   /* ============================================================
@@ -1379,6 +1652,8 @@ async function main() {
     variants: variants.map((v) => ({ key: v.key, label: v.label, kind: v.kind })),
     results,
     playerBootstrap: playerBoot,
+    playerBootstrapRelative: TESWEEP ? playerBootRel : undefined,
+    teSweep: TESWEEP ? teSweepOut : undefined,
     walkForward,
     walkForwardCommonYears: walkForwardCommon,
     formatDifference: formatDiff,
@@ -1391,8 +1666,8 @@ async function main() {
     stands,
     verdict,
   };
-  await writeFile(path.join(OUT, "measure", "vbdbase.json"), JSON.stringify(out, null, 1));
-  console.log(`-> data/measure/vbdbase.json`);
+  await writeFile(path.join(OUT, "measure", OUT_FILE), JSON.stringify(out, null, 1));
+  console.log(`-> data/measure/${OUT_FILE}`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
