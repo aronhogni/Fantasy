@@ -3859,3 +3859,112 @@ Vörðurinn liggur á **tengingunni**, ekki gildinu: `stats.test.mjs` kafli 15c
 krefst þess að `PlayerList.jsx` LESI reitinn inni í `heatScale`-smíðinni, svo
 hann verði ekki flagg sem enginn les (`team_dc`-bilunin, kafli 6l).
 Stökkbreyting: lesturinn fjarlægður → 2 fallnar.
+
+---
+
+## 18.8.2026 — ANDSTÆÐU-PRÓFUN Á EIGIN VERKI: EIN HRUNVILLA OG SEX TÓMAR FULLYRÐINGAR
+
+Tvær samhliða úttektir voru settar á kóðann frá 17.8. — önnur átti að **brjóta
+hann með illgjörnum inntökum**, hin að **stökkbreyta hverri nýrri fullyrðingu**
+og finna þær sem geta ekki fallið. Báðar fundu raunverulegt.
+
+### HRUNVILLAN — `priceFloors(null)`, og hún hefði hitt hvern einasta notanda
+
+`export function priceFloors(players = [])` — sjálfgildið ver **aðeins
+`undefined`**. Í `App.jsx` er `players` `useState(null)` og `unusedPlan`-memo-an
+keyrir í **hverri teikningu**, svo `for (const p of null)` kastaði
+`TypeError: players is not iterable`. `ErrorBoundary` er utan um allt appið og
+**eina útgangan þar eyðir liðinu, fyrirliðanum, skiptaáætluninni og chip-unum.**
+
+**Mæld, ekki ályktuð.** `localStorage` er samstillt en netið ekki, svo planið er
+komið löngu áður en `players.json` skilar sér:
+
+| töf á sókn | útkoma (fyrir lagfæringu) |
+|---|---|
+| 0 ms, 1 ms | teiknast |
+| **5 · 20 · 50 · 120 ms** | **HRUN** |
+
+Enginn vafri nær GitHub raw undir 5 ms, svo þetta hefði gerst **við hverja
+hleðslu** hjá hverjum sem hafði bekkjar-víxl eða skipti í glugganum.
+
+**Hvorugt prófasafnið gat séð það:** `data-resilience.mjs` skrifar aldrei
+`fpl_planner_v3` og `untrusted-input.mjs` gefur heilbrigðar gagnaskrár. Villan
+bjó nákvæmlega í bilinu á milli þeirra.
+
+> **OG SÖGNIN UM HANA VAR SJÁLF PRÓFUÐ.** Hin úttektin sagði að hrunið
+> sæist „aðeins undir stökkbreytingu", því `smoke.test.mjs` er grænt með
+> nákvæmlega þessu ástandi. Það reyndist rétt athugað en röng ályktun:
+> `smoke` notar `fetch`-hermi sem skilar **samstundis**, svo hann hittir aldrei
+> gluggann. Málið var útkljáð með því að afturkalla EINGÖNGU null-vörðinn og
+> keyra aftur: **5 ms og 50 ms hrundu bæði, 0 ms ekki.** Tvær úttektir sem
+> stangast á eru ekki jafngildar — sú sem MÆLIR sviðið vinnur.
+
+### Fimm aðrar veilur í sama kóða (allar mældar, allar lagaðar)
+
+| einkenni | inntak sem framkallar | leiðrétting |
+|---|---|---|
+| `frees up to £NaN` á skjánum | einn leikmaður með `now_cost:"mikid"` | ómæld tala fær enga ábendingu |
+| verðgólf **hrundi í 0** fyrir heila stöðu | einn leikmaður með `now_cost: null` (`Number(null)` er 0 og stenst `isFinite`) | `c <= 0` síað burt |
+| „frees up to £0,0" — tillaga án tilgangs | `element_type` vantar → gólf óþekkt | vitum ekki gólfið → þegjum |
+| seldur maður **flaggaður samt** | keyptur tvisvar, seldur tvisvar: `gws++` taldi **færslur**, ekki umferðir | talið á einkvæmum umferðum + viðmiðið er **síðasta umferð gluggans** |
+| **keyptur og aldrei spilað = ÞÖGN** | kaup í GW1 flaggað, sömu kaup í GW2 þögn | sama regla: viðvera í síðustu umferð, ekki full þekja |
+
+Það síðasta er verst og var **öfugsnúið**: „þú ætlar að KAUPA hann og aldrei
+spila honum" er verðmætasta útgáfa ábendingarinnar og var einmitt sú sem gamla
+reglan (`gws < perGw.length`) henti.
+
+**Hliðið „hefur notandinn planað?" var of ódýrt:** `[[411,411]]` (víxl við
+sjálfan sig) og `[[999998,999999]]` (id sem eru hvergi til) töldust bæði planun.
+Nú er spurt hvort **byrjunarliðið sé raunverulega annað** en sjálfgefna
+uppstillingin. Og orðalagið „You have planned 6 gameweeks" ofsagði — það sagði
+það líka þegar ein umferð var snert; nú stendur „Looking at the next 6
+gameweeks as you have them set up".
+
+### Pipeline: tvennt til viðbótar
+
+- **Tóm keyrsla gat þurrkað út `defcon.json`** og skráð `record(…, true, 0)` —
+  grænt ljós yfir tapi. `out` verður tómt hvenær sem enginn ber jákvætt
+  `starts`. Nú er gamla skráin **haldið** og RAUTT skráð; fyrsta keyrsla (engin
+  skrá til) má áfram skrifa tómt, því það er upphafsstaða en ekki tap.
+- **GK-gatið opnaðist um bakdyrnar:** `pos` kemur úr `posOf[id]`, og element sem
+  er í live-skránni en vantar í bootstrap fékk `pos === undefined`, slapp gegnum
+  `pos === 1` og var **skorað á endurheimta-brautinni** — sömu braut og markmenn.
+  Nú verður staðan að vera **þekkt útileikmanna-staða**.
+
+### SEX TÓMAR FULLYRÐINGAR — allar úr þessari lotu, allar mínar
+
+1. **Tautólógía.** `ok(A||B||C ? true : r5.starts <= 6, …)` — `||` bindur fastar
+   en `?:`, svo eina leiðin að `false` var `starts > 6` í prófi sem hefur **sex**
+   umferðir. Mörk fölsku greinarinnar VORU hámark gagnanna. Stökkbreytingin sem
+   hún heitir eftir hélst græn.
+2. **`no_heat`-vörðurinn var uppfylltur af athugasemd.** Strippan tók aðeins
+   `/* */`, ekki `//`. Að skipta lestrinum út fyrir `// no_heat: viljandi hunsað`
+   hélt **öllum fjórum** fullyrðingunum grænum — fullyrðing sem segir sjálf
+   „ekki aðeins nefnt í athugasemd". Nú er `heatScale` **keyrð** og kvarðinn
+   mældur, með ómerktum dálki sem viðmiði.
+3. **Tvítekning aðgreind með AFTANLIGGJANDI BILI slapp** gegnum alla þrjá
+   einkvæmnis-verðina meðan hausinn birti „Goals · /90" tvisvar. Augað sér ekki
+   bilið; vörðurinn má það ekki heldur.
+4. **`counts.per90 >= 20`** — dálkarnir eru **22**, svo regla sem missir tvo fer
+   í 20 og stenst, og skilaboðin prenta „nær yfir alla 20". Nákvæmlega sama lögun
+   og `counts.bsd >= 20` sem hafði þegar sloppið einu sinni.
+5. **400-stafa gluggi** í `smoke` var 22 stöfum frá því að verða tómur, og
+   féll ranglega við 900. Nú er svæðið **elementið sjálft** úr DOM-inum.
+6. **Athugasemd sem laug:** „profad nedar" um þögnina — sú fullyrðing var
+   hvergi til. Nýtt safn `planner-idle.mjs` prófar fjórar hliðar.
+
+> **OG NÝJA SAFNIÐ SANNAR MINNA EN ÞAÐ LÍTUR ÚT FYRIR — ÞAÐ ER SKRÁÐ Í ÞVÍ.**
+> Bekkur prófliðsins er **allur á verðgólfi**, svo þögn hefur **tvær óháðar
+> orsakir**: hliðið OG verðgólfs-undantekninguna. Mælt: stökkbreyting sem
+> slekkur á hliðinu heldur safninu grænu. Það sannar því ÚTKOMUNA, ekki að
+> hliðið sé það sem þaggar. Að sýna hliðið eitt þyrfti hóp með dýrum manni á
+> bekknum án nokkurrar plönunar, og þann hóp er ekki hægt að smíða úr
+> `localStorage` — hann kemur úr tengdu FPL-liði.
+
+### Það sem stóð af sér árásina
+
+`no_heat` mælt með jákvæðu viðmiði: **0 af 31** hólfum í `Starts/90` lituð
+meðan `Starts` (20/31), `Start prob` (26/31) og 16 aðrir dálkar eru litaðir.
+Engin ósýnileg sía eftir: **590 af 590** í öllum sex flokkum, óbreytt eftir
+röðun og eftir smell á tölu-hólf, og skrun nær 590 einkvæmum röðum. Fjandsamleg
+`localStorage`-blob eru öll hreinsuð rétt. Röðunin er stöðug.

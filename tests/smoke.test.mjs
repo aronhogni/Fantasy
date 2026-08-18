@@ -95,8 +95,9 @@ const RIVAL_PICKS = [...START_IDS.slice(0, 13), ...outsiders];
    villuboð).                                                          */
 /* BEKKJAR-VIXL I OLLUM SEX UMFERDUNUM — forsenda fyrir "Never in your XI".
    Haaland (411, £15,5) er settur a bekkinn GW1-6 a moti Walle Egeli (321).
-   An planadrar planunar A bordinn ad THEGJA (profad nedar), svo thetta er
-   BADAR hlidar sama vardar.                                            */
+   An planadrar planunar A bordinn ad THEGJA — su hlid er profud i
+   `tests/planner-idle.mjs` (hun tharf HREINT localStorage og gat thvi ekki
+   buid her; athugasemdin sagdi adur 'profad nedar' og ThAD VAR OSATT).                                            */
 const BENCH_ALL = {}; for (let g = 1; g <= 6; g++) BENCH_ALL[g] = [[411, 321]];
 dom.window.localStorage.setItem("fpl_planner_v3",
   JSON.stringify({ rivals: [{ id: "909" }], captain: 411, benchSwaps: BENCH_ALL }));
@@ -149,12 +150,33 @@ console.log("\n=== ThU NOTAR HANN ALDREI ===");
      "nefnir manninn OG hve mikid fe salan losar (£15,5 - golf £4,5)");
   /* UNDANTEKNINGIN A RAUNGOGNUM: bekkurinn i proflidinu er ALLUR a
      verdgolfi (Dubravka £4,0 GK, Thomas/Hughes £4,0 DEF, Walle Egeli
-     £4,5 FWD). Enginn theirra ma vera nefndur.                       */
-  const seg = t.slice(t.indexOf("Never in your XI"),
-                      t.indexOf("Never in your XI") + 400);
+     £4,5 FWD). Enginn theirra ma vera nefndur.
+
+     LEITARSVAEDID ER AFMARKAD, EKKI 400 STAFIR (lagad 18.8.2026).
+     Fyrri utgafa tok `t.slice(idx, idx+400)`. Maelt: bordinn sjalfur er
+     259 stafir og bekkjar-raðirnar (undir stokkbreytingu) enda a 298/337/
+     378 — TUTTUGU OG TVEIR stafir i afgang. Ein rod til vidbotar og
+     `Dubravka` hefdi dottid UT FYRIR gluggann og fullyrdingin ordid graen
+     MED villuna inni. Og i hina attina: 900 stafir na nidur a vollinn,
+     sem telur somu bekkjarmenn upp, svo hun fell a REttum koda.
+     Nu er svaedid tekid ur DOM-inum sjalfum — nakvaemlega thad element
+     sem ber bordann — svo stærd hans skiptir engu mali.               */
+  /* MINNSTA element sem ber BAEDI fyrirsognina OG rod — thad er kassinn
+     sjalfur. Ad taka bara "minnsta sem inniheldur fyrirsognina" gaf
+     fyrirsagnar-divid eitt (24 stafir) og gerdi fullyrdingarnar tomar i
+     hina attina; thess vegna eru BADAR kroefur og staerdin er profud.  */
+  const banner = [...document.querySelectorAll("div")]
+    .filter(el => el.textContent.includes("Never in your XI")
+               && /frees up to £/.test(el.textContent))
+    .sort((a, b) => a.textContent.length - b.textContent.length)[0];
+  ok(!!banner, "bordinn fannst sem afmarkad element i DOM");
+  const seg = banner ? banner.textContent : "";
+  ok(/Never in your XI/.test(seg) && /Haaland/.test(seg) && /frees up to £11\.0/.test(seg),
+     "svaedid ber fyrirsognina OG rodina — ekki tomt, ekki adeins hausinn");
+  ok(seg.length > 120 && seg.length < 1500,
+     `svaedid er bordinn einn (${seg.length} stafir), hvorki brot ne vollurinn`);
   ok(!/Dubravka|Thomas|Hughes/.test(seg),
      "ODYRASTI BEKKJARMADUR ER ALDREI NEFNDUR — ekkert odyrara er til");
-  /* Og talan ma ekki vera 0 — thad vaeri abending an tilgangs. */
   ok(!/frees up to £0\.0/.test(seg), "engin abending sem losar £0,0");
 }
 

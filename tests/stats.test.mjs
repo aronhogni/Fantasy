@@ -792,8 +792,16 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
      heiti sem byrjar a "/" er lesid sem band + heiti — i stad thess ad
      halda undanthagulista, sem myndi stadna.                            */
   {
+    /* NORMALISERAD SAMANBURDUR — HRAR STRENGIR HLEYPTU TVITEKNINGU I GEGN.
+       Sannad 18.8.2026: tvitekning sem var EINGONGU adgreind med
+       AFTANLIGGJANDI BILI (`short:"/90 "`, `label:"Goals per 90 "`) slapp
+       gegnum alla thrja verdina medan hausinn birti "Goals · /90" TVISVAR.
+       Auga notandans ser ekki bilid, svo vordurinn ma thad ekki heldur:
+       bil eru felld saman og klippt af, og samanburdurinn er hastafa-blindur
+       (tveir dalkar sem heita "Shots" og "SHOTS" eru sami hausinn a skja). */
+    const norm = x => String(x ?? "").replace(/\s+/g, " ").trim().toLowerCase();
     const ident = d => { const sh = String(d.short ?? d.label);
-                         return sh.startsWith("/") ? `${d.band} ${sh}` : sh; };
+                         return norm(sh.startsWith("/") ? `${d.band} ${sh}` : sh); };
     const dupOf = (fn) => {
       const m = new Map();
       for (const d of STAT_DEFS) { const k = fn(d); m.set(k, [...(m.get(k) || []), d.key]); }
@@ -804,7 +812,7 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
     const slash = STAT_DEFS.filter(d => String(d.short ?? d.label).startsWith("/"));
     ok(slash.length > 1 && new Set(slash.map(d => d.short)).size < slash.length,
       `"/90" er raunverulega endurtekid haus-heiti (${slash.length} dálkar) — normaliseringin ver eitthvað`);
-    const dupShort = dupOf(ident), dupLabel = dupOf(d => d.label);
+    const dupShort = dupOf(ident), dupLabel = dupOf(d => norm(d.label));
     eq(dupShort.length, 0,
       `ekkert HAUS-heiti tvítekið (band les "/90")${dupShort.length ? " — " + JSON.stringify(dupShort[0]) : ""}`);
     eq(dupLabel.length, 0,
@@ -857,7 +865,20 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
     eq(counts.espn, 8, "allir átta ESPN-dálkarnir bera umferðar-fyrirvarann");
     eq(counts["espn-floor"], 3,
       "og öll ÞRJÚ sem koma úr sama regexi bera 76%-gólfið (var 1 af 3)");
-    ok(counts.per90 >= 20, `/90-fyrirvarinn nær yfir alla ${counts.per90} hlutfalls-dálkana`);
+    /* UTKOMU-FULLYRDING, EKKI GOLF (lagad 18.8.2026).
+       `counts.per90 >= 20` var NAKVAEMLEGA sama lagun og `counts.bsd >= 20`
+       sem thegar hafdi slappt einni stokkbreytingu: dalkarnir eru 22, svo
+       regla sem missir TVO fer i 20 og stenst — og skilabodin prenta tha
+       "naer yfir alla 20", sem er ordid osatt. Golf sem er laegra en
+       thydid maelir ekki thekju. Nu er spurt beint: HVER dalkur sem er
+       hlutfall per 90 verdur ad bera fyrirvarann, hvernig sem reglan er
+       ordud, og listinn er LEIDDUR ur STAT_DEFS en ekki talinn.        */
+    const per90Defs = STAT_DEFS.filter(d => /_per_90$/.test(d.key));
+    ok(per90Defs.length >= 20, `forsenda: ${per90Defs.length} /90-dalkar til ad verja`);
+    const per90Missing = per90Defs.filter(d => !String(d.note).includes("no minutes floor"));
+    eq(per90Missing.length, 0,
+      `hver /90-dalkur ber fyrirvarann (${per90Defs.length} dalkar)`
+      + (per90Missing.length ? ` — vantar: ${per90Missing.map(d => d.key).join(", ")}` : ""));
     /* KONNUNIN SJALF: `FIELDS_READ` verdur ad vera SAMA taflan og `readsFields`
        gefur — vaeri hun byggd fyrir mistok a einu probe-gildi myndu heilar
        greinar hverfa og reglurnar naedu til faerri dalka THOGULT.        */
@@ -1315,12 +1336,32 @@ console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`
   ok(flagged.length > 0, `forsenda: einhver dalkur ber \`no_heat\` (${flagged.length})`);
   ok(flagged.some(d => d.key === "starts_per_90"),
      "starts_per_90 ber hann — dalkurinn an einhalla 'betra'");
+  /* TEXTAPROF DUGDI EKKI OG ThAD VAR SANNAD 18.8.2026.
+     Fyrri utgafa strippadi ADEINS `/* *​/` og leitadi svo ad `no_heat`.
+     Stokkbreyting sem fjarlaegdi `if (d.no_heat) continue;` UR heatScale
+     og setti `// no_heat: viljandi hunsad` i stadinn hélt ollum fjorum
+     fullyrdingunum GRAENUM — fullyrding sem segir sjalf "ekki adeins nefnt
+     i athugasemd" var uppfyllt af athugasemd. Nu er hegdunin maeld:
+     `heatScale` er keyrd og dalkurinn ma EKKI fa kvarda.               */
   const plSrc = readFileSync(new URL("../src/PlayerList.jsx", import.meta.url), "utf8");
-  const noCmt = plSrc.replace(/\/\*[\s\S]*?\*\//g, " ");
-  ok(/\bno_heat\b/.test(noCmt),
-     "PlayerList.jsx LES `no_heat` (ekki adeins nefnt i athugasemd)");
-  ok(/heatScale/.test(noCmt) && noCmt.indexOf("no_heat") > noCmt.indexOf("heatScale"),
-     "lesturinn er inni i `heatScale`-smiðinni, thar sem hann getur haft ahrif");
+  const m = plSrc.match(/const heatScale = useMemo\(\(\) => \{([\s\S]*?)\n  \}, \[/);
+  ok(!!m, "heatScale-smiðin fannst i PlayerList.jsx");
+  if (m) {
+    const body = m[1];
+    const fn = new Function("visibleCols","pinnedKeys","filtered","STAT_BY_KEY",
+      `const m={};${body.replace(/^\s*const m = \{\};/m,"")}\nreturn m;`);
+    /* Tveir dalkar, badir med naegar tolur: annar ber `no_heat`, hinn ekki.
+       Sa merkti ma ekki fa kvarda; hinn VERDUR ad fa hann (annars vaeri
+       fullyrdingin uppfyllt af thvi ad heatScale skilar alltaf tomu).  */
+    const rows = Array.from({ length: 30 }, (_, i) => ({ src: { v: i + 1 } }));
+    const marked   = { key:"m_marked",   no_heat:true,  hi:true, get:p=>p.v };
+    const unmarked = { key:"m_unmarked",               hi:true, get:p=>p.v };
+    let out = null;
+    try { out = fn([marked, unmarked], new Set(), rows, {}); } catch (e) { out = { __err: e.message }; }
+    ok(out && !out.__err, `heatScale keyrdi a tilbunum dolkum${out?.__err ? " — " + out.__err : ""}`);
+    ok(out && out.m_unmarked, "forsenda: OMERKTUR dalkur FAER kvarda (annars maelir naesta ekkert)");
+    ok(out && !out.m_marked, "MERKTUR dalkur (`no_heat`) fær ENGAN kvarda");
+  }
 }
 
 console.log("\n15) `pos` er virt i BADUM lesmatum");

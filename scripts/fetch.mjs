@@ -673,7 +673,14 @@ async function computeDefcon(events, els) {
          = 10` en `pos === 2 ? 10 : 12` gaf theim 12) — merki um ad
          GK-tilfellid hefdi aldrei verid akvedid. Utilokun leysir hvort
          tveggja.                                                        */
-      if (pos === 1) continue;
+      /* ADEINS ThEKKTAR UTILEIKMANNA-STODUR — `pos === 1` EITT DUGDI EKKI.
+         `pos` kemur ur `posOf[id]`, sem er byggt ur bootstrap-`els`. Element
+         sem er i `live/gw*.json` en VANTAR i bootstrap fær `pos === undefined`,
+         slapp gegnum GK-utilokunina, var skorad a `cbirt`-greininni (sömu
+         endurheimta-braut og markmenn) og skrifadist med `position: undefined`
+         — GK-gatid opid aftur um bakdyrnar, og allir slikir i sama `p0`-potti.
+         Nu verdur stadan ad vera ThEKKT utileikmanna-stada.              */
+      if (pos !== 2 && pos !== 3 && pos !== 4) continue;
       /* BYRJANIR, EKKI INNKOMUR — sama leidretting og i sogulega smiðnum.
          `live/gw*.json` ber `starts` beint; an thess taldist hver innkoma
          af bekknum sem tapad taekifaeri og hittnin maeldist ~40% of lag.
@@ -781,6 +788,26 @@ async function computeDefcon(events, els) {
     };
   }
 
+  /* TOM KEYRSLA MA ALDREI ThURRKA UT GODA SKRA (18.8.2026, kafli 8e).
+     `out` verdur TOMT hvenaer sem enginn element ber jakvaett `starts` —
+     t.d. ef `starts` vantar i live-svarinu, ef allir utileikmenn komu af
+     bekknum, eda ef adeins markmenn eru i skranni. Adur skrifadist skrain
+     samt og `record(..., true, 0)` sagdi ad allt vaeri i lagi, svo ein
+     snids-breyting hja FPL hefdi eytt DefCon-sogunni bak vid graent ljos.
+     Fordaemid er `fetch-bsd-teams.mjs`, sem deyr fremur en ad skrifa tomt
+     timabil. Her er thad maetara: vid höldum GOMLU skranni og skraum RAUTT.
+     Fyrsta keyrsla (engin skra til) ma skrifa tomt — thad er upphafsstadan,
+     ekki tap, og forleikur er einmitt sa stadur.                        */
+  if (!out.length) {
+    let had = 0;
+    try { had = (JSON.parse(await readFile(`${DATA}/defcon.json`, "utf8")).players || []).length; }
+    catch { had = 0; }
+    if (had > 0) {
+      record("defcon", false, had,
+        `0 rows built but ${had} are on disk - KEPT the old file (an empty run must never erase good data)`);
+      return;
+    }
+  }
   await writeJSON("defcon.json", { updated: status.updated, players: out, opportunity,
     note: "hit_rate = threshold_hits/starts (RAW — overstates on small samples). hit_rate_adj = (hits + 10*p0)/(starts + 10), p0 = positional mean — USE THAT ONE for display, always with starts beside it. DEF threshold 10 CBIT, MID/FWD 12 CBIRT. defcon_opportunity: defensive workload (higher = more CBIT chances) — a SEPARATE measure from CS%, do not add them together." });
   record("defcon", true, out.length, `${Object.keys(opportunity).length} teams with an opportunity rating`);

@@ -968,11 +968,26 @@ export function priceMovePrediction({ net, selectedByPct, chg }) {
    ============================================================ */
 
 /* Lægsta verð sem er TIL í hverri stöðu, í tíundum. Reiknað úr lauginni. */
-export function priceFloors(players = []) {
+export function priceFloors(players) {
   const f = {};
+  /* EKKI `= []` SJALFGILDI — ThAD VER ADEINS `undefined` (lagad 18.8.2026).
+     `players` i App.jsx er `useState(null)` og memo-an keyrir i HVERRI
+     teikningu, svo `for (const p of null)` kastadi
+     "players is not iterable" — og af thvi ad ErrorBoundary er utan um
+     allt appid for notandinn beint i villuskjainn VID HVERJA HLEDSLU
+     thangad til sokni lauk. Eina utgangan thar EYDIR ollu lidinu,
+     fyrirlidanum, skiptaaaetluninni og chip-unum. Hvorugt profasafnid gat
+     sed thetta: `data-resilience` skrifar aldrei `fpl_planner_v3` og
+     `untrusted-input` gefur heilbrigd gagnaskrar — villan bjo nakvaemlega
+     i bilinu milli theirra.                                             */
+  if (!Array.isArray(players)) return f;
   for (const p of players) {
     const k = p?.element_type, c = Number(p?.now_cost);
-    if (!k || !Number.isFinite(c)) continue;
+    /* `c <= 0` ER NAUDSYNLEGT, EKKI VARFAERNI: `Number(null)` er 0 og
+       `Number("")` er 0, badar standast `isFinite`. Einn leikmadur med
+       `now_cost: null` setti golfid i 0 fyrir ALLA stoduna, sem gerdi
+       undanthaguna gagnslausa OG setningu bordans osanna.               */
+    if (!k || !Number.isFinite(c) || c <= 0) continue;
     if (f[k] == null || c < f[k]) f[k] = c;
   }
   return f;
@@ -982,30 +997,52 @@ export function priceFloors(players = []) {
    í hverri umferð, með plönuðum skiptum og bekkjar-víxlum þegar komið.
    Skilar þeim sem BYRJA ALDREI, fæstu byrjanir fyrst.                  */
 export function neverStarted({ perGw = [], byId = {}, floors = {} } = {}) {
-  if (!perGw.length) return [];
-  const seen = new Map();          // id -> { gws, starts }
-  for (const { squad } of perGw) {
+  if (!Array.isArray(perGw) || !perGw.length) return [];
+  const last = perGw[perGw.length - 1];
+  const lastIds = new Set((last?.squad || []).map(s => s?.id).filter(v => v != null));
+  const seen = new Map();          // id -> { gws:Set, starts }
+  for (const { gw, squad } of perGw) {
     for (const s of squad || []) {
-      const r = seen.get(s.id) || { id: s.id, gws: 0, starts: 0 };
-      r.gws++; if (s.starter) r.starts++;
+      if (!s || s.id == null) continue;
+      const r = seen.get(s.id) || { id: s.id, gws: new Set(), starts: 0 };
+      /* TALID A EINKVAEMUM UMFERDUM, EKKI FAERSLUM (lagad 18.8.2026).
+         Adur var `r.gws++` per fardu i hopnum, svo leikmadur sem var
+         KEYPTUR TVISVAR og seldur tvisvar nadi `gws === perGw.length`
+         thott hann vaeri fjarverandi i fyrstu OG sidustu umferd
+         gluggans — og var thvi flaggadur sem "aldrei notadur" thott
+         aaetlunin seldi hann thegar.                                   */
+      r.gws.add(gw);
+      if (s.starter) r.starts++;
       seen.set(s.id, r);
     }
   }
   const out = [];
   for (const r of seen.values()) {
     if (r.starts > 0) continue;
-    /* Í HÓPNUM ALLA ÁÆTLUNINA — annars er hann þegar á förum og
-       ábendingin væri að segja notandanum það sem hann veit.          */
-    if (r.gws < perGw.length) continue;
+    /* VIDMIDID ER SIDASTA UMFERD GLUGGANS, EKKI FULL THEKJA.
+       Gamla reglan (`gws < perGw.length` -> sleppa) atti ad utiloka thann
+       sem er A FORUM, en hun utilokadi lika thann sem er AD KOMA — og
+       "thu aetlar ad KAUPA hann og aldrei spila honum" er verdmaetasta
+       utgafa thessarar abendingar. Maelt: kaup i GW1 + bekkur = flaggad,
+       nakvaemlega somu kaup i GW2 = THOGN. Ny regla: hann verdur ad vera
+       i hopnum i SIDUSTU umferd gluggans (sa sem er seldur er thad ekki)
+       og hafa verid thar i minnst tveimur umferdum (ein umferd er ekki
+       vitnisburdur um "aldrei").                                       */
+    if (!lastIds.has(r.id)) continue;
+    if (r.gws.size < 2) continue;
     const p = byId[r.id];
     if (!p) continue;
+    const price = Number(p.now_cost);
+    /* OMAELD TALA FAER ENGA ABENDINGU: `now_cost` sem er ruslstrengur gaf
+       `freesTenths: NaN` og bordinn prentadi "frees up to £NaN".        */
+    if (!Number.isFinite(price) || price <= 0) continue;
     const floor = floors[p.element_type];
-    /* ÓDÝRASTI BEKKJARMAÐUR: ekkert ódýrara er til, svo salan losar
-       ekkert fé. Hann Á að sitja — það er hlutverkið.                 */
-    if (floor != null && Number(p.now_cost) <= floor) continue;
-    out.push({ id: r.id, gws: r.gws, starts: 0,
-               freesTenths: Number(p.now_cost) - (floor ?? Number(p.now_cost)) });
+    /* VITUM VID EKKI GOLFID GETUM VID EKKI BEITT UNDANThAGUNNI — og an
+       hennar vaeri abendingin "losar £0,0", tillaga an tilgangs.        */
+    if (floor == null) continue;
+    if (price <= floor) continue;   // odyrasti bekkjarmadur: ekkert losnar
+    out.push({ id: r.id, gws: r.gws.size, starts: 0, freesTenths: price - floor });
   }
-  /* Mest fé fyrst — það er stærðin sem ákvörðunin snýst um.           */
+  /* Mest fe fyrst — thad er staerdin sem akvordunin snyst um.           */
   return out.sort((a, b) => b.freesTenths - a.freesTenths || a.id - b.id);
 }

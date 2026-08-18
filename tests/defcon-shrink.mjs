@@ -254,19 +254,54 @@ console.log("─".repeat(84));
     els: [{ id:5, element_type:2 }],
   });
   const r5 = (w2?.obj?.players ?? []).find(r => r.fpl_id === 5);
-  ok(r5 == null || r5.starts === 0 || r5.starts === undefined
-       ? true : r5.starts <= 6,
-     "bekkjar-madur bloes ekki upp nefnarann");
+  /* FYRSTA UTGAFAN VAR TAUTOLOGIA OG VAR AFHJUPUD 18.8.2026:
+       ok(r5 == null || r5.starts === 0 || r5.starts === undefined ? true
+          : r5.starts <= 6, "bekkjar-madur bloes ekki upp nefnarann")
+     `||` bindur fastar en `?:`, svo thetta var `(A||B||C) ? true : ...` og
+     eina leidin ad `false` var `starts > 6` — i profi sem hefur SEX
+     umferdir, svo mork falska greinarinnar VORU hamark gagnanna.
+     Stokkbreytingin sem hun heitir eftir (innkomur taldar sem byrjanir
+     aftur) skildi eftir `r5` med `starts: 6, hits: 3` og hun helst GRAEN.
+     Nu er hun tvihlida og bein: madur sem byrjar ALDREI a enga rod, og
+     til samanburdar er madur sem BYRJAR med rod og rettan nefnara.     */
   ok(r5 == null, "leikmadur sem BYRJADI ALDREI fær enga rod (0 af 6 innkomum)");
+  {
+    const { written: w3 } = await runDefcon({
+      gwMetrics: { 5: [12,12,12,0,0,0] },        // sami madur, EN byrjar
+      els: [{ id:5, element_type:2 }],
+    });
+    const r = (w3?.obj?.players ?? []).find(x => x.fpl_id === 5);
+    ok(r != null, "forsenda: sami madur BYRJANDI fær rod");
+    ok(r && r.starts === 6, `nefnarinn er 6 byrjanir, ekki fleiri (${r?.starts})`);
+    ok(r && r.threshold_hits === 3, `3 af 6 yfir throskuldi (${r?.threshold_hits})`);
+  }
 }
 
 /* Og ad reglurnar seu i pipeline-kodanum sjalfum, ekki adeins i profinu. */
 {
   const body = src.slice(start, end);
-  ok(/pos === 1\)\s*continue|pos === 1\) continue/.test(body.replace(/\s+/g, " "))
-     || /if \(pos === 1\)/.test(body),
-     "GK-utilokunin er i computeDefcon (ekki adeins i profinu)");
+  ok(/pos !== 2 && pos !== 3 && pos !== 4/.test(body),
+     "utilokunin krefst ThEKKTRAR utileikmanna-stodu (ekki adeins pos === 1)");
   ok(/st\.starts/.test(body), "byrjana-hlidid les `starts`, ekki adeins minutur");
+}
+
+/* STADA SEM VANTAR MA EKKI OPNA GK-GATID UM BAKDYRNAR (18.8.2026).
+   `pos` kemur ur `posOf[id]`, byggt ur bootstrap-`els`. Element sem er i
+   live-skranni en VANTAR i bootstrap fekk `pos === undefined`, slapp gegnum
+   `pos === 1`-utilokunina og var skorad a `cbirt`-greininni — somu
+   endurheimta-braut og markmenn, sem er einmitt thad sem lokad var fyrir. */
+{
+  const { written } = await runDefcon({
+    gwMetrics: { 42: [0,0,0,0,0,0], 2: [12,12,12,12,12,12] },
+    recov: { 42: 14 },
+    els: [{ id: 2, element_type: 2 }],     // 42 VANTAR viljandi i els
+  });
+  const rows = written?.obj?.players ?? [];
+  ok(rows.some(r => r.fpl_id === 2), "forsenda: thekktur utileikmadur er skrifadur");
+  ok(!rows.some(r => r.fpl_id === 42),
+     "element an stodu i bootstrap fær ENGA rod (GK-brautin er lokud)");
+  ok(rows.every(r => [2,3,4].includes(r.position)),
+     "engin rod med ohreinni/vantandi stodu");
 }
 
 /* _PER_90 — MAELT A HEGDUN, EKKI A TEXTA.

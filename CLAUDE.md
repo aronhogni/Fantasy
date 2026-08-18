@@ -1060,3 +1060,35 @@ i `docs/MAELINGAR.md`; reglurnar sem leiða af theim eru hér:
 > **Fullyrðing sem getur ekki greint tvær formúlur í sundur mælir hvoruga.**
 > Verðir: `defcon-shrink.mjs` kafli 6 (29 fullyrðingar, þrjár stökkbreytingar
 > staðfestar).
+
+
+---
+
+## 13. TVÆR REGLUR ÚR ANDSTÆÐU-PRÓFUN (18.8.2026)
+
+**SJÁLFGILDI Í FALLI VER AÐEINS `undefined`, EKKI `null`.**
+`function f(xs = [])` gerir ekkert þegar kallandinn sendir `null` — og
+React-state sem bíður eftir neti er `null`, ekki `undefined`. `priceFloors`
+kastaði þess vegna `TypeError` í hverri teikningu hjá hverjum notanda sem
+hafði planað eitthvað, og af því að `ErrorBoundary` liggur utan um allt appið
+var **eina útgangan sú að eyða öllu liðinu**. Mælt: 0–1 ms töf á sókn
+teiknast, **5 ms og upp úr hrynur** — enginn vafri nær GitHub raw undir 5 ms.
+Notaðu `Array.isArray(...)` þegar inntakið kemur úr state.
+
+> **OG HVORUGT ÞOLPRÓFA-SAFNIÐ GAT SÉÐ ÞETTA.** `data-resilience.mjs` skrifar
+> aldrei `fpl_planner_v3`; `untrusted-input.mjs` gefur heilbrigð gagnaskrár.
+> Villa sem þarf **vistað ástand OG hæga sókn í einu** bjó nákvæmlega í bilinu
+> á milli þeirra. Nýr kóði sem les hvort tveggja á að prófast á báðum ásum.
+
+**`||` BINDUR FASTAR EN `?:` — OG ÞANNIG VERÐUR FULLYRÐING AÐ TAUTÓLÓGÍU.**
+`ok(A || B || C ? true : x <= 6, "...")` er `(A||B||C) ? true : ...`, svo hún
+getur aðeins fallið á `x > 6` — í prófi þar sem `x` getur ekki farið yfir 6.
+Sömu lotu bættust við fjórar aðrar fullyrðingar sem gátu ekki fallið:
+textaleit sem **athugasemd uppfyllti** (`//` var ekki strippað), einkvæmni sem
+**aftanliggjandi bil** slapp gegnum, `>= 20` gólf á **22** dálkum, og 400-stafa
+gluggi sem var 22 stöfum frá tómi. Sjá `docs/MAELINGAR.md` 18.8.2026.
+
+> **PRÓFAÐU FULLYRÐINGUNA, EKKI BARA KÓÐANN:** stökkbreyttu því sem hún segist
+> verja og gakktu úr skugga um að hún FALLI. Fullyrðing sem stenst
+> stökkbreytinguna sem hún heitir eftir er verri en engin, því hún lítur út
+> eins og þekja.

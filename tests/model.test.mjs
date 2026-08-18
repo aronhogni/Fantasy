@@ -794,6 +794,53 @@ console.log("\n=== ThU NOTAR HANN ALDREI (neverStarted) ===");
   ok(!neverStarted({ perGw: perGw3, byId, floors }).some(r => r.id === 4),
      "leikmadur sem hverfur ur hopnum i midri aaetlun er ekki flaggadur");
 
+  /* ---- HERT 18.8.2026 eftir andstaedu-profun ----------------------- */
+
+  /* SA SEM ER KEYPTUR INN OG ALDREI SPILAD — VERDMAETASTA TILFELLID.
+     Gamla reglan (`gws < perGw.length` -> sleppa) atti ad utiloka thann
+     sem er A FORUM en utilokadi lika thann sem er AD KOMA: kaup i GW1 +
+     bekkur var flaggad, NAKVAEMLEGA somu kaup i GW2 voru THOGN.        */
+  const arrive = [5,6,7,8,9,10].map((gw,i) => ({ gw,
+    squad: i === 0 ? [{id:5,starter:true}] : [{id:5,starter:true},{id:4,starter:false}] }));
+  ok(neverStarted({ perGw: arrive, byId, floors }).some(r => r.id === 4),
+     "keyptur i 2. umferd gluggans og aldrei spilad -> FLAGGADUR");
+
+  /* SA SEM ER SELDUR I LOK GLUGGANS ER ThAD EKKI — og tvitekin id-
+     faersla ma ekki lauma honum inn. Adur taldi `gws++` faerslur, svo
+     madur sem var keyptur TVISVAR nadi fullri thekju thott hann vaeri
+     fjarverandi i sidustu umferd.                                     */
+  const sold = [5,6,7,8,9,10].map((gw,i) => ({ gw,
+    squad: i >= 4 ? [{id:5,starter:true}]
+                  : [{id:5,starter:true},{id:4,starter:false},{id:4,starter:false}] }));
+  ok(!neverStarted({ perGw: sold, byId, floors }).some(r => r.id === 4),
+     "seldur fyrir lok gluggans -> EKKI flaggadur (tvitekid id bjargar honum ekki)");
+
+  /* OMAELD TALA FAER ENGA ABENDINGU — "frees up to £NaN" var a skjanum. */
+  const junk = { ...byId, 9: { id:9, element_type:3, now_cost:"mikid" } };
+  const jr = neverStarted({ perGw: [5,6,7].map(gw=>({gw,squad:[{id:9,starter:false},{id:5,starter:true}]})),
+                            byId: junk, floors });
+  ok(jr.every(r => Number.isFinite(r.freesTenths)), "ekkert NaN i freesTenths");
+  ok(!jr.some(r => r.id === 9), "leikmadur med ruslverd er ekki flaggadur");
+
+  /* NULL-VERD I LAUGINNI MA EKKI SETJA GOLFID I 0 — `Number(null)` er 0
+     og stodst `isFinite`, svo EINN slikur eyðilagdi undanthaguna fyrir
+     ALLA stoduna og gerdi setningu bordans osanna.                     */
+  const f2 = priceFloors([{element_type:2,now_cost:null},{element_type:2,now_cost:40},
+                          {element_type:2,now_cost:55}]);
+  eq(f2[2], 40, "null-verd hunsad; golfid helst 40, ekki 0");
+
+  /* THRIGGJA UMFERDA LAGMARKID — ENGIN FULLYRDING VARDI ThAD (18.8.2026).
+     `App.jsx` sleppir gluggum styttri en 3 ("aldrei" um eina umferd er
+     ekki upplysing), en stokkbreyting ur `< 3` i `< 0` var GRAEN i ollum
+     61 safninu. Reglan sjalf byr her: tveggja-umferda vera er lagmark, og
+     glugga-lagmarkid er profad ThAR SEM ThAD ER TEKID.                */
+  const twoGw = [5,6].map(gw => ({ gw, squad: sq([5]) }));
+  ok(neverStarted({ perGw: twoGw, byId, floors }).some(r => r.id === 4),
+     "tveggja umferda vera DUGAR i modelinu (glugga-lagmarkid er i App.jsx)");
+  const oneGw = [{ gw: 5, squad: sq([5]) }];
+  ok(!neverStarted({ perGw: oneGw, byId, floors }).length,
+     "EIN umferd flaggar engan — 'aldrei' um eina umferd er ekki vitnisburdur");
+
   /* TOM AAETLUN SEGIR EKKERT — hun ma ekki flagga ollum. */
   eq(neverStarted({ perGw: [], byId, floors }).length, 0, "tom aaetlun -> ekkert flagg");
   /* Og an golfs (tom laug) ma hun ekki hrynja. */

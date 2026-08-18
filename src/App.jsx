@@ -1246,15 +1246,26 @@ export default function App() {
        Án þessa væri ábendingin sjálfgefin: ósnertur bekkur „byrjar aldrei"
        í hverri umferð, svo appið hefði bent á sölu áður en notandinn gerði
        nokkuð — og fullyrðingin „þú ætlar aldrei að spila honum" væri þá
-       ekki hans ákvörðun heldur sjálfgefna stillingin. Beiðnin var
-       skýr um þetta: „þegar ég er BÚINN AÐ STILLA UPP liði fyrir næstu
-       5-6 umferðir". Bekkjar-víxl eða skipti innan gluggans dugar.     */
-    const planned = plan.some(t => t.gw >= gw && t.gw <= to)
-                 || gws.some(x => (benchSwaps[x.gw] || []).length > 0);
+       ekki hans ákvörðun heldur sjálfgefna stillingin.
+
+       HLIÐIÐ VAR OF ÓDÝRT OG ÞAÐ VAR MÆLT (18.8.2026). Áður nægði að EIN
+       bekkjar-víxl-færsla væri til í einni umferð. Þá dugðu bæði
+       `[[411,411]]` (víxl við sjálfan sig, sannanleg núll-aðgerð) og
+       `[[999998,999999]]` (id sem eru hvergi til) til að borðinn segði
+       „You have planned 6 gameweeks" þegar notandinn hafði plantað engu.
+       Nú er spurt hvort BYRJUNARLIÐIÐ SÉ RAUNVERULEGA ANNAÐ en sjálfgefna
+       uppstillingin — færsla sem breytir engu telst ekki plönun.        */
+    const baseStart = new Set((squadOverride || START_SQUAD)
+      .filter(s => s.starter).map(s => s.id));
+    const changed = gws.some(({ squad }) => {
+      const st = squad.filter(s => s.starter).map(s => s.id);
+      return st.length !== baseStart.size || st.some(id => !baseStart.has(id));
+    });
+    const planned = changed || plan.some(t => t.gw >= gw && t.gw <= to);
     if (!planned) return { rows: [], from: gw, to, idle: true };
     return { rows: neverStarted({ perGw: gws, byId, floors: priceFloors(players) }),
              from: gw, to };
-  }, [squadForGw, gw, maxGw, byId, players, plan, benchSwaps]);
+  }, [squadForGw, gw, maxGw, byId, players, plan, benchSwaps, squadOverride]);
 
   const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt]);
   /* ThRJAR NAESTU UMFERDIR fyrir spjaldid — fylking PER UMFERD (tom = auð,
@@ -2279,8 +2290,8 @@ export default function App() {
                 {"Never in your XI — GW"}{unusedPlan.from}–{unusedPlan.to}
               </div>
               <div style={{ ...S.muted, marginBottom:6 }}>
-                {"You have planned "}{unusedPlan.to - unusedPlan.from + 1}
-                {" gameweeks and these players start in none of them. Selling one frees the money shown — the cheapest bench player at each position is left out, because nothing cheaper exists."}
+                {"Looking at the next "}{unusedPlan.to - unusedPlan.from + 1}
+                {" gameweeks as you have them set up, these players start in none of them. Selling one frees the money shown — the cheapest bench player at each position is left out, because nothing cheaper exists."}
               </div>
               {unusedPlan.rows.map(r => {
                 const p = byId[r.id];
