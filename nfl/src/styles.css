@@ -278,6 +278,11 @@ table.data tbody tr:hover td.frozen { background: #1b1f28; }
 }
 
 .tierline td { border-top: 2px solid var(--accent); }
+/* Skilin thar sem VBD fer undir null — sja notuna i `BoardTable`.
+   Strikad og i vidvorunarlit svo thad lesist ekki eins og threpalina:
+   threpalina segir "haerna eru skiptanlegir", thessi segir "haerna
+   haettir talan ad svara somu spurningu". */
+.vbdzero td { border-top: 2px dashed var(--warn); }
 
 .bar { height: 5px; border-radius: 3px; background: var(--accent); display: inline-block; vertical-align: middle; }
 

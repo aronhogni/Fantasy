@@ -3418,6 +3418,84 @@ Frank Gore.
 
 ---
 
+## 6j. A-RANKING MEÐDDAR VIÐ VARAMANN — og línan var ekki dregin, 18.8.2026
+
+Borðið ber **557 menn** og draftið er **150 val**, en aðeins **78 hafa POSITÍFT
+VBD** (mælt 18.8.2026, 10-liða PPR). Frá röð ~79 og niður er röðin því
+**„minnst negatíft VBD"** — og það svarar **annarri spurningu** en efri
+helmingurinn:
+
+| | merking |
+|---|---|
+| `VBD > 0` | hversu miklu **betri** en maðurinn sem er **frír** á hans stöðu |
+| `VBD < 0` | hversu miklu **verri** en maðurinn sem er frír á hans stöðu |
+
+Neðan við núllið er samanburður **milli** staða enn reiknanlegur en hann er ekki
+lengur ákvörðunin sem hann var: þú myndir hvorugan **byrja**. Að bera −16 (WR)
+við −20 (TE) er formlega sama reikningur og að bera +90 við +80, og hann er
+prentaður **eins letraður** — en hann ber ekki sama vægi.
+
+**OG MÆLINGIN HEFUR NÆSTUM EKKERT VALD ÞARNA, ÞAÐ ER ÞAÐ SEM SKIPTIR MÁLI.**
+`accuracy.js` draftar 14 umferðir en skorar á **`startersPoints`** — byrjunarliði
+einu. Bekkjarval skorar **0** nema það komist í liðið. Fullyrðingin „+233,6 gegn
+ADP, vinnur öll fimm árin" er þess vegna nær eingöngu um **fyrstu ~7 umferðir**.
+Talan í röð 120 er ekki röng; hún er **minna mæld**, og skjárinn sagði það ekki.
+
+**RÖÐIN HAGGAST EKKI — HÚN ER FRYST OG HÚN ER MÆLD.** Þetta er **birting**:
+strikuð lína (`.vbdzero`, gulur í stað `--accent` svo hún lesist ekki eins og
+þrepalína) á fyrstu röð með `vbd <= 0`, og **setning sem segir töluna**: „N of
+these 200 are above replacement… the backtest that justifies this order scores
+**starters only**, so it has almost no power down there."
+
+**Vörður: `render.mjs` kafli 2** — þekjan fyrst (borðið **verður** að bera bæði
+positíft og negatíft VBD, annars eru engin skil til að draga), **nákvæmlega ein**
+lína merkt, hún liggur á fyrsta non-positífa VBD og röðin fyrir ofan er enn
+positíf, og **talan í setningunni er talan í töflunni**. Þrjár stökkbreytingar
+felldar: klasinn tekinn út, **hver** negatíf röð merkt (litur í stað skila), og
+talan í setningunni skipt út.
+
+> **OG SÚ SÍÐASTA FULLYRÐING FELLDI MITT EIGIÐ PRÓF FYRST, ÁÐUR EN HÚN VARÐ
+> VÖRÐUR.** Fyrsta útgáfan las `querySelectorAll("table.data tbody tr")`, sem
+> tekur **líka** rökstuðningstöfluna inni í `<details>` — þar sem `td[4]` er
+> „Next best", ekki VBD. Fimm positífar tölur úr **rangri töflu** gáfu 99 þar
+> sem borðið bar 94, og fullyrðingin „talan í setningunni er talan í töflunni"
+> **féll**. Taflan er nú tekin úr **sömu `.tablewrap`** og setningin, svo þær
+> geta ekki lesið sitthvora töflu. Fullyrðingin er þannig vörður um viðmótið
+> **og um sjálfa sig**.
+
+### `sos`-nótan lofaði stöðu-sundurliðun sem er ekki til
+
+Nótan sagði *„Meðal vænt stigaskor andstæðinganna **gegn hans stöðu**"*. Talan
+er það ekki. `buildSos` skilar `t.allowed` úr `market.json` — vænt stigaskor
+andstæðinganna gegn **liðinu**, ein tala per lið.
+
+**Mælt 18.8.2026:** allar **30 ARI-raðirnar** (QB, RB, WR, TE, K, DST) bera
+**sama gildið 26,97**, og **0 af 32 liðum** bera fleiri en eitt gildi. Engin
+stöðu-sundurliðun er reiknuð, hvorki í `build.js` né í pipeline.
+
+Orðalagið „gegn hans stöðu" er úr **`DEF_WEIGHT`** (vörn gegn stöðu), sem er
+**vikulegi** líkansþátturinn og lifir annars staðar. Nótan hafði tekið orðin að
+láni og lofað þar með tölu sem er ekki í dálkinum — nákvæmlega „birt tala sem
+ekkert bakar upp". Nótan segir nú **„LIÐS-TALA"** berum orðum, bæði fyrir `sos`
+og `playoffSos`.
+
+**Vörður: `pipeline.mjs`**, í báðar áttir — (a) talan **er** liðs-tala (þekjan
+fullyrt: hvert lið verður að bera ≥3 stöður, annars væri „eitt gildi per lið"
+satt af tómum ástæðum), og (b) nótan má ekki bera loforðið aftur. Væri
+stöðu-sundurliðun einhvern tíma reiknuð á (a) að **falla og verða skoðað**, ekki
+þagna.
+
+**ÓLAGFÆRT OG ÞAÐ ER ÁKVÖRÐUN:** `hi: false` (lægra er betra) er **rétt fyrir
+DST** — vörn vill fá á sig lítið — en fyrir **sóknarmann** er há andstæðingslína
+oft **skothríð** og því **gott**. Sami dálkur ber því tvær áttir og myndin er
+villandi fyrir aðra þeirra (`compare-visual`-lærdómurinn úr FPL-verkefninu:
+*„villandi mynd er verri en engin mynd"*). Að snúa honum væri hins vegar
+fullyrðing sem enga mælingu hefur, og mæld áhrif dálksins eru **0,13% í RMSE**.
+Rétta röðin er **mæling fyrst** — hún á að spyrja hvort `hi` eigi að fylgja
+stöðu — og hún bíður tímabilsins. Skráð hér svo hún þagni ekki.
+
+---
+
 ## 6d. Vistað ástand og Sleeper-tengingin — 10.8.2026
 
 ### Vistað ástand er alvarlegra en vantandi gögn

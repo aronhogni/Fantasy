@@ -1477,5 +1477,65 @@ console.log("\nESPN-sentinel verdur aldrei markadsverd");
   }
 }
 
+/* ============================================================
+   `sos` MA EKKI LOFA STODU-SUNDURLIDUN SEM ER EKKI TIL
+   ============================================================
+   Notan sagdi "medal vaent stigaskor andstaedinganna GEGN HANS STODU".
+   MAELT 18.8.2026: allar 30 ARI-radirnar (QB..DST) bera sama gildid og
+   **0 af 32 lidum** bera fleiri en eitt. Ordalagid var tekid ad lani
+   ur `DEF_WEIGHT` (vikulegi thatturinn) og lofadi tolu sem er hvergi
+   reiknud.
+
+   ThETTA ER PROFAD I BADAR ATTIR: (a) talan ER lids-tala — se stodu-
+   sundurlidun einhvern tima reiknud a thetta ad falla og verda skodad,
+   ekki thagna; (b) notan ma ekki bera loforðið aftur.               */
+console.log("\n`sos` er lids-tala og notan segir thad");
+{
+  const need = ["players.json", "schedule.json", "market.json"];
+  if (!need.every((f) => existsSync(path.join(DATA, f)))) {
+    console.log("  (gagnaskra vantar)");
+  } else {
+    const rd = (f) => JSON.parse(readFileSync(path.join(DATA, f), "utf8"));
+    const { buildRows } = await import("../src/build.js");
+    const { COL } = await import("../src/columns.js");
+    const { rows } = buildRows({
+      players: rd("players.json"), schedule: rd("schedule.json"),
+      market: rd("market.json"),
+      league: { teams: 10, scoring: "ppr", rounds: 15,
+                starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+                superflex: false, maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } },
+    });
+    const withSos = rows.filter((r) => r.sos != null && r.team);
+    ok(withSos.length > 300, `ThEKJA: ${withSos.length} radir bera sos`);
+    const byTeam = new Map();
+    for (const r of withSos) {
+      if (!byTeam.has(r.team)) byTeam.set(r.team, new Set());
+      byTeam.get(r.team).add(r.sos);
+    }
+    ok(byTeam.size >= 30, `ThEKJA: ${byTeam.size} lid i talningunni`);
+    /* Og hvert lid verdur ad bera FLEIRI EN EINA stodu, annars vaeri
+       "eitt gildi per lid" satt af tomum astaedum. */
+    const posPerTeam = new Map();
+    for (const r of withSos) {
+      if (!posPerTeam.has(r.team)) posPerTeam.set(r.team, new Set());
+      posPerTeam.get(r.team).add(r.pos);
+    }
+    ok([...posPerTeam.values()].every((s) => s.size >= 3),
+      `ThEKJA: hvert lid ber >=3 stodur (min ${Math.min(...[...posPerTeam.values()].map((s) => s.size))})`);
+    const multi = [...byTeam.entries()].filter(([, s]) => s.size > 1);
+    ok(multi.length === 0,
+      `(a) sos er EIN tala per lid (${multi.length} lid med fleiri: ${
+        multi.slice(0, 3).map(([t, s]) => `${t}:${s.size}`).join(", ") || "engin"})`);
+
+    /* (b) notan ma ekki lofa sundurlidun sem (a) segir ad se ekki til. */
+    for (const key of ["sos", "playoffSos"]) {
+      const n = COL[key].note;
+      ok(!/gegn hans stodu/i.test(n),
+        `(b) ${key}-notan lofar ekki "gegn hans stodu"`);
+      ok(/lids-tala/i.test(n), `og hun segir berum ordum ad thetta se lids-tala`);
+    }
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

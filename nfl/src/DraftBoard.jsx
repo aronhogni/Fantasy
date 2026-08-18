@@ -743,8 +743,41 @@ function ScarcityBar({ scarcity, league }) {
    ============================================================ */
 function BoardTable({ rows, onTake, reach, nextOwn }) {
   const has = reach && reach.size > 0;
+  /* ============================================================
+     HVAR VBD FER UNDIR NULL — OG HVERS VEGNA ThAD MA SJAST
+     ============================================================
+     Bordid ber 557 menn og draftid er 150 vol, en **adeins 78 hafa
+     POSITIFT VBD** (maelt 18.8.2026, 10-lida PPR). Fra rod ~79 og nidur
+     er rodin thvi "minnst negatift VBD" — og thad er ONNUR SPURNING en
+     efri helmingurinn svarar:
+
+       VBD > 0  "hversu miklu betri en madurinn sem er FRIR a hans stodu"
+       VBD < 0  "hversu miklu VERRI en madurinn sem er frir a hans stodu"
+
+     Nedan vid nullid er samanburdur milli stoda enn REIKNANLEGUR en
+     hann er ekki lengur akvordunin sem hann var: thu myndir hvorugan
+     BYRJA. Og maelingin sem rettlaetir rodina (+233,6 gegn ADP,
+     `accuracy.js`) er skorud a BYRJUNARLIDINU — bekkjarval skorar 0
+     nema thad komist i lidid — svo hun hefur naestum ekkert vald a
+     thessu bili. Talan er ekki rong; hun er MINNA MAELD.
+
+     ThVI ER LINAN DREGIN OG SOGD. Rodin haggast EKKI (hun er fryst og
+     hun er maeld); thetta er BIRTING, nakvaemlega eins og threpalinurnar
+     hja hlidinni. Ad thegja um skilin vaeri ad birta tvo olikar
+     merkingar i somu dalki, eins letradar — sem er sama aett og
+     "ofullkomin tala fullyrdir ekki".                              */
+  const negFrom = rows.findIndex((r) => r.vbd != null && r.vbd <= 0);
   return (
     <div className="tablewrap">
+      {negFrom > 0 && (
+        <div className="dim" style={{ fontSize: 11.5, padding: "6px 9px 0" }}>
+          <b>{negFrom}</b> of these {rows.length} are above replacement. Below the
+          marked line VBD is <b>negative</b> — those are bench picks, and comparing
+          them <i>across</i> positions means much less: you would not start either
+          one. The backtest that justifies this order scores <b>starters only</b>, so
+          it has almost no power down there. The order is unchanged; the line is not.
+        </div>
+      )}
       {/* Skyringin er SKILYRT vid ad liturinn se raunverulega a. Fost
           skyring undir toflu an lita vaeri fullyrding um merki sem er
           ekki thar — og hun vaeri thogul, thvi hun les eins hvort sem
@@ -780,7 +813,13 @@ function BoardTable({ rows, onTake, reach, nextOwn }) {
           {rows.map((r, i) => {
             const brk = i > 0 && rows[i - 1].tier !== r.tier;
             const p = reach ? reach.get(r.id) : undefined;
-            const cls = [brk ? "tierline" : "", reachClass(p)]
+            /* `i === negFrom` og ekki `r.vbd <= 0`: linan er EITT skil,
+               ekki litur a hverri rod thar nidur. Skilyrdid `> 0` ver
+               tilfellid thar sem ENGINN er yfir varamanni (tha er engin
+               skil ad draga — allt bordid er undir og linan efst vaeri
+               fullyrding um bil sem er ekki thar). */
+            const cls = [brk ? "tierline" : "", reachClass(p),
+                         negFrom > 0 && i === negFrom ? "vbdzero" : ""]
               .filter(Boolean).join(" ");
             return (
               <tr key={r.id} className={cls}>

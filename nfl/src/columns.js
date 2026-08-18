@@ -121,10 +121,30 @@ export const COLUMNS = [
     note: "Vegin samsetning sendingahlutfalls og loftyarda-hlutfalls. Nær hlutverki betur en hvorugt eitt." },
 
   /* ---------- adstaedur ---------- */
+  /* ============================================================
+     NOTAN LOFADI SUNDURLIDUN SEM ER EKKI TIL — LEIDRETT 18.8.2026
+     ============================================================
+     Her stod "Medal vaent stigaskor andstaedinganna GEGN HANS STODU".
+     Talan er ThAD EKKI. `buildSos` skilar `t.allowed` ur `market.json`
+     — vaent stigaskor andstaedinganna gegn LIDINU, ein tala per lid.
+     MAELT: allar 30 ARI-radirnar (QB, RB, WR, TE, K, DST) bera SAMA
+     gildid 26,97, og **0 af 32 lidum** bera fleiri en eitt gildi.
+     Engin stodu-sundurlidun er reiknud, hvorki her ne i pipeline.
+
+     "Gegn hans stodu" er orðalag ur `DEF_WEIGHT` (vorn gegn stodu),
+     sem er VIKULEGI likansthatturinn og lifir annars stadar. Notan
+     hafdi tekid ordin ad lani og lofad thar med tolu sem er ekki i
+     dalkinum — nakvaemlega "birt tala sem ekkert bakar upp".
+
+     VARNAGLI SEM STENDUR OLAGFAERDUR OG ER SKJALADUR I README 6j:
+     `hi: false` (laegra er betra) er RETT fyrir DST — vorn vill fa a
+     sig litid — en fyrir sóknarmann er ha andstaedings-lina oft
+     SKOTHRID og thvi GOTT. Ad snua honum vaeri fullyrding sem enga
+     maelingu hefur; ahrifin eru hvort sem er 0,13% i RMSE.          */
   { key: "sos", label: "Strength of schedule", short: "SoS", band: "Context", hi: false,
-    note: "Medal vaent stigaskor andstaedinganna gegn hans stodu. VARNAGLI: maeld ahrif eru ORSMA (0,13% i RMSE) — thetta radar ekki, thad brytur jofn tilvik." },
+    note: "Medal vaent stigaskor andstaedinganna gegn LIDINU, ur vedbankalinum. LIDS-TALA: hvert svid a lidinu ber sama gildid og ENGIN stodu-sundurlidun er reiknud. VARNAGLI: maeld ahrif eru ORSMA (0,13% i RMSE) — thetta radar ekki, thad brytur jofn tilvik." },
   { key: "playoffSos", label: "Playoff SoS (wk 15-17)", short: "PO SoS", band: "Context", hi: false,
-    note: "Sama fyrir vikur 15-17 thar sem fantasy-urslitakeppnin er. Sami varnagli gildir." },
+    note: "Sama lids-tala fyrir vikur 15-17 thar sem fantasy-urslitakeppnin er. Sami varnagli gildir, og hun er ekki sundurlidud eftir stodu heldur." },
   { key: "depth", label: "Depth chart spot", short: "Depth", band: "Context", hi: false,
     note: "Saeti a dyptartoflu Sleeper. 1 = byrjar." },
   { key: "injury", label: "Injury status", short: "Status", band: "Context", type: "text",

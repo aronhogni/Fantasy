@@ -230,6 +230,62 @@ console.log("\n2. draft-flipinn");
     }
   }
 
+  /* ============================================================
+     SKILIN ThAR SEM VBD FER UNDIR NULL — LESID AF SKJANUM
+     ============================================================
+     Bordid ber ~557 menn og draftid er 150 vol, en adeins ~78 hafa
+     POSITIFT VBD. Fra thvi marki nidur er rodin "minnst negatift VBD",
+     sem svarar ANNARRI spurningu en efri helmingurinn — og maelingin
+     sem rettlaetir rodina er skorud a BYRJUNARLIDINU, svo hun hefur
+     naestum ekkert vald thar. Linan er BIRTING; rodin haggast ekki.
+
+     ThEKJAN ER FULLYRT FYRST: bordid VERDUR ad bera bædi positift og
+     negatift VBD, annars er "linan er a rettum stad" fullyrding um
+     skil sem eru ekki til.                                          */
+  {
+    /* ============================================================
+       TAFLAN ER VALIN UT FRA SETNINGUNNI, EKKI "table.data"
+       ============================================================
+       FYRSTA UTGAFA ThESSA KAFLA VAR ROng OG PROFID SAGDI ThAD:
+       `querySelectorAll("table.data tbody tr")` tekur LIKA rokstudnings-
+       toflunna inni i <details>, thar sem `td[4]` er "Next best" og ekki
+       VBD. Fimm positifar tolur ur RANGRI toflu skekktu talninguna i 99
+       medan bordid bar 94 — og fullyrdingin "talan i setningunni er
+       talan i toflunni" felldi thad. Hun er thvi ekki bara vordur um
+       vidmotid heldur um sjalfa sig.
+
+       Taflan er nu tekin UR SOMU `.tablewrap` og setningin, svo thaer
+       geta ekki lesid sitthvora toflu.                              */
+    const cap = [...document.querySelectorAll(".tablewrap > div")]
+      .find((d) => /above replacement/i.test(d.textContent || ""));
+    ok(cap != null, "skilin eru SOGD i texta, ekki bara teiknud");
+    const board = cap ? cap.parentNode.querySelector("table.data") : null;
+    ok(board != null, "og setningin situr i somu umgjord og bordid");
+    const cells = [...(board ? board.querySelectorAll("tbody tr") : [])]
+      .map((tr) => ({ tr, v: Number((tr.querySelectorAll("td")[4] || {}).textContent) }))
+      .filter((x) => Number.isFinite(x.v));
+    ok(cells.length > 50, `ThEKJA: ${cells.length} VBD-tolur lesnar ur bordinu`);
+    const pos = cells.filter((x) => x.v > 0).length;
+    ok(pos > 0 && pos < cells.length,
+      `ThEKJA: ${pos} yfir varamanni og ${cells.length - pos} undir — skilin ERU til`);
+
+    const marked = cells.filter((x) => x.tr.classList.contains("vbdzero"));
+    ok(marked.length === 1, `nakvaemlega EIN lina er merkt (${marked.length})`);
+    if (marked.length === 1) {
+      const idx = cells.indexOf(marked[0]);
+      ok(marked[0].v <= 0, `og hun liggur a fyrsta negatifa VBD (${marked[0].v})`);
+      ok(idx > 0 && cells[idx - 1].v > 0,
+        `og rodin fyrir ofan er enn positif (${idx > 0 ? cells[idx - 1].v : "—"})`);
+    }
+    /* Talan i setningunni verdur ad vera talan sem taflan ber, annars
+       segdi skjarinn tvennt um sama bord — sja notuna ad ofan. */
+    if (cap) {
+      const said = Number((cap.textContent.match(/^\s*(\d+)/) || [])[1]);
+      ok(said === pos,
+        `og talan i setningunni er talan i toflunni (${said} = ${pos})`);
+    }
+  }
+
   ok(/Lasts\?/.test(text()), "lifunarlikur eru birtar");
   ok(/standard deviation/i.test(text()),
     "og thad er sagt ad dreifing ADP se notud, ekki bara ADP");
