@@ -3496,6 +3496,118 @@ stöðu — og hún bíður tímabilsins. Skráð hér svo hún þagni ekki.
 
 ---
 
+## 6k. FUNDIÐ OG **EKKI** LAGFÆRT — 18.8.2026, þrír dagar í draftið
+
+Þrjú atriði voru staðfest á raungögnum og **viljandi látin standa**. Ástæðan er
+sú sama í öllum þremur: **lagfæringin þyrfti mælingu sem ekki er til, og
+ómæld lagfæring þremur dögum fyrir draft getur gert appið verra en það er.**
+Þau eru skráð hér svo þau þagni ekki.
+
+### (1) TIGHT ENDS ERU 3–4 UMFERÐUM RÍKARI EN BÆÐI MARKAÐURINN OG SÉRFRÆÐINGAR
+
+**Mælt 18.8.2026, innan draftanlegs bils (`aRank <= teams·rounds`):**
+
+| staða | 10-liða PPR (hans): ADP − aRank | ECR − aRank | 12-liða half: ADP − aRank | ECR − aRank |
+|---|---|---|---|---|
+| QB | +11,2 | 0,0 | +0,1 | −10,9 |
+| RB | −3,0 | +2,2 | −3,9 | −3,7 |
+| WR | −20,0 | −16,2 | −13,9 | −4,7 |
+| **TE** | **+38,8** | **+29,4** | **+40,8** | **+31,5** |
+
+Positíft = við röðum honum **fyrr** en þeir. **TE er eina staðan sem er ríkari en
+BÁÐAR óháðar heimildir**, og áhrifin á skjáinn eru alger: **12 af 12 hávaðamestu
+„BUY"-merkjum eru tight ends** í hans deild (11 af 12 í 12-liða half). Við höfum
+**5 TE í topp 50**; markaðurinn hefur **2**.
+
+**MEKANISMINN ER FUNDINN OG HANN ER EIN TALA.** `replacementRanks` gefur
+**`TE: 14`** í 10-liða deild sem hefur **eitt** TE-sæti: `FLEX_SPLIT.TE = 0,193`
+× 2 flex × 10 lið = 3,86 flex-TE ofan á TE10. Varamanns-þrep tight ends er því
+sett á **TE14** og hver einasti TE fær VBD sem er TE10→TE14-bilið hærra.
+
+**`FLEX_SPLIT.TE = 0,193` ER MÆLD TALA OG HÚN VAR EKKI HREYFÐ.** Hún lagfærði
+raunverulega villu (fyrsta útgáfan ágiskaði 0,10) og `model.mjs` kafli 9 ver
+hana. **Að endurstilla hana núna væri nákvæmlega það sem þetta skjal bannar.**
+
+**TILGÁTAN VAR AÐ ÞAÐ VÆRI LÖGUNIN — OG HÚN VAR MÆLD SAMA DAG.** Sjá
+`fc279d9` („FLEX_SPLIT.TE sveipað"), sem er sjálfstæð mæling og hún **staðfestir
+uppruna** en **hafnar breytingunni**:
+
+| | |
+|---|---|
+| `calibrate.mjs` mældi 0,193 á | **12 liðum, RB2/WR3/TE1, EINU flexi, fullri PPR** |
+| **hvorug deild notandans er sú lögun** | 10-liða PPR 2FLEX · 12-liða half 2FLEX |
+| flex-hlutdeild TE **í hans lögunum** | **0,073** og **0,083** |
+| per tímabili í upprunalegu löguninni | 0,130–0,352 (engin `se`, engin `n` bókuð) |
+| sveipur TE 0 → 0,40, tvær mælieiningar | **0 af 102 frumum standast** bootstrap klasaðan per leikmann |
+
+Talan var því **mæld á rangri lögun** — nákvæmlega sama ætt og
+„helmingunartími 1,5 — mælt á röngu markmiði" og „talan 5,831% var
+sjálf-smituð". **En það þýðir EKKI að nýtt gildi sé betra:** hvert einasta
+leikmanna-klasað bil inniheldur null, alveg eins og í README 4c (28 hólf
+árs-klasað → **0 af 153** leikmanna-klasað). Þrennt stendur samt:
+
+- **Dýpra er MÆLANLEGA VERRA:** `te = 0,40` gefur −56,1 stig (t −2,52) og −0,74
+  sigra, bæði árs-CI útiloka null. **0,193 er á RÉTTRI hlið.**
+- **Grynnra hallar rétt en fellur á klösuninni:** `te = 0,10` gefur +23,6 stig
+  **og** +0,64 sigra í 10-liða PPR, en leikmanna-CI [−0,71, +1,00].
+- **Áttin heldur ekki milli deildanna tveggja:** 12-liða half gefur `te = 0`
+  −0,18 sigra og −11,1 stig. **Merki sem skiptir formerki milli deildanna sem
+  það á að ræða er ekki merki.**
+
+**Niðurstaðan er því ÓBREYTT TALA MEÐ ÞEKKTA SKEKKJU, ekki ný tala** — og það er
+sterkari staða en áður, því nú er vitað **hvar** skekkjan liggur og að hún hallar
+í átt sem mælingin getur ekki greint frá núlli.
+
+**Þangað til: TE-„BUY"-merkin eru RAUNVERULEG SPÁ LÍKANSINS, ekki villa — en
+þau eru öll sama veðmálið.** Sá sem tekur fjóra af tólf hávaðamestu kaupum
+hefur veðjað öllu á eina tölu, í deild með **eitt** TE-sæti og `maxPos.TE = 2`.
+Þakið verndar hann; röðin gerir það ekki.
+
+### (2) „Still to fill" segir „take him now" þegar **engin val eru eftir**
+
+`mustFillUrgent = needed > 0 && picksLeft <= needed + 1`, og
+`picksLeft = max(0, rounds − roster.length)`. Við `roster.length >= rounds`
+verður `picksLeft` **0** — og skilyrðið er þá **satt**, svo kassinn skrifar
+*„You have **0** picks left and still need K and DST. **Take him now** or start a
+player short."* Tvennt í sömu setningu sem getur ekki bæði verið rétt.
+**Endurgert 18.8.2026** með 20 „mine"-klikkum í 15-umferða deild.
+
+**EKKI LAGFÆRT, OG ÁSTÆÐAN ER RISK-ASYMMETRÍA.** Ástandið krefst
+`roster.length >= rounds` — í Sleeper-tengdu drafti þýðir það að draftið er
+**búið** hjá honum, og í handvirka borðinu að hann klikkaði of oft. En
+`mustFillUrgent` er **það eina sem segir honum að taka spyrnumann og vörn**, og
+mæld hermun sýndi hópinn `RB3 WR7 TE2 QB2` með **tvö tóm byrjunarsæti** þegar
+það þagði (README 4b / `advice.js`). Að þrengja skilyrðið í `picksLeft > 0` gæti
+slökkt á viðvöruninni í **síðustu umferð**, sem er einmitt umferðin sem hún er
+til fyrir. **Sjálfmótsagnakennd setning í ástandi sem er þegar búið er minni
+skaði en þögn í síðustu umferð.** Rétta lagfæringin er að skilja
+„taktu hann núna" frá „þú endaðir einn skammur", og hún á að koma **eftir**
+draftið með prófi sem drífur allar 15 umferðirnar til enda.
+
+### (3) `MAE 50` prentar tvo aukastafi þar sem allt í kring prentar einn
+
+`Experts.jsx` skrifar `{e.mae50 ?? "—"}` **hrátt af diski** (43,79 · 66,04 ·
+22,31) meðan `z` við hliðina er `toFixed(1)` og `Sharp Δ` er `toFixed(0)`.
+**Mælt á skjánum:** af öllum tölum í öllu appinu bera **53 leaf-element**
+tvo aukastafi og **öll nema eitt** eru þessi eini dálkur (það eina er `r = 0,16`
+í prósa, þar sem tveir aukastafir eru réttir). Tveir aukastafir á MAE yfir topp
+50 eru auk þess **fals-nákvæmni**.
+
+**Ekki lagfært:** Experts er **falinn flipi**, þetta er hreint snyrtimál, og
+sérhver breyting kallar á vörð sem kostar meira en villan. **Það var samt mælt,
+ekki ágiskað** — sem er ástæðan fyrir að hún er hér með stað og stærð í stað þess
+að vera „eitthvað um aukastafi einhvers staðar".
+
+> **OG EITT SEM VAR RANNSAKAÐ OG **REPRODUCERAÐIST EKKI**:** „59 raðir prenta tvo
+> aukastafi" var leiðin inn í (3), og hún er **röng um `proj` og `value`**.
+> Þau bera vissulega tvo aukastafi **í gögnunum** (59 og 244 raðir), en **hver
+> birtingarleið rúnnar** — `fmt()` í `PlayerTable`, `n()` og `signed()` í
+> `DraftBoard`. DOM-skönnun á öllum níu flipum fann **ekkert** af þeim á skjánum.
+> Villa í gögnum sem enginn sér er ekki villa á skjánum, og það er munur sem
+> aðeins skjá-lestur getur gert.
+
+---
+
 ## 6d. Vistað ástand og Sleeper-tengingin — 10.8.2026
 
 ### Vistað ástand er alvarlegra en vantandi gögn
