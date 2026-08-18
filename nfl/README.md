@@ -1044,9 +1044,25 @@ lið í **fríi** (engin röð í leikjaskrá), leikur **án línu** (mótherji 
 tala ekki til) og **forleikur** (ekkert vikusamhengi). Allar þrjár skila `null`,
 birtast sem „—" og **sitja síðast í BÁÐAR áttir** (`compareOppImplied`; naive
 `a - b` gerir `null` að 0 og fleytir liði í fríi **efst** í „lægsta vænta skor",
-sem er sannprófað í `tests/dst.mjs` kafla 8). Í 2026-skránni eru **línur
-opnar í vikum 1–3 og hálfri viku 4** af 18 — þetta er raunverulegt ástand, ekki
-jaðartilfelli.
+sem er sannprófað í `tests/dst.mjs` kafla 8).
+
+**„Engin lína" er NORMAL ÁSTAND í þessari skrá, ekki jaðartilfelli** — og það
+er *invariantið*, ekki talan. Hér stóð „línur opnar í **vikum 1–3 og hálfri
+viku 4** af 18" og það var rétt **12.8.2026**; 18.8. voru vikur 1–6 fullar og
+vika 7 hálf (112 af 272 leikjum 2026). **Bókmakarar opna eftir sinni eigin
+klukku, svo talan hreyfist í hverri viku** — hún er dæmi með dagsetningu, ekki
+fasti (sama regla og VBD-tölurnar í 4b).
+
+Þess vegna er ekkert próf pinnað á hana: `tests/dashboard.mjs` kafli 3g les
+DST-töfluna af skjánum og krefst **minnst tveggja af þremur tegundum af engu**
+og prentar hverjar hann sá, í stað þess að krefjast þess að ein tiltekin sé í
+skránni í dag. Fyrsta útgáfa þess prófs gerði það og **féll á réttum kóða** —
+hún var fullyrðing um bókmakara, ekki um appið.
+
+**Og línurnar eru ferskar þegar það skiptir máli:** `schedule.json` er skrifuð
+í `stageCore`, sem gengur **daglega kl. 09 UTC**, svo leikur vikunnar hefur
+línu þegar ráðgjafar-bókhaldið (7c) skrifar sína röð 48 klst fyrir fyrsta leik.
+Það eru **seinni** vikurnar sem eru tómar, og þær eiga að vera það.
 
 #### Það sem er EKKI þess virði að gera — skráð svo það verði ekki reynt aftur
 
@@ -4103,7 +4119,7 @@ sem það er til fyrir: það skrifaði, og það prentaði enga þekju.
 | atriði | af hverju blokkað |
 |---|---|
 | Vikulegar spár og byrjunarliðs-tól | `weeklyProjection` er skrifað og prófað en hefur **aldrei keyrt á lifandi viku** |
-| Vænt stigaskor á flesta leiki | Aðeins **337 af 557** leikjum hafa línu í forleik. Leikur án línu fær **—**, ekki meðaltal |
+| Vænt stigaskor á flesta leiki | Leikur án línu fær **—**, ekki meðaltal. **Talan er dæmi með dagsetningu:** 337 af 557 (9.8.), **397 af 557 (18.8.)** — bókmakarar opna eftir sinni klukku og `schedule.json` er endurskrifuð daglega. Sjá 4k |
 | Ár-á-ár nákvæmni sérfræðinga | 2026-borðin eiga eftir að spilast. **Þetta er stærsta ómælda spurningin í verkefninu** |
 | Sleeper í beinni | Kóðinn pollar `/draft/{id}/picks` á 5 sek en hefur ekki verið keyrður í raunverulegu drafti. **Innflutningur reglnanna er hins vegar staðfestur á lifandi deild** (sjá 6e) — það sem eftir stendur óprófað er pollunin meðan völ tínast inn |
 | Dregin draft-röð | `draft_order` var **null** 12.8.2026 og verður það þar til röðin er dregin. Sætin sem appið sýnir eru þá **hópsæti** úr `slot_to_roster_id`; þau verða valröðin þegar dregið er, og pollunin les hana þá sjálf. **Fyrsta raunprófun þess er draft-kvöldið** |
