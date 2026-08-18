@@ -1029,6 +1029,145 @@ console.log("\n3e. hvert spjald ber SINA tolu (lesid af skjanum)");
    voru samt graenar a TOMU fylki. Þess vegna er hopurinn hér HRAKINN
    (ADP 241-250, sami hopur og kafli 7 notar): hann gefur 272 tillogur,
    241 theirra utan graena flokksins, svo fotnotan VERDUR til.         */
+/* ============================================================
+   3g. DST-LISTINN LESINN AF SKJANUM — ThRJAR TEGUNDIR AF ENGU
+   ============================================================
+   `dstStream` er profud i `tests/dst.mjs` og `compareOppImplied` er profud
+   i BADAR attir — a EININGA-svidi. ENGINN LAS TOFLUNA AF SKJANUM.
+
+   ThAD ER EKKI FORMSATRIDI. Skotakortid i FPL-hlutanum var "rett" i
+   thremur teikningum og vitlaust i tveimur thegar thad var skodad i
+   raunstaerd, og `compare-visual.mjs` er til af nakvaemlega thessari
+   astaedu: "les sulurnar ur DOM og fellur ef graena sulan er a rongum
+   manni". Milli `dstStream` og hólfsins liggja ThRIR hlutir sem ekkert
+   prof hafdi snert: `dir`-hnappurinn (`useState` i `DstStream`),
+   `.toFixed(1)` og `<span className="null">—</span>`.
+
+   ThRJAR TEGUNDIR AF ENGU, og thaer eru ALLAR i raunskranni i viku 5:
+     · lid i FRII        (engin rod i leikjaskra)        2 lid
+     · leikur AN LINU    (motherji thekktur, tala ekki)  1 leikur
+     · og hvorugt ma birtast sem `0.0`
+   "Engin lina" er NORMAL astand i thessari skra, ekki jadartilfelli.
+
+   OG SORTERINGIN ER LESIN AF SKJANUM I BADAR ATTIR. `compareOppImplied`
+   er rett; spurningin hér er hvort HNAPPURINN se tengdur henni og hvort
+   "—" sitji sidast i BADUM attum eftir smell. Naive `a - b` gerdi `null`
+   ad 0 og fleytti lidi i frii EFST i "laegsta vaenta skor".
+   ============================================================ */
+console.log("\n3g. DST-listinn lesinn af skjanum");
+{
+  const root = await boot();
+  /* Deild A byrjar DEF, deild B ekki — kassinn ma adeins vera i einni. */
+  const heads = [...document.querySelectorAll("h3, h4, div")]
+    .filter((e) => (e.textContent || "").trim() === "Defence this week");
+  ok(heads.length >= 1, `"Defence this week" er a skjanum (${heads.length})`);
+
+  /* Toflan er su sem ber hausinn "Opp. pts". */
+  const tables = [...document.querySelectorAll("table.data")].filter((t) =>
+    /Opp\. pts/.test(t.querySelector("thead") ? t.querySelector("thead").textContent : ""));
+  ok(tables.length === 1, `nakvaemlega EIN DST-tafla (${tables.length}) — ` +
+    "deildin an varnarsaetis ma ekki bera hana");
+  if (tables.length !== 1) { root.unmount(); }
+  else {
+    const table = tables[0];
+    const readRows = () => [...table.querySelectorAll("tbody tr")].map((tr) => {
+      const td = [...tr.querySelectorAll("td")];
+      return { team: (td[0].textContent || "").trim().split(/\s+/)[0],
+               opp: (td[1].textContent || "").trim(),
+               pts: (td[2].textContent || "").trim(),
+               status: (td[3].textContent || "").trim() };
+    });
+    const nums0 = (rs) => rs.filter((r) => r.pts !== "—").map((r) => Number(r.pts));
+    const rows = readRows();
+    ok(rows.length === 32, `allar 32 varnir eru i toflunni (${rows.length})`);
+
+    /* -- 1. LID I FRII: "bye" og "—", ALDREI 0.0 -- */
+    const byes = rows.filter((r) => r.opp === "bye");
+    ok(byes.length >= 1, `${byes.length} lid i frii i viku 5 (raunskra)`);
+    ok(byes.every((r) => r.pts === "—"),
+      `og hvert theirra ber "—" (${byes.map((r) => `${r.team}=${r.pts}`).join(", ")})`);
+
+    /* ============================================================
+       2. LEIKUR AN LINU — OG HVERS VEGNA ThESSI EINA FULLYRDING ER SKILYRT
+       ============================================================
+       Fyrsta utgafan krafdist thess ad tilfellid "motherji thekktur, tala
+       ekki til" SAEIST a skjanum i viku 5. Hun FELL — og gognin voru i
+       lagi: i skranni eins og hun er i dag bera ALLIR leikir viku 5 linu,
+       svo tilfellid er einfaldlega ekki thar.
+
+       ThAD ER `players.json`-LAERDOMURINN UR README 4b: "tala ur skra sem
+       er endurskrifud daglega er DAEMI MED DAGSETNINGU, ekki fasti."
+       Bokmakarar opna linur eftir sinni eigin klukku; 12.8. baru vikur 1-3
+       linu, 18.8. bera 1-7 thad. Fullyrding sem krefst thess ad EITT
+       tiltekid tilfelli se i skranni i dag er fullyrding um bokmakara, ekki
+       um appid.
+
+       ThVI ER ThEKJAN SJALF FULLYRDINGIN (CLAUDE.md 5b regla 1): minnst
+       TVAER af thremur tegundum verda ad sjast, og hver theirra sem SEST er
+       profud til fulls. Su thridja er profud a TILBUNUM ctx i
+       `tests/dst.mjs` kafla 8 (`DEN.oppImplied === null && DEN.bye ===
+       false && DEN.opp === "KC"`), svo hun er ekki oprofud — hun er bara
+       ekki profud HER I DAG.                                            */
+    const noLine = rows.filter((r) => r.opp !== "bye" && r.pts === "—");
+    const kinds = [byes.length > 0 && "bye", noLine.length > 0 && "no line",
+                   nums0(rows).length > 0 && "line"].filter(Boolean);
+    ok(kinds.length >= 2,
+      `${kinds.length} af thremur tegundum sjast i viku 5 i dag: ${kinds.join(" · ")} ` +
+      "(thekjan er fullyrding — ein tegund ein vaeri ekki prof)");
+    if (noLine.length) {
+      ok(noLine.every((r) => r.opp && r.opp !== "bye" && r.opp.length >= 2),
+        `${noLine.length} lid bera thekktan motherja an linu og motherjinn ER NEFNDUR ` +
+        `(${noLine.map((r) => `${r.team} v ${r.opp}`).join(", ")}) — ` +
+        "'engin lina' og 'engin leikur' eru ADGREIND");
+    } else {
+      console.log("  ·    engin lina-laus leikur i viku 5 i dag — tilfellid er profad " +
+                  "a tilbunum ctx i dst.mjs kafla 8 (sja skjolun)");
+    }
+
+    /* -- 3. ENGIN NULLTALA MA BIRTAST SEM MAELING -- */
+    const zero = rows.filter((r) => /^0(\.0)?$/.test(r.pts));
+    ok(zero.length === 0,
+      `ekkert holf les "0.0" (${zero.map((r) => r.team).join(", ") || "engin"}) — ` +
+      "vaent skor 0 er omoguleg maeling, thad er vantandi gildi");
+    /* Og thau sem BERA tolu bera raunhaefa tolu — akkeri, ekki kvordun.
+       NFL-lid skorar 10-40 stig; 0 eda 100 vaeri kvarda-villa. */
+    const nums = nums0(rows);
+    ok(nums.length >= 20, `${nums.length} holf bera tolu (annars maelir thetta ekkert)`);
+    ok(nums.every((v) => v > 8 && v < 45),
+      `og hver theirra er a NFL-kvarda (${Math.min(...nums)}-${Math.max(...nums)})`);
+
+    /* -- 4. ATTIN: "—" SITUR SIDAST I BADUM ATTUM, LESID AF SKJANUM -- */
+    const lastNumIndex = (rs) => {
+      let last = -1;
+      rs.forEach((r, i) => { if (r.pts !== "—") last = i; });
+      return last;
+    };
+    const firstNull = (rs) => rs.findIndex((r) => r.pts === "—");
+    ok(firstNull(rows) > lastNumIndex(rows) || firstNull(rows) === -1,
+      `"asc": hvert "—" er UNDIR hverri tolu (fyrsta null ${firstNull(rows)}, ` +
+      `sidasta tala ${lastNumIndex(rows)})`);
+    ok(Number(rows[0].pts) === Math.min(...nums),
+      `og efsta rodin er LAEGSTA vaenta skorid (${rows[0].pts})`);
+
+    /* Smellt a hausinn -> "desc". Hnappurinn er lesinn ur DOM, ekki
+       kallad a `setDir` — thad er TENGINGIN sem er oprofud. */
+    const th = [...table.querySelectorAll("thead th")]
+      .find((x) => /Opp\. pts/.test(x.textContent || ""));
+    ok(!!th, "hausinn er smellanlegur (`Opp. pts`)");
+    await click(th);
+    const desc = readRows();
+    ok(/↓/.test(th.textContent || ""), `attin snerist (haus: "${(th.textContent || "").trim()}")`);
+    ok(Number(desc[0].pts) === Math.max(...nums),
+      `"desc": efsta rodin er HAESTA vaenta skorid (${desc[0].pts})`);
+    ok(firstNull(desc) > lastNumIndex(desc) || firstNull(desc) === -1,
+      `og "—" situr SAMT sidast (fyrsta null ${firstNull(desc)}, ` +
+      `sidasta tala ${lastNumIndex(desc)}) — naive \`a - b\` fleytti theim EFST`);
+    /* Og fjoldinn er obreyttur: rodun ma ekki tapa rodum. */
+    ok(desc.length === rows.length, `og radirnar eru allar enn thar (${desc.length})`);
+  }
+  root.unmount();
+}
+
 console.log("\n3f. waiver-fotnotan nefnir RETTA orsokina");
 {
   played = true; sleeperMode = "ok";
