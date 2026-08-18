@@ -3897,6 +3897,101 @@ ekki taka ADP-ið og meiðslin með sér. **Ekki eyða þeim í „hreinsun".**
 
 ---
 
+## 7c. RÁÐGJAFAR-BÓKHALDIÐ — óendurheimtanlegt ef það byrjar ekki fyrir viku 1
+
+`scripts/snapshot-advice.mjs` skrifar `nfl/data/advice/{ár}-w{vika}.json` með
+**því sem appið ráðlagði**, áður en vikan var spiluð: start/sit (hvert sæti,
+hver leikmaður, `proj` OG `projSleeper`), waiver-tillögur (`gain` í
+season-VBD), DST-streymi (allar 32 raðirnar) og stöðuna — **ásamt inntökunum**:
+markaðslína liðsins, mótherji, vörn hans gegn stöðunni, tiltækileiki, bye.
+
+**Af hverju það er ekki hægt eftir á.** Þetta er sama röksemd og
+`data/predictions/` í FPL-hlutanum (CLAUDE.md 7.1) og hún er ekki fræðileg
+hér: veðbankalínan **hverfur eftir leik**, rosterarnir breytast við hvert
+waiver, `defense.json` er endurskrifuð í hverri viku, og Sleeper-spár færast.
+„Hvað hefðum við ráðlagt í viku 5" er **ósvaranlegt** þegar vika 5 er liðin.
+Ráðgjöf sem var ekki skrifuð niður fyrirfram er ekki ráðgjöf, hún er
+eftirá-skýring.
+
+**`benchRegret` er útkomu-mælikvarðinn og hann er þegar til** (`lineup.js`).
+Hann þarf `started`, `bench`, `projected` og `actual`. Þrennt af því fjórum er
+**horfið** eftir vikuna; bókhaldið er það sem varðveitir þau. `projSleeper` er
+viðmiðið — nákvæmlega eins og `ep_next` er viðmiðið í FPL-bókhaldinu, því
+„lokaði 3,5% af bilinu" er tala án samanburðar.
+
+### Fjórar reglur — allar keyptar með villum í FPL-bókhaldinu
+
+| regla | af hverju |
+|---|---|
+| **Aðeins fyrir fyrsta leik vikunnar** | Akkerið er **miðnætti UTC á degi fyrsta leiks**, viljandi ~24 klst FYRR en raunverulegt upphaf (20:15 ET = 00:15 UTC næsta dag). Skekkjan má aðeins vera í þá átt |
+| **Aðeins einu sinni** | Röð sem er til er ALDREI endurskrifuð. Endurskrifuð ráðgjöf er retro-fitting |
+| **Þunn inntök -> ENGIN skrá** | Betra að vika vanti en að hún beri ráðgjöf úr hálfum gögnum; það síðara les eins og mæling |
+| **GLUGGI, ekki „við fyrsta tækifæri"** | Sjá næsta kafla — þetta var **raunveruleg villa** í FPL-bókhaldinu |
+
+### Glugginn er 48 klst og talan kemur ÚR CRON-INU
+
+FPL-bókhaldið skrifaði GW1-röðina **222 KLST fyrir frestinn** með `start_prob`
+null hjá 577 af 577, því „aðeins fyrir frest" OG „aðeins einu sinni" gefa
+**saman** „skrifa við FYRSTA tækifæri og frysta". Kvörðunin hefði því mælt
+líkanið á **þess eigin verstu ágiskun**.
+
+Hér er cron-ið annað og því er talan önnur. `nfl-data.yml` keyrir 09:00 UTC
+daglega og 12:00 á þriðjudögum; akkeri venjulegrar viku er fimmtudagur 00:00
+UTC. **48 klst gefa þrjú tækifæri** (þri 09, þri 12, mið 09) — eitt sleppt cron
+má ekki kosta vikuna, og 24 klst gæfu **eitt**. Talan er **reiknuð úr
+cron-línunum í `tests/advice-ledger.mjs` kafla 1**, ekki endurrituð: færi
+cron-ið án þess að glugginn fylgdi, fellur prófið.
+
+**OG KOSTNAÐURINN ER SKRIFAÐUR, EKKI FALINN:** fyrsta tækifærið er ~2,5 dögum
+fyrir sunnudagsleikina. Það er **réttur** ákvörðunarpunktur fyrir waiver (þau
+leysast á miðvikudegi) en **einni æfingaskýrslu of fyrr** fyrir start/sit. Því
+ber hver röð `hoursToAnchor`, svo kvörðunin geti flokkað eftir því hve fersk
+ráðgjöfin var í stað þess að láta allar raðir lesast eins.
+
+### Appið les þetta ALDREI
+
+Það er **mælitæki, ekki birtingargagn**. `tests/advice-ledger.mjs` kafli 7 les
+`src/` og fellur ef nokkur skrá þar nefnir `advice/`-möppuna. Þess vegna er
+líka `continue-on-error: true` á skrefinu: bókhaldið má **aldrei** fella
+gagna-keyrsluna. En það þýðir að bilun INNAN gluggans yrði **þögul**, svo
+skriftan skrifar sjálf röð í `status.json` (`advice_ledger`) sem
+`Sources`-flipinn birtir — og reglan þar er: **skip er grænt, gluggi opinn +
+engin skrá er RAUTT.**
+
+### `NFL_LEDGER_USER` VERÐUR AÐ VERA STILLT — annars vantar start/sit
+
+Sleeper gefur **enga leið** að vita hver af tíu eigendum er notandinn. Appið
+veit það úr `localStorage` (notandanafnið sem var slegið inn í Draft-flipann);
+pipeline-ið hefur engan aðgang að því. Án hans ber röðin waiver og DST en
+**`startsit: null` MEÐ ástæðu** — sagt, ekki giskað, því ráðgjöf um rangt lið
+er verri en engin.
+
+Það er `vars`, ekki `secrets` (Sleeper-notandanafn er opinbert):
+
+```
+gh variable set NFL_LEDGER_USER --body "<sleeper notandanafn>"
+```
+
+**Þetta er eina handtakið sem er eftir áður en vikan 1 er skráð.** Deildirnar
+sjálfar eru þegar stilltar (`LEAGUES` í skriftunni, sömu tvö auðkenni og
+`src/standings.js` hefur borið í athugasemd; `NFL_LEDGER_LEAGUES` tekur
+framyfir).
+
+### Æfing áður en það kviknar
+
+```
+node scripts/snapshot-advice.mjs --dry            # forleikur: engin vika
+node scripts/snapshot-advice.mjs --dry --week=1   # ÆFIR viku 1
+```
+
+`--week` er **æfingaflagg og því er hafnað í raunkeyrslu** (annars gæti það
+skrifað röð fyrir viku sem appið sýnir ekki). `--dry` skrifar **ekkert** —
+hvorki `data/advice/` né `status.json` — og það er prófað **á bætum skrárinnar
+fyrir og eftir**, því í FPL-bókhaldinu gerði `--dry` nákvæmlega hvorugt þess
+sem það er til fyrir: það skrifaði, og það prentaði enga þekju.
+
+---
+
 ## 8. Bíður tímabilsins
 
 | atriði | af hverju blokkað |

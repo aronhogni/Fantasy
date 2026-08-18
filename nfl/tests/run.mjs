@@ -12,7 +12,7 @@ const SUITES = [
   ["advice.mjs"], ["lineup.mjs"], ["names.mjs"], ["pipeline.mjs"],
   ["sleeper-league.mjs"], ["wiring.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
   ["standings.mjs"], ["waivers.mjs"],
-  ["usageblend.mjs"], ["dst.mjs"],
+  ["usageblend.mjs"], ["dst.mjs"], ["advice-ledger.mjs"],
   ["render.mjs", true], ["audit.mjs", true], ["layout.mjs", true],
   ["saved-state.mjs", true], ["sleeper.mjs", true], ["dashboard.mjs", true],
   /* `draft-live.mjs` KEYRIR draft — 150 vol i gegnum raunverulega

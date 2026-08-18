@@ -177,6 +177,39 @@ jobs:
         working-directory: nfl
         run: node scripts/measure-experts.mjs
 
+      - name: Skra radgjof (bokhaldid)
+        # ============================================================
+        # RADGJAFAR-BOKHALDID — SKRIFAR ThAD SEM APPID SAGDI, FYRIR VIKUNA
+        # ============================================================
+        # `snapshot-advice.mjs` skrifar `nfl/data/advice/{ar}-w{vika}.json`
+        # med start/sit, waiver-tillogum og DST-streymi ASAMT INNTOKUNUM
+        # (markadslina, motherji, vorn-gegn-stodu, tiltaekileiki), i 48
+        # klst glugga fyrir fyrsta leik vikunnar og ADEINS EINU SINNI.
+        #
+        # HVERS VEGNA ThAD ER EKKI HAEGT EFTIR A: inntokin eru horfin.
+        # Linan hverfur eftir leik, rostrar breytast, og `defense.json` er
+        # endurskrifud i hverri viku. Sama roksemd og `data/history/` og
+        # `scripts/snapshot-predictions.mjs` i FPL-hlutanum.
+        #
+        # `continue-on-error: true` ER ASETT OG ThAD ER REGLAN: bokhaldid
+        # er MAELITAEKI og ma ALDREI fella soknina a fersku gognunum. En
+        # thad thydir ad bilun INNAN gluggans yrdi ThOGUL, svo skriftan
+        # skrifar sjalf rod i `status.json` (`advice_ledger`) sem
+        # `Sources`-flipinn birtir — og reglan thar er: skip er GRAENT,
+        # **gluggi opinn + engin skra er RAUTT**.
+        #
+        # `NFL_LEDGER_USER` VERDUR AD VERA STILLT SVO START/SIT SE SKRAD.
+        # Sleeper gefur enga leid ad vita HVER af tiu eigendum er
+        # notandinn; appid veit thad ur `localStorage`, pipelinan ekki. An
+        # hans ber rodin waiver og DST en `startsit: null` MED astaedu —
+        # sagt, ekki giskad. Thad er `vars`, ekki `secrets`: notandanafn a
+        # Sleeper er opinbert.
+        continue-on-error: true
+        working-directory: nfl
+        env:
+          NFL_LEDGER_USER: ${{ vars.NFL_LEDGER_USER }}
+        run: node scripts/snapshot-advice.mjs
+
       - name: Profa ad gognin seu nytileg
         # HVERS VEGNA PROF I PIPELINE-INU: skrifud skra er ekki sama
         # og NYTILEG skra. Markadslidurinn i FPL-verkefninu var
