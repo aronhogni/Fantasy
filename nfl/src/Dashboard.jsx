@@ -105,8 +105,12 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
   const week = currentWeek(meta);
   /* Viku-samhengid er NFL-vikan, ekki deildin — reiknad EINU SINNI og
      notad fyrir badar deildir. */
+  /* `season` ER SKYLDA, EKKI SKRAUT: `defense.json` ber sjo timabil undir
+     sama lidi og stodu, svo an arsins var uppflettingin "sidasta rod i
+     skranni vinnur" (sja skjolun vid `weekContext`). */
   const ctx = useMemo(
-    () => weekContext({ schedule, defense, week }), [schedule, defense, week]);
+    () => weekContext({ schedule, defense, week, season: meta && meta.season }),
+    [schedule, defense, week, meta]);
 
   if (!real.length) {
     return (
@@ -266,8 +270,14 @@ function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy }) {
 
       <Standings table={table} mineId={mineId} />
       <RosterNews roster={myRows} news={news} />
+      {/* `defSeason`/`defRows` FARA MED: setningin "weeks already played
+          only" er birt HER inni, svo hun verdur ad geta sagt hvada ar
+          vornin kom ur — eda ad hun se ekki til. `ctx` sjalf er ekki send
+          (thetta er birting, ekki reikningur). */}
       <StartSit lineup={lineup} advice={advice} bye={bye} week={week}
-        myRows={myRows} mineId={mineId} scoring={league.scoring} />
+        myRows={myRows} mineId={mineId} scoring={league.scoring}
+        defSeason={ctx ? ctx.defSeason : null} defRows={ctx ? ctx.defRows : null}
+        season={ctx ? ctx.seasonAsked : null} />
       <DstStream dst={dst} rostersRead={Array.isArray(rosters)} />
       <Waivers fa={fa} picks={picks} league={league} />
     </div>
@@ -426,7 +436,8 @@ function RosterNews({ roster, news }) {
    `unfilled` og `unknown` eru BIRT. Saeti sem ekki tokst ad fylla er
    upplysing (vantar leikmann, eda allir a bekk meiddir/i frii) og
    leikmadur an spar er a bekk EN THAD ER EKKI DOMUR UM HANN.        */
-function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring }) {
+function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring,
+                    defSeason, defRows, season }) {
   const edge = useMemo(() => weeklyEdgeNote(scoring), [scoring]);
   if (mineId == null) {
     return (
@@ -587,7 +598,24 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring }) {
           <b>Ours</b> is that same number adjusted by the team's implied total from
           the betting line and the opponent's defence against the position.{" "}
           <span className={edge.significant ? "good" : "warn"}>{edge.text}</span>{" "}
-          It has never run on a live week, so treat week 1 as its first real test.
+          It has never run on a live week, so treat week 1 as its first real test.{" "}
+          {/* ============================================================
+              "WEEKS ALREADY PLAYED ONLY" VAR PROSA SEM KODINN STODST EKKI
+              ============================================================
+              `edge.text` endar a theirri setningu. Hun var OSONN i viku 1:
+              `defense.json` ber engar radir fyrir thetta timabil fyrr en
+              fyrsta vikan er spiluð, og gamla uppflettingin (an ars) tok
+              tha SIDUSTU rod i skranni — vorn fyrra timabils i heilu lagi.
+              Nu er kortid tomt og talan ber ENGAN varnarlid; thad er
+              rettara, en thad ma ekki vera thogult heldur. Sama regla og
+              thrjar tegundir af engu i DST-listanum. */}
+          {defSeason == null
+            ? <span className="warn">No defence-vs-position rows exist for{" "}
+                {season != null ? season : "this season"} yet, so &quot;Ours&quot;
+                carries the betting line only — the defence term is absent, not
+                zero. It appears once a week has been played.</span>
+            : <span className="dim">Defence is from {defSeason} ({defRows}{" "}
+                team-position rows).</span>}
         </div>
       )}
 

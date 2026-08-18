@@ -179,12 +179,80 @@ export function currentWeek(meta) {
  * kallar thetta fyrir tvaer deildir og samhengid er thad SAMA fyrir
  * badar (thad er NFL-vikan, ekki deildin).
  */
-export function weekContext({ schedule, defense, week }) {
+/* ============================================================
+   SAMHENGID ER LYKLAD A TIMABIL — OG VAR ThAD EKKI. LAGFAERT 18.8.2026
+   ============================================================
+   Bædar uppflettingar thessa falls voru byggdar med `Map.set` AN ARS,
+   og BADAR skrarnar bera FLEIRA EN EITT TIMABIL:
+
+     `schedule.json`  2025 OG 2026 (544 REG-radir) -> "vika 5" tvisvar
+     `defense.json`   2019-2025 (1.120 radir)      -> lid x stoda SJO svor
+
+   svo uppflettingin var i badum tilfellum "SIDASTA ROD I SKRANNI VINNUR".
+
+   ThAD GAF RETT SVAR AF RANGRI ASTAEDU. 2026 liggur sidast i
+   leikjaskranni og 2025 sidast i vorninni (`defenseVsPosition` gengur
+   `Object.entries(weekly)` og JS itrar heiltolu-lika lykla i HAEKKANDI
+   rod), svo "sidasta vinnur" hitti a rett ar. Ekkert i `src/` og ekkert i
+   profunum pinnadi thad — og ein endurskrifun a pipeline-inu sem skilar
+   timabilum i annarri rod hefdi flutt allar viku-spar aftur i timann,
+   ThOGULT, thvi talan hefdi verid raunveruleg, bara ur odru ari (sami
+   aettbogi og `WEEKLY_MEASURED` sem var maeld i ppr og borin a half-ppr).
+
+   MAELT MED SOMU SKRA I OFUGRI ROD, 18 vikur x 32 lid:
+       rangur motherji (ur odru timabili)      514 af 544
+       markadslina BUIN TIL ur odru timabili   327
+       lid i FRII 2026 fekk motherja ur 2025    30
+       vorn-margfaldarinn haggast              9,0% (2019 gegn 2025)
+
+   ThRIDJU TOLUNA ER RETT AD LESA UPPHATT: 30 lid-vikur thar sem madur i
+   FRII faer motherja, svo `bye` verdur `false` og uppstillingartolid
+   setur hann i byrjunarlid — "null stig i saeti sem atti ad bera 12",
+   ordrett kostnadurinn sem thessi skra varar sjalf vid nedar.
+
+   OG ThRIDJA VILLAN VAR I SAMA KALLI: `if (t)` var ALLTAF SATT.
+   `impliedTeamTotals` skilar HLUT thegar linan er ekki opnud, og hlutur er
+   truthy — svo leikur an linu SKRIFADI `null` i kortid. Innan eins
+   timabils var thad skadlaust; thvert a timabil skrifadi hann null OFAN I
+   RAUNTOLU. Hlidid er nu a TOLUNNI, ekki a hlutnum.
+
+   OG FJORDA: I VIKU 1 ER ENGIN VARNAR-ROD FYRIR ThETTA AR.
+   `defense.json` ber **0 radir fyrir 2026** thangad til fyrsta vikan er
+   spiluð (hun er skrifud a thridjudogum). Med "sidasta vinnur" hefdi
+   vika 1 2026 thvi notad **VORN 2025 I HEILU LAGI** — medan
+   `weeklyEdgeNote` segir ORDRETT A SKJANUM: "Defence strength is taken
+   from weeks already played only." Prosan a skjanum fullyrti thad sem
+   kodinn gerdi ekki.
+
+   REGLAN NUNA: BADAR sianir eru a `season`. Ber skrain engar radir
+   fyrir thetta timabil ber vikan **ENGAN varnarlid** (`defenseMult`
+   skilar 1 fyrir `def: null`) og `defSeason` er `null` svo vidmótid
+   geti SAGT ThAD. Vid buum ekki til tolu ur engu — sama regla og
+   `ctx == null` og `weekRows` med `proj == null`.
+
+   OG ThAD ER MAELT, EKKI VALID: README 4k maeldi "ad blanda fyrra
+   timabili inn i vikulega valid" og thad **kostar 1,5-1,9 stig a viku**.
+   Fyrra timabilid er ekki varfaerin nalgun, thad er maeld tof.
+
+   `season` VERDUR AD KOMA MED. Vanti hann eru adeins ARS-LAUSAR radir
+   taldar med — samhverf regla sem heldur tilbunum profgognum virkum en
+   giskar ALDREI a nyjasta arid i raunskra. Kallandi sem gleymir honum faer
+   thvi tomt samhengi, ekki thogult rangt ar. Bædir
+   lesmatar (`Dashboard.jsx`, `MyTeam.jsx`) senda hann og
+   `tests/dashboard.mjs` kafli 3c fellur ef annar hvor hettir.
+   ============================================================ */
+export function weekContext({ schedule, defense, week, season }) {
   if (week == null || !schedule) return null;
+  const want = season == null ? null : Number(season);
   /* Leikja-tegundin er SIAD. Skran ber lika forleiki og stjornuleik;
-     `!g.type` er tekid med af thvi ad eldri radir bera hana ekki. */
-  const games = schedule.filter((g) => g.week === week &&
-    (g.type === "REG" || g.type === "POST" || !g.type));
+     `!g.type` er tekid med af thvi ad eldri radir bera hana ekki.
+
+     OG TIMABILID ER SIAD LIKA — sja skjolun ad ofan. `schedule.json` ber
+     TVO timabil (2025 og 2026, 544 REG-radir), svo "vika 5" fannst
+     TVISVAR og `Map.set` let sidustu rod i skranni vinna. */
+  const games = schedule.filter((g) => g && g.week === week &&
+    (g.type === "REG" || g.type === "POST" || !g.type) &&
+    (want == null ? g.season == null : Number(g.season) === want));
   if (!games.length) return null;
   const implied = new Map(), opp = new Map();
   for (const g of games) {
@@ -194,14 +262,50 @@ export function weekContext({ schedule, defense, week }) {
        hvern einasta leik: engin markadslina, engin viku-adlogun, og
        ekkert hefdi sagt fra thvi — tolurnar hefdu einfaldlega verid
        arstidar-medaltalid med utlit viku-spar. Formerkid a `spread` er
-       thegar profad i `market.mjs`. */
+       thegar profad i `market.mjs`.
+
+       `if (t)` VAR ALLTAF SATT — `impliedTeamTotals` skilar HLUT
+       (`{home:null, away:null}`) thegar linan er ekki opnud, og hlutur er
+       truthy. Leikur an linu SKRIFADI thvi `null` i kortid. Innan eins
+       timabils var thad skadlaust (`.get()` a lykli sem vantar er lika
+       undefined), en thvert a timabil skrifadi hann NULL OFAN I RAUNTOLU
+       — 327 lid-vikur af 576 i maelingunni. Nu er hlidid a TOLUNNI, ekki
+       a hlutnum: fjarvera er fjarvera og hun er ekki SKRIFUD. */
     const t = impliedTeamTotals(g.total, g.spread);
-    if (t) { implied.set(g.home, t.home); implied.set(g.away, t.away); }
+    if (t && t.home != null) implied.set(g.home, t.home);
+    if (t && t.away != null) implied.set(g.away, t.away);
     opp.set(g.home, g.away); opp.set(g.away, g.home);
   }
+  /* SIDAD A TIMABIL — sja skjolun ad ofan. `season == null` gefur tomt
+     kort, og tomt kort thydir "engin vorn", ekki "vorn = 0". */
   const dvp = new Map();
-  for (const d of (defense || [])) dvp.set(`${d.team}|${d.pos}`, d);
-  return { implied, opp, dvp, week };
+  let defRows = 0, defUnlabelled = 0;
+  for (const d of (defense || [])) {
+    if (!d || !d.team || !d.pos) continue;
+    /* Rod an `season` er OATTRIBUERANLEG og er thvi TALIN, ekki tekin
+       inn. Ad hleypa henni i gegn vaeri ad endurvekja "sidasta vinnur"
+       fyrir bakdyrnar. */
+    if (d.season == null) { defUnlabelled++; continue; }
+    if (want == null || Number(d.season) !== want) continue;
+    dvp.set(`${d.team}|${d.pos}`, d);
+    defRows++;
+  }
+  return {
+    implied, opp, dvp, week,
+    /* HVADA AR VORNIN KOM UR — `null` thydir "engin fyrir thetta ar", og
+       vidmotid VERDUR ad geta sagt thad. Tala an ars er osamanburdarhaef
+       (README 4b: "tala an harness er osamanburdarhaef"). */
+    defSeason: defRows ? want : null,
+    /* ARID SEM VAR BEDID UM, hvort sem thad fannst eda ekki. Vidmotid
+       tharf thad til ad geta sagt "engar radir fyrir 2026 enn" — an thess
+       yrdi setningin ars-laus og thar med osamanburdarhaef. */
+    seasonAsked: want,
+    defRows, defUnlabelled,
+    /* HVE MARGIR LEIKIR RODU I ThESSA VIKU. `bye` i `dstStream` er
+       `opp == null`, svo tala sem er 16 i staðinn fyrir 32 thydir
+       "halft timabilid vantar" — og hun a ad vera lesanleg utan. */
+    games: games.length,
+  };
 }
 
 /**

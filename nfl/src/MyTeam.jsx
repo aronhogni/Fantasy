@@ -90,9 +90,13 @@ export default function MyTeam({ rows, league, news, meta, market, schedule, def
 
      I FORLEIK ER ENGIN VIKA og engin lina; tha fellur thetta i
      timabils-spána deilda med 17, eins og adur.                    */
+  /* `season` ER SKYLDA, EKKI SKRAUT: `schedule.json` ber tvo timabil og
+     `defense.json` sjo, bædi undir sama lykli, svo an arsins vann SIDASTA
+     ROD I SKRANNI. Sja skjolun vid `weekContext` — maelt 18.8.2026 gaf 514
+     ranga motherja og 30 menn i frii settir i byrjunarlid. */
   const weekly = useMemo(
-    () => weekContext({ schedule, defense, week: curWeek }),
-    [schedule, defense, curWeek]);
+    () => weekContext({ schedule, defense, week: curWeek, season: meta && meta.season }),
+    [schedule, defense, curWeek, meta]);
 
   const lineup = useMemo(
     () => optimalLineup(weekRows(roster, weekly), slots),

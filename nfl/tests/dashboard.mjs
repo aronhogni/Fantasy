@@ -489,6 +489,194 @@ console.log("\n3b. an viku eru tolurnar EINS (thvi er einn dalkur)");
 }
 
 /* ============================================================
+   3c. VIKU-SAMHENGID ER LYKLAD A TIMABIL — "SIDASTA ROD VANN"
+   ============================================================
+   `weekContext` byggdi BADAR uppflettingar sinar med `Map.set` an ars:
+
+     leikjaskrain   `opp.set(g.home, g.away)`         yfir vikuna
+     vornin         `dvp.set(`${team}|${pos}`, d)`    yfir stodu
+
+   og BADAR skrarnar bera FLEIRA EN EITT TIMABIL:
+     `schedule.json`  2025 OG 2026 (544 REG-radir) -> "vika 5" fannst tvisvar
+     `defense.json`   2019-2025 (1.120 radir)      -> hvert lid x stoda 7x
+
+   ThAD GAF RETT SVAR AF RANGRI ASTAEDU. 2026 liggur SIDAST i
+   leikjaskranni og 2025 sidast i vorninni (JS itrar heiltolu-lika lykla i
+   haekkandi rod i `Object.entries`), svo "sidasta vinnur" hitti a rett ar.
+   Ekkert i `src/` og ekkert i profunum pinnadi thad.
+
+   MAELT MED SOMU SKRA I OFUGRI ROD, 18 vikur x 32 lid (576 lid-vikur):
+       rangur motherji (ur odru timabili)     514
+       markadslina BUIN TIL ur odru timabili  327
+       lid i FRII 2026 fekk motherja ur 2025   30
+   og vorn-margfaldarinn haggast um 9,0% (2019 gegn 2025).
+
+   ThRIDJU TOLUNA ER RETT AD LESA UPPHATT: 30 lid-vikur thar sem madur i
+   FRII faer motherja, sem thydir ad `bye` verdur `false` og
+   uppstillingartolid setur hann i byrjunarlid — "null stig i saeti sem
+   atti ad bera 12", ordrett kostnadurinn sem `weekview.js` varar sjalf
+   vid i athugasemdinni vid `bye`.
+
+   OG FJORDA VILLAN VAR I SAMA KALLI: `if (t)` var ALLTAF SATT.
+   `impliedTeamTotals` skilar HLUT (`{home:null, away:null}`) thegar linan
+   er ekki opnud, og hlutur er truthy — svo leikur an linu SKRIFADI `null`
+   i kortid. Innan eins timabils skadlaust; thvert a timabil skrifadi
+   hann null OFAN I RAUNTOLU. Thad er sama aettbogi og markadslidurinn i
+   FPL-hlutanum sem var DAUDUR i heila viku medan oll profin voru graen.
+   ============================================================ */
+console.log("\n3c. viku-samhengid er lyklað a TIMABIL");
+{
+  const { weekContext, weekRows } = await import("../src/weekview.js");
+  const { defenseMult, impliedTeamTotals } = await import("../src/model.js");
+  const defense = JSON.parse(readFileSync(path.join(DATA, "defense.json"), "utf8"));
+  const schedule = JSON.parse(readFileSync(path.join(DATA, "schedule.json"), "utf8"));
+
+  /* -- ThEKJA ER FULLYRDING (CLAUDE.md 5b regla 1). Beri hvorug skrain
+        fleira en eitt timabil er allur kaflinn tom fullyrding. -- */
+  const defYears = [...new Set(defense.map((d) => Number(d.season)))].sort((a, b) => a - b);
+  const schYears = [...new Set(schedule.map((g) => Number(g.season)))].sort((a, b) => a - b);
+  ok(defYears.length >= 2,
+    `defense.json ber ${defYears.length} timabil (${defYears.join(",")})`);
+  ok(schYears.length >= 2,
+    `schedule.json ber ${schYears.length} timabil (${schYears.join(",")})`);
+  const cur = schYears.at(-1), prev = schYears[0];
+
+  /* ---------- A. LEIKJASKRAIN: rodin ma ekki rada ---------- */
+  let wrongOpp = 0, invented = 0, byeBroken = 0, teamWeeks = 0;
+  const reversed = [...schedule].reverse();
+  for (let wk = 1; wk <= 18; wk++) {
+    const truth = weekContext({ schedule: schedule.filter((g) => Number(g.season) === cur),
+                                defense, week: wk, season: cur });
+    const mixed = weekContext({ schedule: reversed, defense, week: wk, season: cur });
+    if (!truth || !mixed) continue;
+    for (const t of new Set([...truth.opp.keys(), ...mixed.opp.keys()])) {
+      teamWeeks++;
+      const a = mixed.opp.get(t) ?? null, b = truth.opp.get(t) ?? null;
+      if (a !== b) { wrongOpp++; if (b == null) byeBroken++; }
+      const ia = mixed.implied.get(t) ?? null, ib = truth.implied.get(t) ?? null;
+      if (ib == null && ia != null) invented++;
+    }
+  }
+  ok(teamWeeks > 500, `${teamWeeks} lid-vikur maeldar (annars maelir kaflinn ekkert)`);
+  ok(wrongOpp === 0,
+    `SAMA SKRA I OFUGRI ROD gefur SAMA motherja i ollum ${teamWeeks} lid-vikum ` +
+    `(${wrongOpp} rangir) — gamli kodinn gaf 514`);
+  ok(byeBroken === 0,
+    `og ENGINN i frii faer motherja ur odru timabili (${byeBroken}) — gamli kodinn gaf 30`);
+  ok(invented === 0,
+    `og engin markadslina er BUIN TIL ur odru timabili (${invented}) — gamli kodinn gaf 327`);
+
+  /* `if (t)` VAR ALLTAF SATT — fullyrdingin um hlutinn er hér svo
+     lagfaeringin i `weekview.js` se ekki bara "hun virkar nuna". */
+  ok(!!impliedTeamTotals(null, null),
+    "`impliedTeamTotals(null,null)` ER truthy hlutur — thess vegna var `if (t)` gagnslaust");
+  ok(impliedTeamTotals(null, null).home === null,
+    "og tolurnar i honum eru null, svo hlidid verdur ad vera a TOLUNNI");
+  /* Leikur an linu ma ekki skrifa null i kortid: nagranninn helst. */
+  const noLine = weekContext({ season: 2030, week: 3, defense: [], schedule: [
+    { season: 2030, week: 3, type: "REG", home: "AAA", away: "BBB", total: 44, spread: 0 },
+    { season: 2030, week: 3, type: "REG", home: "CCC", away: "DDD", total: null, spread: null },
+  ] });
+  ok(noLine.implied.get("AAA") === 22 && noLine.implied.has("CCC") === false,
+    "leikur an linu SKRIFAR EKKERT (`has` er false), hann skrifar ekki null");
+  ok(noLine.opp.get("CCC") === "DDD",
+    "en motherjinn er samt thekktur — 'engin lina' og 'engin leikur' eru ADGREIND");
+
+  /* ---------- B. VORNIN: rett ar, og ADEINS thad ---------- */
+  /* Tilbuin leikjaskra per ar svo hvert ar i `defense.json` se prófanlegt
+     (leikjaskrain a disknum ber adeins tvo sidustu arin). */
+  const fakeSched = (y) => [{ season: y, week: 1, type: "REG", home: "SF", away: "LA",
+                              total: 48.5, spread: 3.5 }];
+  const ctxNew = weekContext({ schedule: fakeSched(defYears.at(-1)), defense,
+                              week: 1, season: defYears.at(-1) });
+  const ctxOld = weekContext({ schedule: fakeSched(defYears[0]), defense,
+                              week: 1, season: defYears[0] });
+  const yrs = new Set([...ctxNew.dvp.values()].map((d) => Number(d.season)));
+  const yrsOld = new Set([...ctxOld.dvp.values()].map((d) => Number(d.season)));
+  ok(yrs.size === 1 && yrs.has(defYears.at(-1)),
+    `season=${defYears.at(-1)} gefur ADEINS thad ar i dvp (${[...yrs].join(",")})`);
+  ok(yrsOld.size === 1 && yrsOld.has(defYears[0]),
+    `og season=${defYears[0]} gefur ADEINS ${defYears[0]} — baðar attir, ekki bara ein`);
+  ok(ctxNew.defSeason === defYears.at(-1) && ctxNew.defRows === ctxNew.dvp.size,
+    `\`defSeason\` segir hvada ar thad var (${ctxNew.defSeason}, ${ctxNew.defRows} radir)`);
+
+  /* Rod skrarinnar ma ekki rada vorninni heldur. */
+  const ctxRev = weekContext({ schedule: fakeSched(defYears.at(-1)),
+                              defense: [...defense].reverse(), week: 1,
+                              season: defYears.at(-1) });
+  let same = ctxRev.dvp.size === ctxNew.dvp.size && ctxRev.dvp.size > 0;
+  for (const [k, v] of ctxNew.dvp) {
+    const r = ctxRev.dvp.get(k);
+    if (!r || Number(r.season) !== Number(v.season) || r.adj !== v.adj) { same = false; break; }
+  }
+  ok(same, `vornin er lika ordu-ohad (${ctxRev.dvp.size} radir i ofugri rod)`);
+
+  /* HVE MIKID ar-vixlid kostadi — astaedan fyrir thvi ad thetta er villa
+     og ekki snyrting. */
+  let worst = 0;
+  for (const [k, v] of ctxNew.dvp) {
+    const o = ctxOld.dvp.get(k);
+    if (!o) continue;
+    worst = Math.max(worst,
+      Math.abs(defenseMult(v.adj, v.leagueMean) - defenseMult(o.adj, o.leagueMean)));
+  }
+  ok(worst > 0.02,
+    `ar-vixl haggar vorn-margfaldaranum um ${(worst * 100).toFixed(1)}% ` +
+    `(${defYears[0]} gegn ${defYears.at(-1)})`);
+
+  /* ---------- C. VIKA 1: ar sem er EKKI i vorninni ---------- */
+  ok(!defense.some((d) => Number(d.season) === cur),
+    `${cur} er EKKI i defense.json — thad ER astandid i viku 1 (skrifad a thridjudogum)`);
+  const w1ctx = weekContext({ schedule: schedule.filter((g) => Number(g.season) === cur),
+                              defense, week: 1, season: cur });
+  ok(w1ctx.dvp.size === 0 && w1ctx.defSeason === null,
+    "-> engin vorn og `defSeason: null` (EKKI vorn fyrra ars med thessa ars merki)");
+  ok(w1ctx.seasonAsked === cur,
+    `en `+"`seasonAsked`"+` segir hvers var beðið (${w1ctx.seasonAsked}) svo vidmotid geti nefnt arid`);
+  /* AFLEIDINGIN, ekki millilidurinn: talan ber markadslinuna en ENGAN
+     varnarlid. Borid vid ar SEM HEFUR vorn, annars vaeri thetta tomt. */
+  const one = [{ id: "z1", name: "Z", pos: "RB", team: "SF", proj: 238, bye: 9 }];
+  const withDef = weekRows(one, weekContext({ schedule: fakeSched(defYears.at(-1)),
+    defense, week: 1, season: defYears.at(-1) }))[0];
+  const noDef = weekRows(one, w1ctx)[0];
+  ok(noDef.proj != null && withDef.proj != null,
+    `badar tolur eru raunverulegar (${noDef.proj} an varnar, ${withDef.proj} med)`);
+  ok(Math.abs(noDef.proj - withDef.proj) > 1e-9,
+    "og thaer eru OLIKAR — annars vaeri fullyrdingin um 'engan varnarlid' tom");
+  /* Og hun ber SAMT markadslinuna — hun er ekki fallin i arstidar-medaltal.
+     LIDID ER VALID UR GOGNUNUM, EKKI HANDSKRIFAD: fyrsta utgafa thessarar
+     fullyrdingar notadi SF og FELL a rettum koda, thvi SF er vaentur til ad
+     skora NAKVAEMLEGA 22,5 i viku 1 2026 og `gameScriptMult` er tha 1 upp a
+     null. Fullyrdingin var rett; fixturan var handskrifud agiskun. */
+  const lively = [...w1ctx.implied.entries()]
+    .find(([, v]) => v != null && Math.abs(v - 22.5) > 1);
+  ok(!!lively, `viku 1 ber lid med linu fjarri grunnlinunni (${lively ? lively.join("=") : "engin"})`);
+  if (lively) {
+    const r = weekRows([{ id: "z2", name: "Z2", pos: "RB", team: lively[0], proj: 238 }],
+                       w1ctx)[0];
+    ok(r.proj !== r.projSleeper,
+      `talan an varnar ber SAMT markadslinuna (${r.proj} gegn ${r.projSleeper})`);
+  }
+
+  /* ---------- D. `season` VANTAR -> engin agiskun ---------- */
+  const ctxNo = weekContext({ schedule, defense, week: 1 });
+  ok(ctxNo === null || (ctxNo.dvp.size === 0 && ctxNo.defSeason === null),
+    "kallandi sem sleppir `season` faer ENGA vorn, ekki thogult nyjasta arid");
+
+  /* ---------- E. BADIR LESMATAR SENDA `season` ----------
+     Byggingarleg fullyrding: hun fellur um leid og annar hvor hettir,
+     ADUR en notandinn ser rangt ar. Sama gerd og `prediction-ledger.mjs`
+     i FPL-hlutanum (CLAUDE.md 7.1).                                    */
+  for (const f of ["Dashboard.jsx", "MyTeam.jsx"]) {
+    const src = readFileSync(path.join(ROOT, "src", f), "utf8");
+    const call = /weekContext\(\{[^}]*\}\)/.exec(src);
+    ok(!!call, `${f}: kallid a \`weekContext\` fannst`);
+    ok(!!call && /season\s*:/.test(call[0]),
+      `${f} sendir \`season\` med (${call ? call[0].replace(/\s+/g, " ") : "?"})`);
+  }
+}
+
+/* ============================================================
    4. FORLEIKUR: STADAN MA EKKI VERA RODUD
    ============================================================
    `standings.js` skilar `complete: false` og `rank: null` thegar engir
