@@ -219,7 +219,11 @@ export function picksUntilNext(pick, teams) {
 /**
  * Metur hvern lausan leikmann og skilar rodudum lista med ROKUM.
  *
- * `available`  [{ id, name, pos, vbd, adp, adpSd, tier, ... }]
+ * `available`  [{ id, name, pos, vbd, adp, adpSd, tier, avail, injury, ... }]
+ *
+ *              `avail` ER TILTAEKILEIKI OG HANN VAR ALDREI SENDUR HINGAD.
+ *              Sja notuna vid `sidelined` nedar — thad var raunveruleg
+ *              villa a skjanum, ekki snyrting.
  * `roster`     [{ pos }] — thad sem thu att thegar
  * `pick`       valid sem er A KLUKKUNNI (thad naesta sem verdur tekid)
  * `nextPick`   MITT naesta val, BERUM ORDUM. Se thad gefid er thad notad
@@ -257,6 +261,64 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
         : pick + picksUntilNext(pick, teams));
   const wait = nextPick == null ? null : nextPick - pick;
 
+  /* ============================================================
+     TILTAEKILEIKI 0 = SPILAR EKKI. HANN VAR ALDREI SPURDUR.
+     ============================================================
+     `DraftBoard` sendi hingad `{ id, name, pos, vbd, adp, adpSd, tier,
+     proj }` og EKKERT UM MEIDSLI, thott `build.js` reikni `avail`
+     (`availability()` i model.js) i somu rod. Utkoman var maeld
+     18.8.2026 a raunverulegu bordi dagsins, 10-lida PPR:
+
+       George Kittle · injury PUP · avail 0 · proj 169,3 (17 leikir)
+       -> aRank 61, VBD 9,9, Value **+5,4 umferdir** = GRAENT KAUP
+
+     Þrettan leikmenn med `avail: 0` baru aRank. Spa Sleeper er OAFSLEGIN
+     — hun er heilt timabil hja manni sem er ekki i lidinu — svo hvert
+     einasta tala nidurstreymis (VBD, threp, virdi gegn markadi,
+     bradanauðsyn, lifun) er reiknud af tolu sem er ekki til.
+
+     ÞETTA VAR YFIRSJON, EKKI HONNUN: `src/lineup.js` (`optimalLineup`)
+     ber `avail` ALLTAF og hefur alltaf gert. Tveir hlutar sama apps
+     spurdu sitthvorrar heimildar um sama mann.
+
+     REGLAN ER MAELD OG HUN ER FLOT: FPL-hlutinn thessa repo maeldi ad
+     **`Out -> 0` sotti 84% af ollum tiltaekileika-abatanum** og ad
+     finni threp (Questionable/Doubtful/aefingastada) baettu engu thar
+     sem vikmorkin utiloka null — sama nidurstada og `avail-lab.mjs`
+     ber hér (`practice_status`: +0,44 pp, CI inniheldur null). Þvi er
+     **NULL-TILFELLID EITT** tekid hart og ENGINN halli fundinn upp:
+     0,25 og 0,75 rada engu, nakvaemlega eins og adur.
+
+     NULL ER EKKI NULL: `avail == null` er "vid vitum ekki" og hann
+     spilar. Adeins tala sem ER null fellur ut. Þess vegna
+     `p.avail != null && Number(p.avail) === 0` og ekki `!p.avail`.
+
+     OG THEIM ER EKKI THAGAD I HEL. Radgjof sem lætur mann horfa er
+     radgjof sem ekki er haegt ad vera osammala: notandinn myndi leita
+     Kittle i listanum, ekki finna hann, og gruna villu. Þeir eru
+     skiladir i `sidelined` MED ASTAEDU, og kassinn birtir hana.
+     Vordur: `tests/advice.mjs` kafli 14.                          */
+  const playable = [], benched = [];
+  for (const p of available || []) {
+    if (p && p.avail != null && Number(p.avail) === 0) benched.push(p);
+    else playable.push(p);
+  }
+  /* Þeir mega ekki heldur telja i "hvad ætti stadan ad bjoda naest" —
+     leikmadur sem spilar ekki "lifir" ekki til naesta vals i neinum
+     nytilegum skilningi, og VBD hans blæs `expectedNext` upp og
+     bradanauðsyn hinna nidur. Ein sia, tvo notkunarsvid, svo thau
+     geta ekki rekid i sundur. */
+  const sidelined = benched
+    .filter((p) => p.vbd != null)
+    .sort((a, b) => b.vbd - a.vbd)
+    .map((p) => ({
+      id: p.id, name: p.name, pos: p.pos, vbd: round1(p.vbd),
+      injury: p.injury ?? null, avail: 0,
+      /* Astaedan er hluti af utkomunni, ekki skraut — sja hausinn. */
+      why: `${p.injury || "unavailable"} — his projection is a full 17-game`
+         + ` number and is not discounted for this`,
+    }));
+
   /* Hvad a hver stada ad vera vid naesta val? Se ekkert val eftir er
      svarid ENGIN TALA — hlutinn stendur samt (hann greinir stodur sem
      rodin naer til fra theim sem hun naer ekki til, sja `mustFill`). */
@@ -264,14 +326,14 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
   for (const pos of ["QB", "RB", "WR", "TE"]) {
     expNext[pos] = nextPick == null
       ? { value: null, n: 0 }
-      : expectedBestAt(available, pos, nextPick);
+      : expectedBestAt(playable, pos, nextPick);
   }
 
   const counts = {};
   for (const r of roster) counts[r.pos] = (counts[r.pos] || 0) + 1;
 
   const out = [];
-  for (const p of available) {
+  for (const p of playable) {
     if (p.vbd == null || !expNext[p.pos]) continue;
     const max = (league.maxPos || {})[p.pos];
     if (max != null && (counts[p.pos] || 0) >= max) continue;
@@ -402,6 +464,11 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
     pick, nextPick, wait,
     /* Audar vikur sem rekast a — UPPLYSING, ekki thattur i rodinni. */
     byeClash,
+    /* Menn sem rodin BAR og sem eru ekki i lidinu sinu. Þeir eru
+       teknir UT UR `picks` og skiladir hér med astaedu — sja notuna
+       ofar. Tomt fylki thegar allir eru heilir; ALDREI `null`, svo
+       vidmotid getur skrifad `.length` an vardar. */
+    sidelined,
     /* Stodur sem thu verdur ad fylla en rodin nefnir aldrei. */
     mustFill,
     mustFillUrgent: needed > 0 && picksLeft <= needed + 1,

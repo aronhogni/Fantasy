@@ -590,5 +590,146 @@ console.log("\n13. `MEASURED` ber somu tolur og diskurinn");
   }
 }
 
+/* ============================================================
+   14. TILTAEKILEIKI 0 — RODIN VAR BLIND A MEIDSLI
+   ============================================================
+   VILLAN: `DraftBoard` sendi `recommend()` hvorki `avail` ne `injury`,
+   thott `build.js` reikni bædi i somu rod. Maelt 18.8.2026 a
+   raunbordi, 10-lida PPR: **George Kittle, PUP, avail 0**, spa 169,3
+   (heil 17 leikja tala) -> aRank 61, VBD 9,9, "+5,4 umferdir" GRAENT.
+   Þrettan menn med `avail: 0` baru aRank.
+
+   ÞETTA PROF ER BYGGT TIL AD FALLA THEGAR THETTA GERIST AFTUR, og
+   thad er ekki einfalt: fullyrding a formi "Kittle er ekki i listanum"
+   er ONYT ef hann er hvergi i inntakinu (sja CLAUDE.md 5b, regla 2).
+   Þess vegna er THEKJAN FULLYRT FYRST — raunbordid VERDUR ad bera
+   menn med `avail: 0` OG aRank, annars fellur kaflinn af thvi ad hann
+   getur ekki maelt.
+
+   Og hinar tvaer hlidarnar eru jafn mikilvaegar:
+     · `avail == null` (vid vitum ekki) MA EKKI fella mann — NULL ER
+       EKKI NULL, og forritari sem "snyrtir" thetta i `!p.avail` fellir
+       hvern einasta mann sem gagnaskran thegir um.
+     · 0,25 og 0,75 MEGA EKKI fella neinn. Enginn halli var funninn upp:
+       FPL-hlutinn maeldi ad `Out -> 0` sotti 84% af abatanum og finni
+       threp baru engin vikmork sem utiloka null; `avail-lab.mjs` hér
+       ber somu nidurstodu. Fyndi einhver upp halla myndi thetta falla.
+   ============================================================ */
+console.log("\n14. tiltaekileiki 0 fellur ur rodinni — med astaedu");
+{
+  const { buildRows } = await import("../src/build.js");
+  const rd = (f) => JSON.parse(readFileSync(path.join(DATA, f), "utf8"));
+  const L = {
+    teams: 10, scoring: "ppr",
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+    superflex: false, maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 }, rounds: 15,
+  };
+
+  /* ---- a) tilbuin gogn: reglan sjalf, engin gagnaskra ---- */
+  const mk = (id, pos, vbd, extra = {}) => ({
+    id, name: `p${id}`, pos, vbd, adp: 50, adpSd: 10, tier: 1, ...extra,
+  });
+  {
+    const rec = recommend({
+      available: [
+        mk("hurt", "TE", 200, { avail: 0, injury: "PUP" }),
+        mk("ok", "TE", 100),
+        mk("unknown", "RB", 90, { avail: null }),
+        mk("quest", "WR", 80, { avail: 0.75, injury: "Questionable" }),
+        mk("doubt", "WR", 70, { avail: 0.25, injury: "Doubtful" }),
+      ],
+      roster: [], pick: 10, league: L, nextPick: 21,
+    });
+    const ids = rec.picks.map((p) => p.id);
+    /* Positift fyrst: rodin BER thessa menn. An thess er "hurt er ekki
+       i henni" satt af tomum astaedum. */
+    ok(ids.includes("ok") && ids.includes("unknown"),
+      `rodin ber heilbrigda menn (${ids.join(",")})`);
+    ok(!ids.includes("hurt"),
+      "avail 0 er EKKI i rodinni, thott VBD hans se haest af ollum");
+    ok(ids.includes("unknown"),
+      "avail null er i rodinni — NULL ER EKKI NULL");
+    ok(ids.includes("quest") && ids.includes("doubt"),
+      "avail 0,75 og 0,25 rada engu — enginn halli var funninn upp");
+    ok(rec.sidelined.length === 1 && rec.sidelined[0].id === "hurt",
+      `sidelined ber hann og hann einan (${rec.sidelined.length})`);
+    ok(/PUP/.test(rec.sidelined[0].why || ""),
+      `astaedan nefnir stoduna berum ordum: "${rec.sidelined[0].why}"`);
+    ok(rec.sidelined[0].vbd === 200,
+      "og VBD hans er skilad, svo notandinn geti sed hvad hann er ad sleppa");
+
+    /* Hann ma ekki heldur telja i "hvad ætti stadan ad bjoda naest".
+       Þessi fullyrding er sjalfstaed: eina sian er notud a badum
+       stodum, svo bædi verda ad falla thegar hun er fjarlaegd. */
+    ok(rec.expectedNext.TE != null && rec.expectedNext.TE <= 100,
+      `expectedNext.TE (${rec.expectedNext.TE}) reiknast an hans (VBD 200)`);
+  }
+
+  /* ---- b) tomt fylki, aldrei null ---- */
+  {
+    const rec = recommend({
+      available: [mk("a", "RB", 50), mk("b", "WR", 40)],
+      roster: [], pick: 5, league: L, nextPick: 16,
+    });
+    ok(Array.isArray(rec.sidelined) && rec.sidelined.length === 0,
+      "allir heilir -> tomt fylki, ekki null (vidmotid les .length an vardar)");
+  }
+
+  /* ---- c) RAUNBORDID — thekjan er fullyrding, ekki logga ---- */
+  if (existsSync(path.join(DATA, "players.json"))) {
+    const { rows } = buildRows({ players: rd("players.json"), league: L });
+    const boardish = rows.filter((r) => r.aRank != null);
+    const zero = boardish.filter((r) => r.avail === 0);
+    /* HER ER THEKJAN. Fyndist enginn slikur madur gaeti kaflinn ekki
+       maelt neitt og vaeri samt graenn — nakvaemlega tilfellid sem
+       CLAUDE.md 5b lysir. Þa er rett ad FALLA og lata skoda. */
+    ok(zero.length > 0,
+      `THEKJA: ${zero.length} menn med avail 0 bera aRank a raunbordinu`);
+    ok(zero.some((r) => r.injury && r.injury !== "Out" && r.injury !== "IR"),
+      "og theirra a medal er stada UTAN {Out, IR} — thess vegna ma "
+      + "litur merkisins ekki koma ur nafnalista");
+
+    const rec = recommend({
+      /* NAKVAEMLEGA sami hlutur sem `DraftBoard` byggir. Breytist hann
+         thar an thess ad breytast hér er profid ekki lengur ad maela
+         thad sem for i loftid — sja kafla 12 um somu aett af villu. */
+      available: boardish.sort((a, b) => a.aRank - b.aRank).map((r) => ({
+        id: r.id, name: r.name, pos: r.pos, vbd: r.vbd,
+        adp: r.adp, adpSd: r.adpSd, tier: r.tier, proj: r.proj,
+        avail: r.avail, injury: r.injury,
+      })),
+      roster: [], pick: 55, league: L, nextPick: 66,
+    });
+    const inPicks = new Set(rec.picks.map((p) => p.id));
+    const leaked = zero.filter((r) => inPicks.has(r.id));
+    ok(leaked.length === 0,
+      `enginn theirra ${zero.length} er i rodinni (${leaked.map((r) => r.name).join(", ") || "engir"})`);
+    ok(rec.sidelined.length > 0 && rec.sidelined.every((s) => s.why && s.why.length > 12),
+      `og allir ${rec.sidelined.length} bera astaedu (>12 stafir)`);
+    /* Og rodin ma ekki hafa tapad neinum odrum. */
+    ok(rec.picks.length > 300,
+      `rodin er enn full (${rec.picks.length} menn) — sian tok ekki heilbrigda med`);
+  }
+
+  /* ---- d) VIRAR: `DraftBoard` VERDUR ad senda thetta afram ----
+     Reglan er hrein og profanleg, en hun er ONYT ef .jsx-skran
+     sleppir svidinu — sem er EINMITT villan sem var. Sama gildra og
+     `fetchLineups` i FPL-verkefninu, thar sem profid las KODA og var
+     graent medan workflow-id sendi engan `env`. Hér er lesid ur
+     upprunanum thvi engin onnur leid ser tenginguna; DOM-hlidin er i
+     `tests/render.mjs`. */
+  {
+    const src = readFileSync(
+      path.resolve(new URL(".", import.meta.url).pathname, "..", "src", "DraftBoard.jsx"),
+      "utf8");
+    const call = src.slice(src.indexOf("return recommend({"));
+    const head = call.slice(0, call.indexOf("roster, pick, league"));
+    ok(/avail:\s*r\.avail/.test(head),
+      "DraftBoard sendir `avail` inn i recommend()");
+    ok(/injury:\s*r\.injury/.test(head),
+      "og `injury`, svo astaedan se nefnanleg");
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

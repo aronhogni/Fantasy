@@ -789,8 +789,16 @@ function BoardTable({ rows, onTake, reach, nextOwn }) {
                     : `${Math.round(p * 100)}% likely to last until your next pick`}>
                   {r.name}
                   {r.rookie && <span className="badge" style={{ marginLeft: 6 }}>R</span>}
+                  {/* ROD LITSINS KEMUR UR `avail`, EKKI UR NAFNALISTA.
+                      Hér stod `r.injury === "Out" || r.injury === "IR"`, svo
+                      **PUP, Suspended, NA, DNR og Practice Squad** — allt
+                      tiltaekileiki 0 — komu GUL, vid hlidina a graenu
+                      "+5,4 umferdir". Tveir litir um sama mann a somu rod.
+                      `AVAIL` i model.js er heimildin og hun ber ellefu
+                      gildi sem thydja "spilar ekki"; talan hennar er
+                      spurd, ekki tvo af nofnunum. */}
                   {r.injury && r.injury !== "Active" && (
-                    <span className={`badge ${r.injury === "Out" || r.injury === "IR" ? "bad" : "warn"}`}
+                    <span className={`badge ${r.avail === 0 ? "bad" : "warn"}`}
                       style={{ marginLeft: 6 }}>{r.injury}</span>
                   )}
                 </td>
@@ -801,7 +809,18 @@ function BoardTable({ rows, onTake, reach, nextOwn }) {
                 <td className="mono">{n(r.proj)}</td>
                 <td className="mono dim">{r.tier ?? "—"}</td>
                 <td className="mono dim">{n(r.adp)}</td>
-                <td className={`mono ${r.value > 0.5 ? "good" : r.value < -0.5 ? "bad" : ""}`}>
+                {/* OFULLKOMIN TALA FULLYRDIR EKKI — sama regla og gulu
+                    hausarnir i FPL-hlutanum. Talan sjalf er birt (ad
+                    fela hana vaeri ad fela ad merkid se thar), en
+                    GRAENA "kaup"-merkid er tekid af manni sem spilar
+                    ekki: thad er fullyrding sem spain a bak vid hana
+                    getur ekki barid. */}
+                <td className={`mono ${r.avail === 0 ? "dim"
+                  : r.value > 0.5 ? "good" : r.value < -0.5 ? "bad" : ""}`}
+                  title={r.avail === 0
+                    ? `${r.injury || "unavailable"} — projection is not discounted for this,`
+                      + " so this figure is not a buy signal"
+                    : undefined}>
                   {r.value == null ? <span className="null">—</span> : signed(r.value)}
                 </td>
                 <td className="mono dim">{r.ecr ?? <span className="null">—</span>}</td>
@@ -1760,6 +1779,11 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
         available: available.map((r) => ({
           id: r.id, name: r.name, pos: r.pos, vbd: r.vbd,
           adp: r.adp, adpSd: r.adpSd, tier: r.tier, proj: r.proj,
+          /* ÞESSI TVO VANTADI OG ThAD KOSTADI RETT SVAR. `avail`
+             (0 = spilar ekki) og stadan sem SEGIR hvers vegna — sja
+             notuna vid `sidelined` i advice.js. Kittle bar PUP og
+             "+5,4 umferdir kaup" a sama skja. */
+          avail: r.avail, injury: r.injury,
         })),
         /* NAKVAEMLEGA SAMA TALA SEM BORDID LITAR MED — sja hausinn a
            `picksUntilNext`. `null` (ekkert saeti thekkt) fellur i
@@ -1898,6 +1922,36 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
           2019–2025 on both projections it is worth somewhere between nothing and
           about thirty points a season, and the interval includes zero. It is here
           because it is the one thing a season-long ranking cannot see for you.
+        </div>
+      )}
+
+      {/* ============================================================
+          ÞEIR SEM SPILA EKKI — NEFNDIR, EKKI FALDIR
+          ============================================================
+          Sja notuna vid `sidelined` i advice.js fyrir villuna sjalfa.
+          Hér er BIRTINGAR-reglan: ad sia mann ut ur rodun THEGJANDI er
+          jafn slæmt og ad rada honum. Notandinn leitar Kittle, finnur
+          hann ekki, og veit ekki hvort appid vissi eda gleymdi. Ástaedan
+          er thvi skrifud vid hvert nafn — thad er sama krafa og
+          `unranked` gerir um K og DST. */}
+      {rec.sidelined && rec.sidelined.length > 0 && (
+        <div className="note warn" style={{ marginTop: 8 }}>
+          <b>Not in the list — they are not playing:</b>{" "}
+          {rec.sidelined.map((s, i) => (
+            <span key={s.id}>
+              {i > 0 && " · "}
+              <span className={`pos ${s.pos}`}>{s.pos}</span> {s.name}{" "}
+              <span className="badge bad">{s.injury || "unavailable"}</span>
+            </span>
+          ))}
+          .{" "}
+          Their projections are full 17-game numbers with <b>no injury discount</b>,
+          so the rank, tier and "value vs market" you can still read on the board
+          below are all computed from points they are not going to score. They are
+          out of the order above on purpose. Availability is the one part of this
+          the app treats as all-or-nothing: only a status that means{" "}
+          <i>will not play</i> removes anyone, because that step was measured to
+          carry the benefit and finer grades were measured to carry none.
         </div>
       )}
 

@@ -2737,7 +2737,7 @@ aðskilinn viljandi, svo lota sem vinnur í öðru appinu geti ekki fellt hitt.
 | `accuracy.mjs` | **PRÓFSTEINNINN:** fullkomið borð verður að slá handahóf með >4 staðalvillum, og hálfgott borð verður að lenda **á milli**. Það felldi fyrstu útgáfu hermunarinnar |
 | `learn.mjs` | Hryggjar-aðhvarfið: stöðlun, λ valið með krossprófun **innan** þjálfunargagna, bootstrap klasað eftir tímabili |
 | `market.mjs` | Vænt mörk úr línu, leikjaflæði, vörn andstæðings |
-| `advice.mjs` | Kaup-röðin. Kafli 7 ber hana við mælinguna á disknum. **Kafli 8 ver að deildin í appinu beri sömu reglur og hermunin** — sjá 6b |
+| `advice.mjs` | Kaup-röðin. Kafli 7 ber hana við mælinguna á disknum. **Kafli 8 ver að deildin í appinu beri sömu reglur og hermunin** — sjá 6b. **Kafli 14 ver að `avail: 0` sé ALDREI í röðinni og sé samt NEFNDUR** — sjá 6g; þekjan er fullyrt fyrst (raunborðið verður að bera slíka menn, annars getur kaflinn ekki mælt) og bæði `avail == null` og 0,25/0,75 verða að fara ÓBREYTT í gegn |
 | `lineup.mjs` | Uppstillingin. Endar á **bakspors-leit**: 1.500 slembin lið og 15 deildarform, grásugan verður að vera sannanlega best og enginn á bekk má skora meira en gjaldgengt byrjunarsæti |
 | `names.mjs` | Raunveruleg NFL-jaðartilfelli. **Tvíræður lykill skilar ENGU** — „síðasti vinnur" er þögla ranga pörunin |
 | `pipeline.mjs` | **Gögnin sjálf, ekki formúlurnar.** Nafna-pörun má ekki taka yfir; engin tómgildi; hvert birt svið hefur raunverulega dreifingu; PPR > half > std hjá hverjum móttakara |
@@ -3122,6 +3122,101 @@ var mælt og fellt þrisvar: 19 stöðuplön, bráðanauðsyn sem röð (−63,8
 0/4 ár), lifunarlíkur sem jafnteflisrof (t = −0,06 / +0,79). **`minGain = 10` er
 MERKT ÓMÆLD** — varfærið gólf, ekki fittuð tala — og `confident: false` segir
 hvaða inntak liggur utan þess sem var mælt.
+
+---
+
+## 6g. DRAFT-RÁÐGJÖFIN VAR BLIND Á MEIÐSLI — 18.8.2026
+
+**Þrír dagar í draftið, og appið sagði „kauptu" um mann sem er ekki í liðinu.**
+
+`DraftBoard.jsx` sendi `recommend()` nákvæmlega
+`{ id, name, pos, vbd, adp, adpSd, tier, proj }` — **ekkert um meiðsli**, þótt
+`build.js` reikni `avail` (`availability()` í `model.js`) í sömu röð, fjórum
+línum frá `proj`. Sleeper-spáin er **óafslegin**: hún er heilt 17-leikja
+tímabil, líka hjá manni sem er á PUP-lista.
+
+Mælt á raunborði dagsins, 10-liða PPR (hans eigin deild):
+
+| | |
+|---|---|
+| George Kittle · `injury: "PUP"` · `avail: 0` | spá **169,3** stig, heilir 17 leikir |
+| → | **aRank 61**, VBD 9,9, tier 14 |
+| → | **Value +5,4 umferðir** — og hún var teiknuð **GRÆN** |
+| Merkið á röðinni | **gult** („warn"), af því að liturinn kom úr nafnalista |
+
+**Þrettán leikmenn með `avail: 0` báru aRank.** Kittle er sá eini sem er hátt,
+en hann er nákvæmlega sá sem einhver tekur: TE, 61. sæti í röð, ADP 115, og
+skjárinn segir að markaðurinn sé fimm umferðum á eftir.
+
+**Þetta var YFIRSJÓN, EKKI HÖNNUN, og það er sannanlegt:** `src/lineup.js`
+(`optimalLineup`) hefur **alltaf** borið `avail`, og `waivers.js` gerir það líka
+(`value: "vbd > 0 AND projection is Sleeper's own AND availability 1"`). Tveir
+hlutar sama apps spurðu sitthvorrar heimildar um sama mann.
+
+**STÆRÐARGREINING FYRST, LAUSN Á EFTIR.** Þetta er **gildra per leikmann, ekki
+halli á kerfinu**: að meðaltali eru meiddir leikmenn *ekki* sýndir sem kaup
+(meðal-`value` heilbrigðra **+0,55** umferðir á móti **−0,99** hjá flögguðum).
+Röðin í heild var því ekki skekkt — það er einn maður í 61. sæti sem er sagður
+kaup og er það ekki. Þess vegna var lausnin **ekki** ný vog á allar spár.
+
+**REGLAN ER MÆLD OG HÚN ER FLÖT.** FPL-hlutinn þessa repo mældi að
+**`Out -> 0` sótti 84% af öllum tiltækileika-ábatanum** og að fínni þrep
+(Questionable/Doubtful/æfingastaða) bættu engu þar sem vikmörkin útiloka null.
+`avail-lab.mjs` hér ber **sömu** niðurstöðu (4i): ágiskaða taflan stendur,
+`practice_status` gefur +0,44 pp með null innan CI. Því er **null-tilfellið eitt**
+tekið hart og **enginn halli fundinn upp** — 0,25 og 0,75 ráða engu, nákvæmlega
+eins og áður. Að finna upp gráðu hér væri ómæld tala í eigin reit.
+
+**NULL ER EKKI NÚLL:** `avail == null` þýðir „við vitum ekki" og hann spilar.
+Skilyrðið er `p.avail != null && Number(p.avail) === 0`. Stökkbreyting í
+`!p.avail` **fellir öll fyrri köll** (þau senda ekkert `avail`, svo `undefined`
+yrði „spilar ekki") — og prófið hrundi, sem er rétt hegðun.
+
+**OG ÞEIM ER EKKI ÞAGAÐ Í HEL.** Ráðgjöf sem lætur mann horfa er ráðgjöf sem
+ekki er hægt að vera ósammála: notandinn leitar Kittle, finnur hann ekki og
+grunar villu. `recommend()` skilar þeim í nýju sviði **`sidelined`** með ástæðu
+per mann (`"PUP — his projection is a full 17-game number and is not discounted
+for this"`) og kassinn birtir hana. Sama krafa og `unranked` gerir um K og DST.
+
+**Þrennt breyttist, allt lítið:**
+
+1. `advice.js` — ein sía, **tvö notkunarsvið**: `avail: 0` fer úr `picks` **og**
+   úr `expectedBestAt`. Hitt hefði blásið `expectedNext` upp og bráðanauðsyn
+   hinna niður út frá stigum sem eru ekki til.
+2. `DraftBoard.jsx` — `avail` og `injury` send inn; nótan birt.
+3. Tveir **litir** sem lugu á sömu röð: merkið var `{Out, IR}`-**nafnalisti**, svo
+   PUP/NA/Suspended/DNR/Practice Squad komu gul þótt `AVAIL` gefi þeim öllum 0
+   — spurt er nú um **töluna**, ekki tvö af nöfnunum. Og græna „kaup"-merkið er
+   tekið af „Value" hjá `avail === 0` (talan sjálf er áfram birt, sama regla og
+   gulu hausarnir í FPL-hlutanum: **ófullkomin tala fullyrðir ekki**).
+
+**Verðir og stökkbreytingar — níu, allar felldar:**
+
+| stökkbreyting | hvað féll |
+|---|---|
+| `for (const p of playable)` -> `available` | `advice.mjs` 14, **2 fullyrðingar** |
+| `expectedBestAt(playable)` -> `available` | `advice.mjs` 14, 1 |
+| `avail != null && === 0` -> `!p.avail` | hrun (öll köll án `avail`) |
+| `=== 0` -> `< 1` (uppfundinn halli) | `advice.mjs` 14, 2 |
+| `sidelined` alltaf `[]` | `advice.mjs` 14 |
+| `avail: r.avail` fellt úr `.jsx` | `advice.mjs` 14 **og** `render.mjs` 2 |
+| merkið aftur í `{Out, IR}` | `render.mjs` 2 (c) |
+| „Value" aftur grænt | `render.mjs` 2 |
+| nótan fjarlægð úr `.jsx` | `render.mjs` 2 (a) |
+
+> **OG MÆLITÆKIÐ SJÁLFT VAR VILLAN Í FYRSTU TILRAUN.** Stökkbreytingin
+> `=== 0` -> `< 1` mældist **lifandi** — `perl -0pi -e s///` án `/g` skipti út
+> **fyrsta** fundinum, sem var *athugasemdin* fjórum línum ofar sem NEFNIR
+> skilyrðið. Kóðinn var óhreyfður og prófið því réttilega grænt. Sama ætt og
+> `\bNaN\b`-gildran í `CLAUDE.md` 5b: *áður en þú trúir að stökkbreyting hafi
+> lifað, athugaðu hvort hún var raunverulega gerð.*
+
+> **OG EIN FULLYRÐING ER VEIK — ÞAÐ ER MÆLT OG ÞAÐ ER SKRIFAÐ Í PRÓFIÐ.**
+> `render.mjs` (b) („enginn þeirra í rökstuðningnum") getur ekki fallið nema
+> hliðarsettur maður komist í **efstu fimm**, því það er allt sem skjárinn ber.
+> Stökkbreytingin sem hleypti þeim öllum inn í röðina aftur **var græn hjá
+> henni**; `advice.mjs` kafli 14 felldi hana. Sama ósamhverfa og
+> `playerlist-sort.mjs` í FPL-verkefninu.
 
 ---
 

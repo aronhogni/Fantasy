@@ -163,6 +163,73 @@ console.log("\n2. draft-flipinn");
   ok(det && det.querySelector("summary"),
     "og hann hefur smellanlegan haus");
 
+  /* ============================================================
+     ÞEIR SEM SPILA EKKI — LESID AF SKJANUM
+     ============================================================
+     `tests/advice.mjs` kafli 14 ver REGLUNA og ad `DraftBoard` sendi
+     `avail` afram. Hvorugt segir ad ThAD SJAIST. Villan sem var —
+     Kittle med PUP og "+5,4 umferdir" GRAENT a somu rod — var
+     BIRTINGAR-villa jafnt sem rokvilla, og hun var a skjanum.
+
+     Þrjar fullyrdingar, hver a sinu lagi:
+       (a) kassinn NEFNIR tha, med stodu; ad sia thegjandi vaeri
+           radgjof sem ekki er haegt ad vera osammala
+       (b) enginn theirra er i rokstudningnum (og "enginn" er marktaekt
+           adeins thvi (a) sannadi ad their eru til — sja CLAUDE.md 5b).
+           OG ThESSI ER VEIK, ThAD ER MAELT OG ThAD ER SAGT: skjarinn ber
+           adeins EFSTU FIMM, svo hun getur ekki fallid nema sidumadur
+           komist i toppinn. Stokkbreyting (`for (const p of playable)`
+           -> `available`) hleypti theim ollum inn i rodina aftur og
+           ThETTA PROF VAR GRAENT; `tests/advice.mjs` kafli 14 felldi
+           hana med tveimur fullyrdingum. Su er burdarasin, thessi er
+           lyktarprofid — sama ósamhverfa og `playerlist-sort.mjs` i
+           FPL-verkefninu, thar sem fullyrding sem tharf tvennt til ad
+           bregdast var veikari en hun leit ut fyrir.
+       (c) merkid i bordinu er RAUTT, ekki gult. Þar stod nafnalisti
+           {Out, IR} og PUP/NA/Suspended komu gul.                    */
+  {
+    const note = [...document.querySelectorAll(".note")]
+      .find((x) => /they are not playing/i.test(x.textContent || ""));
+    ok(note != null, "kassinn nefnir tha sem spila ekki");
+    if (note) {
+      const named = [...note.querySelectorAll("span.pos")].map((s) => s.textContent.trim());
+      ok(named.length > 0, `(a) ${named.length} nefndir med stodu (${named.join(",")})`);
+      const badges = [...note.querySelectorAll("span.badge.bad")]
+        .map((b) => b.textContent.trim());
+      ok(badges.length === named.length,
+        `og hver ber stoduna sina (${badges.join(", ")})`);
+
+      /* Nofnin ur nótunni. Ekki `querySelectorAll("span")` — ytri
+         umgjordin um hvern mann er LIKA span an klasa og ber tha
+         "TE George Kittle PUP" sem eitt "nafn". Nafnid er BERI
+         textahnuturinn, svo hann er lesinn sem slikur. */
+      const names = [...note.querySelectorAll("span.pos")].map((posEl) => {
+        const wrap = posEl.parentNode;
+        return [...wrap.childNodes]
+          .filter((n) => n.nodeType === 3)
+          .map((n) => n.textContent).join("").trim();
+      }).filter(Boolean);
+      const why = [...document.querySelectorAll(".reasoning table.data tbody tr td.frozen")]
+        .map((t) => t.textContent);
+      ok(why.length > 0, "rokstudningurinn ber rodina (annars maelir (b) ekkert)");
+      const leak = names.filter((n) => n && why.some((w) => w.includes(n)));
+      ok(leak.length === 0, `(b) enginn theirra i rokstudningnum (${leak.join(", ") || "engir"})`);
+
+      /* (c) merkid i bordinu sjalfu. */
+      const first = names[0];
+      const row = first ? [...document.querySelectorAll("table.data tbody tr")]
+        .find((tr) => (tr.querySelector("td.frozen")?.textContent || "").includes(first)) : null;
+      ok(row != null, `${first} er enn i bordinu — hann er ekki thaggadur, bara ekki radlagdur`);
+      if (row) {
+        ok(row.querySelector("td.frozen span.badge.bad") != null,
+          "(c) merkid er RAUTT, ekki gult — liturinn kemur ur avail, ekki nafnalista");
+        const valueCell = row.querySelectorAll("td")[8];
+        ok(valueCell && !/\bgood\b/.test(valueCell.className),
+          `og "Value" er ekki graent kaup (class="${valueCell ? valueCell.className : "?"}")`);
+      }
+    }
+  }
+
   ok(/Lasts\?/.test(text()), "lifunarlikur eru birtar");
   ok(/standard deviation/i.test(text()),
     "og thad er sagt ad dreifing ADP se notud, ekki bara ADP");
