@@ -15,7 +15,7 @@ import {
   solve, standardize, designMatrix, ridgeFit, ridgePredict, pickLambda,
   spearman, rankArray, mae, rmse, hitRate, mean, bootstrapDiff,
 } from "../src/learn.js";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const DATA = path.join(path.resolve(new URL(".", import.meta.url).pathname, ".."), "data");
@@ -101,6 +101,93 @@ console.log("\n3. maelikvardar");
   const p = Array.from({ length: 20 }, (_, i) => 20 - i);
   near(hitRate(p, p, 10), 1, 1e-9, "fullkomin rod hittir 100%");
   near(hitRate(p, p.slice().reverse(), 10), 0, 1e-9, "ofug rod hittir 0%");
+}
+
+/* ============================================================
+   3b. MAELING A ENGU MA ALDREI LESAST SEM `0` (18.8.2026)
+   ============================================================
+   `mean` skiladi `xs.reduce(...) / (xs.length || 1)`, svo `mean([])` var
+   **0** — grunnregla repo-sins brotin i `src/`: "omaeld tala sem litur ut
+   eins og maeling er versta utkoman." `h2h-lab.mjs` bar varnaglann i
+   athugasemd og vardist honum sjalft; hinar 38 labs-skriftur gerdu ekki.
+
+   OG HVERS VEGNA `mae`/`rmse` ERU PROFUD SERSTAKLEGA: `null` er 0 i
+   reikningi. `Math.sqrt(null)` er 0, svo `rmse([], [])` hefdi HALDID
+   AFRAM ad skila 0 — sem les eins og FULLKOMIN SPA og er thvi VERRI lygi
+   en 0-medaltalid sem var verid ad fjarlaegja. Fullyrding sem profar
+   adeins `mean([]) === null` hefdi verid graen medan `rmse` laug afram.
+   ============================================================ */
+console.log("\n3b. tom rod -> null, ekki 0");
+{
+  ok(mean([]) === null, "`mean([])` er null (0 var maeling a engu)");
+  ok(mean([2, 4]) === 3, "og medaltal med gognum er obreytt (3)");
+  ok(mean(null) === null, "`mean(null)` hrynur ekki heldur — null");
+  /* `0` I ROD ER RAUNVERULEGT NULL og ma ekki blandast vid "tom rod". */
+  ok(mean([0]) === 0, "`mean([0])` ER 0 — gildi, ekki fjarvera");
+
+  ok(mae([], []) === null, "`mae` a engu er null");
+  ok(rmse([], []) === null,
+    "`rmse` a engu er null — `Math.sqrt(null)` hefdi gefid 0 = fullkomin spa");
+  /* ============================================================
+     OSAMHVERFAN — OG HVERS VEGNA ThESSAR TVAER LINUR ERU HER
+     ============================================================
+     `mae([], [])` er null AN HLIDS ([].map er [] -> mean([]) er null):
+     stokkbreyting sem tok hlidid ut felldi ENGA fullyrdingu. `rmse`
+     erfir thad EKKI (`Math.sqrt(null)` er 0). Fullyrdingarnar tvaer ofan
+     eru thvi rettar en SEGJA EKKERT um `mae`-hlidid.
+     Thad sem hlidin GERA bædi er ad na ONYTU GERDINNI, thar sem `.map`
+     hefdi kastad `TypeError`. Thess vegna eru thessar linur til —
+     an theirra er `mae`-hlidid endursogn, ekki vordur (CLAUDE.md 5b).
+
+     KASTID ER FANGAD VILJANDI: an hlids kastar `.map` og thad myndi
+     STODVA restina af thessu safni — safnid vaeri rautt (rett) en
+     hlidarnar sem eftir eru yrdu OMAELDAR. Fangad kast prentar FAIL og
+     heldur afram, svo ein stokkbreyting fali ekki adra.                */
+  const nullSafe = (f, name) => {
+    try { ok(f() === null, `\`${name}(null)\` er null`); }
+    catch (e) { ok(false, `\`${name}(null)\` kastadi (${e.constructor.name}) — hlidid vantar`); }
+  };
+  nullSafe(() => mae(null, null), "mae");
+  nullSafe(() => rmse(null, null), "rmse");
+  near(mae([1, 2, 3], [2, 2, 2]), 2 / 3, 1e-9, "og MAE med gognum er obreytt");
+  near(rmse([0, 0], [3, 4]), Math.sqrt(12.5), 1e-9, "og RMSE med gognum er obreytt");
+
+  /* AFLEIDDU FOLLIN sem KALLA `mean` innanhuss verda ad thola tomt
+     inntak an thess ad skila tolu. Thau eru hlidud hvert fyrir sig og
+     thad er PROFAD, ekki gefid ser. */
+  ok(spearman([], []) === null, "`spearman` a engu er null");
+  ok(hitRate([], [], 5) === null, "`hitRate` a engu er null");
+  ok(bootstrapDiff({}, {}) === null, "`bootstrapDiff` an timabila er null");
+
+  /* ============================================================
+     OG ThETTA ER FULLYRDINGIN SEM VER LAGFAERINGUNA I `src/`:
+     `mean` MA EKKI KOMA A APP-LEIDINA. Hun er OPROFUD gegn React —
+     `null` sem raedst inn i reikning i .jsx-skra vaeri `NaN` a skja,
+     sem er VERRA en 0-id sem var fjarlaegt. Vordurinn er BYGGINGARLEGUR
+     og les upprunann, thvi hann a ad falla um leid og einhver flytur
+     hana inn i birtingarlag — ekki thegar notandinn ser `NaN`.
+     Sama gerd og `prediction-ledger.mjs` gerir vid `buildTeamMetrics`
+     i FPL-hlutanum (CLAUDE.md 7.1).
+     ============================================================ */
+  const SRC = path.join(path.resolve(new URL(".", import.meta.url).pathname, ".."), "src");
+  const learnImporters = [];
+  for (const f of readdirSync(SRC)) {
+    if (!/\.(js|jsx)$/.test(f) || f === "learn.js") continue;
+    const t = readFileSync(path.join(SRC, f), "utf8");
+    const m = /import\s*\{([^}]*)\}\s*from\s*["']\.\/learn\.js["']/.exec(t);
+    if (m) learnImporters.push([f, m[1].split(",").map((s) => s.trim()).filter(Boolean)]);
+  }
+  /* Thekja er FULLYRDING: finnist ENGINN innflytjandi er skonnunin brotin
+     og fullyrdingin nedan tom (CLAUDE.md 5b regla 1). `accuracy.js` ER
+     innflytjandi i dag, svo talan ma ekki vera 0. */
+  ok(learnImporters.length >= 1,
+    `skonnunin fann ${learnImporters.length} skra(r) i src/ sem flytja inn ur learn.js`);
+  const bad = learnImporters.filter(([, names]) =>
+    names.some((n) => /\b(mean|mae|rmse)\b/.test(n.split(/\s+as\s+/)[0].trim())));
+  ok(bad.length === 0,
+    `engin skra i src/ flytur inn \`mean\`/\`mae\`/\`rmse\` (${bad.map(([f]) => f).join(", ") || "engin"})`);
+  /* Og su sem ER innflutt (`spearman`) ma ekki na tomu rodinni — hun er
+     hlidud a n < 3 og thad er profad ofar i thessum kafla. */
 }
 
 /* ---------- 4. BOOTSTRAP — PROFSTEINNINN ---------- */

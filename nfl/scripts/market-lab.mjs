@@ -216,8 +216,12 @@ async function main() {
   }
   const early = ys.filter((y) => +y <= 2015).map((y) => byYear[y]);
   const late = ys.filter((y) => +y > 2015).map((y) => byYear[y]);
-  console.log(`\n  medaltal 2006-2015: ${mean(early).toFixed(3)}   ` +
-    `2016-2025: ${mean(late).toFixed(3)}`);
+  /* `mean([])` ER NULL (`src/learn.js`, 18.8.2026), ekki 0 — svo talan er
+     sniðin a NOTKUNARSTAD. Timabil sem vantar birtist sem "—", ekki sem
+     ferskekkja 0 og ekki sem `TypeError` i lok keyrslunnar. */
+  const fmt3 = (v) => (v == null ? "—" : v.toFixed(3));
+  console.log(`\n  medaltal 2006-2015: ${fmt3(mean(early))}   ` +
+    `2016-2025: ${fmt3(mean(late))}`);
   const stab = bootstrapDiff(
     Object.fromEntries(ys.filter((y) => +y > 2015).map((y) => [y, byYear[y]])),
     Object.fromEntries(ys.filter((y) => +y <= 2015).map((y) => [y, byYear[y]])));

@@ -206,8 +206,13 @@ async function main() {
   console.log(`  lokar ${m.toFixed(1)}% af bilinu upp i fullkomna vitneskju` +
     ` · ${closed.filter((v) => v > 0).length}/${closed.length} ar jakvaed`);
   console.log(`  t = ${t.toFixed(2)} · 95% [${(m - tCrit * se).toFixed(1)}%, ${(m + tCrit * se).toFixed(1)}%]`);
-  console.log(`  i stigum: ${mean(gains) > 0 ? "+" : ""}${mean(gains).toFixed(2)} per uppstillingu` +
-    ` = ${(mean(gains) * 17).toFixed(1)} a timabili`);
+  /* `mean([])` ER NULL (`src/learn.js`, 18.8.2026). Engin timabil -> "—",
+     ekki "+0,00 per uppstillingu", sem hefdi lesid eins og MAELT jafntefli. */
+  const gm = mean(gains);
+  console.log(gm == null
+    ? "  i stigum: — (engin timabil i urtakinu)"
+    : `  i stigum: ${gm > 0 ? "+" : ""}${gm.toFixed(2)} per uppstillingu`
+      + ` = ${(gm * 17).toFixed(1)} a timabili`);
   const verdict = Math.abs(t) > tCrit && m > 0 ? "STENST" : "FELLUR";
   console.log(`  -> ${verdict}`);
 

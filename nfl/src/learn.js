@@ -171,13 +171,74 @@ export function rankArray(xs) {
   return out;
 }
 
-export const mean = (xs) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
+/* ============================================================
+   TOM ROD SKILAR `null`, EKKI `0` — LAGFAERT 18.8.2026
+   ============================================================
+   Her stod `xs.reduce((a,b) => a+b, 0) / (xs.length || 1)`. Deilingin
+   med `|| 1` gerdi `mean([])` ad **0**, svo MAELING A ENGU birtist sem
+   `0.000`. Thad er grunnregla repo-sins brotin i `src/` sjalfu: "omaeld
+   tala sem litur ut eins og maeling er versta utkoman — hun er rong OG
+   truverdug." `scripts/h2h-lab.mjs` (bootZero) hafdi thegar SKRIFAD
+   thennan varnagla i athugasemd og vardist honum sjalft; hinar 38
+   labs-skriftur gerdu thad ekki.
+
+   HVERS VEGNA THETTA VAR OHAETT AD BREYTA — TVENNT MAELT, EKKI AGISKAD:
+
+   1. `mean` ER EKKI A APP-LEIDINNI. `src/` flytur adeins `spearman` inn
+      (`accuracy.js`), og `spearman` skilar `null` vid n < 3 svo `mean`
+      faer thar aldrei toma rod. Ekkert i `src/*.jsx` les hana. Null gat
+      thvi ekki radad a skja sem `NaN`.
+   2. INSTRUMENTED KEYRSLA A LABS-SKRIFTUNUM: `mean` var latin skrifa
+      stakkspor i hvert skipti sem hun fekk toma rod og OLL labs-skriftin
+      keyrd a raungognum i `nfl/data/`. **NULL HIT.** Enginn kallandi
+      naer thvi tilfellinu i dag; breytingin er vorn framvirkt, ekki
+      lagfaering a tolu sem er birt nuna.
+
+   OG NULL VAR EKKI NOG EITT SER — HER ER GILDRAN SEM `null` OPNAR:
+   `null` er 0 i reikningi (`null + 5 === 5`, `Math.sqrt(null) === 0`).
+
+   AFLEIDDU FOLLIN ERU THVI **OSAMHVERF**, og thad var MAELT med
+   stokkbreytingu, ekki alyktad:
+     · `mae` ERFIR nullid. `[].map(f)` er `[]`, svo `mae([], [])` er
+       `mean([])` er `null` — an nokkurs hlids. Stokkbreyting sem TOK
+       HLIDID UT felldi ENGA fullyrdingu, sem er rett: thad var ekki
+       vordur heldur endursogn.
+     · `rmse` ERFIR ThAD EKKI. `Math.sqrt(null)` er **0**, svo an eigin
+       hlids hefdi `rmse([], [])` haldid afram ad skila 0 — sem les eins
+       og FULLKOMIN SPA og er thvi VERRI lygi en 0-medaltalid sem var
+       verid ad fjarlaegja.
+   Hlidin sem eftir stada bera thvi bædi vinnu: thau na TOMU RODINNI hja
+   `rmse` og ONYTU GERDINNI (`null`, hlutur) hja badum, thar sem `.map`
+   hefdi kastad. Bædi tilfellin eru profud berum ordum i
+   `tests/learn.mjs` kafla 3b — annars vaeri hlidid enn endursogn.
+
+   KALLENDUR SEM MYNDU NU HRYNJA I STAD THESS AD LJUGA voru taldir upp
+   TAEMANDI (`mean(...)` med adferdar-kalli straxa a eftir): fjorar linur
+   i tveimur skriftum, allar `console.log`-prosa. Thaer eru hliddar a
+   notkunarstad (`fmt` i `market-lab.mjs` og `startsit-lab.mjs`) — texti
+   sem segir "—" er rettur, `TypeError` i lok 20-minutna keyrslu er thad
+   ekki.
+
+   AFLEIDDU FOLLIN ERU OLL THEGAR HLIDD og thad var athugad hvert fyrir
+   sig: `spearman` (n < 3 -> null), `hitRate` (n*1,5 -> null),
+   `bootstrapDiff` (< 3 timabil -> null), `standardize` (`vals.length`
+   berum ordum). Eina afleidda fallid sem *notar* `mae` (`model-lab.mjs`)
+   er hliðad a `te.length < 12` og rundar med null-oruggu `r2`.
+   ============================================================ */
+export const mean = (xs) => {
+  const n = Array.isArray(xs) ? xs.length : 0;
+  return n ? xs.reduce((a, b) => a + b, 0) / n : null;
+};
 
 export function mae(pred, actual) {
+  if (!Array.isArray(pred) || !pred.length) return null;
   return mean(pred.map((p, i) => Math.abs(p - actual[i])));
 }
 
 export function rmse(pred, actual) {
+  /* HLIDID ER HER, EKKI I `mean`. `Math.sqrt(null)` er 0 — an thessarar
+     linu hefdi "engin maeling" lesist sem ferskekkja 0. */
+  if (!Array.isArray(pred) || !pred.length) return null;
   return Math.sqrt(mean(pred.map((p, i) => (p - actual[i]) ** 2)));
 }
 
