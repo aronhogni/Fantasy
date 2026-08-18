@@ -257,9 +257,22 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
         </div>
       </div>
 
+      {/* FYRRI TEXTI SAGDI: "the no. 1 penalty taker is the strongest single
+          captaincy hint the data holds" — SKALETRAD BEINT A EFTIR ORDINU
+          `measured`. Sama omaelda fullyrdingin og var fjarlaegd ur
+          `stats.js` 17.8.2026, og hun lifdi hér.
+          NU ER HUN EKKI ADEINS OMAELD HELDUR MAELD OG FELLD (18.8.2026):
+          vitaskyttu-yfirlag ofan a fyrirlida-rodun maelist NEIKVAETT vid
+          allar thrjar vogtolurnar (w=0,10: -0,081 · 0,25: -0,300 ·
+          0,50: -0,331) og ekkert vikmark utilokar null. Bindandi takmorkun
+          er audkenningin: committud saga ber ENGA `penalties_order`, svo
+          eina leikaudkennid an leka er "misnotadi viti i fyrri umferd" —
+          59 leikmenn af 4.218 rodum. Retta setningin er thvi ad yfirlagid
+          maeldist EKKI ad hjalpa a theim hopi sem haegt er ad audkenna, en
+          EKKI ad vitaspyrnur skipti ekki mali. Sja `src/captain.js`.    */}
       <div style={S.note}>
-        <b>{"Captains (the armband) are not here."}</b> {"Neither the FPL API nor the ESPN feed says who wears the armband, so we do not show it rather than guess. What is"}
-        <i> {"measured"}</i> {"— and matters most for fantasy — is the set-piece order: the no. 1 penalty taker is the strongest single captaincy hint the data holds."}
+        <b>{"Captains (the armband) are not here."}</b> {"Neither the FPL API nor the ESPN feed says who wears the armband, so we do not show it rather than guess. Set-piece order is worth knowing for its own sake — penalties are the cheapest goals in the game — but it is"}
+        <i> {"not"}</i> {"a captaincy shortcut: adding a penalty-taker bonus to a measured captain ranking scored WORSE at every weight tried, and no confidence interval excluded zero."}
       </div>
 
       <div style={S.grid}>

@@ -399,5 +399,31 @@ if (process.argv.includes("--pen")) {
     console.log(`  ${s} <- ${prev}: ${takers(prev).size} vitaskyttur`);
 }
 
+/* ============================================================
+   MAELITAEKID SJALFT — `r.fdr` MA ALDREI VERA ThOGULT undefined
+
+   Fyrsta maelingin i thessari lotu las `r.fdr` af panel-rodum. Hun var
+   `undefined` a ollum 126.730 rodum (leikja-hluturinn bar hana, RODIN
+   ekki), svo samanburdurinn fekk NaN — og `Array.sort` med NaN SKILUR
+   RODINA OSNERTA. Hver einasti delta maeldist thvi NAKVAEMLEGA 0,000 og
+   las eins og hreint null-svar. Su tala var naerri thvi trud.
+   Reitirnir eru nu badir a rodinni og ThESSI VORDUR VER ThAD: baedi ad
+   their seu TOLUR og ad their seu EKKI SAMI HLUTURINN (annars vaeri
+   hægt ad "laga" gildruna med thvi ad afrita ffdr i fdr).
+   ============================================================ */
+{
+  const rows = buildPanel({ includeBlanks: false });
+  ok(rows.length > 1000, `forsenda: panel-radir til ad maela (${rows.length})`);
+  const badFdr = rows.filter(r => !Number.isFinite(r.fdr)).length;
+  const badFfdr = rows.filter(r => !Number.isFinite(r.ffdr)).length;
+  ok(badFdr === 0, `hver rod ber TOLULEGT \`fdr\` (${badFdr} an thess)`);
+  ok(badFfdr === 0, `hver rod ber TOLULEGT \`ffdr\` (${badFfdr} an thess)`);
+  const vals = [...new Set(rows.map(r => r.fdr))].sort((a, b) => a - b);
+  ok(vals.length >= 3 && vals[0] >= 1 && vals[vals.length - 1] <= 5,
+     `\`fdr\` er opinbera 1-5 kvardinn (${vals.join(",")})`);
+  ok(rows.some(r => r.fdr !== r.ffdr),
+     "`fdr` og `ffdr` eru EKKI sami hluturinn — inntak a moti utkomu (kafli 3)");
+}
+
 console.log(`\nTILLOGU-KERFI: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

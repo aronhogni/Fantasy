@@ -1062,8 +1062,18 @@ async function fetchLineups() {
 }
 
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
-async function eloFetch(url, tries = 4) {
+async function eloFetch(url, tries = 6) {
   let lastErr;
+  /* HVER TILRAUN ER SKRAD, EKKI ADEINS SU SIDASTA (18.8.2026).
+     Stadan sagdi eitt ord — "The operation was aborted due to timeout" —
+     og thad ord greinir EKKI a milli throttlunar (allar tilraunir falla a
+     timamorkum) og bilads thjons (429/5xx) eda snids-breytingar (tom svor).
+     Notandinn stadfesti sjalfur ad ClubElo VAERI UPPI medan stadan sagdi
+     "timeout", og an munstursins var ekkert haegt ad alykta. Nu ber notan
+     hve margar tilraunir voru gerdar, yfir hve langan tima, og HVERNIG
+     hver theirra fell — thad adgreinir throttlun fra ollu odru.        */
+  const log = [];
+  const t0 = Date.now();
   for (let i = 0; i < tries; i++) {
     try {
       /* TIMAMORK — VANTADI ALVEG. undici hefur ~300 s sjalfgildi, sem er
@@ -1081,6 +1091,10 @@ async function eloFetch(url, tries = 4) {
       return text;
     } catch (e) {
       lastErr = e;
+      /* 48 STAFIR, EKKI 34: "The operation was aborted due to timeout" er 40
+         stafir og 34 klippti burt ordid TIMEOUT — thad eina sem adgreinir
+         throttlun fra ollu odru. Profid fann thad.                      */
+      log.push(`#${i + 1} ${String(e.message).slice(0, 48)}`);
       console.warn(`ClubElo attempt ${i + 1}/${tries} failed: ${e.message}`);
       /* ekki sofa eftir SIDUSTU tilraun — thad voru 6 s af hreinni bid.
          BIDIN LENGD 9.8.2026: hun var 2 s + 4 s = 6 s alls, sem er of
@@ -1092,10 +1106,22 @@ async function eloFetch(url, tries = 4) {
          i stad 6. Verstu mork eru enn undir minutu og hálfri.
          ATH: `http`, EKKI `https` — https hengur (maelt: 40 s an svars).
          Ekki "uppfaera" thad.                                           */
-      if (i < tries - 1) await new Promise(r => setTimeout(r, [5000, 20000, 45000][i] ?? 45000));
+      /* BIDIN LENGD AFTUR 18.8.2026. Hun for i 5/20/45 s thann 9.8. og
+         elo BRAST SAMT a hverri einustu keyrslu fra ~14.8. — fjorir dagar
+         thar sem FFDR keyrdi a frosnu Elo. Throttlun sem hverfur ekki a
+         70 s tharf lengri dreifingu, og thetta fall keyrir EINGONGU i
+         daglegu keyrslunni (`fetchFast` snertir hana ekki), svo timinn er
+         til. Versta tilfelli er nu ~6,5 min i stad ~1,5.                */
+      if (i < tries - 1) await new Promise(r => setTimeout(r, [5000, 20000, 45000, 90000, 120000][i] ?? 120000));
     }
   }
-  throw lastErr;
+  /* SKILABODIN BERA MUNSTRID, EKKI SIDASTA ORDID. "allar 6 a timamorkum
+     yfir 280 s" les eins og throttlun; "1x 429" eda "1x 404" les eins og
+     eitthvad allt annad — og thad er munurinn sem vantadi.              */
+  const secs = Math.round((Date.now() - t0) / 1000);
+  const err = new Error(`${tries} attempts over ${secs}s all failed: ${log.join(" | ").slice(0, 150)}`);
+  err.cause = lastErr;
+  throw err;
 }
 async function fetchElo() {
   // ClubElo notar http (ekki https) — https gefur oft "fetch failed"

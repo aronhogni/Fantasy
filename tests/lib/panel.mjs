@@ -170,6 +170,18 @@ export function buildPanel({ minHistory = 3, includeBlanks = false } = {}) {
             hasPrev: prev ? 1 : 0,
             /* leikur (þekkt fyrir leik) */
             ffdr: code <= 2 ? f.dDef : f.dAtt,
+            /* `fdr` VANTADI A RODINA OG ThAD VAR ThOGUL GILDRA (18.8.2026).
+               Leikja-hluturinn bar hana (`fdr: fdrV`) en RODIN ekki, svo
+               `r.fdr` skilaði `undefined` a ollum 126.730 rodum. Maeling sem
+               las hana fekk NaN, og `Array.sort` med NaN SKILUR RODINA
+               OSNERTA — svo hver einasti delta maeldist NAKVAEMLEGA 0,000
+               og las eins og hreint null-svar. Su maeling var keyrd og
+               naerri thvi trud. Nu ber rodin badar tolur og heitin segja
+               hvor er hvad: `fdr` er OPINBERA FPL-talan (inntak), `ffdr`
+               er okkar utkoma (kafli 3). Enginn annar lesandi var af
+               `r.fdr` — `FEATURES` notar `ffdr` — svo thetta breytir engri
+               fyrri maelingu.                                            */
+            fdr: f.fdr,
             cs: f.cs, home: f.home, teamXg: f.teamXg, rest: f.rest,
             /* staða */
             isGK: code === 1 ? 1 : 0, isDEF: code === 2 ? 1 : 0,

@@ -201,9 +201,20 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
   (≥20 í RGB). `tierOf` skilar `TIER_CUTS.length` sem þyngsta þrepi — **aldrei
   harðkóðaðri tölu**, svo fjöldi þrepa megi breytast.
 - **Litirnir eru afstæð kvörðun; tölurnar sjálfar haggast ekki.**
-- **`rankScore` (`model.js`) er það sem RAÐAR tillögum**, ekki `FIT`. Það slær
-  bæði aðferð appsins og FPL-eigið xP, og `rank-model.mjs` ber orakel-þak sem
-  sýnir að hærri tala væri **leki, ekki afrek**.
+- **`rankScore` (`model.js`) er það sem RAÐAR KAUP-tillögum**, ekki `FIT`. Það
+  slær bæði aðferð appsins og FPL-eigið xP, og `rank-model.mjs` ber orakel-þak
+  sem sýnir að hærri tala væri **leki, ekki afrek**.
+  > **EN ÞAÐ RAÐAR EKKI SÖLUNUM, OG ÞESSI LÍNA ÞAGÐI UM ÞAÐ (leiðrétt
+  > 18.8.2026).** Sölu-tillögur raðast eftir `score` (`FIT`-líkanið í
+  > `src/recommend.js`), ekki `rankScore` — setningin hér var sönn um kaup og
+  > **ósönn um sölur**, og sölu-leiðin var hvergi nefnd í þrjú handover.
+  > **Mælt áður en nokkru var breytt:** á hermdum 15-manna hópum (botn-2,
+  > 100 hópar per umferð) mælist `rankScore` **−0,118 CI [−0,328, +0,088]** og
+  > **−0,187 CI [−0,393, +0,009]** — **ógreinanlegt í báðum laugum**. Yfir alla
+  > deildina vinnur `score` beinlínis (0,291 á móti 0,766).
+  > **Engin mæling styður að skipta sölunum yfir í `rankScore`, svo `score`
+  > stendur** — og það er ákvörðun byggð á mælingu, ekki á því að enginn hafi
+  > spurt. Vörður: `tests/recommend.mjs`.
 - **Wildcard og Free Hit eyða EKKI söfnuðum frískiptum** (FPL-regla frá
   2024/25; þau haldast og +1 bætist við, þak 5).
 - **Söluverð** = kaupverð + 50% af hagnaði, **niðurjafnað** á næstu 0,1. Tap =

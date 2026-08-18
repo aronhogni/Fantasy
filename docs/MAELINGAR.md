@@ -3968,3 +3968,163 @@ meðan `Starts` (20/31), `Start prob` (26/31) og 16 aðrir dálkar eru litaðir.
 Engin ósýnileg sía eftir: **590 af 590** í öllum sex flokkum, óbreytt eftir
 röðun og eftir smell á tölu-hólf, og skrun nær 590 einkvæmum röðum. Fjandsamleg
 `localStorage`-blob eru öll hreinsuð rétt. Röðunin er stöðug.
+
+---
+
+## 18.8.2026 — C.2: FYRIRLIÐA-RÖÐUN, MÆLD (og hún vinnur MINNA en hún lítur út fyrir)
+
+`captainScore = expPoints × startProb`. Bæði **innspýtt** — `expPointsFor` úr
+`model.js`, `startProbability` úr `stats.js`; `captain.js` reiknar hvorugt,
+hún margfaldar og raðar. Null byrjunar-líkur → hlutlaus 1 (útilokar ALDREI,
+null-reglan), mælt `0` → útilokað, `expPoints ≤ 0` (auð umferð) → útilokað,
+jafntefli brotin á nafni svo „besti fyrirliði" breytist ekki milli teikninga.
+
+**Bakpróf: 174 umferðir, 5 tímabil, N=1, ~733 kandídatar per umferð.**
+
+| röðun | meðal-stig | í raun-topp-3 | 10+ | ≤2 | valdi mann með 0 mín |
+|---|---|---|---|---|---|
+| dýrasti byrjunarliðsmaður (barnalegt viðmið) | 5,43 | 7,5% | 18,4% | 43,1% | 20/174 |
+| `xP5` | 5,92 | 10,9% | 21,3% | 38,5% | 17/174 |
+| `expPoints` eitt | 6,13 | 11,5% | 23,0% | 37,4% | 16/174 |
+| **`rankScore` (það sem repo-ið á ÞEGAR)** | **6,62** | 14,4% | 21,8% | 33,9% | 11/174 |
+| **CAPTAIN = expPoints × startProb** | **6,97** | 14,4% | 25,9% | **28,2%** | **6/174** |
+| FPL-eigið `xP` (EFTIR Á) | 10,37 | — | — | — | — |
+| óraklið | 17,21 | 100% | 100% | 0% | 0 |
+
+**Liðirnir, bootstrap 400 klasað per leikmann** (staðallinn í `mo-candidates.mjs`):
+
+| liður | Δ | 95% CI | niðurstaða |
+|---|---|---|---|
+| CAPTAIN − barnalegt viðmið | **+1,046** | [0,178, 1,902] | vinnur |
+| byrjunar-líkna liðurinn | **+0,790** | [0,379, 1,178] | **stenst** |
+| leikja-þyngd (inni í `expPoints`) | +0,133 | [−0,241, 0,649] | ógreinanlegt við N=1 |
+| víta-yfirlag w=0,10 / 0,25 / 0,50 | −0,081 / −0,300 / −0,331 | öll innihalda núll | **fellt** |
+
+### ÞRENNT SEM MÁ EKKI SNÚA UPP Í SIGUR
+
+1. **Barnalega viðmiðið er ekki strámaður.** „Dýrasti byrjunarliðsmaður" velur
+   Haaland í 96 af 174 umferðum og Salah í 71. Forskotið er +1,5 stig
+   (+3 með borðanum) — raunverulegt, ekki risavaxið.
+2. **CAPTAIN er EKKI greinanlega betri en `rankScore` sem er þegar til:**
+   +0,351, CI **[−0,420, 1,122]**, per tímabil +0,40 / +0,88 / +0,69 / 0,00 /
+   −0,20. Rökin fyrir módúlnum eru að hann er á **stiga-kvarða** og ber
+   byrjunar-líkur — **ekki** að hann skori hærra. `CAPTAIN_MEASURED.vsRankScore`
+   ber `"indistinguishable"` og vörður fellur ef einhver skrifar sigur-fullyrðingu
+   sem vikmörkin styðja ekki (stökkbreyting M8 staðfesti það).
+3. **Leikja-þyngdin er ógreinanleg við N=1.** Hún stendur eingöngu af því að
+   hún tilheyrir `expPointsFor`, sem kallandinn á — módúllinn fullyrðir
+   ekkert um hana.
+
+**`includeBlanks: true` er burðarvirki, ekki stilling:** með sjálfgefnu lauginni
+er bekkjaði leikmaðurinn EKKI í gögnunum, svo byrjunar-líkur gætu ekki tapað.
+Stökkbreyting í `false` setur „0 mínútur" í 0/174 hjá ÖLLUM röðunum.
+
+**Ekki tekið, þótt það liti betur út:** `startProb^1,5` (+0,201, CI [−0,025,
+0,427]) og `^2` — vikmörk innihalda núll, svo k=1 og engin stilling. Gólf í
+ætt við `MIN_START_PROB` (0,15/0,30/0,50) breytir valinu í **nákvæmlega núll**
+umferðum þegar margföldunin er komin, svo það er ekki í kóðanum.
+`rankScore × startProb` er VERRA en bert `rankScore` (6,53 á móti 6,62) —
+`rankScore` er ekki á stiga-kvarða.
+
+### VÍTA-FULLYRÐINGIN SEM VAR PRÓFUÐ, EKKI ERFÐ
+
+Hún heldur ekki, og **auðkenningin er bindandi takmörkun**: committuð saga ber
+**enga `penalties_order`**. `players.json` hefur hana fyrir yfirstandandi
+tímabil eitt, `player_seasons.json` ber `penalties_missed` en ekki
+`penalties_scored`. Eina leka-lausa taka-auðkennið er „misnotaði víti í fyrri
+umferð" — nákvæmni 1,0 en léleg endurheimt: **59 leikmenn, 4.218 af 126.730
+röðum**. Á þeim hópi er punktmatið neikvætt við allar þrjár vogtölur og ekkert
+vikmark útilokar núll.
+
+> **RÉTTA SETNINGIN ER ÞRÖNG:** yfirlagið **mældist ekki hjálpa á þeim hópi sem
+> hægt er að auðkenna án leka** — ekki að vítaspyrnur skipti ekki máli. Að víkka
+> hann þarf nýja heimild; BSD hefur vítin en aðeins 2025/26, og „BSD í bakprófin"
+> er þegar mælt og fellt (kafli 4).
+
+**OG FULLYRÐINGIN LIFÐI Á SKJÁNUM.** Setningin sem var fjarlægð úr `stats.js`
+17.8. stóð enn í `SetPieces.jsx`: *„the no. 1 penalty taker is the strongest
+single captaincy hint the data holds"* — **skáletruð beint á eftir orðinu
+`measured`**. Hún var ekki lengur aðeins ómæld heldur **mæld og felld**.
+Textinn segir nú það sem mælingin styður: föst leikatriði eru þess virði að
+vita fyrir sig, en þau eru **ekki** fyrirliða-flýtileið.
+
+**Stökkbreytingar: 12, allar gripnar** — m.a. sleppa `startProb` (22 fallnar),
+leggja saman í stað þess að margfalda (20), `null → 0` (4), raða öfugt (3),
+fela auka-lið í skorinu (3), og skjöl sem fullyrða sigur sem vikmörkin styðja
+ekki (1). `tests/captain.mjs`: **69 stóðust, 0 féllu**, eins í þremur keyrslum.
+
+---
+
+## 18.8.2026 — C.1: SÖLU-RÁÐGJÖFIN, ÞRÍR HANDSETTIR LIÐIR MÆLDIR OG FELLDIR
+
+Stærsta standandi skuldin, þrjú handover í röð. Skorið er nú í
+`src/recommend.js`. **Jafngildið var sannað ÁÐUR en nokkurri tölu var breytt:**
+frumritið er lesið **beint úr git** (`git show 264a50c:src/App.jsx`) og keyrt
+sem fall — ekkert handafrit. Yfir 6 atburðarásir var öll útkoman (`byPos`,
+`sellIds`, `inSquadScores`, `advisorById`, 606 raðir hver) **eins**. Að hreyfa
+einn fasta (2,2 → 2,3) felldi allar sex, svo samanburðurinn er ekki tómur.
+
+| liður | niðurstaða | ákvörðun |
+|---|---|---|
+| `ep × 1,2` | topp-15 **+2,002** CI [1,608, 2,385], LOSO 5/5 | **HELDUR** |
+| víta-taki `+2,2` | topp-4 **+1,221** CI [0,680, 1,739], LOSO 4/4 | **HELDUR** |
+| `mins > 400` | þröskuldur 0→1800 gefur **sömu ákvörðun** (22,146) | heldur, **merktur ÓVIRKUR** |
+| `banPen` −2,5/−1 | topp-15 **−0,143** CI [−0,249, −0,057] | **BURT — SKAÐAR** |
+| `rotPen` −2/−0,8 | öll vikmörk innihalda núll, LOSO vinnur 0/5 | **BURT — ógreinanlegt** |
+| `dcB` | kafli 4 hafnaði DefCon í röðun þegar | **BURT — fylgir höfnuninni** |
+
+> **`banPen` VAR EKKI BARA ÓMÆLDUR — MERKIÐ SNÝR ÖFUGT.** Leikmenn nálægt banni
+> skora **13,09** á móti **11,21** hjá öllum öðrum: gul spjöld safnast á þá sem
+> spila HVERJA MÍNÚTU. Sama undirskrift og DefCon-höfnunin — refsingin dró niður
+> nákvæmlega þá sem eiga mestu mínúturnar.
+
+**Tvær af þremur „ómælanlegu" reyndust mælanlegar og forsendan var röng.**
+`banRisk` les `yellow_cards` og `rotationRisk` les `starts` — hvort tveggja er
+dálkur í `fpl_player_gw.json`, svo uppsafnað ástand **fyrir** umferð t er
+reiknanlegt og leka-laust. Báðar mældar með sjálfum föllunum sem appið keyrir,
+báðar féllu. Aðeins **tiltækileika-fjölskyldan** er raunverulega ómælanleg
+(`status`/`chance_of_playing`/`news` eiga enga sögu); hún **stendur**, sem
+útflutt `UNMEASURED_UI` þar sem hausinn segir berum orðum að tölurnar séu
+**valdar, ekki mældar**. Að fjarlægja hana myndi endurvekja raunverulega villu
+sem notandi tilkynnti (meiddur J. Timber í 2. sæti varnarmanna 7.8.2026).
+
+### SÖLU-RÖÐUNIN — MÆLD, OG SVARIÐ VAR „ENGIN BREYTING"
+
+`rankScore` á móti `score` á **botninum**, sem er það sem sölu-mælikvarði gerir:
+hermdir 15-manna hópar, botn-2, 100 hópar per umferð. **−0,118 CI [−0,328,
++0,088]** og **−0,187 CI [−0,393, +0,009]** — **ógreinanlegt í báðum laugum**.
+Yfir alla deildina vinnur `score` beinlínis (0,291 á móti 0,766).
+**Engin mæling styður að skipta, svo `score` stendur.** CLAUDE.md sagði
+`rankScore` raða „tillögum" — satt um kaup, ósatt um sölur, og sölu-leiðin var
+hvergi nefnd í þrjú handover. Línan ber nú kvalifíkatorinn.
+
+### MÆLITÆKIÐ VAR BILAÐ FYRST — OG ÞAÐ LAS EINS OG HREINT NULL-SVAR
+
+`buildPanel` reiknar `fdr` á leikinn en **afritaði hann aldrei á röðina**, svo
+`r.fdr` var `undefined` á **öllum 126.730 röðum**. Mæling sem las hann fékk NaN
+— og **`Array.sort` með NaN skilur röðina ÓSNERTA**, svo hver einasti delta
+mældist **nákvæmlega 0,000**. Það er versta mögulega útkoman: ekki hrun, ekki
+augljóst rugl, heldur **fullkomlega trúverðugt núll**. Sú tala var keyrð og
+nærri því trúað.
+
+Röðin ber nú báðar tölur og heitin segja hvor er hvað — `fdr` er **opinbera
+FPL-talan (inntak)**, `ffdr` er **okkar útkoma** (kafli 3). Vörður í
+`tests/recommend.mjs` fellur bæði ef `fdr` hverfur aftur (2 fallnar) **og ef
+einhver „lagar" hann með því að afrita `ffdr` í hann** (1 fallin) — því sú
+lagfæring myndi endurvekja gildruna í dulargervi.
+
+**Stökkbreytingar: 15, allar gripnar** — m.a. að setja hvern fjarlægðan lið inn
+aftur (bæði beint og gegnum raunveruleg `banRisk()`-köll), breyta hvorri mældri
+tölu sem er, endurvekja `45`-tvítekninguna, bæta dauðri deps við, fjarlægja
+`seasonGames` úr deps, raða sölum eftir `rank`, og benda frosnu útgáfunni á
+blokk sem er ekki til (fellur hátt, ekki þögult).
+
+### OG VÖRÐUR SEM TALDI KALLSTAÐI Í EINNI SKRÁ
+
+`tests/set-pieces.mjs` taldi `setPieceOf(p, spRanks)` **í App.jsx einni** og
+krafðist **≥ 3**. Útdrátturinn flutti einn kallstað í `recommend.js` og safnið
+varð rautt þótt kóðinn væri réttur — tvöföld harðkóðun (ein skrá, ein tala).
+Hann **finnur nú sjálfur** alla kallstaði í `src/` og krefst þess að hver og
+einn sendi tvö rök, með forsendu um að minnst einn hafi fundist. Stökkbreyting
+sem sleppir röðuninni **í `recommend.js`** — sem gamli vörðurinn gat
+byggingarlega aldrei séð — fellir hann nú.

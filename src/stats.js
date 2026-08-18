@@ -129,6 +129,11 @@ export const STAT_GROUPS = [
    a bonus-hlutfalli (6i): naegilega hatt til ad drepa fjarstaeduna, ekki
    svo hatt ad thad henda raunverulegum monnum.                         */
 export const PTS_PER_START_MIN = 5;
+/* MAELT GOLF, EKKI VALID — sja rokstudninginn vid `bsd_xg_per_shot`.
+   Split-half a 9.544 skotum: aereidanleiki 0,577 vid 6 skot en 0,690 vid
+   8 (staersta stokkid i ferlinum), og topp-5 er sa sami vid 8, 12 og 20 —
+   haerra golf hendir leikmonnum an thess ad breyta rodinni.            */
+export const BSD_XGS_MIN_SHOTS = 8;
 
 export const STAT_DEFS = [
   /* ================= GRUNNUR ================= */
@@ -406,14 +411,38 @@ export const STAT_DEFS = [
     get:p=>num(p._b_npxg) },
   { key:"bsd_xg_per_shot", label:"xG per shot", short:"xG/shot", group:"attack", band:"Shot quality",
     dec:3, hi:true,
-    /* ENGIN GOLF-TALA ER SETT HER, OG ThAD ER ASETNINGUR. Golfin sem
-       skrain hefur adrar stadar (`PTS_PER_START_MIN = 5`, `xG >= 0,5`,
-       `BPS >= 50`) eru MAELD — hvert theirra a sina maelingu ad baki. Engin
-       maeling er til a thvi hvar golfid a ad liggja her, og omaeld tala sem
-       litur ut eins og maeling er versta utkoman (CLAUDE.md kafli 3). Notan
-       segir thvi hvad toppurinn ER; hun thykist ekki laga hann.          */
-    note:"Average quality of the chances he gets. High = he shoots from good positions; low = he shoots from distance. This is the number that separates a poacher from a long-range shooter, and no FPL field carries it. IT HAS NO SAMPLE FLOOR, SO READ IT NEXT TO SHOTS: one shot gives a full-value average, and the top three in 2025/26 are GOALKEEPERS with exactly one shot each (0.93, 0.90, 0.86) — a corner they went up for, not chance quality. The first player with a real shot count sits far below them.",
-    get:p=>num(p._b_xgs) },
+    /* GOLFID ER 8 SKOT OG ThAD ER MAELT (18.8.2026). Her stod adur ad
+       ekkert golf vaeri sett "af asetningi" thvi engin maeling vaeri til —
+       rett afstada tha, en maelingin var einfaldlega ogerd. Hun er nu til:
+
+       SPLIT-HALF A `bsd_shots.json` (9.544 skot, 316 leikmenn): skot hvers
+       manns skipt i slett/oddatolu, xG/skot reiknad i hvorum helmingi,
+       fylgni maeld sem fall af lagmarks-skotafjolda og leidrett med
+       Spearman-Brown. Sama tegund maelingar og `PTS_PER_START_MIN = 5`
+       hvilir a.
+
+         lagmark   leikmenn   r(helmingar)   Spearman-Brown
+              2        275          0,338            0,506
+              6        253          0,405            0,577
+            > 8 <      236          0,526            0,690     <- hne
+             12        208          0,572            0,727
+             20        134          0,647            0,786
+             40         55          0,736            0,848
+
+       ATTA ER HNEID: staersta stokkid i ollum ferlinum er 6 -> 8
+       (0,577 -> 0,690) og eftir thad klifrar hann haegt. 75% leikmanna
+       halda tolu (236 af 316).
+
+       OG VALID ER EKKI TINT: topp-5 er NAKVAEMLEGA SA SAMI vid golf 8, 12
+       og 20 (Wissa, Nmecha, Thiago, Mateta, Calvert-Lewin), svo haerra
+       golf hendir adeins leikmonnum an thess ad breyta rodinni. Atta er
+       thvi odyrasta golfid sem lagar dalkinn.
+
+       AN GOLFS voru thrir EFSTU MARKMENN med eitt skot hver (0,93 · 0,90 ·
+       0,86) — horn sem their foru upp i, ekki gaedi faera — a dalki sem a
+       ad adgreina markarottu fra langskyttu.                            */
+    note:"Average quality of the chances he gets. High = he shoots from good positions; low = he shoots from distance. This is the number that separates a poacher from a long-range shooter, and no FPL field carries it. MEASURED SAMPLE FLOOR: 8 shots. Below that the figure is noise — split-half reliability over 9,544 shots is 0.58 at six shots and 0.69 at eight, the largest step in the curve, and the top five are unchanged whether the floor is 8, 12 or 20. Without it the top three were goalkeepers with one shot each.",
+    get:p=>{ const v=num(p._b_xgs); return (v!=null && (num(p._b_shots)??0)>=BSD_XGS_MIN_SHOTS) ? v : null; } },
   { key:"bsd_big", label:"Big chances (derived)", short:"Big ch.", group:"attack", band:"Shot quality",
     dec:0, hi:true, derived:true,
     note:"DERIVED, NOT AN OPTA COUNT. BSD's own per-player big-chance field exists but is ALWAYS ZERO, so it is not used. Instead this counts shots with xG ≥ 0.18 — a threshold fitted against BSD's real TEAM-level big-chance totals over 748 team-matches (MAE 0.75, r 0.77). The obvious guess of 0.35 measured almost twice as badly (MAE 1.39).",

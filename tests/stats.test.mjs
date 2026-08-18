@@ -22,7 +22,7 @@ import {
   num, POS_ORDER, sumGwRange,
   moScore, aoScore, inImminentPool, imminentBoard,
   startFeatures, startProbability, startRisk, START_MODEL,
-  MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES, makeEnricher, gwBlindKeys,
+  MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES, makeEnricher, gwBlindKeys, BSD_XGS_MIN_SHOTS,
   SCOPE_NOTES, FIELDS_READ, readsFields,
 } from "../src/stats.js";
 
@@ -1361,6 +1361,38 @@ console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`
     ok(out && !out.__err, `heatScale keyrdi a tilbunum dolkum${out?.__err ? " — " + out.__err : ""}`);
     ok(out && out.m_unmarked, "forsenda: OMERKTUR dalkur FAER kvarda (annars maelir naesta ekkert)");
     ok(out && !out.m_marked, "MERKTUR dalkur (`no_heat`) fær ENGAN kvarda");
+  }
+}
+
+/* ============================================================
+   `bsd_xg_per_shot` — MAELT URTAKS-GOLF (18.8.2026)
+
+   An golfs voru thrir EFSTU i dalknum MARKMENN med eitt skot hver
+   (0,93 · 0,90 · 0,86) — horn sem their foru upp i — a dalki sem a ad
+   adgreina markarottu fra langskyttu. Golfid er 8 skot og thad er MAELT:
+   split-half a 9.544 skotum gefur 0,577 vid 6 en 0,690 vid 8 (staersta
+   stokkid), og topp-5 er sa sami vid 8, 12 og 20.
+   ============================================================ */
+{
+  console.log("\n14d) `bsd_xg_per_shot` — maelt urtaks-golf");
+  const d = STAT_BY_KEY.bsd_xg_per_shot;
+  ok(BSD_XGS_MIN_SHOTS === 8, `golfid er 8 skot (${BSD_XGS_MIN_SHOTS})`);
+  eq(d.get({ _b_xgs: 0.93, _b_shots: 1 }), null, "einn skot -> ekkert gildi");
+  eq(d.get({ _b_xgs: 0.30, _b_shots: 7 }), null, "sjo skot -> enn undir golfi");
+  eq(d.get({ _b_xgs: 0.30, _b_shots: 8 }), 0.30, "atta skot -> gildi (golfid er >=)");
+  /* RAUNGOGN: enginn markmadur ma sitja a toppnum lengur, OG dalkurinn
+     verdur ad hafa nog gildi eftir — annars vaeri "engir markmenn" graent
+     af thvi ad hann er tomur.                                          */
+  if (existsSync(D + "bsd_players.json")) {
+    const bp = JSON.parse(readFileSync(D + "bsd_players.json", "utf8")).players || [];
+    const vals = bp.map(p => ({ p, v: d.get({ _b_xgs: p.xg_per_shot, _b_shots: p.shots }) }))
+                   .filter(x => x.v != null);
+    ok(vals.length > 150, `${vals.length} leikmenn halda tolu (75% af 316)`);
+    const top5 = vals.sort((a, b) => b.v - a.v).slice(0, 5);
+    ok(top5.every(x => x.p.pos !== "G"),
+       `enginn markmadur i topp-5 (${top5.map(x => x.p.pos).join(",")})`);
+    ok(top5.every(x => (x.p.shots ?? 0) >= BSD_XGS_MIN_SHOTS),
+       `topp-5 hafa allir >= ${BSD_XGS_MIN_SHOTS} skot (${top5.map(x => x.p.shots).join(",")})`);
   }
 }
 
