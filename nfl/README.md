@@ -160,6 +160,15 @@ Mælt með því að telja hverjir lenda raunverulega í topp-12 flex hverja vik
 TE-villan var stór og hún fór **beint í VBD**: varamanns-þrep allra þéttenda var
 reiknað of hátt og þeir fengu allir of lágt VBD.
 
+> **LÖGNIN SEM ÞETTA VAR MÆLT Á ER 12 LIÐ · WR3 · EITT FLEX · FULL PPR — OG
+> HVORUG DEILD NOTANDANS ER HÚN.** Sama talningin
+> (`scripts/lib/flex-occupancy.mjs`) gefur TE **0,073** í Patriots og **0,083**
+> í Sófahetjum, og TE-hluturinn hleypur **0,130–0,352** milli tímabila í lögninni
+> sem hann var mældur á. Talan hafði **engin vikmörk og var aldrei mæld sem
+> útkoma**. Hún var **sveipuð 0 → 0,40 á báðum lögnum, á stigum OG á sigrum,
+> 18.8.2026: 0 af 102 frumum standast barinn og 0,193 stendur** — sjá **4l**,
+> sem er líka staðurinn þar sem TE-kaup-merkin á borðinu eru skýrð.
+
 ### Boom/bust-þrep
 
 85. og 25. hundraðshluti af vikum þeirra sem eru raunverulega í byrjunarliði:
@@ -1345,6 +1354,219 @@ brugðist. **Fimm stökkbreytingar felldar**, og sú fimmta afhjúpaði holu í 
 kvótann, því leifar-umferðin hringsólar og fyllir upp í 20 á meðan skiptingin er
 röng. Handreiknuð hlutföll fyrir hlutmengin voru sett inn af þeirri ástæðu.
 
+### 4l. `FLEX_SPLIT.TE` — MÆLD Á LÖGUN SEM HANN SPILAR EKKI, OG SAMT STENDUR HÚN (18.8.2026)
+
+**Einkennið sem úttekt sá:** öll **tólf** stærstu „Value vs market"-kaupin á
+borðinu eru þéttendar — Gunnar Helm **+11,2 umferðir**, Strange +9,0, Kincaid
++8,3, Hockenson +8,0. Hann byrjar **einn** þéttenda. Endurmælt hér á sama borði:
+`mean(ADP − aRank)` er **TE −70,9** á móti **WR −147,5** í 10-liða PPR-deildinni
+— þéttendar sitja **76,6 sætum ríkari** en sendingamóttakarar. Sama merki í
+half-deildinni (TE −67,0 · WR −126,3, 11 af 12 efstu kaupum þéttendar).
+
+**Reikningurinn er réttur.** Þetta er ekki villa heldur **ágreiningur um
+stöðu-kvörðun**, og hann rekur allur til einnar tölu: `FLEX_SPLIT.TE = 0,193`
+→ `replacementRanks` → `computeVbd` → `aRank`.
+
+> **OG ÞAÐ ER EKKI TILEFNI TIL AÐ STILLA HANA AÐ MARKAÐINUM.** Öll mælda
+> forsenda appsins er að A-Ranking **SLÁI** markaðinn (+186,1 í 10-liða PPR,
+> +147,4 í 12-liða half, +2,5 sigrar/tímabil). Að vera sammála ADP er ekki
+> markmiðið; **ágreiningur er varan**. Spurningin er eina: er ÞESSI ágreiningur
+> raunverulegt forskot eða kvörðunar-villa — og hún er **útkomu-spurning**,
+> ekki samræmis-spurning.
+
+#### Hvað talan er, og þrennt sem athugasemdin sagði EKKI
+
+| | |
+|---|---|
+| hvaðan | `scripts/calibrate.mjs` → `data/calibration.json`, mæld 9.8.2026 |
+| hvernig | **eftir-á tíðni**: í hverri viku raðað eftir RAUNSTIGUM vikunnar, þeir utan fastra sæta teknir, topp-N taldir |
+| úrtak | 2020–2025, 38.710 leikmanna-vikur |
+| **lögnin** | **12 lið · RB2/WR3/TE1 · EITT flex · FULL PPR** |
+| vikmörk | **engin** |
+| út fyrir úrtak | **ekkert** |
+| útkoma mæld | **aldrei** |
+
+**HVORUG DEILD NOTANDANS ER ÞESSI LÖGN.** Patriots eru 10 lið, WR2, **TVÖ**
+flex; Sófahetjur eru 12 lið, WR2, tvö flex, **half-PPR**. Talningin var því
+dregin út í `scripts/lib/flex-occupancy.mjs` (**flutt, ekki afrituð** — sannreynt
+bitaeins gegn gömlu útfærslunni áður en hún var fjarlægð) og keyrð á hans lögnum:
+
+| lögn | RB | WR | **TE** | TE-bil yfir 6 tímabil |
+|---|---|---|---|---|
+| `calibrate.mjs` (12, WR3, 1 FLEX, ppr) — **þaðan kemur 0,193** | 0,329 | 0,478 | **0,193** | 0,130 – **0,352** |
+| **Patriots** (10, WR2, 2 FLEX, ppr) | 0,179 | 0,749 | **0,073** | 0,044 – 0,144 |
+| **Sófahetjur** (12, WR2, 2 FLEX, half) | 0,240 | 0,677 | **0,083** | 0,058 – 0,148 |
+
+Í deildunum sem hann spilar segir **sama talningin 0,073 og 0,083** — minna en
+**helmingur** af 0,193, og lægra en ágiskunin **0,10** sem 0,193 kom í stað.
+Mekanisminn er einfaldur: með WR2 í stað WR3 fellur WR-skurðurinn úr WR36 í
+WR20/WR24, svo raunverulega góðir sendingamóttakarar hrynja í flex-laugina og
+fylla hana. **Þetta er þriðja tilvikið í þessari viku af „fittað á lögn sem hann
+spilar ekki".**
+
+> **EN TÍÐNI ER EKKI ÁKVÖRÐUN, OG TALNINGIN SJÁLF ER LÖSK SEM MARKMIÐ.** Hún
+> telur hvað **alvitur** stjórnandi HEFÐI flexað, svo hún mælir að hluta **hve
+> margir spila stöðuna** — 432 sendingamóttakarar á móti 220 þéttendum — ekki
+> virði jaðar-mannsins. Þess vegna er hún **samhengi hér og ekki dómari**.
+> Dómarinn er sveipurinn.
+
+#### Sveipurinn — sömu vélar, engin ný
+
+`FLEX_SPLIT.TE` er sveipað **0 → 0,40** með **RB:WR haldið föstu** innbyrðis
+(0,330:0,477 endurnormað) — einn frelsisgráður, því það var TE sem var í deilu.
+
+**Hvorug hlið er ný skrifta.** `vbdbase-lab.mjs --tesweep` og
+`h2h-lab.mjs --tesweep` skipta AÐEINS út afbrigða-skránni og úttaks-heitinu; að
+skrifa nýtt lab hefði kallað á **afrit** af sjálfsprófi, báðum bootstrap-unum,
+akkerunum og walk-forward-inu. Varamanns-þrepin koma úr **PATCHUÐU afriti** af
+`src/model.js` (`scripts/lib/te-sweep.mjs`) — **ekki úr afriti af `apportion`**,
+sem er nákvæmlega sú villa sem `buildTeamMetrics` kostaði í FPL-verkefninu.
+
+**FJÖGUR HLIÐ, ÖLL DAUÐHLIÐ:**
+
+1. **Þvert akkeri (stig).** `k1-raw` er sama regla með SENDU þrepunum;
+   `te0.193` er sama regla með þrepunum úr patchaða afritinu. Þau eru
+   **bitaeins í öllum 198 (fruma × tímabil)**.
+2. **Nullhlið (sigrar).** Sent gildi gefur **nákvæmlega 0,000** sigra, stig og
+   titla í öllum frumum — nákvæmt að byggingu, því `arankBoard` fær þrepin sem
+   viðfang.
+3. **Patchið er lifandi.** Minnst tvö te-gildi verða að gefa ólík þrep.
+4. **Akkeri N1–N4 í `h2h-lab` á undan** (9 af 9): orakel **+3,85** sigrar,
+   andhverft ADP **−10,30**. Flöt tafla er því **mæld jafntefli, ekki blint
+   mælitæki**.
+
+##### STIG — 11 tímabil, 10-liða PPR (Patriots), afstætt við 0,193
+
+| TE | sæti | stig | t | ár+ | árs-CI | **leikm.-CI** | laug |
+|---|---|---|---|---|---|---|---|
+| 0 | RB28 WR32 **TE10** | +34,2 | 1,16 | 7/11 | [−20,0, +90,8] | [−48,0, +82,5] | |
+| 0,05 | RB28 WR31 **TE11** | −3,3 | −0,10 | 7/11 | [−64,3, +56,0] | [−43,6, +69,6] | |
+| **0,10** | RB27 WR31 **TE12** | **+23,6** | 1,36 | **8/11** | [−6,0, +57,2] | [−45,0, +64,8] | |
+| 0,15 | RB27 WR30 **TE13** | +1,2 | 0,08 | 6/11 | [−26,6, +34,2] | [−28,8, +43,3] | |
+| **0,193 SENT** | RB27 WR29 **TE14** | **0,0** | — | — | [0, 0] | — | |
+| 0,25 | RB26 WR29 **TE15** | +4,9 | 0,38 | 6/11 | [−17,3, +28,9] | [−46,1, +37,4] | þak 3/11 |
+| 0,30 | RB26 WR28 **TE16** | −14,3 | −1,34 | 3/11 | [−34,2, +5,8] | [−59,1, +38,2] | þak 5/11 |
+| **0,40** | RB25 WR27 **TE18** | **−56,1** | **−2,52** | 3/11 | **[−98,7, −16,7]\*** | [−86,1, +47,7] | þak 9/11 |
+
+##### SIGRAR — 5 tímabil, sama deild (`h2h-lab`, 14 vikur, 6 lið í úrslit)
+
+| TE | sigrar | árs-CI | **leikm.-CI** | stig | úrslitak. | án hindsight |
+|---|---|---|---|---|---|---|
+| 0 | **+0,60** | **[+0,20, +0,99]\*** | [−0,76, +1,47] | +76 | +0,032 | +0,70 |
+| 0,05 | +0,16 | [−0,26, +0,58] | [−0,83, +1,20] | +14 | +0,029 | +0,14 |
+| **0,10** | **+0,64** | **[+0,36, +0,88]\*** | [−0,71, +1,00] | +72 | +0,049 | +0,80 |
+| 0,15 | +0,09 | [−0,23, +0,39] | [−0,62, +0,69] | +10 | +0,028 | +0,13 |
+| **0,193 SENT** | **0,00** | [0, 0] | [0, 0] | 0 | 0,000 | 0,00 |
+| 0,25 | −0,13 | [−0,70, +0,39] | [−0,91, +0,61] | +25 | +0,015 | −0,01 |
+| 0,30 | −0,16 | [−0,42, +0,10] | [−1,05, +0,67] | +4 | +0,008 | −0,08 |
+| **0,40** | **−0,74** | **[−1,37, −0,24]\*** | [−1,36, +0,69] | −75 | −0,030 | −0,63 |
+
+##### OG SAMA SVEIPUR Í 12-LIÐA HALF-DEILDINNI (Sófahetjur) — ÖNNUR ÁTT
+
+| TE | sæti | sigrar | árs-CI | stig | laug |
+|---|---|---|---|---|---|
+| 0 | RB34 WR38 **TE12** | **−0,18** | [−1,15, +0,51] | **−11,1** | |
+| 0,05 | RB33 WR38 **TE13** | +0,10 | [−0,18, +0,54] | +9,4 | |
+| 0,10 | RB33 WR37 **TE14** | −0,11 | [−0,37, +0,13] | +7,1 | |
+| 0,15 | RB32 WR36 **TE16** | +0,08 | [+0,02, +0,15]\* | +19,0 | þak 5/11 |
+| **0,193 SENT** | RB32 WR35 **TE17** | 0,00 | [0, 0] | 0,0 | **þak 6/11** |
+| 0,25 | RB31 WR35 **TE18** | +0,20 | [−0,25, +0,78] | +22,0 | þak 9/11 |
+| 0,30 | RB31 WR34 **TE19** | +0,04 | [−0,12, +0,23] | +17,1 | þak 10/11 |
+| 0,40 | RB30 WR32 **TE22** | +0,07 | [−0,46, +0,59] | +7,1 | þak 11/11 |
+
+`* = árs-klasað 95% bil útilokar núll.`
+**„þak n/11" = TE-sætið er á eða framar laugar-gólfi þéttenda** í n tímabilum, svo
+grunngildið er „versti þéttendi sem nokkur draftar" og **dýpri sæti mæla ekkert**.
+Sú takmörkun bindur AÐEINS efri arminn í stiga-hliðinni (`features.json` ber ~17
+þéttenda á tímabili); `h2h-lab` hefur **~130** og er því ómarkaður í báðar áttir.
+**Sama vandamál er þegar bókað sem `depthOverrun` í `vbdbase.json`** — 12-liða
+deildin er í þaki við SENT gildi, 6 af 11 tímabilum.
+
+#### Niðurstaðan: **0 af 102 frumum standast barinn — 0,193 STENDUR**
+
+| mælieining | frumur | **standast** (jákvætt + árs-CI + leikm.-CI) |
+|---|---|---|
+| stig, 11 tímabil (`tesplit.json`) | **81** | **0** |
+| sigrar, 5 tímabil (`tesplit_h2h.json`) | **21** | **0** |
+
+**Hvert einasta leikmanna-klasað bil inniheldur núll** — í báðum mælieiningum, í
+öllum þremur lögnum. Það er nákvæmlega undirskriftin úr 4c: `vbdbase-lab` fékk 28
+hólf sem stóðust árs-klösun og **0 af 153** sem stóðust leikmanna-klösun. Og með
+102 samanburðum er hæsta talan **væntanlega** jákvæð af tilviljun einni.
+
+**FIMM ÁSTÆÐUR TIL AÐ ÞETTA SÉ „ENGIN BREYTING" OG EKKI „NÆRRI ÞVÍ":**
+
+1. **Enginn frambjóðandi nær barnum**, á hvorugri mælieiningu.
+2. **Áttin heldur ekki milli hans TVEGGJA deilda.** 10-liða PPR hallar
+   **grynnra** (te=0,10 → +23,6 stig OG +0,64 sigrar); 12-liða half hallar
+   **flatt til dýpra** (te=0 → **−0,18** sigrar og **−11,1** stig). Merki sem
+   skiptir formerki milli deildanna sem það á að ráða er ekki merki.
+3. **Ferillinn er ekki einræn — hann hoppar.** Í stigum: +34,2 · −3,3 · +23,6 ·
+   +1,2 · 0 · +4,9. Nágrannar sem eru **eitt sæti** í sundur skipta formerki.
+   Raunverulegur halli hoppar ekki þannig; suð gerir það.
+4. **DÝPRA er MÆLANLEGA VERRA og það er eina markið sem gögnin sjá.** te=0,40
+   fellur á BÁÐUM mælieiningum (−56,1 stig, t −2,52 · −0,74 sigrar), svo 0,193
+   er á **réttri hlið** einu marktæku brúninni sem finnst.
+5. **ÞRIÐJA, ÓHÁÐA AÐFERÐIN SEGIR EITT TIL TVÖ SÆTI — EKKI SEX.**
+   `startable`-þrepin í `vbdbase.json` (dýpsti maður sem einhver **gat** sett í
+   byrjunarlið, mæld úr FYRRI tímabilum, allt önnur aðferð en tíðni) gefa
+   **TE13** þar sem við notum TE14 og **TE15–16** þar sem við notum TE17. Það
+   svarar TE-hlut **~0,15**, ekki 0,073. Og **eins-sætis breyting var ÞEGAR
+   mæld ómælanleg** (4b-2, þar sem WR fór úr WR30 í WR29 og bæði `shape-lab` og
+   `half-lab` lásu flatt).
+
+> **HVAÐ HEFÐI BREYST Á BORÐINU — svo „engin breyting" sé ekki lesin sem
+> „engu máli skipti".** Mælt á lifandi `players.json`, 10-liða PPR: við te=0,05
+> fellur **TE1 úr sæti 7 í sæti 13** (úr 1. umferð í 2. umferð í 10-liða
+> drafti), þéttendar í topp-24 fara **3 → 2**, og stærsta þéttenda-hnikið er
+> **59 sæti**. Þetta er raunveruleg borðs-breyting sem mælingin **hafnaði** —
+> ekki hnik sem enginn hefði séð.
+
+> **OG TALAN SKÝRIR EKKI ALLT EINKENNIÐ.** Jafnvel við te=0 er
+> `mean(ADP − aRank)` **TE −104,9 á móti WR −128,3** (bil 23,4 í stað 76,6) og
+> efstu kaupin eru **enn** að mestu þéttendar. **~70% af halla er þessi tala;
+> afgangurinn er spá-heimildin sjálf** — Sleeper spáir djúpum þéttendum
+> rausnarlega gagnvart ADP þeirra. Að stilla `FLEX_SPLIT` til að fela það hefði
+> verið að fela villu í annarri heimild bak við kvörðun í þessari.
+
+#### Hvað VAR breytt, þá
+
+**Engin tala.** Þrennt annað:
+
+1. **Athugasemdin við `FLEX_SPLIT` í `src/model.js`** sagði „MAELT" og ekkert um
+   lögnina, vikmörkin eða að útkoman væri ómæld. Hún gerir það nú. Það var
+   raunverulegur skjölunar-galli: úttekt rakti tólf kaup-merki til tölu sem leit
+   fullmæld út.
+2. **`scripts/lib/flex-occupancy.mjs`** — talningin dregin út úr `calibrate.mjs`
+   svo hún sé keyranleg á annarri lögn og **per tímabili**. `calibrate.mjs`
+   skrifar nú `flexSplitPerSeason` og `flexSplitShape`, en **committaða
+   `calibration.json` er ELDRI en breytingin og var VILJANDI ekki endurgerð**:
+   skriftan sækir `games.csv` af netinu og `data/weekly/*.json` hefur verið
+   endurskrifað síðan, svo endurgerð hefði hreyft teygnina — tölu sem
+   `Sources`-flipinn birtir og README kafli 3 bókar — af ástæðu sem hefur
+   ekkert með flex-skiptinguna að gera. Per-tímabils-tölurnar eru því bókaðar
+   í `data/measure/tesplit.json` (`teSweep.__meta.occupancy`), þar sem þær voru
+   reiknaðar. Headline-talan er óhögguð.
+4. **Notan í `Sources`-flipanum** sagði „measured" og „nearly double" og ekkert
+   um lögnina. Hún segir nú lögnina, tölurnar úr hans eigin deildum, að sveipurinn
+   hafi verið gerður — og að **TE-kaupin séu ómæld, ekki sterkustu merkin**. Það
+   er eini staðurinn þar sem hann les þetta á draftdegi.
+3. **`tests/model.mjs` kafli 9b** pinnar **0,193 nákvæmlega** (kafli 9 leyfði
+   allt yfir 0,15 — innan þess bils liggja bæði 0,15 og 0,25, sem sveipurinn
+   mældi og hvorugt er talan) og krefst þess að `FLEX_SPLIT`-línan finnist
+   **orðrétt einu sinni**, því `lib/te-sweep.mjs` finnur hana með textaleit.
+   **Þrjár stökkbreytingar felldar**, þar á meðal `0.330 → 0.33` sem heldur
+   TÖLUNNI en drepur sveipinn þegjandi, og `0,16` sem gamli vörðurinn hleypti
+   í gegn.
+
+> **TRAUSTIÐ Á TE-DÁLKINN, BERUM ORÐUM.** Röðunin **innan** þéttenda er óhögguð
+> og henni má trúa. Það sem er **ÓSTAÐFEST** er stöðu-samanburðurinn: „+11,2
+> umferðir" á þéttenda er sá eini staður á borðinu þar sem ágreiningur við BÆÐI
+> markaðinn og sérfræðingana er **hvorki staðfestur né afsannaður** af mælingu.
+> Hallinn sem gögnin sýna, þótt hann nái ekki barnum, er að borðið sé **ef
+> eitthvað of rausnarlegt** við þéttenda — aldrei of hart. **Lestu TE-kaupin sem
+> ómæld, ekki sem sterkustu merkin á borðinu.**
+
 ### 4c. Bootstrap KLASAÐUR PER LEIKMANN — aðferðin sem breytti niðurstöðu
 
 Þetta er almennt og það á að standa: `vbdbase-lab` fékk **28 hólf** sem
@@ -1383,6 +1605,7 @@ séð merki — höfnunin er niðurstaða, ekki bilað mælitæki. `verdict`-rei
 
 | hugmynd / vandamál | niðurstaða |
 |---|---|
+| **Annað `FLEX_SPLIT.TE` en 0,193** | Sveipað 0 -> 0,40 (RB:WR fast) í BÁÐUM deildum hans, á STIGUM (11 tímabil, 81 fruma) og á SIGRUM (5 tímabil, 21 fruma). **0 af 102 standast**; hvert leikmanna-klasað bil inniheldur núll. Áttin skiptir formerki milli deildanna tveggja. **Dýpra er mælanlega verra** (te=0,40 fellur á báðum), svo 0,193 er á réttri hlið. Sjá **4l** |
 | **Sleeper sem auðkennisbrú** | Sleeper er **hættur** að bera `gsis_id`/`espn_id` — aðeins **162 af 989** virkum QB/RB/WR/TE. Sú leið gaf nafna-pörun á **732** leikmönnum. DynastyProcess-brúin færði það í **105** |
 | **ADP beint úr Sleeper** | **999 (og 400) eru TÓMGILDI**, ekki ADP. 1.930 af 2.107 RB/WR voru nákvæmlega 999. Án síunar sluppu 3.083 leikmenn í stað 1.130 |
 | **ESPN sem spáheimild** | Aðeins **56 af 1.130** bera timabils-spá og **5 af þeim voru spilltar** (Drake London 13.797 þar sem hrá-svarið segir 274,3). ESPN er **ADP- og eignarhaldsheimild**, ekki spáheimild. Skynsemishlið fellir rusl og telur það |
@@ -3941,6 +4164,8 @@ node scripts/projector-lab.mjs [--scoring=…]  # -> projectors_*.json (hver er 
 node scripts/feature-probe.mjs                # -> feature_probe.json (nyjar breytur)
 node scripts/fetch-wayback-projections.mjs   # -> wayback_projections.json (haeg, handvirk)
 node scripts/flexsplit-lab.mjs                # -> measure/flexsplit.json (sja 4b-2)
+node scripts/vbdbase-lab.mjs --tesweep        # -> measure/tesplit.json (stig, sja 4l)
+node scripts/h2h-lab.mjs --tesweep            # -> measure/tesplit_h2h.json (sigrar, 4l)
 node scripts/dst-lab.mjs                      # -> measure/dst.json (sja 4k)
 node scripts/ecr-timing.mjs [--day=21]        # -> measure/ecr_timing.json (sja kafla 5)
 ```
@@ -3952,6 +4177,13 @@ nflverse-tímabil, 18 Sleeper-vikur og 17 deildar-umferðir (~45 köll, allt í
 `tests/dst.mjs` kafli 1 þar til bökuðu tölurnar í `src/scoring.js`
 (`DST_ANCHOR`) og `src/weekview.js` (`DST_STREAM_MEASURED`) eru uppfærðar.
 **Þá uppfærir maður töfluna, ekki prófið.**
+
+**`--tesweep`-hliðarnar eru handvirkar mælingar og eiga ekki í pipeline-ið.**
+Þær skipta AÐEINS út afbrigða-skránni og úttaks-heitinu í tveimur labbum sem eru
+þegar til; án flaggsins eru `vbdbase.json` og `h2h.json` **bitaeins óbreytt**.
+Þær eru keyrðar þegar `FLEX_SPLIT` er véfengt — og þá **verður** líka að endurgera
+það sem er talið upp hér að neðan, því `tests/model.mjs` kafli 9b pinnar töluna.
+Sigra-hliðin tekur ~12 mín með `--tepboot=200`.
 
 `flexsplit-lab.mjs` er **ekki í neinu þrepi og á ekki að vera það**: hún ber
 sendan kóða við hegðun sem er ekki lengur til (`lib/flexsplit-legacy.mjs`).

@@ -113,6 +113,57 @@ export function blendWeights(accuracy, { topN = 20 } = {}) {
  * varamanns-threpid fyrir TE reiknad of hatt (TE13 i stad TE14+) og
  * allir tight endar fengu of lagt VBD. Thett-endar komast i flex
  * TVOFALT oftar en agiskad var.
+ *
+ * ============================================================
+ * OG NU THAD SEM ATHUGASEMDIN SAGDI EKKI — SVEIPAD 18.8.2026
+ * ============================================================
+ * "MAELT" hér ad ofan er satt en thad er EKKI nog, og uttekt rakti
+ * OLL TOLF staerstu "Value vs market"-kaupin a bordinu til thessarar
+ * einu tolu (allt thett-endar i 10-lida PPR-deildinni, +11,2 umferdir
+ * a theim fremsta). THRENNT SEM VANTADI ER NU SKRAD:
+ *
+ *  1. LOGUNIN. `calibrate.mjs` maeldi hana a 12 lidum, RB2/WR3/TE1,
+ *     EINU flexi, FULLRI PPR. **HVORUG DEILD NOTANDANS ER SU LOGUN.**
+ *     SAMA TALNINGIN a hans lognum gefur TE **0,073** (Patriots) og
+ *     **0,083** (Sofahetjur) — minna en HELMING af 0,193 og laegra en
+ *     agiskunin 0,10 sem hun kom i stad.
+ *  2. VIKMORKIN. Talan hafdi ENGIN. Per timabili hleypur TE-hluturinn
+ *     fra 0,130 til 0,352 i theirri sömu logun. Teygnin i sömu skra
+ *     ber `se` og `n`; thessi bar hvorugt.
+ *  3. UTKOMAN. Tidni er EKKI akvordun. Talan var aldrei maeld sem
+ *     "draftar hun betur".
+ *
+ * NUNA ER HUN THAD, OG NIDURSTADAN ER AD 0,193 STENDUR:
+ * `vbdbase-lab --tesweep` (stig, 11 timabil, 81 frumur) og
+ * `h2h-lab --tesweep` (SIGRAR, 5 timabil, 21 frumur) sveipa TE fra 0
+ * til 0,40 — RB:WR haldid fostu — i BADUM deildum notandans.
+ * **0 af 102 frumum standast bar repo-sins** (jakvaett medaltal PLUS
+ * ars-klasad OG leikmanna-klasad 95% bil). Hvert einasta
+ * leikmanna-klasada bil inniheldur null. Thrennt sem stendur samt:
+ *
+ *   · DYPRA er MAELANLEGA VERRA. te=0,40 gefur -56,1 stig (t -2,52) og
+ *     -0,74 sigra, badir ars-CI utiloka null. 0,193 er thvi a RETTRI
+ *     hlid einu markanna sem gognin sja.
+ *   · GRYNNRA hallar RETT en fellur a leikmanna-klosun: i 10-lida
+ *     PPR-deildinni gefur te=0,10 +23,6 stig OG +0,64 sigra (badir
+ *     ars-CI utiloka null i sigrum) — en leikm.-CI [-0,71, +1,00].
+ *     Sama undirskrift og README 4c: 28 holf -> 0.
+ *   · ATTIN HELDUR EKKI MILLI HANS TVEGGJA DEILDA. 12-lida half gefur
+ *     te=0 **-0,18** sigra og -11,1 stig. Merki sem skiptir formerki
+ *     milli deildanna sem thad a ad raeda er ekki merki.
+ *
+ * ÞRIDJA ADFERDIN, OHAD: `startable`-threpin i `vbdbase.json` (dypsti
+ * madur sem einhver GAT sett i byrjunarlid, maeld ur FYRRI timabilum)
+ * segja TE13 thar sem vid notum TE14, og TE15-16 thar sem vid notum
+ * TE17 — thad er EITT TIL TVO saeti, ekki sex. Og eins-saetis breyting
+ * var THEGAR maeld omaelanleg (README 4b-2).
+ *
+ * SVO: TOLURNAR HAGGAST EKKI. Rokstudningurinn gerdi thad.
+ * Full tafla, badar mælieiningar og akvordunin: README 4l og
+ * `data/measure/tesplit.json` + `data/measure/tesplit_h2h.json`.
+ * VILTU BREYTA THESSU: `tests/model.mjs` kafli 9b pinnar toluna og
+ * fellur; tha verdur ad endurgera `shapes_*.json`, `measure/half.json`,
+ * `measure/ecr_duel.json` og `HALF_LAB` i `src/rulebasis.js`.
  */
 export const FLEX_SPLIT = { RB: 0.330, WR: 0.477, TE: 0.193 };
 

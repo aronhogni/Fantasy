@@ -243,6 +243,72 @@ console.log("\n9. flex-skipting");
 }
 
 /* ============================================================
+   9b. TE-HLUTURINN ER PINNADUR — SVEIPADUR 18.8.2026
+   ============================================================
+   NY OG AFMORKUD BLOKK. Kafli 9 hér ad ofan er OHREYFDUR; thessi
+   liggur vid hlidina a honum thvi hun ver ANNAD: ekki bilid sem talan
+   ma liggja a, heldur NAKVAEMLEGA toluna.
+
+   HVERS VEGNA HUN ER TIL. `FLEX_SPLIT.TE` var sveipad fra 0 til 0,40 i
+   BADUM deildum notandans, a stigum (`vbdbase-lab --tesweep`, 11
+   timabil, 81 frumur) OG a SIGRUM (`h2h-lab --tesweep`, 5 timabil, 21
+   frumur). **0 af 102 frumum** standast bar repo-sins. Nidurstadan er
+   thvi "0,193 stendur" — MAELD JAFNTEFLI, ekki oskodud tala — og su
+   nidurstada a EIGIN vord.
+
+   OG HANN ER A NAKVAEMLEGA GILDINU, EKKI A BILI, af tveimur astaedum:
+     · Kafli 9 leyfir allt yfir 0,15. Innan thess bils liggja BADIR
+       endar sem sveipurinn skodadi (0,15 og 0,25) og hvorugur er sa
+       sem var maeldur. Vordur sem hleypir hverju sem er innan bils
+       getur ekki sagt "thetta er talan sem sveipurinn stadfesti".
+     · `scripts/lib/te-sweep.mjs` finnur `FLEX_SPLIT`-LINUNA I
+       `src/model.js` MED TEXTALEIT og deyr ef hun er ekki ORDRETT su
+       vaenta. Breytist talan an thess ad sveipurinn se endurkeyrdur
+       vaeri hann ekki adeins uréttur heldur ONOTHAEFUR — og thad a ad
+       koma i ljos i `npm test`, ekki naest thegar einhver keyrir labbid.
+
+   FELLUR THETTA PROF: talan var breytt. Tha verdur ad (1) endurkeyra
+   BADA sveipina, (2) endurgera `shapes_*.json`, `measure/half.json`,
+   `measure/ecr_duel.json`, `measure/vbdbase.json`, og (3) uppfaera
+   `HALF_LAB` i `src/rulebasis.js` og bokudu tolurnar i README.
+   **Tha uppfaerir madur toflurnar, ekki profid.**                    */
+console.log("\n9b. TE-hluturinn pinnadur (sveipadur, 0 af 102 frumum standast bar)");
+{
+  ok(FLEX_SPLIT.TE === 0.193,
+    `FLEX_SPLIT.TE er NAKVAEMLEGA 0,193 (${FLEX_SPLIT.TE}) — sja model.js og README 4l`);
+  ok(FLEX_SPLIT.RB === 0.330 && FLEX_SPLIT.WR === 0.477,
+    `RB/WR eru obreytt 0,330/0,477 (${FLEX_SPLIT.RB}/${FLEX_SPLIT.WR}) — sveipurinn ` +
+    "hreyfdi ADEINS TE og hélt thessu hlutfalli fostu");
+
+  /* OG SVEIPURINN MA EKKI VERA BILAÐUR THEGJANDI. Textaleitin sem hann
+     byggir a er profud HER, ekki adeins inni i labbinu sem er keyrt
+     handvirkt: linan verdur ad finnast ORDRETT og NAKVAEMLEGA EINU
+     SINNI i `src/model.js`. Vaeri hun endurskrifud (annad snid, annar
+     aukastafur, tvo skilgreiningar) myndi labbid deyja — en thad kemur
+     ekki i ljos fyrr en einhver keyrir thad, sem gerist einu sinni a
+     sumri. Thetta er ODYRA hlidid a somu villu. */
+  const srcDir = path.join(path.resolve(new URL(".", import.meta.url).pathname, ".."), "src");
+  const src = readFileSync(path.join(srcDir, "model.js"), "utf8");
+  const LINE = "export const FLEX_SPLIT = { RB: 0.330, WR: 0.477, TE: 0.193 };";
+  const hits = src.split(LINE).length - 1;
+  ok(hits === 1,
+    `linan sem lib/te-sweep.mjs patchar finnst nakvaemlega einu sinni (${hits})`);
+
+  /* SAETIN SEM TALAN GEFUR I DEILDUNUM HANS. Thau eru profud i kafla 8b
+     lika, en HER liggja thau vid hlidina a hlutfallinu sjalfu svo eitt
+     prof beri BADAR endana a somu fullyrdingu: hlutfallid 0,193 OG
+     saetin TE14 / TE17 sem thad thyddir yfir a. Sveipurinn ber somu tvo
+     saeti i `data/measure/tesplit.json` undir `te0.193`. */
+  const rTE = (L) => replacementRanks(L).TE;
+  ok(rTE({ teams: 10, starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+           flexPos: ["RB", "WR", "TE"] }) === 14,
+    "Patriots: 0,193 -> TE14 (sveipurinn maeldi TE10..TE18)");
+  ok(rTE({ teams: 12, starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+           flexPos: ["RB", "WR", "TE"] }) === 17,
+    "Sofahetjur: 0,193 -> TE17 (sveipurinn maeldi TE12..TE22)");
+}
+
+/* ============================================================
    SPYRNUMENN — MAELDA REGLAN
    ============================================================
    A-Ranking raðar ekki K/DST og a ekki ad gera thad. En notandinn

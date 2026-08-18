@@ -139,11 +139,36 @@ export default function Sources({ status, meta, calibration, built }) {
           be selling it as more than it measured.
         </div>
 
+        {/* ============================================================
+            ÞESSI NOTA OFFULLYRTI OG HUN VAR LOGUD 18.8.2026
+            ============================================================
+            Hun sagdi "measured" og "nearly double" og ekkert um HVADA
+            DEILD talan var maeld i. Hun var maeld i 12-lida deild med
+            WR3 og EINU flexi; HVORUG deild notandans er su logun, og
+            sama talningin gefur TE 0,073 / 0,083 i theim. Uttekt rakti
+            OLL TOLF staerstu kaup-merkin a bordinu til thessarar tolu.
+
+            TALAN STENDUR — sveipud 0 -> 0,40 a stigum OG sigrum,
+            0 af 102 frumum standast bar repo-sins (README 4l) — en
+            notan verdur ad segja hvad hun er og hvad hun er ekki.
+            Sama regla og `DEF_WEIGHT`-notan hér fyrir ofan fylgir:
+            "any interface that let it reorder players would be selling
+            it as more than it measured".                            */}
         <div className="note">
           <b>Flex split — RB {FLEX_SPLIT.RB} · WR {FLEX_SPLIT.WR} · TE {FLEX_SPLIT.TE}.</b>{" "}
-          Measured by counting who actually lands in the weekly top-12 flex, 2020–2025.
-          The first version guessed TE at 0.10; the measured figure is nearly double,
-          and that error fed straight into every tight end's replacement level.
+          Measured by counting who actually lands in the weekly top-12 flex, 2020–2025 —
+          but measured in a <b>12-team, WR3, one-flex</b> league, which is not the shape
+          either of your leagues uses. The same count gives TE <b>0.073</b> and{" "}
+          <b>0.083</b> in your two leagues, and the season-to-season range is 0.130–0.352.
+          <br />
+          It was swept from 0 to 0.40 on both of your shapes, on season points and on
+          weekly wins: <b>none of the 102 cells beat 0.193</b> at the bar used everywhere
+          else here, and going <i>deeper</i> is measurably worse — so the figure stays.
+          <br />
+          What that leaves unsettled is the <b>cross-position</b> comparison: tight ends
+          carry the largest &quot;value vs market&quot; gaps on the board, and that gap is
+          neither confirmed nor refuted by measurement. <b>Read the tight-end buy signals
+          as unverified rather than as the strongest ones.</b>
         </div>
       </div>
 
