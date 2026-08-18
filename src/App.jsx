@@ -26,6 +26,7 @@ import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk } from "./availabilit
 import { Crest, PlayerImg, Kit, crestUrl, photoUrl, CREST_FALLBACK } from "./Crest.jsx";
 import FfdrTable from "./FfdrTable.jsx";
 import { buildTeamMetrics } from "./teamstats.js";
+import { buildRecommendations } from "./recommend.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
   makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
@@ -152,27 +153,10 @@ const HOME_PTS = { 1: 0.197, 2: 0.507, 3: 0.297, 4: 0.735 };  // mæld stig/leik
      markm.-stig    FDR +0,126 -> nýr +0,152  (+21%)
      sóknar-stig    FDR +0,171 -> nýr +0,226  (+32%)                        */
 
-/* ---- MÆLDAR VOGTÖLUR FYRIR STIGASPÁ ----
-   FITTAÐ út-af-úrtaki á 2025/26 umferð-fyrir-umferð gögnum:
-   19.448 sýni, lært á GW6-20, prófað á GW21-33. Markmið = stig næstu 5 umferðir.
-
-   MAE á prófunarsetti:
-     ekkert líkan (meðaltal)  6,70
-     FPL-eigin xP             6,43
-     mitt handvalda skor      5,00
-     FITTAÐ                   3,66   <- 27% betra en handvalið
-
-   RÍKJANDI ÞÁTTUR ER MÍNÚTUR (stöðluð áhrif +4,6 til +5,1 stig).
-   FDR MÆLIST ~0 — það bætir engu við á NEINUM sjóndeildarhring (1 til 8
-   umferðir, prófað). Það er samt haft með á sinni MÆLDU vog (lítilli),
-   ekki handvalinni. Litakóðar á leikjum eru gagnlegt samhengi þótt
-   forspárgildi þeirra sé lítið.                                            */
-const FIT = {
-  1: { bias:-1.05, mins5:11.776, pts5:-0.344, bps90:0.179, price:2.092, fdr:-0.597, xgi90:0 },
-  2: { bias:-2.31, mins5:11.571, pts5: 0.142, bps90:0.006, price:2.350, fdr:-1.769, xgi90:4.218 },
-  3: { bias:-1.62, mins5:14.578, pts5: 0.180, bps90:0.003, price:0.984, fdr:-0.534, xgi90:2.403 },
-  4: { bias:-1.98, mins5:13.869, pts5: 0.519, bps90:0.009, price:0.698, fdr:-0.881, xgi90:1.919 },
-};
+/* `FIT`-taflan og tillogu-skorid FLUTTUST I `src/recommend.js` 18.8.2026 (C.1).
+   Astaedan er ekki snyrtimennska: skorid var ANNAD likan vid hlidina a thvi
+   maelda, med ~12 handsettum lidum ofan a maeldu tofluna, og ekkert prof gat
+   snert thad medan thad bjo inni i React-memo-i. Sja hausinn a recommend.js. */
 const FFDR_AHEAD = 5;  // umferðir sem útskiptingar-röðun horfir á
 /* UMFERDIR SYNDAR I EINU — BREIDDARHAD SIDAN 31.7.2026.
    Hnutarnir "FYLLA breiddina" (kafli 8), sem er rett a bord/skjá en BROTNAR
@@ -1598,188 +1582,27 @@ export default function App() {
     }).slice(0, 120);
   }, [players, searchQ, selling, squadIds, byId, teamById, ffdrAhead]);
 
-  /* ---------- Tillögu-kerfi: MÆLDAR vogtölur (sjá FIT ofar) ---------- */
-  const recommendations = useMemo(() => {
-    if (!players || !fixtures) return { byPos: {}, sellIds: new Set() };
-    const N = recRange;
-    const ff = {};
-    (formFeat?.players || []).forEach(x => ff[x.fpl_id] = x);
-    const haveForm = (formFeat?.mode === "fitted");
-
-    const scoreOf = (p) => {
-      const fxs = [];
-      for (let g = gw; g < gw + N && g <= maxGw; g++) {
-        (fixByTeamGw[p.team]?.[g] || []).forEach(f => fxs.push(f));
-      }
-      if (!fxs.length) return null;
-      const fdrAvg = fxs.reduce((a, f) => a + f.fdr, 0) / fxs.length;
-      const homeShare = fxs.filter(f => f.home).length / fxs.length;
-      const price = (p.now_cost || 0) / 10;
-      /* VANTANDI LIKUR ERU EKKI 0%. `?? 0` gerdi stodu-"d" mann MED
-         ochekktar likur ad 0 -> `rank x 0` -> hann hvarf ur tillogum
-         alveg eins og meiddur madur. FPL skilar oft `null` einfaldlega
-         thvi frett er ekki komin. Null = "veit ekki": tha er varfaerid
-         mat 50%, ekki utilokun. Adeins RAUNVERULEG tala gildir sem hun er.  */
-      const chance = p.chance_of_playing_next_round;
-      const avail = p.status === "a" ? 1
-        : (typeof chance === "number" && Number.isFinite(chance)) ? chance / 100 : 0.5;
-      const w = FIT[p.element_type] || FIT[3];
-
-      let raw, mode;
-      if (haveForm && ff[p.id]) {
-        // MÆLT LÍKAN — mins5 er ríkjandi þáttur
-        const f = ff[p.id];
-        raw = w.bias
-            + w.mins5 * (f.mins5 / 90)
-            + w.pts5  * f.pts5
-            + w.xgi90 * f.xgi90
-            + w.bps90 * f.bps90
-            + w.price * price
-            + w.fdr   * fdrAvg;
-        // skala úr 5-umferða kvarða í valinn sjóndeildarhring
-        raw = raw * (N / 5);
-        mode = "fitted";
-      } else {
-        // FYRIR TÍMABIL: mins5 er ekki til. Notum það sem er í boði og
-        // MERKJUM lægra öryggi. Mæling sýnir að þetta er ~1,5 stigum verra.
-        const ppg = parseFloat(p.points_per_game || 0);
-        const ep = parseFloat(p.ep_next || 0);
-        const mins = p.minutes || 0;
-        const per90 = mins > 400 ? 90 / mins : 0;
-        const xgi90 = parseFloat(p.expected_goal_involvements || 0) * per90;
-        raw = w.bias
-            + w.mins5 * Math.min(1, mins / (38 * 90))   // sl. tímabils mínútuhlutfall
-            + w.pts5  * ppg
-            + w.xgi90 * xgi90
-            + w.price * price
-            + w.fdr   * fdrAvg
-            + ep * 1.2;                                  // FPL-eigin spá vegur inn
-        raw = raw * (N / 5);
-        mode = "preseason";
-      }
-
-      // Aðlaganir sem MÆLINGIN nær ekki yfir (tiltækileiki, bönn, fastaleikir)
-      const br = banRisk(p, gw, seasonStarted);
-      const banPen = !br ? 0 : br.level === "high" ? -2.5 : br.level === "mid" ? -1 : 0;
-      const spB = setPieceOf(p, spRanks)?.isPenTaker ? 2.2 : 0;
-      const rot = rotationRisk(p, seasonGames);
-      const rotPen = !rot ? 0 : rot.level === "high" ? -2 : rot.level === "mid" ? -0.8 : 0;
-      /* DefCon-tækifæri fyrir vörn (aðskilið frá CS%).
-         MARKMENN VORU HER INNI OG THAD VAR OMAELD TALA (lagad 16.8.2026).
-         Skilyrdid var `element_type <= 2`, sem er GK **og** DEF. Maelt a
-         `data/player_gw_2526.json`: markmenn eiga **663 leikja-umferdir og
-         NULL DefCon-stig, hamark 0** — a moti DEF 6,30 ad medaltali, MID
-         5,86, FWD 2,60. Their geta ekki unnid stigin, svo `dcB` gaf theim
-         -0,23 til +0,87 a skorid fyrir taekifaeri sem er ekki til.
-         Sama brot og mo/ao a markmonnum (`stats.js` ~1745, "MAELINGA-REGLA,
-         EKKI SNYRTING"). THETTA ER THRENGING, ekki ny vog: kafli 4 hafnadi
-         DefCon i RODUN og `rankScore` ber hann hvergi — hann lifir adeins
-         a skorinu sem er BIRT, og nu adeins hja theim sem geta unnid hann. */
-      let dcB = 0;
-      if (p.element_type === 2) {
-        const o = dcOpp[p.team]?.defcon_opportunity;
-        if (typeof o === "number") dcB = (o - 60) / 30;
-      }
-
-      const score = (raw + banPen + spB + rotPen + dcB) * (0.35 + 0.65 * avail);
-
-      /* HVAÐ DRÍFUR SKORIÐ — birt á kortinu svo talan sé ekki dulúð.
-         Mælt: mínútur eru ríkjandi (+4,9 stöðluð áhrif), FFDR nær núll (−0,4).
-         Þess vegna getur leikmaður með ÞUNGA leiki verið réttmæt tillaga.     */
-      const drivers = [];
-      if (haveForm && ff[p.id]) {
-        drivers.push([interp("mins {0}′", [Math.round(ff[p.id].mins5)]), w.mins5 * (ff[p.id].mins5 / 90)]);
-      } else {
-        const mp = Math.min(1, (p.minutes || 0) / (38 * 90));
-        drivers.push([interp("mins {0}%", [Math.round(mp * 100)]), w.mins5 * mp]);
-      }
-      drivers.push([`£${price.toFixed(1)}`, w.price * price]);
-      drivers.push(["fixtures", w.fdr * fdrAvg]);
-      drivers.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
-      const tot = drivers.reduce((a, x) => a + Math.abs(x[1]), 0) || 1;
-      /* TVÆR PRÓSENTUR í sama streng var ólæsilegt: labelið getur sjálft
-         innihaldið % ("mín 89%") og svo var HLUTDEILD driverins skeytt á
-         eftir -> "mín 89% 44%", sem lestist sem ein tala. Hlutdeildin fer
-         nú í sviga með orði, svo það sé ljóst hvað er hvað.              */
-      const why = drivers.slice(0, 2)
-        .map(([lbl, v]) => interp("{0} ({1}% of score)", [lbl, Math.round(100 * Math.abs(v) / tot)]))
-        .join(" · ");
-
-      // algilt meðal-FFDR yfir sviðið (til samanburðar milli liða)
-      let fsum = 0, fn = 0;
-      for (const f of fxs) { const d = fixDifficulty(p.team, f, p.element_type); if (d != null) { fsum += d; fn++; } }
-
-      /* RÖÐUNARSKOR — mælt sér fyrir RÖÐUN, sjá rankScore í model.js.
-         Tillögur eru RAÐAÐAR eftir þessu (topp-5 6,07 raunstig á móti
-         5,29 hjá gamla skorinu og 5,20 hjá FPL-eigin xP, 5/5 tímabil).
-         `score` heldur sér ÓBREYTT sem birt tala og drifkraftar (`why`)
-         — mælingin sýndi að röðun og birt stærð eru tvö ólík störf og
-         eiga ekki að deila einni tölu.                                  */
-      const gamesSoFar = seasonGames || 38;      // forleikur: síðasta tímabil
-      /* mínútuþróun kemur úr pipeline (player_form.json). Vantar hún —
-         preseason eða <4 loknar umferðir — fer 0 inn og skorið er eins
-         og áður. mins5 þar er RAUNVERULEGAR síðustu 5 umferðir og því
-         betri en árs-meðaltalið; við notum hana þegar hún er til.       */
-      const pf = playerForm?.players?.[p.id];
-      /* TILTAEKILEIKI VANTADI I RODUNINA — FUNDID 7.8.2026 AF NOTANDA:
-         J.Timber (ARS, `status:"i"`, chance_next 0, ep_next 0.0,
-         "Groin injury") var i 2. saeti yfir varnarmenn sem MAELT ER MED
-         AD KAUPA. rankScore metur form/minutur/verd/FFDR — hann veit
-         EKKERT um meidsli, svo meiddur madur i lidi med letta leiki
-         (ARS, FFDR 1,62) flaut upp. Birta talan (`score`) bar hins vegar
-         tiltaekileikann (9,51 a moti 42,74 hja Gabriel) og THVI leit
-         listinn ut fyrir ad vera oradadur — sami galli, tvo einkenni.
-         Sama margfeldi og `score` notar er nu lagt a rodunina: 0% likur
-         -> 0 og madurinn dettur af listanum, 25/50/75% skala hlutfallslega.
-         Mælingin a rankScore (kafli 4) haggast ekki: hun snyst um ROD
-         theirra sem GETA spilad.                                        */
-      const rank = rankScore({
-        form: parseFloat(p.form),
-        minsPerGame: Number.isFinite(pf?.mins5) ? pf.mins5
-                   : (p.minutes ?? 0) / Math.max(1, gamesSoFar),
-        price: (p.now_cost ?? 45) / 10,
-        ffdr: fn ? fsum / fn : null,
-        minsTrend: pf?.mins_trend,
-      }) * avail;
-      /* HRAU INNTOKIN FYLGJA MED — samanburdar-radgjofin (src/advisor.js)
-         verdur ad reikna a NAKVAEMLEGA somu tolum og tillogurnar, annars
-         gaeti hun sagt annad en listinn og hvorug vaeri traustsins verd.
-         Thau eru afhent, ekki endurreiknud.                             */
-      const rankInputs = {
-        form: parseFloat(p.form),
-        minsPerGame: Number.isFinite(pf?.mins5) ? pf.mins5
-                   : (p.minutes ?? 0) / Math.max(1, gamesSoFar),
-        price: (p.now_cost ?? 45) / 10,
-        ffdr: fn ? fsum / fn : null,
-        minsTrend: pf?.mins_trend,
-      };
-      return { p, score: +score.toFixed(2), rank: +rank.toFixed(3),
-               ease: +(5 - fdrAvg).toFixed(2), fxs, mode, avail, rankInputs,
-               why, ffdrAvg: fn ? +(fsum / fn).toFixed(2) : null };
-    };
-    const all = players.map(scoreOf).filter(Boolean);
-    /* VERDTHAK — sia adeins a TILLOGULISTANN, ekki a "skipta ut"-matid.
-       Verdthak a ekki ad breyta thvi hver er verstur i thinu lidi.        */
-    const maxT = (() => {
-      const v = parseFloat(String(recMaxCost).replace(",", "."));
-      return Number.isFinite(v) && v > 0 ? Math.round(v * 10) : null;
-    })();
-    const byPos = {};
-    [1,2,3,4].forEach(pos => {
-      byPos[pos] = all.filter(r => r.p.element_type === pos && !squadIds.has(r.p.id)
-                                && (maxT == null || (r.p.now_cost ?? 0) <= maxT))
-        .sort((a,b) => b.rank - a.rank).slice(0, 4);
-    });
-    // versti í liðinu = mælt með að skipta út
-    const inSquad = all.filter(r => squadIds.has(r.p.id));
-    const sorted = [...inSquad].sort((a,b) => a.score - b.score);
-    const sellIds = new Set(sorted.slice(0, 2).map(r => r.p.id));
-    return { byPos, sellIds, inSquadScores: Object.fromEntries(inSquad.map(r => [r.p.id, r.score])),
-             /* ALLIR leikmenn, ekki adeins tillogurnar: samanburdurinn ma
-                bera saman hvern sem er, lika tha sem eru i lidinu.      */
-             advisorById: Object.fromEntries(all.map(r => [r.p.id,
-               { inputs: r.rankInputs, avail: r.avail, ffdrAvg: r.ffdrAvg, fxs: r.fxs }])) };
-  }, [players, fixtures, gw, recRange, fixByTeamGw, teamMetrics, squadIds, odds, defcon, dcOpp, eloByTeam, eloCsByFx, maxGw, formFeat, recMaxCost, playerForm]);
+  /* ---------- Tillogu-kerfid ----------
+     BYR I `src/recommend.js` (flutt 18.8.2026, C.1) — hreint fall med
+     INNSPYTTUM hadum, svo prof geti keyrt NAKVAEMLEGA sama kodann.
+     HADALISTINN VAR RANGUR OG ER LAGADUR: hann taldi upp `teamMetrics`,
+     `odds`, `defcon`, `eloByTeam` og `eloCsByFx` — sem blokkin las ENGA —
+     medan `fixDifficulty`, `spRanks`, `seasonStarted` og `seasonGames`
+     VANTADI. Thraer fyrri thoktu tvaer their sidari OBEINT (fixDifficulty
+     er memo af teamMetrics/teamById/odds/eloByTeam, spRanks af players),
+     en `seasonStarted`/`seasonGames` koma ur `events` sem var HVERGI i
+     listanum — thau gatu thvi frosid. Thad var RAUNVERULEGA gatid.
+     `seasonStarted` er ekki lengur i listanum thvi fallid les hann ekki
+     lengur: eini lesandinn var `banPen`, sem var MAELDUR OG FELLDUR (sja
+     recommend.js). Listinn telur nakvaemlega thad sem fallid les.       */
+  const recommendations = useMemo(
+    () => buildRecommendations({
+      players, fixtures, gw, maxGw, recRange, recMaxCost,
+      fixByTeamGw, fixDifficulty, spRanks, seasonGames,
+      squadIds, formFeat, playerForm }),
+    [players, fixtures, gw, maxGw, recRange, recMaxCost,
+     fixByTeamGw, fixDifficulty, spRanks, seasonGames,
+     squadIds, formFeat, playerForm]);
 
   /* ---------- Verðbreytingar (raunveruleg gögn) ---------- */
   const priceMovers = useMemo(() => {

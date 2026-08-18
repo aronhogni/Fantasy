@@ -32,7 +32,7 @@
 
    Maelt: 24/24 graen.
    ============================================================ */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 const REPO = new URL("../", import.meta.url);
 const D = new URL("data/", REPO).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -300,8 +300,33 @@ console.log("\n=== C21: APPID LES RODUN, EKKI FPL-TOLUNA ===");
      /function setPieceOf\(/.test(av));
   ok("og hun bur i availability.js, ekki i App.jsx",
      /function setPieceOf\(/.test(av) && !/function setPieceOf\(/.test(app));
-  const calls = (app.match(/setPieceOf\(p, spRanks\)/g) || []).length;
-  ok(`allir kallstadir senda rodunina (${calls})`, calls >= 3);
+  /* ALLIR KALLSTADIR SENDA RODUNINA — OG VORDURINN LEITAR SJALFUR AD THEIM.
+     Adur stod her `app.match(/setPieceOf\(p, spRanks\)/g).length >= 3`, sem
+     var TVOFOLD hardkodun: EIN skra (App.jsx) og EIN tala (3). Hun for i
+     raudan lit 18.8.2026 thegar tillogu-skorid flutti i `src/recommend.js`
+     og tok EINN kallstad med ser — kodinn var rettur, talan var urelt.
+     Sama aett og `gwBlindKeys` (13 af 22 lyklum rangir) og "108 dalkar":
+     handskrifadur listi yfir stadi eda fjolda verdur ad rongum leidarvisi.
+
+     RAUNVERULEG AETLUN GUARDSINS er "enginn kallstadur gleymir rodinni".
+     Hun er nu maeld thannig: LEITAD er ad ollum kallstodum i `src/`, og
+     HVER OG EINN verdur ad senda tvaer roksemdir. Fjoldinn er REIKNADUR og
+     stadirnir FUNDNIR, svo hvorugt getur stadnad thegar kodi flyst aftur.
+     Golfid er 1 og thad er FORSENDA, ekki thak: fyndust engir kallstadir
+     vaeri fullyrdingin tom (CLAUDE.md 5b, regla 1).                      */
+  const srcDir = new URL("../src/", import.meta.url).pathname;
+  const sites = [];
+  for (const f of readdirSync(srcDir)) {
+    if (!/\.jsx?$/.test(f) || f === "availability.js") continue;   // skilgreiningin sjalf
+    const txt = strip(readFileSync(srcDir + f, "utf8"));
+    for (const m of txt.matchAll(/setPieceOf\s*\(([^)]*)\)/g))
+      sites.push({ file: f, args: m[1].split(",").map(s => s.trim()).filter(Boolean) });
+  }
+  ok(`fann kallstadi setPieceOf yfirhofud (${sites.length} i ${new Set(sites.map(s => s.file)).size} skram)`,
+     sites.length >= 1);
+  const thin = sites.filter(s => s.args.length !== 2);
+  ok(`hver kallstadur sendir rodunina (${sites.length} stadir, ${thin.length} an hennar)`,
+     thin.length === 0, thin.map(s => `${s.file}: setPieceOf(${s.args.join(", ")})`).join(" · "));
 }
 
 console.log(`\nFOST LEIKATRIDI: ${pass}/${pass + fail} graen`);
