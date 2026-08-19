@@ -199,6 +199,28 @@ console.log("\n2. draft-flipinn");
       ok(badges.length === named.length,
         `og hver ber stoduna sina (${badges.join(", ")})`);
 
+      /* ============================================================
+         (a2) OG HANN NEFNIR EKKI ALLA — TALAN ER LESIN AF SKJANUM
+         ============================================================
+         Kassinn bar THRETTAN nofn og notandinn sa thad: Bridgewater a
+         VBD -288 keppti um athygli vid Kittle. `advice.mjs` kafli 14
+         ver skurdinn (`vbd > 0`) og talninguna; hér er spurt hvort
+         THAD SJAIST — sama skipting og milli (a) og reglunnar sjalfrar.
+
+         BAÐAR TOLUR VERDA AD VERA A SKJANUM. Ad klippa og telja i
+         `advice.js` en gleyma tolunni i .jsx-skranni vaeri nakvaemlega
+         thogla horfid sem kassinn var byggdur til ad utiloka — og
+         thad myndi ekkert prof sja nema thetta. */
+      const flat = (note.textContent || "").replace(/\s+/g, " ");
+      const more = /(\d+) more (?:is|are) out and not named here/.exec(flat);
+      ok(more != null, `talan um tha sem eru EKKI nefndir sest (\"${flat.slice(0, 90)}…\")`);
+      ok(named.length < 13 && more != null && Number(more[1]) > 0,
+        `${named.length} nefndir og ${more ? more[1] : "?"} taldir — hvorugt er 13 i vegg`);
+      ok(/below replacement/.test(flat),
+        "og ASTAEDAN fyrir klippingunni stendur, ekki adeins talan");
+      ok(/VBD/.test(flat),
+        "med verstu VBD-tolunni, svo \"below replacement\" se maelanleg fullyrding");
+
       /* Nofnin ur nótunni. Ekki `querySelectorAll("span")` — ytri
          umgjordin um hvern mann er LIKA span an klasa og ber tha
          "TE George Kittle PUP" sem eitt "nafn". Nafnid er BERI

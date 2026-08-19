@@ -673,6 +673,53 @@ console.log("\n14. tiltaekileiki 0 fellur ur rodinni — med astaedu");
     });
     ok(Array.isArray(rec.sidelined) && rec.sidelined.length === 0,
       "allir heilir -> tomt fylki, ekki null (vidmotid les .length an vardar)");
+    ok(rec.sidelinedBelowRepl === 0 && rec.sidelinedWorst === null,
+      "og engum var sleppt -> 0 taldir og `sidelinedWorst` er NULL, ekki 0");
+  }
+
+  /* ============================================================
+     b2) VARAMANNS-LINAN KLIPPIR — OG TALAN SEGIR FRA (19.8.2026)
+     ============================================================
+     Kassinn bar THRETTAN menn a skjanum hja notandanum og ellefu
+     theirra voru merkingarlausir (Bridgewater a VBD -288) medan
+     THANN EINA sem skiptir mali — Kittle — var haegt ad missa i
+     rununni. Skurdurinn er `vbd > 0`: VBD er virdi ofan a varamann,
+     svo `vbd <= 0` thydir "ekki thess virdi ad taka saeti".
+
+     ENGINN HVERFUR ThEGJANDI. Þad var asetningurinn med kassanum
+     fra upphafi og hann stendur: their sem eru klipptir eru TALDIR
+     og versta talan er nefnd, svo notandinn getur bædi vitad ad
+     their eru til og hvers vegna their eru ekki nefndir.
+
+     BAÐAR ATTIR ERU PROFADAR og su fyrri er nauðsynleg: vaeri
+     skurdurinn latinn taka ALLA vaeri "engir ovirdulegir nefndir"
+     satt af tomum astaedum.                                      */
+  {
+    const rec = recommend({
+      available: [
+        mk("keep", "TE", 12, { avail: 0, injury: "PUP" }),
+        mk("edge", "WR", 0, { avail: 0, injury: "PUP" }),
+        mk("clip1", "QB", -288, { avail: 0, injury: "NA" }),
+        mk("clip2", "RB", -122, { avail: 0, injury: "IR" }),
+        mk("ok1", "RB", 60), mk("ok2", "WR", 55),
+      ],
+      roster: [], pick: 10, league: L, nextPick: 21,
+    });
+    ok(rec.sidelined.length === 1 && rec.sidelined[0].id === "keep",
+      `adeins sa yfir linunni er nefndur (${rec.sidelined.map((s) => s.id).join(",") || "enginn"})`);
+    /* NAKVAEMLEGA `> 0`, ekki `>= 0`: madur a varamanns-linunni sjalfri
+       er EKKI virdi ofan a varamann. `edge` er tharna til ad greina
+       thessi tvo skilyrdi i sundur — an hans vaeri hvort sem er graent. */
+    ok(!rec.sidelined.some((s) => s.id === "edge"),
+      "og VBD nakvaemlega 0 er UNDIR linunni, ekki a henni");
+    ok(rec.sidelinedBelowRepl === 3,
+      `thrir voru klipptir og TALDIR (${rec.sidelinedBelowRepl})`);
+    ok(rec.sidelinedWorst === -288,
+      `og versta talan er nefnd, svo talan se laesileg (${rec.sidelinedWorst})`);
+    /* Klipping ma ekki verda sia: their eru afram UT UR rodinni. */
+    const ids = rec.picks.map((p) => p.id);
+    ok(!ids.includes("clip1") && !ids.includes("clip2") && !ids.includes("edge"),
+      "og klipptir menn eru samt EKKI komnir aftur i rodina");
   }
 
   /* ---- c) RAUNBORDID — thekjan er fullyrding, ekki logga ---- */
@@ -706,6 +753,22 @@ console.log("\n14. tiltaekileiki 0 fellur ur rodinni — med astaedu");
       `enginn theirra ${zero.length} er i rodinni (${leaked.map((r) => r.name).join(", ") || "engir"})`);
     ok(rec.sidelined.length > 0 && rec.sidelined.every((s) => s.why && s.why.length > 12),
       `og allir ${rec.sidelined.length} bera astaedu (>12 stafir)`);
+    /* ---- OG KASSINN NEFNIR EKKI ALLA. Þetta er a RAUNBORDINU thvi
+       skurdurinn var maeldur thar: 13 menn med `avail: 0`, og gapid
+       vid `vbd > 0` er MINNST 58 stig i thremur deildarlogunum
+       (10-lida: +6,9 / -0,2 / -121,8). Talan er reiknud ur SOMU laug
+       sem kassinn birtir, svo hun getur ekki rekid fra honum. ---- */
+    ok(rec.sidelined.every((s) => s.vbd > 0),
+      `enginn nefndur madur er undir varamanns-linunni (${rec.sidelined.map((s) => s.vbd).join(", ")})`);
+    ok(rec.sidelined.length + rec.sidelinedBelowRepl === zero.length,
+      `nefndir + taldir = ALLIR ${zero.length} (${rec.sidelined.length} + ${rec.sidelinedBelowRepl})`
+      + " — enginn hverfur thegjandi");
+    /* Og klippingin er RAUNVERULEG a bordinu i dag: væri hun ovirk
+       vaeri talan hér 0 og fullyrdingin ofar satt af tomum astaedum. */
+    ok(rec.sidelinedBelowRepl > 0,
+      `THEKJA: ${rec.sidelinedBelowRepl} menn eru raunverulega klipptir a bordinu i dag`);
+    ok(rec.sidelined.length < zero.length,
+      `svo kassinn nefnir ${rec.sidelined.length} i stad ${zero.length}`);
     /* Og rodin ma ekki hafa tapad neinum odrum. */
     ok(rec.picks.length > 300,
       `rodin er enn full (${rec.picks.length} menn) — sian tok ekki heilbrigda med`);

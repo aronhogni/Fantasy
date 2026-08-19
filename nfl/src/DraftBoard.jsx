@@ -1993,18 +1993,38 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
           jafn slæmt og ad rada honum. Notandinn leitar Kittle, finnur
           hann ekki, og veit ekki hvort appid vissi eda gleymdi. Ástaedan
           er thvi skrifud vid hvert nafn — thad er sama krafa og
-          `unranked` gerir um K og DST. */}
-      {rec.sidelined && rec.sidelined.length > 0 && (
+          `unranked` gerir um K og DST.
+
+          OG KASSINN NEFNIR EKKI ALLA — SKURDURINN ER I `advice.js`.
+          Hann bar thretta menn og notandinn sa thad: Bridgewater a
+          VBD -288 keppti um athygli vid Kittle. Þeir sem eru undir
+          varamanns-linunni eru TALDIR i stad thess ad vera nefndir, og
+          talan visar a bordid thar sem their standa afram — enginn
+          hverfur thegjandi, sem var asetningurinn allan timann. */}
+      {rec.sidelined && (rec.sidelined.length > 0 || rec.sidelinedBelowRepl > 0) && (
         <div className="note warn" style={{ marginTop: 8 }}>
-          <b>Not in the list — they are not playing:</b>{" "}
-          {rec.sidelined.map((s, i) => (
-            <span key={s.id}>
-              {i > 0 && " · "}
-              <span className={`pos ${s.pos}`}>{s.pos}</span> {s.name}{" "}
-              <span className="badge bad">{s.injury || "unavailable"}</span>
-            </span>
-          ))}
-          .{" "}
+          <b>Not in the list — they are not playing.</b>{" "}
+          {rec.sidelined.length > 0 && <>
+            {rec.sidelined.map((s, i) => (
+              <span key={s.id}>
+                {i > 0 && " · "}
+                <span className={`pos ${s.pos}`}>{s.pos}</span> {s.name}{" "}
+                <span className="badge bad">{s.injury || "unavailable"}</span>
+              </span>
+            ))}
+            .{" "}
+          </>}
+          {rec.sidelinedBelowRepl > 0 && <>
+            <b>{rec.sidelinedBelowRepl} more</b>{" "}
+            {rec.sidelinedBelowRepl === 1 ? "is" : "are"} out and not named here:{" "}
+            {rec.sidelinedBelowRepl === 1 ? "he is" : "every one of them is"}{" "}
+            <b>below replacement</b> even at a full 17 games
+            {rec.sidelinedWorst != null && <> (down to {rec.sidelinedWorst} VBD)</>}, so
+            {rec.sidelined.length > 0
+              ? " listing them would bury the name above."
+              : " none of them is a pick you are missing."}{" "}
+            They are in the board below, with the same red badge.{" "}
+          </>}
           Their projections are full 17-game numbers with <b>no injury discount</b>,
           so the rank, tier and "value vs market" you can still read on the board
           below are all computed from points they are not going to score. They are

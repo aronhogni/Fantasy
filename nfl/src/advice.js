@@ -308,16 +308,54 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
      nytilegum skilningi, og VBD hans blæs `expectedNext` upp og
      bradanauðsyn hinna nidur. Ein sia, tvo notkunarsvid, svo thau
      geta ekki rekid i sundur. */
-  const sidelined = benched
+  /* ============================================================
+     OG EKKI ALLIR — VARAMANNS-LINAN ER SKURDURINN (19.8.2026)
+     ============================================================
+     Kassinn bar THRETTAN menn og notandinn sa thad a skjanum: Teddy
+     Bridgewater (VBD -288) og ellefu adrir kepptu um athygli vid
+     THANN EINA sem skiptir mali — Kittle, sem les eins og kaup fimm
+     umferdum ofan a sinu saeti. Nafn sem enginn myndi drafta ma ekki
+     jafngilda nafni sem madur MISSIR af.
+
+     SKURDURINN ER `vbd > 0`, ekki topp-N, og hann er MAELDUR — ekki
+     valinn. VBD er virdi ofan a varamann, svo `vbd <= 0` thydir
+     bokstaflega "ekki thess virdi ad taka saeti". Talan sem
+     rettlaetir hann er BILID: a raunbordinu i dag, i thremur
+     deildarlogunum, eru 13 menn med `avail: 0` og skurdurinn lendir i
+     gapi sem er MINNST 58 stig i hverri einni:
+
+       10-lida PPR  1 yfir (Kittle +6,9) · naesti er -0,2, tha -121,8
+       12-lida PPR  2 yfir (Kittle +9,9 · Pierce +7,1) · naesti -99,5
+       14-lida std  2 yfir (Pierce +21,1 · Kittle +19,1) · naesti -58,8
+
+     Hann klippir thvi ekki i midjum klasa. OG HANN ER DEILDARHAADUR
+     MED RETTU: Pierce er -0,2 i 10-lida deild en +21,1 i 14-lida —
+     varamanns-linan ER logun deildarinnar, svo sami madur getur verid
+     undir henni i einni og yfir i annarri.
+
+     ENGINN HVERFUR ThEGJANDI — ThAD VAR ASETT OG ThAD STENDUR. Þeir
+     sem eru klipptir eru TALDIR (`sidelinedBelowRepl`) og versta
+     talan er nefnd (`sidelinedWorst`), svo kassinn getur sagt bædi
+     hve margir og HVERS VEGNA. Þeir eru auk thess afram i bordinu
+     sjalfu med sinu rauda merki; thad er thangad sem talan visar.
+
+     NULL ER EKKI NULL: `sidelinedWorst` er `null` thegar engum var
+     sleppt, ekki 0 — 0 er raunveruleg VBD-tala og vaeri ólæsileg hér. */
+  const benchedRanked = benched
     .filter((p) => p.vbd != null)
-    .sort((a, b) => b.vbd - a.vbd)
-    .map((p) => ({
-      id: p.id, name: p.name, pos: p.pos, vbd: round1(p.vbd),
-      injury: p.injury ?? null, avail: 0,
-      /* Astaedan er hluti af utkomunni, ekki skraut — sja hausinn. */
-      why: `${p.injury || "unavailable"} — his projection is a full 17-game`
-         + ` number and is not discounted for this`,
-    }));
+    .sort((a, b) => b.vbd - a.vbd);
+  const worthSeeing = benchedRanked.filter((p) => p.vbd > 0);
+  const clipped = benchedRanked.length - worthSeeing.length;
+  const sidelined = worthSeeing.map((p) => ({
+    id: p.id, name: p.name, pos: p.pos, vbd: round1(p.vbd),
+    injury: p.injury ?? null, avail: 0,
+    /* Astaedan er hluti af utkomunni, ekki skraut — sja hausinn. */
+    why: `${p.injury || "unavailable"} — his projection is a full 17-game`
+       + ` number and is not discounted for this`,
+  }));
+  const sidelinedBelowRepl = clipped;
+  const sidelinedWorst = clipped > 0
+    ? round1(benchedRanked[benchedRanked.length - 1].vbd) : null;
 
   /* Hvad a hver stada ad vera vid naesta val? Se ekkert val eftir er
      svarid ENGIN TALA — hlutinn stendur samt (hann greinir stodur sem
@@ -467,8 +505,13 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
     /* Menn sem rodin BAR og sem eru ekki i lidinu sinu. Þeir eru
        teknir UT UR `picks` og skiladir hér med astaedu — sja notuna
        ofar. Tomt fylki thegar allir eru heilir; ALDREI `null`, svo
-       vidmotid getur skrifad `.length` an vardar. */
+       vidmotid getur skrifad `.length` an vardar.
+
+       ADEINS THEIR SEM ERU YFIR VARAMANNS-LINUNNI eru nefndir. Hinir
+       eru TALDIR og versta talan nefnd — enginn hverfur thegjandi. */
     sidelined,
+    sidelinedBelowRepl,
+    sidelinedWorst,
     /* Stodur sem thu verdur ad fylla en rodin nefnir aldrei. */
     mustFill,
     mustFillUrgent: needed > 0 && picksLeft <= needed + 1,
