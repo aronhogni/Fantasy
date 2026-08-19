@@ -1087,9 +1087,54 @@ async function mergeSnapCounts(weekly, years) {
       if (!g || s.week == null) continue;
       byKey.set(`${g}|${s.week}`, s);
     }
-    if (byKey.size < 100) {
+    /* ============================================================
+       HLIDID VAR ALGILT OG THVI NANAST ALDREI VIRKT (LAGAD 19.8.2026)
+       ============================================================
+       Hér stod `byKey.size < 100`. MAELT a ollum sjo arum er `byKey.size`
+       **23.829-26.573**, svo hlidid la vid ~0,4% af raunverulegri staerd
+       og gat i verki ekki fallid.
+
+       OG THAD VAR RAUNVERULEG HAETTA THVI LYKKJAN NEDAN SKRIFAR `null`
+       YFIR HVERJA ROD SEM EKKI PARAST. Halfsott snap-skra (t.d. 3.000 af
+       26.500 rodum) hefdi thvi stadist hlidid og skrifad **null yfir
+       ~3.600 vikulegar radir sem baru raunverulegar tolur** — nakvaemlega
+       "tom sokn thurrkar ut god gogn", i sama falli sem er skrifad gegn
+       thvi (sja notuna vid `mergeSnapCounts`).
+
+       MAELT 19.8.2026 — HLUTFALLIÐ ER HLIDID, OG THAD ER TALIÐ A ThVI SEM
+       RAUNVERULEGA GERIST (pordu radirnar), ekki a staerd snap-skrarinnar:
+         ar    vikulegar   snap-radir   parast   %
+         2019       6.040      23.862    6.034   99,9
+         2020       6.181      24.999    6.177   99,9
+         2021       6.529      26.468    6.523   99,9
+         2022       6.463      26.381    6.462  100,0
+         2023       6.440      26.540    6.434   99,9
+         2024       6.478      26.615    6.472   99,9
+         2025       6.651      26.612    6.637   99,8
+       Heilbrigt ar er ThVI 99,8-100,0%. Golfid 0,90 er **tiu prosentustig
+       undir laegsta maelda ari** (svo eðlilegt flokt fellir thad ekki) og
+       **langt yfir halfri skra** (~50%), sem er tilfellid sem thad er til
+       ad stodva.
+
+       ThAD ER TALIÐ A `rows.length` — SAMA ARI — OG EKKI A FYRRA ARI.
+       Uttektin bad um "hlutfall af fyrra ari"; thad vaeri RANGT hér og af
+       nakvaemlega theirri astaedu sem `weeklyMinRows` er til: vika 1 ber
+       ~390 radir, svo hlutfall gegn loknu ari (6.600) hefdi HAFNAD fyrstu
+       vikunum — einmitt thegar notkun-til-thessa er thad eina sem er til.
+       Bædi taljarinn og nefnarinn eru vikuskordud, svo hlutfallid heldur
+       i viku 1 alveg eins og i viku 18.
+
+       TALIÐ A UNDAN SKRIFUM. Fyrri utgafan skrifadi i somu lykkju og
+       taldi, svo hun gat ekki hafnad eftir a. Nu er thurr-talning fyrst.  */
+    const SNAP_FLOOR = 0.90;
+    let dry = 0;
+    for (const r of rows) if (byKey.get(`${r.id}|${r.week}`)) dry++;
+    const rate = rows.length ? dry / rows.length : 0;
+    if (rate < SNAP_FLOOR) {
       record(`snap_merge_${yr}`, false,
-        `only ${byKey.size} bridged snap rows — ${yr} left untouched`);
+        `only ${dry}/${rows.length} rows (${(100 * rate).toFixed(1)}%) match the ` +
+        `snap file, floor is ${(100 * SNAP_FLOOR).toFixed(0)}% — ${yr} left untouched ` +
+        `(writing would null ${rows.length - dry} rows that may hold real snaps)`);
       skipped.push(yr);
       continue;
     }

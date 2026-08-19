@@ -997,15 +997,26 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
        (`00-000${i}` fyrir i=2) og MADURINN SEM ATTI AD VERA AN SNAP-GAGNA
        fekk snoppin ur fyllingunni. Profid felldi tha rettan kóda. */
     {
+      /* HLUTFALLID I THESSU FIXTURE VAR 1 AF 2 (50%) OG VARD MARKTAEKT
+         19.8.2026: hlidid nedan er nu HLUTFALLSLEGT (golf 0,90) i stad
+         `byKey.size < 100`, svo 50% fixture hefdi verid HAFNAD og profid
+         hefdi fallid a fixture-inu og ekki a hegduninni.
+         Fixture-id ber nu RAUNHAEFT hlutfall: 19 af 20 parast (95%), sem
+         er innan maelda bilsins (99,8-100,0% a sjo arum) — og fullyrdingin
+         sem mali skiptir er OBREYTT: sa EINI sem a enga snap-rod faer
+         null, ekki 0.                                                   */
       const weekly = { 2026: [
-        { id: "TEST-A", week: 1, ppr: 10 },
+        ...new Array(19).fill(0).map((_, i) => ({ id: `TEST-A${i}`, week: 1, ppr: 10 })),
         { id: "TEST-B", week: 1, ppr: 5 },     // a ENGA snap-rod
       ] };
       const snaps = new Array(120).fill(0)
         .map((_, i) => ({ pfrId: `Pfr${i}`, week: 1, snaps: 10, pct: 0.5 }));
-      snaps.push({ pfrId: "PfrA", week: 1, snaps: 61, pct: 0.87 });
+      for (let i = 0; i < 19; i++) {
+        snaps.push({ pfrId: `PfrA${i}`, week: 1, snaps: 61, pct: 0.87 });
+      }
       const nv = {
-        players: async () => [...bridgePlayers, { id: "TEST-A", pfrId: "PfrA" }],
+        players: async () => [...bridgePlayers,
+          ...new Array(19).fill(0).map((_, i) => ({ id: `TEST-A${i}`, pfrId: `PfrA${i}` }))],
         snapCounts: async () => snaps,
       };
       const { fn } = mkMerge(nv);
@@ -1015,8 +1026,46 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
       /* NULL ER EKKI NULL: sa sem a enga snap-rod faer null, EKKI 0.
          Snap-hlutfall 0 thydir "spiladi ekki eitt snapp" og er allt
          annad mal en "vantar". */
-      ok(weekly[2026][1].snaps === null && weekly[2026][1].snapPct === null,
+      ok(weekly[2026][19].snaps === null && weekly[2026][19].snapPct === null,
         "rod an snap-gagna faer NULL, ekki 0");
+    }
+
+    /* ============================================================
+       C1b — HALFSOTT SNAP-SKRA MA EKKI SKRIFA NULL YFIR THOLUR
+       ============================================================
+       ThETTA HLID VAR I VERKI OVIRKT. Thad stod `byKey.size < 100` medan
+       raunveruleg staerd er **23.829-26.573** (maelt a ollum sjo arum), svo
+       thad la vid ~0,4% og gat ekki fallid. Og lykkjan skrifar `null` yfir
+       HVERJA rod sem ekki parast, svo halfsott skra hefdi thurrkad ut
+       ~3.600 raunverulegar tholur i 6.637-rada ari — nakvaemlega thad sem
+       C2 ver gegn i 404-tilfellinu, en gegnum hurd sem stod opin.
+
+       Herman: 20 vikulegar radir sem ALLAR bera snopp thegar, en snap-skran
+       kemur adeins med 10 (50%). Golfid er 0,90, svo arinu er sleppt OSNERTU.
+       Sja `SNAP_FLOOR` i fetch-nfl.mjs fyrir maelinguna sem valdi 0,90.   */
+    {
+      const weekly = { 2026: new Array(20).fill(0)
+        .map((_, i) => ({ id: `HALF-${i}`, week: 1, ppr: 10, snaps: 61, snapPct: 0.87 })) };
+      const snaps = new Array(120).fill(0)
+        .map((_, i) => ({ pfrId: `Pfr${i}`, week: 1, snaps: 10, pct: 0.5 }));
+      for (let i = 0; i < 10; i++) {                       // ADEINS HALF SKRAIN
+        snaps.push({ pfrId: `PfrH${i}`, week: 1, snaps: 5, pct: 0.11 });
+      }
+      const nv = {
+        players: async () => [...bridgePlayers,
+          ...new Array(20).fill(0).map((_, i) => ({ id: `HALF-${i}`, pfrId: `PfrH${i}` }))],
+        snapCounts: async () => snaps,
+      };
+      const { fn, log } = mkMerge(nv);
+      await fn(weekly, [2026]);
+      const untouched = weekly[2026].filter((r) => r.snaps === 61).length;
+      ok(untouched === 20,
+        `HALFSOTT SKRA (50%): allar 20 radir OSNERTAR (${untouched}) — ` +
+        "engin thola thurrkud ut");
+      ok(weekly[2026].every((r) => r.snaps !== null),
+        "og EKKERT null skrifad ofan i tholu sem var til");
+      ok(log.some((l) => l.ok === false && /floor is 90%/.test(l.note || "")),
+        "og hofnunin er skrad MED hlutfallinu og golfinu");
     }
 
     /* C2 — ÞETTA ER PROFSTEINNINN. `snap_counts_2026.csv` er 404 i dag.
