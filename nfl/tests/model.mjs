@@ -309,6 +309,140 @@ console.log("\n9b. TE-hluturinn pinnadur (sveipadur, 0 af 102 frumum standast ba
 }
 
 /* ============================================================
+   9c. FRUMURNAR ERU TALDAR UR MAELISKRANUM (19.8.2026)
+   ============================================================
+   "0 af 102 frumum standast barinn" stod a FJORUM stodum — README 4l
+   (thrisvar), `model.js`, `Sources.jsx` og haus kafla 9b hér ad ofan —
+   og **ENGIN FULLYRDING TALDI HANA**. Thad er nakvaemlega sama gerd og
+   DST-nótan sem thetta repo lagadi i somu lotu: athugasemd sem ekkert
+   prof getur fellt er ekki maeling heldur minning.
+
+   UTTEKT 19.8.2026 SAGDI TOLUNA RANGA OG BAUD 154 I STADINN. HVORUGT
+   ER RETT, OG THAD ER ASTAEDAN FYRIR THESSUM KAFLA: tolurnar 81 og 21
+   eru NAKVAEMLEGA thad sem labbin sjalf reikna —
+   `vbdbase-lab.mjs:1518  nTests = cells.length * (variants.length - 1)`
+   (9 frumur x 9 afbrigdi = 81) og
+   `h2h-lab.mjs:1360      nTe = SHAPES.length * (TE_GRID.length - 1)`
+   (3 lagnir x 7 hlutfoll = 21). Baðar tolur eru bokadar i `verdict`-
+   strengnum I MAELISKRANNI, svo skjalid og skrain sogdu thegar thad
+   sama. **Bokada talan var ekki villan; thad ad enginn taldi hana var.**
+
+   ThRJAR DENOMINATORAR ERU ALLIR REYNVERULEGIR OG MA EKKI BLANDA:
+     176 = allar frumur i skranum      (144 stig + 32 sigrar)
+     102 = frumur SEM BARINN MAT       ( 81 stig + 21 sigrar)   <- bokad
+      84 = raunverulegir TE-samanburdir vid sent gildi (63 + 21)
+   Munurinn 176 - 102 er ONNUR ADP-GLUGGINN: baedi labbin PRENTA hann
+   en hvorugt METUR hann (`PRIMARY_FIELD[fmt]` og `ADP_SRC[sh.fmt][0]`).
+   Munurinn 102 - 84 er 9 `k1-raw` (thvert akkeri, ekki TE-afbrigdi) og
+   9 `te0.193` (sent gildi vid sjalft sig, sem ER null ad byggingu).
+
+   OG NIDURSTADAN ER 0 A OLLUM ThREM: kaflinn endurtelur sjalfur, med
+   VIDASTA netinu (allir 126 + 28 samanburdir, badir ADP-gluggar), og
+   krefst thess ad ENGINN standist. Fellur hann er thad annadhvort ny
+   uppgotvun — tha uppfaerir madur toflurnar, ekki profid — eda
+   maeliskrarnar hafa verid endurgerdar med odru gridi.               */
+console.log("\n9c. frumurnar taldar ur maeliskranum (bokad: 81 + 21 = 102, 0 standast)");
+{
+  const P = path.join(DATA, "measure", "tesplit.json");
+  const H = path.join(DATA, "measure", "tesplit_h2h.json");
+  if (!existsSync(P) || !existsSync(H)) {
+    /* ThOGN VAERI VILLAN. Kaflinn ma ekki hverfa thegjandi ef skrarnar
+       vantar — tha yrdi hann graen núll-fullyrding, sem er einmitt
+       thad sem hann var skrifadur gegn. */
+    ok(false, "maeliskrarnar tesplit.json OG tesplit_h2h.json VERDA ad vera committadar");
+  } else {
+    const S = JSON.parse(readFileSync(P, "utf8"));
+    const Q = JSON.parse(readFileSync(H, "utf8"));
+
+    /* ---- stiga-hlidin: leidd ur SKRANNI, engin hard tala ---- */
+    const teVars = S.variants.filter((v) => v.kind === "teShare").map((v) => v.key);
+    const nonCur = S.variants.filter((v) => v.key !== "current").length;
+    const keys = Object.keys(S.results);
+    const shapesP = new Set(keys.map((k) => k.split("|")[0]));
+    const fmtsP = new Set(keys.map((k) => k.split("|")[1]));
+    const barCellsP = shapesP.size * fmtsP.size;
+    const gridP = keys.filter((k) => teVars.includes(k.split("|")[3])).length;
+    const nTestsP = barCellsP * nonCur;
+    const teCompP = barCellsP * (teVars.length - 1);
+
+    ok(teVars.length === 8, `TE-gridid er 8 gildi (${teVars.length}) — 0..0,40`);
+    ok(barCellsP === 9,
+      `stig: barinn mat ${barCellsP} frumur (${shapesP.size} lagnir x ${fmtsP.size} snid)`);
+    ok(nTestsP === 81, `stig: bokada talan 81 stemmir vid skrana (${nTestsP})`);
+    ok(gridP === 144, `stig: gridid i skranni er 144 frumur (${gridP})`);
+    ok(teCompP === 63, `stig: their af 81 sem eru TE-vs-sent eru 63 (${teCompP})`);
+
+    /* ---- sigra-hlidin ---- */
+    const hk = Object.keys(Q.cells);
+    const shapesH = new Set(hk.map((k) => k.split("|")[0]));
+    const nTeH = shapesH.size * (Q.teGrid.length - 1);
+    ok(hk.length === 32, `sigrar: gridid i skranni er 32 frumur (${hk.length})`);
+    ok(nTeH === 21, `sigrar: bokada talan 21 stemmir vid skrana (${nTeH})`);
+
+    /* ---- SUMMAN SEM ER A SKJANUM ---- */
+    ok(nTestsP + nTeH === 102,
+      `bokad "0 af 102 frumum" = ${nTestsP} + ${nTeH} = ${nTestsP + nTeH}`);
+    ok(teCompP + nTeH === 84,
+      `og TE-samanburdirnir sjalfir eru 84 (${teCompP + nTeH}) — 18 af 102 eru ` +
+      "akkeri (k1-raw) eda sent gildi vid sjalft sig");
+
+    /* ---- 0 STANDAST: labbanna eigin urskurdur ---- */
+    ok(Array.isArray(S.stands) && S.stands.length === 0,
+      `stig: stands-svidid er tomt i skranni (${S.stands.length})`);
+    ok(Array.isArray(Q.standsAtBar) && Q.standsAtBar.length === 0,
+      `sigrar: standsAtBar-svidid er tomt i skranni (${Q.standsAtBar.length})`);
+
+    /* ---- OG ENDURTALID SJALFSTAETT A VIDASTA NETINU ----
+       Ekki nog ad trua `stands`-svidinu: thad er labbid sem skrifadi
+       thad. Hér er barinn LAGDUR AFTUR a hverja einustu frumu i BADUM
+       ADP-glugunum (126 + 28 = 154 samanburdir), sem er VIDARA en
+       labbin mátu. Standist enginn thar heldur er nidurstadan ohad
+       thvi hvern denominator madur velur.                            */
+    let wideP = 0, passP = 0;
+    for (const k of keys) {
+      const [sk, fmt, , vk] = k.split("|");
+      if (!teVars.includes(vk) || vk === "te0.193") continue;
+      const q = S.results[k];
+      if (!q || (q.years || 0) < 2) continue;
+      wideP++;
+      const pb = S.playerBootstrap[`${sk}|${fmt}|${vk}`];
+      if (q.mean > 0 && q.significant && q.bootSeason && q.bootSeason.excludesZero &&
+          pb && pb.excludesZero) passP++;
+    }
+    let wideH = 0, passH = 0;
+    for (const k of hk) {
+      const [sk, , vk] = k.split("|");
+      if (vk === "te0.193") continue;
+      const c = Q.cells[k];
+      wideH++;
+      const pb = Q.playerBootstrap[`${sk}|${vk}`];
+      if (c.wins.diff > 0 && c.wins.excludesZero && pb && pb.excludesZero) passH++;
+    }
+    ok(wideP === 126 && wideH === 28,
+      `vidasta netid er 126 + 28 = 154 samanburdir (${wideP} + ${wideH})`);
+    ok(passP === 0 && passH === 0,
+      `ENDURTALID: 0 af 154 standast fullan bar (${passP} stig, ${passH} sigrar) — ` +
+      "hvert leikmanna-klasad bil inniheldur null");
+
+    /* ---- OG TALAN A SKJANUM VERDUR AD VERA SU SAMA ----
+       Thetta er hlidid sem vantadi: falli bokada talan og skrain i
+       sundur a PROFID ad segja thad, ekki notandinn. */
+    const SRC = path.resolve(new URL(".", import.meta.url).pathname, "..", "src");
+    const booked = `${nTestsP + nTeH}`;
+    for (const f of ["model.js", "Sources.jsx"]) {
+      const body = readFileSync(path.join(SRC, f), "utf8");
+      ok(body.includes(booked),
+        `${f} ber somu tolu og skrain (${booked})`);
+    }
+    const rme = readFileSync(
+      path.join(path.resolve(new URL(".", import.meta.url).pathname, ".."), "README.md"),
+      "utf8");
+    const hits = rme.split(`af ${booked} frumum`).length - 1;
+    ok(hits >= 3, `README bokar "af ${booked} frumum" a >= 3 stodum (${hits})`);
+  }
+}
+
+/* ============================================================
    SPYRNUMENN — MAELDA REGLAN
    ============================================================
    A-Ranking raðar ekki K/DST og a ekki ad gera thad. En notandinn

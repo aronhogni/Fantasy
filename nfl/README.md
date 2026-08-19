@@ -1489,6 +1489,34 @@ deildin er í þaki við SENT gildi, 6 af 11 tímabilum.
 | stig, 11 tímabil (`tesplit.json`) | **81** | **0** |
 | sigrar, 5 tímabil (`tesplit_h2h.json`) | **21** | **0** |
 
+> **HVAÐ „102" TELUR — spurt í úttekt 19.8.2026, svarað með talningu.**
+> Úttektin sagði töluna ranga og bauð **154** í staðinn. Hvorugt er rétt:
+> **þrír denominatorar eru allir raunverulegir** og sá sem er bókaður er
+> sá í miðjunni.
+>
+> | tala | hvað hún telur |
+> |---|---|
+> | **176** | allar frumur í mæliskránum (144 stig + 32 sigrar) |
+> | **102** | frumur **sem barinn mat** (81 + 21) — **þetta er bókaða talan** |
+> | **84** | raunverulegir TE-vs-sent samanburðir (63 + 21) |
+>
+> `176 − 102` er **annar ADP-glugginn**: bæði löbbin *prenta* hann en
+> hvorugt *metur* hann (`PRIMARY_FIELD[fmt]` í `vbdbase-lab.mjs:1526`,
+> `ADP_SRC[sh.fmt][0]` í `h2h-lab.mjs:1350`). `102 − 84` er 9 `k1-raw`
+> (þvert akkeri, ekki TE-afbrigði) og 9 `te0.193` (sent gildi við sjálft
+> sig, sem er null **að byggingu** — nullhliðið).
+> **Útkoman er 0 á öllum þremur.**
+>
+> **OG ÞAÐ SEM VAR RAUNVERULEGA AÐ: engin fullyrðing taldi töluna.**
+> Hún stóð á fjórum stöðum — hér (þrisvar), `model.js`, `Sources.jsx` og
+> haus kafla 9b í `tests/model.mjs` — og ekkert próf gat fellt hana. Það
+> er sama gerð og DST-nótan sem var löguð í sömu lotu. **Nýr kafli 9c í
+> `tests/model.mjs`** leiðir allar sex tölurnar út úr mæliskránum,
+> endurtelur barinn á **víðasta** netinu (154 samanburðir, báðir
+> ADP-gluggar) og fellur ef bókaða talan og skráin fara í sundur.
+> Sex stökkbreytingar felldar, þar á meðal „ein fruma stenst barinn"
+> og „102 → 103 á skjánum".
+
 **Hvert einasta leikmanna-klasað bil inniheldur núll** — í báðum mælieiningum, í
 öllum þremur lögnum. Það er nákvæmlega undirskriftin úr 4c: `vbdbase-lab` fékk 28
 hólf sem stóðust árs-klösun og **0 af 153** sem stóðust leikmanna-klösun. Og með

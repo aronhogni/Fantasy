@@ -139,7 +139,21 @@ export function blendWeights(accuracy, { topN = 20 } = {}) {
  * til 0,40 — RB:WR haldid fostu — i BADUM deildum notandans.
  * **0 af 102 frumum standast bar repo-sins** (jakvaett medaltal PLUS
  * ars-klasad OG leikmanna-klasad 95% bil). Hvert einasta
- * leikmanna-klasada bil inniheldur null. Thrennt sem stendur samt:
+ * leikmanna-klasada bil inniheldur null.
+ *
+ * HVAD "102" TELUR — SPURT I UTTEKT 19.8.2026 OG SVARAD MED TALNINGU.
+ * Uttektin sagdi toluna ranga og bauð 154. Hvorugt: thrir denominatorar
+ * eru allir reynverulegir og talan sem er bokud er sú i MIDJUNNI.
+ *   176 = allar frumur i maeliskranum        (144 stig + 32 sigrar)
+ *   102 = frumur SEM BARINN MAT              ( 81 stig + 21 sigrar)
+ *    84 = raunverulegir TE-vs-sent samanburdir (63 + 21)
+ * 176-102 er ONNUR ADP-GLUGGINN: labbin PRENTA hann en META hann ekki
+ * (`PRIMARY_FIELD[fmt]`, `ADP_SRC[sh.fmt][0]`). 102-84 er 9 `k1-raw`
+ * (thvert akkeri, ekki TE-afbrigdi) og 9 `te0.193` (sent gildi vid
+ * sjalft sig, null AD BYGGINGU). **Utkoman er 0 a ollum thremur** —
+ * endurtalid a vidasta netinu (154) i `tests/model.mjs` kafla 9c, sem
+ * er nyr og til thess ad thessi tala se TALIN og ekki adeins skrifud.
+ * Thrennt sem stendur samt:
  *
  *   · DYPRA er MAELANLEGA VERRA. te=0,40 gefur -56,1 stig (t -2,52) og
  *     -0,74 sigra, badir ars-CI utiloka null. 0,193 er thvi a RETTRI
