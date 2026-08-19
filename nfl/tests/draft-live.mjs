@@ -198,7 +198,20 @@ const mkPick = (no, player) => {
   };
 };
 
-/** Audkenni sem hermirinn thekkir — sja `live.strictIds` nedar. */
+/* ============================================================
+   AUDKENNI SEM HERMIRINN THEKKIR — OG **BARA** THAU
+   ============================================================
+   Þetta var skilyrt vid `live.strictIds` og sjalfgefid fell hermirinn i
+   `live.draft` fyrir HVADA audkenni sem var. Thad var thaegilegt og thad
+   var lygi — og lygin vard bindandi um leid og reiturinn tok vid
+   notandanafni: `sleeperResolve("team7")` reynir `/league/team7` (404) og
+   sidan `/draft/team7`, sem hermirinn svaradi med gildu drafti. Þa var
+   nafna-varaleidin ALDREI reynd og kaflarnir 6/6b/16 tengdu sig vid allt
+   annad draft en their aetla.
+
+   Raunverulegur Sleeper skilar 404 a audkenni sem er ekki til. Nu gerir
+   hermirinn thad lika, alltaf. `strictIds`-flaggid er thar med onauðsyn-
+   legt og farid.                                                     */
 const knownDraftId = (id) => id === live.draft.draft_id
   || id === LEAGUE_B_DRAFT_ID || id === MOCK_DRAFT_ID
   || !!(live.secondDraft && id === live.secondDraft.draft.draft_id);
@@ -236,15 +249,8 @@ global.fetch = async (url) => {
        thad var nakvaemlega gildran sem fannst i `sleeper.mjs` kafla 2f. */
     if (/\/picks$/.test(s)) {
       const id = /\/draft\/([^/]+)\/picks/.exec(s)[1];
-      /* OTHEKKT AUDKENNI SVARAR 404 THEGAR SPURT ER UM THAD (`strictIds`).
-         Sjalfgefid fellur hermirinn i `live.picks` fyrir hvada audkenni
-         sem er, sem er nytilegt i ollum kofluum sem tengja EITT draft —
-         en i kafla 15c er thad einmitt villan sem verid er ad maela:
-         halfslegid audkenni ma ekki fa nein vol. Raunverulegur Sleeper
-         skilar 404 a audkenni sem er ekki til, svo hermirinn er ekki
-         "strangari" hér heldur RETTUR; flaggid er til svo adrir kaflar
-         se oskertir. */
-      if (live.strictIds && !knownDraftId(id)) {
+      /* OTHEKKT AUDKENNI SVARAR 404 — sja notuna vid `knownDraftId`. */
+      if (!knownDraftId(id)) {
         return { ok: false, status: 404, json: async () => null };
       }
       if (id === LEAGUE_B_DRAFT_ID) return jsonOk([]);
@@ -255,7 +261,7 @@ global.fetch = async (url) => {
     }
     if (/\/draft\//.test(s)) {
       const id = /\/draft\/([^/?]+)/.exec(s)[1];
-      if (live.strictIds && !knownDraftId(id)) {
+      if (!knownDraftId(id)) {
         return { ok: false, status: 404, json: async () => null };
       }
       if (id === LEAGUE_B_DRAFT_ID) return jsonOk(LEAGUE_B_DRAFT);
@@ -359,6 +365,25 @@ const junk = () => {
   return m ? m[0] : null;
 };
 
+/* ============================================================
+   EIN LEID INN — LIMA I REITINN, YTTA A CONNECT
+   ============================================================
+   Spjaldid bar sex styringar og hvert prof valdi ser thaegilegasta
+   (sum slogu i "Draft ID", sum limdu i slodar-reitinn, sum ytu a "Start
+   live sync"). Nu er EIN leid, og hver kafli sem notar `go()` er thvi
+   lika fullyrding um ad hun EIN nægi.                                */
+const go = async (value, ms = 200) => {
+  const set = await setInput("Sleeper league, draft or username", value);
+  if (!set) return false;
+  return await click(btn(/^Connect/i), ms);
+};
+/* Ljosid er lesid ur SINU EIGIN SVIDI — `textContent` limir "…Sleeper
+   draft" og "Connected" saman i "draftConnected", svo `\bConnected\b`
+   a body-textanum fellur a rettum koda (CLAUDE.md 5b). */
+const connEl = () => document.querySelector("[data-conn]");
+const conn = () => { const d = connEl(); return d ? d.getAttribute("data-conn") : null; };
+const connText = () => { const d = connEl(); return d ? (d.textContent || "") : ""; };
+
 /* ---------- uppsetning ---------- */
 async function boot() {
   localStorage.clear();
@@ -368,18 +393,17 @@ async function boot() {
   return root;
 }
 
-/** Limir inn deildarslod, velur saeti og kveikir a samstillingu. */
-async function connectAndSync({ slot = MY_SLOT, start = true } = {}) {
-  await setInput("League or draft URL",
-    `https://sleeper.com/leagues/${LEAGUE_ID}/predraft`);
-  await click(btn(/^(Connect|Reading)/i), 200);
+/** Limir inn deildarslod og velur saeti. Samstillingin kviknar MED
+    Connect — `start` er thvi ekki lengur til: einn smellur gerir allt.
+    Sja `liveScope` i `App.jsx`. */
+async function connectAndSync({ slot = MY_SLOT } = {}) {
+  await go(`https://sleeper.com/leagues/${LEAGUE_ID}/predraft`);
   await waitFor(() => /rules imported/i.test(text()), 5000);
   if (slot != null) {
     const chip = [...document.querySelectorAll("button.chip")]
       .find((b) => new RegExp(`^${slot}\\.\\s`).test((b.textContent || "").trim()));
     await click(chip);
   }
-  if (start) await click(btn(/live sync|Start/i), 120);
 }
 
 /** Baetir vali `n` (1-basad) vid hermda draftid. */
@@ -681,11 +705,11 @@ console.log("\n6. draft_order birtist i midjum draftinu");
   const root = await boot();
   /* Notandanafnid FYRST — `user_id` er forsenda thess ad rodin lesist
      thegar hun kemur. */
-  await setInput("Sleeper username", "team7");
-  await click(btn(/Find leagues/i), 150);
-  await setInput("League or draft URL", MOCK_ID);
-  await click(btn(/^(Connect|Reading)/i), 250);
-  await click(btn(/live sync|Start/i), 150);
+  /* BADIR GEGNUM SAMA REIT. Nafnid finnur hvorki deild ne draft, svo
+     `connect` fer i nafna-varaleidina; audkennid finnur draft. Ein leid,
+     tvenns konar inntak. */
+  await go("team7", 150);
+  await go(MOCK_ID, 250);
   for (let n = 1; n <= 6; n++) pushPick(n);
   await waitFor(() => draftedOnScreen() === 6, 4000);
   const slotBefore = [...document.querySelectorAll("label.field")]
@@ -729,9 +753,7 @@ console.log("\n6b. notandanafn slegid inn EFTIR ad samstilling hofst");
   live.draft = { ...mkDraft({ draft_order: { u7: MY_SLOT } }),
                  draft_id: MOCK_ID, league_id: null, slot_to_roster_id: null };
   const root = await boot();
-  await setInput("League or draft URL", MOCK_ID);
-  await click(btn(/^(Connect|Reading)/i), 250);
-  await click(btn(/live sync|Start/i), 150);
+  await go(MOCK_ID, 250);
   for (let n = 1; n <= 14; n++) pushPick(n);
   await waitFor(() => draftedOnScreen() === 14, 4000);
   const slotVal = () => [...document.querySelectorAll("label.field")]
@@ -739,9 +761,11 @@ console.log("\n6b. notandanafn slegid inn EFTIR ad samstilling hofst");
   ok(slotVal() === "", `saetid er tomt medan appid veit ekki hver eg er ("${slotVal()}")`);
   ok(yoursOnScreen() === 0, "og enginn er merktur minn");
 
-  /* NUNA slaer hann inn nafnid — medan pollunin er i gangi. */
-  await setInput("Sleeper username", "team7");
-  await click(btn(/Find leagues/i), 200);
+  /* NUNA slaer hann inn nafnid — medan pollunin er i gangi. Sami reitur,
+     annad inntak: nafna-varaleidin ma EKKI slita tengingunni sem er i
+     gangi (hun setur `userId`, ekki `draftId`), og thad er einmitt thad
+     sem thessi kafli maelir. */
+  await go("team7", 200);
   const read = await waitFor(() => Number(slotVal()) === MY_SLOT, 5000);
   ok(read, `saetid lest ur draft_order thott nafnid komi A EFTIR (fann "${slotVal()}")`);
   await waitFor(() => yoursOnScreen() === 2, 4000);
@@ -802,15 +826,20 @@ console.log("\n8. sidan endurhladin i midju drafti");
   ok(pickHeader() === beforePick, `og somu valtolu (${pickHeader()} af ${beforePick})`);
   ok(boxNext() && beforeNext && boxNext().next === beforeNext.next,
     `og sama naesta val (${boxNext() ? boxNext().next : "?"} af ${beforeNext ? beforeNext.next : "?"})`);
-  const draftIdInput = [...document.querySelectorAll("label.field")]
-    .find((l) => /Draft ID/.test(l.textContent || ""))?.querySelector("input");
-  ok(draftIdInput && draftIdInput.value === DRAFT_ID, "draft-id lifir endurhledsluna");
+  /* AUDKENNID LIFIR — OG ThAD ER I EINA REITNUM, FORFYLLT. Þad er
+     forsendan fyrir thvi ad endurtenging i midju drafti se EINN SMELLUR:
+     an forfyllingar yrdi hann ad finna slodina upp a nytt. */
+  ok([...document.querySelectorAll("input")].some((i) => i.value === DRAFT_ID),
+    "draft-id lifir endurhledsluna og er forfyllt i reitnum");
   /* Samstillingin er SLOKKT eftir endurhledslu — thad er asett (ekkert
-     kall an thess ad bedid se um thad). Krafan er ad thad SJAIST. */
-  ok(!!btn(/Start live sync/), "og hnappurinn segir ad kveikja thurfi aftur");
+     kall an thess ad bedid se um thad, sja `liveScope`). Krafan er ad
+     thad SJAIST, og ljosid er thad sem segir thad nu. */
+  ok(conn() === "bad", `og ljosid er RAUT (fann "${conn()}")`);
+  ok(/Disconnected/.test(connText()), `og segir thad i ordum ("${connText().trim()}")`);
+  ok(!!btn(/^Connect$/), "og hnappurinn heitir Connect — einn smellur tengir aftur");
   /* Og hun tekur vid ther sem gerdist medan slokkt var. */
   for (let n = 35; n <= 40; n++) pushPick(n);
-  await click(btn(/Start live sync/), 120);
+  await click(btn(/^Connect$/), 200);
   const caught = await waitFor(() => draftedOnScreen() === 40, 5000);
   ok(caught, `og nær theim sex volum sem komu a medan (${draftedOnScreen()})`);
   root.unmount();
@@ -835,15 +864,12 @@ console.log("\n9. reset & disconnect, og tengt aftur");
   ok(!!btn(/Reset & disconnect/), "hnappurinn heitir \"Reset & disconnect\" thegar tengt er");
   await click(btn(/Reset & disconnect/), 150);
   ok(draftedOnScreen() === 0, `bordid tæmist (${draftedOnScreen()})`);
-  const idInput = () => [...document.querySelectorAll("label.field")]
-    .find((l) => /Draft ID/.test(l.textContent || ""))?.querySelector("input");
-  ok(idInput().value === "", "og draft-id er hreinsad");
+  ok(conn() === "bad", `og ljosid fer i RAUT (fann "${conn()}")`);
   await settle(150);
   ok(draftedOnScreen() === 0, "og fyllist EKKI aftur af sjalfu ser");
 
   /* (a) tengt aftur vid SAMA draft — bordid verdur ad fyllast upp a nytt */
-  await setInput("Draft ID", DRAFT_ID);
-  await click(btn(/live sync|Start/i), 120);
+  await go(DRAFT_ID, 200);
   const refilled = await waitFor(() => draftedOnScreen() === 24, 5000);
   ok(refilled, `sama draft: bordid fyllist aftur (${draftedOnScreen()} af 24)`);
   ok(pickHeader() === 25, `og valnumerid er rett (${pickHeader()})`);
@@ -858,8 +884,7 @@ console.log("\n9. reset & disconnect, og tengt aftur");
     live.secondDraft.picks.push({ ...mkPick(n, POOL[100 + n]), round, draft_slot: slot });
   }
   await click(btn(/Reset & disconnect/), 150);
-  await setInput("Draft ID", "9999888877776666");
-  await click(btn(/live sync|Start/i), 120);
+  await go("9999888877776666", 200);
   const swapped = await waitFor(() => draftedOnScreen() === 5, 5000);
   ok(swapped, `nytt draft byrjar a SINUM fimm volum (${draftedOnScreen()})`);
   ok(pickHeader() === 6, `og valnumerid er 6, ekki 30 (${pickHeader()})`);
@@ -957,7 +982,7 @@ console.log("\n13. reglurnar rada tillogunni");
   const vbdTop = () => [...document.querySelectorAll("table.data tbody tr")].slice(0, 8)
     .map((tr) => (tr.children[4]?.textContent || "").trim()).join("|");
 
-  await connectAndSync({ start: false });
+  await connectAndSync();
   const rules = () => {
     const id = JSON.parse(localStorage.getItem("nfl_activeLeague") || '""');
     const es = JSON.parse(localStorage.getItem("nfl_leagues") || "[]");
@@ -1022,8 +1047,7 @@ console.log("\n14. svissad um deild i midju drafti");
     `deild A: ${aDrafted} strikadir, ${aMine} minir (vaentanlegt ${expMine})`);
 
   /* Onnur deild flutt inn medan draft A er i gangi. */
-  await setInput("League or draft URL", `https://sleeper.com/leagues/${LEAGUE_B_ID}/predraft`);
-  await click(btn(/^(Connect|Reading)/i), 300);
+  await go(`https://sleeper.com/leagues/${LEAGUE_B_ID}/predraft`, 300);
   await waitFor(() => draftedOnScreen() === 0, 5000);
   ok(draftedOnScreen() === 0, `deild B byrjar a tomu bordi (${draftedOnScreen()})`);
   ok(/14/.test(text()), "og reglur deildar B eru komnar (14 lid)");
@@ -1036,13 +1060,19 @@ console.log("\n14. svissad um deild i midju drafti");
   ok(draftedOnScreen() === aDrafted, `til baka i A: ${draftedOnScreen()} strikadir (voru ${aDrafted})`);
   ok(yoursOnScreen() === aMine, `og ${aMine} minir (${yoursOnScreen()})`);
   ok(pickHeader() === aDrafted + 1, `og valnumerid er ${aDrafted + 1} (${pickHeader()})`);
-  /* GILDRAN, FEST SEM HEGDUN: samstillingin er SLOKKT og thad verdur ad sjast. */
-  ok(!!btn(/Start live sync/),
-    "samstillingin slokknar vid svissun — og hnappurinn SEGIR ad kveikja thurfi aftur");
-  ok(!/· live/.test(text()), "og ekkert a skjanum heldur thvi fram ad hun se lifandi");
-  /* Og hun tekur upp thrádinn thegar kveikt er. */
+  /* GILDRAN, FEST SEM HEGDUN: samstillingin er SLOKKT og thad verdur ad
+     sjast. Adur var akkerid hnappurinn ("Start live sync"); nu er thad
+     LJOSID, sem er sterkara — hnappur getur verid til an ad segja neitt
+     um astandið, en raut ljos ER astandið. */
+  ok(conn() === "bad",
+    `samstillingin slokknar vid svissun — og ljosid er RAUT (fann "${conn()}")`);
+  ok(/Disconnected/.test(connText()), `og segir thad i ordum ("${connText().trim()}")`);
+  ok(!/reading picks live/.test(text()),
+    "og ekkert a skjanum heldur thvi fram ad hun se lifandi");
+  /* Og hun tekur upp thrádinn thegar tengt er aftur — EINN SMELLUR, thvi
+     reiturinn ber enn audkennid. */
   for (let n = 27; n <= 33; n++) pushPick(n);
-  await click(btn(/Start live sync/), 150);
+  await click(btn(/^Connect$/), 200);
   const caught = await waitFor(() => draftedOnScreen() === 33, 5000);
   ok(caught, `og nær theim sem baettust vid a medan (${draftedOnScreen()})`);
   root.unmount();
@@ -1116,8 +1146,7 @@ console.log("\n15. annad mock i somu deild erfir ekki thad fyrra");
     const { round, slot } = slotOfPick(n);
     live.secondDraft.picks.push({ ...mkPick(n, POOL[100 + n]), round, draft_slot: slot });
   }
-  await setInput("Draft ID", MOCK_B_ID);
-  await click(btn(/Start live sync/), 200);
+  await go(MOCK_B_ID, 250);
   const clean = await waitFor(() => draftedOnScreen() === 3, 6000);
   ok(clean, `(a) mock B byrjar a SINUM thremur volum (${draftedOnScreen()})`);
   ok(pickHeader() === 4, `og valnumerid er 4, ekki 63 (${pickHeader()})`);
@@ -1139,7 +1168,7 @@ console.log("\n15. annad mock i somu deild erfir ekki thad fyrra");
   /* (c) OG TIL BAKA I MOCK A — sama draft skilar sinu bordi. Þetta er
      hin attin og hun var LOGUD adur (kafli 9): "reset og tengja aftur"
      skildi bordid eftir TOMT. Baðar attir verda ad vera rettar. */
-  await setInput("Draft ID", DRAFT_ID);
+  await go(DRAFT_ID, 250);
   const back = await waitFor(() => draftedOnScreen() === 59, 6000);
   ok(back, `(c) aftur i mock A: 59 vol koma til baka (${draftedOnScreen()})`);
   ok(pickHeader() === 60, `og valnumerid er 60 aftur (${pickHeader()})`);
@@ -1223,14 +1252,17 @@ console.log("\n15b. reset-hnappurinn er kominn upp i tengi-spjaldid");
   ok(resetBtn().disabled, "og hann er slokktur thegar ekkert er ad hreinsa");
 
   /* Radin: adalhnappurinn fyrst, skilrum, eydandi hnappurinn sidast.
-     Hann ma ekki lenda undir fingrinum a theim sem aetlar a "Start live
-     sync" — thad er ein ytting fra thvi ad henda bordinu. */
+     Hann ma ekki lenda undir fingrinum a theim sem aetlar a "Connect" —
+     thad er ein ytting fra thvi ad henda bordinu. Adalhnappurinn er nu
+     Connect (hann tengir OG samstillir, sja `liveScope`), svo rodin er
+     fundin eftir honum. */
   const row = [...connectPanel().querySelectorAll(".row")]
-    .find((r) => /Start live sync|Stop syncing/.test(r.textContent || ""));
-  ok(!!row, "hann er i SOMU rod og samstillingar-hnappurinn");
+    .find((r) => [...r.querySelectorAll("button")]
+      .some((b) => /^Connect/.test((b.textContent || "").trim())));
+  ok(!!row, "hann er i SOMU rod og Connect");
   const labels = [...row.querySelectorAll("button")].map((b) => b.textContent.trim());
   ok(labels.findIndex((l) => /^Reset/.test(l)) >
-     labels.findIndex((l) => /live sync|Stop syncing/.test(l)),
+     labels.findIndex((l) => /^Connect/.test(l)),
     `og A EFTIR honum i rodinni (${labels.join(" | ")})`);
   ok(!!row.querySelector(".spacer"), "med skilrum a milli theirra");
   ok(!resetBtn().classList.contains("primary"),
@@ -1272,6 +1304,22 @@ console.log("\n15b. reset-hnappurinn er kominn upp i tengi-spjaldid");
    bregdast" (CLAUDE.md 5b): fullyrding sem prófar limingu eina getur
    ekki brugdist.
 
+   ============================================================
+   OG NU ER ANNAR HLEKKUR HORFINN — EN PROFID STENDUR — 19.8.2026
+   ============================================================
+   "Draft ID"-reiturinn er farinn (eitt reit, einn hnappur), svo
+   `sync.draftId` breytist ekki lengur VID HVERN INNSLATT heldur adeins
+   thegar Connect er yttur. Kedjan er thvi BYGGINGARLEGA brotin.
+
+   ÞAD ER ASTAEDA TIL AD STYRKJA PROFID, EKKI TIL AD FELLA THAD UT.
+   Grisjunin er a sinum stad og hun getur enn eytt bordi; thad sem
+   breyttist er hver getur ræst hana. Profid slaer thvi enn staf fyrir
+   staf (nu i eina reitinn — thad MA ekki hreyfa neitt) OG ytir sidan a
+   Connect a halfslegnu audkenni sem Sleeper svarar 404 um. Su sidasta er
+   NY fullyrding: mistekin tenging ma ekki taka sess i grisjunar-
+   listanum, thvi hun er nakvaemlega thad sem "audkenni sem er ekki til"
+   var i gomlu kedjunni.
+
    FULLYRDINGIN ER I BADAR ATTIR og su fyrri er nauðsynleg: bord SEM
    HEFUR VOL verdur ad vera skrad i listann, annars vaeri "engu eytt"
    uppfyllt med thvi ad gera grisjunina ad engu — og tha vaeri profid
@@ -1280,12 +1328,12 @@ const TYPED_ID = "1420000000000000007";   /* 19 stafir, eins og Sleeper */
 console.log("\n15c. draft-audkenni slegid i hendi — bordid i gangi verdur ad lifa");
 {
   live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
-  live.strictIds = true;
   let root = await boot();
   await connectAndSync();
   for (let n = 1; n <= 59; n++) pushPick(n);
   ok(await waitFor(() => draftedOnScreen() === 59, 9000),
     `bordid ber 59 vol adur en nokkud er slegid (${draftedOnScreen()})`);
+  ok(!!root, "forsenda: bordid er tengt og lifandi");
 
   const kA = `nfl_taken:${LEAGUE_ID}@${DRAFT_ID}`;
   const boards = () => {
@@ -1331,7 +1379,7 @@ console.log("\n15c. draft-audkenni slegid i hendi — bordid i gangi verdur ad l
 
   /* ---- OG SVO ER SLEGID, STAF FYRIR STAF ---- */
   for (let i = 1; i <= TYPED_ID.length; i++) {
-    await setInput("Draft ID", TYPED_ID.slice(0, i));
+    await setInput("Sleeper league, draft or username", TYPED_ID.slice(0, i));
   }
   await settle(300);
 
@@ -1351,10 +1399,33 @@ console.log("\n15c. draft-audkenni slegid i hendi — bordid i gangi verdur ad l
   ok(takenKeys().length === 1,
     `og adeins EITT bord a lykil i geymslunni (${takenKeys().length}: ${takenKeys().join(", ")})`);
 
+  /* ---- OG TENGING SEM BREST MA EKKI TAKA SESS HELDUR ----
+     Þetta er attin sem varð til thegar reiturinn hvarf: `sync.draftId`
+     breytist nu adeins vid Connect, svo eina leidin ad grisjunar-
+     listanum er RAUNVERULEG tengitilraun. Hermirinn svarar 404 um
+     TYPED_ID (sja `knownDraftId`), eins og Sleeper gerir um audkenni sem
+     er ekki til. */
+  await click(btn(/^Connect/i), 300);
+  ok(JSON.parse(localStorage.getItem(kA) || "[]").length === 60,
+    `bord A er OSKERT eftir mistekna tengitilraun`
+    + ` (${JSON.parse(localStorage.getItem(kA) || "[]").length} vol)`);
+  ok(!boards().some((b) => String(b).endsWith(`@${TYPED_ID}`)),
+    `og audkennid sem SVARADI ENGU tok engan sess (${JSON.stringify(boards())})`);
+  ok(takenKeys().length === 1,
+    `og enn adeins EITT bord med lykil (${takenKeys().join(", ")})`);
+  /* LJOSID ER GRAENT — OG ThAD ER RETT. Tengingin vid bord A slitnadi
+     ekki; thad var TILRAUNIN sem brast. Krafan er thvi ekki raut ljos
+     heldur ad bilunin SEGIST: thogul mistokst tenging er thad sem laetur
+     notandann ytta aftur og aftur an ad vita hvers vegna. */
+  ok(conn() === "good",
+    `bordid sem var i gangi er ENN tengt (fann "${conn()}")`);
+  ok(/could not be found|not found/i.test(connText()),
+    `og mistokin tenging er SOGD ("${connText().trim()}")`);
+
   /* ---- OG BORDID KEMUR TIL BAKA. Lykill sem er oskertur en birtist
      ekki er jafn tapadur fyrir notandann. Talan er **60**: 59 fra
      Sleeper OG hitt sem Sleeper veit ekki af. ---- */
-  await setInput("Draft ID", DRAFT_ID);
+  await go(DRAFT_ID, 250);
   ok(await waitFor(() => draftedOnScreen() === 60, 8000),
     `aftur a bordi A: oll 60 volin koma til baka a skjainn (${draftedOnScreen()})`);
   ok(!boardNames().includes(handName),
@@ -1365,7 +1436,6 @@ console.log("\n15c. draft-audkenni slegid i hendi — bordid i gangi verdur ad l
   ok(pickHeader() === 61, `og valnumerid er 61 (${pickHeader()})`);
   ok(!junk(), `ekkert NaN/undefined a skjanum (${junk() || "-"})`);
   root.unmount();
-  live.strictIds = false;
 }
 
 /* ============================================================
@@ -1418,31 +1488,32 @@ console.log("\n16. 10-lida mock ofan a 14-lida deild — logunin rekur, og thad 
      tengt, sem ber enga `league_id` og flytur thvi engar reglur, (3)
      deildin stendur eftir i sinni staerd medan volin koma ur mock-inu.
      Hér er deildin B (14 lid, 12 umferdir) og mock-id 10x15.        */
-  await setInput("Sleeper username", "team7");
-  await click(btn(/Find leagues/i), 200);
+  await go("team7", 200);
   await settle(200);
 
-  await setInput("League or draft URL",
-    `https://sleeper.com/leagues/${LEAGUE_B_ID}/predraft`);
-  await click(btn(/^(Connect|Reading)/i), 200);
+  await go(`https://sleeper.com/leagues/${LEAGUE_B_ID}/predraft`, 200);
   await waitFor(() => /rules imported/i.test(text()), 5000);
   await settle(200);
 
-  await setInput("League or draft URL",
-    `https://sleeper.com/draft/nfl/${MOCK_DRAFT_ID}`);
-  await click(btn(/^(Connect|Reading)/i), 200);
-  await settle(200);
-  await click(btn(/live sync|Start/i), 200);
+  await go(`https://sleeper.com/draft/nfl/${MOCK_DRAFT_ID}`, 200);
   await settle(400);
 
-  const conn = () => {
-    const d = document.querySelector("[data-conn]");
-    return d ? d.getAttribute("data-conn") : null;
-  };
   const flat = () => text().replace(/\s+/g, " ");
 
-  ok(conn() === "warn", `stoduljosid er GULT, ekki graent (fann "${conn()}")`);
+  /* ============================================================
+     ÞRJAR STODUR URDU TVAER — OG VORNIN ER OSKERT
+     ============================================================
+     Beidni notandans 19.8.2026 var tvo ljos, "connected eda
+     disconnected". Gula stodan var ekki slokkt heldur LEYST: tenging a
+     rangri logun er RAUD, thvi tolurnar a bordinu eru ur annarri deild
+     og "tengdur" um thad astand er osatt.
+
+     Fullyrdingin er thvi STERKARI en adur (`!== "warn"` hefdi verid
+     uppfyllt med graenu): hun krefst RAUDS.                          */
+  ok(conn() === "bad", `stoduljosid er RAUT, ekki graent (fann "${conn()}")`);
   ok(conn() !== "good", "logun sem stemmir ekki getur ALDREI teiknast graen");
+  ok(/Disconnected/.test(connText()),
+    `og ordin segja thad lika ("${connText().trim()}")`);
   ok(/draft has 10 teams, league has 14/.test(flat()),
     "baðar tolurnar eru nefndar berum ordum");
   ok(/draft has 15 rounds, league has 12/.test(flat()),
@@ -1454,6 +1525,15 @@ console.log("\n16. 10-lida mock ofan a 14-lida deild — logunin rekur, og thad 
     "og textinn nefnir VBD — ekki adeins snakk-tolurnar");
   ok(/WR42/.test(flat()) && /WR29/.test(flat()),
     "med maeldu threpunum baðum (WR42 gegn WR29)");
+  /* MALSGREININ VARD EIN LINA (beidni notandans: "restina af textanum ma
+     fara"). Krafan er thvi ekki adeins "textinn er tharna" heldur ad hann
+     se STUTTUR — vidvorun i vegg af texta er su villa sem kostadi hann
+     mock-draftid. Maelt: gamla utgafan bar ~460 stafi, thessi ~200. */
+  const warnBox = [...document.querySelectorAll(".note.bad")]
+    .find((d) => /VBD number/.test(d.textContent || ""));
+  ok(!!warnBox && (warnBox.textContent || "").replace(/\s+/g, " ").trim().length < 260,
+    `og hun er EIN LINA, ekki malsgrein (${warnBox
+      ? (warnBox.textContent || "").replace(/\s+/g, " ").trim().length : "?"} stafir)`);
 
   /* ---- SAETID sjalft er lesid ur mock-inu (`draft_order`) ---- */
   ok(/Slot 7|slot 7|^7\./m.test(flat()) || boardNext() != null || true,
@@ -1507,13 +1587,11 @@ console.log("\n16b. somu logun -> graent ljos");
   const root = await boot();
   await connectAndSync();
   await settle(300);
-  const conn = () => {
-    const d = document.querySelector("[data-conn]");
-    return d ? d.getAttribute("data-conn") : null;
-  };
   ok(conn() === "good", `deild og draft bædi 10 lid -> graent (fann "${conn()}")`);
-  ok(/Sleeper: connected/.test(text()), "og thad stendur i ordum, ekki adeins i lit");
-  ok(!/wrong shape/.test(text()), "engin logunar-vidvorun thegar engin er");
+  ok(/Connected/.test(connText()) && !/Disconnected/.test(connText()),
+    `og thad stendur i ordum, ekki adeins i lit ("${connText().trim()}")`);
+  ok(!/VBD number on this board/.test(text()),
+    "engin logunar-vidvorun thegar engin er");
   root.unmount();
 }
 

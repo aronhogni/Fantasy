@@ -110,6 +110,29 @@ export default function App() {
       : e)));
   }, [activeId]);
 
+  /* ============================================================
+     HVER SAMSTILLING ER I GANGI — OG HVERS VEGNA HUN BYR HER
+     ============================================================
+     ÞETTA VAR `useState(false)` INNI I `SleeperSync` og thad var
+     forsendan fyrir ThVI ad "Connect" og "Start live sync" thurftu ad
+     vera TVEIR hnappar: innflutningur a deild breytir `activeId`, sem
+     endurraesir `DraftBoard` (`key={activeId}`) — svo samstilling sem
+     var kveikt i SOMU adgerd og innflutningurinn var slokkt adur en
+     hun byrjadi. Notandinn thurfti thvi ad ytta aftur.
+
+     Merkid er SKORDA (`boardScope`), ekki boolean, og thad gerir thrjar
+     reglur ad einni linu:
+       · svissad um deild  -> onnur skorða -> samstilling SLOKKNAR
+       · nytt draft-audkenni -> onnur skorða -> slokknar (rett: hvert
+         draft a sitt bord)
+       · endurhledsla -> `null` -> ENGIN pollun sem enginn bad um
+
+     ÞAD SIDASTA ER VORDUR, EKKI THAEGINDI: `audit.mjs` kafli 9 og
+     `dashboard.mjs` kafli 1 banna berum ordum koll sem enginn kveikti a.
+     Þess vegna er thetta EKKI vistad i `localStorage` — thad myndi
+     byrja ad polla vid naestu hledslu.                                */
+  const [liveScope, setLiveScope] = useState(null);
+
   /* Innflutningur baetir vid — hann SKIPTIR EKKI UT. Deild sem er
      flutt inn tvisvar uppfaerist a sinum stad (reglur geta breytst i
      Sleeper) i stad thess ad tvitakast. */
@@ -424,6 +447,7 @@ export default function App() {
           imported={active.imported} warnings={active.warnings}
           teams={active.teams}
           onImportLeague={importLeague} onRereadRules={() => rereadRules(false)}
+          liveScope={liveScope} setLiveScope={setLiveScope}
           season={meta.season} accuracy={extra.accuracy}
           kickers={extra.kickers} shapes={extra.shapes} />
       )}

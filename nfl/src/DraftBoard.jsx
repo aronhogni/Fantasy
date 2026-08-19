@@ -31,7 +31,8 @@ import { signed } from "./columns.js";
 export default function DraftBoard({ rows, meta, league, season, accuracy, kickers,
                                      shapes, leagueKey, sync, setSync,
                                      imported, warnings, teams, onImportLeague,
-                                     sleeperUser, setSleeperUser, onRereadRules }) {
+                                     sleeperUser, setSleeperUser, onRereadRules,
+                                     liveScope, setLiveScope }) {
   /* MENGIN ERU BUNDIN DRAFTINU, EKKI DEILDINNI. Sja `boardScope` i
      `data.js`: deildu tvo mock i somu deild sama `taken` bæri hid
      seinna vol hins fyrra — og valnumerid, naesta eigid val og hver
@@ -555,6 +556,13 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
         imported={imported} warnings={warnings} teams={teams}
         onImportLeague={onImportLeague} onRereadRules={onRereadRules}
         shapes={shapes}
+        /* SAMSTILLINGIN ER SKORDA OFAN FRA, EKKI BOOLEAN HER INNI. Sja
+           `liveScope` i `App.jsx`: hlutur sem er endurraestur vid
+           innflutning getur ekki haldid sinni eigin "kveikt"-stodu, og
+           thad var astaedan fyrir tveimur hnoppum. */
+        leagueKey={leagueKey}
+        live={!!liveScope && liveScope === scope}
+        onLive={setLiveScope}
         /* LOGUN DRAFTSINS ER LYFT UPP. Hun var lokud inni i thessum hlut
            og var ADEINS notud til ad prenta vidvorun — medan bordid
            reiknadi hverja snakk-tolu ur deildinni. Talan var til allan
@@ -971,10 +979,35 @@ function MyRoster({ roster, league, onUndo }) {
    vegna er engin nafna-porun i thessu ferli — hun vaeri sidasta
    thad sem madur vill i beinni med 30 sekundur a klukkunni.
    ============================================================ */
+/* ============================================================
+   EITT REIT, EINN HNAPPUR, TVAER STODUR — 19.8.2026
+   ============================================================
+   BEIDNI NOTANDANS, ThRISVAR: "eg vill bara hafa eitt plass til ad
+   paista (ma gera league id eda allt url), og svo connect button sem
+   tengir allt og status ljos sem segir connected eda disconnected med
+   graenu og raudu."
+
+   Spjaldid bar SEX styringar og malsgrein af texta: deildarslod +
+   Connect, "or", notandanafn + Find leagues, Draft ID, Your slot, og
+   Start live sync. Hver theirra var svar vid raunverulegu tilfelli —
+   og samanlagt vard tengingin sjalf verkefni a draftkvoldi.
+
+   ÞRENNT ER LEITT UT I STAD THESS AD SPYRJA:
+     · HVAD var limt inn — `parseSleeperInput` greinir slod, deild eda
+       draft, og notandanafn er REYND TIL VARA (sja `connect`)
+     · HVAR THU SITUR — `resolveSlot`, sem var thegar til
+     · HVENAER A AD POLLA — Connect kveikir a samstillingu i somu adgerd
+
+   OG EITT ER ThAD EKKI: LOGUNIN. Se draftid i annarri staerd en deildin
+   sem bordid reiknar er tengingin **RAUD**, ekki graen. Sja langa notuna
+   vid stoduljosid nedar — thad er villan sem kostadi hann mock-draft, og
+   hun er astaedan fyrir thvi ad "tokst kallid?" er EKKI sama spurning og
+   "ertu tengdur?".                                                     */
 function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                        imported, warnings, teams, onImportLeague,
                        sleeperUser, setSleeperUser, onRereadRules,
-                       onShape, onReset, resetOff, restored, restoredMine }) {
+                       onShape, onReset, resetOff, restored, restoredMine,
+                       leagueKey, live, onLive }) {
   /* Nafnid er FORFYLLT ur vistada audkenninu — notandinn a ekki ad slá
      thad inn i hvert sinn, og forsidan tharf thad hvort ed er. */
   const [user, setUser] = useState(() => (sleeperUser && sleeperUser.name) || "");
@@ -1014,12 +1047,35 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
     () => (sleeperUser && sleeperUser.userId) || null);
   const [leagues, setLeagues] = useState(null);
   const [slotAuto, setSlotAuto] = useState(false);
+  /* ============================================================
+     TVAER OLIKAR "STODUR" — OG ThAER MEGA EKKI DEILA REIT
+     ============================================================
+     `status` var eitt astand fyrir bædi og thad AT sjalft sig: `connect`
+     skrifadi villuna, og naesta pollun (6 ms sidar i profinu, 1,5 s i
+     beinni) skrifadi `setStatus(null)` af thvi ad HUN gekk. Notandinn
+     yttti a Connect a rongu audkenni og fekk ENGA svorun — bordid var enn
+     tengt og villan var thurrkud ut adur en hun sast.
+
+       `status`  = utkoma sidustu ADGERDAR notandans (Connect / nafn)
+       `pollErr` = sidasta POLLUN brast; hreinsast vid naestu sem gengur
+
+     Vordur: `draft-live.mjs` kafli 15c — mistokin tenging VERDUR ad
+     segjast medan bordid sem er i gangi helst oskert.                 */
   const [status, setStatus] = useState(null);
-  const [live, setLive] = useState(false);
+  const [pollErr, setPollErr] = useState(null);
   const [info, setInfo] = useState(null);
   /* Val sem bordid thekkir ekki — talid, ekki hent thegjandi. */
   const [unmatched, setUnmatched] = useState(null);
-  const [url, setUrl] = useState("");
+  /* ============================================================
+     REITURINN ER FORFYLLTUR UR TENGINGUNNI SEM ER I GILDI
+     ============================================================
+     Þetta var `useState("")` og reiturinn "Draft ID" bar audkennid i
+     stadinn. Se reiturinn tomur eftir F5 — thegar bordid kemur oskert ur
+     geymslunni og samstillingin er slokkt (asett, sja `liveScope`) —
+     tharf notandinn ad LEITA AD SLODINNI UPP A NYTT til ad tengja aftur,
+     i midju drafti. Forfyllt audkenni gerir endurtenginguna EINN SMELL
+     og reiturinn segir jafnframt hverju appid er tengt.                */
+  const [url, setUrl] = useState(() => (sync && sync.draftId) || "");
   const [busy, setBusy] = useState(false);
   const timer = useRef(null);
   /* Fingrafar sidasta svars, fjoldi vala og hvenaer valið hreyfdist
@@ -1072,14 +1128,72 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
     return null;
   };
 
-  /* Ein slod — deildarslod, draft-slod eda bert audkenni. */
+  /* ============================================================
+     NOTANDANAFN ER **VARALEID**, EKKI FYRSTA GISK — OG THAD ER MAELT
+     ============================================================
+     Reiturinn tekur vid fjorum formum (deildarslod, draft-slod, bert
+     deildar-audkenni, bert draft-audkenni) OG notandanafni. Fyrsta
+     utgafan atti ad greina thau i sundur a forminu: "audkenni eru 18-19
+     stafa snjokorn, notandanafn er ekki". Þad er RETT um Sleeper og
+     RANGT sem regla: `d2`, `m12`, `L1` — audkenni sem vid tokum vid i
+     dag — eru hvorugt, svo formid getur ekki skorid ur.
+
+     Reglan er thvi ORDIN: reyndu audkennid, og AÐEINS ef Sleeper segir
+     ad hvorki deild ne draft se til med thvi er notandanafn reynt.
+     Kostnadurinn er tvo 404 fyrir thann sem limir inn nafn — einu sinni
+     per smell — og verdid fyrir hina attina vaeri ad senda draft-audkenni
+     i `/user/{nafn}` og fa svar sem lítur ut eins og notandi.          */
+  const looksLikeName = (s) => /^[A-Za-z0-9_.-]{1,32}$/.test(s) && !/^\d+$/.test(s);
+
+  /** Notandanafn -> audkenni + deildirnar hans sem chip. */
+  const findLeagues = async (raw) => {
+    const name = String(raw == null ? user : raw).trim();
+    if (!name) return false;
+    const u = await D.sleeperUser(name);
+    setUserId(u.user_id || null);
+    setUser(name);
+    /* Lyft upp i `App` og vistad — forsidan finnur "mitt lid" ur thvi. */
+    if (setSleeperUser) {
+      setSleeperUser({ name, userId: u.user_id || null });
+    }
+    const ls = await D.sleeperLeagues(u.user_id, season);
+    setLeagues(ls || []);
+    setStatus(ls && ls.length
+      ? `${ls.length} league${ls.length > 1 ? "s" : ""} found for ${name} — pick one.`
+      : `No leagues for ${name} this season.`);
+    return true;
+  };
+
+  /* ============================================================
+     EITT KALL GERIR ALLT: LEYSIR, FLYTUR INN, FINNUR SAETID, KVEIKIR
+     ============================================================
+     Sidasta threpid — `onLive` — er nyja atridid og thad var EKKI
+     mogulegt medan "kveikt" var astand inni i thessum hlut: innflutningur
+     endurraesir hann (sja `liveScope` i `App.jsx`). Þess vegna voru
+     hnapparnir tveir.                                                  */
   const connect = async (raw) => {
     const input = String(raw == null ? url : raw).trim();
     if (!input) return;
     setBusy(true);
-    setStatus("reading league…");
+    setStatus("connecting…");
+    setLeagues(null);
     try {
-      const bundle = await D.sleeperResolve(input);
+      let bundle = null;
+      try {
+        bundle = await D.sleeperResolve(input);
+      } catch (e) {
+        /* Hvorki deild ne draft. Se thetta laesilegt nafn er thad reynt —
+           annars stendur upprunalega villan, thvi hun er RETTARI bod.
+           Bresti nafna-leidin LIKA er villan sem birt er su um audkennid:
+           "notandi fannst ekki" um streng sem notandinn aetladi sem
+           deildarslod sendir hann i ranga att.                        */
+        let named = false;
+        if (looksLikeName(input)) {
+          try { named = await findLeagues(input); } catch { named = false; }
+        }
+        if (named) return;
+        throw e;
+      }
       const res = leagueFromSleeper({
         league: bundle.league, draft: bundle.draft, shapes });
       const teamList = teamsFromLeague(bundle);
@@ -1105,31 +1219,24 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         setStatus(d && d.draft_id ? null
           : `Rules imported from ${res.imported.name || "the league"} — ` +
             `no draft has been created yet.`);
+        /* SKORDAN ER REIKNUD UR **NYJU** DEILDINNI, ekki ur `leagueKey`.
+           `onImportLeague` breytir `activeId`, en thessi teikning ser
+           hann ekki — sama lokun og notan vid `resolveSlot` lysir. Vaeri
+           gamla deildin notud hér vaeri samstillingin kveikt a bordi sem
+           er ekki a skjanum. */
+        if (d && d.draft_id && onLive) {
+          onLive(D.boardScope(res.imported.leagueId, d.draft_id));
+        }
       } else if (d && d.draft_id) {
         setSync({ draftId: d.draft_id, slot: slot != null ? slot : sync.slot });
         setStatus(null);
+        if (onLive) onLive(D.boardScope(leagueKey, d.draft_id));
       } else {
-        setStatus("Fann hvorki reglur ne draft a thessari slod");
+        setStatus("Found neither league rules nor a draft at that link");
       }
-      setLeagues(null);
     } catch (e) {
       setStatus(String(e.message || e));
     } finally { setBusy(false); }
-  };
-
-  const findLeagues = async () => {
-    setStatus("leita…");
-    try {
-      const u = await D.sleeperUser(user.trim());
-      setUserId(u.user_id || null);
-      /* Lyft upp i `App` og vistad — forsidan finnur "mitt lid" ur thvi. */
-      if (setSleeperUser) {
-        setSleeperUser({ name: user.trim(), userId: u.user_id || null });
-      }
-      const ls = await D.sleeperLeagues(u.user_id, season);
-      setLeagues(ls || []);
-      setStatus(ls && ls.length ? null : "engar deildir a thessu timabili");
-    } catch (e) { setStatus(String(e.message || e)); setLeagues(null); }
   };
 
   /* ============================================================
@@ -1162,7 +1269,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
      draft-id og saeti; reglurnar komu ekki med, svo deildin i appinu
      var afram su sem sidast var slegin inn i hendi. */
   const useLeague = async (lg) => {
-    setStatus("saeki deild…");
+    setStatus("connecting…");
     setBusy(true);
     try {
       await connect(lg.league_id);
@@ -1238,9 +1345,10 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         lastCount.current = ids.length;
         onPicks(ids, mine, unknown);
       }
-      setStatus(null);
-    } catch (e) { setStatus(String(e.message || e)); }
+      setPollErr(null);
+    } catch (e) { setPollErr(String(e.message || e)); }
   };
+
 
   /* ============================================================
      HRADINN FYLGIR DRAFTINU, HANN ER EKKI FASTUR.
@@ -1283,6 +1391,8 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
     lastMove.current = 0;
     setUnmatched(null);
     setInfo(null);
+    /* Og villan ur SIDUSTU pollun tilheyrdi odru drafti. */
+    setPollErr(null);
     /* Og logunin uppi LIKA. Vaeri hun ekki nullstillt bæri bordid afram
        lidafjolda draftsins sem var slitid — og reiknadi snakk-tolur ur
        drafti sem er ekki tengt. Sama aett og `lastSync`-refin. */
@@ -1308,38 +1418,137 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
        og urvelta lokunin sem `onPicks` var lagfaerd fyrir. */
   }, [live, sync.draftId, sync.slot, byId, userId]);
 
+  /* HVAD VAR LEITT UT — MED NAFNI. `teamsFromLeague` gefur
+     `Slot 7` sem varaheiti thegar Sleeper ber hvorki `team_name` ne
+     `display_name`; thad er ekki nafn heldur sama talan aftur, svo thad
+     er sleppt fremur en skrifad tvisvar ("You are Slot 7, slot 7"). */
+  const seatName = useMemo(() => {
+    if (sync.slot == null || !Array.isArray(teams)) return null;
+    const t = teams.find((x) => x.slot === Number(sync.slot));
+    const nm = t && t.name ? String(t.name) : "";
+    return nm && !/^Slot \d+$/.test(nm) ? nm : null;
+  }, [teams, sync.slot]);
+
+  /* ============================================================
+     STODULJOSID — TVAER STODUR, OG LOGUNIN ER I ÞEIM
+     ============================================================
+     BEIDNI NOTANDANS 19.8.2026: "status ljos sem segir connected eda
+     disconnected med graenu og raudu." Tvo ljos, ekki thrju.
+
+     ÞAD MATTI SAMT EKKI KOSTA VORNINA SEM GULA LJOSID VAR TIL FYRIR.
+     Hann DRAFTADI heilt mock 17.8.2026 med vidvorunina a skjanum ("10
+     teams in the draft against 12 in this league") og sa hana ekki, thvi
+     hun var malsgrein i vegg af malsgreinum. Tvo stodu ljos SEM TELUR
+     "kallid tokst" = graent hefdi verid graent allan thann tima.
+
+     REGLAN SEM LEYSIR BADAR KROFUR — og hun er RETTARI en gult:
+     **tenging a rangri logun er EKKI tenging.** Se draftid i annarri
+     staerd en deildin sem bordid reiknar eru tolurnar ur annarri deild,
+     og "tengdur" um thad astand er einfaldlega osatt. Ljosid er RAUT
+     med einni linu um hvers vegna.
+
+     MAELT A HANS EIGIN GOGNUM (10-lida PPR 2WR/2FLEX a moti 12-lida
+     sjalfgefnu 3WR/1FLEX, sama laug, sami dagur): varamanns-threpid fer
+     QB10->QB12, RB27->RB28, TE14->TE14 og **WR29->WR42**. Þad er ekki
+     jofn lyfting heldur skekkja med formerki — WR er dypsta stadan, svo
+     threpid faerist ThRETTAN saeti medan TE faerist ekkert: +26,9 stig af
+     VBD a hvern WR, +1,0 a RB, 0,0 a TE. Rice 29,6 -> 58,5, Washington
+     12,7 -> 41,6. Hermt draft fra saeti 5 skilar **RB4 TE2 WR1** med
+     rettri logun og WR-eftir-WR med 12-lida sniðinu. Hann tok sex WR og
+     fylgdi radgjofinni i hverju vali — rodin var ekki bilud, hun var
+     svarid vid annarri deild.
+
+     VID BREYTUM SAMT EKKI DEILDINNI SJALFKRAFA: hann gaeti verid ad aefa
+     sig i mock-i af annarri staerd viljandi, og ad yfirskrifa reglurnar
+     hans thegjandi vaeri staerri villa en su sem er verid ad laga. Vid
+     gerum thad OMOGULEGT AD MISSA, ekki thogult ad hlyda.
+
+     TOLURNAR ERU LESNAR, EKKI GISKADAR: `info` kemur ur `/draft/{id}`
+     sjalfu (`settings.teams` / `settings.rounds`), svo thetta er
+     samanburdur a tveimur skradum stadreyndum.
+
+     Vordur: `draft-live.mjs` kafli 16 — logun sem stemmir ekki MA ALDREI
+     teiknast graen; kafli 16b — og somu logun VERDUR ad teiknast graen,
+     annars baeri merkid engar upplysingar.                             */
+  const dTeams = Number(info && info.teams), dRounds = Number(info && info.rounds);
+  const lTeams = Number(league && league.teams), lRounds = Number(league && league.rounds);
+  const mismatch = [];
+  if (info) {
+    if (Number.isFinite(dTeams) && Number.isFinite(lTeams) && dTeams !== lTeams) {
+      mismatch.push(`draft has ${dTeams} teams, league has ${lTeams}`);
+    }
+    if (Number.isFinite(dRounds) && Number.isFinite(lRounds) && dRounds !== lRounds) {
+      mismatch.push(`draft has ${dRounds} rounds, league has ${lRounds}`);
+    }
+  }
+  /* `info` ER SONNUNIN. Hun er ADEINS skrifud af `pull()`, sem keyrir
+     adeins medan samstillingin er i gangi, og hun er hreinsud thegar
+     draft-audkennid breytist — svo "info er til" thydir "Sleeper svaradi
+     um ThETTA draft, nuna". Boolean-flagg fra Connect vaeri hins vegar
+     satt lika thegar kallid brast eftir a. */
+  const connected = !!info && mismatch.length === 0;
+  /* EIN LINA, ekki malsgrein. Rodin er akvordud af thvi hvad notandinn
+     getur gert naest. */
+  const why = mismatch.length ? `${mismatch.join(", ")} — connect the league this draft belongs to`
+    : status ? status
+    : pollErr ? `Sleeper did not answer: ${pollErr}`
+    : !sync.draftId ? "paste a league link, draft link, id or your Sleeper username above"
+    : !live ? "press Connect to start reading this draft"
+    : "waiting for Sleeper…";
+
   return (
     <div className="panel">
       <h2>Connect your Sleeper draft</h2>
-      <div className="sub">
-        Paste your league link and the rules come with it — teams, scoring, starting
-        slots, rounds and draft order. Picks are then pulled live and struck off the
-        board. Nothing is sent anywhere: the call goes from your browser straight to
-        Sleeper, and no login is needed because these endpoints are public.
+
+      <div className="row" style={{ marginBottom: 8 }}
+        data-conn={connected ? "good" : "bad"}>
+        <span className={`dot ${connected ? "good" : "bad"}`} aria-hidden="true" />
+        <b className={connected ? "good" : "bad"}>
+          {connected ? "Connected" : "Disconnected"}
+        </b>
+        {/* LITURINN EINN DUGAR EKKI — ordin eru vid hlidina a honum, thvi
+            graent/raut er osynilegur mismunur fyrir raud-graena litblindu
+            (~8% manna) og thad er sama regla og gildir annars stadar i
+            thessu repo-i.
+
+            OG `status` ER BIRT LIKA ThEGAR TENGT ER. Tengingin sem er i
+            gangi slitnar EKKI af thvi ad ny tengitilraun brast — bord sem
+            ber 60 vol heldur sinu, sem er rett — en tha hafdi notandinn
+            yttt a Connect og fengid ENGA svorun. Þogul mistokst adgerd er
+            thad sem laetur mann ytta aftur og aftur. Vordur:
+            `draft-live.mjs` kafli 15c.                                 */}
+        <span className="dim">
+          {connected
+            ? (status ? `— ${status}`
+             : pollErr ? `— Sleeper did not answer: ${pollErr}`
+             : live ? "— reading picks live" : "")
+            : `— ${why}`}
+        </span>
       </div>
 
+      {/* EITT REIT OG EINN HNAPPUR. Reset er i SOMU rod og adalhnappurinn
+          (beidni 16.8.2026, "settu reset takkann ofar") en ytt ut a hinn
+          kant med `spacer`: eydandi adgerd ma ekki lenda undir fingrinum
+          a theim sem aetlar ad tengja. */}
       <div className="row">
         <label className="field" style={{ flex: "1 1 320px" }}>
-          League or draft URL
+          Sleeper league, draft or username
           <input type="text" value={url} style={{ minWidth: 260, width: "100%" }}
-            placeholder="https://sleeper.com/leagues/1389356308104249344/predraft"
+            placeholder="sleeper.com/leagues/1389356308104249344 — or a draft link, a bare id, or your username"
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && connect()} />
         </label>
         <button className="act primary" onClick={() => connect()}
           disabled={busy || !url.trim()}>
-          {busy ? "Reading…" : "Connect"}
+          {busy ? "Connecting…" : "Connect"}
         </button>
 
-        <span className="dim" style={{ margin: "0 6px" }}>or</span>
-
-        <label className="field">
-          Sleeper username
-          <input type="text" value={user} onChange={(e) => setUser(e.target.value)}
-            placeholder="username" onKeyDown={(e) => e.key === "Enter" && findLeagues()} />
-        </label>
-        <button className="act" onClick={findLeagues} disabled={!user.trim()}>
-          Find leagues
+        <div className="spacer" />
+        <button className="act" onClick={onReset} disabled={resetOff}
+          title={sync.draftId
+            ? "Clears the board AND disconnects the draft — your seat is kept"
+            : "Clears every pick you have marked"}>
+          {sync.draftId ? "Reset & disconnect" : "Reset board"}
         </button>
       </div>
 
@@ -1363,13 +1572,28 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
       {imported && <ImportedRules imported={imported} league={league}
         shapes={shapes} onReread={onRereadRules} />}
 
-      {/* Saetavalid. Se rodin ekki dregin er thad SAGT — `draft_order`
-          var null a raunverulegri deild og thad er ekki bilun. */}
+      {/* ============================================================
+          SAETID ER LEITT UT, EN GISK ER ALDREI SETT I ÞAD
+          ============================================================
+          "Your slot"-reiturinn er farinn af thvi ad thremur leidum var
+          THEGAR til (`resolveSlot`: `draft_order[user_id]`, sidan
+          `slot_to_roster_id` -> `rosters[].owner_id`, sidan smellur) og
+          reiturinn var fjorda leidin ad sama svari.
+
+          ÞAD SEM VAR LEITT UT ER SYNT MED NAFNI. Rangt saeti gerir HVERJA
+          tolu ranga (bordid litar engan, hopurinn fyllist aldrei,
+          radgjafarkassinn giskar ad valid a klukkunni se mitt — rangt i 9
+          volum af 10 i 10-lida deild), svo thogul agiskun er versta
+          utkoman. Nafnid gerir vonda agiskun SYNILEGA.
+
+          OG ENGIN SJALFGEFIN 1: `resolveSlot` skilar `null` og saetavalid
+          stendur opið. Saeti 1 sem sjalfgefid gildi vaeri tala sem lítur
+          ut eins og maeling.                                            */}
       {teams && teams.length > 0 && sync.draftId && (
         <div style={{ marginTop: 10 }}>
           <div className="dim" style={{ fontSize: 12.5, marginBottom: 4 }}>
             {sync.slot != null
-              ? <>Your team is slot <b>{sync.slot}</b>
+              ? <>You are <b>{seatName || `slot ${sync.slot}`}</b>, slot <b>{sync.slot}</b>
                   {slotAuto && <span className="good"> · read from Sleeper</span>}
                   {" — "}<span className="dim">click another to change it</span></>
               : <>Which team is yours? Your own picks only fill the roster below once
@@ -1395,47 +1619,42 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         </div>
       )}
 
-      <div className="row" style={{ marginTop: 10 }}>
-        <label className="field">
-          Draft ID
-          <input type="text" value={sync.draftId} style={{ minWidth: 190 }}
-            placeholder="filled in by Connect"
-            onChange={(e) => setSync({ ...sync, draftId: extractDraftId(e.target.value) })} />
-        </label>
-        <label className="field">
-          Your slot{slotAuto && sync.slot != null &&
-            <span className="good" style={{ fontSize: 11, marginLeft: 5 }}>read from Sleeper</span>}
-          <input type="number" min="1" max="16" value={sync.slot ?? ""}
-            style={{ width: 70 }}
-            onChange={(e) => { setSlotAuto(false);
-              setSync({ ...sync, slot: e.target.value === "" ? null
-                : Number(e.target.value) }); }} />
-        </label>
-        <button className={`act${live ? "" : " primary"}`}
-          disabled={!sync.draftId}
-          onClick={() => setLive((v) => !v)}>
-          {live ? "Stop syncing" : "Start live sync"}
-        </button>
+      {/* ============================================================
+          OG SE SAETID OLEYSANLEGT KEMUR REITURINN AFTUR
+          ============================================================
+          Draft sem ber hvorki `draft_order`, `slot_to_roster_id` ne lista
+          af notendum gefur ENGIN saetaspjold — og tha er ekkert eftir sem
+          notandinn getur smellt a. Reiturinn er thvi ekki fjarlaegdur
+          heldur SKILYRTUR: hann birtist nakvaemlega thegar leidslan
+          brast, og hvergi annars. Skilyrdid er `teams.length === 0`, sem
+          er sama skilyrdi og gerir spjoldin engin — thau tvo geta thvi
+          ekki bædi horfid.
 
-        {/* SKILRUM MILLI ADALADGERDAR OG THEIRRAR EYDANDI. Hnappurinn er
-            eydandi og situr vid hlidina a theim sem er sottur oftast, svo
-            `spacer` yttir honum ut a hinn kant radarinnar og hann ber
-            hvorki `primary`-litinn ne feitletrunina. ENGIN STADFESTINGAR-
-            GLUGGI: modal gluggi a draftkvoldi stodvar allt medan klukkan
-            gengur, og verðið af thvi ad ytta a hann oviljandi er ein
-            endurtenging — sem er odyrara en glugginn.
-
-            HEITID SEGIR HVAD GERIST. "Reset & disconnect" thegar draft er
-            tengt (samstillingin fer LIKA, annars fyllist bordid um leid
-            aftur ur naestu pollun) og "Reset board" thegar ekki. */}
-        <div className="spacer" />
-        <button className="act" onClick={onReset} disabled={resetOff}
-          title={sync.draftId
-            ? "Clears the board AND disconnects the draft — your seat is kept"
-            : "Clears every pick you have marked"}>
-          {sync.draftId ? "Reset & disconnect" : "Reset board"}
-        </button>
-      </div>
+          SKILYRDID SPYR **EKKI** HVORT SAETID SE ThEGAR SETT, og thad var
+          fyrsta utgafan (`sync.slot == null`). Hun var rong i badar attir:
+          reiturinn hvarf um leid og saeti var slegid inn, svo INNSLATTAR-
+          VILLA vard ovidgerdanleg, og saeti sem kom ur eldra vistudu
+          astandi (`nfl_sync`) var hvergi synilegt. Styring sem hverfur
+          thegar hun hefur verid notud er verri en engin.                */}
+      {sync.draftId && !(teams && teams.length > 0) && (
+        <div className="row" style={{ marginTop: 10 }}>
+          <label className="field">
+            Your slot{slotAuto && sync.slot != null &&
+              <span className="good" style={{ fontSize: 11, marginLeft: 5 }}>read from Sleeper</span>}
+            <input type="number" min="1" max="16" value={sync.slot ?? ""}
+              style={{ width: 70 }}
+              onChange={(e) => { setSlotAuto(false);
+                setSync({ ...sync, slot: e.target.value === "" ? null
+                  : Number(e.target.value) }); }} />
+          </label>
+          {sync.slot == null && (
+            <span className="dim" style={{ fontSize: 12.5, alignSelf: "flex-end" }}>
+              This draft lists no teams, so your seat could not be read. Without it your
+              own picks never reach the roster below.
+            </span>
+          )}
+        </div>
+      )}
 
       {/* ============================================================
           BORD SEM FYLLIST AF SJALFU SER MA EKKI THEGJA
@@ -1456,8 +1675,6 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
           {" Use Reset if this is a new draft."}
         </div>
       )}
-
-      {status && <div className="note warn" style={{ marginTop: 10 }}>{status}</div>}
 
       {/* ============================================================
           DRAFTID OG DEILDIN GETA VERID SITTHVOR LOGUNIN — OG THAU VORU
@@ -1508,106 +1725,26 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
       })()}
 
       {/* ============================================================
-          STODULJOSID — TENGING **OG** LOGUN, I EINU MERKI
+          LOGUNIN, I EINNI LINU — LJOSID SJALFT ER EFST
           ============================================================
-          BEIDNI NOTANDANS 17.8.2026: "status ljos sem er rautt eda graent
-          eftir thvi hvort tenging tokst, restina af textanum ma fara."
+          Þetta var thriggja stodu ljos MED MALSGREIN (sex setningar um
+          WR42/WR29 og VBD). Ljosid faerdist upp i haus spjaldsins og hefur
+          nu TVAER stodur: logun sem stemmir ekki er RAUT, ekki gul (sja
+          notuna vid `connected`). Malsgreinin er ordin EIN LINA hér —
+          maelingin sjalf lifir i notunni vid `connected`, thvi hun er
+          rokstudningur og hann er a islensku.
 
-          ÞAD ER SAMT ThRIGGJA STODU LJOS OG ThAD ER MAELT AF REYNSLU HANS,
-          ekki smekk: hann DRAFTADI heilt mock-draft med thessa vidvorun
-          A SKJANUM ("10 teams in the draft against 12 in this league") og
-          sa hana ekki, thvi hun var malsgrein i vegg af malsgreinum. Tvo
-          stodu ljos — tengt eda ekki — hefdi verid GRAENT allan thann
-          tima. Tenging sem heppnadist a rangri logun er ekki "i lagi".
-
-            graent  = tengt, og draftid er sama logun sem bordid reiknar
-            gult    = tengt, EN logunin stemmir ekki — tolurnar eru ur
-                      annarri deild
-            raut    = tengingin brast
-
-          ============================================================
-          OG GAMLA FULLYRDINGIN NEFNDI RANGA AFLEIDINGU
-          ============================================================
-          Hér stod: "Picks are struck off correctly, but every snake number
-          ... is worked out from the league settings". Snakk-tolurnar eru nu
-          LESNAR UR DRAFTINU (sja `snakeTeams` ofar), svo thaer eru rettar.
-          Eftir stendur afleidingin sem gamli textinn ThAGDI UM og sem er
-          MIKLU staerri: **varamanns-threpin — og thar med RODIN sjalf.**
-
-          MAELT 17.8.2026 a hans eigin gognum (10-lida PPR 2WR/2FLEX a moti
-          12-lida sjalfgefnu 3WR/1FLEX, sama laug, sama dagur):
-
-            stada | threp 10-lida | threp 12-lida | lyfting a VBD
-            QB    | QB10          | QB12          | +3,6
-            RB    | RB27          | RB28          | +1,0
-            TE    | TE14          | TE14          |  0,0
-            WR    | WR29          | **WR42**      | **+26,9**
-
-          Þad er ekki jofn lyfting heldur SKEKKJA MED FORMERKI: WR er
-          dypsta stadan, svo threpid faerist ThRETTAN saeti medan RB faerist
-          eitt og TE ekkert. VBD sendingamottakara TVOFALDAST naerri:
-          Rashee Rice 29,6 -> 58,5 · DeVonta Smith 29,5 -> 58,4 · Mike
-          Evans 22,5 -> 51,4 · Parker Washington 12,7 -> 41,6.
-
-          UTKOMAN VAR MAELD ALLA LEID: hermt draft fra saeti 5, 7 umferdir,
-          motherjar eftir ADP. Med RETTRI 10-lida logun skilar bordid
-          **RB4 TE2 WR1**; med 12-lida sjalfgefnu **WR-eftir-WR** (topp
-          bordsins i umferdum 4-7 er McConkey/Higgins/Egbuka/McMillan og
-          Evans/Waddle/McLaurin/Washington). Notandinn draftadi sex WR og
-          fylgdi radgjofinni i hverju vali — **rodin var ekki biluð, hun
-          var svarid vid annarri deild.**
-
-          VID BREYTUM SAMT EKKI DEILDINNI SJALFKRAFA (sama akvordun og
-          stod hér adur): hann gaeti verid ad aefa sig i mock-i af annarri
-          staerd viljandi, og ad yfirskrifa reglurnar hans thegjandi vaeri
-          staerri villa en su sem er verid ad laga. Vid gerum thad
-          OMOGULEGT AD MISSA, ekki thogult ad hlyda.
-
-          Vordur: `tests/draft-live.mjs` kafli 9 — logun sem stemmir ekki
-          MA EKKI teiknast graen.                                        */}
-      {(() => {
-        const dt = Number(info && info.teams), dr = Number(info && info.rounds);
-        const lt = Number(league && league.teams), lr = Number(league && league.rounds);
-        const bad = [];
-        if (info) {
-          if (Number.isFinite(dt) && Number.isFinite(lt) && dt !== lt) {
-            bad.push(`draft has ${dt} teams, league has ${lt}`);
-          }
-          if (Number.isFinite(dr) && Number.isFinite(lr) && dr !== lr) {
-            bad.push(`draft has ${dr} rounds, league has ${lr}`);
-          }
-        }
-        /* Raut er ADEINS bilun. `status` ber lika hlutlausar tilkynningar
-           ("Rules imported ... no draft has been created yet"), svo hana
-           ma ekki lesa sem bilun — tha vaeri ljosid raut vid retta
-           innflutningu. Bilun er ThEGAR TENGING VAR REYND OG EKKERT KOM. */
-        const failed = !!status && !info && !imported;
-        const state = failed ? "bad" : bad.length ? "warn" : info ? "good" : null;
-        if (state == null) return null;
-        const label = state === "good" ? "connected"
-          : state === "warn" ? "wrong shape" : "not connected";
-        return (
-          <div className={`note ${state === "good" ? "" : state}`}
-            style={{ marginTop: 10 }} data-conn={state}>
-            <b>
-              <span className={`dot ${state}`} aria-hidden="true" />
-              {" "}Sleeper: {label}
-            </b>
-            {state === "warn" && (
-              <>
-                {" "}— {bad.join(", ")}. <b>Every VBD number on this board is
-                computed for your league, not for this draft</b>, and receivers move
-                most: a 12-team shape puts the replacement receiver at WR42 where a
-                10-team one puts him at WR29, which adds about <b>27 points of VBD to
-                every WR</b> and nothing to tight ends. That changes the order, not
-                just the snake numbers. Import the league this draft belongs to, or
-                set teams and rounds to match, before you trust the ranking.
-              </>
-            )}
-            {state === "bad" && <> — {status}</>}
-          </div>
-        );
-      })()}
+          LINAN ER SAMT EKKI SKRAUT OFAN A LJOSID: ljosid segir HVERJU
+          munar (tolurnar tvaer), thetta segir hvad thad KOSTAR. Notandinn
+          las ekki malsgreinina; talan sem hann tharf er "rodin sjalf er
+          ur annarri deild", ekki "eitthvad stemmir ekki".              */}
+      {mismatch.length > 0 && (
+        <div className="note bad" style={{ marginTop: 10 }}>
+          <b>Every VBD number on this board is computed for your league, not for this
+            draft</b> — the replacement receiver moves {"WR29 -> WR42"} between these
+          two shapes, which changes the order, not just the snake numbers.
+        </div>
+      )}
 
       {/* VIDVARANIR ERU EKKI SKRAUT. Hver ein er atriði sem likanid
           getur EKKI heidrad — keeper-deild, TE-premium, IDP, uppbods-
@@ -1707,12 +1844,6 @@ export function reachClass(p) {
   if (pct >= 80) return "reach-hi";
   if (pct >= 40) return "";
   return "reach-lo";
-}
-
-/** Tekur vid heilli slod eda beru audkenni. */
-function extractDraftId(s) {
-  const m = String(s).match(/(\d{6,})/);
-  return m ? m[1] : String(s).trim();
 }
 
 /* ============================================================

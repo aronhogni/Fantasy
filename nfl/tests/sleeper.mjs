@@ -148,8 +148,13 @@ const SCENARIOS = {
      mock-inu. 12 lid gegn 10 er thvi TVAER olikar snakk-vorpanir a sama
      skja.                                                             */
   mock12: {
+    /* `draft_order: { u1: 12 }` ER FORSENDA KAFLA 2bb3, ekki skraut:
+       "Your slot"-reiturinn er farinn, svo saeti 12 i 10-lida deild
+       verdur ad koma ThADAN SEM ThAD KEMUR I RAUN — ur 12-lida mock-i sem
+       ber rodina. Adur var thad slegid inn i hendi, sem var leid sem
+       notandinn fer aldrei. */
     draft: { draft_id: "m12", league_id: null, status: "drafting", type: "snake",
-             season: "2026", draft_order: null,
+             season: "2026", draft_order: { u1: 12 },
              settings: { teams: 12, rounds: 15 } },
     picks: [],
   },
@@ -218,7 +223,7 @@ global.fetch = async (url) => {
     }
     if (/\/leagues\/nfl\//.test(s)) {
       return { ok: true, status: 200,
-               json: async () => [{ league_id: "L1", name: "Deildin", total_rosters: 12 }] };
+               json: async () => [{ league_id: "d2", name: "Deildin", total_rosters: 12 }] };
     }
     /* Rodin skiptir mali: `/users` og `/rosters` enda a deildarslodinni,
        svo bera `/league/{id}$` verdur ad koma SIDAST af theim thremur. */
@@ -258,15 +263,34 @@ global.fetch = async (url) => {
        sja `draft-live.mjs` kafla 3) les tomi listinn eins og
        "umsjonarmadur nullstillti draftid" — sem er RETT lestur. Villan
        var i hermunum, ekki i appinu.                                */
+    /* ============================================================
+       OTHEKKT AUDKENNI ER **EKKI** DRAFT — 19.8.2026
+       ============================================================
+       Hér stod `|| scenario`: hvada strengur sem var fekk draft
+       yfirstandandi atburdarasar. Þad var thaegilegt og thad var LYGI, og
+       lygin vard bindandi um leid og reiturinn tok vid notandanafni:
+       `sleeperResolve("adi")` reynir `/league/adi` (404) og sidan
+       `/draft/adi` — sem hermirinn svaradi med gildu drafti, svo
+       nafna-varaleidin var ALDREI reynd og kaflarnir sem lima inn nafn
+       gatu ekki brugdist.
+
+       Raunverulegur Sleeper skilar 404 a audkenni sem er ekki til. Nu
+       gerir hermirinn thad lika, og `sleeperLeagues` skilar audkenni sem
+       er RAUNVERULEGA til (`d2`) i stad `L1` — deildarlisti sem ber
+       audkenni sem svarar engu vaeri sama lygin i annarri mynd.       */
     const byDraft = (id) => Object.values(SCENARIOS)
-      .find((sc) => sc.draft && sc.draft.draft_id === id) || scenario;
+      .find((sc) => sc.draft && sc.draft.draft_id === id) || null;
     if (/\/picks$/.test(s)) {
       const id = (/\/draft\/([^/]+)\/picks/.exec(s) || [])[1];
-      return { ok: true, status: 200, json: async () => byDraft(id).picks };
+      const sc = byDraft(id);
+      if (!sc) return { ok: false, status: 404, json: async () => null };
+      return { ok: true, status: 200, json: async () => sc.picks };
     }
     if (/\/draft\//.test(s)) {
       const id = (/\/draft\/([^/?]+)/.exec(s) || [])[1];
-      return { ok: true, status: 200, json: async () => byDraft(id).draft };
+      const sc = byDraft(id);
+      if (!sc) return { ok: false, status: 404, json: async () => null };
+      return { ok: true, status: 200, json: async () => sc.draft };
     }
     return { ok: true, status: 200, json: async () => ({}) };
   }
@@ -318,6 +342,36 @@ const setInput = async (labelPart, value) => {
   return true;
 };
 
+const btn = (re) => [...document.querySelectorAll("button")]
+  .find((b) => re.test((b.textContent || "").trim()));
+/* ============================================================
+   LJOSID ER LESID UR SINU EIGIN SVIDI
+   ============================================================
+   `/\bConnected\b/` A BODY-TEXTANUM FELL A RETTUM KODA: `textContent`
+   limir saman texta an bila, svo hausinn "Connect your Sleeper draft" og
+   merkid "Connected" verda "draftConnected" — og tha er ENGIN
+   ordamarkalina fyrir "C". Nakvaemlega sama gildra og `\bNaN\b` i
+   CLAUDE.md 5b. Merkid ber `data-conn`, svo bædi liturinn og ORDIN eru
+   lesin thar sem thau bua.                                            */
+const connEl = () => document.querySelector("[data-conn]");
+const conn = () => { const d = connEl(); return d ? d.getAttribute("data-conn") : null; };
+const connText = () => { const d = connEl(); return d ? (d.textContent || "") : ""; };
+
+/* ============================================================
+   EIN LEID INN — OG THAD ER PROFANLEG FULLYRDING I SJALFU SER
+   ============================================================
+   Spjaldid bar sex styringar (deildarslod + Connect, notandanafn + Find
+   leagues, Draft ID, Your slot, Start live sync) og hvert prof valdi ser
+   thaegilegasta. Nu er EIN leid: lima i reitinn, ytta a Connect. Hver
+   kafli sem notar `go()` er thvi lika fullyrding um ad thad EITT nægi —
+   ef reiturinn eda hnappurinn hverfur fellur allt safnid, ekki einn
+   kafli.                                                              */
+const go = async (value) => {
+  const set = await setInput("Sleeper league, draft or username", value);
+  if (!set) return false;
+  return await click(btn(/^Connect/i));
+};
+
 /* Fersk uppsetning fyrir hverja atburdarás — vistad astand ur einni
    ma ekki lekja i naestu. */
 async function boot() {
@@ -338,10 +392,7 @@ for (const [name, sc] of Object.entries(SCENARIOS)) {
   const root = await boot();
   let crashed = false;
   try {
-    await setInput("Draft ID", sc.draft.draft_id);
-    const start = [...document.querySelectorAll("button")]
-      .find((b) => /live sync|Start/i.test(b.textContent || ""));
-    await click(start);
+    await go(sc.draft.draft_id);
     await settle(800);
   } catch { crashed = true; }
   const t = text();
@@ -362,9 +413,7 @@ console.log("\n2. othekkt val er talid, ekki hent");
 {
   scenario = SCENARIOS.unknownPick; sleeperMode = "ok";
   const root = await boot();
-  await setInput("Draft ID", "d3");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  await go("d3");
   await settle(900);
   const t = text();
   ok(/not on this board/i.test(t),
@@ -392,10 +441,8 @@ console.log("\n2b. samstillingin gerir sitt verk");
   const countBefore = document.querySelectorAll("table.data tbody tr").length;
   const takenBefore = /(\d+) drafted/.exec(text());
 
-  await setInput("Draft ID", "d2");
+  await go("d2");
   await setInput("Your slot", "7");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
   await settle(1000);
 
   const t = text();
@@ -434,9 +481,11 @@ console.log("\n2bb. saetid les sig sjalft ur draft_order");
   scenario = SCENARIOS.inProgress; sleeperMode = "ok";
   const root = await boot();
 
-  await setInput("Sleeper username", "adi");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /Find leagues/i.test(b.textContent || "")));
+  /* NOTANDANAFN GEGNUM SAMA REIT. Það er ekki thaegindi heldur hluti af
+     fullyrdingunni: `parseSleeperInput` finnur hvorki deild ne draft med
+     "adi", og THA — og adeins tha — er nafna-leidin reynd. Sja
+     `looksLikeName` i `DraftBoard.jsx`. */
+  await go("adi");
   await settle(600);
   /* Deildin birtist sem chip — smellt a hana eins og notandinn gerir. */
   const league = [...document.querySelectorAll("button.chip")]
@@ -451,9 +500,12 @@ console.log("\n2bb. saetid les sig sjalft ur draft_order");
   ok(/read from Sleeper/i.test(text()),
     "og thad er MERKT sem lesid, ekki innslegid");
 
-  /* Og tha VIRKAR radgjofin a rettum hop: samstillum og teljum. */
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  /* Og tha VIRKAR radgjofin a rettum hop — AN ANNARS SMELLS. Connect
+     kveikti a samstillingunni sjalfur (adur var "Start live sync"
+     serstakur hnappur), svo thetta er lika fullyrdingin "einn smellur
+     tengir OG samstillir". */
+  ok(!btn(/live sync|Stop syncing/i),
+    "og enginn serstakur samstillingar-hnappur er eftir");
   await settle(900);
   const mine = /(\d+) yours/.exec(text());
   ok(mine && Number(mine[1]) === 2,
@@ -490,9 +542,7 @@ console.log("\n2bb2. saetid lifir endurhledslu");
   let root = await boot();
 
   /* --- lota 1: finna notandann, tengja, saetid les sig --- */
-  await setInput("Sleeper username", "adi");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /Find leagues/i.test(b.textContent || "")));
+  await go("adi");
   await settle(600);
   const stored = JSON.parse(localStorage.getItem("nfl_sleeperUser") || "null");
   ok(stored && stored.userId === "u1",
@@ -502,9 +552,7 @@ console.log("\n2bb2. saetid lifir endurhledslu");
      ad thu tengdir" — thvi hun er su sem gengur a draftkvoldi og hun var
      DAUD af somu orsok: hun krefst `userId != null`. */
   const startSync = async () => {
-    await setInput("Draft ID", "d2");
-    await click([...document.querySelectorAll("button")]
-      .find((b) => /live sync|Start/i.test(b.textContent || "")));
+    await go("d2");
     await settle(800);
   };
   const slotOf = () => [...document.querySelectorAll("label.field")]
@@ -527,13 +575,14 @@ console.log("\n2bb2. saetid lifir endurhledslu");
   await act(async () => { root.render(React.createElement(App)); });
   await settle(700);
 
-  const nameBox = [...document.querySelectorAll("label.field")]
-    .find((l) => /Sleeper username/i.test(l.textContent || ""))?.querySelector("input");
-  /* NEIKVAED FULLYRDING VERDUR AD NEFNA EITTHVAD SEM VAR SANNANLEGA THAR:
-     nafnid ER forfyllt, og thad er einmitt thess vegna sem fjarvera
-     audkennisins var osynileg. */
-  ok(nameBox && nameBox.value === "adi",
-    `lota 2: nafnareiturinn er forfylltur ("${nameBox ? nameBox.value : ""}")`);
+  /* NEIKVAED FULLYRDING VERDUR AD NEFNA EITTHVAD SEM VAR SANNANLEGA THAR.
+     Nafnareiturinn er farinn (eitt reit), svo akkerid er thad sem KOM I
+     HANS STAD: vistada audkennid, sem er thad eina sem `resolveSlot` getur
+     notad. Var thad ekki vistad gaeti lota 2 ekki lesid saetid — sem er
+     nakvaemlega villan sem thessi kafli ver. */
+  const stored2 = JSON.parse(localStorage.getItem("nfl_sleeperUser") || "null");
+  ok(stored2 && stored2.userId === "u1" && stored2.name === "adi",
+    `lota 2: nafn OG audkenni komu ur geymslunni (${stored2 ? stored2.name + "/" + stored2.userId : "ekkert"})`);
 
   await startSync();
   const slot2 = slotOf();
@@ -559,25 +608,42 @@ console.log("\n2bb2. saetid lifir endurhledslu");
    Krafan er fjorthaett og hver hluti getur brugdist einn: gilt saeti i
    somu keyrslu hegdar ser afram rett (annars vaeri "engin fullyrding"
    uppfyllt med thvi ad slokkva a kassanum), engin sidasta-vals
-   fullyrding, og vidvorunin nefnir toluna.                           */
+   fullyrding, og vidvorunin nefnir toluna.
+
+   ============================================================
+   LEIDIN AD SAETI 12 ER NU RAUNVERULEGA LEIDIN — 19.8.2026
+   ============================================================
+   Adur sló profid 12 i "Your slot"-reitinn. Reiturinn er farinn (eitt
+   reit, einn hnappur) OG — thad sem meira er — hann var ekki leidin sem
+   notandinn fór. Notan hér ad ofan sagdi thad thegar: "12-lida MOCK les
+   saeti 11 eda 12 beint ur `draft_order` inn i 10-lida deild."
+
+   Profid fer thvi thá leid: notandanafn (gefur `u1`), deildin (10 lid),
+   sidan 12-lida mock sem ber `draft_order: { u1: 12 }`. Ekkert er slegid
+   inn i hendi, og fullyrdingin er thess vegna STERKARI en adur.        */
 console.log("\n2bb3. saeti utan deildar er ekki \"sidasta val\"");
 {
   scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
   const root = await boot();
-  await setInput("League or draft URL",
-    "https://sleeper.com/leagues/1389356308104249344/predraft");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /^(Connect|Reading)/i.test(b.textContent || "")));
+  /* Notandanafnid FYRST — an `user_id` getur saetid ekki lesist ur
+     `draft_order`, og tha vaeri kaflinn ad maela annad. */
+  await go("adi");
+  await settle(500);
+  await go("https://sleeper.com/leagues/1389356308104249344/predraft");
   await waitFor(() => /rules imported/i.test(text()), 4000);
 
-  await setInput("Your slot", "7");
+  /* Gilt saeti: smellt a lidid, eins og i kafla 2e. */
+  await click([...document.querySelectorAll("button.chip")]
+    .find((c) => /7\.\s*mattitim/.test(c.textContent || "")));
   await settle(300);
   const okLine = /Your next pick is\s*(\d+),\s*(\d+) picks? away/.exec(text());
   ok(!!okLine, `saeti 7: kassinn ber naesta val (${okLine ? okLine[0] : "ekkert"})`);
   ok(!/does not exist in a/.test(text()), "og engin vidvorun um saetid");
 
-  await setInput("Your slot", "12");
-  await settle(300);
+  /* Og svo 12-lida mock-id, sem ber saeti 12 i `draft_order`. */
+  scenario = SCENARIOS.mock12;
+  await go("m12");
+  await waitFor(() => /Slot 12 does not exist/.test(text()), 4000);
   ok(!/This is your last pick/.test(text()),
     "saeti 12 i 10-lida deild segir EKKI \"this is your last pick\"");
   ok(/Slot 12 does not exist in a 10-team league/.test(text()),
@@ -609,15 +675,11 @@ console.log("\n2bb4. mock i annarri staerd en deildin er SAGT");
 {
   scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
   const root = await boot();
-  await setInput("League or draft URL",
-    "https://sleeper.com/leagues/1389356308104249344/predraft");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /^(Connect|Reading)/i.test(b.textContent || "")));
+  await go("https://sleeper.com/leagues/1389356308104249344/predraft");
   await waitFor(() => /rules imported/i.test(text()), 4000);
 
-  /* Fyrst DEILDARINS EIGID draft — sama logun, engin vidvorun. */
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  /* Fyrst DEILDARINS EIGID draft — sama logun, engin vidvorun. Enginn
+     annar smellur: Connect kveikti a samstillingunni. */
   await waitFor(() => /picks made/.test(text()), 3000);
   ok(/10 teams/.test(text()), "eigid draft: 10 lid lesin ur draftinu");
   /* ============================================================
@@ -625,29 +687,32 @@ console.log("\n2bb4. mock i annarri staerd en deildin er SAGT");
      ============================================================
      Hun var malsgrein ("This draft is not the shape of the league the
      board is using") og notandinn DRAFTADI heilt mock med hana a
-     skjanum an ad sja hana. Nu er hun STADA a tengingunni: graent /
-     gult / raut, med ordunum vid hlidina og `data-conn` i DOM-inum.
+     skjanum an ad sja hana. Nu er hun STADA a tengingunni.
+
+     ============================================================
+     OG GULA STODAN VAR TEKIN UT — 19.8.2026
+     ============================================================
+     Beidni notandans: tvo ljos, "connected eda disconnected med graenu
+     og raudu". Vornin er samt oskert, thvi hun var LEYST i stad thess ad
+     vera slokkt: **tenging a rangri logun er RAUD.** Tolurnar a bordinu
+     eru ur annarri deild, svo "tengdur" um thad astand er osatt.
 
      Fullyrdingarnar hér eru afram TVISKIPTAR — sama logun ma ekki gefa
      vidvorun — en thaer lesa nu bædi merkid OG toluparid. Sja
      `draft-live.mjs` kafla 16/16b, sem baetir vid ad snakk-tolurnar komi
-     ur DRAFTINU og ad gult geti ekki teiknast graent.                */
-  const conn = () => {
-    const d = document.querySelector("[data-conn]");
-    return d ? d.getAttribute("data-conn") : null;
-  };
+     ur DRAFTINU og ad rangri logun se ALDREI teiknud graen.           */
   ok(conn() === "good", `eigid draft -> graent stoduljos (fann "${conn()}")`);
-  ok(/Sleeper: connected/.test(text()),
-    "og thad stendur i ordum (strengurinn er sannanlega tharna)");
-  ok(!/wrong shape/.test(text()),
-    "og THA er engin vidvorun (annars vaeri hun bara alltaf a)");
+  ok(/Connected/.test(connText()) && !/Disconnected/.test(connText()),
+    `og thad stendur i ordum ("${connText().trim()}")`);
 
   /* Sidan 12-lida mock i somu deild. */
-  await setInput("Draft ID", "m12");
+  scenario = SCENARIOS.mock12;
+  await go("m12");
   await waitFor(() => /12 teams/.test(text()), 3000);
-  ok(conn() === "warn",
-    `12-lida mock i 10-lida deild: ljosid verdur GULT (fann "${conn()}")`);
-  ok(/wrong shape/.test(text()), "og ordin segja thad lika");
+  ok(conn() === "bad",
+    `12-lida mock i 10-lida deild: ljosid verdur RAUT (fann "${conn()}")`);
+  ok(conn() !== "good", "logun sem stemmir ekki getur ALDREI teiknast graen");
+  ok(/Disconnected/.test(connText()), `og ordin segja thad lika ("${connText().trim()}")`);
   ok(/draft has 12 teams, league has 10/.test(text()),
     "og hun nefnir BADAR tolurnar, ekki bara ad eitthvad se ad");
   /* AFLEIDINGIN SEM GAMLI TEXTINN NEFNDI EKKI: varamanns-threpin, og thar
@@ -687,10 +752,8 @@ console.log("\n2c. handvirkt val lifir pollunina");
   scenario = SCENARIOS.inProgress; sleeperMode = "ok";
   const root = await boot();
 
-  await setInput("Draft ID", "d2");
+  await go("d2");
   await setInput("Your slot", "7");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
   await settle(900);
 
   /* Veljum mann sem er EKKI i Sleeper-volunum — hreint handvirkt val.
@@ -778,10 +841,7 @@ console.log("\n2d. deildarslod flytur inn REGLURNAR");
     "og hausinn SEGIR ad thetta se sjalfgefid, ekki deildin thin");
 
   /* Notandinn limir inn thad sem hann hefur i vafranum. */
-  await setInput("League or draft URL",
-    "https://sleeper.com/leagues/1389356308104249344/predraft");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
+  await go("https://sleeper.com/leagues/1389356308104249344/predraft");
   /* Innflutningur breytir `activeId`, sem ENDURRAESIR bordid og
      endurreiknar `buildRows` yfir ~1.100 leikmenn. Vid 900 ms var
      VBD-fullyrdingin GRAEN I EINNI KEYRSLU OG RAUD I NAESTU — og
@@ -901,11 +961,23 @@ console.log("\n2d. deildarslod flytur inn REGLURNAR");
   ok(!/has not been backtested/.test(t),
     "og logunin er EKKI kollud omaeld (gamla fals-vidvorunin)");
 
-  /* --- (e) draft-id fylltist af sjalfu ser --- */
-  const idInput = [...document.querySelectorAll("label.field")]
-    .find((l) => /Draft ID/.test(l.textContent || ""))?.querySelector("input");
-  ok(idInput && idInput.value === "1389356308125192192",
-    `draft-id kom med deildinni (fann "${idInput ? idInput.value : "?"}")`);
+  /* --- (e) draft-id kom med deildinni, OG ThAD SEST ---
+     Serstaki "Draft ID"-reiturinn er farinn (eitt reit, einn hnappur).
+     Audkennid er samt lesid, og thad er profad ThAR SEM ThAD BYR: i
+     vistada astandinu, sem er thad sem `boardScope` skorðar bordid vid.
+     Fullyrding um reit sem er ekki til vaeri tom. */
+  const syncOf = () => {
+    const id = JSON.parse(localStorage.getItem("nfl_activeLeague") || '""');
+    const es = JSON.parse(localStorage.getItem("nfl_leagues") || "[]");
+    return (es.find((e) => e.id === id) || {}).sync || {};
+  };
+  ok(syncOf().draftId === "1389356308125192192",
+    `draft-id kom med deildinni (fann "${syncOf().draftId}")`);
+  /* OG ThAD ER I REITNUM LIKA — thad er hann sem gerir endurtenginguna
+     eftir F5 ad einum smelli. */
+  ok([...document.querySelectorAll("input")]
+      .some((i) => i.value === "1389356308125192192"),
+    "og reiturinn ber thad, svo Connect tengir aftur an ad leita ad slodinni");
 
   root.unmount();
 }
@@ -926,10 +998,7 @@ console.log("\n2e. saetid valid med smelli (draft_order er null)");
   scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
   const root = await boot();
 
-  await setInput("League or draft URL",
-    "https://sleeper.com/leagues/1389356308104249344/predraft");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
+  await go("https://sleeper.com/leagues/1389356308104249344/predraft");
   await settle(900);
 
   ok(scenario.draft.draft_order === null,
@@ -946,15 +1015,17 @@ console.log("\n2e. saetid valid med smelli (draft_order er null)");
     `og saetatalan fylgir heitinu ("${mineChip ? mineChip.textContent.trim() : "?"}")`);
 
   await click(mineChip);
-  const slotInput = [...document.querySelectorAll("label.field")]
-    .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
-  ok(slotInput && Number(slotInput.value) === 7,
-    `smellur setti saetid i 7 (fann "${slotInput ? slotInput.value : "?"}")`);
+  await settle(250);
+  /* SAETID ER SYNT MED NAFNI, ekki i tolureit. Nafnid er thad sem gerir
+     ranga leidslu synilega — tala i reit segir ekkert um HVERS saeti
+     thetta er, og "slot 1" sem sjalfgefid gildi vaeri tala sem lítur ut
+     eins og maeling. */
+  ok(/You are\s*mattitim,\s*slot\s*7/.test(text().replace(/\s+/g, " ")),
+    `smellur setti saetid i 7 OG segir hvers thad er ("${
+      (/You are[^.]{0,42}/.exec(text().replace(/\s+/g, " ")) || ["?"])[0]}")`);
 
-  /* Og tha VIRKAR thad: samstillum og teljum. Saeti 7 af 10 atti
-     tvo af fyrstu 20 volunum (i=6 og i=16). */
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  /* Og tha VIRKAR thad — AN ANNARS SMELLS, thvi Connect kveikti a
+     samstillingunni. Saeti 7 af 10 atti tvo af fyrstu 20 volunum. */
   await settle(1000);
   const t = text();
   const drafted = /(\d+) drafted/.exec(t);
@@ -991,25 +1062,17 @@ console.log("\n2f. tvaer deildir halda sinu astandi");
   };
 
   /* --- deild A: flytjum inn og samstillum, 20 vol --- */
-  await setInput("League or draft URL",
-    "https://sleeper.com/leagues/1389356308104249344/predraft");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
+  await go("https://sleeper.com/leagues/1389356308104249344/predraft");
   await settle(900);
   await click([...document.querySelectorAll("button.chip")]
     .find((c) => /7\.\s*mattitim/.test(c.textContent || "")));
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
   await settle(1000);
   const aDrafted = draftedCount();
   ok(aDrafted >= 20, `deild A: ${aDrafted} strikadir ut`);
 
   /* --- deild B: onnur deild, ANNAD draft, engin vol --- */
   scenario = SCENARIOS.leagueB;
-  await setInput("League or draft URL",
-    "https://sleeper.com/leagues/2222222222222222222/predraft");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
+  await go("https://sleeper.com/leagues/2222222222222222222/predraft");
   await settle(1000);
 
   const names = switcherNames();
@@ -1034,10 +1097,9 @@ console.log("\n2f. tvaer deildir halda sinu astandi");
   const backDrafted = draftedCount();
   ok(backDrafted === aDrafted,
     `til baka i A: ${backDrafted} strikadir ut (voru ${aDrafted})`);
-  const slotInput = [...document.querySelectorAll("label.field")]
-    .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
-  ok(slotInput && Number(slotInput.value) === 7,
-    `og saetid fylgdi deildinni (${slotInput ? slotInput.value : "?"})`);
+  ok(/You are\s*mattitim,\s*slot\s*7/.test(text().replace(/\s+/g, " ")),
+    `og saetid fylgdi deildinni ("${
+      (/You are[^.]{0,42}/.exec(text().replace(/\s+/g, " ")) || ["ekkert"])[0]}")`);
   ok(/10/.test(text()), "og reglur deildar A komu til baka");
 
   /* Vistad astand verdur ad bera BADAR — annars hverfur onnur vid F5. */
@@ -1075,10 +1137,7 @@ console.log("\n2g. litun eftir lifun");
     `an saetis er EKKERT litad (${before.hi}/${before.mid}/${before.lo})`);
   ok(!/Shading =/.test(text()), "og engin skyring birtist");
 
-  await setInput("League or draft URL",
-    "https://sleeper.com/leagues/1389356308104249344/predraft");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /^(Connect|Reading)/i.test((b.textContent || "").trim())));
+  await go("https://sleeper.com/leagues/1389356308104249344/predraft");
   await settle(900);
   await click([...document.querySelectorAll("button.chip")]
     .find((c) => /7\.\s*mattitim/.test(c.textContent || "")));
@@ -1088,8 +1147,6 @@ console.log("\n2g. litun eftir lifun");
      til fyrir midjan draftinn, thar sem 20 vol eru komin og naesta val
      mitt er #27. Prof sem maelir bara byrjunina profar auðvelda
      tilfellid. */
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
   await waitFor(() => /20 drafted/.test(text()), 4000);
   await settle(400);
 
@@ -1299,9 +1356,11 @@ console.log("\n2h. gamalt astand flyst yfir");
   const mine = /(\d+) yours/.exec(t);
   ok(mine && Number(mine[1]) === 3, `og gomlu 3 minir (${mine ? mine[1] : "?"})`);
 
-  const idInput = [...document.querySelectorAll("label.field")]
-    .find((l) => /Draft ID/.test(l.textContent || ""))?.querySelector("input");
-  ok(idInput && idInput.value === "d2", `gamla draft-id kom med ("${idInput ? idInput.value : "?"}")`);
+  /* Audkennid er nu i EINA reitnum — forfyllt ur tengingunni sem er i
+     gildi, svo endurtenging eftir uppfaerslu er einn smellur. */
+  ok([...document.querySelectorAll("input")].some((i) => i.value === "d2"),
+    `gamla draft-id kom med og er i reitnum ("${
+      [...document.querySelectorAll("input")].map((i) => i.value).filter(Boolean).join(",")}")`);
   const slotInput = [...document.querySelectorAll("label.field")]
     .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
   ok(slotInput && Number(slotInput.value) === 4,
@@ -1326,13 +1385,9 @@ for (const [mode, label] of [["404", "Sleeper svarar 404"],
   const root = await boot();
   let crashed = false;
   try {
-    await setInput("Sleeper username", "adi");
-    await click([...document.querySelectorAll("button")]
-      .find((b) => /Find leagues/i.test(b.textContent || "")));
+    await go("adi");
     await settle(600);
-    await setInput("Draft ID", "d2");
-    await click([...document.querySelectorAll("button")]
-      .find((b) => /live sync|Start/i.test(b.textContent || "")));
+    await go("d2");
     await settle(600);
   } catch { crashed = true; }
   const t = text();
@@ -1367,9 +1422,7 @@ console.log("\n5. ekkert fer ut sem a ad vera kyrrt");
   calls.length = 0;
   scenario = SCENARIOS.inProgress; sleeperMode = "ok";
   const root = await boot();
-  await setInput("Draft ID", "d2");
-  await click([...document.querySelectorAll("button")]
-    .find((b) => /live sync|Start/i.test(b.textContent || "")));
+  await go("d2");
   await settle(800);
   const leaky = calls.filter((u) => /taken|roster|league=|players=|nfl_/.test(u));
   ok(leaky.length === 0, `engar slodir bera hopinn (${leaky.slice(0, 2).join(", ") || "hreint"})`);

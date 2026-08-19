@@ -145,54 +145,63 @@ export const loadShapes = () => load("shapes_sleeper.json");
 
 const SLEEPER = "https://api.sleeper.app/v1";
 
+/* ============================================================
+   VILLUBOÐIN ERU **ENSK** — THAU ERU VIDMOT, EKKI ROKSTUDNINGUR
+   ============================================================
+   Þau voru islensk ("Deild fannst ekki (404)") og thad var i skjoli thess
+   ad thau saust sjaldan: gamla spjaldid lagdi thau i litla nota nedst.
+   Stoduljosid ber thau nu berum ordum vid hlidina a "Disconnected", svo
+   thau eru thad FYRSTA sem notandinn les thegar eitthvad brestur. Sama
+   regla og gildir um pipeline-strengina i FPL-appinu: vidmot og gogn a
+   ensku, rokstudningur (athugasemdir) a islensku.                     */
 export async function sleeperUser(name) {
   const r = await fetch(`${SLEEPER}/user/${encodeURIComponent(name)}`);
-  if (!r.ok) throw new Error(`Notandi fannst ekki (${r.status})`);
+  if (!r.ok) throw new Error(`Sleeper user not found (${r.status})`);
   return r.json();
 }
 
 export async function sleeperLeagues(userId, season) {
   const r = await fetch(`${SLEEPER}/user/${userId}/leagues/nfl/${season}`);
-  if (!r.ok) throw new Error(`Deildir fundust ekki (${r.status})`);
+  if (!r.ok) throw new Error(`Could not read your leagues (${r.status})`);
   return r.json();
 }
 
 /** Deildin sjalf — REGLURNAR. Stigagjof, saeti, lidafjoldi, draft-id. */
 export async function sleeperLeague(leagueId) {
   const r = await fetch(`${SLEEPER}/league/${leagueId}`);
-  if (!r.ok) throw new Error(`Deild fannst ekki (${r.status})`);
+  if (!r.ok) throw new Error(`League not found (${r.status})`);
   return r.json();
 }
 
 /** Notendur i deild — thadan koma LIDSHEITIN sem saetavalid byggir a. */
 export async function sleeperLeagueUsers(leagueId) {
   const r = await fetch(`${SLEEPER}/league/${leagueId}/users`);
-  if (!r.ok) throw new Error(`Notendur fundust ekki (${r.status})`);
+  if (!r.ok) throw new Error(`Could not read the league members (${r.status})`);
   return r.json();
 }
 
 /** Hopar allra lida i deild — thadan kemur THINN hopur. */
 export async function sleeperRosters(leagueId) {
   const r = await fetch(`${SLEEPER}/league/${leagueId}/rosters`);
-  if (!r.ok) throw new Error(`Roster fannst ekki (${r.status})`);
+  if (!r.ok) throw new Error(`Could not read the rosters (${r.status})`);
   return r.json();
 }
 
 export async function sleeperDrafts(leagueId) {
   const r = await fetch(`${SLEEPER}/league/${leagueId}/drafts`);
-  if (!r.ok) throw new Error(`Draft fannst ekki (${r.status})`);
+  if (!r.ok) throw new Error(`Draft not found (${r.status})`);
   return r.json();
 }
 
 export async function sleeperDraft(draftId) {
   const r = await fetch(`${SLEEPER}/draft/${draftId}`);
-  if (!r.ok) throw new Error(`Draft fannst ekki (${r.status})`);
+  if (!r.ok) throw new Error(`Draft not found (${r.status})`);
   return r.json();
 }
 
 export async function sleeperPicks(draftId) {
   const r = await fetch(`${SLEEPER}/draft/${draftId}/picks`);
-  if (!r.ok) throw new Error(`Val fundust ekki (${r.status})`);
+  if (!r.ok) throw new Error(`Could not read the picks (${r.status})`);
   return r.json();
 }
 
@@ -214,7 +223,7 @@ export async function sleeperPicks(draftId) {
    fyrir saetavalið eitt. Reglurnar eru komnar an theirra.           */
 export async function sleeperResolve(input) {
   const { kind, id } = parseSleeperInput(input);
-  if (!id) throw new Error("Fann ekkert audkenni i slodinni");
+  if (!id) throw new Error("No Sleeper id in that text");
 
   let league = null, draft = null;
 
@@ -230,13 +239,13 @@ export async function sleeperResolve(input) {
     try {
       const got = await sleeperLeague(id);
       if (isLeague(got)) league = got;
-      else if (kind === "league") throw new Error("Deildin fannst ekki");
+      else if (kind === "league") throw new Error("That league could not be found");
     } catch (e) { if (kind === "league") throw e; }
   }
   if (!league && (kind === "draft" || kind === "id")) {
     const got = await sleeperDraft(id);
     if (isDraft(got)) draft = got;
-    else throw new Error("Hvorki deild ne draft fannst med thessu audkenni");
+    else throw new Error("No league or draft could be found with that id");
     if (draft.league_id) {
       try {
         const lg = await sleeperLeague(draft.league_id);
