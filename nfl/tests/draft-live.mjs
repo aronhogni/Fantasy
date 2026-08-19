@@ -1595,6 +1595,97 @@ console.log("\n16b. somu logun -> graent ljos");
   root.unmount();
 }
 
+/* ============================================================
+   17. EITT REIT, FJOGUR FORM, EINN SMELLUR
+   ============================================================
+   BEIDNI NOTANDANS 19.8.2026: "eg vill bara hafa eitt plass til ad
+   paista (ma gera league id eda allt url), og svo connect button sem
+   tengir allt". Spjaldid bar sex styringar.
+
+   ÞETTA ER VORDURINN A LOFORDINU, og hann hefur ThRJA HLUTA sem hver
+   getur brugdist einn:
+
+     (a) OLL FJOGUR FORMIN fara gegnum SAMA reit. Þetta er ekki eitt
+         prof heldur fjogur: `parseSleeperInput` ber sitthvert mynstur
+         fyrir `/leagues/{id}`, `/draft/nfl/{id}` og bert audkenni, og
+         bert audkenni er TVIRAETT (deildar- og draft-id eru bædi 19
+         stafa snjokorn), svo `sleeperResolve` reynir BADAR leidir. Þrju
+         af fjorum vaeru "nanast rett" og hann myndi lima inn thad
+         fjorda.
+     (b) EINN SMELLUR TENGIR **OG** SAMSTILLIR. Fullyrdingin er ad
+         volin komi a bordid an thess ad neitt annad se yttt — og hun er
+         profud i BADAR ATTIR: engin annar hnappur ma vera til sem hana
+         gaeti uppfyllt (`!btn(/live sync/)`), annars vaeri hun sonn af
+         thvi ad profid hefdi ytt a hann ohaldid.
+     (c) SPJALDID BER EITT TEXTAREIT, EKKI SEX. Talid, ekki skodad:
+         thekja er fullyrding (CLAUDE.md 5b). Vaeri "Draft ID" settur
+         inn aftur sem "thaegindi" fellur thetta.                     */
+console.log("\n17. eitt reit — fjogur form, einn smellur");
+{
+  const connectPanel = () => [...document.querySelectorAll(".panel")]
+    .find((p) => /Connect your Sleeper draft/.test(
+      p.querySelector("h2")?.textContent || "")) || null;
+
+  const FORMS = [
+    ["deildarslod",     `https://sleeper.com/leagues/${LEAGUE_ID}/predraft`],
+    ["draft-slod",      `https://sleeper.com/draft/nfl/${DRAFT_ID}`],
+    ["bert deildar-id", LEAGUE_ID],
+    ["bert draft-id",   DRAFT_ID],
+  ];
+
+  for (const [name, value] of FORMS) {
+    live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+    const root = await boot();
+    for (let n = 1; n <= 9; n++) pushPick(n);
+
+    /* (c) EITT TEXTAREIT — talid ADUR en nokkud er tengt. */
+    const panel = connectPanel();
+    const texts = [...panel.querySelectorAll("input")]
+      .filter((i) => (i.getAttribute("type") || "text") === "text");
+    ok(texts.length === 1,
+      `${name}: spjaldid ber EITT textareit (${texts.length}: ${
+        texts.map((i) => (i.closest("label")?.textContent || "?").trim()).join(" | ")})`);
+    const acts = [...panel.querySelectorAll("button")]
+      .filter((b) => !b.classList.contains("chip"))
+      .map((b) => (b.textContent || "").trim());
+    ok(acts.length === 2 && /^Connect/.test(acts[0]) && /^Reset/.test(acts[1]),
+      `${name}: og TVO hnappa — Connect og Reset (${acts.join(" | ")})`);
+
+    /* (a) + (b): eitt gildi, einn smellur. */
+    ok(await go(value, 250), `${name}: reiturinn tok vid gildinu`);
+    const arrived = await waitFor(() => draftedOnScreen() === 9, 8000);
+    ok(arrived,
+      `${name}: 9 vol komu a bordid AN annars smells (${draftedOnScreen()})`);
+    ok(conn() === "good", `${name}: og ljosid er graent (fann "${conn()}")`);
+    /* Hin attin a (b): hnappurinn sem hefdi getad gert thetta er EKKI til. */
+    ok(!btn(/live sync|Stop syncing/i),
+      `${name}: og enginn serstakur samstillingar-hnappur er til`);
+    ok(!junk(), `${name}: ekkert NaN/undefined (${junk() || "-"})`);
+    /* `pull()` getur verid I LOFTINU thegar hlutnum er slitid og setur tha
+       astand a hlut sem er farinn — React kvartar ("not wrapped in
+       act"). Vid latum hana lenda fyrst; annars fyllist logginn af
+       vidvorunum sem hafa ekkert ad gera med thad sem er maelt. */
+    await settle(80);
+    await act(async () => { root.unmount(); });
+  }
+
+  /* FIMMTA FORMID — NOTANDANAFN. Þad er varaleid (sja `looksLikeName`),
+     svo thad tengir ekki sjalft: thad skilar deildunum sem chip. Krafan
+     er ad SAMI reitur taki vid thvi og ad audkennid se vistad, thvi thad
+     er thad eina sem `resolveSlot` getur notad. */
+  {
+    live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+    const root = await boot();
+    await go("team7", 250);
+    const stored = JSON.parse(localStorage.getItem("nfl_sleeperUser") || "null");
+    ok(stored && stored.userId === "u7" && stored.name === "team7",
+      `notandanafn: sami reitur leysti thad og audkennid er vistad (${
+        stored ? stored.name + "/" + stored.userId : "ekkert"})`);
+    await settle(80);
+    await act(async () => { root.unmount(); });
+  }
+}
+
 console.log(`\n(pollunar-bidir styttar: ${pollTicks})`);
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

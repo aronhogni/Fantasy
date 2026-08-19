@@ -153,9 +153,31 @@ const SCENARIOS = {
        verdur ad koma ThADAN SEM ThAD KEMUR I RAUN — ur 12-lida mock-i sem
        ber rodina. Adur var thad slegid inn i hendi, sem var leid sem
        notandinn fer aldrei. */
+    /* ============================================================
+       UMFERDIRNAR ERU **SAMAR** OG DEILDARINNAR — OG THAD ER MAELT
+       ============================================================
+       Þetta var `rounds: 15` a moti 16 i deildinni, svo BADIR lidirnir i
+       logunar-hlidinu skeikudu. Þa er fullyrdingin "ljosid er raut" sonn
+       thott lidafjolda-hlidid se tekid ur sambandi — STOKKBREYTING
+       (`dTeams !== lTeams` slokkt) SLAPP i gegn og adeins textinn fell.
+       Med somu umferdum er ljosid RAUT AF EINNI ASTAEDU, og hun er su sem
+       kostadi notandann mock-draftid: 12 lid a moti 10.               */
     draft: { draft_id: "m12", league_id: null, status: "drafting", type: "snake",
              season: "2026", draft_order: { u1: 12 },
-             settings: { teams: 12, rounds: 15 } },
+             settings: { teams: 12, rounds: 16 } },
+    picks: [],
+  },
+  /* ============================================================
+     MOCK I **SOMU** LOGUN SEM DEILDIN, MED RODINA A `u7`
+     ============================================================
+     Til fyrir kafla 2e2: hann profar ad smellur a lidid kenni appinu hver
+     notandinn er, og thad ma EKKI blandast vid logunar-hlidid. Þess vegna
+     10 lid og 16 umferdir — nakvaemlega deildin — svo ljosid se GRAENT og
+     eina thad sem er maelt se saetid.                                  */
+  mock10: {
+    draft: { draft_id: "m10", league_id: null, status: "drafting", type: "snake",
+             season: "2026", draft_order: { u7: 4 },
+             settings: { teams: 10, rounds: 16 } },
     picks: [],
   },
   /* Deild B — draftid er til en EKKERT val komid. */
@@ -1036,6 +1058,73 @@ console.log("\n2e. saetid valid med smelli (draft_order er null)");
     `og TVEIR theirra eru minir (saeti 7 af 10) — fann ${mine ? mine[1] : "?"}`);
 
   root.unmount();
+}
+
+/* ============================================================
+   2e2. SMELLUR A ThITT LID KENNIR APPINU HVER THU ERT
+   ============================================================
+   ÞETTA ER ThAD SEM GERIR "EITT REIT" EINFALT I **ANNAD** SINN.
+
+   Saetid krefst identitets: `resolveSlot` les `draft_order[user_id]`, svo
+   sa sem limir inn deildarslod i ferskum vafra og hefur aldrei slegid inn
+   notandanafn faer rettilega spurninguna "hvada lid er thitt?" (kafli 2e).
+   En SVARID vid henni ER identitetid — `t.userId` kemur ur
+   `rosters[].owner_id`, sem er sama snjokornid og `/user/{nafn}` skilar.
+   Ad henda thvi og spyrja aftur i naesta mock vaeri ad gleyma thvi sem
+   notandinn var buinn ad segja.
+
+   PROFID ER TVISKIPT AF NAUDSYN, sama lexia og i kafla 2bb2: an
+   endurhledslu i millitidinni gaeti fullyrdingin verid uppfyllt af
+   `userId`-astandinu i hlutnum sjalfum, sem lifir hvorki F5 ne svissun
+   (`key={activeId}`). Lota 2 hledur upp a nytt og tengir MOCK sem
+   appid hefur aldrei sed, an thess ad neitt se slegid inn.
+
+   VARFAERNIN ER PROFUD LIKA: audkenni sem er ThEGAR til ma ekki
+   yfirskrifast. Þad kom fra notandanum sjalfum; smellur a lid i EINNI
+   deild ma ekki endurskilgreina hver hann er i ollum hinum.           */
+console.log("\n2e2. smellur a lidid kennir appinu hver eg er");
+{
+  scenario = SCENARIOS.leagueUrl; sleeperMode = "ok";
+  let root = await boot();
+  ok(localStorage.getItem("nfl_sleeperUser") === null ||
+     !JSON.parse(localStorage.getItem("nfl_sleeperUser")).userId,
+    "forsenda: appid veit ekki hver eg er (ferskur vafri, ekkert nafn slegid)");
+
+  await go("https://sleeper.com/leagues/1389356308104249344/predraft");
+  await waitFor(() => /rules imported/i.test(text()), 4000);
+  await click([...document.querySelectorAll("button.chip")]
+    .find((c) => /7\.\s*mattitim/.test(c.textContent || "")));
+  await settle(300);
+
+  const stored = () => JSON.parse(localStorage.getItem("nfl_sleeperUser") || "null");
+  ok(stored() && stored().userId === "u7",
+    `smellurinn VISTADI audkennid (${stored() ? stored().userId : "ekkert"})`);
+
+  /* --- lota 2: endurhledsla, og MOCK sem appid hefur aldrei sed --- */
+  await act(async () => { root.unmount(); });
+  root = createRoot(document.getElementById("root"));
+  await act(async () => { root.render(React.createElement(App)); });
+  await settle(700);
+  ok(stored() && stored().userId === "u7", "audkennid lifdi endurhledsluna");
+
+  scenario = SCENARIOS.mock10;
+  await go("m10");
+  await waitFor(() => /read from Sleeper/i.test(text()), 4000);
+  ok(/Your seat is slot\s*4|You are[^,]*,\s*slot\s*4/.test(text().replace(/\s+/g, " ")),
+    `saetid lest ur mock-inu AN ad neitt se slegid inn ("${
+      (/(Your seat is|You are)[^.]{0,42}/.exec(text().replace(/\s+/g, " ")) || ["ekkert"])[0]}")`);
+  ok(/read from Sleeper/i.test(text()), "og thad er merkt sem lesid, ekki innslegid");
+  /* Og logunin er SU SAMA, svo ljosid er graent — annars vaeri thessi
+     kafli lika ad maela logunar-hlidid og hvorugt vaeri skyrt. */
+  ok(conn() === "good", `og ljosid er graent (sama logun) — fann "${conn()}"`);
+
+  /* VARFAERNIN: audkennid ma ekki yfirskrifast af smelli a ANNAD lid. */
+  await click([...document.querySelectorAll("button.chip")]
+    .find((c) => /^3\.\s/.test((c.textContent || "").trim())));
+  await settle(200);
+  ok(stored() && stored().userId === "u7",
+    `smellur a annad lid yfirskrifar EKKI audkennid (${stored() ? stored().userId : "ekkert"})`);
+  await act(async () => { root.unmount(); });
 }
 
 /* ============================================================

@@ -1489,7 +1489,13 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   const connected = !!info && mismatch.length === 0;
   /* EIN LINA, ekki malsgrein. Rodin er akvordud af thvi hvad notandinn
      getur gert naest. */
-  const why = mismatch.length ? `${mismatch.join(", ")} — connect the league this draft belongs to`
+  /* LOGUNIN FYRST — hun er STANDANDI astand, medan `status` er utkoma
+     einnar adgerdar. En hin ma ekki THAGNA undir henni: notandi sem ytir
+     a Connect a rongu audkenni MEDAN logunin rekur fekk annars enga
+     svorun um smellinn sinn. Baðar, i thessari rod. */
+  const why = mismatch.length
+      ? `${mismatch.join(", ")} — connect the league this draft belongs to`
+        + (status ? ` · ${status}` : "")
     : status ? status
     : pollErr ? `Sleeper did not answer: ${pollErr}`
     : !sync.draftId ? "paste a league link, draft link, id or your Sleeper username above"
@@ -1593,18 +1599,59 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         <div style={{ marginTop: 10 }}>
           <div className="dim" style={{ fontSize: 12.5, marginBottom: 4 }}>
             {sync.slot != null
-              ? <>You are <b>{seatName || `slot ${sync.slot}`}</b>, slot <b>{sync.slot}</b>
+              ? <>{seatName
+                    ? <>You are <b>{seatName}</b>, slot <b>{sync.slot}</b></>
+                    /* NAFNID VANTAR — og tha ma talan ekki koma tvisvar.
+                       Fyrsta utgafan skrifadi `seatName || \`slot N\`` inn i
+                       nafna-sætið og gaf **"You are slot 11, slot 11"**;
+                       varaheitid ur `teamsFromLeague` ER saetatalan, svo
+                       thad var sama talan tvitekin i sitthvorum reit. */
+                    : <>Your seat is slot <b>{sync.slot}</b></>}
                   {slotAuto && <span className="good"> · read from Sleeper</span>}
                   {" — "}<span className="dim">click another to change it</span></>
               : <>Which team is yours? Your own picks only fill the roster below once
                   this is set.</>}
           </div>
+          {/* ============================================================
+              SMELLUR A ThITT LID KENNIR APPINU HVER THU ERT
+              ============================================================
+              Þetta er thad sem gerir "eitt reit" raunverulega einfalt i
+              ANNAD sinn. Saetid krefst IDENTITETS (`resolveSlot` les
+              `draft_order[user_id]`), svo sa sem limir inn deildarslod i
+              ferskum vafra og hefur aldrei slegid inn notandanafn faer
+              rettilega spurninguna "hvada lid er thitt?".
+
+              En SVARID vid henni ER identitetid: `t.userId` kemur ur
+              `rosters[].owner_id`, sem er sama snjokornid og
+              `/user/{nafn}` skilar. Ad henda thvi og spyrja aftur i
+              naesta mock vaeri ad gleyma thvi sem notandinn var buinn ad
+              segja.
+
+              VARFAERNIN ER I EINU SKILYRDI: audkenni sem er ThEGAR til
+              er ekki yfirskrifad. Þad kom ur `/user/{nafn}` — notandinn
+              nefndi sig sjalfur — og smellur a lid i EINNI deild ma ekki
+              endurskilgreina hver hann er i ollum hinum. Nafnid er lika
+              varðveitt ef thad er til, thvi `t.name` getur verid
+              LIDSHEITI (`metadata.team_name`) og forsidan flettir upp
+              eftir notandanafni thegar audkennid vantar.              */}
           <div className="chips">
             {teams.map((t, i) => (
               <button key={`${t.slot}|${t.userId || i}`}
                 className={`chip${t.slot != null && t.slot === sync.slot ? " on" : ""}`}
                 disabled={t.slot == null}
-                onClick={() => { setSlotAuto(false); setSync({ ...sync, slot: t.slot }); }}>
+                onClick={() => {
+                  setSlotAuto(false);
+                  setSync({ ...sync, slot: t.slot });
+                  if (t.userId) {
+                    setUserId((prev) => prev || String(t.userId));
+                    if (setSleeperUser) {
+                      setSleeperUser((prev) => (prev && prev.userId) ? prev : {
+                        name: (prev && prev.name) || String(t.name || ""),
+                        userId: String(t.userId),
+                      });
+                    }
+                  }
+                }}>
                 {t.slot != null ? `${t.slot}. ` : ""}{t.name}
               </button>
             ))}
@@ -1716,10 +1763,8 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         if (sync.slot >= 1 && sync.slot <= lt) return null;
         return (
           <div className="note warn" style={{ marginTop: 10 }}>
-            <b>Slot {sync.slot} does not exist in a {lt}-team league.</b>{" "}
-            The board is treating your seat as unknown: nobody is shaded, and the
-            pick advice falls back to assuming the pick on the clock is yours. Set a
-            slot between 1 and {lt}, or import the league this draft belongs to.
+            <b>Slot {sync.slot} does not exist in a {lt}-team league</b> — nobody is
+            shaded and the advice assumes the pick on the clock is yours.
           </div>
         );
       })()}

@@ -4117,29 +4117,50 @@ hann gæti verið að æfa sig í mock-i af annarri stærð viljandi). Það sem
 er **þögnin**: mismunurinn er nú **staða á tengingunni**, ekki málsgrein í miðjum
 texta.
 
-#### Stöðuljósið er þriggja stöðu og það er mælt af reynslu hans
+#### Stöðuljósið — þrjár stöður urðu TVÆR, og vörnin var LEYST, ekki slökkt
 
-Beiðni notandans var tveggja stöðu: *„status ljos sem er rautt eda graent eftir
-thvi hvort tenging tokst"*. **Tveggja stöðu ljós hefði verið GRÆNT allan þann
-mock-draft** — tengingin heppnaðist; það var lögunin sem var röng. Því:
+**17.8.2026** var ljósið gert þriggja stöðu þótt beiðnin væri tveggja
+(*„status ljos sem er rautt eda graent eftir thvi hvort tenging tokst"*), með
+þeim rökum að tveggja stöðu ljós hefði verið **grænt allan þann mock-draft** —
+tengingin heppnaðist; það var lögunin sem var röng.
+
+**19.8.2026 bað hann um það sama í þriðja sinn** og þá var röksemdin skoðuð
+aftur. Hún var rétt um afleiðinguna og **röng um forsenduna**: hún gerði ráð
+fyrir að „tengt" þýði *„kallið gekk"*. Það er ekki það sem notandi spyr um.
+Hann spyr hvort **tölurnar á skjánum eigi við draftið sem hann er í** — og séu
+þær reiknaðar fyrir aðra deild er svarið nei.
 
 | ljós | merking |
 |---|---|
-| **grænt** | tengt, og draftið er sama lögun sem borðið reiknar |
-| **gult** | tengt, EN lögunin stemmir ekki — tölurnar eru úr annarri deild |
-| **rautt** | tengingin brast |
+| **grænt** „Connected" | Sleeper svaraði um ÞETTA draft, **og** lögunin er sú sem borðið reiknar |
+| **rautt** „Disconnected" | allt annað: engin tenging, kallið brast, **eða lögunin stemmir ekki** |
 
-Liturinn er **ekki eina merkið**: kassinn ber orðin (`connected` / `wrong shape` /
-`not connected`) og `data-conn`-svið, svo hann les eins fyrir þann sem greinir
-ekki grænt frá gulu og fyrir próf sem lesa DOM-inn.
+Lögunar-tilfellið fær **eina línu** við ljósið (*„draft has 10 teams, league has
+14 — connect the league this draft belongs to"*) og eina línu um kostnaðinn
+(VBD-röðin, `WR29 -> WR42`). Málsgreinin sem stóð þar áður var ~460 stafir; hún
+er nú ~200, og **kafli 16 mælir þá tölu** — viðvörun í vegg af texta er einmitt
+villan sem kostaði hann mock-draftið.
 
-**Vörður: `draft-live.mjs` kaflar 16 og 16b.** Kafli 16 lætur lögunina **reka í
-sundur** (deild 12 lið, draft 10) og krefst þriggja hluta: snakk-tölurnar komi úr
-draftinu (næsta val 14, ekki 18), þakið komi úr draftinu (*„All 150 picks are
-in"*, hvergi „Pick 151"), og að **gul lögun geti ALDREI teiknast græn**. Kafli 16b
-er andstæðan og hann er nauðsynlegur: án hans væri kafli 16 uppfyllanlegur með
-ljósi sem er **aldrei** grænt (sama regla og 5b: neikvæð fullyrðing verður að
-nefna streng sem var sannanlega þarna).
+Liturinn er **ekki eina merkið**: orðin standa við hann (`Connected` /
+`Disconnected`) og `data-conn`-sviðið er í DOM-inum, svo hann les eins fyrir þann
+sem greinir ekki grænt frá rauðu og fyrir próf.
+
+**Vörður: `draft-live.mjs` kaflar 16 og 16b + `sleeper.mjs` 2bb4.** Kafli 16
+lætur lögunina **reka í sundur** (deild 14 lið, draft 10) og krefst þriggja
+hluta: snakk-tölurnar komi úr draftinu (næsta val 14, ekki 22), þakið komi úr
+draftinu (*„All 150 picks are in"*, hvergi „Pick 151"), og að **röng lögun geti
+ALDREI teiknast græn**. Kafli 16b er andstæðan og hann er nauðsynlegur: án hans
+væri kafli 16 uppfyllanlegur með ljósi sem er **aldrei** grænt (sama regla og 5b).
+
+> **STÖKKBREYTINGAR-MÆLING 19.8.2026 — og hún fann veika fullyrðingu.**
+> `dTeams !== lTeams` var tekið úr sambandi. `draft-live.mjs` kafli 16 **hélt
+> áfram að segja rautt**, því þar skeika BÆÐI liðafjöldi og umferðir, svo
+> ljós-fullyrðingin var uppfyllt af hinum liðnum og aðeins textinn féll.
+> `sleeper.mjs` 2bb4 bar sama galla (mock 15 umferðir á móti 16). Umferðirnar í
+> mock-inu voru því **stilltar á 16, eins og deildin**, svo ljósið er rautt af
+> NÁKVÆMLEGA einni ástæðu — þeirri sem kostaði hann draftið: 12 lið á móti 10.
+> Sama ætt og *„fullyrðing sem þarf tvennt til að bregðast er veikari en hún
+> lítur út fyrir að vera"*. Eftir stillinguna fellur ljósið sjálft.
 
 > **HVERS VEGNA ENGIN AF 24 SÖFNUNUM GAT FELLT ÞETTA:** hvert einasta próf gaf
 > **sömu lögun á bæði deild og draft**. Fullyrðingin „valnúmerið er rétt" gat því
@@ -4148,6 +4169,146 @@ nefna streng sem var sannanlega þarna).
 > var ekki það sem fór í loftið"*) og `react-warnings.mjs` í FPL-verkefninu, sem
 > heimsótti 0 af 22 viðmótum og var grænt. **Próf sem getur ekki greint tvær
 > heimildir í sundur prófar hvoruga.**
+
+### 6b-1b. EITT REIT, EINN HNAPPUR, TVÖ LJÓS (19.8.2026)
+
+Beiðni notandans, **þrisvar**, tveimur dögum fyrir draftið:
+
+> *„eg vill bara hafa eitt plass til ad paista (ma gera league id eda allt url),
+> og svo connect button sem tengir allt og status ljos sem segir connected eda
+> disconnected med graenu og raudu"*
+
+Spjaldið bar **sex stýringar og málsgrein af texta**: deildarslóð + Connect,
+„or", notandanafn + Find leagues, Draft ID, Your slot, Start live sync. Hver
+þeirra var svar við raunverulegu tilfelli — og samanlagt var **tengingin sjálf
+orðin verkefni á draftkvöldi**.
+
+| áður | nú |
+|---|---|
+| „League or draft URL" + **Connect** | **eitt** reit: deildarslóð · draft-slóð · bert deildar-id · bert draft-id · **eða notandanafn** |
+| „or" + „Sleeper username" + **Find leagues** | sama reit (notandanafn er **varaleið**, sjá neðar) |
+| **Draft ID** (textareit) | forfyllt í sama reitnum — endurtenging eftir F5 er einn smellur |
+| **Your slot** (tölureit) | **leitt út**; birtist aðeins þegar leiðslan brestur |
+| **Start live sync** | Connect kveikir á henni sjálfur |
+| málsgrein (4 línur) um hvað Connect gerir | farin |
+
+#### Tvennt var leitt út í stað þess að spyrja
+
+**Sætið.** `resolveSlot` bar ÞEGAR þrjár leiðir (`draft_order[user_id]` ·
+`slot_to_roster_id` -> `rosters[].owner_id` · smellur á liðið); reiturinn var
+**fjórða leiðin að sama svari**. Það sem er leitt út er nú **sýnt með nafni** —
+*„You are mattitim, slot 7 · read from Sleeper"* — því rangt sæti gerir hverja
+tölu ranga (borðið litar engan, hópurinn fyllist aldrei, ráðgjafarkassinn giskar
+að valið á klukkunni sé mitt, sem er rangt í 9 völum af 10 í 10-liða deild). Þögul
+ágiskun er versta útkoman; **nafnið gerir vonda ágiskun sýnilega.**
+**Engin sjálfgefin 1:** `resolveSlot` skilar `null`.
+
+Reiturinn er **skilyrtur, ekki fjarlægður**: draft sem ber hvorki `draft_order`,
+`slot_to_roster_id` né notendalista gefur engin sætaspjöld, og þá er ekkert eftir
+að smella á. Skilyrðið er `teams.length === 0` — **sama skilyrði og gerir
+spjöldin engin**, svo þau tvö geta ekki bæði horfið.
+
+> Fyrsta útgáfa skilyrðisins var `sync.slot == null` og hún var röng í báðar
+> áttir: reiturinn hvarf um leið og sæti var slegið inn, svo **innsláttarvilla
+> varð óviðgerðanleg**, og sæti úr eldra vistuðu ástandi (`nfl_sync`, kafli 2h)
+> var hvergi sýnilegt. **Stýring sem hverfur þegar hún hefur verið notuð er verri
+> en engin.**
+
+**Samstillingin.** „Start live sync" var sér hnappur af **byggingarlegri** ástæðu,
+ekki af smekk: `live` var `useState` inni í `SleeperSync`, og innflutningur á
+deild breytir `activeId`, sem endurræsir `DraftBoard` (`key={activeId}`) — svo
+samstilling sem var kveikt í SÖMU aðgerð og innflutningurinn **var slökkt áður en
+hún byrjaði**. Ástandið er nú **skorða** ofar (`liveScope`, sjá 6b-3 hér að ofan).
+
+#### Notandanafn er VARALEIÐ, ekki fyrsta gisk — og það er mælt
+
+Reglan sem virkar á Sleeper (*„auðkenni eru 18–19 stafa snjókorn, notandanafn er
+það ekki"*) er **rétt um Sleeper og röng sem regla**: `d2`, `m12`, `L1` — auðkenni
+sem prófin og eldri gögn bera — eru hvorugt, svo formið getur ekki skorið úr.
+Reglan er því **ORÐIN**: reyndu auðkennið, og **aðeins** ef Sleeper segir að
+hvorki deild né draft sé til með því er notandanafn reynt. Kostnaðurinn er tvö 404
+fyrir þann sem límir inn nafn, einu sinni per smell.
+
+> **ÞETTA AFHJÚPAÐI TVÆR LYGAR Í HERMUNUM og báðar var nauðsynlegt að leiðrétta.**
+> `byDraft(id) || scenario` (`sleeper.mjs`) og `live.strictIds && !knownDraftId(id)`
+> (`draft-live.mjs`) létu **hvaða streng sem var** svara sem gilt draft. Það var
+> þægilegt — og það varð **bindandi** um leið og reiturinn tók við notandanafni:
+> `/draft/adi` svaraði með drafti, svo nafna-varaleiðin var **aldrei reynd** og
+> kaflarnir 6/6b/16 tengdu allt annað draft en þeir ætla. Raunverulegur Sleeper
+> skilar 404. Og `sleeperLeagues` skilaði `league_id: "L1"` sem svaraði engu —
+> **deildarlisti með auðkenni sem svarar engu er sama lygin í annarri mynd.**
+
+#### Tvær „stöður" sem deildu reit og átu hvor aðra
+
+`status` var bæði útkoma **aðgerðar** og útkoma **pollunar**. `connect` skrifaði
+villuna og næsta pollun skrifaði `setStatus(null)` af því að **hún** gekk — svo
+notandi sem ýtti á Connect á röngu auðkenni fékk **enga svörun** (6 ms í prófi,
+1,5 s í beinni). Nú `status` (aðgerð) og `pollErr` (pollun) hvor í sínum reit, og
+bæði eru birt í ljósinu. Vörður: `draft-live.mjs` kafli 15c — **mistekin tenging
+verður að segjast MEÐAN borðið sem er í gangi helst óskert** (ljósið er þá grænt,
+og það er rétt: tengingin slitnaði ekki, það var tilraunin sem brást).
+
+**Villuboðin urðu ensk** (`data.js`, 10 strengir). Þau voru íslensk í skjóli þess
+að þau sáust sjaldan í lítilli nótu neðst; ljósið ber þau nú við hliðina á
+„Disconnected", svo þau eru það fyrsta sem hann les.
+
+#### Vörður á loforðinu sjálfu: `draft-live.mjs` kafli 17
+
+Þrír hlutar sem hver getur brugðist einn:
+
+1. **Öll fjögur formin** fara gegnum sama reitinn — fjórar keyrslur, ekki ein,
+   því `parseSleeperInput` ber sitthvert mynstur og bert auðkenni er **tvírætt**
+   (deildar- og draft-id eru bæði 19 stafa snjókorn, svo `sleeperResolve` reynir
+   báðar leiðir). Þrjú af fjórum væri „nánast rétt" og hann myndi líma inn það
+   fjórða.
+2. **Einn smellur tengir OG samstillir** — völin koma á borðið án þess að neitt
+   annað sé ýtt, og fullyrðingin er í **báðar áttir**: enginn annar hnappur má
+   vera til sem hana gæti uppfyllt (`!btn(/live sync/)`).
+3. **Spjaldið ber EITT textareit og TVO hnappa** — talið, ekki skoðað (þekja er
+   fullyrðing). Væri „Draft ID" settur inn aftur sem *þægindi* fellur þetta.
+
+#### Smellur á þitt lið KENNIR appinu hver þú ert
+
+Það sem gerir „eitt reit" einfalt í **annað** sinn. Sætið krefst **identitets**
+(`resolveSlot` les `draft_order[user_id]`), svo sá sem límir inn deildarslóð í
+ferskum vafra og hefur aldrei slegið inn notandanafn fær rétt á sig
+spurninguna *„hvaða lið er þitt?"*. **En svarið við henni ER identitetið**:
+`t.userId` kemur úr `rosters[].owner_id`, sem er sama snjókornið og
+`/user/{nafn}` skilar. Að henda því og spyrja aftur í næsta mock væri að gleyma
+því sem notandinn var búinn að segja.
+
+Eftir einn smell á sitt lið er **hver mock á draftkvöldi með sætið sjálfkrafa**.
+Varfærnin er í einu skilyrði: **auðkenni sem er ÞEGAR til er ekki yfirskrifað** —
+það kom frá notandanum sjálfum, og smellur á lið í EINNI deild má ekki
+endurskilgreina hver hann er í öllum hinum.
+
+Vörður: `sleeper.mjs` kafli 2e2, **tvískiptur af nauðsyn** (sama lexía og 2bb2):
+án endurhleðslu í millitíðinni gæti fullyrðingin verið uppfyllt af
+`userId`-ástandinu í hlutnum sjálfum, sem lifir hvorki F5 né svissun. Lota 2
+hleður upp á nýtt og tengir **mock sem appið hefur aldrei séð**, án þess að
+neitt sé slegið inn — og mock-ið er viljandi í **sömu lögun** sem deildin, svo
+kaflinn mæli sætið og ekki lögunar-hliðið líka.
+
+#### Átta stökkbreytingar felldar 19.8.2026
+
+| stökkbreyting | felldi |
+|---|---|
+| lögunar-hliðið tekið úr sambandi (`connected = !!info`) | 5 fullyrðingar |
+| liðafjölda-liðurinn einn (`dTeams !== lTeams`) | 1 → **5** eftir að mock-umferðirnar voru stilltar (sjá 6b-3) |
+| `resolveSlot` skilar `1` í stað `null` | 9 + 1 |
+| sætis-reiturinn fjarlægður alveg | 4 + 7 |
+| annað textareit sett inn („Draft ID" aftur) | 4 |
+| `onLive` tekið út svo Connect samstillir ekki | **92** |
+| smellur á lið kennir ekkert | 5 |
+| smellur á lið yfirskrifar þekkt auðkenni | 1 |
+
+#### Þrennt sem var EKKI einfaldað, og hvers vegna
+
+| ekki gert | ástæða |
+|---|---|
+| **Sætaspjöldin** felld saman í eina fellilista | Þau eru **ekki prósa** heldur valmynd með nöfnum, og þau eru **eina** leiðin að sætinu í ferskum vafra. Fellilisti myndi fela nöfnin sem gera vonda ágiskun sýnilega |
+| Sér **„Disconnect"**-hnappur | „Reset & disconnect" gerir það þegar, og hann var **beinlínis settur þar** 16.8. að beiðni notandans. Þriðji hnappur til að slökkva á því sem Connect kveikti á væri sú flækja sem er verið að fjarlægja |
+| **Deildir sem flipar** beint úr notandanafni | `LeagueSwitcher` gerir þetta þegar — deild sem er tengd **verður** flipi. Það sem vantar er að tengja allar tíu í einni aðgerð, og það er **tíu Sleeper-köll** á draftkvöldi fyrir níu deildir sem hann er ekki að drafta í. Chip-röðin er einn smellur per deild og hún kostar ekkert fyrirfram |
 
 ### 6b-2. EN EITT AUGNABLIK ER EKKI DRAFT — 150 VÖL, EITT Í EINU (14.8.2026)
 
@@ -4240,14 +4401,21 @@ reynt:
 > einföld: **einn flipi**.
 
 > **OG EIN GILDRA ER FEST SEM HEGÐUN FREMUR EN LAGFÆRÐ.** Svissun um deild í
-> miðju drafti **slekkur á samstillingunni**: `live` er ástand í `SleeperSync`
-> og borðið er endurræst (`key={activeId}`), svo hún fer með. Að vista `live`
-> myndi þýða að appið byrjaði að polla af sjálfu sér við næstu hleðslu, sem
-> **tveir aðrir verðir banna berum orðum** (`audit.mjs` kafli 9, `dashboard.mjs`
-> kafli 1: *„pollun sem enginn kveikti á er bæði óvænt og dónaleg við
-> gestgjafann"*). Krafan er því að það **sjáist**, og `draft-live.mjs` kafli 14
-> festir hvort tveggja: hnappurinn segir „Start live sync" og hvergi stendur
-> „· live". Sama gildir eftir endurhleðslu. **Á draftkvöldi: ekki svissa.**
+> miðju drafti **slekkur á samstillingunni** — og eftir 19.8.2026 er ástandið
+> **skorða** (`liveScope` í `App.jsx`, `boardScope`-strengur) fremur en boolean
+> inni í `SleeperSync`. Það gefur þrjár reglur í einni línu: svissað um deild ->
+> önnur skorða -> slokknar · nýtt draft-auðkenni -> slokknar · endurhleðsla ->
+> `null`. Að **vista** hana myndi þýða að appið byrjaði að polla af sjálfu sér
+> við næstu hleðslu, sem **tveir aðrir verðir banna berum orðum** (`audit.mjs`
+> kafli 9, `dashboard.mjs` kafli 1: *„pollun sem enginn kveikti á er bæði óvænt
+> og dónaleg við gestgjafann"*), svo hún er **viljandi ekki vistuð**.
+>
+> Krafan er því að það **sjáist**, og akkerið er nú **ljósið** í stað hnapps:
+> `draft-live.mjs` kaflar 8 og 14 krefjast `data-conn="bad"`, orðsins
+> „Disconnected" og að hvergi standi „reading picks live". Hnappur getur verið
+> til án þess að segja neitt um ástandið; **rautt ljós ER ástandið.** Og
+> endurtenging kostar einn smell, því eina reitið er **forfyllt úr
+> tengingunni sem er í gildi**. **Á draftkvöldi: ekki svissa.**
 
 ### Flöktandi próf er verra en ekkert
 
