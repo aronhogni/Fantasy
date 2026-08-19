@@ -482,5 +482,72 @@ console.log("\n7. forsidan er tengd — kall OG nytilegt inntak");
     "cut > lidafjoldi er hafnad (`99` af 10 -> null) — athugunin er LIFANDI");
 }
 
+/* ============================================================
+   8. HVERT PROFASAFN VERDUR AD GETA FELLT BYGGINGUNA
+   ============================================================
+   ÞETTA SAFN SPYR "ER ROKFRAEDIN TENGD?". Hér er sama spurning logd
+   fyrir PROFIN SJALF, og svarid var NEI (19.8.2026).
+
+   `audit.mjs` — safnid sem er ætlað ad LEITA AD VILLUM — taldi `fail` i
+   hverri fullyrdingu og notadi hana aldrei: engin samantekt, ekkert
+   `process.exit`. Node skilar tha 0. Keyrslan prentadi
+   `FAIL ekkert rusl i neinum flipa (Sources: ordid null)` og endadi
+   fjorum sekundum sidar a `HEILD: oll 25 profasofnin graen`. Villan var
+   raunveruleg, safnid sa hana, og byggingin var graen.
+
+   ÞAD ER NAKVAEMLEGA SAMA AETT SEM ÞETTA SAFN VAR SKRIFAD UM: fall sem
+   er fullkomlega profad en aldrei kallad. Hér var thad exit-kodinn sem
+   var reiknadur en aldrei kalladur — og af thvi ad `run.mjs` telur
+   sofnin ur `SUITES`, var talan "25 graen" RANGFAERSLA um thekjuna, ekki
+   bara vantandi vordur.
+
+   TVAER FULLYRDINGAR, OG BADAR ERU NAUDSYNLEGAR:
+     1. hvert safn ber `process.exit` med `fail` i skilyrdinu — annars
+        getur thad ekki fellt bygginguna, hvad sem thad finnur.
+     2. hvert safn er i `SUITES` — annars keyrir thad ekki, hvad sem thad
+        getur fellt. `entry.mjs` var i thessum flokki: fullgildur vordur
+        med nium fullyrdingum, utan `SUITES`, keyrdur af engum. Sama og
+        `pos-vs-opponent.mjs` i FPL-appinu.
+
+   Listinn er LEIDDUR UT ur moppunni, ekki handskrifadur — handskrifadur
+   listi staðnar um leid og safni er baett vid, sem er villan sem
+   `run.mjs` varar sjalfur vid i haus sinum.                            */
+console.log("\n8. hvert profasafn getur fellt bygginguna");
+{
+  const { readdirSync } = await import("node:fs");
+  const TESTS = path.join(ROOT, "tests");
+  /* `run.mjs` er keyrarinn og `jsx-loader.mjs` er umhverfid — hvorugt
+     er profasafn. Allt annad i moppunni er thad. */
+  const INFRA = new Set(["run.mjs", "jsx-loader.mjs"]);
+  const suites = readdirSync(TESTS)
+    .filter((f) => f.endsWith(".mjs") && !INFRA.has(f)).sort();
+
+  /* ÞEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b): faeri lesturinn a
+     ranga moppu yrdi lykkjan tom og hver fullyrding hér nedan graen. */
+  ok(suites.length >= 20, `${suites.length} profasofn finnast i tests/`);
+
+  const runner = readFileSync(path.join(TESTS, "run.mjs"), "utf8");
+  /* `SUITES`-blokkin ein, ekki oll skrain — annars taldist safn sem er
+     NEFNT i athugasemd (t.d. `visual.mjs` i skyringunni) sem skrad. */
+  const block = (/const SUITES = \[([\s\S]*?)\n\];/.exec(runner) || [, ""])[1];
+  ok(block.length > 100, `\`SUITES\`-blokkin er lesin (${block.length} b)`);
+
+  const noExit = [], notListed = [];
+  for (const f of suites) {
+    const src = readFileSync(path.join(TESTS, f), "utf8");
+    /* Skilyrdid verdur ad NEFNA teljarann. `process.exit(0)` i lokin
+       vaeri exit-kodi sem getur ekki fellt neitt — sem er gatid sjalft
+       i nyjum klaedum. `visual.mjs` sleppir ser med `exit(0)` FYRR i
+       skranni og thad er rett; hér er spurt hvort SKRAIN beri
+       fail-hlidina yfirleitt. */
+    if (!/process\.exit\(\s*fail\s*\?\s*1\s*:\s*0\s*\)/.test(src)) noExit.push(f);
+    if (!new RegExp(`["']${f.replace(".", "\\.")}["']`).test(block)) notListed.push(f);
+  }
+  ok(noExit.length === 0,
+    `hvert safn ber \`process.exit(fail ? 1 : 0)\` (${noExit.join(", ") || "oll"})`);
+  ok(notListed.length === 0,
+    `og hvert safn er i \`SUITES\` (${notListed.join(", ") || "oll"})`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

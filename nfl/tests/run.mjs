@@ -11,6 +11,11 @@ const SUITES = [
   ["model.mjs"], ["accuracy.mjs"], ["learn.mjs"], ["market.mjs"],
   ["advice.mjs"], ["lineup.mjs"], ["names.mjs"], ["pipeline.mjs"],
   ["sleeper-league.mjs"], ["wiring.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
+  /* `entry.mjs` VAR UTAN THESSA LISTA og keyrdi thvi hja engum — fullgildur
+     vordur med nium fullyrdingum, skradur hvergi. Hann ver villu sem sast
+     BARA i notkun (NFL-hlekkurinn hladi FPL-appinu), svo hann er a
+     drattar-leidinni. Skradur 19.8.2026; vordur: `wiring.mjs` kafli 8. */
+  ["entry.mjs"],
   ["standings.mjs"], ["waivers.mjs"],
   ["usageblend.mjs"], ["dst.mjs"], ["advice-ledger.mjs"],
   ["render.mjs", true], ["audit.mjs", true], ["layout.mjs", true],
@@ -37,7 +42,16 @@ for (const [f, loader] of SUITES) {
     ? ["--import", `data:text/javascript,import{register}from"node:module";register("${here}jsx-loader.mjs","file://${here}")`, here + f]
     : [here + f];
   const r = spawnSync("node", args, { stdio: ["ignore", "inherit", "pipe"] });
-  if (r.status !== 0) failed++;
+  /* STDERR ER TEKID UPP TIL AD ÞAGGA NIDUR DEPRECATION-SUDID FRA
+     `module.register()` — en thad var THAGGAD OG SVO FLEYGT. Safn sem
+     HRYNUR skrifar stakkinn a stderr, svo keyrslan sagdi "safn fell" og
+     BIRTI EKKI EINA ORDI um hvers vegna. Nu er hann prentadur — en
+     ADEINS thegar safnid fellur, svo graen keyrsla er afram hrein. */
+  if (r.status !== 0) {
+    failed++;
+    const e = (r.stderr || "").toString().trim();
+    if (e) console.log(`--- stderr (${f}) ---\n${e}`);
+  }
 }
 console.log(`\n${"=".repeat(56)}`);
 console.log(failed ? `HEILD: ${failed} af ${SUITES.length} profasofnum fell`

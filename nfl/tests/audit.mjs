@@ -496,3 +496,33 @@ console.log("\n9. netkoll");
     `engin Sleeper-koll utan forsidunnar (${stray.length} af ${sleeperUrls.length})`);
 }
 
+/* ============================================================
+   NIDURSTADA — OG HUN VERDUR AD KOMAST UT UR FERLINU
+   ============================================================
+   ÞETTA VANTADI, OG ÞAD GERDI ALLT SAFNID SKRAUT (19.8.2026).
+   `fail` var talid i hverri einustu fullyrdingu hér fyrir ofan og svo
+   ALDREI notad: skrain endadi a kafla 9 an samantektar og an
+   `process.exit`. Node skilar tha 0, `run.mjs` telur safnid graent, og
+   keyrslan endadi a "HEILD: oll 25 profasofnin graen" MEDAN kafli 1
+   prentadi `FAIL ekkert rusl i neinum flipa (Sources: ordid null)`.
+
+   Safnid var thvi ekki bara ohaeft ad fella — thad var virk RANGFAERSLA
+   um thekjuna: talan 25 sagdi ad 25 sofn hefdu stadist prof, en eitt
+   theirra gat ekki fallid, hvad sem thad fann. Sama flokkur og
+   `react-warnings.mjs` i FPL-appinu sem heimsotti 0 af 22 vidmotum og
+   var graent (CLAUDE.md 5b), nema verri: thar var thekjan tom, hér var
+   hun raunveruleg og NIDURSTADAN var thogguð.
+
+   Fyrsta fullyrdingin sem thetta fellir er su sem var alltaf ad segja
+   satt: `null` i Sources-flipanum.
+
+   `warn` fellir EKKI — `soft()` er fyrir thad sem er vert ad sja en er
+   ekki fullyrding. Talan er samt prentud, annars er hun ekki til. Vordur
+   gegn thvi ad thetta gleymist aftur: `wiring.mjs` kafli 8, sem les
+   HVERT safn i tests/ og krefst thess ad thad beri exit-kodann OG se i
+   `SUITES`.                                                            */
+console.log(`\n${"=".repeat(56)}`);
+console.log(fail ? `${fail} PROF FELLU (${warn} vidvaranir)`
+                 : `oll prof graen (${warn} vidvaranir)`);
+process.exit(fail ? 1 : 0);
+
