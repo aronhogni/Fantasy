@@ -226,11 +226,18 @@ const waitFor = async (cond, ms = 4000) => {
 
 /** Setur upp heiminn og opnar forsiduna. */
 async function boot({ entries = [L_A, L_B], user = { name: "mattitim", userId: "u-me" },
-                      openHome = true } = {}) {
+                      openHome = true, seed = null } = {}) {
   localStorage.clear();
   localStorage.setItem("nfl_leagues", JSON.stringify(entries));
   localStorage.setItem("nfl_activeLeague", JSON.stringify(entries[0] ? entries[0].id : ""));
   if (user) localStorage.setItem("nfl_sleeperUser", JSON.stringify(user));
+  /* `seed` VERDUR AD KOMA EFTIR `clear()`. Kallandi sem setur lykil
+     A UNDAN `boot` fær hann thurrkadan ut og profid les tha tomt astand
+     sem "eiginleikinn virkar ekki" — fyrsta utgafa kafla 9 gerdi einmitt
+     thad og sa "No roster yet". */
+  if (seed) for (const [k, v] of Object.entries(seed)) {
+    localStorage.setItem(k, JSON.stringify(v));
+  }
   calls.length = 0;
   const root = createRoot(document.getElementById("root"));
   await act(async () => { root.render(React.createElement(App)); });
@@ -1369,6 +1376,113 @@ console.log("\n8. engin deild tengd");
   ok(calls.length === 0,
     `og EKKERT sott fyrir deild an Sleeper-audkennis (${calls.length})`);
   root.unmount();
+}
+
+/* ============================================================
+   9. "VARNAR-LIDURINN VANTAR" ER SAGT A BADUM STODUM (19.8.2026)
+   ============================================================
+   Kafli 3 ver ad BADIR lesmatar sendi `season` inn i `weekContext`.
+   Thetta ver naesta lag: ad BADIR SEGI thad thegar vornin er ekki til.
+
+   HVERS VEGNA ThETTA VAR VILLA OG EKKI SMEKKUR. `defense.json` ber
+   ENGAR radir fyrir yfirstandandi timabil fyrr en fyrsta vikan er
+   spiluð (maelt: radir eru 2019-2025, engar 2026). `weekRows` sendir tha
+   `def: null` inn i `weeklyProjection`, svo BYRJUNARLIDID a "My team" er
+   radad a markadslinuna EINA. Dashboard segir thad berum ordum; MyTeam
+   sagdi ekkert og las thvi eins og full maeling. Uttekt 19.8.2026.
+
+   OG ThETTA ER NAKVAEMLEGA KODINN SEM KVIKNAR 21. AGUST: i forleik er
+   `preseason` satt og notan birtist ALDREI, svo hun hefdi verid oprofud
+   fram ad fyrsta leik. `inSeason` hér gefur viku 5 i 2026, sem er sama
+   astandid og vika 1 — engin vorn fyrir arid.                        */
+console.log("\n9. MyTeam segir ad varnar-lidurinn vanti (eins og Dashboard)");
+{
+  played = true; sleeperMode = "ok";
+
+  /* HOPUR VERDUR AD VERA TIL, ANNARS ER SPJALDID "No roster yet" OG
+     NOTAN BIRTIST ALDREI. `MyTeam` les merkta menn ur
+     `nfl_myPicks:<boardScope>`; L_A hefur ekkert `draftId` svo skopid er
+     deildar-audkennid eitt. Fimmtan menn (QB/RB/WR/TE/K/DST) sem allir
+     bera `projSleeper`, svo `optimalLineup` faer raunverulegar tolur. */
+  const root = await boot({ openHome: false, seed: {
+    [`nfl_myPicks:${L_A.id}`]:
+      ["19", "96", "1379", "2359", "3198", "4034", "1479", "2078",
+       "2133", "2216", "2449", "1466", "2505", "650", "HOU"],
+  } });
+
+  /* `myteam` ER FALIN A BAK VID "More" (asett, sja TABS i App.jsx), svo
+     stikan verdur ad vera opnud fyrst. Fyrsta utgafa thessa kafla leitadi
+     beint og fann engan flipa — og hefdi ordid graen tom fullyrding hefdi
+     hun ekki lika krafist "Start these". */
+  const more = [...document.querySelectorAll("button.tab")]
+    .find((b) => /More/.test(b.textContent || ""));
+  ok(!!more, "\"More\" fannst (myteam er falin a bak vid hann)");
+  await click(more);
+  await settle(300);
+
+  /* ThEKJA ER FULLYRDING: opnist flipinn ekki er allt hér nedar tomt. */
+  const tab = [...document.querySelectorAll("button.tab")]
+    .find((b) => /My team/.test(b.textContent || ""));
+  ok(!!tab, "My team-flipinn fannst");
+  ok(await click(tab), "og hann opnadist");
+  await settle(700);
+  const t = text();
+
+  /* Vid VERDUM ad vera i lifandi grein, ekki i forleiks-notunni —
+     annars vaeri fullyrdingin nedan sonn af rangri astaedu (5b regla 2). */
+  ok(/Start these/.test(t), "byrjunarlids-spjaldid er a skjanum");
+  ok(!/season projections divided by seventeen/i.test(t),
+    "og vid erum i LIFANDI viku, ekki i forleiks-greininni");
+
+  ok(/defence term is absent, not zero/i.test(t),
+    "MyTeam SEGIR ad varnar-lidurinn vanti (ekki thogull null-lidur)");
+  ok(/ranked on the betting line only/i.test(t),
+    "og segir hvad talan ber i stadinn");
+  root.unmount();
+}
+
+/* ============================================================
+   9b. BADAR GREINAR ERU RETTAR — OG TALAN ER EKKI ENDURREIKNUD
+   ============================================================
+   DOM-profid ad ofan naer adeins null-greininni, thvi `data.js` ber
+   sameiginlegt skyndiminni per lotu og `defense.json` er thvi FEST
+   (skjalad vid `inSeason` ad ofan). Hin greinin er thvi profud thar sem
+   hun er akvedin — i `weekContext`, sem er hreint fall — og TENGINGIN
+   er profud byggingarlega.                                          */
+console.log("\n9b. baðar greinar: 2026 -> engin vorn, 2025 -> 160 radir");
+{
+  const { weekContext } = await import("../src/weekview.js");
+  const defense = JSON.parse(readFileSync(path.join(DATA, "defense.json"), "utf8"));
+  const schedule = JSON.parse(readFileSync(path.join(DATA, "schedule.json"), "utf8"));
+
+  const now = weekContext({ schedule, defense, week: 1, season: 2026 });
+  ok(now == null || now.defSeason === null,
+    "2026: `defSeason` er null — vorn arsins er ekki til enn");
+
+  const old = weekContext({ schedule, defense, week: 1, season: 2025 });
+  ok(old != null && old.defSeason === 2025 && old.defRows > 0,
+    `2025: defSeason 2025 med ${old ? old.defRows : 0} radir — hin greinin er nathaleg`);
+
+  /* OG MYTEAM LES ThAER UR `weekContext`, TELUR ThAER EKKI SJALFT.
+     Afrit af talningunni vaeri `buildTeamMetrics`-villan aftur. */
+  const src = readFileSync(path.join(ROOT, "src", "MyTeam.jsx"), "utf8");
+  ok(/weekly\s*\?\s*weekly\.defSeason/.test(src),
+    "MyTeam les `defSeason` UR `weekContext` (engin eigin talning)");
+  ok(/weekly\s*\?\s*weekly\.defRows/.test(src),
+    "MyTeam les `defRows` UR `weekContext` (engin eigin talning)");
+  ok(!/defense\s*\.\s*filter|defense\s*\.\s*reduce/.test(src),
+    "og MyTeam telur EKKI radir i `defense.json` sjalft");
+
+  /* BADAR SETNINGARNAR VERDA AD VERA I SKRANNI. Fullyrdingin ad ofan
+     naer aðeins theirri sem birtist i dag; hin kviknar thegar fyrsta
+     vikan er spiluð og enginn yrdi vidstaddur til ad sja hana falla. */
+  /* Uppruninn brytur setninguna yfir linur inni i `<b>`, svo bil-vidkvaem
+     leit fellur a snidi og ekki a innihaldi. Leitin er thvi bil-frjals —
+     og hun er ekki tautologia: DOM-kaflinn ad ofan sannar ad SAMA setning
+     kemst raunverulega a skjainn. */
+  const flat = src.replace(/\s+/g, " ");
+  ok(/defence term is absent, not zero/.test(flat), "null-greinin er i skranni");
+  ok(/includes defence-vs-position from/.test(flat), "og hin greinin lika");
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

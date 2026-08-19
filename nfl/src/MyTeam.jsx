@@ -128,7 +128,35 @@ export default function MyTeam({ rows, league, news, meta, market, schedule, def
         </div></div>
       ) : (
         <>
-          <Lineup lineup={lineup} slots={slots} preseason={preseason} />
+          {/* ============================================================
+              VARNAR-LIDURINN VANTAR I VIKU 1 — OG THAD VAR ThOGULT HER
+              ============================================================
+              `Dashboard.jsx` segir thetta berum ordum: `defense.json` ber
+              ENGAR radir fyrir yfirstandandi timabil fyrr en fyrsta vikan
+              er spiluð, svo "okkar" tala ber ThA markadslinuna EINA og
+              varnarlidurinn er FJARVERANDI — ekki null.
+
+              `weekRows` -> `weeklyProjection` faer `def: null` i thvi
+              tilfelli, svo BYRJUNARLIDID HER ER RADAD an varnar-lidsins
+              nakvaemlega eins og bordid i Dashboard — en thetta spjald
+              sagdi ekkert. Sama "laert a einum stad" mynstur og skjolunin
+              vid `weekContext` her fyrir ofan lysir (514 rangir motherjar
+              af thvi ad `season` vantadi a EINUM kallstad).
+
+              TOLURNAR ERU EKKI ENDURREIKNADAR: `weekContext` SKILAR
+              `defSeason`/`defRows` og badir notendur lesa THAER. Ad telja
+              radirnar hér upp a nytt vaeri afritid sem `buildTeamMetrics`
+              kostadi i FPL-hlutanum.
+
+              SETNINGIN ER I TVEIMUR SKRAM I DAG og rett endastada er eitt
+              sameiginlegt vidmotsbrot. Thad var EKKI gert i thessari lotu
+              thvi Dashboard.jsx er i hondum annarrar lotu tveimur dogum
+              fyrir draft; skjolun a badum stodum er skarra en samhliða
+              breyting a skra sem einhver annar er ad vinna i.        */}
+          <Lineup lineup={lineup} slots={slots} preseason={preseason}
+                  defSeason={weekly ? weekly.defSeason : null}
+                  defRows={weekly ? weekly.defRows : null}
+                  season={meta ? meta.season : null} week={curWeek} />
           <Alerts roster={roster} news={news} />
         </>
       )}
@@ -224,7 +252,7 @@ function RosterSource({ rows, ids, setIds, season, onSleeper, sleeperRoster,
 /* ============================================================
    BYRJUNARLIDID
    ============================================================ */
-function Lineup({ lineup, slots, preseason }) {
+function Lineup({ lineup, slots, preseason, defSeason, defRows, season, week }) {
   return (
     <>
       <div className="panel">
@@ -238,6 +266,23 @@ function Lineup({ lineup, slots, preseason }) {
             week has been played. Once the season starts each week gets its own
             number — opponent, the betting line and injury status all move it.
           </div>
+        )}
+        {/* Sami urskurdur og i Dashboard, sama ordalag, SOMU tolur ur
+            `weekContext`. Aðeins utan forleiks: i forleik ER engin vika og
+            notan hér fyrir ofan segir thegar allt sem er ad segja.      */}
+        {!preseason && (
+          defSeason == null
+            ? <div className="note warn">
+                No defence-vs-position rows exist for{" "}
+                {season != null ? season : "this season"} yet, so this lineup is
+                ranked on the betting line only — <b>the defence term is absent,
+                not zero</b>. It appears once a week has been played, and it can
+                reorder these slots.
+              </div>
+            : <div className="dim" style={{ fontSize: 11.5, marginTop: 5 }}>
+                Week {week} ranking includes defence-vs-position from {defSeason}{" "}
+                ({defRows} team-position rows).
+              </div>
         )}
         {lineup.unfilled.length > 0 && (
           <div className="note warn">
