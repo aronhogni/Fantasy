@@ -91,7 +91,13 @@ const SURFACES=[
   ["👥 Player stats",  ["All","GK","DEF","MID","FWD",
                         "Basics","Attack","Defence","Consistency (Aron)","Upcoming fixtures",
                         "Set pieces and cards","≡ compact",
-                        "Build table","Imminent","Groups","Gameweeks"]],
+                        /* BUY WINDOWS: hamurinn OG thad sem tekur ramma AF holfum
+                           (bil-val og rodunar-skipti). React kvartar adeins vid
+                           ENDURTEIKNINGU thegar eiginleiki er FJARLAEGDUR, svo ad
+                           heimsaekja hamurinn EITT vaeri toom fullyrding — sama
+                           laerdomur og kveikt/slokkt-kaflinn i kafla 5b.        */
+                        "Build table","Buy windows","pick","best window","next window",
+                        "Imminent","Groups","Gameweeks"]],
   ["🛡️ Teams",        ["Gameweeks","What the keeper faces","Defence","Attack","Discipline and set pieces"]],
   ["📊 Gameweek",      ["Overview","Shot map","Players","Matches"]],
   ["🏆 Leaderboard",   ["All","GK","DEF","MID","FWD","Basics","Attack","Defence",

@@ -36,7 +36,9 @@ flestar tómar tölur í appinu.
 | Proxy | Netlify function `netlify/functions/odds.js` | **EINA** sem Netlify hýsir |
 
 **Sjö flipar** (`view` í `App.jsx`): `⚽ Planner` (upprunalega appið) ·
-`👥 Player stats` (`PlayerList.jsx` — aðalverkfærið, sjá 6s) · `🛡️ Teams`
+`👥 Player stats` (`PlayerList.jsx` — aðalverkfærið, sjá 6s; **fjórir
+lesmátar**: `Groups` · `Build table` · **`Buy windows`** (`BuyWindows.jsx`,
+19.8.2026) · `Imminent`) · `🛡️ Teams`
 (`Teams.jsx`) · `📊 Gameweek` (`GwReport.jsx`) · `🏆 Leaderboard`
 (`Leaderboard.jsx`) · `Best of the best` (`BestOfBest.jsx`, kórónu-ikon) ·
 `Set pieces` (`SetPieces.jsx`).
@@ -58,6 +60,7 @@ keyra nákvæmlega sama kóða og appið birtir.** Ekki afrita formúlur inn í
 | `teamstats.js` — liða-tölur | `Teams.jsx` · `Leaderboard.jsx` |
 | `advisor.js` — kaup-ráðgjöfin | `SetPieces.jsx` · `Leagues.jsx` · `Imminent.jsx` |
 | `bsd.js` — BSD-samlagning | `ShotMap.jsx` · `Icons.jsx` · `Pitch.jsx` |
+| `buywindow.js` — kaup-gluggar per leikmann | `BuyWindows.jsx` |
 
 > **ENGAR LÍNUTÖLUR HÉR — ÞÆR REKA.** Taflan bar áður nákvæman línufjölda
 > per skrá; hann var **úreltur innan sólarhrings** (t.d. `App.jsx` 4.162 ->
@@ -236,6 +239,64 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
 - **Róterings-par raðast eftir VINNINGI, ekki þekju** (hrein þekja setur menn í
   slökum liðum á toppinn); auð umferð er ÞYNGST (3); verðþakið er
   **UI-afmörkun, EKKI hluti líkansins**.
+- **KAUP-GLUGGAR (`buywindow.js`, 19.8.2026) ERU AFSTÆÐIR VIÐ MANNINN
+  SJÁLFAN — og það er ÖNNUR spurning en FFDR-taflan svarar.** Taflan er
+  **algild** („hvern á ég að kaupa"); glugginn er **afstæður við hans eigið
+  meðaltal** yfir sýnda bilið („HVENÆR á ég að kaupa hann"). Bæði eru rétt um
+  sína spurningu og bæði bera merkimiða um hvor er hvor á skjánum. **Algild
+  regla var mæld og hafnað** (kafli 4): með þröskuldi á græna þrepinu fær
+  Arsenal **einn glugga, GW1–38**, sem er satt og gagnslaust.
+  · Einingin er `lookupPos(pos,"pts",d)` — **MEASURED_POS**, raunveruleg
+    meðalstig **MEÐAL-manns í þeirri stöðu**, ekki hans eigin geta. Það er
+    ásett: `ep_next` er null hjá mörgum í forleik og hefði þaggað heilan
+    glugga niður í 0 — tala sem les eins og „engir góðir leikir". Eigin geta
+    er fastur margfaldari og fellur hvort eð er út þegar borið er við hans
+    eigið meðaltal, svo **lögun glugganna er sú sama**.
+  · **STAÐAN ER INNTAK, OG ÞAÐ ER ÁSTÆÐAN FYRIR SÝNINNI:** mælt á öllum 20
+    liðum fá DEF og FWD **ólíka glugga í 17 af 20**, GK og DEF í 17 af 20.
+    Væri það 0 væri sýnin óþörf — FFDR-taflan gerði það sama. Vörður:
+    `buy-windows.mjs` kafli A10 fellur undir 10 af 20.
+  · **AUÐ UMFERÐ MÁ VERA INNI Í GLUGGA — VILJANDI ANDSTÆTT `greenRuns`.**
+    Þar SLÍTUR hún runu (runan spyr „á hann góðan LEIK í hverri viku?"); hér
+    er spurningin „er þetta góður tími að EIGA hann?" og þá er auð vika
+    kostnaður **inni í** glugganum, ekki endalok hans. Óvís umferð (`d`
+    vantar) KLYFUR hann hins vegar — vantar er ekki núll (kafli 8).
+  · **TILTÆKILEIKI ER EKKI Í ÞESSU.** Maður með `status:"i"`, `chance:0` og
+    enga dagsetningu fær avail 0 fyrir ALLAR 38 umferðir, svo röðin yrði öll
+    núll og gluggarnir hyrfu — birting sem les eins og „hann á engan góðan
+    leik" en þýðir „hann er meiddur í dag". Meiðsli lagast; leikjaprógrammið
+    gerir það ekki. Staðan er MERKT á röðinni (FPL-status ræður, kafli 6).
+  · **EINN MÆLIKVARÐI Á VAL OG ÞAK — ÞAÐ VAR VILLA Í FYRSTU ÚTGÁFU.** Leitin
+    velur eftir **skori** (`sum/(len+3)`) en þakið skar eftir **ábata**, svo
+    gluggi sem leitin valdi FYRST var skorinn burt fyrir lengri glugga sem
+    var VERRI á sinn eigin mælikvarða. Fannst af slembna prófinu (1 af 300).
+    `windows[0]` er því valröðin sjálf, og viðmótið raðar eftir SÖMU tölu.
+  · **LITURINN VAR ALGILDUR MEÐAN RAMMINN VAR AFSTÆÐUR — LAGAÐ 19.8.2026.**
+    Notandinn: *„það þarf ekki að vera absolute green, bara besta tímabil
+    leikmannsins — ef ég ætla að kaupa hann hvort sem er, hvaða gameweeks á
+    ég að kaupa hann í."* Gluggarnir voru afstæðir frá fyrstu útgáfu, en
+    hólfin voru máluð með `tierOf(d)`, svo **besta runa Hull-varnarmanns var
+    römmuð í grænu og máluð rauð** — tvær fullyrðingar um sama hólf, hvor úr
+    sinni spurningu. Mælt: **Hull, allar fjórar stöður, á ENGA umferð undir
+    hlutlausa þrepinu** á algilda kvarðanum (4 af 80 samsetningum; 36 raðir
+    á skjánum). Nú er **`his own` sjálfgefinn kvarði** og `league` (kvarði
+    FFDR-töflunnar) einn smellur undan, bæði með merkimiða.
+  · **AFSTÆÐA VÖRPUNIN FÆRIR, HÚN TEYGIR EKKI:**
+    `tierOf(d − (meanD − NEUTRAL_MID))`. Þrepabreiddirnar eru áfram
+    **mældu deildar-sextílarnir** og `NEUTRAL_MID` er **LEIDD** af
+    `TIER_CUTS` og `TIER_NEUTRAL`, svo engin ný tala verður til.
+    **Sextílar HANS EIGIN gilda voru hafnað:** þá fengi hver leikmaður alla
+    sex litina og flöt leikjaskrá (spönn 0,04) læsi eins og sveiflukennd —
+    sama tap sem afstæð þrep innan LIÐS voru mæld og hafnað fyrir (~30% af
+    merkinu). Vörður: `buy-windows.mjs` kafli A9b, *„flöt leikjaskrá er ÖLL
+    hlutlaus"*, fellur við nákvæmlega þá stökkbreytingu.
+  · **`meanDifficulty` er NÁMUNDAÐ Í TVO AUKASTAFI eins og `d` sjálft.**
+    Talan er birt í tooltip-inu og er sú sem liturinn er reiknaður úr; með
+    fullri nákvæmni lágu **11 hólf** við þrepamörk á öðrum lit en birta talan
+    sagði. Tvær nákvæmnir á sama kvarða eru tveir kvarðar.
+  · **`MIN_WINDOW = 3` og `MAX_WINDOWS = 3` eru UI-afmarkanir**, eins og
+    verðþakið í `rotation.js` — ekki hluti líkansins. Ekkert í FFDR,
+    `rankScore` né væntum stigum les þessa skrá.
 - **Byrjunar-líkurnar eru KVÖRÐUN, ekki véfrétt.** Nákvæmnin (88,0%) er sú sama
   og hjá „byrjaði síðast"; ábatinn er Brier −24% og **bekkjar-gildran**: lægsti
   tíundarhlutinn fangar 42–49% þeirra sem falla á bekk (lyfting 2,09×,
@@ -298,6 +359,11 @@ töflu. Smáatriðin eru í `docs/MAELINGAR.md`.
 | **Lítill sérfræðinga-hópur (5–10 manns)** | **Verri í BÁÐA ENDA.** Mæld framtíðar-frammistaða þeirra sem valdir eru efstir: N=1 → 0,919%, N=3 → 1,088%, N=5 → 0,854%, N=10 → 0,987%, **N=100 → 0,642%**. Topp-3 standa sig VERR en meðaltal topp-100 (afturhvarf til meðaltals — toppur hvers lista er að hluta heppni). Og 60/40 skipting úr 10 mönnum hefur ±16 prósentustiga vikmörk. Hópurinn er **1.000** | 9.8.2026 |
 | **Hygla þeim allra bestu innan hópsins** | Vog `10^(-alfa·skor)`: alfa=0 gefur SNR 13,279, alfa=0,25 gefur **13,363** (+0,6% = ekkert), alfa=1,0 gefur 12,032, alfa=2,0 gefur 5,735. Hvert skref eyðileggur virkt úrtak (1.000 → 146 við alfa=2) fyrir hverfandi faernibata. **Jöfn vog** | 9.8.2026 |
 | **Þröskuldur (top-1%/top-10% tíðni) sem valregla** | Split-half áreiðanleiki HÆLDI top-10%/15% (0,74–0,75 á móti 0,738 fyrir samfellda kvarðann) — og það var **mettun, ekki gæði**: 9.296 stjórnendur eru JAFNIR á skurðpunktinum, svo reglan raðar þeim alls ekki. Úrslitaprófið er hópsgæði út fyrir úrtak, og þar vinnur samfelldi kvarðinn (0,890% á móti 0,956% og 1,737%). **Áreiðanleiki er ekki gagnsemi** | 9.8.2026 |
+| **Kaup-gluggar: sextílar HANS EIGIN gilda sem litakvarði** | Freistandi því það gefur hverjum leikmanni fulla litaskalann — og það er einmitt villan: flöt leikjaskrá með spönn **0,04** fékk alla sex litina og las eins og sveiflukennd, svo sýnin hefði sagt að hann hefði glugga sem hann hefur ekki. Sama tap sem afstæð þrep innan liðs voru hafnað fyrir. Rétta vörpunin **færir** kvarðann (`d − (meanD − NEUTRAL_MID)`) og heldur mældu sextíla-breiddunum | 19.8.2026 |
+| **Kaup-gluggar: ALGILD regla (þröskuldur á græna þrepinu)** | **Mælt 19.8.2026 á öllum 80 (lið × staða) samsetningum.** Freistandi því þröskuldurinn er MÆLDUR (sextíla-mörkin sem skilgreina „grænt" alls staðar í appinu) og engin ný tala þarf. Útkoman er samt ónothæf: Arsenal og Man City fá **EINN glugga, GW1–38**, af því að þeir eiga raunverulega góða leiki allt tímabilið (og það er RÉTT, sjá kafla 3). Spurningin „hvenær" er afstæð við manninn; algildi kvarðinn svarar „hvern" og hann er þegar til í FFDR-töflunni | 19.8.2026 |
+| **Kaup-gluggar: BER ÁBATI (`sum`) sem markmið** | Rétt hagfræði, ónothæf birting: Arsenal-vörn fær **GW3–22 — tuttugu vikur með +0,07 stig/umferð**. Það er meðaltalið sjálft með hávaða utan um sig, ekki gluggi. Medallengd 7,7, hámark **26 vikur** | 19.8.2026 |
+| **Kaup-gluggar: BER ÞÉTTLEIKI (`sum/len`)** | Hinn öfgi: **9 af 10 gluggum verða nákvæmlega 3 vikur** (miðgildi 3, hámark 4) og „góðar GW30–38" — sem var beinlínis það sem var beðið um — finnst **ALDREI**. Lausnin er skriða á lengd (`sum/(len+3)`, sama form og `hit_rate_adj`): meðallengd 4,0, p90 6, hámark 10. Næmið er mjúkt (k=0…8 færir meðallengd 3,2→4,2), svo talan velur bragð, ekki útkomu | 19.8.2026 |
+| **Kaup-gluggar: MIÐGILDI í stað meðaltals sem viðmið** | **Óstöðugt í báða enda á sömu gögnum:** Arsenal-vörn fær **ENGAN** glugga (næstum allar umferðir bera sama `v`, svo miðgildið liggur ofan á þeim) en Sunderland og Newcastle fá **GW1–37** — einn glugga sem er nánast allt tímabilið. Meðaltalið er stöðugt af því að summan af (v − meðaltal) er núll með byggingu | 19.8.2026 |
 | **Velja hópinn eftir síðasta tímabili einu** | Freistandi því það þarf enga skönnun: 1,149% á móti **0,892%** fyrir recency yfir allan ferilinn (N=1000). Tvö síðustu tímabil gefa 0,958%. Full saga borgar skönnunina | 9.8.2026 |
 
 > **HANDVIRKAR MÆLINGA-SKRIFTUR (ekki í `npm test`, ekki í pipeline):**
@@ -356,6 +422,7 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 | `player-cards.mjs` | Opnar **öll 573 leikmannaspjöldin**, líka án BSD, og lokar liðsspjaldinu úr hverju. Spjaldið sameinar sex óbundnar heimildir; önnur próf opnuðu 1 eða 15. Stökkbreyting sem felldi EINN mann (nákvæmlega eitt skot) hrundi listanum úr 573 í 57 |
 | `ffdr-table.mjs` | „Teams — FFDR" lesin AF SKJÁNUM: **liturinn verður að segja það sama og talan** (`tierOf`), `n` borið við `fixtures.json` fyrir öll 20 liðin, og bilið virt. Endurreiknar EKKI FFDR — það væru tvær útfærslur |
 | `playerlist-sort.mjs` | 121 dálka-áttir lesnar úr DOM. **Tómt gildi má aldrei sitja á toppnum** ef dálkurinn hefur tölur, og skrun í botninn sannar að þau fóru NIÐUR en hurfu ekki. Áttin er lesin af örinni, ekki gefin sér |
+| `buy-windows.mjs` | **Kaup-gluggarnir.** Kafli A9b ver afstæða litakvarðann: *flöt leikjaskrá er ÖLL hlutlaus* (fellur ef vörpunin teygir í stað þess að færa) og *hver röð án góðs leiks á algilda kvarðanum hefur góðan á hans eigin* — lesið AF SKJÁNUM á öllum 592 röðum (36 slíkar, allar Hull). Kafli A er á TILBÚNUM röðum þar sem svarið er þekkt fyrirfram (erfiður leikur inni í glugga klýfur hann EKKI · auð umferð má spanna en aldrei vera endi · óvís umferð KLYFUR · flöt röð fær ENGAN glugga); A8 er **300 slembnar raðir gegn óháðum uppteljara** — hann fann villuna í valröðinni (tveir mælikvarðar á sömu ákvörðun). A10 er á RAUNGÖGNUM og fullyrðir að staðan skipti máli (DEF≠FWD í 17 af 20) — væri það 0 væri sýnin óþörf. Kafli B les tímalínuna AF SKJÁNUM: liturinn = `tierOf`, græni ramminn, og **enda-invariantið** (bekkjar-punktur má aldrei sitja á enda glugga). **Sex stökkbreytingar felldar**, þar á meðal `border`-styttingin sem gaf React-viðvörun |
 | `playerlist-narrow.mjs` | **Símahamurinn — sem ekkert próf hafði séð.** Stillir `innerWidth` OG `matchMedia` á 390 px svo báðar greinar keyri; mælir dálkabreiddir og að andlitsmyndin hverfi en liðsmerkið ekki |
 | `error-boundary.mjs` | Prófar ÚTGÖNGUNA, ekki bara að kassinn birtist |
 | `monkey.mjs` | 800 handahófskenndir smellir (4 föst fræ). **NET, EKKI VÖRÐUR — og það er mælt:** bilun á algengri braut (Teams-flipinn) fannst í báðum fræjum, en bilun á djúpu marki (röðun eftir Verði) **slapp í gegn í 800 smellum**. Segðu því aldrei „apinn ver X"; hver uppgötvun á að festast í alvöru verði |

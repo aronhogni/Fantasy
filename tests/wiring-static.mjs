@@ -83,6 +83,21 @@ console.log("\n1) hver `S.x` sem er notadur verdur ad vera skilgreindur");
 }
 
 /* ---------- 2. PROPS SEM ERU LESIN EN ALDREI SEND ---------- */
+/* ATHUGASEMDIR ERU STRIPPADAR — OG ThAD VAR RAUNVERULEG BILUN, EKKI
+   SNYRTING. Prop-listinn er klofinn a KOMMU, svo athugasemd inni i
+   eydu-mynstrinu (sem er stillinn i thessu repo — hvert prop skjalar sig
+   thar sem thad stendur) klofnadi i buta og SIDASTI butinn limdist vid
+   naesta prop-heiti: enda-athugasemdin limdist vid `fixByTeamGw` og bjo
+   til heiti sem er ekki til. (Daemid er EKKI skrifad ordrett her: literal
+   lokun a blokk-athugasemd inni i blokk-athugasemd LOKAR HENNI — sem
+   gerdist i fyrstu utgafu thessarar athugasemdar og gaf SyntaxError.)
+   Utkoman var FALS-
+   JAKVAETT svar um prop sem BERST i raun (`fixByTeamGw` fra App.jsx) —
+   nakvaemlega sama aett og villan i CLAUDE.md 13 ("textaleit sem
+   athugasemd uppfyllti; `//` var ekki strippad") og sama gildran sem
+   hausinn her ad ofan varar vid: skanni sem hropar ulfur er verri en
+   enginn skanni. Strippad er ur BAEDI eydu-mynstrinu og tag-hlutanum.  */
+const noComments = t => t.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
 console.log("\n2) hvert prop sem vidmot les verdur ad berast (eda hafa sjalfgildi)");
 {
   /* TAG-ENDINN ER FUNDINN MED SVIGATALNINGU. Fyrsta utgafa thessa skanna
@@ -107,7 +122,7 @@ console.log("\n2) hvert prop sem vidmot les verdur ad berast (eda hafa sjalfgild
     const m = s.match(/export default function\s+\w+\s*\(\s*\{([^}]*)\}/s);
     if (!m) continue;
     /* Props MED sjalfgildi eru viljandi valfrjals — `width = 300`. */
-    const required = m[1].split(",")
+    const required = noComments(m[1]).split(",")
       .map(x => x.trim())
       /* `children` er INNBYGGT React-prop og berst sem born i JSX, aldrei
          sem eiginleiki — thad ma ekki teljast otengt.                    */
@@ -118,7 +133,7 @@ console.log("\n2) hvert prop sem vidmot les verdur ad berast (eda hafa sjalfgild
     for (const [, s2] of all) {
       for (const cm of s2.matchAll(new RegExp("<" + comp + "\\b", "g"))) {
         rendered = true;
-        for (const pm of tagBody(s2, cm.index + cm[0].length).matchAll(/(\w+)\s*=\s*[{"]/g))
+        for (const pm of noComments(tagBody(s2, cm.index + cm[0].length)).matchAll(/(\w+)\s*=\s*[{"]/g))
           passedTo.add(pm[1]);
       }
     }

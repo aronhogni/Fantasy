@@ -1883,6 +1883,10 @@ export default function App() {
           seasonsFile={seasonsFile} imminent={imminent} shotsFile={lastGwShots}
           fixtures={fixtures} odds={odds} defcon={defcon} defconHist={defconHist} consist={consist}
           bsd={[bsd, bsdLive]} photoUrl={photoUrl} Crest={Crest}
+          /* BUY WINDOWS tharf FFDR PER LEIKMANN — sja BuyWindows.jsx. `fixDifficulty`
+             er byggd her (EINU SINNI) og send inn; hun ma ekki byggjast i tveimur
+             stodum af somu astaedu og `buildTeamMetrics` var flutt ur thessari skra. */
+          fixByTeamGw={fixByTeamGw} fixDifficulty={fixDifficulty} gwNow={gw} maxGw={maxGw}
           onPickPlayer={id => setDetail({ kind:"player", id })}
           watch={watch}
           onWatch={id => setWatch(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id])}
