@@ -2256,13 +2256,33 @@ async function bsdGet(path) {
     headers: { Authorization: `Token ${process.env.BSD_KEY}`, "user-agent": "fantasy-tool" },
     signal: AbortSignal.timeout(30000),
   });
-  if (!r.ok) throw new Error(`BSD HTTP ${r.status} ${path}`);
+  if (!r.ok) {
+    /* SVARBOLURINN FYLGIR MED — HANN BAR SVARID ALLAN TIMANN (19.8.2026).
+       BSD fell med `BSD HTTP 400 /leagues/1/seasons/?limit=5` i fjora daga
+       og su lina segir EKKERT um hvad var ad. Bolurinn sagdi thad hins
+       vegar berum ordum:
+         {"detail":"Unknown query parameter(s): limit.",
+          "unknown_parameters":["limit"], "accepted_parameters":[]}
+       Vid hentum honum. Sama aett og elo-sokni sem sagdi eitt ord
+       ("timeout"): stadan a ad bera MUNSTRID, ekki adeins toluna.      */
+    let body = "";
+    try { body = (await r.text()).slice(0, 180); } catch { /* thogult */ }
+    throw new Error(`BSD HTTP ${r.status} ${path}${body ? " — " + body : ""}`);
+  }
   return r.json();
 }
 /* Leikir yfirstandandi timabils. `is_current` er lesid ur BSD sjalfu svo
    timabils-id se ekki hardkodad — thad breytist arlega.                */
 async function bsdCurrentSeason() {
-  const d = await bsdGet(`/leagues/${BSD_LEAGUE}/seasons/?limit=5`);
+  /* `?limit=5` VAR FJARLAEGT 19.8.2026 — BSD haetti ad taka vid thvi.
+     Endapunkturinn svarar nu 400 med `accepted_parameters: []`, thea hann
+     tekur ENGA fyrirspurnar-breytu. Fallid brast thvi a hverri keyrslu fra
+     adfaranott 18.8. og tok `bsd_live`, `bsd_lineups` og `bsd_odds` med
+     ser. ATH: `/events/` tekur `limit` AFRAM (profad: 30, 200+offset og
+     an hennar skila oll 200), svo thetta er endapunkts-bundid en ekki
+     almenn breyting — ekki fjarlaegja `limit` annars stadar.
+     Skrain skilar ollum 35 timabilum og `is_current` finnst aframhaldandi. */
+  const d = await bsdGet(`/leagues/${BSD_LEAGUE}/seasons/`);
   const cur = (d.seasons || []).find(s => s.is_current) || (d.seasons || [])[0];
   return cur?.id ?? null;
 }

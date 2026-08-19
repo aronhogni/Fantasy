@@ -185,7 +185,20 @@ export function finalize(acc, { bsd_id, name, pos, team, fpl_id, code }) {
     sp_shots: per(acc.sp_shots),
     sp_xg: per(+acc.sp_xg.toFixed(3)),
     op_xg: per(+acc.op_xg.toFixed(3)),
-    sp_xg_share: acc.xg > 0 ? +(acc.sp_xg / acc.xg).toFixed(3) : null,
+    /* NEFNARINN ER npxG, EKKI xG — MAELT 19.8.2026.
+       `sp_xg` og `op_xg` skipta a milli sin NPXG (viti er hvorki i
+       `SET_PIECE` ne `OPEN_PLAY`), en hlutfallid deildi med HEILDAR-xG
+       ad meðtoldum vitum. Thau thrju stemmdu thvi ekki: a skjanum las
+       Bruno Fernandes `xG 10,88 · npxG 6,15 · SP xG 0,96 · SP % 9% ·
+       OP xG 5,18` — SP+OP = 6,14 og 4,73 xG hvergi taldir.
+       SANNAD A RAUNGOGNUM (316 leikmenn): SP+OP er JAFNT np_xg hja
+       ollum 316 og ojafnt xg hja 25 — theim sem taka viti. Nefnarinn
+       verdur ad vera thad sem hlutarnir tveir mynda.
+       Vitin sjalf eru hvorki soknar- ne fastaleikur i thessari skiptingu;
+       hver sem vill "vita-hlutfall" tharf sinn eigin dalk, ekki ad lauma
+       theim inn i thennan.                                             */
+    sp_xg_share: (acc.xg - acc.pen_xg) > 0
+      ? +(acc.sp_xg / (acc.xg - acc.pen_xg)).toFixed(3) : null,
     head_shots: per(acc.head_shots),
     head_xg: per(+acc.head_xg.toFixed(3)),
     pen_shots: per(acc.pen_shots),

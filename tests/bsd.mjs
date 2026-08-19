@@ -26,6 +26,7 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { STAT_DEFS, STAT_BY_KEY } from "../src/stats.js";
+import { finalize } from "../src/bsd.js";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const read = f => JSON.parse(readFileSync(ROOT + f, "utf8"));
@@ -287,6 +288,39 @@ H("8. npxG — VITASPYRNUR DREGNAR FRA");
      `staersta vita-uppblasan: ${worst?.name} ${worst?.xg} -> ${worst?.np_xg}`);
 }
 
+
+/* ============================================================
+   SP + OP VERDUR AD JAFNGILDA ThVI SEM HLUTFALLID DEILIR MED
+
+   `sp_xg` og `op_xg` skipta a milli sin NPXG (viti er hvorki i
+   `SET_PIECE` ne `OPEN_PLAY`), en `sp_xg_share` deildi med HEILDAR-xG.
+   A skjanum las Bruno Fernandes `xG 10,88 · npxG 6,15 · SP 0,96 ·
+   SP% 9% · OP 5,18` — SP+OP = 6,14 og 4,73 xG hvergi taldir.
+   Maelt a 316 leikmonnum: SP+OP er JAFNT `np_xg` hja OLLUM og ojafnt
+   `xg` hja 25 — nakvaemlega theim sem taka viti.
+   ============================================================ */
+{
+  const mk = over => finalize({ apps:5, minutes_played:450, goals:0, goal_assist:0,
+    shots:10, xg:10, pen_xg:4, sp_xg:2, op_xg:4, big_chances:0, shots_in_box:0,
+    shots_out_box:0, sp_shots:0, head_shots:0, head_xg:0, pen_shots:1, woodwork:0,
+    key_pass:0, crosses:0, crosses_acc:0, touches:0, dribbles:0, fouled:0,
+    rating_sum:0, tackles:0, interceptions:0, clearances:0, blocks:0, aerial_won:0,
+    ...over }, { bsd_id:1, name:"T", pos:"F", team:"ARS", fpl_id:1, code:1 });
+
+  const r = mk({});
+  ok(+(r.sp_xg + r.op_xg).toFixed(3) === r.np_xg,
+     `SP + OP = npxG (${r.sp_xg} + ${r.op_xg} = ${r.np_xg})`);
+  ok(Math.abs(r.sp_xg_share - 2 / 6) < 5e-4,
+     `hlutfallid deilir med npxG: ${r.sp_xg_share} (heildar-xG hefdi gefid 0,200)`);
+  /* Vitalaus leikmadur: npxG = xG, svo badar formulur gefa ThAD SAMA —
+     thess vegna ma profid ekki hvila a honum einum.                   */
+  const noPen = mk({ pen_xg: 0, xg: 6 });
+  ok(Math.abs(noPen.sp_xg_share - 2 / 6) < 5e-4,
+     "an vita gefa badar formulur sama svar (thess vegna er vita-tilfellid burdarvirki)");
+  /* Adeins viti og ekkert annad -> nefnarinn 0 -> OSKILGREINT, ekki 0. */
+  const allPen = mk({ xg: 4, pen_xg: 4, sp_xg: 0, op_xg: 0 });
+  ok(allPen.sp_xg_share === null, "npxG = 0 -> null (oskilgreint), ekki 0");
+}
 
 console.log(`\nBSD: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

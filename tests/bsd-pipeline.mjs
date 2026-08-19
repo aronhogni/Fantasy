@@ -106,5 +106,57 @@ ok(/fetchOdds\(\)/.test(fetchSrc), "Odds-API leidin er ohreyfd");
      "BSD skrifar ALDREI odds.json — markadslinan er staersta validerada merkid (kafli 3)");
 }
 
+/* ============================================================
+   BSD-SOKNIN — SVARBOLURINN VERDUR AD FYLGJA VILLUNNI
+
+   MAELT 19.8.2026: BSD fell a hverri keyrslu fra adfaranott 18.8. og tok
+   `bsd_live`, `bsd_lineups` og `bsd_odds` med ser. Stadan sagdi
+   `BSD HTTP 400 /leagues/1/seasons/?limit=5` — sem segir EKKERT um hvad
+   var ad. Svarbolurinn sagdi thad hins vegar berum ordum:
+     {"detail":"Unknown query parameter(s): limit.","accepted_parameters":[]}
+   Vid hentum honum. Endapunkturinn haetti ad taka vid `limit`; `/events/`
+   tekur hana AFRAM (profad: 30, 200+offset og an hennar skila oll 200),
+   svo thetta var endapunkts-bundid.
+   ============================================================ */
+{
+  const src = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url), "utf8");
+  const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, " ");
+  const code = strip(src);
+
+  /* 1. Timabils-kallid ma ekki bera fyrirspurnar-breytu. */
+  const seasonCall = code.match(/bsdGet\(`\/leagues\/\$\{BSD_LEAGUE\}\/seasons\/([^`]*)`\)/);
+  ok(!!seasonCall, "timabils-kallid finnst i fetch.mjs");
+  ok(seasonCall && seasonCall[1] === "",
+     `\`/seasons/\` ber ENGA fyrirspurnar-breytu (fann "${seasonCall?.[1] ?? "?"}")`);
+
+  /* 2. `/events/` MA bera hana — annars vaeri reglan ofurtharfleg og
+        einhver myndi fjarlaegja hana thar lika. */
+  ok(/bsdGet\(`\/events\/\?[^`]*limit=/.test(code),
+     "`/events/` ber `limit` AFRAM (reglan er endapunkts-bundin, ekki almenn)");
+
+  /* 3. Villan verdur ad bera svarbolinn — profad a HEGDUN, ekki texta. */
+  const a = src.indexOf("async function bsdGet(");
+  const b = src.indexOf("\n}", a) + 2;
+  const decl = src.slice(a, b);
+  const mkGet = (status, body) => {
+    const f = new Function("fetch", "AbortSignal", "process", "BSD_API",
+      `${decl}\nreturn bsdGet;`);
+    return f(async () => ({ ok: status < 400, status,
+                            text: async () => body, json: async () => ({}) }),
+             { timeout: () => null }, { env: { BSD_KEY: "x" } }, "");
+  };
+  let msg = "";
+  try { await mkGet(400, '{"detail":"Unknown query parameter(s): limit."}')("/p"); }
+  catch (e) { msg = e.message; }
+  ok(/BSD HTTP 400/.test(msg), "villan ber HTTP-stoduna");
+  ok(/Unknown query parameter/.test(msg),
+     `og SVARBOLINN, sem ber greininguna: "${msg.slice(0, 70)}"`);
+  /* Forsenda: an bols ma hun ekki hrynja ne baeta vid ruslinu. */
+  let msg2 = "";
+  try { await mkGet(500, "")("/p"); } catch (e) { msg2 = e.message; }
+  ok(/BSD HTTP 500/.test(msg2) && !/—\s*$/.test(msg2),
+     "tomur bolur gefur hreina villu, ekki hangandi bandstrik");
+}
+
 console.log(`\nBSD-PIPELINE: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

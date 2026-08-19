@@ -4128,3 +4128,72 @@ Hann **finnur nú sjálfur** alla kallstaði í `src/` og krefst þess að hver 
 einn sendi tvö rök, með forsendu um að minnst einn hafi fundist. Stökkbreyting
 sem sleppir röðuninni **í `recommend.js`** — sem gamli vörðurinn gat
 byggingarlega aldrei séð — fellir hann nú.
+
+---
+
+## 19.8.2026 — BSD: `?limit=5` VAR FELLT, OG VILLAN BAR EKKI SVARIÐ
+
+Notandinn lét mig fá BSD-lykilinn, sem gerði greininguna mögulega. **Lykillinn
+fór hvergi í skrá né commit** — repo-ið er public (kafli 1) — aðeins í minni.
+
+`bsd_live`, `bsd_lineups` og `bsd_odds` féllu öll á hverri keyrslu frá
+aðfaranótt 18.8. með `BSD HTTP 400 /leagues/1/seasons/?limit=5`. Ég hafði áður
+staðfest að **auðkenningin væri í lagi** (án lykils fæst 401, pipeline-in með
+lykli fékk 400), svo þetta væri beiðnin sjálf — en lengra varð ekki komist.
+
+**Svarið lá í svarbolnum allan tímann:**
+
+```
+{"detail": "Unknown query parameter(s): limit.",
+ "unknown_parameters": ["limit"], "accepted_parameters": []}
+```
+
+`bsdGet` henti bolnum og skilaði aðeins stöðukóðanum. **Sama ætt og
+elo-sóknin sem sagði eitt orð („timeout"):** talan ein greinir ekkert.
+Villan ber nú bolinn með (180 stafir), svo næsta API-breyting greinir sig sjálf.
+
+**Og reglan er endapunkts-bundin, ekki almenn** — það var prófað svo enginn
+fjarlægi `limit` alls staðar:
+
+| kall | staða |
+|---|---|
+| `/leagues/1/seasons/?limit=5` | **400** — `accepted_parameters: []` |
+| `/leagues/1/seasons/` | 200, 35 tímabil, `is_current` finnst |
+| `/events/?…&status=notstarted&limit=30` | 200, 380 leikir |
+| `/events/?…&limit=200&offset=0` | 200 |
+| `/events/?…` (án limit) | 200 |
+| `/events/live/` | 200 |
+
+Handvirku skrifturnar (`fetch-bsd.mjs`, `fetch-bsd-teams.mjs`) voru **þegar
+réttar** — aðeins `fetch.mjs` bar `?limit=5`. Staðfest með því að keyra
+raunverulegt `bsdCurrentSeason()` úr `fetch.mjs`: **season_id 1058
+(„Premier League 26/27"), 380 leikir**.
+
+### `sp_xg_share` — NEFNARINN VAR RANGUR OG ÞAÐ ER SANNAÐ Á GÖGNUNUM
+
+`sp_xg` og `op_xg` skipta á milli sín **npxG** (víti er hvorki í `SET_PIECE` né
+`OPEN_PLAY`), en hlutfallið deildi með **heildar-xG að meðtöldum vítum**. Þau
+þrjú stemmdu því ekki: á skjánum las Bruno Fernandes
+`xG 10,88 · npxG 6,15 · SP 0,96 · SP% 9% · OP 5,18` — SP+OP = 6,14 og
+**4,73 xG hvergi taldir**.
+
+**Mælt á öllum 316 leikmönnum með gögn:**
+
+| samanburður | fjöldi sem stemmir ekki |
+|---|---|
+| SP + OP ≠ **`np_xg`** | **0 af 316** |
+| SP + OP ≠ `xg` | **25 af 316** — nákvæmlega vítaskytturnar |
+
+Nefnarinn verður að vera það sem hlutarnir tveir mynda. Dæmi: xG 10, víti 4,
+SP 2, OP 4 → hlutfallið fer úr **0,200 í 0,333**.
+
+> **VÖRÐURINN HVÍLIR Á VÍTA-TILFELLINU OG ÞAÐ ER ÁSETNINGUR.** Hjá vítalausum
+> leikmanni er npxG = xG, svo **báðar formúlur gefa sama svar** — próf sem
+> notaði slíkan mann einan gæti ekki greint þær í sundur. Prófið segir það
+> berum orðum og ber báðar hliðar.
+
+**Þetta var eitt af tveimur atriðum sem biðu `BSD_KEY`.** Kóðinn er nú réttur,
+en talan á skjánum breytist ekki fyrr en `scripts/fetch-bsd.mjs` er keyrð
+aftur — `sp_xg_share` er **geymt** gildi í `bsd_players.json`, ekki reiknað í
+appinu. Hitt atriðið (40 útileikmenn sem sýna „—" í stað `0`) bíður sömu
+keyrslu; kóðinn þar var lagaður 11.8. en skráin er frá 9.8.
