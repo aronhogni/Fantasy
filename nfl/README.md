@@ -4652,18 +4652,57 @@ null hjá 577 af 577, því „aðeins fyrir frest" OG „aðeins einu sinni" ge
 **saman** „skrifa við FYRSTA tækifæri og frysta". Kvörðunin hefði því mælt
 líkanið á **þess eigin verstu ágiskun**.
 
-Hér er cron-ið annað og því er talan önnur. `nfl-data.yml` keyrir 09:00 UTC
-daglega og 12:00 á þriðjudögum; akkeri venjulegrar viku er fimmtudagur 00:00
-UTC. **48 klst gefa þrjú tækifæri** (þri 09, þri 12, mið 09) — eitt sleppt cron
-má ekki kosta vikuna, og 24 klst gæfu **eitt**. Talan er **reiknuð úr
-cron-línunum í `tests/advice-ledger.mjs` kafla 1**, ekki endurrituð: færi
-cron-ið án þess að glugginn fylgdi, fellur prófið.
+Hér er cron-ið annað og því er talan önnur. Akkeri venjulegrar viku er
+fimmtudagur 00:00 UTC.
 
-**OG KOSTNAÐURINN ER SKRIFAÐUR, EKKI FALINN:** fyrsta tækifærið er ~2,5 dögum
-fyrir sunnudagsleikina. Það er **réttur** ákvörðunarpunktur fyrir waiver (þau
-leysast á miðvikudegi) en **einni æfingaskýrslu of fyrr** fyrir start/sit. Því
-ber hver röð `hoursToAnchor`, svo kvörðunin geti flokkað eftir því hve fersk
-ráðgjöfin var í stað þess að láta allar raðir lesast eins.
+> **TÖLURNAR HÉR VORU RANGAR OG PRÓFIÐ GAT EKKI SAGT ÞAÐ — leiðrétt
+> 19.8.2026 (úttekt).** Hér stóð „**48 klst gefa þrjú tækifæri**" og
+> „fyrsta tækifærið er **~2,5 dögum** fyrir sunnudagsleikina". Hvorugt
+> gildir almennt: **fjórða cron-línan var ekki talin.**
+> `0 0,3,6,12,15,18 * 8,9 *` keyrir `--stage=adp`, og skrefið „Skra
+> radgjof" í workflow-inu hefur **engan `if:`** — svo bókhaldið fær
+> **átta** tækifæri á dag í ágúst–september, ekki tvö.
+>
+> | regima | tækifæri | fryst (dagar fyrir sunnudag) |
+> |---|---|---|
+> | september (vikur **1–4**) | **16** | **6,71** (v.1) / **5,71** (v.2–4) |
+> | október–janúar | **3** | **5,33** |
+> | vika 18 (föstudags-akkeri) | **2** | **2,33** |
+>
+> „Þrjú" var því rétt fyrir **október–janúar** og „~2,5 dagar" rétt fyrir
+> **viku 18** — hvorugt fyrir vikurnar 1–4, sem eru einmitt þær sem
+> bókhaldið skrifar fyrst. 24 klst gæfu **eitt** í regimu 2.
+>
+> **Og prófið prentaði rétta töluna en fullyrti `>= 2`** — fullyrðing sem
+> getur ekki greint 16 frá 3 frá 2 er logga með `ok` fyrir framan (5b
+> regla 1). Kafli 1 í `tests/advice-ledger.mjs` **fullyrðir nú hverja
+> tölu** með raunverulegri cron-þýðingu (mánuður OG vikudagur, ekki bara
+> klukkutími) og mælir frystingar-daga úr `schedule.json`. Færi cron-ið
+> fellur prófið og bókaða talan verður að uppfærast.
+
+**RÖÐIN FRYSTIST VIÐ FYRSTA TÆKIFÆRI — og það er VALIÐ, ekki óvart.**
+„Aðeins í glugga" OG „aðeins einu sinni" gefa saman „skrifa við fyrsta
+tækifæri og frysta", og í september er það **fyrsta augnablik gluggans**
+(00:00 UTC þriðjudag). Það er sama form og FPL-villan hér að ofan.
+
+**Samt er glugginn EKKI narraður niður, og ástæðan er mæld:** akkerið er
+**fimmtudagsleikurinn (TNF)**, svo hvert einasta tækifæri í 48-tíma
+glugganum liggur 5,3–6,7 dögum frá **sunnudagsleikjunum** — þar sem ~13 af
+16 byrjunarliðssætum eru. Að skrifa við **síðasta** tækifæri í stað fyrsta
+færði röðina fram um ~1,9 dag (þri 00:00 → mið 21:00) og hún væri **enn**
+3,8 dögum frá sunnudegi. **Það er akkerið sem ræður ferskleikanum, ekki
+gluggabreiddin** — engin breyting á breidd getur lagað það.
+
+**Rétta lagfæringin er annað akkeri** (per leikjaslot: sunnudags-ráðgjöf
+akkeruð á sunnudag) og hún er **opin spurning** — ekki gerð tveimur dögum
+fyrir draft á mælitæki sem skrifar fyrst 8. september.
+
+Það sem er gert í staðinn: hver röð ber `hoursToAnchor`, svo kvörðunin geti
+flokkað eftir ferskleika. **En það er klst til fimmtudags-akkerisins, ekki
+til leiks leikmannsins**, svo það greinir **ekki** „sunnudagsleikmaður,
+ráðið á þriðjudegi" frá „fimmtudagsleikmaður, ráðið á þriðjudegi". Sú
+takmörkun er hluti af sömu opnu spurningu og má ekki lesast eins og hún sé
+leyst.
 
 ### Appið les þetta ALDREI
 

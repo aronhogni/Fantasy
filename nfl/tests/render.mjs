@@ -614,7 +614,11 @@ console.log("\n4a. market-flipinn");
   }
 }
 
-console.log("\n4b. model-lab-flipinn");
+/* `4c`, EKKI `4b`: kaflaheitid `4b` var NOTAD TVISVAR i thessari skra
+   (linu 508 fyrir "where they disagree" og hér) fram til 19.8.2026. Tvo
+   heiti sem eru eins gera utkomuna oleitanlega — "4b fell" bendir a tvo
+   stadi — og thad er sama vandamal og tveir flipar med sama takni. */
+console.log("\n4c. model-lab-flipinn");
 {
   ok(await clickTab("Model lab"), "flipinn finnst");
   ok(!text().includes("Something broke"), "engin villa");

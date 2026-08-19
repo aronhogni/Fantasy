@@ -819,6 +819,82 @@ console.log("\ntrending-vordurinn (dagurinn i dag)");
 }
 
 /* ============================================================
+   OG HINAR DAGSETTU SERIURNAR — VORDURINN NADI ADEINS YFIR `trending`
+   ============================================================
+   Vordurinn ad ofan spyr um `trending/` og ekkert annad. FJORAR seriur eru
+   DAGLEGAR, og thad kostadi raunveruleg gogn: `news/` **tapadi fimm dogum
+   i rod** (2026-08-15 til 08-19) medan `trending/`, `adp-history/` og
+   `depth/` voru heil — og ekkert prof sagdi neitt.
+
+   OG ThAD VAR EKKI ThOGULT I `status.json`: thar stod
+   `archive:news/2026-08-1X.json | REFUSED: 4 rows (minimum 20)` FYRIR
+   HVERN EINASTA DAG. Hlidid vann, `Sources` birti thad — og fimm dagar
+   toputust samt, thvi ENGIN FULLYRDING breytti thvi i bilun. Thess vegna
+   er "skrad hofnun" EKKI nog sem undanthaga hér: hofnun sem endurtekur
+   sig er ekki flökt heldur brotin serie.
+
+   RAUNORSOKIN (maeld 19.8.2026): `site.api.espn.com` skilar **403 i
+   GitHub Actions** medan `lm-api-reads.fantasy.espn.com` og
+   `sports.core.api.espn.com` svara 200 UR SOMU KEYRSLU. Frettirnar koma
+   ur theim fyrsta, svo `newsFeed` var TOMT og `rowCount` skilaði
+   lyklafjolda umbudanna (4), ekki fjolda greina.
+
+   ============================================================
+   VORDURINN SPYR "ER HUN BROTIN NUNA", EKKI "VAR HUN EINHVERN TIMA"
+   ============================================================
+   Gatid 08-15..08-18 er OENDURHEIMTANLEGT og verdur aldrei fyllt. Vordur
+   sem fullyrti um alla soguna gaeti thvi ALDREI ordid graen aftur — og
+   "flökt kennir manni ad slokkva a profinu" (sami rokstudningur og
+   svefninn ad ofan). Hann telur thvi ADEINS OSLITNA RUNU SEM ENDAR I DAG.
+   Einn dagur er flökt (cron sleppt, augnabliks-403); **thrir i rod eru
+   brotin serie** og tha hefdi thetta fallid 17. agust, tveimur dogum
+   fyrr en uttektin fann thad.
+
+   `weekly-ecr/` og `weekly-proj/` eru VILJANDI UTAN: hin fyrri er lyklud
+   a `scrape_date` (ny skra adeins thegar FantasyPros skrapar upp a nytt)
+   og hin sidari er VIKULEG med 72-tima glugga. Ad krefja thaer um daglega
+   skra vaeri fullyrding um hegdun sem thaer hafa aldrei haft.         */
+console.log("\ndagsettu seriurnar — oslitin runa sem endar i dag");
+{
+  const DAILY = ["trending", "news", "adp-history", "depth"];
+  const MAX_GAP = 3;
+  const now = new Date();
+  const month = now.getUTCMonth() + 1;
+  const hour = now.getUTCHours();
+  const inSeason = month >= 8 || month === 1;
+
+  if (!inSeason) {
+    console.log(`  ·    manudur ${month} er utan agust-januar — vordurinn SEFUR`);
+  } else if (hour < 10) {
+    console.log(`  ·    ${hour}:xx UTC er fyrir 10:00 — 09:00-cron-id er ekki lent`);
+  } else {
+    const { readdirSync } = await import("node:fs");
+    /* ThEKJA ER FULLYRDING: finnist engin mappa er vistunin haett og
+       lykkjan nedan yrdi tom (CLAUDE.md 5b regla 1). */
+    const present = DAILY.filter((s) => existsSync(path.join(DATA, s)));
+    ok(present.length === DAILY.length,
+      `allar ${DAILY.length} daglegu seriurnar eiga moppu (${present.join(", ")})`);
+
+    for (const s of present) {
+      const have = new Set(readdirSync(path.join(DATA, s))
+        .filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).map((f) => f.slice(0, 10)));
+      /* Serie sem er alveg tom er annad mal og er hulin af kaflanum
+         "dagsettu seriurnar" nedar; hér er runan sem ENDAR I DAG. */
+      if (!have.size) { ok(false, `${s}/: ENGIN dagsett skra`); continue; }
+      let gap = 0;
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
+        if (have.has(d)) break;
+        gap++;
+      }
+      ok(gap < MAX_GAP,
+        `${s}/: ${gap} dag(a) oslitid gat sem endar i dag (thak ${MAX_GAP}) — ` +
+        `${have.size} dagsettar skrar`);
+    }
+  }
+}
+
+/* ============================================================
    DAGSETTU SERIURNAR — SEX HEIMILDIR SEM VORU ALDREI KALLADAR
    ============================================================
    `sl.projections(season, week)`, `nv.snapCounts`, `nv.depthCharts`,

@@ -60,20 +60,96 @@ console.log("\n1. glugginn er valinn ur cron-inu, ekki ur lausu lofti");
       for (const x of h.split(",")) if (/^\d+$/.test(x)) hours.add(Number(x));
     }
     ok(hours.size >= 1, `keyrslutimar i september: ${[...hours].sort((a, b) => a - b).join(",")}`);
-    /* Akkeri = fimmtudagur 00:00 UTC. Hve morg cron-hogg falla i glugganum? */
-    const anchor = Date.parse("2026-09-17T00:00:00Z");          // fimmtudagur
-    const opens = anchor - WINDOW_H * 36e5;
-    let chances = 0;
-    for (let d = 0; d < 8; d++) {
-      const day = new Date(anchor - d * 864e5);
-      for (const h of hours) {
-        const t2 = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), h);
-        if (t2 >= opens && t2 < anchor) chances++;
+
+    /* ============================================================
+       ThEKJA VAR PRENTUD EN EKKI FULLYRT — LAGAD 19.8.2026
+       ============================================================
+       Hér stod `ok(chances >= 2, ...)` og prentadi RAUNTOLUNA vid hlidina.
+       Sú fullyrding getur ekki greint 16 fra 3 fra 2, svo hun var i verki
+       logga med `ok` fyrir framan (CLAUDE.md 5b regla 1) — og notan i
+       `snapshot-advice.mjs` sagdi **"ThRJU taekifaeri"** medan raunverulega
+       talan i september er **16**, thvi hun taldi adeins `core`-cron-inn
+       (09:00 + 21:00) og SLEPPTI `0 0,3,6,12,15,18 * 8,9 *`. Skrefid
+       "Skra radgjof" i workflow-inu hefur ENGAN `if:`, svo thad keyrir
+       lika i `--stage=adp`.
+
+       TALAN ER NU REIKNUD MED RAUNVERULEGRI CRON-THYDINGU (manudur OG
+       vikudagur, ekki adeins klukkutimi) og FULLYRT UPP A TOLU i BADUM
+       CRON-REGIMUM. Breytist cron-id fellur thetta og sa sem breytti
+       verdur ad uppfaera bokudu toluna — sem er tilgangurinn.          */
+    const cronMatch = (c, d) => {
+      const [min, h, dom, mon, dow] = c.split(/\s+/);
+      const f = (field, val) => field === "*"
+        || field.split(",").some((p) => Number(p) === val);
+      return Number(min) === 0 && f(h, d.getUTCHours()) && f(dom, d.getUTCDate())
+        && f(mon, d.getUTCMonth() + 1) && f(dow, d.getUTCDay());
+    };
+    const chancesFor = (iso) => {
+      const anchor = Date.parse(iso);
+      let n = 0, first = null;
+      for (let t = anchor - WINDOW_H * 36e5; t < anchor; t += 36e5) {
+        const d = new Date(t);
+        if (crons.some((c) => cronMatch(c, d))) { n++; if (first == null) first = t; }
       }
-    }
-    ok(chances >= 2,
-      `${WINDOW_H}-tima glugginn gefur ${chances} cron-taekifaeri fyrir akkerid ` +
-      "(24 klst gaefu eitt)");
+      return { n, first, opens: anchor - WINDOW_H * 36e5 };
+    };
+
+    /* SEPTEMBER (vikur 1-4): ADP-cron-inn er i gangi -> 8 keyrslur a dag. */
+    const sep = chancesFor("2026-09-17T00:00:00Z");     // vika 2, fimmtudagur
+    ok(sep.n === 16,
+      `september: ${WINDOW_H}-tima glugginn gefur ${sep.n} taekifaeri (bokad 16)`);
+
+    /* OKTOBER-JANUAR: adeins 09:00 daglega + 12:00 a thridjudogum -> 3. */
+    const reg = chancesFor("2026-10-15T00:00:00Z");     // vika 6, fimmtudagur
+    ok(reg.n === 3,
+      `oktober-januar: ${reg.n} taekifaeri (bokad 3 — thri 09, thri 12, mid 09)`);
+
+    /* VIKA 18 er akkerud a FOSTUDEGI og faer thvi FAEST — thad er talan sem
+       gamla `>= 2` var i raun ad verja, og hun a ad vera SOGD. */
+    const w18 = chancesFor("2027-01-10T00:00:00Z");
+    ok(w18.n === 2, `vika 18 (fostudags-akkeri): ${w18.n} taekifaeri (bokad 2 — LAEGST)`);
+
+    /* OG ENGIN VIKA MA FA EITT: eitt sleppt cron ma ekki kosta vikuna. */
+    ok(sep.n >= 2 && reg.n >= 2 && w18.n >= 2,
+      "engin regima faer adeins EITT taekifaeri (24 klst gaefu eitt)");
+
+    /* ============================================================
+       OG ROD ER FRYST VID FYRSTA TAEKIFAERI — SAGT, EKKI FALID
+       ============================================================
+       "adeins i glugga" OG "adeins einu sinni" gefa SAMAN "skrifa vid
+       FYRSTA taekifaeri og frysta". Thad er VALID hegdun hér (sja notuna i
+       snapshot-advice.mjs), en tha verdur talan ad vera bokud og profud —
+       annars er hun sama villan og FPL-rodin sem var skrifud 222 klst
+       fyrir frest.                                                     */
+    ok(sep.first === sep.opens,
+      "september: fyrsta taekifaerid er a FYRSTA AUGNABLIKI gluggans " +
+      "(00:00 UTC thridjudag) — rodin frystist thar");
+    ok(reg.first === reg.opens + 9 * 36e5,
+      "oktober: fyrsta taekifaerid er 09:00 thridjudag (9 klst inn i gluggann)");
+
+    /* HVE LANGT ER ThAD FRA SUNNUDAGS-LEIKJUNUM? Talan sem notan bokadi
+       ("~2,5 dagar") var RANGT — hun er rett fyrir viku 18 og fyrir enga
+       adra. Maelt ur `schedule.json`.                                   */
+    const sch = JSON.parse(readFileSync(path.join(ROOT, "data", "schedule.json"), "utf8"));
+    const games = Array.isArray(sch) ? sch : (sch.games || sch.rows || []);
+    const sundayOf = (wk) => {
+      const t = games.filter((g) => Number(g.season) === 2026 && g.type === "REG"
+          && Number(g.week) === wk && g.date)
+        .map((g) => Date.parse(`${g.date}T00:00:00Z`))
+        .filter((x) => Number.isFinite(x) && new Date(x).getUTCDay() === 0);
+      return t.length ? Math.min(...t) + 17 * 36e5 : null;   // sunnudagur ~17:00 UTC
+    };
+    const lead = (wk, iso) => {
+      const s = sundayOf(wk); const c = chancesFor(iso);
+      return s == null ? null : (s - c.first) / 864e5;
+    };
+    const l2 = lead(2, "2026-09-17T00:00:00Z");
+    const l6 = lead(6, "2026-10-15T00:00:00Z");
+    ok(l2 != null && Math.abs(l2 - 5.71) < 0.05,
+      `vika 2: rodin frystist ${l2 == null ? "?" : l2.toFixed(2)} dogum fyrir ` +
+      "sunnudags-leikina (bokad 5,71 — EKKI 2,5)");
+    ok(l6 != null && Math.abs(l6 - 5.33) < 0.05,
+      `vika 6: ${l6 == null ? "?" : l6.toFixed(2)} dagar (bokad 5,33)`);
   }
 }
 

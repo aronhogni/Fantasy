@@ -55,16 +55,51 @@
    Hér er cron-id annad og thvi er talan onnur. `nfl-data.yml` keyrir:
        09:00 UTC daglega           (og 21:00 i agust-september)
        12:00 UTC a thridjudogum    (vikuleg gogn)
-   Akkeri venjulegrar viku er fimmtudagur 00:00 UTC. 48 klst gefa thvi
-   ThRJU taekifaeri (thri 09:00, thri 12:00, mid 09:00) — eitt sleppt cron
-   ma ekki kosta vikuna. 24 klst gaefu EITT.
+       00,03,06,12,15,18 UTC       (ADP, ADEINS agust-september)
+   Akkeri venjulegrar viku er fimmtudagur 00:00 UTC.
 
-   OG ThAD ER VIST HVAD ThETTA KOSTAR, svo thad se ekki fullyrt ranglega:
-   fyrsta taekifaerid er ~2,5 dogum fyrir sunnudags-leikina, sem er RETTI
-   akvordunar-punkturinn fyrir waiver (thau leysast a midvikudegi) en
-   EINNI AEFINGASKYRSLU OF FYRR fyrir start/sit. Ekki er logid um thad:
-   hver rod ber `hoursToAnchor`, svo kvordunin getur flokkad eftir thvi
-   hve fersk radgjofin var i stad thess ad lata allar rodir lesast eins.
+   TOLURNAR VORU RANGAR HER — LEIDRETTAR 19.8.2026 (uttekt). Hér stod
+   "ThRJU taekifaeri" og "~2,5 dogum fyrir sunnudags-leikina". Hvorugt
+   gilti almennt, thvi FJORDA cron-linan (ADP) var EKKI TALIN: skrefid
+   "Skra radgjof" i workflow-inu hefur ENGAN `if:`, svo thad keyrir lika i
+   `--stage=adp` — atta keyrslur a dag i agust-september.
+
+   MAELT UR CRON-INU OG `schedule.json` (tests/advice-ledger.mjs kafli 1
+   fullyrdir hverja tolu og fellur ef cron-id faerist):
+       regima              taekifaeri   fryst (dagar fyrir sunnudag)
+       september (v. 1-4)      16        6,71 (v.1) / 5,71 (v.2-4)
+       oktober-januar          3         5,33
+       vika 18 (fost.akk.)     2         2,33
+   "ThRJU" var thvi rett fyrir OKTOBER-JANUAR og "~2,5 dagar" rett fyrir
+   VIKU 18 — hvorugt fyrir vikurnar 1-4, sem eru einmitt thaer sem
+   bokhaldid skrifar fyrst. 24 klst gaefu EITT taekifaeri i regimu 2.
+
+   ============================================================
+   ROD FRYSTIST VID FYRSTA TAEKIFAERI — VALID, EKKI OVART
+   ============================================================
+   "adeins i glugga" OG "adeins einu sinni" gefa SAMAN "skrifa vid FYRSTA
+   taekifaeri og frysta", og i september er thad FYRSTA AUGNABLIK gluggans
+   (00:00 UTC thridjudag). Thad er sama form og FPL-villan i hausnum.
+
+   OG SAMT ER GLUGGINN EKKI NARRADUR NIDUR. Astaedan er MAELD, ekki valin:
+   akkerid er FIMMTUDAGS-leikurinn (TNF), svo hvert einasta taekifaeri i
+   48-tima glugganum liggur 5,3-6,7 dogum fra SUNNUDAGS-leikjunum — thar
+   sem ~13 af 16 byrjunarlids-saetum eru. Ad skrifa vid SIDASTA taekifaeri
+   i stad fyrsta faerdi rodina fram um ~1,9 dag (thri 00:00 -> mid 21:00)
+   og hun vaeri **enn** 3,8 dogum fra sunnudegi. Thad er thvi AKKERID sem
+   raedur ferskleikanum, ekki gluggabreiddin, og engin breyting a breidd
+   getur lagad thad.
+
+   RETTI LAGFAERINGIN ER ANNAD AKKERI (per leikjaslot: sunnudags-radgjof
+   akkerud a sunnudag), og hun er OPIN SPURNING — ekki gerd hér, tveimur
+   dogum fyrir draft, a maelitaeki sem skrifar fyrst 8. september.
+
+   ThAD SEM ER GERT I STADINN: hver rod ber `hoursToAnchor`, svo kvordunin
+   getur flokkad eftir ferskleika. **EN ThAD ER KLST TIL FIMMTUDAGS-
+   AKKERISINS, EKKI TIL LEIKS LEIKMANNSINS** — thad greinir thvi EKKI
+   "sunnudags-leikmadur, radid a thridjudegi" fra "fimmtudags-leikmadur,
+   radid a thridjudegi". Su takmorkun er hluti af sömu opnu spurningu og
+   ma ekki lesast eins og hun se leyst.
 
    ============================================================
    APPID LES ThETTA ALDREI

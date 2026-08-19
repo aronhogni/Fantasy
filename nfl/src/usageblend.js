@@ -895,8 +895,13 @@ export const PRIOR_FIT = {
   },};
 
 /* Skurdpunktur og halli eru i STIGUM PER LEIK — sami skali og
-   `projection/17`, sem er thad sem blondan skiptir ut. */
-export const PRIOR_FIT_SCALE = "points per game";
+   `projection/17`, sem er thad sem blondan skiptir ut.
+
+   (`export const PRIOR_FIT_SCALE = "points per game"` stod hér og var
+   flaggad daudur i FJORUM handover-um. Fjarlaegd 19.8.2026: strengurinn
+   var ekki lesinn af neinum — hvorki `src/`, `scripts/`, `tests/` ne
+   README — svo hann var skjolun sem let sem hun vaeri kodi. Skalinn er
+   sagdur hér i athugasemd, sem er thar sem hann atti ad vera.)        */
 
 /**
  * `est = max(0, a + b·z)`.
