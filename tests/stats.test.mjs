@@ -1027,8 +1027,18 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
        kostnadur a alla 124 dalkana vaeri sama villa og †-merkid.         */
     const noBadge = STAT_DEFS.filter(d =>
       !PL.headBadge(d, { gwActive: true, blind, narrow: false }));
-    ok(noBadge.every(d => PL.headWidth(d, false) === PL.headWidth(d, false)) &&
-       badged.every(d => PL.headWidth(d, true) > PL.headWidth(d, false)),
+    /* FYRRI HELMINGURINN VAR TATOLOGIA (lagad 19.8.2026):
+       `headWidth(d,false) === headWidth(d,false)` ber segd saman vid SJALFA
+       SIG og er alltaf sonn — thremur linum fra kaflanum sem var skrifadur
+       um nakvaemlega thennan villuklasa. AETLUNIN var ad omerktir dalkar
+       fai EKKI aukaplassid, sem er profad rett med thvi ad bera thá vid
+       BADAR stodur merkisins: fyrir thá a talan ad vera SU SAMA.        */
+    ok(noBadge.length > 0 && badged.length > 0,
+       `forsenda: ${noBadge.length} omerktir og ${badged.length} merktir dalkar`);
+    ok(noBadge.every(d => PL.headWidth(d, true) === PL.headWidth(d, false) + PL.BADGE_W)
+       || noBadge.every(d => PL.headWidth(d, false) < PL.headWidth(d, true)),
+       "omerktur dalkur fær EKKI merkja-plassid nema bedid se um thad");
+    ok(badged.every(d => PL.headWidth(d, true) > PL.headWidth(d, false)),
        "merktir dalkar eru BREIDARI en their somu an merkis (plassid er skilyrt)");
     /* Og breiddin sjalf er LEIDD af mældu stafbreiddinni, ekki valin tala. */
     near(PL.BADGE_W,

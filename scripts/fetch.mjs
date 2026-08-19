@@ -1119,7 +1119,20 @@ async function eloFetch(url, tries = 6) {
      yfir 280 s" les eins og throttlun; "1x 429" eda "1x 404" les eins og
      eitthvad allt annad — og thad er munurinn sem vantadi.              */
   const secs = Math.round((Date.now() - t0) / 1000);
-  const err = new Error(`${tries} attempts over ${secs}s all failed: ${log.join(" | ").slice(0, 150)}`);
+  /* ThAKID VAR 150 STAFIR OG ThAD KLIPPTI BURT ThAD SEM ThAD ATTI AD SYNA
+     (19.8.2026). Sex tilraunir a ~48 stofum rumast ekki i 150, svo keyrsla
+     sem BLANDAR throttlun, 429 og tomu svari las eins og hrein throttlun —
+     lifandi stada endadi bokstaflega a "#4 The opera". Munstrid er allt
+     gagnid i thessari linu; ef eitthvad tharf ad vikja er thad lengdin.
+     Endurteknar EINS bilanir eru thjappadar ("4x timeout") svo lengdin
+     vaxi ekki med fjolda tilrauna.                                      */
+  const tally = new Map();
+  for (const L of log) {
+    const kind = String(L).replace(/^#\d+\s*/, "").slice(0, 40);
+    tally.set(kind, (tally.get(kind) || 0) + 1);
+  }
+  const summary = [...tally].map(([k, n]) => (n > 1 ? `${n}x ${k}` : k)).join(" | ");
+  const err = new Error(`${tries} attempts over ${secs}s all failed: ${summary.slice(0, 330)}`);
   err.cause = lastErr;
   throw err;
 }

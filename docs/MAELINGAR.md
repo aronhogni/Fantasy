@@ -4197,3 +4197,76 @@ en talan á skjánum breytist ekki fyrr en `scripts/fetch-bsd.mjs` er keyrð
 aftur — `sp_xg_share` er **geymt** gildi í `bsd_players.json`, ekki reiknað í
 appinu. Hitt atriðið (40 útileikmenn sem sýna „—" í stað `0`) bíður sömu
 keyrslu; kóðinn þar var lagaður 11.8. en skráin er frá 9.8.
+
+---
+
+## 19.8.2026 — BSD ENDURSÓTT: MATCHERINN TAPAÐI SEX MÖNNUM, OG LAGFÆRINGIN BJÓ TIL RANGA PÖRUN
+
+Lykillinn frá notandanum gerði endurkeyrslu mögulega. **Hann fór hvergi í skrá
+né commit** — repo-ið er public.
+
+### Fyrsta keyrsla: kóðinn lagaðist, gögnin töpuðu sex mönnum
+
+`sp_xg_share` og skotlausu leikmennirnir lagfærðust eins og til stóð
+(Thiago 0,108 → 0,165; 77 menn fóru úr `null` í mælt `0`). **En skráin fór úr
+393 í 387 og sex RAUNVERULEGIR leikmenn hurfu** — Bruno Guimarães (30 leikir,
+2.455 mín, 42 skot), Brennan Johnson, Lukić, McNeil, Guessand og Awoniyi.
+Allir sex eru **virkir í FPL í dag**.
+
+**Orsökin er nákvæmlega Meslier-villan aftur** (kafli 3): `c.pool` er
+FPL-leikmenn hjá félaginu **í dag**, en BSD ber félagið sem hann spilaði fyrir
+**í fyrra**. Allir sex skiptu um félag í sumarglugganum:
+
+| leikmaður | BSD (25/26) | FPL í dag |
+|---|---|---|
+| Bruno Guimarães | NEW | ARS |
+| Brennan Johnson | CRY | EVE |
+| Lukić | FUL | IPS |
+| McNeil | EVE | CRY |
+| Guessand | AVL | CRY |
+| Awoniyi | NFO | COV |
+
+Þeir voru í skránni frá 9.8. af því að skiptin höfðu ekki gerst þá. **Þetta
+hefði versnað með hverjum degi gluggans.**
+
+### Lagfæringin: seinni umferð — og hún bjó til RANGA PÖRUN
+
+Bætt við annarri umferð í `pairPlayers` sem keyrir **aðeins** á þeim sem
+fundust ekki í eigin laug, leitar í öllum ótekknum, og krefst **bæði** sterkara
+nafns (0,85 í stað 0,6) **og** að mínúturnar stemmi.
+
+**Fyrsta útgáfa hennar paraði BSD „James Wilson" (TOT, 2 leikir, 0 mín) við
+FPL „Callum Wilson" (BRE)** — sitthvorn manninn. Mínútu-vörnin hleypti því í
+gegn af því að **báðar hliðar voru 0**: `|0 − 0| = 0`. Tvö núll eru ekki
+samkomulag, þau eru **skortur á gögnum**.
+
+**Mælingin fann það, ekki lesturinn:** valideringin gegn FPL féll úr
+skjalaða 0,9998 í **0,9982 (mínútur)** og **0,9948 (mörk)**, með **einu**
+fráviki yfir 200 mínútur. Sú tala var það eina sem benti á villuna.
+
+Eftir að núll-gatið var lokað (`cm <= 0 || fm <= 0 → sitja hjá`):
+
+| | fyrir | eftir |
+|---|---|---|
+| leikmenn með FPL-kóða | 393 | **415** |
+| r(mínútur) gegn FPL | 0,9982 | **0,9998** |
+| r(mörk) gegn FPL | 0,9948 | **0,9998** |
+| frávik > 200 mín | 1 | **0** |
+| Callum Wilson-pörunin | til staðar | horfin |
+
+**Tveir standa enn úti** (Brennan Johnson, Guessand) og það er RÉTT: seinni
+umferðin **situr hjá** þegar sönnunin er ekki nógu sterk. Að para þá myndi
+krefjast þess að slaka á nafni eða mínútum, sem er einmitt það sem víxlaði
+Wilson-bræðurna.
+
+> **REGLAN SEM STENDUR EFTIR:** mínúturnar eru öryggið í nafna-pörun yfir
+> félagsmörk — en **aðeins þegar þær bera upplýsingar**. Núll á móti núlli er
+> engin sönnun, og vörður sem tekur því sem samræmi er verri en enginn.
+
+### `tests/bsd.mjs` varði GÖMLU SKRÁNA, ekki regluna
+
+Fullyrðingin var „leikmenn án skota fá null í xG, ekki 0". Kóðinn var lagaður
+**11.8.** (`per()` á skot-sviðin) en skráin var frá **9.8.**, svo prófið
+staðfesti gamla ástandið. Endurkeyrslan leiddi það í ljós. Reglan er nú rétt
+orðuð: sá sem **spilaði** en skaut ekki ber **mælt 0**; **hlutföllin**
+(`xg_per_shot`, `sp_xg_share`) eru **null**, því þau eru óskilgreind án skota.

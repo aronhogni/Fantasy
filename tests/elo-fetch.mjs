@@ -64,11 +64,29 @@ console.log("=".repeat(84));
   try { await fn("http://x"); } catch (e) { msg = e.message; }
   ok(calls.length === 6, `SEX tilraunir adur en gefist er upp (${calls.length})`);
   ok(/6 attempts over \d+s all failed/.test(msg), "skilabodin bera FJOLDA og TIMA");
-  ok((msg.match(/#\d/g) || []).length >= 3, "hver tilraun er talin upp, ekki adeins su sidasta");
+  /* GOLFID VAR SETT INNI I KLIPPINGUNNI (lagad 19.8.2026): `>= 3` stodst
+     nakvaemlega thvi 150-stafa thakid hleypti thremur merkjum i gegn. Nu
+     eru EINS bilanir thjappadar, svo talan sem skiptir mali er FJOLDINN
+     i samantektinni — og hann verdur ad vera `tries`, ekki "minnst 3".  */
+  ok(/^6 attempts/.test(msg), "fjoldi tilrauna er sagdur berum ordum");
+  ok(/6x /.test(msg), `sex EINS bilanir eru thjappadar i "6x ..." — ${msg.slice(0, 60)}`);
   /* ThETTA ER FULLYRDINGIN SEM FANN VILLU I EIGIN LAGFAERINGU: fyrsta
      utgafan klippti hverja tilraun i 34 stafi, en skilabodin eru 40, svo
      ordid TIMEOUT — thad eina sem adgreinir throttlun — datt burt.     */
   ok(/timeout/i.test(msg), `tegund bilunarinnar helst i skilabodunum: "${msg.slice(0, 56)}"`);
+}
+
+{
+  /* BLANDAD TILFELLI — ThAD SEM KLIPPINGIN FALDI. Fjorar timamork og tvo
+     429 eiga BAEDI ad sjast; adur las thetta eins og hrein throttlun.   */
+  let i = 0;
+  const { fn } = mk(() => { i++; if (i <= 4) throw new Error("The operation was aborted due to timeout");
+                            return { ok: false, status: 429 }; });
+  let m = "";
+  try { await fn("http://x"); } catch (e) { m = e.message; }
+  ok(/timeout/i.test(m) && /429/.test(m),
+     `blandad tilfelli synir BADAR tegundir: "${m.slice(0, 90)}"`);
+  ok(/4x /.test(m), "og telur endurteknu tegundina");
 }
 
 {

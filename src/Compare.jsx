@@ -181,7 +181,19 @@ function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, hor
   const dcByTeam = defcon?.opportunity || null;
   const bigByCode = useMemo(() => {
     const files = Array.isArray(bsd) ? bsd.filter(Boolean) : (bsd ? [bsd] : []);
-    const pick = files.find(f => f && f.season === season) || null;
+    /* TIMASPRENGJA VID GW1-LOK — AFTENGD 19.8.2026.
+       Sjalfgefna timabilid i thessum glugga flippast i `currentLabel`
+       ("2026/27") um leid og FYRSTA umferd telst kladud (`seasonStarted`).
+       BSD ber adeins 2025/26 thangad til `bsd_live.json` hefur gogn, svo
+       `bigChances` hefdi ordid 0 af 592 I SOMU VIKU og draftid — og tvaer
+       fullyrdingar i `compare-visual.mjs` ordid raudar med thvi.
+       LAUSNIN ER EKKI AD PINNA A FASTA SKRA (hun myndi urealdast um leid
+       og bsd_live fyllist) heldur ad taka THA SKRA SEM HEFUR GOGN: valid
+       timabil fyrst, annars nyjasta skra sem ber leikmenn. Nota
+       radgjafans nefnir hvort ed er timabilid ("2025/26 only"), svo talan
+       er ekki oskilgreind — hun er merkt.                               */
+    const withData = files.filter(f => f && (f.players?.length || 0) > 0);
+    const pick = withData.find(f => f.season === season) || withData[0] || null;
     const m = new Map();
     for (const r of (Array.isArray(pick?.players) ? pick.players : []))
       if (r?.code != null && r.big_chances != null) m.set(String(r.code), r.big_chances);
@@ -209,7 +221,13 @@ function Advisor({ picked, advisorById, imminent, defcon, consist, teamById, hor
          hun segir ekkert um framherja — og samhengis-thattur sem birtist a
          rongum manni er verri en enginn. Ekki ny stodu-regla, heldur SAMA
          regla og talan er thegar notud eftir annars stadar.              */
-      dc: p.element_type <= 2 ? num(dcByTeam?.[p.team]?.defcon_opportunity) : null,
+      /* MARKMENN UT (19.8.2026). `<= 2` er GK+DEF, svo 66 markmenn fengu
+         "DefCon opportunity"-linu fyrir stig sem their geta ekki unnid:
+         maelt a `player_gw_2526.json` eiga their 663 leikja-umferdir og
+         NULL DefCon-stig, hamark 0. Rokstudningurinn hér ad ofan visadi i
+         `scoreOf`-reglu i App.jsx sem var EYDD 18.8. thegar `dcB` for ut —
+         athugasemdin lifdi regluna sem hun vitnadi i.                    */
+      dc: p.element_type === 2 ? num(dcByTeam?.[p.team]?.defcon_opportunity) : null,
       aron: num(cRec?.aron),
       bigChances: bigByCode.get(String(p.code)) ?? null,
     };

@@ -295,7 +295,14 @@ for (const [bid, o] of agg) {
   cands.push({ bsd_id: bid, name: m.name, short_name: m.short_name, pos: m.position,
                minutes: o.minutes_played, pool: fplByTeam.get(ft.id) || [] });
 }
-const pairBsd = pairPlayers(cands, baseMin ? { minutesOf: id => baseMin.get(id) } : {});
+/* LEIKMENN SEM FAERDU SIG — seinni umferd i `pairPlayers`. Laugin er ALLIR
+   FPL-leikmenn, thvi felagid sem BSD ber er FYRRA timabils. Hun keyrir
+   adeins a theim sem fundust ekki i eigin laug og krefst BAEDI nafns >=0,85
+   OG ad minuturnar stemmi — sja rokstudninginn i src/bsd.js.            */
+const allFpl = [...fplByTeam.values()].flat();
+const pairBsd = pairPlayers(cands, baseMin
+  ? { minutesOf: id => baseMin.get(id), fallbackPool: allFpl }
+  : { fallbackPool: allFpl });
 
 /* ---- 5) skrifa ---- */
 const players = [];

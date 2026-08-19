@@ -35,6 +35,8 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { interp } from "./interp.js";
 import { RAW } from "./dataUrl.js";
 import ImminentPanel from "./Imminent.jsx";
+import BuyWindows from "./BuyWindows.jsx";
+import { photoNext } from "./Crest.jsx";
 /* `passesThreshold` var flutt UT ur thessum innflutningi 17.8.2026 med
    throskuldar-siunni. Fallid stendur afram i `stats.js` og a nu engan
    notanda i appinu.                                                    */
@@ -56,7 +58,15 @@ const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 function RowPhoto({ src, name }) {
   const [ok, setOk] = useState(true);
   if (!ok) return <span style={S.imgFb}>{(name || "?").slice(0, 1)}</span>;
-  return <img src={src} alt="" style={S.img} loading="lazy" onError={() => setOk(false)} />;
+  /* KEDJAN VAR EKKI HER — OG ThETTA ER AÐALVERKFAERID (19.8.2026).
+     `Crest.jsx`, `Compare.jsx` og `Imminent.jsx` ganga allar `photoNext`
+     (tvaer fotur, sja maelinguna i Crest.jsx) en RowPhoto gerdi thad ekki,
+     svo their 67 sem eru ADEINS i gomlu fotunni — felagaskiptin: Meslier,
+     Bruno G., Garnacho, Rogers, Lacroix — fengu STAF i stad myndar i
+     leikmannalistanum sjalfum. CLAUDE.md:711 fullyrti ad allir fjorir
+     notendur gengju hana; thad var satt um thrja.                      */
+  return <img src={src} alt="" style={S.img} loading="lazy"
+    onError={e => { const n = photoNext(e.target.src); if (n) e.target.src = n; else setOk(false); }} />;
 }
 const POS_TABS = [["all","All"],["1","GK"],["2","DEF"],["3","MID"],["4","FWD"]];
 
@@ -474,7 +484,14 @@ const GW_CACHE = new Map();
 export default function PlayerList({ players, teamById, events, seasonsFile,
                                      imminent, shotsFile, fixtures, odds, defcon, defconHist, consist,
                                      bsd, photoUrl, Crest, onPickPlayer, onCompare, cmpIds,
-                                     watch, onWatch, mineIds }) {
+                                     watch, onWatch, mineIds,
+                                     /* BUY-WINDOWS-LESMATINN (19.8.2026) tharf FFDR per LEIKMANN, sem
+                                        thydir `fixDifficulty` sjalft — `fixtures` og `odds` eru inntok
+                                        thess, ekki hun. Hun er byggd EINU SINNI i App.jsx
+                                        (`makeFixDifficulty`) og ma ekki byggjast her lika: tvo eintok
+                                        af sama likani reka i sundur (sbr. `buildTeamMetrics`,
+                                        CLAUDE.md 7). `gwNow` styrir sjalfgefnu bilinu.              */
+                                     fixByTeamGw, fixDifficulty, gwNow, maxGw = 38 }) {
   /* ---------- SIMI: 380 px er profunar-breiddin ----------
      Frosni nafnadalkurinn var 196 px af 380 px — meira en helmingur
      skjasins, svo tolurnar fengu naerri ekkert. Og bordinn + siur + 12
@@ -1163,6 +1180,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
           <div style={S.modeRow} role="group" aria-label={"View"}>
             {[["groups", "Groups", "One category at a time, with grouped headers"],
               ["custom", "Build table", "Pick the stats you want as columns"],
+              ["win", "Buy windows", "Gameweek timelines: when each player's fixtures are best — for HIS position, on the players the filters and the sorting leave"],
               ["imm", "Imminent", "Who is about to score or assist"]].map(([k, l, tip]) => (
               <button key={k} style={{ ...S.modeBtn, ...(mode === k ? S.modeOn : {}) }}
                 aria-pressed={mode === k} title={tip}
@@ -1204,7 +1222,12 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
           valid — spurningin "hvad var hann ad gera i lokin" er sjonræn.
           Bilid er sleppt fyrir yfirstandandi timabil sem er EKKI hafid:
           thar eru engar loknar umferdir og valarinn vaeri 38 dauðir kassar. */}
-      {!(isLive && finishedGw === 0) && seasonKey && (
+      {/* UMFERDA-BILID HER ER UM SOGULEG GOGN (arstidar-summur per umferd) og
+          hefur ekkert ad gera med bilid FRAMUNDAN sem Buy windows notar. Tvo
+          bil a sama skja, annad um fortid og annad um framtid, hefdi verid
+          spurning um hvort thau tala saman — thau gera ekki. Buy windows ber
+          sitt eigid bil i sinum eigin haus.                                */}
+      {mode !== "win" && !(isLive && finishedGw === 0) && seasonKey && (
         <div style={S.gwWrap}>
           <div style={S.gwTop}>
             {/* SAMANBROTID SPARAR 44 PX AF 415 (maelt 8.8.2026). Strikid er
@@ -1377,7 +1400,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
           ALDREI farid nidur, ekki einu sinni eftir nullstillingu FPL.
           Nullstilli FPL toluna verdur `staleSeason` 0 og gamli textinn —
           sem er tha ordinn sannur — birtist af sjalfu ser.               */}
-      {finishedGw === 0 && isLive && (
+      {mode !== "win" && finishedGw === 0 && isLive && (
         <div style={S.warn}>
           <b>{currentLabel} {"has not started"}</b>{" "}
           {staleSeason > 0 ? <>
@@ -1447,7 +1470,9 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
            baeta 13. flokknum vid (DC-hittni). A bordi er lodrett plass
            odyrt, svo thar brotnar rodin i tvaer linur og allir flokkar
            sjast; i sima helst strjuk-rodin obreytt.                      */}
-      {mode === "custom" ? (
+      {/* DALKA-VALARINN OG FLOKKA-RODIN EIGA VID TOFLUNA. I `win` er engin
+          tafla — thar eru dalkarnir 38 umferdir og hvorugt stjornar theim. */}
+      {mode === "win" ? null : mode === "custom" ? (
         <>
           <ColumnPicker keys={customKeys} selected={customSet} onToggle={toggleCol}
             onClear={() => setCustomKeys([])} pinnedKeys={pinnedKeys}
@@ -1470,8 +1495,18 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
       </div>
       )}
 
-      {/* ---------- tafla ---------- */}
-      {!sorted.length ? (
+      {/* ---------- tafla, EDA TIMALINURNAR ----------
+          `sorted` ER SENT INN, ekki `filtered`: rodunin i toflunni er thad sem
+          gerir "topp 40 eftir DC-hittni" moguleg — madur radar i Groups og
+          skiptir hingad. Vaeri `filtered` sent inn vaeri rodin skra-rod og
+          thakid (fyrstu N) hefdi tekid handahofskennt urtak.               */}
+      {mode === "win" ? (
+        <BuyWindows rows={sorted} teamById={teamById}
+          fixByTeamGw={fixByTeamGw} fixDifficulty={fixDifficulty}
+          gwNow={gwNow} maxGw={maxGw} Crest={Crest} narrow={narrow}
+          watch={watch} onWatch={onWatch} mineIds={mineIds}
+          onPickPlayer={onPickPlayer} />
+      ) : !sorted.length ? (
         <div style={S.empty}>
           <b>{"No player matches."}</b> {"Active filters:"}{" "}
           {filterCount ? chips.map(([l]) => l).join(" · ") : "none"}.
@@ -1695,13 +1730,13 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
         </div>
       )}
 
-      <div style={S.legend}>
+      {mode !== "win" && <div style={S.legend}>
         <b>{"Click a header to sort"}</b>{", a name to open the card,"} <b>⇄</b> {"to compare. Hover any header for what the number is and what counts as good."}
         {" "}<b>—</b> {"= data missing (not zero) and always sorts"} <b>{"last"}</b>{", in both directions; a column that is empty for everyone in"}
         {" "}{season} {"is still shown, because \"no data\" is information too."}
         {" "}<b style={{ color:"#e8a71c" }}>★</b> {"adds to the watchlist (saved between visits); the star in the header shows the watchlist only."}
         {" "}<b style={{ color:C.green }}>{"A green stripe"}</b> {"= a player in your squad — the stripe is on the name cell because the row scrolls sideways."}
-      </div>
+      </div>}
       </>)}
     </section>
   );

@@ -172,11 +172,24 @@ if (!base || base.label !== "2025/26") {
 
 /* ---------- 4. NULL ER EKKI NULL ---------- */
 H("4. NULL ER EKKI NULL");
-/* Leikmadur sem skaut ALDREI a ad hafa null i skot-svidunum, ekki 0:
-   "hann skaut ekki" og "hann er ekki i gognunum" mega ekki lita eins ut. */
-const noShots = P.filter(p => !p.shots);
-ok(noShots.every(p => p.xg == null && p.big_chances == null),
-   `leikmenn an skota fa null i xG/big chances, ekki 0 (${noShots.length} menn)`);
+/* HVOR ER RETTI ADSKILNADURINN? Sa sem SPILADI en skaut ekki er MAELDUR:
+   talan hans er NULL SKOT, sem er 0 — ekki "vantar". Sa sem er ekki i
+   gognunum a ad hafa null. Kodinn var lagadur 11.8.2026 (`per()` a skot-
+   svidin) en SKRAIN var fra 9.8., svo hun bar enn null — og THETTA PROF
+   varði gomlu skrana i staðinn fyrir regluna. Endurkeyrslan 19.8. leiddi
+   thad i ljos: 77 leikmenn med leiki og engin skot bera nu 0.
+   HLUTFOLL eru undanskilin og thad er ekki undanthaga heldur reglan
+   sjalf: `xg_per_shot` og `sp_xg_share` eru OSKILGREIND an skota (deiling
+   med 0), svo thar er null RETTA svarid.                               */
+const noShots = P.filter(p => !p.shots && p.apps > 0);
+ok(noShots.length > 0, `forsenda: ${noShots.length} leikmenn spiludu an thess ad skjota`);
+ok(noShots.every(p => p.xg === 0 && p.big_chances === 0),
+   `their bera MAELT 0 i xG/big chances, ekki null (${noShots.length} menn)`);
+ok(noShots.every(p => p.xg_per_shot == null && p.sp_xg_share == null),
+   "en HLUTFOLLIN eru null — oskilgreind an skota, ekki 0");
+const noApps = P.filter(p => !p.apps);
+ok(noApps.every(p => p.xg == null || p.xg === 0),
+   `sa sem spiladi ALDREI ber ekki tilbuna tolu (${noApps.length} menn)`);
 ok(P.every(p => p.minutes == null || typeof p.minutes === "number"),
    "minutur eru tala eda null");
 

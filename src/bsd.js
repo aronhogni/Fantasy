@@ -294,7 +294,24 @@ export const FPL_POS = { 1: "G", 2: "D", 3: "M", 4: "F" };
  * Jacob og Alex Murphy (badir NEW) og setti Gabriel Martinelli a Gabriel.
  * Skilar Map: bsdId -> fplPlayer.
  */
-export function pairPlayers(cands, { minutesOf } = {}) {
+/* SEINNI UMFERD FYRIR ThA SEM FAERDU SIG — MAELT 19.8.2026.
+   `c.pool` er FPL-leikmenn hja felaginu I DAG, en BSD ber felagid sem hann
+   spiladi fyrir I FYRRA. Leikmadur sem seldist i sumarglugganum er thvi
+   ALDREI i sinni eigin laug og hverfur ur skranni med ollu.
+   Maelt: endurkeyrsla 19.8. tapadi SEX raunverulegum leikmonnum — Bruno
+   Guimaraes (NEW->ARS, 30 leikir, 2.455 min, 42 skot), Brennan Johnson
+   (CRY->EVE), Lukic (FUL->IPS), McNeil (EVE->CRY), Guessand (AVL->CRY) og
+   Awoniyi (NFO->COV). Allir sex eru VIRKIR i FPL i dag. Nakvaemlega sama
+   aett og Meslier-villan (CLAUDE.md 3): uppfletting a felagi DAGSINS a
+   gogn FYRRA timabils.
+
+   SEINNI UMFERDIN ER STRONG, EKKI RUM: hun keyrir ADEINS a theim sem
+   fundust ekki i eigin laug, hun leitar i ollum sem eru ENN OTEKNIR, og
+   hun krefst BAEDI sterkara nafns (0,85 i stad 0,6) OG ad minuturnar
+   stemmi. Minuturnar eru thad sem gerir hana orugga: grunn-minuturnar eru
+   FYRRA timabils, svo faerdur leikmadur ber somu tolu og BSD hefur um
+   hann. Nafna-parun EIN og ser er thad sem vixladi Jacob og Alex Murphy.  */
+export function pairPlayers(cands, { minutesOf, fallbackPool } = {}) {
   const scored = [];
   for (const c of cands) {
     for (const fp of c.pool) {
@@ -319,6 +336,42 @@ export function pairPlayers(cands, { minutesOf } = {}) {
   for (const [, bid, fp] of scored) {
     if (out.has(bid) || usedFpl.has(fp.id)) continue;
     out.set(bid, fp); usedFpl.add(fp.id);
+  }
+
+  /* ---- SEINNI UMFERD: their sem faerdu sig milli felaga ---- */
+  if (fallbackPool && fallbackPool.length) {
+    const rest = [];
+    for (const c of cands) {
+      if (out.has(c.bsd_id)) continue;
+      for (const fp of fallbackPool) {
+        if (usedFpl.has(fp.id)) continue;
+        const full = `${fp.first_name || ""} ${fp.second_name || ""}`;
+        const s = Math.max(nameScore(c.name, full), nameScore(c.name, fp.web_name),
+                           nameScore(c.short_name, fp.web_name));
+        if (s < 0.85) continue;                       // strangara en i eigin laug
+        if (FPL_POS[fp.element_type] !== c.pos) continue;   // stadan verdur ad passa
+        const fm = minutesOf ? minutesOf(fp.id) : null;
+        /* MINUTURNAR ERU ORYGGID. An theirra vaeri thetta nafna-parun yfir
+           ALLA deildina, sem er einmitt thad sem vixladi Murphy-braedurna. */
+        if (fm == null) continue;
+        const cm = c.minutes || 0;
+        /* TVO NULL ERU EKKI SAMKOMULAG — ThAU ERU SKORTUR A GOGNUM.
+           Fyrsta utgafa thessarar umferdar leyfdi `|0 - 0| = 0` og pardi
+           BSD "James Wilson" (TOT, 2 leikir, 0 min) vid FPL "Callum Wilson"
+           (BRE) — sitthvorn manninn. Minuturnar eru ORYGGID i thessari
+           umferd; se hvorug hlidin med minutur er ENGIN sonnun til stadar
+           og hun verdur ad sitja hja. "Thogul rong porun er verri en engin"
+           (CLAUDE.md 6) — og hun kostadi r(minutur) 0,9998 -> 0,9982.     */
+        if (cm <= 0 || fm <= 0) continue;
+        if (Math.abs(cm - fm) > Math.max(90, 0.10 * Math.max(cm, fm))) continue;
+        rest.push([s, c.bsd_id, fp]);
+      }
+    }
+    rest.sort((a, b) => (b[0] - a[0]) || (a[1] - b[1]) || (a[2].id - b[2].id));
+    for (const [, bid, fp] of rest) {
+      if (out.has(bid) || usedFpl.has(fp.id)) continue;
+      out.set(bid, fp); usedFpl.add(fp.id);
+    }
   }
   return out;
 }

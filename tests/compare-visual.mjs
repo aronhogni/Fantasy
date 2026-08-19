@@ -189,5 +189,43 @@ const bcVals = bcSpans.map(s => parseFloat((s.nextElementSibling?.textContent ||
 ok("hvert \"Big chances\"-gildi er tala", bcVals.length > 0 && bcVals.every(Number.isFinite),
    bcVals.join(", "));
 
+/* ============================================================
+   TIMASPRENGJAN VID GW1-LOK — VALREGLAN, EKKI DOM-ID
+
+   Um leid og fyrsta umferd telst kladud flippast sjalfgefna timabilid i
+   thessum glugga i "2026/27" (`seasonStarted ? currentLabel : ...`). BSD
+   ber adeins 2025/26 thangad til `bsd_live.json` fyllist, svo
+   `bigChances` hefdi ordid 0 af 592 I SOMU VIKU og draftid.
+   `seasonStarted` er leitt INNI i App af `events`, svo thad er ekki haegt
+   ad stilla thad hedan an thess ad falsa gagnaskra. Reglan sjalf er thad
+   sem var lagad, svo hun er profud BEINT — dregin ur upprunanum og keyrd
+   a RAUNVERULEGU BSD-skranum i badum timabils-stodum.
+   ============================================================ */
+{
+  const cmp = readFileSync(new URL("../src/Compare.jsx", import.meta.url), "utf8");
+  const m = cmp.match(/const withData = files\.filter\([^\n]*\);\s*\n\s*const pick = ([^\n]*);/);
+  ok("valreglan finnst i Compare.jsx", !!m);
+  const pickFor = (files, season) => {
+    const withData = files.filter(f => f && (f.players?.length || 0) > 0);
+    return withData.find(f => f.season === season) || withData[0] || null;
+  };
+  ok("reglan ber VARALEID (`withData[0]`) — ekki adeins nakvaemt timabil",
+     !!m && /withData\[0\]/.test(m[1]));
+
+  const bsd = JSON.parse(readFileSync(new URL("../data/bsd_players.json", import.meta.url), "utf8"));
+  const files = [bsd, null];                       // bsd_live er ekki til enn
+  const now = pickFor(files, "2025/26");
+  ok(`i dag (2025/26 valid): ${now?.players.length ?? 0} leikmenn`,
+     !!now && now.players.length > 100);
+  const after = pickFor(files, "2026/27");
+  ok(`EFTIR GW1-flippid (2026/27 valid): ${after?.players.length ?? 0} leikmenn — ekki 0`,
+     !!after && after.players.length > 100);
+  /* Og thegar bsd_live FYLLIST a hun ad taka vid — annars vaeri varaleidin
+     ordin ad frystingu a gomlu timabili.                                */
+  const live = { season: "2026/27", players: [{ code: 1, big_chances: 3 }] };
+  ok("og lifandi skra tekur vid um leid og hun ber gogn",
+     pickFor([bsd, live], "2026/27") === live);
+}
+
 console.log(`\nSAMANBURDAR-TAFLA: ${pass}/${pass+fail} graen`);
 process.exit(fail ? 1 : 0);
