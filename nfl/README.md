@@ -2981,7 +2981,8 @@ aðskilinn viljandi, svo lota sem vinnur í öðru appinu geti ekki fellt hitt.
 | `names.mjs` | Raunveruleg NFL-jaðartilfelli. **Tvíræður lykill skilar ENGU** — „síðasti vinnur" er þögla ranga pörunin |
 | `pipeline.mjs` | **Gögnin sjálf, ekki formúlurnar.** Nafna-pörun má ekki taka yfir; engin tómgildi; hvert birt svið hefur raunverulega dreifingu; PPR > half > std hjá hverjum móttakara |
 | `render.mjs` | **Eina prófið sem sér hvítan skjá.** Opnar hvern flipa með raunverulegum `data/` og krefst **talna, ekki bara þess að ekkert hrundi**. Ver að viðmótið sé enskt — líka ASCII-íslenska, sem stafa-skynjun sér ekki |
-| `audit.mjs` | **Leitar að villum, ekki staðfestingu.** Sjá 6b |
+| `audit.mjs` | **Leitar að villum, ekki staðfestingu.** Sjá 6b. **Og það gat ekki fellt neitt fram til 19.8.2026** — sjá 6l |
+| `entry.mjs` | Hleður síðan rétta appið? `nfl/index.html` bar **algilda** slóð `/src/main.jsx`, svo NFL-hlekkurinn skilaði **inngangi FPL-appsins** staðbundið: slóðin breyttist, titillinn sagði „NFL Fantasy", og FPL-appið teiknaðist — engin villa, ekkert í console. Krefst afstæðrar slóðar í HTML **og** að byggði búnturinn beri NFL-viðmótið og **ekki** FPL-viðmótið, lesið úr skráarinnihaldi. **Var utan `SUITES` og keyrði hjá engum til 19.8.2026** — sjá 6l |
 | `sleeper-league.mjs` | **Deildin lesin úr Sleeper.** Hrein vörpun, svo prófið keyrir sama kóða og appið. Fastarnir eru **raunverulegt svar** (deild 1389356308104249344) og verja tvær gildrur sem tilbúið svar hefði ekki sýnt: umferðirnar koma úr **draftinu** (15), ekki úr deildinni (`draft_rounds: 3`), og sætið kemur úr `slot_to_roster_id` þegar `draft_order` er **null**. Kafli 8 keyrir 8 ruslsvör; gilt svar verður að fara **óbreytt** í gegn. Sjá 6e |
 | `wiring.mjs` | **Er hreina rökfræðin raunverulega TENGD?** Hreint fall getur verið fullkomlega prófað og **aldrei kallað** — það er markaðsliðurinn í FPL-appinu sem var dauður í viku með græn próf. AST-próf krefst þess að borðið kalli `pickSignature`, `pollDelay`, `edgeSentence`, `nextOwnPick`, `survivalProb`, `leagueFromSleeper` og `teamsFromLeague`, að pollunin sé ekki `setInterval`, og að `mean` sé ekki birt beint. **Kafli 5 prófar MÆLITÆKIÐ**: athugasemdir eru strippaðar, annars hefði `grep` fundið föllin í athugasemdunum sem NEFNA þau og verið grænt þótt kallið væri farið. Fyrirvari í hausnum: AST-próf les kóða, ekki skjáinn |
 | `dashboard.mjs` | **Forsíðan.** 8 kaflar: báðar deildir með sínum reglum, forleikur er ekki röðuð staða, báðar spátölur, fjögur ólík tilfelli tóms waiver-lista, bilun er sýnileg, og **ekkert sótt fyrr en flipinn er opnaður**. Tvær villur í prófinu sjálfu eru skjalaðar þar: dálka-vísitala lesin úr **öllum** töflum og notuð á aðra, og `meta.json` sem er **fest af fyrsta lestri** því `data.js` ber sameiginlegt skyndiminni |
@@ -2998,6 +2999,150 @@ tafla án vikmarka segir „þessi er bestur" þegar gögnin segja „þessi var
 **Gildra sem kostaði tíma:** jsdom-prófið rendrar `App` **án** StrictMode og sá
 því ekki skyndiminnis-villuna sem hékk að eilífu í vafranum. AST- og jsdom-próf
 lesa kóða; þau sjá ekki skjáinn.
+
+---
+
+## 6l. PRÓFAKERFIÐ SJÁLFT LAUG UM ÞEKJUNA — 19.8.2026, tveir dagar í draftið
+
+Keyrslan prentaði þetta, í sömu keyrslu, fjórum sekúndum á milli:
+
+```
+  FAIL ekkert rusl i neinum flipa (🔌 Sources: ordid null)
+  ...
+HEILD: oll 25 profasofnin graen
+```
+
+**Safn greindi raunverulega villu og byggingin varð græn.** Þetta er nákvæmlega
+sá flokkur sem `CLAUDE.md` 5b er skrifaður um — *vörður sem skýrir frá í stað
+þess að fella er ekki vörður* — nema hér var þekjan ekki tóm heldur **raunveruleg
+og niðurstaðan þögguð**, sem er verri útgáfa: 29 fullyrðingar keyrðu, ein féll,
+og talan sem allir lásu sagði 25/25.
+
+### Orsökin, og hún var ein lína sem VANTAÐI
+
+`audit.mjs` taldi `fail++` í hverri einustu fullyrðingu — og notaði svo `fail`
+**aldrei**. Skráin endaði á kafla 9 án samantektar og án `process.exit`. Node
+skilar þá 0 og `run.mjs` telur safnið grænt. Hin 24 söfnin bera öll
+`process.exit(fail ? 1 : 0)`; þetta eina gerði það ekki.
+
+**Þetta var því ekki bara vantandi vörður heldur rangfærsla um þekjuna.** „25
+söfn græn" er fullyrðing um að 25 söfn hafi *staðist próf*; eitt þeirra gat ekki
+fallið, hvað sem það fann. Sama villa og harðkóðaða safna-talan sem kafli 6
+varar við, nema hún var í niðurstöðunni og ekki í talningunni.
+
+### Tvær aðrar holur í sömu ætt, fundnar við sömu skönnun
+
+| hola | afleiðing |
+|---|---|
+| **`entry.mjs` var utan `SUITES`** | Fullgildur vörður — níu fullyrðingar, `ok()`, `process.exit(fail ? 1 : 0)` á sínum stað — sem **keyrði hjá engum**. Sama og `pos-vs-opponent.mjs` í FPL-appinu. Hann ver villu sem sást BARA í notkun (NFL-hlekkurinn hlóð FPL-appinu), svo hann er á draft-leiðinni. Skráður; grænn, 0 s |
+| **`run.mjs` fleygði stderr** | `stdio: ["ignore", "inherit", "pipe"]` — stderr var þaggað til að kæfa `module.register()`-suðið og svo **aldrei lesið**. Safn sem **hrynur** skrifar stakkinn þangað, svo keyrslan sagði „safn fell" og birti ekki eitt orð um hvers vegna. Nú prentað, **aðeins við fall**, svo græn keyrsla er áfram hrein |
+
+### Vörðurinn — og hann er í `wiring.mjs`, ekki nýju safni
+
+`wiring.mjs` er safnið sem spyr *„er hreina rökfræðin raunverulega tengd?"*.
+Kafli 8 leggur **sömu spurningu fyrir prófin sjálf**: hvert safn í `tests/`
+verður að bera `process.exit(fail ? 1 : 0)` **og** vera í `SUITES`. Listinn er
+**leiddur út úr möppunni**, ekki handskrifaður — handskrifaður listi staðnar um
+leið og safni er bætt við, sem er villan sem `run.mjs` varar sjálfur við.
+
+Miðja fullyrðingin (`fail` verður að vera **í skilyrðinu**) er nauðsynleg:
+`process.exit(0)` í lokin væri exit-kóði sem getur ekki fellt neitt — gatið
+sjálft í nýjum klæðum.
+
+**Stökkbreytt, þrennt, allt fellt:**
+
+| stökkbreyting | útkoma |
+|---|---|
+| `process.exit` fjarlægt úr `audit.mjs` | `FAIL … (audit.mjs)` |
+| `process.exit(0)` í stað fail-hliðarinnar | `FAIL … (audit.mjs)` |
+| `entry.mjs` út úr `SUITES` | `FAIL … (entry.mjs)` |
+
+### OG VILLAN SEM VAR FALIN: orðið `null` á skjánum
+
+Fullyrðingin sem hafði rétt fyrir sér allan tímann. Uppruninn var **mældur og
+ekki giskaður** — rannsóknarskrifta gekk DOM-tréð og prentaði forfeðra-slóðina,
+og nákvæmlega **eitt** textahnoð bar orðið:
+
+```
+td.txt.dim < tr < tbody < table.data < div.tablewrap < div.panel
+"2026 week null: no league week yet - preseason has no matchup to advise on"
+```
+
+Það er `note`-svið `advice_ledger`-raðarinnar í `data/status.json`, skrifað af
+`recordLedger()` í `scripts/snapshot-advice.mjs`:
+
+```js
+note: `${season} week ${week}: ${note}${gapTxt}`
+```
+
+Í forleik er `week` **null** (`seasonType: "pre"`) og skilyrðislaus innsetning
+gerði hana að strengnum `"null"`.
+
+**Fyrsta tilgátan var röng og mælingin sagði það.** Hún var að þetta væri
+varnar-`null`-ið (`defense.json` ber 0 raðir fyrir 2026) — það er einmitt
+ástæðan fyrir að ganga tréð í stað þess að grepa.
+
+**`v.note` er ekki innri loggi.** Hann er sýnilegur texti undir „Data sources"
+**og** tooltip á hverri röð — sama víxlun og `comp_label`/„Ofurbikar" í
+FPL-appinu, þar sem „gögn, ekki viðmót" var forsenda sem hélt ekki í framkvæmd.
+
+**Og skriftan vissi þetta þegar.** Tveimur tugum lína neðar stendur
+
+```js
+const label = week == null ? "preseason (no week)" : `${season} w${week}`;
+```
+
+fyrir **nákvæmlega sama gildi**. Konsól-úttakið var því rétt allan tímann og
+aðeins það sem notandinn sér var rangt — versta víxlunin af þeim tveimur.
+
+Lagað með sömu skilum: `week == null ? `${season} preseason``. `data/status.json`
+var **endurmynduð með skriftunni sjálfri**, ekki handrituð (`recordLedger` er
+les-breyta-skrifa á einn lykil); sannreynt með JSON-samanburði röð fyrir röð:
+144 → 144 raðir, **ein** breytt, engin ný, engin horfin, ekkert toppsvið hreyft.
+Stökkbreytt: skilyrðið fjarlægt, skriftan endurkeyrð → `audit.mjs` **fellur**,
+exit 1.
+
+### HVERT ANNAÐ SAFN VAR SÍÐAN MÆLT — með V8-þekju, ekki með lestri
+
+Spurningin „er þessi hola í fleiri söfnum?" má ekki svara með heuristík. Fyrsta
+tilraunin bar fasta textabúta úr hverri `ok()` við loggann og gaf **40 fölsk
+jákvæð** í `render.mjs` einu — sniðmáts-strengir gera slíka pörun ónýta.
+
+Rétta mælingin er `NODE_V8_COVERAGE` yfir **prófskrárnar sjálfar**:
+`ok(`-kallstaður með telju **0** er fullyrðing sem keyrði aldrei. Yfir öll 26
+söfnin (~2.000 kallstaðir) eru **tíu** dauðir, og enginn þeirra er hola:
+
+| söfn | staðir | hvers vegna það er rétt |
+|---|---|---|
+| `dst.mjs` · `rulebasis.mjs` · `pipeline.mjs` · `learn.mjs` · `draft-live.mjs` | 5 | `ok(false, …)`-greinar sem kvikna **aðeins þegar eitthvað er að** (`dst.json vantar`, `catch`, „borðið tók ekki við valinu"). Þær eiga ekki að keyra í grænni keyrslu |
+| `render.mjs` | 3 | Ótekna helftin af **ásettum** annaðhvort-eða greinum (`!S.measured`, og `S.rule !== "career"`). Báðar greinar eru prófaðar gegn `S.rule`, svo hvorug getur staðið þegar hin er í gildi — það er rétt hönnun og athugasemdin segir það |
+| `dashboard.mjs` | 2 | Ein er skjöluð með `else`-grein sem **vísar á hvar tilfellið ER prófað** (`dst.mjs` kafli 8) og þekjan sjálf er fullyrt (`kinds.length >= 2`). Sú síðari er raunveruleg smá-hola, hér að neðan |
+
+**Sterkasta niðurstaðan er neikvæð:** engin `ok()` inni í lykkju hafði telju 0,
+svo **ekkert safn hefur tóma lykkju** — `react-warnings`-flokkurinn (0 af 22
+viðmótum, grænt) er ekki til hér. Það er fullyrðing sem lestur getur ekki gefið.
+
+### FUNDIÐ OG **EKKI** LAGFÆRT: `dashboard.mjs` l.873
+
+```js
+const { tCritFor } = await import("../src/rulebasis.js")
+  .then((m) => ({ tCritFor: m.tCritFor || m.tCrit || null }))
+  .catch(() => ({ tCritFor: null }));
+...
+if (tCritFor) { ok(Math.abs(tCritFor(7) - T_CRIT_7) < 0.0005, …); }
+```
+
+`tCrit` í `rulebasis.js` er **module-privat** (`const tCrit = (years) => …`, ekki
+`export`). `m.tCritFor || m.tCrit` er því **alltaf null** og fullyrðingin getur
+aldrei keyrt.
+
+**Hún er samt ekki fals-grænt og því ekki lagfærð tveimur dögum fyrir draftið:**
+aðal-akkerið tveimur línum ofar (`T_CRIT_7` == talan í töflunni í
+`rulebasis.js`, og hún er **ekki** df=10-gildið 2,228) **keyrir** og myndi fella
+prófið ef talan rækist. Það sem tapast er þverprófun á **fallinu** — bakfallið
+`?? 2.228` eða uppflettingin gæti bilað á meðan töflu-talan stendur rétt.
+Lagfæringin er ein lína (`export` á `tCrit`) og á að fara inn **eftir** draftið,
+með stökkbreytingu sem sannar að fullyrðingin geti fallið.
 
 ---
 
