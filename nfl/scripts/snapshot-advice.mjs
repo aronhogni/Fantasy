@@ -458,8 +458,32 @@ function recordLedger(season, week, okFlag, note, gaps = []) {
       : "";
     const rows = Array.isArray(st.sources) ? st.sources : [];
     const next = rows.filter((r) => r && r.name !== "advice_ledger");
+    /* ============================================================
+       NULL VIKA MA EKKI VERDA ORDID "null" A SKJANUM (19.8.2026)
+       ============================================================
+       Þetta var `${season} week ${week}` skilyrdislaust, og i forleik er
+       `week` NULL — svo `note` vard strengurinn
+
+         "2026 week null: no league week yet - preseason has no
+          matchup to advise on"
+
+       og `Sources`-flipinn birti hann orettan. `v.note` er ekki innri
+       loggi: hann er SYNILEGUR texti i "Data sources" og tooltip a
+       hverri rod, svo ordid `null` var a skjanum hja notandanum.
+
+       Þetta er nakvaemlega reglan "NULL ER EKKI NULL" i sinni beinustu
+       mynd (README 8): tala eda gildi sem VANTAR ma ekki birtast sem
+       gildi. Og skriftan VISSI thetta thegar — `label` tveimur tugum
+       lina hér nedar ber `week == null ? "preseason (no week)" : ...`
+       fyrir NAKVAEMLEGA SAMA gildi. Konsol-utakid var thvi rett allan
+       timann og ADEINS thad sem notandinn ser var rangt, sem er versta
+       vixlunin af theim tveimur.
+
+       Vordur: `audit.mjs` kafli 1 (`\bnull\b` i DOM) — hann GREIP thetta
+       og var thagaður, sja commit a undan thessum. */
+    const when = week == null ? `${season} preseason` : `${season} week ${week}`;
     next.push({ name: "advice_ledger", ok: !!okFlag && !gaps.length,
-                note: `${season} week ${week}: ${note}${gapTxt}`,
+                note: `${when}: ${note}${gapTxt}`,
                 ts: new Date().toISOString(), stage: "ledger", stale: false });
     st.sources = next;
     writeFileSync(p, JSON.stringify(st));
