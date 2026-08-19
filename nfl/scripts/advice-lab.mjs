@@ -94,12 +94,31 @@ async function main() {
     ]) {
       const slots = [];
       for (let slot = 1; slot <= TEAMS; slot++) slots.push(run(slot));
-      byStrategy[key][year] = Math.round(mean(slots) * 10) / 10;
+      /* `mean` SKILAR NULL FYRIR TOMT, OG `null * 10` ER 0 — sja notuna
+         vid `mean` i src/learn.js. Med TEAMS = 12 getur `slots` ekki ordid
+         tomt i dag, svo thetta er LATENT og ekki lifandi villa; hlidid er
+         samt hér thvi thad er ODYRT og thvi er throskuldurinn fyrir ad
+         thetta VERDI villa (einhver gerir TEAMS ad breytu) ekki hljodur
+         nulldalkur i skyrslu. */
+      const m = mean(slots);
+      byStrategy[key][year] = m == null ? null : Math.round(m * 10) / 10;
     }
   }
 
   /* ---------- NIDURSTADA ---------- */
   const ys = Object.keys(byStrategy.aRank);
+  /* HVERT AR GETUR HOPPAD YFIR (fjogur `continue`-hlid ad ofan: < 120
+     radir, engin Sleeper-spa, tom stodulaug, < 120 i laug), svo `ys`
+     GETUR ordid tomt — og tha var `mean(ys...)` null og `.toFixed(1)`
+     kastadi TypeError i lok keyrslunnar. Uttekt sem sagdist hafa talid
+     kallendur `mean` TAEMANDI missti thennan; hann er hér med.
+     Prosa sem segir "—" er rett svar, TypeError er thad ekki.        */
+  const fmt1 = (v) => (v == null ? "—" : v.toFixed(1));
+  if (!ys.length) {
+    console.log("\n  ENGIN AR STODUST HLIDIN (< 120 radir, engin Sleeper-spa " +
+      "eda of grunn laug) — engin maeling, engar tolur.");
+    return;
+  }
   console.log(`\n${"=".repeat(78)}`);
   console.log(`  RADGJOF GEGN A-RANKING · ${SCORING.toUpperCase()} · ${TEAMS} lid · ${ys.length} timabil`);
   console.log("=".repeat(78));
@@ -107,7 +126,7 @@ async function main() {
   for (const k of ["advice", "aRank", "adp"]) {
     console.log(`  ${k.padEnd(14)}` +
       ys.map((y) => String(byStrategy[k][y]).padStart(8)).join("") +
-      `   ${mean(ys.map((y) => byStrategy[k][y])).toFixed(1)}`);
+      `   ${fmt1(mean(ys.map((y) => byStrategy[k][y]).filter((v) => v != null)))}`);
   }
 
   const vsA = bootstrapDiff(byStrategy.advice, byStrategy.aRank);

@@ -212,12 +212,26 @@ export function rankArray(xs) {
    hefdi kastad. Bædi tilfellin eru profud berum ordum i
    `tests/learn.mjs` kafla 3b — annars vaeri hlidid enn endursogn.
 
-   KALLENDUR SEM MYNDU NU HRYNJA I STAD THESS AD LJUGA voru taldir upp
-   TAEMANDI (`mean(...)` med adferdar-kalli straxa a eftir): fjorar linur
-   i tveimur skriftum, allar `console.log`-prosa. Thaer eru hliddar a
+   KALLENDUR SEM MYNDU NU HRYNJA I STAD THESS AD LJUGA voru hliddir a
    notkunarstad (`fmt` i `market-lab.mjs` og `startsit-lab.mjs`) — texti
    sem segir "—" er rettur, `TypeError` i lok 20-minutna keyrslu er thad
    ekki.
+
+   HER STOD "taldir upp TAEMANDI ... fjorar linur i tveimur skriftum".
+   **THAD VAR RANGT OG ORDID "TAEMANDI" ER ASTAEDAN FYRIR THVI AD THAD
+   LIFDI** (uttekt 19.8.2026 fann thad): `scripts/advice-lab.mjs` flytur
+   `mean` inn ur thessari skra og bar THRJA kallstadi til, thar af
+   `mean(ys.map(...)).toFixed(1)` sem KASTAR thegar oll ar hoppa yfir
+   fjogur `continue`-hlidin. Stadfest med stokkbreytingu: an hlidsins
+   `TypeError` i linu 124, med thvi prosa og exit 0.
+
+   LAERDOMURINN ER ALMENNUR OG HANN ER UM ORDALAGID: "taemandi" er
+   fullyrding sem ekkert prof les, svo hun eldist eins og homurud tala.
+   Retta formid er skonnun sem FELLUR — og hun er nu til fyrir
+   birtingarlagid (`tests/learn.mjs` skannar `src/` og fellur ef nokkur
+   skra thar flytur inn `mean`/`mae`/`rmse`). **Skriftur i `scripts/` eru
+   VILJANDI utan thess vardar**: thar ER null rett svar og hlidid a ad
+   liggja a notkunarstad, sem er einmitt thad sem var gert hér.
 
    AFLEIDDU FOLLIN ERU OLL THEGAR HLIDD og thad var athugad hvert fyrir
    sig: `spearman` (n < 3 -> null), `hitRate` (n*1,5 -> null),

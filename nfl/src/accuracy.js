@@ -56,6 +56,30 @@ export function spearman(pairs) {
   return spearmanArrays(pairs.map((p) => p.pred), pairs.map((p) => p.actual));
 }
 
+/* TVAER UTFAERSLUR A `mean` I REPO-INU, OG THAD ER ASETT — SKJALAD HER
+   19.8.2026 THVI ROKIN BJUGGU ADEINS I PROFINU.
+
+   `src/learn.js` ber `mean` sem skilar **null** fyrir tomt inntak; thessi
+   skilar **0** (`xs.length || 1`). Su munur er EKKI oradinn afgangur af
+   lagfaeringu sem gleymdist: hann er REGLAN, og `tests/learn.mjs` ber
+   BYGGINGARLEGAN vord sem fellur ef nokkur skra i `src/` flytur inn
+   `mean`/`mae`/`rmse` ur learn.js.
+
+   ASTAEDAN (ordrett ur theim verdi): `null` sem raedst inn i reikning i
+   birtingarlagi verdur **NaN a skja**, sem er VERRA en 0-id sem var
+   fjarlaegt. `learn.js` er malaleid — thar er "engin maeling" rett svar
+   og null er rett tákn. `accuracy.js` er a APP-LEIDINNI, og thar er
+   thogult 0 skárra en NaN i toflu.
+
+   UTTEKT 19.8.2026 LAGDI TIL AD SAMEINA THESSAR TVAER og kalladi thetta
+   afrit sem hefdi verid missed. **Thad var reynt og VORDURINN FELLDI
+   THAD** — nakvaemlega eins og hann atti ad gera. Sameiningin er thvi
+   MAELD OG HOFNUD, ekki ogerd.
+
+   OG HVERS VEGNA NULL-TILFELLID SKIPTIR HVORT ED ER EKKI MALI HER:
+   badir kallstadir eru hlidadir a undan (`topMae` -> `top.length < 5`,
+   `simulateAllSlots` -> `league.teams >= 1`), svo tomt fylki naer aldrei
+   hingad. Fyrir OLL onull inntok eru formulurnar bitaeins jafngildar.  */
 const mean = (xs) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
 
 /**
