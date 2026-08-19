@@ -502,6 +502,61 @@ console.log("\n8. bordin — skorðun, tomir lyklar og grisjun");
   ok(localStorage.getItem("nfl_taken:L2@332222") != null,
     "en snertir EKKI adra deild (`@` skilur ad, svo prefix getur ekki hlaupid yfir)");
   localStorage.clear();
+
+  /* ============================================================
+     (f) BORD SEM ENGIN VOL ERU I TEKUR ENGAN SESS — 19.8.2026
+     ============================================================
+     Grisjunin eyddi bordinu sem var i gangi. Ad slá 19 stafa
+     draft-audkenni i hendi gefur 14 millistig sem OLL standast
+     `DRAFT_ID_RE` (6-32 stafir), hvert tok sess, og med atta sess
+     fylltist listinn af halfslegnum audkennum — MAELT: bord med 59
+     volum -> lykillinn EYDDUR. Rokstudningurinn er vid
+     `touchBoardScope` i `data.js`; hér er reglan sjalf.
+
+     ATTIN SEM MA EKKI GLEYMAST er fyrst: bord MED volum VERDUR ad
+     skrast, annars vaeri "engu eytt" uppfyllt med thvi ad gera
+     grisjunina ad engu — og prof sem er graent a kodanum sem safnar
+     bordum ad eilifu er verra en ekkert.                          */
+  localStorage.clear();
+  D.saveScoped("taken:L1@1389356308125192192", Array.from({ length: 59 }, (_, i) => `p${i}`));
+  D.touchBoardScope("L1@1389356308125192192", 8);
+  ok(JSON.parse(localStorage.getItem("nfl_boards") || "[]")
+      .includes("L1@1389356308125192192"),
+    "bord MED volum skrair sig i listann");
+
+  const TYPED = "1420000000000000007";           /* 19 stafir, eins og Sleeper */
+  let touched = 0;
+  for (let i = 1; i <= TYPED.length; i++) {
+    const sc = D.boardScope("L1", TYPED.slice(0, i));
+    if (sc.includes("@")) touched++;
+    D.touchBoardScope(sc, 8);
+  }
+  /* ÞEKJA ER FULLYRDING: fóru millistigin raunverulega gegnum hlidid?
+     Vaeri `DRAFT_ID_RE` threngt svo ekkert theirra kaemi hingad myndi
+     profid ekki maela regluna — thad myndi maela regexid. */
+  ok(touched >= 10,
+    `${touched} halfslegin audkenni foru gegnum \`boardScope\` sem draft-bord`);
+  ok(JSON.parse(localStorage.getItem("nfl_boards") || "[]").length === 1,
+    "og ekkert theirra tok sess — listinn er enn EITT bord");
+  ok(JSON.parse(localStorage.getItem("nfl_taken:L1@1389356308125192192") || "[]")
+      .length === 59,
+    "svo bordid med 59 volum er OSKERT");
+
+  /* Og ad eyda er takmarkad vid EITT bord i kalli. Listi sem er
+     einhvern veginn lengri en `max` er STYTTUR AN EYDINGAR: lykill sem
+     lifir er 2 KB sem ma sopa sidar, bord sem er eytt kemur ekki til
+     baka. */
+  localStorage.clear();
+  for (let i = 1; i <= 6; i++) D.saveScoped(`taken:L1@${5000000 + i}`, [`p${i}`]);
+  D.saveState("boards", Array.from({ length: 6 }, (_, i) => `L1@${5000001 + i}`));
+  D.saveScoped("taken:L1@5999999", ["ny"]);
+  D.touchBoardScope("L1@5999999", 2);            /* listinn er 4 yfir thakinu */
+  let gone = 0;
+  for (let i = 1; i <= 6; i++) {
+    if (localStorage.getItem(`nfl_taken:L1@${5000000 + i}`) == null) gone++;
+  }
+  ok(gone === 1, `adeins EITT bord eyddist thott fjogur faeru af listanum (${gone})`);
+  localStorage.clear();
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

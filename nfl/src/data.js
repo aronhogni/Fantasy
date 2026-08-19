@@ -448,16 +448,67 @@ export function dropScopedState(id) {
  * ADEINS DRAFT-BORD (`@`) eru talin. Deildar-bordid sjalft — handvirka
  * skraningin — ma ALDREI detta ut af aldri; thad er eina eintakid af
  * volum sem enginn Sleeper-endapunktur getur skilad aftur.
+ *
+ * ============================================================
+ * OG BORD SEM HEFUR ENGIN VOL FAER ENGAN SESS (19.8.2026)
+ * ============================================================
+ * ÞETTA VAR VERSTA VILLAN I APPINU og hun eyddi bordi i midju drafti:
+ * **ad slá eda lima draft-audkenni I HENDI eyddi ollum vistudum
+ * bordum, thar med thvi sem var i gangi.**
+ *
+ * KEDJAN, OG HVERT HLEKKUR ER RETTUR I SINU LAGI:
+ *   1. `DRAFT_ID_RE` tekur 6-32 tolustafi (hér ad ofan).
+ *   2. Reiturinn i `DraftBoard` uppfaerir `sync.draftId` VID HVERN
+ *      INNSLATT — thad er rett, annars vaeri reiturinn ekki stýrdur.
+ *   3. Hver breyting a `scope` kallar hingad.
+ *
+ * Raunverulegt Sleeper-audkenni er 19 stafa snjokorn, svo ad slá thad
+ * gefur **14 millistig** sem OLL standast regexid ("140000000000",
+ * "1400000000000", …). Hvert theirra tok sess i listanum, listinn
+ * fylltist (8 sess) og MAELT (`repro`, 19 stafa audkenni):
+ * bord med 59 volum -> **0 vol, lykillinn eyddur**, og listinn bar
+ * atta halfslegin audkenni sem enginn hafdi nokkurn timann draftad i.
+ *
+ * ÞAD SEM VAR RANGT VAR EKKI REGEXID HELDUR HVER FAER SESS. Ad threngja
+ * regexid vaeri agiskun um snid sem Sleeper akvedur (og feilar i attina
+ * ad gomlu villunni: tvo mock deila bordi), og thad naegir ekki heldur —
+ * 19 stafa audkenni ber enn millistig 16, 17 og 18. Reglan sem GILDIR
+ * hvad sem sniðinu lidur er su sama og `saveScoped` beitir a lyklana:
+ *
+ *   **BORD SEM ENGIN VOL ERU I ER EKKERT VIRDI. Þad tekur engan sess
+ *   og getur thvi ekki ytt neinu ut.** Millistig audkennis fær aldrei
+ *   val, svo thad kemur aldrei inn i listann. Bord sem FAER sitt fyrsta
+ *   val skrair sig tha — sja `hasPicks` i `DraftBoard`.
+ *
+ * OG GRISJUNIN SJALF ER TAKMORKUD VID EITT BORD I KALLI. Med reglunni
+ * hér ad ofan getur listinn adeins vaxid um eitt per kall, svo eitt er
+ * allt sem tharf. Se listinn samt EINHVERN VEGINN lengri (eldri
+ * utgafa, `max` laekkad) er hann STYTTUR AN EYDINGAR: lykill sem
+ * lifir af er 2 KB sem ma sopa sidar (`dropScopedState` a deildina,
+ * `clearState`), en bord sem er eytt kemur ekki til baka. Vordur:
+ * `draft-live.mjs` kafli 15c, `saved-state.mjs` kafli 8f.
  */
+function boardHasPicks(scope) {
+  for (const name of ["taken", "myPicks"]) {
+    const v = loadState(scoped(name, scope), []);
+    if (Array.isArray(v) && v.length > 0) return true;
+  }
+  return false;
+}
+
 export function touchBoardScope(scope, max = 8) {
   try {
     if (typeof scope !== "string" || !scope.includes("@")) return;
+    if (!boardHasPicks(scope)) return;
     const prev = loadState("boards", []);
     const list = (Array.isArray(prev) ? prev : [])
       .filter((s) => typeof s === "string" && s !== scope);
     list.push(scope);
-    const drop = list.splice(0, Math.max(0, list.length - max));
-    for (const s of drop) dropScopedState(s);
+    const over = Math.max(0, list.length - max);
+    /* Eitt bord ma eydast, ekki fleiri — sja hausinn. Hin sem eru
+       stytt af listanum halda lyklum sinum. */
+    const trimmed = list.splice(0, over);
+    if (trimmed.length) dropScopedState(trimmed[0]);
     saveState("boards", list);
   } catch { /* full geymsla ma ekki fella appid */ }
 }

@@ -198,6 +198,11 @@ const mkPick = (no, player) => {
   };
 };
 
+/** Audkenni sem hermirinn thekkir — sja `live.strictIds` nedar. */
+const knownDraftId = (id) => id === live.draft.draft_id
+  || id === LEAGUE_B_DRAFT_ID || id === MOCK_DRAFT_ID
+  || !!(live.secondDraft && id === live.secondDraft.draft.draft_id);
+
 const calls = [];
 global.fetch = async (url) => {
   const s = String(url);
@@ -231,6 +236,17 @@ global.fetch = async (url) => {
        thad var nakvaemlega gildran sem fannst i `sleeper.mjs` kafla 2f. */
     if (/\/picks$/.test(s)) {
       const id = /\/draft\/([^/]+)\/picks/.exec(s)[1];
+      /* OTHEKKT AUDKENNI SVARAR 404 THEGAR SPURT ER UM THAD (`strictIds`).
+         Sjalfgefid fellur hermirinn i `live.picks` fyrir hvada audkenni
+         sem er, sem er nytilegt i ollum kofluum sem tengja EITT draft —
+         en i kafla 15c er thad einmitt villan sem verid er ad maela:
+         halfslegid audkenni ma ekki fa nein vol. Raunverulegur Sleeper
+         skilar 404 a audkenni sem er ekki til, svo hermirinn er ekki
+         "strangari" hér heldur RETTUR; flaggid er til svo adrir kaflar
+         se oskertir. */
+      if (live.strictIds && !knownDraftId(id)) {
+        return { ok: false, status: 404, json: async () => null };
+      }
       if (id === LEAGUE_B_DRAFT_ID) return jsonOk([]);
       if (live.secondDraft && id === live.secondDraft.draft.draft_id) {
         return jsonOk(live.secondDraft.picks.slice());
@@ -239,6 +255,9 @@ global.fetch = async (url) => {
     }
     if (/\/draft\//.test(s)) {
       const id = /\/draft\/([^/?]+)/.exec(s)[1];
+      if (live.strictIds && !knownDraftId(id)) {
+        return { ok: false, status: 404, json: async () => null };
+      }
       if (id === LEAGUE_B_DRAFT_ID) return jsonOk(LEAGUE_B_DRAFT);
       if (id === MOCK_DRAFT_ID) return jsonOk(MOCK_DRAFT);
       if (live.secondDraft && id === live.secondDraft.draft.draft_id) {
@@ -1227,6 +1246,126 @@ console.log("\n15b. reset-hnappurinn er kominn upp i tengi-spjaldid");
   ok(draftedOnScreen() === 0 && !resetBtn().disabled,
     "og hann er VIRKUR thott ekkert val se komid — tengingin ein dugar");
   root.unmount();
+}
+
+/* ============================================================
+   15c. AD SLA DRAFT-AUDKENNI I HENDI EYDDI BORDINU SEM VAR I GANGI
+   ============================================================
+   HAETTULEGASTA VILLAN SEM FANNST I THESSU APPI, og hun kom UPP UR
+   THEIRRI VINNU sem kafli 15 ver: skorðunin er rett, grisjunin var
+   rong, og saman eyddu thaer bordinu.
+
+   KEDJAN — hver hlekkur rettur, samsetningin eyðandi:
+     · `DRAFT_ID_RE` tekur 6-32 tolustafi
+     · reiturinn uppfaerir `sync.draftId` VID HVERN INNSLATT
+     · hver breyting a `scope` skradi bord i grisjunar-listann (8 sess)
+
+   19 stafa Sleeper-audkenni gefur thvi **14 millistig** sem oll
+   standast regexid. Listinn fylltist af theim og bordin sem voru
+   RAUNVERULEG fellu ut — MAELT a gomlu utfaerslunni: bord med 59
+   volum -> **0**, lykillinn eyddur, og listinn bar atta halfslegin
+   audkenni sem enginn hafdi draftad i.
+
+   PROFID SLÆR AUDKENNID STAF FYRIR STAF. Ad lima thad inn i einu
+   (`setInput` med fullu gildi) FELLDI ALDREI villuna — thad gefur eitt
+   `scope` og eitt kall. Sama kynslod villu og "tvennt tharf til ad
+   bregdast" (CLAUDE.md 5b): fullyrding sem prófar limingu eina getur
+   ekki brugdist.
+
+   FULLYRDINGIN ER I BADAR ATTIR og su fyrri er nauðsynleg: bord SEM
+   HEFUR VOL verdur ad vera skrad i listann, annars vaeri "engu eytt"
+   uppfyllt med thvi ad gera grisjunina ad engu — og tha vaeri profid
+   graent a kodanum sem safnar bordum ad eilifu.                    */
+const TYPED_ID = "1420000000000000007";   /* 19 stafir, eins og Sleeper */
+console.log("\n15c. draft-audkenni slegid i hendi — bordid i gangi verdur ad lifa");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  live.strictIds = true;
+  let root = await boot();
+  await connectAndSync();
+  for (let n = 1; n <= 59; n++) pushPick(n);
+  ok(await waitFor(() => draftedOnScreen() === 59, 9000),
+    `bordid ber 59 vol adur en nokkud er slegid (${draftedOnScreen()})`);
+
+  const kA = `nfl_taken:${LEAGUE_ID}@${DRAFT_ID}`;
+  const boards = () => {
+    try { return JSON.parse(localStorage.getItem("nfl_boards") || "[]"); }
+    catch { return []; }
+  };
+  const takenKeys = () => {
+    const out = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("nfl_taken:")) out.push(k);
+    }
+    return out;
+  };
+
+  /* ---- ATTIN SEM MA EKKI GLEYMAST: bord MED volum ER skrad ---- */
+  ok(boards().includes(`${LEAGUE_ID}@${DRAFT_ID}`),
+    `bord med volum ER i grisjunar-listanum (${JSON.stringify(boards())})`);
+  ok(JSON.parse(localStorage.getItem(kA) || "[]").length === 59,
+    "og lykill thess ber 59 vol");
+
+  /* ============================================================
+     EITT VAL SKRAD I HENDI — OG THAD ER PROFSTEINNINN
+     ============================================================
+     SKJARINN EINN GETUR EKKI FELLT THESSA VILLU og thad var MAELT:
+     med gamla kodanum var lykill bords A eyddur, og fullyrdingin
+     "59 vol koma til baka a skjainn" stod SAMT — thvi pollunin sótti
+     thau oll upp a nytt fra Sleeper. Sjalfvirk endurheimt fal
+     eydinguna.
+
+     Þess vegna er eitt val skrad I HENDI. Handvirk vol eru VILJANDI
+     utan mismunarins i `onPicks` (thin skraning, ekki Sleepers), svo
+     Sleeper getur ekki skilad theim — thau eru sa hluti bordsins sem
+     er OAFTURKRAEFUR. Fullyrdingin "60, ekki 59" er thvi um raunverulegt
+     tap, ekki um birtingu.                                          */
+  const handRow = boardTable() && boardTable().querySelector("tbody tr");
+  const handName = handRow && (handRow.querySelector("td.frozen")?.textContent || "").trim();
+  await click(handRow && handRow.querySelector("button"), 120);
+  ok(draftedOnScreen() === 60,
+    `eitt val skrad i hendi ofan a Sleeper-volin (${draftedOnScreen()}) — "${handName}"`);
+  ok(JSON.parse(localStorage.getItem(kA) || "[]").length === 60,
+    "og lykillinn ber 60");
+
+  /* ---- OG SVO ER SLEGID, STAF FYRIR STAF ---- */
+  for (let i = 1; i <= TYPED_ID.length; i++) {
+    await setInput("Draft ID", TYPED_ID.slice(0, i));
+  }
+  await settle(300);
+
+  ok(JSON.parse(localStorage.getItem(kA) || "[]").length === 60,
+    `bord A er OSKERT eftir ${TYPED_ID.length} innslatta`
+    + ` (${JSON.parse(localStorage.getItem(kA) || "[]").length} vol)`);
+  ok(boards().includes(`${LEAGUE_ID}@${DRAFT_ID}`),
+    `og thad er enn i listanum (${JSON.stringify(boards())})`);
+  /* Halfslegid audkenni ma hvorki eiga lykil ne sess. Talid, ekki
+     skodad: thekja er fullyrding. */
+  const half = boards().filter((s) => {
+    const d = String(s).split("@")[1] || "";
+    return d !== TYPED_ID && TYPED_ID.startsWith(d);
+  });
+  ok(half.length === 0,
+    `ekkert halfslegid audkenni tok sess i listanum (${half.length}: ${half.join(", ")})`);
+  ok(takenKeys().length === 1,
+    `og adeins EITT bord a lykil i geymslunni (${takenKeys().length}: ${takenKeys().join(", ")})`);
+
+  /* ---- OG BORDID KEMUR TIL BAKA. Lykill sem er oskertur en birtist
+     ekki er jafn tapadur fyrir notandann. Talan er **60**: 59 fra
+     Sleeper OG hitt sem Sleeper veit ekki af. ---- */
+  await setInput("Draft ID", DRAFT_ID);
+  ok(await waitFor(() => draftedOnScreen() === 60, 8000),
+    `aftur a bordi A: oll 60 volin koma til baka a skjainn (${draftedOnScreen()})`);
+  ok(!boardNames().includes(handName),
+    `og handvirka valid ("${handName}") er enn strikad ut, ekki komid til baka a bordid`);
+  /* 61, ekki 60: handvirka valid telur MED i valnumerinu — ad merkja
+     mann "gone" ER notandinn ad segja ad val hafi verid tekid sem
+     Sleeper hefur ekki skilad enn. Sja `offBoard`. */
+  ok(pickHeader() === 61, `og valnumerid er 61 (${pickHeader()})`);
+  ok(!junk(), `ekkert NaN/undefined a skjanum (${junk() || "-"})`);
+  root.unmount();
+  live.strictIds = false;
 }
 
 /* ============================================================

@@ -196,8 +196,29 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   useEffect(() => { D.saveScoped(kTaken, [...taken]); }, [kTaken, taken]);
   useEffect(() => { D.saveScoped(kMine, [...myPicks]); }, [kMine, myPicks]);
   /* Bord safnast upp — eitt per mock — svo thau elstu eru grisjud. Adeins
-     draft-bord; handvirka bordid er eina eintakid af sinum volum. */
-  useEffect(() => { D.touchBoardScope(scope); }, [scope]);
+     draft-bord; handvirka bordid er eina eintakid af sinum volum.
+
+     ============================================================
+     OG ADEINS BORD SEM HEFUR VOL (19.8.2026)
+     ============================================================
+     Þetta var `[scope]` eitt, og THAD EYDDI BORDINU SEM VAR I GANGI:
+     hver innslattur i Draft ID-reitinn gefur nytt `scope`, svo ad slá
+     19 stafa audkenni i hendi kalladi hingad **15 sinnum** med
+     halfslegnum audkennum sem oll standast `DRAFT_ID_RE`. Grisjunin
+     (8 sess) fylltist af theim og ytti raunverulegum bordum ut.
+     Rokstudningurinn er allur vid `touchBoardScope` i `data.js`.
+
+     `hasPicks` er thvi I HADINU, ekki adeins skilyrdi INNI i effectinu:
+     bord skrair sig thegar thad FAER sitt fyrsta val, ekki thegar thad
+     er opnad. Vaeri `scope` eitt i hadinu myndi bord sem er tengt tomt
+     — sem er nakvaemlega thad sem gerist thegar draft er tengt fyrir
+     fyrsta val — aldrei skrast, og grisjunin haetti ad grisja.
+
+     RODIN A EFFECTUM SKIPTIR MALI OG HUN ER TRYGGD: vistunar-effectin
+     tvo hér ad ofan eru skilgreind FYRR, svo lykillinn er skrifadur
+     adur en spurt er hvort hann se til. Sama commit, sama teikning. */
+  const hasPicks = taken.size > 0 || myPicks.size > 0;
+  useEffect(() => { if (hasPicks) D.touchBoardScope(scope); }, [scope, hasPicks]);
 
   /* Bordid radar THEIM SEM A-RANKING NAER YFIR. K og DST eru utan
      hennar (sja notu i build.js) og eru syndir ser nedar. */
