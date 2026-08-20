@@ -4004,6 +4004,198 @@ að vera „eitthvað um aukastafi einhvers staðar".
 
 ---
 
+## 6o. „FINNDU SLOTTIÐ MITT" — appið les sætið sjálft, líka í mock-i, 20.8.2026
+
+Beiðnin var orðrétt: *„Nei eg vill ad thu finnir slottid mitt, finndu leidir til
+thess ad lata appid gera thad."* Tölu-reiturinn var ekki svar heldur uppgjöf.
+
+### Hvers vegna mock hafði enga leið
+
+`resolveSlot` bar tvær leiðir — `draft_order[uid]` og deildar-vörpunina — og
+**báðar kröfðust `uid`**, sú síðari líka deildar. Í mock-i (engin deild, og hann
+hafði aldrei slegið inn nafn svo `uid` var `null`) hafði hún því **enga gilda
+leið**.
+
+**Mælt, ekki tilgáta:** hún skilaði `null`, hún skilaði **ekki** 5. Erfða sætið
+kom úr einni línu í `connect` (`slot: slot != null ? slot : sync.slot`).
+Stökkbreyting á þeirri línu fellir `draft-live.mjs` 18 með fjórum fullyrðingum;
+uppflettingin sjálf var alltaf heiðarleg. Tilgátan um að ein leiðanna paraði á
+einhverju sem er ekki identitet var **röng**.
+
+### Mælt á lifandi API 20.8.2026 — fjögur lokin draft
+
+| draft | vol mín | `draft_slot` | `draft_order[ég]` |
+|---|---|---|---|
+| 1257479008598110209 | 14/14 | **5** | 5 |
+| 1257117602308689921 | 15/15 | **3** | 3 |
+| 1126700095157714944 | 14/14 | **1** | 1 |
+| 1124851993081290753 | 15/15 | **5** | 5 |
+
+**Fjögur draft, fjögur ólík sæti.** Sjálfstæð staðfesting á því að sætið sé
+eiginleiki *draftsins* og megi aldrei erfast — hann hefur ekki setið í sama sæti
+tvisvar í röð. Og leiðirnar tvær gáfu **sömu tölu í öllum fjórum**, sem er
+forsendan fyrir því að hafa þær báðar í stað að velja eina.
+
+> **GILDRA SEM KOSTAÐI MÍNA EIGIN FYRSTU MÆLINGU:** LISTA-endapunkturinn
+> (`/user/{id}/drafts/nfl/{ár}`) **nullar `draft_order`** — líka á loknum
+> draftum. STAKI (`/draft/{id}`, sá sem appið notar) ber hana. Fyrsta mælingin
+> las listann, fékk null í **sex af sex** og dró af því að leið A væri nánast
+> aldrei til. Hún er til; hún kemur þegar röðin er dregin. Bæði 2026-draftin hans
+> eru `pre_draft` og bera null, bæði loknu bera hana. **Og þetta er raunveruleg
+> gildra í okkar eigin kóða:** `sleeperResolve` fellur í `sleeperDrafts(leagueId)`
+> — listann — þegar `league.draft_id` brestur, svo leið A getur verið dauð af
+> okkar eigin völdum. `pull()` sækir stakan í hverri pollun og nær henni inn.
+
+### Þrjár leiðir, og sú sterkasta er völin
+
+`resolveSeat` (`sleeper-league.js`, **hreint fall**), í þessari röð:
+
+| | leið | hvað hún notar | gerð |
+|---|---|---|---|
+| **B** | völin | `picks[].picked_by === uid` -> `draft_slot` | **sönnunargagn** |
+| A | röðin | `draft_order[uid]` | stilling |
+| C | deildin | `slot_to_roster_id` -> `rosters[].owner_id` | stilling |
+
+**Leið B er ný og hún er sú sem virkar í mock-i:** hún þarf hvorki deild,
+`slot_to_roster_id` né notendalista. Botar geta ekki ruglað hana — við leitum að
+**hans** auðkenni, svo hvað sem þeir bera er ósnert (mælt: `picked_by` var ekki
+tómt í einu af 580 völum).
+
+**VÖLIN VINNA ÞEGAR LEIÐIRNAR REKAST Á**, og það er ekki smekkur: B er dregin af
+því sem **gerðist**, A og C segja hvað **átti** að gerast. Stilling getur verið
+gömul, afrituð eða innslegin; val sem er skráð á mig **er** mitt.
+
+Þess vegna yfirskrifar B líka sæti sem er **slegið inn í hendi** — undantekning
+frá „handvirkt slær sjálfvirkt", vísvitandi: rangt sæti sem **lítur trúverðugt
+út** (3 er gilt sæti í 10-liða drafti, svo `slotOk` kviknar ekki) stóð áður allt
+draftið. Nú læknast það við **fyrsta val hans**. Stilling fær hins vegar
+**aldrei** að yfirskrifa innslátt.
+
+### Leiðin er nefnd á skjánum
+
+`slotAuto` (boolean) sagði „read from Sleeper", sem er satt um allar þrjár leiðir
+— svo sæti úr **rangri** leið las eins út og sæti úr réttri. Nú:
+`read from your own picks` · `read from the draft order` ·
+`read from the league roster`. **Þögult rétt svar og þögult rangt svar líta eins
+út**, og það var nákvæmlega ástandið sem lét hann drafta sem sæti 5.
+
+Sætið er leyst **í hverri pollun**, ekki aðeins við tengingu. Gamla hliðið var
+`sync.slot == null`, sem gerði það einskipta: rangt sæti var **óleiðréttanlegt af
+appinu sjálfu**.
+
+Reiturinn er síðasta úrræðið og **segir hvers vegna** — þrjú ástönd, þrjár
+setningar, því þau kalla á sitthvora aðgerð: auðkenni vantar -> settu
+**notandanafn** í reitinn ofar (eitt kall, vistað eftir það) · auðkenni til en
+engin heimild -> **bíða**, „it reads itself from your first pick" · annað draft
+en deildin -> listinn er ekki þessa draftsins.
+
+### Verðir — og hver leið prófuð ein
+
+`sleeper-league.mjs` 11 prófar hverja leið með **laug þar sem aðeins hún getur
+svarað**. Það er forsenda, ekki þægindi: laug með allar þrjár heimildirnar gæti
+verið græn þótt tvær væru dauðar. Auk þess: ágreiningur (A segir 5, C segir 9, B
+segir 7 -> **7**, og án valanna svarar sama laug 5, svo A er raunveruleg) ·
+tvírætt -> `null`, ekki „fyrsta" · sæti utan draftsins -> `null` á öllum leiðum.
+
+**Prófið fann tvær villur í fallinu sjálfu:** `= {}` ver aðeins `undefined` svo
+`resolveSeat(null)` hrundi, og `"   "` er sanngildi sem strengur svo hvítbil
+taldist auðkenni.
+
+`draft-live.mjs` 18 var **endurskrifaður** og ástæðan er verðmæt: hann fullyrti
+að nýtt mock án sæta-heimildar gefi **tóman** hóp og spurningu. Það varð **ósatt**
+þegar leið B kom, prófið fell — og það var **rétt hjá því að falla**: forsendan
+var ekki lengur til. Nú í fjórum þrepum, hans eigin saga: sæti 5 í drafti A ->
+sami maður í sæti **7** í mock-i B, leyst **án innsláttar** -> draft C án
+heimildar **spyr** -> innslegið sæti 3 leiðréttist í 7 við hans fyrsta val.
+
+**Níu stökkbreytingar, þrjár lifðu fyrst og voru lagaðar.** Sú lærdómsríkasta:
+„stilling má yfirskrifa innslátt" lifði því fullyrðingin var **eftir** að völin
+höfðu leyst sætið, svo `draft_order` var aldrei spurð. Hún var **færð framar** —
+CLAUDE.md 5b, fullyrðing sem þarf tvennt til að bregðast er veikari en hún lítur
+út fyrir að vera.
+
+---
+
+## 6p. HEILT MOCK KEYRT EFTIR RÁÐGJÖFINNI — 20.8.2026
+
+Hann fór eftir **hverri** ráðleggingu og endaði með tíu WR, tvo TE, einn QB,
+tvær varnir og **engan RB, engan spyrnumann** — þrjú byrjunarsæti tóm, síðasta
+lið af tíu. Ekkert próf gat fangað það, og ástæðan er ein: **hvert einasta
+fixture gaf appinu réttan hópinn.**
+
+`draft-live.mjs` 21 keyrir 10 liða, 15 umferða, full-PPR mock **úr sæti 7** og
+les nafnið **af skjánum** (`.verdict-name b`) við hvert eitt af 15 völunum.
+Ekkert í prófinu veit hvernig `recommend` vinnur; það hlýðir úrskurðinum,
+nákvæmlega eins og notandinn gerði. Botarnir velja eftir ADP — það er forsenda,
+ekki smekkur: laug valin til að **þvinga** RB-skort væri prófið að svara sinni
+eigin spurningu. ADP-röðin gefur líka K og DST sinn raunverulega stað (sjö
+varnir, sex spyrnumenn innan fyrstu 150 valanna).
+
+**Niðurstaðan er græn:**
+
+```
+hopurinn: QB 2 · RB 6 · WR 3 · TE 2 · K 1 · DST 1   (FLEX-afgangur 6)
+volin:    7:RB 14:TE 27:TE 34:RB 47:RB 54:RB 67:WR 74:QB 87:QB
+          94:WR 107:RB 114:RB 127:K 134:DST 147:WR
+```
+
+Hvert byrjunarsæti fyllt, **sex RB** og spyrnumaður/vörn þegar `mustFill` nefndi
+þau. **Ráðgjöfin var aldrei biluð; hún var spurð um lið annars manns.**
+
+Röðin var **ekki hreyfð og má ekki vera**: bráðanauðsyn sem *röð* er mæld og
+hafnað (`urgencyDrivesOrder: false`, −60,06 í standard, 0 af 5 árum). Hefði
+kaflinn fallið **með réttum hóp** væri það ný vísbending gegn mældri niðurstöðu —
+tilefni til að mæla upp á nýtt, ekki til að endurraða listanum.
+
+Uppstillanleikinn er **reiknaður í prófinu**, ekki fluttur inn: `optimalLineup`
+svarar sömu spurningu og því má hún ekki vera svarið — tvær útfærslur af sömu
+reglu sem eru báðar skakkar eru grænar saman. Talningin er lesin af skjánum
+(„RB 2/2") og FLEX úr afgangnum. **Tveir óháðir lesarar** á sömu staðreynd: talan
+sem prófið reiknar og `warn`-merkið sem notandinn sér.
+
+**Tvær stökkbreytingar, og þær skipta verkum:** `needKdst = false` -> **K0 DST0**,
+síðustu þrjú völin öll WR (tvö af þremur tómu sætunum hans) · `isMine` les sæti 5
+þegar þú ert 7 -> kafli **18** fellur með tveimur og kafli **21** með QB0/K0. Sú
+síðari afmarkar verkin berum orðum: **18 ver identitetið, 21 ver afleiðinguna.**
+Hvorugur er nóg einn — 21 les sama hóp og ráðgjöfin fær.
+
+---
+
+## 6q. VISTAÐ ÁSTAND GAT BORIÐ „DEF" — og þá var varnar-sætið aldrei fyllt
+
+`normalizeLeague` þvingaði **töluna** í `starters` en ekki **heitið**. Deild sem
+ber `starters: { DEF: 1 }` — Sleeper-stafsetningin, sem eldra vistað ástand getur
+borið — gaf `mustFill = [{ pos: "DEF" }]` meðan **hver röð** í appinu ber
+`pos: "DST"` (mælt: `players.json` ber DST í öllum 32 liðum og DEF í engu).
+`NextPick` velur K/DST-manninn með `kdst.find(r => mustFill.some(m => m.pos === r.pos))`
+sem finnur þá **aldrei neinn**: úrskurðurinn nefnir aldrei vörn,
+`mustFillUrgent` stendur satt til draftsloka, og notandinn endar með **tómt
+varnar-sæti**. Ekkert hrynur og engin tala er röng — stöðurnar tvær eru einfaldlega
+ekki sami strengurinn.
+
+> **ÞETTA VAR AFGREITT SEM „EKKI VILLAN" SAMA DAG OG ÞAÐ VAR RÉTT UM ÞANN
+> VILLUFUND** — rótin þar var erfða `slot`-ið. En það var mælt á **einni** leið af
+> þremur: `startersFromRoster` varpar `DEF -> DST`, stillinga-viðmótið skrifar
+> aðeins `DST`, og **þriðja leiðin — vistað ástand um `normalizeLeague` — slapp.**
+> Nákvæmlega flokkurinn sem CLAUDE.md kafli 8 lýsir.
+
+Leyst með `normPos` (`scoring.js`) — vörpuninni sem **pipeline-ið sjálft** notar
+þegar það skrifar `players.json` (ellefu kallstaðir í `scripts/`). Að lesa
+deildina með sömu vörpun er að spyrja skrifarann; þetta er **fyrsti kallstaður
+hennar í `src/`**. Lagt saman, ekki yfirskrifað — og **summan lýtur sama þaki og
+liðurinn** (`int(n, 0, 6)`), því tölu-vörn sem gildir per svið en ekki per summu
+er engin vörn.
+
+**Skráð, ekki lagað:** `startersFromRoster` ber sitt eigið handskrifaða afrit af
+sömu vörpun og kallar ekki `normPos`. Tvö afrit geta rekið í sundur.
+
+Vörður: `advice.mjs` 16, tvíþættur — heitið þvingað við lestur, **og**
+invariantið sem hliðið hvílir á: hver staða sem `mustFill` **nefnir** verður að
+vera staða sem röð **getur borið**, og orðaforðinn er lesinn úr `players.json`.
+Þrjár stökkbreytingar, engin lifði.
+
+---
+
 ## 6d. Vistað ástand og Sleeper-tengingin — 10.8.2026
 
 ### Vistað ástand er alvarlegra en vantandi gögn
