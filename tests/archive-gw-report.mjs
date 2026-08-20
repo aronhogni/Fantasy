@@ -82,16 +82,35 @@ ok(/parseCSVQuoted\(text\)/.test(fnArchive),
 const TEAMS_CSV = "id,name,short_name\n1,Arsenal,ARS\n2,Chelsea,CHE\n";
 const GW_CSV = [
   "element,name,position,team,opponent_team,was_home,fixture,kickoff_time,minutes,total_points,starts,goals_scored,assists,clean_sheets,goals_conceded,own_goals,saves,penalties_saved,penalties_missed,yellow_cards,red_cards,bonus,bps,expected_goals,expected_assists,expected_goal_involvements,expected_goals_conceded,value,team_h_score,team_a_score",
-  '1,Saka,MID,Arsenal,2,True,101,2026-05-24T15:00:00Z,90,12,1,1,1,1,0,0,0,0,0,0,0,3,42,0.55,0.31,0.86,0.72,105,2,0',
+  '1,Joao Maria Lobo Alves Palhares Costa Palhinha Goncalves,MID,Arsenal,2,True,101,2026-05-24T15:00:00Z,90,12,1,1,1,1,0,0,0,0,0,0,0,3,42,0.55,0.31,0.86,0.72,105,2,0',
   '2,"Sanchez, Robert",GK,Chelsea,1,False,101,2026-05-24T15:00:00Z,90,2,1,0,0,0,2,0,4,0,0,0,0,0,18,0.0,0.0,0.0,1.94,50,2,0',
   '3,Rice,MID,Arsenal,2,True,101,2026-05-24T15:00:00Z,67,5,1,0,1,1,0,0,0,0,0,1,0,1,26,0.11,0.44,0.55,0.72,65,2,0',
 ].join("\n") + "\n";
 
+/* ---------- players_raw.csv: element -> web_name ----------
+   ELEMENT 2 ER VILJANDI EKKI HER. Thad gefur okkur badar greinar i einu
+   prof: 1 og 3 fara gegnum vorpunina, 2 fellur a `|| r.name` og ber thvi
+   afram nafnid ur speglinum — sem er lika nafnid med kommunni, svo
+   gaesalappa-fullyrdingin i kafla 2 heldur merkingu sinni.
+   Rodin fyrir 1 er RAUNVERULEG: 55-stafa nafnid er thad sem stod i
+   data/last_gw.json 20.8.2026, og web_name-id er thad sem FPL kallar
+   hann. Hun sýnir lika AF HVERJU heuristik dugar ekki: "sidasta ordid"
+   gefur "Goncalves", ekki "Palhinha".                                  */
+const PLAYERS_RAW_CSV = [
+  "id,code,web_name,first_name,second_name,element_type",
+  '1,100001,Palhinha,Joao Maria,"Lobo Alves Palhares Costa Palhinha Goncalves",3',
+  '3,100003,Rice,Declan,Rice,3',
+].join("\n") + "\n";
+
 /* getText: teams.csv alltaf; gw38 er EINA umferdin sem er til, svo lykkjan
    verdur ad finna hana i fyrstu tilraun (g=38).                          */
-let calls = 0;
-const STUBS = `
+/* STUBS ER FALL AF `rawFails` ThVI KAFLI 4 KEYRIR SKYRSLUNA AFTUR MED
+   players_raw NIDRI. Sami modul tvisvar med ollikum stubbum er eina leidin
+   ad tha grein — hun er `catch`-blokk og ekkert inntak i gw-skranni getur
+   framkallad hana.                                                       */
+const STUBS = rawFails => `
 let CALLS = 0;
+const RAW_FAILS = ${rawFails};
 const ARCHIVE_SEASON = "2025-26";
 const MIRROR = "https://mirror.test";
 const DATA = "/nonexistent";
@@ -104,6 +123,10 @@ async function getText(url) {
   CALLS++;
   if (url.endsWith("/teams.csv")) return { text: ${JSON.stringify(TEAMS_CSV)} };
   if (url.endsWith("/gws/gw38.csv")) return { text: ${JSON.stringify(GW_CSV)} };
+  if (url.endsWith("/players_raw.csv")) {
+    if (RAW_FAILS) throw new Error("404 " + url);
+    return { text: ${JSON.stringify(PLAYERS_RAW_CSV)} };
+  }
   throw new Error("404 " + url);
 }
 async function readFile() { throw new Error("no E0 file in the test"); }
@@ -112,10 +135,12 @@ function e0Stats(row) { return null; }
 async function writeJSON(name, obj) { WRITES.push({ name, obj }); }
 function record(k, ok, n, note) { RECORDS.push({ k, ok, n, note }); }
 `;
-const mod = await import("data:text/javascript," + encodeURIComponent(
-  STUBS + fnCSV + "\n" + fnCSVQ + "\n" + fnNorm + "\n" + fnArchive +
+const build = rawFails => import("data:text/javascript," + encodeURIComponent(
+  STUBS(rawFails) + fnCSV + "\n" + fnCSVQ + "\n" + fnNorm + "\n" + fnArchive +
   "\nexport { buildArchiveGwReport, RECORDS, WRITES, parseCSV, parseCSVQuoted };" +
   "\nexport const callCount = () => CALLS;"));
+
+const mod = await build(false);
 
 await mod.buildArchiveGwReport();
 const rec = mod.RECORDS.find(r => r.k === "last_gw");
@@ -154,6 +179,74 @@ ok(!Array.isArray(c) && Array.isArray(c.rows), "parseCSV skilar `{header, rows}`
    kafli 0 sannadi ad `parseCSVQuoted(text)` ER i thessum kodabalki.      */
 ok(!/parseCSVQuoted\([^)]*\)\s*\.rows/.test(src),
    "ENGINN stadur i fetch.mjs les `.rows` af parseCSVQuoted");
+
+/* ============================================================
+   4. NOFNIN ERU WEB_NAME — LIFANDI OG ARCHIVE MA EKKI ThYDA SITTHVAD
+
+   VILLAN VAR LIFANDI 20.8.2026: lifandi leidin skrifar `p.web_name`,
+   archive-leidin skrifadi `r.name` ur speglinum = fullt lagalegt nafn.
+   Maelt a data/last_gw.json (GW38 2025/26, 312 radir): lengsta nafnid
+   55 stafir ("Joao Maria Lobo Alves Palhares Costa Palhinha Goncalves")
+   og fjogur onnur yfir 32. Thau eru birt i `XiCard` ("Team of the week"),
+   spjaldarod med fastri breidd, svo thau KLIPPAST — og vidmotid hefdi
+   breytt merkingu sinni undir manni 21. agust thegar lifandi leidin tekur
+   yfir.
+   ============================================================ */
+H("4. NOFNIN ERU WEB_NAME, EKKI FULLT LAGALEGT NAFN");
+{
+  const pl = wrote?.obj?.players || [];
+  const byName = n => pl.find(x => x.name === n);
+  ok(!!byName("Palhinha"),
+     "55-stafa lagalega nafnid vard 'Palhinha' (web_name ur players_raw)",
+     JSON.stringify(pl.map(x => x.name)));
+  ok(!pl.some(x => /Lobo Alves Palhares/.test(x.name || "")),
+     "og fulla nafnid er HVERGI i skranni");
+  ok(!!byName("Rice"), "nafn sem var ThEGAR stutt skemmist ekki i vorpuninni",
+     JSON.stringify(pl.map(x => x.name)));
+  /* FALLBACKIN: element 2 er ekki i players_raw, svo hann heldur nafninu
+     ur speglinum. Ad sleppa honum vaeri verra en langt nafn.            */
+  ok(!!byName("Sanchez, Robert"),
+     "leikmadur sem finnst EKKI i players_raw heldur nafni sinu (ekki tomu)");
+  ok(pl.length === 3, `enginn tapadist i vorpuninni (${pl.length})`);
+  /* HEURISTIKIN SEM VAR HAFNAD: "sidasta ordid" gefur "Goncalves". Se
+     einhver skipt vorpuninni ut fyrir styttingarreglu fellur thetta.    */
+  ok(!byName("Goncalves"),
+     "nafnid er ekki stytt heuristiskt — 'Goncalves' er RETT stytting a "
+     + "RONGU nafni og ma ekki birtast");
+
+  const longest = pl.reduce((a, x) => Math.max(a, (x.name || "").length), 0);
+  ok(longest <= 20, `lengsta nafnid er ${longest} stafir (var 55 i raungognum)`);
+}
+
+/* ============================================================
+   4b. FALLI SOKNIN A players_raw MA SKYRSLAN EKKI BROTNA
+
+   Lagfaeringin BAETIR VID HTTP-KALLI inni i skyrslunni. Ef thad kall er
+   ekki i sinni eigin try/catch tekur ein 404 nidur ALLA umferdar-skyrsluna
+   — sem er nakvaemlega tegundin af sjalfsskadi sem `.rows`-villan var
+   (kaflinn her fyrir ofan). Thetta er ekki tilgata: `getText` kastar a
+   ollu non-2xx, og speglunin hefur ThEGAR skilad 404 a undirskrar.
+   Greinin er `catch`-blokk, svo EKKERT inntak i gw-skranni framkallar
+   hana — thess vegna er modulinn byggdur upp aftur med odrum stubbum.
+   ============================================================ */
+H("4b. players_raw NIDRI — SKYRSLAN LIFIR, NOFNIN FALLA TIL BAKA");
+{
+  const m2 = await build(true);
+  let threw = null;
+  try { await m2.buildArchiveGwReport(); } catch (e) { threw = e; }
+  ok(threw == null, "buildArchiveGwReport kastar EKKI thott players_raw se 404",
+     String(threw?.message || "").slice(0, 70));
+  const w2 = m2.WRITES.find(w => w.name === "last_gw.json");
+  const r2 = m2.RECORDS.find(r => r.k === "last_gw");
+  ok(!!w2, "last_gw.json er samt skrifud");
+  ok(r2?.ok === true && (r2?.n ?? 0) === 3, `ok:true med 3 radir (${r2?.ok}/${r2?.n})`);
+  const pl2 = w2?.obj?.players || [];
+  ok(pl2.some(x => /Lobo Alves Palhares/.test(x.name || "")),
+     "nofnin falla til baka a spegilnafnid — langt nafn er laesilegt, tomt er ekki",
+     JSON.stringify(pl2.map(x => x.name)));
+  ok(!pl2.some(x => !x.name), "og ekkert nafn er tomt");
+}
+
 
 console.log(`\nSKYRSLA UR SPEGLUN: ${pass}/${pass + fail} graen`);
 process.exit(fail ? 1 : 0);

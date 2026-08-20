@@ -740,6 +740,20 @@ bókmakera-greinina og **eyddi Odds-API kvótanum**. CDN-cache 60 s. Leiðirnar
 
 ### Gögn og birting
 
+- **LEIKMANNANAFN Í `data/` ER `web_name`, Á BÁÐUM LEIÐUM.** Fundið 20.8.2026:
+  `last_gw.json` hefur **tvo** byggjendur — lifandi (`p.web_name`) og
+  archive-leiðina úr vaastav-speglinum, sem skrifaði `r.name` = **fullt
+  lagalegt nafn**. Mælt á skránni: lengsta nafnið **55 stafir** („João Maria
+  Lobo Alves Palhares Costa Palhinha Gonçalves") og fjögur önnur yfir 32; þau
+  eru birt í `XiCard` („Team of the week"), spjaldaröð með fastri breidd, svo
+  þau **klipptust** — og verra: merkingin hefði breyst undir manni 21. ágúst
+  þegar lifandi leiðin tekur yfir. **Sama svið má ekki þýða sitthvað eftir því
+  hvort tímabilið er byrjað.** Leyst með **uppflettingu, ekki styttingarreglu**:
+  `players_raw.csv` sama tímabils parar `element` við `web_name`, svo vörpunin
+  er nákvæm. Styttingar-heuristikin er **mæld röng** — „síðasta orðið" gefur
+  `Gonçalves`, sem er rétt stytting á röngu nafni. Vörður:
+  `archive-gw-report.mjs` kaflar 4 og 4b; 4b krefst þess að skýrslan LIFI þótt
+  `players_raw` svari 404, því lagfæringin bætti við HTTP-kalli inni í henni.
 - **NULL ER EKKI NÚLL.** `null` (gögn vantar) → „—" grátt og raðast **alltaf
   síðast í BÁÐAR áttir**; `0` er raunverulegt núll. Tóm gildi fljóta annars upp
   í „asc" og fylla toppinn.
@@ -1029,7 +1043,7 @@ og vaknar við fyrstu loknu umferð. Ekki treysta á minnið hér.
 | API-Sports meiðsla-**tegund** | fría þrepið sér aðeins ±1 dag frá leikdegi | `injuries.json` → `via`, `players`, `unmatched` |
 | `/fixtures/lineups` staðfest byrjunarlið | sami gluggi | pörun við skammstöfuð nöfn |
 | „í ár vs. í fyrra"-taflan | byggð og villuvarin, hefur **aldrei keyrt** | birtist hún rétt? |
-| `fdcouk_e0` 2026/27 | CSV verður til við fyrsta leik | **EKKI „404 → 200" — það merki er ekki til.** Slóðin 301-ar í `EC.csv` (utandeild) þangað til, svo prófsteinninn er `Div === "E0"`, ekki HTTP-staðan (sjá kafla 6) |
+| `fdcouk_e0` 2026/27 | CSV verður til við fyrsta leik | **EKKI „404 → 200" — það merki er ekki til, og HTTP-staðan er ÞRÍBREYTT.** Sama ástand („PL-skráin er ekki til enn") hefur svarað á þrjá vegu á þremur vikum: **404** upphaflega · **301** 14.8. yfir á `EC.csv` (utandeild, og `fetch` fylgir því þegjandi svo það kemur inn sem 200 með röngum gögnum) · **300** 20.8. „Multiple Choices" frá Apache mod_speling, sem `fetch` fylgir EKKI, svo heimildin varð rauð með engu nema tölunni. 300 og 404 eru nú bæði „bíður tímabils" (mælt: 300-svarið segir orðrétt „could not be found on this server" og mod_speling kviknar aðeins þegar slóðin finnst ekki), en **prófsteinninn er áfram `Div === "E0"`, ekki HTTP-staðan** — hann er sá eini sem tekur 301-tilfellið. Vörður: `fdcouk-e0.mjs` kaflar 4b/4c, þar sem 4c krefst þess að 500/403/429 KASTI, því „bíður" er græn heimild og víkkað skilyrði myndi fela raunverulega bilun |
 | Mínútuþróun (`player_form.json`) | `data/live/` er tóm í forleik | kviknar við GW4 |
 | DC-hittni (`defcon.json`) | DefCon er ný stigagjöf; aðeins 2025/26 hefur gögn | `hit_rate_adj` til staðar |
 | BSD spáð byrjunarlið | glugginn er **~11–13 klst** fyrir leik — FPL-fresturinn er ~1,5 klst fyrir FYRSTA leik umferðarinnar, svo laugardagsleikir eru spáðir EFTIR frestinn | **mæla gegn 6h-líkaninu yfir GW1–4 áður en henni er treyst** |

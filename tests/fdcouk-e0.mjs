@@ -67,12 +67,13 @@ const CSV = {
   noDiv: ["Date,HomeTeam,AwayTeam", "21/08/2026,Arsenal,Chelsea"].join("\n") + "\n",
 };
 
-async function run(kind, { throw404 = false } = {}) {
+async function run(kind, { throwStatus = 0 } = {}) {
   const STUB = `
 const RECORDS = [], WRITES = [];
 const status = { updated: "2026-08-14T06:00:00Z" };
 async function getText(url) {
-  ${throw404 ? 'throw new Error("404 " + url);' : `return { text: ${JSON.stringify(CSV[kind] ?? "")} };`}
+  ${throwStatus ? `throw new Error("${throwStatus} " + url);`
+                : `return { text: ${JSON.stringify(CSV[kind] ?? "")} };`}
 }
 async function writeJSON(name, obj) { WRITES.push({ name, obj }); }
 function record(k, ok, n, note) { RECORDS.push({ k, ok, n, note }); }
@@ -118,10 +119,67 @@ H("4. JADARTILFELLI");
   ok(/no Div column/.test(rec?.note || ""), `notan segir hvad vantar (${rec?.note})`);
 }
 {
-  const { rec, writes } = await run("e0", { throw404: true });
+  const { rec, writes } = await run("e0", { throwStatus: 404 });
   ok(writes.length === 0, "404 skrifar ekkert");
   ok(rec?.ok === true && /waiting for the season/.test(rec?.note || ""),
      "404 er aframhaldandi 'bidur timabils' — gamla hegdunin helst", rec?.note);
+  ok(/\b404\b/.test(rec?.note || ""), "og notan ber toluna sjalfa", rec?.note);
+}
+
+/* ============================================================
+   4b. HTTP 300 — ThRIDJA UTGAFAN AF SOMU ROD (maelt 20.8.2026)
+
+   `curl -o /dev/null -w "%{http_code} %{redirect_url}"` a
+   `mmz4281/2627/E0.csv` skilar nu **300** med TOMU redirect_url, thar sem
+   14.8. skiladi hun `301 -> .../EC.csv` og adur `404`. `fetch` fylgir 300
+   ekki (ekkert Location-haus), svo `getText` kastar "300 …" — thad fell
+   ekki i 404-greinina og heimildin vard RAUD, med engu innihaldi utan
+   tolunni "300".
+   Bodyid (729 b) segir ordrett: "The document name you requested
+   (/mmz4281/2627/E0.csv) could not be found on this server" og bydur
+   EC/E3/E2 sem "mistyped character" — thad er Apache mod_speling, sem
+   kviknar ADEINS thegar slodin finnst ekki. 300 ThYDIR ThVI SAMA OG 404
+   og getur ekki komid a skra sem ER til.
+   ============================================================ */
+{
+  /* TRY/CATCH ER NAUDSYNLEGT, EKKI SNYRTING: an thess kastar `run()` beint
+     upp thegar golfid er fjarlaegt, svo svitan DEYR i stad thess ad prenta
+     ✗ — 12 KB data-URI stack i staekkanlegri villu, og kaflar 4c og 5
+     keyra ALDREI. Vordurinn beit (exit 1) en sagdi ekki hvad brotnadi og
+     faldi thad sem eftir var. Nafngreind fullyrding + aframhald.        */
+  let threw = null, rec = null, writes = [];
+  try { ({ rec, writes } = await run("e0", { throwStatus: 300 })); }
+  catch (e) { threw = e; }
+  ok(threw == null, "300 KASTAR EKKI — thad er bid, ekki bilun",
+     String(threw?.message || "").slice(0, 60));
+  ok(writes.length === 0, "300 skrifar ekkert");
+  ok(rec != null, "300 er SKRAD (adur kastadi thad og heimildin vard raud)",
+     JSON.stringify(rec));
+  ok(rec?.ok === true && rec?.n === 0, `ok:true med 0 radir (${rec?.ok}/${rec?.n})`);
+  ok(/waiting for the season/.test(rec?.note || ""),
+     "og lesid sem 'bidur timabils', eins og 404", rec?.note);
+  ok(/\b300\b/.test(rec?.note || ""),
+     "notan ber toluna 300 — 'bidur' ma ekki hylja HVERNIG heimildin sagdi thad",
+     rec?.note);
+}
+
+/* ============================================================
+   4c. RAUNVERULEG VILLA VERDUR ENN AD KASTA
+
+   ThESSI KAFLI ER NAUDSYNLEGUR VEGNA 4b, EKKI Thratt FYRIR HANN:
+   lagfaeringin VIKKAR thad sem er kyngt, og "bidur timabils" er graen
+   heimild. Se skilyrdinu vikkad i `st >= 300` eda `!/^5/` — sem er
+   audvelt naesta skipti sem einhver tala kemur ur football-data — tha
+   verdur 500 og 403 lika "bid", og RAUNVERULEG bilun a heimildinni
+   birtist sem edlilegt forleiks-astand. Tha vaeri vordurinn i 4b bunnn
+   ad borga fyrir sig og skuldad meira.
+   ============================================================ */
+for (const st of [500, 403, 429]) {
+  let threw = null, rec = null;
+  try { ({ rec } = await run("e0", { throwStatus: st })); }
+  catch (e) { threw = e; }
+  ok(threw != null, `HTTP ${st} KASTAR — thad er bilun, ekki bid`,
+     `skrad sem: ${JSON.stringify(rec)}`);
 }
 
 H("5. GOGNIN I REPO-INU BERA ENGA ADRA DEILD");

@@ -803,8 +803,20 @@ async function computeDefcon(events, els) {
     try { had = (JSON.parse(await readFile(`${DATA}/defcon.json`, "utf8")).players || []).length; }
     catch { had = 0; }
     if (had > 0) {
+      /* NOTAN VERDUR AD NEFNA `opportunity` LIKA (20.8.2026). Vordurinn
+         frystir HEILA skrana, og `opportunity` er byggd a UNDAN honum ur
+         lids-tolum sem eru ekki hadar `starts` — hun getur thvi verid
+         FERSK og RETT og er samt hent. Ad segja adeins "kept the old file"
+         gefur ranga mynd af thvi hvad tapadist.
+         VID SAMEINUM EKKI (mælt val, ekki leti): thad myndi skrifa GOMLU
+         leikmanna-rodina med `updated` DAGSINS I DAG, svo frosin tafla
+         fengi ferskan timastimpil — nakvaemlega tegundin af tolu sem er
+         alltaf rong en trudverdug. Frysting BADRA er samhljoda skra;
+         sameining er tvaer aldir i einni skra sem segist vera ein.     */
       record("defcon", false, had,
-        `0 rows built but ${had} are on disk - KEPT the old file (an empty run must never erase good data)`);
+        `0 rows built but ${had} are on disk - KEPT the old file, INCLUDING its opportunity table `
+        + `(this run's fresh opportunity ratings for ${Object.keys(opportunity).length} teams were `
+        + `discarded too - merging them would stamp the frozen player rows with today's date)`);
       return;
     }
   }
@@ -1261,8 +1273,35 @@ async function fetchFdcouk() {
   try {
     ({ text } = await getText("https://www.football-data.co.uk/mmz4281/2627/E0.csv"));
   } catch (e) {
-    if (/^404 /.test(e.message)) {
-      record("fdcouk_e0", true, 0, "waiting for the season — E0 2026/27 is created at the first match");
+    /* ============================================================
+       ThRIDJA UTGAFAN AF SOMU ROD: 404 -> 301 -> 300 (maelt 20.8.2026).
+       Skrain er ekki til enn, en football-data hefur SVARAD ThVI a thrja
+       vegu a thremur vikum:
+         404  upphaflega — "not found", einfalt og medhondlad hér.
+         301  14.8. — redirect a `EC.csv` (National League). `fetch` fylgir
+              redirectum ThEGJANDI, svo hann kom sem 200 med rongum gognum;
+              thad er Div-vordurinn nedar sem stodvar hann, ekki thessi
+              blokk.
+         300  20.8. — "Multiple Choices" fra Apache mod_speling. `fetch`
+              fylgir 300 EKKI (ekkert `Location`-haus er sent), svo
+              `getText` kastar "300 …", thad fell ekki i 404-greinina og
+              heimildin vard RAUD med engu odru en tolunni "300".
+       MAELT beint a svarinu, ekki agiskad: bodyid (729 b) segir ordrett
+       "The document name you requested (/mmz4281/2627/E0.csv) could not be
+       found on this server" og bydur `EC.csv`/`E3.csv`/`E2.csv` sem
+       "mistyped character". 300 ThYDIR ThVI NAKVAEMLEGA ThAD SAMA OG 404 —
+       PL-skrain er ekki til — og mod_speling kviknar ADEINS thegar slodin
+       finnst ekki, svo hann getur ekki komid a skra sem ER til.
+       Tolunni er haldid i notunni: "bidur timabils" a ekki ad hylja HVERNIG
+       heimildin sagdi thad, thvi naesta utgafa af thessari rod verdur
+       fjorda og tha vill madur sja hana.
+       Div-vordurinn nedar er OHREYFDUR og er onnur, ohad vorn: hann tekur
+       200-svor sem bera adra deild, sem thessi blokk sér aldrei.
+       ============================================================ */
+    const st = Number(/^(\d{3}) /.exec(String(e?.message || ""))?.[1]) || 0;
+    if (st === 404 || st === 300) {
+      record("fdcouk_e0", true, 0,
+        `waiting for the season — E0 2026/27 is created at the first match (HTTP ${st})`);
       return;
     }
     throw e;
@@ -3154,9 +3193,47 @@ async function buildArchiveGwReport() {
     if (f.stats) matched++;
   }
 
+  /* ============================================================
+     NOFNIN VERDA AD VERA WEB_NAME — LIFANDI OG ARCHIVE MA EKKI ThYDA
+     SITTHVAD (lagad 20.8.2026).
+
+     Lifandi leidin (`deriveLastGwReport`) skrifar `name: p.web_name`.
+     Archive-leidin skrifadi `name: r.name` UR SPEGLINUM, sem er fullt
+     lagalegt nafn. MAELT a data/last_gw.json (GW38 2025/26, 312 radir):
+     lengsta nafnid er **55 stafir** — "Joao Maria Lobo Alves Palhares
+     Costa Palhinha Goncalves" — og fjogur onnur eru yfir 32. Thau eru
+     birt i `XiCard` i "Team of the week", sem er spjaldarod med fastri
+     breidd, svo thau KLIPPAST ("Joao Maria Lobo Alv…") medan allt annad
+     i appinu ber web_name. Sama svid, tvaer merkingar, eftir thvi hvort
+     timabilid er byrjad — thad er verra en badar utgafur, thvi vidmotid
+     breytist undir manni 21. agust.
+
+     ThETTA ER UPPFLETTING, EKKI STYTTINGARREGLA, OG ThAD ER NAUDSYNLEGT:
+     augljosa heuristikin (sidasta ordid) gefur "Goncalves" fyrir mann sem
+     FPL kallar "Palhinha" — RETT stytting a rongu nafni. `players_raw.csv`
+     sama timabils ber BADA dalka (`id` = `element` i gw-skranni, og
+     `web_name`), svo vorpunin er nakvaem og engin nafna-skorun kemur nalaegt
+     henni. Sama vél og element->code-lausnin i `deriveImminent` (kafli 3 i
+     CLAUDE.md), af somu astaedu.
+
+     MISTAKIST SOKNIN HELST GAMLA NAFNID: langt nafn er laesilegt, tomt
+     nafn er ekki. Sama gildir um leikmann sem finnst ekki i players_raw —
+     hann heldur nafninu ur speglinum.                            */
+  let webByElement = new Map();
+  try {
+    const { text: raw } = await getText(`${MIRROR}/${ARCHIVE_SEASON}/players_raw.csv`);
+    for (const r of parseCSVQuoted(raw)) {
+      const w = String(r.web_name || "").trim();
+      if (r.id && w) webByElement.set(String(r.id), w);
+    }
+  } catch (e) {
+    console.warn(`  last_gw: players_raw for ${ARCHIVE_SEASON} did not arrive (${e.message})`
+      + " - names stay as the mirror wrote them (full legal names)");
+  }
+
   const outPl = rows.map(r => normPlayerRow({
     id: null,                                   // VILJANDI: id fyrra timabils parast EKKI
-    name: r.name, pos: r.position,
+    name: webByElement.get(String(r.element)) || r.name, pos: r.position,
     team: shortByName[r.team] || r.team,
     opp: shortById[r.opponent_team] || null,
     home: String(r.was_home) === "True",

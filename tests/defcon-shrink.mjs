@@ -36,7 +36,8 @@ const end = src.indexOf("\n}\n", start);
 const decl = src.slice(start, end + 3);
 
 /* Smíðar prófumhverfi: DATA-mappa með live/gw{n}.json og fixtures.json. */
-async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), recov = {}, mins = {} }) {
+async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), recov = {}, mins = {},
+                           existing = null }) {
   const dir = await mkdtemp(join(tmpdir(), "dc-"));
   await mkdir(join(dir, "live"), { recursive: true });
   const gws = Object.values(gwMetrics)[0]?.length ?? 0;
@@ -60,14 +61,20 @@ async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), rec
     await writeFile(join(dir, "live", `gw${gw}.json`), JSON.stringify({ elements }));
   }
   await writeFile(join(dir, "fixtures.json"), JSON.stringify(fixtures));
+  /* `existing` = defcon.json SEM ER ThEGAR A DISKI. Tom-keyrslu-vordurinn
+     les hana, svo kafli 7 getur ekki profad hann an hennar.            */
+  if (existing) await writeFile(join(dir, "defcon.json"), JSON.stringify(existing));
   let written = null;
-  const rec = { ok: null, n: 0 };
+  const rec = { ok: null, n: 0, note: null };
   const factory = new Function("existsSync", "readFile", "DATA", "writeJSON", "record", "status",
     `${decl}\nreturn computeDefcon;`);
   const computeDefcon = factory(
     existsSync, readFile, dir,
     async (name, obj) => { written = { name, obj }; },
-    (n, o, c) => { rec.ok = o; rec.n = c; },
+    /* NOTAN VAR EKKI GRIPIN (baett vid 20.8.2026). Fjorda breytan er
+       `note` og hun er thad EINA sem segir hvad tapadist i tomri keyrslu
+       — an hennar gat kafli 7 ekki verid til.                        */
+    (k, o, c, note) => { rec.ok = o; rec.n = c; rec.note = note ?? null; },
     { updated: "prof" });
   const events = Array.from({ length: gws }, (_, i) => ({ id: i + 1, finished: true }));
   await computeDefcon(events, els);
@@ -325,6 +332,67 @@ console.log("─".repeat(84));
   // gamla formulan (per byrjun) hefdi gefid 72/6 = 12,0
   ok(r && Math.abs(r.cbit_per_90 - 24) < 0.01,
      `cbit_per_90 = 24,0 per 90 MINUTUR (per byrjun hefdi gefid 12,0) — maelt ${r?.cbit_per_90}`);
+}
+
+/* ============================================================
+   7. TOM KEYRSLA: SKRAIN ER FRYST — OG NOTAN VERDUR AD NEFNA
+      `opportunity` LIKA (20.8.2026)
+
+   Vordurinn fra 18.8. heldur gomlu skranni thegar `out` er tomt. Thad er
+   rett. EN `opportunity` er byggd A UNDAN honum ur `els` (lids-xGI og
+   xGC markvarda) og er ekki had `starts` — hun getur thvi verid FERSK og
+   RETT og er samt hent med. Notan sagdi adeins "kept the old file", sem
+   gefur ranga mynd af thvi hvad tapadist.
+
+   SVIDSMYNDIN ER RAUNVERULEG, EKKI TILBUIN: allir leikmenn af bekknum
+   (`starts: 0`) gefur `out.length === 0` medan `teamAtt` — sem les EKKERT
+   ur live-skranum — er full. Nakvaemlega su blanda sem 18.8.-vordurinn
+   var skrifadur fyrir.
+
+   VID SAMEINUM EKKI OG ThAD ER MAELT VAL: sameining myndi skrifa gomlu
+   leikmanna-rodina med `updated` dagsins, svo frosin tafla fengi ferskan
+   timastimpil. Kafli 4 ("raunskrain") og allt annad i thessu repo-i les
+   `updated` sem "hvenaer var thetta maelt".
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("7. TOM KEYRSLA — FRYSTING, OG NOTAN SEGIR HVAD TAPADIST");
+console.log("─".repeat(84));
+{
+  const els = [
+    { id:1, element_type:2, team:1, expected_goal_involvements:"3.5", minutes:0 },
+    { id:2, element_type:3, team:2, expected_goal_involvements:"7.1", minutes:0 },
+    { id:3, element_type:1, team:1, expected_goal_involvements:"0.0",
+      minutes:3420, expected_goals_conceded:"38.0" },
+  ];
+  const existing = {
+    updated: "gamalt", players: [{ id:99, starts:12, hit_rate_adj:0.31 }],
+    opportunity: { 1: { defcon_opportunity: 50 } },
+  };
+  const { written, rec } = await runDefcon({
+    /* ALLIR af bekknum -> `starts: 0` -> `out` verdur tomt. */
+    gwMetrics: { 1: [12], 2: [12] },
+    bench: new Set([1, 2]),
+    els,
+    fixtures: [{ id:1, finished:false, team_h:1, team_a:2, event:1 }],
+    existing,
+  });
+
+  ok(written === null, "skrain er EKKI skrifud — gamla skran stendur",
+     JSON.stringify(written?.obj?.players));
+  ok(rec.ok === false, `heimildin er RAUD, ekki graen (${rec.ok})`);
+  ok(rec.n === 1, `talan er fjoldinn A DISKI (1), ekki 0 — ${rec.n}`);
+  /* FORSENDA FYRIR NEIKVAEDU FULLYRDINGUNNI (CLAUDE.md 5b regla 2):
+     notan verdur ad vera til og nefna frystinguna adur en spurt er
+     hvort hun nefni `opportunity`.                                   */
+  ok(typeof rec.note === "string" && /KEPT the old file/.test(rec.note),
+     "notan er til og segir ad skrain se fryst", String(rec.note).slice(0, 60));
+  ok(/opportunity/i.test(rec.note || ""),
+     "OG hun nefnir `opportunity` — ferska taflan var hent lika", rec.note);
+  /* Talan i notunni er RAUNVERULEG: tvo lid komu ur `els`, svo hun ma
+     ekki vera 0 (thad vaeri "engin fersk tafla", sem er ekki tilfellid). */
+  const m = /for (\d+) teams/.exec(rec.note || "");
+  ok(!!m && +m[1] === 2, `og hun telur lidin sem toldust (2) — ${m?.[1]}`);
+  ok(!/updated/.test(String(written)), "engin skrif thydir enginn nyr timastimpill");
 }
 
 console.log(`\nDC-AFTURVIRKNI: ${pass} stóðust, ${fail} féllu`);
