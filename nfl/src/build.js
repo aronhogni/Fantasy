@@ -10,6 +10,9 @@
    ============================================================ */
 
 import { computeVbd, tierize, valueVsMarket, blend, availability } from "./model.js";
+/* `normPos` ER EINA STADU-VORPUNIN — sja notuna vid `starters` nedar.
+   `scoring.js` flytur EKKERT inn, svo thetta byr engan hring. */
+import { normPos } from "./scoring.js";
 
 /**
  * Deildarsnid. Sjalfgefid er algengasta uppsetningin.
@@ -109,7 +112,58 @@ export function normalizeLeague(raw) {
     const st = {};
     for (const [pos, n] of Object.entries(raw.starters)) {
       const v = int(n, 0, 6);
-      if (v != null) st[pos] = v;
+      /* ============================================================
+         STODU-HEITID ER ThVINGAD LIKA, EKKI ADEINS TALAN — 20.8.2026
+         ============================================================
+         Hér stod `st[pos] = v` med heitid OSNERT, og thad var GAT af
+         nakvaemlega theirri gerd sem CLAUDE.md kafli 8 lysir: "gilt
+         JSON med rangri GERD for ospurt inn i state". Talan var
+         thvinguð; heitid var thad ekki.
+
+         AFLEIDINGIN ER ThOGUL OG HUN KOSTAR BYRJUNARSAETI. Deild sem
+         ber `starters: { DEF: 1 }` — Sleeper-stafsetningin, sem er thad
+         sem `roster_positions` raunverulega inniheldur og thad sem
+         eldra vistad astand getur borid — gefur
+
+             mustFill = [{ pos: "DEF", short: 1 }]
+
+         medan HVER ROD i appinu ber `pos: "DST"` (maelt: `players.json`
+         ber DST i ollum 32 lidum og ekkert annad). `NextPick` velur
+         K/DST-manninn med
+             kdst.find((r) => rec.mustFill.some((m) => m.pos === r.pos))
+         sem finnur tha ALDREI neinn — svo urskurdurinn nefnir ALDREI
+         vorn, `mustFillUrgent` stendur satt til draftsloka, og notandinn
+         faer "you still need DEF" i hverju vali og endar med TOMT
+         varnar-saeti. Ekkert hrynur og engin tala er rong: stodurnar
+         tvaer eru einfaldlega ekki sama strengurinn.
+
+         `normPos` (`scoring.js`) er vorpunin sem PIPELINE-ID SJALFT
+         notar thegar thad SKRIFAR `players.json` — ellefu kallstadir i
+         `scripts/` (`sources/sleeper.mjs`, `nflverse.mjs`, `adp.mjs`,
+         `fantasypros.mjs` …). Ad LESA deildina med somu vorpun er thvi
+         ekki ny regla heldur ad spyrja skrifarann. **Þetta er FYRSTI
+         kallstadur hennar i `src/`** — hun var oll i pipeline-inu adur.
+
+         OG ÞAD ER AFRIT UTI SEM ER EKKI LAGAD HER: `startersFromRoster`
+         (`sleeper-league.js`) ber SINA EIGIN handskrifudu grein
+         (`p === "DEF" || p === "DST" || p === "D/ST"`) og kallar EKKI
+         `normPos`. Tvo afrit af somu vorpun er sama aett og "tvo olik
+         sjalfgefin `rounds`" — thau geta rekid i sundur. Sleeper-leidin
+         ber lika `FLEX_KINDS`/`BENCH_KINDS`/`IDP_KINDS` sem `normPos`
+         veit ekkert um, svo sameiningin er eigin ferd. SKRAD, EKKI LAGAD.
+
+         LAGT SAMAN, EKKI YFIRSKRIFAD: bæri blob bædi `DEF: 1` og
+         `DST: 1` er svarid tvo saeti, sem er thad sama og
+         `startersFromRoster` gefur (hun TELUR saetin i fylkinu).
+
+         OG SUMMAN LYTUR SAMA THAKI OG LIDURINN: `int(n, 0, 6)` er
+         thakid a EINU sviði, svo `DEF: 6 + DST: 6` verdur 6 — ekki 12.
+         An klippingarinnar smygladi samlagningin ser fram hja marki sem
+         reiturinn sjalfur setur, og `replacementRanks` margfaldar saeti
+         med lidum (12 lid x 12 saeti = 144 DST-threp ur einu blobbi).
+         Toluvorn sem gildir per svid en ekki per summu er engin vorn. */
+      const key = normPos(pos) || pos;
+      if (v != null) st[key] = Math.min(6, (st[key] || 0) + v);
     }
     /* Deild an nokkurs byrjunarsaetis er ekki deild. Fannst ekkert
        nothaeft er sjalfgefna snidid latid standa. */
@@ -120,7 +174,11 @@ export function normalizeLeague(raw) {
     const mp = {};
     for (const [pos, n] of Object.entries(raw.maxPos)) {
       const v = int(n, 1, 20);
-      if (v != null) mp[pos] = v;
+      /* SAMA REGLA OG UM `starters`: thakid er lesid med `p.pos` ur
+         rodunum (`advice.js`), svo heiti sem rodirnar bera ekki er thak
+         sem bitur aldrei. Hér er thad hins vegar MAX og ekki summa —
+         tvo thok a somu stodu er ekki tvofalt thak. */
+      if (v != null) mp[normPos(pos) || pos] = Math.max(mp[normPos(pos) || pos] || 0, v);
     }
     if (Object.keys(mp).length) L.maxPos = mp;
   }

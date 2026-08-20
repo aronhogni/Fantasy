@@ -953,5 +953,105 @@ console.log("\n15. tveir kostir, og maelda rodin heldur");
     "hann er samt NEFNDUR med astaedu — ekki thagður");
 }
 
+/* ============================================================
+   16. `DEF` GEGN `DST` — TVAER STAFSETNINGAR A SAMA SAETI
+   ============================================================
+   Þetta var GRUNAD 20.8.2026 og afgreitt sem "ekki villan" — rettilega,
+   thvi thad var ekki hun sem kostadi mock-draftid. En thad var afgreitt
+   a EINNI leid (`startersFromRoster`, sem varpar `DEF -> DST`) og
+   leidirnar eru ThRJAR. Su thridja — VISTAD ASTAND — slapp:
+
+     `normalizeLeague` thvingadi TOLUNA i `starters` en EKKI HEITID.
+
+   Deild sem ber `starters: { DEF: 1 }` gefur thvi
+   `mustFill = [{ pos: "DEF" }]` medan HVER ROD i appinu ber `pos:
+   "DST"` (`players.json` ber DST i ollum 32 lidum og ekkert annad).
+   `NextPick` velur varnar-manninn med
+
+       kdst.find((r) => rec.mustFill.some((m) => m.pos === r.pos))
+
+   sem finnur tha ALDREI neinn: urskurdurinn nefnir aldrei vorn,
+   `mustFillUrgent` stendur satt til draftsloka, notandinn faer "you
+   still need DEF" i hverju vali og endar med TOMT varnar-saeti.
+
+   Ekkert hrynur og engin tala er rong — stodurnar tvaer eru einfaldlega
+   ekki sami strengurinn. Þad er sama aett og "tvo olik sjalfgefin
+   `rounds`" i kafla 11 og `boardScope`-villan: TVAER UTGAFUR AF SOMU
+   REGLU.
+
+   PROFID ER TVIThAETT: (1) heitid er thvingad vid lestur, og (2) hver
+   stada sem `mustFill` NEFNIR verdur ad vera stada sem rod GETUR borid
+   — thad er invariantid sem hlidid i `NextPick` hvilir a.            */
+console.log("\n16. `DEF` er thvingad i `DST` — mustFill ma aldrei nefna stodu sem engin rod ber");
+{
+  const { normalizeLeague, DEFAULT_LEAGUE } = await import("../src/build.js");
+
+  /* ---- (1) heitid er thvingad ---- */
+  const L = normalizeLeague({ teams: 10, rounds: 15, scoring: "ppr",
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DEF: 1 } });
+  ok(L.starters.DST === 1 && L.starters.DEF === undefined,
+    `starters.DEF -> DST (${JSON.stringify(L.starters)})`);
+  /* Sleeper-heitin sem `normPos` ber: `PK` og `D/ST` lika. */
+  const L2 = normalizeLeague({ starters: { PK: 1, "D/ST": 1 } });
+  ok(L2.starters.K === 1 && L2.starters.DST === 1,
+    `PK -> K og D/ST -> DST (${JSON.stringify(L2.starters)})`);
+  /* Bædi stafsetningar i sama blobbi eru TVO saeti — sama og
+     `startersFromRoster` gefur, sem TELUR saetin i fylkinu. */
+  const L3 = normalizeLeague({ starters: { DEF: 1, DST: 1 } });
+  ok(L3.starters.DST === 2,
+    `DEF + DST i sama blobbi = tvo saeti (${JSON.stringify(L3.starters)})`);
+  /* OG SUMMAN LYTUR SAMA THAKI OG LIDURINN. `int(n, 0, 6)` er thakid a
+     EINU sviði; samlagning sem fer fram hja thvi er toluvorn sem gildir
+     per svid en ekki per summu, og `replacementRanks` margfaldar saeti
+     med lidum (12 x 12 = 144 DST-threp ur einu blobbi). Fullyrdingin er
+     TVISKIPT svo hun geti ekki verid uppfyllt af klippingu EINNI:
+     summan undir thakinu verdur ad standa OSKERT. */
+  const L3b = normalizeLeague({ starters: { DEF: 6, DST: 6 } });
+  ok(L3b.starters.DST === 6,
+    `DEF: 6 + DST: 6 er klippt i 6, ekki 12 (${JSON.stringify(L3b.starters)})`);
+  const L3c = normalizeLeague({ starters: { "D/ST": 2, DEF: 1 } });
+  ok(L3c.starters.DST === 3,
+    `en summa UNDIR thakinu stendur oskert (${JSON.stringify(L3c.starters)})`);
+  /* Og thakid lika — thak a stodu sem rodirnar bera ekki bitur aldrei. */
+  const L4 = normalizeLeague({ maxPos: { PK: 3 } });
+  ok(L4.maxPos.K === 3 && L4.maxPos.PK === undefined,
+    `maxPos.PK -> K (${JSON.stringify(L4.maxPos)})`);
+
+  /* ---- (2) INVARIANTID SEM `NextPick` HVILIR A ----
+     Hver stada sem `mustFill` nefnir verdur ad vera stada sem rod getur
+     borid. Ordaforðinn er lesinn UR GOGNUNUM, ekki skrifadur hér — svo
+     ny stada i `players.json` felli profid i stad thess ad thegja. */
+  const POS_IN_DATA = new Set(
+    JSON.parse(readFileSync(path.join(DATA, "players.json"), "utf8"))
+      .map((p) => p.pos).filter(Boolean));
+  ok(POS_IN_DATA.has("DST") && !POS_IN_DATA.has("DEF"),
+    `gognin bera DST og ALDREI DEF (${[...POS_IN_DATA].sort().join(" ")})`);
+
+  const av = [{ id: 1, name: "A", pos: "RB", vbd: 10, adp: 5, adpSd: 3, tier: 1, proj: 100 }];
+  let bad = null;
+  for (const raw of [{ QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DEF: 1 },
+                     { QB: 1, RB: 2, WR: 2, TE: 1, PK: 1, "D/ST": 1 },
+                     { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1 }]) {
+    const lg = normalizeLeague({ teams: 10, rounds: 15, starters: raw });
+    const rec = recommend({ available: av, roster: [], pick: 5, league: lg, nextPick: 15 });
+    for (const m of rec.mustFill) {
+      if (m.pos !== "FLEX" && m.pos !== "SUPERFLEX" && !POS_IN_DATA.has(m.pos)) {
+        bad = bad || `${JSON.stringify(raw)} -> mustFill nefnir "${m.pos}"`;
+      }
+    }
+  }
+  ok(!bad, `mustFill nefnir adeins stodur sem rod getur borid${bad ? ` — ${bad}` : ""}`);
+
+  /* MAELITAEKID VERDUR AD GETA BRUGDIST: `recommend` faer deildina
+     OSNERTA (an `normalizeLeague`) og THA a "DEF" ad sleppa i gegn —
+     annars vaeri fullyrdingin ofan uppfyllt af thvi ad `mustFill` se
+     alltaf tom, ekki af thvi ad vorpunin virki. */
+  const rawLeague = { teams: 10, rounds: 15,
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DEF: 1 }, maxPos: DEFAULT_LEAGUE.maxPos };
+  const leak = recommend({ available: av, roster: [], pick: 5, league: rawLeague, nextPick: 15 });
+  ok(leak.mustFill.some((m) => m.pos === "DEF"),
+    "an `normalizeLeague` NEFNIR mustFill \"DEF\" — svo hlidid er raunverulegt");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
