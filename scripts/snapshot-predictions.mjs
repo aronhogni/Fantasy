@@ -38,7 +38,7 @@ import { makeFixDifficulty, tierOf, rankScore } from "../src/model.js";
    pipeline reiknar tha vidd ThEGAR i `imminent.json` (`start_feats`). Innflutt
    fall sem enginn kallar er bod um ad kalla thad rangt — sem var einmitt
    villan her (sja buildSnapshot).                                          */
-import { startProbability } from "../src/stats.js";
+import { startProbability, stampStartWindow } from "../src/stats.js";
 /* LIDSVISARNIR ERU FLUTTIR INN, EKKI ENDURREIKNADIR. Fyrsta utgafa thessarar
    skriftu endurreiknadi thá og skrifadi `+(x.gf / x.matches)` — `team_form.json`
    ber ENGIN `gf`/`ga`, hun ber `goals_pg`/`conceded_pg` ThEGAR per leik. Utkoman
@@ -81,9 +81,21 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
      ekkert ad giska: 459 af 584 parast, allir 459 med `start_feats`; hinir
      125 eiga engin gogn i glugganum og fa RETTILEGA null.
      ============================================================ */
+  /* `stampStartWindow` ER FLUTT INN, EKKI ENDURSKRIFUD (20.8.2026).
+     I forleik er glugginn sidustu fimm umferdir FYRRA timabils og
+     `startProbability` er tha endurkvordud (src/stats.js 5b) — en HUN THARF
+     FLAGGID, og flaggid er a SKRA-sviðinu (`imminent.archive`), ekki a
+     rodinni. Appid fær thad gegnum `indexImminentByTeam`; bokhaldid les
+     `imminent.players` BEINT (porun a `code`) og fer thvi ekki thangad.
+     Medan thetta vantadi skrifadi bokhaldid HRAU toluna medan skjarinn
+     synd endurkvordadu — og `startProbCalibration` ber `start_prob` beint
+     vid `documented.brier = 0,089`, svo GW1-rodin hefdi maelt Brier ~0,18
+     og lesid eins og afturfor sem vard aldrei. Sama laerdomur og
+     `buildTeamMetrics` (CLAUDE.md 7.1). EITT FALL, TVEIR LESENDUR.        */
   const startFeatsByCode = new Map();
   for (const r of (Array.isArray(imminent?.players) ? imminent.players : []))
-    if (r && r.code != null && r.start_feats) startFeatsByCode.set(String(r.code), r.start_feats);
+    if (r && r.code != null && r.start_feats)
+      startFeatsByCode.set(String(r.code), stampStartWindow(imminent, r.start_feats));
   const teamMetrics = buildTeamMetrics({ players, teams, promoted, teamForm });
   const teamById = {}; for (const t of teams) teamById[t.id] = t;
   const eloByTeam = {};

@@ -22,6 +22,7 @@ import {
   num, POS_ORDER, sumGwRange,
   moScore, aoScore, inImminentPool, imminentBoard,
   startFeatures, startProbability, startRisk, START_MODEL,
+  PRESEASON_CAL, preseasonStartProb, indexImminentByTeam, gkChiefOutIds, stampStartWindow,
   MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES, makeEnricher, gwBlindKeys, BSD_XGS_MIN_SHOTS,
   SCOPE_NOTES, FIELDS_READ, readsFields,
 } from "../src/stats.js";
@@ -757,6 +758,406 @@ if (existsSync(D + "imminent.json")) {
 }
 
 
+/* ================= 12b. FORLEIKS-ENDURKVORDUN =================
+   Ver `PRESEASON_CAL` / `preseasonStartProb` (src/stats.js 5b).
+
+   HVERS VEGNA ENDURGERDIN ER NETLAUS: maelinga-skriftan
+   (`scripts/measure-tail-to-gw1.mjs`) sækir `players_raw.csv` ur
+   vaastav-speglinum til ad para leikmenn a `code` MILLI timabila. Safn i
+   `npm test` sem sækir a netid fellur af astaedu sem hefur ekkert med
+   maelinguna ad gera — thad er nakvaemlega thess vegna sem
+   `euro-congestion.mjs` er UTAN `SUITES` (CLAUDE.md 5). Herna er sama
+   uppbygging keyrd a NAFNA-PORUN i committadri `data/fpl_player_gw.json`,
+   sem kostar 127 af 1.901 rodum (nakvaemlega tapid sem hausinn a
+   `start-panel.mjs` maelir) og thvi lidlega vidari vikmork. Endurgerdin
+   verdur samt ad LENDA A SOMU TOLU — annars er fastinn ekki maelingin.  */
+console.log("\n=== 12b. FORLEIKS-ENDURKVORDUN (PRESEASON_CAL) ===");
+{
+  const C = PRESEASON_CAL, M = C.measured;
+  /* ---- (a) MAELINGIN ER SKJALFEST, MED URTAKI OG CI ---- */
+  ok(M.samples === 1901 && M.boundaries === 4 && M.players === 875,
+    `mæling skjalfest (${M.samples} raðir, ${M.players} leikmenn, ${M.boundaries} tímabilamót)`);
+  ok(M.ci[0] > 0 && M.ci[1] > 0,
+    `d Brier CI [${M.ci[0]}, ${M.ci[1]}] UTILOKAR NULL — samþykktar-þröskuldur repo-sins`);
+  ok(M.brier_recal < M.brier_raw,
+    `endurkvarðað betra en hrátt (${M.brier_recal} < ${M.brier_raw})`);
+  ok(C.B > 0 && C.B < 1, `hallinn er á (0,1): ${C.B} — talan var OFURSJÁLFSTRAUST, ekki röng`);
+
+  /* ---- (b) VORPUNIN ER EINRAEN OG ALLTAF A (0,1) ---- */
+  const grid = [];
+  for (let i = 0; i <= 1000; i++) grid.push(i / 1000);
+  const mapped = grid.map(preseasonStartProb);
+  ok(mapped.every(v => Number.isFinite(v) && v >= 0 && v <= 1),
+    `1.001 gildi (0 og 1 innifalin) haldast á [0,1] — lægst ${Math.min(...mapped)}, hæst ${Math.max(...mapped)}`);
+  ok(mapped.every(v => Number.isFinite(v)), "engin ±Infinity úr logit(0)/logit(1) (skorðunin virkar)");
+  /* NAMUNDUNIN ER SAMA OG I `startProbability` — thrir aukastafir. Vorpunin
+     er a OPNA bilinu (0,1) i reikningi en birt tala getur ordid 0,000 eda
+     1,000 vid ofgagildi, NAKVAEMLEGA eins og hraa likanid gerir thegar.
+     Tvaer namundunarreglur a sama kvarda vaeru tveir kvardar.            */
+  eq(preseasonStartProb(0), 0, "0 → 0 við birtingar-nákvæmni (FPL-gólfið heldur sér)");
+  eq(preseasonStartProb(1), 1, "og 1 → 1 (sama regla og startProbability, þrír aukastafir)");
+  ok(mapped.filter(v => v > 0 && v < 1).length > 990,
+    `en 990+ af 1.001 liggja STRANGT innan (0,1) (${mapped.filter(v => v > 0 && v < 1).length})`);
+  let inversions = 0;
+  for (let i = 1; i < mapped.length; i++) if (mapped[i] < mapped[i - 1]) inversions++;
+  eq(inversions, 0, "vörpunin snýr ALDREI röð við (einræn á öllu bilinu)");
+  eq(preseasonStartProb(null), null, "null-öruggt");
+  eq(preseasonStartProb("x"), null, "rusl-inntak → null, ekki NaN");
+  /* Og hun HREYFIR toluna — annars vaeri einræni-profid tomt. */
+  ok(preseasonStartProb(0.05) > 0.12 && preseasonStartProb(0.90) < 0.75,
+    `hún færir töluna raunverulega (0,05 → ${preseasonStartProb(0.05)} · 0,90 → ${preseasonStartProb(0.90)})`);
+
+  /* ---- (c) ENDURGERD A COMMITTUDUM GOGNUM (ekkert net) ---- */
+  if (existsSync(D + "fpl_player_gw.json")) {
+    const fg = J("fpl_player_gw.json");
+    const h = fg.header, ix = {};
+    for (const k of ["round", "team", "mins", "value", "name"]) ix[k] = h.indexOf(k);
+    const SE = Object.keys(fg.seasons).sort();
+    const per = {};
+    for (const s of SE) {
+      const m = new Map(), tp = new Set();
+      for (const r of fg.seasons[s]) {
+        const n = r[ix.name], rd = +r[ix.round], mins = +r[ix.mins] || 0;
+        if (mins > 0) tp.add(`${rd}|${r[ix.team]}`);
+        let row = m.get(n); if (!row) m.set(n, row = { r: new Map() });
+        const cur = row.r.get(rd);
+        /* Tvofold umferd: LAGT SAMAN, sama regla og i `start-panel.mjs`. */
+        if (cur) cur.mins += mins;
+        else row.r.set(rd, { mins, value: +r[ix.value] || null, team: r[ix.team] });
+      }
+      per[s] = { m, tp };
+    }
+    const TAIL = [34, 35, 36, 37, 38], rows = [];
+    for (let i = 0; i < SE.length - 1; i++) {
+      const prev = SE[i], next = SE[i + 1];
+      for (const [name, p] of per[next].m) {
+        const g1 = p.r.get(1); if (!g1) continue;
+        if (!per[next].tp.has(`1|${g1.team}`)) continue;      // lid spiladi ekki GW1
+        const old = per[prev].m.get(name); if (!old) continue;
+        const ser = [];
+        for (const r of TAIL) { const g = old.r.get(r); if (g) ser.push(g.mins); }
+        if (ser.length < 2) continue;
+        const pm = startProbability(startFeatures(ser, g1.value));
+        if (pm == null) continue;
+        rows.push({ prev, y: g1.mins >= 60 ? 1 : 0, pm });
+      }
+    }
+    const bounds = [...new Set(rows.map(r => r.prev))];
+    ok(rows.length > 1500 && bounds.length === 4,
+      `endurgerð: ${rows.length} raðir á ${bounds.length} tímabilamótum (skriftan: 1.901 með code-pörun)`);
+    const lg = p => { const q = Math.min(1 - 1e-9, Math.max(1e-9, p)); return Math.log(q / (1 - q)); };
+    const sg = z => 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))));
+    const brier = a => a.reduce((s, r) => s + (r.p - r.y) ** 2, 0) / a.length;
+    /* Logistiskt fit, 2 stikur, Newton — nog fyrir eina viddar-vorpun. */
+    const fit = (rs) => {
+      let b0 = 0, b1 = 0;
+      for (let it = 0; it < 80; it++) {
+        let g0 = 0, g1 = 0, h00 = 0, h01 = 0, h11 = 0;
+        for (const r of rs) {
+          const x = lg(r.pm), p = sg(b0 + b1 * x), w = Math.max(1e-6, p * (1 - p)), e = r.y - p;
+          g0 += e; g1 += x * e; h00 += w; h01 += w * x; h11 += w * x * x;
+        }
+        h00 += 1e-6 * rs.length; h11 += 1e-6 * rs.length;
+        const det = h00 * h11 - h01 * h01; if (!det) break;
+        const d0 = (h11 * g0 - h01 * g1) / det, d1 = (-h01 * g0 + h00 * g1) / det;
+        b0 += d0; b1 += d1;
+        if (Math.abs(d0) < 1e-10 && Math.abs(d1) < 1e-10) break;
+      }
+      return [b0, b1];
+    };
+    const full = fit(rows);
+    /* VIKMORKIN ERU ROKSTUDD, EKKI VALIN: nafna-porun tapar 127 af 1.901
+       rodum, svo fitið ma reka litillega. Thau eru samt tholin nog til ad
+       FELLA rangan fasta — halli 0,4 eda 0,7 fellur, og formerkja-flipp
+       fellur med margfoldum vikmorkum.                                  */
+    near(full[1], C.B, 0.04, "endurfittaður halli lendir á PRESEASON_CAL.B");
+    near(full[0], C.A, 0.06, "endurfittaður skurðpunktur lendir á PRESEASON_CAL.A");
+    /* LOSO: fittad a threm motum, maelt a thvi fjorda. */
+    const oos = [];
+    for (const b of bounds) {
+      const tr = rows.filter(r => r.prev !== b), te = rows.filter(r => r.prev === b);
+      const co = fit(tr);
+      for (const r of te) oos.push({ y: r.y,
+        raw: r.pm, loso: sg(co[0] + co[1] * lg(r.pm)), fixed: preseasonStartProb(r.pm) });
+    }
+    const bRaw = brier(oos.map(r => ({ p: r.raw, y: r.y })));
+    const bLoso = brier(oos.map(r => ({ p: r.loso, y: r.y })));
+    const bFix = brier(oos.map(r => ({ p: r.fixed, y: r.y })));
+    ok(bLoso < bRaw && bRaw - bLoso > 0.010,
+      `LOSO endurkvörðun bætir Brier ${bRaw.toFixed(4)} → ${bLoso.toFixed(4)} (skriftan: 0,1837 → 0,1683)`);
+    ok(Math.abs(bFix - bLoso) < 0.002,
+      `FÖSTU fastarnir lenda á LOSO-fitinu (${bFix.toFixed(4)} vs ${bLoso.toFixed(4)}) — einn kvarði, ekki tveir`);
+    ok(bFix < bRaw, `og slá hráa líkanið (${bFix.toFixed(4)} < ${bRaw.toFixed(4)})`);
+    /* STOKKBREYTINGIN INNBYGGD: SNUINN HALLI VERDUR AD VERA VERRI EN
+       ENGIN ENDURKVORDUN. Fullyrding sem stenst snuinn halla mælir hann
+       ekki (CLAUDE.md 13).                                              */
+    const flipped = oos.map(r => ({ y: r.y, p: sg(C.A - C.B * lg(r.raw)) }));
+    ok(brier(flipped) > bRaw + 0.05,
+      `SNÚINN halli er MIKLU verri en engin endurkvörðun (${brier(flipped).toFixed(4)} > ${bRaw.toFixed(4)})`);
+    /* RODUN MA ALDREI SNUAST VID — ThAD ER FORSENDA ThESS AD AUC HALDIST.
+       Fullyrdingin er ONNUR en "byte-eins": namundun i thrja aukastafi
+       getur SAMEINAD tvö grönn gildi (og gerir thad), sem er jafntefli, en
+       hun getur ALDREI snuid theim vid. Fyrsta utgafan krafdist byte-eins
+       rodunar og fell a jafnteflum sem eru retta hegdunin.               */
+    const bySrc = oos.slice().sort((a, b) => a.raw - b.raw);
+    let inv = 0, strict = 0;
+    for (let i = 1; i < bySrc.length; i++) {
+      if (bySrc[i].fixed < bySrc[i - 1].fixed) inv++;
+      if (bySrc[i].raw > bySrc[i - 1].raw && bySrc[i].fixed > bySrc[i - 1].fixed) strict++;
+    }
+    ok(inv === 0 && strict > 200,
+      `röðun ${bySrc.length} raða snýst ALDREI við (${inv} viðsnúningar, ${strict} strangt vaxandi pör)`);
+  }
+
+  /* ---- (d) SKILYRDID: ARKIV-GLUGGI KVEIKIR, TIMABIL EKKI ----
+     ThETTA ER FULLYRDINGIN SEM STODVAR HANA MITT I TIMABILI. Sami
+     leikmadur, sama minutu-rod, EINI munurinn er `archive` a skranni.   */
+  const feats = { starts5: 0.6, mins5: 54, trend: -10, started_last: 1, value: 55 };
+  const rawP = startProbability(feats);
+  const file = a => ({ archive: a, players: [{ code: 1, name: "Test Man", team: "ARS",
+                                               start_feats: { ...feats } }] });
+  const inSeason = indexImminentByTeam(file(false)).ARS[0];
+  const preseason = indexImminentByTeam(file(true)).ARS[0];
+  eq(startProbability(inSeason.start_feats), rawP,
+    "Í TÍMABILI (archive:false) er talan HRÁA líkansins, ÓBREYTT");
+  eq(inSeason.start_feats.from_archive_window, undefined,
+    "og flaggið er ekki til — í tímabili er engu stimplað");
+  eq(startProbability(preseason.start_feats), preseasonStartProb(rawP),
+    `Í FORLEIK (archive:true) er hún endurkvörðuð (${rawP} → ${preseasonStartProb(rawP)})`);
+  ok(preseasonStartProb(rawP) !== rawP,
+    "og tölurnar eru RAUNVERULEGA ólíkar — annars væri fullyrðingin hér að ofan tóm");
+  /* EIN NAKVAEMNI A EINUM KVARDA — ThRIR AUKASTAFIR I BADUM BRONSUM.
+     MAELINGIN SJALF fittar kvordunina a `logit(startProbability(f))`, sem
+     er ThRIGGJA-AUKASTAFA talan, svo vorpunin verdur ad liggja a HENNI.
+     Fyrsta utgafan namundadi EFTIR vorpunina og 2 af 840 rodum i
+     `imminent.json` fengu adra tolu en maelingin gefur. Fullyrdingin ber
+     BEINT a namunduninni, thvi jofnudurinn her ad ofan er sjalfum ser
+     samkvaemur hvor namundunin sem er notud (stokkbreyting slapp).      */
+  const dp = v => { const s = String(v); const i = s.indexOf("."); return i < 0 ? 0 : s.length - i - 1; };
+  ok(dp(rawP) <= 3 && dp(preseasonStartProb(rawP)) <= 3,
+    `báðar greinar skila ÞRIGGJA-aukastafa tölu (${rawP} · ${preseasonStartProb(rawP)})`);
+  {
+    const rough = [];
+    for (const s5 of [0, 0.2, 0.35, 0.5, 0.65, 0.8, 1]) for (const m5 of [3, 17, 29, 41, 58, 67, 83]) {
+      for (const pre of [false, true]) {
+        const v = startProbability({ starts5: s5, mins5: m5, trend: 7, started_last: 1,
+          value: 52, ...(pre ? { from_archive_window: true } : {}) });
+        if (dp(v) > 3) rough.push(`${pre ? "pre" : "in"} ${s5}/${m5} = ${v}`);
+      }
+    }
+    ok(rough.length === 0,
+      `98 tilfelli í BÁÐUM brönsum haldast við þrjá aukastafi (${rough.length} brot)`,
+      rough.slice(0, 3).join(" | "));
+  }
+  /* `archive` sem er hvorki true ne false ma EKKI kveikja (thogul mis-kveikja). */
+  for (const bad of [undefined, null, "true", 1, {}]) {
+    const r = indexImminentByTeam({ archive: bad, players: file(true).players }).ARS[0];
+    ok(startProbability(r.start_feats) === rawP,
+      `archive=${JSON.stringify(bad)} kveikir EKKI (aðeins hreint \`true\`)`);
+  }
+  /* Adfongin ma ekki breytast a staed — annar lesandi ma ekki fa stimpil. */
+  const src = file(true);
+  indexImminentByTeam(src);
+  eq(src.players[0].start_feats.from_archive_window, undefined,
+    "`imminent`-hluturinn sjálfur er ÓBREYTTUR (afrit, ekki stimpill á React-state)");
+
+  /* ---- (e) RAUNSKRAIN: hvad er glugginn i dag, og hegdar hann rett? ---- */
+  if (existsSync(D + "imminent.json")) {
+    const imm = J("imminent.json");
+    const idx = indexImminentByTeam(imm);
+    const rowsAll = Object.values(idx).flat().filter(r => r.start_feats);
+    ok(rowsAll.length > 400, `forsenda: ${rowsAll.length} raðir með byrjunar-eiginleika`);
+    /* SAMA SKRA, FLAGGID SLEGID AF — thad er in-season hlidin a RAUNGOGNUM. */
+    const off = indexImminentByTeam({ ...imm, archive: false });
+    const rowsOff = Object.values(off).flat().filter(r => r.start_feats);
+    const bare = new Map(rowsOff.map(r => [r.code, startProbability(r.start_feats)]));
+    ok([...bare.values()].every(v => v != null), "hrá talan reiknast fyrir allar raðir");
+    if (imm.archive === true) {
+      const bad = rowsAll.filter(r => startProbability(r.start_feats)
+                                   !== preseasonStartProb(bare.get(r.code)));
+      ok(bad.length === 0,
+        `arkiv-gluggi i dag (gws ${imm.gws?.join(",")}): allar ${rowsAll.length} raðir endurkvarðaðar`,
+        bad.slice(0, 3).map(r => r.name).join(" "));
+      const moved = rowsAll.filter(r => startProbability(r.start_feats) !== bare.get(r.code));
+      ok(moved.length > rowsAll.length * 0.9,
+        `og ${moved.length} af ${rowsAll.length} bera RAUNVERULEGA aðra tölu (ekki þögul núll-vörpun)`);
+    } else {
+      /* Eftir 21.8.2026: skrain er i timabili og fullyrdingin snyst vid. */
+      const bad = rowsAll.filter(r => startProbability(r.start_feats) !== bare.get(r.code));
+      ok(bad.length === 0,
+        `Í TÍMABILI (archive:${imm.archive}): ENGIN röð endurkvörðuð — hráa líkanið stendur`);
+    }
+  }
+
+  /* ---- (f) MERKIMIDINN: threpin STANDA, en `trap` slokknar i forleik ----
+     MAELT (sja startRisk): i arkiv-glugganum byrjar sa sem byrjadi GW38
+     GW1 i 37,2% [28,4; 48,1] a moti 18,3% [16,0; 20,9] — delta +0,1895
+     CI [+0,0937, +0,3028], GAGNSTAETT theirri fullyrdingu sem `trap` setur
+     a skjainn (raudur reitur, "at risk of the bench").                  */
+  const trapF = { starts5: 0.2, mins5: 18, trend: 0, started_last: 1, value: 45 };
+  const inS = startRisk(trapF);
+  const preS = startRisk({ ...trapF, from_archive_window: true });
+  eq(inS.level, "trap", "Í TÍMABILI: byrjaði síðast + lágar líkur = trap (óbreytt)");
+  ok(inS.label.includes("Bench risk"), `og merkimiðinn segir það (${inS.label})`);
+  eq(preS.level, "low", "Í FORLEIK: EKKI trap — merkið mælist í GAGNSTÆÐA átt");
+  ok(!/Bench risk/.test(preS.label), `og enginn bekkjar-áburður (${preS.label})`);
+  ok(preS.p > inS.p, `talan er samt HÆRRI, ekki lægri (${inS.p} → ${preS.p})`);
+  /* ThREPIN SJALF HREYFAST EKKI, OG ThAD ER SANNREYNT A ThREPA-MORKUNUM.
+     Grid yfir minutu-radir -> hvert threp er ALLTAF hreint fall af tolunni
+     sem er BIRT, med SOMU morkum 0,75 / 0,45 i badum bronsum. Fellur um
+     leid og einhver skrifar annad threp fyrir forleik.                  */
+  const lvlOf = (s5, m5, sl, pre) => startRisk({ starts5: s5, mins5: m5, trend: 0,
+    started_last: sl, value: 50, ...(pre ? { from_archive_window: true } : {}) });
+  {
+    const band = q => q >= 0.75 ? "safe" : q >= 0.45 ? "mid" : "low";
+    let mism = 0, n = 0, seen = new Set();
+    for (const s5 of [0, 0.2, 0.4, 0.6, 0.8, 1]) for (const m5 of [0, 12, 30, 45, 62, 78, 90]) {
+      for (const sl of [0, 1]) for (const pre of [false, true]) {
+        const r = lvlOf(s5, m5, sl, pre); n++;
+        /* `trap` er sami reitur og `low` a threpa-kvardanum — thad er
+           ADEINS `low` sem er klofid a `started_last`.                  */
+        const lv = r.level === "trap" ? "low" : r.level;
+        if (lv !== band(r.p)) mism++;
+        seen.add(lv);
+      }
+    }
+    ok(mism === 0 && n === 168,
+      `þrepin eru hreint fall af BIRTU tölunni með 0,75/0,45 í BÁÐUM brönsum (${n} tilfelli, ${mism} ósamræmi)`);
+    ok(seen.has("safe") && seen.has("mid") && seen.has("low"),
+      `og öll þrjú þrepin koma fram í griddinu (${[...seen].sort().join(", ")}) — annars væri fullyrðingin tóm`);
+  }
+  ok(lvlOf(1, 90, 1, false).level === "safe" && lvlOf(1, 90, 1, true).level === "mid",
+    "fastamaður: 'safe' í tímabili en 'mid' í forleik — 0,75 er ÓHREYFT, "
+    + "endurkvörðunin dregur bara töluna niður (0,928 hrátt þarf nú til, mælt)");
+  ok(STAT_BY_KEY.start_prob.note.includes("0.533")
+    && /1,901|1901/.test(STAT_BY_KEY.start_prob.note),
+    "tooltip-ið segir frá endurkvörðuninni MEÐ úrtaki og halla");
+
+  /* ---- (g) SPA-BOKHALDID VERDUR AD SKRA ThA TOLU SEM VAR BIRT ----
+     `snapshot-predictions.mjs` les `imminent.players` BEINT og fer ekki
+     gegnum `indexImminentByTeam`, svo hun tharf stimpilinn sjalf. Medan
+     hann vantadi skrifadi bokhaldid HRAU toluna medan skjarinn synd
+     endurkvordadu — og `startProbCalibration` ber `start_prob` beint vid
+     `documented.brier = 0,089`, svo GW1-rodin hefdi maelt Brier ~0,18 og
+     lesid eins og afturfor sem vard aldrei (CLAUDE.md 7.1). GW1-rodin er
+     skrifud EINU SINNI og ALDREI endurskrifud, svo thetta er ekki villa sem
+     lagast i naestu keyrslu.
+     BYGGINGARLEGT, EINS OG `buildTeamMetrics`-vordurinn: fallid verdur ad
+     vera FLUTT INN og flaggid ma EKKI vera handskrifad annars stadar.   */
+  {
+    const raw = readFileSync(new URL("../scripts/snapshot-predictions.mjs", import.meta.url), "utf8");
+    const code = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    ok(/import \{[^}]*stampStartWindow[^}]*\} from "\.\.\/src\/stats\.js"/.test(code),
+      "bókhaldið FLYTUR INN `stampStartWindow` úr src/stats.js");
+    ok(/stampStartWindow\(imminent,/.test(code),
+      "og kallar á hana með `imminent` (skrá-flaggið, ekki röðina)");
+    ok(!/from_archive_window/.test(code),
+      "og skrifar flaggið ALDREI sjálft — afrit af reglunni er tvær reglur");
+    /* OG UTKOMAN, EKKI BARA TENGINGIN: sama gogn i gegnum baðar leidir
+       verda ad gefa SOMU tolu. Thetta er fullyrdingin sem fellur ef
+       einhver kallar a fallid en gleymir nidurstodunni.                 */
+    if (existsSync(D + "imminent.json")) {
+      const imm = J("imminent.json");
+      const viaIdx = new Map(Object.values(indexImminentByTeam(imm)).flat()
+        .filter(r => r.start_feats).map(r => [String(r.code), startProbability(r.start_feats)]));
+      const drift = [];
+      for (const r of (imm.players || [])) {
+        if (!r?.start_feats || r.code == null) continue;
+        const ledger = startProbability(stampStartWindow(imm, r.start_feats));
+        if (ledger !== viaIdx.get(String(r.code))) drift.push(`${r.name}: ${ledger} vs ${viaIdx.get(String(r.code))}`);
+      }
+      ok(drift.length === 0 && viaIdx.size > 400,
+        `bókhaldsleiðin og skjá-leiðin gefa SÖMU tölu á öllum ${viaIdx.size} röðum`,
+        drift.slice(0, 3).join(" | "));
+    }
+  }
+}
+
+
+/* ================= 12c. VARAMARKMADUR — SAMHENGI, EKKI TALA =================
+   Ver `gkChiefOutIds` og `_gk_chief_out` (src/stats.js kafli 6).          */
+console.log("\n=== 12c. VARAMARKMADUR (gkChiefOutIds) ===");
+{
+  const gk = (id, team, minutes, chance) => ({ id, team, element_type: 1, minutes,
+    chance_of_playing_next_round: chance, web_name: `GK${id}` });
+  const out = (id, team) => ({ id, team, element_type: 3, minutes: 3000,
+    chance_of_playing_next_round: 0, web_name: `OUT${id}` });
+
+  /* ---- (a) LIDID ThAR SEM SVARID ER ThEKKT FYRIRFRAM ----
+     Nauðsynlegt af thvi ad merkid er SOFANDI a lifandi gognum i dag:
+     maelt 20.8.2026 er ENGINN klubbur med minutu-haesta markmanninn a
+     `chance = 0`, svo raungogn ein GETA EKKI fellt thennan vord.        */
+  const squad = [gk(1, 7, 3240, 0), gk(2, 7, 180, null), gk(3, 7, 0, null),
+                 out(4, 7), gk(5, 8, 3300, null), gk(6, 8, 90, null)];
+  const m = gkChiefOutIds({ players: squad });
+  eq(m.get(2), 1, "varamarkmaður fær 1 þegar nr. 1 er á FPL 0%");
+  eq(m.get(3), 1, "og þriðji markmaðurinn líka (spurningin er um nr. 1, ekki um röð hans)");
+  eq(m.get(1), null, "nr. 1 SJÁLFUR fær null — spurningin er ekki til fyrir hann");
+  eq(m.has(4), false, "ÚTILEIKMAÐUR ER EKKI Í TÖFLUNNI YFIRLEITT (chance=0 og allt)");
+  eq(m.get(6), 0, "varamarkmaður hjá liði með heilbrigðan nr. 1 fær 0 — MÆLING, ekki „vantar“");
+
+  /* ---- (b) OSVARANLEG ROD -> NULL FYRIR ALLT LIDID ---- */
+  const flat = gkChiefOutIds({ players: [gk(10, 9, 0, 0), gk(11, 9, 0, null)] });
+  ok(flat.get(10) === null && flat.get(11) === null,
+    "allir markmenn á 0 mínútum: röðunin er tilviljun → null, ekki ágiskun");
+  const tie = gkChiefOutIds({ players: [gk(12, 9, 900, 0), gk(13, 9, 900, null)] });
+  ok(tie.get(12) === null && tie.get(13) === null,
+    "jafnar mínútur: nr. 1 er ÓÚRSKURÐAÐUR → null");
+  eq(gkChiefOutIds({ players: [gk(14, 9, 900, 25), gk(15, 9, 90, null)] }).get(15), 0,
+    "25% chance er EKKI 0% — gáttin er `=== 0`, eins og FPL-gólfið sjálft");
+  eq(gkChiefOutIds({ players: null }).size, 0, "null-öruggt");
+
+  /* ---- (c) ThAD BREYTIR HVORKI TOLUNNI NE ThREPINU ----
+     ThETTA ER "samhengi, ekki tala" GERT AD FULLYRDINGU.                */
+  const f = { starts5: 0.2, mins5: 18, trend: 0, started_last: 0, value: 45 };
+  const plain = startRisk(f), flagged = startRisk(f, { chiefOut: true });
+  eq(flagged.p, plain.p, "`p` er BYTE-EINS með og án GK-samhengis");
+  eq(flagged.level, plain.level, "og þrepið líka (samhengi má ekki þykjast vera hættuþrep)");
+  eq(flagged.chief_out, true, "samhengið kemur fram sem eigin reitur");
+  ok(/No\. 1 keeper/.test(flagged.label) && !/No\. 1 keeper/.test(plain.label),
+    `og í merkimiðanum (${flagged.label})`);
+  eq(plain.chief_out, undefined, "engin reitur þegar samhengið er ekki til");
+
+  /* ---- (d) AUDGUNIN: DALKURINN LEKUR ALDREI UT FYRIR MARKMENN ----
+     Utileikmanna-lidurinn er MAELDUR OG FELLDUR (-0,0057 CI [-0,0096,
+     -0,0014]) — thess vegna er thetta hard fullyrding, ekki snyrting.   */
+  const d = STAT_BY_KEY.gk_chief_out;
+  ok(d && Array.isArray(d.pos) && d.pos.length === 1 && d.pos[0] === 1,
+    "dálkurinn ber `pos:[1]` — birting er markmenn og bara markmenn");
+  ok(d.live_only && d.derived, "hann er `live_only` + `derived` (kemur úr auðguninni)");
+  ok(/0\.105|0\.391/.test(d.note) && /−0\.0057|-0\.0057/.test(d.note),
+    "notan ber BÆÐI mælinguna og HÖFNUNINA á útileikmönnum");
+  ok(/does not move|never inside|beside the number/i.test(d.note),
+    "og segir BERUM ORÐUM að hún hreyfi ekki Start prob");
+  if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
+    const pl3 = J("players.json").players || J("players.json");
+    const tR = J("teams.json");
+    const tById = Object.fromEntries(((Array.isArray(tR) ? tR : tR.teams) || []).map(t => [t.id, t]));
+    const e3 = makeEnricher({ players: pl3, teamById: tById, imminent: J("imminent.json"),
+      isLive: true });
+    const rows3 = pl3.map(p => ({ p, f: e3(p).fields }));
+    const leaked = rows3.filter(r => r.p.element_type !== 1 && r.f._gk_chief_out != null);
+    ok(leaked.length === 0,
+      `ENGINN útileikmaður ber \`_gk_chief_out\` (${leaked.length} af `
+      + `${rows3.filter(r => r.p.element_type !== 1).length})`,
+      leaked.slice(0, 3).map(r => r.p.web_name).join(" "));
+    /* FORSENDA: dalkurinn ma ekki vera ALTOMUR — annars vaeri "engin leki"
+       graent af thvi ad hann reiknast aldrei (CLAUDE.md 5b).            */
+    const gkRows = rows3.filter(r => r.p.element_type === 1);
+    const answered = gkRows.filter(r => r.f._gk_chief_out != null);
+    ok(answered.length > 20,
+      `og ${answered.length} af ${gkRows.length} markmönnum FÁ svar (0 eða 1)`);
+    /* Og ad talan sé SOFANDI i dag er MAELT, ekki forsenda: se hun ekki
+       sofandi lengur er thad raunveruleg upplysing, ekki bilun.         */
+    const firing = gkRows.filter(r => r.f._gk_chief_out === 1);
+    console.log(`  · markmenn með nr. 1 á FPL 0% í dag: ${firing.length}`
+      + `${firing.length ? " (" + firing.slice(0, 4).map(r => r.p.web_name).join(", ") + ")" : " — sofandi, sbr. mælinguna"}`);
+    ok(firing.length === 0 || firing.every(r => r.p.element_type === 1),
+      "og hver sem kviknar er markmaður");
+  }
+}
+
+
 /* ================= 13. LEIKMANNALISTINN — 108 DALKAR ================= */
 console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
 {
@@ -1088,6 +1489,7 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
     "espn_shots","espn_sot","espn_accuracy","espn_in_box","espn_woodwork",
     "espn_created","espn_cross","espn_through",          // ESPN, sidasta umferd
     "mo","ao","start_prob",                               // lifandi gluggi
+    "gk_chief_out",                                       // FPL-status dagsins a nr. 1
     "fdr6","home6","fix6","team_cs_prob","team_dc",       // leikir framundan
     "pen_order","fk_order","ck_order",                    // spyrnu-rod dagsins
     "xg_share",
@@ -1479,6 +1881,39 @@ console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`
                                  && r.f._start_p != null);
   ok(partial.length === 0 || partial.some(r => r.f._start_p > 0),
      `hlutfalls-chance (25/50/75) heldur likans-tolunni (${partial.length} tilfelli)`);
+
+  /* ---- 14e-2: ENDURKVORDUNIN MA EKKI LYFTA GOLFINU AF NULLI (20.8.2026) ----
+     `_start_p` setur 0 thegar FPL segir 0%, og endurkvordunin liggur i
+     `startProbability` — svo hun sest ALDREI a thann mann. Skiptir samt
+     mali ad sannreyna, thvi vorpun sem lyftir 0 upp i 0,03% vaeri "ekki
+     0" a skjanum hja manni sem GETUR EKKI spilad.                       */
+  eq(preseasonStartProb(0), 0,
+     "vörpunin sendir 0 í 0 við birtingar-nákvæmni (gólfið getur ekki lekið upp)");
+  const floored = rows2.filter(r => isZero(r.p.chance_of_playing_next_round)
+                                 && r.f._start_p === 0);
+  ok(floored.length === zeroChance.length,
+     `og gólfið er HÁKVÆMT 0 hjá ÖLLUM ${zeroChance.length} flögguðu (${floored.length})`);
+
+  /* ---- 14e-3: GK-SAMHENGID SNERTIR EKKI `_start_p` ----
+     Ef `chiefOut` faeri einhvern tima inn i toluna myndi hun hreyfast her.  */
+  const e2b = makeEnricher({ players: pl2.map(p => p.element_type === 1
+      ? { ...p, chance_of_playing_next_round: p.minutes > 0 ? 0 : p.chance_of_playing_next_round }
+      : p),
+    teamById: tById2, imminent: J("imminent.json"),
+    fixtures: J("fixtures.json").fixtures ?? J("fixtures.json"),
+    events: J("events.json").events, odds: J("odds.json").teams ?? J("odds.json"),
+    isLive: true });
+  /* Nu er HVER minutu-haestur markmadur a 0% -> `chiefOut` kviknar hja
+     hverjum varamarkmanni. `_start_p` theirra ma ekki hreyfast um haarsbreidd. */
+  const deputies = pl2.filter(p => p.element_type === 1)
+    .map(p => ({ p, a: e2(p).fields, b: e2b(p).fields }))
+    .filter(r => r.b._gk_chief_out === 1);
+  ok(deputies.length > 10, `forsenda: ${deputies.length} varamarkmenn kvikna í hermdu ástandinu`);
+  const movedByCtx = deputies.filter(r => r.a._start_p !== r.b._start_p
+                                       && num(r.p.chance_of_playing_next_round) !== 0);
+  ok(movedByCtx.length === 0,
+     `GK-samhengið hreyfir \`_start_p\` hjá ENGUM (${movedByCtx.length} af ${deputies.length}) — samhengi, ekki tala`,
+     movedByCtx.slice(0, 3).map(r => `${r.p.web_name} ${r.a._start_p}->${r.b._start_p}`).join(" "));
 }
 
 console.log("\n15) `pos` er virt i BADUM lesmatum");

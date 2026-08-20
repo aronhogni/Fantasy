@@ -177,8 +177,18 @@ export const STAT_DEFS = [
     get: officialPer90("starts_per_90") },
   { key:"start_prob", label:"Start probability", short:"Start prob", group:"core", band:"Minutes",
     dec:0, hi:true, pct:true, live_only:true, derived:true,
-    note:"OUR MEASURED MODEL, not an FPL field: probability of 60+ minutes in the NEXT gameweek, from starts and minutes over the last 5 finished gameweeks. IT IS A MINUTES MODEL AND KNOWS NOTHING ABOUT INJURIES, so FPL has the last word: when FPL puts a player at 0% chance of playing this reads 0, because he cannot start. At 25/50/75% the model figure stands — it answers \"will he start IF he is available\", which is a different question from whether he is available, and multiplying the two would be an unmeasured combination. Measured on 65,557 samples — the model is no more accurate than \"he started last time\" (88%) but far better CALIBRATED (Brier −24%), so the RANKING is what it is for: the lowest decile catches 2.09× the bench drops. Live figure — it does not follow the selected season.",
+    note:"OUR MEASURED MODEL, not an FPL field: probability of 60+ minutes in the NEXT gameweek, from starts and minutes over the last 5 finished gameweeks. IT IS A MINUTES MODEL AND KNOWS NOTHING ABOUT INJURIES, so FPL has the last word: when FPL puts a player at 0% chance of playing this reads 0, because he cannot start. At 25/50/75% the model figure stands — it answers \"will he start IF he is available\", which is a different question from whether he is available, and multiplying the two would be an unmeasured combination. Measured on 65,557 samples — the model is no more accurate than \"he started last time\" (88%) but far better CALIBRATED (Brier −24%), so the RANKING is what it is for: the lowest decile catches 2.09× the bench drops. IN PRESEASON THE NUMBER IS ON A RECALIBRATED SCALE, because the window is then the last 5 gameweeks of LAST season and the model was never fitted to that question. Measured on all four real season boundaries (1,901 rows, 875 players): the raw model still carries information (AUC 0.816) but its calibration slope is 0.533, so it compressed toward the middle — displayed 5% actually started 7.8% of the time and displayed 90%+ only 75.9%. The fix uses the SAME inputs and no new data, and out of sample it improves Brier from 0.1837 to 0.1683 (+0.0155, CI +0.0109 to +0.0200); the ordering is untouched. It switches off by itself the moment one real gameweek is in the window. Live figure — it does not follow the selected season.",
     get:p=>{ const v=num(p._start_p); return v==null?null:v*100; } },
+  /* SAMHENGI VID DALKINN A UNDAN, EKKI HLUTI AF HONUM. Sja kafla 6 i
+     thessari skra fyrir maelinguna og fyrir hvers vegna talan sjalf
+     haggast ekki. `pos:[1]` er vordurinn a getternum OG i birtingu —
+     utileikmanna-lidurinn er MAELDUR OG FELLDUR (-0,0057 CI [-0,0096,
+     -0,0014]), svo hann ma ekki leka ut fyrir markmenn.                */
+  { key:"gk_chief_out", label:"No. 1 keeper flagged out", short:"No.1 out",
+    group:"core", band:"Minutes", dec:0, hi:true, live_only:true, derived:true, pos:[1],
+    no_heat:true,
+    note:"CONTEXT FOR THE COLUMN BEFORE IT, AND GOALKEEPERS ONLY: 1 = the club's No. 1 keeper (most minutes) is at FPL 0% chance of playing, 0 = he is not, empty = this keeper IS the No. 1, or the ranking is undecidable (every keeper on zero minutes). MEASURED on 5 seasons: a deputy keeper starts 0.2% of gameweeks when the No. 1 plays and 63.6% when he does not — while the model says 5.7% either way. Net of the model the deputy's lift is +0.105 (CI +0.037 to +0.175) when the No. 1 missed the previous gameweek and +0.391 (CI +0.317 to +0.469) when he is actually out. IT DELIBERATELY DOES NOT MOVE START PROB: the live trigger (FPL 0%) is neither of the two measured conditions, and \"who is the No. 1\" is our inference from minutes, which in preseason carry over from a player's PREVIOUS club — measured wrong for one club today. So it is shown beside the number, never inside it. The same term for outfielders is measured and REJECTED: −0.0057 (CI −0.0096 to −0.0014), the wrong sign.",
+    get:p=>num(p._gk_chief_out) },
 
   /* --- band: Form --- */
   { key:"form", label:"Form", group:"core", band:"Form",
@@ -1773,9 +1783,50 @@ export function gwBlindKeys(defs = STAT_DEFS) {
    Tvaer utfaerslur a nafnaporun thydir ad "Byrjar"-dalkurinn getur virkad i
    listanum og verid tomur i skiptaglugganum, an ad neitt prof falli.
    ============================================================ */
+/* ARKIV-FLAGGID ER STIMPLAD HER OG BARA HER (20.8.2026 — sja 5b).
+   `imminent.archive` er a SKRA-sviðinu en endurkvordunin tharf ad na til
+   `start_feats` hverrar radar. Thetta er ein ORUGGA leidin: OLLU sem les
+   byrjunar-likur i appinu er flett upp gegnum thennan vísi
+   (`App.jsx` startPOf + signalsOf, `Compare.jsx`, `makeEnricher`), svo
+   flaggid kemst til allra i EINU LAGI. Vaeri thad i stad thess sent sem
+   valkvaett argument yrdi hver kallstadur ad muna thad — og sa sem gleymdi
+   thvi birti ANNAD tolu fyrir sama leikmann i odrum flipa, an ad neitt
+   felli. Nakvaemlega sami rokstudningur og fyrir ad audgunin bui i
+   `makeEnricher` og lidsvisarnir i `teamstats.js`.
+
+   OG SPA-BOKHALDID ER SJOTTI LESANDINN — ThESS VEGNA ER STIMPILLINN
+   UTFLUTTUR SEM `stampStartWindow` OG EKKI FALINN INNI I VISINUM.
+   `scripts/snapshot-predictions.mjs` les `imminent.players` BEINT (porun a
+   `code`, ekki a nafni innan lids) og fer thvi ekki gegnum vísinn. Medan
+   stimpillinn var inni i honum skrifadi bokhaldid HRAA toluna medan
+   skjarinn sýndi endurkvordadu — og `startProbCalibration` (src/calibration.js)
+   ber `start_prob` beint vid `documented.brier = 0,089`, svo GW1-rodin
+   hefdi maelt Brier ~0,18 og lesid eins og afturfor sem varð aldrei. Thad er
+   NAKVAEMLEGA villan sem `buildTeamMetrics` var flutt fyrir (CLAUDE.md 7.1:
+   "Bokhald sem reiknar likanid upp a nytt maelir annad likan en notandinn
+   sa"). BADIR flytja nu inn SAMA fallid.
+
+   AFRIT, EKKI STIMPILL A ADFONGIN: `imminent` er React-state (sott JSON) og
+   ad breyta honum a staed vaeri ad breyta gogunum undir odrum lesendum.
+   Grunnt afrit heldur ollum odrum sviðum (`window`, `series`, `name`, ...)
+   svo `im` er ad ollu odru leyti sama rodin.
+
+   I TIMABILI ER ENGU AFRITAD OG ENGU BREYTT — sama hlutartilvist til baka.
+   Thad er ekki fínstilling heldur VORDURINN sjalfur: se `archive` falskt
+   getur thessi fall ekki haft nein ahrif.                                */
+export function stampStartWindow(imminent, feats) {
+  if (!feats || typeof feats !== "object") return feats;
+  if (imminent?.archive !== true) return feats;          // sama tilvist til baka
+  return { ...feats, from_archive_window: true };
+}
+
 export function indexImminentByTeam(imminent) {
   const by = {};
-  for (const ip of rowsOf(imminent?.players)) (by[ip.team] ||= []).push(ip);
+  for (const ip of rowsOf(imminent?.players)) {
+    const sf = stampStartWindow(imminent, ip?.start_feats);
+    const row = (sf === ip?.start_feats) ? ip : { ...ip, start_feats: sf };
+    (by[row.team] ||= []).push(row);
+  }
   return by;
 }
 
@@ -1912,6 +1963,95 @@ export function startFeatures(mins, value) {
   };
 }
 
+/* ============================================================
+   5b. FORLEIKS-ENDURKVORDUN — SAMA LIKAN, RETTUR KVARDI (20.8.2026)
+
+   START_MODEL var fittad INNAN TIMABILS (Brier 0,0888 · 0,0923 a
+   `measure-rival-out`-lauginni, AUC 0,9311) og thar er thad VEL KVARDAD.
+   I FORLEIK er thad hins vegar spurt spurningar sem thad var ekki fittad
+   fyrir: glugginn er sidustu fimm umferdir FYRRA timabils og markmidid er
+   GW1 naesta timabils. Thad er annar heimur — dauðir leikir, rotation,
+   sumarkaup og nyliðaklubbar a milli.
+
+   MAELT a ollum FJORUM raunverulegu timabilamotunum i `data/`
+   (2122->2223 · 2223->2324 · 2324->2425 · 2425->2526), n = 1.901 radir,
+   875 leikmenn, GW1-byrjunarhlutfall 0,3556. Skrifta:
+   `scripts/measure-tail-to-gw1.mjs` (bootstrap KLASAD PER LEIKMANN,
+   400 itranir — samthykktar-stadallinn i thessu repo-i).
+
+   1. TALAN BER RAUNVERULEGA UPPLYSINGU OG ER ThVI EKKI FLEYGT:
+      Brier 0,1837 · AUC 0,8158 a moti fasta 0,2291 —
+      d Brier +0,04541, 95% CI [+0,03263, +0,05943], UTILOKAR NULL.
+   2. EN HALLINN ER 0,533 (skurdpunktur -0,262): hun er OFURSJALFSTRAUST og
+      thjappast ad midjunni. Areidanleikinn a FOSTUM bilum:
+        birt 0,00-0,05 -> raunverulegt 0,078  (+0,036 CI [+0,016, +0,060])
+        birt 0,05-0,10 -> raunverulegt 0,253  (+0,187 CI [+0,125, +0,235])
+        birt 0,10-0,20 -> raunverulegt 0,305  (+0,164 CI [+0,083, +0,234])
+        birt 0,70-0,90 -> raunverulegt 0,631  (-0,214 CI [-0,271, -0,154])
+        birt 0,90-1,01 -> raunverulegt 0,759  (-0,175 CI [-0,227, -0,123])
+      Oll fjogur ytri bilin UTILOKA NULL. Thetta er ekki suð.
+   3. LAGFAERINGIN ER SOMU INNTOK, ENGIN NY HEIMILD, ENGIN NY VIDD —
+      adeins vorpun p -> p a logit-kvarda, fittud a ThREMUR timabilamotum
+      og maeld a thvi FJORDA (LOSO):
+        Brier 0,1837 -> 0,1683   logloss 0,5772 -> 0,5101
+        d Brier +0,01547, 95% CI [+0,01089, +0,02004], UTILOKAR NULL.
+      AUC er ObREYTT MED BYGGINGU (0,8158 -> 0,8136, sami rodun; smavikid
+      kemur ur jafntefla-namundun i 3 aukastafi) — vorpunin er EINRAEN, svo
+      hun getur ekki bætt NE skemmt rodun. Thad er einmitt malid: villan var
+      KVARDI, ekki upplysingaleysi.
+
+   HVERS VEGNA FASTIR A/B OG EKKI LOSO-MEDALTAL: maelt hamarks-frávik milli
+   LOSO-vorpunarinnar og fostu fastanna er 0,0119 a ollum 1.901 rodum. Tveir
+   kvardar a somu akvordun eru tveir kvardar (CLAUDE.md 19.8) og fastarnir
+   eru their sem PROFIN geta endurreiknad.
+
+   HAFNAD I SOMU MAELINGU (ekki endurtaka):
+     · fyrra timabil I HEILD i stad tail-5: byrjunar-HLUTFALL d +0,00355
+       CI [-0,00430, +0,01201] og MINUTUR/umferd d +0,00562
+       CI [-0,00211, +0,01401] — BADAR INNIHALDA NULL. Glugginn er ekki
+       rangur; kvardinn var thad.
+     · verd EITT (hopurinn sem fær enga tolu): AUC 0,5972 og d Brier gegn
+       fasta +0,00240 CI [-0,00185, +0,00648] — INNIHELDUR NULL. Thess vegna
+       fær sá hopur AFRAM null og ekki agiskun (CLAUDE.md: "faar maelingar
+       -> ENGIN tala").
+     · tail-5 + fyrra timabil SAMAN vinnur (d +0,01220 CI [+0,00729,
+       +0,01765]) — en thad er NY VIDD og krefst nyrra vogtalna i
+       START_MODEL sjalfu. Thad er ONNUR akvordun en thessi; endurkvordun
+       kostar ekkert nytt inntak. Skrad her svo hun se ekki tynd.
+
+   SKILYRDID SEM KVEIKIR A HENNI — OG HVERS VEGNA ThAD:
+   `imminent.json` ber `archive: true` og pipeline setur thad a NAKVAEMLEGA
+   theim staed thar sem glugginn er byggdur ur spegluninni (fyrra timabil).
+   Flaggid LYSIR ThVI HVAD GLUGGINN ER, ekki hvada dagur er i dag — og thad
+   berst i SOMU SKRA og eiginleikarnir sjalfir, svo thau tvo geta ekki farid
+   i sundur. Um leid og EIN umferd er lokin byggir pipeline gluggann ur
+   `data/live/gw*.json`, skrifar `archive: false`, og endurkvordunin
+   slokknar sjalf.
+   Hafnad: (a) DAGSETNING/frestur — dagur segir ekkert um hvada umferdir eru
+   i glugganum og pipeline getur dregist aftur ur. (b) `events.json`
+   finished-talan lesin i appinu — thad eru TVAER heimildir um sama hlut:
+   ef `events.json` segir "1 umferd lokin" en `imminent.json` ber enn
+   arkiv-gluggann (`live/gw1.json` vantar, fetch-fast dregst) tha vaeri
+   hraa likanid notad a arkiv-glugga — nakvaemlega mis-kveikjan sem er verid
+   ad forðast. Flaggid sem ferdast MED glugganum getur ekki gert thad.
+   ============================================================ */
+export const PRESEASON_CAL = {
+  A: -0.262, B: 0.533,
+  measured: { samples: 1901, players: 875, boundaries: 4, gw1_base_rate: 0.3556,
+              brier_raw: 0.1837, brier_recal: 0.1683, auc: 0.8158,
+              d_brier: 0.01547, ci: [0.01089, 0.02004], slope: 0.533 },
+};
+
+/* Vorpunin sjalf. EINRAEN og alltaf a (0,1): logit er skorðað fra 0/1 svo
+   p = 0 (FPL-golfid) og p = 1 geti ekki gefid +-Infinity.                */
+export function preseasonStartProb(p) {
+  const v = num(p);
+  if (v == null) return null;
+  const q = Math.min(1 - 1e-9, Math.max(1e-9, v));
+  const z = PRESEASON_CAL.A + PRESEASON_CAL.B * Math.log(q / (1 - q));
+  return +(1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))))).toFixed(3);
+}
+
 export function startProbability(f) {
   if (!f || typeof f !== "object") return null;
   let z = START_MODEL.bias;
@@ -1920,24 +2060,183 @@ export function startProbability(f) {
     if (v == null) return null;
     z += t.w * ((v - t.mu) / t.sd);
   }
-  const p = 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))));
-  return +p.toFixed(3);
+  const p = +(1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))))).toFixed(3);
+  /* FLAGGID BERST A EIGINLEIKUNUM SJALFUM, sett af `indexImminentByTeam`
+     ur `imminent.archive`. Thess vegna faa ALLIR lesendur (leikmannalistinn,
+     skiptaglugginn, Compare) somu tolu an thess ad hver theirra thurfi ad
+     vita af kvordunni — ein utfaersla, sbr. `makeEnricher` og
+     `buildTeamMetrics`. Maelinga-skrifturnar kalla a `startFeatures` beint
+     og fá thvi HRAA likanid, sem er rétt: thad er thad sem er maelt.
+
+     VORPUNIN LIGGUR A NAMUNDADRI TOLUNNI, EKKI A HRAU FLEYTITOLUNNI, OG
+     ThAD ER MAELINGAR-ATRIDI: `measure-tail-to-gw1.mjs` fittar kvordunina
+     a `logit(startProbability(f))` — ThRIGGJA-AUKASTAFA tolunni, thvi thad
+     er su sem fallid skilar. Fyrsta utgafan namundadi EFTIR vorpunina og
+     2 af 840 rodum i `imminent.json` fengu thvi adra tolu en maelingin
+     hefdi gefid. Tvaer nakvaemnir a sama kvarda eru tveir kvardar
+     (CLAUDE.md, `meanDifficulty`).                                      */
+  return f.from_archive_window ? preseasonStartProb(p) : p;
 }
 
 /* HAETTU-FLOKKUN. Threpin eru valin ut fra MAELDA grunnhlutfallinu (21,6%
    theirra sem byrjudu sidast falla a bekk) — ekki ut fra tilfinningu.
    "trap" = byrjadi sidast EN likurnar eru lagar: thetta er hopurinn sem
-   maelingin segir ad naerri helmingur falli a bekk.                       */
-export function startRisk(f) {
+   maelingin segir ad naerri helmingur falli a bekk.
+
+   ============================================================
+   THREPIN 0,75 / 0,45 VORU MAELD I FORLEIKS-BRANSINU OG STANDA OBREYTT
+   (20.8.2026). MAELINGIN STYDUR EKKI AD ThAU FLYTJIST — og "engu breytt"
+   er svar med tolu, ekki hik.
+
+   Merkimidi er FULLYRDING um hlutfall, svo profid er: er hlutfallid innan
+   bandsins raunverulega thad sem merkimidinn segir? Maelt a somu 1.901
+   rodum, LOSO-endurkvordad, bootstrap klasad per leikmann:
+
+     HRAA talan     "safe" (>= 0,75)  n  518  RAUNVERULEGT 0,695
+                    CI [0,650, 0,730] — 0,75 er UTAN CI: merkimidinn
+                    "Likely to start" var MAELT OSANNUR.
+     ENDURKVORDAD   "safe" (>= 0,75)  n  122  RAUNVERULEGT 0,746
+                    CI [0,674, 0,814] — 0,75 er INNAN CI: nu SANNUR.
+     ENDURKVORDAD   "low"  (<  0,45)  n 1236  RAUNVERULEGT 0,196
+                    CI [0,173, 0,218] — "Unlikely to start" SANNUR.
+
+   ThAD VAR KVARDINN SEM VAR RANGUR, EKKI ThREPID. Sama threp verdur SANNT
+   um leid og talan er rett kvorðud, og ad flytja thad LIKA vaeri ad
+   leidretta somu villuna tvisvar. Grid-leit yfir 0,20-0,55 (lagt threp) og
+   0,65-0,85 (hatt) finnur ENGAN staed thar sem krafan brotnar a
+   endurkvardada kvardanum, svo engin maeling KALLAR a flutning — og ny tala
+   an maelingar er thad sem thetta repo forðast (CLAUDE.md 3).
+   AHRIFIN ERU SAMT RAUNVERULEG: 443 af 1.901 rodum (23,3%) skipta um
+   merkimida, ALLAR i STRANGARI att (443 strangari, 0 lausari), thvi
+   endurkvordunin dregur haa tolu nidur.
+
+   OG "trap" ER MAELT AFTURA BAK I FORLEIK — ThVI ER HANN SLOKKTUR ThAR.
+   Innan timabils er "byrjadi sidast en likurnar lagar" hopurinn sem fellur
+   a bekk (lyfting 2,09x, samhljoda thrju timabil). I FORLEIK er
+   `started_last` = "byrjadi SIDASTA LEIK FYRRA TIMABILS", og thad er
+   POSITIVT merki, ekki hættumerki. Maelt a endurkvardada bandinu p < 0,45:
+     byrjadi GW38   n   86  GW1-byrjun 0,372  CI [0,284, 0,481]
+     byrjadi ekki   n 1150  GW1-byrjun 0,183  CI [0,160, 0,209]
+     DELTA         +0,1895  CI [+0,0937, +0,3028]  UTILOKAR NULL
+   Merkid er marktaekt og bendir i GAGNSTAEDA att vid theirri fullyrdingu
+   sem `trap` setur a skjainn (raudur reitur, "at risk of the bench").
+   Osonn fullyrding sem litur ut eins og maeling er versta utkoman, svo i
+   arkiv-glugganum er `started_last` EKKI LESID: threpid er hreint fall af
+   p. Merkid er ekki THAGGAD — thad er sett i MERKIMIDANN (samhengi), ekki i
+   toluna: ad leggja +0,19 ofan a p vaeri NYR lidur a n = 86 rodum sem
+   ENGIN mæling fittadi, sami olöglegi samsláttur og 25/50/75 er latid vera.
+   ============================================================ */
+export function startRisk(f, ctx) {
   const p = startProbability(f);
   if (p == null) return null;
   const startedLast = (num(f.started_last) ?? 0) >= 1;
-  if (p >= 0.75) return { p, level: "safe",  label: "Likely to start" };
-  if (p >= 0.45) return { p, level: "mid",   label: "Uncertain" };
-  return { p, level: startedLast ? "trap" : "low",
-           label: startedLast ? "Bench risk despite having started" : "Unlikely to start" };
+  const preseason = !!f.from_archive_window;
+  /* GK-SAMHENGI: BER, ALDREI I TOLUNNI. `p` og `level` eru obreytt —
+     sja `gkChiefOutIds` fyrir maelinguna og fyrir hvers vegna. */
+  const chiefOut = !!(ctx && ctx.chiefOut);
+  const tag = o => chiefOut
+    ? { ...o, chief_out: true, label: `${o.label} — his No. 1 keeper is flagged out` }
+    : o;
+  if (p >= 0.75) return tag({ p, level: "safe", label: "Likely to start" });
+  if (p >= 0.45) return tag({ p, level: "mid",  label: "Uncertain" });
+  if (preseason) return tag({ p, level: "low",
+    label: startedLast
+      ? "Unlikely to start — but he did finish last season in the side"
+      : "Unlikely to start" });
+  return tag({ p, level: startedLast ? "trap" : "low",
+           label: startedLast ? "Bench risk despite having started" : "Unlikely to start" });
 }
 
+
+/* ============================================================
+   6. VARAMARKMADUR ThEGAR NR. 1 ER UTI — MARKMENN OG BARA MARKMENN,
+      OG ThAD ER SAMHENGI, EKKI TALA (20.8.2026)
+
+   MAELT med `scripts/measure-rival-out.mjs` (5 timabil, bootstrap klasad
+   per leikmann, 400 itranir). Naesti i rod (rank 2 eftir minutum i
+   for-glugganum innan lids+stodu), NET AF LIKANINU:
+     nr. 1 missti umferd N-1 (nytilegt fyrir frest)  +0,1047
+                                CI [+0,0369, +0,1748]  UTILOKAR NULL
+     nr. 1 var uti i N SJALFRI (ORAKEL-ThAK)         +0,3911
+                                CI [+0,3171, +0,4691]  UTILOKAR NULL
+   HRAU TOLURNAR ERU AFDRATTARLAUSAR: varamarkmadur byrjar 0,2% umferda
+   thegar nr. 1 spilar og 63,6% thegar hann gerir ekki — og LIKANID SEGIR
+   5,7% I BADUM TILFELLUM. Thad er ekki blaebrigdi, thad er blinda.
+
+   ThETTA ER MARKMANNS-LIDUR OG ENGRA ANNARRA. Orakel-thok per stodu, net af
+   likaninu: GK +0,1934 · DEF +0,0627 · MID +0,0361 · FWD +0,0564. Og i
+   theim laegri hop sem malid snyst um (p_model < 0,30) maelist
+   utileikmanna-lidurinn sem er NYTILEGUR FYRIR FREST
+     -0,0057, CI [-0,0096, -0,0014] — NEIKVAEDUR, utilokar null.
+   Utileikmanna-lidurinn er thvi MAELDUR OG FELLDUR og a ad fara i toflu 4
+   i CLAUDE.md, ekki inn i likanid. Astaedan er merkingarleg: eitt
+   byrjunarsaeti per lid hja markmonnum, 4-5 hja hverjum utileikmannahop, og
+   "varnarmadurinn fyrir framan mig er meiddur" thydir oft ad einhver ANNAR
+   var keyptur, ekki ad ég taki saetid.
+
+   HVERS VEGNA ThAD BREYTIR EKKI TOLUNNI — ThRJAR ASTAEDUR, ALLAR MAELDAR:
+
+   1. KVEIKJAN SEM VID HOFUM ER HVORUG ThEIRRA SEM VAR MAELD. Lifandi
+      merkid er `chance_of_playing_next_round === 0` (kafli 6: FPL-status
+      raedur). Maelt var "missti N-1" (+0,105) og "var uti i N" (+0,391).
+      FPL-0% liggur ThAR A MILLI og hvorug talan er hans. Ad velja +0,105,
+      +0,391 eda eitthvad thar a milli vaeri AD VELJA TOLU.
+   2. "HVER ER NR. 1" ER AGISKUN OKKAR, EKKI STADREYND FRA FPL — OG HUN ER
+      MAELT ROENG I DAG. `players.json` i forleik ber MINUTUR FYRRA
+      TIMABILS, lika thegar thaer voru unnar hja ODRU FELAGI. Maelt a
+      lifandi skra 20.8.2026: hja Tottenham radast **Dubravka (3.150 min,
+      unnar hja Burnley) OFAN A Vicario (2.790 min)** — og thad er Vicario
+      sem er a `chance = 0`. Ranga svarid i baðar attir: Kinsky fengi enga
+      lyftingu thott raunverulegur nr. 1 se uti, og hefdi rodin fallid
+      hinsegin hefdi sumarkaupid sjalft verid merkt "varamadur". Ad auki
+      eiga ThRIR klubbar (COV/HUL/IPS) engan markmann med minutur, svo
+      rodunin thar er tilviljun. Tala byggd a agiskun sem er sannanlega
+      rong i dag vaeri OMAELD TALA SEM LITUR UT EINS OG MAELING.
+   3. STADREYNDIN ER UM ANNAN LEIKMANN. FPL-golfid (`_start_p` -> 0)
+      breytir tolunni af thvi ad `chance === 0` er stadreynd um ThENNAN
+      leikmann. Her er stadreyndin um samherja, og ad thyða hana i P(hann
+      byrji) krefst BAEDI nr.1-agiskunarinnar OG samsláttar sem enginn
+      maeldi — nakvaemlega sama rok og gerir ad 25/50/75 er latid standa
+      (sja `_start_p`).
+   FORDAEMID FYRIR SAMHENGI ER Evropu-alagid (CLAUDE.md 4): merkid er synt
+   sem ★ og fer HVERGI inn i `fixDifficulty`, `expPointsFor` ne `rankScore`,
+   thvi maelingin studdi ekki meira. Her er maelingin sterk en KVEIKJAN og
+   AGISKUNIN eru thad ekki, svo utkoman er su sama.
+
+   OG ThAD ER SOFANDI I DAG, SEM ER RETT: maelt a lifandi `players.json`
+   20.8.2026 er **ENGINN klubbur** med minutu-haesta markmanninn a
+   `chance = 0` (10 markmenn af 66 eru a 0, en enginn theirra er nr. 1 hja
+   sinu lidi). Dalkurinn ma thvi ekki vera "tomur = i lagi": vardurinn i
+   `stats.test.mjs` byggir tilbuið lid thar sem svarid er thekkt.
+   ============================================================ */
+
+/* Skilar Map(fpl_id -> 1 | 0 | null) fyrir MARKMENN eina.
+     1    = minutu-haesti markmadur lidsins er a FPL 0%
+     0    = hann er ekki a 0% (MAELING, ekki "vantar")
+     null = spurningin er ekki til fyrir thennan leikmann eda er OSVARANLEG:
+            hann ER nr. 1 · rodun er jofn eda allir a 0 minutum · ekki GK.
+   Nafnid `Ids` er asett: fallid gefur EKKI toluna, thad gefur samhengid. */
+export function gkChiefOutIds({ players } = {}) {
+  const out = new Map();
+  const byTeam = {};
+  for (const p of rowsOf(players)) {
+    if (!p || p.element_type !== 1) continue;
+    (byTeam[p.team] ||= []).push(p);
+  }
+  for (const list of Object.values(byTeam)) {
+    const ord = list.slice().sort((a, b) => (num(b.minutes) ?? 0) - (num(a.minutes) ?? 0));
+    const chief = ord[0], next = ord[1];
+    /* OSVARANLEGT -> NULL FYRIR ALLT LIDID. Tveir jafnir (eda allir a 0)
+       thydir ad rodunin er tilviljun; agiskun sem er tilviljun ma ekki
+       lita ut eins og upplysing (sbr. "tomt gildi er SLEPPT, ekki 0"). */
+    const decidable = chief && (num(chief.minutes) ?? 0) > 0
+                   && (!next || (num(chief.minutes) ?? 0) > (num(next.minutes) ?? 0));
+    if (!decidable) { for (const p of list) out.set(p.id, null); continue; }
+    const flag = num(chief.chance_of_playing_next_round) === 0 ? 1 : 0;
+    for (const p of list) out.set(p.id, p.id === chief.id ? null : flag);
+  }
+  return out;
+}
 
 /* ============================================================
    7. AUDGUNIN — EIN UTFAERSLA FYRIR ALLA LESMATA
@@ -1970,6 +2269,12 @@ export function makeEnricher({
   /* PORUN VID imminent.json: hun geymir FULLT nafn ("Cole Palmer") en
      players.json `web_name` ("Palmer"), svo bein uppfletting skilar ENGU. */
   const immByTeam = indexImminentByTeam(imminent);
+
+  /* GK-SAMHENGI (kafli 6): byggt EINU SINNI, eins og allar adrar
+     uppflettitoflur her. `isLive` er EKKI skilyrdi — `chance_of_playing`
+     er alltaf dagsins tala og fylgir ekki voldu timabili, eins og
+     `_start_p` sjalf.                                                  */
+  const gkChief = gkChiefOutIds({ players });
 
   /* LIDS-SAMTALA: xG lidsins, fyrir "hlutur af xG lidsins". */
   const teamXg = {};
@@ -2079,7 +2384,8 @@ export function makeEnricher({
 
   return function enrich(p) {
     const im = matchImminent(p, immByTeam, teamById?.[p.team]?.short);
-    const risk = im?.start_feats ? startRisk(im.start_feats) : null;
+    const chiefOut = gkChief.get(p.id) === 1;
+    const risk = im?.start_feats ? startRisk(im.start_feats, { chiefOut }) : null;
     const sh = findShot(p);
     const fa = fixAgg[p.team];
     const short = teamById?.[p.team]?.short;
@@ -2135,6 +2441,9 @@ export function makeEnricher({
            taekur" — og ad margfalda thau vaeri OMAELD samsetning (sama
            astaeda og `availForKickoff` er SER lidur i `expPointsFor`).   */
         _start_p: (num(p.chance_of_playing_next_round) === 0) ? 0 : (risk?.p ?? null),
+        /* GK-SAMHENGI — SER REITUR, ALDREI INNI I `_start_p` (kafli 6).
+           null = ekki markmadur, ER nr. 1, eda rodunin osvaranleg.      */
+        _gk_chief_out: p.element_type === 1 ? (gkChief.get(p.id) ?? null) : null,
         _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
         _home6: fa?.home ?? null, _fix6: fa?.n ?? null,
         _team_cs: teamCsOf(p.team, short),
