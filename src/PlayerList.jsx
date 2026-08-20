@@ -491,6 +491,123 @@ function ViewToggles({ dense, setDense }) {
    nu i `src/gwRange.js` — thad VERDUR ad vera EITT eintak fyrir alla lesendur
    og eining sem tvo onnur flytja inn er eini stadurinn sem getur tryggt thad. */
 
+/* ---------- HITAKORTS-TONNINN — HUNDRADSHLUTA-ROD, OG AF HVERJU THAD ER
+     EKKI SAMA OG LINULEG STADA MILLI P10 OG P90 (MAELT 20.8.2026) ----------
+   Notandinn: *"i player stats eru eiginlega allir reitir graenlitadir
+   thegar eg er ekki buinn ad filtera neitt ... thad segir manni litid ef
+   allir reitir eru graenmerktir og oll verd raudmerkt."*
+
+   ATHUGASEMDIN I `heatTone` SAGDI RETT MARKMID OG RANGA TOLU: "efsti og
+   nedsti fjordungur litadur og MIDJAN HELMINGURINN olitadur". Threpin voru
+   hins vegar lesin af `t = (v - P10) / (P90 - P10)`, sem er stada I
+   GILDIS-RUMI, ekki hundradshluti. Thau tvo fara adeins saman ef dreifingin
+   er JOFN a [P10, P90]. Dreifingarnar eru thad ekki — thaer eru
+   haegri-skekktar med thungan massa vid nullid.
+
+   MAELT a committudum `data/` (2025/26, 461 radir med sogulega rod,
+   70 dalkar med kvarda):
+     · LITAD HLUTFALL per dalk: midgildi **63,8%**, p75 70,5%, HAMARK
+       **100,0%** (`penalties_saved`) — thar sem fjordungs-reglan getur
+       ALDREI farid yfir 50%. **20 dalkar yfir 70%.**
+     · TONNINN HRUNDI I EINN: af 16.934 litudum holfum voru **64,5% af
+       graenum holfum darkasti graeni tonninn** — klippingin i `t=1` gefur
+       Haaland (239 stig) og Bruno G. (154) NAKVAEMLEGA sama lit. I
+       sjalfgefna skjaglugganum var thad **88,4%**. Threpin thrju voru thvi
+       til i kodanum en ekki a skjanum.
+     · Sjalfgefinn skjar (osiad, rodun total_points desc, flokkur "core",
+       efstu 24 radir): **76,2% graent, Verd 23 af 24 RAUD**, og **6 dalkar
+       100% graenir** (total_points, points_per_game, minutes, starts,
+       bonus, bps). Nakvaemlega myndin sem var tilkynnt.
+
+   LAGFAERINGIN ER EITT SKREF: `t` er hundradshluta-ROD gildisins innan
+   siada hopsins. Tha er "efsti fjordungur" BOKSTAFLEGA efsti fjordungur og
+   litad hlutfall getur ekki farid yfir 50% — thad er BYGGING, ekki stilling.
+   Malingin eftir: midgildi **50,0%**, hamark 69,6%, **0 dalkar yfir 70%**,
+   og darkasti graeni tonninn fer ur 64,5% i **31,8%** af graenum holfum
+   (33,3% er thakid med thremur jofnum threpum).
+
+   AF HVERJU THETTA ER SAMA REGLA, EKKI NY:
+     · P10-P90-KLIPPINGIN VAR TIL ThESS ad Haaland kvaerdi ekki alla adra i
+       sama tonn. ROD ER OSNANLEG fyrir utgildum MED BYGGINGU — hun leysir
+       thad sem klippingin var ad naalgast, svo forsendan helst og naalgunin
+       fellur ut. Engin toluleg stilling kemur i stadinn.
+     · JAFNGILDI FA MIDPUNKTS-ROD (average rank). Thad er ekki smekkur:
+       50,5% af `goals_scored` eru NAKVAEMLEGA 0, og adur voru their allir
+       **darkasti raudi** — 310 holf sem fullyrtu "verstur" um menn sem eru
+       ALLIR JAFNIR. Ein jafn-blokk er EIN maeling, ekki 233 rodadar; hun
+       faer thvi ein midpunkt sinn (0,2525 -> OLITAD). Sama regla og
+       `!(vals[last] > vals[0])` hefur alltaf sagt: JAFNT ER EKKI MERKI.
+     · THREPA-MORKIN ERU LEIDD, EKKI VALIN: `HEAT_CUT` ER fjordungs-reglan,
+       og threpin eru thrju JOFN skref innan hans. Gomlu tolurnar
+       (0,74 / 0,82 / 0,90) voru thegar naalgun a jofn threp innan
+       fjordungs (0,75 / 0,8333 / 0,9167) — nu er thad REIKNAD.
+
+   MAELT OG HAFNAD I SOMU LOTU: **ad sleppa theim sem spiludu ALDREI
+   (0 minutur) ur poolnum.** Freistandi thvi kafli 12 segir ad FPL-0 hja
+   manni sem spiladi aldrei se EKKI maeling. Malt: 56 af 461 radir, og P75
+   `total_points` faerist ur 105 i 111, `minutes` 2210 -> 2389. Thad er ekki
+   orsokin, og thad myndi krefjast breytingar i `stats.js` (hver dalkur yrdi
+   ad vita hvad "spiladi aldrei" thydir fyrir sig).
+
+   ThAD SEM LAGFAERINGIN GERIR EKKI, OG THAD ER RETT: sjalfgefna rodunin er
+   `total_points desc`, svo efstu radirnar ERU efsti fjordungur hvers
+   stiga-tengds dalks og eru afram graenar (80,1% i glugganum). Liturinn
+   LYGUR EKKI thar — hann er satt svar vid rodinni sem var valin. Thad sem
+   BREYTIST i glugganum er ad tonninn er ekki longur einn: G1 fer ur 16 i 37
+   og G2 ur 20 i 68, svo Haaland og Bruno G. eru ekki longur sami litur.
+   Ad slokkva a lit i osiada astandinu var **hafnad** — thad felur
+   vandamalid; kvardinn sem laug er thad sem var lagfaert.
+
+   AF HVERJU THETTA BYR A EININGARSVIDI OG ER FLUTT UT: vordurinn
+   (`playerlist-heat.mjs`) verdur ad maela OLL 595 x 124 holfin, en listinn
+   er syndarvaeddur svo DOM-id ber adeins ~24 radir. An utflutnings hefdi
+   profid thurft AFRIT af formulunni — og afrit af utreikningi er tvo
+   utreikningar sem reka i sundur (sbr. `buildTeamMetrics`, CLAUDE.md 7).
+   `heatScale`-lykkjan sjalf er AFRAM inni i hooknum: `stats.test.mjs` 15c
+   dregur hana UT MED REGEXI og keyrir hana standalone, svo hun ma ekki
+   kalla i nafn sem er ekki i hennar eigin vidfanga-listanum.            */
+
+/* Fimm threp. Fleiri threp lita ut eins og halli og fara ad keppa vid
+   tolurnar; faerri threp segja ekki nog.                                */
+export const HEAT_GOOD = ["#e9f9f1", "#d6f3e5", "#c2ecd8"];
+export const HEAT_BAD  = ["#fdeeee", "#fbdedd", "#f8cdcb"];
+/* FJORDUNGS-REGLAN SJALF — eina talan her, og hun ER reglan sem
+   athugasemdin hefur alltaf lyst. Threpin eru LEIDD af henni og af fjolda
+   tonanna, svo hvorugt getur rekid fra hinu.                            */
+export const HEAT_CUT = 0.25;
+
+/* Tvi-leit: `below` = fjoldi < v, `at` = fjoldi <= v. Midpunktur theirra er
+   hundradshluta-rod med JAFNGILDI a EINUM stad. `vals` VERDUR ad vera
+   radad upp (heatScale radar).                                          */
+export const pctRank = (vals, v) => {
+  let lo = 0, hi = vals.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (vals[m] < v) lo = m + 1; else hi = m; }
+  const below = lo;
+  let at = below; hi = vals.length;
+  while (at < hi) { const m = (at + hi) >> 1; if (vals[m] <= v) at = m + 1; else hi = m; }
+  return (below + at) / (2 * vals.length);
+};
+
+/* `sc` er ein faersla ur `heatScale`: { vals (rodud), invert }.           */
+export const heatTone = (sc, v) => {
+  if (!sc || v == null || !Number.isFinite(v)) return null;
+  let t = pctRank(sc.vals, v);
+  if (sc.invert) t = 1 - t;
+  /* MIDJAN FAER ENGAN TON. Fyrsta utgafan litadi allt fra 0,55 og upp /
+     0,45 og nidur, sem er 90% af hverjum dalki: taflan vard graen-raud flis
+     og tonarnir haettu ad benda a nokkud. Nu er efsti og nedsti fjordungur
+     litadur og MIDJAN HELMINGURINN olitadur — og fra 20.8.2026 er thad
+     MAELANLEGA satt, ekki bara aetlunin.                                */
+  const step = HEAT_CUT / HEAT_GOOD.length;
+  if (t >= 1 - HEAT_CUT)
+    return HEAT_GOOD[Math.min(HEAT_GOOD.length - 1,
+                              Math.floor((t - (1 - HEAT_CUT)) / step))];
+  if (t <= HEAT_CUT)
+    return HEAT_BAD[Math.min(HEAT_BAD.length - 1,
+                             Math.floor((HEAT_CUT - t) / step))];
+  return null;
+};
+
 /* `teams` var tekid ur vidfanga-listanum 17.8.2026 — thad var adeins notad
    i lida-siunni sem for. App.jsx sendir thad afram og thad er meinlaust;
    propp sem er ekki tekid vid kostar ekkert og skrain er ekki min.      */
@@ -873,9 +990,9 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      1. KVARDINN ER INNAN SIADA HOPSINS, ekki allra 573. Ef notandinn siar a
         varnarmenn undir 5,0 er spurningin "hver er bestur AF THESSUM" —
         kvardi yfir allan listann hefdi gert alla dalka jafn-blada.
-     2. P10-P90, EKKI min-max. Haaland i xG gerir min-max kvarda thannig ad
-        allir adrir liggja i sama tonn. Klippt hundradshluta-bil heldur
-        millilaginu greinanlegu; jadartilfelli fa mettada endann.
+     2. KVARDINN ER HUNDRADSHLUTA-ROD, EKKI LINULEG STADA MILLI P10 OG P90.
+        Sja langa skyringuna vid `pctRank` — thetta var MAELT RANGT og
+        lagfaert 20.8.2026.
      3. `hi === false` SNYR KVARDANUM. A Verdi, Min/framlag og GC er LAEGRA
         betra — annars vaeri sterkasti graeni liturinn a versta manninum,
         sem er nakvaemlega villan sem `compare-visual.mjs` ver gegn i
@@ -889,12 +1006,6 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
        An theirra voru tveir olitadir dalkar innan um litada — sem las eins
        og villa, ekki eins og akvordun.                                   */
     for (const d of [...visibleCols, ...[...pinnedKeys].map(k => STAT_BY_KEY[k])].filter(Boolean)) {
-      const vals = [];
-      for (const r of filtered) {
-        const v = r.src ? d.get(r.src) : null;
-        if (v != null && Number.isFinite(v)) vals.push(v);
-      }
-      if (vals.length < 8) continue;              // ortitid urtak -> enginn litur
       /* DALKUR AN EINHALLA "BETRA" FAER ENGAN LIT (17.8.2026).
          `heatScale` a adeins tvo kosti: haerra er betra, eda laegra er
          betra (`invert`). `starts_per_90` er hvorugt — nota dalksins segir
@@ -906,38 +1017,30 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
          villandi mynd er verri en engin mynd. Rodun er OSNERT — hun er
          gagnleg; thad er LITURINN sem fullyrdir "bestur".              */
       if (d.no_heat) continue;
+      const vals = [];
+      for (const r of filtered) {
+        const v = r.src ? d.get(r.src) : null;
+        /* NULL FER ALDREI I POOLINN — "vantar" er ekki maeling (kafli 8).
+           Sama regla og `?? 0` badum megin i kafla 12: talan sem vaeri til
+           vaeri ekki til.                                                */
+        if (v != null && Number.isFinite(v)) vals.push(v);
+      }
+      if (vals.length < 8) continue;              // ortitid urtak -> enginn litur
       vals.sort((a, b) => a - b);
-      const lo = vals[Math.floor(vals.length * 0.10)];
-      const hi = vals[Math.floor(vals.length * 0.90)];
-      if (!(hi > lo)) continue;                    // allir eins -> enginn litur
-      m[d.key] = { lo, hi, invert: d.hi === false };
+      /* ALLIR EINS -> ENGINN LITUR. Adur var throskuldurinn `P90 > P10`,
+         sem slokkti lika a dalki thar sem 80% eru jafnir en 20% eru
+         raunverulega adgreindir. Med rodum er jafn-blokkin sjalf olitud
+         (sja `pctRank`), svo einraedid er thad sem gildir.               */
+      if (!(vals[vals.length - 1] > vals[0])) continue;
+      m[d.key] = { vals, invert: d.hi === false };
     }
     return m;
   }, [visibleCols, filtered, pinnedKeys]);
 
-  /* Fimm threp. Fleiri threp lita ut eins og halli og fara ad keppa vid
-     tolurnar; faerri threp segja ekki nog.                               */
-  const HEAT_GOOD = ["#e9f9f1", "#d6f3e5", "#c2ecd8"];
-  const HEAT_BAD  = ["#fdeeee", "#fbdedd", "#f8cdcb"];
-  const heatBg = (d, v) => {
-    const sc = heatScale?.[d.key];
-    if (!sc || v == null || !Number.isFinite(v)) return null;
-    let t = (v - sc.lo) / (sc.hi - sc.lo);         // 0..1 (ma fara utan)
-    t = Math.max(0, Math.min(1, t));
-    if (sc.invert) t = 1 - t;
-    /* MIDJAN FAER ENGAN TON — OG THAD ER STILLING SEM VAR MAELD A SKJA.
-       Fyrsta utgafan litadi allt fra 0,55 og upp / 0,45 og nidur, sem er
-       90% af hverjum dalki: taflan vard graen-raud flis og tonarnir hættu ad
-       benda a nokkud. Nu er efsti og nedsti fjordungur litadur og MIDJAN
-       HELMINGURINN olitadur, svo liturinn thydi "thetta er utgildi".     */
-    if (t >= 0.90) return HEAT_GOOD[2];
-    if (t >= 0.82) return HEAT_GOOD[1];
-    if (t >= 0.74) return HEAT_GOOD[0];
-    if (t <= 0.10) return HEAT_BAD[2];
-    if (t <= 0.18) return HEAT_BAD[1];
-    if (t <= 0.26) return HEAT_BAD[0];
-    return null;
-  };
+  /* HITAKORTS-TONNINN ER A EININGARSVIDI (`heatTone` ofar) — sja langa
+     skyringuna thar. Hann er FLUTTUR UT svo vordurinn geti maelt hann a
+     ollum 595 rodum; DOM-id ber adeins ~24 vegna syndarvaedingar.       */
+  const heatBg = (d, v) => heatTone(heatScale?.[d.key], v);
 
   /* ---------- synadarvaeding (fost radahæd) ---------- */
   const scrollRef = useRef(null);

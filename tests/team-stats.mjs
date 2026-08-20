@@ -22,7 +22,9 @@
    Keyrsla: node tests/team-stats.mjs
    ============================================================ */
 import { readFileSync, existsSync } from "node:fs";
-import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY }
+import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
+         TEAM_RANGE_SRC, teamRangeBlind, aggShotRange, aggFixtureRange, routeInStep,
+         teamRangeUse, applyTeamRange, maxEventOf, SHOT_GOAL_TYPE }
   from "../src/teamstats.js";
 import { aggregateTeamShots, BIG_CHANCE_XG, IN_BOX_X } from "../scripts/fetch-bsd-teams.mjs";
 
@@ -430,6 +432,393 @@ console.log("─".repeat(84));
     /if \(!matches\.length\)[\s\S]{0,400}process\.exit\(2\)/.test(src));
   ok("og hun SAMEINAR vid fyrri timabil i stad thess ad yfirskrifa",
     /bySeason\[seasonName\] = payload/.test(src) && /old\.seasons \|\|/.test(src));
+}
+
+/* ============================================================
+   12. UMFERDAR-BILID — HVER TALA FYLGIR ThVI, OG HVER SEGIR AD HUN GERI ThAD EKKI
+
+   KAERAN (20.8.2026): "i teams se eg bara season stats, afhverju get eg ekki
+   filterad GC nidur a gameweeks? Eda CS%. Eins i attack, stats breytast
+   ekki thar thegar eg filtera gameweeks."
+
+   TVO EINKENNI, EIN ORSOK. Valarinn var tengdur `fixtures.json` (YFIRSTANDANDI
+   timabil, 0 loknir leikir) medan taflan synir thad sidasta, svo urslita-
+   dalkarnir urdu tomir og allir hinir satu OBREYTTIR i thogn.
+
+   ThESSI KAFLI SANNAR ThRENNT, OG ThAD MIDJA ER ThAD SEM GERIR KAERUNA
+   OMOGULEGA AFTUR:
+     1. Bils-heimildin er RETT — hun endurgerir E0 upp a markid.
+     2. BIL SEM ER VALID BREYTIR TOLUNNI. Arstidar-tala og hluta-bil VERDA
+        ad vera olik; jofn tala er nakvaemlega kaeran.
+     3. Dalkur sem getur EKKI fylgt bilinu breytist EKKI og BER MERKID.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("12. UMFERDAR-BILID — pure-leidin");
+console.log("─".repeat(84));
+{
+  const bsdTeams = existsSync(D + "bsd_teams.json") ? J("bsd_teams.json") : null;
+  const fixtures = J("fixtures.json");
+  const sf = J("bsd_shots.json");
+  const F = Object.fromEntries(sf.legend.fields.map((f, i) => [f, i]));
+
+  /* MARK-GERDIN ER SAETI 0 — ThAD ER FORSENDA I `teamstats.js` OG I
+     `ShotMap.jsx` (`s.t === 0`), og skran er eina sem getur svarad thvi.
+     Faerist markid ur saeti 0 hja BSD verda MORK, MORK A SIG og HREIN BLOD
+     oll rong i bili, og ekkert annad myndi segja fra.                     */
+  ok(`"goal" er saeti ${SHOT_GOAL_TYPE} i legend.type (${(sf.legend.type || []).join(",")})`,
+    Array.isArray(sf.legend.type) && sf.legend.type[SHOT_GOAL_TYPE] === "goal");
+
+  /* Visarnir eru byggdir EINS og App.jsx byggir tha — annars vaeri profid
+     ad maela annan hlut en skjarinn.                                      */
+  const byTeam = new Map(), byOpp = new Map();
+  const put = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+  for (const s of sf.shots) { put(byTeam, s[F.team], s); put(byOpp, s[F.opp], s); }
+  const shotIndex = { byTeam, byOpp, teams: sf.legend.teams, fields: F, calib: sf.calib };
+
+  const base = buildTeamRows({ teams, teamForm, luck, teamShots, bsdTeams });
+  const use = teamRangeUse({ base, shotIndex, fixtures });
+
+  /* ---- 12a. SKRAINGIN SJALF: hver dalkur er annadhvort skrasettur eda blindur */
+  const known = TEAM_STAT_DEFS.filter(d => TEAM_RANGE_SRC[d.key]);
+  ok(`${known.length} af ${TEAM_STAT_DEFS.length} dalkum eru skrasettir sem bils-haefir`,
+    known.length >= 8 && known.length < TEAM_STAT_DEFS.length, `${known.length}`);
+  ok("hver skrasett heimild er ein af thremur", Object.values(TEAM_RANGE_SRC)
+    .every(v => ["shots", "results", "both"].includes(v)));
+  ok("hver lykill i TEAM_RANGE_SRC er RAUNVERULEGUR dalkur",
+    Object.keys(TEAM_RANGE_SRC).every(k => TEAM_STAT_BY_KEY[k]),
+    Object.keys(TEAM_RANGE_SRC).filter(k => !TEAM_STAT_BY_KEY[k]).join(","));
+  /* Dalkur sem er EKKI skrasettur er blindur — an undantekningar, an lista. */
+  ok("oskrasettur dalkur er ALLTAF blindur",
+    TEAM_STAT_DEFS.filter(d => !TEAM_RANGE_SRC[d.key])
+      .every(d => teamRangeBlind(d.key, { shots: true, results: "shots" })));
+  /* "both" tharf BADAR — annars vaeri mismunur reiknadur ur tveimur bilum. */
+  ok("`both`-dalkur er blindur vanti adra leidina",
+    teamRangeBlind("goals_minus_xg", { shots: true, results: null }) === true &&
+    teamRangeBlind("goals_minus_xg", { shots: false, results: "shots" }) === true &&
+    teamRangeBlind("goals_minus_xg", { shots: true, results: "shots" }) === false);
+
+  /* ---- 12b. HEIMILDIN ER RETT: OHAD ENDURTALNING GEGN E0 ---- */
+  {
+    /* SJALFSTAED UTFAERSLA, ekki kall i somu skra: mork eru talin med
+       `type === 0`, leikir med (umferd, motherji), og bornar vid
+       football-data. Tvaer oskyldar leidir ad somu tolu (CLAUDE.md 6t).  */
+    const ref = new Map();
+    for (const s of sf.shots) {
+      const t = sf.legend.teams[s[F.team]], o = sf.legend.teams[s[F.opp]];
+      const g = s[F.gw], goal = s[F.type] === SHOT_GOAL_TYPE;
+      const kFor = `${g}|${s[F.opp]}`, kAg = `${g}|${s[F.team]}`;
+      if (t != null) {
+        const a = ref.get(t) || new Map(); ref.set(t, a);
+        const m = a.get(kFor) || { gf: 0, ga: 0 }; if (goal) m.gf++; a.set(kFor, m);
+      }
+      if (o != null) {
+        const a = ref.get(o) || new Map(); ref.set(o, a);
+        const m = a.get(kAg) || { gf: 0, ga: 0 }; if (goal) m.ga++; a.set(kAg, m);
+      }
+    }
+    const e0 = {}; for (const t of teamForm.teams) if (t.fpl_id != null) e0[t.fpl_id] = t;
+    let cmp = 0, gOk = 0, cOk = 0, csOk = 0, nOk = 0;
+    for (const r of base) {
+      const a = ref.get(r.short), e = e0[r.id];
+      if (!a || !e || !(e.matches > 0)) continue;
+      cmp++;
+      let gf = 0, ga = 0, cs = 0;
+      for (const m of a.values()) { gf += m.gf; ga += m.ga; if (m.ga === 0) cs++; }
+      if (a.size === e.matches) nOk++;
+      if (Math.round(e.goals_pg * e.matches) === gf) gOk++;
+      if (Math.round(e.conceded_pg * e.matches) === ga) cOk++;
+      if (Math.round(e.clean_sheet_pct / 100 * e.matches) === cs) csOk++;
+    }
+    ok(`${cmp} lid eiga BAEDI skotakort og E0-rod (forsenda kaflans)`, cmp >= 15, `${cmp}`);
+    ok(`leikjafjoldi stemmir (${nOk}/${cmp})`, nOk === cmp);
+    ok(`MORK stemma UPP A MARKID (${gOk}/${cmp})`, gOk === cmp);
+    ok(`MORK A SIG stemma upp a markid (${cOk}/${cmp})`, cOk === cmp);
+    ok(`HREIN BLOD stemma upp a markid (${csOk}/${cmp})`, csOk === cmp);
+    /* Og samlagningin i `teamstats.js` gefur SAMA og thessi ohada utfaersla. */
+    const agg = aggShotRange(shotIndex, null);
+    let same = 0;
+    for (const [short, a] of ref) {
+      const x = agg.get(short); if (!x) continue;
+      let gf = 0, ga = 0; for (const m of a.values()) { gf += m.gf; ga += m.ga; }
+      if (x.gf === gf && x.ga === ga && x.n === a.size) same++;
+    }
+    ok(`aggShotRange er samhljoda ohadu utfaerslunni (${same}/${ref.size})`, same === ref.size);
+  }
+
+  /* ---- 12b2. TVOFOLD UMFERD — TILBUID SKOTAKORT ThAR SEM SVARID ER ThEKKT
+     RAUNGOGNIN GETA EKKI SVARAD ThESSU: maelt, hvert eitt af 17 lidum a
+     NAKVAEMLEGA 38 leiki i 38 umferdum 2025/26, svo tvofold umferd er ekki i
+     skranni og nefnari sem taeldi UMFERDIR i stad LEIKJA gaefi somu tolu.
+     Stokkbreyting sannadi thad (hun fell adeins a hlidarverkun).
+     Nefnarinn er ThVI profadur a tilbunu korti — sama mynstur og
+     `aggregateTeamShots` i kafla 8 og af somu astaedu.                    */
+  {
+    const T = ["AAA", "BBB", "CCC"];
+    /* [x, y, xg, type, body, sit, team, opp, code, gw] */
+    const sh = (team, opp, gw, xg, type = 2) => [10, 50, xg, type, 0, 1, team, opp, 1, gw];
+    const mk = shots => {
+      const byT = new Map(), byO = new Map();
+      const put = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+      for (const s of shots) { put(byT, s[6], s); put(byO, s[7], s); }
+      return { byTeam: byT, byOpp: byO, teams: T,
+        fields: { x:0, y:1, xg:2, type:3, body:4, sit:5, team:6, opp:7, code:8, gw:9 } };
+    };
+    /* AAA spilar TVO leiki i umferd 1: gegn BBB (1 mark) og gegn CCC (0). */
+    const dbl = aggShotRange(mk([
+      sh(0, 1, 1, 0.4, SHOT_GOAL_TYPE), sh(0, 1, 1, 0.1),
+      sh(0, 2, 1, 0.5), sh(1, 0, 1, 0.3, SHOT_GOAL_TYPE),
+    ]), null).get("AAA");
+    ok("tvofold umferd telst TVEIR leikir, ekki ein umferd", dbl.n === 2, `${dbl.n}`);
+    ok("og xG per leik deilir thvi med 2 (1,0 / 2 = 0,50)",
+      +(dbl.xgF / dbl.n).toFixed(2) === 0.50, `${dbl.xgF} / ${dbl.n}`);
+    ok("mork og mork a sig eru talin i badum leikjum (1 og 1)",
+      dbl.gf === 1 && dbl.ga === 1, `${dbl.gf}/${dbl.ga}`);
+    ok("hreint blad ADEINS i leiknum sem endadi 0 a sig (1 af 2)",
+      dbl.cs === 1, `${dbl.cs}`);
+    /* OG SIAN VIRKAR A TILBUNU KORTI LIKA — umferd utan bils er sleppt. */
+    const one = aggShotRange(mk([
+      sh(0, 1, 1, 0.4, SHOT_GOAL_TYPE), sh(0, 1, 5, 0.9, SHOT_GOAL_TYPE),
+    ]), [1, 1]).get("AAA");
+    ok("skot i umferd 5 telur ekki i bili [1,1]", one.n === 1 && one.gf === 1, JSON.stringify(one));
+    /* ThAD SEM ThETTA NAER EKKI YFIR, SAGT BERUM ORDUM: tveir leikir gegn
+       SAMA motherja i somu umferd (frestadur leikur settur i tvofalda
+       umferd) renna saman i EINN, thvi skotin bera engan leikja-lykil —
+       adeins umferd, lid og motherja. Tha verdur nefnarinn of lagur og
+       per-leiks-tolurnar of haar. Skrad her fremur en thagad um: prof sem
+       thegir um thad sem thad naer ekki yfir er verra en prof sem segir thad. */
+    const same = aggShotRange(mk([sh(0, 1, 1, 0.4), sh(0, 1, 1, 0.6)]), null).get("AAA");
+    ok("skot-lykillinn EINN gerir tvo leiki gegn SAMA lidi ad einum (n=1)",
+      same.n === 1, `${same.n}`);
+    /* OG URSLITIN LEYSA ThAD ThEGAR ThAU ERU I TAKT. Sa nefnari er
+       OPROFANLEGUR a raungognum (`fixtures.json` er annad timabil og hefur
+       0 lokna leiki), svo hann er profadur her — kodi sem kviknar fyrst
+       einn morgun er ekki asaettanlegt (CLAUDE.md 5).                    */
+    {
+      const idx = mk([sh(0, 1, 1, 0.4), sh(0, 1, 1, 0.6)]);
+      const fake = [{ short: "AAA", id: 1, matches: 2, goals_pg: 0, goals: 0, conceded: 0,
+                      xg: null, xgc: null }];
+      const FX2 = [
+        { event: 1, finished: true, team_h: 1, team_a: 2, team_h_score: 0, team_a_score: 0 },
+        { event: 1, finished: true, team_h: 2, team_a: 1, team_h_score: 0, team_a_score: 0 },
+      ];
+      const withFix = applyTeamRange(fake, { range: [1, 1], shotIndex: idx, fixtures: FX2,
+        use: { shots: true, results: "fixtures" } })[0];
+      const withShots = applyTeamRange(fake, { range: [1, 1], shotIndex: idx, fixtures: FX2,
+        use: { shots: true, results: "shots" } })[0];
+      ok("urslitin gefa nefnarann 2 -> xG/leik 0,50", withFix.xg_pg === 0.50, `${withFix.xg_pg}`);
+      ok("og an theirra blaes hann upp i 1,00 (skot-lykillinn einn)",
+        withShots.xg_pg === 1.00, `${withShots.xg_pg}`);
+    }
+  }
+
+  /* ---- 12c. TAKT-PROFID: rett heimild samthykkt, RONG hofnud ---- */
+  {
+    ok("skotakortid er I TAKT vid tofluna",
+      use.shots === true && use.results === "shots",
+      JSON.stringify({ shots: use.shots, results: use.results, step: use.shotStep }));
+    ok(`og takt-profid maelir naer-nulls skekkju i morkum (${use.shotStep.meanGoalGap})`,
+      use.shotStep.meanGoalGap != null && use.shotStep.meanGoalGap < 0.05);
+    /* `fixtures.json` ER YFIRSTANDANDI TIMABIL og hefur 0 lokna leiki i
+       forleik. Vaeri hun samthykkt yrdu mork, mork a sig og hrein blod
+       TOM hja ollum 20 lidum um leid og bil er valid — nakvaemlega thad sem
+       notandinn sa 20.8.2026.                                            */
+    const fin = fixtures.filter(f => f.finished).length;
+    ok(`fixtures.json ber ${fin} lokna leiki af ${fixtures.length} (forsenda)`, fixtures.length > 300);
+    ok("og hun er thvi EKKI valin sem urslita-heimild i dag",
+      use.fixStep.ok === false && use.results !== "fixtures",
+      JSON.stringify(use.fixStep));
+    /* MUTATION-KANNANIR A TAKT-PROFINU SJALFU. */
+    const shotFull = aggShotRange(shotIndex, null);
+    ok("takt-profid FELLUR ef heimildin telur ranga leikjafjolda (helming)",
+      routeInStep(base, r => { const a = shotFull.get(r.short);
+        return a ? { ...a, n: Math.round(a.n / 2) } : null; }).ok === false);
+    ok("takt-profid FELLUR ef morkin eru ur odru timabili (+0,3/leik)",
+      routeInStep(base, r => { const a = shotFull.get(r.short);
+        return a ? { ...a, gf: a.gf + Math.round(0.3 * a.n) } : null; }).ok === false);
+    ok("en thad THOLIR eins leiks skekkju (heimildir uppfaerast a olikum takti)",
+      routeInStep(base, r => { const a = shotFull.get(r.short);
+        return a ? { ...a, n: a.n - 1 } : null; }).ok === true);
+    ok("og thad samthykkir ALDREI tomt inntak (< 8 lid)",
+      routeInStep(base, () => null).ok === false &&
+      routeInStep([], r => ({ n: 38, gf: 70 })).ok === false);
+  }
+
+  /* ---- 12d. BILID BREYTIR TOLUNNI — ThETTA ER FULLYRDINGIN SEM VER KAERUNA */
+  {
+    const full = applyTeamRange(base, { range: null, shotIndex, fixtures, use });
+    const part = applyTeamRange(base, { range: [1, 10], shotIndex, fixtures, use });
+    const late = applyTeamRange(base, { range: [30, 38], shotIndex, fixtures, use });
+    const val = (rows, short, key) => TEAM_STAT_BY_KEY[key].get(rows.find(r => r.short === short));
+
+    /* HEILT TIMABIL UR SOMU FORMULUM = ARSTIDAR-TALAN. Vaeri thetta ekki
+       satt vaeri "whole season" og "GW 1-38" tvaer tolur um sama hlut —
+       og THAD var astandid: arstidar-gildid kom ur `bsd_teams.json` og
+       bils-gildid var endurreiknad ur `bsd_shots.json`, skrar sottar 11
+       dogum i sundur (ARS xG/leik 1,725 a moti 1,76).                    */
+    const gap = k => Math.max(...base.filter(r => TEAM_STAT_BY_KEY[k].get(r) != null)
+      .map(r => Math.abs((val(full, r.short, k) ?? 0) - TEAM_STAT_BY_KEY[k].get(r))));
+    ok(`heilt bil endurgerir arstidar-mork (mesta vik ${gap("goals_pg").toFixed(3)})`,
+      gap("goals_pg") <= 0.01);
+    ok(`og arstidar-mork a sig (${gap("conceded_pg").toFixed(3)})`, gap("conceded_pg") <= 0.01);
+    ok(`og hrein blod % (${gap("cs_pct").toFixed(2)})`, gap("cs_pct") <= 0.6);
+
+    /* OG "GW 1-38" VALID BERUM ORDUM VERDUR AD GEFA SOMU TOLU SEM
+       "whole season" — ThAD ER SAMFELLAN SEM NOTANDINN SER.
+       Fullyrding: `range: null` og `range: [1, maxGw]` fara i GEGNUM SAMA
+       fall. Vaeri arstidar-leidin sér (`if (!range) return rows`) laesi
+       taflan `bsd_teams.json` a heilu timabili og `bsd_shots.json` i bili,
+       og notandi sem velur allar 38 umferdirnar — thad sem madur gerir til
+       ad athuga hvort sian virki — saei ADRA tolu en hann var med adur.  */
+    const all38 = applyTeamRange(base, { range: [1, 38], shotIndex, fixtures, use });
+    const disc = ["goals_pg", "conceded_pg", "cs_pct", "xg_pg", "xgc_pg", "bc_pg",
+      "goals_minus_xg"].filter(k => base.some(r =>
+        val(all38, r.short, k) !== val(full, r.short, k)));
+    ok('"GW 1-38" er SAMA tala og "whole season" (engin stallur i sianu)',
+      disc.length === 0, disc.join(","));
+
+    /* OG HLUTA-BIL ER ANNAD. Fullyrdingin er TALIN, ekki a einu lidi:
+       tala sem hreyfist a einu lidi en ekki a hinum vaeri jafn thogul.  */
+    const FOLLOW = ["goals_pg", "conceded_pg", "cs_pct", "xg_pg", "xgc_pg",
+      "bc_pg", "bc_against_pg", "xg_per_shot_against", "goals_minus_xg", "conceded_minus_xgc"];
+    for (const k of FOLLOW) {
+      const withVal = base.filter(r => TEAM_STAT_BY_KEY[k].get(r) != null);
+      const moved = withVal.filter(r =>
+        val(part, r.short, k) !== TEAM_STAT_BY_KEY[k].get(r)).length;
+      ok(`${k}: GW 1-10 er ONNUR tala en timabilid hja ${moved}/${withVal.length} lidum`,
+        withVal.length >= 15 && moved >= withVal.length - 2, `${moved}/${withVal.length}`);
+    }
+    /* ---- MISMUNA-DALKARNIR ERU SUMMA YFIR BILID, EKKI PER LEIK ----
+       Fyrri utgafa reiknadi thau inni i Teams.jsx sem `goals_pg - xg_pg`,
+       thad er PER LEIK, medan dalkurinn ber `dec: 1` og notu um summu — sama
+       tala undir sama merkimida i tveimur EININGUM, og hun stokk um faktor n
+       um leid og bil var valid. STOKKBREYTING SLAPP FYRST I GEGN her: allar
+       fullyrdingarnar um "breyttist" og "obreytt" eru sannar um BADAR
+       einingar, svo thaer geta ekki greint thaer i sundur. Ohad endurtalning
+       getur.                                                              */
+    {
+      const agg = aggShotRange(shotIndex, [1, 10]);
+      const bad = [];
+      for (const r of base) {
+        const a = agg.get(r.short); if (!a || !a.n) continue;
+        const want = +(a.gf - a.xgF).toFixed(1);
+        const got = val(part, r.short, "goals_minus_xg");
+        if (Math.abs(got - want) > 0.05) bad.push(`${r.short} ${got} vs ${want}`);
+      }
+      ok("G−xG i bili er SUMMA (mork - xG yfir bilid), ekki per leik",
+        bad.length === 0, bad.slice(0, 3).join(" · "));
+      /* OG STAERDIN SEGIR ThAD LIKA: per-leiks-tala i 10 leikja bili vaeri
+         tiu sinnum minni, svo hun kaemist ekki yfir 1 hja neinum — summan
+         gerir thad hja morgum.                                            */
+      const big = base.filter(r => Math.abs(val(part, r.short, "goals_minus_xg") ?? 0) > 1).length;
+      ok(`og summan er stor nog til ad einingin sjaist (${big} lid yfir 1,0)`, big >= 5, `${big}`);
+    }
+
+    /* Og TVO OLIK bil eru olik hvort odru — annars gaeti "hreyfist" thytt
+       "hreyfist einu sinni og frys".                                     */
+    const bothMoved = base.filter(r => TEAM_STAT_BY_KEY.goals_pg.get(r) != null)
+      .filter(r => val(part, r.short, "goals_pg") !== val(late, r.short, "goals_pg")).length;
+    ok(`GW 1-10 og GW 30-38 eru olik hja ${bothMoved} lidum`, bothMoved >= 14, `${bothMoved}`);
+
+    /* ---- BLINDU DALKARNIR HREYFAST EKKI ---- */
+    const BLIND = TEAM_STAT_DEFS.filter(d => teamRangeBlind(d.key, use)).map(d => d.key);
+    ok(`${BLIND.length} dalkar geta ekki fylgt bilinu (forsenda)`, BLIND.length >= 10);
+    const drifted = BLIND.filter(k => base.some(r =>
+      TEAM_STAT_BY_KEY[k].get(r) !== val(part, r.short, k)));
+    ok("og ENGINN theirra hreyfist i bili (annars vaeri hann tolu-villa)",
+      drifted.length === 0, drifted.join(","));
+    /* MUTATION: se arstidar-talan latin heita bils-tala er thad thogla
+       villan sem kaeran var um — profid verdur ad greina thad. */
+    const silent = applyTeamRange(base, { range: [1, 10], shotIndex, fixtures,
+      use: { shots: false, results: null } });
+    ok("MUTATION — bil sem gerir EKKERT er greint (allar tolur obreyttar)",
+      FOLLOW.every(k => base.every(r =>
+        TEAM_STAT_BY_KEY[k].get(r) === TEAM_STAT_BY_KEY[k].get(silent.find(x => x.short === r.short)))));
+
+    /* ---- LAEGRA-ER-BETRA HELDUR I BILI ----
+       Attin er eiginleiki DALKSINS, en rodun og besta/versta lesa TOLUNA,
+       svo bil sem snyri formerki (t.d. skrifadi mork a sig i mork) laeti
+       "besta vornin" verda su versta an thess ad `hi` breyttist.        */
+    const bestOf = (rows, k) => {
+      const d = TEAM_STAT_BY_KEY[k];
+      const vals = rows.map(d.get).filter(v => typeof v === "number");
+      return d.hi === false ? Math.min(...vals) : Math.max(...vals);
+    };
+    const asc = sortTeamRows(part, "conceded_pg", "asc");
+    ok("mork a sig i bili: LAEGSTA talan er efst i 'asc' og hun er 'best'",
+      TEAM_STAT_BY_KEY.conceded_pg.get(asc[0]) === bestOf(part, "conceded_pg"));
+    ok("og tomt gildi radast SIDAST i badar attir, lika i bili",
+      TEAM_STAT_BY_KEY.conceded_pg.get(asc.at(-1)) == null &&
+      TEAM_STAT_BY_KEY.conceded_pg.get(sortTeamRows(part, "conceded_pg", "desc").at(-1)) == null);
+    ok("hrein blod i bili: HAESTA talan er 'best' (hi:true)",
+      TEAM_STAT_BY_KEY.cs_pct.hi === true &&
+      TEAM_STAT_BY_KEY.cs_pct.get(sortTeamRows(part, "cs_pct", "desc")[0]) === bestOf(part, "cs_pct"));
+
+    /* ---- NULL ER EKKI NULL, LIKA I BILI ---- */
+    const promoted = base.filter(r => TEAM_STAT_DEFS.every(d => d.get(r) == null));
+    ok(`nylidar (${promoted.map(r => r.short).join(",")}) fa "—" i bili, ekki 0`,
+      promoted.length === 3 && promoted.every(p => FOLLOW.every(k =>
+        val(part, p.short, k) === null)));
+  }
+
+  /* ---- 12e. URSLITA-LEIDIN UR `fixtures.json` — TILBUIN GOGN, ThEKKT SVAR */
+  {
+    const T = { A: 1, B: 2, C: 3, D: 4 };
+    const FX = [
+      { event: 1, finished: true, team_h: T.A, team_a: T.B, team_h_score: 3, team_a_score: 0 },
+      { event: 1, finished: true, team_h: T.C, team_a: T.D, team_h_score: 1, team_a_score: 1 },
+      { event: 2, finished: true, team_h: T.B, team_a: T.A, team_h_score: 2, team_a_score: 1 },
+      /* UTAN BILSINS — ma ekki telja. */
+      { event: 3, finished: true, team_h: T.A, team_a: T.C, team_h_score: 5, team_a_score: 0 },
+      /* OLOKINN — hlutastada ma ekki telja sem urslit. */
+      { event: 2, finished: false, team_h: T.A, team_a: T.D, team_h_score: 4, team_a_score: 0 },
+      /* LOKINN EN AN STODU — hun er til (frestad/felld nidur).           */
+      { event: 2, finished: true, team_h: T.A, team_a: T.C, team_h_score: null, team_a_score: null },
+    ];
+    const a = aggFixtureRange(FX, [1, 2]);
+    ok("A: 2 leikir i bilinu, 4 mork, 2 a sig",
+      a.get(T.A).n === 2 && a.get(T.A).gf === 4 && a.get(T.A).ga === 2,
+      JSON.stringify(a.get(T.A)));
+    ok("olokni 4-0 leikurinn telur EKKI (3 leikir vaeri merki um thad)", a.get(T.A).n !== 3);
+    ok("GW3-leikurinn telur EKKI (9 mork vaeri merki um thad)", a.get(T.A).gf !== 9);
+    ok("hreint blad er talid PER LEIK (A: 1 af 2)", a.get(T.A).cs === 1);
+    ok("jafntefli 1-1 gefur EKKERT hreint blad", a.get(T.C).cs === 0 && a.get(T.D).cs === 0);
+    ok("lid an leiks i bilinu er EKKI i toflunni (null, ekki 0)",
+      aggFixtureRange(FX, [5, 6]).size === 0);
+    ok("`range: null` telur ALLA lokna leiki", aggFixtureRange(FX, null).get(T.A).n === 3);
+    ok("rusl fellur ekki", aggFixtureRange(null, [1, 2]).size === 0 &&
+      aggFixtureRange([{ finished: true }], [1, 2]).size === 0);
+    ok(`thakid er LEITT ut ur skranni (${maxEventOf(fixtures)})`,
+      maxEventOf(fixtures) === 38 && maxEventOf([{ event: 12 }]) === 12 && maxEventOf(null) === 0);
+  }
+
+  /* ---- 12f. SEIGLA: engin skra ma fella bilid ---- */
+  {
+    let bad = null;
+    const cases = [
+      ["ekkert", {}],
+      ["adeins bil", { range: [1, 5] }],
+      ["skotakort vantar", { range: [1, 5], use: { shots: true, results: "shots" } }],
+      ["rusl i visum", { range: [1, 5], shotIndex: { byTeam: 7, teams: "x", fields: null },
+                         use: { shots: true, results: "shots" } }],
+      ["fixtures rusl", { range: [1, 5], fixtures: "nei", use: { shots: false, results: "fixtures" } }],
+      ["bil a hvolfi", { range: [30, 3], shotIndex, use: { shots: true, results: "shots" } }],
+    ];
+    for (const [name, arg] of cases) {
+      try {
+        const r = applyTeamRange(base, arg);
+        for (const d of TEAM_STAT_DEFS) for (const row of r) {
+          const v = d.get(row);
+          if (v !== null && typeof v !== "number") { bad = `${name}: ${d.key} -> ${typeof v}`; break; }
+          if (typeof v === "number" && !Number.isFinite(v)) { bad = `${name}: ${d.key} = ${v}`; break; }
+        }
+      } catch (e) { bad = `${name}: ${e.message}`; }
+      if (bad) break;
+    }
+    ok("hvert get() tholir bilid i hvada bilun sem er", !bad, bad || "");
+    ok("og engin heimild i takti -> engin leid, med SKYRINGU",
+      (() => { const u = teamRangeUse({ base, shotIndex: null, fixtures: null });
+        return !u.shots && !u.results && u.why.length > 20; })());
+  }
 }
 
 /* ============================================================

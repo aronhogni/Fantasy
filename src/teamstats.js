@@ -58,8 +58,26 @@
    RONG MYND. Sama regla og i Compare.jsx (CLAUDE.md 6j).
    ============================================================ */
 
+import { BIG_CHANCE_XG } from "./bsd.js";
+
 const num = v => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const div = (a, b) => (num(a) != null && num(b) ? +(a / b).toFixed(3) : null);
+
+/* MISMUNA-DALKARNIR ERU REIKNADIR A EINUM STAD — arstidar-leidin og
+   umferdar-leidin kalla BADAR thetta fall. Fyrsta utgafa umferdar-bilsins
+   reiknadi thau upp a nytt inni i Teams.jsx sem `goals_pg - xg_pg`, thad er
+   PER LEIK, medan dalkurinn ber `dec: 1` og notu sem segir "over the
+   season" — sama tala undir sama merkimida i tveimur EININGUM. Her er
+   summan yfir thad bil sem er synt, hvort thad er heilt timabil eda hluti,
+   og eining og aukastafir eru thvi thau somu i badum tilfellum.          */
+function diffFields(goals, conceded, xgTot, xgcTot) {
+  return {
+    goals_minus_xg:     (num(goals) != null && num(xgTot) != null)
+                          ? +(goals - xgTot).toFixed(1) : null,
+    conceded_minus_xgc: (num(conceded) != null && num(xgcTot) != null)
+                          ? +(conceded - xgcTot).toFixed(1) : null,
+  };
+}
 
 /* Ein rod per lid. `t` ber somu reiti hvadan sem their koma, svo
    dalkarnir thurfa ekki ad vita hvada skra atti hvad.                  */
@@ -105,6 +123,10 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
     return {
       id: t.id, short: t.short, name: t.name, team: t,
       matches: m,
+      /* LEIKIR SEM TALAN HVILIR A. Hann er `matches` a heilu timabili og
+         leikirnir I BILINU thegar bil er valid — ein reit sem vidmotid
+         getur birt an thess ad vita hvor leidin var notud.               */
+      played: m,
       /* --- vorn --- */
       shots_against_pg:  num(f.shots_against_pg),
       sot_against_pg:    num(f.sot_against_pg),
@@ -136,15 +158,18 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
       corners_pg:        num(f.corners_pg),
       fouls_pg:          num(f.fouls_pg),
       yellows_pg:        num(f.yellows_pg),
+      /* RAUNMORKIN SJALF — geymd a rodinni svo mismuna-dalkarnir og
+         umferdar-leidin lesi SOMU tolu. Adur voru thau lesin beint ur
+         `luck.json` inni i reikningnum og voru thvi ekki til fyrir utan
+         hann; tha gat umferdar-leidin ekki notad sama fall.              */
+      goals:             num(l.goals),
+      conceded:          num(l.conceded),
       /* ENDURREIKNAD UR BSD, EKKI LESID UR luck.json. Hefdu thessir tveir
          haldid FPL-afleidslunni vaeru their MISMUNUR TVEGGJA OLIKRA
          HEIMILDA — birt xG ur BSD en "G-xG" reiknad ur FPL-xG — og dalkarnir
          hefdu stangast a innbyrdis an thess ad nokkud syndi thad.
          Mork/mork a sig eru raunverulegar (E0-heil) og haldast.          */
-      goals_minus_xg:    (num(l.goals) != null && xgTot != null)
-                           ? +(l.goals - xgTot).toFixed(1) : null,
-      conceded_minus_xgc: (num(l.conceded) != null && xgcTot != null)
-                           ? +(l.conceded - xgcTot).toFixed(1) : null,
+      ...diffFields(l.goals, l.conceded, xgTot, xgcTot),
       /* --- BSD-skotakortid: EINA heimildin med xG PER SKOT --- */
       bc_against_pg:  num(b.bc_against_pg),
       bc_pg:          num(b.bc_pg),
@@ -220,8 +245,14 @@ export const TEAM_STAT_DEFS = [
     get: r => r.sot_share_against },
 
   /* ---- vornin i heild ---- */
+  /* MORK, MORK A SIG OG HREIN BLOD FYLGJA UMFERDAR-BILI (20.8.2026) og
+     notan ma thvi ekki segja "full season" — hun gerdi thad og var thar med
+     ord a skjanum sem stangast a vid toluna undir henni um leid og bil er
+     valid. Heimildin er E0 a heilu timabili og LOKNIR LEIKIR (skotakortid
+     eda `fixtures.json`) i bili; thaer eru MAELDAR JAFNAR (17/17 lid, oll
+     thrju svidin, sja kaflann um umferdar-bilid).                        */
   { key: "conceded_pg", label: "Goals conceded per match", short: "GC", group: "defence",
-    dec: 2, hi: false, src: "E0", note: "Goals conceded per match (E0, full season).",
+    dec: 2, hi: false, src: "E0", note: "Goals conceded per match. Follows the gameweek range.",
     get: r => r.conceded_pg },
   { key: "xgc_pg", label: "xGC per match", short: "xGC", group: "defence",
     dec: 2, hi: false, src: "BSD", season_locked: true,
@@ -229,15 +260,15 @@ export const TEAM_STAT_DEFS = [
     get: r => r.xgc_pg },
   { key: "conceded_minus_xgc", label: "Conceded minus xGC", short: "GC−xGC", group: "defence",
     dec: 1, hi: false, src: "BSD", season_locked: true,
-    note: "Goals conceded minus xGC over the season. Positive = conceded more than the chances faced warranted (bad keeping, or bad luck). Goals are real (E0); xGC is summed per shot.",
+    note: "Goals conceded minus xGC over the gameweeks shown. Positive = conceded more than the chances faced warranted (bad keeping, or bad luck). Goals are real; xGC is summed per shot. Needs both halves for the same gameweeks, so it follows the range only when both do.",
     get: r => r.conceded_minus_xgc },
   { key: "cs_pct", label: "Clean sheet %", short: "CS %", group: "defence",
-    dec: 0, hi: true, src: "E0", note: "Share of matches with a clean sheet (E0, full season).",
+    dec: 0, hi: true, src: "E0", note: "Share of matches with a clean sheet. Follows the gameweek range.",
     get: r => r.cs_pct },
 
   /* ---- soknin ---- */
   { key: "goals_pg", label: "Goals per match", short: "Goals", group: "attack",
-    dec: 2, hi: true, src: "E0", note: "Goals scored per match (E0, full season).",
+    dec: 2, hi: true, src: "E0", note: "Goals scored per match. Follows the gameweek range.",
     get: r => r.goals_pg },
   { key: "xg_pg", label: "xG per match", short: "xG", group: "attack",
     dec: 2, hi: true, src: "BSD", season_locked: true,
@@ -263,7 +294,7 @@ export const TEAM_STAT_DEFS = [
     get: r => r.conversion },
   { key: "goals_minus_xg", label: "Goals minus xG", short: "G−xG", group: "attack",
     dec: 1, hi: true, src: "BSD", season_locked: true,
-    note: "Goals scored minus xG over the season. Positive = finishing above the chances created. Goals are real (E0); xG is summed per shot.",
+    note: "Goals scored minus xG over the gameweeks shown. Positive = finishing above the chances created. Goals are real; xG is summed per shot. Needs both halves for the same gameweeks, so it follows the range only when both do.",
     get: r => r.goals_minus_xg },
 
   /* ---- annad ---- */
@@ -291,6 +322,363 @@ export function sortTeamRows(rows, key, dir = "desc") {
     if (x == null) return 1;
     if (y == null) return -1;
     return dir === "asc" ? x - y : y - x;
+  });
+}
+
+/* ============================================================
+   UMFERDAR-BILID — HVER TALA GETUR FYLGT ThVI, OG HVERS VEGNA (20.8.2026)
+
+   TILKYNNT AF NOTANDA: "i teams se eg bara season stats, afhverju get eg
+   ekki filterad GC nidur a gameweeks? Eda CS%. Eins i attack, stats
+   breytast ekki thar thegar eg filtera gameweeks."
+
+   HANN HAFDI RETT FYRIR SER I BADA ATT. Valarinn var thegar til (11.8.) en
+   hann var tengdur `fixtures.json`, sem er YFIRSTANDANDI timabil — medan
+   taflan synir ThAD SIDASTA (`team_form.season` = 2025-26). MAELT 20.8.2026:
+   `fixtures.json` ber 380 leiki og **0 lokna**, svo urslita-leidin gaf
+   ALDREI tolu i appinu; hun gaf "—" a mork, mork a sig og hrein blod hja
+   ollum 20 lidum um leid og bil var valid. Og hinir dalkarnir — skot, skot
+   a mark, teigsskot, horn, spjold, hittni — satu OBREYTTIR an thess ad
+   nokkud a skjanum saegi fra. Bæði einkennin eru sama villan: bilid var
+   tengt heimild sem er ekki i takt vid tofluna, og thogn thar sem hun er
+   thad ekki.
+
+   HEIMILDIN SEM SVARAR ER ThEGAR I FLIPANUM: `bsd_shots.json` ber EINA ROD
+   PER SKOT med `gw`, og hun er thegar letihladin thegar Teams er opnad
+   (`shotIndex` i App.jsx). ENGIN NY SOKN, ENGIN NY SKRA.
+
+   HVAD KORTID GEFUR — MAELT GEGN E0 A ODHADRI LEID (20.8.2026, 17 lid sem
+   attu PL-rod 2025/26, oll 38 umferdir):
+
+     | tala          | ur skotakortinu | E0 (team_form) | stemmir |
+     |---------------|-----------------|----------------|---------|
+     | mork skorud   | 71 (ARS)        | 71             | 17/17   |
+     | mork a sig    | 27 (ARS)        | 27             | 17/17   |
+     | hrein blod    | 19 (ARS)        | 19             | 17/17   |
+     | leikir        | 38              | 38             | 17/17   |
+
+   NAKVAEMLEGA jofn tala i ollum thremur hja ollum 17 lidum. Thad er sama
+   idiomid og BSD-stodutaflan var sannreynd med (CLAUDE.md 6t): tvaer
+   oskyldar leidir ad somu tolu. Fallin lidin thrju eru `null` i `team`/`opp`
+   i kortinu, svo leikir gegn theim eru MED — thess vegna 38 og ekki 32.
+
+   OG ThAD SEM VAR MAELT OG FELLT:
+
+   1. `player_gw_2526.json` SEM LIDS-HEIMILD — FELLT. Skrain er per leikmann
+      per umferd og lidid vaeri thvi samlagning yfir hans félaga. Mork a sig
+      og hrein blod stemma naestum (markmanna-summa: 16/17 nakvaemt) EN MORK
+      SKORUD GERA ThAD EKKI: MCI maelist 86 a moti 77 og BOU 47 a moti 58 —
+      **11 mork a ranga lidi**. Orsokin er i `fetch-player-gw.mjs`: `e.t =
+      team` er SIDASTI-VINNUR, svo leikmadur sem faerdist milli felaga i
+      januar faer OLL sin gogn skrad a nyja felagid. Sama skekkja er i
+      spjoldunum (MCI 76 a moti 67). Tala sem er 14% of ha a einu lidi og
+      19% of lag a odru er ekki minni villa en engin tala — hun er verri,
+      thvi hun litur ut eins og maeling (CLAUDE.md 3). Sami annmarki felldi
+      spjold og allt annad ur theirri skra.
+   2. E0-SKOTIN (`shots_pg`, `sot_pg`) I UMFERDAR-BIL — FELLT. `team_form`
+      er ARSTIDAR-SUMMA og hefur engar umferdir. Skotakortid ER haegt ad
+      telja per umferd (BSD 557 skot hja ARS a moti E0 552,1) en thad er
+      ONNUR HEIMILD med 0,3-1,3% adra tolu, svo dalkur sem laesi E0 a heilu
+      timabili og BSD i bili vaeri TVEIR KVARDAR undir einu heiti. Ekkert
+      hefur maelt ad BSD-skotatalning se BETRI en E0 (thad var maelingin sem
+      retti xG/xGC vid 8.8.), svo heimildinni er EKKI skipt — dalkurinn ber
+      MERKID i stad thess ad thegja.
+   3. `fixtures.json` var EKKI fjarlaegd. Hun er retta heimildin um leid og
+      taflan synir yfirstandandi timabil, og THA er skotakortid ur takti.
+      Baðar leidir eru thvi til og hvor um sig er PROFUD I TAKT (sja
+      `routeInStep`) — ekki gefin ser.
+   ============================================================ */
+
+/* HVADA PER-UMFERDAR HEIMILD FAEDIR HVERN DALK.
+   Dalkur sem er EKKI i thessari toflu getur ekki fylgt bili og VERDUR ad
+   bera merkid a skjanum. "both" thydir ad hann tharf BADAR leidir — mismunur
+   sem tekur mork ur einu bili og xG ur odru er verri en enginn mismunur.  */
+export const TEAM_RANGE_SRC = {
+  goals_pg: "results", conceded_pg: "results", cs_pct: "results",
+  xg_pg: "shots", xgc_pg: "shots", bc_pg: "shots", bc_against_pg: "shots",
+  xg_per_shot_against: "shots",
+  goals_minus_xg: "both", conceded_minus_xgc: "both",
+};
+
+/* EITT SKILYRDI, LESID BAEDI AF HAUSNUM OG AF TOOLTIP-INU — sama regla og
+   `rangeBlind` i gwRange.js: tvo skilyrdi um sama hlut er hvernig thau fara
+   i sundur. `use` er utkoma `teamRangeUse` og ber hvor leid se i takt, svo
+   dalkur sem KYNNI ad fylgja bili en hefur heimild ur odru timabili ber
+   merkid lika — thad er thad sama fyrir notandann.                        */
+export function teamRangeBlind(key, use) {
+  const need = TEAM_RANGE_SRC[key];
+  if (!need) return true;
+  if (need === "both") return !use?.shots || !use?.results;
+  return need === "shots" ? !use?.shots : !use?.results;
+}
+
+const inRange = (g, range) =>
+  g != null && (!range || (g >= range[0] && g <= range[1]));
+
+/* MARK-GERDIN I SKOTAKORTINU ER GILDI 0, OG ThAD ER FORSENDA SEM ER
+   SKRIFUD NIDUR OG VORDUD — ekki agiskun.
+   `bsd_shots.json` geymir `type` sem VISI i `legend.type`
+   (["goal","save","miss","block","post"]) en `shotIndex` i App.jsx flytur
+   thann lista ekki, svo hann er ekki laesilegur hedan. `ShotMap.jsx` gerir
+   nakvaemlega somu forsendu (`s.t === 0`) og hefur gert fra fyrstu utgafu —
+   svo hun er thegar i notkun a skjanum; thad sem vantadi var ad hun stæði
+   NEINS STADAR skrifud. Vordur: `team-stats.mjs` les `legend.type` ur
+   skranni sjalfri og fellur ef markid faerist ur saeti 0. Se `type`-listinn
+   sendur med (`shotIndex.type`) er hann notadur og fastinn ekki spurdur.  */
+export const SHOT_GOAL_TYPE = 0;
+const goalTypeOf = shotIndex =>
+  Array.isArray(shotIndex?.type) && shotIndex.type.includes("goal")
+    ? shotIndex.type.indexOf("goal") : SHOT_GOAL_TYPE;
+
+/* ---------- SKOTAKORTID: EIN SAMLAGNING, NOTUD BAEDI FYRIR HEILT TIMABIL
+   OG FYRIR BIL. `range = null` thydir ALLAR umferdir, og thad er einmitt
+   thad sem takt-profid keyrir — svo "heilt timabil" og "GW 1-38" geta EKKI
+   ordid tvaer tolur (ThAD VAR ThAD SEM GERDIST: arstidar-gildid kom ur
+   `bsd_teams.json` en bils-gildid var endurreiknad ur `bsd_shots.json`, og
+   skrarnar eru sottar 11 dogum i sundur — ARS xG/leik 1,725 a moti 1,76). */
+export function aggShotRange(shotIndex, range = null) {
+  const out = new Map();
+  if (!shotIndex?.byTeam || !shotIndex?.byOpp || !Array.isArray(shotIndex.teams))
+    return out;
+  const F = shotIndex.fields || {};
+  if (F.gw == null || F.xg == null) return out;
+  const GOAL = F.type == null ? -1 : goalTypeOf(shotIndex);
+  shotIndex.teams.forEach((short, ti) => {
+    const forr = (shotIndex.byTeam.get(ti) || []).filter(s => inRange(s[F.gw], range));
+    const agst = (shotIndex.byOpp.get(ti) || []).filter(s => inRange(s[F.gw], range));
+    if (!forr.length && !agst.length) return;
+    /* TALID I LEIKJUM, EKKI UMFERDUM — TVOFOLD UMFERD ER TVEIR LEIKIR.
+       Leikur er audkenndur af (umferd, motherji): fyrir SKOT LIDSINS er
+       motherjinn `opp`, fyrir SKOT A ThAD er hann `team`. Fallid lid er
+       `null` i badum svidum, svo tveir leikir i somu umferd gegn tveimur
+       follnum lidum runnu saman i einn — ThAD GETUR EKKI GERST i einfaldri
+       umferd og er skrad her fremur en thagad um.                        */
+    const games = new Set();
+    for (const s of forr) games.add(`${s[F.gw]}:${s[F.opp]}`);
+    for (const s of agst) games.add(`${s[F.gw]}:${s[F.team]}`);
+    const sum = (arr, f) => arr.reduce((a, x) => a + (f(x) || 0), 0);
+    const goalsIn = arr => (GOAL < 0 ? null : arr.filter(s => s[F.type] === GOAL).length);
+    /* HREIN BLOD ERU TALIN PER LEIK, ekki ur summu — 0+2 mork a sig i
+       tveimur leikjum er EITT hreint blad, ekki ekkert.                  */
+    const perGame = new Map();
+    for (const s of agst) {
+      const k = `${s[F.gw]}:${s[F.team]}`;
+      perGame.set(k, (perGame.get(k) || 0) + (s[F.type] === GOAL ? 1 : 0));
+    }
+    let cs = 0;
+    for (const k of games) if ((perGame.get(k) || 0) === 0) cs++;
+    out.set(short, {
+      n: games.size,
+      nF: forr.length, nA: agst.length,
+      xgF: sum(forr, x => x[F.xg]), xgA: sum(agst, x => x[F.xg]),
+      bcF: forr.filter(x => (x[F.xg] || 0) >= BIG_CHANCE_XG).length,
+      bcA: agst.filter(x => (x[F.xg] || 0) >= BIG_CHANCE_XG).length,
+      gf: goalsIn(forr), ga: goalsIn(agst), cs: GOAL < 0 ? null : cs,
+    });
+  });
+  return out;
+}
+
+/* ---------- URSLITIN UR `fixtures.json` — HIN LEIDIN, OG HUN GILDIR ADEINS
+   UM ThAD TIMABIL SEM SKRAIN BER. */
+export function aggFixtureRange(fixtures, range = null) {
+  const out = new Map();
+  if (!Array.isArray(fixtures)) return out;
+  const bump = (id, gf, ga) => {
+    if (id == null) return;
+    const a = out.get(id) || { n: 0, gf: 0, ga: 0, cs: 0 };
+    a.gf += gf; a.ga += ga; a.cs += ga === 0 ? 1 : 0; a.n++;
+    out.set(id, a);
+  };
+  for (const f of fixtures) {
+    /* ADEINS LOKNIR LEIKIR. Onnur skilyrdi (started/minutes) duga ekki:
+       leikur i gangi hefur hlutastodu, og hun myndi telja sem urslit.    */
+    if (!f?.finished) continue;
+    if (!inRange(f.event, range)) continue;
+    if (f.team_h_score == null || f.team_a_score == null) continue;
+    bump(f.team_h, f.team_h_score, f.team_a_score);
+    bump(f.team_a, f.team_a_score, f.team_h_score);
+  }
+  return out;
+}
+
+/* ============================================================
+   ER HEIMILDIN I TAKT VID TOFLUNA? — MAELT, EKKI FULLYRT
+
+   Villan sem thetta ver er nakvaemlega su sem notandinn tilkynnti, og hun
+   getur komid AFTUR i verri buningi: `fixtures.json` er yfirstandandi
+   timabil og skotakortid er thad sidasta, svo THAD ER TILVILJUN hvort
+   heimildin sem bilid les segir eitthvad um tofluna sem er a skjanum. Ad
+   sameina thau tvo — mork ur 2026/27 og xG ur 2025/26 undir sama haus —
+   vaeri ekki tom tala heldur ROng tala.
+
+   ThAD ER EKKI PROFAD MED TIMABILS-STRENG. `bsd_shots.json` ber `season` en
+   `shotIndex` (App.jsx) flytur hana ekki, og ad lesa hana ur ANNARRI skra
+   (`bsd_teams.json`) vaeri agiskun i buningi maelingar. Profad er thad sem
+   ER haegt ad maela: **leikjafjoldinn**. Heimild sem er i takt telur sama
+   fjolda leikja per lid og arstidar-heimildin sem taflan hvilir a, og
+   heimild ur odru timabili gerir thad ALDREI a neinum staerri hluta
+   timabilsins (2025/26-kortid ber 38 per lid; 2026/27-fixtures baru 0 i dag
+   og bera 5 i umferd 5).
+
+   Vikmorkin eru +/-2 leikir thvi heimildirnar eru uppfaerdar a olikum
+   takti: `fixtures.json` a 30 min fresti, E0-skrain vikulega, svo eitt
+   umferdar-bil a milli theirra er venjulegt og ma ekki slokkva a valaranum.
+   MORKIN ERU LIKA THAU SEM MAELINGIN LEYFIR: 38 a moti 0 er 38 fra
+   throskuldinum, svo hann er hvergi naerri thvi ad taka rangt tilfelli.
+
+   ANNAD SKILYRDID TEKUR ThAD SEM LEIKJAFJOLDINN GETUR EKKI: i sidustu
+   umferdum yfirstandandi timabils telja BADAR heimildir ~38 leiki per lid,
+   svo fjoldinn einn myndi hleypa 2025/26-skotakortinu inn undir 2026/27
+   toflu — mork ur einu timabili og xG ur odru, sem er ROng tala, ekki tom.
+   Vardurinn er thvi mork per leik gegn arstidar-heimildinni, OG ThROSKULDUR
+   HANS ER MAELDUR: sama timabil gefur 0,003 (skotakortid gegn E0, 17 lid) en
+   NAESTA timabil gefur 0,265 ad medaltali og 0,660 mest (`team_form.prev`
+   gegn `team_form`, 15 lid). Tvaer staerdargradur i sundur, svo 0,10 er
+   hvergi naerri hvorugu — talan velur ekki utkomuna.
+   Borid ADEINS thar sem leikjafjoldinn er NAKVAEMLEGA jafn: heimildirnar
+   uppfaerast a olikum takti (30 min a moti viku) og lid sem er einn leik a
+   undan i einni theirra hefur ekta annad mork-per-leik an thess ad vera ur
+   odru timabili.
+   ============================================================ */
+export function routeInStep(base, per, { maxMatchGap = 2, maxGoalGap = 0.10 } = {}) {
+  let checked = 0, sameN = 0, dGoals = 0, gN = 0;
+  for (const r of base || []) {
+    const m = num(r.matches);
+    if (!(m > 0)) continue;                 // nylidi an fyrra timabils
+    const a = per(r);
+    if (!a || !(a.n > 0)) continue;
+    checked++;
+    if (Math.abs(a.n - m) <= maxMatchGap) sameN++;
+    if (a.n === m && num(r.goals_pg) != null && num(a.gf) != null) {
+      dGoals += Math.abs(a.gf / a.n - r.goals_pg); gN++;
+    }
+  }
+  const meanGoalGap = gN ? +(dGoals / gN).toFixed(3) : null;
+  const ok = checked >= 8 && sameN >= Math.ceil(checked * 0.9)
+    && (meanGoalGap == null || meanGoalGap < maxGoalGap);
+  return { ok, checked, sameN, meanGoalGap };
+}
+
+/* HVOR LEID ER I NOTKUN — OG HVERS VEGNA EKKI, THEGAR SVARID ER "engin".
+   `why` er BIRT A SKJANUM. Valari sem er slokktur an skyringar er sama
+   aett og dalkur sem hreyfist ekki an skyringar (thad var kaeran).       */
+export function teamRangeUse({ base, shotIndex, fixtures } = {}) {
+  const shotFull = aggShotRange(shotIndex, null);
+  const fixFull = aggFixtureRange(fixtures, null);
+  const shotStep = shotFull.size
+    ? routeInStep(base, r => shotFull.get(r.short)) : { ok: false, checked: 0 };
+  const fixStep = fixFull.size
+    ? routeInStep(base, r => fixFull.get(r.id)) : { ok: false, checked: 0 };
+  /* URSLITIN: `fixtures.json` fyrst thegar hun er i takt (hun er retta
+     heimildin um yfirstandandi timabil og uppfaerist a 30 min), annars
+     skotakortid — sem er MAELT NAKVAEMT jofn E0 a ollum thremur tolum.  */
+  const results = fixStep.ok ? "fixtures" : (shotStep.ok ? "shots" : null);
+  const maxGw = Math.max(
+    shotStep.ok ? maxGwOfShots(shotIndex) : 0,
+    fixStep.ok ? maxEventOf(fixtures) : 0);
+  let why = "";
+  if (!shotStep.ok && !results) {
+    why = shotFull.size || fixFull.size
+      ? "no per-gameweek source matches the season in this table — the shot map and the "
+        + "fixture results both cover a different number of matches per club"
+      : "the per-gameweek shot map has not loaded";
+  }
+  return { shots: shotStep.ok, results, maxGw: maxGw > 0 ? maxGw : null,
+           why, shotStep, fixStep, shotFull };
+}
+
+/* ThAKID A BILINU ER LEITT UT UR GOGNUNUM, EKKI 38 (sama regla og
+   `maxGwOf` i gwRange.js — bil sem endar a GW38 i skra sem naer til GW34
+   gaefi thogla null-summu, tolu sem litur ut eins og maeling).           */
+export function maxGwOfShots(shotIndex) {
+  if (!shotIndex?.byTeam) return 0;
+  const F = shotIndex.fields || {};
+  if (F.gw == null) return 0;
+  let mx = 0;
+  for (const arr of shotIndex.byTeam.values())
+    for (const s of arr) { const g = s[F.gw]; if (g > mx) mx = g; }
+  return mx;
+}
+export function maxEventOf(fixtures) {
+  if (!Array.isArray(fixtures)) return 0;
+  let mx = 0;
+  for (const f of fixtures) { const g = f?.event; if (g > mx) mx = g; }
+  return mx;
+}
+
+/* ============================================================
+   BILID SETT A RADIRNAR — EIN UTFAERSLA
+
+   `range = null` gefur HEILT TIMABIL ur somu formulum, og thad er ekki
+   snyrting: annars kaemi arstidar-gildid ur `bsd_teams.json` (pipeline-
+   summa, sott 8.8.) og bils-gildid ur `bsd_shots.json` (sott 19.8.), og
+   "whole season" a moti "GW 1-38" hefdu synt SITTHVORA TOLU um sama hlut
+   (maelt: xG/leik ARS 1,725 a moti 1,76 — 2%). Tvaer utfaerslur af somu
+   tolu er ein utfaersla og ein thogul villa sem bidur (CLAUDE.md 7).
+
+   Se kortid EKKI i takt (u.shots false) er `bsd_teams.json` latid i fridi
+   og dalkarnir bera merkid — lakari tala undir betri merkimida er verri en
+   tala sem segir ad hun se arstidar-tala.
+   ============================================================ */
+export function applyTeamRange(base, { range = null, shotIndex = null,
+                                       fixtures = null, use = null } = {}) {
+  const rows = Array.isArray(base) ? base : [];
+  const u = use || {};
+  if (!u.shots && !u.results) return rows;
+  const shotAgg = (u.shots || u.results === "shots")
+    ? aggShotRange(shotIndex, range) : null;
+  const fixAgg = u.results === "fixtures" ? aggFixtureRange(fixtures, range) : null;
+
+  return rows.map(r => {
+    const s = shotAgg ? shotAgg.get(r.short) || null : null;
+    const res = u.results === "fixtures" ? (fixAgg?.get(r.id) || null)
+              : u.results === "shots" ? s : null;
+    const out = { ...r };
+
+    if (u.shots) {
+      /* Lid an skota i bilinu faer NULL — EKKI 0. "Spiladi ekki" og
+         "skaut ekki" eru ekki sama hlutid (CLAUDE.md 8).
+
+         NEFNARINN KEMUR UR URSLITUM ThEGAR ThAU ERU I TAKT. Skot-lykillinn
+         (umferd, motherji) getur EKKI adgreint tvo leiki gegn SAMA lidi i
+         somu umferd — sjaldgaeft en mogulegt thegar frestadur leikur er
+         settur i tvofalda umferd. Tha renna leikirnir saman i EINN,
+         nefnarinn verdur of lagur og xg_pg / xgc_pg / bc_pg BLASA UPP.
+         `fixtures.json` veit nakvaemlega hve margir leikir voru spiladir,
+         svo hun leysir thad — en ADEINS thegar hun er i takt vid tofluna
+         (annars vaeri nefnarinn ur odru timabili, sem er verra en of lagur
+         nefnari). Skot-lykillinn er varaleidin.                          */
+      const sn = s?.n || 0;
+      const n = sn ? ((u.results === "fixtures" && res?.n) ? res.n : sn) : 0;
+      out.xg              = n ? +s.xgF.toFixed(1) : null;
+      out.xgc             = n ? +s.xgA.toFixed(1) : null;
+      out.xg_pg           = n ? +(s.xgF / n).toFixed(2) : null;
+      out.xgc_pg          = n ? +(s.xgA / n).toFixed(2) : null;
+      out.bc_pg           = n ? +(s.bcF / n).toFixed(2) : null;
+      out.bc_against_pg   = n ? +(s.bcA / n).toFixed(2) : null;
+      out.xg_per_shot_against = s?.nA ? +(s.xgA / s.nA).toFixed(3) : null;
+      /* NEFNARINN ER E0-ARSTIDARTALA (skot a sig), svo thessi ma EKKI
+         reiknast ur bils-xGC — thad vaeri teljari ur einu bili og nefnari
+         ur odru (CLAUDE.md 12).                                          */
+      out.xgc_per_shot = null;
+      out.bsd_matches = n || null;
+    }
+    if (u.results) {
+      const n = res?.n || 0;
+      out.goals       = n ? res.gf : null;
+      out.conceded    = n ? res.ga : null;
+      out.goals_pg    = n ? +(res.gf / n).toFixed(2) : null;
+      out.conceded_pg = n ? +(res.ga / n).toFixed(2) : null;
+      out.cs_pct      = n && res.cs != null ? +(100 * res.cs / n).toFixed(1) : null;
+      out.played      = n || null;
+    }
+    /* MISMUNIRNIR KREFJAST BEGGJA LEIDA og eru reiknadir med SAMA falli
+       sem arstidar-rodin notar — sama eining, sömu aukastafir.           */
+    Object.assign(out, (u.shots && u.results)
+      ? diffFields(out.goals, out.conceded, out.xg, out.xgc)
+      : diffFields(r.goals, r.conceded, r.xg, r.xgc));
+    return out;
   });
 }
 
