@@ -710,12 +710,109 @@ export function applyTeamRange(base, { range = null, shotIndex = null,
      1. `team_form.json` TEKUR FORGANG yfir FPL-summur: hun er HEIL (E0, 380
         leikir) medan FPL-summur vantar ~19% (leikmenn sem foru ur deildinni
         eru fjarlaegdir ur bootstrap).
-     2. NYLIDAR FA STADGENGIL, EKKI NULL: B-deildar-mork x0,75 (sokn) og
-        x1,35 (vorn), MERKT `championship_proxy`. Nyliði an PL-sogu hefur
-        xG ~0 og myndi annars lesa eins og bestа vorn deildarinnar.
-     3. `src` ER ALLTAF SKRAD. Thrennt er ekki thad sama: maeling (`e0_complete`),
-        stadgengill (`championship_proxy`) og sjalfgildi (`default`).
+     2. NYLIDAR FA STADGENGIL, EKKI NULL — og hann er MAELDUR FASTI, ekki
+        margfaldari a B-deildar-tolur (sja `PROMOTED_PL`). Nyliði an
+        PL-sogu hefur xG ~0 og myndi annars lesa eins og besta vorn
+        deildarinnar.
+     3. `src` ER ALLTAF SKRAD. Thrennt er ekki thad sama: maeling ur
+        THESSU timabili (`e0_complete`), maeldur fasti ur ANNARRI laug
+        (`promoted_measured`) og sjalfgildi (`default`).
    ============================================================ */
+
+/* ============================================================
+   NYLIDA-FASTINN — MAELDUR 20.8.2026, n = 45 LID-TIMABIL
+
+   HER STODU TVAER TOLUR AN NOKKURS ROKSTUDNINGS: `goals_pg * 0.75` og
+   `goals_against_pg * 1.35`, med athugasemdunum "B-deild -> PL afslattur"
+   og "fa meira a sig i PL". Thaer voru VALDAR tolur i buningi maelingar
+   (CLAUDE.md kafli 3) og afleidingin var maelanleg: Ipswich modeladist
+   1,74x0,75 = 1,30 i sokn og 1,02x1,35 = 1,38 a sig — MEDALLID i Premier
+   League (deildar-medaltal a sig 1,295) — og **Coventry fekk 1,32 a sig,
+   SJOTTA BESTA VORN DEILDARINNAR**. Nylidi a ad vera i verstu 1-3.
+
+   MAELINGIN (`scripts/measure-promoted-proxy.mjs`, handvirk):
+   Nylidi = lid sem er i E1 (Championship) timabil S OG i E0 timabil S+1.
+   Bein talning ur football-data.co.uk-skraunum sjalfum, engin nafna-tafla.
+   **15 PL-timabil (2011/12–2025/26), NAKVAEMLEGA 3 nylidar i hverju,
+   n = 45 lid-timabil.** E1 er sannreynt `Div === "E1"` eins og E0-leidin
+   sannreynir `Div === "E0"` (kafli 6).
+
+   1. HLUTFOLLIN SEM VORU I KODANUM ERU UTAN MAELDS CI — BADAR.
+        sokn (PL GF / Ch GF): medaltal 0,625 CI [0,584, 0,667]
+                              midgildi 0,605 CI [0,556, 0,653]   var 0,75
+        vorn (PL GA / Ch GA): medaltal 1,944 CI [1,740, 2,200]
+                              midgildi 1,741 CI [1,593, 2,058]   var 1,35
+      Vornin var thvi ~30% of milld og soknin ~20% of rausnarleg.
+
+   2. OG MARGFOLDUNAR-FORMID SJALFT FELL. B-deildar-talan hefur ENGA
+      forspa um PL-toluna a vornina: **r = -0,038** (Ch GA/leik -> PL
+      GA/leik) og hallatalan er NEGATIF (b = -0,067). Soknin er svo
+      naest engu: r = 0,250. B-deildar-STIG eru enn verri (r = 0,030 og
+      0,120), svo "champion a moti umspils-sigurvegara" var maelt og fell.
+
+      LOSO (leave-one-season-out, MAE i morkum/leik):
+        | leid                    | SOKN  | VORN  |
+        | 0,75 / 1,35 (var)       | 0,276 | 0,500 |
+        | maelt hlutfall          | 0,182 | 0,471 |
+        | maeld lina a + b*Ch     | 0,173 | 0,330 |
+        | MAELDUR FASTI           | 0,175 | 0,320 |
+      Parad bootstrap a somu leikjum:
+        VORN fasti - hlutfall  -0,150 CI [-0,252, -0,063]  FASTINN VINNUR
+        VORN fasti - lina      -0,010 CI [-0,020, -0,002]  FASTINN VINNUR
+        VORN fasti - 1,35      -0,180 CI [-0,302, -0,076]  FASTINN VINNUR
+        SOKN fasti - hlutfall  -0,007 CI [-0,047, +0,037]  OGREINANLEGT
+        SOKN fasti - 0,75      -0,102 CI [-0,159, -0,045]  FASTINN VINNUR
+      Fastinn vinnur eda er jafn i ollum samanburdum og TAPAR i engum.
+
+   3. HVERS VEGNA HLUTFALL GETUR EKKI VIRKAD HER — thridjungs-taflan:
+        Ch GA/leik thridjungar 0,35-0,85 | 0,85-0,98 | 0,98-1,37
+        PL GA/leik utkoma       1,758    | 1,653     | 1,711   (FLOT)
+        hlutfallid sem tharf    2,521    | 1,817     | 1,494
+      PL-utkoman er FLOT yfir B-deildar-vorn; hlutfallid sveiflast adeins
+      thvi NEFNARINN sveiflast. Gott B-deildar-vorn (Ipswich 1,02, Burnley
+      0,35) er thvi ekki merki um neitt i PL — hun margfaldadist bara upp i
+      goda PL-vorn. Sama aett og "afstaed threp innan lids" (CLAUDE.md 3):
+      formid bar sponn sem merkid stydur ekki. Soknin er mildari en sama
+      att: PL GF 0,984 / 1,012 / 1,082 a moti hlutfalli 0,705 / 0,611 /
+      0,557 — hlutfallid margfaldar sponnina **~3,8x** yfir hina maeldu.
+
+   4. FASTINN ER ERA-STODUGUR. Absolut a moti hlutfalli af deildar-
+      medaltali gefur naest sama tolu i dag (1,010 / 1,672 a moti 1,026 /
+      1,707, undir 2%) og leitni i tima er ogreinanleg (r -0,09 og +0,36
+      absolut, -0,20 og +0,27 sem hlutfall). Sidustu 10 timabil ein:
+      0,996 CI [0,917, 1,075] og 1,763 CI [1,604, 1,918] — CI-in skarast
+      vid heildina, svo urtakid er ekki klofid.
+
+   NIDURSTADAN: **raunveruleg PL-utkoma nylida, medaltal yfir 45 lid-
+   timabil.** Midgildi gefur naest sama tolu (1,026 og 1,737) og medaltalid
+   vinnur adeins i LOSO (0,320 a moti 0,326), svo namundun i tvo aukastafi
+   er innan CI hvort sem er.
+     sokn  1,03  medaltal 1,026 CI [0,965, 1,087]  spönn 0,605-1,632
+     a sig 1,71  medaltal 1,707 CI [1,608, 1,819]  spönn 1,026-2,737
+
+   OLL ThRJU LIDIN LENDA NU I 18. SAETI AF 18 A BADUM HLIDUM (a moti
+   11./13., 5./6. og 16./18. adur) og invariantid "nylidi verri en
+   deildar-medaltal a BADUM hlidum" heldur — thad var BROTID a Coventry.
+
+   ThRJU LIDIN FA SOMU TOLU, OG ThAD ER MAELD ADGREINING SEM ER TEKIN
+   BURT, EKKI TYND UPPLYSING: B-deildar-talan bar hana ekki (r = -0,038).
+   Elo og markadslinan adgreina lidin afram og gera thad a maeldum grunni
+   (markadsvog 0,80, sterkasta einstaka inntakid — kafli 3).
+
+   MA EKKI ALHAEFA A `default`. Sjalfgildid nedar (1,1 / 1,6) VIRDIST
+   vera sama spurning og er thad EKKI: falli `team_form.json` ut fa OLL
+   20 lid xG ~0 ur FPL i forleik, thrju thekkjast sem nylidar og **17
+   rotgroin PL-lid lenda i `default`**. Fyrir tha laug er ~medaltal rett
+   varfaerid svar og nylida-fastinn vaeri ROng tala. Tvaer laugar, tveir
+   fastar.
+   ============================================================ */
+export const PROMOTED_PL = {
+  goals_pg: 1.03,        // maelt 1,026 CI [0,965, 1,087], n=45
+  conceded_pg: 1.71,     // maelt 1,707 CI [1,608, 1,819], n=45
+  n: 45, seasons: 15,
+  measured: { goals_pg: 1.026, goals_pg_ci: [0.965, 1.087],
+              conceded_pg: 1.707, conceded_pg_ci: [1.608, 1.819] },
+};
 export function buildTeamMetrics({ players, teams, promoted, teamForm }) {
   if (!players || !teams) return {};
 
@@ -751,15 +848,20 @@ export function buildTeamMetrics({ players, teams, promoted, teamForm }) {
       matches = x.matches ?? null;      // stýrir aðlögunar-vog (prevWeight)
       src = "e0_complete";
     }
-    // Nýliðar hafa enga PL-sögu (xG ~0). Notum B-deildargrunn með afslætti
-    // og MERKJUM sem staðgengil — má ekki líta út sem xG-mæling.
+    /* Nýliðar hafa enga PL-sögu (xG ~0) og fá MÆLDAN FASTA — sjá
+       `PROMOTED_PL` fyrir mælinguna (n=45, 15 tímabil) og fyrir það hvers
+       vegna B-deildar-margfaldarinn var mældur og felldur (r=−0,038 á
+       vörnina; hlutfallið margfaldaði spönnina ~3,8× yfir hina mældu).
+       `promoted` er hér AÐEINS aðildar-próf — "kom þetta lið upp?" — ekki
+       lengur uppspretta talnanna, og `src` segir það: `promoted_measured`
+       er mældur fasti úr annarri laug, ekki B-deildartala með afslætti.  */
     if (xg90 < 0.2) {
       const pb = promoted && promoted[t.name.replace(/ (City|Town|United)$/, "")] ||
                  promoted && promoted[t.name];
       if (pb) {
-        xg90 = +(pb.goals_pg * 0.75).toFixed(2);      // B-deild -> PL afsláttur
-        xgc90 = +(pb.goals_against_pg * 1.35).toFixed(2); // fá meira á sig í PL
-        src = "championship_proxy";
+        xg90 = PROMOTED_PL.goals_pg;
+        xgc90 = PROMOTED_PL.conceded_pg;
+        src = "promoted_measured";
       } else { xg90 = 1.1; xgc90 = 1.6; src = "default"; }
     }
     m[t.id] = { xg90, xgc90, sotFor, sotAg, matches,

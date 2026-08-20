@@ -27,3 +27,8 @@ scripts/.boxtouch-cache/
 # nfl/data/measure/avail.json og HUN er committud; hraskrarnar eru
 # endurhladanlegar og eiga ekki ad vera i opinberu repo-i.
 nfl/scripts/.avail-cache/
+
+# E1 (Championship) CSV sem measure-promoted-proxy.mjs cache-ar. Timabil sem
+# er lokid breytist ekki, svo skrarnar eru sottar EINU SINNI (15 talsins,
+# ~5 MB). Maelinga-inntak, ekki app-gogn — data/ ber engar E1-skrar.
+scripts/.e1-cache/

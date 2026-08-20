@@ -24,8 +24,10 @@
 import { readFileSync, existsSync } from "node:fs";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          TEAM_RANGE_SRC, teamRangeBlind, aggShotRange, aggFixtureRange, routeInStep,
-         teamRangeUse, applyTeamRange, maxEventOf, SHOT_GOAL_TYPE }
+         teamRangeUse, applyTeamRange, maxEventOf, SHOT_GOAL_TYPE,
+         buildTeamMetrics, PROMOTED_PL }
   from "../src/teamstats.js";
+import { makeFixDifficulty, tierOf, TIER_NEUTRAL } from "../src/model.js";
 import { aggregateTeamShots, BIG_CHANCE_XG, IN_BOX_X } from "../scripts/fetch-bsd-teams.mjs";
 
 const D = new URL("../data/", import.meta.url).pathname;
@@ -855,6 +857,201 @@ console.log("\nEININGIN I HEITINU");
   const dupes = Object.entries(perGroup).flatMap(([g, m]) =>
     Object.entries(m).filter(([, v]) => v.length > 1).map(([sh, v]) => `${g}/${sh}: ${v.join(",")}`));
   ok("engin tvitekin `short`-heiti INNAN flokks", dupes.length === 0, dupes.join(" · "));
+}
+
+/* ============================================================
+   12. NYLIDA-FASTINN — INVARIANTID SEM VAR BROTID (20.8.2026)
+
+   HVAD BRAST: `buildTeamMetrics` gaf nylidum B-deildar-mork x0,75 (sokn)
+   og x1,35 (vorn). Hvorug talan bar rokstudning, og afleidingin var
+   maelanleg: **Coventry modeladist med 1,32 mork a sig — SJOTTA BESTA
+   VORN DEILDARINNAR** — og Ipswich lenti nakvaemlega a deildar-medaltali
+   a badum hlidum. Nylidi a ad vera i verstu 1-3.
+
+   MAELT (`scripts/measure-promoted-proxy.mjs`, n=45 lid-timabil, 15 PL-
+   timabil): baðir margfaldararnir eru UTAN CI, OG margfoldunar-formid
+   sjalft fell — B-deildar-vornin hefur r = -0,038 vid PL-vornina.
+   Fastinn vinnur i LOSO a badum hlidum og tapar i engum. Sja `PROMOTED_PL`.
+
+   ThESSI KAFLI VER ThRENNT SEM ER OLIKT:
+     A. TALAN — fastarnir eru their MAELDU, innan CI.
+     B. FORMID — thrju lidin fa SOMU tolu, og B-deildar-tolurnar mega
+        EKKI hafa ahrif a hana. Fellur um leid og margfaldari kemur aftur.
+     C. UTKOMAN — hvert nylida-lid er VERRA en deildin a BADUM hlidum, og
+        ber afram TOLUR (nylidi an talna brytur FFDR i 114 leikjum).
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("12. NYLIDA-FASTINN — maeldur, EINS fyrir oll, og VERRI en deildin");
+console.log("─".repeat(84));
+{
+  const teamsArr = Array.isArray(teams) ? teams : (teams?.teams || []);
+  const promoted = J("promoted_baseline.json");
+  const players = (() => { const d = J("players.json"); return Array.isArray(d) ? d : (d?.players || []); })();
+  const tm = buildTeamMetrics({ players, teams: teamsArr, promoted, teamForm });
+  const byId = Object.fromEntries(teamsArr.map(t => [t.id, t]));
+  /* RADIRNAR ERU VALDAR EFTIR ADILDINNI, EKKI EFTIR `src` — og thad er
+     ekki smekkur. Fyrsta utgafa thessa kafla sigtadi a
+     `src === "promoted_measured"`, svo stokkbreyting sem SETTI GAMLA
+     MARGFALDARANN AFTUR INN (og thar med gamla `src`-heitid) gerdi
+     `promRows` TOMT — og tha fellu invariant-fullyrdingarnar af thvi ad
+     thaer hofdu engar radir, ekki af thvi ad tolurnar voru rangar. Thad er
+     nakvaemlega tóma fullyrdingin ur CLAUDE.md 5b: prof sem finnur ekkert
+     og segir "fellt" er ekki ad maela thad sem thad heldur. Adildin er
+     lesin ur `promoted_baseline.json` med SOMU uppflettingu sem kodinn
+     notar, svo radirnar eru til sama hvad `src` heitir.                  */
+  const pbOf = t => promoted[t.name.replace(/ (City|Town|United)$/, "")] || promoted[t.name];
+  const promRows = teamsArr.filter(pbOf)
+    .map(t => ({ name: t.name, id: t.id, pb: pbOf(t), ...tm[t.id] }));
+
+  /* ---- A. TALAN ER SU MAELDA ---- */
+  const M = PROMOTED_PL.measured;
+  ok(`\`PROMOTED_PL\` ber maelinguna sjalfa (n=${PROMOTED_PL.n}, ${PROMOTED_PL.seasons} timabil)`,
+     PROMOTED_PL.n === 45 && PROMOTED_PL.seasons === 15
+     && Array.isArray(M?.goals_pg_ci) && Array.isArray(M?.conceded_pg_ci),
+     JSON.stringify({ n: PROMOTED_PL.n, seasons: PROMOTED_PL.seasons }));
+  /* Fastinn i kodanum er NAMUNDUN a maeldu medaltali og verdur ad liggja
+     innan CI-sins. Vaeri hann utan thess vaeri hann VALINN, ekki maeldur —
+     nakvaemlega thad sem 0,75 og 1,35 voru.                              */
+  ok(`sokn ${PROMOTED_PL.goals_pg} er innan maelds CI [${M.goals_pg_ci.join(", ")}]`,
+     PROMOTED_PL.goals_pg >= M.goals_pg_ci[0] && PROMOTED_PL.goals_pg <= M.goals_pg_ci[1]);
+  ok(`a sig ${PROMOTED_PL.conceded_pg} er innan maelds CI [${M.conceded_pg_ci.join(", ")}]`,
+     PROMOTED_PL.conceded_pg >= M.conceded_pg_ci[0] && PROMOTED_PL.conceded_pg <= M.conceded_pg_ci[1]);
+  ok("fastinn er namundun a maeldu medaltali (0,01 vikmork)",
+     Math.abs(PROMOTED_PL.goals_pg - M.goals_pg) <= 0.005 + 1e-9
+     && Math.abs(PROMOTED_PL.conceded_pg - M.conceded_pg) <= 0.005 + 1e-9);
+  /* OG GOMLU TOLURNAR MEGA EKKI KOMA AFTUR — thaer eru baðar UTAN CI.
+     Fullyrdingin nefnir thaer BERUM ORDUM svo hun geti ekki thagad.      */
+  ok("gomlu margfaldararnir 0,75 og 1,35 eru baðir UTAN maelds CI",
+     !(0.75 >= M.goals_pg_ci[0] && 0.75 <= M.goals_pg_ci[1])
+     && !(1.35 >= M.conceded_pg_ci[0] && 1.35 <= M.conceded_pg_ci[1]));
+
+  /* ---- B. FORMID — FASTI, EKKI MARGFALDARI ---- */
+  ok(`oll thrju nylida-lidin thekkjast (${promRows.length})`, promRows.length === 3,
+     promRows.map(r => r.name).join(", "));
+  ok("og hvert theirra er MERKT `promoted_measured`",
+     promRows.length === 3 && promRows.every(r => r.src === "promoted_measured"),
+     promRows.map(r => `${r.name}: ${r.src}`).join(" · "));
+  /* ADILDIN VAR RAUNVERULEGA MISMUNANDI I INNTAKINU — annars gaeti
+     "sama tala hja ollum thremur" stadid hja margfaldara lika.          */
+  ok("B-deildar-tolurnar eru raunverulega OLIKAR (forsenda naesta kafla)",
+     new Set(promRows.map(r => `${r.pb.goals_pg}/${r.pb.goals_against_pg}`)).size === 3,
+     promRows.map(r => `${r.name}: ${r.pb.goals_pg}/${r.pb.goals_against_pg}`).join(" · "));
+  ok("hvert theirra ber TOLUR (nylidi an talna brytur FFDR i 114 leikjum)",
+     promRows.length === 3
+     && promRows.every(r => Number.isFinite(r.xg90) && Number.isFinite(r.xgc90)),
+     promRows.map(r => `${r.name}: ${r.xg90}/${r.xgc90}`).join(" · "));
+  ok("hvert theirra ber MAELDA fastann, ekki B-deildar-margfeldi",
+     promRows.every(r => r.xg90 === PROMOTED_PL.goals_pg
+                      && r.xgc90 === PROMOTED_PL.conceded_pg),
+     promRows.map(r => `${r.name}: ${r.xg90}/${r.xgc90}`).join(" · "));
+  /* B-DEILDAR-TOLURNAR ERU ADEINS ADILDAR-PROF. Prófid stokkbreytir theim
+     sjalft — threfaldar sokn og fjordungar vorn — og krefst OBREYTTRAR
+     utkomu. Fullyrdingin "sama tala hja ollum thremur" ein naegdi EKKI:
+     hun stendur lika hja margfaldara ef lidin baeru sama B-deildar-tolu.
+     Her er ekkert gefid ser um inntakid.                                 */
+  {
+    const mutated = JSON.parse(JSON.stringify(promoted));
+    for (const k of Object.keys(mutated)) {
+      mutated[k].goals_pg = mutated[k].goals_pg * 3;
+      mutated[k].goals_against_pg = mutated[k].goals_against_pg / 4;
+    }
+    const tm2 = buildTeamMetrics({ players, teams: teamsArr, promoted: mutated, teamForm });
+    const same = promRows.every(r => tm2[r.id]?.xg90 === r.xg90 && tm2[r.id]?.xgc90 === r.xgc90);
+    ok("B-deildar-tolurnar hafa ENGIN ahrif a gildin (adeins adildar-prof)", same,
+       promRows.map(r => `${r.name}: ${tm2[r.id]?.xg90}/${tm2[r.id]?.xgc90}`).join(" · "));
+  }
+  /* MERKIMIDINN MA EKKI LJUGA. `championship_proxy` var RETT heiti medan
+     tolurnar VORU B-deildartolur; nu er thad heiti a heimild sem er ekki
+     notud (CLAUDE.md 8i: onakvaem tala undir rongu nafni).               */
+  {
+    const src = readFileSync(new URL("../src/teamstats.js", import.meta.url), "utf8");
+    const body = src.slice(src.indexOf("export function buildTeamMetrics"));
+    ok("`src` er `promoted_measured` — gamla heitid er hvergi i fallinu",
+       /src = "promoted_measured"/.test(body) && !/championship_proxy/.test(body));
+  }
+  /* TVAER LAUGAR, TVEIR FASTAR. Falli `team_form.json` ut fa OLL 20 lid
+     xG ~0 og 17 rotgroin PL-lid lenda i `default`; fyrir tha laug er
+     ~medaltal rett svar og nylida-fastinn vaeri ROng tala.               */
+  {
+    const fake = [{ id: 999, name: "Nowhere Rovers", short: "NOW" }];
+    const tm3 = buildTeamMetrics({ players: [], teams: fake, promoted, teamForm });
+    ok("othekkt lid faer `default`, EKKI nylida-fastann",
+       tm3[999]?.src === "default"
+       && tm3[999]?.xg90 !== PROMOTED_PL.goals_pg
+       && tm3[999]?.xgc90 !== PROMOTED_PL.conceded_pg,
+       `${tm3[999]?.src} ${tm3[999]?.xg90}/${tm3[999]?.xgc90}`);
+  }
+  /* TVEGGJA-TIMABILA BLONDUNIN MA EKKI RORA VID FASTANN. `prevWeight` er
+     1,0 thegar `matches` er null, svo vaeru `prevGoals`/`prevConc` sett
+     yrdi fastinn blandadur vid timabil sem er EKKI TIL.                  */
+  ok("nylidi hefur matches/prev* null — blondunin er thvi engin adgerd",
+     promRows.every(r => r.matches == null && r.prevGoals == null && r.prevConc == null
+                      && r.prevSotFor == null && r.prevSotAg == null),
+     promRows.map(r => `${r.name}: m=${r.matches} pg=${r.prevGoals}`).join(" · "));
+
+  /* ---- C. UTKOMAN — VERRI EN DEILDIN A BADUM HLIDUM ---- */
+  const e0 = (teamForm?.teams || []).filter(t => t.matches > 0
+    && Number.isFinite(t.goals_pg) && Number.isFinite(t.conceded_pg));
+  ok(`deildar-dreifingin er til (${e0.length} lid med E0-rod)`, e0.length >= 15);
+  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const gfMean = avg(e0.map(t => t.goals_pg)), gaMean = avg(e0.map(t => t.conceded_pg));
+  const pct = (a, q) => { const s = a.slice().sort((x, y) => x - y);
+    return s[Math.min(s.length - 1, Math.floor(q * (s.length - 1)))]; };
+  const gfQ1 = pct(e0.map(t => t.goals_pg), 0.25);
+  const gaQ3 = pct(e0.map(t => t.conceded_pg), 0.75);
+  /* ThETTA ER INVARIANTID SEM VAR BROTID — og thad var brotid a Coventry
+     (sokn 1,58 = 5. besta, a sig 1,32 = 6. besta). Baðar hlidar tharf:
+     "verri i sokn" ein hleypti gomlu Coventry-tolunni i gegn.            */
+  const badMean = promRows.filter(r => !(r.xg90 < gfMean && r.xgc90 > gaMean));
+  ok(`hvert nylida-lid er VERRA en deildar-medaltal a BADUM hlidum `
+     + `(sokn < ${gfMean.toFixed(3)}, a sig > ${gaMean.toFixed(3)})`,
+     promRows.length === 3 && badMean.length === 0,
+     badMean.map(r => `${r.name}: ${r.xg90}/${r.xgc90}`).join(" · "));
+  /* OG STERKARA: i lakasta fjordungi a badum hlidum. Medaltalid eitt er
+     lagt mark — lid getur verid "undir medaltali" og samt i midju.       */
+  const badQ = promRows.filter(r => !(r.xg90 <= gfQ1 && r.xgc90 >= gaQ3));
+  ok(`hvert nylida-lid er i LAKASTA FJORDUNGI a badum hlidum `
+     + `(sokn <= ${gfQ1.toFixed(2)}, a sig >= ${gaQ3.toFixed(2)})`,
+     promRows.length === 3 && badQ.length === 0,
+     badQ.map(r => `${r.name}: ${r.xg90}/${r.xgc90}`).join(" · "));
+
+  /* ---- D. FFDR HELDUR AFRAM AD VERA TALA I OLLUM 114 LEIKJUM ----
+     Nylidi an talna vaeri ekki "tomur dalkur" heldur `fx.fdr`-fallback i
+     ollum leikjum thriggja lida — FFDR slokknar an thess ad neitt syni
+     thad. Thess vegna er thetta profad A BITANUM, ekki bara a rodunum.  */
+  {
+    const fixtures = (() => { const d = J("fixtures.json"); return Array.isArray(d) ? d : (d?.fixtures || []); })();
+    const eloByTeam = {}; (J("elo.json")?.teams || []).forEach(t => eloByTeam[t.fpl_id] = t);
+    const fd = makeFixDifficulty({ teamMetrics: tm, teamById: byId, odds: J("odds.json"), eloByTeam });
+    let n = 0, bad = 0, harder = 0;
+    for (const f of fixtures) {
+      for (const [me, opp, home] of [[f.team_h, f.team_a, 1], [f.team_a, f.team_h, 0]]) {
+        if (!promRows.some(r => r.id === me)) continue;
+        const fx = { opp, home, fdr: home ? f.team_h_difficulty : f.team_a_difficulty,
+                     kickoff: f.kickoff_time };
+        for (const p of [1, 2, 3, 4]) {
+          const d = fd(me, fx, p); n++;
+          if (!Number.isFinite(d) || d < 1 || d > 5) bad++;
+          /* Nylidi a ekki ad eiga LETTA leiki ad medaltali — threpin eru
+             algild (CLAUDE.md 3) og hlutlausa midthrepid er TIER_NEUTRAL. */
+          if (tierOf(d) > TIER_NEUTRAL) harder++;
+        }
+      }
+    }
+    ok(`FFDR er tala i ollum ${n} nylida-leikjum x stodum`, n >= 400 && bad === 0,
+       `${bad} ogildar`);
+    ok(`meirihluti nylida-leikja er ThYNGRI en hlutlausa threpid (${harder}/${n})`,
+       n > 0 && harder > n * 0.6, `${(100 * harder / n).toFixed(1)}%`);
+  }
+
+  /* ---- E. MAELINGA-SKRIFTAN ER TIL OG ER EKKI I `npm test` ---- */
+  {
+    const p = new URL("../scripts/measure-promoted-proxy.mjs", import.meta.url).pathname;
+    ok("maelinga-skriftan er i repo (annars er talan oendurtakanleg)", existsSync(p));
+    const runner = readFileSync(new URL("../tests/run-tests.mjs", import.meta.url), "utf8");
+    ok("hun er EKKI i `npm test` (hun saekir ~15 CSV-skrar af netinu)",
+       !/measure-promoted-proxy/.test(runner));
+  }
 }
 
 console.log(`\nLIDA-TOLUR: ${pass} stodust, ${fail} fellu`);

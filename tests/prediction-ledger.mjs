@@ -233,17 +233,22 @@ console.log("\n3) PROFSTEINNINN: FFDR i bokhaldi == FFDR a skja");
      Object.values(tm).every(x => Number.isFinite(x.xg90) && Number.isFinite(x.xgc90)));
   /* `src` HEFUR FJOGUR GILD GILDI, ekki tvo — fyrsta utgafa thessarar
      fullyrdingar leyfdi adeins "e0"/"fpl" og FELL a RETTUM kodha, thvi raunveruleg
-     heiti eru `e0_complete`, `championship_proxy`, `default` og `fpl`.
-     Munurinn er ekki orðalag: ThRENNT er ekki thad sama — MAELING
-     (`e0_complete`), STADGENGILL (`championship_proxy`, B-deildartolur med
-     afslaetti) og SJALFGILDI (`default`). Bokhaldid verdur ad geta greint
-     thau i sundur, annars vaeri stadgengill lesinn sem maeling.          */
-  const SRC_OK = new Set(["e0_complete", "championship_proxy", "default", "fpl"]);
+     heiti eru `e0_complete`, `promoted_measured`, `default` og `fpl`.
+     Munurinn er ekki orðalag: ThRENNT er ekki thad sama — MAELING UR ThESSU
+     TIMABILI (`e0_complete`), MAELDUR FASTI UR ANNARRI LAUG
+     (`promoted_measured`, sja `PROMOTED_PL`) og SJALFGILDI (`default`).
+     Bokhaldid verdur ad geta greint thau i sundur.
+     HEITID VAR `championship_proxy` TIL 20.8.2026 og var tha RETT: tolurnar
+     VORU B-deildartolur med afslaetti (x0,75 / x1,35). Their tveir
+     margfaldarar voru maeldir og felldir (n=45; r=-0,038 a vornina) og
+     tolurnar eru nu MAELDUR FASTI, svo gamla heitid hefdi ordid merkimidi
+     um heimild sem var ekki longur notud.                                */
+  const SRC_OK = new Set(["e0_complete", "promoted_measured", "default", "fpl"]);
   ok("heimildin er skrad og er thekkt gildi",
      Object.values(tm).every(x => SRC_OK.has(x.src)),
      [...new Set(Object.values(tm).map(x => x.src))].join(", "));
   ok("nyliðar fa STADGENGIL sem er MERKTUR, ekki maelingu",
-     Object.values(tm).filter(x => x.src === "championship_proxy")
+     Object.values(tm).filter(x => x.src === "promoted_measured")
        .every(x => Number.isFinite(x.xg90) && Number.isFinite(x.xgc90)));
 }
 
