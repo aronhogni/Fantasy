@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import * as D from "./data.js";
 import { buildRows, normalizeLeague } from "./build.js";
-import { leagueFromSleeper } from "./sleeper-league.js";
+import { leagueFromSleeper, boardShape } from "./sleeper-league.js";
 import DraftBoard from "./DraftBoard.jsx";
 import Experts from "./Experts.jsx";
 import PlayerTable from "./PlayerTable.jsx";
@@ -175,6 +175,67 @@ export default function App() {
      Þess vegna er thetta EKKI vistad i `localStorage` — thad myndi
      byrja ad polla vid naestu hledslu.                                */
   const [liveScope, setLiveScope] = useState(null);
+
+  /* ============================================================
+     LOGUN DRAFTSINS BYR HER — ThVI `vbd` ER REIKNAD HER
+     ============================================================
+     Þetta astand var inni i `DraftBoard` og var ADEINS notad i
+     snakk-staerdfraedina (naesta val, thak, litun). Þad var ekki nog:
+
+       Hann tengdi 10-lida MOCK medan deildin i appinu stod a 12 lidum.
+       Snakk-tolurnar voru rettar (thaer koma ur draftinu) en HVER VBD-
+       TALA var reiknud fyrir 12 lid: varamanns-threpid WR29 -> WR42,
+       +26,9 stig a hvern WR — og hann tok SEX WR i sjo umferdum og
+       fylgdi radgjofinni i hverju vali.
+
+     Mock-draft ber enga `league_id`, svo thar eru ENGAR reglur notandans
+     ad yfirskrifa: draftid er eina heimildin, og hun ber `settings.teams`,
+     `settings.rounds`, `settings.slots_*` OG `metadata.scoring_type`
+     (maelt a lifandi API 20.8.2026). Þess vegna er logunin lyft hingad —
+     `buildRows` er kallad HER, svo deild sem er leidd ut ur drafti getur
+     ekki bara verid til inni i bordinu.
+
+     SKORDA, EKKI BER HLUTUR: `DraftBoard` er endurraestur vid svissun
+     (`key={activeId}`) en thetta astand er thad ekki, svo an skordunnar
+     baeri ny deild AFRAM logun draftsins sem var slitid — og reiknadi
+     VBD ur drafti sem er ekki tengt. Skordan er lesin I TEIKNINGU (ekki i
+     effecti), svo hun getur ekki verid einni teikningu of sein.        */
+  const [shapeState, setShapeState] = useState({ scope: null, shape: null });
+  const onDraftShape = useCallback((next) => {
+    setShapeState((prev) => {
+      /* ============================================================
+         AÐEINS ÞEGAR HUN BREYTIST — MÆLT, EKKI VARFAERNI
+         ============================================================
+         `pull` byr NYJAN hlut i hverri pollun, svo tilvisunin var alltaf
+         ny og allt tred endurteiknadi sig — 200 rada tafla, skortstikan
+         og radgjafarkassinn — a 1,5 sek fresti i beinni. `draft-live.mjs`
+         (sem styttir pollunar-bidina i 6 ms) for ur ~20 sekundum i YFIR
+         TOLF MINUTUR og var enn i fyrsta kafla.
+
+         OG HVERT NYTT SVID VERDUR AD VERA I SAMANBURDINUM. Vaeri
+         `leagueId`/`scoringType`/`slots` utan hans kaemu thau UPP i
+         fyrstu pollun og aldrei aftur — hlidid sem sparar endurteikningu
+         er lika hlid a upplysingunni (sama villa og `unknown` i
+         `pickSignature`).                                              */
+      const a = prev.shape, b = next || null;
+      if (prev.scope === activeId && a === b) return prev;
+      const same = !!a && !!b && a.teams === b.teams && a.rounds === b.rounds
+        && a.type === b.type && a.status === b.status && a.leagueId === b.leagueId
+        && a.scoringType === b.scoringType
+        && JSON.stringify(a.slots) === JSON.stringify(b.slots);
+      if (prev.scope === activeId && same) return prev;
+      return { scope: activeId, shape: b };
+    });
+  }, [activeId]);
+  const draftShape = shapeState.scope === activeId ? shapeState.shape : null;
+
+  /* Hvad bordid reiknar med, og hvadan hvert svid kemur. Ein hrein
+     uppspretta fyrir BADI tolurnar og stoduljosid. */
+  const board = useMemo(() => boardShape({
+    league,
+    shape: draftShape,
+    leagueId: (active.imported && active.imported.leagueId) || null,
+  }), [league, draftShape, active.imported]);
 
   /* Innflutningur baetir vid — hann SKIPTIR EKKI UT. Deild sem er
      flutt inn tvisvar uppfaerist a sinum stad (reglur geta breytst i
@@ -407,7 +468,7 @@ export default function App() {
   }, [view, need]);
 
   /* ---- rodirnar ---- */
-  const built = useMemo(() => {
+  const buildFor = useCallback((lg) => {
     if (!core || !core.players) return { rows: [], meta: {} };
     return buildRows({
       players: core.players,
@@ -416,9 +477,17 @@ export default function App() {
       experts: extra.experts,
       schedule: core.schedule,
       market: core.market,
-      league,
+      league: lg,
     });
-  }, [core, extra.seasons, extra.accuracy, extra.experts, league]);
+  }, [core, extra.seasons, extra.accuracy, extra.experts]);
+  const built = useMemo(() => buildFor(league), [buildFor, league]);
+  /* BORDID FAER SINAR EIGIN RODIR **ADEINS** ef logun draftsins er onnur
+     en deildarinnar — annars er thad SAMA tilvisunin og allt annad notar
+     (`boardShape` skilar somu deild ohreyfdri), svo hvorki er reiknad
+     tvisvar ne teiknad tvisvar. Aðrir flipar halda DEILDINNI: mock ma
+     ekki endurskilgreina deildina sem notandinn spilar i. */
+  const builtBoard = useMemo(() => (board.league === league
+    ? built : buildFor(board.league)), [board.league, league, built, buildFor]);
 
   if (err && !core) {
     return <div className="shell"><div className="empty">
@@ -485,7 +554,8 @@ export default function App() {
       {view === "draft" && (
         <DraftBoard key={activeId} leagueKey={activeId}
           sleeperUser={sleeperUser} setSleeperUser={setSleeperUser}
-          rows={built.rows} meta={built.meta} league={league}
+          rows={builtBoard.rows} meta={builtBoard.meta} league={board.league}
+          draftShape={draftShape} onShape={onDraftShape} board={board}
           sync={active.sync} setSync={setSync}
           imported={active.imported} warnings={active.warnings}
           teams={active.teams}

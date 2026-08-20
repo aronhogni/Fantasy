@@ -662,14 +662,39 @@ console.log("\n2bb3. saeti utan deildar er ekki \"sidasta val\"");
   ok(!!okLine, `saeti 7: kassinn ber naesta val (${okLine ? okLine[0] : "ekkert"})`);
   ok(!/does not exist in a/.test(text()), "og engin vidvorun um saetid");
 
-  /* Og svo 12-lida mock-id, sem ber saeti 12 i `draft_order`. */
+  /* ============================================================
+     OG SVO 12-LIDA MOCK-ID — TALAN SEM SAETID ER BORID VID SNERIST
+     ============================================================
+     Hér stod ad saeti 12 "vaeri ekki til i 10-lida deild". Þad var rett
+     medan bordid reiknadi ALLTAF ur deildinni. Fra 20.8.2026 reiknar
+     mock ur DRAFTINU (`boardShape`), og tha er saeti 12 i 12-lida mock-i
+     einfaldlega TIL: vidvorunin var ordin fals-jakvaed a rettu saeti.
+
+     INVARIANTIN LIFIR SAMT OG HUN ER SU SAMA: saeti sem er utan
+     DRAFTSINS er sagt, og thad er ekki "sidasta val". Þess vegna er
+     saeti 14 slegid inn i 12-lida mock i sama kafla — annars faerist
+     fullyrdingin ur profinu og eftir stæði adeins "engin vidvorun",
+     sem er uppfyllanlegt med thvi ad slokkva a kassanum.              */
   scenario = SCENARIOS.mock12;
   await go("m12");
-  await waitFor(() => /Slot 12 does not exist/.test(text()), 4000);
+  await waitFor(() => /12 teams/.test(text()), 4000);
+  await settle(300);
+  ok(!/Slot 12 does not exist/.test(text()),
+    "saeti 12 ER til i 12-lida mock-i — engin fals-vidvorun");
   ok(!/This is your last pick/.test(text()),
-    "saeti 12 i 10-lida deild segir EKKI \"this is your last pick\"");
-  ok(/Slot 12 does not exist in a 10-team league/.test(text()),
-    "heldur segir berum ordum ad saetid se ekki til");
+    "og hvergi \"this is your last pick\"");
+  const mockLine = /Your next pick is\s*(\d+),\s*(\d+) picks? away/.exec(text());
+  ok(!!mockLine,
+    `heldur ber kassinn naesta val undir 12-lida vorpun (${
+      mockLine ? mockLine[0] : "ekkert"})`);
+
+  /* HIN ATTIN: saeti sem er utan DRAFTSINS. */
+  await setInput("Your slot", "14");
+  await settle(250);
+  ok(/Slot 14 does not exist in a 12-team draft/.test(text()),
+    "saeti 14 i 12-lida mock-i er sagt — og ordid er \"draft\", ekki \"league\"");
+  ok(!/This is your last pick/.test(text()),
+    "og thad er enn ekki \"sidasta val\"");
   root.unmount();
 }
 
@@ -727,23 +752,42 @@ console.log("\n2bb4. mock i annarri staerd en deildin er SAGT");
   ok(/Connected/.test(connText()) && !/Disconnected/.test(connText()),
     `og thad stendur i ordum ("${connText().trim()}")`);
 
-  /* Sidan 12-lida mock i somu deild. */
+  /* ============================================================
+     SIDAN 12-LIDA MOCK I SOMU DEILD — OG ThAD ER **GRAENT** (20.8.2026)
+     ============================================================
+     Hér stod ad thetta astand vaeri RAUTT med linunni "draft has 12
+     teams, league has 10 — connect the league this draft belongs to".
+     Notandinn las nakvaemlega thad a lifandi mock-i daginn fyrir draftid
+     og BADIR hlutar voru osannir: mock-draft ber enga `league_id`, svo
+     bodin baðu hann um ad tengja deild sem ER EKKI TIL, og "Disconnected"
+     stod a drafti sem svaradi 1,5 sek adur.
+
+     RETTA SVARID ER EKKI MILDARA ORDALAG: thegar draftid a enga deild er
+     DRAFTID EINA HEIMILDIN og bordid reiknar THAD (`boardShape`) — teams,
+     rounds, og `slots_*`/`scoring_type` ef thau eru i svarinu. Tha er
+     enginn mismunur til ad segja fra. Linan segir HVADAN hvert svid kemur.
+
+     MISMUNAR-VORDURINN SJALFUR er nu i `draft-live.mjs` kafla 16c: draft
+     sem ber `league_id` ANNARRAR deildar er afram RAUTT. Þad var alltaf
+     tilfellid sem kostadi sex WR i sjo umferdum — ekki mock.           */
   scenario = SCENARIOS.mock12;
   await go("m12");
   await waitFor(() => /12 teams/.test(text()), 3000);
-  ok(conn() === "bad",
-    `12-lida mock i 10-lida deild: ljosid verdur RAUT (fann "${conn()}")`);
-  ok(conn() !== "good", "logun sem stemmir ekki getur ALDREI teiknast graen");
-  ok(/Disconnected/.test(connText()), `og ordin segja thad lika ("${connText().trim()}")`);
-  ok(/draft has 12 teams, league has 10/.test(text()),
-    "og hun nefnir BADAR tolurnar, ekki bara ad eitthvad se ad");
-  /* AFLEIDINGIN SEM GAMLI TEXTINN NEFNDI EKKI: varamanns-threpin, og thar
-     med rodin sjalf. Gamli textinn sagdi ad adeins snakk-tolurnar vaeru ur
-     deildinni — sem er nu OSATT (thaer eru ur draftinu) og vanmat thad sem
-     eftir stendur. Sja README 6b-3. */
-  ok(/VBD number on this board is computed for your league/
+  await settle(250);
+  ok(conn() === "good",
+    `lifandi mock an deildar er TENGT (fann "${conn()}")`);
+  ok(/Connected/.test(connText()) && !/Disconnected/.test(connText()),
+    `og ordin segja thad ("${connText().trim()}")`);
+  ok(!/connect the league this draft belongs to/i.test(text()),
+    "og hvergi bod um ad tengja deild sem mock hefur ekki");
+  ok(/mock draft with no league — 12 teams, 16 rounds from this draft/
        .test(text().replace(/\s+/g, " ")),
-    "og hun nefnir VBD — ekki adeins snakk-tolurnar");
+    "heldur segir linan hvadan logunin kemur (12 lid, 16 umferdir ur draftinu)");
+  /* MOCK12 BER HVORKI `slots_*` NE `scoring_type`, svo hlutasannleikurinn
+     er SAGDUR sem hlutasannleikur — hann er ekki thagður. */
+  ok(/scoring and starting slots from the league you have loaded/
+       .test(text().replace(/\s+/g, " ")),
+    "og ad stigagjof og byrjunarsaeti komi UR DEILDINNI, thvi mock-id ber thau ekki");
   root.unmount();
 }
 

@@ -227,8 +227,30 @@ console.log("\n4. innflutningurinn er tengdur");
     ok(new RegExp(`\\b${fn}\\s*\\(`).test(withoutImports), `\`${fn}(\` er kallad`);
   }
   const app = stripComments(read("App.jsx"));
-  ok(/\bnormalizeLeague\s*\(/.test(stripImports(app)),
+  const appBody = stripImports(app);
+  ok(/\bnormalizeLeague\s*\(/.test(appBody),
     "`App.jsx` thvingar deildina gegnum `normalizeLeague(`");
+
+  /* ============================================================
+     `boardShape` MA EKKI VERA HREINT FALL SEM ENGINN KALLAR
+     ============================================================
+     Þetta er nakvaemlega gildran sem thetta safn er til fyrir. Fyrir
+     20.8.2026 var logun draftsins LOKUD INNI i `DraftBoard` og notud
+     adeins i snakk-tolurnar; VBD var afram reiknad ur deildinni, svo
+     10-lida mock a 12-lida deild gaf varamanns-threpid WR29 -> WR42 og
+     sex WR i sjo umferdum. Fallid ma thvi ekki adeins vera til: utkoman
+     verdur ad fara BADA leidina — i `buildRows` (tolurnar) OG nidur i
+     bordid (ljosid og textinn). Vaeri annad kallid fjarlaegt vaeru thau
+     tvo osamhljoda og ekkert annad prof segdi fra thvi.              */
+  ok(/\bboardShape\s*\(/.test(appBody),
+    "`App.jsx` kallar `boardShape(` — logun draftsins er LEIDD UT, ekki gefin ser");
+  ok(/buildFor\s*\(\s*board\.league\s*\)/.test(appBody),
+    "og hun fer i `buildRows` (VBD-threpin), ekki adeins i snakk-tolurnar");
+  ok(/board=\{board\}/.test(app),
+    "og SAMA utkoma fer nidur i bordid, svo ljosid og tolurnar geta ekki rekid i sundur");
+  ok(/\bstartersFromSlots\s*\(/.test(
+       stripImports(stripComments(read("DraftBoard.jsx")))),
+    "`slots_*` draftsins eru LESIN (`startersFromSlots(`) — mock ber sin eigin saeti");
   ok(/\bD\.scoped\s*\(|\bscoped\s*\(/.test(
        stripImports(stripComments(read("DraftBoard.jsx")))),
     "og astandid er lyklad a deild (`scoped(`)");

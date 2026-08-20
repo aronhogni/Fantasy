@@ -29,6 +29,7 @@
 import {
   parseSleeperInput, startersFromRoster, scoringFromSettings,
   maxPosFor, teamsFromLeague, leagueFromSleeper,
+  startersFromSlots, scoringFromDraftLabel, boardShape,
 } from "../src/sleeper-league.js";
 import { DEFAULT_LEAGUE } from "../src/build.js";
 import { ownPickNo, nextOwnPick, picksUntilNext, survivalProb } from "../src/advice.js";
@@ -628,6 +629,148 @@ console.log("\nstigareglur: allt sem vid reiknum EKKI verdur ad sjast");
   const te = scoringFromSettings({ ...PURE, bonus_rec_te: 0.5 });
   ok(te.warnings.length === 1 && /TE premium/.test(te.warnings[0]),
     `TE premium gefur eitt skilabod med mannamali (${te.warnings.length})`);
+}
+
+/* ============================================================
+   10. DRAFTID SEM HEIMILD — MOCK BER ENGA DEILD
+   ============================================================
+   VILLAN: notandinn tengdi 10-lida mock og las "Disconnected — draft
+   has 10 teams, league has 12 — connect the league this draft belongs
+   to" medan draftid var i beinni. Mock-draft BER ENGA `league_id`, svo
+   bodin baðu hann um ad gera thad sem ekki er haegt — og verra: bordid
+   reiknadi hverja VBD-tolu fyrir 12 lid medan hann draftadi i 10-lida
+   mock-i (varamanns-threpid WR29 -> WR42, +26,9 stig a hvern WR).
+
+   SVIDIN ERU MAELD A LIFANDI API 20.8.2026 (`/v1/draft/1389356308125192192`):
+   `settings` ber `teams`, `rounds`, `slots_qb/rb/wr/te/flex/k/def/bn` og
+   `metadata` ber `scoring_type`. Þau bua a DRAFTINU, ekki a deildinni.
+
+   HVER FULLYRDING HER ER UM HEIMILD, EKKI UM TOLU: "hvadan kemur
+   thetta svid?" — thvi thad var spurningin sem var svarad rangt.     */
+console.log("\n10. mock-draft: logunin lesin ur draftinu sjalfu");
+{
+  /* --- byrjunarsaetin ur `slots_*` --- */
+  const sl = startersFromSlots({ teams: 10, rounds: 15, slots_qb: 1, slots_rb: 2,
+    slots_wr: 2, slots_te: 1, slots_flex: 2, slots_k: 1, slots_def: 1, slots_bn: 5 });
+  ok(sl && sl.starters.QB === 1 && sl.starters.RB === 2 && sl.starters.WR === 2
+     && sl.starters.TE === 1 && sl.starters.FLEX === 2 && sl.starters.K === 1,
+    `slots_* -> byrjunarsaeti (${JSON.stringify(sl && sl.starters)})`);
+  ok(sl && sl.starters.DST === 1 && sl.starters.DEF == null,
+    "`slots_def` verdur **DST**, ekki DEF — thad er okkar heiti og `mustFill` les thad");
+  ok(sl && sl.bench === 5, `bekkurinn er talinn ser (${sl && sl.bench})`);
+  ok(sl && Array.isArray(sl.flexPos) && sl.flexPos.join("/") === "RB/WR/TE",
+    `FLEX ber sinar stodur (${sl && sl.flexPos})`);
+
+  const sf = startersFromSlots({ slots_qb: 1, slots_super_flex: 1, slots_rb: 2 });
+  ok(sf && sf.superflex === true && sf.starters.SUPERFLEX === 1,
+    "`slots_super_flex` kveikir a superflex");
+
+  /* NULL ER SVAR: svar an byrjunarsaeta veit thad ekki, og tha er
+     deildin eina heimildin. Tomur hlutur vaeri "deild an byrjunarsaeta". */
+  ok(startersFromSlots({ teams: 10, rounds: 15 }) === null,
+    "engin `slots_*` -> null (ekki tomur hlutur, sem laesi eins og engin saeti)");
+  ok(startersFromSlots(null) === null && startersFromSlots("rusl") === null,
+    "og rusl-inntak fellur ekki");
+
+  /* --- stigagjofin ur `metadata.scoring_type` --- */
+  ok(scoringFromDraftLabel("ppr") === "ppr", "`ppr` -> ppr");
+  ok(scoringFromDraftLabel("half_ppr") === "half-ppr", "`half_ppr` -> half-ppr");
+  ok(scoringFromDraftLabel("dynasty_half_ppr") === "half-ppr",
+    "`dynasty_half_ppr` -> half-ppr (halfid er thad sem gildir)");
+  ok(scoringFromDraftLabel("std") === "standard", "`std` -> standard");
+  /* OG ThAD SEM SEGIR EKKERT FAER **NULL**. "2qb" er saeta-regla, ekki
+     mottoku-stig: ad giska a ppr thar vaeri omeld tala sem lítur ut eins
+     og maeling — og hun myndi faera hvert VBD i deildinni. */
+  ok(scoringFromDraftLabel("2qb") === null && scoringFromDraftLabel("dynasty") === null,
+    "`2qb`/`dynasty` -> null, thvi thau segja EKKERT um mottoku-stig");
+  ok(scoringFromDraftLabel(null) === null && scoringFromDraftLabel("") === null,
+    "og tomt gildi er null");
+
+  /* --- utkoman: hvad bordid reiknar med, og hvadan --- */
+  const league = { ...DEFAULT_LEAGUE, teams: 12, rounds: 14, scoring: "half-ppr" };
+  const mockShape = { teams: 10, rounds: 15, leagueId: null, scoringType: "ppr",
+    slots: startersFromSlots({ slots_qb: 1, slots_rb: 2, slots_wr: 2, slots_te: 1,
+      slots_flex: 2, slots_k: 1, slots_def: 1, slots_bn: 5 }),
+    type: "snake", status: "drafting", picks: 3 };
+
+  const b = boardShape({ league, shape: mockShape, leagueId: "L1" });
+  ok(b.state === "mock", `draft an deildar er "mock" (fann "${b.state}")`);
+  ok(b.green === true, "og hann er TENGDUR — lifandi mock er ekki \"disconnected\"");
+  ok(b.league.teams === 10 && b.league.rounds === 15,
+    `logunin kemur ur draftinu (${b.league.teams}x${b.league.rounds})`);
+  ok(b.league.scoring === "ppr",
+    `og stigagjofin lika (${b.league.scoring}) — deildin sagdi half-ppr`);
+  ok(b.league.starters.WR === 2 && b.league.starters.FLEX === 2,
+    `og byrjunarsaetin (${JSON.stringify(b.league.starters)})`);
+  ok(b.from.teams === "draft" && b.from.rounds === "draft"
+     && b.from.scoring === "draft" && b.from.starters === "draft",
+    "og `from` segir um HVERT svid hvadan thad kom");
+  ok(!/connect the league/i.test(b.line || ""),
+    `linan bidur ekki um ad tengja deild sem er ekki til ("${b.line}")`);
+  ok(/mock draft with no league/.test(b.line || ""),
+    "heldur nefnir hun astandid sjalft");
+
+  /* HLUTASANNLEIKUR ER SAGDUR SEM HLUTASANNLEIKUR. Mock an `slots_*`
+     faer byrjunarsaeti UR DEILDINNI — og thad er ekki thagað, thvi
+     saetafjoldinn faerir varamanns-threpid alveg eins og lidafjoldinn. */
+  const thin = boardShape({ league,
+    shape: { ...mockShape, slots: null, scoringType: null }, leagueId: "L1" });
+  ok(thin.green === true && thin.from.scoring === "league"
+     && thin.from.starters === "league",
+    "mock an `slots_*`/`scoring_type`: thau koma ur deildinni");
+  ok(/scoring and starting slots from the league you have loaded/.test(thin.line),
+    `og linan segir thad berum ordum ("${thin.line}")`);
+  ok(thin.league.teams === 10 && thin.league.scoring === "half-ppr",
+    "logunin er samt draftsins — hvert svid fyrir sig");
+
+  /* --- ONNUR DEILD ER ANNAD MAL, OG HUN ER RAUD ---
+     Þetta er vordurinn sem MA EKKI mildast thegar mock vard graent:
+     draft sem BER `league_id` sem er onnur en su sem er hladin er
+     raunveruleg notandavilla — reglurnar a skjanum eru einnar deildar,
+     volin annarrar. Þad var HUN sem kostadi sex WR i sjo umferdum. */
+  const other = boardShape({ league,
+    shape: { ...mockShape, leagueId: "L9" }, leagueId: "L1" });
+  ok(other.state === "other" && other.green === false,
+    `draft annarrar deildar er RAUTT (${other.state})`);
+  ok(/belongs to another Sleeper league \(L9\)/.test(other.line),
+    `og audkennid er nefnt ("${other.line}")`);
+  ok(other.league.scoring === "half-ppr" && other.league.starters.WR
+     === league.starters.WR,
+    "og reglur deildarinnar standa — vid tokum ekki upp reglur annarrar deildar");
+
+  /* --- draft deildarinnar sjalfrar: engin lina, og reglurnar hennar --- */
+  const own = boardShape({ league: { ...league, teams: 10, rounds: 15 },
+    shape: { ...mockShape, leagueId: "L1" }, leagueId: "L1" });
+  ok(own.state === "league" && own.green === true && own.line === null,
+    `samstaeður deildardraft: graent og ENGIN lina (${own.line})`);
+  ok(own.league.scoring === "half-ppr",
+    "og `metadata.scoring_type` yfirskrifar ALDREI `scoring_settings` deildarinnar");
+
+  /* --- ekkert draft --- */
+  const none = boardShape({ league, shape: null, leagueId: "L1" });
+  ok(none.state === "none" && none.green === false && none.league === league,
+    "ekkert draft: engin tenging og SAMA deildin (sama tilvisun)");
+
+  /* IDENTITETID ER STODUGT — annars endurreiknast `buildRows` (200 radir
+     og hver VBD-tala) i HVERRI pollun. Þad er maelanleg krafa, ekki
+     smekkur: `draft-live.mjs` for ur ~20 sek i yfir tolf minutur thegar
+     hluturinn var nyr i hvert sinn. */
+  const same = boardShape({ league: { ...league, teams: 10, rounds: 15 },
+    shape: { teams: 10, rounds: 15, leagueId: "L1" }, leagueId: "L1" });
+  ok(same.league.teams === 10, "forsenda: logunin er sú sama");
+  const lg2 = { ...league, teams: 10, rounds: 15 };
+  ok(boardShape({ league: lg2, shape: { teams: 10, rounds: 15, leagueId: "L1" },
+                  leagueId: "L1" }).league === lg2,
+    "engin breyting -> SAMA tilvisunin (ekkert endurreiknad)");
+
+  /* RUSL-SVID MEGA EKKI SMITA. `{"teams":"abc"}` var raunveruleg villa i
+     `normalizeLeague` (hver VBD-tala vard NaN); hér er sama krafa a
+     ytra svarinu. */
+  const junk = boardShape({ league,
+    shape: { teams: "abc", rounds: null, leagueId: null }, leagueId: "L1" });
+  ok(junk.league.teams === 12 && junk.league.rounds === 14,
+    `rusl i `+"`settings`"+` fellur i deildina (${junk.league.teams}x${junk.league.rounds})`);
+  ok(Number.isFinite(junk.league.teams), "og hvergi NaN");
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

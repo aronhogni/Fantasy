@@ -781,3 +781,207 @@ function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
+
+/* ============================================================
+   7. DRAFTID SEM HEIMILD — MOCK BER ENGA DEILD, OG THAD ER SVAR
+   ============================================================
+   VILLAN SEM THETTA LEYSIR VAR TVIThAETT OG HUN VAR A SKJANUM HJA
+   NOTANDANUM 20.8.2026, DAGINN FYRIR DRAFTID:
+
+     "Disconnected — draft has 10 teams, league has 12 — connect the
+      league this draft belongs to"
+
+   Bædi hlutar voru osannir um thad astand:
+
+   (1) **MOCK-DRAFT A ENGA DEILD.** Sleeper skilar honum an `league_id`
+       — thess vegna flytur `connect` engar reglur inn. Bodin "connect
+       the league this draft belongs to" bad hann thvi um ad gera thad
+       sem ER EKKI HAEGT.
+   (2) **"Disconnected" um draft sem var i beinni.** Sami kassi sagdi
+       "status drafting · 3 picks made · live" tveimur linum nedar.
+
+   OG ThAD ER FLEIRA EN ORDALAG: **thegar draftid a enga deild er
+   DRAFTID EINA HEIMILDIN um logun sina** — og hun er OLL i svarinu:
+
+     settings.teams · settings.rounds        (fjoldi lida, umferdir)
+     settings.slots_qb/rb/wr/te/flex/k/def   (byrjunarsaetin)
+     metadata.scoring_type                   (ppr / half_ppr / std)
+
+   MAELT A LIFANDI SLEEPER-API 20.8.2026 (deildardraft notandans,
+   `/v1/draft/1389356308125192192`): `settings` ber `teams: 10`,
+   `rounds: 15`, `slots_qb: 1`, `slots_rb: 2`, `slots_wr: 2`,
+   `slots_te: 1`, `slots_flex: 2`, `slots_k: 1`, `slots_def: 1`,
+   `slots_bn: 5`, og `metadata.scoring_type: "ppr"`. Svidin bua a
+   DRAFTINU, ekki a deildinni: `create_draft`-mutationin i GraphQL-API-i
+   Sleeper tekur `k_settings`/`v_settings` og `k_metadata`/`v_metadata`
+   MED `league_id` sem VALFRJALSAN lid — mock er sama kallid an deildar.
+
+   HEIMILD SEM VANTAR ER SAGT FRA, EKKI GISKAD: hvert svid er tekid ur
+   draftinu ADEINS ef thad er tharna, annars fellur thad i deildina sem
+   er hladin, og `from` segir hvort. Vidmotid birtir EINA LINU ur thvi.
+   Þad er thad sem greinir "thetta er mock, allar tolur eru thessa
+   draftsins" fra "snakk-tolurnar eru draftsins, stigagjofin deildarinnar
+   — og thu tharft ad vita thad".
+
+   OG MISMUNAR-VORDURINN STENDUR: draft sem BER `league_id` sem er ONNUR
+   en su sem er hladin er RAUNVERULEG notandavilla (thad var hun sem
+   kostadi sex WR i sjo umferdum) og hun er afram RAUD. Astandunum tveimur
+   var STEYPT SAMAN adur — "engin deild" og "onnur deild" fengu somu
+   bodin — og thau eru ekki sama malid.
+   ============================================================ */
+
+/** Sleeper-slot-heiti -> okkar stodur. `slots_def` er `DST` hja oss. */
+const SLOT_KEYS = {
+  slots_qb: ["QB"], slots_rb: ["RB"], slots_wr: ["WR"], slots_te: ["TE"],
+  slots_k: ["K"], slots_def: ["DST"],
+  slots_flex: ["FLEX", ["RB", "WR", "TE"]],
+  slots_wrrb_flex: ["FLEX", ["RB", "WR"]],
+  slots_rec_flex: ["FLEX", ["WR", "TE"]],
+  slots_super_flex: ["SUPERFLEX", ["QB", "RB", "WR", "TE"]],
+};
+const SLOT_BENCH = ["slots_bn", "slots_ir", "slots_taxi"];
+const SLOT_IDP = ["slots_dl", "slots_lb", "slots_db", "slots_idp_flex"];
+
+/**
+ * `draft.settings` -> somu logun og `startersFromRoster` skilar.
+ *
+ * `null` thegar svarid ber ENGIN byrjunarsaeti — tha veit draftid thad
+ * ekki og deildin er eina heimildin sem til er. Tomur hlutur i stad
+ * `null` vaeri "deild an byrjunarsaeta", sem er ekki deild.
+ */
+export function startersFromSlots(settings) {
+  const s = settings && typeof settings === "object" ? settings : {};
+  const out = { starters: {}, flexPos: null, superflex: false,
+                bench: 0, idp: 0, mixedFlex: false };
+  const flexSets = [];
+  let seen = 0;
+
+  for (const [key, spec] of Object.entries(SLOT_KEYS)) {
+    const n = num(s[key]);
+    if (n == null || n <= 0) continue;
+    seen++;
+    const [pos, kinds] = spec;
+    out.starters[pos] = (out.starters[pos] || 0) + n;
+    if (pos === "SUPERFLEX") out.superflex = true;
+    if (kinds) for (let i = 0; i < n; i++) flexSets.push(kinds);
+  }
+  for (const k of SLOT_BENCH) out.bench += num(s[k]) || 0;
+  for (const k of SLOT_IDP) out.idp += num(s[k]) || 0;
+  if (!seen) return null;
+
+  if (flexSets.length) {
+    const uniq = [...new Set(flexSets.map((x) => x.join("/")))];
+    out.mixedFlex = uniq.length > 1;
+    out.flexPos = [...new Set(flexSets.flat())];
+  }
+  return out;
+}
+
+/**
+ * `metadata.scoring_type` -> okkar thrju afbrigdi, eda `null`.
+ *
+ * `null` ER SVAR: "2qb" og "dynasty" segja EKKERT um motttoku-stig, svo
+ * ad giska a ppr thar vaeri omeld tala sem lítur ut eins og maeling.
+ * Deildin er tha heimildin og thad er SAGT.
+ */
+export function scoringFromDraftLabel(label) {
+  const s = String(label == null ? "" : label).toLowerCase();
+  if (!s) return null;
+  if (s.includes("half")) return "half-ppr";
+  if (s.includes("ppr")) return "ppr";
+  if (s.includes("std") || s.includes("standard")) return "standard";
+  return null;
+}
+
+/**
+ * HVAD BORDID A AD REIKNA MED, OG HVADAN HVER TALA KEMUR.
+ *
+ * `shape` er thad sem `DraftBoard` les ur `/draft/{id}`:
+ *   { teams, rounds, leagueId, scoringType, slots, type, status, picks }
+ * `leagueId` er audkenni deildarinnar sem ER HLADIN (`imported.leagueId`).
+ *
+ * Skilar `{ league, from, state, green, line }`:
+ *   `state`  "none" (ekkert draft) · "mock" (draft an deildar) ·
+ *            "league" (drafts eigin deild er hladin) ·
+ *            "other" (draftid tilheyrir ANNARRI deild)
+ *   `green`  hvort stoduljosid er graent. TVAER STODUR, ekki thrjar.
+ *   `line`   EIN lina a ensku, eda `null` thegar ekkert er ad segja.
+ *   `from`   hvert svid: "draft" eda "league".
+ *
+ * IDENTITETID ER STODUGT: se engu breytt er SAMA `league`-tilvisunin
+ * skilad, svo `buildRows` i `App.jsx` endurreiknist ekki i hverri
+ * pollun (200 rada tafla og hver VBD-tala).
+ */
+export function boardShape({ league, shape, leagueId } = {}) {
+  const L = league || DEFAULT_LEAGUE;
+  const from = { teams: "league", rounds: "league",
+                 scoring: "league", starters: "league" };
+  if (!shape || typeof shape !== "object") {
+    return { league: L, from, state: "none", green: false, line: null };
+  }
+
+  const dLeague = shape.leagueId != null ? String(shape.leagueId) : null;
+  const mine = leagueId != null ? String(leagueId) : null;
+  const state = dLeague == null ? "mock" : (mine && dLeague === mine ? "league" : "other");
+
+  /* --- logunin: DRAFTID ER HEIMILDIN UM DRAFTID, alltaf --- */
+  const patch = {};
+  const teams = num(shape.teams);
+  const rounds = num(shape.rounds);
+  if (teams != null && teams >= 2 && teams <= 32 && teams !== L.teams) {
+    patch.teams = teams; from.teams = "draft";
+  } else if (teams != null && teams === L.teams) from.teams = "draft";
+  if (rounds != null && rounds >= 1 && rounds <= 40 && rounds !== L.rounds) {
+    patch.rounds = rounds; from.rounds = "draft";
+  } else if (rounds != null && rounds === L.rounds) from.rounds = "draft";
+
+  /* --- reglurnar: ADEINS thegar engin deild stendur a bak vid draftid.
+     Deildardraft ber `scoring_settings` deildarinnar sem er NAKVAEM
+     (`rec`-talan sjalf); `metadata.scoring_type` er MERKING og thau geta
+     rekid i sundur (sja `leagueFromSleeper`). Mock hefur ekkert annad. */
+  if (state === "mock") {
+    const sc = scoringFromDraftLabel(shape.scoringType);
+    if (sc) { if (sc !== L.scoring) patch.scoring = sc; from.scoring = "draft"; }
+    const sl = shape.slots && typeof shape.slots === "object" ? shape.slots : null;
+    if (sl && sl.starters && Object.keys(sl.starters).length) {
+      patch.starters = sl.starters;
+      if (sl.flexPos) patch.flexPos = sl.flexPos;
+      patch.superflex = !!sl.superflex;
+      from.starters = "draft";
+    }
+  }
+
+  const changed = Object.keys(patch).length > 0;
+  const out = changed ? normalizeLeague({ ...L, ...patch }) : L;
+  if (changed && from.starters === "draft") {
+    out.maxPos = maxPosFor(out.starters, out.superflex);
+  }
+
+  /* --- EIN LINA, og hun er ekki skraut: hun segir HVADAN tolurnar koma --- */
+  let line = null, green = true;
+  if (state === "other") {
+    green = false;
+    line = `this draft belongs to another Sleeper league (${dLeague}) — connect that `
+         + `league, or every number here is priced for a different one`;
+  } else if (state === "mock") {
+    const shapeBit = `${out.teams} teams, ${out.rounds} rounds`;
+    if (from.scoring === "draft" && from.starters === "draft") {
+      line = `mock draft with no league — ${shapeBit}, ${out.scoring} and the starting `
+           + `slots all read from this draft`;
+    } else if (from.scoring === "draft") {
+      line = `mock draft with no league — ${shapeBit} and ${out.scoring} from this draft; `
+           + `starting slots from the league you have loaded`;
+    } else {
+      line = `mock draft with no league — ${shapeBit} from this draft; scoring and `
+           + `starting slots from the league you have loaded`;
+    }
+  } else if (from.teams === "draft" && patch.teams != null) {
+    line = `the draft has ${out.teams} teams where the imported rules say ${L.teams} — `
+         + `the board follows the draft; re-read the rules if the league changed`;
+  } else if (from.rounds === "draft" && patch.rounds != null) {
+    line = `the draft has ${out.rounds} rounds where the imported rules say ${L.rounds} `
+         + `— the board follows the draft`;
+  }
+
+  return { league: out, from, state, green, line };
+}

@@ -4040,6 +4040,101 @@ samstillingu eru 20 leikmenn strikaðir út, **tveir réttir** lenda í mínum h
 (sæti 7 af 12), og sá sem var tekinn er ekki lengur boðinn. Stökkbreyting sem
 hunsaði sætið felldi það með tölunni 0.
 
+### 6b-5. „CONNECT THE LEAGUE THIS DRAFT BELONGS TO" — RÁÐ SEM ER ÓGERANLEGT (20.8.2026)
+
+Notandinn tengdi 10-liða **mock** og las þetta, á meðan draftið var í beinni og
+pollunin gekk:
+
+    Disconnected — draft has 10 teams, league has 12 — connect the league
+    this draft belongs to
+    Every VBD number on this board is computed for your league, not for this
+    draft — the replacement receiver moves WR29 -> WR42...
+    snake draft · 10 teams · 15 rounds · status drafting · 3 picks made · live
+
+**Báðir hlutar voru ósannir um það ástand:**
+
+1. **Mock-draft á enga deild.** Sleeper skilar honum án `league_id` — það er
+   ástæðan fyrir því að `connect` flytur engar reglur inn. Boðin báðu hann því um
+   að gera **það sem ekki er hægt**.
+2. **„Disconnected" um draft sem svaraði 1,5 sek áður** og bar „3 picks made ·
+   live" tveimur línum neðar.
+
+**Tveimur ástandum var steypt saman og þau eru ekki sama málið:**
+
+| ástand | hver er heimildin | ljós |
+|---|---|---|
+| **engin deild** (mock, `league_id: null`) | **draftið** — það er það eina sem til er | **grænt**, með einni línu um hvaðan hvert svið kemur |
+| **önnur deild** (`league_id` sem er ekki sú hlaðna) | deildin sem er hlaðin, og hún er **röng** fyrir þetta draft | **rautt** — þetta er villan sem kostaði sex WR í sjö umferðum |
+
+#### Mælt á lifandi API 20.8.2026 — hvað mock-svar BER
+
+`/v1/draft/1389356308125192192` (deildardraft notandans) ber allt sem þarf, **á
+draftinu sjálfu, ekki á deildinni**:
+
+    settings.teams 10 · settings.rounds 15
+    settings.slots_qb 1 · slots_rb 2 · slots_wr 2 · slots_te 1 · slots_flex 2
+    settings.slots_k 1 · slots_def 1 · slots_bn 5
+    metadata.scoring_type "ppr"
+
+Að þessi svið tilheyra draftinu er staðfest úr annarri átt: `create_draft`-mutationin
+í GraphQL-API-i Sleeper (`sleeper.com/graphql`, skoðuð með introspection sama dag)
+tekur `k_settings`/`v_settings` og `k_metadata`/`v_metadata` með `league_id` sem
+**valfrjálsan** lið — mock er sama kallið án deildar.
+
+> **ÞAÐ SEM EKKI VAR MÆLT, OG ÞAÐ SKAL SEGJAST:** lifandi mock-svar (með
+> `league_id: null`) fékkst **ekki**. Mock-draft er hvorki í
+> `/user/{id}/drafts/nfl/2026` (mælt: 4 draft, öll með deild) né í neinum
+> opinberum lobby-endapunkti, og GraphQL-leiðirnar (`user_drafts_by_league_mock`,
+> `create_draft`) skila **`unauthorized`** án tókens. Þess vegna er kóðinn
+> skrifaður svo að **hvert svið er tekið aðeins ef það er þarna** og fellur
+> annars í deildina — og `from` segir hvort. Ef mock skilar engum `slots_*`
+> hegðar appið sér rétt og **segir** að sætin komi úr deildinni.
+
+#### Fjórar tölur sem hann sá, allar úr sömu rót
+
+`boardShape` (`sleeper-league.js`) er nú **ein** hrein uppspretta fyrir bæði
+tölurnar og ljósið, og `buildRows` í `App.jsx` fær hana — það var forsendan:
+
+| einkenni | var | er |
+|---|---|---|
+| „Disconnected" á lifandi mock-i | rautt ljós, ógeranlegt ráð | **grænt**, „mock draft with no league — 10 teams, 15 rounds and ppr from this draft; starting slots from the league you have loaded" |
+| VBD reiknað fyrir 12-liða deild í 10-liða mock-i | WR-þrepið WR29 -> **WR42**, +26,9 stig á hvern WR | þrepin **úr draftinu** |
+| „You have **2** picks left" þar sem hann átti **3** | `picksLeft = league.rounds - roster` (14 í stað 15) | úr draftinu — og K/DST-viðvörunin kviknar ekki umferð of snemma |
+| „Slot 12 does not exist in a 10-team league" í 12-liða mock-i | fals-jákvætt á **réttu** sæti | sætið er borið við **draftið**, og orðið er „draft" |
+
+**MÖRKIN SJÁLF Á `mustFillUrgent` (`picksLeft <= needed + 1`, og að kassinn kalli
+enn í síðustu umferð þegar `picksLeft` er 0) VORU EKKI HREYFÐ** og það er ásett:
+að þagga K/DST-viðvörunina í síðustu umferð — þeirri einu umferð sem hún er til
+fyrir — væri verri skekkja en skrýtin setning. Það sem var lagað er **heimildin**,
+ekki mörkin.
+
+#### Það sem VAR EKKI gert
+
+- **`metadata.scoring_type` yfirskrifar aldrei `scoring_settings` deildarinnar.**
+  Í deildardrafti er `rec`-talan sjálf nákvæm og merkingin getur rekið frá henni
+  (`leagueFromSleeper` varar þegar við því). Aðeins mock — sem hefur ekkert annað
+  — les merkinguna.
+- **Aðrir flipar halda DEILDINNI.** Mock má ekki endurskilgreina deildina sem
+  notandinn spilar í; borðið fær sínar eigin raðir og ekkert annað.
+- **Kassinn „Every VBD number on this board is computed for your league" var
+  fjarlægður**, ekki mildaður: hann var orðinn **ósannur** í nákvæmlega því
+  tilfelli sem hann var skrifaður fyrir. Tveir textar um sama hlut reka í sundur;
+  ein lína, við ljósið.
+
+**Verðir:** `sleeper-league.mjs` kafli 10 (hrein vörpunin, öll svið, báðar
+áttir), `draft-live.mjs` 16 (mock -> grænt, engin ógeranleg boð), 16b
+(deildardraft -> grænt **án línu**), **16c** (draft annarrar deildar -> rautt),
+**16d** (`picksLeft` úr draftinu), `sleeper.mjs` 2bb3/2bb4, og `wiring.mjs`
+kafli 4 — `boardShape` má ekki verða hreint fall sem enginn kallar, og útkoman
+verður að fara **bæði** í `buildRows` og niður í borðið.
+
+**Fjórar stökkbreytingar felldar:** `rounds` tekið úr deildinni aftur -> 16d
+fellur með **„0 picks left"** í stað 3 (nákvæmlega off-by-one villan hans) ·
+mock steypt saman við „önnur deild" -> **10** fullyrðingar falla og línan verður
+„belongs to another Sleeper league (**null**)" · „önnur deild" teiknuð græn ->
+16c fellur á þremur · `teams` úr deildinni -> þrjár í `sleeper-league.mjs` og
+þrjár í `sleeper.mjs`.
+
 ### 6b-4. SÆTIÐ ERFÐIST — OG APPIÐ SÝNDI HÓP ANNARS MANNS (20.8.2026)
 
 Alvarlegasta villan sem fannst þessa viku. Notandinn tengdi nýtt mock —

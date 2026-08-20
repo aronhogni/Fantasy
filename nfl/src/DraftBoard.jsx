@@ -24,7 +24,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as D from "./data.js";
 import { pickSignature, pollDelay } from "./draft-sync.js";
 import { recommend, MEASURED, nextOwnPick, survivalProb } from "./advice.js";
-import { leagueFromSleeper, teamsFromLeague } from "./sleeper-league.js";
+import { leagueFromSleeper, teamsFromLeague, startersFromSlots } from "./sleeper-league.js";
 import { edgeSentence } from "./rulebasis.js";
 import { signed } from "./columns.js";
 
@@ -32,7 +32,13 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
                                      shapes, leagueKey, sync, setSync,
                                      imported, warnings, teams, onImportLeague,
                                      sleeperUser, setSleeperUser, onRereadRules,
-                                     liveScope, setLiveScope }) {
+                                     liveScope, setLiveScope,
+                                     /* LOGUN DRAFTSINS BYR I `App.jsx` — sja
+                                        `boardShape`. Hun VERDUR ad vera thar:
+                                        `vbd` er reiknad i `buildRows`, svo
+                                        deild sem er leidd ut ur drafti getur
+                                        ekki bara verid til her nidri. */
+                                     draftShape, onShape, board }) {
   /* MENGIN ERU BUNDIN DRAFTINU, EKKI DEILDINNI. Sja `boardScope` i
      `data.js`: deildu tvo mock i somu deild sama `taken` bæri hid
      seinna vol hins fyrra — og valnumerid, naesta eigid val og hver
@@ -110,42 +116,14 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      um `rounds`: **DRAFTID ER HEIMILDIN UM DRAFTID.** Þar var hun
      beitt a innflutninginn; hér var hun ekki beitt a bordid.
 
-     ÞAD ER ADEINS SNAKK-STAERDFRAEDIN SEM FLYTUR HINGAD. Varamanns-
-     threpin (VBD) koma afram ur DEILDINNI, thvi thau eru reglur
-     notandans og appid yfirskrifar thaer ekki thegjandi (sja notuna vid
-     mismunar-vidvorunina nedar). Þad er ekki thogn: mismunurinn er nu
-     STADA a tengingunni, ekki malsgrein i miðjum texta.               */
-  const [draftShape, setDraftShape] = useState(null);
-  /* ============================================================
-     AÐEINS ÞEGAR HUN BREYTIST — MÆLT, EKKI VARFAERNI
-     ============================================================
-     Fyrsta utgafan sendi hlutinn UPP i hverri pollun. `pull` byr NYJAN
-     hlut i hvert sinn, svo tilvisunin var alltaf ny og HELDUR DraftBoard
-     endurteiknadi sig — 200 rada tafla, skortstikan og radgjafarkassinn —
-     a 1,5 sek fresti i beinni.
-
-     ÞAD MAELDIST: `draft-live.mjs` (sem styttir pollunar-bidina i 6 ms)
-     for ur ~20 sekundum i **yfir tolf minutur** og var enn i fyrsta
-     kafla. Profid sem keyrir draftid er thvi lika maelitaeki a
-     endurteikningu — ekki asett, en gagnlegt.
-
-     Fallid ber saman GILDIN og skilar fyrra astandi ef ekkert hreyfdist,
-     svo React sleppir endurteikningu alveg. Adeins thau fjogur svid sem
-     bordid les eru borin saman.                                        */
-  const onShape = useCallback((next) => {
-    setDraftShape((prev) => {
-      if (prev === next) return prev;
-      if (!prev || !next) return next || null;
-      const same = prev.teams === next.teams && prev.rounds === next.rounds
-        && prev.type === next.type && prev.status === next.status
-        /* NYTT SVID VERDUR AD VERA I SAMANBURDINUM. Vaeri `leagueId`
-           utan hans kaemi hun UPP i fyrstu pollun og aldrei aftur —
-           hlidid sem sparar endurteikningu er lika hlid a
-           upplysingunni (sama villa og `unknown` i `pickSignature`). */
-        && prev.leagueId === next.leagueId;
-      return same ? prev : next;
-    });
-  }, []);
+     OG FRA 20.8.2026 FLYTUR VBD MED — EN ADEINS UR DRAFTI SEM A ENGA
+     DEILD. Hér stod ad varamanns-threpin kaemu "afram ur deildinni, thvi
+     thau eru reglur notandans". Þad er rett um DEILDARDRAFT og osatt um
+     mock: mock ber enga `league_id`, svo THAR ERU ENGAR REGLUR NOTANDANS
+     AD YFIRSKRIFA — draftid er eina heimildin sem til er, og hun ber
+     bædi `slots_*` og `metadata.scoring_type`. Sja `boardShape` i
+     `sleeper-league.js`; logunin er LYFT UPP I `App.jsx` thvi `vbd` er
+     reiknad thar (`buildRows`).                                        */
   /* Hve morg vol komu UR GEYMSLUNNI en ekki fra Sleeper. Sja `RestoredNote`. */
   const [restored, setRestored] = useState(() => taken.size);
 
@@ -573,6 +551,10 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
            reiknadi hverja snakk-tolu ur deildinni. Talan var til allan
            timann; hun var einfaldlega ekki spurd. */
         onShape={onShape}
+        /* UTKOMAN UR `boardShape`, SAMA HLUTUR SEM TOLURNAR ERU REIKNADAR
+           UR. Ljosid og talnagrunnurinn lesa eitt og hid sama, svo their
+           geta ekki sagt sitthvad. */
+        board={board}
         onReset={reset}
         /* Virkur ef eitthvad er ad hreinsa — vol, min vol, oporud vol EDA
            tenging. Skilyrdid var `!taken.size` og thad laesti hnappnum a
@@ -1011,7 +993,7 @@ function MyRoster({ roster, league, onUndo }) {
 function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                        imported, warnings, teams, onImportLeague,
                        sleeperUser, setSleeperUser, onRereadRules,
-                       onShape, onReset, resetOff, restored, restoredMine,
+                       onShape, board, onReset, resetOff, restored, restoredMine,
                        leagueKey, live, onLive }) {
   /* Nafnid er FORFYLLT ur vistada audkenninu — notandinn a ekki ad slá
      thad inn i hvert sinn, og forsidan tharf thad hvort ed er. */
@@ -1343,6 +1325,14 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
       const shape = { type: d.type, teams: d.settings ? d.settings.teams : null,
                       rounds: d.settings ? d.settings.rounds : null,
                       leagueId: d.league_id != null ? String(d.league_id) : null,
+                      /* MOCK BER SINAR EIGIN REGLUR — og thaer voru ekki
+                         lesnar. `metadata.scoring_type` og `settings.slots_*`
+                         eru MAELD i lifandi svari (sja kafla 7 i
+                         `sleeper-league.js`); an theirra vard bordid ad giska
+                         a deildina sem er hladin, og thad var einmitt villan:
+                         varamanns-threpid WR29 -> WR42. */
+                      scoringType: (d.metadata && d.metadata.scoring_type) || null,
+                      slots: startersFromSlots(d.settings),
                       status: d.status, picks: (picks || []).length };
       setInfo(shape);
       /* OG UPP. Bordid tharf `teams`/`rounds` DRAFTSINS til ad reikna
@@ -1522,72 +1512,65 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   }, [teams, sync.slot]);
 
   /* ============================================================
-     STODULJOSID — TVAER STODUR, OG LOGUNIN ER I ÞEIM
+     STODULJOSID — TVAER STODUR, OG THAER SEGJA HVADAN TOLURNAR KOMA
      ============================================================
      BEIDNI NOTANDANS 19.8.2026: "status ljos sem segir connected eda
      disconnected med graenu og raudu." Tvo ljos, ekki thrju.
 
-     ÞAD MATTI SAMT EKKI KOSTA VORNINA SEM GULA LJOSID VAR TIL FYRIR.
-     Hann DRAFTADI heilt mock 17.8.2026 med vidvorunina a skjanum ("10
-     teams in the draft against 12 in this league") og sa hana ekki, thvi
-     hun var malsgrein i vegg af malsgreinum. Tvo stodu ljos SEM TELUR
-     "kallid tokst" = graent hefdi verid graent allan thann tima.
+     ============================================================
+     OG 20.8.2026 SAGDI THAD EITTHVAD SEM VAR OGERANLEGT
+     ============================================================
+     Hann tengdi 10-lida MOCK og las thetta, medan draftid var i beinni
+     og pollunin gekk:
 
-     REGLAN SEM LEYSIR BADAR KROFUR — og hun er RETTARI en gult:
-     **tenging a rangri logun er EKKI tenging.** Se draftid i annarri
-     staerd en deildin sem bordid reiknar eru tolurnar ur annarri deild,
-     og "tengdur" um thad astand er einfaldlega osatt. Ljosid er RAUT
-     med einni linu um hvers vegna.
+       "Disconnected — draft has 10 teams, league has 12 — connect the
+        league this draft belongs to"
 
-     MAELT A HANS EIGIN GOGNUM (10-lida PPR 2WR/2FLEX a moti 12-lida
-     sjalfgefnu 3WR/1FLEX, sama laug, sami dagur): varamanns-threpid fer
-     QB10->QB12, RB27->RB28, TE14->TE14 og **WR29->WR42**. Þad er ekki
-     jofn lyfting heldur skekkja med formerki — WR er dypsta stadan, svo
-     threpid faerist ThRETTAN saeti medan TE faerist ekkert: +26,9 stig af
-     VBD a hvern WR, +1,0 a RB, 0,0 a TE. Rice 29,6 -> 58,5, Washington
-     12,7 -> 41,6. Hermt draft fra saeti 5 skilar **RB4 TE2 WR1** med
-     rettri logun og WR-eftir-WR med 12-lida sniðinu. Hann tok sex WR og
-     fylgdi radgjofinni i hverju vali — rodin var ekki bilud, hun var
-     svarid vid annarri deild.
+     BADIR HLUTAR VORU OSANNIR UM THAD ASTAND:
+       · MOCK-DRAFT A ENGA DEILD. Sleeper skilar honum an `league_id` —
+         thess vegna flytur `connect` engar reglur inn. Bodin bad hann um
+         ad gera thad sem ER EKKI HAEGT.
+       · "Disconnected" um draft sem svaradi 1,5 sek adur og bar
+         "3 picks made · live" tveimur linum nedar.
 
-     VID BREYTUM SAMT EKKI DEILDINNI SJALFKRAFA: hann gaeti verid ad aefa
-     sig i mock-i af annarri staerd viljandi, og ad yfirskrifa reglurnar
-     hans thegjandi vaeri staerri villa en su sem er verid ad laga. Vid
-     gerum thad OMOGULEGT AD MISSA, ekki thogult ad hlyda.
+     TVEIMUR ASTANDUM VAR STEYPT SAMAN og thau eru ekki sama malid:
 
-     TOLURNAR ERU LESNAR, EKKI GISKADAR: `info` kemur ur `/draft/{id}`
-     sjalfu (`settings.teams` / `settings.rounds`), svo thetta er
-     samanburdur a tveimur skradum stadreyndum.
+       ENGIN DEILD (mock)   -> DRAFTID er eina heimildin, og hun er OLL i
+                               svarinu: `settings.teams`/`rounds`,
+                               `settings.slots_*`, `metadata.scoring_type`.
+                               Tha er ENGINN mismunur til ad segja fra —
+                               bordid reiknar draftid sjalft. GRAENT, med
+                               einni linu um hvadan hvert svid kemur.
+       ONNUR DEILD          -> raunveruleg notandavilla, og hun er su sem
+                               kostadi sex WR i sjo umferdum. RAUT.
 
-     Vordur: `draft-live.mjs` kafli 16 — logun sem stemmir ekki MA ALDREI
-     teiknast graen; kafli 16b — og somu logun VERDUR ad teiknast graen,
-     annars baeri merkid engar upplysingar.                             */
-  const dTeams = Number(info && info.teams), dRounds = Number(info && info.rounds);
-  const lTeams = Number(league && league.teams), lRounds = Number(league && league.rounds);
-  const mismatch = [];
-  if (info) {
-    if (Number.isFinite(dTeams) && Number.isFinite(lTeams) && dTeams !== lTeams) {
-      mismatch.push(`draft has ${dTeams} teams, league has ${lTeams}`);
-    }
-    if (Number.isFinite(dRounds) && Number.isFinite(lRounds) && dRounds !== lRounds) {
-      mismatch.push(`draft has ${dRounds} rounds, league has ${lRounds}`);
-    }
-  }
-  /* `info` ER SONNUNIN. Hun er ADEINS skrifud af `pull()`, sem keyrir
-     adeins medan samstillingin er i gangi, og hun er hreinsud thegar
-     draft-audkennid breytist — svo "info er til" thydir "Sleeper svaradi
-     um ThETTA draft, nuna". Boolean-flagg fra Connect vaeri hins vegar
-     satt lika thegar kallid brast eftir a. */
-  const connected = !!info && mismatch.length === 0;
+     LOGUNIN SJALF ER I `boardShape` (`sleeper-league.js`) — hrein, mæld
+     og profud thar. Hér er adeins BIRTINGIN. Bæði tolurnar (`league` sem
+     kemur ofan fra) og ljosid lesa SOMU utkomu, svo their geta ekki rekid
+     i sundur: liti ljosid graent medan tolurnar vaeru ur annarri deild
+     vaeri thad nakvaemlega villan sem er verid ad laga.
+
+     MAELINGIN SEM GERIR THETTA NAUDSYNLEGT (hans eigin gogn, 17.8.):
+     10-lida PPR 2WR/2FLEX a moti 12-lida sjalfgefnu 3WR/1FLEX faerir
+     varamanns-threpid QB10->QB12, RB27->RB28, TE14->TE14 og
+     **WR29->WR42** — +26,9 stig af VBD a hvern WR, +1,0 a RB, 0,0 a TE.
+     Þad er skekkja MED FORMERKI, ekki jofn lyfting. Nu er hun ekki
+     lengur til i mock-i: threpin eru reiknud UR DRAFTINU.
+
+     Vordur: `draft-live.mjs` kafli 16 (mock i annarri staerd -> GRAENT,
+     tolurnar draftsins, og hvergi bod um ad tengja deild sem er ekki til),
+     16b (deildardraft -> graent, engin lina) og 16c (draft sem tilheyrir
+     ANNARRI deild -> RAUT, og thad ma ekki mildast).                   */
+  const fit = board || { green: false, line: null, state: "none" };
+  const connected = !!info && !!fit.green;
   /* EIN LINA, ekki malsgrein. Rodin er akvordud af thvi hvad notandinn
      getur gert naest. */
   /* LOGUNIN FYRST — hun er STANDANDI astand, medan `status` er utkoma
      einnar adgerdar. En hin ma ekki THAGNA undir henni: notandi sem ytir
      a Connect a rongu audkenni MEDAN logunin rekur fekk annars enga
      svorun um smellinn sinn. Baðar, i thessari rod. */
-  const why = mismatch.length
-      ? `${mismatch.join(", ")} — connect the league this draft belongs to`
-        + (status ? ` · ${status}` : "")
+  const why = fit.line
+      ? fit.line + (status ? ` · ${status}` : "")
     : status ? status
     : pollErr ? `Sleeper did not answer: ${pollErr}`
     : !sync.draftId ? "paste a league link, draft link, id or your Sleeper username above"
@@ -1617,9 +1600,22 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
             `draft-live.mjs` kafli 15c.                                 */}
         <span className="dim">
           {connected
-            ? (status ? `— ${status}`
-             : pollErr ? `— Sleeper did not answer: ${pollErr}`
-             : live ? "— reading picks live" : "")
+            /* LINAN ER BIRT LIKA ThEGAR GRAENT ER, og thad er kjarninn i
+               lagfaeringunni 20.8.2026: i mock-i er hun EKKI vidvorun
+               heldur SVARID — "hvadan koma tolurnar sem eg er ad lesa".
+               Adur var hun adeins synd i raudu astandi, svo rett astand
+               var thogult um sinar eigin forsendur. */
+            ? (() => {
+                const bits = [];
+                if (fit.line) bits.push(fit.line);
+                /* "reading picks live" MA EKKI HVERFA UNDIR LINUNNI: thad
+                   er svarid vid "er thetta i beinni?", sem er onnur
+                   spurning en "hvadan koma tolurnar". */
+                if (status) bits.push(status);
+                else if (pollErr) bits.push(`Sleeper did not answer: ${pollErr}`);
+                else if (live) bits.push("reading picks live");
+                return bits.length ? `— ${bits.join(" · ")}` : "";
+              })()
             : `— ${why}`}
         </span>
       </div>
@@ -1874,33 +1870,33 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         if (sync.slot >= 1 && sync.slot <= lt) return null;
         return (
           <div className="note warn" style={{ marginTop: 10 }}>
-            <b>Slot {sync.slot} does not exist in a {lt}-team league</b> — nobody is
+            {/* "LEAGUE" VAR RANGA ORDID I MOCK-I. Fra 20.8.2026 er `lt`
+                tolan sem BORDID reiknar med, og i mock-i kemur hun ur
+                DRAFTINU — svo "does not exist in a 12-team league" hefdi
+                nefnt deild sem kemur malinu ekki vid. Ordid fylgir
+                heimildinni. */}
+            <b>Slot {sync.slot} does not exist in a {lt}-team{" "}
+              {fit.state === "mock" ? "draft" : "league"}</b> — nobody is
             shaded and the advice assumes the pick on the clock is yours.
           </div>
         );
       })()}
 
       {/* ============================================================
-          LOGUNIN, I EINNI LINU — LJOSID SJALFT ER EFST
+          KASSINN UM VBD VAR TEKINN UT — HANN VAR ORDINN OSANNUR
           ============================================================
-          Þetta var thriggja stodu ljos MED MALSGREIN (sex setningar um
-          WR42/WR29 og VBD). Ljosid faerdist upp i haus spjaldsins og hefur
-          nu TVAER stodur: logun sem stemmir ekki er RAUT, ekki gul (sja
-          notuna vid `connected`). Malsgreinin er ordin EIN LINA hér —
-          maelingin sjalf lifir i notunni vid `connected`, thvi hun er
-          rokstudningur og hann er a islensku.
+          Hér stod: "Every VBD number on this board is computed for your
+          league, not for this draft — the replacement receiver moves
+          WR29 -> WR42". Þad var RETT thegar bordid reiknadi alltaf ur
+          deildinni. Fra 20.8.2026 reiknar mock UR DRAFTINU (`boardShape`),
+          svo setningin var ordin OSONN i nakvaemlega thvi tilfelli sem hun
+          var skrifud fyrir — og "onnur deild"-tilfellid ber sina eigin
+          linu vid ljosid, sem segir bædi hvad er ad OG hvad thad kostar.
 
-          LINAN ER SAMT EKKI SKRAUT OFAN A LJOSID: ljosid segir HVERJU
-          munar (tolurnar tvaer), thetta segir hvad thad KOSTAR. Notandinn
-          las ekki malsgreinina; talan sem hann tharf er "rodin sjalf er
-          ur annarri deild", ekki "eitthvad stemmir ekki".              */}
-      {mismatch.length > 0 && (
-        <div className="note bad" style={{ marginTop: 10 }}>
-          <b>Every VBD number on this board is computed for your league, not for this
-            draft</b> — the replacement receiver moves {"WR29 -> WR42"} between these
-          two shapes, which changes the order, not just the snake numbers.
-        </div>
-      )}
+          TVEIR STADIR SEM SEGJA SAMA HLUTINN eru verri en einn: thegar
+          logunin faerdist i `boardShape` hefdi thessi kassi thurft ad vita
+          um hana lika, og thad er nakvaemlega hvernig tveir textar reka i
+          sundur. EIN LINA, VID LJOSID.                                 */}
 
       {/* VIDVARANIR ERU EKKI SKRAUT. Hver ein er atriði sem likanid
           getur EKKI heidrad — keeper-deild, TE-premium, IDP, uppbods-
