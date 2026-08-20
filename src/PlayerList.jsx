@@ -33,7 +33,13 @@
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { interp } from "./interp.js";
-import { RAW } from "./dataUrl.js";
+/* UMFERDAR-BILS-VELIN ER SAMEIGINLEG (src/gwRange.js, 20.8.2026). Hun var
+   HER og Compare fekk sama eiginleika; afrit af hledslunni hefdi thytt tvo
+   skyndiminni og thar med tvaer soknir a somu 1,5 MB skra — nakvaemlega
+   throttlunin sem hun var skrifud til ad losna vid. `RAW` er thvi ekki
+   lengur lesid hedan; hun er inni i einingunni.                          */
+import { useGwSeasonFile, nextRange, rangeBlind as sharedRangeBlind,
+         RANGE_BLIND_BADGE } from "./gwRange.js";
 import ImminentPanel from "./Imminent.jsx";
 import BuyWindows from "./BuyWindows.jsx";
 import { photoNext } from "./Crest.jsx";
@@ -116,7 +122,11 @@ const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
    og 14.8.-16.8.2026 kostadi merki sem BAETTIST VID an thess ad breiddin
    vissi af thvi 25 klippt haus-heiti. Bordinn segir thad sama an thess ad
    snerta rumfraedina.                                                    */
-export const rangeBlind = (d, blind) => blind.has(d.key) || !!d.live_only;
+/* FALLID SJALFT ER I `gwRange.js` (20.8.2026) svo Compare lesi SAMA skilyrdi.
+   Thad er samt endur-flutt ut HEDAN thvi `playerlist-gw-filter.mjs` flytur
+   thad inn hedan (`PL.rangeBlind`) — endurnefning i profi er breyting a profi,
+   og profid ver reglu sem er ohreyfd. Ein skilgreining, tvaer slodir.     */
+export const rangeBlind = sharedRangeBlind;
 
 /* `shown` = ALLIR dalkar a skjanum (fastir + valdir) · `picked` = their sem
    notandinn valdi sjalfur · `blind` = `gwBlindKeys()`.
@@ -298,7 +308,11 @@ export const HEAD_ARROW_W = 9;              // rodunar-orin, tekin fra a OLLUM
      + padding "1px 3px" (6) + marginLeft 3            = 42,9  ->  43 px
    Breytist textinn eda stillingarnar breytist talan MED THEIM — hun er
    ekki fasti sem hægt er ad gleyma ad uppfaera (thad var einmitt villan). */
-export const BADGE_LABEL = "season";
+/* ORDID SJALFT ER I `gwRange.js` — samanburdurinn teiknar sama merki a sinar
+   RADIR og hausinn her a sina DALKA. Tvo eintok af sama ordi er ord sem
+   getur ordid tvennt; breiddar-reikningurinn her ad nedan er hins vegar
+   stadbundinn (hann maelir thennan haus) og verdur her.                  */
+export const BADGE_LABEL = RANGE_BLIND_BADGE;
 export const BADGE_LETTER_SPACING = 0.2;
 export const BADGE_W = Math.ceil(
   BADGE_LABEL.length * (HEAD_PXC * 9 / 10.5 + BADGE_LETTER_SPACING) + 3 + 3 + 3);
@@ -473,10 +487,9 @@ function ViewToggles({ dense, setDense }) {
   );
 }
 
-/* Per-umferdar skrarnar eru 1,3-1,6 MB og BREYTAST EKKI innan lotu (lokin
-   timabil). Geymt UTAN einingarinnar svo thad lifi endur-teikningar og
-   flipa-skipti af; annars vaeri thad sott aftur i hvert sinn.          */
-const GW_CACHE = new Map();
+/* Skyndiminnid fyrir per-umferdar skrarnar var HER (`const GW_CACHE`) og er
+   nu i `src/gwRange.js` — thad VERDUR ad vera EITT eintak fyrir alla lesendur
+   og eining sem tvo onnur flytja inn er eini stadurinn sem getur tryggt thad. */
 
 /* `teams` var tekid ur vidfanga-listanum 17.8.2026 — thad var adeins notad
    i lida-siunni sem for. App.jsx sendir thad afram og thad er meinlaust;
@@ -562,70 +575,20 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      vantandi tala. Skrarnar eru LETIHLADNAR: 1,2-1,5 MB per timabil og
      thad er tilgangslaust ad hlada theim ef bilid er ekki notad.         */
   const [gwRange, setGwRange] = useState(null);      // [fra, til] eda null
-  const [gwFile, setGwFile] = useState(null);        // { key, data }
-  const [gwLoading, setGwLoading] = useState(false);
-  const [gwErr, setGwErr] = useState(null);
 
-  /* "2025/26" -> "2526". Skrarnar heita player_gw_{key}.json. */
-  const seasonKey = useMemo(() => {
-    const m = String(season || "").match(/^(\d{4})\/(\d{2})$/);
-    return m ? m[1].slice(2) + m[2] : null;
-  }, [season]);
-
-  /* Hledur ADEINS thegar bil er raunverulega valid. Bilid er nullstillt
-     thegar timabili er skipt — annars sæti GW30-38 eftir a nyju timabili
-     og notandinn saei tolur fyrir bil sem hann valdi ekki thar.          */
-  useEffect(() => { setGwRange(null); setGwErr(null); }, [season]);
+  /* Hledur ADEINS thegar bil er raunverulega valid (`enabled`). Bilid er
+     nullstillt thegar timabili er skipt — annars saeti GW30-38 eftir a nyju
+     timabili og notandinn saei tolur fyrir bil sem hann valdi ekki thar.  */
+  useEffect(() => { setGwRange(null); }, [season]);
   useEffect(() => { if (gwRange) setGwOpen(true); }, [gwRange]);
-  /* HVADA TIMABIL EIGA PER-UMFERDAR GOGN? `consistency.json` er BYGGD
-     UR NAKVAEMLEGA thessum skram (player_gw_{s}.json), svo lyklar hennar
-     eru sjalfvirk og sjalfvidhaldandi skra yfir thad sem er til.
-     VILLAN SEM ThETTA LAGAR (7.8.2026): 2026/27 er obyrjad og a enga
-     slika skra. Appid reyndi samt ad saekja hana, og raw.githubusercontent
-     skilar 404 AN CORS-hausa — svo vafrinn hafnar kallinu og notandinn sa
-     "gogn vantar: Failed to fetch" i stad thess ad fa ad vita ad
-     timabilid eigi einfaldlega engar umferdar-tolur enn.               */
-  const gwSeasons = useMemo(() => new Set(Object.keys(consist?.seasons || {})),
-    [consist]);
-  const gwAvailable = !consist || gwSeasons.size === 0 || gwSeasons.has(season);
 
-  useEffect(() => {
-    if (!gwRange || !seasonKey) return;
-    if (!gwAvailable) { setGwErr(null); return; }   // ekkert ad saekja
-    if (gwFile?.key === seasonKey) return;
-    let dead = false;
-    setGwLoading(true); setGwErr(null);
-    /* ThRJAR TILRAUNIR + SKYNDIMINNI. Skrarnar eru 1,3-1,6 MB og
-       notandinn hefur fengid "Failed to fetch" TVISVAR (7.8. og 9.8.).
-       Thad er NETVILLA, ekki 404 — allar skrarnar svara 200. Orsokin er
-       raunhaef: raw.githubusercontent throttlar, og skran var sott UPP A
-       NYTT i hvert sinn sem timabili var skipt fram og til baka.
+  /* HLEDSLAN, SKYNDIMINNID, TILRAUNIRNAR OG "HVADA TIMABIL EIGA GOGN" ERU
+     I `src/gwRange.js` — sameiginleg med Compare. Sja hausinn thar.      */
+  const gwSrc = useGwSeasonFile({ season, consist, enabled: !!gwRange });
+  const { seasonKey, available: gwAvailable, loading: gwLoading, err: gwErr } = gwSrc;
+  const gwData = gwSrc.data;
 
-       Tvennt lagad, og hvorugt dugir eitt:
-         · SKYNDIMINNI per lotu — hvert timabil er sott EINU SINNI, svo
-           flakk milli timabila kostar ekkert og throttlunin kviknar ekki.
-         · ThRJAR tilraunir med vaxandi bid (0,8 s / 2 s) i stad einnar.
-           Ein tilraun eftir 800 ms taekur venjulegan hiksta en ekki
-           throttlun, sem er einmitt thad sem gerdist.                    */
-    const cached = GW_CACHE.get(seasonKey);
-    if (cached) { setGwFile({ key: seasonKey, data: cached }); setGwLoading(false); return; }
-    const load = (attempt = 0) =>
-      fetch(`${RAW}/player_gw_${seasonKey}.json`, { signal: AbortSignal.timeout(25000) })
-        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-        .then(data => {
-          GW_CACHE.set(seasonKey, data);
-          if (!dead) { setGwFile({ key: seasonKey, data }); setGwLoading(false); }
-        })
-        .catch(e => {
-          if (dead) return;
-          if (attempt < 2) { setTimeout(() => { if (!dead) load(attempt + 1); }, 800 * (attempt + 1) ** 2); return; }
-          setGwErr(String(e.message || e)); setGwLoading(false);
-        });
-    load();
-    return () => { dead = true; };
-  }, [gwRange, seasonKey, gwFile, gwAvailable]);
-
-  const gwActive = !!(gwRange && gwFile?.key === seasonKey && gwFile?.data);
+  const gwActive = !!(gwRange && gwData);
   /* LEITT UT ur STAT_DEFS, ekki handskrifad — sja gwBlindKeys i stats.js.
      Fyrsta utgafa var handskrifadur lyklalisti og 13 af 22 lyklum voru
      RANGIR, svo merkingin birtist hvergi.                               */
@@ -721,8 +684,8 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
     const out = (players || []).map(p => {
       /* UMFERDAR-BIL kemur I STAD arstidar-rodarinnar. Skilar FPL-nefndum
          svidum, svo allir dalkar — lika afleiddu — virka obreyttir.      */
-      const gwEntry = gwActive ? gwFile.data.players?.[String(p.code)] : null;
-      const ranged = gwEntry ? sumGwRange(gwEntry, gwFile.data, gwRange[0], gwRange[1]) : null;
+      const gwEntry = gwActive ? gwData.players?.[String(p.code)] : null;
+      const ranged = gwEntry ? sumGwRange(gwEntry, gwData, gwRange[0], gwRange[1]) : null;
       const hist = isLive ? null
                  : (gwActive ? ranged
                              : seasonsFile?.players?.[String(p.code)]?.[season]);
@@ -770,7 +733,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Players] cook ${out.length} rows: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [players, teamById, seasonsFile, season, isLive, enrich, gwActive, gwFile, gwRange]);
+  }, [players, teamById, seasonsFile, season, isLive, enrich, gwActive, gwData, gwRange]);
 
   /* ---------- dalkar valda flokksins ----------
      live_only-dalkar eru NUTIMA-gogn (ESPN sidustu umferdar, form-gluggi,
@@ -1257,7 +1220,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                   : gwLoading ? ` · ${"loading…"}` : ""}
                 {gwAvailable && gwErr ? <>
                   {` · ${"data missing"}: ${gwErr} `}
-                  <button style={S.gwRetry} onClick={() => { setGwErr(null); setGwFile(null); }}>
+                  <button style={S.gwRetry} onClick={gwSrc.retry}>
                     {"retry"}
                   </button>
                 </> : null}
@@ -1272,14 +1235,12 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
               return (
                 <button key={n} title={`GW ${n}`} aria-pressed={!!on}
                   style={{ ...S.gwCell, ...(on ? S.gwOn : {}), ...(edge ? S.gwEdge : {}) }}
-                  onClick={() => setGwRange(r => {
-                    /* Fyrsti smellur = nytt upphaf. Annar smellur = endi.
-                       Ef smellt er FYRIR upphafid snýst bilid vid i stad
-                       thess ad gera ekkert — annars virkar valarinn "bara
-                       til haegri" og thad er ekki thad sem notandinn gerir. */
-                    if (!r || r[0] !== r[1]) return [n, n];
-                    return n < r[0] ? [n, r[0]] : [r[0], n];
-                  })}>
+                  /* Smell-reglan er i `gwRange.js` (`nextRange`) svo BADIR
+                     valararnir hegdi ser eins. Hun er thriggja lina rokfraedi
+                     og thess vegna audveldust ad afrita — og tvo eintok er
+                     nakvaemlega hvernig "annar smellur" verdur olikur milli
+                     glugga an ad neitt prof falli.                         */
+                  onClick={() => setGwRange(r => nextRange(r, n))}>
                   {n}
                 </button>
               );

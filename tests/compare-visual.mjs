@@ -227,5 +227,223 @@ ok("hvert \"Big chances\"-gildi er tala", bcVals.length > 0 && bcVals.every(Numb
      pickFor([bsd, live], "2026/27") === live);
 }
 
+/* ============================================================
+   5. UMFERDAR-BILID I SAMANBURDINUM (20.8.2026)
+
+   BEIDNIN: "vil geta valid gameweek-bil eins og i Player stats — bara
+   sidustu 8 leikina". Og BLOKKUNIN A SKJANUM VAR OSONN:
+     "per-gameweek numbers only exist in live/gw*.json and they only fill
+      up once 2026/27 begins"
+   `data/live/` er ekki adeins tom — HUN ER EKKI TIL. Per-umferdar gogn
+   liggja fyrir fyrir fimm LOKIN timabil og leikmannalistinn hefur notad
+   thau fra 7.8.2026.
+
+   ThESSI KAFLI PROFAR HEGDUN I DOM, EKKI TEXTA I KODA. Fjorar fullyrdingar
+   sem hver getur fallid ein:
+     a) valarinn er thar og kassarnir eru LEIDDIR ur skranni
+     b) valid bil BREYTIR raunverulega tolum — og rod sem getur ekki fylgt
+        bilinu breytist EKKI og segir thad
+     c) stodu-hlidid (`defOnly`/`gkOnly`) lifir bilid: NAKVAEMLEGA somu
+        radir teiknast, thvi `element_type` fylgir med
+     d) yfirstandandi timabil SLEKKUR valarann MED ASTAEDU, og gamla
+        osanna setningin er farin
+   ============================================================ */
+console.log("\n=== 5. UMFERDAR-BILID: VALARINN, TOLURNAR OG STODU-HLIDID ===");
+const { maxGwOf, lastNRange, nextRange } = await import(new URL("src/gwRange.js", REPO).href);
+const { ROW_BLIND, ROW_FOLLOW_N } = await import(new URL("src/Compare.jsx", REPO).href);
+
+/* Glugginn og listinn eru BADIR i DOM (glugginn er yfirlag ofan a flipanum),
+   svo hvert einasta uppslattarord verdur ad vera SKORDAD vid gluggann.    */
+const panel = [...document.querySelectorAll("h2")]
+  .find(h => h.textContent.trim() === "Comparison")?.parentElement?.parentElement;
+ok("samanburdar-glugginn er addressanlegur (forsenda alls her a eftir)", !!panel);
+const pBtn = re => [...(panel?.querySelectorAll("button") || [])]
+  .find(b => re.test(b.textContent.trim()));
+
+/* --- 5a. VALARINN --- */
+const toggle = pBtn(/Gameweeks$/);
+ok("umferdar-valarinn er I GLUGGANUM (hnappur vid timabils-valid)", !!toggle);
+ok("...og hann er VIRKUR a loknu timabili (sjalfgefid 2025/26)",
+   !!toggle && !toggle.disabled, `disabled=${toggle?.disabled}`);
+await fire(toggle);
+await act(async()=>{ await new Promise(r=>setTimeout(r,600)); });
+
+const gwGroup = () => panel?.querySelector('[aria-label="Select gameweek range for the comparison"]');
+const cells = () => [...(gwGroup()?.querySelectorAll("button") || [])];
+ok(`kassa-strikid teiknast (${cells().length} kassar)`, cells().length > 0);
+/* ThAKID ER LEITT UR SKRANNI. Talan 38 er RETT her — thess vegna er hun
+   borin vid skrana sjalfa og ekki vid 38: hefdi hun verid skrifud i kodann
+   vaeri hun jafn graen og jafn brotin a timabili sem naer skemur.        */
+const GWF = J("player_gw_2526.json");
+ok(`kassarnir eru ${maxGwOf(GWF)} — nakvaemlega thad sem 2025/26-skrain ber`,
+   cells().length === maxGwOf(GWF), `${cells().length} kassar`);
+/* OG ThAD MA EKKI VERA FAST I KODANUM. Baedi tolur eru 38 i dag, svo DOM-id
+   getur ekki greint tharna a milli — kodinn getur. Sama snid og valreglan i
+   kafla 4 er profud med.                                                 */
+{
+  const cmp = readFileSync(new URL("../src/Compare.jsx", import.meta.url), "utf8");
+  const bar = cmp.match(/Array\.from\(\{ length: ([^}]*)\}/);
+  ok("kassa-fjoldinn i kodanum er BREYTA ur skranni, ekki fasti",
+     !!bar && /gwMax/.test(bar[1]) && !/\d/.test(bar[1]), bar?.[1]);
+  ok('"last N"-hnapparnir klippast a thakinu (`lastNRange(n, gwMax)`)',
+     /lastNRange\(n, gwMax\)/.test(cmp));
+}
+/* Og fallid sjalft: thakid RAEDUR, hnappur sem gerir ekkert er ekki bodinn. */
+ok("lastNRange(8, 38) = [31, 38]", String(lastNRange(8, 38)) === "31,38");
+ok("lastNRange(8, 12) = [5, 12] — thakid er vidfangid, ekki 38",
+   String(lastNRange(8, 12)) === "5,12");
+ok("lastNRange(38, 38) = null (N yfir allt timabilid er 'whole season')",
+   lastNRange(38, 38) === null);
+ok("nextRange: fyrsti smellur setur punkt, annar teygir AFTURABAK lika",
+   String(nextRange(null, 8)) === "8,8" && String(nextRange([8, 8], 3)) === "3,8");
+
+/* --- 5b. BREYTAST TOLURNAR? ---
+   Lesid AF SKJANUM i badum homum. Rod-heitid er lesid ur TEXTA-hnutum eingongu
+   svo ▼-merkid og "season"/"today"-merkid raski thvi ekki.               */
+const readTable = () => {
+  const out = {};
+  for (const tr of panel.querySelectorAll("tr")) {
+    const tds = [...tr.querySelectorAll("td")];
+    if (tds.length < 3) continue;
+    const label = [...tds[0].childNodes].filter(n => n.nodeType === 3)
+      .map(n => n.textContent).join("").trim();
+    if (!label) continue;
+    out[label] = { cells: tds.slice(1).map(td => td.textContent.trim()),
+                   badges: [...tds[0].querySelectorAll("span")]
+                     .map(s => s.textContent.trim()).filter(t => t !== "▼") };
+  }
+  return out;
+};
+const whole = readTable();
+/* TEXTINN ER TEKINN I BADUM HOMUM OG ThAD VAR STOKKBREYTINGARPROFID SEM
+   KENNDI ThAD: notan ber SITTHVORA setningu eftir thvi hvort bil er valid,
+   svo fullyrding sem er metin ADEINS eftir ad bil var valid getur ekki sed
+   osonnu setninguna — hun bydi i "heilt timabil"-greininni. Stokkbreyting
+   sem setti hana thar aftur inn SLAPP I GEGN i fyrstu utgafu kafla 6.    */
+const wholeText = panel.textContent || "";
+ok(`heilt timabil lesid (${Object.keys(whole).length} radir)`, Object.keys(whole).length > 10);
+/* FORSENDAN SONNUD FYRST: rodin sem vid berum saman BER TOLU a heilu timabili.
+   An hennar vaeri "talan breyttist" tom fullyrding (CLAUDE.md 5b).       */
+ok('"FPL points" ber tolu a heilu timabili',
+   !!whole["FPL points"] && whole["FPL points"].cells.every(t => /\d/.test(t)),
+   JSON.stringify(whole["FPL points"]?.cells));
+ok("engin rod ber merki a heilu timabili (merkid er um BILID)",
+   Object.values(whole).every(r => r.badges.length === 0),
+   Object.entries(whole).filter(([, r]) => r.badges.length).map(([l]) => l).join(", "));
+
+const last8 = pBtn(/^last 8$/);
+ok('"last 8" er i bodi (beidnin sjalf)', !!last8);
+await fire(last8);
+await act(async()=>{ await new Promise(r=>setTimeout(r,400)); });
+ok("bilid sest a skjanum sem GW 31–38", /GW\s*31[–-]38/.test(panel.textContent));
+const ranged = readTable();
+
+const pts = { was: whole["FPL points"]?.cells, now: ranged["FPL points"]?.cells };
+ok("GW 31–38 gefur ONNUR stig en heilt timabil (talan fylgir bilinu)",
+   !!pts.now && String(pts.was) !== String(pts.now), `${pts.was} -> ${pts.now}`);
+ok("...og bilid er LAEGRA en heildin (8 umferdir af 38)",
+   (pts.now || []).every((t, i) => {
+     const a = parseFloat(t), b = parseFloat(pts.was[i]);
+     return !Number.isFinite(a) || !Number.isFinite(b) || a <= b;
+   }), `${pts.was} -> ${pts.now}`);
+/* Hve margar radir hreyfdust — borid vid MAELDU tolunni ur `gwBlindKeys`.  */
+const moved = Object.keys(ranged).filter(l => whole[l] &&
+  String(whole[l].cells) !== String(ranged[l].cells));
+ok(`${moved.length} radir hreyfdust af ${Object.keys(ranged).length} a skjanum`,
+   moved.length >= 8, moved.slice(0, 6).join(", "));
+
+/* --- 5c. RADIR SEM GETA EKKI FYLGT BILINU SEGJA ThAD --- */
+ok(`\`gwBlindKeys\` fann ${ROW_BLIND.size} rod sem getur ekki fylgt bilinu`
+   + ` (${ROW_FOLLOW_N} geta)`, ROW_BLIND.size >= 1 && ROW_FOLLOW_N > 20,
+   [...ROW_BLIND].join(", "));
+ok('VERDID hreyfist EKKI med bilinu (thad er alltaf dagsins verd)',
+   String(whole["Price"]?.cells) === String(ranged["Price"]?.cells),
+   `${whole["Price"]?.cells} -> ${ranged["Price"]?.cells}`);
+ok('...og rodin SEGIR ThAD: Verd ber merkid "today"',
+   (ranged["Price"]?.badges || []).includes("today"),
+   JSON.stringify(ranged["Price"]?.badges));
+ok('"DC per start" ber merkid "season" (arkiv-svid, engin per-umferdar heimild)',
+   (ranged["DC per start"]?.badges || []).includes("season"),
+   JSON.stringify(ranged["DC per start"]?.badges));
+/* OG ENGIN ONNUR ROD MA BERA MERKI. Merki a rod sem fylgir bilinu er osonn
+   fullyrding i hina attina — og merki sem sest a ollum radum er ekkert merki. */
+const badged = Object.entries(ranged).filter(([, r]) => r.badges.length).map(([l]) => l).sort();
+ok(`nakvaemlega ${badged.length} radir bera merki, og thad eru THESSAR`,
+   badged.length === Object.keys(ranged).filter(l =>
+     ["Price", "DC per start"].includes(l)).length,
+   badged.join(", "));
+/* Merkta rodin verdur ad vera EIN AF ThEIM SEM ERU A SKJANUM — annars vaeri
+   talningin her ad ofan tom.                                              */
+ok("...og badar merktu radirnar eru raunverulega teiknadar",
+   !!ranged["Price"] && !!ranged["DC per start"]);
+
+/* --- 5d. STODU-HLIDID LIFIR BILID (`element_type` fylgir rodinni) ---
+   `sumGwRange` skilar ENGRI stodu. An thess ad bera hana yfir er
+   `defOnly`/`gkOnly`-hlidid spurt um `undefined` og varnar-radirnar HVERFA
+   (eda, i listanum, birtust a rongum manni: 410 radir / 1.535 gildi).
+   PROFSTEINNINN ER MENGI RADANNA: bilid ma hvorki BAETA VID ne TAKA radir. */
+const posShown = [...panel.querySelectorAll("tr")][0]
+  ? [...panel.querySelectorAll("th")].map(th => th.textContent).join(" ") : "";
+ok(`stodurnar i samanburdinum sjast i hausnum (forsenda hlidsins)`,
+   /\b(GK|DEF|MID|FWD)\b/.test(posShown), posShown.slice(0, 80));
+const setEq = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+const lw = Object.keys(whole).sort(), lr = Object.keys(ranged).sort();
+ok(`bilid teiknar NAKVAEMLEGA somu radir (${lr.length}) — stodu-hlidid lifdi`,
+   setEq(lw, lr),
+   `bara i heilu: [${lw.filter(l => !lr.includes(l))}] · bara i bili: [${lr.filter(l => !lw.includes(l))}]`);
+/* Og hlidid VERDUR ad hafa verid virkt — annars er samanburdurinn ad ofan
+   tveir tomir listar. Minnst ein stodu-laest rod er a skjanum.           */
+const posLocked = ["CS", "CS %", "GC", "xGC", "DC", "Saves"].filter(l => lr.includes(l));
+ok(`stodu-laestar radir a skjanum: ${posLocked.length} (${posLocked.join(", ")})`,
+   posLocked.length >= 1);
+
+/* --- 5e. YFIRSTANDANDI TIMABIL: SLOKKT MED ASTAEDU --- */
+console.log("\n=== 6. YFIRSTANDANDI TIMABIL OG SETNINGIN SEM VAR OSONN ===");
+/* GAMLA SETNINGIN — NEIKVAED FULLYRDING MED SANNADRI FORSENDU. Hun er sonnud
+   i hina attina fyrst: nyja setningin VERDUR ad vera thar, annars vaeri
+   "gamla er farin" satt um toman glugga (CLAUDE.md 5b).                  */
+/* BADIR HAMIR I EINU. `wholeText` var tekinn adur en bil var valid (kafli 5b);
+   nu er `panel.textContent` bils-hamurinn. Fullyrdingin er um BADA — notan
+   ber sitthvora setningu og osonn setning i odrum haminum er jafn osonn.  */
+const bothText = wholeText + "\n" + (panel.textContent || "");
+ok("nyja setningin er a skjanum i BADUM homum og nefnir LOKIN timabil",
+   (wholeText.match(/completed season/gi) || []).length >= 1
+   && /completed season/i.test(panel.textContent || ""));
+ok("...og nefnir hve morg thau eru, LEITT ur consistency.json (5)",
+   /\b5 completed seasons\b/.test(wholeText),
+   (wholeText.match(/A range works on[^.]*\./) || [""])[0]);
+ok('...og "heilt timabil"-hamurinn bendir a valarann (`Gameweeks above`)',
+   /gameweek range/i.test(wholeText) && /Gameweeks/.test(wholeText));
+ok('OSANNA SETNINGIN ER FARIN UR BADUM HOMUM: engin tilvisun i "live/gw*.json"',
+   !/live\/gw\*?\.json/.test(bothText));
+ok('...og engin fullyrding um ad bil se "not an arbitrary gameweek range"',
+   !/not an arbitrary gameweek range/i.test(bothText));
+ok('...og "reaches 3 years back" er farid (thau eru fimm)',
+   !/3 years back/i.test(bothText));
+
+const sel = panel.querySelector("select");
+ok("timabils-valid er addressanlegt", !!sel);
+const liveOpt = [...(sel?.options || [])].find(o => /not started/.test(o.textContent));
+ok("yfirstandandi timabil er i valmyndinni", !!liveOpt, [...(sel?.options||[])].map(o=>o.value).join(", "));
+sel.value = liveOpt.value;
+await act(async()=>{ sel.dispatchEvent(new dom.window.Event("change", { bubbles:true })); });
+await act(async()=>{ await new Promise(r=>setTimeout(r,300)); });
+ok(`valid faerdist a ${liveOpt.value}`, sel.value === liveOpt.value);
+const liveToggle = pBtn(/Gameweeks$/);
+ok("valarinn er SLOKKTUR a yfirstandandi timabili (ekki thogull, ekki brotinn)",
+   !!liveToggle && liveToggle.disabled === true, `disabled=${liveToggle?.disabled}`);
+ok("...og hann BER ASTAEDUNA, a ensku og nakvaema",
+   /no per-gameweek data yet/i.test(liveToggle?.title || ""), liveToggle?.title);
+ok("...og astaedan segir ad bil krefjist LOKINS timabils",
+   /finished season/i.test(liveToggle?.title || ""), liveToggle?.title);
+/* Og strikid ma ekki vera thar samt.                                      */
+ok("kassa-strikid er hvergi a yfirstandandi timabili", !gwGroup());
+/* ASTAEDAN VERDUR AD VERA LAESILEG AN ThESS AD BENDA. Valarinn var OPINN
+   thegar timabilinu var skipt, svo hun stendur i eigin kassa a skjanum og
+   ekki adeins i `title` — tooltip naest ekki i sima (CLAUDE.md 8).       */
+ok("...og astaedan stendur A SKJANUM, ekki adeins i tooltip",
+   /no per-gameweek data yet/i.test(panel.textContent || ""),
+   (panel.textContent.match(/[^.]*no per-gameweek data yet[^.]*\./) || [""])[0]);
+
 console.log(`\nSAMANBURDAR-TAFLA: ${pass}/${pass+fail} graen`);
 process.exit(fail ? 1 : 0);
