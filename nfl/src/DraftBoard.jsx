@@ -24,7 +24,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as D from "./data.js";
 import { pickSignature, pollDelay } from "./draft-sync.js";
 import { recommend, MEASURED, nextOwnPick, survivalProb } from "./advice.js";
-import { leagueFromSleeper, teamsFromLeague, startersFromSlots } from "./sleeper-league.js";
+import { leagueFromSleeper, teamsFromLeague, startersFromSlots,
+         resolveSeat, SEAT_ROUTE_LABEL } from "./sleeper-league.js";
 import { edgeSentence } from "./rulebasis.js";
 import { signed } from "./columns.js";
 
@@ -1033,7 +1034,17 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   const [userId, setUserId] = useState(
     () => (sleeperUser && sleeperUser.userId) || null);
   const [leagues, setLeagues] = useState(null);
-  const [slotAuto, setSlotAuto] = useState(false);
+  /* HVADAN SAETID KOM, EKKI ADEINS HVORT ThAD VAR LESID. Þetta var
+     `slotAuto` (boolean) og skjarinn sagdi "read from Sleeper" — sem er
+     satt um thrjar oliker heimildir og segir thvi ekki hver theirra
+     svaradi. Þogult rett svar og thogult rangt svar lita eins ut, og
+     thad var nakvaemlega astandid sem let hann drafta sem saeti 5.
+     `null` = slegid inn i hendi. Sja `resolveSeat`. */
+  const [slotRoute, setSlotRoute] = useState(null);
+  const slotAuto = slotRoute != null;
+  /* HVERS VEGNA fannst saetid ekki — i orðum fra `resolveSeat`, svo
+     reiturinn segi ekki bara "slaðu thad inn". */
+  const [seatWhy, setSeatWhy] = useState(null);
   /* ============================================================
      TVAER OLIKAR "STODUR" — OG ThAER MEGA EKKI DEILA REIT
      ============================================================
@@ -1103,17 +1114,21 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
      skrifstad: saetid er leyst ur svarinu, sett i faersluna sem er
      flutt inn, og `setSync` er adeins notad thegar EKKERT er flutt inn
      (mock-draft eda draft an deildar).                              */
-  const resolveSlot = (d, uid, bundle) => {
-    const order = d && d.draft_order;
-    const direct = order && uid != null ? Number(order[uid]) : NaN;
-    if (Number.isFinite(direct)) return direct;
-    if (uid != null && bundle) {
-      const mine = teamsFromLeague({ ...bundle, draft: d })
-        .find((t) => t.userId === String(uid));
-      if (mine && mine.slot != null) return mine.slot;
-    }
-    return null;
-  };
+  /* `resolveSlot` VAR HER OG ER FARIN — `resolveSeat` (`sleeper-league.js`)
+     kom i hennar stad 20.8.2026. Hun bar tvaer leidir, `draft_order[uid]`
+     og deildar-vorpunina, OG BADAR KROFDUST `uid`. Þess vegna hafdi hun i
+     MOCK-I — thar sem notandinn hafdi aldrei slegid inn nafn og `uid` var
+     null — ENGA gilda leid, og tolu-reiturinn var eina svarid.
+
+     MAELT, EKKI TILGATA: hun skiladi `null` i thvi tilfelli, hun skiladi
+     ekki 5. Erfda saetid kom ur `slot: slot != null ? slot : sync.slot` i
+     `connect` (sja `keptSlot`), ekki ur uppflettingunni. Stokkbreyting a
+     theirri einu linu fellir `draft-live.mjs` kafla 18 med fjorum
+     fullyrdingum; uppflettingin sjalf var alltaf heidarleg.
+
+     Nyja fallid er HREINT og i `sleeper-league.js` svo leidirnar seu
+     profanlegar hver i sinu lagi, an jsdom — og su thridja, VOLIN, er
+     leidin sem virkar i mock-i. */
 
   /* ============================================================
      NOTANDANAFN ER **VARALEID**, EKKI FYRSTA GISK — OG THAD ER MAELT
@@ -1186,8 +1201,20 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
       const teamList = teamsFromLeague(bundle);
 
       const d = bundle.draft;
-      const slot = d ? resolveSlot(d, userId, bundle) : null;
-      setSlotAuto(slot != null);
+      /* VOLIN ERU SOTT HER LIKA, thott `pull` gera thad lika: leid B er
+         sterkasta heimildin og hun a ekki ad bida naestu pollunar. An
+         thessa blikkadi tolu-reiturinn i mock-i i eina pollun, sem les
+         eins og "appid veit ekki" a bordi sem veit. Brestur kallid er
+         thad EKKI villa — leidirnar A og C standa eftir. */
+      let seatPicks = null;
+      if (d && d.draft_id) {
+        try { seatPicks = await D.sleeperPicks(d.draft_id); }
+        catch { seatPicks = null; }
+      }
+      const seat = d ? resolveSeat({ draft: d, picks: seatPicks,
+        users: bundle.users, rosters: bundle.rosters, userId }) : { slot: null, route: null };
+      const slot = seat.slot;
+      setSlotRoute(seat.route);
 
       /* ============================================================
          SAETI ERFIST **ALDREI** MILLI DRAFTA — 20.8.2026
@@ -1339,15 +1366,42 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
          snakk-tolurnar — an thessarar linu voru thaer reiknadar ur
          deildinni og "Pick 151" var moguleg i 150 vala drafti. */
       if (onShape) onShape(shape);
-      /* Rodin er oft dregin EFTIR ad tengt er. Se saetid enn ekki komid
-         og `draft_order` bætist vid i millitidinni tokum vid thad. */
-      if (sync.slot == null && userId != null && d.draft_order) {
-        const s2 = d.draft_order[userId];
-        if (s2 != null && Number.isFinite(Number(s2))) {
-          setSlotAuto(true);
-          setSync((prev) => ({ ...prev, slot: Number(s2) }));
-        }
+      /* ============================================================
+         SAETID ER LEYST I HVERRI POLLUN, EKKI ADEINS VID TENGINGU
+         ============================================================
+         Her stod adeins leid A (`draft_order`) og adeins thegar saetid
+         var ONNIÐ. Tvennt var ad thvi:
+
+           · `draft_order` er NULL thangad til rodin er dregin (maelt: bædi
+             2026-draftin hans) og `sleeperResolve` getur auk thess skilad
+             draft-hlut ur LISTA-endapunktinum, sem nullar svidid ALLTAF.
+             Leidin var thvi oft daud nakvaemlega thegar hun var kolluð.
+           · `sync.slot == null` gerdi hlidid ad EINSKIPTA-hlidi: RANGT
+             saeti — hvernig sem thad kom inn — var oleidrettanlegt af
+             appinu sjalfu. Þad er villan sem kostadi mock-draftid.
+
+         NU ER SAETID LEYST UPP A NYTT UR VOLUNUM SJALFUM i hverri pollun.
+         VOLIN VINNA (`route === "picks"`): thau eru sonnunargagn, dregin
+         af thvi sem GERDIST, og thau yfirskrifa thvi lika saeti sem er
+         slegid inn i hendi. Stilling — `draft_order` eda deildin — faer
+         hins vegar ALDREI ad yfirskrifa innslegid saeti; hun fyllir
+         adeins tomt. Innslattur er svar notandans og aðeins raunveruleg
+         vol mega hnekkja honum.
+
+         SKIPTIN ERU SOGD, ALDREI ThOGUL: `slotRoute` fer a skjainn i
+         orðum, svo rangt svar er synilegt i sama andartaki. */
+      const seat2 = resolveSeat({ draft: d, picks, userId });
+      const curSlot = sync.slot == null ? null : Number(sync.slot);
+      if (seat2.slot != null && seat2.slot !== curSlot
+          && (curSlot == null || seat2.route === "picks")) {
+        setSlotRoute(seat2.route);
+        setSync((prev) => ({ ...prev, slot: seat2.slot }));
+      } else if (seat2.slot != null && seat2.slot === curSlot && !slotRoute) {
+        /* Sama tala, en NU vitum vid hvadan hun kemur. Innslegid saeti sem
+           volin stadfesta er ekki lengur giskad — og thad a ad sjast. */
+        setSlotRoute(seat2.route);
       }
+      setSeatWhy(seat2.slot == null ? seat2.why : null);
       /* VAL SEM BORDID THEKKIR EKKI MA EKKI HVERFA THEGJANDI.
          Bordid ber ~1.130 leikmenn af ~11.400 hja Sleeper, svo djupt
          val getur verid utan thess. Ad sleppa thvi ur `ids` er rett —
@@ -1745,7 +1799,8 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                        varaheitid ur `teamsFromLeague` ER saetatalan, svo
                        thad var sama talan tvitekin i sitthvorum reit. */
                     : <>Your seat is slot <b>{sync.slot}</b></>}
-                  {slotAuto && <span className="good"> · read from Sleeper</span>}
+                  {slotRoute && <span className="good">{" · "}
+                    {SEAT_ROUTE_LABEL[slotRoute] || "read from Sleeper"}</span>}
                   {" — "}<span className="dim">{seatList.length > 0
                     ? "click another to change it" : "change it below"}</span></>
               : seatList.length > 0
@@ -1783,7 +1838,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                 className={`chip${t.slot != null && t.slot === sync.slot ? " on" : ""}`}
                 disabled={t.slot == null}
                 onClick={() => {
-                  setSlotAuto(false);
+                  setSlotRoute("league");
                   setSync({ ...sync, slot: t.slot });
                   if (t.userId) {
                     setUserId((prev) => prev || String(t.userId));
@@ -1834,18 +1889,52 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
       {sync.draftId && seatList.length === 0 && (
         <div className="row" style={{ marginTop: 10 }}>
           <label className="field">
-            Your slot{slotAuto && sync.slot != null &&
-              <span className="good" style={{ fontSize: 11, marginLeft: 5 }}>read from Sleeper</span>}
+            Your slot{slotRoute && sync.slot != null &&
+              <span className="good" style={{ fontSize: 11, marginLeft: 5 }}>{
+                SEAT_ROUTE_LABEL[slotRoute] || "read from Sleeper"}</span>}
             <input type="number" min="1" max="16" value={sync.slot ?? ""}
               style={{ width: 70 }}
-              onChange={(e) => { setSlotAuto(false);
+              onChange={(e) => { setSlotRoute(null);
                 setSync({ ...sync, slot: e.target.value === "" ? null
                   : Number(e.target.value) }); }} />
           </label>
-          {sync.slot == null && seatHidden !== "other" && (
+          {/* ============================================================
+              REITURINN ER SIDASTA URRAEDID — OG HANN SEGIR HVERS VEGNA
+              ============================================================
+              BEIDNI NOTANDANS 20.8.2026: „eg vill ad thu finnir slottid
+              mitt". Reiturinn var svarid i mock-i og thad var rett greint
+              — svo `resolveSeat` fekk leid sem VIRKAR i mock-i (volin).
+
+              Þrju astond og THRJAR OLIKAR SETNINGAR, thvi thau kalla a
+              sitthvora adgerd fra notandanum:
+
+                audkenni vantar  -> ThAD er thad sem vantar, ekki saetid.
+                                    Eitt notandanafn i reitinn ofar og
+                                    appid les saetid sjalft, hedan i fra.
+                audkenni til, en
+                engin heimild enn -> BIDA. Saetid les sig ur FYRSTA vali
+                                    hans, svo reiturinn er thaegindi og
+                                    ekki krafa. Þad er SAGT, svo hann
+                                    haldi ekki ad appid se bilad.
+                onnur deild      -> sja `seatHidden`.
+
+              Nakvaemlega thetta var thad sem vantadi: reiturinn sagdi
+              adeins „sla thad inn", svo enginn gat vitad ad appid
+              MYNDI leysa thad sjalft eftir eitt val.                  */}
+          {sync.slot == null && seatHidden !== "other" && !userId && (
             <span className="dim" style={{ fontSize: 12.5, alignSelf: "flex-end" }}>
-              This draft lists no teams, so your seat could not be read. Without it your
-              own picks never reach the roster below.
+              The app does not know who you are yet, so it cannot pick your seat out of
+              this draft. Put your <b>Sleeper username</b> in the field above and press
+              Connect — it is read once and kept. Then your seat comes from the draft
+              itself and you never type it again.
+            </span>
+          )}
+          {sync.slot == null && seatHidden !== "other" && !!userId && (
+            <span className="dim" style={{ fontSize: 12.5, alignSelf: "flex-end" }}>
+              {seatWhy || "Your seat cannot be read from this draft yet."}{" "}
+              <b>It reads itself from your first pick</b>, so this field is a
+              convenience, not a requirement — fill it only if you want advice for the
+              pick before that.
             </span>
           )}
           {sync.slot == null && seatHidden === "other" && (

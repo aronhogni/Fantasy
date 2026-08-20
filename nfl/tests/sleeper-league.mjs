@@ -30,6 +30,7 @@ import {
   parseSleeperInput, startersFromRoster, scoringFromSettings,
   maxPosFor, teamsFromLeague, leagueFromSleeper,
   startersFromSlots, scoringFromDraftLabel, boardShape,
+  resolveSeat, SEAT_ROUTES, SEAT_ROUTE_LABEL,
 } from "../src/sleeper-league.js";
 import { DEFAULT_LEAGUE } from "../src/build.js";
 import { ownPickNo, nextOwnPick, picksUntilNext, survivalProb } from "../src/advice.js";
@@ -771,6 +772,197 @@ console.log("\n10. mock-draft: logunin lesin ur draftinu sjalfu");
   ok(junk.league.teams === 12 && junk.league.rounds === 14,
     `rusl i `+"`settings`"+` fellur i deildina (${junk.league.teams}x${junk.league.rounds})`);
   ok(Number.isFinite(junk.league.teams), "og hvergi NaN");
+}
+
+/* ============================================================
+   11. HVAR SIT EG? — ThRJAR LEIDIR, HVER PROFUD EIN
+   ============================================================
+   BEIDNI NOTANDANS 20.8.2026: „Nei eg vill ad thu finnir slottid mitt,
+   finndu leidir til thess ad lata appid gera thad."
+
+   Gamla `resolveSlot` bar tvaer leidir og BADAR krofdust `user_id`; i
+   MOCK-I, thar sem hann hafdi aldrei slegid inn nafn, hafdi hun thvi
+   enga gilda leid og tolu-reiturinn var eina svarid.
+
+   HVER LEID ER PROFUD MED LAUG ThAR SEM ADEINS HUN GETUR SVARAD. Þad er
+   ekki thaegindi heldur forsenda: vaeri laugin med allar thrjar
+   heimildirnar samtimis gaeti profid verid graent thott TVAER leidirnar
+   vaeru daudar — hin thridja baeri thaer. Fullyrding sem onnur leid getur
+   uppfyllt er ekki fullyrding um thessa leid.
+
+   TOLURNAR ERU UR LIFANDI API-I 20.8.2026, fjogur LOKIN draft hans:
+
+     draft                  vol min   draft_slot   draft_order[eg]
+     1257479008598110209     14/14        5              5
+     1257117602308689921     15/15        3              3
+     1126700095157714944     14/14        1              1
+     1124851993081290753     15/15        5              5
+
+   Fjogur draft, FJOGUR OLIK SAETI (5, 3, 1, 5) — sjalfstaed staðfesting
+   a thvi ad saetid se eiginleiki DRAFTSINS og megi aldrei erfast. Og
+   leidirnar A og B gafu SOMU tolu i ollum fjorum, sem er forsendan fyrir
+   thvi ad hafa thaer badar i stad ad velja eina.
+
+   OG EITT SEM VAR MAELT RANGT FYRST, skrad thvi thad er gildra: LISTA-
+   endapunkturinn (`/user/{id}/drafts/nfl/{ar}`) NULLAR `draft_order` —
+   lika a loknum draftum — medan STAKI (`/draft/{id}`, sa sem appid
+   notar) ber hana. Fyrsta maelingin las listann og dro af thvi ad leid A
+   vaeri nanast aldrei til. Hun er til; hun kemur bara thegar rodin er
+   dregin.                                                             */
+console.log("\n11. hvar sit eg — thrjar leidir, hver profud ein");
+{
+  const ME = "869560416248975360";
+  const T10 = { settings: { teams: 10, rounds: 15 } };
+
+  /* ---- B. VOLIN, OG **ADEINS** thau ----
+     Engin `draft_order`, ekkert `slot_to_roster_id`, engir notendur,
+     engir rostrar. Þetta er MOCK — astandid thar sem gamla leidin hafdi
+     ekkert — og volin eru eina heimildin sem er til. */
+  {
+    const draft = { ...T10, draft_id: "m1", league_id: null,
+                    draft_order: null, slot_to_roster_id: null };
+    const picks = [
+      { pick_no: 1, draft_slot: 1, picked_by: "bot1", player_id: "1" },
+      { pick_no: 7, draft_slot: 7, picked_by: ME,     player_id: "2" },
+      { pick_no: 14, draft_slot: 7, picked_by: ME,    player_id: "3" },
+    ];
+    const r = resolveSeat({ draft, picks, userId: ME });
+    ok(r.slot === 7, `B: volin ein gefa saeti 7 (${r.slot})`);
+    ok(r.route === "picks", `og leidin er nefnd "picks" (${r.route})`);
+    ok(/2 picks/.test(r.why), `og hun segir a hverju hun byggir ("${r.why}")`);
+    /* HIN ATTIN — annars vaeri "7" bara talan sem laugin ber: sami
+       draft, en volin eru annars manns. */
+    const other = resolveSeat({ draft,
+      picks: picks.map((p) => ({ ...p, picked_by: "bot" + p.draft_slot })),
+      userId: ME });
+    ok(other.slot === null && other.route === null,
+      `og vol ANNARS MANNS gefa null, ekki 7 (${other.slot})`);
+    ok(/no draft order|cannot be read/.test(other.why),
+      `og hun segir hvers vegna ("${other.why}")`);
+  }
+
+  /* ---- A. `draft_order`, OG **ADEINS** hun ----
+     Engin vol (draftid er ekki byrjad), engin deild. */
+  {
+    const draft = { ...T10, draft_id: "m2", league_id: null,
+                    draft_order: { [ME]: 3, other: 8 }, slot_to_roster_id: null };
+    const r = resolveSeat({ draft, picks: [], userId: ME });
+    ok(r.slot === 3 && r.route === "order",
+      `A: rodin ein gefur saeti 3 um leid "order" (${r.slot}/${r.route})`);
+    /* Audkenni sem er ekki i rodinni ma ekki fa saeti EINHVERS. */
+    const nope = resolveSeat({ draft, picks: [], userId: "999" });
+    ok(nope.slot === null,
+      `og audkenni utan rodarinnar faer null, ekki fyrsta saetid (${nope.slot})`);
+  }
+
+  /* ---- C. DEILDIN, OG **ADEINS** hun ----
+     Engin vol, engin `draft_order`. Saetid kemur ur
+     `slot_to_roster_id` -> `rosters[].owner_id`, sem er leidin sem VIRKAR
+     thott rodin se ekki dregin (maelt a raunverulegri deild 12.8.2026). */
+  {
+    const draft = { ...T10, draft_id: "m3", league_id: "L1",
+                    draft_order: null, slot_to_roster_id: { 1: 4, 2: 9, 6: 2 } };
+    const rosters = [{ roster_id: 4, owner_id: "x" }, { roster_id: 9, owner_id: "y" },
+                     { roster_id: 2, owner_id: ME }];
+    const users = [{ user_id: ME, display_name: "KanelGifler" }];
+    const r = resolveSeat({ draft, picks: [], users, rosters, userId: ME });
+    ok(r.slot === 6 && r.route === "league",
+      `C: deildin ein gefur saeti 6 um leid "league" (${r.slot}/${r.route})`);
+    const nope = resolveSeat({ draft, picks: [], users, rosters, userId: "zzz" });
+    ok(nope.slot === null,
+      `og notandi utan deildarinnar faer null (${nope.slot})`);
+  }
+
+  /* ---- RODIN: VOLIN VINNA ThEGAR THAU REKAST A ----
+     Þetta er sterkasta reglan i fallinu og hun er ekki smekkur: leid B
+     er dregin af thvi sem GERDIST, leidir A og C segja hvad ATTI ad
+     gerast. Stilling getur verid gomul, afrituð eda innslegin; val sem er
+     skrad a mig ER mitt. */
+  {
+    const draft = { ...T10, draft_id: "m4", league_id: "L1",
+                    draft_order: { [ME]: 5 }, slot_to_roster_id: { 9: 2 } };
+    const rosters = [{ roster_id: 2, owner_id: ME }];
+    const picks = [{ pick_no: 7, draft_slot: 7, picked_by: ME, player_id: "1" }];
+    const r = resolveSeat({ draft, picks, users: [], rosters, userId: ME });
+    ok(r.slot === 7 && r.route === "picks",
+      `agreiningur: rodin segir 5, deildin 9, VOLIN 7 -> volin vinna (${
+        r.slot}/${r.route})`);
+    /* OG MAELITAEKID VERDUR AD GETA BRUGDIST: an valanna svarar SAMA laug
+       5 (leid A), svo "7" er ekki bara talan sem laugin ber. */
+    const noPicks = resolveSeat({ draft, picks: [], users: [], rosters, userId: ME });
+    ok(noPicks.slot === 5 && noPicks.route === "order",
+      `og an valanna svarar sama laug 5 um "order" — svo rodin er raunveruleg (${
+        noPicks.slot}/${noPicks.route})`);
+  }
+
+  /* ---- AUDKENNID ER FORSENDA ALLRA LEIDA ----
+     Þetta er nakvaemlega thad sem brast i mock-i: `uid` var null og
+     BADAR gomlu leidirnar krofdust hans. Svarid er `null` OG setning sem
+     segir hvad vantar — thvi vidmotid a tha ad bidja um NOTANDANAFN, ekki
+     um saetatolu. */
+  {
+    const draft = { ...T10, draft_order: { u1: 1 }, slot_to_roster_id: { 1: 1 } };
+    const picks = [{ pick_no: 1, draft_slot: 1, picked_by: "u1", player_id: "1" }];
+    for (const bad of [null, undefined, "", "   ", {}, []]) {
+      const r = resolveSeat({ draft, picks, userId: bad });
+      ok(r.slot === null && /user id/.test(r.why),
+        `an audkennis: null og "${r.why.slice(0, 34)}" (${JSON.stringify(bad)})`);
+    }
+  }
+
+  /* ---- SAETI UTAN DRAFTSINS ER EKKI SAETI ----
+     Skorðan gildir um ALLAR leidirnar. Heimild sem skilar 13 i 10-lida
+     drafti er skemmt svar, hvadan sem hun kemur — og "Slot 13 does not
+     exist" er vidvorun sem notandinn getur ekkert gert vid. */
+  {
+    const draft = { ...T10, draft_order: { [ME]: 13 }, slot_to_roster_id: null };
+    ok(resolveSeat({ draft, picks: [], userId: ME }).slot === null,
+      "A: saeti 13 i 10-lida drafti -> null");
+    ok(resolveSeat({ draft: { ...draft, draft_order: null },
+      picks: [{ pick_no: 1, draft_slot: 13, picked_by: ME, player_id: "1" }],
+      userId: ME }).slot === null,
+      "B: sama um volin — 13 er ekki saeti i 10-lida drafti");
+    /* En an `settings.teams` er engin skorðan til og tha ma talan standa:
+       ad henda henni thar vaeri ad giska a staerd sem vid vitum ekki. */
+    const noSize = resolveSeat({ draft: { draft_order: { [ME]: 13 } },
+      picks: [], userId: ME });
+    ok(noSize.slot === 13,
+      `an \`settings.teams\` stendur talan (${noSize.slot}) — ekki giskad a staerd`);
+  }
+
+  /* ---- TVIRAETT -> ENGIN PORUN ----
+     Sama regla og `myRosterId` og `names.mjs`. Getur ekki gerst i
+     heilbrigðu svari — og thess vegna ma hun ekki vera thogul. */
+  {
+    const draft = { ...T10, draft_order: null, slot_to_roster_id: null };
+    const picks = [{ pick_no: 3, draft_slot: 3, picked_by: ME, player_id: "1" },
+                   { pick_no: 8, draft_slot: 8, picked_by: ME, player_id: "2" }];
+    const r = resolveSeat({ draft, picks, userId: ME });
+    ok(r.slot === null && /different seats/.test(r.why),
+      `tvo saeti undir minu audkenni -> null og SAGT ("${r.why}")`);
+  }
+
+  /* ---- RUSL MA EKKI HRYNJA ---- */
+  for (const bad of [undefined, null, {}, { draft: null, picks: null },
+                     { draft: 7, picks: "nei", userId: 3 },
+                     { draft: { draft_order: "nei" }, picks: [{}], userId: "x" }]) {
+    let r = null, threw = false;
+    try { r = resolveSeat(bad); } catch { threw = true; }
+    ok(!threw && r && r.slot === null,
+      `rusl-inntak gefur null an hruns: ${JSON.stringify(bad)}`);
+  }
+
+  /* ---- ORDIN SEM SKJARINN BIRTIR ERU A EINUM STAD ----
+     Vidmotid les `SEAT_ROUTE_LABEL[route]`. Beri einhver leid ekki orð
+     myndi skjarinn falla i "read from Sleeper" — sem er nakvaemlega su
+     othekkjanlega setning sem `route` var buinn til ad leysa. */
+  ok(SEAT_ROUTES.length === 3 &&
+     SEAT_ROUTES.every((r) => typeof SEAT_ROUTE_LABEL[r] === "string"
+                              && SEAT_ROUTE_LABEL[r].length > 8),
+    `hver leid ber sin ord (${SEAT_ROUTES.map((r) =>
+      `${r}="${SEAT_ROUTE_LABEL[r]}"`).join(" · ")})`);
+  ok(new Set(Object.values(SEAT_ROUTE_LABEL)).size === SEAT_ROUTES.length,
+    "og ordin eru olik — tvaer leidir med sama texta vaeru ein leid a skjanum");
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

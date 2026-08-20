@@ -519,8 +519,17 @@ console.log("\n2bb. saetid les sig sjalft ur draft_order");
     .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
   ok(slotInput && Number(slotInput.value) === 7,
     `saetid lesid ur draft_order (fann "${slotInput ? slotInput.value : "?"}", a ad vera 7)`);
-  ok(/read from Sleeper/i.test(text()),
-    "og thad er MERKT sem lesid, ekki innslegid");
+  /* MERKID NEFNIR NU LEIDINA, EKKI ADEINS "Sleeper" — og thad er
+     STERKARI fullyrding, ekki adeins annad orðalag. `resolveSeat` ber
+     thrjar leidir (volin, `draft_order`, deildin) og "read from Sleeper"
+     var satt um allar thrjar; svo saeti sem kom ur RANGRI leid las eins
+     ut og saeti sem kom ur rettri. Hér er heimildin nefnd og profid
+     krefst theirrar RETTU: fixture-id ber `draft_order` og ENGIN vol
+     notandans, svo adeins leid A getur svarad. Vaeri "picks" birt vaeri
+     thad villa sem gamla fullyrdingin hefdi hleypt i gegn. */
+  ok(/read from the draft order/i.test(text()),
+    "og thad er MERKT sem lesid UR RODINNI, ekki innslegid"
+    + ` ("${(/read from [a-z ]+/i.exec(text()) || ["ekkert merki"])[0]}")`);
 
   /* Og tha VIRKAR radgjofin a rettum hop — AN ANNARS SMELLS. Connect
      kveikti a samstillingunni sjalfur (adur var "Start live sync"
@@ -610,8 +619,9 @@ console.log("\n2bb2. saetid lifir endurhledslu");
   const slot2 = slotOf();
   ok(slot2 && Number(slot2.value) === 7,
     `lota 2: saetid les sig UPP A NYTT an innslattar (${slot2 ? slot2.value || "tomt" : "?"})`);
-  ok(/read from Sleeper/i.test(text()),
-    "og thad er merkt sem lesid, ekki innslegid");
+  ok(/read from the draft order/i.test(text()),
+    "og thad er merkt sem lesid UR RODINNI, ekki innslegid"
+    + ` ("${(/read from [a-z ]+/i.exec(text()) || ["ekkert merki"])[0]}")`);
   root.unmount();
 }
 
@@ -1153,11 +1163,13 @@ console.log("\n2e2. smellur a lidid kennir appinu hver eg er");
 
   scenario = SCENARIOS.mock10;
   await go("m10");
-  await waitFor(() => /read from Sleeper/i.test(text()), 4000);
+  await waitFor(() => /read from the draft order/i.test(text()), 4000);
   ok(/Your seat is slot\s*4|You are[^,]*,\s*slot\s*4/.test(text().replace(/\s+/g, " ")),
     `saetid lest ur mock-inu AN ad neitt se slegid inn ("${
       (/(Your seat is|You are)[^.]{0,42}/.exec(text().replace(/\s+/g, " ")) || ["ekkert"])[0]}")`);
-  ok(/read from Sleeper/i.test(text()), "og thad er merkt sem lesid, ekki innslegid");
+  ok(/read from the draft order/i.test(text()),
+    "og thad er merkt sem lesid UR RODINNI, ekki innslegid"
+    + ` ("${(/read from [a-z ]+/i.exec(text()) || ["ekkert merki"])[0]}")`);
   /* Og logunin er SU SAMA, svo ljosid er graent — annars vaeri thessi
      kafli lika ad maela logunar-hlidid og hvorugt vaeri skyrt. */
   ok(conn() === "good", `og ljosid er graent (sama logun) — fann "${conn()}"`);

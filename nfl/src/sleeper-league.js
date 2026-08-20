@@ -783,6 +783,178 @@ function num(v) {
 }
 
 /* ============================================================
+   HVAR SIT EG? — ThRJAR LEIDIR, OG SU STERKASTA ER VOLIN SJALF
+   ============================================================
+   BEIDNI NOTANDANS 20.8.2026, eftir ad hafa fengid tolu-reit i mock-i:
+   „Nei eg vill ad thu finnir slottid mitt, finndu leidir til thess ad
+   lata appid gera thad."
+
+   Þad er RETT krafa og gamla utfaerslan (`resolveSlot` i `DraftBoard`)
+   svaradi henni adeins i deildum. Hun bar tvaer leidir og BADAR voru
+   deildar-bundnar i reynd, svo i MOCK-I hafdi hun enga gilda leid —
+   og thad er astaedan fyrir thvi ad tolu-reiturinn var eina svarid thar.
+
+   ============================================================
+   MAELT A LIFANDI API 20.8.2026 — TVEIR ENDAPUNKTAR, SITTHVOR SVOR
+   ============================================================
+   Fyrsta maelingin min var ROMG og hun er skrad her thvi hun er gildra
+   sem naesti lesandi gengur i: eg las `draft_order` ur LISTA-endapunkt-
+   inum (`/user/{id}/drafts/nfl/{ar}`) og fekk **null i sex af sex**
+   draftum, thar med tveimur sem eru LOKID — og dro af thvi ad leid A
+   vaeri nanast aldrei til.
+
+   LISTA-ENDAPUNKTURINN NULLAR SVIDID. Sami draft ur STAKA endapunktinum
+   (`/draft/{id}`, sa sem appid notar) ber thad:
+
+       1257479008598110209  complete   list: NULL   stakur: 10 faerslur, eg = 5
+       1124851993081290753  complete   list: NULL   stakur: 10 faerslur, eg = 5
+       1389356308125192192  pre_draft  list: NULL   stakur: NULL
+       1389328159903580161  pre_draft  list: NULL   stakur: NULL
+
+   RETTA REGLAN ER ThVI: `draft_order` fyllist thegar RODIN ER DREGIN og
+   stendur eftir thad. Bædi 2026-draftin hans eru `pre_draft` og bera
+   null; bædi loknu bera hana. Leid A er thvi RETT og LIFANDI — hun er
+   bara ekki til fyrr en draftid byrjar, sem er nakvaemlega thegar
+   spurningin verdur til.
+
+   OG ÞETTA ER RAUNVERULEG GILDRA I OKKAR EIGIN KODA: `sleeperResolve`
+   fellur i `sleeperDrafts(leagueId)` — LISTANN — thegar `league.draft_id`
+   brestur (`data.js`). Draft-hlutur ur theirri leid ber ALLTAF null
+   `draft_order`, svo leid A vaeri daud af okkar eigin voldum. `pull()`
+   saekir `sleeperDraft(id)` (stakan) i hverri pollun, svo hun naest inn
+   um leid og samstilling er kveikt — thess vegna er saetid leyst i
+   `pull`, ekki adeins i `connect`.
+
+   VOLIN ERU HINS VEGAR ThAR UM LEID OG EITT ER TEKID. Hvert val ur
+   `/draft/{id}/picks`
+   ber `picked_by` (raunverulegt `user_id`) og `draft_slot`. Maelt a
+   fjorum LOKNUM draftum hans:
+
+       14/14, 15/15, 14/14, 15/15 vol pöruðust — og hvert draft gaf
+       NAKVAEMLEGA EITT `draft_slot`: 5, 3, 1, 5
+
+   Fjogur draft, fjogur olik saeti. Þad er lika sjalfstaed staðfesting a
+   thvi ad saetid se EIGINLEIKI DRAFTSINS og megi aldrei erfast: hann
+   hefur ekki setid i sama saeti tvisvar i rod.
+
+   OG LEIDIRNAR TVAER ERU KROSS-STADFESTAR: a ollum fjorum loknu draftum
+   gefa `draft_order` og volin SOMU tolu (5, 3, 1, 5). Þaer geta thvi
+   rekist a — en gerdu thad ekki i einu tilviki af fjorum, sem er
+   forsendan fyrir thvi ad hafa thaer badar i stad ad velja eina.
+
+   OG ÞETTA ER SU LEID SEM VIRKAR I MOCK-I: hun tharf hvorki deild,
+   `slot_to_roster_id` ne notendalista — adeins `user_id` notandans, sem
+   er EITT kall (`/user/{nafn}`) og er vistad eftir thad. Botar geta ekki
+   rugla hana: vid leitum ad HANS audkenni, svo hvad sem botarnir bera
+   (`picked_by` tomt eda annad audkenni) er osnert. Maelt: `picked_by`
+   var ekki tomt i einu einasta af 580 volum.
+
+   ============================================================
+   RODIN: VOLIN VINNA. ALLTAF.
+   ============================================================
+   Leid B er SONNUNARGAGN — hun er dregin af thvi sem GERDIST. Leidir A
+   og C eru STILLINGAR — thaer segja hvad atti ad gerast. Rekist thau a
+   vinnur B, og thad er ekki smekkur: stilling getur verid gomul, afrituð
+   eda innslegin i hendi, en val sem er skrad a mig ER mitt.
+
+   Þess vegna er B lika latin yfirskrifa SAETI SEM ER SLEGID INN I HENDI.
+   Þad er undantekning fra reglunni „handvirkt slaer sjalfvirkt" og hun
+   er visvitandi: nakvaemlega su villa sem kostadi hann mock-draft —
+   rangt saeti sem lítur truverdugt ut — laeknast tha af sjalfu ser vid
+   FYRSTA val hans, i stad thess ad standa allt draftid. Skiptin eru
+   SOGD a skjanum, aldrei thogul.
+
+   `route` er skilad MED saetinu svo vidmotid geti nefnt heimildina
+   („read from your own picks"). Þogult rett svar og thogult rangt svar
+   lita eins ut — og thad var nakvaemlega astandid sem let hann drafta
+   sem saeti 5.
+
+   AMBIGUOUS -> ENGIN PORUN. Beri tvo vol MITT audkenni i sitthvoru
+   saeti er svarid `null`, ekki „fyrsta". Þad getur ekki gerst i heilbrigðu
+   svari, en sama regla og `myRosterId` og `names.mjs`: thogul rong porun
+   er verri en engin.
+   ============================================================ */
+export const SEAT_ROUTES = ["picks", "order", "league"];
+
+export function resolveSeat(arg) {
+  /* `= {}` VER ADEINS `undefined`, EKKI `null` — og `null` er thad sem
+     kemur ur `entry.sync`, ur `loadState` og ur hverju vaentu svari sem
+     brast. Fyrsta utgafan hrundi a `resolveSeat(null)`; profid fann thad.
+     Sama gildra og "gilt JSON med rangri gerd" (CLAUDE.md kafli 8). */
+  const { draft, picks, users, rosters, userId } =
+    (arg && typeof arg === "object" ? arg : {});
+  /* TRIMMAD: `"   "` er SANNGILDI sem strengur, svo hvitbil hefdi talist
+     audkenni og fallid hefdi svarad "engin heimild" i stad "eg veit ekki
+     hver thu ert" — tvaer setningar sem kalla a SITTHVORA adgerd fra
+     notandanum (notandanafn gegn bid). Profid fann thad lika. */
+  const uid = userId != null && typeof userId !== "object"
+    && String(userId).trim() ? String(userId).trim() : null;
+  const teams = num(draft && draft.settings && draft.settings.teams);
+  /* Saeti utan draftsins er ekki saeti. Þetta er EINA skorðunin sem
+     gildir um allar leidirnar — heimild sem skilar 13 i 10-lida drafti
+     er skemmt svar, hvadan sem hun kemur. */
+  const fits = (s) => s != null && Number.isFinite(s) && s >= 1
+    && (teams == null || s <= teams);
+
+  if (!uid) {
+    return { slot: null, route: null,
+             why: "no Sleeper user id yet — nothing can be matched to you" };
+  }
+
+  /* ---- B. VOLIN (sonnunargagn) ---- */
+  const mine = (Array.isArray(picks) ? picks : [])
+    .filter((p) => p && p.picked_by != null && String(p.picked_by) === uid);
+  if (mine.length) {
+    const slots = [...new Set(mine.map((p) => num(p.draft_slot))
+      .filter((s) => fits(s)))];
+    if (slots.length === 1) {
+      return { slot: slots[0], route: "picks",
+               why: `${mine.length} pick${mine.length > 1 ? "s" : ""} on this draft `
+                  + "are recorded as yours" };
+    }
+    if (slots.length > 1) {
+      /* TVIRAETT -> ENGIN PORUN, og thad er SAGT. Þogul valin a fyrsta
+         saetinu vaeri nakvaemlega su gerd villu sem thessi kafli ver. */
+      return { slot: null, route: null,
+               why: `your picks are recorded under ${slots.length} different seats `
+                  + `(${slots.join(", ")}) — that cannot be read` };
+    }
+  }
+
+  /* ---- A. `draft_order` (stilling) ---- */
+  const order = draft && draft.draft_order && typeof draft.draft_order === "object"
+    ? draft.draft_order : null;
+  if (order) {
+    const s = num(order[uid]);
+    if (fits(s)) {
+      return { slot: s, route: "order", why: "the draft order lists you at that seat" };
+    }
+  }
+
+  /* ---- C. DEILDIN (stilling) ---- */
+  if (Array.isArray(users) || Array.isArray(rosters)) {
+    const t = teamsFromLeague({ draft, users, rosters })
+      .find((x) => x.userId === uid);
+    if (t && fits(num(t.slot))) {
+      return { slot: num(t.slot), route: "league",
+               why: "the league roster puts you at that seat" };
+    }
+  }
+
+  return { slot: null, route: null,
+           why: "this draft carries no draft order, no picks of yours and no league "
+              + "roster, so your seat cannot be read yet" };
+}
+
+/** Ordin sem vidmotid birtir. A EINUM STAD svo skjar og prof geti ekki
+    sagt sitthvad um sama `route`. */
+export const SEAT_ROUTE_LABEL = {
+  picks: "read from your own picks",
+  order: "read from the draft order",
+  league: "read from the league roster",
+};
+
+/* ============================================================
    7. DRAFTID SEM HEIMILD — MOCK BER ENGA DEILD, OG THAD ER SVAR
    ============================================================
    VILLAN SEM THETTA LEYSIR VAR TVIThAETT OG HUN VAR A SKJANUM HJA
