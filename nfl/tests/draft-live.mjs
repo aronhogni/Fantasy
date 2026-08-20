@@ -2029,6 +2029,189 @@ console.log("\n20. tveir kostir eru a skjanum, og urskurdurinn er oskertur");
   await act(async () => { root.unmount(); });
 }
 
+/* ============================================================
+   21. HEILT MOCK KEYRT EFTIR RADGJOF APPSINS — OG HOPURINN VERDUR
+       AD VERA UPPSTILLANLEGUR
+   ============================================================
+   ÞETTA ER PROFID SEM HEFDI FANGAD ÞAD SEM KOM FYRIR HANN.
+
+   Hann keyrdi mock og FOR EFTIR HVERRI RADLEGGINGU. Nidurstadan var
+   tiu WR, tveir TE, einn QB, tvaer varnir — og **ENGINN RB, ENGINN
+   SPYRNUMADUR**. Þrju byrjunarsaeti tom, sidasta lid af tiu, 215 stigum
+   undir. Tveir RB sem voru A BORDINU i hans eigin volum (2.4 og 4.4)
+   hefdu gert hann fyrstan.
+
+   ENGIN FULLYRDING GAT FANGAD THAD, og astaedan er ein: HVERT EINASTA
+   fixture i thessu safni gaf appinu RETTA hopinn. Adrir kaflar profa
+   valnumer, snakk-vorpun, litina, thekjuna — en enginn profadi
+   NIDURSTODUNA af thvi ad fara eftir radgjofinni. Kafli 18 ver
+   identitetid (hvers hopur er lesinn); thessi kafli ver AFLEIDINGUNA
+   (hvad hopurinn verdur ad ef thu ferd eftir radinu).
+
+   ÞETTA ER EKKI HERMUN A RADGJOFINNI — ÞAD ER HUN SJALF. Vid hvert
+   eitt af 15 volum saetis 7 er nafnid LESID AF SKJANUM (`.verdict-name b`,
+   sama hnutur sem kafli 20 les) og THAD nafn er valid. Ekkert i profinu
+   veit hvernig `recommend` vinnur; thad les urskurdinn og hlydir honum,
+   nakvaemlega eins og notandinn gerdi.
+
+   BOTARNIR VELJA EFTIR ADP, sem er thad sem Sleeper-botar gera. Þad er
+   ekki smekkur heldur forsenda: laug sem er valin til ad THVINGA RB-skort
+   (eda til ad forda honum) vaeri profid ad svara sinni eigin spurningu.
+   ADP-rodin gefur lika K og DST sinn raunverulega stad — sjo varnir og
+   sex spyrnumenn eru innan fyrstu 150 valanna — svo K/DST-saetin eru
+   raunverulega i haettu, eins og thau voru hja honum.
+
+   LOGUNIN ER HANS: 10 lid, 15 umferdir, full PPR, og
+   `roster_positions` deildarinnar gefur QB1 RB2 WR2 TE1 FLEX2 K1 DST1.
+
+   UPPSTILLANLEIKINN ER REIKNADUR HER, EKKI FLUTTUR INN. `optimalLineup`
+   i `lineup.js` svarar somu spurningu — og thess vegna ma hun ekki vera
+   svarid: tvaer utfaerslur af somu reglu sem eru bædi skakkar eru graenar
+   saman. Talningin er lesin AF SKJANUM (`My team`-spjaldid ber "RB 2/2")
+   og FLEX-saetin eru reiknud ur afgangnum.
+
+   OG ÞETTA MA EKKI VERDA ROD I DULARGERVI: bradanauðsyn sem ROD er
+   MAELD OG HAFNAD (`urgencyDrivesOrder: false`, -60,06 i standard, 0 af
+   5 arum). Fælli thessi kafli MED rettum hop vaeri thad NY VISBENDING
+   gegn maeldri niðurstodu — tilefni til ad maela upp a nytt, ekki til ad
+   endurraða listanum svo profid verdi graent.                        */
+console.log("\n21. heilt mock eftir radgjof appsins — hopurinn verdur ad vera uppstillanlegur");
+{
+  /* ---- laugin: OLL stodur, i ADP-rod, einkvaem nofn ----
+     `POOL` ofar sleppir K og DST (adrir kaflar tharfnast theirra ekki),
+     en HER eru thau kjarninn i spurningunni: tvo af thremur tomu
+     saetunum hans voru K og DST. */
+  const FULL = players
+    .filter((p) => p.adpSleeper != null && nameCount.get(p.name) === 1)
+    .sort((a, b) => a.adpSleeper - b.adpSleeper)
+    .slice(0, TOTAL + 60);
+  const kAdp = FULL.filter((p) => p.pos === "K").length;
+  const dAdp = FULL.filter((p) => p.pos === "DST").length;
+  ok(FULL.length >= TOTAL + 20 && kAdp >= 3 && dAdp >= 3,
+    `laugin ber ${FULL.length} menn, thar af ${kAdp} K og ${dAdp} DST` +
+    " — annars vaeri K/DST-saetid oleysanlegt af gagnaskorti, ekki af radgjof");
+  /* Uppflettingin sem gerir "hlyda urskurdinum" mogulega: appid ma
+     radleggja HVERN SEM ER ur `players.json`, ekki adeins ur lauginni. */
+  const byName = new Map();
+  for (const p of players) if (nameCount.get(p.name) === 1) byName.set(p.name, p);
+
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const root = await boot();
+  await connectAndSync();
+  await settle(200);
+
+  /* Deildin VERDUR ad bera hans logun, annars er kaflinn ad maela adra
+     spurningu. Lesid af skjanum ur `My team`-spjaldinu sjalfu. */
+  const myPanel = () => [...document.querySelectorAll(".panel")]
+    .find((p) => /^My team$/.test(p.querySelector("h2")?.textContent || "")) || null;
+  /* "RB 2/2" -> { RB: { have: 2, need: 2 } }. Sama hnut sem berst
+     notandanum; `warn`-stillinn a tolunni er hitt merkid. */
+  const rosterByPos = () => {
+    const out = {};
+    for (const d of myPanel()?.querySelectorAll(".dimmer") || []) {
+      const m = /^(QB|RB|WR|TE|K|DST)\s+(\d+)\s*\/\s*(\d+)$/
+        .exec((d.textContent || "").replace(/\s+/g, " ").trim());
+      if (m) out[m[1]] = { have: Number(m[2]), need: Number(m[3]),
+                           warn: !!d.querySelector(".warn") };
+    }
+    return out;
+  };
+  const NEED = { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1, FLEX: 2 };
+  {
+    const seen = rosterByPos();
+    const shape = Object.keys(NEED).filter((p) => p !== "FLEX")
+      .every((p) => seen[p] && seen[p].need === NEED[p]);
+    ok(shape,
+      `deildin ber HANS logun — QB1 RB2 WR2 TE1 K1 DST1 (${
+        Object.entries(seen).map(([k, v]) => `${k} ${v.need}`).join(" ")})`);
+  }
+
+  /* ---- keyrslan ---- */
+  const taken = new Set();
+  const botPick = () => FULL.find((p) => !taken.has(p.id)) || null;
+  const mineTaken = [];
+  let stalled = null;
+
+  for (let n = 1; n <= TOTAL; n++) {
+    if (slotOfPick(n).slot !== MY_SLOT) {
+      const b = botPick();
+      if (!b) { stalled = `laugin thraut i vali ${n}`; break; }
+      taken.add(b.id);
+      live.picks.push(mkPick(n, b));
+      continue;
+    }
+    /* MITT VAL. Bordid verdur fyrst ad hafa nad theim sem komu a undan —
+       urskurdur sem er reiknadur ur GAMLA bordinu vaeri rad um annad
+       draft en thad sem er i gangi. */
+    const arrived = await waitFor(
+      () => draftedOnScreen() === n - 1 && pickHeader() === n, 9000);
+    if (!arrived) {
+      stalled = `bordid nadi ekki vali ${n} (drafted ${
+        draftedOnScreen()}, header ${pickHeader()})`;
+      break;
+    }
+    const nameEl = myPanel() && document.querySelector(".verdict-name b");
+    const nm = nameEl ? (nameEl.textContent || "").trim() : "";
+    const who = nm ? byName.get(nm) : null;
+    if (!who) {
+      stalled = `val ${n}: urskurdurinn las "${nm || "ekkert"}"` +
+                " og hann er ekki einkvaemur i players.json";
+      break;
+    }
+    if (taken.has(who.id)) {
+      stalled = `val ${n}: appid radlagdi "${nm}" sem er ThEGAR farinn`;
+      break;
+    }
+    taken.add(who.id);
+    mineTaken.push({ pick: n, name: nm, pos: who.pos });
+    live.picks.push(mkPick(n, who));
+  }
+  ok(!stalled, `draftid rann til enda, 150 vol${stalled ? ` — ${stalled}` : ""}`);
+
+  await waitFor(() => draftedOnScreen() === TOTAL, 12000);
+  await settle(400);
+  ok(draftedOnScreen() === TOTAL,
+    `oll ${TOTAL} volin eru a bordinu (${draftedOnScreen()})`);
+  ok(mineTaken.length === ROUNDS,
+    `og saeti 7 tok ${ROUNDS} menn, alla eftir urskurdi appsins (${mineTaken.length})`);
+  ok(rosterCount() === ROUNDS,
+    `hopurinn a skjanum telur ${ROUNDS} (${rosterCount()})`);
+
+  /* ---- OG HER ER SPURNINGIN ---- */
+  const seen = rosterByPos();
+  const cnt = (p) => (seen[p] ? seen[p].have : 0);
+  const miss = [];
+  for (const p of ["QB", "RB", "WR", "TE", "K", "DST"]) {
+    if (cnt(p) < NEED[p]) miss.push(`${p} ${cnt(p)}/${NEED[p]}`);
+  }
+  /* FLEX er ekki teiknad sem rod i spjaldinu (thad er ekki stada), svo
+     thad er reiknad ur AFGANGNUM af RB/WR/TE — sem er nakvaemlega
+     reglan sem gerir FLEX ad FLEX. */
+  const spare = ["RB", "WR", "TE"]
+    .reduce((a, p) => a + Math.max(0, cnt(p) - NEED[p]), 0);
+  if (spare < NEED.FLEX) miss.push(`FLEX ${spare}/${NEED.FLEX}`);
+
+  const shapeLine = ["QB", "RB", "WR", "TE", "K", "DST"]
+    .map((p) => `${p} ${cnt(p)}`).join(" · ");
+  console.log(`  ·    hopurinn: ${shapeLine} (FLEX-afgangur ${spare})`);
+  console.log(`  ·    volin:    ${mineTaken
+    .map((m) => `${m.pick}:${m.pos}`).join(" ")}`);
+
+  ok(miss.length === 0,
+    `hopurinn er UPPSTILLANLEGUR — hvert byrjunarsaeti fyllt${
+      miss.length ? ` — TOM SAETI: ${miss.join(", ")}` : ""}`);
+  /* HITT MERKID, LESID AF SKJANUM: spjaldid setur `warn` a tolu sem er
+     undir thorf. Tveir oshadir lesarar a sama stadreynd — talan sem eg
+     reiknadi og merkid sem NOTANDINN ser. */
+  const warned = Object.entries(seen).filter(([, v]) => v.warn).map(([k]) => k);
+  ok(warned.length === 0,
+    `og spjaldid flaggar engu saeti sem otomu (${warned.join(", ") || "-"})`);
+  ok(!junk(), `ekkert NaN/undefined a skjanum (${junk() || "-"})`);
+
+  await settle(80);
+  await act(async () => { root.unmount(); });
+}
+
 console.log(`\n(pollunar-bidir styttar: ${pollTicks})`);
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
