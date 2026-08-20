@@ -2935,6 +2935,12 @@ export default function App() {
             const sources = { ...(pipeStatus?.sources || {}),
                               ...(pipeStatusFast?.sources || {}) };
             const SHOW = {
+              /* SKILYRDID ER HVITLISTI, SVO NY HEIMILD ER OSYNILEG THAR TIL
+                 HUN ER SKRAD HER — sama gatid sem `prediction_ledger` og
+                 `elo_age` hofdu 16.8.2026. Raud heimild sem er skrifud a
+                 disk og birtist ENGUM er verri en engin heimild.
+                 Vordur: `preseason.mjs` kafli K.                        */
+              preseason:      "Preseason friendlies",
               api_lineups:    "Confirmed lineups",
               apisports_account: "API-Sports account",
               fdcouk_e0:      "Match stats E0 (current)",

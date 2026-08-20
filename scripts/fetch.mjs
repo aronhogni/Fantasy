@@ -31,7 +31,7 @@ import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
    svo leikmadur an verds hefdi thagnad um byrjunar-likur i stad thess ad
    fa varfaerid mat. Enginn slikur i gognunum i dag (0 af 840), en tvaer
    utfaerslur af somu formulu er nakvaemlega thad sem hausarnir banna.  */
-import { startFeatures } from "../src/stats.js";
+import { startFeatures, nameScore } from "../src/stats.js";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const DATA = "data";
@@ -208,6 +208,375 @@ const NAMES = {
   WOL:{clubelo:"Wolves",fdcouk:"Wolves"},
 };
 
+/* ============================================================
+   0b. AEFINGALEIKJA-BYRJANIR — data/preseason.json  (20.8.2026)
+
+   HVERS VEGNA ThETTA ER TIL: 134 leikmenn i lifandi hopnum eiga ENGA
+   start-window rod og 195 enga PL-minutu — hvert sumarkaup og hver
+   leikmadur nyliðaklubbs. Fyrir tha skilar `startProbability` null og
+   appid hefur EKKERT ad syna. Notandinn sa `st0%` a Tzolis og Sangare,
+   sem er FJARVERA BIRT SEM MAELING.
+
+   MAELT (`scripts/measure-preseason-starts.mjs`, 4 sumur, LOSO):
+     · "byrjadi sidasta aefingaleik" er SAMThYKKT: d Brier +0,0341,
+       95% CI [+0,0267, +0,0423]
+     · fyrir hopinn AN sogu, thar sem VERD er allt sem er til:
+       AUC 0,599 -> 0,831 a klubb-timabilum med thekju
+     · hratt, sumarid 2025: "sest en 0 byrjanir" -> GW1-byrjun 0,000
+       (n=118); 3-4 byrjanir -> 70,4% a moti grunni 21,8%
+   MAELT OG FELLT, MA EKKI BYGGJA:
+     · KEPPNIS-MERKID (Community Shield o.fl.) baetir ENGU ofan a
+       "byrjadi sidasta": hopur A +0,0003 [-0,0083, +0,0081], hopur B
+       NEIKVAETT -0,0083 [-0,0166, -0,0019]
+     · "SEST I AEFINGALEIK" er FELLT SEM MERKI: 23 af 80 sogulegum
+       klubb-timabilum eiga NULL lineups, svo "ekki sest" er thekju-
+       eftirstodva, ekki upplysing. APPID MA ALDREI LESA "ekki sest"
+       SEM "byrjadi ekki" — thess vegna er rodin `null`, ekki 0.
+
+   ThETTA ER BIRTINGAR-HEIMILD, EKKI BURDARVIRKI. Hun fer HVERGI inn i
+   `startProbability`, `expPointsFor` ne `rankScore` — sama hilla og BSD
+   og Evropu-alagid (CLAUDE.md 4 og 6t): heimildin er ostadfest fyrir
+   thennan tilgang, sogulega thekjan var 23/80, og maelingin styður ad
+   SYNA hana, ekki ad VEGA hana.
+
+   ---- HVAR I PIPELINE OG HVERS VEGNA ----
+   DAGLEGA KEYRSLAN, EKKI `--fast`. Loknir aefingaleikir breytast ekki
+   innan dags; hrada keyrslan gengur 48-96x a dag og hver full sokn er
+   ~155 koll, svo `--fast` vaeri ~15.000 koll a dag fyrir NULL nyja
+   upplysingu. Sama rok og `fetchBsdLive` er i daglegu keyrslunni.
+   OG HUN STOPPAR ThEGAR TIMABILID BYRJAR. Aefingaleikir eru ORDNIR TIL
+   thegar fyrsti PL-leikur er sparkadur og breytast aldrei aftur; ad
+   endurreikna thad daglega i niu manudi er hreinn urgangur og ny
+   bilunar-yfirbord. Frosin skra er svarid — sama roksemd og
+   `season_baseline` og `data/history/` (CLAUDE.md 7).
+   HUN ER KOLLUD UR `fetchFPL` og skilar vorpuninni, svo `players.json`
+   getur bori svidin i SOMU keyrslu. Onnur leid (skrifa fyrst, merkja
+   naesta dag) hefdi thagad um heilan dag — og dagurinn sem er eftir er
+   einn.
+   ============================================================ */
+const FM = "https://www.fotmob.com/api/data";
+/* FotMob svarar 200 med venjulegum vafra-UA og ENGUM token (maelt
+   16. og 20.8.2026). CLAUDE.md kafli 6 sagdi "404/gated" og su slod
+   (`/api/matchDetails`) er raunverulega 404 — hun FAERDIST.           */
+const FM_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            + "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+/* KOSTNADAR-ThAK. Full sokn a sumrinu 2026 er ~62 dagsetningar + ~93
+   leikir = ~155 koll. Thokin eru rifleg efri mork, ekki stilltir fastar:
+   thau eru til svo keyrslan geti ekki hengt daglegu sokninna sem hun
+   liggur A UNDAN. Se thakid sprengt er skrain EKKI skrifud (sja nedar). */
+const PRE_MAX_CALLS = 400;
+const PRE_BUDGET_MS = 240000;
+
+/* ============================================================
+   KLUBBAR ERU FESTIR A FOTMOB-ID, ALDREI A NAFNI — TVAER MAELDAR VILLUR
+
+   1. **"Arsenal" I FOTMOB ER TVEIR KLUBBAR.** Maelt 20.8.2026 a sumrinu
+      2026: af 13 leikjum undir thvi nafni eru SEX i russnesku "First
+      League" — FC Arsenal Tula. Nafna-porun hefdi talid lineups russnesks
+      2. deildarlids sem forleik Arsenal og ENGINN vordur hefdi kvartad.
+      Sami aettbogi og fuzzy-porunin sem fell Man United inn i Man City
+      (`BSD_TEAM`, CLAUDE.md 6): ThOGUL RONG PORUN ER VERRI EN ENGIN.
+   2. `matches?date=` ber SKAMMSTAFAD nafn ("Man City") en
+      `matchDetails.lineup` ber LANGT ("Manchester City"). Fyrsta utgafa
+      maelingarinnar fletti langa nafninu upp i skammstofudu toflunni, fekk
+      `undefined` og `continue` — ThOGULT: 22 af 80 klubb-timabilum fengu
+      NULL lineups. ThESS VEGNA er heima/uti PORAD EFTIR STODU
+      (`homeTeam` -> `homeFpl`), aldrei eftir nafni.
+
+   `leagues?id=47&season=YYYY/YYYY` gefur EXAKT 20 klubba thess timabils
+   med FotMob-id (Arsenal = 9825). Nafnid er notad ADEINS her, i
+   hand-stadfestri toflu ur theim 20 LONGU nofnum sem endapunkturinn
+   skilar, og sóknin DEYR ef eitt theirra er ókunnugt.
+
+   HVER FAERSLA ER FYLKI AF FPL-NOFNUM, EKKI EITT NAFN, OG ThAD ER MAELT:
+   FPL notar SITT HVAD um sama klubb eftir timabili — i dag stendur
+   "Coventry City", "Hull City" og "Ipswich Town" i `teams.json` medan
+   nyliðar hafa adur stadid thar sem "Coventry", "Hull", "Ipswich"; og
+   "Man Utd"/"Man United" og "Spurs"/"Tottenham" hafa bædi verid notud.
+   Eitt harkodad nafn hefdi thvi fellt sóknina thann dag sem FPL
+   endurnefndi klubb — sama tegund og horna-rodunin sem FPL endurnumeradi
+   tvisvar a fimm dogum (CLAUDE.md 8). Fyrsta nafnid sem finnst i
+   `teams.json` gildir.
+   ============================================================ */
+const FM_LONG_TO_FPL = {
+  "Arsenal": ["Arsenal"], "Aston Villa": ["Aston Villa"],
+  "AFC Bournemouth": ["Bournemouth"], "Bournemouth": ["Bournemouth"],
+  "Brentford": ["Brentford"], "Brighton & Hove Albion": ["Brighton"],
+  "Burnley": ["Burnley"], "Chelsea": ["Chelsea"],
+  "Coventry City": ["Coventry City", "Coventry"],
+  "Crystal Palace": ["Crystal Palace"], "Everton": ["Everton"], "Fulham": ["Fulham"],
+  "Hull City": ["Hull City", "Hull"], "Ipswich Town": ["Ipswich Town", "Ipswich"],
+  "Leeds United": ["Leeds", "Leeds United"], "Leicester City": ["Leicester", "Leicester City"],
+  "Liverpool": ["Liverpool"], "Luton Town": ["Luton", "Luton Town"],
+  "Manchester City": ["Man City"], "Manchester United": ["Man Utd", "Man United"],
+  "Newcastle United": ["Newcastle"], "Norwich City": ["Norwich", "Norwich City"],
+  "Nottingham Forest": ["Nott'm Forest"],
+  "Sheffield United": ["Sheffield Utd", "Sheffield United"],
+  "Southampton": ["Southampton"], "Sunderland": ["Sunderland"],
+  "Tottenham Hotspur": ["Spurs", "Tottenham"], "Watford": ["Watford"],
+  "West Ham United": ["West Ham"], "Wolverhampton Wanderers": ["Wolves"],
+};
+
+/* Minutur ur `substitutionEvents`. Byrjunarlidsmadur an subOut spiladi 90. */
+function fmMinutes(pl, started) {
+  const ev = pl?.performance?.substitutionEvents || [];
+  const out = ev.find(e => e.type === "subOut"), inn = ev.find(e => e.type === "subIn");
+  if (started) return out ? Math.max(0, Math.min(90, out.time)) : 90;
+  if (inn) return Math.max(0, 90 - Math.min(90, inn.time));
+  return 0;                                   // a bekknum, kom aldrei inn
+}
+
+async function fetchPreseason({ els, teams }) {
+  /* SKRAARHEITID ER BOKSTAFLEGT I `writeJSON` NEDAR, EKKI BREYTA — OG ThAD
+     ER VILJANDI. `tests/wiring.mjs` finnur skrifadar skrar med regexi a
+     `writeJSON("x.json"` og les ADEINS fasta strengi; breytu-heiti hefdi
+     latid skrana sleppa framhja vardinum an ThESS ad vera akvordun.
+     `data/history/` er nakvaemlega thad gat i dag (CLAUDE.md 7) og thad er
+     skjalfest sem GAT, ekki sem val.                                     */
+  let prev = null;
+  try { prev = JSON.parse(await readFile(`${DATA}/preseason.json`, "utf8")); } catch {}
+  const prevPlayers = prev?.players && typeof prev.players === "object" ? prev.players : null;
+
+  /* ---- MORKIN KOMA UR OKKAR EIGIN GOGNUM, ENGIN HARDKODUD DAGSETNING ----
+     Fyrsti PL-leikur timabilsins. Leikur eftir hann er ekki forleikur.  */
+  let fixturesArr = [];
+  try { fixturesArr = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8")); } catch {}
+  const kicks = fixturesArr.filter(f => f?.event != null && f?.kickoff_time)
+                           .map(f => Date.parse(f.kickoff_time)).filter(Number.isFinite);
+  if (!kicks.length) {
+    record("preseason", false, prevPlayers ? Object.keys(prevPlayers).length : 0,
+      "fixtures.json carries no kickoff times, so the preseason cutoff cannot be derived "
+      + "- KEPT the old file rather than guessing a date");
+    return prevPlayers || {};
+  }
+  const cutoff = Math.min(...kicks);
+  const cutDate = new Date(cutoff);
+  const yr = cutDate.getUTCFullYear() - (cutDate.getUTCMonth() >= 6 ? 0 : 1);
+  const season = `${yr}/${String(yr + 1).slice(2)}`;
+
+  /* ---- FROSIN EFTIR FYRSTA LEIK ----
+     Aefingaleikir eru ordnir til; talan getur ekki breyst. Skra sem er
+     fyrir ThETTA timabil er einfaldlega notud afram og ENGIN koll gerd.  */
+  if (Date.now() >= cutoff) {
+    if (prevPlayers && prev.season === season) {
+      record("preseason", true, Object.keys(prevPlayers).length,
+        `FROZEN - the season started ${cutDate.toISOString().slice(0, 10)} and preseason results `
+        + `cannot change, so the file from ${prev.updated} is reused with no requests`);
+      return prevPlayers;
+    }
+    record("preseason", false, 0,
+      `the season started ${cutDate.toISOString().slice(0, 10)} but no preseason file for ${season} `
+      + "exists - the friendlies are over and cannot be collected after the fact, so the columns stay empty");
+    return {};
+  }
+
+  /* ---- KLUBBARNIR, FESTIR A FOTMOB-ID ---- */
+  let calls = 0;
+  const t0 = Date.now();
+  const cacheDir = process.env.PRESEASON_CACHE || null;   // adeins fyrir handvirkar keyrslur
+  const budgetLeft = () => calls < PRE_MAX_CALLS && Date.now() - t0 < PRE_BUDGET_MS;
+  const fmJson = async (url, file) => {
+    if (cacheDir) {
+      try { return JSON.parse(await readFile(`${cacheDir}/${file}`, "utf8")); } catch {}
+    }
+    calls++;
+    /* TIMAMORK ERU SKYLDA (`tests/wiring.mjs`). FotMob svarar venjulega
+       undir sekundu; 20 s er rifleg efri mork.                          */
+    const r = await fetch(url, { headers: { "User-Agent": FM_UA },
+                                 signal: AbortSignal.timeout(20000) });
+    if (!r.ok) return { __http: r.status };
+    const j = await r.json();
+    if (cacheDir) { try { await mkdir(cacheDir, { recursive: true });
+                          await writeFile(`${cacheDir}/${file}`, JSON.stringify(j)); } catch {} }
+    return j;
+  };
+
+  const fplIdByName = {};
+  for (const t of teams || []) fplIdByName[t.name] = t.id;
+  const lg = await fmJson(`${FM}/leagues?id=47&season=${yr}%2F${yr + 1}`, `pl_${yr}.json`);
+  if (lg.__http) throw new Error(`FotMob leagues?id=47 season ${yr}/${yr + 1}: HTTP ${lg.__http}`);
+  const rowsTab = lg.table?.[0]?.data?.table?.all || lg.table?.[0]?.data?.table || [];
+  const fplByFm = new Map();
+  const unknown = [];
+  for (const t of rowsTab) {
+    const alias = FM_LONG_TO_FPL[t.name] || [];
+    const id = alias.map(n => fplIdByName[n]).find(v => v != null);
+    if (id == null) { unknown.push(t.name); continue; }
+    fplByFm.set(t.id, id);
+  }
+  /* DEYR FREMUR EN AD PARA A NAFNI. Okunnugt langt nafn er nyliði sem
+     vantar i toflunna — og thogul sleppa vaeri klubbur an aefingaleikja
+     sem lítur út eins og klubbur sem spiladi ekki.                      */
+  if (unknown.length) throw new Error(`FM_LONG_TO_FPL is missing: ${unknown.join(", ")}`);
+  /* FJOLDINN ER LEIDDUR AF `teams`, EKKI HARDKODADUR 20. Fastur 20 hefdi
+     verid rett i dag og THOGUL forsenda i morgun — sama tegund og
+     harkodada safna-talan og "svidid er 4-10" (CLAUDE.md 5 og 8). Reglan
+     sem gildir er: HVER klubbur sem FPL thekkir verdur ad leysast, annars
+     er einn theirra kominn med engan forleik af thvi ad nafnid hvarf.   */
+  const nClubs = (teams || []).length;
+  if (fplByFm.size !== nClubs)
+    throw new Error(`FotMob PL ${yr}/${yr + 1}: ${fplByFm.size} clubs resolved, `
+      + `but FPL lists ${nClubs} - a club with no preseason must not be a lookup miss`);
+
+  /* ---- LEIKIRNIR: 25. juni -> morkin ---- */
+  const dates = [];
+  for (const d = new Date(Date.UTC(yr, 5, 25)); d.getTime() < cutoff + 864e5;
+       d.setUTCDate(d.getUTCDate() + 1)) dates.push(d.toISOString().slice(0, 10).replace(/-/g, ""));
+  const fx = [];
+  let httpFail = 0, late = 0;
+  for (const ds of dates) {
+    if (!budgetLeft()) break;
+    const j = await fmJson(`${FM}/matches?date=${ds}`, `matches_${ds}.json`);
+    if (j.__http) { httpFail++; continue; }
+    for (const l of j.leagues || []) {
+      if (+l.primaryId === 47 || +l.id === 47) continue;         // PL sjalf
+      for (const m of l.matches || []) {
+        const h = fplByFm.get(m.home?.id), a = fplByFm.get(m.away?.id);
+        if (h == null && a == null) continue;
+        const ts = m.status?.utcTime ? Date.parse(m.status.utcTime) : null;
+        if (ts != null && ts >= cutoff) { late++; continue; }
+        fx.push({ matchId: m.id, comp: l.name, homeFpl: h ?? null, awayFpl: a ?? null,
+                  utc: m.status?.utcTime || null, finished: !!m.status?.finished });
+      }
+    }
+  }
+
+  /* ---- BYRJUNARLIDIN ---- */
+  const agg = new Map();                       // `${fplTeamId}|${fotmobName}` -> rod
+  const lineupsPerClub = new Map();
+  let sides = 0, mdFail = 0, incomplete = false;
+  for (const f of fx) {
+    if (!f.finished) continue;
+    if (!budgetLeft()) { incomplete = true; break; }
+    const j = await fmJson(`${FM}/matchDetails?matchId=${f.matchId}`, `md_${f.matchId}.json`);
+    if (j.__http || !j.content?.lineup) { mdFail++; continue; }
+    for (const side of ["homeTeam", "awayTeam"]) {
+      const t = j.content.lineup[side];
+      const tid = side === "homeTeam" ? f.homeFpl : f.awayFpl;   // STODU-PORUN, ekki nafna
+      if (!t || tid == null || !(t.starters || []).length) continue;
+      sides++;
+      lineupsPerClub.set(tid, (lineupsPerClub.get(tid) || 0) + 1);
+      const rows = [...(t.starters || []).map(p => [p, true]),
+                    ...(t.subs || []).map(p => [p, false])];
+      for (const [p, st] of rows) {
+        const key = `${tid}|${p.name}`;
+        let e = agg.get(key);
+        if (!e) agg.set(key, e = { team: tid, name: p.name, games: 0, starts: 0, minutes: 0,
+                                   lastStart: 0, utcLast: 0 });
+        e.games++; e.minutes += fmMinutes(p, st);
+        if (st) e.starts++;
+        const ts = f.utc ? Date.parse(f.utc) : 0;
+        if (ts >= e.utcLast) { e.utcLast = ts; e.lastStart = st ? 1 : 0; }
+      }
+    }
+  }
+  if (!budgetLeft()) incomplete = true;
+
+  /* HALFUR GLUGGI MA ALDREI SKRIFAST OFAN A HEILAN (kafli 8e). Sprungid thak
+     eda throtinn timi gefur RETTAR tolur um FAERRI leiki — sem les eins og
+     "hann byrjadi sjaldnar", ekki eins og "vid soktum minna".            */
+  if (incomplete) {
+    record("preseason", false, prevPlayers ? Object.keys(prevPlayers).length : 0,
+      `budget exhausted after ${calls} requests / ${Math.round((Date.now() - t0) / 1000)}s with `
+      + `${fx.filter(f => f.finished).length} finished friendlies still to read - KEPT the old file, `
+      + "because a partial sweep reports real numbers over fewer matches and reads like fewer starts");
+    return prevPlayers || {};
+  }
+
+  /* ---- PORUN VID FPL: NAFN INNAN KLUBBS ----
+     Skorad med `nameScore` (sama fall og skotakortid og lineups nota),
+     throskuldur 1,5 = eitt sameiginlegt tak PLUS sama eftirnafn. Laegri
+     throskuldur pardi "Danny Ings" vid "Danny Ward" i maelingunni.
+     ROD FOTMOB ER NYTT MEST EINU SINNI, og valid er GERT I SKORS-ROD med
+     jafntefli brotid a fostum lyklum — annars gaefu tvaer keyrslur sitt
+     hvora porun (sama regla og BSD: "fastur event-id rodun").           */
+  const pairs = [];
+  const byTeam = new Map();
+  for (const e of agg.values()) (byTeam.get(e.team) || byTeam.set(e.team, []).get(e.team)).push(e);
+  for (const p of els || []) {
+    const cands = byTeam.get(p.team) || [];
+    for (const c of cands) {
+      const s = Math.max(nameScore(p.web_name, c.name),
+                         nameScore(`${p.first_name} ${p.second_name}`, c.name));
+      if (s >= 1.5) pairs.push({ s, code: p.code, id: p.id, c });
+    }
+  }
+  pairs.sort((a, b) => b.s - a.s || a.id - b.id || (a.c.name < b.c.name ? -1 : 1));
+  const usedRow = new Set(), players = {};
+  for (const q of pairs) {
+    if (usedRow.has(q.c) || players[q.code]) continue;
+    usedRow.add(q.c);
+    players[q.code] = { starts: q.c.starts, games: q.c.games, minutes: q.c.minutes,
+                        last_start: q.c.lastStart };
+  }
+
+  /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1) — hun er
+     TOLUD i skrana svo `tests/preseason.mjs` og `status.json` geti
+     fallid thegar klubbar hverfa. Klubbur med NULL lineups er ekki
+     "klubbur sem spiladi ekki"; hann er nafn sem hvarf a leidinni.     */
+  const clubs = {};
+  for (const t of teams || []) clubs[t.id] = lineupsPerClub.get(t.id) || 0;
+  const covered = Object.values(clubs).filter(n => n > 0).length;
+  const finishedN = fx.filter(f => f.finished).length;
+
+  /* ============================================================
+     AFTURFOR ER EKKI FRETT — GAMLA SKRAIN STENDUR (kafli 8e)
+
+     Innan sumarsins geta aefingaleikir ADEINS FJOLGAD: leikur sem var
+     spiladur i gaer verdur ekki ospiladur i dag. Keyrsla sem finnur FAERRI
+     thakta klubba eda FAERRI lokna leiki en skrain a diski hefur thvi ekki
+     maelt aefingaleiki — hun hefur maelt bilun (dagsetningar-kall sem 404-adi,
+     FotMob-snid sem breyttist, ovaent tomt `lineup`-svid). Og tolurnar sem
+     hun skrifadi vaeru RAUNVERULEGAR um FAERRI leiki, sem les eins og
+     "hann byrjadi sjaldnar" — nakvaemlega su tegund af tolu sem er rong OG
+     truverdug (CLAUDE.md 3).
+
+     ThETTA ER EIN REGLA SEM TEKUR ThRENNT: tom keyrsla (0 klubbar), hluta-
+     keyrsla (thak/timi sprungid) og thekju-hrun. `players` er VILJANDI EKKI
+     maelikvardinn — leikmadur getur horfid ur `els` (farinn ur deildinni) og
+     tha faekkar podum af rettri astaedu.
+     Vordur: `tests/preseason.mjs` kafli D, thar sem stokkbreyting sem skrifar
+     samt fellur.                                                          */
+  const sameSeason = prev && prev.season === season;
+  const wasCovered = sameSeason ? (+prev.clubs_covered || 0) : 0;
+  const wasFinished = sameSeason ? (+prev.finished || 0) : 0;
+  if (sameSeason && (covered < wasCovered || finishedN < wasFinished)) {
+    record("preseason", false, prevPlayers ? Object.keys(prevPlayers).length : 0,
+      `REGRESSION - this sweep found ${covered} covered clubs over ${finishedN} finished friendlies `
+      + `but the file on disk has ${wasCovered} over ${wasFinished}, and friendlies can only ever be `
+      + "added during a summer - KEPT the old file, because real numbers over fewer matches read "
+      + "like fewer starts");
+    return prevPlayers || {};
+  }
+  await writeJSON("preseason.json", {
+    updated: status.updated, season, source: "FotMob",
+    cutoff: cutDate.toISOString(),
+    fixtures: fx.length, finished: finishedN,
+    lineup_sides: sides, dropped_after_cutoff: late,
+    date_requests_failed: httpFail, match_requests_failed: mdFail, requests: calls,
+    clubs, clubs_covered: covered, matched: Object.keys(players).length,
+    note: "Preseason friendly starts and minutes per FPL player code, from FotMob. CONTEXT ONLY: "
+        + "nothing in FFDR, start probability, expected points or the ranking reads this file. "
+        + "Clubs are pinned by FotMob id, never by name - 'Arsenal' on FotMob is also FC Arsenal Tula "
+        + "of the Russian second tier, and 6 of 13 fixtures under that name in summer 2026 were theirs. "
+        + "Only matches kicking off before the season's first Premier League fixture are counted. "
+        + "A player with no row was NOT SEEN, which is not the same as 'did not start': 23 of 80 "
+        + "historical club-seasons have zero lineups here, so absence is a coverage gap and the app "
+        + "must show it as empty, never as zero.",
+    players,
+  });
+  /* `ok` ER `covered > 0` OG ThAD ER AKVORDUN: forleiks-heimild med NULL
+     thoktum klubbum er ekki "bidur timabils" (sbr. `fdcouk_e0`, sem er graen
+     medan skrain er ekki til enn) heldur heimild sem gefur enga tolu medan
+     leikirnir ERU spiladir. Rautt ljos i nokkra daga snemma i juni er retta
+     einkennid og thad slokknar sjalft.                                    */
+  record("preseason", covered > 0, Object.keys(players).length,
+    `${season} - ${finishedN} friendlies, ${sides} lineup sides, `
+    + `${covered} of ${(teams || []).length} clubs covered, ${calls} requests`
+    + `${covered ? "" : " - NO club has a published lineup yet, so every column is empty (not zero)"}`);
+  return players;
+}
+
 /* ========== 1. FPL — kjarninn, fellir keyrsluna ef hann brestur ========== */
 const FPL = "https://fantasy.premierleague.com/api";
 let bootstrap, teamsById = {}, shortById = {};
@@ -243,6 +612,14 @@ async function fetchFPL() {
     };
   }
   await writeJSON("teams_map.json", map);
+
+  /* ---- AEFINGALEIKJA-BYRJANIR (kafli 0b) ----
+     Kollud HER, a undan `players.json`, svo svidin komist i SOMU skra i
+     SOMU keyrslu. Hun deyr aldrei med keyrslunni: brestur skilar tomri
+     vorpun og dalkarnir verda tomir, sem er RETTA birtingin.            */
+  let preseason = {};
+  try { preseason = await fetchPreseason({ els, teams }); }
+  catch (e) { record("preseason", false, 0, e.message); }
 
   // players.json — valið svið (ekki hrátt 2MB)
   const pick = els.map(e => ({
@@ -307,6 +684,17 @@ async function fetchFPL() {
     selected_rank:e.selected_rank, now_cost_rank:e.now_cost_rank,
     dreamteam_count:e.dreamteam_count,
     saves:e.saves, own_goals:e.own_goals,
+    /* ---- AEFINGALEIKIR (kafli 0b) — SVIDIN VANTA ALVEG ThEGAR HANN SAST
+       EKKI, ThAU ERU EKKI 0. `num(undefined)` er null i `stats.js`, svo
+       holfid syndir "—" og radast sidast i BADAR attir. Ad skrifa `null`
+       berum orðum vaeri jafngott en 587 auk lykla i skranni; ad skrifa 0
+       vaeri "ekki sest" birt sem "byrjadi ekki" — MAELT OG FELLT.       */
+    ...(preseason[e.code] ? {
+      preseason_starts:     preseason[e.code].starts,
+      preseason_games:      preseason[e.code].games,
+      preseason_minutes:    preseason[e.code].minutes,
+      preseason_last_start: preseason[e.code].last_start,
+    } : {}),
   }));
   await writeJSON("players.json", { updated: status.updated, players: pick });
 
@@ -768,25 +1156,69 @@ async function computeDefcon(events, els) {
   }
   let fixturesArr = [];
   try { fixturesArr = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8")); } catch {}
+  /* ============================================================
+     VARALEIDIRNAR VORU FJARLAEGDAR — OG ThAD ER EKKI SNYRTING (20.8.2026)
+
+     EINKENNID: `?? 1.4` (eigid xGC) og `|| 50` (sokn andstaedings) sagdi
+     hvorug "vantar" heldur skiladi TOLU. Um leid og FPL nullstillir
+     bootstrap-summurnar vid timabils-vendingu fara BADAR i gang hja
+     OLLUM 20 klubbum samtimis, og formulan gefur
+         1,4 * 22 + (50/38) * 20 = 57
+     — SAMA tala hja ollum. MAELT 20.8.2026 a raunskranni: i dag 14 olik
+     gildi a bilinu 53-86; med nullstilltum summum er thad EIN tala,
+     57, tuttugu sinnum. Og thad stendur i ~5 umferdir, thvi
+     markvardar-hlidid (`minutes > 400`) er onaeðanlegt fyrr en tha.
+
+     ThETTA ER NAKVAEMLEGA VERSTA UTKOMAN SKV. CLAUDE.md KAFLA 3: talan
+     birtist a 0-100 kvarda a hverju spjaldi (`DC57`), i Compare og i
+     Teams, hun er ROMG OG TRUVERDUG, og ekkert i vidmotinu segir ad hun
+     se agiskun. Kafli 8: "Omaeld tala faer ekki reit" og "tomt gildi er
+     SLEPPT, ekki sett i 0".
+
+     RODIN ER SAMT SKRIFUD, MED `null` I GILDUNUM — HUN MA EKKI HORFA.
+     `App.jsx` (linur ~1064-1085) ber SITT EIGID afrit af thessari
+     formulu og keyrir thad THEGAR `Object.keys(defcon.opportunity)` er
+     TOMT. Ad sleppa rodunum hefdi thvi ekki fjarlaegt fabrikkeringuna,
+     adeins flutt hana inn i appid — thar sem sama `?? 1.4` og sama
+     `?? 1.4` fyrir sokn bida. Med 20 rodum (gildin null) tekur appid
+     pipeline-tofluna, `num()` les null, og holfin standa tom.
+
+     BADIR LIDIR VERDA AD VERA RAUNVERULEGIR. Halfur utreikningur (raunverulegt
+     xGC + agiskud sokn) er sama villan i minni staerd, svo `raw` er null
+     nema hvor tveggja liggi fyrir. Og opponent-summan verdur ad vera
+     JAKVAED: `teamAtt[opp]` er 0 — ekki undefined — eftir nullstillingu,
+     svo `|| 50` var einmitt thad sem grein 0 tok.
+     ============================================================ */
   const opportunity = {};
   for (const tid of Object.keys(teamAtt)) {
-    const own = teamDef[tid]?.xgc90 ?? 1.4;
+    const own = teamDef[tid] ? teamDef[tid].xgc90 : null;
     const upcoming = fixturesArr.filter(f => !f.finished && (f.team_h === +tid || f.team_a === +tid)).slice(0, 6);
-    let oppAttSum = 0;
-    upcoming.forEach(f => {
+    const oppAtt = [];
+    for (const f of upcoming) {
       const opp = f.team_h === +tid ? f.team_a : f.team_h;
-      oppAttSum += (teamAtt[opp] || 50) / 38; // sóknar-xGI andstæðings per leik
-    });
-    const oppAttAvg = upcoming.length ? oppAttSum / upcoming.length : 1.4;
+      const s = teamAtt[opp];
+      if (Number.isFinite(s) && s > 0) oppAtt.push(s / 38);   // sóknar-xGI andstæðings per leik
+    }
+    /* Hver leikur i glugganum verdur ad hafa andstaeding med raunverulega
+       sokn — annars er medaltalid tekid yfir hluta gluggans og ber samt
+       merkimidann "naestu 6".                                            */
+    const oppAttAvg = (upcoming.length && oppAtt.length === upcoming.length)
+      ? oppAtt.reduce((a, b) => a + b, 0) / oppAtt.length : null;
     // 0-100 kvarði: hærra = meira að gera fyrir varnarmenn = fleiri DefCon-tækifæri
-    const raw = own * 22 + oppAttAvg * 20;
+    const raw = (own != null && oppAttAvg != null) ? own * 22 + oppAttAvg * 20 : null;
     opportunity[tid] = {
       own_xgc90: own,
-      opp_attack_avg: +oppAttAvg.toFixed(2),
-      defcon_opportunity: Math.max(0, Math.min(100, Math.round(raw))),
+      opp_attack_avg: oppAttAvg == null ? null : +oppAttAvg.toFixed(2),
+      defcon_opportunity: raw == null ? null : Math.max(0, Math.min(100, Math.round(raw))),
       fixtures_used: upcoming.length,
     };
   }
+
+  /* TALAN I `record` VERDUR AD VERA FJOLDI RADA MED TOLU, EKKI FJOLDI RADA.
+     Radirnar eru alltaf 20 (sja skyringuna vid `opportunity` ad ofan) en
+     gildid er null thegar inntokin vantar. "20 teams with a rating" um
+     tuttugu tomar radir er sama tegund af logn sem varaleidirnar voru.  */
+  const rated = Object.values(opportunity).filter(o => o.defcon_opportunity != null).length;
 
   /* TOM KEYRSLA MA ALDREI ThURRKA UT GODA SKRA (18.8.2026, kafli 8e).
      `out` verdur TOMT hvenaer sem enginn element ber jakvaett `starts` —
@@ -815,14 +1247,16 @@ async function computeDefcon(events, els) {
          sameining er tvaer aldir i einni skra sem segist vera ein.     */
       record("defcon", false, had,
         `0 rows built but ${had} are on disk - KEPT the old file, INCLUDING its opportunity table `
-        + `(this run's fresh opportunity ratings for ${Object.keys(opportunity).length} teams were `
+        + `(this run's fresh opportunity ratings for ${rated} of ${Object.keys(opportunity).length} teams were `
         + `discarded too - merging them would stamp the frozen player rows with today's date)`);
       return;
     }
   }
   await writeJSON("defcon.json", { updated: status.updated, players: out, opportunity,
-    note: "hit_rate = threshold_hits/starts (RAW — overstates on small samples). hit_rate_adj = (hits + 10*p0)/(starts + 10), p0 = positional mean — USE THAT ONE for display, always with starts beside it. DEF threshold 10 CBIT, MID/FWD 12 CBIRT. defcon_opportunity: defensive workload (higher = more CBIT chances) — a SEPARATE measure from CS%, do not add them together." });
-  record("defcon", true, out.length, `${Object.keys(opportunity).length} teams with an opportunity rating`);
+    note: "hit_rate = threshold_hits/starts (RAW — overstates on small samples). hit_rate_adj = (hits + 10*p0)/(starts + 10), p0 = positional mean — USE THAT ONE for display, always with starts beside it. DEF threshold 10 CBIT, MID/FWD 12 CBIRT. defcon_opportunity: defensive workload (higher = more CBIT chances) — a SEPARATE measure from CS%, do not add them together. IT IS null, NEVER A SUBSTITUTED CONSTANT, when the inputs are missing: a team needs a keeper past 400 minutes for its own xGC and every opponent in the six-fixture window needs a positive xGI sum. Both sides of the sum must be real, so an empty column early in a season means \"not measurable yet\", not \"average\"." });
+  record("defcon", true, out.length,
+    `${rated} of ${Object.keys(opportunity).length} teams with an opportunity rating`
+    + `${rated ? "" : " - bootstrap season totals are still zero, so every rating is null (correct: the old code substituted 1.4/50 and gave all 20 clubs the same 57)"}`);
 }
 
 /* ========== 3b. PER-UMFERÐAR LEIKMANNASAGA — mínútuþróun ==========
@@ -4034,7 +4468,44 @@ async function deriveImminent() {
   const finished = events.filter(e => e.finished).map(e => e.id).sort((a, b) => a - b);
 
   let rows = [], season, gws, archive;
-  if (finished.length >= 1) {
+  /* ============================================================
+     GLUGGINN SKIPTIR UM HEIMILD VID `FETCH_WINDOW`, EKKI VID 1 (20.8.2026)
+
+     VILLAN: `finished.length >= 1` skipti yfir a lifandi live-skrar um
+     leid og FYRSTA umferdin var lokin, og tha var glugginn EIN umferd.
+     Bædi likönin sem lesa hann eru VALIDERUD vid 4-5 umferdir, og hvorugt
+     getur svarad ur einni:
+       · `startFeatures` (src/stats.js) skilar null vid faerri en 2 gildi
+       · `inImminentPool` krefst 180 minutna, en ein umferd nær 90 i mesta
+
+     MAELT a `data/imminent.json` (endurreiknad per gluggastaerd):
+       gluggi 1  ->  0 af 841 radum med `start_feats`,  0 yfir 0,75,  mo/ao-laug 0
+       gluggi 2  ->  840,  170,  72
+       gluggi 5  ->  840,  127,  184
+     Med einni umferd er `start_prob` thvi null hja OLLUM 595 leikmonnum,
+     "Chance of 60+ minutes" tæmist, Imminent-sýnin verdur tóm og les eins
+     og "enginn er a leidinni", og GW2-bokhaldid skrair NULL thekju.
+
+     OG ThAD SLEKKUR MAELDU GOLFI ThEGJANDI — ThAD ER VERRI HELMINGURINN.
+     `rotation.js:159` er `if (cP != null && cP < MIN_START_PROB) continue`
+     og `:165` margfaldar med `(cP ?? 1)`. Med P null hja ollum er golfid
+     ovirkt OG kandidatar hætta ad vera afslattadir. 472 af 840 rodum eru
+     undir 0,15 i dag, 69 theirra markmenn — nakvaemlega hopurinn sem
+     `MIN_START_PROB` var settur inn fyrir 4.8.2026 eftir ad notandanum var
+     bodinn Meslier, varamarkmadur, sem roterings-par. CLAUDE.md kafli 3:
+     golfid "virtist virka; thad var bara aldrei spurt". Sami visir aftur.
+
+     LAUSNIN ER SU VARFAERNA: safnid stendur ThANGAD TIL lifandi glugginn
+     er ORDINN eins langur og sa sem var validerud (`FETCH_WINDOW` = 5).
+     Safns-glugginn er sjalfur MAELDUR gluggi (5 sidustu umferdir fyrra
+     timabils) og endurkvordunin i `PRESEASON_CAL` er maeld a NAKVAEMLEGA
+     theim — `archive: true` helst thvi satt og kvordunin virk allan
+     timann sem hun a ad vera.
+     BLENDINGUR (lifandi umferdir framan a safns-tagl) VAR EKKI BYGGDUR:
+     thad er NY MAELING, ekki lagfaering — enginn hefur maelt likan a
+     glugga sem spannar timabils-skiptin. Kafli 3: maela fyrst.
+     ============================================================ */
+  if (finished.length >= FETCH_WINDOW) {
     // ---- i timabili: ur okkar eigin live-skram ----
     gws = finished.slice(-FETCH_WINDOW);
     season = await seasonLabelFromEvents();
@@ -4212,8 +4683,14 @@ async function deriveImminent() {
     },
     players: rows,
   });
+  /* HVERS VEGNA GLUGGINN ER ThESSI — SYNILEGT I `status.json`. Ad segja
+     adeins "ARCHIVE" svarar ekki hvort thad se vegna forleiks eda vegna
+     thess ad lifandi glugginn se enn of stuttur, og thad tvennt lita eins
+     ut i vidmotinu medan hitt er timabundid.                            */
   record("imminent", true, rows.length,
-    `${archive ? "ARCHIVE " : ""}${season} GW${gws[0]}-${gws[gws.length-1]}`);
+    `${archive ? "ARCHIVE " : ""}${season} GW${gws[0]}-${gws[gws.length-1]}`
+    + ` (${finished.length} finished round${finished.length === 1 ? "" : "s"} this season; `
+    + `the live window takes over at ${FETCH_WINDOW})`);
 }
 
 /* Ein umferd i rodinni — nog til ad teikna trend an thess ad blasa upp skrana. */

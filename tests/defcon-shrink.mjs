@@ -390,9 +390,129 @@ console.log("─".repeat(84));
      "OG hun nefnir `opportunity` — ferska taflan var hent lika", rec.note);
   /* Talan i notunni er RAUNVERULEG: tvo lid komu ur `els`, svo hun ma
      ekki vera 0 (thad vaeri "engin fersk tafla", sem er ekki tilfellid). */
-  const m = /for (\d+) teams/.exec(rec.note || "");
-  ok(!!m && +m[1] === 2, `og hun telur lidin sem toldust (2) — ${m?.[1]}`);
+  /* TALAN ER TVIThAETT SIDAN 20.8.2026 og thad er lagfaeringin sem sest hér:
+     "for R of N teams". N = radirnar sem voru byggdar (2), R = thaer sem fengu
+     RAUNVERULEGA tolu (1). Lid 2 hefur engan markmann yfir 400 minutum, svo
+     eigid xGC er ekki maelanlegt — adur skilaði `?? 1,4` tolu og bædi lidin
+     virtust rated. Fullyrdingin ver bædi ad N se raunverulegt (ekki 0) OG ad
+     R telji ekki radir sem bera null. */
+  const m = /for (\d+) of (\d+) teams/.exec(rec.note || "");
+  ok(!!m && +m[2] === 2, `og hun telur lidin sem toldust (2) — ${m?.[2]}`);
+  ok(!!m && +m[1] === 1,
+    `og ADEINS 1 theirra fékk raunverulega tolu (lid 2 hefur engan markmann yfir 400 min) — ${m?.[1]}`);
   ok(!/updated/.test(String(written)), "engin skrif thydir enginn nyr timastimpill");
+}
+
+/* ============================================================
+   8. DEFCON-TAEKIFAERI: NULLSTILLT BOOTSTRAP -> `null`, EKKI 57 (20.8.2026)
+
+   VILLAN SEM VAR: `own = teamDef[tid]?.xgc90 ?? 1.4` og
+   `oppAttSum += (teamAtt[opp] || 50) / 38`. Baðar varaleidirnar segja
+   "vantar" med TOLU. Um leid og FPL nullstillir bootstrap-summurnar vid
+   timabils-vendingu fara thaer i gang hja OLLUM 20 klubbum samtimis og
+   formulan gefur 1,4*22 + (50/38)*20 = **57 hja ollum**. MAELT 20.8.2026 a
+   raunskranni: i dag 14 olik gildi (53-86); nullstillt -> ein tala, tuttugu
+   sinnum. Hun stendur i ~5 umferdir thvi `minutes > 400` er onaeðanlegt.
+
+   HVERS VEGNA ThETTA VERDUR AD VERA TILBUID OG EKKI RAUNSKRAIN:
+   nullstillingin GERIST 21. agust. `clock-states.mjs` kafli B3c maelir hrun-
+   nemann a raungognum (14 olik gildi i dag) og fullyrdir ad varaleidirnar
+   seu FARNAR ur kodanum — en hvorugt getur svarad "hvad gerir kodinn thegar
+   summurnar ERU 0?". Thad er nakvaemlega mynstrid i haus thessarar skrar:
+   kodinn kviknar einn morgun, svo hann er dreginn UT og keyrdur adur.
+
+   FJOGUR ASTOND, OLL A SOMU BRAUT:
+     A  nullstillt bootstrap        -> null hja ollum (gamla kodinn: 57)
+     B  raunveruleg inntok          -> TALA, og hun er hvorki 57 ne su sama
+     C  eigid xGC til, sokn 0       -> null (halfur utreikningur er sama villa)
+     D  engir leikir framundan      -> null (gamla kodinn: oppAttAvg = 1,4)
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("8. DEFCON-TAEKIFAERI — VANTANDI INNTOK GEFA null, ALDREI TILBUINN FASTA");
+console.log("─".repeat(84));
+{
+  /* Tveir varnarmenn sem BYRJA (svo `out` se ekki tomt og skrain skrifist)
+     og einn markmadur per lid. Leikjaskra: lid 1 gegn lidi 2. */
+  const gwMetrics = { 1: [12, 12], 2: [12, 12] };
+  const fixtures = [{ id: 1, finished: false, team_h: 1, team_a: 2, event: 1 }];
+  const oppOf = w => (w?.obj?.opportunity) || {};
+
+  /* ---- A. NULLSTILLT BOOTSTRAP (21. agust) ---- */
+  const zeroed = [
+    { id: 1, element_type: 2, team: 1, expected_goal_involvements: "0.0", minutes: 0 },
+    { id: 2, element_type: 2, team: 2, expected_goal_involvements: "0.0", minutes: 0 },
+    { id: 3, element_type: 1, team: 1, expected_goal_involvements: "0.0", minutes: 0,
+      expected_goals_conceded: "0.0" },
+    { id: 4, element_type: 1, team: 2, expected_goal_involvements: "0.0", minutes: 0,
+      expected_goals_conceded: "0.0" },
+  ];
+  const A = oppOf((await runDefcon({ gwMetrics, els: zeroed, fixtures })).written);
+  ok(Object.keys(A).length === 2,
+    `A: rodin er SKRIFUD fyrir bædi lidin (${Object.keys(A).length}) — hun ma ekki horfa, `
+    + "App.jsx reiknar sitt eigid afrit thegar taflan er TOM");
+  ok(Object.values(A).every(o => o.defcon_opportunity === null),
+    `A: defcon_opportunity er null hja ollum (${Object.values(A).map(o => o.defcon_opportunity).join(",")})`);
+  ok(!Object.values(A).some(o => o.defcon_opportunity === 57),
+    "A: og ENGIN ber 57 — talan sem gamli kodinn gaf ollum 20 klubbum");
+  ok(Object.values(A).every(o => o.own_xgc90 === null && o.opp_attack_avg === null),
+    "A: badir undirlidirnir eru null lika (ekki 1,4 og 50/38)");
+
+  /* ---- B. RAUNVERULEG INNTOK: talan kemur, og hun er dreifd ----
+     lid 1: markm. 38,0 xGC / 3420 min = 1,00 per 90 · sokn lids 2 = 7,1/38
+     lid 2: markm. 57,0 xGC / 3420 min = 1,50 per 90 · sokn lids 1 = 3,5/38 */
+  const real = [
+    { id: 1, element_type: 2, team: 1, expected_goal_involvements: "3.5", minutes: 900 },
+    { id: 2, element_type: 2, team: 2, expected_goal_involvements: "7.1", minutes: 900 },
+    { id: 3, element_type: 1, team: 1, expected_goal_involvements: "0.0", minutes: 3420,
+      expected_goals_conceded: "38.0" },
+    { id: 4, element_type: 1, team: 2, expected_goal_involvements: "0.0", minutes: 3420,
+      expected_goals_conceded: "57.0" },
+  ];
+  const B = oppOf((await runDefcon({ gwMetrics, els: real, fixtures })).written);
+  const exp1 = Math.round(1.0 * 22 + (7.1 / 38) * 20);      // 26
+  const exp2 = Math.round(1.5 * 22 + (3.5 / 38) * 20);      // 35
+  ok(B[1]?.defcon_opportunity === exp1,
+    `B: lid 1 fær ${exp1} ur raunverulegum inntokum (${B[1]?.defcon_opportunity})`);
+  ok(B[2]?.defcon_opportunity === exp2,
+    `B: lid 2 fær ${exp2} (${B[2]?.defcon_opportunity})`);
+  ok(B[1]?.defcon_opportunity !== B[2]?.defcon_opportunity,
+    "B: og lidin fa SITT HVORT gildi — lagfaeringin slokkti ekki a dalknum");
+  ok(B[1]?.own_xgc90 === 1 && B[2]?.own_xgc90 === 1.5,
+    `B: eigid xGC per 90 er raunverulega maelt (${B[1]?.own_xgc90} / ${B[2]?.own_xgc90})`);
+
+  /* ---- C. HALFUR UTREIKNINGUR ER SAMA VILLAN I MINNI STAERD ----
+     Markmenn med minutur (eigid xGC TIL) en sokn allra = 0. Gamli kodinn
+     hefdi blandad raunverulegu xGC vid `50/38` og skilad tolu.        */
+  const half = [
+    { id: 1, element_type: 2, team: 1, expected_goal_involvements: "0.0", minutes: 0 },
+    { id: 2, element_type: 2, team: 2, expected_goal_involvements: "0.0", minutes: 0 },
+    { id: 3, element_type: 1, team: 1, expected_goal_involvements: "0.0", minutes: 3420,
+      expected_goals_conceded: "38.0" },
+    { id: 4, element_type: 1, team: 2, expected_goal_involvements: "0.0", minutes: 3420,
+      expected_goals_conceded: "57.0" },
+  ];
+  const C = oppOf((await runDefcon({ gwMetrics, els: half, fixtures })).written);
+  ok(C[1]?.own_xgc90 === 1,
+    `C: forsenda — eigid xGC ER til (${C[1]?.own_xgc90}), svo naesta fullyrding maelir eitthvad`);
+  ok(C[1]?.defcon_opportunity === null && C[2]?.defcon_opportunity === null,
+    `C: en gildid er samt null thvi sokn andstaedings vantar `
+    + `(${C[1]?.defcon_opportunity} / ${C[2]?.defcon_opportunity})`);
+
+  /* ---- D. ENGIR LEIKIR FRAMUNDAN -> null, ekki `oppAttAvg = 1,4` ---- */
+  const D = oppOf((await runDefcon({ gwMetrics, els: real, fixtures: [] })).written);
+  ok(Object.values(D).every(o => o.fixtures_used === 0),
+    "D: forsenda — glugginn er tomur (fixtures_used = 0)");
+  ok(Object.values(D).every(o => o.defcon_opportunity === null),
+    `D: og gildid er null, ekki 1,4-varaleidin `
+    + `(${Object.values(D).map(o => o.defcon_opportunity).join(",")})`);
+
+  /* ---- `record`-talan ma ekki ljuga um thetta ---- */
+  const recA = (await runDefcon({ gwMetrics, els: zeroed, fixtures })).rec;
+  ok(/^0 of 2 teams/.test(String(recA.note)),
+    `record segir "0 of 2 teams with an opportunity rating" — ekki "2" (${recA.note?.slice(0, 40)})`);
+  const recB = (await runDefcon({ gwMetrics, els: real, fixtures })).rec;
+  ok(/^2 of 2 teams/.test(String(recB.note)),
+    `og "2 of 2" thegar tolurnar eru raunverulegar (${recB.note?.slice(0, 20)})`);
 }
 
 console.log(`\nDC-AFTURVIRKNI: ${pass} stóðust, ${fail} féllu`);

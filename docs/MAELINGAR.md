@@ -4270,3 +4270,190 @@ Fullyrðingin var „leikmenn án skota fá null í xG, ekki 0". Kóðinn var la
 staðfesti gamla ástandið. Endurkeyrslan leiddi það í ljós. Reglan er nú rétt
 orðuð: sá sem **spilaði** en skaut ekki ber **mælt 0**; **hlutföllin**
 (`xg_per_shot`, `sp_xg_share`) eru **null**, því þau eru óskilgreind án skota.
+
+---
+
+## 20.8.2026 — DC-MIÐJUMENN OG FFDR-HALLINN: MEKANISMINN ER RAUNVERULEGUR, RÁSIN ER LOKUÐ
+
+**Spurning eiganda:** *„Spurning hvort að FFDR hjá t.d. Sangaré sé rétt, hann er
+DC miðjumaður sem ætti að fá fleiri stig í erfiðari leikjum, t.d. á móti
+A.Villa úti í GW6."*
+
+Skrifta: **`scripts/measure-defcon-ffdr.mjs`** (handvirk, ekki í `npm test`).
+Deterministísk, ~20 s, engin ytri köll.
+
+### ÞETTA VAR ÞRIÐJA SPURNINGIN, EKKI ENDURUPPTAKA Á TVEIMUR
+
+Tvær fyrri mælingar eru nálægt en **svara henni ekki**, og það er ekki
+formsatriði:
+
+| mæling | hvað hún spurði | hvað hún notaði |
+|---|---|---|
+| „Varnarsinnaðir miðjumenn fá varnar-FFDR" (28.7., `ffdr-player-points.mjs` kafli C) | HVOR FFDR-breytan (`useDef` eða sóknar) fylgir stigum betur — **r** | xGI/90 úr FYRRA tímabili sem **proxy** fyrir varnarsinna; laug **2223–2526**, þ.e. 2025/26 var INNI en þynnt ~4:1 af tímabilum þar sem DefCon gaf NULL stig |
+| `tests/defcon-mid.mjs` (29.7.) | SAMA spurning, með RÉTTU skilgreiningunni | raun-DefCon, **2025/26 EINGÖNGU**, GW1–19 -> GW20+ |
+| **HÉR (20.8.)** | er **HALLINN** flatari eða snúinn hjá há-DC miðjumönnum | raun-DefCon, 2025/26, innan leikmanns |
+
+**`expPointsFor` notar ekki r.** Hún notar `lookupPos(3,"pts",d)/POS_MEAN_PTS[3]`
+— **hallann**. Tvær breytur geta haft sama r og allt annan halla, svo hvorug
+fyrri mælingin gat svarað eigandanum. **Þær voru því ekki staðnaðar; þær voru
+um annað.** Það sem VAR staðnað er orðalagið í kafla 4 um mekanismann sjálfan:
+„DC fylgir *þyngri* leikjum" stóð þar sem **fullyrðing án tölu** frá 27.7.
+
+### KAFLI 0 — FYRST VAR SANNREYNT AÐ STIGIN SÉU TIL
+
+Ekkert hér þýðir neitt nema 2025/26 sé raunverulega heimur þar sem
+varnaraðgerðir borga. Stigin voru endurbyggð úr þáttunum (koma-við, mörk,
+assist, hreint blað, mörk á sig, vörslur, bónus, kort) og **leifin** skoðuð
+við DC-þröskuld í `data/player_gw_2526.json`:
+
+| | leif |
+|---|---|
+| DC-þröskuldi náð | **+2 í 1.398 af 1.443 röðum (96,9%)** |
+| ekki náð | **0 í 9.794 af 9.918 röðum (98,7%)** |
+
+Restin er vítaspyrnur (−2/+5) og tvöfaldar umferðir. **DefCon-stigin eru í
+`pts`.** Um leið fellur röksemdin sem hefði réttlætt endurmælingu í eldri
+tímabilum: þar er þetta ekki „ómælt", það er **ekki til**.
+
+### LAUGIN
+
+**3.580 MID-BYRJANIR, 209 leikmenn, 2025/26.** Nefnarinn er **byrjanir, ekki
+leikir** (lagað 17.8., +40%); markmenn útilokaðir (757 umferðir, 0 stig).
+DC-þröskuldi (12+) náð í 583 röðum (16,3%). FFDR kemur úr **`makeFixDifficulty`
+sem er FLUTT INN** úr `src/model.js` með pos 3 (`DIFF_W[3].useDef === false`,
+þ.e. sóknarhliðin — nákvæmlega það sem appið gefur miðjumanni í dag).
+`fpl_player_gw.json` er notuð fremur en `player_gw_2526.json` af því að hún ber
+**dagsetningu og lið per röð**, sem uppflettingin þarf; nafn er gildur lykill
+**innan** eins tímabils (nafna-pörunartapið 2,4–7,5% er per tímabila-skil).
+
+Skilgreining á „DC-maður": **`hit_rate_adj`** = `(hits + 10·p0)/(starts + 10)`,
+p0(MID) = 0,17 — afturvirkjaða talan úr 6l, valin því hrá hittni ofmælist á
+litlum sýnum (FFS: enginn yfir ~57%, okkar n=10–15 gáfu 75–80%).
+`r(hit_rate_adj, CBIRT/90) = 0,644`, svo hún mælir sama eiginleikann.
+
+### INNAN LEIKMANNS ER RÉTTA FORMIÐ, OG ÞAÐ ER SAMA LÆRDÓMUR SEM 6c GAF
+
+Þversniðs-halli blandar tvennu: há-DC miðjumenn spila fyrir **aðra
+liðshelminginn** (þeir verjast meira), svo þversnið mælir að hluta liðið, ekki
+leikinn. Báðar breytur eru því **dregnar frá HANS EIGIN meðaltali**. Sama gildra
+og „heitur leikmaður": hráa talan mældi bara að góðir leikmenn skora oft.
+
+### NIÐURSTAÐAN — VÍXLVERKUNIN, bootstrap KLÖSUÐ PER LEIKMANN, 400 ítranir
+
+| útfærsla | n | halli(HÁTT) − halli(LÁGT), innan leikmanns |
+|---|---|---|
+| tíma-heiðarleg (GW1–19 -> GW20+) | 470 + 500 | **0,000 CI [−0,301, +0,296]** |
+| allt tímabilið (leave-one-row-out) | 1.153 + 1.220 | **+0,029 CI [−0,145, +0,233]** |
+
+**Fimm næmis-útfærslur, 0 af 5 útiloka null:** topp-desíl á móti neðri helmingi
++0,135 CI [−0,092, +0,360] · hrá hittni −0,002 CI [−0,201, +0,207] · CBIRT/90
+sem skilgreining +0,041 CI [−0,124, +0,217] · aðeins mín≥60 +0,053
+CI [−0,148, +0,256] · samfelld `d` í stað þreps +0,210 CI [−0,260, +0,776].
+
+### SUNDURLIÐUNIN SÝNIR HVERS VEGNA — OG MEKANISMINN ER RAUNVERULEGUR
+
+Há-DC hópurinn (n=1.153), meðaltal per þrepi:
+
+| þrep | n | stig | koma-við | mörk+ass | CS | **DEFCON** | bónus | kort |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 164 | 4,15 | 1,94 | 1,10 | 0,39 | 0,52 | 0,40 | −0,18 |
+| 1 | 143 | 4,45 | 1,96 | 1,23 | 0,31 | 0,73 | 0,45 | −0,23 |
+| 2 | 136 | 3,82 | 1,95 | 0,77 | 0,35 | 0,68 | 0,28 | −0,20 |
+| 3 | 142 | 3,90 | 1,93 | 0,87 | 0,31 | 0,68 | 0,27 | −0,16 |
+| 4 | 213 | 3,41 | 1,94 | 0,75 | 0,21 | 0,59 | 0,23 | −0,30 |
+| 5 | 355 | **3,35** | 1,95 | 0,51 | 0,15 | 0,77 | 0,19 | −0,21 |
+
+**Stigin FALLA, 4,15 -> 3,35.** Innan leikmanns, halli per þrepi:
+
+| þáttur | HÁTT DC | LÁGT DC |
+|---|---|---|
+| mörk + assist | **−0,123 CI [−0,210, −0,035]** | **−0,156 CI [−0,258, −0,059]** |
+| hreint blað | −0,051 | −0,051 |
+| bónus | −0,049 | −0,036 |
+| koma-við | −0,004 | −0,003 |
+| **DEFCON-stig** | **+0,007 CI [−0,032, +0,048]** | +0,002 CI [−0,007, +0,009] |
+
+**MEKANISMINN Í HRÁU TÖLUNNI ER SAMT RAUNVERULEGUR — og hann var fullyrðing
+til í dag.** Innan leikmanns, á öllum MID-byrjunum:
+
+| | halli per þrepi |
+|---|---|
+| DC-aðgerðir (CBIRT) | **+0,123 CI [0,032, 0,216] — ÚTILOKAR NULL** |
+| DC/90 | **+0,150 CI [0,062, 0,243] — ÚTILOKAR NULL** |
+
+**Eigandinn hefur rétt fyrir sér um mekanismann. Þröskuldurinn eyðir honum.**
++0,12 til +0,19 aðgerðir per þrep gefa **0,6–0,9 aðgerðir yfir ALLT
+þrepasviðið** — og þröskuldurinn er **12**. Merki sem hreyfist um 0,9 færir
+engan yfir stall sem er 12 hár nema hann standi þegar á honum, og
+þröskuldur-stigagjöf er stallafall, ekki línuleg.
+
+### STÆRÐIN — RÁSIN BUNDIN
+
+DEFCON-liðurinn er **eina leiðin** sem þyngri leikur getur gefið DC-miðjumanni
+FLEIRI stig (koma-við er fast; mörk/assist og hreint blað fara bæði NIÐUR), svo
+það er hann sem á að binda — og hann er þéttari en heildar-hallinn:
+
+| | stig |
+|---|---|
+| DEFCON-rás, punktur, yfir þrep 0->5 | **0,03** |
+| DEFCON-rás, **efri CI-mörk** | **0,24** |
+| leikja-spönn líkansins fyrir MID, grunn 4,5 | **1,89** (margfaldari 1,234 -> 0,814) |
+| viðmið: dómara-spjöldin, FELLD | 0,088 með FULLKOMINNI vitneskju |
+
+Í besta falli (efri CI, grunnur 3,0) er þetta **19%** af leikja-spönninni; á
+punktinum **1–3%**. Umfang: 52 há-DC miðjumenn, 1.153 byrjanir, 49% þeirra í
+þrepi 4–5. DEFCON-stig eru 18,0% af stigum há-DC miðjumanns (0,67 af 3,73).
+
+### STÖÐUGLEIKINN — FORMERKIÐ SKIPTIST, SAMA UNDIRSKRIFT SEM FELLDI 28.7.
+
+| helmingur | HÁTT DC | LÁGT DC | víxlverkun |
+|---|---|---|---|
+| GW1–19 | −0,256 | −0,345 | **+0,089** |
+| GW20–38 | −0,205 | −0,142 | **−0,063** |
+
+Þetta er nákvæmlega undirskriftin sem felldi varnar-FFDR 28.7. („besta w hoppar
+milli tímabila og **skiptir formerki**") og stöður-gegn-liðum 28.7. — nema nú
+milli **helminga eins tímabils**, sem er verra, ekki betra.
+
+### NULLIÐ ER NULL, EKKI BROTIÐ MÆLITÆKI
+
+Þetta er lærdómurinn úr 5b í `CLAUDE.md` beitt á eigin mælingu: fullyrðing sem
+finnur ekkert er verðlaus nema hún geti fundið eitthvað. **Sami mælir, sömu
+raðir, sama bootstrap** skilar **þrem** niðurstöðum sem útiloka null: mörk+assist
+−0,123, DC-aðgerðir +0,123, DC/90 +0,150. Mælitækið virkar; rásin er tóm.
+
+### ERKITÝPAN SJÁLF
+
+**Tveir miðjumenn í `players.json` bera `web_name` „Sangaré"**, og það skiptir
+máli fyrir spurninguna:
+
+| | lið | byrjanir | mín | stig |
+|---|---|---|---|---|
+| **Mamadou** Sangaré (id 565) | Brentford | **0** | **0** | 0 |
+| **Ibrahim** Sangaré (id 488) | Nott'm Forest | 25 | 2.073 | 89 |
+
+GW6 er **Aston Villa – Brentford**, svo eigandinn meinar **Mamadou**, sem á
+enga PL-sögu og getur ekki verið í lauginni. Ibrahim er hins vegar erkitýpan
+og hann er í efsta DC-tertíl (hittni 9/25 = 36%, afturvirkjuð 31%, CBIRT/90
+4,1). **Hans eigin halli er −0,42 stig/þrep** — steypri en hópsins. Í þyngsta
+þrepinu (12 byrjanir) fékk hann 2,42 stig/leik og **0,50 DEFCON-stig**, á móti
+4,00 og 2,00 í léttasta. Lýsing á einum manni, ekki mæling — en hún dregur ekki
+í þá átt sem spurningin gerir ráð fyrir.
+
+### NIÐURSTAÐA — HAFNAÐ Á ÖLLUM ÞREM ÁSUM
+
+**Marktækni:** víxlverkunin inniheldur null í báðum aðal-útfærslum og í 5 af 5
+næmis-útfærslum. **Stærð:** 0,14 stig yfir allt sviðið, rásin bundin við 0,03
+(0,24 í besta falli) — undir dómara-spjöldunum sem voru felld. **Stöðugleiki:**
+formerkið skiptist milli helminga.
+
+**Engin breyting á `fixDifficulty`, `expPointsFor` né `rankScore`.** DC lifir
+áfram þar sem hann lifði: á spjöldum, í dálkunum og í `hit_rate_adj`.
+
+**HVAÐ MYNDI SETTLA ÞETTA (ef einhver vill spyrja aftur):** ekki fleiri
+útfærslur á sömu gögnum — **fleiri tímabil með DefCon-stigagjöf**. Núverandi
+n=3.580 MID-byrjanir gefur CI-breidd ~±0,19 stig/þrep á víxlverkuninni; til að
+skera 0,03 frá null þyrfti breiddina niður í ~0,03, sem er **~40× úrtakið** eða
+~40 tímabil. Það er ekki bið, það er höfnun. **Ef eitthvað á að endurmæla er
+það hvort FPL BREYTIR ÞRÖSKULDINUM** — stallurinn, ekki hallinn, er það sem
+lokar rásinni, og lægri þröskuldur er eina inntakið sem gæti opnað hana.

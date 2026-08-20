@@ -66,6 +66,42 @@ Reglur 2026/27: **DEF 10+ CBIT**, **MID/FWD 12+ CBIRT**, hámark 2 stig í leik.
 | `chance_of_playing_next_round` / `_this_round` | `null` eða 0/25/50/75/100 — sett af FPL-ritstjórum |
 | `news`, `news_added` | fréttatexti, t.d. „Groin injury - Expected back 22 Aug" |
 | `defensive_contribution`, `clearances_blocks_interceptions`, `tackles`, `recoveries` | sjá viðvörun ofar |
+| `preseason_starts`, `preseason_games`, `preseason_minutes`, `preseason_last_start` | **ÆFINGALEIKIR, EKKI FPL-SVIÐ** — sameinuð inn úr `preseason.json` (sjá þar). **Sviðin VANTA ALVEG hjá þeim sem sást ekki í birtu byrjunarliði** — þau eru ekki `0`. „Sást ekki" er *mælt og fellt* sem merki (23 af 80 sögulegum klúbb-tímabilum eiga engin lineups), svo appið les þau sem tómt |
+
+### `preseason.json` — ÆFINGALEIKJA-BYRJANIR (FotMob), FRYST VIÐ FYRSTA PL-LEIK
+`{ updated, season, source, cutoff, fixtures, finished, lineup_sides,
+   dropped_after_cutoff, clubs, clubs_covered, matched, note, players }`
+
+`players` er lyklað á **FPL `code`** (fast yfir tímabil):
+`{ starts, games, minutes, last_start }`.
+
+**Hvers vegna hún er til:** 134 leikmenn í hópnum eiga enga start-window röð
+og 195 enga PL-mínútu — hvert sumarkaup og hver maður nýliðaklúbbs. Fyrir þá
+skilar `startProbability` null og appið hafði ekkert að sýna nema verðið.
+
+**Mælt (`scripts/measure-preseason-starts.mjs`, 4 sumur, LOSO):** „byrjaði
+síðasta æfingaleik" er **samþykkt** — d Brier +0,0341, CI [+0,0267, +0,0423];
+fyrir hópinn án sögu fer AUC úr 0,599 í 0,831. **Mælt og fellt:** keppnis-merkið
+(Community Shield o.fl.) bætir engu ofan á það (+0,0003, og NEIKVÆTT í hópi B),
+og „sást í æfingaleik" er ekki merki heldur þekju-eftirstöðva.
+
+**BIRTINGAR-HEIMILD, EKKI BURÐARVIRKI.** Ekkert í FFDR, `startProbability`,
+`expPointsFor` né `rankScore` les hana — sama hilla og BSD og Evrópu-álagið.
+
+Þrjár reglur sem eru **framfylgdar** (`tests/preseason.mjs`):
+* **klúbbar eru festir á FotMob-id, aldrei á nafni** — „Arsenal" hjá FotMob er
+  **líka FC Arsenal Tula** í rússnesku 2. deild, og 6 af 13 leikjum undir því
+  nafni sumarið 2026 voru þeirra
+* **heima/úti er parað eftir stöðu** (`homeTeam` → `homeFpl`), því
+  `matches?date=` ber skammstafað nafn og `matchDetails.lineup` langt — nafna-
+  uppfletting þagði um 22 af 80 klúbb-tímabilum í fyrstu útgáfu mælingarinnar
+* **afturför er ekki frétt**: æfingaleikir geta aðeins fjölgað innan sumars, svo
+  keyrsla sem finnur færri þakta klúbba eða færri lokna leiki en skráin á diski
+  **skrifar ekki** — hún heldur gömlu skránni og skráir rautt
+
+Mörkin eru **fyrsti PL-leikur tímabilsins**, leiddur úr `fixtures.json` (engin
+harðkóðuð dagsetning). Eftir hann er skráin **fryst**: engin köll, engin
+endurskrift — æfingaleikir sem eru búnir breytast ekki.
 
 ### `news.json` — HRAÐUR CRON, á 30 mín
 `{ updated, current_gw, next_gw, next_deadline, players: [...], price_changes: [...] }`

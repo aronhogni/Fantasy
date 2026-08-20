@@ -1493,6 +1493,15 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
     "fdr6","home6","fix6","team_cs_prob","team_dc",       // leikir framundan
     "pen_order","fk_order","ck_order",                    // spyrnu-rod dagsins
     "xg_share",
+    /* AEFINGALEIKIR (20.8.2026). `live_only` ER RETT HER OG ThAD ER
+       AKVORDUN, EKKI SNYRTING: talan er um sumarid FYRIR ThETTA timabil og
+       fylgir ThVI ekki timabilinu sem er valid i hausnum. Vaeri hun
+       arstidar-svið stæði "byrjadi 4 aefingaleiki" ofan a 2022/23-rod, thar
+       sem vid hofum engin aefingaleikja-gogn og talan vaeri hreint rugl.
+       (Skjalasafnid ber thau ekki: `player_seasons.json` hefur svidin ekki,
+       svo an `live_only` vaeri dalkurinn tomur hja ollum 587 — sama villa
+       og `pen_order` var, CLAUDE.md kafli 12.)                          */
+    "preseason_starts","preseason_games","preseason_minutes","preseason_last_start",
   ]);
   const badLive = STAT_DEFS.filter(d => d.live_only && !LIVE_OK.has(d.key));
   eq(badLive.length, 0, `hver live_only dálkur er skráður${badLive.length ? " — " + badLive[0].key : ""}`);

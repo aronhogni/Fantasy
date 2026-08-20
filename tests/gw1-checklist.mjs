@@ -177,10 +177,33 @@ if (finishedGw === 0) {
   ok((dc.players || []).every(p => "hit_rate_adj" in p && "p0" in p && "starts" in p),
     "hver DC-röð ber hit_rate_adj + p0 + starts (afturvirknin lifir)");
 
-  /* 6. mó/aó-glugginn á að vera ÚR ÞESSU tímabili, ekki archive */
+  /* 6. mó/aó-GLUGGINN — OG REGLAN VAR RONG HÉR TIL 20.8.2026.
+        Hér stód `ok(im.archive !== true)`: safnid atti ad falla um leid og
+        EIN umferd var lokin. Thad er einmitt hrunid sem `clock-states.mjs`
+        kafli C1 maelir: lifandi gluggi upp a eina umferd gefur `start_feats`
+        a NULL af 841 rodum (`startFeatures` krefst >= 2 gilda) og mo/ao-laug
+        0 (golfid er 180 min, ein umferd nær 90). `deriveImminent` heldur thvi
+        safns-glugganum ThANGAD TIL lifandi glugginn er ordinn eins langur og
+        sa sem var validerud (FETCH_WINDOW = 5).
+
+        ThAD SEM VERDUR AD HALDA I BADUM ASTONDUM ER ThEKJAN, ekki flaggid:
+        flaggid segir HVADAN glugginn kemur, thekjan segir hvort hann svari
+        nokkru. Fyrri utgafan fullyrti um flaggid eitt og hefdi thvi verid
+        GRAEN a nakvaemlega thvi astandi sem er onýtt (archive:false, 1 umferd,
+        engin rod med start_feats).                                        */
   const im = J("imminent.json");
-  ok(im.archive !== true,
-    "imminent er EKKI lengur archive — glugginn les yfirstandandi tímabil");
+  const IMM_LIVE_AT = 5;                      // = FETCH_WINDOW i scripts/fetch.mjs
+  if (finished.length >= IMM_LIVE_AT) {
+    ok(im.archive !== true,
+      `imminent er EKKI lengur archive — ${finished.length} umferdir loknar, glugginn les yfirstandandi tímabil`);
+  } else {
+    ok(im.archive === true,
+      `imminent er ENN archive og það er RÉTT — aðeins ${finished.length} af ${IMM_LIVE_AT} `
+      + "umferðum loknar, og lifandi gluggi svo stuttur gefur start_feats á ENGA röð");
+  }
+  const featRows = (im.players || []).filter(r => r.start_feats).length;
+  ok(featRows > 100,
+    `og glugginn svarar: ${featRows} raðir bera start_feats (0 er hrunið sem kafli C1 mælir)`);
 
   /* 7. season_baseline á að FRJÓSA á fyrra tímabili — ekki uppfærast */
   const sb = J("season_baseline.json");
