@@ -104,10 +104,53 @@ export default function App() {
      deild+draft thegar thad er. Sja `boardScope` i `data.js`. */
   const boardKey = D.boardScope(activeId, active.sync && active.sync.draftId);
 
+  /* ============================================================
+     NYTT DRAFT ERFIR ALDREI SAETID — MAELT A RAUNVERULEGU MOCKI
+     ============================================================
+     `sync` (og thar med `slot`) byr a DEILDINNI, en bordid er lyklad a
+     DRAFTID (`boardScope`). Þegar `taken`/`myPicks` voru faerd i
+     draft-skordu FOR `slot` EKKI MED. Nidurstadan: nytt mock i somu
+     deild erfir saetid ur thvi fyrra.
+
+     ÞAD SEM NOTANDINN SA, OG ÞAD VAR ALLT SAMA VILLAN: hann var saeti 5
+     i fyrra mocki og saeti 7 i thessu. Appid helt saeti 5, svo
+     "My team" birti HOP ANNARS MANNS (Taylor/Walker/Etienne/Love — lid 5
+     upp a mann) og `recommend()` fékk THANN hop sem samhengi. Lid 5 er
+     med SEX RB og fjora WR, svo radgjofin sa lid sem var stappad i RB og
+     thunnt i WR — og skiladi rettri radgjof fyrir RANGT LID: tiu WR i
+     rod. Sama skyring a "thu tharft enn K og DST" (lid 5 tok K i 14.6 og
+     DEF i 15.5, sidast af ollum) og a thvi ad onnur vorn var radlogd i
+     14.4. Fjorar villuskyrslur, EIN orsok.
+
+     ÞESS VEGNA ER SAETID HREINSAD ÞEGAR DRAFT-AUDKENNID BREYTIST i
+     ANNAD ekki-tomt gildi. Hreinsad, ekki agiskad: `null` thydir
+     "vid vitum ekki" og reiturinn kemur tha aftur eda saetid er leyst
+     upp a nytt. RANGT SAETI ER VERRA EN ENGIN SAETI — thad gerir hverja
+     tolu a bordinu ranga OG synir lid annars manns sem thitt eigid, an
+     thess ad notandinn hafi nokkra leid til ad sja thad.
+
+     Sama draft-audkenni (endurhledsla, endurtenging) HELDUR saetinu —
+     annars tyndist thad vid F5 i midju drafti, sem er villan sem
+     draft-skordan var byggd til ad koma i veg fyrir.                */
   const setSync = useCallback((next) => {
-    setEntries((prev) => prev.map((e) => (e.id === activeId
-      ? { ...e, sync: normalizeSync(typeof next === "function" ? next(e.sync) : next) }
-      : e)));
+    setEntries((prev) => prev.map((e) => {
+      if (e.id !== activeId) return e;
+      const prevSync = e.sync || { draftId: "", slot: null };
+      const raw = typeof next === "function" ? next(prevSync) : next;
+      const ns = normalizeSync(raw);
+      /* Nytt, annad draft -> saetid er ekki lengur i gildi. Tomt
+         draft-audkenni (aftenging) hreinsar ekki saetid: deildin er su
+         sama og saetid getur enn verid rett i naestu tengingu vid SAMA
+         draft. */
+      const switched = ns.draftId && prevSync.draftId &&
+                       ns.draftId !== prevSync.draftId;
+      /* Se saetid gefid BERUM ORDUM i thessu kalli (notandinn valdi lid,
+         eda `resolveSlot` leysti thad fyrir nyja draftid) stendur thad —
+         annars gaeti hreinsunin thurrkad ut svarid sem var verid ad
+         setja i sama andartaki. */
+      const slotGiven = raw && typeof raw === "object" && raw.slot != null;
+      return { ...e, sync: switched && !slotGiven ? { ...ns, slot: null } : ns };
+    }));
   }, [activeId]);
 
   /* ============================================================
