@@ -1149,51 +1149,105 @@ async function eloFetch(url, tries = 6) {
   throw err;
 }
 async function fetchElo() {
-  // ClubElo notar http (ekki https) — https gefur oft "fetch failed"
-  const text = await eloFetch(`http://api.clubelo.com/${today}`);
-  const { header, rows } = parseCSV(text);
-  console.log(`ClubElo dags-haus: ${header.join(",")}`);
-  const eng = rows.filter(r => r.Country === "ENG" && (r.Level === "1" || r.Level === "2"));
+  /* TVEIR HOSTAR, EKKI EINN — OG BARA ANNAR ER UPPI (20.8.2026).
+     `elo.json` var frosin fra 14.8. og stadan sagdi "6 attempts over 400s
+     all failed: 6x ... aborted due to timeout". Notandinn sagdi rettilega
+     ad ClubElo VAERI UPPI, og hvort tveggja var satt:
+       api.clubelo.com -> 37.128.134.74, 0 baet, timeout a 12 s OG 25 s,
+                          bæði http og https, HEDAN og ur CI-tolum
+       clubelo.com     -> 172.66.0.96 (Cloudflare), 200, ~595 KB, 0,11 s
+     Sjá `parseClubEloWeb` fyrir maelingarnar a rekinu — frosin Elo er EKKI
+     hlutlaus: 14.8. -> 20.8. reikadi hun ad medaltali 14,4 stig og mest
+     58,8 (ARS), og RODIN breyttist (forskot ARS a MCI 92,9 -> 13).
+     API-ID ER AFRAM ADALLEIDIN: hun er hreint CSV med `Rank`/`Level` og
+     tharf enga thattun. Vefurinn keyrir EINGONGU eftir ad endurtilraunir
+     API-sins eru bunar (~6,5 min), og hann er VALIDERADUR (sja thar).   */
+  let eng = null, via = "api.clubelo.com", apiErr = null;
+  try {
+    // ClubElo notar http (ekki https) — https gefur oft "fetch failed"
+    const text = await eloFetch(`http://api.clubelo.com/${today}`);
+    const { header, rows } = parseCSV(text);
+    console.log(`ClubElo dags-haus: ${header.join(",")}`);
+    eng = rows.filter(r => r.Country === "ENG" && (r.Level === "1" || r.Level === "2"));
+    record("elo_api", true, eng.length, `api.clubelo.com/${today} - ENG L1+L2`);
+  } catch (e) {
+    /* EIGIN ROD FYRIR ADALLEIDINA. Aduren fell hun i somu rod og gognin
+       sjalf, svo "vefurinn bjargadi okkur" hefdi orðid GRAEN rod og
+       API-bilunin — sem er raunverulegt, vidvarandi ástand — hefdi horfid
+       ur stodunni alveg. Tvaer stadhaefingar, tvaer rodir.               */
+    apiErr = e;
+    record("elo_api", false, 0, String(e.message).slice(0, 300));
+    console.warn(`ClubElo API unusable, falling back to the website: ${e.message}`);
+    eng = parseClubEloWeb(await eloFetch(ELO_WEB_URL, ELO_WEB.TRIES));
+    via = "clubelo.com (website fallback)";
+  }
   // LOGGA öll ensk nöfn — þannig þarf aldrei að giska á stafsetningu aftur
-  console.log(`ClubElo ENG L1+L2 names (${eng.length}): ${eng.map(r => r.Club).join(" | ")}`);
+  console.log(`ClubElo ENG names via ${via} (${eng.length}): ${eng.map(r => r.Club).join(" | ")}`);
 
-  // normaliserað: lágstafir, aðeins bókstafir/tölur (þolir bil, punkta, úrfellingar)
-  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   const byNorm = {};
-  eng.forEach(r => { byNorm[norm(r.Club)] = r; });
+  eng.forEach(r => { byNorm[clubeloNorm(r.Club)] = r; });
 
-  // mörg möguleg nöfn per lið (ClubElo notar bil í fjölorða nöfnum)
-  const CAND = {
-    ARS:["Arsenal"], AVL:["Aston Villa","AstonVilla","Villa"], BOU:["Bournemouth","AFC Bournemouth"],
-    BRE:["Brentford"], BHA:["Brighton"], CHE:["Chelsea"], COV:["Coventry","Coventry City"],
-    CRY:["Crystal Palace","CrystalPalace","Palace"], EVE:["Everton"], FUL:["Fulham"],
-    HUL:["Hull","Hull City"], IPS:["Ipswich","Ipswich Town"], LEE:["Leeds","Leeds United"],
-    LIV:["Liverpool"], MCI:["Man City","ManCity","Manchester City"],
-    MUN:["Man United","ManUnited","Man Utd","Manchester United"],
-    NEW:["Newcastle","Newcastle United"], NFO:["Forest","Nottingham","Nott'm Forest","Nottingham Forest"],
-    SUN:["Sunderland"], TOT:["Tottenham","Spurs"], WOL:["Wolves"], BUR:["Burnley"], WHU:["West Ham"],
-  };
   const eloByFpl = {};
-  const teams = [];
+  const teams = [], missing = [];
   for (const [id, t] of Object.entries(teamsById)) {
-    const cands = CAND[t.short_name] || [t.name];
+    const cands = CLUBELO_CAND[t.short_name] || [t.name];
     let row = null;
-    for (const c of cands) { const hit = byNorm[norm(c)]; if (hit) { row = hit; break; } }
+    for (const c of cands) { const hit = byNorm[clubeloNorm(c)]; if (hit) { row = hit; break; } }
     if (row) {
+      /* `level: +row.Level` VAR RANGT UM VARALEIDINA. Vefurinn ber ENGA
+         deildar-threp sem er marktaekt (Vega-blobbid segir Brentford og
+         Coventry "Level 2" thott badir seu i PL 2026/27 — sja
+         `parseClubEloWeb`), svo hun sendir `null`. `+null` er 0, og
+         "level 0" er omaeld tala sem les eins og maeling. NULL ER EKKI
+         NULL. Ekkert i appinu les thetta svid; adalleidin er obreytt.   */
       const rec = { fpl_id: Number(id), short: t.short_name, elo: +row.Elo,
-        rank: row.Rank ? +row.Rank : null, level: +row.Level, clubelo_name: row.Club };
+        rank: row.Rank ? +row.Rank : null,
+        level: row.Level == null ? null : +row.Level, clubelo_name: row.Club };
       teams.push(rec); eloByFpl[row.Club] = Number(id);
     } else {
+      missing.push(t.short_name);
       console.warn(`ClubElo: could not find ${t.short_name} (${t.name}) — tried: ${cands.join(", ")}`);
     }
   }
-  await writeJSON("elo.json", { updated: status.updated, teams });
-  record("elo", true, teams.length, `of ${eng.length} ENG L1+L2`);
+  /* VARALEIDIN ER ALLT-EDA-EKKERT; ADALLEIDIN ER ÓBREYTT.
+     `homeCore` (0,20 fyrir DEF) kviknar EINGONGU thegar Elo var notad —
+     maelt i `DIFF_W`: an Elo brotnar einraenni threpanna (8/14 a moti
+     12/14). Skra thar sem 19 lid hafa Elo og eitt ekki setur thvi 38 af
+     380 leikjum a ANNAN KVARDA en hina 342 — tveir kvardar i somu toflu,
+     nakvaemlega sama villa sem afstaed threp innan lids voru hofnud fyrir.
+     Frosin skra er a EINUM kvarda og ber aldur sinn i `elo_age`; hun er
+     thvi skaarri kostur. Maelt 20.8.2026: 20/20 pöruð, svo strangleikinn
+     kostar EKKERT i eðlilegu ástandi — og thegar hann fellur nefnir notan
+     lidid, sem er ein lina i `CLUBELO_CAND`.                            */
+  if (apiErr && missing.length > ELO_WEB.MAX_MISSING) {
+    throw new Error(`website fallback matched only ${teams.length} of `
+      + `${Object.keys(teamsById).length} clubs (no Elo for ${missing.join(", ")}) - `
+      + `keeping the old elo.json rather than writing a file where some clubs are on a `
+      + `different scale; add the name to CLUBELO_CAND. The API said: ${apiErr.message}`);
+  }
+  await writeJSON("elo.json", { updated: status.updated, source: via, teams });
+  /* NOTAN MA ALDREI SEGJA AD API-ID HAFI VIRKAD. `ok` er samt `true`:
+     skran ER fersk og validerud, og raud rod ofan a ferskri skra thjalfar
+     mann i ad hunsa raudan lit. Adallidin ber sina eigin rod (`elo_api`),
+     svo bilunin er skrad thar sem hun a heima.                          */
+  record("elo", true, teams.length, apiErr
+    ? `VIA WEBSITE FALLBACK (clubelo.com) - api.clubelo.com failed: `
+      + `${String(apiErr.message).slice(0, 120)}`
+    : `of ${eng.length} ENG L1+L2`);
 
   // /Fixtures: kolónur STAÐFESTAR = Date,Country,Home,Away,GD<-5..GD>5,R:0-0..R:6-0
   // Úr úrslitalíkindum má reikna hreint blað og sigurlíkur — ókeypis, engin Odds-credit.
   try {
-    const ft = await eloFetch("http://api.clubelo.com/Fixtures");
+    /* SAMI HOSTUR SEM VAR NYBUID AD SANNA ONAAANLEGAN — thess vegna 2
+       tilraunir og ekki 6 (20.8.2026). Maelt i lifandi keyrslu: `fetchElo`
+       tok 800 s, thar sem 400 s voru dagsetta CSV-id og 400 s VORU ThESSI
+       LYKKJA a SAMA hostinum. Stiginn (5/20/45/90/120 s) er til vegna
+       IP-throttlunar a sameiginlegum CI-tolum, og su tilgata var ThEGAR
+       reynd til thrautar i thessari keyrslu — onnur eins lykkja profar
+       ekkert nytt. Tvaer tilraunir taka aframhaldandi eitt-skiptis-fall.
+       ATH: thetta er EKKI throskuldur a gagnagaedum heldur bid; svarid
+       sjalft er profad eins og adur.                                    */
+    const ft = await eloFetch("http://api.clubelo.com/Fixtures", apiErr ? 2 : 6);
     const { header: fh, rows: fr } = parseCSV(ft);
     const engFx = fr.filter(r => r.Country === "ENG");
     const scoreCols = fh.filter(h => h.startsWith("R:"));
@@ -1220,6 +1274,207 @@ async function fetchElo() {
     record("elo_fixtures", true, out.length, `${engFx.length} ENG of ${fr.length}`);
   } catch (e) { record("elo_fixtures", false, 0, e.message); }
 }
+
+/* ============================================================
+   CLUBELO — VEF-VARALEIDIN  (20.8.2026)
+
+   HVERS VEGNA HUN ER TIL: `api.clubelo.com` er ONAAANLEG fra thessari
+   vel OG fra CI-tolum — 0 baet, timeout a 12 s og 25 s, bæði http og
+   https, DNS 37.128.134.74. `clubelo.com` er UPPI: 200, ~595 KB, 0,11 s,
+   DNS 172.66.0.96 (Cloudflare). Tveir hostar, ein bilud.
+
+   OG FROSIN ELO ER EKKI HLUTLAUS. Skrain fra 14.8. borin vid vefinn 20.8.
+   (16 lid sem badar heimildir bera): medalrek |14,4|, mest 58,8 (ARS
+   2063,8 -> 2005). RODIN breyttist, og rodin er thad sem FFDR les:
+   forskot ARS a MCI for ur 92,9 i 13, og TOT for upp fyrir LEE. GW1 er
+   21.8. kl. 17:30 UTC.
+
+   HVAD ER LESID — OG HVAD ER EKKI:
+   · `https://clubelo.com/` ber HEILA hnattraena rodunartoflu i STODUGU
+     HTML-i: <tr><td class="l">...alt="ENG"...<small>RODUN</small>...
+     <span class="Ast">NAFN</span>...</td><td class="r">ELO</td></tr>.
+     Maelt 20.8.2026: 643 radir, 60 sambond, 48 ensk lid, og OLL 20
+     FPL-lidin — Hull er i rod 322 med 1582.
+   · Nofnin i `Ast`-span eru NAKVAEMLEGA thau sömu sem CSV-ID gefur i
+     `Club` ("Man City", "Forest", "Crystal Palace"), svo `CLUBELO_CAND`
+     og `clubeloNorm` eru notud OBREYTT. ENGIN onnur nafna-porun er
+     skrifud her — thogul rong porun er verri en engin (BSD-reglan:
+     fuzzy felldi Man United inn i Man City).
+   · TLC-kodinn ("MNU" fyrir Man United) er I HTML-inu og er EKKI notadur:
+     hann er ekki FPL-skammstofunin og hefdi verid onnur porunar-leid.
+   · `Level` er sett NULL. Vega-blobbid a sidunni segir Brentford OG
+     Coventry "Level 2" thott badir seu i PL 2026/27 — talan er throska
+     eda onnur staerd, og omaeld tala sem lítur ut eins og maeling er
+     versta utkoman. Ekkert i appinu les svidid (grep: adeins `elo` og
+     `rank`).
+   · TOLURNAR ERU NAMUNDADAR I HEILAR I TOFLUNNI (CSV-id gefur fleytitolu).
+     Kostnadurinn er maeldur: `eScore = (op-me)/150 + 3`, svo +/-1 Elo er
+     0,0067 a 1-5 kvarda og x `W.elo`=0,15 = 0,001 a `core`. Rekid sem
+     thetta lagfaerir er 58,8 Elo = 0,059 a `core` — SEXTIUFALT staerra.
+   · `https://clubelo.com/<Klubbur>` (per-lid) og `/ENG` eru EKKI notadar.
+     /ENG ber raunar SOMU 643 radir (maelt: eins radafjoldi og eins
+     ENG-tolur) auk 25-lida blobs, svo hun VAERI nothaef — en heimasidan
+     dugar med 20/20 og ein sokn er einfaldari en tvaer. Per-lid-sidur
+     hefdu kallad a AD GISKA A SLUG ("realmadrid" er lagstafa, "ParisSG"
+     er ekki) = onnur nafna-porun.
+
+   ================== VALIDERINGIN ==================
+   HTML getur breyst thegjandi og markmidid er ad forda TRUVERDUGRI RANGRI
+   TOLU. Hver throskuldur er MAELDUR, og hver theirra tekur SITT
+   bilunar-munstur — thess vegna eru their fimm og ekki einn:
+
+   1) SVID [1300, 2200] a OLLUM 643 rodum. Maelt a 18.816 raunverulegum
+      fyrir-leik PL-Elo gildum (`clubelo_history.json`, 25 timabil):
+      min 1475,5, max 2090,1; p0,1% 1511, p99,9% 2074. Toflan sjalf i dag:
+      1500-2019. Throskuldurinn hefur thvi ~175 stig af lofti nidur og
+      ~110 upp. TEKUR: rangur dalkur (Golo 1,03, breyting +0,08, rodun
+      322), klippt tala. TEKUR EKKI arid 2026 — thad er innan svidsins,
+      og throskuldur stilltur til ad taka EITT falsgildi vaeri valin tala,
+      ekki maeld.
+   2) SPONN >= 150 stig meðal ensku lidanna. Maelt: 491 i dag; minnsta
+      arstidar-sponn PL-lidanna a 25 timabilum er 353 (2016/17), staerst
+      565. 150 er undir HELMINGI af theirri minnstu, svo hun getur ekki
+      fallid a raungognum. TEKUR: hvert tilfelli thar sem hvert gildi
+      verdur ad SOMU tolu — thar a medal "arid 2026 i hverri rod".
+   3) EINKVAEM GILDI >= 60% ensku radanna. Maelt: 45 af 48 (94%). 48
+      heilar tolur a 491 stiga bili gefa vaentar ~2,3 arekstra (maelt 3),
+      svo 60% (>= 29 af 48) leyfir 19 — attafalt meira en vaent. TEKUR:
+      hlutafylling med fasta thar sem sponnin lifir a fáum raunverulegum
+      gildum.
+   4) RODUN <-> ELO EINRAENI. Toflan ber bædi hnattraena rodun og Elo, i
+      SITTHVORUM dalki sömu radar; rodun er skilgreind AF Elo, svo eftir
+      rodun-vaxandi verdur Elo ekki-vaxandi. Namundun getur ekki snuid
+      thessu (namundun er einraen), svo thetta er SANNAD, ekki bara maelt.
+      Maelt: 0 brot a 19 pörum (og 0 innan alls ENG-hlutans, 47 pör).
+      TEKUR: dalkur sem er ekki ur sömu rod, blandada eda vixlada dalka.
+      ATH: toflan er GROPUD EFTIR SAMBANDI og innan ENG i tvo threp
+      (Brentford i rod 25 kemur EFTIR Ipswich i rod 143), svo einraenin
+      er profud a RODUNARSORTERADA listanum, ekki a skjá-rödinni.
+   5) KROSSPROF VID VEGA-BLOBBID, <= 0,6 stig, minnst 8 lid. Sama sidan
+      ber fullnakvaemt `{"Name","Elo","Level","FedURL"}` fyrir topp-50 —
+      OHAD framsetning a SOMU tolu i SAMA skjali. |namundun| er <= 0,5 med
+      byggingu; maelt versta munur 0,435 (Chelsea), og milli tveggja
+      sidu-hleðsla flokti hun 0,014, svo 0,6 er 0,5 + fliss. TEKUR: HTML
+      sem breytist svo regexid grípur adra en jafn trulega tolu.
+   6) THEKJA: OLL 20 FPL-lidin (`MAX_MISSING = 0`) — sja rokin i `fetchElo`.
+      Otengd lid eru NEFND i logginu OG i notunni.
+
+   Verdur: `tests/elo-fetch.mjs` a FRYSTU HTML-i
+   (`tests/lib/frozen/clubelo-home-2026-08-20.html.gz`, sott med
+   `curl -s https://clubelo.com/ | gzip`). Prófid saekir EKKERT — net i
+   profasafninu er thad sem tok `euro-congestion.mjs` ut (kafli 5).
+   ============================================================ */
+export const ELO_WEB_URL = "https://clubelo.com/";
+export const ELO_WEB = {
+  TRIES: 3,            // vefurinn svarar a 0,11 s; 6 tilraunir = 6,5 min til viðbotar
+  MIN_ROWS: 200,       // maelt 643
+  MIN_ENG: 25,         // maelt 48
+  MIN_ELO: 1300,       // maelt PL-lagmark 1475,5 a 25 timabilum
+  MAX_ELO: 2200,       // maelt PL-hamark 2090,1
+  MIN_SPREAD: 150,     // maelt 491 i dag; minnsta arstidar-sponn 353
+  MIN_DISTINCT: 0.60,  // maelt 45/48 = 94%
+  BLOB_TOL: 0.6,       // namundun <= 0,5 med byggingu; maelt versta 0,435
+  MIN_BLOB: 8,         // maelt 16 a heimasidunni (hnattraen topp-50)
+  MAX_MISSING: 0,      // allt-eda-ekkert; sja rokin i fetchElo
+};
+// normaliserað: lágstafir, aðeins bókstafir/tölur (þolir bil, punkta, úrfellingar)
+export const clubeloNorm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+// mörg möguleg nöfn per lið (ClubElo notar bil í fjölorða nöfnum)
+export const CLUBELO_CAND = {
+  ARS:["Arsenal"], AVL:["Aston Villa","AstonVilla","Villa"], BOU:["Bournemouth","AFC Bournemouth"],
+  BRE:["Brentford"], BHA:["Brighton"], CHE:["Chelsea"], COV:["Coventry","Coventry City"],
+  CRY:["Crystal Palace","CrystalPalace","Palace"], EVE:["Everton"], FUL:["Fulham"],
+  HUL:["Hull","Hull City"], IPS:["Ipswich","Ipswich Town"], LEE:["Leeds","Leeds United"],
+  LIV:["Liverpool"], MCI:["Man City","ManCity","Manchester City"],
+  MUN:["Man United","ManUnited","Man Utd","Manchester United"],
+  NEW:["Newcastle","Newcastle United"], NFO:["Forest","Nottingham","Nott'm Forest","Nottingham Forest"],
+  SUN:["Sunderland"], TOT:["Tottenham","Spurs"], WOL:["Wolves"], BUR:["Burnley"], WHU:["West Ham"],
+};
+
+/* Skilar rodum i NAKVAEMLEGA sama snidi sem CSV-id gefur
+   (`{Club, Elo, Rank, Level}`) svo porunin nidar i `fetchElo` se EIN
+   utfaersla fyrir badar leidir. KASTAR ef eitthvad er ohaeft — kastid
+   thydir "haltu gomlu skranni", thvi kallandinn skrifar EKKERT eftir thad. */
+export function parseClubEloWeb(html) {
+  const bad = m => { throw new Error(`clubelo.com scrape rejected: ${m}`); };
+  const H = String(html || "");
+  /* Ein rod = eitt lid. `(?:(?!<\/tr>).)*?` bindur hvert svid vid SOMU
+     rod — annars getur `alt`, `small` og `td.r` komid ur thremur rodum.
+     ARID 2026 stendur a hverri sidu; thad er ekki i thessari stodu og
+     kemst thvi ekki inn sem "rating" (og spönn/blob taka thad hvort sem
+     er ef thad kemst).                                                  */
+  const RE = /<tr><td class="l">(?:(?!<\/tr>).)*?alt="(\w+)"(?:(?!<\/tr>).)*?<small>\s*(\d+)\s*<\/small>(?:(?!<\/tr>).)*?<span class="Ast">([^<]+)<\/span>(?:(?!<\/tr>).)*?<td class="r">(\d+)<\/td><\/tr>/g;
+  const rows = [...H.matchAll(RE)].map(m =>
+    ({ fed: m[1], Rank: +m[2], Club: m[3].trim(), Elo: +m[4] }));
+  if (rows.length < ELO_WEB.MIN_ROWS) {
+    bad(`the ranking table has ${rows.length} rows, expected at least `
+      + `${ELO_WEB.MIN_ROWS} (measured 643 on 2026-08-20) - the markup changed`);
+  }
+  const out = rows.filter(r => r.fed === "ENG")
+    .map(r => ({ Club: r.Club, Elo: r.Elo, Rank: r.Rank, Level: null }));
+  if (out.length < ELO_WEB.MIN_ENG) {
+    bad(`only ${out.length} English clubs in the table, expected at least `
+      + `${ELO_WEB.MIN_ENG} (measured 48) - the country marker changed`);
+  }
+  // 1) SVID
+  const oob = rows.filter(r => !(r.Elo >= ELO_WEB.MIN_ELO && r.Elo <= ELO_WEB.MAX_ELO));
+  if (oob.length) {
+    bad(`${oob.length} of ${rows.length} ratings are outside [${ELO_WEB.MIN_ELO}, `
+      + `${ELO_WEB.MAX_ELO}] (first: ${oob[0].Club} = ${oob[0].Elo}) - that is not a rating column`);
+  }
+  // 2) SPONN
+  const els = out.map(r => r.Elo);
+  const spread = Math.max(...els) - Math.min(...els);
+  if (spread < ELO_WEB.MIN_SPREAD) {
+    bad(`the English ratings span only ${spread} points (need ${ELO_WEB.MIN_SPREAD}; `
+      + `measured 491, and the narrowest Premier League season in 25 is 353) - `
+      + `the values have collapsed onto one number`);
+  }
+  // 3) EINKVAEM GILDI
+  const distinct = new Set(els).size, needD = Math.ceil(out.length * ELO_WEB.MIN_DISTINCT);
+  if (distinct < needD) {
+    bad(`only ${distinct} distinct ratings among ${out.length} English clubs `
+      + `(need ${needD}; measured 45 of 48) - most rows carry the same value`);
+  }
+  // 4) RODUN <-> ELO EINRAENI (a rodunar-sorteradum listanum)
+  const asc = [...out].sort((a, b) => a.Rank - b.Rank);
+  for (let i = 1; i < asc.length; i++) {
+    if (asc[i].Elo > asc[i - 1].Elo) {
+      bad(`rank ${asc[i].Rank} (${asc[i].Club} = ${asc[i].Elo}) rates above rank `
+        + `${asc[i - 1].Rank} (${asc[i - 1].Club} = ${asc[i - 1].Elo}) - the rating in `
+        + `that cell does not belong to that row`);
+    }
+  }
+  // 5) KROSSPROF VID VEGA-BLOBBID
+  const blob = [...H.matchAll(/\{[^{}]*"FedURL"[^{}]*\}/g)]
+    .map(m => { try { return JSON.parse(m[0]); } catch { return null; } })
+    .filter(o => o && o.FedURL === "ENG" && o.Name && Number.isFinite(o.Elo));
+  const byName = {};
+  out.forEach(r => { byName[clubeloNorm(r.Club)] = r; });
+  let seen = 0, worst = 0, worstName = "";
+  for (const o of blob) {
+    const r = byName[clubeloNorm(o.Name)];
+    if (!r) continue;
+    seen++;
+    const d = Math.abs(o.Elo - r.Elo);
+    if (d > worst) { worst = d; worstName = o.Name; }
+  }
+  if (seen < ELO_WEB.MIN_BLOB) {
+    bad(`only ${seen} clubs could be cross-checked against the full-precision chart `
+      + `data on the same page (need ${ELO_WEB.MIN_BLOB}; measured 16) - one of the two `
+      + `representations is gone, so nothing confirms the other`);
+  }
+  if (worst > ELO_WEB.BLOB_TOL) {
+    bad(`the table and the chart data on the same page disagree by ${worst.toFixed(2)} `
+      + `points on ${worstName} (rounding alone is at most 0.5; measured worst 0.435) - `
+      + `the table cell being read is not the rating`);
+  }
+  console.log(`clubelo.com: ${rows.length} rows, ${out.length} English, spread ${spread}, `
+    + `${distinct} distinct, ${seen} cross-checked against chart data `
+    + `(worst ${worst.toFixed(3)})`);
+  return out;
+}
+/* ---- END ELO WEB FALLBACK ---- */
 
 /* ============================================================
    ALDURS-RODIN ER HREINT FALL — OG HUN VANTADI EINA GREIN (16.8.2026)

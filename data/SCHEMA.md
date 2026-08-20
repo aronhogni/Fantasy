@@ -293,8 +293,15 @@ Staðan skráir sig undir `odds_raw`.
 ## ClubElo
 
 ### `elo.json`
-`{ teams: [{ fpl_id, short, elo, rank, level, clubelo_name }] }`
+`{ source, teams: [{ fpl_id, short, elo, rank, level, clubelo_name }] }`
 Filter: `Country=ENG`, `Level` 1 **og** 2 (nýliðar þurfa samfellda sögu).
+`source` (20.8.2026) segir HVAÐAN talan kom: `"api.clubelo.com"` eða
+`"clubelo.com (website fallback)"`. Hostarnir tveir eru ekki sami hlutur —
+API-inn var ónáanlegur frá 14.8. meðan vefurinn svaraði á 0,11 s, og skrá sem
+þegir um það lítur eins út hvort sem hún er fersk eða frosin. Í vef-leiðinni er
+`level` **null** (vefurinn ber engin marktæk deildarþrep) og `elo` er
+**námunduð í heiltölu** (CSV-inn gefur fleytitölu; kostnaður mældur = 0,001 á
+`core`, sjá `parseClubEloWeb`).
 
 ### `elo_fixtures.json`
 ```
