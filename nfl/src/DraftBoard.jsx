@@ -1497,19 +1497,60 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
      kofllum (`draft_order` odregin, nafnid slegid inn A EFTIR). Ny
      styring sem gerir thad sama og su sem er til er nakvaemlega thad sem
      "eitt reit, einn hnappur" var ad hreinsa ut.                       */
+  /* ============================================================
+     ANNAD MOCK OG ONNUR DEILD ERU SAMA MALID HER — LAGAD 20.8.2026
+     ============================================================
+     Hér stod `if (info && !info.leagueId) return []`, sem greinir
+     MOCK (`league_id == null`) fra ollu odru — en thad eru ThRJU astond,
+     ekki tvo, og `boardShape` nefnir thau ollum thremur:
+
+       `league`  draftid tilheyrir DEILDINNI SEM ER HLADIN -> spjoldin
+                 eru rett, thvi `teams` er leyst UR HENNI
+       `mock`    engin deild -> engin spjold (thad var thegar rett)
+       `other`   draftid tilheyrir **ANNARRI** deild -> spjoldin voru
+                 SYND, og thau eru ur deildinni sem er hladin
+
+     ÞAD SIDASTA ER SAMA VILLAN SEM `keptSlot` VER, KOMIN INN AFTUR UM
+     ADRAR DYR: listinn ber nofn og saeti ANNARRA MANNA, `slot_to_roster_id`
+     annarrar deildar, og smellur a spjald skrifar bædi `sync.slot` OG
+     tekur `t.userId` sem AUDKENNI NOTANDANS. Þad er nakvaemlega "appid
+     syndi hop annars manns sem thitt eigid", nema nu med notandann
+     sjalfan sem tilefni. Raut ljos er thegar kveikt i thessu astandi —
+     en ljos sem segir "rong deild" ofan vid smellanleg spjold UR theirri
+     deild er bod um ad gera thad sem er rangt.
+
+     `info == null` HELDUR SPJOLDUNUM og thad er asett: thad er astandid
+     RETT EFTIR innflutning deildar (og eftir F5 an tengingar), thar sem
+     spurningin "hvada lid er thitt?" er einmitt su sem a ad birtast.
+     Vid vitum ekkert um draftid tha, svo spjoldin eru eina heimildin —
+     og se logunin sidan onnur en deildin hverfa thau vid fyrstu pollun. */
   const seatList = useMemo(() => {
-    /* Mock ber enga `league_id` — og thar med engan notendalista sem
-       segir hver situr hvar. Spjold ur ANNARRI deild eru ekki svar. */
-    if (info && !info.leagueId) return [];
+    const st = (board && board.state) || "none";
+    if (info && st !== "league") return [];
     return Array.isArray(teams) ? teams : [];
-  }, [info, teams]);
+  }, [info, board, teams]);
+
+  /* HVERS VEGNA eru engin spjold? Tvaer astaedur, tvaer setningar — og
+     su sem stod var ORDIN OSONN i annarri theirra. Reiturinn sagdi
+     "This draft lists no teams", sem er RETT um mock og RANGT um draft
+     annarrar deildar: thad lisar teimum, vid neitum bara ad nota lista
+     UR RANGRI deild. Osonn setning sem lítur ut eins og skyring sendir
+     mann af stad ad leita ad villu sem er ekki til. */
+  const seatHidden = !info ? null
+    : (((board && board.state) || "none") === "league" ? null
+       : (info.leagueId ? "other" : "mock"));
 
   const seatName = useMemo(() => {
     if (sync.slot == null || !Array.isArray(seatList)) return null;
     const t = seatList.find((x) => x.slot === Number(sync.slot));
     const nm = t && t.name ? String(t.name) : "";
     return nm && !/^Slot \d+$/.test(nm) ? nm : null;
-  }, [teams, sync.slot]);
+    /* HAD ER A `seatList`, EKKI A `teams` — thad var villa sem thagdi
+       medan `seatList` var hrein vorpun a `teams`. Nu er hun lika had
+       logun draftsins (`board.state`), svo "annad lid en deildin" hefdi
+       skilid NAFNID eftir a skjanum eftir ad spjoldin voru horfin:
+       "You are Sofahetjur, slot 7" i drafti sem Sofahetjur er ekki i. */
+  }, [seatList, sync.slot]);
 
   /* ============================================================
      STODULJOSID — TVAER STODUR, OG THAER SEGJA HVADAN TOLURNAR KOMA
@@ -1692,7 +1733,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
           um `keptSlot`), svo talan verdur ad vera LESIN A SKJANUM i thvi
           tilfelli AF OLLUM. Setningin og spjoldin eru thvi tvo adskilin
           skilyrdi, ekki eitt.                                          */}
-      {sync.draftId && (seatList.length > 0 || (info && !info.leagueId)) && (
+      {sync.draftId && (seatList.length > 0 || seatHidden) && (
         <div style={{ marginTop: 10 }}>
           <div className="dim" style={{ fontSize: 12.5, marginBottom: 4 }}>
             {sync.slot != null
@@ -1801,10 +1842,17 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                 setSync({ ...sync, slot: e.target.value === "" ? null
                   : Number(e.target.value) }); }} />
           </label>
-          {sync.slot == null && (
+          {sync.slot == null && seatHidden !== "other" && (
             <span className="dim" style={{ fontSize: 12.5, alignSelf: "flex-end" }}>
               This draft lists no teams, so your seat could not be read. Without it your
               own picks never reach the roster below.
+            </span>
+          )}
+          {sync.slot == null && seatHidden === "other" && (
+            <span className="dim" style={{ fontSize: 12.5, alignSelf: "flex-end" }}>
+              The seat list belongs to the league you have loaded, not to this draft, so
+              it is not offered here. Connect the league this draft belongs to, or type
+              the seat.
             </span>
           )}
         </div>

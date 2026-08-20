@@ -1640,6 +1640,45 @@ console.log("\n16c. draft sem tilheyrir annarri deild -> RAUTT");
   /* OG HER MA BODIN STANDA: thessi deild ER til og hana MA tengja. */
   ok(/connect that league/i.test(flat()),
     "og bodin eru ognaeg: tengdu THA deild (hun er til, olikt mock)");
+
+  /* ============================================================
+     OG LIDSSPJOLDIN HVERFA — SAMA VILLAN, ADRAR DYR (20.8.2026)
+     ============================================================
+     Raut ljos var ThEGAR retta svarid hér, og samt stodu lidsspjold
+     DEILDARINNAR SEM ER HLADIN eftir undir thvi, smellanleg. `seatList`
+     greindi adeins MOCK (`!info.leagueId`) fra ollu odru, svo astandid
+     "onnur deild" hleypti theim i gegn. Þad er sama villan sem `keptSlot`
+     ver — appid bydur ther hop annars manns — nema hér er tilefnid
+     notandinn sjalfur: smellur skrifar `sync.slot` OG tekur `t.userId`
+     sem AUDKENNI HANS ur allt annarri deild.
+
+     FULLYRDINGIN ER UM NOFNIN, EKKI UM TOLUNA — sama regla og kafli 18.
+     `team7` er gilt saeti i hvorri deild sem er, svo talan 7 gat aldrei
+     kviknad; thad sem var rangt voru nofnin. Neikvaeda fullyrdingin
+     nefnir thvi streng sem var SANNANLEGA a skjanum: spjaldid "7. team7"
+     sest i kafla 17 og i `connectAndSync`, svo `!includes` er ekki tomt
+     (CLAUDE.md 5b).
+
+     SKORDAD A TENGI-SPJALDID, EKKI A `button.chip` I OLLU DOM-INU:
+     `chip`-stillinn er lika a leitni-listanum, a stodu-siunum og a
+     K/DST-toflunni (maelt: 34 spjold utan saetalistans), svo talning a
+     ollu skjanum vaeri fullyrding um allt annad. Fyrsta utgafan gerdi
+     nakvaemlega thad og las 34 — profid hefdi fallid a rettum koda.   */
+  const seatPanel = () => [...document.querySelectorAll(".panel")]
+    .find((p) => /Connect your Sleeper draft/.test(
+      p.querySelector("h2")?.textContent || "")) || null;
+  const chipNames = () => [...(seatPanel()?.querySelectorAll("button.chip") || [])]
+    .map((b) => (b.textContent || "").trim());
+  ok(chipNames().length === 0,
+    `engin lidsspjold i drafti annarrar deildar (${chipNames().length}: ${
+      chipNames().join(" | ")})`);
+  ok(!chipNames().some((n) => /team\d/.test(n)),
+    "og nofn ur deildinni sem er hladin eru hvergi smellanleg");
+  /* Nafnid ma ekki lifa spjoldin: "You are team7, slot 7" i drafti sem
+     team7 er ekki i vaeri sama lygin i einni linu. */
+  ok(!/You are team\d/.test(flat()),
+    `og saetis-nafnid fylgir theim ut ("${
+      (/You are [^,]{0,20}/.exec(flat()) || ["-"])[0]}")`);
   ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
   root.unmount();
 }

@@ -105,52 +105,42 @@ export default function App() {
   const boardKey = D.boardScope(activeId, active.sync && active.sync.draftId);
 
   /* ============================================================
-     NYTT DRAFT ERFIR ALDREI SAETID — MAELT A RAUNVERULEGU MOCKI
+     SAETIS-HLIDID VAR HER OG ER FARID — MAELT, EKKI GISKAD (20.8.2026)
      ============================================================
-     `sync` (og thar med `slot`) byr a DEILDINNI, en bordid er lyklad a
-     DRAFTID (`boardScope`). Þegar `taken`/`myPicks` voru faerd i
-     draft-skordu FOR `slot` EKKI MED. Nidurstadan: nytt mock i somu
-     deild erfir saetid ur thvi fyrra.
+     Hér stod hlid sem hreinsadi `slot` thegar `draftId` breyttist i
+     annad ekki-tomt gildi. Rokin voru rett — nytt draft erfir aldrei
+     saetid — en HLIDID GAT EKKI GERT SITT GAGN, og thad var maelt:
 
-     ÞAD SEM NOTANDINN SA, OG ÞAD VAR ALLT SAMA VILLAN: hann var saeti 5
-     i fyrra mocki og saeti 7 i thessu. Appid helt saeti 5, svo
-     "My team" birti HOP ANNARS MANNS (Taylor/Walker/Etienne/Love — lid 5
-     upp a mann) og `recommend()` fékk THANN hop sem samhengi. Lid 5 er
-     med SEX RB og fjora WR, svo radgjofin sa lid sem var stappad i RB og
-     thunnt i WR — og skiladi rettri radgjof fyrir RANGT LID: tiu WR i
-     rod. Sama skyring a "thu tharft enn K og DST" (lid 5 tok K i 14.6 og
-     DEF i 15.5, sidast af ollum) og a thvi ad onnur vorn var radlogd i
-     14.4. Fjorar villuskyrslur, EIN orsok.
+     Villan sem hun var skrifud gegn situr i `connect` (`DraftBoard.jsx`):
 
-     ÞESS VEGNA ER SAETID HREINSAD ÞEGAR DRAFT-AUDKENNID BREYTIST i
-     ANNAD ekki-tomt gildi. Hreinsad, ekki agiskad: `null` thydir
-     "vid vitum ekki" og reiturinn kemur tha aftur eda saetid er leyst
-     upp a nytt. RANGT SAETI ER VERRA EN ENGIN SAETI — thad gerir hverja
-     tolu a bordinu ranga OG synir lid annars manns sem thitt eigid, an
-     thess ad notandinn hafi nokkra leid til ad sja thad.
+         slot: slot != null ? slot : sync.slot
 
-     Sama draft-audkenni (endurhledsla, endurtenging) HELDUR saetinu —
-     annars tyndist thad vid F5 i midju drafti, sem er villan sem
-     draft-skordan var byggd til ad koma i veg fyrir.                */
+     Hun kallar `setSync` med saetid GEFID BERUM ORDUM (5), svo
+     `slotGiven` var satt og hlidid slokknadi. STOKKBREYTING SANNADI
+     THAD: med thessu hlidi a sinum stad OG `keptSlot` afturkallad fellur
+     `draft-live.mjs` kafli 18 med FJORUM fullyrdingum — hopurinn ber
+     tvo leikmenn saetis 5, tolu-reiturinn ber "5", og setningin um ad
+     saetid hafi ekki lesist hverfur. Nakvaemlega thad sem notandinn sa.
+
+     OG SLOTGIVEN VAR NAUÐSYNLEGT: an thess hefdi hlidid hreinsad saeti
+     sem `resolveSlot` LEYSTI RETT fyrir nyja draftid. Hlidid var thvi
+     BYGGINGARLEGA ofaert um ad greina "rett leyst saeti" fra "erft
+     saeti" — badir koma sem tala i sama kalli.
+
+     VIÐ ThAD BAETIST AD LEIDIN SEM SKIPTIR MALI FER EKKI HER UM: deild
+     med drafti fer gegnum `onImportLeague` (`importLeague` nedar), sem
+     skrifar `entry.sync` BEINT og kemur aldrei vid `setSync`. Hlid a
+     `setSync` gat thvi ekki verið vorn a theirri leid — sem er einmitt
+     leidin sem raundraftid fer.
+
+     LAUSNIN ER A EINUM STAD, ThAR SEM SAETID ER AKVEDID: `keptSlot` i
+     `connect` (`DraftBoard.jsx`, vordur `draft-live.mjs` 18). Tvo
+     halfvirk lög lata naesta lesanda halda ad invariantid se varið hér
+     — og thad er verra en eitt lag sem er.                          */
   const setSync = useCallback((next) => {
-    setEntries((prev) => prev.map((e) => {
-      if (e.id !== activeId) return e;
-      const prevSync = e.sync || { draftId: "", slot: null };
-      const raw = typeof next === "function" ? next(prevSync) : next;
-      const ns = normalizeSync(raw);
-      /* Nytt, annad draft -> saetid er ekki lengur i gildi. Tomt
-         draft-audkenni (aftenging) hreinsar ekki saetid: deildin er su
-         sama og saetid getur enn verid rett i naestu tengingu vid SAMA
-         draft. */
-      const switched = ns.draftId && prevSync.draftId &&
-                       ns.draftId !== prevSync.draftId;
-      /* Se saetid gefid BERUM ORDUM i thessu kalli (notandinn valdi lid,
-         eda `resolveSlot` leysti thad fyrir nyja draftid) stendur thad —
-         annars gaeti hreinsunin thurrkad ut svarid sem var verid ad
-         setja i sama andartaki. */
-      const slotGiven = raw && typeof raw === "object" && raw.slot != null;
-      return { ...e, sync: switched && !slotGiven ? { ...ns, slot: null } : ns };
-    }));
+    setEntries((prev) => prev.map((e) => (e.id === activeId
+      ? { ...e, sync: normalizeSync(typeof next === "function" ? next(e.sync) : next) }
+      : e)));
   }, [activeId]);
 
   /* ============================================================
