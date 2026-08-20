@@ -1035,11 +1035,42 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
        BADAR stodur merkisins: fyrir thá a talan ad vera SU SAMA.        */
     ok(noBadge.length > 0 && badged.length > 0,
        `forsenda: ${noBadge.length} omerktir og ${badged.length} merktir dalkar`);
-    ok(noBadge.every(d => PL.headWidth(d, true) === PL.headWidth(d, false) + PL.BADGE_W)
-       || noBadge.every(d => PL.headWidth(d, false) < PL.headWidth(d, true)),
-       "omerktur dalkur fær EKKI merkja-plassid nema bedid se um thad");
-    ok(badged.every(d => PL.headWidth(d, true) > PL.headWidth(d, false)),
-       "merktir dalkar eru BREIDARI en their somu an merkis (plassid er skilyrt)");
+    /* OG ThESSAR TVAER VORU LIKA OF VEIKAR, ThOTT THAER SEU EKKI TATOLOGIUR
+       (endurskrifad 20.8.2026). Thaer baru `headWidth(d,true)` a moti
+       `headWidth(d,false) + BADGE_W` — sem er REIKNINGURINN I headWidth
+       SJALFUM, og heldur thvi fyrir HVERN dalk, merktan sem omerktan.
+       Thaer maeldu skilyrdinguna aldrei; hun er i KOLLARANUM, ekki i
+       breiddar-fallinu. Fullyrdingin er thvi tviskipt her: annars vegar
+       reikningurinn (rett heiti a thvi sem hann ER), hins vegar TENGINGIN.
+       Merkid er ekki i takmarkadri haed heldur i BREIDD sem klippir: 44
+       dalkar toldu thad ekki 14.-16.8. og 25 theirra misstu heitid AD
+       FULLU; og fastur kostnadur a alla 124 er sama villan og †-merkid
+       sem var tekid ut 8.8. Baedi endar hafa thvi kostad, svo hvorugur
+       ma standa ovardur.                                              */
+    ok(STAT_DEFS.every(d => PL.headWidth(d, true) >= PL.headWidth(d, false)),
+       "headWidth eydir merkja-plassinu ThEGAR ThAD ER BEDID UM ThAD "
+       + "(reikningurinn — heldur fyrir hvern dalk, ekki bara merkta)");
+
+    /* TENGINGIN: `wOf` VERDUR ad kalla `headWidth(d, showBadge(d))`.
+       Se annad inntakid harkodad springur annad hvort thakid eda heitid:
+         `true`  -> 43 px a alla 124 dalka (†-villan aftur, raunverulegt
+                    skrun sem notandinn taldi upp)
+         `false` -> 44 klippt heiti (villan fra 14.8.)
+       Prófid les UPPRUNANN thvi akvordunin er tekin inni i React-hluta
+       sem thetta safn keyrir ekki — DOM-profin (`playerlist-live-cols`,
+       `playerlist-narrow`) maela breiddirnar, en hvorugt ber thau vid
+       BADAR stodur merkisins, svo harkodun slyppi thar i gegn.       */
+    const PLSRC = readFileSync(new URL("../src/PlayerList.jsx", import.meta.url), "utf8");
+    const calls = [...PLSRC.matchAll(/headWidth\(([^)]*)\)/g)]
+      .map(m => m[1].trim())
+      .filter(a => !/^d,\s*badge\b/.test(a));          // skilgreiningin sjalf
+    ok(calls.length > 0, `forsenda: ${calls.length} kollum a headWidth i PlayerList.jsx`);
+    const literal = calls.filter(a => /,\s*(true|false)\s*$/.test(a));
+    eq(literal.length, 0,
+       "ENGINN kollur a headWidth ber harkodad merkja-flagg"
+       + (literal.length ? ` — ${literal[0]}` : ""));
+    ok(calls.some(a => /,\s*showBadge\(/.test(a)),
+       "og breiddin er reiknud ur AKVORDUNINNI (`showBadge(d)`), ekki ur fasta");
     /* Og breiddin sjalf er LEIDD af mældu stafbreiddinni, ekki valin tala. */
     near(PL.BADGE_W,
          "season".length * (6.35 * 9 / 10.5 + 0.2) + 9, 1,

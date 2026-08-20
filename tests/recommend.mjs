@@ -16,6 +16,8 @@
                        telur nakvaemlega thad sem fallid les.
      2  UTDRATTURINN — frysta utgafan ur git, med THREMUR FELLDU LIDUNUM
                        slokktum um theirra EIGIN null-hlid, er BITA-EINS.
+                       **EKKI I `npm test`** (tharf fulla git-sogu — sja
+                       athugasemdina vid kaflann): `--frozen`.
      3  MAELDIR      — vitaskytta og ep hreyfa skorid nakvaemlega sem maelt.
      4  FELLDIR      — bann, rotering og DefCon hreyfa thad EKKI.
      5  YFIRLYSTAR   — omaeldu UI-tolurnar eru merktar sem slikar.
@@ -113,7 +115,33 @@ ok(/export const FIT = \{/.test(SRC), "FIT-taflan ER i recommend.js");
    banRisk null, `starts:null` -> rotationRisk null — og tha VERDUR
    utkoman ad vera bita-eins vid nuverandi utfaerslu.
    ============================================================ */
-console.log("\n2. UTDRATTURINN (frysta utgafan ur git)");
+/* ============================================================
+   ThESSI KAFLI ER EKKI I `npm test` LENGUR — 20.8.2026.
+
+   Hann las `git show 264a50c:src/App.jsx`, sem ThARFNAST thess ad SA
+   COMMIT se til i klonninu. Hann er thad ekki i shallow-kloni (`git clone
+   --depth 1`, sem CI notar sjalfgefid) ne i tarball-niduhali, svo safnid
+   vard RAUTT af astaedu sem kemur maelingunni ekkert vid — sama tegund
+   bilunar og tok `euro-congestion.mjs` ut ur safninu (HTTP 403 a
+   GitHub-kvotanum), og hun er ThEGAR skjolud i hausnum a thessari skra.
+   Hitt var verra: `if (FZ)` sleppti SJO fullyrdingum thegjandi thegar
+   sokninn mistokst, svo safnid gat lika ordid GRAENT an theirra.
+
+   OG ThAD ER RETT FLOKKUN, EKKI UPPGJOF: thetta er EINSKIPTIS
+   jafngildis-maeling — "var utdratturinn 18.8. hegdunar-eins?". Hun getur
+   ekki vardad framtidina, thvi framtidar-breytingar A ad breyta hegdun
+   gegn frysta commit-inu. Kaflar 1 og 3-6 eru verdirnir; thessi er
+   maeling, eins og `--pen` nedar i somu skra.
+
+   ENDURKEYRD HANDVIRKT (tharf fulla git-sogu OG jsx-loaderinn — sama
+   ikall og `run-tests.mjs` byggir, thvi kafli 1 les `SetPieces.jsx`):
+       node --import "data:text/javascript,import{register}from\"node:module\";register(\"file://$PWD/tests/jsx-loader.mjs\")" \
+            tests/recommend.mjs --frozen
+   (SLODIN VERDUR AD VERA ALGILD `file://`. Innan data:-URL er
+   `import.meta.url` sjalf data-URL-in, svo afstaed slod kastar
+   ERR_UNSUPPORTED_RESOLVE_REQUEST — maelt, ekki agiskad.)
+   ============================================================ */
+const WANT_FROZEN = process.argv.includes("--frozen");
 const FROZEN_REV = "264a50c";           // sidasti commit fyrir C.1-utdrattinn
 function frozenScorer() {
   const src = execSync(`git -C ${ROOT} show ${FROZEN_REV}:src/App.jsx`, { encoding: "utf8", maxBuffer: 64e6 });
@@ -136,7 +164,13 @@ const norm = R => JSON.stringify({
     .map(([k,v]) => [k, [v.inputs, v.avail, v.ffdrAvg, v.fxs.length]])),
 });
 let FZ = null;
-try { FZ = frozenScorer(); } catch (e) { ok(false, "nadi i frystu utgafuna ur git", e.message); }
+if (!WANT_FROZEN) {
+  console.log("\n2. UTDRATTURINN — SLEPPT (einskiptis maeling, tharf fulla git-sogu)");
+  console.log("     endurkeyrd med:  tests/recommend.mjs --frozen");
+} else {
+  console.log("\n2. UTDRATTURINN (frysta utgafan ur git)");
+  try { FZ = frozenScorer(); } catch (e) { ok(false, "nadi i frystu utgafuna ur git", e.message); }
+}
 if (FZ) {
   ok(FZ.body.includes("dcB") && FZ.body.includes("banPen") && FZ.body.includes("rotPen"),
      "frysta utgafan BER lidina thrja", `${FZ.body.split("\n").length} linur`);
