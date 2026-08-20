@@ -2208,19 +2208,128 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
         ? top[0].reasons[0].text
         : "Highest value over replacement on the board.");
 
+  /* Lifunartalan i orðum. SOMU throskuldar og `reasonsFor` notar (0,7 /
+     0,25) — thetta er sama maelingin i annarri framsetningu, ekki ny
+     tala. `null` er "engin ADP" og thad er SAGT: "0%" vaeri omeld tala. */
+  const lasts = (p) => {
+    if (rec.nextPick == null) return "this is your last pick, so nothing has to last.";
+    if (p.survive == null) return "no ADP for him, so there is no read on whether he lasts.";
+    const pct = Math.round(p.survive * 100);
+    if (p.survive > 0.7) return `${pct}% likely to still be there at pick ${rec.nextPick}.`;
+    if (p.survive < 0.25) return `only ${pct}% likely to last your next ${rec.wait} picks.`;
+    return `${pct}% likely to last to pick ${rec.nextPick} — a coin toss.`;
+  };
+  const rowFor = (p) => available.find((r) => r.id === p.id) || null;
+  const chosen = (rec.choice && rec.choice.list) || [];
+
   return (
     <div className="panel">
-      <h2>Pick {pick} — take this</h2>
+      {/* HAUSINN NEFNIR ENN "take this" — sa fyrri ER urskurdurinn og
+          maelda rodin setur hann fyrstan. Vidbotin er um HINN. */}
+      <h2>Pick {pick} — take this{!kdstPick && chosen.length > 1
+        ? ", or the one beside it" : ""}</h2>
 
-      <div className="verdict">
-        <div className="verdict-name">
-          <span className={`pos ${verdict.pos}`}>{verdict.pos}</span>
-          <b>{verdict.name}</b>
-          {vRow && vRow.team && <span className="dim"> · {vRow.team}</span>}
-          {vRow && vRow.bye != null && <span className="dim"> · bye {vRow.bye}</span>}
+      {/* ============================================================
+          TVEIR KOSTIR, EKKI EINN — OG EKKI FIMM (20.8.2026)
+          ============================================================
+          Kassinn bar adur FIMM radir og notandinn sagdi: "eg vill ekki
+          thurfa ad velja neitt". Þad var rett og thetta er ekki
+          afturhvarf: fimm oadgreindar radir skila akvordunininni til
+          baka an hjalpar. Beidnin nu er "2 bestu sem eru i bodi",
+          og hun kom ur KONKRET BILUN sem eitt nafn gat ekki synt:
+
+            "Pick 17 — take this: TE Brock Bowers · 95% likely to still
+             be here in 8 picks"
+
+          Hvers vegna eyda vali 17 a mann sem er 95% viss um ad vera enn
+          laus i vali 25? Talan var RETT og MAELD — og hun stod sem
+          ROKSTUDNINGUR fyrir vali sem var tekid a virdinu einu.
+
+          ÞVI ER ANNAD NAFNID EKKI "meiri listi" heldur NAKVAEMLEGA thad
+          sem greinir thau ad: bilid i VBD, hvort hvor lifir ad naesta
+          vali, og stodurnar. Einn 95% og annar 20% er ekki jafntefli
+          heldur augljost svar — og thad var falid.
+
+          RODIN HAGGAST EKKI: `choice.list[0]` ER `picks[0]`, sami madur
+          sem maelda rodin (A-Ranking/VBD) setur fyrstan. Bradanauðsyn sem
+          ROD var maeld og hun TAPAR (-60,06 i standard, 0 af 5 arum);
+          lifunarlikur sem jafnteflis-rof gafu ekkert (t = -0,06 / +0,79).
+          Hér er hvorugt gert — annad nafnid er BIRT, ekki radad.
+
+          Vordur: `advice.mjs` kafli 15 og `draft-live.mjs` kafli 20.   */}
+      {kdstPick || chosen.length === 0 ? (
+        <div className="verdict">
+          <div className="verdict-name">
+            <span className={`pos ${verdict.pos}`}>{verdict.pos}</span>
+            <b>{verdict.name}</b>
+            {vRow && vRow.team && <span className="dim"> · {vRow.team}</span>}
+            {vRow && vRow.bye != null && <span className="dim"> · bye {vRow.bye}</span>}
+          </div>
+          <div className="verdict-why">{why}</div>
         </div>
-        <div className="verdict-why">{why}</div>
-      </div>
+      ) : (
+        <>
+          <div className="row" style={{ gap: 10, alignItems: "stretch",
+            flexWrap: "wrap" }}>
+            {chosen.map((p, i) => {
+              const row = rowFor(p);
+              return (
+                <div key={p.id} className="verdict" style={{ flex: "1 1 250px" }}>
+                  <div className="verdict-name">
+                    <span className={`badge ${i === 0 ? "on" : ""}`}
+                      style={{ marginRight: 6 }}>{i === 0 ? "take" : "or"}</span>
+                    <span className={`pos ${p.pos}`}>{p.pos}</span>
+                    <b>{p.name}</b>
+                    {row && row.team && <span className="dim"> · {row.team}</span>}
+                    {row && row.bye != null && <span className="dim"> · bye {row.bye}</span>}
+                  </div>
+                  <div className="verdict-why">
+                    {/* BILID ER TALAN SEM GERIR THETTA AD VALI OG EKKI AD
+                        MATSEDLI: an hennar eru tvo nofn adeins tvo nofn. */}
+                    {i === 0
+                      ? `Highest value over replacement — VBD ${p.vbd == null
+                          ? "—" : p.vbd.toFixed(1)}.`
+                      : `${Math.abs(p.behind)} VBD behind him — VBD ${p.vbd == null
+                          ? "—" : p.vbd.toFixed(1)}.`}
+                    {" "}{lasts(p)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ÞRIDJA NAFNID ADEINS ÞEGAR TVO FYRSTU ERU I SOMU STODU —
+              tha er valid sem hann stendur frammi fyrir ekki a skjanum.
+              Hans ord: "svo leikmadur til vara ef eg tharf frekar RB". */}
+          {rec.choice.alt && (
+            <div className="note" style={{ marginTop: 8 }}>
+              <b>Both of those are {chosen[0].pos}.</b>{" "}
+              The best of another position is{" "}
+              <span className={`pos ${rec.choice.alt.pos}`}>{rec.choice.alt.pos}</span>{" "}
+              <b>{rec.choice.alt.name}</b>, {Math.abs(rec.choice.alt.behind)} VBD
+              behind — {lasts(rec.choice.alt)}{" "}
+              <span className="dim">Shown because the two above are
+              interchangeable for your roster, not because the order changed.</span>
+            </div>
+          )}
+
+          {/* ÞETTA ER LAGFAERINGIN A MOTSOGNINNI SJALFRI. Sja `waitNoteFor`
+              i `advice.js`: aritmetik a maeldum tolum, engin ny vog. */}
+          {rec.choice.waitNote && (
+            <div className="note" style={{ marginTop: 8 }}>
+              <b>Order matters here:</b> {rec.choice.waitNote.text}
+            </div>
+          )}
+
+          {rec.choice.aboveRepl === 1 && (
+            <div className="note" style={{ marginTop: 8 }}>
+              <b>Only one name left is worth a pick.</b> Everyone else on the board is
+              below replacement, so a second choice here would be padding, not a
+              choice.
+            </div>
+          )}
+        </>
+      )}
 
       <div className="sub">
         {sync && sync.draftId

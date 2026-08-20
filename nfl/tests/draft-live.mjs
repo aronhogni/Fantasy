@@ -1917,6 +1917,79 @@ console.log("\n18. saeti erfist ekki milli drafta — og hopurinn er ekki annars
   await act(async () => { root.unmount(); });
 }
 
+/* ============================================================
+   20. TVEIR KOSTIR A SKJANUM — LESNIR AF HONUM, EKKI UR FALLINU
+   ============================================================
+   `advice.mjs` kafli 15 ver HREINU rokfraedina (tveir kostir, bilid,
+   lifun beggja, rodin oskert). Þad prof getur EKKI sagt hvort thad se
+   TENGT — og thad er nakvaemlega villan sem thetta verkefni hefur
+   endurtekid oftast: markadslidurinn i FPL-appinu var daudur i viku med
+   graen prof, og `boardShape` hefdi getad verid hreint fall sem enginn
+   kallar.
+
+   Hér er allt lesid AF SKJANUM i lifandi drafti:
+     · TVO spjold, ekki eitt og ekki fimm
+     · sa fyrri ber "take", sa seinni "or"
+     · bilid er a skjanum i VBD (`N VBD behind`)
+     · LIFUNARTALA fyrir BADA — thad var motsognin sem hann sa
+     · og fyrsta nafnid er SAMA nafn sem rokstudnings-taflan (`take`-rodin,
+       rodud eftir VBD) setur fyrst. Vaeri annad saetid latid verda thad
+       fyrsta myndi ThESSI fullyrding falla og engin onnur.            */
+console.log("\n20. tveir kostir eru a skjanum, og urskurdurinn er oskertur");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const root = await boot();
+  await connectAndSync();
+  /* Nokkur vol svo bordid se i midju drafti, ekki i vali 1. */
+  for (let n = 1; n <= 5; n++) pushPick(n);
+  await waitFor(() => draftedOnScreen() === 5, 6000);
+  await settle(300);
+
+  const cards = () => [...document.querySelectorAll(".verdict-name")];
+  const cardText = () => cards().map((c) => (c.textContent || "").trim());
+  ok(cards().length === 2, `TVO spjold, ekki eitt og ekki fimm (${cards().length})`);
+  ok(/take/.test(cardText()[0] || "") && /or/.test(cardText()[1] || ""),
+    `sa fyrri ber "take", sa seinni "or" (${cardText().join(" | ")})`);
+
+  const whys = [...document.querySelectorAll(".verdict-why")]
+    .map((d) => (d.textContent || "").replace(/\s+/g, " ").trim());
+  ok(whys.length === 2, `og badir bera sina astaedu (${whys.length})`);
+  ok(/VBD behind him/.test(whys[1] || ""),
+    `bilid er a skjanum i VBD ("${(whys[1] || "").slice(0, 70)}")`);
+  /* LIFUN BEGGJA. Talan er i orðum ("likely to") vid BADA — hun var adur
+     adeins vid thann eina sem var valinn, sem er einmitt hvernig 95%
+     gat lesist eins og ROKSTUDNINGUR fyrir hann. */
+  const lastsCount = whys.filter((t) =>
+    /likely to still be there|likely to last|coin toss|no ADP for him/.test(t)).length;
+  ok(lastsCount === 2,
+    `lifunartala fyrir BADA, ekki adeins thann sem er valinn (${lastsCount}/2)`);
+
+  /* URSKURDURINN ER OSKERTUR: fyrsta nafnid er sama nafn sem
+     rokstudnings-taflan setur fyrst (hun er rodud eftir VBD). */
+  const openTable = async () => {
+    const sum = [...document.querySelectorAll("details.reasoning summary")]
+      .find((x) => /Why him/.test(x.textContent || ""));
+    if (sum) await click(sum, 120);
+  };
+  await openTable();
+  const reasonTable = [...document.querySelectorAll("table.data")]
+    .find((t) => /Lasts\?/.test(t.querySelector("thead")?.textContent || "")) || null;
+  const firstRanked = reasonTable
+    ? (reasonTable.querySelector("tbody tr td.frozen")?.textContent || "")
+        .replace(/^take/, "").trim()
+    : null;
+  const firstCard = (cardText()[0] || "").replace(/^take/, "").trim();
+  ok(!!firstRanked, `rokstudnings-taflan er lesin (${firstRanked || "ekkert"})`);
+  ok(firstRanked && firstCard.includes(firstRanked),
+    `fyrsta spjaldid er MAELDA rodin (spjald "${firstCard}" gegn toflu "${firstRanked}")`);
+  /* Og hausinn nefnir enn urskurdinn — hann er ekki ordinn matsedill. */
+  ok(/take this/.test(text()), "hausinn segir enn \"take this\" um thann fyrsta");
+  ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
+
+  await settle(60);
+  await act(async () => { root.unmount(); });
+}
+
 console.log(`\n(pollunar-bidir styttar: ${pollTicks})`);
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

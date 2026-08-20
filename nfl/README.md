@@ -4040,6 +4040,73 @@ samstillingu eru 20 leikmenn strikaðir út, **tveir réttir** lenda í mínum h
 (sæti 7 af 12), og sá sem var tekinn er ekki lengur boðinn. Stökkbreyting sem
 hunsaði sætið felldi það með tölunni 0.
 
+### 6b-6. TVEIR KOSTIR — OG 95%-MÓTSÖGNIN SEM STÓÐ Í KASSANUM (20.8.2026)
+
+Notandinn las þetta:
+
+    Pick 17 — take this: TE Brock Bowers · bye 13
+    95% likely to still be here in 8 picks
+
+og spurði — réttilega — **hvers vegna hann ætti að eyða vali 17 á mann sem er 95%
+viss um að vera enn laus í vali 25.** Talan var rétt, hún var mæld
+(`survivalProb`, `SD_K = 1,08` fittað á 1.882 leikmanna-árum) og hún stóð sem
+**rökstuðningur** fyrir vali sem var tekið á virðinu einu. Merkið var þegar í
+appinu og mótsagði úrskurðinum í sínu eigin spjaldi.
+
+**Beiðnin sem kom út úr því:** *„eg vill ad appid maeli med 2 leikmonnum. Thannig
+ad eg geti valid ut. 2 bestu sem eru i bodi."*
+
+#### Þetta snýr við eigin ákvörðun hans — og hún var rétt þá
+
+Kassinn bar áður **fimm raðir** og hann sagði: *„eg vill ekki thurfa ad velja
+neitt"*. Það er rétt um fimm óaðgreindar raðir: þær skila ákvörðuninni til baka
+án hjálpar. **Tveir eru ekki fimm** — annað nafnið ber nákvæmlega það sem greinir
+þau að:
+
+- **bilið í VBD** („18,7 VBD behind him")
+- **hvort hvor lifir að næsta vali** — fyrir **báða**, sem var einmitt það sem
+  vantaði
+- **stöðurnar**, því það er ásinn sem hann velur á
+
+Einn 95% og annar 20% er **ekki jafntefli heldur augljóst svar**, og appið faldi
+það. Ein setning er dregin út úr því (`waitNoteFor`, hrein): *„Bowers is 92%
+likely to still be there at pick 25 and Gibbs only 1% — taking Gibbs now is the
+one order that can end with both. The order above is still by value: Gibbs is 8
+behind."* Það er **aritmetík á mældum tölum**, ekki ný vog — og hún er
+staðfesting á því sem `advice.js` segir sjálft að lifunarlíkur séu til fyrir:
+*þær segja þér hvort þú getir beðið, en þær ráða ekki.*
+
+#### Hvað var EKKI gert
+
+- **Röðin haggast ekki.** `choice.list[0]` **ER** `picks[0]` — sami maður sem
+  mælda röðin (A-Ranking/VBD) setur fyrstan. Bráðanauðsyn sem **röð** var mæld og
+  hún tapar (−60,06 í standard, **0 af 5 árum**); lifunarlíkur sem
+  jafnteflis-rof gáfu ekkert (t = −0,06 / +0,79). Hvorugt er tekið upp aftur.
+- **Ekkert er raðað eftir lifun.** Sama ástæða.
+- **K/DST standa fyrir utan** og koma áfram úr sinni eigin töflu með
+  `mustFill`-línunni.
+- **Sá sem spilar ekki (`avail: 0`) er hvorugur kosturinn** — sama sía, ekki ný.
+- **Ekkert fyllt upp í annað sætið:** skurðurinn er `vbd > 0` (virði ofan á
+  varamann, sama mælda lína og `sidelined` notar). Sé aðeins einn yfir henni er
+  **einn** sýndur og það er sagt berum orðum.
+- **Þriðja nafnið birtist AÐEINS þegar tveir fyrstu eru í sömu stöðu** — þá eru
+  þeir skiptanlegir fyrir hópinn og valið sem hann stendur frammi fyrir er ekki á
+  skjánum. Hans orð: *„svo leikmadur til vara ef eg tharf frekar RB"*. Það er
+  besti maður úr **annarri** stöðu úr sama lista — ekki ný röð.
+
+#### Stökkbreytingar — og sú fyrsta lifði
+
+| stökkbreyting | útkoma |
+|---|---|
+| `choice.list` raðað eftir bráðanauðsyn | **LIFÐI** í fyrstu útgáfu prófsins. Laugin hafði McCaffrey bæði hæstan á VBD OG bráðastan, svo röðunin var **aðgerðalaus** — fullyrðing sem þarf tvær raðir í ósamlyndi til að bregðast er veikari en hún lítur út fyrir (CLAUDE.md 5b). Ný laug er byggð svo þær SÉU ósammála: djúpt fyrir aftan WR-inn (bráðanauðsyn ~10), hengiflug fyrir aftan RB-inn (~30), og topp-tveir á VBD eru samt þeir tveir. Þá **fellur** hún |
+| spjöldin snúið við í viðmótinu einu (rökfræðin óhreyfð) | `draft-live.mjs` kafli 20 fellur: fyrsta spjaldið er Taylor en taflan segir McCaffrey |
+
+**Verðir:** `advice.mjs` kafli 15 (hreina rökfræðin: tveir þegar tveir eru til,
+bilið, lifun beggja, þriðji aðeins í sömu stöðu, einn þegar aðeins einn er yfir
+línunni, `avail: 0` hvergi) og `draft-live.mjs` kafli 20 (**lesið af skjánum** í
+lifandi drafti: tvö spjöld, „take"/„or", bilið í VBD, lifunartala fyrir báða, og
+fyrsta spjaldið er sami maður sem rökstuðnings-taflan setur fyrst).
+
 ### 6b-5. „CONNECT THE LEAGUE THIS DRAFT BELONGS TO" — RÁÐ SEM ER ÓGERANLEGT (20.8.2026)
 
 Notandinn tengdi 10-liða **mock** og las þetta, á meðan draftið var í beinni og

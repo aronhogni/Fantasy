@@ -498,8 +498,80 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
     byeClash.sort((a, b) => b.n - a.n);
   }
 
+  /* ============================================================
+     TVEIR KOSTIR — OG ÞAÐ ER EKKI AFTURHVARF TIL MATSEDILSINS
+     ============================================================
+     BEIDNI NOTANDANS 20.8.2026: "eg vill ad appid maeli med 2 leikmonnum.
+     Thannig ad eg geti valid ut. 2 bestu sem eru i bodi."
+
+     ÞETTA SNYR VID EIGIN AKVORDUN HANS — og hun var rett tha. Kassinn bar
+     FIMM radir og hann sagdi: "eg vill ekki thurfa ad velja neitt". Fimm
+     oadgreindar radir ERU val an hjalpar; thaer skila akvordunininni til
+     baka og segja ekkert um hvad greinir thaer ad.
+
+     ÞAD SEM BREYTTIST ER KONKRET BILUN SEM EITT NAFN GAT EKKI SYNT:
+
+       "Pick 17 — take this: TE Brock Bowers · bye 13 · 95% likely to
+        still be here in 8 picks"
+
+     Hann spurdi — rettilega — hvers vegna hann aetti ad eyda vali 17 a
+     mann sem er 95% viss um ad vera laus i vali 25. Talan var RETT, hun
+     var MAELD (`survivalProb`, `SD_K` fittad a 1.882 leikmanna-arum), og
+     hun stod sem ROKSTUDNINGUR fyrir vali sem var tekid a virdinu einu.
+     Merkid var THEGAR i appinu og motsagdi urskurdinum i sinu eigin
+     spjaldi.
+
+     TVEIR ER EKKI FIMM: annad nafnid ber NAKVAEMLEGA thad sem greinir
+     thau ad — bilid i VBD, hvort hvor lifir ad naesta vali, og stodurnar.
+     Þegar einn er 95% oruggur og annar 20% er thad ekki jafntefli heldur
+     augljost svar, og appid FALDI thad adur.
+
+     RODIN HAGGAST EKKI. `list[0]` er `out[0]` — sami madur sem maelda
+     rodin setur fyrstan (A-Ranking/VBD). Bradanauðsyn sem ROD var maeld
+     og hun tapar (-60,06 i standard, 0 af 5 arum); lifunarlikur sem
+     jafnteflis-rof voru maeldar og gafu ekkert (t = -0,06 / +0,79). Hér
+     er hvorugt gert: annad nafnid er BIRT, ekki rodad.
+
+     ÞRIDJA NAFNID KEMUR **ADEINS** ThEGAR TVO FYRSTU ERU I SOMU STODU.
+     Þa eru their tveir skiptanlegir fyrir hopinn og valid sem hann
+     stendur frammi fyrir er ekki til a skjanum. Hans eigin ord:
+     "svo leikmadur til vara ef eg tharf frekar RB". Þridji madurinn er
+     BESTI ur ANNARRI stodu — ekki ny rod, heldur sami listi, naesta
+     stada.
+
+     OG BADIR VERDA AD VERA RAUNVERULEGIR KOSTIR: skurdurinn er
+     `vbd > 0` — virdi ofan a varamann, sama maelda lina og `sidelined`
+     notar. Se adeins EINN yfir henni er EINN synur og thad er sagt;
+     ad fylla annad saetid med manni sem er ekki thess virdi ad taka
+     vaeri matsedill i sinni verstu mynd.                              */
+  const above = out.filter((p) => p.vbd != null && p.vbd > 0);
+  /* Seint i drafti getur ENGINN verid yfir linunni. Þa stendur urskurdurinn
+     einn — bordid a ekki ad thagna i sidustu umferdum. */
+  const base = above.length ? above : out.slice(0, 1);
+  const withGap = (p) => ({ ...p,
+    /* Bilid er ALLTAF maelt fra theim sem maelda rodin setur fyrstan, svo
+       talan svarar spurningunni sem er spurd: "hvad kostar hinn?" */
+    behind: base.length ? round1(base[0].vbd - p.vbd) : null });
+  const list = base.slice(0, 2).map(withGap);
+  const samePos = list.length === 2 && list[0].pos === list[1].pos;
+  const altRaw = samePos
+    ? base.slice(2).find((p) => p.pos !== list[0].pos) || null : null;
+
+  const choice = {
+    list,
+    alt: altRaw ? withGap(altRaw) : null,
+    /* Hve margir eru yfir varamanns-linunni — vidmotid tharf ad geta sagt
+       "adeins einn er thess virdi" i stad thess ad synna tomt saeti. */
+    aboveRepl: above.length,
+    samePos,
+    waitNote: waitNoteFor(list, nextPick, wait),
+  };
+
   return {
     pick, nextPick, wait,
+    /* TVEIR KOSTIR TIL AD VELJA UR — sja notuna ofar. Rodin er OSKERT:
+       `choice.list[0]` ER `picks[0]`. */
+    choice,
     /* Audar vikur sem rekast a — UPPLYSING, ekki thattur i rodinni. */
     byeClash,
     /* Menn sem rodin BAR og sem eru ekki i lidinu sinu. Þeir eru
@@ -527,6 +599,53 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
     /* Vidmotid VERDUR ad geta sagt fra thvi ad rodin se A-Ranking. */
     orderedBy: "aRank",
   };
+}
+
+/* ============================================================
+   ÞEGAR LIFUNARTOLURNAR SEGJA SITTHVAD — SETNINGIN SEM VANTADI
+   ============================================================
+   ÞETTA ER LAGFAERINGIN A MOTSOGNINNI SEM NOTANDINN SA: kassinn bar
+   "95% likely to still be here in 8 picks" sem ROKSTUDNING fyrir vali
+   sem var tekid a virdinu einu. Talan var rett; hun var einfaldlega
+   sett fram sem astaeda thegar hun er FYRIRVARI.
+
+   Nu eru tvo nofn a skjanum og lifunartolur BEGGJA synilegar. Þessi
+   setning segir hvad thaer TVAER thyda saman — og hun er ARITMETIK a
+   maeldum tolum, ekki ny vog:
+
+     · sa fyrri lifir, sa seinni ekki  -> "taktu seinni fyrst og thu
+       gaetir fengid BADA" (rodin sjalf er OHREYFD, thetta er upplysing
+       um TIMASETNINGU, sem er nakvaemlega thad sem `advice.js` segir ad
+       lifunarlikur seu til: "thaer segja ther hvort thu getir beðid — en
+       thaer rada ekki")
+     · sa fyrri fer, sa seinni lifir   -> "rodin faer ther bada" —
+       jafn mikilvaegt, thvi tha er ENGIN spurning og appid a ekki ad
+       lata thig grufla
+
+   ÞRESKULDIRNIR ERU ÞEIR SEM ERU ÞEGAR I `reasonsFor` (0,7 og 0,25) —
+   ekki nyjar tolur. Þeir eru LESLEIKI: thad sem er birt i orðum er thad
+   sem er thegar birt i prosentum vid hvert nafn.
+
+   `null` ThEGAR EKKERT ER AD SEGJA. Setning i hvert einasta val vaeri
+   havadi, og havadi er thad sem let hann missa vidvorunina 17.8.       */
+function waitNoteFor(list, nextPick, wait) {
+  if (!Array.isArray(list) || list.length < 2 || nextPick == null) return null;
+  const [a, b] = list;
+  if (a.survive == null || b.survive == null) return null;
+  const pct = (x) => Math.round(x * 100);
+  if (a.survive > 0.7 && b.survive < 0.25) {
+    return { kind: "reverse", text:
+      `${a.name} is ${pct(a.survive)}% likely to still be there at pick ${nextPick}`
+      + ` and ${b.name} only ${pct(b.survive)}% — taking ${b.name} now is the one`
+      + ` order that can end with both. The order above is still by value:`
+      + ` ${b.name} is ${Math.abs(b.behind)} behind.` };
+  }
+  if (a.survive < 0.25 && b.survive > 0.7) {
+    return { kind: "keep", text:
+      `${a.name} is only ${pct(a.survive)}% likely to last your next ${wait} picks`
+      + ` while ${b.name} is ${pct(b.survive)}% — this order gets you both.` };
+  }
+  return null;
 }
 
 function reasonsFor(p, { urgency, eNext, survive, wait, counts, league }) {

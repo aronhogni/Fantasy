@@ -794,5 +794,164 @@ console.log("\n14. tiltaekileiki 0 fellur ur rodinni — med astaedu");
   }
 }
 
+/* ============================================================
+   15. TVEIR KOSTIR — OG RODIN MA EKKI HAFA HAGGAST
+   ============================================================
+   BEIDNI NOTANDANS 20.8.2026: "eg vill ad appid maeli med 2 leikmonnum.
+   Thannig ad eg geti valid ut." Hun kom ur konkret bilun sem EITT nafn
+   gat ekki synt:
+
+     "Pick 17 — take this: TE Brock Bowers · 95% likely to still be
+      here in 8 picks"
+
+   Talan var rett og maeld — og hun stod sem ROKSTUDNINGUR fyrir vali sem
+   var tekid a virdinu einu. Merkid motsagdi urskurdinum i sinu eigin
+   spjaldi.
+
+   PROFSTEINNINN ER FYRSTA FULLYRDINGIN: `choice.list[0]` VERDUR ad vera
+   sami madur sem maelda rodin setur fyrstan. Vaeri annad saetid latid
+   verda thad fyrsta — sem er einmitt thad sem "sydu bradanauðsyn inn"
+   myndi gera — hefdi rodin verid yfirskrifud thegjandi, og HUN var maeld:
+   bradanauðsyn sem rod tapar 60,06 stigum i standard (0 af 5 arum).
+
+   Kaflinn ber lika Bowers-tilfellid sjalft med tolum sem gefa NAKVAEMLEGA
+   thad astand: sa fyrri lifir (haerra ADP), sa seinni ekki.            */
+console.log("\n15. tveir kostir, og maelda rodin heldur");
+{
+  const league = { teams: 10, rounds: 15, scoring: "ppr",
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+    maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } };
+
+  /* HANS EIGID TILFELLI: TE ofar a VBD og hann lifir; RB rett a eftir og
+     hann fer. Bilid er 8 — talan sem gerir thetta ad vali. */
+  const bowers = [
+    { id: "te", name: "Brock Bowers", pos: "TE", vbd: 40, adp: 30, adpSd: 4, tier: 2 },
+    { id: "rb", name: "Jahmyr Gibbs", pos: "RB", vbd: 32, adp: 17, adpSd: 3, tier: 2 },
+    { id: "w1", name: "WR One", pos: "WR", vbd: 20, adp: 40, adpSd: 6, tier: 3 },
+    { id: "w2", name: "WR Two", pos: "WR", vbd: 19, adp: 41, adpSd: 6, tier: 3 },
+  ];
+  const r = recommend({ available: bowers, roster: [], pick: 17, league, nextPick: 25 });
+
+  /* --- PROFSTEINNINN --- */
+  ok(r.choice && Array.isArray(r.choice.list) && r.choice.list.length === 2,
+    `tveir kostir thegar tveir eru i bodi (${r.choice ? r.choice.list.length : "engir"})`);
+  ok(r.choice.list[0].id === r.picks[0].id,
+    `sa fyrri ER sa sem maelda rodin setur fyrstan (${r.choice.list[0].name})`);
+  ok(r.orderedBy === "aRank" && MEASURED.urgencyDrivesOrder === false,
+    "og rodin er afram A-Ranking — bradanauðsyn radar ENGU");
+  /* Hin attin: annad saetid er raunverulega NAESTI madur i rodinni, ekki
+     "sa sem bradanauðsyn hefdi valid" (`urgencyPick` er ser reitur og
+     hann er EKKI thetta). */
+  ok(r.choice.list[1].id === r.picks[1].id,
+    `og sa seinni er naesti i rodinni (${r.choice.list[1].name})`);
+
+  /* ============================================================
+     OG ÞETTA ER FULLYRDINGIN SEM STOKKBREYTINGIN LIFDI AN
+     ============================================================
+     Fyrsta utgafa thessa kafla var GRAEN thott `choice.list` vaeri
+     radad eftir bradanauðsyn — thvi i laug hennar er hun EKKI osammala
+     VBD (McCaffrey er baedi haestur og bradastur). Fullyrding sem
+     tharfnast thess ad tvaer radir seu osammala til ad bregdast er
+     veikari en hun litur ut fyrir ad vera (CLAUDE.md 5b).
+
+     Þessi laug er byggd svo raðirnar SEU osammala: WR-inn er haestur a
+     VBD en stadan hans er DJUP (naesti WR er 38), svo bradanauðsyn hans
+     er ~2. RB-inn er 8 laegri en stadan hans er TOM fyrir aftan (naesti
+     RB er 5), svo bradanauðsyn hans er ~27. Bradanauðsyn myndi thvi
+     setja RB-inn FYRSTAN — og hun var maeld og hun tapar.             */
+  const flip = recommend({ available: [
+    { id: "wr1", name: "Deep WR", pos: "WR", vbd: 40, adp: 12, adpSd: 3 },
+    { id: "rb1", name: "Cliff RB", pos: "RB", vbd: 32, adp: 13, adpSd: 3 },
+    /* Djupt fyrir aftan WR-inn (30, 29 lifa til vals 29) og HENGIFLUG
+       fyrir aftan RB-inn (2). Þar med er bradanauðsyn RB-sins ~30 og
+       WR-sins ~10, og TOPP-TVEIR a VBD eru samt wr1 og rb1. */
+    { id: "wr2", name: "Deep WR2", pos: "WR", vbd: 30, adp: 60, adpSd: 4 },
+    { id: "wr3", name: "Deep WR3", pos: "WR", vbd: 29, adp: 62, adpSd: 4 },
+    { id: "rb2", name: "Scrub RB", pos: "RB", vbd: 2, adp: 70, adpSd: 5 },
+  ], roster: [], pick: 12, league, nextPick: 29 });
+  const uWr = flip.picks.find((p) => p.id === "wr1").urgency;
+  const uRb = flip.picks.find((p) => p.id === "rb1").urgency;
+  ok(uRb > uWr,
+    `forsenda: bradanauðsyn er OSAMMALA rodinni (RB ${uRb} > WR ${uWr})`);
+  ok(flip.urgencyPick && flip.urgencyPick.id === "rb1",
+    `og bradanauðsyn hefdi valid RB-inn (${flip.urgencyPick
+      ? flip.urgencyPick.name : "engan"})`);
+  ok(flip.choice.list[0].id === "wr1",
+    `EN fyrsti kosturinn er VBD-madurinn (${flip.choice.list[0].name})`);
+  ok(flip.choice.list[1].id === "rb1",
+    `og sa bradasti er ANNAR kosturinn — birtur, ekki radadur (${
+      flip.choice.list[1].name})`);
+
+  /* --- BILID: talan sem gerir tvo nofn ad vali --- */
+  ok(r.choice.list[0].behind === 0,
+    `sa fyrri er 0 fra sjalfum ser (${r.choice.list[0].behind})`);
+  ok(Math.abs(r.choice.list[1].behind - 8) < 1e-9,
+    `og sa seinni er 8 a eftir — sama tala sem VBD-in gefa (${r.choice.list[1].behind})`);
+
+  /* --- LIFUN BEGGJA, ekki adeins thess sem er valinn --- */
+  ok(r.choice.list.every((p) => p.survive != null),
+    "lifunartala er til fyrir BADA — thad var motsognin sem var falin");
+  ok(r.choice.list[0].survive > 0.7 && r.choice.list[1].survive < 0.25,
+    `og thaer segja sitthvad (${r.choice.list[0].survive} / ${r.choice.list[1].survive})`);
+  ok(r.choice.waitNote && /one order that can end with both/.test(r.choice.waitNote.text),
+    `setningin um TIMASETNINGU er skrifud (${r.choice.waitNote
+      ? r.choice.waitNote.text.slice(0, 60) : "engin"}…)`);
+  /* OG HUN MA EKKI FAERA NEINN: hun er upplysing, ekki vog. */
+  ok(r.picks[0].id === "te" && r.choice.list[0].id === "te",
+    "og hun faerdi ENGAN — urskurdurinn er oskertur");
+
+  /* --- ÞEGAR ENGIN SPURNING ER, ER ENGIN SETNING --- */
+  const quiet = recommend({ available: [
+    { id: "a", name: "A", pos: "RB", vbd: 40, adp: 30, adpSd: 4 },
+    { id: "b", name: "B", pos: "WR", vbd: 32, adp: 31, adpSd: 4 },
+  ], roster: [], pick: 17, league, nextPick: 25 });
+  ok(quiet.choice.waitNote === null,
+    "engin setning thegar lifunartolurnar segja thad sama (havadi er villan)");
+
+  /* --- ÞRIDJA NAFNID ADEINS I SOMU STODU --- */
+  const same = recommend({ available: [
+    { id: "a", name: "WR A", pos: "WR", vbd: 50, adp: 5, adpSd: 3 },
+    { id: "b", name: "WR B", pos: "WR", vbd: 45, adp: 6, adpSd: 3 },
+    { id: "c", name: "RB C", pos: "RB", vbd: 30, adp: 9, adpSd: 3 },
+  ], roster: [], pick: 3, league, nextPick: 18 });
+  ok(same.choice.samePos === true && same.choice.alt && same.choice.alt.id === "c",
+    `tveir i somu stodu -> thridji ur ANNARRI stodu (${same.choice.alt
+      ? same.choice.alt.name : "enginn"})`);
+  ok(same.choice.alt.behind === 20,
+    `og bilid hans er maelt fra theim fyrsta (${same.choice.alt.behind})`);
+  ok(same.choice.list[0].id === "a",
+    "og hann faerdi ekki heldur neinn");
+  ok(r.choice.alt === null,
+    "en i olikum stodum er ENGINN thridji — hann vaeri matsedill");
+
+  /* --- BADIR VERDA AD VERA RAUNVERULEGIR KOSTIR --- */
+  const thin = recommend({ available: [
+    { id: "a", name: "Worth It", pos: "WR", vbd: 5, adp: 100, adpSd: 9 },
+    { id: "b", name: "Below Repl", pos: "WR", vbd: -3, adp: 120, adpSd: 9 },
+  ], roster: [], pick: 140, league, nextPick: 149 });
+  ok(thin.choice.list.length === 1 && thin.choice.list[0].id === "a",
+    `adeins einn yfir varamanns-linunni -> EINN synur (${thin.choice.list.length})`);
+  ok(thin.choice.aboveRepl === 1,
+    "og talan er skiluð svo vidmotid geti SAGT thad i stad thess ad fylla i");
+  ok(!thin.choice.list.some((p) => p.id === "b"),
+    "madur undir varamanni er ALDREI annar kosturinn — thad vaeri padding");
+
+  /* --- OG SA SEM SPILAR EKKI ER HVORKI FYRSTUR NE ANNAR ---
+     `avail: 0` er tekinn ut ur rodinni (kafli 14) og sú sia er SAMA sian
+     sem `choice` byggir a. Vaeri hun tvofold gaeti hun rekid i sundur. */
+  const hurt = recommend({ available: [
+    { id: "out", name: "Kittle", pos: "TE", vbd: 60, adp: 20, adpSd: 4,
+      avail: 0, injury: "PUP" },
+    { id: "ok1", name: "Fit One", pos: "RB", vbd: 40, adp: 22, adpSd: 4 },
+    { id: "ok2", name: "Fit Two", pos: "WR", vbd: 30, adp: 24, adpSd: 4 },
+  ], roster: [], pick: 10, league, nextPick: 20 });
+  ok(hurt.choice.list.length === 2
+     && !hurt.choice.list.some((p) => p.id === "out"),
+    `sa sem spilar ekki er hvorugur kosturinn (${hurt.choice.list
+      .map((p) => p.name).join(", ")})`);
+  ok(hurt.sidelined.some((x) => x.id === "out"),
+    "hann er samt NEFNDUR med astaedu — ekki thagður");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
