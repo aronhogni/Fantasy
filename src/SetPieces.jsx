@@ -11,8 +11,34 @@
    fylgir dagsetning `set_piece_notes.json` med.
 
    FYRIRLIDAR (armbandid) ERU EKKI HER OG THAD ER EKKI GLEYMSKA:
-   hvorki FPL-API-ið ne ESPN-fædid gefa hver ber fyrirlidabandid.
-   Vid birtum thad sem ER maelt (spyrnu-rodun) og segjum fra hinu.
+   hvorki FPL-API-ið ne ESPN-fædid gefa hver ber fyrirlidabandid. Vid
+   birtum thad sem ER maelt (spyrnu-rodun) og latum hitt vera.
+
+   OG SPYRNU-RODUN ER EKKI FYRIRLIDA-SKAMMLEID — MAELT OG HAFNAD.
+   Flipinn bar thessa malsgrein A SKJANUM til 20.8.2026; hun var fjarlaegd
+   (tolur, ekki ritgerdir) og MAELINGIN VERDUR THVI AD LIFA HER, i
+   athugasemd, thvi hun er roksemd og roksemdir eru a islensku:
+   vitaskyttu-yfirlag `(1 + w * takari)` ofan a MAELDA fyrirlida-rodun
+   maelist NEIKVAETT vid ALLAR thrjar vogtolurnar sem voru profadar —
+     w=0,10: -0,081 [-0,322 ; +0,121]
+     w=0,25: -0,300 [-0,713 ; +0,052]
+     w=0,50: -0,331 [-0,845 ; +0,213]
+   og EKKERT vikmark utilokar null. Yfirlagid er thvi EKKI i skorinu.
+   Tolurnar bua i `CAPTAIN_MEASURED.terms.penalties*` (`src/captain.js`)
+   og `tests/captain.mjs` ENDURREIKNAR thaer ur `data/fpl_player_gw.json`,
+   svo thaer geta ekki stadnad thegjandi. Sja lika CLAUDE.md kafla 4.
+
+   BINDANDI TAKMORKUN SEM VERDUR AD FYLGJA TOLUNNI: committud saga ber
+   ENGA `penalties_order`, svo eina lekalausa audkenningin sem gognin
+   leyfa er "missti viti i fyrri umferd" — 59 leikmenn, 4.218 af 126.730
+   rodum. Retta setningin er thess vegna ad yfirlagid maeldist EKKI hjalpa
+   a theim takarahopi sem haegt er ad audkenna lekalaust, EKKI ad
+   vitaspyrnur skipti ekki mali.
+
+   ADUR STOD HER (fjarlaegt 18.8.2026): "the no. 1 penalty taker is the
+   strongest single captaincy hint the data holds" — OMAELD fullyrding,
+   skaletrud beint a eftir ordinu `measured`. Sama setning var tekin ur
+   `stats.js` 17.8.2026 og hun lifdi hér; nu er hun maeld OG felld.
    ============================================================ */
 
 import React, { useMemo, useState } from "react";
@@ -242,10 +268,17 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
       <div style={S.head}>
         <div>
           <h2 style={S.h2}>{"Set pieces"}</h2>
-          <div style={S.sub}>
-            {"First taker for each team — from FPL, updates automatically with the daily data fetch."}
-            {notes?.last_updated && interp(" Updated {0}.", [String(notes.last_updated).slice(0, 10)])}
-          </div>
+          {/* SKYRINGARTEXTINN FOR 20.8.2026, DAGSETNINGIN EKKI: "first taker
+              ... updates automatically" var ritgerd um hvad flipinn gerir,
+              en `last_updated` er LIFANDI GAGN — rodunin er handslegin inn
+              hja FPL og getur verid urelt, svo hvenaer hun var sott er tala
+              sem notandinn tharf. Skilyrdid heldur: an dagsetningar er
+              ENGINN reitur, ekki tomur reitur (CLAUDE.md kafla 8).        */}
+          {notes?.last_updated ? (
+            <div style={S.sub}>
+              {interp("Updated {0}.", [String(notes.last_updated).slice(0, 10)])}
+            </div>
+          ) : null}
         </div>
         <div style={S.keyRow}>
           {SP_KINDS.map(k => (
@@ -257,24 +290,11 @@ export default function SetPieces({ players, teams, teamById, Crest, notes, onPi
         </div>
       </div>
 
-      {/* FYRRI TEXTI SAGDI: "the no. 1 penalty taker is the strongest single
-          captaincy hint the data holds" — SKALETRAD BEINT A EFTIR ORDINU
-          `measured`. Sama omaelda fullyrdingin og var fjarlaegd ur
-          `stats.js` 17.8.2026, og hun lifdi hér.
-          NU ER HUN EKKI ADEINS OMAELD HELDUR MAELD OG FELLD (18.8.2026):
-          vitaskyttu-yfirlag ofan a fyrirlida-rodun maelist NEIKVAETT vid
-          allar thrjar vogtolurnar (w=0,10: -0,081 · 0,25: -0,300 ·
-          0,50: -0,331) og ekkert vikmark utilokar null. Bindandi takmorkun
-          er audkenningin: committud saga ber ENGA `penalties_order`, svo
-          eina leikaudkennid an leka er "misnotadi viti i fyrri umferd" —
-          59 leikmenn af 4.218 rodum. Retta setningin er thvi ad yfirlagid
-          maeldist EKKI ad hjalpa a theim hopi sem haegt er ad audkenna, en
-          EKKI ad vitaspyrnur skipti ekki mali. Sja `src/captain.js`.    */}
-      <div style={S.note}>
-        <b>{"Captains (the armband) are not here."}</b> {"Neither the FPL API nor the ESPN feed says who wears the armband, so we do not show it rather than guess. Set-piece order is worth knowing for its own sake — penalties are the cheapest goals in the game — but it is"}
-        <i> {"not"}</i> {"a captaincy shortcut: adding a penalty-taker bonus to a measured captain ranking scored WORSE at every weight tried, and no confidence interval excluded zero."}
-      </div>
-
+      {/* HER STOD FYRIRLIDA-MALSGREININ — FJARLAEGD 20.8.2026. Maelingin sem
+          hun bar (vitaskyttu-yfirlag maelt og hafnad vid allar vogtolur,
+          ekkert CI utan nulls) er OFAR I HAUSNUM a thessari skra, med
+          tolunum sjalfum og tilvisun i `src/captain.js`. Textinn for af
+          skjanum; roksemdin for EKKI ur kodanum.                        */}
       <div style={S.grid}>
         {sorted.map(t => {
           const e = primary[t.id] || {};
@@ -392,8 +412,10 @@ const S = {
   head:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, flexWrap:"wrap" },
   h2:{ margin:0, fontSize:16, fontWeight:700, color:C.purple },
   sub:{ fontSize:11.5, color:C.text2, marginTop:3 },
-  note:{ fontSize:11.5, color:C.text2, background:C.cardAlt, border:`1px solid ${C.border}`,
-         borderRadius:6, padding:"7px 9px", margin:"10px 0 8px", lineHeight:1.55 },
+  /* `note` VAR HER — stillinn a fyrirlida-malsgreininni. Hun for 20.8.2026
+     og stillinn med henni: skilgreindur-en-onotadur still er sama leifin og
+     `langWrap`/`langBtn` eftir ad tungumalalagid var tekid ut (CLAUDE.md
+     kafla 9), og hann lifir af thvi ad enginn tekur eftir honum.        */
   grid:{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:8 },
   tCard:{ border:`1px solid ${C.border}`, borderRadius:8, background:C.cardAlt, padding:"7px 9px" },
   tHead:{ display:"flex", alignItems:"center", gap:5, fontSize:12, color:C.text,

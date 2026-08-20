@@ -203,9 +203,13 @@ export default function BestOfBest({ pros, panelFile, players, teamById, onPickP
     return (
       <div style={S.wrap}>
         <div style={S.card}>
+          {/* UNDIRTITILLINN ("what proven managers actually did") FOR
+              20.8.2026 — hann sagdi thad sem flipa-heitid og innihaldid segja
+              thegar. Fyllta astandid setur TOLU i thennan sama `S.sub`-reit
+              ("950 of 1000 experts"), svo reiturinn er ekki daudur: hann
+              berst tolu um leid og umferd er lokid.                        */}
           <h3 style={S.h}>
             <CrownIcon size={15} title="" />{"Best of the best"}
-            <span style={S.sub}>{"what proven managers actually did"}</span>
           </h3>
           <div style={S.empty}>
             {panelSize
@@ -229,24 +233,17 @@ export default function BestOfBest({ pros, panelFile, players, teamById, onPickP
           </ul>
         </div>
 
-        <div style={S.card}>
-          <h3 style={S.h}>{"How the panel was chosen"}</h3>
-          <p style={S.note}>
-            {"Every manager here was selected by measurement, not reputation. Career records were scored "
-             + "with a recency-weighted average of finishing percentile, and that rule was tested "
-             + "out of sample against the alternatives before it was used."}
-          </p>
-          <p style={S.note}>
-            {"The panel is deliberately large. Picking the very best few is worse, not better: the top of "
-             + "any historical ranking is partly luck, and a handful of managers cannot tell a 60/40 split "
-             + "from a coin flip. A panel of this size gives shares accurate to a couple of points."}
-          </p>
-          <p style={S.note}>
-            {"Winning the game outright is close to a lottery even among these managers, so nothing here "
-             + "is presented as a way to win. It is a record of what consistently strong managers did, "
-             + "and it does not feed the ranking model until it has been measured against expected points."}
-          </p>
-        </div>
+        {/* HER STOD SPJALDID "How the panel was chosen" — thrjar malsgreinar,
+            fjarlaegdar 20.8.2026. RAKSEMDIN TAPADIST EKKI: hun bjo aldrei i
+            thessum texta heldur i `src/pros.js` (helmingunartimi 3 timabil
+            maeldur ut fyrir urtak, N=1000 a moti 1/3/5/10, jofn vog) og i
+            hausnum a THESSARI skra. Textinn var endursogn a theim
+            athugasemdum i prosa — tolurnar sjalfar voru hvergi i honum.
+            TOMA ASTANDID VERDUR SAMT AD BERA EFNI: `data-resilience.mjs`
+            felldi tveggja-linu utgafu thessa flipa (298 stafir a moti
+            2.700-3.900 i odrum flipum) og thakid er 400 stafir. Spjaldid
+            "What you will see here" ber thad nu eitt, svo ThAD ma ekki
+            hverfa lika an thess ad maela thekjuna aftur.                  */}
       </div>
     );
   }

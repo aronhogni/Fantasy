@@ -91,11 +91,21 @@
      aldrei ad standa: `grep -i captain docs/MAELINGAR.md` skilar EINU
      (heiti Triple-Captain-chipsins), svo engin fyrirlida-maeling var til
      i repo-inu thegar hun var skrifud.
-     ATH 18.8.2026: SAMA FULLYRDING LIFIR ENN I VIDMOTINU —
-     `src/SetPieces.jsx` birtir "the no. 1 penalty taker is the strongest
-     single captaincy hint the data holds". Su skra er ekki a minu
-     forraedi, en maelingin her stangast beint a vid hana og setningin a
-     ad fara sama veg og systir hennar i `stats.js`.
+     ATH 20.8.2026 — LEYST, OG ThESSI ATHUGASEMD VAR ORDIN LYGI SJALF.
+     Hér stod ad "SAMA FULLYRDING LIFIR ENN I VIDMOTINU" og ad
+     `src/SetPieces.jsx` birti "the no. 1 penalty taker is the strongest
+     single captaincy hint the data holds". Hvorugt er satt lengur:
+     setningin var fjarlaegd 18.8. og malsgreinin sem kom i hennar stad
+     ("Captains (the armband) are not here …") var lika tekin ut 20.8. ad
+     beidni notandans, sem er ad trimma prosa ur ollu appinu.
+     VIDMOTID FULLYRDIR ThVI NU EKKERT UM FYRIRLIDA — sem er rett — og
+     maelingin hér ad nedan er ThAD EINA sem geymir hana. Hun ma thess
+     vegna ekki hverfa: `SetPieces.jsx` ber nu adeins visun i thessa
+     maelingu, ekki toluna sjalfa. Vordur: `tests/captain.mjs` endurreiknar
+     `CAPTAIN_MEASURED.terms.penalties*`, og `tests/set-pieces.mjs` 5c
+     fellur se malsgreinin sett inn aftur.
+     Larddomurinn er sami og alls stadar i thessu repo-i: athugasemd sem
+     lysir ODRUM skjá urealdist thegjandi thegar sá skjar breyttist.
      Maeld her sem overlay `(1 + w * takari)`: punktmatid er NEIKVAETT vid
      ollum thremur vogunum og ekkert CI utilokar null. Overlay-id er thvi
      EKKI i skorinu.

@@ -558,5 +558,77 @@ console.log("\n11) lok timabils — 38 umferdir i skranni");
   r.unmount(); host.remove();
 }
 
+/* ---------- 12. TOMA ASTANDID EFTIR PROSA-TRIMMID (20.8.2026) ---------- */
+console.log("\n12) toma astandid — prosa-trimmid og thekjan sem thad ma ekki brjota");
+{
+  /* HVERS VEGNA HER OG EKKI I `data-resilience.mjs`: thad safn opnar thennan
+     flipa i ollum 16 atburdarasunum og hittir thvi ALLTAF a toma astandid —
+     en fullyrdingar thess eru ALMENNAR (>400 stafir, engin undefined/NaN).
+     Thaer geta ekki sagt hvad var fjarlaegt og hvad var eftir. Thetta safn
+     hittir aftur a MOTI alltaf a fyllta astandid, svo hvorugt safn sa
+     tvaer breytingar 20.8.2026:
+       (a) spjaldid "How the panel was chosen" (thrjar malsgreinar) fjarlaegt
+       (b) undirtitillinn "what proven managers actually did" fjarlaegdur
+     BADIR STRENGIRNIR VORU ORDRETT I THESSUM SAMA TEXTA adur — thad er
+     forsendan sem CLAUDE.md 5b regla 2 krefst. Hvert par er thvi
+     NABUI-SEM-ER-EFTIR + hinn-sem-er-farinn: an nabuans yrdi fullyrdingin
+     graen af thvi ad flipinn se tomur, sem er einmitt bilunin.
+     OG THEKJAN ER FULLYRDING, EKKI LOGGA (5b regla 1): fyrsta utgafa toma
+     astandsins var tvaer linur og `data-resilience.mjs` felldi hana (298
+     stafir a moti 2.700-3.900 i odrum flipum); thakid thar er 400 stafir.
+     Ad fjarlaegja HELMING toma astandsins er nakvaemlega hreyfingin sem
+     getur farid undir thad thak aftur, svo talan er maeld hér lika.        */
+  PROS_GW.gw = {}; PROS_GW.panel_size = PANEL;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r = createRoot(host);
+  let crashed = null;
+  try {
+    await act(async () => { r.render(React.createElement(App)); });
+    await act(async () => { await new Promise(z => setTimeout(z, 250)); });
+    const b = [...host.querySelectorAll("button")].find(x => x.textContent.includes("Best of the best"));
+    if (b) {
+      await act(async () => { b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+      await act(async () => { await new Promise(z => setTimeout(z, 150)); });
+    }
+  } catch (e) { crashed = e.message; }
+  const t = host.textContent || "";
+  ok("toma astandid teiknast an hruns", !crashed, crashed || "");
+  /* NABUAR — sannad ad flipinn teiknadist yfirhofud OG ad toma astandid er
+     thad sem er a skjanum (ekki fyllta).                                  */
+  ok("NABUI: flipa-heitid \"Best of the best\" er a skjanum", t.includes("Best of the best"));
+  ok("NABUI: toma astandid er thad sem teiknadist (\"No gameweek has been played yet\")",
+     /No gameweek has been played yet/.test(t), t.slice(0, 200));
+  ok(`NABUI: hopsstaerdin birtist (${PANEL})`, t.includes(String(PANEL)));
+  ok("NABUI: spjaldid \"What you will see here\" er kyrrt", t.includes("What you will see here"));
+  ok("NABUI: punktarnir undir thvi eru kyrrir (Captains-linan)",
+     /how the armband was split/.test(t));
+  /* FARID — thrjar fullyrdingar, thvi spjaldid hafdi haus OG thrjar
+     malsgreinar; haus einn segir ekki ad innihaldid hafi farid.           */
+  ok("FARID: hausinn \"How the panel was chosen\"", !t.includes("How the panel was chosen"), t.slice(-300));
+  ok("FARID: fyrsta malsgreinin (\"selected by measurement, not reputation\")",
+     !t.includes("selected by measurement, not reputation"), t.slice(-300));
+  ok("FARID: thridja malsgreinin (\"close to a lottery\")",
+     !t.includes("close to a lottery"), t.slice(-300));
+  ok("FARID: undirtitillinn (\"what proven managers actually did\")",
+     !t.includes("what proven managers actually did"), t.slice(0, 300));
+  /* THEKJAN — THAKID VERDUR AD MAELAST A FLIPANUM, EKKI A HEILUM BODY.
+     Fyrsta utgafa thessarar fullyrdingar var `host.textContent.length > 400`
+     og hun var NAESTUM TOM: `host` ber allt appid, og flipa-stikan ein er
+     yfir 400 stafir. STOKKBREYTINGIN SANNADI THAD — ad eyda spjaldinu
+     "What you will see here" LIKA (of gradug eyding, nakvaemlega bilunin
+     sem thakid a ad finna) felldi hana EKKI. Nu er stikan skorin fra: taka
+     staersta div sem inniheldur toma astandid en EKKI flipa-heitin.       */
+  const noNav = [...host.querySelectorAll("div")]
+    .filter(d => /No gameweek has been played yet/.test(d.textContent || "")
+              && !/Player stats/.test(d.textContent || ""));
+  ok(`flipa-innihaldid finnst an stikunnar (${noNav.length} hylki)`, noNav.length > 0);
+  const tabLen = Math.max(0, ...noNav.map(d => (d.textContent || "").trim().length));
+  ok(`toma astandid er enn efnismikid eftir trimmid (${tabLen} stafir > 400)`, tabLen > 400,
+     String(tabLen));
+  ok("engin undefined/NaN i toma astandinu", !/\bundefined\b|\bNaN\b/.test(t));
+  r.unmount(); host.remove();
+}
+
 console.log(`\nPROS-BIRTING: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

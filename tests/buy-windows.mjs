@@ -39,7 +39,7 @@ import { act } from "react";
 import { ffdrSeries, buyWindows, bestWindow, nextWindow, meanDifficulty, relTier,
          NEUTRAL_MID, MIN_WINDOW, MAX_WINDOWS } from "../src/buywindow.js";
 import { makeFixDifficulty, tierOf, TIER_BG, TIER_CUTS, TIER_NEUTRAL,
-         lookupPos } from "../src/model.js";
+         lookupPos, MEASURED_POS } from "../src/model.js";
 import { buildTeamMetrics } from "../src/teamstats.js";
 
 const REPO = new URL("../", import.meta.url);
@@ -598,6 +598,139 @@ await fire(btn(/^his own$/));
   ok("ENGINN bekkjar-punktur a enda glugga (enda-invariantid a skjanum)",
      dotOnEdge === 0, `${dotOnEdge} punktar`);
   ok("ENGINN endi merktur \"BELOW his average\"", badEdge === 0, `${badEdge}`);
+}
+
+/* ---- TOLURNAR A CHIP-INU, LESNAR AF SKJANUM OG ENDURREIKNADAR ----
+   ENGIN FULLYRDING VAR TIL UM ThETTA. Chip-textinn — talan sem notandinn
+   les og spurdi um — var hvergi lesin i thessu profi; adeins `title`-in og
+   litirnir. Notandinn sa `+0,98` hja Rice (MID) vid `+2,95` hja tveimur
+   varnarmonnum og spurdi hvort thad vaeri villa. Thad var ekki villa, en
+   ThAD SEM VAR VILLA VAR AD SAMBAERILEGA TALAN VAR EKKI A SKJANUM.
+
+   ADFERDIN ER SU SAMA SEM LITA-KAFLINN NOTAR: badar tolur eru
+   ENDURREIKNADAR UR HOLFUNUM i somu rod (`v` per umferd og hans eigid
+   medaltal, baedi i `title`-inu a holfinu), ekki bornar vid annad afrit af
+   `buyWindows`. Tvaer utfaerslur af somu formulu i einu profi er ekki
+   profun (sama regla sem `ffdr-table.mjs` fylgir).
+
+   VIKMORKIN ERU LEIDD, EKKI VALIN: `v` er birt med tveimur aukastofum
+   (skekkja <= 0,005 per umferd) og medaltalid lika, svo endurreiknad `gain`
+   getur skeikad um allt ad 0,01 x len. `mean` les adeins `v`-in og tholir
+   thvi 0,01. Baedi eru MORGUM STAERDARThREPUM undir muninum a `mean` (3,7-4,6)
+   og `perGw` (0,2-0,7), svo stokkbreyting sem prentar `perGw` fellur.    */
+{
+  const chipsOf = r => [...(r.lastElementChild?.children || [])]
+    .filter(x => /^GW\d+/.test(x.getAttribute("title") || ""));
+  const vOf = r => {
+    const out = new Map();
+    let base = null;
+    for (const c of cellsOf(r)) {
+      const t = c.getAttribute("title") || "";
+      const g = t.match(/^GW(\d+) —/);
+      const v = t.match(/\n(-?\d+(?:\.\d+)?) pts expected/);
+      const b = t.match(/his own average over GW[^:]*: (-?\d+(?:\.\d+)?)/);
+      if (b) base = +b[1];
+      if (g && v) out.set(+g[1], +v[1]);
+    }
+    return { v: out, base };
+  };
+  let chips = 0, noDim = 0, badGain = 0, badMean = 0, worstG = 0, worstM = 0;
+  let looksLikePerGw = 0;
+  for (const r of winRows()) {
+    const { v, base } = vOf(r);
+    if (base == null) continue;
+    for (const ch of chipsOf(r)) {
+      const t = ch.getAttribute("title") || "";
+      const rng = t.match(/^GW(\d+)–(\d+)/);
+      if (!rng) continue;
+      const a = +rng[1], z = +rng[2];
+      const vals = [];
+      for (let g = a; g <= z; g++) if (v.has(g)) vals.push(v.get(g));
+      if (vals.length !== z - a + 1) continue;         // ovist holf -> sleppt
+      chips++;
+      const len = vals.length;
+      const sum = vals.reduce((x, y) => x + y, 0);
+      const wantGain = sum - base * len;
+      const wantMean = sum / len;
+      const bold = (ch.querySelector("b")?.textContent || "").trim();
+      const dim = [...ch.querySelectorAll("span")]
+        .map(s => (s.textContent || "").trim()).find(s => /\/GW$/.test(s)) || "";
+      if (!dim) { noDim++; continue; }
+      const gotGain = parseFloat(bold);
+      const gotMean = parseFloat(dim);
+      const dG = Math.abs(gotGain - wantGain), dM = Math.abs(gotMean - wantMean);
+      worstG = Math.max(worstG, dG); worstM = Math.max(worstM, dM);
+      if (!(bold.startsWith("+")) || !(dG <= 0.01 * len + 1e-9)) badGain++;
+      if (!(dM <= 0.01)) badMean++;
+      /* SER-FULLYRDING UM STOKKBREYTINGUNA SEM ER LIKLEGUST: `perGw` er
+         SAMA EININGIN a svip (tvo aukastafir, "/GW") og vaeri thvi ekki
+         synileg sem villa — hun er bara ROSKLEGA TIU SINNUM MINNI.     */
+      if (Math.abs(gotMean - wantGain / len) < 0.01 && dM > 0.01) looksLikePerGw++;
+    }
+  }
+  /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1). */
+  ok(`chip-in voru raunverulega lesin af skjanum (${chips} chip)`, chips >= 30, String(chips));
+  ok("HVERT chip ber DIMMU /GW-toluna (sambaerilega tolan er a skjanum)",
+     noDim === 0, `${noDim} chip an hennar af ${chips + noDim}`);
+  ok(`FEITA talan = w.gain, endurreiknud ur holfunum (verst ${worstG.toFixed(3)})`,
+     badGain === 0, `${badGain} rong af ${chips}`);
+  ok(`DIMMA talan = w.mean (ALGILD), endurreiknud ur holfunum (verst ${worstM.toFixed(3)})`,
+     badMean === 0, `${badMean} rong af ${chips}`);
+  ok("dimma talan er EKKI `perGw` (sama snid, tiundi hluti gildisins)",
+     looksLikePerGw === 0, `${looksLikePerGw} chip`);
+  /* NYJA TALAN BREIKKAR RODINA (~130 px) OG SIDAN MA EKKI SKRUNA LARETT
+     (CLAUDE.md 8). jsdom hefur ENGA UMBROTSVEL — `scrollWidth` er 0 a ollu,
+     svo maeling thar vaeri tom fullyrding sem er alltaf gron. ThAD SEM ER
+     RAUNVERULEGA HAEGT AD FULLYRDA ER BYGGINGARLEGT: chip-in verda ad liggja
+     INNI i thvi eina svaedi sem hefur `overflowX:auto`, thvi tha er thad
+     KASSINN sem skrunar og ekki sidan.                                   */
+  const box = [...document.querySelectorAll("div")]
+    .find(d => (d.style.overflowX || "") === "auto" && d.querySelector("[role=row]"));
+  const anyChip = winRows().flatMap(chipsOf)[0];
+  ok("chip-in liggja inni i EIGIN skrun-kassa (sidan skrunar ekki larett)",
+     !!box && !!anyChip && box.contains(anyChip));
+}
+
+/* ---- HAUSINN OG RODUNAR-TOOLTIP-ID SEGJA ThAD SEM KODINN GERIR ----
+   Tooltip-id sagdi „Biggest gain first" medan rodunin notar `score`
+   (`gain/(len+3)`) — MAELT ris prentada `+` milli naerliggjandi rada i 28 af
+   79 porum med theirri rodun, svo taflan les synilega urodud og textinn var
+   RONG FULLYRDING, ekki ordalag. POSITIF FULLYRDING FYRST (5b regla 2): sa
+   strengur sem MA vera thar er stadfestur adur en neitad er um hinn.     */
+{
+  const b = btn(/^best window$/);
+  const tip = b?.getAttribute("title") || "";
+  ok("rodunar-hnappurinn heitir afram \"best window\"", !!b);
+  ok("tooltip-id nefnir maelikvardann sem VALDI gluggann",
+     /score that chose the window/.test(tip), tip);
+  ok("og fullyrdir EKKI lengur ad radad se eftir abata (\"gain\")",
+     !/gain/i.test(tip), tip);
+  /* Hausinn merkir kvardann sem `+` er a — thad var lagfaeringin sjalf. */
+  ok("hausinn segir ad gluggarnir seu vid HANS EIGID medaltal",
+     /Buy windows\s*·\s*vs his own average/.test(bodyTxt().replace(/\s+/g, " ")));
+}
+
+/* ---- FJORAR TOLUR I SKYRINGUNNI ERU LEIDDAR UR `MEASURED_POS` ----
+   Fost tala um maelda toflu urelist ThOGULT — nakvaemlega „MEASURED: the
+   range is 4-10"-atvikid i CLAUDE.md 8. Profid reiknar thaer ur toflunni
+   sjalfri og les thaer AF SKJANUM, svo skrifudu thaer einhver aftur inn sem
+   bokstafi og toflunni vaeri breytt myndi thetta falla.                  */
+{
+  const pts = pos => MEASURED_POS[pos].slice().sort((a, z) => a.d - z.d).map(x => x.pts);
+  const span = pos => { const v = pts(pos); return (Math.max(...v) - Math.min(...v)).toFixed(2); };
+  const easiest = pos => pts(pos)[0].toFixed(2);
+  const leg = bodyTxt().replace(/\s+/g, " ");
+  ok(`skyringin ber MAELDA sponn DEF (${span(2)}) og MID (${span(3)})`,
+     leg.includes(`points move ${span(2)} across`) && leg.includes(`move ${span(3)},`),
+     `${span(2)} / ${span(3)}`);
+  ok(`skyringin ber MAELD stig i audveldasta leiknum DEF (${easiest(2)}) og MID (${easiest(3)})`,
+     leg.includes(`are ${easiest(2)} for a defender`) && leg.includes(`${easiest(3)} for a midfielder`),
+     `${easiest(2)} / ${easiest(3)}`);
+  /* GOLFID ER PUNKTURINN: midjumadurinn er OFAR i audveldasta leiknum, svo
+     staerra `+` a varnarmann kemur ekki af haerra thaki. Falli thetta er
+     setningin i skyringunni ord'in rong og verdur ad endurskrifast.     */
+  ok("og talan sem skyringin byggir a heldur: MID > DEF i audveldasta leiknum",
+     +easiest(3) > +easiest(2), `${easiest(3)} vs ${easiest(2)}`);
 }
 
 /* ---- BILID ER RAUNVERULEGA VALJANLEGT ----

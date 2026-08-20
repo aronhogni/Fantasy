@@ -250,9 +250,92 @@ console.log("\n=== 5b. SVIDID SEST I FLIPANUM (renderad) ===");
      strengurinn "4–10" VAR i thessum sama texta fyrir lagfaeringuna. */
   ok("gamla hardkodada svidid (\"4–10\") er EKKI lengur i textanum",
      !txt.includes("4–10"), txt.slice(-260));
-  ok(`fjoldi lida an 1 sest i textanum (${R.ck.teamsNoOne})`,
-     R.ck.teamsNoOne === 0 || txt.includes(String(R.ck.teamsNoOne)), txt.slice(-260));
+  /* ============================================================
+     ThESSI VAR TOM OG ThAD SAST EKKI (lagad 20.8.2026).
+     Hun stod: `R.ck.teamsNoOne === 0 || txt.includes(...)`. `||`
+     skammhleypir, og `teamsNoOne` er **0** a raungognum i dag (oll 20 lid
+     hafa 1 eftir ad FPL endurtoludi hornin 13.8.), svo hun var ALLTAF SONN
+     og maeldi ekkert. Nakvaemlega klasinn sem CLAUDE.md kafli 13 er
+     skrifadur um ("|| bindur fastar en ?:"), i skra sem er full af
+     rettum verdum.
+
+     VIDMOTID HEFUR TVAER GAGNKVAEMT UTILOKANDI GREINAR (SetPieces.jsx
+     375-378), svo rétta fullyrdingin er TVISIDA og getur fallid i BADUM
+     stodum:
+       teamsNoOne > 0  -> talan OG "no number 1 at all" birtast, og
+                          endurtolunar-setningin ma EKKI vera thar
+       teamsNoOne == 0 -> endurtolunar-setningin birtist, og appid ma EKKI
+                          fullyrda ad einhver lid vanti 1
+     Sidari greinin er sú sem er lifandi i dag; fyrri greinin kviknar um
+     leid og FPL endurtoludi aftur, sem thad hefur gert TVISVAR a fimm
+     dogum.                                                            */
+  {
+    const NONE = "no number 1 at all";
+    const RENUM = "FPL has renumbered this base mid-season before";
+    if (R.ck.teamsNoOne > 0) {
+      ok(`fjoldi lida an 1 (${R.ck.teamsNoOne}) sest i textanum`,
+         txt.includes(String(R.ck.teamsNoOne)), txt.slice(-260));
+      ok("og setningin um lid an 1 er birt", txt.includes(NONE), txt.slice(-260));
+      ok("en endurtolunar-setningin er ThA EKKI birt", !txt.includes(RENUM),
+         txt.slice(-260));
+    } else {
+      ok(`ekkert lid an 1 (${R.ck.teamsNoOne}) -> endurtolunar-setningin er birt`,
+         txt.includes(RENUM), txt.slice(-260));
+      ok("og appid fullyrdir EKKI ad lid vanti 1", !txt.includes(NONE),
+         txt.slice(-260));
+    }
+  }
   ok("engin NaN/undefined i skyringunni", !/\bNaN\b|\bundefined\b/.test(txt));
+
+  /* ============================================================
+     5c. PROSA-TRIMMID 20.8.2026 — TVEIR TEXTAR FARNIR, MAELINGIN KYRR
+
+     Fjarlaegt af SKJANUM: (a) fyrirlida-malsgreinin ("Captains (the armband)
+     are not here…") og (b) undirtitillinn ("First taker for each team — from
+     FPL, updates automatically…"). Badir voru ORDRETT i thessari somu `txt`
+     adur en their voru fjarlaegdir, sem er forsendan sem CLAUDE.md 5b regla 2
+     krefst: `!includes(X)` er einskis virdi nema `includes(X)` hafi verid
+     satt. Hvert par er thess vegna NABUI-SEM-ER-EFTIR + hinn-sem-er-farinn:
+     nabuinn sannar ad hluturinn teiknadist yfirhofud, svo fullyrdingin geti
+     ekki ordid graen af thvi ad flipinn se tomur eda hruninn.
+
+     OG HUN VER TVENNT SEM MA EKKI FARA MED: mælda advorunina um urelta
+     rodun (LIFANDI gagna-fyrirvari, ekki ritgerd) og skyringar-linuna um
+     "First taker" nedst — sidari er ordalag sem SVIPAR til thess sem var
+     fjarlaegt, svo of gradug eyding hefdi tekid hana med.
+     ============================================================ */
+  ok("NABUI: hausinn \"Set pieces\" er a skjanum (svo trimm-fullyrdingarnar hafa forsendu)",
+     txt.includes("Set pieces"), txt.slice(0, 120));
+  ok("FARIN: fyrirlida-malsgreinin (\"Captains (the armband) are not here\")",
+     !txt.includes("Captains (the armband) are not here"), txt.slice(0, 400));
+  ok("FARIN: skottid a henni lika (\"captaincy shortcut\")",
+     !txt.includes("captaincy shortcut"), txt.slice(0, 400));
+  ok("FARIN: undirtitillinn (\"First taker for each team\")",
+     !txt.includes("First taker for each team"), txt.slice(0, 400));
+  /* KYRRT — thetta er ekki thekja heldur AFMORKUN: bædi eru nabuar theirra
+     tveggja sem foru og bædi bera ord sem svipa til theirra.              */
+  ok("KYRRT: mælda advorunin um urelta rodun (lifandi fyrirvari, ekki ritgerd)",
+     txt.includes("hand-entered by FPL and can be stale"), txt.slice(-300));
+  ok("KYRRT: skyringin \"First taker is the team's LOWEST FPL order\"",
+     txt.includes("First taker") && txt.includes("LOWEST FPL order"), txt.slice(-300));
+
+  /* DAGSETNINGIN ER LIFANDI GAGN OG VAR INNI I THVI SEM VAR FJARLAEGT.
+     Hun var i SAMA reit og undirtitillinn, svo of gradug eyding hefdi tekid
+     hana med — og tha hefdi enginn seð hvenaer handslegna rodunin var sott.
+     Skilyrdid er profad i BADAR attir: med notes birtist hun, an notes er
+     ENGINN reitur (ekki tomur reitur — CLAUDE.md kafla 8).                */
+  const html2 = renderToStaticMarkup(React.createElement(SetPieces, {
+    players, teams, teamById, Crest: () => null,
+    notes: { last_updated: "2026-08-20T05:00:00Z" },
+    onPickPlayer: () => {}, bsd: null,
+  }));
+  const txt2 = html2.replace(/<[^>]*>/g, " ").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ");
+  ok("dagsetningin lifdi trimmid (\"Updated 2026-08-20\")",
+     txt2.includes("Updated 2026-08-20"), txt2.slice(0, 200));
+  ok("an `notes` er ENGIN dagsetningarlina (ekki tomur reitur)",
+     !txt.includes("Updated"), txt.slice(0, 200));
+  ok("flipinn er enn efnismikill eftir trimmid (>1.000 stafir)",
+     txt.trim().length > 1000, String(txt.trim().length));
 }
 
 console.log("\n=== 6. ILLGJARNT INNTAK ===");

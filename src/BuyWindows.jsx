@@ -35,7 +35,7 @@
       thakid er thvi raunverulegt og "engin thogul thok" gildir.
    ============================================================ */
 import React, { useMemo, useState } from "react";
-import { TIER_BG, TIER_FG, TIER_NAME, tierOf } from "./model.js";
+import { TIER_BG, TIER_FG, TIER_NAME, tierOf, MEASURED_POS } from "./model.js";
 import { ffdrSeries, buyWindows, meanDifficulty, relTier,
          MIN_WINDOW, MAX_WINDOWS } from "./buywindow.js";
 
@@ -59,9 +59,35 @@ const SCALES = [
 const ORDERS = [
   ["table", "table order", "Keep the order and the filters from the table — sort by any column there first"],
   ["soon",  "next window", "Soonest window first — what to buy now"],
-  ["gain",  "best window", "Biggest gain first — the strongest run of the season"],
+  /* TOOLTIP-ID SAGDI „Biggest gain first" MEDAN RODUNIN NOTAR `score`
+     (`gain/(len+3)`) — og thad er ekki ordalag heldur RONG FULLYRDING:
+     MAELT prentar `+` HAERRA i naestu rod i 28 af 79 porum med thessari
+     rodun, svo taflan les synilega urodud. Rodunin sjalf er RETT (sami
+     maelikvardi sem valdi gluggann; tvo eintok af sama vali reka i sundur,
+     sja `buyWindows`) — thad var textinn sem laug.                       */
+  ["gain",  "best window", "Best window first — ranked by the score that chose the window, so the + on the chips is not in order"],
 ];
 const STEP = 40;                 // hversu margar radir "show more" baetir vid
+
+/* ---------- FJORAR TOLUR I SKYRINGUNNI ERU LEIDDAR, EKKI SKRIFADAR ----------
+   Skyringin segir hvers vegna sama gaeda-runa prentar STAERRA `+` a
+   varnarmann en a midjumann, og hun gerir thad med fjorum tolum ur
+   `MEASURED_POS`: sponn stodunnar yfir throskustigid (DEF 2,19 · MID 1,44) og
+   stigin i AUDVELDASTA leiknum (DEF 4,12 · MID 4,23) — sem er punkturinn:
+   munurinn er GOLFID, ekki thakid (midjumadurinn er meira ad segja OFAR i
+   audveldasta leiknum).
+
+   ThAER ERU REIKNADAR VID TEIKNINGU AF NAKVAEMLEGA ThEIRRI ASTAEDU SEM
+   CLAUDE.md 8 skjalar: „MEASURED: the range is 4-10 and NO club has a 1"
+   stod i tooltip-i og a skjanum eftir ad FPL hafdi endurnumerad svidid, og
+   fost tala um maelda toflu urelist ThOGULT — med ordinu MEASURED framan
+   vid. Breytist `MEASURED_POS` fylgir textinn sjalfur.
+
+   AUDVELDASTI LEIKUR = LAEGSTA `d`, ekki `T[0]`: rodin er stigvaxandi i
+   `MEASURED_POS` i dag en thad er ekki fullyrding sem skrain gefur.     */
+const posPts = pos => MEASURED_POS[pos].slice().sort((a, z) => a.d - z.d).map(x => x.pts);
+const ptsSpan = pos => { const v = posPts(pos); return (Math.max(...v) - Math.min(...v)).toFixed(2); };
+const ptsEasiest = pos => posPts(pos)[0].toFixed(2);
 
 /* Ein rod = einn leikmadur. Hun er MEMO-ud a (lid, stada, bil) thvi
    utreikningurinn er sa sami fyrir alla leikmenn sama lids i sömu stodu —
@@ -229,7 +255,15 @@ export default function BuyWindows({
               <div key={g} role="columnheader" title={`Gameweek ${g}`}
                    style={{ ...S.headCell, width: cellW, minWidth: cellW }}>{g}</div>
             ))}
-            <div style={S.headWin} role="columnheader">{"Buy windows"}</div>
+            {/* HAUSINN SEGIR HVADA KVARDA `+` ER A. Notandinn las `+0,98` hja
+                Rice (MID) vid `+2,95` hja tveimur varnarmonnum og spurdi hvort
+                thad vaeri villa — og a SAMBAERILEGU tolunni (`mean`) eru hans
+                thrir gluggar ThRIR HAESTU a theim skja. Talan var rett, hun
+                var bara ekki merkt. Heitid er skrifad her og EKKI a
+                lesmata-hnappnum i PlayerList (thann les
+                `tests/buy-windows.mjs` med `/^Buy windows$/`).            */}
+            <div style={S.headWin} role="columnheader">
+              {"Buy windows"}<span style={S.headWinSub}>{" · vs his own average"}</span></div>
           </div>
 
           {shown.map(r => {
@@ -335,6 +369,18 @@ export default function BuyWindows({
                         + (w.doubles.length ? `\nDouble: GW${w.doubles.join(", GW")}` : "")}>
                       {w.from}{"–"}{w.to}
                       <b style={S.chipGain}>{"+"}{w.gain.toFixed(2)}</b>
+                      {/* SAMBAERILEGA TALAN ER A CHIP-INU, EKKI ADEINS I
+                          TOOLTIP-INU. `+gain` er afstaett vid MANNINN og getur
+                          thvi ekki radad tveimur monnum — en thad er einmitt
+                          thad sem augad gerir vid tvaer tolur i somu rod.
+                          MAELT a ollum 80 samsetningum: besti `+gain` er
+                          GK 1,12 · DEF 2,27 · MID 1,24 · FWD 1,59 medan `mean`
+                          er GK 3,88 · DEF 3,70 · MID 3,81 · FWD 4,61 — thau
+                          rada STODUNUM I GAGNSTAEDA ROD. Skyring sem VARAR VID
+                          samanburdinum svarar honum ekki; talan gerir thad.
+                          `w.mean` er LESIN ur `makeWindow`, ekki endurreiknud
+                          her (tvo eintok af somu tolu reka i sundur).      */}
+                      <span style={S.chipMean}>{w.mean.toFixed(2)}{"/GW"}</span>
                       {w.weak.length ? <i style={S.chipBench}>{"bench "}{w.weak.join(",")}</i> : null}
                     </span>
                   ))}
@@ -371,10 +417,16 @@ export default function BuyWindows({
         </div>
         <div>
           <b>{"+0.00"}</b>{" is the extra expected points over the whole window versus an average stretch of the same"}
-          {" length for him — so the windows are"} <b>{"always"}</b> {"relative to him, on either colour scale."}
-          {" A window does"} <b>{"not"}</b> {"have to be green on the league scale: if you have already decided on the"}
-          {" player, the question is which of"} <i>{"his"}</i> {"gameweeks are his best. Hover a window for its"}
-          {" points-per-gameweek, which"} <i>{"is"}</i> {"comparable between players."}
+          {" length"} <b>{"for him"}</b>{" — it compares a player with himself and with nothing else, so it"}
+          {" "}<b>{"cannot rank two players"}</b>{". A defender's measured points move "}{ptsSpan(2)}
+          {" across the difficulty range where a midfielder's move "}{ptsSpan(3)}{", and the reason is his floor,"}
+          {" not his ceiling: in the easiest fixture the measured points are "}{ptsEasiest(2)}{" for a defender and"}
+          {" "}{ptsEasiest(3)}{" for a midfielder. So the same quality of run prints a bigger"}
+          {" "}<b>{"+"}</b>{" on a defender. The dim"} <b>{"0.00/GW"}</b> {"beside it is the absolute number —"}
+          {" measured expected points per gameweek for an average player in that position — and that one"}
+          {" "}<b>{"is"}</b>{" comparable between players. A window does"} <b>{"not"}</b> {"have to be green on the"}
+          {" league scale: if you have already decided on the player, the question is which of"}
+          {" "}<i>{"his"}</i> {"gameweeks are his best."}
         </div>
         <div style={S.legFine}>
           {"The unit is measured expected points for an"} <b>{"average"}</b> {"player in that position at that"}
@@ -427,6 +479,7 @@ const S = {
              padding:"3px 0", boxSizing:"border-box" },
   headWin:{ fontSize:10, fontWeight:700, color:C.text3, padding:"3px 8px",
             whiteSpace:"nowrap", boxSizing:"border-box" },
+  headWinSub:{ fontWeight:400, color:"#a5a5ae" },
   row:{ display:"flex", alignItems:"stretch", borderBottom:"1px solid #f4f4f6", minHeight:24 },
   /* FROSNI DALKURINN FAER BAKGRUNN BEINT, ALDREI `inherit` — i hausnum situr
      liturinn a sticky-umgjordinni og holfid erfdi rgba(0,0,0,0), svo
@@ -478,6 +531,11 @@ const S = {
          color:C.text2, fontFamily:mono, background:C.cardAlt },
   chipBest:{ borderColor:C.green, background:"#e6f9f0", color:"#046b41" },
   chipGain:{ fontWeight:700 },
+  /* DIMMA, EKKI FEITLETRAD: `+gain` er svarid vid „hvenaer" og ma halda
+     ahyggjunni; `mean` er svarid vid „hver" og er thar sem augad tharf ad
+     LEITA hennar. Liturinn er skrifadur BERUM ORDUM thvi `chipBest` setur
+     sinn eigin (`#046b41`) a chip-id og barnid myndi erfa hann.          */
+  chipMean:{ color:C.text3, fontSize:8.5 },
   chipBench:{ color:C.amber, fontStyle:"normal", fontSize:8.5 },
 
   legend:{ fontSize:10, color:C.text3, marginTop:8, lineHeight:1.65,
