@@ -120,7 +120,9 @@ export const S = {
   tcFree: { marginLeft:8, color:"#0a7a4a", fontWeight:600 },
   tcOk: { marginLeft:8, color:C.text2 },
   tcHit: { marginLeft:8, color:C.red, fontWeight:700 },
-  preSeasonBar: { marginTop:9, background:"#f1e9ff", border:`1px solid #d9c8f5`, borderRadius:8, padding:"8px 10px", fontSize:11.5, color:"#4a1a6b", lineHeight:1.5 },
+  /* `preSeasonBar` VAR FJARLAEGD MED MALSGREININNI (20.8.2026). Skilgreindur
+     en onotadur still er sama leif og `langWrap`/`langBtn` (CLAUDE.md 9) —
+     hann lofar birtingu sem er ekki til. Ekki setja hann inn aftur an notanda. */
   nodeHit: { position:"absolute", bottom:-7, left:"50%", transform:"translateX(-50%)", fontFamily:mono, fontSize:8, fontWeight:700, color:"#fff", background:C.red, padding:"0 3px", borderRadius:3, lineHeight:1.4 },
   planFh: { fontFamily:mono, fontSize:8.5, fontWeight:700, color:"#fff", background:"#2563eb",
     borderRadius:4, padding:"1px 4px" },
@@ -218,11 +220,22 @@ export const S = {
   /* Raðirnar deila plássinu jafnt; völlurinn vex ef þarf (sjá Pitch.jsx) */
   rowsArea: { flex:"1 0 auto", display:"flex", flexDirection:"column",
     justifyContent:"space-evenly", gap:6, padding:"10px 6px 12px" },
-  pitchRowFlex: { display:"flex", justifyContent:"center", gap:6, flexWrap:"nowrap", padding:"0 2px" },
+  /* WRAP, EKKI SKREPPA (20.8.2026). Bench Boost setur ALLA 15 a vollinn,
+     svo lengsta rodin verdur FIMM (2 GK · 5 DEF · 5 MID · 3 FWD) — sama
+     hamark og 5-manna vorn gefur i dag, og fimm spjold a 17,5% komast
+     fyrir an ad skreppa. `nowrap` + `flexShrink:1` a `pCard` hefdi samt
+     ThJAPPAD theim undir 62px lasgolfid a smaum skjai i stad thess ad
+     brjota rodina; `wrap` kviknar SJALFT og adeins tha. Skorun er
+     omoguleg thvi vollurinn vex (Pitch.jsx, aspectRatio er LAGMARK).   */
+  pitchRowFlex: { display:"flex", justifyContent:"center", gap:6, flexWrap:"wrap", padding:"0 2px" },
   benchArea: { flex:"0 0 auto", background:"rgba(9,24,15,0.78)",
     borderTop:"1.6px dashed rgba(234,243,236,0.35)", padding:"7px 8px 10px" },
   benchLabel: { fontFamily:mono, fontSize:9, letterSpacing:1, textTransform:"uppercase",
     color:"rgba(234,243,236,0.55)", marginBottom:4 },
+  /* BENCH BOOST: skyringin sem stendur thar sem spjoldin voru. Ljos a
+     dokkum borda eins og `benchLabel`, en full setning svo tomur borði
+     lesi ekki eins og bilun.                                            */
+  bbNote: { fontSize:11, lineHeight:1.5, color:"rgba(234,243,236,0.82)" },
 
   pCard: { position:"relative", width:"clamp(62px, 17.5%, 100px)", background:C.card,
     border:`1px solid rgba(255,255,255,0.5)`, borderRadius:9, padding:"6px 4px 6px",
@@ -230,7 +243,13 @@ export const S = {
     flexShrink:1, minWidth:0 },
   pCardBench: { background:"rgba(255,255,255,0.94)" },
   pcIcons: { position:"absolute", top:2, right:2, display:"flex", gap:2, zIndex:3 },
-  pcIconsL: { position:"absolute", top:2, left:2, display:"flex", gap:2, zIndex:3 },
+  /* WRAP, EKKI CLIP (20.8.2026). Rodin ber nu FJOGUR atridi i versta
+     tilfelli — i · ↻ · meidsla-merki · C — og spjaldid er adeins
+     clamp(62px, 17.5%, 100px). Med `nowrap` hefdi fjorda atridid farid ut
+     fyrir spjaldid; `maxWidth` + `wrap` lætur thad falla i næstu linu i
+     stad thess ad klippast. Sama regla og `pFix` (FixStrip) ver.        */
+  pcIconsL: { position:"absolute", top:2, left:2, display:"flex", gap:2, zIndex:3,
+    flexWrap:"wrap", maxWidth:"calc(100% - 4px)" },
   pcIcon: { width:15, height:15, padding:0, display:"flex", alignItems:"center", justifyContent:"center",
     fontFamily:mono, fontSize:9, fontWeight:700, lineHeight:1, cursor:"pointer",
     background:"rgba(255,255,255,0.92)", color:C.text2, border:`1px solid ${C.border}`,
@@ -307,6 +326,22 @@ export const S = {
   rivalChip: { fontSize:10.5, fontWeight:600, background:C.cardAlt, border:`1px solid ${C.border}`,
     borderRadius:5, padding:"1px 6px", cursor:"pointer" },
   srcRow: { display:"flex", alignItems:"center", gap:7, fontSize:11.5, color:C.text2, padding:"3px 0" },
+  /* ============================================================
+     HOLFIN I `srcRow` BERA **EKKI** `S.muted` (lagad 20.8.2026)
+     ============================================================
+     `S.muted` er blokka-still fyrir malsgreinar undir hausum og hefur
+     `marginBottom: 8`. I flex-rod med `alignItems:"center"` er ytri
+     kassinn — MARGIN INNIFALIN — midjusettur, svo thau 8px LYFTU
+     lids/verd-textanum um 4px medan nafnid vid hlidina sat kyrrt.
+     Notandinn sa thad sem "lid og verd eru miklu ofar en nofnin".
+     `marginBottom:0` VERDUR ThVI AD VERA BER OG SYNILEG HER, ekki
+     yfirskrifud a stadnum: yfirskrift a notkunarstad hverfur i naestu
+     endurritun a JSX-inu og villan kemur thegjandi til baka.
+     `lineHeight:1.35` er sama tala i ollum thremur svo grunnlinurnar
+     lendi saman — tvaer lineHeight i sama rod eru tvaer linur.        */
+  srcName: { fontWeight:700, cursor:"pointer", lineHeight:1.35, marginBottom:0 },
+  srcMeta: { fontSize:11, color:C.text3, lineHeight:1.35, marginBottom:0, whiteSpace:"nowrap" },
+  srcFrees: { color:C.amber, fontWeight:700, lineHeight:1.35, marginBottom:0, whiteSpace:"nowrap" },
   dotErr: { width:6, height:6, borderRadius:"50%", background:C.red, flex:"0 0 6px" },
   dotOk: { width:7, height:7, borderRadius:"50%", background:C.green, flexShrink:0 },
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },
@@ -352,10 +387,15 @@ export const S = {
     borderBottomColor:"transparent", borderLeftColor:"transparent",
     backgroundClip:"padding-box" },
   tblNum: { width:46, textAlign:"right", fontFamily:mono, fontSize:11, color:C.text2, position:"relative" },
-  /* left 21 (var 4): "i"-ikonid situr nu i vinstra horninu. */
-  /* fontSize 8,5 -> 10 og hvitur baugur svo merkid lesist yfir myndinni. */
-  availBadge: { position:"absolute", top:3, left:21, fontFamily:mono, fontSize:10,
-    fontWeight:800, padding:"1px 4px", borderRadius:4, lineHeight:1.35, zIndex:4,
+  /* `availBadge` VAR ABSOLUTE MED HANDREIKNADRI `left` (21 / 38) SEM FOR
+     EFTIR FJOLDA IKONA I VINSTRI RODINNI. Thridja ikonid (↻, flutt thangad
+     20.8.2026) gerdi bada tolurnar rangar OG ThOGULT — merkid hefdi legid
+     ofan a ikoni i stad thess ad sitja vid hlid thess. Nu er thad i FLAEDI
+     innan `pcIconsL`, eins og `bandFlow`, svo engin tala tharf ad fylgja
+     fjolda ikona og thad getur ekki lent undir odru.
+     fontSize 8,5 -> 10 og hvitur baugur svo merkid lesist yfir myndinni. */
+  availFlow: { fontFamily:mono, fontSize:10, fontWeight:800, padding:"1px 4px",
+    borderRadius:4, lineHeight:1.35, flexShrink:0, whiteSpace:"nowrap",
     boxShadow:"0 0 0 1.5px #fff, 0 1px 2px rgba(0,0,0,0.25)" },
   sAvail: { fontFamily:mono, fontSize:8.5, fontWeight:700, padding:"1px 4px", borderRadius:4, marginLeft:5 },
   sPen: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"1px 3px", borderRadius:4, background:"#e6f9f0", color:"#0a7a4a", marginLeft:4 },
@@ -473,6 +513,11 @@ export const S = {
   sItemBlocked: { opacity:0.45 },
   sBlock: { fontFamily:mono, fontSize:9, color:C.red, fontWeight:700 },
   sDiff: { fontFamily:mono, fontSize:10 },
+  /* MINUS-BANKI I LEITARLISTANUM. VILJANDI EKKI `sItemBlocked` (opacity
+     0,45): raudur texti er UPPLYSING, dofid spjald er HINDRUN, og verd er
+     ekki lengur hindrun (sja `commitTransfer`). Sami litur og `sBlock` en
+     an fontWeight svo thad se sjonraent laegra sett en "3 per club".    */
+  sOver: { fontFamily:mono, fontSize:9, color:C.red },
 
   toast: { position:"fixed", bottom:18, left:"50%", transform:"translateX(-50%)", background:C.purple, color:"#fff", padding:"10px 16px", borderRadius:9, fontSize:12.5, zIndex:200, boxShadow:"0 6px 22px rgba(0,0,0,0.25)" },
 };

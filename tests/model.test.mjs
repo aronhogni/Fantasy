@@ -35,24 +35,39 @@ eq(sellTenths(70, null), 0, "ekkert núverandi verð = 0");
 
 console.log("\n=== 2. FRÍ SKIPTI OG REFSINGAR (tölurnar í tímalínunni) ===");
 const noChip = () => null;
-// söfnun upp í 5
+/* ============================================================
+   NÍU FULLYRÐINGAR HÉR VORU UPPFÆRÐAR 20.8.2026 — OG ÞÆR VORU RANGAR
+   ============================================================
+   GW1 var aðeins ótakmörkuð ÞEGAR `preSeason` var satt. Með
+   `preSeason: false` fór GW1 í venjulega greinina og LAGÐI ÞVÍ FRÍTT
+   SKIPTI Í BANKANN, svo GW2 hafði **2 frí**. Sama skrá fullyrti tveimur
+   blokkum neðar (`preSeason: true`) að *„GW2: allir byrja tímabilið með 1
+   frítt"* — TVÖ ÓSAMRÝMANLEG SVÖR við sömu spurningu, hvort í sínu
+   `preSeason`-ástandi, bæði græn.
+   FPL-reglan er einræð: enginn á 2 frí skipti í GW2. Gamla talan var því
+   ekki „önnur venja" heldur villa, og prófið verndaði hana.
+   GW1 er nú UPPHAFSLIÐIÐ óháð klukkunni (sjá `computeTransferCost` og
+   kafla 2b), svo söfnunin byrjar í GW2 með 1 og talan er sú sama fyrir
+   og eftir frest.                                                      */
+// söfnun upp í 5 — byrjar i GW2 med 1, +1 per onotada umferd
 let tc = computeTransferCost({ plan: [], chipAt: noChip, maxGw: 8, preSeason: false });
 eq(tc[1].ftAvailable, 1, "GW1: byrjar með 1 frítt");
-eq(tc[5].ftAvailable, 5, "ónotuð skipti safnast upp í 5");
+eq(tc[2].ftAvailable, 1, "GW2 hefur 1 — GW1 leggur ALDREI frítt skipti í bankann");
+eq(tc[6].ftAvailable, 5, "ónotuð skipti safnast upp í 5");
 eq(tc[8].ftAvailable, 5, "þak helst á 5");
-// söfnun: GW1 gefur 1, +1 eftir hverja ónotaða umferð -> GW3 hefur 3 frí
+// söfnun: GW2 gefur 1, +1 eftir hverja ónotaða umferð -> GW3 hefur 2 frí
 tc = computeTransferCost({ plan: [{gw:3},{gw:3},{gw:3},{gw:3}], chipAt: noChip, maxGw: 5, preSeason: false });
-eq(tc[3].ftAvailable, 3, "GW3: 3 frí söfnuð (1 + tvær ónotaðar umferðir)");
-eq(tc[3].hits, 1, "4 skipti − 3 frí = 1 yfir");
-eq(tc[3].points, -4, "1 yfir = −4 stig");
+eq(tc[3].ftAvailable, 2, "GW3: 2 frí söfnuð (GW2 gaf 1 + ein ónotuð umferð)");
+eq(tc[3].hits, 2, "4 skipti − 2 frí = 2 yfir");
+eq(tc[3].points, -8, "2 yfir = −8 stig");
 eq(tc[4].ftAvailable, 1, "eftir að öll frí kláruðust: 1 í næstu");
 // WILDCARD HELDUR söfnuðum skiptum (FPL-regla frá 2024/25 — var brotin áður:
 // eldri kóðinn endurstillti í 1 eftir chip-umferð)
 const wcAt = g => (g === 4 ? "wildcard" : null);
 tc = computeTransferCost({ plan: [{gw:4},{gw:4},{gw:4},{gw:4},{gw:4}], chipAt: wcAt, maxGw: 6, preSeason: false });
 eq(tc[4].hits, 0, "wildcard: engin refsing þrátt fyrir 5 skipti");
-eq(tc[4].ftAvailable, 4, "wildcard: söfnuðu skiptin (4) HALDAST");
-eq(tc[5].ftAvailable, 5, "eftir wildcard: +1 bætist við söfnuð (4→5), EKKI endurstillt í 1");
+eq(tc[4].ftAvailable, 3, "wildcard: söfnuðu skiptin (3) HALDAST");
+eq(tc[5].ftAvailable, 4, "eftir wildcard: +1 bætist við söfnuð (3→4), EKKI endurstillt í 1");
 // GW1 fyrir tímabil: ótakmörkuð, svo allir byrja með 1 í GW2
 tc = computeTransferCost({ plan: [{gw:1},{gw:1},{gw:1},{gw:1}], chipAt: noChip, maxGw: 3, preSeason: true });
 eq(tc[1].hits, 0, "GW1 fyrir frest: ótakmörkuð og frí");
@@ -84,9 +99,50 @@ const bb2 = g => (g === 2 ? "bboost" : null);
 tc = computeTransferCost({ plan: [{gw:2},{gw:2},{gw:2}], chipAt: bb2, maxGw: 6, preSeason: false });
 eq(tc[2].unlimited, false, "BB utan forleiks gefur EKKI ótakmörkuð skipti");
 eq(tc[2].unlimitedBy, undefined, "og engin orsök er skráð");
-eq(tc[2].ftAvailable, 2, "GW2 hefur 2 frí söfnuð");
-eq(tc[2].hits, 1, "BB ver ekki gegn refsingu: 3 skipti − 2 frí = 1 yfir");
-eq(tc[2].points, -4, "og það kostar −4");
+eq(tc[2].ftAvailable, 1, "GW2 hefur 1 frítt (allir byrja svo)");
+eq(tc[2].hits, 2, "BB ver ekki gegn refsingu: 3 skipti − 1 frí = 2 yfir");
+eq(tc[2].points, -8, "og það kostar −8");
+
+/* ============================================================
+   2b. GW1 ER UPPHAFSLIÐIÐ — TALAN MÁ EKKI BREYTAST VIÐ MIÐNÆTTI
+   ============================================================
+   VILLAN SEM VAR, MÆLD 20.8.2026 ÁÐUR EN NOKKRU VAR BREYTT: `isGw1Free`
+   var `(g === 1 && preSeason)`. Sama áætlun, sama kall, aðeins `preSeason`
+   víxlað, gaf
+
+     preSeason=true   GW1  made 5 · hits 0 · points   0 · totalHits   0
+     preSeason=false  GW1  made 5 · hits 4 · points −16 · totalHits −16
+
+   Ekkert í áætluninni breyttist — aðeins klukkan. Kl. 17:30 21.8.2026
+   hefði appið því byrjað að reikna −16 stig á notandann fyrir að byggja
+   UPPHAFSLIÐIÐ sitt, og talan hefði lekið inn í `totalHits`, „net X pts"
+   á skiptaáætluninni og í mælaborðið. Þetta er ættin sem CLAUDE.md kafli 8
+   nefnir: *sama svið má ekki þýða sitthvað eftir því hvort tímabilið er
+   byrjað* — og hún var HÉR, ekki í gögnum.
+
+   PRÓFSTEINNINN ER JAFNAÐARMERKI MILLI ÁSTANDANNA, ekki ein tala: hann
+   fellur hvort sem GW1 fer að kosta eftir frest EÐA hættir að vera frítt
+   fyrir hann. Þess vegna er `pre` lykkja og ekki tvö sjálfstæð `eq`.     */
+const GW1_PLAN = [{gw:1},{gw:1},{gw:1},{gw:1},{gw:1},{gw:2}];
+for (const pre of [true, false]) {
+  const t1 = computeTransferCost({ plan: GW1_PLAN, chipAt: noChip, maxGw: 5, preSeason: pre });
+  eq(t1[1].unlimited, true, `preSeason=${pre}: GW1 er ALLTAF otakmorkud (upphafslidid)`);
+  eq(t1[1].hits, 0, `preSeason=${pre}: fimm GW1-val kosta ENGAN hit`);
+  eq(t1[1].points, 0, `preSeason=${pre}: og engin stig`);
+  eq(Object.values(t1).reduce((a, x) => a + x.points, 0), 0,
+     `preSeason=${pre}: totalHits er 0 — talan sem lak i "net X pts"`);
+  eq(t1[2].ftAvailable, 1, `preSeason=${pre}: GW2 byrjar med 1 fritt`);
+}
+/* OG ORSOKIN ER RETT NEFND I BADUM ASTANDUM. Bædi eru „ótakmörkuð", en
+   ÁSTÆÐAN er ekki sú sama og skjárinn segir sitthvað: fyrir frest getur
+   hann enn breytt (ótakmörkuð frí skipti), eftir frest er GW1 liðin og
+   engin GW1-skipti eru möguleg (upphafsliðið). „preseason" eftir frestinn
+   væri röng regla á skjánum — sama gildran og „Bench Boost — ótakmörkuð
+   skipti" var.                                                          */
+eq(computeTransferCost({ plan: GW1_PLAN, chipAt: noChip, maxGw: 3, preSeason: true })[1].unlimitedBy,
+   "preseason", "fyrir frest: orsokin er forleikurinn");
+eq(computeTransferCost({ plan: GW1_PLAN, chipAt: noChip, maxGw: 3, preSeason: false })[1].unlimitedBy,
+   "initial", "eftir frest: orsokin er UPPHAFSLIDID, ekki forleikur");
 
 console.log("\n=== 3. VÆNT STIG (≈talan á spjöldunum) ===");
 // POS_MEAN_PTS á að vera nákvæmlega meðaltal mældu töflunnar

@@ -8,7 +8,7 @@
    theim stad sem hann birtist a.
 
    EN STIKURNAR URDU AD LIFA. Nidjastrengir eins og
-     "£{0}m short — transfer too expensive."
+     "GW{0}: {1} → {2} · bank {3}"
    voru ekki settir saman med + heldur med snidmati, af thvi ad
    ordarodin er hluti af setningunni. Ad breyta theim i samskeytingu
    vaeri 93 handbreytingar med raunverulegri hættu a ad tapa bili eda

@@ -282,6 +282,19 @@ const fmtDeadline = iso => {
   return interp("{0}/{1} at {2}:{3}", [d.getDate(), d.getMonth()+1,
     String(d.getHours()).padStart(2,"0"), String(d.getMinutes()).padStart(2,"0")]);
 };
+/* ---- PENINGUR Á SKJÁ ----
+   MERKID FER FYRIR PUNDID, EKKI EFTIR THVI. Bankinn ma nu fara i MINUS
+   (notandinn ma velja dyran mann og fjarmagna hann sidar), og
+   `£${(-1.5).toFixed(1)}` gefur **"£-1.5"** — thad les eins og skrifvilla
+   eda eins og gildi sem gleymdist ad thatta, ekki eins og skuld.
+   `-£1.5` er einraett.
+   OG THAD MA ALDREI VERDA `£NaN`: bankinn er summa ur `sellOf`/`now_cost`
+   og hvert theirra getur verid ochekkt ytra svid (sbr. `bank:"mikid"` ur
+   proxyinu, CLAUDE.md 5b). Otala verdur thvi "—", ekki NaN — "veit ekki"
+   er astand sem appid kann, NaN er thad ekki.                            */
+const money = v => (Number.isFinite(v)
+  ? `${v < 0 ? "-" : ""}£${Math.abs(v).toFixed(1)}`
+  : "—");
 /* ---- VISTUN ----
    ATH: window.storage er AÐEINS til í Claude-artifact-sandkassa. Á Netlify
    er það undefined, og þögult try/catch faldi það — svo allt ástand hvarf
@@ -1179,13 +1192,25 @@ export default function App() {
       .slice(0, count);
   }
 
-  /* ---------- FREE HIT-UMFERÐIR ----------
-     Skipti gerð í Free Hit-umferð gilda AÐEINS í þeirri umferð — liðið
-     fer sjálfkrafa til baka eftir hana. Lesið beint úr chips-ástandinu
-     (lyklarnir heita "freehit:START"), svo þetta þarf ekki chipSlots.   */
-  const fhGws = useMemo(() => new Set(
-    Object.entries(chips).filter(([k]) => k.startsWith("freehit")).map(([, g]) => g)
+  /* ---------- UMFERÐIR MEÐ TILTEKNU CHIPI ----------
+     Lyklarnir i `chips` heita `"<nafn>:<START>"` (sja `chipSlots`), svo
+     nafnid er lesid UR LYKLINUM og thetta tharf hvorki `chipSlots` ne
+     `chipAt` — sem er nauðsynlegt her, thvi bæði eru skilgreind LANGT
+     nedar (const-TDZ) en `squadForGw` og vollurinn thurfa svarid her.
+     `split(":")[0] === name` i stad `startsWith(name)`: "bboost" er ekki
+     forskeyti neins annars chips i dag, en forskeyta-samanburdur er hlid
+     sem opnast thegjandi ef FPL bætir vid chipi sem byrjar eins.
+     EIN utfaersla fyrir bædi Free Hit og Bench Boost — afritud lykkja er
+     tvaer lykkjur sem reka i sundur (sbr. `buildTeamMetrics`, kafli 7).  */
+  const gwsWithChip = useCallback(name => new Set(
+    Object.entries(chips).filter(([k]) => k.split(":")[0] === name).map(([, g]) => g)
   ), [chips]);
+  /* FREE HIT: skipti gerd i Free Hit-umferd gilda ADEINS i theirri umferd —
+     lidid fer sjalfkrafa til baka eftir hana.                            */
+  const fhGws = useMemo(() => gwsWithChip("freehit"), [gwsWithChip]);
+  /* BENCH BOOST: bekkurinn skorar lika, svo ALLIR 15 fara a vollinn i
+     theirri umferd (beidni notandans 20.8.2026).                        */
+  const bbGws = useMemo(() => gwsWithChip("bboost"), [gwsWithChip]);
 
   /* ---------- Lið í TILTEKINNI umferð — EIN ÚTFÆRSLA ----------
      Þessi lykkja stóð ÞRISVAR áður en „þú notar hann aldrei" bættist við
@@ -1360,7 +1385,39 @@ export default function App() {
      i ranga korfu, thvi rong stada er verri en vantandi (sama regla og
      THOGUL RONG PORUN i bsd.js).
      Vordur: tests/extreme-values.mjs.                                     */
-  starters.forEach(s => { const p = byId[s.id]; if (p && rows[p.element_type]) rows[p.element_type].push(s); });
+  /* ============================================================
+     BENCH BOOST: ALLIR 15 A VOLLINN (beidni notandans 20.8.2026)
+     ============================================================
+     Bekkurinn SKORAR i BB-umferd — thad er allur chipinn — svo vollurinn
+     a ad syna thad sem er i spilinu, ekki 11 af 15.
+
+     ThRJU SEM ER VILJANDI **OBREYTT**, thvi annars vaeri thetta ekki
+     birtingar-breyting heldur likans-breyting:
+       1. `starter`-FLAGGID sjalft. `starters`/`bench` eru areidanlega tha
+          somu mengi, svo fyrirlida-vallistinn (sem ma adeins bjoda
+          byrjunarlidsmenn), `swapStarterBench` (1 GK · 3+ DEF · 2+ MID ·
+          1+ FWD) og `chipValue.bboost` (summa bekkjarins) lesa OBREYTT
+          gogn. BB er ekki uppstillingar-breyting.
+       2. `bench`-eiginleikinn a spjaldinu. Bekkjarmadur a vellinum heldur
+          `pCardBench` (ljosari bakgrunnur), svo hann er enn adgreinanlegur
+          — vitneskjan "hverjir eru XI-in" tapast ekki i BB.
+       3. Bekkjar-borainn helst a sinum stad med skyringu i stad spjalda,
+          svo tomur borði lesi ekki eins og bilun.
+
+     KLIPPAST 15 SPJOLD? Nei, og thad er reiknad ur FPL-hopnum sem er
+     ALLTAF 2 GK · 5 DEF · 5 MID · 3 FWD: LENGSTA rodin verdur FIMM, sem
+     er nakvaemlega thad sem 5-manna vorn gefur i dag. Spjaldid er
+     clamp(62px, 17.5%, 100px), svo fimm spjold thurfa 87,5% + fjogur 6px
+     bil — their komast fyrir an thess ad skreppa saman. `pitchRowFlex`
+     fekk auk thess `flexWrap` sem net fyrir smaa skjai (WRAP, EKKI CLIP),
+     og vollurinn sjalfur VEX (Pitch.jsx: aspectRatio er LAGMARK, radirnar
+     space-evenly) svo hærra innihald getur ekki skarast — sem er einmitt
+     astaedan fyrir ad radirnar voru teknar af fostum prosentum.        */
+  const bbActive = bbGws.has(gw);
+  const onPitch = bbActive
+    ? [...squadAt].sort((a, z) => a.order - z.order)
+    : starters;
+  onPitch.forEach(s => { const p = byId[s.id]; if (p && rows[p.element_type]) rows[p.element_type].push(s); });
 
   /* ---------- Skipti ---------- */
   function commitTransfer(outId, inId) {
@@ -1376,20 +1433,37 @@ export default function App() {
       return;
     }
 
-    // FPL-REGLA: verður að hafa fyrir því. (Notum núverandi verð; raunverulegt
-    // söluverð getur verið lægra v. 50%-hagnaðarreglu — sjá athugasemd í UI.)
+    /* ============================================================
+       VERD BLOKKAR EKKI VAL — BANKINN MA FARA I MINUS (20.8.2026)
+       ============================================================
+       Her stod `if (bankAfter < 0) { flash("...short"); return; }` og thad
+       var HART HLID: dyr leikmadur var OVELJANLEGUR. Notandinn (beidni
+       20.8.2026): hann vill velja dyra manninn FYRST og fjarmagna hann
+       sidan med solu — og i thvi flaedi er millistadan alltaf minus.
+       Gamla hlidid gerdi thann rodun omogulega, thvi hun refsadi fyrir
+       fyrsta skrefid af tveimur.
+
+       ThRIU-PER-FELAG OG STODU-REGLAN STANDA OBREYTTAR. Thad er ekki
+       smekksatriði: thaer eru FPL-LOGMAETI (uppstilling sem er ologleg
+       verdur aldrei log), en peningur er BOKHALD sem gengur til baka vid
+       naesta skref. Fyrra er astand sem FPL myndi hafna, seinna er astand
+       sem notandinn er a leidinni ut ur.
+
+       MINUS-BANKINN ER SYNILEGUR, EKKI KLIPPTUR I 0: `money()` skrifar
+       `-£1.5`, maelabordid faer `tone:"bad"` (raudur), og hvergi er
+       `Math.max(0, ...)`. Klipptur banki vaeri ThOGUL LYGI — hann segdi
+       "thu att 0" thegar rett svar er "thu vantar 1,5" (sama aett og
+       `?? 0` badum megin, CLAUDE.md 12).                                 */
     // söluverð út (50%-reglan), fullt verð inn
     const bankAfter = +(bank + (sellOf(outId) - n.now_cost) / 10).toFixed(1);
-    if (bankAfter < 0) {
-      flash(interp("£{0}m short — transfer too expensive.", [Math.abs(bankAfter).toFixed(1)]));
-      return;
-    }
 
     // Skrá verðið sem við SJÁUM núna — það verður kaupverðið þegar skiptin fara fram.
     // (Ef verðið breytist fyrir framkvæmd uppfærist það við næstu liðs-greiningu.)
     setPlan(p => [...p, { gw, outId, inId, seenPrice: n.now_cost, seenAt: new Date().toISOString().slice(0,10) }]);
     setSelling(null); setSearchQ("");
-    flash(interp("GW{0}: {1} → {2} · bank £{3}", [gw, o.web_name, n.web_name, bankAfter.toFixed(1)]));
+    flash(bankAfter < 0
+      ? interp("GW{0}: {1} → {2} · bank {3} — sell someone to fund it", [gw, o.web_name, n.web_name, money(bankAfter)])
+      : interp("GW{0}: {1} → {2} · bank {3}", [gw, o.web_name, n.web_name, money(bankAfter)]));
   }
   function removeTransfer(i) { setPlan(p => p.filter((_,j) => j !== i)); }
   /* ---------- SMELLU-SKIPTI ----------
@@ -2044,8 +2118,13 @@ export default function App() {
             if (tc.unlimited) return (
               <span style={S.tcFree}>
                 {/* AÐEINS WC/FH gefa skipti — sjá `unlimitedBy` í model.js.
-                    Að spyrja `tc.chip` gaf „Bench Boost — ótakmörkuð skipti". */}
-                {tc.unlimitedBy === "chip" ? interp("{0} — unlimited transfers", [CHIPS[tc.chip].label]) : "unlimited free transfers"}
+                    Að spyrja `tc.chip` gaf „Bench Boost — ótakmörkuð skipti".
+                    "initial" = GW1 EFTIR frest: thad eru ekki skipti heldur
+                    upphafslidid, og setningin segir thad i stad thess ad
+                    lofa skiptum sem eru ekki i bodi.                      */}
+                {tc.unlimitedBy === "chip" ? interp("{0} — unlimited transfers", [CHIPS[tc.chip].label])
+                 : tc.unlimitedBy === "initial" ? "starting squad — not transfers"
+                 : "unlimited free transfers"}
               </span>
             );
             return (
@@ -2056,17 +2135,22 @@ export default function App() {
             );
           })()}
         </div>
-        {preSeason && (
-          <div style={S.preSeasonBar}>
-            <b>{"Preseason."}</b> {"Prices do not move and transfers are unlimited and free until the GW1 deadline passes"} {fmtDeadline(gw1Deadline)}{". Purchase prices lock then — the 50% sell rule applies after that."}
-          </div>
-        )}
+        {/* FORLEIKS-MALSGREININ VAR FJARLAEGD (beidni notandans 20.8.2026).
+            Reglan sjalf er OBREYTT i kodanum — `preSeason` styrir aframhaldandi
+            `buyOf` (kaupverd laesist ekki fyrr en frestur), `computeTransferCost`
+            og `seasonNote` a umferdastikunni. Thad sem for var TEXTINN, ekki
+            hegdunin. Vordur: `planner-pitch.mjs` kafli D.                    */}
       </div>
 
       {/* ---------- Mælaborð ---------- */}
       <div className="app-stats" style={S.stats}>
-        <Stat icon="💰" label={"Bank"} value={`£${bank.toFixed(1)}`}
-          sub={interp("squad £{0} · total £{1}", [squadValue.toFixed(1), (bank + squadValue).toFixed(1)])}
+        {/* MINUS ER LEYFILEGT ASTAND, EKKI VILLA: `money()` skrifar `-£1.5`
+            (ekki `£-1.5`) og `tone:"bad"` gerir hann raudan. Engin klipping
+            i 0 — sja `commitTransfer`.                                    */}
+        <Stat icon="💰" label={"Bank"} value={money(bank)}
+          sub={bank < 0
+            ? interp("squad {0} · needs {1} — sell to fund it", [money(squadValue), money(-bank)])
+            : interp("squad {0} · total {1}", [money(squadValue), money(bank + squadValue)])}
           tone={bank < 0 ? "bad" : "ok"} />
         <Stat icon="🏆" label={"Total points"} value={totalPts == null ? "—" : totalPts} sub={entryId ? interp("team {0}", [entryId]) : "connect FPL URL"} />
         <Stat icon="📅" label={interp("Gameweek {0}", [gw])} value={gwPts == null ? "—" : gwPts}
@@ -2105,40 +2189,12 @@ export default function App() {
               urðu hærri en bilið SKÖRUÐUST raðirnar og bekkurinn klipptist
               neðan af. Nú deila raðirnar plássinu (space-evenly) og
               völlurinn VEX ef efnið þarf meira — skörun er ómöguleg.       */}
-          {/* „ÞÚ NOTAR HANN ALDREI" — les EINGÖNGU áætlun notandans.
-              Engin FFDR, engin vænt stig, ekkert `rankScore`: fullyrðingin
-              er staðreynd um plönunina („þú ætlar aldrei að spila honum"),
-              ekki mat á leikmanninum, og hún er orðuð þannig. Ódýrasti
-              bekkjarmaðurinn er ALDREI hér — hann á að sitja og salan
-              losar ekkert fé (sjá `neverStarted` í model.js).            */}
-          {unusedPlan.rows.length > 0 && (
-            <div style={{ ...S.card, marginBottom:10, borderColor:C.amber }}>
-              <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:4 }}>
-                {"Never in your XI — GW"}{unusedPlan.from}–{unusedPlan.to}
-              </div>
-              <div style={{ ...S.muted, marginBottom:6 }}>
-                {"Looking at the next "}{unusedPlan.to - unusedPlan.from + 1}
-                {" gameweeks as you have them set up, these players start in none of them. Selling one frees the money shown — the cheapest bench player at each position is left out, because nothing cheaper exists."}
-              </div>
-              {unusedPlan.rows.map(r => {
-                const p = byId[r.id];
-                if (!p) return null;
-                return (
-                  <div key={r.id} style={S.srcRow}>
-                    <span style={{ ...S.posDot, background: POS_COLOR[p.element_type] }} />
-                    <span style={{ fontWeight:700, cursor:"pointer" }}
-                      onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>
-                    <span style={S.muted}>{teamById[p.team]?.short} · £{(p.now_cost/10).toFixed(1)}</span>
-                    <span style={{ flex:1 }} />
-                    <span style={{ color:C.amber, fontWeight:700 }}>
-                      {"frees up to £"}{(r.freesTenths/10).toFixed(1)}</span>
-                    <button style={S.dBtn} onClick={() => { setSelling(p.id); setSearchQ(""); }}>
-                      {"Replace"}</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {/* „ÞÚ NOTAR HANN ALDREI" ER NU UNDIR LEIKJUNUM, VID HLIDINA A
+              VELLINUM (beidni notandans 20.8.2026) — sja `S.side` nedar i
+              hinum dalki `pitchSplit`. Bordinn stod her, MILLI maelabordsins
+              og vallarins, og ytti thvi vellinum nidur i hvert skipti sem
+              hann birtist. Rokfraedin (`unusedPlan`) er OBREYTT — thad sem
+              faerdist er hvar hann er teiknadur.                          */}
 
           <div className="pitch-split" style={S.pitchSplit}>
           <div className="pitch-col" style={S.pitchCol}>
@@ -2146,9 +2202,14 @@ export default function App() {
             <div style={S.rowsArea}>
               {[1, 2, 3, 4].map(pos => (
                 <div key={pos} style={S.pitchRowFlex}>
+                  {/* `bench={!sq.starter}`: i BB-umferd eru bekkjarmenn A
+                      VELLINUM og their halda `pCardBench` (ljosari bakgrunnur)
+                      svo "hverjir eru XI-in" tapist ekki. Utan BB er thetta
+                      alltaf `false` her — obreytt hegdun.                  */}
                   {rows[pos].map(sq => (
                     <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
                       fx={(fixByTeamGw[byId[sq.id]?.team]?.[gw] || [])[0]}
+                      bench={!sq.starter}
                       fxNext3={nextGwFixtures(byId[sq.id]?.team, gw)}
                       captain={captain} vice={vice}
                       csFor={csFor}
@@ -2166,9 +2227,17 @@ export default function App() {
                 </div>
               ))}
             </div>
-            {/* BEKKUR — HTML-borði sem fylgir innihaldinu, ekki fast prósent */}
+            {/* BEKKUR — HTML-borði sem fylgir innihaldinu, ekki fast prósent.
+                I BB-umferd eru spjoldin a vellinum, en BORDINN HELST med
+                skyringu: tomur borði (eda horfinn borði) les eins og bilun,
+                og hann er thad eina sem SEGIR hvers vegna 15 eru a vellinum. */}
             <div style={S.benchArea}>
               <div style={S.benchLabel}>{"Bench"}</div>
+              {bbActive ? (
+                <div style={S.bbNote}>
+                  {"Bench Boost — all 15 score, so the whole squad is on the pitch. The lighter cards are your bench."}
+                </div>
+              ) : (
               <div style={S.pitchRowFlex}>
                 {bench.map(sq => (
                   <PlayerCard key={sq.id} s={sq} p={byId[sq.id]} team={teamById[byId[sq.id]?.team]} teamById={teamById}
@@ -2188,14 +2257,75 @@ export default function App() {
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
               </div>
+              )}
             </div>
           </Pitch>
           </div>
+          {/* HINN DALKURINN: LEIKIR UMFERDARINNAR, OG UNDIR THEIM
+              "Never in your XI" (beidni notandans 20.8.2026). `S.side`
+              (flex-suila, gap 12) var thegar til fyrir nakvaemlega thetta. */}
+          <div style={S.side}>
           {/* LEIKIR UMFERÐARINNAR — við hliðina á vellinum */}
           <GwFixtureList gw={gw} fixtures={fixtures} teamById={teamById}
             weatherByFx={weatherByFx} travelByFx={travelByFx} liveByFx={liveByFx}
             nameOf={id => byId[id]?.web_name || `#${id}`} diffOf={fixDifficulty}
             onPick={t => setDetail({ kind:"team", id:t })} />
+          {/* „ÞÚ NOTAR HANN ALDREI" — les EINGÖNGU áætlun notandans.
+              Engin FFDR, engin vænt stig, ekkert `rankScore`: fullyrðingin
+              er staðreynd um plönunina („þú ætlar aldrei að spila honum"),
+              ekki mat á leikmanninum, og hún er orðuð þannig. Ódýrasti
+              bekkjarmaðurinn er ALDREI hér — hann á að sitja og salan
+              losar ekkert fé (sjá `neverStarted` í model.js).            */}
+          {unusedPlan.rows.length > 0 && (
+            <div style={{ ...S.card, borderColor:C.amber }}>
+              <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:4 }}>
+                {"Never in your XI — GW"}{unusedPlan.from}–{unusedPlan.to}
+              </div>
+              <div style={{ ...S.muted, marginBottom:6 }}>
+                {"Looking at the next "}{unusedPlan.to - unusedPlan.from + 1}
+                {" gameweeks as you have them set up, these players start in none of them. Selling one frees the money shown — the cheapest bench player at each position is left out, because nothing cheaper exists."}
+              </div>
+              {/* ============================================================
+                  UPPSETNINGIN VAR BROTIN OG ORSOKIN VAR EIN TALA (20.8.2026)
+                  ============================================================
+                  Notandinn: "lid og verd eru miklu ofar en nofn a leikmanni".
+                  Ordid "ofar" var bokstaflegt. `S.srcRow` er
+                  `display:flex; alignItems:"center"`, og lid/verd notudu
+                  `S.muted` — sem ber **`marginBottom: 8`**. Med
+                  `alignItems:center` er ytri kassinn (INNIFALID margin)
+                  midjusettur, svo 8px undir textanum lyftu textanum sjalfum
+                  um 4px, medan nafnid vid hlidina sat kyrrt. Sjonraent voru
+                  thetta tvaer linur i sama flex-rod.
+                  `S.muted` er ALMENN blokka-still (malsgreinar undir hausum)
+                  og margin-id er RETT thar; thad er RANGT i flex-rod. Rodin
+                  ber thvi sinn eigin still (`srcMeta`) i stad thess ad afrita
+                  almenna stilinn og laga hann a stadnum — sami still tveimur
+                  stodum med ymsum yfirskriftum er tveir stilar sem reka i
+                  sundur.
+                  `baseline` var mælt og hafnad: hun raðar `posDot` (8px
+                  hringur an texta) og `Replace`-hnappnum eftir grunnlinu sem
+                  their eiga ekki, svo hringurinn hoppar upp. `center` er rett
+                  — vandinn var margin-id, ekki jofnunin.                  */}
+              {unusedPlan.rows.map(r => {
+                const p = byId[r.id];
+                if (!p) return null;
+                return (
+                  <div key={r.id} style={S.srcRow}>
+                    <span style={{ ...S.posDot, background: POS_COLOR[p.element_type] }} />
+                    <span style={S.srcName}
+                      onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>
+                    <span style={S.srcMeta}>{teamById[p.team]?.short} · £{(p.now_cost/10).toFixed(1)}</span>
+                    <span style={{ flex:1 }} />
+                    <span style={S.srcFrees}>
+                      {"frees up to £"}{(r.freesTenths/10).toFixed(1)}</span>
+                    <button style={S.dBtn} onClick={() => { setSelling(p.id); setSearchQ(""); }}>
+                      {"Replace"}</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          </div>
           </div>
 
           {/* Meiðsli, bönn og hætta í liðinu */}
@@ -2228,11 +2358,23 @@ export default function App() {
           </section>
           {/* Verðbreytingar */}
           <section style={S.card}>
-            <h2 style={S.h2}>{"Price changes — transfers this gameweek"}</h2>
-            <div style={S.muted}>
-              {"Real data: transfers_in/out and cost_change_event from FPL."}
-              <b> {"\"tonight?\""}</b> {"is an approximation (net transfers against ownership) — FPL does not publish its formula, so this is an indication, not a certainty. A green name = he is in your transfer plan:"} <b>{"bring the transfer forward"}</b> {"if he rises."}
-            </div>
+            {/* SKYRINGAR-MALSGREININ VAR FJARLAEGD (beidni notandans 20.8.2026).
+                EN HEIDARLEIKA-MERKID MATTI EKKI FARA MED HENNI: CLAUDE.md 3
+                segir berum ordum ad verdspain "ma aldrei birtast sem vissa".
+                Hun er nu merkt a ThREMUR stodum sem allar voru thegar til
+                og engin theirra er malsgrein:
+                  1. TEXTINN sjalfur er "↑ tonight?" — spurningarmerkid ER
+                     fyrirvarinn, i hverri rod.
+                  2. `title` a hverri spa: "...(approximation)".
+                  3. `title` a haus flipans, her fyrir nedan — thangad for
+                     setningin um ad FPL birti ekki formuluna.
+                Tafla, litir og spar eru OBREYTT. Vordur: `planner-pitch.mjs`
+                kafli E, sem fellur BAEDI ef malsgreinin kemur aftur OG ef
+                ordid "approximation" hverfur ur DOM-inum.                  */}
+            <h2 style={S.h2}
+              title={"\"tonight?\" is an approximation — net transfers against ownership. FPL does not publish its price-change formula, so this is an indication, not a certainty."}>
+              {"Price changes — transfers this gameweek"}
+            </h2>
             {priceMovers.up.map(({ p, net, chg, predict }) => {
               const mine = squadIds.has(p.id), planned = plan.some(t => t.inId === p.id);
               return (
@@ -2728,6 +2870,22 @@ export default function App() {
               <div style={S.srcRow} title={st ? "ClubElo has not responded since then" : ""}>
                 <span style={st?.level === "bad" ? S.dotErr : nElo ? S.dotOk : S.dotWait} />
                 ClubElo — {nElo}/{teams?.length ?? 0} {"teams"}
+                {/* HVADAN TALAN KOM — OG ThAD SEST HVERGI ANNARS STADAR.
+                    `status.json.sources.elo` er EKKI i `SHOW` her ad nedan
+                    (viljandi: aldurinn er reiknadur LIFANDI i thessari rod i
+                    stad thess ad tvitaka hann ur pipeline-inum), svo notan
+                    sem `record("elo", ...)` skrifar er osynileg i appinu.
+                    Fra 20.8.2026 ber `elo.json` sjalf `source`: API-inn
+                    (`api.clubelo.com`) var ONAAANLEGUR fra 14.8. medan
+                    `clubelo.com` svaradi 200 a 0,11 s — tveir hostar, ein
+                    bilud. Fersk skra ur varaleidinni er RETT, en hun ma ekki
+                    lesast eins og API-inn hafi virkad.                     */}
+                {elo?.source && elo.source !== "api.clubelo.com" && (
+                  <span style={{ color: C.amber, fontWeight: 700 }}
+                        title={"api.clubelo.com is unreachable; these ratings were read "
+                             + "from the clubelo.com website and validated before they were written"}>
+                    {" · via "}{elo.source}</span>
+                )}
                 {eloFx?.fixtures?.length ? interp(" · {0} matches with CS probabilities", [eloFx.fixtures.length]) : ""}
                 {st && <span style={{ color: st.level === "bad" ? C.red : C.amber, fontWeight:700 }}>
                   {" · "}{st.level === "bad" ? "⚠ " : ""}{interp("{0} days old", [st.days.toFixed(1)])}</span>}
@@ -3183,12 +3341,19 @@ export default function App() {
                 const t = teamById[p.team];
                 const fx = (fixByTeamGw[p.team]?.[gw] || [])[0];
                 const diff = (sellOf(selling) - p.now_cost) / 10;
-                // sýna fyrirfram hvort skiptin eru lögleg
+                /* LOGMAETI BLOKKAR, VERD GERIR ThAD EKKI (20.8.2026).
+                   `block` bar adur BAEDI "3 per club" OG "£X short", og
+                   badir grafu spjaldid i `sItemBlocked` (opacity 0,45) —
+                   svo dyr madur LAS eins og ologlegur. Nu er verdid
+                   `overdraft`: talan er synd (raud, "needs -£X.X") en
+                   valid er OPID, thvi notandinn aetlar ad fjarmagna thad
+                   med solu i naesta skrefi.                             */
                 let block = null;
+                let overdraft = null;
                 if (selling) {
                   const after = squadAt.map(x => (x.id === selling ? p.id : x.id));
                   if (after.filter(id => byId[id]?.team === p.team).length > 3) block = "3 per club";
-                  else if (bank + diff < 0) block = interp("£{0} short", [Math.abs(bank + diff).toFixed(1)]);
+                  if (bank + diff < 0) overdraft = +(bank + diff).toFixed(1);
                 }
                 return (
                   <button key={p.id}
@@ -3269,9 +3434,16 @@ export default function App() {
                       <div style={S.sPrice}>£{(p.now_cost/10).toFixed(1)}</div>
                       {selling && (block
                         ? <div style={S.sBlock}>{block}</div>
-                        : <div style={{ ...S.sDiff, color: diff >= 0 ? C.green : C.red }}>
-                            {diff >= 0 ? "+" : ""}£{diff.toFixed(1)}
-                          </div>)}
+                        : <>
+                            <div style={{ ...S.sDiff, color: diff >= 0 ? C.green : C.red }}>
+                              {diff >= 0 ? "+" : ""}£{diff.toFixed(1)}
+                            </div>
+                            {/* MINUS-BANKI ER UPPLYSING, EKKI HINDRUN. */}
+                            {overdraft != null &&
+                              <div style={S.sOver} title={"Your bank goes negative — the pick is allowed, sell someone to fund it"}>
+                                {"bank"} {money(overdraft)}
+                              </div>}
+                          </>)}
                     </div>
                   </button>
                 );
@@ -3595,19 +3767,50 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
       title={swapSel === p.id ? "Selected — click another to swap"
              : "Click to swap with another player"}>
       {/* IKON — sér aðgerðir. Smellur á spjaldið er SKIPTI. */}
-      {/* "i" ER VINSTRA MEGIN. Thrju ikon i sama horni voru trodin og
-          spjaldid er adeins clamp(62px, 17.5%, 100px) breitt. Vinstra
-          hornid var laust nema tha midjuflaggid (availBadge) se til —
-          thad er faert til hlidar vid ikonid i stad thess ad liggja undir. */}
+      {/* ============================================================
+          VINSTRA MEGIN: i + ↻ (+ C/V + meidsla-merki) · HAEGRA MEGIN: ⇄
+          (beidni notandans 20.8.2026)
+          ============================================================
+          ↻ (FFDR-samanburdur) var haegra megin med ⇄. Nu er ADEINS
+          skipti-ikonid haegra megin og allt sem er UPPLYSING er vinstra
+          megin — ein hlid spyr "hvad er hann?", onnur "skipta honum ut?".
+
+          OG MAGIC-TALAN A `availBadge` FOR MED (`left: isCap ? 38 : 21`).
+          Hun var handreiknud ur ThVI HVE MORG ikon voru i vinstri rodinni
+          (2 + 15 = 17 -> 21; tvo ikon -> 34 -> 38). Thridja ikonid gerdi
+          hana ranga i BADUM greinum, og ThOGULT: merkid hefdi legid ofan a
+          ↻ eda C-inu i stad thess ad birtast vid hlid theirra — nakvaemlega
+          gamla gildran sem athugasemdin fra 7.8.2026 nefnir (C undir ⇄).
+          Merkid er thvi FLUTT I FLAEDID, eins og `bandFlow` var flutt af
+          somu astaedu: i flex-rod getur thad ekki legid undir neinu og
+          engin tala tharf ad fylgja fjolda ikona.
+          KLIPPIST ThAD EKKI A 62px SPJALDI? Nei — `pcIconsL` hefur
+          `flexWrap:"wrap"` og `maxWidth`, svo rodin BROTNAR i tvaer linur
+          i stad thess ad klippast (sama regla og FixStrip: WRAP, EKKI
+          CLIP — sja `pFix` i appStyles.js).                             */}
       <div style={S.pcIconsL}>
         <button style={S.pcIcon} title={"Information"}
           onClick={e => { e.stopPropagation(); onInfo && onInfo(); }}>i</button>
+        {/* FFDR-SAMANBURDUR — hver kemur inn fyrir hann i ERFIDU umferdunum.
+            Adskilid frá ⇄ (sem er skipti) og frá i (sem er upplysingar).   */}
+        <button style={{ ...S.pcIcon, ...S.pcIconRot }}
+          title={"FFDR comparison — find a player with easy gameweeks where his are hard"}
+          onClick={e => { e.stopPropagation(); onRotation && onRotation(); }}>↻</button>
+        {/* MEIDSLA-/BANN-MERKID — sterkasta upplysingin i rodinni, svo hun
+            kemur strax eftir hnappana og situr a FYRSTU linu.            */}
+        {av.isRisk && (
+          <span style={{ ...S.availFlow,
+                         background:av.solid || av.bg,
+                         color:av.solid ? "#fff" : av.color }}
+            title={`${av.label}${av.chance != null ? interp(" — {0}% chance", [av.chance]) : ""}${av.news ? `\n${av.news}` : ""}`}>
+            {av.short}{av.chance != null && av.chance > 0 ? av.chance : ""}
+          </span>
+        )}
         {/* FYRIRLIDA-MERKID ER HER, VINSTRA MEGIN (beidni 7.8.2026).
             Adur sat thad `position:absolute top:4 right:4` — NAKVAEMLEGA
             undir ⇄/↻-ikonunum (zIndex 2 a moti 3), svo C-id a Haaland
             var OSYNILEGT. I flex-rodinni vinstra megin getur thad ekki
-            legid undir neinu. availBadge (meidsli) faerist til hlidar
-            a moti, sja `availLeft`.                                    */}
+            legid undir neinu.                                          */}
         {isCap && <span style={{ ...S.bandFlow, background:"#ffd23f", color:"#4a3800" }}
           title={"Captain — double points"}>C</span>}
         {isVice && <span style={{ ...S.bandFlow, background:"#c9c9d0", color:"#33333a" }}
@@ -3616,20 +3819,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
       <div style={S.pcIcons}>
         <button style={{ ...S.pcIcon, ...S.pcIconSwap }} title={"Transfer out — opens search"}
           onClick={e => { e.stopPropagation(); onTransfer && onTransfer(); }}>⇄</button>
-        {/* FFDR-SAMANBURDUR — hver kemur inn fyrir hann i ERFIDU umferdunum.
-            Adskilid frá ⇄ (sem er skipti) og frá i (sem er upplysingar).   */}
-        <button style={{ ...S.pcIcon, ...S.pcIconRot }}
-          title={"FFDR comparison — find a player with easy gameweeks where his are hard"}
-          onClick={e => { e.stopPropagation(); onRotation && onRotation(); }}>↻</button>
       </div>
-      {av.isRisk && (
-        <span style={{ ...S.availBadge, left: isCap || isVice ? 38 : 21,
-                       background:av.solid || av.bg,
-                       color:av.solid ? "#fff" : av.color }}
-          title={`${av.label}${av.chance != null ? interp(" — {0}% chance", [av.chance]) : ""}${av.news ? `\n${av.news}` : ""}`}>
-          {av.short}{av.chance != null && av.chance > 0 ? av.chance : ""}
-        </span>
-      )}
       <div style={S.pPortrait}
         title={interp("{0}{1}NOTE: the FPL photo can show an OLD club after a transfer. The crest is right.", [team?.name || "?", "\n"])}>
         <PlayerImg code={p.code} short={team?.short} size={38} />

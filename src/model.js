@@ -708,7 +708,8 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
    Hvert aukalegt = −4 stig. Wildcard og Free Hit: ótakmörkuð skipti og
    SÖFNUÐU skiptin HALDAST og halda áfram að safnast (+1 næstu umferð,
    þak 5) — regla frá 2024/25 sem eldri útgáfa braut með ft=1.
-   GW1 fyrir frest: ótakmörkuð, og allir byrja með 1 FT í GW2.
+   GW1 er UPPHAFSLIÐIÐ (aldrei skipti, sjá langa athugasemd neðar), og
+   allir byrja með 1 FT í GW2.
 
    `unlimitedBy` SEGIR HVERS VEGNA, OG ÞAÐ ER EKKI SKRAUT: aðeins Wildcard
    og Free Hit gefa skipti. Bench Boost og Triple Captain gefa EKKI NEITT
@@ -717,7 +718,38 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
    frá „ótakmörkuð af því að GW1-frestur er ekki runninn út". Í forleik með
    Bench Boost í GW1 varð úr því **„Bench Boost — ótakmörkuð skipti"**, sem
    er ósönn regla á skjánum. GW1 fyrir frest vinnur ALLTAF sem orsök, því
-   hún gildir óháð chipi og getur því ekki eignað chipi ranga verkun.       */
+   hún gildir óháð chipi og getur því ekki eignað chipi ranga verkun.
+
+   ============================================================
+   GW1 ER UPPHAFSLIÐIÐ, ALDREI SKIPTI — `preSeason` VAR SKILYRÐI OG ÞAÐ
+   VAR VILLA SEM BEIÐ DAGSETNINGAR (20.8.2026)
+   ============================================================
+   `isGw1Free` var `(g === 1 && preSeason)`. Það er rétt um regluna
+   („ótakmörkuð frí skipti til GW1-frests") en RANGT um það sem notandinn
+   er að gera: liðið sem hann velur í GW1 ER upphafsliðið, ekki skipti.
+   Mælt á ÓBREYTTRI áætlun (5 val í GW1, eitt skipti í GW2), sama kall,
+   aðeins `preSeason` víxlað:
+
+     preSeason=true   GW1  made 5 · free 5 · hits 0 · points   0   totalHits   0
+     preSeason=false  GW1  made 5 · free 1 · hits 4 · points −16   totalHits −16
+
+   Ekkert í áætluninni breyttist — aðeins klukkan. Kl. 17:30 21.8. hefði
+   appið því byrjað að reikna **−16 stig** á notandann fyrir að byggja
+   upphafsliðið sitt, og talan hefði lekið inn í `totalHits`, í
+   „net X pts" á skiptaáætluninni og í mælaborðið. Þetta er nákvæmlega
+   ættin sem CLAUDE.md kafli 8 nefnir: *sama svið má ekki þýða sitthvað
+   eftir því hvort tímabilið er byrjað.*
+
+   Reglan er auk þess FPL-rétt í báðar áttir: GW1-skipti eru ekki til.
+   Fyrir frest eru þau ótakmörkuð og frí; eftir frest er GW1 liðin og
+   engin GW1-skipti eru möguleg — svo að refsa fyrir þau er að refsa
+   fyrir aðgerð sem er ekki hægt að gera. `g === 1` er því ALLTAF frítt.
+
+   `preSeason` heldur samt merkingu sinni í `unlimitedBy` (og er þar með
+   enn lesin): fyrir frest er orsökin „preseason" (hann getur enn breytt),
+   eftir frest er hún „initial" (upphafsliðið, ekki skipti). Sama tala,
+   tvær ólíkar setningar á skjánum, og hvorug lýgur.
+   Vörður: `model.test.mjs` kafli 2b.                                     */
 export function computeTransferCost({ plan, chipAt, maxGw, preSeason }) {
   const made = {};
   plan.forEach(t => { made[t.gw] = (made[t.gw] || 0) + 1; });
@@ -726,12 +758,13 @@ export function computeTransferCost({ plan, chipAt, maxGw, preSeason }) {
   for (let g = 1; g <= maxGw; g++) {
     const n = made[g] || 0;
     const chip = chipAt(g);
-    const isGw1Free = (g === 1 && preSeason);
+    const isGw1Free = (g === 1);
     const chipGivesTransfers = chip === "wildcard" || chip === "freehit";
     const unlimited = isGw1Free || chipGivesTransfers;
     if (unlimited) {
       out[g] = { made: n, free: n, hits: 0, points: 0, unlimited: true, chip,
-                 unlimitedBy: isGw1Free ? "preseason" : "chip", ftAvailable: ft };
+                 unlimitedBy: isGw1Free ? (preSeason ? "preseason" : "initial") : "chip",
+                 ftAvailable: ft };
       // GW1: allir byrja tímabilið með 1 FT. WC/FH: söfnuð skipti
       // HALDAST og +1 bætist við eins og venjulega (þak 5).
       ft = isGw1Free ? 1 : Math.min(5, ft + 1);
