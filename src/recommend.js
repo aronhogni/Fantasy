@@ -328,9 +328,100 @@ export function buildRecommendations({
        `score`. Ekki skipta yfir a `rank` an nyrrar maelingar.            */
     const sorted = [...inSquad].sort((a,b) => a.score - b.score);
     const sellIds = new Set(sorted.slice(0, 2).map(r => r.p.id));
-    return { byPos, sellIds, inSquadScores: Object.fromEntries(inSquad.map(r => [r.p.id, r.score])),
+    /* ============================================================
+       `rankedByPos` — ALLIR gjaldgengir, RADADIR, EKKI SKORNIR (20.8.2026)
+       ============================================================
+       `byPos` er TILLOGULISTINN a skjanum: verdthak notandans er beitt og
+       hann er skorinn i FJORA. Bordinn „Not been in your XI" tharf ANNAD:
+       hann tharf ad sia eftir SOLUVERDI thess sem er ad fara + banka, eftir
+       3-per-felag OG eftir stodu, og fyrst ThA taka einn eda tvo. Vaeri
+       hann latinn nota `byPos` gaefi hann oftast EKKERT — fjorir dyrustu
+       toppmenn per stodu eru sjaldan a fjarhagsaetlun eins bekkjarmanns.
+
+       ROÐUNIN ER `rank` (thad er `rankScore` ur model.js) OG ThAD ER
+       MAELINGIN: hun slær bædi eldri adferd appsins og FPL-eigid xP, og
+       `rank-model.mjs` ber orakel-thak sem syn ad hærri tala vaeri LEKI.
+       ATH: solu-rodun er `score`, EKKI `rank` (maelt ogreinanlegt,
+       -0,118 CI [-0,328, +0,088]) — thetta er KAUP-tillaga, svo `rank`
+       er retta talan. Ekki blanda theim.
+       Verdthakid er VILJANDI ekki beitt hér: thad er UI-sia a tillogulistann
+       og „hvad get eg keypt fyrir Ballard" er onnur spurning.           */
+    const rankedByPos = {};
+    [1,2,3,4].forEach(pos => {
+      rankedByPos[pos] = all.filter(r => r.p.element_type === pos && !squadIds.has(r.p.id))
+        .sort((a,b) => b.rank - a.rank);
+    });
+    return { byPos, rankedByPos, sellIds, inSquadScores: Object.fromEntries(inSquad.map(r => [r.p.id, r.score])),
              /* ALLIR leikmenn, ekki adeins tillogurnar: samanburdurinn ma
                 bera saman hvern sem er, lika tha sem eru i lidinu.      */
              advisorById: Object.fromEntries(all.map(r => [r.p.id,
                { inputs: r.rankInputs, avail: r.avail, ffdrAvg: r.ffdrAvg, fxs: r.fxs }])) };
+}
+
+/* ============================================================
+   SKIPTA-TILLAGA FYRIR ThANN SEM ER EKKI NOTADUR (20.8.2026)
+   ============================================================
+   Notandinn: „I statsinu sem horfir afturabak vill eg ad recommendi
+   leikmann sem vaeri betra ad hafa i stadinn, einhvern sem a tha
+   thaegilegri leiki thegar thessi a thad ekki".
+
+   HREINT FALL OG ThAD ER MAELT NAUDSYNLEGT, EKKI STILSPURNING. Fyrsta
+   utgafan var sia INNI I `App.jsx`-memo-unni og profud A RAUNGOGNUM. ATTA
+   stokkbreytingar voru gerdar — verd-sian af, 3-per-felag af, onnur stada
+   leyfd, 0%-tiltaekir leyfdir, an PL-minutna leyfdir, „thaegilegri leikir"
+   af, soluverd -> 0 — og SJO AF ATTA SLUPPU GEGNUM SAFNID: toppmennirnir
+   tveir eftir `rankScore` stodust hvort eda er allar siurnar, svo ad taka
+   eina ur sambandi breytti EKKI thvi sem birtist. Fullyrding sem tharf
+   tvennt til ad bregdast (sian OG frambjodanda sem hun ein utilokar) er
+   veikari en hun litur ut fyrir ad vera — sama lardomur og
+   `playerlist-sort.mjs` (CLAUDE.md 5b).
+   Ur hreinu falli er hver sia profud A TILBUNU inntaki thar sem svarid er
+   thekkt fyrirfram, og tha fellur hver stokkbreyting.
+
+   RODUNIN ER GEFIN, EKKI REIKNUD HER: `ranked` kemur ur `rankedByPos`,
+   sem er `rankScore` (`model.js`) — MAELDA kaup-rodunin. Thetta fall
+   RADAR ENGU; thad SIAR og tekur `max` fyrstu. Thad er asett: hefdi thad
+   sina eigin rodun vaeri thad onnur rodun i appinu.
+
+   FJORAR HORDAR SIUR (ologleg tillaga er verri en engin) + ein model-sia:
+     1. EKKI ThEGAR I HOPNUM
+     2. A FJARHAGSAETLUN: `budget` = SOLUVERD hans + banki, i TIUNDUM
+     3. ThRIR-PER-FELAG EFTIR SKIPTIN — salan opnar saeti hja HANS felagi,
+        svo talningin dregur eitt fra thegar felagid er hid sama
+     4. TILTAEKILEIKI: `avail === 0` UT · FPL-tala `chance === 0` UT
+        (`avail` er 1 um leid og `status === "a"`, svo hun ein er ekki nog —
+        MAELT: madur med status "a" OG chance 0 slapp gegnum hana) ·
+        `chance == null` er „veit ekki" og utilokar EKKI · og sa sem hefur
+        ENGAR PL-minutur er ut, thvi „ohekkt" ma ekki birtast eins og „gott"
+        (195 leikmenn i theim flokki, sama regla og `st0%`)
+     5. ThAEGILEGRI LEIKIR: `ffdrAvg < ownFfdr`. Bædi tolur koma ur
+        `buildRecommendations`, sem kallar `fixDifficulty` MED STODUNNI —
+        varnarmadur og framherji hja sama felagi fá ekki sömu tolu. Vanti
+        hvora sem er er svarid ENGIN tillaga (vantar er ekki „jafngott").
+   `max` ER UI-AFMORKUN eins og `MAX_WINDOWS` i `buywindow.js`.        */
+export function swapCandidates({ ranked = [], outP = null, squadIds = null,
+                                 perClub = {}, budget = 0, ownFfdr = null,
+                                 max = 2 } = {}) {
+  if (!Array.isArray(ranked) || !outP) return [];
+  if (ownFfdr == null || !Number.isFinite(Number(ownFfdr))) return [];
+  const has = id => (squadIds && typeof squadIds.has === "function") ? squadIds.has(id) : false;
+  const out = [];
+  for (const c of ranked) {
+    const q = c?.p;
+    if (!q || q.id == null) continue;
+    if (q.element_type !== outP.element_type) continue;
+    if (has(q.id)) continue;
+    const cost = Number(q.now_cost);
+    if (!Number.isFinite(cost) || cost > budget) continue;
+    const n = (perClub[q.team] || 0) - (q.team === outP.team ? 1 : 0);
+    if (n >= 3) continue;
+    if (c.avail === 0) continue;
+    const chance = q.chance_of_playing_next_round;
+    if (typeof chance === "number" && Number.isFinite(chance) && chance === 0) continue;
+    if (!(Number(q.minutes) > 0)) continue;
+    if (c.ffdrAvg == null || !(Number(c.ffdrAvg) < Number(ownFfdr))) continue;
+    out.push(c);
+    if (out.length >= max) break;
+  }
+  return out;
 }

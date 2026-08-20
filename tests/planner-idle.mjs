@@ -18,6 +18,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
+import { playedEvents } from "./lib/played-events.mjs";
 
 let pass = 0, fail = 0;
 const ok = (c, n, x = "") => { c ? (pass++, console.log(`  ✓ ${n}`))
@@ -25,7 +26,7 @@ const ok = (c, n, x = "") => { c ? (pass++, console.log(`  ✓ ${n}`))
 const D = new URL("../data/", import.meta.url).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
 
-async function render(state) {
+async function render(state, patch = null) {
   const dom = new JSDOM("<!doctype html><div id=root></div>",
     { url: "http://localhost/", pretendToBeVisual: true });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -40,6 +41,7 @@ async function render(state) {
   globalThis.fetch = async u => {
     const n = String(u).split("/data/")[1];
     if (!n) return { ok: false, status: 404, json: async () => ({}) };
+    if (patch && patch[n]) return { ok: true, status: 200, json: async () => patch[n] };
     try { return { ok: true, status: 200, json: async () => J(n) }; }
     catch { return { ok: false, status: 404, json: async () => { throw new Error("no"); } }; }
   };
@@ -54,16 +56,31 @@ console.log(`\n${"=".repeat(84)}`);
 console.log("AAETLUNAR-BORDINN — ThOGN ThEGAR EKKERT ER PLANAD");
 console.log("=".repeat(84));
 
-const HAS = t => /Never in your XI/.test(t);
+const HAS = t => /Not been in your XI/.test(t);
 
-ok(!HAS(await render(null)), "engin planun -> ThOGN");
+/* ============================================================
+   TIMABILID VERDUR AD VERA BYRJAD (20.8.2026)
+   ============================================================
+   Bordinn horfir nu AFTURABAK og er thvi ThOGULL i forleik — og
+   committud `events.json` ER forleikur. An thessa patch-s vaeri HVER
+   fullyrding hér ad nedan graen af RANGRI astaedu (bordinn er ekki til),
+   og fullyrdingin "raunveruleg vixl -> bordinn birtist" hefdi fallid og
+   sagt hvers vegna. Sja `tests/lib/played-events.mjs`.
+   ============================================================ */
+const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
+
+/* FORSENDAN FYRST: i FORLEIK segir bordinn EKKERT — engin saga er til.  */
+ok(!HAS(await render({ captain: 411, benchSwaps: { 1: [[411, 321]] } })),
+   "FORLEIKUR: engin notkunar-saga -> bordinn segir EKKERT (ekki tom fullyrding)");
+
+ok(!HAS(await render(null, PLAYED)), "engin planun -> ThOGN");
 
 const self = {}; for (let g = 1; g <= 6; g++) self[g] = [[411, 411]];
-ok(!HAS(await render({ captain: 411, benchSwaps: self })),
+ok(!HAS(await render({ captain: 411, benchSwaps: self }, PLAYED)),
    "vixl vid SJALFAN SIG er nullaðgerd -> ThOGN");
 
 const ghost = {}; for (let g = 1; g <= 6; g++) ghost[g] = [[999998, 999999]];
-ok(!HAS(await render({ captain: 411, benchSwaps: ghost })),
+ok(!HAS(await render({ captain: 411, benchSwaps: ghost }, PLAYED)),
    "vixl a id sem eru hvergi til -> ThOGN");
 
 /* FORSENDAN — an hennar vaeri "thogn" graent af thvi ad bordinn virkar
@@ -79,10 +96,12 @@ ok(!HAS(await render({ captain: 411, benchSwaps: ghost })),
    DYR madur situr a bekknum an nokkurrar planunar, og thann hop er ekki
    haegt ad smiða ur `localStorage` — hann kemur ur tengdu FPL-lidi
    (`squadOverride`). Reglan sjalf er profud i `model.test.mjs`.        */
-const real = {}; for (let g = 1; g <= 6; g++) real[g] = [[411, 321]];
-const t = await render({ captain: 411, benchSwaps: real });
+/* EIN FAERSLA — sja athugasemdina i smoke.test.mjs: uppstillingin erfist
+   nu fram, svo sex eins faerslur toggla i stad thess ad safnast.       */
+const real = { 1: [[411, 321]] };
+const t = await render({ captain: 411, benchSwaps: real }, PLAYED);
 ok(HAS(t), "RAUNVERULEG vixl -> bordinn birtist (forsenda hinna thriggja)");
-ok(/frees up to £/.test(t), "og hann ber tolu um losad fe");
+ok(/Save £/.test(t), "og hann ber tolu um losad fe");
 
 console.log(`\nAAETLUNAR-BORDINN: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

@@ -142,7 +142,13 @@ console.log("─".repeat(84));
      "initial", "EFTIR frest er orsokin 'initial' — upphafslidid, EKKI otakmorkud skipti");
   /* Og textinn a skjanum ma ekki lofa skiptum sem eru ekki til. Hann er
      DREGINN UT UR App.jsx af somu astaedu og reglan hér ad ofan. */
-  const app = SRC("src/App.jsx");
+  /* ATHUGASEMDIR STRIPPADAR — CLAUDE.md kafli 13 nefnir nakvaemlega thetta:
+     „textaleit sem athugasemd uppfyllti". Rod-fullyrdingin hér ad nedan er
+     `indexOf(...) < indexOf(...)` og hun FELL 20.8.2026 a PROSA i
+     athugasemd vid `resetAll`, sem nefnir `unlimitedBy === "initial"` LANGT
+     a undan chip-greininni. Kodinn var alveg rettur. Leitin les nu KODA.  */
+  const app = SRC("src/App.jsx")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   ok(/unlimitedBy === "initial" \? "starting squad — not transfers"/.test(app),
     "og skjarinn segir 'starting squad — not transfers', ekki 'unlimited transfers'");
   ok(/unlimitedBy === "chip" \?/.test(app) && app.indexOf('unlimitedBy === "chip"')

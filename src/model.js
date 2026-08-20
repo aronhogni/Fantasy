@@ -778,6 +778,60 @@ export function computeTransferCost({ plan, chipAt, maxGw, preSeason }) {
   return out;
 }
 
+/* ============================================================
+   UPPHAFSLIÐIÐ ER EKKI SKIPTI — EIN REGLA, ÞRÍR NOTENDUR (20.8.2026)
+   ============================================================
+   Sama villan kom upp á ÞREMUR stöðum sama daginn, og allir þrír höfðu
+   sína eigin `gw === 1`-prófun (eða enga):
+
+     1. KOSTNAÐURINN — `isGw1Free` var `(g === 1 && preSeason)`, svo kl.
+        17:30 21.8. hefði appið byrjað að reikna −16 stig á notandann fyrir
+        að byggja upphafsliðið. Lagað hér fyrir ofan (sjá langa
+        athugasemdina við `computeTransferCost`).
+     2. SKIPTAÁÆTLUNIN — GW1-valin voru birt sem `út → inn` raðir með
+        „ávinningi" mældum gegn þeim sem HANDAHÓFI var í hópnum sem
+        notandinn byrjaði frá. Notandinn: „Þetta transfer plan er ekki
+        rétt. Er ekki neitt transfer, bara starting liðið mitt".
+     3. GRÆNI RAMMINN — `plannedIn` var `plan.filter(t => t.gw <= gw)`, svo
+        í GW2 báru GW1-mennirnir enn „nýkominn inn"-rammann. Notandinn:
+        „Þegar ég er kominn í gameweek 2, er enn grænn border utan um
+        kallana, eins og ég hafi verið að skipta þeim út."
+
+   ÞRÍR NOTENDUR EINNAR REGLU = EIN ÚTFÆRSLA. Repo-ið hefur borgað fyrir
+   afritin þrisvar: `buildTeamMetrics` skrifaði NaN á 17 lið og merkti það
+   `src:"e0"` (CLAUDE.md 7), `headWidth`/`BADGE_W` voru grænir í prófinu
+   meðan 25 hausar klipptust (kafli 8), `ZONE_RE` vantaði markteiginn í
+   BÁÐUM afritum (kafli 12). Þess vegna er reglan HÉR, í hreinni rökfræði
+   við hliðina á `computeTransferCost`, og hvergi annars staðar.
+
+   AF HVERJU ER ENGIN TÍMA-PRÓFUN Í HENNI — OG ÞAÐ ER ÁKVÖRÐUN:
+   GW1-skipti eru EKKI TIL á neinum tímapunkti. Fyrir frest er hópurinn
+   valinn (ótakmarkað og frítt); eftir frest er GW1 liðin og ekkert
+   GW1-skipti er mögulegt. Reglan er því ALGILD í tíma, nákvæmlega eins og
+   `isGw1Free = (g === 1)` hér fyrir ofan.
+   `preSeason` var mælt og HAFNAÐ sem skilyrði: hún víxlar kl. 17:30 21.8.
+   og þá hefðu SÖMU vistuðu raðirnar hoppað aftur inn í „net X pts" —
+   klukka sem breytir merkingu vistaðra gagna er einmitt gildran í kafla 8
+   („sama svið má ekki þýða sitthvað eftir því hvort tímabilið er byrjað").
+   `gw` (umferðin sem notandinn ER AÐ SKOÐA) var líka hafnað: hún er
+   birtingar-ástand, svo áætlunin hefði breytt merkingu við smell á
+   tímalínuna.
+
+   SETNINGIN Á SKJÁNUM er hins vegar tíma-háð, og hún kemur ÚR
+   `unlimitedBy` sem er þegar til: „preseason" (hann getur enn breytt
+   hópnum) á móti „initial" (GW1 er liðin). Sama tala, tvær setningar,
+   hvorug lýgur — og engin fjórða hugmynd um „hvað er GW1".
+
+   Vörður: `initial-squad.mjs` (tenging OG hegðun) + `model.test.mjs` 2b. */
+export const INITIAL_SQUAD_GW = 1;
+
+/* Tekur RÖÐ úr áætluninni (`{ gw, outId, inId }`). Númerið er þvingað í
+   tölu því `loadState` hleypir `gw:"1"` í gegn úr localStorage (sama
+   gerðar-gildra og `tr.gw > g` bar strengja-samanburð, sjá App.jsx).   */
+export function isInitialSquadPick(t) {
+  return Number(t?.gw) === INITIAL_SQUAD_GW;
+}
+
 /* ---- VÆNT STIG per leik ----
    EIN aðferð allar umferðir: grunnur (ep_next ef til, annars stig/leik)
    × margfaldari (mæld stig við FFDR leiksins / meðaltal stöðunnar)
@@ -1026,10 +1080,44 @@ export function priceFloors(players) {
   return f;
 }
 
-/* `perGw`: [{ gw, squad: [{ id, starter }] }] — liðið EINS OG ÞAÐ VERÐUR
-   í hverri umferð, með plönuðum skiptum og bekkjar-víxlum þegar komið.
-   Skilar þeim sem BYRJA ALDREI, fæstu byrjanir fyrst.                  */
-export function neverStarted({ perGw = [], byId = {}, floors = {} } = {}) {
+/* ============================================================
+   HVE OFT VAR HANN I XI-INU — TALA, EKKI JA/NEI (20.8.2026)
+   ============================================================
+   `perGw`: [{ gw, squad: [{ id, starter }] }] — hopurinn EINS OG HANN VAR
+   i hverri umferd. Fra 20.8. er glugginn AFTURABAK (sja `unusedPlan` i
+   App.jsx), svo thetta er saga og ekki spa.
+
+   HET `neverStarted` OG SVARADI JA/NEI. Notandinn: „Thegar horft er til
+   baka Never in your XI, teldu tha hversu oft vidkomandi er i XI. Ballard
+   t.d. kannski bara 1x eda eitthvad". Hann hefur rett fyrir ser og thad er
+   ekki smekksatridi: `starts === 0` er KLETTUR a versta stad. Madur sem
+   var i XI-inu EINU SINNI af atta er nanast jafn seljanlegur og sa sem var
+   thad aldrei — og hann var OSYNILEGUR. Talan gerir bordann lika gagnlegan
+   FYRR: „0 af 2" segir naest ekkert, „1 af 3" segir eitthvad.
+
+   HEITID FYLGDI MERKINGUNNI. `neverStarted` var ord sem lygdi um sitt eigid
+   svar um leid og talan kom (sbr. `ZONE_IS` -> `ZONE_LABEL` og „Start rate"
+   sem var VILLANDI, ekki bara stutt).
+
+   HVAD TELUR SEM „I XI-INU": `s.starter` — uppstillingin sem APPID heldur,
+   thad er ad segja „eg valdi hann i byrjunarlidid". ThAD ER ASETT OG ThAD
+   ER EKKI ThAD SAMA og „hann spiladi": vara-innkoma (autosub) er hvergi i
+   thessum gognum og appid a enga heimild um hana per umferd. Bordinn segir
+   thvi „in your XI", ekki „played".
+
+   NEFNARINN ER UMFERDIRNAR SEM HANN VAR I HOPNUM (`r.gws.size`), ekki
+   gluggin. Madur sem var keyptur i GW4 af glugganum GW1-6 var ekki
+   valanlegur i GW1-3, svo „0 af 6" vaeri osatt um hann; „0 af 3" er satt.
+   Fyrir thann sem er i hopnum allan gluggann eru thessar tolur ThAER SOMU.
+
+   `maxShare` OG `maxRows` ERU UI-AFMARKANIR, EKKI LIKAN — eins og
+   `MIN_WINDOW`/`MAX_WINDOWS` i `buywindow.js` og verdthakid i
+   `rotation.js`. Ekkert i FFDR, `rankScore` ne vaentum stigum les thau.
+   1/3 er ThAR SEM LISTINN STOPPAR a skjanum; TALAN A HVERRI ROD er
+   upplysingin og lesandinn dæmir sjalfur.
+   Radad EFTIR NOTKUN UPP (faestar byrjanir fyrst), svo fe.             */
+export function rarelyStarted({ perGw = [], byId = {}, floors = {},
+                                maxShare = 1 / 3, maxRows = 5 } = {}) {
   if (!Array.isArray(perGw) || !perGw.length) return [];
   const last = perGw[perGw.length - 1];
   const lastIds = new Set((last?.squad || []).map(s => s?.id).filter(v => v != null));
@@ -1051,7 +1139,6 @@ export function neverStarted({ perGw = [], byId = {}, floors = {} } = {}) {
   }
   const out = [];
   for (const r of seen.values()) {
-    if (r.starts > 0) continue;
     /* VIDMIDID ER SIDASTA UMFERD GLUGGANS, EKKI FULL THEKJA.
        Gamla reglan (`gws < perGw.length` -> sleppa) atti ad utiloka thann
        sem er A FORUM, en hun utilokadi lika thann sem er AD KOMA — og
@@ -1063,6 +1150,10 @@ export function neverStarted({ perGw = [], byId = {}, floors = {} } = {}) {
        vitnisburdur um "aldrei").                                       */
     if (!lastIds.has(r.id)) continue;
     if (r.gws.size < 2) continue;
+    /* UI-AFMORKUNIN (sja hausinn): hann er nefndur adeins ef hann var i
+       XI-inu i ThRIDJUNGI umferdanna eda sjaldnar. `>` og ekki `>=` svo
+       „2 af 6" komist inn — nakvaemlega thridjungur er enn sjaldan.    */
+    if (r.starts > r.gws.size * maxShare) continue;
     const p = byId[r.id];
     if (!p) continue;
     const price = Number(p.now_cost);
@@ -1074,8 +1165,11 @@ export function neverStarted({ perGw = [], byId = {}, floors = {} } = {}) {
        hennar vaeri abendingin "losar £0,0", tillaga an tilgangs.        */
     if (floor == null) continue;
     if (price <= floor) continue;   // odyrasti bekkjarmadur: ekkert losnar
-    out.push({ id: r.id, gws: r.gws.size, starts: 0, freesTenths: price - floor });
+    out.push({ id: r.id, gws: r.gws.size, starts: r.starts, freesTenths: price - floor });
   }
-  /* Mest fe fyrst — thad er staerdin sem akvordunin snyst um.           */
-  return out.sort((a, b) => b.freesTenths - a.freesTenths || a.id - b.id);
+  /* MINNST NOTADUR FYRST — thad er spurningin sem bordinn svarar. Fe er
+     onnur rod (og var su fyrsta medan svarid var ja/nei).               */
+  return out
+    .sort((a, b) => a.starts - b.starts || b.freesTenths - a.freesTenths || a.id - b.id)
+    .slice(0, maxRows);
 }

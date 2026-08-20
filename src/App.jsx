@@ -26,11 +26,11 @@ import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk } from "./availabilit
 import { Crest, PlayerImg, Kit, crestUrl, photoUrl, CREST_FALLBACK } from "./Crest.jsx";
 import FfdrTable from "./FfdrTable.jsx";
 import { buildTeamMetrics } from "./teamstats.js";
-import { buildRecommendations } from "./recommend.js";
+import { buildRecommendations, swapCandidates } from "./recommend.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
-  makeFixDifficulty, computeTransferCost, expPointsFor, priceMovePrediction,
-  cleanSheetProb, rankScore, eloStale, parseEntryId, neverStarted, priceFloors,
+  makeFixDifficulty, computeTransferCost, isInitialSquadPick, expPointsFor, priceMovePrediction,
+  cleanSheetProb, rankScore, eloStale, parseEntryId, rarelyStarted, priceFloors,
   intlBreaks, euroWeeks, euroTeams, compLabel } from "./model.js";
 
 /* ============================================================
@@ -912,6 +912,16 @@ export default function App() {
   const spRanks = useMemo(() => setPieceRanks(players || []), [players]);
   const seasonStarted = !!events?.some(e => e.finished);
   const seasonGames = (events || []).filter(e => e.finished).length;
+  /* ---- EIN KLUKKA, EKKI FJORAR ----
+     „Er umferd g byrjud?" er sama spurning og `preSeason` svarar fyrir
+     GW1, og hun a ad hafa EITT svar. Fresturinn er profsteinninn (ekki
+     `finished`): umferd sem er I GANGI hefur setta uppstillingu, og hun
+     er thad sem „hef eg verid ad nota hann?" les.
+     `preSeason` nedar er nu skilgreind UT FRA thessu falli.             */
+  const deadlinePassed = useCallback(g => {
+    const e = (events || []).find(x => x.id === g);
+    return e?.deadline_time ? Date.now() >= new Date(e.deadline_time).getTime() : false;
+  }, [events]);
 
   const byId = useMemo(() => {
     const m = {}; (players || []).forEach(p => m[p.id] = p);
@@ -1219,7 +1229,13 @@ export default function App() {
      var nákvæmlega þetta — afritið skrifaði NaN fyrir öll 17 liðin og
      merkti það `src:"e0"` eins og það væri mæling, meðan frumritið var
      alltaf rétt. Bæði `squadAt` og áætlunar-skönnunin lesa nú þetta.   */
-  const squadForGw = useCallback(g => {
+  /* `withArrangement = false` sleppir BEKKJAR-VIXLUNUM en heldur skiptunum.
+     ThAD ER EKKI SNYRTING: „hefur hann stillt upp fyrir thessa umferd?"
+     er spurning um UPPSTILLINGU, og GW1-valin breyta ID-um i sömu SAETUM.
+     Adur var svarid fundid med thvi ad bera byrjunarlidid vid `START_SQUAD`
+     — svo hopur sem hann var BUINN AD VELJA i GW1 mældist sem „hann hefur
+     stillt upp GW3-8", sem er nakvaemlega kaeran (sja `unusedPlan`).     */
+  const squadForGw = useCallback((g, withArrangement = true) => {
     let sq = (squadOverride || START_SQUAD).map(s => ({ ...s }));
     [...plan].sort((a,z) => a.gw - z.gw).forEach(tr => {
       if (tr.gw > g) return;
@@ -1228,53 +1244,145 @@ export default function App() {
       const i = sq.findIndex(s => s.id === tr.outId);
       if (i >= 0) sq[i] = { ...sq[i], id: tr.inId };
     });
-    (benchSwaps[g] || []).forEach(([aId, bId]) => {
-      const ia = sq.findIndex(s => s.id === aId), ib = sq.findIndex(s => s.id === bId);
-      if (ia >= 0 && ib >= 0) {
-        const t = sq[ia].starter; sq[ia] = { ...sq[ia], starter: sq[ib].starter }; sq[ib] = { ...sq[ib], starter: t };
+    /* ============================================================
+       UPPSTILLINGIN ERFIST FRAM — SIDASTI SKYRI LYKILL, EKKI FOLD
+       (20.8.2026)
+       ============================================================
+       Notandinn: „Eg vill ad gameweek se auto eins og gameweek var a
+       undan, nema eg se buinn ad breyta einhverju sjalfur."
+
+       ADUR: lykkjan hér fyrir ofan foldar SKIPTIN (`tr.gw <= g`) en
+       bekkjar-vixlin lasu ADEINS `benchSwaps[g]` — eina umferd. GW5
+       opnadist thvi eins og GRUNNHOPURINN, ekki eins og GW4, svo
+       bekkjar-breyting i GW2 „gufadi upp" i GW3.
+
+       FYRSTA LAGFAERINGIN VAR FOLD (`benchSwaps[1..g]` lagt saman) OG HUN
+       VAR HAETTULEG. Undir GAMLA merkingunni var EINA leidin til ad hafa
+       mann a bekknum i GW1-6 ad skra SOMU vixlin i allar sex umferdirnar
+       — og fold gerir sex eins faerslur ad VIXLARA:
+         6 eins faerslur   OLD bbbbbb   FOLD bSbSbS
+       Notandinn hefdi thvi opnad appid i lid sem hann valdi aldrei. Og
+       tvibendan er OLEYSANLEG: `{1:[[A,B]], 2:[[A,B]]}` er BAEDI gamalt
+       „a bekknum badar umferdir" OG nytt „a bekkinn i GW1, TIL BAKA i
+       GW2" — sama gildi, tvaer merkingar, og blobbid ber engan stimpil.
+       Engin sameiningar-regla getur greint thau; su sem verdur sem
+       „gamalt" EYDIR visvitandi vixlara, og su sem verdur sem „nytt"
+       eydir lidinu hans. `data/` laeknar sig i naestu sokn, en blobbid
+       „er i vafranum og fer hvergi".
+
+       ThVI ER REGLAN: SIDASTI SKYRI LYKILL <= g, LAGDUR A GRUNNINN.
+       Umferd sem HEFUR lykil er thvi BYTE-EINS og hun var; adeins
+       LYKILLAUSAR umferdir breytast, og their voru einmitt kaeran (thaer
+       fellu i grunnhopinn). ENGIN SKYR AKVORDUN NOTANDANS ER
+       ENDURTULKUD — og thess vegna tharf ENGA sameiningu, engan stimpil
+       og enga agiskun.
+
+       MAELT A FJORUM BLOB-GERDUM (`decide.mjs`, umferd sem HEFUR lykil):
+         gerd                sidasti-lykill   fold
+         6 eins faerslur     OBREYTT          ENDURTULKUD
+         1 faersla           OBREYTT          OBREYTT
+         gluffa {1,3}        OBREYTT          ENDURTULKUD
+         visvitandi vixlari  OBREYTT          ENDURTULKUD
+       4/4 a moti 1/4. Og jafngildid sem beðið var um fæst FRITT:
+       `{1..6:[[A,B]]}` og `{1:[[A,B]]}` gefa BADAR `bbbbbb`.
+
+       TOM FYLKING TELST EKKI SKYR LYKILL: undir gomlu merkingunni gaf
+       `[]` grunninn — nakvaemlega thad sama sem VANTANDI lykill gaf — svo
+       hun ber engan greinanlegan asetning, og stok tom fylking ur
+       skemmdu blobbi mundi ella FRYSTA grunn-uppstillinguna um allt
+       tímabilid.
+
+       EKKERT ER MATERIALISERAD VID LESTUR. Ad skrifa uppstillingu GW5 inn
+       i `benchSwaps` thegar hann bara SKODAR GW5 vaeri ad breyta lestri i
+       ritun og gera spurninguna „hefur hann breytt einhverju?"
+       OSVARANLEGA. Vid RITUN saedir `swapStarterBench` hins vegar
+       umferdina med erfda listanum — sja thar; an thess vaeri hans eina
+       vixl lagt a GRUNNINN i stad thess ad leggjast a thad sem hann sa.
+
+       VISTADA GERDIN ER OHREYFD: `benchSwaps` er afram hlutur AF FYLKJUM
+       af PORUM, `fpl_planner_v3` afram sami lykill.
+       Vordur: `initial-squad.mjs` kafli H (kedjan, afturkollunin,
+       jafngildid baðar leidir, og ad ENGU se skrifad vid flakk).       */
+    if (withArrangement) {
+      /* `Array.isArray` OG `.length`: `benchSwaps` kemur ur `localStorage`
+         og `{"1":"x"}` er gildur hlutur sem fellur a `.forEach`
+         (CLAUDE.md kafli 8). `objOfArr` i `loadState` ver thetta thegar,
+         en hér er lykla-svidid skannad ALLT (1..g) og ekki einn lykill,
+         svo thad ma ekki treysta a thad.                              */
+      let k = 0;
+      for (let j = 1; j <= g; j++) {
+        const l = benchSwaps[j];
+        if (Array.isArray(l) && l.length > 0) k = j;
       }
-    });
+      if (k) benchSwaps[k].forEach(pair => {
+        if (!Array.isArray(pair)) return;
+        const [aId, bId] = pair;
+        const ia = sq.findIndex(s => s.id === aId), ib = sq.findIndex(s => s.id === bId);
+        if (ia >= 0 && ib >= 0) {
+          const t = sq[ia].starter; sq[ia] = { ...sq[ia], starter: sq[ib].starter }; sq[ib] = { ...sq[ib], starter: t };
+        }
+      });
+    }
     return sq;
   }, [plan, benchSwaps, squadOverride, fhGws]);
 
   /* ---------- Lið í valdri umferð ---------- */
   const squadAt = useMemo(() => squadForGw(gw), [squadForGw, gw]);
 
-  /* ---------- „ÞÚ NOTAR HANN ALDREI" ----------
-     Skannar áætlunina fram í tímann og finnur þá sem KOMAST ALDREI í
-     byrjunarliðið. Reglan sjálf (og verðgólfs-undantekningin, sem er
-     kjarni hennar) býr í `model.js` svo prófin keyri sama kóða og skjárinn.
-     GLUGGINN ER 6 UMFERÐIR — það er það sem notandinn stillir upp — og
-     ÞRJÁR ERU LÁGMARK: „aldrei" um eina umferð er ekki upplýsing.      */
-  const unusedPlan = useMemo(() => {
-    const to = Math.min(gw + 5, maxGw);
-    const gws = [];
-    for (let g = gw; g <= to; g++) gws.push({ gw: g, squad: squadForGw(g) });
-    if (gws.length < 3) return { rows: [], from: gw, to };
-    /* AÐEINS ÞEGAR NOTANDINN HEFUR RAUNVERULEGA PLANAÐ EITTHVAÐ.
-       Án þessa væri ábendingin sjálfgefin: ósnertur bekkur „byrjar aldrei"
-       í hverri umferð, svo appið hefði bent á sölu áður en notandinn gerði
-       nokkuð — og fullyrðingin „þú ætlar aldrei að spila honum" væri þá
-       ekki hans ákvörðun heldur sjálfgefna stillingin.
+  /* ============================================================
+     „ThU HEFUR EKKERT VERID AD NOTA HANN" — HORFT AFTURABAK (20.8.2026)
+     ============================================================
+     Notandinn: „Thad vaeri sniduugra ad horfa afturabak, i theirri
+     gameweek sem eg er, og segja: thu hefur ekkert verid ad nota thennan
+     leikmann eda thessa leikmenn."
 
-       HLIÐIÐ VAR OF ÓDÝRT OG ÞAÐ VAR MÆLT (18.8.2026). Áður nægði að EIN
-       bekkjar-víxl-færsla væri til í einni umferð. Þá dugðu bæði
-       `[[411,411]]` (víxl við sjálfan sig, sannanleg núll-aðgerð) og
-       `[[999998,999999]]` (id sem eru hvergi til) til að borðinn segði
-       „You have planned 6 gameweeks" þegar notandinn hafði plantað engu.
-       Nú er spurt hvort BYRJUNARLIÐIÐ SÉ RAUNVERULEGA ANNAÐ en sjálfgefna
-       uppstillingin — færsla sem breytir engu telst ekki plönun.        */
-    const baseStart = new Set((squadOverride || START_SQUAD)
-      .filter(s => s.starter).map(s => s.id));
-    const changed = gws.some(({ squad }) => {
-      const st = squad.filter(s => s.starter).map(s => s.id);
-      return st.length !== baseStart.size || st.some(id => !baseStart.has(id));
-    });
-    const planned = changed || plan.some(t => t.gw >= gw && t.gw <= to);
-    if (!planned) return { rows: [], from: gw, to, idle: true };
-    return { rows: neverStarted({ perGw: gws, byId, floors: priceFloors(players) }),
-             from: gw, to };
-  }, [squadForGw, gw, maxGw, byId, players, plan, benchSwaps, squadOverride]);
+     ThETTA ER EKKI SNYRTING A GOMLU UTGAFUNNI HELDUR ONNUR SPURNING, OG
+     HUN ER SPURNING SEM MA SVARA. Framvirka utgafan spurdi „hverjir byrja
+     i ENGRI af naestu 6 umferdum eins og thu hefur stillt thaer upp" — og
+     hann hafdi ekki stillt thaer upp. Svarid var thvi um SJALFGEFNU
+     uppstillinguna en setningin eignadi honum hana: omældur FORSENDA i
+     stad omældrar tolu, sama aett og kafli 3 og 8 (og sama aett og `st0%`
+     — nulltala um mann sem atti engar 38 umferdir).
+
+     AFTURABAK ER STADREYND. Umferd sem er byrjud hefur SETTA uppstillingu;
+     hann hafdi thessa ellefu inni og thessa fjora ekki. Villan er thvi
+     FJARLAEGD, ekki vardud — og bonusinn er ad thetta er OHAD erfda-
+     reglunni (`squadForGw`): sagan tharf enga erfd.
+
+     ThRJAR REGLUR:
+       1. GLUGGINN ENDAR I ThEIRRI UMFERD SEM HANN ER I, og aldrei
+          seinna en sidasta umferd sem er BYRJUD. Profsteinninn er
+          `deadlinePassed` — SAMA klukka og `preSeason` (sja thar), ekki
+          fjorda hugmynd um „nuna".
+       2. I FORLEIK ER ThETTA ThOGN. Núll umferdir eru spiladar, svo engin
+          notkunar-saga er til, og fjarvera ma ekki teiknast sem maeling.
+          Fyrsta lesning kemur thvi i GW2 og hun er fyrst gagnleg nokkrum
+          umferdum inn.
+       3. GOLFID ER TVAER UMFERDIR (og `rarelyStarted` krefst thess lika ad
+          hann se i hopnum i sidustu umferd gluggans). EIN umferd ma ekki
+          brennimerkja mann sem „onotadan" — hann gat verid meiddur thá
+          eina viku.
+     ThAKID ER SEX umferdir: nog til ad merkid se raunverulegt, ekki svo
+     langt ad madur sem var seldur i GW2 dragi thad med ser allt tímabilid.
+
+     PENINGA-HLIDIN ER OBREYTT og hun var alltaf MAELD ur hopnum sjalfum:
+     `priceFloors` (odyrasti bekkjarmadur per stodu er ALDREI nefndur, thvi
+     salan losar ekkert fe) og `Array.isArray`-vordurinn i `priceFloors`
+     sem stoppadi hrun a ollu appinu (CLAUDE.md 13).                     */
+  const unusedPlan = useMemo(() => {
+    const HIST_MAX = 6, HIST_MIN = 2;
+    let lastPlayed = 0;
+    for (let g = 1; g <= maxGw; g++) if (deadlinePassed(g)) lastPlayed = g;
+    /* „i theirri gameweek sem eg er" — glugginn fylgir timalinu-valinu, en
+       getur ALDREI nad yfir umferd sem er ekki byrjud.                   */
+    const to = Math.min(gw, lastPlayed);
+    if (to < HIST_MIN) return { rows: [], from: 1, to, played: to, idle: true };
+    const from = Math.max(1, to - (HIST_MAX - 1));
+    const gws = [];
+    for (let g = from; g <= to; g++) gws.push({ gw: g, squad: squadForGw(g) });
+    return { rows: rarelyStarted({ perGw: gws, byId, floors: priceFloors(players) }),
+             from, to, played: gws.length };
+  }, [squadForGw, deadlinePassed, gw, maxGw, byId, players, plan, benchSwaps, squadOverride]);
 
   const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt]);
   /* ThRJAR NAESTU UMFERDIR fyrir spjaldid — fylking PER UMFERD (tom = auð,
@@ -1295,7 +1403,16 @@ export default function App() {
     return m;
   }, [lineups]);
   const officialIds = useMemo(() => new Set((squadOverride || START_SQUAD).map(s => s.id)), [squadOverride]);
-  const plannedIn = useMemo(() => new Set(plan.filter(t => t.gw <= gw).map(t => t.inId)), [plan, gw]);
+  /* GRAENI RAMMINN = „ThESSI MADUR ER NYKOMINN INN". GW1-VALIN ERU EKKI
+     ThAD (20.8.2026). Notandinn: „Thegar eg er kominn i gameweek 2, er enn
+     graenn border utan um kallana, eins og eg hafi verid ad skipta theim
+     ut." `t.gw <= gw` er RETT um skipti (skipti i GW2 sest afram i GW5 —
+     hann er enn nykominn samanborid vid opinbera hopinn) en GW1-valin eru
+     UPPHAFSLIDID og verda aldrei „nykomin". Reglan er EIN og hun er i
+     `model.js` — sja `isInitialSquadPick`, sami predikatinn sem
+     skiptaaetlunin les.                                                  */
+  const plannedIn = useMemo(() => new Set(
+    plan.filter(t => t.gw <= gw && !isInitialSquadPick(t)).map(t => t.inId)), [plan, gw]);
 
   /* ---- KAUPVERÐ ----
      Þrjár sjálfvirkar heimildir, í forgangsröð:
@@ -1494,7 +1611,34 @@ export default function App() {
     if (cnt[1] !== 1 || cnt[2] < 3 || cnt[3] < 2 || cnt[4] < 1 || cnt[2]+cnt[3]+cnt[4] !== 10) {
       flash("Illegal formation (1 GK, 3+ DEF, 2+ MID, 1+ FWD)."); return false;
     }
-    setBenchSwaps(bs => ({ ...bs, [gw]: [...(bs[gw] || []), [aId, bId]] }));
+    /* ============================================================
+       RITUN SAEDIR UMFERDINA MED ERFDA LISTANUM (20.8.2026)
+       ============================================================
+       Listinn i `benchSwaps[g]` er ALLTAF fullur mismunur fra GRUNNINUM
+       fyrir thá umferd — thad er forsenda „sidasti skyri lykill"-reglunnar
+       i `squadForGw`. Vid ritun tharf hann thvi ad HEFJAST a thvi sem
+       notandinn SA a skjanum (erfda uppstillingin), annars vaeri hans eina
+       vixl lagt a grunninn og hin erfdu horfin i sama smelli.
+       `[...own]` gefur NYTT fylki — aldrei sama tilvisun sem onnur umferd
+       ber, annars breytti eitt smell tveimur umferdum.
+       ATH ad thetta er ritun VID ADGERD, ekki vid lestur: ad skrifa vid
+       FLAKK vaeri thad sem gerir „hefur hann breytt einhverju?"
+       osvaranlegt. Vordur: `initial-squad.mjs` kafli H.
+       OG VISVITANDI VIXLARI ER ThVI AFRAM SKRANLEGUR: bekkur i GW1 og TIL
+       BAKA i GW2 verdur `[[A,B],[A,B]]` i GW2 — tvo vixl a grunninn =
+       grunnurinn, sem er nakvaemlega thad sem hann bad um.            */
+    setBenchSwaps(bs => {
+      const mine = Array.isArray(bs[gw]) && bs[gw].length > 0 ? bs[gw] : null;
+      let own = mine;
+      if (!own) {
+        own = [];
+        for (let j = gw - 1; j >= 1; j--) {
+          const l = bs[j];
+          if (Array.isArray(l) && l.length > 0) { own = l; break; }
+        }
+      }
+      return { ...bs, [gw]: [...own, [aId, bId]] };
+    });
       return true;
   }
   /* ---------- ENDURSTILLING ----------
@@ -1502,10 +1646,17 @@ export default function App() {
      Tveggja-skrefa staðfesting því þetta er óafturkræft.                */
   function gwPlanned(g) {
     const tr = plan.filter(t => t.gw === g).length;
-    const bs = (benchSwaps[g] || []).length;
+    /* `bs` ER BOOLEAN, EKKI TALA (20.8.2026). Adur var thad
+       `benchSwaps[g].length` og textinn sagdi „3 bench changes". Eftir ad
+       listinn vard FULLUR MISMUNUR FRA GRUNNINUM (sja `squadForGw`) berr
+       hann lika ERFDU vixlin, svo talan hefdi sagt notandanum ad hann
+       hefdi gert thrjar breytingar i GW4 thegar hann gerdi eina. Tala sem
+       lygur er verri en engin tala (CLAUDE.md 3); spurningin sem lykillinn
+       svarar er JA/NEI: „ber thessi umferd sina EIGIN uppstillingu?"    */
+    const bs = Array.isArray(benchSwaps[g]) && benchSwaps[g].length > 0;
     const chKey = Object.keys(chips).find(k => chips[k] === g);
     const ch = chKey ? (CHIPS[chipSlots.find(x => x.key === chKey)?.name]?.short || "chip") : null;
-    return { tr, bs, ch, any: tr > 0 || bs > 0 || !!ch };
+    return { tr, bs, ch, any: tr > 0 || bs || !!ch };
   }
   function resetGw(g) {
     setPlan(pl => pl.filter(t => t.gw !== g));
@@ -1514,11 +1665,52 @@ export default function App() {
     setSwapSel(null); setSelling(null); setConfirmReset(null);
     flash(interp("GW{0} reset — original squad restored.", [g]));
   }
+  /* ============================================================
+     „reset all planning" EYDDI LIDINU HANS (20.8.2026)
+     ============================================================
+     Notandinn, korter fyrir frest: „Er mer ohaett ad reset all planning,
+     dettur tha starting GW1 lidid ut?" SVARID VAR JA, ThAD DATT UT.
+
+     `setPlan([])` var EYDINGARSKIPUN A HOPNUM. Hopurinn er ekki vistadur
+     sem hopur: hann er `START_SQUAD` (harkodudu 15) PLUS `plan`, og
+     `squadForGw` foldar listann. Ad hreinsa `plan` skilar thvi
+     SJALFGEFNU lidi sem hann valdi aldrei — og gerir thad ThEGJANDI.
+     Tooltip-id sagdi „original squad restored", sem er BOKSTAFLEGA RETT
+     og VILLANDI i somu andra: „original" hljomar eins og HANS lid.
+
+     ThETTA ER FJORDA ANDLIT SOMU VILLU (kostnadurinn, aetlunar-listinn,
+     graeni ramminn, og nu thetta), svo hun er leyst med SAMA predikati og
+     hin thrju — `isInitialSquadPick` — og ekki med fjordu stadbundnu
+     lagfaeringu.
+
+     VALID: UPPHAFSLIDID STENDUR, ADEINS PLONUN FER. Notandinn sagdi thad
+     sjalfur berum orðum: GW1 er lidid hans, GW2+ er plonun. „Reset
+     planning" ma thvi ekki thyda „fleygdu lidinu minu". Vilji hann skipta
+     um mann i upphafslidinu er `✕` a hverri rod i „Starting squad"-
+     kaflanum — EITT val i einu, sem er retta kornastaerdin fyrir
+     adgerd sem er ekki afturkraef.
+
+     FYRIRLIDINN FER EKKI HELDUR — OG EKKI VARAFYRIRLIDINN.
+     `setCaptain(START_CAPTAIN)` setti hann a Haaland (sjalfgefna
+     proflidid) thott notandinn hefdi valid annan, og `setVice(null)`
+     thurrkadi varafyrirlidann. Bædar linur voru samhverfar og bædar voru
+     rangar af SOMU astaedu: bandid er akvordun um LIDID, ekki plonun.
+     Ad halda fyrirlidanum en thurrka varann vaeri halft svar — og tha
+     vaeri setningin „your starting squad is untouched" osonn i somu andra
+     og „as you have them set up" var.
+     ATH hvers vegna thetta lifdi: `captain` er `useState(START_CAPTAIN)`
+     en `vice` er `useState(null)`, svo `setVice(null)` LEIT UT eins og
+     „aftur i sjalfgefid" — sem thad er. Sjalfgefid er samt ekki hans val.
+
+     EFTIR FRESTINN er GW1 saga og verdur ekki breytt, svo reglan gildir
+     tha af ENN sterkari astaedu (og `unlimitedBy === "initial"` segir thad
+     a skjanum). Ein regla, bædar hlidar klukkunnar.
+     Vordur: `initial-squad.mjs` kafli N.                               */
   function resetAll() {
-    setPlan([]); setBenchSwaps({}); setChips({});
-    setCaptain(START_CAPTAIN); setVice(null);
+    setPlan(p => p.filter(isInitialSquadPick));
+    setBenchSwaps({}); setChips({});
     setSwapSel(null); setSelling(null); setConfirmReset(null);
-    flash("All planning reset.");
+    flash("Transfer planning reset — your starting squad is untouched.");
   }
 
   /* TENGING ER NU SANNREYND. `fpl-entry` virkar i forleik (skilar nafni
@@ -1678,6 +1870,67 @@ export default function App() {
      fixByTeamGw, fixDifficulty, spRanks, seasonGames,
      squadIds, formFeat, playerForm]);
 
+  /* ============================================================
+     „OG HVERN AETTI EG AD FA I STADINN?" (20.8.2026)
+     ============================================================
+     Notandinn: „I statsinu sem horfir afturabak vill eg ad recommendi
+     leikmann sem vaeri betra ad hafa i stadinn, einhvern sem a tha
+     thaegilegri leiki thegar thessi a thad ekki".
+
+     ENGIN NY RODUN VAR SMIDUD, OG ThAD ER REGLA OG EKKI LETI. `rankScore`
+     (`model.js`, borid fram af `buildRecommendations` sem `rank`) er MAELDA
+     kaup-rodunin: hun slær bædi eldri adferd appsins og FPL-eigid xP i 5/5
+     timabilum, og `rank-model.mjs` ber orakel-thak sem syn ad hærri tala
+     vaeri LEKI, ekki afrek. Bordinn les hana; hann reiknar ekkert sjalfur.
+     (ATH: SOLU-rodun er `score`, ekki `rank` — maelt OGREINANLEGT,
+     -0,118 CI [-0,328, +0,088]. Thetta er KAUP-tillaga.)
+
+     FJORAR HORDAR SIUR — TILLAGA SEM ER OLOGLEG ER VERRI EN ENGIN:
+       1. SAMA STADA. FPL leyfir ekkert annad.
+       2. RAUNVERULEGA A FJARHAGSAETLUN: SOLUVERD hans (`sellOf` — kaupverd
+          + 50% af hagnadi, NIDURJAFNAD) + banki. EKKI nuverandi verd hans;
+          thad er talan sem notandinn fengi ekki.
+       3. ThRIR-PER-FELAG HELDUR EFTIR SKIPTIN. Salan opnar saeti hja HANS
+          felagi, svo talningin dregur thad fra thegar felagid er hid sama.
+       4. TILTAEKILEIKI: `avail === 0` (FPL segir 0%) er UT, og sa sem hefur
+          ENGAR PL-minutur er lika ut — 195 leikmenn eru i theim flokki og
+          „ohekkt" ma ekki birtast eins og „gott" (sama regla og `st0%`).
+
+     „ThAEGILEGRI LEIKIR" ER PER STODU og hun er EKKI handreiknud hér:
+     `ffdrAvg` kemur ur `buildRecommendations`, sem kallar `fixDifficulty`
+     MED stodunni — varnarmadur og framherji hja sama felagi fá ekki sömu
+     tolu, og thad er einmitt forsendan i kaup-glugga-syninni. Borid er
+     LAEGRA gegn HAERRA (laegri FFDR = thaegilegri).
+     OG DELTAN ER EKKI BIRT SEM STIG: kaup-glugga-vinnan sannadi ad
+     glugga-tala er INNAN leikmanns og getur ekki radad tveimur monnum.
+     Birt er NAFN + VERD, og tooltip-id segir hvadan rodunin kemur.
+
+     EITT EDA TVO nofn per rod — bordinn er thegar thettur og notandinn
+     var ad fjarlaegja texta i allt kvold.                               */
+  const unusedSwaps = useMemo(() => {
+    const out = {};
+    const ranked = recommendations?.rankedByPos || {};
+    const adv = recommendations?.advisorById || {};
+    if (!unusedPlan.rows?.length) return out;
+    const perClub = {};
+    squadAt.forEach(s => { const t = byId[s.id]?.team;
+      if (t != null) perClub[t] = (perClub[t] || 0) + 1; });
+    for (const r of unusedPlan.rows) {
+      const p = byId[r.id];
+      if (!p) continue;
+      const ownFfdr = adv[r.id]?.ffdrAvg;
+      const budget = sellOf(r.id) + Math.round(bank * 10);   // TIUNDIR
+      /* SIURNAR BUA I `swapCandidates` (recommend.js) — HREINT FALL.
+         Their voru HER og voru profadar a raungognum; SJO af atta
+         stokkbreytingum slupppu, thvi toppmennirnir tveir stodust hvort eda
+         er allar siur. Sja hausinn a fallinu.                          */
+      out[r.id] = swapCandidates({
+        ranked: ranked[p.element_type] || [], outP: p, squadIds,
+        perClub, budget, ownFfdr, max: 2 });
+    }
+    return out;
+  }, [unusedPlan, recommendations, squadAt, squadIds, byId, bank, buyPrices]);
+
   /* ---------- Verðbreytingar (raunveruleg gögn) ---------- */
   const priceMovers = useMemo(() => {
     if (!players) return { up:[], down:[] };
@@ -1697,7 +1950,10 @@ export default function App() {
      rennur út. Kaupverð læsist því EKKI fyrr en þá — 50%-hagnaðarreglan er
      óviðkomandi á meðan (enginn hagnaður til að deila).                     */
   const gw1Deadline = events?.find(e => e.id === 1)?.deadline_time || null;
-  const preSeason = gw1Deadline ? new Date() < new Date(gw1Deadline) : false;
+  // SAMA KLUKKA og `deadlinePassed` (skilgreind ofar) — ekki tvo svor vid
+  // sömu spurningu. `gw1Deadline ? … : false` heldur gomlu merkingunni:
+  // vantandi frestur er EKKI forleikur.
+  const preSeason = gw1Deadline ? !deadlinePassed(1) : false;
   /* HVAÐAN eru uppsöfnuðu tölurnar? Fyrir tímabil: allar frá SÍÐASTA
      tímabili (t.d. "2025/26"), reiknað úr GW1-frestinum svo merkið sé
      alltaf rétt ártal. Eftir að umferðir klárast: "GW1–N". Þetta merki
@@ -1739,6 +1995,13 @@ export default function App() {
   }
   // Nettó ávinningur skipta: vænt stig inn − út yfir sjóndeildarhring, mínus
   // refsing. FH-skipti gilda AÐEINS í sinni umferð — ávinningurinn líka.
+  /* ÁÆTLUNIN SKIPTIST Í TVENNT OG SKILYRÐIÐ ER EITT (sjá `isInitialSquadPick`
+     í model.js). Venjuleg gildi, ekki hook: `plan` er þegar state og þetta
+     eru tvær síur á honum — enginn hook-röð til að rugla.                */
+  const gw1Picks = plan.filter(isInitialSquadPick);
+  const planMoves = plan.filter(t => !isInitialSquadPick(t));
+
+  // Nettó ávinningur skipta — sjá athugasemdina fyrir ofan.
   function transferNet(tr, horizon = 5) {
     const h = fhGws.has(tr.gw) ? 1 : horizon;
     let gain = 0;
@@ -1811,18 +2074,19 @@ export default function App() {
     if (!players || !fixtures) return {};
     const out = {};
     for (let g = 1; g <= maxGw; g++) {
-      // lið í þeirri umferð (með plönuðum skiptum)
-      let sq = (squadOverride || START_SQUAD).map(x => ({ ...x }));
-      [...plan].sort((a, z) => a.gw - z.gw).forEach(tr => {
-        if (tr.gw > g) return;
-        if (fhGws.has(tr.gw) && tr.gw !== g) return;   // FH gildir eina umferð
-        const i = sq.findIndex(x => x.id === tr.outId);
-        if (i >= 0) sq[i] = { ...sq[i], id: tr.inId };
-      });
-      (benchSwaps[g] || []).forEach(([aId, bId]) => {
-        const ia = sq.findIndex(x => x.id === aId), ib = sq.findIndex(x => x.id === bId);
-        if (ia >= 0 && ib >= 0) { const t = sq[ia].starter; sq[ia] = { ...sq[ia], starter: sq[ib].starter }; sq[ib] = { ...sq[ib], starter: t }; }
-      });
+      /* ThRIDJA AFRITID AF UPPSTILLINGAR-LYKKJUNNI VAR HER — OG ThAD LIFDI
+         ATHUGASEMDINA SEM SEGIR AD ThAU SEU HORFIN (lagad 20.8.2026).
+         Athugasemdin vid `squadForGw` segir „Bædi `squadAt` og
+         aetlunar-skonnunin lesa nu thetta" — en `chipValue` bar sitt eigid
+         afrit, ord fyrir ord. Thad var meinlaust svo lengi sem regla
+         thess var SAMA; um leid og uppstillingin fór ad ERFAST hefdi
+         `chipValue.bboost` summad ANNAN bekk en vollurinn syndi — tvær
+         tolur um sama bekk, hvor ur sinni utfærslu. Nakvaemlega
+         `buildTeamMetrics`-atvikid (CLAUDE.md kafli 7).
+         `squadForGw(g)` skilar NYJUM hlutum i hverju kalli (`.map(s => ({...s}))`
+         + `{...sq[i]}`), svo hér er ekkert sameiginlegt astand ad
+         yfirskrifa — sama afrit-semantik og `[...squadAt]` a vellinum.  */
+      const sq = squadForGw(g);
       const bb = sq.filter(x => !x.starter).reduce((a, x) => a + expPoints(x.id, g), 0);
       const capIn = sq.some(x => x.id === captain && x.starter);
       const tc = capIn ? expPoints(captain, g) : 0;   // auka 1x ofan á venjuleg 2x
@@ -1834,7 +2098,11 @@ export default function App() {
        var reiknad med FYRIR-odds/fyrir-Elo thyngd og uppfaerdist ekki fyrr
        en eitthvad OSKYLT breyttist. Chip-akvordun er dyr — hun a ad lesa
        somu FFDR og allt annad a skjanum.                                */
-  }, [players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, fixDifficulty, fhGws]);
+    // `squadForGw` I DEPS — hann BER nu `plan`/`benchSwaps`/`squadOverride`/
+    // `fhGws`, en their eru latnir standa: eftirlitid (`react-hooks/exhaustive
+    // -deps`) er ekki i keyrslu hér og skra sem missir hann thegjandi er
+    // versta utkoman (sbr. `fixDifficulty`-atvikid i athugasemdinni ofar).
+  }, [squadForGw, players, fixtures, plan, benchSwaps, squadOverride, captain, maxGw, byId, fixByTeamGw, fixDifficulty, fhGws]);
 
   // besta umferð fyrir hvert chip innan gildistíma
   const bestGwFor = (name, from, to) => {
@@ -2096,7 +2364,7 @@ export default function App() {
             if (!pl.any) return null;
             const what = [
               pl.tr ? interp("{0} transfers", [pl.tr]) : null,
-              pl.bs ? interp(pl.bs > 1 ? "{0} bench changes" : "{0} bench change", [pl.bs]) : null,
+              pl.bs ? "its own line-up" : null,
               pl.ch,
             ].filter(Boolean).join(" · ");
             return confirmReset === "gw" ? (
@@ -2235,7 +2503,12 @@ export default function App() {
               <div style={S.benchLabel}>{"Bench"}</div>
               {bbActive ? (
                 <div style={S.bbNote}>
-                  {"Bench Boost — all 15 score, so the whole squad is on the pitch. The lighter cards are your bench."}
+                  {/* „The lighter cards are your bench" VAR OSONN UM ThAU
+                      SPJOLD SEM VORU RAUNVERULEGA LJOSARI: thau tvo voru
+                      solu-abendingar (`opacity 0.62`), en bekkjar-skugginn
+                      var 13 i RGB og sast ekki. Setningin bendir nu a
+                      MERKID sem er sannanlega thar (`pcBench`).          */}
+                  {"Bench Boost — all 15 score, so the whole squad is on the pitch. The four cards marked BENCH are your bench."}
                 </div>
               ) : (
               <div style={S.pitchRowFlex}>
@@ -2263,8 +2536,11 @@ export default function App() {
           </div>
           {/* HINN DALKURINN: LEIKIR UMFERDARINNAR, OG UNDIR THEIM
               "Never in your XI" (beidni notandans 20.8.2026). `S.side`
-              (flex-suila, gap 12) var thegar til fyrir nakvaemlega thetta. */}
-          <div style={S.side}>
+              `S.pitchSide` (flex-suila, gap 12, LIMD) er fyrir nakvaemlega
+              thetta — sja langa athugasemdina vid `gfWrap` i appStyles.js:
+              limingin VAR a leikjakassanum sjalfum og malaði thvi ofan a
+              „Never in your XI" um leid og hann fekk systkini. */}
+          <div className="pitch-side" style={S.pitchSide}>
           {/* LEIKIR UMFERÐARINNAR — við hliðina á vellinum */}
           <GwFixtureList gw={gw} fixtures={fixtures} teamById={teamById}
             weatherByFx={weatherByFx} travelByFx={travelByFx} liveByFx={liveByFx}
@@ -2275,15 +2551,31 @@ export default function App() {
               er staðreynd um plönunina („þú ætlar aldrei að spila honum"),
               ekki mat á leikmanninum, og hún er orðuð þannig. Ódýrasti
               bekkjarmaðurinn er ALDREI hér — hann á að sitja og salan
-              losar ekkert fé (sjá `neverStarted` í model.js).            */}
+              losar ekkert fé (sjá `rarelyStarted` í model.js).            */}
           {unusedPlan.rows.length > 0 && (
             <div style={{ ...S.card, borderColor:C.amber }}>
               <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:4 }}>
-                {"Never in your XI — GW"}{unusedPlan.from}–{unusedPlan.to}
+                {"Not been in your XI — GW"}{unusedPlan.from}–{unusedPlan.to}
               </div>
+              {/* ============================================================
+                  SETNINGIN VERDUR AD PASSA VID ThAD SEM VAR REIKNAD
+                  ============================================================
+                  „Looking at the NEXT 6 gameweeks as you have them set up"
+                  var fullyrding um akvardanir sem voru ekki til. Nu er
+                  hun um umferdir sem ERU BYRJADAR — stadreynd, ekki spa.
+                  TALAN I SETNINGUNNI ER `unusedPlan.played`, sami teljari
+                  sem gluggin var byggd ur, ekki endurreiknud tala i JSX:
+                  „4-10 and never reach 1" i `SetPieces.jsx` var einmitt
+                  fost tala um lifandi gogn og hun urelltist thegjandi.
+                  Sidari setningin (verdgolfin) er MAELD ur hopnum sjalfum
+                  (`priceFloors`) og stendur obreytt.                     */}
               <div style={{ ...S.muted, marginBottom:6 }}>
-                {"Looking at the next "}{unusedPlan.to - unusedPlan.from + 1}
-                {" gameweeks as you have them set up, these players start in none of them. Selling one frees the money shown — the cheapest bench player at each position is left out, because nothing cheaper exists."}
+                {interp(unusedPlan.played === 1
+                  ? "Looking back at the {0} gameweek up to GW{1}, you had these players in your XI in none of them."
+                  : "Looking back at the {0} gameweeks up to GW{1}, you had these players in your XI in none of them.",
+                  [unusedPlan.played, unusedPlan.to])}
+                {" "}
+                {"Selling one saves the amount shown — the cheapest bench player at each position is left out, because nothing cheaper exists."}
               </div>
               {/* ============================================================
                   UPPSETNINGIN VAR BROTIN OG ORSOKIN VAR EIN TALA (20.8.2026)
@@ -2315,11 +2607,48 @@ export default function App() {
                     <span style={S.srcName}
                       onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>
                     <span style={S.srcMeta}>{teamById[p.team]?.short} · £{(p.now_cost/10).toFixed(1)}</span>
-                    <span style={{ flex:1 }} />
-                    <span style={S.srcFrees}>
-                      {"frees up to £"}{(r.freesTenths/10).toFixed(1)}</span>
-                    <button style={S.dBtn} onClick={() => { setSelling(p.id); setSearchQ(""); }}>
-                      {"Replace"}</button>
+                    {/* TALAN SEM BEDIN VAR: „Ballard t.d. kannski bara 1x".
+                        NEFNARINN ER MED — bert „1x" segir ekki AF HVERJU
+                        thad er 1x, og tala a skjanum an grunns er einmitt
+                        „4-10 and never reach 1"-bilunin (CLAUDE.md 8).
+                        Nefnarinn er umferdirnar sem hann var I HOPNUM (sja
+                        `rarelyStarted`), thvi madur sem var keyptur i midjum
+                        glugga var ekki valanlegur i theim fyrri.          */}
+                    <span style={S.srcUse}
+                      title={interp("You picked him in your XI in {0} of the {1} gameweeks he was in your squad. This counts your XI, not autosubs.", [r.starts, r.gws])}>
+                      {r.starts}{" of "}{r.gws}{" in XI"}</span>
+                    {/* TALAN OG HNAPPURINN ERU EIN OSKIPTANLEG BLOKK — sja
+                        `srcAct` i appStyles.js. Ekki `<span style={{flex:1}}/>`
+                        + tvo laus holf: thad var uppsetningin sem let
+                        „Replace" fara UT FYRIR kassann a longsta nafninu. */}
+                    <span style={S.srcAct}>
+                      <span style={S.srcFrees}>
+                        {"Save £"}{(r.freesTenths/10).toFixed(1)}</span>
+                      <button style={S.dBtn} onClick={() => { setSelling(p.id); setSearchQ(""); }}>
+                        {"Replace"}</button>
+                    </span>
+                    {/* SKIPTA-TILLAGAN — sja `unusedSwaps`. Hun ber NAFN og
+                        VERD og enga delta-tolu: mismunur i leikjathyngd er
+                        ekki stig, og ad birta hann sem stig var einmitt
+                        villan sem kaup-glugga-vinnan felldi. Rodin ber
+                        `flexBasis:"100%"` svo tillagan lendi a EIGIN LINU —
+                        rodin er thegar thett og „Replace" for ut fyrir
+                        kassann i gaer af nakvaemlega thessum sokum.       */}
+                    {(unusedSwaps[r.id] || []).length > 0 && (
+                      <span style={S.srcSwap}>
+                        {"Easier fixtures: "}
+                        {unusedSwaps[r.id].map((c, i) => (
+                          <span key={c.p.id}>
+                            {i > 0 ? " · " : ""}
+                            <span style={S.srcSwapName}
+                              onClick={() => setDetail({ kind:"player", id:c.p.id })}
+                              title={"Ranked by the measured buy ranker (rankScore) — same position, affordable from this sale plus your bank, legal under the 3-per-club rule, and easier fixtures than him over the coming gameweeks. Not a points forecast."}>
+                              {c.p.web_name}</span>
+                            {" £"}{(c.p.now_cost/10).toFixed(1)}
+                          </span>
+                        ))}
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -2418,14 +2747,44 @@ export default function App() {
               onPickTeam={id => setDetail({ kind:"team", id })} />
           )}
 
-          {/* Skiptaáætlun (listi — ekki form) */}
+          {/* ============================================================
+              SKIPTAAETLUNIN OG UPPHAFSLIDID ERU TVEIR HLUTIR (20.8.2026)
+              ============================================================
+              Notandinn: „Thetta transfer plan er ekki rett. Er ekki neitt
+              transfer, bara starting lidid mitt".
+
+              HANN HAFDI RETT FYRIR SER OG ThAD VAR EKKI SNYRTI-ATRIDI.
+              I GW1 er ENGINN madur ad fara ut — hann VELUR hop. `out`-hlidin
+              a hverri rod var thvi hver sem HANDAHOFI var i hopnum sem hann
+              byrjadi fra (`START_SQUAD` eda FPL-hopurinn), svo
+              „Dubravka -> Raya +17,7" var Raya maeldur gegn HANDAHOFS-VIDMIDI
+              — birt i sama sniði og raunverulegur skipta-avinningur. Og
+              „net X pts" i hausnum lagdi tiu slikar tolur SAMAN.
+              CLAUDE.md kafli 3: „omaeld tala sem litur ut eins og maeling er
+              versta utkoman — hun er rong OG truverdug."
+
+              SKILYRDID ER `isInitialSquadPick` UR `model.js`, ekki ny
+              `gw === 1`-profun her: sama regla ber kostnadinn
+              (`computeTransferCost`) og graena rammann (`plannedIn`), og
+              thrju afrit af einni reglu er nakvaemlega thad sem
+              `buildTeamMetrics`, `headWidth` og `ZONE_RE` kostudu.
+
+              SETNINGIN er hins vegar tima-had og kemur ur `unlimitedBy`:
+              „preseason" = fresturinn er ekki runninn ut, hann getur enn
+              breytt hopnum · „initial" = GW1 er lidin og ekkert GW1-skipti
+              er mogulegt. Sama tala, tvaer setningar, hvorug lygur.      */}
           {plan.length > 0 && (
             <div style={S.card}>
+              {planMoves.length > 0 && (<>
               <div style={S.recHead}>
                 <h2 style={S.h2}>{"Transfer plan"}</h2>
                 <span style={S.planTotal}>
                   {(() => {
-                    const gain = plan.reduce((a, t) => a + transferNet(t), 0);
+                    /* SUMMAN LES `planMoves`, EKKI `plan`. `totalHits` er
+                       thegar GW1-laus: `computeTransferCost` gefur GW1
+                       `points: 0` an skilyrda (bebd117), svo hann tvitelur
+                       ekki neitt her.                                    */
+                    const gain = planMoves.reduce((a, t) => a + transferNet(t), 0);
                     const net = +(gain + totalHits).toFixed(1);
                     return <span style={{ color: net >= 0 ? C.green : C.red, fontWeight:700 }}>
                       {"net"} {net >= 0 ? "+" : ""}{net} {"pts"}
@@ -2436,22 +2795,38 @@ export default function App() {
               <div style={S.muted}>
                 {"Gain = expected points (points/match + FDR, FPL ep_next for the next gameweek) over 5 gameweeks. The hit is subtracted. An estimate, not a certainty."}
               </div>
+              </>)}
               {/* ENDURSTILLA ALLT — fyrir þegar Wildcard-tilraun er hætt við */}
               <div style={S.resetAllRow}>
                 {confirmReset === "all" ? (
                   <span style={S.resetConfirm}>
-                    {"Clear ALL planning ("}{plan.length} {"transfers,"} {Object.keys(benchSwaps).length} {"gameweeks with bench changes,"} {Object.keys(chips).length} {"chip)?"}
-                    <button style={S.resetYes} onClick={resetAll}>{"yes, everything"}</button>
+                    {/* ============================================================
+                        TEXTINN VERDUR AD TELJA ThAD SEM RAUNVERULEGA FER
+                        ============================================================
+                        „Clear ALL planning (10 transfers …)" taldi
+                        UPPHAFSLIDS-valin med i „transfers" — svo hann sagdi
+                        notandanum ad hann vaeri ad hreinsa skipti medan hann
+                        var ad hreinsa LIDID SITT. Nu telur hann adeins thad
+                        sem `resetAll` fjarlaegir, og segir BERUM ORDUM ad
+                        upphafslidid stendur — thvi „ekkert um X" er ekki
+                        sama og „X er oruggt" fyrir thann sem er ad thora
+                        ad yta a hnappinn.                                */}
+                    {"Clear transfer planning ("}{planMoves.length} {"transfers,"}
+                    {" "}{Object.keys(benchSwaps).length} {"gameweeks with their own line-up,"} {Object.keys(chips).length} {"chip)?"}
+                    {gw1Picks.length > 0
+                      ? interp(" Your starting squad ({0} GW1 picks) is NOT touched.", [gw1Picks.length])
+                      : ""}
+                    <button style={S.resetYes} onClick={resetAll}>{"yes, clear planning"}</button>
                     <button style={S.resetNo} onClick={() => setConfirmReset(null)}>{"no"}</button>
                   </span>
                 ) : (
                   <button style={S.resetBtn} onClick={() => setConfirmReset("all")}
-                    title={"Clear every transfer, bench change and chip — original squad restored"}>
-                    {"↺ reset all planning"}
+                    title={"Clear every planned transfer, line-up change and chip from GW2 onward. Your GW1 starting squad and captain are NOT touched — remove a GW1 pick with its own ✕."}>
+                    {"↺ reset transfer planning"}
                   </button>
                 )}
               </div>
-              {[...plan].sort((a,z) => a.gw - z.gw).map((t,i) => {
+              {[...planMoves].sort((a,z) => a.gw - z.gw).map((t,i) => {
                 const gain = transferNet(t);
                 const tc = transferCost[t.gw];
                 // refsing deilist á skiptin í þeirri umferð
@@ -2483,6 +2858,59 @@ export default function App() {
                   </div>
                 );
               })}
+              {/* ============================================================
+                  UPPHAFSLIDID — SYNILEGT OG AFTURKALLANLEGT, EN EKKI SKIPTI
+                  ============================================================
+                  HVERS VEGNA ER ThETTA HER OG EKKI HORFID: hann tharf ad
+                  sja hvad hann valdi og geta tekid thad til baka. `✕` kallar
+                  NAKVAEMLEGA sama `removeTransfer(plan.indexOf(t))` og adur —
+                  vistada gerdin er OHREYFD (`{gw,outId,inId}`), thetta er
+                  birting og engu odru.
+
+                  EIN TALA OG HUN ER UM MANNINN SEM KEMUR INN EINAN:
+                  `expPoints(t.inId, 1)` — hans eigin vaentu stig i GW1, sama
+                  tala og spjaldid a vellinum ber (`ep=`), merkt „ep" og AN
+                  formerkis. Delta gegn `outId` er thad sem ma ekki vera
+                  hérna: `outId` er handahofs-madurinn ur grunnhopnum.
+                  `out`-nafnid er samt SYNT — grátt og med orðunum „in place
+                  of" — thvi hann tharf ad geta pardad rodina vid vollinn;
+                  thad sem laug var SNIDID (raudur -> graenn med delta), ekki
+                  tilvist upplysingarinnar.
+                  Vantar leikmanninn (`byId` skilar undefined) -> ENGIN tala,
+                  ekki 0: NULL ER EKKI NULL (kafli 8).                    */}
+              {gw1Picks.length > 0 && (<>
+                <div style={{ ...S.planSecHead, ...(planMoves.length ? {} : S.planSecFirst) }}>
+                  <h2 style={S.h2}>{"Starting squad"}</h2>
+                  <span style={S.planSecTag}>{"GW1 — not transfers"}</span>
+                </div>
+                <div style={S.muted}>
+                  {transferCost[1]?.unlimitedBy === "initial"
+                    ? "GW1 has kicked off, so these are locked — no GW1 transfer exists. They are your opening squad, not moves, so there is no gain to show against an outgoing player and no hit."
+                    : "These are the players you picked for your opening squad. Picking a squad is free and unlimited until the GW1 deadline, so there is no hit — and no gain either, because nobody is being sold. The figure is each player's own expected points in GW1."}
+                </div>
+                {[...gw1Picks].map((t, i) => {
+                  const inP = byId[t.inId];
+                  const ep = inP ? expPoints(t.inId, 1) : null;
+                  return (
+                    /* SAMI STODUGI LYKILL og a skipta-rodunum — eyding ur
+                       MIDJUM listanum faerir visitolur og React endurnytti
+                       thá rangan hnut.                                    */
+                    <div key={`i${t.gw}:${t.outId ?? t.out}:${t.inId ?? t.in}:${i}`} style={S.planItem}>
+                      <span style={S.planGw}>GW{t.gw}</span>
+                      <span style={{ flex:1, minWidth:0 }}>
+                        <span style={{ color:C.green, fontWeight:600 }}>{inP?.web_name}</span>
+                        {byId[t.outId] &&
+                          <span style={S.planSecTag}>{" in place of "}{byId[t.outId]?.web_name}</span>}
+                      </span>
+                      <span style={S.planPickEp}
+                        title={"His OWN expected points in GW1 (minutes + FFDR + form). Not a comparison with anyone — in GW1 nobody is being sold."}>
+                        {ep == null ? "—" : `ep ${ep.toFixed(1)}`}
+                      </span>
+                      <button style={S.rm} onClick={() => removeTransfer(plan.indexOf(t))}>✕</button>
+                    </div>
+                  );
+                })}
+              </>)}
             </div>
           )}
         </div>
@@ -2968,6 +3396,12 @@ export default function App() {
                  ofan telur hann LIFANDI i vafranum (2,7 dagar). Tvaer
                  tolur um sama hlut, sin med hvoru svari, er verra en ein. */
               prediction_ledger: "Prediction ledger",
+              /* SAMA GAT, SAMA KVOLD (20.8.2026): `record("preseason", …)`
+                 var skrifud a disk en `SHOW` er STRANGUR hvitlisti, svo
+                 lidin — RAUD LINA MED — hefdi verid synd ENGUM. Sama og
+                 `prediction_ledger`/`elo_age` 16.8. Vordur:
+                 `tests/preseason.mjs` kafli K.                          */
+              preseason:      "Preseason friendlies",
               /* ARKIVID VERDUR AD SJAST ThOTT ENGINN LESI ThAD.
                  `odds_raw` skrifar hratt Odds-API-svar i dagsetta skra
                  (kafli 7 / SCHEMA). Appid les hana ALDREI — en einmitt
@@ -3137,7 +3571,7 @@ export default function App() {
                     <DStat k="ClubElo" v={e ? Math.round(e.elo) : "—"} sub={e ? `rank ${e.rank}` : "not matched"} />
                     <DStat k={"xG / match"} v={tm.xg90 ?? "—"} />
                     <DStat k="xGC / 90" v={tm.xgc90 ?? "—"} sub={"lower is better"} />
-                    <DStat k={"DefCon opportunity"} v={dcv ? dcv.defcon_opportunity : "—"} sub={"higher = more CBIT"} />
+                    <DStat k={"DefCon opportunity"} v={dcv?.defcon_opportunity ?? "—"} sub={"higher = more CBIT"} />
                   </div>
                 </>
               )}
@@ -3747,7 +4181,20 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
       style={{
         ...S.pCard, ...(bench ? S.pCardBench : {}),
         borderTop: `3px solid ${POS_COLOR[p.element_type]}`,
-        opacity: dragging ? 0.4 : (isSellHint ? 0.62 : 1),
+        /* `isSellHint` DOFNADI SPJALDID ADUR (`opacity: 0.62`) OG ThAD VAR
+           ORSOK TVEGGJA KAERA (20.8.2026): „thad eru bara 2 kort sem eru
+           lighter — ekki 4" og „Somu mennirnir hanga gegnsaeir eda grair,
+           thegar eg set tha a bekk i gameweek 2".
+           `recommend.js:330` er `sorted.slice(0, 2)` — ALLTAF nakvaemlega
+           tveir menn, og hun les EKKI umferdina sem er skodud, svo doufnunin
+           gat hvorki verid 4 ne fylgt bekkjar-valinu. Hun var auk thess
+           sterkasta doufnunin a vellinum og bar ENGA skyringu, svo hun las
+           eins og bekkur og bekkjar-skyringin (13 i RGB, sja `pCardBench`)
+           drukknadi undir henni.
+           Tillagan sjalf er obreytt — hun er nu MERKI i `sigRow` (`sigSell`)
+           eins og hvert annad merki a spjaldinu. Adeins DRAG heldur
+           doufnun, og hun er sjalfskyrd (hun stendur i 200 ms).         */
+        opacity: dragging ? 0.4 : 1,
         /* HRINGUR UM SPJALDID thegar madurinn er EKKI til leiks. Merkid eitt
            er 15px og drukknar innan um myndina; hringurinn sest a einu
            augabragdi yfir allan vollinn. `inset` svo hann breyti ekki
@@ -3883,6 +4330,18 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
         </div>
       )}
       <div style={S.sigRow}>
+        {/* BEKKUR — ORDID, EKKI SKUGGINN (20.8.2026). `pCardBench` gaf 13 i
+            RGB a torfi og var thvi „sama sem ekkert merki"; i BB-umferd eru
+            bekkjarmennirnir A VELLINUM og tha er stadan a skjanum ekki
+            lengur visbendingin. Texti getur ekki rekist a graena/fjolublaa/
+            blaa merkingu (kafli 8) — thad er allur punkturinn.
+            Merkid er a BADUM stodum (bekkjar-rodin og vollurinn i BB): ein
+            regla, `bench`, og engin auka-eiginleiki sem gæti rekid i sundur
+            vid stilinn sem hann a ad fylgja.                            */}
+        {bench && <span style={S.pcBench}
+          title={"On your bench for this gameweek — he only scores if a starter does not play (or with Bench Boost)"}>{"BENCH"}</span>}
+        {isSellHint && <span style={S.sigSell}
+          title={"Lowest-ranked player in your squad by the sell model — a suggestion, not a verdict"}>{"SELL?"}</span>}
         {/* FOST LEIKATRIDI ERU EKKI A SPJALDINU (fjarlaegt 29.7. ad bedni
             notanda). Spjaldid er clamp(62px, 17.5%, 100px) breitt og thessi
             ikon-rod (viti + aukaspyrna + horn) trod merkjarodina svo
@@ -3965,7 +4424,12 @@ function RecCard({ r, team, teamById, dc, elo, csFor, diffOf, range, onAdd }) {
             chips.push(["CS expectation", vals.length
               ? `${Math.round(vals.reduce((a, v) => a + v, 0) / vals.length)}%` : "—",
               "Average clean-sheet probability over the range — for the TEAM. The player only gets the points if he plays 60+ mins."]);
-            if (dc) chips.push(["DC", dc.defcon_opportunity,
+            /* `dc?.defcon_opportunity` ER NU `null` (lagfaering 20.8.2026 —
+               adur tilbuid 57 a ollum 20 lidum), og `dc &&` profar UMBUDIRNAR
+               en ekki GILDID: rodin var thvi „DC" med ekkert eftir.
+               NULL ER EKKI NULL og thad birtist sem gratt „—" (kafli 8);
+               „DC" eitt er sama tvibendan, bara hljodlatari.            */
+            if (dc) chips.push(["DC", dc.defcon_opportunity ?? "—",
               "The team's DefCon opportunity — higher = more defensive actions on offer"]);
           }
           if (elo) chips.push(["Elo", Math.round(elo.elo), "The team's ClubElo strength"]);

@@ -26,6 +26,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
+import { playedEvents } from "./lib/played-events.mjs";
 
 let pass = 0, fail = 0;
 const ok = (c, n, x = "") => { c ? (pass++, console.log(`  ✓ ${n}`))
@@ -220,9 +221,18 @@ console.log("\n--- B. BENCH BOOST: 15 SPJOLD ---");
   ok(wrapOk, "hver rod er `flex-wrap: wrap` — wrap, ekki clip");
 
   /* BEKKJARMENN A VELLINUM HALDA `pCardBench` — annars taepast
-     vitneskjan "hverjir eru XI-in".                                    */
-  const lighter = onPitch(v).filter(c => /rgba\(255,\s*255,\s*255,\s*0?\.94\)/.test(c.getAttribute("style") || ""));
+     vitneskjan "hverjir eru XI-in".
+     ALFANN FOR UR 0,94 I 0,74 (20.8.2026): 0,94 gaf ADEINS 13 i RGB a
+     torfi og notandinn sa thvi ENGAN mun ("thad eru bara 2 kort sem eru
+     lighter"). Thresholdur repo-sins er >= 20 (CLAUDE.md 3). Talan
+     sjalf er MAELD i `initial-squad.mjs` kafla F; hér er adeins TALIN.  */
+  const lighter = onPitch(v).filter(c => /rgba\(255,\s*255,\s*255,\s*0?\.74\)/.test(c.getAttribute("style") || ""));
   ok(lighter.length === 4, `fjorir bekkjarmenn eru enn adgreindir (ljosari) (${lighter.length})`);
+  /* OG MERKID — thad er thad sem gerir bekkinn otvirædan. Litur getur
+     rekist a annan lit; ord getur ekki.                                */
+  const tagged = onPitch(v).filter(c => [...c.querySelectorAll("span")]
+    .some(x => (x.textContent || "").trim() === "BENCH"));
+  ok(tagged.length === 4, `og fjogur bera BENCH-merkid (${tagged.length})`);
 
   ok(/all 15 score/.test(v.text()), "bekkjar-bordinn SEGIR hvers vegna hann er tomur");
   ok(!NANRE.test(v.text()), "ekkert NaN/undefined i BB-umferd");
@@ -360,14 +370,21 @@ console.log("\n--- E. VERDBREYTINGAR ---");
 /* ============================================================
    F. "Never in your XI" — UNDIR FIXTURES, OG JOFNUNIN
    ============================================================
-   Bordinn kviknar adeins med RAUNVERULEGRI planun (sja
-   `planner-idle.mjs`), svo bekkjar-vixl i ollum sex umferdunum er
-   FORSENDA hers kafla, ekki skraut.                                    */
+   Bordinn HORFIR AFTURABAK fra 20.8.2026 og er thvi ThOGULL i forleik
+   (sja `unusedPlan` i App.jsx). TVAER forsendur thurfa thvi ad standa hér:
+   TIMINN (umferdir 1-4 byrjadar — `tests/lib/played-events.mjs`) og
+   PLANUNIN (Haaland a bekknum, annars er hann i XI-inu og enginn er
+   "onotadur"). Vantadi timinn vaeri hver fullyrding hér graen af RANGRI
+   astaedu; thess vegna er hun MAELD i fyrstu linu kaflans.              */
 console.log("\n--- F. 'Never in your XI' ---");
 {
-  const bs = {}; for (let g = 1; g <= 6; g++) bs[g] = [[411, 321]];
-  const v = await mount({ captain: 411, benchSwaps: bs });
-  ok(/Never in your XI/.test(v.text()), "forsenda: bordinn birtist");
+  /* EIN FAERSLA, EKKI SEX: uppstillingin ERFIST nu fram (`squadForGw`
+     foldar 1..g), svo sex eins faerslur toggla i stad thess ad safnast. */
+  const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED });
+  ok(/Not been in your XI/.test(v.text()), "forsenda: bordinn birtist");
+  ok(/Looking back at the 4 gameweeks up to GW4/.test(v.text()),
+     "og hann segir AFTURABAK hve margar umferdir hann las — talan er fjoldinn sjalfur");
 
   /* KASSINN SJALFUR, EKKI HAUS-DIVID OG EKKI DALKURINN UTAN UM HANN.
      Fyrsta utgafa profsins tok `banner.parentElement` — sem er SIDE-
@@ -378,7 +395,7 @@ console.log("\n--- F. 'Never in your XI' ---");
      tolurnar — hausinn einn ber thaer ekki, dalkurinn byrjar a "Fixtures". */
   const card = v.q("div").find(d => {
     const t = (d.textContent || "").trim();
-    return /^Never in your XI/.test(t) && /frees up to £/.test(t);
+    return /^Not been in your XI/.test(t) && /Save £/.test(t);
   });
   ok(!!card, "forsenda: bordinn er ratanlegur i DOM-inum");
 
@@ -401,12 +418,16 @@ console.log("\n--- F. 'Never in your XI' ---");
   const rows = v.q("div").filter(d => {
     const s = (d.getAttribute("style") || "").replace(/\s/g, "");
     return /align-items:center/.test(s) && /^[A-Z]/.test((d.textContent || "").trim())
-      && /frees up to £/.test(d.textContent || "");
+      && /Save £/.test(d.textContent || "");
   });
   ok(rows.length >= 1, `forsenda: minst ein leikmanna-rod i bordanum (${rows.length})`);
   let bad = [];
+  /* ALLIR AFKOMENDUR, EKKI ADEINS BEIN BORN (20.8.2026): `srcFrees` situr
+     nu inni i `srcAct` (blokkin sem heldur tolu+hnappi saman svo hnappurinn
+     fari ekki ut fyrir kassann). Med `r.children` einum hefdi vordurinn
+     haett ad sja holfid sem hann var skrifadur fyrir — thogul thekju-tap. */
   for (const r of rows)
-    for (const cell of [...r.children]) {
+    for (const cell of [r.querySelectorAll("*")].flatMap(n => [...n])) {
       const s = (cell.getAttribute("style") || "").replace(/\s/g, "");
       const m = s.match(/margin-bottom:([^;]+)/);
       if (m && !/^0(px)?$/.test(m[1])) bad.push(`${cell.tagName}:${m[1]}`);
@@ -418,7 +439,7 @@ console.log("\n--- F. 'Never in your XI' ---");
      tom ef holfin baeru engan `style` yfirleitt.                        */
   const styled = rows[0] ? [...rows[0].children].filter(c => (c.getAttribute("style") || "").length > 0).length : 0;
   ok(styled >= 4, `forsenda: holfin bera raunverulega stil (${styled} af ${rows[0] ? rows[0].children.length : 0})`);
-  ok(/frees up to £/.test(v.text()), "og talan um losad fe stendur");
+  ok(/Save £/.test(v.text()), "og talan um losad fe stendur");
   ok(!NANRE.test(v.text()), "ekkert NaN i bordanum");
 }
 

@@ -17,7 +17,7 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   gwSpans, intlBreaks, euroWeeks, euroTeams, BREAK_MIN_DAYS, compLabel, COMP_EN } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
 import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, availForKickoff, parseEntryId,
-         eloStale, parseReturn, neverStarted, priceFloors } from "../src/model.js";
+         eloStale, parseReturn, rarelyStarted, priceFloors } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -802,14 +802,14 @@ console.log(`\n${"─".repeat(72)}\nMARKADS-LYKKJAN: OHEMJULEG LINA MA EKKI HENG
 }
 
 /* ============================================================
-   "ThU NOTAR HANN ALDREI" — neverStarted + priceFloors
+   "ThU NOTAR HANN ALDREI" — rarelyStarted + priceFloors
 
    Reglan sem SKIPTIR MALI er UNDANTEKNINGIN: odyrasti bekkjarmadurinn A ad
    sitja og ma ALDREI vera flaggadur, thvi salan losar ekkert fe. Profid er
    thvi TVIHLIDA i hverjum kafla — annars vaeri "0 flogg" graent af thvi ad
    fallid flaggar aldrei neitt.
    ============================================================ */
-console.log("\n=== ThU NOTAR HANN ALDREI (neverStarted) ===");
+console.log("\n=== ThU NOTAR HANN ALDREI (rarelyStarted) ===");
 {
   const P = [
     { id:1, element_type:2, now_cost:40 },   // odyrasti DEF — GOLF
@@ -827,7 +827,7 @@ console.log("\n=== ThU NOTAR HANN ALDREI (neverStarted) ===");
 
   const sq = st => P.map(p => ({ id:p.id, starter: st.includes(p.id) }));
   const perGw = [5,6,7,8,9,10].map(gw => ({ gw, squad: sq([5]) }));
-  const res = neverStarted({ perGw, byId, floors });
+  const res = rarelyStarted({ perGw, byId, floors });
   const ids = res.map(r => r.id);
 
   ok(ids.length > 0, `forsenda: eitthvad er flaggad (${ids.length})`);
@@ -839,15 +839,35 @@ console.log("\n=== ThU NOTAR HANN ALDREI (neverStarted) ===");
   eq(res[0].id, 4, "sa sem losar MEST fe kemur fyrstur (£9,0 -> golf £4,5)");
   eq(res[0].freesTenths, 45, "losad fe = verd - golf, i tiundum");
 
-  /* EIN BYRJUN NAEGIR TIL AD FALLA UT — "aldrei" tydir aldrei. */
+  /* ============================================================
+     EIN BYRJUN FELLDI HANN UT — NU BER HANN TOLUNA 1 (20.8.2026)
+     ============================================================
+     Fullyrdingin hér var "ein byrjun i einni umferd og hann er EKKI lengur
+     'aldrei notadur'", og hun var RETT um `neverStarted`. Notandinn bad um
+     TALNINGU: „teldu tha hversu oft vidkomandi er i XI. Ballard t.d.
+     kannski bara 1x eda eitthvad." Madur sem var i XI-inu EINU SINNI af
+     sex er nanast jafn seljanlegur og sa sem var thad aldrei — og
+     `starts === 0` var klettur a versta stad.
+     Fullyrdingin SNYST ThVI VID, og hun er ekki slakari: hun bindur
+     TOLUNA (1) og NEFNARANN (6), sem gamla ja/nei-utgafan gat ekki.   */
   const perGw2 = perGw.map((x,i) => i === 3 ? { ...x, squad: sq([5,2]) } : x);
-  ok(!neverStarted({ perGw2: null, perGw: perGw2, byId, floors }).some(r => r.id === 2),
-     "ein byrjun i einni umferd og hann er EKKI lengur 'aldrei notadur'");
+  const r2 = rarelyStarted({ perGw: perGw2, byId, floors }).find(r => r.id === 2);
+  ok(!!r2, "ein byrjun af sex -> hann er ENN nefndur (var osynilegur adur)");
+  eq(r2?.starts, 1, "og talan er 1");
+  eq(r2?.gws, 6, "af sex umferdum sem hann var i hopnum");
+  /* OG ThAKID: TVAER byrjanir af sex er nakvaemlega thridjungur og telst
+     enn sjaldan; ThRJAR er yfir og fellur ut. `>` og ekki `>=`.        */
+  const twoOf6 = perGw.map((x,i) => i < 2 ? { ...x, squad: sq([5,2]) } : x);
+  ok(rarelyStarted({ perGw: twoOf6, byId, floors }).some(r => r.id === 2),
+     "tvaer af sex (nakvaemlega thridjungur) -> afram nefndur");
+  const threeOf6 = perGw.map((x,i) => i < 3 ? { ...x, squad: sq([5,2]) } : x);
+  ok(!rarelyStarted({ perGw: threeOf6, byId, floors }).some(r => r.id === 2),
+     "ThRJAR af sex -> yfir UI-afmorkuninni, ekki nefndur");
 
   /* SA SEM ER SELDUR I MIDRI AAETLUN ER EKKI FLAGGADUR — hann er a forum. */
   const perGw3 = perGw.map((x,i) => i < 2 ? x
     : { ...x, squad: x.squad.filter(s => s.id !== 4) });
-  ok(!neverStarted({ perGw: perGw3, byId, floors }).some(r => r.id === 4),
+  ok(!rarelyStarted({ perGw: perGw3, byId, floors }).some(r => r.id === 4),
      "leikmadur sem hverfur ur hopnum i midri aaetlun er ekki flaggadur");
 
   /* ---- HERT 18.8.2026 eftir andstaedu-profun ----------------------- */
@@ -858,7 +878,7 @@ console.log("\n=== ThU NOTAR HANN ALDREI (neverStarted) ===");
      bekkur var flaggad, NAKVAEMLEGA somu kaup i GW2 voru THOGN.        */
   const arrive = [5,6,7,8,9,10].map((gw,i) => ({ gw,
     squad: i === 0 ? [{id:5,starter:true}] : [{id:5,starter:true},{id:4,starter:false}] }));
-  ok(neverStarted({ perGw: arrive, byId, floors }).some(r => r.id === 4),
+  ok(rarelyStarted({ perGw: arrive, byId, floors }).some(r => r.id === 4),
      "keyptur i 2. umferd gluggans og aldrei spilad -> FLAGGADUR");
 
   /* SA SEM ER SELDUR I LOK GLUGGANS ER ThAD EKKI — og tvitekin id-
@@ -868,12 +888,12 @@ console.log("\n=== ThU NOTAR HANN ALDREI (neverStarted) ===");
   const sold = [5,6,7,8,9,10].map((gw,i) => ({ gw,
     squad: i >= 4 ? [{id:5,starter:true}]
                   : [{id:5,starter:true},{id:4,starter:false},{id:4,starter:false}] }));
-  ok(!neverStarted({ perGw: sold, byId, floors }).some(r => r.id === 4),
+  ok(!rarelyStarted({ perGw: sold, byId, floors }).some(r => r.id === 4),
      "seldur fyrir lok gluggans -> EKKI flaggadur (tvitekid id bjargar honum ekki)");
 
   /* OMAELD TALA FAER ENGA ABENDINGU — "frees up to £NaN" var a skjanum. */
   const junk = { ...byId, 9: { id:9, element_type:3, now_cost:"mikid" } };
-  const jr = neverStarted({ perGw: [5,6,7].map(gw=>({gw,squad:[{id:9,starter:false},{id:5,starter:true}]})),
+  const jr = rarelyStarted({ perGw: [5,6,7].map(gw=>({gw,squad:[{id:9,starter:false},{id:5,starter:true}]})),
                             byId: junk, floors });
   ok(jr.every(r => Number.isFinite(r.freesTenths)), "ekkert NaN i freesTenths");
   ok(!jr.some(r => r.id === 9), "leikmadur med ruslverd er ekki flaggadur");
@@ -891,16 +911,16 @@ console.log("\n=== ThU NOTAR HANN ALDREI (neverStarted) ===");
      61 safninu. Reglan sjalf byr her: tveggja-umferda vera er lagmark, og
      glugga-lagmarkid er profad ThAR SEM ThAD ER TEKID.                */
   const twoGw = [5,6].map(gw => ({ gw, squad: sq([5]) }));
-  ok(neverStarted({ perGw: twoGw, byId, floors }).some(r => r.id === 4),
+  ok(rarelyStarted({ perGw: twoGw, byId, floors }).some(r => r.id === 4),
      "tveggja umferda vera DUGAR i modelinu (glugga-lagmarkid er i App.jsx)");
   const oneGw = [{ gw: 5, squad: sq([5]) }];
-  ok(!neverStarted({ perGw: oneGw, byId, floors }).length,
+  ok(!rarelyStarted({ perGw: oneGw, byId, floors }).length,
      "EIN umferd flaggar engan — 'aldrei' um eina umferd er ekki vitnisburdur");
 
   /* TOM AAETLUN SEGIR EKKERT — hun ma ekki flagga ollum. */
-  eq(neverStarted({ perGw: [], byId, floors }).length, 0, "tom aaetlun -> ekkert flagg");
+  eq(rarelyStarted({ perGw: [], byId, floors }).length, 0, "tom aaetlun -> ekkert flagg");
   /* Og an golfs (tom laug) ma hun ekki hrynja. */
-  ok(Array.isArray(neverStarted({ perGw, byId, floors: {} })), "tomt golf hrynur ekki");
+  ok(Array.isArray(rarelyStarted({ perGw, byId, floors: {} })), "tomt golf hrynur ekki");
 }
 
 

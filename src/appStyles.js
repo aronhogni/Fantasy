@@ -176,9 +176,31 @@ export const S = {
   ffdrChip: { fontFamily:mono, fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 },
   /* Breiddin kemur úr grid-dálki pitchSplit — flex/minWidth hér áður
      YFIRFLÆDDI 164px dálkinn (leifar frá því þetta var flexbox). */
+  /* ============================================================
+     `position:sticky` VAR HER OG FOR AD MALA OFAN A NAGRANNANN (20.8.2026)
+     ============================================================
+     Notandinn: „Thessi gluggi endar undir fixtures, sja mynd og birtist
+     furdulega". Efsta rodin i „Never in your XI" var klippt — hun sat
+     UNDIR nedri kanti leikjakassans.
+
+     ORSOKIN: `gfWrap` var eina barnid i `S.side` thegar sticky-id var sett
+     a hann. Thegar „Never in your XI" faerdist thangad undir (20.8.) fekk
+     hann SYSTKINI. Sticky-element heldur plassi sinu i flaedi en ThYDIST
+     nidur vid skrun, og thad er `position`-ad svo thad malast OFAN A
+     ostadsett systkini — sem er nakvaemlega thad sem sast.
+     `.gf-wrap { position: static !important }` i styles.css (760px) var
+     hlutalausn fyrir sima og duldi thetta a stórum skjá.
+
+     LAUSNIN ER AD FAERA STICKY-ID UPP A SULUNA SJALFA (`pitchSide`), ekki
+     ad taka thad ut: tha limast BADIR kassarnir sem EIN blokk og geta ekki
+     skarast. Og hun slokknar SJALF a einni sulu — `pitchSide` er
+     grid-atridi, svo innihalds-kassinn er grid-svaedid; i einni sulu er
+     svaedid nakvaemlega jafn hatt og atridid, sem gefur sticky NULL
+     ferdalengd. Engin media query tharf ad muna eftir henni.
+     Vordur: `initial-squad.mjs` kafli G.                                */
   gfWrap: { boxSizing:"border-box", minWidth:0,
     background:C.card, border:`1px solid ${C.border}`, borderRadius:12,
-    padding:"12px 13px", position:"sticky", top:8 },
+    padding:"12px 13px" },
   gfHead: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginBottom:7 },
   gfCount: { fontWeight:400, color:C.text3, letterSpacing:0, marginLeft:"auto" },
   gfDay: { marginTop:7 },
@@ -210,6 +232,12 @@ export const S = {
   // 1280 og leikjalistinn fékk sinn fasta dálk, svo þeir slást ekki um pláss).
   pitchCol: { minWidth:0 },
   side: { display:"flex", flexDirection:"column", gap:12 },
+  /* HINN DALKURINN i `pitchSplit` — leikirnir OG „Never in your XI" sem EIN
+     limd blokk. Ser still og ekki `S.side` med yfirskrift: `S.side` er lika
+     hlidarstika appsins (`.app-side`) og hun a ekkert ad limast.
+     Sja langa athugasemdina vid `gfWrap`.                                */
+  pitchSide: { display:"flex", flexDirection:"column", gap:12, minWidth:0,
+    position:"sticky", top:8 },
 
   capBar: { display:"flex", gap:8, alignItems:"center", marginBottom:9 },
   capBox: { display:"flex", alignItems:"center", gap:6, background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 8px" },
@@ -241,7 +269,51 @@ export const S = {
     border:`1px solid rgba(255,255,255,0.5)`, borderRadius:9, padding:"6px 4px 6px",
     textAlign:"center", cursor:"pointer", boxShadow:"0 2px 6px rgba(0,0,0,0.28)",
     flexShrink:1, minWidth:0 },
-  pCardBench: { background:"rgba(255,255,255,0.94)" },
+  /* ============================================================
+     BEKKJAR-SKUGGINN VAR 13 I RGB — UNDIR ThRESKULDI SEM REPO-ID
+     SETUR SJALFT (maelt 20.8.2026)
+     ============================================================
+     Notandinn: „thad eru bara 2 kort sem eru lighter — ekki 4 eins og
+     aetti ad vera" og „Somu mennirnir hanga gegnsaeir eda grair, thegar
+     eg set tha a bekk i gameweek 2".
+
+     MENGID VAR ALLTAF RETT. `bench={!sq.starter}` les `squadAt` sem er
+     `squadForGw(gw)` og beitir `benchSwaps[gw]` — thad er thegar PER
+     UMFERD, og profid taldi rettilega 4. Thad sem brast var LITURINN:
+       pCard       #ffffff                       -> (255,255,255)
+       pCardBench  rgba(255,255,255,0.94) a torfi (37,107,62)
+                                                 -> (242,246,243)
+       mesta rasa-munur: 13
+     CLAUDE.md kafli 3 setur >= 20 i RGB sem thann mun sem nagrannathrep
+     VERDA ad hafa til ad vera sjonraent adgreind. 13 er thvi „sama sem
+     ekkert merki" — nakvaemlega ikon-lardomurinn i kafla 8: tvo merki sem
+     lita eins ut i raunstaerd eru thad sama og engin merki.
+
+     OG ThVI VAR TALAN TVEIR: spjoldin sem SYNILEGA doufnudu voru doufud af
+     `opacity: 0.62` fra `isSellHint`, og `recommend.js:330` er
+     `sorted.slice(0, 2)` — ALLTAF nakvaemlega tveir, og hun les EKKI
+     umferdina sem er skodud. Thess vegna „hanga somu mennirnir grair"
+     thegar hann bekkjar adra i GW2. Bordinn sagdi „The lighter cards are
+     your bench" um tvo menn sem voru hvorugur a bekknum.
+
+     Nu er skugginn 0,74 -> (198,217,205) a torfi = 57 i RGB, og
+     `pcBench`-merkid ber ORDID. Ordid er thad sem gerir thetta otvirætt:
+     litur getur rekist a annan lit (graenn = i lidinu, ljosfjolublatt =
+     i samanburdi, blatt = valinn dalkur — sja kafla 8), texti getur ekki.
+     Vordur: `initial-squad.mjs` kaflar E og F.                          */
+  pCardBench: { background:"rgba(255,255,255,0.74)" },
+  /* BEKKUR-MERKID. Dokkt, ekki graat: `sigRot` (st%) er graat og thau
+     stæðu hlid vid hlid i sömu rod.                                     */
+  pcBench: { fontFamily:mono, fontSize:7.5, fontWeight:800, letterSpacing:0.4,
+    padding:"1px 3px", borderRadius:3, background:"#2f3a44", color:"#eef2f5" },
+  /* SOLU-ABENDINGIN VAR OMERKT DOFNUN — NU MERKI (20.8.2026).
+     `opacity: 0.62` a spjaldinu var sterkasta sjonraena merkid a vellinum
+     og bar ENGA skyringu, svo thad las eins og bekkur (og felldi thar med
+     bekkjar-skyringuna, sja `pCardBench`). Tillagan sjalf er OBREYTT —
+     `recommendations.sellIds` er sami reikningur — hun er adeins ORDUD nu,
+     eins og hvert annad merki i `sigRow`.                               */
+  sigSell: { fontFamily:mono, fontSize:7.5, fontWeight:700, padding:"1px 3px",
+    borderRadius:3, background:"#fde8e8", color:"#9b1c1c" },
   pcIcons: { position:"absolute", top:2, right:2, display:"flex", gap:2, zIndex:3 },
   /* WRAP, EKKI CLIP (20.8.2026). Rodin ber nu FJOGUR atridi i versta
      tilfelli — i · ↻ · meidsla-merki · C — og spjaldid er adeins
@@ -296,6 +368,18 @@ export const S = {
   planHitVal: { fontFamily:mono, fontSize:10.5, color:C.red, minWidth:22, textAlign:"right" },
   planNet: { fontFamily:mono, fontSize:12, fontWeight:700, minWidth:34, textAlign:"right" },
   rm: { background:"transparent", border:"none", color:C.text3, cursor:"pointer", fontSize:12 },
+  /* UPPHAFSLIDS-KAFLINN i skiptaaetluninni. Ser haus svo „net X pts" og
+     „The hit is subtracted" geti ekki lesist sem fullyrdingar um hann.  */
+  planSecHead: { display:"flex", alignItems:"baseline", gap:7, marginTop:12,
+    paddingTop:9, borderTop:`1px solid ${C.border}` },
+  planSecFirst: { marginTop:0, paddingTop:0, borderTop:"none" },
+  planSecTag: { fontFamily:mono, fontSize:9, textTransform:"uppercase",
+    letterSpacing:0.8, color:C.text3, fontWeight:700 },
+  /* EIN TALA A UPPHAFSLIDS-ROD, OG HUN ER UM MANNINN SEM KEMUR INN EINAN.
+     Grá og med merkimida („ep"), aldrei med formerki: `+` eda `-` laesi
+     eins og delta, sem er nakvaemlega talan sem ma ekki vera thar.      */
+  planPickEp: { fontFamily:mono, fontSize:10.5, color:C.text3, minWidth:46,
+    textAlign:"right" },
 
   chipHalfLbl: { display:"flex", alignItems:"baseline", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginTop:10, paddingTop:6, borderTop:`1px solid ${C.border}` },
   chipExpiry: { fontWeight:400, letterSpacing:0, color:C.text3, marginLeft:"auto", fontSize:9 },
@@ -325,7 +409,8 @@ export const S = {
   rivalDiffLbl: { fontFamily:mono, fontSize:8.5, textTransform:"uppercase", letterSpacing:0.5, color:C.text3, marginRight:2 },
   rivalChip: { fontSize:10.5, fontWeight:600, background:C.cardAlt, border:`1px solid ${C.border}`,
     borderRadius:5, padding:"1px 6px", cursor:"pointer" },
-  srcRow: { display:"flex", alignItems:"center", gap:7, fontSize:11.5, color:C.text2, padding:"3px 0" },
+  srcRow: { display:"flex", alignItems:"center", gap:7, fontSize:11.5, color:C.text2, padding:"3px 0",
+    flexWrap:"wrap", rowGap:3 },
   /* ============================================================
      HOLFIN I `srcRow` BERA **EKKI** `S.muted` (lagad 20.8.2026)
      ============================================================
@@ -339,9 +424,38 @@ export const S = {
      endurritun a JSX-inu og villan kemur thegjandi til baka.
      `lineHeight:1.35` er sama tala i ollum thremur svo grunnlinurnar
      lendi saman — tvaer lineHeight i sama rod eru tvaer linur.        */
-  srcName: { fontWeight:700, cursor:"pointer", lineHeight:1.35, marginBottom:0 },
+  srcName: { fontWeight:700, cursor:"pointer", lineHeight:1.35, marginBottom:0, minWidth:0 },
   srcMeta: { fontSize:11, color:C.text3, lineHeight:1.35, marginBottom:0, whiteSpace:"nowrap" },
   srcFrees: { color:C.amber, fontWeight:700, lineHeight:1.35, marginBottom:0, whiteSpace:"nowrap" },
+  /* ============================================================
+     „Replace"-HNAPPURINN FOR UT FYRIR KASSANN (20.8.2026)
+     ============================================================
+     Notandinn: „einn takkinn fer utfyrir". Rodin var `nowrap` flex med
+     ThREMUR ohreyfanlegum holfum (`srcMeta`, `srcFrees` bera bædi
+     `whiteSpace:"nowrap"`) og einum hnappi. `srcName` hafdi ekkert
+     `minWidth:0`, svo sjalfgefid `min-width:auto` = min-content = LANGSTA
+     ORDID: „Muharemovic" gat ekki skropplad. Summa min-content-breidda
+     for thvi yfir 280px dalkinn og flexbox atti engan ad kreista —
+     yfirflaedid lenti a SIDASTA barninu, hnappnum.
+
+     WRAP, EKKI CLIP (sama regla og `pFix`, `pcIconsL`): rodin ma brotna.
+     `srcAct` heldur tolunni OG hnappnum saman sem EINNI oskiptanlegri
+     blokk (`flexShrink:0`) svo their fari NIDUR i naestu linu SAMAN i stad
+     thess ad hnappurinn slitni fra tolunni sinni. `marginLeft:"auto"` i
+     stad `<span style={{flex:1}}/>`-fyllingar: auto-margin haegri-jafnar
+     blokkina a BADUM linum, medan flex-fylling helst a fyrstu linunni og
+     hefdi skilid hnappinn vinstri-jafnadan eftir i annarri.             */
+  srcAct: { display:"flex", alignItems:"center", gap:7, flexShrink:0,
+    marginLeft:"auto" },
+  /* NOTKUNAR-TALAN. `whiteSpace:nowrap` svo „1 of 6 in XI" brotni ekki i
+     midju; rodin sjalf ma brotna (`srcRow`), holfid ekki.               */
+  srcUse: { fontFamily:mono, fontSize:9.5, color:C.text2, lineHeight:1.35,
+    marginBottom:0, whiteSpace:"nowrap" },
+  /* SKIPTA-TILLAGAN A EIGIN LINU. `flexBasis:"100%"` i wrap-rod thvingar
+     linubrot; `marginBottom:0` af somu astaedu og hin holfin (sja ofar).  */
+  srcSwap: { flexBasis:"100%", minWidth:0, fontSize:10.5, color:C.text3,
+    lineHeight:1.35, marginBottom:0 },
+  srcSwapName: { color:C.green, fontWeight:700, cursor:"pointer" },
   dotErr: { width:6, height:6, borderRadius:"50%", background:C.red, flex:"0 0 6px" },
   dotOk: { width:7, height:7, borderRadius:"50%", background:C.green, flexShrink:0 },
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },
@@ -459,7 +573,9 @@ export const S = {
   recCtl: { display:"flex", gap:6 },
   recBlock: { marginTop:10 },
   recPosLbl: { display:"flex", alignItems:"center", gap:6, fontFamily:mono, fontSize:10.5, textTransform:"uppercase", letterSpacing:0.8, color:C.text2, marginBottom:6 },
-  posDot: { width:8, height:8, borderRadius:"50%" },
+  // `flexShrink:0`: 8px hringur an texta hefur min-content 0 og hefdi
+  // skroppid i EKKERT undir thrystingi i `srcRow` — hann er stodu-liturinn.
+  posDot: { width:8, height:8, borderRadius:"50%", flexShrink:0 },
   recGrid: { display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:8 },
   recCard: { background:C.cardAlt, border:`1px solid ${C.border}`, borderRadius:10, padding:"9px 10px", cursor:"pointer" },
   recTop: { display:"flex", alignItems:"center", gap:8 },

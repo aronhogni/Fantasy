@@ -92,6 +92,38 @@ export function setPieceOf(p, ranks) {
 export function rotationRisk(p, seasonGames) {
   const st = p?.starts;
   if (st == null) return null;
+  /* ============================================================
+     `starts: 0` HJA ThEIM SEM SPILADI ALDREI ER EKKI MAELING (20.8.2026)
+     ============================================================
+     Notandinn sa `st0%` a Tzolis og Sangare. Baðir eru NYIR i deildinni,
+     svo `starts` er 0 af thvi ad their attu enga leiki ad byrja — og
+     appid fullyrti „Started 0 of 38 matches — rotation risk" um mann sem
+     hafdi engar 38 umferdir. Fyrri vordurinn (`st == null`) gat ekki
+     tekid thad: MAELT a `data/players.json` er `starts == null` hja
+     **0 af 595**. FPL geymir raunverulegt `0`, svo vordurinn var TOM
+     fullyrding a lifandi gognum (CLAUDE.md 5b).
+
+     MAELT A COMMITTUDUM GOGNUM (595 leikmenn):
+       starts=0 OG minutes=0   195   (94 kosta >= 5,0m)  -> ENGIN tala
+       starts=0 en raunminutur  35   (Unal 214, Nwaneri 165, Uche 159,
+                                      Nelson 118, J.Fletcher 107)  -> HELDUR
+     Bein staðfesting: **enginn** af 195 hefur minutur (maelt, ekki alyktað).
+
+     ThESS VEGNA TVO SVID OG EKKI EITT: `starts === 0 -> null` hefdi
+     hreinsad 195 tilbunar tolur OG 35 RAUNVERULEGAR maelingar i somu
+     hreyfingu. Fyrir mann med 214 minutur og 0 byrjanir er „byrjadi 0 af
+     38" nakvaemlega thad sem flaggid er til ad segja: hann VAR til leiks
+     og byrjadi samt aldrei. Sama aett og kafli 12: `mins_per_gi` vardi
+     nefnarann en ekki `minutes: 0`, svo Meslier (11 mork / 0 minutur) sat
+     efstur; og fimm `*_per_90` dalkar birtu `0.00` fyrir 164 menn sem
+     spiludu aldrei.
+
+     SKILYRDID ER MINUTUR > 0, ekki „minutes er 0". Vantandi svid er ekki
+     sonnun um natt: NULL ER EKKI NULL i badar attir — hlutfall byrjana er
+     adeins maeling ef til er vitni um ad hann hafi verid til leiks.
+     Vordur: `initial-squad.mjs` kafli D (baðar attir a raungognum).      */
+  const mins = Number(p?.minutes);
+  if (!Number.isFinite(mins) || mins <= 0) return null;
   const prevSeason = !seasonGames;               // engin lokin umferð enn
   const played = prevSeason ? 38 : seasonGames;
   if (!played) return null;

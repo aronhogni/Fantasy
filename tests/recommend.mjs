@@ -81,8 +81,17 @@ function inputs(over = {}) {
    1. TENGING — skorid ma EKKI bua i App.jsx
    ============================================================ */
 console.log("\n1. TENGING");
-ok(/import\s*\{\s*buildRecommendations\s*\}\s*from\s*"\.\/recommend\.js"/.test(APP),
+/* LISTINN MA VAXA — `swapCandidates` bættist vid 20.8.2026 (skipta-tillagan
+   i „Not been in your XI"). Fullyrdingin er ad NAFNID se FLUTT INN thadan,
+   ekki ad thad se EINA nafnid: hun stod adur `\{\s*buildRecommendations\s*\}`
+   og fell a RETTUM koda um leid og annad nafn kom med.                    */
+ok(/import\s*\{[^}]*\bbuildRecommendations\b[^}]*\}\s*from\s*"\.\/recommend\.js"/.test(APP),
    "App.jsx flytur inn buildRecommendations");
+ok(/import\s*\{[^}]*\bswapCandidates\b[^}]*\}\s*from\s*"\.\/recommend\.js"/.test(APP),
+   "og `swapCandidates` — siurnar i skipta-tillogunni bua i hreinu falli, ekki i JSX");
+ok(/export function swapCandidates\(/.test(SRC),
+   "og fallid sjalft er EXPORTAD ur recommend.js");
+ok(!/function swapCandidates/.test(APP), "og App.jsx skilgreinir thad EKKI sjalft");
 ok(!/const\s+scoreOf\s*=/.test(APP), "App.jsx skilgreinir EKKI `scoreOf` sjalft");
 ok(!/^const FIT = \{/m.test(APP), "FIT-taflan er EKKI i App.jsx");
 ok(/export const FIT = \{/.test(SRC), "FIT-taflan ER i recommend.js");
@@ -264,7 +273,7 @@ ok(!/defcon_opportunity/.test(SRC) && !/\bdcOpp\b(?![^\n]*hadin)/.test(SRC.repla
   const a = twinScore(base, { yellow_cards: 4 }), b = twinScore(base, { yellow_cards: 0 });
   ok(a.score === b.score, "gul spjold hreyfa skorid EKKI", `${a.score} = ${b.score}`);
   /* ROTERING: 2 byrjanir af 20 = "high". */
-  ok(rotationRisk({ starts: 2 }, 20)?.level === "high",
+  ok(rotationRisk({ starts: 2, minutes: 300 }, 20)?.level === "high",
      "vidmidid sjalft: 2 byrjanir af 20 GEFA \"high\" roteringar-haettu");
   const c = twinScore(base, { starts: 2 }), d = twinScore(base, { starts: 20 });
   ok(c.score === d.score, "byrjanir hreyfa skorid EKKI", `${c.score} = ${d.score}`);
@@ -319,9 +328,16 @@ console.log("\n6. MAELINGIN — HELDUR HOFNUNIN?");
     const by = {}; for (const q of list) (by[q[H.name]] ||= []).push(q);
     for (const [nm, a] of Object.entries(by)) {
       a.sort((x, y) => x[H.round] - y[H.round]);
-      let yc = 0, st = 0, n = 0;
-      for (const q of a) { cum.set(`${s}|${nm}|${q[H.round]}`, { yc, starts: st, played: n });
-        yc += q[H.yc] || 0; st += (q[H.starts] >= 1 ? 1 : 0); n++; }
+      /* `mins` ER SAFNAD MED — `rotationRisk` krefst thess sidan 20.8.2026
+         (0 byrjanir MED 0 minutum er engin saga, ekki maeling; sja
+         availability.js). AN thess hefdi `rotLevel` ordid "none" a OLLUM
+         126.730 rodum og hofnunar-maelingin i kafla 6 hér ad nedan
+         faerst i tautologiu — graen og innihaldslaus (CLAUDE.md 5b).
+         Talan er RAUNVERULEG ur `fpl_player_gw.json`, ekki afleidd af
+         `starts`: uppsafnadar minutur a undan thessari umferd.          */
+      let yc = 0, st = 0, n = 0, mn = 0;
+      for (const q of a) { cum.set(`${s}|${nm}|${q[H.round]}`, { yc, starts: st, played: n, mins: mn });
+        yc += q[H.yc] || 0; st += (q[H.starts] >= 1 ? 1 : 0); mn += q[H.mins] || 0; n++; }
     }
   }
   const rows = buildPanel();
@@ -329,9 +345,9 @@ console.log("\n6. MAELINGIN — HELDUR HOFNUNIN?");
     let s = 0; for (let k = 0; k < 5; k++) s += ptsAt.get(`${r.season}|${r.name}|${r.round + k}`) ?? 0;
     r.pts5fwd = s;
     r.ep = xpAt.get(`${r.season}|${r.name}|${r.round}`) ?? 0;
-    const c = cum.get(`${r.season}|${r.name}|${r.round}`) || { yc: 0, starts: 0, played: 1 };
+    const c = cum.get(`${r.season}|${r.name}|${r.round}`) || { yc: 0, starts: 0, played: 1, mins: 0 };
     r.banLevel = banRisk({ yellow_cards: c.yc }, r.round, true)?.level ?? "none";
-    r.rotLevel = rotationRisk({ starts: c.starts }, Math.max(1, c.played))?.level ?? "none";
+    r.rotLevel = rotationRisk({ starts: c.starts, minutes: c.mins }, Math.max(1, c.played))?.level ?? "none";
   }
   ok(rows.length > 40000, "panell byggdur", `${rows.length} spiladar radir`);
   /* GRUNNSKORID — FIT-taflan. `r.fdr` ER EKKI TIL a panel-rodum (buildPanel

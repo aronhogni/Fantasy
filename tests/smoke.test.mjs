@@ -98,7 +98,14 @@ const RIVAL_PICKS = [...START_IDS.slice(0, 13), ...outsiders];
    An planadrar planunar A bordinn ad THEGJA — su hlid er profud i
    `tests/planner-idle.mjs` (hun tharf HREINT localStorage og gat thvi ekki
    buid her; athugasemdin sagdi adur 'profad nedar' og ThAD VAR OSATT).                                            */
-const BENCH_ALL = {}; for (let g = 1; g <= 6; g++) BENCH_ALL[g] = [[411, 321]];
+/* EIN FAERSLA, EKKI SEX — UPPSTILLINGIN ERFIST NU (20.8.2026).
+   Adur var `benchSwaps[g]` beitt fyrir EINA umferd, svo "Haaland a bekknum
+   GW1-6" tharfnadist sex eins faerslna. Nu foldar `squadForGw` allar
+   faerslur 1..g, svo sex eins faerslur TOGGLA hann (bekkur, byrjun, bekkur
+   …) og hann vaeri i byrjunarlidinu i GW2/4/6 — bordinn hefdi thagnad af
+   RETTRI astaedu og forsendan hefdi horfid an thess ad neinn taeki eftir.
+   EIN faersla i GW1 er nu ThAD SAMA og adur var meint.                  */
+const BENCH_ALL = { 1: [[411, 321]] };
 dom.window.localStorage.setItem("fpl_planner_v3",
   JSON.stringify({ rivals: [{ id: "909" }], captain: 411, benchSwaps: BENCH_ALL }));
 
@@ -135,49 +142,51 @@ ok(/Bank/.test(text()) && !/£NaN|£undefined/.test(text()), "engin brotin penin
 /* ============================================================
    "ThU NOTAR HANN ALDREI" — bordinn les EINGONGU aaetlun notandans
 
-   Reglan sjalf er i `model.js` (neverStarted) og einingaprofud thar.
+   Reglan sjalf er i `model.js` (rarelyStarted) og einingaprofud thar.
    HER er spurningin hvort hun rati A SKJAINN og hvort UNDANTEKNINGIN
    haldi i raunverulegum gognum: odyrasti bekkjarmadurinn ma ALDREI
    birtast, thvi salan losar ekkert fe.
    ============================================================ */
-console.log("\n=== ThU NOTAR HANN ALDREI ===");
+console.log("\n=== ThU NOTAR HANN ALDREI — SEFUR I FORLEIK ===");
 {
-  const t = text();
-  ok(t.includes("Never in your XI"),
-     "bordinn birtist thegar planad bekkjar-vixl skilur mann eftir");
-  ok(/Never in your XI — GW1–6/.test(t), "glugginn er 6 umferdir og hann segir thad");
-  ok(t.includes("Haaland") && /frees up to £11\.0/.test(t),
-     "nefnir manninn OG hve mikid fe salan losar (£15,5 - golf £4,5)");
-  /* UNDANTEKNINGIN A RAUNGOGNUM: bekkurinn i proflidinu er ALLUR a
-     verdgolfi (Dubravka £4,0 GK, Thomas/Hughes £4,0 DEF, Walle Egeli
-     £4,5 FWD). Enginn theirra ma vera nefndur.
+  /* ============================================================
+     BORDINN HORFIR AFTURABAK FRA 20.8.2026 — OG SEFUR ThVI HER
+     ============================================================
+     Adur spurdi hann „hverjir byrja i ENGRI af naestu 6 umferdum eins og
+     thu hefur stillt thaer upp". Notandinn: „Eg er natturulega ekki buinn
+     ad setja upp thessar gameweeks, thannig ad thetta comment er ekki
+     alveg rett." Setningin eignadi honum uppstillingu sem var sjalfgefin.
+     Nu er spurningin AFTURABAK — „hverja hefur thu EKKI verid ad nota" —
+     og hun er stadreynd um umferdir sem eru byrjadar.
 
-     LEITARSVAEDID ER AFMARKAD, EKKI 400 STAFIR (lagad 18.8.2026).
-     Fyrri utgafa tok `t.slice(idx, idx+400)`. Maelt: bordinn sjalfur er
-     259 stafir og bekkjar-raðirnar (undir stokkbreytingu) enda a 298/337/
-     378 — TUTTUGU OG TVEIR stafir i afgang. Ein rod til vidbotar og
-     `Dubravka` hefdi dottid UT FYRIR gluggann og fullyrdingin ordid graen
-     MED villuna inni. Og i hina attina: 900 stafir na nidur a vollinn,
-     sem telur somu bekkjarmenn upp, svo hun fell a REttum koda.
-     Nu er svaedid tekid ur DOM-inum sjalfum — nakvaemlega thad element
-     sem ber bordann — svo stærd hans skiptir engu mali.               */
-  /* MINNSTA element sem ber BAEDI fyrirsognina OG rod — thad er kassinn
-     sjalfur. Ad taka bara "minnsta sem inniheldur fyrirsognina" gaf
-     fyrirsagnar-divid eitt (24 stafir) og gerdi fullyrdingarnar tomar i
-     hina attina; thess vegna eru BADAR kroefur og staerdin er profud.  */
-  const banner = [...document.querySelectorAll("div")]
-    .filter(el => el.textContent.includes("Never in your XI")
-               && /frees up to £/.test(el.textContent))
-    .sort((a, b) => a.textContent.length - b.textContent.length)[0];
-  ok(!!banner, "bordinn fannst sem afmarkad element i DOM");
-  const seg = banner ? banner.textContent : "";
-  ok(/Never in your XI/.test(seg) && /Haaland/.test(seg) && /frees up to £11\.0/.test(seg),
-     "svaedid ber fyrirsognina OG rodina — ekki tomt, ekki adeins hausinn");
-  ok(seg.length > 120 && seg.length < 1500,
-     `svaedid er bordinn einn (${seg.length} stafir), hvorki brot ne vollurinn`);
-  ok(!/Dubravka|Thomas|Hughes/.test(seg),
-     "ODYRASTI BEKKJARMADUR ER ALDREI NEFNDUR — ekkert odyrara er til");
-  ok(!/frees up to £0\.0/.test(seg), "engin abending sem losar £0,0");
+     I FORLEIK ER SVARID ThVI ThOGN, OG ThAD ER FULLYRDINGIN HER. Sama
+     mynstur og `gw1-checklist.mjs`: safnid sefur i forleik og vaknar vid
+     fyrstu byrjudu umferd. VIRKA hlidin er profud thar sem timinn er
+     TILBUINN: `planner-idle.mjs`, `planner-pitch.mjs` kafli F og
+     `initial-squad.mjs` kafli K — allir gegnum
+     `tests/lib/played-events.mjs`.
+     ============================================================ */
+  const evs = JSON.parse(readFileSync(`${DATA}events.json`, "utf8"));
+  const list = evs.events || evs;
+  const started = list.filter(e => e.deadline_time
+    && Date.now() >= new Date(e.deadline_time).getTime()).length;
+  /* FORSENDAN ER MAELD, EKKI GEFIN SER — og hun VAKNAR sjalf: um leid og
+     GW1-frestur rennur ut (21.8. kl. 17:30) fer thessi lina i else-greinina
+     og fullyrdingarnar snuast vid. Fost forsenda hefdi ordid osonn thegjandi. */
+  if (started === 0) {
+    ok(true, `FORSENDA: engin umferd er byrjud (${started} af ${list.length}) — bordinn A ad thegja`);
+    ok(!text().includes("Not been in your XI"),
+       "og hann ThEGIR — engin notkunar-fullyrding an notkunar-sogu");
+    /* GAMLA OSANNA SETNINGIN MA EKKI VERA A SKJANUM I NEINU ASTANDI.    */
+    ok(!/as you have them set up/.test(text()),
+       "og gamla fullyrdingin 'as you have them set up' er hvergi");
+    ok(!/frees up to/.test(text()), "og gamli merkimidinn 'frees up to' er hvergi");
+  } else {
+    ok(text().includes("Not been in your XI"),
+       `timabilid er byrjad (${started} umferdir) — bordinn A ad birtast`);
+    ok(/Looking back at the \d+ gameweeks? up to GW\d+/.test(text()),
+       "og setningin er AFTURABAK og segir hve margar umferdir hun las");
+  }
 }
 
 console.log("\n=== 3. UMFERÐASKIPTI Á TÍMALÍNU ===");
