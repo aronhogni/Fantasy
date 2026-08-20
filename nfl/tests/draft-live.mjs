@@ -1686,6 +1686,116 @@ console.log("\n17. eitt reit — fjogur form, einn smellur");
   }
 }
 
+/* ============================================================
+   18. SAETI ERFIST ALDREI MILLI DRAFTA — HOPUR ANNARS MANNS
+   ============================================================
+   ÞETTA ER ALVARLEGASTA VILLAN SEM FANNST I VIKUNNI OG HUN VAR THOGUL A
+   VERSTA MOGULEGA HATT: appid syndi notandanum HOP ANNARS MANNS undir
+   heitinu "My team" og gaf sidan rad ut fra honum.
+
+   Hann tengdi nytt mock (KanelGifler, saeti 7) og bordid syndi lid 5 —
+   Daniels, Taylor, Etienne, Walker, Harvey, Price, Love, Metcalf,
+   Pittman, Waddle, Robinson, Henry, Kincaid, Myers, Detroit. I FYRRA
+   mock-inu var hann saeti 5, og `sync` er vistad a DEILDINNI, svo nytt
+   draft i somu deild ERFDI saetid: `slot: slot != null ? slot : sync.slot`.
+
+   ÞRJAR ADRAR VILLUR SEM HANN MELDI SAMA DAG VORU SAMA VILLAN:
+     · "10 WR i rod" — `recommend` fekk hop saetis 5 (sex RB, thunnt i
+       WR), svo hun radlagdi WR eftir WR. Rett svar um RANGAN hop.
+     · "still need K and DST" i 14. umferd — lid 5 tok K i 14.6 og DEF i
+       15.5, svo hopurinn sem var lesinn hafdi RAUNVERULEGA hvorugt.
+     · "radlagdi ADRA vorn" — sama: lid 5 atti enga vorn tha.
+   Fjorar villuskyrslur, ein rot. Þess vegna er thessi kafli fyrstur.
+
+   PROFID FULLYRDIR UM INNIHALD HOPSINS, EKKI UM TOLUNA. Saeti 5 er
+   gilt saeti i 10-lida drafti, svo `slotOk` gat ekki kviknad og
+   "Slot N does not exist" birtist aldrei. Talan 5 var i alla stadi
+   truverdug; thad sem var rangt voru NOFNIN — og thad var thad sem
+   hann sa. Fullyrdingin er thvi i thremur threpum, i thessari rod
+   (CLAUDE.md 5b: neikvaed fullyrding verdur ad nefna streng sem var
+   SANNANLEGA tharna):
+
+     1. saeti 5 i drafti A -> nofn saetis 5 ERU i hopnum   (jakvaed)
+     2. nytt draft B, saeti oleysanlegt -> hopurinn er TOMUR og nofn
+        saetis 5 UR DRAFTI B eru hvergi                    (neikvaed)
+     3. smellt a saeti 7 -> nofn saetis 7 UR DRAFTI B koma inn (jakvaed)
+
+   An threps 3 vaeri kaflinn uppfyllanlegur med saeti sem er ALDREI
+   leyst — sama regla og 16b.                                         */
+console.log("\n18. saeti erfist ekki milli drafta — og hopurinn er ekki annars manns");
+{
+  const MOCK_C_ID = "8888777766665555";
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const root = await boot();
+
+  const myTeamPanel = () => [...document.querySelectorAll(".panel")]
+    .find((p) => /^My team$/.test(p.querySelector("h2")?.textContent || "")) || null;
+  const inMyTeam = (nm) => (myTeamPanel()?.textContent || "").includes(nm);
+
+  /* ---- 1. draft A: saeti 5 valid MED SMELLI, og hopurinn fyllist ---- */
+  await connectAndSync({ slot: 5 });
+  for (let n = 1; n <= 20; n++) pushPick(n);
+  await waitFor(() => draftedOnScreen() === 20, 8000);
+  await settle(250);
+  /* Vol 5 og 16 tilheyra saeti 5 i 10-lida snakki (umferd 2 er andhverf). */
+  const a5 = [POOL[4].name, POOL[15].name];
+  ok(slotOfPick(5).slot === 5 && slotOfPick(16).slot === 5,
+    "vol 5 og 16 eru saetis 5 (sjalfstaed snakk-vorpun)");
+  ok(inMyTeam(a5[0]) && inMyTeam(a5[1]),
+    `draft A: hopurinn ber bædi vol saetis 5 (${a5.join(", ")})`);
+  ok(rosterCount() === 2, `og telur tvo (${rosterCount()})`);
+
+  /* ---- 2. draft B: mock AN deildar OG AN saeta-heimildar ----
+     `draft_order: null` og `slot_to_roster_id: null` — tha getur
+     `resolveSlot` ekkert, og thad er nakvaemlega astandid thar sem gamli
+     kodinn fell i erfda saetid. 10 lid, svo 5 er ENN gilt saeti og
+     ekkert kviknar af sjalfu ser. */
+  live.secondDraft = {
+    draft: { draft_id: MOCK_C_ID, league_id: null, status: "drafting", type: "snake",
+             season: "2026", draft_order: null, slot_to_roster_id: null,
+             metadata: { scoring_type: "ppr" },
+             settings: { teams: TEAMS, rounds: ROUNDS } },
+    picks: [],
+  };
+  for (let n = 1; n <= 20; n++) {
+    const { round, slot } = slotOfPick(n);
+    live.secondDraft.picks.push({ ...mkPick(n, POOL[40 + n]), round, draft_slot: slot });
+  }
+  const b5 = [POOL[45].name, POOL[56].name];      // vol 5 og 16 = saeti 5
+  const b7 = [POOL[47].name, POOL[54].name];      // vol 7 og 14 = saeti 7
+  ok(slotOfPick(7).slot === 7 && slotOfPick(14).slot === 7,
+    "og vol 7 og 14 eru saetis 7");
+
+  await go(MOCK_C_ID, 250);
+  await waitFor(() => draftedOnScreen() === 20, 8000);
+  await settle(300);
+  ok(!inMyTeam(b5[0]) && !inMyTeam(b5[1]),
+    `draft B: hopur SAETIS 5 er hvergi i "My team" (${b5.join(", ")})`);
+  ok(rosterCount() === 0,
+    `og hopurinn er tomur thangad til saetid er sett (${rosterCount()})`);
+  /* MOCK BER ENGAN NOTENDALISTA, svo lidsspjold deildarinnar eru EKKI
+     synd (thau eru ur annarri deild) og tolu-reiturinn kemur i stadinn.
+     Krafan er tviskipt: reiturinn er TOMUR og appid segir hvers vegna. */
+  const slotField = () => [...document.querySelectorAll("label.field")]
+    .find((l) => /Your slot/i.test(l.textContent || ""))?.querySelector("input");
+  ok(slotField() && slotField().value === "",
+    `og saetis-reiturinn er TOMUR, ekki 5 ("${slotField() ? slotField().value : "vantar"}")`);
+  ok(/your seat could not be read/i.test(text()),
+    "og appid segir ad saetid hafi ekki lesist i stad thess ad giska");
+
+  /* ---- 3. og saetid virkar thegar thad er sett ---- */
+  await setInput("Your slot", "7");
+  await settle(300);
+  ok(inMyTeam(b7[0]) && inMyTeam(b7[1]),
+    `smellur a saeti 7 gefur SAETIS 7 hop (${b7.join(", ")})`);
+  ok(!inMyTeam(b5[0]),
+    "og saetis 5 hopur kom ekki med (leidrett saeti hreinsar hitt)");
+  ok(!junk(), `ekkert NaN/undefined a skjanum (${junk() || "-"})`);
+
+  await settle(80);
+  await act(async () => { root.unmount(); });
+}
+
 console.log(`\n(pollunar-bidir styttar: ${pollTicks})`);
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

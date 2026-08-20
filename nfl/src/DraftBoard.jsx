@@ -137,7 +137,12 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
       if (prev === next) return prev;
       if (!prev || !next) return next || null;
       const same = prev.teams === next.teams && prev.rounds === next.rounds
-        && prev.type === next.type && prev.status === next.status;
+        && prev.type === next.type && prev.status === next.status
+        /* NYTT SVID VERDUR AD VERA I SAMANBURDINUM. Vaeri `leagueId`
+           utan hans kaemi hun UPP i fyrstu pollun og aldrei aftur —
+           hlidid sem sparar endurteikningu er lika hlid a
+           upplysingunni (sama villa og `unknown` i `pickSignature`). */
+        && prev.leagueId === next.leagueId;
       return same ? prev : next;
     });
   }, []);
@@ -1200,7 +1205,58 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
 
       const d = bundle.draft;
       const slot = d ? resolveSlot(d, userId, bundle) : null;
-      if (slot != null) setSlotAuto(true);
+      setSlotAuto(slot != null);
+
+      /* ============================================================
+         SAETI ERFIST **ALDREI** MILLI DRAFTA — 20.8.2026
+         ============================================================
+         ÞETTA ER ALVARLEGASTA VILLAN SEM FANNST I VIKUNNI OG HUN SYNDI
+         NOTANDANUM HOP ANNARS MANNS SEM SINN EIGIN.
+
+         Hann tengdi nytt mock (KanelGifler, saeti 7) og bordid syndi
+         honum LID 5: Jayden Daniels, Jonathan Taylor, Etienne, Walker,
+         Harvey, Price, Love, Metcalf, Pittman, Waddle, Robinson, Henry,
+         Kincaid, Myers, Detroit. Nakvaemlega hopur saetis 5 — thvi i
+         FYRRA mock-inu var hann saeti 5.
+
+         Hér stod `slot: slot != null ? slot : sync.slot`. Rokin voru
+         "hann situr venjulega i sama saeti i naesta mock-i" og thau eru
+         ROMG: saetid er EIGINLEIKI DRAFTSINS, ekki stilling a deildinni.
+         `sync` er vistad a DEILDINNI (`entries[].sync`), svo nytt mock i
+         somu deild erfdi saetid — sama aett og `boardScope`-villan
+         (`taken`/`myPicks` voru lyklud a deild, ekki draft) og saetid var
+         einfaldlega ekki flutt med thegar hin voru.
+
+         OG ÞAD ER EKKI EIN VILLA HELDUR FJORAR, ALLAR MELDAR SAMA DAG:
+           · "10 WR i rod" — `recommend` fekk hop SAETIS 5, sem var
+             hlaðinn RB (sex) og thunnur i WR, svo hun radlagdi WR eftir
+             WR. Þad er RETT svar um RANGAN hop; rodin var ekki bilud.
+           · "You have 2 picks left and still need K and DST" — lid 5 tok
+             spyrnumann i 14.6 og vorn i 15.5, svo hopurinn sem appid las
+             hafdi RAUNVERULEGA hvorugt nanast allt draftid.
+           · "radlagdi ADRA vorn i 14.4" — sama: lid 5 atti enga vorn tha.
+           · saetis-vidvorunin ("Slot N does not exist") gat ekki kviknad,
+             thvi 5 er gilt saeti i hvorri staerd sem er.
+
+         SAETI SEM VERDUR EKKI LEYST ER `null`, OG THA ER SPURT. Tomur
+         hopur med spurningu er ekki thaegilegur, en hann LYGUR EKKI —
+         medan erft saeti gerir HVERJA tolu ranga OG synir hop annars
+         manns undir heitinu "My team". Sama regla og `resolveSlot`
+         skilar `null` i stad 1: thogul agiskun er versta utkoman.
+
+         SAMA DRAFT ER UNDANTEKNINGIN og hun er nauðsynleg: eftir F5 er
+         reiturinn forfylltur og einn smellur tengir aftur. Þa er saetid
+         sem er vistad HANS EIGID (hann smellti eda slo thad inn) og ad
+         henda thvi vaeri ad gera innslattarvillu oviðgerdanlega — sama
+         lexia og skilyrdid a saetis-reitnum sjalfum.
+
+         Vordur: `draft-live.mjs` kafli 18, sem fullyrdir um INNIHALD
+         hopsins (nofnin), ekki adeins um toluna — thad var innihaldid
+         sem hann sa.                                                  */
+      const sameDraft = !!(d && d.draft_id && sync && sync.draftId &&
+                           String(sync.draftId) === String(d.draft_id));
+      const keptSlot = slot != null ? slot
+        : (sameDraft && sync.slot != null ? Number(sync.slot) : null);
 
       /* Draft an `league_id` er MOCK-DRAFT (Sleeper skilar thvi an
          deildar). Tha eru engar reglur ad flytja inn — adeins volin —
@@ -1214,7 +1270,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
           imported: res.imported,
           warnings: res.warnings,
           teams: teamList,
-          sync: { draftId: (d && d.draft_id) || "", slot },
+          sync: { draftId: (d && d.draft_id) || "", slot: keptSlot },
         });
         setStatus(d && d.draft_id ? null
           : `Rules imported from ${res.imported.name || "the league"} — ` +
@@ -1228,7 +1284,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
           onLive(D.boardScope(res.imported.leagueId, d.draft_id));
         }
       } else if (d && d.draft_id) {
-        setSync({ draftId: d.draft_id, slot: slot != null ? slot : sync.slot });
+        setSync({ draftId: d.draft_id, slot: keptSlot });
         setStatus(null);
         if (onLive) onLive(D.boardScope(leagueKey, d.draft_id));
       } else {
@@ -1279,8 +1335,14 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   const pull = async (id) => {
     try {
       const [d, picks] = await Promise.all([D.sleeperDraft(id), D.sleeperPicks(id)]);
+      /* `leagueId` ER SVIDID SEM GREINIR MOCK FRA DEILDARDRAFTI, og thad
+         var ekki lesid — svo bordid gat ekki greint "thetta draft a enga
+         deild" (mock, og tha er DRAFTID eina heimildin) fra "thetta draft
+         a ANNA deild en su sem er hladin" (raunveruleg notandavilla).
+         Sja `draftFit` i `sleeper-league.js`. */
       const shape = { type: d.type, teams: d.settings ? d.settings.teams : null,
                       rounds: d.settings ? d.settings.rounds : null,
+                      leagueId: d.league_id != null ? String(d.league_id) : null,
                       status: d.status, picks: (picks || []).length };
       setInfo(shape);
       /* OG UPP. Bordid tharf `teams`/`rounds` DRAFTSINS til ad reikna
@@ -1422,9 +1484,39 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
      `Slot 7` sem varaheiti thegar Sleeper ber hvorki `team_name` ne
      `display_name`; thad er ekki nafn heldur sama talan aftur, svo thad
      er sleppt fremur en skrifad tvisvar ("You are Slot 7, slot 7"). */
+  /* ============================================================
+     SAETIN I MOCK-I ERU MOCK-INS, EKKI DEILDARINNAR (20.8.2026)
+     ============================================================
+     `teams` kemur ur DEILDINNI (`teamsFromLeague` a innflutningi) og var
+     synt sem saetavalid i HVERJU drafti. I mock-i — sem ber enga
+     `league_id` og thar med enga notendalista — thydir thad tvennt rangt:
+
+       · "You are Sofahetjur, slot 5" i mock-i thar sem Sofahetjur er
+         ekki einu sinni med. Nafnid er ur annarri deild og thad LES eins
+         og appid hafi lesid thad ur draftinu.
+       · 12 saeti i bod i 10-lida mock-i. Saeti 11 og 12 eru ekki til
+         thar, og `slotOk` slokknar thegjandi ef smellt er a thau.
+
+     Mock faer thvi ENGIN lidsspjold, og tha kemur tolu-reiturinn
+     ("Your slot") sjalfkrafa i stadinn — hann er skilyrtur a
+     `seatList.length === 0`, sem er SAMA skilyrdi og gerir spjoldin
+     engin, svo thau tvo geta ekki bædi horfid.
+
+     TOLU-SPJOLD (1..N ur draftinu) VORU PROFUD OG TEKIN UT: thau eru
+     onnur leid ad sama svari, og reiturinn er ThEGAR profadur i tveimur
+     kofllum (`draft_order` odregin, nafnid slegid inn A EFTIR). Ny
+     styring sem gerir thad sama og su sem er til er nakvaemlega thad sem
+     "eitt reit, einn hnappur" var ad hreinsa ut.                       */
+  const seatList = useMemo(() => {
+    /* Mock ber enga `league_id` — og thar med engan notendalista sem
+       segir hver situr hvar. Spjold ur ANNARRI deild eru ekki svar. */
+    if (info && !info.leagueId) return [];
+    return Array.isArray(teams) ? teams : [];
+  }, [info, teams]);
+
   const seatName = useMemo(() => {
-    if (sync.slot == null || !Array.isArray(teams)) return null;
-    const t = teams.find((x) => x.slot === Number(sync.slot));
+    if (sync.slot == null || !Array.isArray(seatList)) return null;
+    const t = seatList.find((x) => x.slot === Number(sync.slot));
     const nm = t && t.name ? String(t.name) : "";
     return nm && !/^Slot \d+$/.test(nm) ? nm : null;
   }, [teams, sync.slot]);
@@ -1595,7 +1687,16 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
           OG ENGIN SJALFGEFIN 1: `resolveSlot` skilar `null` og saetavalid
           stendur opið. Saeti 1 sem sjalfgefid gildi vaeri tala sem lítur
           ut eins og maeling.                                            */}
-      {teams && teams.length > 0 && sync.draftId && (
+      {/* ============================================================
+          SAETID I ORDUM — LIKA THEGAR ENGIN SPJOLD ERU (20.8.2026)
+          ============================================================
+          Þessi blokk var skilyrt a `seatList.length > 0`, svo MOCK — sem
+          ber engin spjold — hafdi ENGA setningu um saetid. Rangt saeti
+          gerir hverja tolu ranga OG synir hop annars manns (sja kaflann
+          um `keptSlot`), svo talan verdur ad vera LESIN A SKJANUM i thvi
+          tilfelli AF OLLUM. Setningin og spjoldin eru thvi tvo adskilin
+          skilyrdi, ekki eitt.                                          */}
+      {sync.draftId && (seatList.length > 0 || (info && !info.leagueId)) && (
         <div style={{ marginTop: 10 }}>
           <div className="dim" style={{ fontSize: 12.5, marginBottom: 4 }}>
             {sync.slot != null
@@ -1608,9 +1709,14 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                        thad var sama talan tvitekin i sitthvorum reit. */
                     : <>Your seat is slot <b>{sync.slot}</b></>}
                   {slotAuto && <span className="good"> · read from Sleeper</span>}
-                  {" — "}<span className="dim">click another to change it</span></>
-              : <>Which team is yours? Your own picks only fill the roster below once
-                  this is set.</>}
+                  {" — "}<span className="dim">{seatList.length > 0
+                    ? "click another to change it" : "change it below"}</span></>
+              : seatList.length > 0
+                ? <>Which team is yours? Your own picks only fill the roster below once
+                    this is set.</>
+                /* Mock an saetis: reiturinn fyrir nedan ber sina eigin
+                   skyringu, svo tvo skilabod um sama reit vaeru havadi. */
+                : null}
           </div>
           {/* ============================================================
               SMELLUR A ThITT LID KENNIR APPINU HVER THU ERT
@@ -1634,8 +1740,8 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
               varðveitt ef thad er til, thvi `t.name` getur verid
               LIDSHEITI (`metadata.team_name`) og forsidan flettir upp
               eftir notandanafni thegar audkennid vantar.              */}
-          <div className="chips">
-            {teams.map((t, i) => (
+          {seatList.length > 0 && <div className="chips">
+            {seatList.map((t, i) => (
               <button key={`${t.slot}|${t.userId || i}`}
                 className={`chip${t.slot != null && t.slot === sync.slot ? " on" : ""}`}
                 disabled={t.slot == null}
@@ -1655,8 +1761,8 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
                 {t.slot != null ? `${t.slot}. ` : ""}{t.name}
               </button>
             ))}
-          </div>
-          {!imported?.orderDrawn && (
+          </div>}
+          {seatList.length > 0 && !imported?.orderDrawn && (
             <div className="dim" style={{ fontSize: 12, marginTop: 4 }}>
               The draft order has not been drawn on Sleeper yet, so these are roster
               slots. They become the pick order once it is drawn, and the app re-reads
@@ -1682,8 +1788,13 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
           reiturinn hvarf um leid og saeti var slegid inn, svo INNSLATTAR-
           VILLA vard ovidgerdanleg, og saeti sem kom ur eldra vistudu
           astandi (`nfl_sync`) var hvergi synilegt. Styring sem hverfur
-          thegar hun hefur verid notud er verri en engin.                */}
-      {sync.draftId && !(teams && teams.length > 0) && (
+          thegar hun hefur verid notud er verri en engin.
+
+          SKILYRDID LES NU `seatList`, EKKI `teams`. Frá 20.8.2026 fær
+          mock sin EIGIN tolu-saeti (sja `seatList`), svo `teams.length`
+          er ekki lengur sama skilyrdi og "spjoldin eru engin" — og hefdi
+          reiturinn haldid `teams` hefdu BADIR birst i mock-i.          */}
+      {sync.draftId && seatList.length === 0 && (
         <div className="row" style={{ marginTop: 10 }}>
           <label className="field">
             Your slot{slotAuto && sync.slot != null &&

@@ -4040,6 +4040,67 @@ samstillingu eru 20 leikmenn strikaðir út, **tveir réttir** lenda í mínum h
 (sæti 7 af 12), og sá sem var tekinn er ekki lengur boðinn. Stökkbreyting sem
 hunsaði sætið felldi það með tölunni 0.
 
+### 6b-4. SÆTIÐ ERFÐIST — OG APPIÐ SÝNDI HÓP ANNARS MANNS (20.8.2026)
+
+Alvarlegasta villan sem fannst þessa viku. Notandinn tengdi nýtt mock —
+**KanelGifler, sæti 7** — og „My team" bar: *Jayden Daniels, Jonathan Taylor,
+Etienne, Kenneth Walker, RJ Harvey, Jadarian Price, Jeremiyah Love, Metcalf,
+Pittman, Waddle, Wan'Dale Robinson, Hunter Henry, Kincaid, Jason Myers,
+Detroit Lions.* Það er **hópur liðs 5, upp á mann** — því í **fyrra** mock-inu
+var hann sæti 5.
+
+**Rótin er ein lína** í `connect` (`DraftBoard.jsx`):
+
+    slot: slot != null ? slot : sync.slot        // <- erfði sætið
+
+Rökin voru „hann situr venjulega í sama sæti í næsta mock-i". Þau eru röng:
+**sætið er eiginleiki DRAFTSINS, ekki stilling á deildinni.** `sync` er vistað
+á deildinni (`entries[].sync`), svo nýtt mock í sömu deild erfði það — sama ætt
+og `boardScope`-villan (`taken`/`myPicks` voru lyklað á deild, ekki draft).
+Sætið var einfaldlega **ekki flutt með** þegar hin tvö voru.
+
+**FJÓRAR VILLUSKÝRSLUR, EIN RÓT.** Þrjár aðrar sem hann meldaði sama dag voru
+þessi villa í dulargervi — og hver þeirra hefði kallað á „lagfæringu" á kóða
+sem var réttur:
+
+| einkenni | hvað var í raun að gerast |
+|---|---|
+| „**10 WR í röð**" | `recommend` fékk hóp sætis 5 — **sex RB**, þunnt í WR. Rétt svar um RANGAN hóp. `urgencyDrivesOrder: false` var aldrei spurt |
+| „**still need K and DST**" í 14. umferð | lið 5 tók K í 14.6 og DEF í 15.5, svo hópurinn sem var lesinn hafði **raunverulega** hvorugt nánast allt draftið |
+| „**ráðlagði AÐRA vörn**" í 14.4 | sama: lið 5 átti enga vörn þá. `DEF`/`DST`-stafsetningin var **mæld og hún er ekki villan** — `players.json` ber `DST` í öllum 32 liðum, `startersFromRoster` varpar `DEF -> DST`, og `recommend` með `pos: "DST"` í hópnum skilar **engri** DST-þörf (mælt beint á fallinu) |
+
+**Sætið 5 var í alla staði trúverðugt.** Það er gilt sæti í 10-liða drafti, svo
+`slotOk` kviknaði ekki og „Slot N does not exist" birtist aldrei. **Það sem var
+rangt voru NÖFNIN** — og það var það sem hann sá.
+
+**Leyst:** sæti erfist aldrei milli drafta. Verður það ekki leyst úr draftinu
+sjálfu (`draft_order[user_id]`, svo `slot_to_roster_id` -> `rosters[].owner_id`)
+er það **`null` og appið SPYR**. Tómur hópur með spurningu er óþægilegur en hann
+**lýgur ekki**, meðan erft sæti gerir hverja tölu ranga og sýnir hóp annars
+manns undir heitinu „My team". **Sama draft er undantekningin** (eftir F5 er
+reiturinn forfylltur og einn smellur tengir aftur): þá er vistaða sætið hans
+eigið og að henda því gerði innsláttarvillu óviðgerðanlega.
+
+**Tvennt í viðmótinu fylgdi með, því mock ber engan notendalista:**
+liðsspjöld deildarinnar eru **ekki** sýnd í mock-i (þau eru úr annarri deild —
+„You are Sofahetjur, slot 5" í mock-i þar sem Sofahetjur er ekki með, og 12
+spjöld í 10-liða mock-i), svo tölu-reiturinn kemur í staðinn; og **setningin um
+sætið er nú sýnd líka þegar engin spjöld eru**. Hún var skilyrt á spjöldunum,
+svo mock — tilfellið þar sem rangt sæti kostar mest — var **eina tilfellið án
+hennar**. Tölu-spjöld 1..N úr draftinu voru prófuð og **tekin út**: önnur leið
+að sama svari er nákvæmlega það sem „eitt reit, einn hnappur" hreinsaði út.
+
+**Vörður: `draft-live.mjs` kafli 18**, og hann fullyrðir um **innihald hópsins,
+ekki um töluna** — talan var trúverðug, nöfnin voru það ekki. Þrjú þrep í röð
+(CLAUDE.md 5b: neikvæð fullyrðing verður að nefna streng sem var sannanlega
+þarna): sæti 5 í drafti A -> nöfn sætis 5 **eru** í hópnum · nýtt draft B með
+óleysanlegt sæti -> hópurinn **tómur** og nöfn sætis 5 hvergi · sætið sett -> nöfn
+sætis 7 koma inn. Þriðja þrepið er nauðsynlegt, annars væri kaflinn uppfyllanlegur
+með sæti sem er **aldrei** leyst (sama regla og 16b).
+
+**Stökkbreyting (erfða sætið sett aftur inn):** fjórar fullyrðingar falla og
+**tveir leikmenn liðs 5 birtast í „My team"** — nákvæmlega það sem hann sá.
+
 ### 6b-3. SEX WR Í SJÖ UMFERÐUM — RÖÐIN VAR EKKI BILUÐ, HÚN VAR SVAR VIÐ ANNARRI DEILD (17.8.2026)
 
 Notandinn draftaði raunverulegt mock á Sleeper — **10 lið, sæti 5** — og fylgdi
