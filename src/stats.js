@@ -177,7 +177,7 @@ export const STAT_DEFS = [
     get: officialPer90("starts_per_90") },
   { key:"start_prob", label:"Start probability", short:"Start prob", group:"core", band:"Minutes",
     dec:0, hi:true, pct:true, live_only:true, derived:true,
-    note:"OUR MEASURED MODEL, not an FPL field: probability of 60+ minutes in the NEXT gameweek, from starts and minutes over the last 5 finished gameweeks. Measured on 65,557 samples — the model is no more accurate than \"he started last time\" (88%) but far better CALIBRATED (Brier −24%), so the RANKING is what it is for: the lowest decile catches 2.09× the bench drops. Live figure — it does not follow the selected season.",
+    note:"OUR MEASURED MODEL, not an FPL field: probability of 60+ minutes in the NEXT gameweek, from starts and minutes over the last 5 finished gameweeks. IT IS A MINUTES MODEL AND KNOWS NOTHING ABOUT INJURIES, so FPL has the last word: when FPL puts a player at 0% chance of playing this reads 0, because he cannot start. At 25/50/75% the model figure stands — it answers \"will he start IF he is available\", which is a different question from whether he is available, and multiplying the two would be an unmeasured combination. Measured on 65,557 samples — the model is no more accurate than \"he started last time\" (88%) but far better CALIBRATED (Brier −24%), so the RANKING is what it is for: the lowest decile catches 2.09× the bench drops. Live figure — it does not follow the selected season.",
     get:p=>{ const v=num(p._start_p); return v==null?null:v*100; } },
 
   /* --- band: Form --- */
@@ -2113,7 +2113,28 @@ export function makeEnricher({
            hvad tha ad thurfa sidari sigti.                              */
         _mo: p.element_type !== 1 && im && inImminentPool(im.window) ? moScore(im.window) : null,
         _ao: p.element_type !== 1 && im && inImminentPool(im.window) ? aoScore(im.window) : null,
-        _start_p: risk?.p ?? null,
+        /* FPL-STATUS RAEDUR TILTAEKILEIKA. PUNKTUR (kafli 6) — OG SU REGLA
+           VAR EKKI VIRT HER (lagad 20.8.2026).
+           `startProbability` er MINUTU-likan: hun les `starts5`, `mins5`,
+           `trend`, `started_last` og `value` og hefur ENGAN adgang ad
+           status, news ne `chance_of_playing`. Leikmadur sem spiladi hverja
+           minutu THANGAD TIL hann meiddist fær thvi ha tolu, og likanid
+           getur ekki vitad betur.
+           MAELT a lifandi `players.json`: 12 flaggadir leikmenn baru
+           start_prob >= 50%, og SEX theirra baru haa tolu medan FPL sagdi
+           `chance_of_playing_next_round = 0` — Garner 90%, Iroegbunam og
+           Kroupi.Jr 82%, **Fofana 73% i BANNI til 6. september**, Minteh
+           56% ut til **28. november**. Thad er ekki blaebrigdi heldur
+           OSONN fullyrding a skjanum: "90% ad byrja" um mann sem FPL segir
+           0% ad spila.
+           GATID ER ADEINS A `chance === 0` OG ThAD ER ASETNINGUR: tha er
+           talan STADREYND fra FPL, ekki agiskun okkar — hann getur ekki
+           byrjad, svo 0 er RETTA talan (ekki null; hann vantar ekki gogn).
+           Vid 25/50/75 er talan latin STANDA, thvi start_prob svarar
+           "byrjar hann EF hann er taek" sem er onnur spurning en "er hann
+           taekur" — og ad margfalda thau vaeri OMAELD samsetning (sama
+           astaeda og `availForKickoff` er SER lidur i `expPointsFor`).   */
+        _start_p: (num(p.chance_of_playing_next_round) === 0) ? 0 : (risk?.p ?? null),
         _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
         _home6: fa?.home ?? null, _fix6: fa?.n ?? null,
         _team_cs: teamCsOf(p.team, short),

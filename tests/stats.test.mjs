@@ -1406,6 +1406,50 @@ console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`
   }
 }
 
+/* ============================================================
+   start_prob MA EKKI MOTSEGJA FPL (20.8.2026)
+
+   `startProbability` er MINUTU-likan: hun les `starts5`, `mins5`, `trend`,
+   `started_last`, `value` — og hefur ENGAN adgang ad status ne
+   `chance_of_playing`. Leikmadur sem spiladi hverja minutu ThANGAD TIL hann
+   meiddist fær thvi haa tolu.
+   MAELT a lifandi gognum: 12 flaggadir baru start_prob >= 50%, og SEX
+   theirra medan FPL sagdi 0% ad spila — Garner 90%, Fofana 73% i BANNI til
+   6. sept., Minteh 56% ut til 28. nov. "90% ad byrja" um mann sem getur
+   ekki spilad er OSONN fullyrding, ekki blaebrigdi. Kafli 6: FPL-status
+   raedur tiltaekileika, punktur.
+   ============================================================ */
+{
+  console.log("\n14e) start_prob motsegir ekki FPL-status");
+  const isZero = v => v !== null && v !== undefined && v !== "" && Number(v) === 0;
+  /* Eigin laug og audgun — kafli 14 er i sinni eigin blokk. */
+  const pl2 = J("players.json").players || J("players.json");
+  const tRaw2 = J("teams.json");
+  const tById2 = Object.fromEntries(((Array.isArray(tRaw2) ? tRaw2 : tRaw2.teams) || [])
+    .map(t => [t.id, t]));
+  const e2 = makeEnricher({ players: pl2, teamById: tById2, imminent: J("imminent.json"),
+    fixtures: J("fixtures.json").fixtures ?? J("fixtures.json"),
+    events: J("events.json").events, odds: J("odds.json").teams ?? J("odds.json"),
+    isLive: true });
+  const zeroChance = pl2.filter(p => isZero(p.chance_of_playing_next_round));
+  ok(zeroChance.length > 0, `forsenda: ${zeroChance.length} leikmenn med chance = 0`);
+  const rows2 = pl2.map(p => ({ p, f: e2(p).fields }));
+  const contra = rows2.filter(r => isZero(r.p.chance_of_playing_next_round)
+                                && r.f._start_p != null && r.f._start_p > 0);
+  ok(contra.length === 0,
+     `enginn med 0% chance ber start_prob > 0 (${contra.length})`,
+     contra.slice(0,3).map(r => `${r.p.web_name}=${r.f._start_p}`).join(" "));
+  /* FORSENDA: dalkurinn ma ekki vera tomur — annars vaeri "engin motsogn"
+     graent af thvi ad hann reiknast aldrei.                             */
+  const withVal = rows2.filter(r => r.f._start_p != null && r.f._start_p > 0);
+  ok(withVal.length > 200, `heilbrigdir bera hana ENN (${withVal.length} med > 0)`);
+  /* OG 25/50/75 ER LATID STANDA — thad er asetningur, ekki gloppa. */
+  const partial = rows2.filter(r => [25,50,75].includes(Number(r.p.chance_of_playing_next_round))
+                                 && r.f._start_p != null);
+  ok(partial.length === 0 || partial.some(r => r.f._start_p > 0),
+     `hlutfalls-chance (25/50/75) heldur likans-tolunni (${partial.length} tilfelli)`);
+}
+
 console.log("\n15) `pos` er virt i BADUM lesmatum");
 {
   const P = JSON.parse(readFileSync(new URL("../data/players.json", import.meta.url), "utf8")).players;
