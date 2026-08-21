@@ -1537,9 +1537,51 @@ console.log("\ntimabils-merkid a vikulegri ECR");
    ThRJAR FULLYRDINGAR, OG ThEKJAN ER FYRST:
      (a) skran BER sentinel-inn (annars maelir kaflinn ekkert og vaeri
          samt graenn — CLAUDE.md 5b)
-     (b) ekkert `adp` sem `buildRows` skilar er JAFNT sentinel-gildi
-         leikmannsins — thad er stokkbreytingar-naema fullyrdingin
+     (b) ESPN ER EKKI HLEKKUR: leikmadur sem ADEINS ESPN thekkir
+         ADP a ber ekkert `adp` — og hvert `adp` sem er birt er
+         RAKID til FFC eda Sleeper
      (c) og `value` er null hja theim, i stad tolu med formerki
+
+   ============================================================
+   (b) VAR MAELD A GILDINU OG ThAD VAR FLOKT — LAGFAERT 21.8.2026
+   ============================================================
+   Fyrri utgafa (b) spurdi `Math.abs(p.adpEspn - r.adp) < 1e-9`, the.
+   "er birt ADP SAMA TALA og ESPN-talan". Su fullyrding maelir
+   TILVILJUN, ekki uppruna, og hun FELL A DRAFTDEGI:
+
+     CI 21.8.2026 kl. 09:28 — `FAIL 12-lida half: ekkert ADP er
+     ESPN-talan (1: Jahmyr Gibbs 1.5)`
+
+   Gibbs er fyrsta val i deildinni. FFC half-ppr gaf honum 1,5 og
+   ESPN gaf honum 1,5 — TVAER OHADAR heimildir um besta leikmann
+   deildarinnar voru sammala upp a einn aukastaf, og profid las thad
+   sem "sentinel-inn er i verdinu". Kl. 16:18 sama dag var ESPN-talan
+   1,49 og profid var graent aftur; hun er MEDALTAL og flokrar.
+
+   ThAD ER EKKI JADARTILFELLI HELDUR ThETTLEIKI: maelt 21.8.2026 bera
+   **141 af 979** ESPN-gildum nakvaemlega einn aukastaf, svo hvert
+   theirra getur hitt a FFC-tolu leikmannsins. Ofar a bordinu er
+   hittnin mest — thad eru einmitt leikmennirnir sem allir eru
+   sammala um.
+
+   OG KOSTNADURINN VAR ALLUR DAGURINN, EKKI EIN RAUD ROD. `tests/
+   pipeline.mjs` er HLID a undan commit-inu i `nfl-data.yml`, svo
+   09:00-keyrslan skrifadi oll gognin i runner-inn og henti theim.
+   Dagsmynd `trending/2026-08-21.json` var thar med aldrei committud,
+   og "trending-vordurinn (dagurinn i dag)" felldi thvi 12:19- og
+   15:20-keyrslurnar lika: ThRJAR keyrslur, ekkert ADP, a draftdegi.
+   Vordur sem flokrar er ekki bara hávaði — hann er stiflan.
+
+   NYJA FORMID MAELIR UPPRUNA OG GETUR ThVI EKKI HITT A TILVILJUN:
+     `adp` i `src/build.js` er `ffc ? ffc.adp : (adpSleeper ?? null)`.
+     ESPN er hvergi i kedjunni. Thad er PROFAD i tveimur attum —
+     (b1) 609 leikmenn sem ADEINS ESPN a ADP a bera `adp == null`,
+     (b2) hvert birt `adp` er JAFNT einhverju FFC- eda Sleeper-gildi
+          SAMA leikmanns.
+   Setti einhver ESPN aftur i kedjuna felli (b1) a ~609 rodum og (b2)
+   a theim somu — margfalt sterkari stokkbreytingar-naemi en ein rod
+   sem gat komid ur tilviljun. Og hvorug getur fallid af thvi ad
+   tvaer heimildir seu sammala.
    ============================================================ */
 console.log("\nESPN-sentinel verdur aldrei markadsverd");
 {
@@ -1580,13 +1622,40 @@ console.log("\nESPN-sentinel verdur aldrei markadsverd");
       const withAdp = rows.filter((r) => r.adp != null);
       ok(withAdp.length > 100, `${label}: ThEKJA — ${withAdp.length} rader bera ADP`);
 
-      const fromEspn = withAdp.filter((r) => {
+      /* (b1) ESPN EINN ER ENGIN HEIMILD. Leikmadur sem ESPN a ADP a en
+         hvorki FFC ne Sleeper ma ekki bera birt `adp`. Thetta er sama
+         spurning og gamla (b) svaradi — "er ESPN hlekkur i kedjunni?" —
+         en spurd um UPPRUNA, svo tvaer heimildir sem eru sammala geta
+         ekki fellt hana. */
+      const espnAlone = rows.filter((r) => {
         const p = raw.get(r.id);
-        return p && p.adpEspn != null && Math.abs(p.adpEspn - r.adp) < 1e-9;
+        if (!p || p.adpEspn == null) return false;
+        const anyFfc = Object.values(p.adpFfc || {}).some((v) => v && v.adp != null);
+        return !anyFfc && p.adpSleeper == null &&
+               p.adpSleeperHalf == null && p.adpSleeperStd == null;
       });
-      ok(fromEspn.length === 0,
-        `${label}: ekkert ADP er ESPN-talan (${fromEspn.length}: ${
-          fromEspn.slice(0, 3).map((r) => `${r.name} ${r.adp}`).join(", ") || "engir"})`);
+      ok(espnAlone.length > 200,
+        `${label}: ThEKJA — ${espnAlone.length} leikmenn sem ADEINS ESPN a ADP a`);
+      const leaked = espnAlone.filter((r) => r.adp != null);
+      ok(leaked.length === 0,
+        `${label}: og ekkert theirra ber birt ADP (${leaked.length}: ${
+          leaked.slice(0, 3).map((r) => `${r.name} ${r.adp}`).join(", ") || "engir"})`);
+
+      /* (b2) OG HVERT BIRT ADP ER RAKID. Gildid verdur ad vera til i
+         FFC-settunum eda i Sleeper-ADP SAMA leikmanns. Tala sem er
+         hvergi i faedinu getur ekki hafa komid ur thvi. */
+      const untraceable = withAdp.filter((r) => {
+        const p = raw.get(r.id);
+        if (!p) return true;
+        const cands = [p.adpSleeper, p.adpSleeperHalf, p.adpSleeperStd,
+          ...Object.values(p.adpFfc || {}).map((v) => v && v.adp)]
+          .filter((v) => v != null);
+        return !cands.some((v) => Math.abs(v - r.adp) < 1e-9);
+      });
+      ok(untraceable.length === 0,
+        `${label}: hvert birt ADP er rakid til FFC eda Sleeper (${
+          untraceable.length}: ${untraceable.slice(0, 3)
+          .map((r) => `${r.name} ${r.adp}`).join(", ") || "engir"})`);
 
       /* Og enginn theirra sem ADEINS ESPN thekkir ber virdi gegn markadi. */
       const espnOnly = rows.filter((r) => {
