@@ -465,6 +465,65 @@ export function buildAdviceSnapshot({ season, week, rows, schedule, defense, met
   };
 }
 
+/* ============================================================
+   HREINT: ER UTKOMAN FARMUR EDA UMBUD?
+   ============================================================
+   REGLA 3 ("thunn inntok -> engin skra") VAR TIL OG HLEYPTI SAMT TOMRI
+   ROD I GEGN — OG MERKTI HANA `ok`.
+
+   Hlidid var:
+       if (!coverage.leaguesWithStartsit && !coverage.leaguesWithWaivers)
+   og `leaguesWithWaivers` telur `row.waivers` eftir TRUTHINESS. Med
+   `NFL_LEDGER_USER` OSETTAN er `mineId` null i hverri deild, svo:
+       · `startsit` verdur null (rett — og astaedan er skrifud)
+       · `freeAgents` skilar SAMT hlut med raunverulegri laug, thvi
+         laugin er ekki hadd thvi hver EG er; adeins `mine` er null
+       · `pickupAdvice({ mine: null })` skilar TOMU fylki
+       · `row.waivers = { poolSize: N, mineSize: null, picks: [] }`
+         — SANNGILDI, og hlidid opnadist
+   Utkoman var skra med `startsit: null` i hverri deild og NULL SKIPTI,
+   skrifud og BOKUD `ok: true`. Og af thvi ad regla 2 segir ad rod sem er
+   til se ALDREI endurskrifud er sa haus OENDURHEIMTANLEGUR: inntokin eru
+   horfin i naestu viku.
+
+   `data/advice/` er ekki til enn, svo ekkert er tapad — thetta er lagad
+   ADUR en vika 1 er skrifud.
+
+   ThVI ER SPURT UM INNIHALD, EKKI UM SANNGILDI HLUTS:
+       players > 0  (byrjunarlid/bekkur var raunverulega skrifadur)
+       eda picks > 0 (raunveruleg skipti radlogd)
+   Sami lærdomur og `rowCount` ("rod er farmur, ekki umbudir") og sama
+   aett og `!!ctx` sem sagdi "ja" medan hver einasta lina var null.
+
+   OG ASTAEDAN ER GREIND. "Enginn radlagdi neitt" og "vid vitum ekki
+   hver thu ert" eru SITTHVAD: hid sidara er UPPSETNING sem notandinn
+   getur lagad (`NFL_LEDGER_USER`), hid fyrra er astand deildarinnar.
+   Rod sem segir "refused: no identity" er nyt; rod sem segir "ok" um
+   sama astand er verri en engin.                                    */
+export function adviceSubstance(snap) {
+  const cov = (snap && snap.coverage) || {};
+  const players = Number(cov.players) || 0;
+  const picks = Number(cov.picks) || 0;
+  if (players > 0 || picks > 0) {
+    return { substantive: true, noIdentity: false, why: null };
+  }
+  const ls = (snap && snap.leagues) || [];
+  /* ENGIN DEILD VEIT HVER EG ER. Krafan er a ALLAR — ein deild an
+     saetis medan onnur gefur rad er ekki thetta astand. */
+  const noIdentity = ls.length > 0 && ls.every((l) =>
+    l && !l.error && l.startsit == null &&
+    /roster id could not be resolved/.test(String(l.startsitWhy || "")));
+  return {
+    substantive: false,
+    noIdentity,
+    why: noIdentity
+      ? "refused: no identity - no league resolved which roster is mine, so "
+        + "every row would be advice about nobody (set NFL_LEDGER_USER)"
+      : "no league produced advice - "
+        + ls.map((l) => (l && (l.error || l.startsitWhy)) || "?").join(" · "),
+  };
+}
+
 /* ---- HREINT: hvada vikur eru ThEGAR tapadar? ----
    Akkeri lidid OG engin rod. Tekid ut ur keyrslunni svo thad se
    profanlegt an klukku og an skra. Sama fall og `ledgerGaps` i
@@ -706,13 +765,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       process.exit(0);
     }
 
-    /* ThUNN UTKOMA -> ENGIN SKRA. Skra thar sem hvorug deildin gaf rad er
-       ekki maeling, hun er umbud (sama lærdomur og `rowCount`: "rod er
-       farmur, ekki umbudir"). */
-    if (!snap.coverage.leaguesWithStartsit && !snap.coverage.leaguesWithWaivers) {
-      const why = snap.leagues.map((l) => l.error || l.startsitWhy || "?").join(" · ");
-      console.log(`snapshot-advice ${season} w${week}: NOT written - no league produced advice (${why})`);
-      recordLedger(season, week, false, `WINDOW OPEN but no league produced advice - ${why}`, gaps);
+    /* ThUNN UTKOMA -> ENGIN SKRA. Hlidið er `adviceSubstance` og hun er
+       HREIN — sja hana fyrir mælingunni sem sagdi ad thetta hlid hleypti
+       TOMRI rod i gegn og merkti hana `ok`. */
+    const sub = adviceSubstance(snap);
+    if (!sub.substantive) {
+      console.log(`snapshot-advice ${season} w${week}: NOT written - ${sub.why}`);
+      recordLedger(season, week, false, `WINDOW OPEN but ${sub.why}`, gaps);
       process.exit(0);
     }
 

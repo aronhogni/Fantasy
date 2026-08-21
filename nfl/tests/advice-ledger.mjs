@@ -26,7 +26,8 @@ let fail = 0;
 const ok = (c, m) => { if (c) console.log(`  ok   ${m}`); else { console.log(`  FAIL ${m}`); fail++; } };
 
 const { WINDOW_H, LEAGUES, weekAnchor, shouldWrite, inputsUsable, ledgerGaps,
-        buildAdviceSnapshot } = await import("../scripts/snapshot-advice.mjs");
+        buildAdviceSnapshot, adviceSubstance }
+  = await import("../scripts/snapshot-advice.mjs");
 
 /* ---------- 1. GLUGGINN OG CRON-ID ---------- */
 console.log("\n1. glugginn er valinn ur cron-inu, ekki ur lausu lofti");
@@ -609,6 +610,116 @@ console.log("\n9. deildirnar sem eru maeldar");
   const inSrc = LEAGUES.filter((l) => st.includes(String(l.id)));
   ok(inSrc.length === LEAGUES.length,
     `og allar ${inSrc.length} eru thegar skjaladar i src/standings.js (engin ny birting)`);
+}
+
+/* ============================================================
+   10. ThUNNA HLIDID HLEYPTI TOMRI ROD I GEGN — OG MERKTI HANA `ok`
+   ============================================================
+   Regla 3 i hausnum a `snapshot-advice.mjs` er "thunn inntok -> engin
+   skra". Hlidid var:
+
+       if (!coverage.leaguesWithStartsit && !coverage.leaguesWithWaivers)
+
+   og `leaguesWithWaivers` telur `row.waivers` eftir SANNGILDI HLUTS.
+   Med `NFL_LEDGER_USER` OSETTAN er `mineId` null i hverri deild:
+   `startsit` verdur null (rett), en `freeAgents` skilar SAMT hlut med
+   raunverulegri laug — laugin er ekki hadd thvi hver eg er — og
+   `pickupAdvice({ mine: null })` skilar TOMU fylki. Utkoman er
+   `row.waivers = { poolSize: N, mineSize: null, picks: [] }`, sem er
+   truthy, svo hlidid OPNADIST. Skrain hefdi verid skrifud med
+   `startsit: null` i hverri deild og NULL skiptum, og bokud `ok: true`.
+
+   OG REGLA 2 GERIR ThAD OLAGFAERANLEGT: rod sem er til er ALDREI
+   endurskrifud, svo sa haus hefdi stadid i bokhaldinu vikuna sem
+   inntokin voru enn til. `data/advice/` er ekki til enn — thess vegna er
+   thetta lagad ADUR en vika 1 er skrifud, ekki eftir.
+
+   ThRJAR FULLYRDINGAR OG ThEKJAN ER FYRST: gamla hlidid VERDUR ad hafa
+   opnast a thessari myndinni (`leaguesWithWaivers > 0` medan `players`
+   og `picks` eru 0), annars maelir kaflinn ekkert.
+   ============================================================ */
+console.log("\n10. thunna hlidid: innihald, ekki sanngildi hluts");
+{
+  const rows = [
+    { id: "1", name: "RB one", pos: "RB", team: "SF", proj: 238, bye: 9, vbd: 90 },
+    { id: "2", name: "RB two", pos: "RB", team: "SEA", proj: 170, bye: 6, vbd: 40 },
+    { id: "4", name: "Free RB", pos: "RB", team: "LV", proj: 210, bye: 8, vbd: 80 },
+  ];
+  const league = {
+    id: "L1", name: "No identity",
+    rules: { teams: 2, scoring: "ppr", starters: { RB: 1 }, flexPos: [] },
+    /* ============================================================
+       ENGIN SAETIS-UPPLYSING — ThAD ER ASETT
+       ============================================================
+       `userId: null` er nakvaemlega thad sem gerist thegar
+       `NFL_LEDGER_USER` er ekki settur i workflow-inu. Rostrarnir eru
+       LESANLEGIR (svo laugin verdur til) en ekkert segir hver eg er.  */
+    userId: null,
+    users: [{ user_id: "u1", display_name: "me" }],
+    rosters: [{ roster_id: 1, owner_id: "u1", players: ["1", "2"], starters: ["2"] }],
+  };
+  const snap = buildAdviceSnapshot({
+    season: 2026, week: 3, rows, schedule: [], defense: [], meta: {},
+    leagues: [league], anchorMs: Date.parse("2026-09-24T00:00:00Z"),
+    nowTs: Date.parse("2026-09-23T09:00:00Z"),
+  });
+
+  /* -- ThEKJA: gamla hlidid VERDUR ad hafa opnast hér -- */
+  ok(snap.coverage.leaguesWithStartsit === 0,
+    `\`leaguesWithStartsit\` er 0 (${snap.coverage.leaguesWithStartsit})`);
+  ok(snap.coverage.leaguesWithWaivers > 0,
+    `en \`leaguesWithWaivers\` er ${snap.coverage.leaguesWithWaivers} — ` +
+    "GAMLA HLIDID OPNADIST, svo thetta er raunveruleg svidsmynd");
+  ok(snap.coverage.players === 0 && snap.coverage.picks === 0,
+    `og samt er INNIHALDID null: ${snap.coverage.players} leikmenn, ` +
+    `${snap.coverage.picks} skipti`);
+
+  /* -- OG NYJA HLIDID LOKAR -- */
+  const sub = adviceSubstance(snap);
+  ok(sub.substantive === false,
+    "nyja hlidid LOKAR — spurt er um innihald, ekki um sanngildi hluts");
+  ok(sub.noIdentity === true, "og astaedan er greind: saetid var ekki leyst");
+  ok(/refused: no identity/.test(sub.why || ""),
+    `status-rodin segir "refused: no identity" (${(sub.why || "").slice(0, 44)}…)`);
+
+  /* -- MAELITAEKID VERDUR AD GETA HLEYPT RAUNVERULEGRI ROD I GEGN --
+     An thessa vaeri hlidid einfaldlega LOKAD og bokhaldid tomt ad
+     eilifu, sem er onnur mynd af somu villu. */
+  const good = buildAdviceSnapshot({
+    season: 2026, week: 3, rows, schedule: [], defense: [], meta: {},
+    leagues: [{ ...league, userId: "u1" }],
+    anchorMs: Date.parse("2026-09-24T00:00:00Z"),
+    nowTs: Date.parse("2026-09-23T09:00:00Z"),
+  });
+  ok(good.coverage.players > 0,
+    `med saeti eru ${good.coverage.players} leikmenn skrifadir`);
+  const okSub = adviceSubstance(good);
+  ok(okSub.substantive === true && okSub.why === null,
+    "og tha OPNAR hlidid (maelitaekid virkar i BADAR attir)");
+
+  /* -- "ENGINN RADLAGDI NEITT" OG "VITUM EKKI HVER EG ER" ERU SITTHVAD.
+        Hid sidara er UPPSETNING sem notandinn getur lagad; ad kalla
+        thad sama nafni vaeri ad fela eina astaedu sem hann getur
+        raunverulega gert eitthvad vid. -- */
+  const broke = adviceSubstance({
+    coverage: { players: 0, picks: 0 },
+    leagues: [{ id: "X", error: "HTTP 500 on /rosters" }],
+  });
+  ok(broke.substantive === false && broke.noIdentity === false,
+    "deild sem BRAST er EKKI merkt `no identity`");
+  ok(/HTTP 500/.test(broke.why) && !/refused: no identity/.test(broke.why),
+    `hun ber SINA astaedu (${broke.why.slice(0, 40)}…)`);
+
+  /* -- OG HLIDID VERDUR AD VERA ThAD SEM KEYRSLAN NOTAR.
+        Hreint fall sem enginn kallar er nakvaemlega gatid sem
+        `wiring.mjs` er skrifad um. -- */
+  const src = readFileSync(path.join(ROOT, "scripts", "snapshot-advice.mjs"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ");
+  ok(/adviceSubstance\(snap\)/.test(src),
+    "`adviceSubstance(snap)` er KALLAD i keyrslunni");
+  ok(!/leaguesWithWaivers\s*\)/.test(src) &&
+     !/!snap\.coverage\.leaguesWithWaivers/.test(src),
+    "og gamla sanngildis-hlidid er farid ur keyrslunni");
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll bokhalds-profin graen");
