@@ -480,29 +480,90 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring,
         </div>
       )}
 
-      {advice && advice.swaps && advice.swaps.length > 0 ? (
-        <div className="note warn" style={{ marginTop: 6 }}>
-          <b>{advice.swaps.length} change{advice.swaps.length > 1 ? "s" : ""} would
-            raise your projected points:</b>
-          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
-            {advice.swaps.map((s, i) => (
-              <li key={i}>
-                Start <b>{s.in && s.in.name}</b> over <b>{s.out && s.out.name}</b>
-                {s.gain != null && <span className="good"> (+{s.gain.toFixed(1)})</span>}
-                {s.slot && <span className="dim"> at {s.slot}</span>}
-              </li>
-            ))}
-          </ul>
+      {/* ============================================================
+          SVIDID HET `swaps` OG ER TIL HVERGI — EINA EIGINLEIKINN SEM
+          NOTANDINN BAD UM MED NAFNI HAFDI ALDREI VIRKAD
+          ============================================================
+          `lineupAdvice` skilar `{ optimal, changes, isOptimal }`.
+          Hér stod `advice.swaps`, sem er `undefined` i hverri einustu
+          teikningu — svo sanna greinin var ONAANLEG og HVER uppstilling
+          fekk skilabodin "already optimal … there is no change that
+          raises expected points". `git log -S'swaps'` segir ad thad hafi
+          verid svona i FYRSTA commit-i forsidunnar.
+
+          Beidnin var ordrett: "eg vill ekki fa stig a bekk sem eru
+          fleiri en hja manni sem er ad spila". Verkfaerid svaradi henni
+          alltaf med "allt er i lagi". Þad er verri utkoma en ad hafa
+          engan kassa: kassi sem segir alltaf "i lagi" er ekki thogull,
+          hann LYGUR.
+
+          Maelt i jsdom med raunverulegu bordi og fimm verstu monnum af
+          tiu i byrjunarlidi: skjarinn sagdi "already optimal" medan
+          `lineupAdvice` a SAMA hop skilaði `changes.length = 5`,
+          `isOptimal = false` og heildarabata **+29,0** ("start Gibbs
+          over Kenneth Walker +21,2").
+
+          THRJU ATRIDI SEM SVIDA-NAFNID FALDI:
+
+          1. `isOptimal` ER NU LESID. Þad var med NULL lesendur i ollu
+             `src/` — modulinn kvad upp dominn og enginn hlustadi. Þad er
+             `isOptimal` sem stjornar greininni, EKKI `changes.length`:
+             modulnum ber ad segja hvort uppstillingin se rett, ekki
+             vidmotinu ad leida thad ut ur lengd fylkis. (Thau eru jofn
+             ad byggingu — `changes` ber eina rod per `shouldStart` og
+             `isOptimal` er `shouldStart.length === 0` — og `dashboard.mjs`
+             kafli 3c fullyrdir ad thau lesist EINS a skjanum.)
+
+          2. `out: null` ER LOGLEG ROD OG MA EKKI VERDA TOMT NAFN.
+             Ef saetið sem losnar hefur ENGAN gjaldgengan mann i
+             byrjunarlidinu (t.d. thu attir engan QB i uppstillingu) er
+             thetta ekki SKIPTI heldur INNKOMA i TOMT saeti. Gamla
+             utgafan hefdi teiknad "Start X over " med berum
+             feitletrudum tomum reit — sem les eins og bilun.
+
+          3. `gain: null` MED `out` ER LIKA LOGLEGT: sa sem situr hefur
+             enga spa (`ev == null`), svo munurinn er OTHEKKTUR, ekki
+             null. Ómæld tala fær ekki reit (CLAUDE.md 8) — thvi er
+             ASTAEDAN sogd i stad tolu. Og engin NY tala er reiknud hér:
+             abatinn af innkomu i tomt saeti er `in.ev`, en `lineup.js`
+             skilar honum ASETT sem `null`, og vidmotid ma ekki finna
+             upp tolu sem hreina rokfraedin hafnadi.              */}
+      {!advice ? (
+        <div className="dim" style={{ fontSize: 11.5, marginTop: 6 }}>
+          Sleeper has no lineup set for you yet, so this is the best lineup rather
+          than a list of corrections.
         </div>
-      ) : advice ? (
+      ) : advice.isOptimal ? (
         <div className="note" style={{ marginTop: 6 }}>
           <b>Your lineup is already optimal</b> against these projections — there is
           no change that raises expected points.
         </div>
       ) : (
-        <div className="dim" style={{ fontSize: 11.5, marginTop: 6 }}>
-          Sleeper has no lineup set for you yet, so this is the best lineup rather
-          than a list of corrections.
+        <div className="note warn" style={{ marginTop: 6 }}>
+          <b>{advice.changes.length} change{advice.changes.length > 1 ? "s" : ""} would
+            raise your projected points:</b>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+            {advice.changes.map((c, i) => (
+              <li key={i}>
+                {c.out ? (
+                  <>
+                    Start <b>{c.in.name}</b> over <b>{c.out.name}</b>
+                    {c.gain != null
+                      ? <span className="good"> (+{c.gain.toFixed(1)})</span>
+                      : <span className="warn"> (gain unknown — {c.out.name} has
+                          no projection)</span>}
+                    {c.slot && <span className="dim"> at {c.slot}</span>}
+                  </>
+                ) : (
+                  <>
+                    Start <b>{c.in.name}</b> — your <b>{c.slot}</b> slot is empty and
+                    no one you are starting is eligible for it, so this is not a swap
+                    but a player added to an empty slot.
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

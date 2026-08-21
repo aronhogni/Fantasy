@@ -123,11 +123,33 @@ const L_B = mkEntry("222222222222222222", "Sofahetjur",
     flexPos: ["RB", "WR", "TE"], maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } },
   "2026", 3);
 
+/* ============================================================
+   MINN HOPUR MA VERA STYRDUR — KAFLI 10 THARF VONDA UPPSTILLINGU
+   ============================================================
+   Sjalfgefna fixturan gefur mer fimm byrjunarlidsmenn af tiu saetum,
+   sem er GILT astand en svarar EKKI spurningunni "hvad er ad hja mer" i
+   theim skilningi ad thad se raunverulegt SKIPTI — thar losnar saeti sem
+   enginn i byrjunarlidi er gjaldgengur i, svo `out` er `null` i hverri
+   rod. Kafli 10 tharf BADAR gerdirnar, svo hann setur sinn eigin hop.
+   `null` thydir "notadu sjalfgefna", svo eldri kaflar haggast ekki.   */
+let myOverride = null;
+
 /* Rostrar. `played` stjornar thvi hvort tímabilid er byrjad. */
 const mkRosters = (n, myRoster, played) =>
   Array.from({ length: n }, (_, i) => {
     const rid = i + 1;
     const mine = rid === myRoster;
+    if (mine && myOverride) {
+      return {
+        roster_id: rid, owner_id: "u-me",
+        players: myOverride.players.slice(),
+        starters: myOverride.starters.slice(),
+        settings: played
+          ? { wins: 5, losses: 2, ties: 0, fpts: 900, fpts_decimal: 0,
+              fpts_against: 850, fpts_against_decimal: 0 }
+          : { wins: 0, losses: 0, ties: 0, fpts: 0 },
+      };
+    }
     return {
       roster_id: rid,
       owner_id: mine ? "u-me" : `u${rid}`,
@@ -1483,6 +1505,309 @@ console.log("\n9b. baðar greinar: 2026 -> engin vorn, 2025 -> 160 radir");
   const flat = src.replace(/\s+/g, " ");
   ok(/defence term is absent, not zero/.test(flat), "null-greinin er i skranni");
   ok(/includes defence-vs-position from/.test(flat), "og hin greinin lika");
+}
+
+/* ============================================================
+   10. START/SIT-SKIPTIN — LESIN AF SKJANUM, FJOLDI OG ABATI
+   ============================================================
+   ÞETTA VAR STAERSTA GATID A FORSIDUNNI OG THAD HAFDI ALDREI VIRKAD.
+
+   `Dashboard.jsx` las `advice.swaps`. `lineupAdvice` skilar
+   `{ optimal, changes, isOptimal }` — `swaps` er til HVERGI i `src/`.
+   Sanna greinin var thvi ONAANLEG og hver einasta teikning fell i
+   else-greinina:
+
+     "Your lineup is already optimal against these projections — there
+      is no change that raises expected points."
+
+   Þad er eiginleikinn sem notandinn bad um MED NAFNI ("eg vill ekki fa
+   stig a bekk sem eru fleiri en hja manni sem er ad spila"), og hann
+   svaradi alltaf "allt i lagi". `git log -S'swaps'` segir ad thad hafi
+   verid svona fra FYRSTA commit-i forsidunnar.
+
+   HVERS VEGNA 26 GRAEN SOFN SAU THAD EKKI:
+     · `lineup.mjs` profar `lineupAdvice` i thaula — um `adv.changes`,
+       sem ER retta heitid. Safnid var graent og hafdi rett fyrir ser.
+     · ekkert safn las DOM-inn fyrir thessi skipti. `dashboard.mjs`
+       kafli 3 las uppstillingar-TOFLUNA (sem kemur ur `optimalLineup`,
+       annad kall) og `render.mjs` telur bara ad flipinn se ekki hvitur.
+     · `wiring.mjs` — safnid sem er TIL fyrir "hreint fall, fullkomlega
+       profad, aldrei kallad med nytilegu inntaki" — bar HANDSKRIFADAN
+       lista af fjorum (skra, fall) porum og `lineup.js` var ekki a
+       honum. Klasinn er nu vardadur mekanískt i `wiring.mjs` kafla 9.
+
+   ÞEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1). Kaflinn
+   fullyrdir thvi FYRST ad fixturan beri raunveruleg skipti — annars
+   gaeti hann verid graenn a appi sem teiknar ekkert.
+
+   OG NEIKVAEDA FULLYRDINGIN ER OSAMHVERF (regla 2). "Ekkert tomt nafn"
+   er einskis virdi ef enginn listi er teiknadur; thess vegna er
+   THREFALT profad:
+     10a  vond en FULL uppstilling  -> hvert skipti hefur raunverulegan
+          `out`, og BADI fjoldinn og abatinn eru bornir vid DOM-inn OG
+          vid `lineupAdvice` a sama hop
+     10b  HALFTOM uppstilling       -> `out: null` og tha ma ekki stada
+          "Start X over " med berum tomum reit
+     10c  RETT uppstilling          -> "already optimal" birtist ENN,
+          svo 10a se ekki graent af thvi ad kassinn segi alltaf eitthvad
+   ============================================================ */
+console.log("\n10. start/sit-skiptin eru a skjanum (fjoldi OG abati)");
+{
+  const { lineupAdvice, slotsFor } = await import("../src/lineup.js");
+
+  /* Hopurinn er VALINN UR GOGNUNUM eftir stodu og ADP — engin nofn eru
+     negld i profid (`players.json` er endurskrifud daglega, sja notuna
+     vid `BYE_MAN`). Tvo QB, fjorir RB, fjorir WR, tveir TE, spyrnumadur
+     og vorn = 14 menn i deild med tiu byrjunarsaetum. */
+  const byPos = (pos, n) => players
+    .filter((p) => p.pos === pos && p.adpSleeper != null)
+    .sort((a, b) => a.adpSleeper - b.adpSleeper)
+    .slice(0, n).map((p) => String(p.id));
+  const QB = byPos("QB", 2), RB = byPos("RB", 4), WR = byPos("WR", 4),
+        TE = byPos("TE", 2), KK = byPos("K", 1), DD = byPos("DST", 1);
+  const rosterIds = [...QB, ...RB, ...WR, ...TE, ...KK, ...DD];
+  ok(rosterIds.length === 14 && new Set(rosterIds).size === 14,
+    `fixturan ber 14 einkvaema menn (${rosterIds.length}/${new Set(rosterIds).size})`);
+
+  const nameOf = new Map(players.map((p) => [String(p.id), p.name]));
+  const idOfName = new Map(rosterIds.map((id) => [nameOf.get(id), id]));
+  ok(idOfName.size === rosterIds.length,
+    "nofnin i hopnum eru einkvaem (nafn -> audkenni er porun, ekki agiskun)");
+
+  /* ------------------------------------------------------------
+     UPPSKERAN — HOPURINN ER LESINN AF SKJANUM, EKKI ENDURREIKNADUR
+     ------------------------------------------------------------
+     `START`-taflan ber optimala uppstillinguna med `Ours` = `ev`, og
+     BENCH-listinn ber alla sem eru ekki i henni med sama `ev`. Saman
+     ERU thau hopurinn med theim tolum sem appid raunverulega notadi.
+     Ad byggja `rows` upp a nytt i profinu vaeri onnur utfaersla af
+     `buildRows` — nakvaemlega `buildTeamMetrics`-villan i FPL-appinu,
+     thar sem afritid laug og frumkodinn var rettur allan timann.     */
+  const POSRE = "(QB|RB|WR|TE|K|DST)";
+  function harvest() {
+    const table = [...document.querySelectorAll("table.data")]
+      .find((tb) => [...tb.querySelectorAll("thead th")]
+        .some((th) => (th.textContent || "").trim() === "Ours"));
+    if (!table) return null;
+    const heads = [...table.querySelectorAll("thead th")]
+      .map((th) => (th.textContent || "").trim());
+    const iO = heads.indexOf("Ours");
+    if (iO < 0) return null;
+    const out = [];
+    for (const tr of table.querySelectorAll("tbody tr")) {
+      const c = tr.children;
+      if (!c[1] || !c[iO]) continue;
+      const m = new RegExp(`^(.*?)\\s+${POSRE}$`).exec((c[1].textContent || "").trim());
+      if (!m) continue;                       /* "— unfilled" */
+      const ev = parseFloat((c[iO].textContent || "").trim());
+      out.push({ name: m[1], pos: m[2], where: "start",
+                 proj: Number.isFinite(ev) ? ev : null, bye: false });
+    }
+    const head = [...document.querySelectorAll("div")]
+      .find((d) => (d.textContent || "").trim() === "BENCH");
+    for (const d of head ? [...head.parentElement.children].slice(1) : []) {
+      const t = (d.textContent || "").trim();
+      if (t === "—") continue;
+      const m = new RegExp(`^(.*?)\\s+${POSRE}(?:\\s+bye|\\s*·\\s*([\\d.]+))?$`).exec(t);
+      if (!m) continue;
+      out.push({ name: m[1], pos: m[2], where: "bench",
+                 proj: m[3] != null ? parseFloat(m[3]) : null,
+                 bye: /\bbye$/.test(t) });
+    }
+    return out;
+  }
+
+  /** Skipta-linurnar eins og thaer stada a skjanum. */
+  function changeLines() {
+    const box = [...document.querySelectorAll("div.note.warn")]
+      .find((d) => /would\s+raise your projected points/.test(
+        (d.textContent || "").replace(/\s+/g, " ")));
+    if (!box) return null;
+    const head = (box.textContent || "").replace(/\s+/g, " ");
+    const count = Number((/^(\d+)\s+change/.exec(head.trim()) || [])[1]);
+    const lines = [...box.querySelectorAll("li")].map((li) => ({
+      text: (li.textContent || "").replace(/\s+/g, " ").trim(),
+      bolds: [...li.querySelectorAll("b")].map((b) => (b.textContent || "").trim()),
+    }));
+    return { count, lines };
+  }
+
+  /* ============================================================
+     10a. VOND EN FULL UPPSTILLING — HVERT SKIPTI HEFUR `out`
+     ============================================================
+     Byrjunarlidid er skipad LAKARI manni i hverju saeti og their fjorir
+     bestu sitja a bekk. Þa er hvert skipti raunverulegt SKIPTI: sa sem
+     fer ut er gjaldgengur i saetid sem losnar.                       */
+  console.log("\n10a. vond en FULL uppstilling — fjoldi og abati bornir vid DOM");
+  myOverride = {
+    players: rosterIds,
+    starters: [QB[1], RB[2], RB[3], WR[2], WR[3], TE[1], RB[1], WR[1], KK[0], DD[0]],
+  };
+  {
+    played = true; sleeperMode = "ok";
+    const root = await boot({ entries: [L_A] });
+    await waitFor(() => harvest() != null && harvest().length > 5);
+    const rows = (harvest() || []).map((r) => ({ ...r, id: idOfName.get(r.name) }));
+
+    /* -- THEKJA FYRST: se hopurinn ekki a skjanum maelir kaflinn ekkert -- */
+    ok(rows.length === rosterIds.length,
+      `allur hopurinn er a skjanum (${rows.length} af ${rosterIds.length})`);
+    ok(rows.every((r) => r.id), "og hver rod er porud vid audkenni");
+    const starterNames = rows.filter((r) => r.where === "start").map((r) => r.name);
+    const benchNames = rows.filter((r) => r.where === "bench").map((r) => r.name);
+    ok(starterNames.length === 10,
+      `optimala uppstillingin fyllir 10 saeti (${starterNames.length})`);
+    const evOf = new Map(rows.map((r) => [r.name, r.proj]));
+    const curNames = myOverride.starters.map((id) => nameOf.get(id));
+
+    /* -- FJOLDINN. Leiddur ut UR SKJANUM: hver optimal byrjunarlidsmadur
+          sem er EKKI i minni uppstillingu er eitt skipti. Þetta er
+          onnur leid ad tolunni en `lineupAdvice`, svo fullyrdingin er
+          samanburdur og ekki tautologia. -- */
+    const expected = starterNames.filter((n) => !curNames.includes(n));
+    ok(expected.length >= 2,
+      `fixturan kallar raunverulega a skipti (${expected.length}) — ` +
+      "annars vaeri allur kaflinn tom fullyrding");
+
+    const got = changeLines();
+    ok(got != null,
+      "SKIPTA-KASSINN ER TEIKNADUR (`advice.swaps` gaf ALDREI thennan kassa)");
+    ok(got != null && got.count === expected.length,
+      `hausinn segir ${got ? got.count : "-"} skipti og skjarinn kallar a ` +
+      `${expected.length}`);
+    ok(got != null && got.lines.length === expected.length,
+      `og ${got ? got.lines.length : "-"} linur eru teiknadar`);
+
+    /* -- ABATINN. Hver lina er borin vid TOLURNAR SEM APPID BIRTI:
+          `ev` theirra sem kemur inn ad fradregnu `ev` theirra sem
+          situr. Badar tolur eru a skjanum, svo thetta er reikningur a
+          birtum gognum og ekki endurutfaersla a rokfraedinni. -- */
+    let paired = 0, badGain = 0, blank = 0;
+    for (const li of (got ? got.lines : [])) {
+      const m = /^Start (.+?) over (.+?)(?: \(\+([\d.]+)\))?(?: at [\w]+)?\.?$/.exec(li.text);
+      if (!m) { if (/\bover\b/.test(li.text)) blank++; continue; }
+      const [, inName, outName, g] = m;
+      if (li.bolds.some((b) => b === "")) blank++;
+      if (!starterNames.includes(inName) || curNames.includes(inName)) { badGain++; continue; }
+      if (!benchNames.includes(outName) || !curNames.includes(outName)) { badGain++; continue; }
+      paired++;
+      if (g == null) continue;
+      const want = evOf.get(inName) - evOf.get(outName);
+      if (!(Math.abs(Number(g) - want) <= 0.11)) badGain++;
+    }
+    ok(paired === expected.length,
+      `hver lina er "Start <optimal> over <minn bekkjarmadur>" (${paired})`);
+    ok(blank === 0, `ekkert tomt nafn i neinni linu (${blank})`);
+    ok(badGain === 0,
+      "og hver birtur abati er ev(inn) - ev(ut) af skjanum " +
+      `(${badGain} skekkja)`);
+
+    /* -- OG SAMA SPURNING LOGD FYRIR MODULINN SJALFAN. `lineupAdvice`
+          er kallad a UPPSKORNA hopnum — sama fall, sama inntak — og
+          fjoldinn OG heildarabatinn verda ad koma eins ut. Tolurnar a
+          skjanum eru namundadar a einn aukastaf, svo thakid er 0,11
+          per linu. -- */
+    const adv = lineupAdvice(myOverride.starters, rows, slotsFor(L_A.rules));
+    ok(adv.isOptimal === false, "`lineupAdvice` er SAMMALA: uppstillingin er ekki optimal");
+    ok(adv.changes.length === expected.length,
+      `og skilar ${adv.changes.length} skiptum, eins og skjarinn (${expected.length})`);
+    const sumDom = (got ? got.lines : []).reduce((a, li) => {
+      const m = /\(\+([\d.]+)\)/.exec(li.text); return a + (m ? Number(m[1]) : 0); }, 0);
+    const sumMod = adv.changes.reduce((a, c) => a + (c.gain || 0), 0);
+    ok(Math.abs(sumDom - sumMod) <= 0.11 * Math.max(1, adv.changes.length),
+      `heildarabati: skjar ${sumDom.toFixed(1)} vs modull ${sumMod.toFixed(1)}`);
+    ok(sumDom > 0, `og hann er raunveruleg tala (${sumDom.toFixed(1)} stig)`);
+    ok(!/\bNaN\b/.test(text()) && !/\bundefined\b/.test(text()),
+      "ekkert NaN/undefined a sidunni");
+    ok(!/already optimal/.test(text()),
+      "og \"already optimal\" stendur EKKI thar (thad var eina svarid adur)");
+    root.unmount();
+  }
+
+  /* ============================================================
+     10b. HALFTOM UPPSTILLING — `out: null` MA EKKI VERDA TOMT NAFN
+     ============================================================
+     Þrir menn i tiu saetum. Þa er QB-saetid tomt og ENGINN i
+     uppstillingu er gjaldgengur i thad, svo `lineupAdvice` skilar
+     `out: null, gain: null`. Gamla utgafan hefdi teiknad
+     "Start X over " med berum feitletrudum tomum reit — sem les eins og
+     bilun, ekki eins og upplysing.                                   */
+  console.log("\n10b. tomt saeti er SAGT, ekki teiknad sem tomt nafn");
+  myOverride = { players: rosterIds, starters: [TE[1], KK[0], DD[0]] };
+  {
+    played = true; sleeperMode = "ok";
+    const root = await boot({ entries: [L_A] });
+    await waitFor(() => changeLines() != null);
+    const got = changeLines();
+    ok(got != null, "skipta-kassinn er teiknadur lika i halftomri uppstillingu");
+    const lines = got ? got.lines : [];
+    const empties = lines.filter((li) => /slot is empty/.test(li.text));
+    ok(empties.length >= 1,
+      `THEKJA: ${empties.length} linur eru innkoma i TOMT saeti — ` +
+      "an theirra er neikvaeda fullyrdingin nedan einskis virdi");
+    ok(empties.every((li) => !/\bover\b/.test(li.text)),
+      "og engin theirra segir \"over\" (thad vaeri skipti sem er ekki til)");
+    ok(lines.every((li) => !li.bolds.some((b) => b === "")),
+      "ekkert tomt feitletrad nafn i neinni linu");
+    ok(lines.every((li) => !/\bover\s*(\(|$)/.test(li.text)),
+      "og engin lina endar a \"over\" (nafnid sem vantadi)");
+    ok(empties.every((li) => li.bolds.length >= 2 && li.bolds[1].length > 0),
+      "tomt saeti er NEFNT (saetisheitid er feitletrad, ekki thogult)");
+    root.unmount();
+  }
+
+  /* ============================================================
+     10c. RETT UPPSTILLING FAER ENN "ALREADY OPTIMAL"
+     ============================================================
+     An thessa kafla gaeti 10a verid graent a appi sem teiknar skipta-
+     kassann ALLTAF. Byrjunarlidid er hér SETT a thad sem appid sjalft
+     kallar optimalt — audkennin eru lesin af skjanum i 10a-lotunni — og
+     tha ma engi skipti standa thar.
+
+     Þetta er lika eini lesandi `isOptimal` i profunum a DOM-hlidinni:
+     greinin er valin af `advice.isOptimal`, ekki af `changes.length`.  */
+  console.log("\n10c. optimal uppstilling faer ENN \"already optimal\"");
+  {
+    played = true; sleeperMode = "ok";
+    myOverride = { players: rosterIds, starters: rosterIds.slice() };
+    /* Fyrst er optimala uppstillingin lesin af skjanum … */
+    let root = await boot({ entries: [L_A] });
+    await waitFor(() => harvest() != null && harvest().length > 5);
+    const optNames = (harvest() || []).filter((r) => r.where === "start").map((r) => r.name);
+    root.unmount();
+    ok(optNames.length === 10, `optimala uppstillingin lesin (${optNames.length} saeti)`);
+    /* … og sidan STILLT UPP nakvaemlega henni. */
+    myOverride = { players: rosterIds,
+                   starters: optNames.map((n) => idOfName.get(n)).filter(Boolean) };
+    ok(myOverride.starters.length === optNames.length,
+      "og porud vid audkenni ad fullu");
+    root = await boot({ entries: [L_A] });
+    await waitFor(() => /already optimal|would raise your projected/.test(text()));
+    ok(/already optimal/.test(text()),
+      "optimal uppstilling faer \"already optimal\"");
+    ok(changeLines() == null, "og ENGINN skipta-kassi");
+    /* Og modullinn verdur ad vera sammala — annars er skjarinn rettur
+       af rangri astaedu. */
+    const rows2 = (harvest() || []).map((r) => ({ ...r, id: idOfName.get(r.name) }));
+    const adv2 = lineupAdvice(myOverride.starters, rows2, slotsFor(L_A.rules));
+    ok(adv2.isOptimal === true,
+      "`lineupAdvice` segir `isOptimal: true` a sama hop");
+    ok(adv2.changes.length === 0, "og `changes` er tomt");
+    root.unmount();
+  }
+
+  /* ------------------------------------------------------------
+     OG SVIDA-HEITID SJALFT. Fullyrdingin er BYGGINGARLEG og hun er
+     hér af thvi ad DOM-kaflarnir ofan geta ekki sagt HVERS VEGNA
+     kassinn var tomur. `swaps` ma ekki koma aftur.
+     ------------------------------------------------------------ */
+  const dashSrc = readFileSync(path.join(ROOT, "src", "Dashboard.jsx"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ");
+  ok(!/advice\s*\.\s*swaps/.test(dashSrc),
+    "`Dashboard.jsx` les EKKI `advice.swaps` (svidid er til hvergi)");
+  ok(/advice\s*\.\s*changes/.test(dashSrc) && /advice\s*\.\s*isOptimal/.test(dashSrc),
+    "heldur `advice.changes` OG `advice.isOptimal` — badi svidin sem modullinn skilar");
+  myOverride = null;
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
