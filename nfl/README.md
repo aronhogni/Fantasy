@@ -96,6 +96,174 @@ lykla; þessi þarf engan.
 **Mælt og hafnað sem heimild:** NextGenStats-API (401), KeepTradeCut (500),
 NFL.com `researchinfo` (503). Ekki endurmæla.
 
+### 2b. HEILSUFAR HVERS ENDAPUNKTS — mælt 21.8.2026
+
+Hver endapunktur sem pipeline-ið snertir var **kallaður** og hausar allra
+CSV-skránna lesnir með Range-fyrirspurn. Þetta er myndin þann dag; hún er
+bókuð svo næsta lota þurfi ekki að endurmæla heldur aðeins að spyrja hvað
+hefur breyst.
+
+| endapunktur | staða | raðir / ferskleiki |
+|---|---|---|
+| `api.sleeper.app/v1/state/nfl` | 200 | 2026, `pre`, vika 2 |
+| `api.sleeper.app/v1/players/nfl` | 200, 14,6 MB | 12.221 → **4.263** í fantasy-stöðum; gsis á 1.322, espn_id á 2.312 |
+| `api.sleeper.com/projections/nfl/2026` | 200 | 3.301 raðir, **636 með `pts_ppr`** — hinar bera null í hverju sviði |
+| `…/projections/nfl/2026/{1,2}` | 200 | 3.301 raðir, **540 / 545** með spá. **Vikuleg spá er ÞEGAR TIL**; hliðið er rétt lokað (gluggi opnast ~6.9.) |
+| `…/trending/add` | 200 | 100 raðir, toppur 91.833 |
+| `fantasyfootballcalculator /adp/{ppr,half-ppr,standard,2qb}` | 200 | 267 · 225 · 214 · 240 leikmenn; 7.112 · 2.741 · 1.521 · 4.847 dröft, allt að 21.8. |
+| `…/adp/dynasty` | 200 | **7 leikmenn úr 79 dröftum** — sjá viðvörun neðar |
+| `raw.githubusercontent …/db_playerids.csv` | 200 | 35 dálkar, **enginn vantar**; 12.480 raðir (fp-id 4.870, sleeper-id 6.384) |
+| `raw.githubusercontent …/fp_latest_weekly.csv` | 200 | 28 dálkar, enginn vantar; `scrape_date` enn **2025-12-30** (rétt í forleik) |
+| `partners.fantasypros … consensus-rankings` | 200 | 520 leikmenn, **100 sérfræðingar**, uppfært 8/21 |
+| `fantasypros.com/nfl/rankings/*.php` | 200 | ppr 520 · half 866 · standard 513, þrep á öllum |
+| `fantasypros.com/nfl/accuracy/draft.php` | 200 | 215 sérfræðingar. `?year=2026` skilar **2025-síðunni** og hliðið í `accuracy()` fellir hana — rétt |
+| `site.api.espn.com/**` | **403 ÚR CI**, 200 lókalt | sjá 2c |
+| `site.web.api.espn.com/**` | 200 **úr CI** | sama slóð, **eins svar** — sjá 2c |
+| `sports.core.api.espn.com/…/futures` | 200 | 23 markaðir, 11 passa síuna, 32 bækur |
+| `sports.core.api …/odds` (marka-prop) | 200 | vika 1: **83 „Anytime TD" listuð, 0 með verð**. Vika 3 ber ekkert `propBets` |
+| `lm-api-reads.fantasy.espn.com` | 200 (HEAD → **405**) | 11.612 leikmenn → 1.027 með ADP/eignarhald; **spá á 38**, 16 felldar af skynsemishliðinu |
+| nflverse `players.csv` | 200 | 39 dálkar — **TVEIR HORFNIR ÚR PICK-LISTANUM**, sjá 2d |
+| nflverse `schedules/games.csv` | 200 | 46 dálkar, enginn vantar; 2026 ber **272 leiki en aðeins 112 með línu** — þess vegna er ESPN markaðsheimildin fyrir yfirstandandi ár |
+| nflverse `stats_player_week_2025` · `stats_team_week_2025` | 200 | 150 / 138 dálkar, **enginn vantar** (fjórir pick-listar prófaðir: `sources/nflverse`, `build-features`, `market-lab`, `opp-lab`) |
+| nflverse `snap_counts_2025` · `injuries_2025` | 200 | 16 dálkar hver, enginn vantar |
+| nflverse `depth_charts_2026.csv.gz` | 200 | 8,96 MB (43,5 MB ópakkað), uppfært 21.8. 07:41; 12 dálkar, nýja sniðið |
+| nflverse **2026**: `stats_player_week` · `stats_team_week` · `snap_counts` · `injuries` · `ngs_*` | **404** | Réttmætt — engir leikir spilaðir. Snap-brúin kviknar við fyrsta leik og vörðurinn „TÓM SNAP-SÓKN (404) → tölur sem voru til STANDA ÓSNERTAR" er þegar prófaður |
+
+**ÞRJÁR ATHUGASEMDIR SEM ERU EKKI BILANIR EN ERU ÞESS VERT AÐ VITA:**
+
+1. **`ffc dynasty` er 7 leikmenn úr 79 dröftum** og hangir á 7 leikmönnum í
+   `players.json` (á móti ppr 242 · 2qb 221 · half 206 · standard 197).
+   Úrtaksstærðin ER sýnileg (`total_drafts`) sem er nákvæmlega ástæðan fyrir
+   að hún er sótt þannig — en dynasty-sniðið er í reynd **ekki þakið** og á
+   ekki að lesast sem það sé.
+2. **ESPN-frétta-glugginn er ~22 klst**, ekki „50 nýjustu greinar". Mælt: 50
+   greinar, nýjasta 21.8. 16:18, elsta **20.8. 18:16**. Gærdagurinn er ekki
+   til neins staðar, hvorki hjá ESPN né annars staðar — þess vegna er
+   `news/{dagur}.json` óendurheimtanlegt og þess vegna kostaði 403-ið fimm
+   daga (2c).
+3. **Sex raðir í `status.json` geta aldrei hreinsast**: `ffc_ppr_10`,
+   `ffc_ppr_14`, `ffc_half-ppr_10`, `ffc_half-ppr_14`, `ffc_standard_10`,
+   `ffc_standard_14` eru frá 10.8., þegar `ffcAll` var mælt niður í **eitt
+   sett per stigagjöf** (FFC hunsar liðafjöldann). Þær eru `ok` og `stale`
+   að eilífu. Það er sama ætt og nótan við `writeJson` varar við — röð sem
+   hreinsast aldrei kennir manni að hunsa spjaldið — bara í hina áttina
+   (græn í stað rauð).
+
+### 2c. `site.api.espn.com` ER 403 ÚR CI — OG ANNAR HOSTUR BER SÖMU SLÓÐ
+
+Þetta var **standandi rekstrarsár**, ekki jaðartilfelli.
+`site.api.espn.com` skilar **403 úr GitHub Actions** meðan
+`lm-api-reads.fantasy.espn.com` og `sports.core.api.espn.com` skila 200
+**úr sömu keyrslu**. Lókalt svara allir þrír. Það er jaðar-/svæða-sía hjá
+einum hosti — ekki kvóti (engin heimild hér þarf lykil) og ekki leiðin.
+
+Kostnaðurinn var tvöfaldur og annar helmingurinn óendurheimtanlegur:
+
+- **18 raðir** `espn_lines_w{n} failed: HTTP 403`. `market.json` er varið af
+  `minRows: 200` og stóð ósnert — sem er rétt — en markaðslagið **rotnaði**
+  nema einhver keyrði lókalt. Commit-sagan sýnir það: *„nfl: dagsmynd 21.8.
+  — keyrt lokalt thvi CI naer ekki site.api.espn.com"*.
+- **`archive:news/{dagur}` HAFNAÐ fimm daga í röð** (15.–19.8.,
+  „REFUSED: 4 rows"). Safnið er dagsett, `writeOnce` skrifar aldrei ofan í,
+  og glugginn hjá ESPN er ~22 klst. Þeir dagar eru **farnir**.
+
+**Lausnin er hvorki proxy né önnur heimild.** `site.web.api.espn.com` ber
+nákvæmlega sömu slóðir. Mælt 21.8.2026, svið fyrir svið:
+
+| slóð | samanburður |
+|---|---|
+| `/teams` | **IDENTICAL** — 32 lið, id/skammstöfun/litir/merki |
+| `/injuries` | **IDENTICAL** — 32 lið, 800 raðir |
+| `/news?limit=50` | **IDENTICAL** — sömu 50 greina-id í sömu röð |
+| `/scoreboard?…&week=3` | **IDENTICAL** — 16 leikir, spread/overUnder/details/provider |
+
+Þetta er því **sama svar úr öðrum dyrum**, ekki ný heimild með nýju sniði
+(sem væri þögul sniðsbreyting í bið). Þáttararnir eru ósnertir.
+`getJSONFirst(tag, urls)` í `lib/http.mjs` reynir hostana í röð og skráir
+`host:{tag}` **aðeins þegar varahostur svarar** — „allt eins og venjulega"
+er ekki frétt. Staðfest í CI 21.8. kl. 18:14: allar 18 vikur, fréttir,
+meiðsli og liðaskrá afgreidd af `site.web.api`, og `market.json` skrifuð
+með **272 línum úr CI** í fyrsta sinn. Vörður: `tests/pipeline.mjs`
+(„ESPN-site: tveir hostar").
+
+> **AÐALHOSTURINN ER ÁFRAM SÁ FYRSTI OG ÞAÐ ER ÁSETT.** Detti sían niður
+> hjá ESPN fer allt aftur í fyrri leiðina af sjálfu sér, og `host:`-röðin
+> hverfur úr `status.json` — sem er þá réttur mælikvarði á hvort sárið er
+> enn opið.
+
+### 2d. `players.csv` HAFÐI MISST TVO DÁLKA OG HVORUGT SÁST
+
+`objects(text, pick)` **sleppir þögult** dálki sem er ekki í hausnum. Það er
+rétt hegðun (einn týndur dálkur á ekki að fella keyrslu) en hún er þögul, og
+sú þögn hefur nú kostað tvisvar — **í bæði skiptin skráði heimildin sig `ok`**:
+
+| hvað | afleiðing |
+|---|---|
+| `depthCharts(2026)`, ágúst | nflverse skipti um snið; af 15 dálkum lifði `gsis_id` einn. **0 raðir, skráð `ok`** |
+| `players.csv`, mælt 21.8. | `draft_club` → **endurnefnt `draft_team`** og `sleeper_id` **tekið út alveg** |
+
+`draftTeam` var þar með **null á öllum 25.049 leikmönnum** (eftir lagfæringu:
+12.229 bera lið), og `nvBySleeper` — varaleiðin að nflverse-röð þegar
+DynastyProcess-brúin þegir — var **tóm Map**.
+
+**Og varaleiðin hafði engu að tapa; það er mælingin sem afgreiðir málið:**
+af 1.167 röðum í `players.json` para **1.035 gegnum brúna**, 2 gegnum
+Sleeper-eigið gsis og **0 gegnum `nflverse_sleeper_id`**. Þeir 130 sem para
+ekki bera **allir `gsisId: null` OG `team: null`** (Reggie Diggs, Valdez
+Showers, Gabe Marks) — menn sem eru ekki í nflverse, svo engin brú hefði
+fundið þá. Dálkurinn er því hafður sem `optional`: lesinn áfram (kviknar af
+sjálfu sér skili nflverse honum aftur) en **ekki krafist**, svo Sources fái
+ekki rauða röð að eilífu fyrir dálk sem heimildin fjarlægði viljandi.
+
+**Mekanisminn, ekki bara lagfæringin:** `missingCols(text, pick)` í
+`lib/csv.mjs` (hreint, þáttar aðeins fyrstu línuna — skrárnar eru upp í
+43 MB) og `parse()` í `sources/nflverse.mjs` skráir `schema:{tag}` sem
+**villu** í `status.json`. Sex lestrar í `nflverse.mjs` fara gegnum hana;
+`adp.mjs` (auðkennisbrúin) og `fantasypros.mjs` (vikuleg ECR) kalla hana
+beint.
+
+> **ÞAÐ FELLIR EKKI KEYRSLUNA OG ÞAÐ ER ÁKVÖRÐUN.** `tests/pipeline.mjs` er
+> hlið á undan commit-inu, og 21.8. felldi **ein flökrandi fullyrðing þrjár
+> keyrslur í röð og allt ADP á draftdegi** (sjá 2e). Vörður sem stoppar öll
+> gögn af því að nflverse endurnefndi dálk sem enginn les væri sama stíflan.
+> Drift verður **sýnileg** strax; prófið ver að hún SÉ sýnileg.
+
+### 2e. VÖRÐUR SEM FLÖKRAR ER STÍFLA — 21.8.2026
+
+Bókað hér því lærdómurinn er almennur og hann kostaði dag.
+
+Fullyrðingin „ESPN-sentinel verður aldrei markaðsverð" spurði
+`Math.abs(p.adpEspn - r.adp) < 1e-9` — þ.e. *„er birt ADP SAMA TALA og
+ESPN-talan?"*. Sú spurning mælir **uppruna aðeins ef tölurnar geta ekki
+verið eins af tilviljun**. Þær geta.
+
+```
+CI 21.8.2026 kl. 09:28
+  FAIL 12-lida half: ekkert ADP er ESPN-talan (1: Jahmyr Gibbs 1.5)
+```
+
+Gibbs er fyrsta val í deildinni. FFC half-ppr gaf 1,5 og ESPN gaf 1,5 —
+**tvær óháðar heimildir sammála um besta leikmanninn**, sem prófið las sem
+„sentinel-inn er í verðinu". Kl. 16:18 sama dag var ESPN-talan 1,49 og
+prófið grænt aftur; hún er **meðaltal** og flökrar. Og það er ekki
+jaðartilfelli heldur þéttleiki: **141 af 979** ESPN-gildum bera nákvæmlega
+einn aukastaf, og hittnin er mest ofar á borðinu — þar sem heimildirnar eru
+sammála.
+
+**Kostnaðurinn var allur dagurinn, ekki ein rauð röð.** Prófið er hlið á
+undan commit-inu, svo 09:00-keyrslan skrifaði öll gögnin í runner-inn og
+henti þeim. `trending/2026-08-21.json` var þar með aldrei committuð og
+„trending-vörðurinn (dagurinn í dag)" felldi því **12:19- og
+15:20-keyrslurnar líka**. Þrjár keyrslur, ekkert ADP, á draftdegi.
+
+Nýja formið mælir **uppruna** og getur því ekki hitt á tilviljun:
+`adp` í `src/build.js` er `ffc ? ffc.adp : (adpSleeper ?? null)` og ESPN er
+hvergi í keðjunni, svo (b1) **609 leikmenn sem aðeins ESPN á ADP á** bera
+`adp == null`, og (b2) hvert birt `adp` er **jafnt einhverju FFC- eða
+Sleeper-gildi sama leikmanns**. Setti einhver ESPN aftur í keðjuna fellur
+(b1) á ~609 röðum — margfalt sterkara stökkbreytingar-næmi en ein röð sem
+gat komið úr tilviljun.
+
 ---
 
 ## 3. Reiknilíkanið — MÁ EKKI FÍNSTILLA Á TILFINNINGU
@@ -1848,7 +2016,7 @@ verði ekki endurmælt.
 
 | heimild / hugmynd | niðurstaða |
 |---|---|
-| **Fleiri FantasyPros-sérfræðingar** | **Þekjan er full.** Sameinað mengi auðkenna úr þremur ECR-síðum (ppr 89 · half 92 · standard 88) er **94**; pipeline-ið reynir **229** (ppr-auðkenni + öll 215 nákvæmnis-auðkenni). Aðeins **2 auðkenni** (7671, 6468) eru í half/standard-síðunum og aldrei reynd — og **hvorugt á nákvæmnis-sögu**, svo hvorugt getur fengið vog í skorpu-borðinu. Að tengja þau bætti engu nema í flötu samsteypuna, sem FantasyPros reiknar sjálft |
+| **Fleiri FantasyPros-sérfræðingar** | **Þekjan er full.** Sameinað mengi auðkenna úr þremur ECR-síðum (ppr 89 · half 92 · standard 88) er **94**; pipeline-ið reynir **229** (ppr-auðkenni + öll 215 nákvæmnis-auðkenni). Aðeins **2 auðkenni** (7671, 6468) eru í half/standard-síðunum og aldrei reynd — og **hvorugt á nákvæmnis-sögu**, svo hvorugt getur fengið vog í skorpu-borðinu. Að tengja þau bætti engu nema í flötu samsteypuna, sem FantasyPros reiknar sjálft.<br>**ENDURMÆLT 21.8.2026 — TÖLURNAR ERU HÆRRI OG NIÐURSTAÐAN STENDUR STERKARI.** Hópurinn stækkaði: ppr **100** · half **104** · standard **99**, sameinað mengi **104**. Fjögur auðkenni (960, 1661, 6658, 2751) eru **ekki** á ppr-síðunni — en **öll fjögur eru í nákvæmnis-listanum**, svo pipeline-ið reynir þau. **Auðkenni sem pipeline-ið myndi aldrei reyna: 0.** Þekjan er ekki bara full, hún er fyllri en hún var. Athugið að **talan er leidd í hverri keyrslu** (`ecrData.filters` ∪ nákvæmnis-auðkenni), svo hún þarf ekki uppfærslu í kóða — aðeins hér, því 94 var skrifað sem staðreynd |
 | **Half-PPR borð sem varaleið fyrir PPR** | Myndi færa skorpu-hópinn úr **7 í 8** (Wolf of Roto Street). **EKKI TENGT:** það blandaði half-PPR röð inn í PPR-skorpusamsteypu, og munurinn milli sniða er mældur og raunverulegur (467 af 502 leikmönnum eiga annað sæti í standard en PPR). Það er líka **breyting á því hvernig sérfræðingar eru sameinaðir** og þyrfti að standast mælingar-þröskuldinn — fjórum dögum fyrir draft er það rangur tími |
 | **ESPN-eigin raðningar** | **ÞEGAR SÓTTAR** — `draftRanksByRankType` (`rankPpr`/`rankStd`) í `sources/espn.mjs`. Þær eru **ómælanlegar**: ESPN geymir enga sögulega mynd, svo engin nákvæmni er til að vega þær með |
 | **NFL.com fantasy-API** | **404** á `/v2/players/researchinfo` og `/v1/players/editorranks` |
@@ -2094,6 +2262,36 @@ raunverulegum verðum.
 forleik — og segir það berum orðum í stað þess að sýna tómt borð sem lítur út
 eins og bilun. Sama gildir um vikulegu byrjunarliðs- og waiver-tólin: þau lesa
 vænt stig vikunnar sem þegar eru til, en marka-líkurnar bætast við í september.
+
+> **TENGT SEM DAGSETT SERÍA 21.8.2026 — OG ÁSTÆÐAN ER AÐ VERÐIN HVERFA.**
+> `mk.tdProps` var til og **enginn kallaði hana**: `espn_td_props` hafði
+> aldrei birst í `status.json`, í neinni keyrslu. Sama undirskrift og sex
+> heimildirnar sem voru tengdar 14.8.
+>
+> `sports.core.api` geymir **enga sögu** — línan hverfur um leið og leikurinn
+> er búinn — svo *„hvað sagði markaðurinn um hver myndi skora í viku 1"* er
+> **ósvaranleg** spurning eftir viku 1. Sama röksemd og `data/history/` og
+> `weekly-proj`: dagsmynd verður ekki búin til eftir á. Að bíða þess að við
+> vitum hvað við myndum mæla væri að bíða þess að gögnin séu farin.
+>
+> `data/td-props/{ár}-w{vika}.json`, glugginn er **sami fasti** og vikuleg
+> spá notar (`PROJ_WINDOW_H`, 72 klst) svo tvær dagsettar seríur geti ekki
+> rekið í sundur. Endurmælt 21.8. (20 dögum fyrir viku 1): NE@SEA bar 5
+> síður, 111 prop, **22 „Anytime TD", 0 með verð**; yfir alla 16 leiki
+> vikunnar **83 listuð, 0 verðlögð**; vika 3 bar ekkert `propBets` svið.
+> Talan 24 að ofan er frá 9.8. og hún hélt.
+>
+> **ÞRJÁR HLIÐAR OG ÞÆR ERU EKKI SAMA HLIÐIÐ:** utan gluggans → engin sókn,
+> skráð `ok` · gluggi opinn og **0 verðlögð → skráð `ok` MEÐ tölunni,
+> EKKERT skrifað** (bókmakari sem hefur ekki opnað markað er ekki bilun, og
+> rauð röð hér kennir manni að hunsa spjaldið) · verð til → `writeOnce`,
+> `minRows: 50`, aldrei ofan í.
+>
+> Og gildran sem `minRows` hefði annars fallið í er **stærri hér en í
+> `weekly-proj`**: væru LISTAÐAR raðir vistaðar bæri skráin 83 raðir, gólfið
+> 50 hleypti henni í gegn, og vika af **nullum** væri fryst að eilífu — merkt
+> sem markaðsmynd. `tdProps` skilar því aðeins `decimal != null`.
+> Vörður: `tests/pipeline.mjs` kafli F3, fjórar stökkbreytingar felldar.
 
 ### Varnagli sem á að standa
 
