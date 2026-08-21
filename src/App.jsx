@@ -1364,9 +1364,34 @@ export default function App() {
   }), [squadPlayers, gw, maxGw, fixByTeamGw, fixDifficulty]);
 
   /* ============================================================
-     „ThU HEFUR EKKERT VERID AD NOTA HANN" — HORFT AFTURABAK (20.8.2026)
+     „ThU HEFUR EKKERT VERID AD NOTA HANN" — BADAR ATTIR (21.8.2026)
      ============================================================
-     Notandinn: „Thad vaeri sniduugra ad horfa afturabak, i theirri
+     Fra 21.8. skilar thetta TVEIMUR svorum, `fwd` og `back`, og thau eru
+     TVAER OLIKAR SPURNINGAR sem MA EKKI LEGGJA SAMAN:
+       `back` — STADREYND: „hverja hafdi eg ekki inni?" (umferdir sem eru
+                byrjadar). Thogn i forleik, sja regluna hér fyrir nedan.
+       `fwd`  — AAETLUN: „hverja aetla eg ekki ad spila naestu 6?"
+
+     FRAMVIRKA UTGAFAN VAR FJARLAEGD 20.8. OG KEMUR NU AFTUR — OG ThAD ER
+     EKKI AFTURKOLLUN A THEIRRI AKVORDUN, ThVI FORSENDAN BREYTTIST.
+     Kaeran var ALDREI attin: „eg er ekki buinn ad setja upp thessar
+     gameweeks, thannig ad thetta comment er ekki alveg rétt." Setningin
+     sagdi „as you have them set up" um uppstillingu sem hann hafdi ekki
+     gert — SJALFGEFNA uppstillingu, eignada honum. Falsk FORSENDA, ekki
+     rong att.
+     ERFDIN (20.8., sja `squadForGw`) leysir nakvaemlega thad: GW2-7 BERA
+     nu GW1-uppstillinguna hans, svo framvirka svarid er lesid ur HANS
+     EIGIN akvordun, ekki ur grunninum. Setningin er thvi ordud eftir
+     ThVI SEM VELIN GERDI — „carried forward from your GW1 line-up" — og
+     hun er LEIDD (`basis`), ekki skrifud i JSX: sama regla og
+     `basis.scale` i „when to sell" og sama gildra sem „4-10 and never
+     reach 1" var (fost tala/setning um lifandi gogn).
+     OG ThOGNIN ER VARDVEITT ThAR SEM HUN A VID: hafi hann HVORKI skyra
+     uppstillingu (`benchSwaps`) NE raunlid ur FPL (`squadOverride`) er
+     ekkert til ad erfa, og tha ma spurningin ekki svarast — thad vaeri
+     gamla falska forsendan aftur, bara med nyrri setningu.
+
+     Notandinn (20.8.): „Thad vaeri sniduugra ad horfa afturabak, i theirri
      gameweek sem eg er, og segja: thu hefur ekkert verid ad nota thennan
      leikmann eda thessa leikmenn."
 
@@ -1404,18 +1429,84 @@ export default function App() {
      salan losar ekkert fe) og `Array.isArray`-vordurinn i `priceFloors`
      sem stoppadi hrun a ollu appinu (CLAUDE.md 13).                     */
   const unusedPlan = useMemo(() => {
-    const HIST_MAX = 6, HIST_MIN = 2;
+    const WIN = 6, MIN_GWS = 2;
+    const floors = priceFloors(players);
+    const rowsFor = gws => rarelyStarted({ perGw: gws, byId, floors });
     let lastPlayed = 0;
     for (let g = 1; g <= maxGw; g++) if (deadlinePassed(g)) lastPlayed = g;
-    /* „i theirri gameweek sem eg er" — glugginn fylgir timalinu-valinu, en
+
+    /* ---------- AFTURABAK — OBREYTT REGLA ----------
+       „i theirri gameweek sem eg er" — glugginn fylgir timalinu-valinu, en
        getur ALDREI nad yfir umferd sem er ekki byrjud.                   */
-    const to = Math.min(gw, lastPlayed);
-    if (to < HIST_MIN) return { rows: [], from: 1, to, played: to, idle: true };
-    const from = Math.max(1, to - (HIST_MAX - 1));
-    const gws = [];
-    for (let g = from; g <= to; g++) gws.push({ gw: g, squad: squadForGw(g) });
-    return { rows: rarelyStarted({ perGw: gws, byId, floors: priceFloors(players) }),
-             from, to, played: gws.length };
+    const bTo = Math.min(gw, lastPlayed);
+    let back = { rows: [], from: 1, to: bTo, played: bTo, idle: true };
+    if (bTo >= MIN_GWS) {
+      const bFrom = Math.max(1, bTo - (WIN - 1));
+      const gws = [];
+      for (let g = bFrom; g <= bTo; g++) gws.push({ gw: g, squad: squadForGw(g) });
+      back = { rows: rowsFor(gws), from: bFrom, to: bTo, played: gws.length, idle: false };
+    }
+
+    /* ---------- FRAMVIRKT — HANS EIGIN UPPSTILLING, ERFD FRAM ----------
+       GLUGGINN SEM ER SAGDUR ER GLUGGINN SEM VAR SKODADUR: `fFrom..fTo`
+       er BYGGT her og BIRT thadan, og `played` er longd sama fylkis. Fost
+       tala i JSX var einmitt „4-10"-bilunin (CLAUDE.md 8).
+
+       `keyAt(g)` ENDURTEKUR EKKI ERFDA-REGLUNA — hun spyr adeins HVADA
+       lykil `squadForGw(g)` mun nota, thvi setningin a skjanum verdur ad
+       segja hvadan uppstillingin kom. Beiting reglunnar (vixlin sjalf)
+       er AFRAM adeins a einum stad, i `squadForGw`.
+       `Array.isArray` OG `.length > 0` eru SOMU tvo skilyrdi og thar —
+       tom fylking telst ekki skyr akvordun (sja langa athugasemdina).   */
+    const fFrom = Math.max(1, gw), fTo = Math.min(maxGw, fFrom + WIN - 1);
+    const keyAt = g => {
+      let k = 0;
+      for (let j = 1; j <= g; j++) {
+        const l = benchSwaps[j];
+        if (Array.isArray(l) && l.length > 0) k = j;
+      }
+      return k;
+    };
+    const fGws = [];
+    for (let g = fFrom; g <= fTo; g++) fGws.push(g);
+    const keys = fGws.map(keyAt);
+    /* SKYR AKVORDUN INNAN GLUGGANS a moti ERFDRI UTAN HANS. Greiningin er
+       LEIDD ur lyklunum sjalfum — „partly explicit, partly inherited" ma
+       ekki vera handsveiflad ordalag.                                  */
+    const explicit = [...new Set(keys.filter(k => k >= fFrom))].sort((a, z) => a - z);
+    const inherited = keys.filter(k => k < fFrom).length;
+    const baseKey = keys.length ? Math.min(...keys) : 0;
+    /* ENGIN UPPSTILLING TIL -> ThOGN, ekki setning um grunninn. `baseKey`
+       0 OG engin skyr akvordun OG ekkert raunlid ur FPL thydir ad
+       byrjunarlidid er `START_SQUAD` — sjalfgefid, ekki hans.          */
+    const mine = explicit.length > 0 || baseKey > 0 || !!squadOverride;
+    let fwd = { rows: [], from: fFrom, to: fTo, played: fGws.length,
+                idle: true, basis: null };
+    if (mine && fGws.length >= MIN_GWS) {
+      const basePart = baseKey > 0
+        ? interp("your GW{0} line-up", [baseKey])
+        : "your current line-up";
+      /* ThRIR HLUTAR, EINN ROKSTUDNINGUR: hvadan gluggin ERFIR, og hvada
+         skyru akvardanir liggja INNAN hans. Sidari listinn ma ALDREI
+         vera tomur i thogn — fyrsta utgafan sagdi adeins fra FYRSTU
+         skyru akvordun og thagdi um thaer sem komu eftir henni, svo
+         blobb med breytingu i GW1 OG GW3 las eins og blobb med GW1
+         einni. Prófid fann thad (kafli O.3).                          */
+      const head = explicit.length === 0
+        ? interp("carried forward from {0}", [basePart])
+        : inherited === 0
+          ? interp("your own GW{0} line-up, carried forward", [explicit[0]])
+          : interp("carried forward from {0}", [basePart]);
+      const rest = explicit.slice(explicit.length && inherited === 0 ? 1 : 0);
+      const basis = rest.length === 0 ? head
+        : interp("{0}, plus your own {1} in {2}",
+                 [head, rest.length === 1 ? "change" : "changes",
+                  rest.map(k => `GW${k}`).join(", ")]);
+      const gws = fGws.map(g => ({ gw: g, squad: squadForGw(g) }));
+      fwd = { rows: rowsFor(gws), from: fFrom, to: fTo,
+              played: gws.length, idle: false, basis };
+    }
+    return { fwd, back };
   }, [squadForGw, deadlinePassed, gw, maxGw, byId, players, plan, benchSwaps, squadOverride]);
 
   const squadIds = useMemo(() => new Set(squadAt.map(s => s.id)), [squadAt]);
@@ -2028,15 +2119,29 @@ export default function App() {
 
      EITT EDA TVO nofn per rod — bordinn er thegar thettur og notandinn
      var ad fjarlaegja texta i allt kvold.                               */
+  /* EIN VORPUN FYRIR BADAR ATTIR — spjaldid les hana. Radirnar eru
+     LYKLADAR A ATTINA, ekki lagdar saman: „0 of 6" (aaetlun) og „0 of 4"
+     (stadreynd) eru tvaer olikar fullyrdingar um sama mann og summan
+     theirra er merkingarlaus.                                          */
+  const unusedById = useMemo(() => {
+    const m = {};
+    for (const r of unusedPlan.fwd.rows) m[r.id] = { ...(m[r.id] || {}), fwd: r };
+    for (const r of unusedPlan.back.rows) m[r.id] = { ...(m[r.id] || {}), back: r };
+    return m;
+  }, [unusedPlan]);
   const unusedSwaps = useMemo(() => {
     const out = {};
     const ranked = recommendations?.rankedByPos || {};
     const adv = recommendations?.advisorById || {};
-    if (!unusedPlan.rows?.length) return out;
+    /* BADAR ATTIR fa tillogu — sami reikningur, og `out` er lyklad a
+       leikmanni svo madur sem er flaggadur i badum fai hana einu sinni. */
+    const flagged = [...unusedPlan.fwd.rows, ...unusedPlan.back.rows];
+    if (!flagged.length) return out;
     const perClub = {};
     squadAt.forEach(s => { const t = byId[s.id]?.team;
       if (t != null) perClub[t] = (perClub[t] || 0) + 1; });
-    for (const r of unusedPlan.rows) {
+    for (const r of flagged) {
+      if (out[r.id]) continue;
       const p = byId[r.id];
       if (!p) continue;
       const ownFfdr = adv[r.id]?.ffdrAvg;
@@ -2581,11 +2686,23 @@ export default function App() {
               onClick={() => { if (!bbActive) pickBestXi(); }}
               title={bbActive
                 ? "Bench Boost: all 15 players score this gameweek, so which 11 start is worth nothing. Nothing to pick."
-                : "Arranges your XI for this gameweek to the highest total expected points, using the same expected-points model as the rest of the app. It sets WHO STARTS — the bench order is not changed. Undo with Reset bench."}>
+                : "Arranges your XI for this gameweek to the highest total expected points, using the same expected-points model as the rest of the app. It sets WHO STARTS — the bench order is not changed, because FPL stores that as the squad's own seat order and this button only touches the starter flags. Undo with Reset bench."}>
               {bbActive ? "Best XI — nothing to pick in Bench Boost" : "⚡ Pick best XI"}</button>
-            {!bbActive && <span style={S.bestXiNote}
-              title={"FPL bench order is stored as the squad's own seat order, which this button does not touch — only the starter flags."}>
-              {"sets who starts, not bench order"}</span>}
+            {/* „sets who starts, not bench order" VAR HER SEM SYNILEG LINA
+                OG ER FARIN (beidni notandans 21.8.2026: „Taka thetta ut").
+                STADREYNDIN ER OBREYTT OG HUN MATTI EKKI FARA MED LINUNNI:
+                `benchSwaps` vixlar ADEINS `starter`-flaggi og birt rod kemur
+                ur `order` i `plan`/`START_SQUAD`, svo takkinn GETUR ekki
+                radad bekknum — an fyrirvarans lofar hann einhverju sem hann
+                gerir ekki. Fyrirvarinn liggur thvi i `title` a TAKKANUM
+                sjalfum, thar sem spurningin vaknar, og MEKANISMINN (seat
+                order) fluttist med — annars hefdi tooltip nr. 2 tapad efni
+                sem tooltip nr. 1 bar ekki.
+                SOMU URLAUSN OG VERDSPAR-MALSGREININ 20.8.: malsgreinin for,
+                fyrirvarinn lifdi i rodinni og i `title`-unum.
+                Vordur: `planner-pitch.mjs` — hun fullyrdir nu um TOOLTIP-ID
+                (og ad synilega linan se farin), thvi vordur sem er EYDT er
+                hvernig fullyrding verdur osonn i thogn.                 */}
             {(benchSwaps[gw]?.length > 0) &&
               <button style={S.ghost} onClick={() => setBenchSwaps(bs => { const n = { ...bs }; delete n[gw]; return n; })}>{"Reset bench"}</button>}
           </div>
@@ -2684,36 +2801,53 @@ export default function App() {
             weatherByFx={weatherByFx} travelByFx={travelByFx} liveByFx={liveByFx}
             nameOf={id => byId[id]?.web_name || `#${id}`} diffOf={fixDifficulty}
             onPick={t => setDetail({ kind:"team", id:t })} />
-          {/* „ÞÚ NOTAR HANN ALDREI" — les EINGÖNGU áætlun notandans.
-              Engin FFDR, engin vænt stig, ekkert `rankScore`: fullyrðingin
-              er staðreynd um plönunina („þú ætlar aldrei að spila honum"),
-              ekki mat á leikmanninum, og hún er orðuð þannig. Ódýrasti
-              bekkjarmaðurinn er ALDREI hér — hann á að sitja og salan
-              losar ekkert fé (sjá `rarelyStarted` í model.js).            */}
-          {unusedPlan.rows.length > 0 && (
-            <div style={{ ...S.card, borderColor:C.amber }}>
-              <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:4 }}>
-                {"Not been in your XI — GW"}{unusedPlan.from}–{unusedPlan.to}
+          {/* ============================================================
+              MERKI, EKKI MALSGREIN — OG PER-LEIKMANNS-SMAATRIDIN ERU A
+              SPJALDINU (21.8.2026)
+              ============================================================
+              Notandinn: „thetta er alltof mikill og flokinn texti, thott
+              upplysingar seu godar. AEtti thetta kannski ad vera frekar a
+              player spjaldinu?"
+
+              JA — OG ThAD ER SAMA DOMGREINDIN sem felldi fjorar adrar
+              malsgreinar 20.8. (verdspar-malsgreinina, fyrirlidana,
+              forleikinn, „How the panel was chosen"). Allar voru RETTAR.
+              NAKVAEMT ER EKKI ThAD SAMA OG ThESS VERT AD TAKA PLASSID.
+
+              ThVI FOR:
+                · „Looking back at the N gameweeks up to GWM ..." —
+                  glugginn stendur i HAUSNUM (`from`-`to`) og nefnarinn
+                  stendur a HVERRI ROD („0 of 4"), svo setningin sagdi
+                  ThRIDJA sinni thad sem tvisvar var thegar sagt.
+                · „Selling one saves ... cheapest bench player ..." —
+                  REGLAN ER OBREYTT i `rarelyStarted`/`priceFloors`
+                  (odyrasti bekkjarmadur per stodu er ALDREI nefndur), en
+                  hun er nu i `title` a „Save £"-holfinu, thar sem
+                  spurningin vaknar.
+                · „Easier fixtures: ..." — FLUTT A SPJALDID (leit:
+                  `unusedSwaps` i leikmannaglugganum). Tillaga um ANNAN
+                  mann tok tvo linur inni i merki um thennan.
+
+              ThAD SEM MATTI EKKI FARA og for ekki: glugginn er sagdur
+              (hausinn), nefnarinn er a rodinni, ATTIN er merkt a BADUM
+              kossum svo thau seu ekki lesin sem eitt, og tolurnar eru
+              ALDREI lagdar saman (tveir kassar, tveir teljarar).       */}
+          {[unusedPlan.fwd, unusedPlan.back].map((u, ui) => u.rows.length === 0 ? null : (
+            <div key={ui ? "back" : "fwd"} style={{ ...S.card, borderColor:C.amber }}>
+              <div style={{ fontSize:12, fontWeight:700, color:C.text, marginBottom:2 }}>
+                {ui ? "Not been in your XI — GW" : "Not in your plan's XI — GW"}
+                {u.from}–{u.to}
               </div>
-              {/* ============================================================
-                  SETNINGIN VERDUR AD PASSA VID ThAD SEM VAR REIKNAD
-                  ============================================================
-                  „Looking at the NEXT 6 gameweeks as you have them set up"
-                  var fullyrding um akvardanir sem voru ekki til. Nu er
-                  hun um umferdir sem ERU BYRJADAR — stadreynd, ekki spa.
-                  TALAN I SETNINGUNNI ER `unusedPlan.played`, sami teljari
-                  sem gluggin var byggd ur, ekki endurreiknud tala i JSX:
-                  „4-10 and never reach 1" i `SetPieces.jsx` var einmitt
-                  fost tala um lifandi gogn og hun urelltist thegjandi.
-                  Sidari setningin (verdgolfin) er MAELD ur hopnum sjalfum
-                  (`priceFloors`) og stendur obreytt.                     */}
-              <div style={{ ...S.muted, marginBottom:6 }}>
-                {interp(unusedPlan.played === 1
-                  ? "Looking back at the {0} gameweek up to GW{1}, you had these players in your XI in none of them."
-                  : "Looking back at the {0} gameweeks up to GW{1}, you had these players in your XI in none of them.",
-                  [unusedPlan.played, unusedPlan.to])}
-                {" "}
-                {"Selling one saves the amount shown — the cheapest bench player at each position is left out, because nothing cheaper exists."}
+              {/* ATTIN, I EINNI SETNINGARBROT-LINU. Framvirka linan er
+                  `u.basis` — LEIDD i memo-unni, ekki skrifud her, svo
+                  merkimidinn getur ekki sagt annad en velin gerdi (sama
+                  regla og `basis.scale` i „when to sell"). Afturvirka
+                  linan er fost af thvi ad hun er ekki agiskun.         */}
+              <div style={S.unusedDir}
+                title={ui
+                  ? "Gameweeks whose deadline has passed — the arrangement you actually had. Nothing here is a forecast."
+                  : "Read from your own arrangement: gameweeks you have not changed inherit the last line-up you did set (see the gameweek bar). It is your plan, not a forecast of who will play."}>
+                {ui ? "what you actually did" : u.basis}
               </div>
               {/* ============================================================
                   UPPSETNINGIN VAR BROTIN OG ORSOKIN VAR EIN TALA (20.8.2026)
@@ -2736,7 +2870,7 @@ export default function App() {
                   hringur an texta) og `Replace`-hnappnum eftir grunnlinu sem
                   their eiga ekki, svo hringurinn hoppar upp. `center` er rett
                   — vandinn var margin-id, ekki jofnunin.                  */}
-              {unusedPlan.rows.map(r => {
+              {u.rows.map(r => {
                 const p = byId[r.id];
                 if (!p) return null;
                 return (
@@ -2753,45 +2887,31 @@ export default function App() {
                         `rarelyStarted`), thvi madur sem var keyptur i midjum
                         glugga var ekki valanlegur i theim fyrri.          */}
                     <span style={S.srcUse}
-                      title={interp("You picked him in your XI in {0} of the {1} gameweeks he was in your squad. This counts your XI, not autosubs.", [r.starts, r.gws])}>
+                      title={interp(ui
+                        ? "You picked him in your XI in {0} of the {1} gameweeks he was in your squad. This counts your XI, not autosubs."
+                        : "Your plan has him in the XI in {0} of the {1} gameweeks he is in your squad. Gameweeks you have not changed inherit the last line-up you did set.",
+                        [r.starts, r.gws])}>
                       {r.starts}{" of "}{r.gws}{" in XI"}</span>
                     {/* TALAN OG HNAPPURINN ERU EIN OSKIPTANLEG BLOKK — sja
                         `srcAct` i appStyles.js. Ekki `<span style={{flex:1}}/>`
                         + tvo laus holf: thad var uppsetningin sem let
                         „Replace" fara UT FYRIR kassann a longsta nafninu. */}
                     <span style={S.srcAct}>
-                      <span style={S.srcFrees}>
+                      {/* VERDGOLFS-REGLAN VAR MALSGREIN UNDIR HAUSNUM OG ER NU
+                          HER, ThAR SEM TALAN STENDUR. Reglan sjalf er OBREYTT
+                          i `rarelyStarted`/`priceFloors` — thad sem faerdist er
+                          hvar hun er SOGD, ekki hvad hun gerir.            */}
+                      <span style={S.srcFrees}
+                        title={"What selling him frees: his selling price minus the cheapest player that exists at his position. The cheapest bench player at each position is never listed here, because selling him frees nothing."}>
                         {"Save £"}{(r.freesTenths/10).toFixed(1)}</span>
                       <button style={S.dBtn} onClick={() => { setSelling(p.id); setSearchQ(""); }}>
                         {"Replace"}</button>
                     </span>
-                    {/* SKIPTA-TILLAGAN — sja `unusedSwaps`. Hun ber NAFN og
-                        VERD og enga delta-tolu: mismunur i leikjathyngd er
-                        ekki stig, og ad birta hann sem stig var einmitt
-                        villan sem kaup-glugga-vinnan felldi. Rodin ber
-                        `flexBasis:"100%"` svo tillagan lendi a EIGIN LINU —
-                        rodin er thegar thett og „Replace" for ut fyrir
-                        kassann i gaer af nakvaemlega thessum sokum.       */}
-                    {(unusedSwaps[r.id] || []).length > 0 && (
-                      <span style={S.srcSwap}>
-                        {"Easier fixtures: "}
-                        {unusedSwaps[r.id].map((c, i) => (
-                          <span key={c.p.id}>
-                            {i > 0 ? " · " : ""}
-                            <span style={S.srcSwapName}
-                              onClick={() => setDetail({ kind:"player", id:c.p.id })}
-                              title={"Ranked by the measured buy ranker (rankScore) — same position, affordable from this sale plus your bank, legal under the 3-per-club rule, and easier fixtures than him over the coming gameweeks. Not a points forecast."}>
-                              {c.p.web_name}</span>
-                            {" £"}{(c.p.now_cost/10).toFixed(1)}
-                          </span>
-                        ))}
-                      </span>
-                    )}
                   </div>
                 );
               })}
             </div>
-          )}
+          ))}
           {/* ============================================================
               HVENAER A AD SELJA — TALAN ER INNAN LEIKMANNS
               ============================================================
@@ -3571,12 +3691,12 @@ export default function App() {
             const sources = { ...(pipeStatus?.sources || {}),
                               ...(pipeStatusFast?.sources || {}) };
             const SHOW = {
-              /* SKILYRDID ER HVITLISTI, SVO NY HEIMILD ER OSYNILEG THAR TIL
-                 HUN ER SKRAD HER — sama gatid sem `prediction_ledger` og
-                 `elo_age` hofdu 16.8.2026. Raud heimild sem er skrifud a
-                 disk og birtist ENGUM er verri en engin heimild.
-                 Vordur: `preseason.mjs` kafli K.                        */
-              preseason:      "Preseason friendlies",
+              /* TVITEKNINGIN VAR MIN (fjarlaegd 21.8.2026): eg stagedi mitt
+                 eigid `SHOW`-hunk med `git apply --cached` medan onnur lota
+                 baetti SOMU linu vid — badar foru i main og build gaf
+                 "Duplicate key". Skadlaust i keyrslu (sidasti vinnur) en
+                 thad er merki um TVO skrifara a sama hlut, og skyringin er
+                 hér ad nedan vid thann sem stendur.                     */
               api_lineups:    "Confirmed lineups",
               apisports_account: "API-Sports account",
               fdcouk_e0:      "Match stats E0 (current)",
@@ -3745,6 +3865,92 @@ export default function App() {
                     {sp?.ck != null && <DStat k={"Corners/FK"} v={sp.ck} />}
                     {sp?.fk != null && <DStat k={"Free kicks"} v={sp.fk} />}
                   </div>
+
+                  {/* ============================================================
+                      „ThIN AAETLUN" — PER-LEIKMANNS-STADREYNDIRNAR (21.8.2026)
+                      ============================================================
+                      Notandinn: „AEtti thetta kannski ad vera frekar a player
+                      spjaldinu?" Ja: upplysingin ER per leikmann, og hun a
+                      thvi ad vera thar sem hann er ThEGAR ad skoda ThENNAN
+                      mann. A vellinum stendur eftir MERKI (hausinn + rodin),
+                      ekki malsgrein.
+
+                      ThRJAR TOLUR, ALLAR UR VELUM SEM ERU ThEGAR TIL:
+                        `unusedById[..].fwd`  — aaetlunin (erfd fram)
+                        `unusedById[..].back` — stadreyndin (byrjadar umferdir)
+                        `sellWhen[..].run`    — erfidasta runan framundan
+                      ENGIN NY TALA er reiknud her og ENGIN ThEIRRA er lögd
+                      saman: framvirka og afturvirka talan eru tvaer olikar
+                      fullyrdingar um sama mann (sja `unusedById`), og runan
+                      er a alveg odrum kvarda.
+
+                      HVER TALA BER SINN GLUGGA I `sub`: „0 of 6" an „GW1-6"
+                      er nakvaemlega „4-10 and never reach 1"-bilunin, og
+                      glugginn er LESINN af svarinu (`u.from`/`u.to`), ekki
+                      skrifadur her.
+                      OG EIN SETNING VER GEGN RANGLESTRI, ekki fleiri:
+                      runu-talan er INNAN LEIKMANNS og radar ekki tveimur
+                      monnum — thad er einmitt villan sem notandinn gerdi med
+                      Rice 20.8. Hun stendur i `dGroupSub` og i tooltip-inu;
+                      hitt fellur ut med naerverunni (kassinn heitir „Your
+                      plan" og situr a spjaldi ThESSA manns).             */}
+                  {(() => {
+                    const u = unusedById[p.id] || {};
+                    /* `sell`, EKKI `t` — `t` er LIDID i ytri lokuninni
+                       (`const t = isPlayer ? teamById[...]`). Skuggun a thvi
+                       nafni her vaeri logleg og OLAESILEG.               */
+                    const sell = sellWhen[p.id];
+                    const sw = unusedSwaps[p.id] || [];
+                    const run = sell?.run || null;
+                    if (!u.fwd && !u.back && !run) return null;
+                    const win = v => interp("GW{0}–{1}", [v.from, v.to]);
+                    return (
+                      <>
+                        <div style={S.dGroupHead}>
+                          <span style={{ ...S.dGroupDot, background:C.amber }} />
+                          {"Your plan"}
+                          <span style={S.dGroupSub}>
+                            {"about him only — these figures do not rank him against another player"}
+                          </span>
+                        </div>
+                        <div style={S.dGrid}>
+                          {u.fwd && <DStat k={"In your plan's XI"}
+                            v={interp("{0} of {1}", [u.fwd.starts, u.fwd.gws])}
+                            sub={`${win(unusedPlan.fwd)} · ${unusedPlan.fwd.basis}`}
+                            title={interp("Your plan has him in the XI in {0} of the {1} gameweeks he is in your squad across GW{2}-{3}. Gameweeks you have not changed inherit the last line-up you did set, so this is your own arrangement carried forward — not a forecast of who will play.", [u.fwd.starts, u.fwd.gws, unusedPlan.fwd.from, unusedPlan.fwd.to])} />}
+                          {u.back && <DStat k={"Was in your XI"}
+                            v={interp("{0} of {1}", [u.back.starts, u.back.gws])}
+                            sub={`${win(unusedPlan.back)} · what you actually did`}
+                            title={interp("You picked him in your XI in {0} of the {1} gameweeks he was in your squad across GW{2}-{3}. Gameweeks whose deadline has passed, so this is fact. It counts your XI, not autosubs.", [u.back.starts, u.back.gws, unusedPlan.back.from, unusedPlan.back.to])} />}
+                          {run && <DStat k={"Hardest run ahead"}
+                            v={interp("GW{0}–{1}", [run.from, run.to])}
+                            sub={interp("{0} pts/GW vs {1} average over GW{2}–{3}",
+                              [signedPts(run.perGw), sell.basis.scale, sell.basis.from, sell.basis.to])}
+                            title={interp("Expected points per gameweek inside GW{0}-{1} compared with HIS OWN average across GW{2}-{3} ({4} gameweeks with a known fixture). A figure for him — it is not comparable with another player's, and it is not a sell order.", [run.from, run.to, sell.basis.from, sell.basis.to, sell.basis.n])} />}
+                        </div>
+                        {/* SKIPTA-TILLAGAN — FLUTT HINGAD UR VALLAR-MERKINU.
+                            Hun ber NAFN og VERD og enga delta-tolu: mismunur
+                            i leikjathyngd er ekki stig, og ad birta hann sem
+                            stig var einmitt villan sem kaup-glugga-vinnan
+                            felldi.                                        */}
+                        {sw.length > 0 && (
+                          <div style={S.dNote}>
+                            {"Easier fixtures at his position: "}
+                            {sw.map((c, i) => (
+                              <span key={c.p.id}>
+                                {i > 0 ? " · " : ""}
+                                <span style={S.srcSwapName}
+                                  onClick={() => setDetail({ kind:"player", id:c.p.id })}
+                                  title={"Ranked by the measured buy ranker (rankScore) — same position, affordable from this sale plus your bank, legal under the 3-per-club rule, and easier fixtures than him over the coming gameweeks. Not a points forecast."}>
+                                  {c.p.web_name}</span>
+                                {" £"}{(c.p.now_cost/10).toFixed(1)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* SKOTAKORT — 2025/26, eina timabilid sem BSD hefur skot fyrir.
                       Birtist EKKI ef leikmadurinn skaut ekki: tomur vollur
@@ -4166,9 +4372,14 @@ export default function App() {
 /* Heimildin býr í FLOKKS-fyrirsögninni fyrir ofan (Núna / Tímabilið X /
    Styrkur) — per-tölu merkin sem voru hér reyndust óþörf tvítekning
    þegar tölurnar flokkuðust rétt.                                       */
-function DStat({ k, v, sub }) {
+/* `title` ER VALKVAETT OG ThAD ER ASETT: reitur an tooltips ma ekki fa
+   `title=""` (tomur tooltip er verri en enginn — hann opnast tomur), svo
+   `undefined` fer a reitina sem hafa ekkert ad segja. Naest-heidarlegasti
+   stadurinn fyrir grunn tolu er vid hlidina a henni (`sub`); tooltip-id
+   ber fulla setninguna thegar hun kemst ekki fyrir.                     */
+function DStat({ k, v, sub, title }) {
   return (
-    <div style={S.dStat}>
+    <div style={S.dStat} title={title || undefined}>
       <div style={S.dStatK}>{k}</div>
       <div style={S.dStatV}>{v}</div>
       {sub ? <div style={S.dStatS}>{sub}</div> : null}

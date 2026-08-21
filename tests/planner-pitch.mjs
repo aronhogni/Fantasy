@@ -388,8 +388,12 @@ console.log("\n--- F. 'Never in your XI' ---");
   const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
   const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED });
   ok(/Not been in your XI/.test(v.text()), "forsenda: bordinn birtist");
-  ok(/Looking back at the 4 gameweeks up to GW4/.test(v.text()),
-     "og hann segir AFTURABAK hve margar umferdir hann las — talan er fjoldinn sjalfur");
+  /* MALSGREININ VAR HER OG ER FARIN 21.8. (notandinn: "alltof mikill og
+     flokinn texti"). Glugginn er sagdur i HAUSNUM og attin i eigin linu —
+     tvaer stadreyndir sem malsgreinin sagdi i thridja sinni.            */
+  ok(/Not been in your XI — GW1–4/.test(v.text()),
+     "og hausinn segir AFTURABAK hvada umferdir hann las — glugginn er talan sjalf");
+  ok(!/Looking back at the/.test(v.text()), "og malsgreinin er farin");
 
   /* KASSINN SJALFUR, EKKI HAUS-DIVID OG EKKI DALKURINN UTAN UM HANN.
      Fyrsta utgafa profsins tok `banner.parentElement` — sem er SIDE-
@@ -499,11 +503,22 @@ function enumBestXi(ids, posOf, epOf) {
   ok(!!btn, "takkinn er a vellinum");
   ok(/Pick best XI/.test(btn?.textContent || ""), `merkimidinn er "Pick best XI" [${btn?.textContent}]`);
   ok(btn?.disabled === false, "og hann er VIRKUR utan Bench Boost");
-  /* SETNINGIN UM BEKKJAR-RODINA ER FAST A SKJANUM, EKKI I TOAST SEM HVERFUR:
-     `benchSwaps` vixlar adeins `starter`-flaggi, svo takkinn getur ekki
-     radad bekknum og ma ekki lata sem hann geri thad.                    */
-  ok(/sets who starts, not bench order/.test(v.text()),
-     "og A SKJANUM stendur ad hann setji HVER BYRJAR, ekki bekkjar-rodina");
+  /* SETNINGIN UM BEKKJAR-RODINA VAR SYNILEG LINA OG ER NU I TOOLTIP-INU
+     (beidni notandans 21.8.2026). STADREYNDIN ER SU SAMA og hun ma ekki
+     hverfa: `benchSwaps` vixlar adeins `starter`-flaggi, svo takkinn getur
+     ekki radad bekknum og ma ekki lata sem hann geri thad. Vordurinn var
+     EKKI EYDDUR — hann faerdist a tooltip-id, thvi vordur sem er eytt er
+     hvernig fullyrding verdur osonn i thogn.
+     ThRENNT, OG ThAU SEGJA SITT HVAD: (1) synilega linan er farin,
+     (2) tooltip-id ber fyrirvarann, (3) og MEKANISMINN (seat order) for
+     med — annars hefdi seinni helmingur skyringarinnar tapast thegjandi. */
+  const bTitle = btn?.getAttribute("title") || "";
+  ok(!/sets who starts, not bench order/.test(v.text()),
+     "SYNILEGA LINAN ER FARIN af skjanum");
+  ok(/the bench order is not changed/.test(bTitle),
+     "en TOOLTIP-ID a takkanum ber fyrirvarann", bTitle.slice(0, 120));
+  ok(/seat order/.test(bTitle),
+     "og MEKANISMINN fylgdi med — af hverju hann getur ekki radad bekknum");
 
   const before = new Set(onPitch(v).map(idOfCard));
   ok(before.size === 11, `forsenda: ellefu spjold a vellinum fyrir smell (${before.size})`);
@@ -576,8 +591,12 @@ function enumBestXi(ids, posOf, epOf) {
      `BB: merkimidinn SEGIR af hverju [${btn?.textContent}]`);
   ok(/all 15 players score/.test(btn?.getAttribute("title") || ""),
      "BB: og tooltip-id gefur astaeduna — allir 15 skora");
-  ok(!/sets who starts, not bench order/.test(v.text()),
-     "BB: setningin um bekkjar-rodina er EKKI their (hun a ekki vid)");
+  /* `!/sets who starts.../` STOD HER OG ER NU TAUTOLOGIA — strengurinn er
+     hvergi i vidmotinu eftir 21.8., svo hun gat ekki fallid (CLAUDE.md 13).
+     RETTA fullyrdingin er um BB-TOOLTIP-ID: fyrirvarinn um bekkjar-rodina
+     a ekki vid thegar allir 15 skora, svo hann ma ekki vera i honum.     */
+  ok(!/bench order is not changed/.test(btn?.getAttribute("title") || ""),
+     "BB: fyrirvarinn um bekkjar-rodina er EKKI i tooltip-inu (hann a ekki vid)");
   const n0 = onPitch(v).length;
   await v.click(btn);
   ok(onPitch(v).length === n0 && !/best XI set/.test(v.text()),

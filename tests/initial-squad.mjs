@@ -898,11 +898,19 @@ console.log("\n--- K. AFTURABAK ---");
   ok(!!banner, "bordinn fannst sem afmarkad element");
   const seg = banner ? banner.textContent : "";
   ok(seg.includes(HAAL), `og hann nefnir ${HAAL}, sem var a bekknum ALLAR fjorar`);
-  /* TALAN A SKJANUM = UMFERDIRNAR SEM VORU LESNAR. Fost tala um lifandi
-     gogn er 'set-pieces 4-10'-bilunin (CLAUDE.md kafli 8).             */
-  ok(/Looking back at the 4 gameweeks up to GW4/.test(seg),
-     "og setningin segir NAKVAEMLEGA fjorar umferdir, upp i GW4", seg.slice(0, 90));
-  ok(/GW1–4/.test(seg), "og hausinn ber sama bil");
+  /* GLUGGINN A SKJANUM = UMFERDIRNAR SEM VORU LESNAR. Fost tala um
+     lifandi gogn er 'set-pieces 4-10'-bilunin (CLAUDE.md kafli 8).
+     MALSGREININ SJALF ER FARIN 21.8. (notandinn: "alltof mikill og
+     flokinn texti") og glugginn stendur i HAUSNUM i stad hennar — svo
+     fullyrdingin er nu um hausinn OG um att-linuna, og MALSGREININ MA
+     EKKI KOMA AFTUR.                                                   */
+  ok(/GW1–4/.test(seg), "hausinn ber gluggann sem var lesinn", seg.slice(0, 90));
+  ok(/what you actually did/.test(seg),
+     "og ATTIN er merkt a kassanum — annars er hann ekki greinanlegur fra aaetlunar-kassanum");
+  ok(!/Looking back at the/.test(v.text()),
+     "MALSGREININ ER FARIN — hun sagdi thridja sinni thad sem hausinn og rodin segja");
+  ok(!/Selling one saves/.test(v.text()),
+     "og verdgolfs-malsgreinin er farin (reglan er i tooltip a 'Save £')");
   ok(!/next \d+ gameweeks/.test(v.text()), "ekkert 'next N gameweeks' er eftir");
   /* VERDGOLFID — odyrasti bekkjarmadur per stodu er ALDREI nefndur.    */
   ok(!/Dubravka|Thomas|Hughes/.test(seg),
@@ -922,10 +930,16 @@ console.log("\n--- K. AFTURABAK ---");
   ok(/GW6/.test(far.text()), "forsenda: GW6 er valin — umferd sem er EKKI byrjud");
   const fseg = (cardOf(far, "Not been in your XI", "Save £") || { textContent: "" }).textContent;
   ok(/Not been in your XI/.test(far.text()), "bordinn er samt their (tvaer umferdir eru byrjadar)");
-  ok(/up to GW2/.test(fseg),
-     "og hann les ADEINS upp i GW2 — glugginn stoppar vid sidustu BYRJADA umferd", fseg.slice(0, 100));
-  ok(!/up to GW6/.test(fseg), "og ALDREI upp i GW6, sem er ekki byrjud");
-  ok(/GW1–2/.test(fseg), "hausinn ber sama bil");
+  /* FULLYRDINGIN ER A HAUSNUM NUNA, OG HUN ER PORUD: fyrst ad GW1-2
+     SE ThAR (svo neikvaeda fullyrdingin hafi eitthvad ad falla a — sja
+     CLAUDE.md 5b regla 2), svo ad engin umferd EFTIR GW2 se i honum.
+     `!/up to GW6/` var notad her adur og er nu TAUTOLOGIA (ordid "up to"
+     er hvergi i vidmotinu), svo hun er skipt ut fyrir mælingu a
+     GLUGGANUM sjalfum: afturvirki kassinn ma ALDREI enda a 6.         */
+  ok(/GW1–2/.test(fseg),
+     "hausinn les ADEINS upp i GW2 — glugginn stoppar vid sidustu BYRJADA umferd", fseg.slice(0, 100));
+  ok(!/GW\d+–(?:[3-9]|\d\d)\b/.test(fseg),
+     "og hann endar ALDREI a umferd sem er ekki byrjud (t.d. GW6)", fseg.slice(0, 100));
 
   /* 4. BYRJADI EINU SINNI -> EKKI NEFNDUR. Sama blob, en hann er tekinn
         af bekknum aftur i GW3, svo hann byrjar GW3 og GW4.              */
@@ -1217,6 +1231,231 @@ const squadNames = v => cards(v).map(c => {
      `engin skipta-rod eftir (${leaves(v, "→").length})`);
   ok(/Starting squad/.test(v.text()), "medan upphaflids-kaflinn stendur");
   ok(!NANRE.test(v.text()), "ekkert NaN/undefined");
+}
+
+/* ============================================================
+   O. FRAMVIRKA SYNIN — HANS EIGIN UPPSTILLING, ERFD FRAM (21.8.2026)
+   ============================================================
+   Notandinn: „Eg vill sja thad nuna. Til ad geta stillt upp lid 5-6 leiki
+   fram i timann sem rullar vel saman."
+
+   ThETTA ER EKKI AFTURKOLLUN A KAFLA K. Framvirka utgafan var fjarlaegd
+   20.8. af ThVI ad setningin sagdi 'as you have them set up' um
+   uppstillingu sem hann hafdi EKKI gert. Erfdin (kafli H) breytti
+   forsendunni: GW2-7 BERA nu GW1-uppstillinguna hans. Fullyrdingarnar
+   her eru thvi um ThRENNT sem ma ekki fara i sundur:
+     1. SETNINGIN NEFNIR ERFDINA og gamla setningin er HVERGI.
+     2. SETNINGIN BREYTIST vid skyra breytingu innan gluggans — annars
+        vaeri hun fost setning um lifandi gogn ('4-10'-bilunin).
+     3. HAFI HANN ENGA UPPSTILLINGU (hvorki bekkjar-vixl ne raunlid ur
+        FPL) ER ThOGN. Thad er gamla falska forsendan og hun ma ekki
+        koma aftur i nyju ordalagi.
+   Og fjorda: PER-LEIKMANNS-SMAATRIDIN ERU A SPJALDINU (kafli P), thvi
+   notandinn bad um thad ('aetti thetta kannski ad vera frekar a player
+   spjaldinu?').
+   ============================================================ */
+console.log("\n--- O. FRAMVIRKT ---");
+const FWD_HEAD = "Not in your plan's XI";
+{
+  const HAAL = byId[411].web_name, CAL = byId[346].web_name;
+
+  /* 1. GW1-UPPSTILLING EIN — birtist, og SEGIR ERFDINA.
+        Forleikur: afturvirka synin thegir samtimis, svo bædi svorin eru
+        profud i EINNI festingu og geta ekki verid rugluð saman.        */
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } });
+  ok(!/Not been in your XI/.test(v.text()),
+     "FORSENDA: AFTURVIRKA synin thegir afram i forleik (0 umferdir byrjadar)");
+  ok(new RegExp(FWD_HEAD + " — GW1–6").test(v.text()),
+     "FRAMVIRKA synin BIRTIST — og hausinn ber gluggann");
+  const fc = cardOf(v, FWD_HEAD, "Save £");
+  ok(!!fc, "framvirki kassinn er ratanlegur i DOM-inum");
+  const fseg = fc ? fc.textContent : "";
+  ok(fseg.includes(HAAL), `og hann nefnir ${HAAL}, sem erfda uppstillingin hefur a bekknum`);
+
+  /* ORdALAGID. GAMLA SETNINGIN ER NEFND BERUM ORDUM — neikvaed
+     fullyrding um streng sem VAR sannanlega their (CLAUDE.md 5b 2), og
+     hun er einmitt kaeran sem for i gegnum tvaer utgafur.              */
+  ok(/carried forward/.test(fseg),
+     "SETNINGIN NEFNIR ERFDINA (carried forward)", fseg.slice(0, 140));
+  ok(/your own GW1 line-up, carried forward/.test(fseg),
+     "og hun segir HVADAN: GW1 er hans skyra val, GW2-6 erfa thad", fseg.slice(0, 140));
+  ok(!/as you have them set up/.test(v.text()),
+     "OG GAMLA FALSKA FORSENDAN ER HVERGI I VIDMOTINU");
+
+  /* GLUGGINN SEM ER SAGDUR = GLUGGINN SEM VAR SKODADUR. Nefnarinn a
+     rodinni og bilid i hausnum eru TVAER birtingar sömu tolu og their
+     verda ad stemma; annars er onnur theirra fost tala.               */
+  const hm = fseg.match(/GW(\d+)–(\d+)/);
+  /* NEFNARINN ER LESINN AF HOLFINU, EKKI UR `textContent` KASSANS —
+     og thad er MAELT, ekki varfaerni: `textContent` limir texta saman an
+     bila, svo verdid og talan runnu i „£15.50 of 6 in XI" og regexid las
+     numerarann sem **50**. Nakvaemlega `MUNaNEW`-gildran (CLAUDE.md 5b),
+     og hun felldi fyrstu utgafu THESSARAR fullyrdingar.               */
+  const useEl = fc && [...fc.querySelectorAll("span")]
+    .find(el => /^\d+ of \d+ in XI$/.test((el.textContent || "").trim()));
+  const dm = useEl ? useEl.textContent.trim().match(/(\d+) of (\d+) in XI/) : null;
+  ok(!!hm && !!dm, "forsenda: bædi bilid og nefnarinn eru a skjanum");
+  if (hm && dm) {
+    ok(+dm[2] === +hm[2] - +hm[1] + 1,
+       `SAGDUR GLUGGI = SKODADUR GLUGGI (GW${hm[1]}-${hm[2]} -> nefnari ${dm[2]})`);
+    ok(+dm[1] === 0, `og ${HAAL} er i XI-inu i ENGRI theirra (${dm[1]})`);
+  }
+
+  /* VERDGOLFIN ERU OBREYTT — odyrasti madur per stodu er ALDREI nefndur.
+     Nofnin eru LEIDD ur lauginni, ekki handskrifud: handskrifadur listi
+     staðnar um leid og FPL faerir verd (sbr. gwBlindKeys).             */
+  const floors = {};
+  for (const q of ALL) { const k = q.element_type, c = Number(q.now_cost);
+    if (!k || !Number.isFinite(c) || c <= 0) continue;
+    if (floors[k] == null || c < floors[k]) floors[k] = c; }
+  const atFloor = START_IDS.map(i => byId[i]).filter(q => q.now_cost <= floors[q.element_type]);
+  ok(atFloor.length >= 3, `forsenda: ${atFloor.length} menn i hopnum eru a verdgolfi sinnar stodu`);
+  ok(atFloor.every(q => !fseg.includes(q.web_name)),
+     "ODYRASTI MADUR PER STODU ER ALDREI NEFNDUR — salan losar ekkert fe");
+
+  /* KOMPAKT, EKKI MALSGREIN. Notandinn: 'alltof mikill og flokinn texti'.
+     Malsgreinarnar bornar berum ordum (their VORU their, svo hvorug
+     fullyrding er tom) OG hard mork a lengd kassans: ein rod + haus +
+     att-lina. Malsgreinarnar tvaer voru ~250 stafir samanlagt, svo
+     thakid fellur um leid og onnur theirra kemur aftur.               */
+  ok(!/Looking back at the/.test(v.text()), "MALSGREIN 1 er farin");
+  ok(!/Selling one saves/.test(v.text()), "MALSGREIN 2 (verdgolfin) er farin");
+  ok(!/Easier fixtures/.test(fseg),
+     "og SKIPTA-TILLAGAN er ekki i merkinu — hun er a spjaldinu (kafli P)");
+  ok(fseg.length <= 190,
+     `MERKID ER KOMPAKT — haus + att + ein rod (${fseg.length} stafir)`, fseg.slice(0, 220));
+  ok(!NANRE.test(v.text()), "ekkert NaN/undefined");
+
+  /* 2. GLUGGINN FYLGIR VALINNI UMFERD. Fost byrjun (alltaf GW1) hefdi
+        verid graen i fullyrdingunni her fyrir ofan.                    */
+  const n5 = gwNode(v, 5);
+  ok(!!n5, "forsenda: GW5-hnutur er a timalinunni");
+  await v.click(n5);
+  ok(new RegExp(FWD_HEAD + " — GW5–10").test(v.text()),
+     "GW5 valin -> glugginn er GW5-10, ekki GW1-6");
+  const f5 = (cardOf(v, FWD_HEAD, "Save £") || { textContent: "" }).textContent;
+  ok(/carried forward from your GW1 line-up/.test(f5),
+     "og ThA er ALLUR glugginn erfdur — ordalagid faerist med", f5.slice(0, 140));
+  ok(!/your own GW1 line-up, carried forward/.test(f5),
+     "og ekki lengur 'your own GW1 line-up' — GW1 er UTAN gluggans");
+
+  /* 3. SKYR BREYTING INNAN GLUGGANS -> ANNAD ORdALAG.
+        3: [[411,321],[346,278]] er FULLUR mismunur fra grunninum (sja
+        kafla H), svo GW1-2 erfa lykil 1 og GW3-6 lykil 3.              */
+  const vm = await mount({ captain: 411,
+    benchSwaps: { 1: [[411, 321]], 3: [[411, 321], [346, 278]] } });
+  const mseg = (cardOf(vm, FWD_HEAD, "Save £") || { textContent: "" }).textContent;
+  ok(/plus your own change in GW3/.test(mseg),
+     "SKYR BREYTING I GW3 -> setningin segir bædi erfd OG skyra breytingu", mseg.slice(0, 200));
+  ok(!/plus your own change/.test(fseg),
+     "og hun var EKKI their thegar engin skyr breyting var innan gluggans");
+
+  /* 4. ENGIN UPPSTILLING -> ThOGN. ThETTA ER GAMLA FALSKA FORSENDAN og
+        vordurinn a henni.
+
+        FYRSTA UTGAFA ThESSARAR FULLYRDINGAR VAR TOM OG STOKKBREYTINGIN
+        SLAPP (0 fallnar). Hun var `mount({ captain: 411 })` — blob AN
+        bekkjar-vixla — og thognin sem hun mældi kom EKKI af thognar-
+        reglunni heldur af thvi ad ALLIR FJORIR bekkjarmenn i
+        `START_SQUAD` (Dubravka, Thomas, Hughes, Walle Egeli) eru a
+        VERDGOLFI sinnar stodu og eru thvi ALDREI nefndir hvort eda er.
+        Fullyrdingin gat thess vegna ekki fallid thott golfid vaeri tekid
+        af. Sama aett og kafli 5b: „fullyrding sem tharf tvennt til ad
+        bregdast er veikari en hun litur ut fyrir ad vera."
+
+        RETTA FESTINGIN setur DYRAN mann i BEKKJAR-SAETI gegnum `plan`
+        (Isak i saeti Walle Egeli) — `plan` er EKKI uppstilling, svo
+        thognar-reglan gildir enn, en nu er ThAR MADUR SEM VAERI FLAGGADUR.
+        Og hun er PORUD: sama `plan`, adeins bekkjar-vixl BAETT VID, og tha
+        BIRTIST hann.                                                   */
+  const SOLD_SEAT = { captain: 411, plan: [{ gw: 1, outId: 321, inId: 379 }] };
+  const ISAK = byId[379].web_name;
+  const vn = await mount(SOLD_SEAT);
+  ok(!new RegExp(FWD_HEAD).test(vn.text()),
+     "ENGIN uppstilling -> ThOGN, ekki setning um grunninn");
+  ok(!/carried forward/.test(vn.text()),
+     "og ekkert erfda-ordalag um uppstillingu sem er ekki til");
+  ok(!vn.text().includes(FWD_HEAD) || !cardOf(vn, FWD_HEAD, "Save £"),
+     "og enginn kassi er teiknadur");
+  /* PORUNIN: SAMA `plan`, ADEINS uppstilling baett vid -> hann BIRTIST.
+     An thessarar linu vaeri thognin her osannreynanleg.               */
+  const vy = await mount({ ...SOLD_SEAT, benchSwaps: { 1: [[496, 497]] } });
+  const yseg = (cardOf(vy, FWD_HEAD, "Save £") || { textContent: "" }).textContent;
+  ok(yseg.includes(ISAK),
+     `PORUN: sama plan + uppstilling -> ${ISAK} ER flaggadur (svo thognin ofan var EKKI tom)`,
+     yseg.slice(0, 160));
+
+  /* 5. MADUR SEM ER SELDUR INNAN GLUGGANS ER EKKI FLAGGADUR.
+        Porud: Calvert-Lewin er a bekknum ALLAR SEX og ER flaggadur, svo
+        thognin um Haaland getur ekki verid 'kassinn er tomur'.         */
+  const vs = await mount({ captain: 411,
+    benchSwaps: { 1: [[411, 321], [346, 278]] },
+    plan: [{ gw: 3, outId: 411, inId: 107 }] });
+  const sseg = (cardOf(vs, FWD_HEAD, "Save £") || { textContent: "" }).textContent;
+  ok(sseg.includes(CAL), `FORSENDA: ${CAL} ER flaggadur (a bekknum allan gluggann)`);
+  ok(!sseg.includes(HAAL),
+     `og ${HAAL}, sem er SELDUR i GW3, er EKKI flaggadur — hann er ekki i hopnum i sidustu umferd gluggans`);
+  ok(!NANRE.test(vs.text()), "ekkert NaN/undefined");
+}
+
+/* ============================================================
+   P. SPJALDID — ThAR SEM PER-LEIKMANNS-TOLURNAR BUA (21.8.2026)
+   ============================================================
+   Notandinn: „thetta er alltof mikill og flokinn texti, thott
+   upplysingar seu godar. AEtti thetta kannski ad vera frekar a player
+   spjaldinu?"
+
+   PORUN (CLAUDE.md 5b regla 2): fyrst er sannad ad SPJALDID se opid og
+   beri tolu sem var ThEGAR their ('Next GW forecast'), og ADEINS ThA er
+   spurt um nyju tolurnar. An thess vaeri hver neikvaed fullyrding her
+   graen einfaldlega vegna thess ad spjaldid opnadist ekki.
+   ============================================================ */
+console.log("\n--- P. SPJALDID ---");
+{
+  const HAAL = byId[411].web_name;
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } });
+  const fc = cardOf(v, FWD_HEAD, "Save £");
+  ok(!!fc, "forsenda: framvirka merkid er a skjanum");
+  /* SMELLT A NAFNID I MERKINU — thad er tengingin sem merkid heitir a:
+     merki a vellinum, smaatridin a spjaldinu.                          */
+  const nameEl = fc && [...fc.querySelectorAll("span")]
+    .find(el => (el.textContent || "").trim() === HAAL);
+  ok(!!nameEl, "og nafnid i merkinu er smellanlegt element");
+  if (nameEl) await v.click(nameEl);
+
+  const t = v.text();
+  ok(/Next GW forecast/.test(t),
+     "PORUN: spjaldid er OPID — reitur sem var ThEGAR their finnst");
+  ok(t.includes(byId[411].second_name),
+     `og thad er spjald ${HAAL} (fullt nafn i hausnum)`);
+
+  /* FULLYRDINGARNAR ERU A REITNUM, EKKI A `v.text()` — OG ThAD ER MAELT.
+     Vallar-merkid stendur AFRAM a bak vid gluggann og hausinn thess ber
+     ordrett „GW1-6", svo `/GW1–6/.test(v.text())` var SONN thott
+     glugginn vaeri tekinn af reitnum: stokkbreytingin (fella `sub` nidur
+     i basis eina) SLAPP i gegn (0 fallnar). Sama aett og kafli 5b —
+     fullyrdingin var um SIDUNA en atti ad vera um HOLFID.             */
+  ok(/Your plan/.test(t), "kassinn Your plan er a spjaldinu");
+  const grp = cardOf(v, "Your plan", "do not rank him against another player");
+  ok(!!grp, "og hann segir BERUM ORDUM ad thetta se EKKI rodun milli manna");
+  /* VALID A REITNUM NOTAR ADEINS HEITID (`In your plan's XI`), ekki
+     nokkurt theirra gilda sem fullyrt er um a eftir — annars vaeri
+     valid sjalft fullyrdingin og hun tautologia (CLAUDE.md 13).      */
+  const kEl = v.q("div").find(d => (d.textContent || "").trim() === "In your plan's XI");
+  const tile = kEl ? kEl.parentElement : null;
+  ok(!!tile, "framvirki reiturinn er a spjaldinu");
+  const tseg = tile ? tile.textContent : "";
+  ok(/0 of 6/.test(tseg), "med nefnaranum sinum — 0 af 6", tseg.slice(0, 120));
+  ok(/GW1–6/.test(tseg),
+     "OG GLUGGANUM, A SAMA REIT: talan er onyt an hans", tseg.slice(0, 120));
+  ok(/carried forward/.test(tseg),
+     "og erfdin er nefnd a REITNUM lika — sami stadur sem talan", tseg.slice(0, 120));
+  /* EIN SETNING VER GEGN RANGLESTRI — og hun er NEFND, svo hun getur
+     fallid. Notandinn las Rice sem 'verstan' 20.8. ur einmitt thessari
+     gerd af tolu (innan leikmanns, birt eins og rodun).               */
+  ok(!/what you actually did/.test(t),
+     "AFTURVIRKA talan er EKKI a spjaldinu i forleik — hun er ekki til");
+  ok(!NANRE.test(t), "ekkert NaN/undefined");
 }
 
 console.log(`\n${"=".repeat(84)}`);

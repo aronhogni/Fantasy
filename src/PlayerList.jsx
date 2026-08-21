@@ -43,11 +43,13 @@ import { useGwSeasonFile, nextRange, rangeBlind as sharedRangeBlind,
 import ImminentPanel from "./Imminent.jsx";
 import BuyWindows from "./BuyWindows.jsx";
 import { photoNext } from "./Crest.jsx";
-/* `passesThreshold` var flutt UT ur thessum innflutningi 17.8.2026 med
-   throskuldar-siunni. Fallid stendur afram i `stats.js` og a nu engan
-   notanda i appinu.                                                    */
+/* `passesThreshold` for UT ur thessum innflutningi 17.8.2026 med
+   throskuldar-siunni og KOM AFTUR 21.8.2026 med smell-a-tolu (sja
+   `filterOnValue`). Reglan sjalf bur AFRAM i `stats.js` — hun ma ekki
+   afritast hingad: hun var her inni adur og tha gat profid adeins lesid
+   kodann, svo stokkbreyting sem fjarlaegdi namundunina SLAPP I GEGN.   */
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName,
-         sumGwRange, gwBlindKeys, makeEnricher } from "./stats.js";
+         sumGwRange, gwBlindKeys, makeEnricher, passesThreshold } from "./stats.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -769,9 +771,20 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      — thad var ekki fokus- eda render-villa heldur handler a holfinu.
      Vidbotarahrif sem hvarf med: `autoFocus` a nyja chip-inu greip fokus
      ur toflunni i sama smelli.
-     Med siunni for `passesThreshold`-notkunin ur thessari skra. Fallid
-     sjalft stendur afram i `stats.js` (onnur lota a thа skra); thad a nu
-     ENGAN notanda i appinu og ma fjarlaegja thar ef sa sem a skrana vill. */
+     Med siunni for `passesThreshold`-notkunin ur thessari skra.
+
+     SMELLURINN KOM AFTUR 21.8.2026 — NOTANDINN: "eg get ekki lengur smellt
+     a stats i player stats til ad filtera eftir". Eiginleikinn var beðinn
+     um aftur, svo thad sem thurfti ad laga var ekki EIGINLEIKINN heldur
+     ThRENNT sem gerdi hann pirrandi. Sja `filterOnValue` nedar:
+       1. HANN KVIKNAR EKKI AF BERUM SMELL. Alt-smellur (⌥) er skilyrdid;
+          beri smellurinn gerir afram EKKERT. Skrun er ekki smellur og
+          textaval er drag, svo hvorugt getur kveikt hann.
+       2. ENGINN `autoFocus`. Chipin eru hnappar og fokus helst i toflunni.
+       3. SYNILEGT OG AFTURKRAEFT: chip med dalksheiti + throskuldi, ✕ a
+          hverju, "clear all" a ollum — og rada-talan i hausnum ("N of M")
+          er SAMA bordinn sem var thegar til, ekki nyr.                   */
+  const [thresholds, setThresholds] = useState([]);   // [{key, op, val}]
   const [sortKey, setSortKey] = useState("total_points");
   const [sortDir, setSortDir] = useState("desc");
 
@@ -931,7 +944,10 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      ThETTA ER ALLT EDA EKKERT: sia sem er tekin ur vidmotinu en skilin
      eftir i thessu falli myndi threngja listann OSYNILEGA, sem er verra
      en sian sjalf var. Vordurinn er RADA-TALNING i DOM
-     (`playerlist-gw-filter.mjs` kafli 4), ekki lestur a thessum kafla.  */
+     (`playerlist-gw-filter.mjs` kafli 4), ekki lestur a thessum kafla.
+     THROSKULDURINN KOM AFTUR 21.8.2026 (alt-smellur a tolu) og hann
+     lydir SOMU reglu: hvert chip i `filterBar` er ein faersla her og
+     engin faersla her er an chips.                                      */
   const filtered = useMemo(() => {
     const t0 = (typeof performance !== "undefined" ? performance.now() : 0);
     const needle = normName(q);
@@ -941,12 +957,35 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
       if (hidePicked && picked.has(r.p.id)) return false;
       if (onlyWatch && !watchSet.has(r.p.id)) return false;
       if (needle && !r.search.includes(needle)) return false;
+      for (const t of thresholds) {
+        const d = STAT_BY_KEY[t.key];
+        /* VERD OG EIGNARHALD ERU ALLTAF DAGSINS — LIKA I SIUNNI.
+           Thessir tveir dalkar eru undantekningin fra "lestu ur `r.src`":
+           holfin birta dagsins tolu fyrir ALLA, en arkiv-rodin er null hja
+           theim sem spiludu ekki valda timabilid. Laesum vid `r.src` myndi
+           "mest GBP4,0" henda theim UT thott verdid theirra sjaist i
+           toflunni og uppfylli skilyrdid — sia sem siar ut thann sem var
+           smellt a er villa.                                             */
+        const v = t.key === "now_cost" ? r.cost
+                : t.key === "selected_by_percent" ? r.own
+                : (d && r.src ? d.get(r.src) : null);
+        /* NULL ER EKKI NULL (kafli 8) — og thad er nakvaemlega `?? 0`-
+           gildran ur kafla 12: an thessarar linu myndi "mest 0,00" hleypa
+           HVERJUM ThEIM I GEGN sem a ENGA tolu, thvi vantandi gildi les
+           eins og 0 i hverjum samanburdi.                                */
+        if (v == null) return false;
+        /* Reglan sjalf bur i `passesThreshold` (stats.js) — hun ma ekki
+           afritast hingad; sja innflutninginn i haus skrarinnar.         */
+        const tDef = t.key === "now_cost" || t.key === "selected_by_percent"
+                   ? { dec: 1 } : d;
+        if (!passesThreshold(tDef, v, t.op, t.val)) return false;
+      }
       return true;
     });
     if (typeof performance !== "undefined" && import.meta.env?.DEV)
       console.log(`[Players] filter -> ${out.length}: ${(performance.now()-t0).toFixed(1)} ms`);
     return out;
-  }, [rows, pos, q, hidePicked, cmpIds, onlyWatch, watchSet]);
+  }, [rows, pos, q, hidePicked, cmpIds, onlyWatch, watchSet, thresholds]);
 
   /* ---------- rodun ----------
      NULL ALLTAF SIDAST, i BADAR attir. Thetta er algengasta villan:
@@ -1214,6 +1253,45 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
   const arrow = k => sortKey !== k ? "" : (sortDir === "asc" ? " ↑" : " ↓");
   const aria = k => sortKey !== k ? "none" : (sortDir === "asc" ? "ascending" : "descending");
 
+  /* ---------- ALT-SMELLUR A TOLU = THROSKULDUR (aftur 21.8.2026) ----------
+     ATTIN ER LEIDD UT UR `hi`, EKKI GEFIN. A Verdi, Mork a sig og
+     Min/framlag er LAEGRA betra, svo thar setur smellurinn HAM ("max 4,0")
+     — `>=` a `hi:false`-dalki vaeri villandi sia sem hendir einmitt theim
+     ut sem smellt var a (CLAUDE.md 8: `hi` er FORSENDA, ekki skraut).
+     TALAN ER TEKIN EINS OG HUN BIRTIST (`dec`), ekki hra: notandinn
+     smellti a "90%", ekki a 0,8967. ENGIN "snyrtileg namundun" nidur a
+     runna tolu — thad vaeri OMAELD tala og gerdi utkomuna oforspaanlega,
+     sem er andstaedan vid thad sem beðid var um. "min 239" ma skila EINUM
+     manni; thad sest i talnabordanum og eitt ✕ tekur thad af.           */
+  const filterOnValue = (d, v) => {
+    if (v == null || !Number.isFinite(v)) return;
+    const op = d.hi === false ? "<=" : ">=";
+    const val = +v.toFixed(d.dec ?? 0);
+    /* SAMI dalkur + SAMA att = EIN faersla. Annars hefdi hver alt-smellur
+       staflad nyrri sömu-attar siu ofan a hina og tvö chip sagt sitt hvad
+       um sama dalk. Ad alt-smella a adra tolu ER thvi leidin til ad
+       BREYTA throskuldinum (90 -> 85), en "min" OG "max" a sama dalki
+       mega lifa samtimis — thad er gilt bil.                            */
+    setThresholds(t => [...t.filter(x => !(x.key === d.key && x.op === op)),
+                        { key: d.key, op, val }]);
+  };
+  /* Skilyrdid er a EINUM stad: holfin kalla thetta, ekki `filterOnValue`
+     beint, svo "hvad taldist alt-smellur" geti ekki rekid i sundur milli
+     theirra 124 + 3 holfa sem bera hann.                                */
+  const cellFilterClick = (e, d, v) => {
+    if (!e?.altKey) return;                  // BER SMELLUR GERIR EKKERT
+    e.preventDefault(); e.stopPropagation();
+    filterOnValue(d, v);
+  };
+  const dropThAt = i => setThresholds(t => t.filter((_, j) => j !== i));
+  /* HVADA DALKAR ERU UNDIR SIU — merkt i hausnum, svo sian se synileg
+     thott chip-rodin se skrunud upp ur augsyn.                          */
+  const thByKey = useMemo(() => {
+    const m = {};
+    thresholds.forEach(t => (m[t.key] ||= []).push(t));
+    return m;
+  }, [thresholds]);
+
   /* Sirnar sem eftir standa (stada, leit, vaktlisti, faldir) — chip sem
      hreinsar sig. Verd-, lida-, "fit to play"- og "my squad"-chipin foru
      med siunum sinum 17.8.2026; chip an siu vaeri hnappur sem hreinsar
@@ -1223,7 +1301,20 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
   if (q) chips.push([`“${q}”`, () => setQ("")]);
   if (hidePicked) chips.push(["hide selected", () => setHidePicked(false)]);
   if (onlyWatch) chips.push(["★ watchlist", () => setOnlyWatch(false)]);
-  const filterCount = chips.length;
+  const filterCount = chips.length + thresholds.length;
+  /* EIN hreinsun, ekki tvaer sem reka i sundur: bædi "clear all" i hausnum
+     og hnappurinn i tomu-utkomunni kalla thetta.                        */
+  const clearAllFilters = () => {
+    setPos("all"); setQ("");
+    setHidePicked(false); setOnlyWatch(false); setThresholds([]);
+  };
+  /* Heiti + throskuldur i einum streng — LESID AF SKJANUM af verdinum,
+     svo hann ma ekki byggjast tvisvar.                                  */
+  const thLabel = t => {
+    const d = STAT_BY_KEY[t.key];
+    return `${d?.short || d?.label || t.key} ${t.op === ">=" ? "min" : "max"} `
+         + `${fmtStat(d, t.val)}`;
+  };
 
   if (!players?.length) {
     return <section style={S.card}><div style={S.muted}>{"Fetching player data…"}</div></section>;
@@ -1266,9 +1357,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
             ))}
           </select>
           {filterCount > 0 && mode !== "imm" &&
-            <button style={S.clearAll} onClick={() => {
-              setPos("all"); setQ(""); setHidePicked(false); setOnlyWatch(false);
-            }}>{"clear all"}</button>}
+            <button style={S.clearAll} onClick={clearAllFilters}>{"clear all"}</button>}
         </div>
       </div>
 
@@ -1512,12 +1601,37 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
 
       {/* ---------- VIRKAR SIUR ----------
           EIGIN RAMMI MED TOLU, EKKI LAUS CHIP-ROD: beidnin var ad "hafa
-          augljost hvada filteringar eru i gangi". Throskuldar-chipin (sem
-          voru ritanleg a stadnum) foru med throskuldar-siunni 17.8.2026;
-          eftir standa einfoldu sirnar, hver med sinu hreinsi-chipi.     */}
+          augljost hvada filteringar eru i gangi". Throskuldur getur legid a
+          dalki i ODRUM flokki en theim sem er opinn, svo hann VERDUR ad
+          nefna dalkinn sjalfur.
+          CHIPIN ERU HNAPPAR, EKKI RITREITIR (21.8.2026). Gamla utgafan bar
+          ritanlegan `<input autoFocus>` og thad var HALF sagan af "filterid
+          dettur sjalfkrafa inn": fokusinn fluttist ur toflunni i sama
+          smelli. Ad alt-smella a adra tolu i sama dalki skiptir um
+          throskuld (`filterOnValue` sameinar key+op), svo ekkert tapast.  */}
       {filterCount > 0 && (
         <div style={S.filterBar}>
           <span style={S.filterHd}>{"Filters"} <span style={S.filterN}>{filterCount}</span></span>
+          {thresholds.map((t, i) => (
+            <span key={t.key + t.op} style={S.thChip}>
+              {/* Heitid er HNAPPUR: hann SYNIR dalkinn sem er siad eftir —
+                  i flokka-ham med thvi ad opna flokkinn hans, i bygginga-
+                  ham med thvi ad setja hann i tofluna. Sian er su sama;
+                  hun er bara ekki synileg a sama hatt.                   */}
+              <button style={S.thChipName}
+                title={`${STAT_BY_KEY[t.key]?.label || t.key} — click to show this column`}
+                onClick={() => {
+                  const d = STAT_BY_KEY[t.key];
+                  if (!d) return;
+                  if (mode === "custom") {
+                    if (!customSet.has(d.key) && !pinnedKeys.has(d.key)) toggleCol(d.key);
+                  } else setGroup(d.group);
+                }}>{thLabel(t)}</button>
+              <button style={S.thChipX} aria-label={`Remove filter ${thLabel(t)}`}
+                title={"Remove this filter"}
+                onClick={() => dropThAt(i)}>✕</button>
+            </span>
+          ))}
           {chips.map(([label, clear], i) => (
             <button key={i} style={S.chip} onClick={clear}>{label} ✕</button>
           ))}
@@ -1573,10 +1687,11 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
       ) : !sorted.length ? (
         <div style={S.empty}>
           <b>{"No player matches."}</b> {"Active filters:"}{" "}
-          {filterCount ? chips.map(([l]) => l).join(" · ") : "none"}.
-          {filterCount > 0 && <> <button style={S.link} onClick={() => {
-            setPos("all"); setQ(""); setOnlyWatch(false); setHidePicked(false);
-          }}>{"clear filters"}</button></>}
+          {filterCount
+            ? [...thresholds.map(thLabel), ...chips.map(([l]) => l)].join(" · ")
+            : "none"}.
+          {filterCount > 0 && <> <button style={S.link}
+            onClick={clearAllFilters}>{"clear filters"}</button></>}
         </div>
       ) : (
         <div ref={scrollRef} style={{ ...S.scroll, ...(fitH ? { maxHeight: fitH } : {}) }}>
@@ -1632,16 +1747,17 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                 {visibleCols.map(d => (
                   <div key={d.key} style={{ ...S.hCell, ...cFor(d),
                          ...(gwActive && blindKeys.has(d.key) ? S.hBlind : {}),
-                         }}
+                         ...(thByKey[d.key] ? S.hFiltered : {}) }}
                     title={`${d.label}${d.short && d.short !== d.label ? ` (${d.short})` : ""}`
                          + `${d.derived ? " · computed by us from FPL fields" : ""}`
                          + `\n\n${d.note || ""}`
-                         + `\n\nClick the header to sort.`
+                         + `\n\nClick the header to sort. Alt-click a value in the column to filter on it.`
                          + (gwActive && blindKeys.has(d.key)
                             ? `\n\nSEASON FIGURE: does not follow the gameweek range, shows the total.` : "")}
                     aria-sort={aria(d.key)} tabIndex={0}
                     onClick={() => sortOn(d.key, d.hi !== false)}
                     onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortOn(d.key, d.hi !== false); } }}>
+                    {thByKey[d.key] ? <span style={S.hFunnel} title={"filtered"}>▼</span> : null}
                     {hLabel(d)}
                     {/* Merking a dalkinum sjalfum, ekki adeins i skyringu:
                         notandinn les tofluna, ekki fotnotur.
@@ -1731,15 +1847,20 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                       {inCmp ? "✓" : "⇄"}
                     </button>}
                   </div>
-                  {/* TOLU-HOLFIN ERU EKKI LENGUR SMELLANLEG (17.8.2026).
-                      `onClick` a hverju holfi setti throskuld A SAMSTUNDIS og
-                      thad var villan sem notandinn tilkynnti — sja skyringuna
-                      vid `sortKey` ofar. Holfin bera afram `title` med heiti
-                      og gildi; thad var HITT sem thau gerdu.               */}
+                  {/* TOLU-HOLFIN SIA VID ALT-SMELL, ALDREI VID BERAN SMELL
+                      (21.8.2026). `onClick` a hverju holfi setti throskuld
+                      A SAMSTUNDIS til 17.8. og thad var villan sem notandinn
+                      tilkynnti; skilyrdid bur i `cellFilterClick` ofar, a
+                      EINUM stad fyrir oll holfin.
+                      VERDID ER `hi:false`, svo smellur thar setur MAX — ekki
+                      MIN. Sia sem hendi ut theim sem smellt var a vaeri verri
+                      en engin sia.                                          */}
                   {(() => { const d = STAT_BY_KEY.now_cost, bg = heatBg(d, r.cost);
                     return <div style={{ ...S.cell, ...cNum, ...S.strong,
                                          ...(bg ? { background: bg } : {}) }}
-                      title={`${d.label}: £${r.cost.toFixed(1)}`}>
+                      title={`${d.label}: £${r.cost.toFixed(1)}`
+                             + `\nAlt-click to filter (max £${r.cost.toFixed(1)}).`}
+                      onClick={e => cellFilterClick(e, d, r.cost)}>
                       £{r.cost.toFixed(1)}</div>; })()}
                   {mode === "custom" ? (() => {
                     /* STIGIN FYLGJA VOLDU TIMABILI OG UMFERDAR-BILI eins og
@@ -1752,7 +1873,9 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                       <div style={{ ...S.cell, ...cNum, ...S.strong,
                                     ...(v == null ? S.miss : S.cellHit),
                                     ...(() => { const bg = heatBg(pd, v); return bg ? { background: bg } : {}; })() }}
-                        title={v == null ? "Points: no data" : `Points: ${v}`}>
+                        title={v == null ? "Points: no data"
+                          : `Points: ${v}\nAlt-click to filter (min ${v}).`}
+                        onClick={v == null ? undefined : e => cellFilterClick(e, pd, v)}>
                         {v == null ? "—" : fmtStat(pd, v)}
                       </div>
                     );
@@ -1760,12 +1883,16 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                     (() => { const d = STAT_BY_KEY.selected_by_percent, bg = heatBg(d, r.own);
                       return <div style={{ ...S.cell, ...cNum,
                                            ...(bg ? { background: bg } : {}) }}
-                        title={`${d.label}: ${r.own.toFixed(1)}%`}>
+                        title={`${d.label}: ${r.own.toFixed(1)}%`
+                               + `\nAlt-click to filter (min ${r.own.toFixed(1)}).`}
+                        onClick={e => cellFilterClick(e, d, r.own)}>
                         {r.own.toFixed(1)}</div>; })()
                   )}
                   {visibleCols.map(d => {
                     const v = r.src ? d.get(r.src) : null;
-                    /* BYRJUNAR-LIKUR FA LIT — thad var eini dalkurinn sem
+                    /* TOMT HOLF ER EKKI SIANLEGT: "engin gogn" er ekki tala
+                       og throskuldur ur henni vaeri tilbuningur.
+                       BYRJUNAR-LIKUR FA LIT — thad var eini dalkurinn sem
                        hafdi hann adur (i tvitekna hola dalknum lengst til
                        haegri, sem er nu farinn) og hann a hann skilid:
                        "start prob" er einmitt talan sem a ad hropa.        */
@@ -1782,7 +1909,11 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                         title={v == null ? interp("{0}: no data", [d.label])
                           : (isSp && r.startLevel === "trap"
                              ? `${d.label}: ${fmtStat(d, v)} — started last time but is at risk of the bench.`
-                             : `${d.label}: ${fmtStat(d, v)}`)}>
+                               + `\nAlt-click to filter on this value.`
+                             : `${d.label}: ${fmtStat(d, v)}`
+                               + `\nAlt-click to filter (${d.hi === false ? "max" : "min"} `
+                               + `${(+v.toFixed(d.dec ?? 0))}).`)}
+                        onClick={v == null ? undefined : e => cellFilterClick(e, d, v)}>
                         {v == null ? "—" : fmtStat(d, v)}
                       </div>
                     );
@@ -1795,7 +1926,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
       )}
 
       {mode !== "win" && <div style={S.legend}>
-        <b>{"Click a header to sort"}</b>{", a name to open the card,"} <b>⇄</b> {"to compare. Hover any header for what the number is and what counts as good."}
+        <b>{"Alt-click any value to filter on it"}</b>{" (⌥ on a Mac) — it becomes a chip above the table naming the column and the threshold, and ✕ takes it off again. A plain click never filters. On a column where lower is better (price, goals conceded, cards) the threshold is a"} <b>{"maximum"}</b>{", not a minimum. Click a header to sort, a name to open the card,"} <b>⇄</b> {"to compare. Hover any header for what the number is and what counts as good."}
         {" "}<b>—</b> {"= data missing (not zero) and always sorts"} <b>{"last"}</b>{", in both directions; a column that is empty for everyone in"}
         {" "}{season} {"is still shown, because \"no data\" is information too."}
         {" "}<b style={{ color:"#e8a71c" }}>★</b> {"adds to the watchlist (saved between visits); the star in the header shows the watchlist only."}
@@ -1875,6 +2006,20 @@ const S = {
              color:C.purple, display:"flex", alignItems:"center", gap:4 },
   filterN:{ background:C.purple, color:"#fff", borderRadius:9, minWidth:14,
             textAlign:"center", padding:"0 4px", fontSize:9.5, letterSpacing:0 },
+  /* THROSKULDAR-CHIP: TVEIR HNAPPAR, ENGINN RITREITUR (21.8.2026).
+     Ekki `border`-styttingu og longhand a somu reglu i sama hlut — React
+     fjarlaegir longhand i odefineradri rod og gefur rangan ramma
+     (CLAUDE.md 8, `react-warnings.mjs`). Her er `border` eitt a
+     umgjordinni og hreint longhand a innri skilunum.                    */
+  thChip:{ display:"inline-flex", alignItems:"center", gap:0,
+           border:`1px solid #cdb5d2`, background:"#fff", borderRadius:12,
+           overflow:"hidden", height:22 },
+  thChipName:{ border:"none", background:"transparent", color:C.purple, fontWeight:700,
+               fontSize:10.5, padding:"0 7px", cursor:"pointer", height:"100%",
+               maxWidth:190, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  thChipX:{ borderTop:"none", borderRight:"none", borderBottom:"none",
+            borderLeft:"1px solid #ecdff0", background:"#faf6fb",
+            color:C.text3, fontSize:10, padding:"0 6px", cursor:"pointer", height:"100%" },
 
   /* ---- lesmata-rofi ---- */
   modeRow:{ display:"flex", gap:3 },
@@ -2000,6 +2145,10 @@ const S = {
      Beinn litur her + `frozenShadow` a kantinum = holfid hylur og THAD
      SEST ad efnid heldur afram undir thvi.                              */
   hName:{ justifyContent:"flex-start", textAlign:"left", background:C.cardAlt },
+  /* SIADUR DALKUR ER MERKTUR I HAUSNUM — chip-rodin getur verid skrunud
+     upp ur augsyn og dalkurinn getur legid i ODRUM flokki en theim opna. */
+  hFiltered:{ background:"#f3eaf5", color:C.purple },
+  hFunnel:{ fontSize:7.5, color:C.purple, marginRight:2 },
   frozenShadow:{ boxShadow:"6px 0 8px -6px rgba(0,0,0,0.28)" },
   /* whiteSpace:"normal" + 2 linur: sja wOf. `lineHeight` er sett svo tvaer
      linur passi i haus-hædina an ad ýta rodunum nidur.                   */

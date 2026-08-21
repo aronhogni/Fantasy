@@ -248,11 +248,14 @@ export const S = {
      ekki bannadur heldur MERKINGARLAUS i thessari umferd, og merkimidinn
      segir thad sjalfur. */
   ghostOff: { opacity:0.55, cursor:"default", color:C.text3 },
-  /* SETNINGIN UM BEKKJAR-RODINA ER FAST A SKJANUM, EKKI I TOAST SEM HVERFUR.
-     `marginBottom: 0` — `capBar` er `alignItems:center` flex-rod og botn-
-     margin thar lyftir textanum um halft sitt gildi medan systkinin sitja
-     kyrr (sama villa og `S.muted` i `srcRow`, sja App.jsx). */
-  bestXiNote: { fontSize:10.5, color:C.text3, marginBottom:0, lineHeight:1.35 },
+  /* `bestXiNote` VAR HER OG ER FARINN (21.8.2026). Hann bar synilegu
+     linuna „sets who starts, not bench order" undir Pick-best-XI-takkanum;
+     notandinn bad um ad taka hana ut og fyrirvarinn faerdist i `title` a
+     takkanum sjalfum (sja App.jsx). Stillinn er ekki skilinn eftir
+     ONOTADUR: `langWrap`/`langBtn`/`langOn` sátu skilgreindir og onotadir
+     eftir ad tungumalalagid for og voru fjarlaegdir af nakvaemlega thessari
+     astaedu (CLAUDE.md kafli 9) — still an notanda er lygi um ad eitthvad
+     se teiknad.                                                        */
 
   /* Raðirnar deila plássinu jafnt; völlurinn vex ef þarf (sjá Pitch.jsx) */
   rowsArea: { flex:"1 0 auto", display:"flex", flexDirection:"column",
@@ -475,6 +478,16 @@ export const S = {
   srcSwap: { flexBasis:"100%", minWidth:0, fontSize:10.5, color:C.text3,
     lineHeight:1.35, marginBottom:0 },
   srcSwapName: { color:C.green, fontWeight:700, cursor:"pointer" },
+  /* ATT-MERKID A „Not in your XI"-kossunum (21.8.2026). Tveir kassar geta
+     verid a skjanum samtimis — AAETLUN (framvirkt) og STADREYND
+     (afturvirkt) — og thad er nakvaemlega vegna thess ad thau eru TVAER
+     spurningar sem tolurnar theirra ma ekki leggja saman. Merkid er thvi
+     EKKI skraut: an thess vaeru tveir eins kassar med ymsum tolum.
+     ThAD ER LINA, EKKI MALSGREIN, og thad er allur punkturinn — notandinn
+     bad um „minni og einfaldari texta", svo `S.muted` (blokka-still med
+     `marginBottom: 8`, sja `srcName`) er RANGI stillinn her.            */
+  unusedDir: { fontFamily:mono, fontSize:9, color:C.text3, letterSpacing:0.2,
+    lineHeight:1.35, marginBottom:5 },
   dotErr: { width:6, height:6, borderRadius:"50%", background:C.red, flex:"0 0 6px" },
   dotOk: { width:7, height:7, borderRadius:"50%", background:C.green, flexShrink:0 },
   tblHead: { display:"flex", alignItems:"center", gap:4, fontFamily:mono, fontSize:9, textTransform:"uppercase", letterSpacing:0.6, color:C.text3, paddingBottom:4, borderBottom:`1px solid ${C.border}` },

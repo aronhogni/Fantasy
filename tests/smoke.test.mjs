@@ -184,8 +184,11 @@ console.log("\n=== ThU NOTAR HANN ALDREI — SEFUR I FORLEIK ===");
   } else {
     ok(text().includes("Not been in your XI"),
        `timabilid er byrjad (${started} umferdir) — bordinn A ad birtast`);
-    ok(/Looking back at the \d+ gameweeks? up to GW\d+/.test(text()),
-       "og setningin er AFTURABAK og segir hve margar umferdir hun las");
+    ok(/Not been in your XI — GW\d+–\d+/.test(text()),
+       "og hausinn er AFTURABAK og BER gluggann sem var lesinn");
+    /* MALSGREININ VAR FJARLAEGD 21.8. — glugginn er i hausnum og
+       nefnarinn a hverri rod, svo hun sagdi thad sama thridja sinni.   */
+    ok(!/Looking back at the/.test(text()), "og malsgreinin er farin");
   }
 }
 

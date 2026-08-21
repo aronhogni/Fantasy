@@ -276,6 +276,12 @@ ok("BASICS: engin 'season totals'-advorun (thar fylgja dalkar bilinu)",
    verd-bilid, lida-sian, "fit to play" og "my squad".
    Eftir standa stada, leit, vaktlisti og "hide selected".
 
+   SMELL-A-TOLU KOM AFTUR 21.8.2026 SEM ALT-SMELLUR og thessi kafli er
+   ThVI ENN VORDURINN sem gildir: hann fullyrdir ad BER smellur siar ekki
+   og ad "Threshold: ▾"-rodin, verd-bilid, lida-sian og gatmerkin tvo seu
+   AFRAM horfin. Nyja hegdunin (alt-smellur, chip, hreinsun, null-vordurinn)
+   er profud i `playerlist-live-cols.mjs` kafla 5.
+
    TVAER FULLYRDINGAR, OG HVORUG DUGAR AN HINNAR:
      · stjornbordin eru horfin ur DOM (annars er thetta bara falid)
      · RADA-TALNINGIN er full (annars gaeti sia lifad afram i `filtered`
@@ -327,12 +333,16 @@ H("4. SIURNAR SEM VORU TEKNAR UT (17.8.2026)");
        a tomt holf og fullyrdingin haetti ad maela (CLAUDE.md 5b).      */
     ok(`smellt er a holf sem ber raunverulega tolu ("${val}")`,
        Number.isFinite(parseFloat(val)));
-    /* Og titillinn lofar ekki lengur siun — thad var textinn sem sagdi
-       notandanum ad thetta VAERI hegdunin. Strengurinn "Click to filter"
-       var sannanlega tharna: hann stod i thessu sama holfi 17.8.2026.  */
-    ok("holfid lofar ekki lengur siun i `title`",
-       !/Click to filter/i.test(cell?.getAttribute("title") || ""),
-       JSON.stringify(cell?.getAttribute("title") || ""));
+    /* TITILLINN MA LOFA SIUN — EN ADEINS MED MODIFIER (21.8.2026).
+       Hann sagdi "Click to filter (min 239)" 17.8.2026 og thad var textinn
+       sem sagdi notandanum ad BER smellur VAERI hegdunin. Eiginleikinn kom
+       aftur 21.8. sem alt-smellur, svo fullyrdingin er ekki lengur "ekkert
+       loford" heldur "loford sem nefnir modifier-inn": ber "Click to
+       filter" fellur afram, "Alt-click to filter" stenst.               */
+    const ti = cell?.getAttribute("title") || "";
+    ok("holfid lofar siun ADEINS med modifier (`Alt-click to filter`)",
+       /Alt-click to filter/.test(ti) && !/(?<!Alt-)[Cc]lick to filter/.test(ti),
+       JSON.stringify(ti));
     await click(cell);
     const [after, tot3] = shownOf();
     ok(`smellur a tolu SIAR EKKI: ${after} af ${tot3} (var 1 af 587 fyrir lagfaeringu)`,
@@ -347,13 +357,14 @@ H("4. SIURNAR SEM VORU TEKNAR UT (17.8.2026)");
    Kaflinn var "SIAN OG TAFLAN MEGA ALDREI SEGJA SITTHVAD" (14.8.2026):
    notandinn siadi "start prob >= 90" og Ampadu og Botman duttu ut medan
    holfid sagdi 90 (0,897 -> 89,7, `dec: 0`).
-   SIAN SEM NOTADI ThETTA ER FARIN (kafli 4) en `passesThreshold` stendur
-   afram i `stats.js` og hefur nu ENGAN notanda i appinu. Kaflinn er samt
-   ekki felldur ut: fallid er utflutt, oprofad annars stadar, og prof sem
-   er eytt um leid og notandinn hverfur skilur eftir sig oprofadan kóða.
-   EIN FULLYRDING VAR FELLD UT — "PlayerList kallar `passesThreshold`" —
-   thvi hun er nu OSONN OG A AD VERA ThAD. Hegdunin sem hun atti ad verja
-   er varin i kafla 4, a DOM-inu, sem er sterkari fullyrding hvort sem er.
+   SIAN VAR TEKIN UT 17.8.2026 og `passesThreshold` stod thа eftir an
+   notanda; hun KOM AFTUR 21.8.2026 sem alt-smellur og fallid er thvi
+   notad ur `PlayerList.jsx` a nyjan leik. Reglan (namundun ad `dec` adur
+   en borid er saman) er profud HER, a fallinu; hegdunin sem hun styrir er
+   profud a DOM-inu (kafli 4 her og kafli 5 i `playerlist-live-cols.mjs`).
+   Ad afrita regluna inn i `PlayerList.jsx` — thar sem hun VAR — er thad
+   sem gerdi hana oprofanlega: stokkbreyting sem fjarlaegdi namundunina
+   slapp i gegn.
    ============================================================ */
 H("5. NAMUNDUNARREGLAN (`passesThreshold`) — FALLID STENDUR, NOTANDINN ER FARINN");
 {

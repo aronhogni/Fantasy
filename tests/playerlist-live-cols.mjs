@@ -259,5 +259,142 @@ await new Promise(r => setTimeout(r, 60));
   }
 }
 
+/* ============================================================
+   5. ALT-SMELLUR A TOLU = THROSKULDUR (21.8.2026)
+
+   SAGAN: smellur a tolu SIADI SJALFUR til 17.8.2026 — hvert einasta
+   tolu-holf bar `onClick={() => filterOnValue(d, v)}`, svo EINN smellur a
+   239 hja Haaland for listann ur 587 af 587 nidur i 1 af 587. Notandinn:
+   "eg smelli a listann og filteringin dettur sjalfkrafa inn". Sian var thvi
+   fjarlaegd — og 21.8. bad hann um hana AFTUR ("eg get ekki lengur smellt
+   a stats i player stats til ad filtera eftir").
+
+   ThVI ER MIKILVAEGASTA FULLYRDINGIN HER NEIKVAED: BER SMELLUR SIAR EKKI.
+   Hun er profud FYRST og a somu holfum sem alt-smellurinn siar sidan, svo
+   hun geti ekki verid tom (CLAUDE.md 5b): holfid er sannanlega tharna og
+   sannanlega sianlegt — thad er MODIFIER-inn sem er skilyrdid.
+
+   ALLT ER LESID AF SKJANUM: rada-talan ur bordanum ("N of M"), chip-textinn
+   og hausamerkid. Rada-talan er RAUNTALAN, ekki thad sem sest — listinn er
+   syndarvaeddur og adeins ~24 radir eru i DOM.
+   ============================================================ */
+{
+  console.log("\nALT-SMELLUR A TOLU (throskuldar-sian)");
+  const players = J("players.json").players;
+  const { STAT_BY_KEY } = await import(new URL("src/stats.js", REPO).href);
+
+  const altFire = async el => {
+    await act(async () => {
+      el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, altKey: true }));
+    });
+    await settle();
+  };
+  /* RAUNTALAN, EKKI SU SYNILEGA: bordinn i hausnum er `sorted.length of
+     players.length` — sami bordi sem var thegar til, engin ny talning.  */
+  const count = () => {
+    const el = [...document.querySelectorAll("div")]
+      .map(d => (d.textContent || "").trim())
+      .find(t => /^\d+ of \d+ · \d{4}\/\d{2}$/.test(t));
+    return el ? +el.split(" of ")[0] : -1;
+  };
+  const cells = prefix => [...document.querySelectorAll("div[title]")]
+    .filter(d => (d.getAttribute("title") || "").startsWith(prefix));
+  const thChips = () => [...document.querySelectorAll("button[aria-label]")]
+    .filter(b => (b.getAttribute("aria-label") || "").startsWith("Remove filter"));
+  const clearAll = () => [...document.querySelectorAll("button")]
+    .find(b => b.textContent.trim() === "clear all");
+
+  /* ---- 5a. FORSENDAN: listinn er STOR adur en nokkud er siad ---- */
+  const N0 = count();
+  ok(`bordinn les rada-tolu og hun er STOR fyrir siun (${N0} af ${players.length})`,
+     N0 > 400 && N0 <= players.length,
+     "— an thessarar forsendu er 'listinn styttist' ekki maeling");
+  ok("engin throskuldar-chip i upphafi", thChips().length === 0);
+
+  /* ---- 5b. BER SMELLUR SIAR EKKI — ThETTA ER AFTURFORIN SJALF ---- */
+  /* Radad eftir eignarhaldi (fallandi) svo efsta rodin beri HAMARKID —
+     tha er "min <hamark>" harð sia og bilun sest strax.                 */
+  ok("hausinn 'Owned %' er til og radar", await clickHeader("Owned %"));
+  let own = cells("Ownership %: ");
+  ok(`eignarhalds-holf eru i DOM (${own.length}) — holfid sem beri smellurinn hittir`,
+     own.length > 5);
+  await fire(own[0]);
+  ok("BER SMELLUR A TOLU SIAR EKKI (afturforin sem notandinn tilkynnti 17.8.)",
+     count() === N0 && thChips().length === 0,
+     `— fekk ${count()} af ${N0} og ${thChips().length} chip`);
+
+  /* ---- 5c. ALT-SMELLUR SIAR, `hi:true` -> MIN ---- */
+  own = cells("Ownership %: ");
+  const ownTop = own[0].getAttribute("title").match(/Ownership %: ([\d.]+)/)?.[1];
+  await altFire(own[0]);
+  const n1 = count();
+  ok(`alt-smellur a haesta eignarhaldid (${ownTop}%) styttir listann: ${N0} -> ${n1}`,
+     n1 > 0 && n1 < N0, `— fekk ${n1}`);
+  let chip = thChips()[0]?.parentElement?.textContent || "";
+  ok(`chipid NEFNIR dalkinn OG throskuldinn ("${chip.replace("✕", "").trim()}")`,
+     /Owned %/.test(chip) && /min/.test(chip) && chip.includes(ownTop),
+     "— sia sem madur ser ekki hvers vegna er verri en engin sia");
+  /* ---- 5d. EITT ✕ SKILAR FULLUM LISTA ---- */
+  await fire(thChips()[0]);
+  ok(`✕ a chipinu skilar fullum lista (${count()} af ${N0})`,
+     count() === N0 && thChips().length === 0);
+
+  /* ---- 5e. `hi:false` SIAR I RETTA ATT: VERD FAER MAX, EKKI MIN ----
+     Radad eftir verdi (LAEGRA er betra -> fyrsti smellur gefur asc), svo
+     efsta rodin er ODYRASTI madurinn. `>=` a theim manni myndi hleypa
+     ollum i gegn og talan stæði i stad — thess vegna er ThESSI rod valin:
+     hun greinir attirnar i sundur.                                     */
+  ok("hausinn 'Price' er til og radar", await clickHeader("Price"));
+  const price = cells("Price: £");
+  const pTop = price[0].getAttribute("title").match(/Price: £([\d.]+)/)?.[1];
+  await altFire(price[0]);
+  const n2 = count();
+  chip = thChips()[0]?.parentElement?.textContent || "";
+  ok(`verd-chipid segir MAX (£${pTop}), ekki MIN ("${chip.replace("✕", "").trim()}")`,
+     /max/.test(chip) && !/min/.test(chip) && chip.includes(pTop),
+     "— `>=` a dalki thar sem laegra er betra siar UT einmitt thann sem smellt var a");
+  ok(`...og hun siar: ${N0} -> ${n2} (med `+"`>=`"+` a odyrasta manni hefdi hun stadid i stad)`,
+     n2 > 0 && n2 < N0, `— fekk ${n2}`);
+  await fire(clearAll());
+  ok(`"clear all" skilar fullum lista (${count()} af ${N0})`,
+     count() === N0 && thChips().length === 0);
+
+  /* ---- 5f. NULL ER EKKI NULL — `?? 0`-GILDRAN UR KAFLA 12 ----
+     "GC/90 max 0,00" a ad skila theim sem HAFA toluna og hun er 0 — EKKI
+     theim sem eiga hana EKKI. Vaeri vantandi gildi lesid sem 0 (eda syn
+     sleppti null-vordinni) faeri talan upp um allan null-hopinn.
+     Vaentitalan er reiknud med DALKSINS EIGIN getter — sami kodi, adeins
+     annad rada-mengi; hun er thvi ekki endurutfaersla a siunni.         */
+  const gcd = STAT_BY_KEY.gc_per_90;
+  const vals = players.map(p => { try { return gcd.get(p); } catch { return null; } });
+  const nonNull = vals.filter(v => v != null && Number.isFinite(v));
+  const zeros = nonNull.filter(v => +v.toFixed(gcd.dec) === 0).length;
+  const nulls = players.length - nonNull.length;
+  ok(`forsenda: dalkurinn HEFUR tom holf (${nulls} af ${players.length} eiga enga GC/90)`,
+     nulls > 0, "— an theirra maelir null-fullyrdingin ekkert");
+  ok(`forsenda: og einhver eiga raunverulegt 0,00 (${zeros})`, zeros > 0);
+  ok("Defence-flokkurinn opnast", !!byExact("Defence"));
+  await fire(byExact("Defence"));
+  ok("hausinn 'GC/90' er til og radar (laegra betra -> asc, 0,00 efst)",
+     await clickHeader("GC/90"));
+  const gc = cells("Conceded per 90: ");
+  const gcTop = gc[0]?.getAttribute("title").match(/Conceded per 90: ([\d.]+)/)?.[1];
+  ok(`efsta GC/90-holfid er 0.00 (fekk "${gcTop}")`, gcTop === "0.00");
+  await altFire(gc[0]);
+  const n3 = count();
+  ok(`"GC/90 max 0,00" skilar ${zeros} — theim sem HAFA toluna, ekki ${zeros + nulls}`,
+     n3 === zeros,
+     `— fekk ${n3}; ${zeros + nulls} thydir ad tom holf komust i gegnum <= (`+"`?? 0`"+`-gildran)`);
+  /* Hausinn ma ekki thegja heldur: chip-rodin getur legid ofan vid skrunid
+     og dalkurinn getur legid i lokudum flokki. GC/90 er DALKUR i toflunni
+     (ekki fastur), svo merkid a ad sjast a honum.                       */
+  ok("siadur dalkur er merktur i HAUSNUM (▼ a GC/90)",
+     [...document.querySelectorAll("div")]
+       .some(d => /^▼\s*GC\/90/.test((d.textContent || "").trim())),
+     "— sia a dalki i lokudum flokki vaeri annars osynileg i hausnum");
+  await fire(clearAll());
+  ok(`hreinsad aftur (${count()} af ${N0})`, count() === N0);
+}
+
 console.log(`\nLIFANDI DÁLKAR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);
