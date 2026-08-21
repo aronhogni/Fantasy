@@ -26,7 +26,7 @@ import { pickSignature, pollDelay } from "./draft-sync.js";
 import { recommend, MEASURED, nextOwnPick, survivalProb } from "./advice.js";
 import { leagueFromSleeper, teamsFromLeague, startersFromSlots,
          resolveSeat, SEAT_ROUTE_LABEL } from "./sleeper-league.js";
-import { edgeSentence } from "./rulebasis.js";
+import { edgeSentence, shapeKeyOf, scoringKeyOf } from "./rulebasis.js";
 import { signed } from "./columns.js";
 
 export default function DraftBoard({ rows, meta, league, season, accuracy, kickers,
@@ -2384,7 +2384,11 @@ function ImportedRules({ imported: im, league, shapes, onReread }) {
         {im.bench > 0 ? ` · ${im.bench} bench` : ""}
         {im.flexPos ? ` · flex takes ${im.flexPos.join("/")}` : ""}
       </div>
-      <MeasuredEdge league={league} shapes={shapes} />
+      {/* `imported` FER MED OG ThAD ER EKKI SKRAUT: hausinn hér ofan er
+          DEILDIN (`im.*`) medan talan er maeld i logun ThESS SEM `league`
+          ber — og `league` kemur ur `boardShape`, sem er DRAFTID thegar
+          draft er tengt. Sja notuna i `MeasuredEdge`. */}
+      <MeasuredEdge league={league} shapes={shapes} imported={im} />
     </div>
   );
 }
@@ -2410,11 +2414,40 @@ function ImportedRules({ imported: im, league, shapes, onReread }) {
    Thess vegna er `text` birt eins og hun kemur og EKKERT sniðið hér:
    sniðum vid hana myndum vid geta latid omarktaeka tolu lesast eins og
    marktaeka, sem er einmitt thad sem einingin er til ad forda.      */
-function MeasuredEdge({ league, shapes }) {
+function MeasuredEdge({ league, shapes, imported }) {
   const e = useMemo(() => {
     if (!league) return null;
     try { return edgeSentence(league, shapes || null); } catch { return null; }
   }, [league, shapes]);
+
+  /* ============================================================
+     "IN THIS EXACT LEAGUE SHAPE" — HVERS LOGUN?
+     ============================================================
+     Kassinn hér ofan ber DEILDINA (`imported.*`: heiti, timabil,
+     lidafjoldi, stigagjof, umferdir). Talan kemur ur `league`, sem er
+     `board.league` ur `boardShape` — og hun er DRAFTID thegar draft er
+     tengt (`settings.teams` / `slots_*`), af nakvaemlega theirri astaedu
+     sem `picksLeft` var faerdur thangad: draftid er heimildin um draftid.
+
+     Þegar mock-draft er tengt vid deild sem er af ANNARRI logun stod
+     thvi 12-lida deildarhaus vid hlidina a setningu sem endar a "in
+     this exact league shape" med TIU-LIDA tolunni. Maelt: +182,9 (10-lida
+     2FLEX PPR) a moti +147,4 (12-lida half) — **24% yfirmat**, birt sem
+     maeling.
+
+     `e.text` ER EKKI SNIDID HER og thad er asett (sja notuna vid
+     `edgeSentence`): sniðum vid hana gaetum vid latid omarktaeka tolu
+     lesast eins og marktaeka. Þess vegna er RETTINGIN sett VID hana i
+     stad thess ad umskrifa hana — og hun FULLYRDIR EKKI hvor logunin er
+     "rett", hun nefnir BADAR. Þad er thad sem vid vitum.            */
+  const otherShape = useMemo(() => {
+    if (!e || !e.shape || !e.scoring || !imported) return null;
+    const ls = shapeKeyOf(imported), lf = scoringKeyOf(imported);
+    if (!ls || !lf) return null;                 /* omaelanleg deild -> thogn */
+    if (ls === e.shape && lf === e.scoring) return null;
+    return { shape: ls, scoring: lf };
+  }, [e, imported]);
+
   if (!e || !e.text) return null;
   /* ============================================================
      `data-edge` ER TIL FYRIR VORDINN, OG THAD ER MAELT AF FALLI
@@ -2439,6 +2472,16 @@ function MeasuredEdge({ league, shapes }) {
       data-edge={e.measured && e.significant ? "measured" : "unproven"}
       className={e.measured && e.significant ? "good" : "dim"}>
       {e.text}
+      {otherShape && (
+        <div className="note warn" style={{ marginTop: 4, fontSize: 12 }}
+             data-edge-shape={`${e.shape}|${e.scoring}`}>
+          <b>"This shape" is the draft's, not the league's.</b> The margin above was
+          measured in <b>{e.shape.replace("-", "-team ")}, {e.scoring}</b>; the
+          league in the box above is <b>{otherShape.shape.replace("-", "-team ")},{" "}
+          {otherShape.scoring}</b>. The measured margin differs between shapes, so
+          reading one as the other over- or understates it.
+        </div>
+      )}
     </div>
   );
 }

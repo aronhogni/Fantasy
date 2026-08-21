@@ -712,6 +712,22 @@ console.log("\n5. oporad val heldur valnumerinu rettu");
   ok(/5 picks are not on this board/i.test(text()),
     "tvitekin oporud rod telst EINU sinni");
   ok(pickHeader() === 14, `og valnumerid stendur i 14, ekki 15 (${pickHeader()})`);
+
+  /* ============================================================
+     OG ThEGAR LOGUNIN ER SU SAMA MA RETTINGIN EKKI STANDA ThAR
+     ============================================================
+     Neikvaeda hlidin a kafla 16d. Deildin hér er 10 lid, PPR, TVO FLEX
+     og draftid er hennar eigid — sama logun, svo "this shape" ER
+     deildarinnar og engin retting er a stad. Kassi sem er ALLTAF a
+     skjanum segir ekkert, og su neikvaeda fullyrding er einskis virdi
+     nema 16d syni ad hann GETI birst (CLAUDE.md 5b regla 2).        */
+  const flat5 = () => text().replace(/\s+/g, " ");
+  ok(/rules imported/.test(flat5()),
+    "ThEKJA: reglurnar eru fluttar inn (kassinn er a skjanum)");
+  ok(/over ADP across a season/.test(flat5()),
+    "og maelda setningin lika (annars er fullyrdingin nedan tom)");
+  ok(!/is the draft.s, not the league.s/.test(flat5()),
+    "en ENGIN retting — logun draftsins og deildarinnar er sú sama");
   root.unmount();
 }
 
@@ -1808,6 +1824,28 @@ console.log("\n16d. picksLeft er talid ur draftinu, ekki ur deildinni");
   ok(!!m2, `kassinn ber linuna enn (${m2 ? m2[0] : "engin"})`);
   ok(m2 && Number(m2[1]) === 2,
     `og talan er nu 2, ekki 3 — oporada valid telur MED (fann ${m2 ? m2[1] : "?"})`);
+
+  /* ============================================================
+     OG MAELDA FORSKOTID VAR EIGNAD RANGRI DEILD
+     ============================================================
+     `ImportedRules` ber DEILDINA i hausnum (`imported.*`) medan
+     `MeasuredEdge` reiknar ur `board.league`, sem er DRAFTID thegar
+     draft er tengt. Þessi svidsmynd er nakvaemlega thad: deildin B er
+     **14 lid, half-PPR, eitt FLEX** og mock-id er **10 lid, PPR, tvo
+     FLEX**. Setningin endar a "in this exact league shape" og talan var
+     +186,1 (10-lida 2FLEX PPR) — medan deildin i hausnum a +147,4
+     (12-lida half i toflunni). Yfirmat sem er birt SEM MAELING.
+
+     Rettingin FULLYRDIR EKKI hvor logunin se "rett" — hun nefnir BADAR,
+     thvi thad er thad sem vid vitum.                                 */
+  ok(/This shape.{0,4} is the draft.s, not the league.s/.test(flat()),
+    "rettingin stendur vid setninguna (logunin er DRAFTSINS)");
+  ok(/10-team 2flex, ppr/.test(flat()),
+    `og logun DRAFTSINS er nefnd ("${
+      (/measured in [^;]{0,32}/.exec(flat()) || ["-"])[0]}")`);
+  ok(/14-team std, half/.test(flat()),
+    `og logun DEILDARINNAR lika ("${
+      (/box above is [^.]{0,32}/.exec(flat()) || ["-"])[0]}")`);
   ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
   root.unmount();
 }
