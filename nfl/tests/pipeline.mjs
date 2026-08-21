@@ -1649,14 +1649,73 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
       "og upprunalega talan er geymd svo hlutfallid se lesid, ekki agiskad");
   }
 
+  /* ---------- F3. MARKA-PROP: LISTUD ER EKKI VERDLOGD ----------
+     `mk.tdProps` var til og enginn kalladi hana — `espn_td_props` hafdi
+     ALDREI birst i status.json. Hun er tengd 21.8.2026 sem dagsett
+     serie, thvi vedbankalina er OENDURHEIMTANLEG: hun hverfur eftir
+     leikinn og `sports.core.api` geymir enga sogu.
+
+     GILDRAN ER SU SAMA OG I F2 OG HUN ER STAERRI HER. Maelt 21.8.2026 a
+     opnunarleiknum NE@SEA: 5 sidur, 111 prop, **22 "Anytime Touchdown
+     Scorer", 0 med verd**. Yfir alla 16 leiki vikunnar: **83 listud, 0
+     verdlogd**. Vaeru listadar radir vistadar bæri skrain 83 radir og
+     golfid 50 hleypti henni i gegn — fryst viku af NULLUM ad eilifu,
+     merkta sem markadsmynd.
+
+     ThRJAR FULLYRDINGAR:
+       (a) `tdProps` skilar ADEINS verdlogdum rodum (hlidid i heimildinni)
+       (b) fetch-nfl skrifar EKKERT thegar engin rod er verdlogd, og
+           skrair thad sem `ok` — bokmakarar sem hafa ekki opnad markad
+           eru ekki bilun
+       (c) glugginn er SA SAMI fasti og vikuleg spa notar, svo tvaer
+           dagsettar seriur geti ekki reikad i sundur                */
+  {
+    const oddsSrc = readFileSync(
+      path.join(ROOT, "scripts", "sources", "espnodds.mjs"), "utf8");
+    const tdFn = /export async function tdProps\([\s\S]*?\n\}/.exec(oddsSrc);
+    ok(!!tdFn, "`tdProps` finnst i sources/espnodds.mjs");
+    ok(tdFn && /return out\.filter\(\(r\) => r\.decimal != null\)/.test(tdFn[0]),
+      "(a) hun skilar ADEINS rodum med verdi — golfid maelir thvi VERD, ekki uppskriftir");
+    /* Talningin sem gerir "0 verdlogd" laesilegt verdur ad vera i notunni. */
+    ok(tdFn && /\$\{priced\} with a posted price/.test(tdFn[0]),
+      "og notan segir hve morg BERA verd, ekki bara hve morg voru listud");
+
+    const tdAt = bare.indexOf("`td-props/");
+    ok(tdAt >= 0, "(b) `td-props/` er vistud i fetch-nfl.mjs");
+    const win = tdAt >= 0 ? bare.slice(tdAt - 400, tdAt + 2600) : "";
+    ok(/if \(!rows\.length\)/.test(win),
+      "og hun spyr hvort NOKKUR rod se verdlogd adur en skrifad er");
+    /* SKRAD SEM `ok`, EKKI VILLA — sama rok og "utan gluggans". */
+    const noPrice = /if \(!rows\.length\) \{\s*record\(\s*"archive:td-props",\s*true/.exec(win);
+    ok(!!noPrice,
+      "og 0 verdlogd er skrad sem `ok` (rautt hér kennir manni ad hunsa spjaldid)");
+    /* (c) OG ThAD ER EKKI NOG AD `PROJ_WINDOW_H` SE NEFNT I NOTUNNI.
+       `upcomingWeek(games, season, now, window)` tekur fjorda vidfang;
+       vaeri thad gefid hér faerum vid annan glugga en vikuleg spa medan
+       notan segdi afram `${PROJ_WINDOW_H}h`. Fullyrdingin er thvi um
+       KALLID: thrju vidfong, engin yfirtaka. */
+    ok(/PROJ_WINDOW_H/.test(win),
+      "(c) glugginn er SAMI fasti og vikuleg spa notar, ekki eigin tala");
+    const call = /upcomingWeek\(\s*games,\s*season,\s*Date\.now\(\)\s*\)/.exec(win);
+    ok(!!call,
+      "og `upcomingWeek` er kollud MED THREM vidfongum — enginn eigin gluggi");
+  }
+
   /* ---------- G. LAGMORKIN I KODANUM ERU THAU SOMU OG HER ----------
      Sama vordur og adalkaflinn hefur a `writeJson`: annars ver profid
      tolur sem pipeline-id notar ekki. */
+  /* GLUGGINN ER PER SERIU OG HANN ER MAELDUR, EKKI VALINN. Fjarlaegdin
+     fra sloð-strengnum ad `minRows:` i `bare` (maelt 21.8.2026):
+       news/ 118 · adp-history/ 119 · weekly-ecr/ 184 · depth/ 598 ·
+       weekly-proj/ 912 · td-props/ 1487
+     Fastur 1200-gluggi sagdi thvi "ekki finnanlegt" um `td-props/` sem
+     var rett skrifad — nakvaemlega sama villa og notan hér fyrir nedan
+     lysir, i sama vordi. Talan er hámark + syn, ekki agiskun. */
   const MINS = [
-    ["news/", 20], ["adp-history/", 100], ["weekly-proj/", 100],
-    ["weekly-ecr/", 100], ["depth/", 200],
+    ["news/", 20, 400], ["adp-history/", 100, 400], ["weekly-proj/", 100, 1200],
+    ["weekly-ecr/", 100, 400], ["depth/", 200, 900], ["td-props/", 50, 1900],
   ];
-  for (const [pfx, min] of MINS) {
+  for (const [pfx, min, span] of MINS) {
     /* LEITAD FRA SLODINNI FRAM, EKKI FRA `writeOnce(` FRAM. Tveir af
        fimm kollum bera slodina i `const name = ...` og gefa hana svo
        afram (`writeOnce(name, ...)`), thvi `archived(name)` er spurt a
@@ -1665,7 +1724,7 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
        `depth/`. Hann sagdi "ekki finnanlegt" um kóda sem var rettur.
        Leitad er i `bare` (an athugasemda) svo dæmi i notu telji ekki. */
     const at = bare.indexOf(`\`${pfx}`);
-    const win = at >= 0 ? bare.slice(at, at + 1200) : "";
+    const win = at >= 0 ? bare.slice(at, at + span) : "";
     const m = /minRows:\s*(\d+)/.exec(win);
     ok(at >= 0 && m && Number(m[1]) === min,
       `${pfx}: minRows i kodanum er ${m ? m[1] : "ekki finnanlegt"} (a ad vera ${min})`);
@@ -1677,7 +1736,8 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
   const started = [];
   for (const [dir, min] of [["news", 20], ["adp-history", 100],
                             ["weekly-proj", 100], ["weekly-ecr", 100],
-                            ["depth", 200], ["trending", 20]]) {
+                            ["depth", 200], ["trending", 20],
+                            ["td-props", 50]]) {
     const p = path.join(DATA, dir);
     if (!ex(p)) continue;
     const files = rd(p).filter((f) => f.endsWith(".json"));

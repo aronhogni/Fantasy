@@ -475,7 +475,7 @@ async function stageCore() {
   });
 
   /* Vistunin sidast: hun ma aldrei tefja ne fella fersku kjarnagognin. */
-  await archiveDaily({ season, games, ffcSets, newsFeed });
+  await archiveDaily({ season, games, ffcSets, newsFeed, lines });
 
   return { season, players, games };
 }
@@ -518,7 +518,7 @@ async function stageCore() {
    er MAELITAEKI, ekki birtingargagn, og bilun i maelitaeki ma ekki taka
    ADP-ið og meidslin med ser. Villan er samt SKRAD (`record`), svo hun
    er synileg i Sources — thogul bilun er thad eina sem er verra en bilun.  */
-async function archiveDaily({ season, games, ffcSets, newsFeed }) {
+async function archiveDaily({ season, games, ffcSets, newsFeed, lines }) {
   console.log("\n--- vistun (dagsettar seriur) ---");
   const day = today();
 
@@ -602,6 +602,97 @@ async function archiveDaily({ season, games, ffcSets, newsFeed }) {
       }
     }
   } catch (e) { record("archive:weekly-proj", false, `failed: ${e.message}`); }
+
+  /* ============================================================
+     ---- 3b. MARKA-PROP ("Anytime Touchdown Scorer") ----
+     ============================================================
+     `mk.tdProps` VAR TIL OG ENGINN KALLADI HANA. Sama undirskrift og
+     sex heimildirnar sem voru tengdar 14.8.: `espn_td_props` hefur
+     ALDREI birst i `status.json`, i neinni keyrslu.
+
+     HVERS VEGNA HUN ER TENGD NUNA OG EKKI SEINNA: verdin eru
+     OENDURHEIMTANLEG. Vedbankalina hverfur um leid og leikurinn er
+     buinn — `sports.core.api` geymir enga sogu — svo "hvad sagdi
+     markadurinn um hver myndi skora i viku 1" er OSVARANLEG spurning
+     eftir viku 1. Sama roksemd og `data/history/` i FPL-hlutanum og
+     `weekly-proj` hér: dagsmynd verdur ekki bui til eftir a. Ad bida
+     thess ad vid VITUM hvad vid myndum maela vaeri ad bida thess ad
+     gognin seu farin.
+
+     ============================================================
+     GLUGGINN ER SA SAMI OG HJA VIKULEGRI SPA — OG ThAD ER MAELT
+     ============================================================
+     Bokmakarar OPNA thessa markadi ekki fyrr en naerri leikdegi. Maelt
+     21.8.2026 (20 dogum fyrir viku 1) a opnunarleiknum NE@SEA:
+       5 sidur, 111 prop, **22 "Anytime Touchdown Scorer"** — og
+       **0 med verd**. Onnur vika-3 leikur bar ekkert `propBets` svid.
+     Til samanburdar: i loknum 2025-leik voru 1.697 prop MED verdum.
+     `PROJ_WINDOW_H` (72 klst) er thvi rett gluggi og hann er SA SAMI
+     svo tvaer dagsettar seriur geti ekki reikad i sundur.
+
+     ThRJAR HLIDAR OG ThAER ERU EKKI SAMA HLIDID:
+       utan gluggans        -> ENGIN sokn, skrad `ok` (rett hegdun)
+       gluggi opinn, 0 verd -> skrad `ok` MED tolunni. Bokmakarar hafa
+                               ekki opnad markadinn; thad er EKKI bilun
+                               og rod sem segdi "failed" myndi kenna
+                               notandanum ad hunsa spjaldid.
+       gluggi opinn, verd   -> `writeOnce` med `minRows: 50`
+     `tdProps` skilar ADEINS rodum med verdi (`decimal != null`), svo
+     `rowCount` telur VERD, ekki uppskriftir — sama gildra og
+     `weekly-proj` (3.300 radir, 580 med spa) og hun er lokud eins.
+
+     KOSTNADUR: ~6 koll per leik (1 odds + upp i 5 prop-sidur) x 16
+     leikir = ~96 koll, EINU SINNI per viku — `archived()` er spurt a
+     undan, svo daginn eftir er thetta 0 koll.                        */
+  try {
+    const up = upcomingWeek(games, season, Date.now());
+    if (!up) {
+      record("archive:td-props", true,
+        `no unplayed REG week left in ${season} — nothing to snapshot`);
+    } else {
+      const name = `td-props/${season}-w${up.week}.json`;
+      if (await archived(name)) {
+        console.log(`     td-props: vika ${up.week} thegar vistud`);
+      } else if (!up.inWindow) {
+        const h = Math.round((up.opens - Date.now()) / 3600e3);
+        record("archive:td-props", true,
+          `week ${up.week} window opens in ${h}h ` +
+          `(${PROJ_WINDOW_H}h before first kickoff) — nothing fetched`);
+      } else {
+        /* Leikjanumerin koma UR LINUNUM sem thegar voru sottar. Ad
+           saekja vika-yfirlitid aftur vaeri annad kall fyrir tolu sem
+           vid holdum thegar a. */
+        const ids = (lines || []).filter((g) => g.week === up.week)
+          .map((g) => g.id).filter(Boolean);
+        if (!ids.length) {
+          record("archive:td-props", false,
+            `week ${up.week} window is open but no event ids in the lines — ` +
+            `nothing fetched`);
+        } else {
+          const rows = await mk.tdProps(ids);
+          if (!rows.length) {
+            record("archive:td-props", true,
+              `week ${up.week}: ${ids.length} games in the window, ` +
+              `0 anytime-TD entries carry a price yet — bookmakers have not ` +
+              `opened this market (measured 21.8.2026: 22 listed, 0 priced)`);
+          } else {
+            await writeOnce(name, {
+              season, week: up.week, date: day,
+              captured: new Date().toISOString(),
+              firstKickoffUtcFloor: new Date(up.anchor).toISOString(),
+              windowHours: PROJ_WINDOW_H,
+              games: ids.length,
+              /* HRA LIKINDI, EKKI AFVIGUD — "einhver skorar" er ekki
+                 lokad mengi, svo afviging er ekki mogulég. Talan er
+                 OFMAT og `espnodds.mjs` segir thad berum ordum. */
+              priced: rows.length,
+              props: rows,
+            }, { minRows: 50 });
+          }
+        }
+      }
+    }
+  } catch (e) { record("archive:td-props", false, `failed: ${e.message}`); }
 
   /* ---- 4. VIKULEG ECR (DynastyProcess-speglun) ----
      Heitid kemur ur GOGNUNUM (`scrape_date`), svo dagur sem speglunin
