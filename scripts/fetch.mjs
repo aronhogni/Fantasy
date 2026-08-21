@@ -728,6 +728,145 @@ async function fetchPreseason({ els, teams }) {
 const FPL = "https://fantasy.premierleague.com/api";
 let bootstrap, teamsById = {}, shortById = {};
 
+/* ============================================================
+   LIVE-SKRA UMFERDAR MA EKKI LOKAST HALFKORUD (21.8.2026)
+
+   VILLAN SEM VAR: lykkjan sem saekir `event/{gw}/live/` fyrir LOKNAR
+   umferdir sleppti hverri skra sem VAR ThEGAR TIL (`if (existsSync)
+   continue`) medan `is_current`-greinin skrifadi umferd I GANGI. I dag
+   skarast thau meinlaust — FPL heldur `is_current` a GW1 thangad til
+   GW2-frestur er lidinn, svo hluta-skra er endursott hvort sem er. **Faerist
+   `is_current` afram adur en endursokn naest stendur hluta-skra ad EILIFU**,
+   og thad er thogul bilun af verstu tegund: skrain ER til, svo hun er aldrei
+   endursott, og HVER per-umferdar tala i appinu er reiknud ur henni
+   (`start_feats`, mo/ao, DefCon, minutu-throun, Imminent).
+
+   MAELT INVARIANT — OG HANN ER PER LEIK, EKKI PER UMFERD:
+     full PL-umferd = 10 leikir x 22 byrjanir  = 220 byrjanir
+                    = 10 leikir x 22 x 90 min  = 19.800 minutur a velli
+   Nefnarinn hér er thvi `22 x FJOLDI LOKINNA LEIKJA I ThEIRRI UMFERD`,
+   lesinn ur `fixtures.json`. ThAD ER LYKILVALID og astaedan er FRESTADIR
+   LEIKIR: umferd med 9 spiladum leikjum er RETTMAETT stutt (FPL faerir
+   frestada leikinn i adra umferd), og "220 eda hluti" hefdi gert hana
+   varanlega ofullkomna — endursott i hverri keyrslu ad eilifu, sem er
+   nakvaemlega hin villan. Med thessum nefnara er hun FULL vid 198/17.820.
+   Bonusinn: mitt i umferd er skra sem thekur ThA leiki sem eru bunir lika
+   "full", svo greinin fyrir umferd i gangi tharf enga sérreglu.
+
+   TVEIR MAELIKVARDAR, SITTHVOR NAKVAEMNI, OG ThAD ER MAELT:
+     · BYRJANIR eru VARDVEITTAR — 11 hvoru megin vid upphafsspark og enginn
+       mekanismi faekkar theim. Krafan er thvi HORD (>=).
+     · MINUTUR geta faekkad vid RAUDAR KORT (utaf a 30. min = 60 minutur
+       taldar hjá lidinu i stad 90). Krafan er thvi GOLF (90%). Golfid er
+       rifleg efri mork viljandi: 10% af 19.800 er 1.980 minutur, sem
+       krefdist 22 utaf-vísana i einni umferd. Kostnadurinn er OSAMHVERFUR
+       — falskt "ofullkomin" kostar EITT HTTP-kall, falskt "full" er
+       varanlegt — svo villan a ad halla ad endursokn.
+
+   OG TOM EDA ThYNNRI SOKN MA ALDREI SKRIFA OFAN A GOD GOGN. Thad er sami
+   fordæmid og `fetch-bsd-teams` (`exit 2` fremur en tomt timabil) og
+   `defcon`-varaleidin: skra sem er til og ber MEIRA er alltaf betri en svar
+   sem ber MINNA. Thess vegna er `starts` einræn-vordur a skrifin sjalf.
+
+   `complete === null` ER ThRIDJA ASTANDID, EKKI "false": beri engin lokinn
+   leikur thessa umferd (0 leikir) er ekkert ad maela vid, og tha er skra sem
+   ER til LATIN I FRIDI — omaeld tala fær ekki reit, og "endursaekja ad
+   eilifu af thvi ad vid vitum ekki" er villan sem nefnarinn var valinn til
+   ad forðast.
+   Vordur: `tests/clock-states.mjs` kafli B2 (keyrir lykkjuna sjalfa).
+   ============================================================ */
+const LIVE_MATCH_STARTS = 22;              // 11 hvoru megin
+const LIVE_MATCH_MINUTES = 22 * 90;        // 1.980 minutur a velli per leik
+const LIVE_MINUTES_FLOOR = 0.9;            // raud kort — sja hausinn
+
+function liveRoundStatus({ live, matches }) {
+  const els = Array.isArray(live?.elements) ? live.elements : [];
+  let starts = 0, minutes = 0;
+  for (const e of els) {
+    starts += Number(e?.stats?.starts) || 0;
+    minutes += Number(e?.stats?.minutes) || 0;
+  }
+  const out = { rows: els.length, starts, minutes, matches };
+  if (!Number.isInteger(matches) || matches <= 0)
+    return { ...out, complete: null,
+      why: "no finished fixture carries this gameweek, so completeness cannot be judged" };
+  const needStarts = LIVE_MATCH_STARTS * matches;
+  const needMinutes = Math.round(LIVE_MATCH_MINUTES * matches * LIVE_MINUTES_FLOOR);
+  if (!els.length) return { ...out, complete: false, why: "no element rows at all" };
+  const complete = starts >= needStarts && minutes >= needMinutes;
+  return { ...out, complete,
+    why: complete ? null
+       : `${starts}/${needStarts} starts and ${minutes}/${needMinutes} minutes `
+         + `for ${matches} finished ${matches === 1 ? "match" : "matches"}` };
+}
+
+async function fetchLiveRounds({ events, fixtures }) {
+  const evs = Array.isArray(events) ? events : [];
+  const fxs = Array.isArray(fixtures) ? fixtures : [];
+  const playedIn = gw => fxs.filter(f => f.event === gw && f.finished).length;
+  const onDisk = async (path, matches) => {
+    if (!existsSync(`${DATA}/${path}`)) return null;
+    try { return liveRoundStatus({ live: JSON.parse(await readFile(`${DATA}/${path}`, "utf8")), matches }); }
+    catch { return { rows: 0, starts: 0, minutes: 0, matches, complete: false, why: "unreadable file" }; }
+  };
+  let written = 0, sealed = 0, unverified = 0, partialOver = 0;
+  const partial = [], refused = [], failed = [];
+
+  const pull = async (gw, have, roundOver) => {
+    const matches = playedIn(gw);
+    const path = `live/gw${gw}.json`;
+    try {
+      const live = await getJSON(`${FPL}/event/${gw}/live/`);
+      const got = liveRoundStatus({ live, matches });
+      /* TOM EDA ThYNNRI SOKN SKRIFAR EKKI. `have` er null thegar engin skra
+         er til — tha er hvad sem er betra en ekkert, en TOM skra er samt
+         ekki skrifud (hun vaeri sjalf hluta-skran sem thetta ver gegn).   */
+      if (!got.rows || (have && got.starts < have.starts)) {
+        refused.push(`gw${gw} (${got.starts} starts from FPL vs ${have ? have.starts : 0} on disk)`);
+        return;
+      }
+      await writeJSON(path, live);                 // explain OSKERT + tolfraedi
+      written++;
+      /* ROUND OVER vs I GANGI ER EKKI SAMA MALID. Lokin umferd sem er ENN
+         hluta-skra er ThAD sem thetta ver gegn og hun a ad verda RAUD.
+         Mitt i umferd getur `fixtures.finished` flippad nokkrum minutum a
+         undan live-endapunktinum, og RAUTT LJOS I ThRJATIU MINUTUR a
+         grunnstod (gw1-checklist heimtar `fpl_live.ok`) vaeri falsk
+         viðvorun — hun er MERKT i notunni en fellir ekki heimildina.    */
+      if (got.complete === false) partial.push(
+        `gw${gw} PARTIAL${roundOver ? "" : " (round in progress)"}: ${got.why}`);
+      if (got.complete === false && roundOver) partialOver++;
+    } catch (e) {
+      failed.push(`gw${gw} (${e.message})`);
+      console.warn(`live gw${gw} failed: ${e.message}`);
+    }
+  };
+
+  const finished = evs.filter(ev => ev.finished).map(ev => ev.id);
+  for (const gw of finished) {
+    const have = await onDisk(`live/gw${gw}.json`, playedIn(gw));
+    if (have?.complete === true) { sealed++; continue; }   // lokin OG full — breytist ekki
+    if (have && have.complete === null) { unverified++; continue; }  // ekkert ad maela vid
+    await pull(gw, have, true);
+  }
+  /* Umferd I GANGI er alltaf endursott: bonus-stig og `data_checked`
+     leidrettast eftir a, og endursoknin er EITT kall.                     */
+  const cur = evs.find(ev => ev.is_current);
+  if (cur) await pull(cur.id, await onDisk(`live/gw${cur.id}.json`, playedIn(cur.id)),
+                       !!cur.finished);
+
+  const note = `${finished.length} finished gameweeks - ${written} written, ${sealed} sealed complete`
+    + (unverified ? `, ${unverified} unverifiable (no finished fixture in the round)` : "")
+    + (partial.length ? ` · ${partial.join(" · ")}` : "")
+    + (refused.length ? ` · REFUSED to overwrite good data: ${refused.join(" · ")}` : "")
+    + (failed.length ? ` · failed: ${failed.join(" · ")}` : "");
+  /* RAUTT ThEGAR ThAD ER RAUNVERULEGT: lokin umferd sem er ENN hluta-skra
+     eftir endursokn, eda sokn sem BAR MINNA en skran a diski. Hvorugt er
+     nefnt "ok" — thad var thognin sem villan lifdi i.                     */
+  return { ok: !partialOver && !refused.length, written, sealed, unverified,
+           partial, partialOver, refused, failed, note };
+}
+
 async function fetchFPL() {
   bootstrap = await getJSON(`${FPL}/bootstrap-static/`);
   const teams = bootstrap.teams || [];
@@ -962,23 +1101,9 @@ async function fetchFPL() {
     record("season_baseline", true, 0, "frozen (season under way)");
   }
 
-  // event/{gw}/live/ fyrir LOKNAR umferðir. Fyrsta keyrsla: allar. Eftir það: nýjustu.
-  const finished = events.filter(ev => ev.finished).map(ev => ev.id);
-  let liveCount = 0;
-  for (const gw of finished) {
-    const path = `live/gw${gw}.json`;
-    if (existsSync(`${DATA}/${path}`)) continue; // þegar sótt (loknar umferðir breytast ekki)
-    try {
-      const live = await getJSON(`${FPL}/event/${gw}/live/`);
-      // geymum explain ÓSKERT + tölfræði
-      await writeJSON(path, live);
-      liveCount++;
-    } catch (e) { console.warn(`live gw${gw} failed: ${e.message}`); }
-  }
-  // núverandi umferð (gæti verið hálfnuð) — alltaf endursækja
-  const cur = events.find(ev => ev.is_current);
-  if (cur) { try { const live = await getJSON(`${FPL}/event/${cur.id}/live/`); await writeJSON(`live/gw${cur.id}.json`, live); liveCount++; } catch (e) { console.warn(e.message); } }
-  record("fpl_live", true, liveCount, `${finished.length} finished gameweeks`);
+  // event/{gw}/live/ — sja `fetchLiveRounds` fyrir ofan (thekju-hlidid).
+  const liveRes = await fetchLiveRounds({ events, fixtures });
+  record("fpl_live", liveRes.ok, liveRes.written, liveRes.note);
 
   // set-piece notes (víta/horn)
   try {

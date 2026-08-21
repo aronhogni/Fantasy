@@ -212,6 +212,23 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
        getur sagt "of faar maelingar -> ENGIN tala" i stad thess ad thegja. */
     sources: { odds: !!odds, elo: !!elo, team_form: !!teamForm, player_form: !!playerForm,
                imminent: !!imminent },
+    /* ============================================================
+       HVADA LIKAN SKRIFADI `start_prob`? — PROVENANS, EKKI UMFERDARNUMER
+       (21.8.2026)
+
+       `startProbability` er ENDURKVORDUD thegar glugginn er arkiv-gluggi
+       (`imminent.archive === true`, sja src/stats.js 5b) og maeld Brier er
+       tha 0,1683; innan timabils er hun 0,089 a hraa likaninu. ThAD ER
+       TVOFALDUR MUNUR, svo kvordun sem ber rodina vid RANGA toluna les eins
+       og afturfor sem varð aldrei. `src/calibration.js` velur malstikuna
+       eftir ThESSU sviði.
+       ThAD ER SAMA FLAGG SEM ENDURKVORDUNIN ER HLIDUD A — ekki afrit af
+       reglunni og ekki dagsetning: umferd er ekki likan (pipeline getur
+       dregist aftur ur og haldid arkiv-glugganum i GW2-GW3).
+       `null` ThEGAR `imminent` VANTAR: tha er `start_prob` null hja ollum og
+       "live" vaeri fullyrding um glugga sem var aldrei lesinn.
+       ============================================================ */
+    start_window: imminent ? (imminent.archive === true ? "archive" : "live") : null,
     coverage: {
       players: rank.length,
       start_prob: rank.filter(r => r.start_prob != null).length,

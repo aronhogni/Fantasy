@@ -282,34 +282,237 @@ console.log("─".repeat(84));
    ur henni an ad neitt segi thad.
    MAELT INVARIANT: full PL-umferd er 10 leikir x 2 lid x 11 menn = 220
    byrjanir og 220 x 90 = 19.800 minutur a velli. */
+/* ============================================================
+   LAGFAERINGIN (21.8.2026): `fetchLiveRounds` I `scripts/fetch.mjs` LOKAR
+   SKRA ADEINS ThEGAR HUN ER FULL — OG LYKKJAN SJALF ER KEYRD HER.
+
+   B2 var adur TVAER samlagningar a tilbunum gognum og svo svefn a raungognum:
+   hun sannadi ad 220/19.800 vaeri rett tala en fullyrti ENGU um hlidid sem
+   les hana — thad var ekki til. Nu er lykkjan DREGIN UT UR UPPRUNANUM (sama
+   mynstur og `computeDefcon` i `defcon-shrink.mjs`, CLAUDE.md 7.1: afrit af
+   reglunni maelir annad en pipeline gerir) og keyrd a hermdu skraarkerfi og
+   hermdum FPL-svorum, thar sem svarid er ThEKKT FYRIRFRAM.
+
+   FJOGUR ASTOND, OG ThAU ERU OLL RAUNVERULEG i thessari viku:
+     1. full skra a diski        -> LOKAD, ENGIN kall  (loknar umferdir breytast ekki)
+     2. hluta-skra a diski       -> ENDURSOTT og skrifud (villan sem var: hun stod ad eilifu)
+     3. tom/thynnri sokn         -> EKKI skrifud (fetch-bsd-teams fordæmid, 8e)
+     4. RETTMAETT stutt umferd   -> LOKAD, og thad HELDUR i annarri keyrslu
+                                    (frestadur leikur ma ekki gefa eilifa endursokn)
+   ============================================================ */
 const FULL_STARTS = 220, FULL_MINUTES = 19800;
 {
-  const mk = (nMatches) => ({ elements: Array.from({ length: 22 * nMatches }, (_, i) => ({
-    id: i + 1, stats: { minutes: 90, starts: 1 } })) });
-  const sum = live => (live.elements || []).reduce(
-    (a, e) => ({ starts: a.starts + (+e.stats?.starts || 0),
-                 minutes: a.minutes + (+e.stats?.minutes || 0) }), { starts: 0, minutes: 0 });
-  const full = sum(mk(10)), half = sum(mk(4));
+  /* ---- Lykkjan sjalf, ur upprunanum ---- */
+  const fx = SRC("scripts/fetch.mjs");
+  const i0 = fx.indexOf("const LIVE_MATCH_STARTS");
+  const s0 = fx.indexOf("async function fetchLiveRounds(");
+  const i1 = fx.indexOf("\n}\n", s0);
+  ok(i0 > 0 && s0 > i0 && i1 > s0, "`liveRoundStatus` + `fetchLiveRounds` finnast i scripts/fetch.mjs");
+  const decl = fx.slice(i0, i1 + 2);
+  /* OG BLINDA SLEPPINGIN MA EKKI VERA KOMIN AFTUR. Neikvaeda fullyrdingin
+     nefnir streng sem VAR sannanlega thar (CLAUDE.md 5b regla 2): thetta var
+     lina 970 i fetch.mjs fram til 21.8.2026.                              */
+  const code = fx.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  ok(!/if \(existsSync\(`\$\{DATA\}\/\$\{path\}`\)\) continue;/.test(code),
+    "blinda `if (existsSync) continue` er FARIN ur live-lykkjunni");
+  ok(/liveRoundStatus\(\{ live:/.test(code) && /have\?\.complete === true/.test(code),
+    "og thekjan er ThAD sem lokar skra (`complete === true`), ekki tilvist hennar");
+
+  /* ---- Hermt skraarkerfi + hermt FPL ---- */
+  const mk = (nMatches, opts = {}) => ({ elements: Array.from({ length: 22 * nMatches },
+    (_, i) => ({ id: i + 1, stats: { minutes: opts.minutes ?? 90, starts: 1 } })) });
+  const build = ({ disk = {}, served = {}, events: evs, fixtures: fxs }) => {
+    const files = new Map(Object.entries(disk).map(([k, v]) => [k, JSON.stringify(v)]));
+    const calls = [];
+    const factory = new Function("existsSync", "readFile", "DATA", "writeJSON", "getJSON",
+      "FPL", "console", `${decl}\nreturn { liveRoundStatus, fetchLiveRounds };`);
+    const api = factory(
+      p => files.has(p),
+      async p => files.get(p),
+      "data",
+      async (p, o) => { files.set(`data/${p}`, JSON.stringify(o)); },
+      async url => { const gw = +url.match(/event\/(\d+)\/live/)[1]; calls.push(gw);
+                     if (!(gw in served)) throw new Error("503 simulated");
+                     return served[gw]; },
+      "F", { warn: () => {}, log: () => {} });
+    return { api, files, calls, run: () => api.fetchLiveRounds({ events: evs, fixtures: fxs }) };
+  };
+  const round = (gw, n, finished = true) => Array.from({ length: n }, (_, i) =>
+    ({ id: gw * 100 + i, event: gw, finished }));
+  const ev = (id, o = {}) => ({ id, finished: true, ...o });
+  const totals = live => build({ events: [], fixtures: [] }).api
+    .liveRoundStatus({ live, matches: 10 });
+
+  /* ---- (a) INVARIANTID SJALFT, MED MAELDUM TOLUM ---- */
+  const full = totals(mk(10)), half = totals(mk(4));
   eq(full.starts, FULL_STARTS, "full umferd: byrjanir");
   eq(full.minutes, FULL_MINUTES, "full umferd: minutur a velli");
-  ok(half.starts < FULL_STARTS * 0.9 && half.minutes < FULL_MINUTES * 0.9,
-    `hluta-skra (4 af 10 leikjum) fellur undir 90%-golfid (${half.starts}/${half.minutes})`);
+  eq(full.complete, true, "og hun er FULL (10 leikir loknir)");
+  eq(half.starts, 88, "hluta-skra (4 af 10): byrjanir");
+  eq(half.minutes, 7920, "hluta-skra: minutur");
+  eq(half.complete, false, "og hun er OFULLKOMIN");
+  ok(/88\/220 starts/.test(half.why || ""), `og skyringin ber tolurnar (${half.why})`);
+  /* RAUD KORT: minutur faekka, byrjanir ekki. Thess vegna er minutu-krafan
+     GOLF og byrjana-krafan HORD — og golfid ma ekki vera svo thett ad
+     raunveruleg umferd falli. 20 utaf-visanir a 60. min = 1.200 minutur.  */
+  const sentOff = mk(10);
+  for (let i = 0; i < 20; i++) sentOff.elements[i].stats.minutes = 30;   // rautt a 30. min
+  const reds = build({ events: [], fixtures: [] }).api
+    .liveRoundStatus({ live: sentOff, matches: 10 });
+  eq(reds.minutes, 18600, "20 raud kort a 60. min -> 18.600 minutur");
+  eq(reds.complete, true, "og umferdin er samt FULL (minutu-krafan er GOLF, ekki hord)");
+  /* RETTMAETT STUTT UMFERD: nefnarinn er LOKNIR LEIKIR, ekki 10.          */
+  const short = build({ events: [], fixtures: [] }).api
+    .liveRoundStatus({ live: mk(9), matches: 9 });
+  eq(short.starts, 198, "frestadur leikur -> 9 leikir gefa 198 byrjanir");
+  eq(short.complete, true, "og umferdin er FULL — 220 hefdi gert hana eilift ofullkomna");
+  eq(build({ events: [], fixtures: [] }).api
+       .liveRoundStatus({ live: mk(9), matches: 10 }).complete, false,
+     "en 9-leikja skra i 10-leikja umferd er ofullkomin (thad er villan sjalf)");
+  eq(totals({ elements: [] }).complete, false, "TOM skra er ofullkomin");
+  eq(build({ events: [], fixtures: [] }).api
+       .liveRoundStatus({ live: mk(4), matches: 0 }).complete, null,
+     "ENGINN lokinn leikur i umferdinni -> `complete` er NULL (ekki false)");
 
-  /* RAUNGOGN — SEFUR ThANGAD TIL `data/live/` VERDUR TIL. */
+  /* ---- (b) LYKKJAN: FULL SKRA ER LOKUD, HLUTA-SKRA ER ENDURSOTT ---- */
+  {
+    const t = build({ disk: { "data/live/gw1.json": mk(10) }, served: { 1: mk(10) },
+      events: [ev(1)], fixtures: round(1, 10) });
+    const r = await t.run();
+    eq(t.calls.length, 0, "full skra a diski -> ENGIN HTTP-koll (lokud)");
+    eq(r.sealed, 1, "og hun er tolð 'sealed' i status-notunni");
+    eq(r.written, 0, "og ekkert skrifad");
+    ok(r.ok === true && /1 sealed complete/.test(r.note), `notan segir thad (${r.note})`);
+  }
+  {
+    const t = build({ disk: { "data/live/gw1.json": mk(4) }, served: { 1: mk(10) },
+      events: [ev(1)], fixtures: round(1, 10) });
+    const r = await t.run();
+    eq(t.calls.join(","), "1", "HLUTA-skra -> umferdin er ENDURSOTT (villan: hun var lokud)");
+    eq(r.written, 1, "og hin fulla skra er skrifud");
+    eq(JSON.parse(t.files.get("data/live/gw1.json")).elements.length, 220,
+       "og skran a diski ber nu 220 radir");
+    eq(r.partial.length, 0, "og hun er ekki longur skrad sem PARTIAL");
+  }
+
+  /* ---- (c) TOM EDA ThYNNRI SOKN MA ALDREI SKRIFA OFAN A GOD GOGN ---- */
+  {
+    for (const [label, payload] of [["TOM", { elements: [] }], ["ThYNNRI", mk(2)]]) {
+      const t = build({ disk: { "data/live/gw1.json": mk(4) }, served: { 1: payload },
+        events: [ev(1)], fixtures: round(1, 10) });
+      const r = await t.run();
+      eq(t.calls.length, 1, `${label} sokn: kallid var gert`);
+      eq(r.written, 0, `${label} sokn: EKKERT skrifad`);
+      eq(JSON.parse(t.files.get("data/live/gw1.json")).elements.length, 88,
+         `${label} sokn: gamla (betri) skran stendur obreytt`);
+      ok(r.refused.length === 1 && r.ok === false,
+        `${label} sokn: hofnunin er SKRAD og heimildin verdur RAUD (${r.note})`);
+    }
+    /* En engin skra a diski -> hvad sem er (nema tomt) er betra en ekkert. */
+    const t = build({ served: { 1: mk(4) }, events: [ev(1)], fixtures: round(1, 10) });
+    const r = await t.run();
+    eq(r.written, 1, "engin skra a diski -> hluta-skra ER skrifud (betri en ekkert)");
+    ok(r.partial.length === 1 && /PARTIAL/.test(r.note) && r.ok === false,
+      `en hun er MERKT sem hluta-skra og heimildin er raud (${r.note})`);
+    const t2 = build({ served: { 1: { elements: [] } }, events: [ev(1)], fixtures: round(1, 10) });
+    eq((await t2.run()).written, 0, "TOM sokn skrifar samt ekkert (hun vaeri sjalf hluta-skran)");
+  }
+
+  /* ---- (d) RETTMAETT STUTT UMFERD MA EKKI ENDURSAEKJAST AD EILIFU ---- */
+  {
+    const fxs = [...round(1, 9), { id: 199, event: null, finished: false }];   // frestadur
+    const t = build({ disk: { "data/live/gw1.json": mk(9) }, served: { 1: mk(9) },
+      events: [ev(1)], fixtures: fxs });
+    const r1 = await t.run(), r2 = await t.run();
+    eq(t.calls.length, 0, "9 af 9 loknum leikjum -> LOKAD, engin koll");
+    ok(r1.sealed === 1 && r2.sealed === 1, "og thad HELDUR i annarri keyrslu (ekki eilif endursokn)");
+    ok(r1.ok === true, "og heimildin er graen — stutt umferd er ekki bilun");
+    /* En faerist frestadi leikurinn INN i umferdina og er spiladur, opnast
+       hun aftur — thad er retta hegdunin og hun er sjalf-laeknandi.        */
+    const t3 = build({ disk: { "data/live/gw1.json": mk(9) }, served: { 1: mk(10) },
+      events: [ev(1)], fixtures: round(1, 10) });
+    await t3.run();
+    eq(t3.calls.length, 1, "og um leid og 10. leikurinn er spiladur i somu umferd er hun endursott");
+  }
+
+  /* ---- (e) UMFERD I GANGI: ALLTAF ENDURSOTT, EN ALDREI ThYNNRI ---- */
+  {
+    const t = build({ disk: { "data/live/gw1.json": mk(10) }, served: { 1: mk(10) },
+      events: [ev(1, { is_current: true })], fixtures: round(1, 10) });
+    await t.run();
+    eq(t.calls.join(","), "1", "is_current er endursott ThOTT skrain se full (bonus leidrettist eftir a)");
+    const t2 = build({ disk: { "data/live/gw2.json": mk(4) }, served: { 2: mk(2) },
+      events: [{ id: 2, finished: false, is_current: true }], fixtures: round(2, 4) });
+    const r = await t2.run();
+    eq(JSON.parse(t2.files.get("data/live/gw2.json")).elements.length, 88,
+       "og ThYNNRI svar mitt i umferd skrifar EKKI ofan a betri skra");
+    ok(r.refused.length === 1, "hofnunin er skrad lika fyrir umferd i gangi");
+    /* Mitt i umferd er "full" MIDAD VID ThA leiki sem eru bunir — thess
+       vegna tharf greinin fyrir umferd i gangi enga sérreglu.             */
+    const t3 = build({ served: { 2: mk(4) },
+      events: [{ id: 2, finished: false, is_current: true }], fixtures: round(2, 4) });
+    const r3 = await t3.run();
+    ok(r3.written === 1 && r3.partial.length === 0 && r3.ok === true,
+      "4 af 4 spiluðum leikjum mitt i umferd er FULL skra, ekki hluta-skra");
+    /* HLUTA-SKRA MITT I UMFERD ER MERKT EN GERIR HEIMILDINA EKKI RAUDA:
+       `fixtures.finished` getur flippad nokkrum minutum a undan
+       live-endapunktinum, og `gw1-checklist` heimtar `fpl_live.ok` sem
+       grunnstod — falskt raut ljos i hálftima er sjalf ekki upplysing.
+       LOKIN umferd med somu skra ER hins vegar raud (kafli (c) ofar).   */
+    const t4 = build({ served: { 2: mk(2) },
+      events: [{ id: 2, finished: false, is_current: true }], fixtures: round(2, 4) });
+    const r4 = await t4.run();
+    ok(r4.partial.length === 1 && /round in progress/.test(r4.note),
+      `hluta-skra mitt i umferd er MERKT (${r4.note})`);
+    ok(r4.ok === true && r4.partialOver === 0,
+      "en hun gerir heimildina EKKI rauda (umferdin er ekki bunin)");
+    const t5 = build({ served: { 2: mk(2) },
+      events: [ev(2, { is_current: true })], fixtures: round(2, 4) });
+    const r5 = await t5.run();
+    ok(r5.ok === false && r5.partialOver >= 1,
+      `SAMA skra i LOKINNI umferd gerir hana RAUDA (${r5.partialOver} hluta-skrar, thad er villan sjalf)`);
+  }
+
+  /* ---- (f) OVERJANDI ASTAND: skra til, ENGINN lokinn leikur -> LATIN I FRIDI ---- */
+  {
+    const t = build({ disk: { "data/live/gw1.json": mk(4) }, served: { 1: mk(10) },
+      events: [ev(1)], fixtures: [{ id: 1, event: 1, finished: false }] });
+    const r = await t.run();
+    eq(t.calls.length, 0, "ekkert ad maela vid -> skra sem er til er LATIN I FRIDI");
+    eq(r.unverified, 1, "og astandid er TALIÐ, ekki thagad");
+    ok(/unverifiable/.test(r.note), `og nefnt i notunni (${r.note})`);
+  }
+
+  /* ---- (g) MISHEPPNUD SOKN FELLIR EKKI KEYRSLUNA OG EYDIR ENGU ---- */
+  {
+    const t = build({ disk: { "data/live/gw1.json": mk(4) }, served: {},
+      events: [ev(1)], fixtures: round(1, 10) });
+    const r = await t.run();
+    eq(JSON.parse(t.files.get("data/live/gw1.json")).elements.length, 88,
+       "503 fra FPL -> gamla skran stendur");
+    ok(r.failed.length === 1 && /failed:/.test(r.note), `og bilunin er skrad (${r.note})`);
+  }
+
+  /* ---- (h) RAUNGOGN — SEFUR ThANGAD TIL `data/live/` VERDUR TIL ---- */
   const liveDir = D + "live/";
   const files = existsSync(liveDir) ? readdirSync(liveDir).filter(f => /^gw\d+\.json$/.test(f)) : [];
   const finishedIds = new Set(events.filter(e => e.finished).map(e => e.id));
   const checkable = files.filter(f => finishedIds.has(+f.match(/\d+/)[0]));
+  const fixtures = (() => { try { const j = JSON.parse(readFileSync(D + "fixtures.json", "utf8"));
+    return Array.isArray(j) ? j : (j.fixtures || []); } catch { return []; } })();
   if (!checkable.length) {
     console.log(`     BID: data/live/ hefur ${files.length} skrar og ${finishedIds.size} loknar umferdir`
               + " — ekkert ad maela enn.");
     ok(true, "hluta-skra vordurinn sefur (engin lokin umferd med live-skra)");
   } else {
+    const api = build({ events: [], fixtures: [] }).api;
     for (const f of checkable) {
-      const s = sum(JSON.parse(readFileSync(liveDir + f, "utf8")));
-      ok(s.starts >= FULL_STARTS * 0.9 && s.minutes >= FULL_MINUTES * 0.9,
-        `${f} er FULL umferd (${s.starts} byrjanir, ${s.minutes} min) — ekki hluta-skra`,
-        `golf ${Math.round(FULL_STARTS * 0.9)}/${Math.round(FULL_MINUTES * 0.9)}`);
+      const gw = +f.match(/\d+/)[0];
+      const matches = fixtures.filter(x => x.event === gw && x.finished).length;
+      const st = api.liveRoundStatus({ live: JSON.parse(readFileSync(liveDir + f, "utf8")), matches });
+      ok(st.complete !== false,
+        `${f} er FULL umferd (${st.starts} byrjanir, ${st.minutes} min, ${matches} leikir)`,
+        st.why || "");
     }
   }
 }

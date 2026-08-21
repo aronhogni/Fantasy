@@ -22,9 +22,78 @@
    somu linu og talan:
      FFDR       CS% i lettasta sjottungi 44,9% og thyngsta 7,8% (10 timabil)
      rankScore  topp-15 5,13 stig/val · FPL-eigid xP 4,48 · appid 4,70
-     start_prob Brier 0,089 (a moti 0,118 fyrir "byrjadi sidast"),
-                laegsti tiundarhluti fangar 42-49% theirra sem falla a bekk
+     start_prob TVO VIDMID, sja `START_BENCHMARKS` — HVORT er RETT er
+                spurning um HVADA LIKAN skrifadi rodina, ekki um hvada
+                umferd hun er.
    ============================================================ */
+import { PRESEASON_CAL } from "./stats.js";
+
+/* ============================================================
+   BYRJUNAR-LIKUR: TVO LIKON, TVO VIDMID — OG EITT ThEIRRA ER RANGT
+   FYRIR HVERJA ROD (21.8.2026)
+
+   VILLAN SEM VAR: `startProbCalibration` bar `start_prob` VID EITT
+   vidmid — `documented.brier = 0,089`, sem er MAELT A START_MODEL INNAN
+   TIMABILS (65.557 syni, 3 timabil). GW1-rodin var hins vegar skrifud ur
+   FORLEIKS-ENDURKVORDADA likaninu (`sigmoid(-0,262 + 0,533*logit(p))`,
+   hlidad a `imminent.archive === true`), sem er MAELT 0,1683 (LOSO a
+   fjorum timabilamotum, 1.901 rod). Fyrsta kvordunar-skyrsla timabilsins
+   hefdi thvi sagt "Brier 0,18 a moti 0,089" — TVOFOLD afturfor sem
+   ATTI SER ALDREI STAD. Rett spa borin vid rangan malstiku les eins og
+   maeling og er versta utkoman (CLAUDE.md 3).
+
+   PROVENANS, EKKI UMFERDARNUMER. Rodin sjalf ber hvada gluggi bjo hana
+   til (`start_window`, skrifad ur `imminent.archive` — SAMA flaggi og
+   endurkvordunin er hlidud a, svo thau geta ekki farid i sundur). Ad
+   alykta "GW1 -> forleiks-likan" var maelt HAFNAD sem regla: umferd er
+   ekki likan. Pipeline getur dregist aftur ur (`live/gw1.json` vantar ->
+   arkiv-glugginn heldur i GW2 og GW3), og eins gaeti GW1-rod verid skrifud
+   ur lifandi glugga hefdi timabilid byrjad odrum megin vid FETCH_WINDOW.
+   Sama roksemd og i `src/stats.js` 5b: "flaggid LYSIR ThVI HVAD GLUGGINN
+   ER, ekki hvada dagur er i dag".
+
+   ROD AN FLAGGS FAER ENGAN MALSTIKU — OG ThAD ER AKVORDUN, EKKI HIK.
+   `data/predictions/gw1.json` var skrifud 21.8. kl. 05:59, ADUR en svidid
+   var til, svo hun er `start_window: null` ad eilifu (rod er ALDREI
+   endurskrifud — endurskrifud spa er retro-fitting). Fyrir hana er MAELDA
+   talan skrad (hun er staðreynd) en `documented` er `null` med skyringu
+   sem nefnir BADAR mogulegu tolurnar. Ad velja eina hefdi verid agiskun i
+   skjolun sem byggir a maelingum; thognin er RETTA svarid og hun er MERKT.
+
+   TOLURNAR ERU FLUTTAR INN, EKKI AFRITADAR: `PRESEASON_CAL.measured` er
+   thad sem `preseasonStartProb` var maeld med. Vaeri 0,1683 skrifud her
+   vaeri hun tvo tolur um sama hlut og gaeti rekid i sundur — sama villa og
+   `buildTeamMetrics`-afritid (CLAUDE.md 7.1).
+   ============================================================ */
+export const START_BENCHMARKS = {
+  /* INNAN TIMABILS: hraa START_MODEL. Maelt 28.7.2026, 65.557 syni,
+     3 timabil, LOSO. Grunnreglan "byrjadi sidast" gefur 0,1176.        */
+  live: {
+    window: "live", model: "START_MODEL (in-season)",
+    brier: 0.089, baselineBrier: 0.118, benchCapture: [0.42, 0.49],
+    samples: 65557,
+  },
+  /* FORLEIKUR/ARKIV-GLUGGI: sama likan, endurkvardad. Tolurnar eru
+     ThAER SOMU sem `preseasonStartProb` var fittud og maeld med.       */
+  archive: {
+    window: "archive", model: "START_MODEL + preseason recalibration",
+    brier: PRESEASON_CAL.measured.brier_recal,
+    rawBrier: PRESEASON_CAL.measured.brier_raw,
+    /* OMAELD TALA FAER EKKI REIT: hvorki grunnreglan ne bekkjar-gildran
+       voru maeldar a thessum glugga, svo thaer eru null — ekki 0,118.  */
+    baselineBrier: null, benchCapture: null,
+    samples: PRESEASON_CAL.measured.samples,
+    dBrier: PRESEASON_CAL.measured.d_brier, ci: PRESEASON_CAL.measured.ci,
+  },
+};
+
+/* Hvada gluggi bjo rodina til? Rod-flagg vinnur (nakvaemara), sidan
+   skra-flaggid; annars `null` = OThEKKT (ALDREI agiskun ut fra `gw`).  */
+export function startWindowOf(snap, row) {
+  for (const w of [row?.start_window, snap?.start_window])
+    if (w === "archive" || w === "live") return w;
+  return null;
+}
 
 /* Hlutfall med talningu — `null` thegar urtakid ber thad ekki. */
 function rate(hits, n, minN, label) {
@@ -111,22 +180,12 @@ export function rankVsPoints({ snapshots, points, n = 15, minN = 10 }) {
    tiundarhlutinn fangi thá sem falla a bekk. Thess vegna er nakvaemni EKKI
    maeld her — hun vaeri tala sem litur vel ut og segir ekkert.
    --------------------------------------------------------------- */
-export function startProbCalibration({ snapshots, minutes, minN = 100 }) {
-  const rows = [];
-  for (const snap of snapshots) {
-    const got = minutes.get(snap.gw);
-    if (!got) continue;
-    for (const r of (snap.rank || [])) {
-      if (r.start_prob == null) continue;
-      const mins = got.get(r.id);
-      if (mins == null) continue;
-      rows.push({ p: r.start_prob, started60: mins >= 60 ? 1 : 0 });
-    }
-  }
+/* Maelda talan sjalf — engin vidmid, engin provenans. Hun er stadreynd um
+   rodina og er thvi reiknud eins fyrir baða glugga.                      */
+function brierOf(rows, minN) {
   if (rows.length < minN)
-    return { n: rows.length, brier: null, baseline: null, bottomDecileBenched: null,
-             documented: { brier: 0.089, baselineBrier: 0.118, benchCapture: [0.42, 0.49] },
-             why: `aðeins ${rows.length} sýni, þarf ${minN}` };
+    return { n: rows.length, brier: null, baseline: null, beatsBaseline: null,
+             bottomDecileBenched: null, why: `aðeins ${rows.length} sýni, þarf ${minN}` };
   const brier = rows.reduce((a, r) => a + (r.p - r.started60) ** 2, 0) / rows.length;
   const base = rows.reduce((a, r) => a + r.started60, 0) / rows.length;
   /* Vidmidid er GRUNNTIDNIN — spa sem slaer hana ekki er verri en ad giska
@@ -143,8 +202,60 @@ export function startProbCalibration({ snapshots, minutes, minN = 100 }) {
     beatsBaseline: brier < baseBrier,
     bottomDecileBenched: benchedAll
       ? +(bottom.filter(r => !r.started60).length / benchedAll).toFixed(4) : null,
-    documented: { brier: 0.089, baselineBrier: 0.118, benchCapture: [0.42, 0.49] },
     why: null,
+  };
+}
+
+export function startProbCalibration({ snapshots, minutes, minN = 100 }) {
+  const rows = [];
+  for (const snap of snapshots) {
+    const got = minutes.get(snap.gw);
+    if (!got) continue;
+    for (const r of (snap.rank || [])) {
+      if (r.start_prob == null) continue;
+      const mins = got.get(r.id);
+      if (mins == null) continue;
+      rows.push({ p: r.start_prob, started60: mins >= 60 ? 1 : 0,
+                  window: startWindowOf(snap, r) });
+    }
+  }
+  /* HVER GLUGGI ER SER LAUG. Ad leggja thau saman og bera vid EITT vidmid
+     er nakvaemlega villan sem thessi skra var lagfaerd fyrir — thad vaeri
+     tvo likon i einni tolu.                                             */
+  const cohorts = {};
+  for (const key of ["archive", "live", "unknown"]) {
+    const sub = rows.filter(r => (r.window ?? "unknown") === key);
+    if (!sub.length) { cohorts[key] = null; continue; }
+    const st = brierOf(sub, minN);
+    const doc = START_BENCHMARKS[key] || null;
+    cohorts[key] = {
+      window: key, ...st, documented: doc,
+      /* "HELDUR MAELINGIN?" — eina fullyrdingin sem vidmidid stydur.
+         `null` thegar hvorugt er til (of faar radir EDA ekkert vidmid). */
+      worseThanDocumented: (st.brier == null || !doc) ? null : st.brier > doc.brier,
+      why: doc ? st.why
+        : `${sub.length} raðir bera ekkert `
+          + `\`start_window\` — kvarðinn er óþekktur (forleiks-endurkvörðun `
+          + `${START_BENCHMARKS.archive.brier} á móti ${START_BENCHMARKS.live.brier} `
+          + `innan tímabils, TVÖFALDUR munur), svo ENGIN viðmiðun er gerð`,
+    };
+  }
+  const present = Object.keys(cohorts).filter(k => cohorts[k]);
+  const pooled = brierOf(rows, minN);
+  const window = present.length === 1 ? present[0] : (present.length ? "mixed" : null);
+  /* SAMEINADA TALAN FAER MALSTIKU ADEINS ThEGAR OLL RODIN KOM UR SAMA
+     LIKANI. Blandad eda oThEKKT -> `null`, og hvert cohort ber sina eigin. */
+  const doc = (window && START_BENCHMARKS[window]) || null;
+  return {
+    ...pooled,
+    window,
+    documented: doc,
+    worseThanDocumented: (pooled.brier == null || !doc) ? null : pooled.brier > doc.brier,
+    cohorts,
+    why: pooled.why || (window === "mixed"
+      ? `blandaðir gluggar (${present.map(k => `${k}:${cohorts[k].n}`).join(", ")})`
+        + " — sameinuð tala hefur ekkert eitt viðmið, sjá `cohorts`"
+      : (window === "unknown" ? cohorts.unknown.why : null)),
   };
 }
 

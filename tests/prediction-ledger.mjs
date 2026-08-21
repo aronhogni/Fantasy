@@ -337,6 +337,80 @@ console.log("\n4) RODIN: nog til ad kvarda, engin tilbuin tala");
   ok("heimildirnar eru skradar (hvad var til thegar spain var gerd)",
      snap.sources && typeof snap.sources.odds === "boolean" && typeof snap.sources.elo === "boolean");
   ok("notan segir ad rodin se onemandi", /never rewritten/i.test(snap.note || ""));
+
+  /* ============================================================
+     4c. HVADA LIKAN SKRIFADI `start_prob`? — PROVENANSINN VERDUR AD FYLGJA
+         RODINNI (21.8.2026)
+
+     `startProbability` er ENDURKVORDUD i arkiv-glugga (maeld Brier 0,1683)
+     og HRA innan timabils (0,089). Rodin ber toluna en BAR EKKI hvor
+     kvardinn hun er, svo `src/calibration.js` gat adeins borid hana vid EITT
+     vidmid — og fyrsta kvordunar-skyrsla timabilsins hefdi thvi sagt
+     "tvofold afturfor" um spa sem var rett. Talan var rett; malstikan var
+     fyrir annad likan.
+
+     ThAD SEM ER SKRAD ER SAMA FLAGG SEM ENDURKVORDUNIN ER HLIDUD A
+     (`imminent.archive`), EKKI UMFERDARNUMER: umferd er ekki likan —
+     pipeline getur dregist aftur ur og haldid arkiv-glugganum i GW2/GW3
+     (sja `FETCH_WINDOW` i `deriveImminent`).
+     ============================================================ */
+  {
+    const im = tryJ("imminent.json");
+    ok(`imminent.json ber \`archive: ${im?.archive}\` — forsenda naestu fullyrdinga`,
+       typeof im?.archive === "boolean", JSON.stringify(im?.archive));
+    ok(`rodin ber \`start_window: "${snap.start_window}"\` og thad passar vid flaggid`,
+       snap.start_window === (im.archive === true ? "archive" : "live"),
+       `${snap.start_window} a moti archive=${im.archive}`);
+    /* BADAR ATTIR, A SOMU INNTOKUM: flaggid er ThAD sem raedur, ekki gw.  */
+    const mkSnap = imm => buildSnapshot({ gw: 1, players, teams, fixtures,
+      teamForm: tryJ("team_form.json"), odds: tryJ("odds.json"), elo: tryJ("elo.json"),
+      playerForm: tryJ("player_form.json"), promoted: tryJ("promoted_baseline.json"),
+      imminent: imm, nowTs: Date.UTC(2026, 7, 20) });
+    ok("archive:false a SOMU rod -> 'live' (sama umferd, annad likan)",
+       mkSnap({ ...im, archive: false }).start_window === "live");
+    ok("og `imminent` sem vantar -> null, EKKI 'live' (glugginn var aldrei lesinn)",
+       mkSnap(null).start_window === null);
+    /* SAMA ROD, TVEIR KVARDAR — OG ThEIR ERU RAUNVERULEGA OLIKIR, annars
+       maeldi fullyrdingin hér fyrir ofan ekkert.
+       ENDURKVORDUNIN ER ThJOPPUN, EKKI LAEKKUN, og thad er vert ad hafa
+       rett: hallinn er 0,533 i logit svo fastapunkturinn er p ~ 0,363
+       (logit p = -0,262 / 0,467). Ofan vid hann faerist talan NIDUR, undir
+       honum UPP. "Hun laekkar allt" vaeri osonn fullyrding (maelt: 231 nidur,
+       608 upp af 840 rodum i imminent.json) — en "hun dregur HAA tolu
+       nidur" er sonn i 189 af 189 tilfellum, og thad er nakvaemlega
+       fullyrdingin sem `startRisk`-threpin hvila a.                      */
+    const raw = mkSnap({ ...im, archive: false }).rank;
+    const cal = new Map(snap.rank.map(r => [r.id, r.start_prob]));
+    const both = raw.filter(r => r.start_prob != null && cal.get(r.id) != null);
+    const diff = both.filter(r => cal.get(r.id) !== r.start_prob).length;
+    const hi = both.filter(r => r.start_prob >= 0.5);
+    const lo = both.filter(r => r.start_prob <= 0.2);
+    ok(`${both.length} radir bera tolu a BADUM kvordum — forsenda`, both.length > 100);
+    ok(`og ${diff} af ${both.length} bera SITT HVAD (kvardarnir eru tveir, ekki einn)`,
+       diff > both.length * 0.9);
+    ok(`raw >= 0,5 faerist NIDUR i ollum ${hi.length} tilfellum`,
+       hi.length > 20 && hi.every(r => cal.get(r.id) < r.start_prob),
+       `${hi.filter(r => cal.get(r.id) >= r.start_prob).length} faerdust ekki nidur`);
+    ok(`og raw <= 0,2 faerist UPP i ollum ${lo.length} (thjoppun ad ~0,363, ekki laekkun)`,
+       lo.length > 50 && lo.every(r => cal.get(r.id) > r.start_prob));
+    /* OG KVORDUNIN VERDUR AD LESA ThAD SEM ER SKRIFAD. Tvaer skrar, eitt
+       svid: se heitid breytt an thess ad calibration.js fylgi er allt hitt
+       marklaust (sami laerdomur og `buildTeamMetrics`).                   */
+    const { startWindowOf, START_BENCHMARKS } = await import(new URL("src/calibration.js", REPO).href);
+    ok("`startWindowOf` les svidid sem bokhaldid skrifar",
+       startWindowOf(snap) === snap.start_window);
+    ok(`og malstikan sem thad velur er ${START_BENCHMARKS[snap.start_window]?.brier}`
+       + " (0,1683 i forleik, 0,089 innan timabils)",
+       START_BENCHMARKS[snap.start_window]?.brier > 0);
+    /* Og HEITID ma ekki vera alyktad ut fra `gw` i skriftunni.            */
+    const runner2 = readFileSync(new URL("../scripts/snapshot-predictions.mjs", import.meta.url), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    ok("skriftan les `imminent.archive`, ekki umferdarnumerid",
+       /start_window: imminent \? \(imminent\.archive === true/.test(runner2),
+       runner2.match(/start_window[^\n]*/)?.[0]);
+    ok("og hvergi er `gw` notad til ad giska a gluggann",
+       !/start_window:[^\n]*gw/.test(runner2));
+  }
 }
 
 /* ---------------------------------------------------------------

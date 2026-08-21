@@ -20,8 +20,9 @@
    ad segja eitthvad — sama hegdun og `gw1-checklist.mjs`.
    ============================================================ */
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { ffdrVsCleanSheets, rankVsPoints, startProbCalibration, resultsFromFixtures }
-  from "../src/calibration.js";
+import { ffdrVsCleanSheets, rankVsPoints, startProbCalibration, resultsFromFixtures,
+         START_BENCHMARKS, startWindowOf } from "../src/calibration.js";
+import { PRESEASON_CAL } from "../src/stats.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 const P = D + "predictions/";
@@ -146,6 +147,109 @@ console.log("\n3) Byrjunar-likur (tilbuin gogn, thekkt svar)");
 }
 
 /* ---------------------------------------------------------------
+   3b. HVADA LIKAN SKRIFADI RODINA? — TVO VIDMID, EINN MALSTIKA PER ROD
+
+   Fyrsta kvordunar-skyrsla timabilsins hefdi sagt "Brier 0,18 a moti
+   0,089" og lesid eins og TVOFOLD afturfor. Talan var rett; malstikan var
+   fyrir annad likan (`START_MODEL` innan timabils, 65.557 syni) en thad
+   sem skrifadi rodina (forleiks-endurkvordunin, maeld 0,1683).
+
+   TILBUNU GOGNIN ERU EIN OG SAMA RODIN, SEND TVISVAR. Thad er allur
+   punkturinn: 200 radir med p = 0,8 thar sem 160 byrja gefa Brier
+   NAKVAEMLEGA 0,16 — sem er VERRA en 0,089 og BETRA en 0,1683. Sami
+   maelipunktur, gagnstaedar niðurstodur, og provenansinn er thad EINA sem
+   skilur thau ad. Vaeri talan valin utan thess bils gaeti prófið stadist
+   thott bædi vidmid vaeru notud.
+   --------------------------------------------------------------- */
+console.log("\n3b) Provenans: forleiks-rod er borin vid FORLEIKS-vidmidid");
+{
+  const rank = [], mins = new Map();
+  for (let i = 0; i < 200; i++) {
+    const id = i + 1, plays = i < 160;
+    rank.push({ id, start_prob: 0.8 });
+    mins.set(id, plays ? 90 : 0);
+  }
+  const minutes = new Map([[1, mins]]);
+  const run = win => startProbCalibration({
+    snapshots: [{ gw: 1, ...(win ? { start_window: win } : {}), rank }], minutes, minN: 100 });
+
+  /* FORSENDA SEM GERIR ALLT HITT MARKTAEKT (CLAUDE.md 5b regla 2): talan
+     verdur ad LIGGJA MILLI vidmidanna, annars er samanburdurinn tomur.  */
+  const A = START_BENCHMARKS.archive.brier, L = START_BENCHMARKS.live.brier;
+  ok(`vidmidin eru sitt hvad (${L} innan timabils, ${A} i forleik) og munurinn er ~2x`,
+     A > L * 1.7 && A < L * 2.2, `${A} / ${L}`);
+  const base = run("archive");
+  ok(`tilbuna rodin gefur Brier NAKVAEMLEGA 0,16 (${base.brier})`, base.brier === 0.16);
+  ok("og hun liggur MILLI vidmidanna — annars maeldi kaflinn ekkert",
+     base.brier > L && base.brier < A, `${L} < ${base.brier} < ${A}`);
+
+  /* SAMA ROD, TVEIR GLUGGAR, GAGNSTAEDAR NIDURSTODUR. */
+  ok(`archive-rod: malstikan er ${A} (forleiks-endurkvordunin)`,
+     base.documented?.brier === A && base.window === "archive",
+     JSON.stringify({ w: base.window, d: base.documented?.brier }));
+  ok("og hun HELDUR (0,16 er ekki verra en 0,1683)", base.worseThanDocumented === false
+     && base.cohorts.archive.worseThanDocumented === false);
+  const inSeason = run("live");
+  ok(`live-rod: malstikan er ${L} (hraa START_MODEL)`,
+     inSeason.documented?.brier === L && inSeason.window === "live");
+  ok("og HUN fellur — sama tala, annad likan, onnur nidurstada",
+     inSeason.worseThanDocumented === true);
+  ok("baðar bera SOMU maeldu toluna (talan er stadreynd, vidmidid er valid)",
+     inSeason.brier === base.brier);
+
+  /* ROD AN FLAGGS: MAELD TALA, ENGIN MALSTIKA — OG HUN SEGIR HVERS VEGNA.
+     Thetta er `data/predictions/gw1.json` i raunveruleikanum: skrifud adur
+     en svidid var til og ALDREI endurskrifud.                            */
+  const unk = run(null);
+  ok(`an provenans: maelda talan er skrad (${unk.brier})`, unk.brier === 0.16);
+  ok("en `documented` er NULL — engin agiskun", unk.documented === null && unk.window === "unknown");
+  ok("og `worseThanDocumented` er null, ekki false (thogn, ekki fullyrding)",
+     unk.cohorts.unknown.worseThanDocumented === null);
+  ok("og skyringin nefnir BADAR mogulegu tolurnar svo lesandinn viti bilid",
+     new RegExp(String(A)).test(unk.why || "") && new RegExp(String(L)).test(unk.why || ""),
+     unk.why);
+  ok("provenans er ALDREI alyktad ut fra umferdarnumeri (gw1 -> unknown)",
+     startWindowOf({ gw: 1 }, {}) === null && startWindowOf({ gw: 1, start_window: "archive" }) === "archive");
+  ok("rod-flagg vinnur skra-flaggid (nakvaemara)",
+     startWindowOf({ start_window: "live" }, { start_window: "archive" }) === "archive");
+
+  /* BLANDADAR UMFERDIR: sameinud tala fær ENGA malstiku, en hvert cohort
+     ber sina. Thetta gerist raunverulega thegar arkiv-glugginn slokknar i
+     midju timabili (FETCH_WINDOW = 5 umferdir).                          */
+  const mixed = startProbCalibration({ snapshots: [
+    { gw: 1, start_window: "archive", rank }, { gw: 2, start_window: "live", rank }],
+    minutes: new Map([[1, mins], [2, mins]]), minN: 100 });
+  ok("blandad -> window 'mixed' og `documented` null", mixed.window === "mixed"
+     && mixed.documented === null, JSON.stringify(mixed.window));
+  ok("en badir gluggar eru taldir og bera SITT vidmid",
+     mixed.cohorts.archive?.n === 200 && mixed.cohorts.live?.n === 200
+     && mixed.cohorts.archive.documented.brier === A
+     && mixed.cohorts.live.documented.brier === L);
+  ok("og skyringin segir ad sameinud tala hafi ekkert eitt vidmid",
+     /blandaðir gluggar/.test(mixed.why || ""), mixed.why);
+
+  /* BYGGINGARLEGT: 0,1683 ER FLUTT INN, EKKI AFRITAD. Vaeri hun skrifud i
+     src/calibration.js vaeru thad tvaer tolur um sama hlut sem gaetu rekid i
+     sundur — sama villa og `buildTeamMetrics`-afritid (CLAUDE.md 7.1).   */
+  ok("archive-vidmidid ER `PRESEASON_CAL.measured.brier_recal`, ekki afrit",
+     A === PRESEASON_CAL.measured.brier_recal
+     && START_BENCHMARKS.archive.rawBrier === PRESEASON_CAL.measured.brier_raw);
+  const calSrc = readFileSync(new URL("../src/calibration.js", import.meta.url), "utf8");
+  const calCode = calSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok("og TALAN sjalf stendur hvergi i kodanum (adeins innflutt)",
+     !/0\.1683|0\.1837/.test(calCode), calCode.match(/0\.16\d+|0\.18\d+/g)?.join(", "));
+  ok("og hun er FLUTT INN ur src/stats.js", /import \{[^}]*PRESEASON_CAL[^}]*\} from "\.\/stats\.js"/.test(calCode));
+  /* OMAELD TALA FAER EKKI REIT: bekkjar-gildran og "byrjadi sidast" voru
+     ALDREI maeld a arkiv-glugganum, svo thau eru null — ekki 0,118.      */
+  ok("forleiks-vidmidid ber EKKI omaeldu tolurnar (baseline/benchCapture null)",
+     START_BENCHMARKS.archive.baselineBrier === null
+     && START_BENCHMARKS.archive.benchCapture === null);
+  ok("medan innan-timabils vidmidid ber thaer badar (0,118 og 42-49%)",
+     START_BENCHMARKS.live.baselineBrier === 0.118
+     && START_BENCHMARKS.live.benchCapture?.length === 2);
+}
+
+/* ---------------------------------------------------------------
    4. URSLIT UR LEIKJASKRA
    --------------------------------------------------------------- */
 console.log("\n4) Urslit ur leikjaskra");
@@ -194,12 +298,61 @@ console.log("\n5) Raungogn: bokhald + urslit");
     console.log(`     FFDR: ${r1.matched} lid-leikir · einraeni ${r1.monotone}`);
     for (const t of r1.tiers) console.log(`        threp ${t.tier}: CS ${t.value ?? "—"} (n=${t.n})`);
     ok("FFDR-kvordun skilar threpum", r1.tiers.length > 0);
-    /* Einraeni er PROFID um leid og urtakid ber thad. Falli hun er thad EKKI
-       endilega villa — en thad er thad sem madur VILL vita.               */
-    if (r1.monotone !== null)
+    /* ============================================================
+       EINRAENI ER PROFID UM LEID OG URTAKID BER ThAD — OG FALLID VERDUR AD
+       SKYRA SIG SJALFT (21.8.2026)
+
+       `minN = 20` gerir hvert threp null i GW1 (20 lid-leikir a sex threp),
+       svo thessi fullyrding SEFUR. A maeldri threpa-dreifingu GW1
+       (2/4/6/3/1/4 lid-leikir) na TVO threp n >= 20 eftir ~5 umferdir —
+       thad er skjalfest i `clock-states.mjs` kafla C2. Um leid og hun
+       VAKNAR getur EIN vidsnuin prosenta a n ~ 20-40 gert `npm test`
+       RAUTT i september, og su tala er innan hávaða: vikmörk hlutfalls a
+       n = 20 eru ~+-0,11 (SE = sqrt(p(1-p)/n) med p ~ 0,25).
+
+       Fullyrdingin er ekki slokkt — hun a ad falla, thvi thad er thad sem
+       madur VILL vita. En textinn verdur ad bera TOLURNAR sem gera manni
+       kleift ad greina hávaða fra biluðu likani, annars les fallid eins og
+       afturfor. Skjalfesta maelingin er 44,9% / 7,8% a 10 timabilum og
+       6.080 lid-leikjum; ein umferd er 20.
+       ============================================================ */
+    if (r1.monotone !== null) {
+      const usable = r1.tiers.filter(t => t.value != null);
+      const inv = [];
+      for (let i = 1; i < usable.length; i++) {
+        const a = usable[i - 1], b = usable[i];
+        if (a.value >= b.value) continue;
+        const se = Math.sqrt(a.value * (1 - a.value) / a.n + b.value * (1 - b.value) / b.n);
+        inv.push(`threp ${a.tier} (${a.value}, n=${a.n}) < threp ${b.tier} (${b.value}, n=${b.n});`
+          + ` delta ${(b.value - a.value).toFixed(3)}, SE ${se.toFixed(3)} ->`
+          + ` ${Math.abs(b.value - a.value) < 2 * se ? "INNAN 2 SE = VAENTANLEGUR HAVADI"
+                                                     : "UTAN 2 SE = SKODA LIKANID"}`);
+      }
       ok(`FFDR er einraen i threpum (${r1.monotone})`, r1.monotone === true,
-         "letttari threp gefa EKKI fleiri hrein blod — skoda strax");
+        `VAENTANLEGT SNEMMA A TIMABILI, EKKI SJALFGEFID VILLA: skjalfesta maelingin er`
+        + ` 44,9% / 7,8% a 10 timabilum (6.080 lid-leikir); her eru ${r1.matched}.`
+        + ` Vidsnuin por: ${inv.join(" | ")}.`
+        + " Se delta INNAN 2 SE er thetta urtakshávaði — bidid fleiri umferda."
+        + " Se thad UTAN 2 SE, eda haldi snuningurinn afram thegar n vex,"
+        + " tha er thad likanid. Sja tests/clock-states.mjs kafla C2.");
+    }
   }
+
+  /* PROVENANS I RAUNVERULEGU BOKHALDI — LES SKRARNAR, FULLYRDIR EKKI UM
+     KLUKKUNA. `gw1.json` var skrifud 21.8. kl. 05:59, ADUR en `start_window`
+     var til, svo hun er `null` ad eilifu og faer thvi ENGA malstiku. Naestu
+     radir bera flaggid. Fullyrdingin er thvi um GILDIN, ekki um fjoldann. */
+  const wins = snapshots.map(s => `gw${s.gw}:${s.start_window ?? "OThEKKT"}`);
+  console.log(`     provenans byrjunar-lika: ${wins.join(" · ") || "(engin rod)"}`);
+  ok("hver rod ber `start_window` sem er 'archive', 'live' eda vantar (aldrei annad)",
+     snapshots.every(s => s.start_window === undefined || s.start_window === null
+                       || s.start_window === "archive" || s.start_window === "live"),
+     wins.join(" · "));
+  const stamped = snapshots.filter(s => s.start_window === "archive" || s.start_window === "live");
+  const unstamped = snapshots.filter(s => !(s.start_window === "archive" || s.start_window === "live"));
+  ok(`${stamped.length} rod med provenans, ${unstamped.length} an (thaer fa ENGA malstiku)`,
+     unstamped.every(s => startProbCalibration({ snapshots: [s], minutes: new Map(),
+                                                 minN: 100 }).documented === null));
 }
 
 console.log(`\nKVORDUN: ${pass} stodust, ${fail} fellu`);
