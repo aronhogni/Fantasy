@@ -102,7 +102,7 @@ export async function playerPool(season) {
       pos,
       team: TEAM[p.proTeamId] ?? null,
       adp,
-      auction: num(own.auctionValueAverage),
+      auction: auctionValue(own.auctionValueAverage),
       owned,
       started: num(own.percentStarted),
       adpChange: num(own.averageDraftPositionPercentChange),
@@ -121,8 +121,47 @@ export async function playerPool(season) {
   const withProj = out.filter((p) => p.projPts != null).length;
   record("espn_players", true,
     `${out.length} players with ADP or roster share (of ${raw.length}); ` +
-    `season projection on ${withProj}, ${projRejected} rejected by the sanity gate`);
+    `season projection on ${withProj}, ${projRejected} rejected by the sanity gate; ` +
+    `auction value on ${out.filter((p) => p.auction != null).length}, ` +
+    `${auctionZeroed} zeroes dropped (no ESPN auction price, not $0)`);
   return out;
+}
+
+/* ============================================================
+   `auctionValueAverage === 0` ER TOMGILDI, EKKI NULL DOLLARAR
+   ============================================================
+   Maelt 21.8.2026 a `players.json` (979 radir bera svidid):
+
+     nakvaemlega 0                       **654**
+     og af theim 654: adpEspn i [169,171]  **654**  <- ALLAR
+
+   Thad er ekki tilviljun heldur SAMA FAERSLAN: 654 er sami fjoldi og
+   ESPN-ADP-sentinel-inn faer (sja `adp` i src/build.js), thvi bæði
+   svidin koma ur `ownership` a leikmanni sem ENGINN DRAFTADI. Talan
+   thydir "ESPN a ekkert uppbodsverd a honum", ekki "hann kostar 0".
+
+   OG ESPN SEGIR ThAD SJALFT MED SNIDINU: hun tjair raunveruleg
+   undir-dollara medaltol med TVEIMUR AUKASTOFUM — 0,01 a 42 rodum og
+   0,02 a 23. Nakvaemlega 0 er thvi SERSTAKT astand, ekki namundun
+   nidur. Ef madur er tekinn einu sinni fyrir dollar i 99 deildum
+   verdur medaltalid 0,01, ekki 0.
+
+   AFLEIDINGIN VAR RAUNVERULEG A SKJANUM: dalkurinn "Auction value
+   (ESPN)" birti "0" med notu sem segir "medalverd i uppbodsdrofti, i
+   dollurum af 200" — omaeld tala i reit, og sa dalkur hefur ekki
+   `hi: false`, svo hækkandi rodun setti 654 nullur a TOPPINN. Verri
+   enn: **45 af theim 654 ERU draftanlegir** (bera FFC- eda
+   Sleeper-ADP) — Graham Gano, D'Onta Foreman, Mike Boone — svo "0
+   dollarar" sat vid hlidina a raunverulegu ADP og las eins og "frir".
+
+   Sama hlid og `sane()` hér fyrir nedan og sama regla og CLAUDE.md
+   kafli 8 i FPL-hlutanum: **NULL ER EKKI NULL**, og omaeld tala faer
+   ekki reit. Raunveruleg gildi eru osnert (325 radir, haest 64,89).  */
+let auctionZeroed = 0;
+function auctionValue(v) {
+  const x = num(v);
+  if (x === 0) { auctionZeroed++; return null; }
+  return x;
 }
 
 /** Skilar tolunni ef hun stenst hlidid, annars null (og telur). */

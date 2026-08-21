@@ -1969,6 +1969,66 @@ console.log("\nESPN-sentinel verdur aldrei markadsverd");
 }
 
 /* ============================================================
+   ESPN-UPPBODSVERD 0 ER TOMGILDI, EKKI NULL DOLLARAR
+   ============================================================
+   Sama aett og sentinel-kaflinn ad ofan og hun fannst i somu heimild.
+   MAELT 21.8.2026 a `players.json`, 979 radir med svidinu:
+
+     nakvaemlega 0                        **654**
+     og af theim: adpEspn i [169,171]     **654**  <- ALLAR
+
+   Sami fjoldi og ADP-sentinel-inn, thvi thad er SAMA FAERSLAN: bæði
+   svidin koma ur `ownership` hja manni sem ENGINN DRAFTADI. Talan
+   thydir "ESPN a ekkert uppbodsverd", ekki "hann kostar 0".
+
+   OG SNIDID SEGIR ThAD: ESPN tjair raunveruleg undir-dollara medaltol
+   med tveimur aukastofum — **0,01 a 42 rodum, 0,02 a 23**. Nakvaemlega
+   0 er thvi SERSTAKT astand, ekki namundun. Madur sem er tekinn einu
+   sinni fyrir dollar i 99 deildum faer 0,01.
+
+   Dalkurinn birti "0" med notunni "i dollurum af 200", hefur EKKI
+   `hi: false` (svo haekkandi rodun setti 654 nullur a toppinn), og **45
+   af theim 654 eru draftanlegir annars stadar** (FFC/Sleeper-ADP) —
+   Graham Gano, D'Onta Foreman, Mike Boone — svo nullid sat vid hlidina
+   a raunverulegu ADP og las eins og "frir".
+
+   ThRJAR FULLYRDINGAR:
+     (a) ThEKJA — svidid er raunverulega i skranni og ber raunveruleg gildi
+     (b) ENGIN rod ber nakvaemlega 0 (stokkbreytingar-naema fullyrdingin)
+     (c) og undir-dollara gildin eru OSNERT — hlidid ma ekki hafa henta
+         theim med, thvi tha vaeri thad ad eyda maelingu i stad tomgildis
+   ============================================================ */
+console.log("\nESPN-uppbodsverd 0 er tomgildi, ekki null dollarar");
+{
+  const f = path.join(DATA, "players.json");
+  if (!existsSync(f)) {
+    console.log("  (players.json vantar)");
+  } else {
+    const players = JSON.parse(readFileSync(f, "utf8"));
+    const withA = players.filter((p) => p.auctionEspn != null);
+    ok(withA.length > 100, `(a) ThEKJA: ${withA.length} leikmenn bera auctionEspn`);
+    const zeros = withA.filter((p) => p.auctionEspn === 0);
+    ok(zeros.length === 0,
+      `(b) engin rod ber nakvaemlega 0 (${zeros.length}: ${
+        zeros.slice(0, 3).map((p) => p.name).join(", ") || "engir"})`);
+    const sub = withA.filter((p) => p.auctionEspn > 0 && p.auctionEspn < 1);
+    ok(sub.length > 10,
+      `(c) undir-dollara gildin standa (${sub.length} radir, laegst ${
+        Math.min(...withA.map((p) => p.auctionEspn))})`);
+    /* Og hlidid er i HEIMILDINNI, ekki i vidmotinu — annars myndi hver ny
+       lesandi fa nullid oskolad. */
+    const espnSrc = readFileSync(
+      path.join(ROOT, "scripts", "sources", "espn.mjs"), "utf8");
+    ok(/auction: auctionValue\(own\.auctionValueAverage\)/.test(espnSrc),
+      "og hlidid situr i sources/espn.mjs, ekki i birtingunni");
+    ok(/if \(x === 0\) \{ auctionZeroed\+\+; return null; \}/.test(espnSrc),
+      "og nullin eru TALIN, svo hlutfallid se lesid og ekki agiskad");
+    ok(/zeroes dropped \(no ESPN auction price, not \$0\)/.test(espnSrc),
+      "og talan birtist i heimildaskranni");
+  }
+}
+
+/* ============================================================
    `sos` MA EKKI LOFA STODU-SUNDURLIDUN SEM ER EKKI TIL
    ============================================================
    Notan sagdi "medal vaent stigaskor andstaedinganna GEGN HANS STODU".
