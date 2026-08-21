@@ -381,6 +381,23 @@ console.log("\ntom keyrsla ma ekki thurrka ut god gogn");
       empty: { season: 2026, ffc: [{ players: [] }], generated: "x" },
       full: { season: 2026, generated: "x",
               ffc: [{ players: new Array(258) }, { players: new Array(210) }] } },
+    /* ATTA LYKLAR ERU EKKI ATTA RADIR. `experts.json` bar `minRows: 1`
+       til 21.8.2026 — eina skrain i settinu an maelds golfs, og su
+       staersta (4,1 MB). Falli FantasyPros alveg (allar fjorar leidirnar
+       eru SAMI hostur) er farmurinn atta lyklar med tomum fylkjum, svo
+       `rowCount` fellur i lyklafjolda og skilar 8. Med golfinu 1 hefdi
+       thad verid skrifad ofan i bordin, nakvaemnissoguna og samsteypuna.
+       Sama gildra og `market.json` bar (sex lyklar, alltaf 6). */
+    { name: "experts.json", min: 100,
+      empty: { season: 2026, accuracy: [], accuracyWeekly: [],
+               accuracyHistory: {}, boards: [], boardsPrev: [],
+               consensus: null, generated: "x" },
+      full: { season: 2026, accuracy: new Array(215), accuracyWeekly: new Array(10),
+              accuracyHistory: { 2025: new Array(215) },
+              boards: [{ ranks: Object.fromEntries(
+                new Array(300).fill(0).map((_, i) => [i, i])) }],
+              boardsPrev: [], consensus: { players: new Array(520) },
+              generated: "x" } },
   ];
   for (const c of CASES) {
     ok(rowCount(c.empty) < c.min,

@@ -1353,6 +1353,37 @@ async function stageExperts(season) {
   const consensusNow = await fp.consensus({ year: season, scoring: "PPR" })
     .catch(() => null);
 
+  /* ============================================================
+     `minRows: 1` VAR ENGIN HLID — REGLAN GILTI UM ALLAR SKRAR NEMA
+     ThESSA (lagfaert 21.8.2026)
+     ============================================================
+     "Tom keyrsla ma aldrei thurrka ut god gogn" er vordud a
+     market/news/ecr/players/teams/schedule/adp med maeldum golfum.
+     `experts.json` — 4,1 MB og staersta skrain i settinu — bar
+     `minRows: 1`, sem er thad sama og ekkert.
+
+     OG ThAD ER VERRA EN ThAD LITUR UT FYRIR, ThVI `rowCount` FELLUR I
+     LYKLAFJOLDA A TOMUM FARMI. Falli FantasyPros alveg (allar fjorar
+     leidirnar eru SAMI hostur) verdur farmurinn
+       { season, accuracy: [], accuracyWeekly: [], accuracyHistory: {},
+         boards: [], boardsPrev: [], consensus: null, generated }
+     og `rowCount` skilar **8** — atta LYKLUM, ekki atta rodum. 8 >= 1,
+     svo skrifin voru heimil og 4,1 MB af bordum, nakvaemnissogu og
+     samsteypu hefdu verid skrifud i tomt. Nakvaemlega sama gildra og
+     `market.json` 9.8.2026 ("rod er farmur, ekki umbudir"), i einu
+     skranni thar sem golfid var ekki maelt.
+
+     GOLFID ER MAELT, EKKI VALID (21.8.2026 a lifandi skra):
+       allur farmurinn             508
+       tomur farmur (lyklafjoldi)    8
+       minnsti EINSTAKI hluti sem lifir ef hinir falla:
+         accuracy (draft-sidan)    215
+         accuracyHistory (11 ar)   215  (per ar)
+         boards 2026              ~300  (radir i einu bordi)
+         consensus                 520
+     Minnsta gilda utkoma er thvi ~215. `minRows: 100` skilur eftir
+     tvofalda syn nedan vid hana og felur atta-lykla-tilfellid langt
+     undir sig. Vordur: `tests/pipeline.mjs` (CASES).            */
   await writeJson("experts.json", {
     season,
     accuracy: acc,              // DRAFT-nakvaemni — rett maeling fyrir draft
@@ -1362,7 +1393,7 @@ async function stageExperts(season) {
     boardsPrev: compactBoards(prev),
     consensus: consensusNow,
     generated: new Date().toISOString(),
-  }, { minRows: 1 });
+  }, { minRows: 100 });
 
   record("experts", now.length > 0,
     `${now.length} boards ${season}, ${prev.length} boards ${season - 1}, ` +
