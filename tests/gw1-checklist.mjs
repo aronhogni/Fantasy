@@ -81,8 +81,39 @@ if (finishedGw === 0) {
     ok(!(pros.control || []).some(id => p2.has(id)),
       "viðmiðshópurinn skarast EKKI við hópinn (annars væri hann ekki viðmið)");
   }
-  ok(!existsSync(`${D}pros_gw.json`),
-    "pros_gw.json er EKKI til í forleik (picks svara 404 fyrir fyrsta frest)");
+  /* TVEIR KLUKKUR, EKKI EIN — og þessi fullyrðing sat á öfugum stað
+     (lagað 21.8.2026). Safnið greinir á `finishedGw` (er umferð LOKIÐ?),
+     en `collectPros` gengur eftir **FRESTINUM**, ekki eftir úrslitum:
+     `entry/{id}/event/{gw}/picks/` svarar 404 þar til frestur er liðinn og
+     virkar um leið og hann er. Kl. 17:30 í dag opnaðist því ástand sem
+     hvorug greinin átti — frestur liðinn, engin umferð lokin — og
+     fullyrðingin „pros_gw.json er EKKI til" varð ósönn án þess að nokkuð
+     væri að. Þetta er nákvæmlega miðju-ástandið sem `clock-states.mjs`
+     skjalar (A: frestur liðinn, engin úrslit).
+     Hún les nú SÍNA EIGIN klukku og fullyrðir BÁÐAR áttir.               */
+  const dlPassed = events.filter(e => e.deadline_time
+    && Date.now() >= new Date(e.deadline_time).getTime()).length;
+  if (!dlPassed) {
+    ok(!existsSync(`${D}pros_gw.json`),
+      "engin frestur liðinn -> pros_gw.json er EKKI til (picks svara 404)");
+  } else {
+    /* FYRSTA RAUNKEYRSLA HÓPSINS EVER. CLAUDE.md kafli 10 skjalar að hún
+       hafi enga generalprufu, svo hér er hún mæld í fyrsta sinn.         */
+    ok(existsSync(`${D}pros_gw.json`),
+      `frestur ${dlPassed} liðinn -> pros_gw.json Á að vera til`);
+    if (existsSync(`${D}pros_gw.json`)) {
+      const pg = JSON.parse(readFileSync(`${D}pros_gw.json`, "utf8"));
+      const rows = Object.values(pg.gw || {});
+      const n = rows[0]?.n ?? 0;
+      const size = pg.panel_size || (pros.panel || []).length || 1;
+      ok(rows.length >= 1, `pros_gw.json ber ${rows.length} umferð(ir)`);
+      ok(n / size >= 0.9,
+        `þekjan er ${n} af ${size} (${(100 * n / size).toFixed(1)}%) — þarf >=90%`);
+      /* n MÁ ALDREI VERA 0: röð með n:0 er nákvæmlega það sem
+         `collectPros` er skrifað til að forðast (sjá kafla 7).           */
+      ok(n > 0, "og engin röð með n:0 (tóm röð má ALDREI verða til)");
+    }
+  }
   console.log("  → vökulistinn sjálfur virkjast þegar fyrsta umferðin klárast.");
 } else {
   /* ---------- TÍMABILIÐ ER BYRJAÐ: allt á að hafa VAKNAÐ ---------- */
