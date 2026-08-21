@@ -87,11 +87,6 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     .filter(Boolean));
   const [taken, setTaken] = useState(() => idSet(D.loadState(kTaken, [])));
   const [myPicks, setMyPicks] = useState(() => idSet(D.loadState(kMine, [])));
-  /* HANDVIRK YFIRTAKA a mine/gone thegar samstillingin gengur — sja longu
-     notuna vid `autoMine` nedar. VILJANDI EKKI VISTUD: hun er neydarurraedi
-     fyrir eitt val sem pollunin missti, ekki stilling. Vistud hefdi hun
-     lifad draftid og skilad honum hnoppunum sem hann bad um ad faera. */
-  const [manual, setManual] = useState(false);
   /* Refin er SANNLEIKURINN UM SIDASTA SVAR FRA SLEEPER — sja langa notuna
      vid `onPicks`. Hun er skilgreind HER en ekki thar thvi skipti um bord
      verda ad geta nullstillt hana, og thau gerast ofar i skranni. */
@@ -368,47 +363,6 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   const slotOk = slotRaw != null && Number.isFinite(slotRaw) &&
                  slotRaw >= 1 && slotRaw <= snakeTeams;
 
-  /* ============================================================
-     "MINE" OG "GONE" ERU HANDVIRK SKRANING — OG APPID VEIT ThETTA ThEGAR
-     ============================================================
-     BEIDNI NOTANDANS 20.8.2026, ordrett: "Her vill eg ekki thurfa ad
-     haka hvort i mine eda gone, eg vill ad appid sjai thad."
-
-     HANN HEFUR RETT, OG APPID VISSI ThAD ALLAN TIMANN. Pollunin skrifar
-     BÆDI mengin sjalf (`onPicks` -> `reconcile`): `taken` ur `picks`
-     draftsins og `myPicks` ur theim volum thar sem
-     `draft_slot === sync.slot`. Hnapparnir tveir voru thvi ad bidja hann
-     um ad slá inn i hendi thad sem var thegar komid — a 90 sekundum a
-     val, medan bordid uppfaerdist undir hendinni a honum.
-
-     ÞETTA ER TVENNT, EKKI EITT, OG ThAU MA EKKI STEYPA SAMAN:
-
-       `taken`   fyllist um leid og pollunin gengur       -> `autoGone`
-       `myPicks` fyllist ADEINS ef SAETID er thekkt og gilt -> `autoMine`
-
-     `mine`-HNAPPURINN MA ThVI EKKI HVERFA AN SAETIS. Se saetid oskrad
-     getur appid ekki vitad hverjir eru hans — og ad fela hnappinn tha
-     vaeri ad gera hopinn OSKRAANLEGAN. Þad er nakvaemlega bilunin sem
-     kostadi hann mock-id: hopur sem radgjofin les rangt gefur 10 WR / 0
-     RB. Betra er ad hann haki einn dalk en ad radleggingin lesi tomt lid.
-
-     HANDVIRKT BORD ER RAUNVERULEGUR STUDDUR HATTUR (draft an Sleeper),
-     svo hnapparnir eru ekki fjarlaegdir heldur SKILYRTIR — og
-     `manual` skilar theim hvenaer sem er, thvi pollun sem er i gangi
-     getur samt misst val: bordid ber ~1.130 leikmenn af ~11.400 hja
-     Sleeper og djupt val fer i `unmatched`, ekki i `taken`. Þad er TALID
-     og SYNT (sja `unmatched`-kassann), svo golfid er synilegt — en
-     notandinn verdur ad hafa leid til ad skra thann mann.
-
-     GRAENA LJOSID ER VILJANDI EKKI SKILYRDI. `connected` byr i
-     `SleeperSync` og krefst `fit.green`; en thad sem skrifar `taken` er
-     PPOLLUNIN, ekki ljosid. Vaeri hnappurinn bundinn ljosinu gaeti hann
-     verid falinn thegar ekkert skrifar, eda synilegur medan pollunin
-     skrifar undir honum — bædi eru verri en ad fylgja SKRIFARANUM.   */
-  const polling = !!(sync && sync.draftId) && !!liveScope && liveScope === scope;
-  const autoGone = polling;
-  const autoMine = polling && slotOk;
-
   const reach = useMemo(() => {
     const m = new Map();
     if (!slotOk) return m;
@@ -618,11 +572,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
            i gegn i 150 vala drafti. */
         totalPicks={totalPicks} snakeTeams={snakeTeams} snakeRounds={rounds} />
 
-      {/* `null` ThEGAR APPID SKRAIR SJALFT — sja notuna vid K/DST-chipana:
-          `take(r, true)` setur mann i HOPINN og pollunin tekur hann aldrei
-          til baka. Chipurinn les eins og listi, ekki eins og skraning. */}
-      <MarketMoving rows={rows} taken={taken}
-        onTake={autoMine && !manual ? null : take} />
+      <MarketMoving rows={rows} taken={taken} onTake={take} />
 
       <ScarcityBar scarcity={scarcity} league={league} />
 
@@ -643,37 +593,6 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
             {taken.size} drafted · {myPicks.size} yours
           </span>
         </div>
-
-        {/* ============================================================
-            HVADAN VOLIN KOMA — OG LEIDIN TIL BAKA
-            ============================================================
-            EIN LINA, og hun er skilyrt vid ad eitthvad se sjalfvirkt: fost
-            lina um samstillingu a handvirku bordi vaeri fullyrding um
-            tengingu sem er ekki til.
-
-            ÞRJU ASTOND, EKKI TVO, og thad er kjarninn: "pollun gengur en
-            saetið er oskrad" er ekki thad sama og "allt sjalfvirkt". I thvi
-            astandi VEIT appid hvad er farid en ekki hvad er thitt, svo
-            `mine` STENDUR — og linan segir hvers vegna, thvi annars les
-            hann tvo hnappa thar sem hann var nybuinn ad missa annan.   */}
-        {(autoGone || autoMine) && (
-          <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
-            {autoMine
-              ? <><b>Picks are read from your draft</b> — both what is gone and which
-                  of them are yours. Nothing to tick.</>
-              : <><b>Picks are read from your draft</b>, but your slot is not set, so
-                  the app cannot tell which are <i>yours</i> — mark those with{" "}
-                  <b>mine</b>, or set your slot above.</>}
-            {" "}
-            <button className={`chip${manual ? " on" : ""}`}
-              style={{ marginLeft: 6, fontSize: 11.5, padding: "1px 7px" }}
-              onClick={() => setManual((m) => !m)}
-              title={"Sleeper carries ~11,400 players and this board ~1,130, so a deep"
-                + " pick can arrive unmatched. Turn this on to record one by hand."}>
-              {manual ? "manual entry on" : "manual entry"}
-            </button>
-          </div>
-        )}
 
         {!meta.sharpMeasured && (
           <div className="note warn">
@@ -734,11 +653,8 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
 
       <div className="row" style={{ alignItems: "flex-start", gap: 14 }}>
         <div className="grow">
-          {/* HNAPPARNIR FYLGJA SKRIFARANUM, ekki smekk — sja notuna vid
-              `autoMine`. `manual` skilar theim badum. */}
           <BoardTable rows={shown.slice(0, 200)} onTake={take} taken={taken}
-            reach={reach} nextOwn={nextOwn}
-            showMine={manual || !autoMine} showGone={manual || !autoGone} />
+            reach={reach} nextOwn={nextOwn} />
         </div>
         <MyRoster roster={myRoster} league={league} onUndo={undo} />
       </div>
@@ -786,40 +702,12 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
             {(kickers.hindsightGain / 17).toFixed(2)} a week. <b>It is a last-round pick.</b>
           </div>
         )}
-        {/* ============================================================
-            ÞESSIR CHIPAR SOGDU "MINE" I KYRRThEY — OG ThAD ER VERRA EN
-            HNAPPARNIR SEM VAR BEDID UM AD FJARLAEGJA
-            ============================================================
-            FUNDID 21.8.2026 vid ad tengja mine/gone vid pollunina.
-            `take(r, true)` skrifar i BADI `taken` OG `myPicks`, svo einn
-            smellur her setur mann i HOPINN ThINN. Chipurinn les hins
-            vegar eins og listi ("hverjir eru eftir"), ekki eins og
-            skraning.
-
-            OG HANN ER OAFTURKALLANLEGUR I SAMSTILLINGU: `reconcile`
-            fjarlaegir adeins audkenni sem VORU i sidasta Sleeper-svari.
-            Handvirkt val var thad aldrei, svo fantom-spyrnumadur situr i
-            `myRoster` ad EILIFU — og `myRoster` er thad sem `recommend`
-            les. Þad er sama aett og villan sem gaf honum 10 WR / 0 RB:
-            radgjof sem les hop sem er ekki til.
-
-            ÞVI TAKA their EKKI ThEGAR APPID SKRAIR SJALFT. Þeir hverfa
-            ekki — upplysingin (hverjir eru eftir, i hvadri rod) er thad
-            sem spjaldid er til fyrir — their hetta bara ad skrifa.     */}
         <div className="chips">
           {kdst.slice(0, 16).map((r) => (
-            autoMine && !manual ? (
-              <span key={r.id} className="chip" style={{ cursor: "default" }}
-                title={`VBD ${r.vbd == null ? "—" : r.vbd.toFixed(1)}`
-                  + " · read from your draft when you take him"}>
-                {r.pos} {r.name}
-              </span>
-            ) : (
-              <button key={r.id} className="chip" onClick={() => take(r, true)}
-                title={`VBD ${r.vbd == null ? "—" : r.vbd.toFixed(1)}`}>
-                {r.pos} {r.name}
-              </button>
-            )
+            <button key={r.id} className="chip" onClick={() => take(r, true)}
+              title={`VBD ${r.vbd == null ? "—" : r.vbd.toFixed(1)}`}>
+              {r.pos} {r.name}
+            </button>
           ))}
         </div>
       </div>
@@ -922,7 +810,7 @@ function ScarcityBar({ scarcity, league }) {
 /* ============================================================
    BORDID
    ============================================================ */
-function BoardTable({ rows, onTake, reach, nextOwn, showMine = true, showGone = true }) {
+function BoardTable({ rows, onTake, reach, nextOwn }) {
   const has = reach && reach.size > 0;
   /* ============================================================
      HVAR VBD FER UNDIR NULL — OG HVERS VEGNA ThAD MA SJAST
@@ -1056,26 +944,11 @@ function BoardTable({ rows, onTake, reach, nextOwn, showMine = true, showGone = 
                     : signed(r.sharpDelta, 0)}
                 </td>
                 <td className="mono">{n(r.lastPpg)}</td>
-                {/* HOLFID ER ALDREI TOMT. Dalkur sem hverfur i annarri rod
-                    en ekki i hinni skekkir haus-jofnunina (`boxSizing`-
-                    lærdomurinn), og TOMT holf les eins og "hnappurinn
-                    brast" thegar retta lesningin er "appid sér um thetta".
-                    Þvi stendur "auto" med skyringu i title. */}
                 <td className="txt" style={{ whiteSpace: "nowrap" }}>
-                  {showMine && (
-                    <button className="act" style={{ padding: "2px 8px", fontSize: 11.5 }}
-                      onClick={() => onTake(r, true)}>mine</button>
-                  )}
-                  {showGone && (
-                    <button className="act" style={{ padding: "2px 8px", fontSize: 11.5,
-                      marginLeft: showMine ? 4 : 0 }}
-                      onClick={() => onTake(r, false)}>gone</button>
-                  )}
-                  {!showMine && !showGone && (
-                    <span className="dim" data-auto="1" style={{ fontSize: 11.5 }}
-                      title={"Read from your Sleeper draft — picks, and which of them"
-                        + " are yours, arrive on their own"}>auto</span>
-                  )}
+                  <button className="act" style={{ padding: "2px 8px", fontSize: 11.5 }}
+                    onClick={() => onTake(r, true)}>mine</button>
+                  <button className="act" style={{ padding: "2px 8px", fontSize: 11.5, marginLeft: 4 }}
+                    onClick={() => onTake(r, false)}>gone</button>
                 </td>
               </tr>
             );
@@ -2911,24 +2784,14 @@ function MarketMoving({ rows, taken, onTake }) {
         board below.
       </div>
       <div className="chips" style={{ marginTop: 8 }}>
-        {moving.map((r) => {
-          const t = `${r.trendAdd} adds in 24h · ${r.adp == null
-            ? "no ADP yet" : `ADP ${r.adp.toFixed(0)}`}`;
-          const body = (
-            <>
-              <span className={`pos ${r.pos}`}>{r.pos}</span> {r.name}
-              {" "}<span className="dim">{fmt(r.trendAdd)}</span>
-              {r.adp == null && <span className="badge warn" style={{ marginLeft: 5 }}>no ADP</span>}
-            </>
-          );
-          /* `onTake == null` = appid skrair sjalft; chipurinn synir en
-             skrifar ekki. Sja notuna a kallstadnum. */
-          return onTake
-            ? <button key={r.id} className="chip" onClick={() => onTake(r, true)}
-                title={t}>{body}</button>
-            : <span key={r.id} className="chip" style={{ cursor: "default" }}
-                title={`${t} · read from your draft when he goes`}>{body}</span>;
-        })}
+        {moving.map((r) => (
+          <button key={r.id} className="chip" onClick={() => onTake(r, true)}
+            title={`${r.trendAdd} adds in 24h · ${r.adp == null ? "no ADP yet" : `ADP ${r.adp.toFixed(0)}`}`}>
+            <span className={`pos ${r.pos}`}>{r.pos}</span> {r.name}
+            {" "}<span className="dim">{fmt(r.trendAdd)}</span>
+            {r.adp == null && <span className="badge warn" style={{ marginLeft: 5 }}>no ADP</span>}
+          </button>
+        ))}
       </div>
       {/* TALAN STENDUR — hun er staðreynd um bordid og hun er STUTT.
           Malsgreinarnar tvaer sem stodu her eru felldar, og su sem segir
