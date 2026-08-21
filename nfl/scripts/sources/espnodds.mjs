@@ -43,10 +43,16 @@
    `tests/nfl-market.mjs` kafli 1.
    ============================================================ */
 
-import { getJSON, record, pool } from "../lib/http.mjs";
+import { getJSON, getJSONFirst, record, pool } from "../lib/http.mjs";
 import { normTeam } from "../../src/names.js";
 
-const SITE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
+/* TVEIR HOSTAR, SAMA LEID — sja `getJSONFirst` i lib/http.mjs. Vikuleg
+   linu-sokn er nakvaemlega thad sem 403-id ur CI slo ut: 18 radir
+   `espn_lines_w{n} failed: HTTP 403` i status.json 20.-21.8.2026. */
+const SITES = [
+  "https://site.api.espn.com/apis/site/v2/sports/football/nfl",
+  "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl",
+];
 const CORE = "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl";
 
 /**
@@ -59,8 +65,8 @@ export async function gameLines(season, weeks = 18) {
   const out = [];
   await pool(wk, 4, async (w) => {
     try {
-      const d = await getJSON(
-        `${SITE}/scoreboard?dates=${season}&seasontype=2&week=${w}`);
+      const d = await getJSONFirst(`espn_lines_w${w}`,
+        SITES.map((h) => `${h}/scoreboard?dates=${season}&seasontype=2&week=${w}`));
       for (const e of d.events || []) {
         const c = (e.competitions || [])[0];
         if (!c) continue;

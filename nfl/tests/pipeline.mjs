@@ -565,6 +565,115 @@ console.log("\ntrending-sagan");
      (d) `players.csv` bidur um dalka sem HAUSINN A DISKNUM ber, thegar
          mynd af hausnum er til
    ============================================================ */
+/* ============================================================
+   HOSTUR ER BILUNARPUNKTUR — OG ThESSI EINI VAR ThAD I VERKI
+   ============================================================
+   `site.api.espn.com` skilar **403 ur GitHub Actions** medan
+   `lm-api-reads.fantasy.espn.com` og `sports.core.api.espn.com` skila
+   200 ur SOMU keyrslu; lokalt svara allir thrir. Kostnadurinn var
+   maeldur 21.8.2026: 18 radir `espn_lines_w{n} failed: HTTP 403` og
+   frettasafnid HAFNAD fimm daga i rod — og thad safn er dagsett, svo
+   their dagar eru oendurheimtanlegir (ESPN-glugginn er ~22 klst).
+
+   `site.web.api.espn.com` ber SOMU SLODIR og gaf 21.8.2026 svid fyrir
+   svid EINS svar (/teams, /injuries, /news, /scoreboard). `getJSONFirst`
+   reynir hostana i rod.
+
+   ThRJAR FULLYRDINGAR:
+     (a) hvert ESPN-site-kall gengur gegnum hosta-listann, ekki gegnum
+         fastan streng (thekja, talin)
+     (b) listinn ber FLEIRI EN EINN host — annars er "fallback" heiti
+         an hegdunar
+     (c) varahostur sem svarar SKRAIR SIG. Graen keyrsla sem thegir um
+         ad adalhosturinn se fallinn er thogla bilunin sem allt thetta
+         repo er varnaglar gegn.
+   ============================================================ */
+console.log("\nESPN-site: tveir hostar, og varahostur thegir ekki");
+{
+  const espnSrc = readFileSync(
+    path.join(ROOT, "scripts", "sources", "espn.mjs"), "utf8");
+  const oddsSrc = readFileSync(
+    path.join(ROOT, "scripts", "sources", "espnodds.mjs"), "utf8");
+  /* `//` I `https://` ER EKKI ATHUGASEMD. Fyrsta utgafa thessa profs
+     notadi regluna "tveir skastrik og lina ut" og strippadi thvi HVERT
+     einasta slodarheiti i burtu — svo hosta-listinn maeldist TOMUR og profid felldi rettan
+     kod. Fullyrding sem thurrkar ut thad sem hun a ad maela er verri en
+     engin. Skilyrdid er thvi "`//` sem er EKKI a eftir `:`". */
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+
+  for (const [label, src] of [["espn.mjs", strip(espnSrc)],
+                              ["espnodds.mjs", strip(oddsSrc)]]) {
+    const m = /const SITES = \[([\s\S]*?)\]/.exec(src);
+    ok(!!m, `${label}: SITES er listi, ekki einn strengur`);
+    if (m) {
+      const hosts = [...m[1].matchAll(/https:\/\/([^/"]+)/g)].map((x) => x[1]);
+      ok(hosts.length >= 2,
+        `${label}: ${hosts.length} hostar i listanum (${hosts.join(", ")})`);
+      ok(hosts[0] === "site.api.espn.com",
+        `${label}: adalhosturinn er afram site.api.espn.com`);
+      ok(new Set(hosts).size === hosts.length,
+        `${label}: engir tvitekningar — tvitekinn hostur er tvofold bid, ekki varaleid`);
+    }
+    /* (a) ThEKJA. Fastur `site.api...`-strengur UTAN `SITES` er kall sem
+       fer aldrei i varaleidina. */
+    const outside = (src.match(/https:\/\/site\.api\.espn\.com/g) || []).length -
+      ((m && (m[1].match(/https:\/\/site\.api\.espn\.com/g) || []).length) || 0);
+    ok(outside === 0,
+      `${label}: engin sloð framhja hosta-listanum (${outside})`);
+    const viaFirst = (src.match(/getJSONFirst\(/g) || []).length +
+                     (src.match(/\bsite\(/g) || []).length;
+    ok(viaFirst >= 1, `${label}: ${viaFirst} kall gegnum hosta-listann`);
+  }
+
+  /* (c) Rodin verdur ad vera skrad — og hun ma EKKI vera skrad thegar
+     adalhosturinn svarar, thvi "allt eins og venjulega" er ekki frett. */
+  const httpSrc = strip(readFileSync(
+    path.join(ROOT, "scripts", "lib", "http.mjs"), "utf8"));
+  const fn = /export async function getJSONFirst[\s\S]*?\n\}/.exec(httpSrc);
+  ok(!!fn, "`getJSONFirst` finnst i lib/http.mjs");
+  ok(fn && /if \(i > 0\)/.test(fn[0]) && /record\(`host:\$\{tag\}`/.test(fn[0]),
+    "og hun skrair ADEINS thegar varahostur svarar (i > 0)");
+
+  /* HEGDUNIN SJALF, A HERMDUM HOSTUM. Kodalestur segir ekkert um hvort
+     lykkjan virkar; hér er hun keyrd med `fetch` sem hafnar fyrsta
+     hostinum og svarar odrum. */
+  {
+    /* SKYNDIMINNID ER SLEGID AF FYRIR ThETTA. `getBuf` skrifar hvert svar
+       a disk og LES thad naest; an thessa vaeri "hve oft var kallad" ekki
+       maelanlegt i annarri keyrslu — profid myndi hitta cache og segja 1
+       kall thar sem thad voru 4. Slodirnar eru auk thess einkvaemar per
+       keyrslu, svo hvorug leidin geti hitt gamalt svar. */
+    process.env.NFL_NO_CACHE = "1";
+    const stamp = Date.now();
+    const realFetch = globalThis.fetch;
+    const seen = [];
+    globalThis.fetch = async (u) => {
+      seen.push(String(u));
+      if (String(u).includes("primary.example")) return { ok: false, status: 403 };
+      return { ok: true, status: 200, headers: new Map(),
+               arrayBuffer: async () => new TextEncoder().encode('{"n":7}').buffer };
+    };
+    try {
+      const mod = await import("../scripts/lib/http.mjs");
+      const before = mod.sourceReport().length;
+      const got = await mod.getJSONFirst("probe",
+        [`https://primary.example/x?${stamp}`, `https://backup.example/x?${stamp}`]);
+      ok(got && got.n === 7, "varahostur svarar thegar adalhosturinn 403-ar");
+      ok(seen.length === 4,
+        `og adalhosturinn var reyndur adur (${seen.length} koll: 3 tilraunir + 1)`);
+      const rows = mod.sourceReport().slice(before);
+      ok(rows.some((r) => r.name === "host:probe"),
+        "og skiptin er SKRAD i heimildaskrana");
+      /* Og thegar adalhosturinn svarar er ENGIN rod skrad. */
+      const b2 = mod.sourceReport().length;
+      await mod.getJSONFirst("probe2", [`https://ok.example/y?${stamp}`]);
+      ok(mod.sourceReport().length === b2,
+        "en engin rod thegar adalhosturinn svarar (thognin er rett thar)");
+    } finally { globalThis.fetch = realFetch; }
+  }
+}
+
 console.log("\nskema-drift verdur synileg, ekki thogul");
 {
   const { missingCols } = await import("../scripts/lib/csv.mjs");

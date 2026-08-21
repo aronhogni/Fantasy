@@ -23,10 +23,19 @@
    birta 0 sem spa. Thess vegna er adeins timabils-radan lesin.
    ============================================================ */
 
-import { getJSON, record } from "../lib/http.mjs";
+import { getJSON, getJSONFirst, record } from "../lib/http.mjs";
 
 const HOST = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl";
-const SITE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
+/* TVEIR HOSTAR, SAMA LEID. `site.api.espn.com` skilar 403 ur GitHub
+   Actions medan `lm-api-reads` og `sports.core.api` skila 200 ur SOMU
+   keyrslu; `site.web.api.espn.com` ber somu slodir og — maelt svid fyrir
+   svid 21.8.2026 — NAKVAEMLEGA sama svar. Sja langa notu vid
+   `getJSONFirst` i lib/http.mjs. */
+const SITES = [
+  "https://site.api.espn.com/apis/site/v2/sports/football/nfl",
+  "https://site.web.api.espn.com/apis/site/v2/sports/football/nfl",
+];
+const site = (tag, p, opt) => getJSONFirst(tag, SITES.map((h) => h + p), opt);
 
 /* ESPN notar eigin numer fyrir stodur og lid. */
 const POS = { 1: "QB", 2: "RB", 3: "WR", 4: "TE", 5: "K", 16: "DST" };
@@ -129,7 +138,7 @@ const round2 = (x) => Math.round(x * 100) / 100;
 
 /** Meidslalisti allra lida — ferskari en vikulega skyrslan i forleik. */
 export async function injuries() {
-  const d = await getJSON(`${SITE}/injuries`, { timeout: 120_000 });
+  const d = await site("espn_injuries", "/injuries", { timeout: 120_000 });
   const out = [];
   for (const t of d.injuries || []) {
     for (const i of t.injuries || []) {
@@ -165,7 +174,7 @@ export async function injuries() {
  * greining er ekki gerd hér.
  */
 export async function news(limit = 50) {
-  const d = await getJSON(`${SITE}/news?limit=${limit}`);
+  const d = await site("espn_news", `/news?limit=${limit}`);
   const out = (d.articles || []).map((a) => ({
     id: a.id ? String(a.id) : null,
     headline: a.headline || null,
@@ -190,7 +199,7 @@ export async function news(limit = 50) {
 
 /** Lidaskra med litum og merkjum — notad i vidmotinu. */
 export async function teams() {
-  const d = await getJSON(`${SITE}/teams`);
+  const d = await site("espn_teams", "/teams");
   const list = d.sports[0].leagues[0].teams.map(({ team: t }) => ({
     espnId: t.id, abbr: t.abbreviation, name: t.displayName,
     short: t.shortDisplayName, nick: t.name, location: t.location,

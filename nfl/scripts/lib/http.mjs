@@ -139,6 +139,66 @@ export async function tryGet(name, url, parse = "json", opt) {
   }
 }
 
+/* ============================================================
+   SAMA LEID, FLEIRI EN EINN HOSTUR — HOSTUR ER BILUNARPUNKTUR
+   ============================================================
+   ThETTA VAR RAUNVERULEGT OG ThAD VAR STANDANDI:
+
+   `site.api.espn.com` skilar **403 ur GitHub Actions** medan
+   `lm-api-reads.fantasy.espn.com` og `sports.core.api.espn.com` skila
+   200 UR SOMU KEYRSLU. Lokalt svara allir thrir 200. Þad er
+   jadar-/svaeda-sia hja einum hosti, ekki bilun i leidinni og ekki
+   kvoti — engin heimild hér krefst lykils.
+
+   AFLEIDINGIN VAR SEM HER SEGIR, MAELD 21.8.2026:
+     · `espn_lines_w1..w18` — 18 radir `failed: HTTP 403` i status.json.
+       `market.json` er thvi vardur af `minRows: 200` og STENDUR OSNERT,
+       sem er rett — en thad thydir ad markadslagid (sterkasta einstaka
+       inntakid i vikulega likanid) ROTNAR nema einhver keyri lokalt.
+     · `archive:news/{dagur}` — HAFNAD fimm daga i rod (15.-18.8. og
+       19.8.) med "REFUSED: 4 rows". Frettasafnid er dagsett og
+       `writeOnce` skrifar ALDREI ofan i, svo their dagar eru
+       OENDURHEIMTANLEGIR. ESPN-fretta-glugginn er auk thess adeins
+       ~22 klst (50 greinar, nyjasta 16:18, elsta 18:16 i gaer), svo
+       gaerdagurinn er ekki til.
+
+   LAUSNIN ER EKKI PROXY HELDUR ANNAR HOSTUR MED SOMU LEID.
+   `site.web.api.espn.com` ber **nakvaemlega somu slodir** og
+   `site.api.espn.com`. Maelt 21.8.2026, svid fyrir svid:
+     /teams                    IDENTICAL (32 lid, id/skammstofun/litir/merki)
+     /injuries                 IDENTICAL (32 lid, 800 radir)
+     /news?limit=50            IDENTICAL — somu 50 greina-id i somu rod
+     /scoreboard?...&week=3    IDENTICAL (16 leikir, spread/overUnder/
+                               details/provider, allt eins)
+   Þetta er thvi ekki "onnur heimild med annad snid" (sem vaeri thogul
+   snidsbreyting i bid) heldur SAMA SVAR UR ODRUM DYRUM. Ekkert i
+   thattaranum tharf ad vita hvor svaradi.
+
+   `getJSONFirst` reynir hostana i rod og SKRAIR thegar varahostur
+   svarar — annars fengjum vid graena keyrslu an ad vita ad
+   adalhosturinn er fallinn, og thad er thogla bilunin sem thetta repo
+   er fullt af varnaglum gegn. Svari adalhosturinn er ENGIN rod skrad:
+   "allt eins og venjulega" er ekki frett.                           */
+export async function getJSONFirst(tag, urls, opt) {
+  let lastErr;
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const v = await getJSON(urls[i], opt);
+      if (i > 0) {
+        record(`host:${tag}`, true,
+          `primary host failed, served by ${hostOf(urls[i])} ` +
+          `(same path, identical payload)`);
+      }
+      return v;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
+function hostOf(u) {
+  try { return new URL(u).host; } catch { return String(u).slice(0, 40); }
+}
+
 /** Keyrir `n` samhlida — GitHub tholir illa 40 samtimis koll. */
 export async function pool(items, n, fn) {
   const out = new Array(items.length);
