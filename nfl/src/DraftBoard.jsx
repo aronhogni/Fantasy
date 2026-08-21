@@ -716,6 +716,49 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
 }
 
 /* ============================================================
+   ROKSTUDNINGUR SEM ER FELLDUR NIDUR — OG EKKI EYDDUR
+   ============================================================
+   BEIDNI NOTANDANS 20.8.2026, ordrett: "Eg vill ekki hafa svona auka
+   texta, bara ad appid velji rettan kall til ad drafta."
+
+   HANN HEFUR RETT FYRIR SER UM BORDID. Hann limdi tvo spjold og bædi
+   baru fleiri malsgreinar af adferdafraedi en tolur. A draftkvoldi hefur
+   hann ~90 sekundur a val; texti sem hann les ekki er ekki hlutlaus,
+   hann kaffaerir thad sem hann A ad lesa. Sama lesning og
+   sidelined-boxid: threttan nofn foldu thad eina sem skipti mali.
+
+   OG SAMT MA HANN EKKI FARA. Reglan i thessu repo-i er ad tala verdi ad
+   geta sagt hvadan hun kemur, og NOKKRAR af thessum setningum eru til
+   THVI ThAD SEM ThAER LYSA ER OMAELT — trending-merkid er skyrasta
+   daemid ("hvort thad spair stigum er OMAELT"). Ad EYDA theirri setningu
+   vaeri ekki ad stytta heldur ad breyta merkingu: omælt merki sem
+   stendur an fyrirvara les eins og MAELT merki. Þad er nakvaemlega
+   bilunin sem allt thetta verkefni er byggt gegn.
+
+   ÞVI ER ThETTA HVORKI STYTTING NE EYDING HELDUR FELLING: sjalfgefna
+   syn er EIN LINA, og rokstudningurinn er einum smell undan. `<details>`
+   er valid og ekki `title=`, af thremur astaedum:
+     · `title` sest ekki a snertiskja, og hann draftar i sima
+     · `title` er ekki laesanlegt af skjalesara i somu rod
+     · `<details>` er ThAD SEM ER ThEGAR NOTAD fyrir "Why him" i sama
+       spjaldi — eitt mynstur, ekki tvo
+
+   VORDUR: `render.mjs` kafli 8 — hver felld setning verdur ad vera
+   (a) ENN I DOM-inu og (b) inni i `<details>` sem er EKKI `open`. Bædi
+   thurfa ad haldast: (a) eitt hleypir eyðingu i gegn, (b) eitt hleypir
+   theim i gegn utan disclosure og tha er ekkert stytt. Kaflinn nefnir
+   "unmeasured" BERUM ORDUM — sja notuna thar um hvers vegna hann
+   telur ekki bara `<details>`-hlutinn.                               */
+function Fine({ summary, children }) {
+  return (
+    <details className="fine">
+      <summary>{summary}</summary>
+      <div className="fine-body">{children}</div>
+    </details>
+  );
+}
+
+/* ============================================================
    SKORTSTADAN
    ============================================================ */
 function ScarcityBar({ scarcity, league }) {
@@ -723,10 +766,19 @@ function ScarcityBar({ scarcity, league }) {
   return (
     <div className="panel">
       <h2>Positional scarcity</h2>
+      {/* EIN LINA — og athugid hvad hun SEGIR EKKI lengur: "thad er
+          astaedan til ad naelgast". Þad var rad, og rad sem er MAELT OG
+          HAFNAD (`urgencyDrivesOrder: false`). Spjaldid a ad telja, ekki
+          ad rada; talningin er rett og radleggingin var thad ekki. */}
       <div className="sub">
-        How many players are left in each remaining tier. A tier that is down to its
-        last one or two is the reason to reach; a tier with twelve left is the reason
-        to wait.
+        Players left in each remaining tier.
+        <Fine summary="How to read this — and why it is not the pick order">
+          A tier down to its last one or two is thin; a tier with twelve left is deep.
+          <b> That is context, not the order.</b> Drafting by positional urgency was
+          measured against simply taking the best player left and it{" "}
+          <b>lost every season tested</b> — the board below is ordered by value, and
+          this panel does not change it.
+        </Fine>
       </div>
       <div className="kpis">
         {order.map((pos) => {
@@ -787,12 +839,19 @@ function BoardTable({ rows, onTake, reach, nextOwn }) {
   return (
     <div className="tablewrap">
       {negFrom > 0 && (
+        /* TALAN FYRST OG HUN MA EKKI FLYTJAST: `render.mjs` les hana med
+           `^\s*(\d+)` UR ThESSUM SAMA div OG ber hana vid tofluna i somu
+           `.tablewrap`. Fine-blokkin ma thvi vera HER inni en talan
+           verdur ad standa fremst. */
         <div className="dim" style={{ fontSize: 11.5, padding: "6px 9px 0" }}>
           <b>{negFrom}</b> of these {rows.length} are above replacement. Below the
-          marked line VBD is <b>negative</b> — those are bench picks, and comparing
-          them <i>across</i> positions means much less: you would not start either
-          one. The backtest that justifies this order scores <b>starters only</b>, so
-          it has almost no power down there. The order is unchanged; the line is not.
+          marked line VBD is <b>negative</b>.
+          <Fine summary="What negative VBD means here">
+            Those are bench picks, and comparing them <i>across</i> positions means
+            much less: you would not start either one. The backtest that justifies
+            this order scores <b>starters only</b>, so it has almost no power down
+            there. The order is unchanged; the line is not.
+          </Fine>
         </div>
       )}
       {/* Skyringin er SKILYRT vid ad liturinn se raunverulega a. Fost
@@ -2314,17 +2373,58 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
   const differs = rec.urgencyPick && rec.urgencyPick.id !== rec.picks[0].id;
 
   /* ============================================================
-     EITT NAFN, EKKI MATSEDILL.
+     EITT NAFN VAR RETT SVAR VID EINNI SPURNINGU — OG BILADI A ANNARRI
      ============================================================
-     Kassinn bar adur fimm radir med tolum og valkost vid hlidina, og
-     notandinn sagdi rett: "eg vill ekki thurfa ad velja neitt". Fimm
-     radir ERU val, hversu graent sem efsta merkid er.
+     ÞESSI BLOKK HET ADUR "EITT NAFN, EKKI MATSEDILL" og hun stod thangad
+     til 20.8.2026 andspaenis koda sem birtir TVO. Titillinn var ekki
+     bara urelt orðalag: hann las eins og REGLA sem kodinn braut, og
+     naesti sem les hana hefdi "lagad" kodann ad athugasemdinni. Þess
+     vegna er hun skrifud upp i stad thess ad standa.
 
-     RODIN SJALF HAGGAST EKKI — hun er maeld (A-Ranking, sja advice.js).
-     Thetta er birting: urskurdurinn stendur einn efst og rokstudning-
-     urinn er felldur nidur. Thad er MIKILVAEGT ad hann se enn thar og
-     opnanlegur: tolur an raka eru orakli, og allt i thessu verkefni
-     hvilir a thvi ad haegt se ad spyrja "af hverju".
+     ÞETTA ER SAGAN, I RETTRI ROD:
+
+     1. Kassinn bar FIMM radir med tolum og valkost vid hlidina.
+        Notandinn sagdi: "eg vill ekki thurfa ad velja neitt". Þad var
+        RETT — fimm oadgreindar radir ERU val an hjalpar. Þaer skila
+        akvordunininni til baka og segja ekkert um hvad greinir thaer ad.
+
+     2. Svo stod EITT nafn efst. Og eitt nafn braut a konkretri bilun
+        sem hann las 20.8.2026:
+
+          "Pick 17 — take this: TE Brock Bowers · bye 13 · 95% likely
+           to still be here in 8 picks"
+
+        Hann spurdi — rettilega — hvers vegna hann aetti ad eyda vali 17
+        a mann sem er 95% viss um ad vera laus i vali 25. Talan var RETT
+        og MAELD (`survivalProb`, `SD_K` a 1.882 leikmanna-arum). Hun var
+        einfaldlega sett fram sem ROKSTUDNINGUR fyrir vali sem var tekid
+        a virdinu einu — svo spjaldid motsagdi sjalfu ser. MED EINU NAFNI
+        ER ENGIN LEID AD SYNA ThETTA: fyrirvarinn hefur ekkert til ad
+        vera fyrirvari GEGN.
+
+     3. Verri bilun i somu aett: hann keyrdi mock og fylgdi urskurdinum i
+        hverri umferd. Utkoman var 10 WR / 0 RB / 0 K — thrju byrjunar-
+        saeti tom, sidasta lid af tiu. Orsokin var RANGUR HOPUR (lagad,
+        `draft-live.mjs` kafli 18), en astaedan fyrir thvi ad hann gat
+        ekki SED hana var ein: eitt nafn gefur ekkert til ad vega.
+
+     ÞVI ER SVARID TVEIR — OG TVEIR ER EKKI FIMM. Annad nafnid ber
+     NAKVAEMLEGA thad sem greinir thau ad: bilid i VBD og hvort hvor
+     lifir ad naesta vali. Þegar einn er 95% oruggur og annar 20% er thad
+     ekki jafntefli heldur augljost svar — og appid REIKNADI BADAR tolur
+     adur og birti adeins adra, tengda theim manni sem hun a sist vid.
+
+     RODIN SJALF HAGGAST EKKI — hun er maeld (A-Ranking, sja advice.js),
+     og `choice.list[0]` ER `picks[0]`. Bradanauðsyn sem ROD var maeld og
+     hun TAPAR (`urgencyDrivesOrder: false`); lifunarlikur sem jafnteflis-
+     rof gafu ekkert. Hvorugt er gert her: annad nafnid er BIRT, ekki
+     radad. Vordur: `draft-live.mjs` kafli 20 ber fyrsta spjaldid vid
+     FYRSTU ROD BORDSINS — obundin leid ad somu maeldu rod — svo
+     birtingar-breyting getur ekki thegjandi yfirtekid rodina.
+
+     Rokstudningurinn er felldur nidur en hann er ENN THAR og opnanlegur:
+     tolur an raka eru orakli, og allt i thessu verkefni hvilir a thvi ad
+     haegt se ad spyrja "af hverju".
 
      K/DST ERU NEFNDIR MED NAFNI THEGAR AD THEIM KEMUR. Adur sagdi
      kassinn "take them late, from the K and DST table" — sem er
@@ -2677,10 +2777,11 @@ function MarketMoving({ rows, taken, onTake }) {
   return (
     <div className="panel">
       <h2>The room is moving on these</h2>
+      {/* EIN LINA. Hun ber thad sem ThARF ad standa an smells: hvad talan
+          ER (adds, 24 klst) og ad hun radi ENGU. Hitt er fellt nidur. */}
       <div className="sub">
-        Sleeper adds over the last 24 hours. <b>ADP is a seven-day average</b> — the
-        board below prices players on what people were drafting up to a week ago, so
-        anything that happened this week is not in it yet.
+        Sleeper adds, last 24 hours. <b>Not a ranking</b> — nothing here moves the
+        board below.
       </div>
       <div className="chips" style={{ marginTop: 8 }}>
         {moving.map((r) => (
@@ -2692,16 +2793,25 @@ function MarketMoving({ rows, taken, onTake }) {
           </button>
         ))}
       </div>
+      {/* TALAN STENDUR — hun er staðreynd um bordid og hun er STUTT.
+          Malsgreinarnar tvaer sem stodu her eru felldar, og su sem segir
+          "OMAELT" er ThAR — ekki horfin. Sja `Fine` ad ofan. */}
       <div className="note" style={{ marginTop: 10 }}>
         <b>{unpriced} of these {moving.length} have no ADP at all</b> — they were not
-        being drafted a week ago. That is the gap you are looking at.
-        <br /><br />
-        <b>This is not a ranking and it does not move anyone in the board below.</b>{" "}
-        Heavy adds mean <i>something happened</i> — a starter got hurt, someone climbed
-        the depth chart, or it is camp noise. Whether it predicts points is{" "}
-        <b>unmeasured</b>, and it is unmeasured for a reason: Sleeper keeps no history
-        of this, so there was nothing to backtest until we started archiving it on
-        11 August 2026. One season of archive makes the question answerable in October.
+        being drafted a week ago.
+        <Fine summary="What this means, and what is unmeasured about it">
+          <b>ADP is a seven-day average.</b> The board below prices players on what
+          people were drafting up to a week ago, so anything that happened this week
+          is not in it yet. Sleeper adds are the last 24 hours, so the difference
+          between them is what the room is reacting to <i>before</i> the price moves.
+          <br /><br />
+          <b>This is not a ranking and it does not move anyone in the board below.</b>{" "}
+          Heavy adds mean <i>something happened</i> — a starter got hurt, someone climbed
+          the depth chart, or it is camp noise. Whether it predicts points is{" "}
+          <b>unmeasured</b>, and it is unmeasured for a reason: Sleeper keeps no history
+          of this, so there was nothing to backtest until we started archiving it on
+          11 August 2026. One season of archive makes the question answerable in October.
+        </Fine>
       </div>
     </div>
   );

@@ -703,5 +703,136 @@ console.log("\n7. vidmotid er enskt");
   ok(found.length === 0, `engin ASCII-islenska i DOM (${found.join(", ") || "hrein"})`);
 }
 
+/* ---------- 8. FELLDUR ROKSTUDNINGUR — STUTT SJALFGEFID, EKKI EYTT ----------
+   BEIDNI NOTANDANS 20.8.2026: "Eg vill ekki hafa svona auka texta, bara ad
+   appid velji rettan kall til ad drafta."
+
+   HANN HEFUR RETT UM BORDID og THAD ER SAMT EKKI EYDING. Nokkrar af thessum
+   setningum eru til THVI ThAD SEM ThAER LYSA ER OMAELT; ef ein theirra er
+   eydd fer omaelt merki ad lesast eins og MAELT merki, sem er versta
+   utkoman i thessu repo-i. Þess vegna profar thessi kafli TVENNT SAMAN og
+   hvorugt naegir eitt:
+
+     (a) setningin er ENN I DOM-inu           -> hun var ekki eydd
+     (b) hun er inni i `<details>` sem er EKKI `open`  -> hun er FELLD
+
+   Med (a) einu maetti skilja allar malsgreinarnar eftir opnar og kaflinn
+   vaeri graenn — thad er nakvaemlega thad sem hann bad um ad yrdi breytt.
+   Med (b) einu maetti eyda setningunni og hafa TOMT details — graent lika.
+   Bædi thurfa ad haldast.
+
+   OG "unmeasured" ER NEFNT BERUM ORDUM, ekki adeins talid. `<details>`-
+   talning er thekja (hve margar felldar blokkir eru til) og hun getur
+   stadid medan JUST ThESSI setning er horfin: hun er su eina sem heldur
+   omældu merki fra ad lesast sem maelt, svo hun er fullyrding um sjalfa
+   sig og ekki hluti af talningu. Sama rok og "neikvaed fullyrding verdur
+   ad nefna streng sem var sannanlega tharna" (CLAUDE.md 5b).            */
+console.log("\n8. felldur rokstudningur a draft-bordinu");
+{
+  await clickTab("Draft");
+  const bodyText = () => (document.body.textContent || "").replace(/\s+/g, " ");
+
+  /* Felldu blokkirnar. `.fine` er sniðið sem `Fine` teiknar. */
+  const fines = [...document.querySelectorAll("details.fine")];
+  ok(fines.length >= 3,
+    `ThEKJA: ${fines.length} felldar rokstudnings-blokkir a bordinu (>= 3)`);
+  const openByDefault = fines.filter((d) => d.hasAttribute("open"));
+  ok(openByDefault.length === 0,
+    `og ENGIN er opin sjalfgefid (${openByDefault.length} opnar)`);
+  /* Hver ein verdur ad hafa BADA hluta — tomt details er "eytt" i dulargervi. */
+  const emptyFines = fines.filter((d) =>
+    ((d.querySelector(".fine-body") || {}).textContent || "").trim().length < 40);
+  ok(emptyFines.length === 0,
+    `og engin er tom (${emptyFines.length} undir 40 stafi — tomt details er eyding)`);
+  const noSummary = fines.filter((d) =>
+    ((d.querySelector("summary") || {}).textContent || "").trim().length < 8);
+  ok(noSummary.length === 0,
+    `og hver ber laesilegt summary (${noSummary.length} an)`);
+
+  /* ============================================================
+     SETNINGIN SEM MA ALDREI HVERFA
+     ============================================================ */
+  const fineText = fines
+    .map((d) => (d.querySelector(".fine-body") || {}).textContent || "").join(" ")
+    .replace(/\s+/g, " ");
+  ok(/\bunmeasured\b/.test(fineText),
+    "\"unmeasured\" er ENN a skjanum — trending-merkid segir sjalft ad thad se omaelt");
+
+  /* Sjalfgefna synin = allur textinn minus INNIHALD hverrar felldrar
+     blokkar. `summary`-linan er VILJANDI inni i henni: hun er synileg og
+     hun a ad teljast bædi i thekju og i lengd. */
+  let dflt = bodyText();
+  for (const d of fines) {
+    const b = ((d.querySelector(".fine-body") || {}).textContent || "")
+      .replace(/\s+/g, " ");
+    if (b) dflt = dflt.split(b).join(" ");
+  }
+
+  /* ============================================================
+     ORDID MA STANDA UPPI — SETNINGIN ER FELLD
+     ============================================================
+     FYRSTA UTGAFA ThESSA KAFLA FULLYRTI `!/unmeasured/.test(dflt)` OG
+     HUN FELL A RETTUM KODA. Astaedan er ad `summary`-linan heitir
+     "…and what is unmeasured about it" — ordid stendur thvi uppi AN
+     smells, sem er RETT hegdun og ekki bilun: eins ords fyrirvari er
+     synilegur a 90 sekundum, malsgrein er thad ekki.
+
+     Fullyrdingin er thvi um SETNINGUNA, ekki um ordid: rokin sjalf
+     ("whether it predicts points is unmeasured, and it is unmeasured
+     for a reason…") verda ad vera felld, medan flaggid ma sjast. Ad
+     krefjast thess ad ordid HORFI vaeri profid ad thvinga fram verri
+     framsetningu en sú sem er thar.                                  */
+  ok(/predicts points is/.test(fineText),
+    "sjalf setningin um omaelda merkid er til i fullri lengd");
+  ok(!/predicts points is/.test(dflt),
+    "og hun er FELLD — malsgreinin stendur ekki i sjalfgefnu syninni");
+  ok(/\bunmeasured\b/.test(dflt),
+    "en FLAGGID sest an smells (summary nefnir \"unmeasured\")");
+
+  /* Hitt sem var fellt: adferdafraedin sem hann limdi. Baðar setningar
+     verda ad vera til (a) og felldar (b). */
+  for (const phrase of ["seven-day average", "starters only"]) {
+    ok(fineText.includes(phrase), `"${phrase}" er enn til (rokstudningur ekki eyddur)`);
+    ok(!dflt.includes(phrase), `og "${phrase}" er fellt undan sjalfgefnu syninni`);
+  }
+
+  /* ============================================================
+     OG PROSAN SJALF ER STUTT — ThAD ER BEIDNIN
+     ============================================================
+     MAELT A PROSU, EKKI A SPJALDINU. Fyrsta utgafan las ALLAN
+     spjald-textann og felldi trending a 468 stofum — en ~250 af theim
+     eru NOFNIN i chip-unum (tolf leikmenn + tolur). Þau eru ekki
+     "auka texti"; thau eru innihaldid. Þak a spjaldi i heild hefdi
+     thvi fallid um leid og fleiri nofn hreyfdust, sem er suð, og thad
+     hefdi verid slokkt innan viku.
+
+     Prosan er `.sub` + `.note` — nakvaemlega thau tvo snid sem baru
+     malsgreinarnar sem hann limdi.                                   */
+  const panelProse = (h2re) => {
+    const h = [...document.querySelectorAll(".panel h2")]
+      .find((x) => h2re.test((x.textContent || "").trim()));
+    if (!h) return null;
+    const p = h.parentElement;
+    let t = [...p.querySelectorAll(".sub, .note")]
+      .map((x) => (x.textContent || "")).join(" ").replace(/\s+/g, " ");
+    for (const d of p.querySelectorAll("details")) {
+      const b = ((d.querySelector(".fine-body") || d).textContent || "")
+        .replace(/\s+/g, " ");
+      if (b) t = t.split(b).join(" ");
+    }
+    return t.trim();
+  };
+  for (const [name, re, cap] of [
+    ["trending", /room is moving/i, 260],
+    ["skortstadan", /Positional scarcity/i, 160],
+  ]) {
+    const t = panelProse(re);
+    if (t == null) { ok(false, `${name}-spjaldid finnst`); continue; }
+    ok(t.length > 20, `ThEKJA: ${name}-prosan er raunverulega lesin (${t.length} stafir)`);
+    ok(t.length <= cap,
+      `${name}-prosan er STUTT sjalfgefid (${t.length} stafir <= ${cap})`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

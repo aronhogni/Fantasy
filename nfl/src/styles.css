@@ -233,6 +233,20 @@ table.data tbody tr:hover td.frozen { background: #1b1f28; }
 }
 .reasoning > summary:hover { color: var(--text); }
 
+/* FELLDUR ROKSTUDNINGUR A BORDINU (20.8.2026). Sama regla og
+   `.reasoning` — rokin eru til stadar en loka — en minni, thvi thessi
+   sitja INNI i linu (`.sub`, `.note`, skila-setningin undir bordinu) og
+   maega ekki lita ut eins og nyr kassi. Sja notuna vid `Fine` i
+   DraftBoard.jsx: notandinn vill EINA LINU a draftkvoldi, og setningar
+   sem segja ad eitthvad se OMAELT verda samt ad vera einum smell undan. */
+.fine > summary {
+  cursor: pointer; color: var(--dim); font-size: 11.5px;
+  padding: 3px 0; user-select: none; text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+.fine > summary:hover { color: var(--text); }
+.fine > .fine-body { margin-top: 4px; }
+
 @media (max-width: 560px) { .verdict-name { font-size: 18px; } }
 
 .kpis { display: flex; gap: 10px; flex-wrap: wrap; }

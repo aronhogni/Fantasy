@@ -2142,6 +2142,38 @@ console.log("\n20. tveir kostir eru a skjanum, og urskurdurinn er oskertur");
   ok(!!firstRanked, `rokstudnings-taflan er lesin (${firstRanked || "ekkert"})`);
   ok(firstRanked && firstCard.includes(firstRanked),
     `fyrsta spjaldid er MAELDA rodin (spjald "${firstCard}" gegn toflu "${firstRanked}")`);
+
+  /* ============================================================
+     OG SAMA SPURNING UM OBUNDNA LEID: BORDID SJALFT
+     ============================================================
+     Fullyrdingin hér fyrir ofan ber spjaldid vid rokstudnings-tofluna —
+     en BADAR eru teiknadar ur `rec.picks` i SAMA hlut (`NextPick`). Þaer
+     geta thvi ekki greint a milli "rodin heldur" og "sami listi tvisvar".
+     Ef birting nr. 2 tekur einn dag yfir rodina fylgir taflan med og
+     kaflinn helst graenn — nakvaemlega "tvaer utfaerslur af somu reglu
+     sem eru bædi skakkar eru graenar saman" (kafli 21).
+
+     BORDID er onnur leid: `shown` -> `BoardTable`, annar hlutur, onnur
+     tafla, radad eftir `aRank` i `DraftBoard` sjalfu. Se fyrsta spjaldid
+     ekki fyrsta rod bordsins hefur BIRTING yfirtekid MAELDA ROD, og thad
+     er thad eina sem thessi lota matti ekki gera.
+
+     `avail: 0` ER TEKINN UT UR RADGJOFINNI (advice.mjs kafli 14) EN
+     STENDUR A BORDINU — sa madur BER tolu, hun er bara ekki kaup. Fyrsta
+     rodin sem radgjofin getur nefnt er thvi fyrsta rodin AN `badge bad`
+     (thad er merkid sem `avail === 0` teiknar). Vaeri thetta ekki sift
+     vaeri kaflinn flokkandi: hann myndi fella rettan kod um leid og
+     meiddur madur raddist efst.                                       */
+  const firstDraftable = boardRows()
+    .find((tr) => !tr.querySelector("td.frozen .badge.bad"));
+  const firstBoard = firstDraftable
+    ? (firstDraftable.querySelector("td.frozen")?.textContent || "")
+        .replace(/\s*(R|Out|IR|Q|D|PUP|Sus|NA)$/, "").trim()
+    : null;
+  ok(!!firstBoard, `bordid er lesid, obundid (${firstBoard || "ekkert"})`);
+  ok(firstBoard && firstCard.includes(firstBoard),
+    `fyrsta spjaldid ER fyrsta rod BORDSINS — birting yfirtok ekki rodina `
+    + `(spjald "${firstCard}" gegn bordi "${firstBoard}")`);
   /* Og hausinn nefnir enn urskurdinn — hann er ekki ordinn matsedill. */
   ok(/take this/.test(text()), "hausinn segir enn \"take this\" um thann fyrsta");
   ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
