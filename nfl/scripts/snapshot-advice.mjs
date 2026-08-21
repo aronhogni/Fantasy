@@ -352,7 +352,23 @@ export function buildAdviceSnapshot({ season, week, rows, schedule, defense, met
     const fa = freeAgents({ rows, rosters: lg.rosters, myRosterId: mineId });
     if (!fa || fa.pool == null) {
       row.waivers = null;
-      row.waiversWhy = (fa && fa.why) || "the pool could not be read";
+      /* ============================================================
+         `fa.why` VAR TIL HVERGI — ASTAEDAN VAR ALLTAF HENT
+         ============================================================
+         `freeAgents` ber EKKI `why`; hun skrifar astaeduna i `notes`
+         (`unknownPool` skilar `notes: [why]`). Þetta las thvi alltaf
+         `undefined` og fell i almenna strenginn, svo bokhaldid geymdi
+         "the pool could not be read" i stad "No rosters were read from
+         the league…" eda "None of the N rosters had a readable player
+         list…" — thrjar astaedur urdu ein, i skra sem er TIL ThESS ad
+         segja hvers vegna.
+
+         Fundid MEKANISKT: `wiring.mjs` kafli 9 (hvert svid sem lesandi
+         les verdur ad vera svid sem modullinn skilar). Sami klasi og
+         `advice.swaps` i `Dashboard.jsx`, onnur skra — og hann fannst
+         i somu keyrslu sem vordurinn var skrifadur.                */
+      row.waiversWhy = (fa && Array.isArray(fa.notes) && fa.notes.length
+        ? fa.notes.join(" ") : null) || "the pool could not be read";
     } else {
       const picks = pickupAdvice({ pool: fa.pool, mine: fa.mine, league: lg.rules, week });
       row.waivers = {

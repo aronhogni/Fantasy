@@ -571,5 +571,326 @@ console.log("\n8. hvert profasafn getur fellt bygginguna");
     `og hvert safn er i \`SUITES\` (${notListed.join(", ") || "oll"})`);
 }
 
+/* ============================================================
+   9. HVERT SVID SEM LESANDI LES VERDUR AD VERA SVID SEM MODULLINN SKILAR
+   ============================================================
+   KAFLI 7 HER FYRIR OFAN BAR HANDSKRIFADAN LISTA AF FJORUM (skra, fall)
+   PORUM — OG THAD ER ASTAEDAN FYRIR THVI AD ThETTA SAFN MISSTI STAERSTA
+   GATID A FORSIDUNNI.
+
+   `Dashboard.jsx` las `advice.swaps`. `lineupAdvice` skilar
+   `{ optimal, changes, isOptimal }`; `swaps` er til HVERGI i `src/`. Þar
+   med var sanna greinin ONAANLEG og hver einasta uppstilling fekk
+   "your lineup is already optimal". Eiginleikinn sem notandinn bad um
+   MED NAFNI hafdi aldrei virkad — fra fyrsta commit-i forsidunnar.
+
+   OG HVERT LAG AF VORNINNI HLEYPTI HONUM I GEGN AF SINNI ASTAEDU:
+     · `lineup.mjs` profar `adv.changes` — rétta heitid. Graent, og rett.
+     · ekkert DOM-safn las thessi skipti (nu gerir `dashboard.mjs` 10).
+     · `wiring.mjs` kafli 7 — safnid sem er TIL fyrir thennan klasa —
+       bar `lineup.js` ekki a sinum HANDSKRIFADA lista. Og profid thar er
+       "er fallid KALLAD", sem hefdi verid graent hvort sem er: kallid
+       VAR til, svarid var notad, og eitt svid af thremur var uppspuni.
+
+   HANDSKRIFADUR LISTI ER VILLAN, EKKI VANTANDI LINA I HONUM. Þess vegna
+   er thetta MEKANISKUR skanni yfir `src/` OG `scripts/`:
+
+     1. fyrir hvert `export function` i hreinni einingu (`src/*.js`) eru
+        efstu lyklar i hverjum `return { … }` a dypt 1 taldir;
+     2. hver `const X = …` bindig sem kallar EITT slikt fall i
+        SKILASTODU er porud vid tha lykla;
+     3. hvert `X.svid` i skranni verdur ad vera i theim.
+
+   ÞRIR STADIR THAR SEM SKANNINN SEGIR "VEIT EKKI" — OG THAD ER RETT:
+     · `return` sem er ekki hlut-bokstafur (fylki, breyta, ternora) eda
+       hlutur med `...spread` -> fallid er OGAGNSAETT og er SLEPPT. Betra
+       en ad giska; ogagnsae foll eru TALIN og talan er birt.
+     · nafn sem er SKYGGT i skranni (annad `const`, stikubreyta i or)
+       -> sleppt. `weekview.js` ber `const t = impliedTeamTotals(...)` OG
+       `list.map((t) => …)`, tvo osamband gildi undir sama nafni.
+     · kall inni i ANNARRI kallhalarod (`G.map((c) => simulateDraft(…))`)
+       -> bindingin er FYLKID, ekki skilagildi fallsins.
+   Afthetting i undirskrift React-vidmots (`function StartSit({ advice })`)
+   er hins vegar ALIAS og EKKI skygging — thad er einmitt leidin sem
+   `advice` fer fra `LeagueCard` til `StartSit`, og kafli 6 fullyrdir
+   thegar ad prop se sent undir SAMA heiti.
+
+   MAELITAEKID ER SANNREYNT A TILBUNUM GOGNUM ThAR SEM SVARID ER ThEKKT
+   FYRIRFRAM — annars vaeri "engin brot" adeins onnur tom fullyrding, og
+   thad er nakvaemlega gerdin af villu sem thessi kafli er skrifadur um.
+   ============================================================ */
+console.log("\n9. hvert LESID svid er svid sem modullinn SKILAR");
+{
+  const { readdirSync } = await import("node:fs");
+  const SCRIPTS = path.join(ROOT, "scripts");
+
+  const skipString = (s, i) => {
+    const q = s[i];
+    for (let j = i + 1; j < s.length; j++) {
+      if (s[j] === "\\") { j++; continue; }
+      if (s[j] === q) return j;
+    }
+    return s.length;
+  };
+  /** Visitala samsvarandi `}` fyrir `{` i `from`. */
+  const braceEnd = (s, from) => {
+    let d = 0;
+    for (let i = from; i < s.length; i++) {
+      const c = s[i];
+      if (c === '"' || c === "'" || c === "`") { i = skipString(s, i); continue; }
+      if (c === "{") d++;
+      else if (c === "}") { d--; if (d === 0) return i; }
+    }
+    return -1;
+  };
+
+  /** Efstu lyklar hlut-bokstafs sem byrjar i `at`; `null` ef `...spread`. */
+  function objectKeys(s, at) {
+    const end = braceEnd(s, at);
+    if (end < 0) return null;
+    const keys = [];
+    let d = 0, p = 0, b = 0;
+    for (let i = at; i < end; i++) {
+      const c = s[i];
+      if (c === '"' || c === "'" || c === "`") { i = skipString(s, i); continue; }
+      if (c === "{") { d++; continue; }
+      if (c === "}") { d--; continue; }
+      if (c === "(") { p++; continue; }
+      if (c === ")") { p--; continue; }
+      if (c === "[") { b++; continue; }
+      if (c === "]") { b--; continue; }
+      if (d !== 1 || p !== 0 || b !== 0) continue;
+      if (!/[A-Za-z_$.]/.test(c)) continue;
+      /* LYKILL STENDUR STRAX EFTIR `{` EDA `,`. An thessa skilyrdis
+         taldist GILDID i `optimal: opt` sem lykill (`opt`) og `null` /
+         `true` ur ternorum lika — mengið vard svo vitt ad hver lestur
+         slapp i gegn, sem er tom fullyrding i dulargervi. */
+      let k = i - 1;
+      while (k >= at && /\s/.test(s[k])) k--;
+      if (s[k] !== "{" && s[k] !== ",") continue;
+      if (s.startsWith("...", i)) return null;
+      const m = /^([A-Za-z_$][\w$]*)\s*[:,}]/.exec(s.slice(i, i + 120));
+      if (!m) continue;
+      keys.push(m[1]);
+      i += m[0].length - 2;
+    }
+    return [...new Set(keys)];
+  }
+
+  /** fall -> svid, eda `null` ef skilagildid er ogagnsaett. */
+  function returnFields(code) {
+    const out = new Map();
+    const re = /export\s+function\s+([A-Za-z_$][\w$]*)\s*\(/g;
+    let m;
+    while ((m = re.exec(code))) {
+      let p = 1, open = -1;
+      for (let j = re.lastIndex; j < code.length; j++) {
+        const c = code[j];
+        if (c === '"' || c === "'" || c === "`") { j = skipString(code, j); continue; }
+        if (c === "(") p++;
+        else if (c === ")") { p--; if (p === 0) { open = code.indexOf("{", j); break; } }
+      }
+      if (open < 0) continue;
+      const end = braceEnd(code, open);
+      if (end < 0) continue;
+      const body = code.slice(open, end + 1);
+
+      let d = 0, opaque = false, sawObject = false;
+      const fields = new Set();
+      for (let j = 0; j < body.length; j++) {
+        const c = body[j];
+        if (c === '"' || c === "'" || c === "`") { j = skipString(body, j); continue; }
+        if (c === "{") { d++; continue; }
+        if (c === "}") { d--; continue; }
+        if (d !== 1) continue;
+        if (!/^return\b/.test(body.slice(j, j + 7))) continue;
+        if (j > 0 && /[\w$.]/.test(body[j - 1])) continue;
+        const rest = body.slice(j + 6);
+        const t = rest.match(/^\s*/)[0].length;
+        const head = rest.slice(t);
+        /* `return;`, `return null;` og `return undefined;` segja ekkert
+           um svid — lesandi ver sig med `x && x.f` og gerir rett. */
+        if (head[0] === ";" || /^null\s*;/.test(head) || /^undefined\s*;/.test(head)) continue;
+        if (head[0] !== "{") { opaque = true; continue; }
+        const keys = objectKeys(body, j + 6 + t);
+        if (!keys) { opaque = true; continue; }
+        sawObject = true;
+        for (const k of keys) fields.add(k);
+      }
+      out.set(m[1], sawObject && !opaque ? [...fields] : null);
+    }
+    return out;
+  }
+
+  /** `const X = <rhs>;` a hvada dypt sem er. */
+  function constBindings(code) {
+    const out = [];
+    const re = /(?:^|[;{}()\n,])\s*const\s+([A-Za-z_$][\w$]*)\s*=(?!=)/g;
+    let m;
+    while ((m = re.exec(code))) {
+      let i = re.lastIndex, p = 0, b = 0, c2 = 0;
+      for (; i < code.length; i++) {
+        const c = code[i];
+        if (c === '"' || c === "'" || c === "`") { i = skipString(code, i); continue; }
+        if (c === "(") p++; else if (c === ")") p--;
+        else if (c === "[") b++; else if (c === "]") b--;
+        else if (c === "{") c2++; else if (c === "}") c2--;
+        else if (c === ";" && p === 0 && b === 0 && c2 === 0) break;
+      }
+      out.push({ ident: m[1], rhs: code.slice(re.lastIndex, i) });
+    }
+    return out;
+  }
+
+  /** Hve morgum sinnum er nafnid BUNDID i skranni (afthetting talin ekki). */
+  function shadowCount(code, ident) {
+    let n = (code.match(new RegExp(`\\b(?:const|let|var)\\s+${ident}\\b`, "g")) || []).length;
+    const lists = [];
+    for (const re of [/\(([^()]*)\)\s*=>/g, /function\s*[\w$]*\s*\(([^()]*)\)/g]) {
+      let m;
+      while ((m = re.exec(code))) lists.push(m[1]);
+    }
+    for (const list of lists) {
+      if (/^\s*\{/.test(list)) continue;              /* afthetting = alias */
+      for (const part of list.split(",")) {
+        if (part.trim().replace(/\s*=.*$/, "") === ident) n++;
+      }
+    }
+    n += (code.match(new RegExp(`(?:^|[^\\w$.])${ident}\\s*=>`, "g")) || []).length;
+    return n;
+  }
+
+  /** Hvada thekkt foll eru kollud i SKILASTODU i `rhs`? */
+  function returnPositionCalls(rhs, names) {
+    const OPEN = new Set(["", "useMemo", "useCallback"]);
+    const stack = [];
+    const found = new Set();
+    for (let i = 0; i < rhs.length; i++) {
+      const c = rhs[i];
+      if (c === '"' || c === "'" || c === "`") { i = skipString(rhs, i); continue; }
+      if (c === ")") { stack.pop(); continue; }
+      if (c !== "(") continue;
+      const m = /([\w$.]+)\s*$/.exec(rhs.slice(0, i));
+      const callee = m ? m[1] : "";
+      if (names.has(callee) && stack.every((x) => OPEN.has(x))) found.add(callee);
+      stack.push(callee);
+    }
+    return [...found];
+  }
+
+  /** Kjarninn: (svida-tafla, lesenda-skrar) -> brot + thekja. */
+  function auditFields(modules, consumers) {
+    const fnFields = new Map();
+    const opaque = [];
+    for (const [file, src] of modules) {
+      for (const [fn, fields] of returnFields(stripComments(src))) {
+        if (fields) fnFields.set(fn, { file, fields: new Set(fields) });
+        else opaque.push(`${file}/${fn}`);
+      }
+    }
+    const names = new Set(fnFields.keys());
+    const bad = [], bound = [];
+    let skipped = 0;
+    for (const [file, src] of consumers) {
+      const code = stripImports(stripComments(src));
+      for (const { ident, rhs } of constBindings(code)) {
+        const hits = returnPositionCalls(rhs, names);
+        if (hits.length !== 1) { if (hits.length > 1) skipped++; continue; }
+        if (shadowCount(code, ident) > 1) { skipped++; continue; }
+        const { fields, file: mod } = fnFields.get(hits[0]);
+        bound.push({ file, ident, fn: hits[0] });
+        const rr = new RegExp(`(?:^|[^\\w$.])${ident}\\s*\\.\\s*([A-Za-z_$][\\w$]*)`, "g");
+        const reads = new Set();
+        let m;
+        while ((m = rr.exec(code))) reads.add(m[1]);
+        for (const r of reads) {
+          if (!fields.has(r)) {
+            bad.push(`${file}: ${ident}.${r} — ${mod}/${hits[0]} skilar ` +
+                     `{${[...fields].join(", ")}}`);
+          }
+        }
+      }
+    }
+    return { fnFields, opaque, bad, bound, skipped };
+  }
+
+  /* ------------------------------------------------------------
+     MAELITAEKID FYRST — A TILBUNUM GOGNUM ThAR SEM SVARID ER ThEKKT
+     ------------------------------------------------------------
+     Fjorar spurningar, og allar fjorar VERDA ad hafa svar: rett svid
+     sleppur, RANGT svid er fangad, ogagnsaett fall er SLEPPT (ekki
+     flaggad), og skygging er SLEPPT. Vaeri einhver theirra ekki reynd
+     gaeti "engin brot" hér nedan verid graent af thvi ad skanninn
+     finnur ALDREI neitt.                                            */
+  {
+    const mod = [["m.js", `
+      export function good(a) { return { alpha, beta: 1 }; }
+      export function opaqueOne(a) { return { ...a, gamma: 2 }; }
+    `]];
+    const probe = (body) => auditFields(mod, [["c.jsx", body]]);
+
+    const clean = probe(`const g = good(1); use(g.alpha, g.beta);`);
+    ok(clean.bad.length === 0, "(a) rett svid sleppa i gegn");
+    ok(clean.bound.length === 1, "    og bindingin var raunverulega skodud");
+
+    const dirty = probe(`const g = good(1); use(g.swaps);`);
+    ok(dirty.bad.length === 1 && /g\.swaps/.test(dirty.bad[0]),
+      `(b) RANGT svid er fangad — MAELITAEKID VIRKAR (${dirty.bad[0] || "ekkert"})`);
+
+    const opa = probe(`const o = opaqueOne(1); use(o.whatever);`);
+    ok(opa.bad.length === 0 && opa.opaque.length === 1,
+      "(c) `...spread` gerir fallid OGAGNSAETT og thad er sleppt, ekki giskad");
+
+    const shad = probe(`const g = good(1); list.map((g) => g.swaps);`);
+    ok(shad.bad.length === 0,
+      "(d) skyggt nafn er sleppt — tvo osamband gildi undir sama nafni");
+
+    /* Og prop-afthetting ma EKKI telja sem skygging, annars hverfur
+       nakvaemlega tilfellid sem thessi kafli var skrifadur um. */
+    const prop = probe(
+      `const advice = good(1);\nfunction Kid({ advice }) { return advice.swaps; }`);
+    ok(prop.bad.length === 1,
+      "(e) prop sem er sent undir SAMA heiti er alias, ekki skygging");
+  }
+
+  /* ------------------------------------------------------------
+     OG SVO A RAUNVERULEGA TRENU
+     ------------------------------------------------------------ */
+  const modFiles = readdirSync(SRC).filter((f) => f.endsWith(".js"));
+  const consumerFiles = [
+    ...readdirSync(SRC).filter((f) => /\.jsx?$/.test(f) && f !== "main.jsx")
+      .map((f) => ["src/" + f, path.join(SRC, f)]),
+    ...readdirSync(SCRIPTS).filter((f) => f.endsWith(".mjs"))
+      .map((f) => ["scripts/" + f, path.join(SCRIPTS, f)]),
+  ];
+  const res = auditFields(
+    modFiles.map((f) => [f, readFileSync(path.join(SRC, f), "utf8")]),
+    consumerFiles.map(([label, p]) => [label, readFileSync(p, "utf8")]));
+
+  /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1). Faeri
+     lesturinn a ranga moppu, eda brotnadi skanninn thegjandi, yrdu
+     lykkjurnar tomar og "engin brot" graent ad eilifu. */
+  ok(res.fnFields.size >= 20,
+    `${res.fnFields.size} hrein foll skila GAGNSAEUM hlut ` +
+    `(+${res.opaque.length} ogagnsae, sleppt)`);
+  ok(res.bound.length >= 40,
+    `${res.bound.length} bindingar skodadar i ${consumerFiles.length} skrám ` +
+    `(${res.skipped} sleppt: skygging eda tvirætt kall)`);
+
+  /* OG TILFELLID SEM SLAPP VERDUR AD VERA I ThEKJUNNI. Þetta er hjartað
+     i kaflanum: an thessarar fullyrdingar gaeti skanninn verid graenn og
+     BLINDUR a nakvaemlega thann lesanda sem kostadi eiginleikann. */
+  ok(res.fnFields.has("lineupAdvice"),
+    "`lineupAdvice` er i svida-toflunni");
+  ok(res.bound.some((b) => b.file === "src/Dashboard.jsx" && b.fn === "lineupAdvice"),
+    "og `Dashboard.jsx` ber SKODADA bindingu a hana (tilfellid sem slapp)");
+  ok(res.bound.some((b) => b.file === "scripts/snapshot-advice.mjs"),
+    "og bokhalds-skriftan er lika lesin (sami klasi, onnur skra)");
+
+  ok(res.bad.length === 0,
+    res.bad.length === 0 ? "ENGIN LESIN SVID ERU UPPSPUNI"
+      : `${res.bad.length} lesin svid eru UPPSPUNI:\n       ` + res.bad.join("\n       "));
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

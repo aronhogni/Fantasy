@@ -432,6 +432,40 @@ console.log("\n5. rodin: badar deildir, radgjof OG inntokin");
   ok(anon.leagues[0].startsit === null && /roster id could not be resolved/
        .test(anon.leagues[0].startsitWhy),
     "othekkt lid -> `startsit: null` OG astaedan (radgjof um rangt lid er verri en engin)");
+
+  /* ============================================================
+     OG SAMA REGLA A WAIVER-HLIDINNI — HUN VAR BROTIN
+     ============================================================
+     `row.waiversWhy` las `fa.why`. `freeAgents` ber ENGAN `why`; hun
+     skrifar astaeduna i `notes` (`unknownPool` skilar `notes: [why]`).
+     Lesturinn var thvi `undefined` i hverju tilfelli og fell i almenna
+     strenginn — ThRJAR astaedur urdu EIN, i skra sem er TIL ThESS ad
+     segja hvers vegna.
+
+     Fundid mekaniskt af `wiring.mjs` kafla 9, ekki med lestri; sami
+     klasi og `advice.swaps` i `Dashboard.jsx`.
+
+     ThEKJA FYRST (regla 2 i CLAUDE.md 5b): hin serstaka astaeda verdur
+     ad vera SANNANLEGA til i `notes`, annars gaeti fullyrdingin "hun er
+     ekki almenna strengurinn" verid sonn af thvi ad ekkert er thar.  */
+  {
+    const { freeAgents } = await import("../src/waivers.js");
+    const raw = freeAgents({ rows, rosters: [], myRosterId: null });
+    ok(raw.pool === null && Array.isArray(raw.notes) && raw.notes.length === 1,
+      `ThEKJA: \`freeAgents\` ber astaeduna i \`notes\` (${raw.notes.length} rod)`);
+    ok(raw.why === undefined,
+      "og BER ENGAN `why` — svidid sem bokhaldid las er til hvergi");
+
+    const noPool = buildAdviceSnapshot({ season: 2026, week: 3, rows, schedule, defense,
+      meta: {}, leagues: [{ ...leagues[0], rosters: [], users: [] }],
+      anchorMs: Date.parse("2026-09-24T00:00:00Z"), nowTs: now });
+    const w = noPool.leagues[0];
+    ok(w.waivers === null, "laug sem var ekki lesin gefur `waivers: null`");
+    ok(w.waiversWhy === raw.notes.join(" "),
+      `og rodin ber SERSTOKU astaeduna ("${(w.waiversWhy || "").slice(0, 48)}…")`);
+    ok(w.waiversWhy !== "the pool could not be read",
+      "ekki almenna strenginn — hann var eina svarid medan svidid het `why`");
+  }
 }
 
 /* ---------- 6. `--dry` SKRIFAR EKKERT ---------- */
