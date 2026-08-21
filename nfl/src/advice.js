@@ -251,7 +251,7 @@ export function picksUntilNext(pick, teams) {
  * tolurnar og fer ad nota magatilfinninguna.
  */
 export function recommend({ available, roster = [], pick, league, nextPick: nextIn,
-                            lastPick = false }) {
+                            lastPick = false, rosterUnknown = 0 }) {
   const teams = league.teams || 12;
   /* Gefid `nextPick` VINNUR. Hafnad er adeins tolu sem er ekki eftir
      `pick` — hun gaefi negatifa bid og "0% lifun" a alla. */
@@ -461,7 +461,28 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
      TILVISUN i heimildina og profid ber thaer saman — sja
      `tests/advice.mjs`, sem fellur ef thaer reka i sundur.           */
   const rounds = league.rounds || 15;
-  const picksLeft = Math.max(0, rounds - roster.length);
+  /* ============================================================
+     HOPURINN ER STAERRI EN BORDID VEIT — `rosterUnknown`
+     ============================================================
+     Bordid ber ~1.130 leikmenn af ~11.400 hja Sleeper, svo djupt val
+     getur verid utan thess. Þau vol ERU TALIN i valnumerid (`offBoard`
+     -> `pickNo`) en `roster.length` telur adeins thad sem BORDID
+     ThEKKIR. Med tveimur oporadum eigin volum taldi radgjofin thvi
+     TVEIMUR VOLUM FLEIRA eftir en eg a raunverulega — og `picksLeft`
+     styrir `mustFillUrgent`, sem er thad EINA sem segir ther ad taka
+     spyrnumann eda vorn. Bradanauðsynin kviknadi thvi UMFERD OF SEINT
+     og skildi eftir tomt varnarsaeti.
+
+     ThETTA ER NAKVAEMLEGA SAMA VILLAN SEM `offBoard` VAR SMIDAD FYRIR,
+     a odru sviði: `pickNo` fekk lagfaeringuna, `roster.length` ekki.
+     Sami toluflutningur, sama heimild (`unmatched.mine` i pollun),
+     onnur notkun.
+
+     `0` er RETT sjalfgefid gildi og ekki agiskun: kallandi sem veit
+     ekkert um oporud vol (hrein prof, `advice-lab`) hefur engan hop
+     utan bordsins.                                                  */
+  const extra = Math.max(0, Math.round(Number(rosterUnknown)) || 0);
+  const picksLeft = Math.max(0, rounds - roster.length - extra);
   const mustFill = [];
   for (const pos of Object.keys(st)) {
     if (pos === "FLEX" || pos === "SUPERFLEX") continue;

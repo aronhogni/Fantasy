@@ -42,9 +42,15 @@
  * talan var reiknud rett og komst aldrei ut. Hlidid sem atti ad
  * spara endurteikningu var lika hlid a upplysingunni.
  */
-export function pickSignature(ids, mine, unknown = 0) {
+export function pickSignature(ids, mine, unknown = 0, unknownMine = 0) {
+  /* `unknownMine` ER EIGID SVID OG ThAD ER NAUDSYNLEGT. Umsjonarmadur sem
+     LAGFAERIR saeti a oporadu vali breytir `unknownMine` an thess ad
+     `unknown` haggist — og tha vaeri fingrafarid ObREYTT, `onPicks` aldrei
+     kallad, og `offBoardMine` stæði a gamalli tolu. Talan styrir
+     `picksLeft` i radgjofinni (sja `rosterUnknown` i `advice.js`), svo
+     staeda tala thar er bradanauðsyn a rongum stad. */
   return `${(ids || []).length}|${(ids || []).join(",")}|${(mine || []).join(",")}` +
-         `|${Number(unknown) || 0}`;
+         `|${Number(unknown) || 0}|${Number(unknownMine) || 0}`;
 }
 
 /** Sjalfgefnu tolurnar, a einum stad svo profin geti lesid thaer. */

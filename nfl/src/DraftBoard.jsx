@@ -101,6 +101,11 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      vistad: thad er lesid upp a nytt i hverri pollun og vistad gildi an
      pollunar vaeri tala sem enginn getur leidrett. */
   const [offBoard, setOffBoard] = useState(0);
+  /* HVE MORG AF THEIM ERU MIN. `offBoard` for i VALNUMERID; thessi fer i
+     HOPINN — `picksLeft` i radgjofinni taldi adeins thad sem bordid
+     thekkir, svo bradanauðsyn a spyrnumanni/vorn kviknadi UMFERD OF
+     SEINT. Sama tala, onnur notkun (sja `rosterUnknown` i advice.js). */
+  const [offBoardMine, setOffBoardMine] = useState(0);
   const [posFilter, setPosFilter] = useState([]);
   /* ============================================================
      LOGUN DRAFTSINS — LESIN UR DRAFTINU, EKKI UR DEILDINNI
@@ -161,6 +166,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
        drafti. Hun er ekki vistud, svo nyja bordid byrjar a 0 og faer
        sina eigin tolu vid fyrstu pollun. */
     setOffBoard(0);
+    setOffBoardMine(0);
     /* Og minnid um sidasta Sleeper-svar er minni um ANNAD draft. Vaeri
        thad ekki nullstillt myndi mismunar-reglan i `onPicks` reyna ad
        fjarlaegja vol hins draftsins ur thessu bordi. */
@@ -492,7 +498,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      `boardScope` lagar; sja notuna thar. Hin helftin — handvirk vol eru
      VILJANDI utan mismunarins — laekki ekki heldur, og hvorug er
      lagfaeranleg her: THAU EIGA AD LIFA innan sins drafts.            */
-  const onPicks = useCallback((ids, mineIds, offCount) => {
+  const onPicks = useCallback((ids, mineIds, offCount, offMine) => {
     /* Sleeper hefur talad — bordid er ekki lengur "endurheimt ur vafra". */
     setRestored(0);
     const nextIds = new Set(ids), nextMine = new Set(mineIds);
@@ -510,6 +516,8 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
        pollun. `null`/skokk gildi ma ekki verda `NaN` i valnumerinu. */
     const n = Math.round(Number(offCount));
     setOffBoard(Number.isFinite(n) && n >= 0 ? n : 0);
+    const m = Math.round(Number(offMine));
+    setOffBoardMine(Number.isFinite(m) && m >= 0 ? m : 0);
   }, []);
 
   const take = (r, mine) => {
@@ -543,6 +551,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     setTaken(new Set());
     setMyPicks(new Set());
     setOffBoard(0);
+    setOffBoardMine(0);
     /* Minnid um sidasta svar fer LIKA. Annars vaeri "hreinsa" hálft:
        mismunar-reglan i `onPicks` bæri afram vol ur drafti sem er buid
        ad slita, og fyrsta pollun naesta drafts hefdi rangan grunn. */
@@ -607,12 +616,16 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
            tenging. Skilyrdid var `!taken.size` og thad laesti hnappnum a
            tengdu mock-i sem hafdi engin porud vol, svo notandinn gat ekki
            slitid sig fra draftinu. */
-        resetOff={!taken.size && !myPicks.size && !offBoard &&
+        resetOff={!taken.size && !myPicks.size && !offBoard && !offBoardMine &&
                   !(sync && sync.draftId)}
         restored={restored} restoredMine={myPicks.size} />
 
       <NextPick available={available} kdst={kdst} roster={myRoster} pick={pickNo} nextOwn={nextOwn}
         lastPick={lastPick} league={league} sync={sync}
+        /* OPORUD EIGIN VOL — SJA `rosterUnknown` i `advice.js`. Bordid
+           thekkir thau ekki, svo `myRoster` er of stutt og "picks left"
+           var of hatt. */
+        rosterUnknown={offBoardMine}
         /* ThAKID KEMUR HINGAD REIKNAD, ur logun DRAFTSINS. Adur reiknadi
            `NextPick` thad sjalft ur `league` og hleypti thvi "Pick 151"
            i gegn i 150 vala drafti. */
@@ -1636,12 +1649,12 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
          Fingrafarid er talan sjalf, ekki tilvisunin. Thad er lika
          forsenda thess ad haegt se ad polla ORAR (nedar): hrad
          pollun sem endurteiknar allt vaeri verri en haeg. */
-      const sig = pickSignature(ids, mine, unknown);
+      const sig = pickSignature(ids, mine, unknown, unknownMine);
       if (sig !== lastSig.current) {
         lastSig.current = sig;
         if (ids.length > (lastCount.current ?? 0)) lastMove.current = Date.now();
         lastCount.current = ids.length;
-        onPicks(ids, mine, unknown);
+        onPicks(ids, mine, unknown, unknownMine);
       }
       setPollErr(null);
     } catch (e) { setPollErr(String(e.message || e)); }
@@ -2443,7 +2456,7 @@ function MeasuredEdge({ league, shapes }) {
    (marktaekt i standard). Lifunarlikur eru birtar sem upplysing.
    ============================================================ */
 function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPick,
-                    totalPicks, snakeTeams, snakeRounds }) {
+                    totalPicks, snakeTeams, snakeRounds, rosterUnknown = 0 }) {
   const rec = useMemo(() => {
     if (!available.length) return null;
     try {
@@ -2460,10 +2473,10 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
         /* NAKVAEMLEGA SAMA TALA SEM BORDID LITAR MED — sja hausinn a
            `picksUntilNext`. `null` (ekkert saeti thekkt) fellur i
            afleidsluna, sem er rett i handvirku drafti. */
-        roster, pick, league, nextPick: nextOwn, lastPick,
+        roster, pick, league, nextPick: nextOwn, lastPick, rosterUnknown,
       });
     } catch { return null; }
-  }, [available, roster, pick, league, nextOwn, lastPick]);
+  }, [available, roster, pick, league, nextOwn, lastPick, rosterUnknown]);
 
   /* ============================================================
      DRAFTID GETUR KLARAST — OG THA ER "TAKE THIS" LYGI

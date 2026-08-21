@@ -63,6 +63,25 @@ console.log("1. fingrafarid — obreytt svar ma ekki endurteikna");
     "og sjalfgefid er 0, svo eldri kollun heldur merkingu sinni");
   ok(pickSignature(["a"], [], null) === pickSignature(["a"], [], 0),
     "`null` oporud vol eru 0, ekki NaN i strengnum");
+
+  /* ============================================================
+     OG HVE MORG AF THEIM ERU MIN — FJORDA SVIDID (21.8.2026)
+     ============================================================
+     `unknownMine` styrir `picksLeft` i radgjofinni (`rosterUnknown` i
+     `advice.js`), sem er thad EINA sem segir ther ad taka spyrnumann eda
+     vorn. Umsjonarmadur sem LAGFAERIR saeti a oporudu vali breytir
+     `unknownMine` an thess ad `unknown` haggist — og vaeri hun ekki i
+     fingrafarinu yrdi `onPicks` aldrei kallad, `offBoardMine` staeda a
+     gamalli tolu, og bradanauðsyn a rongum stad.
+
+     NAKVAEMLEGA SAMA GAT OG `unknown` SJALFT HAFDI: hlidid sem sparar
+     endurteikningu var lika hlid a upplysingunni.                    */
+  ok(pickSignature(["a", "b"], [], 2, 0) !== pickSignature(["a", "b"], [], 2, 1),
+    "eigid oporad val breytir fingrafarinu thott TOTALAN se sú sama");
+  ok(pickSignature(["a", "b"], [], 2) === pickSignature(["a", "b"], [], 2, 0),
+    "og sjalfgefid er 0, svo thriggja-stika kollun heldur merkingu sinni");
+  ok(pickSignature(["a"], [], 1, null) === pickSignature(["a"], [], 1, 0),
+    "`null` er 0, ekki NaN i strengnum");
 }
 
 console.log("\n2. hradinn fylgir draftinu");

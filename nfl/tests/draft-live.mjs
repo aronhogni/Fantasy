@@ -1780,6 +1780,34 @@ console.log("\n16d. picksLeft er talid ur draftinu, ekki ur deildinni");
      — an theirra vaeri fullyrdingin ofar uppfyllt af deildinni. */
   ok(m && /K/.test(m[2]) && /DST/.test(m[2]),
     `og thorfin sjalf er K og DST ur draftinu (${m ? m[2] : "?"})`);
+
+  /* ============================================================
+     OG OPORAD EIGID VAL TELUR MED — ThAD GERDI ThAD EKKI
+     ============================================================
+     Bordid ber ~1.130 leikmenn af ~11.400 hja Sleeper, svo djupt eigid
+     val fer i `unmatched.mine` og HVERGI annad. Appid taldi thau ThEGAR
+     i valnumerid (`offBoard` -> `pickNo`, kafli 5) en EKKI i hopinn, svo
+     `picksLeft = rounds - roster.length` sagdi EINU VALI FLEIRA en eg a
+     — og `mustFillUrgent` (`picksLeft <= needed + 1`) kviknadi UMFERD OF
+     SEINT. Sami toluflutningur, sama heimild, onnur notkun.
+
+     Fullyrdingin er a TOLUNNI A SKJANUM og hun er ADGREINANLEG: 3 an og
+     2 med, i sama drafti, i sömu keyrslu.                           */
+  live.secondDraft.picks.push({
+    player_id: "99991313", picked_by: "u7", roster_id: MY_SLOT,
+    round: 13, draft_slot: MY_SLOT, pick_no: 13, is_keeper: null,
+    metadata: { first_name: "Deep", last_name: "Own", position: "RB", team: "SF" },
+  });
+  await waitFor(() => /not on this board/i.test(text()), 5000);
+  await settle(400);
+  ok(/1 of them yours/i.test(flat()),
+    "oporada valid er skrad sem MITT (annars maelir kaflinn ekkert)");
+  ok(rosterCount() === 12,
+    `bordid thekkir enn adeins 12 (${rosterCount()}) — thad er einmitt vandinn`);
+  const m2 = /You have (\d+) picks? left and still need ([^.]+)\./.exec(flat());
+  ok(!!m2, `kassinn ber linuna enn (${m2 ? m2[0] : "engin"})`);
+  ok(m2 && Number(m2[1]) === 2,
+    `og talan er nu 2, ekki 3 — oporada valid telur MED (fann ${m2 ? m2[1] : "?"})`);
   ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
   root.unmount();
 }

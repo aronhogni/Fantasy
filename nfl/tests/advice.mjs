@@ -407,6 +407,79 @@ console.log("\nsjalfgefin gildi reka ekki i sundur");
     `(${a1.picksLeft} / ${a2.picksLeft})`);
   ok(a1.picksLeft === DEFAULT_LEAGUE.rounds,
     `og thad er ${DEFAULT_LEAGUE.rounds} med tomum hop (fann ${a1.picksLeft})`);
+
+  /* ============================================================
+     OG HOPURINN GETUR VERID STAERRI EN BORDID VEIT
+     ============================================================
+     Sami reitur, thridja tegundin af skekkju: `roster.length` telur
+     adeins thad sem BORDID thekkir. Bordid ber ~1.130 leikmenn af
+     ~11.400 hja Sleeper, svo djupt eigid val fer i `unmatched.mine` og
+     HVERGI annad. Appid taldi thau ThEGAR i valnumerid (`offBoard` ->
+     `pickNo`) en EKKI i hopinn — svo med tveimur oporadum eigin volum
+     sagdi radgjofin TVEIMUR VOLUM FLEIRA eftir en eg a, og
+     `mustFillUrgent` (thad EINA sem segir ther ad taka spyrnumann eda
+     vorn) kviknadi UMFERD OF SEINT. Tomt varnarsaeti i sidustu umferd.
+
+     `offBoard` fekk nakvaemlega thessa lagfaeringu fyrir `pickNo`;
+     `roster.length` fekk hana ekki.                                 */
+  {
+    const two = [
+      { id: "r1", name: "R1", pos: "RB", proj: 200, vbd: 50, adp: 10, tier: 1 },
+      { id: "r2", name: "R2", pos: "RB", proj: 190, vbd: 45, adp: 12, tier: 1 },
+    ];
+    const base = recommend({ available: av, roster: two, pick: 20,
+      league: DEFAULT_LEAGUE });
+    const withUnknown = recommend({ available: av, roster: two, pick: 20,
+      league: DEFAULT_LEAGUE, rosterUnknown: 2 });
+    ok(base.picksLeft === DEFAULT_LEAGUE.rounds - 2,
+      `ThEKJA: tveir menn a bordinu -> ${base.picksLeft} vol eftir`);
+    ok(withUnknown.picksLeft === base.picksLeft - 2,
+      `og tvo oporud eigin vol taka TVO i vidbot (${withUnknown.picksLeft} ` +
+      `a moti ${base.picksLeft})`);
+
+    /* SJALFGEFID 0 ER RETT OG ER EKKI AGISKUN: kallandi sem veit ekkert
+       um oporud vol (hrein prof, `advice-lab`) hefur engan hop utan
+       bordsins. Þess vegna ma sleppt svid ALDREI breyta svarinu. */
+    ok(recommend({ available: av, roster: two, pick: 20,
+      league: DEFAULT_LEAGUE, rosterUnknown: undefined }).picksLeft === base.picksLeft,
+      "sleppt svid breytir engu (`0` er rett sjalfgefid gildi)");
+    for (const junk of [null, "abc", -5, NaN]) {
+      ok(recommend({ available: av, roster: two, pick: 20,
+        league: DEFAULT_LEAGUE, rosterUnknown: junk }).picksLeft === base.picksLeft,
+        `skokk gildi (${String(junk)}) gefur ekki NaN ne negatift`);
+    }
+    /* Og talan ma ekki fara undir null — hun styrir texta a skjanum. */
+    ok(recommend({ available: av, roster: two, pick: 20,
+      league: DEFAULT_LEAGUE, rosterUnknown: 99 }).picksLeft === 0,
+      "og hun er golfud i 0, ekki negatif");
+
+    /* ============================================================
+       AFLEIDINGIN, EKKI ADEINS TALAN: BRADANAUDSYNIN FLYST
+       ============================================================
+       `picksLeft` er ekki birt tala eingongu — hun er thad sem raedur
+       hvort "you must take a K/DST now" birtist. Fullyrding a tolunni
+       einni gaeti stadist medan bradanauðsynin lesi hana ekki.       */
+    const L = { ...DEFAULT_LEAGUE, rounds: 15,
+                starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 } };
+    /* `mustFillUrgent` er `needed > 0 && picksLeft <= needed + 1`. Med
+       ellefu monnum a bordinu og hvorki K ne DST er `needed` 2 og
+       `picksLeft` 4 — EKKI bradanauðsyn. Eitt oporad eigid val faerir
+       hana i 3, sem ER bradanauðsyn. Skurdpunkturinn er thvi TOLU-
+       NAKVAEMUR og fullyrdingin getur brugdist i badar attir.        */
+    const mk = (n) => Array.from({ length: n }, (_, i) => ({
+      id: `p${i}`, name: `P${i}`, pos: i % 2 ? "RB" : "WR", proj: 100, vbd: 10 }));
+    const r11 = mk(11);
+    const at11 = recommend({ available: av, roster: r11, pick: 110, league: L });
+    const at11u = recommend({ available: av, roster: r11, pick: 110, league: L,
+      rosterUnknown: 1 });
+    ok(at11.picksLeft === 4 && at11u.picksLeft === 3,
+      `vol eftir: ${at11.picksLeft} an og ${at11u.picksLeft} med oporudu vali`);
+    ok(at11.mustFill.length === 2,
+      `ThEKJA: tvaer stodur ofylltar (${at11.mustFill.map((m) => m.pos).join(",")})`);
+    ok(at11.mustFillUrgent === false && at11u.mustFillUrgent === true,
+      "og bradanauðsynin kviknar EINNI UMFERD FYRR med oporudu vali " +
+      `(${at11.mustFillUrgent} -> ${at11u.mustFillUrgent})`);
+  }
 }
 
 /* ============================================================
