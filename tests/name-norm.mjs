@@ -95,6 +95,60 @@ console.log("\n=== 1. NAFNA-NORMUN: EIN SKILGREINING ===");
 }
 
 /* ---------------------------------------------------------------
+   1b. PIPELINE MA EKKI BERA SINN EIGIN NORMOLARA  (21.8.2026)
+
+   ThRIDJA AFRITID FANNST — OG ThAD HAFDI ThEGAR KOSTAD PORUN. Kafli 1 ofan
+   skannar adeins `src/`, svo `scripts/fetch.mjs` slapp: `apiNameIndex` bar
+   sinn EIGIN normolara, stafrett eins og hinir tveir NEMA AN
+   TRANSLIT-TOFLUNNAR. Afleidingin er nakvaemlega su sem taflan i
+   src/names.js varar vid: NFD leysir EKKI upp `ø` (ne `ß`, `ı`, `ł`, `đ`,
+   `þ`, `æ`), svo `[^a-z]` gerdi hann ad BILI og "Nørgaard" vard
+   "n rgaard". 21.8.2026, fyrsta daginn sem API-Sports bar raungogn, tapadist
+   "C. Norgaard (Everton)" ur meidsla-porunni af nakvaemlega thessari astaedu.
+
+   Vordurinn er a LOGUNINNI, ekki a nafninu: afritid het `norm`, ekki
+   `normName`, svo kafli 1 hefdi ekki fundid thad jafnvel med scripts/ i
+   skonnun. Leitad er ad NFD-normun i nafna-samhengi.
+   --------------------------------------------------------------- */
+console.log("\n=== 1b. SCRIPTS/ BER ENGAN EIGIN NAFNA-NORMOLARA ===");
+{
+  const dir = R + "scripts/";
+  const scripts = readdirSync(dir).filter(f => f.endsWith(".mjs"));
+  ok(scripts.length >= 8, `skannadi pipeline-skriftur (${scripts.length})`);
+  /* Lögunin: NFD + brottnam samsettra stafmerkja. Athugasemdir skornar
+     burt (regla A) — thessi vordur er sjalfur skjaladur i fetch.mjs.   */
+  const NFD_RE = /normalize\(\s*"NFD"\s*\)/;
+  const own = scripts.filter(f => NFD_RE.test(strip(read("scripts/" + f))));
+  ok(own.length === 0,
+     `engin skrifta gerir sina eigin NFD-normun (fann ${own.length}: ${own})`);
+  /* OG FULLYRDINGIN MA EKKI VERA TOM: mynstrid VERDUR ad hitta thar sem
+     normolarinn BYR, annars maelir regexid ekkert (CLAUDE.md 5b regla 2). */
+  ok(NFD_RE.test(strip(read("src/names.js"))),
+     "mynstrid hittir i src/names.js — annars vaeri leitin ofan tom");
+
+  /* Og pipeline VERDUR ad flytja hann inn, ekki bara sleppa ad skrifa hann. */
+  const fx = strip(read("scripts/fetch.mjs"));
+  ok(/import\s*\{[^}]*\bnormName\b[^}]*\}\s*from\s*["'][^"']*names\.js["']/.test(fx),
+     "scripts/fetch.mjs flytur normName inn ur src/names.js");
+  ok(/const\s+norm\s*=\s*normName\s*;/.test(fx),
+     "og API-nafna-visirinn NOTAR hann (const norm = normName)");
+
+  /* Hegdunin sem tapadist: `ø` verdur `o`, EKKI bil. Prófad a raunverulega
+     manninum sem fell ur porun 21.8.2026.                              */
+  const { normName } = await import("../src/names.js");
+  ok(normName("Nørgaard") === "norgaard",
+     `"Nørgaard" -> "norgaard" (fekk "${normName("Nørgaard")}")`);
+  ok(normName("C. Nørgaard") === normName("C. Norgaard"),
+     "API-form an stafmerkis og FPL-form med thvi normast EINS (thetta var villan)");
+  /* Og gamli normolarinn — sa sem stod i fetch.mjs — a ad BREGDAST hér.
+     An thessarar linu er fullyrdingin ofan "rett tala, engin maeling". */
+  const OLD = x => (x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  ok(OLD("Nørgaard") !== normName("Nørgaard"),
+     `gamla afritid gaf "${OLD("Nørgaard")}" — svo munurinn er RAUNVERULEGUR, ekki snyrtimennska`);
+}
+
+/* ---------------------------------------------------------------
    2. SKORUNAR-FOLLIN ERU VILJANDI TVO — REGLA C
    --------------------------------------------------------------- */
 console.log("\n=== 2. nameScore ER VILJANDI TVO OLIK FOLL ===");

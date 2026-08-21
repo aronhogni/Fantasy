@@ -32,6 +32,11 @@ import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
    fa varfaerid mat. Enginn slikur i gognunum i dag (0 af 840), en tvaer
    utfaerslur af somu formulu er nakvaemlega thad sem hausarnir banna.  */
 import { startFeatures, nameScore } from "../src/stats.js";
+/* EIN NAFNA-NORMUN. `apiNameIndex` bar sinn EIGIN normolara an TRANSLIT-
+   toflunnar til 21.8.2026, svo "Nørgaard" vard "n rgaard" og meidsla-porunin
+   missti hann — nakvaemlega tvitekningin sem src/names.js var stofnud um.
+   Vordur: tests/name-norm.mjs kafli 1b.                                  */
+import { normName } from "../src/names.js";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const DATA = "data";
@@ -143,33 +148,175 @@ function parseCSV(text) {
    `matchFpl` skilar `null` fyrir oparad nafn, ALDREI 0: sja regluna um
    null-vs-0. Fyrsta lykla-mengid er viljandi fjorþaett (web_name, fullt
    nafn, eftirnafn, "F. Eftirnafn") thvi API-id skammstafar fornofn.
+
+   >>> FJORAR VILLUR FUNDUST 21.8.2026, FYRSTA DAGINN SEM HEIMILDIN BAR
+   >>> RAUNGOGN (GW1). `injuries.json`: 27 paradir, 10 oparadir = 73,0%, svo
+   >>> `tests/wiring.mjs` fell — vordurinn vaknadi eins og hann atti ad gera.
+   >>> En hann sagdi "heimild hefur breytt nafnaformi" og ThAD VAR EKKI
+   >>> ORSOKIN i sjo af tiu tilfellum:
+
+   1. LIDANAFNID PARADIST EKKI, EKKI LEIKMANNSNAFNID. API-Sports sendir
+      "Manchester United" og "Nottingham Forest"; `teams_map` ber "Man Utd" /
+      "Man United" / "ManUnited" og "Nott'm Forest" / "Forest". ENGIN
+      tilbrigdi bera borgarnafnid, svo `teamIdByNorm` hitti EKKERT og ALLIR
+      sjo Man Utd- og Forest-menn foru i `unmatched` thott their seu ALLIR i
+      FPL (Darlow 325, Ugarte 433, De Ligt 416, Heaton 414, Mount 430,
+      Savona 475, Yates 489). Sama gilti um "Manchester City" — hun slapp
+      adeins vid ad koma fram af thvi ad MCI atti engin meidsli thennan dag.
+      **OG I `fetchLineups` VAR AFLEIDINGIN VERRI OG ThOGUL:** thar er oleyst
+      lid `continue` (bædi i `apiFx`-byggingunni og i lineups-lykkjunni), svo
+      GW1-leikir Man Utd og Forest hefdu skilad ENGU byrjunarlidi og EKKERT
+      hefdi talid thad — hvorki `unmatched` ne `errors`. Vordurinn thar
+      ("oparadir undir 15%") getur ekki fallid a thvi sem er sleppt adur en
+      thad verdur ad radi (CLAUDE.md 5b).
+      LAGT: `API_TEAM_ALIAS` — HANDSTADFEST tafla, sama regla og `BSD_TEAM`
+      (fuzzy porun felldi Man United inn i Man City), OG `teamIdOf` sem TELUR
+      thad sem paradist ekki i stad thess ad sleppa thvi thegjandi.
+   2. NORMOLARINN VAR ANNAR EN HINN. Thessi skra bar sinn EIGIN `norm` an
+      TRANSLIT-toflunnar, svo "Nørgaard" vard "n rgaard" (NFD leysir EKKI upp
+      `ø` — nakvaemlega gildran sem `src/names.js` var stofnud um) og
+      "C. Norgaard" (Everton) paradist ekki vid fpl 21. Nu er `normName`
+      FLUTT INN. Maelt a ollum 37 raunrodum: **ein porun breytist**
+      (Nørgaard null -> 21) og engin onnur — bædi hlidin fara gegnum sama
+      normolara, svo TRANSLIT styttist ut annars stadar.
+   3. SAMSETT EFTIRNOFN FELLU MILLI SKIPS OG LANDS. "M. Joseph" (Leeds) a
+      moti FPL `second_name: "Joseph Fernández-Regatillo"`: hvorki heil jafna
+      ne EITT sidasta tak passar. ThREP 3 er ORDA-YFIRSKORUN (sama lausn og
+      "Diego Gomez Amarilla" vs "Diego Gomez"), skordud vid fornafns-
+      upphafsstaf og EINKVAEMNI. Maelt a 1.279 tilbunum nofnum i raunverulega
+      API-snidinu ("F. Eftirnafn", "F. Fullt eftirnafn", web_name) yfir alla
+      587 leikmenn: **94,3% -> 99,9% rett, NULL ny rangporun**.
+   4. ThOGUL RANGPORUN I ThREPI 1: thad notadi `c.find(...)` — FYRSTUR VINNUR.
+      Man Utd a TVO Fletcher (Jack `J.Fletcher` og Tyler `Fletcher`) og bert
+      "Fletcher" hitti RANGAN mann af thvi ad eftirnafns-lykill annars
+      mannsins kom fyrr i fylkinu. Nu er krafist EINKVAEMNI, og se hun ekki
+      til vinnur sa sem a `web_name`-jofnuna (sertaekasta FPL-identitetid).
+      Maelt: 1.278/1.279 -> **1.279/1.279, engin rangporun**. ThOGUL RONG
+      PORUN ER VERRI EN ENGIN (CLAUDE.md 6t).
+      ThREP 3 leysir auk thess Fletcher/Murphy-tvenndirnar RETT
+      ("T. Fletcher" -> Tyler, "J. Fletcher" -> Jack) thvi upphafsstafurinn
+      er SKILYRDI, ekki visbending.
+
+   EINN ThESSARA FJOGURRA ER I LIDA-VISINUM OG ThRIR I `matchFpl`, svo BADAR
+   leidir (meidsli OG byrjunarlid) fa thá i einu — sem er allur punkturinn
+   med thessu sameiginlega falli.
+
+   SA EINI SEM STENDUR EFTIR OPARADUR ER RETT OPARADUR: "B. Fredrick
+   (Brentford)" er EKKI i FPL (allur 26-manna Brentford-hopurinn skodadur;
+   naesta nafn i deildinni er Tyler Fredricson hja Man Utd, ANNAD lid — og
+   lid-skordunin er thad sem kemur i veg fyrir ThA porun). Heimildin telur
+   hopa vidari en FPL gerir, svo hlutfall undir 100% er RETT UTKOMA.
    ============================================================ */
 async function apiNameIndex() {
   const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
   const teamsJs = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
   const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
-  const norm = x => (x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+  /* EIN NAFNA-NORMUN I ALLRI HIRSLUNNI — sja src/names.js og
+     tests/name-norm.mjs. Adur stod her afrit AN TRANSLIT-toflunnar.   */
+  const norm = normName;
+  /* HANDSTADFEST LIDANAFNA-TAFLA FYRIR API-SPORTS (21.8.2026).
+     Hun bur INNI i thessu falli VILJANDI: `tests/lineups.mjs` dregur
+     `apiNameIndex` UT UR thessari skra og keyrir hana i einangrun, svo taflan
+     verdur ad fylgja fallinu — profid a ad keyra ThA TOFLU sem pipeline
+     notar, ekki afrit af henni.
+     MAELT LIFANDI 21.8.2026 (`data/injuries.json`): "Manchester United" og
+     "Nottingham Forest" komu fra heimildinni og paradist EKKI. Hin nofnin eru
+     SAMA NAFNAFORM fra somu heimild fyrir hin lidin og eru ThVI OSTADFEST —
+     thau geta ekki bakad rangporun (hvert visar a EITT lid og arekstrar eru
+     TALDIR, sja `aliasCollisions`), og vordurinn i `tests/wiring.mjs` fellur
+     um leid og lidanafn ur RAUNGOGNUM parast ekki, svo missritun her kemur
+     fram i fyrstu keyrslu thar sem lidid birtist.
+     LYKILLINN ER `short`: lid utan deildar i ar eru einfaldlega SLEPPT og
+     radast rett af sjalfu ser thegar thau koma upp aftur.                */
+  const API_TEAM_ALIAS = {
+    MUN: ["Manchester United"],          // MAELT lifandi 21.8.2026
+    NFO: ["Nottingham Forest"],          // MAELT lifandi 21.8.2026
+    MCI: ["Manchester City"],
+    NEW: ["Newcastle United"],
+    TOT: ["Tottenham Hotspur"],
+    WHU: ["West Ham United", "West Ham"],
+    WOL: ["Wolverhampton Wanderers", "Wolves"],
+    BHA: ["Brighton & Hove Albion", "Brighton"],
+    LEE: ["Leeds United"],
+    BOU: ["AFC Bournemouth"],
+    LEI: ["Leicester City"],
+    SOU: ["Southampton"],
+    SHU: ["Sheffield Utd", "Sheffield United"],
+  };
   /* API-lidanafn -> FPL team id (leit i ollum nafna-afbrigdum teams_map) */
   const teamIdByNorm = {};
   for (const [id, t] of Object.entries(tmap))
     for (const v of [t.fpl, t.fdcouk, t.clubelo, t.understat, t.short])
       if (v) teamIdByNorm[norm(v)] = +id;
   teamsJs.forEach(t => { teamIdByNorm[norm(t.name)] = t.id; });
+  /* Samheitin ofan a — ALDREI yfir gildan lykil sem visar a ANNAD lid.
+     Arekstur er TALINN, ekki thagad um: hann vaeri missritun i toflunni og
+     nakvaemlega su thogla rangporun sem `BSD_TEAM` er handstadfest fyrir. */
+  const idByShort = {};
+  for (const [id, t] of Object.entries(tmap)) if (t.short) idByShort[t.short] = +id;
+  const aliasCollisions = [];
+  for (const [sh, names] of Object.entries(API_TEAM_ALIAS)) {
+    const id = idByShort[sh];
+    if (!id) continue;                     // lidid er ekki i deildinni i ar
+    for (const nm of names) {
+      const k = norm(nm), cur = teamIdByNorm[k];
+      if (cur != null && cur !== id) { aliasCollisions.push(`"${nm}": ${cur} vs ${id}`); continue; }
+      teamIdByNorm[k] = id;
+    }
+  }
+  /* EIN LEID INN AD LIDA-UPPFLETTINGU, OG HUN TELUR ThAD SEM MISTEKST.
+     Adur var `teamIdByNorm[norm(x)]` skrifad a fjorum stodum og tvo theirra
+     `continue`-udu ThEGJANDI a null — sja atridi 1 i hausnum.            */
+  const unresolvedTeams = new Set();
+  const teamIdOf = nm => {
+    const id = teamIdByNorm[norm(nm)];
+    if (id == null && nm) unresolvedTeams.add(String(nm));
+    return id ?? null;
+  };
   const fplByTeam = {};
   for (const p of players) {
     const keys = new Set([norm(p.web_name), norm(`${p.first_name} ${p.second_name}`),
       norm(p.second_name), norm(`${(p.first_name || "")[0] || ""} ${p.second_name}`)]);
-    (fplByTeam[p.team] ??= []).push({ id: p.id, keys });
+    (fplByTeam[p.team] ??= []).push({ id: p.id, keys,
+      /* threp 1b og threp 3 lesa thessi thrju — reiknud EINU SINNI per mann */
+      web: norm(p.web_name),
+      toks: new Set([...norm(p.second_name).split(" "), ...norm(p.web_name).split(" ")]
+        .filter(t => t.length >= 2)),
+      initial: norm(p.first_name)[0] || "" });
   }
   const matchFpl = (nm, teamId) => {
-    const n = norm(nm), last = n.split(" ").pop();
+    const n = norm(nm), toks = n.split(" ").filter(Boolean);
+    const last = toks[toks.length - 1] ?? "";
     const c = fplByTeam[teamId] || [];
-    let hit = c.find(x => x.keys.has(n));
+    /* ThREP 1 — heil jafna a einhverjum af fjorum lyklum. EINKVAEMNI KRAFIST;
+       vid jofnu vinnur sa sem a `web_name`-jofnuna (sja atridi 4).        */
+    let hit;
+    const exact = c.filter(x => x.keys.has(n));
+    if (exact.length === 1) hit = exact[0];
+    else if (exact.length > 1) {
+      const w = exact.filter(x => x.web === n);
+      if (w.length === 1) hit = w[0];
+    }
+    /* ThREP 2 — eitt sidasta tak, adeins se thad EINKVAEMT innan lidsins. */
     if (!hit) { const bl = c.filter(x => x.keys.has(last)); if (bl.length === 1) hit = bl[0]; }
+    /* ThREP 3 — ORDA-YFIRSKORUN fyrir samsett eftirnofn ("M. Joseph" a moti
+       "Joseph Fernández-Regatillo"). HVERT tak API-nafnsins verdur ad finnast
+       i nafna-tokum leikmannsins, fornafns-upphafsstafur verdur ad passa se
+       hann gefinn, og svarid verdur ad vera EINKVAEMT. Ekkert her er fuzzy:
+       enginn throskuldur, engin fjarlaegd — adeins mengja-innihald.       */
+    if (!hit) {
+      const initial = toks.length > 1 && toks[0].length === 1 ? toks[0] : null;
+      const sur = (initial ? toks.slice(1) : toks).filter(t => t.length >= 2);
+      if (sur.length) {
+        const cand = c.filter(x => sur.every(t => x.toks.has(t))
+                                && (!initial || x.initial === initial));
+        if (cand.length === 1) hit = cand[0];
+      }
+    }
     return hit?.id ?? null;
   };
-  return { norm, teamIdByNorm, fplByTeam, matchFpl, players, teamsJs, tmap };
+  return { norm, teamIdByNorm, teamIdOf, unresolvedTeams, aliasCollisions,
+           fplByTeam, matchFpl, players, teamsJs, tmap };
 }
 
 /* ---- Leikvangahnit, lyklað á FPL short_name (aðeins notuð fyrir lið í bootstrap) ---- */
@@ -1435,7 +1582,7 @@ async function fetchLineups() {
 
   /* 1. API-fixture-id per dagsetning, parad vid FPL-leiki eftir lidum.
      Nafna-visirinn er sameiginlegur — sja `apiNameIndex`.               */
-  const { norm, teamIdByNorm, matchFpl } = await apiNameIndex();
+  const { teamIdOf, unresolvedTeams, aliasCollisions, matchFpl } = await apiNameIndex();
 
   /* Dagsetningar-kall er ekki gert se ALLT thegar til — annars kostadi hver
      keyrsla 1 kall til einskis medan glugginn er opinn.                   */
@@ -1450,8 +1597,8 @@ async function fetchLineups() {
     const r = await apiSports(`/fixtures?league=39&date=${dt}`); calls++;
     if (errTxt(r)) errs.push(`fixtures ${dt}: ${errTxt(r)}`);
     for (const it of (r.response || [])) {
-      const h = teamIdByNorm[norm(it.teams?.home?.name)];
-      const a = teamIdByNorm[norm(it.teams?.away?.name)];
+      const h = teamIdOf(it.teams?.home?.name);
+      const a = teamIdOf(it.teams?.away?.name);
       if (it.fixture?.id && h && a) apiFx.push({ apiId: it.fixture.id, h, a });
     }
   }
@@ -1477,8 +1624,13 @@ async function fetchLineups() {
     const r = await apiSports(`/fixtures/lineups?fixture=${m.apiId}`); calls++;
     if (errTxt(r)) { errs.push(`lineups ${m.apiId}: ${errTxt(r)}`); continue; }
     for (const side of (r.response || [])) {
-      const teamId = teamIdByNorm[norm(side.team?.name)];
-      if (!teamId) continue;
+      const teamId = teamIdOf(side.team?.name);
+      /* OLEYST LID VAR SLEPPT ThEGJANDI OG ThAD KOSTADI HEILT BYRJUNARLID
+         (21.8.2026, sja hausinn a `apiNameIndex`). "Manchester United" og
+         "Nottingham Forest" leystust ekki, svo GW1-leikir theirra hefdu skilad
+         ENGU — og hvorki `unmatched` ne `errors` badu talid thad, thvi thetta
+         `continue` er FYRIR porunina. Nu er thad SKRAD.                    */
+      if (!teamId) { errs.push(`club name unresolved: "${side.team?.name}"`); continue; }
       outTeams.push({ fpl_team: teamId, gw: f.event, formation: side.formation ?? null,
                       fixture: f.id });
       const add = (arr, started) => {
@@ -1497,14 +1649,18 @@ async function fetchLineups() {
   await writeJSON("lineups.json", { updated: status.updated,
     gws: [...new Set(fx.map(f => f.event))], calls,
     teams: outTeams, players: outPlayers, unmatched, errors: errs,
+    unresolved_teams: [...unresolvedTeams], alias_collisions: aliasCollisions,
     note: "Confirmed starters (started=true) and bench (false) from API-Sports "
         + "/fixtures/lineups for matches inside the window. FPL status still governs "
-        + "availability; this is CONFIRMATION, not a forecast." });
+        + "availability; this is CONFIRMATION, not a forecast. `unresolved_teams` lists "
+        + "club names this source sent that no club-name variant matched — an empty list "
+        + "is the only correct value; anything in it means whole line-ups were dropped." });
   const started = outPlayers.filter(p => p.started).length;
   record("api_lineups", !errs.length || !!outPlayers.length, outPlayers.length,
     errs.length ? `${calls} calls (${reused} reused), ${started} starting, errors: ${errs[0].slice(0, 90)}`
                 : `${calls} calls (${reused} matches reused), ${outTeams.length} clubs, `
-                  + `${started} starting, ${unmatched.length} unmatched`);
+                  + `${started} starting, ${unmatched.length} unmatched`
+                  + (unresolvedTeams.size ? ` — CLUB NAMES UNRESOLVED: ${[...unresolvedTeams].join(", ")}` : ""));
 }
 
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
@@ -2658,12 +2814,12 @@ async function fetchInjuries() {
 
   // para API-nöfn við FPL-id: normalíserað fullt nafn + "F. Eftirnafn"
   // + web_name, ALLT skorðað við liðið (annars ranganir á algengum nöfnum)
-  const { norm, teamIdByNorm, matchFpl, players } = await apiNameIndex();
+  const { teamIdOf, unresolvedTeams, aliasCollisions, matchFpl } = await apiNameIndex();
 
   const out = [], unmatched = [];
   const seen = new Set();
   for (const it of (d.response || [])) {
-    const teamId = teamIdByNorm[norm(it.team?.name)];
+    const teamId = teamIdOf(it.team?.name);
     const fplId = teamId ? matchFpl(it.player?.name, teamId) : null;
     const key = `${it.player?.id}|${it.fixture?.id}`;
     if (seen.has(key)) continue; seen.add(key);
@@ -2675,11 +2831,20 @@ async function fetchInjuries() {
     else unmatched.push(`${rec.name_api} (${rec.team_api})`);
   }
   await writeJSON("injuries.json", { updated: status.updated, plan, via,
-    note: "Injury type and reason from API-Sports /injuries for upcoming matchdays. FPL status still governs availability; this ENRICHES it. In preseason (no matchdays ahead inside the window) the list is empty, as it should be.",
-    players: out, unmatched });
+    note: "Injury type and reason from API-Sports /injuries for upcoming matchdays. FPL status still governs availability; this ENRICHES it. In preseason (no matchdays ahead inside the window) the list is empty, as it should be. `unmatched` rows are expected to be non-zero: this source carries squad members FPL does not (academy, third keepers, departed), so a rate below 100% is the correct outcome — but `unresolved_teams` must always be empty, because a club name that does not resolve loses EVERY row for that club.",
+    players: out, unmatched,
+    unresolved_teams: [...unresolvedTeams], alias_collisions: aliasCollisions });
   /* "0 paraðir" er RETT utkoma fyrir timabil, ekki bilun — sja hlid 2 i
      kafla 6e i CLAUDE.md. Merkjum thad svo enginn fjarlaegi tenginguna
-     a theim forsendum ad hun se brotin.                                  */
+     a theim forsendum ad hun se brotin.
+     HLUTFALLID ER NU I NOTUNNI, EKKI ADEINS TALNINGARNAR (21.8.2026):
+     vordurinn i `tests/wiring.mjs` er um HLUTFALLID og "27 matched ·
+     10 unmatched" thvingar lesandann til ad reikna thad sjalfur. Stadan a
+     ad bera SOMU tolu sem vordurinn maelir. Oleyst LIDANOFN eru nefnd
+     serstaklega thvi thau eru allt annad einkenni en oparad leikmannsnafn:
+     eitt oleyst lidanafn fellir HVERJA rod thess lids i einu.            */
+  const rate = out.length + unmatched.length
+    ? ` (${(100 * out.length / (out.length + unmatched.length)).toFixed(1)}% matched)` : "";
   record("apisports_injuries", true, out.length,
     /* REGEXID VARD MUNADARLAUST VID ThYDINGUNA 9.8.2026: `via` var
        "leikdaga ..." en er nu "match days ...", svo /leikdag/i gat ALDREI
@@ -2688,7 +2853,9 @@ async function fetchInjuries() {
        vaeri. Ordalag i regexi er sama gildra og ordalag i profi.        */
     out.length === 0 && /match day/i.test(via)
       ? `${via} — CORRECT preseason outcome, 0 calls used (first real test 20-21 August)`
-      : `${via} · ${out.length} matched · ${unmatched.length} unmatched · ${d.remaining ?? "?"} calls left today`);
+      : `${via} · ${out.length} matched · ${unmatched.length} unmatched${rate} · ${d.remaining ?? "?"} calls left today`
+        + (unresolvedTeams.size ? ` — CLUB NAMES UNRESOLVED: ${[...unresolvedTeams].join(", ")}` : "")
+        + (aliasCollisions.length ? ` — ALIAS COLLISION: ${aliasCollisions.join("; ")}` : ""));
 }
 
 async function fetchOdds() {

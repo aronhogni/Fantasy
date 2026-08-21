@@ -325,17 +325,140 @@ console.log("─".repeat(84));
 {
   const J = f => { try { return JSON.parse(readFileSync(ROOT + "data/" + f, "utf8")); }
                    catch { return null; } };
-  /* 1. API-Sports nafna-porun — fyrsta raunprofid 20.-21. agust (kafli 6) */
+  /* ============================================================
+     1. API-SPORTS NAFNA-PORUN — VORDURINN VAKNADI 21.8.2026 OG SAGDI
+        RANGA ORSOK. HANN MAELIR NU ThRJA OLIKA HLUTI.
+
+     Fyrsta utgafan las `players.length / (players + unmatched)` UR SKRANNI
+     og fell vid 73,0% med skilabodunum "heimild hefur breytt nafnaformi".
+     Hun HAFDI EKKI breytt nafnaformi. Af tiu oporudum rodum voru
+       · SJO Man Utd- og Forest-menn sem paradist ekki af thvi ad
+         LIDANAFNID ("Manchester United") var ekki i `teams_map`
+       · TVEIR raunverulegar nafna-villur (Nørgaard: `ø`; M. Joseph:
+         samsett eftirnafn)
+       · EINN sem er RETT oparadur — "B. Fredrick (Brentford)" er ekki i
+         FPL. Heimildin telur hopa vidari en FPL gerir.
+     Sja hausinn a `apiNameIndex` i scripts/fetch.mjs.
+
+     ThRJU SEM ThETTA KOSTADI OG SEM ThESSI VORDUR TEKUR NU:
+
+     (a) SKRAIN ER EKKI KODINN. Ad lesa geymda talninguna maelir sidustu
+         PIPELINE-KEYRSLU, ekki thann porunar-koda sem er i hirslunni. Vid
+         lagfaeringu helst skrain rod eftir rod eins og hun var (cron
+         skrifar hana naest), svo profid hefdi verid RAUTT eftir rettri
+         lagfaeringu og GRAENT ef porunin brotnadi eftir ferska keyrslu.
+         Nu er `apiNameIndex` DREGID UT UR scripts/fetch.mjs og PORUNIN
+         ENDURREIKNUD a raun-nofnunum sem heimildin sendi. Nofnin eru
+         gognin; hlutfallid er utkoma sem vid reiknum sjalf.
+     (b) HLUTFALL ER ROENG SPURNING UM OLEYST LIDANAFN. Eitt oleyst
+         lidanafn fellir HVERJA rod thess lids i einu — og i
+         `fetchLineups` fellir thad heilt byrjunarlid ThEGJANDI (thar er
+         `continue` FYRIR porunina, svo `unmatched` sest thad aldrei).
+         Serstok fullyrding: HVERT lidanafn sem heimildin sendi verdur ad
+         parast.
+     (c) 90%-GOLF A HEIMILD SEM BER MENN SEM ERU EKKI I FPL MAELIR RANGA
+         STAERD. Golfid er ThVI hert, ekki lækkad: hver rod sem porunin
+         hafnar verdur ad vera OPARANLEG — enginn EINN kandidat i sama
+         lidi sem deilir eftirnafns-taki. Se hann til, tha atti porunin ad
+         finna hann og thad er villa, ekki thekja. Golfid stendur ovid
+         (90%) sem GROFT net gegn snid-breytingu: bæri heimildin allt i
+         einu "SURNAME, F." myndi ALLT falla og engin ein rod vera
+         "opáranleg" — tha er hlutfallid rett spurning.
+     ============================================================ */
   const inj = J("injuries.json");
   const nPl = inj?.players?.length ?? 0, nUn = inj?.unmatched?.length ?? 0;
   if (nPl + nUn === 0) {
     console.log("  API-Sports: engin gogn enn (forleikur) — athugunin bidur");
     ok(true, "API-Sports-porun: bidur gagna (rett i forleik, 0 koll notud)");
   } else {
-    const rate = nPl / (nPl + nUn);
-    console.log(`  API-Sports: ${nPl} paradir, ${nUn} oparadir -> ${(100*rate).toFixed(1)}%`);
+    /* Nafna-visirinn UR PIPELINE-INU, ekki eftirliking — sama adferd og
+       tests/lineups.mjs (kodi sem kviknar einn morgun er dreginn UT og
+       keyrdur her). Taflan `API_TEAM_ALIAS` bur INNI i fallinu einmitt
+       til thess ad thessi utdrattur beri hana med ser.                  */
+    const axStart = fetchSrc.indexOf("async function apiNameIndex(");
+    ok(axStart > 0, "apiNameIndex finnst i scripts/fetch.mjs (annars maelir kaflinn ekkert)");
+    const axDecl = fetchSrc.slice(axStart, fetchSrc.indexOf("\n}\n", axStart) + 3);
+    ok(/API_TEAM_ALIAS/.test(axDecl) && /teamIdOf/.test(axDecl),
+      "utdratturinn ber lidanafna-tofluna OG teamIdOf (annars er profad annad en keyrir)");
+    const { readFile } = await import("node:fs/promises");
+    const { normName } = await import("../src/names.js");
+    const idx = await new Function("readFile", "DATA", "normName",
+      `${axDecl}\nreturn apiNameIndex;`)(readFile, ROOT + "data", normName)();
+
+    /* Raun-nofnin sem heimildin sendi — BADAR hlidar. Opörudu rodirnar eru
+       geymdar sem "Nafn (Lid)", svo their eru þættar til baka.          */
+    const rows = [
+      ...(inj.players || []).map(p => ({ nm: p.name_api, team: p.team_api })),
+      ...(inj.unmatched || []).map(t => {
+        const m = String(t).match(/^(.*) \((.*)\)$/);
+        return m ? { nm: m[1], team: m[2] } : { nm: String(t), team: null };
+      }),
+    ].filter(r => r.nm && r.team);
+    ok(rows.length === nPl + nUn,
+      `allar ${nPl + nUn} rodir endurbyggdar ur skranni (${rows.length}) — ThEKJA ER FULLYRDING`);
+
+    /* (b) HVERT LIDANAFN VERDUR AD PARAST. */
+    const clubs = [...new Set(rows.map(r => r.team))];
+    const badClubs = clubs.filter(c => idx.teamIdOf(c) == null);
+    console.log(`  API-Sports lid: ${clubs.length} nofn i gognunum, ${badClubs.length} oleyst`);
+    ok(badClubs.length === 0,
+      `HVERT lidanafn heimildarinnar parast (${badClubs.length} oleyst${badClubs.length ? ": " + badClubs.join(", ") : ""}) `
+      + "— eitt oleyst nafn fellir HVERJA rod thess lids, og i byrjunarlidum thegjandi");
+    ok(idx.aliasCollisions.length === 0,
+      `engin arekstur i lidanafna-toflunni (${idx.aliasCollisions.join("; ") || "0"})`);
+    /* Og skrarnar sjalfar bera svidid, svo thetta sest i `data/` lika. */
+    for (const [f, o] of [["injuries.json", inj], ["lineups.json", J("lineups.json")]]) {
+      if (!o) continue;
+      ok(!(o.unresolved_teams?.length),
+        `${f}: unresolved_teams er tomt (${(o.unresolved_teams || []).join(", ") || "tomt"})`);
+    }
+
+    /* (a)+(c) ENDURREIKNUD PORUN A RAUN-NOFNUNUM. */
+    const got = rows.map(r => ({ ...r, id: (t => t ? idx.matchFpl(r.nm, t) : null)(idx.teamIdOf(r.team)) }));
+    const matched = got.filter(x => x.id != null);
+    const declined = got.filter(x => x.id == null);
+    const rate = matched.length / got.length;
+    const stored = nPl / (nPl + nUn);
+    console.log(`  geymt i skranni : ${nPl} paradir, ${nUn} oparadir -> ${(100*stored).toFixed(1)}%`);
+    console.log(`  ENDURREIKNAD    : ${matched.length} paradir, ${declined.length} oparadir -> ${(100*rate).toFixed(1)}%`);
+    if (declined.length) console.log(`  hafnad: ${declined.map(x => `${x.nm} (${x.team})`).join(" | ")}`);
     ok(rate >= 0.9,
       `nafna-porun >=90% (${(100*rate).toFixed(1)}%) — undir thvi hefur heimild breytt nafnaformi`);
+
+    /* (c) HVER HOFNUN VERDUR AD VERA OPARANLEG. Kandidat = leikmadur i SAMA
+       lidi sem deilir taki med eftirnafni API-nafnsins. Nakvaemlega EINN
+       kandidat = porunin atti ad finna hann (villa). Enginn = madurinn er
+       ekki i FPL (rett). Tveir eda fleiri = raunveruleg tviræðni, og thá er
+       null RETTA svarid — thogul rong porun er verri en engin.          */
+    const toks = x => new Set(normName(x).split(" ").filter(t => t.length >= 2));
+    const solvable = [];
+    for (const x of declined) {
+      const teamId = idx.teamIdOf(x.team);
+      if (teamId == null) continue;                 // taldid i (b), ekki tvisvar
+      const sur = [...toks(x.nm)];
+      const cand = (idx.players || []).filter(p => p.team === teamId
+        && sur.some(t => toks(p.second_name).has(t) || toks(p.web_name).has(t)));
+      if (cand.length === 1) solvable.push(`${x.nm} (${x.team}) -> ${cand[0].web_name} #${cand[0].id}`);
+    }
+    ok(solvable.length === 0,
+      `hver hofnun er OPARANLEG (${solvable.length} sem atti ad parast${solvable.length ? ": " + solvable.join("; ") : ""})`);
+    /* OG SU FULLYRDING MA EKKI VERA TOM (CLAUDE.md 5b regla 2). Hun er 0
+       thegar ALLT parast, sem er RETT utkoma — svo "declined.length >= 1"
+       vaeri vordur sem fellur a fullkomnum gognum. I stad thess er
+       greinirinn sannreyndur a TILBUINNI rod thar sem svarid er ThEKKT:
+       raunverulegur FPL-madur, nafn hans afskraemt svo porunin hafni honum.
+       Finni greinirinn hann EKKI er nullid ofan merkingarlaust.          */
+    {
+      const p = (idx.players || []).find(x => x.team === idx.teamIdOf(clubs[0]));
+      const probe = { nm: `Zz ${p?.second_name}`, team: clubs[0] };
+      const teamId = idx.teamIdOf(probe.team);
+      const sur = [...toks(probe.nm)];
+      const cand = (idx.players || []).filter(q => q.team === teamId
+        && sur.some(t => toks(q.second_name).has(t) || toks(q.web_name).has(t)));
+      ok(idx.matchFpl(probe.nm, teamId) == null && cand.length === 1 && cand[0].id === p.id,
+        `greinirinn finnur PARANLEGA hofnun a tilbunu tilfelli ("${probe.nm}" -> ${p?.web_name}) `
+        + `— annars maelir nullid ofan ekkert (hafnad: ${cand.length})`);
+    }
   }
   /* 2. "I ar vs i fyrra" — kviknar vid GW1 (kafli 7 atridi 4) */
   const lastGw = J("last_gw.json");

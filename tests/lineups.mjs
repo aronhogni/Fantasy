@@ -118,10 +118,19 @@ const FIXTURES_OK = {
   ],
 };
 
+/* NORMNAME FYLGIR NU MED (21.8.2026) — SAMA LOGMAL SEM `apiNameIndex`
+   BAETTIST VID FYRIR. `apiNameIndex` bar sinn EIGIN normolara an
+   TRANSLIT-toflunnar og thad tapadi "Nørgaard" ur meidsla-poruninni; hann
+   var thvi FLUTTUR INN ur src/names.js. Utdratturinn her ma ThA ekki
+   afrita hann — safnid a ad keyra SOMU utfaerslu og pipeline (annars vaeri
+   thetta thridja afritid, og profid myndi VERJA nakvaemlega ranga hlutinn).
+   Fellur med "normName is not defined" se hann ekki gefinn — sem er RETT
+   hegdun: fallid odlaðist nyja hað og safnid a ad taka eftir thvi.      */
+const { normName } = await import("../src/names.js");
 async function run({ dir, responder }) {
   let written = null; const rec = {};
   const factory = new Function("readFile", "DATA", "writeJSON", "record", "status",
-    "apiSports", "console", `${decl}\nreturn fetchLineups;`);
+    "apiSports", "console", "normName", `${decl}\nreturn fetchLineups;`);
   const calls = [];
   const fn = factory(readFile, dir,
     async (name, obj) => { written = { name, obj }; },
@@ -133,7 +142,7 @@ async function run({ dir, responder }) {
        kodinn vaeri rettur.                                               */
     { updated: new Date().toISOString() },
     async (path) => { calls.push(path); return responder(path); },
-    { log() {}, warn() {} });
+    { log() {}, warn() {} }, normName);
   await fn();
   return { written, rec, calls };
 }
@@ -306,6 +315,119 @@ console.log("─".repeat(84));
     "notan kallar thetta STADFESTINGU (enskt: CONFIRMATION)");
   ok(/FPL status still governs/.test(written?.obj?.note || ""),
     "notan segir ad FPL-status radi aframhaldandi tiltækileika");
+}
+
+/* ---------- 6. LIDANAFNID — VILLAN SEM KOSTADI HEIL BYRJUNARLID ----------
+   MAELT A RAUNGOGNUM 21.8.2026: API-Sports sendir "Manchester United" og
+   "Nottingham Forest". `teams_map` ber "Man Utd" / "Man United" /
+   "ManUnited" og "Nott'm Forest" / "Forest" — ENGIN tilbrigdi bera
+   borgarnafnid, svo `teamIdByNorm` hitti EKKERT.
+
+   I `fetchInjuries` sast thad (rodirnar lentu i `unmatched` og hlutfallid
+   fell i 73,0%). I ThESSU FALLI SAST ThAD EKKI: oleyst lid `continue`-ar
+   BADUM stodum — i `apiFx`-byggingunni og i lineups-lykkjunni — og hvort
+   tveggja er FYRIR porunina, svo hvorki `unmatched` ne `errors` bar thad.
+   GW1-leikur Man Utd hefdi thvi skilad NULL byrjunarlidsmonnum og
+   vordurinn i wiring.mjs ("oparadir undir 15%") hefdi verid GRAENN — 0 af 0
+   er 0%. Sja CLAUDE.md 5b: fullyrding um thad sem er sleppt adur en thad
+   verdur ad radi getur ekki fallid.
+
+   ThVI TVEIR KAFLAR HER: samheitin VERDA ad para, og oleyst lidanafn VERDUR
+   ad vera TALID.                                                        */
+console.log(`\n${"─".repeat(84)}`);
+console.log("6. LIÐANAFN — samheiti para, og oleyst nafn er TALID");
+console.log("─".repeat(84));
+{
+  async function sandboxMun() {
+    const dir = await mkdtemp(join(tmpdir(), "lu-mun-"));
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "fixtures.json"), JSON.stringify([
+      { id: 9101, event: 1, team_h: 16, team_a: 18, kickoff_time: KICK, finished: false },
+    ]));
+    await writeFile(join(dir, "teams.json"), JSON.stringify({ teams: [
+      { id: 16, name: "Man Utd", short: "MUN" }, { id: 18, name: "Nott'm Forest", short: "NFO" },
+    ] }));
+    await writeFile(join(dir, "teams_map.json"), JSON.stringify({
+      16: { fpl: "Man Utd", short: "MUN", fdcouk: "Man United", clubelo: "ManUnited" },
+      18: { fpl: "Nott'm Forest", short: "NFO", fdcouk: "Nott'm Forest", clubelo: "Forest" },
+    }));
+    await writeFile(join(dir, "players.json"), JSON.stringify({ players: [
+      { id: 416, team: 16, web_name: "De Ligt", first_name: "Matthijs", second_name: "de Ligt" },
+      { id: 430, team: 16, web_name: "Mount",   first_name: "Mason",    second_name: "Mount" },
+      { id: 489, team: 18, web_name: "Yates",   first_name: "Ryan",     second_name: "Yates" },
+    ] }));
+    return dir;
+  }
+  /* Nofnin eru ORDRETT thau sem heimildin sendi 21.8.2026. */
+  const FX_MUN = { http: 200, results: 1, errors: [], response: [
+    { fixture: { id: 556001 },
+      teams: { home: { name: "Manchester United" }, away: { name: "Nottingham Forest" } } }] };
+  const LU_MUN = { http: 200, results: 2, errors: [], response: [
+    { team: { name: "Manchester United" }, formation: "4-2-3-1",
+      startXI: [{ player: { id: 1, name: "M. de Ligt", pos: "D" } },
+                { player: { id: 2, name: "M. Mount", pos: "M" } }], substitutes: [] },
+    { team: { name: "Nottingham Forest" }, formation: "4-3-3",
+      startXI: [{ player: { id: 3, name: "R. Yates", pos: "M" } }], substitutes: [] }] };
+  const dir = await sandboxMun();
+  const { written, rec } = await run({ dir, responder: p =>
+    p.startsWith("/fixtures?") ? FX_MUN : LU_MUN });
+  const o = written?.obj || {};
+  ok(o.players?.length === 3,
+    `"Manchester United"/"Nottingham Forest" para — 3 leikmenn (${o.players?.length})`);
+  ok(o.players?.some(x => x.fpl_id === 416),
+    "og lagstafa-forskeytid tholir sig: \"M. de Ligt\" -> fpl 416 (web_name \"De Ligt\")");
+  ok(o.teams?.length === 2, `BADIR leikir/lid skrad (${o.teams?.length})`);
+  ok(!(o.unresolved_teams?.length), `unresolved_teams tomt (${(o.unresolved_teams || []).join(",")})`);
+  ok(!/UNRESOLVED/.test(rec.note || ""), `stadan nefnir engan vanda: "${rec.note}"`);
+
+  /* OG NU HITT EINKENNID: nafn sem ENGIN tafla ber ma ekki hverfa thegjandi. */
+  const FX_ODD = { http: 200, results: 1, errors: [], response: [
+    { fixture: { id: 556002 },
+      teams: { home: { name: "Manchester United" }, away: { name: "Nottingham Forest" } } }] };
+  const LU_ODD = { http: 200, results: 2, errors: [], response: [
+    { team: { name: "Manchester Utd FC 1878" }, formation: "4-4-2",
+      startXI: [{ player: { id: 1, name: "M. Mount", pos: "M" } }], substitutes: [] },
+    { team: { name: "Nottingham Forest" }, formation: "4-3-3",
+      startXI: [{ player: { id: 3, name: "R. Yates", pos: "M" } }], substitutes: [] }] };
+  const dir2 = await sandboxMun();
+  const r2 = await run({ dir: dir2, responder: p =>
+    p.startsWith("/fixtures?") ? FX_ODD : LU_ODD });
+  const o2 = r2.written?.obj || {};
+  ok(o2.players?.length === 1,
+    `oleyst lid tapar sinum monnum (1 eftir: ${o2.players?.length}) — thad er oumflyjanlegt`);
+  ok(o2.unresolved_teams?.includes("Manchester Utd FC 1878"),
+    `en nafnid er SKRAD i unresolved_teams (${(o2.unresolved_teams || []).join(", ") || "TOMT"})`);
+  ok((o2.errors || []).some(e => /club name unresolved/.test(e)),
+    `og i errors (${(o2.errors || []).join(" | ") || "TOMT"})`);
+  /* STADAN VERDUR AD NEFNA LIDID — EKKI TILTEKID ORDALAG. Fyrsta utgafa
+     thessarar fullyrdingar leitadi ad "UNRESOLVED" og FELL a rettum koda:
+     `record` tekur villu-greinina thegar `errs` er ekki tom og hun ber
+     nafnid ordrett. Prof a ad profa hegdun, ekki orðalag (CLAUDE.md 5b).  */
+  ok((r2.rec.note || "").includes("Manchester Utd FC 1878"),
+    `og STADAN nefnir lidid — annars er thetta thogull missir: "${r2.rec.note}"`);
+}
+
+/* ---------- 6b. OG SUFFIXINN I HINNI GREININNI ----------
+   Oleyst lidanafn getur lika komid ur DAGSETNINGAR-kallinu (`apiFx`), og tha
+   er `errs` TOM — `record` tekur thvi hina greinina. An serstaks suffix
+   hefdi sa vegur verid ThOGULL: leikurinn parast ekki, `apiFx` er tom,
+   lykkjan `continue`-ar a `!m` og engin villa er skrad. Nakvaemlega sama
+   einkenni, onnur leid inn.                                              */
+console.log(`\n${"─".repeat(84)}`);
+console.log("6b. OLEYST LIDANAFN UR DAGSETNINGAR-KALLINU — hin greinin");
+console.log("─".repeat(84));
+{
+  const dir = await sandbox();
+  const FX_BAD = { http: 200, results: 1, errors: [], response: [
+    { fixture: { id: 557001 },
+      teams: { home: { name: "Arsenal FC London" }, away: { name: "Chelsea" } } }] };
+  const { written, rec, calls } = await run({ dir, responder: p =>
+    p.startsWith("/fixtures?") ? FX_BAD : LINEUP_OK });
+  ok(calls.length === 1, `EKKERT lineups-kall gert (leikurinn parast ekki): ${calls.length}`);
+  ok(written?.obj?.unresolved_teams?.includes("Arsenal FC London"),
+    `nafnid er SKRAD (${(written?.obj?.unresolved_teams || []).join(", ") || "TOMT"})`);
+  ok((rec.note || "").includes("Arsenal FC London"),
+    `og stadan nefnir thad thott villulistinn se tomur: "${rec.note}"`);
 }
 
 console.log(`\nBYRJUNARLIÐ: ${pass} stóðust, ${fail} féllu`);

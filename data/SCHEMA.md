@@ -1083,10 +1083,21 @@ Ber `xa` í hverjum glugga; ef hún hyrfi myndi mó-formúlan lesa 0 og bætingi
 hverfa **þegjandi**. Vörður: `tests/stats.test.mjs`.
 
 ### `injuries.json` — TEGUND meiðsla (API-Sports)
-`{ updated, plan, via, note, players, unmatched }`
+`{ updated, plan, via, note, players, unmatched, unresolved_teams,
+alias_collisions }`
 **FPL-status ræður áfram tiltækileika**; þetta auðgar hann bara („Hamstring
 Injury"). `via` segir hvers vegna hún er tóm — í forleik: engir leikdagar
 innan ±1 dags glugga fría þrepsins.
+
+**`unmatched` OG `unresolved_teams` ERU TVÖ ÓLÍK EINKENNI (21.8.2026).**
+`unmatched` er **eðlilega ekki tómt**: API-Sports ber hópmenn sem FPL hefur
+ekki (unglingar, þriðji markvörður, farnir), svo hlutfall undir 100% er RÉTT
+útkoma — mælt á GW1 er B. Fredrick (Brentford) ekki í FPL og verður aldrei.
+**`unresolved_teams` á hins vegar ALLTAF að vera tómt**: eitt liðsnafn sem
+parast ekki fellir **hverja röð þess liðs** í einu (mælt: „Manchester
+United" og „Nottingham Forest" felldu sjö menn), og í `lineups.json` fellir
+það **heilt byrjunarlið þegjandi**. Verðir: `tests/wiring.mjs` kafli 1,
+`tests/lineups.mjs` kaflar 6 og 6b. Sama svið er í `lineups.json`.
 
 ### `team_shots.json` — liða-skot per svæði
 `{ updated, season, source, matches, note, no_zone, no_team, … }`
