@@ -12,6 +12,8 @@
            thad sem RADAR tillogum, ekki `FIT`". Thad er RETT UM KAUP og
            SEGIR EKKERT UM SOLU; solu-leidin var hvergi nefnd i skjalinu.
    `score` er BIRT tala (spjaldid synir hana); `rank` er RODUNIN a kaupum.
+   ThRIDJA SPURNINGIN — HVENAER a ad selja — er `sellTiming` i botni thessarar
+   skrar. Hun RADAR ENGU og blandast EKKI vid `score`; sja hausinn thar.
 
    ---------------------------------------------------------------
    SOLU-RODUNIN — MAELD 18.8.2026, `score` HELDUR VELLI
@@ -74,6 +76,7 @@
 import { setPieceOf } from "./availability.js";
 import { rankScore } from "./model.js";
 import { interp } from "./interp.js";
+import { ffdrSeries, hardestRun } from "./buywindow.js";
 
 /* MAELDIR STUDLAR — sja tofluna i hausnum fyrir CI og LOSO. */
 export const MEASURED_ADJ = {
@@ -422,6 +425,65 @@ export function swapCandidates({ ranked = [], outP = null, squadIds = null,
     if (c.ffdrAvg == null || !(Number(c.ffdrAvg) < Number(ownFfdr))) continue;
     out.push(c);
     if (out.length >= max) break;
+  }
+  return out;
+}
+
+/* ============================================================
+   HVENAER A AD SELJA — TIMASETNING, EKKI RODUN (21.8.2026)
+   ============================================================
+   Notandinn: „Eg vill svo baeta vid ad appid recommendi sell i akveðinni
+   viku thegar leikmenn eiga erfida leiki framundan".
+
+   Spurningin er ThRIDJA spurningin i thessari skra og hun bitur ekki i
+   hinar tvaer:
+     HVERN a eg ad kaupa?  ->  `rank` (`rankScore`, MAELT, LOSO + orakel)
+     HVERN a eg ad selja?  ->  `score` (FIT-taflan, MAELT 18.8.2026:
+                               `rankScore` gaf -0,118 CI [-0,328, +0,088]
+                               og -0,187 CI [-0,393, +0,009] — OGREINANLEGT
+                               i badum laugum, svo `score` heldur ser)
+     HVENAER a eg ad selja hann?  ->  ThETTA FALL
+
+   ThAD BLANDAR ENGU OG ThAD ER HORD REGLA, EKKI VARFAERNI. Samsett
+   „solu-brad"-skor (`score` × runa, `score` + runa, hvad sem er) vaeri
+   OMAELD samsetning tveggja talna sem eru a sitt hvorum kvarda — og
+   CLAUDE.md kafli 4 er kirkjugardur nakvaemlega slikra hugmynda sem lita
+   ut eins og innsæi og maelast sem hávaði (mó × byrjunar-likur · Aron-
+   studull i rankScore · `aron/verd` sem rodun · DefCon i rodun). Verra:
+   samsett tala VIRDIST maeld thvi baðir lidirnir eru maeldir hvor um sig.
+   Fallid skilar thvi UPPLYSINGU vid hlidina a rodun sem er thegar til:
+     · Thad tekur ENGA `score`, `rank` ne tillogulista inn.
+     · Thad skilar korti (id -> runa). Kallandinn flettir upp.
+     · Rod solu-tillagna er thvi BYTE-EINS med og an thessa falls.
+       Vordur: `tests/recommend.mjs` kafli 9.
+   BYGGINGIN SJALF ER FULLYRDINGIN: fall sem hefur ekki adgang ad `score`
+   getur ekki blandad honum inn, hversu vel sem naesta lota meinar.
+
+   REIKNAD ADEINS FYRIR ThA SEM ER SPURT UM (hopinn, 15 menn), ekki alla
+   587: timasetning a solu er merkingarlaus fyrir mann sem thu att ekki —
+   fyrir hann er spurningin „hvern a eg ad kaupa" og hun hefur sina eigin
+   maeldu leid. Thad er lika thess vegna thetta er SER fall og ekki nyr
+   reitur i `buildRecommendations` (sem gengur yfir alla og er memo-ad a
+   morgum haðum).
+
+   VELIN ER `hardestRun` I `src/buywindow.js` — SAMA leitin sem finnur
+   kaup-gluggana, med attina speglaða. Ekkert er endurreiknad her.       */
+export function sellTiming({ squad = [], gwNow = null, maxGw = 38,
+                             fixByTeamGw = null, fixDifficulty = null,
+                             minLen = undefined } = {}) {
+  const out = {};
+  if (!Array.isArray(squad) || !fixByTeamGw) return out;
+  const to = Number.isFinite(Number(maxGw)) ? Number(maxGw) : 38;
+  /* BILID BYRJAR A 1, EKKI A `gwNow` — OG ThAD ER MUNUR SEM SEST.
+     `hardestRun` sneidir sjalf af thvi sem er bunid (`aheadOf`), svo
+     medaltalid er reiknad UR AFGANGNUM. Vaeri sneidt HER lika vaeri
+     sneitt tvisvar og hvorugur stadurinn baeri regluna einn.            */
+  const from = 1;
+  for (const p of squad) {
+    if (!p || p.id == null || p.team == null) continue;
+    const series = ffdrSeries({ teamId: p.team, pos: p.element_type,
+                                fixByTeamGw, fixDifficulty, from, to });
+    out[p.id] = hardestRun(series, { gwNow, ...(minLen == null ? {} : { minLen }) });
   }
   return out;
 }

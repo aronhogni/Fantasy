@@ -26,7 +26,7 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
-import { buildRecommendations, FIT, MEASURED_ADJ, UNMEASURED_UI, PER90_MIN_MINUTES } from "../src/recommend.js";
+import { buildRecommendations, sellTiming, FIT, MEASURED_ADJ, UNMEASURED_UI, PER90_MIN_MINUTES } from "../src/recommend.js";
 import { makeFixDifficulty, rankScore } from "../src/model.js";
 import { buildTeamMetrics } from "../src/teamstats.js";
 import { setPieceRanks } from "../src/SetPieces.jsx";
@@ -307,6 +307,90 @@ ok(!/0\.35 \+ 0\.65/.test(SRC), "engin hardkodud afritun af golfi/halla i formul
      `${inj.score} < ${fit.score}`);
   const unk = twinScore(base, { status: "d", chance_of_playing_next_round: null });
   ok(unk.avail === UNMEASURED_UI.unknownChance, "`null` likur eru 0,5, ekki 0 (madurinn hverfur ekki)");
+}
+
+/* ============================================================
+   5b. SOLU-TIMASETNING (`sellTiming`) — TIMASETNING, EKKI RODUN
+
+   Notandinn (21.8.2026): „appid recommendi sell i akveðinni viku thegar
+   leikmenn eiga erfida leiki framundan".
+
+   VELIN SJALF (spegluð glugga-leit) ER PROFUD I `buy-windows.mjs` KAFLA
+   A11 — thar eru handreiknudu tilfellin, 300 slembnu speglunar-profin og
+   raungogn a 80 samsetningum. HER ER ADEINS EITT VARID, OG ThAD ER
+   DYRASTA ATRIDID: ad timasetningin BLANDIST EKKI VID `score`.
+
+   Solu-rodunin er MAELD (`score`, 18.8.2026: `rankScore` gaf -0,118
+   CI [-0,328, +0,088] og -0,187 CI [-0,393, +0,009] — ogreinanlegt), og
+   samsett „solu-brad"-tala vaeri OMAELD samsetning tveggja kvarda sem
+   BADIR eru maeldir hvor um sig — sem er nakvaemlega thad sem laetur hana
+   lita ut eins og maelingu. Kafli 4 i CLAUDE.md er kirkjugardur slikra.
+
+   FULLYRDINGIN ER BYGGINGARLEG OG ThVI OSKILYRT: `sellTiming` tekur
+   ENGAN `score`/`rank` inn og `buildRecommendations` kallar hana EKKI,
+   svo rod solu-tillagna er BITA-EINS med og an hennar. Fall sem hefur
+   ekki adgang ad tolunni getur ekki blandad henni inn — sem er sterkari
+   vordur en fullyrding um utkomuna.
+   ============================================================ */
+console.log("\n5b. SOLU-TIMASETNING — TIMASETNING, EKKI RODUN");
+{
+  const D = inputs();
+  const rec = buildRecommendations(D);
+  const squad = D.players.filter(p => D.squadIds.has(p.id));
+  const timing = sellTiming({ squad, gwNow: D.gw, maxGw: D.maxGw,
+                              fixByTeamGw: D.fixByTeamGw, fixDifficulty: D.fixDifficulty });
+  ok(Object.keys(timing).length === squad.length,
+     `hver madur i hopnum fær svar (${Object.keys(timing).length} af ${squad.length})`);
+  const withRun = Object.values(timing).filter(x => x.run);
+  /* ThEKJA ER FULLYRDING (CLAUDE.md 5b regla 1): faeri profid engan
+     mann med runu vaeri „ekkert blandadist" tom fullyrding.            */
+  ok(withRun.length > 0, `thekja: menn med erfida runu framundan (${withRun.length})`);
+  ok(Object.values(timing).every(x => x.basis && (x.run ? x.why === null : !!x.why)),
+     "`basis` fylgir ALLTAF og `why` er sagt nakvaemlega thegar runa vantar");
+  ok(withRun.every(x => x.run.dir === -1 && x.run.gain < 0),
+     "hver runa er merkt SELL og ber NEGATIFT gain (ekki lesid sem kaup)");
+  /* FULLYRDINGIN MA EKKI VERA UM `D.gw` — I FORLEIK ER HUN 1 OG ThA ER
+     `from >= 1` SATT UM ALLT. Su utgafa stodst STOKKBREYTINGU sem SLEPPTI
+     `gwNow` alveg (R5, 0 fallnar), nakvaemlega gildran i CLAUDE.md 5b:
+     fullyrding sem tharf tvennt til ad bregdast (villuna OG byrjad
+     timabil) er veikari en hun litur ut. Hun er thvi prófud a FASTRI
+     umferd i midju timabili, sem er OSKILYRT profanleg.                */
+  const mid = sellTiming({ squad, gwNow: 20, maxGw: D.maxGw,
+                           fixByTeamGw: D.fixByTeamGw, fixDifficulty: D.fixDifficulty });
+  const midRun = Object.values(mid).filter(x => x.run);
+  ok(midRun.length > 0, `thekja: gwNow=20 gefur runur (${midRun.length})`);
+  ok(midRun.every(x => x.run.from >= 20 && x.basis.from === 20),
+     "gwNow=20: ENGIN runa (og ekkert vidmid) i lidnum umferdum");
+  /* OG SIAN VERDUR AD BREYTA SVARINU HJA EINHVERJUM — annars gaeti hun
+     verid ovirk an thess ad sjast.                                      */
+  const moved = squad.filter(p => timing[p.id]?.run && mid[p.id]?.run
+    && (timing[p.id].run.from !== mid[p.id].run.from
+     || timing[p.id].run.to !== mid[p.id].run.to)).length;
+  ok(moved > 0, `gwNow breytir raunverulega svarinu (${moved} af ${squad.length})`);
+  /* RODIN ER BITA-EINS: `sellTiming` er kollud a MILLI tveggja
+     `buildRecommendations`-kalla svo hun geti ekki dulist i cache.     */
+  const rec2 = buildRecommendations(D);
+  ok(JSON.stringify([...rec.sellIds].sort()) === JSON.stringify([...rec2.sellIds].sort()),
+     "solu-tillogurnar eru BITA-EINS thott timasetningin se reiknud a milli");
+  ok(JSON.stringify(rec.inSquadScores) === JSON.stringify(rec2.inSquadScores),
+     "og `score` sjalft haggast ekki");
+  /* BYGGINGARLEGT: fallid SER ekki tolurnar sem thad maetti ekki blanda. */
+  const body = (SRC.match(/export function sellTiming\(\{[\s\S]*?\n\}/) || [""])[0];
+  ok(body.length > 200, "fann `sellTiming` i skranni (forsenda naestu fullyrdinga)");
+  ok(!/\bscore\b/.test(body) && !/\brank\b/.test(body),
+     "`sellTiming` nefnir hvorki `score` ne `rank` — samsetning er OMOGULEG, ekki bara osnid");
+  ok(!/sellTiming/.test((SRC.match(/export function buildRecommendations\([\s\S]*?\n\}\n/) || [""])[0]),
+     "`buildRecommendations` kallar hana EKKI — rodunin er oradd vid hana");
+  ok(/hardestRun/.test(body) && /ffdrSeries/.test(body),
+     "hun endurnotar `hardestRun`/`ffdrSeries` — engin afritud leit her");
+  /* VELIN ER SU SAMA SEM KAUP-GLUGGARNIR NOTA — ATTIN ER BREYTA.       */
+  const BW = readFileSync(ROOT + "src/buywindow.js", "utf8");
+  ok(/export function runWindows\([\s\S]*?\bdir\b/.test(BW),
+     "`runWindows` tekur attina sem BREYTU (ein utfaersla, tvaer spurningar)");
+  ok(/export function buyWindows\(series, opts = \{\}\) \{\s*return runWindows/.test(BW),
+     "og `buyWindows` er ThAD SAMA fall med dir=BUY, ekki afrit af lykkjunni");
+  ok((BW.match(/for \(let a = 0; a < n; a\+\+\)/g) || []).length === 1,
+     "ADEINS EIN leitarlykkja er i skranni (afritud lykkja rekur i sundur thogult)");
 }
 
 /* ============================================================

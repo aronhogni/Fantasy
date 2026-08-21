@@ -37,7 +37,8 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { ffdrSeries, buyWindows, bestWindow, nextWindow, meanDifficulty, relTier,
-         NEUTRAL_MID, MIN_WINDOW, MAX_WINDOWS } from "../src/buywindow.js";
+         NEUTRAL_MID, MIN_WINDOW, MAX_WINDOWS,
+         runWindows, hardRuns, hardestRun, aheadOf, BUY, SELL } from "../src/buywindow.js";
 import { makeFixDifficulty, tierOf, TIER_BG, TIER_CUTS, TIER_NEUTRAL,
          lookupPos, MEASURED_POS } from "../src/model.js";
 import { buildTeamMetrics } from "../src/teamstats.js";
@@ -219,7 +220,11 @@ hdr("A8. SLEMBIN PROFUN GEGN OHADRI UPPTELJARA (300 rodir)");
           for (let i = a; i <= b; i++) { if (blocked[i]) { bad = true; break; } sum += rows[i].v - base; }
           if (bad) break;
           if (rows[a].v - base <= 0 || rows[b].v - base <= 0) continue;
-          if (sum <= 0) continue;
+          /* MIRRAR SKILGREININGUNA, EKKI UTFAERSLUNA: „gluggi verdur ad hafa
+             positifa summu" er skilgreiningin, og 1e-16 er ekki positift
+             heldur fleytitolu-suð (sja `SUM_EPS`). Uppteljarinn er ONNUR
+             BYGGING a somu skilgreiningu — hann verdur thvi ad bera hana. */
+          if (!(sum > 1e-9)) continue;
           cands.push({ a, b, sum, score: sum / (b - a + 1 + LEN_SHRINK) });
         }
       }
@@ -441,6 +446,396 @@ let real = null;
   const meanLen = lenSum / nWin;
   ok(`medallengd glugga er 3.5-5.5 (maelt: ${meanLen.toFixed(2)}) — skridan a lengd virkar`,
      meanLen > 3.5 && meanLen < 5.5);
+}
+
+/* ============================================================
+   A11. VERSTA RUNAN FRAMUNDAN — SOLU-TIMASETNINGIN (21.8.2026)
+
+   Beidnin: „appid recommendi sell i akveðinni viku thegar leikmenn eiga
+   erfida leiki framundan". Thad er SPEGILMYND kaup-glugganna og thess vegna
+   er thad SAMA UTFAERSLAN med attina sem breytu (`runWindows({ dir })`).
+
+   ThAD SEM ER VERID AD VERJA HER, i minnkandi rod eftir kostnadi:
+
+   1. AD SPEGLUNIN SE RAUNVERULEG SPEGLUN OG EKKI AFRITUD LYKKJA. Tvaer
+      lykkjur sem eiga ad vera spegilmyndir reka i sundur thogult —
+      `buildTeamMetrics` (NaN a 17 felogum, merkt sem maeling), afrit
+      profsins af `headWidth` (graent medan 25 hausar klipptust), `ZONE_RE`
+      i tveimur skriftum (BAEDI afritin vantadi markteiginn). Vordurinn er
+      ALGEBRULEGUR og thvi ohadur utfaerslunni: versta runan i rod `v` er
+      NAKVAEMLEGA besti gluggi i rod `-v`, thvi baseline speglast med.
+      Profad a ollum 300 slembnu rodunum (A11f).
+   2. AD HUN SE AFSTAED VID HANN SJALFAN. Algild regla var maeld og hofnud
+      (kafli 4): sterkt lid fengi ENGA erfida runu og slakt lid fengi eina
+      sem er allt timabilid. Profad med HLIDRUN (sama rod + 100 -> sama
+      runa) og a rod thar sem HVER umferd er god a algilda kvardanum.
+   3. AD „FRAMUNDAN" SE RAUNVERULEGA VIRKT — og ad VIDMIDID FYLGI SNEIDINNI.
+      Rod thar sem versta runan er BUIN verdur ad gefa ANNAD svar, og
+      `basis.baseline` verdur ad breytast med sneidinni. Baeri medaltalid
+      allt timabilid (lika bunar umferdir) fengi madur med jafnthunga
+      afgangs-leiki „hard run" yfir allan afganginn — „GW3-22"-bilunin.
+   4. AD ENGIN FALSK RUNA SE TIL. Flot leikjaskra -> ENGIN runa. Og
+      sneid sem er NAKVAEMLEGA `MIN_WINDOW` long -> ENGIN runa, thvi
+      summan er NULL med byggingu (SUM_EPS).
+   5. AD TALAN SE EKKI RODUN A MONNUM. `gain`/`perGw` eru innan leikmanns;
+      tvaer rodir sem eru EINS ad logun en a sitt hvorum kvarda fa
+      NAKVAEMLEGA sama `gain` — sem er beinlinis sonnun thess ad hun getur
+      ekki radad theim. `mean` (algild) getur.
+   ============================================================ */
+hdr("A11. VERSTA RUNAN FRAMUNDAN — SPEGLADA LEITIN");
+
+/* A11a. TILBUID TILFELLI ThAR SEM SVARID ER ThEKKT FYRIRFRAM.
+   12 umferdir: 9 x fjorar, 1 x thrjar, 9 x fimm.  medaltal = 84/12 = 7.
+   Versta runan getur adeins verid GW5-7 og tolurnar eru handreiknadar:
+   gain = 3 - 3x7 = -18 · perGw = -6 · mean = 1.                        */
+{
+  const s = mk([9,9,9,9, 1,1,1, 9,9,9,9,9]);
+  const h = hardestRun(s, { gwNow: 1 });
+  const r = h.run ?? { from: null, to: null, gain: null, perGw: null, mean: null, dir: null, weak: [], strong: [] };
+  ok("versta runan er GW5-7 (handreiknad)", r.from === 5 && r.to === 7, `${r.from}-${r.to}`);
+  ok("medaltalid er hans eigid (7.00)", h.basis.baseline === 7, String(h.basis.baseline));
+  ok("gain er NEGATIFT og handreiknad (-18.00)", r.gain === -18, String(r.gain));
+  ok("perGw = gain/len = -6.00 (talan sem er sambaerileg MILLI RUNA)",
+     r.perGw === -6, String(r.perGw));
+  ok("mean er ALGILD (1.00) — hun er sambaerileg milli leikmanna", r.mean === 1, String(r.mean));
+  ok("`dir` fylgir rununni (SELL)", r.dir === SELL && SELL === -1, String(r.dir));
+  ok("`weak` = umferdirnar undir medaltali (allar thrjar)",
+     r.weak.join(",") === "5,6,7", JSON.stringify(r.weak));
+  ok("`strong` er tomt i einlitri runu", r.strong.length === 0, JSON.stringify(r.strong));
+  ok("`why` er null thegar runa FANNST", h.why === null, String(h.why));
+  /* SAMA RODIN, ONNUR ATT: kaup-glugginn er GW8-12 (fimm nia beria
+     haerra skor en fjorar). Falli thetta er attin ekki virk.            */
+  const b = buyWindows(s).windows[0] ?? { from: null, to: null };
+  ok("SAMA rod: besti KAUP-gluggi er GW8-12, ekki sami bútur",
+     b.from === 8 && b.to === 12, `${b.from}-${b.to}`);
+  ok("og runurnar skarast EKKI (attin snyr raunverulega vid)",
+     b.to < r.from || b.from > r.to, `${b.from}-${b.to} vs ${r.from}-${r.to}`);
+}
+
+/* A11b. AFSTAED VID HANN SJALFAN, EKKI ALGILD.
+   Tvennt profad: (i) hlidrun a ALLRI rodinni breytir ENGU — thad ER
+   skilgreiningin a „afstaett" og hun er profanleg; (ii) rod thar sem
+   HVER umferd er god a algilda kvardanum hefur samt verstu rununa.     */
+{
+  const base = [9,9,9,9, 1,1,1, 9,9,9,9,9];
+  const a = hardestRun(mk(base), { gwNow: 1 }).run;
+  const shift = hardestRun(mk(base.map(v => v + 100)), { gwNow: 1 }).run;
+  ok("oll rodin hlidrud um +100 -> SAMA runa og SAMA gain",
+     shift.from === a.from && shift.to === a.to && shift.gain === a.gain,
+     `${shift.from}-${shift.to} gain ${shift.gain}`);
+  ok("en `mean` fylgir algilda kvardanum og breytist (101.00)",
+     shift.mean === a.mean + 100, `${shift.mean} vs ${a.mean}`);
+  const scaled = hardestRun(mk(base.map(v => v * 2)), { gwNow: 1 }).run;
+  ok("oll rodin tvofoldud -> SAMA bútur (skalinn velur ekki gluggann)",
+     scaled.from === a.from && scaled.to === a.to, `${scaled.from}-${scaled.to}`);
+  /* STERKT LID: hver einasta umferd er FEITARI en medal-umferd i deildinni.
+     Algild regla („undir X stigum") fyndi hér EKKERT; afstaed regla finnur
+     hans verstu vikur og thad var beidnin.                              */
+  const strong = mk([9,9,9,9, 8.5,8.5,8.5, 9,9,9,9,9]);
+  const hs = hardestRun(strong, { gwNow: 1 });
+  ok("sterkt lid: hans verstu vikur finnast thott ALLAR seu godar algilt",
+     !!hs.run && hs.run.from === 5 && hs.run.to === 7,
+     hs.run ? `${hs.run.from}-${hs.run.to}` : `null (${hs.why})`);
+  ok("og hver umferd i rununni er OFAN vid algilt vidmid (8.5 > 7)",
+     hs.run && hs.run.mean > 7, String(hs.run?.mean));
+}
+
+/* A11c. ENGIN FALSK RUNA. */
+{
+  const flat = hardestRun(mk([4,4,4,4,4,4,4,4]), { gwNow: 1 });
+  ok("flot leikjaskra -> ENGIN erfid runa", flat.run === null, JSON.stringify(flat.run));
+  ok("og hun segir HVERS VEGNA (null + why, ekki bert null)",
+     flat.why === "no stretch below his own average", String(flat.why));
+  /* SNEID SEM ER NAKVAEMLEGA `MIN_WINDOW` LONG. Eini moguleikinn er oll
+     sneidin og summan af (v - medaltal) yfir hana er NULL MED BYGGINGU.
+     Fleytitolur gafu +1e-16 og hleyptu henni i gegn: MAELT 2 af 80
+     samsetningum a raungognum vid gwNow=36, badar med `perGw` 0,00.    */
+  /* TOLURNAR ERU VALDAR SVO FLEYTITOLU-SUDID SE RAUNVERULEGT: summan af
+     (medaltal - v) yfir [2.0, 4.1, 2.2] er +2,22e-16, ekki 0. Med
+     `sum > 0` SLEPPUR hun i gegn og prentar „erfid runa GW1-3, 0,00/GW".
+     Handahofskennd thriund (t.d. [5,3,4]) fellur EKKI a thessu — thar er
+     summan nakvaemlega 0 i tvistolum og fullyrdingin vaeri TOM.        */
+  const three = hardestRun(mk([2.0, 4.1, 2.2]), { gwNow: 1 });
+  ok("sneid = MIN_WINDOW: summan er 0 MED BYGGINGU -> ENGIN runa (SUM_EPS)",
+     three.run === null, JSON.stringify(three.run));
+  /* FORSENDAN SJALF ER FULLYRT — annars vaeri ekkert vitad um hvort
+     tolurnar sem valdar voru bera suðið sem thaer eiga ad bera.        */
+  {
+    const v = [2.0, 4.1, 2.2], b = (v[0] + v[1] + v[2]) / 3;
+    ok("forsenda: thessar tolur GEFA positift fleytitolu-sud (2.2e-16)",
+       (b - v[0]) + (b - v[1]) + (b - v[2]) > 0,
+       String((b - v[0]) + (b - v[1]) + (b - v[2])));
+  }
+  const twoLeft = hardestRun(mk([5,3]), { gwNow: 1 });
+  ok("faerri en MIN_WINDOW umferdir framundan -> null OG skyring",
+     twoLeft.run === null && /fewer than 3/.test(twoLeft.why || ""), String(twoLeft.why));
+  const past = hardestRun(mk([9,1,1,1,9]), { gwNow: 99 });
+  ok("engin umferd framundan -> null OG skyring",
+     past.run === null && past.why === "no gameweeks ahead", String(past.why));
+}
+
+/* A11d. OVIS UMFERD KLYFUR — I BADAR ATTIR.
+
+   STOKKBREYTINGA-PROFUN GAF UPPLYSINGU SEM VERT ER AD SKRA (21.8.2026):
+   klofningurinn er VARINN TVISVAR og thess vegna FELLUR HVORUG STAK
+   stokkbreyting a honum. `blocked`-griman stodvar skannann (`break`) OG
+   `w` er `-Infinity` a ovissri umferd, svo hver segment sem spannar hana
+   fær summu `-Infinity` og verdur aldrei valinn. Maelt:
+     griman ein slokkt              -> 0 fallnar
+     -Infinity ein breytt i 0       -> 0 fallnar
+     BADAR slokktar (ovis = 0)      -> 3 fallnar, thar a medal thessi
+   Vordur sem stendur af sér staka stokkbreytingu er thvi EKKI daudur her
+   — hann er tvibeltadur. Skra thad, annars fjarlaegir naesta lota adra
+   vornina i theirri trú ad hun se onauðsynleg og eftir stendur EIN.    */
+{
+  /* GW3-5 eru slakar, GW6 er OVIS, GW7-8 slakar. Vaeri ovissa umferdin
+     medhondlud sem 0 (eda sleppt thegjandi) yrdi runan GW3-8 — sex vikur
+     sem eru sagdar erfidar thott EIN theirra se OThEKKT. Hun a ad KLJUFA,
+     svo svarid er GW3-5 og GW7-8 er of stutt til ad vera runa.          */
+  const s = mk([9,9, 1,1,1,null,1,1, 9,9,9,9]);
+  const hr = hardRuns(s, { gwNow: 1 });
+  ok("engin erfid runa spannar ovissa umferd (svarid er GW3-5)",
+     hr.windows.length > 0 && hr.windows[0].from === 3 && hr.windows[0].to === 5
+     && hr.windows.every(w => !(w.from <= 6 && w.to >= 6)),
+     JSON.stringify(hr.windows.map(w => `${w.from}-${w.to}`)));
+  const known = s.filter(x => x.v != null);
+  ok("medaltalid telur ADEINS thekktar umferdir",
+     Math.abs(hr.baseline - known.reduce((a, x) => a + x.v, 0) / known.length) < 1e-9,
+     String(hr.baseline));
+  ok("`n` segir hve margar umferdir baru tolu", hr.n === known.length, String(hr.n));
+}
+
+/* A11e. „FRAMUNDAN" ER VIRKT — OG VIDMIDID FYLGIR SNEIDINNI.
+   Rodin ber TVAER slakar runur: djupa i GW1-3 (BUIN) og grynnri i
+   GW10-12. Svarid verdur ad breytast vid gwNow, OG medaltalid med.     */
+{
+  const s = mk([1,1,1, 9,9,9,9,9,9, 4,4,4, 9,9,9]);
+  const now1 = hardestRun(s, { gwNow: 1 });
+  const now5 = hardestRun(s, { gwNow: 5 });
+  ok("gwNow=1: versta runan er GW1-3 (dypsta i allri rodinni)",
+     now1.run?.from === 1 && now1.run?.to === 3, `${now1.run?.from}-${now1.run?.to}`);
+  ok("gwNow=5: LIDNAR umferdir eru utan leitar -> svarid er GW10-12",
+     now5.run?.from === 10 && now5.run?.to === 12, `${now5.run?.from}-${now5.run?.to}`);
+  /* ThETTA ER FULLYRDINGIN SEM FELLUR SE MEDALTALID TEKID YFIR ALLT
+     TIMABILID: sneidin hefur ANNAD medaltal og runan er maeld vid ThAD. */
+  ok("`basis.baseline` er medaltal SNEIDARINNAR, ekki allrar rodarinnar",
+     Math.abs(now1.basis.baseline - 96 / 15) < 0.005
+     && Math.abs(now5.basis.baseline - 84 / 11) < 0.005,
+     `${now1.basis.baseline} vs ${now5.basis.baseline}`);
+  ok("`basis` segir hvad var borid saman vid hvad (from/to/n/gwNow)",
+     now5.basis.from === 5 && now5.basis.to === 15 && now5.basis.n === 11
+     && now5.basis.gwNow === 5, JSON.stringify(now5.basis));
+  ok("`basis.scale` segir ad kvardinn se HANS EIGINN (merkimidi a skjainn)",
+     now5.basis.scale === "his own", String(now5.basis.scale));
+  /* gwNow ER TALIN MED: hun er naesti frestur og thvi enn soluhaef.    */
+  const now3 = hardestRun(s, { gwNow: 3 });
+  ok("gwNow ER TALIN MED (>=), hun er naesti frestur",
+     now3.basis.from === 3 && now3.basis.n === 13, JSON.stringify(now3.basis));
+}
+
+/* A11f. SPEGLUNIN ER ALGEBRULEG — OG ThAD ER VORDURINN GEGN AFRITADRI LYKKJU.
+   Versta runan i rod `v` VERDUR ad vera besti gluggi i rod `-v`: medaltalid
+   speglast med, svo `baseline(-v) - (-v) = v - baseline(v)` lid fyrir lid.
+   Fullyrdingin er thvi ohad thvi HVERNIG leitin er skrifud — hun getur
+   adeins stadist se ThAD SAMA utfaersla i badar attir (eda tvaer sem eru
+   nakvaemlega jafngildar, sem er thad sem thurfti ad tryggja).          */
+{
+  ok("`buyWindows` er `runWindows` med dir=BUY og ENGU odru",
+     JSON.stringify(buyWindows(mk([9,9,9,1,9,9,1,1,9,9,9,9])))
+     === JSON.stringify(runWindows(mk([9,9,9,1,9,9,1,1,9,9,9,9]), { dir: BUY })));
+  let seed = 20260821;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  let checked = 0, mismatch = 0, bothFound = 0, differed = 0, bad = [];
+  for (let it = 0; it < 300; it++) {
+    const n = 6 + Math.floor(rnd() * 33);
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+      const roll = rnd();
+      rows.push({ gw: i + 1,
+        v: roll < 0.06 ? null : roll < 0.14 ? 0 : +(1 + rnd() * 9).toFixed(2),
+        blank: roll >= 0.06 && roll < 0.14, unknown: roll < 0.06,
+        double: false, items: [], d: null, tier: null });
+    }
+    const neg = rows.map(r => ({ ...r, v: r.v == null ? null : -r.v }));
+    const worst = runWindows(rows, { dir: SELL });
+    const mirror = runWindows(neg, { dir: BUY });
+    const best = runWindows(rows, { dir: BUY });
+    checked++;
+    const A = worst.windows.map(w => `${w.from}-${w.to}`).join(",");
+    const B = mirror.windows.map(w => `${w.from}-${w.to}`).join(",");
+    if (A !== B) { mismatch++; if (bad.length < 3) bad.push(`${A} vs ${B}`); }
+    if (worst.windows.length && best.windows.length) {
+      bothFound++;
+      if (worst.windows[0].from !== best.windows[0].from
+          || worst.windows[0].to !== best.windows[0].to) differed++;
+    }
+    /* FORMERKID ER MERKINGIN: kaup-gluggi ber +, solu-runa ber −.       */
+    if (worst.windows.some(w => !(w.gain < 0)) || best.windows.some(w => !(w.gain > 0))) mismatch++;
+  }
+  ok(`${checked} slembnar rodir: versta runan = besti gluggi i speglada rodinni`,
+     mismatch === 0, `${mismatch} mismunir: ${bad.join(" | ")}`);
+  ok("thekja: rodir thar sem BADAR attir fundu eitthvad", bothFound > 200, `${bothFound}/300`);
+  ok("og attirnar gefa SITT HVAD i ollum theim rodum (ekki afrituð lykkja)",
+     bothFound > 0 && differed === bothFound, `${differed} af ${bothFound}`);
+}
+
+/* A11g. AUD UMFERD: SAMA TALA, ANDSTAED AFLEIDING — OG ThAD ER ASETT.
+   `v = 0` er raunveruleg null. I KAUP-attina er hun undir medaltali og
+   getur thvi aldrei verid endi (kafli A4). I SOLU-attina er hun OFAN vid
+   speglada thraskuldinn og MA vera endi — auð vika ER astaeda til ad
+   selja. Sama lina i kodanum, tvaer rettar utkomur, EKKI tvaer reglur.  */
+{
+  const s = mk([9,9, "blank",1,1, 9,9,9,9,9]);
+  const h = hardestRun(s, { gwNow: 1 });
+  ok("erfid runa MA byrja a audri umferd (GW3-5)",
+     h.run?.from === 3 && h.run?.to === 5, `${h.run?.from}-${h.run?.to}`);
+  ok("auda umferdin er i `blanks`, ekki i `weak` (thar er ekkert ad bekkja)",
+     h.run?.blanks.join(",") === "3" && !h.run?.weak.includes(3),
+     `blanks ${JSON.stringify(h.run?.blanks)} weak ${JSON.stringify(h.run?.weak)}`);
+  /* SPEGILMYNDIN A SOMU ROD: kaup-glugginn ma HVORKI byrja ne enda a
+     henni. Baðar fullyrdingar a EINNI rod, svo thad se synt ad thad er
+     sama linan sem gefur baðar.                                        */
+  const b = buyWindows(s).windows;
+  ok("SAMA rod, KAUP-attin: enginn gluggi byrjar ne endar a audri umferd",
+     b.length > 0 && b.every(w => !s[w.from - 1].blank && !s[w.to - 1].blank),
+     JSON.stringify(b.map(w => `${w.from}-${w.to}`)));
+  /* OG AUD UMFERD MA VERA ENDIR: „seldu fyrir GW8, hann er audur og
+     spilar svo thunga leiki" er sonn setning um thessa rod.            */
+  const s2 = mk([9,9,9,9,9, 1,1,"blank", 9,9,9,9]);
+  const h2 = hardestRun(s2, { gwNow: 1 });
+  ok("erfid runa MA enda a audri umferd (GW6-8)",
+     h2.run?.from === 6 && h2.run?.to === 8, `${h2.run?.from}-${h2.run?.to}`);
+}
+
+/* A11h. `hardestRun` ER `hardRuns()[0]` — EITT SVAR, EINN MAELIKVARDI.
+   `max: 1` er OPTIMERING, ekki onnur regla: greedy tekur besta bútinn
+   FYRST, svo `max:1` og `max:3` verda ad gefa SAMA fyrsta bút. Vaeri
+   thad ekki svo vaeri „hans versta runa" ekki sama runan sem listinn
+   setur i fyrsta saeti — nakvaemlega tveir maelikvardar a somu akvordun
+   sem A8 fann i kaup-attina.                                          */
+{
+  const s = mk([9,9,1,1,1,9,9,4,4,4,9,9,2,2,2,9,9,9]);
+  const one = hardestRun(s, { gwNow: 1 }).run;
+  const many = hardRuns(s, { gwNow: 1 });
+  ok("hardestRun == hardRuns()[0] (sami bútur, somu tolur)",
+     JSON.stringify(one) === JSON.stringify(many.windows[0]),
+     `${one?.from}-${one?.to} vs ${many.windows[0]?.from}-${many.windows[0]?.to}`);
+  ok("hardRuns er rodud eftir SKORI (verst fyrst) — valrodin sjalf",
+     many.windows.every((w, i) => i === 0 || many.windows[i - 1].score >= w.score),
+     JSON.stringify(many.windows.map(w => w.score)));
+  ok("runur skarast ALDREI", (() => {
+    const used = new Set();
+    for (const w of many.windows) for (let g = w.from; g <= w.to; g++) {
+      if (used.has(g)) return false; used.add(g);
+    }
+    return true;
+  })());
+  ok(`hver runa er >= ${MIN_WINDOW} umferdir`, many.windows.every(w => w.len >= MIN_WINDOW));
+  ok("ENDA-INVARIANTID SPEGLAST: hvor endi er UNDIR hans medaltali",
+     many.windows.every(w => s[w.from - 1].v < many.baseline && s[w.to - 1].v < many.baseline),
+     JSON.stringify(many.windows.map(w => `${w.from}-${w.to}`)));
+  /* `nextWindow` ER ENDURNOTAD, EKKI AFRITAD: „naesta erfida runa" er sama
+     spurning og „naesti kaup-gluggi" og hefur thvi sama fall.           */
+  ok("`nextWindow` virkar a erfidum runum lika (endurnotad, ekki afritad)",
+     nextWindow(many.windows, 1).from === Math.min(...many.windows.map(w => w.from)));
+}
+
+/* A11i. TALAN GETUR EKKI RADAD TVEIMUR MONNUM — OG ThAD ER PROFANLEGT.
+   Notandinn las Rice sem „verstan" af thvi ad `+0,98` hans stod vid `+2,44`
+   hja varnarmonnum. Astaedan er MAELD: `MEASURED_POS`-sponnin er olik per
+   stodu. Her er hun synd sem HREIN ALGEBRA: tvaer rodir med somu LOGUN a
+   sitt hvorum kvarda fa NAKVAEMLEGA sama `gain` — svo `gain` getur ekki
+   greint thaer ad. `mean` getur.                                        */
+{
+  const shape = [9,9,9,9, 1,1,1, 9,9,9,9,9];
+  const A = hardestRun(mk(shape), { gwNow: 1 }).run;
+  const B = hardestRun(mk(shape.map(v => v + 3)), { gwNow: 1 }).run;
+  ok("tvaer rodir a SITT HVORUM kvarda fa SAMA `gain` og SAMA `perGw`",
+     A.gain === B.gain && A.perGw === B.perGw, `${A.gain}/${A.perGw} vs ${B.gain}/${B.perGw}`);
+  ok("thess vegna er `gain` ONYT til ad rada monnum — og `mean` er thad EKKI",
+     A.mean !== B.mean && B.mean === A.mean + 3, `${A.mean} vs ${B.mean}`);
+  /* LENGDAR-ARTEFAKTID, MAELT: lengri runa ber staerra `gain` VELRAENT.
+     Sama daemi tvisvar, adeins lengd slaku rununnar breytt.             */
+  const shortRun = hardestRun(mk([9,9,9,9,9,9, 1,1,1, 9,9,9,9,9,9]), { gwNow: 1 }).run;
+  const longRun  = hardestRun(mk([9,9,9,9,9,9, 1,1,1,1,1, 9,9,9,9,9,9]), { gwNow: 1 }).run;
+  ok("lengri runa ber staerra |gain| — thad er summan, ekki verri leikir",
+     Math.abs(longRun.gain) > Math.abs(shortRun.gain),
+     `${longRun.gain} (len ${longRun.len}) vs ${shortRun.gain} (len ${shortRun.len})`);
+  ok("`perGw` fjarlaegir ThANN artefakt (baðar ~ somu tolu)",
+     Math.abs(longRun.perGw - shortRun.perGw) < 1.0,
+     `${longRun.perGw} vs ${shortRun.perGw}`);
+}
+
+/* ============================================================
+   A11j. RAUNGOGN — 80 SAMSETNINGAR, FJORAR STODUR, MARGAR gwNow
+   ============================================================ */
+hdr("A11j. RAUNGOGN — ERFIDU RUNURNAR FRAMUNDAN");
+{
+  const { teams, fixByTeamGw, fixDifficulty } = real;
+  const sweep = [1, 6, 20, 34];
+  const seen = {};
+  for (const gwNow of sweep) {
+    let n = 0, none = 0, lenSum = 0, endBad = 0, collide = 0, notFirst = 0, posDiff = 0;
+    for (const t of teams) {
+      const key = {};
+      for (const pos of [1, 2, 3, 4]) {
+        const s = ffdrSeries({ teamId: t.id, pos, fixByTeamGw, fixDifficulty, from: 1, to: 38 });
+        const h = hardestRun(s, { gwNow });
+        if (!h.run) { none++; key[pos] = ""; continue; }
+        n++; lenSum += h.run.len;
+        const slice = s.filter(x => x.gw >= gwNow);
+        const a = slice.find(x => x.gw === h.run.from), b = slice.find(x => x.gw === h.run.to);
+        /* SPEGLADA ENDA-INVARIANTID a raungognum. */
+        if (!(a.v < h.basis.baseline) || !(b.v < h.basis.baseline)) endBad++;
+        /* BESTI KAUP-GLUGGI OG VERSTA RUNAN A SOMU SNEID MEGA ALDREI VERA
+           SAMI BUTUR — se thad svo er attin ekki virk a raungognum.     */
+        const bw = buyWindows(slice).windows[0];
+        if (bw && bw.from === h.run.from && bw.to === h.run.to) collide++;
+        const first = hardRuns(s, { gwNow }).windows[0];
+        if (!first || first.from !== h.run.from || first.to !== h.run.to) notFirst++;
+        key[pos] = `${h.run.from}-${h.run.to}`;
+      }
+      if (key[2] !== key[4]) posDiff++;
+    }
+    seen[gwNow] = { n, none, meanLen: n ? lenSum / n : null, endBad, collide, notFirst, posDiff };
+    ok(`gwNow=${gwNow}: enda-invariantid speglast a ollum ${n} runum`, endBad === 0, `${endBad} brot`);
+    ok(`gwNow=${gwNow}: besti kaup-gluggi og versta runan eru ALDREI sami bútur`,
+       collide === 0, `${collide} arekstrar`);
+    ok(`gwNow=${gwNow}: hardestRun er ALLTAF hardRuns()[0]`, notFirst === 0, `${notFirst} brot`);
+  }
+  ok(`hver samsetning fann erfida runu framundan i GW1/6/20 (${seen[1].n}/${seen[6].n}/${seen[20].n} af 80)`,
+     seen[1].none === 0 && seen[6].none === 0 && seen[20].none === 0,
+     JSON.stringify(sweep.map(g => seen[g].none)));
+  /* MEDALLENGD ER BUNDIN I BADA ENDA, EINS OG I KAUP-ATTINA (kafli A10).
+     Skridan (`LEN_SHRINK`) er sama tala og var EKKI endurstillt fyrir
+     thessa att; falli hun ut verda runur ~3,0 (ber thettleiki) eda
+     margfalt lengri (ber summa) — badar UTAN thessa bils.              */
+  ok(`medallengd erfidra runa er 3.5-5.5 (maelt: ${seen[1].meanLen.toFixed(2)}) — SAMA skrida`,
+     seen[1].meanLen > 3.5 && seen[1].meanLen < 5.5);
+  /* STADAN ER INNTAK — SAMA FULLYRDING SEM A10 GERIR UM KAUP-GLUGGA.
+     Vaeri hun 0 eda 1 vaeri solu-timasetning per stodu oth'orf og
+     FFDR-taflan naegdi. MAELT 21.8.2026 vid gwNow=1: 10 af 20 — LAEGRA
+     en kaup-attin (17 af 20), og thad er vaentanlegt: erfida runan er
+     oftar drifin af EINUM ohugnanlegum motherja sem er thungur fyrir
+     BADAR stodur, medan letta runan skiptist meira. Throskuldurinn er
+     thvi 5, ekki 10, svo hann se um MERKID og ekki um nakvaemlega thessa
+     leikjaskra — en 0/1 fellir hann og tha aetti sy'nin ad fara.        */
+  ok(`DEF og FWD fa ULIKA verstu runu i >= 5 af 20 lidum (maelt: ${seen[1].posDiff})`,
+     seen[1].posDiff >= 5);
+  /* SIDLA A TIMABILI ER SVARID „ENGIN RUNA" OG ThAD ER RETT SVAR.
+     Vid gwNow=37 eru tvaer umferdir eftir, svo `MIN_WINDOW` er onaeðanlegt.
+     ThEKJA ER FULLYRDING: profid verdur ad hafa SED bædi svorin.        */
+  let lateNone = 0, lateWhy = new Set();
+  for (const t of teams) for (const pos of [1, 2, 3, 4]) {
+    const s = ffdrSeries({ teamId: t.id, pos, fixByTeamGw, fixDifficulty, from: 1, to: 38 });
+    const h = hardestRun(s, { gwNow: 37 });
+    if (!h.run) { lateNone++; lateWhy.add(h.why); }
+  }
+  ok("gwNow=37: ENGIN runa hja ollum 80 — og skyringin er sogd",
+     lateNone === 80 && lateWhy.size === 1 && /fewer than 3/.test([...lateWhy][0]),
+     `${lateNone}/80 · ${[...lateWhy].join("|")}`);
+  ok("thekja: profid sa BAEDI svorin (runa fannst OG engin runa)",
+     seen[1].n === 80 && lateNone === 80);
 }
 
 /* ============================================================
