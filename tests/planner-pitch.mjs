@@ -27,6 +27,11 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import { playedEvents } from "./lib/played-events.mjs";
+/* ADEINS REGLAN, EKKI VELIN. Kafli G telur XI-in UPP SJALFUR og ma thvi
+   ekki kalla `bestTeamPlan` — annars vaeri thad sama utfaersla borin vid
+   sjalfa sig. `legalFormation`/`posKey` eru FPL-reglan og stodu-vorpunin,
+   og thaer eiga ad koma ur EINUM stad (CLAUDE.md 8).                    */
+import { legalFormation, posKey, XI_SIZE } from "../src/bestteam.js";
 
 let pass = 0, fail = 0;
 const ok = (c, n, x = "") => { c ? (pass++, console.log(`  ✓ ${n}`))
@@ -441,6 +446,210 @@ console.log("\n--- F. 'Never in your XI' ---");
   ok(styled >= 4, `forsenda: holfin bera raunverulega stil (${styled} af ${rows[0] ? rows[0].children.length : 0})`);
   ok(/Save £/.test(v.text()), "og talan um losad fe stendur");
   ok(!NANRE.test(v.text()), "ekkert NaN i bordanum");
+}
+
+/* ============================================================
+   G. "PICK BEST XI" — TAKKINN SEM STILLIR BYRJUNARLIDID (21.8.2026)
+   ============================================================
+   VELIN (`src/bestteam.js`) ER ThEGAR PROFUD i `best-team.mjs` (84
+   fullyrdingar, gradugt val borid vid 110.000 uppteldar leyfilegar XI).
+   HER ER TENGINGIN PROFUD, OG HUN ER SER SPURNING: fer RETTA lidid a
+   skjainn, med RETTA skorinu, og er thad AFTURKALLANLEGT.
+
+   XI-IN ER TALIN UPP HER — VELIN ER EKKI SPURD. Profid les `≈ep` af
+   HVERJU spjaldi (tolan sem notandinn ser), telur upp ALLAR C(15,11)=1.365
+   hlutmengi, sier ut thau ologlegu og finnur hamarkid. Vaeri velin spurd
+   i stadinn vaeri thetta sama utfaersla borin vid sjalfa sig.
+
+   HVERS VEGNA "VONDA XI" ER FORSENDAN: proflidid er thegar nanast rett
+   stillt, svo takki sem GERIR EKKERT hefdi stadist prof a thvi. Kaflinn
+   byrjar thvi a `benchSwaps: {1:[[411,321]]}` — Haaland (haesta `ep` i
+   hopnum) a bekknum. Sannreynt: sa hopur GAF „already the best XI" med
+   fyrstu utgafu tengingarinnar, thvi `posOf` skiladi `element_type` (3) i
+   stad stodu-lykils ("MID") og velin sleppti thvi HVERJU saeti — `xi:[]`,
+   `changed:false`, ENGIN villa kastad. Fullyrdingin um "best" ma thvi
+   aldrei byggja a `changed` einu.
+   ============================================================ */
+console.log("\n--- G. PICK BEST XI ---");
+const idOfCard = c => START_IDS.find(id => (c.textContent || "").includes(byId[id].web_name));
+const epOfCard = c => { const m = (c.textContent || "").match(/≈(\d+(?:\.\d)?)/); return m ? +m[1] : null; };
+const bestBtn = v => v.q("button").find(b => /Pick best XI|Best XI/.test(b.textContent || ""));
+/* TAEMANDI UPPTELJARI — OHAD VELINNI. */
+function enumBestXi(ids, posOf, epOf) {
+  let best = null;
+  const rec = (i, chosen) => {
+    if (chosen.length === XI_SIZE) {
+      const cnt = { GK:0, DEF:0, MID:0, FWD:0 };
+      for (const x of chosen) { const k = posOf(x); if (cnt[k] != null) cnt[k]++; }
+      if (!legalFormation(cnt)) return;
+      const t = +chosen.reduce((a, x) => a + (epOf(x) ?? 0), 0).toFixed(4);
+      if (!best || t > best.t) best = { t, xi: chosen.slice() };
+      return;
+    }
+    if (i >= ids.length || XI_SIZE - chosen.length > ids.length - i) return;
+    rec(i + 1, [...chosen, ids[i]]); rec(i + 1, chosen);
+  };
+  rec(0, []);
+  return best;
+}
+{
+  const BAD = { captain: 411, benchSwaps: { 1: [[411, 321]] } };
+  const v = await mount(BAD);
+  const btn = bestBtn(v);
+  ok(!!btn, "takkinn er a vellinum");
+  ok(/Pick best XI/.test(btn?.textContent || ""), `merkimidinn er "Pick best XI" [${btn?.textContent}]`);
+  ok(btn?.disabled === false, "og hann er VIRKUR utan Bench Boost");
+  /* SETNINGIN UM BEKKJAR-RODINA ER FAST A SKJANUM, EKKI I TOAST SEM HVERFUR:
+     `benchSwaps` vixlar adeins `starter`-flaggi, svo takkinn getur ekki
+     radad bekknum og ma ekki lata sem hann geri thad.                    */
+  ok(/sets who starts, not bench order/.test(v.text()),
+     "og A SKJANUM stendur ad hann setji HVER BYRJAR, ekki bekkjar-rodina");
+
+  const before = new Set(onPitch(v).map(idOfCard));
+  ok(before.size === 11, `forsenda: ellefu spjold a vellinum fyrir smell (${before.size})`);
+  ok(!before.has(411), "forsenda: Haaland er A BEKKNUM — lidid er vitandi vits vitlaust");
+  const eps = {}; cards(v).forEach(c => { const id = idOfCard(c); if (id != null) eps[id] = epOfCard(c); });
+  const known = Object.values(eps).filter(x => x != null).length;
+  ok(known === 15, `forsenda: vaent stig lesin af ollum 15 spjoldum (${known})`);
+  ok(eps[411] > 3, `forsenda: Haaland ber HAETSU-flokks ep (${eps[411]}) — skiptin eru maelanleg`);
+
+  await v.click(btn);
+  const after = [...onPitch(v)].map(idOfCard);
+  ok(after.length === 11, `eftir smell eru ellefu i byrjunarlidinu (${after.length})`);
+  const cnt = { GK:0, DEF:0, MID:0, FWD:0 };
+  after.forEach(id => { const k = posKey(byId[id]?.element_type); if (cnt[k] != null) cnt[k]++; });
+  ok(legalFormation(cnt), `uppstillingin er LEYFILEG (${JSON.stringify(cnt)})`);
+  ok(after.includes(411), "og Haaland er kominn INN — takkinn gerdi eitthvad");
+
+  /* HAMARKID SJALFT, GEGN OHADRI UPPTALNINGU A BIRTU TOLUNUM. */
+  const enumBest = enumBestXi(START_IDS.slice(),
+    id => posKey(byId[id]?.element_type), id => eps[id]);
+  ok(!!enumBest, "forsenda: uppteljarinn fann leyfilegt XI");
+  const tot = +after.reduce((a, id) => a + (eps[id] ?? 0), 0).toFixed(4);
+  const delta = +(enumBest.t - tot).toFixed(4);
+  /* 0,05 er EIN NAMUNDUNAREINING a birtu tolunni (`≈x.y`), ekki slaki:
+     jafntefli a birtu kvardanum ma leysast a hinn veginn, raunverulegt
+     tap ma thad ekki.                                                   */
+  ok(delta <= 0.05,
+     `XI-id er HAMARK birtu vaentu stiganna (uppteljari ${enumBest.t}, skjar ${tot}, delta ${delta})`);
+  ok(JSON.stringify([...after].sort((a,z)=>a-z)) === JSON.stringify(enumBest.xi.sort((a,z)=>a-z))
+     || delta <= 0.05,
+     "og thad er SAMA ellefu-mannalidid sem uppteljarinn valdi (eda jafngilt a birtu tolunum)");
+  const t1 = v.text();
+  ok(/best XI set/.test(t1), "toast segir ad lidid hafi verid stillt");
+  ok(/Bench order is unchanged/.test(t1),
+     "OG ad bekkjar-rodin se OHREYFD — takkinn lofar ekki thvi sem hann getur ekki gert");
+  ok(!NANRE.test(t1), "ekkert NaN/undefined eftir smellinn");
+
+  /* IDEMPOTENS: annar smellur ma ekki HRINGSNUA lidinu ne skra null-adgerd
+     (sem las sem "you have planned N gameweeks", sja `benchSwapPairs`).  */
+  await v.click(bestBtn(v));
+  const twice = [...onPitch(v)].map(idOfCard);
+  ok(JSON.stringify(twice.slice().sort((a,z)=>a-z)) === JSON.stringify(after.slice().sort((a,z)=>a-z)),
+     "TVEIR SMELLIR = EINN: lidid er obreytt eftir annan smell");
+  ok(/already the best XI/.test(v.text()),
+     "og notandanum er sagt ad ekkert var ad gera — ekki blikkandi null-adgerd");
+
+  /* AFTURKOLLUN: "Reset bench" hreinsar `benchSwaps[gw]` og thad er
+     NAKVAEMLEGA thad sem takkinn skrifadi.                              */
+  const reset = v.q("button").find(b => /^Reset bench$/.test((b.textContent || "").trim()));
+  ok(!!reset, "\"Reset bench\" er their eftir smellinn (takkinn skrifadi i `benchSwaps`)");
+  await v.click(reset);
+  const undone = [...onPitch(v)].map(idOfCard).sort((a,z)=>a-z);
+  /* „Reset bench" EYDIR `benchSwaps[gw]` OG ThVI FER BADI HANDVIRKA VIXLID
+     OG ThAD SEM TAKKINN SKRIFADI — listinn er ALLTAF fullur mismunur fra
+     GRUNNINUM (sja `squadForGw`), svo rett svar er GRUNN-uppstillingin,
+     ekki „thad sem var a skjanum adur en eg smellti". Fullyrdingin er thvi
+     um GRUNNINN; hin utgafan (== `before`) FELL, og hun atti ad falla.  */
+  ok(JSON.stringify(undone) === JSON.stringify(START_IDS.slice(0, 11).sort((a,z)=>a-z)),
+     `og hun eydir ALLRI uppstillingunni fyrir umferdina — grunn-XI er komid til baka [${undone.join(",")}]`);
+  ok(!v.q("button").some(b => /^Reset bench$/.test((b.textContent || "").trim())),
+     "og hnappurinn sjalfur er horfinn — `benchSwaps[gw]` er tomur");
+}
+/* BENCH BOOST: allir 15 skora, svo hvada 11 byrja er einskis virdi. */
+{
+  const v = await mount({ captain: 411, chips: { "bboost:1": 1 } });
+  const btn = bestBtn(v);
+  ok(!!btn, "BB: takkinn er afram their (falinn takki lesist eins og bilun)");
+  ok(btn?.disabled === true, "BB: hann er SLOKKTUR");
+  ok(/nothing to pick in Bench Boost/.test(btn?.textContent || ""),
+     `BB: merkimidinn SEGIR af hverju [${btn?.textContent}]`);
+  ok(/all 15 players score/.test(btn?.getAttribute("title") || ""),
+     "BB: og tooltip-id gefur astaeduna — allir 15 skora");
+  ok(!/sets who starts, not bench order/.test(v.text()),
+     "BB: setningin um bekkjar-rodina er EKKI their (hun a ekki vid)");
+  const n0 = onPitch(v).length;
+  await v.click(btn);
+  ok(onPitch(v).length === n0 && !/best XI set/.test(v.text()),
+     "BB: smellur gerir EKKERT — slokktur takki sem virkar er verri en enginn");
+}
+
+/* ============================================================
+   H. "WHEN TO SELL" — TALAN ER INNAN LEIKMANNS (21.8.2026)
+   ============================================================
+   Velin (`sellTiming` -> `hardestRun`) er profud i `recommend.mjs` 5b og
+   `buy-windows.mjs`. HER ER ORDALAGID VARID, OG ThAD ER RAUNVERULEGI
+   RISKURINN: notandinn las Rice sem „verstan" 20.8.2026 ur nakvaemlega
+   thessari tolu, thott gluggar hans vaeru bestu thrir af niu a sambaerilegu
+   tolunni. Tolan er AFSTAED VID HANS EIGIN MEDALTAL.
+   ThRJAR FULLYRDINGAR, ALLAR LESNAR AF SKJANUM:
+     1. hvert per-umferdar tolu-holf ber GRUNN SINN i somu setningu,
+     2. summan er ALDREI ber — hun er bundin honum OG lengdinni,
+     3. rodin er TIMAROD, ekki staerd tolunnar (rodun eftir tolunni VAERI
+        thver-leikmanna rodun i dulargervi).
+   ============================================================ */
+console.log("\n--- H. WHEN TO SELL ---");
+{
+  const v = await mount({ captain: 411 });
+  const t = v.text();
+  ok(/When to sell — hardest run ahead/.test(t), "kassinn er a skjanum");
+  ok(/Relative to his own fixtures — this does not say sell him rather than someone else\. Sell order is the squad list's own ranking\./.test(t),
+     "SKYRINGAR-SETNINGIN er ordrett their — hun segir berum ordum ad thetta se EKKI rodun");
+
+  const heads = t.match(/Hardest run ahead: GW\d+–\d+/g) || [];
+  /* ThEKJA ER FULLYRDING (CLAUDE.md 5b regla 1): faeri kassinn engar
+     runur vaeru allar naestu fullyrdingar tomar.                       */
+  ok(heads.length >= 5, `thekja: minnst fimm runur a skjanum (${heads.length})`);
+
+  const figs = t.match(/[−+]\d+\.\d\d pts\/GW/g) || [];
+  const withBasis = t.match(/[−+]\d+\.\d\d pts\/GW vs his own average over GW\d+–\d+/g) || [];
+  ok(figs.length === heads.length, `ein per-umferdar tala per runu (${figs.length} / ${heads.length})`);
+  ok(withBasis.length === figs.length,
+     `HVER per-umferdar tala ber GRUNN SINN — ekkert bert "pts/GW" (${withBasis.length} af ${figs.length})`);
+
+  const sums = t.match(/[−+]\d+\.\d\d pts over/g) || [];
+  const boundSums = t.match(/[−+]\d+\.\d\d pts over those \d+ gameweeks, for him/g) || [];
+  ok(sums.length === heads.length, `ein summa per runu (${sums.length})`);
+  ok(boundSums.length === sums.length,
+     `HVER summa er bundin honum OG lengdinni — engin ber summa (${boundSums.length} af ${sums.length})`);
+
+  /* RODIN ER TIMAROD. Stokkbreyting sem radar eftir `perGw` fellur her. */
+  const froms = [...t.matchAll(/Hardest run ahead: GW(\d+)–\d+/g)].map(m => +m[1]);
+  ok(froms.length >= 5 && froms.every((x, i) => i === 0 || froms[i - 1] <= x),
+     `radirnar eru i TIMAROD, ekki eftir staerd tolunnar (${froms.join(",")})`);
+  /* OG ROdIN VAERI ONNUR VAERI HUN EFTIR TOLUNNI — annars gaeti fullyrdingin
+     ad ofan stadist af tilviljun.                                       */
+  const pgs = [...t.matchAll(/[−+](\d+\.\d\d) pts\/GW/g)].map(m => +m[1]);
+  ok(pgs.some((x, i) => i > 0 && pgs[i - 1] < x),
+     "og hun er sannanlega EKKI rodud eftir tolunni (tolurnar hoppa upp og nidur)");
+
+  ok(!/pts\/GW vs his own average over GWnull/.test(t), "engin null-umferd i grunninum");
+  ok(!NANRE.test(t), "ekkert NaN/undefined i kassanum");
+
+  /* MERKID ER BERT LIKA A MINUS: bert "0.35" lesist eins og plus. */
+  ok(figs.every(s => /^[−+]/.test(s)), "hver tala ber MERKI (− eda +), ekki bera tolu");
+}
+/* `run: null` -> `why` ORDRETT. Flot leikjaskra (engir leikir) gefur
+   „no stretch below his own average" — sem ma EKKI lesast eins og
+   „vid vitum ekki" (CLAUDE.md: null er ekki null).                    */
+{
+  const v = await mount({ captain: 411 }, { patch: { "fixtures.json": { fixtures: [] } } });
+  const t = v.text();
+  ok(/When to sell — hardest run ahead/.test(t), "forsenda: kassinn er afram their an leikja");
+  ok(!/Hardest run ahead: GW/.test(t), "forsenda: engin runa finnst (flot leikjaskra)");
+  ok(/no stretch below his own average/.test(t),
+     "`why` er birt ORDRETT — 'engin erfid runa' og 'vid vitum ekki' lesast EKKI eins");
+  ok(!NANRE.test(t), "og ekkert NaN thott leikjaskrain se tom");
 }
 
 console.log(`\nVOLLURINN: ${pass} stóðust, ${fail} féllu`);

@@ -26,7 +26,12 @@ import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk } from "./availabilit
 import { Crest, PlayerImg, Kit, crestUrl, photoUrl, CREST_FALLBACK } from "./Crest.jsx";
 import FfdrTable from "./FfdrTable.jsx";
 import { buildTeamMetrics } from "./teamstats.js";
-import { buildRecommendations, swapCandidates } from "./recommend.js";
+import { buildRecommendations, swapCandidates, sellTiming } from "./recommend.js";
+/* VELIN ER ADFLUTT, EKKI ENDURSKRIFUD. `legalFormation` og `posKey` eru
+   flutt inn af SOMU astaedu og `buildTeamMetrics` var flutt ur App.jsx i
+   `teamstats.js` (CLAUDE.md kafli 7): afrit af reglunni her vaeri onnur
+   utfaersla sem gaeti rekid i sundur vid tha sem velin sjalf notar. */
+import { bestTeamPlan, legalFormation, posKey, XI_SIZE } from "./bestteam.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
   makeFixDifficulty, computeTransferCost, isInitialSquadPick, expPointsFor, priceMovePrediction,
@@ -294,6 +299,13 @@ const fmtDeadline = iso => {
    er astand sem appid kann, NaN er thad ekki.                            */
 const money = v => (Number.isFinite(v)
   ? `${v < 0 ? "-" : ""}£${Math.abs(v).toFixed(1)}`
+  : "—");
+/* MERKID ER BER, LIKA ThEGAR ThAD ER PLUS. `-0.35` og `0.35` lesast eins i
+   fljotu bragdi og runa sem er UNDIR hans eigin medaltali verdur ad bera
+   minus i hverju holfi thar sem hun er birt; sama regla og `money` fylgir
+   fyrir minus-banka. Otala verdur "—", ekki NaN.                        */
+const signedPts = v => (Number.isFinite(v)
+  ? `${v < 0 ? "−" : "+"}${Math.abs(v).toFixed(2)}`
   : "—");
 /* ---- VISTUN ----
    ATH: window.storage er AÐEINS til í Claude-artifact-sandkassa. Á Netlify
@@ -1328,6 +1340,28 @@ export default function App() {
 
   /* ---------- Lið í valdri umferð ---------- */
   const squadAt = useMemo(() => squadForGw(gw), [squadForGw, gw]);
+  /* Leikmanna-hlutirnir a bak vid saetin. `sellTiming` tharf `team` og
+     `element_type` (leikjaskra + stada), svo saetin ein duga ekki. */
+  const squadPlayers = useMemo(
+    () => squadAt.map(s => byId[s.id]).filter(p => p && p.team != null),
+    [squadAt, byId]);
+  /* ============================================================
+     HVENAER A AD SELJA — SER `useMemo`, EKKI REITUR I `buildRecommendations`
+     ============================================================
+     Solu-RODUNIN er `score` (MAELT 18.8.2026: `rankScore` gaf -0,118
+     CI [-0,328, +0,088], OGREINANLEGT) og TIMASETNINGIN er `hardestRun`.
+     Ad leggja thaer saman vaeri OMAELD SAMSETNING tveggja talna a sitt
+     hvorum kvarda — sama aett sem CLAUDE.md kafli 4 er kirkjugardur yfir.
+     ThVI ER ThETTA SER MEMO OG `buildRecommendations` TEKUR ThAD EKKI INN:
+     byggingin sjalf er fullyrdingin. Vordur: `tests/recommend.mjs` kafli 9
+     fullyrdir ad `sellTiming` se EKKI kollud thadan og ad solu-rodun se
+     BYTE-EINS med og an thessa.
+     TALAN ER INNAN LEIKMANNS. Hun ma ALDREI lesast sem thver-leikmanna
+     rodun (notandinn las Rice sem "verstan" ur nakvaemlega theirri villu
+     20.8.2026), svo hvert svid er birt MED grunni sinum — sja `basis`.  */
+  const sellWhen = useMemo(() => sellTiming({
+    squad: squadPlayers, gwNow: gw, maxGw, fixByTeamGw, fixDifficulty,
+  }), [squadPlayers, gw, maxGw, fixByTeamGw, fixDifficulty]);
 
   /* ============================================================
      „ThU HEFUR EKKERT VERID AD NOTA HANN" — HORFT AFTURABAK (20.8.2026)
@@ -1627,6 +1661,16 @@ export default function App() {
        OG VISVITANDI VIXLARI ER ThVI AFRAM SKRANLEGUR: bekkur i GW1 og TIL
        BAKA i GW2 verdur `[[A,B],[A,B]]` i GW2 — tvo vixl a grunninn =
        grunnurinn, sem er nakvaemlega thad sem hann bad um.            */
+    appendBenchSwaps([[aId, bId]]);
+      return true;
+  }
+  /* EIN UTFAERSLA A RITUNINNI — "Pick best XI" skrifar THE SAMA LISTA.
+     Takkinn baetir MORGUM porum vid i einu; hefdi hann sina eigin ritun
+     vaeru tvaer utfaerslur af "saeda umferdina med erfda listanum" og
+     thaer gaetu rekid i sundur thegjandi (sama roksemd og `wOf`-afritid i
+     `stats.test.mjs`, CLAUDE.md 8). VISTADA GERDIN ER OHREYFD: hlutur AF
+     FYLKJUM af PORUM.                                                   */
+  function appendBenchSwaps(pairs) {
     setBenchSwaps(bs => {
       const mine = Array.isArray(bs[gw]) && bs[gw].length > 0 ? bs[gw] : null;
       let own = mine;
@@ -1637,9 +1681,86 @@ export default function App() {
           if (Array.isArray(l) && l.length > 0) { own = l; break; }
         }
       }
-      return { ...bs, [gw]: [...own, [aId, bId]] };
+      return { ...bs, [gw]: [...own, ...pairs] };
     });
-      return true;
+  }
+  /* ============================================================
+     "PICK BEST XI" — VELIN ER `src/bestteam.js`, HER ER ADEINS TENGINGIN
+     ============================================================
+     SKORID ER `expPointsFor` OG EKKERT ANNAD. Ad margfalda med
+     `startProbability` var MAELT OG HAFNAD 20.8.2026: thad vinnur a hrarri
+     XI-summu en TAPAR eftir ad FPL-autosubs eru beittir (-0,055 / -0,096 /
+     -0,006 stig/umferd, oll thrju CI utiloka null), thvi autosubs skila
+     theim abata FRITT — 88,9% theirra sem thad hefdi bekkjad og sem svo
+     gafu ekkert komu inn af bekknum hvort sem er. Og `expPts x sp^k` er
+     einraent fallandi i k, svo ENGIN vog vinnur. Ekki opna thetta aftur.
+
+     BEKKJAR-RODIN ER EKKI VISTANLEG I DAG: `benchSwaps` vixlar ADEINS
+     `starter`-flaggi, og birt rod kemur ur `order` i `plan`/`START_SQUAD`.
+     Takkinn setur thvi HVER BYRJAR, ekki bekkjar-rodina, og thad er sagt
+     A SKJANUM (`bestXiNote`) — ekki adeins i toast sem hverfur.
+
+     HVERT MILLI-SKREF ER SANNREYNT, EKKI BARA ENDASTADAN. `benchSwapPairs`
+     radar porunum svo hver milli-uppstilling se leyfileg; her er thad
+     PROFAD adur en nokkru er skrifad, thvi `swapStarterBench` getur ekki
+     gert thad i lykkju (hann les `squadAt` ur state, sem uppfaerist ekki
+     fyrr en vid naesta teikningu, svo par nr. 2 vaeri sannreynt gegn
+     RANGRI uppstillingu). Reglan sjalf er ADFLUTT (`legalFormation`).   */
+  function pickBestXi() {
+    const seats = squadForGw(gw);
+    const bt = bestTeamPlan({
+      seats,
+      score: s => expPoints(s.id, gw),
+      /* `posKey` VERDUR AD VERA HER OG ThAD ER ENGIN SNYRTING. `pickXi`
+         beitir `posKey` ADEINS a sjalfgefna uppflettinguna — eigin `posOf`
+         verdur thvi ad skila STODU-LYKLI ("MID"), ekki `element_type` (3).
+         Bert `byId[s.id]?.element_type` gefur `byPos[3] === undefined`, svo
+         HVER SAETI ER SLEPPT og svarid er TOMT XI med `changed:false` —
+         takkinn hefdi sagt "already the best XI" um lid med Haaland a
+         bekknum. Maelt: `xi:[]`, `legal:false`, engin villa kastad.       */
+      posOf: s => posKey(byId[s.id]?.element_type),
+    });
+    /* TOMT SVAR MA EKKI LESAST EINS OG "ThEGAR BEST" — ThAD VAR VILLAN.
+       Med `posOf` sem skilar tolu i stad stodu-lykils skilar velin `xi:[]`,
+       `legal:false` og `changed:false` — nakvaemlega sama undirskrift sem
+       raunverulega besta lid gefur. Fullyrding um "best" ma thvi ekki
+       byggja a `changed` einu; hun tharf LEYFILEGT ELLEFU-MANNA lid.     */
+    if (!bt.legal || bt.xi.length !== XI_SIZE) {
+      flash("Could not read a legal XI from your squad — nothing was changed.");
+      return false;
+    }
+    if (!bt.changed || !bt.swaps.length) {
+      flash(interp("GW{0}: already the best XI — nothing to change.", [gw]));
+      return false;
+    }
+    if (!bt.swapsLegal) {
+      flash("No legal order of swaps reaches that XI — arrange it by hand.");
+      return false;
+    }
+    let sim = seats.map(s => ({ ...s }));
+    for (const [aId, bId] of bt.swaps) {
+      const ia = sim.findIndex(s => s.id === aId), ib = sim.findIndex(s => s.id === bId);
+      if (ia < 0 || ib < 0 || sim[ia].starter === sim[ib].starter) {
+        flash("Illegal formation (1 GK, 3+ DEF, 2+ MID, 1+ FWD)."); return false;
+      }
+      const t = sim[ia].starter;
+      sim[ia] = { ...sim[ia], starter: sim[ib].starter };
+      sim[ib] = { ...sim[ib], starter: t };
+      const cnt = { GK:0, DEF:0, MID:0, FWD:0 };
+      sim.filter(s => s.starter).forEach(s => {
+        const k = posKey(byId[s.id]?.element_type); if (k) cnt[k]++;
+      });
+      if (!legalFormation(cnt)) {
+        flash("Illegal formation (1 GK, 3+ DEF, 2+ MID, 1+ FWD)."); return false;
+      }
+    }
+    appendBenchSwaps(bt.swaps);
+    setSwapSel(null);
+    flash(interp(bt.swaps.length === 1
+      ? "GW{0}: best XI set — {1} change. Bench order is unchanged."
+      : "GW{0}: best XI set — {1} changes. Bench order is unchanged.",
+      [gw, bt.swaps.length]));
+    return true;
   }
   /* ---------- ENDURSTILLING ----------
      Hvað er plönuð í umferð: skipti, bekkjar-breytingar, chip.
@@ -2448,6 +2569,23 @@ export default function App() {
                 {starters.filter(s => s.id !== captain).map(s => <option key={s.id} value={s.id}>{byId[s.id]?.web_name}</option>)}
               </select>
             </div>
+            {/* ============================================================
+                "PICK BEST XI" — SJA `pickBestXi` FYRIR ROKSTUDNINGINN
+                ============================================================
+                BENCH BOOST: i BB-umferd skora ALLIR 15, svo hvada 11 byrja
+                er einskis virdi. Takkinn er thvi SLOKKTUR og MERKIMIDINN
+                SEGIR AF HVERJU — slokktur takki an skyringar lesist eins og
+                bilun, og takki sem virkar en gerir ekkert er verri.       */}
+            <button style={{ ...S.ghost, ...(bbActive ? S.ghostOff : null) }}
+              disabled={bbActive}
+              onClick={() => { if (!bbActive) pickBestXi(); }}
+              title={bbActive
+                ? "Bench Boost: all 15 players score this gameweek, so which 11 start is worth nothing. Nothing to pick."
+                : "Arranges your XI for this gameweek to the highest total expected points, using the same expected-points model as the rest of the app. It sets WHO STARTS — the bench order is not changed. Undo with Reset bench."}>
+              {bbActive ? "Best XI — nothing to pick in Bench Boost" : "⚡ Pick best XI"}</button>
+            {!bbActive && <span style={S.bestXiNote}
+              title={"FPL bench order is stored as the squad's own seat order, which this button does not touch — only the starter flags."}>
+              {"sets who starts, not bench order"}</span>}
             {(benchSwaps[gw]?.length > 0) &&
               <button style={S.ghost} onClick={() => setBenchSwaps(bs => { const n = { ...bs }; delete n[gw]; return n; })}>{"Reset bench"}</button>}
           </div>
@@ -2654,6 +2792,76 @@ export default function App() {
               })}
             </div>
           )}
+          {/* ============================================================
+              HVENAER A AD SELJA — TALAN ER INNAN LEIKMANNS
+              ============================================================
+              Beidnin (21.8.2026): „appid recommendi sell i akveðinni viku
+              thegar leikmenn eiga erfida leiki framundan".
+
+              ORdALAGID ER SJALFT VORDURINN. Notandinn las Rice sem „verstan"
+              20.8.2026 ur nakvaemlega thessari tolu — hun er AFSTAED VID HANS
+              EIGIN MEDALTAL, svo −0,35 hja honum og −0,35 hja odrum eru
+              tvaer olikar fullyrdingar. Thess vegna:
+                · hvert tolu-holf ber GRUNN SINN i somu setningu
+                  („vs his own average over GW6-38"), og `basis.scale` er
+                  LESID af svarinu, ekki skrifad her — merkimidinn getur
+                  thvi ekki sagt annad en velin gerdi.
+                · summan er ALDREI ber: hun er bundin honum OG lengdinni
+                  („for him", „over those 4 gameweeks").
+                · ein skyringar-setning segir berum ordum ad thetta se EKKI
+                  rodun — solu-rodunin er `score` og hun er annars stadar.
+              RODIN ER TIMAROD (`run.from`), EKKI STAERD TOLUNNAR: rodun eftir
+              tolunni VAERI thver-leikmanna rodun i dulargervi, sem er
+              nakvaemlega villan sem ordalagid a ad koma i veg fyrir.
+              `run: null` BER `why` ORDRETT — „engin erfid runa" og „vid
+              vitum ekki" ma ekki lesast eins (CLAUDE.md: null er ekki null).
+              Radirnar an runu eru HOPADAR eftir `why` svo textinn se
+              ORDRETTUR en kassinn ekki fimmtan linur af sama streng.     */}
+          {(() => {
+            const rows = squadPlayers.map(p => ({ p, t: sellWhen[p.id] })).filter(x => x.t);
+            if (!rows.length) return null;
+            const withRun = rows.filter(x => x.t.run).sort((a, z) =>
+              a.t.run.from - z.t.run.from || a.t.run.to - z.t.run.to || a.p.id - z.p.id);
+            const grouped = [];
+            for (const x of rows) {
+              if (x.t.run) continue;
+              const why = x.t.why || "no answer from the fixture data";
+              const g = grouped.find(v => v.why === why);
+              if (g) g.names.push(x.p.web_name); else grouped.push({ why, names: [x.p.web_name] });
+            }
+            return (
+              <div style={S.card}>
+                <div style={S.sellWhenHead}>{"When to sell — hardest run ahead"}</div>
+                <div style={S.muted}>
+                  {"Relative to his own fixtures — this does not say sell him rather than someone else. Sell order is the squad list's own ranking."}
+                </div>
+                {withRun.map(({ p, t }) => (
+                  <div key={p.id} style={S.srcRow}>
+                    <span style={{ ...S.posDot, background: POS_COLOR[p.element_type] }} />
+                    <span style={S.srcName}
+                      onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>
+                    <span style={S.srcMeta}>{teamById[p.team]?.short}</span>
+                    <span style={S.sellWhenRun}
+                      title={"His worst stretch of fixtures between now and the end of the range, measured against his own average over that range — the same search that finds buy windows, with the direction flipped."}>
+                      {interp("Hardest run ahead: GW{0}–{1}", [t.run.from, t.run.to])}</span>
+                    <span style={S.sellWhenFig}
+                      title={interp("Expected points per gameweek inside GW{0}-{1} compared with his own average across GW{2}-{3} ({4} gameweeks with a known fixture). A figure for HIM — it is not comparable with another player's.", [t.run.from, t.run.to, t.basis.from, t.basis.to, t.basis.n])}>
+                      {interp("{0} pts/GW vs {1} average over GW{2}–{3}",
+                        [signedPts(t.run.perGw), t.basis.scale, t.basis.from, t.basis.to])}</span>
+                    <span style={S.sellWhenSum}
+                      title={"The per-gameweek figure multiplied by the length of the run. Bound to him and to the length on purpose: a bare total beside another player's would read as a ranking."}>
+                      {interp("{0} pts over those {1} gameweeks, for him",
+                        [signedPts(t.run.gain), t.run.len])}</span>
+                  </div>
+                ))}
+                {grouped.map(g => (
+                  <div key={g.why} style={S.sellWhenWhy}>
+                    <b>{g.why}</b>{" — "}{g.names.join(", ")}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           </div>
           </div>
 

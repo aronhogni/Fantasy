@@ -244,6 +244,15 @@ export const S = {
   capBadge: { width:20, height:20, borderRadius:"50%", background:"#ffd23f", color:"#4a3800", fontFamily:mono, fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
   capSel: { border:"none", background:"transparent", fontSize:12.5, color:C.text, outline:"none", maxWidth:120 },
   ghost: { background:"transparent", border:`1px solid ${C.border}`, borderRadius:7, padding:"6px 10px", fontSize:11.5, color:C.text2, cursor:"pointer" },
+  /* SLOKKTUR `ghost`. `cursor:"default"` og EKKI `not-allowed`: takkinn er
+     ekki bannadur heldur MERKINGARLAUS i thessari umferd, og merkimidinn
+     segir thad sjalfur. */
+  ghostOff: { opacity:0.55, cursor:"default", color:C.text3 },
+  /* SETNINGIN UM BEKKJAR-RODINA ER FAST A SKJANUM, EKKI I TOAST SEM HVERFUR.
+     `marginBottom: 0` — `capBar` er `alignItems:center` flex-rod og botn-
+     margin thar lyftir textanum um halft sitt gildi medan systkinin sitja
+     kyrr (sama villa og `S.muted` i `srcRow`, sja App.jsx). */
+  bestXiNote: { fontSize:10.5, color:C.text3, marginBottom:0, lineHeight:1.35 },
 
   /* Raðirnar deila plássinu jafnt; völlurinn vex ef þarf (sjá Pitch.jsx) */
   rowsArea: { flex:"1 0 auto", display:"flex", flexDirection:"column",
@@ -425,6 +434,16 @@ export const S = {
      `lineHeight:1.35` er sama tala i ollum thremur svo grunnlinurnar
      lendi saman — tvaer lineHeight i sama rod eru tvaer linur.        */
   srcName: { fontWeight:700, cursor:"pointer", lineHeight:1.35, marginBottom:0, minWidth:0 },
+  /* „When to sell" — holfin sitja i `srcRow` og bera thvi SOMU reglu:
+     `marginBottom:0` og SAMA `lineHeight` i ollum thremur. Sja langa
+     athugasemdina vid `srcName` fyrir hvers vegna hvorugt ma vanta. */
+  sellWhenHead: { fontSize:12, fontWeight:700, color:C.text, marginBottom:4 },
+  sellWhenRun: { fontWeight:700, color:C.text, lineHeight:1.35, marginBottom:0, whiteSpace:"nowrap" },
+  sellWhenFig: { fontFamily:mono, fontSize:10.5, color:C.red, lineHeight:1.35, marginBottom:0 },
+  sellWhenSum: { fontSize:10.5, color:C.text3, lineHeight:1.35, marginBottom:0 },
+  /* `run: null` — `why` ORDRETT. Ekki grar smair stafir sem lesast eins og
+     fotnota: thetta er SVARID fyrir thann leikmann. */
+  sellWhenWhy: { fontSize:11, color:C.text2, lineHeight:1.45, padding:"3px 0" },
   srcMeta: { fontSize:11, color:C.text3, lineHeight:1.35, marginBottom:0, whiteSpace:"nowrap" },
   srcFrees: { color:C.amber, fontWeight:700, lineHeight:1.35, marginBottom:0, whiteSpace:"nowrap" },
   /* ============================================================

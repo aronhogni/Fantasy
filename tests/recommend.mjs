@@ -394,6 +394,59 @@ console.log("\n5b. SOLU-TIMASETNING — TIMASETNING, EKKI RODUN");
 }
 
 /* ============================================================
+   5c. TENGINGIN I `App.jsx` — SAMA NON-FUSION, EN I VIDMOTINU (21.8.2026)
+
+   Kafli 5b ver ad VELIN blandi ekki. Hann segir hins vegar EKKERT um
+   KALLSTADINN: appid gaeti latid `sellTiming` inn i
+   `buildRecommendations({...})` eda vegid rununa ofan a `score` i JSX-inu,
+   og bædi vaeru OMAELD SAMSETNING — nakvaemlega thad sem 5b er til fyrir.
+   Fullyrdingin er thvi byggingarleg BADUM megin.
+
+   OG SAMA GILDIR UM "PICK BEST XI": skorid ma vera `expPointsFor` og
+   ekkert annad. `expPts x startProbability` var MAELT OG HAFNAD 20.8.2026
+   (-0,055 / -0,096 / -0,006 stig/umferd, oll thrju CI utiloka null: FPL-
+   autosubs skila theim abata FRITT, 88,9% theirra sem hefdi verid bekkjad
+   og svo gaf ekkert komu inn af bekknum hvort sem er). `expPts x sp^k` er
+   einraent fallandi i k, svo ENGIN vog vinnur. Vordurinn hangir a
+   KALLSTADNUM thvi thad er thar sem freistingin er.
+   ============================================================ */
+console.log("\n5c. TENGINGIN I App.jsx — NON-FUSION OG SKORID");
+{
+  ok(/import \{[^}]*\bsellTiming\b[^}]*\} from "\.\/recommend\.js"/.test(APP),
+     "App.jsx flytur `sellTiming` inn (forsenda naestu fullyrdinga)");
+  /* SER `useMemo`, EKKI REITUR I TILLOGU-MEMO-INU. */
+  const own = APP.match(/const sellWhen = useMemo\(\(\) => sellTiming\(\{[\s\S]*?\}\), \[[^\]]*\]\);/);
+  ok(!!own, "hun er kollud i SINU EIGIN `useMemo` (`sellWhen`)");
+  ok(/\bsquad:\s*squadPlayers\b/.test(own?.[0] || ""),
+     "og adeins fyrir HOPINN — timasetning a solu er merkingarlaus fyrir mann sem thu att ekki");
+  /* KALLID A `buildRecommendations` MA EKKI SJA HANA. Fullyrdingin er
+     um ARGUMENT-BLOKKINA, ekki um skrana i heild: „`sellTiming` er einhvers
+     stadar i App.jsx" er satt med byggingu og segir thvi ekkert.        */
+  const call = APP.match(/buildRecommendations\(\{[\s\S]*?\n    \}\)/);
+  ok(!!call && call[0].length > 80, `fann kallid a \`buildRecommendations\` (${call?.[0].length || 0} stafir)`);
+  ok(!/sellTiming|sellWhen|hardestRun|hardRuns/.test(call?.[0] || ""),
+     "og thad tekur HVORKI `sellTiming`, `sellWhen` ne rununa inn — rodunin er oradd vid hana");
+  /* MEMO-HADIRNIR MA EKKI HELDUR SKARAST VID SOLU-SKORID: baeri `sellWhen`
+     `recommendations` sem had vaeri hun endurreiknud MED henni og gaeti
+     laesst inn i sama reikning.                                          */
+  const deps = (own?.[0].match(/\}\), \[([^\]]*)\]\);$/) || [, ""])[1];
+  ok(!/recommendations|inSquadScores|sellIds/.test(deps),
+     `og hadir hennar nefna ekki tillogu-memo-id (${deps.trim()})`);
+
+  /* "PICK BEST XI" — SKORID. */
+  const bt = APP.match(/bestTeamPlan\(\{[\s\S]*?\n    \}\);/);
+  ok(!!bt, "fann kallid a `bestTeamPlan`");
+  ok(/score:\s*s => expPoints\(s\.id, gw\),/.test(bt?.[0] || ""),
+     "skorid er BER `expPoints(s.id, gw)` — vaent stig fyrir ThESSA umferd og ekkert annad");
+  ok(!/startProb|startPOf|startProbability|\bavail\b|rankScore/.test(bt?.[0] || ""),
+     "og HVORKI byrjunar-likur ne rodunar-skor blandast inn (MAELT OG HAFNAD 20.8.2026)");
+  /* VELIN ER ADFLUTT, EKKI ENDURSKRIFUD: engin onnur formasjonu-tafla i
+     App.jsx en su sem `swapStarterBench` hefur att fra upphafi.          */
+  ok(/import \{[^}]*\blegalFormation\b[^}]*\} from "\.\/bestteam\.js"/.test(APP),
+     "og reglan um leyfilega uppstillingu er FLUTT INN (`legalFormation`), ekki afritud");
+}
+
+/* ============================================================
    6. MAELINGIN SJALF — ENDURKEYRD A COMMITTUDUM GOGNUM
    Ef eitthvad af thessu snyst vid a hofnunin ad endurskodast, og tha a
    vordurinn ad SEGJA THAD, ekki thegja. Sama hlutverk og
