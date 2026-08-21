@@ -36,7 +36,7 @@
    ============================================================ */
 
 import { getText, getJSON, record, pool, tryGet } from "../lib/http.mjs";
-import { objects, str } from "../lib/csv.mjs";
+import { objects, missingCols, str } from "../lib/csv.mjs";
 import { normPos } from "../../src/scoring.js";
 
 const PARTNERS = "https://partners.fantasypros.com/api/v1/consensus-rankings.php";
@@ -296,11 +296,22 @@ export async function weeklyEcr() {
   try { txt = await getText(WEEKLY_MIRROR); }
   catch (e) { record(tag, false, `failed: ${e.message}`); return null; }
 
-  const rows = objects(txt, ["page", "page_pos", "scrape_date", "fantasypros_id",
+  /* SKEMA-DRIFT VERDUR SYNILEG — sja `parse()` i sources/nflverse.mjs.
+     `scrape_date` er lykill skrarinnar: hverfi HANN yrdi vistunin
+     dagsett a keyrslunni i stad gagnanna, sem er nakvaemlega villan sem
+     notan ad ofan lysir. */
+  const COLS = ["page", "page_pos", "scrape_date", "fantasypros_id",
     "player_name", "pos", "team", "rank", "ecr", "sd", "best", "worst",
     "player_bye_week", "player_owned_avg", "player_opponent",
     "player_ecr_delta", "recommendation", "pos_rank", "start_sit_grade",
-    "r2p_pts"]);
+    "r2p_pts"];
+  const miss = missingCols(txt, COLS);
+  if (miss.length) {
+    record("schema:fp_latest_weekly", false,
+      `source no longer carries ${miss.length} of ${COLS.length} requested ` +
+      `columns: ${miss.join(", ")}`);
+  }
+  const rows = objects(txt, COLS);
 
   const players = rows.map((r) => ({
     fpId: str(r.fantasypros_id), name: str(r.player_name),

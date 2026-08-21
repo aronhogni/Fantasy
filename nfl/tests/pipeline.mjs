@@ -536,6 +536,117 @@ console.log("\ntrending-sagan");
    inn. Baetist skra vid sem enginn les fellur thetta profa og tha er
    thad AKVORDUN: annadhvort er hun notud eda hun fer a listann med
    rokstudningi.                                                     */
+/* ============================================================
+   DALKUR SEM HEIMILDIN TOK UT MA EKKI HVERFA I THOGN
+   ============================================================
+   `objects(text, pick)` sleppir thogult dalki sem er ekki i hausnum. Su
+   thogn hefur kostad tvisvar og badar bilanir skradu sig **`ok`**:
+
+     `depthCharts(2026)`  nflverse skipti um snid; af 15 dolkum lifdi
+                          `gsis_id` einn. Fallid skiladi 0 rodum og
+                          skradi `ok` (skjalad i haus `depthCharts`).
+     `players.csv` 21.8.  `draft_club` -> `draft_team` og `sleeper_id`
+                          tekid ut. `draftTeam` var null a ollum 25.049
+                          leikmonnum og `nvBySleeper` var TOM Map.
+
+   `missingCols` + `parse()` gera thognina ad raudri rod i `status.json`.
+   ThETTA PROFA MAELIR MEKANISMANN, EKKI LIFANDI SKEMA nflverse, og thad
+   er akvordun: hard fullyrding um ytra skema hefdi stoppad gogn i hvert
+   sinn sem nflverse endurnefnir dalk sem enginn les — sama stiflan sem
+   felldi thrjar keyrslur a draftdegi 21.8. Skemad er SYNILEGT
+   (rod i Sources); profid ver ad thad SE synilegt.
+
+   Fjorar fullyrdingar:
+     (a) `missingCols` finnur dalk sem vantar og THEGIR thegar allt er a
+         sinum stad (baedi attir — annars gaeti hun alltaf skilad tomu)
+     (b) hun er RAUNVERULEGA notud: hver `objects(txt, [...])` i
+         `scripts/sources/` liggur i falli sem einnig kallar `missingCols`
+     (c) `parse()` skrair `record(..., false)` — ekki `true`
+     (d) `players.csv` bidur um dalka sem HAUSINN A DISKNUM ber, thegar
+         mynd af hausnum er til
+   ============================================================ */
+console.log("\nskema-drift verdur synileg, ekki thogul");
+{
+  const { missingCols } = await import("../scripts/lib/csv.mjs");
+
+  /* (a) BADAR ATTIR. Fullyrding sem adeins profar "hun finnur thad sem
+     vantar" er sonn hja falli sem skilar OLLUM dolkum alltaf. */
+  ok(missingCols("a,b,c\n1,2,3\n", ["a", "b", "c"]).length === 0,
+    "missingCols thegir thegar allir dalkar eru a sinum stad");
+  const m1 = missingCols("a,b,c\n1,2,3\n", ["a", "zz", "c"]);
+  ok(m1.length === 1 && m1[0] === "zz",
+    `missingCols finnur dalkinn sem vantar (${JSON.stringify(m1)})`);
+  /* Hausar med kommu innan gaesalappa — sama astaeda og `rows()` er til. */
+  ok(missingCols('"a,x",b\n1,2\n', ["a,x", "b"]).length === 0,
+    "og hun thattar gaesalappadan haus rett");
+  ok(missingCols("a,b\r\n1,2\r\n", ["a", "b"]).length === 0,
+    "og CRLF fellir hana ekki");
+
+  /* (b) TENGINGIN. `missingCols` sem er skilgreind en okollud er
+     nakvaemlega su thogla eining sem thetta profa er til vegna. */
+  const { readdirSync } = await import("node:fs");
+  const srcDir = path.join(ROOT, "scripts", "sources");
+  /* ATHUGASEMDIR ERU FJARLAEGDAR FYRST. Bædi thessi skra og
+     `sources/nflverse.mjs` NEFNA `objects(txt, pick)` i skyringum, svo
+     leit i hraum texta myndi telja skyringuna sem kallstad — fullyrding
+     sem athugasemd getur uppfyllt er einskis virdi (sami lærdomur og i
+     "skraarnofn i data/" hér fyrir nedan). */
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  let withPicks = 0; const unguarded = [];
+  for (const f of readdirSync(srcDir).filter((x) => x.endsWith(".mjs"))) {
+    const txt = strip(readFileSync(path.join(srcDir, f), "utf8"));
+    /* `objects(txt)` AN lista er ekki hér: thar er enginn dalkur til ad
+       tapa, thvi hausinn sjalfur verdur lyklarnir. */
+    if (!/\bobjects\(\s*\w+\s*,/.test(txt)) continue;
+    withPicks++;
+    if (!/\bmissingCols\(/.test(txt)) unguarded.push(f);
+  }
+  ok(withPicks >= 3,
+    `ThEKJA: ${withPicks} skrar i scripts/sources/ lesa CSV med dalkalista`);
+  ok(unguarded.length === 0,
+    `og hver theirra kallar missingCols (an: ${unguarded.join(", ") || "engin"})`);
+
+  /* OG I ThEIRRI SKRA SEM DRIFTADI TVISVAR VERDUR HVER LESTUR AD FARA
+     GEGNUM `parse()`. Talan er thekjufullyrding: falli hun hefur einhver
+     bætt vid ovoktudum lestri (maelt 21.8.2026: sex). */
+  const nvStripped = strip(readFileSync(path.join(srcDir, "nflverse.mjs"), "utf8"));
+  const viaParse = (nvStripped.match(/\bparse\(\s*[`"]/g) || []).length;
+  ok(viaParse >= 6,
+    `nflverse.mjs: ${viaParse} CSV-lestrar fara gegnum parse()`);
+
+  /* (c) ROD SEM SEGIR `ok` UM TYNDAN DALK ER VERRI EN ENGIN ROD. */
+  const nvSrc = readFileSync(path.join(srcDir, "nflverse.mjs"), "utf8");
+  const parseFn = /function parse\(tag, txt, cols[\s\S]*?\n\}/.exec(nvSrc);
+  ok(!!parseFn, "`parse()` finnst i sources/nflverse.mjs");
+  ok(parseFn && /record\(`schema:\$\{tag\}`,\s*false/.test(parseFn[0]),
+    "og hun skrair skema-drift sem VILLU, ekki sem ok");
+
+  /* (d) OG ThAD SEM RAUNVERULEGA BROTNADI: dalkaheitin i `players()`
+     verda ad vera thau sem hausinn a disknum ber. Mynd af hausnum er
+     geymd i profinu svo thetta krefjist ekki netkalls; hun er tekin ur
+     lifandi skra 21.8.2026 (39 dalkar). */
+  const PLAYERS_HEAD = ["gsis_id", "display_name", "common_first_name",
+    "first_name", "last_name", "short_name", "football_name", "suffix",
+    "esb_id", "nfl_id", "pfr_id", "pff_id", "otc_id", "espn_id", "smart_id",
+    "birth_date", "position_group", "position", "ngs_position_group",
+    "ngs_position", "height", "weight", "headshot", "college_name",
+    "college_conference", "jersey_number", "rookie_season", "last_season",
+    "latest_team", "status", "ngs_status", "ngs_status_short_description",
+    "years_of_experience", "pff_position", "pff_status", "draft_year",
+    "draft_round", "draft_pick", "draft_team"];
+  const askedM = /parse\("players", txt, \[([\s\S]*?)\]/.exec(nvSrc);
+  ok(!!askedM, "`players()` pick-listinn er finnanlegur");
+  if (askedM) {
+    const asked = [...askedM[1].matchAll(/"([a-z0-9_]+)"/g)].map((x) => x[1]);
+    ok(asked.length > 20, `ThEKJA: ${asked.length} dalkar bednir um`);
+    const gone = asked.filter((c) => !PLAYERS_HEAD.includes(c));
+    ok(gone.length === 0,
+      `og hver theirra er i hausnum a players.csv (${gone.join(", ") || "allir"})`);
+    ok(asked.includes("draft_team") && !asked.includes("draft_club"),
+      "dalkurinn heitir `draft_team` — `draft_club` var endurnefnt");
+  }
+}
+
 console.log("\nolesnar skrar eru asettar");
 {
   const KNOWN_UNREAD = {
@@ -1330,13 +1441,13 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
     const weSrc = /export async function weeklyEcr\([\s\S]*?\n\}/.exec(fpSrc);
     ok(!!weSrc, "`weeklyEcr()` finnst i fantasypros.mjs");
     if (weSrc) {
-      const { objects, str } = await import("../scripts/lib/csv.mjs");
+      const { objects, missingCols, str } = await import("../scripts/lib/csv.mjs");
       const { normPos } = await import("../src/scoring.js");
       const build = (text, log = []) => ({
-        fn: new Function("getText", "objects", "str", "normPos", "numOrNull",
-          "record", "WEEKLY_MIRROR",
+        fn: new Function("getText", "objects", "missingCols", "str", "normPos",
+          "numOrNull", "record", "WEEKLY_MIRROR",
           `${weSrc[0].replace(/^export /, "")}; return weeklyEcr;`)(
-          async () => text, objects, str, normPos,
+          async () => text, objects, missingCols, str, normPos,
           (v) => { if (v == null || v === "" || v === "-") return null;
                    const x = Number(v); return Number.isFinite(x) ? x : null; },
           (n, o, note) => log.push({ n, ok: o, note }), "http://x"),

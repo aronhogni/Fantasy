@@ -22,11 +22,47 @@ import { getText, record, pool } from "../lib/http.mjs";
 /* `rows` er flutt inn undir odru heiti VILJANDI: thrju foll hér inni
    skilgreina sina eigin `const rows`, og skuggi a innfluttu bindingu er
    loglegur en villandi fyrir thann sem les. */
-import { objects, rows as csvRows, num, num0, str } from "../lib/csv.mjs";
+import { objects, rows as csvRows, missingCols, num, num0, str } from "../lib/csv.mjs";
 import { offensePoints, kickerPoints, normPos } from "../../src/scoring.js";
 import { normTeam } from "../../src/names.js";
 
 const REL = "https://github.com/nflverse/nflverse-data/releases/download";
+
+/* ============================================================
+   EIN SKILGREINING A "LES CSV OG SEGDU FRA ThVI SEM VANTAR"
+   ============================================================
+   Hvert fall hér ber lista af dalkaheitum. `objects()` sleppir thogult
+   theim sem heimildin ber ekki lengur (sja notu vid `missingCols` i
+   `lib/csv.mjs`) og thad hefur tvisvar gefid skra sem skradi sig `ok`
+   medan hun var half eda tom.
+
+   `parse()` gerir ThOGNINA AD RAUDRI ROD i `status.json`, en hun
+   FELLIR EKKI KEYRSLUNA — og thad er akvordun, ekki hik:
+
+     `tests/pipeline.mjs` er hlid a undan commit-inu i `nfl-data.yml`.
+     21.8.2026 felldi EIN flokrandi fullyrding thrjar keyrslur i rod og
+     thar med ALLT ADP a draftdegi. Vordur sem stoppar gogn af thvi ad
+     ytri heimild endurnefndi dalk sem enginn les vaeri sama stiflan.
+
+   Vidmidid er thvi: **drift verdur SYNILEG strax, og pipeline-id heldur
+   afram med thad sem enn er nytilegt.** Fall sem TAPAR nytilegum gognum
+   fellur afram a sinum eigin `record(..., false)` eins og adur
+   (`depthCharts` skilar 0 rodum -> `ok: false`).
+
+   `optional` ER LESID EN EKKI KRAFIST. Thad er fyrir dalk sem vid
+   NOTUM ef hann er til en hofum MAELT ad vid tornum ekki an — annars
+   yrdi Sources-flipinn med rauda rod ad eilifu fyrir dalk sem
+   heimildin er buin ad taka ut viljandi, og "rautt sem hreinsast
+   aldrei" kennir notandanum ad hunsa spjaldid.                      */
+function parse(tag, txt, cols, optional = []) {
+  const miss = missingCols(txt, cols);
+  if (miss.length) {
+    record(`schema:${tag}`, false,
+      `source no longer carries ${miss.length} of ${cols.length} requested ` +
+      `columns: ${miss.join(", ")}`);
+  }
+  return objects(txt, optional.length ? [...cols, ...optional] : cols);
+}
 
 /* Dalkarnir sem vid lesum ur vikulega fylkinu. Skrain er 140 dalkar
    og 8,5 MB; ad velja 40 sparar ~70% af minninu. Bættu vid hedan ef
@@ -59,7 +95,7 @@ export async function weeklyStats(seasons) {
   await pool(seasons, 3, async (yr) => {
     try {
       const txt = await getText(`${REL}/stats_player/stats_player_week_${yr}.csv`);
-      const raw = objects(txt, WEEK_COLS);
+      const raw = parse(`stats_player_week_${yr}`, txt, WEEK_COLS);
       const rows = [];
       for (const r of raw) {
         if (r.season_type !== "REG") continue;          // eftirkeppni er ekki fantasy
@@ -124,7 +160,7 @@ const round2 = (x) => Math.round(x * 100) / 100;
  */
 export async function schedule(seasons) {
   const txt = await getText(`${REL}/schedules/games.csv`);
-  const all = objects(txt, [
+  const all = parse("schedules/games", txt, [
     "game_id", "season", "game_type", "week", "gameday", "weekday", "gametime",
     "away_team", "home_team", "away_score", "home_score", "result", "total",
     "away_moneyline", "home_moneyline", "spread_line", "total_line",
@@ -156,7 +192,7 @@ export async function schedule(seasons) {
 export async function snapCounts(season) {
   try {
     const txt = await getText(`${REL}/snap_counts/snap_counts_${season}.csv`);
-    const rows = objects(txt, ["pfr_player_id", "player", "position", "team",
+    const rows = parse(`snap_counts_${season}`, txt, ["pfr_player_id", "player", "position", "team",
       "season", "week", "offense_snaps", "offense_pct"]);
     const out = rows.filter((r) => num(r.offense_snaps) != null).map((r) => ({
       pfrId: str(r.pfr_player_id), name: str(r.player), pos: normPos(r.position),
@@ -310,7 +346,7 @@ export async function depthCharts(season, { latestOnly = false } = {}) {
 export async function injuries(season) {
   try {
     const txt = await getText(`${REL}/injuries/injuries_${season}.csv`);
-    const rows = objects(txt, ["season", "team", "week", "gsis_id", "position",
+    const rows = parse(`injuries_${season}`, txt, ["season", "team", "week", "gsis_id", "position",
       "full_name", "report_primary_injury", "report_status", "practice_status"]);
     const out = rows.map((r) => ({
       team: str(r.team), week: num(r.week), id: str(r.gsis_id),
@@ -328,19 +364,49 @@ export async function injuries(season) {
 
 /**
  * Grunnskra leikmanna — bio + AUDKENNIS-BRU.
- * `players.csv` ber gsis_id, espn_id, sleeper_id, pfr_id o.fl. i einni
- * rod, sem er nakvaemlega thad sem tharf til ad tengja saman heimildir
- * an nafna-porunar. Nafna-porun er sidasta urraedi hja okkur — hun
- * villti Jacob og Alex Murphy i FPL-verkefninu.
+ * `players.csv` ber gsis_id, espn_id, pfr_id o.fl. i einni rod, sem er
+ * nakvaemlega thad sem tharf til ad tengja saman heimildir an
+ * nafna-porunar. Nafna-porun er sidasta urraedi hja okkur — hun villti
+ * Jacob og Alex Murphy i FPL-verkefninu.
+ *
+ * ============================================================
+ * TVEIR DALKAR VORU HORFNIR OG BADIR SKRADU SIG `ok` (maelt 21.8.2026)
+ * ============================================================
+ * Hausinn a `players.csv` er 39 dalkar og listinn hér bad um tvo sem
+ * eru ekki i honum:
+ *
+ *   `draft_club`  ->  ENDURNEFNT `draft_team`. `draftTeam` hefur thvi
+ *                     verid **null a ollum 25.049 leikmonnum**. Enginn
+ *                     les svidid enn, svo ekkert var synilega rangt —
+ *                     en tomt svid sem heimildin BER er lygi sem bidur
+ *                     thess ad einhver lesi hana ("NULL ER EKKI NULL").
+ *                     Lagfaert: rett heiti.
+ *
+ *   `sleeper_id`  ->  TEKID UT ALVEG. nflverse birtir thad ekki lengur.
+ *                     `nvBySleeper` i `fetch-nfl.mjs` — varaleidin ad
+ *                     nflverse-rod thegar DynastyProcess-bruin thegir —
+ *                     hefur thvi verid **TOM Map**.
+ *
+ * OG VARALEIDIN HAFDI ENGU AD TAPA — ThAD ER MAELINGIN SEM AFGREIDIR
+ * MALID: af 1.167 rodum i `players.json` para **1.035 gegnum bruna** og
+ * 2 gegnum Sleeper-eigid gsis; **0 gegnum `nflverse_sleeper_id`**. Their
+ * 130 sem para ekki hafa **allir `gsisId: null` OG `team: null`**
+ * (Reggie Diggs, Valdez Showers, Gabe Marks …) — menn sem eru ekki i
+ * nflverse yfirleitt, svo ENGIN bru hefdi fundid thá.
+ *
+ * Dalkurinn er thvi haldinn i `optional`: hann er LESINN afram (kviknar
+ * af sjalfu ser skili nflverse honum aftur) en er EKKI krafist, svo
+ * Sources faer ekki rauda rod ad eilifu fyrir dalk sem heimildin
+ * fjarlaegdi viljandi.
  */
 export async function players() {
   const txt = await getText(`${REL}/players/players.csv`);
-  const rows = objects(txt, ["gsis_id", "display_name", "common_first_name",
+  const rows = parse("players", txt, ["gsis_id", "display_name", "common_first_name",
     "last_name", "position", "position_group", "latest_team", "status",
     "jersey_number", "height", "weight", "college_name", "birth_date",
     "rookie_season", "last_season", "draft_year", "draft_round", "draft_pick",
-    "draft_club", "years_of_experience", "headshot", "esb_id", "smart_id",
-    "espn_id", "sleeper_id", "pfr_id", "otc_id", "pff_id"]);
+    "draft_team", "years_of_experience", "headshot", "esb_id", "smart_id",
+    "espn_id", "pfr_id", "otc_id", "pff_id"], ["sleeper_id"]);
   const out = rows.map((r) => ({
     id: str(r.gsis_id), name: str(r.display_name), pos: normPos(r.position),
     posGroup: str(r.position_group), team: str(r.latest_team), status: str(r.status),
@@ -348,7 +414,7 @@ export async function players() {
     college: str(r.college_name), born: str(r.birth_date),
     rookieSeason: num(r.rookie_season), lastSeason: num(r.last_season),
     draftYear: num(r.draft_year), draftRound: num(r.draft_round),
-    draftPick: num(r.draft_pick), draftTeam: str(r.draft_club),
+    draftPick: num(r.draft_pick), draftTeam: str(r.draft_team),
     exp: num(r.years_of_experience), headshot: str(r.headshot),
     espnId: str(r.espn_id), sleeperId: str(r.sleeper_id), pfrId: str(r.pfr_id),
   })).filter((p) => p.id);
@@ -367,7 +433,7 @@ export async function teamWeekly(seasons) {
   await pool(seasons, 3, async (yr) => {
     try {
       const txt = await getText(`${REL}/stats_team/stats_team_week_${yr}.csv`);
-      const rows = objects(txt, ["team", "season", "week", "season_type", "opponent_team",
+      const rows = parse(`stats_team_week_${yr}`, txt, ["team", "season", "week", "season_type", "opponent_team",
         "attempts", "completions", "passing_yards", "passing_tds", "carries",
         "rushing_yards", "rushing_tds", "passing_epa", "rushing_epa",
         "def_sacks", "def_interceptions", "def_tds"]);

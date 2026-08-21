@@ -69,6 +69,38 @@ export function objects(text, pick = null) {
   return out.filter(Boolean);
 }
 
+/* ============================================================
+   HVAD BAD ThATTARINN UM SEM HEIMILDIN BER EKKI LENGUR?
+   ============================================================
+   `objects(text, pick)` SLEPPIR ThOGULT dalki sem er ekki i hausnum
+   (`.filter(([, j]) => j >= 0)`). Thad er RETT hegdun — annars felli
+   ein tyndur dalkur heila keyrslu — en hun er ThOGUL, og su thogn
+   hefur nu kostad tvisvar:
+
+     1. `depthCharts(2026)`: nflverse skipti um snid og af 15 dolkum sem
+        listinn bad um var `gsis_id` sa EINI sem lifdi. `r.position` vard
+        undefined, sian henti hverri rod, og fallid skradi sig **`ok`
+        med "0 rows"**. (Skjalad i haus `depthCharts`.)
+     2. `players.csv` 21.8.2026: `draft_club` var endurnefnt `draft_team`
+        og `sleeper_id` **tekid ut alveg**. `players()` bad um bada.
+        `draftTeam` hefur thvi verid null a ollum 25.049 leikmonnum, og
+        `nvBySleeper` — varaleidin ad nflverse-rod thegar audkennisbruin
+        thegir — hefur verid TOM Map. Baedi skradu sig `ok`.
+
+   ThETTA FALL GERIR ThOGNINA HAVAERA. Þad er hreint (skilar bara
+   listanum); kallandinn skrair rodina i `status.json` med `record`, svo
+   drift birtist sem RAUD rod i Sources i stad thess ad hverfa.
+
+   ADEINS FYRSTA LINAN ER ThOTTUD — hausar bera engar linuskiptingar
+   innan gaesalappa, og skrarnar eru upp i 43 MB.                    */
+export function missingCols(text, pick) {
+  if (!pick || !pick.length) return [];
+  const nl = text.indexOf("\n");
+  const first = nl < 0 ? text : text.slice(0, nl);
+  const head = (rows(first)[0] || []);
+  return pick.filter((k) => !head.includes(k));
+}
+
 /**
  * Tala ur CSV-reit. `""` og `"NA"` verda **null, ekki 0**.
  * Sama regla og i FPL-appinu (CLAUDE.md kafli 8): NULL ER EKKI NULL.

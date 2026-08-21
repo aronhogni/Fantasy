@@ -19,7 +19,7 @@
    ============================================================ */
 
 import { getJSON, getText, record, pool } from "../lib/http.mjs";
-import { objects, str, num } from "../lib/csv.mjs";
+import { objects, missingCols, str, num } from "../lib/csv.mjs";
 import { normPos } from "../../src/scoring.js";
 
 const FFC = "https://fantasyfootballcalculator.com/api/v1/adp";
@@ -88,9 +88,22 @@ export async function ffcAll(year) {
 export async function idMap() {
   const txt = await getText(
     "https://raw.githubusercontent.com/dynastyprocess/data/master/files/db_playerids.csv");
-  const rows = objects(txt, ["fantasypros_id", "sleeper_id", "gsis_id", "espn_id",
+  /* SKEMA-DRIFT VERDUR SYNILEG. `objects()` sleppir thogult dalki sem
+     heimildin ber ekki lengur — sja notu vid `missingCols` i lib/csv.mjs
+     og `parse()` i sources/nflverse.mjs. Bruin er "kjarninn i ollu"
+     (NFL.md kafli 2), svo dalkur sem hverfur ur HENNI er dyrasta thogla
+     bilunin i settinu: `sleeperId` sem hverfur tekur hverja einustu
+     porun med ser. */
+  const COLS = ["fantasypros_id", "sleeper_id", "gsis_id", "espn_id",
     "yahoo_id", "pfr_id", "mfl_id", "name", "merge_name", "position", "team",
-    "birthdate", "age", "draft_year", "draft_round", "draft_pick", "db_season"]);
+    "birthdate", "age", "draft_year", "draft_round", "draft_pick", "db_season"];
+  const miss = missingCols(txt, COLS);
+  if (miss.length) {
+    record("schema:db_playerids", false,
+      `source no longer carries ${miss.length} of ${COLS.length} requested ` +
+      `columns: ${miss.join(", ")}`);
+  }
+  const rows = objects(txt, COLS);
   const out = rows.map((r) => ({
     fpId: str(r.fantasypros_id), sleeperId: str(r.sleeper_id),
     gsisId: str(r.gsis_id), espnId: str(r.espn_id), yahooId: str(r.yahoo_id),
