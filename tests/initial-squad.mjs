@@ -876,11 +876,21 @@ console.log("\n--- K. AFTURABAK ---");
   const P1 = { "events.json": { events: playedEvents(EV, 1) } };
   const HAAL = byId[411].web_name;
 
-  /* 1. FORLEIKUR — committud gogn, engin umferd byrjud.                */
-  const pre = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } });
-  const started = EV.filter(e => e.deadline_time
+  /* 1. FORLEIKUR — ThVINGAD, EKKI TREYST A DAGATALID (lagad 21.8.2026).
+     Thessi kafli las adur `Date.now()` gegn committudum `events.json` og
+     fullyrdi `started === 0`. Thad var satt thegar hann var skrifadur og
+     vard OSATT **um leid og GW1-fresturinn leid, medan svitan var i
+     keyrslu** — run 1 graent, run 2 og 3 raud, med sömu skra og sama koda.
+     Prof sem dagatalid getur fellt maelir dagatalid, ekki kodann. Hjalpin
+     `playedEvents(EV, n)` var ThEGAR til fyrir 1 og 4; forleikurinn er nu
+     `n = 0` eins og hin tvo, svo kaflinn profar SAMA hlutinn i dag og i
+     mars. Sama aett og `fdcouk`-rodin (404 -> 301 -> 300) og
+     `gw1-checklist`, sem baedi urealdust af klukkunni og ekki af villu. */
+  const P0 = { "events.json": { events: playedEvents(EV, 0) } };
+  const pre = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P0 });
+  const started0 = (P0["events.json"].events || []).filter(e => e.deadline_time
     && Date.now() >= new Date(e.deadline_time).getTime()).length;
-  ok(started === 0, `forsenda: engin umferd er byrjud i committudum gognum (${started})`);
+  ok(started0 === 0, `forsenda: ThVINGAD forleiks-astand, engin byrjud umferd (${started0})`);
   ok(!/Not been in your XI/.test(pre.text()),
      "FORLEIKUR: bordinn segir EKKERT — engin notkunar-saga er til");
   ok(!/as you have them set up/.test(pre.text()),

@@ -181,6 +181,19 @@ console.log("\n=== ThU NOTAR HANN ALDREI — SEFUR I FORLEIK ===");
     ok(!/as you have them set up/.test(text()),
        "og gamla fullyrdingin 'as you have them set up' er hvergi");
     ok(!/frees up to/.test(text()), "og gamli merkimidinn 'frees up to' er hvergi");
+  } else if (started < 2) {
+    /* GOLFID ER TVAER UMFERDIR OG ThESSI GREIN VANTADI (lagad 21.8.2026).
+       Profid var tvigreint — "0 byrjadar -> thogn" annars "bordinn A ad
+       birtast" — og fell um leid og GW1-fresturinn leid: med NAKVAEMLEGA
+       EINNI byrjadri umferd thegir appid RETTILEGA, thvi ein umferd ma
+       ekki brennimerkja mann sem onotadan (hann gat verid meiddur thá
+       einu viku). Profid gerdi rad fyrir ad HVER byrjud umferd naegdi.
+       ThAD VAR PROFID SEM VAR RANGT, ekki appid — og thad sast fyrst
+       thegar klukkan for framhja 17:30, ekki vid nokkra kodabreytingu. */
+    ok(!text().includes("Not been in your XI"),
+       `EIN byrjud umferd (${started}) — golfid er TVAER, svo bordinn ThEGIR`);
+    ok(!/as you have them set up/.test(text()),
+       "og gamla fullyrdingin er hvergi, ekki heldur i thessu astandi");
   } else {
     ok(text().includes("Not been in your XI"),
        `timabilid er byrjad (${started} umferdir) — bordinn A ad birtast`);
