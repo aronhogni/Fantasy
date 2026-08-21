@@ -50,6 +50,17 @@ export const S = {
   urlInput: { background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 11px", fontSize:13, color:C.text, width:210, outline:"none" },
   searchBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:8, padding:"8px 12px", fontSize:12.5, color:C.text, cursor:"pointer", whiteSpace:"nowrap" },
   connectBtn: { background:C.purple, color:"#fff", border:"none", borderRadius:8, padding:"9px 14px", fontSize:13, fontWeight:600, cursor:"pointer" },
+  /* AFTENGING ER EKKI SAMA ADGERD OG TENGING, SVO HUN LITUR EKKI EINS UT
+     (21.8.2026). `connectBtn` er fyllt fjolublatt — kall til adgerdar.
+     Aftenging er AFTURKOLLUN og hun er utlinud, sama form sem `searchBtn`
+     ber: hann er ekki ad velja hana i hvert skipti sem hann opnar appid.
+     ThAD ER SAMT EKKI VIDVORUNARRAUTT: adgerdin er algerlega afturkraef
+     (tengja aftur skilar hopnum) og rautt vaeri fullyrding um haettu sem
+     ekki er their — sama regla sem gerir Evropu-merkid GRATT og ekki
+     rautt (CLAUDE.md kafli 4).                                          */
+  discBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:8,
+             padding:"8px 12px", fontSize:12.5, color:C.text2, cursor:"pointer",
+             whiteSpace:"nowrap" },
 
   cmpFab: { position:"fixed", right:16, bottom:16, zIndex:60, border:"none",
             background:C.purple, color:"#fff", borderRadius:22, padding:"10px 16px",
@@ -392,6 +403,28 @@ export const S = {
      eins og delta, sem er nakvaemlega talan sem ma ekki vera thar.      */
   planPickEp: { fontFamily:mono, fontSize:10.5, color:C.text3, minWidth:46,
     textAlign:"right" },
+  /* ============================================================
+     „ROD SEM VAR EKKI BEITT" — GULT, EKKI RAUTT (21.8.2026)
+     ============================================================
+     Sami litur sem `conn.picks === false` ber i hausnum (#fff6e0/#7a5600):
+     spurningin er su sama — „thetta virkadi ekki alveg" — og tveir litir
+     a somu spurningu eru tveir kvardar (CLAUDE.md 8). Rautt er villa sem
+     verdur ad leysa; her er `plan` hans OSKERTUR og ekkert brotid, adeins
+     rod sem breytir engu.
+     RAMMINN ER SKRIFADUR MED `border`-STYTTINGU EINNI og ENGRI langritun
+     ofan a: kassinn KEMUR OG FER i hverri umferd, og blondud stytting og
+     langritun a sama hlut er nakvaemlega thad sem gaf 14 React-
+     vidvaranir i FFDR-toflunni. Ein stytting er OHAETT; thad var
+     BLONDUNIN sem var villan.                                          */
+  planWarn: { background:"#fff6e0", color:"#7a5600", borderRadius:6,
+    border:"1px solid #f0d79a", padding:"6px 9px", marginBottom:8,
+    fontSize:11, lineHeight:1.5 },
+  /* MERKID A RODINNI. `planSecTag` var ekki nothaeft: hann er grar og
+     „in place of X" ber hann thegar a SOMU rod, svo tvo eins merki hefdu
+     lesist sem eitt (sama roksemd sem gerir hvert ikon ad annarri
+     grunnform-samsetningu).                                            */
+  planSkipTag: { fontFamily:mono, fontSize:9, textTransform:"uppercase",
+    letterSpacing:0.8, color:"#7a5600", fontWeight:700 },
 
   chipHalfLbl: { display:"flex", alignItems:"baseline", gap:6, fontFamily:mono, fontSize:9.5, textTransform:"uppercase", letterSpacing:0.7, color:C.purple, fontWeight:700, marginTop:10, paddingTop:6, borderTop:`1px solid ${C.border}` },
   chipExpiry: { fontWeight:400, letterSpacing:0, color:C.text3, marginLeft:"auto", fontSize:9 },

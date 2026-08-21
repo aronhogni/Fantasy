@@ -36,7 +36,23 @@ const sleep = ms => new Promise(r => realSetTimeout(r, ms));
    og ef profid flytti hlut vaeri `JSON.stringify`/`parse`-ferdin — thar
    sem `undefined`-svid tapast og tolur namundast — ekki maeld.
    ============================================================ */
-export async function boot(state, { delay = 0 } = {}) {
+/* ============================================================
+   `picks` — RAUNLIDID UR FPL, GEGNUM PROXYINN (21.8.2026)
+
+   BAETT VID FYRIR OPNUNARDAGS-VILLUNA: „Connected — 15 players fetched
+   for gameweek 1, en rett lid kemur ekki." Hun kviknar ADEINS thegar
+   VISTAD `plan` og RAUNLID koma saman, og hvorugt profa-safnid gat sett
+   thad upp: `boot` skiladi 404 fyrir hverja slod sem er ekki `/data/`,
+   svo `squadOverride` gat ekki ordid annad en `null`. Ferd sem getur
+   ekki nad astandinu er ekki vordur um thad.
+
+   `picks` er HRATT SVAR (sama hlutur sem `?path=fpl-picks` skilar), ekki
+   listi af id-um: profid a ad fara gegnum sömu vorpun sem appid gerir
+   (`p.position <= 11`, `is_captain`, `entry_history.bank`), annars vaeri
+   vorpunin sjalf oprofud — og hun er einmitt thar sem bekkurinn og
+   bandid geta tapast.
+   ============================================================ */
+export async function boot(state, { delay = 0, picks = null, entry = null, warns = null } = {}) {
   const dom = new JSDOM("<!doctype html><div id=root></div>",
     { url: "http://localhost/", pretendToBeVisual: true });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -58,15 +74,51 @@ export async function boot(state, { delay = 0 } = {}) {
        ASTAND og HAEG SOKN komu saman, og hvorugt tholprofa-safnid
        (`data-resilience`, `untrusted-input`) profar bada asa.          */
     if (delay) await sleep(delay);
-    const n = String(u).split("/data/")[1];
+    const s = String(u);
+    /* PROXY-LEIDIRNAR FYRST. Almenni `/data/`-handlerinn ma ekki gleypa
+       thaer — sertaekir mock-ar verda ad koma A UNDAN honum (CLAUDE.md 5,
+       jsdom-gildrurnar).                                                */
+    if (picks && s.includes("path=fpl-picks"))
+      return { ok: true, status: 200, json: async () => picks };
+    /* ADEINS ThEGAR KALLANDINN BAD UM ThAD. Vaeri thetta skilyrdislaust
+       breytti `boot` hegdun fyrir OLL eldri tilfellin (andstaedinga-
+       effectinn og `connectUrl` sæju 200 i stad 404), og tha vaeri nyr
+       valkostur ordinn thogul breyting a profum sem eru thegar graen. */
+    if ((entry || picks) && s.includes("path=fpl-entry"))
+      return { ok: true, status: 200, json: async () => (entry || { id: 179938, name: "Test", player_first_name: "T", player_last_name: "T" }) };
+    const n = s.split("/data/")[1];
     if (!n) return { ok: false, status: 404, json: async () => { throw new Error("no proxy"); } };
     try { return { ok: true, status: 200, json: async () => J(n) }; }
     catch { return { ok: false, status: 404, json: async () => { throw new Error("404"); } }; }
   };
 
+  /* ============================================================
+     `warns` — SAFNA I STAD AD GLEYPA (21.8.2026)
+     ============================================================
+     Filterinn hér gleypir „Warning:" svo `act`-nagg fylli ekki utpudid.
+     Sa filter GERIR ThAD SAMA vid raunverulegar React-vidvaranir, og
+     ThAER kvikna nanast allar vid FYRSTU teikningu — sem er INNI i
+     `boot`. Fullyrding sem kallandinn setur upp EFTIR `boot` getur thvi
+     ekki fallid; maelt med tveimur stokkbreytingum (ogildur DOM-
+     eiginleiki a hnappnum · listi an lykils) sem BADAR slupppu i gegn.
+     Fylkid sem er sent inn faer thvi vidvaranirnar sjalfar, svo
+     kallandinn geti fullyrt um thaer. An thess er thognin hér innbyggd.
+
+     SIAN ER SU SAMA SEM `react-warnings.mjs` NOTAR, OG ThAD ER MAELT
+     NAUDSYNLEGT: fyrsta utgafa safnadi eftir `/Warning:/` — og React 19
+     SETUR ThAD FORSKEYTI EKKI LENGUR, svo hun fangadi NULL og badar
+     stokkbreytingarnar slupppu afram i gegn (0 fallnar). Maelitaekid var
+     sjalft villan (CLAUDE.md 5b). Nu er ALLT tekid nema `act`-naggid og
+     deprecation-sudid, nakvaemlega eins og thar.
+     ============================================================ */
+  const NOISE = /not wrapped in act|DeprecationWarning|module\.register|attachEvent|trace-deprecation/;
   const orig = console.error, ow = console.warn;
-  console.error = (...a) => { const m = String(a[0] ?? ""); if (!/not wrapped in act|Warning:/.test(m)) orig(...a); };
-  console.warn = () => {};
+  const grab = (...a) => { const m = String(a[0] ?? "");
+    if (NOISE.test(m)) return;
+    if (Array.isArray(warns)) { warns.push(m.slice(0, 200)); return; }
+    if (!/Warning:/.test(m)) orig(...a); };
+  console.error = grab;
+  console.warn = Array.isArray(warns) ? grab : () => {};
   let crash = null, root = null;
   try {
     const { default: App } = await import("../../src/App.jsx");

@@ -34,7 +34,7 @@ import { buildRecommendations, swapCandidates, sellTiming } from "./recommend.js
 import { bestTeamPlan, legalFormation, posKey, XI_SIZE } from "./bestteam.js";
 import { clamp, sellTenths, lookupPos, lookupMeasured,
   tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
-  makeFixDifficulty, computeTransferCost, isInitialSquadPick, expPointsFor, priceMovePrediction,
+  makeFixDifficulty, computeTransferCost, isInitialSquadPick, applyPlan, expPointsFor, priceMovePrediction,
   cleanSheetProb, rankScore, eloStale, parseEntryId, rarelyStarted, priceFloors,
   intlBreaks, euroWeeks, euroTeams, compLabel } from "./model.js";
 
@@ -861,7 +861,27 @@ export default function App() {
       } catch { if (alive) { setTotalPts(null); setGwPts(null); } }
     })();
     return () => { alive = false; };
-  }, [entryId, gw]);
+    /* ============================================================
+       `liveTick` KOM I DEPS ThEGAR „Refresh"-TAKKINN FOR (21.8.2026)
+       ============================================================
+       Takkinn var fjarlaegdur ur hausnum ad beidni notandans, svo aðrar
+       leidir ad ferskum tolum urdu ad vera taldar UPP adur en hann for.
+       MAELT A KODANUM ADUR EN NOKKRU VAR BREYTT — hann gat hvort ed er
+       ekki endurnyjad hopinn:
+         · `connectUrl` byrjar a `if (!raw)` og `urlInput` er ALDREI
+           vistadur, svo eftir endurhledslu gaf „Refresh" villuna
+           „Paste your FPL link or team ID." og ekkert annad.
+         · Hefdi reiturinn verid fylltur kallar hann `setEntryId(id)` med
+           SAMA gildi — React sleppir tha endurteikningu og ThESSI effect
+           keyrir EKKI. Hann sotti `fpl-entry` (nafnid), aldrei `picks`.
+       Takkinn var thvi merki um endurnyjun sem gerdist ekki — akkurat
+       „absence rendered as success". Nu er endurnyjunin RAUNVERULEG og
+       sjalfvirk: `liveTick` tikkar a 60 s medan leikur er i gangi (sja
+       `live?.any_live`), sem er nakvaemlega thad tímabil sem stig, banki
+       og refsing HREYFAST. Utan thess eru pikkarnir frosnir og ekkert
+       ad endurnyja. Vill hann thvinga sokn — Disconnect og tengja aftur;
+       thad nullstillir `entryId` og keyrir thennan effect fra grunni.  */
+  }, [entryId, gw, liveTick]);
 
 
   // preSeason er reiknað neðar (þarf events) — ref til að buyOf nái í það
@@ -1247,15 +1267,20 @@ export default function App() {
      Adur var svarid fundid med thvi ad bera byrjunarlidid vid `START_SQUAD`
      — svo hopur sem hann var BUINN AD VELJA i GW1 mældist sem „hann hefur
      stillt upp GW3-8", sem er nakvaemlega kaeran (sja `unusedPlan`).     */
+  /* ============================================================
+     FOLDIN SJALF ER ADFLUTT — `applyPlan` I `model.js` (21.8.2026)
+     ============================================================
+     Lykkjan sem stod her (og AFRIT hennar i `bank`) lagdi UPPHAFSLIDS-
+     valin ofan a raunlidid ur FPL og fleygdi thogult hverri rod sem ekki
+     var haegt ad beita. Baedi vandamalin — og maelingin sem sannadi thau
+     (Saliba i stad White, banki -1,5 i stad +0,5) — eru skjolud vid
+     `applyPlan`. Her er ADEINS tengingin og UPPSTILLINGIN.
+     `official: !!squadOverride` er reglan i einu orði: **er raunlidid
+     komid?** Ef svo er ER thad upphafslidid, svo GW1-valin eru ofaukin;
+     GW2+ leggjast afram a thad, thvi thad er allur punkturinn i plonun. */
   const squadForGw = useCallback((g, withArrangement = true) => {
-    let sq = (squadOverride || START_SQUAD).map(s => ({ ...s }));
-    [...plan].sort((a,z) => a.gw - z.gw).forEach(tr => {
-      if (tr.gw > g) return;
-      // FH-skipti gilda aðeins í sinni umferð
-      if (fhGws.has(tr.gw) && tr.gw !== g) return;
-      const i = sq.findIndex(s => s.id === tr.outId);
-      if (i >= 0) sq[i] = { ...sq[i], id: tr.inId };
-    });
+    let sq = applyPlan({ base: squadOverride || START_SQUAD, plan, gw: g,
+                         fhGws, official: !!squadOverride }).seats;
     /* ============================================================
        UPPSTILLINGIN ERFIST FRAM — SIDASTI SKYRI LYKILL, EKKI FOLD
        (20.8.2026)
@@ -1539,6 +1564,53 @@ export default function App() {
   const plannedIn = useMemo(() => new Set(
     plan.filter(t => t.gw <= gw && !isInitialSquadPick(t)).map(t => t.inId)), [plan, gw]);
 
+  /* ============================================================
+     HVAD VAR RAUNVERULEGA BEITT — OG HVAD EKKI (21.8.2026)
+     ============================================================
+     `planFold` er SAMA kall sem vollurinn gerir fyrir valda umferd, svo
+     bankinn og talningin geta ekki sagt annad en vollurinn syn.
+     `planStatus` svarar sömu spurningu PER ROD, og hun er ekki reiknud
+     med nyrri reglu heldur med thvi ad kalla `applyPlan` einu sinni per
+     umferd sem aaetlunin nefnir og lesa ur hvorum lista rodin kom.
+     Ein utfaersla, tveir lesendur — sbr. `buildTeamMetrics` (kafli 7).
+     LYKILLINN ER HLUT-TILVISUNIN sjalf (`Map` a rod-hlutinn), ekki
+     `gw:out:in`-strengur: tvaer EINS radir eru leyfilegar i `plan` og
+     strengja-lykill hefdi latid thaer deila stodu — su fyrri BEITT og su
+     seinni SLEPPT er raunverulegt astand (kedjan sem villuna sannadi). */
+  const planFold = useMemo(() => applyPlan({
+    base: squadOverride || START_SQUAD, plan, gw, fhGws, official: !!squadOverride,
+  }), [squadOverride, plan, gw, fhGws]);
+  const planStatus = useMemo(() => {
+    const m = new Map();
+    const gws = [...new Set(plan.map(t => Number(t?.gw)).filter(Number.isFinite))]
+      .sort((a, z) => a - z);
+    for (const g of gws) {
+      const f = applyPlan({ base: squadOverride || START_SQUAD, plan, gw: g,
+                            fhGws, official: !!squadOverride });
+      for (const [kind, list] of [["applied", f.applied], ["skipped", f.skipped],
+                                  ["redundant", f.redundant]])
+        for (const t of list) if (Number(t.gw) === g) m.set(t, kind);
+    }
+    return m;
+  }, [plan, squadOverride, fhGws]);
+  /* TALNINGARNAR SEM VIDMOTID BIRTIR. `redundant` er adeins til thegar
+     raunlid er tengt (skilyrdid er inni i `applyPlan`), svo hér tharf
+     ENGA adra profun a `squadOverride` — annars vaeri reglan a tveimur
+     stodum og gaeti rekid i sundur.                                    */
+  /* TVEIR LISTAR OG ThAD ER EKKI SNYRTING: „skipti sem ekki er haegt ad
+     beita" og „upphaflids-val sem ekki er haegt ad setja" birtast i
+     SITTHVORUM kafla (Transfer plan / Starting squad), svo ein tala hefdi
+     ordid ord sem passa ekki i annan hvorn kaflann. Sama skilyrdi
+     (`isInitialSquadPick`), tvo ord.                                    */
+  const planSkipped = useMemo(() =>
+    plan.filter(t => planStatus.get(t) === "skipped"), [plan, planStatus]);
+  const skippedMoves = useMemo(() =>
+    planSkipped.filter(t => !isInitialSquadPick(t)), [planSkipped]);
+  const skippedPicks = useMemo(() =>
+    planSkipped.filter(isInitialSquadPick), [planSkipped]);
+  const planRedundant = useMemo(() =>
+    plan.filter(t => planStatus.get(t) === "redundant"), [plan, planStatus]);
+
   /* ---- KAUPVERÐ ----
      Þrjár sjálfvirkar heimildir, í forgangsröð:
      1) "manual" — þú stilltir það sjálf/ur
@@ -1588,15 +1660,17 @@ export default function App() {
       const spentBuy = base.reduce((a, s) => a + buyOf(s.id), 0);
       tenths = Math.round(BUDGET * 10) - spentBuy;
     }
-    // beita plönuðum skiptum til og með valdri umferð.
-    // FH-skipti snerta bankann aðeins Í sinni umferð — hann gengur til baka.
-    [...plan].sort((a, z) => a.gw - z.gw).forEach(tr => {
-      if (tr.gw > gw) return;
-      if (fhGws.has(tr.gw) && tr.gw !== gw) return;
+    /* BANKINN LES `applied`, EKKI `plan` — OG ThAD VAR VILLAN (21.8.2026).
+       Her stod eigid afrit af foldinni og thad hafdi ENGA `i >= 0`-profun,
+       svo hver rod sem vollurinn SLEPPTI var samt reiknud inn i bankann:
+       tiu GW1-radir ofan a raunlidid gafu **-1,5** thar sem rett svar var
+       +0,5. Tvo afrit af einni lykkju REKA i sundur, og thau gerdu thad.
+       FH-reglan flyst med (`applyPlan` ber hana), svo hun er hvorki
+       endurskrifud her ne tapast.                                       */
+    for (const tr of planFold.applied)
       tenths += sellOf(tr.outId) - (byId[tr.inId]?.now_cost ?? 0);
-    });
     return +(tenths / 10).toFixed(1);
-  }, [players, squadOverride, apiBank, plan, gw, byId, buyPrices, fhGws]);
+  }, [players, squadOverride, apiBank, planFold, gw, byId, buyPrices]);
 
   // Liðsverð = summa SÖLUVERÐA (það sem þú fengir ef þú seldir allt)
   const squadValue = useMemo(() =>
@@ -1923,6 +1997,76 @@ export default function App() {
     setBenchSwaps({}); setChips({});
     setSwapSel(null); setSelling(null); setConfirmReset(null);
     flash("Transfer planning reset — your starting squad is untouched.");
+  }
+
+  /* ============================================================
+     „TAKA UPP FPL-HOPINN" — HANN SMELLIR, VID EYDUM ALDREI SJALF
+     (21.8.2026)
+     ============================================================
+     Thegar raunlidid er tengt eru GW1-valin OFAUKIN (sja `applyPlan`) og
+     vollurinn hunsar thau. Ad LATA thau standa i listanum og segja
+     ekkert vaeri hins vegar nakvaemlega su villa sem hann hefur kaert
+     tvisvar i dag: appid fullyrdir eitthvad sem er ekki svo — tiu „val"
+     sem gera ekki neitt.
+     ThVI: setningin er a skjanum OG hnappur til ad hreinsa thau, en
+     HREINSUNIN ER HANS SMELLUR. Sjalfvirk eyding er utilokud af sömu
+     astaedu sem `resetAll` var lagad fyrir: `plan` + `START_SQUAD` er
+     ThAD SEM HOPURINN ER thegar ekkert er tengt, svo rod sem vid eydum
+     i dag er saeti sem hann hefur ekki a morgun (aftengist hann, eda
+     dettur FPL ut). `gw1-persistence.mjs` pinnar öll 15.
+     ADEINS GW1-RADIR FARA — `isInitialSquadPick`, sami predikatinn, og
+     GW2+ plonun er osnort.                                            */
+  function adoptFplSquad() {
+    const n = plan.filter(isInitialSquadPick).length;
+    setPlan(p => p.filter(t => !isInitialSquadPick(t)));
+    setConfirmReset(null);
+    flash(interp(n === 1
+      ? "{0} GW1 pick removed — the FPL squad is your starting squad. Transfer planning is untouched."
+      : "{0} GW1 picks removed — the FPL squad is your starting squad. Transfer planning is untouched.",
+      [n]));
+  }
+
+  /* ============================================================
+     AFTENGING — TENGINGIN FER, LIDID OG PLONUNIN STANDA (21.8.2026)
+     ============================================================
+     Notandinn: „Taktu gluggann fyrir urlid ut og Refresh takkann. Og
+     setjum disconnect takka fyrir aftan. Ef eg disconnecta svo lidid
+     mitt, tha myndi url reiturinn koma aftur upp."
+
+     ThAD SEM FER: `entryId` — og ekkert annad SETT hér. `squadOverride`,
+     `apiBank`, `apiHit`, `totalPts` og `gwPts` nullstillast SJALF i
+     effectinum vid `!entryId` (linu 785), svo tvi-nullstilling hér vaeri
+     annad afrit af theirri reglu og gaeti rekid i sundur vid hana.
+     `conn` er hins vegar EKKI i theim effect og verdur ad fara hér,
+     annars stæði „Connected ✓ — 15 players fetched" ofan vid tomt
+     url-svaedi.
+
+     ThAD SEM FER **EKKI**, OG ThAD ER ADALATRIDID: `plan`, `benchSwaps`,
+     `chips`, `captain`, `vice`, `buyPrices`, `watch`, `rivals`. Ad
+     aftengjast FPL er EKKI sama athofn og ad fleygja lidinu sinu.
+     `resetAll` gerdi nakvaemlega thessi mistok i gaer (`setPlan([])` a
+     bak vid hnapp sem het „reset all planning") og su villa ma ekki
+     endurtaka sig i nyju formi. Vordur: `initial-squad.mjs` kafli P
+     les BLOBBID fyrir og eftir og krefst ad thad se BYTE-EINS ad thvi
+     einu frataldu ad `entryId` er `null`.
+
+     OG HANN A AD VITA AF ThVI FYRIRFRAM ad vollurinn getur breytst:
+     an raunlidsins er hopurinn `START_SQUAD` + `plan` aftur, sem er
+     ekki endilega sami hopur. Setningin er a hnappnum sjalfum
+     (`title`) OG i stadfestingar-linunni — ekki i toast sem hverfur.
+
+     ENDURTENGING: `urlInput` er ekki nullstillt hér (hann getur haft
+     limt inn nytt id) en `setUrlInput("")` er ohaett thvi reiturinn er
+     hvort eð er tomur medan hann er faldur; ThAD SEM SKIPTIR er ad
+     effectinn vid [entryId, gw] sækir UPP A NYTT thegar nytt id er
+     sett, svo hopur fra fyrra id getur ekki lifad af — hann var
+     nullstilltur i sama effect fyrst.                                */
+  function disconnectFpl() {
+    setEntryId(null);
+    setConn({ state:"idle", msg:"", name:null, picks:null });
+    setUrlInput("");
+    setConfirmReset(null);
+    flash("Disconnected from FPL. Your squad, planning and captain are untouched — the pitch is back on your own saved squad.");
   }
 
   /* TENGING ER NU SANNREYND. `fpl-entry` virkar i forleik (skilar nafni
@@ -2382,13 +2526,41 @@ export default function App() {
           <button style={{ ...S.searchBtn, ...(showChips ? S.searchBtnOn : {}) }}
             onClick={() => setShowChips(v => !v)}
             title="Wildcard, Free Hit, Bench Boost, Triple Captain">{"🎫 Chips"}</button>
-          <input className="url-input" style={S.urlInput}
-            placeholder={"FPL URL or team ID"} value={urlInput}
-            title={"Paste the link to YOUR TEAM (it contains /entry/NUMBER/) — or just the number. Example: fantasy.premierleague.com/entry/1234567/event/1"}
-            onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && connectUrl()} />
-          <button style={S.connectBtn} onClick={connectUrl}
-            disabled={conn.state === "checking"}>
-            {conn.state === "checking" ? "Checking …" : entryId ? "Refresh" : "Connect"}</button>
+          {/* ============================================================
+              TENGT EDA OTENGT — TVEIR HLUTIR, EKKI EINN MED TVEIMUR
+              HEITUM (21.8.2026)
+              ============================================================
+              Notandinn: „Taktu gluggann fyrir urlid ut og Refresh takkann.
+              Og setjum disconnect takka fyrir aftan."
+
+              REITURINN OG „Connect" ERU ADGERDIN; ThEGAR HUN ER GERD ERU
+              THAU RUSL — sama rokfaersla sem tok fjorar skyringa-blokkir
+              ut i gaer. Og „Refresh" var ekki bara rusl heldur MERKI UM
+              ENDURNYJUN SEM GERDIST EKKI: `urlInput` er aldrei vistadur,
+              svo eftir endurhledslu skiladi hann villunni „Paste your FPL
+              link or team ID", og med fylltan reit kalladi hann
+              `setEntryId` med SAMA gildi — React sleppir tha
+              endurteikningu og pikka-effectinn keyrdi EKKI. Maelingin og
+              hvad kom i stadinn: sja `liveTick` i deps their.
+
+              `entryId` ER SKILYRDID, ekki `conn.state`: `conn` er
+              birtingar-astand sem lifir villur og bid-stodur, en
+              `entryId` er ThAD SEM PIKKA-EFFECTINN LES (linu 785). Vaeri
+              skilyrdid `conn` gaeti reiturinn horfid an thess ad nokkud
+              vaeri tengt.                                              */}
+          {entryId ? (
+            <button style={S.discBtn} onClick={disconnectFpl}
+              title={"Unlink this FPL team. Your squad, transfer planning, line-ups, chips and captain are NOT touched — but the pitch goes back to your own saved squad, which may differ from the FPL one."}>
+              {"Disconnect"}</button>
+          ) : (<>
+            <input className="url-input" style={S.urlInput}
+              placeholder={"FPL URL or team ID"} value={urlInput}
+              title={"Paste the link to YOUR TEAM (it contains /entry/NUMBER/) — or just the number. Example: fantasy.premierleague.com/entry/1234567/event/1"}
+              onChange={e => setUrlInput(e.target.value)} onKeyDown={e => e.key === "Enter" && connectUrl()} />
+            <button style={S.connectBtn} onClick={connectUrl}
+              disabled={conn.state === "checking"}>
+              {conn.state === "checking" ? "Checking …" : "Connect"}</button>
+          </>)}
         </div>
         {/* STADA TENGINGARINNAR — SYNILEG. Adur var engin stadfesting og
             engin villa: notandinn sa "Tengt lid X" samstundis og svo ekkert
@@ -3124,6 +3296,27 @@ export default function App() {
                 {"Gain = expected points (points/match + FDR, FPL ep_next for the next gameweek) over 5 gameweeks. The hit is subtracted. An estimate, not a certainty."}
               </div>
               </>)}
+              {/* ============================================================
+                  ROD SEM EKKI VAR HAEGT AD BEITA VERDUR AD SJAST
+                  (21.8.2026)
+                  ============================================================
+                  `if (i >= 0)` i foldinni fleygdi rod thegar `outId` var
+                  ekki i hopnum — an merkis nokkurs stadar. ThAD er
+                  astaedan fyrir thvi ad villan a opnunardegi las eins og
+                  „connected, 15 fetched, rangt lid" i stad villuskilabods:
+                  fjarvist var teiknud sem arangur. `gw1-persistence.mjs`
+                  R6 maelir thognina berum orðum og kallar hana „verra".
+                  Talan kemur ur `planStatus`, sem er SAMA kall
+                  (`applyPlan`) sem vollurinn gerir — hun getur thvi ekki
+                  sagt annad en vollurinn syn.                          */}
+              {skippedMoves.length > 0 && (
+                <div style={S.planWarn}>
+                  {interp(skippedMoves.length === 1
+                    ? "⚠ {0} planned transfer cannot be applied: the outgoing player is not in the squad in that gameweek, so the pitch ignores it. Marked below."
+                    : "⚠ {0} planned transfers cannot be applied: the outgoing player is not in the squad in that gameweek, so the pitch ignores them. Marked below.",
+                    [skippedMoves.length])}
+                </div>
+              )}
               {/* ENDURSTILLA ALLT — fyrir þegar Wildcard-tilraun er hætt við */}
               <div style={S.resetAllRow}>
                 {confirmReset === "all" ? (
@@ -3173,6 +3366,16 @@ export default function App() {
                       <span style={{ color:C.red }}>{byId[t.outId]?.web_name}</span>
                       {" → "}
                       <span style={{ color:C.green, fontWeight:600 }}>{byId[t.inId]?.web_name}</span>
+                      {/* MERKID ER A RODINNI SJALFRI, ekki adeins i
+                          talningunni ofar: talan segir HVE MARGAR, radan
+                          segir HVER. An hennar vaeri „2 cannot be applied"
+                          upplysing sem hann getur ekki brugdist vid.    */}
+                      {planStatus.get(t) === "skipped" && (
+                        <span style={S.planSkipTag}
+                          title={"The outgoing player is not in your squad in that gameweek, so this row changes nothing. Delete it with ✕, or plan the transfer from a player you actually have."}>
+                          {" not applied"}
+                        </span>
+                      )}
                     </span>
                     <span style={S.planCalc} title={"expected points over 5 gameweeks"}>
                       {gain >= 0 ? "+" : ""}{gain}
@@ -3211,6 +3414,48 @@ export default function App() {
                   <h2 style={S.h2}>{"Starting squad"}</h2>
                   <span style={S.planSecTag}>{"GW1 — not transfers"}</span>
                 </div>
+                {/* ============================================================
+                    RAUNLID TENGT -> GW1-VALIN ERU OFAUKIN, OG ThAD ER SAGT
+                    (21.8.2026)
+                    ============================================================
+                    Reglan sjalf er i `applyPlan` (`official`), her er
+                    ADEINS setningin og hnappurinn. Hvorugt er valkvaett:
+                    ad hunsa radirnar OG thegja um thad vaeri tiu „val" a
+                    skjanum sem gera ekki neitt — sama aett sem hann hefur
+                    kaert tvisvar i dag.
+                    HNAPPURINN EYDIR ADEINS VID SMELL OG MED STADFESTINGU.
+                    `plan` + `START_SQUAD` ER hopurinn thegar ekkert er
+                    tengt, svo rod sem vid eydum sjalf er saeti sem hann
+                    hefur ekki eftir aftengingu — sja `adoptFplSquad`.  */}
+                {planRedundant.length > 0 && (
+                  <div style={S.planWarn}>
+                    {interp(planRedundant.length === 1
+                      ? "Your FPL team is connected, so the squad it returns IS your starting squad — this {0} GW1 pick is redundant and the pitch ignores it."
+                      : "Your FPL team is connected, so the squad it returns IS your starting squad — these {0} GW1 picks are redundant and the pitch ignores them.",
+                      [planRedundant.length])}
+                    {confirmReset === "gw1" ? (
+                      <span style={S.resetConfirm}>
+                        {interp(" Remove all {0}? Your transfer planning, line-ups, chips and captain are NOT touched.",
+                                [planRedundant.length])}
+                        <button style={S.resetYes} onClick={adoptFplSquad}>{"yes, use the FPL squad"}</button>
+                        <button style={S.resetNo} onClick={() => setConfirmReset(null)}>{"no, keep them"}</button>
+                      </span>
+                    ) : (
+                      <button style={S.resetBtn} onClick={() => setConfirmReset("gw1")}
+                        title={"Delete the GW1 picks you made by hand before connecting. The pitch does not change — it already shows the FPL squad. Keep them if you may disconnect later: without them the pitch falls back to the default squad, not yours."}>
+                        {"↺ use the FPL squad"}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {skippedPicks.length > 0 && (
+                  <div style={S.planWarn}>
+                    {interp(skippedPicks.length === 1
+                      ? "⚠ {0} of these picks cannot be placed: the player it replaces is not in the squad, so the pitch ignores it. Marked below."
+                      : "⚠ {0} of these picks cannot be placed: the player they replace is not in the squad, so the pitch ignores them. Marked below.",
+                      [skippedPicks.length])}
+                  </div>
+                )}
                 <div style={S.muted}>
                   {transferCost[1]?.unlimitedBy === "initial"
                     ? "GW1 has kicked off, so these are locked — no GW1 transfer exists. They are your opening squad, not moves, so there is no gain to show against an outgoing player and no hit."
@@ -3229,6 +3474,26 @@ export default function App() {
                         <span style={{ color:C.green, fontWeight:600 }}>{inP?.web_name}</span>
                         {byId[t.outId] &&
                           <span style={S.planSecTag}>{" in place of "}{byId[t.outId]?.web_name}</span>}
+                        {/* TVAER OLIKAR ASTAEDUR, TVO OLIK ORD. „redundant"
+                            = raunlidid er thegar rett og rodin er ofaukin
+                            (engin adgerd nauðsynleg). „not placed" =
+                            manninum sem hun leysir af er ekki i hopnum, svo
+                            valid komst ALDREI a vollinn (adgerd
+                            nauðsynleg). Eitt ord fyrir badar hefdi latid
+                            hina fyrri lesast eins og villa og hina seinni
+                            eins og allt vaeri i lagi.                    */}
+                        {planStatus.get(t) === "redundant" && (
+                          <span style={S.planSkipTag}
+                            title={"Your FPL squad already decides this seat, so the row changes nothing. Harmless — but you can clear it above."}>
+                            {" redundant"}
+                          </span>
+                        )}
+                        {planStatus.get(t) === "skipped" && (
+                          <span style={S.planSkipTag}
+                            title={"The player this pick replaces is not in the squad, so it never reached the pitch. Delete it with ✕ and pick again from the squad you have."}>
+                            {" not placed"}
+                          </span>
+                        )}
                       </span>
                       <span style={S.planPickEp}
                         title={"His OWN expected points in GW1 (minutes + FFDR + form). Not a comparison with anyone — in GW1 nobody is being sold."}>

@@ -832,6 +832,80 @@ export function isInitialSquadPick(t) {
   return Number(t?.gw) === INITIAL_SQUAD_GW;
 }
 
+/* ============================================================
+   AAETLUNIN LOGD A GRUNNINN — EIN UTFAERSLA, OG HUN SEGIR FRA
+   ThVI SEM HUN SLEPPTI (21.8.2026)
+   ============================================================
+   Notandinn a opnunardegi: „segir Connected — 15 players fetched from FPL
+   for gameweek 1, en rett lid kemur ekki."
+
+   TVENNT VAR AD, OG ThAU ERU SITT HVOR HLID SOMU LYKKJU.
+
+   1. UPPHAFSLIDS-VALIN VORU LOGD OFAN A RAUNLIDID UR FPL. Hann byggdi
+      hopinn i appinu ADUR en hann tengdi (tiu GW1-radir a `START_SQUAD`).
+      Thegar FPL-hopurinn kemur er hann UPPHAFSLIDID — valin eru thvi
+      OFAUKIN med skilgreiningu, ekki „skipti sem eiga ad gilda lika".
+      MAELT (jsdom, hans eigin 15 id + hans tiu GW1-radir): niu radir
+      slokna thvi `outId` er ur `START_SQUAD` og er ekki i raunlidinu — en
+      KEDJA innan GW1 (hann skipti um skodun: Mosquera -> White -> Saliba)
+      hefur SEINNI hlekk sem `outId` ER i raunlidinu, svo hann LENDIR:
+      vollurinn bar **Saliba i stad White** — mann sem FPL segir ad hann
+      eigi ekki. Bankinn fylgdi med: **-1,5** i stad +0,5, thvi
+      `sellOf(outId) - now_cost(inId)` var lagt vid fyrir hverja rod,
+      lika thaer niu sem breyttu ENGU.
+      GW2+ VERDA AD GILDA AFRAM — thad er allur punkturinn i ad plana
+      fram i timann. Skilyrdid er thvi `isInitialSquadPick`, sami
+      predikatinn sem fjorir adrir notendur hafa (aaetlunar-listinn,
+      `plannedIn`, `resetAll`, `unusedPlan`), og ThESSI ER FIMMTI.
+
+   2. `if (i >= 0)` FLEYGDI ROD SEM EKKI VAR HAEGT AD BEITA — ThOGULT.
+      Thad er astaedan fyrir thvi ad villan les eins og „connected, 15
+      fetched, rangt lid" i stad villuskilabod. `gw1-persistence.mjs` R6
+      maelir thessa thogn berum orðum og kallar hana „verra". Fallid
+      skilar thvi ThREMUR listum og kallandinn getur ekki thagad um thá
+      nema hann velji thad: `applied` · `skipped` (outId er ekki i hopnum)
+      · `redundant` (GW1-val ofan a raunlid).
+
+   AF HVERJU ER ThETTA I `model.js` OG EKKI I `App.jsx`: lykkjan stod
+   ThRISVAR i App.jsx (`squadForGw`, `bank`, og hefdi ordid fjorda afritid
+   thegar talningin kom) og hun er nakvaemlega su aett sem repo-id hefur
+   borgad fyrir threfalt — `buildTeamMetrics` skrifadi NaN a 17 lid og
+   merkti thad `src:"e0"`, `headWidth` var graent i profinu medan 25
+   hausar klipptust, `ZONE_RE` vantadi markteiginn i BADUM afritum.
+   Vollurinn og bankinn LESA nu sama svar; their gatu adur rekid i sundur
+   thegjandi (og GERDU thad: vollurinn slapp med niu, bankinn taldi tiu).
+
+   `base` ER AFRITAD, EKKI BREYTT. Kallandinn geymir `squadOverride` /
+   `START_SQUAD` i state og fasta — ritun i thau vaeri thogul spilling
+   sem lifir thar til blodid er endurhladid.
+
+   FH-REGLAN ER OBREYTT: skipti i Free Hit-umferd gilda ADEINS i theirri
+   umferd. Rod sem er sleppt af theirri astaedu er HVORKI `skipped` ne
+   `applied` — hun er ekki „mistok", hun er utan gluggans.
+   ============================================================ */
+export function applyPlan({ base, plan, gw, fhGws = null, official = false } = {}) {
+  const seats = (Array.isArray(base) ? base : []).map(s => ({ ...s }));
+  const applied = [], skipped = [], redundant = [];
+  const g0 = Number(gw);
+  /* TOLU-ThVINGUN A BADUM HLIDUM. `loadState` hleypir `gw:"1"` i gegn ur
+     localStorage og `"10" > 9` er strengja-samanburdur i JS — sama
+     gerdar-gildra sem `isInitialSquadPick` ber sjalfur.                 */
+  const rows = (Array.isArray(plan) ? plan : [])
+    .filter(t => t && Number.isFinite(Number(t.gw)))
+    .sort((a, z) => Number(a.gw) - Number(z.gw));
+  for (const tr of rows) {
+    const g = Number(tr.gw);
+    if (g > g0) continue;
+    if (fhGws?.has?.(g) && g !== g0) continue;
+    if (official && isInitialSquadPick(tr)) { redundant.push(tr); continue; }
+    const i = seats.findIndex(s => s.id === tr.outId);
+    if (i < 0) { skipped.push(tr); continue; }
+    seats[i] = { ...seats[i], id: tr.inId };
+    applied.push(tr);
+  }
+  return { seats, applied, skipped, redundant };
+}
+
 /* ---- VÆNT STIG per leik ----
    EIN aðferð allar umferðir: grunnur (ep_next ef til, annars stig/leik)
    × margfaldari (mæld stig við FFDR leiksins / meðaltal stöðunnar)

@@ -49,6 +49,19 @@
      L  TALNINGIN      — 0 af 6 / 1 af 6 / 6 af 6 a TILBUINNI sogu thar
                          sem svarid er thekkt fyrirfram; sa sem byrjadi
                          EINU SINNI er NEFNDUR med tolunni 1
+     O  RAUNLIDID      — 'Connected, 15 fetched, en rett lid kemur ekki'
+                         (21.8.2026). Hans eigin fimmtan + hans tiu
+                         GW1-radir + KEDJA i GW1: vollurinn bar Saliba i
+                         stad White og bankinn -1,5 i stad +0,5. O2 GW2
+                         gildir afram · O3 otengdur er OBREYTTUR · O4
+                         rod sem ekki er haegt ad beita er TALIN
+     O5 STOKKBREYTINGAR a `applyPlan` — `official` hunsad, oll aaetlunin
+                         hunsud, thognin sett aftur inn; auk FH-reglunnar
+                         og gerdar-thvingunar
+     P  AFTENGING      — url-reiturinn kemur aftur, Refresh er farinn, og
+                         BLOBBID er byte-eins fyrir og eftir ad `entryId`
+                         frataldu; endurtenging a annad id synir ekki
+                         gamla hopinn
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
@@ -1466,6 +1479,421 @@ console.log("\n--- P. SPJALDID ---");
   ok(!/what you actually did/.test(t),
      "AFTURVIRKA talan er EKKI a spjaldinu i forleik — hun er ekki til");
   ok(!NANRE.test(t), "ekkert NaN/undefined");
+}
+
+/* ============================================================
+   O. RAUNLIDID UR FPL ER UPPHAFSLIDID — HANS EIGIN ASTAND
+   (21.8.2026)
+   ============================================================
+   OPNUNARDAGURINN, HANS ORD: „segir Connected — 15 players fetched from
+   FPL for gameweek 1, en rett lid kemur ekki."
+
+   FORSENDAN ER HANS RAUNVERULEGA MYND, ekki tilbuin: fimmtan id ur
+   `entry/179938/event/1/picks/`, `active_chip: "bboost"`, Haaland med
+   bandid og Mbeumo vara — OG tiu GW1-radir ur thvi ad hann byggdi hopinn
+   i appinu ADUR en hann tengdi, plus KEDJA i GW1 (hann skipti um skodun:
+   Mosquera -> White -> Saliba) og eitt RAUNVERULEGT GW2-skipti.
+
+   KEDJAN ER KJARNI MALSINS OG HUN ER MAELD. Niu af tiu fyrstu hlekkjum
+   slokna thvi `outId` er ur `START_SQUAD` og er ekki i raunlidinu — thad
+   LITUR ut eins og allt se i lagi. SEINNI hlekkurinn ber hins vegar
+   `outId` sem ER i raunlidinu (White), svo hann LENDIR: fyrir
+   lagfaeringuna bar vollurinn **Saliba i stad White**, mann sem FPL segir
+   ad hann eigi ekki, og bankinn **-1,5** i stad +0,5.
+
+   HVERS VEGNA `boot` OG EKKI `mount` HER: thetta astand tharfnast
+   ferdarinnar localStorage -> skjar MED proxy-svari, og su ferd a ad vera
+   EIN (sbr. hausinn a `boot-blob.mjs`). `picks`-valkosturinn var baettur
+   thar, ekki afritadur hingad.
+   ============================================================ */
+console.log("\n--- O. RAUNLIDID UR FPL ER UPPHAFSLIDID (opnunardagurinn) ---");
+{
+  /* HANS FIMMTAN. Rodin er LOGLEGT XI (1 GK, 4 DEF, 4 MID, 2 FWD) og
+     bekkur 12-15 — `position <= 11` er thad sem appid les, svo rod med
+     tveimur markmonnum i XI hefdi profad astand sem FPL sendir aldrei. */
+  const FPL_IDS = [496, 532, 391, 418, 10, 427, 565, 557, 397, 411, 165,
+                   412, 8, 542, 346];
+  const CAP = 411, VICE = 427;
+  const PICKS = {
+    active_chip: "bboost",
+    entry_history: { points: 0, total_points: 0, bank: 5, event_transfers_cost: 0 },
+    picks: FPL_IDS.map((el, i) => ({
+      element: el, position: i + 1, multiplier: el === CAP ? 2 : (i < 11 ? 1 : 0),
+      is_captain: el === CAP, is_vice_captain: el === VICE })),
+  };
+  /* HANS TIU GW1-RADIR (ut -> inn), ordrett ur kaerunni, plus kedjan. */
+  const GW1 = [[426, 427], [239, 565], [368, 557], [321, 165], [497, 1],
+               [11, 10], [356, 391], [423, 418], [173, 334], [278, 532]];
+  const CHAIN = [10, 6];                 // White -> Saliba, SEINNI hlekkur
+  const GW2 = { gw: 2, outId: 397, inId: 351 };   // raunverulegt skipti
+  const blob = {
+    entryId: 179938, captain: CAP, vice: VICE,
+    plan: [...GW1.map(([o, i]) => ({ gw: 1, outId: o, inId: i })),
+           { gw: 1, outId: CHAIN[0], inId: CHAIN[1] }, GW2],
+    benchSwaps: {}, chips: { "bboost:1": 1 }, buyPrices: {}, rivals: [], watch: [],
+  };
+  const nameOf = id => byId[id]?.web_name;
+  /* ============================================================
+     REACT-VIDVARANIR I TENGDU MYNDINNI — HER OG HVERGI ANNARS
+     ============================================================
+     `react-warnings.mjs` heimsaekir aldrei tengdu myndina (hann hefur
+     engan proxy), svo `discBtn`, `planWarn` og `planSkipTag` — thrir
+     hlutir sem koma og fara — voru utan hans.
+     OG ThETTA ER FYRSTA `boot` I SKRANNI SEM TEIKNAR ThA, sem er ekki
+     smekksatridi: React DEDUPPAR hverja vidvorun per skilabodum i
+     ferlinu. Fyrsta utgafa profsins setti fylkid a `boot` i kafla P og
+     var GRAEN vid ThRJAR stokkbreytingar (ogildur DOM-eiginleiki · listi
+     an lykils · `NaN` i style) — vidvorunin hafdi ThEGAR verid gefin ut
+     og gleypt HER, svo talan i P gat ekki annad en verid 0. Maelt: 1 i
+     einangrun, 0 i P. Fullyrding sem er ekki a FYRSTA staðnum er
+     fullyrding um dedup, ekki um kodann (CLAUDE.md 5b).
+     ============================================================ */
+  const warnsO = [];
+  const v = await boot(JSON.stringify(blob), { picks: PICKS, warns: warnsO });
+  const t = v.text();
+  ok(warnsO.length === 0,
+     `ENGIN React-vidvorun i TENGDU myndinni (${warnsO.length})`,
+     warnsO.join(" | "));
+
+  /* FORSENDAN SYN AD TENGINGIN SEGIST HAFA HEPPNAST — an thess vaeri
+     „en rett lid kemur ekki" ekki thetta tilfelli (CLAUDE.md 5b: neikvaed
+     fullyrding tharf streng sem var SANNANLEGA their).                */
+  ok(/15 players fetched from FPL for gameweek 1/.test(t),
+     "FORSENDA: appid segir '15 players fetched from FPL for gameweek 1'");
+
+  const seen = cards(v).map(c => c.textContent || "");
+  ok(seen.length === 15, `Bench Boost: OLL 15 spjold teiknast (${seen.length})`);
+  /* HVER OG EINN AF FIMMTAN — og ENGINN annar. `join`-strengur einn
+     hefdi ekki greint „Saliba kom I STAD White" fra „Saliba baettist
+     vid", thvi fjoldinn er festur annars stadar.                      */
+  const missing = FPL_IDS.filter(id => !seen.some(x => x.includes(nameOf(id))));
+  ok(missing.length === 0,
+     `vollurinn ber NAKVAEMLEGA fimmtan FPL-idin (${15 - missing.length}/15)`,
+     missing.length ? `vantar: ${missing.map(nameOf).join(", ")}` : "");
+  /* SA SEM VILLAN SETTI THAR — NEFNDUR. Fyrir lagfaeringuna sat Saliba i
+     saeti White; badir eru ARS-varnarmenn, svo „einhver DEF" hefdi ekki
+     greint thau i sundur.                                             */
+  ok(seen.some(x => x.includes(nameOf(10))),
+     "White (raunlidid) ER a vellinum");
+  ok(!seen.some(x => x.includes(nameOf(6))),
+     `Saliba er EKKI a vellinum — GW1-kedjan lendir ekki a raunlidinu`);
+
+  /* BANDID OG VARINN URDU AD LIFA VORPUNINA. `is_captain` er lesid ur
+     svarinu og OFANSKRIFAR blobbid, svo thetta profar vorpunina, ekki
+     blobbid: badir voru thegar rettir i blobbinu OG i svarinu, sem er
+     hans eigid astand.                                                */
+  const capCard = seen.find(x => /(^|[^A-Za-z])C[^A-Za-z]*Haaland/.test(x)
+                                 || (x.includes(nameOf(CAP)) && x.includes("C")));
+  ok(!!capCard && capCard.includes(nameOf(CAP)), "fyrirlidinn er Haaland");
+  ok(seen.some(x => x.includes(nameOf(VICE)) && /V/.test(x)),
+     "varafyrirlidinn er Mbeumo");
+
+  /* BANKINN — TALAN SEM AFRITID SKEKKTI. `apiBank: 5` (tiundir) og
+     ENGIN beitt rod i GW1, svo svarid er nakvaemlega 0,5. Fyrir
+     lagfaeringuna: -1,5.                                              */
+  ok(/Bank£0\.5/.test(t.replace(/\s+/g, "")),
+     "bankinn er £0,5 — GW1-radirnar eru ekki reiknadar inn",
+     (t.replace(/\s+/g, "").match(/Bank[^A-Za-z]{0,10}/) || ["?"])[0]);
+
+  /* ThOGNIN ER FARIN. Ellefu GW1-radir (tiu + kedjuhlekkurinn) eru
+     OFAUKNAR og talan er A SKJANUM — fjarvist ma ekki teiknast eins og
+     arangur.                                                          */
+  ok(/11 GW1 picks are redundant/.test(t),
+     "ELLEFU ofauknar GW1-radir eru TALDAR a skjanum",
+     (t.match(/\d+ GW1 picks? (are|is) redundant/) || ["(engin tala)"])[0]);
+  ok(/use the FPL squad/.test(t),
+     "og hnappur til ad hreinsa thaer er their — HANS smellur, ekki okkar");
+  /* MERKID A RODINNI SJALFRI, ekki adeins talan. */
+  const redTags = v.q("span").filter(x => (x.textContent || "").trim() === "redundant");
+  ok(redTags.length === 11,
+     `hver ofaukin rod ber sitt eigid merki (${redTags.length} af 11)`);
+  ok(!NANRE.test(t), "ekkert NaN/undefined");
+  await v.down();
+
+  /* ============================================================
+     O2. GW2-SKIPTID VERDUR AD GILDA AFRAM — ANNARS ER LAGFAERINGIN
+     „HUNSA AAETLUNINA", SEM ER ONNUR VILLA
+     ============================================================
+     Prófsteinninn: SAMA blob, umferd 2 valin a timalinunni. Semenyo
+     (397) er i raunlidinu og GW2-rodin skiptir honum ut fyrir 351.    */
+  const v2 = await boot(JSON.stringify(blob), { picks: PICKS });
+  const node2 = gwNode(v2, 2);
+  ok(!!node2, "FORSENDA: GW2-hnutur er a timalinunni");
+  if (node2) await v2.click(node2);
+  const seen2 = cards(v2).map(c => c.textContent || "");
+  ok(seen2.some(x => x.includes(nameOf(351))),
+     `GW2: raunverulega planada skiptid LENDIR (${nameOf(351)} inn)`);
+  ok(!seen2.some(x => x.includes(nameOf(397))),
+     `GW2: ${nameOf(397)} er farinn ut`);
+  /* OG GW1-RADIRNAR ERU ENN OFAUKNAR I GW2 — reglan er ekki „adeins i
+     GW1", hun er „raunlidid ER upphafslidid".                         */
+  ok(!seen2.some(x => x.includes(nameOf(6))),
+     "GW2: Saliba er enn ekki their — GW1-radirnar gilda i ENGRI umferd");
+  ok(!NANRE.test(v2.text()), "GW2: ekkert NaN/undefined");
+  await v2.down();
+
+  /* ============================================================
+     O3. AN RAUNLIDS ER ALLT OBREYTT — LAGFAERINGIN MA EKKI TAKA
+     HOPINN FRA THEIM SEM ER OTENGDUR
+     ============================================================
+     `official: !!squadOverride`. Sama blob AN `entryId` og AN proxy-
+     svars: tha ER `plan` + `START_SQUAD` hopurinn, svo GW1-radirnar
+     verda ad gilda — annars hefdi lagfaeringin eytt lidinu hans i
+     sama andartaki sem hun lagadi vollinn.                            */
+  const off = { ...blob, entryId: null };
+  const v3 = await boot(JSON.stringify(off));
+  const seen3 = cards(v3).map(c => c.textContent || "");
+  ok(seen3.some(x => x.includes(nameOf(427))) && seen3.some(x => x.includes(nameOf(532))),
+     "OTENGDUR: GW1-radirnar GILDA (Mbeumo og Ballard eru a vellinum)");
+  ok(!seen3.some(x => x.includes(nameOf(426))),
+     "og sa sem thau leystu af er farinn (B.Fernandes)");
+  ok(!/GW1 picks are redundant/.test(v3.text()),
+     "og ENGIN 'redundant'-fullyrding — hun vaeri osonn an raunlids");
+  /* KEDJAN VIRKAR RETT OTENGD: Mosquera -> White -> Saliba a ad enda a
+     Saliba, thvi bædir hlekkir lenda a `START_SQUAD`.                 */
+  ok(seen3.some(x => x.includes(nameOf(6))),
+     "OTENGDUR: kedjan gengur til enda — Saliba er a vellinum");
+  ok(!NANRE.test(v3.text()), "OTENGDUR: ekkert NaN/undefined");
+  await v3.down();
+
+  /* ============================================================
+     O4. ROD SEM EKKI ER HAEGT AD BEITA ER TALIN — GW2+ HLIDIN
+     ============================================================
+     `if (i >= 0)` fleygdi rod thogult. Her er GW3-skipti a manni sem er
+     ekki i hopnum (900001), svo hann getur ALDREI lent, og talan verdur
+     ad sjast. `900001` er valid svo `byId` skili undefined — nafnlaus
+     rod var einmitt tilfellid sem thagdi mest.                        */
+  const withDead = { ...off, plan: [...off.plan, { gw: 3, outId: 900001, inId: 351 }] };
+  const v4 = await boot(JSON.stringify(withDead));
+  const n3 = gwNode(v4, 3);
+  if (n3) await v4.click(n3);
+  const t4 = v4.text();
+  ok(/1 planned transfer cannot be applied/.test(t4),
+     "GW3: rodin sem ekki er haegt ad beita er TALIN a skjanum",
+     (t4.match(/\d+ planned transfers? cannot be applied/) || ["(engin tala)"])[0]);
+  const naTags = v4.q("span").filter(x => (x.textContent || "").trim() === "not applied");
+  ok(naTags.length === 1,
+     `og hun er MERKT sjalf, ekki adeins talin (${naTags.length})`);
+  ok(!NANRE.test(t4), "ekkert NaN/undefined");
+  await v4.down();
+}
+
+/* ============================================================
+   O5. STOKKBREYTINGAR — HVER FULLYRDING I KAFLA O VERDUR AD FALLA
+   VID ThA VILLU SEM HUN HEITIR EFTIR
+   ============================================================
+   CLAUDE.md 13: „Profadu FULLYRDINGUNA, ekki bara kodann." Reglan er
+   HREIN (`applyPlan` i model.js) svo hun er stokkbreytanleg HER, an
+   jsdom — thad er styrkur, ekki afslattur: fullyrdingin sem jsdom-
+   kaflinn les er SAMA fall.
+
+   ThRJAR STOKKBREYTINGAR, ein per akvordun:
+     M1  `official` hunsad  — GW1-radir lagdar a raunlidid aftur
+     M2  GW2+ hunsad lika   — „hunsa alla aaetlunina"
+     M3  `skipped` thagad   — thognin sett aftur inn
+   ============================================================ */
+console.log("\n--- O5. stokkbreytingar a `applyPlan` ---");
+{
+  const { applyPlan } = await import("../src/model.js");
+  const base = [{ id: 10, starter: true, order: 1 },
+                { id: 397, starter: true, order: 2 },
+                { id: 411, starter: true, order: 3 }];
+  const plan = [{ gw: 1, outId: 11, inId: 10 },     // fyrsti hlekkur — slokknar
+                { gw: 1, outId: 10, inId: 6 },      // SEINNI hlekkur — villan
+                { gw: 2, outId: 397, inId: 351 },   // raunverulegt skipti
+                { gw: 2, outId: 900001, inId: 352 }];
+  const real = applyPlan({ base, plan, gw: 2, official: true });
+  ok(real.seats.some(s => s.id === 10) && !real.seats.some(s => s.id === 6),
+     "RETT: GW1-kedjan lendir ekki a raunlidinu");
+  ok(real.seats.some(s => s.id === 351),
+     "RETT: GW2-skiptid lendir");
+  ok(real.redundant.length === 2 && real.skipped.length === 1
+     && real.applied.length === 1,
+     `RETT: 2 redundant, 1 skipped, 1 applied (${real.redundant.length}/${real.skipped.length}/${real.applied.length})`);
+
+  /* M1 — `official` hunsad. NAKVAEMLEGA gamla hegdunin.               */
+  const m1 = applyPlan({ base, plan, gw: 2, official: false });
+  ok(m1.seats.some(s => s.id === 6),
+     "M1 FELLUR: an `official` lendir GW1-kedjan a raunlidinu (Saliba kemur)");
+  ok(m1.redundant.length === 0,
+     "M1 FELLUR: og ekkert er talid ofaukid");
+
+  /* M2 — „hunsa alla aaetlunina". Freistandi einfoldun sem eydir
+     plonuninni: hun laeknar vollinn og brytur tilganginn.            */
+  const m2 = applyPlan({ base, plan: plan.filter(t => Number(t.gw) !== 1), gw: 1,
+                         official: true });
+  ok(!m2.seats.some(s => s.id === 351),
+     "M2 FELLUR: vaeri GW2 hunsad lika kaemi 351 aldrei inn");
+
+  /* M3 — thognin. `skipped` verdur ad NEFNA rodina, ekki bara telja
+     hana: talan er onyt an hennar (sbr. „16 hausar klipptust").      */
+  ok(real.skipped[0]?.outId === 900001,
+     "M3: `skipped` NEFNIR rodina (outId 900001), svo vidmotid getur merkt hana");
+  ok(real.applied.every(t => Number(t.gw) === 2)
+     && real.redundant.every(t => Number(t.gw) === 1),
+     "og listarnir eru DISJUNKTIR — engin rod er baedi beitt og sleppt");
+
+  /* GRUNNURINN ER OSNORTINN — ritun i `START_SQUAD`/`squadOverride`
+     vaeri thogul spilling sem lifir thar til blodid er endurhladid.  */
+  ok(base[0].id === 10 && base.length === 3,
+     "`base` er AFRITAD, ekki breytt");
+
+  /* FH-REGLAN FLUTTIST MED. Skipti i FH-umferd gilda ADEINS i henni,
+     og su rod er HVORKI `applied` NE `skipped` utan hennar — hun er
+     ekki mistok, hun er utan gluggans.                              */
+  const fh = new Set([2]);
+  const a3 = applyPlan({ base, plan: [{ gw: 2, outId: 411, inId: 6 }], gw: 3, fhGws: fh, official: true });
+  ok(!a3.seats.some(s => s.id === 6) && a3.applied.length === 0 && a3.skipped.length === 0,
+     "FH: skiptid gildir ekki i GW3 og er hvorki `applied` ne `skipped`");
+  const a2 = applyPlan({ base, plan: [{ gw: 2, outId: 411, inId: 6 }], gw: 2, fhGws: fh, official: true });
+  ok(a2.seats.some(s => s.id === 6) && a2.applied.length === 1,
+     "FH: og thad GILDIR i sinni eigin umferd");
+
+  /* GERDAR-ThVINGUN: `gw:"1"` ur localStorage. `"10" > 9` er
+     strengja-samanburdur i JS og hann laug adur en talan var thvingud. */
+  const st = applyPlan({ base, plan: [{ gw: "2", outId: 397, inId: 351 }], gw: 2, official: true });
+  ok(st.applied.length === 1, "`gw:\"2\"` ur localStorage er tala, ekki strengur");
+  const junk = applyPlan({ base: null, plan: null, gw: 2, official: true });
+  ok(Array.isArray(junk.seats) && junk.seats.length === 0,
+     "null-inntak gefur tomt svar, ekki kast");
+}
+
+/* ============================================================
+   P. AFTENGING — TENGINGIN FER, LIDID OG PLONUNIN STANDA
+   (21.8.2026)
+   ============================================================
+   Notandinn: „Taktu gluggann fyrir urlid ut og Refresh takkann. Og
+   setjum disconnect takka fyrir aftan. Ef eg disconnecta svo lidid mitt,
+   tha myndi url reiturinn koma aftur upp."
+
+   FULLYRDINGIN SEM SKIPTIR MALI ER SU SIDASTA: blobbid verdur ad vera
+   OBREYTT ad thvi einu frataldu ad `entryId` er null. `resetAll` gerdi
+   nakvaemlega thessi mistok i gaer (`setPlan([])` a bak vid hnapp sem het
+   „reset all planning") og su villa ma ekki endurtaka sig i nyju formi.
+   Lesid AF DISKI (`saved()`), ekki ur endurteikningu: state getur verid
+   rett i minni og samt hafa skrifad rusl.
+   ============================================================ */
+console.log("\n--- P. Disconnect — tengingin fer, lidid og plonunin standa ---");
+{
+  const FPL_IDS = [496, 532, 391, 418, 10, 427, 565, 557, 397, 411, 165,
+                   412, 8, 542, 346];
+  const PICKS = {
+    entry_history: { points: 0, total_points: 0, bank: 5, event_transfers_cost: 0 },
+    picks: FPL_IDS.map((el, i) => ({
+      element: el, position: i + 1, multiplier: i < 11 ? 1 : 0,
+      is_captain: el === 411, is_vice_captain: el === 427 })),
+  };
+  const blob = {
+    entryId: 179938, captain: 411, vice: 427,
+    plan: [{ gw: 1, outId: 426, inId: 427 }, { gw: 2, outId: 397, inId: 351 }],
+    benchSwaps: { 1: [[411, 346]] }, chips: { "3xc:1": 4 },
+    buyPrices: {}, rivals: [], watch: [],
+  };
+
+  /* P1. OTENGT -> REITURINN ER their OG Disconnect ER EKKI.
+     FORSENDAN ER SONNUD FYRST (CLAUDE.md 5b): neikvaed fullyrding um
+     `Disconnect` er einskis virdi nema reiturinn hafi sannanlega verid
+     their i somu myndinni.                                            */
+  const a = await boot(JSON.stringify({ ...blob, entryId: null }));
+  const inputsA = a.q("input.url-input");
+  ok(inputsA.length === 1, `OTENGT: url-reiturinn er their (${inputsA.length})`);
+  const btnA = a.q("button").map(b => (b.textContent || "").trim());
+  ok(btnA.includes("Connect"), "OTENGT: 'Connect' er their");
+  ok(!btnA.includes("Disconnect"), "OTENGT: 'Disconnect' er EKKI their");
+  ok(!btnA.includes("Refresh"), "OTENGT: 'Refresh' er farinn");
+  await a.down();
+
+  /* P2. TENGT -> reiturinn OG Refresh eru farin, Disconnect kominn. */
+  const warns = [];
+  const b = await boot(JSON.stringify(blob), { picks: PICKS });
+  const before = b.saved();
+  ok(/players fetched from FPL/.test(b.text()),
+     "FORSENDA: raunlidid er komid (stadfestingin er a skjanum)");
+  ok(b.q("input.url-input").length === 0,
+     "TENGT: url-reiturinn er FARINN");
+  const btnB = b.q("button").map(x => (x.textContent || "").trim());
+  ok(!btnB.includes("Refresh"), "TENGT: 'Refresh' er FARINN");
+  ok(!btnB.includes("Connect"), "TENGT: 'Connect' er FARINN");
+  ok(btnB.includes("Disconnect"), "TENGT: 'Disconnect' er their");
+
+  /* P3. SMELLURINN. Reiturinn kemur aftur, stadfestingin fer. */
+  const dbtn = b.q("button").find(x => (x.textContent || "").trim() === "Disconnect");
+  ok(!!dbtn, "FORSENDA: hnappurinn er smellanlegur");
+  /* SMELLURINN ER SITT EIGID GLUGGI. `boot` skilar `console.error` i
+     upprunalegt astand vid utgongu, svo vidvorun sem kviknar vid
+     BREYTINGUNA — eiginleiki FJARLAEGDUR, nakvaemlega thad sem gaf 14
+     vidvaranir i FFDR-toflunni — faelli utan `warnsO` i kafla O.
+     ATH ad ADALFULLYRDINGIN UM VIDVARANIR ER I KAFLA O og hun verdur ad
+     vera thar: React deduppar per skilabodum i ferlinu, svo fullyrding
+     her getur adeins fangad thad sem er NYTT vid breytinguna. Thessi
+     lina er thvi thoekja, ekki adalvordurinn — sja kafla O.          */
+  const realErr = console.error, realWarn = console.warn;
+  const grab = (...a) => { const m = String(a[0] ?? "");
+    if (!/not wrapped in act/.test(m)) warns.push(m.slice(0, 200)); };
+  console.error = grab; console.warn = grab;
+  if (dbtn) await b.click(dbtn);
+  console.error = realErr; console.warn = realWarn;
+  ok(warns.length === 0, `ENGIN React-vidvorun i tengdu myndinni ne vid aftenginguna (${warns.length})`,
+     warns.join(" | "));
+  ok(b.q("input.url-input").length === 1,
+     "EFTIR SMELL: url-reiturinn er KOMINN AFTUR");
+  const btnC = b.q("button").map(x => (x.textContent || "").trim());
+  ok(btnC.includes("Connect") && !btnC.includes("Disconnect"),
+     "EFTIR SMELL: 'Connect' er kominn, 'Disconnect' farinn");
+  ok(!/players fetched from FPL/.test(b.text()),
+     "EFTIR SMELL: 'players fetched from FPL' er FARID — `conn` var nullstillt");
+
+  /* P4. FULLYRDINGIN SEM SKIPTIR MALI — BLOBBID.
+     BYTE-EINS ad thvi einu frataldu ad `entryId` er null. Samanburdurinn
+     er a NORMALISERADU JSON og hann NEFNIR sviðin, svo hann getur fallid
+     a hverju og einu: „ekkert um X" er ekki sama og „X er oruggt".    */
+  const after = b.saved();
+  const jb = JSON.parse(before || "{}"), ja = JSON.parse(after || "{}");
+  ok(ja.entryId === null, `entryId er null eftir aftengingu (${JSON.stringify(ja.entryId)})`);
+  for (const k of ["plan", "benchSwaps", "chips", "captain", "vice",
+                   "buyPrices", "rivals", "watch"]) {
+    ok(JSON.stringify(ja[k]) === JSON.stringify(jb[k]),
+       `\`${k}\` er BYTE-EINS fyrir og eftir aftengingu`,
+       `fyrir=${JSON.stringify(jb[k])} eftir=${JSON.stringify(ja[k])}`);
+  }
+  /* OG SVIDIN SJALF ERU NEFND, svo fullyrdingin geti ekki ordid tom ef
+     lykill hverfur ur blobbinu (sbr. kafli 5b).                      */
+  ok(Array.isArray(jb.plan) && jb.plan.length === 2,
+     `FORSENDA: blobbid BAR plonun fyrir aftenginguna (${jb.plan?.length})`);
+  ok(jb.captain === 411 && JSON.stringify(jb.chips) === JSON.stringify({ "3xc:1": 4 }),
+     "FORSENDA: og fyrirlida + chip");
+
+  /* P5. VOLLURINN FELLUR AFTUR I HANS EIGIN VISTADA HOP — og textinn
+     a hnappnum sagdi honum thad fyrirfram. Hér er ThAD maelt: Mbeumo
+     (GW1-rodin hans) er afram their, en Lammens (adeins i FPL-hopnum)
+     er farinn.                                                        */
+  const seenAfter = cards(b).map(x => x.textContent || "");
+  ok(seenAfter.some(x => x.includes(byId[427].web_name)),
+     "EFTIR: hans eigin GW1-rod gildir aftur (Mbeumo)");
+  ok(!seenAfter.some(x => x.includes(byId[412].web_name)),
+     "EFTIR: FPL-hopurinn er farinn (Lammens)");
+  ok(!NANRE.test(b.text()), "ekkert NaN/undefined");
+  await b.down();
+
+  /* P6. ENDURTENGING A ANNAD ID MA EKKI SYNA GAMLA HOPINN.
+     Sami effect (linu 785) nullstillir `squadOverride` vid `!entryId`
+     og saekir upp a nytt vid nytt id — thetta profar ad ferdin virki
+     RAUNVERULEGA og ekki bara i athugasemd.                          */
+  const OTHER = [1, 6, 11, 173, 278, 321, 356, 368, 423, 426, 239,
+                 497, 334, 351, 352];
+  const PICKS2 = {
+    entry_history: { points: 0, total_points: 0, bank: 0 },
+    picks: OTHER.map((el, i) => ({ element: el, position: i + 1,
+      multiplier: i < 11 ? 1 : 0, is_captain: false, is_vice_captain: false })),
+  };
+  const c = await boot(JSON.stringify({ ...blob, entryId: 222222 }), { picks: PICKS2 });
+  const seenC = cards(c).map(x => x.textContent || "");
+  ok(seenC.some(x => x.includes(byId[1].web_name)),
+     "ANNAD ID: nyi hopurinn er a vellinum (Raya)");
+  ok(!seenC.some(x => x.includes(byId[496].web_name)),
+     "ANNAD ID: fyrri hopurinn er ekki their (Kinsky) — ekkert cachead");
+  ok(!NANRE.test(c.text()), "ekkert NaN/undefined");
+  await c.down();
 }
 
 console.log(`\n${"=".repeat(84)}`);

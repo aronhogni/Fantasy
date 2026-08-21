@@ -584,7 +584,12 @@ console.log("\n--- R6. START_SQUAD er pinnad (vistud plon hanga a thvi) ---");
   await b.down();
 
   /* HEGDUNIN SJALF, MAELD: plan sem visar a id UTAN grunnhopsins er
-     thogult sleppt. Thetta er thad sem gerdist ef fastanum vaeri breytt. */
+     sleppt. Thetta er thad sem gerdist ef fastanum vaeri breytt.
+     ThOGNIN ER FARIN 21.8.2026 OG ThESSI KAFLI SAGDI HANA „VERRA".
+     Radirnar eru afram slepptar — thad er RETT, `outId` er ekki i hopnum —
+     en `applyPlan` skilar theim nu i `skipped` og vidmotid TELUR thaer.
+     Fullyrdingin hér a eftir er thvi ekki lengur „og thad hrynur ekki";
+     hun er „og hann fær ad vita". Sja `initial-squad.mjs` kafla O.     */
   const orphan = JSON.stringify({ entryId: null,
     plan: LEGAL.ids.map((inId, i) => ({ gw: 1, outId: 900000 + i, inId })),
     captain: START_IDS[9], vice: null, benchSwaps: {}, chips: {},
@@ -593,9 +598,14 @@ console.log("\n--- R6. START_SQUAD er pinnad (vistud plon hanga a thvi) ---");
   const so = snapshot(o);
   const kept = flat(so).filter(Boolean).filter(n => LEGAL.ids.some(i => byId[i].web_name === n)).length;
   ok(kept === 0,
-     `MAELT: plan med ogildum \`outId\` tapar OLLUM 15 (${kept} komust inn) — thogult`);
-  ok(!o.crash && !NANRE.test(o.text()),
-     "og thad hrynur ekki — thad er ThOGULT, sem er verra");
+     `MAELT: plan med ogildum \`outId\` tapar OLLUM 15 (${kept} komust inn)`);
+  ok(!o.crash && !NANRE.test(o.text()), "og thad hrynur ekki");
+  /* OG ThAD ER EKKI ThOGULT LENGUR. Talan er lesin AF SKJANUM og hun
+     verdur ad vera FIMMTAN — „einhver vidvorun" hefdi stadist thott
+     talningin vaeri rong, og rong tala er verri en engin (CLAUDE.md 3). */
+  const om = o.text().match(/(\d+) of these picks cannot be placed/);
+  ok(om && Number(om[1]) === 15,
+     `og fimmtan slepptar radir eru TALDAR a skjanum (${om ? om[1] : "engin tala"})`);
   await o.down();
 }
 
