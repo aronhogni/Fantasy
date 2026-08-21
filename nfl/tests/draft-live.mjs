@@ -366,6 +366,28 @@ const junk = () => {
 };
 
 /* ============================================================
+   HANDVIRK YFIRTAKA — FORSENDA ThESS AD SKRA I HENDI I SAMSTILLINGU
+   ============================================================
+   Fra 21.8.2026 eru `mine`/`gone` FALDIR medan pollunin skrifar sjalf
+   (kafli 22): notandinn bad um ad thurfa ekki ad haka. Kaflar sem skra
+   val I HENDI ofan a Sleeper-volin verda thvi ad kveikja a yfirtokunni
+   fyrst.
+
+   REGLAN SEM ThEIR VERJA ER OHREYFD — "handvirkt val lifir pollun og
+   Sleeper getur ekki tekid thad til baka" — og hun er ekki minna verd
+   fyrir thad ad leidin ad henni er einn smellur i vidbot. Þad sem MA
+   EKKI gerast er ad kaflinn verdi thogull: `click(null)` skilar `false`
+   an athugasemdar, svo hver kallstadur FULLYRDIR ad hnappurinn se
+   thar (`ok(!!btn)`) i stad thess ad smella ut i loftid og falla seinna
+   af astaedu sem les eins og onnur villa.                            */
+const enableManual = async () => {
+  const b = [...document.querySelectorAll("button.chip")]
+    .find((x) => /^manual entry$/.test((x.textContent || "").trim()));
+  if (b) await click(b, 150);
+  return !!b;
+};
+
+/* ============================================================
    EIN LEID INN — LIMA I REITINN, YTTA A CONNECT
    ============================================================
    Spjaldid bar sex styringar og hvert prof valdi ser thaegilegasta
@@ -589,9 +611,13 @@ console.log("\n3. val dregid til baka");
 
   /* Og handvirkt val ma EKKI hverfa i somu adgerd — thad er ekki
      Sleeper-megin og enginn dro thad til baka. */
+  /* Yfirtakan FYRST — hun endurteiknar rodina, svo hun ma ekki koma
+     eftir ad `manualRow` er tekid. Sja `enableManual`. */
+  ok(await enableManual(), "yfirtoku-hnappurinn er thar (skraning i hendi er möguleg)");
   const manualRow = boardRows()[3];
   const takeBtn = manualRow.querySelector("button");
   const manualName = manualRow.querySelector("td.frozen").textContent.trim();
+  ok(!!takeBtn, "og rodin ber hnapp til ad skra i hendi");
   await click(takeBtn);
   const withManual = draftedOnScreen();
   live.picks = live.picks.slice(0, 18);
@@ -1369,9 +1395,12 @@ console.log("\n15c. draft-audkenni slegid i hendi — bordid i gangi verdur ad l
      Sleeper getur ekki skilad theim — thau eru sa hluti bordsins sem
      er OAFTURKRAEFUR. Fullyrdingin "60, ekki 59" er thvi um raunverulegt
      tap, ekki um birtingu.                                          */
+  ok(await enableManual(), "yfirtoku-hnappurinn er thar (skraning i hendi er möguleg)");
   const handRow = boardTable() && boardTable().querySelector("tbody tr");
   const handName = handRow && (handRow.querySelector("td.frozen")?.textContent || "").trim();
-  await click(handRow && handRow.querySelector("button"), 120);
+  const handBtn = handRow && handRow.querySelector("button");
+  ok(!!handBtn, "og rodin ber hnapp til ad skra i hendi");
+  await click(handBtn, 120);
   ok(draftedOnScreen() === 60,
     `eitt val skrad i hendi ofan a Sleeper-volin (${draftedOnScreen()}) — "${handName}"`);
   ok(JSON.parse(localStorage.getItem(kA) || "[]").length === 60,
@@ -2362,6 +2391,133 @@ console.log("\n21. heilt mock eftir radgjof appsins — hopurinn verdur ad vera 
   ok(!junk(), `ekkert NaN/undefined a skjanum (${junk() || "-"})`);
 
   await settle(80);
+  await act(async () => { root.unmount(); });
+}
+
+/* ============================================================
+   22. "MINE"/"GONE" HVERFA ThEGAR APPID SER ThETTA SJALFT — OG
+       KOMA AFTUR ThEGAR ThAD GERIR ThAD EKKI
+   ============================================================
+   BEIDNI NOTANDANS: "Her vill eg ekki thurfa ad haka hvort i mine eda
+   gone, eg vill ad appid sjai thad."
+
+   ÞRJU ASTOND ERU PROFUD, thvi tvo hefdu leyft verstu utkomunni:
+
+     A. engin samstilling      -> BADIR hnappar (handvirkt bord er
+                                  studdur hattur — draft an Sleeper)
+     B. pollun OG saeti        -> HVORUGUR, og volin skila ser samt i
+                                  BADAR attir (`taken` OG hopurinn)
+     C. pollun EN ekkert saeti -> `mine` STENDUR, `gone` fer
+
+   C ER KAFLINN SEM SKIPTIR MALI. Appid getur ekki vitad hverjir eru
+   HANS an saetis; feldi `mine` thar vaeri hopurinn OSKRAANLEGUR og
+   radgjofin laesi tomt lid — nakvaemlega bilunin sem gaf honum
+   10 WR / 0 RB. "Faerri hnappar" er thvi ekki markmidid; RETT hnappar er.
+
+   OG BADAR ATTIR ERU LESNAR I B. Fyrri villa i thessu tre lét vol na i
+   `taken` en ekki i hopinn sem radgjofin les, svo talan "N drafted" var
+   rett medan "My team" var tom. Þess vegna er bædi `yours`-talan OG
+   `My team`-spjaldid spurt, ekki adeins ad hnapparnir hafi horfid.   */
+console.log("\n22. mine/gone eru sjalfvirk i samstillingu, handvirk an hennar");
+{
+  const actionCell = () => {
+    const rs = boardRows();
+    if (!rs.length) return null;
+    const tds = rs[0].querySelectorAll("td");
+    return tds[tds.length - 1] || null;
+  };
+  const actBtns = () => [...(actionCell()?.querySelectorAll("button") || [])]
+    .map((b) => (b.textContent || "").trim());
+  /* ThEKJA: bordid verdur ad vera a skjanum, annars er "engir hnappar"
+     satt af tomri astaedu og allur kaflinn les eins og upplysing. */
+  const boardUp = () => boardRows().length > 5;
+
+  /* ---- A. ENGIN SAMSTILLING: badir hnappar ---- */
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  let root = await boot();
+  await settle(300);
+  ok(boardUp(), `ThEKJA/A: bordid er a skjanum an samstillingar (${boardRows().length} radir)`);
+  ok(actBtns().join(",") === "mine,gone",
+    `A: handvirkt bord ber BADA hnappa ("${actBtns().join(",") || "enga"}")`);
+  ok(!/Picks are read from your draft/.test(text()),
+    "A: og ENGIN lina fullyrdir um samstillingu sem er ekki til");
+  await settle(60);
+  await act(async () => { root.unmount(); });
+
+  /* ---- B. POLLUN + SAETI: hvorugur, og volin skila ser i BADAR attir ---- */
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  root = await boot();
+  await connectAndSync({ slot: MY_SLOT });
+  for (let n = 1; n <= 16; n++) pushPick(n);
+  await waitFor(() => draftedOnScreen() === 16, 8000);
+  await settle(300);
+  ok(boardUp(), `ThEKJA/B: bordid er a skjanum i samstillingu (${boardRows().length} radir)`);
+  ok(actBtns().length === 0,
+    `B: HVORUGUR hnappur — appid sér um thetta ("${actBtns().join(",") || "engir"}")`);
+  const autoMark = actionCell()?.querySelector("[data-auto]");
+  ok(!!autoMark && /auto/.test(autoMark.textContent || ""),
+    "B: og holfid er ekki tomt heldur segir \"auto\"");
+  ok(/Your draft feeds this board/.test(text()),
+    "B: linan segir hvadan volin koma");
+  ok(/Nothing to tick/.test(text()), "B: og ad ekkert se ad haka");
+  /* BADAR ATTIR — talan OG hopurinn. Saeti 7 a vol 7 og 14 i 10-lida
+     snakki (umferd 2 er andhverf), svo tveir eiga ad vera komnir. */
+  const mine7 = [POOL[6].name, POOL[13].name];
+  ok(slotOfPick(7).slot === MY_SLOT && slotOfPick(14).slot === MY_SLOT,
+    "B: vol 7 og 14 eru saetis 7 (sjalfstaed snakk-vorpun)");
+  ok(yoursOnScreen() === 2, `B: "yours"-talan er 2 (${yoursOnScreen()})`);
+  const myTeam = () => ([...document.querySelectorAll(".panel")]
+    .find((p) => /^My team$/.test(p.querySelector("h2")?.textContent || ""))
+    ?.textContent || "");
+  ok(mine7.every((nm) => myTeam().includes(nm)),
+    `B: og ThEIR SOMU eru i "My team" (${mine7.join(", ")}) — ekki adeins i tolunni`);
+  /* CHIPARNIR SKRIFA EKKI HELDUR. Fantom-val i hopnum er oafturkallanlegt
+     i samstillingu (`reconcile` sleppir handvirkum audkennum), svo thetta
+     er ekki snyrting heldur vordur um `myRoster`. */
+  const kdstPanel = [...document.querySelectorAll(".panel")]
+    .find((p) => /Kickers and defences/.test(p.querySelector("h2")?.textContent || ""));
+  const kdstChips = kdstPanel
+    ? [...kdstPanel.querySelectorAll(".chips > *")] : [];
+  ok(kdstChips.length > 0, `ThEKJA/B: K/DST-chipar eru a skjanum (${kdstChips.length})`);
+  ok(kdstChips.every((c) => c.tagName !== "BUTTON"),
+    `B: og ENGINN theirra er hnappur sem skrifar i hopinn `
+    + `(${kdstChips.filter((c) => c.tagName === "BUTTON").length} hnappar)`);
+
+  /* ---- og HANDVIRK YFIRTAKA skilar theim ---- */
+  const manualBtn = [...document.querySelectorAll("button.chip")]
+    .find((b) => /^manual entry/.test((b.textContent || "").trim()));
+  ok(!!manualBtn, "B: yfirtoku-hnappurinn er a skjanum (pollun getur misst val)");
+  if (manualBtn) {
+    await click(manualBtn, 200);
+    ok(actBtns().join(",") === "mine,gone",
+      `B: yfirtaka skilar BADUM hnoppum ("${actBtns().join(",") || "enga"}")`);
+    await click(manualBtn, 200);
+    ok(actBtns().length === 0, "B: og hun slokknar aftur");
+  }
+  ok(!junk(), `B: ekkert NaN/undefined (${junk() || "-"})`);
+  await settle(60);
+  await act(async () => { root.unmount(); });
+
+  /* ---- C. POLLUN AN SAETIS: `mine` stendur, `gone` fer ---- */
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  /* `draft_order` er ThAD sem gefur appinu saetid an smells — tomt hér,
+     svo pollunin gengur en saetid er OThEKKT. */
+  live.draft = { ...mkDraft(), draft_order: null };
+  root = await boot();
+  await connectAndSync({ slot: null });
+  for (let n = 1; n <= 8; n++) pushPick(n);
+  await waitFor(() => draftedOnScreen() === 8, 8000);
+  await settle(300);
+  ok(boardUp(), `ThEKJA/C: bordid er a skjanum (${boardRows().length} radir)`);
+  /* ThEKJA a forsendunni sjalfri: vaeri saetid komid inn einhvern veginn
+     vaeri C sama tilfelli og B og fullyrdingin hér undir lygi. */
+  ok(yoursOnScreen() === 0, `ThEKJA/C: saetid er OThEKKT, svo "yours" er 0 (${yoursOnScreen()})`);
+  ok(actBtns().join(",") === "mine",
+    `C: "mine" STENDUR an saetis, "gone" fer ("${actBtns().join(",") || "enga"}")`);
+  ok(/your slot is not set/.test(text().replace(/\s+/g, " ")),
+    "C: og linan segir hvers vegna hnappurinn er enn thar");
+  ok(!junk(), `C: ekkert NaN/undefined (${junk() || "-"})`);
+  await settle(60);
   await act(async () => { root.unmount(); });
 }
 

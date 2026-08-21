@@ -832,6 +832,19 @@ console.log("\n2c. handvirkt val lifir pollunina");
   await setInput("Your slot", "7");
   await settle(900);
 
+  /* HANDVIRK YFIRTAKA FYRST. Fra 21.8.2026 eru `mine`/`gone` faldir
+     medan pollunin skrifar sjalf — notandinn bad um ad thurfa ekki ad
+     haka (`draft-live.mjs` kafli 22). REGLAN SEM ThESSI KAFLI VER ER
+     OHREYFD: handvirkt val ma ekki hverfa i pollunar-tikki. Adeins
+     leidin ad honum er einn smellur laengri, og hun er FULLYRD — annars
+     smellti kaflinn ut i loftid (`click(null)` skilar `false` thegjandi)
+     og felli seinna af astaedu sem les eins og onnur villa. */
+  const manualBtn = [...document.querySelectorAll("button.chip")]
+    .find((x) => /^manual entry$/.test((x.textContent || "").trim()));
+  ok(!!manualBtn, "yfirtoku-hnappurinn er thar (samstillingin felur mine/gone)");
+  if (manualBtn) await click(manualBtn);
+  await settle(150);
+
   /* Veljum mann sem er EKKI i Sleeper-volunum — hreint handvirkt val.
      `take`-hnapparnir eru i bordinu; sa fyrsti er efsti lausi madurinn. */
   const before = /(\d+) drafted/.exec(text());
