@@ -898,9 +898,22 @@ console.log("\n3d. viku-abatinn er per stigagjof");
       ok(Number(m[1]) !== 2.228,
         "og thad er ekki df=10-gildid 2,228 sem stod hér adur");
     }
+    /* ÞESSI FULLYRDING VAR DAUD: `rulebasis.js` flutti HVORUGT
+       `tCritFor` ne `tCrit` ut, svo `if (tCritFor)` var alltaf osatt og
+       blokkin keyrdi hja engum. Throskuldurinn var thvi borinn vid
+       TOFLUNA i skranni (regex) en ALDREI vid fallid sem les hana — og
+       `tCrit` gaeti hafa lesid hana rangt an ad nokkud saeist.
+       `tCrit` er nu flutt ut og TILVISTIN er fullyrding. */
+    ok(!!tCritFor, "`rulebasis.js` FLYTUR UT throskuldarfallid (`tCrit`)");
     if (tCritFor) {
       ok(Math.abs(tCritFor(7) - T_CRIT_7) < 0.0005,
         `og \`tCrit(7)\` gefur somu tolu (${tCritFor(7)})`);
+      /* Og fallid verdur ad LESA toflina, ekki bera sitt eigid golf:
+         `?? 2.228` er varaleid og ma ekki vera svarid fyrir 7 ar. */
+      ok(tCritFor(7) !== 2.228,
+        "og thad er ekki varaleidin 2,228 (fallid les toflina)");
+      ok(tCritFor(3) > tCritFor(11),
+        `throskuldurinn fellur med fjolda ara (${tCritFor(3)} > ${tCritFor(11)})`);
     }
   }
   const lab = JSON.parse(readFileSync(path.join(DATA, "measure", "mktweek.json"), "utf8"));
