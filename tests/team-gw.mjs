@@ -534,5 +534,172 @@ console.log("\n6) HVER DALKUR BER SINA SKYRINGU I HAUSNUM");
      !/FPL player totals/.test(all) && !/roughly 19% short/.test(all));
 }
 
+/* ============================================================
+   7) TIMABILS-MISVISIRINN A SKJANUM (21.8.2026)
+
+   TVAER ThOGLAR VILLUR SEM ENGIN VORN GAT SED, badar dagsettar a somu
+   framtid — daginn sem taflan synir 2026/27 en BSD-skrarnar eru enn
+   2025/26 (thaer eru skrifadar af HANDVIRKUM skriftum):
+
+   a) `bsd_teams.json` var BIRT AN ThESS ad nokkud spyrdi hvada timabil hun
+      ber, svo xG/xGC/big chances hefdu stadid undir morkum ur ODRU
+      timabili — i HEILU-TIMABILS-UTSYNINU, an merkis. `routeInStep` var
+      adeins a bils-leidinni. `season_locked` bar flaggid sem atti ad
+      svara thessu og VAR DAUTT (0 lesendur i `src/`).
+   b) TVEIR strengir "2025/26" voru HARDKODADIR i haus skotakortsins.
+
+   KAFLINN LES BADAR AF SKJANUM. Fullyrdingarnar eru allar TVISKIPTAR:
+   fyrst rett astand (timabilin i takt -> tolur, og ekkert varnadar-orð),
+   svo misvisirinn (tolur horfnar OG skyringin komin). Fullyrding sem
+   adeins ser misvisinn getur ekki greint hann fra flipa sem er alltaf tomur.
+   ============================================================ */
+console.log("\n7) TIMABILS-MISVISIRINN — tolur horfnar OG skyringin a skjanum");
+{
+  const { default: Teams } = await import("../src/Teams.jsx");
+  const { TEAM_STAT_DEFS } = await import("../src/teamstats.js");
+  const sf = J("bsd_shots.json");
+  const Fx = Object.fromEntries(sf.legend.fields.map((f, i) => [f, i]));
+  const mkIndex = shots => {
+    const byTeam = new Map(), byOpp = new Map(), byCode = new Map();
+    const put = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+    for (const s of shots) { put(byTeam, s[Fx.team], s); put(byOpp, s[Fx.opp], s);
+      put(byCode, s[Fx.code], s); }
+    return { byTeam, byOpp, byCode, teams: sf.legend.teams, fields: Fx,
+             calib: sf.calib, positions: {} };
+  };
+  const full = mkIndex(sf.shots);
+  const LOCKED = TEAM_STAT_DEFS.filter(d => d.season_locked);
+  const base = { teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
+    teamShots: J("team_shots.json"), fixtures: realFix };
+
+  const render = async props => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const r = createRoot(host);
+    await act(async () => { r.render(React.createElement(Teams, props)); });
+    await act(async () => { await new Promise(x => setTimeout(x, 60)); });
+    return { host, r, done: async () => { await act(async () => { r.unmount(); }); host.remove(); } };
+  };
+  /* Flokkurinn sem BER flesta `season_locked`-dalka er varnar-flokkurinn
+     (xGC, GC-xGC) — hann er valinn BERUM ORDUM svo fullyrdingarnar mæli
+     dalka sem eru raunverulega a skjanum og ekki tomt mengi.            */
+  const pickGroup = async (host, name) => {
+    const b = [...host.querySelectorAll("button")].find(x => x.textContent.trim() === name);
+    if (b) await act(async () => { b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await new Promise(x => setTimeout(x, 40)); });
+    return !!b;
+  };
+  const numsIn = host => [...host.querySelectorAll("tbody td")]
+    .filter(td => /^-?\d+(\.\d+)?$/.test(td.textContent.trim())).length;
+
+  /* ---- 7a. I TAKT: tolur a skjanum og ENGINN varnadur ---- */
+  const inStep = await render({ ...base, bsdTeams: J("bsd_teams.json"), shotIndex: full });
+  ok(`${LOCKED.length} dalkar bera \`season_locked\` (forsenda)`, LOCKED.length === 7);
+  ok("varnar-flokkurinn valinn", await pickGroup(inStep.host, "Defence"));
+  const okNums = numsIn(inStep.host);
+  ok(`i takt: taflan ber tolur (${okNums} holf med tolu)`, okNums >= 40, `${okNums}`);
+  const tIn = inStep.host.textContent || "";
+  ok("og ENGIN varnadar-malsgrein um timabil er a skjanum",
+    !/columns are empty here on purpose/.test(tIn));
+  /* TOOLTIP-SETNINGIN ER LIKA FJARRI — hun er annad lag a somu akvordun. */
+  const titlesOf = host => [...host.querySelectorAll("thead th")]
+    .map(th => th.getAttribute("title") || "");
+  ok("og enginn haus lofar tomu holfi", !titlesOf(inStep.host)
+    .some(t => /Empty in this view on purpose/.test(t)));
+  await inStep.done();
+
+  /* ---- 7b. UR TAKTI: SAMA SKRA, adeins timabils-strengurinn breyttur ----
+     ThAD ER MAELINGIN: engin onnur inntok haggast, svo utkoman getur ekki
+     verid annad en timabils-samanburdurinn.
+     `shotIndex: null` thvi skotakortid BJARGAR dalkunum thegar thad er i
+     takt (og thad er rett) — her er spurt um tilfellid thar sem ENGIN
+     BSD-leid er i takt, sem er thad eina thar sem engin rett tala er til. */
+  const bsdStale = { ...J("bsd_teams.json"), season: "2026/27" };
+  const outStep = await render({ ...base, bsdTeams: bsdStale, shotIndex: null });
+  ok("varnar-flokkurinn valinn (ur takti)", await pickGroup(outStep.host, "Defence"));
+  ok("ur takti: flipinn er ENN teiknadur (20 radir) — hann tæmist ekki allur",
+    outStep.host.querySelectorAll("tbody tr").length === 20,
+    `${outStep.host.querySelectorAll("tbody tr").length}`);
+  const tOut = outStep.host.textContent || "";
+  ok("VARNADURINN ER A SKJANUM (ekki adeins i tooltip-i)",
+    /columns are empty here on purpose/.test(tOut));
+  ok("og hann NEFNIR BADA timabilin berum ordum (2026/27 og 2025-26)",
+    tOut.includes("2026/27") && tOut.includes(J("team_form.json").season),
+    tOut.match(/covers[^]{0,90}/)?.[0] || "");
+  ok("hver `season_locked`-dalkur er TOMUR i toflunni (— og ekki 0)",
+    LOCKED.every(d => {
+      const i = [...outStep.host.querySelectorAll("thead th")]
+        .findIndex(th => th.textContent.replace(/[↑↓]/g, "").trim() === d.short);
+      if (i < 0) return true;                        // ekki i thessum flokki
+      return [...outStep.host.querySelectorAll("tbody tr")].every(tr =>
+        (tr.children[i]?.textContent || "").trim() === "—");
+    }), "eitthvad holf ber tolu");
+  /* OG E0-DALKARNIR BERA TOLUR AFRAM — annars vaeri "tomt" svarid vid
+     rongu spurningu og fullyrdingin ad ofan gaeti stadid a hvitum skja. */
+  ok("en E0-dalkarnir (GC, CS %) bera TOLUR afram",
+    [...outStep.host.querySelectorAll("tbody td")]
+      .filter(td => /^\d+(\.\d+)?$/.test(td.textContent.trim())).length >= 25,
+    `${[...outStep.host.querySelectorAll("tbody td")]
+      .filter(td => /^\d+(\.\d+)?$/.test(td.textContent.trim())).length}`);
+  ok("og hausar theirra dalka LOFA tomu holfi i tooltip-inu",
+    titlesOf(outStep.host).filter(t => /Empty in this view on purpose/.test(t)).length >= 1,
+    `${titlesOf(outStep.host).filter(t => /Empty in this view on purpose/.test(t)).length}`);
+  await outStep.done();
+
+  /* ---- 7c. SKOTAKORTS-HAUSINN — TIMABILID ER LEITT, EKKI HARDKODAD ----
+     Fullyrdingin er MUTATION I INNTAKINU: `teamForm.season` er sett a tolu
+     sem er ekki i neinni skra ("1999-00"), og hausinn VERDUR ad fylgja
+     henni. Hardkodadur strengur getur ekki stadist thad, og thad er
+     einmitt thad sem stod her.                                          */
+  {
+    const shown = async (tf) => {
+      const v = await render({ ...base, teamForm: tf, bsdTeams: J("bsd_teams.json"),
+        shotIndex: full });
+      const cell = [...v.host.querySelectorAll("tbody td")]
+        .find(td => /ARS|AVL|LIV/.test(td.textContent));
+      if (cell) await act(async () => {
+        cell.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+      });
+      await act(async () => { await new Promise(x => setTimeout(x, 60)); });
+      const t = v.host.textContent || "";
+      await v.done();
+      return t;
+    };
+    const real = J("team_form.json");
+    const t1 = await shown(real);
+    ok("smellur a lidsnafn opnar skotakortin (POSITIV forsenda)",
+      /shot maps/.test(t1) && /bubble size = xG/.test(t1), t1.slice(0, 0) || "engin kort");
+    ok(`hausinn ber timabil toflunnar (${real.season})`,
+      t1.includes(`${real.season} · bubble size = xG`),
+      t1.match(/shot maps[^]{0,60}/)?.[0] || "");
+    ok("og skyringar-linan nefnir sama timabil",
+      t1.includes(`The shot map covers ${real.season} only`));
+    /* MUTATION: timabil sem er i ENGRI skra. Hardkodad "2025/26" hefdi
+       birst afram og fullyrdingin fellur.                               */
+    const t2 = await shown({ ...real, season: "1999-00" });
+    ok("MUTATION: annad timabil i `teamForm` -> hausinn FYLGIR (1999-00)",
+      t2.includes("1999-00 · bubble size = xG") && !/2025\/26 · bubble/.test(t2),
+      t2.match(/shot maps[^]{0,60}/)?.[0] || "");
+    /* OG SE KORTID EKKI I TAKT ER EKKERT TIMABIL NEFNT. Skotakort sem
+       naer adeins til GW5 telur 5 leiki per lid a moti 38 i toflunni, svo
+       taktprofid hafnar thvi — og THA er timabil kortsins okunnugt.     */
+    const shortIdx = mkIndex(sf.shots.filter(s => s[Fx.gw] <= 5));
+    const v3 = await render({ ...base, bsdTeams: J("bsd_teams.json"), shotIndex: shortIdx });
+    const cell3 = [...v3.host.querySelectorAll("tbody td")]
+      .find(td => /ARS|AVL|LIV/.test(td.textContent));
+    if (cell3) await act(async () => {
+      cell3.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => { await new Promise(x => setTimeout(x, 60)); });
+    const t3 = v3.host.textContent || "";
+    ok("kort UR TAKTI: kortin birtast samt (POSITIV forsenda)", /shot maps/.test(t3));
+    ok("en ThA er EKKERT timabil nefnt (thogn, ekki agiskun)",
+      /The shot map covers a single season/.test(t3)
+      && !/\d{4}[-/]\d\d · bubble size/.test(t3),
+      t3.match(/shot maps[^]{0,60}/)?.[0] || "");
+    await v3.done();
+  }
+}
+
 console.log(`\nTEAMS-UMFERDIR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

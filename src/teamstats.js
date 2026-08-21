@@ -35,23 +35,29 @@
       FPL-varaleid, thvi lakari tala undir betri merkimida er verri en
       tomur dalkur.
 
-   2. BIG CHANCES ERU EKKI I THESSARI TOFLU — ENN. Svaedin her koma ur
-      ESPN, sem gefur STADSETNINGU hvers skots en ENGA xG-tolu fyrir
-      thad, svo ekkert her getur greint gott faeri fra vonarskoti.
-      Naerfaeri (`close_against_pg`) er thad sem ESPN-gognin leyfa: skot
-      ur markteig, talin af ESPN sjalfu. Thad er SKYLD tala en ekki sama
-      talan, og hun heitir thvi sinu retta nafni.
+   2. BIG CHANCES ERU I ThESSARI TOFLU — OG ThESSI LIDUR SAGDI ANNAD
+      ThANGAD TIL 21.8.2026. Her stod "BIG CHANCES ERU EKKI I THESSARI
+      TOFLU — ENN", og thad var rett thegar ESPN var eina skot-heimildin.
+      `bc_against_pg` og `bc_pg` hafa verid i `TEAM_STAT_DEFS` fra
+      8.8.2026 (BSD, per-skot xG, throskuldur 0,18 FITTADUR gegn lids-
+      svidinu `big_chances`: MAE 0,746, r 0,774 a 748 lid-leikjum), svo
+      hausinn a skranni fullyrti thad gagnstaeda vid skrana sjalfa. Fost
+      fullyrding um lifandi dalkaskra ureldist thogult — sama villa og
+      horna-sviðin i SetPieces 13.8.2026, i skjalinu sem varar vid henni.
 
-      **ThAD ER HINS VEGAR EKKI LENGUR OFAANLEGT.** BSD (kafli 6t) gefur
-      per-skot xG i ollum 380 leikjum 2025/26 OG raunverulegt lids-svid
-      `big_chances` i `/events/{id}/stats/` (0-8 per lid-leik, maelt).
-      "Big chances a sig" = talan hja MOTHERJANUM i hverjum leik, og hun
-      er thvi BEIN TALNING en ekki afleidsla. Tvennt vantar adur en hun
-      fer inn: (a) eigin sokn a lids-stats-endapunktinn (bsd_players.json
-      er per LEIKMANN og ber hana ekki), og (b) medvitund um ad BSD naer
-      YFIR EITT TIMABIL — dalkurinn vaeri thvi tomur i ollum odrum.
-      Ordalagid i vidmotinu ma ekki segja "ofaanlegt"; thad var rett
-      medan ESPN var eina skot-heimildin og er thad ekki lengur.
+      SVAEDIN eru ANNAD MAL og thar stendur reglan obreytt: `box_*` og
+      `close_*` koma ur ESPN, sem gefur STADSETNINGU hvers skots en ENGA
+      xG-tolu fyrir thad. Naerfaeri (`close_against_pg`) er thvi SKYLD
+      tala en ekki sama talan sem "big chance", og hun heitir sinu retta
+      nafni. Nu eru BADAR a skjanum og thad er retta astandid: `close_*`
+      er ESPN-talning a hnitum, `bc_*` er BSD-talning a xG.
+
+      KROSSPROFAD 21.8.2026: ESPN-teigsskot gegn BSD-teigsskotum
+      (`x <= IN_BOX_X`) gefa r 0,968 (a sig) og 0,972 (fyrir) a 15 lidum
+      — tvaer oskyldar heimildir um sama hlut. ESPN telur kerfisbundid
+      LAEGRA (hlutfall 0,79-0,89) thvi 6-13% skota bera engan svaedis-
+      texta og eru ADEINS i heildartolunni; skekkjan er thvi i STIGI og
+      ekki i RODUN. Vordur: `team-stats.mjs` kafli 3.
 
    LAEGRA-ER-BETRA ER EKKI SKRAUT (`hi:false`): fyrir markvard er HAERRI
    skotafjoldi a sig verri, og tafla sem litar haestu toluna graena vaeri
@@ -79,6 +85,67 @@ function diffFields(goals, conceded, xgTot, xgcTot) {
   };
 }
 
+/* ============================================================
+   `season_locked` VAR DAUTT FLAGG — WIRED 21.8.2026
+
+   Sjo dalkar baru `season_locked: true` og **ENGINN LESANDI VAR I `src/`**
+   (0 tilvik; adeins ein fullyrding i `team-stats.mjs` sem sannreyndi ad
+   flaggid VAERI a theim). Flagg sem enginn les er ekki varud heldur
+   MERKIMIDI SEM SEGIR ADEINS SJALFUM SER — og dagurinn sem thad verdur
+   thogul LYGI er dagsettur: `bsd_teams.json` er birt ANN THESS ad nokkud
+   spyrji hvada timabil hun ber, svo um leid og taflan synir 2026/27 og
+   BSD-skrain er enn 2025/26 stendur xG ur EINU timabili undir morkum ur
+   ODRU, i heilu-timabils-utsyninu, AN MERKIS. Thad er nakvaemlega thad sem
+   `routeInStep` var byggt til ad koma i veg fyrir — en hann var ADEINS a
+   bils-leidinni, svo arstidar-utsynid var opid.
+
+   "ROng tala er verri en tom tala" (kafli 8i), svo skilyrdid er ThAD SAMA
+   her og annars stadar i skranni: HEIMILDIN VERDUR AD VERA I TAKT VID
+   TOFLUNA. Her er thad haegt ad LESA i stad thess ad maela — BADAR skrar
+   bera `season` berum ordum (`team_form.json` "2025-26",
+   `bsd_teams.json` "2025/26") — svo engin agiskun er a leidinni; adeins
+   snidid er olikt og thad er normalisad.
+
+   HVAR FLAGGID ER LESID — I `Teams.jsx`, OG ThAD ER SYNILEG HEGDUN:
+   `TEAM_STAT_DEFS.filter(d => d.season_locked)` velur (a) hvort varnadar-
+   malsgreinin ofan vid tofluna birtist og (b) hvada dalkar bera setninguna
+   "Empty in this view on purpose ..." i tooltip-inu sinu. Handskrifadur
+   lyklalisti a hvorugum stad — hann stadnar (sbr. `gwBlindKeys`,
+   CLAUDE.md 8) og er auk thess onnur utfaersla af somu akvordun.
+
+   OG HER ER SAMNINGURINN, EKKI ONNUR UTFAERSLA. `bsdOk`-gattin er EINA
+   agerdin i thessari skra; sveipur ofan a henni vaeri tvitekning og
+   PROFID SANNADI ThAD (stokkbreyting sem tok flaggid af `bc_pg` fell ekki,
+   thvi gattin taemdi hann hvort sem er). `team-stats.mjs` kafli 13d
+   fullyrdir thess i stad ad mengid sem taemist se NAKVAEMLEGA thad sem ber
+   flaggid — i BADAR attir, svo baedi BSD-dalkur an flaggs og flagg a
+   E0-dalki fella profid.
+
+   ATH: `applyTeamRange` fyllir thessa dalka AFTUR ur `bsd_shots.json`
+   thegar skotakortid er I TAKT (`use.shots`), og thad er RETT — thar var
+   taktinn MAELDUR, ekki lesinn. Blankunin bitur thvi adeins thegar HVORUG
+   BSD-leidin er i takt, sem er einmitt tilfellid thar sem engin rett tala
+   er til.
+   ============================================================ */
+export function seasonKey(s) {
+  const m = String(s ?? "").match(/\d/g);
+  return m && m.length >= 6 ? m.join("") : null;
+}
+/* `ok: true` thegar BADAR skrarnar bera timabil OG thau eru thad sama.
+   VANTI ANNADHVORT ER SVARID `true` — og thad er asett: gomul skra an
+   `season`-svids ma ekki verda blonk af thvi ad hun THEGIR. Vardurinn hér
+   er gegn ThEKKTUM misvisi, ekki gegn thogn (sama regla og null-reglan i
+   rotation.js: `P=null` utilokar ALDREI).                              */
+export function bsdSeasonInStep(teamForm, bsdTeams) {
+  const table = seasonKey(teamForm?.season), bsd = seasonKey(bsdTeams?.season);
+  /* HEITIN ERU BORIN MED — vidmotid a ad geta NEFNT bædi timabilin thegar
+     thau stangast a. "Gognin eru ur odru timabili" an thess ad segja HVORU
+     er halfur varnadur, og notandinn getur ekki athugad hann.            */
+  return { ok: !(table && bsd && table !== bsd), table, bsd,
+           tableLabel: teamForm?.season ? String(teamForm.season) : null,
+           bsdLabel: bsdTeams?.season ? String(bsdTeams.season) : null };
+}
+
 /* Ein rod per lid. `t` ber somu reiti hvadan sem their koma, svo
    dalkarnir thurfa ekki ad vita hvada skra atti hvad.                  */
 export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamShots = null,
@@ -89,7 +156,11 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
   for (const t of luck?.teams || []) if (t.fpl_id != null) luckById[t.fpl_id] = t;
   for (const t of teamShots?.teams || []) if (t.fpl_id != null) shotsById[t.fpl_id] = t;
   const bsdById = {};
-  for (const t of bsdTeams?.teams || []) if (t.fpl_id != null) bsdById[t.fpl_id] = t;
+  /* BSD ER SLEPPT ALVEG thegar timabilid stemmir ekki — sja
+     `bsdSeasonInStep`. Ad lesa hana og blanka a eftir vaeri sama utkoma
+     med tveimur stodum til ad reka i sundur.                            */
+  const bsdOk = bsdSeasonInStep(teamForm, bsdTeams).ok;
+  if (bsdOk) for (const t of bsdTeams?.teams || []) if (t.fpl_id != null) bsdById[t.fpl_id] = t;
 
   return list.map(t => {
     const f = formById[t.id] || {}, l = luckById[t.id] || {}, s = shotsById[t.id] || {};
@@ -120,7 +191,7 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
     const bsdXg = num(b.xg_pg), bsdXgc = num(b.xgc_pg);
     const xgTot  = bsdXg  != null && m ? +(bsdXg  * m).toFixed(1) : null;
     const xgcTot = bsdXgc != null && m ? +(bsdXgc * m).toFixed(1) : null;
-    return {
+    const row = {
       id: t.id, short: t.short, name: t.name, team: t,
       matches: m,
       /* LEIKIR SEM TALAN HVILIR A. Hann er `matches` a heilu timabili og
@@ -138,11 +209,22 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
       xgc:               xgcTot,
       xgc_pg:            bsdXgc,
       cs_pct:            num(f.clean_sheet_pct),
-      /* GAEDI SKOTANNA sem lidid gefur fra ser: xGC a hvert skot a sig.
-         12 skot a sig segja litid ef ollum er skotid ad utan — hlutfallid
-         er gaedin, talan er magnid. Thetta er NAESTA sem gognin leyfa vid
-         "big chances faced" og heitir thvi ekki thvi nafni.             */
-      xgc_per_shot:      div(xgcTot, f.shots_against_pg && m ? f.shots_against_pg * m : null),
+      /* `xgc_per_shot` VAR HER OG ER FARID (21.8.2026) — TVAER HEIMILDIR
+         I EINU BROTI. Teljarinn var BSD-xGC (per-skot xG ur skotakortinu)
+         og nefnarinn E0-skot-a-sig, tvaer oskyldar heimildir sem telja
+         SITTHVORN skotafjolda: BSD 8,263 skot a sig hja ARS a moti E0
+         8,16 (1,3%). Thad er nakvaemlega reglan sem `xg_share` braut i
+         leikmannalistanum 17.8.2026 og gaf Ogbene 148% (CLAUDE.md 12:
+         "teljari og nefnari verda ad koma ur SOMU heimild og sama
+         timabili").
+         OG HUN VAR ThEGAR DAUD I ThRIGGJA ATTIR: (a) enginn dalkur i
+         `TEAM_STAT_DEFS` les hana, (b) `applyTeamRange` setti hana i
+         `null` um leid og skotakortid er i takt — sem thad er i dag — svo
+         talan sem var reiknud kom ALDREI ut ur fallinu i appinu, og (c)
+         RETTA talan er ThEGAR til undir sinu retta nafni:
+         `xg_per_shot_against` (BSD BADUM megin, birtur dalkur). Reiknud
+         tala sem enginn les er ekki meinlaus — hun bidur thess ad einhver
+         gefi henni dalk, og tha er villan komin a skjainn utan mælingar. */
       sot_share_against: div(f.sot_against_pg, f.shots_against_pg),
       /* --- sokn --- */
       goals_pg:          num(f.goals_pg),
@@ -176,6 +258,22 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
       xg_per_shot_against: num(b.xg_per_shot_against),
       bsd_matches:    num(b.matches),
     };
+    /* EIN AGERD, EKKI TVAER. Fyrsta utgafa thessa (21.8.2026) hafdi LIKA
+       sveip her — `if (!bsdOk) for (... d.season_locked) row[d.key] = null`
+       — ofan a `bsdOk`-gattinni her fyrir ofan. Hann var HREIN TVITEKNING:
+       gattin taemir thegar somu sjo dalka, svo sveipurinn gerdi ekkert.
+       OG PROFID SANNADI ThAD: stokkbreyting sem TOK FLAGGID af `bc_pg`
+       skildi hann samt eftir toman, thvi gattin sa um thad. Kodi sem litur
+       ut eins og hann beri akvordunina en gerir thad ekki er verri en
+       enginn kodi — thad er nakvaemlega `buildTeamMetrics`-afritid (kafli
+       7) i minni umbud, og hann hefdi latid naesta lesanda halda ad
+       flaggid stjornadi hegdun i thessari skra.
+       FLAGGID ER LESID I `Teams.jsx` (varnadar-malsgreinin og setningin i
+       tooltip-inu hvers dalks) og ThAR ER hegdunin sem thad styrir;
+       vardurinn a thvi er i `team-gw.mjs`. Her er samningurinn hins vegar
+       PROFADUR: mengið sem taemist VERDUR ad vera nakvaemlega thad sem ber
+       flaggid, i badar attir (`team-stats.mjs` kafli 13d).               */
+    return row;
   });
 }
 
@@ -251,12 +349,30 @@ export const TEAM_STAT_DEFS = [
      valid. Heimildin er E0 a heilu timabili og LOKNIR LEIKIR (skotakortid
      eda `fixtures.json`) i bili; thaer eru MAELDAR JAFNAR (17/17 lid, oll
      thrju svidin, sja kaflann um umferdar-bilid).                        */
+  /* TVEIR DALKAR HLID VID HLID, TVAER OLIKAR SPURNINGAR — OG NOTANDINN
+     LAS ThA SEM SOMU (tilkynnt 21.8.2026: "Arsenal xGC 0,94 fyrir GW26-38
+     er rangt"). Talan var RETT: 121 skot a Arsenal i theim 13 umferdum,
+     summa xG 12,18, thad er 0,937 per umferd, endurreiknad ur
+     `bsd_shots.json` a ohadri leid. Raunveruleg mork a sig i sama bili
+     voru 10 (0,77) og 27 yfir timabilid (0,71).
+     ThAD SEM VAR RANGT VAR ThVI EKKI TALAN HELDUR ThAD AD ENGIN SETNING A
+     SKJANUM SAGDI AD xGC SE EKKI MORK A SIG. Notan nefndi heimildina og
+     fylgnina (r 0,82) en aldrei skilgreininguna, og "xGC per match" vid
+     hlidina a "Goals conceded per match" les eins og tvaer maelingar a
+     SAMA hlut sem stangast a — thegar thaer eru tvaer maelingar a SITTHVORUM
+     hlut og eiga ad vera olikar.
+     ThESS VEGNA SEGJA BADAR NOTUR NU HVOR ER HVOR og benda a
+     `GC−xGC`-dalkinn, sem er einmitt talan sem svarar spurningunni sem
+     notandinn var i raun ad spyrja. TOLURNAR STANDA OBREYTTAR.
+     ENGIN TALA UR RAUNGOGNUM I NOTUNNI: dæmi ur lifandi skra ureldist
+     thogult (sbr. horna-sviðin 13.8.2026). Reglan er sogd, ekki daemid. */
   { key: "conceded_pg", label: "Goals conceded per match", short: "GC", group: "defence",
-    dec: 2, hi: false, src: "E0", note: "Goals conceded per match. Follows the gameweek range.",
+    dec: 2, hi: false, src: "E0",
+    note: "Goals that actually went in, per match — real results, not a model. This is the column to read as \"how many did they let in\". The neighbouring xGC column is a different quantity and the two are meant to differ: a team can concede fewer goals than the chances it faced were worth, or more. Follows the gameweek range.",
     get: r => r.conceded_pg },
-  { key: "xgc_pg", label: "xGC per match", short: "xGC", group: "defence",
+  { key: "xgc_pg", label: "xGC (expected) per match", short: "xGC", group: "defence",
     dec: 2, hi: false, src: "BSD", season_locked: true,
-    note: "Expected goals conceded per match, summed from per-shot xG for every shot faced. Measured against real goals conceded it tracks at r 0.82 (the old FPL-summed version managed 0.37, because it took the whole team's xGC from a single goalkeeper's record). BSD covers 2025/26 only, so this is empty for other seasons.",
+    note: "THIS IS NOT GOALS CONCEDED. It is how much danger the defence gave up: every shot the team faced carries its own per-shot expected-goals value and this is their sum per match. Read it against the GC column beside it — when xGC is the higher of the two the team conceded fewer than the chances it faced warranted (good goalkeeping, or luck), and the GC-xGC column is that gap stated directly. Measured against real goals conceded it tracks at r 0.82 (the old FPL-summed version managed 0.37, because it took the whole team's xGC from a single goalkeeper's record). BSD covers 2025/26 only, so this is empty for other seasons.",
     get: r => r.xgc_pg },
   { key: "conceded_minus_xgc", label: "Conceded minus xGC", short: "GC−xGC", group: "defence",
     dec: 1, hi: false, src: "BSD", season_locked: true,
@@ -267,12 +383,16 @@ export const TEAM_STAT_DEFS = [
     get: r => r.cs_pct },
 
   /* ---- soknin ---- */
+  /* SAMA PARID A SOKNAR-HLIDINNI, SAMA REGLA — sja notuna vid `conceded_pg`
+     fyrir rokstudninginn. Villan var tilkynnt a xGC og hun er byggingar-
+     leg, ekki bundin vid thann dalk, svo hun er lagfaerd a BADUM stodum.  */
   { key: "goals_pg", label: "Goals per match", short: "Goals", group: "attack",
-    dec: 2, hi: true, src: "E0", note: "Goals scored per match. Follows the gameweek range.",
+    dec: 2, hi: true, src: "E0",
+    note: "Goals that actually went in, per match — real results, not a model. The neighbouring xG column is a different quantity and the two are meant to differ: a side can score more than the chances it created were worth, or fewer. Follows the gameweek range.",
     get: r => r.goals_pg },
-  { key: "xg_pg", label: "xG per match", short: "xG", group: "attack",
+  { key: "xg_pg", label: "xG (expected) per match", short: "xG", group: "attack",
     dec: 2, hi: true, src: "BSD", season_locked: true,
-    note: "Expected goals per match, summed from the per-shot xG of every shot taken. Measured against real goals it tracks at r 0.75 (FPL-summed: 0.67) and its level is right rather than ~19% short. BSD covers 2025/26 only, so this is empty for other seasons.",
+    note: "THIS IS NOT GOALS SCORED. It is how much chance the attack created: every shot taken carries its own per-shot expected-goals value and this is their sum per match. Read it against the Goals column beside it — when Goals is the higher of the two the side finished above the chances it made, and the G-xG column is that gap stated directly. Measured against real goals it tracks at r 0.75 (FPL-summed: 0.67) and its level is right rather than ~19% short. BSD covers 2025/26 only, so this is empty for other seasons.",
     get: r => r.xg_pg },
   { key: "shots_pg", label: "Shots per match", short: "Shots", group: "attack",
     dec: 2, hi: true, src: "E0", note: "Shots taken per match (E0, full season).",
@@ -657,11 +777,11 @@ export function applyTeamRange(base, { range = null, shotIndex = null,
       out.xgc_pg          = n ? +(s.xgA / n).toFixed(2) : null;
       out.bc_pg           = n ? +(s.bcF / n).toFixed(2) : null;
       out.bc_against_pg   = n ? +(s.bcA / n).toFixed(2) : null;
+      /* BADIR HALFAR UR SAMA BILI OG SOMU HEIMILD: xG a hvert skot a sig
+         er bils-xGC deilt med SKOTUNUM I SAMA BILI, badir talnir ur
+         `bsd_shots.json`. `xgc_per_shot` (BSD-teljari, E0-nefnari) var
+         fjarlaegd 21.8.2026 — sja buildTeamRows.                        */
       out.xg_per_shot_against = s?.nA ? +(s.xgA / s.nA).toFixed(3) : null;
-      /* NEFNARINN ER E0-ARSTIDARTALA (skot a sig), svo thessi ma EKKI
-         reiknast ur bils-xGC — thad vaeri teljari ur einu bili og nefnari
-         ur odru (CLAUDE.md 12).                                          */
-      out.xgc_per_shot = null;
       out.bsd_matches = n || null;
     }
     if (u.results) {

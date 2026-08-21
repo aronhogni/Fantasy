@@ -14,7 +14,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import ShotMap from "./ShotMap.jsx";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          applyTeamRange, teamRangeUse, teamRangeBlind, maxEventOf,
-         TEAM_RANGE_SRC } from "./teamstats.js";
+         TEAM_RANGE_SRC, bsdSeasonInStep } from "./teamstats.js";
 /* MERKID OG SMELLURINN ERU FLUTT INN, EKKI AFRITUD. `nextRange` stod
    ORDRETT afritad her (thrjar linur) og merkja-ordid "season" var ekki til
    i thessum flipa — thott sami eiginleiki i Player stats hafi bædi haft
@@ -115,17 +115,25 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
   }, [defs, rows]);
 
   const cellStyle = (d, v) => {
-    /* OFULLKOMNIR DALKAR FA ENGA BESTA/VERSTA MERKINGU.
-       Merkingin er FULLYRDING ("thetta er besta vornin i deildinni") og
-       xG/xGC geta ekki borid hana: theim vantar ~19% og undirtalningin er
-       MISJOFN milli lida, thvi hun raest af thvi hve margir foru ur
-       deildinni fra hverju lidi. Maelt daemi: Leeds maelist med LAEGSTA
-       xGC i deildinni (0,70) medan raunveruleg mork a sig eru 1,47 —
-       graen merking thar hefdi sagt notandanum ad Leeds hefdi att bestu
-       vaentu vornina, sem er gervi.
-       Tolurnar standa afram (thaer eru gagnlegar i samanburdi og
-       gula haus-merkingin segir fra fyrirvaranum); thad er FULLYRDINGIN
-       sem er tekin ut. Villandi mynd er verri en engin mynd.           */
+    /* OFULLKOMINN DALKUR FAER ENGA BESTA/VERSTA MERKINGU. Merkingin er
+       FULLYRDING ("thetta er besta vornin i deildinni") og dalkur sem
+       vantar gogn i getur ekki borid hana.
+
+       ENGINN DALKUR BER `incomplete` I DAG — OG ATHUGASEMDIN HER SAGDI
+       ANNAD ThANGAD TIL 21.8.2026. Her stod ad xG/xGC vaeru FPL-summa,
+       "vantadi ~19%", og daemid var Leeds med xGC 0,70 a moti 1,47 i
+       raunmorkum. Thad var rett ThANGAD TIL 8.8.2026 og hefur verid RANGT
+       sidan: xG/xGC koma ur BSD-skotakortinu (per-skot xG, r 0,369 ->
+       0,818 gegn raunmorkum) og BERA ThVI EKKI flaggid — nakvaemlega thad
+       sem `team-stats.mjs` kafli 10 krefst. Athugasemd sem lysir horfnu
+       astandi er ekki meinlaus: hun var ROKSTUDNINGURINN fyrir thvi ad
+       vélbunadurinn se hafdur inni, og hun benti a ranga astaedu.
+
+       VELBUNADURINN STENDUR SAMT OG ThAD ER ASETT: reglan er almenn og
+       naesti dalkur sem er ThEKKT ofullkominn (t.d. FPL-summa sem
+       einhver setur aftur inn) faer hana sjalfkrafa i stad thess ad
+       thurfa nyja utfaerslu. Vardur: `team-stats.mjs` kafli 10 fellur ef
+       dalkur med `src: "FPL"` er baett vid AN flaggsins.               */
     if (d.incomplete) return null;
     const e = ext[d.key];
     if (e == null || typeof v !== "number" || e.max === e.min) return null;
@@ -173,6 +181,42 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
         + (noZone ? ` (${noZone} shots carried no zone text and are counted in the totals only)` : ""),
     };
   }, [teamForm, bsdTeams, teamShots]);
+
+  /* ============================================================
+     HVADA TIMABIL SKOTAKORTID BER — LEITT, EKKI HARDKODAD (21.8.2026)
+
+     Her stodu TVEIR hardkodadir strengir "2025/26" i skotakorts-
+     hausnum, og their eru sami flokkur og horna-sviðin i SetPieces
+     13.8.2026: FOST TALA UM LIFANDI GOGN UREDLIST ThOGULT. Skrain sem
+     berst er `bsd_shots.json` og hun ER lyklud a timabil — thegar hun
+     verdur endurnyjud fyrir 2026/27 hefdi kortid haldid afram ad segja
+     "2025/26" ofan a nyjum skotum, og thad er verri villa en tom tala.
+
+     `shotIndex` (App.jsx) FLYTUR EKKI `season`-svidid, svo talan er ekki
+     laesileg her — og ad lesa hana ur ANNARRI skra (`bsd_teams.json`)
+     vaeri agiskun i buningi maelingar, nakvaemlega thad sem `routeInStep`
+     hafnar. ThAD SEM ER MAELT er hins vegar til: `use.shots` er satt
+     ADEINS thegar skotakortid telur sama leikjafjolda per lid OG sama
+     mork-per-leik sem arstidar-heimildin sem taflan hvilir a. ThA — og
+     adeins tha — er timabil kortsins ThAD SAMA sem `teamForm.season`, og
+     thad er ekki agiskun heldur utkoma taktprofsins.
+     Se kortid EKKI i takt er EKKERT timabil nefnt. Thogn er retta svarid
+     thegar svarid er okunnugt (sama regla og "engin gogn" er ekki 0).
+     ============================================================ */
+  const shotSeason = use.shots ? (teamForm?.season || null) : null;
+
+  /* BSD-DALKARNIR OG TIMABILID — `season_locked` GERIR NU EITTHVAD.
+     Beri `bsd_teams.json` annad timabil en taflan synir eru dalkarnir
+     TOMIR (sja `bsdSeasonInStep` i teamstats.js), og TOM DALKARODIN VERDUR
+     AD SEGJA HVERS VEGNA — annars les hun eins og "engar storar faerir"
+     i stad "gognin eru ur odru timabili" (CLAUDE.md 8).                 */
+  const bsdSeason = useMemo(() => bsdSeasonInStep(teamForm, bsdTeams), [teamForm, bsdTeams]);
+  /* ER RODIN RAUNVERULEGA TOM A SKJANUM? Leitt ur `season_locked`, aldrei
+     upptalið: nyr eins-timabils-dalkur telst med sjalfkrafa.            */
+  const lockedBlank = useMemo(
+    () => TEAM_STAT_DEFS.filter(d => d.season_locked)
+            .every(d => rows.every(r => d.get(r) == null)),
+    [rows]);
 
   /* HVADAN BILS-TALAN KEMUR — SOGT BERUM ORDUM. `src` a dalkinum er
      ARSTIDAR-heimildin (E0 fyrir mork og hrein blod) og hun er ekki su sem
@@ -222,7 +266,16 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
           + `Its source has no per-gameweek breakdown for this table's season.`
         : `\n\nFollows the gameweek range: the value shown covers GW ${gwRange[0]}–${gwRange[1]} `
           + `only, counted from ${rangeSrcText(d.key)}.`;
-    return `${d.label}\n\n${d.note}\n\n${dir}${mark}\n\nSource: ${srcText[d.src] || d.src}${inc}${rng}`;
+    /* EITT SKILYRDI, TVEIR STADIR — SAMA REGLA OG `rng` HER FYRIR OFAN.
+       Varnadar-malsgreinin ofan vid tofluna og thetta tooltip lesa BADIR
+       `bsdSeason.ok && lockedBlank`, svo their geta ekki sagt sitthvad um
+       sama holf.                                                        */
+    const lockd = d.season_locked && !bsdSeason.ok && lockedBlank
+      ? `\n\nEmpty in this view on purpose: its source covers ${bsdSeason.bsdLabel} `
+        + `and this table is showing ${bsdSeason.tableLabel}. A number from the wrong `
+        + `season is worse than no number.`
+      : "";
+    return `${d.label}\n\n${d.note}\n\n${dir}${mark}\n\nSource: ${srcText[d.src] || d.src}${inc}${lockd}${rng}`;
   };
 
   const head = (key, label, title, right = true) => (
@@ -274,6 +327,29 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
           stendur AFRAM — hann er ekki skyring heldur VARUD um dalk sem er
           ekki fylltur, og an hans les tomur dalkur eins og "engar stórar
           faerir" i stad "engin gogn" (CLAUDE.md kafla 8).                */}
+      {/* TIMABILS-MISVISIRINN — SAGDUR, EKKI ThAGADUR UM.
+          `season_locked` blankar BSD-dalkana thegar `bsd_teams.json` ber
+          annad timabil en taflan (sja teamstats.js). Tom dalkarod an
+          skyringar les eins og "engar storar faerir" og thad er onnur
+          fullyrding en "gognin eru ur odru ari" — nakvaemlega sami galli
+          sem slokkti umferdar-valarinn thagdi um 20.8.2026.
+          SKILYRDID ER LEITT AF ThVI SEM ER A SKJANUM (`lockedBlank`), ekki
+          af flagginu einu: se skotakortid I TAKT fyllir `applyTeamRange`
+          dalkana aftur og THA vaeri varnadur um tomt eintak ROng
+          fullyrding um tolu sem stendur i holfinu.                       */}
+      {bsdTeams && !bsdSeason.ok && lockedBlank ? (
+        <p style={S.warn}>
+          <b>{"The expected-goals columns are empty here on purpose."}</b>
+          {" The BSD shot data in this repo covers "}<b>{bsdSeason.bsdLabel}</b>
+          {", but this table is showing "}<b>{bsdSeason.tableLabel}</b>
+          {". xG, xGC, both big-chance columns and the two difference columns are "}
+          {"blank rather than carrying last season's numbers under this season's heading — "}
+          {"a number from the wrong season is worse than no number. Re-run "}
+          <code style={S.code}>{"BSD_KEY=… node scripts/fetch-bsd-teams.mjs"}</code>
+          {" and the shot-map fetch to fill them."}
+        </p>
+      ) : null}
+
       {bsdTeams ? null : (
         <p style={S.warn}>
           <b>{"Big chances faced is not filled in yet."}</b>{" The zones in this table come from "}
@@ -399,11 +475,13 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
                 <div style={{ fontWeight: 700, marginBottom: 2 }}>
                   {row?.name || pick}{" — shot maps "}
                   <span style={{ fontWeight: 400, opacity: 0.65, fontSize: 12 }}>
-                    {"2025/26 · bubble size = xG · goal at top"}</span>
+                    {shotSeason ? `${shotSeason} · ` : ""}{"bubble size = xG · goal at top"}</span>
                 </div>
                 <div style={{ fontSize: 12, color: "#6a6a72", marginBottom: 10 }}>
                   {"Faced is the keeper-and-defence question; taken is the attack. "}
-                  {"Only 2025/26 has a shot map, so a promoted side has none — and none means no data."}
+                  {shotSeason
+                    ? `The shot map covers ${shotSeason} only, so a side that was not in the league then has none — and none means no data.`
+                    : "The shot map covers a single season, so a side that was not in the league then has none — and none means no data."}
                 </div>
                 <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                   <div>
@@ -509,11 +587,14 @@ const S = {
   thRight: { textAlign: "right" },
   thOn: { color: C.purple },
   /* OFULLKOMIN TALA VERDUR AD SJAST SEM SLIK A SKJANUM, ekki adeins i
-     tooltip-i. xG og xGC eru kerfisbundid ~19% of lag (leikmenn sem foru
-     ur deildinni vantar i FPL-summuna) og tala sem er ROng i thekktri att
-     ma ekki lita eins ut og tala sem er rett. Litur en EKKI nytt tákn:
-     †-merkid var tekid ut samdaegurs ad beidni notandans, svo ad baeta
-     vid odru tákni vaeri ad ganga til baka i sama vanda.                */
+     tooltip-i: tala sem er ROng i ThEKKTRI att ma ekki lita eins ut og
+     tala sem er rett. Litur en EKKI nytt tákn — †-merkid var tekid ut
+     samdaegurs ad beidni notandans, svo ad baeta vid odru tákni vaeri ad
+     ganga til baka i sama vanda.
+     DAEMID SEM STOD HER (xG/xGC "~19% of lag" ur FPL-summu) VAR URELT OG
+     ER FARID — thau koma ur BSD-skotakortinu fra 8.8.2026 og bera ekki
+     flaggid. Enginn dalkur ber thad i dag; stillingin bidur thess naesta
+     sem gerir thad. Sja `cellStyle`.                                    */
   thIncomplete: { color: "#8a6100" },
   /* LIDID VERDUR AD HALDAST A SKJANUM. Taflan ber 22 dalka og skrunar
      larett innan sins kassa; an frysts fyrsta dalks veit madur ekki hvada
