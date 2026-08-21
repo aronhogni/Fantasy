@@ -134,6 +134,17 @@ const L_B = mkEntry("222222222222222222", "Sofahetjur",
    `null` thydir "notadu sjalfgefna", svo eldri kaflar haggast ekki.   */
 let myOverride = null;
 
+/* ============================================================
+   OLAESILEGUR LEIKMANNALISTI — KAFLI 11
+   ============================================================
+   Sleeper ber `players: null` a hop sem enginn hefur draftad i og thad
+   er RAUNVERULEG upplysing. Allt annad en fylki (strengur, tala, hlutur)
+   er ONYT GERD, og `freeAgents` TELUR hana i stad thess ad lesa hana sem
+   "tomur hopur" — annars vaeri sagt "enginn er tekinn hja thessu lidi" um
+   lid sem vid gatum ekki lesid. `null` thydir "notadu retta gerd", svo
+   eldri kaflar haggast ekki.                                          */
+let unreadableSlot = null;
+
 /* Rostrar. `played` stjornar thvi hvort tímabilid er byrjad. */
 const mkRosters = (n, myRoster, played) =>
   Array.from({ length: n }, (_, i) => {
@@ -170,6 +181,9 @@ const mkRosters = (n, myRoster, played) =>
             fpts: 1500 - i * 40, fpts_decimal: 25,
             fpts_against: 1400 + i * 10, fpts_against_decimal: 50 }
         : { wins: 0, losses: 0, ties: 0, fpts: 0 },
+      /* SIDAST, svo hun YFIRSKRIFI `players` — spread a undan lyklinum
+         hefdi verid thogul og fixturan afram laesileg. */
+      ...(unreadableSlot === rid ? { players: "oops" } : {}),
     };
   });
 
@@ -1821,6 +1835,76 @@ console.log("\n10. start/sit-skiptin eru a skjanum (fjoldi OG abati)");
   ok(/advice\s*\.\s*changes/.test(dashSrc) && /advice\s*\.\s*isOptimal/.test(dashSrc),
     "heldur `advice.changes` OG `advice.isOptimal` — badi svidin sem modullinn skilar");
   myOverride = null;
+}
+
+/* ============================================================
+   11. WAIVER-NOTURNAR — REIKNADAR OG BIRTAR HVERGI
+   ============================================================
+   `waivers.js` skrifar i haus sinum ad thogn se thad EINA sem ma ekki
+   gerast, og skilaði samt FIMM nota-tegundum sem ENGINN las
+   (`fa.notes`, `fa.unreadableRosters` — NULL lesendur i ollu `src/`).
+
+   SU MIKILVAEGASTA ER GILDISSVID LISTANS: se hopur med OLAESILEGAN
+   leikmannalista getur madur i eigu einhvers stadid a waiver-listanum og
+   notandinn gert tilbod i hann. Þad er sama villa og "`pool == null` ma
+   aldrei lesast eins og enginn er tekinn", i minni mynd — og hun var
+   ThOGUL.
+
+   ThEKJA ER FULLYRT FYRST: `freeAgents` VERDUR ad telja hopinn olaesilegan
+   a thessari fixturu, annars gaeti "notan er a skjanum" ekki brugdist.
+
+   OG NEIKVAEDA HLIDIN ER PROFUD LIKA (regla 2 i CLAUDE.md 5b): thegar
+   allir hopar eru laesilegir ma kassinn EKKI standa thar. Kassi sem er
+   alltaf a skjanum er thad sama og enginn kassi.
+   ============================================================ */
+console.log("\n11. waiver-noturnar eru a skjanum");
+{
+  const { freeAgents } = await import("../src/waivers.js");
+
+  /* -- (a) EINN HOPUR MED ONYTA GERD -- */
+  unreadableSlot = 2; myOverride = null;
+  played = true; sleeperMode = "ok";
+  let root = await boot({ entries: [L_A] });
+  await waitFor(() => /Waiver wire/.test(text()));
+
+  /* ThEKJA: fixturan verdur raunverulega ad gefa olaesilegan hop. */
+  const rs = mkRosters(10, 7, true);
+  const probe = freeAgents({ rows: players.map((p) => ({ ...p, id: String(p.id) })),
+                             rosters: rs, myRosterId: 7 });
+  ok(probe.unreadableRosters === 1,
+    `ThEKJA: \`freeAgents\` telur EINN olaesilegan hop (${probe.unreadableRosters})`);
+  ok(probe.notes.some((n) => /unreadable player list/.test(n)),
+    "og skrifar notu um hann (annars er fullyrdingin nedan tom)");
+
+  const flat = () => text().replace(/\s+/g, " ");
+  ok(/1 of 10 rosters had an unreadable player list/.test(flat()),
+    "og NOTAN ER A SKJANUM, ordrett ur modulnum");
+  ok(/may show up as free agents/.test(flat()),
+    "med afleidingunni sagdri — thad er gildissvid listans, ekki smaatridi");
+  ok(!/\bNaN\b/.test(text()) && !/\bundefined\b/.test(text()),
+    "ekkert NaN/undefined");
+  /* Og handskrifada endursognin er FARIN — tvaer utgafur af somu
+     setningu geta rekid i sundur og modullinn er heimildin. */
+  const dashSrc = readFileSync(path.join(ROOT, "src", "Dashboard.jsx"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ");
+  ok(!/outside our board/.test(dashSrc),
+    "`Dashboard.jsx` endursegir EKKI notuna sjalf (`outside our board` er farid)");
+  ok(/fa\.notes/.test(dashSrc) && /fa\.unreadableRosters/.test(dashSrc),
+    "heldur les `fa.notes` OG `fa.unreadableRosters` — badi svidin sem attu enga lesendur");
+  root.unmount();
+
+  /* -- (b) ALLIR HOPAR LAESILEGIR -> KASSINN MA EKKI STANDA ThAR -- */
+  unreadableSlot = null;
+  root = await boot({ entries: [L_A] });
+  await waitFor(() => /Waiver wire/.test(text()));
+  const clean = freeAgents({ rows: players.map((p) => ({ ...p, id: String(p.id) })),
+                            rosters: mkRosters(10, 7, true), myRosterId: 7 });
+  ok(clean.unreadableRosters === 0,
+    `ThEKJA: nu er enginn hopur olaesilegur (${clean.unreadableRosters})`);
+  ok(!/unreadable player list/.test(text()),
+    "og notan er HORFIN — kassi sem er alltaf a skjanum segir ekkert");
+  root.unmount();
+  unreadableSlot = null;
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

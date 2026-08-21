@@ -808,6 +808,39 @@ function Waivers({ fa, picks, league }) {
     <div style={{ marginTop: 14 }}>
       <Head>Waiver wire</Head>
 
+      {/* ============================================================
+          `notes` OG `unreadableRosters` VORU REIKNUD OG BIRT HVERGI
+          ============================================================
+          `waivers.js` skrifar i haus sinum ad hun skili LISTA og ad
+          thogn se thad eina sem ma ekki gerast — og skilaði samt FIMM
+          nota-tegundum sem ENGINN las:
+
+            · N af M hopum baru OLAESILEGAN leikmannalista, svo their
+              sem eru a theim geta birst sem LAUSIR
+            · N i eigu einhvers eru ekki a thessu bordi
+            · N af MINUM monnum eru ekki a bordinu
+            · engin rod med `roster_id` X i thessari deild
+            · ekkert `roster_id` gefid
+
+          Su FYRSTA er ekki smaatriði heldur GILDISSVID LISTANS: se hopur
+          olaesilegur getur madur i eigu einhvers stadid a waiver-listanum
+          og notandinn gert tilbod i hann. Þad er nakvaemlega "pool == null
+          ma aldrei lesast eins og enginn er tekinn", i minni mynd — og
+          hun var THOGUL.
+
+          NOTURNAR ERU MODULSINS EIGIN ORD OG ERU BIRT ORDRETT. Handskrifud
+          endursogn i .jsx var thegar i dim-linunni hér nedan ("N rostered
+          players are outside our board") og hun er FARIN: tvaer utgafur af
+          somu setningu geta rekid i sundur, og modullinn er heimildin. */}
+      {fa && Array.isArray(fa.notes) && fa.notes.length > 0 && (
+        <div className={`note ${fa.unreadableRosters > 0 ? "warn" : ""}`}
+             style={{ marginTop: 6, fontSize: 12 }}>
+          {fa.notes.map((n, i) => (
+            <div key={i} style={i ? { marginTop: 3 } : undefined}>{n}</div>
+          ))}
+        </div>
+      )}
+
       {(!fa || fa.pool == null) ? (
         <div className="note warn" style={{ marginTop: 6 }}>
           <b>Rosters were not read, so the free-agent pool is unknown.</b> This is
@@ -845,13 +878,10 @@ function Waivers({ fa, picks, league }) {
         </div>
       ) : (
         <>
+          {/* TOLURNAR EINAR. Skyringarnar eru i nota-kassanum ad ofan,
+              med ordum modulsins — sja notuna thar. */}
           <div className="dim" style={{ fontSize: 11.5, marginTop: 4 }}>
             {fa.pool.length} free agents · {fa.rosteredCount} rostered
-            {fa.unknownRostered > 0 && (
-              <span> · {fa.unknownRostered} rostered player
-                {fa.unknownRostered > 1 ? "s are" : " is"} outside our board
-                {fa.myUnknown > 0 ? `, ${fa.myUnknown} of them yours` : ""}</span>
-            )}
           </div>
 
           {picks && picks.length > 0 ? (
