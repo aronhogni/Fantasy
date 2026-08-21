@@ -292,18 +292,123 @@ console.log("\n4. tolur innan marka");
      mennirnir eru i saeti 511-512 af 558. Vid buum ekki til 0 ur henni —
      tha vaeri omaeld tala komin i stadinn fyrir maelda. Golfid -10 grípur
      hins vegar merkjaskipti eda kvardavillu. */
+  /* ============================================================
+     KVARDA-GATID — SJO STOKKBREYTINGAR LIFDU, OG ThAER VORU ALLAR
+     SOMU GERDAR
+     ============================================================
+     Uttekt 21.8.2026 keyrdi 16 stokkbreytingar a birtum, afleiddum
+     svidum. SJO lifdu, og thaer voru naestum allar KVARDI:
+
+         waiver `gain` x17 · `playoffSos` x17 · `teamScored` x17
+         `lastPpg` x17 · `lastTshare` x17 · `age` -> null
+         `value` + 3 umferdir
+
+     ASTAEDAN VAR EKKI ad vantadi vordur heldur ad taflan var
+     HANDSKRIFAD URTAK: `sos` var i henni og `playoffSos` — sami
+     reikningur, sami kvardi, systkin i sömu rod i `build.js` — var thad
+     ekki. Sama gerd og handskrifadi listinn i `wiring.mjs` kafla 7.
+
+     TOLURNAR ERU MAELDAR UR RAUNGOGNUM 21.8.2026 (844-1113 radir) og
+     bilin eru RUM: thau eru ekki kvordun, thau eru til thess ad
+     utiloka staerdargradu-villu. Sama regla og staerdar-akkerid i
+     `dashboard.mjs` kafla 3b.
+
+         playoffSos   20,33 - 27,25   -> x17 gefur 345+
+         teamScored   18,44 - 26,65   -> x17 gefur 313+
+         lastPpg      -1,00 - 24,51   -> x17 gefur 416
+         lastTshare    0,00 -  0,368  -> hlutfall; x17 gefur 6,2
+         value       -26,63 -  8,19   -> sja EIGIN vordinn nedar
+
+     `value` FAER SITT EIGID PROF OG ThAD ER ASETT. Rumt bil getur ekki
+     greint "+3 umferdir" (8,19 -> 11,19) an thess ad vera svo throngt
+     ad thad flokti med daglegu ADP-inu, og "floktandi prof er verra en
+     ekkert" (README 6d). Rett vordur er SKILGREININGIN: talan verdur ad
+     vera `valueVsMarket(rank, adp, teams)` — sama fall og `build.js`
+     kallar, FLUTT INN og ekki afritad. Grunnurinn sjalfur er OPIN
+     spurning (uttekt, atridi 5) og er EKKI hreyfdur hér.            */
   const bounds = {
     proj: [-10, 600], vbd: [-400, 400], adp: [0.5, 400],
     aRank: [1, 2000], tier: [1, 30], ecr: [1, 1200], bye: [4, 15],
     age: [18, 45], sos: [10, 40],
+    playoffSos: [10, 40], teamScored: [3, 60],
+    lastPpg: [-10, 50], lastTshare: [0, 1],
+    value: [-60, 40],
   };
   for (const [k, [lo, hi]] of Object.entries(bounds)) {
     const v = num(k);
-    if (!v.length) { soft(false, `${k}: engin gildi`); continue; }
+    /* ============================================================
+       DALKUR SEM HVERFUR ALVEG VAR VIDVORUN SEM SKILADI 0 — LAGAD
+       ============================================================
+       Hér stod `soft(false, …)`, sem prentar `warn` og fellir EKKERT.
+       Þess vegna lifdi `age -> null`: allur dalkurinn hvarf ur
+       leikmannaspjaldinu og keyrslan var graen. Dalkur sem er BUNDINN
+       er dalkur sem er BIRTUR, og "svidid er tomt" er thvi bilun, ekki
+       athugasemd — sama regla og "thekja er fullyrding, ekki logga"
+       (CLAUDE.md 5b regla 1).
+
+       Golfid er 20 gildi og ekki 1: dalkur sem hrynur ur 844 rodum i
+       tvaer er jafn bilaður og dalkur sem hrynur i null, og
+       "ekki-tomt" getur ekki greint thad.                          */
+    ok(v.length >= 20,
+      `${k}: ${v.length} gildi bera tolu (dalkur sem hverfur er BILUN)`);
+    if (!v.length) continue;
     const out = v.filter((x) => x < lo || x > hi);
     ok(out.length === 0,
       `${k}: ${v.length} gildi, oll innan [${lo}, ${hi}]` +
       (out.length ? ` — ${out.length} utan, t.d. ${out[0]}` : ""));
+  }
+
+  /* ---- `value` ER SKILGREINING, EKKI BIL ---- */
+  {
+    const { valueVsMarket } = await import("../src/model.js");
+    const withBoth = R.filter((r) => r.value != null && r.rank != null && r.adp != null);
+    ok(withBoth.length >= 50,
+      `ThEKJA: ${withBoth.length} radir bera BADI \`rank\` og \`adp\` — ` +
+      "an theirra er fullyrdingin nedan tom");
+    const wrong = withBoth.filter((r) =>
+      Math.abs(r.value - valueVsMarket(r.rank, r.adp, 12)) > 1e-9);
+    ok(wrong.length === 0,
+      `\`value\` ER \`valueVsMarket(rank, adp, teams)\` a ollum ${withBoth.length} ` +
+      `rodum (${wrong.length} skekkja` +
+      (wrong.length ? `, t.d. ${wrong[0].name}: ${wrong[0].value} gegn ` +
+        `${valueVsMarket(wrong[0].rank, wrong[0].adp, 12)}` : "") + ")");
+    /* Og fullyrdingin verdur ad geta brugdist: hlidrun um eina umferd
+       er thad sem stokkbreytingin gerdi, og hun ma ekki sleppa. */
+    ok(withBoth.some((r) =>
+      Math.abs((r.value + 3) - valueVsMarket(r.rank, r.adp, 12)) > 1e-9),
+      "og +3 umferdir vaeri ONNUR tala (maelitaekid virkar)");
+  }
+
+  /* ---- WAIVER-ABATINN ER LIKA KVARDI, OG HANN VAR OBUNDINN ----
+     `gain` er TIMABILS-VBD (sja `WAIVER_CAL.currency`), svo hann er
+     mismunur tveggja `vbd`-talna og bilid leidir af theirra bili. x17
+     for i gegn af thvi ad ENGINN vordur skodadi toluna a raunbordi.  */
+  {
+    const { freeAgents, pickupAdvice } = await import("../src/waivers.js");
+    const L = { teams: 12, scoring: "ppr",
+                starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 } };
+    /* Einn "hopur" med tiu monnum ur midjunni, svo laugin beri raunveruleg
+       skipti. Rostrarnir eru LESANLEGIR — annars er laugin null og
+       kaflinn maelir ekkert. */
+    const pool = R.filter((r) => r.vbd != null).slice(0, 200);
+    const mineIds = pool.slice(120, 130).map((r) => String(r.id));
+    const fa = freeAgents({ rows: pool, myRosterId: 1,
+      rosters: [{ roster_id: 1, owner_id: "u1", players: mineIds }] });
+    ok(fa.pool != null && fa.pool.length > 20,
+      `ThEKJA: laugin er lesin (${fa.pool ? fa.pool.length : "null"} lausir)`);
+    const picks = pickupAdvice({ pool: fa.pool, mine: fa.mine, league: L, week: null });
+    ok(picks.length >= 1, `og ${picks.length} skipti radlogd (annars er bilid tomt)`);
+    const badGain = picks.filter((p) => !(p.gain > 0 && p.gain <= 600));
+    ok(badGain.length === 0,
+      `waiver \`gain\` innan (0, 600] a ollum ${picks.length} skiptum ` +
+      `(${badGain.length} utan${badGain.length ? `, t.d. ${badGain[0].gain}` : ""})`);
+    /* OG SKILGREININGIN, eins og med `value`: `gain` er munur a `vbd`.
+       x17 er tha ekki "utan bils" heldur "ekki thad sem hun segir". */
+    const r1 = (x) => Math.round(x * 10) / 10;
+    const wrong = picks.filter((p) =>
+      Math.abs(p.gain - r1(p.add.vbd - p.drop.vbd)) > 1e-9);
+    ok(wrong.length === 0,
+      `og hann ER \`vbd(inn) - vbd(ut)\` (${wrong.length} skekkja)`);
   }
 
   /* Rodin verdur ad vera THETT og EINKVAEM. Gloppa eda tvitekning
