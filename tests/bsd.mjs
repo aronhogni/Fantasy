@@ -16,9 +16,12 @@
    2. VORPUNIN. Fuzzy nafnapörun felldi Man United inn i Man City og
       vixladi Jacob/Alex Murphy (NEW). Thogul RONG pörun er verri en
       engin, svo hér er borid vid FPL-tolur sem VID EIGUM SJALFSTAETT
-      (`season_baseline.json`, sama timabil): mork og minutur verda ad
-      stemma. Thetta er sama tegund vardar og "value_season == stig/verd
-      a ollum 563 raungognum" (6f).
+      (`player_gw_2526.json`, FROSIN saga sama timabils, lyklud a `code`):
+      mork og minutur verda ad stemma. Thetta er sama tegund vardar og
+      "value_season == stig/verd a ollum 563 raungognum" (6f).
+      Vidmidid var `season_baseline.json` til 21.8.2026 og hun skipti
+      TIMABILI undir omreyttum merkimida — sja langa athugasemdina vid
+      kafla 3.
 
    3. MAELDU FASTARNIR. `big_chance_xg` og `in_box_x` eru FITTADIR, ekki
       valdir. Ef einhver breytir theim an nyrrar maelingar a thad ad
@@ -100,28 +103,92 @@ ok(F.measured?.in_box_x < 25,
    "teig-throskuldurinn er a 105 m kvarda (BSD), EKKI ESPN-kvardanum (31,4)");
 
 /* ---------- 3. VORPUNIN GEGN OKKAR EIGIN TOLUM ---------- */
-H("3. VORPUN VID FPL — borid vid season_baseline.json");
-let base = null;
-try { base = read("data/season_baseline.json"); } catch {}
-if (!base || base.label !== "2025/26") {
-  ok(false, "season_baseline.json er a 2025/26 svo hægt se ad bera saman");
+/* ============================================================
+   VIDMIDID VAR `season_baseline.json` OG ThAD BRAST 21.8.2026 — EKKI
+   AF ThVI AD PORUNIN VERSNADI, HELDUR AF ThVI AD SKRAIN SKIPTI TIMABILI
+   UNDIR NAFNI SEM BREYTTIST EKKI.
+
+   BSD naer ADEINS yfir 2025/26 (CLAUDE.md 6t) og er frosin. Vidmidid
+   ThARF thvi ad vera 2025/26 lika. `season_baseline.json` VAR thad:
+   `fetch.mjs` skrifar hana daglega medan `!events.some(e => e.finished)`
+   og lokatolur fyrra timabils standa i bootstrap-inu allan forleikinn.
+   Um leid og FPL nullstillti uppsofnudu tolurnar vid tímabils-byrjun var
+   ENGIN umferd `finished` — sa fani slokknar ekki fyrr en OLL leikir
+   umferdarinnar eru bunir — svo skriftan hélt afram ad skrifa, nu med
+   2026/27-tolum, OG MERKIMIDINN VAR AFRAM "2025/26" (hann er reiknadur
+   ur ARTALI GW1-frestsins, ekki ur innihaldinu).
+   Maelt a skranni: 600 leikmenn, 31 med minutur, HAMARK 90 MINUTUR —
+   a moti 400 med minutur og hamarki 3.420 sama morgun. Vordurinn hér
+   (`base.label !== "2025/26"`) gat ekki greint thad, af thvi ad hann
+   spurdi um merkimidann.
+
+   ThVI ER VIDMIDID FLUTT A `player_gw_2526.json`: hun er FROSIN
+   per-umferdar saga 2025/26 ur vaastav-speglinum, hun er lyklud a
+   `code` (fast yfir timabil, CLAUDE.md 3) og hun getur ekki skipt
+   timabili undir nafninu sinu — thad er einmitt gatid sem brast.
+   `fpl_id` var lykillinn adur og hann er TIMABILS-BUNDID element-id,
+   svo hann bendir a mann i YFIRSTANDANDI timabili; `code` bendir a
+   manninn sjalfan.
+
+   OG SVARID ER ThAD SAMA UPP A STAFINN, sem er sonnun thess ad porunin
+   var alltaf i lagi og thad var vidmidid sem hvarf: maelt 22.8.2026 a
+   415 rodum (415 af 415 parast, ENGIN utundan) er r fyrir minutur
+   0,9998 og fyrir mork 0,9998 — nakvaemlega tolurnar sem CLAUDE.md 6t
+   skrair fyrir thessa porun — mork stemma i 99,5% (413/415) og
+   MESTA MINUTU-FRAVIK ER 90 (Robin Roefs, 3.060 a moti 3.150), sem er
+   sami madur og sama tala sem gamla athugasemdin nefndi.
+   72 stemma upp a minutu og 343 skeika um alt ad 90 af thvi ad BSD
+   telur EINN leik odruvisi (uppbotartimi/skiptingar), svo 90 er
+   raunveruleg lofthaed gagnanna og allt tharumfram er porunar-villa,
+   ekki taln-mismunur. ThROSKULDURINN ER ThVI MAELDUR, EKKI VALINN —
+   og hann er OBREYTTUR fra fyrri utgafu.
+   ============================================================ */
+H("3. VORPUN VID FPL — borid vid player_gw_2526.json (frosid 2025/26)");
+let hist = null;
+try { hist = read("data/player_gw_2526.json"); } catch {}
+/* VIDMIDID VERDUR AD VERA SAMA TIMABIL SEM BSD NAER YFIR, og nu er
+   spurt um INNIHALDID og ekki bara um merkimidann: `season` OG `label`
+   verda ad segja 2025/26 og skrain ad bera per-umferdar rod. */
+const histOk = !!hist && hist.season === "2526" && hist.label === "2025/26"
+  && Array.isArray(hist.stats) && hist.players && typeof hist.players === "object";
+if (!histOk) {
+  ok(false, "player_gw_2526.json er frosin 2025/26-saga svo haegt se ad bera saman"
+     + ` (season=${hist?.season}, label=${hist?.label})`);
 } else {
-  const B = new Map((base.players || []).map(p => [p.id, p]));
-  const paired = P.filter(p => p.fpl_id != null && B.has(p.fpl_id));
+  const iM = hist.stats.indexOf("mins"), iG = hist.stats.indexOf("goals");
+  ok(iM >= 0 && iG >= 0, `stats-skrain ber mins og goals (${iM}, ${iG})`);
+  /* Timabils-summa per `code` — logd saman i FASTRI umferdar-rod, sama
+     regla og i `fetch-bsd.mjs` (fleytitolu-samlagning er ekki vixlin). */
+  const FPL = new Map();
+  for (const [code, row] of Object.entries(hist.players)) {
+    let mins = 0, goals = 0;
+    for (const gw of Object.keys(row.gw || {}).map(Number).sort((a, b) => a - b)) {
+      const r = row.gw[gw]; if (!r) continue;
+      mins += r[iM] || 0; goals += r[iG] || 0;
+    }
+    FPL.set(Number(code), { mins, goals });
+  }
+  ok(FPL.size > 700, `leikmenn i frosnu 2025/26-sogunni: ${FPL.size}`);
+
+  const paired = P.filter(p => p.code != null && FPL.has(p.code));
   ok(paired.length > 300, `pöruð pör til samanburdar: ${paired.length}`);
+  /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b). Rod i BSD-skranni
+     sem ENGIN 2025/26-saga bakkar upp er sjalf grunsamleg — hun a ad
+     hafa spilad thad timabil. Maelt 22.8.2026: 0 af 415 utundan.     */
+  const unpaired = P.filter(p => p.code == null || !FPL.has(p.code));
+  ok(unpaired.length === 0,
+     `hver BSD-rod parast vid frosnu soguna a \`code\`${unpaired.length
+       ? ` — ${unpaired.length} gera thad ekki: ` + unpaired.slice(0, 5).map(p => p.name).join(", ") : ""}`);
 
   let exact = 0, badMin = 0;
   for (const p of paired) {
-    const b = B.get(p.fpl_id);
-    if ((p.goals ?? 0) === b.goals_scored) exact++;
+    const b = FPL.get(p.code);
+    if ((p.goals ?? 0) === b.goals) exact++;
     /* ThROSKULDURINN VAR 300 MINUTUR — OG ThAD VAR AGISKAD, EKKI MAELT.
        300 minutur eru ThRIR heilir leikir; vixl milli fastamanns og
-       varamanns rumast innan theirra. Maelt a ollum 393 pörunum:
-         mesta frávik = 90 minutur (Robin Roefs), 0 radir yfir 90.
-       324 af 393 skeika um alt ad 90 af thvi ad BSD telur EINN leik
-       odruvisi (uppbotartimi/skiptingar), svo 90 er raunveruleg lofthaed
-       gagnanna og allt tharumfram er poerunar-villa, ekki taln-mismunur. */
-    if (Math.abs((p.minutes ?? 0) - b.minutes) > 90) badMin++;
+       varamanns rumast innan theirra. 90 er maeld lofthaed (sja
+       athugasemdina vid kaflann).                                    */
+    if (Math.abs((p.minutes ?? 0) - b.mins) > 90) badMin++;
   }
   const pct = 100 * exact / paired.length;
   ok(pct >= 97, `mork stemma nakvaemlega vid FPL i ${pct.toFixed(1)}% tilvika (>=97%)`);

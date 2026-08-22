@@ -1,0 +1,180 @@
+/* ============================================================
+   tests/fetch-entry.mjs — MAIN-VORDURINN I `scripts/fetch.mjs`
+
+   `scripts/fetch.mjs` kallar `main()` adeins thegar hun er keyrd BEINT
+   (21.8.2026). Adur var kallid oskilyrt, svo hver innflutningur keyrdi
+   alla pipeline-una — og thess vegna var hvert hreint fall i skranni
+   oprofanlegt nema med thvi ad LESA TEXTANN og byggja thad upp aftur
+   (`tests/elo-fetch.mjs:25`), sem profar AFRIT en ekki kodann sem keyrir.
+
+   AF HVERJU ThETTA PROF ER NAUDSYNLEGT OG EKKI SKRAUT: bilun i skilyrdinu
+   er ThOGUL. Pipeline-an myndi ljuka a sekundubroti med utgangsstodu 0 og
+   engum skrifum — GRAEN keyrsla sem gerir EKKERT. Tha er engin raud rod til
+   ad taka eftir og `data/` frystist a theim degi sem thad gerdist. Texta-
+   leit i `fetch.mjs` gaeti ekki fellt thetta: athugasemdin vid vordinn
+   nefnir sjalf `main()` og `invokedDirectly` (kafli 5b — athugasemd sem
+   uppfyllir fullyrdinguna).
+
+   ThESS VEGNA ER PROFID A RAUNVERULEGU AFRITI, KEYRDU I NYJU FERLI, BADAR
+   LEIDIR: beint (`node afrit.mjs` -> a ad kalla) og innflutt
+   (`import("afrit.mjs")` -> a EKKI ad kalla). `main()` er skipt ut i
+   afritinu fyrir eina prentun, svo ENGIN net-koll og ENGIN skrif verda —
+   afritid liggur i `scripts/` svo afstaedu innflutningarnir leysist.
+
+   Keyrsla:  node tests/fetch-entry.mjs
+   ============================================================ */
+import { readFileSync, writeFileSync, unlinkSync, existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+
+const ROOT = new URL("../", import.meta.url).pathname;
+let pass = 0, fail = 0;
+const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); }
+                       else { fail++; console.log("  ✗ " + m); } };
+
+const SRC = ROOT + "scripts/fetch.mjs";
+const src = readFileSync(SRC, "utf8");
+
+/* ---- 1. FORSENDA: skilyrdid er thar, og thad er EITT ---- */
+console.log("\n-- 1. FORSENDA --");
+const calls = src.match(/^\s*(if \(invokedDirectly\) )?main\(\)/gm) || [];
+ok(calls.length === 1, `nakvaemlega EITT `+"`main()`"+`-kall i skranni (${calls.length})`);
+ok(/if \(invokedDirectly\) main\(\)/.test(src),
+   "og thad er skilyrt vid `invokedDirectly`");
+/* OSKILYRT KALL MA ALDREI SLAEDAST INN AFTUR — thetta er einmitt
+   afturforin sem vordurinn snyst um.                                   */
+ok(!/^main\(\)/m.test(src), "ekkert OSKILYRT `main()` a linubyrjun");
+
+/* ---- 2. AFRITID: `main` skipt ut fyrir prentun ---- */
+const MARK = "__FETCH_MAIN_RAN__";
+const copy = ROOT + "scripts/.fetch-entry-probe.mjs";
+/* Vid skiptum ut LIKAMANUM a `main`, ekki kallinu — thannig er skilyrdid
+   sjalft OBREYTT og thad er thad sem er til profs.                     */
+const bodyAt = src.indexOf("async function main(");
+if (bodyAt < 0) { console.log("  ✗ `async function main(` finnst ekki"); process.exit(1); }
+const braceAt = src.indexOf("{", bodyAt);
+let depth = 0, end = -1;
+for (let i = braceAt; i < src.length; i++) {
+  if (src[i] === "{") depth++;
+  else if (src[i] === "}") { depth--; if (!depth) { end = i + 1; break; } }
+}
+ok(end > 0, "likami `main()` var thattadur (svigar jafnir)");
+const stub = `async function main() { console.log("${MARK}"); }`;
+writeFileSync(copy, src.slice(0, bodyAt) + stub + src.slice(end));
+
+try {
+  /* ---- 3. BEIN KEYRSLA -> A AD KALLA ---- */
+  console.log("\n-- 2. BEIN KEYRSLA --");
+  const direct = spawnSync(process.execPath, [copy], { encoding: "utf8", timeout: 60000 });
+  ok(direct.status === 0, `beint kall lykur an villu (status ${direct.status})`
+     + (direct.status ? ` :: ${String(direct.stderr).slice(0, 200)}` : ""));
+  ok(direct.stdout.includes(MARK),
+     "`main()` VAR kolluð thegar skrain er keyrd beint");
+
+  /* ---- 4. INNFLUTNINGUR -> A EKKI AD KALLA ---- */
+  console.log("\n-- 3. INNFLUTNINGUR --");
+  const impSrc = `import("file://${copy}").then(m => { `
+    + `console.log("EXPORTS=" + Object.keys(m).length); });`;
+  const imported = spawnSync(process.execPath, ["-e", impSrc],
+                             { encoding: "utf8", timeout: 60000 });
+  ok(imported.status === 0, `innflutningur lykur an villu (status ${imported.status})`
+     + (imported.status ? ` :: ${String(imported.stderr).slice(0, 300)}` : ""));
+  ok(!imported.stdout.includes(MARK),
+     "`main()` var EKKI kolluð vid innflutning — thetta er kjarninn");
+  /* OG SKRAIN VERDUR AD BERA UTFLUTNING, annars er innflutningur gagnslaus
+     jafnvel thott hann se hljodur.                                      */
+  const n = +(imported.stdout.match(/EXPORTS=(\d+)/)?.[1] ?? 0);
+  ok(n >= 5, `innflutt skra ber utflutning sem prof geta lesid (${n})`);
+
+  /* ---- 5. WORKFLOW-IN KALLA HANA ENN BEINT ----
+     Skilyrdid er ADEINS rett svo lengi sem pipeline-an er keyrd sem
+     skrifta. Kalladi workflow hana med `node -e "import(...)"` yrdi
+     thogla bilunin sem thetta prof er til vegna.                       */
+  console.log("\n-- 4. WORKFLOW-IN --");
+  for (const wf of ["fetch.yml", "fetch-fast.yml"]) {
+    const y = readFileSync(ROOT + ".github/workflows/" + wf, "utf8");
+    const line = y.split("\n").find(l => l.includes("scripts/fetch.mjs"));
+    ok(!!line && /^\s*run:\s*node scripts\/fetch\.mjs/.test(line),
+       `${wf} keyrir hana BEINT: ${JSON.stringify((line || "").trim())}`);
+  }
+} finally {
+  if (existsSync(copy)) unlinkSync(copy);
+}
+
+/* ============================================================
+   TIMABILS-GRUNNURINN — REGLAN SEM VER OENDURHEIMTANLEG GOGN
+
+   `season_baseline.json` ber LOKATOLUR fyrra timabils og er sú EINA
+   heimild fyrir "i ar vs. i fyrra"-toluna. Gatid var
+   `!events.some(ev => ev.finished)`, en GW1 er `finished: false` i ~3 daga
+   eftir ad fresturinn lidur — og FPL nullstillir uppsofnudu tolurnar VID
+   frestinn. Keyrsla 21.8. kl. 23:28 skrifadi thvi **600 radir med max
+   starts 1** ofan a **599 radir med max starts 38**.
+
+   OG HUN VAR ThOGUL: `label` er leitt af ari frestarins og stod afram
+   "2025/26"; radafjoldinn for ur 599 i 600. Vordurinn sem var til
+   (`gw1-checklist.mjs`) skodadi `label` og `players.length > 400` — BADIR
+   lifdu klobburinn. **Fullyrding sem lifir thad sem hun a ad verja er
+   verri en engin** (kafli 5b), og her hefdi hun kostad gogn sem verda ekki
+   endurgerd eftir a.
+
+   Profad hér a TILBUNUM inntokum thar sem svarid er thekkt fyrirfram —
+   `seasonBaselineDecision` er hreint fall, sem er astaedan fyrir main-
+   vordinum hér ofan.
+   ============================================================ */
+{
+  console.log("\n-- 5. TIMABILS-GRUNNURINN --");
+  const { seasonBaselineDecision } = await import("file://" + SRC);
+  const done  = [{ starts: 38 }, { starts: 31 }, { starts: 0 }];   // lokid timabil
+  const fresh = [{ starts: 1 },  { starts: 1 },  { starts: 0 }];   // nytt timabil
+
+  /* 1. Forleikur, ekkert spilad, engin skra -> skrifa.                  */
+  const a = seasonBaselineDecision({ fixtures: [{ started: false }], candidate: done, existing: null });
+  ok(a.write === true, `forleikur an skrar -> skrifar (${a.why})`);
+
+  /* 2. KJARNATILFELLID: leikur byrjadur, tolurnar nullstilltar. Gamla
+     gatid (`some(ev => ev.finished)`) var OPID her.                     */
+  const b = seasonBaselineDecision({ fixtures: [{ started: true, finished: false }],
+                                     candidate: fresh, existing: done });
+  ok(b.write === false, `leikur byrjadur -> SKRIFAR EKKI (${b.why})`);
+  ok(/season under way/.test(b.why), "og notan segir hvers vegna");
+
+  /* 3. SEINNA HLIDID, SEM ER ThAD SEM VER: jafnvel thott klukkan segdi
+     "forleikur" ma verri skra ekki fara ofan a betri. Thetta er reglan
+     sem stendur thott FPL breyti thvi hvenaer tolurnar nullstillast.    */
+  const c = seasonBaselineDecision({ fixtures: [{ started: false }],
+                                     candidate: fresh, existing: done });
+  ok(c.write === false, `enginn leikur byrjadur EN tolurnar verri -> heldur gomlu (${c.why})`);
+  ok(/max starts 38 against 1/.test(c.why),
+     "notan ber BADAR tolurnar, svo hun se lesanleg an thess ad opna skrana");
+
+  /* 4. Jafnt er ekki afturfor — sama timabil skrifad tvisvar sama dag.  */
+  const d = seasonBaselineDecision({ fixtures: [], candidate: done, existing: done });
+  ok(d.write === true, "jafn-lokid skra -> skrifar (endurskrif sama dag er ekki afturfor)");
+
+  /* 5. BETRI skra ofan a verri MA fara i gegn — annars frystist skra sem
+     var skrifud i miðju timabili og næsti forleikur gaeti ekki laknad.  */
+  const e = seasonBaselineDecision({ fixtures: [], candidate: done, existing: fresh });
+  ok(e.write === true, "betri skra ofan a verri fer i gegn (skran getur laknad)");
+
+  /* 6. `finished_provisional` telst spilad — hun kviknar fyrir `finished`. */
+  const f = seasonBaselineDecision({ fixtures: [{ finished_provisional: true }],
+                                     candidate: done, existing: null });
+  ok(f.write === false, "`finished_provisional` telst spilad");
+
+  /* 7. Vantandi/oleysanleg `starts` ma ekki verda NaN og hleypa ollu i gegn. */
+  const g = seasonBaselineDecision({ fixtures: [], candidate: [{ starts: null }, {}],
+                                     existing: done });
+  ok(g.write === false, `oleysanleg \`starts\` telst 0, ekki NaN (${g.why})`);
+
+  /* 8. OG RAUNSKRAIN I REPO-INU: hun VERDUR ad bera lokid timabil. Thetta
+     er fullyrdingin sem gw1-checklist gat ekki gert — `label` og
+     radafjoldi lifdu klobburinn, `starts` ekki.                         */
+  const sb = JSON.parse(readFileSync(ROOT + "data/season_baseline.json", "utf8"));
+  const ms = Math.max(0, ...(sb.players || []).map(r => Number(r?.starts)).filter(Number.isFinite));
+  ok(ms >= 20, `data/season_baseline.json ber LOKID timabil: max starts ${ms} (>= 20)`);
+  ok((sb.players || []).length > 400, `og ${(sb.players || []).length} radir`);
+}
+ok(!existsSync(copy), "afritid var fjarlaegt");
+
+console.log(`\nFETCH-ENTRY: ${pass} stodust, ${fail} féllu`);
+if (fail) process.exit(1);

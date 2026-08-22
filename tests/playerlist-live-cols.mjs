@@ -39,6 +39,32 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const DEF_ID = 11; // Mosquera — ARS DEF (lid 1), i sjalfgefna lidinu
 
+/* ============================================================
+   ARS `defcon_opportunity` ER HERMD ThEGAR RAUNSKRAIN ER NULL (21.8.2026)
+
+   `team_dc`-fullyrdingin las toluna UR RAUNSKRANNI (`53` i forleik) og fell
+   somu nott sem timabilid for i gang: `defcon_opportunity` varð `null` hja
+   ollum 20 lidum, svo `String(null)` = "null" og prófið leitadi ad
+   strengnum "null" i rodinni.
+
+   ThAD ER RETT ASTAND OG ThAD ER SKJOLAD: talan krefst markmanns yfir 400
+   minutum fyrir eigin xGC OG jakvaedrar sokn-summu hja hverjum andstaeding
+   i sex-leikja glugganum. Notan i skranni segir sjalf "an empty column
+   early in a season means 'not measurable yet', not 'average'", og
+   athugasemdin i `fetch.mjs` spair ThVI berum orðum ad thad standi i ~5
+   umferdir. Fullyrdingin um TENGINGUNA — ad `_team_dc` lesi
+   `.defcon_opportunity` og ekki HLUTINN — getur thvi ekki notad raungogn
+   naestu fimm vikur.
+
+   Skran er thegar HERMD her (`players`-radirnar eru tilbunar af nakvaemlega
+   somu astaedu: DC-hittni er tom fyrir 21.8.), svo herming a thessu eina
+   svidi er sama adferd, ekki ny. Raunverulega gildid er notað thegar thad
+   ER til; annars sentinel sem er MAELT einkvaemt i rodinni her fyrir nedan.
+   Og regimeid sjalft er FULLYRT (kafli 3 hér): se ARS null verda OLL 20 ad
+   vera null — eitt bilad lid er ekki regime.                            */
+const REAL_ARS_OPP = J("defcon.json").opportunity?.["1"]?.defcon_opportunity ?? null;
+const ARS_OPP = REAL_ARS_OPP ?? 6437;
+
 globalThis.fetch = async u => {
   const n = String(u).split("/data/")[1];
   if (!n) return { ok: false, status: 404, json: async () => ({}) };
@@ -54,7 +80,10 @@ globalThis.fetch = async u => {
   }
   if (n === "defcon.json") {
     const real = J(n);
-    return { ok: true, status: 200, json: async () => ({ ...real, players: [
+    return { ok: true, status: 200, json: async () => ({ ...real,
+      opportunity: { ...real.opportunity,
+        1: { ...(real.opportunity?.["1"] || {}), defcon_opportunity: ARS_OPP } },
+      players: [
       { fpl_id: DEF_ID, position: 2, starts: 12, threshold_hits: 9,
         hit_rate: 0.75, hit_rate_adj: 0.573, p0: 0.361, cbit_per_90: 9.1, cbirt_per_90: 13.2 },
     ] }) };
@@ -129,13 +158,36 @@ ok("n-dálkurinn ber leikjafjöldann (þrenndin 57%75%12)", txt.includes("57%75%
 /* ---- 2. team_dc UPPRISAN: dalkurinn var daudur fra faedingu ----
    Rodunin eftir dc_starts heldur ser thegar skipt er um flokk, svo
    Mosquera er AFRAM efstur — vid lesum team_dc-toluna ur hans rod.
-   ARS defcon_opportunity ur RAUNskranni (53 i dag, endurreiknad her). */
-const arsOpp = String(J("defcon.json").opportunity["1"].defcon_opportunity);
+   ARS defcon_opportunity: raunskrain thegar hun ber tolu (53 i forleik),
+   annars sentinel — sja skyringuna vid `ARS_OPP` i hausnum.             */
+const arsOpp = String(ARS_OPP);
 await fire(byExact("Upcoming fixtures"));
 txt = mosRowText();
+/* SENTINELLINN VERDUR AD VERA EINKVAEMUR I RODINNI, annars gaeti
+   `includes` verid satt um ALLT ANNAN dalk og fullyrdingin maeldi ekkert
+   (kafli 5b: "MAELITAEKID GETUR SJALFT VERID VILLAN" — `textContent`
+   limir dalkana saman an bila, svo undirstrengur er ohaeður dalkamorkum). */
+const occurrences = txt.split(arsOpp).length - 1;
+ok(`team_dc-talan (${arsOpp}) er EINKVAEM i rodinni — undirstrengur ur odrum dalki`
+  + ` maeldi ekkert`, occurrences === 1,
+  `— fann ${occurrences} i "${txt.slice(0, 160)}"`);
 ok(`team_dc ber TÖLU — ARS-röð Mosquera sýnir ${arsOpp} (dálkurinn var dauður frá fæðingu)`,
   txt.includes("Mosquera") && txt.includes(arsOpp),
   `— fékk "${txt.slice(0, 120)}" · num(hlutur)=null stökkbreytingin fellir þetta`);
+/* OG REGIMEID SJALFT ER FULLYRT, EKKI HERMT I ThOGN. Se ARS-gildid null i
+   raunskranni verda OLL 20 ad vera null: thad er "ekki maelanlegt enn"
+   (markvordur undir 400 min), og thad er astand skrarinnar sem heild.
+   Eitt lid med null medan onnur bera tolu er ekki regime heldur bilun —
+   og hun myndi FELAST inni i hermingunni her.                          */
+{
+  const opp = J("defcon.json").opportunity || {};
+  const rows = Object.values(opp);
+  const rated = rows.filter(o => o.defcon_opportunity != null).length;
+  ok(`raunskra defcon.opportunity er samkvaem: ${rated}/${rows.length} lid med tolu`
+    + ` (ARS ${REAL_ARS_OPP == null ? "null -> HERMT" : REAL_ARS_OPP})`,
+    rows.length >= 20 && (REAL_ARS_OPP == null ? rated === 0 : rated >= 10),
+    "— eitt null innan um tolur er BILUN, ekki 'ekki maelanlegt enn'");
+}
 
 /* ---- 3. STIGATAFLAN FAER SOMU AUDGUN — VORDUR GEGN 20 TOMUM KOSSUM ----
    MAELT 8.8.2026: stigataflan fekk HRAT players.json, svo hver kassi i Ogn

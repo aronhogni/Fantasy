@@ -192,8 +192,22 @@ console.log("\n4) chip-dagatal");
 ok("Bench Boost daalkur", body.includes("Bench Boost"));
 ok("Triple Captain daalkur", body.includes("Triple Captain"));
 ok("bboost 40/950 birtist sem 4.2%", /4\.2%/.test(body));
+/* ThESSI GAT EKKI FALLID OG VAR GRAEN FRA UPPHAFI (fundid 21.8.2026):
+     ok("BADAR umferdir i dagatalinu (6 og 7)",
+        /Gameweek 6/.test(body) || document.body.textContent.includes("6"));
+   Tvennt var ad henni og hvort um sig naegdi:
+     1. Seinni greinin, `includes("6")`, er uppfyllt af HVERJU "6" a
+        sidunni — "65.3%", "4.2%" ... svo hun er sonn a hverri sidu sem
+        er teiknud yfirleitt. Sbr. 400-stafa golfid i sama safni.
+     2. Fullyrdingin nefnir "6 og 7" en spurdi ALDREI um 7.
+   Sannad med stokkbreytingu: dagatalid latid bera umferdir 11 og 12
+   (`gw: { 11: GW6, 12: GW7 }`), svo HVORUG umferd 6/7 er a skjanum —
+   fullyrdingin var afram graen. Nu er hun samtenging og maelt: BADAR
+   merkingarnar eru raunverulega i `body` i dag (probed: gw6 true,
+   gw7 true), svo hvor sem hverfur fellir hana.                       */
 ok("BADAR umferdir i dagatalinu (6 og 7)",
-   /Gameweek 6/.test(body) || document.body.textContent.includes("6"));
+   /Gameweek 6/.test(body) && /Gameweek 7/.test(body),
+   `gw6=${/Gameweek 6/.test(body)} gw7=${/Gameweek 7/.test(body)}`);
 
 /* ---------- 4a2. VIDMID: THEIR BESTU GEGN ALMENNUM STJORNANDA ---------- */
 console.log("\n4a2) vidmid gegn almennum stjornanda");

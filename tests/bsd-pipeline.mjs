@@ -158,5 +158,52 @@ ok(/fetchOdds\(\)/.test(fetchSrc), "Odds-API leidin er ohreyfd");
      "tomur bolur gefur hreina villu, ekki hangandi bandstrik");
 }
 
+/* ============================================================
+   GLUGGA-NOTURNAR — TOM SVARROD MA EKKI LESAST EINS OG LOKADUR GLUGGI
+
+   Thetta er kafli sem gat ekki verid til adur: noturnar voru byggdar a
+   stadnum inni i net-follunum og kvikna adeins thegar BSD svarar, svo
+   BSD-lykillinn (GitHub Secrets, write-only) var forsenda thess ad profa
+   thaer. Nu eru thaer HREIN foll og svarid er thekkt fyrirfram.
+   PROFSTEINNINN ER EKKI ORDALAGID heldur ad tvo ASTAND MED ANDSTAEDA
+   ORSOK skili ANDSTAEDUM notum: `seen === 0` (tom rod -> rangt timabil eda
+   BSD hefur leikina ekki) a ad segja "empty result", en `seen > 0` a ad
+   segja "glugginn er ekki opinn enn". Nota sem er sú SAMA i badum
+   tilfellum greinir thau ekki i sundur og er thvi ekki nota heldur fylling.
+   MAELT 21.8.2026: badar noturnar sogdu "ekkert innan gluggans" thegar
+   NIU oleiknir GW1-leikir stodu i `fixtures.json`, sa naesti eftir 12,7 klst.  */
+{
+  console.log("\n-- 9. BSD-GLUGGA-NOTURNAR (tilbuin inntok) --");
+  const { bsdLineupNote, bsdOddsNote } = await import(ROOT + "scripts/fetch.mjs");
+
+  const empty = bsdLineupNote({ seen: 0, nearestMs: null, season: 77 });
+  const far   = bsdLineupNote({ seen: 9, nearestMs: 12.7 * 3600e3, season: 77 });
+  ok(/empty result/i.test(empty) && /season 77/.test(empty),
+     `tom rod nefnir BADA: ad hun se TOM og hvada timabil var spurt`);
+  ok(/9 notstarted/.test(far) && /12\.7h/.test(far),
+     `full rod nefnir FJOLDANN og hve langt i naesta leik: "${far.slice(0, 46)}…"`);
+  /* HER ER FULLYRDINGIN SJALF: thaer verda ad vera OLIKAR. Vaeru thaer
+     eins vaeri kaflinn hér ofan tautologia (kafli 13).                  */
+  ok(empty !== far, "tom rod og full rod gefa SITTHVORA notu");
+  ok(!/empty result/i.test(far),
+     "full rod segir ALDREI 'empty result' — thad var einmitt villan");
+  /* Vantandi timi ma ekki verda "NaNh" a skjanum. */
+  ok(/nearest in \?h/.test(bsdLineupNote({ seen: 3, nearestMs: null, season: 1 })),
+     "oleysanleg dagsetning gefur '?h', ekki NaN");
+
+  const oEmpty = bsdOddsNote({ seen: 0, priced: 0, season: 77 });
+  const oNone  = bsdOddsNote({ seen: 20, priced: 0, season: 77 });
+  const oSome  = bsdOddsNote({ seen: 20, priced: 6, season: 77 });
+  ok(/empty result/i.test(oEmpty), "odds: tom rod nefnir 'empty result'");
+  ok(/NONE carried odds/.test(oNone) && !/empty/i.test(oNone),
+     "odds: 20 leikir an odda er ANNAD en engir leikir");
+  ok(/6 of 20/.test(oSome), `odds: hlutfallid er birt: "${oSome}"`);
+  ok(new Set([oEmpty, oNone, oSome]).size === 3,
+     "thrju astond -> thrjar OLIKAR notur");
+  /* Og hvorug ma bera gomlu fullyrdinguna sem var giskun i notu-formi. */
+  ok(![empty, far, oEmpty, oNone, oSome].some(n => /within (24h|the ~4 day)/.test(n)),
+     "engin nota fullyrdir lengur 'within 24h' / 'within the ~4 day window'");
+}
+
 console.log(`\nBSD-PIPELINE: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

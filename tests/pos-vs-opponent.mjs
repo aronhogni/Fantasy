@@ -118,6 +118,7 @@ const byKeyCell = {};
 for (const x of solid) byKeyCell[`${x.s}|${x.o}|${x.p}`] = x.m;
 console.log("staða   pör (lið sem eru í deildinni tvö tímabil í röð)   r(N -> N+1)");
 let anySignal = false;
+const measured = [];                    /* ThEKJAN ER FULLYRDING, EKKI LOGGA */
 for (const pos of ["GK", "DEF", "MID", "FWD"]) {
   const xs = [], ys = [];
   for (let i = 1; i < seasonsSorted.length; i++) {
@@ -133,6 +134,7 @@ for (const pos of ["GK", "DEF", "MID", "FWD"]) {
   const r = corr(xs, ys), se = rSE(xs.length);
   const sig = Math.abs(r) > 2 * se;
   if (sig && r > 0) anySignal = true;
+  measured.push(pos);
   console.log(`  ${pos.padEnd(5)} ${String(xs.length).padStart(3)} pör` +
     `                                     ${r.toFixed(3)} (±${se.toFixed(3)}) ${sig ? (r > 0 ? "MERKI" : "andstætt") : "hávaði"}`);
 }
@@ -160,7 +162,30 @@ console.log(`  GÓÐ niðurstaða: það þýðir að FFDR hefur þegar dregið 
 console.log(`  mótherjans sem ER stöðugur, og skilið eftir hávaða — sem er nákvæmlega`);
 console.log(`  það sem á að vera eftir.`);
 
-ok(!anySignal || true, "mælt — sjá niðurstöðu að neðan (ekkert fellur á þessu prófi)");
+/* ÞETTA VAR TAUTOLÓGÍA OG STÓÐ GRÆN FRÁ 9.8.2026 (fundið 21.8.2026):
+     ok(!anySignal || true, "mælt — sjá niðurstöðu að neðan")
+   `x || true` ER `true`, svo `fail` gat aldrei orðið 1 og
+   `process.exit(fail ? 1 : 0)` skilaði ALLTAF 0. Skráin var sett í
+   `SUITES` 9.8.2026 með þeim rökum að hún BÆRI `ok()` og `exit(fail?1:0)`
+   og væri þar með "raunverulegur vörður" — en eina fullyrðingin í henni
+   gat ekki fallið, svo hún var í raun mælinga-skýrsla eins og
+   `ffdr-vs-fdr.mjs`, bara skráð sem vörður. Sannað með stökkbreytingu:
+   `let anySignal = true` (þ.e. staða MEÐ stöðugan sér-veikleika, sem er
+   nákvæmlega það sem á að fella hana) skilaði áfram "1 stóðust, 0 féllu".
+
+   Nú er hún tvíhliða, eins og `travel-measure.mjs:130` sem er systur-
+   mælingin í sömu töflu (kafli 4) og hefur ALLTAF haft rétta formið:
+     1. ÞEKJAN: allar fjórar stöður verða að hafa NÆG pör. Annars
+        slokknar `if (xs.length < 20) continue` þegjandi á þeim öllum,
+        `anySignal` helst false og niðurstaðan "flyst ekki" er TÓM —
+        hún þýðir þá "var ekki mæld". Sama regla og MIN_VISITED.
+     2. NIÐURSTAÐAN: enginn sér-veikleiki flyst milli tímabila.
+   Verður fullyrðing 2 rauð er það EKKI villa í prófinu — það er
+   réttlæting fyrir að endurskoða kafla 4, mælt á NÝJU úrtaki fyrst. */
+ok(measured.length === 4,
+  `allar fjórar stöður mældar, ekki slokknaðar á fáum pörum (${measured.join(",") || "engin"})`);
+ok(!anySignal,
+  "enginn sér-veikleiki per stöðu flyst milli tímabila (kafli 4 — hafnað)");
 if (anySignal) {
   console.log(`\n  -> NIÐURSTAÐA: einhver staða sýnir STÖÐUGAN sér-veikleika milli`);
   console.log(`     tímabila. Það er réttlæting fyrir að skoða per-stöðu-leiðréttingu`);

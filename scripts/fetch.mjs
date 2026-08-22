@@ -14,7 +14,8 @@
    ============================================================ */
 
 import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { existsSync, realpathSync } from "node:fs";
 /* Markaðs-umbreytingin (odds -> vænt mörk -> FFDR-þyngd) er FLUTT í
    src/market.js svo bakprófið keyri nakvaemlega sama kóða og pipeline.
    Hún var áður staðbundin hér og þar með óprófanleg — samt með vog 0,50
@@ -1082,23 +1083,28 @@ async function fetchFPL() {
   // tímabils. Við skrifum þær daglega MEÐAN engin umferð er lokin; um
   // leið og GW1 klárast hættum við að skrifa -> skráin FRÝS sem
   // 2025/26-lokatölurnar og appið getur sýnt "í ár vs. í fyrra".
-  if (!events.some(ev => ev.finished)) {
+  {
     const y = new Date(events[0]?.deadline_time || Date.now()).getFullYear();
-    await writeJSON("season_baseline.json", {
+    const cand = els.map(e => ({
+      id: e.id, total_points: e.total_points, minutes: e.minutes,
+      points_per_game: e.points_per_game, starts: e.starts,
+      goals_scored: e.goals_scored, assists: e.assists,
+      expected_goals: e.expected_goals, expected_assists: e.expected_assists,
+      clean_sheets: e.clean_sheets, yellow_cards: e.yellow_cards, red_cards: e.red_cards,
+    }));
+    let existing = null;
+    try { existing = JSON.parse(await readFile(`${DATA}/season_baseline.json`, "utf8")).players; }
+    catch {}
+    const dec = seasonBaselineDecision({ fixtures, candidate: cand, existing });
+    if (dec.write) await writeJSON("season_baseline.json", {
       updated: status.updated,
       label: `${y - 1}/${String(y).slice(-2)}`,
-      note: "Final totals for last season. Written daily UP TO GW1, then frozen.",
-      players: els.map(e => ({
-        id: e.id, total_points: e.total_points, minutes: e.minutes,
-        points_per_game: e.points_per_game, starts: e.starts,
-        goals_scored: e.goals_scored, assists: e.assists,
-        expected_goals: e.expected_goals, expected_assists: e.expected_assists,
-        clean_sheets: e.clean_sheets, yellow_cards: e.yellow_cards, red_cards: e.red_cards,
-      })),
+      note: "Final totals for last season. Written daily UP TO THE FIRST MATCH, "
+          + "then frozen. A run whose totals are LESS complete than the stored "
+          + "file never overwrites it - see seasonBaselineDecision.",
+      players: cand,
     });
-    record("season_baseline", true, els.length, "preseason — refreshed daily");
-  } else {
-    record("season_baseline", true, 0, "frozen (season under way)");
+    record("season_baseline", true, dec.write ? els.length : 0, dec.why);
   }
 
   // event/{gw}/live/ — sja `fetchLiveRounds` fyrir ofan (thekju-hlidid).
@@ -1987,7 +1993,30 @@ async function fetchElo() {
     });
     await writeJSON("elo_fixtures.json", { updated: status.updated, fixtures: out });
     record("elo_fixtures", true, out.length, `${engFx.length} ENG of ${fr.length}`);
-  } catch (e) { record("elo_fixtures", false, 0, e.message); }
+  } catch (e) {
+    /* RAUD ROD SEM SEGIR HVAD HUN KOSTAR (21.8.2026). Notan var berr
+       timeout-strengur, sem er sannur en oakvardanlegur: hun sagdi hvorki
+       hvad tapadist ne hvort eitthvad thekur thad. MAELT i dag: allur
+       hosturinn `api.clubelo.com` (37.128.134.74) tekur ENGA tengingu —
+       hvorki `/Fixtures` ne dagsetta CSV-id — medan `clubelo.com` (vefurinn)
+       svarar 200 a BADUM (613 KB og 560 KB). Ratings-hlutinn hefur thvi
+       vef-varaleid; **thessi hefur ENGA og ma ekki fa hana**: vefsidan
+       `/Fixtures` ber 1/X/2 en ENGA urslita-fylki (`R:0-0`..`R:6-0`), svo
+       `cs_*` og `xg_*` yrdu ekki reiknud. Hlutaskra med 0 i CS%-svidinu er
+       nakvaemlega "tomt gildi er ekki null" (kafli 8) — og verri hér en
+       annars stadar, thvi talan faeri i CS-kedjuna sem MIDthREP.
+       KOSTNADURINN ER MAELDUR OG LITILL: `eloCsByFx` er annad threp af
+       thremur i `csFor` (App.jsx:1181) — bokmakari, svo elo, svo
+       `cleanSheetProb`. Threpid sem tekur vid er MAELT BETRA en gamla
+       uppflettitaflan (skill 5,94% a moti 3,91%, dBrier +0,00569 CI
+       [+0,00555, +0,00584]; sja `tests/cs-logistic.mjs`), svo raud rod her
+       thydir "onnur heimild af thremur vantar", ekki "CS% er onytt".     */
+    record("elo_fixtures", false, 0, `api.clubelo.com is unreachable (whole host, `
+      + `not just this path) - NO website fallback is possible: clubelo.com/Fixtures `
+      + `carries 1/X/2 but no score matrix, so CS% and xG cannot be derived. `
+      + `Clean sheets fall back to the market line, then to cleanSheetProb. `
+      + `The API said: ${String(e.message).slice(0, 90)}`);
+  }
 }
 
 /* ============================================================
@@ -2079,6 +2108,80 @@ async function fetchElo() {
    `curl -s https://clubelo.com/ | gzip`). Prófid saekir EKKERT — net i
    profasafninu er thad sem tok `euro-congestion.mjs` ut (kafli 5).
    ============================================================ */
+/* ============================================================
+   TIMABILS-GRUNNURINN — GATID VAR A RONGU KLUKKU (21.8.2026)
+
+   Skrain a ad geyma LOKATOLUR FYRRA timabils, og athugasemdin vid hana
+   sagdi thad rett: "Vid skrifum thaer daglega MEDAN engin umferd er lokin".
+   Gatid var `!events.some(ev => ev.finished)` — og "engin umferd LOKIN" er
+   EKKI thad sama sem "timabilid er ekki byrjad". GW1 er `is_current: true,
+   finished: false` frá thvi ad fresturinn lidur og ThANGAD TIL ollum
+   leikjum umferðarinnar er lokid (~3 dagar), en FPL NULLSTILLIR uppsofnudu
+   tolurnar vid frestinn. Gatid var thvi opid i thrjá daga ofan a nyjum,
+   tomum tolum.
+
+   MAELT: keyrslan 21.8. kl. 23:28 skrifadi 600 radir med **max starts 1**
+   ofan a 599 radir med **max starts 38**. Og hun var ThOGUL — `label` er
+   leitt af ari frestarins, svo hun stod afram "2025/26" ofan a
+   2026/27-gogunum, og radafjoldinn breyttist ur 599 i 600. **EINA sviðid
+   sem greinir astondin i sundur er `starts`.** Vordurinn i
+   `gw1-checklist.mjs` skodadi `label` og `players.length > 400` — badir
+   lifdu klobburinn, svo hann prentadi graent tikk ofan a horfnum gogunum.
+
+   TVAER REGLUR, OG SU SIDARI ER SU SEM VER:
+   1. Klukkan er FYRSTI LEIKUR, ekki fyrsta LOKNA umferd.
+   2. **ALDREI SKRIFA VERRI SKRA OFAN A BETRI.** Lokid timabil hefur menn
+      med ~38 byrjanir; nytt timabil hefur <= 1. Se skrain sem er til
+      "meira lokid" en su sem vid erum ad skrifa, HELDUR HUN. Thetta er
+      sama regla og 8e ("tom keyrsla ma aldrei thurrka ut god gogn") og hun
+      er ohað hverri klukku — hun stendur thott FPL breyti thvi hvenaer
+      tolurnar nullstillast.
+   ============================================================ */
+export function seasonBaselineDecision({ fixtures, candidate, existing }) {
+  const played = (fixtures || []).some(f =>
+    f?.started === true || f?.finished === true || f?.finished_provisional === true);
+  const maxStarts = rows => Math.max(0, ...(rows || [])
+    .map(r => Number(r?.starts)).filter(Number.isFinite));
+  const now = maxStarts(candidate), was = maxStarts(existing);
+  if (played) return { write: false, why: `season under way (max starts ${now}) - frozen` };
+  /* Jafnt telst EKKI afturfor: sama timabil skrifad tvisvar sama dag.   */
+  if (existing && was > now)
+    return { write: false, why: `kept the existing baseline: it has max starts `
+      + `${was} against ${now} in this run - a completed season must not be `
+      + `overwritten by a fresh one` };
+  return { write: true, why: `preseason - refreshed daily (max starts ${now})` };
+}
+
+/* ============================================================
+   BSD-GLUGGA-NOTURNAR — HREINAR, UTFLUTTAR, PROFADAR (21.8.2026)
+
+   Baðar noturnar voru adur byggdar A STADNUM inni i net-follunum, og
+   thess vegna gat ENGINN profad thaer: thaer kvikna adeins thegar BSD
+   svarar, og BSD-lykillinn er i GitHub Secrets. Utkoman var nota sem bar
+   NIDURSTODU ("no matches within 24h") thar sem gagnid var TOM SVARROD —
+   tvennt sem hefur ANDSTAEDA orsok og ANDSTAEDA lagfaeringu:
+     · tom rod  -> timabils-id er rangt, EDA BSD hefur ekki leikina enn
+     · full rod -> allt i lagi, glugginn er einfaldlega ekki opinn enn
+   Maelt 21.8.2026 kl. 22:49 UTC: `fixtures.json` bar NIU oleikna GW1-leiki,
+   sa naesti eftir 12,7 klst, og badar noturnar sogdu samt "ekkert i
+   glugganum". Su nota er ekki bara omakleg — hun sendir mann i ad leita a
+   rongum stad.
+   Sama regla og kafli 8: **tomt gildi er ekki null.**              */
+export function bsdLineupNote({ seen, nearestMs, season, windowH = 13 }) {
+  if (!seen) return `BSD returned NO notstarted event for season ${season} - not a `
+    + `window miss but an empty result; check that the season id is the current one`;
+  return `${seen} notstarted events, nearest in `
+    + `${Number.isFinite(nearestMs) ? (nearestMs / 3600e3).toFixed(1) : "?"}h - the `
+    + `prediction window is ~${windowH}h so nothing is fetched yet`;
+}
+export function bsdOddsNote({ seen, priced, season }) {
+  if (priced) return `${priced} of ${seen} notstarted matches priced`;
+  if (!seen) return `BSD returned NO notstarted event for season ${season} - empty `
+    + `result, not a window miss; check that the season id is the current one`;
+  return `${seen} notstarted matches came back but NONE carried odds - BSD prices `
+    + `only ~4 days ahead, so this is expected further out`;
+}
+
 export const ELO_WEB_URL = "https://clubelo.com/";
 export const ELO_WEB = {
   TRIES: 3,            // vefurinn svarar a 0,11 s; 6 tilraunir = 6,5 min til viðbotar
@@ -3338,7 +3441,20 @@ async function fetchBsdLineups() {
     return Number.isFinite(t) && t > now && t - now < 24 * 3600e3;
   });
   if (!soon.length) {
-    record("bsd_lineups", true, 0, "no matches within 24h (the prediction window is ~13h)");
+    /* NOTAN VERDUR AD SEGJA HVAD SAST, EKKI HVAD VID GISKUM A (21.8.2026).
+       Adur stod "no matches within 24h" — sem er NIDURSTADA sem skriftan
+       DREGUR af sinni eigin siu, ekki maeling. Malid: 21.8. kl. 22:49 UTC
+       stodu NIU oleiknir GW1-leikir i `fixtures.json`, sa naesti eftir
+       12,7 klst, og notan sagdi samt "engir innan 24 klst". Tha er
+       spurningin hvort BSD skiladi ENGUM notstarted-leik (rangt timabil?)
+       eda leikjum utan gluggans — og notan gat ekki greint thad i sundur.
+       Sama aett og "tomt gildi er ekki null": HER var TOM SVARROD logd i
+       sama flokk og RETT SVAR MED FJARLAEGUM LEIK.                      */
+    const next = (d.results || []).map(e => Date.parse(e.event_date))
+      .filter(t => Number.isFinite(t) && t > now).sort((a, b) => a - b)[0];
+    record("bsd_lineups", true, 0, bsdLineupNote({
+      seen: (d.results || []).length,
+      nearestMs: Number.isFinite(next) ? next - now : null, season }));
     return;
   }
   /* VID SKRIFUM OFAN A, EKKI YFIR: fyrri spar mega ekki tapast, thvi
@@ -3424,8 +3540,13 @@ async function fetchBsdOdds() {
         + "~4 days ahead, so the file is empty outside that window and that is CORRECT.",
     events: out,
   });
+  /* SAMA REGLA OG I `bsd_lineups` (21.8.2026): thessi lykkja hefur ENGA
+     tima-siu — hun tekur 20 notstarted-leiki og telur tha sem hafa odda.
+     `priced === 0` gat thvi thytt thrennt (engin rod til baka · rod an
+     odda · rod fra rongu timabili) og notan valdi EITT theirra og bar thad
+     fram sem maelingu: "no matches within the ~4 day odds window".      */
   record("bsd_odds", true, priced,
-         priced ? `${priced} matches priced` : "no matches within the ~4 day odds window");
+         bsdOddsNote({ seen: (d.results || []).length, priced, season }));
 }
 
 /* ---- YFIRSTANDANDI TIMABIL: BSD-LEIKMANNATOLUR ----
@@ -5085,4 +5206,32 @@ async function main() {
   console.log(JSON.stringify(status, null, 2));
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+/* ============================================================
+   MAIN-VORDURINN (21.8.2026) — SKRAIN VAR OINNFLYTJANLEG
+
+   `main()` var kallad an skilyrdis, svo HVER innflutningur a thessari skra
+   keyrdi ALLA pipeline-una: oll net-kollin, allan kvotann, og skrif i
+   `data/`. Afleidingin var ekki oheppileg heldur BINDANDI: hvert hreint
+   fall her inni var OPROFANLEGT nema med thvi ad LESA TEXTANN og byggja
+   thad upp aftur i `new Function` (`tests/elo-fetch.mjs:25`) — og su leid
+   er einmitt su sem 5b varar vid, thvi hun profar AFRIT, ekki kodann sem
+   keyrir. Athugasemdirnar her eru langar og islenskar og innihalda thau
+   sokm heiti sem fullyrdingarnar leita ad, svo texta-leit i thessari skra
+   getur verid gron af athugasemd einni (kafli 5b).
+
+   VORDURINN SJALFUR ER VARDADUR. Vaeri thetta skilyrdi rangt myndi
+   pipeline-an THEGJA — graen keyrsla sem gerir ekkert, sem er verri
+   utkoma en hrun. `tests/fetch-entry.mjs` keyrir thvi RAUNVERULEGT afrit
+   af thessari skra a badar leidir: beint (a ad keyra) og innflutt (a EKKI
+   ad keyra), og fellur ef hvor sem er svarar rangt.
+
+   `realpath` a badum megin: workflow-in kalla `node scripts/fetch.mjs`
+   ur rot repo-sins, en symlinkud eda afstaed slod ma ekki thagga hana.  */
+const invokedDirectly = (() => {
+  const argv = process.argv[1];
+  if (!argv) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(argv);
+  } catch { return false; }
+})();
+if (invokedDirectly) main().catch(e => { console.error(e); process.exit(1); });

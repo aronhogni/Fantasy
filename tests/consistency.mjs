@@ -117,10 +117,32 @@ console.log("─".repeat(84));
   ok(i > 0, "rankScore finnst í model.js");
   ok(!/aron|hit4|blank_pct|consist/i.test(body),
     "rankScore snertir HVORKI aron, hit4 NÉ blank — mælingin leyfir það ekki");
-  const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
-  const rs = app.indexOf("const rank = rankScore({");
-  const call = rs > 0 ? app.slice(rs, app.indexOf("});", rs)) : "";
-  ok(!/aron|_hit4|_blank/i.test(call), "kallið á rankScore í App.jsx sendir ekki jöfnuð inn");
+  /* ÞESSI VÖRÐUR VAR DAUÐUR OG CLAUDE.md KAFLI 4 NEFNIR HANN MEÐ NAFNI
+     (fundið 21.8.2026). Hann stóð:
+       const rs = app.indexOf("const rank = rankScore({");
+       const call = rs > 0 ? app.slice(rs, app.indexOf("});", rs)) : "";
+       ok(!/aron|_hit4|_blank/i.test(call), "kallið á rankScore í App.jsx ...")
+     `rankScore` ER EKKI KALLAÐ Í App.jsx — `initial-squad.mjs:1084`
+     fullyrðir það BERUM ORÐUM ("App.jsx KALLAR `rankScore` ALDREI —
+     röðunin er flutt inn, ekki afrituð"). Uppflettingin gaf því `-1`,
+     `call` varð TÓMUR STRENGUR og `!/.../.test("")` er satt að eilífu.
+     Tvö söfn gengu þannig út frá gagnstæðum forsendum og bæði voru græn.
+     Sannað með stökkbreytingu: `_hit4: 1, aron: 9` sett INN Í raunverulega
+     kallið (`src/recommend.js`) — safnið hélst 15/0 grænt.
+
+     RÖÐUNIN FLUTTIST: kallstaðirnir eru `src/recommend.js` (kaup/sölu-
+     tillögur) og `src/advisor.js` (kaup-prósentan). BÁÐIR voru óvarðir.
+     Fyrri hlutinn hér að ofan hefur `ok(i > 0, ...)` sem forsendu; þessi
+     hafði hana EKKI, og það er einmitt gatið — akkeri sem hittir ekki
+     verður að FELLA, ekki að slokkna (kafli 5b: þekja er fullyrðing). */
+  for (const rel of ["../src/recommend.js", "../src/advisor.js"]) {
+    const code = readFileSync(new URL(rel, import.meta.url), "utf8");
+    const rs = code.indexOf("rankScore({");
+    ok(rs > 0, `FORSENDA: kallið á rankScore finnst í ${rel.replace("../src/", "")}`);
+    const call = rs > 0 ? code.slice(rs, code.indexOf("});", rs)) : "AKKERI FANNST EKKI";
+    ok(!/aron|_hit4|_blank|consist/i.test(call),
+      `kallið á rankScore í ${rel.replace("../src/", "")} sendir ekki jöfnuð inn`);
+  }
 }
 
 console.log(`\nARON-STUÐULL: ${pass} stóðust, ${fail} féllu`);

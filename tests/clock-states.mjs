@@ -67,6 +67,37 @@ const DEADLINE = Date.parse(gw1.deadline_time);
 console.log(`  GW1-frestur: ${gw1.deadline_time} (${DEADLINE})`);
 
 /* ============================================================
+   ASTONDIN ERU BYGGD, EKKI FENGIN AD LANI UR `data/` (21.8.2026)
+
+   Thetta safn snyr KLUKKUNNI en las FANANA i `events.json` — og medan
+   forleikur stod voru their tilviljunarlega their somu sem astand
+   "fyrir frest" hefur: GW1 var `is_next`, engin umferd `is_current`,
+   engin `finished`. Fullyrdingar um FYRIR-frest astandid gengu thvi upp
+   AF ThVI AD DAGURINN VAR SA, ekki af thvi ad inntakid var byggt.
+
+   Um 17:30 21.8.2026 flutti FPL fanana: GW1 -> `is_current`, GW2 ->
+   `is_next`. Fullyrdingin "fyrir frest velur hun GW1" fekk tha GW2 og
+   féll — og hun var RETT allan timann; thad var inntakid sem hafdi
+   skipt astandi undir henni. Reglan sjalf (`is_next` fyrst, svo
+   `is_current`) er ohreyfd og hun er thad sem profid a ad maela.
+
+   `PRE` og `POST` eru thvi BYGGD ur sama grunni og fanarnir SETTIR
+   BERUM ORDUM, eins og `tests/lib/played-events.mjs` gerir fyrir
+   timabil sem er byrjad. Baedi eru fullyrt hér ad nedan svo astandid
+   sjalft geti ekki dregid thegjandi.
+   ============================================================ */
+const PRE = events.map(e => ({ ...e, finished: false, data_checked: false,
+  is_previous: false, is_current: false, is_next: e.id === 1 }));
+const POST = events.map(e => ({ ...e, finished: false, data_checked: false,
+  is_previous: false, is_current: e.id === 1, is_next: e.id === 2 }));
+ok(PRE.filter(e => e.is_next).length === 1 && PRE[0].is_next === true
+   && PRE.every(e => !e.is_current) && PRE.every(e => !e.finished),
+  "PRE er byggt: GW1 er `is_next`, engin `is_current`, engin `finished`");
+ok(POST.filter(e => e.is_current).length === 1 && POST[0].is_current === true
+   && POST[1].is_next === true && POST.every(e => !e.finished),
+  "POST er byggt: GW1 er `is_current`, GW2 `is_next`, engin `finished`");
+
+/* ============================================================
    A. FRESTUR LIDINN, ENGIN URSLIT
    ============================================================ */
 console.log(`\n${"─".repeat(84)}`);
@@ -117,8 +148,12 @@ console.log("─".repeat(84));
   /* Og `seasonStarted` er OHAD klukkunni — hun les `events`. Thad er
      nakvaemlega thess vegna sem astand A er til. */
   const startedFrom = evs => Function("events", `return ${mStarted[1]};`)(evs);
-  ok(startedFrom(events) === false, "seasonStarted = false i astandi A (engin umferd lokin)");
-  ok(startedFrom(events.map((e, i) => i === 0 ? { ...e, finished: true } : e)) === true,
+  /* BYGGT ASTAND, EKKI DAGURINN: `PRE`/`POST` bera `finished: false` berum
+     ordum, svo thetta maelir regluna og ekki hvort GW1 se buin i dag. */
+  ok(startedFrom(PRE) === false, "seasonStarted = false i astandi A (engin umferd lokin)");
+  ok(startedFrom(POST) === false,
+    "og ENN false thegar frestur er lidinn en engin umferd BUIN — thad er astand A");
+  ok(startedFrom(POST.map((e, i) => i === 0 ? { ...e, finished: true } : e)) === true,
     "og true um leid og EIN umferd er lokin (astand C)");
 }
 
@@ -226,24 +261,32 @@ console.log("─".repeat(84));
     "og true minutu fyrir frest");
 
   /* GATID SEM FYLLIST I ASTANDI A: GW1-frestur lidinn OG engin skra. */
-  const post = events.map(e => e.id === 1 ? { ...e, is_next: false, is_current: true }
-                                          : e.id === 2 ? { ...e, is_next: true } : e);
-  const gaps = ledgerGaps({ events: post, nowMs: DEADLINE + 60000, has: () => false });
+  const gaps = ledgerGaps({ events: POST, nowMs: DEADLINE + 60000, has: () => false });
   ok(gaps.length === 1 && gaps[0] === 1, `GW1 er skrad sem GAT thegar frestur er lidinn og engin skra (${gaps})`);
-  ok(ledgerGaps({ events: post, nowMs: DEADLINE + 60000, has: id => id === 1 }).length === 0,
+  ok(ledgerGaps({ events: POST, nowMs: DEADLINE + 60000, has: id => id === 1 }).length === 0,
     "og ekkert gat thegar skrain er til");
-  ok(ledgerGaps({ events, nowMs: DEADLINE - 60000, has: () => false }).length === 0,
+  ok(ledgerGaps({ events: PRE, nowMs: DEADLINE - 60000, has: () => false }).length === 0,
     "fyrir frest er FJARVERA skrar ekki gat (spain er ekki gjaldfallin)");
 
   /* OG SKRIFTAN MA ALDREI MIDA A GW1 EFTIR FRESTINN. Valreglan er dregin
      ut ur upprunanum: `is_next` er valid FYRST, svo eftir frest er markid
-     GW2 og GW1-rodin er utan skotfaeris ur BADUM attum. */
+     GW2 og GW1-rodin er utan skotfaeris ur BADUM attum.
+     BADAR ATTIR ERU LESNAR UR BYGGDU ASTANDI (`PRE`/`POST`) — sja
+     athugasemdina vid thau ad ofan; her stod `events` og fullyrdingin um
+     FYRIR-frest féll 21.8.2026 thegar FPL flutti fanana, an thess ad
+     reglan sem verid er ad maela hefdi breyst. */
   const snapSrc = SRC("scripts/snapshot-predictions.mjs");
   const mCur = snapSrc.match(/const cur = (events\.find\([^\n;]+);/);
   ok(!!mCur, "valreglan a umferd finnst i snapshot-predictions.mjs");
-  const cur = Function("events", `return ${mCur[1]};`)(post);
-  eq(cur.id, 2, "eftir frest velur skriftan GW2 (is_next), aldrei GW1");
-  eq(Function("events", `return ${mCur[1]};`)(events).id, 1, "fyrir frest velur hun GW1");
+  const pickFrom = evs => Function("events", `return ${mCur[1]};`)(evs);
+  eq(pickFrom(POST).id, 2, "eftir frest velur skriftan GW2 (is_next), aldrei GW1");
+  eq(pickFrom(PRE).id, 1, "fyrir frest velur hun GW1");
+  /* OG ROD SKIPTIR MALI: `is_next` er valid FYRST. Vaeri leitinni snuid
+     vid (`is_current` fyrst) gaefi POST GW1 — nakvaemlega rodin sem
+     bokhaldid ma ALDREI endurskrifa. Fullyrt hér svo rodin se maeld og
+     ekki bara treyst.                                                  */
+  ok(/is_next/.test(mCur[1]) && mCur[1].indexOf("is_next") < mCur[1].indexOf("is_current"),
+    "`is_next` er lesid A UNDAN `is_current` i valreglunni", mCur[1]);
 }
 
 /* ============================================================

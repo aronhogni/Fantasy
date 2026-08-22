@@ -62,8 +62,20 @@ if (finishedGw === 0) {
   ok(im.archive === true,
     "imminent er merkt ARCHIVE (mó/aó úr lokum fyrra tímabils, ekki látið sem nýtt)");
   const sb = J("season_baseline.json");
-  ok(sb.label && (sb.players || []).length > 400,
-    `season_baseline ber fyrra tímabil (${sb.label}, ${(sb.players || []).length} leikmenn)`);
+  /* ÞESSI FULLYRÐING LIFÐI ÞAÐ SEM HÚN Á AÐ VERJA (leiðrétt 21.8.2026).
+     `label` er LEITT af ári frestarins og `players.length` fór úr 599 í
+     600 — svo þegar keyrslan 21.8. kl. 23:28 skrifaði **2026/27-tölur**
+     (max starts 1) ofan á **2025/26-lokatölur** (max starts 38) stóðust
+     BÁÐIR liðirnir og hér prentaðist grænt tikk ofan á horfnum gögnum.
+     Einbreytan sem greinir ástöndin í sundur er `starts`: lokið tímabil
+     hefur menn með ~38, nýtt hefur ≤1. Sjá `seasonBaselineDecision` í
+     `scripts/fetch.mjs` og `tests/fetch-entry.mjs` kafla 5, þar sem
+     ÁKVÖRÐUNIN sjálf er prófuð á tilbúnum inntökum.                    */
+  const sbStarts = Math.max(0, ...(sb.players || [])
+    .map(r => Number(r?.starts)).filter(Number.isFinite));
+  ok(sb.label && (sb.players || []).length > 400 && sbStarts >= 20,
+    `season_baseline ber LOKIÐ fyrra tímabil (${sb.label}, `
+    + `${(sb.players || []).length} leikmenn, max starts ${sbStarts})`);
   /* SÉRFRÆÐINGA-HÓPURINN. Í forleik á hópurinn AÐ VERA TIL (hann er
      byggður úr sögulegum ferlum, ekki úr þessu tímabili) en það sem hann
      GERÐI á ekki að vera til — picks eru 404 fyrir fyrsta frest.        */

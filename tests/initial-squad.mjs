@@ -198,7 +198,18 @@ console.log("\n--- A. TENGING ---");
      thad er of breitt og myndi falla a osskyldum koda. Hann er afmarkadur
      vid ThAER ThRJAR BLOKKIR sem lesa regluna: allar thrjar VERDA ad
      nefna predikatinn.                                                  */
-  const uses = (APP.match(/isInitialSquadPick/g) || []).length;
+  /* ThESSI TALNING GAT EKKI FALLID (fundid 21.8.2026) — hun er nakvaemlega
+     myndin sem kafli 5b regla 1 nefnir ("ThEKJA ER FULLYRDING, EKKI LOGGA"),
+     nema her var golfid til en ONYTT. `APP` var lesid HRATT og `App.jsx`
+     nefnir predikatinn i SEX athugasemdum (1562, 1604, 1969, 2017, 2368,
+     3266) ofan a nio raunverulegum notkunum. 6 >= 4, svo athugasemdirnar
+     EINAR baru fullyrdinguna. Sannad med stokkbreytingu: allir atta
+     kallstadir aliasadir burt (`iSP`) — talan fell 15 -> 8 og hun helst
+     GRAEN, thott engin raunveruleg notkun vaeri eftir.
+     Nu er talid a athugasemda-sviptum uppruna OG adeins KALL-/inn-
+     flutnings-form telur, svo athugasemd getur ekki lagt til tolu.     */
+  const appNoC = APP.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+  const uses = (appNoC.match(/isInitialSquadPick\s*[(),]/g) || []).length;
   ok(uses >= 4, `predikatinn er lesinn a fleiri en einum stad (${uses} tilvik: innflutningur + 3 notendur)`);
   ok(/plan\.filter\(t => t\.gw <= gw && !isInitialSquadPick\(t\)\)/.test(APP),
      "GRAENI RAMMINN (`plannedIn`) les hann");

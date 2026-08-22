@@ -115,8 +115,27 @@ export default function ImminentPanel({ imminent, teamById, Crest, photoUrl, pla
              Gluggasumman a ad telja BADA leiki, en linuritid heitir
              "per umferd", svo thad verdur ad LEGGJA THA SAMAN i einn punkt.
              Annars birtust 5 punktar i 4-umferda glugga, tveir merktir GW36. */
+          /* KURFAN VERDUR AD TEIKNA SAMA GLUGGA SEM TALAN ER SUMMUD YFIR
+             (lagad 21.8.2026).
+             `imminent.json` ber `series` yfir `FETCH_WINDOW` = 5 umferdir
+             (glugginn er sottur fyrir byrjunar-likanid, sem er 5), en mó/aó
+             eru summud yfir `mo_gws` — SIDUSTU FJORAR (`IMM_WINDOW = 4`,
+             VALIDERAD thar; kafli 6d segir berum ordum ad ad faera mó i 5
+             myndi henda valideringunni). Kurfan las `p.series` OSIAD.
+             MAELT a skranni: **582 af 841 rodum** teiknudu umferd sem skorid
+             utilokar. Ndiaye syndi GW34-38 (summa 1,55) vid hlidina a tolunni
+             1,36, medan textinn fyrir ofan segir "in the last 4 gameweeks".
+             VERRA EN MISMUNURINN: umferdin sem er UTAN gluggans er sú
+             FYRSTA, svo lesturinn "er hann i uppsveiflu?" var tekinn af
+             punkti sem talan hunsar. Tvaer fullyrdingar um sama hlut —
+             sama aett og GC/xGC hlid vid hlid an skilgreiningar.
+             `mo_gws` VANTANDI SIAR EKKI: vantar er ekki tomt (kafli 8), og
+             tóm kurfa vaeri verri en fimm punktar.                        */
+          const moSet = Array.isArray(p.mo_gws) && p.mo_gws.length
+            ? new Set(p.mo_gws) : null;
           const byGw = new Map();
           for (const x of (p.series || [])) {
+            if (moSet && !moSet.has(x.gw)) continue;
             byGw.set(x.gw, (byGw.get(x.gw) ?? 0) + (x[serieKey] ?? 0));
           }
           const gwList = [...byGw.keys()].sort((a, b) => a - b);

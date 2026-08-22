@@ -440,6 +440,7 @@ Taflan er ekki tæmandi; hún nefnir þau sem **bera ákvarðanir**.
 | `player-cards.mjs` | Opnar **öll 573 leikmannaspjöldin**, líka án BSD, og lokar liðsspjaldinu úr hverju. Spjaldið sameinar sex óbundnar heimildir; önnur próf opnuðu 1 eða 15. Stökkbreyting sem felldi EINN mann (nákvæmlega eitt skot) hrundi listanum úr 573 í 57 |
 | `ffdr-table.mjs` | „Teams — FFDR" lesin AF SKJÁNUM: **liturinn verður að segja það sama og talan** (`tierOf`), `n` borið við `fixtures.json` fyrir öll 20 liðin, og bilið virt. Endurreiknar EKKI FFDR — það væru tvær útfærslur |
 | `playerlist-sort.mjs` | 121 dálka-áttir lesnar úr DOM. **Tómt gildi má aldrei sitja á toppnum** ef dálkurinn hefur tölur, og skrun í botninn sannar að þau fóru NIÐUR en hurfu ekki. Áttin er lesin af örinni, ekki gefin sér |
+| `fetch-entry.mjs` | **Að pipeline-an keyri þegar hún er keyrð, og AÐEINS þá.** Keyrir raunverulegt afrit af `scripts/fetch.mjs` í nýju ferli, báðar leiðir — beint og innflutt — með `main()` skipt út fyrir prentun. Bilun í því skilyrði er **þögul**: græn keyrsla, útgangsstaða 0, engin skrif |
 | `buy-windows.mjs` | **Kaup-gluggarnir.** Kafli A9b ver afstæða litakvarðann: *flöt leikjaskrá er ÖLL hlutlaus* (fellur ef vörpunin teygir í stað þess að færa) og *hver röð án góðs leiks á algilda kvarðanum hefur góðan á hans eigin* — lesið AF SKJÁNUM á öllum 592 röðum (36 slíkar, allar Hull). Kafli A er á TILBÚNUM röðum þar sem svarið er þekkt fyrirfram (erfiður leikur inni í glugga klýfur hann EKKI · auð umferð má spanna en aldrei vera endi · óvís umferð KLYFUR · flöt röð fær ENGAN glugga); A8 er **300 slembnar raðir gegn óháðum uppteljara** — hann fann villuna í valröðinni (tveir mælikvarðar á sömu ákvörðun). A10 er á RAUNGÖGNUM og fullyrðir að staðan skipti máli (DEF≠FWD í 17 af 20) — væri það 0 væri sýnin óþörf. Kafli B les tímalínuna AF SKJÁNUM: liturinn = `tierOf`, græni ramminn, og **enda-invariantið** (bekkjar-punktur má aldrei sitja á enda glugga). **Sex stökkbreytingar felldar**, þar á meðal `border`-styttingin sem gaf React-viðvörun |
 | `playerlist-narrow.mjs` | **Símahamurinn — sem ekkert próf hafði séð.** Stillir `innerWidth` OG `matchMedia` á 390 px svo báðar greinar keyri; mælir dálkabreiddir og að andlitsmyndin hverfi en liðsmerkið ekki |
 | `error-boundary.mjs` | Prófar ÚTGÖNGUNA, ekki bara að kassinn birtist |
@@ -550,7 +551,7 @@ hann, aldrei skipta honum út.
 |---|---|---|
 | **FPL** `bootstrap-static` / `live` | virk | Kjarninn: leikmenn, verð, status, fréttir, xP |
 | **football-data.co.uk (E0)** | 200 fyrir lokin tímabil | **B365-oddar fyrir bakprófin.** **LEIÐRÉTT 16.8.2026: 2026/27 gefur EKKI 404.** Mælt með `curl -w "%{http_code} %{redirect_url}"`: `2627/E0.csv` skilar **301 → `2627/EC.csv`**, sem `fetch` fylgir í 200 með 13 röðum af **utandeildar**-leikjum (`Div: "EC"` — Altrincham, Southend, Boreham Wood …). Skráin verður til við fyrsta leik en **vantandi skrá lítur út eins og gild skrá á meðan**. `fetchFdcouk` sannreynir því `Div === "E0"` (14.8.2026) og meðhöndlar óhreint svar eins og 404 — sjá `tests/fdcouk-e0.mjs`. Vörður gegn nákvæmlega þessu: 12 EC-raðir stóðu í `data/` undir grænu ljósi |
-| **ClubElo** | **SKIPT: `api.clubelo.com` ÓNÁANLEG · `clubelo.com` UPPI** | Elo-inntak í FFDR. **LEIÐRÉTT 20.8.2026 — hér stóð „virk" og það var hálf-rangt.** Þetta eru **tveir hostar** og bara annar svarar: `api.clubelo.com` (DNS 37.128.134.74) gefur **0 bæti, timeout á 12 s OG 25 s, bæði http og https**, héðan og úr CI-tölum, og `elo.json` var þess vegna frosin frá 14.8.; `clubelo.com` (DNS 172.66.0.96, Cloudflare) svarar **200, ~595 KB, 0,11 s**. Notandinn sagði réttilega „ClubElo er ekki niðri" á meðan staðan sagði „timeout" — **bæði var satt**. **Frosin Elo er EKKI hlutlaus þótt engin umferð sé lokin:** 14.8. -> 20.8. rak hún að meðaltali **25,3 stig, mest 58,8** (ARS 2063,8 -> 2005) og **RÖÐIN breyttist** — forskot ARS á MCI fór úr 92,9 í 13 og TOT fór upp fyrir LEE. Röðin er það sem FFDR les. **API-inn er ÁFRAM aðalleiðin** (hreint CSV með `Rank`/`Level`); vefurinn er **valideruð varaleið** (`parseClubEloWeb` í `fetch.mjs` — svið, spönn, einkvæmni, röðun<->Elo einræni, krossprófun við Vega-blobbið á sömu síðu, og **öll 20 liðin eða ekkert**). **Ógild þáttun heldur GÖMLU skránni** og `elo.json.source` + tvær aðskildar `status.json`-raðir (`elo` grænt, `elo_api` rautt) segja hvor heimildin var notuð. Vörður: `elo-fetch.mjs` á frystu HTML-i |
+| **ClubElo** | **SKIPT: `api.clubelo.com` ÓNÁANLEG · `clubelo.com` UPPI** | Elo-inntak í FFDR. **LEIÐRÉTT 20.8.2026 — hér stóð „virk" og það var hálf-rangt.** Þetta eru **tveir hostar** og bara annar svarar: `api.clubelo.com` (DNS 37.128.134.74) gefur **0 bæti, timeout á 12 s OG 25 s, bæði http og https**, héðan og úr CI-tölum, og `elo.json` var þess vegna frosin frá 14.8.; `clubelo.com` (DNS 172.66.0.96, Cloudflare) svarar **200, ~595 KB, 0,11 s**. Notandinn sagði réttilega „ClubElo er ekki niðri" á meðan staðan sagði „timeout" — **bæði var satt**. **Frosin Elo er EKKI hlutlaus þótt engin umferð sé lokin:** 14.8. -> 20.8. rak hún að meðaltali **25,3 stig, mest 58,8** (ARS 2063,8 -> 2005) og **RÖÐIN breyttist** — forskot ARS á MCI fór úr 92,9 í 13 og TOT fór upp fyrir LEE. Röðin er það sem FFDR les. **API-inn er ÁFRAM aðalleiðin** (hreint CSV með `Rank`/`Level`); vefurinn er **valideruð varaleið** (`parseClubEloWeb` í `fetch.mjs` — svið, spönn, einkvæmni, röðun<->Elo einræni, krossprófun við Vega-blobbið á sömu síðu, og **öll 20 liðin eða ekkert**). **Ógild þáttun heldur GÖMLU skránni** og `elo.json.source` + tvær aðskildar `status.json`-raðir (`elo` grænt, `elo_api` rautt) segja hvor heimildin var notuð. Vörður: `elo-fetch.mjs` á frystu HTML-i. **OG `elo_fixtures` FÆR ALDREI ÞESSA VARALEIÐ — MÆLT 21.8.2026.** Endurmælt í dag: `api.clubelo.com` tekur **enga tengingu á hvorugum endapunkti** (`/Fixtures` OG dagsetta CSV-ið, bæði 0 bæti), meðan `clubelo.com/Fixtures` svarar **200, 613 KB** og `clubelo.com/ENG` **200, 560 KB** — svo það er hosturinn sem er niðri, ekki ein slóð. **Vefsíðan getur samt ekki þjónað þessari röð:** hún ber `1`/`X`/`2` en **ENGA úrslita-fylki** (`R:0-0`…`R:6-0`), svo `cs_home/away` og `xg_home/away` eru ekki reiknanleg. Hlutaskrá með `0` í CS%-sviðinu væri „tómt gildi er ekki null" (kafli 8) — og verri hér en annars staðar, því talan færi í CS-keðjuna sem **miðþrep**. **KOSTNAÐURINN ER MÆLDUR OG LÍTILL:** `eloCsByFx` er annað þrep af þremur í `csFor` (`App.jsx:1181` — bókmakari, svo elo, svo `cleanSheetProb`), og þrepið sem tekur við er **mælt betra** en gamla uppflettitaflan (skill 5,94% á móti 3,91%, ΔBrier +0,00569 CI [+0,00555, +0,00584]; `tests/cs-logistic.mjs`). Rauð röð þýðir því „ein heimild af þremur vantar", ekki „CS% er ónýtt" — og **nótan segir það núna berum orðum**, því rauð röð sem segir aðeins „timeout" sendir mann í að leita á röngum stað |
 | **Odds API** (um Netlify-proxy) | virk, kvótaður | Markaðslínan; `h2h,totals,spreads`. Sótt tvisvar per umferð |
 | **ESPN** site-API | 200 | **Eina lifandi skot-heimildin**: hnit, útkoma, stöng, svæði, upplegg úr texta. Gefur **enga xG** |
 | **BSD** (`sports.bzzoiro.com`) | 200, ókeypis, enginn kvóti | Per-skot xG, skotakort, treverk, föst leikatriði. **Aðeins 2025/26** |
@@ -731,6 +732,123 @@ niðurstaðan committuð:
 | `measure-rival-out.mjs` | ekkert (skýrsla) | Keppinautur úr leik. Fellt fyrir útileikmenn, samþykkt fyrir markmenn (kafli 4 og 12b) |
 | `measure-preseason-starts.mjs` | ekkert (skýrsla; `--now`, `--covered`) | Æfingaleikja-byrjanir sem GW1-merki. **FotMob svarar sögulegum dagsetningum** (`/api/data/matches?date=20210724` o.s.frv., 200, engan token), svo þetta er EKKI aðeins framvirkt prófanlegt — mælt á fjórum sumrum. **TVÆR GILDRUR SEM ÞÖGÐU:** (a) `matches?date=` skilar STUTTUM félagsnöfnum og `matchDetails.lineup` LÖNGUM, svo uppflettingin skilaði `undefined` og `continue` — **22 af 80 lið-tímabilum fengu núll uppstillingar** og „sást í æfingaleik" mældist 26% í stað 54%; (b) **„Arsenal" hjá FotMob eru TVÖ félög** — 6 af 13 leikjum sumarið 2026 eru **FC Arsenal Tula úr rússnesku B-deildinni**. Bæði leyst með því að **festa FotMob-id** (Arsenal = 9825) og varpa heima/úti eftir STÖÐU, ekki nafni. Vörður prentar þekju per lið-tímabil og kastar ef eitthvert af 20 liðum parast ekki |
 | `measure-friendly-form.mjs` | ekkert (skýrsla; `--json <slóð>`) | Sama; ber FotMob við ESPN-liðstölur. **Staðan er `UNVERIFIED`** — krossprófunin er skrifuð en hefur aldrei haft gögn, fyrst 21.8. **Vináttuleikir sem form-merki eru MÆLDIR OG FELLDIR: mínúturnar eru merkið, mörkin ekki** (skjalað í haus beggja skriftanna — ekki endurmæla) |
+
+### TIMABILIÐ VARÐ LIFANDI 21.8.2026 — OG ÞAÐ BRAUT SJÖ SÖFN Í EINU
+
+GW1-fresturinn leið, einn leikur var spilaður, `data/live/gw1.json` (600
+raðir) varð til og `data/events.json` fékk GW1 með `is_current: true,
+finished: false`. **Sjö söfn féllu samstundis** eftir að hafa verið 100%
+græn — og aðeins ÞRENNT af sjö var raunveruleg bilun í appinu. Skiptingin
+sjálf er lærdómurinn og hún á að vera fyrsta spurningin næst þegar regime
+skiptir: **er þetta (a) staðnað forsenda, (b) raunveruleg villa sem nýja
+ástandið afhjúpaði, eða (c) brotið mælitæki?**
+
+**(b) TVEIR RAUNVERULEGIR GALLAR, BÁÐIR ÞÖGLIR:**
+
+1. **`season_baseline.json` VAR SKRIFAÐ YFIR MEÐ NÝJA TÍMABILINU.** Gatið
+   var `!events.some(ev => ev.finished)` og athugasemdin sagði „daglega
+   MEÐAN engin umferð er lokin" — en **„engin umferð LOKIN" er ekki
+   „tímabilið er ekki byrjað".** GW1 er `finished: false` í ~3 daga eftir
+   frestinn, og FPL nullstillir uppsöfnuðu tölurnar VIÐ frestinn. Mælt:
+   keyrslan kl. 23:28 skrifaði **600 raðir með max starts 1** ofan á **599
+   raðir með max starts 38**. Og hún var þögul — `label` er leitt af ári
+   frestarins og stóð áfram „2025/26" ofan á 2026/27-gögnum. **Eina sviðið
+   sem greinir ástöndin í sundur er `starts`.** Vörðurinn sem var til
+   (`gw1-checklist.mjs`) skoðaði `label` og `players.length > 400`; **báðir
+   lifðu klobburinn** og prentuðu grænt tikk ofan á horfnum gögnum.
+   **Tvær reglur, og sú síðari er sú sem ver:** klukkan er FYRSTI LEIKUR
+   (`started || finished || finished_provisional`), og **aldrei skrifa verri
+   skrá ofan á betri** — sú regla stendur þótt FPL breyti hvenær tölurnar
+   nullstillast. `seasonBaselineDecision` er hreint, útflutt fall;
+   `fetch-entry.mjs` kafli 5 prófar það á tilbúnum inntökum (8 tilvik,
+   3 stökkbreytingar felldar) OG fullyrðir um raunskrána.
+2. **`matchImminent` flettist upp með NAFNA-SKORUN SKORÐAÐRI VIÐ LIÐ.**
+   Sjá kafla 3: sú villa er skjöluð sem LEYST, og `code`-lausnin var sett í
+   pipeline-una og í spá-bókhaldið — **en aldrei í les-leið appsins.** Mælt
+   21.8.: `Konsa: AVL != ARS`. Orsökin er **cadence-ósamhverfa sem er
+   byggingarleg:** `imminent.json` er skrifuð af DAGLEGU keyrslunni (05 UTC)
+   meðan `players.json` er endurnýjuð á **30 mín fresti**, svo hver
+   félagaskipti gera liðið úrelt í allt að **24 klst** — og á hverri þeirri
+   klukkustund fellur uppflettingin og maðurinn sleppur gegnum
+   `MIN_START_PROB`. Nú er `code` join-lykillinn (`IMM_BY_CODE`, Symbol svo
+   allir fimm lesendur `by[teamShort]` séu óbreyttir). Nafna-skorunin er
+   varaleið fyrir raðir án `code`.
+   > **OG VÖRÐURINN VARÐI RANGA STÆRÐ.** Hann fullyrti að `imminent.json`
+   > BERI lið dagsins — sem er óhaldanlegt með byggingu og flakkar með
+   > cron. Rétta fullyrðingin er **finnanleiki, ekki ferskleiki**: hver
+   > maður í deildinni í dag verður að finnast gegnum `matchImminent`,
+   > óháð því hvaða lið röðin skráði. Decíderandi tilfellið er **tilbúið**
+   > (`rotation.mjs` kafli 8b), því lifandi tilfellið hverfur við næstu
+   > dagskeyrslu og kaflinn hefði þagnað án þess að neitt segði frá.
+
+**(c) TVÖ BROTIN MÆLITÆKI, BÆÐI Í `data-resilience.mjs` — „eina sem sér
+hvítan skjá":**
+
+- **FASTUR BIÐTÍMI ER EKKI MÆLING Á ÞVÍ AÐ TEIKNINGU SÉ LOKIÐ.** 80 ms var
+  kvarðað á forleiks-gagnamagni; með `live/gw1.json` (409 KB) næst Teams
+  ekki að teikna og **MIÐJA teikningin** mældist — 93 stafir, svo safnið
+  sagði „spjaldið nánast tómt" í **öllum 21** atburðarásum. Sjálfstæð
+  mæling á sama flipa: **2.275 stafir af raunverulegum liðstölum.** Nú er
+  beðið þangað til textinn hættir að vaxa (`settleOn`), sem er óháð
+  gagnamagni.
+- **„STÆRSTA HYLKI SEM BER EKKI HEITI ANNARRA FLIPA" GETUR EKKI FUNDIÐ
+  SPJALD SEM NEFNIR ANNAN FLIPA.** Teams-spjaldið ber `"Gameweeks"`
+  (`Teams.jsx:376`), sem inniheldur `"Gameweek"`. Mælt: heuristíkin gefur
+  **998**, rétt mæling **2.185** — 54% horfið, og talan hefði líka getað
+  falið tómt spjald. **Þriðja aðferðin er LEIDD, ekki valin:** skelin er
+  per skilgreiningu það sem er EINS á öllum flipum, svo hún er langsti
+  sameiginlegi forskeytis- og viðskeytis-hluti bolanna sex. Tvær aðferðir
+  sem voru mældar og felldar gáfu tómum flipa **1.002** og **929** stafi
+  (skelin var inni í tölunni); sú þriðja gefur **0**. Mælt yfir 21×6:
+  lægsta HEILBRIGÐA spjaldið er **591** (Gameweek án `last_gw.json`), svo
+  golfið 400 liggur undir öllu heilbrigðu og óendanlega yfir tómu.
+  > **TVÆR ÓHÁÐAR ÚTFÆRSLUR GÁFU SÖMU TÖLURNAR UPP Á STAF** (591, 1179,
+  > 2666, 3451, 1096 í skel) — það er sterkari sönnun en hvor um sig.
+- **OG GATIÐ SEM MÆLINGIN OPNAÐI VAR LOKAÐ:** ekkert batt spjald við
+  IDENTITET flipans, svo hver flipi mátti teikna spjald ANNARS flipa og
+  safnið haldist grænt. Akkerið er mælt: hvert spjald nefnir sig í sinni
+  eigin yfirskrift (21×6). **Hnappa-textinn er ónýtt akkeri** — spjaldið
+  heitir ekki það sama sem hnappurinn í tveimur tilvikum af sex
+  („Player stats" -> `Players`, „Gameweek" -> `The gameweek`), svo gamla
+  eigið-nafn-prófið hefði verið **mælt ósannur** á spjaldinu.
+
+### `scripts/fetch.mjs` ER NÚ INNFLYTJANLEG — `main()` ER SKILYRT (21.8.2026)
+
+`main()` var kallað **óskilyrt** í botni skrárinnar, svo **hver innflutningur
+keyrði alla pipeline-una**: öll netköllin, allan kvótann, og skrif í `data/`.
+Afleiðingin var ekki óheppileg heldur **bindandi**: hvert hreint fall inni í
+3.400 línunum var óprófanlegt nema með því að **lesa textann og byggja það upp
+aftur** í `new Function` (`tests/elo-fetch.mjs:25`) — og sú leið prófar
+**afrit**, ekki kóðann sem keyrir, sem er nákvæmlega gildran í kafla 5b.
+
+Nú er kallið `if (invokedDirectly) main()`, þar sem `invokedDirectly` ber
+`realpathSync` á **báðum** megin (`import.meta.url` gegn `process.argv[1]`) svo
+symlinkuð eða afstæð slóð þaggi hana ekki.
+
+> **VÖRÐURINN SJÁLFUR ER VARÐAÐUR, OG ÞAÐ ER EKKI SKRAUT.** Væri skilyrðið
+> rangt myndi pipeline-an **þegja**: ljúka á sekúndubroti með útgangsstöðu **0**
+> og engum skrifum. Græn keyrsla sem gerir ekkert er verri útkoma en hrun — það
+> er engin rauð röð til að taka eftir og `data/` frystist á þeim degi. Og
+> **texta-leit gæti ekki fellt það**: athugasemdin við vörðinn nefnir sjálf
+> `main()` og `invokedDirectly` (kafli 5b — athugasemd sem uppfyllir
+> fullyrðinguna). `tests/fetch-entry.mjs` keyrir því **raunverulegt afrit** af
+> skránni í nýju ferli, **báðar leiðir**: beint (á að kalla) og innflutt (á EKKI
+> að kalla), með `main()` skipt út fyrir eina prentun svo engin netköll og engin
+> skrif verði. Kaflinn les líka `.github/workflows/*.yml` og fellur ef þau hætta
+> að kalla hana beint. **Tvær stökkbreytingar felldar:** óskilyrt `main()`
+> (3 fullyrðingar) og skilyrði fast á `false` (1 — einmitt þögla tilfellið).
+
+**Fyrsta notkunin:** BSD-gluggarnir. `bsd_lineups` og `bsd_odds` báru nótur sem
+voru **niðurstöður sem skriftan dró af sinni eigin síu** („no matches within
+24h"), byggðar á staðnum inni í netföllunum og því óprófanlegar án BSD-lykils.
+**Mælt 21.8.2026 kl. 22:49 UTC: níu óleiknir GW1-leikir stóðu í `fixtures.json`,
+sá næsti eftir 12,7 klst, og báðar nóturnar sögðu samt „ekkert í glugganum".**
+Tóm svarröð (rangt tímabils-id, eða BSD hefur leikina ekki) og full svarröð
+(allt í lagi, glugginn bara ekki opinn) hafa **andstæða orsök og andstæða
+lagfæringu** — og nótan lagði þær í sama flokk. Nóturnar eru nú útfluttu, hreinu
+föllin `bsdLineupNote`/`bsdOddsNote`, prófuð á tilbúnum inntökum þar sem svarið
+er þekkt fyrirfram; prófsteinninn er **ekki orðalagið** heldur að ástöndin gefi
+**sitthvora** nótu (`bsd-pipeline.mjs` kafli 9).
 
 ### Cron
 

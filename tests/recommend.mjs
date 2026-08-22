@@ -381,8 +381,18 @@ console.log("\n5b. SOLU-TIMASETNING — TIMASETNING, EKKI RODUN");
      "`sellTiming` nefnir hvorki `score` ne `rank` — samsetning er OMOGULEG, ekki bara osnid");
   ok(!/sellTiming/.test((SRC.match(/export function buildRecommendations\([\s\S]*?\n\}\n/) || [""])[0]),
      "`buildRecommendations` kallar hana EKKI — rodunin er oradd vid hana");
-  ok(/hardestRun/.test(body) && /ffdrSeries/.test(body),
-     "hun endurnotar `hardestRun`/`ffdrSeries` — engin afritud leit her");
+  /* VAR DAUD (fundid 21.8.2026) — OG HUN VER "AFRITUD FORMULA ER TVAER
+     FORMULUR", sem er dyrasta villuaettin i thessu repo-i (buildTeamMetrics,
+     headWidth). `body` var lesid HRATT, og athugasemdin INNI i `sellTiming`
+     nefnir `hardestRun` ordrett ("`hardestRun` sneidir sjalf af thvi sem er
+     bunid"). Stokkbreyting: raunverulega notkunin flutt UT ur fallinu (alias
+     fyrir utan, kall a aliasid inni) — athugasemdin hell fullyrdingunni
+     GRAENNI medan afritud leit hefdi getad komid i stadinn.
+     Nu er athugasemdum sviptad OG krafist KALL-FORMSINS `nafn(`, ekki
+     adeins ad nafnid komi fyrir.                                        */
+  const bodyNoC = body.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+  ok(/\bhardestRun\s*\(/.test(bodyNoC) && /\bffdrSeries\s*\(/.test(bodyNoC),
+     "hun KALLAR `hardestRun`/`ffdrSeries` — engin afritud leit her");
   /* VELIN ER SU SAMA SEM KAUP-GLUGGARNIR NOTA — ATTIN ER BREYTA.       */
   const BW = readFileSync(ROOT + "src/buywindow.js", "utf8");
   ok(/export function runWindows\([\s\S]*?\bdir\b/.test(BW),

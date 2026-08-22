@@ -30,13 +30,25 @@ const ok = (n, c, x="") => {
   if (typeof n !== "string") throw new Error(`ok(): heiti verdur ad vera strengur, fekk ${typeof n} — roksemdum snuid vid?`);
   if (c) { pass++; console.log(`  ✓ ${n}`); }
   else { fail++; console.log(`  ✗ ${n}${x ? "   " + x : ""}`); } };
-const near = (a, b, t, n) => ok(n, a != null && Math.abs(a - b) <= t, `${a} vs ${b}`);
 
 const { ROWS } = await import(new URL("src/Compare.jsx", REPO).href);
 
 /* SULU-RUMFRAEDIN VAR HER (kafli 1) og for med `barGeom`. Reglan sem hun
    varði — "vantandi gildi faer ENGA sulu, thvi sula af lengd 0 laesist eins
    og maeld nulltala" — lifir afram i toflunni sem "—" og er profud i kafla 3. */
+
+/* `near(a,b,t,n)` VAR HER OG VAR DAUD HJALPARFUNKSJON — FJARLAEGD 21.8.2026.
+   Hun var vikmarka-samanburdur fyrir SULU-LENGDIR (`barGeom`), og thegar
+   sulurnar foru 14.8.2026 for eina kall-stadurinn med theim: `grep -n "near("`
+   fann NULL kall eftir thad. Hun stod samt eftir og LAS EINS OG THEKJA —
+   fullyrdinga-hjalpari i profaskra segir "her er maelt", og her var ekkert
+   maelt. STOKKBREYTINGARPROF sannadi daudann adur en hun var fjarlaegd:
+   `near = (a,b,t,n) => ok(String(n), false, ...)` — fullyrding sem FELLUR
+   ALLTAF — skildi safnid eftir a 69/69 graenum og exit 0.
+   Taflan tharf hana ekki: hun ber NAMUNDADA texta-tolu (`numOf` les hana af
+   skjanum) og samanburdurinn er JAFNGILDI vid laegsta/haesta gildid i sinni
+   rod, ekki vikmork. Vikmarka-hjalpari an vikmarka-samanburdar er
+   tautologia i bidstodu (CLAUDE.md 5b og 13).                             */
 
 console.log("\n=== 2. `hi` ER SKILGREINT A HVERRI ROD ===");
 const lower = ROWS.filter(r => r.k && r.hi === false).map(r => r.k);

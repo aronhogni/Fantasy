@@ -481,8 +481,44 @@ ok(!!connBtn, "Tengja-hnappur finnst");
    profs gerdi thad og fell af theim sokum, ekki af kodanum.
    Her er thvi adeins profad thad sem jsdom GETUR sagt: ad merkid se til,
    ad thad segi hvad a ad lima, og ad gamla ostadfesta "tengt" se farid.  */
-ok(!/Tengt lið .* sæki raunlið/.test(text()),
-  "GAMLA HEGDUNIN ER FARIN: engin 'tengt' stadfesting an sannreyningar");
+/* ÞETTA VAR NAKVAEMLEGA `roterings-par`-VILLAN AFTUR, I SOMU SKRA
+   (fundid 21.8.2026). Hun stod:
+     ok(!/Tengt lið .* sæki raunlið/.test(text()), "GAMLA HEGDUNIN ER FARIN")
+   Hvorugur helmingurinn er til i vidmotinu: "Tengt lid" er ADEINS i
+   athugasemdum (App.jsx:439, :1650, :2566) og "saeki raunlid" er hvergi
+   i repo-inu. Vidmotid er auk thess ENSKT EINGONGU og `no-icelandic.mjs`
+   fellur a islenskum staf i DOM, svo samsetta setningin gat ALDREI birst.
+   Fullyrdingin var thvi sonn an tillits til hegdunar — sama mynd og
+   athugasemdin 90 linum ofar (kafli "Price cap") var skrifud UM.
+
+   REGLA 2 UR KAFLA 5b: neikvaed fullyrding verdur ad nefna streng sem
+   VAR SANNANLEGA ThARNA. Talan sem appid birtir er "Connected ✓ — …"
+   (App.jsx:821, :859) og "Connected: … — team N" (:2103). I OTENGDU
+   astandi, sem er thad sem thetta smoke-prof haldur, ma HVORUG birtast.
+   Maelt a stadnum: /Connected/ false, /Connect/ TRUE (hnappurinn) — svo
+   mynstrid er skorðad med ":" eda "✓" og lidur ekki fyrir thvi ad
+   "Connect" er undirstrengur i "Connected" (limingar-gildran, kafli 5b). */
+ok(!/Connected\s*[:✓]/.test(text()),
+  "OTENGT ASTAND: engin 'Connected'-stadfesting an sannreyningar");
+/* OG ThAD ER EKKI NOG — DOM-HLIDIN HER ER VEIK OG ThAD ER MAELT.
+   jsdom getur ekki drifid styrda reitinn (kafli 4), svo `connect()` er
+   ALDREI kolluð i thessu profi og fullyrdingin ofan segir thvi adeins ad
+   UPPHAFS-teikningin se hrein — sem hun er af thvi ad ekkert er tengt.
+   Stokkbreyting sem setur "Connected: team N" i `state:"checking"`-
+   greinina (thad er GAMLA HEGDUNIN, ordrett) LIFIR ThVI af DOM-profinu.
+   Sannreynt: hun helst graen vid nakvaemlega tha stokkbreytingu.
+
+   Regluna verdur thvi ad verja a UPPRUNANUM: greinin sem er sett ADUR en
+   FPL svarar ma ekki fullyrda "Connected". Akkerid er FULLYRT (kafli 5b
+   regla 1) svo endurskrifud grein felli profid i stad ad slokkna.       */
+{
+  const appSrc = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const i = appSrc.indexOf('state:"checking"');
+  ok(i > 0, "FORSENDA: `state:\"checking\"`-greinin finnst i App.jsx");
+  const checking = i > 0 ? appSrc.slice(i, appSrc.indexOf("\n", i)) : "AKKERI FANNST EKKI";
+  ok(!/Connected/.test(checking),
+    "og hun fullyrdir EKKI 'Connected' adur en FPL hefur svarad");
+}
 console.log(`\n========================================`);
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

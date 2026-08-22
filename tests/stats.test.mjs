@@ -44,6 +44,32 @@ const eq = (a, b, n) => ok(a === b, `${n} (${JSON.stringify(a)}${a === b ? "" : 
 const near = (a, b, tol, n) => ok(Math.abs(a - b) <= tol, `${n} (${a} vs ${b} ±${tol})`);
 
 const players = J("players.json").players;
+
+/* ============================================================
+   REGIMEID — HVAR I TIMABILINU ERUM VID? (21.8.2026)
+
+   ThRJAR FORSENDUR I ThESSARI SKRA VORU FASTAR TOLUR SEM VORU MAELDAR I
+   FORLEIK OG FELLU SOMU NOTT SEM TIMABILID FOR I GANG. Rotin er ALLTAF
+   su sama: `players.json` er ENDURSKRIFUD i hverri sokn og i forleik ber
+   hun LOKATOLUR FYRRA TIMABILS (stig, minutur, byrjanir). Vid timabils-
+   skiptin nullstillir FPL thau svid, svo hver forsenda sem taldi radir
+   med tolu fell — an thess ad EINN dalkur vaeri bilaður.
+
+   `events.finished` DUGAR EKKI SEM REGIME-MAELIR og thad er maelt: i nott
+   er GW1 `is_current: true, finished: false` medan EINN leikur er buinn og
+   31 leikmenn bera stig. Forleikur og "umferd i gangi" hafa thvi SOMU
+   `finished`-tolu (0) en gerolik `players.json`. Leikirnir sjalfir eru
+   eini maelirinn sem greinir thau i sundur.
+
+   `startedFx` er thvi talan sem forsendurnar hanga a. Hun er LESIN, ekki
+   valin, og hun kviknar sjalf — engin thessara forsendna getur sofid inn
+   i timabilid.                                                          */
+const fixturesAll = (() => { const f = J("fixtures.json"); return f.fixtures ?? f; })();
+const startedFx = fixturesAll.filter(f => f.started || f.finished || f.finished_provisional).length;
+const finishedFx = fixturesAll.filter(f => f.finished || f.finished_provisional).length;
+console.log(`\n[regime] ${startedFx} leikir byrjadir, ${finishedFx} bunir, `
+  + `${(J("events.json").events ?? J("events.json")).filter(e => e.finished).length} umferdir lokin`);
+
 const hasReport = existsSync(D + "last_gw.json");
 const hasShots  = existsSync(D + "last_gw_shots.json");
 const report = hasReport ? J("last_gw.json") : null;
@@ -116,9 +142,29 @@ eq(STAT_BY_KEY.pts_per_million.get(fake), null,
     const mine = num(p.total_points) / (num(p.now_cost) / 10);
     return Math.abs(mine - num(p.value_season)) > 0.06;
   });
-  ok(withVal.length > 100 && off.length === 0,
+  /* EIGINLEIKINN SJALFUR — ALLTAF FULLYRT, I HVERJU REGIME. */
+  ok(off.length === 0,
     `FPL value_season = stig/verð á öllum ${withVal.length} raungögnum`
     + (off.length ? ` — ${off.length} víkja, t.d. ${off[0].web_name}` : ""));
+  /* OG FORSENDAN SEM GERIR HANN OTOMAN — BUNDIN VID REGIMEID, EKKI VID TOLU
+     (kvordud 21.8.2026). Fyrsta utgafa var `withVal.length > 100`, maeld a
+     587 i forleik thar sem `players.json` bar LOKATOLUR fyrra timabils. Hun
+     fell somu nott sem timabilid for i gang: FPL nullstillti `total_points`
+     og adeins their 31 sem spiludu fyrsta leikinn eiga tolu. GOLFID VAR
+     RANGT, EKKI DALKURINN — `off.length === 0` er jafn satt um 31 radir og
+     um 587, og 11 OLIK `value_season`-gildi ganga upp i stig/verd.
+     Krafan er thvi um ad hun se OTOM OG OTAUTOLOGISK: tvo olik gildi
+     naegja til ad jafnan geti ekki stadist af tilviljun (eitt gildi gaeti,
+     t.d. ef allir baeru 0). Sofandi er hun ADEINS i einu regime og thad er
+     MAELT, ekki gefid: totolurnar hafa verid nullstilltar OG enginn leikur
+     byrjadur — nokkurra klukkustunda glugginn milli GW1-frests og fyrstu
+     flautu. Um leid og einn leikur er byrjadur er thetta hart golf.     */
+  const vsDistinct = new Set(withVal.map(p => String(p.value_season))).size;
+  const rollover = startedFx === 0 && players.filter(p => num(p.total_points) > 0).length === 0;
+  ok((withVal.length > 0 && vsDistinct >= 2) || rollover,
+    `FORSENDA: ${withVal.length} radir bera toluna, ${vsDistinct} olik gildi`
+    + ` (regime: ${rollover ? "totolur nullstilltar og enginn leikur byrjadur — SEFUR"
+                            : `${startedFx} leikir byrjadir — HART golf`})`);
 }
 near(STAT_BY_KEY.cs_pct.get(fake), 40, 1e-9, "Hreint blað % = 4/10");
 near(STAT_BY_KEY.save_pct.get(fake), 75, 1e-9, "Vörsluhlutfall = 30/(30+10)");
@@ -1142,18 +1188,69 @@ console.log("\n=== 12c. VARAMARKMADUR (gkChiefOutIds) ===");
       + `${rows3.filter(r => r.p.element_type !== 1).length})`,
       leaked.slice(0, 3).map(r => r.p.web_name).join(" "));
     /* FORSENDA: dalkurinn ma ekki vera ALTOMUR — annars vaeri "engin leki"
-       graent af thvi ad hann reiknast aldrei (CLAUDE.md 5b).            */
+       graent af thvi ad hann reiknast aldrei (CLAUDE.md 5b).
+
+       GOLFID ER SJALF-KVARDAD, EKKI FAST (21.8.2026). `> 20` var maelt i
+       forleik thar sem `players.json` bar MINUTUR FYRRA TIMABILS, svo
+       rodunin "hver er nr. 1" var urskurdanleg hja ollum 20 klubbum og 67
+       markmenn fengu svar. Vid timabils-skiptin nullstillti FPL minuturnar
+       og `gkChiefOutIds` skilar — RETT — `null` fyrir allt lidid thegar
+       allir markmenn eru a 0 minutum ("rodunin er tilviljun"). Maelt i
+       nott: 2 klubbar af 20 hafa markmanns-minutur (their tveir sem
+       spiludu fyrsta leikinn), svo 4 af 67 fa svar. Fast golf hefdi thvi
+       fellt safnid i ~fimm vikur fyrir hegdun sem er skjolud og rett.
+
+       Golfid les thess vegna SAMA regime og reglan sjalf: fjolda klubba
+       sem eiga markmann med minutur. Enginn slikur klubbur -> engin krafa
+       (og thad er ekki thogn: sofandi astandid er PRENTAD og krefst
+       `answered === 0`, svo hlutabilun getur ekki gomst thar). Einn eda
+       fleiri -> dalkurinn VERDUR ad svara. Tiu eda fleiri (thad er eftir
+       fyrstu fullu umferd) -> gamla harda golfid gildir aftur.          */
     const gkRows = rows3.filter(r => r.p.element_type === 1);
     const answered = gkRows.filter(r => r.f._gk_chief_out != null);
-    ok(answered.length > 20,
-      `og ${answered.length} af ${gkRows.length} markmönnum FÁ svar (0 eða 1)`);
+    const clubsWithGkMins = new Set(gkRows.filter(r => num(r.p.minutes) > 0)
+      .map(r => r.p.team)).size;
+    const gkFloor = clubsWithGkMins >= 10 ? 21 : (clubsWithGkMins > 0 ? 1 : 0);
+    ok(gkFloor === 0 ? answered.length === 0 : answered.length >= gkFloor,
+      `og ${answered.length} af ${gkRows.length} markmönnum FÁ svar (0 eða 1)`
+      + ` — golf ${gkFloor}, ${clubsWithGkMins}/20 klubbar med markmanns-minutur`
+      + `${gkFloor === 0 ? " (SEFUR: engin minuta enn, svarid VERDUR ad vera tomt)" : ""}`);
+    /* OG HIN ATTIN, SVO GOLFID VERDI EKKI EINHLIDA: svar ma ADEINS koma
+       ur klubbi thar sem rodunin er urskurdanleg, sem krefst markmanns med
+       minutur. An thessa dygdi "skila alltaf 1" til ad metta golfid —
+       nakvaemlega myndin ur kafla 5b: fullyrding sem talan getur keypt sig
+       fram ur. Thessi liggur a REGLUNNI, ekki a talningunni.            */
+    const teamsWithGkMins = new Set(gkRows.filter(r => num(r.p.minutes) > 0).map(r => r.p.team));
+    const answeredNoMins = answered.filter(r => !teamsWithGkMins.has(r.p.team));
+    ok(answeredNoMins.length === 0,
+      `og ENGINN svarad markmadur er i klubbi an markmanns-minutna `
+      + `(${answeredNoMins.length}) — rodun ur engum minutum er tilviljun`,
+      answeredNoMins.slice(0, 3).map(r => r.p.web_name).join(" "));
     /* Og ad talan sé SOFANDI i dag er MAELT, ekki forsenda: se hun ekki
        sofandi lengur er thad raunveruleg upplysing, ekki bilun.         */
     const firing = gkRows.filter(r => r.f._gk_chief_out === 1);
     console.log(`  · markmenn með nr. 1 á FPL 0% í dag: ${firing.length}`
       + `${firing.length ? " (" + firing.slice(0, 4).map(r => r.p.web_name).join(", ") + ")" : " — sofandi, sbr. mælinguna"}`);
-    ok(firing.length === 0 || firing.every(r => r.p.element_type === 1),
-      "og hver sem kviknar er markmaður");
+    /* ThESSI VAR TVOFALT DAUD OG STOD GRAEN (fundid 21.8.2026):
+         ok(firing.length === 0 || firing.every(r => r.p.element_type === 1),
+            "og hver sem kviknar er markmadur")
+       (a) Fyrri greinin skammhleypur: `firing.length` ER 0 i dag, svo
+           seinni greinin er aldrei metin.
+       (b) OG SEINNI GREININ ER TAUTOLOGIA: `firing` er sia a `gkRows`,
+           sem er sjalft `filter(element_type === 1)`. Hver stak i
+           `firing` HEFUR ThVI stoduna 1 med byggingu — fullyrdingin
+           endurskodar siuna sem bjo hana til. Sannad med stokkbreytingu:
+           `_gk_chief_out = 1` thvingad a alla markmenn (firing 0 -> 67)
+           og hun var AFRAM graen.
+       Lekinn ut fyrir markmenn er hvort ed er ThEGAR vardur af
+       `leaked.length === 0` her ad ofan, sem er rettur vordur.
+       I stadinn er vardad ThAD sem getur raunverulega brotnad og var
+       OVARIÐ: svidid er TVIUNDA — 0 eda 1, aldrei brot, aldrei 2.
+       "0 eda 1" stod i skilabodunum a undan an thess ad vera profad. */
+    const domain = answered.filter(r => r.f._gk_chief_out !== 0 && r.f._gk_chief_out !== 1);
+    ok(domain.length === 0,
+      `_gk_chief_out er TVIUNDA — 0 eda 1, aldrei annad (${domain.length} utan sviðs)`,
+      domain.slice(0, 3).map(r => `${r.p.web_name}=${r.f._gk_chief_out}`).join(" "));
   }
 }
 
@@ -1633,7 +1730,31 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
      (annars vaeri "0 yfir 100%" graent af thvi ad hann er tomur).      */
   const shares = rows.map(p => STAT_BY_KEY.xg_share.get(p)).filter(v => v != null);
   const over = shares.filter(v => v > 100);
-  ok(shares.length === 0 || over.length === 0,
+  /* NOTAN A UNDAN SAGDI "Fullyrdingin er tvihlida" EN KODINN VAR ThAD EKKI
+     (lagad 21.8.2026). `shares.length === 0 ||` gerdi TOMAN dalk ad
+     UNDANThAGU i stad thess ad fella hann: hefdi `xg_share` hrunid i null
+     hja ollum — nakvaemlega bilunin sem notan lysir — hefdi vordurinn ordid
+     graenn. Og thekjan var adeins PRENTUD, sem er myndin ur kafla 5b
+     ("ThEKJA ER FULLYRDING, EKKI LOGGA"). Nu eru thaer tvaer fullyrdingar. */
+  /* FORSENDAN SEFUR OG VAKNAR — HUN MA EKKI VERA FAST GOLF (kvordud 21.8.2026).
+     Fyrsta utgafa min var `shares.length > 400`, maeld a 563 i forleik. Hun
+     fell somu nott og timabilid for i gang: `data/live/` varð til, `isLive`
+     leidin tok yfir og talan fell i 62. GOLFID VAR RANGT, EKKI DALKURINN —
+     notan a dalknum segir sjalf "it is empty until enough of the season has
+     been played for the club total to exist", svo STRJALL dalkur er RETT
+     astand naestu vikur. Fost tala um lifandi gogn urealdist thegjandi,
+     nakvaemlega thad sem kafli 5b varar vid.
+     Regnian er thvi bundin vid REGIMEID, eins og `gw1-checklist.mjs`:
+     tomur dalkur er leyfilegur ADEINS medan engin umferd er lokin. Um
+     leid og fyrsta umferdin er lokin verdur thetta hart golf og "0 af 0"
+     getur ekki lengur lesid sem graent.                                  */
+  const finishedEv = ev.filter(e => e.finished).length;
+  ok(shares.length > 0 || finishedEv === 0,
+     `FORSENDA: dalkurinn er tomur ADEINS medan engin umferd er lokin `
+     + `(${shares.length} tolur, ${finishedEv} lokin umferdir)`);
+  console.log(`     (regime: ${finishedEv === 0 ? "engin umferd lokin — forsendan SEFUR"
+    : "umferd lokin — forsendan er HART golf"})`);
+  ok(over.length === 0,
      `xG-hlutur fer aldrei yfir 100% (${over.length} af ${shares.length})`,
      over.length ? `haest: ${Math.max(...over).toFixed(1)}%` : "");
   /* I forleik er lifandi xG ~0 hja ollum, svo tom skra ER rett svar —
@@ -1651,9 +1772,27 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
      ThEGAR BUINN, an nokkurs merkis. "Gomul gogn birt sem ny" (kafli 3).
 
      PROFID ER AFTURVIRKT, EKKI LYSANDI: fyrst er STADFEST ad dalkurinn se
-     fylltur i dag (annars gaeti "0 eftir spillingu" lesid sem graent af
+     fylltur (annars gaeti "0 eftir spillingu" lesid sem graent af
      thvi ad hann var alltaf tomur — sbr. kafla 5b), og SIDAN er sama
-     odds-skra spillt a badar vegu og krafist NULLS.                     */
+     odds-skra spillt a badar vegu og krafist NULLS.
+
+     OG GRUNNURINN VERDUR AD VERA STILLTUR A NAESTU UMFERD, EKKI "i dag"
+     (kvordud 21.8.2026). Forsendan var `teamCs(RAUN-odds.json).length > 400`
+     og hun fell um leid og GW1-fresturinn leid — af thvi ad VORDURINN
+     VIRKADI. FPL flytur `is_next` a GW2 a frestinum, svo `nextGw` er 2
+     medan `odds.json` ber ENN GW1-linurnar (`gw: 1`); tveggja-thatta
+     profid hafnar thvi hverri einustu rod og skilar 0/600. Thad er
+     NAKVAEMLEGA thad sem dalkurinn a ad gera — "gomul gogn birt sem ny"
+     er einmitt tilfellid sem hann var byggdur fyrir — en tha var forsendan
+     ord fyrir "0 -> 0" og BADAR spillingar-fullyrdingarnar urdu tomar
+     (kafli 5b: fullyrding sem tharf annad til ad bregdast).
+
+     Grunnurinn er thvi BYGGDUR ur `fixtures.json` sjalfri: motherji og
+     dagsetning ur leiknum i `nextGw`, `cs` ur raun-odds.json. Ekkert af
+     thvi er ny tala — thad er sama skran, RETT STILLT — og spillingarnar
+     hafa lifandi grunn i HVERJU regime, lika i miðri umferd.
+     Raun-skrain sjalf er svo maeld i sinni EIGIN fullyrdingu her a eftir,
+     sem er sterkari en gamla forsendan: hun fullyrdir baðar attir.      */
   if (existsSync(D + "odds.json")) {
     const oddsRaw = J("odds.json");
     const odds = oddsRaw.teams || oddsRaw;
@@ -1661,12 +1800,42 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
       const en = makeEnricher({ players: pl, teamById, fixtures: fx, events: ev, odds: o });
       return pl.map(p => en(p).fields._team_cs).filter(v => v != null);
     };
-    const live = teamCs(odds);
+    /* SAMA `nextGw`-leidsla og `makeEnricher` notar (src/stats.js kafli 7). */
+    const nextGwId = ev.find(e => e.is_next)?.id ?? (ev.filter(e => e.finished).length + 1);
+    const nextFix = {};
+    for (const f of fx) {
+      if (f.event !== nextGwId) continue;
+      for (const [t, o] of [[f.team_h, f.team_a], [f.team_a, f.team_h]]) {
+        if (nextFix[t]) continue;
+        nextFix[t] = { opp: teamById?.[o]?.short ?? null, kickoff: f.kickoff_time ?? null };
+      }
+    }
+    const aligned = {};
+    for (const t of Object.values(teamById)) {
+      const nx = nextFix[t.id];
+      if (!nx || !nx.opp) continue;
+      aligned[t.short] = { ...(odds[t.short] || {}), opp: nx.opp, kickoff: nx.kickoff,
+                           cs: num(odds[t.short]?.cs) ?? 25 };
+    }
+    const live = teamCs(aligned);
     // FORSENDAN — an hennar getur hvorug neikvæda fullyrdingin brugdist.
     ok(live.length > 400,
-      `_team_cs er FYLLTUR i dag: ${live.length}/${pl.length} leikmenn `
-      + `(${new Set(live).size} olik gildi)`);
-    const bend = f => Object.fromEntries(Object.entries(odds).map(([k, v]) => [k, f(v)]));
+      `_team_cs er FYLLTUR a grunni sem er stilltur a GW${nextGwId}: `
+      + `${live.length}/${pl.length} leikmenn (${new Set(live).size} olik gildi, `
+      + `${Object.keys(aligned).length} lid)`);
+    /* OG RAUN-SKRAIN: BADAR ATTIR FULLYRTAR, SVO HVORUGT REGIME ThEGI.
+       Passi `odds.json` vid naestu umferd VERDUR dalkurinn ad vera fylltur;
+       passi hun ekki VERDUR hann ad vera tomur. Gamla forsendan gat adeins
+       fellt fyrra tilfellid — og thagdi um thad seinna, sem er einmitt
+       tilfellid sem dalkurinn var byggdur fyrir.                        */
+    const real = teamCs(odds);
+    const oddsGw = oddsRaw.gw ?? null;
+    ok(oddsGw === nextGwId ? real.length > 400 : real.length === 0,
+      `RAUN-odds.json er fyrir GW${oddsGw}, naesta umferd er GW${nextGwId} -> `
+      + `${real.length}/${pl.length} bera toluna `
+      + `(${oddsGw === nextGwId ? "passar: VERDUR ad vera fylltur"
+                                : "passar EKKI: VERDUR ad vera tomur"})`);
+    const bend = f => Object.fromEntries(Object.entries(aligned).map(([k, v]) => [k, f(v)]));
     ok(teamCs(bend(v => ({ ...v, kickoff: "2020-01-01T00:00:00Z" }))).length === 0,
       "URELT kickoff (leikur thegar buinn) -> 0 leikmenn bera toluna");
     ok(teamCs(bend(v => ({ ...v, opp: "ZZZ" }))).length === 0,
@@ -1709,7 +1878,20 @@ console.log(`\n${"─".repeat(72)}\nGOLF A STIG PER BYRJUN\n${"─".repeat(72)}`
   try {
     const base = JSON.parse(readFileSync(new URL("../data/season_baseline.json", import.meta.url), "utf8"));
     const vals = (base.players || []).map(p => d.get(p)).filter(v => v != null);
-    ok(vals.length > 100, `raungogn: ${vals.length} leikmenn na golfinu`);
+    /* SKILABODIN NEFNA SKRANA, EKKI BARA TOLUNA (21.8.2026). `> 100` fell i
+       nott og `0 leikmenn na golfinu` benti a dalkinn — en dalkurinn var i
+       lagi. `season_baseline.json` a ad FRJOSA a lokatolum fyrra timabils
+       ("Written daily UP TO GW1, then frozen") og hafdi verid endurskrifud
+       med tolum ThESSA timabils: 600 radir, MESTU 1 byrjun. Golfid er thvi
+       RETT og heldur — thad sem vantadi var ad falliđ segdi HVAR. Baedi
+       `label` og radafjoldi voru ohreyfd, svo their gata ekki greint
+       clobbrid; HAMARK BYRJANA getur thad (38 frosid, 1 clobbrað).      */
+    const bMaxStarts = Math.max(0, ...(base.players || []).map(p => +p.starts || 0));
+    ok(vals.length > 100,
+      `raungogn: ${vals.length} leikmenn na golfinu`
+      + ` (season_baseline: ${base.label}, ${(base.players || []).length} radir, `
+      + `mestu ${bMaxStarts} byrjanir`
+      + `${bMaxStarts < 20 ? " — SKRAIN ER EKKI FROSIN A FYRRA TIMABILI" : ""})`);
     ok(Math.max(...vals) < 12,
        `haesta gildi a raungognum er truverdugt (${Math.max(...vals).toFixed(1)} — var 37,0)`);
   } catch { ok(true, "season_baseline.json vantar — raungagna-hluti sleppt"); }
@@ -1905,8 +2087,34 @@ console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`
 
   /* ---- 14e-3: GK-SAMHENGID SNERTIR EKKI `_start_p` ----
      Ef `chiefOut` faeri einhvern tima inn i toluna myndi hun hreyfast her.  */
+  /* HERMINGIN HERMDI EKKI NEITT EFTIR TIMABILS-SKIPTIN (lagad 21.8.2026).
+     Hun setti `chance = 0` a markmenn "med minutur" og treysti thvi ad
+     minuturnar vaeru til: i forleik bar `players.json` minutur fyrra
+     timabils, svo rodunin var urskurdanleg hja ollum 20 klubbum og 47
+     varamarkmenn kviknudu. Vid timabils-skiptin nullstillti FPL minuturnar
+     og `gkChiefOutIds` skilar tha — RETT — null fyrir allt lidid, svo
+     hermda astandid framkalladi 4 varamenn og forsendan fell.
+     ThETTA ER SAMA MYNSTUR OG KAFLI 12c: tilbuið lid thar sem svarid er
+     ThEKKT FYRIRFRAM. Hermingin gefur thvi markmonnum TILBUNAR minutur i
+     strangt fallandi rod (svo nr. 1 se urskurdadur) og setur hann a 0%.
+     Nu er hermda astandid OHAD regimeinu og TENGINGIN — ad GK-samhengid
+     hreyfi ekki `_start_p` — er profud a ollum varamarkmonnum deildarinnar
+     i hverri viku, ekki bara i theim klubbum sem spiludu i gaer.
+     `_start_p` les EKKI `minutes` (hun kemur ur `imminent.start_feats`),
+     svo tilbunar minutur geta ekki sjalfar hreyft toluna sem er maeld —
+     eina leidin sem hun getur hreyfst er GEGNUM `chiefOut`, sem er
+     nakvaemlega thad sem fullyrdingin ver.                              */
+  const gkByTeam2 = {};
+  for (const p of pl2) if (p.element_type === 1) (gkByTeam2[p.team] ||= []).push(p);
+  const simMins = new Map(), simChiefs = new Set();
+  for (const list of Object.values(gkByTeam2)) {
+    list.forEach((p, i) => simMins.set(p.id, 3000 - i));   // strangt fallandi -> engin jafna
+    simChiefs.add(list[0].id);
+  }
   const e2b = makeEnricher({ players: pl2.map(p => p.element_type === 1
-      ? { ...p, chance_of_playing_next_round: p.minutes > 0 ? 0 : p.chance_of_playing_next_round }
+      ? { ...p, minutes: simMins.get(p.id),
+          chance_of_playing_next_round: simChiefs.has(p.id) ? 0
+            : p.chance_of_playing_next_round }
       : p),
     teamById: tById2, imminent: J("imminent.json"),
     fixtures: J("fixtures.json").fixtures ?? J("fixtures.json"),
@@ -1917,7 +2125,12 @@ console.log(`\n${"─".repeat(72)}\nGOLF A MINUTUR PER xGI\n${"─".repeat(72)}`
   const deputies = pl2.filter(p => p.element_type === 1)
     .map(p => ({ p, a: e2(p).fields, b: e2b(p).fields }))
     .filter(r => r.b._gk_chief_out === 1);
-  ok(deputies.length > 10, `forsenda: ${deputies.length} varamarkmenn kvikna í hermdu ástandinu`);
+  /* Golfid er LEITT ur gognunum: hver klubbur med fleiri en einn markmann
+     leggur til sina varamenn, svo talan getur ekki stadnad vid tolu sem
+     var maeld einn dag. Hun fellur um leid og hermingin hermir ekkert. */
+  const expDeputies = Object.values(gkByTeam2).reduce((n, l) => n + Math.max(0, l.length - 1), 0);
+  ok(expDeputies > 10 && deputies.length === expDeputies,
+    `forsenda: ${deputies.length} af ${expDeputies} varamarkmönnum kvikna í hermdu ástandinu`);
   const movedByCtx = deputies.filter(r => r.a._start_p !== r.b._start_p
                                        && num(r.p.chance_of_playing_next_round) !== 0);
   ok(movedByCtx.length === 0,

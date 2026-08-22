@@ -39,6 +39,16 @@ const scriptFiles = readdirSync(ROOT + "scripts").filter(f => /\.mjs$/.test(f));
 const allScripts = scriptFiles.map(f => readFileSync(ROOT + "scripts/" + f, "utf8")).join("\n");
 const srcFiles = readdirSync(ROOT + "src").filter(f => /\.(jsx|js)$/.test(f));
 const appCode = srcFiles.map(f => readFileSync(ROOT + "src/" + f, "utf8")).join("\n");
+/* ATHUGASEMDA-SIA A EININGARSVIDI (21.8.2026). Hun var TIL en aðeins inni i
+   odds_raw-kaflanum (`appNoCmt`, linu ~670), svo hinir textaverdirnir i
+   thessari skra lasu HRAAN uppruna — og athugasemdirnar i thessu repo-i eru
+   langar og nefna einmitt tha lykla sem verdirnir leita ad. Tveir verdir
+   voru DAUDIR af theim sokum, sannad med stokkbreytingu (sja nedar).
+   ATH: STRENGIR eru VILJANDI ekki fjarlaegdir — `r.headers.get("x-rate...")`
+   er raunveruleg notkun og verdur ad halda afram ad hitta.               */
+const stripCmt = s => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+const appNoC = stripCmt(appCode);
+const fetchNoC = stripCmt(fetchSrc);
 /* Prof eru LOGMAETUR lesandi — bakprof lesa sogugogn sem appid snertir ekki. */
 const testFiles = readdirSync(ROOT + "tests").filter(f => /\.mjs$/.test(f));
 const testCode = testFiles.map(f => readFileSync(ROOT + "tests/" + f, "utf8")).join("\n");
@@ -271,8 +281,17 @@ console.log("─".repeat(84));
   ok(naked.length === 0,
     `hvert fetch-kall hefur timamork${naked.length ? ": " + naked.join(", ") : ""}`);
   /* Og kvota-vordurinn a API-Sports ma ekki horfa */
-  ok(/API_MIN_REMAINING/.test(fetchSrc) && /x-ratelimit-requests-remaining/.test(fetchSrc),
-    "API-Sports les kvota-hausinn OG hefur throskuld (reikningur var uppsagdur 2.8.)");
+  /* VAR DAUDUR (fundid 21.8.2026): baðir helmingar voru lesnir ur HRAUM
+     `fetchSrc`, og athugasemdin vid throskuldinn (fetch.mjs:2838) nefnir
+     `x-ratelimit-requests-remaining` ORDRETT. Stokkbreyting: haus-lesturinn
+     (fetch.mjs:2854) gerdur ad `const rem = null` — vordurinn helst GRAENN
+     medan kvota-vornin er blind og `apiRemaining` verdur aldrei annad en
+     null. Nu er athugasemdum sviptad OG throskuldurinn verdur ad vera
+     NOTADUR i samanburdi, ekki adeins skilgreindur.                     */
+  ok(/x-ratelimit-requests-remaining/.test(fetchNoC),
+    "API-Sports LES kvota-hausinn (ekki adeins nefndur i athugasemd)");
+  ok(/apiRemaining\s*<=\s*API_MIN_REMAINING/.test(fetchNoC),
+    "og throskuldurinn er NOTADUR i samanburdi (reikningur var uppsagdur 2.8.)");
   ok(/haveFx|reused/.test(fetchSrc),
     "byrjunarlid eru GEYMD per leik — glugginn er 5 klst og keyrslan a 30 min fresti");
 }
@@ -290,8 +309,18 @@ ok(/confirmed/.test(appCode), "stadfest byrjunarlid berst a spjaldid (`confirmed
 
 ok(/["'`]status_fast\.json["'`]/.test(appCode),
   "appið les status_fast.json — hrada keyrslan var ANNARS OSYNILEG");
-ok(/api_lineups/.test(appCode),
-  "api_lineups hefur merki i heimildalistanum (annars synist hun ekki thott hun se lesin)");
+/* VAR DAUDUR (fundid 21.8.2026) OG ThAD ER NAKVAEMLEGA BILUNIN SEM KAFLI 7
+   VARAR VID: "Baetir thu vid heimild: skradu hana thar, annars er hun
+   osynileg thegar hun brotnar." Verdurinn las HRAAN `appCode`, og TVAER
+   athugasemdir (App.jsx:586 og :3953) nefna `api_lineups` berum orðum —
+   thaer voru skrifadar EINMITT vegna thess ad thetta brast einu sinni adur.
+   Stokkbreyting: raunverulega SHOW-linan (App.jsx:3965,
+   `api_lineups: "Confirmed lineups",`) EYDD — vordurinn helst graenn og
+   heimildin er osynileg i hlidarstikunni. Nu er athugasemdum sviptad OG
+   krafist merkimidans sjalfs (`api_lineups:` + gaesalappa), sem er thad
+   sem SHOW-blokkin ber en athugasemdirnar ekki.                        */
+ok(/api_lineups:\s*["'`]/.test(appNoC),
+  "api_lineups hefur MERKI i heimildalistanum (SHOW), ekki adeins athugasemd");
 
 /* Fallid VERDUR ad vera kallad ur HRADA keyrslunni og hun VERDUR ad hafa lykilinn */
 const fastFn = fetchSrc.slice(fetchSrc.indexOf("async function fetchFast("));

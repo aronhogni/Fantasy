@@ -15,6 +15,7 @@ import {
   BLANK_NEED, DEFAULT_HORIZON, HARD_TIER_MIN, TIER_NEED,
   candidatePool, coversNeed, findRotationPartners, gwCell, horizonGws, needOf,
 } from "../src/rotation.js";
+import { indexImminentByTeam, matchImminent } from "../src/stats.js";
 
 let pass = 0, fail = 0;
 const ok = (c, n) => { c ? (pass++, console.log(`  ✓ ${n}`)) : (fail++, console.log(`  ✗ ${n}`)); };
@@ -118,8 +119,29 @@ ok(R.hard.length === 2 && R.hard.map(h => h.gw).join(",") === "2,4",
 ok(R.results[0]?.p.id === 200,
   "SPEGILMYNDIN (200) vinnur — sá sem er léttur einmitt þar sem minn er þungur");
 const g300 = R.results.find(r => r.p.id === 300);
-ok(!g300 || R.results[0].gain > g300.gain,
-  "sá sem er BETRI Í HEILD (300) vinnur EKKI — heildarröðun er önnur spurning");
+/* ÞETTA VAR DAUÐ FULLYRÐING OG HÚN BAR YFIRSKRIFT KAFLANS (fundið 21.8.2026):
+     ok(!g300 || R.results[0].gain > g300.gain,
+        "sá sem er BETRI Í HEILD (300) vinnur EKKI")
+   Fjórum línum neðar stendur `ok(!g300, "300 er ALVEG ÚTI")` — sem er
+   SATT og fullyrt. Þá er `!g300` alltaf `true` og fyrri greinin
+   skammhleypur: `R.results[0].gain > g300.gain` er ALDREI metin.
+   Fullyrðingin sem CLAUDE.md kallar PRÓFSTEINN safnsins mældi því
+   ekkert — 300 er ekki í röðinni til að tapa.
+
+   OG SAMANBURÐURINN ER TIL, hann var bara á röngum manni: P400 er
+   flatur grænn (2,00 allar sex) og því BETRI Í HEILD en spegilmyndin
+   P200 (samtals FFDR 12,0 á móti 16,8 — lægra er léttara). Hann ER í
+   röðinni og hann TAPAR (+5,79 á móti +6,61). Það er nákvæmlega
+   prófsteinninn: þekjan á ERFIÐU umferðunum ræður, ekki heildarléttleiki.
+   Forsendan er REIKNUÐ úr `FFDR`, ekki fullyrt í texta, svo hún fylgir
+   töflunni ef henni er breytt.                                        */
+const tot = id => [1,2,3,4,5,6].reduce((s, gw) => s + FFDR[id][gw], 0);
+const g400 = R.results.find(r => r.p.id === 400);
+ok(tot(40) < tot(20),
+  `FORSENDA: P400 er BETRI Í HEILD en spegilmyndin (${tot(40).toFixed(1)} á móti ${tot(20).toFixed(1)})`);
+ok(g400 && R.results[0].p.id === 200 && R.results[0].gain > g400.gain,
+  `sá sem er BETRI Í HEILD (400) vinnur EKKI — heildarröðun er önnur spurning `
+  + `(200: ${R.results[0].gain.toFixed(2)} > 400: ${g400?.gain.toFixed(2)})`);
 ok(R.results.find(r => r.p.id === 200)?.cover === 100,
   "spegilmyndin þekur 100% af þyngdinni");
 ok(!g300,
@@ -421,6 +443,29 @@ console.log("─".repeat(84));
 
    NULL-REGLAN SJALF STENDUR — hun er rett fyrir menn sem eiga ENGIN gogn
    (nyir i deildinni). Thad sem var rangt var ad bua til fals-null.
+
+   ENDURSKRIFAD 21.8.2026 — KAFLINN VARDI RANGA STAERD OG FELL A RETTU APPI.
+   Fyrri utgafa fullyrti ad `imminent.json` beri lid DAGSINS a hverri rod.
+   Su fullyrding er OHALDANLEG med byggingu: `imminent.json` er skrifud af
+   DAGLEGU keyrslunni (05 UTC) medan `players.json` er endurnyjud a 30 MIN
+   FRESTI, svo hver felagaskipti sem landa milli keyrslna gera lidid urelt i
+   ALLT AD 24 KLST. Hun fell 21.8. a `Konsa: AVL != ARS` — og appid var
+   ThA raunverulega bilad, en EKKI af theirri astaedu sem fullyrdingin nefndi:
+   lesleid appsins flettist enn upp med NAFNA-SKORUN SKORDADRI VID LID, svo
+   urelt lid gaf fals-null. Lausnin sem CLAUDE.md kafli 3 skjalar (`code`,
+   timabils-fast id) var i pipeline-unni og i spa-bokhaldinu en ALDREI i
+   appinu.
+
+   NU ER `code` JOIN-LYKILLINN (`src/stats.js`, `IMM_BY_CODE`), og thess
+   vegna er RETTA fullyrdingin ekki "gagnaskrain er fersk" heldur "hver
+   madur i deildinni i dag ER FINNANLEGUR" — ohað thvi hvada lid rodin
+   skradi. Ferskleiki er thad sem vid raðum ekki vid; finnanleiki er thad
+   sem ver notandann.
+
+   OG DECIDERANDI TILFELLID ER TILBUID, EKKI LIFANDI: i dag er Konsa til og
+   ber urelt lid, en vid naestu dagskeyrslu (05 UTC) hverfur hann og tha vaeri
+   lifandi-gagna fullyrding ORDIN ThOGUL an ad neitt segdi fra (kafli 5b).
+   Kafli 8b keyrir thvi urelt lid TILBUID, thar sem svarid er thekkt.
    ================================================================ */
 console.log(`\n${"─".repeat(72)}\n8. SUMARGLUGGINN — lid i imminent.json verdur ad vera lid DAGSINS\n${"─".repeat(72)}`);
 {
@@ -437,15 +482,28 @@ console.log(`\n${"─".repeat(72)}\n8. SUMARGLUGGINN — lid i imminent.json ver
     ok(immByCode.size > 300,
        `imminent.json ber \`code\` a ${immByCode.size} rodum (an hans er engin orugg uppfletting)`);
 
-    const wrong = [];
+    /* FINNANLEIKI, EKKI FERSKLEIKI. Hver madur i deildinni i dag sem A rod
+       i glugganum verdur ad finnast gegnum SOMU utfaersluna sem appid notar.
+       Urelt lid a rodinni ma EKKI fella hann — thad er einmitt tilfellid
+       sem golfid var ovirkt i.                                            */
+    const idx = indexImminentByTeam(imm);
+    const miss = [], stale = [];
     for (const p of players) {
       const r = immByCode.get(p.code);
       if (!r) continue;                       // ekki i glugganum — annad mal
       const cur = shortById[p.team];
-      if (cur && r.team !== cur) wrong.push(`${p.web_name}: ${r.team} != ${cur}`);
+      if (cur && r.team !== cur) stale.push(`${p.web_name}: ${r.team} -> ${cur}`);
+      if (matchImminent(p, idx, cur) == null) miss.push(`${p.web_name} (${cur})`);
     }
-    ok(wrong.length === 0,
-       `hver rod ber lid DAGSINS${wrong.length ? ` — ${wrong.length} rangar: ` + wrong.slice(0, 5).join(", ") : ""}`);
+    ok(miss.length === 0,
+       `hver madur i deildinni i dag er FINNANLEGUR i glugganum`
+       + `${miss.length ? ` — ${miss.length} tyndir: ` + miss.slice(0, 5).join(", ")
+                        : ` (${players.length} skodadir)`}`);
+    /* Urelt lid er TALID en fellir ekki — thad er astand gagnanna, ekki
+       bilun i appinu. Talan er samt birt: fari hun ur ~1 i tugi er eitthvad
+       annad ad (t.d. daglega keyrslan stoppud i marga daga).              */
+    console.log(`     (${stale.length} rod med urelt lid i dag: `
+      + `${stale.slice(0, 3).join(", ") || "engin"})`);
 
     /* Og hid raunverulega tilfelli: varamadur med 0 minutur i glugganum
        verdur ad fa MAELDA byrjunar-liku undir golfinu — ekki null.      */
@@ -459,10 +517,81 @@ console.log(`\n${"─".repeat(72)}\n8. SUMARGLUGGINN — lid i imminent.json ver
       && r.start_feats && r.start_feats.mins5 === 0 && r.start_feats.starts5 === 0);
     ok(zero.length > 0,
        `menn i deildinni i dag med 0 minutur i glugganum: ${zero.length} (their eiga ad MAELAST lagir, ekki hverfa)`);
-    const found = zero.filter(r => shortById[curByCode.get(r.code).team] === r.team);
+    /* SAMA UTFAERSLA OG APPID — ekki lids-samanburdur (21.8.2026). Gamla
+       formid (`shortById[...] === r.team`) profadi FERSKLEIKA gagnanna, sem
+       er thad sem vid raðum ekki vid; thetta profar ad hann FINNIST, sem er
+       thad sem heldur honum fyrir golfid.                                 */
+    const found = zero.filter(r => matchImminent(curByCode.get(r.code), idx,
+                                                 shortById[curByCode.get(r.code).team]) != null);
     ok(found.length === zero.length,
-       `hver theirra er finnanlegur undir sinu lidi i dag — annars sleppur hann gegnum golfid (${found.length}/${zero.length})`);
+       `hver theirra finnst gegnum matchImminent — annars sleppur hann gegnum golfid (${found.length}/${zero.length})`);
   }
+}
+
+/* ================================================================
+   8b. ThAD SAMA A TILBUNUM GOGNUM — SVO KAFLINN GETI EKKI ThAGNAD
+
+   Kafli 8 mælir a lifandi `data/`, og thar er urelt lid TILVILJUN: i dag er
+   Konsa til, en vid naestu dagskeyrslu (05 UTC) er skrain fersk og tha vaeri
+   decideranda tilfellid HORFID an ad neitt segdi fra — graen suita sem
+   maelir ekki lengur thad sem hun heitir eftir (CLAUDE.md 5b).
+   Her er lidid urelt MED BYGGINGU, svo svarid er thekkt fyrirfram.
+   ================================================================ */
+console.log(`\n${"─".repeat(72)}\n8b. URELT LID I GLUGGANUM — TILBUID TILFELLI\n${"─".repeat(72)}`);
+{
+  /* Madurinn er hja ARS i dag; glugginn skradi hann hja AVL (felagaskipti
+     eftir sidustu dagskeyrslu). `code` er hid sama a badum stodum.        */
+  const p = { id: 7, code: 4242, team: 1, web_name: "Konsa",
+              first_name: "Ezri", second_name: "Konsa" };
+  const imm = { archive: false, players: [
+    { code: 4242, name: "Ezri Konsa", team: "AVL",
+      start_feats: { mins5: 0, starts5: 0 }, window: { xg: 0.1 } },
+    /* Truflari: annar madur MED SAMA NAFNI hja lidinu sem hann er hja i
+       dag. Nafna-skorunin ein myndi finna ThENNAN og skila rongum
+       `start_feats` — thogul mispörun, sem er verri en engin.            */
+    { code: 9999, name: "Ezri Konsa", team: "ARS",
+      start_feats: { mins5: 450, starts5: 5 }, window: { xg: 9.9 } },
+  ] };
+  const idx = indexImminentByTeam(imm);
+
+  const hit = matchImminent(p, idx, "ARS");
+  ok(hit != null, "madur med urelt lid i glugganum FINNST samt");
+  ok(hit?.code === 4242,
+     `og thad er HANS rod, ekki nafnans hja nyja lidinu (code ${hit?.code})`);
+  ok(hit?.start_feats?.mins5 === 0,
+     `svo `+"`start_feats`"+` eru HANS: mins5 ${hit?.start_feats?.mins5} (0 = varamadur)`);
+
+  /* FORSENDA sem gerir prófid marktaekt: nafna-leidin EIN hefdi svarad —
+     og svarad RANGT. An thessarar linu vaeri ekki vitad hvort code-leidin
+     bætti nokkru vid (kafli 5b: neikvaed fullyrding tharf sannad jákvætt).  */
+  const nameOnly = matchImminent({ ...p, code: null }, idx, "ARS");
+  ok(nameOnly?.code === 9999,
+     `forsenda: an `+"`code`"+` velur nafna-skorunin nafnann hja ARS (${nameOnly?.code}) — thad var villan`);
+
+  /* Og radir AN `code` mega ekki hverfa: varaleidin verdur ad standa.    */
+  const noCode = { archive: false, players: [
+    { name: "Bukayo Saka", team: "ARS", start_feats: { mins5: 400, starts5: 5 } }] };
+  const old = matchImminent({ id: 3, code: 111, team: 1, web_name: "Saka",
+                              first_name: "Bukayo", second_name: "Saka" },
+                            indexImminentByTeam(noCode), "ARS");
+  ok(old?.start_feats?.mins5 === 400,
+     "rod an `code` finnst afram gegnum nafna-skorunina (varaleidin lifir)");
+
+  /* TVITEKID `code` — FYRSTI VINNUR. Skra med tveimur rodum a sama `code`
+     er gagnavilla og tha er ekkert "rett" svar til; en "sidasti vinnur"
+     FELUR hana bak vid rod sem lítur gild ut, eins og lids-vorpunin i BSD
+     (CLAUDE.md kafli 6: thogul rong porun er verri en engin). Regluna var
+     ekki neitt ad verja fyrr en nu — stokkbreyting i "sidasti vinnur"
+     slapp i gegn.                                                        */
+  const dup = { archive: false, players: [
+    { code: 555, name: "Alex Murphy", team: "NEW", start_feats: { mins5: 10, starts5: 0 } },
+    { code: 555, name: "Jacob Murphy", team: "NEW", start_feats: { mins5: 400, starts5: 5 } },
+  ] };
+  const first = matchImminent({ id: 9, code: 555, team: 4, web_name: "Murphy",
+                                first_name: "Alex", second_name: "Murphy" },
+                              indexImminentByTeam(dup), "NEW");
+  ok(first?.start_feats?.mins5 === 10,
+     `tvitekid \`code\`: FYRSTA rodin vinnur (mins5 ${first?.start_feats?.mins5}, ekki 400)`);
 }
 
 console.log(`\nRÓTERINGS-PAR: ${pass} stóðust, ${fail} féllu`);

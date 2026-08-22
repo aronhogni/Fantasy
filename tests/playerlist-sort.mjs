@@ -281,5 +281,201 @@ ok("VANTAR situr alltaf NEDST og rodin er einhalla", problems.length === 0,
      lower.filter(d => (d.note || "").length <= 10).map(d => d.key).join(","));
 }
 
+/* ============================================================
+   ThETTAR RADIR (`≡ compact`) — GREININ SEM ENGINN HAFDI SED
+
+   AF HVERJU HER: thetta safn er thad eina sem SKRUNAR syndarvædda
+   listann, og thad HARDKODADI `* 34` i linunni her fyrir ofan — sem er
+   nakvaemlega fastinn sem `dense` skiptir ut (34 -> 26).
+
+   MAELT 21.8.2026: strengurinn `dense` — og lykillinn `fpl_dense` —
+   kemur fyrir i **ENGRI** skra undir `tests/`. Samt les
+   `PlayerList.jsx:1131` `const rowH = dense ? ROW_H_DENSE : ROW_H` og
+   thad gildi drifur syndarvæðinguna beint:
+       first = floor(scrollTop / rowH) - OVERSCAN
+       last  = ceil((scrollTop + viewH) / rowH) + OVERSCAN
+   Se `rowH` i utreikningnum ur takt vid haedina sem radirnar eru
+   TEIKNADAR i, skrunar notandinn a stad thar sem engar radir eru — eda
+   sér radir sem hann skrunadi framhja. Og valid er VISTAD (`fpl_dense`),
+   svo hann lendir i ohreinsada astandinu vid HVERJA heimsokn.
+
+   Sama aett og `narrow` (CLAUDE.md kafli 8: "fast false i ollum
+   profum"), nema hér var thad `false` af thvi ad enginn smellti.
+
+   STOKKBREYTINGARNAR, OG EIN THEIRRA LIFDI — ThAD VAR UPPLYSING:
+     · `top: headH + idx * ROW_H` (utlitid ur takt vid reikninginn) FELLUR
+       — millibilid og skrun-stadurinn.
+     · `last = ceil((scrollTop+viewH) / ROW_H)` FELLUR HART: **455 af 599**
+       rodum urdu aldrei teiknadar. Thad er villan sem raunverulega bitur.
+     · `first = floor(scrollTop / ROW_H)` LIFDI — og hun a ad lifa:
+       laegri `first` teiknar radir OFAN vid gluggann, svo hun kostar DOM
+       en tapar ENGRI rod. Fullyrding sem felldi hana vaeri ad verja
+       afkost i dulargervi rettleika.
+     · `!narrow && (photo...)` (myndir i thettum rodum) FELLUR.
+     · Vistunin: badar hlidar (ritun OG lestur vid nyja hledslu).
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nThETTAR RADIR — `
+  + `syndarvæðingin, myndirnar og vistunin\n${"─".repeat(72)}`);
+{
+  const scroller = [...document.querySelectorAll("div")]
+    .find(d => (d.style.overflowY || d.style.overflow || "").includes("auto"));
+  ok("skrun-kassinn finnst", !!scroller);
+  /* Radirnar liggja absolute a `top = headH + idx*rowH` inni i kassa sem
+     er `sorted.length*rowH + headH` har. Baedi eru lesin AF SKJANUM.   */
+  /* Skannad AFRAM UR SKRUN-KASSANUM, ekki ur `document` — `bodyRows()`
+     gengur hvert einasta div i appinu og thetta er kallad i lykkju.    */
+  const rowsWithTop = () => [...(scroller || document).querySelectorAll("div")]
+    .filter(d => d.style.position === "absolute" && d.style.top && d.style.height)
+    .map(d => ({ el: d, top: parseFloat(d.style.top), h: parseFloat(d.style.height) }))
+    .filter(r => Number.isFinite(r.top) && Number.isFinite(r.h))
+    .sort((a, b) => a.top - b.top);
+  const spacer = () => [...document.querySelectorAll("div")]
+    .map(d => ({ d, h: parseFloat(d.style.height) }))
+    .filter(x => Number.isFinite(x.h) && x.h > 1000 && x.d.style.position === "relative")
+    .sort((a, b) => b.h - a.h)[0] || null;
+  const nameOf = r => (r.el.children[0]?.textContent || "").trim();
+
+
+  const scrollTo = async y => {
+    scroller.scrollTop = y;
+    await act(async () => { scroller.dispatchEvent(new dom.window.Event("scroll")); });
+    await settle();
+  };
+  await scrollTo(0);
+
+  /* ---- 1. GRUNNASTANDID: 34 px ---- */
+  const before = rowsWithTop();
+  ok(`forsenda: radir teiknast og eru allar jafn haar (${before.length} radir)`,
+    before.length > 10 && new Set(before.map(r => r.h)).size === 1,
+    [...new Set(before.map(r => r.h))].join(","));
+  const H0 = before[0].h;
+  ok(`grunnhaedin er 34 px (fekk ${H0})`, H0 === 34);
+  /* MILLIBILID VERDUR AD VERA HAEDIN — annars skarast radir eda gliðna. */
+  const gaps0 = before.slice(1).map((r, i) => r.top - before[i].top);
+  ok(`millibil radanna = haedin i ollum ${gaps0.length} skrefum`,
+    gaps0.every(g => g === H0), [...new Set(gaps0)].join(","));
+  const sp0 = spacer();
+  ok("innri kassinn ber HEILDARHAEDINA", !!sp0);
+  /* Fjoldinn er lesinn af skjanum ("N of M"), ekki gefinn.             */
+  const shownTxt = (document.body.textContent || "").match(/(\d+) of (\d+)/);
+  const nRows = shownTxt ? +shownTxt[1] : null;
+  ok(`radafjoldinn stendur a skjanum (${nRows} af ${shownTxt?.[2]})`, nRows > 100);
+  /* Haus-haedin er LEIDD (`sp0.h - nRows*H0`), ekki hardkodud — hun er
+     `BAND_H + LABEL_H` og ma breytast. Fullyrdingin er ad hun se HEILL
+     haus og hvorki 0 ne rodahaed: annars vaeri "heildarhaedin fylgir"
+     nedar tautologia (baedi hlidar leiddar ur somu tolu).              */
+  const headH = sp0.h - nRows * H0;
+  ok(`heildarhaedin = ${nRows} x ${H0} + haus, og hausinn er raunverulegur `
+    + `(${headH} px)`, Number.isInteger(headH) && headH > H0 && headH < 200);
+  /* MYNDIN ER 20x25 px (`S.img`) — liðsmerkin eru 11 px og MEGA EKKI
+     teljast med (sama gildra sem felldi fyrstu utgafu simaprofsins:
+     thad taldi allar <img> og felldi RETTA hegdun).                    */
+  const photoImgs = () => [...document.querySelectorAll("img")]
+    .filter(i => i.style.height === "25px").length;
+  const crestImgs = () => [...document.querySelectorAll("img")]
+    .filter(i => i.style.height === "11px" || i.getAttribute("width") === "11").length;
+  const photos0 = photoImgs(), crests0 = crestImgs();
+
+  /* ---- 2. SMELLURINN — HEFUR HANN AHRIF? ---- */
+  const tgl = [...document.querySelectorAll("button")]
+    .find(b => b.textContent.trim() === "≡ compact");
+  ok("`≡ compact` er til", !!tgl);
+  ok("...og hann er AF i upphafi", tgl.getAttribute("aria-pressed") === "false");
+  await fire(tgl);
+  ok("aria-pressed kviknar", tgl.getAttribute("aria-pressed") === "true");
+  const after = rowsWithTop();
+  const H1 = after[0].h;
+  ok(`radahaedin fer 34 -> 26 (fekk ${H1})`, H1 === 26);
+  const gaps1 = after.slice(1).map((r, i) => r.top - after[i].top);
+  ok(`...OG millibilid fylgir med i ollum ${gaps1.length} skrefum`,
+    gaps1.every(g => g === H1), [...new Set(gaps1)].join(","));
+  ok(`heildarhaedin fylgir lika (${spacer().h} = ${nRows} x ${H1} + ${headH})`,
+    spacer().h === nRows * H1 + headH);
+  /* Tilgangurinn sjalfur: FLEIRI radir a skja. Textinn a hnappnum lofar
+     "um 20 i stad 12", svo talan verdur ad HAEKKA — ekki bara breytast. */
+  ok(`fleiri radir i syndarglugganum (${before.length} -> ${after.length})`,
+    after.length > before.length);
+  /* Myndirnar eru faldar VILJANDI (thaer thurfa haedina) — thad er
+     fullyrt her thvi annars vaeri "haedin minnkadi" satt um utlit sem
+     klippir andlitin.                                                  */
+  const photos1 = photoImgs(), crests1 = crestImgs();
+  ok(`andlitsmyndirnar hverfa (${photos0} -> ${photos1})`,
+    photos0 > 0 && photos1 === 0, `fyrir=${photos0} eftir=${photos1}`);
+  /* ...EN LIDSMERKIN EKKI. Tvo olik atrid, og fyrsta utgafa simaprofsins
+     felldi rett hegdun einmitt hér (CLAUDE.md kafli 8).                */
+  ok(`...en lidsmerkin eru afram (${crests0} -> ${crests1})`,
+    crests1 > 0 && crests1 >= after.length - 4,
+    `merki=${crests1} radir=${after.length}`);
+
+  /* ---- 3. SYNDARVAEDINGIN OG HAEDIN MEGA EKKI REKA I SUNDUR ----
+     Vid skrunum a stad sem er HEIL rod nidur i listanum og krefjumst
+     thess ad rodin sem A ad liggja thar se raunverulega i DOM-inu.
+     Se `rowH` i utreikningnum annad en teiknada haedin er thessi rod
+     utan gluggans og finnst ekki.                                     */
+  let hit = 0, miss = [];
+  for (const idx of [40, 120, 260, nRows - 1]) {
+    await scrollTo(headH + idx * H1);
+    const want = headH + idx * H1;
+    const there = rowsWithTop().some(r => r.top === want);
+    if (there) hit++; else miss.push(idx);
+  }
+  ok(`rodin sem liggur a skrun-stadnum er i DOM-inu i ${hit} af 4 stodum`,
+    miss.length === 0, `vantar vid idx ${miss.join(",")}`);
+
+  /* ---- 4. FULLKOMNUN: ENGIN ROD MA VERA OSYNILEG ----
+     Gengid i skrefum sem eru MINNI en glugginn, svo skorun se trygg, og
+     hvert nafn talid. Fari `rowH` ur takt hoppar glugginn yfir radir og
+     talan lendir undir `nRows`.                                       */
+  {
+    const seen = new Set();
+    /* SKREFID ER FAST OG LEITT UR HAEDINNI (8 radir), EKKI UR
+       `after.length`. Fyrsta utgafan las glugga-staerdina ur DOM-inu og
+       thad gerdi PROFID SJALFT ostodugt: stokkbreyting sem stækkar
+       gluggann gaf risa-skref, og stokkbreyting sem minnkar hann gaf
+       thusundir itrana. Fast skref + hart thak gerir keyrslutimann
+       fyrirsjaanlegan og bilunina snogga.                              */
+    const step = H1 * 16;
+    const total = nRows * H1 + headH;
+    const CAP = 200;
+    let steps = 0;
+    for (let y = 0; y <= total && steps < CAP; y += step, steps++) {
+      await scrollTo(y);
+      for (const r of rowsWithTop()) seen.add(nameOf(r));
+    }
+    ok(`skonnunin komst yfir allan listann i ${steps} skrefum (thak ${CAP})`,
+      steps < CAP);
+    ok(`hver einasta rod var teiknud einhvern tima (${seen.size} af ${nRows})`,
+      seen.size === nRows, `vantadi ${nRows - seen.size}`);
+  }
+
+  /* ---- 5. VISTUNIN — `fpl_dense` er hringferd ---- */
+  ok(`valid er vistad (fpl_dense = "${localStorage.getItem("fpl_dense")}")`,
+    localStorage.getItem("fpl_dense") === "1");
+  await fire(tgl);
+  ok("...og slokknar aftur baedi a skjanum og i geymslu",
+    tgl.getAttribute("aria-pressed") === "false"
+    && localStorage.getItem("fpl_dense") === "0"
+    && rowsWithTop()[0].h === 34);
+  /* NY HLEDSLA les geymsluna — annars vaeri "vistad" adeins ritun.     */
+  localStorage.setItem("fpl_dense", "1");
+  const host2 = document.createElement("div");
+  document.body.appendChild(host2);
+  const root2 = createRoot(host2);
+  await act(async () => { root2.render(React.createElement(App)); });
+  await act(async () => { await new Promise(r => setTimeout(r, 400)); });
+  await act(async () => {
+    [...host2.querySelectorAll("button")].find(b => b.textContent.includes("Player stats"))
+      ?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await settle(150);
+  const t2 = [...host2.querySelectorAll("button")]
+    .find(b => b.textContent.trim() === "≡ compact");
+  ok("ny hledsla kemur upp ThETT thegar fpl_dense = 1",
+    t2?.getAttribute("aria-pressed") === "true");
+  await act(async () => { root2.unmount(); });
+  host2.remove();
+  localStorage.removeItem("fpl_dense");
+}
+
 console.log(`\nRODUNAR-PROF: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

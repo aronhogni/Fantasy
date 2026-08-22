@@ -28,7 +28,7 @@ import {
   SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrFor,
   marketForRow, eloFor, corr,
 } from "./lib/e0.mjs";
-import { makeFixDifficulty, lookupPos, POS_MEAN_PTS, cleanSheetProb } from "../src/model.js";
+import { makeFixDifficulty, lookupPos, POS_MEAN_PTS, cleanSheetProb, expPointsFor } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 let pass = 0, fail = 0;
@@ -370,9 +370,15 @@ for (const [pos, code] of Object.entries(POSN)) {
    vaent stig verda negatif. Maelum thad og MAE i leidinni.            */
 console.log(`\n  RAUNHAEFNI HARRA alpha (sama grunnur):`);
 console.log(`  staða  α    hlutf. NEGATÍFRA spáa   MAE`);
+/* TOLURNAR VORU ADEINS PRENTADAR. Thaer eru ROKSTUDNINGURINN fyrir "α helst
+   1" (sja nidurstoduna her a eftir) og engin fullyrding las thaer — svo hefdi
+   MAE snuist vid hefdi safnid prentad thad og verid graent. Nu eru thaer
+   geymdar og fullyrt um thaer.                                            */
+const raun = {};
 for (const [pos, code] of Object.entries(POSN)) {
   const g = rows.filter(r => r.code === code);
   if (g.length < 500) continue;
+  raun[pos] = {};
   for (const a of [1, 2, alphaRes[pos].a]) {
     const pred = g.map(r => {
       const mult = lookupPos(code, "pts", r.ffdr) / (POS_MEAN_PTS[code] || 3.4);
@@ -380,6 +386,7 @@ for (const [pos, code] of Object.entries(POSN)) {
     });
     const neg = 100 * pred.filter(v => v < 0).length / pred.length;
     const mae = mean(pred.map((v, i) => Math.abs(v - g[i].pts)));
+    raun[pos][a] = { neg, mae };
     console.log(`  ${pos.padEnd(5)}  ${String(a).padEnd(4)} ${neg.toFixed(1).padStart(8)}%` +
       `              ${mae.toFixed(3)}${a === alphaRes[pos].a ? "   <- besta fylgni" : ""}`);
   }
@@ -409,11 +416,85 @@ console.log(`  er samt STRUKTUR-breyting sem gildir a hvadа grunn sem er.`);
    því að "síðustu 5" þýddi síðustu 5 LEIKIR, svo bekkjaðir leikmenn
    litu í formi. Niðurstaðan er ÓBREYTT (α helst 1) en nú af sterkari
    ástæðu: hámarkið er ekki lengur yfir 1 að marki.                    */
-const alphaHigh = Object.entries(alphaRes).filter(([, v]) => v.a > 1.5);
+const ALPHA_HIGH_CUT = 1.5;
+const alphaHigh = Object.entries(alphaRes).filter(([, v]) => v.a > ALPHA_HIGH_CUT);
 console.log(`\n  α-hámörk yfir 1,5: ${alphaHigh.length ? alphaHigh.map(([p, v]) => p + ":" + v.a).join(" ") : "ENGIN"}`);
-ok(alphaHigh.length === 0 || alphaHigh.every(([p]) => ["GK", "DEF"].includes(p)),
-  "há α-hámörk (ef nokkur) eru aðeins hjá GK/DEF, þar sem MAE versnar og spár verða negatífar");
-ok(true, "α HELDUR 1 — röðun og birt stærð eru tvö ólík störf (sjá rankScore)");
+/* ============================================================
+   THRJAR FULLYRDINGAR I STAD EINNAR SEM GAT EKKI FALLID (21.8.2026)
+
+   HER STOD:
+     ok(alphaHigh.length === 0 || alphaHigh.every(([p]) => [...].includes(p)), ...)
+   `[].every()` er SATT AD BYGGINGU, svo vinstri lidurinn (`length === 0`) er
+   DAUDUR — hann getur ekki bjargad neinu sem haegri lidurinn hefdi fellt.
+   Fullyrdingin las thvi sterkari en hun var (sama aett og `||` bindur fastar
+   en `?:` i CLAUDE.md 13), og i dag er `alphaHigh` TOMT (best α er 1/1/1/0,5),
+   svo hun sagdi EKKERT um thad sem hun heitir eftir. Talan sem segir hvort
+   hun hafi haft nokkud ad maela var adeins PRENTUD ("ENGIN").
+
+   THAD SEM HUN A AD VERJA — og ver nu, i thrennu:
+     (a) ThEKJA: fjorar stodur voru raunverulega maeldar. `if (g.length < 500)
+         continue` getur ThAGGAD stodu nidur i thogn, og tha vaeri hvert
+         alpha-svar um hana rett af thvi ad thad var aldrei spurt.
+     (b) MEKANISMINN: MAE verdur VERRA vid α=2 i OLLUM stodum. Thetta er
+         astaedan fyrir ad α helst 1 (fylgni er kvarda-ohad, MAE er ekki), og
+         hun var adeins prentud.
+     (c) SJALFT SKILYRDID, an dauda lidarins og med TOLUNA i heitinu svo
+         "0 hamork" lesist i keyrslunni og geti ekki thagnad.
+   ============================================================ */
+ok(Object.keys(alphaRes).length === Object.keys(POSN).length,
+  `THEKJA: alpha var maelt fyrir allar ${Object.keys(POSN).length} stodur`
+  + ` (${Object.keys(alphaRes).join("/")}) — engin thoggud i sundur`);
+for (const pos of Object.keys(alphaRes)) {
+  const r1 = raun[pos]?.[1], r2 = raun[pos]?.[2];
+  ok(!!r1 && !!r2 && r2.mae > r1.mae,
+    `${pos}: MAE VERSNAR vid α=2 (${r2?.mae.toFixed(3)} > ${r1?.mae.toFixed(3)})`
+    + ` — mekanisminn sem gerir α=1 rett`);
+}
+ok(alphaHigh.every(([p]) => ["GK", "DEF"].includes(p)),
+  `ha α-hamork yfir ${ALPHA_HIGH_CUT}: ${alphaHigh.length}`
+  + ` (${alphaHigh.map(([p, v]) => p + ":" + v.a).join(" ") || "engin"})`
+  + " — og ef nokkur eru, tha adeins hja GK/DEF thar sem MAE versnar mest");
+/* ============================================================
+   α = 1 ER FULLYRDING UM APPID, OG HUN VAR BOKSTAFLEGT `true` (lagad 21.8.2026)
+
+   Her stod `ok(true, "α HELDUR 1 ...")`. Thad er EKKI svefn-merki eins og
+   thau sem repo-id notar visvitandi (their bera `null`/`why` eda segjast
+   sofa) — thad er fullyrding i LIFANDI kafla sem GETUR ekki fallid, svo
+   nidurstadan "α helst 1" var prentud sem thekja an ad vera maeld. Ef einhver
+   setur alpha-utthenslu inn i `expPointsFor` a morgun hefdi thessi lina
+   verid graen og haldid afram ad segja ad alpha se 1.
+
+   NU ER TALAN LESIN UT UR APPINU. Formid sem var maelt her fyrir ofan er
+     pred = base * (1 + alpha * (mult - 1))
+   og `expPointsFor` skrifar `base * mult` fyrir EINN leik, sem er nakvaemlega
+   alpha = 1. Fullyrdingin er thvi TOLULEG jafngilding vid appid sjalft, ekki
+   texta-leit — og hun greinir alpha i sundur: sama tilfelli er borid vid
+   alpha = 2 og verdur ad vera FRABRUGDID.
+
+   FORSENDAN ER SONNUD FYRST (CLAUDE.md 5b): margfaldarinn verdur ad vera
+   FJARRI 1, annars er alpha OSYNILEGT — vid mult = 1 gefa OLL alpha somu
+   tolu og fullyrdingin vaeri tom. Maelt: DEF fer ur 1,3455 (thref 0) i
+   0,6303 (thref 5), svo badir endar eru profadir.                        */
+{
+  const pos = 2, base = 5;                       // DEF, ep_next = 5,0
+  const p = { element_type: pos, ep_next: "5.0", points_per_game: "5.0", status: "a" };
+  const mean = POS_MEAN_PTS[pos];
+  const fx = [{ kickoff: "2026-08-21T17:30:00Z" }];
+  const nowTs = Date.parse("2026-08-01T00:00:00Z");
+  for (const [heiti, d] of [["lettasta threp", 0], ["thyngsta threp", 5]]) {
+    const mult = lookupPos(pos, "pts", d) / mean;
+    ok(Math.abs(mult - 1) > 0.1,
+      `forsenda (${heiti}): margfaldarinn er fjarri 1 (${mult.toFixed(4)}) svo α SEST i tolunni`);
+    const got = expPointsFor({ p, fxs: fx, fixDifficulty: () => d, teamId: 1, nowTs });
+    ok(Math.abs(got - base * mult) < 1e-9,
+      `α HELDUR 1 (${heiti}): expPointsFor = base x margfaldari (${got.toFixed(4)} = ${(base * mult).toFixed(4)})`);
+    const a2 = base * (1 + 2 * (mult - 1));
+    ok(Math.abs(got - a2) > 1e-6,
+      `...og talan GREINIR α i sundur: α=2 gaefi ${a2.toFixed(4)}, ekki ${got.toFixed(4)}`);
+  }
+}
+/* Rokstudningurinn fyrir thvi ad hun EIGI ad vera 1 er athugasemdin her fyrir
+   ofan (rodun og birt staerd eru tvo olik storf, sja `rankScore`).         */
 
 /* ---------- NYLIDA-GRUNNURINN: VORDUR GEGN BLINDU FORGILDI ----------
    Maelt 2.8.2026 a 4 nylida-argongum (sja CLAUDE.md kafla 3e). Skekkjan er

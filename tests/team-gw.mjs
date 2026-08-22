@@ -69,16 +69,76 @@ globalThis.SVGElement = dom.window.SVGElement;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 globalThis.localStorage = dom.window.localStorage;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+/* ============================================================
+   BIDIN ER MAELD, EKKI GISKUD (21.8.2026)
+
+   Kafli 1 féll med `(0)` thegar timabilid byrjadi og thad var
+   MAELITAEKID, ekki appid: `boxes().length` var lesid eftir FASTAN
+   `setTimeout`, og fastur svefn er agiskun um hvad appid ThARF. Appid
+   sækir nu 36 skrar i tveim boðum — `live/gw1.json` (409 KB) kviknar
+   fyrst EFTIR ad `setGw` er kallad, sem gerist eftir ad valfrjalsa
+   bodid er lent — svo verkid a eftir fyrsta `act` vard staerra en
+   thad var i forleik. Sannreynt: 15 keyrslur i rod gafu 0 kassa og
+   nakvaemlega somu keyrslur gafu 38 sidar med OBREYTTUM `data/`
+   (mtime ohreyfd), svo talan var kapphlaup — ekki eiginleiki appsins.
+
+   OG ThAD SEM VAR VERRA EN FALLID: med 0 kassa kastadi kafli 2
+   `TypeError` a `boxes()[0].style`, svo safnid DO og their 90+
+   fullyrdingar sem eftir voru voru aldrei lesnar. Hrun er ekki fall
+   (CLAUDE.md 5b).
+
+   ThRJAR REGLUR HER:
+     1. `settle()` bidur thangad til ENGIN sokn er i loftinu OG engin ny
+        hefur byrjad i tveimur mælingum i rod. Prófid stjornar `fetch`
+        sjalft, svo thetta er MAELING a thvi sem svefninn var ad giska a.
+     2. `waitFor()` hefur ThAK og ThROTID SJALFT ER FULLYRDING (`ok`),
+        aldrei logga — svo "beid lengur" getur ekki orðid "maelir
+        ekkert" (CLAUDE.md 5b, thekja er fullyrding).
+     3. BIDIN MA EKKI VERA SAMA SPURNING SEM FULLYRDINGIN. Vid bidum a
+        `<h2>Teams</h2>` — flipinn er UPPI — og fullyrdum svo um
+        KASSANA. Bidum vid a kossunum sjalfum vaeri kafli 1 tautologia.
+   ============================================================ */
+let inFlight = 0, started = 0;
 /* Sertaeki mock-inn A UNDAN theim almenna (CLAUDE.md kafla 5). */
 globalThis.fetch = async url => {
   const s = String(url);
+  inFlight++; started++;
+  const done = v => { inFlight--; return v; };
   if (s.includes("fixtures.json"))
-    return { ok: true, status: 200, json: async () => FIX };
+    return done({ ok: true, status: 200, json: async () => FIX });
   const n = s.split("/data/")[1];
-  if (!n) return { ok: false, status: 404, json: async () => ({}) };
-  try { return { ok: true, status: 200, json: async () => J(n) }; }
-  catch { return { ok: false, status: 404, json: async () => { throw new Error("404"); } }; }
+  if (!n) return done({ ok: false, status: 404, json: async () => ({}) });
+  try { const d = J(n); return done({ ok: true, status: 200, json: async () => d }); }
+  catch { return done({ ok: false, status: 404, json: async () => { throw new Error("404"); } }); }
 };
+
+const tick = (ms = 10) => act(async () => { await new Promise(r => setTimeout(r, ms)); });
+/* SETTLE: engin sokn i loftinu OG engin ny i tveimur mælingum i rod.
+   Bædi skilyrdin tharf: `inFlight === 0` eitt er satt i bilinu MILLI
+   bodanna, og thad bil er einmitt thad sem fasti svefninn hitti a.   */
+const SETTLE_CAP = 8000;
+async function settle(label) {
+  const t0 = Date.now(); let quiet = 0, last = started;
+  while (Date.now() - t0 < SETTLE_CAP) {
+    await tick();
+    if (inFlight === 0 && started === last) { if (++quiet >= 2) break; }
+    else quiet = 0;
+    last = started;
+  }
+  const ms = Date.now() - t0;
+  ok(`${label}: gagna-sokn kyrr eftir ${ms} ms (${started} soknir, ${inFlight} i loftinu)`,
+     ms < SETTLE_CAP && inFlight === 0);
+  return ms;
+}
+/* WAITFOR: ThAKID ER FULLYRDING. Falli hun er thad appid — og textinn
+   segir hvad var beðið um, svo fallid se lesanlegt an thess ad grafa. */
+async function waitFor(label, pred, cap = 8000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < cap && !pred()) await tick();
+  const got = pred();
+  ok(`${label} (${Date.now() - t0} ms)`, got);
+  return got;
+}
 
 console.log(`\n${"=".repeat(84)}`);
 console.log("TEAMS — UMFERDAR-VALARINN");
@@ -87,12 +147,21 @@ console.log("=".repeat(84));
 const { default: App } = await import("../src/App.jsx");
 const root = createRoot(document.getElementById("root"));
 await act(async () => { root.render(React.createElement(App)); });
-await act(async () => { await new Promise(r => setTimeout(r, 250)); });
+await settle("hleðsla");
 
 const tab = [...document.querySelectorAll("button")].find(b => b.textContent.includes("Teams"));
 ok("Teams-flipinn finnst", !!tab);
+if (!tab) { console.log(`\nTEAMS-UMFERDIR: ${pass} stóðust, ${fail} féllu`); process.exit(1); }
 await act(async () => { tab.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
-await act(async () => { await new Promise(r => setTimeout(r, 150)); });
+/* FLIPINN ER UPPI — MERKID ER `<h2>Teams</h2>`, EKKI KASSARNIR.
+   `Teams.jsx` teiknar hausinn hvad sem gognunum lidur (og segir "Team
+   data has not loaded." se hann tomur), svo thetta greinir "flipinn
+   opnadist ekki" fra "kassarnir eru ekki thar" — tvaer olikar bilanir
+   sem toluna 0 gat ekki sagt i sundur.                              */
+const teamsMounted = () => [...document.querySelectorAll("h2")]
+  .some(h => h.textContent.trim() === "Teams");
+await waitFor("Teams-flipinn er uppi (h2 = \"Teams\")", teamsMounted);
+await settle("Teams-flipinn");
 
 const boxes = () => [...document.querySelectorAll("[aria-label='Select gameweeks'] button")];
 
@@ -101,6 +170,17 @@ ok(`allir 38 kassarnir teiknadir strax (${boxes().length})`, boxes().length === 
 ok("their bera tolurnar 1..38",
    boxes().map(b => b.textContent.trim()).join(",") ===
    Array.from({ length: 38 }, (_, i) => i + 1).join(","));
+/* OG SE VALARINN TOMUR: SEGDU HVERS VEGNA, EKKI KASTA. Fyrri utgafan
+   for i `TypeError` a `boxes()[0]` og tok 90+ fullyrdingar med sér. */
+if (!boxes().length) {
+  const bt = document.body.textContent;
+  console.log("  [diag] Teams uppi:", teamsMounted(),
+    "| \"Team data has not loaded.\":", bt.includes("Team data has not loaded."),
+    "| \"not available for this table\":", bt.includes("not available for this table"),
+    "| soknir:", started, "| i loftinu:", inFlight);
+  console.log(`\nTEAMS-UMFERDIR: ${pass} stóðust, ${fail} féllu`);
+  process.exit(1);
+}
 
 console.log("\n2) KASSARNIR HAFA STILA — thetta er villan sem notandinn sa");
 {

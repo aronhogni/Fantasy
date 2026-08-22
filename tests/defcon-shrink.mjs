@@ -400,7 +400,14 @@ console.log("─".repeat(84));
   ok(!!m && +m[2] === 2, `og hun telur lidin sem toldust (2) — ${m?.[2]}`);
   ok(!!m && +m[1] === 1,
     `og ADEINS 1 theirra fékk raunverulega tolu (lid 2 hefur engan markmann yfir 400 min) — ${m?.[1]}`);
-  ok(!/updated/.test(String(written)), "engin skrif thydir enginn nyr timastimpill");
+  /* VAR TAUTOLOGIA (fundid 21.8.2026): `String(written)` er "null" thegar
+     ekkert var skrifad og "[object Object]" thegar SKRIFAD VAR — hvorugt
+     getur nokkru sinni innihaldid "updated", svo fullyrdingin var sonn
+     an tillits til hegdunar. Sannad med stokkbreytingu: skrifa-faersla
+     med `updated:"2026-08-21T00:00:00Z"` for gegn ohaggud.
+     `JSON.stringify` ser innihaldid; `String` ser gerd hlutarins.      */
+  ok(!/updated/.test(JSON.stringify(written)),
+     "engin skrif thydir enginn nyr timastimpill");
 }
 
 /* ============================================================

@@ -1883,18 +1883,72 @@ export function stampStartWindow(imminent, feats) {
   return { ...feats, from_archive_window: true };
 }
 
+/* ============================================================
+   `code` ER JOIN-LYKILLINN, LID ER ThAD EKKI (21.8.2026)
+
+   CLAUDE.md kafli 3 lysir thessari villu sem LEYSTRI: Meslier var bodinn
+   sem roterings-par hja Arsenal thott hann vaeri varamarkmadur, thvi
+   `imminent.json` bar lid SIDASTA timabils, uppflettingin (nafn INNAN lids)
+   misheppnadist, `P` vard fals-null og null-reglan hleypti honum i gegn.
+   Lausnin sem skjalid lysir — `element` -> `code`, timabils-fast id — var
+   sett i PIPELINE-una og i spa-bokhaldid. **HUN VAR ALDREI SETT I LES-LEID
+   APPSINS**, sem hélt afram ad flettast upp med nafna-skorun SKORDADRI VID
+   LID. Villan sem er skjolud sem leyst var thvi lifandi.
+
+   OG HUN KVIKNADI: 21.8.2026 mældist `Konsa: AVL != ARS`. Orsokin er
+   CADENCE-OSAMHVERFA sem er BYGGINGARLEG, ekki oheppni: `imminent.json` er
+   skrifud af DAGLEGU keyrslunni (05 UTC) medan `players.json` er endurnyjud
+   a 30 MIN FRESTI. Hver felagaskipti sem landa milli keyrslna gera lidid i
+   `imminent.json` urelt i ALLT AD 24 KLST — og a hverri theirri klukkustund
+   fellur uppflettingin fyrir thann mann og hann sleppur gegnum golfid.
+
+   `code` er FAST YFIR TIMABIL og einkvaemt per leikmann, svo joinid getur
+   ekki brotnad vid felagaskipti. Nafna-skorunin er varaleid fyrir radir sem
+   bera ekkert `code` (eldri arkiv-radir) — og hun er OBREYTT, svo ekkert
+   sem virkadi hættir ad virka.
+   ATH: rodin sem `code` finnur getur bordid GAMALT `team`-svid. Thad er
+   RETT og skadlaust: enginn lesandi les `.team` af rodinni (adeins
+   `start_feats` og `window`); lidid a skjanum kemur ur `players.json`.
+   Vordur: `tests/rotation.mjs` kafli 8 og `tests/name-match.mjs`.
+
+   VISIRINN ER SETTUR A SYMBOL, EKKI A STRENGJALYKIL: hlutnum er flett upp
+   med `by[teamShort]` og `Object.values(...)` a fimm stodum (thar med i
+   `stats.test.mjs`), svo strengjalykill — hversu ohaettur sem hann virdist —
+   vaeri ny rod i theim ollum. **ThAD ER SYMBOL-EDLID SEM VER ThETTA, EKKI
+   `enumerable: false`** — og su greinarmun var ROSTUD i fyrstu utgafu
+   athugasemdarinnar: `Object.keys`, `Object.values` og `for...in` sleppa
+   ollum Symbol-lyklum, enumerable eda ekki, svo stokkbreyting a thvi flaggi
+   breytir engu maelanlegu (profad: 0 fullyrdingar falla). `enumerable: false`
+   er samt rett, thvi `{ ...by }` og `Object.assign` AFRITA enumerable
+   Symbol-lykla — visir sem fylgir afriti thegjandi er visir sem getur ordid
+   urelt afrit af sjalfum ser.
+   ============================================================ */
+export const IMM_BY_CODE = Symbol("imminentByCode");
+
 export function indexImminentByTeam(imminent) {
   const by = {};
+  const byCode = new Map();
   for (const ip of rowsOf(imminent?.players)) {
     const sf = stampStartWindow(imminent, ip?.start_feats);
     const row = (sf === ip?.start_feats) ? ip : { ...ip, start_feats: sf };
     (by[row.team] ||= []).push(row);
+    /* FYRSTI VINNUR, EKKI SIDASTI: tvitekid `code` i sömu skra vaeri
+       gagnavilla og tha er engin rett svar til — en "sidasti vinnur" faeli
+       hana, eins og lids-vorpunin i BSD (kafli 6).                        */
+    if (row?.code != null && !byCode.has(row.code)) byCode.set(row.code, row);
   }
+  Object.defineProperty(by, IMM_BY_CODE, { value: byCode, enumerable: false });
   return by;
 }
 
 /* p: FPL-leikmadur · idx: ur indexImminentByTeam · teamShort: "ARS" o.s.frv. */
 export function matchImminent(p, idx, teamShort) {
+  /* CODE FYRST — sja blokkina her ofan. */
+  const byCode = idx && idx[IMM_BY_CODE];
+  if (byCode && p?.code != null) {
+    const hit = byCode.get(p.code);
+    if (hit) return hit;
+  }
   const cands = (idx && idx[teamShort]) || [];
   let best = null, bs = 0, second = 0;
   for (const c of cands) {
