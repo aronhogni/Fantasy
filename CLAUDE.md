@@ -762,6 +762,23 @@ skiptir: **er þetta (a) staðnað forsenda, (b) raunveruleg villa sem nýja
    nullstillast. `seasonBaselineDecision` er hreint, útflutt fall;
    `fetch-entry.mjs` kafli 5 prófar það á tilbúnum inntökum (8 tilvik,
    3 stökkbreytingar felldar) OG fullyrðir um raunskrána.
+   > **SANNREYNT GEGN ÞVÍ INNTAKI SEM 05:00-KEYRSLAN FÆR, EKKI AÐEINS Á
+   > TILBÚNUM GÖGNUM** (22.8.2026 kl. 01:30 UTC). Lifandi
+   > `bootstrap-static` svarar **600 röðum, max starts 1, minutes 90,
+   > total_points 11** — nullstillingin er raunveruleg. Gamla gatið
+   > (`!events.some(ev => ev.finished)`) mælist **`true`**, svo það
+   > **HEFÐI SKRIFAÐ** kl. 05:00 og klobbrað origin. Nýja ákvörðunin skilar
+   > `write: false`; og með klukkuna fjarlægða stöðvar afturfarar-vörnin það
+   > **sjálfstætt** („max starts 38 against 1"). Bæði netin taka það, og
+   > hvorugt er óþarft.
+   > **OG FYRSTA ÞURR-KEYRSLAN MÍN VAR MÆLD MEÐ RÖNGU INNTAKI:** hún las
+   > committaða `data/players.json`, sem er sjálf frá **05:28 í gær — FYRIR**
+   > nullstillinguna (hún er skrifuð af DAGLEGU keyrslunni, ekki þeirri
+   > hröðu), og gaf því „candidate max starts 38". Það las eins og mælingin
+   > hér að ofan væri ósönn, og ég var nærri því að „leiðrétta" rétt skjal.
+   > Sami lærdómur og allt annað þessa nótt: **athugaðu hvort mælitækið sé
+   > að mæla það sem þú heldur** — og hér var gildran að tvær skrár í sama
+   > `data/` bera SITTHVORN aldur.
 2. **`matchImminent` flettist upp með NAFNA-SKORUN SKORÐAÐRI VIÐ LIÐ.**
    Sjá kafla 3: sú villa er skjöluð sem LEYST, og `code`-lausnin var sett í
    pipeline-una og í spá-bókhaldið — **en aldrei í les-leið appsins.** Mælt
