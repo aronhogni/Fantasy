@@ -324,6 +324,68 @@ export const STAT_DEFS = [
     band:"Price and ownership", dec:1, hi:true, signed:true, money:true,
     note:"Price change inside the current gameweek.",
     get:p=>{ const c=num(p.cost_change_event); return c==null?null:c/10; } },
+  /* ============================================================
+     FRAMVINDA AD VERDBREYTINGU — OPINBER TALA FRA FPL (22.8.2026)
+
+     Beidni notandans: "hversu nalaegt leikmenn eru ad haekka i verdi".
+     Appid atti fyrir NALGUN (`priceMovePrediction` i model.js): netto-
+     flutningar a moti throskuldi sem skalast med eignarhaldi, og hun
+     skilar adeins "up"/"down"/null. CLAUDE.md rokstuddi hana med thvi ad
+     "FPL birtir ekki verdbreytingaformuluna" — og thad er ENN satt um
+     FORMULUNA en EKKI LENGUR um FRAMVINDUNA: `bootstrap-static` ber nu
+     `price_change_percent` per leikmann (asamt `hourly_rate`,
+     `projections`, `locked_until` og `calibrating`).
+
+     TALAN ER FPL-s EIGIN OG ER EKKI UMBREYTT HER. Vid margfoldum hana
+     ekki og skolum hana ekki — hun er birt eins og hun kemur.
+
+     FORMERKID VAR OSTADFEST I FYRSTU UTGAFU OG ER NU MAELT (22.8.2026
+     kl. 19:30 UTC, thegar svidin voknudu). **JAKVAETT ER LEID UPP A VID:**
+     177 menn med jakvaeda prosentu hafa medal-netto **+2.570** flutninga,
+     263 med negatifa hafa **-1.664**. Efst: Calafiori **+34,2** (netto
+     +58.432), Tzolis +23,5, Odegaard +22. Nedst: Gyokeres **-29,3**
+     (netto -41.385). Svidid maelist **-36,5 .. +34,2** og ENGINN utan
+     [-100, 100], sem er samhljoda thvi ad 100 se throskuldurinn.
+
+     FORMERKIN ERU SAMSTIGA I 73,3% (437 af 596) OG ThAD ER RETT TALA, EKKI
+     LAK MERKI: throskuldurinn skalast med eignarhaldi og prosentan safnast
+     UPP yfir tima medan `transfers_in_event` er ThESSI umferd ein.
+     Martinelli er daemid — **-36,5** med netto adeins **-1.344**, thvi lag
+     eignarhlutdeild thydir ad fair flutningar faera hann langt. Ad "laga"
+     thetta med okkar eigin skolun vaeri ad setja NALGUN ofan a OPINBERA
+     tolu; hun er birt eins og hun er.
+
+     DALKURINN ER TOMUR I DAG OG ThAD ER RETT. MAELT 22.8.2026 kl. 01:35 a
+     lifandi svari, ollum 600: `price_change_percent` 0 hja ollum, og
+     `cost_change_start !== 0` hja **0 af 600** — FPL frystir verd fram
+     yfir fyrstu umferd. Pipeline-an SLEPPIR thvi svidunum medan svo er
+     (`priceChangeSignal` i fetch.mjs), svo getterinn faer `undefined` og
+     skilar `null` -> "—". Vaeru thau skrifud sem 0 fengi hver einasti
+     leikmadur "0%", sem er tilbuin maeling a `hi:true` dalki: allir jafnir
+     a toppnum (kafli 8, NULL ER EKKI NULL).
+
+     AF HVERJU EKKI LATA NALGUNINA FYLLA I GATID: tvaer tolur undir sama
+     dalka-heiti eru tveir kvardar (sama rok og "mórad `meanDifficulty`
+     i tvo aukastafi"). Nalgunin lifir afram thar sem hun a heima — sem
+     "↑ i nott?" merkid — og er MERKT sem agiskun. Thessi dalkur ber
+     opinberu toluna eda ekkert.
+     ============================================================ */
+  { key:"price_change_percent", label:"Progress to price change", short:"→ price",
+    group:"core", band:"Price and ownership", dec:0, hi:true, signed:true, pct:true,
+    note:"FPL's own progress figure towards this player's next price change, shown "
+       + "exactly as the API reports it — not rescaled. Positive means heading up: "
+       + "measured, players on a positive figure are averaging +2,570 net transfers "
+       + "against -1,664 for those on a negative one, and the whole league sits "
+       + "inside -37 to +35, so 100 is where a change lands. It will not agree with "
+       + "this gameweek's net transfers every time (73% do) and that is the column "
+       + "working, not failing: the threshold scales with ownership and the figure "
+       + "accumulates over days, so a lightly owned player moves a long way on a "
+       + "small net. Empty rather than zero when FPL has not started moving prices.",
+    get:p=>{ const v = num(p.price_change_percent);
+             /* `calibrating` er FPL ad segja sjalft ad talan se ekki
+                marktaek — tha er hun ekki birt. Ad birta hana med
+                fyrirvara vaeri ad lata notandann bera fyrirvarann.     */
+             return p?.price_change_calibrating === true ? null : v; } },
   { key:"net_transfers_event", label:"Net transfers (GW)", short:"Net trans", group:"core",
     band:"Price and ownership", dec:0, hi:true, signed:true, derived:true,
     note:"Transfers in minus transfers out in the current gameweek — what drives the price change. Live only: the archive carries neither side, so a historical season is empty rather than zero.",

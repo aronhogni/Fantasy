@@ -909,6 +909,12 @@ async function fetchFPL() {
   catch (e) { record("preseason", false, 0, e.message); }
 
   // players.json — valið svið (ekki hrátt 2MB)
+  /* OPINBERU VERDBREYTINGA-SVIDIN: adeins thegar thau bera merki. Sja
+     `priceChangeSignal` — 0 hja ollum er astand, ekki maeling.          */
+  const pcSig = priceChangeSignal(els);
+  const pcOf = e => pcSig.live
+    ? Object.fromEntries(PRICE_CHANGE_FIELDS.map(k => [k, e[k]]))
+    : null;
   const pick = els.map(e => ({
     id:e.id, web_name:e.web_name, first_name:e.first_name, second_name:e.second_name,
     team:e.team, element_type:e.element_type, code:e.code,
@@ -982,8 +988,12 @@ async function fetchFPL() {
       preseason_minutes:    preseason[e.code].minutes,
       preseason_last_start: preseason[e.code].last_start,
     } : {}),
+    ...(pcOf(e) || {}),
   }));
   await writeJSON("players.json", { updated: status.updated, players: pick });
+  /* SYNILEG STADA: an hennar vaeri thognin i verd-dalkinum othyrjanleg —
+     madur saei "—" og vissi ekki hvort sokn brast eda verd eru frosin.  */
+  record("price_change", true, pcSig.live ? els.length : 0, pcSig.why);
 
   /* ============================================================
      events.json (umferðir) — OG FJOLDA-SVIDIN ERU GEYMD SEM ARKIV (16.8.2026)
@@ -2108,6 +2118,67 @@ async function fetchElo() {
    `curl -s https://clubelo.com/ | gzip`). Prófid saekir EKKERT — net i
    profasafninu er thad sem tok `euro-congestion.mjs` ut (kafli 5).
    ============================================================ */
+/* ============================================================
+   OPINBERU VERDBREYTINGA-SVIDIN (22.8.2026, ad beidni notandans)
+
+   CLAUDE.md sagdi: "FPL birtir ekki verdbreytingaformuluna" og appid bar
+   thvi NALGUN (`priceMovePrediction`, kvadratrotar-skolun a eignarhaldi).
+   **ThAD ER EKKI LENGUR SATT UM FRAMVINDUNA.** `bootstrap-static` ber nu
+   fimm opinber svid per leikmann:
+     price_change_percent      — hve langt i naestu breytingu
+     price_change_hourly_rate  — hradinn
+     price_change_projections  — [{offset, projected_percent, likelihood}]
+     price_change_locked_until — laest thangad til
+     price_change_calibrating  — FPL segir sjalft ad talan se ekki marktaek
+   Formulan er enn oopinberud; FRAMVINDAN er thad ekki. Thetta er OPINBER
+   tala og slaer nalgun okkar ut um leid og hun ber merki.
+
+   EN HUN BER ENGIN MERKI I DAG, OG ThAD MA EKKI RATA A SKJAINN.
+   MAELT 22.8.2026 kl. 01:35 UTC a lifandi svari, ollum 600 leikmonnum:
+   `price_change_percent` **0 hja OLLUM** (p10=p50=p90=max=0), hourly_rate
+   0 hja ollum, ENGIN projection med likelihood > 0, `calibrating` false og
+   `locked_until` null hja ollum. Astaedan er ekki daudur endapunktur heldur
+   ad **VERD HAFA EKKI BYRJAD AD HREYFAST**: `cost_change_start !== 0` er
+   satt hja **0 af 600** — FPL frystir verd fram yfir fyrstu umferd. A sama
+   tima eru flutningarnir sjalfir SPRELLLIFANDI (Calafiori +26.570 netto,
+   Pedro Porro -44.567), svo thogn i verdsvidunum er raunverulegt astand,
+   ekki bilud sokn.
+
+   ThESS VEGNA ER SVIDUNUM SLEPPT UR `players.json` ThANGAD TIL ThAU BERA
+   MERKI — nakvaemlega BSD-reglan (kafli 6: "ekkert daudt svid ma rata i
+   skrana"). Vaeru thau skrifud sem 0 fengi HVER EINASTI leikmadur "0%
+   framvinda", sem er TILBUIN MAELING: dalkurinn er `hi:true` svo allir
+   yrdu jafnir a toppnum, og "0% a leidinni upp" les eins og maeling en
+   thydir "engin gogn enn" (kafli 8: NULL ER EKKI NULL). Vantandi svid
+   gefur `null` i gegnum getterinn og "—" a skjanum, sem er RETTA birtingin.
+
+   HLIDID OPNAST SJALFT: um leid og einn leikmadur hreyfist i verdi, eda
+   eitt svid ber tolu, fara thau i skrana. Engin handvirk adgerd.
+   ============================================================ */
+export const PRICE_CHANGE_FIELDS = ["price_change_percent", "price_change_hourly_rate",
+  "price_change_locked_until", "price_change_calibrating"];
+
+export function priceChangeSignal(els) {
+  const rows = Array.isArray(els) ? els : [];
+  /* `x !== 0` A HRARRI `Number(...)` ER GILDRA: `Number(undefined)` er NaN
+     og `NaN !== 0` er SATT, svo VANTANDI svid taldist sem hreyfing og
+     hlidid opnadist a rod sem bar ekkert. Fundid af profinu i fyrstu
+     keyrslu. Krafan er TALA SEM ER TIL og er ekki null.                 */
+  const hot = (v) => { const n = Number.parseFloat(v); return Number.isFinite(n) && n !== 0; };
+  const moved = rows.filter(e => hot(e?.cost_change_start) || hot(e?.cost_change_event)).length;
+  const pct = rows.filter(e => hot(e?.price_change_percent)).length;
+  const rate = rows.filter(e => hot(e?.price_change_hourly_rate)).length;
+  /* EITT MERKI DUGAR. Verdhreyfing sem er thegar ordin sannar ad velin se i
+     gangi; tala i sjalfu framvindu-svidinu sannar thad lika. Ad krefjast
+     BEGGJA myndi halda svidunum uti thann dag sem thau vakna.           */
+  const live = moved > 0 || pct > 0 || rate > 0;
+  return { live, moved, pct, rate,
+    why: live ? `${moved} priced moved, ${pct} with a percent, ${rate} with a rate`
+              : `all ${rows.length} are zero on every price-change field AND no `
+                + `player has moved price yet - FPL freezes prices past GW1, so the `
+                + `fields are OMITTED rather than written as a fabricated 0` };
+}
+
 /* ============================================================
    TIMABILS-GRUNNURINN — GATID VAR A RONGU KLUKKU (21.8.2026)
 

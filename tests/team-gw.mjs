@@ -269,8 +269,15 @@ console.log("\n4) BILID BREYTIR TOLUNNI — og blindur dalkur ber MERKID");
      `undefined !== undefined` og kaflinn maeldi tomt mengi (CLAUDE.md 5b). */
   const FOLLOW = ["Goals", "xG", "BigC/m", "G−xG"];
   const BLIND = ["Shots", "SoT", "In box", "Close", "Conv."];
-  ok(`soknar-flokkurinn er a skjanum (${headCells().length - 1} dalkar)`,
-    headCells().length - 1 === 9, `${headCells().length - 1}`);
+  /* TALAN ER LEIDD, EKKI SLEGIN INN (22.8.2026). Hun stod hardkodud i `9`
+     — i sama kafla og ber athugasemdina "TALDA SETNINGIN ER LEIDD UT, engin
+     handskrifud upptalning sem stadnar" nokkrum linum nedar. Hun fell um
+     leid og soknar-flokkurinn fekk samtolu-dalkana (9 -> 12). Krafan sem
+     skiptir mali er ad SKJARINN og SKRAIN seu sammala, ekki hver talan er. */
+  const { TEAM_STAT_DEFS: TSD } = await import("../src/teamstats.js");
+  const ATTACK_N = TSD.filter(d => d.group === "attack").length;
+  ok(`soknar-flokkurinn er a skjanum (${headCells().length - 1} af ${ATTACK_N} dalkum)`,
+    headCells().length - 1 === ATTACK_N, `${headCells().length - 1} != ${ATTACK_N}`);
   ok("hver dalkur sem profadur er finnst i hausnum",
     [...FOLLOW, ...BLIND].every(s => colOf(s) >= 0),
     [...FOLLOW, ...BLIND].filter(s => colOf(s) < 0).join(","));
@@ -382,7 +389,7 @@ console.log("\n4) BILID BREYTIR TOLUNNI — og blindur dalkur ber MERKID");
 
   /* TALDA SETNINGIN ER LEIDD UT — engin handskrifud upptalning sem stadnar. */
   ok("stikan telur hve margir dalkar fylgja bilinu",
-    new RegExp(`${9 - BLIND.length} of 9 columns in this group follow the range`)
+    new RegExp(`${ATTACK_N - BLIND.length} of ${ATTACK_N} columns in this group follow the range`)
       .test(document.body.textContent || ""),
     (document.body.textContent || "").match(/\d+ of \d+ columns[^—]*/)?.[0] || "ENGIN");
   ok("gamla HANDSKRIFADA upptalningin er farin",
@@ -674,7 +681,15 @@ console.log("\n7) TIMABILS-MISVISIRINN — tolur horfnar OG skyringin a skjanum"
 
   /* ---- 7a. I TAKT: tolur a skjanum og ENGINN varnadur ---- */
   const inStep = await render({ ...base, bsdTeams: J("bsd_teams.json"), shotIndex: full });
-  ok(`${LOCKED.length} dalkar bera \`season_locked\` (forsenda)`, LOCKED.length === 7);
+  /* SAMA GILDRA, SAMI KAFLI: hardkodad 7. Krafan er ad mengid se NAKVAEMLEGA
+     BSD-dalkarnir — thad er eiginleikinn sem `season_locked` a ad bera —
+     en ekki hve margir their eru i dag.                                   */
+  const BSD_COLS = TEAM_STAT_DEFS.filter(d => d.src === "BSD");
+  ok(`${LOCKED.length} dalkar bera \`season_locked\` og thad eru nakvaemlega `
+     + `BSD-dalkarnir (${BSD_COLS.length}) (forsenda)`,
+     LOCKED.length > 0
+     && LOCKED.map(d => d.key).sort().join(",") === BSD_COLS.map(d => d.key).sort().join(","),
+     `locked=${LOCKED.map(d => d.key).sort().join(",")} bsd=${BSD_COLS.map(d => d.key).sort().join(",")}`);
   ok("varnar-flokkurinn valinn", await pickGroup(inStep.host, "Defence"));
   const okNums = numsIn(inStep.host);
   ok(`i takt: taflan ber tolur (${okNums} holf med tolu)`, okNums >= 40, `${okNums}`);

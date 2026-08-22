@@ -47,6 +47,20 @@ const teams = J("teams.json"), teamForm = J("team_form.json"),
       luck = J("luck.json"), teamShots = J("team_shots.json");
 const rows = buildTeamRows({ teams, teamForm, luck, teamShots });
 
+/* SKOT-VISIRINN BYGGDUR EINS OG App.jsx BYGGIR HANN, EIN UTFAERSLA.
+   Hann stod ORDRETT TVISVAR i thessari skra og kafli 14 tharf hann lika —
+   thrju afrit af sama visi eru thrir visar sem geta rekid i sundur
+   (CLAUDE.md kafli 12: `ZONE_RE` stod ordrett i tveimur skriftum og BAEDI
+   afritin vontudu markteiginn).                                          */
+function buildShotIndexLikeApp(sf) {
+  if (!sf?.legend?.fields || !Array.isArray(sf.shots)) return null;
+  const F = Object.fromEntries(sf.legend.fields.map((f, i) => [f, i]));
+  const byTeam = new Map(), byOpp = new Map();
+  const put = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+  for (const x of sf.shots) { put(byTeam, x[F.team], x); put(byOpp, x[F.opp], x); }
+  return { byTeam, byOpp, teams: sf.legend.teams, fields: F, calib: sf.calib };
+}
+
 /* ---------- 1. SKEMA ---------- */
 console.log(`\n${"─".repeat(84)}`);
 console.log("1. SKEMA — dalkar, flokkar, skyringar");
@@ -77,10 +91,18 @@ console.log("─".repeat(84));
   const LOWER_BETTER = ["shots_against_pg", "sot_against_pg", "box_against_pg",
     "close_against_pg", "sot_share_against", "conceded_pg", "xgc_pg",
     "conceded_minus_xgc", "fouls_pg", "yellows_pg",
-    "bc_against_pg", "xg_per_shot_against"];
+    "bc_against_pg", "xg_per_shot_against",
+    /* SAMTOLURNAR ERFA ATTINA FRA PER-LEIK SYSTKINUM SINUM — mark a sig er
+       mark a sig hvort sem thad er talid per leik eda lagt saman.        */
+    "conceded", "xgc"];
   const HIGHER_BETTER = ["long_against_pg", "long_share", "cs_pct", "goals_pg",
     "xg_pg", "shots_pg", "sot_pg", "box_pg", "close_pg", "conversion",
-    "goals_minus_xg", "corners_pg", "bc_pg"];
+    "goals_minus_xg", "corners_pg", "bc_pg",
+    "goals", "xg",
+    /* NEFNARARNIR: "haerra er betra" er ekki gaeda-domur um lidid heldur um
+       FPL-gildid — fleiri leikir i bilinu eru fleiri taekifaeri til stiga
+       (tvofold umferd). Notan segir thad, svo liturinn logi ekki.       */
+    "played", "bsd_matches"];
   const bad = [];
   for (const k of LOWER_BETTER) if (TEAM_STAT_BY_KEY[k]?.hi !== false) bad.push(`${k} aetti ad vera hi:false`);
   for (const k of HIGHER_BETTER) if (TEAM_STAT_BY_KEY[k]?.hi !== true) bad.push(`${k} aetti ad vera hi:true`);
@@ -472,10 +494,7 @@ console.log("─".repeat(84));
 
   /* Visarnir eru byggdir EINS og App.jsx byggir tha — annars vaeri profid
      ad maela annan hlut en skjarinn.                                      */
-  const byTeam = new Map(), byOpp = new Map();
-  const put = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
-  for (const s of sf.shots) { put(byTeam, s[F.team], s); put(byOpp, s[F.opp], s); }
-  const shotIndex = { byTeam, byOpp, teams: sf.legend.teams, fields: F, calib: sf.calib };
+  const shotIndex = buildShotIndexLikeApp(sf);
 
   const base = buildTeamRows({ teams, teamForm, luck, teamShots, bsdTeams });
   const use = teamRangeUse({ base, shotIndex, fixtures });
@@ -1170,10 +1189,7 @@ console.log("─".repeat(84));
       boxA: agst.filter(s => s[F.x] <= IN_BOX_X).length };
   };
 
-  const byTeam = new Map(), byOpp = new Map();
-  const put = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
-  for (const s of sf.shots) { put(byTeam, s[F.team], s); put(byOpp, s[F.opp], s); }
-  const shotIndex = { byTeam, byOpp, teams: sf.legend.teams, fields: F, calib: sf.calib };
+  const shotIndex = buildShotIndexLikeApp(sf);
   const base13 = buildTeamRows({ teams, teamForm, luck, teamShots, bsdTeams });
   const use13 = teamRangeUse({ base13: null, base: base13, shotIndex, fixtures });
 
@@ -1328,7 +1344,16 @@ console.log("─".repeat(84));
      nokkud spyrdi hvada timabil hun ber.                                */
   {
     const locked = TEAM_STAT_DEFS.filter(d => d.season_locked).map(d => d.key);
-    ok(`${locked.length} dalkar bera \`season_locked\``, locked.length === 7, `${locked.length}`);
+    /* TALAN ER LEIDD, EKKI SLEGIN INN (22.8.2026): hun stod i 7 og for i 10
+       thegar samtolurnar baettust vid, svo hardkodud tala hefdi fellt safnid
+       i hvert sinn sem BSD-dalki er baett vid. Krafan sem SKIPTIR MALI er
+       ekki fjoldinn heldur ad mengid se NAKVAEMLEGA their dalkar sem lesa
+       BSD — thad er profad i naestu linu og aftur i kafla 13d.           */
+    const bsdCols = TEAM_STAT_DEFS.filter(d => d.src === "BSD").map(d => d.key);
+    ok(`${locked.length} dalkar bera \`season_locked\` og thad eru NAKVAEMLEGA `
+       + `BSD-dalkarnir (${bsdCols.length})`,
+       locked.length > 0 && locked.slice().sort().join(",") === bsdCols.slice().sort().join(","),
+       `locked=[${locked.sort().join(",")}] bsd=[${bsdCols.sort().join(",")}]`);
     /* FORSENDAN FYRIR SVEIPNUM: hver `get` les rodar-svid med SAMA nafni
        sem lykillinn. Vaeri thad ekki satt myndi `row[d.key] = null` blanka
        svid sem enginn les og skilja dalkinn eftir fylltan.               */
@@ -1555,6 +1580,99 @@ console.log("─".repeat(84));
   ok("og hausinn birtir thad ur theirri breytu", /shotSeason\s*\?\s*`\$\{shotSeason\}/.test(code));
   ok("se kortid ekki i takt er EKKERT timabil nefnt (thogn, ekki agiskun)",
     /The shot map covers a single season/.test(code));
+}
+
+/* ============================================================
+   SAMTOLUR YFIR VALDA UMFERDIR (22.8.2026)
+
+   Beidni notandans: "Eg vill geta sed samtals xGC fyrir allar valdar
+   gameweeks. A ad vera 1-2 i hverri umferd. 20 xGC yfir 20 umferdir."
+
+   PROFSTEINNINN ER HANS EIGIN REIKNINGUR: samtala deilt med leikjafjolda
+   verdur ad gefa per-leik dalkinn vid hlidina, i heilu timabili OG i bili.
+   Su krafa er sterkari en "dalkurinn er til" og hun fellur a hverri einustu
+   leid sem gæti farid urskeidis — rangur nefnari, summa ur odru bili, summa
+   ur annarri heimild.
+
+   OG NEFNARARNIR TVEIR MEGA ALDREI RUGLAST: `played` telur urslita-leiki,
+   `bsd_matches` telur leiki med skotakort. Samtala undir rongum nefnara er
+   verri en enginn nefnari, thvi hun litur rett ut.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("14. SAMTOLUR — summa / leikir VERDUR ad gefa per-leik dalkinn");
+console.log("─".repeat(84));
+{
+  /* RODIRNAR ERU BYGGDAR MED `bsdTeams` — sá vidmodid gerir thad og
+     xG/xGC eru ekki til an theirra. Efsta `rows` i skranni sleppir theim
+     VILJANDI (adrir kaflar profa BSD-lausa tilfellid), svo an thessarar
+     linu hefdi helmingur kaflans maelt `null` gegn `null`.              */
+  const rows14 = buildTeamRows({ teams, teamForm, luck, teamShots,
+                                 bsdTeams: J("bsd_teams.json") });
+  const PAIRS = [["xgc", "xgc_pg", "bsd_matches"], ["xg", "xg_pg", "bsd_matches"],
+                 ["goals", "goals_pg", "played"], ["conceded", "conceded_pg", "played"]];
+  for (const [tot, pg, den] of PAIRS) {
+    ok(`\`${tot}\` er dalkur vid hlidina a \`${pg}\``,
+       !!TEAM_STAT_BY_KEY[tot] && TEAM_STAT_BY_KEY[tot].group === TEAM_STAT_BY_KEY[pg].group,
+       `${TEAM_STAT_BY_KEY[tot]?.group} vs ${TEAM_STAT_BY_KEY[pg]?.group}`);
+    ok(`\`${tot}\` erfir attina fra \`${pg}\``,
+       TEAM_STAT_BY_KEY[tot].hi === TEAM_STAT_BY_KEY[pg].hi);
+  }
+  /* NEFNARARNIR ERU TVEIR OG ADSKILDIR — se their sameinadir er thetta
+     prof thad eina sem tekur eftir thvi.                                */
+  ok("nefnararnir tveir eru SITTHVOR dalkurinn",
+     TEAM_STAT_BY_KEY.played.key !== TEAM_STAT_BY_KEY.bsd_matches.key
+     && TEAM_STAT_BY_KEY.played.src !== TEAM_STAT_BY_KEY.bsd_matches.src,
+     `${TEAM_STAT_BY_KEY.played.src} / ${TEAM_STAT_BY_KEY.bsd_matches.src}`);
+
+  const check = (label, rs) => {
+    let n = 0, bad = [];
+    for (const r of rs) for (const [tot, pg, den] of PAIRS) {
+      const T = TEAM_STAT_BY_KEY[tot].get(r), P = TEAM_STAT_BY_KEY[pg].get(r),
+            D = TEAM_STAT_BY_KEY[den].get(r);
+      if (T == null || P == null || !D) continue;
+      n++;
+      /* Vikmorkin eru NAMUNDUNIN EIN: samtalan er a 1 aukastaf og per-leik
+         a 2, svo mesta rétta fravikid er 0,05/D + 0,005.                */
+      if (Math.abs(T / D - P) > 0.05 / D + 0.006) bad.push(`${r.short} ${tot}: ${T}/${D}=${(T/D).toFixed(3)} != ${P}`);
+    }
+    ok(`${label}: ${n - bad.length}/${n} samtolur deilast rett i per-leik toluna`,
+       n > 0 && bad.length === 0, bad.slice(0, 3).join(" · "));
+    return n;
+  };
+  check("heilt timabil", rows14);
+
+  /* I BILI — thad er thad sem beidnin snerist um. Tvo olik bil, svo
+     "stemmir" geti ekki thytt "stemmir einu sinni".                     */
+  const shotIndex = buildShotIndexLikeApp(existsSync(D + "bsd_shots.json") ? J("bsd_shots.json") : null);
+  const fixtures = J("fixtures.json");
+  if (shotIndex) {
+    const use = teamRangeUse({ base: rows14, shotIndex, fixtures });
+    for (const range of [[26, 38], [1, 19]]) {
+      const rr = applyTeamRange(rows14, { range, shotIndex, fixtures, use });
+      check(`GW${range[0]}-${range[1]}`, rr);
+      /* OG SAMTALAN VERDUR AD MINNKA I MINNA BILI — annars er hun arstidar-
+         talan sem hreyfist ekki, sem er einmitt villan sem `TEAM_RANGE_SRC`
+         ver gegn (sja kafla 13).                                        */
+      const full = rows14.find(r => r.short === "ARS"), part = rr.find(r => r.short === "ARS");
+      ok(`GW${range[0]}-${range[1]}: samtalan er MINNI en arstidin (ARS xGC `
+         + `${part?.xgc} < ${full?.xgc})`,
+         part?.xgc != null && full?.xgc != null && part.xgc < full.xgc);
+    }
+  } else {
+    ok("bils-hlutinn sefur: `bsd_shots.json` vantar", true);
+  }
+
+  /* NYLIDAR: `luck.json` ber CHAMPIONSHIP-tolur theirra (COV 97 mork a 46
+     leikjum). Samtolu-dalkarnir mega ALDREI birta thaer — rett tala um
+     ranga deild. Thetta fannst thegar dalkarnir voru settir inn.        */
+  const promo = rows14.filter(r => TEAM_STAT_BY_KEY.goals_pg.get(r) == null);
+  ok(`nylidarnir (${promo.map(r => r.short).join(", ")}) hafa enga PL-sogu (forsenda)`,
+     promo.length === 3, `${promo.length}`);
+  const leaked = promo.filter(r => ["goals", "conceded", "played"]
+    .some(k => TEAM_STAT_BY_KEY[k].get(r) != null));
+  ok("og bera ENGA samtolu — Championship-tolur mega ekki laumast inn",
+     leaked.length === 0,
+     leaked.map(r => `${r.short}: goals=${r.goals} played=${r.played}`).join(" · "));
 }
 
 console.log(`\nLIDA-TOLUR: ${pass} stodust, ${fail} fellu`);

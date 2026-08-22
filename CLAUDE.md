@@ -227,6 +227,74 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
   Tvöföld umferð leggst saman, auð umferð = 0.
 - **Verðspáin („↑ í nótt?“) er NÁLGUN** — FPL birtir ekki formúluna. Hún má
   aldrei birtast sem vissa.
+  > **EN FRAMVINDAN ER NÚ OPINBER (22.8.2026).** Setningin hér að ofan er enn
+  > sönn um **formúluna** og var orðin hálf-röng um **framvinduna**:
+  > `bootstrap-static` ber núna `price_change_percent`,
+  > `price_change_hourly_rate`, `price_change_projections`
+  > (`[{offset, projected_percent, likelihood}]`), `price_change_locked_until`
+  > og `price_change_calibrating` per leikmann. Nýr dálkur í Basics
+  > („Progress to price change") ber **tölu FPL óbreytta** — hvorki skölluð
+  > né formerkið túlkað, því kvarðinn er ómældur þar til fyrsta breytingin
+  > lendir. Nálgunin lifir áfram sem „↑ í nótt?" og er áfram merkt sem
+  > ágiskun; **tvær tölur undir sama dálka-heiti væru tveir kvarðar**, svo
+  > dálkurinn ber opinberu töluna eða ekkert.
+  > **DÁLKURINN ER TÓMUR Í DAG OG ÞAÐ ER RÉTT.** Mælt 22.8.2026 á lifandi
+  > svari, öllum 600: `price_change_percent` **0 hjá öllum**, `calibrating`
+  > false, `locked_until` null, engin projection með `likelihood > 0` — og
+  > `cost_change_start !== 0` hjá **0 af 600**, því FPL frystir verð fram
+  > yfir fyrstu umferð. Flutningarnir eru á meðan sprelllifandi (Calafiori
+  > +26.570 nettó), svo þögnin er ástand en ekki biluð sókn.
+  > **Pipeline-an SLEPPIR sviðunum** meðan svo er (`priceChangeSignal`) —
+  > BSD-reglan úr kafla 6 færð yfir á FPL: 0 hjá öllum á `hi:true` dálki
+  > setur alla jafna á toppinn og les eins og mæling. Hliðið opnast sjálft
+  > við fyrsta merki. Verðir: `fetch-entry.mjs` kafli 6, `stats.test.mjs`
+  > kafli 22.
+  > **KVARÐINN OG FORMERKIÐ VORU MÆLD SAMDÆGURS (22.8.2026 kl. 19:30 UTC),
+  > ÞEGAR SVIÐIN VÖKNUÐU** — 440 af 600 bera nú tölu. **Jákvætt er leið upp
+  > á við:** 177 með jákvæða prósentu hafa meðal-nettó **+2.570**
+  > flutninga, 263 með neikvæða **−1.664**; Calafiori **+34,2** (nettó
+  > +58.432) efst, Gyökeres **−29,3** neðst. Sviðið er **−36,5 .. +34,2**
+  > og **enginn utan [−100, 100]**, sem styður að 100 sé þröskuldurinn.
+  > Formerkin eru samstíga í **73,3%** og það er RÉTT tala en ekki lak
+  > merki: þröskuldurinn skalast með eignarhaldi og prósentan safnast upp
+  > yfir daga meðan `transfers_in_event` er þessi umferð ein — Martinelli
+  > mælist −36,5 með nettó aðeins −1.344. Að „laga" það með eigin skölun
+  > væri að setja nálgun ofan á opinbera tölu.
+  > `price_change_locked_until` er **notað** (30 leikmenn í dag) og
+  > `projections` bera nú `likelihood: 1` með vaxandi `projected_percent`
+  > (1,8 → 3,6 → 5,3 eftir dögum). Hvorugt er birt enn — það er sér
+  > ákvörðun, ekki þessi.
+  > **OG FYRSTA SPÁIN STÓÐST Í RAUNKEYRSLU:** dagskeyrslan 22.8. kl. 05:23
+  > hitti nákvæmlega tilfellið sem `seasonBaselineDecision` var smíðuð
+  > fyrir og skráði `season under way (max starts 1) - frozen`.
+  > `players.json` ber þessa árstíðar núll (600 raðir, max starts 1) meðan
+  > `season_baseline.json` stendur ósnert frá 21.8. (599 raðir, max starts
+  > 38). Klobburinn var spáður kl. 01:30 og afstýrt kl. 05:23.
+- **SAMTÖLUR Í TEAMS ERU EKKI NÝ STÆRÐ — ÞÆR VORU REIKNAÐAR OG ÓBIRTAR**
+  (22.8.2026). Notandinn: *„ég vill geta séð samtals xGC fyrir allar valdar
+  gameweeks — 20 xGC yfir 20 umferðir."* Taflan bar aðeins per-leik tölur, svo
+  GW26–38 las „xGC 0,94" þar sem spurningin var „hve mikið alls". `xg`, `xgc`,
+  `goals` og `conceded` eru **þegar** á hverri röð og `applyTeamRange` leggur
+  þau saman **úr sama bili** og per-leik tölurnar; þau áttu engan dálk. Sama
+  ætt og `played`/`bsd_matches`. **Nefnarinn fylgir og það er ekki skraut:**
+  samtala er háð því hve margir leikir lenda í bilinu, svo lið með auða umferð
+  fær lægri samtölu án þess að vera betra — og nefnarinn er líka prófið sem
+  notandinn lýsti sjálfur (samtala ÷ leikir = per-leik dálkurinn). `played` og
+  `bsd_matches` eru **aðskildir** því heimildirnar telja sinn hvorn
+  leikjafjöldann; samtala undir röngum nefnara lítur rétt út og er það ekki.
+  > **OG DÁLKARNIR AFHJÚPUÐU LATENTA VILLU SEM VAR ÓSÝNILEG MEÐAN ENGINN
+  > BIRTI ÞÁ.** `luck.json` ber `goals`/`conceded`/`matches` fyrir NÝLIÐANA
+  > líka — en það eru **Championship-tölur**: COV **97 mörk á 46 leikjum**,
+  > HUL 70, IPS 80. `team_form.json` gerir það ekki (`matches: 0,
+  > source: "none"`), sem er ástæðan fyrir því að `goals_pg` er null hjá þeim.
+  > Röðin tók því **samtöluna úr einni heimild og per-leik töluna úr annarri,
+  > og þær eru úr sitthvorri deildinni** — nákvæmlega ættin úr kafla 12
+  > (`xg_share` 148%). Um leið og dálkurinn kom hefði Coventry setið með 97
+  > mörk, efst í deildinni: rétt tala um ranga deild. Skilyrðið er nú það sama
+  > og nullar `goals_pg` (PL-leikir úr `team_form`). Vörður: `team-stats.mjs`
+  > kafli 4 féll á þessu strax, og kafli 14 ver samlagninguna sjálfa —
+  > **68/68 samtölur deilast rétt** í heilu tímabili og í tveimur bilum, og
+  > fjórar stökkbreytingar eru felldar.
 - **Markaðsþyngd er reiknuð úr `xga` þegar `diff` vantar.** Ekki fjarlægja þá
   varaleið: án hennar var markaðsliðurinn **dauður í appinu í heila viku** þótt
   öll prófin væru græn — þau prófuðu formúluna, ekki hvort gögnin sem hún fær

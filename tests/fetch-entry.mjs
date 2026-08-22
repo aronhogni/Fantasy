@@ -176,5 +176,60 @@ try {
 }
 ok(!existsSync(copy), "afritid var fjarlaegt");
 
+/* ============================================================
+   VERDBREYTINGA-SVIDIN — DAUTT SVID MA EKKI RATA I SKRANA
+
+   FPL ber nu opinber framvindu-svid (`price_change_percent` o.fl.), en
+   thau eru **0 hja ollum 600** medan verd eru fryst fram yfir fyrstu
+   umferd. Vaeru thau skrifud sem 0 fengi hver leikmadur "0% framvinda" a
+   `hi:true` dalki — tilbuin maeling, allir jafnir a toppnum. Sama regla og
+   BSD-svidin (CLAUDE.md kafli 6) og "NULL ER EKKI NULL" (kafli 8).
+
+   PROFSTEINNINN ER TVIHLIDA: hlidid verdur ad vera LOKAD i dag OG ad opnast
+   sjalft. Vordur sem profar adeins lokada astandid frystist med thvi.
+   ============================================================ */
+{
+  console.log("\n-- 6. VERDBREYTINGA-SVIDIN --");
+  const { priceChangeSignal, PRICE_CHANGE_FIELDS } = await import("file://" + SRC);
+  const zero = n => Array.from({ length: n }, () => ({
+    cost_change_start: 0, cost_change_event: 0,
+    price_change_percent: "0", price_change_hourly_rate: 0 }));
+
+  const off = priceChangeSignal(zero(600));
+  ok(off.live === false, `600 nullur -> svidunum SLEPPT (${off.why.slice(0, 54)}…)`);
+  ok(/OMITTED|omitted/.test(off.why), "og notan segir ad theim se sleppt, ekki bara ad thau seu 0");
+
+  /* Hlidid opnast a HVERJU merki fyrir sig — ad krefjast allra myndi halda
+     thvi lokudu thann dag sem thau vakna.                                */
+  const bump = (k, v) => { const a = zero(3); a[1][k] = v; return priceChangeSignal(a).live; };
+  ok(bump("cost_change_start", 1), "einn madur haekkadi i verdi -> hlidid opnast");
+  ok(bump("cost_change_start", -1), "og laekkun telst lika hreyfing");
+  ok(bump("cost_change_event", 1), "hreyfing innan umferdar telst lika");
+  ok(bump("price_change_percent", "47.2"), "tala i framvindu-svidinu ein og ser opnar hlidid");
+  ok(bump("price_change_percent", "-83"), "negatif framvinda lika (leid nidur)");
+  ok(bump("price_change_hourly_rate", 0.4), "hradinn einn og ser opnar hlidid");
+
+  /* Strengur "0" ma ekki lesast sem merki — FPL sendir prosentuna sem
+     STRENG, svo truthy-profun a henni vaeri alltaf sonn.                 */
+  ok(priceChangeSignal([{ price_change_percent: "0" }]).live === false,
+     'strengurinn "0" er EKKI merki (svidid kemur sem strengur, ekki tala)');
+  ok(priceChangeSignal([]).live === false, "tomt fylki -> ekkert merki");
+  ok(priceChangeSignal(null).live === false, "null -> ekkert merki, ekki hrun");
+
+  ok(PRICE_CHANGE_FIELDS.length >= 3 && PRICE_CHANGE_FIELDS.includes("price_change_calibrating"),
+     `svida-listinn ber `+"`calibrating`"+` (${PRICE_CHANGE_FIELDS.length} svid) — an hennar `
+     + "vaeri ekki haegt ad greina 'engin framvinda' fra 'FPL treystir ekki tolunni'");
+
+  /* OG RAUNVERULEGA SKRAIN: hun ma ALDREI bera svidid med 0 hja ollum.
+     Thetta er hlidin sem hefdi verid brotin ef svidin hefdu verid skrifud
+     hugsunarlaust — og hun vaknar sjalf thegar verd fara ad hreyfast.    */
+  const pl = JSON.parse(readFileSync(ROOT + "data/players.json", "utf8")).players || [];
+  const carry = pl.filter(p => p.price_change_percent !== undefined);
+  const nonzero = carry.filter(p => Number.parseFloat(p.price_change_percent) !== 0);
+  ok(carry.length === 0 || nonzero.length > 0,
+     `players.json: ${carry.length} radir bera svidid, thar af ${nonzero.length} med tolu `
+     + "— annadhvort ENGIN rod eda einhver med raunverulegt gildi, aldrei 600 nullur");
+}
+
 console.log(`\nFETCH-ENTRY: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

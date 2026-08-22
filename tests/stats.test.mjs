@@ -2449,5 +2449,68 @@ console.log("\n16) umferdar-bils-bordinn — rokfraedi og orðalag");
      `hver flokkur i tillogunni ber a.m.k. einn bils-dalk og enginn slikur vantar (${rec.map(k => `${k}:${awareIn(k)}`).join(" ")})`);
 }
 
+/* ============================================================
+   FRAMVINDA AD VERDBREYTINGU — OPINBERA TALAN, OBREYTT
+
+   Nyr dalkur 22.8.2026 ad beidni notandans ("hversu nalaegt leikmenn eru
+   ad haekka i verdi"). Hann ber `price_change_percent` fra FPL og
+   UMBREYTIR HENNI EKKI. Thrjar krofur, og su fyrsta er su sem skiptir mali
+   i dag thvi svidid er tomt hja ollum:
+
+   1. VANTANDI SVID -> `null`, ALDREI 0. Dalkurinn er `hi:true`; 0 hja
+      ollum 600 setur alla jafna a toppinn og les eins og maeling. Verd eru
+      fryst fram yfir fyrstu umferd, svo thetta er astandid I DAG.
+   2. `calibrating === true` -> `null`. FPL er tha ad segja sjalft ad talan
+      se ekki marktaek; ad birta hana med fyrirvara vaeri ad lata notandann
+      bera fyrirvarann (sama rok og BSD `availability` var hafnad fyrir).
+   3. TALAN ER EKKI SKOLUD. Hun fer i gegn eins og hun kemur, thvi kvardinn
+      er omaeldur enn — fyrsta breyting sem lendir stadfestir hann.
+   ============================================================ */
+{
+  console.log("\n── 22. FRAMVINDA AD VERDBREYTINGU ──");
+  const d = STAT_DEFS.find(x => x.key === "price_change_percent");
+  ok(!!d, "dalkurinn er til i STAT_DEFS");
+  ok(d.group === "core" && d.band === "Price and ownership",
+     `hann situr i Basics / "Price and ownership" (${d.group} / ${d.band})`);
+
+  /* 1 — VANTANDI ER EKKI NULL */
+  ok(d.get({}) === null, "tomt inntak -> null (ekki 0)");
+  ok(d.get({ price_change_percent: undefined }) === null, "svid sem vantar -> null");
+  ok(d.get({ price_change_percent: null }) === null, "berr null -> null");
+  /* En 0 SEM ER TIL er maeling og verdur ad komast i gegn — annars vaeri
+     "engin framvinda" ogreinanlegt fra "engin gogn" i hina attina.      */
+  ok(d.get({ price_change_percent: "0" }) === 0,
+     "0 sem FPL SENDIR er maeling og fer i gegn (0, ekki null)");
+
+  /* 2 — CALIBRATING ThAGGAR */
+  ok(d.get({ price_change_percent: "47.2", price_change_calibrating: true }) === null,
+     "calibrating=true -> null thott talan se til");
+  ok(d.get({ price_change_percent: "47.2", price_change_calibrating: false }) === 47.2,
+     "calibrating=false -> talan birtist");
+
+  /* 3 — ENGIN SKOLUN. Fjogur gildi, tvo formerki, aukastafir.           */
+  for (const v of ["47.2", "-83", "100", "0.5"])
+    ok(d.get({ price_change_percent: v }) === Number.parseFloat(v),
+       `"${v}" fer obreytt i gegn (${d.get({ price_change_percent: v })})`);
+
+  /* FORSENDA fyrir bandinu: hann verdur ad standa vid hlidina a hinum
+     verd-dalkunum, annars er hann ekki thar sem notandinn leitar hans.  */
+  const band = STAT_DEFS.filter(x => x.band === "Price and ownership").map(x => x.key);
+  ok(band.includes("now_cost") && band.includes("net_transfers_event")
+     && band.includes("price_change_percent"),
+     `bandid ber verd, netto-flutninga OG framvinduna (${band.length} dalkar)`);
+
+  /* RAUNGOGN: annadhvort ber ENGIN rod svidid (frosin verd, eins og i dag)
+     eda einhver ber raunverulegt gildi. 600 nullur mega aldrei sjast.   */
+  const rows = players || [];
+  const has = rows.filter(p => p.price_change_percent !== undefined);
+  const nz = has.filter(p => Number.parseFloat(p.price_change_percent) !== 0);
+  ok(has.length === 0 || nz.length > 0,
+     `players.json: ${has.length} bera svidid, ${nz.length} med tolu — aldrei allt nullur`);
+  const vals = rows.map(p => d.get(p)).filter(v => v != null);
+  ok(has.length > 0 || vals.length === 0,
+     `og dalkurinn er thvi TOMUR medan verd eru fryst (${vals.length} tolur a skjanum)`);
+}
+
 console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

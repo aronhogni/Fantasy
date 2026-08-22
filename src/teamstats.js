@@ -166,6 +166,10 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
     const f = formById[t.id] || {}, l = luckById[t.id] || {}, s = shotsById[t.id] || {};
     const b = bsdById[t.id] || {};
     const m = num(l.matches) || num(f.matches) || null;
+    /* PL-LEIKIR SER. `m` tekur `luck.json` fyrst og hun ber
+       CHAMPIONSHIP-leiki nylidanna (46), svo hun getur ekki verid gatid a
+       thvi hvort lidid a PL-sogu. `team_form` ber 0 fyrir tha.          */
+    const plMatches = num(f.matches) || null;
     /* ---------- xG/xGC KOMA NU UR BSD, EKKI UR FPL-SUMMUNNI ----------
        MAELT 8.8.2026 a theim 17 lidum sem attu PL-rod 2025/26, gegn
        RAUNVERULEGUM morkum sama timabils:
@@ -197,7 +201,13 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
       /* LEIKIR SEM TALAN HVILIR A. Hann er `matches` a heilu timabili og
          leikirnir I BILINU thegar bil er valid — ein reit sem vidmotid
          getur birt an thess ad vita hvor leidin var notud.               */
-      played: m,
+      /* `m || null` OG ThAD ER EKKI SNYRTING: nylidarnir thrir (COV/HUL/IPS)
+         attu enga PL-rod, svo `m` er 0 — og 0 her er TILBUIN MAELING
+         ("spiladi enga leiki") thar sem sannleikurinn er "var ekki i
+         deildinni". Vordurinn i `team-stats.mjs` kafla 4 fell a thvi:
+         nylidi verdur ad fa `null` i HVERJUM dalki. Bils-leidin gerdi
+         thetta thegar (`out.played = n || null`); grunn-rodin ekki.     */
+      played: plMatches,
       /* --- vorn --- */
       shots_against_pg:  num(f.shots_against_pg),
       sot_against_pg:    num(f.sot_against_pg),
@@ -244,8 +254,27 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
          umferdar-leidin lesi SOMU tolu. Adur voru thau lesin beint ur
          `luck.json` inni i reikningnum og voru thvi ekki til fyrir utan
          hann; tha gat umferdar-leidin ekki notad sama fall.              */
-      goals:             num(l.goals),
-      conceded:          num(l.conceded),
+      /* ============================================================
+         DEILDAR-SAMTOLURNAR ERU SKORDADAR VID PL-SOGU (22.8.2026)
+
+         `luck.json` ber `goals`/`conceded`/`matches` fyrir NYLIDANA LIKA —
+         en thad eru CHAMPIONSHIP-tolur: COV 97 mork a 46 leikjum, HUL 70,
+         IPS 80. `team_form.json` gerir thad EKKI (`matches: 0,
+         source: "none"`), sem er astaedan fyrir thvi ad `goals_pg` er null
+         hja theim. Rodin tok thvi SAMTOLUNA ur einni heimild og PER-LEIK
+         toluna ur annarri, og thaer eru ur SITTHVORRI DEILDINNI.
+
+         Thetta sast ekki medan enginn dalkur birti samtolurnar — thaer voru
+         reiknadar og obirtar. Um leid og dalkurinn kom hefdi Coventry setid
+         med **97 mork**, efst i deildinni, og talan hefdi verid rett tala um
+         ranga deild. Nakvaemlega aettin ur kafla 12: teljari og nefnari
+         verda ad koma ur SOMU heimild og sama timabili (`xg_share` 148%).
+
+         Skilyrdid er ThAD SAMA og thegar nullar `goals_pg`: PL-leikir ur
+         `team_form`. Nylidi faer `null` i ollum thremur, eins og i ollum
+         hinum dalkunum.                                                  */
+      goals:             plMatches ? num(l.goals) : null,
+      conceded:          plMatches ? num(l.conceded) : null,
       /* ENDURREIKNAD UR BSD, EKKI LESID UR luck.json. Hefdu thessir tveir
          haldid FPL-afleidslunni vaeru their MISMUNUR TVEGGJA OLIKRA
          HEIMILDA — birt xG ur BSD en "G-xG" reiknad ur FPL-xG — og dalkarnir
@@ -378,6 +407,42 @@ export const TEAM_STAT_DEFS = [
     dec: 1, hi: false, src: "BSD", season_locked: true,
     note: "Goals conceded minus xGC over the gameweeks shown. Positive = conceded more than the chances faced warranted (bad keeping, or bad luck). Goals are real; xGC is summed per shot. Needs both halves for the same gameweeks, so it follows the range only when both do.",
     get: r => r.conceded_minus_xgc },
+  /* ============================================================
+     SAMTOLUR YFIR VALDA UMFERDIR (22.8.2026, ad beidni notandans)
+
+     "Eg vill geta sed samtals xGC fyrir allar valdar gameweeks. A ad vera
+     1-2 i hverri umferd. 20 xGC yfir 20 umferdir." Toflan bar ADEINS
+     per-leik tolur, svo GW26-38 las "xGC 0,94" thar sem spurningin var
+     "hve mikid alls".
+
+     ENGIN NY STAERD OG ENGIN NY MAELING: `xg`/`xgc`/`goals`/`conceded` eru
+     ThEGAR reiknud a hverri rod og `applyTeamRange` leggur thau saman UR
+     SAMA BILI og per-leik tolurnar (`s.xgF`/`s.xgA` beint ur
+     `bsd_shots.json`, `res.gf`/`res.ga` ur urslitunum). Thau attu einfaldlega
+     engan dalk. Sama aett og `played`/`bsd_matches` — reiknad og obirt.
+
+     OG NEFNARINN FYLGIR MED, ThAD ER EKKI SKRAUT: samtala er hadur thvi
+     HVE MARGIR leikir lenda i bilinu, svo lid med auda umferd faer LAEGRI
+     samtolu an thess ad vera betra. An leikjafjoldans vaeri dalkurinn
+     villandi a nakvaemlega thann hatt sem hann a ad leysa — og hann er
+     lika prófid sem notandinn lysti sjalfur ("1-2 i hverri umferd"):
+     samtala deilt med leikjum verdur ad gefa per-leik dalkinn vid hlidina.
+     `played` og `bsd_matches` eru ADSKILDIR thvi heimildirnar tvaer telja
+     sitt hvorn leikjafjoldann — E0-urslit og BSD-skotakort — og samtala
+     undir rongum nefnara er verri en enginn nefnari.
+     ============================================================ */
+  { key: "conceded", label: "Goals conceded (total)", short: "GC tot", group: "defence",
+    dec: 0, hi: false, src: "E0",
+    note: "Goals conceded ADDED UP over the gameweeks shown, not per match. Read it with the \"Matches\" column beside it: total divided by matches is the GC column. A side with a blank gameweek has a smaller total without being any better, which is exactly why the match count is shown.",
+    get: r => r.conceded },
+  { key: "xgc", label: "xGC (total)", short: "xGC tot", group: "defence",
+    dec: 1, hi: false, src: "BSD", season_locked: true,
+    note: "xGC ADDED UP over the gameweeks shown — the total danger the defence gave up, summed shot by shot, not per match. Divided by the BSD match count beside it this is the xGC column. Still not goals conceded: see the xGC-per-match note. BSD covers 2025/26 only, so this is empty for other seasons.",
+    get: r => r.xgc },
+  { key: "played", label: "Matches in range", short: "Matches", group: "defence",
+    dec: 0, hi: true, src: "E0",
+    note: "How many matches the results-based numbers on this row rest on — the whole season when no gameweek range is set, otherwise the matches inside it. This is the denominator for the goals and goals-conceded totals; without it a total cannot be checked. Blanks and doubles make it differ between clubs over the same range.",
+    get: r => r.played },
   { key: "cs_pct", label: "Clean sheet %", short: "CS %", group: "defence",
     dec: 0, hi: true, src: "E0", note: "Share of matches with a clean sheet. Follows the gameweek range.",
     get: r => r.cs_pct },
@@ -394,6 +459,18 @@ export const TEAM_STAT_DEFS = [
     dec: 2, hi: true, src: "BSD", season_locked: true,
     note: "THIS IS NOT GOALS SCORED. It is how much chance the attack created: every shot taken carries its own per-shot expected-goals value and this is their sum per match. Read it against the Goals column beside it — when Goals is the higher of the two the side finished above the chances it made, and the G-xG column is that gap stated directly. Measured against real goals it tracks at r 0.75 (FPL-summed: 0.67) and its level is right rather than ~19% short. BSD covers 2025/26 only, so this is empty for other seasons.",
     get: r => r.xg_pg },
+  { key: "goals", label: "Goals (total)", short: "Gls tot", group: "attack",
+    dec: 0, hi: true, src: "E0",
+    note: "Goals ADDED UP over the gameweeks shown, not per match. Total divided by the match count is the Goals column beside it. A side with a blank gameweek has a smaller total without being any worse.",
+    get: r => r.goals },
+  { key: "xg", label: "xG (total)", short: "xG tot", group: "attack",
+    dec: 1, hi: true, src: "BSD", season_locked: true,
+    note: "xG ADDED UP over the gameweeks shown — the total chance created, summed shot by shot, not per match. Divided by the BSD match count this is the xG column. BSD covers 2025/26 only, so this is empty for other seasons.",
+    get: r => r.xg },
+  { key: "bsd_matches", label: "Matches with a shot map", short: "BSD mt", group: "attack",
+    dec: 0, hi: true, src: "BSD", season_locked: true,
+    note: "How many matches the shot-map numbers rest on — the denominator for the xG and xGC totals. It is kept apart from the results match count on purpose: the two sources count matches separately, and a total shown under the wrong denominator is worse than no denominator at all. BSD covers 2025/26 only.",
+    get: r => r.bsd_matches },
   { key: "shots_pg", label: "Shots per match", short: "Shots", group: "attack",
     dec: 2, hi: true, src: "E0", note: "Shots taken per match (E0, full season).",
     get: r => r.shots_pg },
@@ -518,6 +595,14 @@ export const TEAM_RANGE_SRC = {
   xg_pg: "shots", xgc_pg: "shots", bc_pg: "shots", bc_against_pg: "shots",
   xg_per_shot_against: "shots",
   goals_minus_xg: "both", conceded_minus_xgc: "both",
+  /* SAMTOLURNAR OG NEFNARARNIR (22.8.2026). Their fylgja NAKVAEMLEGA somu
+     leid og per-leik systkini sin — samtalan er summan sem per-leik talan
+     var deild ur, svo hvad annad vaeri tveir kvardar a somu stærd. An
+     thessara faerslna taldi `teamRangeBlind` tha BLINDA (`!need -> true`)
+     medan their hreyfdust i raun, og vordurinn i `team-stats.mjs` kafla
+     13 fell a thvi ordrett: "og ENGINN theirra hreyfist i bili".        */
+  goals: "results", conceded: "results", played: "results",
+  xg: "shots", xgc: "shots", bsd_matches: "shots",
 };
 
 /* EITT SKILYRDI, LESID BAEDI AF HAUSNUM OG AF TOOLTIP-INU — sama regla og
