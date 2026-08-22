@@ -25,6 +25,16 @@ const SUITES = [
      syar EITT augnablik; thetta syair thann tima sem lidur, sem er thar
      sem talnaskekkjur byggjast upp. */
   ["draft-live.mjs", true],
+  /* `draft-race.mjs` ber tvennt sem `draft-live.mjs` GETUR EKKI tjad, og
+     ekki af staerdarastaedum heldur byggingarlega: (1) hermirinn thar
+     svarar SAMSTUNDIS, svo "pollun i flugi thegar notandinn slitur" er
+     astand sem fixturan getur ekki skapad — og thad var raunveruleg,
+     VARANLEG villa (bord sem var hreinsad fylltist aftur ur svari sem var
+     a leidinni); (2) hver kafli thar keyrir a 10-lida PPR-deild med K og
+     DEF, svo Sofahetjur (12 lid, half-PPR, HVORKI K NE DST, 14 umferdir)
+     — logunin thar sem RETTA svarid er "engin saeti ad fylla" — hafdi
+     aldrei verid drifin gegnum bordid i beinni. */
+  ["draft-race.mjs", true],
   /* `visual.mjs` raesir ALVORU Chrome og maelir raunverulegt utlit.
      Hann tharf `npm run build` a undan ser og sleppir ser sjalfur ef
      Chrome finnst ekki — en thad er SLEPPT, ekki graent. */

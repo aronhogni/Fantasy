@@ -1286,6 +1286,42 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   const lastSig = useRef(null);
   const lastCount = useRef(null);
   const lastMove = useRef(0);
+  /* ============================================================
+     SVAR SEM ER A LEIDINNI TILHEYRIR DRAFTINU SEM SPURDI
+     ============================================================
+     ÞETTA VAR RAUNVERULEG VILLA OG HUN ER VARANLEG, EKKI ANDARTAK.
+     `pull(id)` skrifar FIMM hluti — `setInfo`, `onShape`, saetid,
+     `setUnmatched` og `onPicks` — og HVORUGT theirra spurdi hvort `id`
+     se enn draftid sem er tengt. Pollunar-effectid ber `stopped`, en
+     thad er skodad FYRIR og EFTIR `await pull(...)`, ekki INNI i henni:
+
+         const tick = async () => {
+           if (stopped) return;
+           await pull(sync.draftId);   // <- skrifin gerast HER INNI
+           if (stopped) return;
+
+     Svar sem var a leidinni thegar notandinn ytti a "Reset & disconnect"
+     skrifadi sig thvi inn EFTIR hreinsunina — og thar er engin naesta
+     pollun til ad leidretta thad, thvi `reset` hreinsar `draftId`.
+
+     MAELT (`draft-race.mjs` kafli 1, med svarid stoppad i hlidi):
+     bord med 24 volum og 2 minum var hreinsad i 0/0 og fylltist aftur i
+     **24 drafted · 2 yours** — og stod svo. Volin voru auk thess vistud
+     undir DEILDAR-lykilinn (handvirka bordid), thvi `scope` hafdi thegar
+     faerst; sja `stateScope`.
+
+     HVERS VEGNA ENGINN SA ThAD: hermirinn i `draft-live.mjs` svarar
+     SAMSTUNDIS (`jsonOk` skilar thegar-uppfylltu `Promise`), svo
+     "pollun i flugi" er astand sem su fixtura getur ekki tjad. Kafli 9
+     thar — "reset & disconnect, og tengt aftur" — gat thvi ekki brugdist.
+     Raunverulegur Sleeper svarar a 80-300 ms medan pollunin spyr a
+     1.500 ms, svo thetta er hlutfall af hverjum smell, ekki jaðartilfelli.
+
+     Refin ber draftid sem pollunin les NUNA, og `pull` fellur thegjandi
+     ut se hun ekki lengur thad sama. Þogn er RETT hér: svarid tilheyrir
+     drafti sem notandinn er farinn fra, svo thad er ekki villa ad segja
+     fra — thad er einfaldlega ekki lengur svar vid neinni spurningu. */
+  const liveId = useRef(null);
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
   /* ============================================================
@@ -1549,6 +1585,10 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   const pull = async (id) => {
     try {
       const [d, picks] = await Promise.all([D.sleeperDraft(id), D.sleeperPicks(id)]);
+      /* HLIDID: HER OG ADEINS HER. Allt sem a eftir kemur SKRIFAR, og
+         svarid ma adeins skrifa i bordid sem spurdi. Sja notuna vid
+         `liveId` ofar. Vordur: `draft-race.mjs` kafli 1. */
+      if (liveId.current !== id) return;
       /* `leagueId` ER SVIDID SEM GREINIR MOCK FRA DEILDARDRAFTI, og thad
          var ekki lesid — svo bordid gat ekki greint "thetta draft a enga
          deild" (mock, og tha er DRAFTID eina heimildin) fra "thetta draft
@@ -1594,11 +1634,44 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
          vol mega hnekkja honum.
 
          SKIPTIN ERU SOGD, ALDREI ThOGUL: `slotRoute` fer a skjainn i
-         orðum, svo rangt svar er synilegt i sama andartaki. */
+         orðum, svo rangt svar er synilegt i sama andartaki.
+
+         ============================================================
+         OG `order` VERDUR AD FA AD YFIRSKRIFA `league` — 22.8.2026
+         ============================================================
+         APPID LOFADI ÞESSU A SKJANUM OG GERDI ÞAD EKKI. Undir
+         saetaspjoldunum stendur, thegar rodin er ekki dregin:
+
+           "The draft order has not been drawn on Sleeper yet, so these
+            are roster slots. They become the pick order once it is
+            drawn, and the app re-reads it while syncing."
+
+         Hlidid hér ad ofan (`curSlot == null || route === "picks"`)
+         hleypir ENGRI stillingu ad saeti sem er thegar sett — og
+         spjalda-smellurinn SETUR thad (`setSlotRoute("league")`,
+         lina ~2046). Su setning var thvi osonn um nakvaemlega thad
+         astand sem hun er skrifud fyrir: tengt fyrir draft, smellt a
+         sitt lid, rodin dregin sidan.
+
+         ÞETTA ER EKKI GISK UM SLEEPER heldur eigin forgangsrod skrarinnar:
+         `SEAT_ROUTES = ["picks", "order", "league"]`, og `resolveSeat`
+         BEITIR henni thegar hun leysir fra grunni (leid A er reynd fyrir
+         leid C). Pollunar-hlidid var eini stadurinn sem sneri henni vid.
+
+         INNSLATTUR ER AFRAM OSNERTUR og thad er skilyrdid `slotRoute`:
+             `null`     -> notandinn slo toluna inn (reiturinn nullstillir
+                           hana, lina ~2102) -> ADEINS vol mega hnekkja
+             `"league"` -> leitt ur `slot_to_roster_id` (eda smellt a
+                           spjald, sem SETUR `userId` a sama lid) ->
+                           `draft_order` er nakvaemari heimild um SAMA lid
+         Ordin fylgja: `slotRoute` verdur `"order"`, svo skjarinn segir
+         hvadan nya talan kom. Vordur: `draft-race.mjs` kafli 5. */
       const seat2 = resolveSeat({ draft: d, picks, userId });
       const curSlot = sync.slot == null ? null : Number(sync.slot);
-      if (seat2.slot != null && seat2.slot !== curSlot
-          && (curSlot == null || seat2.route === "picks")) {
+      const mayOverride = curSlot == null
+        || seat2.route === "picks"
+        || (seat2.route === "order" && slotRoute === "league");
+      if (seat2.slot != null && seat2.slot !== curSlot && mayOverride) {
         setSlotRoute(seat2.route);
         setSync((prev) => ({ ...prev, slot: seat2.slot }));
       } else if (seat2.slot != null && seat2.slot === curSlot && !slotRoute) {
@@ -1657,7 +1730,13 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
         onPicks(ids, mine, unknown, unknownMine);
       }
       setPollErr(null);
-    } catch (e) { setPollErr(String(e.message || e)); }
+      /* VILLAN TILHEYRIR LIKA THVI DRAFTI SEM SPURDI. Bilun i sokn a
+         drafti sem notandinn er farinn fra ma ekki skrifa "Sleeper did
+         not answer" ofan i bord sem svarar fint — thad er sama villa i
+         hina attina og lokunin hér ad ofan ver. */
+    } catch (e) {
+      if (liveId.current === id) setPollErr(String(e.message || e));
+    }
   };
 
 
@@ -1711,7 +1790,13 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
   }, [sync.draftId]);
 
   useEffect(() => {
-    if (!live || !sync.draftId) return;
+    /* `liveId` ER SETT OG HREINSUD HER, ekki i teikningu: ref sem er
+       skrifud i teikningu sem React hendir (StrictMode teiknar tvisvar)
+       situr eftir rong — sama rok og vid `stateScope` ofar i skranni.
+       Rodin er trygg: React keyrir HREINSUN gamla effectsins fyrst, svo
+       likamann a hinum nyja, svo `null` getur ekki skrifad yfir nytt id. */
+    if (!live || !sync.draftId) { liveId.current = null; return; }
+    liveId.current = sync.draftId;
     let stopped = false;
     const tick = async () => {
       if (stopped) return;
@@ -1720,7 +1805,11 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
       timer.current = setTimeout(tick, pollDelay(lastMove.current, Date.now()));
     };
     tick();
-    return () => { stopped = true; clearTimeout(timer.current); };
+    return () => {
+      stopped = true;
+      liveId.current = null;
+      clearTimeout(timer.current);
+    };
     /* `userId` ER I DEPS OG THAD ER EKKI SNYRTIMENNSKA: `pull` les hann
        thegar `draft_order` er dregid i midju drafti. An hans heldi
        pollunin afram med `userId = null` ur theirri teikningu sem var

@@ -931,13 +931,42 @@ export function resolveSeat(arg) {
     }
   }
 
-  /* ---- C. DEILDIN (stilling) ---- */
+  /* ---- C. DEILDIN (stilling) ----
+     ============================================================
+     `find` VAR ThOGUL AGISKUN — LAGAD 22.8.2026
+     ============================================================
+     Hér stod `.find((x) => x.userId === uid)`, sem skilar FYRSTA saetinu
+     og segir ekkert um ad thau hafi verid tvo. Leid B ofar ber regluna
+     berum ordum ("AMBIGUOUS -> ENGIN PORUN ... thogul rong porun er
+     verri en engin") og leid C braut hana — i sömu skra, um sama svid.
+
+     INNTAKID ER RAUNVERULEGT OG ThAD ER HEIMADEILD: Sleeper leyfir
+     einum notanda ad stjorna tveimur lidum i somu deild, og tha bera
+     TVEIR `rosters` SAMA `owner_id`. `teamsFromLeague` skilar rettilega
+     badum saetunum (thau eru bædi til), svo tvibendnin liggur hér.
+
+     Þad er nakvaemlega villan sem `keptSlot` var skrifad gegn, komin inn
+     um adrar dyr: saeti sem lítur truverdugt ut og ber hop ANNARS lids
+     undir heitinu "My team", allt draftid. `null` med skyringu er
+     obehagilegt og thad LYGUR EKKI — og notandinn getur smellt a rettan
+     spjald, thvi bædi eru synileg.
+
+     VOLIN VINNA AFRAM: leid B er ofar i skranni, svo fyrsta valid hans
+     leysir thetta af sjalfu ser. Vordur: `draft-race.mjs` kafli 3. */
   if (Array.isArray(users) || Array.isArray(rosters)) {
-    const t = teamsFromLeague({ draft, users, rosters })
-      .find((x) => x.userId === uid);
-    if (t && fits(num(t.slot))) {
-      return { slot: num(t.slot), route: "league",
+    const mineSeats = [...new Set(teamsFromLeague({ draft, users, rosters })
+      .filter((x) => x.userId === uid)
+      .map((x) => num(x.slot))
+      .filter((s) => fits(s)))];
+    if (mineSeats.length === 1) {
+      return { slot: mineSeats[0], route: "league",
                why: "the league roster puts you at that seat" };
+    }
+    if (mineSeats.length > 1) {
+      return { slot: null, route: null,
+               why: `the league has ${mineSeats.length} different rosters under your `
+                  + `account (seats ${mineSeats.join(", ")}) — pick the team you are `
+                  + "drafting for" };
     }
   }
 
