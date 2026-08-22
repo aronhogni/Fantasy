@@ -231,5 +231,57 @@ ok(!existsSync(copy), "afritid var fjarlaegt");
      + "— annadhvort ENGIN rod eda einhver med raunverulegt gildi, aldrei 600 nullur");
 }
 
+/* ============================================================
+   `odds.gw` — MERKIMIDI UM INNIHALD, EKKI UM FREST
+
+   Gatid skilar umferd NAESTA FRESTAR og su tala var stimplud a skrana. En
+   bokmakarinn gefur linur a ThA LEIKI sem eru oleiknir, og thad fer i
+   sundur i hvert sinn sem frestur lidur adur en umferdin klarast:
+   MAELT 22.8.2026 bar `odds.json` **gw: 2** medan **18 af 18 rodum voru
+   GW1-leikir**, tiu theirra thegar byrjadir.
+   ============================================================ */
+{
+  console.log("\n-- 7. ODDS-UMFERDIN --");
+  const { oddsGwCoverage } = await import("file://" + SRC);
+  const fx = [
+    { event: 1, kickoff_time: "2026-08-22T11:30:00Z" },
+    { event: 1, kickoff_time: "2026-08-22T14:00:00Z" },
+    { event: 2, kickoff_time: "2026-08-29T19:00:00Z" },
+  ];
+  const one = oddsGwCoverage({ A: { kickoff: "2026-08-22T11:30:00Z" },
+                               B: { kickoff: "2026-08-22T14:00:00Z" } }, fx);
+  ok(one.gw === 1 && one.gws.join() === "1",
+     `radir ur GW1 -> gw 1 (${JSON.stringify(one)})`);
+  /* KJARNATILFELLID: thetta er nakvaemlega astandid sem stimplinum skeikadi
+     um — leikir GW1 sottir eftir ad GW1-fresturinn leid.                */
+  ok(one.gw !== 2, "og ALDREI umferd naesta frestar bara af thvi hann er naestur");
+
+  const two = oddsGwCoverage({ A: { kickoff: "2026-08-22T11:30:00Z" },
+                               B: { kickoff: "2026-08-29T19:00:00Z" } }, fx);
+  ok(two.gws.join() === "1,2" && two.gw === 1,
+     `radir ur TVEIMUR umferdum -> `+"`gws`"+` ber badar og `+"`gw`"+` er su laegsta `
+     + `(${JSON.stringify(two)})`);
+  /* Engin ein tala getur verid sonn um tvaer umferdir — thess vegna er
+     `gws` til og thess vegna ma `gw` ekki lata eins og hun se ein.      */
+  ok(two.gws.length === 2, "og `gws` felur ekki hina umferdina");
+
+  ok(oddsGwCoverage({}, fx).gw === null, "engar radir -> null, ekki 1");
+  ok(oddsGwCoverage({ A: { opp: "X" } }, fx).gw === null,
+     "rod an `kickoff` telst ekki med (hun getur ekki sannad umferd)");
+  ok(oddsGwCoverage({ A: { kickoff: "1999-01-01T00:00:00Z" } }, fx).gw === null,
+     "kickoff sem passar vid ENGAN leik -> null, ekki agiskun");
+  ok(oddsGwCoverage(null, null).gw === null, "null inntok -> null, ekki hrun");
+
+  /* RAUNSKRAIN: hun ma bera GAMLA merkimidann (skrifud fyrir lagfaeringu)
+     en thekjan verdur ad vera reiknanleg — annars er fallid gagnslaust a
+     theim gogunum sem thad var smidad fyrir.                            */
+  const realOdds = JSON.parse(readFileSync(ROOT + "data/odds.json", "utf8"));
+  const realFx = JSON.parse(readFileSync(ROOT + "data/fixtures.json", "utf8"));
+  const cov = oddsGwCoverage(realOdds.teams, realFx);
+  ok(Object.keys(realOdds.teams || {}).length === 0 || cov.matched > 0,
+     `raunskra: ${Object.keys(realOdds.teams || {}).length} radir -> `
+     + `thekja GW[${cov.gws.join(",")}] (merkimidi skrarinnar: ${realOdds.gw})`);
+}
+
 console.log(`\nFETCH-ENTRY: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

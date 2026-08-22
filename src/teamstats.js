@@ -146,6 +146,83 @@ export function bsdSeasonInStep(teamForm, bsdTeams) {
            bsdLabel: bsdTeams?.season ? String(bsdTeams.season) : null };
 }
 
+/* ============================================================
+   YFIRSTANDANDI TIMABIL UR LEIKJASKRANNI (22.8.2026, ad beidni notandans)
+
+   "Eg vill ad Teams stats bjodi upp a nyjasta season, ad eg geti valid thad
+   og tha bara skodad GW1 nuna."
+
+   Toflan las adeins `team_form.json`, sem er **fyrra timabil**: hun kemur ur
+   football-data E0 og su skra verdur ekki til fyrir 2026/27 fyrr en tímabilid
+   er komid af stad (CLAUDE.md kafli 6 — `fdcouk_e0` svarar 300/404 thangad
+   til). Yfirstandandi timabil atti thvi ENGA leid inn i flipann.
+
+   HEIMILDIN SEM ER TIL ER `fixtures.json` SJALF: hun ber urslitin
+   (`team_h_score`/`team_a_score`) um leid og leikur er buinn, og appid les
+   hana thegar. Engin ny sokn, engin ny gagnaskra, enginn nyr lykill.
+
+   OG HUN BER EKKI ALLT — ThAD ER ADALATRIDID. Ur urslitum einum er haegt ad
+   reikna leiki, mork, mork a sig og hrein blod. **Skot, skot a mark, horn,
+   brot og spjold eru EKKI i `fixtures.json`**, svo their reitir eru
+   ekki settir — og verda thar med `null` (= "—" a skjanum) i stad 0.
+   Sama regla og annars stadar: tala sem er ekki til ma ekki verda ad nulli
+   (kafli 8). xG/xGC koma ur BSD sem naer adeins yfir 2025/26, svo their
+   dalkar eru tomir lika og `season_locked`-vélin ser um ad segja hvers vegna.
+
+   LEIKUR TELST SPILADUR VID `finished_provisional`, EKKI `finished`. Maelt
+   22.8.2026: allir SEX leiknu GW1-leikirnir bera `finished: false` med
+   `finished_provisional: true, minutes: 90` og fullum urslitum — `finished`
+   flettist fyrst thegar umferdin er stadfest med bonus. Ad bida eftir
+   `finished` hefdi synt TOMA toflu i marga daga eftir ad leikirnir voru
+   bunir. Leikur sem er I GANGI er hins vegar UTILOKADUR (bædi skor verda
+   ad vera til OG leikurinn ad vera merktur bunum), svo tolurnar hoppa ekki
+   a medan er spilad.
+   ============================================================ */
+export function buildLiveTeamForm({ fixtures, teams, season = null } = {}) {
+  const fx = Array.isArray(fixtures) ? fixtures : [];
+  const ts = Array.isArray(teams) ? teams : [];
+  if (!ts.length) return null;
+  const acc = new Map(ts.map(t => [t.id, { gf: 0, ga: 0, n: 0, cs: 0 }]));
+  let played = 0;
+  for (const f of fx) {
+    const h = num(f?.team_h_score), a = num(f?.team_a_score);
+    const done = f?.finished === true || f?.finished_provisional === true;
+    if (!done || h == null || a == null) continue;
+    const H = acc.get(f.team_h), A = acc.get(f.team_a);
+    if (!H || !A) continue;                       // lid utan deildar
+    played++;
+    H.n++; H.gf += h; H.ga += a; if (a === 0) H.cs++;
+    A.n++; A.gf += a; A.ga += h; if (h === 0) A.cs++;
+  }
+  /* ENGINN LEIKUR -> ENGIN TAFLA. Skra full af nullum vaeri verri en engin:
+     hun laeti eins og hvert lid hefdi spilad og skorad ekkert.          */
+  if (!played) return null;
+  return {
+    season, source: "fpl_fixtures", matches_counted: played,
+    note: "Current season, computed from finished fixtures in fixtures.json. "
+        + "Results only: shots, corners, fouls and cards are not in that file "
+        + "and are left empty rather than zero.",
+    teams: ts.map(t => {
+      const r = acc.get(t.id);
+      /* LID SEM HEFUR EKKI SPILAD FAER `matches: 0` OG ENGAR HLUTFALLSTOLUR
+         — sama medferd og nylidar fa i `team_form.json`.                */
+      if (!r || !r.n) return { fpl_id: t.id, short: t.short, matches: 0, source: "none" };
+      return {
+        fpl_id: t.id, short: t.short, matches: r.n, source: "fpl_fixtures",
+        goals_pg: +(r.gf / r.n).toFixed(2),
+        conceded_pg: +(r.ga / r.n).toFixed(2),
+        clean_sheet_pct: +(100 * r.cs / r.n).toFixed(1),
+        /* SAMTOLURNAR FYLGJA MED UR SOMU LEIKJUM. `luck.json` ber thaer fyrir
+           FYRRA timabil eitt, svo an thessa vaeru samtolu-dalkarnir tomir i
+           yfirstandandi timabili medan per-leik systkini theirra baeru tolu —
+           tveir kvardar i sömu rod, sem er nakvaemlega thad sem
+           Championship-lekinn var (kafli 12).                             */
+        goals: r.gf, conceded: r.ga,
+      };
+    }),
+  };
+}
+
 /* Ein rod per lid. `t` ber somu reiti hvadan sem their koma, svo
    dalkarnir thurfa ekki ad vita hvada skra atti hvad.                  */
 export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamShots = null,
@@ -273,8 +350,11 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
          Skilyrdid er ThAD SAMA og thegar nullar `goals_pg`: PL-leikir ur
          `team_form`. Nylidi faer `null` i ollum thremur, eins og i ollum
          hinum dalkunum.                                                  */
-      goals:             plMatches ? num(l.goals) : null,
-      conceded:          plMatches ? num(l.conceded) : null,
+      /* FORMID FYRST, LUCK SVO. `buildLiveTeamForm` ber samtolurnar ur SOMU
+         leikjum og per-leik tolurnar; `luck.json` a vid FYRRA timabil. Se
+         hvorugt til er svarid `null`, aldrei 0.                          */
+      goals:             num(f.goals)    ?? (plMatches ? num(l.goals) : null),
+      conceded:          num(f.conceded) ?? (plMatches ? num(l.conceded) : null),
       /* ENDURREIKNAD UR BSD, EKKI LESID UR luck.json. Hefdu thessir tveir
          haldid FPL-afleidslunni vaeru their MISMUNUR TVEGGJA OLIKRA
          HEIMILDA — birt xG ur BSD en "G-xG" reiknad ur FPL-xG — og dalkarnir

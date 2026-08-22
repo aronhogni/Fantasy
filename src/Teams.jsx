@@ -10,11 +10,11 @@
    vaeri ad endurtaka somu tuttugu raedirnar 28 sinnum hverja, og
    rodun eftir theim vaeri rodun a lidum i dulargervi.
    ============================================================ */
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import ShotMap from "./ShotMap.jsx";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          applyTeamRange, teamRangeUse, teamRangeBlind, maxEventOf,
-         TEAM_RANGE_SRC, bsdSeasonInStep } from "./teamstats.js";
+         TEAM_RANGE_SRC, bsdSeasonInStep, buildLiveTeamForm } from "./teamstats.js";
 /* MERKID OG SMELLURINN ERU FLUTT INN, EKKI AFRITUD. `nextRange` stod
    ORDRETT afritad her (thrjar linur) og merkja-ordid "season" var ekki til
    i thessum flipa — thott sami eiginleiki i Player stats hafi bædi haft
@@ -33,7 +33,17 @@ const C = {
 };
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdTeams, shotIndex, Crest }) {
+export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdTeams,
+                                shotIndex, seasonLabel, Crest }) {
+  /* HEITID ER LEITT, EKKI SKRIFAD. Fyrsta utgafan bar
+     `SEASON_LIVE_LABEL = "2026-27"` her — og `team-stats.mjs` felldi hana
+     samstundis: "engin timabils-tala er hardkodud i kodanum sjalfum".
+     Su regla er til vegna hardkoduðu "2025/26"-strengjanna tveggja i haus
+     skotakortsins (`team-gw.mjs` kafli 7), og hun a jafn vel vid um
+     yfirstandandi timabil: fost tala urelist thegjandi naesta agust.
+     `seasonLabel` kemur ur `currentSeasonLabel` i App.jsx, sem er leitt af
+     GW1-frestinum — SAMA talan sem allir adrir flipar bera.             */
+  const liveLabel = seasonLabel || "this season";
   /* UMFERDAR-BIL — EN AÐEINS FYRIR ThAD SEM ThAD GETUR HREYFT.
      Hvad getur og hvad getur ekki — og hvers vegna — er MAELT og skjalad i
      `teamstats.js` (kaflinn "UMFERDAR-BILID"). Her er adeins birtingin:
@@ -42,13 +52,33 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
      breytast stats ekki thegar eg filtera gameweeks").                  */
   const [gwRange, setGwRange] = useState(null);       // [fra, til] eda null
   const [group, setGroup] = useState("keeper");
+  /* TIMABILS-VALID (22.8.2026, ad beidni notandans: "eg vill geta valid
+     nyjasta season og tha bara skodad GW1 nuna"). `season` er "prev" eda
+     "live". SJALFGEFID ER "prev" OG ThAD ER MAELT VAL, EKKI TREGDA: i dag
+     ber yfirstandandi timabil SEX leiki, svo hver einasta tala i thvi er
+     eitt-leiks urtak, og skota-dalkarnir eru tomir af thvi BSD naer adeins
+     yfir 2025/26. Fyrra timabil er enn thad sem svarar "hvada vorn er god".
+     Valid er samt EINN SMELLUR og bædi eru merkt.                       */
+  const [season, setSeason] = useState("prev");
   /* Valid lid fyrir skotakortin. null = ekkert valid.               */
   const [pick, setPick] = useState(null);
   const [sort, setSort] = useState({ key: "sot_against_pg", dir: "asc" });
 
+  /* YFIRSTANDANDI TIMABIL ER REIKNAD UR `fixtures.json` — engin ny gagnaskra
+     (sja `buildLiveTeamForm`). `luck`, `teamShots` og `bsdTeams` eiga OLL
+     vid fyrra timabil, svo thau eru EKKI send med i lifandi syn; vaeru thau
+     send bæri sama rodin urslit thessa timabils og skot hins.           */
+  const liveForm = useMemo(
+    () => buildLiveTeamForm({ fixtures, teams: teams?.teams || teams,
+                              season: liveLabel }),
+    [fixtures, teams]);
+  const liveOn = season === "live" && !!liveForm;
+
   const base = useMemo(
-    () => buildTeamRows({ teams, teamForm, luck, teamShots, bsdTeams }),
-    [teams, teamForm, luck, teamShots, bsdTeams]);
+    () => liveOn
+      ? buildTeamRows({ teams, teamForm: liveForm, luck: null, teamShots: null })
+      : buildTeamRows({ teams, teamForm, luck, teamShots, bsdTeams }),
+    [liveOn, liveForm, teams, teamForm, luck, teamShots, bsdTeams]);
 
   /* HVOR PER-UMFERDAR LEID ER I TAKT VID TIMABILID SEM TAFLAN SYNIR.
      Thetta er EKKI gefid ser og var THAD adur: valarinn las `fixtures.json`,
@@ -57,8 +87,10 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
      urdu "—" hja ollum 20 lidum um leid og bil var valid, og engin skyring
      var a skjanum. `teamRangeUse` PROFAR heimildina (leikjafjoldi per lid,
      mork per leik) i stad thess ad trua henni.                          */
-  const use = useMemo(() => teamRangeUse({ base, shotIndex, fixtures }),
-    [base, shotIndex, fixtures]);
+  /* LIFANDI SYN NOTAR ENGIN SKOT — `bsd_shots.json` er 2025/26, svo
+     `shotIndex` yrdi ur ODRU timabili. Bilid fylgir thvi urslitunum einum.  */
+  const use = useMemo(() => teamRangeUse({ base, shotIndex: liveOn ? null : shotIndex, fixtures }),
+    [base, shotIndex, fixtures, liveOn]);
 
   /* EIN UTFAERSLA, OG `range: null` ER LIKA HUN. Arstidar-rodin er thvi
      REIKNUD UR SOMU FORMULUM sem bilid notar — annars kaemi "whole season"
@@ -66,14 +98,49 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
      `bsd_shots.json` (sott 19.8.), tvaer tolur um sama hlut (ARS xG/leik
      1,725 a moti 1,76). Sja teamstats.js.                              */
   const rows = useMemo(
-    () => applyTeamRange(base, { range: gwRange, shotIndex, fixtures, use }),
-    [base, gwRange, shotIndex, fixtures, use]);
+    () => applyTeamRange(base, { range: gwRange, shotIndex: liveOn ? null : shotIndex,
+                                 fixtures, use }),
+    [base, gwRange, shotIndex, fixtures, use, liveOn]);
 
   /* ThAKID KEMUR UR GOGNUNUM. Bil sem endar a GW38 i heimild sem naer til
      GW34 gaefi thogla null-summu — tolu sem litur ut eins og maeling (sama
      regla og `maxGwOf` i gwRange.js).                                   */
   const maxGw = use.maxGw || maxEventOf(fixtures) || 0;
   const gwOn = !!(use.shots || use.results) && maxGw > 0;
+
+  /* EKKI LENDA NOTANDANUM A TOMUM FLOKKI (22.8.2026). Sjalfgefni flokkurinn
+     er "What the keeper faces" og hann er skota-drifinn AD OLLU LEYTI, svo
+     smellur a yfirstandandi timabil skiladi TIU dalkum af "—" og skyringu
+     fyrir nedan. Thad er satt en gagnslaust: notandinn bad um ad SJA
+     timabilid, ekki ad sja ad thad se tomt.
+     FLOKKURINN SEM ER VALINN ER LEIDDUR, EKKI HARDKODADUR: fyrsti flokkur
+     sem a a.m.k. einn dalk med tolu i thessari syn. Vaeri hann skrifadur
+     ("defence") myndi hann stadna um leid og dalkur faerist milli flokka —
+     nakvaemlega thad sem gerdist i nott thegar `goals` for i attack.     */
+  const groupHasData = useMemo(() => {
+    const has = {};
+    for (const g of TEAM_GROUPS) {
+      has[g.key] = TEAM_STAT_DEFS.some(d => d.group === g.key
+        && rows.some(r => d.get(r) != null));
+    }
+    return has;
+  }, [rows]);
+  /* ADEINS VID TIMABILS-SKIPTI, EKKI VID HVERJA TEIKNINGU (lagad strax).
+     Fyrsta utgafan leidretti flokkinn i hvert sinn sem hann var tomur, og
+     thad thydir ad notandi sem VELUR "What the keeper faces" i lifandi syn
+     er hentur strax til baka i Defence — hann getur ekki skodad flokkinn
+     sem hann bad um. Profid fann thad: fullyrding um ad skota-dalkarnir
+     seu tomir gat ekki einu sinni OPNAD thann flokk.
+     Leidrettingin a heima a SKIPTINNI: thu lendir ekki a tomum flokki, en
+     thu maett fara i hann sjalfur.                                       */
+  const lastSeason = useRef(season);
+  useEffect(() => {
+    if (lastSeason.current === season) return;       // engin skipti
+    lastSeason.current = season;
+    if (groupHasData[group]) return;                 // flokkurinn er i lagi
+    const first = TEAM_GROUPS.find(g => groupHasData[g.key]);
+    if (first) setGroup(first.key);
+  }, [season, groupHasData, group]);
 
   const defs = useMemo(() => TEAM_STAT_DEFS.filter(d => d.group === group), [group]);
   /* Ef skipt er um flokk og radad var eftir dalki sem er ekki lengur a
@@ -367,6 +434,43 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
         <>
           {/* UMFERDAR-BIL. Hvad hreyfist er LEITT UT (`blind`), aldrei
               upptalid i texta sem stadnar.                              */}
+          {/* TIMABILS-VALID. Tveir hnappar, badir MERKTIR med thvi sem their
+              kosta — "6 matches" a lifandi syninni er ekki skraut heldur
+              adalatridid: hun er eitt-leiks urtak i dag og notandinn a ad
+              sja thad ADUR en hann les toluna, ekki eftir a.            */}
+          <div style={S.gwBar}>
+            <span style={S.gwToggle}>{"Season"}</span>
+            <button style={{ ...S.gwBox, ...(season === "prev" ? S.gwBoxOn : null) }}
+              onClick={() => { setSeason("prev"); setGwRange(null); }}
+              title={"Last season in full — 38 matches per club, and the only season "
+                   + "with shot-map data (xG, xGC, shots on target, big chances)."}>
+              {teamForm?.season || "last season"}
+            </button>
+            <button style={{ ...S.gwBox, ...(season === "live" ? S.gwBoxOn : null) }}
+              disabled={!liveForm}
+              onClick={() => { setSeason("live"); setGwRange(null); }}
+              title={liveForm
+                ? `This season so far, built from finished fixtures: `
+                  + `${liveForm.matches_counted} matches played. Results only — `
+                  + `goals, goals conceded and clean sheets. Shots and xG come from `
+                  + `the shot map, which covers ${bsdTeams?.season || "last season"} `
+                  + `only, so those columns are empty here.`
+                : "This season has no finished match yet."}>
+              {liveLabel}
+              {liveForm ? ` · ${liveForm.matches_counted} matches` : " · no matches yet"}
+            </button>
+          </div>
+          {liveOn && (
+            /* HVAD ER TOMT OG HVERS VEGNA — SAGT EINU SINNI, EKKI EITT
+               SPURNINGARMERKI PER DALK. Thogull tomur dalkur var kaeran
+               sem `season_locked`-vélin var smidud fyrir.               */
+            <p style={S.note}>
+              {`This season so far: ${liveForm.matches_counted} matches played. `
+               + `Goals, goals conceded and clean sheets are real; shots, xG, xGC `
+               + `and set-piece columns are empty because those come from sources `
+               + `that only cover ${bsdTeams?.season || "last season"}.`}
+            </p>
+          )}
           <div style={S.gwBar}>
             {/* ALLTAF SYNILEGT, EKKI FALID BAK VID TAKKA (11.8.2026 ad
                 beidni). Samanbrotið sparadi 44 px (maelt 8.8.) en kostadi

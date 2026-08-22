@@ -25,7 +25,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          TEAM_RANGE_SRC, teamRangeBlind, aggShotRange, aggFixtureRange, routeInStep,
          teamRangeUse, applyTeamRange, maxEventOf, SHOT_GOAL_TYPE,
-         buildTeamMetrics, PROMOTED_PL, seasonKey, bsdSeasonInStep }
+         buildTeamMetrics, PROMOTED_PL, seasonKey, bsdSeasonInStep, buildLiveTeamForm }
   from "../src/teamstats.js";
 import { makeFixDifficulty, tierOf, TIER_NEUTRAL } from "../src/model.js";
 import { aggregateTeamShots, BIG_CHANCE_XG, IN_BOX_X } from "../scripts/fetch-bsd-teams.mjs";
@@ -1673,6 +1673,77 @@ console.log("─".repeat(84));
   ok("og bera ENGA samtolu — Championship-tolur mega ekki laumast inn",
      leaked.length === 0,
      leaked.map(r => `${r.short}: goals=${r.goals} played=${r.played}`).join(" · "));
+}
+
+/* ============================================================
+   15. YFIRSTANDANDI TIMABIL UR LEIKJASKRANNI (`buildLiveTeamForm`)
+
+   Toflan las adeins `team_form.json` (fyrra timabil) thvi E0-skra 2026/27
+   verdur ekki til fyrr en timabilid er komid af stad. Heimildin sem ER til
+   er `fixtures.json` sjalf.
+
+   AF HVERJU TILBUIN GOGN OG EKKI BARA RAUNSKRAIN: kjarna-tilfellid er
+   leikur SEM ER I GANGI — bædi skor til stadar en leikurinn ekki buinn.
+   Thad astand er ekki i `data/` i dag (leikirnir sex eru allir
+   `finished_provisional: true, minutes: 90`), svo stokkbreyting sem taldi
+   oleikna leiki med SLAPP I GEGN a raungogunum einum: oleiknir leikir bera
+   `null` skor og fellu ut hvort sem er. Her er svarid thekkt fyrirfram.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("15. YFIRSTANDANDI TIMABIL — leikur I GANGI telst ekki med");
+console.log("─".repeat(84));
+{
+  const T = [{ id: 1, short: "AAA" }, { id: 2, short: "BBB" }, { id: 3, short: "CCC" }];
+  const F = [
+    /* buinn: telst med */
+    { event: 1, team_h: 1, team_a: 2, team_h_score: 3, team_a_score: 0,
+      finished: false, finished_provisional: true, minutes: 90 },
+    /* I GANGI: skor til stadar EN leikurinn ekki buinn -> ma EKKI teljast */
+    { event: 1, team_h: 3, team_a: 1, team_h_score: 1, team_a_score: 1,
+      finished: false, finished_provisional: false, started: true, minutes: 55 },
+    /* obyrjadur: engin skor */
+    { event: 2, team_h: 2, team_a: 3, team_h_score: null, team_a_score: null,
+      finished: false, finished_provisional: false, started: false, minutes: 0 },
+  ];
+  const tf = buildLiveTeamForm({ fixtures: F, teams: T, season: "2026-27" });
+  ok(`adeins BUNI leikurinn er talinn (${tf.matches_counted})`, tf.matches_counted === 1);
+  const by = Object.fromEntries(tf.teams.map(t => [t.short, t]));
+  ok(`AAA: 1 leikur, 3 mork, 0 a sig, CS 100% `
+     + `(${by.AAA.matches}/${by.AAA.goals}/${by.AAA.conceded}/${by.AAA.clean_sheet_pct})`,
+     by.AAA.matches === 1 && by.AAA.goals === 3 && by.AAA.conceded === 0
+     && by.AAA.clean_sheet_pct === 100);
+  /* KJARNINN: CCC spiladi ADEINS leikinn sem er i gangi -> hann a ad standa
+     eins og hann hafi ekki spilad, ekki bera 1-1.                        */
+  ok(`CCC spiladi adeins leikinn sem er I GANGI -> 0 leikir, engar `
+     + `hlutfallstolur (${by.CCC.matches}, goals_pg ${by.CCC.goals_pg})`,
+     by.CCC.matches === 0 && by.CCC.goals_pg === undefined);
+  /* Og BBB tapadi 0-3: mork a sig 3, ekkert hreint blad.                */
+  ok(`BBB: 0 mork, 3 a sig, CS 0% (${by.BBB.goals}/${by.BBB.conceded}/${by.BBB.clean_sheet_pct})`,
+     by.BBB.goals === 0 && by.BBB.conceded === 3 && by.BBB.clean_sheet_pct === 0);
+
+  /* SVID SEM `fixtures.json` BER EKKI MEGA ALDREI VERDA TIL. Stokkbreyting
+     sem setti `shots_pg: 0` i lifandi rodina slapp i gegn i fyrstu
+     utgafu — hun var adeins profud a xGC (BSD-hlidin), sem var tomt hvort
+     sem er. Her er E0-hlidin fullyrt beinum ordum.                       */
+  const FORBIDDEN = ["shots_pg", "sot_pg", "shots_against_pg", "sot_against_pg",
+                     "corners_pg", "fouls_pg", "yellows_pg", "conversion"];
+  const leaked = FORBIDDEN.filter(k => by.AAA[k] !== undefined);
+  ok(`engin skot-/spjalda-svid i lifandi rod — `+"`fixtures.json`"+` ber thau ekki `
+     + `(${leaked.join(",") || "engin"})`, leaked.length === 0);
+
+  /* ENGINN BUINN LEIKUR -> ENGIN TAFLA. Skra full af nullum vaeri verri en
+     engin: hun laeti eins og hvert lid hefdi spilad og skorad ekkert.    */
+  ok("enginn buinn leikur -> `null`, ekki tafla af nullum",
+     buildLiveTeamForm({ fixtures: [F[1], F[2]], teams: T }) === null);
+  ok("engin lid -> null", buildLiveTeamForm({ fixtures: F, teams: [] }) === null);
+  ok("rusl-inntak fellur ekki", buildLiveTeamForm({}) === null
+     && buildLiveTeamForm() === null);
+
+  /* `finished: true` MA LIKA (thad er endanlega stadan) — an thess hyrfu
+     tolurnar thegar umferdin er stadfest.                               */
+  const fin = buildLiveTeamForm({ teams: T, fixtures: [{ event: 1, team_h: 1, team_a: 2,
+    team_h_score: 2, team_a_score: 1, finished: true, finished_provisional: false }] });
+  ok("`finished: true` telst lika buinn leikur", fin?.matches_counted === 1);
 }
 
 console.log(`\nLIDA-TOLUR: ${pass} stodust, ${fail} fellu`);

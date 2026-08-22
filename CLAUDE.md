@@ -295,6 +295,67 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
   > kafli 4 féll á þessu strax, og kafli 14 ver samlagninguna sjálfa —
   > **68/68 samtölur deilast rétt** í heilu tímabili og í tveimur bilum, og
   > fjórar stökkbreytingar eru felldar.
+- **TEAMS BÝÐUR NÚ YFIRSTANDANDI TÍMABIL — REIKNAÐ ÚR `fixtures.json`, ENGIN
+  NÝ GAGNASKRÁ** (22.8.2026). Notandinn: *„ég vill að Teams stats bjóði upp á
+  nýjasta season, að ég geti valið það og þá bara skoðað GW1 núna."* Taflan las
+  aðeins `team_form.json`, sem er **fyrra tímabil** — E0-skráin fyrir 2026/27
+  verður ekki til fyrr en tímabilið er af stað (kafli 6), svo yfirstandandi
+  tímabil átti **enga leið inn**. Heimildin sem ER til er leikjaskráin sjálf:
+  hún ber úrslitin um leið og leikur er búinn og appið les hana þegar.
+  `buildLiveTeamForm` er hreint fall; ekkert nýtt kall, engin ný skrá.
+  · **HÚN BER EKKI ALLT OG ÞAÐ ER AÐALATRIÐIÐ.** Úr úrslitum einum fást leikir,
+    mörk, mörk á sig og hrein blöð. **Skot, skot á mark, horn, brot og spjöld
+    eru EKKI í `fixtures.json`**, svo þeir reitir eru ekki settir og verða
+    `null` → „—", aldrei 0. xG/xGC koma úr BSD sem nær yfir 2025/26 eitt.
+  · **LEIKUR TELST SPILAÐUR VIÐ `finished_provisional`, EKKI `finished`.**
+    Mælt: allir sex leiknu GW1-leikirnir bera `finished: false` með
+    `finished_provisional: true, minutes: 90` og fullum úrslitum — `finished`
+    flettist fyrst þegar umferðin er staðfest með bónus. Að bíða eftir henni
+    hefði sýnt tóma töflu í marga daga eftir að leikirnir voru búnir. Leikur
+    **í gangi** er hins vegar útilokaður, svo tölurnar hoppa ekki á meðan
+    spilað er. Það tilfelli er **ekki til í `data/` í dag**, svo stökkbreyting
+    sem taldi óleikna leiki með **slapp í gegn á raungögnum einum** — vörðurinn
+    er því á tilbúnum gögnum (`team-stats.mjs` kafli 15).
+  · **NOTANDINN LENDIR EKKI Á TÓMUM FLOKKI.** Sjálfgefni flokkurinn er
+    skota-drifinn að öllu leyti, svo smellurinn skilaði tíu dálkum af „—".
+    Leiðréttingin liggur á **skiptunum einum** — fyrsta útgáfan leiðrétti við
+    hverja teikningu og henti þá notanda sem valdi þann flokk **strax til
+    baka**, svo hann gat ekki skoðað flokkinn sem hann bað um.
+  · **HEITIÐ ER LEITT, EKKI SKRIFAÐ.** `SEASON_LIVE_LABEL = "2026-27"` var
+    fyrsta útgáfan og `team-stats.mjs` felldi hana samstundis („engin
+    tímabils-tala er harðkóðuð"). Sú regla er til vegna hörðu
+    „2025/26"-strengjanna í haus skotakortsins og á jafn vel við hér: föst tala
+    úreldist þegjandi næsta ágúst. `seasonLabel` kemur úr `currentSeasonLabel`.
+  · **SJÁLFGEFIÐ ER ÁFRAM FYRRA TÍMABIL og það er mælt val:** yfirstandandi
+    tímabil ber sex leiki, svo hver tala í því er eins-leiks úrtak og
+    skota-dálkarnir tómir. Fyrra tímabil svarar enn „hvaða vörn er góð".
+- **`odds.gw` VAR MERKIMIÐI UM FREST, EKKI UM INNIHALD** (22.8.2026). Hliðið
+  skilar `gw: next.id` — umferð næsta frests — og sú tala var stimpluð á
+  skrána. En bókmakarinn gefur línur á **þá leiki sem eru óleiknir**, og það
+  tvennt fer í sundur í hvert sinn sem frestur líður áður en umferðin klárast.
+  Mælt: `odds.json` bar **`gw: 2`** meðan **18 af 18 röðum voru GW1-leikir**,
+  tíu þeirra þegar byrjaðir. **Þetta er merkimiða-villa, ekki gagna-villa** —
+  `csFor` sannreynir hverja röð á mótherja OG dagsetningu, svo notandinn fékk
+  aldrei ranga tölu; dálkurinn var tómur, sem er rétt svar. En allt sem las
+  merkimiðann var blekkt, og `stats.test.mjs` fann það orðrétt. Talan er nú
+  **leidd af innihaldinu** (`oddsGwCoverage`), `gws` ber allar umferðir sem
+  raðirnar spanna og `gw_deadline` heldur gömlu tölunni undir sínu eigin nafni.
+- **API-SPORTS ER UPPSAGÐUR AFTUR — OG ÞAÐ ER EKKI KVÓTI** (22.8.2026, milli
+  05:23 og 18:23). Svarið er `{"access":"Your account is suspended…"}` á
+  **tveimur ólíkum endapunktum**, og aðeins ~4 af 100 daglegum köllum voru
+  notuð þegar það gerðist — `/injuries` hafði virkað um morguninn. Þrepið
+  **leyfði** `/fixtures/lineups` 21 klst fyrr á sama fría plani, svo gamla
+  fullyrðingin („þrepið leyfir ekki") nefndi **ranga orsök** og hefði sent
+  næsta mann í að uppfæra plan sem er ekki vandamálið. Lagast aðeins á
+  `dashboard.api-football.com`. Vörðurinn í `wiring.mjs` sefur með **þremur
+  fullyrðingum sem hafa tennur** (ferskleiki rannsóknarinnar, sýnileiki í
+  „Data sources", og að ósamhverfa geymslan `PROBE_TTL_BLOCKED = 1` sé óbreytt
+  — væri lokað svar geymt í 7 daga gæti endurheimt aðgangs farið fram hjá
+  okkur í viku og merkið aldrei vaknað).
+  > **OG HANN VAR BLINDUR Á LEIKDEGI, SEM ER EINI DAGURINN SEM SKIPTIR MÁLI.**
+  > `fetchLineups` skrifar `probe` UTAN glugga en `errors[]` **innan** hans, og
+  > gamla fullyrðingin las aðeins `probe.gated` → `undefined` → grænt. Sannað
+  > með því að spila leikdags-skrána aftur.
 - **Markaðsþyngd er reiknuð úr `xga` þegar `diff` vantar.** Ekki fjarlægja þá
   varaleið: án hennar var markaðsliðurinn **dauður í appinu í heila viku** þótt
   öll prófin væru græn — þau prófuðu formúluna, ekki hvort gögnin sem hún fær

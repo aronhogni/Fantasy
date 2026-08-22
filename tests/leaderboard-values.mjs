@@ -87,6 +87,49 @@ ok("stigataflan er a skjanum", !!section);
    svid sem `makeEnricher` baetir vid (lids-summur, imminent, BSD). Med
    hraum rodum skila their null og profid flaggadi FJORAR rettar tolur
    sem rangar. Sama audgun og Leaderboard.jsx gerir sjalf.             */
+/* ============================================================
+   OG `season` VERDUR AD FYLGJA MED — ThAD VANTADI OG HELD ThOGDI
+   ThANGAD TIL GW1 VAR SPILUD (22.8.2026).
+
+   `makeEnricher` velur BSD-skrana med `files.find(f => f.season === season)`
+   (stats.js ~2559): `bsd_players.json` er FROSID 2025/26, `bsd_live.json` er
+   yfirstandandi timabil. Leaderboard.jsx sendir `season={currentSeasonLabel}`
+   (App.jsx:2663) — thetta prof sendi EKKERT `season`, svo `pick` vard null og
+   ALLIR BSD-dalkar skiludu null i uppflettingunni.
+
+   AF HVERJU ThAD SAST EKKI FYRR: i forleik var `currentSeasonLabel` = "2026/27"
+   og `bsd_live.json` var ekki til, svo baedi skjarinn OG profid fengu null —
+   their voru SAMMALA FYRIR TILVILJUN. Um leid og GW1 var spilud kom
+   `bsd_live.json` (season "2026/27", 40 leikmenn) og skjarinn for ad syna
+   raunverulegar tolur (Tzolis 4 skot, Saka 0,64 xG) medan profid las afram
+   tomid og kalladi RETTAR tolur rangar.
+
+   Sama aett og `events`-lagid og `e(p).fields` her ad ofan: profid a ad byggja
+   NAKVAEMLEGA thann heim sem skjarinn byggdi, annars ber thad saman tvo heima.
+
+   LABELID ER DREGID UT UR App.jsx, EKKI ENDURRITAD. Onnur utfaersla af
+   artala-reglunni myndi reka i sundur vid tha sem skjarinn notar og profid
+   vaeri tha aftur ad maela annan heim — sama laerdomur og `buildTeamMetrics`
+   (CLAUDE.md kafli 7) og sama adferd og `wiring.mjs` notar a `apiNameIndex`
+   og `eloAgeRow`: KODINN ER DREGINN UT OG KEYRDUR, ekki hermdur.
+   ============================================================ */
+const appSrcForSeason = readFileSync(new URL("src/App.jsx", REPO), "utf8");
+const SEASON = (() => {
+  const s = appSrcForSeason.indexOf("const currentSeasonLabel = (() => {");
+  if (s < 0) return null;                       // fellur i fullyrdingunni nedar
+  const decl = appSrcForSeason.slice(s, appSrcForSeason.indexOf("})();", s) + 5);
+  const evFile = (() => { try { return J("events.json"); } catch { return null; } })();
+  const evs = evFile?.events ?? evFile ?? [];
+  const gw1 = (Array.isArray(evs) ? evs : []).find(e => e.id === 1)?.deadline_time || null;
+  try { return new Function("gw1Deadline", `${decl}\nreturn currentSeasonLabel;`)(gw1); }
+  catch { return null; }
+})();
+/* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1). Misheppnist
+   utdratturinn verdur `SEASON` null — og THA vaeri profid komid i nakvaemlega
+   sama astand og villan sem thetta lagar, thogult. Fullyrdingin ver baedi
+   utdrattinn OG ad merkid se raunverulegt timabils-heiti.               */
+ok(`timabils-merkid er dregid ut ur App.jsx (${SEASON})`,
+   typeof SEASON === "string" && /^\d{4}\/\d{2}$/.test(SEASON), String(SEASON));
 const live = (() => {
   const raw = J("players.json"); const rows = raw.players || raw;
   try {
@@ -104,6 +147,10 @@ const live = (() => {
       odds: safe("odds.json"),
       defcon: safe("defcon.json"), defconHist: safe("defcon_history.json"),
       consist: safe("consistency.json"), bsd: [safe("bsd_players.json"), safe("bsd_live.json")],
+      /* SOMU TVO OG Leaderboard.jsx:75 sendir. `season` velur BSD-skrana
+         (sja hausinn vid SEASON), `isLive` velur lifandi DC-hittni fram
+         yfir sogulegu toffluna — hvorugt matti vanta.                    */
+      season: SEASON, isLive: true,
     });
     /* `e(p)` skilar HLUT MED `.fields`, ekki rodinni sjalfri — Leaderboard
        gerir `{...p, ...e(p).fields}`. Fyrsta utgafan notadi `e(p)` beint og

@@ -502,15 +502,127 @@ console.log("─".repeat(84));
       `season_baseline hefur fyrra-timabils tolur (${base?.label}, ${base?.players?.length ?? 0} leikmenn)`);
     ok(lastGw?.fixtures?.length > 0, "last_gw hefur raunverulega leiki til ad bera saman");
   }
-  /* 3. Stadfest byrjunarlid — kviknar a leikdegi */
+  /* ============================================================
+     3. STADFEST BYRJUNARLID — OG HVERS VEGNA ADGANGSLEYSID ER LESID
+        UR TVEIMUR RASUM SIDAN 22.8.2026
+
+     Gamla utgafan las EINA ras:
+         const gated = lu?.probe?.gated;
+         ok(gated !== true, "ATH: API-threpid LEYFIR EKKI /fixtures/lineups")
+     Hun var rong a tvo vegu og badir kostudu.
+
+     (i) HUN NEFNDI RANGA ORSOK. Skilabodin sogdu "ThREPID leyfir ekki
+         endapunktinn" — en threpid LEYFDI hann: rannsoknin 21.8.2026 kl.
+         21:02 gaf http=200 og `errors: []` a somu fria askrift. Textinn sem
+         heimildin sendir 22.8. er "Your account is suspended, check on
+         https://dashboard.api-football.com." Thad er REIKNINGS-stada, ekki
+         threp — og lagfaeringin er a dashboard-inu, ekki i uppfaerslu.
+         Thetta er nakvaemlega sama villan og fetch.mjs:1706 skjalar i HINA
+         attina ("adgangsleysi er adgangsleysi hvort sem thad heitir plan,
+         threp eda uppsogn"), bara med ondverdu formerki: her var ordid
+         "threp" sett a uppsogn. Rautt prof sem nefnir ranga orsok sendir
+         naesta mann ad uppfaera askrift sem er ekki vandamalid.
+
+     (ii) HUN VAR BLIND A LEIKDEGI — OG ThAD ER EINI DAGURINN SEM SKIPTIR
+         MALI. `fetchLineups` hefur TVAER skriftar-greinar. Utan glugga
+         skrifar hun `probe: {...}`; INNI I GLUGGANUM skrifar hun
+         `errors: [...]` OG ENGAN `probe` (fetch.mjs ~1789). Committ
+         8a5528d (22.8.2026 18:23, GW1-leikdagur) ber ordrett
+           errors: ["fixtures 2026-08-22: {\"access\":\"Your account is
+                     suspended, check on https://dashboard...\"}"]
+         med `players: []` og ENGAN `probe`. Gamla fullyrdingin las tha
+         `lu?.probe?.gated` -> undefined -> `undefined !== true` -> GRAENT.
+         Safnid var thvi graent a leikdegi medan adgangur var lokadur og
+         skrain sjalf bar setninguna. Sama aett og tomu fullyrdingarnar i
+         CLAUDE.md 5b: hun GAT fallid, en ekki a theirri ras sem bar sonnunina.
+
+     ThRJAR ADGREINDAR STODUR, ThVI ThAER KALLA A OLIK VIDBROGD:
+       KVOTI TAEMDUR  -> ThAD ER OKKAR. Fria threpid er 100 koll/dag og
+                         `API_MIN_REMAINING` (fetch.mjs:3014) er til ThESS ad
+                         thetta gerist ekki. Fullyrdingin FELLUR — hun er
+                         adgerdhaef i thessu repo-i.
+       UPPSOGN / THREP -> UTAN REPO-INS. Enginn kodi her opnar reikning
+                         aftur, svo "adgangur er opinn" er ekki fullyrdanleg
+                         i thessu regime. Hun er ThVI SOFANDI MERKI — en
+                         SOFANDI MA ALDREI VERDA "MAELIR EKKERT", svo
+                         svefninn ber thrjar fullyrdingar med tonnum
+                         (ferskleiki · synileiki · osamhverfa geymslan sem
+                         ER vakningin). Vakningarskilyrdid er skrifad ut:
+                         thegar heimildin haettir ad senda adgangs-villu
+                         flytur greinin sig sjalf yfir i jakvaedu
+                         fullyrdinguna her ad nedan.
+       ENGIN VILLA     -> jakvaed fullyrding: adgangur ER opinn.
+     ============================================================ */
   const lu = J("lineups.json");
-  if ((lu?.players?.length ?? 0) === 0) {
-    const gated = lu?.probe?.gated;
-    console.log(`  Byrjunarlid: engin gogn (utan glugga)${gated ? " · ThREP LOKAD" : ""}`);
-    ok(gated !== true,
-      gated === true ? "ATH: API-threpid LEYFIR EKKI /fixtures/lineups — sja probe i lineups.json"
-                     : "byrjunarlid bidur leikdags (threp leyfir endapunktinn)");
+  const txt = o => o == null ? "" : (typeof o === "string" ? o : JSON.stringify(o));
+  /* BADAR RASIR. `probe.errors` utan glugga, `errors[]` inni i honum.     */
+  const denialText = [txt(lu?.probe?.errors), ...(lu?.errors || []).map(txt)]
+    .filter(Boolean).join(" ; ");
+  /* Kvota-ordalag API-Sports er adgreint fra adgangs-ordalagi: kvoti kemur
+     undir `requests`/"request limit", adgangur undir `access`/`plan`.     */
+  const quotaOut = /request limit|rate.?limit|too many request|quota/i.test(denialText);
+  const suspended = /suspend/i.test(denialText);
+  const planGate  = /\bplan\b|subscription|upgrade|not allowed/i.test(denialText);
+  const denied    = !quotaOut && (lu?.probe?.gated === true || suspended || planGate
+                                  || /"?access"?\s*:/i.test(denialText));
+  const ageDays = t => { const d = Date.parse(t ?? ""); return Number.isFinite(d) ? (Date.now() - d) / 864e5 : Infinity; };
+  const nPlayers = lu?.players?.length ?? 0;
+
+  if (quotaOut) {
+    /* OKKAR HLID. Ekki sofandi merki — verdurinn a ad falla.              */
+    console.log(`  Byrjunarlid: KVOTI TAEMDUR — ${denialText.slice(0, 160)}`);
+    ok(false, "KVOTI TAEMDUR a API-Sports — API_MIN_REMAINING (fetch.mjs) atti ad stoppa fyrr");
+  } else if (denied) {
+    /* ---------- SOFANDI MERKI, MED TONNUM ---------- */
+    const cause = suspended ? "REIKNINGURINN ER UPPSAGDUR (dashboard.api-football.com)"
+                : planGate  ? "ThREPID leyfir ekki endapunktinn (plan/askrift)"
+                            : "adgangi hafnad (heimildin gaf enga nanari astaedu)";
+    console.log(`  Byrjunarlid: ADGANGUR LOKADUR — ${cause}`);
+    console.log(`    heimildin segir ordrett: ${denialText.slice(0, 200)}`);
+    console.log(`    rannsokn: ${lu?.probe?.at ?? "engin (skrifad inni i glugganum)"}`
+              + ` · skra uppfaerd: ${lu?.updated ?? "?"}`);
+    console.log("    VAKNAR SJALFT: um leid og heimildin haettir ad senda adgangs-villu");
+    console.log("    faerist thessi grein yfir i jakvaedu fullyrdinguna her ad nedan.");
+
+    /* (1) FERSKLEIKI — svefninn ma ekki byggja a gomlum sonnunargognum.
+       Haetti cron ad skrifa, eda frjosi rannsoknin, verdur "sofandi" ad
+       "maelir ekkert" — og thad er nakvaemlega thogla bilunin sem thetta
+       safn er til ad drepa. `probe.at` ma vera i mesta lagi 2 dagar
+       (PROBE_TTL_BLOCKED er 1 dagur, einn dagur i slaka), og se enginn
+       `probe` (leikdags-greinin) verdur SKRAIN sjalf ad vera fersk.     */
+    const probeAge = ageDays(lu?.probe?.at), fileAge = ageDays(lu?.updated);
+    ok(lu?.probe ? probeAge <= 2 : fileAge <= 1,
+      `sonnunargognin eru fersk (rannsokn ${probeAge === Infinity ? "engin" : probeAge.toFixed(2) + "d"}, `
+      + `skra ${fileAge.toFixed(2)}d) — sofandi merki a gomlum gognum maelir ekkert`);
+
+    /* (2) SYNILEIKI — CLAUDE.md kafli 7: "annars er hun osynileg thegar hun
+       brotnar." Lokunin verdur ad sjast i stodu-skranum, ekki adeins her.  */
+    const notes = ["status.json", "status_fast.json"]
+      .map(f => J(f)?.sources?.api_lineups?.note ?? "").filter(Boolean);
+    const seen = notes.some(n => /ENDPOINT CLOSED|suspend|access|plan/i.test(n));
+    ok(seen, `lokunin sest i "Data sources" (api_lineups-notan): ${notes.map(n => `"${n.slice(0, 70)}"`).join(" | ") || "ENGIN ROD"}`);
+
+    /* (3) VAKNINGIN SJALF — OSAMHVERFA GEYMSLAN. Hun er ekki thaegindi
+       heldur forsenda thess ad thetta merki geti nokkurn tima vaknad:
+       vaeri blokkerad svar geymt jafn lengi og heilbrigt (7 dagar) gaeti
+       adgangur verid kominn aftur i heila viku an thess ad nokkud saegi thad
+       (fetch.mjs, "geymsla sem thaggar nidur GODAR frettir"). Lesid UR
+       KODANUM thvi thetta er tenging, ekki tala.                          */
+    ok(/PROBE_TTL_OK = 7, PROBE_TTL_BLOCKED = 1/.test(fetchNoC)
+       && /prev\?\.gated \? PROBE_TTL_BLOCKED : PROBE_TTL_OK/.test(fetchNoC),
+      "osamhverfa geymslan er obreytt (1 dagur blokkerad, 7 heilbrigd) — ANNARS VAKNAR MERKID ALDREI");
   } else {
+    /* ---------- ADGANGUR ER OPINN: JAKVAED FULLYRDING ---------- */
+    console.log(`  Byrjunarlid: adgangur opinn · ${nPlayers} leikmenn i skra`);
+    ok(lu?.probe ? lu.probe.gated === false : true,
+      "engin adgangs-villa i lineups.json (hvorki i `probe` ne `errors`)");
+    if (nPlayers === 0)
+      ok(true, "byrjunarlid bidur leikdags (adgangur opinn, engin gogn i glugganum)");
+  }
+
+  /* GAGNA-ATHUGANIRNAR ERU OHADAR ADGANGS-STODUNNI: se eitthvad i skranni
+     verdur thad ad standast, lika thott onnur rod hafi brugdist.          */
+  if (nPlayers > 0) {
     const st = lu.players.filter(x => x.started).length;
     console.log(`  Byrjunarlid: ${lu.players.length} leikmenn, ${st} byrja`);
     ok(st >= 11, `minnst 11 byrjunarlidsmenn thegar gogn eru til (${st})`);

@@ -1795,6 +1795,7 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
      sem er sterkari en gamla forsendan: hun fullyrdir baðar attir.      */
   if (existsSync(D + "odds.json")) {
     const oddsRaw = J("odds.json");
+    const fixturesRaw = (() => { const d = J("fixtures.json"); return Array.isArray(d) ? d : (d?.fixtures || []); })();
     const odds = oddsRaw.teams || oddsRaw;
     const teamCs = o => {
       const en = makeEnricher({ players: pl, teamById, fixtures: fx, events: ev, odds: o });
@@ -1829,12 +1830,46 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
        fellt fyrra tilfellid — og thagdi um thad seinna, sem er einmitt
        tilfellid sem dalkurinn var byggdur fyrir.                        */
     const real = teamCs(odds);
-    const oddsGw = oddsRaw.gw ?? null;
-    ok(oddsGw === nextGwId ? real.length > 400 : real.length === 0,
-      `RAUN-odds.json er fyrir GW${oddsGw}, naesta umferd er GW${nextGwId} -> `
-      + `${real.length}/${pl.length} bera toluna `
-      + `(${oddsGw === nextGwId ? "passar: VERDUR ad vera fylltur"
-                                : "passar EKKI: VERDUR ad vera tomur"})`);
+    /* MERKIMIDINN A SKRANNI ER EKKI HEIMILDIN — RADIRNAR ERU ThAD (22.8.2026).
+       Fyrsta utgafa thessarar fullyrdingar las `oddsRaw.gw`, og hun FELL i
+       dag: skrain sagdi `gw: 2` medan ALLAR 18 radirnar voru GW1-leikir
+       (tiu theirra thegar byrjadir). Merkimidinn kom ur `is_next` a
+       soknar-stundu, sem hafdi rullad yfir i GW2 vid frestinn medan
+       Odds-API-id skiladi enn theim GW1-leikjum sem attu eftir ad fara
+       fram. Fullyrdingin var thvi RETT ad falla — en hun kenndi
+       DALKINUM um thad sem var MERKIMIDA-villa i pipeline-unni
+       (`oddsGwCoverage` i fetch.mjs leidir hann nu af innihaldinu).
+       Her er spurt ad thvi sem raunverulega raedur: hvada umferd radirnar
+       NA YFIR. `csFor` sannreynir hverja rod a motherja OG dagsetningu, svo
+       thad er thekjan sem akvedur hvort dalkurinn a ad fyllast.          */
+    const covered = new Set();
+    for (const r of Object.values(odds || {})) {
+      if (!r?.kickoff) continue;
+      const day = String(r.kickoff).slice(0, 16);
+      const f = fixturesRaw.find(x => x?.kickoff_time
+        && String(x.kickoff_time).slice(0, 16) === day);
+      if (f?.event != null) covered.add(f.event);
+    }
+    const hits = covered.has(nextGwId);
+    ok(hits ? real.length > 400 : real.length === 0,
+      `RAUN-odds.json nær yfir GW[${[...covered].sort((a, b) => a - b).join(",") || "-"}], `
+      + `naesta umferd er GW${nextGwId} -> ${real.length}/${pl.length} bera toluna `
+      + `(${hits ? "thekur hana: VERDUR ad vera fylltur"
+                 : "thekur hana EKKI: VERDUR ad vera tomur"})`);
+    /* OG MERKIMIDINN SJALFUR VERDUR AD SEGJA SATT — en adeins fyrir skrar
+       sem NYJA pipeline-an skrifadi. `gws` er svidid sem hun baetti vid, svo
+       tilvist thess er hlidid: eldri skra (skrifud fyrir 22.8.) er ekki
+       felld fyrir villu sem var lagfaerd, og vordurinn vaknar sjalfur vid
+       naestu keyrslu. "Sefur" getur ekki ordid "maelir ekkert" thvi hitt
+       tilfellid er fullyrt her ad ofan.                                  */
+    if (Array.isArray(oddsRaw.gws)) {
+      ok(oddsRaw.gw === [...covered].sort((a, b) => a - b)[0],
+        `merkimidinn \`gw\` = ${oddsRaw.gw} er LAEGSTA umferdin sem radirnar `
+        + `na yfir (${[...covered].sort((a, b) => a - b).join(",")})`);
+    } else {
+      ok(true, `merkimida-vordurinn sefur: \`odds.json\` var skrifud FYRIR `
+        + `22.8.2026 (ekkert \`gws\`-svid) — vaknar vid naestu sokn`);
+    }
     const bend = f => Object.fromEntries(Object.entries(aligned).map(([k, v]) => [k, f(v)]));
     ok(teamCs(bend(v => ({ ...v, kickoff: "2020-01-01T00:00:00Z" }))).length === 0,
       "URELT kickoff (leikur thegar buinn) -> 0 leikmenn bera toluna");

@@ -2119,6 +2119,51 @@ async function fetchElo() {
    profasafninu er thad sem tok `euro-congestion.mjs` ut (kafli 5).
    ============================================================ */
 /* ============================================================
+   `odds.gw` VAR MERKIMIDI UM FREST, EKKI UM INNIHALD (22.8.2026)
+
+   Gatid skilar `gw: next.id` — umferdinni sem NAESTI FRESTUR tilheyrir —
+   og su tala var stimplud a skrana. En bokmakarinn gefur linur a ThA LEIKI
+   sem eru oleiknir, og thad tvennt fer i sundur i hvert einasta sinn sem
+   frestur lidur adur en umferdin klarast.
+
+   MAELT 22.8.2026: `odds.json` bar `gw: 2` medan **18 af 18 rodum voru
+   GW1-leikir** (kickoff 22.8., og TIU theirra thegar byrjadir). Sokninni
+   var lokid kl. 05:23, longu eftir GW1-frestinn (21.8. kl. 17:30), svo
+   `is_next` var ordid 2 medan Odds-API-id skiladi enn theim GW1-leikjum
+   sem attu eftir ad fara fram.
+
+   ThETTA ER MERKIMIDA-VILLA, EKKI GAGNA-VILLA. Radirnar sjalfar eru rettar
+   og `csFor` sannreynir hverja fyrir sig a MOTHERJA OG DAGSETNINGU
+   (CLAUDE.md kafli 8), svo notandinn fekk aldrei ranga tolu — dalkurinn
+   var einfaldlega tomur, sem er rett svar thegar eina linan sem til er
+   tilheyrir leik sem er buinn. En allt sem les MERKIMIDANN var blekkt, og
+   `stats.test.mjs` fann thad ordrett: "odds.json er fyrir GW2, naesta
+   umferd er GW2 -> 0/600 bera toluna (passar EKKI)".
+
+   NU ER TALAN LEIDD AF INNIHALDINU. Spanni radirnar fleiri en eina umferd
+   (raunverulegt thegar frestad leik er skotid inn) er `gw` **laegsta**
+   umferdin sem er raunverulega thakin, og `gws` ber thaer allar — engin
+   ein tala getur verid sonn um tvaer umferdir, svo hun laetur ekki eins og
+   hun se thad.
+   ============================================================ */
+export function oddsGwCoverage(teams, fixtures) {
+  const rows = Object.values(teams || {});
+  const fx = Array.isArray(fixtures) ? fixtures : [];
+  const seen = new Set();
+  for (const r of rows) {
+    if (!r?.kickoff) continue;
+    const day = String(r.kickoff).slice(0, 16);
+    /* Dagsetning + minuta er nog: tveir leikir a nakvaemlega sama tima eru
+       adgreindir af lidinu, en her spyrjum vid adeins UM UMFERD, og tveir
+       leikir a sama tima eru i somu umferd.                             */
+    const f = fx.find(x => x?.kickoff_time && String(x.kickoff_time).slice(0, 16) === day);
+    if (f?.event != null) seen.add(f.event);
+  }
+  const gws = [...seen].sort((a, b) => a - b);
+  return { gw: gws.length ? gws[0] : null, gws, matched: gws.length };
+}
+
+/* ============================================================
    OPINBERU VERDBREYTINGA-SVIDIN (22.8.2026, ad beidni notandans)
 
    CLAUDE.md sagdi: "FPL birtir ekki verdbreytingaformuluna" og appid bar
@@ -3343,8 +3388,17 @@ async function fetchOdds() {
     if (kept) return;                      // skrifum EKKI yfir god gogn
   }
 
+  /* MERKIMIDINN ER LEIDDUR AF INNIHALDINU, ekki af frestinum — sja
+     `oddsGwCoverage`. `gw_deadline` heldur gomlu tolunni svo enn se haegt
+     ad sja HVADA glugga var sott fyrir; thad tvennt er ekki sami hlutur og
+     ma ekki bera sama nafn.                                             */
+  let fixturesForOdds = [];
+  try { fixturesForOdds = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8")); } catch {}
+  const cover = oddsGwCoverage(teams, fixturesForOdds);
   await writeJSON("odds.json", {
-    updated: status.updated, window: gate.window || null, gw: gate.gw || null,
+    updated: status.updated, window: gate.window || null,
+    gw: cover.gw ?? gate.gw ?? null, gws: cover.gws,
+    gw_deadline: gate.gw ?? null,
     requests_remaining: remaining ? +remaining : null,
     note: "CS% from a Poisson on the opponent's expected goals. 'opp' and 'kickoff' CONFIRM that the line refers to the right match.",
     teams,

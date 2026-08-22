@@ -796,5 +796,142 @@ console.log("\n7) TIMABILS-MISVISIRINN — tolur horfnar OG skyringin a skjanum"
   }
 }
 
+/* ============================================================
+   8) TIMABILS-VALID — YFIRSTANDANDI TIMABIL UR LEIKJASKRANNI
+
+   Beidni notandans 22.8.2026: "eg vill ad Teams stats bjodi upp a nyjasta
+   season, ad eg geti valid thad og tha bara skodad GW1 nuna". Toflan las
+   adeins `team_form.json`, sem er FYRRA timabil (E0-skra 2026/27 verdur
+   ekki til fyrr en tímabilid er komid af stad), svo yfirstandandi timabil
+   atti enga leid inn.
+
+   ThRJAR KROFUR OG SU SIDASTA ER SU SEM AUDVELDAST ER AD KLUDRA:
+   1. Valid VIRKAR — tolurnar breytast, thaer eru ekki sama syn med nyju
+      merkimida.
+   2. ThAD SEM ER EKKI TIL ER TOMT, EKKI NULL. Skot og xG koma ur heimildum
+      sem na adeins yfir fyrra timabil.
+   3. NOTANDINN LENDIR EKKI A TOMUM FLOKKI. Sjalfgefni flokkurinn er
+      skota-drifinn ad ollu leyti, svo an vals-leidréttingar syndi
+      smellurinn TIU dalka af "—" og skyringu fyrir nedan — satt, og
+      gagnslaust.
+   ============================================================ */
+console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
+{
+  const { default: Teams } = await import("../src/Teams.jsx");
+  const sf8 = J("bsd_shots.json");
+  const F8 = Object.fromEntries(sf8.legend.fields.map((f, i) => [f, i]));
+  const bt8 = new Map(), bo8 = new Map();
+  const put8 = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+  for (const x of sf8.shots) { put8(bt8, x[F8.team], x); put8(bo8, x[F8.opp], x); }
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root8 = createRoot(host);
+  await act(async () => { root8.render(React.createElement(Teams, {
+    teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
+    teamShots: J("team_shots.json"), fixtures: J("fixtures.json"),
+    bsdTeams: J("bsd_teams.json"),
+    shotIndex: { byTeam: bt8, byOpp: bo8, teams: sf8.legend.teams, fields: F8, calib: sf8.calib },
+    seasonLabel: "2026/27", Crest: () => null })); });
+  await act(async () => { await new Promise(r => setTimeout(r, 200)); });
+
+  const btns = () => [...host.querySelectorAll("button")];
+  const heads = () => [...host.querySelectorAll("thead th")].map(h => h.textContent.trim());
+  const rowOf = short => {
+    const tr = [...host.querySelectorAll("tr")].find(r => (r.textContent || "").startsWith(short));
+    return tr ? [...tr.querySelectorAll("th,td")].map(c => c.textContent.trim()) : null;
+  };
+  /* RODUNAR-ORIN ER HLUTI AF HAUS-TEXTANUM ("Shots ↑"), svo bein
+     jafngilding a heiti brast um leid og rodunin faerdist a thann dalk —
+     fullyrdingin var tha `undefined` af RANGRI astaedu. Orin er strippud;
+     hun er birting a rodun, ekki hluti af heiti dalksins.               */
+  const norm = t => String(t).replace(/[↑↓]/g, "").trim();
+  const cell = (short, head) => { const i = heads().map(norm).indexOf(norm(head));
+    const r = rowOf(short); return i >= 0 && r ? r[i] : undefined; };
+  const click = async b => { await act(async () => {
+      b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await new Promise(r => setTimeout(r, 120)); }); };
+
+  const prevBtn = btns().find(b => /^\d{4}-\d{2}$/.test((b.textContent || "").trim()));
+  const liveBtn = btns().find(b => /2026\/27/.test(b.textContent || ""));
+  ok(`badir timabils-hnappar a skjanum `
+     + `(${JSON.stringify(prevBtn?.textContent)} / ${JSON.stringify(liveBtn?.textContent)})`,
+     !!prevBtn && !!liveBtn);
+  /* MERKIMIDINN BER KOSTNADINN. "6 matches" er ekki skraut: lifandi synin er
+     eitt-leiks urtak i dag og notandinn a ad sja thad ADUR en hann les
+     toluna.                                                              */
+  ok(`lifandi hnappurinn ber LEIKJAFJOLDANN: ${JSON.stringify(liveBtn?.textContent)}`,
+     /\d+ matches/.test(liveBtn?.textContent || ""));
+
+  /* FORSENDA: fyrra timabil ber tolur i skota-flokknum. An hennar gaeti
+     "tomt eftir smell" thytt "alltaf tomt".                              */
+  const prevShots = cell("ARS", "Shots");
+  ok(`forsenda: fyrra timabil ber skot-tolu (ARS ${prevShots})`,
+     !!prevShots && prevShots !== "—");
+
+  await click(liveBtn);
+
+  /* 3 — EKKI TOMUR FLOKKUR. Vid erum nu i flokki sem BER tolur.          */
+  const shown = heads().slice(1);
+  const arsRow = rowOf("ARS") || [];
+  const nums = arsRow.slice(1).filter(v => v && v !== "—").length;
+  ok(`eftir smell er flokkurinn sem birtist EKKI tomur `
+     + `(${nums} af ${shown.length} dalkum bera tolu: ${shown.join(",")})`, nums > 0);
+
+  /* 1 — TOLURNAR ERU ADRAR. ARS: 38 leikir i fyrra, 1 nuna.             */
+  const m = cell("ARS", "Matches");
+  ok(`ARS ber 1 leik i yfirstandandi timabili (fekk ${JSON.stringify(m)})`, m === "1");
+  ok(`og raunveruleg urslit GW1: mork a sig ${cell("ARS", "GC tot")}, CS ${cell("ARS", "CS %")}%`,
+     cell("ARS", "GC tot") === "0" && cell("ARS", "CS %") === "100");
+  /* Nylidi sem VAR ekki til i fyrra timabili ber nu tolu — thad er einmitt
+     munurinn a syninni.                                                  */
+  ok(`nylidi (COV) ber tolu i yfirstandandi timabili, ekki "—" (${cell("COV", "Matches")})`,
+     cell("COV", "Matches") === "1");
+
+  /* 2 — ThAD SEM ER EKKI TIL ER TOMT. xGC kemur ur BSD (2025/26 eitt).   */
+  ok(`xGC er TOMT i yfirstandandi timabili (${cell("ARS", "xGC")} / ${cell("ARS", "xGC tot")})`,
+     cell("ARS", "xGC tot") === "—" && cell("ARS", "xGC") === "—");
+  /* OG ThAD SAMA UM SKOTIN — E0-hlidin. `fixtures.json` ber ENGIN skot, svo
+     hver skota-dalkur verdur ad vera "—". Stokkbreyting sem setti
+     `shots_pg: 0` i lifandi rodina SLAPP i gegn medan adeins xGC var
+     fullyrt: xGC kemur ur BSD og var afram tomt, svo fullyrdingin sa
+     ekkert. Vid profum thvi BADAR heimildirnar, ekki adra.              */
+  const shotGroupBtn = btns().find(b => b.textContent.trim() === "What the keeper faces");
+  if (shotGroupBtn) {
+    await click(shotGroupBtn);
+    const r = (rowOf("ARS") || []).slice(1);
+    ok(`skota-dalkarnir eru ALLIR tomir i lifandi syn (${r.length} dalkar: `
+       + `${[...new Set(r)].join(",")})`,
+       r.length > 0 && r.every(v => v === "—"));
+    /* Og flokkurinn hoppar aftur ur honum thegar hann er tomur — annars
+       vaeri vals-leidrettingin ekki i gildi eftir handvirkt val.        */
+  }
+  const body = () => host.textContent || "";
+  ok("og skyringin segir hve margir leikir liggja ad baki",
+     /This season so far: \d+ matches played/.test(body()));
+  ok("og HVERS VEGNA skota-dalkarnir eru tomir", /only cover/.test(body()));
+  ok("engin NaN/undefined a skjanum", !/\bNaN\b|\bundefined\b/.test(body()));
+
+  /* AFTUR TIL BAKA: fyrra timabil ma ekki hafa breyst.                   */
+  await click(prevBtn);
+  /* AFTUR I VARNAR-FLOKKINN FYRST. Kaflinn hoppadi i skota-flokkinn hér
+     ofar til ad sanna ad hann se tomur, og "Matches" er ekki i honum — an
+     thessa maeldi lokafullyrdingin `undefined` og var raud af rangri
+     astaedu. Su bilun var RETT: fullyrding um timabil ma ekki hanga a thvi
+     hvada flokkur var sidast valinn.                                    */
+  const defBtn = btns().find(b => b.textContent.trim() === "Defence");
+  if (defBtn) await click(defBtn);
+  ok(`til baka i fyrra timabil: ARS ber 38 leiki aftur (${cell("ARS", "Matches")})`,
+     cell("ARS", "Matches") === "38");
+  /* OG SKOTIN ERU KOMIN AFTUR — annars gaeti "38" thytt ad synin haefi
+     einfaldlega frosid i sidasta astandi.                               */
+  const keepBtn2 = btns().find(b => /keeper faces/.test(b.textContent || ""));
+  ok(`forsenda: skota-flokks hnappurinn finnst (${btns().filter(b => /keeper|Defence|Attack/.test(b.textContent || "")).map(b => JSON.stringify(b.textContent.trim())).join(",")})`,
+     !!keepBtn2);
+  if (keepBtn2) { await click(keepBtn2);
+    ok(`og skota-tolurnar eru komnar aftur (ARS ${cell("ARS", "Shots")}, `
+       + `hausar: ${heads().slice(1, 4).join(",")})`,
+       cell("ARS", "Shots") === prevShots); }
+}
+
 console.log(`\nTEAMS-UMFERDIR: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

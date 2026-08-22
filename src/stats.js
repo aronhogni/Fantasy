@@ -355,14 +355,16 @@ export const STAT_DEFS = [
      thetta med okkar eigin skolun vaeri ad setja NALGUN ofan a OPINBERA
      tolu; hun er birt eins og hun er.
 
-     DALKURINN ER TOMUR I DAG OG ThAD ER RETT. MAELT 22.8.2026 kl. 01:35 a
-     lifandi svari, ollum 600: `price_change_percent` 0 hja ollum, og
-     `cost_change_start !== 0` hja **0 af 600** — FPL frystir verd fram
-     yfir fyrstu umferd. Pipeline-an SLEPPIR thvi svidunum medan svo er
-     (`priceChangeSignal` i fetch.mjs), svo getterinn faer `undefined` og
-     skilar `null` -> "—". Vaeru thau skrifud sem 0 fengi hver einasti
-     leikmadur "0%", sem er tilbuin maeling a `hi:true` dalki: allir jafnir
-     a toppnum (kafli 8, NULL ER EKKI NULL).
+     SVIDIN ERU LIFANDI (maelt 22.8.2026 kl. 19:30 UTC): **440 af 600** bera
+     tolu. Fyrr sama dag, kl. 01:35, voru thau 0 hja ollum — FPL frystir
+     verd fram yfir fyrstu umferd og opnadi thau um kvoldid. **Hlidid i
+     pipeline-unni stendur samt** (`priceChangeSignal` i fetch.mjs) og thad
+     er ekki leif: naesti forleikur, og hver sa gluggi thar sem FPL slekkur
+     a verdhreyfingum, endurtekur nakvaemlega sama astand. Skrifudum vid
+     svidin sem 0 tha fengi hver einasti leikmadur "0%", sem er tilbuin
+     maeling a `hi:true` dalki — allir jafnir a toppnum (kafli 8, NULL ER
+     EKKI NULL). Hlidid er opid i dag og lokast sjalft; thad kostar ekkert
+     medan gogn eru til.
 
      AF HVERJU EKKI LATA NALGUNINA FYLLA I GATID: tvaer tolur undir sama
      dalka-heiti eru tveir kvardar (sama rok og "mórad `meanDifficulty`
@@ -372,15 +374,16 @@ export const STAT_DEFS = [
      ============================================================ */
   { key:"price_change_percent", label:"Progress to price change", short:"→ price",
     group:"core", band:"Price and ownership", dec:0, hi:true, signed:true, pct:true,
-    note:"FPL's own progress figure towards this player's next price change, shown "
-       + "exactly as the API reports it — not rescaled. Positive means heading up: "
-       + "measured, players on a positive figure are averaging +2,570 net transfers "
-       + "against -1,664 for those on a negative one, and the whole league sits "
-       + "inside -37 to +35, so 100 is where a change lands. It will not agree with "
-       + "this gameweek's net transfers every time (73% do) and that is the column "
-       + "working, not failing: the threshold scales with ownership and the figure "
-       + "accumulates over days, so a lightly owned player moves a long way on a "
-       + "small net. Empty rather than zero when FPL has not started moving prices.",
+    note:"How far this player is towards his next price change, as a percentage — "
+       + "FPL's own published figure, shown exactly as the API reports it and not "
+       + "rescaled. Positive is heading up, negative heading down, and 100 is where "
+       + "the change lands: measured across the league, players on a positive figure "
+       + "average +2,570 net transfers against -1,664 for those on a negative one, "
+       + "and nobody sits outside -37 to +35 yet. It will not track this gameweek's "
+       + "net transfers exactly (73% share its sign) and that is the column working "
+       + "rather than failing — the threshold scales with ownership and the figure "
+       + "builds up over days, so a lightly owned player travels a long way on a "
+       + "small net. Empty only when FPL is publishing no figure at all.",
     get:p=>{ const v = num(p.price_change_percent);
              /* `calibrating` er FPL ad segja sjalft ad talan se ekki
                 marktaek — tha er hun ekki birt. Ad birta hana med

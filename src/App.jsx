@@ -2638,7 +2638,8 @@ export default function App() {
       {view === "teams" && (
         <Teams teams={teams} teamForm={teamForm} luck={luck} teamShots={teamShots}
           fixtures={fixtures}
-          bsdTeams={bsdTeams} shotIndex={shotIndex} Crest={Crest} />
+          bsdTeams={bsdTeams} shotIndex={shotIndex}
+          seasonLabel={currentSeasonLabel} Crest={Crest} />
       )}
       {view === "best" && (
         <BestOfBest pros={typeof pros === "string" ? null : pros}
