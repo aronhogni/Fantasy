@@ -1850,12 +1850,60 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
         && String(x.kickoff_time).slice(0, 16) === day);
       if (f?.event != null) covered.add(f.event);
     }
-    const hits = covered.has(nextGwId);
-    ok(hits ? real.length > 400 : real.length === 0,
-      `RAUN-odds.json nær yfir GW[${[...covered].sort((a, b) => a - b).join(",") || "-"}], `
-      + `naesta umferd er GW${nextGwId} -> ${real.length}/${pl.length} bera toluna `
-      + `(${hits ? "thekur hana: VERDUR ad vera fylltur"
-                 : "thekur hana EKKI: VERDUR ad vera tomur"})`);
+    /* ============================================================
+       SAMNINGURINN BREYTTIST 24.8.2026 — OG ThESSI FULLYRDING BAR GAMLA
+       Notandinn: "notum market odds". Dalkurinn fletti upp leik i NAESTU
+       UMFERD (`is_next`), sem FPL flettir yfir um leid og fresturinn lidur,
+       svo a leikdegi var flett upp GW2-leik medan `odds.json` bar GW1-linur
+       og dalkurinn vard tomur i marga daga. Nu er flett upp NAESTA OLEIKNA
+       leik lidsins, hvada umferd sem hann tilheyrir.
+
+       ThESS VEGNA ER TALNING RANGT PROF HER. "> 400 eda 0" var satt um
+       gamla samninginn (ollum lidum flettist upp i SOMU umferd, svo allt
+       eda ekkert). Nyi samningurinn er PER LID: lid sem hefur ekki spilad
+       faer tolu, lid sem er buid faer "—". Utkoman er thvi BLONDUD a
+       leikdegi, og hvorugt gamla threpid getur lyst henni.
+
+       VID PROFUM SAMNINGINN SJALFAN, EXAKT OG I BADAR ATTIR: fyrir hvert
+       lid er reiknad hvort `odds.json` beri rod sem passar vid ThEIRRA
+       naesta oleikna leik (motherji OG dagsetning — sama tveggja-thatta
+       profid sem koddin gerir). Beri hun, VERDUR talan ad vera their; beri
+       hun ekki, verdur hun ad vera tom. Engin talning, engin threp.     */
+    const unplayedFix = fx
+      .filter(f => f?.kickoff_time && !f.started && !f.finished && !f.finished_provisional)
+      .sort((a, b) => String(a.kickoff_time).localeCompare(String(b.kickoff_time)));
+    const nextUnplayed = {};
+    for (const f of unplayedFix)
+      for (const [a, b] of [[f.team_h, f.team_a], [f.team_a, f.team_h]])
+        if (!nextUnplayed[a]) nextUnplayed[a] = { opp: teamById[b]?.short ?? null,
+                                                 day: String(f.kickoff_time).slice(0, 10) };
+    /* Hvada lid AETTU ad bera tolu, skv. skranni sjalfri?               */
+    const shouldHave = new Set();
+    for (const t of Object.values(teamById)) {
+      const u = nextUnplayed[t.id]; const r = u && odds[t.short];
+      if (!r || !Number.isFinite(num(r.cs))) continue;
+      if (r.opp !== u.opp) continue;
+      if (r.kickoff && String(r.kickoff).slice(0, 10) !== u.day) continue;
+      shouldHave.add(t.id);
+    }
+    /* SAMA VEL SEM APPID NOTAR — `makeEnricher`, ekki afrit af formulunni
+       (kafli 7: bokhald sem reiknar upp a nytt maelir annad likan).      */
+    const enReal = makeEnricher({ players: pl, teamById, fixtures: fx, events: ev, odds });
+    const haveIt = new Set(pl.filter(p => enReal(p).fields._team_cs != null)
+                             .map(p => p.team));
+    const missing = [...shouldHave].filter(id => !haveIt.has(id))
+      .map(id => teamById[id]?.short);
+    const extra = [...haveIt].filter(id => !shouldHave.has(id))
+      .map(id => teamById[id]?.short);
+    ok(missing.length === 0 && extra.length === 0,
+      `_team_cs er EXAKT theim lidum sem eiga passandi odds-rod fyrir sinn naesta `
+      + `OLEIKNA leik: ${shouldHave.size} lid aettu, ${haveIt.size} bera `
+      + `(vantar: ${missing.join(",") || "engin"} · ofaukid: ${extra.join(",") || "engin"})`);
+    /* FORSENDA: mengið ma ekki vera tomt i BADA enda — tomt "aettu" gerir
+       fullyrdinguna ad tautologiu (kafli 5b).                           */
+    ok(shouldHave.size > 0 || unplayedFix.length === 0,
+      `forsenda: ${shouldHave.size} lid eiga passandi odds-rod (af ${Object.keys(nextUnplayed).length} `
+      + `med oleikinn leik) — vaeri thad 0 maeldi fullyrdingin ekkert`);
     /* OG MERKIMIDINN SJALFUR VERDUR AD SEGJA SATT — en adeins fyrir skrar
        sem NYJA pipeline-an skrifadi. `gws` er svidid sem hun baetti vid, svo
        tilvist thess er hlidid: eldri skra (skrifud fyrir 22.8.) er ekki

@@ -960,7 +960,7 @@ export const STAT_DEFS = [
      breiddar-reikningurinn haggast ekki.                                  */
   { key:"team_cs_prob", label:"Team clean sheet, next match", short:"CS next", group:"fixtures",
     band:"Team, next match", dec:0, hi:true, pct:true, live_only:true,
-    note:"Probability of a clean sheet in the NEXT MATCH ONLY, from the bookmaker line (odds.json) — not from our model, and not an average over the six fixtures beside it. The market is the single strongest input we have for defensive difficulty.",
+    note:"Probability of a clean sheet in the NEXT MATCH ONLY, from the bookmaker line (odds.json) - not from our model, and not an average over the six fixtures beside it. The market is the single strongest input we have for defensive difficulty. \"Next match\" means the next one this club has NOT played, which is not the same as \"next gameweek\": FPL rolls the gameweek over the moment the deadline passes, so on a matchday weekend the clubs that have already played show an empty cell while the clubs still to play show their line. That asymmetry is correct - a bookmaker has no line on a finished match - and it is why this column reads empty for some clubs and not others over a weekend. Every line is verified against the opponent AND the kickoff date before it is shown, so a stale line is dropped rather than displayed.",
     get:p=>num(p._team_cs) },
   /* SITT EIGID BAND — bandið "Team, next match" var RANGT UM THESSA TOLU.
      `defcon.json` merkir hverja rod `"fixtures_used": 6`, svo taekifaeris-
@@ -2493,13 +2493,49 @@ export function makeEnricher({
      linu fyrir leik SEM ER THEGAR BUINN — an nokkurs merkis. Thad er
      nakvaemlega "gomul gogn birt sem ny" (kafli 3, homeCore-lærdomurinn).
      Nu er sama tveggja-thatta profid og i `csFor`, og fellur a null.   */
+  /* ============================================================
+     NAESTI OLEIKNI LEIKUR — EKKI "LEIKUR I NAESTU UMFERD" (24.8.2026)
+
+     Beidni notandans: "notum market odds" — dalkurinn a ad bera
+     bokmakaralinuna a leikdegi i stad thess ad verda tomur.
+
+     ORSOK TOMLEIKANS VAR EKKI VALIDERINGIN HELDUR UPPFLETTINGIN. Tveggja-
+     thatta profid (motherji OG dagsetning) er RETT og stendur obreytt —
+     bokmakaralina gildir um EINN leik. Vandinn var hvada leik var flett
+     upp: `f.event !== nextGw`, og `nextGw` kemur ur `is_next`, sem FPL
+     flettir yfir a naestu umferd UM LEID OG FRESTURINN LIDUR. A leikdegi
+     var thvi flett upp GW2-leik medan `odds.json` bar GW1-linur, profid
+     fell rettilega, og dalkurinn vard tomur i marga daga.
+
+     MAELT 24.8.2026 a `odds.json` med 18 rodum:
+       - gamla reglan (leikur i naestu umferd): **0 af 18** rodum nytast
+       - ny regla (naesti OLEIKNI leikur):      **8 af 18**
+     Hinar tiu eru leikir sem ThEGAR eru bunir og thaer eiga AD falla.
+
+     MERKINGIN VERDUR STODUG I STAD ThESS AD FLETTAST VID FREST: dalkurinn
+     svarar nu alltaf "naesti leikur sem thetta lid hefur EKKI spilad".
+     I venjulegri viku er thad sami leikur sem "naesta umferd" gaf; thau
+     skilja adeins a leikdegi, sem er einmitt tilfellid sem var bilad.
+
+     OLEIKINN = HVORKI BYRJADUR NE BUINN. Leikur I GANGI er utilokadur:
+     linan var sett fyrir leik sem er farinn af stad og er thvi urelt —
+     sama rok og `finished_provisional` annars stadar (leikur telst spiladur
+     adur en umferdin er stadfest med bonus).
+
+     ASYMMETRIAN A LEIKDEGI ER ASETT OG SKYRD I NOTUNNI: lid sem er thegar
+     buid ad spila faer "—" medan lid sem hefur ekki spilad faer tolu. Thad
+     er RETT — bokmakarinn hefur enga linu a leik sem er lokid — en thad
+     tharf ad standa a skjanum, annars les thad eins og gagnavilla.       */
   const nextFixByTeam = {};
-  for (const f of fixtures || []) {
-    if (f.event !== nextGw) continue;
+  const unplayed = (fixtures || [])
+    .filter(f => f?.kickoff_time && !f.started
+              && !f.finished && !f.finished_provisional)
+    .sort((a, b) => String(a.kickoff_time).localeCompare(String(b.kickoff_time)));
+  for (const f of unplayed) {
     for (const [team, opp] of [[f.team_h, f.team_a], [f.team_a, f.team_h]]) {
-      if (nextFixByTeam[team]) continue;      // fyrsti leikur umferdarinnar
+      if (nextFixByTeam[team]) continue;      // fyrsti OLEIKNI leikur vinnur
       nextFixByTeam[team] = { oppShort: teamById?.[opp]?.short ?? null,
-                              kickoff: f.kickoff_time ?? null };
+                              kickoff: f.kickoff_time ?? null, gw: f.event ?? null };
     }
   }
   const teamCsOf = (teamId, short) => {
