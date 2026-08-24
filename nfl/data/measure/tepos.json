@@ -1,10 +1,8 @@
 {
- "generated": "2026-08-24T17:04:28.711Z",
+ "generated": "2026-08-24T17:09:28.241Z",
  "provenance": {
-  "generated": "2026-08-24T17:04:28.712Z",
-  "argv": [
-   "--noOutcome"
-  ],
+  "generated": "2026-08-24T17:09:28.242Z",
+  "argv": [],
   "params": {
    "runs": {
     "value": 4,
@@ -41,6 +39,11 @@
     "bytes": 3147475,
     "sha1": "0b159cf19ed7",
     "mtime": "2026-08-24T16:47:43.915Z"
+   },
+   "measure/h2h.json": {
+    "bytes": 1102482,
+    "sha1": "a57ae14ca65c",
+    "mtime": "2026-08-24T16:47:43.927Z"
    },
    "measure/band.json": {
     "bytes": 369496,
@@ -85,7 +88,6 @@
   },
   "node": "v26.5.0"
  },
- "phase": "decomposition only (--noOutcome) — Q2/Q3 NOT RUN",
  "question": {
   "origin": "A round-band measurement (data/measure/band.json -> q1positionMix) found in passing that the shipped board spends 57.6% of its first three picks on TIGHT ENDS in the 10-team 2FLEX full-PPR league, which starts ONE tight end. Nobody asked for that number.",
   "q1": "Where does the TE skew come from — FLEX_SPLIT.TE, the projection source, or the `value` column's dense-versus-absolute basis?",
@@ -109,6 +111,13 @@
    "holds on BOTH metrics"
   ]
  },
+ "unmeasured": {
+  "waivers": "Rosters are frozen all season — the same simplification as h2h-lab and band-lab. It hits both arms identically.",
+  "capIsTailNotBan": "The cap moves the position to the TAIL of the board, never makes it ineligible. A skipped pick would be a different experiment (what if you do not play).",
+  "oneTeIsStillDrafted": "cap = 1 means ONE tight end is still taken inside the window. This is not a no-TE strategy; it is a no-CONCENTRATION constraint. `maxPos.TE = 2` still applies after the window.",
+  "q1IsDescriptive": "Q1 has no intervals and no outcome. It answers WHERE the skew comes from, not whether it is wrong. The shipped board is rebuilt from data/players.json, which the pipeline rewrites daily, so the Q1 numbers are a dated example; the Q2/Q3 measurement is not.",
+  "valueBasisFixIsConcurrent": "The dense-versus-absolute basis of `value` is being fixed in src/ by another change. It is measured here as a COMPONENT of the skew, not fixed here."
+ },
  "seasons": [
   2019,
   2020,
@@ -125,6 +134,50 @@
   2024,
   2025
  ],
+ "coverage": {
+  "2019": {
+   "players": 587,
+   "projected": 161,
+   "sleeperProjected": 0,
+   "ffProjected": 161
+  },
+  "2020": {
+   "players": 618,
+   "projected": 162,
+   "sleeperProjected": 0,
+   "ffProjected": 162
+  },
+  "2021": {
+   "players": 648,
+   "projected": 178,
+   "sleeperProjected": 178,
+   "ffProjected": 172
+  },
+  "2022": {
+   "players": 619,
+   "projected": 145,
+   "sleeperProjected": 142,
+   "ffProjected": 140
+  },
+  "2023": {
+   "players": 587,
+   "projected": 175,
+   "sleeperProjected": 173,
+   "ffProjected": 168
+  },
+  "2024": {
+   "players": 597,
+   "projected": 176,
+   "sleeperProjected": 175,
+   "ffProjected": 169
+  },
+  "2025": {
+   "players": 616,
+   "projected": 201,
+   "sleeperProjected": 201,
+   "ffProjected": 192
+  }
+ },
  "replacementRanks": {
   "10-2flex": {
    "QB": 10,
@@ -141,6 +194,61 @@
    "TE": 17,
    "K": 0,
    "DST": 0
+  }
+ },
+ "gates": {
+  "n1_self": {
+   "winsDiff": 0,
+   "seasonDiff": 0,
+   "ok": true
+  },
+  "n2_capNeverBinds": {
+   "identical": true,
+   "bound": 0
+  },
+  "n4_anchors": {
+   "oracleWins": 4.207,
+   "reverseWins": -9.714,
+   "ok": true
+  },
+  "n3_crossAnchor": {
+   "perShape": {
+    "10-2flex": {
+     "wins": 2.712,
+     "season": 231.16,
+     "years": 5,
+     "bookedWins": 2.581,
+     "bookedSeason": 236.1
+    },
+    "12-2flex": {
+     "wins": 2.698,
+     "season": 244.4,
+     "years": 5,
+     "bookedWins": 2.524,
+     "bookedSeason": 244.36
+    }
+   },
+   "ok": true,
+   "failed": []
+  },
+  "n5_capCrossAnchor": {
+   "perShape": {
+    "10-2flex": {
+     "wins": 0.316,
+     "season": 39.043,
+     "bookedWins": 0.316,
+     "bookedSeason": 39.043
+    },
+    "12-2flex": {
+     "wins": 0.11,
+     "season": 21.329,
+     "bookedWins": 0.11,
+     "bookedSeason": 21.329
+    }
+   },
+   "bookedRuns": 4,
+   "ok": true,
+   "failed": []
   }
  },
  "q1": {
@@ -722,5 +830,5303 @@
    }
   }
  },
- "runtimeSec": 0.3
+ "q2": {
+  "10-2flex": {
+   "label": "10 lid, 2 FLEX, PPR (Patriots)",
+   "rows": [
+    {
+     "pos": "TE",
+     "cap": 1,
+     "window": "r1-3",
+     "until": 3,
+     "label": "TE <= 1, umferdir 1-3",
+     "bindRate": 0.074,
+     "bindPicks": 622,
+     "picks": 8400,
+     "wins": {
+      "diff": 0.093,
+      "lo": -0.064,
+      "hi": 0.27,
+      "excludesZero": false,
+      "t": 0.987,
+      "wins": 4,
+      "years": 7,
+      "per": {
+       "2019": -0.237,
+       "2020": 0.1,
+       "2021": 0.563,
+       "2022": -0.025,
+       "2023": 0.212,
+       "2024": 0.063,
+       "2025": -0.025
+      }
+     },
+     "season": {
+      "diff": 14.929,
+      "lo": -2.529,
+      "hi": 32.457,
+      "excludesZero": false,
+      "t": 1.471,
+      "wins": 6,
+      "years": 7,
+      "per": {
+       "2019": 14.9,
+       "2020": 22.9,
+       "2021": 58.4,
+       "2022": 0.7,
+       "2023": 31.7,
+       "2024": 2.7,
+       "2025": -26.8
+      }
+     },
+     "champ": {
+      "diff": 0.002,
+      "lo": -0.032,
+      "hi": 0.032,
+      "excludesZero": false,
+      "t": 0.105,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": 0.038,
+       "2020": 0.025,
+       "2021": 0.063,
+       "2022": 0,
+       "2023": 0,
+       "2024": -0.075,
+       "2025": -0.038
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.158,
+       "lo": -0.007,
+       "hi": 0.375,
+       "excludesZero": false,
+       "t": 1.43,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": 0.563,
+        "2022": -0.025,
+        "2023": 0.212,
+        "2024": 0.063,
+        "2025": -0.025
+       }
+      },
+      "season": {
+       "diff": 13.34,
+       "lo": -9.9,
+       "hi": 41.36,
+       "excludesZero": false,
+       "t": 0.915,
+       "wins": 4,
+       "years": 5,
+       "per": {
+        "2021": 58.4,
+        "2022": 0.7,
+        "2023": 31.7,
+        "2024": 2.7,
+        "2025": -26.8
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.438,
+       "winsC": 8.675,
+       "winsDiff": -0.237,
+       "seasonT": 1960.3,
+       "seasonC": 1945.4,
+       "seasonDiff": 14.9,
+       "pfDiff": -15.3,
+       "champT": 0.188,
+       "champC": 0.15,
+       "champDiff": 0.038,
+       "poDiff": 0,
+       "weekWinRate": 0.462
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 7.175,
+       "winsC": 7.075,
+       "winsDiff": 0.1,
+       "seasonT": 1863.3,
+       "seasonC": 1840.4,
+       "seasonDiff": 22.9,
+       "pfDiff": 16.7,
+       "champT": 0.05,
+       "champC": 0.025,
+       "champDiff": 0.025,
+       "poDiff": 0.038,
+       "weekWinRate": 0.511
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 9.763,
+       "winsC": 9.2,
+       "winsDiff": 0.563,
+       "seasonT": 2117.2,
+       "seasonC": 2058.8,
+       "seasonDiff": 58.3,
+       "pfDiff": 40.5,
+       "champT": 0.213,
+       "champC": 0.15,
+       "champDiff": 0.063,
+       "poDiff": 0.013,
+       "weekWinRate": 0.528
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 9.338,
+       "winsC": 9.363,
+       "winsDiff": -0.025,
+       "seasonT": 2001.4,
+       "seasonC": 2000.7,
+       "seasonDiff": 0.7,
+       "pfDiff": 0.6,
+       "champT": 0.013,
+       "champC": 0.013,
+       "champDiff": 0,
+       "poDiff": -0.012,
+       "weekWinRate": 0.498
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 10.05,
+       "winsC": 9.838,
+       "winsDiff": 0.213,
+       "seasonT": 2033.3,
+       "seasonC": 2001.6,
+       "seasonDiff": 31.7,
+       "pfDiff": 21.9,
+       "champT": 0.175,
+       "champC": 0.175,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.507
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 11.038,
+       "winsC": 10.975,
+       "winsDiff": 0.063,
+       "seasonT": 2182.4,
+       "seasonC": 2179.7,
+       "seasonDiff": 2.7,
+       "pfDiff": 4.2,
+       "champT": 0.45,
+       "champC": 0.525,
+       "champDiff": -0.075,
+       "poDiff": 0,
+       "weekWinRate": 0.505
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 7.063,
+       "winsC": 7.088,
+       "winsDiff": -0.025,
+       "seasonT": 1865.3,
+       "seasonC": 1892.1,
+       "seasonDiff": -26.8,
+       "pfDiff": -13.6,
+       "champT": 0.175,
+       "champC": 0.213,
+       "champDiff": -0.037,
+       "poDiff": 0,
+       "weekWinRate": 0.484
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "TE",
+     "cap": 1,
+     "window": "r1-7",
+     "until": 7,
+     "label": "TE <= 1, fyrir 8. umferd",
+     "bindRate": 0.333,
+     "bindPicks": 2794,
+     "picks": 8400,
+     "wins": {
+      "diff": 0.309,
+      "lo": -0.198,
+      "hi": 0.816,
+      "excludesZero": false,
+      "t": 1.111,
+      "wins": 5,
+      "years": 7,
+      "per": {
+       "2019": -0.113,
+       "2020": 0.518,
+       "2021": 0.2,
+       "2022": 1.512,
+       "2023": -0.837,
+       "2024": 0.769,
+       "2025": 0.112
+      }
+     },
+     "season": {
+      "diff": 33.643,
+      "lo": -8.329,
+      "hi": 79.629,
+      "excludesZero": false,
+      "t": 1.366,
+      "wins": 5,
+      "years": 7,
+      "per": {
+       "2019": 2.8,
+       "2020": 45.8,
+       "2021": -50.4,
+       "2022": 137.3,
+       "2023": 8.1,
+       "2024": 99,
+       "2025": -7.1
+      }
+     },
+     "champ": {
+      "diff": 0.005,
+      "lo": -0.075,
+      "hi": 0.07,
+      "excludesZero": false,
+      "t": 0.133,
+      "wins": 4,
+      "years": 7,
+      "per": {
+       "2019": 0.063,
+       "2020": 0.025,
+       "2021": -0.025,
+       "2022": 0.125,
+       "2023": 0.063,
+       "2024": -0.213,
+       "2025": 0
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.351,
+       "lo": -0.326,
+       "hi": 1.042,
+       "excludesZero": false,
+       "t": 0.905,
+       "wins": 4,
+       "years": 5,
+       "per": {
+        "2021": 0.2,
+        "2022": 1.512,
+        "2023": -0.837,
+        "2024": 0.769,
+        "2025": 0.112
+       }
+      },
+      "season": {
+       "diff": 37.38,
+       "lo": -21.38,
+       "hi": 100.76,
+       "excludesZero": false,
+       "t": 1.072,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": -50.4,
+        "2022": 137.3,
+        "2023": 8.1,
+        "2024": 99,
+        "2025": -7.1
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.575,
+       "winsC": 8.688,
+       "winsDiff": -0.112,
+       "seasonT": 1961.2,
+       "seasonC": 1958.4,
+       "seasonDiff": 2.7,
+       "pfDiff": -10.4,
+       "champT": 0.238,
+       "champC": 0.175,
+       "champDiff": 0.063,
+       "poDiff": 0,
+       "weekWinRate": 0.479
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 6.856,
+       "winsC": 6.338,
+       "winsDiff": 0.519,
+       "seasonT": 1816.6,
+       "seasonC": 1770.8,
+       "seasonDiff": 45.9,
+       "pfDiff": 38.1,
+       "champT": 0.05,
+       "champC": 0.025,
+       "champDiff": 0.025,
+       "poDiff": 0.088,
+       "weekWinRate": 0.529
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 9.613,
+       "winsC": 9.413,
+       "winsDiff": 0.2,
+       "seasonT": 2041.6,
+       "seasonC": 2092,
+       "seasonDiff": -50.3,
+       "pfDiff": -15.2,
+       "champT": 0.175,
+       "champC": 0.2,
+       "champDiff": -0.025,
+       "poDiff": -0.012,
+       "weekWinRate": 0.489
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 10.525,
+       "winsC": 9.013,
+       "winsDiff": 1.513,
+       "seasonT": 2124.8,
+       "seasonC": 1987.5,
+       "seasonDiff": 137.3,
+       "pfDiff": 122.3,
+       "champT": 0.15,
+       "champC": 0.025,
+       "champDiff": 0.125,
+       "poDiff": 0.025,
+       "weekWinRate": 0.608
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 9.338,
+       "winsC": 10.175,
+       "winsDiff": -0.837,
+       "seasonT": 2016.6,
+       "seasonC": 2008.5,
+       "seasonDiff": 8.1,
+       "pfDiff": -43.6,
+       "champT": 0.188,
+       "champC": 0.125,
+       "champDiff": 0.063,
+       "poDiff": -0.075,
+       "weekWinRate": 0.479
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 11.65,
+       "winsC": 10.881,
+       "winsDiff": 0.769,
+       "seasonT": 2245.3,
+       "seasonC": 2146.3,
+       "seasonDiff": 99,
+       "pfDiff": 55.8,
+       "champT": 0.375,
+       "champC": 0.588,
+       "champDiff": -0.212,
+       "poDiff": 0,
+       "weekWinRate": 0.575
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 7.225,
+       "winsC": 7.113,
+       "winsDiff": 0.113,
+       "seasonT": 1886.7,
+       "seasonC": 1893.8,
+       "seasonDiff": -7.1,
+       "pfDiff": 6,
+       "champT": 0.213,
+       "champC": 0.213,
+       "champDiff": 0,
+       "poDiff": 0.063,
+       "weekWinRate": 0.526
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "TE",
+     "cap": 1,
+     "window": "all",
+     "until": 99,
+     "label": "TE <= 1, allt draftid",
+     "bindRate": 0.866,
+     "bindPicks": 7274,
+     "picks": 8400,
+     "wins": {
+      "diff": 0.251,
+      "lo": -0.159,
+      "hi": 0.695,
+      "excludesZero": false,
+      "t": 1.048,
+      "wins": 5,
+      "years": 7,
+      "per": {
+       "2019": -0.462,
+       "2020": 0.606,
+       "2021": 0.325,
+       "2022": 1.362,
+       "2023": -0.45,
+       "2024": 0.312,
+       "2025": 0.062
+      }
+     },
+     "season": {
+      "diff": 34.186,
+      "lo": 1.843,
+      "hi": 69.2,
+      "excludesZero": true,
+      "t": 1.8,
+      "wins": 5,
+      "years": 7,
+      "per": {
+       "2019": 24.8,
+       "2020": 69.1,
+       "2021": -10.9,
+       "2022": 117.4,
+       "2023": 6.7,
+       "2024": 57.8,
+       "2025": -25.6
+      }
+     },
+     "champ": {
+      "diff": -0.021,
+      "lo": -0.062,
+      "hi": 0.007,
+      "excludesZero": false,
+      "t": -1.058,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": 0,
+       "2020": 0.025,
+       "2021": 0,
+       "2022": 0,
+       "2023": -0.025,
+       "2024": -0.137,
+       "2025": -0.012
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.322,
+       "lo": -0.145,
+       "hi": 0.892,
+       "excludesZero": false,
+       "t": 1.091,
+       "wins": 4,
+       "years": 5,
+       "per": {
+        "2021": 0.325,
+        "2022": 1.362,
+        "2023": -0.45,
+        "2024": 0.312,
+        "2025": 0.062
+       }
+      },
+      "season": {
+       "diff": 29.08,
+       "lo": -13.26,
+       "hi": 79.82,
+       "excludesZero": false,
+       "t": 1.111,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": -10.9,
+        "2022": 117.4,
+        "2023": 6.7,
+        "2024": 57.8,
+        "2025": -25.6
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.338,
+       "winsC": 8.8,
+       "winsDiff": -0.462,
+       "seasonT": 1969.1,
+       "seasonC": 1944.3,
+       "seasonDiff": 24.8,
+       "pfDiff": -24.8,
+       "champT": 0.163,
+       "champC": 0.163,
+       "champDiff": 0,
+       "poDiff": -0.037,
+       "weekWinRate": 0.477
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 6.95,
+       "winsC": 6.344,
+       "winsDiff": 0.606,
+       "seasonT": 1837.5,
+       "seasonC": 1768.4,
+       "seasonDiff": 69.1,
+       "pfDiff": 56.6,
+       "champT": 0.025,
+       "champC": 0,
+       "champDiff": 0.025,
+       "poDiff": 0.1,
+       "weekWinRate": 0.547
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 9.888,
+       "winsC": 9.563,
+       "winsDiff": 0.325,
+       "seasonT": 2084.6,
+       "seasonC": 2095.5,
+       "seasonDiff": -10.9,
+       "pfDiff": -1.7,
+       "champT": 0.188,
+       "champC": 0.188,
+       "champDiff": 0,
+       "poDiff": -0.05,
+       "weekWinRate": 0.496
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 10.125,
+       "winsC": 8.763,
+       "winsDiff": 1.363,
+       "seasonT": 2093.4,
+       "seasonC": 1976,
+       "seasonDiff": 117.5,
+       "pfDiff": 99.9,
+       "champT": 0,
+       "champC": 0,
+       "champDiff": 0,
+       "poDiff": 0.063,
+       "weekWinRate": 0.596
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 9.563,
+       "winsC": 10.013,
+       "winsDiff": -0.45,
+       "seasonT": 2024.6,
+       "seasonC": 2017.9,
+       "seasonDiff": 6.7,
+       "pfDiff": -27.7,
+       "champT": 0.175,
+       "champC": 0.2,
+       "champDiff": -0.025,
+       "poDiff": -0.012,
+       "weekWinRate": 0.475
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 11.15,
+       "winsC": 10.838,
+       "winsDiff": 0.313,
+       "seasonT": 2208.6,
+       "seasonC": 2150.8,
+       "seasonDiff": 57.8,
+       "pfDiff": 10.1,
+       "champT": 0.388,
+       "champC": 0.525,
+       "champDiff": -0.137,
+       "poDiff": 0,
+       "weekWinRate": 0.522
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 7.05,
+       "winsC": 6.988,
+       "winsDiff": 0.063,
+       "seasonT": 1882.5,
+       "seasonC": 1908.1,
+       "seasonDiff": -25.6,
+       "pfDiff": -21.6,
+       "champT": 0.188,
+       "champC": 0.2,
+       "champDiff": -0.012,
+       "poDiff": 0.088,
+       "weekWinRate": 0.493
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "RB",
+     "cap": 1,
+     "window": "r1-3",
+     "until": 3,
+     "label": "RB <= 1, umferdir 1-3",
+     "bindRate": 0.072,
+     "bindPicks": 602,
+     "picks": 8400,
+     "wins": {
+      "diff": -0.282,
+      "lo": -0.48,
+      "hi": -0.096,
+      "excludesZero": true,
+      "t": -2.59,
+      "wins": 0,
+      "years": 7,
+      "per": {
+       "2019": 0,
+       "2020": -0.588,
+       "2021": -0.337,
+       "2022": 0,
+       "2023": 0,
+       "2024": -0.675,
+       "2025": -0.375
+      }
+     },
+     "season": {
+      "diff": -24.157,
+      "lo": -43.557,
+      "hi": -6.714,
+      "excludesZero": true,
+      "t": -2.216,
+      "wins": 0,
+      "years": 7,
+      "per": {
+       "2019": 0,
+       "2020": -60.5,
+       "2021": -5.2,
+       "2022": 0,
+       "2023": 0,
+       "2024": -56.4,
+       "2025": -47
+      }
+     },
+     "champ": {
+      "diff": -0.038,
+      "lo": -0.073,
+      "hi": -0.007,
+      "excludesZero": true,
+      "t": -2.006,
+      "wins": 0,
+      "years": 7,
+      "per": {
+       "2019": 0,
+       "2020": -0.025,
+       "2021": -0.025,
+       "2022": 0,
+       "2023": 0,
+       "2024": -0.125,
+       "2025": -0.088
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.277,
+       "lo": -0.495,
+       "hi": -0.067,
+       "excludesZero": true,
+       "t": -2.176,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": -0.337,
+        "2022": 0,
+        "2023": 0,
+        "2024": -0.675,
+        "2025": -0.375
+       }
+      },
+      "season": {
+       "diff": -21.72,
+       "lo": -43.24,
+       "hi": -1.04,
+       "excludesZero": true,
+       "t": -1.756,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": -5.2,
+        "2022": 0,
+        "2023": 0,
+        "2024": -56.4,
+        "2025": -47
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.525,
+       "winsC": 8.525,
+       "winsDiff": 0,
+       "seasonT": 1952.6,
+       "seasonC": 1952.6,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.175,
+       "champC": 0.175,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 6.85,
+       "winsC": 7.438,
+       "winsDiff": -0.587,
+       "seasonT": 1820.8,
+       "seasonC": 1881.3,
+       "seasonDiff": -60.5,
+       "pfDiff": -48.1,
+       "champT": 0.038,
+       "champC": 0.063,
+       "champDiff": -0.025,
+       "poDiff": -0.1,
+       "weekWinRate": 0.47
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 9.213,
+       "winsC": 9.55,
+       "winsDiff": -0.337,
+       "seasonT": 2077.4,
+       "seasonC": 2082.6,
+       "seasonDiff": -5.2,
+       "pfDiff": -34.5,
+       "champT": 0.163,
+       "champC": 0.188,
+       "champDiff": -0.025,
+       "poDiff": -0.037,
+       "weekWinRate": 0.469
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 9.325,
+       "winsC": 9.325,
+       "winsDiff": 0,
+       "seasonT": 2001,
+       "seasonC": 2001,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.013,
+       "champC": 0.013,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 10.025,
+       "winsC": 10.025,
+       "winsDiff": 0,
+       "seasonT": 2018.9,
+       "seasonC": 2018.9,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.188,
+       "champC": 0.188,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 10.638,
+       "winsC": 11.313,
+       "winsDiff": -0.675,
+       "seasonT": 2152,
+       "seasonC": 2208.4,
+       "seasonDiff": -56.4,
+       "pfDiff": -59.1,
+       "champT": 0.363,
+       "champC": 0.488,
+       "champDiff": -0.125,
+       "poDiff": 0,
+       "weekWinRate": 0.458
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 6.694,
+       "winsC": 7.069,
+       "winsDiff": -0.375,
+       "seasonT": 1835.6,
+       "seasonC": 1882.6,
+       "seasonDiff": -47,
+       "pfDiff": -29.9,
+       "champT": 0.125,
+       "champC": 0.213,
+       "champDiff": -0.087,
+       "poDiff": -0.05,
+       "weekWinRate": 0.486
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "RB",
+     "cap": 1,
+     "window": "r1-7",
+     "until": 7,
+     "label": "RB <= 1, fyrir 8. umferd",
+     "bindRate": 0.27,
+     "bindPicks": 2269,
+     "picks": 8400,
+     "wins": {
+      "diff": -0.04,
+      "lo": -0.429,
+      "hi": 0.362,
+      "excludesZero": false,
+      "t": -0.181,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": -0.288,
+       "2020": -0.488,
+       "2021": -0.775,
+       "2022": 0.1,
+       "2023": 0.587,
+       "2024": -0.238,
+       "2025": 0.825
+      }
+     },
+     "season": {
+      "diff": 16.243,
+      "lo": -14.857,
+      "hi": 44.657,
+      "excludesZero": false,
+      "t": 0.985,
+      "wins": 4,
+      "years": 7,
+      "per": {
+       "2019": -19.7,
+       "2020": -53.7,
+       "2021": -1.9,
+       "2022": 22.1,
+       "2023": 56.6,
+       "2024": 65.5,
+       "2025": 44.8
+      }
+     },
+     "champ": {
+      "diff": -0.016,
+      "lo": -0.061,
+      "hi": 0.039,
+      "excludesZero": false,
+      "t": -0.561,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": -0.1,
+       "2020": -0.038,
+       "2021": -0.075,
+       "2022": -0.012,
+       "2023": 0,
+       "2024": 0.137,
+       "2025": -0.025
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.1,
+       "lo": -0.395,
+       "hi": 0.585,
+       "excludesZero": false,
+       "t": 0.348,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": -0.775,
+        "2022": 0.1,
+        "2023": 0.587,
+        "2024": -0.238,
+        "2025": 0.825
+       }
+      },
+      "season": {
+       "diff": 37.42,
+       "lo": 14.6,
+       "hi": 57.8,
+       "excludesZero": true,
+       "t": 3.06,
+       "wins": 4,
+       "years": 5,
+       "per": {
+        "2021": -1.9,
+        "2022": 22.1,
+        "2023": 56.6,
+        "2024": 65.5,
+        "2025": 44.8
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.45,
+       "winsC": 8.738,
+       "winsDiff": -0.287,
+       "seasonT": 1947.1,
+       "seasonC": 1966.8,
+       "seasonDiff": -19.7,
+       "pfDiff": -27.9,
+       "champT": 0.075,
+       "champC": 0.175,
+       "champDiff": -0.1,
+       "poDiff": -0.075,
+       "weekWinRate": 0.49
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 6.975,
+       "winsC": 7.463,
+       "winsDiff": -0.487,
+       "seasonT": 1826.7,
+       "seasonC": 1880.4,
+       "seasonDiff": -53.7,
+       "pfDiff": -37.4,
+       "champT": 0.05,
+       "champC": 0.088,
+       "champDiff": -0.037,
+       "poDiff": -0.087,
+       "weekWinRate": 0.476
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 9.113,
+       "winsC": 9.888,
+       "winsDiff": -0.775,
+       "seasonT": 2088.5,
+       "seasonC": 2090.4,
+       "seasonDiff": -1.9,
+       "pfDiff": -54.3,
+       "champT": 0.125,
+       "champC": 0.2,
+       "champDiff": -0.075,
+       "poDiff": -0.037,
+       "weekWinRate": 0.448
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 9.4,
+       "winsC": 9.3,
+       "winsDiff": 0.1,
+       "seasonT": 2017.5,
+       "seasonC": 1995.4,
+       "seasonDiff": 22.1,
+       "pfDiff": 10,
+       "champT": 0.013,
+       "champC": 0.025,
+       "champDiff": -0.012,
+       "poDiff": 0.013,
+       "weekWinRate": 0.516
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 10.425,
+       "winsC": 9.838,
+       "winsDiff": 0.588,
+       "seasonT": 2053.7,
+       "seasonC": 1997.1,
+       "seasonDiff": 56.6,
+       "pfDiff": 71.3,
+       "champT": 0.138,
+       "champC": 0.138,
+       "champDiff": 0,
+       "poDiff": 0.013,
+       "weekWinRate": 0.558
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 11.1,
+       "winsC": 11.338,
+       "winsDiff": -0.237,
+       "seasonT": 2243,
+       "seasonC": 2177.5,
+       "seasonDiff": 65.5,
+       "pfDiff": -22,
+       "champT": 0.55,
+       "champC": 0.413,
+       "champDiff": 0.138,
+       "poDiff": 0,
+       "weekWinRate": 0.502
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 7.413,
+       "winsC": 6.588,
+       "winsDiff": 0.825,
+       "seasonT": 1874.8,
+       "seasonC": 1830,
+       "seasonDiff": 44.8,
+       "pfDiff": 73.5,
+       "champT": 0.138,
+       "champC": 0.163,
+       "champDiff": -0.025,
+       "poDiff": 0.175,
+       "weekWinRate": 0.573
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "RB",
+     "cap": 1,
+     "window": "all",
+     "until": 99,
+     "label": "RB <= 1, allt draftid",
+     "bindRate": 0.779,
+     "bindPicks": 6546,
+     "picks": 8400,
+     "wins": {
+      "diff": -0.145,
+      "lo": -0.887,
+      "hi": 0.653,
+      "excludesZero": false,
+      "t": -0.336,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": -0.288,
+       "2020": 0.038,
+       "2021": -1.687,
+       "2022": -0.45,
+       "2023": 0.969,
+       "2024": -1.187,
+       "2025": 1.587
+      }
+     },
+     "season": {
+      "diff": 23.914,
+      "lo": -4.571,
+      "hi": 55.971,
+      "excludesZero": false,
+      "t": 1.383,
+      "wins": 5,
+      "years": 7,
+      "per": {
+       "2019": -19.7,
+       "2020": 22.7,
+       "2021": -40.1,
+       "2022": 24.8,
+       "2023": 91.2,
+       "2024": 68.8,
+       "2025": 19.7
+      }
+     },
+     "champ": {
+      "diff": 0.011,
+      "lo": -0.046,
+      "hi": 0.073,
+      "excludesZero": false,
+      "t": 0.314,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": -0.1,
+       "2020": 0.012,
+       "2021": -0.013,
+       "2022": -0.013,
+       "2023": 0.088,
+       "2024": 0.162,
+       "2025": -0.062
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.154,
+       "lo": -1.24,
+       "hi": 0.932,
+       "excludesZero": false,
+       "t": -0.246,
+       "wins": 2,
+       "years": 5,
+       "per": {
+        "2021": -1.687,
+        "2022": -0.45,
+        "2023": 0.969,
+        "2024": -1.187,
+        "2025": 1.587
+       }
+      },
+      "season": {
+       "diff": 32.88,
+       "lo": -6.36,
+       "hi": 72.42,
+       "excludesZero": false,
+       "t": 1.452,
+       "wins": 4,
+       "years": 5,
+       "per": {
+        "2021": -40.1,
+        "2022": 24.8,
+        "2023": 91.2,
+        "2024": 68.8,
+        "2025": 19.7
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.45,
+       "winsC": 8.738,
+       "winsDiff": -0.287,
+       "seasonT": 1947.1,
+       "seasonC": 1966.8,
+       "seasonDiff": -19.7,
+       "pfDiff": -27.9,
+       "champT": 0.075,
+       "champC": 0.175,
+       "champDiff": -0.1,
+       "poDiff": -0.075,
+       "weekWinRate": 0.49
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 7.238,
+       "winsC": 7.2,
+       "winsDiff": 0.038,
+       "seasonT": 1876.5,
+       "seasonC": 1853.8,
+       "seasonDiff": 22.7,
+       "pfDiff": 2.3,
+       "champT": 0.075,
+       "champC": 0.063,
+       "champDiff": 0.013,
+       "poDiff": -0.062,
+       "weekWinRate": 0.521
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 8.663,
+       "winsC": 10.35,
+       "winsDiff": -1.687,
+       "seasonT": 2056.9,
+       "seasonC": 2097,
+       "seasonDiff": -40.1,
+       "pfDiff": -162.5,
+       "champT": 0.175,
+       "champC": 0.188,
+       "champDiff": -0.012,
+       "poDiff": -0.087,
+       "weekWinRate": 0.392
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 9.013,
+       "winsC": 9.463,
+       "winsDiff": -0.45,
+       "seasonT": 2001.4,
+       "seasonC": 1976.6,
+       "seasonDiff": 24.8,
+       "pfDiff": -20.7,
+       "champT": 0,
+       "champC": 0.013,
+       "champDiff": -0.012,
+       "poDiff": 0.05,
+       "weekWinRate": 0.476
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 10.369,
+       "winsC": 9.4,
+       "winsDiff": 0.969,
+       "seasonT": 2046.6,
+       "seasonC": 1955.4,
+       "seasonDiff": 91.2,
+       "pfDiff": 76.3,
+       "champT": 0.163,
+       "champC": 0.075,
+       "champDiff": 0.088,
+       "poDiff": 0.063,
+       "weekWinRate": 0.57
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 10.613,
+       "winsC": 11.8,
+       "winsDiff": -1.187,
+       "seasonT": 2240.4,
+       "seasonC": 2171.6,
+       "seasonDiff": 68.9,
+       "pfDiff": -109.4,
+       "champT": 0.575,
+       "champC": 0.413,
+       "champDiff": 0.163,
+       "poDiff": 0,
+       "weekWinRate": 0.418
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 7.5,
+       "winsC": 5.913,
+       "winsDiff": 1.588,
+       "seasonT": 1815.3,
+       "seasonC": 1795.6,
+       "seasonDiff": 19.7,
+       "pfDiff": 114.7,
+       "champT": 0.113,
+       "champC": 0.175,
+       "champDiff": -0.062,
+       "poDiff": 0.263,
+       "weekWinRate": 0.588
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "WR",
+     "cap": 1,
+     "window": "r1-3",
+     "until": 3,
+     "label": "WR <= 1, umferdir 1-3",
+     "bindRate": 0.033,
+     "bindPicks": 276,
+     "picks": 8400,
+     "wins": {
+      "diff": 0.048,
+      "lo": -0.018,
+      "hi": 0.137,
+      "excludesZero": false,
+      "t": 1.021,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": 0.312,
+       "2020": -0.063,
+       "2021": 0,
+       "2022": 0,
+       "2023": 0.087,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "season": {
+      "diff": -0.671,
+      "lo": -4.671,
+      "hi": 3.729,
+      "excludesZero": false,
+      "t": -0.276,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": 11.2,
+       "2020": -8.4,
+       "2021": 0,
+       "2022": 0,
+       "2023": -7.5,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "champ": {
+      "diff": -0.005,
+      "lo": -0.023,
+      "hi": 0.009,
+      "excludesZero": false,
+      "t": -0.618,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": 0.025,
+       "2020": -0.012,
+       "2021": 0,
+       "2022": 0,
+       "2023": -0.05,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.017,
+       "lo": 0,
+       "hi": 0.052,
+       "excludesZero": false,
+       "t": 1,
+       "wins": 1,
+       "years": 5,
+       "per": {
+        "2021": 0,
+        "2022": 0,
+        "2023": 0.087,
+        "2024": 0,
+        "2025": 0
+       }
+      },
+      "season": {
+       "diff": -1.5,
+       "lo": -4.5,
+       "hi": 0,
+       "excludesZero": false,
+       "t": -1,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": 0,
+        "2022": 0,
+        "2023": -7.5,
+        "2024": 0,
+        "2025": 0
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.65,
+       "winsC": 8.338,
+       "winsDiff": 0.313,
+       "seasonT": 1956.1,
+       "seasonC": 1944.9,
+       "seasonDiff": 11.2,
+       "pfDiff": 16.7,
+       "champT": 0.213,
+       "champC": 0.188,
+       "champDiff": 0.025,
+       "poDiff": 0.075,
+       "weekWinRate": 0.516
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 7.15,
+       "winsC": 7.213,
+       "winsDiff": -0.062,
+       "seasonT": 1850.2,
+       "seasonC": 1858.6,
+       "seasonDiff": -8.4,
+       "pfDiff": -7.9,
+       "champT": 0.038,
+       "champC": 0.05,
+       "champDiff": -0.012,
+       "poDiff": 0,
+       "weekWinRate": 0.496
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 9.438,
+       "winsC": 9.438,
+       "winsDiff": 0,
+       "seasonT": 2085,
+       "seasonC": 2085,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.175,
+       "champC": 0.175,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 9.325,
+       "winsC": 9.325,
+       "winsDiff": 0,
+       "seasonT": 2001,
+       "seasonC": 2001,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.013,
+       "champC": 0.013,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 9.925,
+       "winsC": 9.838,
+       "winsDiff": 0.088,
+       "seasonT": 2011.7,
+       "seasonC": 2019.2,
+       "seasonDiff": -7.5,
+       "pfDiff": -1.6,
+       "champT": 0.15,
+       "champC": 0.2,
+       "champDiff": -0.05,
+       "poDiff": 0.038,
+       "weekWinRate": 0.504
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 10.975,
+       "winsC": 10.975,
+       "winsDiff": 0,
+       "seasonT": 2178.4,
+       "seasonC": 2178.4,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.488,
+       "champC": 0.488,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 6.988,
+       "winsC": 6.988,
+       "winsDiff": 0,
+       "seasonT": 1875.9,
+       "seasonC": 1875.9,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.2,
+       "champC": 0.2,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "WR",
+     "cap": 1,
+     "window": "r1-7",
+     "until": 7,
+     "label": "WR <= 1, fyrir 8. umferd",
+     "bindRate": 0.178,
+     "bindPicks": 1496,
+     "picks": 8400,
+     "wins": {
+      "diff": -0.32,
+      "lo": -0.498,
+      "hi": -0.15,
+      "excludesZero": true,
+      "t": -3.296,
+      "wins": 0,
+      "years": 7,
+      "per": {
+       "2019": -0.475,
+       "2020": -0.075,
+       "2021": -0.675,
+       "2022": -0.438,
+       "2023": -0.475,
+       "2024": -0.025,
+       "2025": -0.075
+      }
+     },
+     "season": {
+      "diff": -26.957,
+      "lo": -41.214,
+      "hi": -12.214,
+      "excludesZero": true,
+      "t": -3.208,
+      "wins": 0,
+      "years": 7,
+      "per": {
+       "2019": -14.9,
+       "2020": -9.7,
+       "2021": -47,
+       "2022": -48.6,
+       "2023": -54.9,
+       "2024": -1.4,
+       "2025": -12.2
+      }
+     },
+     "champ": {
+      "diff": -0.046,
+      "lo": -0.107,
+      "hi": 0.002,
+      "excludesZero": false,
+      "t": -1.566,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": -0.187,
+       "2020": -0.013,
+       "2021": -0.025,
+       "2022": 0,
+       "2023": -0.125,
+       "2024": 0.025,
+       "2025": 0
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.338,
+       "lo": -0.548,
+       "hi": -0.125,
+       "excludesZero": true,
+       "t": -2.714,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": -0.675,
+        "2022": -0.438,
+        "2023": -0.475,
+        "2024": -0.025,
+        "2025": -0.075
+       }
+      },
+      "season": {
+       "diff": -32.82,
+       "lo": -50.8,
+       "hi": -14.26,
+       "excludesZero": true,
+       "t": -3.028,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": -47,
+        "2022": -48.6,
+        "2023": -54.9,
+        "2024": -1.4,
+        "2025": -12.2
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.238,
+       "winsC": 8.713,
+       "winsDiff": -0.475,
+       "seasonT": 1940.3,
+       "seasonC": 1955.2,
+       "seasonDiff": -14.9,
+       "pfDiff": -27.4,
+       "champT": 0.138,
+       "champC": 0.325,
+       "champDiff": -0.187,
+       "poDiff": -0.037,
+       "weekWinRate": 0.476
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 7.3,
+       "winsC": 7.375,
+       "winsDiff": -0.075,
+       "seasonT": 1849.6,
+       "seasonC": 1859.3,
+       "seasonDiff": -9.7,
+       "pfDiff": 14.8,
+       "champT": 0.05,
+       "champC": 0.063,
+       "champDiff": -0.012,
+       "poDiff": 0,
+       "weekWinRate": 0.472
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 9.25,
+       "winsC": 9.925,
+       "winsDiff": -0.675,
+       "seasonT": 2064.9,
+       "seasonC": 2111.9,
+       "seasonDiff": -47,
+       "pfDiff": -32.9,
+       "champT": 0.138,
+       "champC": 0.163,
+       "champDiff": -0.025,
+       "poDiff": -0.012,
+       "weekWinRate": 0.461
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 9.275,
+       "winsC": 9.713,
+       "winsDiff": -0.437,
+       "seasonT": 1985.1,
+       "seasonC": 2033.7,
+       "seasonDiff": -48.6,
+       "pfDiff": -31.3,
+       "champT": 0.013,
+       "champC": 0.013,
+       "champDiff": 0,
+       "poDiff": -0.025,
+       "weekWinRate": 0.483
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 9.625,
+       "winsC": 10.1,
+       "winsDiff": -0.475,
+       "seasonT": 1989.2,
+       "seasonC": 2044.1,
+       "seasonDiff": -55,
+       "pfDiff": -50.1,
+       "champT": 0.125,
+       "champC": 0.25,
+       "champDiff": -0.125,
+       "poDiff": 0,
+       "weekWinRate": 0.463
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 10.963,
+       "winsC": 10.988,
+       "winsDiff": -0.025,
+       "seasonT": 2178.4,
+       "seasonC": 2179.8,
+       "seasonDiff": -1.4,
+       "pfDiff": -1.4,
+       "champT": 0.5,
+       "champC": 0.475,
+       "champDiff": 0.025,
+       "poDiff": 0,
+       "weekWinRate": 0.499
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 6.975,
+       "winsC": 7.05,
+       "winsDiff": -0.075,
+       "seasonT": 1866.1,
+       "seasonC": 1878.3,
+       "seasonDiff": -12.2,
+       "pfDiff": -6.7,
+       "champT": 0.2,
+       "champC": 0.2,
+       "champDiff": 0,
+       "poDiff": -0.025,
+       "weekWinRate": 0.5
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "WR",
+     "cap": 1,
+     "window": "all",
+     "until": 99,
+     "label": "WR <= 1, allt draftid",
+     "bindRate": 0.678,
+     "bindPicks": 5696,
+     "picks": 8400,
+     "wins": {
+      "diff": -0.795,
+      "lo": -1.48,
+      "hi": -0.304,
+      "excludesZero": true,
+      "t": -2.391,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": -0.675,
+       "2020": -2.65,
+       "2021": -0.725,
+       "2022": -0.838,
+       "2023": -0.581,
+       "2024": 0.031,
+       "2025": -0.125
+      }
+     },
+     "season": {
+      "diff": -86.714,
+      "lo": -141.043,
+      "hi": -44.643,
+      "excludesZero": true,
+      "t": -3.262,
+      "wins": 0,
+      "years": 7,
+      "per": {
+       "2019": -13.5,
+       "2020": -210.2,
+       "2021": -74.7,
+       "2022": -147,
+       "2023": -88,
+       "2024": -49.2,
+       "2025": -24.4
+      }
+     },
+     "champ": {
+      "diff": -0.078,
+      "lo": -0.121,
+      "hi": -0.034,
+      "excludesZero": true,
+      "t": -3.281,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": -0.075,
+       "2020": -0.1,
+       "2021": -0.1,
+       "2022": 0,
+       "2023": -0.15,
+       "2024": -0.137,
+       "2025": 0.013
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.448,
+       "lo": -0.735,
+       "hi": -0.151,
+       "excludesZero": true,
+       "t": -2.628,
+       "wins": 1,
+       "years": 5,
+       "per": {
+        "2021": -0.725,
+        "2022": -0.838,
+        "2023": -0.581,
+        "2024": 0.031,
+        "2025": -0.125
+       }
+      },
+      "season": {
+       "diff": -76.66,
+       "lo": -115.64,
+       "hi": -44.38,
+       "excludesZero": true,
+       "t": -3.704,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": -74.7,
+        "2022": -147,
+        "2023": -88,
+        "2024": -49.2,
+        "2025": -24.4
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 80,
+       "winsT": 8.088,
+       "winsC": 8.763,
+       "winsDiff": -0.675,
+       "seasonT": 1951.6,
+       "seasonC": 1965.1,
+       "seasonDiff": -13.5,
+       "pfDiff": -58.8,
+       "champT": 0.113,
+       "champC": 0.188,
+       "champDiff": -0.075,
+       "poDiff": -0.1,
+       "weekWinRate": 0.463
+      },
+      "2020": {
+       "leagues": 80,
+       "winsT": 5.413,
+       "winsC": 8.063,
+       "winsDiff": -2.65,
+       "seasonT": 1688.8,
+       "seasonC": 1899,
+       "seasonDiff": -210.2,
+       "pfDiff": -188.4,
+       "champT": 0.013,
+       "champC": 0.113,
+       "champDiff": -0.1,
+       "poDiff": -0.537,
+       "weekWinRate": 0.346
+      },
+      "2021": {
+       "leagues": 80,
+       "winsT": 9,
+       "winsC": 9.725,
+       "winsDiff": -0.725,
+       "seasonT": 2017.9,
+       "seasonC": 2092.6,
+       "seasonDiff": -74.7,
+       "pfDiff": 10.3,
+       "champT": 0.125,
+       "champC": 0.225,
+       "champDiff": -0.1,
+       "poDiff": 0,
+       "weekWinRate": 0.479
+      },
+      "2022": {
+       "leagues": 80,
+       "winsT": 8.85,
+       "winsC": 9.688,
+       "winsDiff": -0.837,
+       "seasonT": 1889,
+       "seasonC": 2036,
+       "seasonDiff": -147,
+       "pfDiff": -127,
+       "champT": 0.013,
+       "champC": 0.013,
+       "champDiff": 0,
+       "poDiff": -0.025,
+       "weekWinRate": 0.421
+      },
+      "2023": {
+       "leagues": 80,
+       "winsT": 9.55,
+       "winsC": 10.131,
+       "winsDiff": -0.581,
+       "seasonT": 1972.3,
+       "seasonC": 2060.3,
+       "seasonDiff": -87.9,
+       "pfDiff": -68.7,
+       "champT": 0.1,
+       "champC": 0.25,
+       "champDiff": -0.15,
+       "poDiff": -0.025,
+       "weekWinRate": 0.446
+      },
+      "2024": {
+       "leagues": 80,
+       "winsT": 11.006,
+       "winsC": 10.975,
+       "winsDiff": 0.031,
+       "seasonT": 2145.2,
+       "seasonC": 2194.4,
+       "seasonDiff": -49.2,
+       "pfDiff": 8.5,
+       "champT": 0.363,
+       "champC": 0.5,
+       "champDiff": -0.137,
+       "poDiff": 0,
+       "weekWinRate": 0.52
+      },
+      "2025": {
+       "leagues": 80,
+       "winsT": 6.925,
+       "winsC": 7.05,
+       "winsDiff": -0.125,
+       "seasonT": 1858.2,
+       "seasonC": 1882.6,
+       "seasonDiff": -24.4,
+       "pfDiff": -15.3,
+       "champT": 0.163,
+       "champC": 0.15,
+       "champDiff": 0.013,
+       "poDiff": 0,
+       "weekWinRate": 0.497
+      }
+     },
+     "vacuous": false
+    }
+   ]
+  },
+  "12-2flex": {
+   "label": "12 lid, 2 FLEX, half-PPR (Sofahetjur)",
+   "rows": [
+    {
+     "pos": "TE",
+     "cap": 1,
+     "window": "r1-3",
+     "until": 3,
+     "label": "TE <= 1, umferdir 1-3",
+     "bindRate": 0.044,
+     "bindPicks": 411,
+     "picks": 9408,
+     "wins": {
+      "diff": -0.056,
+      "lo": -0.195,
+      "hi": 0.039,
+      "excludesZero": false,
+      "t": -0.824,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": -0.448,
+       "2020": -0.031,
+       "2021": -0.062,
+       "2022": 0,
+       "2023": 0.105,
+       "2024": 0.052,
+       "2025": -0.011
+      }
+     },
+     "season": {
+      "diff": -1.814,
+      "lo": -8.443,
+      "hi": 3.243,
+      "excludesZero": false,
+      "t": -0.535,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": -20.5,
+       "2020": -1,
+       "2021": -0.9,
+       "2022": 0,
+       "2023": 7,
+       "2024": 5.3,
+       "2025": -2.6
+      }
+     },
+     "champ": {
+      "diff": -0.004,
+      "lo": -0.015,
+      "hi": 0.003,
+      "excludesZero": false,
+      "t": -0.856,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": -0.031,
+       "2020": 0,
+       "2021": 0,
+       "2022": 0,
+       "2023": 0.011,
+       "2024": -0.01,
+       "2025": 0
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.017,
+       "lo": -0.029,
+       "hi": 0.071,
+       "excludesZero": false,
+       "t": 0.589,
+       "wins": 2,
+       "years": 5,
+       "per": {
+        "2021": -0.062,
+        "2022": 0,
+        "2023": 0.105,
+        "2024": 0.052,
+        "2025": -0.011
+       }
+      },
+      "season": {
+       "diff": 1.76,
+       "lo": -1.4,
+       "hi": 5.08,
+       "excludesZero": false,
+       "t": 0.946,
+       "wins": 2,
+       "years": 5,
+       "per": {
+        "2021": -0.9,
+        "2022": 0,
+        "2023": 7,
+        "2024": 5.3,
+        "2025": -2.6
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 7.479,
+       "winsC": 7.927,
+       "winsDiff": -0.448,
+       "seasonT": 1603.9,
+       "seasonC": 1624.4,
+       "seasonDiff": -20.5,
+       "pfDiff": -16.2,
+       "champT": 0.125,
+       "champC": 0.156,
+       "champDiff": -0.031,
+       "poDiff": -0.021,
+       "weekWinRate": 0.483
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 7.042,
+       "winsC": 7.073,
+       "winsDiff": -0.031,
+       "seasonT": 1543.8,
+       "seasonC": 1544.8,
+       "seasonDiff": -1.1,
+       "pfDiff": -1.2,
+       "champT": 0.104,
+       "champC": 0.104,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.496
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 9.448,
+       "winsC": 9.51,
+       "winsDiff": -0.062,
+       "seasonT": 1751.2,
+       "seasonC": 1752.1,
+       "seasonDiff": -0.8,
+       "pfDiff": -0.6,
+       "champT": 0.177,
+       "champC": 0.177,
+       "champDiff": 0,
+       "poDiff": -0.01,
+       "weekWinRate": 0.497
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 9.25,
+       "winsC": 9.25,
+       "winsDiff": 0,
+       "seasonT": 1648,
+       "seasonC": 1648,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.01,
+       "champC": 0.01,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 9.115,
+       "winsC": 9.01,
+       "winsDiff": 0.104,
+       "seasonT": 1708.4,
+       "seasonC": 1701.4,
+       "seasonDiff": 7,
+       "pfDiff": 1.4,
+       "champT": 0.167,
+       "champC": 0.156,
+       "champDiff": 0.01,
+       "poDiff": 0.01,
+       "weekWinRate": 0.501
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 11.427,
+       "winsC": 11.375,
+       "winsDiff": 0.052,
+       "seasonT": 1898.4,
+       "seasonC": 1893.1,
+       "seasonDiff": 5.3,
+       "pfDiff": 4.3,
+       "champT": 0.365,
+       "champC": 0.375,
+       "champDiff": -0.01,
+       "poDiff": 0,
+       "weekWinRate": 0.504
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 7.083,
+       "winsC": 7.094,
+       "winsDiff": -0.01,
+       "seasonT": 1620.7,
+       "seasonC": 1623.3,
+       "seasonDiff": -2.6,
+       "pfDiff": -0.3,
+       "champT": 0.125,
+       "champC": 0.125,
+       "champDiff": 0,
+       "poDiff": -0.01,
+       "weekWinRate": 0.5
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "TE",
+     "cap": 1,
+     "window": "r1-7",
+     "until": 7,
+     "label": "TE <= 1, fyrir 8. umferd",
+     "bindRate": 0.278,
+     "bindPicks": 2618,
+     "picks": 9408,
+     "wins": {
+      "diff": -0.152,
+      "lo": -0.763,
+      "hi": 0.4,
+      "excludesZero": false,
+      "t": -0.482,
+      "wins": 4,
+      "years": 7,
+      "per": {
+       "2019": 0.104,
+       "2020": 0.312,
+       "2021": -1.641,
+       "2022": 0.995,
+       "2023": 0.084,
+       "2024": -0.229,
+       "2025": -0.687
+      }
+     },
+     "season": {
+      "diff": -1.014,
+      "lo": -65.214,
+      "hi": 54.714,
+      "excludesZero": false,
+      "t": -0.032,
+      "wins": 5,
+      "years": 7,
+      "per": {
+       "2019": 12.4,
+       "2020": 26.1,
+       "2021": -159.3,
+       "2022": 124.2,
+       "2023": 17.6,
+       "2024": 3,
+       "2025": -31.1
+      }
+     },
+     "champ": {
+      "diff": 0.012,
+      "lo": -0.065,
+      "hi": 0.104,
+      "excludesZero": false,
+      "t": 0.252,
+      "wins": 4,
+      "years": 7,
+      "per": {
+       "2019": 0.011,
+       "2020": 0.072,
+       "2021": -0.125,
+       "2022": 0.104,
+       "2023": 0.209,
+       "2024": -0.135,
+       "2025": -0.052
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.296,
+       "lo": -1.076,
+       "hi": 0.468,
+       "excludesZero": false,
+       "t": -0.68,
+       "wins": 2,
+       "years": 5,
+       "per": {
+        "2021": -1.641,
+        "2022": 0.995,
+        "2023": 0.084,
+        "2024": -0.229,
+        "2025": -0.687
+       }
+      },
+      "season": {
+       "diff": -9.12,
+       "lo": -94.38,
+       "hi": 68.9,
+       "excludesZero": false,
+       "t": -0.2,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": -159.3,
+        "2022": 124.2,
+        "2023": 17.6,
+        "2024": 3,
+        "2025": -31.1
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 8.052,
+       "winsC": 7.948,
+       "winsDiff": 0.104,
+       "seasonT": 1621.8,
+       "seasonC": 1609.4,
+       "seasonDiff": 12.5,
+       "pfDiff": 7.3,
+       "champT": 0.188,
+       "champC": 0.177,
+       "champDiff": 0.01,
+       "poDiff": 0.042,
+       "weekWinRate": 0.513
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 7.156,
+       "winsC": 6.844,
+       "winsDiff": 0.313,
+       "seasonT": 1552.8,
+       "seasonC": 1526.7,
+       "seasonDiff": 26.1,
+       "pfDiff": 21.4,
+       "champT": 0.135,
+       "champC": 0.063,
+       "champDiff": 0.073,
+       "poDiff": 0.031,
+       "weekWinRate": 0.517
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 8.63,
+       "winsC": 10.271,
+       "winsDiff": -1.641,
+       "seasonT": 1664.3,
+       "seasonC": 1823.6,
+       "seasonDiff": -159.4,
+       "pfDiff": -123,
+       "champT": 0.115,
+       "champC": 0.24,
+       "champDiff": -0.125,
+       "poDiff": -0.146,
+       "weekWinRate": 0.398
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 9.974,
+       "winsC": 8.979,
+       "winsDiff": 0.995,
+       "seasonT": 1758.5,
+       "seasonC": 1634.3,
+       "seasonDiff": 124.2,
+       "pfDiff": 95.4,
+       "champT": 0.135,
+       "champC": 0.031,
+       "champDiff": 0.104,
+       "poDiff": 0.052,
+       "weekWinRate": 0.56
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 8.969,
+       "winsC": 8.885,
+       "winsDiff": 0.083,
+       "seasonT": 1712,
+       "seasonC": 1694.4,
+       "seasonDiff": 17.6,
+       "pfDiff": -0.7,
+       "champT": 0.292,
+       "champC": 0.083,
+       "champDiff": 0.208,
+       "poDiff": 0.073,
+       "weekWinRate": 0.484
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 11.375,
+       "winsC": 11.604,
+       "winsDiff": -0.229,
+       "seasonT": 1900.8,
+       "seasonC": 1897.8,
+       "seasonDiff": 2.9,
+       "pfDiff": -12.1,
+       "champT": 0.313,
+       "champC": 0.448,
+       "champDiff": -0.135,
+       "poDiff": 0,
+       "weekWinRate": 0.494
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 6.667,
+       "winsC": 7.354,
+       "winsDiff": -0.687,
+       "seasonT": 1613.9,
+       "seasonC": 1645,
+       "seasonDiff": -31.1,
+       "pfDiff": -39.1,
+       "champT": 0.125,
+       "champC": 0.177,
+       "champDiff": -0.052,
+       "poDiff": -0.156,
+       "weekWinRate": 0.467
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "TE",
+     "cap": 1,
+     "window": "all",
+     "until": 99,
+     "label": "TE <= 1, allt draftid",
+     "bindRate": 0.776,
+     "bindPicks": 7301,
+     "picks": 9408,
+     "wins": {
+      "diff": 0.071,
+      "lo": -0.35,
+      "hi": 0.576,
+      "excludesZero": false,
+      "t": 0.279,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": 0.166,
+       "2020": 0.489,
+       "2021": -0.771,
+       "2022": 1.302,
+       "2023": -0.094,
+       "2024": -0.208,
+       "2025": -0.386
+      }
+     },
+     "season": {
+      "diff": 21.086,
+      "lo": -19.057,
+      "hi": 69.5,
+      "excludesZero": false,
+      "t": 0.865,
+      "wins": 5,
+      "years": 7,
+      "per": {
+       "2019": 30,
+       "2020": 21.3,
+       "2021": -61.4,
+       "2022": 146.2,
+       "2023": 30.7,
+       "2024": 5.5,
+       "2025": -24.7
+      }
+     },
+     "champ": {
+      "diff": 0.009,
+      "lo": -0.034,
+      "hi": 0.049,
+      "excludesZero": false,
+      "t": 0.379,
+      "wins": 4,
+      "years": 7,
+      "per": {
+       "2019": 0.063,
+       "2020": 0.031,
+       "2021": -0.094,
+       "2022": -0.01,
+       "2023": 0.083,
+       "2024": -0.042,
+       "2025": 0.031
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.031,
+       "lo": -0.54,
+       "hi": 0.685,
+       "excludesZero": false,
+       "t": -0.089,
+       "wins": 1,
+       "years": 5,
+       "per": {
+        "2021": -0.771,
+        "2022": 1.302,
+        "2023": -0.094,
+        "2024": -0.208,
+        "2025": -0.386
+       }
+      },
+      "season": {
+       "diff": 19.26,
+       "lo": -35.64,
+       "hi": 88.92,
+       "excludesZero": false,
+       "t": 0.546,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": -61.4,
+        "2022": 146.2,
+        "2023": 30.7,
+        "2024": 5.5,
+        "2025": -24.7
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 7.958,
+       "winsC": 7.792,
+       "winsDiff": 0.167,
+       "seasonT": 1647.9,
+       "seasonC": 1617.9,
+       "seasonDiff": 30,
+       "pfDiff": 12,
+       "champT": 0.219,
+       "champC": 0.156,
+       "champDiff": 0.063,
+       "poDiff": 0,
+       "weekWinRate": 0.512
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 7.333,
+       "winsC": 6.844,
+       "winsDiff": 0.49,
+       "seasonT": 1546.1,
+       "seasonC": 1524.8,
+       "seasonDiff": 21.3,
+       "pfDiff": 28.8,
+       "champT": 0.125,
+       "champC": 0.094,
+       "champDiff": 0.031,
+       "poDiff": 0.063,
+       "weekWinRate": 0.535
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 9.219,
+       "winsC": 9.99,
+       "winsDiff": -0.771,
+       "seasonT": 1743.5,
+       "seasonC": 1804.9,
+       "seasonDiff": -61.4,
+       "pfDiff": -51,
+       "champT": 0.135,
+       "champC": 0.229,
+       "champDiff": -0.094,
+       "poDiff": -0.083,
+       "weekWinRate": 0.455
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 10.01,
+       "winsC": 8.708,
+       "winsDiff": 1.302,
+       "seasonT": 1765.1,
+       "seasonC": 1618.9,
+       "seasonDiff": 146.2,
+       "pfDiff": 107.4,
+       "champT": 0.021,
+       "champC": 0.031,
+       "champDiff": -0.01,
+       "poDiff": 0.104,
+       "weekWinRate": 0.589
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 9.073,
+       "winsC": 9.167,
+       "winsDiff": -0.094,
+       "seasonT": 1729,
+       "seasonC": 1698.3,
+       "seasonDiff": 30.6,
+       "pfDiff": 13.3,
+       "champT": 0.25,
+       "champC": 0.167,
+       "champDiff": 0.083,
+       "poDiff": 0.021,
+       "weekWinRate": 0.507
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 11.302,
+       "winsC": 11.51,
+       "winsDiff": -0.208,
+       "seasonT": 1912,
+       "seasonC": 1906.5,
+       "seasonDiff": 5.5,
+       "pfDiff": -16.1,
+       "champT": 0.354,
+       "champC": 0.396,
+       "champDiff": -0.042,
+       "poDiff": 0,
+       "weekWinRate": 0.508
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 6.802,
+       "winsC": 7.188,
+       "winsDiff": -0.385,
+       "seasonT": 1630.2,
+       "seasonC": 1654.9,
+       "seasonDiff": -24.6,
+       "pfDiff": -31.3,
+       "champT": 0.198,
+       "champC": 0.167,
+       "champDiff": 0.031,
+       "poDiff": -0.125,
+       "weekWinRate": 0.472
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "RB",
+     "cap": 1,
+     "window": "r1-3",
+     "until": 3,
+     "label": "RB <= 1, umferdir 1-3",
+     "bindRate": 0.09,
+     "bindPicks": 845,
+     "picks": 9408,
+     "wins": {
+      "diff": -0.085,
+      "lo": -0.354,
+      "hi": 0.133,
+      "excludesZero": false,
+      "t": -0.629,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": -0.031,
+       "2020": -0.74,
+       "2021": 0.125,
+       "2022": 0,
+       "2023": 0.063,
+       "2024": 0.344,
+       "2025": -0.354
+      }
+     },
+     "season": {
+      "diff": 4,
+      "lo": -23.129,
+      "hi": 28.557,
+      "excludesZero": false,
+      "t": 0.273,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": -6.8,
+       "2020": -61.5,
+       "2021": 66.9,
+       "2022": 0,
+       "2023": -1.6,
+       "2024": 28.6,
+       "2025": 2.4
+      }
+     },
+     "champ": {
+      "diff": 0.018,
+      "lo": -0.016,
+      "hi": 0.079,
+      "excludesZero": false,
+      "t": 0.587,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": -0.011,
+       "2020": -0.021,
+       "2021": -0.011,
+       "2022": 0,
+       "2023": -0.01,
+       "2024": 0.198,
+       "2025": -0.021
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.036,
+       "lo": -0.175,
+       "hi": 0.231,
+       "excludesZero": false,
+       "t": 0.314,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": 0.125,
+        "2022": 0,
+        "2023": 0.063,
+        "2024": 0.344,
+        "2025": -0.354
+       }
+      },
+      "season": {
+       "diff": 19.26,
+       "lo": -0.16,
+       "hi": 45.54,
+       "excludesZero": false,
+       "t": 1.467,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": 66.9,
+        "2022": 0,
+        "2023": -1.6,
+        "2024": 28.6,
+        "2025": 2.4
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 7.729,
+       "winsC": 7.76,
+       "winsDiff": -0.031,
+       "seasonT": 1612.3,
+       "seasonC": 1619.1,
+       "seasonDiff": -6.8,
+       "pfDiff": -4.7,
+       "champT": 0.156,
+       "champC": 0.167,
+       "champDiff": -0.01,
+       "poDiff": -0.042,
+       "weekWinRate": 0.493
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 6.51,
+       "winsC": 7.25,
+       "winsDiff": -0.74,
+       "seasonT": 1499.7,
+       "seasonC": 1561.2,
+       "seasonDiff": -61.5,
+       "pfDiff": -51.8,
+       "champT": 0.073,
+       "champC": 0.094,
+       "champDiff": -0.021,
+       "poDiff": -0.198,
+       "weekWinRate": 0.452
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 9.5,
+       "winsC": 9.375,
+       "winsDiff": 0.125,
+       "seasonT": 1794.9,
+       "seasonC": 1728,
+       "seasonDiff": 66.9,
+       "pfDiff": 15.2,
+       "champT": 0.135,
+       "champC": 0.146,
+       "champDiff": -0.01,
+       "poDiff": 0.073,
+       "weekWinRate": 0.506
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 9.25,
+       "winsC": 9.25,
+       "winsDiff": 0,
+       "seasonT": 1648,
+       "seasonC": 1648,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.01,
+       "champC": 0.01,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 9.063,
+       "winsC": 9,
+       "winsDiff": 0.063,
+       "seasonT": 1701.1,
+       "seasonC": 1702.7,
+       "seasonDiff": -1.5,
+       "pfDiff": 0,
+       "champT": 0.146,
+       "champC": 0.156,
+       "champDiff": -0.01,
+       "poDiff": 0.031,
+       "weekWinRate": 0.505
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 11.5,
+       "winsC": 11.156,
+       "winsDiff": 0.344,
+       "seasonT": 1901.9,
+       "seasonC": 1873.3,
+       "seasonDiff": 28.6,
+       "pfDiff": 38.8,
+       "champT": 0.438,
+       "champC": 0.24,
+       "champDiff": 0.198,
+       "poDiff": 0.01,
+       "weekWinRate": 0.531
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 6.854,
+       "winsC": 7.208,
+       "winsDiff": -0.354,
+       "seasonT": 1631.6,
+       "seasonC": 1629.2,
+       "seasonDiff": 2.4,
+       "pfDiff": -15.1,
+       "champT": 0.094,
+       "champC": 0.115,
+       "champDiff": -0.021,
+       "poDiff": -0.021,
+       "weekWinRate": 0.484
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "RB",
+     "cap": 1,
+     "window": "r1-7",
+     "until": 7,
+     "label": "RB <= 1, fyrir 8. umferd",
+     "bindRate": 0.327,
+     "bindPicks": 3078,
+     "picks": 9408,
+     "wins": {
+      "diff": 0.35,
+      "lo": -0.225,
+      "hi": 0.997,
+      "excludesZero": false,
+      "t": 1.019,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": -0.031,
+       "2020": -0.761,
+       "2021": -0.136,
+       "2022": 0.23,
+       "2023": 1.812,
+       "2024": -0.036,
+       "2025": 1.375
+      }
+     },
+     "season": {
+      "diff": 46.171,
+      "lo": -5.914,
+      "hi": 93.486,
+      "excludesZero": false,
+      "t": 1.626,
+      "wins": 5,
+      "years": 7,
+      "per": {
+       "2019": -42.7,
+       "2020": -59.4,
+       "2021": 96,
+       "2022": 60.4,
+       "2023": 151.5,
+       "2024": 77.6,
+       "2025": 39.8
+      }
+     },
+     "champ": {
+      "diff": 0.019,
+      "lo": -0.118,
+      "hi": 0.222,
+      "excludesZero": false,
+      "t": 0.192,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": -0.157,
+       "2020": -0.042,
+       "2021": -0.083,
+       "2022": 0.042,
+       "2023": -0.021,
+       "2024": 0.594,
+       "2025": -0.198
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.649,
+       "lo": -0.023,
+       "hi": 1.335,
+       "excludesZero": false,
+       "t": 1.638,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": -0.136,
+        "2022": 0.23,
+        "2023": 1.812,
+        "2024": -0.036,
+        "2025": 1.375
+       }
+      },
+      "season": {
+       "diff": 85.06,
+       "lo": 55.16,
+       "hi": 121.94,
+       "excludesZero": true,
+       "t": 4.469,
+       "wins": 5,
+       "years": 5,
+       "per": {
+        "2021": 96,
+        "2022": 60.4,
+        "2023": 151.5,
+        "2024": 77.6,
+        "2025": 39.8
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 7.875,
+       "winsC": 7.906,
+       "winsDiff": -0.031,
+       "seasonT": 1589,
+       "seasonC": 1631.7,
+       "seasonDiff": -42.7,
+       "pfDiff": -5.3,
+       "champT": 0.083,
+       "champC": 0.24,
+       "champDiff": -0.156,
+       "poDiff": 0.01,
+       "weekWinRate": 0.499
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 6.479,
+       "winsC": 7.24,
+       "winsDiff": -0.76,
+       "seasonT": 1500.3,
+       "seasonC": 1559.7,
+       "seasonDiff": -59.3,
+       "pfDiff": -48.8,
+       "champT": 0.052,
+       "champC": 0.094,
+       "champDiff": -0.042,
+       "poDiff": -0.198,
+       "weekWinRate": 0.457
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 9.531,
+       "winsC": 9.667,
+       "winsDiff": -0.135,
+       "seasonT": 1799.4,
+       "seasonC": 1703.4,
+       "seasonDiff": 96,
+       "pfDiff": -15.5,
+       "champT": 0.063,
+       "champC": 0.146,
+       "champDiff": -0.083,
+       "poDiff": 0.021,
+       "weekWinRate": 0.492
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 9.115,
+       "winsC": 8.885,
+       "winsDiff": 0.229,
+       "seasonT": 1678.5,
+       "seasonC": 1618.1,
+       "seasonDiff": 60.4,
+       "pfDiff": 26.3,
+       "champT": 0.063,
+       "champC": 0.021,
+       "champDiff": 0.042,
+       "poDiff": 0.031,
+       "weekWinRate": 0.512
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 9.906,
+       "winsC": 8.094,
+       "winsDiff": 1.813,
+       "seasonT": 1770.7,
+       "seasonC": 1619.2,
+       "seasonDiff": 151.5,
+       "pfDiff": 134,
+       "champT": 0.125,
+       "champC": 0.146,
+       "champDiff": -0.021,
+       "poDiff": 0.271,
+       "weekWinRate": 0.638
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 11.193,
+       "winsC": 11.229,
+       "winsDiff": -0.036,
+       "seasonT": 1903.3,
+       "seasonC": 1825.7,
+       "seasonDiff": 77.6,
+       "pfDiff": -10,
+       "champT": 0.698,
+       "champC": 0.104,
+       "champDiff": 0.594,
+       "poDiff": 0,
+       "weekWinRate": 0.468
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 8.563,
+       "winsC": 7.188,
+       "winsDiff": 1.375,
+       "seasonT": 1662.1,
+       "seasonC": 1622.3,
+       "seasonDiff": 39.9,
+       "pfDiff": 73.9,
+       "champT": 0.01,
+       "champC": 0.208,
+       "champDiff": -0.198,
+       "poDiff": 0.281,
+       "weekWinRate": 0.583
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "RB",
+     "cap": 1,
+     "window": "all",
+     "until": 99,
+     "label": "RB <= 1, allt draftid",
+     "bindRate": 0.812,
+     "bindPicks": 7637,
+     "picks": 9408,
+     "wins": {
+      "diff": -0.293,
+      "lo": -0.579,
+      "hi": -0.008,
+      "excludesZero": true,
+      "t": -1.892,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": 0.146,
+       "2020": -0.959,
+       "2021": -0.323,
+       "2022": -0.282,
+       "2023": 0.27,
+       "2024": -0.5,
+       "2025": -0.406
+      }
+     },
+     "season": {
+      "diff": 3,
+      "lo": -47.871,
+      "hi": 52.414,
+      "excludesZero": false,
+      "t": 0.104,
+      "wins": 3,
+      "years": 7,
+      "per": {
+       "2019": -26.9,
+       "2020": -74.5,
+       "2021": 92,
+       "2022": -0.7,
+       "2023": 75.5,
+       "2024": 59.5,
+       "2025": -103.9
+      }
+     },
+     "champ": {
+      "diff": 0.046,
+      "lo": -0.115,
+      "hi": 0.31,
+      "excludesZero": false,
+      "t": 0.362,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": -0.083,
+       "2020": -0.031,
+       "2021": -0.042,
+       "2022": -0.083,
+       "2023": 0,
+       "2024": 0.792,
+       "2025": -0.23
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.248,
+       "lo": -0.429,
+       "hi": 0.016,
+       "excludesZero": false,
+       "t": -1.841,
+       "wins": 1,
+       "years": 5,
+       "per": {
+        "2021": -0.323,
+        "2022": -0.282,
+        "2023": 0.27,
+        "2024": -0.5,
+        "2025": -0.406
+       }
+      },
+      "season": {
+       "diff": 24.48,
+       "lo": -44.08,
+       "hi": 78.9,
+       "excludesZero": false,
+       "t": 0.686,
+       "wins": 3,
+       "years": 5,
+       "per": {
+        "2021": 92,
+        "2022": -0.7,
+        "2023": 75.5,
+        "2024": 59.5,
+        "2025": -103.9
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 7.948,
+       "winsC": 7.802,
+       "winsDiff": 0.146,
+       "seasonT": 1595.7,
+       "seasonC": 1622.6,
+       "seasonDiff": -26.9,
+       "pfDiff": 19.3,
+       "champT": 0.125,
+       "champC": 0.208,
+       "champDiff": -0.083,
+       "poDiff": 0.063,
+       "weekWinRate": 0.513
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 6.354,
+       "winsC": 7.313,
+       "winsDiff": -0.958,
+       "seasonT": 1491.9,
+       "seasonC": 1566.4,
+       "seasonDiff": -74.5,
+       "pfDiff": -71.8,
+       "champT": 0.052,
+       "champC": 0.083,
+       "champDiff": -0.031,
+       "poDiff": -0.26,
+       "weekWinRate": 0.445
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 9.344,
+       "winsC": 9.667,
+       "winsDiff": -0.323,
+       "seasonT": 1771.4,
+       "seasonC": 1679.4,
+       "seasonDiff": 92,
+       "pfDiff": -45.9,
+       "champT": 0.135,
+       "champC": 0.177,
+       "champDiff": -0.042,
+       "poDiff": -0.021,
+       "weekWinRate": 0.453
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 8.656,
+       "winsC": 8.938,
+       "winsDiff": -0.281,
+       "seasonT": 1609.6,
+       "seasonC": 1610.3,
+       "seasonDiff": -0.8,
+       "pfDiff": -13.8,
+       "champT": 0,
+       "champC": 0.083,
+       "champDiff": -0.083,
+       "poDiff": 0.042,
+       "weekWinRate": 0.458
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 9.161,
+       "winsC": 8.891,
+       "winsDiff": 0.271,
+       "seasonT": 1712,
+       "seasonC": 1636.5,
+       "seasonDiff": 75.5,
+       "pfDiff": 0.8,
+       "champT": 0.156,
+       "champC": 0.156,
+       "champDiff": 0,
+       "poDiff": 0.031,
+       "weekWinRate": 0.507
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 10.896,
+       "winsC": 11.396,
+       "winsDiff": -0.5,
+       "seasonT": 1889.7,
+       "seasonC": 1830.2,
+       "seasonDiff": 59.5,
+       "pfDiff": -65,
+       "champT": 0.823,
+       "champC": 0.031,
+       "champDiff": 0.792,
+       "poDiff": 0,
+       "weekWinRate": 0.451
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 6.979,
+       "winsC": 7.385,
+       "winsDiff": -0.406,
+       "seasonT": 1560.7,
+       "seasonC": 1664.6,
+       "seasonDiff": -104,
+       "pfDiff": -45.9,
+       "champT": 0.01,
+       "champC": 0.24,
+       "champDiff": -0.229,
+       "poDiff": -0.104,
+       "weekWinRate": 0.457
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "WR",
+     "cap": 1,
+     "window": "r1-3",
+     "until": 3,
+     "label": "WR <= 1, umferdir 1-3",
+     "bindRate": 0.035,
+     "bindPicks": 328,
+     "picks": 9408,
+     "wins": {
+      "diff": -0.014,
+      "lo": -0.079,
+      "hi": 0.036,
+      "excludesZero": false,
+      "t": -0.434,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": 0.083,
+       "2020": -0.188,
+       "2021": 0,
+       "2022": 0,
+       "2023": 0.01,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "season": {
+      "diff": -2.714,
+      "lo": -7.257,
+      "hi": 0.171,
+      "excludesZero": false,
+      "t": -1.219,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": 0.6,
+       "2020": -15.6,
+       "2021": 0,
+       "2022": 0,
+       "2023": -4,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "champ": {
+      "diff": 0,
+      "lo": -0.009,
+      "hi": 0.009,
+      "excludesZero": false,
+      "t": 0,
+      "wins": 1,
+      "years": 7,
+      "per": {
+       "2019": 0.021,
+       "2020": -0.021,
+       "2021": 0,
+       "2022": 0,
+       "2023": 0,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": 0.002,
+       "lo": 0,
+       "hi": 0.006,
+       "excludesZero": false,
+       "t": 1,
+       "wins": 1,
+       "years": 5,
+       "per": {
+        "2021": 0,
+        "2022": 0,
+        "2023": 0.01,
+        "2024": 0,
+        "2025": 0
+       }
+      },
+      "season": {
+       "diff": -0.8,
+       "lo": -2.4,
+       "hi": 0,
+       "excludesZero": false,
+       "t": -1,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": 0,
+        "2022": 0,
+        "2023": -4,
+        "2024": 0,
+        "2025": 0
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 7.771,
+       "winsC": 7.688,
+       "winsDiff": 0.083,
+       "seasonT": 1626.5,
+       "seasonC": 1625.9,
+       "seasonDiff": 0.6,
+       "pfDiff": -2.2,
+       "champT": 0.167,
+       "champC": 0.146,
+       "champDiff": 0.021,
+       "poDiff": 0.052,
+       "weekWinRate": 0.504
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 6.979,
+       "winsC": 7.167,
+       "winsDiff": -0.187,
+       "seasonT": 1535.6,
+       "seasonC": 1551.2,
+       "seasonDiff": -15.6,
+       "pfDiff": -14.4,
+       "champT": 0.094,
+       "champC": 0.115,
+       "champDiff": -0.021,
+       "poDiff": -0.01,
+       "weekWinRate": 0.492
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 9.448,
+       "winsC": 9.448,
+       "winsDiff": 0,
+       "seasonT": 1751.5,
+       "seasonC": 1751.5,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.177,
+       "champC": 0.177,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 9.25,
+       "winsC": 9.25,
+       "winsDiff": 0,
+       "seasonT": 1648,
+       "seasonC": 1648,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.01,
+       "champC": 0.01,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 9.01,
+       "winsC": 9,
+       "winsDiff": 0.01,
+       "seasonT": 1701.9,
+       "seasonC": 1705.9,
+       "seasonDiff": -4,
+       "pfDiff": -1.6,
+       "champT": 0.146,
+       "champC": 0.146,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.499
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 11.406,
+       "winsC": 11.406,
+       "winsDiff": 0,
+       "seasonT": 1895.9,
+       "seasonC": 1895.9,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.365,
+       "champC": 0.365,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 7.104,
+       "winsC": 7.104,
+       "winsDiff": 0,
+       "seasonT": 1622.3,
+       "seasonC": 1622.3,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.125,
+       "champC": 0.125,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "WR",
+     "cap": 1,
+     "window": "r1-7",
+     "until": 7,
+     "label": "WR <= 1, fyrir 8. umferd",
+     "bindRate": 0.154,
+     "bindPicks": 1453,
+     "picks": 9408,
+     "wins": {
+      "diff": 0.048,
+      "lo": -0.101,
+      "hi": 0.207,
+      "excludesZero": false,
+      "t": 0.549,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": 0.271,
+       "2020": 0.416,
+       "2021": 0,
+       "2022": -0.073,
+       "2023": -0.281,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "season": {
+      "diff": 5.9,
+      "lo": -8.8,
+      "hi": 21.3,
+      "excludesZero": false,
+      "t": 0.661,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": 37.5,
+       "2020": 36.6,
+       "2021": 0,
+       "2022": -4,
+       "2023": -28.8,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "champ": {
+      "diff": 0.012,
+      "lo": -0.016,
+      "hi": 0.046,
+      "excludesZero": false,
+      "t": 0.701,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": 0.042,
+       "2020": 0.094,
+       "2021": 0,
+       "2022": 0,
+       "2023": -0.052,
+       "2024": 0,
+       "2025": 0
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.071,
+       "lo": -0.183,
+       "hi": 0,
+       "excludesZero": false,
+       "t": -1.301,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": 0,
+        "2022": -0.073,
+        "2023": -0.281,
+        "2024": 0,
+        "2025": 0
+       }
+      },
+      "season": {
+       "diff": -6.56,
+       "lo": -18.08,
+       "hi": 0,
+       "excludesZero": false,
+       "t": -1.169,
+       "wins": 0,
+       "years": 5,
+       "per": {
+        "2021": 0,
+        "2022": -4,
+        "2023": -28.8,
+        "2024": 0,
+        "2025": 0
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 8.156,
+       "winsC": 7.885,
+       "winsDiff": 0.271,
+       "seasonT": 1656.4,
+       "seasonC": 1618.9,
+       "seasonDiff": 37.6,
+       "pfDiff": 10.4,
+       "champT": 0.177,
+       "champC": 0.135,
+       "champDiff": 0.042,
+       "poDiff": 0.063,
+       "weekWinRate": 0.509
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 7.406,
+       "winsC": 6.99,
+       "winsDiff": 0.417,
+       "seasonT": 1580.4,
+       "seasonC": 1543.8,
+       "seasonDiff": 36.5,
+       "pfDiff": 35.9,
+       "champT": 0.198,
+       "champC": 0.104,
+       "champDiff": 0.094,
+       "poDiff": 0.083,
+       "weekWinRate": 0.526
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 9.448,
+       "winsC": 9.448,
+       "winsDiff": 0,
+       "seasonT": 1751.5,
+       "seasonC": 1751.5,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.177,
+       "champC": 0.177,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 9.146,
+       "winsC": 9.219,
+       "winsDiff": -0.073,
+       "seasonT": 1644,
+       "seasonC": 1648,
+       "seasonDiff": -4,
+       "pfDiff": -3.8,
+       "champT": 0.01,
+       "champC": 0.01,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.492
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 8.854,
+       "winsC": 9.135,
+       "winsDiff": -0.281,
+       "seasonT": 1684.9,
+       "seasonC": 1713.7,
+       "seasonDiff": -28.9,
+       "pfDiff": -20.3,
+       "champT": 0.125,
+       "champC": 0.177,
+       "champDiff": -0.052,
+       "poDiff": -0.031,
+       "weekWinRate": 0.486
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 11.406,
+       "winsC": 11.406,
+       "winsDiff": 0,
+       "seasonT": 1895.9,
+       "seasonC": 1895.9,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.365,
+       "champC": 0.365,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 7.104,
+       "winsC": 7.104,
+       "winsDiff": 0,
+       "seasonT": 1622.3,
+       "seasonC": 1622.3,
+       "seasonDiff": 0,
+       "pfDiff": 0,
+       "champT": 0.125,
+       "champC": 0.125,
+       "champDiff": 0,
+       "poDiff": 0,
+       "weekWinRate": 0.5
+      }
+     },
+     "vacuous": false
+    },
+    {
+     "pos": "WR",
+     "cap": 1,
+     "window": "all",
+     "until": 99,
+     "label": "WR <= 1, allt draftid",
+     "bindRate": 0.591,
+     "bindPicks": 5560,
+     "picks": 9408,
+     "wins": {
+      "diff": -0.402,
+      "lo": -0.749,
+      "hi": -0.066,
+      "excludesZero": true,
+      "t": -2.094,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": 0.083,
+       "2020": -1.042,
+       "2021": -1.125,
+       "2022": -0.411,
+       "2023": -0.036,
+       "2024": 0.093,
+       "2025": -0.375
+      }
+     },
+     "season": {
+      "diff": -35.643,
+      "lo": -68.143,
+      "hi": -0.386,
+      "excludesZero": true,
+      "t": -1.883,
+      "wins": 2,
+      "years": 7,
+      "per": {
+       "2019": 44.5,
+       "2020": -79.9,
+       "2021": -90.8,
+       "2022": -31.1,
+       "2023": -78.4,
+       "2024": 1,
+       "2025": -14.8
+      }
+     },
+     "champ": {
+      "diff": 0.012,
+      "lo": -0.024,
+      "hi": 0.053,
+      "excludesZero": false,
+      "t": 0.545,
+      "wins": 4,
+      "years": 7,
+      "per": {
+       "2019": 0.083,
+       "2020": -0.021,
+       "2021": -0.052,
+       "2022": 0.084,
+       "2023": 0.01,
+       "2024": 0.031,
+       "2025": -0.052
+      }
+     },
+     "sleeperOnly": {
+      "wins": {
+       "diff": -0.371,
+       "lo": -0.757,
+       "hi": -0.034,
+       "excludesZero": true,
+       "t": -1.75,
+       "wins": 1,
+       "years": 5,
+       "per": {
+        "2021": -1.125,
+        "2022": -0.411,
+        "2023": -0.036,
+        "2024": 0.093,
+        "2025": -0.375
+       }
+      },
+      "season": {
+       "diff": -42.82,
+       "lo": -73.9,
+       "hi": -11.74,
+       "excludesZero": true,
+       "t": -2.392,
+       "wins": 1,
+       "years": 5,
+       "per": {
+        "2021": -90.8,
+        "2022": -31.1,
+        "2023": -78.4,
+        "2024": 1,
+        "2025": -14.8
+       }
+      }
+     },
+     "perYear": {
+      "2019": {
+       "leagues": 96,
+       "winsT": 8.177,
+       "winsC": 8.094,
+       "winsDiff": 0.083,
+       "seasonT": 1654,
+       "seasonC": 1609.5,
+       "seasonDiff": 44.5,
+       "pfDiff": -10.2,
+       "champT": 0.25,
+       "champC": 0.167,
+       "champDiff": 0.083,
+       "poDiff": -0.021,
+       "weekWinRate": 0.512
+      },
+      "2020": {
+       "leagues": 96,
+       "winsT": 6.333,
+       "winsC": 7.375,
+       "winsDiff": -1.042,
+       "seasonT": 1494.3,
+       "seasonC": 1574.2,
+       "seasonDiff": -79.9,
+       "pfDiff": -74.7,
+       "champT": 0.073,
+       "champC": 0.094,
+       "champDiff": -0.021,
+       "poDiff": -0.24,
+       "weekWinRate": 0.442
+      },
+      "2021": {
+       "leagues": 96,
+       "winsT": 8.917,
+       "winsC": 10.042,
+       "winsDiff": -1.125,
+       "seasonT": 1689.2,
+       "seasonC": 1780,
+       "seasonDiff": -90.8,
+       "pfDiff": -109.6,
+       "champT": 0.125,
+       "champC": 0.177,
+       "champDiff": -0.052,
+       "poDiff": -0.094,
+       "weekWinRate": 0.438
+      },
+      "2022": {
+       "leagues": 96,
+       "winsT": 8.938,
+       "winsC": 9.349,
+       "winsDiff": -0.411,
+       "seasonT": 1625.1,
+       "seasonC": 1656.2,
+       "seasonDiff": -31,
+       "pfDiff": -34.1,
+       "champT": 0.094,
+       "champC": 0.01,
+       "champDiff": 0.083,
+       "poDiff": -0.062,
+       "weekWinRate": 0.458
+      },
+      "2023": {
+       "leagues": 96,
+       "winsT": 8.995,
+       "winsC": 9.031,
+       "winsDiff": -0.036,
+       "seasonT": 1652.7,
+       "seasonC": 1731.1,
+       "seasonDiff": -78.4,
+       "pfDiff": -29.8,
+       "champT": 0.156,
+       "champC": 0.146,
+       "champDiff": 0.01,
+       "poDiff": 0.063,
+       "weekWinRate": 0.489
+      },
+      "2024": {
+       "leagues": 96,
+       "winsT": 11.458,
+       "winsC": 11.365,
+       "winsDiff": 0.094,
+       "seasonT": 1897.9,
+       "seasonC": 1896.9,
+       "seasonDiff": 1,
+       "pfDiff": 2.9,
+       "champT": 0.375,
+       "champC": 0.344,
+       "champDiff": 0.031,
+       "poDiff": 0,
+       "weekWinRate": 0.502
+      },
+      "2025": {
+       "leagues": 96,
+       "winsT": 6.844,
+       "winsC": 7.219,
+       "winsDiff": -0.375,
+       "seasonT": 1618.4,
+       "seasonC": 1633.2,
+       "seasonDiff": -14.7,
+       "pfDiff": -22.3,
+       "champT": 0.094,
+       "champC": 0.146,
+       "champDiff": -0.052,
+       "poDiff": -0.01,
+       "weekWinRate": 0.494
+      }
+     },
+     "vacuous": false
+    }
+   ]
+  }
+ },
+ "q2placebo": {
+  "10-2flex": {
+   "cells": [
+    {
+     "window": "r1-3",
+     "seed": 1,
+     "bindRate": 0.025,
+     "wins": 0.025,
+     "winsT": 1.528,
+     "season": 4.3,
+     "seasonT": 1.036
+    },
+    {
+     "window": "r1-3",
+     "seed": 2,
+     "bindRate": 0.038,
+     "wins": 0,
+     "winsT": 0,
+     "season": -4.7,
+     "seasonT": -0.395
+    },
+    {
+     "window": "r1-3",
+     "seed": 3,
+     "bindRate": 0.033,
+     "wins": 0.021,
+     "winsT": 1,
+     "season": 0.486,
+     "seasonT": 1
+    },
+    {
+     "window": "r1-3",
+     "seed": 4,
+     "bindRate": 0.075,
+     "wins": -0.17,
+     "winsT": -1.94,
+     "season": -3.114,
+     "seasonT": -0.811
+    },
+    {
+     "window": "r1-3",
+     "seed": 5,
+     "bindRate": 0.014,
+     "wins": -0.014,
+     "winsT": -1,
+     "season": -2.629,
+     "seasonT": -1
+    },
+    {
+     "window": "r1-3",
+     "seed": 6,
+     "bindRate": 0.024,
+     "wins": -0.007,
+     "winsT": -1,
+     "season": 0,
+     "seasonT": null
+    },
+    {
+     "window": "r1-7",
+     "seed": 1,
+     "bindRate": 0.147,
+     "wins": -0.455,
+     "winsT": -2.134,
+     "season": -26.671,
+     "seasonT": -1.907
+    },
+    {
+     "window": "r1-7",
+     "seed": 2,
+     "bindRate": 0.195,
+     "wins": -0.221,
+     "winsT": -1.508,
+     "season": -23.871,
+     "seasonT": -1.095
+    },
+    {
+     "window": "r1-7",
+     "seed": 3,
+     "bindRate": 0.202,
+     "wins": -0.125,
+     "winsT": -0.841,
+     "season": -4.457,
+     "seasonT": -0.51
+    },
+    {
+     "window": "r1-7",
+     "seed": 4,
+     "bindRate": 0.307,
+     "wins": 0.036,
+     "winsT": 0.106,
+     "season": 3.457,
+     "seasonT": 0.096
+    },
+    {
+     "window": "r1-7",
+     "seed": 5,
+     "bindRate": 0.159,
+     "wins": 0.166,
+     "winsT": 1.258,
+     "season": 13.2,
+     "seasonT": 1.068
+    },
+    {
+     "window": "r1-7",
+     "seed": 6,
+     "bindRate": 0.157,
+     "wins": -0.034,
+     "winsT": -0.216,
+     "season": 5.329,
+     "seasonT": 0.32
+    },
+    {
+     "window": "all",
+     "seed": 1,
+     "bindRate": 0.658,
+     "wins": -0.198,
+     "winsT": -0.496,
+     "season": -24.457,
+     "seasonT": -0.861
+    },
+    {
+     "window": "all",
+     "seed": 2,
+     "bindRate": 0.687,
+     "wins": -0.068,
+     "winsT": -0.181,
+     "season": -9.814,
+     "seasonT": -0.313
+    },
+    {
+     "window": "all",
+     "seed": 3,
+     "bindRate": 0.686,
+     "wins": -0.159,
+     "winsT": -0.576,
+     "season": -0.3,
+     "seasonT": -0.017
+    },
+    {
+     "window": "all",
+     "seed": 4,
+     "bindRate": 0.834,
+     "wins": 0.089,
+     "winsT": 0.323,
+     "season": 26.286,
+     "seasonT": 0.825
+    },
+    {
+     "window": "all",
+     "seed": 5,
+     "bindRate": 0.659,
+     "wins": -0.325,
+     "winsT": -0.754,
+     "season": -23.743,
+     "seasonT": -0.605
+    },
+    {
+     "window": "all",
+     "seed": 6,
+     "bindRate": 0.592,
+     "wins": -0.266,
+     "winsT": -0.581,
+     "season": -11.529,
+     "seasonT": -0.243
+    }
+   ],
+   "groupSizes": {
+    "equalBySeasonAndSeed": true,
+    "groupSizeRange": [
+     123,
+     137
+    ],
+    "meanBindRate": 0.305
+   },
+   "ceiling": {
+    "winsMaxPositiveMean": 0.166,
+    "winsMaxPositiveT": 1.528,
+    "seasonMaxPositiveMean": 26.3,
+    "seasonMaxPositiveT": 1.068
+   }
+  },
+  "12-2flex": {
+   "cells": [
+    {
+     "window": "r1-3",
+     "seed": 1,
+     "bindRate": 0.028,
+     "wins": -0.063,
+     "winsT": -0.946,
+     "season": 0.271,
+     "seasonT": 0.482
+    },
+    {
+     "window": "r1-3",
+     "seed": 2,
+     "bindRate": 0.052,
+     "wins": -0.065,
+     "winsT": -1.077,
+     "season": -8.571,
+     "seasonT": -1.551
+    },
+    {
+     "window": "r1-3",
+     "seed": 3,
+     "bindRate": 0.03,
+     "wins": -0.193,
+     "winsT": -2.237,
+     "season": -13.429,
+     "seasonT": -1.764
+    },
+    {
+     "window": "r1-3",
+     "seed": 4,
+     "bindRate": 0.059,
+     "wins": 0.03,
+     "winsT": 0.796,
+     "season": -1.057,
+     "seasonT": -0.228
+    },
+    {
+     "window": "r1-3",
+     "seed": 5,
+     "bindRate": 0.019,
+     "wins": -0.027,
+     "winsT": -1.54,
+     "season": -1.857,
+     "seasonT": -1.222
+    },
+    {
+     "window": "r1-3",
+     "seed": 6,
+     "bindRate": 0.021,
+     "wins": -0.021,
+     "winsT": -1.384,
+     "season": -0.314,
+     "seasonT": -1.113
+    },
+    {
+     "window": "r1-7",
+     "seed": 1,
+     "bindRate": 0.182,
+     "wins": -0.265,
+     "winsT": -1.154,
+     "season": -5.314,
+     "seasonT": -0.496
+    },
+    {
+     "window": "r1-7",
+     "seed": 2,
+     "bindRate": 0.237,
+     "wins": -0.024,
+     "winsT": -0.155,
+     "season": -9.4,
+     "seasonT": -1.149
+    },
+    {
+     "window": "r1-7",
+     "seed": 3,
+     "bindRate": 0.212,
+     "wins": -0.126,
+     "winsT": -0.97,
+     "season": 13.843,
+     "seasonT": 1.092
+    },
+    {
+     "window": "r1-7",
+     "seed": 4,
+     "bindRate": 0.284,
+     "wins": 0.229,
+     "winsT": 0.9,
+     "season": 12.843,
+     "seasonT": 0.689
+    },
+    {
+     "window": "r1-7",
+     "seed": 5,
+     "bindRate": 0.192,
+     "wins": 0.155,
+     "winsT": 0.726,
+     "season": 6.571,
+     "seasonT": 0.341
+    },
+    {
+     "window": "r1-7",
+     "seed": 6,
+     "bindRate": 0.151,
+     "wins": 0.001,
+     "winsT": 0.008,
+     "season": 1.271,
+     "seasonT": 0.101
+    },
+    {
+     "window": "all",
+     "seed": 1,
+     "bindRate": 0.644,
+     "wins": 0.295,
+     "winsT": 1.112,
+     "season": 18.843,
+     "seasonT": 1.292
+    },
+    {
+     "window": "all",
+     "seed": 2,
+     "bindRate": 0.68,
+     "wins": 0.253,
+     "winsT": 1.516,
+     "season": 11.771,
+     "seasonT": 0.714
+    },
+    {
+     "window": "all",
+     "seed": 3,
+     "bindRate": 0.65,
+     "wins": 0.041,
+     "winsT": 0.114,
+     "season": 26.729,
+     "seasonT": 1.531
+    },
+    {
+     "window": "all",
+     "seed": 4,
+     "bindRate": 0.756,
+     "wins": 0.249,
+     "winsT": 0.793,
+     "season": 31.2,
+     "seasonT": 1.827
+    },
+    {
+     "window": "all",
+     "seed": 5,
+     "bindRate": 0.663,
+     "wins": 0.262,
+     "winsT": 1.243,
+     "season": 11.543,
+     "seasonT": 0.439
+    },
+    {
+     "window": "all",
+     "seed": 6,
+     "bindRate": 0.517,
+     "wins": 0.068,
+     "winsT": 0.351,
+     "season": 12.543,
+     "seasonT": 0.895
+    }
+   ],
+   "groupSizes": {
+    "equalBySeasonAndSeed": true,
+    "groupSizeRange": [
+     123,
+     137
+    ],
+    "meanBindRate": 0.299
+   },
+   "ceiling": {
+    "winsMaxPositiveMean": 0.295,
+    "winsMaxPositiveT": 1.516,
+    "seasonMaxPositiveMean": 31.2,
+    "seasonMaxPositiveT": 1.827
+   }
+  }
+ },
+ "q3": {
+  "wins": {
+   "10-2flex": {
+    "real": {
+     "mean": 0.206,
+     "t": 0.664,
+     "wins": 4,
+     "years": 6,
+     "lo": -0.344,
+     "hi": 0.812,
+     "excludesZero": false,
+     "per": {
+      "2020": -0.063,
+      "2021": 0.2,
+      "2022": 1.512,
+      "2023": -0.837,
+      "2024": 0.312,
+      "2025": 0.112
+     },
+     "chosen": {
+      "2020": "WR<=1/r1-3",
+      "2021": "TE<=1/r1-7",
+      "2022": "TE<=1/r1-7",
+      "2023": "TE<=1/r1-7",
+      "2024": "TE<=1/all",
+      "2025": "TE<=1/r1-7"
+     },
+     "candidates": 9,
+     "metric": "wins"
+    },
+    "placebo": {
+     "mean": -0.006,
+     "t": -0.02,
+     "wins": 4,
+     "years": 6,
+     "lo": -0.6,
+     "hi": 0.517,
+     "excludesZero": false,
+     "per": {
+      "2020": -1.175,
+      "2021": 0.2,
+      "2022": 0.625,
+      "2023": 0.55,
+      "2024": 0.55,
+      "2025": -0.788
+     },
+     "chosen": {
+      "2020": "pseudo2/all",
+      "2021": "pseudo4/r1-7",
+      "2022": "pseudo4/r1-7",
+      "2023": "pseudo4/r1-7",
+      "2024": "pseudo4/r1-7",
+      "2025": "pseudo4/r1-7"
+     },
+     "candidates": 12,
+     "metric": "wins"
+    },
+    "beatsPlaceboSearch": true
+   },
+   "12-2flex": {
+    "real": {
+     "mean": 0.265,
+     "t": 1.126,
+     "wins": 2,
+     "years": 6,
+     "lo": -0.061,
+     "hi": 0.739,
+     "excludesZero": false,
+     "per": {
+      "2020": 0.416,
+      "2021": 0,
+      "2022": -0.073,
+      "2023": -0.094,
+      "2024": -0.036,
+      "2025": 1.375
+     },
+     "chosen": {
+      "2020": "WR<=1/r1-7",
+      "2021": "WR<=1/r1-7",
+      "2022": "WR<=1/r1-7",
+      "2023": "TE<=1/all",
+      "2024": "RB<=1/r1-7",
+      "2025": "RB<=1/r1-7"
+     },
+     "candidates": 9,
+     "metric": "wins"
+    },
+    "placebo": {
+     "mean": 0.192,
+     "t": 0.896,
+     "wins": 3,
+     "years": 6,
+     "lo": -0.177,
+     "hi": 0.595,
+     "excludesZero": false,
+     "per": {
+      "2020": -0.38,
+      "2021": 0.901,
+      "2022": 0.365,
+      "2023": 0.646,
+      "2024": -0.286,
+      "2025": -0.094
+     },
+     "chosen": {
+      "2020": "pseudo2/all",
+      "2021": "pseudo1/all",
+      "2022": "pseudo1/all",
+      "2023": "pseudo1/all",
+      "2024": "pseudo1/all",
+      "2025": "pseudo1/all"
+     },
+     "candidates": 12,
+     "metric": "wins"
+    },
+    "beatsPlaceboSearch": true
+   }
+  },
+  "season": {
+   "10-2flex": {
+    "real": {
+     "mean": 16.3,
+     "t": 1.042,
+     "wins": 4,
+     "years": 6,
+     "lo": -10.933,
+     "hi": 43.533,
+     "excludesZero": false,
+     "per": {
+      "2020": 69.1,
+      "2021": -10.9,
+      "2022": 0.7,
+      "2023": 6.7,
+      "2024": 57.8,
+      "2025": -25.6
+     },
+     "chosen": {
+      "2020": "TE<=1/all",
+      "2021": "TE<=1/all",
+      "2022": "TE<=1/r1-3",
+      "2023": "TE<=1/all",
+      "2024": "TE<=1/all",
+      "2025": "TE<=1/all"
+     },
+     "candidates": 9,
+     "metric": "season"
+    },
+    "placebo": {
+     "mean": 40.617,
+     "t": 2.018,
+     "wins": 6,
+     "years": 6,
+     "lo": 8.8,
+     "hi": 78.617,
+     "excludesZero": true,
+     "per": {
+      "2020": 128.1,
+      "2021": 15.5,
+      "2022": 68.9,
+      "2023": 25.1,
+      "2024": 3,
+      "2025": 3.1
+     },
+     "chosen": {
+      "2020": "pseudo4/r1-7",
+      "2021": "pseudo4/r1-7",
+      "2022": "pseudo4/r1-7",
+      "2023": "pseudo4/r1-7",
+      "2024": "pseudo4/r1-7",
+      "2025": "pseudo4/all"
+     },
+     "candidates": 12,
+     "metric": "season"
+    },
+    "beatsPlaceboSearch": false
+   },
+   "12-2flex": {
+    "real": {
+     "mean": 10.7,
+     "t": 0.491,
+     "wins": 3,
+     "years": 6,
+     "lo": -28.35,
+     "hi": 48.367,
+     "excludesZero": false,
+     "per": {
+      "2020": -79.9,
+      "2021": 0,
+      "2022": -4,
+      "2023": 30.7,
+      "2024": 77.6,
+      "2025": 39.8
+     },
+     "chosen": {
+      "2020": "WR<=1/all",
+      "2021": "WR<=1/r1-7",
+      "2022": "WR<=1/r1-7",
+      "2023": "TE<=1/all",
+      "2024": "RB<=1/r1-7",
+      "2025": "RB<=1/r1-7"
+     },
+     "candidates": 9,
+     "metric": "season"
+    },
+    "placebo": {
+     "mean": 2.733,
+     "t": 0.186,
+     "wins": 3,
+     "years": 6,
+     "lo": -22.25,
+     "hi": 27.9,
+     "excludesZero": false,
+     "per": {
+      "2020": -29.7,
+      "2021": 46.4,
+      "2022": 44.1,
+      "2023": -22.3,
+      "2024": -30.8,
+      "2025": 8.7
+     },
+     "chosen": {
+      "2020": "pseudo2/all",
+      "2021": "pseudo2/all",
+      "2022": "pseudo2/all",
+      "2023": "pseudo2/all",
+      "2024": "pseudo3/all",
+      "2025": "pseudo4/all"
+     },
+     "candidates": 12,
+     "metric": "season"
+    },
+    "beatsPlaceboSearch": true
+   }
+  }
+ },
+ "playerBootstrap": [
+  {
+   "shape": "10-2flex",
+   "id": "TE<=1/all",
+   "iters": 120,
+   "seasonsPerIter": 7,
+   "wins": {
+    "mean": 0.138,
+    "lo": -0.368,
+    "hi": 0.618,
+    "excludesZero": false
+   },
+   "season": {
+    "mean": 21.9,
+    "lo": -19.8,
+    "hi": 70.1,
+    "excludesZero": false
+   }
+  }
+ ],
+ "playerBootstrapSkipped": false,
+ "playerBootstrapCandidates": [
+  "10-2flex/TE<=1/all"
+ ],
+ "verdictRows": [
+  {
+   "shape": "10-2flex",
+   "pos": "TE",
+   "window": "r1-3",
+   "id": "TE<=1/r1-3",
+   "metric": "wins",
+   "diff": 0.093,
+   "lo": -0.064,
+   "hi": 0.27,
+   "t": 0.987,
+   "seasons": "4/7",
+   "bindRate": 0.074,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "TE",
+   "window": "r1-3",
+   "id": "TE<=1/r1-3",
+   "metric": "season",
+   "diff": 14.929,
+   "lo": -2.529,
+   "hi": 32.457,
+   "t": 1.471,
+   "seasons": "6/7",
+   "bindRate": 0.074,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "TE",
+   "window": "r1-7",
+   "id": "TE<=1/r1-7",
+   "metric": "wins",
+   "diff": 0.309,
+   "lo": -0.198,
+   "hi": 0.816,
+   "t": 1.111,
+   "seasons": "5/7",
+   "bindRate": 0.333,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "TE",
+   "window": "r1-7",
+   "id": "TE<=1/r1-7",
+   "metric": "season",
+   "diff": 33.643,
+   "lo": -8.329,
+   "hi": 79.629,
+   "t": 1.366,
+   "seasons": "5/7",
+   "bindRate": 0.333,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": true,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "TE",
+   "window": "all",
+   "id": "TE<=1/all",
+   "metric": "wins",
+   "diff": 0.251,
+   "lo": -0.159,
+   "hi": 0.695,
+   "t": 1.048,
+   "seasons": "5/7",
+   "bindRate": 0.866,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": false,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "TE",
+   "window": "all",
+   "id": "TE<=1/all",
+   "metric": "season",
+   "diff": 34.186,
+   "lo": 1.843,
+   "hi": 69.2,
+   "t": 1.8,
+   "seasons": "5/7",
+   "bindRate": 0.866,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": false,
+    "abovePlaceboCeiling": true,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "RB",
+   "window": "r1-3",
+   "id": "RB<=1/r1-3",
+   "metric": "wins",
+   "diff": -0.282,
+   "lo": -0.48,
+   "hi": -0.096,
+   "t": -2.59,
+   "seasons": "0/7",
+   "bindRate": 0.072,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "RB",
+   "window": "r1-3",
+   "id": "RB<=1/r1-3",
+   "metric": "season",
+   "diff": -24.157,
+   "lo": -43.557,
+   "hi": -6.714,
+   "t": -2.216,
+   "seasons": "0/7",
+   "bindRate": 0.072,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "RB",
+   "window": "r1-7",
+   "id": "RB<=1/r1-7",
+   "metric": "wins",
+   "diff": -0.04,
+   "lo": -0.429,
+   "hi": 0.362,
+   "t": -0.181,
+   "seasons": "3/7",
+   "bindRate": 0.27,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "RB",
+   "window": "r1-7",
+   "id": "RB<=1/r1-7",
+   "metric": "season",
+   "diff": 16.243,
+   "lo": -14.857,
+   "hi": 44.657,
+   "t": 0.985,
+   "seasons": "4/7",
+   "bindRate": 0.27,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "RB",
+   "window": "all",
+   "id": "RB<=1/all",
+   "metric": "wins",
+   "diff": -0.145,
+   "lo": -0.887,
+   "hi": 0.653,
+   "t": -0.336,
+   "seasons": "3/7",
+   "bindRate": 0.779,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "RB",
+   "window": "all",
+   "id": "RB<=1/all",
+   "metric": "season",
+   "diff": 23.914,
+   "lo": -4.571,
+   "hi": 55.971,
+   "t": 1.383,
+   "seasons": "5/7",
+   "bindRate": 0.779,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "WR",
+   "window": "r1-3",
+   "id": "WR<=1/r1-3",
+   "metric": "wins",
+   "diff": 0.048,
+   "lo": -0.018,
+   "hi": 0.137,
+   "t": 1.021,
+   "seasons": "2/7",
+   "bindRate": 0.033,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "WR",
+   "window": "r1-3",
+   "id": "WR<=1/r1-3",
+   "metric": "season",
+   "diff": -0.671,
+   "lo": -4.671,
+   "hi": 3.729,
+   "t": -0.276,
+   "seasons": "1/7",
+   "bindRate": 0.033,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "WR",
+   "window": "r1-7",
+   "id": "WR<=1/r1-7",
+   "metric": "wins",
+   "diff": -0.32,
+   "lo": -0.498,
+   "hi": -0.15,
+   "t": -3.296,
+   "seasons": "0/7",
+   "bindRate": 0.178,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "WR",
+   "window": "r1-7",
+   "id": "WR<=1/r1-7",
+   "metric": "season",
+   "diff": -26.957,
+   "lo": -41.214,
+   "hi": -12.214,
+   "t": -3.208,
+   "seasons": "0/7",
+   "bindRate": 0.178,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "WR",
+   "window": "all",
+   "id": "WR<=1/all",
+   "metric": "wins",
+   "diff": -0.795,
+   "lo": -1.48,
+   "hi": -0.304,
+   "t": -2.391,
+   "seasons": "1/7",
+   "bindRate": 0.678,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "10-2flex",
+   "pos": "WR",
+   "window": "all",
+   "id": "WR<=1/all",
+   "metric": "season",
+   "diff": -86.714,
+   "lo": -141.043,
+   "hi": -44.643,
+   "t": -3.262,
+   "seasons": "0/7",
+   "bindRate": 0.678,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": false
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "TE",
+   "window": "r1-3",
+   "id": "TE<=1/r1-3",
+   "metric": "wins",
+   "diff": -0.056,
+   "lo": -0.195,
+   "hi": 0.039,
+   "t": -0.824,
+   "seasons": "2/7",
+   "bindRate": 0.044,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "TE",
+   "window": "r1-3",
+   "id": "TE<=1/r1-3",
+   "metric": "season",
+   "diff": -1.814,
+   "lo": -8.443,
+   "hi": 3.243,
+   "t": -0.535,
+   "seasons": "2/7",
+   "bindRate": 0.044,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "TE",
+   "window": "r1-7",
+   "id": "TE<=1/r1-7",
+   "metric": "wins",
+   "diff": -0.152,
+   "lo": -0.763,
+   "hi": 0.4,
+   "t": -0.482,
+   "seasons": "4/7",
+   "bindRate": 0.278,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "TE",
+   "window": "r1-7",
+   "id": "TE<=1/r1-7",
+   "metric": "season",
+   "diff": -1.014,
+   "lo": -65.214,
+   "hi": 54.714,
+   "t": -0.032,
+   "seasons": "5/7",
+   "bindRate": 0.278,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "TE",
+   "window": "all",
+   "id": "TE<=1/all",
+   "metric": "wins",
+   "diff": 0.071,
+   "lo": -0.35,
+   "hi": 0.576,
+   "t": 0.279,
+   "seasons": "3/7",
+   "bindRate": 0.776,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "TE",
+   "window": "all",
+   "id": "TE<=1/all",
+   "metric": "season",
+   "diff": 21.086,
+   "lo": -19.057,
+   "hi": 69.5,
+   "t": 0.865,
+   "seasons": "5/7",
+   "bindRate": 0.776,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "RB",
+   "window": "r1-3",
+   "id": "RB<=1/r1-3",
+   "metric": "wins",
+   "diff": -0.085,
+   "lo": -0.354,
+   "hi": 0.133,
+   "t": -0.629,
+   "seasons": "3/7",
+   "bindRate": 0.09,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "RB",
+   "window": "r1-3",
+   "id": "RB<=1/r1-3",
+   "metric": "season",
+   "diff": 4,
+   "lo": -23.129,
+   "hi": 28.557,
+   "t": 0.273,
+   "seasons": "3/7",
+   "bindRate": 0.09,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "RB",
+   "window": "r1-7",
+   "id": "RB<=1/r1-7",
+   "metric": "wins",
+   "diff": 0.35,
+   "lo": -0.225,
+   "hi": 0.997,
+   "t": 1.019,
+   "seasons": "3/7",
+   "bindRate": 0.327,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "RB",
+   "window": "r1-7",
+   "id": "RB<=1/r1-7",
+   "metric": "season",
+   "diff": 46.171,
+   "lo": -5.914,
+   "hi": 93.486,
+   "t": 1.626,
+   "seasons": "5/7",
+   "bindRate": 0.327,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": true,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "RB",
+   "window": "all",
+   "id": "RB<=1/all",
+   "metric": "wins",
+   "diff": -0.293,
+   "lo": -0.579,
+   "hi": -0.008,
+   "t": -1.892,
+   "seasons": "2/7",
+   "bindRate": 0.812,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "RB",
+   "window": "all",
+   "id": "RB<=1/all",
+   "metric": "season",
+   "diff": 3,
+   "lo": -47.871,
+   "hi": 52.414,
+   "t": 0.104,
+   "seasons": "3/7",
+   "bindRate": 0.812,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "WR",
+   "window": "r1-3",
+   "id": "WR<=1/r1-3",
+   "metric": "wins",
+   "diff": -0.014,
+   "lo": -0.079,
+   "hi": 0.036,
+   "t": -0.434,
+   "seasons": "2/7",
+   "bindRate": 0.035,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "WR",
+   "window": "r1-3",
+   "id": "WR<=1/r1-3",
+   "metric": "season",
+   "diff": -2.714,
+   "lo": -7.257,
+   "hi": 0.171,
+   "t": -1.219,
+   "seasons": "1/7",
+   "bindRate": 0.035,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "WR",
+   "window": "r1-7",
+   "id": "WR<=1/r1-7",
+   "metric": "wins",
+   "diff": 0.048,
+   "lo": -0.101,
+   "hi": 0.207,
+   "t": 0.549,
+   "seasons": "2/7",
+   "bindRate": 0.154,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "WR",
+   "window": "r1-7",
+   "id": "WR<=1/r1-7",
+   "metric": "season",
+   "diff": 5.9,
+   "lo": -8.8,
+   "hi": 21.3,
+   "t": 0.661,
+   "seasons": "2/7",
+   "bindRate": 0.154,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": true,
+    "seasonClusteredCiExcludesZero": false,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "WR",
+   "window": "all",
+   "id": "WR<=1/all",
+   "metric": "wins",
+   "diff": -0.402,
+   "lo": -0.749,
+   "hi": -0.066,
+   "t": -2.094,
+   "seasons": "2/7",
+   "bindRate": 0.591,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  },
+  {
+   "shape": "12-2flex",
+   "pos": "WR",
+   "window": "all",
+   "id": "WR<=1/all",
+   "metric": "season",
+   "diff": -35.643,
+   "lo": -68.143,
+   "hi": -0.386,
+   "t": -1.883,
+   "seasons": "2/7",
+   "bindRate": 0.591,
+   "tests": {
+    "notVacuous": true,
+    "signPositive": false,
+    "seasonClusteredCiExcludesZero": true,
+    "playerClusteredCiExcludesZero": null,
+    "abovePlaceboCeiling": false,
+    "majorityOfSeasons": false,
+    "walkForwardHolds": true
+   },
+   "clearsBar": false
+  }
+ ],
+ "clearsOnEitherMetric": [],
+ "clearsOnBothMetrics": [],
+ "positionControl": {
+  "10-2flex": {
+   "r1-3": {
+    "TE": {
+     "wins": 0.093,
+     "season": 14.929,
+     "bindRate": 0.074,
+     "vacuous": false
+    },
+    "RB": {
+     "wins": -0.282,
+     "season": -24.157,
+     "bindRate": 0.072,
+     "vacuous": false
+    },
+    "WR": {
+     "wins": 0.048,
+     "season": -0.671,
+     "bindRate": 0.033,
+     "vacuous": false
+    }
+   },
+   "r1-7": {
+    "TE": {
+     "wins": 0.309,
+     "season": 33.643,
+     "bindRate": 0.333,
+     "vacuous": false
+    },
+    "RB": {
+     "wins": -0.04,
+     "season": 16.243,
+     "bindRate": 0.27,
+     "vacuous": false
+    },
+    "WR": {
+     "wins": -0.32,
+     "season": -26.957,
+     "bindRate": 0.178,
+     "vacuous": false
+    }
+   },
+   "all": {
+    "TE": {
+     "wins": 0.251,
+     "season": 34.186,
+     "bindRate": 0.866,
+     "vacuous": false
+    },
+    "RB": {
+     "wins": -0.145,
+     "season": 23.914,
+     "bindRate": 0.779,
+     "vacuous": false
+    },
+    "WR": {
+     "wins": -0.795,
+     "season": -86.714,
+     "bindRate": 0.678,
+     "vacuous": false
+    }
+   }
+  },
+  "12-2flex": {
+   "r1-3": {
+    "TE": {
+     "wins": -0.056,
+     "season": -1.814,
+     "bindRate": 0.044,
+     "vacuous": false
+    },
+    "RB": {
+     "wins": -0.085,
+     "season": 4,
+     "bindRate": 0.09,
+     "vacuous": false
+    },
+    "WR": {
+     "wins": -0.014,
+     "season": -2.714,
+     "bindRate": 0.035,
+     "vacuous": false
+    }
+   },
+   "r1-7": {
+    "TE": {
+     "wins": -0.152,
+     "season": -1.014,
+     "bindRate": 0.278,
+     "vacuous": false
+    },
+    "RB": {
+     "wins": 0.35,
+     "season": 46.171,
+     "bindRate": 0.327,
+     "vacuous": false
+    },
+    "WR": {
+     "wins": 0.048,
+     "season": 5.9,
+     "bindRate": 0.154,
+     "vacuous": false
+    }
+   },
+   "all": {
+    "TE": {
+     "wins": 0.071,
+     "season": 21.086,
+     "bindRate": 0.776,
+     "vacuous": false
+    },
+    "RB": {
+     "wins": -0.293,
+     "season": 3,
+     "bindRate": 0.812,
+     "vacuous": false
+    },
+    "WR": {
+     "wins": -0.402,
+     "season": -35.643,
+     "bindRate": 0.591,
+     "vacuous": false
+    }
+   }
+  }
+ },
+ "runtimeSec": 54.4
 }

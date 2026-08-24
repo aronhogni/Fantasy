@@ -406,13 +406,19 @@ function makeWindowCapBoard(W, A, pos, cap, until, tally = null) {
  */
 function pseudoGroupBoard(W, A, seed, cap, until, tally = null) {
   const teN = W.P.filter((p) => p.pos === "TE").length;
-  const frac = teN / Math.max(1, W.N);
   const h32 = (s) => {
     let h = (2166136261 ^ (seed * 16777619)) >>> 0;
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
     return ((h >>> 8) & 0xffff) / 65536;
   };
-  const inGroup = new Map(W.P.map((p) => [p.id, h32(p.id) < frac]));
+  /* HOPURINN ER NAKVAEMLEGA JAFNSTOR TE-LAUGINNI, ekki "ad vaentingu".
+     Fyrsta utgafan tok alla med hak < teN/N og fekk 104 thar sem TE
+     voru 125 — 2-sigma frahvarf sem gerir thakid MJUKARA en thad a ad
+     vera (minni hopur bindur sjaldnar). Nu er rodin eftir haki og
+     teN fyrstu eru teknir, svo staerdin er JOFN ad byggingu. */
+  const ordered = W.P.map((p) => [p.id, h32(p.id)]).sort((a, b) => a[1] - b[1]);
+  const pick = new Set(ordered.slice(0, teN).map(([id]) => id));
+  const inGroup = new Map(W.P.map((p) => [p.id, pick.has(p.id)]));
   const shifted = [...A.entries()].map(([id, rank]) =>
     [id, inGroup.get(id) ? rank + 1e6 : rank]);
   shifted.sort((a, b) => a[1] - b[1]);
@@ -1081,10 +1087,23 @@ async function main() {
      ============================================================ */
   {
     const out = {}; const bad = [];
-    for (const key of REAL) {
+    /* HLIDID KEYRIR A BOKADA `runs`, EKKI A `--runs`. Bokada talan var
+       maeld med runs = 4 og sami heimur gefur bara sama svar vid sama
+       fjolda fraekorna. Vaeri `--runs` notad her myndi hlidid FELLA
+       hverja keyrslu sem er ekki med sjalfgefnu gildi — thad er hlid a
+       vidfangi, ekki a kodanum. Talan er lesin UR skranni svo hun geti
+       ekki rekid ur takti vid hana. */
+    const bookedRuns = bookedBand && bookedBand.provenance
+      && bookedBand.provenance.params && bookedBand.provenance.params.runs
+      ? bookedBand.provenance.params.runs.value : null;
+    if (bookedRuns == null) {
+      fatal = "N5: band.json ber ekki `provenance.params.runs` — hlidid getur "
+        + "ekki vitad vid hvad thad er ad bera sig";
+    }
+    for (const key of (bookedRuns == null ? [] : REAL)) {
       const sh = shapeOf[key];
       const tally = { picks: 0, bound: 0 };
-      const { perYear } = cell({ shape: sh, seedBase: 505,
+      const { perYear } = cell({ shape: sh, seedBase: 505, runs: bookedRuns,
         treat: { board: (X) => makeWindowCapBoard(X,
           arankBoard(X, sh.fmt, repl[sh.key]), "TE", 1, 99, tally) },
         ctrl: A_OF(sh) });
@@ -1102,7 +1121,8 @@ async function main() {
       console.log(`  N5 ${key.padEnd(10)} TE<=1 allt draftid  sigrar ${sgn(w.diff)} ` +
         `(bokad ${sgn(out[key].bookedWins)})  stig ${sgn(s.diff, 1)} (bokad ${sgn(out[key].bookedSeason, 1)})`);
     }
-    gates.n5_capCrossAnchor = { perShape: out, ok: bad.length === 0, failed: bad };
+    gates.n5_capCrossAnchor = { perShape: out, bookedRuns,
+      ok: bookedRuns != null && bad.length === 0, failed: bad };
     console.log(`  N5 thvert akkeri a THAK-KODANN   ${bad.length === 0 ? "OK" : `FELLUR (${bad})`}`);
     if (bad.length) {
       fatal = `N5: makeWindowCapBoard(until=99) endurgerir EKKI bokada q2b-toluna (${bad}) `
@@ -1170,13 +1190,13 @@ async function main() {
   for (const key of REAL) {
     const sh = shapeOf[key];
     const cells = [];
-    let sizes = null;
+    const sizePairs = [];
     for (const wd of WINDOWS) {
       for (const p of PSEUDO) {
         const tally = { picks: 0, bound: 0 };
         const treat = { board: (X) => {
           const g = pseudoGroupBoard(X, arankBoard(X, sh.fmt, repl[sh.key]), p, 1, wd.until, tally);
-          if (!sizes) sizes = { groupSize: g.size, teSize: g.teSize };
+          sizePairs.push([g.size, g.teSize]);
           return g.board;
         } };
         const { perYear } = cell({ shape: sh, treat, ctrl: A_OF(sh),
@@ -1189,6 +1209,9 @@ async function main() {
       }
     }
     const pos = (f) => cells.map((c) => c[f]).filter((v) => v != null && v > 0);
+    const sizes = { equalBySeasonAndSeed: sizePairs.every(([a, b]) => a === b),
+      groupSizeRange: [Math.min(...sizePairs.map((s) => s[0])), Math.max(...sizePairs.map((s) => s[0]))],
+      meanBindRate: r3(mean(cells.map((c) => c.bindRate ?? 0))) };
     q2placebo[key] = { cells, groupSizes: sizes, ceiling: {
       winsMaxPositiveMean: r3(Math.max(0, ...pos("wins"))),
       winsMaxPositiveT: r3(Math.max(0, ...pos("winsT"))),
@@ -1197,7 +1220,8 @@ async function main() {
     const c = q2placebo[key].ceiling;
     console.log(`      ${key.padEnd(10)} thak: sigrar ${sgn(c.winsMaxPositiveMean)} (t ${sgn(c.winsMaxPositiveT)})` +
       `  stig ${sgn(c.seasonMaxPositiveMean, 1)} (t ${sgn(c.seasonMaxPositiveT)})  · ${cells.length} holf` +
-      `  · hopur ${sizes ? sizes.groupSize : "?"} gegn TE ${sizes ? sizes.teSize : "?"}`);
+      `  · hopur = TE-laug: ${sizes.equalBySeasonAndSeed ? "JA" : "NEI"} ${JSON.stringify(sizes.groupSizeRange)}` +
+      `  · bindur ${(sizes.meanBindRate * 100).toFixed(1)}%`);
   }
 
   /* ============================================================
@@ -1236,36 +1260,49 @@ async function main() {
       Object.entries(rows).map(([y, c]) => [y, c[keyT] != null && c[keyC] != null
         ? c[keyT] - c[keyC] : null]));
 
+    /* ============================================================
+       LEITIN ER INNAN DEILDAR, EKKI YFIR BADAR
+       ============================================================
+       Fyrsta utgafan poolaði bæði skipulog i eina frambjodenda-laug og
+       valdi t.d. `12-2flex/WR<=1/r1-3` fyrir 2020. Thad er EKKI akvordun
+       sem notandinn tekur: hann spilar bædi deildirnar og velur regluna
+       I HVORRI. Leitin er thvi bundin vid deildina og bædi svorin eru
+       birt — pooluð leit hefdi haft 18 frambjodendur i stad 9 og thvi
+       MEIRA urtaksval, ekki minna.
+       ============================================================ */
+    /* Placebo-frumurnar bera ekki `perYear` (thaer eru keyrdar med
+       `PRUNS`), svo fjolskyldan er endurkeyrd her med SOMU `runs` og
+       raunverulega — annars vaeri leitin ad velja ur odru sudi en hun
+       er borin vid. Hun er keyrd EINU SINNI og bædi maelikvardarnir
+       teknir ur somu ferd. */
+    const plcPer = {};
+    for (const key of REAL) {
+      const sh = shapeOf[key];
+      plcPer[key] = [];
+      for (const wd of WINDOWS) for (const p of PSEUDO.slice(0, 4)) {
+        const treat = { board: (X) => pseudoGroupBoard(X,
+          arankBoard(X, sh.fmt, repl[sh.key]), p, 1, wd.until).board };
+        const { perYear } = cell({ shape: sh, treat, ctrl: A_OF(sh), seedBase: 1501 });
+        plcPer[key].push({ label: `pseudo${p}/${wd.key}`, perYear });
+      }
+    }
     for (const metric of ["wins", "season"]) {
       const kT = metric === "wins" ? "winsT" : "seasonT";
       const kC = metric === "wins" ? "winsC" : "seasonC";
-      const real = [], plc = [];
+      q3[metric] = {};
       for (const key of REAL) {
-        for (const r of q2[key].rows) {
-          real.push({ label: `${key}/${r.pos}<=1/${r.window}`, per: perOf(r.perYear, kT, kC) });
-        }
+        const real = q2[key].rows.map((r) => ({ label: `${r.pos}<=1/${r.window}`,
+          per: perOf(r.perYear, kT, kC) }));
+        const plc = plcPer[key].map((c) => ({ label: c.label, per: perOf(c.perYear, kT, kC) }));
+        const wr = wf(real, metric), wp = wf(plc, metric);
+        q3[metric][key] = { real: wr, placebo: wp,
+          beatsPlaceboSearch: wr.mean != null && wp.mean != null && wr.mean > wp.mean };
+        console.log(`  ${metric.padEnd(7)} ${key.padEnd(10)} fjolskyldan ${sgn(wr.mean, metric === "wins" ? 3 : 1)} ` +
+          `(${wr.wins}/${wr.years}, t=${sgn(wr.t)}) [${sgn(wr.lo, 3)}, ${sgn(wr.hi, 3)}]` +
+          `${wr.excludesZero ? " SIG" : ""}  ·  placebo-leit ${sgn(wp.mean, metric === "wins" ? 3 : 1)} ` +
+          `(${wp.wins}/${wp.years})  -> ${q3[metric][key].beatsPlaceboSearch ? "slaer leitina" : "SLAER EKKI leitina"}`);
+        console.log(`               valid: ${Object.entries(wr.chosen).map(([y, l]) => `${y}:${l}`).join("  ")}`);
       }
-      /* Placebo-frumurnar bera ekki `perYear` (thaer eru keyrdar med
-         `PRUNS`), svo fjolskyldan er endurkeyrd her med SOMU `runs` og
-         raunverulega — annars vaeri leitin ad velja ur odru sudi en hun
-         er borin vid. */
-      for (const key of REAL) {
-        const sh = shapeOf[key];
-        for (const wd of WINDOWS) for (const p of PSEUDO.slice(0, 4)) {
-          const treat = { board: (X) => pseudoGroupBoard(X,
-            arankBoard(X, sh.fmt, repl[sh.key]), p, 1, wd.until).board };
-          const { perYear } = cell({ shape: sh, treat, ctrl: A_OF(sh), seedBase: 1501 });
-          plc.push({ label: `${key}/pseudo${p}/${wd.key}`, per: perOf(perYear, kT, kC) });
-        }
-      }
-      const wr = wf(real, metric), wp = wf(plc, metric);
-      q3[metric] = { real: wr, placebo: wp,
-        beatsPlaceboSearch: wr.mean != null && wp.mean != null && wr.mean > wp.mean };
-      console.log(`  ${metric.padEnd(7)} raunveruleg fjolskylda ${sgn(wr.mean, metric === "wins" ? 3 : 1)} ` +
-        `(${wr.wins}/${wr.years}, t=${sgn(wr.t)}) [${sgn(wr.lo, 3)}, ${sgn(wr.hi, 3)}]` +
-        `${wr.excludesZero ? " SIG" : ""}  ·  placebo-leit ${sgn(wp.mean, metric === "wins" ? 3 : 1)} ` +
-        `(${wp.wins}/${wp.years})  -> ${q3[metric].beatsPlaceboSearch ? "slaer leitina" : "SLAER EKKI leitina"}`);
-      console.log(`          valid: ${Object.entries(wr.chosen).map(([y, l]) => `${y}:${l}`).join("  ")}`);
     }
   }
 
@@ -1340,7 +1377,11 @@ async function main() {
           ? { mean: q2placebo[key].ceiling.winsMaxPositiveMean, t: q2placebo[key].ceiling.winsMaxPositiveT }
           : { mean: q2placebo[key].ceiling.seasonMaxPositiveMean, t: q2placebo[key].ceiling.seasonMaxPositiveT })
           : null;
-        const wfOk = q3[m] ? q3[m].real.mean > 0 && q3[m].beatsPlaceboSearch : null;
+        /* Walk-forward gildir um DEILDINA (fjolskylduna innan hennar),
+           ekki um stoku frumuna — thad er sama form og `h2h-lab` Q3:
+           skilyrdid er "heldur leitin sem thessi fruma er hluti af". */
+        const wfc = q3[m] ? q3[m][key] : null;
+        const wfOk = wfc ? wfc.real.mean > 0 && wfc.beatsPlaceboSearch : null;
         const tests = {
           notVacuous: !r.vacuous,
           signPositive: st.diff != null && st.diff > 0,
