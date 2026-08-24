@@ -1977,7 +1977,7 @@ loka spurningunni:
 
 | þetta | mældi | og áður |
 |---|---|---|
-| `mktOwnHonest` = **núll ofan á** | markaðs-lína framávið, árstíðar | `board-lab` mældi **`prevTeamPfG`** (sókn liðsins, fyrra ár): neikvætt við w ≥ 0,3 (5h). `model-lab` mældi **liðsstyrk einn og sér** lakastan af öllum inntökum (1319 á móti 1667, 5b). `mktweek-lab` **0 af 45 hólfum** vikulega |
+| `mktOwnHonest` = **núll ofan á** | markaðs-lína framávið, árstíðar | `board-lab` mældi **`prevTeamPfG`** (sókn liðsins, fyrra ár): neikvætt við w ≥ 0,3 (5h). `model-lab` mældi **liðsstyrk einn og sér** **1319** á móti 1667 hjá ADP — næst-lakasta inntakið af átta (aldur/draft-staða er 1285) og kallað „nánast gagnslaus til að raða einstökum leikmönnum" í 5b. `mktweek-lab` **0 af 45 hólfum** vikulega |
 | `ecrVsAdp` = **núll ofan á** | vik sérfræðinga frá markaði | `board-lab` mældi **ECR-blöndun**: walk-forward neikvætt í **öllum fjórum frumum** (5h). `model-lab`: ECR eitt og sér **1590** gegn 1755 hjá ADP (5b) |
 
 **Þrjár aðferðir, þrjár lagnir, tveir mælikvarðar, sama svar.** Það sem er
