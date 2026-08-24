@@ -225,6 +225,44 @@ table.data tbody tr:hover td.frozen { background: #1b1f28; }
 .verdict-name .dim { font-size: 13px; }
 .verdict-why { color: var(--dim); font-size: 12.5px; margin-top: 6px; }
 
+/* ============================================================
+   FYRSTA VALID OG VARAMADURINN — STJARNA, EKKI ORD
+   ============================================================
+   BEIDNI 21.8.2026, ordrett: "Syndu betur med mynd af stjornu eda
+   einhverju hvor er fyrsta pickkid og hvor er til vara."
+
+   BADIR KASSARNIR VORU `.verdict` — sami graeni rammi, sami 4px
+   vinstri kantur, sama staerd. Munurinn var EINGONGU tveir litlir
+   merkimidar sem sogdu "take" og "or", 10,5px, i sama gráa tón. A
+   draftkvoldi med ~90 sek a val er thad ekki greinarmunur.
+
+   ThRIR AXIR, EKKI EINN — thad er lærdomurinn ur ikonunum i
+   FPL-hlutanum ("i smarri staerd er SILHUETTAN allt"): tveir hlutir
+   sem eru bædi "kassi med nafni" verda EINS thott liturinn se annar.
+   Svo:
+
+     1. STJARNA (U+2605) er a fyrri og HVERGI annars stadar i
+        kassanum. Silhuetta sem er eda er ekki — ekki tonn.
+     2. KANTURINN dofnar: `--good` a fyrri, `--line` a varamanninum,
+        og vinstri kanturinn ur 4px i 2px.
+     3. ORDID er "backup" og ekki "or". "or" var lika VONT PROFMAL:
+        fullyrdingin /or/ i `draft-live.mjs` var sonn um hvern
+        leikmann sem heitir Jordan, George eda Moore — tom
+        fullyrding i skilningi CLAUDE.md 5b.
+
+   LITURINN ER EKKI EINN A VAKT. Stjarnan er `--good` eins og
+   ramminn — hun bætir engum nyjum lit vid tungumalid (`--warn` er
+   gult og thydir VARUD; gullstjarna hefdi logid).                */
+.verdict.backup {
+  border-color: var(--line);
+  border-left: 2px solid var(--dimmer);
+}
+.verdict-star {
+  color: var(--good); font-size: 20px; line-height: 1;
+  /* Ekki `flex-shrink` — stjarnan er thad sidasta sem ma threngjast. */
+  flex: 0 0 auto;
+}
+
 /* Rokin eru til stadar en loka. Ad fela thau alveg vaeri orakli —
    verkefnid hvilir a thvi ad haegt se ad spyrja "af hverju". */
 .reasoning > summary {

@@ -1078,7 +1078,16 @@ function BoardTable({ rows, onTake, reach, nextOwn, showMine = true, showGone = 
                 <td className="txt"><span className={`pos ${r.pos}`}>{r.pos}</span></td>
                 <td className="txt dim">{r.team || "—"}</td>
                 <td className="mono dim">{r.bye ?? <span className="null">—</span>}</td>
-                <td className="mono"><b>{r.vbd?.toFixed(1)}</b></td>
+                {/* NULL ER EKKI NULL — OG ThAD VAR EKKI EINU SINNI "—".
+                    `{r.vbd?.toFixed(1)}` skilar `undefined`, sem React
+                    teiknar sem TOMT HOLF. Tomt holf i midri tolulegri
+                    tofluer eina birtingin sem segir ekkert: hun les eins
+                    og "0", eins og "villa" og eins og "gogn vantar" i
+                    einu. Hvert einasta nagranna-holf i thessari rod ber
+                    thegar `<span className="null">—</span>`; thetta var
+                    eina undantekningin. */}
+                <td className="mono"><b>{r.vbd == null
+                  ? <span className="null">—</span> : r.vbd.toFixed(1)}</b></td>
                 <td className="mono">{n(r.proj)}</td>
                 <td className="mono dim">{r.tier ?? "—"}</td>
                 <td className="mono dim">{n(r.adp)}</td>
@@ -1147,6 +1156,59 @@ function MyRoster({ roster, league, onUndo }) {
   const need = league.starters || {};
   const total = roster.reduce((a, r) => a + (r.proj || 0), 0);
 
+  /* ============================================================
+     FLEX-SAETIN HOFDU ENGA LINU — OG RB 2/2 LAS GRAENT MEDAN TVO
+     BYRJUNARSAETI VORU TOM
+     ============================================================
+     Þessi lykkja gekk yfir `["QB","RB","WR","TE","K","DST"]` — SEX
+     STODUR — og deild notandans er `{QB1, RB2, WR3, TE1, FLEX2, K1,
+     DST1}`. FLEX er ekki i listanum, svo TVO af ellefu byrjunarsaetum
+     hofdu enga rod i spjaldinu.
+
+     OG ÞOGNIN LAS SEM STADFESTING, ekki sem eyda: hopur med tveimur RB
+     og tveimur WR syndi `RB 2/2` (graent, "buid") og `WR 2/3` — samtals
+     "einn eftir" — thegar rétta talan er ThRIR (WR3 + tvo FLEX). Talan
+     sem vantar er verri en tala sem er rong, thvi hun kallar ekki a
+     spurningu.
+
+     FLEX ER EKKI STADA HELDUR SAETI SEM TEKUR YFIRMENGI — og reglan er
+     ThEGAR SKRIFUD TVISVAR i thessu repo-i: `slotsFor` (`lineup.js`) og
+     `startersRaw` (`accuracy.js`), sem bædi fylla fost saeti FYRST og
+     lata FLEX taka BESTA AFGANGINN (`used[pos]`). Talan hér er sami
+     hreidrudi reikningur: afgangur hverrar flex-gengrar stodu ofan vid
+     hennar EIGIN fostu saeti.
+
+     HVERS VEGNA `optimalLineup` ER **EKKI** ENDURNOTUD HER, thott hun
+     beri regluna og thad vaeri annars retta svarid: hun spyr ANNARRAR
+     SPURNINGAR. Hun sleppir manni med `proj == null`, i audri viku eda
+     `avail === 0` — thad er rett um "hverja a eg ad SPILA i viku 1", en
+     thetta spjald spyr "er byrjunarlidid FYLLT" a draftkvoldi. Meiddur
+     RB fyllir saeti i hop; hann fyllir thad ekki i uppstillingu. Vaeri
+     hun notud hér segdi spjaldid "FLEX 1/2" af thvi ad einn er
+     meiddur, sem er svar vid spurningu sem enginn spurdi i 8. umferd.
+     Þess vegna er thetta SAMSETNING og ekki uppstilling.
+
+     SUPERFLEX FAER SOMU MEDFERD i somu andra — deild med `SUPERFLEX`
+     hefdi annars nakvaemlega sömu thognina, og "vid lagfaerdum adra
+     eintakid en ekki hitt" er thad sem `pos-vs-opponent`-vordurinn i
+     FPL-hlutanum var til ad muna eftir.
+
+     RODIN ER FLEX FYRST, SIDAN SUPERFLEX — eins og i `slotsFor` (thvi
+     vidari saetid, thvi seinna velur thad), svo afgangur sem FLEX tekur
+     er ekki talinn tvisvar i SUPERFLEX.                              */
+  const cnt = (p) => (byPos[p] || []).length;
+  const spare = (list) => list.reduce((a, p) => a + Math.max(0, cnt(p) - (need[p] || 0)), 0);
+  const flexPos = league.flexPos || ["RB", "WR", "TE"];
+  const sflexPos = league.superflexPos || ["QB", "RB", "WR", "TE"];
+  const flexNeed = need.FLEX || 0;
+  const sflexNeed = need.SUPERFLEX || (league.superflex ? 1 : 0);
+  const flexFill = Math.min(flexNeed, spare(flexPos));
+  const sflexFill = Math.min(sflexNeed, Math.max(0, spare(sflexPos) - flexFill));
+  const wideSlots = [
+    { id: "FLEX", need: flexNeed, fill: flexFill, from: flexPos },
+    { id: "SUPERFLEX", need: sflexNeed, fill: sflexFill, from: sflexPos },
+  ].filter((s) => s.need > 0);
+
   return (
     <div className="panel" style={{ width: 300, flexShrink: 0 }}>
       <h2>My team</h2>
@@ -1183,6 +1245,27 @@ function MyRoster({ roster, league, onUndo }) {
           </div>
         );
       })}
+
+      {/* FLEX-SAETIN — sja notuna ofar. NOFNIN ERU **EKKI** ENDURTEKIN
+          HER: hver leikmadur stendur thegar undir sinni stodu, og ad
+          birta hann tvisvar vaeri ad segja ad hopurinn se staerri en
+          hann er. Linan telur SAETI, og segir hvadan thau fyllast. */}
+      {wideSlots.map((s) => (
+        <div key={s.id} style={{ marginBottom: 8 }}>
+          <div className="dimmer" style={{ fontSize: 10.5, letterSpacing: ".8px",
+            textTransform: "uppercase" }}>
+            {s.id} <span className={s.fill < s.need ? "warn" : ""}>
+              {s.fill}/{s.need}
+            </span>
+          </div>
+          <div className="dim" style={{ fontSize: 11.5 }}>
+            {s.fill >= s.need
+              ? `Filled from your spare ${s.from.join("/")}.`
+              : `Needs ${s.need - s.fill} more ${s.from.join(" or ")} beyond your `
+                + "starters above."}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -2719,6 +2802,19 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
      ekki jafntefli heldur augljost svar — og appid REIKNADI BADAR tolur
      adur og birti adeins adra, tengda theim manni sem hun a sist vid.
 
+     4. OG TVEIR JAFNSTORIR KASSAR SVORUDU EKKI HVOR VAR HVOR (21.8.).
+        Hans ord: "Syndu betur med mynd af stjornu eda einhverju hvor er
+        fyrsta pickkid og hvor er til vara." Þad var RETT athugad: badir
+        baru sama graena ramma og sama 4px kant, og eini munurinn var
+        merkimidi i 10,5px sem sagdi "take" eda "or". TVEIR HLUTIR SEM
+        ERU BADIR "KASSI MED NAFNI" VERDA EINS — sami lærdomur og
+        ikonin i FPL-hlutanum ("i smarri staerd er silhuettan allt").
+        Nu er thad THRENNT i einu: STJARNA (U+2605) sem er eda er ekki,
+        dofnadur kantur a varamanninum, og ordid "backup" i stad "or".
+        Sja `.verdict.backup` i styles.css. ÞETTA ER BIRTING — hvorki
+        rod, vog ne threskuldur haggast, og fullyrdingin um ad fyrsti
+        kosturinn se MAELDI besti er STYRKT, ekki losud (kafli 20).
+
      RODIN SJALF HAGGAST EKKI — hun er maeld (A-Ranking, sja advice.js),
      og `choice.list[0]` ER `picks[0]`. Bradanauðsyn sem ROD var maeld og
      hun TAPAR (`urgencyDrivesOrder: false`); lifunarlikur sem jafnteflis-
@@ -2768,8 +2864,11 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
     <div className="panel">
       {/* HAUSINN NEFNIR ENN "take this" — sa fyrri ER urskurdurinn og
           maelda rodin setur hann fyrstan. Vidbotin er um HINN. */}
+      {/* "the one beside it" NEFNDI EKKI HVOR ER HVOR — og thad var
+          einmitt spurningin sem var spurd. Nu nefnir hausinn STJORNUNA,
+          svo hann og kassinn segja thad sama. */}
       <h2>Pick {pick} — take this{!kdstPick && chosen.length > 1
-        ? ", or the one beside it" : ""}</h2>
+        ? " (★), or the backup beside it" : ""}</h2>
 
       {/* ============================================================
           TVEIR KOSTIR, EKKI EINN — OG EKKI FIMM (20.8.2026)
@@ -2815,11 +2914,21 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
             flexWrap: "wrap" }}>
             {chosen.map((p, i) => {
               const row = rowFor(p);
+              /* STJARNAN ER A FYRRI OG HVERGI ANNARS STADAR — sja
+                 `.verdict-star` i styles.css fyrir hvers vegna thetta
+                 er thrju axir og ekki eitt ord. `aria-hidden` thvi
+                 merkimidinn vid hlidina segir thad sama i orðum;
+                 stjornutakn i skjalesara vaeri hravara. */
               return (
-                <div key={p.id} className="verdict" style={{ flex: "1 1 250px" }}>
+                <div key={p.id} className={`verdict${i === 0 ? "" : " backup"}`}
+                  style={{ flex: "1 1 250px" }}>
                   <div className="verdict-name">
+                    {i === 0 && (
+                      <span className="verdict-star" aria-hidden="true"
+                        title="First pick — the measured best available">★</span>
+                    )}
                     <span className={`badge ${i === 0 ? "on" : ""}`}
-                      style={{ marginRight: 6 }}>{i === 0 ? "take" : "or"}</span>
+                      style={{ marginRight: 6 }}>{i === 0 ? "take" : "backup"}</span>
                     <span className={`pos ${p.pos}`}>{p.pos}</span>
                     <b>{p.name}</b>
                     {row && row.team && <span className="dim"> · {row.team}</span>}

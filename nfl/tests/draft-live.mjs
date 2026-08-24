@@ -2203,8 +2203,45 @@ console.log("\n20. tveir kostir eru a skjanum, og urskurdurinn er oskertur");
   const cards = () => [...document.querySelectorAll(".verdict-name")];
   const cardText = () => cards().map((c) => (c.textContent || "").trim());
   ok(cards().length === 2, `TVO spjold, ekki eitt og ekki fimm (${cards().length})`);
-  ok(/take/.test(cardText()[0] || "") && /or/.test(cardText()[1] || ""),
-    `sa fyrri ber "take", sa seinni "or" (${cardText().join(" | ")})`);
+
+  /* ============================================================
+     STJARNAN — OG HVERS VEGNA GAMLA FULLYRDINGIN VAR TOM
+     ============================================================
+     HER STOD: `/take/.test(card[0]) && /or/.test(card[1])`.
+
+     SEINNI HALFINN VAR SONN UM NAER HVERN LEIKMANN SEM HEITIR EITTHVAD.
+     `or` er undirstrengur i Jordan, George, Moore, Gordon, Hollywood,
+     Thornton — svo fullyrdingin "sa seinni ber merkimidann or" var i
+     raun "seinna nafnid inniheldur bokstafina o og r". Hun hefdi verid
+     graen thott merkimidinn hefdi verid fjarlaegdur alveg. Þetta er
+     nakvaemlega tom fullyrding i skilningi CLAUDE.md 5b — og hun var i
+     safninu sem a ad verja kassann.
+
+     ÞVI ER LESID UR HNUTUM OG EKKI UR TEXTA:
+       · `.verdict-star` er TALIN i ollum kassanum og verdur ad vera 1
+       · merkimidarnir eru lesnir sem NAKVAEM jafngildi ("take"/"backup")
+       · og `.verdict.backup` verdur ad vera a seinni EN EKKI a fyrri —
+         sjonraeni munurinn er thridji axinn og hann er profadur.       */
+  const starEls = () => [...document.querySelectorAll(".verdict-star")];
+  ok(starEls().length === 1,
+    `NAKVAEMLEGA EIN stjarna i kassanum (${starEls().length}) — ` +
+    "tvaer stjornur eda engin svara ekki spurningunni \"hvor er hvor\"");
+  const badgeOf = (c) => (c.querySelector(".badge")?.textContent || "").trim();
+  ok(badgeOf(cards()[0]) === "take",
+    `fyrri merkimidinn er NAKVAEMLEGA "take" ("${badgeOf(cards()[0])}")`);
+  ok(badgeOf(cards()[1]) === "backup",
+    `seinni er NAKVAEMLEGA "backup", ekki "or" ("${badgeOf(cards()[1])}")`);
+  /* Kassarnir sjalfir (`.verdict`), ekki nafnalinan. */
+  const boxes = [...document.querySelectorAll(".verdict")]
+    .filter((b) => b.querySelector(".verdict-name"));
+  ok(boxes.length === 2 && !boxes[0].classList.contains("backup")
+     && boxes[1].classList.contains("backup"),
+    "og SJONRAENI munurinn er a seinni kassanum, ekki a fyrri "
+    + `(${boxes.map((b) => b.className).join(" | ")})`);
+  /* Stjarnan er a FYRRI kassanum — ekki bara einhvers stadar. */
+  ok(cards()[0].querySelector(".verdict-star")
+     && !cards()[1].querySelector(".verdict-star"),
+    "stjarnan er a FYRRI kassanum og hvergi annars stadar");
 
   const whys = [...document.querySelectorAll(".verdict-why")]
     .map((d) => (d.textContent || "").replace(/\s+/g, " ").trim());
@@ -2233,10 +2270,27 @@ console.log("\n20. tveir kostir eru a skjanum, og urskurdurinn er oskertur");
     ? (reasonTable.querySelector("tbody tr td.frozen")?.textContent || "")
         .replace(/^take/, "").trim()
     : null;
-  const firstCard = (cardText()[0] || "").replace(/^take/, "").trim();
+  /* ============================================================
+     NAFNID ER LESID UR ÞEIM KASSA SEM BER STJORNUNA
+     ============================================================
+     ÞETTA ER HARDA SKILYRDID og thad er hert her viljandi. Adur var
+     lesid ur "kassa nr. 1" — sem er rett svo lengi sem stjarnan situr
+     a kassa nr. 1, en ThAD var ekki fullyrt. Nu er nafnid tekid ur
+     ThEIM kassa sem BER stjornuna og bordid vid maeldu rodina tvisvar
+     (rokstudnings-toflu OG bordid sjalft), svo:
+
+       · vaeri stjarnan faerd a varamanninn -> ThETTA fellur
+       · vaeri kossunum vixlad             -> ThETTA fellur
+       · vaeri rodinni sjalfri breytt      -> ThETTA fellur
+
+     Birtingar-breyting getur thvi ekki thegjandi yfirtekid maelda rod,
+     og "stjarnan a maelda besta" er nu FULLYRDING og ekki asetningur. */
+  const starredCard = cards().find((c) => c.querySelector(".verdict-star")) || cards()[0];
+  const firstCard = (starredCard.textContent || "")
+    .replace(/^\s*★?\s*take/, "").trim();
   ok(!!firstRanked, `rokstudnings-taflan er lesin (${firstRanked || "ekkert"})`);
   ok(firstRanked && firstCard.includes(firstRanked),
-    `fyrsta spjaldid er MAELDA rodin (spjald "${firstCard}" gegn toflu "${firstRanked}")`);
+    `STJORNUMERKTA spjaldid er MAELDA rodin (spjald "${firstCard}" gegn toflu "${firstRanked}")`);
 
   /* ============================================================
      OG SAMA SPURNING UM OBUNDNA LEID: BORDID SJALFT
@@ -2357,7 +2411,11 @@ console.log("\n21. heilt mock eftir radgjof appsins — hopurinn verdur ad vera 
   const rosterByPos = () => {
     const out = {};
     for (const d of myPanel()?.querySelectorAll(".dimmer") || []) {
-      const m = /^(QB|RB|WR|TE|K|DST)\s+(\d+)\s*\/\s*(\d+)$/
+      /* FLEX OG SUPERFLEX ERU MED FRA 24.8.2026. Spjaldid teiknadi
+         thau ekki adur — sja notuna vid `wideSlots` i `DraftBoard.jsx`:
+         tvo af ellefu byrjunarsaetum hofdu enga rod, svo "RB 2/2" las
+         graent medan tvo saeti voru tom. */
+      const m = /^(QB|RB|WR|TE|K|DST|FLEX|SUPERFLEX)\s+(\d+)\s*\/\s*(\d+)$/
         .exec((d.textContent || "").replace(/\s+/g, " ").trim());
       if (m) out[m[1]] = { have: Number(m[2]), need: Number(m[3]),
                            warn: !!d.querySelector(".warn") };
@@ -2367,10 +2425,14 @@ console.log("\n21. heilt mock eftir radgjof appsins — hopurinn verdur ad vera 
   const NEED = { QB: 1, RB: 2, WR: 2, TE: 1, K: 1, DST: 1, FLEX: 2 };
   {
     const seen = rosterByPos();
-    const shape = Object.keys(NEED).filter((p) => p !== "FLEX")
-      .every((p) => seen[p] && seen[p].need === NEED[p]);
+    /* `FLEX` ER EKKI LENGUR UNDANSKILID. Adur stod hér
+       `.filter((p) => p !== "FLEX")` af theirri einfoldu astaedu ad
+       spjaldid teiknadi enga FLEX-rod — svo undantekningin i profinu
+       VAR bilunin, skjalfest sem asetningur. Nu er hun krofd, og
+       thetta er thvi vordurinn a thvi ad rodin se yfirleitt teiknud. */
+    const shape = Object.keys(NEED).every((p) => seen[p] && seen[p].need === NEED[p]);
     ok(shape,
-      `deildin ber HANS logun — QB1 RB2 WR2 TE1 K1 DST1 (${
+      `deildin ber HANS logun — QB1 RB2 WR2 TE1 FLEX2 K1 DST1 (${
         Object.entries(seen).map(([k, v]) => `${k} ${v.need}`).join(" ")})`);
   }
 
@@ -2432,12 +2494,32 @@ console.log("\n21. heilt mock eftir radgjof appsins — hopurinn verdur ad vera 
   for (const p of ["QB", "RB", "WR", "TE", "K", "DST"]) {
     if (cnt(p) < NEED[p]) miss.push(`${p} ${cnt(p)}/${NEED[p]}`);
   }
-  /* FLEX er ekki teiknad sem rod i spjaldinu (thad er ekki stada), svo
-     thad er reiknad ur AFGANGNUM af RB/WR/TE — sem er nakvaemlega
-     reglan sem gerir FLEX ad FLEX. */
+  /* FLEX er reiknad ur AFGANGNUM af RB/WR/TE — nakvaemlega reglan sem
+     gerir FLEX ad FLEX — og thad er REIKNAD HER, ekki flutt inn, af
+     somu astaedu sem haus kaflans gefur: tvaer utfaerslur af somu reglu
+     sem eru bædi skakkar eru graenar saman. */
   const spare = ["RB", "WR", "TE"]
     .reduce((a, p) => a + Math.max(0, cnt(p) - NEED[p]), 0);
   if (spare < NEED.FLEX) miss.push(`FLEX ${spare}/${NEED.FLEX}`);
+
+  /* ============================================================
+     OG NU SVARAR SPJALDID SOMU SPURNINGU — TVEIR OSHADIR REIKNINGAR
+     ============================================================
+     FRA 24.8.2026 teiknar `MyRoster` FLEX-rod. Talan i henni er reiknud
+     INNI I HLUTNUM (`wideSlots`), og talan hér er reiknud ur hopnum sem
+     ThETTA PROF byggdi — tvaer leidir ad somu stadreynd, hvorug flutt
+     inn ur annarri. Se thar munur er onnur theirra skokk, og adur var
+     ENGIN leid ad sja thad thvi rodin var ekki a skjanum.
+
+     SPJALDID ThAKAR VID ThORFINNI (`min(need, spare)`) thvi thad telur
+     SAETI og saeti eru tvo; talan hér er othokud. Þvi er borid vid
+     thakid og ekki vid hráa afganginn — annars felldi profid rettan
+     kod um leid og hann drafti thridja WR-inn.                       */
+  const panelFlex = seen.FLEX || null;
+  ok(!!panelFlex, "spjaldid teiknar FLEX-rod (hun var ekki til fyrir 24.8.2026)");
+  ok(panelFlex && panelFlex.have === Math.min(NEED.FLEX, spare),
+    `og talan i henni stemmir vid afganginn sem ThETTA prof reiknadi — ` +
+    `spjald ${panelFlex ? panelFlex.have : "?"}/${NEED.FLEX}, afgangur ${spare}`);
 
   const shapeLine = ["QB", "RB", "WR", "TE", "K", "DST"]
     .map((p) => `${p} ${cnt(p)}`).join(" · ");
