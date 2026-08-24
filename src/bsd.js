@@ -223,6 +223,78 @@ export function finalize(acc, { bsd_id, name, pos, team, fpl_id, code }) {
   };
 }
 
+/* ============================================================
+   LIDS-TOLUR UR EINU SKOTAKORTI — BADAR HLIDAR, VID SOKN (22.8.2026)
+
+   SPURNINGIN SEM ThETTA SVARAR: "af hverju fae eg ekki xGC a lid?" a
+   YFIRSTANDANDI timabili. xG lidsins er summan af thess eigin skotum og
+   hana ma lesa ur `players` (hver rod ber `team` og `xg`). **xGC er ekki
+   thar**: hun er summa MOTHERJANNA i theim leikjum sem lidid spiladi, og
+   `bsd_live.json` geymdi ADEINS timabils-summur per leikmann — engin
+   leikja-skipting, svo ekkert svid i skranni gat sagt HVER motherjinn var.
+
+   FREISTINGIN SEM VAR HAFNAD: i dag hefur hvert lid spilad NAKVAEMLEGA einn
+   leik, svo "xGC(T) = xG eina motherjans" er RETT TALA — i dag. I umferd 2
+   verdur hun thogult rong og enginn hefur astaedu til ad lita a hana aftur.
+   Tala sem er rett einu sinni og rong eftir thad er verri en tomur dalkur
+   (CLAUDE.md 8i).
+
+   RETTA LAUSNIN ER AD SKRA ThAD SEM ER VITAD ThEGAR ThAD ER VITAD. Sokinin
+   er VIDBOTARLEG — hver nyr lokinn leikur er sottur einu sinni — og
+   `st.shotmap` ber `sh.home` (HVOR skaut) medan `e.home_team_id` /
+   `e.away_team_id` segja HVERJIR their eru. Attributionin er thvi til
+   staðar i throngum glugga og hverfur svo. Hun er geymd HER, per leik, og
+   tha er xGC EXAKT SUMMA ad eilifu — ekki nalgun, ekki agiskun.
+
+   HVERS VEGNA PER LEIK OG EKKI PER SKOT: hra skotin vaeru ~9.500 radir
+   (~290 KB) yfir timabil og `bsd_live.json` er SOTT VID RAESINGU
+   (`OPTIONAL` i App.jsx), olikt `bsd_shots.json` sem er LETIHLADIN. Per
+   leik eru thetta 380 radir (~60 KB) og bera nakvaemlega thad sem
+   lids-toflan les. Skotakortin sjalf eiga afram heima i `bsd_shots.json`
+   (CLAUDE.md 6, "EIN rod per skot, ekki thrjar").
+
+   MAELT ADUR EN SKRIFAD VAR — MARKIN I SKOTAKORTINU ERU URSLITIN:
+   a 2025/26-kortinu (9.544 skot) gefur talning a `type === "goal"`
+   NAKVAEMLEGA sömu mörk og football-data E0 fyrir OLL 17 lidin, baedi
+   skorud og a sig (ARS 71/27, MCI 77/35, TOT 48/57 …), medalskekkja 0,00.
+   Sjalfsmörk eru thvi ThEGAR inni. Thess vegna er `goals` skrifad her:
+   thad er KROSSPROFID sem ein skra getur ekki gefid ser sjalf —
+   `fixtures.json` ber urslitin ur allt annarri heimild (FPL), svo hver
+   skrad rod ma bera saman vid thau.
+   ============================================================ */
+/**
+ * Eitt BSD-skotakort -> lids-summur beggja lida.
+ * `home`/`away` eru FPL-skammstafanir (eda null fyrir lid utan deildar).
+ * Skilar `null` thegar kortid VANTAR — tom rod af nullum vaeri fullyrding
+ * um ad hvorugt lidid hafi skotid, sem er ekki thad sem vid vitum.
+ */
+export function matchShotTotals(shotmap, { home = null, away = null } = {}) {
+  if (!Array.isArray(shotmap)) return null;
+  const side = team => ({ team: team ?? null, xg: 0, shots: 0, bc: 0, goals: 0 });
+  const H = side(home), A = side(away);
+  let dropped = 0;
+  for (const sh of shotmap) {
+    /* SAMA ThYDI OG FROSNA LEIDIN. `bsd_shots.json` tekur adeins skot med
+       toluleg hnit (fetch-bsd.mjs), og HVER EINASTA lids-xG-tala i appinu
+       i dag er summa ur thvi thydi. Vaeri live-leidin ruð myndu "sama tala"
+       i tveimur timabilum thyda sitthvad.                                */
+    const x = sh?.pos?.x, y = sh?.pos?.y;
+    if (typeof x !== "number" || typeof y !== "number") { dropped++; continue; }
+    /* HVOR SKAUT — ThAD ER ALL ATTRIBUTIONIN. Vanti `home` er skotid
+       OSTADSETT; ad lata thad falla i adra hlidina (t.d. `sh.home ? H : A`
+       thegar svidid er `undefined`) gefur utilidinu OLL skotin og
+       heimalidinu hreint blad. Thogul rong vorpun er verri en engin
+       (CLAUDE.md 6, BSD_TEAM-taflan).                                    */
+    if (typeof sh.home !== "boolean") { dropped++; continue; }
+    const s = sh.home ? H : A;
+    s.shots++;
+    if (typeof sh.xg === "number") { s.xg += sh.xg; if (sh.xg >= BIG_CHANCE_XG) s.bc++; }
+    if (sh.type === "goal") s.goals++;
+  }
+  H.xg = +H.xg.toFixed(3); A.xg = +A.xg.toFixed(3);
+  return { home: H, away: A, dropped };
+}
+
 /* ---------- SPAD BYRJUNARLID: SKOT-SAFN ----------
    BSD GEYMIR EKKI SPAR AFTURVIRKT. Maelt 8.8.2026: leikur sem er buinn
    skilar `lineup_status: "confirmed"`, ekki thvi sem spad var adur. Spa

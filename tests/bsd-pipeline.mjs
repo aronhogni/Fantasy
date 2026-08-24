@@ -205,5 +205,74 @@ ok(/fetchOdds\(\)/.test(fetchSrc), "Odds-API leidin er ohreyfd");
      "engin nota fullyrdir lengur 'within 24h' / 'within the ~4 day window'");
 }
 
+/* ============================================================
+   10. `team_matches` — LIDS-TOLURNAR SEM GERA xGC MOGULEGA (22.8.2026)
+
+   KAERAN: "Afhverju fae eg ekki xGC a lid?" a yfirstandandi timabili.
+   Utreikningurinn sjalfur er hreint fall (`matchShotTotals`, profad i
+   `bsd.mjs`); ThAD SEM ER VARID HER er ad pipeline kalli hann, skrifi
+   nidurstoduna — og ad BAKFYLLINGIN se rett bundin.
+
+   BAKFYLLINGIN ER ThAR SEM HAETTAN ER OG HUN ER TVIHLIDA:
+   (a) An hennar faer ENGINN theirra leikja sem thegar voru sottir nokkurn
+       tima lids-tolu — sokinin er vidbotarleg og les hvern leik EINU SINNI
+       — svo xGC hefdi vantad nakvaemlega thau mork sem thegar eru skorud,
+       ad eilifu, og talan a skjanum hefdi litid rett ut.
+   (b) Se hun latin sækja `/player-stats/` lika leggst hver leikmadur OFAN
+       A `_acc` i annad sinn: minutur, mork og skot TVOFALDAST thogult.
+       Fordaemid er skjalad i `fetch-bsd.mjs` ("tvaer eins keyrslur gafu
+       Harry Maguire 25 og 26 leiki").
+   ============================================================ */
+{
+  console.log("\n-- 10. LIDS-TOLUR PER LEIK (team_matches) --");
+  const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+  const a = fetchSrc.indexOf("async function fetchBsdLive()");
+  const b = fetchSrc.indexOf("/* ========== 10. AFLEIDD", a);
+  ok(a > 0 && b > a, "fetchBsdLive finnst i fetch.mjs (forsenda)");
+  const live = strip(fetchSrc.slice(a, b));
+
+  /* 1. EIN UTFAERSLA — summan kemur ur src/bsd.js, ekki ur pipeline. */
+  ok(/matchShotTotals\(/.test(live),
+     "fetchBsdLive kallar `matchShotTotals` (samlagningin bur i src/bsd.js)");
+  ok(/matchShotTotals[,\s}]/.test(strip(fetchSrc.slice(0, 2000))),
+     "og hun er FLUTT INN, ekki skilgreind i skriftunni");
+  /* Enginn eigin xG-teljari vid hlidina a henni. Vaeri hann thar vaeru
+     tvaer utfaerslur af somu tolu — sama aett og `buildTeamMetrics`.   */
+  ok(!/\bxg\s*\+=/.test(live) && !/\+=\s*sh\.xg/.test(live),
+     "og pipeline summar EKKI xG sjalft vid hlidina a henni");
+
+  /* 2. RODIN ER SKRIFUD. Utreikningur sem hvergi kemur ut er dautt svid. */
+  ok(/team_matches:/.test(live), "`team_matches` er skrifad i bsd_live.json");
+  ok(/sort\(\(a, b\) => a\.id - b\.id\)/.test(live),
+     "og i FASTRI rod (event-id) — skrain verdur ad vera endurgeranleg");
+
+  /* 3. BAKFYLLINGIN ER TIL OG HUN SNERTIR EKKI `_acc`. */
+  const bf = live.indexOf("const backfill");
+  ok(bf > 0, "bakfylling er til (leikir sottir adur en rodin var til)");
+  const loop = live.slice(live.indexOf("for (const id of backfill)"),
+                          live.indexOf("if (!added && !filled)"));
+  ok(loop.length > 40, "bakfyllingar-lykkjan finnst (forsenda)");
+  ok(/\/stats\/`\)/.test(loop),
+     "hun saekir `/events/{id}/stats/` — skotakortid");
+  ok(!/player-stats/.test(loop),
+     "og ALDREI `/player-stats/` — thad myndi tvitelja hvern leikmann i `_acc`");
+  ok(!/addPlayerRow|addShot\(/.test(loop),
+     "hun snertir hvorugan safnarann (addPlayerRow / addShot)");
+
+  /* 4. SNEMM-UTGANGAN MA EKKI LOKA BAKFYLLINGUNA UTI. Vaeri skilyrdid
+        afram `if (!fresh.length)` einu ynni bakfyllingin ALDREI: i dag eru
+        sex leikir sottir og engin ny umferd fyrr en 29.8.                */
+  ok(/if \(!fresh\.length && !backfill\.length\)/.test(live),
+     "snemm-utgangan spyr um BADA (nyja leiki OG bakfyllingu)");
+  ok(live.indexOf("const backfill") < live.indexOf("if (!fresh.length"),
+     "og bakfyllingar-listinn er reiknadur A UNDAN henni (annars er hann tomur)");
+
+  /* 5. VANTANDI SKOTAKORT MA EKKI VERDA ROD AF NULLUM. */
+  ok(/if \(!t\) \{ noMap\+\+; return; \}/.test(live),
+     "leikur an skotakorts fær ENGA rod og er TALINN (noMap)");
+  ok(/noMap \? `/.test(live) || /noMap \?/.test(live),
+     "og talan ratar i `record(...)` svo hun sjaist i Data sources");
+}
+
 console.log(`\nBSD-PIPELINE: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

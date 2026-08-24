@@ -850,8 +850,27 @@ console.log("\n--- J. st0% ---");
      `starts:0, minutes:0` og fengu thvi 'st0%" og level 'high".        */
   const zeroed = START_IDS.map(id => byId[id])
     .filter(p => Number(p.starts) === 0 && Number(p.minutes) === 0);
-  ok(zeroed.length >= 3,
-     `forsenda: ${zeroed.length} menn i proflidinu hofdu starts=0 OG minutes=0 (Thomas/Hughes/Walle Egeli)`);
+  /* TALAN OG NOFNIN VORU HARDKODUD OG UREDLDUST A TVEIMUR DOGUM
+     (leidrett 24.8.2026). Her stod `>= 3` med "(Thomas/Hughes/Walle Egeli)"
+     i textanum; um leid og GW1 var spilud fekk einn theirra minutur og
+     forsendan fell — an thess ad nokkur kodi breyttist. Verra: eftir thvi
+     sem a timabilid lidur eiga FAERRI menn `minutes: 0`, svo hardkodud tala
+     her er fullyrding sem er DAEMD til ad falla, og fall hennar segir
+     ekkert um appid.
+     NOFNIN ERU LEIDD ur gognunum og THREPID er 1: fullyrdingarnar tvaer
+     her ad nedan eru marktaekar med EINUM slikum manni.
+     OG HUN SEFUR HEIDARLEGA: eigi hopurinn engan slikan mann er ekkert til
+     ad syna, og tha er kaflinn markleysa — ekki bilun. Vaknar sjalfur um
+     leid og einhver i hopnum ber `starts:0, minutes:0` (nytt kaup, nylidi,
+     langtimameiddur).                                                    */
+  const zeroNames = zeroed.map(p => p.web_name).join("/") || "engir";
+  if (!zeroed.length) {
+    ok(true, `kaflinn SEFUR: enginn i proflidinu ber starts=0 OG minutes=0 i dag `
+      + "— vaknar um leid og einhver gerir thad");
+  } else {
+    ok(zeroed.length >= 1,
+       `forsenda: ${zeroed.length} menn i proflidinu bera starts=0 OG minutes=0 (${zeroNames})`);
+  }
   /* HVERNIG ER SYNT AD MERKID VAR ThAR, ThEGAR GAMLA SKILYRDID ER FARID?
      EKKI med afriti af gomlu formulunni — thad vaeri onnur utfaersla sem
      gaeti rekid i sundur. Heldur med LIFANDI fallinu og MINUTUNUM SEM
@@ -867,7 +886,68 @@ console.log("\n--- J. st0% ---");
      "undir nyja skilyrdinu fa their ENGA tolu");
 
   const v = await mount({ captain: 411 });
-  ok(!/\bst0%/.test(v.text()), "og 'st0%' er hvergi a skjanum");
+  /* DIAGNOSTIKIN ER HLUTI AF FULLYRDINGUNNI, EKKI SKRAUT: "st0% er a
+     skjanum" segir ekki HVER ber hana ne HVAD spjaldid heldur fram, og
+     merkid er a NIU spjoldum af 15 en ekki einu (maelt 22.8.2026). Bert
+     fall an nafna sendir naesta mann i ad leita a rongum stad.          */
+  const rotBadges = () => v.q("span").filter(s => /^st\d+%$/.test((s.textContent || "").trim()));
+  const badgeDump = () => rotBadges()
+    .map(s => `${(s.textContent || "").trim()} <${s.getAttribute("title") || ""}>`)
+    .slice(0, 4).join(" · ");
+  ok(!/\bst0%/.test(v.text()), "og 'st0%' er hvergi a skjanum",
+     `${rotBadges().length} roterings-merki a vellinum: ${badgeDump()}`);
+  /* ============================================================
+     OG NEFNARINN VERDUR AD VERA UR SAMA TIMABILI OG TELJARINN (22.8.2026)
+
+     `st0%` eitt er of throngt akkeri fyrir thessa villu-aett. Hun birtist
+     LIKA sem `st3%` ("Started 1 of 38 matches in 2025/26") — 1 byrjun ur
+     ThESSU timabili, 38 leikir og merkimidinn ur ThVI SIDASTA, thvi FPL
+     nullstillir uppsofnudu tolurnar vid GW1-frestinn. Nakvaemlega sama
+     aett og `xg_share` 148% (CLAUDE.md 12) og Championship-tolur nylidanna.
+
+     FULLYRDINGIN ER UM MERKIMIDANN ThVI HANN ER SYNILEGA OSANNUR:
+     `prevSeason`-greinin i tooltip-inu ("... matches in <fyrra timabil>")
+     ma adeins vera til medan EKKERT hefur verid spilad i thessu timabili.
+     Hafi eitt einasta felag spilad leik er hun fullyrding um rangt
+     timabil, hvad sem tolunni lidur.
+
+     SEFUR I FORLEIK — OG SVEFNINN ER MAELDUR, EKKI THOGULL: leikjaskrain
+     er lesin og talin fyrst, svo "engir leiknir leikir" geti ekki komid
+     fra brotinni skra. Vaknar vid FYRSTA leik (`finished_provisional`),
+     ekki vid fyrstu LOKNU umferd — sja `matchesPlayedByClub`.
+     ============================================================ */
+  {
+    const { matchesPlayedByClub } = await import("../src/availability.js");
+    const fx = J("fixtures.json");
+    ok(Array.isArray(fx) && fx.length >= 300,
+       `forsenda: leikjaskrain er lesin (${Array.isArray(fx) ? fx.length : "engin"} leikir)`);
+    const byClub = matchesPlayedByClub(fx);
+    const clubsPlayed = Object.values(byClub).filter(n => n > 0).length;
+    if (clubsPlayed === 0) {
+      console.log("  · SEFUR: ekkert felag hefur spilad i thessu timabili"
+        + " — vaknar vid fyrsta leik med `finished_provisional`");
+    } else {
+      ok(clubsPlayed > 0, `forsenda: ${clubsPlayed} felog hafa spilad i thessu timabili`);
+      const lying = rotBadges()
+        .map(s => s.getAttribute("title") || "")
+        .filter(t => / matches in /.test(t));
+      ok(lying.length === 0,
+         "spjaldid nefnir EKKI fyrra timabil eftir ad leikir eru spiladir i thessu",
+         `${lying.length} merki: ${lying.slice(0, 3).join(" · ")}`);
+      /* SKOTMARKID ER FULLYRT, EKKI GISKAD: sama fall, EINA breytan er
+         nefnarinn. Med leikjum sem felagid hefur raunverulega spilad
+         (`matchesPlayedByClub`) fellur hvert einasta merki i "low" —
+         `enough` krefst thriggja leikja og their eru ekki komnir. Thessi
+         lina er GRAEN i dag og fullyrdingin fyrir ofan er RAUD; saman
+         segja thaer ad villan se i NEFNARANUM sem spjaldid faer, ekki i
+         `rotationRisk`. Ekki afrit af utreikningnum — sama fall.       */
+      const flaggedFixed = START_IDS.map(id => byId[id]).filter(p =>
+        rotationRisk(p, byClub[p.team] ?? 0)?.level === "high");
+      ok(flaggedFixed.length === 0,
+         "...og med nefnara ur SAMA timabili ber ekkert spjald merki",
+         flaggedFixed.map(p => p.web_name).join(", "));
+    }
+  }
   /* OG MERKID ER EKKI HORFID YFIR HAUS: einhver a raungognum a ad hafa
      thad afram — annars vaeri lagfaeringin ad henda mælingunni.        */
   const keep = ALL.filter(p => Number(p.starts) === 0 && Number(p.minutes) > 0);

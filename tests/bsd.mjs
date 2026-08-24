@@ -29,7 +29,7 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { STAT_DEFS, STAT_BY_KEY } from "../src/stats.js";
-import { finalize } from "../src/bsd.js";
+import { finalize, matchShotTotals, BIG_CHANCE_XG } from "../src/bsd.js";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const read = f => JSON.parse(readFileSync(ROOT + f, "utf8"));
@@ -38,6 +38,92 @@ let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log("  ✓ " + m); }
                        else { fail++; console.log("  ✗ " + m); } };
 const H = t => { console.log(`\n${"─".repeat(84)}\n${t}\n${"─".repeat(84)}`); };
+
+/* ============================================================
+   0a. LIDS-TOLUR PER LEIK — `matchShotTotals`
+
+   ThETTA STENDUR FYRIR OFAN SKRA-GATTINA VILJANDI. Kaflarnir hér ad nedan
+   sleppa sér med `process.exit(0)` thegar `bsd_players.json` vantar (hun er
+   skrifud handvirkt), en `matchShotTotals` er HREINT FALL sem engin skra
+   kemur vid — og hun er kodinn sem kviknar i pipeline naest thegar leikur
+   klarast. Kodi sem fer i gang mannlaus einn morgun og er osýnilegur
+   profunum er nakvaemlega thad sem CLAUDE.md kafli 5 bannar.
+
+   HVERS VEGNA FALLID ER TIL: notandinn spurdi "afhverju fae eg ekki xGC a
+   lid?" a yfirstandandi timabili. xG lidsins ma summa ur leikmanna-rodunum
+   i `bsd_live.json`; xGC er summa MOTHERJANNA og hun er ekki i theim —
+   engin rod ThAR nefnir motherja. Attributionin (`sh.home` + `home_team_id`
+   / `away_team_id`) er til i BSD-svarinu THEGAR leikurinn er sottur og
+   hvergi eftir thad, svo hun er skrifud nidur tha.
+   ============================================================ */
+H("0a. LIDS-TOLUR PER LEIK (matchShotTotals) — xGC-heimildin");
+{
+  const S = (home, xg, x = 10, y = 50, type = "miss") => ({ home, xg, type, pos: { x, y } });
+  const t = matchShotTotals([
+    S(true, 0.50), S(true, 0.10), S(true, 0.90, 5, 50, "goal"),
+    S(false, 0.10), S(false, 0.30, 8, 50, "goal"),
+  ], { home: "ARS", away: "COV" });
+
+  ok(t.home.team === "ARS" && t.away.team === "COV", "hvor hlidin er hvad");
+  ok(Math.abs(t.home.xg - 1.5) < 1e-9 && Math.abs(t.away.xg - 0.4) < 1e-9,
+     `xG skiptist eftir \`sh.home\` (${t.home.xg} / ${t.away.xg})`);
+  ok(t.home.shots === 3 && t.away.shots === 2, "skot-fjoldi per hlid");
+  ok(t.home.goals === 1 && t.away.goals === 1, "mork talin ur `type === \"goal\"`");
+  /* STORAR FAERIR NOTA MAELDA THROSKULDINN, EKKI TOLU A STADNUM. */
+  /* Heima: 0,50 og 0,90 teljast, 0,10 ekki. Uti: 0,30 telst, 0,10 ekki.
+     Throskuldurinn er thvi PROFADUR i badar attir a badum hlidum — tala
+     sem taeldi OLL skot gaefi 3/2 og tala sem taeldi engin gaefi 0/0.   */
+  ok(t.home.bc === 2 && t.away.bc === 1,
+     `storar faerir eru skot >= BIG_CHANCE_XG (${BIG_CHANCE_XG}): ${t.home.bc}/${t.away.bc}`);
+
+  /* ---- ThRJAR REGLUR SEM VERJA GEGN TILBUNUM TOLUM ---- */
+
+  /* 1. ENGIN SKOTAKORT -> ENGIN ROD. Rod af nullum vaeri fullyrding um ad
+        hvorugt lidid hafi skotid — "vantar" er ekki "ekkert".           */
+  ok(matchShotTotals(undefined, { home: "ARS", away: "COV" }) === null &&
+     matchShotTotals(null, {}) === null,
+     "vantandi skotakort gefur null, EKKI rod af nullum");
+  /* En TOMT kort er raunverulegt null: kortid var thar og bar ekkert. */
+  {
+    const e = matchShotTotals([], { home: "ARS", away: "COV" });
+    ok(e && e.home.shots === 0 && e.home.xg === 0,
+       "tomt kort er hins vegar RAUNVERULEG nulltala (0 skot)");
+  }
+
+  /* 2. SKOT AN `home` ER OSTADSETT OG FER HVERGI. An thessa fer
+        `sh.home ? H : A` med OLL slik skot a utilidid — heimalidid fengi
+        hreint blad og utilidid oll skotin, thogult.                     */
+  {
+    const bad = matchShotTotals([
+      S(true, 0.4), { xg: 5.0, type: "goal", pos: { x: 1, y: 50 } },
+    ], { home: "ARS", away: "COV" });
+    ok(bad.away.xg === 0 && bad.away.shots === 0 && bad.away.goals === 0,
+       "skot an `home` lendir EKKI a utilidinu (5,0 xG hefdi sest)");
+    ok(bad.dropped === 1, `og thad er TALID (dropped ${bad.dropped})`);
+  }
+
+  /* 3. SAMA ThYDI OG FROSNA LEIDIN: adeins skot med hnit. Hver einasta
+        lids-xG-tala i appinu i dag er summa ur thvi thydi
+        (`fetch-bsd.mjs` sleppir hinum), svo vaeri live-leidin rudari
+        thyddi "sama tala" sitthvad i sitthvoru timabilinu.              */
+  {
+    const nc = matchShotTotals([
+      S(true, 0.4), { home: true, xg: 9.9, type: "goal", pos: {} },
+      { home: true, xg: 9.9, type: "goal" },
+    ], { home: "ARS", away: "COV" });
+    ok(Math.abs(nc.home.xg - 0.4) < 1e-9 && nc.home.shots === 1,
+       `skot an hnita telja ekki (xG ${nc.home.xg}, ekki 20,2)`);
+    ok(nc.dropped === 2, `og thau eru TALIN lika (dropped ${nc.dropped})`);
+  }
+
+  /* LID UTAN DEILDAR: `team` er null OG ThAD ER RETT — tolur hlidarinnar
+     eru afram thar, thvi thaer eru xGC hins lidsins.                    */
+  {
+    const u = matchShotTotals([S(false, 0.8)], { home: "ARS", away: null });
+    ok(u.away.team === null && Math.abs(u.away.xg - 0.8) < 1e-9,
+       "lid utan BSD_TEAM fær `team: null` en heldur tolunni (hun er xGC hins)");
+  }
+}
 
 let F = null;
 try { F = read("data/bsd_players.json"); } catch { /* skrain ma vanta */ }

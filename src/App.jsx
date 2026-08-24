@@ -22,7 +22,8 @@ import Leaderboard from "./Leaderboard.jsx";
 import BestOfBest from "./BestOfBest.jsx";
 import { C, mono, sans, S } from "./appStyles.js";
 import { storageMode, saveState, loadState } from "./storage.js";
-import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk } from "./availability.js";
+import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk,
+         matchesPlayedByClub } from "./availability.js";
 import { Crest, PlayerImg, Kit, crestUrl, photoUrl, CREST_FALLBACK } from "./Crest.jsx";
 import FfdrTable from "./FfdrTable.jsx";
 import { buildTeamMetrics } from "./teamstats.js";
@@ -944,6 +945,15 @@ export default function App() {
   const spRanks = useMemo(() => setPieceRanks(players || []), [players]);
   const seasonStarted = !!events?.some(e => e.finished);
   const seasonGames = (events || []).filter(e => e.finished).length;
+  /* LEIKIR SEM HVERT FELAG HEFUR SPILAD — NEFNARINN I `rotationRisk`.
+     `seasonGames` telur umferdir sem eru `finished`, og hun er RETT thar
+     sem hun er notud annars stadar (uppsafnadar tolur eru bundnar vid
+     stadfestar umferdir). Hun er hins vegar RANGUR NEFNARI fyrir hlutfall
+     byrjana: umferd telst ekki `finished` fyrr en bonus er stadfestur, svo
+     eftir GW1 var hun 0 medan sex leikir voru spiladir — og
+     `rotationRisk` deildi ThESSA timabils byrjunum med 38 leikjum SIDASTA
+     timabils. Sja blokkina i `availability.js`.                          */
+  const playedByClub = useMemo(() => matchesPlayedByClub(fixtures), [fixtures]);
   /* ---- EIN KLUKKA, EKKI FJORAR ----
      „Er umferd g byrjud?" er sama spurning og `preSeason` svarar fyrir
      GW1, og hun a ad hafa EITT svar. Fresturinn er profsteinninn (ekki
@@ -2916,7 +2926,8 @@ export default function App() {
                       onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
                       onRotation={() => setRotIds([sq.id])}
                       confirmed={lineupBy[`${sq.id}|${gw}`]}
-                      onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
+                      onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames}
+                      clubPlayed={playedByClub[byId[sq.id]?.team]} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                       dragId={dragId} setDragId={setDragId}
                       onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                   ))}
@@ -2953,7 +2964,8 @@ export default function App() {
                     onTransfer={() => { setSelling(sq.id); setSearchQ(""); setSwapSel(null); }}
                     onRotation={() => setRotIds([sq.id])}
                     confirmed={lineupBy[`${sq.id}|${gw}`]}
-                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
+                    onCardClick={() => clickPlayer(sq.id)} swapSel={swapSel} seasonStarted={seasonStarted} seasonGames={seasonGames}
+                      clubPlayed={playedByClub[byId[sq.id]?.team]} ep={expPoints(sq.id, gw)} cumLabel={cumLabel}
                     dragId={dragId} setDragId={setDragId}
                     onDropPlayer={fromId => swapStarterBench(fromId, sq.id)} />
                 ))}
@@ -3163,7 +3175,7 @@ export default function App() {
             <h2 style={S.h2}>{"Squad availability"}</h2>
             {(() => {
               const flagged = squadAt.map(x => byId[x.id]).filter(Boolean).map(pp => ({
-                pp, av: availOf(pp), ban: banRisk(pp, gw, seasonStarted), rot: rotationRisk(pp, seasonGames),
+                pp, av: availOf(pp), ban: banRisk(pp, gw, seasonStarted), rot: rotationRisk(pp, playedByClub[pp.team] ?? seasonGames),
               })).filter(x => x.av.isRisk || (x.ban && x.ban.level === "high") || (x.rot && x.rot.level === "high"));
               if (!flagged.length) return <div style={S.okBox}>{"All 15 available — no injuries, suspensions or card risk."}</div>;
               return flagged.map(({ pp, av, ban, rot }) => (
@@ -4046,7 +4058,7 @@ export default function App() {
         const av = isPlayer ? availOf(p) : null;
         const ban = isPlayer ? banRisk(p, gw, seasonStarted) : null;
         const sp = isPlayer ? setPieceOf(p, spRanks) : null;
-        const rot = isPlayer ? rotationRisk(p, seasonGames) : null;
+        const rot = isPlayer ? rotationRisk(p, playedByClub[p.team] ?? seasonGames) : null;
         /* DC-HITTNI (afturvirkjud, sja TERMINAL_HANDOFF_4 og CLAUDE.md 6l):
            hit_rate_adj ur defcon.json — EKKI hraa hit_rate, hun ofmaelist a
            litlum synum. n (startir) fylgir ALLTAF med. GK er sleppt: DefCon-
@@ -4845,7 +4857,7 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
 
 function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
   dc, gwNow, sellTenths_, diffOf, isPlanned, isSellHint,
-  onInfo, onTransfer, onRotation, onCardClick, swapSel, confirmed, fxNext3, seasonStarted, seasonGames, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
+  onInfo, onTransfer, onRotation, onCardClick, swapSel, confirmed, fxNext3, seasonStarted, seasonGames, clubPlayed, ep, cumLabel, dragId, setDragId, onDropPlayer }) {
   if (!p) return null;
   const isCap = p.id === captain, isVice = p.id === vice;
   const isDef = p.element_type <= 2;
@@ -4854,7 +4866,16 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
   const csColor = csObj?.cs == null ? C.text3 : csObj.cs >= 40 ? C.green : csObj.cs >= 25 ? C.amber : C.red;
   const av = availOf(p);
   const ban = banRisk(p, gwNow, seasonStarted);
-  const rot = rotationRisk(p, seasonGames);
+  /* NEFNARINN ER LEIKIR FELAGSINS, EKKI LOKNAR UMFERDIR — OG ThESSI
+     KALLSTADUR GLEYMDIST I FYRSTU UTGAFU (24.8.2026).
+     Hinir tveir (`playedByClub[...] ?? seasonGames`) voru lagadir strax en
+     ThESSI — spjaldid a VELLINUM — helt gamla nefnaranum, svo notandinn sa
+     afram "Started 1 of 38 matches in 2025/26 — rotation risk" a NIU
+     spjoldum. `initial-squad.mjs` fann thad ordrett.
+     LAERDOMURINN: lagfaering sem snertir tvo af thremur kallstodum er ekki
+     lagfaering heldur osamkvaemni — og hun er VERRI en engin, thvi nu segja
+     tveir stadir eitt og einn annad um sama mann.                        */
+  const rot = rotationRisk(p, clubPlayed ?? seasonGames);
   return (
     <div
       draggable

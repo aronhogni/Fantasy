@@ -258,10 +258,31 @@ const IS_CHARS = /[þðæöÞÐÆÖ]|[áíéúýóÁÍÉÚÝÓ]/;
    sem UNDIRSTRENGIR (positional), sem er thad sem gerir greininguna nakvaema. */
 const NAME_KEY = /(^|_)(name|player|team|short|first|second|web|opponent|referee|scorer|assist)(_|$)/i;
 const dataTokens = new Set();
+/* NAFNID ER LIKA GEYMT HEILT, EKKI ADEINS BUTAD (24.8.2026)
+
+   VILLAN VAR I MAELITAEKINU, EKKI A SKJANUM. Butarinn her klyfur a `.`
+   (`/[\s.·\-']+/`) en butarinn i `residualOf` gerir thad EKKI — svo
+   FPL-eigid `web_name` "M.Sangaré" for inn i `dataTokens` sem "sangaré"
+   (butur "m" er einn stafur og fellur burt) medan DOM-hnuturinn bar
+   "M.Sangaré" i einu lagi og fann sig hvergi. Utkoman: RETT nafn UR
+   `data/` var talid othytt vidmots-leki, i thremur linum
+   ("M.Sangaré", "Add M.Sangaré to the watchlist", "… to the comparison").
+   Tveir butarar a sama streng eru tveir kvardar — sama aett og
+   `meanDifficulty`-namundunin i CLAUDE.md.
+
+   UNDANThAGAN ER ThRONG OG ThAD ER ASETT: geymt er NAKVAEMLEGA gildid eins
+   og thad stendur i nafna-svidi, svo undanthagan getur adeins hvitthvegid
+   DOM-butt sem er ORDRETT nafn ur `data/`. Hun baetir engum nyjum ordum
+   vid — "m" eitt og ser er enn ekki i `dataTokens` — svo sprautadur butur
+   ("lið £ ferðalög · alls") fellur afram. Vaeri klofid a `.` i BADUM
+   butorum i stadinn yrdi hvert `.`-adskilid tak sjalfstaett hvitthvegid, sem
+   er breidara en spurningin sem her er svarad.                          */
 const eatNames = (obj) => {
   if (!obj || typeof obj !== "object") return;
   for (const [k, v] of Object.entries(obj)) {
     if (typeof v === "string" && NAME_KEY.test(k)) {
+      const whole = v.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
+      if (whole.length > 1) dataTokens.add(whole.toLowerCase());
       for (const tok of v.split(/[\s.·\-']+/)) {
         const w = tok.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, "");
         if (w.length > 1) dataTokens.add(w.toLowerCase());

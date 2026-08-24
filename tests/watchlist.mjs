@@ -130,7 +130,45 @@ console.log("\nGRAENN BORDI A FROSNA HOLFINU — LIFANDI");
    lidsmenn (sjalfgefid lid + sjalfgefin rodun eftir stigum). Baðar
    attirnar eru fullyrtar — ad einhver rod se merkt OG ad ekki seu ALLAR
    merktar — thvi bordi sem liggur a ollum segir ekkert.                */
+/* ============================================================
+   OG FORSENDAN VAR ERFD, EKKI VALIN — LAGAD 22.8.2026
+
+   "6 af 31 syndum rodum eru lidsmenn (sjalfgefid lid + sjalfgefin rodun
+   eftir stigum)" var MAELT og RETT — a arkivinu. Sjalfgefna timabilid i
+   Player stats faerdist a yfirstandandi timabil um leid og GW1-fresturinn
+   leid (`startedGw > 0`), og eftir eina umferd radar sjalfgefna rodunin
+   monnum sem enginn a: maelt 22.8.2026 voru **0 af 31** syndum rodum
+   lidsmenn og kaflinn maeldi ekkert.
+
+   BORDINN SJALFUR ER OHREYFDUR — thad var URTAKID sem hvarf. Kaflinn
+   VELUR thvi timabilid sem hann tharf i stad thess ad erfa thad, og segir
+   thad berum ordum. Talan er LEIDD ur `player_seasons.json` (sama skra og
+   `olderSeasons` i PlayerList) svo hun ureldist ekki naesta agust.
+   Fyrri kaflar eru OSNERTIR: their maela sjalfgefna utsynid og eiga ad
+   gera thad afram.
+   ============================================================ */
 {
+  /* Fast bid er ekki maeling a thvi ad teikningu se lokid — timabils-skipti
+     endur-elda 600 radir. Bedid er thangad til textinn haettir ad vaxa
+     (sama adferd og `settleOn` i `data-resilience.mjs`).                */
+  const settleOn = async () => {
+    let last = -1, stable = 0;
+    for (let i = 0; i < 40; i++) {
+      await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+      const n = (document.body.textContent || "").length;
+      if (n === last) { if (++stable >= 2) break; } else { stable = 0; last = n; }
+    }
+  };
+  const ARCHIVE = J("player_seasons.json").seasons[0];
+  const sel = document.querySelector("select");
+  ok("timabils-valid er addressanlegt", !!sel);
+  sel.value = ARCHIVE;
+  await act(async () => { sel.dispatchEvent(new dom.window.Event("change", { bubbles: true })); });
+  await settleOn();
+  ok(`listinn stendur a ${ARCHIVE} (valid tok, ekki erft)`,
+     document.querySelector("select")?.value === ARCHIVE,
+     String(document.querySelector("select")?.value));
+
   const cells = rowStars().map(b => b.parentElement);
   const banded = cells.filter(c => /inset/.test(c.style.boxShadow||""));
   ok(`lidsmenn eru i syndu rodunum (${banded.length} af ${cells.length}) — forsenda kaflans`,

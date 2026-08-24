@@ -332,13 +332,33 @@ ok("...og hastu gildin i SAMA poolnum eru graen (A7 er ekki 'aldrei litad')",
 }
 
 /* ============================================================
-   B. AF SKJANUM — OSIADA ASTANDID
+   B. AF SKJANUM — OSIAD, A ThVI TIMABILI SEM VAR TILKYNNT
 
    Sama myndin sem var tilkynnt: `👥 Player stats`, engin sia, sjalfgefin
    rodun (total_points desc), flokkur "core". Holfin bera `title` =
    "<heiti>: <gildi>", svo hvert holf er RAKID TIL DALKS af skjanum.
+
+   TIMABILID ER VALID, EKKI ERFT (22.8.2026). Kaflinn stod adur a
+   sjalfgefna timabilinu og thad VAR arkivid; sjalfgildid faerdist a
+   yfirstandandi timabil um leid og GW1-fresturinn leid (`startedGw > 0`).
+   Eftir EINA umferd er meirihluti dalka JAFN-BLOKK i nulli, og
+   jafn-blokk sem sper yfir fjordungs-morkin er RETTILEGA OLITUD (kafli A
+   fullyrdir thad beinum ordum) — svo mot-vogin "litirnir eru enn a
+   skjanum" datt i 14 af 15 an thess ad nokkud vaeri ad kvardanum.
+   MAELT 22.8.2026 a yfirstandandi timabili, 20 dalkar med >= 100 gildum:
+     cost_change_start 0% · cost_change_event 0% · starts_per_90 0% ·
+     dreamteam_count 1% · bonus 3% · bonus_per_90 7%
+   Sex dalkar thar sem allir eru jafnir, ekki sex dalkar thar sem liturinn
+   brast.
+
+   AD LAEKKA GOLFID I 14 HEFDI VERID AD SLOKKVA A MAELINGUNNI TIL AD FA
+   HANA GRAENA. Kvortunin sem kaflinn ver ("oll verd raudmerkt", "sex
+   dalkar 100% graenir") var lesin af TOFLU FULLRI AF ARSTIDAR-TOLUM, svo
+   thad er thad svid sem hun a ad maelast a. Talan er LEIDD ur
+   `player_seasons.json` (sama skra og `olderSeasons` i PlayerList), svo
+   hun ureldist ekki naesta agust.
    ============================================================ */
-console.log("\nB) AF SKJANUM — osiad, sjalfgefin sYn");
+console.log("\nB) AF SKJANUM — osiad, valid timabil");
 
 const { JSDOM } = await import("jsdom");
 const React = (await import("react")).default;
@@ -372,6 +392,30 @@ const fire = async el => {
 };
 await fire([...document.querySelectorAll("button")]
   .find(x => x.textContent.trim().startsWith("👥")));
+
+/* Fast bid er ekki maeling a thvi ad teikningu se lokid — timabils-skipti
+   endur-elda 600 radir x 124 dalka. Bedid er thangad til textinn haettir
+   ad vaxa (sama adferd og `settleOn` i `data-resilience.mjs`).          */
+const settleOn = async () => {
+  let last = -1, stable = 0;
+  for (let i = 0; i < 40; i++) {
+    await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+    const n = (document.body.textContent || "").length;
+    if (n === last) { if (++stable >= 2) break; } else { stable = 0; last = n; }
+  }
+};
+{
+  const ARCHIVE = J("player_seasons.json").seasons[0];
+  const sel = () => document.querySelector("select");
+  ok("timabils-valid er addressanlegt", !!sel());
+  sel().value = ARCHIVE;
+  await act(async () => { sel().dispatchEvent(new dom.window.Event("change", { bubbles: true })); });
+  await settleOn();
+  /* SJA HAUS KAFLANS: an thessa maelist mot-vogin a toflu thar sem sex
+     dalkar eru jafn-blokk i nulli.                                     */
+  ok(`taflan stendur a ${ARCHIVE} (valid tok, ekki erft)`,
+     sel()?.value === ARCHIVE, String(sel()?.value));
+}
 
 /* MAELITAEKID GAT SJALFT VERID VILLAN — OG VAR THAD (CLAUDE.md 5b).
    Fyrsta utgafa thessa kafla las `el.style.background` og bar hann vid

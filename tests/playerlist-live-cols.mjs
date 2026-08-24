@@ -23,9 +23,6 @@
 import { readFileSync } from "node:fs";
 const REPO = new URL("../", import.meta.url);
 import { JSDOM } from "jsdom";
-import React from "react";
-import { createRoot } from "react-dom/client";
-import { act } from "react";
 
 const D = new URL("data/", REPO).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -36,6 +33,31 @@ globalThis.HTMLElement = dom.window.HTMLElement; globalThis.SVGElement = dom.win
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 globalThis.localStorage = dom.window.localStorage;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+/* ============================================================
+   REACT ER FLUTT INN *EFTIR* AD `window` ER TIL — OG ThAD ER EKKI
+   SMEKKUR (22.8.2026)
+
+   `import`-setningar eru LYFTAR: skrifadar efst keyra thaer ADUR en
+   nokkur lina her fyrir ofan hefur sett `globalThis.window`. React-DOM
+   reiknar `canUseDOM` VID INNFLUTNING, faer `false`, og af thvi leidir
+   `isInputEventSupported = false`. Tha fer ChangeEventPlugin i
+   IE8-VARALEIDINA: `input`-atburdir eru HUNSADIR, og hann bregst thess i
+   stad vid `focusin`/`keyup` — thar sem hann kallar `attachEvent`, sem er
+   ekki til i jsdom og KASTAR.
+
+   ThETTA ER SKYRINGIN A GILDRUNNI SEM CLAUDE.md 5 SKJALFESTIR
+   ("Innslattur i styrda React-reiti er otraustur -> forfylltu
+   localStorage i stadinn"). Hun er ekki jsdom og hun er ekki React:
+   hun er ROD INNFLUTNINGA I PROFINU. Med dynamiskum innflutningi her
+   fyrir nedan faer React rettan heim, `input` virkar, og reiturinn i
+   tillogu-glugganum er profanlegur eins og notandinn notar hann.
+   Maelt: onChange kviknar 0 sinnum med lyftum innflutningi, 1 sinni
+   med theim dynamiska — nakvaemlega sama kall, adeins onnur rod.
+   ============================================================ */
+const React = (await import("react")).default;
+const { act } = await import("react");
+const { createRoot } = await import("react-dom/client");
 
 const DEF_ID = 11; // Mosquera — ARS DEF (lid 1), i sjalfgefna lidinu
 
@@ -286,68 +308,159 @@ await new Promise(r => setTimeout(r, 60));
      PL.staleSeasonRows(resetRows, blind) === 0,
      `fekk ${PL.staleSeasonRows(resetRows, blind)} — bordinn myndi fullyrda um arstidar-tolur sem eru farnar`);
 
-  /* ---- OG TALAN A SKJANUM ER SAMA TALAN ---- */
+  /* ---- BORDINN SJALFUR ER FARINN (22.8.2026) ----
+     Hann var tekinn ut ad beidni notandans: skilyrdid var `finishedGw === 0`
+     og umferd telst ekki "finished" fyrr en hun er stadfest med bonus, svo
+     hann sagdi "2026/27 has not started" medan sex GW1-leikir voru bunir.
+     FALLID stendur afram og er varid her ad ofan — reglan sem thad ber
+     (arstidar-summa getur ekki verid fra obyrjudu timabili) er rett thott
+     enginn bordi segi hana lengur. DOM-hlutinn faerdist i kafla 5, sem
+     spyr thess sem eftir stendur: HVADA timabil er valid.               */
+}
+
+/* ============================================================
+   5. SJALFGEFNA TIMABILID — "BYRJAD" ER EKKI "LOKID" (22.8.2026)
+
+   Notandinn: "eg vill hafa nyjasta timabilid auto valid allstadar, og eg
+   thurfti ad velja til baka ef eg vill sja thad."
+
+   Sjalfgildid keyrdi a `finishedGw === 0` og datt thvi a ARKIVID. Umferd
+   telst ekki `finished` hja FPL fyrr en hun er stadfest med bonus, dogum
+   a eftir sidasta leik — svo GW1 2026/27 ber `finished: false` medan sex
+   leikir eru bunir, og appid valdi 2025/26 fyrir mann.
+
+   FORSENDAN ER MAELD HER, EKKI GEFIN. Prófið les `events.json` og
+   fullyrdir baedi ad ENGIN umferd se `finished` OG ad ad minnsta kosti ein
+   se byrjud. An fyrra lidarins vaeri "nyjasta timabilid er valid" satt af
+   gomlu astaedunni lika og prófið maeldi ekki neitt — nakvaemlega gildran
+   i CLAUDE.md 5b. Falli forsendan (FPL stadfestir GW1) segir prófið thad
+   berum ordum i stad thess ad verda thogult.
+   ============================================================ */
+{
+  console.log("\nSJALFGEFNA TIMABILID");
+  const events = J("events.json");
+  const evs = Array.isArray(events) ? events : (events.events || []);
+  const nFinished = evs.filter(e => e.finished).length;
+  const now = Date.now();
+  const nStarted = evs.filter(
+    e => e.finished || e.is_current
+      || (e.deadline_time && Date.parse(e.deadline_time) <= now)).length;
+  const y = new Date(evs.find(e => e.id === 1)?.deadline_time).getFullYear();
+  const CUR = `${y}/${String((y + 1) % 100).padStart(2, "0")}`;
+
+  ok(`forsenda A: ad minnsta kosti ein umferd er BYRJUD (${nStarted})`,
+     nStarted > 0,
+     "— i alvoru forleik er ekkert ad maela og sjalfgildid A ad vera arkivid");
+  ok(`forsenda B: og ENGIN er "finished" (${nFinished}) — gamla skilyrdid`
+     + ` hefdi thvi valid arkivid`,
+     nFinished === 0,
+     nFinished > 0 ? "FPL hefur stadfest umferd: gamla skilyrdid gaefi nu sama svar,"
+                   + " svo thessi kafli greinir ekki lengur utfaerslurnar i sundur"
+                   : "");
+
   await fire(byTab("👥"));
   const sel = [...document.querySelectorAll("select")]
-    .find(s => [...s.options].some(o => /\d{4}\/\d{2}/.test(o.textContent)));
-  const liveOpt = sel && [...sel.options].find(o => /not started/.test(o.textContent));
-  ok("timabils-valarinn ber yfirstandandi timabil merkt '(not started)'", !!liveOpt);
-  if (liveOpt) {
+    .find(x => [...x.options].some(o => /^\d{4}\/\d{2}/.test(o.textContent.trim())));
+  ok("timabils-valarinn er a skjanum", !!sel);
+  /* LESID AF SKJANUM: `sel.value` er thad sem notandinn ser valid.       */
+  ok(`nyjasta timabilid (${CUR}) er sjalfvalid — ekki arkivid`,
+     sel?.value === CUR, `— fekk "${sel?.value}"`);
+  /* HANN A AD GETA VALID TIL BAKA — thad var seinni helmingurinn af
+     beidninni og an hans vaeri "nyjasta" ekki sjalfgildi heldur thvingun. */
+  const older = sel ? [...sel.options].map(o => o.value).filter(v => v !== CUR) : [];
+  ok(`...og eldri timabil eru afram i boði (${older.length}: ${older.slice(0, 3).join(", ")})`,
+     older.length >= 2);
+  /* MERKIMIDINN SEM VAR RANGUR: "(not started)" a byrjudu timabili.
+     Fullyrdingin er JAKVAED (nakvaem jafna a textanum), ekki `!includes`
+     — neikvaed fullyrding um streng sem er ekki lengur til getur ekki
+     brugdist (CLAUDE.md 5b regla 2).                                    */
+  const curOpt = sel && [...sel.options].find(o => o.value === CUR);
+  ok(`valkosturinn heitir nakvaemlega "${CUR}" — enginn "(not started)"-vidauki`,
+     curOpt?.textContent.trim() === CUR, `— fekk "${curOpt?.textContent.trim()}"`);
+
+  /* ThUNNKAN ER SOGD, EKKI FALIN. Notandinn bad um nyjasta timabilid og
+     faer thad; kostnadurinn (litid urtak) verdur ad SJAST i stad thess ad
+     appid hunsi valid hans. Talan er MAELD ur `events.json`, svo hun vex
+     sjalf og hverfur eftir GW5.                                         */
+  const t0 = document.body.textContent || "";
+  const wantTag = nStarted === 1 ? "GW1 only" : `GW1–${nStarted} only`;
+  ok(`thunnt urtak er MERKT a skjanum ("${wantTag}")`,
+     nStarted >= 5 || t0.includes(wantTag),
+     `— urtakid er ${nStarted} umferd(ir) og notandinn a ad sja thad`);
+
+  /* OG "TIL BAKA" VIRKAR: arkivid ber sitt eigid merki.                 */
+  if (older.length) {
     await act(async () => {
-      sel.value = liveOpt.value;
+      sel.value = older[0];
       sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
     });
     await settle();
-    const t = document.body.textContent || "";
-    ok(`bordinn birtir MAELDU toluna (${n} of ${players.length}), ekki skrifada`,
-       t.includes(`${n} of ${players.length}`),
-       "— fost tala i texta ureldist thegjandi");
-    /* Neikvaeda fullyrdingin nefnir streng sem VAR sannanlega tharna:
-       thetta stod ordrett i bordanum til 16.8.2026.                     */
-    ok("...og segir EKKI lengur 'every season field is zero' a skja sem synir tolur",
-       !/every season field is zero/i.test(t));
-    ok("bordinn nefnir timabilid sem tolurnar tilheyra i raun",
-       /still last season's numbers/i.test(t) && /2025\/26/.test(t));
+    const t1 = document.body.textContent || "";
+    ok(`val til baka (${older[0]}) merkir sig "historical numbers"`,
+       t1.includes("historical numbers"));
+    ok("...og thunnka-merkid vikur thegar timabilid er fullt",
+       !t1.includes(wantTag) || nStarted >= 5);
+    await act(async () => {
+      sel.value = CUR;
+      sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+    await settle();
   }
 }
 
 /* ============================================================
-   5. ALT-SMELLUR A TOLU = THROSKULDUR (21.8.2026)
+   6. BER SMELLUR A TOLU = TILLAGA AD SIU (22.8.2026)
 
-   SAGAN: smellur a tolu SIADI SJALFUR til 17.8.2026 — hvert einasta
-   tolu-holf bar `onClick={() => filterOnValue(d, v)}`, svo EINN smellur a
-   239 hja Haaland for listann ur 587 af 587 nidur i 1 af 587. Notandinn:
-   "eg smelli a listann og filteringin dettur sjalfkrafa inn". Sian var thvi
-   fjarlaegd — og 21.8. bad hann um hana AFTUR ("eg get ekki lengur smellt
-   a stats i player stats til ad filtera eftir").
+   ThRIDJA UTGAFAN AF SAMA EIGINLEIKA, OG ThRIDJA KVORTUNIN:
+     · til 17.8.  ber smellur BEITTI siunni strax  -> "eg smelli a listann
+       og filteringin dettur sjalfkrafa inn" (587 -> 1 i einum smell)
+     · 21.8.      alt-smellur                      -> "eg get ekki enn ytt
+       a akvedid stats til ad filtera eftir thvi"  (og i thridja sinn:
+       "afhverju get eg ekki filterad leikmann i player stats!!!!!")
+     · 22.8.      ber smellur opnar TILLOGU sem madur beitir sjalfur
 
-   ThVI ER MIKILVAEGASTA FULLYRDINGIN HER NEIKVAED: BER SMELLUR SIAR EKKI.
-   Hun er profud FYRST og a somu holfum sem alt-smellurinn siar sidan, svo
-   hun geti ekki verid tom (CLAUDE.md 5b): holfid er sannanlega tharna og
-   sannanlega sianlegt — thad er MODIFIER-inn sem er skilyrdid.
+   ROTIN VAR EIN LINA: `if (!e?.altKey) return;` i `cellFilterClick`. Bert
+   ekkert gerdist — og `cellHit` setti samt `cursor:pointer` a hvert einasta
+   holf, svo bendillinn lofadi smell sem var hardur no-op.
 
-   ALLT ER LESID AF SKJANUM: rada-talan ur bordanum ("N of M"), chip-textinn
-   og hausamerkid. Rada-talan er RAUNTALAN, ekki thad sem sest — listinn er
-   syndarvaeddur og adeins ~24 radir eru i DOM.
+   OG HER STOD PROF SEM VARDI VILLUNA — LESTU ThETTA ADUR EN ThU SNYRD ThVI
+   VID AFTUR. Kafli 5 i thessari skra bar aður fullyrdinguna
+       ok("BER SMELLUR A TOLU SIAR EKKI (afturforin sem notandinn tilkynnti
+           17.8.)", count() === N0 && thChips().length === 0)
+   og hun var GRAEN. Hun var rett skrifud, hun maeldi thad sem hun sagdist
+   maela — og hun negldi afturforina fasta: hver sa sem hefdi lagad berann
+   smell hefdi fellt safnid og talid sig hafa gert villu.
+   KVORTUNIN 17.8. VAR EKKI "smellur ma ekki sia". Hun var: **smellur til
+   ad LESA rod ma ekki beita siu i thogn.** Svarid vid ThVI er TILLAGAN —
+   gluggi sem breytir engu fyrr en ytt er a Apply — EKKI ad slokkva a
+   smellinum. Kafli 6b heldur badum kroffum i einum smelli, hlid vid hlid,
+   svo thaer geti ekki verid teknar i sundur aftur.
+
+   FULLYRDINGARNAR HER ERU LESNAR AF SKJANUM MED RAUNVERULEGUM CLICK-
+   ATBURDI, ekki med thvi ad kalla a handlerinn: prófið sem var her adur
+   fullyrti ad ber smellur GERDI EKKERT og var graent — thad er nakvaemlega
+   thad sem let villuna lifa af eina lagfaeringu.
+
+   TVAER KROFUR TOGAST A OG BADAR ERU PROFADAR:
+     A) BER SMELLUR VERDUR AD SVARA        (17.8.-utgafan fell ekki a thvi,
+                                            21.8.-utgafan fell a thvi)
+     B) HANN MA EKKI BREYTA LISTANUM SJALFUR (17.8.-utgafan fell a thvi)
+   Thaer eru ekki i motsogn: smellurinn opnar tillogu, Apply beitir henni.
    ============================================================ */
 {
-  console.log("\nALT-SMELLUR A TOLU (throskuldar-sian)");
+  console.log("\nBER SMELLUR A TOLU (tillaga ad siu)");
   const players = J("players.json").players;
   const { STAT_BY_KEY } = await import(new URL("src/stats.js", REPO).href);
 
-  const altFire = async el => {
-    await act(async () => {
-      el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, altKey: true }));
-    });
-    await settle();
-  };
   /* RAUNTALAN, EKKI SU SYNILEGA: bordinn i hausnum er `sorted.length of
-     players.length` — sami bordi sem var thegar til, engin ny talning.  */
+     players.length` — sami bordi sem var thegar til, engin ny talning.
+     Hann ber nu lika merki (thunnt urtak, smell-abending), svo akkerid er
+     BYRJUN strengsins og INNSTA div-id (`at(-1)`), ekki nakvaem jafna.  */
   const count = () => {
-    const el = [...document.querySelectorAll("div")]
+    const t = [...document.querySelectorAll("div")]
       .map(d => (d.textContent || "").trim())
-      .find(t => /^\d+ of \d+ · \d{4}\/\d{2}$/.test(t));
-    return el ? +el.split(" of ")[0] : -1;
+      .filter(x => /^\d+ of \d+ · \d{4}\/\d{2}/.test(x)).at(-1);
+    return t ? +t.split(" of ")[0] : -1;
   };
   const cells = prefix => [...document.querySelectorAll("div[title]")]
     .filter(d => (d.getAttribute("title") || "").startsWith(prefix));
@@ -355,91 +468,221 @@ await new Promise(r => setTimeout(r, 60));
     .filter(b => (b.getAttribute("aria-label") || "").startsWith("Remove filter"));
   const clearAll = () => [...document.querySelectorAll("button")]
     .find(b => b.textContent.trim() === "clear all");
+  /* TILLOGU-GLUGGINN er auðkenndur a HLUTVERKI + heiti, ekki a stil.    */
+  const pop = () => [...document.querySelectorAll("[role=dialog]")]
+    .find(d => d.getAttribute("aria-label") === "Filter on this value") || null;
+  const popBtn = t => pop() && [...pop().querySelectorAll("button")]
+    .find(b => b.textContent.trim() === t);
+  const popInput = () => pop()?.querySelector("input") || null;
+  const setPopVal = async v => {
+    const el = popInput();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(
+        dom.window.HTMLInputElement.prototype, "value").set;
+      setter.call(el, v);
+      el.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+    await settle();
+  };
+  const press = async key => {
+    await act(async () => {
+      document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key, bubbles: true }));
+    });
+    await settle();
+  };
 
-  /* ---- 5a. FORSENDAN: listinn er STOR adur en nokkud er siad ---- */
+  await fire(byTab("👥"));
+  /* ---- 6a. FORSENDUR ---- */
   const N0 = count();
   ok(`bordinn les rada-tolu og hun er STOR fyrir siun (${N0} af ${players.length})`,
      N0 > 400 && N0 <= players.length,
      "— an thessarar forsendu er 'listinn styttist' ekki maeling");
   ok("engin throskuldar-chip i upphafi", thChips().length === 0);
+  ok("enginn tillogu-gluggi i upphafi", pop() === null);
+  /* AFFORDANCE: bendillinn logadi smell allan timann; nu segir skjarinn
+     thad lika BERUM ORDUM. Fullyrdingin er jakvaed og strengurinn er
+     sannanlega tharna — hun er sidar profud i hina attina (6h).        */
+  ok('skjarinn segir hvad ma gera ("click a number to filter")',
+     (document.body.textContent || "").includes("click a number to filter"),
+     "— eiginleiki sem finnst ekki er verri en 44 px af skruni (CLAUDE.md 8)");
 
-  /* ---- 5b. BER SMELLUR SIAR EKKI — ThETTA ER AFTURFORIN SJALF ---- */
-  /* Radad eftir eignarhaldi (fallandi) svo efsta rodin beri HAMARKID —
-     tha er "min <hamark>" harð sia og bilun sest strax.                 */
+  /* ---- 6b. BER SMELLUR SVARAR — OG BREYTIR ENGU ----
+     BAÐAR fullyrdingarnar i einum smelli, thvi thaer eru sitt hvor helmingur
+     af sömu akvordun og hvorug ein er nog.                              */
   ok("hausinn 'Owned %' er til og radar", await clickHeader("Owned %"));
   let own = cells("Ownership %: ");
-  ok(`eignarhalds-holf eru i DOM (${own.length}) — holfid sem beri smellurinn hittir`,
+  ok(`eignarhalds-holf eru i DOM (${own.length}) — holfid sem smellurinn hittir`,
      own.length > 5);
+  const ownTop = own[0].getAttribute("title").match(/Ownership %: ([\d.]+)/)?.[1];
   await fire(own[0]);
-  ok("BER SMELLUR A TOLU SIAR EKKI (afturforin sem notandinn tilkynnti 17.8.)",
+  ok(`BER SMELLUR A "${ownTop}%" OPNAR TILLOGU (rotin: \`if (!e?.altKey) return\`)`,
+     pop() !== null,
+     "— thetta er villan sem notandinn tilkynnti ThRISVAR");
+  ok("...og hann BREYTIR ENGU af sjalfu ser (17.8.-villan kemur ekki aftur)",
      count() === N0 && thChips().length === 0,
      `— fekk ${count()} af ${N0} og ${thChips().length} chip`);
 
-  /* ---- 5c. ALT-SMELLUR SIAR, `hi:true` -> MIN ---- */
-  own = cells("Ownership %: ");
-  const ownTop = own[0].getAttribute("title").match(/Ownership %: ([\d.]+)/)?.[1];
-  await altFire(own[0]);
+  /* ---- 6c. TILLAGAN ER FORFYLLT UR TOLUNNI SEM SMELLT VAR A ---- */
+  /* TOLULEGUR SAMANBURDUR, EKKI STRENGJA (24.8.2026). Fullyrdingin bar
+     `value === ownTop` og fell eftir ad gogn voru endurnyjud: efsta
+     eignarhaldid vard slett tala, svo tooltip-id syndi "69.0" (snidid med
+     `dec: 1`) medan reiturinn ber `+v.toFixed(1)` = talan **69**. Sama tala,
+     annad snid — og fullyrdingin var thvi had ThVI HVORT gildid aetti
+     aukastaf, ekki hegduninni sem hun heitir eftir. Hun var GRAEN i gaer og
+     RAUD i dag an thess ad neinn kodi breyttist.
+     Samningurinn er "tillagan ber toluna sem smellt var a"; talan er sama
+     talan. Snidid a reitnum er ekki hluti af honum — hann er ritanlegur og
+     notandinn slaer hvort ed er sina eigin tolu.                        */
+  const clicked = Number.parseFloat(ownTop);
+  const inVal = Number.parseFloat(popInput()?.value ?? "");
+  ok(`tillagan ber toluna sem smellt var a (${ownTop})`,
+     Number.isFinite(inVal) && Number.isFinite(clicked)
+     && Math.abs(inVal - clicked) < 1e-9,
+     `— fekk "${popInput()?.value}"`);
+  ok("tillagan nefnir dalkinn (Owned %)",
+     /Owned %/.test(pop()?.textContent || ""));
+  ok("`hi:true` -> hun opnast a MIN",
+     popBtn("min")?.getAttribute("aria-pressed") === "true"
+     && popBtn("max")?.getAttribute("aria-pressed") === "false");
+
+  /* ---- 6d. APPLY BEITIR HENNI ---- */
+  await fire(popBtn("Apply filter"));
   const n1 = count();
-  ok(`alt-smellur a haesta eignarhaldid (${ownTop}%) styttir listann: ${N0} -> ${n1}`,
-     n1 > 0 && n1 < N0, `— fekk ${n1}`);
+  ok(`"Apply filter" styttir listann: ${N0} -> ${n1}`, n1 > 0 && n1 < N0, `— fekk ${n1}`);
+  ok("...og tillogu-glugginn lokast", pop() === null);
   let chip = thChips()[0]?.parentElement?.textContent || "";
   ok(`chipid NEFNIR dalkinn OG throskuldinn ("${chip.replace("✕", "").trim()}")`,
      /Owned %/.test(chip) && /min/.test(chip) && chip.includes(ownTop),
      "— sia sem madur ser ekki hvers vegna er verri en engin sia");
-  /* ---- 5d. EITT ✕ SKILAR FULLUM LISTA ---- */
   await fire(thChips()[0]);
   ok(`✕ a chipinu skilar fullum lista (${count()} af ${N0})`,
      count() === N0 && thChips().length === 0);
 
-  /* ---- 5e. `hi:false` SIAR I RETTA ATT: VERD FAER MAX, EKKI MIN ----
+  /* ---- 6e. CANCEL OG ESC LOKA AN ThESS AD SIA ----
+     ThETTA ER OFUGA KRAFAN VID 6d og hun er thad sem gerir berann smell
+     oruggan: madur ma smella a tolu til ad LESA rod.                    */
+  own = cells("Ownership %: ");
+  await fire(own[0]);
+  ok("tillaga opin fyrir Cancel", pop() !== null);
+  await fire(popBtn("Cancel"));
+  ok("Cancel lokar OG siar ekki",
+     pop() === null && count() === N0 && thChips().length === 0,
+     `— fekk ${count()} af ${N0}, ${thChips().length} chip`);
+  await fire(cells("Ownership %: ")[0]);
+  ok("tillaga opin fyrir Esc", pop() !== null);
+  await press("Escape");
+  ok("Esc lokar OG siar ekki",
+     pop() === null && count() === N0 && thChips().length === 0);
+
+  /* ---- 6f. `hi:false` OPNAST A MAX, OG ATTINNI MA SNUA ----
      Radad eftir verdi (LAEGRA er betra -> fyrsti smellur gefur asc), svo
-     efsta rodin er ODYRASTI madurinn. `>=` a theim manni myndi hleypa
-     ollum i gegn og talan stæði i stad — thess vegna er ThESSI rod valin:
-     hun greinir attirnar i sundur.                                     */
+     efsta rodin er ODYRASTI madurinn. `>=` a theim manni hleypir ollum i
+     gegn og talan stæði i stad — thess vegna er ThESSI rod valin: hun
+     greinir attirnar i sundur.                                          */
   ok("hausinn 'Price' er til og radar", await clickHeader("Price"));
   const price = cells("Price: £");
   const pTop = price[0].getAttribute("title").match(/Price: £([\d.]+)/)?.[1];
-  await altFire(price[0]);
+  await fire(price[0]);
+  ok(`verd-tillagan opnast a MAX (£${pTop}), ekki MIN`,
+     popBtn("max")?.getAttribute("aria-pressed") === "true"
+     && popBtn("min")?.getAttribute("aria-pressed") === "false",
+     "— `>=` a dalki thar sem laegra er betra siar UT einmitt thann sem smellt var a");
+  await fire(popBtn("Apply filter"));
   const n2 = count();
   chip = thChips()[0]?.parentElement?.textContent || "";
-  ok(`verd-chipid segir MAX (£${pTop}), ekki MIN ("${chip.replace("✕", "").trim()}")`,
-     /max/.test(chip) && !/min/.test(chip) && chip.includes(pTop),
-     "— `>=` a dalki thar sem laegra er betra siar UT einmitt thann sem smellt var a");
+  ok(`verd-chipid segir MAX (£${pTop}) ("${chip.replace("✕", "").trim()}")`,
+     /max/.test(chip) && !/min/.test(chip) && chip.includes(pTop));
   ok(`...og hun siar: ${N0} -> ${n2} (med `+"`>=`"+` a odyrasta manni hefdi hun stadid i stad)`,
      n2 > 0 && n2 < N0, `— fekk ${n2}`);
   await fire(clearAll());
   ok(`"clear all" skilar fullum lista (${count()} af ${N0})`,
      count() === N0 && thChips().length === 0);
 
-  /* ---- 5f. NULL ER EKKI NULL — `?? 0`-GILDRAN UR KAFLA 12 ----
-     "GC/90 max 0,00" a ad skila theim sem HAFA toluna og hun er 0 — EKKI
-     theim sem eiga hana EKKI. Vaeri vantandi gildi lesid sem 0 (eda syn
-     sleppti null-vordinni) faeri talan upp um allan null-hopinn.
-     Vaentitalan er reiknud med DALKSINS EIGIN getter — sami kodi, adeins
-     annad rada-mengi; hun er thvi ekki endurutfaersla a siunni.         */
+  /* ATTINNI MA SNUA — thad var beidnin ordrett ("filter MOGULEIKI sem eg
+     get svo breytt"). Sama holf, ONNUR att: "min" a odyrasta manninum
+     hleypir ollum i gegn, svo talan stendur i stad OG chipid segir min.
+     Talan sem stendur i stad er hér RETT svar, ekki bilun — thess vegna
+     er chip-textinn profadur lika.                                      */
+  await fire(cells("Price: £")[0]);
+  await fire(popBtn("min"));
+  await fire(popBtn("Apply filter"));
+  chip = thChips()[0]?.parentElement?.textContent || "";
+  ok(`attinni ma snua i tillogunni: sama holf gefur nu MIN ("${chip.replace("✕", "").trim()}")`,
+     /min/.test(chip) && !/max/.test(chip));
+  await fire(clearAll());
+
+  /* ---- 6g. TALAN ER RITANLEG, OG TOMUR REITUR BEITIR ENGU ----
+     `+"" === 0` og `Number.isFinite(0)` er satt, svo bert
+     `Number.isFinite(+v)` hefdi beitt "min 0" a tomum reit — sia sem litur
+     ut fyrir ad virka og heldur ollum. `validThreshold` er vordurinn.   */
+  const PL2 = await import(new URL("src/PlayerList.jsx", REPO).href);
+  ok("`validThreshold` hafnar tomum reit (`+\"\" === 0` gildran)",
+     PL2.validThreshold("") === false && PL2.validThreshold("  ") === false
+     && PL2.validThreshold(null) === false && PL2.validThreshold("12.5") === true);
+  await fire(cells("Ownership %: ")[0]);
+  await setPopVal("");
+  ok("tomur reitur slekkur a Apply", popBtn("Apply filter")?.disabled === true);
+  await fire(popBtn("Apply filter"));
+  ok("...og smellur a hann siar ekkert",
+     count() === N0 && thChips().length === 0);
+  /* OG RITUD TALA GILDIR — annars vaeri "sem eg get svo breytt" osatt.
+     Valid er tala sem er SANNANLEGA harðari en sjalfgildid, svo hun geti
+     ekki gefid sömu utkomu fyrir tilviljun.                             */
+  await setPopVal("50");
+  ok("rituð tala kveikir aftur a Apply", popBtn("Apply filter")?.disabled === false);
+  await fire(popBtn("Apply filter"));
+  const n4 = count();
+  chip = thChips()[0]?.parentElement?.textContent || "";
+  ok(`ritud tala er ThAD sem sian notar ("${chip.replace("✕", "").trim()}" -> ${n4})`,
+     chip.includes("50") && n4 > 0 && n4 < N0, `— fekk ${n4}`);
+  /* ABENDINGIN VIKUR ThEGAR HUN ER SONNUD — hin attin a 6a.            */
+  ok('abendingin hverfur thegar sia er komin ("click a number to filter")',
+     !(document.body.textContent || "").includes("click a number to filter"));
+  await fire(clearAll());
+  ok(`hreinsad aftur (${count()} af ${N0})`, count() === N0);
+
+  /* ---- 6h. TOMT HOLF OPNAR ENGA TILLOGU ----
+     "Engin gogn" er ekki tala og throskuldur ur henni vaeri tilbuningur.
+     Forsendan er MAELD: dalkurinn verdur ad HAFA tom holf, annars maelir
+     fullyrdingin ekkert (CLAUDE.md 5b).                                 */
   const gcd = STAT_BY_KEY.gc_per_90;
   const vals = players.map(p => { try { return gcd.get(p); } catch { return null; } });
-  const nonNull = vals.filter(v => v != null && Number.isFinite(v));
-  const zeros = nonNull.filter(v => +v.toFixed(gcd.dec) === 0).length;
-  const nulls = players.length - nonNull.length;
-  ok(`forsenda: dalkurinn HEFUR tom holf (${nulls} af ${players.length} eiga enga GC/90)`,
-     nulls > 0, "— an theirra maelir null-fullyrdingin ekkert");
-  ok(`forsenda: og einhver eiga raunverulegt 0,00 (${zeros})`, zeros > 0);
+  const nulls = players.length - vals.filter(v => v != null && Number.isFinite(v)).length;
+  ok(`forsenda: GC/90 hefur tom holf (${nulls} af ${players.length})`, nulls > 0);
   ok("Defence-flokkurinn opnast", !!byExact("Defence"));
   await fire(byExact("Defence"));
-  ok("hausinn 'GC/90' er til og radar (laegra betra -> asc, 0,00 efst)",
-     await clickHeader("GC/90"));
+  ok("hausinn 'GC/90' er til og radar (laegra betra -> asc)", await clickHeader("GC/90"));
+  /* Rodun i hina attina fleytir tomu gildunum ekki upp (null radast alltaf
+     sidast), svo tomt holf er sott beint: title-ið er "<heiti>: no data". */
+  const empty = [...document.querySelectorAll("div[title]")]
+    .filter(d => /: no data$/.test(d.getAttribute("title") || ""));
+  ok(`tom holf eru i DOM (${empty.length})`, empty.length > 0);
+  if (empty.length) {
+    await fire(empty[0]);
+    ok("smellur a TOMT holf opnar enga tillogu og siar ekkert",
+       pop() === null && count() === N0 && thChips().length === 0);
+  }
+
+  /* ---- 6i. NULL ER EKKI NULL — `?? 0`-GILDRAN UR KAFLA 12 ----
+     "GC/90 max 0,00" a ad skila theim sem HAFA toluna og hun er 0 — EKKI
+     theim sem eiga hana EKKI. Vaentitalan er reiknud med DALKSINS EIGIN
+     getter; hun er thvi ekki endurutfaersla a siunni.                   */
+  const nonNull = vals.filter(v => v != null && Number.isFinite(v));
+  const zeros = nonNull.filter(v => +v.toFixed(gcd.dec) === 0).length;
+  ok(`forsenda: einhver eiga raunverulegt 0,00 (${zeros})`, zeros > 0);
   const gc = cells("Conceded per 90: ");
   const gcTop = gc[0]?.getAttribute("title").match(/Conceded per 90: ([\d.]+)/)?.[1];
   ok(`efsta GC/90-holfid er 0.00 (fekk "${gcTop}")`, gcTop === "0.00");
-  await altFire(gc[0]);
+  await fire(gc[0]);
+  await fire(popBtn("Apply filter"));
   const n3 = count();
   ok(`"GC/90 max 0,00" skilar ${zeros} — theim sem HAFA toluna, ekki ${zeros + nulls}`,
      n3 === zeros,
      `— fekk ${n3}; ${zeros + nulls} thydir ad tom holf komust i gegnum <= (`+"`?? 0`"+`-gildran)`);
   /* Hausinn ma ekki thegja heldur: chip-rodin getur legid ofan vid skrunid
      og dalkurinn getur legid i lokudum flokki. GC/90 er DALKUR i toflunni
-     (ekki fastur), svo merkid a ad sjast a honum.                       */
+     (ekki fastur), svo merkid a ad sjast a honum — fostu dalkarnir (Verd,
+     Owned %) eru alltaf synilegir og bera thad ekki.                    */
   ok("siadur dalkur er merktur i HAUSNUM (▼ a GC/90)",
      [...document.querySelectorAll("div")]
        .some(d => /^▼\s*GC\/90/.test((d.textContent || "").trim())),

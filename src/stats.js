@@ -191,59 +191,26 @@ export const STAT_DEFS = [
     get:p=>num(p._gk_chief_out) },
 
   /* ============================================================
-     --- band: Preseason ---  (20.8.2026)
+     FORLEIKS-DALKARNIR VORU TEKNIR UT 22.8.2026 AD BEIDNI NOTANDANS
+     ("taktu nuna ut preseason stats, thau eru haett ad skipta mali").
 
-     HVERS VEGNA ThETTA ER SER BAND OG EKKI I "Minutes": bandid er thad sem
-     BER FYRIRVARANN (sja skra-lysinguna nedar) og thessar minutur eru ur
-     ODRU MOTI a odrum tima — aefingaleikir sumarsins, ekki umferdir
-     timabilsins sem hausinn segir. Tvennt ohlutgengt i sama bandi er sami
-     kvarði i tveimur merkingum.
+     Fjorir dalkar foru: `preseason_starts`, `preseason_games`,
+     `preseason_minutes` og `preseason_last_start`, asamt sviðunum sem
+     `fetch.mjs` skrifadi fyrir tha og bandinu "Preseason". Their attu vid
+     EITT tilfelli — mann an PL-sogu fyrir GW1 — og thad tilfelli er lidid:
+     GW1 er spilud og `start_feats` eru til fyrir tha sem spiludu.
 
-     HVERS VEGNA ThAD ER TIL: 134 leikmenn i hopnum i dag eiga ENGA
-     start-window rod og 195 enga PL-minutu — hvert sumarkaup og hver madur
-     nyliðaklubbs. Fyrir tha skilar `startProbability` null og taflan hafdi
-     EKKERT. Notandinn sa `st0%` a Tzolis og Sangare: FJARVERA BIRT SEM
-     MAELING, sem er versta utkoman skv. CLAUDE.md kafla 3.
-
-     MAELINGIN (`scripts/measure-preseason-starts.mjs`, fjogur sumur, LOSO):
-     "byrjadi sidasta aefingaleik" er SAMThYKKT (d Brier +0,0341, CI
-     [+0,0267, +0,0423]); fyrir hopinn an sogu ferr AUC ur 0,599 i 0,831.
-     TVAER HUGMYNDIR VORU FELLDAR OG MEGA EKKI BYGGJAST:
-       · KEPPNIS-MERKID (Community Shield o.fl.) baetir engu ofan a "byrjadi
-         sidasta": +0,0003 [-0,0083, +0,0081] og NEIKVAETT i hop B — thess
-         vegna er hér ENGINN keppnis-dalkur.
-       · "SEST I AEFINGALEIK" er fellt sem merki: 23 af 80 sogulegum
-         klubb-timabilum eiga NULL lineups. ThESS VEGNA er tom rod `null`
-         og aldrei 0 — "ekki sest" ma ALDREI lesast sem "byrjadi ekki".
-
-     OG ENGINN theirra fer inn i `startProbability`, `expPointsFor` ne
-     `rankScore`. Sama hilla og BSD og Evropu-alagid: birtingar-heimild.
+     MAELINGIN SJALF ER EKKI HENT, HUN ER SKJOLUD: "byrjadi sidasta
+     aefingaleik" var SAMThYKKT (d Brier +0,0341, CI [+0,0267, +0,0423];
+     AUC 0,599 -> 0,831 fyrir hopinn an sogu) og ThRJAR skyldar hugmyndir
+     voru FELLDAR — keppni-merkid a aefingaleik, "sast i aefingaleik"
+     (thekju-vandi: 23 af 80 lid-timabilum eiga ENGA uppstillingu) og
+     mork/xG ur aefingaleikjum. Allt stendur i CLAUDE.md kafla 4 og i haus
+     `scripts/measure-preseason-starts.mjs`, sem er AFRAM til sem handvirk
+     maelingaskrifta. Verdi dalkarnir endurvaktir naesta sumar tharf enginn
+     ad endurleida thetta — og enginn ma heldur endurvekja follnu
+     hugmyndirnar i leidinni.
      ============================================================ */
-  { key:"preseason_starts", label:"Preseason starts", short:"Pre starts",
-    group:"core", band:"Preseason", dec:0, hi:true, live_only:true,
-    note:"How many of his club's preseason friendlies he STARTED, this summer. MEASURED and the strongest thing we have for a player with no Premier League history: summer 2025, players seen in a friendly but with 0 starts went on to start GW1 at a rate of 0.000 (n=118), while the 3-4 starts band started 70.4% of the time against a cohort base of 21.8%.",
-    get:p=>num(p.preseason_starts) },
-  { key:"preseason_games", label:"Preseason appearances", short:"Pre apps",
-    group:"core", band:"Preseason", dec:0, hi:true, live_only:true, no_heat:true,
-    /* `no_heat` — HITAKORTID MA EKKI FULLYRDA "BESTUR" HER. Talan er
-       NEFNARINN fyrir byrjanirnar; hun sjalf er naest "sast i aefingaleik",
-       sem er MAELT OG FELLT sem merki (23 af 80 klubb-timabil an lineups).
-       Med lit hefdi hun sagt "fleiri leikir = betri madur", sem maelingin
-       styður EKKI. Sama astaeda og a `starts_per_90`: rodun er obreytt,
-       thad er liturinn sem hefdi logid.                                  */
-    note:"How many preseason friendlies he appeared in at all — starts plus substitute appearances. IT IS THE DENOMINATOR FOR THE COLUMN BESIDE IT, NOT A SIGNAL OF ITS OWN: 4 starts in 5 games and 4 in 12 are different players, so the count is here to be read next to the starts. \"Seen in a friendly\" on its own is MEASURED AND REJECTED, which is why this column is never coloured: a low number can mean his club's lineups were simply not published.",
-    get:p=>num(p.preseason_games) },
-  { key:"preseason_minutes", label:"Preseason minutes", short:"Pre mins",
-    group:"core", band:"Preseason", dec:0, hi:true, live_only:true,
-    note:"Minutes he played in preseason friendlies this summer, read out of the published lineups and substitution times. A 45-minute half in a warm-up game is not a Premier League 45, so read it as evidence of where he stands in the manager's order rather than as form — goals and expected goals from friendlies are measured and rejected outright, minutes are the part that carried.",
-    get:p=>num(p.preseason_minutes) },
-  { key:"preseason_last_start", label:"Started the last preseason match",
-    short:"Pre last XI",
-    group:"core", band:"Preseason", dec:0, hi:true, live_only:true, no_heat:true,
-    /* Bin dalkur. `no_heat` af somu astaedu og `gk_chief_out`: P10-P90
-       a 0/1 gerir hvert 1 ad "besta manni toflunnar" i graenum lit.     */
-    note:"1 = he started his club's LAST friendly before the season, 0 = he did not, empty = he was never seen in one. THIS IS THE ONE PRESEASON NUMBER THAT MEASURED UP ON ITS OWN: over four summers, leave-one-out, adding it improves the Brier score by 0.0341 (95% CI +0.0267 to +0.0423), and for players with no Premier League history — where price is otherwise the only input — it lifts AUC from 0.599 to 0.831 on club-seasons that have coverage. The final warm-up is where most managers field close to their opening XI, which is why the LAST one carries and the competition it was played in does not: a badge for the Community Shield or a summer tournament adds nothing once you know this (+0.0003, CI −0.0083 to +0.0081, and negative for the no-history group), so no such column exists.",
-    get:p=>num(p.preseason_last_start) },
 
   /* --- band: Form --- */
   { key:"form", label:"Form", group:"core", band:"Form",
@@ -1106,14 +1073,19 @@ export const SCOPE_NOTES = [
   { id: "espn-floor",
     applies: d => reads(d, "_espn_") && d.band.startsWith("Created"),
     text: "A FLOOR, NOT AN EXACT COUNT: it is read out of ESPN's commentary (\"Assisted by X …\") and only 76% of shots name their assist, so a 0 can mean \"no assist sentence was written\" rather than \"he created nothing\"." },
-  /* AEFINGALEIKIR. Fyrirvarinn er EINN og hann er lagdur a alla fjora
-     dalkana ur einum stad — fjogur handskrifud afrit af sömu setningu er
-     nakvaemlega thad sem `SCOPE_NOTES` var byggd til ad drepa. Tvennt VERDUR
-     ad standa i honum: hvadan talan kemur (ostadfest heimild fyrir thennan
-     tilgang) og ad hun sé SAMHENGI, ekki hluti af byrjunar-likaninu.    */
-  { id: "preseason",
-    applies: d => reads(d, "preseason_"),
-    text: "SOURCE AND SCOPE: FotMob's published friendly lineups, collected once before the season starts and then frozen — a display source, exactly like the shot maps, and NOT part of the start-probability model, expected points or the buy ranking, none of which read it. Clubs are pinned by FotMob id rather than by name, because \"Arsenal\" there is also a Russian second-tier club. An empty cell means he was not seen in a published lineup, which is NOT the same as not starting: coverage was missing for 23 of 80 historical club-seasons, so absence is a gap in the data and is shown as one. It is a live figure and does not follow the selected season." },
+  /* AEFINGALEIKJA-REGLAN VAR FJARLAEGD 24.8.2026 — DAUD REGLA I LIFANDI
+     BUNINGI. Fjorir forleiks-dalkar voru teknir ut ad beidni notandans
+     22.8.; reglan sem lagdi fyrirvarann a ThA sat eftir. Hun `applies`-adi
+     a `preseason_`-svid sem enginn dalkur les lengur, svo hun baetti
+     fyrirvara vid NULL dalka af 126.
+     `stats.test.mjs` fann thad ordrett ("regla nær til 0 dálka af 126"), og
+     su fullyrding er RETT eins og hun er: regla sem grípur ekkert er
+     annadhvort daud eda bilud, og bædi eiga ad falla. Ad slaka a henni
+     (leyfa 0) hefdi drepid vordinn fyrir hinar fjorar reglurnar lika —
+     nakvaemlega thad sem CLAUDE.md 5b kallar toma fullyrdingu.
+     Textinn sjalfur (heimild, thekju-gatid i 23 af 80 lid-timabilum, og ad
+     talan se SAMHENGI en ekki hluti byrjunar-likansins) lifir i
+     athugasemdinni sem kom i stad dalkanna, ofar i thessari skra.       */
   { id: "per90",
     applies: d => /_per_90$/.test(d.key),
     text: "PER-90 RATE — READ IT NEXT TO MINUTES: dividing by minutes lets a cameo outrank every regular, and this column has no minutes floor. Measured on 2025/26, several per-90 columns are led outright by players with under 40 minutes on the pitch." },

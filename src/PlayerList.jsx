@@ -184,6 +184,19 @@ export function rangeBlindKind(defs) {
    0 uppsafnada dalka (5 af 5 `live_only`), svo talan hefdi ordid 0 thar og
    bordinn flett yfir i "every season field is zero" — osatt a sama skja.
    Fullyrdingin er um GOGNIN, ekki um dalkavalid, svo maelingin er thad lika. */
+/* ============================================================
+   ER ThETTA NYTILEGUR ThROSKULDUR? — EIN UTFAERSLA FYRIR TVO LESENDUR
+
+   `+"" === 0` OG `Number.isFinite(0)` ER SATT. Bert `Number.isFinite(+v)`
+   hefdi thvi talid TOMAN reit gildan og beitt siunni "min 0", sem heldur
+   ollum — sia sem lítur ut fyrir ad virka og gerir ekkert. Sama aett og
+   "`?? 0` badum megin byr til tolu sem er ekki til" (CLAUDE.md 12).
+   Utflutt af thvi ad BAEDI hnappurinn (`disabled`) og `applyPending` lesa
+   hana; tvo eintok af sama skilyrdi geta ordid osammala.
+   ============================================================ */
+export const validThreshold = v =>
+  v != null && String(v).trim() !== "" && Number.isFinite(+v);
+
 export function staleSeasonRows(rows = [], blind = new Set(), defs = STAT_DEFS) {
   const acc = defs.filter(d =>
     d && typeof d.get === "function" && !rangeBlind(d, blind));
@@ -663,8 +676,30 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      laesilega; thad var ROFINN sem var oþarfi, ekki liturinn.          */
 
   /* ---------- timabil ---------- */
-  const finishedGw = useMemo(
-    () => (events || []).filter(e => e.finished).length, [events]);
+  /* "BYRJAD" ER EKKI "LOKID" — OG THAD KOSTADI SJALFGEFNA VALID (22.8.2026).
+     Her stod `finishedGw === 0` sem prof a hvort timabilid vaeri hafid.
+     Umferd telst EKKI `finished` hja FPL fyrr en hun er stadfest med bonus,
+     sem er dogum a eftir sidasta leik. Maelt i `data/events.json` i dag:
+     GW1 ber `finished: false, data_checked: false` medan SEX leikir eru
+     bunir — svo `finishedGw === 0` og sjalfgefna timabilid datt a
+     ARKIVID, thott 2026/27 vaeri byrjad. Sama gildra og felldi
+     forleiks-bordann og `season_baseline` sama dag.
+
+     FPL SEGIR ThAD SJALFT, OG ThAD ER MAELT: fyrir frestinn (17.8., commit
+     fe36e21) var `is_current: []` og `is_next: [1]`; eftir frestinn (i dag)
+     er `is_current: [1]`. Merkid flettist nakvaemlega a GW1-frestinum, sem
+     er einmitt sa punktur thar sem timabilid byrjar. `finished` er haft
+     med thvi thad er einratt sidar a timabilinu, og FRESTUR-SEM-ER-LIDINN
+     er BAKVORN ef `events.json` frys (klukkan er tha eina heimildin sem
+     eftir er). Thrju skilyrdi, EIN spurning — og thau geta ekki verid
+     osammala um annad en hversu snemma svarid kemur.                    */
+  const startedGw = useMemo(() => {
+    const now = Date.now();
+    return (events || []).filter(
+      e => e.finished || e.is_current
+        || (e.deadline_time && Date.parse(e.deadline_time) <= now)).length;
+  }, [events]);
+  const seasonStarted = startedGw > 0;
   const currentLabel = useMemo(() => {
     const d = (events || []).find(e => e.id === 1)?.deadline_time;
     const y = d ? new Date(d).getFullYear() : null;
@@ -680,11 +715,13 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
        flipinn opnadur strax var `olderSeasons` enn tomt og sjalfgildid
        datt a OBYRJADA timabilid — tafla full af null. Og thad LEIDRETTIST
        ALDREI, thvi `season != null` stoppar effectinn ad eilifu.
-       I forleik (`finishedGw === 0`) bidum vid thvi thangad til skrain er
-       komin; effectinn keyrir aftur thegar hun berst.                    */
-    if (finishedGw === 0 && !seasonsFile) return;
-    setSeason(finishedGw >= 1 ? currentLabel : (olderSeasons[0] || currentLabel));
-  }, [season, finishedGw, currentLabel, olderSeasons, seasonsFile]);
+       I forleik (`!seasonStarted`) bidum vid thvi thangad til skrain er
+       komin; effectinn keyrir aftur thegar hun berst. ThEGAR timabilid er
+       byrjad er engin bid: nyjasta timabilid er thad sem a ad vera valid
+       og `player_seasons.json` breytir thvi ekki.                        */
+    if (!seasonStarted && !seasonsFile) return;
+    setSeason(seasonStarted ? currentLabel : (olderSeasons[0] || currentLabel));
+  }, [season, seasonStarted, currentLabel, olderSeasons, seasonsFile]);
   const isLive = season === currentLabel;
 
   /* ---------- UMFERDAR-BIL ----------
@@ -923,14 +960,12 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
   const bannerKind = useMemo(
     () => rangeBlindKind(banner === "picked" ? visibleCols : shownCols),
     [banner, shownCols, visibleCols]);
-  /* Talid ADEINS thegar bordinn getur birst — annars 587 x 60 getter-koll
-     i hverri teikningu fyrir bordа sem er ekki a skjanum. Og thad hangir
-     EKKI a `shownCols` (sja `staleSeasonRows`): talan er um gognin, svo
-     hun er reiknud einu sinni per rada-mengi i stad einu sinni per
-     dalkavali.                                                          */
-  const staleSeason = useMemo(
-    () => (finishedGw === 0 && isLive ? staleSeasonRows(rows, blindKeys) : 0),
-    [finishedGw, isLive, rows, blindKeys]);
+  /* `staleSeason` VAR FJARLAEGT 22.8.2026 — bordinn sem las hann er farinn
+     (sja nedar), svo memo-id var 587 x 60 getter-koll i hverri teikningu
+     fyrir tolu sem enginn birti. Fallid `staleSeasonRows` stendur afram:
+     thad er utflutt og prófad i `playerlist-live-cols.mjs`, og reglan sem
+     thad ber (arstidar-summur geta ekki verid fra obyrjudu timabili) er
+     rett thott bordinn se hættur ad segja hana.                         */
 
   const watchSet = useMemo(() => new Set(watch || []), [watch]);
   const mineSet = useMemo(
@@ -1263,25 +1298,81 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      runna tolu — thad vaeri OMAELD tala og gerdi utkomuna oforspaanlega,
      sem er andstaedan vid thad sem beðid var um. "min 239" ma skila EINUM
      manni; thad sest i talnabordanum og eitt ✕ tekur thad af.           */
-  const filterOnValue = (d, v) => {
-    if (v == null || !Number.isFinite(v)) return;
-    const op = d.hi === false ? "<=" : ">=";
-    const val = +v.toFixed(d.dec ?? 0);
-    /* SAMI dalkur + SAMA att = EIN faersla. Annars hefdi hver alt-smellur
-       staflad nyrri sömu-attar siu ofan a hina og tvö chip sagt sitt hvad
-       um sama dalk. Ad alt-smella a adra tolu ER thvi leidin til ad
-       BREYTA throskuldinum (90 -> 85), en "min" OG "max" a sama dalki
-       mega lifa samtimis — thad er gilt bil.                            */
-    setThresholds(t => [...t.filter(x => !(x.key === d.key && x.op === op)),
-                        { key: d.key, op, val }]);
-  };
+  /* ============================================================
+     BER SMELLUR OPNAR TILLOGU — ThRIDJA UTGAFAN, OG SU FYRSTA SEM
+     SVARAR ThVI SEM VAR BEDID UM (22.8.2026)
+
+     Utgafa 1 (til 17.8.): ber smellur BEITTI siunni samstundis. Notandinn
+       felldi hana: "eg smelli a listann og filteringin dettur sjalfkrafa
+       inn" — einn smellur a "239" for listinn ur 587 i 1.
+     Utgafa 2 (21.8.): alt-smellur. Notandinn felldi hana LIKA: "eg get
+       ekki enn ytt a akvedid stats til ad filtera eftir thvi". Alt er
+       OFINNANLEGT — ekkert a skjanum nefnir hann, og enginn giskar a
+       modifier. Og verra: `cellHit` setti `cursor:pointer` a hvert einasta
+       tolu-holf, svo bendillinn LOFADI smell sem gerdi ekkert.
+     Utgafa 3 (her) les upprunalegu beidnina ordrett (8.8.2026):
+       "ef eg smelli a akvedid stat, t.d. start prosentu 90%, tha poppar
+        thad upp sem filter MOGULEIKI sem eg get svo breytt".
+       ThAD ER SVARID VID BADUM KVORTUNUM I EINU: berum smell er svarad
+       (utgafa 2 fell a thvi) en HANN BREYTIR ENGU AF SJALFU SER (utgafa 1
+       fell a thvi). Tillagan er gluggi med att, tolu, Apply og Cancel;
+       listinn haggast ekki fyrr en Apply er ytt.
+
+     ARÐUR KONFLIKTURINN: HAUSINN RADAR, HOLFID SIAR. Ber smellur a
+     dalkshaus var — og er afram — RODUN; thad er rotgroin hegdun i hverri
+     toflu og ma ekki vikja. Ber smellur a TOLU-HOLF var BUNDINN ENGU, svo
+     thar er ekkert ad taka af neinum. Sitt hvor smellurinn, sitt hvort
+     markid, engin modifier.
+     ============================================================ */
+  const [pending, setPending] = useState(null);   // {key, op, val, x, y}
   /* Skilyrdid er a EINUM stad: holfin kalla thetta, ekki `filterOnValue`
-     beint, svo "hvad taldist alt-smellur" geti ekki rekid i sundur milli
+     beint, svo "hvad taldist smellur" geti ekki rekid i sundur milli
      theirra 124 + 3 holfa sem bera hann.                                */
   const cellFilterClick = (e, d, v) => {
-    if (!e?.altKey) return;                  // BER SMELLUR GERIR EKKERT
-    e.preventDefault(); e.stopPropagation();
-    filterOnValue(d, v);
+    if (v == null || !Number.isFinite(v)) return;
+    e?.preventDefault?.(); e?.stopPropagation?.();
+    /* TALAN ER TEKIN EINS OG HUN BIRTIST (`dec`), ekki hra: notandinn
+       smellti a "90%", ekki a 0,8967. ATTIN ER LEIDD UT UR `hi`, EKKI
+       GEFIN — a Verdi, Morkum a sig og Min/framlag er LAEGRA betra, svo
+       thar er sjalfgefid MAX ("max 4,0"); `>=` a `hi:false`-dalki vaeri
+       sia sem hendir einmitt theim ut sem smellt var a (CLAUDE.md 8:
+       `hi` er FORSENDA, ekki skraut). Hun er samt BARA sjalfgildi her —
+       glugginn ber baðar attir og notandinn ma snua henni.             */
+    setPending({ key: d.key, op: d.hi === false ? "<=" : ">=",
+                 val: +v.toFixed(d.dec ?? 0),
+                 x: e?.clientX || 0, y: e?.clientY || 0 });
+  };
+  /* ESC OG SMELLUR UTAN — a `document`, thvi glugginn er ekki modal og ma
+     ekki stela fokus (`autoFocus` i ritanlega chip-inu var HELMINGURINN af
+     "filterid dettur sjalfkrafa inn", 21.8.2026). `mousedown` en ekki
+     `click`: tha lokast hann ADUR en React-smellurinn a naesta holfi
+     keyrir, svo smellur a adra tolu faerir gluggann i stad thess ad
+     gleypast.                                                          */
+  const popRef = useRef(null);
+  useEffect(() => {
+    if (!pending) return undefined;
+    const away = e => { if (!popRef.current?.contains(e.target)) setPending(null); };
+    const esc = e => { if (e.key === "Escape") setPending(null); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [pending]);
+  /* SAMI dalkur + SAMA att = EIN faersla. Annars hefdi hver smellur staflad
+     nyrri somu-attar siu ofan a hina og tvo chip sagt sitt hvad um sama
+     dalk. Ad smella a adra tolu ER thvi leidin til ad BREYTA throskuldinum
+     (90 -> 85), en "min" OG "max" a sama dalki mega lifa samtimis — thad
+     er gilt bil. Sameiningin bur HER OG HVERGI ANNARS STADAR.
+     ENGIN AUKAVERKUN INNI I `setPending`-uppfaerara: React kallar hann
+     tvisvar i StrictMode og sian hefdi tha verid sett tvisvar.         */
+  const applyPending = () => {
+    const p = pending;
+    if (!p || !validThreshold(p.val)) return;
+    setThresholds(t => [...t.filter(x => !(x.key === p.key && x.op === p.op)),
+                        { key: p.key, op: p.op, val: +p.val }]);
+    setPending(null);
   };
   const dropThAt = i => setThresholds(t => t.filter((_, j) => j !== i));
   /* HVADA DALKAR ERU UNDIR SIU — merkt i hausnum, svo sian se synileg
@@ -1328,6 +1419,23 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
           <div style={S.sub}>
             {sorted.length} {"of"} {players.length} · {season}
             {!isLive && <span style={S.histTag}>{"historical numbers"}</span>}
+            {/* ThUNNT URTAK ER SAGT, EKKI FALIÐ (22.8.2026).
+                Gamla sjalfgildid valdi ARKIVID i byrjun timabils einmitt
+                thvi yfirstandandi timabil er tha ordfátt. Notandinn bad um
+                nyjasta timabilid samt — svo lausnin er ad SYNA thynnkuna,
+                ekki ad hunsa valid hans. Talan er MAELD (`startedGw`),
+                ekki skrifud: hun vex sjalf med timabilinu og hverfur their
+                eftir GW5, thegar urtakid er ekki lengur athugavert.     */}
+            {isLive && seasonStarted && startedGw < 5 &&
+              <span style={S.thinTag}
+                title={"The season is only a few gameweeks old, so these totals are a small sample."
+                     + " Pick an earlier season in the dropdown to read a full one."}>
+                {startedGw === 1 ? "GW1 only" : `GW1–${startedGw} only`}</span>}
+            {/* AFFORDANCE FYRIR SMELL-SIUNA. Hun hverfur um leid og fyrsta
+                sian er komin — tha er hun sonnud og linan vaeri varanleg
+                skyring sem madur les einu sinni (sbr. 9.8.2026).        */}
+            {mode !== "imm" && mode !== "win" && thresholds.length === 0 &&
+              <span style={S.hintTag}>{"click a number to filter"}</span>}
           </div>
         </div>
         <div style={S.headCtl}>
@@ -1352,7 +1460,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
           <select style={S.sel} value={season ?? ""} onChange={e => setSeason(e.target.value)}>
             {seasonOpts.map(s => (
               <option key={s} value={s}>
-                {s}{s === currentLabel && finishedGw === 0 ? " (not started)" : ""}
+                {s}{s === currentLabel && !seasonStarted ? " (not started)" : ""}
               </option>
             ))}
           </select>
@@ -1382,7 +1490,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
           bil a sama skja, annad um fortid og annad um framtid, hefdi verid
           spurning um hvort thau tala saman — thau gera ekki. Buy windows ber
           sitt eigid bil i sinum eigin haus.                                */}
-      {mode !== "win" && !(isLive && finishedGw === 0) && seasonKey && (
+      {mode !== "win" && !(isLive && !seasonStarted) && seasonKey && (
         <div style={S.gwWrap}>
           <div style={S.gwTop}>
             {/* SAMANBROTID SPARAR 44 PX AF 415 (maelt 8.8.2026). Strikid er
@@ -1530,44 +1638,26 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
         </div>
       )}
 
-      {/* ============================================================
-          FORLEIKS-BORDINN — HANN FULLYRTI EITTHVAD SEM VAR OSATT A SAMA SKJA
-
-          Her stod: "<timabil> has not started — every season field is zero
-          for all 587 players, so this view has no numbers to sort."
-          MAELT 16.8.2026 A SAMA SKJA I SOMU ANDRA: B.Fernandes ICT 381,4 ·
-          Creativity 1938,5 · Penalties missed 2 · Haaland Threat 1520,0 —
-          somu tolur og hja theim i 2025/26. `players.json` er lifandi
-          bootstrap FPL og FPL hafdi EKKI nullstillt hana: 400 af 587
-          leikmonnum bera enn minutur > 0.
-          Rokin eru einfold og thau eru ORUGG: `finished_gw === 0` thydir ad
-          ENGIN umferd er lokin, svo hver tala sem er ekki null getur ADEINS
-          verid fra sidasta timabili. Bordinn segir thad nuna.
-
-          TALAN ER MAELD I HVERRI TEIKNINGU, EKKI SKRIFUD. Fost tala um
-          lifandi gogn ureldist thegjandi — nakvaemlega thad gerdist vid
-          "MEASURED: the range is 4-10" i `ck_order` 13.8.2026.
-          Hun er maeld a dalkum sem SAFNAST UPP yfir umferdir (`staleSeasonRows`,
-          sja skilyrdid thar); fyrsta utgafan taldi verd og eignarhald med og
-          las thvi 587 af 587 sem `Price > 0` i dulargervi — tala sem hefdi
-          ALDREI farid nidur, ekki einu sinni eftir nullstillingu FPL.
-          Nullstilli FPL toluna verdur `staleSeason` 0 og gamli textinn —
-          sem er tha ordinn sannur — birtist af sjalfu ser.               */}
-      {mode !== "win" && finishedGw === 0 && isLive && (
-        <div style={S.warn}>
-          <b>{currentLabel} {"has not started"}</b>{" "}
-          {staleSeason > 0 ? <>
-            {"— but FPL has not reset its season totals yet, so these are still last season's numbers:"}
-            {" "}<b>{staleSeason}</b>{" of "}{players.length}
-            {" players still carry totals that only played gameweeks can add up, and with none played they can only be "}
-            <b>{olderSeasons[0] || "last season"}</b>{" totals. Pick that season in the dropdown to read it on purpose"}
-            {" — the archive is per season and does not move."}
-          </> : <>
-            {"— every season field is zero for all"}
-            {" "}{players.length} {"players, so this view has no numbers to sort. Pick"} <b>{olderSeasons[0] || "an earlier season"}</b> {"in the dropdown."}
-          </>}
-        </div>
-      )}
+      {/* FORLEIKS-BORDINN VAR TEKINN UT 22.8.2026 AD BEIDNI NOTANDANS.
+          Hann var LEIDRETTUR 16.8. thegar hann fullyrti ranglega ad hver
+          tala vaeri null, og 22.8. var hann ordinn OSANNUR A HINN VEGINN:
+          skilyrdid var `finishedGw === 0`, en umferd telst ekki "finished"
+          fyrr en hun er stadfest med bonus — svo bordinn sagdi "2026/27 has
+          not started" medan SEX GW1-leikir voru bunir. Sama gildra og felldi
+          `season_baseline` sama dag (kafli 7): "engin umferd LOKIN" er ekki
+          "timabilid er ekki byrjad".
+          OG UTTEKTIN SJALF BAR VILLU SEM ENGIN PROFUN SA: skyringin var
+          skrifud sem BER stjornu-athugasemd INNI I JSX-BORNUM, an
+          slaufusviga utan um sig — og thar er slikt ekki athugasemd heldur
+          TEXTI. Hun teiknadist thvi a skjainn: tiu linur af islensku fyrir
+          ofan siurnar. JSX-athugasemd VERDUR ad vera i slaufusvigum.
+          VORDURINN ER TIL OG HANN VIRKAR — stadfest med thvi ad setja
+          villuna aftur inn: `no-icelandic.mjs` kafli C fellur strax og
+          nefnir fimm ordmyndir ("thegar", "umferd", "ekki", "engin",
+          "utan") sem hann las AF SKJANUM. Hann var einfaldlega aldrei
+          keyrdur milli thess ad villan var skrifud og fundin.
+          Upplysingarnar standa afram thar sem thaer eiga heima og ureldast
+          ekki: timabilid i fellilistanum og `season`-merkid a dalkunum. */}
       {/* Baðar skyringa-linurnar voru teknar ut 9.8.2026 ad beidni: thaer
           voru RETTAR en varanlegar, og hvorttveggja er eitthvad sem madur
           les EINU SINNI. Upplysingarnar standa afram thar sem thaer eiga
@@ -1607,8 +1697,10 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
           CHIPIN ERU HNAPPAR, EKKI RITREITIR (21.8.2026). Gamla utgafan bar
           ritanlegan `<input autoFocus>` og thad var HALF sagan af "filterid
           dettur sjalfkrafa inn": fokusinn fluttist ur toflunni i sama
-          smelli. Ad alt-smella a adra tolu i sama dalki skiptir um
-          throskuld (`filterOnValue` sameinar key+op), svo ekkert tapast.  */}
+          smelli. Ad smella a adra tolu i sama dalki skiptir um throskuld
+          (`applyPending` sameinar key+op), svo ekkert tapast.
+          RITREITURINN ER NU I TILLOGU-GLUGGANUM, thar sem hann a heima:
+          thar er fokus rettur thvi glugginn er thad sem madur opnadi.    */}
       {filterCount > 0 && (
         <div style={S.filterBar}>
           <span style={S.filterHd}>{"Filters"} <span style={S.filterN}>{filterCount}</span></span>
@@ -1637,6 +1729,60 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
           ))}
         </div>
       )}
+
+      {/* ---------- TILLAGA AD SIU ----------
+          "Poppar upp sem filter MOGULEIKI sem eg get svo breytt" — beidnin
+          ordrett. ThRJU sem hun verdur ad hafa og hefur:
+            1. HUN BREYTIR ENGU FYRR EN YTT ER A "Apply". Listinn stendur
+               kyrr medan glugginn er opinn, svo smellur til ad LESA rod er
+               orugður aftur (thad var villan 17.8.).
+            2. HUN ER BREYTANLEG: att (min/max) og talan sjalf. Sjalfgildid
+               er talan sem smellt var a, i sinni birtu nakvaemni.
+            3. HUN ER AFTURKRAEF AN ThESS AD BEITA HENNI: Esc, "Cancel" og
+               smellur utan loka henni allir an thess ad snerta siurnar.
+          STADSETNINGIN ER `position:fixed` VID SMELLINN, ekki i flæðinu:
+          taflan er syndarvædd og absolute-stadsett, svo gluggi INNI i henni
+          hefdi fylgt rod sem hverfur ur DOM vid naesta skrun. `clientX/Y`
+          eru klemmd inn a skjainn svo hann geti ekki lent utan hans.     */}
+      {pending && (() => {
+        const d = STAT_BY_KEY[pending.key];
+        if (!d) return null;
+        const W = 232;
+        const vw = window.innerWidth || 900, vh = window.innerHeight || 700;
+        return (
+          <div ref={popRef} role="dialog" aria-label={"Filter on this value"}
+            style={{ ...S.pop,
+                     left: Math.max(8, Math.min(pending.x - W / 2, vw - W - 8)),
+                     top: Math.max(8, Math.min(pending.y + 14, vh - 132)) }}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); applyPending(); } }}>
+            <div style={S.popHd}>{d.short || d.label}</div>
+            <div style={S.popRow}>
+              {[[">=", "min"], ["<=", "max"]].map(([op, l]) => (
+                <button key={op} style={{ ...S.popOp, ...(pending.op === op ? S.popOpOn : {}) }}
+                  aria-pressed={pending.op === op}
+                  title={op === ">=" ? "Keep players at or above the value"
+                                     : "Keep players at or below the value"}
+                  onClick={() => setPending(p => ({ ...p, op }))}>{l}</button>
+              ))}
+              {/* `type=text` OG `inputMode=decimal`, EKKI `type=number`:
+                  number-reiturinn skilar TOMUM streng fyrir hvad sem hann
+                  telur ogilt medan slegid er inn (t.d. "0." eda "-"), svo
+                  talan hvarf undir manni i midjum innslaetti. Hun er breytt
+                  i tolu VID Apply, a EINUM stad.                         */}
+              <input style={S.popVal} type="text" inputMode="decimal"
+                aria-label={`Threshold for ${d.short || d.label}`}
+                value={String(pending.val)}
+                onChange={e => setPending(p => ({ ...p, val: e.target.value }))} />
+            </div>
+            <div style={S.popRow}>
+              <button style={{ ...S.popGo, ...(validThreshold(pending.val) ? {} : S.popOff) }}
+                disabled={!validThreshold(pending.val)}
+                onClick={applyPending}>{"Apply filter"}</button>
+              <button style={S.popNo} onClick={() => setPending(null)}>{"Cancel"}</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ---------- flokkar ----------
            BROTNA A BORDI, SKRUNA I SIMA. Rodin var alltaf nowrap+auto med
@@ -1751,7 +1897,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                     title={`${d.label}${d.short && d.short !== d.label ? ` (${d.short})` : ""}`
                          + `${d.derived ? " · computed by us from FPL fields" : ""}`
                          + `\n\n${d.note || ""}`
-                         + `\n\nClick the header to sort. Alt-click a value in the column to filter on it.`
+                         + `\n\nClick the header to sort. Click a value in the column to filter on it.`
                          + (gwActive && blindKeys.has(d.key)
                             ? `\n\nSEASON FIGURE: does not follow the gameweek range, shows the total.` : "")}
                     aria-sort={aria(d.key)} tabIndex={0}
@@ -1847,19 +1993,25 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                       {inCmp ? "✓" : "⇄"}
                     </button>}
                   </div>
-                  {/* TOLU-HOLFIN SIA VID ALT-SMELL, ALDREI VID BERAN SMELL
-                      (21.8.2026). `onClick` a hverju holfi setti throskuld
-                      A SAMSTUNDIS til 17.8. og thad var villan sem notandinn
-                      tilkynnti; skilyrdid bur i `cellFilterClick` ofar, a
-                      EINUM stad fyrir oll holfin.
-                      VERDID ER `hi:false`, svo smellur thar setur MAX — ekki
-                      MIN. Sia sem hendi ut theim sem smellt var a vaeri verri
-                      en engin sia.                                          */}
+                  {/* TOLU-HOLFIN OPNA TILLOGU VID BERAN SMELL (22.8.2026).
+                      Til 17.8. BEITTU thau siunni samstundis (villan sem
+                      notandinn tilkynnti); 21.8.-22.8. gerdu thau EKKERT an
+                      alt-lykils (villan sem hann tilkynnti aftur). Nu opna
+                      thau `pending` og listinn haggast ekki fyrr en Apply.
+                      Skilyrdid bur i `cellFilterClick` ofar, a EINUM stad
+                      fyrir oll 124 + 3 holfin.
+                      `cellHit` (cursor:pointer) VAR ThEGAR A ThEIM ollum
+                      medan smellurinn gerdi ekkert — bendill sem lofar
+                      smell er loford. Verdid og eignarhaldid vantadi hann
+                      og fa hann nuna: thau eru siananleg eins og hin.
+                      VERDID ER `hi:false`, svo tillagan opnast a MAX — ekki
+                      MIN. Sia sem hendi ut theim sem smellt var a vaeri
+                      verri en engin sia.                                    */}
                   {(() => { const d = STAT_BY_KEY.now_cost, bg = heatBg(d, r.cost);
-                    return <div style={{ ...S.cell, ...cNum, ...S.strong,
+                    return <div style={{ ...S.cell, ...cNum, ...S.strong, ...S.cellHit,
                                          ...(bg ? { background: bg } : {}) }}
                       title={`${d.label}: £${r.cost.toFixed(1)}`
-                             + `\nAlt-click to filter (max £${r.cost.toFixed(1)}).`}
+                             + `\nClick to filter (max £${r.cost.toFixed(1)}).`}
                       onClick={e => cellFilterClick(e, d, r.cost)}>
                       £{r.cost.toFixed(1)}</div>; })()}
                   {mode === "custom" ? (() => {
@@ -1874,17 +2026,17 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                                     ...(v == null ? S.miss : S.cellHit),
                                     ...(() => { const bg = heatBg(pd, v); return bg ? { background: bg } : {}; })() }}
                         title={v == null ? "Points: no data"
-                          : `Points: ${v}\nAlt-click to filter (min ${v}).`}
+                          : `Points: ${v}\nClick to filter (min ${v}).`}
                         onClick={v == null ? undefined : e => cellFilterClick(e, pd, v)}>
                         {v == null ? "—" : fmtStat(pd, v)}
                       </div>
                     );
                   })() : (
                     (() => { const d = STAT_BY_KEY.selected_by_percent, bg = heatBg(d, r.own);
-                      return <div style={{ ...S.cell, ...cNum,
+                      return <div style={{ ...S.cell, ...cNum, ...S.cellHit,
                                            ...(bg ? { background: bg } : {}) }}
                         title={`${d.label}: ${r.own.toFixed(1)}%`
-                               + `\nAlt-click to filter (min ${r.own.toFixed(1)}).`}
+                               + `\nClick to filter (min ${r.own.toFixed(1)}).`}
                         onClick={e => cellFilterClick(e, d, r.own)}>
                         {r.own.toFixed(1)}</div>; })()
                   )}
@@ -1909,9 +2061,9 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                         title={v == null ? interp("{0}: no data", [d.label])
                           : (isSp && r.startLevel === "trap"
                              ? `${d.label}: ${fmtStat(d, v)} — started last time but is at risk of the bench.`
-                               + `\nAlt-click to filter on this value.`
+                               + `\nClick to filter on this value.`
                              : `${d.label}: ${fmtStat(d, v)}`
-                               + `\nAlt-click to filter (${d.hi === false ? "max" : "min"} `
+                               + `\nClick to filter (${d.hi === false ? "max" : "min"} `
                                + `${(+v.toFixed(d.dec ?? 0))}).`)}
                         onClick={v == null ? undefined : e => cellFilterClick(e, d, v)}>
                         {v == null ? "—" : fmtStat(d, v)}
@@ -1926,7 +2078,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
       )}
 
       {mode !== "win" && <div style={S.legend}>
-        <b>{"Alt-click any value to filter on it"}</b>{" (⌥ on a Mac) — it becomes a chip above the table naming the column and the threshold, and ✕ takes it off again. A plain click never filters. On a column where lower is better (price, goals conceded, cards) the threshold is a"} <b>{"maximum"}</b>{", not a minimum. Click a header to sort, a name to open the card,"} <b>⇄</b> {"to compare. Hover any header for what the number is and what counts as good."}
+        <b>{"Click any value to filter on it"}</b>{" — a small box opens with the threshold filled in from the number you clicked; nothing changes until you press Apply, so clicking to read a row is safe. Esc or Cancel closes it. Once applied it becomes a chip above the table naming the column and the threshold, and ✕ takes it off again. On a column where lower is better (price, goals conceded, cards) the box opens on"} <b>{"max"}</b>{", not min — but you can switch it. Click a header to sort, a name to open the card,"} <b>⇄</b> {"to compare. Hover any header for what the number is and what counts as good."}
         {" "}<b>—</b> {"= data missing (not zero) and always sorts"} <b>{"last"}</b>{", in both directions; a column that is empty for everyone in"}
         {" "}{season} {"is still shown, because \"no data\" is information too."}
         {" "}<b style={{ color:"#e8a71c" }}>★</b> {"adds to the watchlist (saved between visits); the star in the header shows the watchlist only."}
@@ -1971,6 +2123,31 @@ const S = {
   sub:{ fontSize:11.5, color:C.text2, marginTop:3, display:"flex", alignItems:"center", gap:6 },
   histTag:{ fontSize:9.5, background:C.cardAlt, border:`1px solid ${C.border}`,
             borderRadius:4, padding:"1px 5px", color:C.text3 },
+  /* ThUNNT URTAK ER GULT, EKKI RAUTT: tolurnar eru REttar, thaer eru bara
+     faar. Rautt vaeri fullyrding um villu sem er ekki til (sama rok og
+     Evropu-alagid, CLAUDE.md 4).                                        */
+  thinTag:{ fontSize:9.5, background:C.amberBg, border:"1px solid #f0dcae",
+            borderRadius:4, padding:"1px 5px", color:"#7a5600", fontWeight:700 },
+  hintTag:{ fontSize:9.5, color:C.text3, fontStyle:"italic" },
+  /* TILLOGU-GLUGGINN. `position:fixed` — sja skyringuna vid `pending`.  */
+  pop:{ position:"fixed", zIndex:60, width:232, boxSizing:"border-box",
+        background:C.card, border:`1px solid ${C.purple}`, borderRadius:8,
+        padding:8, boxShadow:"0 6px 22px rgba(0,0,0,0.18)",
+        display:"flex", flexDirection:"column", gap:6 },
+  popHd:{ fontSize:11, fontWeight:700, color:C.purple, lineHeight:1.2,
+          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  popRow:{ display:"flex", gap:5, alignItems:"center" },
+  popOp:{ border:`1px solid ${C.border}`, background:C.card, color:C.text2,
+          borderRadius:5, padding:"3px 8px", fontSize:11, cursor:"pointer" },
+  popOpOn:{ background:"#f3eaf5", color:C.purple, border:`1px solid #cdbcd8`, fontWeight:700 },
+  popVal:{ flex:"1 1 0", minWidth:0, boxSizing:"border-box",
+           border:`1px solid ${C.border}`, borderRadius:5, padding:"3px 6px",
+           fontSize:11.5, fontFamily:mono, textAlign:"right" },
+  popGo:{ flex:"1 1 0", border:`1px solid ${C.purple}`, background:C.purple, color:"#fff",
+          borderRadius:5, padding:"4px 8px", fontSize:11, fontWeight:700, cursor:"pointer" },
+  popOff:{ background:C.text3, border:`1px solid ${C.text3}`, cursor:"not-allowed" },
+  popNo:{ border:`1px solid ${C.border}`, background:C.card, color:C.text2,
+          borderRadius:5, padding:"4px 8px", fontSize:11, cursor:"pointer" },
   /* flexWrap: hausrodin bar adur EITT stak (timabils-valid). Nu er thar lika
      thriggja-hnappa lesmata-rofi, og an brots faerist hann UT UR skjanum i
      sima (380 px) i stad thess ad brotna nidur i naestu linu.            */

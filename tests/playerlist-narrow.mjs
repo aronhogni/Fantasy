@@ -125,6 +125,40 @@ ok(`tolu-dalkar eru <= 66 px (mest ${Math.max(...numW)})`,
    Thetta safn hafdi ALDREI valid umferdar-bil, svo thad hafdi aldrei sed
    merkid — hvorki teiknad ne sleppt.                                    */
 {
+  /* ============================================================
+     UMFERDAR-BIL ER ADEINS TIL A LOKNU TIMABILI — VELJUM ThAD ThVI
+     VILJANDI (22.8.2026)
+
+     `season`-merkid teiknast adeins thegar `gwActive` er satt, og
+     `gwActive` krefst per-umferdar skrarinnar (`player_gw_<key>.json`).
+     Hun er EKKI til fyrir yfirstandandi timabil — appid segir thad sjalft
+     i valaranum ("no gameweek data for 2026/27 — pick a finished season")
+     — svo a yfirstandandi timabili er ENGINN dalkur merktur og kaflinn
+     maelir ekkert. Maelt 22.8.2026: 0 merkt af 7 hausum.
+
+     Kaflinn ERFDI arkivid thangad til GW1-fresturinn leid og sjalfgildid
+     faerdist a yfirstandandi timabil (`startedGw > 0`). Hann velur thad nu
+     sjalfur, og talan er LEIDD ur `player_seasons.json` (sama skra og
+     `olderSeasons` i PlayerList) svo hun ureldist ekki naesta agust.
+     ============================================================ */
+  const settleOn = async () => {
+    let last = -1, stable = 0;
+    for (let i = 0; i < 40; i++) {
+      await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+      const n = (document.body.textContent || "").length;
+      if (n === last) { if (++stable >= 2) break; } else { stable = 0; last = n; }
+    }
+  };
+  const ARCHIVE = J("player_seasons.json").seasons[0];
+  const seasonSel = () => document.querySelector("select");
+  const wasSeason = seasonSel()?.value;
+  ok("timabils-valid er addressanlegt i sima", !!seasonSel());
+  seasonSel().value = ARCHIVE;
+  await act(async () => { seasonSel().dispatchEvent(new dom.window.Event("change", { bubbles: true })); });
+  await settleOn();
+  ok(`listinn stendur a ${ARCHIVE} (valid tok, ekki erft)`,
+     seasonSel()?.value === ARCHIVE, String(seasonSel()?.value));
+
   /* Samanbrotid man sig i localStorage, svo strikid getur thegar verid
      opid — toggla thvi ADEINS ef kassarnir finnast ekki.                */
   const gwBtn = n => [...document.querySelectorAll("button")]
@@ -173,6 +207,16 @@ ok(`tolu-dalkar eru <= 66 px (mest ${Math.max(...numW)})`,
       .find(b => b.textContent.trim() === "whole season");
     if (whole) await fire(whole);
     await act(async () => { await new Promise(r => setTimeout(r, 300)); });
+  }
+  /* OG TIMABILID LIKA TIL BAKA — restin af safninu (myndir, lidsmerki,
+     flipa-flakkid) a ad maela SJALFGEFNA astandid, ekki thad sem thessi
+     kafli tharfnadist.                                                  */
+  if (wasSeason != null && seasonSel()) {
+    seasonSel().value = wasSeason;
+    await act(async () => { seasonSel().dispatchEvent(new dom.window.Event("change", { bubbles: true })); });
+    await settleOn();
+    ok(`timabilid skilad til baka (${wasSeason})`, seasonSel()?.value === wasSeason,
+       String(seasonSel()?.value));
   }
 }
 

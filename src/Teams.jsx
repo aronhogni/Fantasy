@@ -52,14 +52,23 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
      breytast stats ekki thegar eg filtera gameweeks").                  */
   const [gwRange, setGwRange] = useState(null);       // [fra, til] eda null
   const [group, setGroup] = useState("keeper");
-  /* TIMABILS-VALID (22.8.2026, ad beidni notandans: "eg vill geta valid
-     nyjasta season og tha bara skodad GW1 nuna"). `season` er "prev" eda
-     "live". SJALFGEFID ER "prev" OG ThAD ER MAELT VAL, EKKI TREGDA: i dag
-     ber yfirstandandi timabil SEX leiki, svo hver einasta tala i thvi er
-     eitt-leiks urtak, og skota-dalkarnir eru tomir af thvi BSD naer adeins
-     yfir 2025/26. Fyrra timabil er enn thad sem svarar "hvada vorn er god".
-     Valid er samt EINN SMELLUR og bædi eru merkt.                       */
-  const [season, setSeason] = useState("prev");
+  /* TIMABILS-VALID (22.8.2026, ad beidni notandans). `season` er "prev" eda
+     "live".
+
+     SJALFGEFID VAR "prev" OG ThVI VAR SNUID SAMDAEGURS AD BEIDNI: "eg vill
+     hafa nyjasta timabilid auto valid allstadar, og eg thurfti ad velja til
+     baka ef eg vill sja thad." Rokin fyrir gamla sjalfgildinu voru rett um
+     GOGNIN — yfirstandandi timabil er eitt-leiks urtak i dag — en thad er
+     EKKI okkar ad velja fyrir hann hvad hann skodar; okkar er ad syna
+     honum hvad talan hvilir a. Thess vegna ber hnappurinn leikjafjoldann
+     ("2026/27 · 6 matches") og skyringar-linan segir hvad er tomt og hvers
+     vegna. Urtaksstaerd sem SEST er onnur saga en urtaksstaerd sem er falin
+     med thvi ad syna hana ekki.
+
+     ThAD FELLUR AFTUR I "prev" EF EKKERT ER SPILAD: `buildLiveTeamForm`
+     skilar `null` thegar enginn leikur er buinn, og tha vaeri "live" tomur
+     flipi. Sjalfgildid les thvi gognin, thad giskar ekki.               */
+  const [season, setSeason] = useState("live");
   /* Valid lid fyrir skotakortin. null = ekkert valid.               */
   const [pick, setPick] = useState(null);
   const [sort, setSort] = useState({ key: "sot_against_pg", dir: "asc" });
@@ -133,7 +142,13 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
      seu tomir gat ekki einu sinni OPNAD thann flokk.
      Leidrettingin a heima a SKIPTINNI: thu lendir ekki a tomum flokki, en
      thu maett fara i hann sjalfur.                                       */
-  const lastSeason = useRef(season);
+  /* `null` OG EKKI `season` — ANNARS KEYRIR LEIDRETTINGIN ALDREI A FYRSTU
+     TEIKNINGU. Um leid og sjalfgildid vard "live" (sama dag) thydir
+     "engin skipti enn" ad flokkurinn er OSNERTUR, og sjalfgefni flokkurinn
+     er skota-drifinn ad ollu leyti — svo notandinn hefdi lent a TOMRI
+     toflu strax vid opnun, sem er nakvaemlega thad sem leidrettingin var
+     smidud til ad afstyra. `null` gerir fyrstu teikninguna ad "skiptum".  */
+  const lastSeason = useRef(null);
   useEffect(() => {
     if (lastSeason.current === season) return;       // engin skipti
     lastSeason.current = season;
@@ -440,13 +455,17 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
               sja thad ADUR en hann les toluna, ekki eftir a.            */}
           <div style={S.gwBar}>
             <span style={S.gwToggle}>{"Season"}</span>
-            <button style={{ ...S.gwBox, ...(season === "prev" ? S.gwBoxOn : null) }}
+            {/* AUDKENNID FYLGIR ThVI SEM ER A SKJANUM, EKKI ThVI SEM VAR
+                SMELLT: se ekkert spilad fellur synin i fyrra timabil
+                (`liveOn` verdur false) og tha ma "2026/27" ekki standa
+                upplyst ofan a fyrra-timabils tolum.                     */}
+            <button style={{ ...S.gwBox, ...(!liveOn ? S.gwBoxOn : null) }}
               onClick={() => { setSeason("prev"); setGwRange(null); }}
               title={"Last season in full — 38 matches per club, and the only season "
                    + "with shot-map data (xG, xGC, shots on target, big chances)."}>
               {teamForm?.season || "last season"}
             </button>
-            <button style={{ ...S.gwBox, ...(season === "live" ? S.gwBoxOn : null) }}
+            <button style={{ ...S.gwBox, ...(liveOn ? S.gwBoxOn : null) }}
               disabled={!liveForm}
               onClick={() => { setSeason("live"); setGwRange(null); }}
               title={liveForm

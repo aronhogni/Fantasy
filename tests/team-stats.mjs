@@ -25,6 +25,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          TEAM_RANGE_SRC, teamRangeBlind, aggShotRange, aggFixtureRange, routeInStep,
          teamRangeUse, applyTeamRange, maxEventOf, SHOT_GOAL_TYPE,
+         aggLiveMatchRange, maxGwOfLiveMatches,
          buildTeamMetrics, PROMOTED_PL, seasonKey, bsdSeasonInStep, buildLiveTeamForm }
   from "../src/teamstats.js";
 import { makeFixDifficulty, tierOf, TIER_NEUTRAL } from "../src/model.js";
@@ -840,6 +841,241 @@ console.log("─".repeat(84));
       (() => { const u = teamRangeUse({ base, shotIndex: null, fixtures: null });
         return !u.shots && !u.results && u.why.length > 20; })());
   }
+
+  /* ============================================================
+     12g. YFIRSTANDANDI TIMABIL: xG OG **xGC** UR `bsd_live.team_matches`
+
+     KAERAN: "Afhverju fae eg ekki xGC a lid?" — a yfirstandandi timabili
+     voru xG og xGC baedi tom medan mork, mork a sig og hrein blod baru
+     tolur. Astaedan var ad thau ein komu ur `bsd_shots.json`, sem er FROSID
+     2025/26; `bsd_live.json` bar timabils-summur PER LEIKMANN, og ur theim
+     ma summa xG lidsins en ALDREI xGC — hun er summa MOTHERJANNA og enginn
+     motherji er nefndur i theim rodum.
+
+     LAUSNIN ER NY ROD I SKRANNI (`team_matches`, ein per leik, badar
+     hlidar), OG ThAR MED NY SAMLAGNING VID HLIDINA A `aggShotRange`. Tvaer
+     utfaerslur af somu staerd eru gildran sem thetta repo hefur fallid i
+     hvad eftir annad (buildTeamMetrics skrifadi NaN a 17 lid, `wOf`-afritid
+     var graent eftir ad merkid baettist vid). Hun er OHJAKVAEMILEG her —
+     inntokin eru sitthvor — svo hun er JAFNGILDIS-PROFUD i stad thess ad
+     vera fullyrt: 2025/26-kortid er brotid nidur i leikja-radir og BADAR
+     leidir verda ad skila somu tolu, a ollum lidum og ollum svidum.
+     ============================================================ */
+  /* ---- 12g1. JAFNGILDI A RAUNGOGNUM (9.544 skot -> 380 leikja-radir) ---- */
+  {
+    /* Skot -> leikja-radir. Leikja-lykill er (umferd + BADA lidin i fastri
+       rod); tveir leikir sem BADIR eru null-gegn-null i somu umferd renna
+       saman, en their bera hvorugt lid i deildinni og fara hvergi.       */
+    const F = shotIndex.fields, TN = shotIndex.teams;
+    const byGame = new Map();
+    let mid = 0;
+    for (const s of allShots(shotIndex)) {
+      const t = s[F.team], o = s[F.opp];
+      const key = `${s[F.gw]}:${[String(t ?? "x"), String(o ?? "x")].sort().join("|")}`;
+      let g = byGame.get(key);
+      if (!g) {
+        g = { id: ++mid, gw: s[F.gw], _t: t, _o: o,
+              home: { team: t == null ? null : TN[t], xg: 0, shots: 0, bc: 0, goals: 0 },
+              away: { team: o == null ? null : TN[o], xg: 0, shots: 0, bc: 0, goals: 0 } };
+        byGame.set(key, g);
+      }
+      const side = (t === g._t && o === g._o) ? g.home : g.away;
+      side.shots++;
+      if (typeof s[F.xg] === "number") {
+        side.xg += s[F.xg];
+        if (s[F.xg] >= BIG_CHANCE_XG) side.bc++;
+      }
+      if (s[F.type] === SHOT_GOAL_TYPE) side.goals++;
+    }
+    const matches = [...byGame.values()];
+    /* 374, EKKI 380, OG TALAN ER SKYRD: `shotIndex` er byggdur eins og
+       App.jsx byggir hann og `put` sleppir null-lykli, svo leikur ThAR SEM
+       BADIR eru fallnir (team OG opp null) er hvergi i visinum. Timabilid
+       2025/26 atti thrju foll lid = 3 por x 2 umferdir = SEX slikir leikir,
+       og 380 - 6 = 374. Their bera hvorugt lid i deildinni i dag og
+       bera thvi enga tolu i thessari toflu hvort sem er.                 */
+    ok(`skotakortid brotnar i ${matches.length} leiki (380 - 6 foll-gegn-follnum)`,
+      matches.length === 374, `${matches.length}`);
+
+    const FIELDS = ["n", "nF", "nA", "xgF", "xgA", "bcF", "bcA", "gf", "ga", "cs"];
+    const cmp = (range) => {
+      const A = aggShotRange(shotIndex, range), B = aggLiveMatchRange(matches, range);
+      const diffs = [];
+      if (A.size !== B.size) diffs.push(`size ${A.size}/${B.size}`);
+      for (const [short, a] of A) {
+        const b = B.get(short);
+        if (!b) { diffs.push(`${short} vantar`); continue; }
+        /* FLEYTITOLU-SUMMUR i sitthvorri rod — vikmorkin eru ThAU, ekki
+           slaki a fullyrdingunni. Maelt: mesta vik 0 i dag.              */
+        for (const k of FIELDS) if (Math.abs(a[k] - b[k]) > 1e-6) diffs.push(`${short}.${k} ${a[k]}/${b[k]}`);
+      }
+      return diffs;
+    };
+    const full = cmp(null);
+    ok(`leikja-leidin er SAMHLJODA skot-leidinni a ollum 17 lidum og ollum ${FIELDS.length} svidunum`,
+      full.length === 0, full.slice(0, 4).join(" · "));
+    for (const r of [[1, 10], [20, 25], [30, 38]]) {
+      const d = cmp(r);
+      ok(`og i bili GW ${r[0]}-${r[1]} lika`, d.length === 0, d.slice(0, 3).join(" · "));
+    }
+    /* MUTATION — fullyrdingin verdur ad geta fallid. Se xGC-hlidin tekin ur
+       RONGU lidi (self i stad opp) er hun enn "tala" og enn i rettu bili. */
+    {
+      const swapped = matches.map(m => ({ ...m, away: { ...m.away, xg: m.home.xg } }));
+      const B = aggLiveMatchRange(swapped, null);
+      const moved = [...aggShotRange(shotIndex, null)]
+        .filter(([s, a]) => Math.abs(a.xgA - (B.get(s)?.xgA ?? 0)) > 0.5).length;
+      ok(`MUTATION — xGC tekid ur EIGIN lidi i stad motherjans fellur (${moved}/17 lid vikja)`,
+        moved >= 15, `${moved}`);
+    }
+  }
+
+  /* ---- 12g2. TILBUNAR RADIR ThAR SEM SVARID ER ThEKKT FYRIRFRAM ---- */
+  {
+    const side = (team, xg, shots, bc, goals) => ({ team, xg, shots, bc, goals });
+    const M = (id, gw, h, a) => ({ id, gw, home: h, away: a });
+
+    /* TVOFOLD UMFERD — TVEIR LEIKIR GEGN SAMA LIDI I SOMU UMFERD.
+       Skot-leidin GETUR ThETTA EKKI (lykillinn er (umferd, motherji), sja
+       `aggShotRange`); her er lykillinn leikurinn sjalfur, svo talan er
+       rett an hjalpar fra `fixtures.json`. Thetta er eina svidid thar sem
+       leidirnar tvaer eru ekki jafngildar — og leikja-leidin er STRANGARI. */
+    const dbl = aggLiveMatchRange([
+      M(1, 1, side("AAA", 1.0, 10, 2, 1), side("BBB", 0.5, 5, 1, 0)),
+      M(2, 1, side("AAA", 0.6, 8, 1, 0), side("BBB", 0.4, 4, 0, 2)),
+    ], null).get("AAA");
+    ok("tvofold umferd telst TVEIR leikir (skot-leidin gefur einn)",
+      dbl.n === 2, `${dbl.n}`);
+    ok("xGC er summa MOTHERJANS i badum leikjum (0,5 + 0,4 = 0,9)",
+      Math.abs(dbl.xgA - 0.9) < 1e-9, `${dbl.xgA}`);
+    ok("og hreint blad ADEINS i leiknum sem endadi 0 a sig (1 af 2)",
+      dbl.cs === 1, `${dbl.cs}`);
+
+    /* LID UTAN DEILDAR — motherjinn ma ALDREI tapa sinu xGC vid thad.
+       `BSD_TEAM` ber 20 felog; komi lid utan hennar (bikar, nylidi sem
+       vantar i tofluna) er `team` null og su HLID fer hvergi — en talan
+       hennar er afram xGC hins.                                          */
+    const un = aggLiveMatchRange([
+      M(3, 2, side("AAA", 1.2, 9, 2, 1), side(null, 0.8, 6, 1, 1)),
+    ], null);
+    ok("lid utan deildar fær ENGA rod (null, ekki 0)", !un.has(null) && un.size === 1);
+    ok("en motherji thess fær xGC ur leiknum samt (0,8)",
+      Math.abs(un.get("AAA").xgA - 0.8) < 1e-9, `${un.get("AAA").xgA}`);
+
+    /* HALF SKRAD ROD ER FELLD I HEILD. `?? 0` badum megin vaeri her
+       xGC = 0 OG hreint blad — tvaer tilbunar tolur ur einu vantandi svidi
+       (CLAUDE.md 12, `net_transfers_event`).                             */
+    const half = aggLiveMatchRange([
+      M(4, 3, side("AAA", 1.1, 7, 1, 2), { team: "BBB", shots: 5, bc: 1, goals: 0 }),
+    ], null);
+    ok("rod thar sem adra hlidina vantar xG er FELLD (engin tilbuin nulltala)",
+      half.size === 0, `${half.size}`);
+
+    /* UMFERD SEM VANTAR — leikur sem ekki er haegt ad setja i bil ma ekki
+       lauma ser inn i "heilt timabil" heldur. Sama og skot an umferdar.  */
+    const nogw = aggLiveMatchRange([
+      M(5, null, side("AAA", 2.0, 9, 3, 2), side("BBB", 0.3, 3, 0, 0)),
+    ], null);
+    ok("leikur an umferdar telur hvergi, lika ekki i 'heilt timabil'", nogw.size === 0);
+
+    /* BILID SIAR. */
+    const three = [
+      M(6, 1, side("AAA", 1.0, 5, 1, 1), side("BBB", 0.2, 2, 0, 0)),
+      M(7, 5, side("AAA", 2.0, 9, 3, 2), side("CCC", 1.5, 8, 2, 1)),
+    ];
+    ok("bil [1,1] tekur einn leik, [1,5] baða",
+      aggLiveMatchRange(three, [1, 1]).get("AAA").n === 1 &&
+      aggLiveMatchRange(three, [1, 5]).get("AAA").n === 2);
+    ok("lid an leiks i bilinu er EKKI i toflunni (-> '—', ekki 0)",
+      !aggLiveMatchRange(three, [2, 4]).has("AAA"));
+    ok("rusl fellur ekki", aggLiveMatchRange(null).size === 0 &&
+      aggLiveMatchRange([null, {}, { gw: 1 }]).size === 0);
+    ok(`thakid er LEITT ur rodunum (${maxGwOfLiveMatches(three)})`,
+      maxGwOfLiveMatches(three) === 5 && maxGwOfLiveMatches(null) === 0 &&
+      maxGwOfLiveMatches([{ gw: null }]) === 0);
+  }
+
+  /* ---- 12g3. TENGINGIN: `liveMatches` FYLLIR xGC I TOFLUNNI ---- */
+  {
+    const side = (team, xg, shots, bc, goals) => ({ team, xg, shots, bc, goals });
+    /* Tveir raunverulegir GW1-leikir ur `fixtures.json` i dag: ARS 3-0 COV
+       og BRE 3-0 TOT. Tolurnar eru TILBUNAR (skotakort 2026/27 er ekki til
+       her), en LOGUNIN er su sem pipeline skrifar.                       */
+    const live = [
+      { id: 209535, gw: 1, home: side("ARS", 1.803, 14, 3, 3), away: side("COV", 0.204, 4, 0, 0) },
+      { id: 209540, gw: 1, home: side("BRE", 4.023, 18, 5, 3), away: side("TOT", 0.470, 6, 1, 0) },
+    ];
+    const fake = ["ARS", "COV", "BRE", "TOT"].map((s, i) =>
+      ({ short: s, id: 100 + i, matches: 1, goals_pg: 0, goals: 0, conceded: 0, xg: null, xgc: null }));
+    const rows = applyTeamRange(fake, { range: null, liveMatches: live,
+      use: { shots: true, results: "shots" } });
+    const R = s => rows.find(r => r.short === s);
+    ok("ARS fær xG 1,8 ur EIGIN skotum", R("ARS").xg === 1.8, `${R("ARS").xg}`);
+    ok("OG xGC 0,2 ur skotum COV — ThETTA ER SVARID VID KAERUNNI",
+      R("ARS").xgc === 0.2, `${R("ARS").xgc}`);
+    ok("speglunin stemmir: COV fær xGC 1,8 og xG 0,2",
+      R("COV").xgc === 1.8 && R("COV").xg === 0.2,
+      `${R("COV").xgc}/${R("COV").xg}`);
+    ok("og lidin tvo eru EKKI med somu tolu (BRE 4,0 gegn ARS 1,8)",
+      R("BRE").xg === 4.0 && R("BRE").xgc === 0.5, `${R("BRE").xg}/${R("BRE").xgc}`);
+    ok("storar faerir fylgja med (bc 3 fyrir, 0 a sig hja ARS)",
+      R("ARS").bc_pg === 3 && R("ARS").bc_against_pg === 0);
+    /* NULL ER EKKI NULL: lid sem hefur ekki spilad fær "—".              */
+    const withIdle = applyTeamRange([...fake, { short: "MCI", id: 199, matches: 0 }],
+      { range: null, liveMatches: live, use: { shots: true, results: "shots" } });
+    const idle = withIdle.find(r => r.short === "MCI");
+    ok("lid an leikins leiks fær xG/xGC null, EKKI 0",
+      idle.xg === null && idle.xgc === null && idle.bsd_matches === null,
+      JSON.stringify([idle.xg, idle.xgc, idle.bsd_matches]));
+    /* MUTATION — vaeri xGC lesin ur SJALFUM SER (self.xg i stad opp.xg)
+       vaeri hun jofn xG hja ollum, sem er nakvaemlega su tala sem "eitt lid,
+       einn leikur"-flytileidin gefur i umferd 2 og aframhaldandi.        */
+    ok("MUTATION — xGC == xG hja ollum vaeri merki um sjalfs-lestur",
+      rows.some(r => r.xg !== r.xgc));
+
+    /* HVOR HEIMILDIN — KALLANDINN VELUR. Tomt `liveMatches` ma ALDREI
+       thagga nidur frosna kortid (thad er syn fyrra timabils), og
+       ofugt ma lifandi syn ekki detta i kortid ur odru timabili.         */
+    const both = applyTeamRange(base, { range: null, shotIndex, liveMatches: live,
+      use: { shots: true, results: "shots" } });
+    ok("liveMatches VINNUR thegar badar eru sendar (valid er akvedid, ekki tilviljun)",
+      (both.find(r => r.short === "ARS")?.xg) === 1.8,
+      `${both.find(r => r.short === "ARS")?.xg}`);
+    const noneLive = applyTeamRange(base, { range: null, shotIndex, liveMatches: [],
+      use: { shots: true, results: "shots" } });
+    ok("og TOMT liveMatches fellur aftur a skotakortid (ekki i tomar tolur)",
+      (noneLive.find(r => r.short === "ARS")?.xg) ===
+      (applyTeamRange(base, { range: null, shotIndex, use: { shots: true, results: "shots" } })
+        .find(r => r.short === "ARS")?.xg));
+
+    /* OG TAKT-PROFID SER LEIKJA-RADIRNAR — annars vaeri `use.shots` false og
+       dalkarnir tomir thott gognin vaeru til.                            */
+    const many = [];
+    for (let i = 0; i < 10; i++)
+      many.push({ id: i, gw: 1,
+        home: side(`T${i}`, 1.5, 10, 2, 1), away: side(`U${i}`, 1.0, 8, 1, 1) });
+    const mBase = many.flatMap((m, i) => [
+      { short: `T${i}`, id: 500 + i, matches: 1, goals_pg: 1, goals: 1, conceded: 1 },
+      { short: `U${i}`, id: 600 + i, matches: 1, goals_pg: 1, goals: 1, conceded: 1 }]);
+    const u = teamRangeUse({ base: mBase, shotIndex: null, liveMatches: many, fixtures: null });
+    ok("takt-profid samthykkir leikja-radirnar thegar thaer stemma vid tofluna",
+      u.shots === true && u.maxGw === 1, JSON.stringify({ s: u.shots, g: u.maxGw }));
+    const wrongSeason = many.map(m => ({ ...m, gw: m.gw,
+      home: { ...m.home, goals: m.home.goals + 2 } }));
+    ok("og HAFNAR theim thegar morkin eru ur odru timabili (+2/leik)",
+      teamRangeUse({ base: mBase, shotIndex: null, liveMatches: wrongSeason,
+        fixtures: null }).shots === false);
+  }
+}
+
+/* Ollur skot ur visinum, an tvitekninga (byTeam ber hvert skot einu sinni
+   per lid — skot lids utan deildar eru ADEINS i `byOpp`).                */
+function allShots(shotIndex) {
+  const seen = new Set(), out = [];
+  for (const m of [shotIndex.byTeam, shotIndex.byOpp])
+    for (const arr of m.values())
+      for (const s of arr) { if (seen.has(s)) continue; seen.add(s); out.push(s); }
+  return out;
 }
 
 /* ============================================================

@@ -87,6 +87,59 @@ const fire = async el => {
 const btn = t => [...document.querySelectorAll("button")]
   .find(x => x.textContent.trim() === t || x.textContent.trim().startsWith(t));
 await fire(btn("👥"));
+
+/* ============================================================
+   TIMABILID ER VALID VILJANDI — ThAD VAR ERFT UR SJALFGILDINU (22.8.2026)
+
+   Kaflarnir 3 og 4 taka "tvo fyrstu leikmennina i listanum" og fullyrda um
+   TOLURNAR their bera: graeni reiturinn a laegstu/haestu tolu, "Big chances"
+   ur BSD. Thad krefst manna sem EIGA arstidar-tolur, og safnid treysti a ad
+   sjalfgefna timabilid vaeri ARKIVID. Sjalfgildid faerdist yfir a
+   yfirstandandi timabil um leid og GW1-fresturinn leid (`startedGw > 0`),
+   og tha eru tvaer efstu radirnar Mendy og Ajayi (HUL) med "—" i hverjum
+   einasta reit — 0 radir profadar og fjorar fullyrdingar tomar.
+
+   FORSENDAN VAR RETT EN OSOGD, OG ThAD ER LAGFAERINGIN: safn sem tharf
+   arstidar-summur a ad VELJA ThAD TIMABIL, ekki ad erfa thad. Talan er
+   LEIDD ur `player_seasons.json` (sama skra og `olderSeasons` i
+   PlayerList), svo hun ureldist ekki naesta agust eins og "2025/26" hefdi
+   gert.
+
+   ATH: samanburdar-glugginn ber SITT EIGID timabils-val (`Compare.jsx`) og
+   thad er ohreyft — kafli 5 fullyrdir ad thad se sjalfgefid a loknu
+   timabili og kafli 6 skiptir thvi viljandi. Thetta val er a LISTANUM og
+   raedur thvi HVERJIR eru efstir, ekki hvad glugginn les.
+   ============================================================ */
+const ARCHIVE = J("player_seasons.json").seasons[0];
+/* FAST BID ER EKKI MAELING A ThVI AD TEIKNINGU SE LOKID: taflan er 600
+   radir x 124 dalkar og timabils-skipti endur-elda thaer allar. Bedid er
+   thangad til textinn HAETTIR ad vaxa (sama adferd og `settleOn` i
+   `data-resilience.mjs`), sem er ohad gagnamagni.                        */
+const settleOn = async () => {
+  let last = -1, stable = 0;
+  for (let i = 0; i < 40; i++) {
+    await act(async () => { await new Promise(r => setTimeout(r, 25)); });
+    const n = (document.body.textContent || "").length;
+    if (n === last) { if (++stable >= 2) break; } else { stable = 0; last = n; }
+  }
+};
+{
+  const listSel = document.querySelector("select");
+  ok("timabils-valid i leikmannalistanum er addressanlegt", !!listSel,
+     "an thess getur kaflinn ekki valid timabil viljandi");
+  ok(`arkiv-timabilid er i valmyndinni (${ARCHIVE})`,
+     [...(listSel?.options || [])].some(o => o.value === ARCHIVE),
+     [...(listSel?.options || [])].map(o => o.value).join(", "));
+  listSel.value = ARCHIVE;
+  await act(async () => { listSel.dispatchEvent(new dom.window.Event("change", { bubbles: true })); });
+  await settleOn();
+  /* VALID VERDUR AD HAFA TEKID. Vaeri thad thogult felli safnid a
+     tolunum sjalfum og enginn saei HVERS VEGNA.                          */
+  ok(`listinn stendur a ${ARCHIVE} (valid tok)`,
+     document.querySelector("select")?.value === ARCHIVE,
+     String(document.querySelector("select")?.value));
+}
+
 const add = [...document.querySelectorAll("button")].filter(b=>(b.title||"").includes("to the comparison"));
 ok(`samanburdar-hnappar i listanum (${add.length})`, add.length >= 2);
 await fire(add[0]); 
@@ -272,10 +325,30 @@ ok("samanburdar-glugginn er addressanlegur (forsenda alls her a eftir)", !!panel
 const pBtn = re => [...(panel?.querySelectorAll("button") || [])]
   .find(b => re.test(b.textContent.trim()));
 
-/* --- 5a. VALARINN --- */
+/* --- 5a. VALARINN ---
+   GLUGGINN BER SITT EIGID TIMABILS-VAL og thad er VALID HER, ekki erft
+   (22.8.2026). Sjalfgildid i `Compare.jsx` er `seasonStarted ? currentLabel
+   : seasonsFile.seasons[0]`, og `seasonStarted` er reiknad i `App.jsx`.
+   Medan hun les `events.some(e => e.finished)` er sjalfgefna timabilid her
+   ARKIVID — en akkurat sama gildra og faerdi sjalfgildid i Player stats
+   (umferd telst ekki `finished` fyrr en bonus er stadfestur) bidur i theirri
+   linu. Vaeri hun leidrett i "hefur verid SPILAD?" flippast thessi gluggi
+   yfir a yfirstandandi timabil og ALLUR kafli 5 (kassarnir, tolurnar,
+   merkin) hefdi maelt tomt — af astaedu sem hefur ekkert med bilid ad gera.
+   Kaflinn tharf LOKID timabil, svo hann velur thad.                       */
+const cmpSel = () => panel?.querySelector("select");
+ok("timabils-val gluggans er addressanlegt", !!cmpSel());
+if (cmpSel() && cmpSel().value !== ARCHIVE) {
+  cmpSel().value = ARCHIVE;
+  await act(async()=>{ cmpSel().dispatchEvent(new dom.window.Event("change", { bubbles:true })); });
+  await settleOn();
+}
+ok(`glugginn stendur a ${ARCHIVE} (valid tok, ekki erft)`,
+   cmpSel()?.value === ARCHIVE, String(cmpSel()?.value));
+
 const toggle = pBtn(/Gameweeks$/);
 ok("umferdar-valarinn er I GLUGGANUM (hnappur vid timabils-valid)", !!toggle);
-ok("...og hann er VIRKUR a loknu timabili (sjalfgefid 2025/26)",
+ok(`...og hann er VIRKUR a loknu timabili (${ARCHIVE})`,
    !!toggle && !toggle.disabled, `disabled=${toggle?.disabled}`);
 await fire(toggle);
 await act(async()=>{ await new Promise(r=>setTimeout(r,600)); });
@@ -435,8 +508,19 @@ ok('...og "reaches 3 years back" er farid (thau eru fimm)',
 
 const sel = panel.querySelector("select");
 ok("timabils-valid er addressanlegt", !!sel);
-const liveOpt = [...(sel?.options || [])].find(o => /not started/.test(o.textContent));
-ok("yfirstandandi timabil er i valmyndinni", !!liveOpt, [...(sel?.options||[])].map(o=>o.value).join(", "));
+/* LEITAD EFTIR GOGNUM, EKKI EFTIR MERKIMIDA (22.8.2026). Her stod
+   `find(o => /not started/.test(o.textContent))`, og sa merkimidi er
+   SKILYRTUR: `Compare.jsx` skrifar hann adeins medan `!seasonStarted`.
+   Um leid og `App.jsx` telur timabilid hafid hverfur hann — og tha hefdi
+   `liveOpt` ordid `undefined` og NAESTA lina kastad, sem les eins og hrun
+   i appinu en er profid ad leita ad ordi sem a ekki lengur ad vera thar.
+   Listinn i glugganum er `[currentLabel, ...seasonsFile.seasons]`, svo
+   yfirstandandi timabil er einmitt kosturinn sem er EKKI i
+   `player_seasons.json` — sama skra og glugginn byggir hina a.          */
+const ARCHIVE_ALL = J("player_seasons.json").seasons;
+const liveOpt = [...(sel?.options || [])].find(o => !ARCHIVE_ALL.includes(o.value));
+ok("yfirstandandi timabil er i valmyndinni (kosturinn sem arkivid ber ekki)",
+   !!liveOpt, [...(sel?.options||[])].map(o=>o.value).join(", "));
 sel.value = liveOpt.value;
 await act(async()=>{ sel.dispatchEvent(new dom.window.Event("change", { bubbles:true })); });
 await act(async()=>{ await new Promise(r=>setTimeout(r,300)); });

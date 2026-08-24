@@ -1,5 +1,25 @@
 /* ============================================================
-   AEFINGALEIKJA-BYRJANIR — `fetchPreseason` OG DALKARNIR FJORIR
+   AEFINGALEIKJA-BYRJANIR — `fetchPreseason`
+
+   DALKARNIR FJORIR ERU FARNIR (22.8.2026, ad beidni notandans: "taktu nuna
+   ut preseason stats, thau eru haett ad skipta mali"). Kafli I i thessu
+   safni var UM ThA og er farinn med theim; i stad hans er kafli I' sem
+   krefst thess ad their seu farnir — ALLIR fjorir, badum megin (dalkaskrain
+   OG svidin sem `fetch.mjs` skrifadi i `players.json`). Dautt svid sem
+   laumast aftur inn er nakvaemlega su thogn sem `wiring.mjs` var byggd
+   gegn, og hun ser thad ekki her (svidin fara gegnum `players.json`, ekki
+   gegnum skraarheiti — sja kafla J).
+
+   SOKNIN SJALF ER OBREYTT OG LIFANDI: `fetchPreseason` er enn kollud ur
+   `fetchFPL`, skrifar enn `preseason.json` og skrair sig enn undir "Data
+   sources". Kaflar A-H og K eru thvi ohreyfdir — their verja kod sem keyrir
+   i dag.
+   > OPIN SPURNING SEM ThETTA SAFN GETUR EKKI SVARAD: dalkarnir voru EINI
+   > lesandi `preseason.json`, svo skrain er nu skrifud og olesin. Se
+   > akvedid ad haetta ad saekja hana fer ThETTA SAFN med henni (og ur
+   > `SUITES`); se akvedid ad geyma hana sem arkiv tharf faersla i
+   > `OK_UNREAD` i `wiring.mjs` med astaedu, eins og `bsd_lineups.json`.
+   > Hvorugt er akvedid her — en hvorugt ma gerast thegjandi heldur.
 
    HVERS VEGNA ThETTA SAFN ER TIL: kodinn hleypur i forleik, sem er ~7 vikur
    a ari, og HVERT einasta atrídi i honum er tegund villu sem repo-id hefur
@@ -22,7 +42,10 @@ import { readFile, writeFile, mkdir, mkdtemp } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { STAT_DEFS, STAT_BY_KEY, SCOPE_NOTES, FIELDS_READ, num } from "../src/stats.js";
+/* `SCOPE_NOTES` og `num` voru flutt inn fyrir kafla I og eru farin med
+   honum. Onotadur innflutningur er ekki meinlaus her: hann les eins og
+   safnid snerti thaer staerdir enn.                                      */
+import { STAT_DEFS, STAT_BY_KEY, FIELDS_READ } from "../src/stats.js";
 import { nameScore } from "../src/stats.js";
 
 let pass = 0, fail = 0;
@@ -406,109 +429,87 @@ console.log("─".repeat(84));
 }
 
 /* ============================================================
-   I. DALKARNIR FJORIR — SKRA-REGLURNAR OG "null, ALDREI 0"
+   I'. DALKARNIR ERU FARNIR — OG MEGA EKKI LAUMAST AFTUR INN
+
+   Kafli I stod her og var UM dalkana fjora: skra-reglurnar, "null aldrei
+   0", samhengis-regluna i `SCOPE_NOTES` og `FIELDS_READ`. Their voru
+   teknir ut 22.8.2026 ad beidni notandans, svo kaflinn atti ekkert efni
+   eftir — og fullyrding an efnis er versta utkoman (CLAUDE.md 5b): hun
+   litur ut eins og thekja. Hann er thvi ekki veiktur heldur SNUID VID.
+
+   SPURNINGIN SEM EFTIR STENDUR ER RAUNVERULEG: dautt svid sem einhver
+   baetir aftur i `players.json` — eda dalkur sem sest aftur i
+   `STAT_DEFS` — vaeri thogull afturhvarfur. `wiring.mjs` finnur hann
+   EKKI (svidin fara gegnum `players.json`, ekki gegnum skraarheiti; sja
+   kafla J) og `stats.test.mjs` telur dalka en veit ekki hverjir eru
+   afturkalladir. Vordurinn a thvi heima her.
+
+   NEIKVAED FULLYRDING KREFST POSITIVRAR VID HLIDINA (CLAUDE.md 5b regla
+   2): "engin `preseason_*` i skranni" er JAFN SONN um tomt `STAT_DEFS`
+   og um rettan lista, svo leitin sjalf er sonnud fyrst a lykli sem er
+   sannanlega thar.
+
+   OG MAELINGIN SEM STOD AD BAKI ER EKKI HENT — hun er skjolud i
+   `src/stats.js` (athugasemdablokkin sem kom i stad dalkanna), i
+   CLAUDE.md kafla 4 og i haus `scripts/measure-preseason-starts.mjs`:
+   "byrjadi sidasta aefingaleik" var SAMThYKKT (d Brier +0,0341, CI
+   [+0,0267, +0,0423]) og thrjar skyldar hugmyndir voru FELLDAR.
    ============================================================ */
 console.log(`\n${"─".repeat(84)}`);
-console.log("I. DALKARNIR — skra-reglurnar, null-reglan, og ENGIN LIKANS-FULLYRDING");
+console.log("I'. DALKARNIR ERU FARNIR — afturhvarfs-vordur, ekki tom fullyrding");
 console.log("─".repeat(84));
 {
-  const KEYS = ["preseason_starts", "preseason_games", "preseason_minutes",
+  const GONE = ["preseason_starts", "preseason_games", "preseason_minutes",
                 "preseason_last_start"];
-  const defs = KEYS.map(k => STAT_BY_KEY[k]);
-  ok(defs.every(Boolean), `allir fjorir dalkar eru i STAT_DEFS (${defs.filter(Boolean).length})`);
+  /* FORSENDA: leitin finnur dalk sem ER i skranni. An hennar staedist allt
+     her ad nedan a TOMU `STAT_DEFS`.                                     */
+  ok(STAT_DEFS.length > 100 && !!STAT_BY_KEY.form && !!FIELDS_READ.get("form"),
+    `forsenda: dalkaskrain er lesin (${STAT_DEFS.length} dalkar, "form" finnst)`);
   eq(new Set(STAT_DEFS.map(d => d.key)).size, STAT_DEFS.length, "engir tvitekiðir lyklar i skranni");
-  for (const d of defs) {
-    ok(d.short.length <= 12, `${d.key}: short er ${d.short.length} stafir (<= 12) — "${d.short}"`);
-    ok(typeof d.note === "string" && d.note.length >= 12, `${d.key}: nota er til (>= 12 stafir)`);
-    eq(d.band, "Preseason", `${d.key}: bandid er "Preseason"`);
-    eq(d.group, "core", `${d.key}: flokkurinn er "core"`);
-    eq(d.live_only, true, `${d.key}: live_only — talan er um SUMARID, ekki valid timabil`);
-    eq(d.hi, true, `${d.key}: haerra er betra`);
-  }
-  /* `no_heat` A NAKVAEMLEGA TVEIMUR OG ThAD ER MAELT VAL, EKKI SNYRTING:
-     `preseason_games` er naest "sast i aefingaleik", sem er MAELT OG FELLT
-     sem merki, og `preseason_last_start` er BINT (P10-P90 a 0/1 gerir hvert
-     1 ad "besta manni toflunnar"). Byrjanir og minutur ERU maeld merki og
-     mega thvi bera lit. Vaeri thetta rangt saeti litur a tolu sem maelingin
-     styður ekki — sama villa og `starts_per_90` bar (CLAUDE.md 12).      */
-  eq(STAT_BY_KEY.preseason_games.no_heat, true,
-    "`preseason_games` er `no_heat` — 'sast i leik' er MAELT OG FELLT sem merki");
-  eq(STAT_BY_KEY.preseason_last_start.no_heat, true,
-    "`preseason_last_start` er `no_heat` — 0/1 dalkur ma ekki mala hvert 1 graent");
-  ok(!STAT_BY_KEY.preseason_starts.no_heat && !STAT_BY_KEY.preseason_minutes.no_heat,
-    "en byrjanir og minutur BERA lit — thau eru maeldu merkin");
-
-  /* BANDID VERDUR AD VERA SAMFELLT (sama krafa og i stats.test.mjs). */
-  const idx = STAT_DEFS.map((d, i) => [d.band, i]).filter(([b]) => b === "Preseason").map(([, i]) => i);
-  ok(idx.length === 4 && idx[3] - idx[0] === 3, `bandid "Preseason" er samfellt (${idx.join(",")})`);
-
-  /* NULL ER EKKI NULL. Leikmadur sem SAST EKKI hefur ekki svidin. */
-  const seen = { preseason_starts: 4, preseason_games: 5, preseason_minutes: 305,
-                 preseason_last_start: 1 };
-  const unseen = {};                        // hvergi i lineup -> engin svid
-  for (const d of defs) {
-    ok(d.get(seen) != null, `${d.key}: sest -> tala (${d.get(seen)})`);
-    eq(d.get(unseen), null, `${d.key}: SAST EKKI -> null, ALDREI 0`);
-  }
-  eq(STAT_BY_KEY.preseason_last_start.get({ preseason_last_start: 0 }), 0,
-    "og RAUNVERULEGT 0 (sast, byrjadi ekki) er 0 — thau tvo eru greinanleg");
-
-  /* ENGINN theirra ma fullyrda ad hann se hluti af byrjunar-likaninu. */
-  for (const d of defs) {
-    ok(/not part of the start-probability model/i.test(d.note)
-       || /NOT part of the start-probability model/.test(d.note),
-      `${d.key}: notan segir BERUM ORDUM ad hun se ekki hluti af byrjunar-likaninu`);
-    ok(!/start probability is|feeds the start|inside start prob/i.test(d.note),
-      `${d.key}: og hun fullyrðir ekki hid gagnstaeda`);
-  }
-  /* SAMHENGIS-REGLAN: einn fyrirvari, fjogur skipti — engin handafrit. */
-  /* VANTANDI REGLA MA EKKI HRYNJA — HUN VERDUR AD FELLA.
-     Fyrsta utgafa var `SCOPE_NOTES.find(...)` og svo `rule.applies` beint:
-     stokkbreyting sem fjarlaegdi regluna kastaði TypeError, og ThA HAETTU
-     ALLAR fullyrdingar sem komu a eftir ad keyra. Hrun er ekki fall
-     (CLAUDE.md 5b) — svo hér er staðgengill sem stenst ENGA fullyrdingu. */
-  const rule = SCOPE_NOTES.find(s => s.id === "preseason")
-    || { id: "preseason", applies: () => false, text: "<MISSING SCOPE NOTE>" };
-  ok(SCOPE_NOTES.some(s => s.id === "preseason"), "`SCOPE_NOTES` ber reglu med id 'preseason'");
-  const hit = STAT_DEFS.filter(rule.applies);
-  eq(hit.length, 4, "reglan tekur til NAKVAEMLEGA fjogurra dalka");
-  for (const d of hit) {
-    const n = d.note.split(rule.text).length - 1;
-    eq(n, 1, `${d.key}: fyrirvarinn stendur nakvaemlega EINU SINNI`);
-  }
-  const outside = STAT_DEFS.filter(d => !rule.applies(d) && d.note.includes(rule.text));
-  eq(outside.length, 0, "og HVERGI i notu sem reglan tekur ekki til");
-  /* Reitirnir sem getterarnir lesa eru ADEINS `preseason_*` — annars nær
-     reglan yfir dalk sem hun a ekki ad na yfir.                         */
-  for (const d of defs) {
-    const f = [...(FIELDS_READ.get(d.key) || [])];
-    ok(f.length === 1 && f[0] === d.key, `${d.key}: les nakvaemlega sitt eigid svid (${f.join(",")})`);
-  }
+  const back = GONE.filter(k => STAT_BY_KEY[k]);
+  eq(back.length, 0, `enginn theirra fjogurra er i STAT_DEFS aftur${back.length ? " — " + back.join(",") : ""}`);
+  /* OG ENGINN NYR HELDUR. Lyklalisti stadnar (sbr. `gwBlindKeys`), svo
+     leitin er a FORSKEYTINU — thad er reglan, ekki upptalningin.        */
+  const pre = STAT_DEFS.filter(d => /^preseason_/.test(d.key)).map(d => d.key);
+  eq(pre.length, 0, `enginn dalkur ber forskeytid "preseason_"${pre.length ? " — " + pre.join(",") : ""}`);
+  /* BANDID LIKA — band an dalka teiknar tomt haus-bil.                  */
+  const bands = [...new Set(STAT_DEFS.map(d => d.band))].filter(b => /Preseason/i.test(String(b)));
+  eq(bands.length, 0, `bandid "Preseason" er farid ur hausrodinni${bands.length ? " — " + bands.join(",") : ""}`);
+  /* OG ENGINN DALKUR LES SVIDIN, hvada nafni sem hann heitir. `FIELDS_READ`
+     er reiknud ur getterunum sjalfum, svo thetta naer lika dalki sem heitir
+     eitthvad annad en les `preseason_starts`.                            */
+  const readers = [...FIELDS_READ.entries()]
+    .filter(([, fs]) => [...fs].some(f => /^preseason_/.test(f))).map(([k]) => k);
+  eq(readers.length, 0,
+    `enginn getter les preseason_*-svid${readers.length ? " — " + readers.join(",") : ""}`);
 }
 
 /* ============================================================
-   J. TENGINGIN — PIPELINE SKRIFAR SVIDIN OG SKRAIN LES ThAU
-      (`wiring.mjs` finnur ekki thennan hlekk: svidin fara gegnum
+   J. TENGINGIN — PIPELINE SKRIFAR SKRANA, OG SVIDIN ERU EKKI I
+      players.json
+      (`wiring.mjs` finnur ekki thennan hlekk: svidin foru gegnum
       players.json, ekki gegnum skraarheiti.)
    ============================================================ */
 console.log(`\n${"─".repeat(84)}`);
-console.log("J. TENGINGIN — fetch.mjs -> players.json -> STAT_DEFS");
+console.log("J. TENGINGIN — fetch.mjs -> preseason.json, og EKKI inn i players.json");
 console.log("─".repeat(84));
 {
   ok(/writeJSON\("preseason\.json"/.test(src),
     "pipeline skrifar `preseason.json` med BOKSTAFLEGU heiti (svo wiring.mjs sjai hana)");
   ok(/await fetchPreseason\(\{ els, teams \}\)/.test(src),
     "og `fetchPreseason` er kollud UR `fetchFPL`, a undan players.json");
-  for (const k of ["preseason_starts", "preseason_games", "preseason_minutes",
-                   "preseason_last_start"]) {
-    ok(new RegExp(`${k}:\\s*preseason\\[e\\.code\\]`).test(src),
-      `players.json ber ${k} (ur preseason[e.code])`);
-  }
-  /* OG SVIDIN VANTA ALVEG thegar hann sast ekki — `?? 0` a hvorugum stad. */
-  const blk = /\.\.\.\(preseason\[e\.code\] \? \{[\s\S]{0,400}?\} : \{\}\)/.exec(src);
-  ok(!!blk, "svidin eru sett med `...(row ? {...} : {})` — vantar alveg thegar rodin vantar");
-  ok(!/preseason\[e\.code\]\?\.\w+ \?\? 0/.test(src),
-    "ekkert `?? 0` — 'sast ekki' ma aldrei verda 'byrjadi ekki' (MAELT OG FELLT)");
+  /* FORSENDA FYRIR NEIKVAEDU FULLYRDINGUNNI: `players.json` ER skrifud i
+     thessari skra og vid erum ad lesa rettan texta.                     */
+  ok(/writeJSON\("players\.json"/.test(src),
+    "forsenda: `players.json` er skrifud i sama skjali (leitin les rettan texta)");
+  /* AFTURHVARFS-VORDURINN HINUM MEGIN: svidin fjogur mega ekki snua aftur
+     i rodina sem fer i `players.json`. Their voru sett med
+     `...(preseason[e.code] ? { preseason_starts: … } : {})`; leitin er a
+     FORSKEYTINU, ekki a theirri setningu, svo hun naer lika annarri
+     ritun.                                                              */
+  const wrote = [...src.matchAll(/\bpreseason_[a-z_]+\s*:/g)].map(m => m[0]);
+  ok(wrote.length === 0,
+    `fetch.mjs skrifar ENGIN \`preseason_*\`-svid i players.json${wrote.length ? " — " + [...new Set(wrote)].join(" ") : ""}`);
   /* Daglega keyrslan, EKKI --fast. */
   const fastFn = src.slice(src.indexOf("async function fetchFast("));
   const fastBody = fastFn.slice(0, fastFn.indexOf("\n}\n"));

@@ -783,12 +783,37 @@ console.log("─".repeat(84));
   ok(/record\("odds_raw", false, 0, `archive failed: \$\{e\.message\}/.test(fetchSrc),
      "arkiv-skrifin eru i eigin try/catch — geymsla ma ekki fella markadslinuna");
 
-  /* 3. OG ENGINN LES ThAU. Thetta er fullyrdingin sem ma falla.           */
+  /* 3. OG ENGINN LES ThAU. Thetta er fullyrdingin sem ma falla.
+
+     ATHUGASEMDIR ERU EKKI KODI — OG ThESSI VORDUR LAS ThAER (24.8.2026).
+     Nakvaemlega sama gildra og skjolud er tuttugu linum nedar um `odds_raw`
+     ("fyrsta utgafan var `!/\bodds_raw\b/.test(appCode)` og hun felldi RETTA
+     breytingu"), i sama kafla, og module-athugasemdin efst i thessari skra
+     segir berum ordum ad `appNoC` hafi verid smidud af ThESSU tilefni —
+     samt las `CROWD`-leitin afram HRAAN uppruna. Hun fell 24.8. a einni
+     linu: `PlayerList.jsx` utskyrir i ATHUGASEMD hvers vegna leikur telst
+     spiladur vid `finished_provisional` og nefnir thar `data_checked: false`
+     sem FPL sendir. Ekkert i src/ LES svidid; roksemdin ein nefndi thad.
+     Skjolun sem fellir sinn eigin vord er sama aett og "MEASURED"-notan sem
+     urelti sig thegjandi (CLAUDE.md 8) — bara med ofugu formerki.
+
+     ThAD MA EKKI ORDA ThETTA SEM UNDANThAGU A `data_checked`: bannid er a
+     LESTRI, og lestur er i kodanum. `appNoC` er thvi retti textinn, ekki
+     hvitlisti a einu svidi.                                             */
   const CROWD = ["most_captained", "most_vice_captained", "most_selected",
                  "most_transferred_in", "top_element", "top_element_info",
                  "highest_score", "highest_scoring_entry", "chip_plays",
                  "transfers_made", "ranked_count", "data_checked"];
-  const leaked = CROWD.filter(f => new RegExp(`\\b${f}\\b`).test(appCode));
+  /* FORSENDA FYRIR NEIKVAEDU FULLYRDINGUNNI (CLAUDE.md 5b regla 2): hun var
+     ENGIN — `CROWD` gat verid tomur listi, eda `appNoC` tomur strengur, og
+     "enginn les fjolda-svidin" hefdi stadist af thvi ad ekkert var leitad.
+     Jakvaeda vidmidid er svid sem appid les SANNANLEGA, leitad med SOMU
+     segd og i SAMA texta — svo leitin sjalf se sonnud adur en thognin er
+     tulkud sem hreinleiki.                                              */
+  const CONTROL = "element_type";
+  ok(CROWD.length >= 10 && new RegExp(`\\b${CONTROL}\\b`).test(appNoC),
+     `forsenda: leitin finnur svid sem ER lesid ("${CONTROL}") i ${CROWD.length} svida leit`);
+  const leaked = CROWD.filter(f => new RegExp(`\\b${f}\\b`).test(appNoC));
   ok(leaked.length === 0,
      `ekkert i src/ les fjolda-svidin (${CROWD.length} svid skodud)`,
      leaked.length ? `TENGT AN MAELINGAR: ${leaked.join(", ")} — sja CLAUDE.md 4` : "");

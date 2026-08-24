@@ -283,5 +283,69 @@ ok(!existsSync(copy), "afritid var fjarlaegt");
      + `thekja GW[${cov.gws.join(",")}] (merkimidi skrarinnar: ${realOdds.gw})`);
 }
 
+/* ============================================================
+   API-SPORTS: KOSTNADAR-ThAKID VAR BLINT ThEGAR MEST A REYNDI
+
+   Notandinn spurdi: "afhverju endar thetta alltaf svona, eru of morg koll?"
+   Svarid er ja, og mekanisminn er tvithaettur:
+
+   1. `haveFx` man adeins ThAD SEM TOKST — hun er byggd ur `prevAll.players`.
+      Leikur sem MISTOKST er thvi sottur aftur i HVERRI keyrslu. A leikdegi
+      gengur `fetch-fast` a 15 min fresti i 12 klst (48 keyrslur), auk
+      halftima-cron allan solarhringinn. Ein keyrsla med 10 leiki + dagsetningu
+      er 11 koll -> **~530 koll a dag** a threpi sem gefur **100**.
+   2. Throskuldurinn sem atti ad stoðva thetta (`API_MIN_REMAINING`) les
+      `x-ratelimit-requests-remaining` UR SVARINU. Villusvor bera hann ekki
+      alltaf, svo `apiRemaining` helst `null` og skilyrdid
+      `apiRemaining != null && ...` verdur ALDREI satt. Vordurinn slokknar
+      nakvaemlega thegar hann a ad gripa — sama logun og "tomt gildi er ekki
+      null": VANTANDI TALA VAR LESIN SEM "ekkert ad".
+
+   Tvennt lagad: sjalf-talid thak per keyrslu (ohað thjoninum) og HORD
+   STODVUN a adgangs-villu — hun er um REIKNINGINN, ekki um thetta eina
+   kall, svo naestu tiu koll fa sama svar.
+   ============================================================ */
+{
+  console.log("\n-- 8. API-SPORTS KOSTNADUR --");
+  const src8 = readFileSync(SRC, "utf8");
+  const noC = src8.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  /* Thakid er til OG er lesid i KODANUM, ekki bara skilgreint. Athugasemdir
+     eru strippadar thvi thessi skra er full af theim og thaer nefna heitid. */
+  ok(/const API_MAX_PER_RUN\s*=\s*(\d+)/.test(noC),
+     `sjalf-talid thak er skilgreint (API_MAX_PER_RUN = ${noC.match(/API_MAX_PER_RUN\s*=\s*(\d+)/)?.[1]})`);
+  ok(/apiCalls\s*>=\s*API_MAX_PER_RUN/.test(noC),
+     "og thad er PROFAD adur en kallad er (ekki adeins skilgreint)");
+  ok(/apiCalls\+\+/.test(noC), "og tellarinn haekkar i hverju kalli");
+
+  /* HORD STODVUN A ADGANGS-VILLU. Prófsteinninn er ad hun setji `apiBlocked`
+     — thad er breytan sem naesta kall les.                                */
+  const gate = noC.slice(noC.indexOf("async function apiSports"),
+                         noC.indexOf("async function fetchInjuries"));
+  /* FULLYRDINGIN VERDUR AD BINDA ThETTA TVENNT SAMAN, EKKI FINNA HVORT I
+     SINU LAGI. Fyrsta utgafan var `/errors\.access/ && /apiBlocked =/` a
+     ollu fallinu — og `apiBlocked =` er LIKA i thaks-greininni, svo
+     stokkbreyting sem tok adgangs-stodvunina ALVEG UT slapp i gegn.
+     Vid tokum thvi greinina sjalfa og krefjumst thess ad hun setji hana.  */
+  const accIf = gate.indexOf("if (acc)");
+  const accBlock = accIf >= 0 ? gate.slice(accIf, gate.indexOf("}", accIf)) : "";
+  ok(accIf >= 0, "forsenda: `if (acc)`-greinin er til i `apiSports`");
+  ok(/apiBlocked\s*=/.test(accBlock),
+     `adgangs-villan SJALF setur \`apiBlocked\` (${accBlock.split("\n")[1]?.trim().slice(0, 56)}…)`);
+  /* OG HUN VERDUR AD NA YFIR FLEIRA EN `access`: sama vandamal kemur sem
+     `token` (rangur lykill) og `plan` (threp). Einn strengur er ein vorn.  */
+  ok(/errors\.token/.test(gate) && /errors\.plan/.test(gate),
+     "og hun tekur lika `token` (rangur lykill) og `plan` (threp)");
+
+  /* ThAKID VERDUR AD VERA STAERRA EN VERSTA EDLILEGA TILFELLID, annars
+     skerum vid af okkur sjalfum: 10 leikir + 1 dagsetning + 1 rannsokn.   */
+  const cap = +(noC.match(/API_MAX_PER_RUN\s*=\s*(\d+)/)?.[1] ?? 0);
+  ok(cap >= 12, `thakid (${cap}) rumar versta EDLILEGA tilfellid: 10 leikir `
+     + "+ dagsetning + rannsokn = 12");
+  /* ...OG MINNA EN DAGSKVOTINN, annars ver thad ekkert. Fria threpid er 100
+     og keyrslurnar eru tugir a dag.                                       */
+  ok(cap < 100, `og minna en dagskvotinn 100 (${cap}) — annars vaeri thad ekkert thak`);
+}
+
 console.log(`\nFETCH-ENTRY: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

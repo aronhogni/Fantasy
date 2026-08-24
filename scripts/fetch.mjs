@@ -24,7 +24,7 @@ import { poissonCleanSheet, marketDiff, marketGoals, devig, devig2 } from "../sr
 import { collectPros } from "./pros-collect.mjs";
 import { IN_BOX, shotZone } from "./espn-zones.mjs";
 import { mergeLineupSnapshot, newAcc, addPlayerRow, addShot, resolveTeam,
-         finalize, pairPlayers, BSD_TEAM } from "../src/bsd.js";
+         finalize, pairPlayers, matchShotTotals, BSD_TEAM } from "../src/bsd.js";
 /* EIN UTFAERSLA A BYRJUNAR-EIGINLEIKUNUM. Pipeline hafdi EIGIN afrit af
    thessum reikningi og thad var ThEGAR farid ad reka: afritid skrifadi
    `value: r.now_cost ?? null` medan `startFeatures` fellur a MEDALTALID
@@ -982,12 +982,6 @@ async function fetchFPL() {
        holfid syndir "—" og radast sidast i BADAR attir. Ad skrifa `null`
        berum orðum vaeri jafngott en 587 auk lykla i skranni; ad skrifa 0
        vaeri "ekki sest" birt sem "byrjadi ekki" — MAELT OG FELLT.       */
-    ...(preseason[e.code] ? {
-      preseason_starts:     preseason[e.code].starts,
-      preseason_games:      preseason[e.code].games,
-      preseason_minutes:    preseason[e.code].minutes,
-      preseason_last_start: preseason[e.code].last_start,
-    } : {}),
     ...(pcOf(e) || {}),
   }));
   await writeJSON("players.json", { updated: status.updated, players: pick });
@@ -3054,10 +3048,22 @@ const APIS = "https://v3.football.api-sports.io";
          60 koll a fjolmennasta GW1-degi, og 110 a 10-leikja midvikudegi
          — YFIR THAKI.
    Threnn vorn: geymsla per leik (sja fetchLineups), og THESSI hardi throskuldur
-   sem notar `x-ratelimit-requests-remaining` sem API-id sendir sjalft. Vid
-   hangum ekki a eigin talningu — vid hlustum a thjoninn.                  */
+   sem notar `x-ratelimit-requests-remaining` sem API-id sendir sjalft.
+   > **OG ThAD DUGDI EKKI — LEIDRETT 22.8.2026.** "Vid hlustum a thjoninn"
+   > stod her, og thad er rett thangad til thjonninn haettir ad tala: villusvor
+   > bera hausinn ekki alltaf, svo `apiRemaining` helst `null` a reikningi sem
+   > hafnar ollu og throskuldurinn kviknar ALDREI. Hann slokknar nakvaemlega
+   > thegar hann a ad gripa. Nu er talid BADUM megin (sja `API_MAX_PER_RUN`). */
 const API_MIN_REMAINING = 15;      // hættum thegar sva marg eru eftir
-let apiRemaining = null, apiBlocked = null;
+/* SJALF-TALID ThAK PER KEYRSLU. Fria threpid gefur 100 koll a DAG og
+   `fetch-fast` gengur a 15 min fresti a leikdegi (cron "15 min" fos-man) =
+   48 keyrslur, auk halftima-cron allan solarhringinn. Ein keyrsla sem sækir 10
+   leiki + dagsetningu er 11 koll -> **~530 koll a dag**, fimmfalt thakid,
+   og thad gerist ADEINS thegar eitthvad er ad: takist sokn er hun geymd per
+   leik (`haveFx`) og ekki endurtekin. 12 dugar fyrir versta EDLILEGA
+   tilfellid (10 leikir + dagsetning + rannsokn) og ver okkur gegn hinu.  */
+const API_MAX_PER_RUN = 12;
+let apiRemaining = null, apiBlocked = null, apiCalls = 0;
 async function apiSports(path) {
   if (apiBlocked) return { http: 0, blocked: apiBlocked, errors: { budget: apiBlocked }, response: [] };
   if (apiRemaining != null && apiRemaining <= API_MIN_REMAINING) {
@@ -3065,6 +3071,20 @@ async function apiSports(path) {
     console.warn(`API-Sports: ${apiBlocked}`);
     return { http: 0, blocked: apiBlocked, errors: { budget: apiBlocked }, response: [] };
   }
+  /* SJALF-TALNING, ThVI VORDURINN OFAN VAR BLINDUR ThEGAR MEST A REYNDI
+     (22.8.2026). `apiRemaining` er ADEINS sett ur svarhausnum
+     `x-ratelimit-requests-remaining`. Villusvor bera hann ekki alltaf, svo
+     a reikningi sem hafnar ollu helst hann `null` — og skilyrdid
+     `apiRemaining != null && ...` er tha ALDREI satt. Thakid slokknar
+     nakvaemlega thegar thad a ad gripa. Vid teljum thvi OKKAR EIGIN koll
+     lika og staðnaemumst a theim, ohað thvi hvad thjonninn segir.       */
+  if (apiCalls >= API_MAX_PER_RUN) {
+    apiBlocked = `stopped at ${apiCalls} calls in this run (self-counted cap) — `
+      + "the provider's remaining-count header cannot be relied on when it is failing";
+    console.warn(`API-Sports: ${apiBlocked}`);
+    return { http: 0, blocked: apiBlocked, errors: { budget: apiBlocked }, response: [] };
+  }
+  apiCalls++;
   const r = await fetch(`${APIS}${path}`, {
     headers: { "x-apisports-key": process.env.API_SPORTS_KEY, "User-Agent": UA },
     signal: AbortSignal.timeout(20000),
@@ -3072,6 +3092,16 @@ async function apiSports(path) {
   const j = await r.json();
   const rem = r.headers.get("x-ratelimit-requests-remaining");
   if (rem != null && Number.isFinite(+rem)) apiRemaining = +rem;
+  /* ADGANGS-VILLA STODVAR ALLA KEYRSLUNA, EKKI BARA ThETTA KALL. Hun er um
+     REIKNINGINN, ekki um thennan endapunkt, svo naesta kall faer sama svar
+     — og a leikdegi eru thau tiu i rod, fjorum sinnum a klukkustund.
+     Ad halda afram er ad borga fyrir sama svarid ellefu sinnum per keyrslu. */
+  const acc = j?.errors && !Array.isArray(j.errors)
+    ? String(j.errors.access ?? j.errors.token ?? j.errors.plan ?? "") : "";
+  if (acc) {
+    apiBlocked = `access denied by the provider: ${acc.slice(0, 120)}`;
+    console.warn(`API-Sports: ${apiBlocked} — stopping this run`);
+  }
   return { http: r.status, remaining: rem, ...j };
 }
 
@@ -3710,9 +3740,43 @@ async function fetchBsdLive() {
     if ((d.results || []).length < 200) break;
   }
   const done = new Set(prev.events || []);
+  const evById = new Map(evs.map(e => [e.id, e]));
   const fresh = evs.filter(e => e.status === "finished" && !done.has(e.id))
                    .sort((a, b) => a.id - b.id);          // FOST rod — sbr. fleytitolur
-  if (!fresh.length) {
+
+  /* ---- LIDS-TOLUR PER LEIK — ThAD SEM GERIR xGC MOGULEGT (22.8.2026) ----
+     Sja langa athugasemd vid `matchShotTotals` i src/bsd.js. Stutta utgafan:
+     `_acc` er timabils-summa per LEIKMANN, svo hun getur sagt hvad lidid
+     skapadi en ALDREI hvad motherjarnir skopudu gegn thvi. Attributionin
+     (`sh.home` + `e.home_team_id`/`away_team_id`) er til i svarinu sem er
+     sott nuna og hvergi annars stadar — svo hun er skrifud nidur nuna.  */
+  const tmatch = new Map();
+  for (const m of (prev.team_matches || [])) if (m?.id != null) tmatch.set(m.id, m);
+  let noMap = 0, droppedShots = 0;
+  const noteMatch = (e, st) => {
+    if (!e) return;
+    const t = matchShotTotals(st?.shotmap, {
+      home: BSD_TEAM_SHORT[e.home_team_id] ?? null,
+      away: BSD_TEAM_SHORT[e.away_team_id] ?? null,
+    });
+    /* ENGIN ROD ThEGAR KORTID VANTAR. Rod af nullum vaeri fullyrding um ad
+       hvorugt lidid hafi skotid; `aggLiveMatchRange` sleppir leiknum og
+       leikjafjoldinn i takt-profinu segir sjalfur fra thvi.              */
+    if (!t) { noMap++; return; }
+    droppedShots += t.dropped;
+    tmatch.set(e.id, { id: e.id, gw: e.round_number ?? null, home: t.home, away: t.away });
+  };
+
+  /* BAKFYLLING — LEIKIR SEM VORU SOTTIR ADUR EN ThESSI ROD VAR TIL.
+     Sokinin er vidbotarleg: leikur i `events` er ALDREI sottur aftur, svo an
+     thessa vaeru fyrstu leikir timabilsins ad eilifu an lids-tolu og xGC
+     hefdi vantad nakvaemlega thau mork sem thegar voru skorud. Hun sækir
+     **ADEINS `/stats/`** — `/player-stats/` myndi leggjast OFAN A `_acc` og
+     tvitelja hvern leikmann.                                              */
+  const backfill = [...done].filter(id => !tmatch.has(id) && evById.has(id))
+                            .sort((a, b) => a - b);
+
+  if (!fresh.length && !backfill.length) {
     record("bsd_live", true, (prev.events || []).length,
            `${(prev.events || []).length} matches ingested — nothing new`);
     return;
@@ -3743,9 +3807,22 @@ async function fetchBsdLive() {
         if (r?.player_id == null || typeof r.x !== "number" || typeof r.y !== "number") continue;
         (positions[r.player_id] ||= []).push([+r.x.toFixed(1), +r.y.toFixed(1)]);
       }
+    noteMatch(e, st);
     done.add(e.id); added++;
   }
-  if (!added) { record("bsd_live", false, 0, "no match could be fetched"); return; }
+
+  /* BAKFYLLINGIN — SER LYKKJA, ADEINS `/stats/`, SNERTIR `_acc` ALDREI. */
+  let filled = 0;
+  for (const id of backfill) {
+    let st;
+    try { st = await bsdGet(`/events/${id}/stats/`); }
+    catch (err) { console.warn(`bsd live backfill ${id}: ${err.message}`); continue; }
+    const before = tmatch.size;
+    noteMatch(evById.get(id), st);
+    if (tmatch.size > before) filled++;
+  }
+
+  if (!added && !filled) { record("bsd_live", false, 0, "no match could be fetched"); return; }
 
   /* PORUN VID FPL — a lifandi timabili er BSD-lidid = lid dagsins, svo
      nafn + lid dugar (engin sumarglugga-skekkja, sbr. imminent).       */
@@ -3795,15 +3872,33 @@ async function fetchBsdLive() {
        skot, ekki thrjar").                                              */
     note: "Current season from BSD, INCREMENTAL: only newly finished matches are "
         + "fetched and added to the accumulated totals (`_acc`). Same formulas as "
-        + "bsd_players.json — both use src/bsd.js. The app reads `players`. "
-        + "Shot maps live in bsd_shots.json, not here.",
+        + "bsd_players.json — both use src/bsd.js. The app reads `players` and "
+        + "`team_matches`. Shot maps live in bsd_shots.json, not here. "
+        + "`team_matches` is ONE row per finished match with both sides' shot totals, "
+        + "written at ingest because that is the only moment the attribution exists: "
+        + "the per-player totals in `_acc` can never say who the opponent was, so team "
+        + "xGC (the sum of the OPPONENTS' xG) is not recoverable from them afterwards. "
+        + "`goals` there is counted from the shot map and reproduces the official "
+        + "scoreline exactly (measured on 2025/26: all 17 clubs, for and against), so "
+        + "it is the cross-check against fixtures.json rather than a second scoreline. "
+        + "A match whose shot map is missing gets NO row — not a row of zeros.",
     matches: done.size,
     events: [...done].sort((a, b) => a - b),
+    team_matches: [...tmatch.values()].sort((a, b) => a.id - b.id),
     players, positions,
     _acc: Object.fromEntries(Object.entries(acc).map(([k, v]) => [k, { ...v, teams: [...v.teams] }])),
   });
+  /* NOTAN BER ANOMALIURNAR, EKKI BARA TOLUNA. Leikur an skotakorts og skot
+     an hnita eru bædi RAUNVERULEG (2025/26 atti 6 leiki thar sem onnur
+     hlidin skaut aldrei innan thydisins) og bædi laekka lids-xG thogult.
+     Sama regla og `bsd_lineups`: stadan a ad bera MUNSTRID.              */
+  const gwLess = [...tmatch.values()].filter(m => m.gw == null).length;
   record("bsd_live", true, players.length,
-         `${done.size} matches (${added} new) · ${players.length} players matched`);
+         `${done.size} matches (${added} new) · ${players.length} players matched · `
+         + `${tmatch.size} team rows${filled ? ` (${filled} back-filled)` : ""}`
+         + (noMap ? ` · ${noMap} without a shot map` : "")
+         + (droppedShots ? ` · ${droppedShots} shots without coordinates` : "")
+         + (gwLess ? ` · ${gwLess} rows without a gameweek` : ""));
 }
 
 /* ========== 10. AFLEIDD LÖG — engin ný köll, engir kvótar ==========

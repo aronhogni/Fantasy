@@ -58,7 +58,33 @@ const FIX = [
   /* GW2 leikur sem er EKKI lokinn — hlutastada ma ekki telja sem urslit. */
   { id: 9006, event: 2, finished: false, started: true, minutes: 61,
     team_h: A, team_a: D2, team_h_score: 4, team_a_score: 0 },
+  /* ============================================================
+     OSPILADUR LOKALEIKUR — DAGATALID, EKKI URSLITIN (24.8.2026)
+
+     HVERS VEGNA HANN VARD AD KOMA: valarinn les ThAKID ur leikjaskranni
+     (`maxEventOf`), ekki ur theim leikjum sem eru BUNIR — og raunveruleg
+     `fixtures.json` ber ALLAR 38 umferdir fra fyrsta degi (380 radir,
+     `maxEvent` 38, 6 loknar i dag). Tilbunu radirnar her ad ofan spanna
+     adeins GW1-3, svo dagatalid i profinu var ThRJAR umferdir langt.
+
+     Medan Teams stod sjalfgefid a FYRRA timabili faldist thad: `use.maxGw`
+     kom tha ur SKOTAKORTINU (38 umferdir) og hvorki thakid ne fullyrdingin
+     snerti leikjaskrana. Um leid og sjalfgildid vard yfirstandandi timabil
+     (22.8.) er `shotIndex` sendur sem `null` — kortid naer adeins yfir
+     2025/26 — og thakid fell a leikjaskrana eina: 3 kassar, sem er RETT
+     svar vid ThESSARI leikjaskra og RANGT svar um appid. Fullyrdingin "38"
+     var thvi hvorki rong um appid ne rett um profid; hun studdist vid
+     dagatal sem mock-in bar ekki.
+
+     RADIN ER OSPILUD OG ThAD ER ASETT: hun ma engu breyta um urslit
+     (`aggFixtureRange` og `buildLiveTeamForm` sleppa henni baedi, sbr.
+     9006 her ad ofan), adeins um SPONNINA. Talan 38 er hvergi slegin inn —
+     `MAX_EVENT` er leidd ur ThESSARI skra og borin vid raunskrana nedar. */
+  { id: 9038, event: 38, finished: false, started: false, minutes: 0,
+    team_h: B, team_a: C2, team_h_score: null, team_a_score: null },
 ];
+/* SPONN DAGATALSINS — LEIDD, EKKI SLEGIN INN (sbr. `ATTACK_N` i kafla 4). */
+const MAX_EVENT = Math.max(...FIX.map(f => f.event));
 
 const dom = new JSDOM("<!doctype html><div id=root></div>",
                       { url: "http://localhost/", pretendToBeVisual: true });
@@ -164,17 +190,99 @@ await waitFor("Teams-flipinn er uppi (h2 = \"Teams\")", teamsMounted);
 await settle("Teams-flipinn");
 
 const boxes = () => [...document.querySelectorAll("[aria-label='Select gameweeks'] button")];
+/* TIMABILS-HNAPPARNIR ERU FUNDNIR UT FRA MERKIMIDANUM "Season", EKKI UT FRA
+   TIMABILS-TOLUNNI. `team-stats.mjs` bannar hardkodada timabils-tolu og sama
+   rok gilda her: "2025/26" og "2026/27 · 6 matches" ureldast baedi i agust,
+   og hnappur sem finnst ekki gefur `undefined` sem hver "breyttist"-
+   fullyrding er sonn um (CLAUDE.md 5b).                                  */
+const seasonBtns = () => {
+  const lab = [...document.querySelectorAll("span")]
+    .find(s => s.textContent.trim() === "Season");
+  return lab ? [...lab.parentElement.querySelectorAll("button")] : [];
+};
 
 console.log("\n1) valarinn er ALLTAF synilegur — ekki falinn bak vid takka");
-ok(`allir 38 kassarnir teiknadir strax (${boxes().length})`, boxes().length === 38);
-ok("their bera tolurnar 1..38",
-   boxes().map(b => b.textContent.trim()).join(",") ===
-   Array.from({ length: 38 }, (_, i) => i + 1).join(","));
-/* OG SE VALARINN TOMUR: SEGDU HVERS VEGNA, EKKI KASTA. Fyrri utgafan
-   for i `TypeError` a `boxes()[0]` og tok 90+ fullyrdingar med sér. */
-if (!boxes().length) {
+/* ============================================================
+   ThAKID ER LEITT UT UR LEIKJASKRANNI, OG ThAD ER SPURT I BADUM
+   TIMABILUM (24.8.2026)
+
+   Fyrri utgafan spurdi "eru their 38?" i EINU timabili — thvi sjalfgildid
+   var fyrra timabil og skotakortid gaf thakid. Nu er sjalfgildid
+   yfirstandandi timabil, thar sem `shotIndex` er `null` og thakid kemur ur
+   `fixtures.json` einni. Talan sem valarinn a ad syna er ThVI SU SAMA i
+   badum synum — leikjaskrain spannar allt timabilid fra fyrsta degi — en
+   hun kemur eftir SITTHVORRI leidinni, og bara onnur theirra var profud.
+
+   `MAX_EVENT` er leidd ur tilbunu skranni og BORIN VID RAUNSKRANA, svo
+   hvorki mock-in ne appid geti rekid fra veruleikanum an thess ad segja
+   fra. Vaeri talan hardkodud 38 gaeti hun ordid rett um profid og rong um
+   appid — nakvaemlega thad sem gerdist 22.8.                            */
+const realMaxEvent = Math.max(...realFix.map(f => f.event || 0));
+ok(`FORSENDA: tilbuna dagatalid spannar somu umferdir og raunskrain `
+   + `(${MAX_EVENT} af ${realMaxEvent})`, MAX_EVENT === realMaxEvent && MAX_EVENT > 3);
+const sb = seasonBtns();
+ok(`FORSENDA: timabils-hnapparnir tveir finnast (${sb.length})`, sb.length === 2);
+/* SJALFGEFID ER YFIRSTANDANDI TIMABIL (22.8.) — TVAER OHADAR FULLYRDINGAR.
+
+   1. HEGDUN: skyringar-linan "This season so far …" er teiknud ADEINS
+      thegar `liveOn` er satt. Hun er ekki still og getur ekki verid sonn
+      um ranga syn.
+   2. AUDKENNID: hnappurinn sem er upplystur er sa sem ber ANNAN bakgrunn
+      en `S.gwBox`. VIDMIDID ER LESID AF SKJANUM — oval umferdarkassi ber
+      nakvaemlega thann stil — svo engin litatala er hardkodud.
+
+   FYRSTA UTGAFAN VAR TOM FULLYRDING OG STOKKBREYTING SANNADI ThAD: hun
+   sagdi adeins "bakgrunnar hnappanna tveggja eru olikir", sem er JAFN
+   SATT thegar HINN hnappurinn er upplystur. Med sjalfgildinu snuid aftur
+   i "prev" stodst hun. Munur an attar er enginn munur.                 */
+if (sb.length === 2) {
+  const plain = boxes()[0]?.style.background || "";
+  ok(`FORSENDA: oval umferdarkassi gefur vidmids-bakgrunninn (${plain || "ENGINN"})`,
+     !!plain);
+  ok(`sjalfgefid er YFIRSTANDANDI timabil og ThAD er upplysti hnappurinn `
+     + `(lifandi ${sb[1].style.background} · fyrra ${sb[0].style.background} · oval ${plain})`,
+     sb[1].style.background !== plain && sb[0].style.background === plain);
+  ok("og skyringar-linan um yfirstandandi timabil er a skjanum",
+     /This season so far: \d+ matches played/.test(document.body.textContent || ""));
+}
+
+const gwLabels = () => boxes().map(b => b.textContent.trim()).join(",");
+const wanted = Array.from({ length: MAX_EVENT }, (_, i) => i + 1).join(",");
+const checkBar = async (what) => {
+  await settle(`${what}: teikning`);
+  ok(`${what}: allir ${MAX_EVENT} kassarnir teiknadir strax (${boxes().length})`,
+     boxes().length === MAX_EVENT);
+  ok(`${what}: their bera tolurnar 1..${MAX_EVENT}`, gwLabels() === wanted);
+};
+await checkBar("yfirstandandi timabil");
+/* OG SAMA I FYRRA TIMABILI — su syn hvilir a ANNARRI thaks-heimild
+   (skotakortinu), svo hun er onnur spurning og ma ekki hvila a hinni.
+
+   KAFLAR 2-4 HALDA AFRAM I FYRRA TIMABILI, OG ThAD ER SAGT BERUM ORDUM
+   FREMUR EN ThAGAD (24.8.2026): their spyrja um UMFERDAR-BILID og um
+   dalkana sem hvila a skotakortinu, og hvorugt er til i lifandi syninni —
+   `shotIndex` er sendur sem `null` thar (kortid naer adeins yfir 2025/26)
+   svo valarinn er SYNILEGUR EN SLOKKTUR. Su hegdun er ekki oprofud: hun
+   er einmitt efni kafla 4b, og tolurnar i lifandi syninni eru efni kafla
+   8. Ad keyra 2-4 i lifandi syn vaeri ad spyrja um bil sem er slokkt og fa
+   "breyttist ekki" sem er RETT svar og engin maeling.                  */
+if (sb.length === 2) {
+  await act(async () => { sb[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  await checkBar("fyrra timabil");
+}
+
+/* OG SE VALARINN OF STUTTUR: SEGDU HVERS VEGNA, EKKI KASTA. Fyrri utgafan
+   for i `TypeError` a `boxes()[0]` og tok 90+ fullyrdingar med ser.
+   ThROSKULDURINN ER LEIDDUR AF ThVI SEM KAFLARNIR A EFTIR SNERTA, EKKI AF
+   NULLI (24.8.2026): 24.8. skiladi valarinn ThREMUR kossum, sem er hvorki
+   0 ne nog — kafli 3 smellir a `boxes()[13]` — svo safnid do i `TypeError`
+   thratt fyrir vordinn. Skilyrdi sem tekur adeins tomt mengi ver ekki gegn
+   hluta-mengi.                                                          */
+const NEEDED = 14;                         // haesti vistfangi i koflum 3-6
+if (boxes().length < NEEDED) {
   const bt = document.body.textContent;
-  console.log("  [diag] Teams uppi:", teamsMounted(),
+  console.log(`  [diag] kassar: ${boxes().length}, tharf ${NEEDED} |`,
+    "Teams uppi:", teamsMounted(),
     "| \"Team data has not loaded.\":", bt.includes("Team data has not loaded."),
     "| \"not available for this table\":", bt.includes("not available for this table"),
     "| soknir:", started, "| i loftinu:", inFlight);
@@ -465,13 +573,28 @@ console.log("\n4b) ENGIN HEIMILD I TAKT -> SLOKKT STYRING MED SKYRINGU");
     `${host.querySelectorAll("tbody tr").length} radir`);
   ok("kassarnir eru SYNILEGIR en slokktir", bx.length > 0 && bx.every(b => b.disabled),
     `${bx.filter(b => !b.disabled).length} virkir`);
-  ok("og opacity segir thad sjonraent", bx[0].style.opacity === "0.45", bx[0].style.opacity);
+  /* `bx[0]` AN VARNAR ER HRUN, EKKI FALL (24.8.2026). Fullyrdingin a undan
+     leyfir `bx.length === 0` ad FALLA — og tha kastadi thessi lina
+     `TypeError` og tok 60+ fullyrdingar med ser, nakvaemlega su bilun sem
+     kafli 1 var hertur gegn i somu lotu. Sannad med stokkbreytingu i
+     `Teams.jsx` sem skildi flipann eftir an kassa.                      */
+  ok("og opacity segir thad sjonraent",
+     bx.length > 0 && bx[0].style.opacity === "0.45",
+     bx.length ? bx[0].style.opacity : "engir kassar");
   ok("SKYRINGIN ER A SKJANUM (ekki adeins i kodanum)",
     /not available for this table/.test(t2) && t2.length > 500);
   ok("og hun nefnir hvers vegna", /per-gameweek/.test(t2), t2.match(/not available[^]{0,140}/)?.[0] || "");
-  /* Smellur ma ekki gera neitt — annars vaeri "slokkt" adeins litur. */
-  await act(async () => { bx[4].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
-  ok("smellur a slokktan kassa velur EKKERT bil", !/GW\s*5[–-]5/.test(host.textContent || ""));
+  /* Smellur ma ekki gera neitt — annars vaeri "slokkt" adeins litur.
+     SMELLURINN ER SKILYRTUR VID ThAD AD KASSINN SE TIL: an thess er thetta
+     hrun (`bx[4]` er `undefined`) og hrun er ekki fall. Og fullyrdingin
+     sjalf ber ThA forsenduna med ser, svo "velur ekkert bil" geti ekki
+     ordid graen a tomum valara.                                         */
+  if (bx.length > 4) await act(async () => {
+    bx[4].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  ok("smellur a slokktan kassa velur EKKERT bil",
+     bx.length > 4 && !/GW\s*5[–-]5/.test(host.textContent || ""),
+     bx.length > 4 ? "" : `adeins ${bx.length} kassar — smellurinn var aldrei gerdur`);
   ok("engin tala er merkt `season` thegar ekkert bil er valid",
     ![...host.querySelectorAll("thead th")].some(x => /season$/.test(x.textContent.trim())));
   await act(async () => { r2.unmount(); });
@@ -750,6 +873,19 @@ console.log("\n7) TIMABILS-MISVISIRINN — tolur horfnar OG skyringin a skjanum"
     const shown = async (tf) => {
       const v = await render({ ...base, teamForm: tf, bsdTeams: J("bsd_teams.json"),
         shotIndex: full });
+      /* FYRRA TIMABIL ER VALID BERUM ORDUM (24.8.2026). Sjalfgildid vard
+         "live" 22.8. og thar er `shotIndex` sendur sem `null` i `use`, svo
+         `use.shots` er false og `shotSeason` thvi null — hausinn nefnir
+         ekkert timabil OG mutation-fullyrdingin nedar getur ekki fallid,
+         thvi hun ber saman tvo tom svor. Spurningin i thessum kafla er um
+         SKOTAKORTID, sem er 2025/26 eitt, og hun er thvi spurd i theirri
+         syn sem kortid a heima i. Kafli 8 spyr um lifandi synina.      */
+      const seasonLab = [...v.host.querySelectorAll("span")]
+        .find(s => s.textContent.trim() === "Season");
+      const prevB = seasonLab?.parentElement.querySelector("button");
+      if (prevB) await act(async () => {
+        prevB.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+      });
       const cell = [...v.host.querySelectorAll("tbody td")]
         .find(td => /ARS|AVL|LIV/.test(td.textContent));
       if (cell) await act(async () => {
@@ -862,8 +998,26 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
   ok(`lifandi hnappurinn ber LEIKJAFJOLDANN: ${JSON.stringify(liveBtn?.textContent)}`,
      /\d+ matches/.test(liveBtn?.textContent || ""));
 
+  /* SJALFGEFNA SYNIN ER YFIRSTANDANDI TIMABIL (22.8.2026, ad beidni:
+     "eg vill hafa nyjasta timabilid auto valid allstadar"). ThAD ER
+     FULLYRT HER OG EKKI GEFID SER: kaflinn hafdi ThOGULT byggt a hinu
+     sjalfgildinu — hann las `prevShots` STRAX eftir teikningu — og fell
+     24.8. thegar sjalfgildinu var snuid. Fullyrding er betri en forsenda
+     sem enginn skrifadi nidur.
+     MERKID ER HEGDUN, EKKI STILL: skyringar-linan "This season so far …"
+     er teiknud ADEINS thegar `liveOn` er satt.                          */
+  ok("sjalfgefid er YFIRSTANDANDI timabil (skyringar-linan er a skjanum)",
+     /This season so far: \d+ matches played/.test(host.textContent || ""));
+
   /* FORSENDA: fyrra timabil ber tolur i skota-flokknum. An hennar gaeti
-     "tomt eftir smell" thytt "alltaf tomt".                              */
+     "tomt eftir smell" thytt "alltaf tomt". Fyrra timabil er nu VALID —
+     og skota-flokkurinn med, thvi vals-leidrettingin faerir mann UT UR
+     honum vid opnun (hann er tomur i lifandi syn), svo "Shots" er ekki
+     endilega i hausnum thegar hingad er komid.                          */
+  await click(prevBtn);
+  const keepBtn0 = btns().find(b => /keeper faces/.test(b.textContent || ""));
+  ok(`forsenda: skota-flokks hnappurinn finnst vid opnun`, !!keepBtn0);
+  if (keepBtn0) await click(keepBtn0);
   const prevShots = cell("ARS", "Shots");
   ok(`forsenda: fyrra timabil ber skot-tolu (ARS ${prevShots})`,
      !!prevShots && prevShots !== "—");

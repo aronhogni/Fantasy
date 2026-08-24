@@ -30,7 +30,7 @@ import {
   SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrFor,
   marketForRow, eloWalkForward, corr, rSE,
 } from "./lib/e0.mjs";
-import { makeFixDifficulty } from "../src/model.js";
+import { makeFixDifficulty, DIFF_W, PREV_K, prevWeight } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 let pass = 0, fail = 0;
@@ -105,14 +105,35 @@ function ffdrFor(k, { withMarket }) {
       if (k === 0) return cur;                      // appið í dag
       if (k === null) return prev;                  // bakprófin hingað til
       const w = k / (n + k);
-      /* AÐEINS MÖRK ERU BLÖNDUÐ — og það er ekki val heldur skorða:
-         team_form.json geymir `prev` aðeins fyrir goals_pg/conceded_pg,
-         ekki fyrir skot á mark. Ef sot væri blandað hér en ekki í appinu
-         væri mælingin að mæla eitthvað sem er ekki útfæranlegt.        */
+      /* ============================================================
+         SKOT A MARK ERU BLONDUD LIKA — LEIDRETT 24.8.2026
+
+         Her stod: "AÐEINS MÖRK ERU BLÖNDUÐ — og það er ekki val heldur
+         skorða: team_form.json geymir `prev` aðeins fyrir
+         goals_pg/conceded_pg, ekki fyrir skot á mark." **Su forsenda er
+         MAELD OSONN.** `data/team_form.json` ber `prev.sot_pg` og
+         `prev.sot_against_pg` hja **15 af 20** lidum (hin fimm eru nylidar
+         an PL-sogu, sem eiga engin `prev` og attu aldrei).
+
+         OG APPID BLANDAR ThAU: `src/model.js:630-631` kallar
+         `mixMe(me.sotAg, me.prevSotAg)` og `mixOp(opp.sotFor,
+         opp.prevSotFor)`. Vordurinn maeldi thvi VEIKARA likan en thad sem
+         keyrir — nakvaemlega aettin sem `buildTeamMetrics` var flutt fyrir
+         (CLAUDE.md kafli 7: "Bokhald sem reiknar likanid upp a nytt maelir
+         annad likan en notandinn sa"). Afturfor i SoT-blondun hefdi ekki
+         fellt neitt her.
+
+         `?? cur` OG EKKI BERT `prev`: nylidar eiga engin `prev`-skot, og
+         `undefined` inn i margfoldun gefur NaN sem breidist thegjandi um
+         allt fittid. Vanti `prev` stendur `cur` — sama regla og
+         null-reglan annars stadar (vantar er ekki null).
+         ============================================================ */
+      const mix = (c, p) => (Number.isFinite(p) ? (1 - w) * c + w * p : c);
       return {
-        xg90: (1 - w) * cur.xg90 + w * prev.xg90,
-        xgc90: (1 - w) * cur.xgc90 + w * prev.xgc90,
-        sotFor: cur.sotFor, sotAg: cur.sotAg,
+        xg90: mix(cur.xg90, prev.xg90),
+        xgc90: mix(cur.xgc90, prev.xgc90),
+        sotFor: mix(cur.sotFor, prev.sotFor),
+        sotAg: mix(cur.sotAg, prev.sotAg),
       };
     };
     const me = blend(r.curMe, r.prevMe, r.n);
@@ -244,6 +265,121 @@ for (const [pos, code] of Object.entries(POSN)) {
     `      ${e0.toFixed(3)} -> ${e10.toFixed(3)}`);
 }
 ok(winPos >= totPos - 1, `k=10 spáir stigum betur í ≥${totPos - 1}/${totPos} stöðum (${winPos})`);
+
+/* ============================================================
+   VORDUR A UTFAERSLUNA SJALFA — EKKI ADEINS A SPURNINGUNA (24.8.2026)
+
+   Kaflarnir her ad ofan svara "hjalpar blondun?" og "er K=10 rett?" — og
+   their gera thad med SINNI EIGIN `blend`-utfaerslu og senda ThEGAR
+   BLONDUD gildi inn i `makeFixDifficulty`. Modelid faer thvi ENGIN
+   `prev*`-svid og innri blondun thess (`mixMe`/`mixOp`, model.js:620-631)
+   keyrir ALDREI i thessu safni.
+
+   ThAD ThYDIR AD AFTURFOR I ThEIRRI BLONDUN VAERI OSYNILEG HER. Safnid
+   heitir "form-blend" og var samt ekki vordur a blondunni sem keyrir.
+   Sama aett og `buildTeamMetrics` (kafli 7) og `wOf`-afritid (kafli 8):
+   tvaer utfaerslur a sama hlut, og prófid maelir hina.
+
+   HER ER HIN LEIDIN PROFUD BEINT: sama lid, sama motherji, ADEINS
+   `prevSotAg` breytt. Hreyfist `d` ekki er SoT-blondunin daud.
+   ============================================================ */
+console.log(`\n${"─".repeat(70)}\nVORDUR: BLANDAR MODELID SJALFT SKOT A MARK?\n${"─".repeat(70)}`);
+{
+  const mk = (prevSotAg, prevSotFor) => {
+    const me = { xg90: 1.4, xgc90: 1.2, sotFor: 4.5, sotAg: 3.0,
+                 prevGoals: 1.4, prevConc: 1.2, prevSotFor, prevSotAg, n: 2 };
+    const op = { xg90: 1.5, xgc90: 1.3, sotFor: 4.8, sotAg: 3.2,
+                 prevGoals: 1.5, prevConc: 1.3, prevSotFor: 4.8, prevSotAg: 3.2, n: 2 };
+    /* `teamById` ER SKYLDA — `fixDifficulty` flettir upp skammstofun
+       lidsins fyrir bokmakaralinuna og hrynur an hennar.               */
+    const fd = makeFixDifficulty({ teamMetrics: { 1: me, 2: op },
+      teamById: { 1: { id: 1, short: "AAA" }, 2: { id: 2, short: "BBB" } },
+      eloByTeam: {}, odds: null });
+    return fd(1, { opp: 2, home: true, fdr: 3 }, 2);      // DEF
+  };
+  /* FORSENDA: grunn-tilfellid skilar TOLU. An hennar gaeti "engin
+     breyting" thytt "hvorugt reiknadist" (kafli 5b).                   */
+  const base = mk(3.0, 4.5);
+  ok(Number.isFinite(base), `forsenda: `+"`fixDifficulty`"+` skilar tolu (${base})`);
+  /* Fyrra timabil MIKLU verra i vorn -> leikurinn a ad thyngjast.       */
+  const worse = mk(9.0, 4.5);
+  ok(Number.isFinite(worse) && Math.abs(worse - base) > 1e-9,
+     `\`prevSotAg\` HREYFIR toluna: ${base.toFixed(4)} -> ${worse.toFixed(4)} `
+     + `(delta ${(worse - base).toFixed(4)}) — se hun kyrr er SoT-blondunin daud`);
+  /* OG I RETTA ATT: fleiri skot a mark A SIG i fyrra = thyngri leikur.  */
+  ok(worse > base, `og i RETTA att (fleiri skot a mark a sig i fyrra = thyngri leikur)`);
+  /* SOKNAR-HLIDIN LES ONNUR SVID — OG FYRSTA UTGAFA ThESSA PROFS VAR RONG.
+     Hun breytti `me.prevSotFor` og krafdist hreyfingar i VARNAR-tolu. Modelid
+     var rett og profid rangt: fyrir `useDef` les thad `mixMe(me.sotAg,
+     me.prevSotAg)` og `mixOp(opp.sotFor, opp.prevSotFor)` — MIN skot a sig og
+     skot MOTHERJANS. Mitt eigid sokn-skot kemur hvergi vid sogu i vorninni,
+     og a ekki ad gera thad.
+     Sokn-hlidin er thvi profud a SOKNAR-STODU (4 = FWD), thar sem
+     `me.prevSotFor` er einmitt svidid sem er lesid.                      */
+  const mkAtt = (prevSotFor) => {
+    const me = { xg90: 1.4, xgc90: 1.2, sotFor: 4.5, sotAg: 3.0,
+                 prevGoals: 1.4, prevConc: 1.2, prevSotFor, prevSotAg: 3.0, n: 2 };
+    const op = { xg90: 1.5, xgc90: 1.3, sotFor: 4.8, sotAg: 3.2,
+                 prevGoals: 1.5, prevConc: 1.3, prevSotFor: 4.8, prevSotAg: 3.2, n: 2 };
+    const fd = makeFixDifficulty({ teamMetrics: { 1: me, 2: op },
+      teamById: { 1: { id: 1, short: "AAA" }, 2: { id: 2, short: "BBB" } },
+      eloByTeam: {}, odds: null });
+    return fd(1, { opp: 2, home: true, fdr: 3 }, 4);      // FWD
+  };
+  const attBase = mkAtt(4.5), attMore = mkAtt(9.0);
+  /* ============================================================
+     OG SOKNAR-HOPURINN NOTAR SKOT A MARK ALLS EKKI — `DIFF_W[3].sot` og
+     `[4].sot` eru **0**, medan GK og DEF bera 0,45. Sama logun og
+     `opp: 0`: staerdin er reiknud og henni svo hafnad med maelingu.
+
+     ThETTA PROF VAR RANGT TVISVAR ADUR EN ThAD VARD RETT, og badar
+     villurnar voru MINAR en ekki modelsins:
+       1. Fyrst breytti thad `me.prevSotFor` og krafdist hreyfingar i
+          VARNAR-tolu. Vornin les `mixMe(me.sotAg, ...)` og
+          `mixOp(opp.sotFor, ...)` — min skot A SIG og skot MOTHERJANS.
+          Mitt eigid soknar-skot kemur hvergi vid sogu, rettilega.
+       2. Sidan faerdi thad tilraunina a soknar-stodu og krafdist thar
+          hreyfingar. En `if (W.sot && ...)` slokknar alveg vid `sot: 0`,
+          svo blokkin keyrir aldrei fyrir MID/FWD.
+     LAERDOMURINN ER ALMENNUR: "talan hreyfist ekki" er jafn oft rong
+     TILGATA og rangur kodi. Fullyrdingin her ad nedan er thvi um ThAD SEM
+     ER SATT — ad kyrrstadan se ASETT og maeld — i stad thess ad krefjast
+     hreyfingar sem a ekki ad verda.
+     ============================================================ */
+  ok(Number.isFinite(attBase) && attMore === attBase,
+     `soknar-talan er OHREYFD af \`prevSotFor\` (${attBase.toFixed(4)}) — `
+     + "`DIFF_W[4].sot === 0`, skot a mark eru ekki soknar-inntak");
+  /* OG ThAD ER FULLYRT A VOGINNI SJALFRI, svo kyrrstadan geti ekki stafad
+     af thvi ad blondunin se BILUD i stad thess ad vera SLOKKT.          */
+  ok(DIFF_W[3].sot === 0 && DIFF_W[4].sot === 0,
+     `MID/FWD bera \`sot: 0\` (${DIFF_W[3].sot}/${DIFF_W[4].sot}) — asett, ekki tilviljun`);
+  /* ============================================================
+     `PREV_K` SJALF VAR OVARIN — stokkbreyting 10 -> 40 slapp i gegnum
+     ALLT safnid (24.8.2026). Talan er nu ENDURMAELD MED VIKMORKUM i
+     fyrsta sinn (`scripts/measure-prev-k.mjs`, 6.080 lid-leikir):
+       · K i notkun 10  -> vegid |r| a raunstigum **0,2214**
+       · besta K a ristinni 15 -> **0,2216**, abati **+0,0003**
+       · "naer eitthvad K marki a stigum (badir klasar, CI utilokar 0)?"
+         -> **NEI**. Hvert einasta glugga-delta inniheldur null, t.d.
+         n=4-6 STIG d=+0,0054 CI [-0,0016, +0,0137].
+       · Med markadslinu eru K=0/10/20/inf oadgreinanleg (0,3929-0,3945).
+     Til samanburdar var sjounda threpid hafnad vid +0,00085 og
+     "sleppa oheppnis-lidnum" vid P=74%. +0,0003 er langt undir theim bar.
+     **K=10 STENDUR** — og er nu vardad, thvi tala sem enginn ver er tala
+     sem einhver breytir.
+     ============================================================ */
+  ok(PREV_K === 10,
+     `\`PREV_K\` er 10 (${PREV_K}) — endurmaelt 24.8.2026, besta K a ristinni `
+     + "gaf +0,0003 og ekkert K nadi marki a stigum");
+  /* OG FORMID: vogin verdur ad FALLA med fleiri leikjum — annars er
+     "blondun" ekki blondun heldur fasti.                               */
+  ok(prevWeight(0) === 1 && prevWeight(10) === 0.5 && prevWeight(30) < prevWeight(10),
+     `vogin fellur: n=0 -> ${prevWeight(0)}, n=10 -> ${prevWeight(10)}, `
+     + `n=30 -> ${prevWeight(30).toFixed(3)}`);
+  ok(DIFF_W[1].sot > 0 && DIFF_W[2].sot > 0,
+     `GK/DEF bera \`sot > 0\` (${DIFF_W[1].sot}/${DIFF_W[2].sot}) — thess vegna BITUR `
+     + "vordurinn her ad ofan");
+}
 
 console.log(`\nFORM-BLANDA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

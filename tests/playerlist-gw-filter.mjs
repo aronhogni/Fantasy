@@ -118,6 +118,47 @@ const text = () => document.body.textContent || "";
 ok("Player stats-flipinn opnast",
    await click([...document.querySelectorAll("button")].find(b => /Player stats/.test(b.textContent))));
 
+/* ============================================================
+   UMFERDAR-BIL ER ADEINS TIL A LOKNU TIMABILI — VALID ER NU VILJANDI
+   (22.8.2026)
+
+   Allur thessi kafli spyr "hvad segir appid thegar bil er valid og dalkur
+   getur ekki fylgt thvi?". Bilid VIRKAR adeins thegar per-umferdar skrain
+   (`player_gw_<key>.json`) er til, og hun er EKKI til fyrir yfirstandandi
+   timabil. Appid segir thad sjalft i valaranum ("no gameweek data for
+   2026/27 — pick a finished season") — thad er RETT hegdun og hun er ekki
+   thad sem thessi kafli maelir.
+
+   Kaflinn ERFDI arkivid ur sjalfgildinu. Sjalfgildid faerdist a
+   yfirstandandi timabil um leid og GW1-fresturinn leid (`startedGw > 0`),
+   og tha var `gwActive` false: NULL merki, NULL bordi, thrjar fullyrdingar
+   sem maeldu ekkert (maelt 22.8.2026: 0 merkt haus-holf af 7).
+   Timabilid er thvi VALID her, og talan LEIDD ur `player_seasons.json`
+   (sama skra og `olderSeasons` i PlayerList) svo hun ureldist ekki naesta
+   agust.
+   ============================================================ */
+{
+  /* Fast bid er ekki maeling a thvi ad teikningu se lokid (600 radir x
+     124 dalkar endur-eldast); bedid er thangad til textinn haettir ad
+     vaxa — sama adferd og `settleOn` i `data-resilience.mjs`.           */
+  const settleOn = async () => {
+    let last = -1, stable = 0;
+    for (let i = 0; i < 40; i++) {
+      await settle(25);
+      const n = text().length;
+      if (n === last) { if (++stable >= 2) break; } else { stable = 0; last = n; }
+    }
+  };
+  const ARCHIVE = J("player_seasons.json").seasons[0];
+  const sel = () => document.querySelector("select");
+  ok("timabils-valid er addressanlegt", !!sel());
+  sel().value = ARCHIVE;
+  await act(async () => { sel().dispatchEvent(new dom.window.Event("change", { bubbles: true })); });
+  await settleOn();
+  ok(`listinn stendur a ${ARCHIVE} (valid tok, ekki erft)`,
+     sel()?.value === ARCHIVE, String(sel()?.value));
+}
+
 /* Opna umferdar-valarann og velja 30-38. Kassarnir eru hnappar med toluna
    eina; `Gameweeks` er samanbrots-hnappurinn.                            */
 await click(btn("Gameweeks"));
@@ -333,21 +374,59 @@ H("4. SIURNAR SEM VORU TEKNAR UT (17.8.2026)");
        a tomt holf og fullyrdingin haetti ad maela (CLAUDE.md 5b).      */
     ok(`smellt er a holf sem ber raunverulega tolu ("${val}")`,
        Number.isFinite(parseFloat(val)));
-    /* TITILLINN MA LOFA SIUN — EN ADEINS MED MODIFIER (21.8.2026).
-       Hann sagdi "Click to filter (min 239)" 17.8.2026 og thad var textinn
-       sem sagdi notandanum ad BER smellur VAERI hegdunin. Eiginleikinn kom
-       aftur 21.8. sem alt-smellur, svo fullyrdingin er ekki lengur "ekkert
-       loford" heldur "loford sem nefnir modifier-inn": ber "Click to
-       filter" fellur afram, "Alt-click to filter" stenst.               */
+    /* ============================================================
+       LOFORDID I TITLINUM — ThRJAR UTGAFUR, OG SU SEM STOD HER VARDI
+       AFTURFORINA (leidrett 22.8.2026)
+
+       LESTU ThETTA ADUR EN ThU SNYRD ThVI VID:
+         · 17.8.2026 sagdi holfid "Click to filter (min 239)" OG ber
+           smellur BEITTI siunni samstundis. Kvortun notandans var ekki
+           "smellur ma ekki sia" heldur: **smellur til ad LESA rod ma
+           ekki beita siu i thogn.**
+         · 21.8.2026 var svarid ad krefjast `altKey`, og THESSI FULLYRDING
+           NEGLDI ThAD FAST: hun krafdist ordanna "Alt-click to filter" og
+           BANNADI "Click to filter". Notandinn felldi tha utgafu i thridja
+           sinn — "eg get ekki enn ytt a akvedid stats til ad filtera eftir
+           thvi" — thvi modifier sem hvergi er nefndur er ofinnanlegur, og
+           `cellHit` setti `cursor:pointer` a hvert tolu-holf svo bendillinn
+           lofadi smell sem gerdi ekkert.
+         · 22.8.2026: BER SMELLUR OPNAR TILLOGU. Hann svarar (utgafa 2 fell
+           a thvi) en breytir engu af sjalfu ser (utgafa 1 fell a thvi).
+
+       SVARID VID KVORTUNINNI ER TILLAGAN, EKKI DAUDUR SMELLUR — thess
+       vegna eru BADAR krofur fullyrtar her i einum og sama smelli, svo
+       thaer geti ekki verid teknar i sundur aftur:
+         A) titillinn lofar BERUM smelli og nefnir ENGAN modifier
+         B) smellurinn opnar tillogu (hann svarar)
+         C) listinn haggast ekki og enginn Filters-rammi kviknar
+       Innihald tillogunnar sjalfrar — att, ritreitur, Apply/Cancel/Esc,
+       verd sem MAX — er profad i `playerlist-live-cols.mjs` kafla 5.
+       ============================================================ */
     const ti = cell?.getAttribute("title") || "";
-    ok("holfid lofar siun ADEINS med modifier (`Alt-click to filter`)",
-       /Alt-click to filter/.test(ti) && !/(?<!Alt-)[Cc]lick to filter/.test(ti),
+    ok("holfid lofar BERUM smelli (`Click to filter`), an modifier-s",
+       /Click to filter/.test(ti) && !/Alt-click|Shift-click|Ctrl-click/i.test(ti),
        JSON.stringify(ti));
     await click(cell);
+    /* B) HANN SVARAR. An thessarar linu vaeri "siar ekki" aftur uppfyllt af
+       DAUDUM smelli — nakvaemlega afturforin sem var felld thrisvar.     */
+    const pop = () => [...document.querySelectorAll('[role="dialog"]')]
+      .find(d => /Filter on this value/i.test(d.getAttribute("aria-label") || ""));
+    ok("...og smellurinn SVARAR: tillaga ad siu opnast", !!pop(),
+       "daudur smellur er utgafa 2, sem var felld");
+    const applyBtn = [...(pop()?.querySelectorAll("button") || [])]
+      .find(b => /Apply filter/i.test(b.textContent || ""));
+    ok("tillagan ber `Apply filter` — ekkert gerist fyrr en ytt er a hann", !!applyBtn);
+    /* C) OG HUN BREYTIR ENGU MEDAN HUN ER OPIN.                          */
     const [after, tot3] = shownOf();
     ok(`smellur a tolu SIAR EKKI: ${after} af ${tot3} (var 1 af 587 fyrir lagfaeringu)`,
        after === tot3);
     ok("...og enginn Filters-rammi kviknar af smellinum", !/Filters\d/.test(text()));
+    /* Loka henni svo hun hangi ekki yfir naesta kafla.                   */
+    const cancel = [...(pop()?.querySelectorAll("button") || [])]
+      .find(b => /^Cancel$/i.test((b.textContent || "").trim()));
+    if (cancel) await click(cancel);
+    ok("Cancel lokar tillogunni an thess ad beita henni",
+       !pop() && shownOf()[0] === tot3);
   }
 }
 

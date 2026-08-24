@@ -166,8 +166,18 @@ export function bsdSeasonInStep(teamForm, bsdTeams) {
    brot og spjold eru EKKI i `fixtures.json`**, svo their reitir eru
    ekki settir — og verda thar med `null` (= "—" a skjanum) i stad 0.
    Sama regla og annars stadar: tala sem er ekki til ma ekki verda ad nulli
-   (kafli 8). xG/xGC koma ur BSD sem naer adeins yfir 2025/26, svo their
-   dalkar eru tomir lika og `season_locked`-vélin ser um ad segja hvers vegna.
+   (kafli 8).
+
+   xG/xGC KOMA EKKI HEDAN OG ThAU ERU EKKI LENGUR TOM (leidrett 22.8.2026).
+   Her stod: "xG/xGC koma ur BSD sem naer adeins yfir 2025/26, svo their
+   dalkar eru tomir lika og `season_locked`-velin ser um ad segja hvers
+   vegna." Su setning var rett um `bsd_shots.json` (frosid kort) og ROng um
+   BSD i heild: `bsd_live.json` er yfirstandandi timabil og ber nu
+   `team_matches` — eina rod per leikinn leik med badar hlidar — svo bædi xG
+   OG xGC eru til. `Teams.jsx` sendir thaer inn sem `liveMatches` og
+   `aggLiveMatchRange` gerir ur theim somu Map og skotakortid skilar.
+   `lockedBlank` er LEIDD af rodunum sjalfum, svo varnadar-textinn slokknar
+   af sjalfu ser um leid og dalkarnir fyllast — hann var aldrei upptalning.
 
    LEIKUR TELST SPILADUR VID `finished_provisional`, EKKI `finished`. Maelt
    22.8.2026: allir SEX leiknu GW1-leikirnir bera `finished: false` med
@@ -764,6 +774,71 @@ export function aggShotRange(shotIndex, range = null) {
   return out;
 }
 
+/* ---------- SAMA SAMLAGNING, YFIRSTANDANDI TIMABIL (22.8.2026)
+   "Afhverju fae eg ekki xGC a lid?" — af thvi ad skotakortid
+   (`bsd_shots.json`) er FROSID 2025/26 og `bsd_live.json` bar adeins
+   timabils-summur PER LEIKMANN. xG lidsins ma summa ur theim; xGC er summa
+   MOTHERJANNA og hun er ekki i theim, hvorki bein ne leidd.
+
+   `bsd_live.team_matches` (sja `matchShotTotals` i src/bsd.js) ber nu EINA
+   ROD PER LEIK med badar hlidar, og thetta fall breytir theim i NAKVAEMLEGA
+   somu Map og `aggShotRange` skilar — svo `applyTeamRange` og `routeInStep`
+   lesa hana obreytt og engin ny formula verdur til i toflunni.
+
+   TVAER UTFAERSLUR AF SOMU STAERD ER GILDRAN SEM ThETTA REPO ER FULLT AF
+   (buildTeamMetrics, wOf, ZONE_RE …). Hun er hér OHJAKVAEMILEG — inntokin
+   eru sitthvor (per skot a moti per leik) — svo hun er JAFNGILDIS-PROFUD i
+   stad thess ad vera fullyrt: `team-stats.mjs` kafli 12e brytur 2025/26-
+   kortid (9.544 skot) nidur i tilbunar leikja-radir og krefst thess ad
+   BADAR leidir skili somu tolu fyrir oll 17 lidin, a ollum atta svidunum.
+
+   OG HUN ER STRANGARI EN SKOT-LEIDIN A EINUM STAD: skot-lykillinn er
+   (umferd, motherji) og getur thvi ekki adgreint tvo leiki gegn SAMA lidi i
+   somu umferd (skjalad i `aggShotRange`). Her er lykillinn leikurinn sjalfur
+   (`id`), svo tvofold umferd telst rett an hjalpar fra `fixtures.json`.  */
+export function aggLiveMatchRange(matches, range = null) {
+  const out = new Map();
+  if (!Array.isArray(matches)) return out;
+  /* BADAR HLIDAR VERDA AD VERA HEILAR. Half skrad rod (t.d. `away` an `xg`)
+     myndi gefa lidinu xGC 0 OG hreint blad — tvaer tilbunar tolur ur einu
+     vantandi svidi. `?? 0` badum megin er nakvaemlega su villa (CLAUDE.md 12,
+     `net_transfers_event`), svo rodin er felld i heild fremur en flikkud. */
+  const okSide = s => s && typeof s.xg === "number" && typeof s.shots === "number"
+                   && typeof s.bc === "number" && typeof s.goals === "number";
+  const bump = (self, opp) => {
+    if (self.team == null) return;                 // lid utan deildar — engin rod
+    const a = out.get(self.team)
+      || { n: 0, nF: 0, nA: 0, xgF: 0, xgA: 0, bcF: 0, bcA: 0, gf: 0, ga: 0, cs: 0 };
+    a.n++;
+    a.nF += self.shots; a.nA += opp.shots;
+    a.xgF += self.xg;   a.xgA += opp.xg;
+    a.bcF += self.bc;   a.bcA += opp.bc;
+    a.gf += self.goals; a.ga += opp.goals;
+    if (opp.goals === 0) a.cs++;
+    out.set(self.team, a);
+  };
+  for (const m of matches) {
+    /* `inRange` krefst thess ad `gw` se til — leikur an umferdar er ekki
+       hægt ad setja i bil og ma thvi ekki lauma ser inn i "heilt timabil"
+       heldur. Sama medferd og skot an umferdar fa i `aggShotRange`.      */
+    if (!m || !inRange(m.gw, range)) continue;
+    if (!okSide(m.home) || !okSide(m.away)) continue;
+    bump(m.home, m.away); bump(m.away, m.home);
+  }
+  return out;
+}
+
+/* HVOR SKOTA-HEIMILDIN — KALLANDINN VELUR, FALLID GISKAR EKKI.
+   `Teams.jsx` sendir NAKVAEMLEGA adra: frosna kortid i fyrra timabili,
+   leikja-radirnar i thvi yfirstandandi. Vaeri "hvor sem er til" reglan gaeti
+   toflan lagt saman mork ur einu timabili og xG ur odru — sem er ekki tom
+   tala heldur ROng (sama rok og `bsdSeasonInStep`).                      */
+function shotAggOf(shotIndex, liveMatches, range) {
+  return Array.isArray(liveMatches) && liveMatches.length
+    ? aggLiveMatchRange(liveMatches, range)
+    : aggShotRange(shotIndex, range);
+}
+
 /* ---------- URSLITIN UR `fixtures.json` — HIN LEIDIN, OG HUN GILDIR ADEINS
    UM ThAD TIMABIL SEM SKRAIN BER. */
 export function aggFixtureRange(fixtures, range = null) {
@@ -848,8 +923,8 @@ export function routeInStep(base, per, { maxMatchGap = 2, maxGoalGap = 0.10 } = 
 /* HVOR LEID ER I NOTKUN — OG HVERS VEGNA EKKI, THEGAR SVARID ER "engin".
    `why` er BIRT A SKJANUM. Valari sem er slokktur an skyringar er sama
    aett og dalkur sem hreyfist ekki an skyringar (thad var kaeran).       */
-export function teamRangeUse({ base, shotIndex, fixtures } = {}) {
-  const shotFull = aggShotRange(shotIndex, null);
+export function teamRangeUse({ base, shotIndex, liveMatches = null, fixtures } = {}) {
+  const shotFull = shotAggOf(shotIndex, liveMatches, null);
   const fixFull = aggFixtureRange(fixtures, null);
   const shotStep = shotFull.size
     ? routeInStep(base, r => shotFull.get(r.short)) : { ok: false, checked: 0 };
@@ -859,8 +934,12 @@ export function teamRangeUse({ base, shotIndex, fixtures } = {}) {
      heimildin um yfirstandandi timabil og uppfaerist a 30 min), annars
      skotakortid — sem er MAELT NAKVAEMT jofn E0 a ollum thremur tolum.  */
   const results = fixStep.ok ? "fixtures" : (shotStep.ok ? "shots" : null);
+  /* ThAKID VERDUR AD KOMA UR ThEIRRI HEIMILD SEM VAR SAMThYKKT. `maxGwOfShots`
+     les `shotIndex`, sem er `null` i lifandi syn — svo an thessa hefdi
+     skota-leidin gefid thak 0 og bils-valarinn hefdi hangid a leikjaskranni
+     einni. Sama regla og annars stadar: thakid er LEITT UT UR GOGNUNUM.  */
   const maxGw = Math.max(
-    shotStep.ok ? maxGwOfShots(shotIndex) : 0,
+    shotStep.ok ? maxGwOfShotSource(shotIndex, liveMatches) : 0,
     fixStep.ok ? maxEventOf(fixtures) : 0);
   let why = "";
   if (!shotStep.ok && !results) {
@@ -885,6 +964,17 @@ export function maxGwOfShots(shotIndex) {
     for (const s of arr) { const g = s[F.gw]; if (g > mx) mx = g; }
   return mx;
 }
+export function maxGwOfLiveMatches(matches) {
+  if (!Array.isArray(matches)) return 0;
+  let mx = 0;
+  for (const m of matches) { const g = m?.gw; if (typeof g === "number" && g > mx) mx = g; }
+  return mx;
+}
+/* SAMA VAL OG `shotAggOf` — thakid ma ekki koma ur annarri heimild en talan. */
+function maxGwOfShotSource(shotIndex, liveMatches) {
+  return Array.isArray(liveMatches) && liveMatches.length
+    ? maxGwOfLiveMatches(liveMatches) : maxGwOfShots(shotIndex);
+}
 export function maxEventOf(fixtures) {
   if (!Array.isArray(fixtures)) return 0;
   let mx = 0;
@@ -907,12 +997,13 @@ export function maxEventOf(fixtures) {
    tala sem segir ad hun se arstidar-tala.
    ============================================================ */
 export function applyTeamRange(base, { range = null, shotIndex = null,
+                                       liveMatches = null,
                                        fixtures = null, use = null } = {}) {
   const rows = Array.isArray(base) ? base : [];
   const u = use || {};
   if (!u.shots && !u.results) return rows;
   const shotAgg = (u.shots || u.results === "shots")
-    ? aggShotRange(shotIndex, range) : null;
+    ? shotAggOf(shotIndex, liveMatches, range) : null;
   const fixAgg = u.results === "fixtures" ? aggFixtureRange(fixtures, range) : null;
 
   return rows.map(r => {

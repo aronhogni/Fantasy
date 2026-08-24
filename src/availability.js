@@ -89,6 +89,30 @@ export function setPieceOf(p, ranks) {
 // tímabilið er hafið núllstillast tölurnar og rétt nefnari er fjöldi
 // LOKINNA umferða — að deila með 38 gaf t.d. "8%" eftir 3 umferðir.
 // Undir 3 loknum umferðum er úrtakið of lítið fyrir "high"-flagg.
+/* ============================================================
+   LEIKIR SEM HVERT FELAG HEFUR RAUNVERULEGA SPILAD
+
+   Ein utfaersla, thvi spurningin "hefur verid spilad?" er nu spurd a
+   fjorum stodum og hvert afrit er stadur thar sem `finished` gaeti laumast
+   inn aftur. `finished_provisional` er skilyrdid, EKKI `finished`: maelt
+   22.8.2026 bera allir sex leiknu GW1-leikirnir `finished: false` med
+   `finished_provisional: true, minutes: 90` og fullum urslitum — `finished`
+   flettist fyrst thegar umferdin er stadfest med bonus.
+   Leikur I GANGI er utilokadur (bædi skor verda ad vera til OG leikurinn
+   merktur bunum), svo hlutfall hoppi ekki a medan spilad er.
+   ============================================================ */
+export function matchesPlayedByClub(fixtures) {
+  const by = {};
+  for (const f of (Array.isArray(fixtures) ? fixtures : [])) {
+    const done = f?.finished === true || f?.finished_provisional === true;
+    if (!done) continue;
+    if (f?.team_h_score == null || f?.team_a_score == null) continue;
+    by[f.team_h] = (by[f.team_h] || 0) + 1;
+    by[f.team_a] = (by[f.team_a] || 0) + 1;
+  }
+  return by;
+}
+
 export function rotationRisk(p, seasonGames) {
   const st = p?.starts;
   if (st == null) return null;
@@ -124,10 +148,44 @@ export function rotationRisk(p, seasonGames) {
      Vordur: `initial-squad.mjs` kafli D (baðar attir a raungognum).      */
   const mins = Number(p?.minutes);
   if (!Number.isFinite(mins) || mins <= 0) return null;
-  const prevSeason = !seasonGames;               // engin lokin umferð enn
+  /* ============================================================
+     NEFNARINN VAR UMFERDIR SEM ERU `finished`, EKKI LEIKIR SEM VORU
+     SPILADIR — OG ThAD MERKTI MANN SEM SPILADI ALLT SEM HAEGT VAR
+     (22.8.2026, ad abendingu notandans)
+
+     Hann ordadi thad nakvaemlega: "thad meikar ekki sens ad hafa leikmenn
+     merkta rotation risk ef their hafa spilad 1 af 38 leikjum, thvi their
+     hafa ekki getad spilad fleiri, their eru ekki bunir."
+
+     `seasonGames` kom ur `events.filter(e => e.finished).length`. Umferd
+     telst ekki `finished` fyrr en FPL stadfestir hana med bonus, svo eftir
+     GW1 var hun **0** thott SEX leikir vaeru spiladir. Tha vard
+     `prevSeason` satt, nefnarinn 38 — og TELJARINN kom ur ThESSU timabili,
+     thvi FPL nullstillir uppsofnudu tolurnar vid frestinn. Utkoman:
+     "Started 1 of 38 matches — rotation risk" um mann sem byrjadi HVERN
+     leik sem til var. Teljari og nefnari ur sitthvoru timabilinu — sama
+     aett og `xg_share` 148% (kafli 12) og Championship-tolur nylidanna.
+
+     ThETTA ER FJORDA TILVIKID AF SOMU ROT A EINUM DEGI: `season_baseline`,
+     forleiks-bordinn i PlayerList, sjalfgefna timabilid og nu thetta. Alls
+     stadar var spurt "er umferd LOKID?" thegar spurningin var "hefur verid
+     SPILAD?".
+
+     NEFNARINN ER NU LEIKIR SEM HANS EIGID FELAG HEFUR SPILAD — ekki
+     deildar-medaltal: auð umferd og tvofold umferd gera thad ad verkum ad
+     felog hafa spilad misjafnlega marga, og hlutfall verdur ad deila med
+     ThVI SEM STOD HONUM TIL BODA.
+
+     `starts > played` ER GAGNAVILLA og er medhondlud sem slik: hun getur
+     adeins gerst ef teljari og nefnari eru ur sitthvorri attinni — einmitt
+     villan sem var — svo svarid er ENGIN TALA, ekki tala yfir 100%.      */
+  const prevSeason = !seasonGames;               // ekkert spilad enn
   const played = prevSeason ? 38 : seasonGames;
   if (!played) return null;
+  if (st > played) return null;                  // sja blokkina her ofan
   const pct = Math.round((st / played) * 100);
+  /* ThRIR LEIKIR ER LAGMARKID og thad stod adur — en thad var aldrei spurt
+     medan `prevSeason` var satt allt timabilid. Nu bitur thad.           */
   const enough = prevSeason || seasonGames >= 3;
   const level = !enough ? "low" : pct >= 75 ? "safe" : pct >= 50 ? "mid" : "high";
   return { starts: st, played, pct, prevSeason, level };
