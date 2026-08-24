@@ -375,6 +375,9 @@ nálgun: PPR = STANDARD + móttökur, svo **HALF = (STANDARD + PPR) / 2**.
 | **Tækifæri sem lítil vog OFAN Á VBD-röðina** (`opp-lab.mjs`) | **EINN frambjóðandi, ekki breyting.** `prevCarG` (hlaup per leik, fyrra tímabil) mælist **+23,8 stig**, t=2,286, 8/11 ár, CI [+3,7, +42,4], einræn 4/4 (endurmælt 14.8., var +24,4 / CI [+3,7, +43,7] — sjá 4b-2). Fimm varnaglar fella hana samt sem *breytingu* — sjá 4d. **Endurmaeld a SIGRUM 15.8. (`h2h-lab` Q3): +0,09 af 14 gegn placebo-thaki +0,35 — maelikvardinn bjargar henni ekki.** Hinar tíu breyturnar: engin stenst |
 | **Óvissu-háð hnignun spárinnar** (`shrink-lab.mjs`) | **HAFNAÐ.** 12 óvissu-mælar × 3 forgildi × 6 vogir: **0 af 36 samsetningum jákvæðar í öllum 10 hólfum á báðum spáheimildum**. Besta samkvæma hrifin +0,5 stig af ~1900. Marktækni í **0/14** hólfum (besta \|t\| = 3,4 gegn kröfu 4,5–5,7) |
 | **Vikulegar viðureignir í stað stiga** (`h2h-lab.mjs`) | **NULL-NIÐURSTAÐA, OG HÚN ER VERÐMÆT: stigin voru fullnægjandi staðgengill allan tímann.** A-Ranking gegn ADP heldur á SIGRUM (**+2,4 til +3,8 af 14**, marktækt í 4/4 lögnum, met 9,6-4,4 á móti 7,2-6,8) og stiga-dálkurinn endurgerir bókuðu +233,6 sem **+223**. Stefnu-röðin færist ekki: rho(sigrar, stig) = **0,961–0,989** á móti sjálfsáreiðanleika 0,935–0,968 — og **rho(stig, bókuð röð) er LÆGRA (0,768–0,828)**, svo mælikvarðinn færir röðina minna en hermirinn gerir. **Meistaraprósenta ber ekki merkið** í 5 tímabilum (+17,8pp, CI innihaldur núll) þótt „komast í úrslitakeppni" geri það (+35,1pp). **Og Q3 spurdi hinnar attarinnar — bjargar maelikvardinn einhverju sem FELL? NEI:** `prevCarG` (4d) maelist **+0,09 sigrar af 14** (t=0,48, 3/7, CI [-0,24, +0,45]) gegn **placebo-thaki +0,35**, og stigin ur SOMU drofttum **+16,7 gegn thaki +42,2** — sami domur a badum. Sja 5n |
+| **Markaðurinn sem ÁRSTÍÐAR-inntak** (`build-extra-features.mjs` + `opp-lab --extra`) | **FELLUR — og ORAKELIÐ segir hvers vegna.** Byggt í tveimur örmum: HEIÐARLEGT (aðeins línur viku 1, til fyrir draftið, lagðar á þekkt skipulag) og ORAKEL (lokalínur alls tímabilsins — **þak, ekki tillaga**). Orakelið stenst **öll fjögur skilyrðin** (`mktOwnOracle` +51,2, t=6,874, **11/11**, per-leikmanns r +0,202 CI [+0,154 · +0,248]); heiðarlega útgáfan stenst **ekki eitt** (+9,7, t=1,150, 6/11, r +0,024 CI **[−0,024 · +0,070]**, inni í plasebó-bilinu [−23,4 · +21,3]). Og áttin sem einhver myndi TENGJA gefur **−0,8 stig** (t=−0,108) — öll ósamhverfa talan er „ekki gera hið gagnstæða". **Sigrarnir segja það sama** (+0,060 af 14 gegn þaki +0,354, öll þrjú skilyrðin fella hana). `Playoff D` mælist **neikvætt marktækt**. Sjá **4m** |
+| **Sérfræðinga-vikið sem lítil vog OFAN Á VBD** (`ecrVsAdp`, `ecrSd`) | **FELLUR.** `ecrVsAdp` +1,3 (t=0,272, 7/10, r −0,031 CI [−0,076 · +0,017]), `ecrSd` −10,0 (t=−1,165, 3/10). Þetta er **þriðja óháða mælingin á sama svari**: `board-lab` felldi ECR-blöndun walk-forward í öllum fjórum frumum (5h) og `model-lab` mældi ECR eitt og sér 1590 gegn 1755 hjá ADP (5b). **Sú fjölskylda er nú lokuð.** Sjá **4m** |
+| **Bera 7 borð skorpu-hópsins nóg merki?** (`sharp-power-lab.mjs`) | **LOKNU ÁRIN: JÁ — LIFANDI DÁLKURINN: NEI.** Bootstrap þar sem klasinn er BORÐIÐ. Með 9–13 borðum (2019–2025) er sd 5,04 á \|delta\| 14,4 og formerkið stöðugt í 95% ítrana hjá **69%**, svo höfnunin í `sharp-lab`/`disagree-lab` stendur sem „merkið er ekki þarna". **En í dag eru komin 8 af 15 borðum og í TOPP-50 er \|delta\| 2,2 á móti sd 2,8** — aðeins **18%** bera formerki sem heldur. Og það **skýrir bókaða tölu**: flöt samsteypa hefur sd **1,67** á móti 5,04, svo +51,2-forskot hennar (kafli 5) er **þreföld nákvæmni**, ekki meiri réttleiki. Sjá **4m** |
 
 **Aldur: skugginn er raunverulegur, hann flyst bara ekki.** RB-leifin fellur
 einrænt og steypist við 29–31 (**−22,3 stig** net of ADP), WR −15,4, og hnykkurinn
@@ -1763,6 +1766,246 @@ hólf sem stóðust árs-klösun og **0 af 153** sem stóðust leikmanna-klösun
 > eitthvað of rausnarlegt** við þéttenda — aldrei of hart. **Lestu TE-kaupin sem
 > ómæld, ekki sem sterkustu merkin á borðinu.**
 
+### 4m. NÝJU MARKAÐSODDARNIR OG SÉRFRÆÐINGARNIR — 24.8.2026, ALLT FELLT, OG ORAKELIÐ SEGIR HVERS VEGNA
+
+Spurningin var bein: **„getum við gert eitthvað með nýju market odds eða
+sérfræðingum til að bæta A-Ranking?"** Svarið er **nei** — og þessi kafli er
+skrifaður svo það verði ekki spurt í þriðja sinn, því tvennt í honum er
+*nýtt* og hvorugt var vitað fyrir.
+
+`scripts/build-extra-features.mjs` → `data/measure/extra_features.json`
+(inntökin) → `opp-lab.mjs --extra` → `data/measure/arankplus.json` (stigin) →
+`h2h-lab.mjs --q3var` → `data/measure/h2h_mkt.json` (sigrarnir) ·
+`scripts/sharp-power-lab.mjs` → `data/measure/sharp_power.json`.
+
+**ENGIN NÝ MÆLIVÉL VAR BYGGÐ.** Þetta er *nákvæmlega sama net* sem felldi
+`prevCarG`: lítil, einræn vog **lögð ofan á** óbreyttan `z(VBD)`, z-stöðluð
+**innan stöðu**, dæmd á ákvörðuninni, með **átta plasebó-breytum** sem
+núlldreifingu. Vélin fékk aðeins `--extra` / `--only` / `--out` (og `--q3var` í
+`h2h-lab`); grid, `BOOT`, lagnir og stigagjafir eru **bitaeins**, svo tölurnar
+hér eru samanburðarhæfar við bókuðu `prevCarG`-tölurnar. **Plasebóarnir eru
+aldrei filteraðir af `--only`** — þak án núlldreifingar er ekki þak.
+
+**2.160 afbrigði** (8 breytur × 10 vogir × 3 svið × 3 snið × **3 lagnir, þar með
+báðar deildir hans**) auk 2.160 plasebó-afbrigða, 11 tímabil (2015–2025).
+Núllprófið gefur **0,0 í öllum níu hólfum**.
+
+#### ORAKELIÐ VAR SETT INN SEM ÞAK — OG ÞAÐ ER EKKI NÚLL
+
+Hér er hönnunin sem gerir höfnunina lesanlega, og hún var ásett frá byrjun.
+Markaðurinn var byggður í **tveimur örmum**:
+
+| arm | hvað hann sér | staða |
+|---|---|---|
+| **HEIÐARLEGT** | aðeins línur **viku 1** — þær eru til fyrir draftið — lagðar á **þekkt skipulag** | **tillagan** |
+| **ORAKEL** | **lokalínur alls tímabilsins** | **ÞAK, ekki tillaga** |
+
+Orakelið veit hvað liðin gerðu (`r` við raunveruleg stig liðsins per leik =
+**0,858**, 11/11 tímabil). Það á því að vinna, og **spurningin sem það svarar er
+hvort mælivélin geti séð markaðsmerki þegar það er þarna.** Sama rök og
+orakel-borðið í `agecurve-lab` (+410 til +738): **höfnun er niðurstaða, ekki
+bilað mælitæki.**
+
+Plasebó-þakið: forspárbil **[−23,4 · +21,3]**, hæsta pooled \|t\| **1,227**,
+meðaltal −1,1, sd 8,9.
+
+| breyta | ósamhverft | t | ár | 95% CI (per leikmann · Tier A) | öll 4 skilyrði |
+|---|---|---|---|---|---|
+| **`mktOwnOracle`** | **+51,2** | **6,874** | **11/11** | r +0,202 [+0,154 · +0,248] | **JÁ** |
+| **`mktSosOracle`** | **+29,1** | 2,542 | 10/11 | r +0,124 [+0,076 · +0,171] | **JÁ** |
+| `mktPlayoffOracle` | +13,0 | 2,170 | 9/11 | r +0,028 [−0,020 · +0,076] | nei — **inni í suðinu** |
+| **`mktOwnHonest`** | **+9,7** | 1,150 | 6/11 | **r +0,024 [−0,024 · +0,070]** | **nei** |
+| `ecrSd` | −10,0 | −1,165 | 3/10 | r +0,036 [−0,018 · +0,091] | nei |
+| `mktSosHonest` | −7,3 | −0,735 | 5/11 | r −0,033 [−0,078 · +0,012] | nei |
+| `mktPlayoffHonest` | −4,9 | −0,639 | 4/11 | r **−0,057 [−0,110 · −0,007]** | nei |
+| **`ecrVsAdp`** | **+1,3** | 0,272 | 7/10 | r −0,031 [−0,076 · +0,017] | **nei** |
+
+**Orakelið stenst öll fjögur skilyrðin. Heiðarlega útgáfan stenst ekki eitt.**
+Það er svarið, og það er sterkara svar en flatt núll hefði verið: vélin **getur**
+séð markaðsmerki — merkið sem orakelið ber er **eftirsjáin**, ekki markaðurinn.
+
+Og það er ekki eitt hólf: Tier A `r` fyrir `mktOwnHonest` liggur á
+**0,008–0,071 og hvert einasta CI innihaldur núll í öllum 9 hólfum**
+(3 snið × 3 svið), meðan orakelið mælist **0,202–0,321 og hvert CI útilokar
+núll**. Hæsta heiðarlega talan er í `top50` (0,056–0,071) og hún nær samt ekki
+marktækni.
+
+> **NÍU HÓLF SEM ERU SAMMÁLA ERU EKKI NÍU STAÐFESTINGAR** — þau hvíla á sömu
+> 11 tímabilum og sömu laug og deila því hávaðanum. Þetta er birt sem
+> **samkvæmni**, ekki sem aukið úrtak; sama varnagli og „þrjú afbrigði sem eru
+> sammála eru EKKI þrjár staðfestingar" í kafla 5.
+
+#### OG ÁTTIN SEM EINHVER MYNDI TENGJA BÆTIR **MÍNUS 0,8 STIGUM**
+
+Ósamhverfa talan er `(E[w>0] − E[w<0])/2` og hún getur verið jákvæð af því einu
+að **negatíf** vog skaði. Sundurliðað eftir formerki:
+
+| | `w > 0` („meira vænt skor er betra") | `w < 0` („faðaðu þau lið") |
+|---|---|---|
+| `mktOwnHonest` | **−0,8 stig (t = −0,108)** | −20,3 (t = −1,900) |
+| `mktOwnOracle` | **+39,1 (t = 4,771)** | −63,3 (t = −6,715) |
+
+Öll +9,7 hjá heiðarlegu útgáfunni eru því **„ekki gera hið gagnstæða"**. Vog í
+þá átt sem nokkur maður myndi raunverulega tengja mælist **núll með mínus
+formerki**. Orakelið, í sömu átt, gefur +39,1. **Þetta er tveggja-arma útgáfa af
+sömu gildru og `prevTeamPassRate` var í 4d**, og hún hefði verið ósýnileg án
+tvíhliða gridsins.
+
+#### SIGRARNIR SEGJA ÞAÐ SAMA — SAMI DÓMUR Á BÁÐUM MÆLIKVÖRÐUM
+
+`mktOwnHonest` er eini heiðarlegi frambjóðandinn nógu nærri mörkunum til að
+sigra-mælikvarðinn sé þess virði (samanburður: `prevCarG` var +23,8 gegn þaki
++21,3 og fékk sömu meðferð í 5n/Q3). Sama net, sömu drottir, sigrar í stað stiga:
+
+| | sigrar (af 14) | t | ár | 95% CI (ars-klasad) | stig, SÖMU drottir |
+|---|---|---|---|---|---|
+| `mktOwnHonest`, ósamhverfi liðurinn | **+0,060** | 0,641 | 5/7 | **[−0,112 · +0,219]** | **+9,5** (t = 0,906) |
+| placebo-þak (forspárbil eins nýs frækasts) | **+0,354** | — | — | [−0,442 · +0,354] | **+42,2** |
+| **borð yfir þakið** | **−0,294** | | | | **−32,7** |
+
+(Þakið er **forspárbilið**, sama skilgreining og +0,35 í 5n/Q3, ekki hæsta
+einstaka frækast — það mælist +0,170 og **eitt af átta** les „marktækt" á
+árs-klasaða bootstrappinu, sem er falsjákvæðnin sem þakið er til að verja
+gegn.) **Per-leikmanns bootstrappið** — hliðið sem felldi `vbdbase-lab` í 153
+hólfum af 153 — gefur punkt **+0,030, CI [−0,398 · +0,777]**, og `placebo1`
+gefur −0,280, CI [−0,641 · +0,436]: **jafn ógreinanlegt frá núlli, í sitt hvora
+áttina.** Öll þrjú skilyrðin fella hana.
+
+`top50` — þar sem draftið ræðst — gefur **+0,090** gegn þaki +0,245. Og
+**walk-forward snýst við**, alveg eins og það gerði fyrir `prevCarG`:
+`mktOwnHonest` mælist **−0,540 sigrar (2/6)** og **−64,0 stig (1/6)** meðan
+**plasebó-LEITIN** mælist +71,1 stig (6/6). Leit yfir gagnslaus afbrigði velur
+eitthvað sem virkar næsta ár betur en raunverulega breytan gerir. Væri þakið
+ekki mælt væri sú tala læsileg sem sönnun um hvað sem er.
+
+#### ÞRENNT SEM MÆLINGIN AFHJÚPAÐI OG VAR EKKI SPURT UM
+
+**1. LEKAHLIÐIÐ ER BLINT Á LEKA Á LIÐSSTIGI.** `opp-lab` ber hlið sem er
+beinlínis til þess að fella lekar breytur: **fylgni við leiki spilaða á mælda
+árinu**, mörk 0,45 (sama tala og `nfl-pipeline.mjs` kafli 5c beitir á
+Sleeper-spána). `mktOwnOracle` — sem ber lokalínur alls tímabilsins og hefur
+r 0,858 við raunveruleg stig liðsins — fær **r = 0,145 og „ok"**. Hliðið var
+byggt fyrir leka á **leikmanns**-stigi (tiltækileiki) og **sér leka á
+liðs-stigi ekki**. **Eina ástæðan til að við vitum að orakelið lekur er að við
+byggðum það svo og merktum það.** Sama blinda er í pipeline-verðinum.
+
+**2. „PLAYOFF D" BER NEIKVÆTT MERKI, MARKTÆKT.** `mktPlayoffHonest` mælist
+Tier A **r = −0,057, CI [−0,110 · −0,007] — útilokar núll**. Appið birtir
+`Playoff D`-dálkinn með varnagla um að línur vikna 15–17 séu „þær verst
+upplýstu á tímabilinu" (5c); **sá varnagli er nú mældur og hann var
+varfærinn** — sem árstíðar-inntak bendir dálkurinn í **ranga átt**. Og
+**orakel**-útgáfan af honum (+13,0) er líka **inni í suðinu**, svo þetta er
+ekki gæðavandamál línunnar: **úrslitakeppnis-skipulagið er ekki
+draft-upplýsing**, hversu vel sem það er verðlagt. Dálkurinn má standa sem
+jafnteflabrjótur — hann má **ekki** verða röðunar-liður.
+
+**3. ÞAKIÐ GILDIR YFIR `own` OG **EKKI** YFIR `sos`.** Þak-röksemdin („falli
+orakelið getur heiðarleg útgáfa ekki unnið") krefst þess að heiðarlega talan sé
+**þynnri útgáfa af sömu tölu**. Fyrir `own` er hún það: r(heiðarleg, orakel) =
+**0,469–0,735** yfir 11 tímabil. Fyrir `sos` er hún **önnur tala** —
+**−0,354 til +0,816**, formerkið skiptist. Þakið gildir því **ekki** yfir
+`mktSosHonest`, og það er skráð í skránni sjálfri (`leak.honestCaveat`) fremur
+en látið líta út eins og heil röksemd.
+
+#### SÉRFRÆÐINGARNIR: ÞRIÐJA SPURNINGIN, OG HÚN VAR ALDREI MÆLD
+
+`sharp-lab` og `disagree-lab` felldu bæði borð skorpu-hópsins sem **röðun**
+(−111,3 sem borð · −11,6 sem blöndun · P=0 sem hópa-færsla, sjá kafla 5).
+Hvorug spurði þriðju spurningarinnar, sem kafli 5 nefnir sem **varnagla en
+aldrei sem mælingu**: *„aðeins 7–13 af 15 völdum eiga borð hvert ár … hluti
+bilsins gæti verið úrtaksstærð."*
+
+`sharp-power-lab.mjs` mælir hana. Bootstrap þar sem **klasinn er BORÐIÐ**, ekki
+leikmaðurinn: dregin B borð með skilum úr þeim B sem komin eru, miðgildið
+endurreiknað, `sharpDelta` endurreiknað per leikmann, 2.000 ítranir. Valreglan
+er **óbreytt** (`lib/experts.mjs`, walk-forward) — annars væri þetta ekki sama
+borðið og appið birtir.
+
+| arm | borð | \|delta\| | **sd** | SNR | formerki stöðugt í 95% ítrana |
+|---|---|---|---|---|---|
+| skorpa (2019–2025) | 9–13 | 14,4 | **5,04** | 4,73 | **69%** |
+| flöt samsteypa | 156–237 | 14,5 | **1,67** | 17,40 | 89% |
+| stokkuð borð (núll) | 9–13 | 46,5 | 24,8 | 2,11 | 57% |
+
+**Með 9–13 borðum er talan viðunandi vel ákvörðuð**, svo höfnunin í
+`sharp-lab`/`disagree-lab` stendur sem **„merkið er ekki þarna"** og ekki sem
+„við gátum ekki mælt það". **Sú spurning er lokuð.**
+
+**OG ÞAÐ SKÝRIR BÓKAÐA TÖLU SEM VAR ÁN MEKANISMA.** Kafli 5 bókar að **flöt
+samsteypa slær valda hópinn um +51,2 stig** (1/7, t −2,30) — „að velja
+sérfræðinga tapar fyrir því að taka þá alla". Mekanisminn er hér: sd er
+**1,67 hjá flötu samsteypunni á móti 5,04 hjá skorpunni**. **Valið kostar
+þrefalda nákvæmni og kaupir engan réttleika.**
+
+#### OG SVO KOM ÞAÐ SEM MÆLINGIN VAR EKKI BEÐIN UM: LIFANDI DÁLKURINN
+
+Loknu árin bera 9–13 borð. **Dálkurinn á skjánum í dag ber ÁTTA af 15**
+(samsteypan ber 103). Suðið var því mælt á **lifandi** borðunum líka — það
+þarf **engar útkomur**, aðeins endursýningu, svo forleikur er engin hindrun:
+
+| 2026, lifandi | \|delta\| | **sd** | SNR | formerki stöðugt í 95% |
+|---|---|---|---|---|
+| allir 354 | 11,7 | 10,2 | 1,29 | **31%** |
+| **TOPP 50** | **2,2** | **2,8** | **1,02** | **18%** |
+
+**Í topp-50 — þar sem draftið ræðst — er talan sem dálkurinn birtir 2,2 sæti
+meðan hennar eigið endursýningar-suð er 2,8 sæti.** Aðeins **18%** bera formerki
+sem heldur í 95% endursýninga; **82% geta snúist úr „buy" í „fade" við það eitt
+að næsta borð berist.**
+
+Þetta er **repo-ins eigin regla** (5n/Q3, síðasti undirkafli): *„mælikvarði sem
+færir röðina MINNA en sitt eigið suð getur ekki snúið neinu við"* — hér beitt á
+**inntakið** í stað mælikvarðans. `sharpDelta` er dálkur og ekki röðun
+(`tests/learn.mjs` fellur ef einhver vírar hann í `aRank`) og **það stendur**;
+þetta mælir hve mikið má lesa **úr** dálknum í ágúst, og svarið í toppnum er
+**nánast ekkert fyrr en fleiri borð berast.** Úrtaksstærðin stendur þegar undir
+töflunni í Players; **talan sem vantaði þar er sd.**
+
+> **VARNAGLI Á MÆLIKVARÐANN SJÁLFAN, OG HANN SKIPTIR MÁLI.** Stokkaða armið ber
+> SNR **2,11**, sem er **hærra** en lifandi armið (1,29). Það er ekki þversögn
+> heldur aðvörun: stokkuð borð gefa handahófskennt miðgildi sem er **langt** frá
+> samsteypunni (\|delta\| 46,5), svo hlutfallið lítur hátt út meðan talan er
+> merkingarlaus. **NÁKVÆMNI ER EKKI MERKI** — sama ætt og „áreiðanleiki er ekki
+> gagnsemi" í FPL-hlutanum, þar sem þröskuldsreglan hældi split-half og var
+> **mettun**. Talan sem gildir er sd á móti **þeirri stærð sem dálkurinn
+> birtir**, og hún er **2,8 gegn 2,2**.
+
+#### ÞRJÁR ÓHÁÐAR MÆLINGAR Á SAMA NIÐURSTÖÐU — OG ÞAÐ ER ÁSTÆÐA TIL AÐ HÆTTA
+
+Hvorug hugmyndin er ný **sem fjölskylda**, og það er sjálfstætt rök fyrir að
+loka spurningunni:
+
+| þetta | mældi | og áður |
+|---|---|---|
+| `mktOwnHonest` = **núll ofan á** | markaðs-lína framávið, árstíðar | `board-lab` mældi **`prevTeamPfG`** (sókn liðsins, fyrra ár): neikvætt við w ≥ 0,3 (5h). `model-lab` mældi **liðsstyrk einn og sér** lakastan af öllum inntökum (1319 á móti 1667, 5b). `mktweek-lab` **0 af 45 hólfum** vikulega |
+| `ecrVsAdp` = **núll ofan á** | vik sérfræðinga frá markaði | `board-lab` mældi **ECR-blöndun**: walk-forward neikvætt í **öllum fjórum frumum** (5h). `model-lab`: ECR eitt og sér **1590** gegn 1755 hjá ADP (5b) |
+
+**Þrjár aðferðir, þrjár lagnir, tveir mælikvarðar, sama svar.** Það sem er
+*nýtt* hér er ekki niðurstaðan heldur **orakel-þakið** (sem sannar að vélin
+gæti séð merkið), **áttar-sundurliðunin** (sem sýnir að jákvæða vogin bætir
+mínus 0,8) og **suðið í lifandi Sharp-dálknum** (sem var varnagli og er nú tala).
+
+#### HVAÐ VÆRI EFTIR — OG ÞAÐ KREFST GAGNA SEM VERÐA EKKI TIL EFTIR Á
+
+Heiðarlega armið er **besta sem heimildirnar leyfa og það er ekki það besta sem
+væri hægt**: nflverse geymir **lokalínuna**, svo jafnvel viku-1 línan er sett
+~2 vikum eftir draftið, og hún er **einn leikur** — r 0,398 við raunstig liðsins
+á móti 0,858 hjá orakelinu. **Raunveruleg forleiks-lína á öllu tímabilinu**
+(sem ESPN birtir í dag: **272 af 272 leikjum verðlagðir í forleik**, 5c) væri
+sterkari lestur en viku-1 línan, og hún er **ekki til sögulega**.
+
+**OG HÚN VERÐUR ÞAÐ EKKI EF EKKERT ER GERT.** `sports.core.api` geymir **enga
+sögu** — línan hverfur um leið og leikurinn er búinn, nákvæmlega eins og
+TD-proppin (5c) og af sömu ástæðu. `data/market.json` er **lifandi mynd og er
+ekki vistuð dagsett**; `market_history.json` er mæliskráin úr nflverse-lokalínum,
+ekki forleiks-mynd. **Vilji maður geta svarað þessari spurningu almennilega
+verður forleiks-línan að fara í dagsetta seríu ÁÐUR en tímabilið byrjar** —
+sama röksemd og `data/predictions/` og `td-props/`: *dagsmynd verður ekki búin
+til eftir á.* Það var **ekki gert hér** því það er gagnasöfnunar-ákvörðun með
+kostnaði og hún er notandans.
+
+**Þangað til: A-Ranking er óbreytt, og það er mælda niðurstaðan.**
+
 ### 4c. Bootstrap KLASAÐUR PER LEIKMANN — aðferðin sem breytti niðurstöðu
 
 Þetta er almennt og það á að standa: `vbdbase-lab` fékk **28 hólf** sem
@@ -1903,6 +2146,23 @@ Að **velja** sérfræðinga tapar fyrir því að taka þá alla — og hvort t
 tapar fyrir okkar eigin röð. Varnagli sem má ekki hverfa: aðeins 7–13 af 15
 völdum eiga borð hvert ár (á móti ~60 í flötu samsteypunni), svo hluti
 bilsins gæti verið úrtaksstærð.
+
+> **ÞESSI VARNAGLI VAR MÆLDUR 24.8.2026 OG HANN ER LEYSTUR Í ANNAN — SJÁ 4m.**
+> `sharp-power-lab.mjs` endursýnir **borðin** (klasinn er sérfræðingurinn,
+> 2.000 ítranir) og með 9–13 borðum er `sharpDelta` viðunandi vel ákvörðuð:
+> sd **5,04** á \|delta\| 14,4, formerkið stöðugt í 95% ítrana hjá **69%**
+> leikmanna. **Úrtaksstærðin er því EKKI bindandi og höfnunin hér stendur sem
+> „merkið er ekki þarna".**
+>
+> **OG HÚN SKÝRIR `−51,2` HÉR AÐ OFAN.** Flata samsteypan (156–237 borð) hefur
+> sd **1,67** á móti 5,04 — **þreföld nákvæmni** á jafn stórri tölu
+> (\|delta\| 14,5 á móti 14,4). Valið kostar nákvæmni og kaupir engan
+> réttleika; það er mekanisminn sem þessi tafla mældi en gat ekki nefnt.
+>
+> **EN LIFANDI DÁLKURINN Í ÁGÚST ER ANNAÐ MÁL.** Í dag eru komin **8 af 15**
+> borðum og í **topp-50** er \|delta\| **2,2 sæti** á móti sd **2,8 sæti** —
+> aðeins **18%** bera formerki sem heldur í 95% endursýninga. Þar sem draftið
+> ræðst er dálkurinn **minni en sitt eigið suð** þangað til fleiri borð berast.
 
 ### EN VIK ÞEIRRA FRÁ ADP BER MERKI — SEM SAMHENGI, EKKI RÖÐ
 
@@ -2292,6 +2552,18 @@ vænt stig vikunnar sem þegar eru til, en marka-líkurnar bætast við í septe
 > 50 hleypti henni í gegn, og vika af **nullum** væri fryst að eilífu — merkt
 > sem markaðsmynd. `tdProps` skilar því aðeins `decimal != null`.
 > Vörður: `tests/pipeline.mjs` kafli F3, fjórar stökkbreytingar felldar.
+
+### ÁRSTÍÐAR-LÍNAN VAR MÆLD 24.8.2026 — OG HÚN BÆTIR ENGU VIÐ A-RANKING
+
+Kaflinn hér að neðan mælir markaðinn **vikulega**. Spurningin „bætir
+**árstíðar**-lína árstíðar-röðun?" er önnur og hún var ómæld þangað til nú.
+**Svarið er nei** — og orakel-armurinn (lokalínur alls tímabilsins) sannar að
+mælivélin gæti séð merkið ef það væri þarna: hann stenst öll fjögur skilyrðin
+(+51,2, t=6,874, 11/11) meðan draft-leyfilega útgáfan stenst ekki eitt (+9,7,
+per-leikmanns CI **[−0,024 · +0,070]**). **Sjá 4m** — þar er líka mælt að
+`Playoff D` beri **neikvætt** merki sem árstíðar-inntak, og hvers vegna
+forleiks-línan þarf **dagsetta seríu** til að spurningin verði svaranleg
+almennilega.
 
 ### Varnagli sem á að standa
 
@@ -3129,6 +3401,7 @@ MINNA en maelikvardinn flokkar vid sjalfan sig.
 | `vbdbase-lab` (annar VBD-grunnur) | **0 af 153 holfum** standast per-leikmanns bootstrap | **nei.** 0 er ekki jadartilfelli — og per-leikmanns hlidid er nakvaemlega thad hlid sem fellir `prevCarG` her lika |
 | `shrink-lab` (ovissu-had hnignun) | **0 af 36** samsetningum jakvaedar i ollum 10 holfum a BADUM spaheimildum; besta \|t\| **3,4** gegn kroffu 4,5-5,7 | **nei.** Merkid tharf ad vaxa um 30-70%; maelikvardi sem faerir minna en sitt eigid sud getur ekki gefid thann vaxt |
 | `agecurve-lab` (olinulegur aldursferill) | walk-forward marktaek **1 af 10**, tvo holf marktaekt NEIKVAED, `deltaR2` net of ADP negatift i **ollum 48** | **nei.** Og orsokin er thekkt: Sleeper-spain hefur thegar etid aldursmerkid (kafli 4). Eining utkomunnar breytir engu um thad |
+| **`mktOwnHonest`** (markadurinn sem arstidar-inntak, 4m) | osamhverft **+9,7 stig** gegn plasebo-bili [-23,4 · +21,3]; per-leikmanns r **+0,024, CI [-0,024 · +0,070]** | **MAELT 24.8.2026, OG SVARID ER NEI.** Hun var eini nyi frambjodandinn naerri morkunum, svo hun fekk NAKVAEMLEGA sama Q3-medferd: **+0,060 sigrar af 14** (t=0,641, 5/7, ars-klasad CI [-0,112 · +0,219]) gegn **thaki +0,354** — bord **-0,294**. Per-leikmanns CI **[-0,398 · +0,777]**, walk-forward **-0,540 sigrar (2/6)** og **-64,0 stig (1/6)**. **Oll thrju skilyrdin fella hana**, og stigin ur somu drofttum (+9,5 gegn thaki +42,2) gefa **sama dom** |
 
 **Thetta er ekki latur rokstudningur heldur nidurstadan sjalf.** Stigin voru
 fullnaegjandi stadgengill allan timann, og Q3 er beina profid a thvi: sami
@@ -3163,6 +3436,7 @@ hvorki K/DEF né waiver, svo hún **á** að liggja lægra.
 | „hrá spá-röð" (+74,7 stig) | **VEIKARA** — +0,11 til +1,69 sigrar, marktækt í 2 af 4 frumum |
 | Meistaraprósenta sem mælikvarði | **BER EKKI MERKIÐ** í 5 tímabilum — notið „komast í úrslitakeppni" |
 | `prevCarG` (4d), sem slapp yfir placebo-thakid a stigum um adeins +2,5 | **FELLUR LIKA A SIGRUM** — +0,09 af 14 gegn thaki +0,35; per-leikmanns CI [-0,30, +0,81]. Sja Q3 |
+| `mktOwnHonest` (4m), heidarlega markadsarmid | **FELLUR A BADUM** — +0,060 af 14 gegn thaki +0,354; per-leikmanns CI [-0,398, +0,777]. Q3-netid var keyrt ordrett, adeins breytan skipt (`--q3var`) |
 
 ### Það sem er ÓMÆLT hér, og það er skráð
 
