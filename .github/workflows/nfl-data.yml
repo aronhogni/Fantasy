@@ -79,13 +79,33 @@ name: nfl-data
 # (maelt a fjorum keyrslum), svo eftir kl. 10 er skran komin — eda
 # vistunin er brotin.
 #
-# AFLEIDINGIN ER RAUNVERULEG OG ER TEKIN VILJANDI: falli vordurinn i
-# `--stage=adp`-keyrslu (sem skrifar ekki trending) kemst FERSKT ADP
-# ekki inn i thad skipti. Þad er skiptin sem var valin — endapunkturinn
-# geymir 24 KLST og hvergi er haegt ad na i gaerdaginn, svo thogull
-# dagur sem tapast er dyrari en ein ADP-keyrsla sem bidur.
+# AFLEIDINGIN VAR RAUNVERULEG OG HUN VAR VERRI EN AETLAD VAR. Hér stod
+# ad skiptin vaeri "ferskt ADP kemst ekki inn i thad skipti". Þad var
+# RETT ordad en VANMAT: profid keyrdi A UNDAN `git add`, svo fall thess
+# henti ALLRI keyrslunni — ThAR MED ThEIRRI DAGSMYND SEM VORDURINN VAR
+# AD VERJA. Maelt 21.8.2026 (draft-dagurinn): `trending/2026-08-21.json`
+# var skrifud i runner-inn kl. 09:5x, profid felldi keyrsluna, skrain
+# var aldrei committud — og thess vegna felldi hun 12:19- og
+# 15:20-keyrslurnar lika. ThRJAR keyrslur, ekkert ADP.
+#
+# ROÐIN VAR ThVI SNUID VID 24.8.2026: `Profa ad gognin seu nytileg` er
+# nu SIDASTA stepid, eftir commit+push. Rokstudningurinn og hvad skiptin
+# kostar stendur vid stepid sjalft nedst i skranni. Vordurinn er
+# OBREYTTUR og enn havaer — hann var faerdur, ekki slokktur.
+#
 # Vordurinn SEFUR i februar-juli svo hann verdi ekki flokkandi i
 # sex manudi ("flokt kennir manni ad slokkva a profinu").
+#
+# ============================================================
+# DAGSETT MARKADS-SERIA — 24.8.2026, FORLEIKUR EINGONGU
+# ============================================================
+# `market/{dagur}.json` (~44 KB/dag) geymir dom markadarins um ALLA 272
+# leiki adur en eitt snapp er spilad. ESPN fjarlaegir `odds`-blokkina af
+# loknum leikjum (maelt a 2025: 16 leikir, 0 med odds), svo thetta er
+# OENDURHEIMTANLEGT — og serian STOPPAR SJALF vid fyrsta leik og skrair
+# sig `ok`, thvi rod sem er raud allt timabilid kennir manni ad hunsa
+# spjaldid. Engin ny HTTP-koll: linurnar og futures eru ThEGAR sottar
+# fyrir `market.json` i somu keyrslu. Cron-id er thvi obreytt.
 # ============================================================
 
 on:
@@ -210,14 +230,6 @@ jobs:
           NFL_LEDGER_USER: ${{ vars.NFL_LEDGER_USER }}
         run: node scripts/snapshot-advice.mjs
 
-      - name: Profa ad gognin seu nytileg
-        # HVERS VEGNA PROF I PIPELINE-INU: skrifud skra er ekki sama
-        # og NYTILEG skra. Markadslidurinn i FPL-verkefninu var
-        # daudur i heila viku medan oll profin voru graen — thau
-        # profudu formuluna en ekki faedid. Thetta profar faedid.
-        working-directory: nfl
-        run: node tests/pipeline.mjs
-
       - name: Committa ef eitthvad breyttist
         run: |
           set -uo pipefail
@@ -257,3 +269,48 @@ jobs:
           done
           echo "::error::push mistokst eftir 5 tilraunir"
           exit 1
+
+      # ============================================================
+      # PROFID KEYRIR EFTIR COMMIT — OG ThAD ER VIDSNUNINGUR
+      # ============================================================
+      # HVERS VEGNA PROF I PIPELINE-INU YFIRLEITT: skrifud skra er ekki
+      # sama og NYTILEG skra. Markadslidurinn i FPL-verkefninu var daudur
+      # i heila viku medan oll profin voru graen — thau profudu formuluna
+      # en ekki faedid. Þetta profar faedid, og thad stendur.
+      #
+      # EN ThAD KEYRDI A UNDAN `git add` OG ThAD KOSTADI GOGN.
+      # `tests/pipeline.mjs` getur fellt keyrsluna (dags-verdirnir), og
+      # step sem fellur hér stoppar workflow-id — svo **gognin sem
+      # keyrslan var buin ad saekja voru hent, ThAR MED SU DAGSMYND SEM
+      # VORDURINN VAR AD VERJA**. ThRJAR CI-KEYRSLUR toputust svona a
+      # draft-daginn.
+      #
+      # ============================================================
+      # SKIPTIN SEM VAR VALIN, OG HVAD HUN KOSTAR
+      # ============================================================
+      # VID TOPUM: hlidid sem gat stoppad vondan commit. Repo-id getur nu
+      #   innihaldid commit sem profid hafnar.
+      # VID FAUM: dagsett serie tapast ALDREI ut af vordi.
+      #
+      # ÞRJAR ASTAEDUR FYRIR ThVI AD ThETTA SE RETT SKIPTI, OG ThAER ERU
+      # EKKI SMEKKUR:
+      #   1. **HLIDID A VOND GOGN ER ThEGAR TIL OG ThAD ER NAER.**
+      #      `writeJson` og `writeOnce` hafna thunnum farmi PER SKRA og
+      #      LATA ThA GOMLU STANDA. Þau eru vid heimildina; commit-hlidid
+      #      er allt-eda-ekkert yfir ~70 skrar og getur ekki sagt "ekki
+      #      thessa einu". Verndin sem taps var litil.
+      #   2. **KOSTNADURINN ER OSAMHVERFUR.** Vond skra sem kemst inn er
+      #      leidrett i naestu keyrslu (`data/` er endurmyndad I HEILD).
+      #      Dagsmynd sem er hent er OENDURHEIMTANLEG — thad er heil
+      #      forsendan fyrir `writeOnce` (README 7b).
+      #   3. **BILUNIN ER ENN SYNILEG.** Stepid fellur afram, keyrslan
+      #      verdur RAUD og ekkert er thagad nidur. Vid slokkvum ekki a
+      #      vordinum, vid faerum hann fram fyrir hurdina.
+      #
+      # ÞETTA ER SAMA ROKFAERSLA OG `continue-on-error` a bokhaldinu ad
+      # ofan, med einum mun sem er mikilvaegur: bokhaldid ma bregdast
+      # ThOGULT (thad er maelitaeki), en ThESSI vordur a ad vera HAVAER.
+      # Þess vegna `continue-on-error` EKKI hér — adeins ny stada i rodinni.
+      - name: Profa ad gognin seu nytileg
+        working-directory: nfl
+        run: node tests/pipeline.mjs

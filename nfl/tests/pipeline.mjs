@@ -993,6 +993,32 @@ console.log("\nvikuleg gogn — kedjan");
   ok(/"0 12 \* \* 2"[\s\S]{0,600}?core,history/.test(wf),
     "og `core` fylgir svo `meta.json` se fersk");
 
+  /* ---- 3b. RODIN I WORKFLOW-INU: PROFID KEYRIR EFTIR COMMIT ----
+     ThRJAR CI-KEYRSLUR TOPUDUST A DRAFT-DAGINN af thvi ad thetta prof
+     var HLID A UNDAN `git add`: stepid felldi keyrsluna, workflow-id
+     stoppadi, og gognin sem hofdu verid sott — ThAR MED DAGSMYNDIN SEM
+     VORDURINN VAR AD VERJA — voru hent med runner-inum.
+
+     Rodin var snuid vid 24.8.2026. Þessi fullyrding er vordurinn a
+     thvi: fari profid aftur a undan commit-inu er kaskadinn kominn til
+     baka og enginn myndi sja thad fyrr en naest tapast dagur.
+
+     BAÐAR STADSETNINGAR ERU MAELDAR, EKKI GEFNAR SER — ef annad hvort
+     step finnst ekki er thad BILUN, ekki "sleppt": prof sem finnur
+     ekkert og heldur afram er tomma fullyrdingin ur CLAUDE.md 5b.    */
+  const iCommit = wf.indexOf("name: Committa ef eitthvad breyttist");
+  const iTest = wf.indexOf("name: Profa ad gognin seu nytileg");
+  ok(iCommit >= 0, "commit-stepid finnst i workflow-inu");
+  ok(iTest >= 0, "og profa-stepid lika");
+  ok(iCommit >= 0 && iTest >= 0 && iTest > iCommit,
+    "og PROFID KEMUR EFTIR COMMIT-INU — annars hendir vordur theim " +
+    "dagsmyndum sem hann ver (thrjar keyrslur toputust svona 21.8.2026)");
+  /* Og thad ma EKKI vera thagad nidur: `continue-on-error` a thvi stepi
+     vaeri ad slokkva a vordinum i stad thess ad faera hann. */
+  const testStep = iTest >= 0 ? wf.slice(iTest, iTest + 300) : "";
+  ok(!/continue-on-error/.test(testStep),
+    "og thad ber EKKERT `continue-on-error` — vordurinn var faerdur, ekki slokktur");
+
   /* --- 4. appid hefur loader --- */
   const dj = readFileSync(path.join(DATA, "..", "src", "data.js"), "utf8");
   ok(/export const loadWeekly\s*=/.test(dj), "`data.js` ber `loadWeekly`");
@@ -1127,6 +1153,93 @@ console.log("\ndagsettu seriurnar — oslitin runa sem endar i dag");
       ok(gap < MAX_GAP,
         `${s}/: ${gap} dag(a) oslitid gat sem endar i dag (thak ${MAX_GAP}) — ` +
         `${have.size} dagsettar skrar`);
+    }
+  }
+}
+
+/* ============================================================
+   OG `market/` — SAMA SPURNING, ANDSTAEDUR GLUGGI
+   ============================================================
+   Serian ad ofan er AGUST-JANUAR. `market/` er ThAD GAGNSTAEDA: hun er
+   FORLEIKS-SERIA og hun a ad STOPPA thegar timabilid byrjar, thvi ESPN
+   fjarlaegir `odds` af loknum leikjum (maelt: 2025 vika 1 skilar 16
+   leikjum og 0 med odds). Vaeri hun sett i `DAILY`-lykkjuna ad ofan
+   myndi vordurinn falla HVERN DAG timabilsins fyrir retta hegdun — og
+   "flökt kennir manni ad slokkva a profinu" er sama rok og svefninn thar.
+
+   Þess vegna eigin blokk med eigin glugga. Hann er ekki agiskadur heldur
+   LESINN UR `schedule.json` — sama akkeri og pipeline-id notar, svo their
+   geta ekki reikad i sundur.
+
+   GLUGGINN LOKAST SJALFUR OG ThAD ER VILJANDI: eftir 9.9.2026 sefur
+   thessi vordur ad eilifu og serian er FULLGERD (16 dagsmyndir). Vordur
+   sem sefur AN AD SEGJA ThAD er ekki adgreinanlegur fra vordi sem er
+   farinn, svo baðar greinar prenta hvers vegna.
+
+   ============================================================
+   TIMABILID VERDUR AD VERA SIAD — FYRSTA UTGAFA ThESSA VARDAR SVAF
+   ============================================================
+   `schedule.json` ber **TVO timabil** (maelt: 272 REG-leikir i 2025 OG
+   272 i 2026, 557 radir alls). Fyrsta utgafan sidadi adeins a
+   `type === "REG"` og fekk thvi `2025-09-04` sem "fyrsta leik" — dagsetning
+   sem er ThEGAR LIDIN, svo vordurinn svaf STRAX og hefdi sofid AD EILIFU.
+   Hann var skrifadur i dag og var thegar daudur.
+
+   `firstRegKickoffMs` i pipeline-inu sidar a timabil og var alltaf rett;
+   ThAD VAR PROFID SEM VAR RANGT. Þess vegna er timabilid tekid ur
+   `meta.json` (sama heimild og `historyYears()` notar, og i januar er
+   dagsetningar-arid EKKI timabilid) OG fullyrt um ad dagsetningin sem
+   fannst tilheyri thvi timabili — annars getur sama villa endurtekid sig
+   thegjandi.                                                          */
+console.log("\nmarket-vordurinn (forleiks-serian)");
+{
+  const now = new Date();
+  const hour = now.getUTCHours();
+  const day = now.toISOString().slice(0, 10);
+  const meta = has("meta.json") ? read("meta.json") : null;
+  const season = meta && Number.isFinite(Number(meta.season))
+    ? Number(meta.season) : null;
+  /* ThEKJA ER FULLYRDING: an timabils getur vordurinn ekki spurt, og
+     thad ma ekki lesast eins og "allt i lagi". */
+  ok(season != null, `timabilid er lesid ur meta.json (${season})`);
+  const reg = (schedule || [])
+    .filter((g) => Number(g.season) === season && g.type === "REG" && g.date)
+    .map((g) => g.date).sort();
+  const first = reg.length ? reg[0] : null;
+  /* OG ThETTA ER VORDURINN A VILLUNNI SEM VAR HER: dagsetningin verdur ad
+     tilheyra yfirstandandi timabili. Færi sian ut myndi hun skila
+     2025-09-04 og thessi rod felli — i stad thess ad vordurinn svaefi. */
+  ok(first == null || first.startsWith(String(season)) ||
+     first.startsWith(String(season + 1)),
+    `fyrsti leikur (${first}) tilheyrir timabilinu ${season}, ` +
+    `ekki fyrra ari (schedule.json ber BAÐI)`);
+
+  if (!first) {
+    console.log("  ·    engin REG-leikjaskra — vordurinn getur ekki spurt");
+  } else if (day >= first) {
+    console.log(`  ·    ${day} >= fyrsti leikur ${first} — serian er FULLGERD, ` +
+                "vordurinn SEFUR (ESPN ber engin odds a loknum leikjum)");
+  } else if (hour < 10) {
+    console.log(`  ·    ${hour}:xx UTC er fyrir 10:00 — 09:00-cron-id er ekki lent`);
+  } else {
+    const dir = path.join(DATA, "market");
+    ok(existsSync(dir), `data/market/ er til (forleikur, fyrsti leikur ${first})`);
+    if (existsSync(dir)) {
+      const { readdirSync } = await import("node:fs");
+      const have = new Set(readdirSync(dir)
+        .filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).map((f) => f.slice(0, 10)));
+      /* Sama MAX_GAP og hinar daglegu: einn dagur er flökt (sleppt cron),
+         thrir i rod eru brotin serie. Glugginn er adeins ~16 dagar, svo
+         hver tapadur dagur er 6% af serunni — thakid er ekki rumt. */
+      let gap = 0;
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
+        if (have.has(d)) break;
+        gap++;
+      }
+      ok(gap < 3,
+        `market/: ${gap} dag(a) oslitid gat sem endar i dag (thak 3) — ` +
+        `${have.size} dagsmynd(ir) fyrir fyrsta snapp`);
     }
   }
 }
@@ -1714,6 +1827,7 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
   const MINS = [
     ["news/", 20, 400], ["adp-history/", 100, 400], ["weekly-proj/", 100, 1200],
     ["weekly-ecr/", 100, 400], ["depth/", 200, 900], ["td-props/", 50, 1900],
+    ["market/", 260, 1500],
   ];
   for (const [pfx, min, span] of MINS) {
     /* LEITAD FRA SLODINNI FRAM, EKKI FRA `writeOnce(` FRAM. Tveir af
@@ -1737,7 +1851,7 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
   for (const [dir, min] of [["news", 20], ["adp-history", 100],
                             ["weekly-proj", 100], ["weekly-ecr", 100],
                             ["depth", 200], ["trending", 20],
-                            ["td-props", 50]]) {
+                            ["td-props", 50], ["market", 260]]) {
     const p = path.join(DATA, dir);
     if (!ex(p)) continue;
     const files = rd(p).filter((f) => f.endsWith(".json"));
@@ -1752,6 +1866,136 @@ console.log("\ndagsettar seriur — hlidin, a tilbunum gognum");
       `${dir}/: thynnsta skra ber ${worst.n} radir (lagmark ${min}, ${worst.f})`);
   }
   console.log(`     seriur byrjadar: ${started.join(", ") || "engin enn"}`);
+
+  /* ---------- I. `market/` — ARSTIDAR-LESTURINN, OG GOLFID SEM ER EKKI
+       TOM FULLYRDING ----------
+     Serian geymir domm markadarins um HVERN LEIK adur en eitt snapp er
+     spilad. Hun er OENDURHEIMTANLEG og thad var maelt, ekki alyktad:
+     `scoreboard?dates=2025&seasontype=2&week=1` skilar 16 leikjum og
+     **0 med `odds`** ur BAÐUM hostum — blokkin er fjarlaegd af loknum
+     leikjum.
+
+     ThESSI KAFLI PROFAR ThRJAR OLIKAR LEIDIR TIL AD GOLF GETI LOGID, OG
+     ThAER ERU EKKI SAMA HLIDID:
+       (a) TOMUR FARMUR SKILAR LYKLAFJOLDA, EKKI 0. Þetta hefur BITID
+           ThETTA REPO TVIVEGIS (`market.json` 6 lyklar >= 3 og
+           `weekly-proj` 3.300 tomar radir). Fullyrdingin er ekki "golfid
+           er hatt" heldur "golfid fellir RAUNVERULEGA toman farm".
+       (b) RADIR AN VERDS ERU UMBUD. 272 linur med `total: null` gefa
+           `rowCount` 272 og hefdu farid i gegn um hvad sem er <= 272.
+           Sian er thvi BURDARVIRKI.
+       (c) HEIL VIKA SEM FELLUR ER 16 LEIKIR. 18 radir
+           `espn_lines_w{n} failed: HTTP 403` maeldust 20.8.2026, svo
+           thetta er MAELD bilun og golfid er lagt vid hana.            */
+  {
+    const MARKET_MIN = 260;
+    const line = (priced) => ({
+      id: "1", week: 1, date: "2026-09-09T00:20Z", home: "SEA", away: "NE",
+      spread: priced ? -3.5 : null, total: priced ? 43.5 : null,
+      provider: "Draft Kings", details: priced ? "SEA -3.5" : null,
+    });
+    /* Farmurinn er byggdur EINS og `archiveDaily` byggir hann — somu niu
+       lyklar. Væri hann skrifadur oðruvisi hér profadi kaflinn annad
+       en pipeline-id gerir. */
+    const payload = (games, futures) => ({
+      season: 2026, date: "2026-08-24", captured: "2026-08-24T09:39:13Z",
+      gamesFromSource: 272, priced: games.length,
+      futuresMarkets: futures.length, superBowlTeams: 32,
+      games, futures,
+    });
+
+    /* (a) GENUINELY EMPTY — ekki "thunnt", heldur TOMT. */
+    const empty = payload([], []);
+    const emptyRows = rowCount(empty);
+    ok(emptyRows === Object.keys(empty).length,
+      `tomur farmur skilar LYKLAFJOLDA (${emptyRows}), ekki 0 — gildran sjalf`);
+    ok(emptyRows < MARKET_MIN,
+      `og golfid ${MARKET_MIN} FELLIR hann (${emptyRows} < ${MARKET_MIN}) — ` +
+      `golf 1 hefdi hleypt honum i gegn`);
+
+    /* (b) 272 RADIR AN VERDS — sian er astaedan, ekki staerdin. */
+    const unpriced = new Array(272).fill(0).map(() => line(false));
+    ok(rowCount(payload(unpriced, [])) === 272,
+      "272 verdlausar linur gefa rowCount 272 — golf <= 272 gaeti ALDREI fallid");
+    ok(unpriced.filter((g) => g.total != null && g.spread != null).length === 0,
+      "og sian sem pipeline-id notar skilar 0 af theim — hun er burdarvirki");
+
+    /* (c) HEIL VIKA TOPUD = 16 LEIKIR (maeld 403-bilun). */
+    const full = new Array(271).fill(0).map(() => line(true));
+    ok(rowCount(payload(full, [])) >= MARKET_MIN,
+      `heil mynd (271 verdlogd, maelt 24.8.2026) fer i gegn`);
+    ok(271 - 16 < MARKET_MIN,
+      `en ein topud vika (271-16 = ${271 - 16}) er HAFNAD — hola i ` +
+      `arstidar-lestrinum ma ekki frjosa`);
+
+    /* KODINN SJALFUR — golfid, sian og fjarvera `teams`. */
+    const at = bare.indexOf("`market/");
+    ok(at >= 0, "`market/` er skrifud i `fetch-nfl.mjs`");
+    const win = at >= 0 ? bare.slice(at, at + 1500) : "";
+    ok(/g\.total != null && g\.spread != null/.test(win),
+      "og ADEINS verdlogd radir eru geymdar (`total != null && spread != null`)");
+    /* `teams` er byte-eins vid `teamMarketStrength(games)` (maelt: 32.476
+       stafir = 32.476), svo thad er afleidd tala og ma ekki afritast inn.
+       Fullyrdingin er neikvaed og hun NEFNIR streng sem er sannanlega i
+       farminum tveimur linum ofar (`games:`) — sja CLAUDE.md 5b regla 2. */
+    ok(/games: priced/.test(win),
+      "farmurinn ber `games: priced` (jakvaeda akkerid fyrir naestu rod)");
+    ok(!/\bteams: /.test(win),
+      "og hann ber EKKERT `teams`-svid — thad er byte-eins tvitekning " +
+      "af `teamMarketStrength(games)`");
+
+    /* SERIAN STOPPAR SJALF ThEGAR TIMABILID BYRJAR, OG SKRAR SIG `ok`.
+       Vaeri thetta hlid fjarlaegt yrdi `archive:market` RAUD rod hvern
+       einasta dag timabilsins — rod sem hreinsast aldrei kennir manni ad
+       hunsa spjaldid, sem er nakvaemlega thad sem spjaldid ma ekki gera. */
+    ok(/firstRegKickoffMs/.test(win),
+      "fyrsti deildarleikur er spurdur ADUR en vistad er (serian stoppar sjalf)");
+    const okGate = /record\("archive:market",\s*true/.test(win);
+    ok(okGate,
+      "og stoppid er skrad `ok`, EKKI villa (rautt hér vaeri rangt allt timabilid)");
+
+    /* `firstRegKickoffMs` a TILBUNUM leikjaskram thar sem svarid er thekkt. */
+    const fkSrc = /function firstRegKickoffMs\([\s\S]*?\n\}/.exec(src);
+    ok(!!fkSrc, "`firstRegKickoffMs()` finnst i skranni");
+    if (fkSrc) {
+      const f = new Function(`${fkSrc[0]}; return firstRegKickoffMs;`)();
+      const g = [
+        { season: 2026, type: "PRE", date: "2026-08-01" },   // annad snid
+        { season: 2025, type: "REG", date: "2025-09-04" },   // annad timabil
+        { season: 2026, type: "REG", date: "2026-09-13" },
+        { season: 2026, type: "REG", date: "2026-09-09" },   // rettur
+        { season: 2026, type: "REG", date: null },           // onyt dagsetning
+      ];
+      ok(f(g, 2026) === Date.parse("2026-09-09T00:00:00Z"),
+        "hann finnur 2026-09-09 og hvorki forleik, 2025 ne null");
+      ok(f([], 2026) === null,
+        "og tom leikjaskra skilar `null`, ekki 0 — 0 vaeri 1970 og ThA ER " +
+        "TIMABILID BYRJAD (serian myndi aldrei vistast)");
+    }
+
+    /* A DISKNUM: hver vistud dagsmynd verdur ad standast sinar eigin
+       fullyrdingar — annars er sian brotin an ad nokkur segi neitt. */
+    const mp = path.join(DATA, "market");
+    if (ex(mp)) {
+      const files = rd(mp).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f));
+      ok(files.length > 0, `data/market/ ber ${files.length} dagsmynd(ir)`);
+      for (const f of files) {
+        const d = JSON.parse(rf(path.join(mp, f), "utf8"));
+        const bad = (d.games || []).filter(
+          (g) => g.total == null || g.spread == null).length;
+        ok(bad === 0, `${f}: 0 af ${(d.games || []).length} rodum an verds (${bad})`);
+        ok(d.priced === (d.games || []).length,
+          `${f}: priced (${d.priced}) === games.length (${(d.games || []).length})`);
+        ok(d.teams === undefined,
+          `${f}: engin teams-tvitekning i skranni`);
+        ok(Number.isFinite(d.gamesFromSource) && d.gamesFromSource >= d.priced,
+          `${f}: gamesFromSource ${d.gamesFromSource} >= priced ${d.priced} ` +
+          `— hlutfallid er LESID, ekki agiskad`);
+      }
+    } else {
+      console.log("     ·    data/market/ er ekki byrjud — kaflinn a tilbunum gognum stendur");
+    }
+  }
 }
 
 /* ============================================================
@@ -1862,12 +2106,20 @@ console.log("\ntimabils-merkid a vikulegri ECR");
    sammala um.
 
    OG KOSTNADURINN VAR ALLUR DAGURINN, EKKI EIN RAUD ROD. `tests/
-   pipeline.mjs` er HLID a undan commit-inu i `nfl-data.yml`, svo
+   pipeline.mjs` VAR ThA HLID A UNDAN commit-inu i `nfl-data.yml`, svo
    09:00-keyrslan skrifadi oll gognin i runner-inn og henti theim.
    Dagsmynd `trending/2026-08-21.json` var thar med aldrei committud,
    og "trending-vordurinn (dagurinn i dag)" felldi thvi 12:19- og
    15:20-keyrslurnar lika: ThRJAR keyrslur, ekkert ADP, a draftdegi.
    Vordur sem flokrar er ekki bara hávaði — hann er stiflan.
+
+   > **ROÐIN I WORKFLOW-INU VAR SNUID VID 24.8.2026 VEGNA ThESSA** og
+   > thessi malsgrein er thvi SAGA, ekki nuverandi hegdun: profid keyrir
+   > nu EFTIR commit+push, svo vordur getur ekki lengur hent theim
+   > gognum sem hann var ad verja. Rokstudningurinn og hvad skiptin
+   > kostar er i `nfl-data.yml` vid stepid sjalft; hlidid a vond gogn er
+   > `writeJson`/`writeOnce`, sem eru PER SKRA og vid heimildina.
+   > Vordur: kafli 3 hér fyrir ofan ("rodin i workflow-inu").
 
    NYJA FORMID MAELIR UPPRUNA OG GETUR ThVI EKKI HITT A TILVILJUN:
      `adp` i `src/build.js` er `ffc ? ffc.adp : (adpSleeper ?? null)`.

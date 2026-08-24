@@ -475,19 +475,24 @@ async function stageCore() {
   });
 
   /* Vistunin sidast: hun ma aldrei tefja ne fella fersku kjarnagognin. */
-  await archiveDaily({ season, games, ffcSets, newsFeed, lines });
+  await archiveDaily({ season, games, ffcSets, newsFeed, lines, futures });
 
   return { season, players, games };
 }
 
 /* ============================================================
-   VISTUNIN — FIMM SERIUR SEM VERDA EKKI TIL EFTIR A
+   VISTUNIN — SERIUR SEM VERDA EKKI TIL EFTIR A
    ============================================================
-   Fjorar vidbaetur her og ein i `stageHistory`. Rokin eru EKKI ad thetta
-   se gagnlegt einhvern tima seinna — thau eru ad thad se OMOGULEGT ad
-   byggja seinna. Sama regla og `data/history/` og `data/predictions/` i
-   FPL-verkefninu (CLAUDE.md kafli 7): **dagleg mynd verdur ekki buin til
-   eftir a.**
+   Rokin eru EKKI ad thetta se gagnlegt einhvern tima seinna — thau eru ad
+   thad se OMOGULEGT ad byggja seinna. Sama regla og `data/history/` og
+   `data/predictions/` i FPL-verkefninu (CLAUDE.md kafli 7): **dagleg mynd
+   verdur ekki buin til eftir a.**
+
+   ENGIN TALA A SERIUM HER. Hér stod "FIMM SERIUR" og "fjorar vidbaetur
+   her og ein i `stageHistory`" — thad var ordid rangt strax vid naestu
+   vidbot (`td-props`, sidan `market/`), nakvaemlega sama villa og
+   hardkodada safna-talan i CLAUDE.md kafla 5 varar vid. Listinn nedan ER
+   skrain; `ls data/` gefur hana retta.
 
    Hvad hver serie svarar, og hvad var THEGAR maelt um hana:
 
@@ -509,6 +514,12 @@ async function stageCore() {
                    757 af 1.038 en **adeins nuverandi stodu**, og thad er
                    nakvaemlega thess vegna sem `handcuff-lab` NEITADI ad
                    nota hana ("`depth` er aldrei notad i labinu").
+   `td-props/`     "Anytime Touchdown Scorer" per leik, vikulega.
+   `market/`       **ARSTIDAR-LESTUR MARKADARINS FYRIR FYRSTA SNAPP.** ESPN
+                   verdleggur alla 272 leiki i forleik; `market.json` er
+                   endurskrifud daglega og `odds`-blokkin er FJARLAEGD af
+                   loknum leikjum (maelt a 2025: 16 leikir, 0 med odds).
+                   Lobin nota lokalinur viku 1 sem stadgengil i dag.
 
    ============================================================
    VISTUNIN MA ALDREI FELLA GAGNA-KEYRSLUNA
@@ -518,7 +529,7 @@ async function stageCore() {
    er MAELITAEKI, ekki birtingargagn, og bilun i maelitaeki ma ekki taka
    ADP-ið og meidslin med ser. Villan er samt SKRAD (`record`), svo hun
    er synileg i Sources — thogul bilun er thad eina sem er verra en bilun.  */
-async function archiveDaily({ season, games, ffcSets, newsFeed, lines }) {
+async function archiveDaily({ season, games, ffcSets, newsFeed, lines, futures }) {
   console.log("\n--- vistun (dagsettar seriur) ---");
   const day = today();
 
@@ -822,6 +833,175 @@ async function archiveDaily({ season, games, ffcSets, newsFeed, lines }) {
       }, { minRows: 200 });
     }
   } catch (e) { record("archive:depth", false, `failed: ${e.message}`); }
+
+  /* ============================================================
+     ---- 6. MARKADURINN — ARSTIDAR-LESTURINN FYRIR FYRSTA SNAPP ----
+     ============================================================
+     ESPN VERDLEGGUR ALLA 272 LEIKI I FORLEIK. Maelt 24.8.2026 a
+     `market.json`: 272 leikir, **271 med BAEDI total og spread**, allar
+     18 vikur (13-16 leikir hver). Þad er domur markadarins um HVERN
+     LEIK TIMABILSINS adur en eitt snapp hefur verid spilad — og hann er
+     sterkara merki en lokalinur viku 1, sem er thad sem lobin nota i dag
+     sem staðgengil.
+
+     ============================================================
+     OG HANN VERDUR ALDREI TIL EFTIR A — MAELT, EKKI ALYKTAD
+     ============================================================
+     `sports.core.api` geymir enga sogu og `market.json` er ENDURSKRIFUD
+     daglega. Þad var maelt beint 24.8.2026 a LOKNU timabili:
+
+       scoreboard?dates=2025&seasontype=2&week=1
+         site.api.espn.com      HTTP 200, 16 leikir, **0 med `odds`**
+         site.web.api.espn.com  HTTP 200, 16 leikir, **0 med `odds`**
+
+     `odds`-blokkin er thvi FJARLAEGD um leid og leikur er buinn. Þetta
+     er ekki "gisin gogn" heldur horfin gogn, og thad er nakvaemlega sama
+     roksemd og `data/history/`, `data/predictions/` (CLAUDE.md kafli 7)
+     og hinar fimm seriurnar hér: **dagsmynd verdur ekki bui til eftir a.**
+
+     ============================================================
+     FRAMTIDARMARKADIR ERU I SOMU SKRA — OG ROKIN ERU MAELD
+     ============================================================
+     `/seasons/{ar}/futures` SVARAR fyrir lidin timabil (maelt 24.8.2026:
+     2023 HTTP 200 / 12 markadir, 2024 / 25, 2025 / 21). Fyrsta agiskun
+     vaeri thvi ad futures thurfi ekki ad vistast. **Þad er rangt, og
+     talan sem sannar thad er verdid sjalft:**
+
+       lengsta Super Bowl-verd i svarinu    2024  +25000
+                                            2026  +50000
+                                            2025 **+400000** (fjogur lid)
+
+     Enginn FORLEIKS-markadur verdleggur lid a 4.000-1. Endapunkturinn
+     ber thvi EITT gildi per timabil og fyrir 2025 er thad synilega
+     MIDS-/SEINT-TIMABILS astand — hann geymir "eitthvad", ekki
+     "forleiks-lesturinn". Færslan ber hvorki `open` ne `current`
+     (maelt: 0 af 32 i baedi 2025 og 2026), svo opnunarverdid er hvergi.
+     **Endapunktur sem svarar 200 er ekki thad sama og heimild sem
+     geymir soguna** — sama aett og `has_xg` sem LYGUR i FPL-hlutanum.
+
+     Þau eru i SOMU SKRA og linurnar thvi thau eru EIN markads-lestur:
+     baedi svara "hvad heldur markadurinn um thetta lid", futures a
+     timabils-kvarda og linurnar per leik. Vaeru thau tvaer seriur gaeti
+     onnur skrifast og hin hafnad sama dag, og lab sem joinar a `date`
+     baeri tha saman **tvo daga** an thess ad nokkud saeist — thogla
+     ranga porunin sem repo-id bannar.
+
+     ============================================================
+     `teams` ER EKKI GEYMT — ThAD ER BEIN TVITEKNING (MAELT)
+     ============================================================
+     `market.json` ber `teams` (32 radir, lidsstyrkur ur linunum).
+     `teamMarketStrength(games)` a VERDLOGDU rodunum i thessari skra
+     skilar **byte-eins streng** vid thad svid (32.476 stafir = 32.476,
+     maelt 24.8.2026). Þad er thvi afleidd tala, ekki gogn, og afrit
+     sem geta rekid i sundur eru haettan — ekki staerdin (sama akvordun
+     og BSD-skotin, 543 -> 338 KB, og `dt`/`week` i `depth/`).
+     Staerdin fylgir samt: **75,9 -> 44,1 KB/dag.**
+
+     ============================================================
+     GOLFID: 260, OG ThAD ER MAELT A ThVI HVERNIG SVARID BROTNAR
+     ============================================================
+     ADEINS VERDLOGD RADIR ERU GEYMDAR (`total != null && spread != null`),
+     af somu astaedu og `weekly-proj` geymir adeins radir med spa: an
+     theirrar siu finnur `rowCount` alltaf 272 og golfid getur ALDREI
+     fallid, hversu tomar sem linurnar eru. **Rod an verds er umbud,
+     ekki farmur.**
+
+     Golfid er sidan lagt vid THA BILUN SEM ThETTA REPO HEFUR MAELT, ekki
+     vid tomt svar:
+       · **HEIL VIKA FELLUR = 16 LEIKIR.** `status.json` bar 18 radir
+         `espn_lines_w{n} failed: HTTP 403` 20.8.2026. Ein topud vika
+         gefur 271-16 = **255 < 260 -> HAFNAD**, og thad er RETT: hola
+         i arstidar-lestrinum ma ekki frjosa, thvi `writeOnce` skrifar
+         aldrei ofan i og morgundagurinn faer fulla mynd.
+       · **TOMT SVAR GEFUR EKKI 0 HELDUR 9.** Farmurinn ber niu lykla,
+         svo `rowCount` fellur i lyklafjolda (`best || Object.keys`) og
+         skilar **9** — nakvaemlega gildran sem kostadi `market.json`
+         272 linur 9.8.2026 (thar 6 lyklar >= 3). Maelt hér a raunverulega
+         tomum farmi: **9**. Golf 260 fellir hann; golf 1 hefdi ekki.
+     271 maelt i dag, 260 golf: 11 leikja slaki fyrir stok verdlaus
+     leiki, sem er RAUNVERULEGT og annad mal en topud vika.
+
+     ============================================================
+     SERIAN ER FORLEIKS-SERIA OG HUN STOPPAR SJALF — SKRAD SEM `ok`
+     ============================================================
+     Um leid og leikir eru spiladir hverfur `odds` af theim (maelingin
+     ad ofan), svo `priced` fellur undir golfid og serian myndi skila
+     **RAUDRI rod hvern einasta dag tímabilsins** — rod sem hreinsast
+     aldrei og kennir notandanum ad hunsa spjaldid (sama villa og
+     `writeJson`-notan lysir). Þess vegna er FYRSTI LEIKUR spurdur
+     FYRST og eftir hann er skrad `ok`: arstidar-lesturinn er
+     FULLKOMNADUR, ekki brotinn. Vikulegar linur eftir thad eru vistadar
+     annars stadar (`advice/` ber linu lidsins, `td-props/` verdin).   */
+  try {
+    const name = `market/${day}.json`;
+    const firstKick = firstRegKickoffMs(games, season);
+    if (await archived(name)) {
+      console.log("     market: dagurinn thegar vistadur");
+    } else if (firstKick != null && Date.now() >= firstKick) {
+      record("archive:market", true,
+        `season ${season} is under way (first REG kickoff ` +
+        `${new Date(firstKick).toISOString().slice(0, 10)}) — the preseason ` +
+        `season-long read is complete; ESPN drops the odds block for played ` +
+        `games (measured: 2025 week 1 returns 16 events, 0 with odds)`);
+    } else {
+      /* VERDLOGD RADIR EINAR — sja notuna. `withLine` i `market.json`
+         telur adeins `total`, sem er EKKI sama tala: 272 a moti 271. */
+      const priced = (lines || []).filter(
+        (g) => g.total != null && g.spread != null);
+      const fut = futures || [];
+      const sb = fut.find((f) => /super bowl/i.test(f.market || ""));
+      const sbTeams = sb ? (sb.teams || []).length : 0;
+      const wrote = await writeOnce(name, {
+        season, date: day, captured: new Date().toISOString(),
+        /* Baðar tolur eru GEYMDAR svo hlutfallid se LESID UR GOGNUNUM og
+           ekki agiskad seinna — sama regla og `rowsFromSource` i
+           `weekly-proj` og `rowsBeforePosFilter` i `depth`. */
+        gamesFromSource: (lines || []).length,
+        priced: priced.length,
+        futuresMarkets: fut.length,
+        superBowlTeams: sbTeams,
+        games: priced,
+        futures: fut,
+      }, { minRows: 260 });
+      /* FUTURES ER SKRAD SER, OG ADEINS ThEGAR DAGURINN VAR VISTADUR.
+         Golfid ver linurnar (thad OENDURHEIMTANLEGA); futures er ekki i
+         thvi thvi `rowCount` finnur eitt haesta fylki og getur ekki
+         fullyrt um tvo obundna hluta i sama farmi. Rodin hér er thvi
+         hlidid a futures: 1 Super Bowl + 2 radstefnur + 8 deildir = 11
+         markadir er heil mynd (maelt 24.8.2026), og Super Bowl-markadur
+         med 32 lidum er akkerid sem lab joinar a. Vaeri hann thunnur
+         yrdi dagurinn samt vistadur — en hann yrdi ekki ThOGULL.       */
+      if (wrote) {
+        record("archive:market-futures", sbTeams >= 30,
+          `${fut.length} futures markets archived (11 = 1 Super Bowl + ` +
+          `2 conference + 8 division is a complete read); Super Bowl market ` +
+          `carries ${sbTeams} teams (30 required)`);
+      }
+    }
+  } catch (e) { record("archive:market", false, `failed: ${e.message}`); }
+}
+
+/**
+ * Fyrsti DEILDARLEIKUR timabilsins i ms, eda `null` finnist hann ekki.
+ *
+ * Midnaetti UTC a leikdegi, sama akkeri og `upcomingWeek` notar og af
+ * somu astaedu: `gametime` i nflverse er austurstrandartimi, svo hvassari
+ * tala krefdist sumar-/vetrartima-medferdar sem skeikar. Baðir endar eru
+ * ekki jafn dyrir hér heldur — skekkja sem er of SEIN heldur vistuninni
+ * gangandi eftir ad fyrsti leikur er byrjadur og skrifar tha halfa mynd
+ * sem `writeOnce` frystir. Midnaetti er ~20 klst FYRR en satt er og su
+ * att er su retta.
+ */
+function firstRegKickoffMs(games, season) {
+  let best = null;
+  for (const g of games || []) {
+    if (Number(g.season) !== Number(season)) continue;
+    if (g.type !== "REG" || !g.date) continue;
+    const t = Date.parse(`${g.date}T00:00:00Z`);
+    if (!Number.isFinite(t)) continue;
+    if (best == null || t < best) best = t;
+  }
+  return best;
 }
 
 /* QB/RB/WR/TE/K. `normPos` gerir FB -> RB og PK -> K, svo baedir

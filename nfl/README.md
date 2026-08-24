@@ -5401,6 +5401,8 @@ gögn sem **verða ekki til eftir á**. Þetta var tengt 14.8.2026.
 | `weekly-ecr/` | vikuleg ECR + start/sit-einkunn | **193,9 KB** per nýtt `scrape_date` |
 | `weekly-proj/` | vikuleg Sleeper-spá (580 raðir með spá) | **204 KB/viku**, 18 á tímabili |
 | `weekly/{ár}` | **+ snap-hlutföll**, sameinuð inn í raðirnar | engin ný skrá |
+| `td-props/` | „Anytime Touchdown Scorer" per leik | per viku, gluggi 72 klst |
+| `market/` | **dómur markaðarins um alla 272 leiki fyrir fyrsta snapp** | **44,1 KB/dag**, forleikur eingöngu |
 
 **Vöxturinn:** fjórar daglegu seríurnar eru **279,5 KB/dag = 100 MB/ár**, og
 vikulegu tvær leggja **~57 KB/dag** við á tímabili (`weekly-ecr` ~194 KB/viku,
@@ -5408,6 +5410,10 @@ vikulegu tvær leggja **~57 KB/dag** við á tímabili (`weekly-ecr` ~194 KB/vik
 stærra en `data/history/` í FPL-hlutanum (~80 KB/dag, ~29 MB/ár), sem er þar
 skjalað sem „þess virði að fylgjast með". **Lausnin væri grisjun eftir aldri,
 ekki eyðing** — sama regla og þar.
+
+`market/` **bætir 44,1 KB/dag við en aðeins í forleik** og stöðvast sjálf við
+fyrsta leik (sjá kaflann um hana neðar) — mælt: 16 dagar frá 24.8. til 9.9.2026
+= **~0,7 MB fyrir allt tímabilið**. Hún er ódýrasta serían í töflunni per ár.
 
 ### Reglan er strangari en `writeJson` og það er ástæða
 
@@ -5566,6 +5572,103 @@ draft**, og serían tapar engu sem hún hefur þegar. Skráð hér svo ákvörð
 > trending-endapunkturinn er **lifandi 24-klst gluggi** og ný sókn er ný mæling,
 > ekki endurritun á þeirri gömlu. Munurinn er raunverulegur og athugasemdin í
 > `fetch-nfl.mjs` sagði hann rétt allan tímann.
+
+### `market/` — ÁRSTÍÐAR-LESTUR MARKAÐARINS, OG HANN ER TIL Í 16 DAGA
+
+**Ákvörðun tekin 24.8.2026.** Fyrri úttekt fann þetta og **skildi það eftir sem
+ákvörðun**: ESPN verðleggur **alla 272 leiki í forleik**, en `sports.core.api`
+geymir enga sögu og `market.json` er endurskrifuð daglega. Dómur markaðarins um
+hvern einasta leik tímabilsins **áður en eitt snapp er spilað** er sterkara merki
+en lokalínur viku 1, sem er það sem lobin nota sem staðgengil í dag — og
+mæling á oddum/sérfræðingum þessa viku þurfti að skrá „nflverse ber engar
+sögulegar forleiks-línur" sem takmörkun af nákvæmlega þessari ástæðu.
+
+Rökin eru þau sömu og `data/predictions/`, `td-props/` og `history/` hvíla á, og
+niðurstaðan er sú sama: **vistaðu hana.**
+
+#### Að hún sé óendurheimtanleg var MÆLT, ekki ályktað
+
+`scoreboard?dates=2025&seasontype=2&week=1` á **loknu** tímabili:
+
+| hostur | HTTP | leikir | **með `odds`** |
+|---|---|---|---|
+| `site.api.espn.com` | 200 | 16 | **0** |
+| `site.web.api.espn.com` | 200 | 16 | **0** |
+
+`odds`-blokkin er **fjarlægð af loknum leikjum**. Þetta er ekki „gisin gögn"
+heldur horfin gögn.
+
+#### Framtíðarmarkaðir SVARA fyrir liðin tímabil — og það er samt ekki sagan
+
+`/seasons/{ár}/futures` skilar **200 fyrir 2023 (12 markaðir), 2024 (25) og
+2025 (21)**. Fyrsta ályktun væri því að futures þurfi ekki að vistast. **Það er
+rangt, og talan sem sannar það er verðið sjálft:**
+
+| tímabil | lengsta Super Bowl-verð í svarinu |
+|---|---|
+| 2024 | +25000 |
+| 2026 (í dag) | +50000 |
+| **2025** | **+400000** (fjögur lið) |
+
+Enginn forleiks-markaður verðleggur lið á 4.000-1. Endapunkturinn ber **eitt
+gildi per tímabil** og fyrir 2025 er það sýnilega **mið-/seint-tímabils ástand**.
+Færslan ber hvorki `open` né `current` (mælt: **0 af 32** í bæði 2025 og 2026),
+svo opnunarverðið er hvergi. **Endapunktur sem svarar 200 er ekki það sama og
+heimild sem geymir söguna** — sama ætt og `has_xg` sem LÝGUR í FPL-hlutanum.
+
+Þau eru því í **sömu skrá** og línurnar: það er einn markaðs-lestur, futures á
+tímabils-kvarða og línurnar per leik. Væru þau tvær seríur gæti önnur skrifast
+og hin verið hafnað sama dag, og lab sem joinar á `date` bæri saman **tvo daga**
+án þess að nokkuð sæist — þögla ranga pörunin sem repo-ið bannar.
+
+#### Gólfið er 260 og það er lagt við MÆLDA bilun, ekki við tómt svar
+
+**Aðeins verðlagðar raðir eru geymdar** (`total != null && spread != null`), af
+sömu ástæðu og `weekly-proj` geymir aðeins raðir með spá: án síunnar finnur
+`rowCount` **alltaf 272** og gólfið gæti aldrei fallið, hversu tómar sem
+línurnar eru. **Röð án verðs er umbúð, ekki farmur.**
+
+| aðstæða | `rowCount` | gólf 260 |
+|---|---|---|
+| heil mynd (mælt 24.8.2026) | **271** | fer í gegn |
+| **ein vika 403** (18 slíkar raðir mældust 20.8.) | 271 − 16 = **255** | **HAFNAÐ** |
+| tvær vikur | 239 | HAFNAÐ |
+| línur til, engin verð | **9** | HAFNAÐ |
+| **raunverulega tómur farmur** | **9** | HAFNAÐ |
+
+Síðasta röðin er gildran sem beðið var um að verja gegn og hún er **mæld á
+raunverulega tómum farmi**: farmurinn ber níu lykla, svo `rowCount` fellur í
+`best || Object.keys(data).length` og skilar **9, ekki 0**. Þetta hefur bitið
+repo-ið tvisvar (`market.json` með 6 lykla ≥ 3 gólfinu 9.8.2026, og
+`weekly-proj` með 3.300 tómar raðir). **Gólf 1 hefði hleypt tómum degi í gegn og
+`writeOnce` hefði fryst hann að eilífu.** 271 mælt í dag, gólf 260: 11 leikja
+slaki fyrir stök verðlaus leiki, sem er raunverulegt og annað mál en töpuð vika.
+
+#### `teams` er EKKI geymt — bein tvítekning, mæld
+
+`market.json` ber `teams` (32 raðir, liðsstyrkur). `teamMarketStrength(games)`
+á verðlögðu röðunum í dagsmyndinni skilar **bæti-eins streng** við það svið
+(**32.476 stafir = 32.476**). Það er afleidd tala, ekki gögn, og hættan er að
+afritin reki í sundur — ekki stærðin (sama ákvörðun og BSD-skotin, 543 → 338 KB,
+og `dt`/`week` í `depth/`). Stærðin fylgir samt: **75,9 → 44,1 KB/dag.**
+
+#### Serían STÖÐVAST SJÁLF og skráir sig `ok`, ekki rautt
+
+Um leið og leikir eru spilaðir hverfur `odds` af þeim (mælingin ofar), svo
+`priced` fellur undir gólfið og serían myndi skila **RAUÐRI röð hvern einasta
+dag tímabilsins** — röð sem hreinsast aldrei kennir manni að hunsa spjaldið,
+nákvæmlega það sem `writeJson`-nótan varar við. Þess vegna er **fyrsti
+deildarleikur spurður fyrst** (`firstRegKickoffMs`) og eftir hann er skráð `ok`:
+árstíðar-lesturinn er **fullkomnaður**, ekki brotinn. Vikulegar línur eftir það
+eru vistaðar annars staðar (`advice/` ber línu liðsins, `td-props/` verðin).
+
+`firstRegKickoffMs` skilar **`null`** fyrir tóma leikjaskrá, ekki 0 — 0 er 1970
+og þá væri tímabilið „byrjað" og serían myndi **aldrei** vistast. Vörður fellur
+ef þessu er breytt.
+
+**Sex stökkbreytingar felldar:** gólf 260 → 1 · verðlagða sían fjarlægð ·
+`teams` sett aftur inn · `ok`-skráningin gerð að villu · leikdags-hliðið
+fjarlægt · `null` → 0 í tómri leikjaskrá.
 
 ### Vörðurinn — og hann getur fellt gagna-keyrsluna
 
