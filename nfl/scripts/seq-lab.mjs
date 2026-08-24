@@ -1003,10 +1003,40 @@ async function main() {
         if (np == null) continue;
         const gone = new Set(priced.slice().sort((a, b) => a.adp - b.adp)
           .slice(0, pick - 1).map((r) => r.id));
-        const top = board.filter((r) => !gone.has(r.id)).slice(0, 4).map((r) => ({
-          name: r.name, pos: r.pos, vbd: r1(r.vbd), adp: r.adp, adpSd: r1(r.adpSd),
+        const avail = board.filter((r) => !gone.has(r.id));
+        const top = avail.slice(0, 4).map((r) => ({
+          id: r.id, name: r.name, pos: r.pos, vbd: r1(r.vbd), adp: r.adp,
+          adpSd: r1(r.adpSd),
           lasts: r.adp == null ? null : r2(survivalProb(r.adp, r.adpSd, np)) }));
-        snaps.push({ pick, slot, nextPick: np, top });
+        /* ============================================================
+           TVEIR ARMAR AF SOMU ARITMETIK — MED GOLFINU
+           ============================================================
+           Reikningurinn i beidninni var `vbd_B + p_A * vbd_A`. Hann
+           sleppir thvi ad staðan sem thu SLEPPIR er lika hægt ad fylla:
+           takir thu A nuna faerdu SAMT BESTA LAUSA MANN vid naesta val.
+           Retta samanburdurinn er thvi
+
+             taka X nuna  ->  vbd_X + E[besta laus vid naesta val | X farinn]
+
+           og seinni lidurinn er reiknadur med SENDA `expectedBestAt`.
+           Bilid milli armanna hrynur thegar golfid er tekid med — og
+           thad er MEKANISMINN a bak vid maelda nullid, ekki afsokun.
+
+           VARNAGLI: `expectedBestAt` sleppir monnum an ADP, svo golfid
+           er VANMETID — sem hallar i thagu "taktu thann sem tapast",
+           thann arminn sem er verid ad reyna ad fella. Rett att.     */
+        const evOf = (takeId) => {
+          const me = avail.find((r) => r.id === takeId);
+          if (!me) return null;
+          const rest = avail.filter((r) => r.id !== takeId)
+            .map((r) => ({ id: r.id, pos: "ALL", vbd: r.vbd, adp: r.adp, adpSd: r.adpSd }));
+          const f = expectedBestAt(rest, "ALL", np).value;
+          return { name: me.name, pos: me.pos, now: r1(me.vbd),
+                   nextExpected: r1(f), total: r1(me.vbd + f) };
+        };
+        const branches = top.map((t) => evOf(t.id)).filter(Boolean);
+        snaps.push({ pick, slot, nextPick: np,
+          top: top.map(({ id, ...rest }) => rest), evBranches: branches });
       }
       liveShape[k] = { boardRows: board.length, priced: priced.length,
         withRealSd: priced.filter((r) => r.adpSd != null && r.adpSd > 0).length, snaps };

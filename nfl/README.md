@@ -1763,6 +1763,208 @@ hólf sem stóðust árs-klösun og **0 af 153** sem stóðust leikmanna-klösun
 > eitthvað of rausnarlegt** við þéttenda — aldrei of hart. **Lestu TE-kaupin sem
 > ómæld, ekki sem sterkustu merkin á borðinu.**
 
+### 4m. LIFUNAR-HÁÐ TÍMASETNING — „taktu þann sem tapast" (24.8.2026)
+
+**Notandinn sá þetta tvisvar í mock-drafti og hann hafði rétt fyrir sér um
+einkennið.** Borðið ráðlagði mann sem það sagði sjálft **87–95% líklegan til að
+vera enn laus við næsta val**, fram yfir mann sem var **0% líklegur** og aðeins
+~10 VBD fyrir aftan:
+
+```
+Pick 24 — take TE Brock Bowers  · VBD 55,4 · 87% likely to still be there at 37
+       — or WR Nico Collins     · 10,7 VBD behind · 0% likely to last
+```
+
+Og hann tók eftir hinu líka: í vali 17 ráðlagði borðið **Kenneth Walker** (VBD
+70,1, 28%) fram yfir **Chase Brown** (61,3, 1%) — og **það er rétt**, því þegar
+hvorugur lifir er hærra VBD einfaldlega betra. Einkennið er því ekki „borðið er
+brotið" heldur *„borðið hunsar tímasetningu í nákvæmlega þeim tilfellum þar sem
+hún er ókeypis"*.
+
+**EINKENNIÐ ER RAUNVERULEGT OG ÞAÐ ER ENDURGERT Á LIFANDI BORÐI.**
+`sequencing.json -> liveBoard` ber myndina, dagsett (`players.json` er
+endurskrifuð daglega, README 4b): í 10-liða PPR við val 24 er Bowers **VBD 94,1
+· 43%** ofan á McBride **75,5 · 5%** og Hampton **73,0 · 0%**. Sama lögun í
+12-liða half.
+
+#### ÞETTA ER **ÖNNUR** REGLA EN `urgencyDrivesOrder: false` — og það var mælt, ekki fullyrt
+
+Bókaða höfnunin er **stöðu-bráðanauðsyn**:
+`urgency(i) = VBD(i) − E[besta VBD Á HANS STÖÐU við næsta val]`. Hún mælir hve
+bratt **staðan** versnar. Reglan hér mælir hve líklegur **maðurinn sjálfur** er
+til að tapast. Sé `p` lifun og `v2` næsti á hans stöðu er
+`urgency ≈ (1−p)(VBD − v2)` en EV-reglan `≈ (1−p)·VBD` — sú fyrri getur verið
+~0 þar sem sú seinni er stór. **Þær eru ekki sama tala.**
+
+`tiebreak-lab.mjs` (12.8.2026) mældi næsta-skyldu regluna og fékk ekkert
+(ppr −1,7, t=−0,06 · std +15,9, t=0,79) — **en hún spurði hvorki um `X`** (að
+efsti maður lifi raunverulega; hún kviknar líka þegar **báðir** eru 0%, þar sem
+enginn hagnaður er í boði) **né um `Z`** (að hinn lifi raunverulega ekki), hún
+mældi **eina lögn** (`DEFAULT_LEAGUE`, 12 lið, 1 FLEX) og **enga half-PPR**, og
+hún hafði **engin leikmanna-klösuð vikmörk**. Svarið á spurningunni „var þetta
+þegar mælt?" er því **nei, ekki þessi regla** — og það er ástæðan fyrir
+`scripts/seq-lab.mjs`.
+
+#### Mælt — `scripts/seq-lab.mjs` -> `data/measure/sequencing.json`
+
+**11 tímabil (2015–2025) · 3 lagnir · 86 raun-afbrigði + 36 placebo · speglað
+einvígi frá ÖLLUM sætum · 3 fræköst per (ár, hólf).** Þröskulds-rist
+`X ∈ {0; 0,5; 0,7; 0,9} × Y ∈ {3, 8, 15, 25} × Z ∈ {0,05; 0,15; 0,25; 0,50}`,
+þrjú EV-form, `tiebreak`-formið endurgert, og **tveir mekanisma-armar sem nota
+engar lifunarlíkur**. Hliðin fimm (G0 lögnun ankeruð í `waiver.json` · G1 sent
+borð gegn sjálfu sér = **nákvæmlega 0**, í stigum OG sigrum · G2 reglan verður
+að vera lifandi · G3 borð-innsetningin prófuð sér · G4 orakel **+442 til +547**,
+andhverft ADP **−646 til −731**) og skriftan **fer út með 2 fremur en að
+skrifa**.
+
+| lögn | hólf jákvæð | yfir placebo-þaki | árs-klasað marktæk **+** | **standast barinn** |
+|---|---|---|---|---|
+| **10-liða PPR (Patriots)** | 34/85 | **3/85** | **1** | **0 af 9 mötnum** |
+| **12-liða half (Sófahetjur)** | 43/85 | **4/85** | **1** | **0 af 9 mötnum** |
+| 12-liða 1FLEX (almenna) | 64/85 | 22/85 | **43** | **0 af 9 mötnum** |
+
+Placebo-þakið er **+18,7 / +21,8 / +26,9** stig (átta frækorn af ákveðnu suði í
+stað lifunar + andhverf lifun, gegnum sömu rist).
+
+**Besta hólf hverrar lögnar — valið EFTIR Á, sem er hagstæðasta lesningin sem
+gögnin heimila:**
+
+| lögn | besta hólf | stig | t | ár+ | árs-CI | **leikmanna-CI** |
+|---|---|---|---|---|---|---|
+| 10-liða PPR | `thr X=0,5 Y=25 Z=0,15` | +18,3 | 0,68 | 7/11 | [−30,3, +70,8] | **[−40,3, +68,6]** |
+| 12-liða half | `thr X=0 Y=3 Z=0,05` | +27,2 | 1,77 | 6/11 | [+0,8, +55,1]\* | **[−26,8, +55,8]** |
+| 12-liða 1FLEX | `thr X=0,5 Y=15 Z=0,15` | +36,6 | 2,27 | 8/11 | [+7,1, +66,0]\* | **[−38,4, +71,8]** |
+
+**Hvert einasta leikmanna-klasað bil inniheldur núll**, og 43-á-móti-0 í
+almennu lögninni er nákvæmlega undirskriftin úr 4c (`vbdbase-lab`: 28 hólf
+árs-klasað, **0 af 153** leikmanna-klasað).
+
+#### OG RÉTTA EV-FORMIÐ TAPAR — MARKTÆKT, Í ÖLLUM ÞREMUR LÖGNUM
+
+Reikningurinn í beiðninni er `vbd_B + p_A·vbd_A`. Hann **sleppir gólfinu**: takir
+þú A núna fær þú samt **besta lausa mann** við næsta val. Réttur samanburður er
+`vbd_X + E[besta laus við næsta val | X farinn]`, og mismunurinn milli tveggja
+frambjóðenda er þá `(vbd_i − f)(1−p_i) − (vbd_j − f)(1−p_j)`.
+
+Armurinn `ev-cross` er nákvæmlega þessi regla, með `f` reiknað úr **senda**
+`expectedBestAt`:
+
+| lögn | `ev-cross` stig | t | ár+ | árs-CI | leikmanna-CI |
+|---|---|---|---|---|---|
+| 10-liða PPR | **−57,2** | −2,28 | 2/11 | **[−104,6, −12,8]\*** | [−129,7, +4,1] |
+| 12-liða half | **−38,5** | −1,90 | 3/11 | **[−77,5, −0,8]\*** | [−100,1, +13,7] |
+| 12-liða 1FLEX | **−60,0** | −2,49 | 2/11 | **[−105,2, −18,1]\*** | [−98,0, +22,0] |
+
+Og á **sigrum** (7 tímabil, `scoreLeague`, 14 vikur): −0,94 · −0,27 · −0,88 af
+14, marktækt negatíft í tveimur af þremur. **Eina reglan í netinu sem er
+raunverulegur EV-reikningur er líka sú sem tapar mest.** `ev-raw` (formið úr
+beiðninni, `f = 0`) er −14,9 / −9,4 / −26,3 — það er of árásargjarnt af
+byggingu, því `f = 0` þýðir „staðan sem ég sleppi er óbætanleg", og hún er það
+ekki.
+
+**OG HANS EIGIN DÆMI SNÝST VIÐ ÞEGAR GÓLFIÐ ER TEKIÐ MEÐ.** Sama aritmetík á
+lifandi borðinu, val 24 í 10-liða PPR (`liveBoard.10-2flex.snaps[].evBranches`,
+seinni liðurinn reiknaður úr **senda** `expectedBestAt`):
+
+| tek núna | VBD núna | E[besta laus við val 37] | **samtals** |
+|---|---|---|---|
+| **Bowers (TE, 43% lifir)** — það sem appið segir | 94,1 | 59,0 | **153,1** |
+| McBride (TE, 5%) | 75,5 | 73,7 | 149,2 |
+| Hampton (RB, **0%**) — það sem reglan segir | 73,0 | 74,3 | **147,3** |
+
+**Úrskurður appsins vinnur um 5,8 stig** — því staðan sem þú *sleppir* er
+bætanleg: sleppir þú Hampton fær þú samt 74,3 að vænta við val 37, sem er
+næstum jafn mikið og hann sjálfur bar. Í vali 17 er sama tafla **169,1 (Bowers)
+á móti 170,1 (Henry)** — eitt stig, sem er jafntefli, og það er einmitt hvers
+vegna mælda niðurstaðan er null og ekki negatíf í hverju vali. Reikningurinn í
+beiðninni (`44,7 + 0,87·55,4 ≈ 93` á móti `55,4 + varamaður`) er réttur sem
+aritmetík; það sem hann vantaði var að **„varamaður" er nærri jafn góður og
+maðurinn sem þú slepptir**, af því að VBD er þegar virði **ofan á varamann**.
+
+> **HVERS VEGNA ÞETTA ER EKKI ÞVERSÖGN VIÐ AÐ HÓLFIN LÍTI JÁKVÆÐ ÚT.**
+> Þröskulds-hólfin sem lesa jákvætt fórna í mesta lagi `Y` stigum og kvikna
+> sjaldan (kviknunartíðni 0,03–0,26); `ev-cross` kviknar í **53–54%** valanna og
+> fórnar meira. Rist sem er nógu varfærin til að skaða ekki er líka nógu
+> varfærin til að mæla ekkert — og það er sama niðurstaða, ekki tvær.
+
+#### MEKANISMINN — MERKIÐ ER **EKKI** LIFUN, OG ÞAÐ ER MÆLT
+
+`survivalProb(adp, sd, pick)` er **einrænt fallandi í ADP** við fast val. „Taktu
+þann sem lifir síður" er því, innan hóps sem er nærri jafn á VBD, **sama og
+„taktu þann sem markaðurinn setur fyrr"** — falin ADP-blöndun. Tveir armar mæla
+það án nokkurra lifunarlíkinda:
+
+| armur (engin lifun) | 10-liða PPR | 12-liða half | 12-liða 1FLEX |
+|---|---|---|---|
+| `adpward` (innan Y=3 VBD, lægsta ADP) | −3,7 | −9,1 | **+35,7** (árs-CI [+11,4, +58,0]\*) |
+| `adpward` Y=15 | −29,6 | −11,9 | −14,2 |
+| **`deferTE` Y=8 / Y=15** | **+27,6 / +22,5** | +2,5 / +3,9 | +21,7 / **+29,5** |
+
+**Besta hólfið í 10-liða deildinni hans er `deferTE|8` (+27,6) og það notar
+engar lifunarlíkur.** Það sem mælist er *„sleppdu þéttendanum"* — sem er
+nákvæmlega talan sem 4l og 6k(1) bóka sem **óstaðfesta** (`FLEX_SPLIT.TE`
+mæld á lögn sem hann spilar ekki). Og TE var efsti maður í **22–29%** allra
+kviknana. `adpward|3` er auk þess **jafn sterkt** og hvert þröskulds-hólf í
+almennu lögninni, með árs-CI sem útilokar núll — **markaðs-átt ein, ekkert
+annað**. Sama niðurstaða og ADP-blöndun í `board-lab`/`dynamic-lab` (5h) og
+sama undirskrift sem 5h kallar *„staðbundinn skortur tapar fyrir algildu
+virði"* — **í fjórða sinn**.
+
+#### SIGRAR — ANNAR MÆLIKVARÐI, SAMA SVAR
+
+7 tímabil, `scoreLeague` + `roundRobin` úr `src/accuracy.js` (sömu vél og
+`h2h-lab`), speglað svo nullið sé **nákvæmt að byggingu**. Í deildunum hans er
+**engin regla marktæk** nema `thr X=0 Y=3 Z=0,05` í half (+0,45 af 14,
+[+0,04, +0,95], 4/7) — hólf sem fórnar 3 stigum og hvers **stiga-**bil
+inniheldur núll. Í almennu lögninni eru `ev-raw`, `ev-cross`, `tiebreak|15` og
+`adpward|15` **öll marktækt negatíf** (−0,43 til −0,88 sigrar).
+
+#### `adpSd`-NÆMNIÐ — SVARIÐ ER AÐ ÞAÐ SKIPTIR EKKI MÁLI
+
+Reglan hangir á `adpSd`. Sögulega laugin ber **raunverulegt** `adpSd` á
+**100%** raða (`sdCoverage.historical`), en lifandi borðið gerir það ekki:
+**219 af 267** verðlögðum röðum í 10-liða PPR og **189 af 254** í 12-liða half
+(`liveBoard`). Armarnir `#degsd` þvinga `1,08·√ADP` **hvergi birt af FFC**:
+
+| hólf | raunverulegt sd | bakfalls-sd |
+|---|---|---|
+| 10-liða PPR, `thr X=0,7 Y=15 Z=0,25` | +2,9 | −6,3 |
+| 12-liða half, sama | −0,9 | +2,9 |
+| 12-liða 1FLEX, sama | +31,0 | +22,0 |
+| `ev-cross` (allar þrjár) | −57,2 / −38,5 / −60,0 | −51,9 / −46,6 / −61,2 |
+
+**Hreyfingin er ±10 stig og hún skiptir ekki formerki kerfisbundið** — og
+**ekkert hólf fer yfir barinn í hvorugri útgáfu.** Niðurstaðan er því ekki
+takmörkuð af `sd`-þekjunni: hún er sú sama með fullkomnu `sd` og með bakfallinu.
+Það er sjálfstæð vísbending um að merkið sé ekki þarna, því regla sem lifði á
+lifunarlíkum ætti að **hrynja** þegar dreifingin er ágiskuð.
+
+#### Niðurstaða
+
+**RÖÐIN HAGGAST EKKI, OG `urgencyDrivesOrder: false` STENDUR ÓSKERT** — en það
+stendur nú af **tveimur** óháðum mælingum, ekki einni: stöðu-bráðanauðsyn
+(`advice-lab`, −60,06 í standard) og lifunar-háð tímasetning (hér, 0 af 27
+mötnum hólfum yfir öllum þremur lögnum). Merkið sem lítur jákvætt út er
+mælanlega **TE-kvörðun og markaðs-átt**, hvorugt lifun.
+
+**OG SETNINGIN Í APPINU VAR ÞEGAR RÉTT ORÐUÐ:** `waitNoteFor` segir
+*„taking Gibbs now is the one order that can end with both — the order above is
+still by value"*. Það er aritmetík á mældum tölum, birt sem **tímasetning**, og
+mælingin hér segir að það sé nákvæmlega rétta staðan fyrir hana: **upplýsing,
+ekki röðun.** Notandinn getur beitt henni sjálfur í einstöku vali; það sem
+mælist ekki er að láta hana ráða í hverju vali.
+
+**Vörður: `tests/advice.mjs`** les `data/measure/sequencing.json` og fellur ef
+eitthvað hólf byrjar að standast barinn (þá á að **mæla upp á nýtt**, ekki að
+þegja) og ef `ev-cross` hættir að vera negatíft.
+
+> **ÞAÐ SEM ER ÓMÆLT HÉR OG ER SKRÁÐ:** mótherjarnir drafta eftir ADP og nota
+> **ekki** þessa reglu — regla sem allir nota getur mælst annað. Hóparnir eru
+> fastir allt tímabilið (sama takmörkun og `h2h-lab` bókar). Og vikulega
+> byrjunarliðið er valið af **raunstigum vikunnar**, sem verðlaunar sveiflu
+> (5m); það gildir eins um báða arma en talan má ekki lesast sem hrein
+> spá-útkoma.
+
 ### 4c. Bootstrap KLASAÐUR PER LEIKMANN — aðferðin sem breytti niðurstöðu
 
 Þetta er almennt og það á að standa: `vbdbase-lab` fékk **28 hólf** sem
@@ -1802,6 +2004,7 @@ séð merki — höfnunin er niðurstaða, ekki bilað mælitæki. `verdict`-rei
 | hugmynd / vandamál | niðurstaða |
 |---|---|
 | **Annað `FLEX_SPLIT.TE` en 0,193** | Sveipað 0 -> 0,40 (RB:WR fast) í BÁÐUM deildum hans, á STIGUM (11 tímabil, 81 fruma) og á SIGRUM (5 tímabil, 21 fruma). **0 af 102 standast**; hvert leikmanna-klasað bil inniheldur núll. Áttin skiptir formerki milli deildanna tveggja. **Dýpra er mælanlega verra** (te=0,40 fellur á báðum), svo 0,193 er á réttri hlið. Sjá **4l** |
+| **Lifunar-háð tímasetning** („taktu þann sem lifir SÍÐUR þegar bilið í VBD er minna en vænta tapið") | **ÖNNUR regla en `urgencyDrivesOrder`** og önnur en `tiebreak-lab` (sem spurði hvorki um `X` né `Z`, mældi eina lögn og engin leikmanna-vikmörk). Mælt á 11 tímabilum × 3 lögnum × 86 afbrigðum + 36 placebo: **0 af 27 mötnum hólfum standast**, hvert leikmanna-klasað bil inniheldur núll (43 árs-klasað marktæk í almennu lögninni og **0** leikmanna-klasað — undirskriftin úr 4c). **Rétta EV-formið með gólfi (`ev-cross`) TAPAR marktækt í öllum þremur lögnum** (−57,2 / −38,5 / −60,0 stig; −0,94 / −0,27 / −0,88 sigrar). Og mekanisminn er mældur: `deferTE` og `adpward` — **hvorugur með lifunarlíkur** — gefa sömu eða hærri tölu, svo merkið er TE-kvörðun og markaðs-átt. Óbreytt af `adpSd`-bakfalli. Sjá **4m** |
 | **Sleeper sem auðkennisbrú** | Sleeper er **hættur** að bera `gsis_id`/`espn_id` — aðeins **162 af 989** virkum QB/RB/WR/TE. Sú leið gaf nafna-pörun á **732** leikmönnum. DynastyProcess-brúin færði það í **105** |
 | **ADP beint úr Sleeper** | **999 (og 400) eru TÓMGILDI**, ekki ADP. 1.930 af 2.107 RB/WR voru nákvæmlega 999. Án síunar sluppu 3.083 leikmenn í stað 1.130 |
 | **ESPN sem spáheimild** | Aðeins **56 af 1.130** bera timabils-spá og **5 af þeim voru spilltar** (Drake London 13.797 þar sem hrá-svarið segir 274,3). ESPN er **ADP- og eignarhaldsheimild**, ekki spáheimild. Skynsemishlið fellir rusl og telur það |
@@ -5122,7 +5325,15 @@ node scripts/vbdbase-lab.mjs --tesweep        # -> measure/tesplit.json (stig, s
 node scripts/h2h-lab.mjs --tesweep            # -> measure/tesplit_h2h.json (sigrar, 4l)
 node scripts/dst-lab.mjs                      # -> measure/dst.json (sja 4k)
 node scripts/ecr-timing.mjs [--day=21]        # -> measure/ecr_timing.json (sja kafla 5)
+node scripts/seq-lab.mjs                      # -> measure/sequencing.json (sja 4m)
 ```
+
+`seq-lab.mjs` er **handvirk mæling og á ekki heima í pipeline-inu**: hún les
+`features.json`, `data/weekly/*.json` og `data/measure/waiver.json`, sem breytast
+ekki fyrir lokið tímabil, og hún tekur ~9 mín með sjálfgefnum viðföngum
+(`--runs=3 --boot=300 --winruns=3`). Hún er keyrð þegar lifunar-háð tímasetning
+er véfengd aftur — og **`liveBoard`-hlutinn í skránni er dæmi með dagsetningu,
+ekki fasti**, því `players.json` er endurskrifuð daglega (4b).
 
 `dst-lab.mjs` er **handvirk og á ekki heima í pipeline-inu**: hún sækir sjö
 nflverse-tímabil, 18 Sleeper-vikur og 17 deildar-umferðir (~45 köll, allt í
