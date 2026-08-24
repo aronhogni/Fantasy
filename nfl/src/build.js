@@ -528,10 +528,16 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
     r.aRank = r.rank;
     /* Merkt svo vidmotid geti sagt fra thvi frekar en ad syna eydu. */
     r.unranked = !RANKED_POS.includes(r.pos) ? "K and DST were excluded from every simulation that validates this order" : null;
-    r.value = valueVsMarket(r.rank, r.adp, league.teams);
     /* Hvad segir A-Ranking umfram hvora heimild fyrir sig? */
     r.vsSleeperRank = null;                 // fyllt ad nedan
   }
+
+  /* `value` KREFST ANNARS UMFERDS — GRUNNURINN VAR SITTHVOR.
+     Sja `valueColumn` nedar. `r.rank` verdur ad vera fyllt A OLLUM
+     rodum adur en hann er talinn, svo thetta getur ekki verid i sama
+     lykkju og rodin sjalf. */
+  const valMap = valueColumn(withVbd, league.teams);
+  for (const r of withVbd) r.value = valMap.get(r.id) ?? null;
 
   /* Rod Sleeper eftir HRASTIGUM — til ad syna hvar VBD faerir mann. */
   const slpRanked = withVbd.slice()
@@ -557,6 +563,111 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
       withLast: withVbd.filter((r) => r.lastPpg != null).length,
     },
   };
+}
+
+/* ============================================================
+   `value` BAR TVAER RADIR A SITTHVORUM GRUNNI — MAELT 24.8.2026
+   ============================================================
+   Talan var `(adp - rank) / teams`, og thad ER retta formulan — en
+   HUN VAR MATUD MED TVEIMUR TOLUM SEM TELJA EKKI THAD SAMA:
+
+     `r.rank` er ThETT ROD yfir ADEINS thaer radir sem hafa BAEDI spa
+       og stodu i `RANKED_POS` — **556 af 1.175**. K og DST eru utan
+       (rokin eru fjorum tugum lina hér ofar), og skilamadur an spar
+       fellur lika ut thvi `vbd` verdur null.
+     `r.adp` er ALGJOR draftstada markadarins yfir ALLA — spyrnumenn,
+       varnir og hvern skilamann sem einhver draftar, hvort sem vid
+       rodum honum eda ekki.
+
+   Hver leikmadur sem markadurinn verdleggur en rodin sleppir hlidrar
+   thvi `adp` UPP an ad hlidra `rank`, og mismunurinn — sem er ALLTAF
+   lesinn sem KAUP — vex um 1/teams af umferd fyrir hvern thann mann.
+
+   MAELT A RAUNGOGNUM (`data/players.json`, 1.175 radir), badar
+   deildirnar sem appid ber:
+
+     237 radir bera ADP en enga rod. Their eru TVENNS KONAR:
+       · 77 K/DST — utilokadir af `RANKED_POS` (DST fra ADP 89, K 130)
+       · 160 skilamenn an Sleeper-spar — `proj` null -> `vbd` null
+         (WR 69, RB 36, TE 35, QB 20; naer allir ADP 227+)
+
+     MIDGILDI OFMATSINS      10-lida PPR      12-lida half
+       ADP <= 120              **+0,00**        **+0,00**
+       ADP > 120               **+2,80**        **+2,50**
+       innan droftsins         **+0,00**        **+0,00**
+         (<=150 / <=180 pikk)   (mest +1,40)     (mest +2,00)
+       utan droftsins           +3,40            +3,33
+       MEST                    **+20,90**       **+17,33**
+
+   AF THVI SEST HVERS VEGNA THETTA LIFDI: innan droftsins er
+   midgildid **NAKVAEMLEGA NULL** og haesta skekkjan 1,4 umferdir.
+   Bilunin er OLL i djupinu — thar sem 70 af theim 160 spalausu
+   liggja — og thangad horfir enginn fyrr en i 14. umferd.
+
+   OG HUN LAUG UM STODU: gamla topp-8 kauplistinn i 10-lida deildinni
+   var **sex TE-ar i ADP 224-251**, thad er ad segja menn sem ENGINN
+   draftar i 150-pikka drofti. Colby Parkinson las **+5,34 umferdir
+   KAUP**; a rettum grunni er hann **-1,16** — formerkid snyst.
+   26 af 267 rodum snua formerki (33 af 255 i 12-lida). Eftir
+   lagfaeringuna er topp-8 listinn Kincaid (ADP 149), LaPorta (100),
+   Kittle (118), Andrews (127) — menn sem raunverulega eru draftadir.
+
+   ThETTA ER SAMA GERD OG ESPN-SENTINELINN sem let Darren Waller bera
+   "+3,4 umferdir KAUP" (sja notuna vid `adp` ofar): graent kaupmerki
+   reiknad ur tolu sem er ekki verd. Thar var VERDID tilbuningur;
+   hér er GRUNNURINN rangur. Bædi endar i sama graena dalki.
+
+   LAGFAERINGIN ER GRUNNURINN, EKKI FORMULAN. `valueVsMarket` er
+   ohreyfd (hun er rett, og `tests/model.mjs` ber sex fullyrdingar um
+   hana): vid faerum MARKADSSTODUNA a grunn rodarinnar med thvi ad
+   draga fra thann fjolda manna sem markadurinn tekur A UNDAN honum
+   en rodin okkar rodar ekki. Talan segir tha ordrett: *hve morgum
+   umferdum sidar en okkar rod tekur markadurinn hann, thegar BADAR
+   radir telja adeins thad sem vid rodum.*
+
+   HVERS VEGNA ALLIR 237 OG EKKI ADEINS K/DST: ad draga adeins
+   spyrnumenn og varnir fra vaeri ad fullyrda ad hinir 160 spalausu
+   sitji OFAN vid hann i okkar rod — og vid hofum enga spa um tha,
+   svo thad er agiskun eins og hin. Ad draga tha ALLA fra er hins
+   vegar fullyrding sem tharf enga agiskun: hun telur baedi radirnar
+   yfir sama mengi. Talan verdur throngari; hun verdur ekki gisk.
+
+   ThAD SEM ER **EKKI** LAGFAERT HER, OG ThAD ER ASETT: hvort `value`
+   eigi ad vera **null** utan droftsins (ADP > teams x rounds). Eftir
+   grunn-lagfaeringuna er talan thar RETT — Parkinson fellur virkilega
+   fimm umferdum sidar en rodin segir — en "umferd 25" er ekki til i
+   15-umferda drofti. Ad negla thak vid `rounds` er hins vegar VALIN
+   tala (og `buildRows` er kallad an `rounds` i profunum), svo hun
+   krefst sinnar eigin maelingar. Uttekt, atridi 5, stendur opid.
+
+   VORDUR: `tests/audit.mjs` kafli 4 — SKILGREININGIN er flutt inn
+   hédan, ekki afritud, OG thrju obundin akkeri: engin hlidrun undir
+   fyrsta sleppta ADP-inu, hlidrunin er aldrei UPP, og hun BITUR.
+   ============================================================ */
+/**
+ * `value` fyrir hverja rod, a EINUM grunni. Skilar Map(id -> tala|null).
+ * `rows` verda ad hafa `rank` (og `adp`) thegar thetta er kallad.
+ */
+export function valueColumn(rows, teams = 12) {
+  /* ADP-in sem markadurinn verdleggur en rodin sleppir, i rod.
+     Fost rod (ADP, svo id) svo talningin se endurgeranleg. */
+  const omitted = rows
+    .filter((r) => r.adp != null && r.rank == null)
+    .map((r) => r.adp)
+    .sort((a, b) => a - b);
+  /* Hve margir theirra fara A UNDAN `adp`? Helmingunarleit. */
+  const aheadOf = (adp) => {
+    let lo = 0, hi = omitted.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (omitted[m] < adp) lo = m + 1; else hi = m; }
+    return lo;
+  };
+  const out = new Map();
+  for (const r of rows) {
+    out.set(r.id, r.rank == null || r.adp == null
+      ? null
+      : valueVsMarket(r.rank, r.adp - aheadOf(r.adp), teams));
+  }
+  return out;
 }
 
 /* ---------- hjalparfoll ---------- */

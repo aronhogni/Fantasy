@@ -258,6 +258,37 @@ for (const teams of [8, 12, 16]) {
     if (bad.length) { console.log(`     ${teams}/${scoring}: ${bad.join(",")}`); comboFails++; }
     const rows = document.querySelectorAll("table.data tbody tr").length;
     if (rows < 20) { console.log(`     ${teams}/${scoring}: adeins ${rows} radir`); comboFails++; }
+
+    /* ============================================================
+       TOMT TOLUHOLF ER HVORKI TALA NE "—"
+       ============================================================
+       `{r.vbd?.toFixed(1)}` skilar `undefined` og React teiknar thad
+       sem TOMT holf — eina birtingin sem segir ekkert: hun les eins og
+       "0", eins og "villa" og eins og "gogn vantar" i einu, OG hun er
+       osynileg fyrir hverja fullyrdingu sem leitar ad NaN/undefined i
+       TEXTA, thvi tomt holf ber engan texta. `n()` i `DraftBoard.jsx`
+       gefur "—" fyrir hvert tolusvid; VBD var eina undantekningin.
+
+       ÞESSI TALNING ER **EKKI** VORDURINN A VBD-HOLFINU — sja kafla 4
+       nedar (`aRank != null -> vbd != null`), sem er astaedan fyrir thvi
+       ad thad holf getur ekki verid tomt i dag. Stokkbreyting sem
+       skilar `?.toFixed()` aftur SLEPPUR i gegn hér, og thad er MAELT,
+       ekki agiskad. Hun er samt her thvi hun ver HINA dalkana gegn somu
+       gerd — og THEKJAN ER FULLYRD svo hun geti ekki thagnad: hefdi
+       selektorinn ekkert fundid vaeri "engin tom holf" satt og
+       merkingarlaust i einu.                                          */
+    const monoCells = [...document.querySelectorAll("table.data tbody tr")]
+      .flatMap((tr) => [...tr.querySelectorAll("td.mono")]);
+    const blank = monoCells.filter((td) => !(td.textContent || "").trim()).length;
+    if (monoCells.length < 200) {
+      console.log(`     ${teams}/${scoring}: adeins ${monoCells.length} toluholf lesin` +
+        " — fullyrdingin um tom holf vaeri tom");
+      comboFails++;
+    }
+    if (blank) {
+      console.log(`     ${teams}/${scoring}: ${blank} TOM toluholf (hvorki tala ne "—")`);
+      comboFails++;
+    }
   }
 }
 ok(comboFails === 0, `allar 9 samsetningar lidafjolda og stigagjafar i lagi`);
@@ -363,25 +394,143 @@ console.log("\n4. tolur innan marka");
       (out.length ? ` — ${out.length} utan, t.d. ${out[0]}` : ""));
   }
 
-  /* ---- `value` ER SKILGREINING, EKKI BIL ---- */
+  /* ============================================================
+     BORDID GETUR EKKI BIRT TOMT VBD — OG ÞAD ER SKILYRDI, EKKI TILVILJUN
+     ============================================================
+     VBD-holfid i `BoardTable` var `{r.vbd?.toFixed(1)}`, sem teiknar
+     TOMT holf thegar `vbd` er null — medan hvert nagranna-holf i somu
+     rod ber "—". Holfid var lagfaert 24.8.2026, EN ThAD SEM ThARF AD
+     VERJA ER ASTAEDAN FYRIR ThVI AD ThAD SAST ALDREI:
+
+       `available` (og thar med `shown` -> `BoardTable`) sear a
+       `r.aRank != null`, og `aRank` er sett ADEINS a radir sem hafa
+       `vbd != null` (`build.js`: `ranked` sear a `r.vbd != null`).
+
+     ÞVI ER TOMA HOLFID **OHAEGT AD NA I** i dag, og thad var maelt:
+     stokkbreyting sem skilar `?.toFixed()` aftur lifir DOM-talninguna i
+     kafla 3 (sem telur tom toluholf yfir allar niu loganirnar). Vordur
+     sem getur ekki brugdist er ekki vordur — svo fullyrdingin er sett a
+     ThAD SEM ER RAUNVERULEGA SATT og heldur holfinu tomu-lausu:
+
+       hver rod med `aRank` BER `vbd`.
+
+     Se thessu breytt (t.d. ad birta ospadar radir a bordinu) fellur
+     ThETTA — og ThA er "—"-varaleidin i holfinu ekki lengur skraut
+     heldur eina hlifin. Hun er thvi bædi rett OG onauðsynleg i dag, og
+     thessi fullyrding er thad sem segir hvenaer thad breytist.       */
+  {
+    const withARank = R.filter((r) => r.aRank != null);
+    ok(withARank.length >= 200,
+      `ThEKJA: ${withARank.length} radir bera \`aRank\` — thaer eru bordid sjalft`);
+    const nullVbd = withARank.filter((r) => r.vbd == null);
+    ok(nullVbd.length === 0,
+      `hver rod med \`aRank\` ber \`vbd\` — bordid getur thvi ekki birt tomt ` +
+      `VBD-holf (${nullVbd.length} an vbd` +
+      (nullVbd.length ? `, t.d. ${nullVbd[0].name}` : "") + ")");
+    /* Og fullyrdingin er ekki tom: radir MED null vbd eru raunverulega
+       til i skranni — thaer eru bara ekki a bordinu. */
+    ok(R.some((r) => r.vbd == null),
+      `og null-vbd radir ERU til (${R.filter((r) => r.vbd == null).length}) — ` +
+      "thaer eru sidar ut, ekki fjarverandi");
+  }
+
+  /* ---- `value` ER SKILGREINING, EKKI BIL ----
+
+     GRUNNURINN VAR RANGUR OG ER NU LAGADUR (README / `build.js`:
+     "`value` bar tvaer radir a sitthvorum grunni"). Skilgreiningin er
+     thvi ekki lengur `valueVsMarket(rank, adp, teams)` heldur
+     `valueColumn(rows, teams)`, sem faerir markadsstoduna a grunn
+     rodarinnar adur en hun er lesin.
+
+     SKILGREININGARVORDURINN ER FLUTTUR INN, EKKI AFRITADUR — sama
+     regla og `buildTeamMetrics` i FPL-hlutanum: hann getur thvi ekki
+     greint hvort `valueColumn` sjalf se rett, hann greinir hvort
+     BORDID noti hana. THESS VEGNA THRJU OBUNDIN AKKERI a eftir, sem
+     eru rett ordud um grunninn og hafa engan aðgang að honum.       */
   {
     const { valueVsMarket } = await import("../src/model.js");
+    const { valueColumn } = await import("../src/build.js");
     const withBoth = R.filter((r) => r.value != null && r.rank != null && r.adp != null);
     ok(withBoth.length >= 50,
       `ThEKJA: ${withBoth.length} radir bera BADI \`rank\` og \`adp\` — ` +
       "an theirra er fullyrdingin nedan tom");
-    const wrong = withBoth.filter((r) =>
-      Math.abs(r.value - valueVsMarket(r.rank, r.adp, 12)) > 1e-9);
+    const def = valueColumn(R, 12);
+    const wrong = withBoth.filter((r) => Math.abs(r.value - def.get(r.id)) > 1e-9);
     ok(wrong.length === 0,
-      `\`value\` ER \`valueVsMarket(rank, adp, teams)\` a ollum ${withBoth.length} ` +
+      `\`value\` ER \`valueColumn(rows, teams)\` a ollum ${withBoth.length} ` +
       `rodum (${wrong.length} skekkja` +
       (wrong.length ? `, t.d. ${wrong[0].name}: ${wrong[0].value} gegn ` +
-        `${valueVsMarket(wrong[0].rank, wrong[0].adp, 12)}` : "") + ")");
+        `${def.get(wrong[0].id)}` : "") + ")");
     /* Og fullyrdingin verdur ad geta brugdist: hlidrun um eina umferd
        er thad sem stokkbreytingin gerdi, og hun ma ekki sleppa. */
-    ok(withBoth.some((r) =>
-      Math.abs((r.value + 3) - valueVsMarket(r.rank, r.adp, 12)) > 1e-9),
+    ok(withBoth.some((r) => Math.abs((r.value + 3) - def.get(r.id)) > 1e-9),
       "og +3 umferdir vaeri ONNUR tala (maelitaekid virkar)");
+
+    /* ---- AKKERI 1: ENGIN HLIDRUN OFAN VID FYRSTA SLEPPTA MANNINN.
+       Grunn-lagfaeringin er KORREKSJON, ekki kvordun: ofan vid
+       laegsta ADP sem rodin sleppir getur hun ekki haft nein ahrif,
+       svo thar VERDUR gamla formulan ad gilda ordrett. Hlidrun eda
+       kvardi sem laegi a ollu bordinu felldi thetta.               */
+    const omitted = R.filter((r) => r.adp != null && r.rank == null);
+    ok(omitted.length >= 20,
+      `ThEKJA: ${omitted.length} radir bera ADP en enga rod — thad er ` +
+      "grunn-munurinn sjalfur, og an hans segja akkerin nedan ekkert");
+    const firstOmitted = Math.min(...omitted.map((r) => r.adp));
+    const above = withBoth.filter((r) => r.adp < firstOmitted);
+    ok(above.length >= 10,
+      `ThEKJA: ${above.length} radir liggja ofan vid fyrsta sleppta ADP ` +
+      `(${firstOmitted.toFixed(1)})`);
+    const moved = above.filter((r) =>
+      Math.abs(r.value - valueVsMarket(r.rank, r.adp, 12)) > 1e-9);
+    ok(moved.length === 0,
+      `AKKERI: ofan vid ADP ${firstOmitted.toFixed(1)} er `
+      + `\`value\` ORDRETT \`(adp-rank)/teams\` a ollum ${above.length} rodum `
+      + `(${moved.length} hlidrud)`);
+
+    /* ---- AKKERI 2: HLIDRUNIN ER ALDREI UPP.
+       Vid drogum FRA markadsstodunni og aldrei vid hana, svo ekkert
+       kaupmerki ma STAEKKA. Stokkbreyting sem legdi vid (eda sem
+       taeldi menn sem eru FYRIR NEDAN) faeri i gegn an thessa.     */
+    const grew = withBoth.filter((r) =>
+      r.value - valueVsMarket(r.rank, r.adp, 12) > 1e-9);
+    ok(grew.length === 0,
+      `AKKERI: grunn-faerslan STAEKKAR ekkert kaupmerki (${grew.length} af ` +
+      `${withBoth.length} vaxa` +
+      (grew.length ? `, t.d. ${grew[0].name}` : "") + ")");
+
+    /* ---- AKKERI 3: OG HUN BITUR.
+       Ef hun bitur ekki er "lagfaeringin" ekki neitt — sama regla og
+       "thekja er fullyrding": no-op ma ekki lesast sem graent.
+       Maelt: mest +20,90 umferdir i 10-lida deildinni, svo 2,0 er
+       rumt golf og ekki pinnad vid gogn dagsins.                    */
+    const bit = withBoth.filter((r) =>
+      valueVsMarket(r.rank, r.adp, 12) - r.value >= 2.0);
+    ok(bit.length >= 5,
+      `AKKERI: faerslan BITUR — ${bit.length} radir laegri um >= 2,0 umferdir ` +
+      `en gamli tvigrunna reikningurinn` +
+      (bit.length ? ` (mest ${Math.max(...withBoth.map((r) =>
+        valueVsMarket(r.rank, r.adp, 12) - r.value)).toFixed(2)})` : ""));
+
+    /* ---- AKKERI 4: OG HUN TELUR ALLA SEM RODIN SLEPPIR, EKKI
+       ADEINS K/DST. Thetta er VALID sem `build.js` rokstydur i mali
+       (spalaus skilamadur er jafn oradadur og spyrnumadur, og ad
+       sleppa honum vaeri agiskun um ad hann sitji ofan vid), og
+       prosi sem enginn vordur ber er prosi sem rekur. Stokkbreyting
+       sem taldi ADEINS K/DST slapp i gegn an thessa.
+
+       MAELT SEM PIKK, EKKI UMFERDIR: hlidrunin i pikkum er
+       `(gamalt - nytt) * teams`, og fyrir dypsta manninn verdur hun
+       ad vera STAERRI en fjoldi K/DST fyrir ofan hann — sem er
+       adeins moguleg ef spalausu skilamennirnir eru taldir med.   */
+    const RP = ["QB", "RB", "WR", "TE"];
+    const deep = withBoth.slice().sort((a, b) => b.adp - a.adp)[0];
+    const shiftPicks = (valueVsMarket(deep.rank, deep.adp, 12) - deep.value) * 12;
+    const kdAhead = omitted.filter((r) => !RP.includes(r.pos) && r.adp < deep.adp).length;
+    ok(shiftPicks > kdAhead + 0.5,
+      `AKKERI: grunnurinn telur ALLA sem rodin sleppir — dypsti madurinn ` +
+      `(${deep.name}, ADP ${deep.adp.toFixed(1)}) er faerdur ` +
+      `${shiftPicks.toFixed(0)} pikk, en adeins ${kdAhead} K/DST eru fyrir ofan ` +
+      "hann (spalausir skilamenn eru thvi taldir med)");
   }
 
   /* ---- WAIVER-ABATINN ER LIKA KVARDI, OG HANN VAR OBUNDINN ----

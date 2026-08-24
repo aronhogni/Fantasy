@@ -78,7 +78,7 @@ export const COLUMNS = [
   { key: "adpEspn", label: "ESPN ADP", short: "ADP ESPN", band: "Market", hi: false,
     note: "ADP a ESPN, ordrett. Munur a honum og Sleeper-ADP er merki, ekki havadi: vettvangarnir meta olikt. VARNAGLI: ESPN gefur OSKRIFADUM leikmanni sentinel um 170 — 81% af rodum liggja i [169,171], thar a medal menn sem eru ekki i NFL — svo tala thar thydir 'aldrei draftadur', ekki verd. Hun er ThVI EKKI notud sem markadsverd; sja `adp`." },
   { key: "value", label: "Value vs market", short: "Value", band: "Market",
-    note: "Hversu morgum UMFERDUM sidar markadurinn tekur hann en okkar rod segir. Jakvaett = kaup." },
+    note: "Hversu morgum UMFERDUM sidar markadurinn tekur hann en okkar rod segir. Jakvaett = kaup. BADAR RADIR TELJA ADEINS ThAD SEM VID RODUM: markadsstadan er faerd nidur um thann fjolda manna sem markadurinn tekur a undan honum en rodin sleppir (K, DST og skilamenn an spar — 237 af 1.175). An theirrar faerslu bar talan tvo grunna og ofmat kaup um midgildi +2,80 umferdir vid ADP > 120 (mest +20,90), thott hun vaeri NAKVAEMLEGA rett innan droftsins." },
   { key: "auctionEspn", label: "Auction value (ESPN)", short: "Auction", band: "Market",
     note: "Medalverd i uppbodsdrofti a ESPN, i dollurum af 200." },
   { key: "ownedEspn", label: "Rostered %", short: "Owned%", band: "Market",
