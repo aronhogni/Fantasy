@@ -329,7 +329,12 @@ console.log("\n4. tolur innan marka");
   const bounds = {
     proj: [-10, 600], vbd: [-400, 400], adp: [0.5, 400],
     aRank: [1, 2000], tier: [1, 30], ecr: [1, 1200], bye: [4, 15],
-    age: [18, 45], sos: [10, 40],
+    /* 46 kom upp 24.8.2026 (langlifur spyrnumadur) og felldi profid.
+       Mork sem eru pinnud vid thad sem var i gogunum i dag eru daemi,
+       ekki fasti — sja README 4b. Efra markid er nu 50: enn langt undir
+       ollu sem vaeri gagnavilla (villa i fodun gefur 0, negatift eda
+       thriggja stafa tolu), en tholir raunverulegan langlifan leikmann. */
+    age: [18, 50], sos: [10, 40],
     playoffSos: [10, 40], teamScored: [3, 60],
     lastPpg: [-10, 50], lastTshare: [0, 1],
     value: [-60, 40],

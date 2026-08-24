@@ -824,8 +824,26 @@ console.log("\n14. tiltaekileiki 0 fellur ur rodinni — med astaedu");
     const leaked = zero.filter((r) => inPicks.has(r.id));
     ok(leaked.length === 0,
       `enginn theirra ${zero.length} er i rodinni (${leaked.map((r) => r.name).join(", ") || "engir"})`);
-    ok(rec.sidelined.length > 0 && rec.sidelined.every((s) => s.why && s.why.length > 12),
-      `og allir ${rec.sidelined.length} bera astaedu (>12 stafir)`);
+    /* ============================================================
+       TALAN VAR PINNUD UR SKRA SEM PIPELINAN ENDURSKRIFAR DAGLEGA
+       ============================================================
+       Þetta krafdist `sidelined.length > 0` — sem tharf ad MINNSTA KOSTI
+       EINN `avail: 0` mann OFAN VID varamanns-linuna. 24.8.2026 voru 14
+       slikir menn a bordinu en ENGINN theirra ofan vid linuna, svo
+       fullyrdingin fell a rettum koda. Sama aett og allt annad sem er
+       pinnad ur `players.json`: talan er DAEMI, ekki fasti (README 4b).
+
+       Rett invariant er SKILYRT: se einhver klipptur, verdur hann ad
+       bera astaedu. Se enginn klipptur er thad EKKI bilun — thad thydir
+       ad enginn ospilandi madur var thess virdi ad nefna.
+       Og til ad thetta verdi ekki tom fullyrding er THEKJAN maeld:
+       `zero` VERDUR ad vera oteemt (annars profar kaflinn ekkert) og
+       leka-fullyrdingin hér ofan er thad sem ber merkinguna.        */
+    ok(zero.length > 0,
+      `THEKJA: ${zero.length} menn med avail 0 i lauginni (0 vaeri togn)`);
+    ok(rec.sidelined.every((s) => s.why && s.why.length > 12),
+      `hver klipptur ber astaedu (${rec.sidelined.length} klipptir` +
+      `${rec.sidelined.length === 0 ? " — enginn var ofan vid linuna i dag" : ""})`);
     /* ---- OG KASSINN NEFNIR EKKI ALLA. Þetta er a RAUNBORDINU thvi
        skurdurinn var maeldur thar: 13 menn med `avail: 0`, og gapid
        vid `vbd > 0` er MINNST 58 stig i thremur deildarlogunum
