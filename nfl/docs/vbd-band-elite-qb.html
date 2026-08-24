@@ -8,6 +8,9 @@
   --pass:#1D6647; --pass-soft:#D6E8DE;
   --null:#6C7A85; --null-soft:#E1E6EA;
   --fail:#8B3628; --fail-soft:#F0DBD6;
+  /* Stodu-litirnir eru FLOKKA-litir, ekki flatarlitir: their eru THEIR SOMU
+     i badum thema svo hvitu merkin a theim haldi laesileika. Dokkt thema
+     hafdi lyst olifugraenum i #A6B463, thar sem hvitur texti fellur i ~2:1. */
   --qb:#6B4A8F; --rb:#A9553B; --wr:#2C6B87; --te:#69782E;
   --shadow:0 1px 2px rgba(16,24,32,.06), 0 8px 24px -16px rgba(16,24,32,.18);
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
@@ -23,7 +26,6 @@
     --pass:#63B98C; --pass-soft:#152C22;
     --null:#8A99A3; --null-soft:#1A2429;
     --fail:#D6836F; --fail-soft:#2C1A16;
-    --qb:#A98BC7; --rb:#D18A6E; --wr:#71AECB; --te:#A6B463;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.7);
   }
 }
@@ -35,7 +37,6 @@
   --pass:#63B98C; --pass-soft:#152C22;
   --null:#8A99A3; --null-soft:#1A2429;
   --fail:#D6836F; --fail-soft:#2C1A16;
-  --qb:#A98BC7; --rb:#D18A6E; --wr:#71AECB; --te:#A6B463;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.7);
 }
 
@@ -275,6 +276,8 @@ hr.end{border:0; border-top:1px solid var(--rule); margin:56px 0 24px}
   <div class="col">
     <p><strong>The bands do not sum to the whole, and that is measured rather than assumed.</strong> A different pick in round 2 changes who is on the board in round 9, so the interaction is real: +92.9 across bands against +36.6 for the whole draft in the 10-team shape (interaction −56.3), +103.2 against +136.2 in the 12-team half-PPR (+33.1). Both numbers are reported; neither is the other's error.</p>
     <p>One band is significantly <em>negative</em>: in the general 12-team shape, using raw projection from round 8 onward beats VBD by 59.9 points. That is the deep-roster end, where the replacement-level argument should be strongest, and it is the one place the shipped rule loses.</p>
+    <p><strong>The whole-draft row is a fifth cross-check, and it lands.</strong> The same comparison over the whole draft is already booked in <code>h2h.json → q1</code> on five Sleeper seasons: +0.11 wins / +15.9 points in the 10-team PPR shape (null), +1.20 / +111.7 in the 12-team half-PPR (significant), +0.51 / +50.1 in the general shape (null). Seven seasons here read +0.20 / +36.6, +1.34 / +136.2, +0.60 / +55.5 — same signs, same significance pattern, same order of magnitude.</p>
+    <p>Which carries a consequence worth saying out loud, independent of any of the questions asked: <strong>the app's headline "VBD beats raw projection" was already null over the whole draft in your 10-team PPR league.</strong> What this decomposition adds is that the part of it which <em>is</em> real there is confined to the first three rounds — and that rounds 4 onward give some of it back (interaction −56.3).</p>
   </div>
 </section>
 
@@ -456,7 +459,7 @@ hr.end{border:0; border-top:1px solid var(--rule); margin:56px 0 24px}
       <li><strong>Self-test.</strong> The board against itself must give exactly 0 wins and 0 points. It does.</li>
       <li><strong>Identity.</strong> The placebo at weight 0 must be bit-identical to the A-Ranking board, key for key. It is.</li>
       <li><strong>Anchors at both ends.</strong> An oracle board must win big (+4.21 wins) and reversed ADP must lose big (&minus;9.71).</li>
-      <li><strong>Cross-anchor.</strong> The world here is a verbatim copy of <code>h2h-lab</code>'s, so A-Ranking versus ADP is re-run and compared against the booked figure: +2.71 wins against +2.58 booked, +2.70 against +2.52. Out of family, the run dies rather than reporting.</li>
+      <li><strong>Cross-anchor.</strong> The world here is a verbatim copy of <code>h2h-lab</code>'s, so A-Ranking versus ADP is re-run and compared against the booked figure: +2.71 wins against +2.58 booked, +2.70 against +2.52. Out of family, the run dies rather than reporting. The whole-draft rows agree with the booked <code>q1 → proj</code> numbers too, though that comparison is a check rather than a gate.</li>
     </ul>
   </div>
 </section>
