@@ -28,6 +28,7 @@ import { leagueFromSleeper, teamsFromLeague, startersFromSlots,
          resolveSeat, SEAT_ROUTE_LABEL } from "./sleeper-league.js";
 import { edgeSentence, shapeKeyOf, scoringKeyOf } from "./rulebasis.js";
 import { signed } from "./columns.js";
+import Fine from "./Fine.jsx";
 
 export default function DraftBoard({ rows, meta, league, season, accuracy, kickers,
                                      shapes, leagueKey, sync, setSync,
@@ -738,15 +739,23 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
             enginn "lagfaeri" hana thegjandi i hina attina).           */}
         {meta.sharpMeasured && (
           <div className="dim" style={{ fontSize: 12, marginTop: 6 }}>
+            {/* FYRSTA SETNINGIN STENDUR: `render.mjs` kafli 2 krefst
+                hennar a skjanum og hun er GRUNNUR TOLUNNAR — an hennar
+                dregur notandinn ECR fra Sharp # og faer adra tolu en
+                dalkurinn syair. Skilyrta framhaldid er (b) og fellt. */}
             <b>Sharp Δ is measured against the PPR consensus</b>, not against the ECR
-            column beside it: the expert boards we score accuracy on are published in
-            PPR only.
-            {league.scoring !== "ppr" && (
-              <> Your league is{" "}
+            column beside it.
+            {/* UPPRUNINN ER OSKILYRTUR. Fyrsta utgafan setti hann inn i
+                skilyrta blokkina og tha HVARF hann i PPR-deild — thar sem
+                dalkarnir DRAGAST rett fra hvor odrum og spurningin
+                "hvadan kemur talan" er nakvaemlega jafn gild. */}
+            <Fine summary="Why the two columns do not subtract to each other">
+              The expert boards we score accuracy on are published in PPR only.
+              {league.scoring !== "ppr" && <> Your league is{" "}
                 <b>{league.scoring === "half-ppr" ? "half-PPR" : "standard"}</b>, so the
                 two columns will not subtract to each other — and for a handful of
-                players the sign differs. Read Sharp Δ on its own.</>
-            )}
+                players the sign differs. Read Sharp Δ on its own.</>}
+            </Fine>
           </div>
         )}
       </div>
@@ -767,14 +776,26 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
         <div className="sub">
           Listed separately, and last, on purpose.
         </div>
+        {/* ============================================================
+            (a) OG ThVI FELLT, ALDREI EYTT
+            ============================================================
+            Þetta er UNDANSKILNINGURINN sjalfur: A-Ranking naer ekki yfir
+            K og DST, svo hver tala i thessu spjaldi er utan theirrar
+            maelingar sem rettlaetir bordid. Fyrsta setningin ber thad, og
+            hun stendur uppi AN SMELLS — hun er flaggid. Rokstudningurinn
+            (a hverju rodin VAR maeld, og hvers vegna VBD-svarid "pick 77"
+            er ekki svarid) er einum smell undan.                       */}
         <div className="note warn">
-          <b>Every simulation in this app excluded them.</b> The ordering that beats
-          ADP and Sleeper was measured on quarterbacks, backs, receivers and tight
-          ends only, so putting a defence into that list would be an unmeasured number
-          sitting next to measured ones. Value over replacement would place the top
-          defence around pick 77 — nobody drafts that way, because defences swing
-          wildly week to week and can be swapped every Tuesday, which the projection
-          cannot see.
+          <b>Every simulation in this app excluded them</b> — nothing here is ranked
+          by the measurement that orders the board.
+          <Fine summary="What was measured, and why VBD is not the answer here">
+            The ordering that beats ADP and Sleeper was measured on quarterbacks,
+            backs, receivers and tight ends only, so putting a defence into that list
+            would be an unmeasured number sitting next to measured ones. Value over
+            replacement would place the top defence around pick 77 — nobody drafts
+            that way, because defences swing wildly week to week and can be swapped
+            every Tuesday, which the projection cannot see.
+          </Fine>
         </div>
         {/* ============================================================
             EINA MAELDA REGLAN UM THESSI TVO SAETI
@@ -785,24 +806,35 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
             tvaer reglur (adeins tvaer, svo engin thung leidretting fyrir
             fjolda samanburda thurfi) og onnur theirra virkar. */}
         {kickers && kickers.rules && (
+          /* REGLAN OG URSKURDURINN STANDA — thad er thad sem hann kom
+             hingad ad lesa ("take one of last season's top five" og "it
+             is a last-round pick"). ALLAR TOLURNAR eru (b): thaer segja
+             hvadan reglan kemur og hve STOR hun er, og thaer eru felldar
+             i heilu lagi. Þaer eru EKKI eyddar: an theirra vaeri reglan
+             fullyrding an umbods, og su sem segir ad "besta soknin" se
+             EKKI thess virdi er su eina sem stodvar augljosa en maelt
+             ranga hugmynd. */
           <div className="note" style={{ marginTop: 10 }}>
             <b>If you want a rule for the kicker: take one of last season's top five.</b>
-            {" "}Measured on {kickers.seasons.length} seasons — worth{" "}
-            <b>{kickers.rules.top5.gain > 0 ? "+" : ""}{kickers.rules.top5.gain} points
-            over a season</b> ({(kickers.rules.top5.gain / 17).toFixed(2)} a week) against
-            another starting kicker, positive in {kickers.rules.top5.wins} of{" "}
-            {kickers.rules.top5.years} seasons.
-            {" "}Picking the kicker on last year's best offence is <b>not</b> worth
-            anything ({kickers.rules.bestOffence.gain > 0 ? "+" : ""}
-            {kickers.rules.bestOffence.gain} points, {kickers.rules.bestOffence.wins} of{" "}
-            {kickers.rules.bestOffence.years} seasons).
-            <br /><br />
-            Keep the size in mind before spending a pick: a kicker's season carries over
-            to the next one barely at all (<b>r = {kickers.persistence.K.r}</b>, against{" "}
-            {kickers.persistence.RB.r} for backs and {kickers.persistence.WR.r} for
-            receivers), and even with perfect hindsight the gap from the best kicker to
-            the twelfth is only {kickers.hindsightGain} points a season —{" "}
-            {(kickers.hindsightGain / 17).toFixed(2)} a week. <b>It is a last-round pick.</b>
+            {" "}<b>It is a last-round pick.</b>
+            <Fine summary="How big the rule is, and what does not work">
+              Measured on {kickers.seasons.length} seasons — worth{" "}
+              <b>{kickers.rules.top5.gain > 0 ? "+" : ""}{kickers.rules.top5.gain} points
+              over a season</b> ({(kickers.rules.top5.gain / 17).toFixed(2)} a week) against
+              another starting kicker, positive in {kickers.rules.top5.wins} of{" "}
+              {kickers.rules.top5.years} seasons.
+              {" "}Picking the kicker on last year&apos;s best offence is <b>not</b> worth
+              anything ({kickers.rules.bestOffence.gain > 0 ? "+" : ""}
+              {kickers.rules.bestOffence.gain} points, {kickers.rules.bestOffence.wins} of{" "}
+              {kickers.rules.bestOffence.years} seasons).
+              <br /><br />
+              Keep the size in mind before spending a pick: a kicker&apos;s season carries
+              over to the next one barely at all (<b>r = {kickers.persistence.K.r}</b>,
+              against {kickers.persistence.RB.r} for backs and {kickers.persistence.WR.r}{" "}
+              for receivers), and even with perfect hindsight the gap from the best kicker
+              to the twelfth is only {kickers.hindsightGain} points a season —{" "}
+              {(kickers.hindsightGain / 17).toFixed(2)} a week.
+            </Fine>
           </div>
         )}
         {/* ============================================================
@@ -880,14 +912,9 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
    theim i gegn utan disclosure og tha er ekkert stytt. Kaflinn nefnir
    "unmeasured" BERUM ORDUM — sja notuna thar um hvers vegna hann
    telur ekki bara `<details>`-hlutinn.                               */
-function Fine({ summary, children }) {
-  return (
-    <details className="fine">
-      <summary>{summary}</summary>
-      <div className="fine-body">{children}</div>
-    </details>
-  );
-}
+/* HLUTURINN SJALFUR ER NU I `src/Fine.jsx` — forsidan tharf hann eins
+   (24.8.2026) og tvo eintok af sama `<details>`-mynstri geta rekid i
+   sundur. Rokin ad ofan flutu med i hausinn a theirri skra. */
 
 /* ============================================================
    SKORTSTADAN
@@ -2640,7 +2667,7 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
         <div className="sub">
           All {bound} picks are in ({snakeTeams || league.teams} teams ×{" "}
           {snakeRounds || league.rounds || 15}{" "}
-          rounds). Your roster is on the right; nothing below is a decision any more.
+          rounds).
         </div>
       </div>
     );
@@ -2823,8 +2850,13 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
               <span className={`pos ${rec.choice.alt.pos}`}>{rec.choice.alt.pos}</span>{" "}
               <b>{rec.choice.alt.name}</b>, {Math.abs(rec.choice.alt.behind)} VBD
               behind — {lasts(rec.choice.alt)}{" "}
-              <span className="dim">Shown because the two above are
-              interchangeable for your roster, not because the order changed.</span>
+              {/* (b)->title: fyrirvarinn ver gegn thvi ad thridja nafnid
+                  lesist eins og rodin hafi breyst. Hann er stuttur og
+                  tharf ekki eigid `<details>` inni i kassa sem er thegar
+                  skilyrtur. */}
+              <span className="dim"
+                title="Shown because the two above are interchangeable for your roster, not because the order changed.">
+                (order unchanged)</span>
             </div>
           )}
 
@@ -2838,9 +2870,10 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
 
           {rec.choice.aboveRepl === 1 && (
             <div className="note" style={{ marginTop: 8 }}>
+              {/* (c): "so a second choice here would be padding, not a
+                  choice" endursegir "Only one name left is worth a pick". */}
               <b>Only one name left is worth a pick.</b> Everyone else on the board is
-              below replacement, so a second choice here would be padding, not a
-              choice.
+              below replacement.
             </div>
           )}
         </>
@@ -2856,9 +2889,15 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
         {rec.nextPick == null
           ? <b>This is your last pick — you have none after it.</b>
           : <>Your next pick is <b>{rec.nextPick}</b>, {rec.wait} picks away.</>}
-        {kdstPick && " Kicker and defence are ranked by projection alone — their"
-          + " year-to-year skill does not carry, so this is the one call in the app"
-          + " that is not backed by a backtest."}
+        {/* (a): ThETTA ER EINA KALLID I APPINU AN BAKPROFS og thad ma
+            aldrei lesast eins og hin. Fellt, ekki eytt. */}
+        {kdstPick && (
+          <Fine summary="This one call is not backed by a backtest">
+            Kicker and defence are ranked by projection alone — their year-to-year
+            skill does not carry, so this is the one call in the app that is not
+            backed by a backtest.
+          </Fine>
+        )}
       </div>
 
       {/* K og DST eru utan A-Ranking af maeldri astaedu, en tha ma ekki
@@ -2881,14 +2920,19 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
           til; sama akvordun og Evruálagid i FPL-verkefninu, sem er
           synt sem samhengi en fer hvergi inn i rodun. Talan sem RADAR
           er afram hrein VBD.                                        */}
+      {/* TALNINGIN ER SVARID og hun stendur. Malsgreinin um MAELINGUNA
+          er (a) — hun er su eina sem heldur thessu merki fra ad lesast
+          eins og rodunar-liður — og hun er FELLD, ekki eydd. */}
       {rec.byeClash && rec.byeClash.length > 0 && (
         <div className="note" style={{ marginTop: 8 }}>
           <b>Bye overlap in your roster:</b>{" "}
           {rec.byeClash.map((c) => `${c.n} ${c.pos} in week ${c.bye}`).join(" · ")}.
-          {" "}This does <b>not</b> move anyone in the list below — measured across
-          2019–2025 on both projections it is worth somewhere between nothing and
-          about thirty points a season, and the interval includes zero. It is here
-          because it is the one thing a season-long ranking cannot see for you.
+          <Fine summary="Context only — why this moves nobody in the list">
+            This does <b>not</b> move anyone in the list below — measured across
+            2019–2025 on both projections it is worth somewhere between nothing and
+            about thirty points a season, and the interval includes zero. It is here
+            because it is the one thing a season-long ranking cannot see for you.
+          </Fine>
         </div>
       )}
 
@@ -2932,13 +2976,28 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
               : " none of them is a pick you are missing."}{" "}
             They are in the board below, with the same red badge.{" "}
           </>}
-          Their projections are full 17-game numbers with <b>no injury discount</b>,
-          so the rank, tier and "value vs market" you can still read on the board
-          below are all computed from points they are not going to score. They are
-          out of the order above on purpose. Availability is the one part of this
-          the app treats as all-or-nothing: only a status that means{" "}
-          <i>will not play</i> removes anyone, because that step was measured to
-          carry the benefit and finer grades were measured to carry none.
+          {/* ============================================================
+              NOFNIN OG TALAN ERU GREININGIN — MALSGREININ ER ADFERDIN
+              ============================================================
+              Nofnin ad ofan mega ALDREI hverfa: notandinn leitar Kittle,
+              finnur hann ekki, og veit annars ekki hvort appid vissi eda
+              gleymdi. Þau standa.
+
+              Malsgreinin sem eftir kemur er (a) + (b) i einu: hun segir
+              ad rodin/threpid/"value vs market" a bordinu se reiknad ur
+              stigum sem madurinn skorar ekki (fyrirvari um TOLU sem er
+              enn synileg) OG hvers vegna tiltaekileiki er allt-eda-ekkert
+              (adferd). Hun er felld, ekki eydd — an hennar les rodin a
+              bordinu eins og hun se leidrett fyrir meidslin.          */}
+          <Fine summary="What their numbers on the board below still say">
+            Their projections are full 17-game numbers with <b>no injury discount</b>,
+            so the rank, tier and &quot;value vs market&quot; you can still read on the
+            board below are all computed from points they are not going to score. They
+            are out of the order above on purpose. Availability is the one part of this
+            the app treats as all-or-nothing: only a status that means{" "}
+            <i>will not play</i> removes anyone, because that step was measured to
+            carry the benefit and finer grades were measured to carry none.
+          </Fine>
         </div>
       )}
 
@@ -2948,9 +3007,14 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
             `${m.short} ${m.pos}`).join(", ")}.</b>{" "}
           {rec.mustFillUrgent
             ? `You have ${rec.picksLeft} picks left. The verdict above already names the one to take.`
-            : `These never appear in the list below: they were excluded from every
-               simulation that validates the order, so ranking them would be a guess
-               dressed as a measurement. Take them late, from the K and DST table.`}
+            : <>Take them late, from the K and DST table.
+                {/* (a): hvers vegna their eru EKKI i listanum. Þogn hér
+                    vaeri jafngild thvi ad rada theim. */}
+                <Fine summary="Why they never appear in the list above">
+                  They were excluded from every simulation that validates the order,
+                  so ranking them would be a guess dressed as a measurement.
+                </Fine>
+              </>}
         </div>
       )}
 

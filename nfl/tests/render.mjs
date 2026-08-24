@@ -790,10 +790,83 @@ console.log("\n8. felldur rokstudningur a draft-bordinu");
     "en FLAGGID sest an smells (summary nefnir \"unmeasured\")");
 
   /* Hitt sem var fellt: adferdafraedin sem hann limdi. Baðar setningar
-     verda ad vera til (a) og felldar (b). */
-  for (const phrase of ["seven-day average", "starters only"]) {
+     verda ad vera til (a) og felldar (b).
+
+     ============================================================
+     OG FJORAR TIL FRA 24.8.2026 — URSKURDAR-SPJALDID SJALFT
+     ============================================================
+     BEIDNI NOTANDANS, ordrett: "Mer finnst alltof mikid ad gera a
+     forsidunni, taktu ut eithvad af thessum texta, eg vill adalega nota
+     draft siduna til ad segja mer hvenr eg a ad velja."
+
+     Sjalfgefni flipinn ER `draft` (`App.jsx`), svo "forsidan" og
+     "draft siduna" eru SAMA SIDAN — og styttingin 20.8. nadi til
+     trending- og skortstodu-spjaldanna en EKKI til `NextPick`, sem er
+     nakvaemlega spjaldid sem svarar spurningunni. Þad bar fjorar
+     malsgreinar af adferdafraedi UNDIR urskurdinum.
+
+     Hver thessara fjogurra er (a) — hun ver tolu sem er OMAELD eda utan
+     maelingar — svo hver ein verdur ad vera TIL og FELLD:
+
+       "interval includes zero"  bye-overlap: merkid er sterkara en null
+                                 og veikara en maeling
+       "no injury discount"      rodin/threpid a bordinu ER enn reiknad
+                                 ur stigum sem madurinn skorar ekki
+       "guess dressed as a"      K/DST voru utan hverrar hermunar
+       "unmeasured number"       sama, i K/DST-spjaldinu sjalfu         */
+  for (const phrase of ["seven-day average", "starters only",
+                        "no injury discount", "guess dressed as a",
+                        "unmeasured number"]) {
     ok(fineText.includes(phrase), `"${phrase}" er enn til (rokstudningur ekki eyddur)`);
     ok(!dflt.includes(phrase), `og "${phrase}" er fellt undan sjalfgefnu syninni`);
+  }
+
+  /* ============================================================
+     BYE-OVERLAP: PROFUD A UPPRUNANUM, OG ThAD ER EKKI SLOKUN
+     ============================================================
+     "interval includes zero" ER FIMMTI (a)-fyrirvarinn og hann hlytur
+     somu medferd — en hann er profadur ANNARS STADAR, thvi kassinn
+     `rec.byeClash` TEIKNAST EKKI i thessu drafti: fixturan hefur engan
+     hop med tvo menn i somu audu viku.
+
+     ÞETTA VAR FUNNID MED ÞVI AD KEYRA KAFLANN A KODANUM FYRIR
+     STYTTINGUNA. Fullyrdingin `fineText.includes(...)` fell thar — sem
+     hun a ad gera — EN hun fell LIKA a rettum koda eftir, af THVI AD
+     KASSINN ER EKKI A SKJANUM. Fullyrding sem fellur i badar attir maelir
+     ekkert; hun er verri en engin, thvi hun litur ut eins og vordur.
+
+     Uppruna-leitin krefst thess ad setningin se INNI I `<Fine>`-blokk —
+     ekki adeins ad hun se i skranni — svo hun getur ekki verid grae
+     medan malsgreinin stendur opin. Sama medferd og `dashboard.mjs`
+     kafli 3h gefur greinum sem teiknast ekki i sinni fixturu.        */
+  {
+    const src = readFileSync(
+      path.join(new URL(".", import.meta.url).pathname, "..", "src", "DraftBoard.jsx"),
+      "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
+    ok(/Bye overlap in your roster/.test(src),
+      "ThEKJA: uppruna-leitin les raunverulega `DraftBoard.jsx` (bye-kassinn fannst)");
+    const fineBlocks = src.match(/<Fine\b[\s\S]*?<\/Fine>/g) || [];
+    ok(fineBlocks.length >= 4,
+      `ThEKJA: ${fineBlocks.length} <Fine>-blokkir i uppruna (>= 4)`);
+    ok(fineBlocks.some((b) => /interval includes zero/.test(b)),
+      "\"interval includes zero\" er til OG inni i `<Fine>` — bye-merkid er " +
+      "sterkara en null og veikara en maeling, og thad ma hvorugt hverfa ne stanta opid");
+  }
+
+  /* ============================================================
+     OG ThAD SEM KVIKNAR A RAUNVERULEGRI BILUN VAR EKKI HREYFT
+     ============================================================
+     Styttingin ma EKKI hafa tekid greiningarnar med. Hver thessara er
+     setning sem var skrifud VEGNA konkrets tilfellis (rangur hopur, mock
+     i annarri staerd, vol sem bordid kann ekki ad para) og hver theirra
+     verdur ad standa SYNILEG — felld vaeri hun jafngild thogn.
+
+     Þaer eru profadar a SJALFGEFNU SYNINNI (`dflt`), ekki a `bodyText()`:
+     krafan er ad hann sjai thaer AN SMELLS.                           */
+  for (const keep of ["Not in the list", "Still to fill",
+                      "Every simulation in this app excluded them",
+                      "take one of last season"]) {
+    ok(dflt.includes(keep), `greiningin/urskurdurinn stendur an smells: "${keep}"`);
   }
 
   /* ============================================================
@@ -822,9 +895,24 @@ console.log("\n8. felldur rokstudningur a draft-bordinu");
     }
     return t.trim();
   };
+  /* ÞOKIN ERU MAELD, EKKI VALIN. Hvert var lesid af skjanum FYRIR og
+     EFTIR styttinguna med thessum sama maeli:
+
+       spjald          fyrir   eftir   thak
+       trending          203     203     260   (fellt 20.8.)
+       skortstadan        87      87     160   (fellt 20.8.)
+       urskurdurinn    1.284     658     800   (24.8., -49%)
+       K og DST        1.103     343     420   (24.8., -69%)
+
+     Þokin eru ~21% ofan vid utkomuna: nog fyrir eina nya GREININGU
+     (thaer eru ekki prosa i thessum skilningi), of litid fyrir nya
+     malsgrein. Kemur ny greining inn a ad maela upp a nytt og uppfaera
+     thessa toflu — ekki hreyfa thakid eitt.                           */
   for (const [name, re, cap] of [
     ["trending", /room is moving/i, 260],
     ["skortstadan", /Positional scarcity/i, 160],
+    ["urskurdurinn", /^Pick \d+ —/, 800],
+    ["K og DST", /Kickers and defences/i, 420],
   ]) {
     const t = panelProse(re);
     if (t == null) { ok(false, `${name}-spjaldid finnst`); continue; }
