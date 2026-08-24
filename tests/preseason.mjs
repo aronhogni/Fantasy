@@ -20,6 +20,18 @@
    > `SUITES`); se akvedid ad geyma hana sem arkiv tharf faersla i
    > `OK_UNREAD` i `wiring.mjs` med astaedu, eins og `bsd_lineups.json`.
    > Hvorugt er akvedid her — en hvorugt ma gerast thegjandi heldur.
+   >
+   > SVARAD 24.8.2026: SKRAIN ER GEYMD SEM ARKIV. Faerslan er komin i
+   > `OK_UNREAD` i `wiring.mjs` med rokunum, og thetta safn stendur ohreyft.
+   > Stutta utgafan: merkid FELL ALDREI — "byrjadi sidasta aefingaleik"
+   > maeldist d Brier +0,0341 CI [+0,0267, +0,0423] — thad var TILFELLID
+   > sem leid (madur an PL-sogu fyrir GW1), og thad kemur aftur naesta
+   > agust. Soknin er FROSIN eftir ad timabilid byrjar og kostar thvi ENGIN
+   > koll, medan FotMob svarar adeins lidnum dagsetningum, svo ad henda
+   > skranni vaeri ad henda 488 poruðum leikmonnum fyrir ekkert sparnad.
+   > `wiring.mjs` ber nu BEINA fullyrdingu um ad ekkert i `src/` saeki
+   > hana — almenna "olesin skra"-reglan SER hana ekki, thvi
+   > status-merkimidinn `preseason:` i App.jsx blekkir ordaleitina.
 
    HVERS VEGNA ThETTA SAFN ER TIL: kodinn hleypur i forleik, sem er ~7 vikur
    a ari, og HVERT einasta atrídi i honum er tegund villu sem repo-id hefur

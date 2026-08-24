@@ -225,7 +225,7 @@ export function SeasonTable({ p, seasonsFile, currentLabel, seasonStarted }) {
 
       {!seasonStarted && (
         <div style={S.warn}>
-          <b>{currentLabel} {"has not started."}</b> {"FPL still shows last season's final numbers in these fields, so they are"} <b>{"not"}</b> {"shown under"} {currentLabel} {"— that would duplicate"} {older[0] || "last season"} {"under the wrong year. The column fills up once GW1 is finished."}
+          <b>{currentLabel} {"has not started."}</b> {"FPL still shows last season's final numbers in these fields, so they are"} <b>{"not"}</b> {"shown under"} {currentLabel} {"— that would duplicate"} {older[0] || "last season"} {"under the wrong year. The column fills up at the GW1 deadline, when FPL resets these fields."}
         </div>
       )}
 

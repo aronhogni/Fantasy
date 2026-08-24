@@ -43,6 +43,7 @@ import { useGwSeasonFile, nextRange, rangeBlind as sharedRangeBlind,
 import ImminentPanel from "./Imminent.jsx";
 import BuyWindows from "./BuyWindows.jsx";
 import { photoNext } from "./Crest.jsx";
+import { startedGameweeks } from "./availability.js";
 /* `passesThreshold` for UT ur thessum innflutningi 17.8.2026 med
    throskuldar-siunni og KOM AFTUR 21.8.2026 med smell-a-tolu (sja
    `filterOnValue`). Reglan sjalf bur AFRAM i `stats.js` — hun ma ekki
@@ -692,13 +693,13 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      med thvi thad er einratt sidar a timabilinu, og FRESTUR-SEM-ER-LIDINN
      er BAKVORN ef `events.json` frys (klukkan er tha eina heimildin sem
      eftir er). Thrju skilyrdi, EIN spurning — og thau geta ekki verid
-     osammala um annad en hversu snemma svarid kemur.                    */
-  const startedGw = useMemo(() => {
-    const now = Date.now();
-    return (events || []).filter(
-      e => e.finished || e.is_current
-        || (e.deadline_time && Date.parse(e.deadline_time) <= now)).length;
-  }, [events]);
+     osammala um annad en hversu snemma svarid kemur.
+
+     REGLAN SJALF FLUTTIST I `availability.js` 24.8.2026 og er EKKI lengur
+     skrifud her. Hun var rett a thessum stad og RONG i `App.jsx`, sem bar
+     sitt eigid `events.some(e => e.finished)` — tvaer klukkur sem svorudu
+     sitthvoru a lifandi gognum. Ein utfaersla, tveir lesendur.          */
+  const startedGw = useMemo(() => startedGameweeks(events), [events]);
   const seasonStarted = startedGw > 0;
   const currentLabel = useMemo(() => {
     const d = (events || []).find(e => e.id === 1)?.deadline_time;

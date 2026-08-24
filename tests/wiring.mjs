@@ -90,6 +90,24 @@ const OK_UNREAD = {
      Baettist a listann 11.8.2026 thegar `unread` haetti ad telja prof sem
      lesendur og hun kom i ljos.                                         */
   "bsd_lineups.json":          "geymd til MAELINGAR gegn 6h-likaninu, ekki notud i akvordun",
+  /* ARKIV, OG ThAD ER AKVORDUN SEM VAR TEKIN 24.8.2026 — EKKI EFTIRSTODVA.
+     `tests/preseason.mjs` skildi spurninguna eftir opna ("dalkarnir voru
+     EINI lesandi `preseason.json` ... hvorugt ma gerast thegjandi"), og
+     hun er nu svarad: SKRAIN ER GEYMD.
+     ROKIN: maelingin sem hun ber var SAMThYKKT — "byrjadi sidasta
+     aefingaleik" gefur d Brier +0,0341 CI [+0,0267, +0,0423] og AUC
+     0,599 -> 0,831 fyrir tha sem eiga ENGA PL-sogu. Dalkarnir foru
+     22.8.2026 af thvi ad TILFELLID var lidid (GW1 spilud, `start_feats`
+     til), ekki af thvi ad merkid felli. Naesta agust er tilfellid
+     komid aftur og tha er skrain thegar til.
+     KOSTNADURINN ER NULL: `fetchPreseason` er FROSIN eftir ad timabilid
+     byrjar (`record`: "FROZEN - ... reused with no requests"), svo hun
+     gerir ekkert kall thad sem eftir er timabilsins.
+     AD HAETTA AD SAEKJA HANA vaeri ad henda 488 poruðum leikmonnum sem
+     FotMob svarar adeins fyrir dagsetningar sem eru lidnar — endurbygging
+     er moguleg (`measure-preseason-starts.mjs`) en ekki okeypis.        */
+  "preseason.json":            "ARKIV: aefingaleikja-byrjanir, maelingin SAMThYKKT en tilfellid lidid "
+                             + "fram i naesta agust; frosin (engin koll). Sja tests/preseason.mjs kafla L",
   /* ATH — RAUNVERULEG EFTIRSTODVA, EKKI UNDANTHAGA: E0-2627 er HRAGOGN
      yfirstandandi timabils. `team_form` les E0-2526 og E0-2425 (HARDKODAD,
      linur 2491/2496 — nefndar ~1772/1853/1858 her adur og THAER TOLUR VORU
@@ -193,6 +211,41 @@ ok(badOrphans.length === 0,
 const undocumented = unread.filter(f => !OK_UNREAD[f]);
 ok(undocumented.length === 0,
   `hver ólesin skrá hefur ÁSTÆÐU á hvítlista${undocumented.length ? ": VANTAR " + undocumented.join(", ") : ""}`);
+
+/* ============================================================
+   `preseason.json` — ALMENNA ATHUGUNIN SER HANA EKKI, OG ThAD ER MAELT
+
+   Almenna reglan spyr `\bpreseason\b` i `appCode`. `App.jsx` ber
+   `preseason: "Preseason friendlies"` — MERKIMIDA a status-rodinni, ekki
+   lestur — og thad ord eitt gerir skrana "lesna" i augum reglunnar. Hun
+   er thvi ALDREI i `unread`, og hvitlista-faerslan hennar vaeri SKRAUT ef
+   ekkert annad heldi henni uppi.
+
+   Thess vegna er lesturinn fullyrtur BEINT her: appid ma ekki SAEKJA
+   skrana. Su fullyrding er oháð merkimidanum og fellur um leid og
+   einhver tengir skrana i alvoru — sem er retta stundin til ad taka
+   hvitlista-faersluna UT.
+   ============================================================ */
+{
+  /* POSITIV FORSENDA FYRST: merkimidinn ER til, svo "almenna reglan er
+     blekkt" se maelt en ekki agiskad (CLAUDE.md 5b regla 2).           */
+  ok(/preseason:\s*"Preseason friendlies"/.test(appCode),
+    "forsenda: status-merkimidinn `preseason:` er i App.jsx");
+  ok(!unread.includes("preseason.json"),
+    "og hann gerir ad almenna reglan telur `preseason.json` LESNA (thvi er"
+    + " bein fullyrding nauðsynleg)");
+  ok(!!OK_UNREAD["preseason.json"],
+    "`preseason.json` ber ASTAEDU a hvitlistanum (arkiv-akvordunin 24.8.2026)");
+  /* KJARNINN: enginn saekir skrana. `fetchJson("preseason.json")` eda hvad
+     sem er sem nefnir skraarheitið i src/ fellir thetta.               */
+  ok(!/preseason\.json/.test(appCode),
+    "EKKERT i src/ saekir `preseason.json` — hun er skrifud og olesin");
+  /* OG PIPELINE-AN SKRIFAR HANA ENN. Vaeri hætt ad skrifa hana ætti
+     hvitlista-faerslan ad fara lika — annars stendur astaeda um skra sem
+     er ekki til.                                                       */
+  ok(/writeJSON\(\s*[`"]preseason\.json[`"]/.test(fetchSrc),
+    "en pipeline-an skrifar hana afram (arkivid er lifandi)");
+}
 
 /* ---- ThYNGDARPROF A SETNINGAFRAEDI ALLRA SKRIFTA ----
    2.8.2026 skrifadi eg athugasemd sem innihelt cron-taknmal (stjarna,

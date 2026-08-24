@@ -43,7 +43,7 @@ import { spawnSync } from "node:child_process";
 import { computeTransferCost } from "../src/model.js";
 import { startFeatures, startProbability, stampStartWindow, inImminentPool,
          IMMINENT_MIN_MINUTES } from "../src/stats.js";
-import { rotationRisk, banRisk } from "../src/availability.js";
+import { rotationRisk, banRisk, seasonHasStarted, startedGameweeks } from "../src/availability.js";
 import { findRotationPartners, MIN_START_PROB } from "../src/rotation.js";
 import { resultsFromFixtures, ffdrVsCleanSheets } from "../src/calibration.js";
 import { shouldWrite, windowOpen, ledgerGaps, WINDOW_H } from "../scripts/snapshot-predictions.mjs";
@@ -111,6 +111,21 @@ console.log("─".repeat(84));
   const app = SRC("src/App.jsx");
   const mPre = app.match(/const preSeason = gw1Deadline \? ([^\n;]+) : false;/);
   ok(!!mPre, "`preSeason`-reglan finnst i App.jsx");
+  /* PROFSTEINNINN ER BYGGINGARLEGUR — SAMA REGLA OG `buildTeamMetrics`
+     (CLAUDE.md 7, `prediction-ledger.mjs`): App.jsx VERDUR ad FLYTJA INN
+     klukkuna og ma EKKI skrifa hana sjalft. Fram til 24.8.2026 gerdi hun
+     thad (`events.some(e => e.finished)`) og svaradi ODRU en PlayerList a
+     lifandi gognum — bædi afritin litu rett ut, hvort a sinum stad.     */
+  ok(/seasonHasStarted[,\s}][^\n]*from "\.\/availability\.js"|from "\.\/availability\.js"[\s\S]{0,200}?seasonHasStarted/.test(app)
+     || /seasonHasStarted/.test(app.split("\n").slice(0, 60).join("\n")),
+    "App.jsx FLYTUR INN `seasonHasStarted` (skrifar hana ekki sjalf)");
+  ok(!/const seasonStarted = !!events\?\.some/.test(app),
+    "App.jsx ber EKKI lengur sitt eigid `events.some(e => e.finished)`");
+  {
+    const pl = SRC("src/PlayerList.jsx");
+    ok(/startedGameweeks/.test(pl) && !/e\.finished \|\| e\.is_current/.test(pl),
+      "PlayerList.jsx flytur lika inn klukkuna (ekkert annad afrit)");
+  }
   const mStarted = app.match(/const seasonStarted = ([^\n;]+);/);
   ok(!!mStarted, "`seasonStarted`-reglan finnst i App.jsx");
   /* Baðar reglur eru keyrdar a ThEIM inntokum sem astandid gefur. `new Date()`
@@ -145,16 +160,29 @@ console.log("─".repeat(84));
     "minutu EFTIR frest: preSeason = false  <- astand A");
   ok(preSeasonAt(DEADLINE, gw1.deadline_time) === false,
     "NAKVAEMLEGA a frestinum: preSeason = false (`<` er strangt, FPL lokar a sekundunni)");
-  /* Og `seasonStarted` er OHAD klukkunni — hun les `events`. Thad er
-     nakvaemlega thess vegna sem astand A er til. */
-  const startedFrom = evs => Function("events", `return ${mStarted[1]};`)(evs);
+  /* `seasonStarted` ER NU HAD KLUKKUNNI OG ThAD ER LAGFAERINGIN SJALF
+     (24.8.2026). Adur las hun `finished` eingongu og var thvi `false` allt
+     astand A — medan FPL hafdi ThEGAR nullstillt arstidar-summurnar vid
+     frestinn. Reglan er ekki endurskrifud her: fallid er FLUTT INN og
+     klukkan gefin sem ARGUMENT, svo profid keyrir sama kodann og appid. */
+  const startedFrom = (evs, now) => seasonHasStarted(evs, now);
   /* BYGGT ASTAND, EKKI DAGURINN: `PRE`/`POST` bera `finished: false` berum
-     ordum, svo thetta maelir regluna og ekki hvort GW1 se buin i dag. */
-  ok(startedFrom(PRE) === false, "seasonStarted = false i astandi A (engin umferd lokin)");
-  ok(startedFrom(POST) === false,
-    "og ENN false thegar frestur er lidinn en engin umferd BUIN — thad er astand A");
-  ok(startedFrom(POST.map((e, i) => i === 0 ? { ...e, finished: true } : e)) === true,
-    "og true um leid og EIN umferd er lokin (astand C)");
+     ordum OG klukkan er fost, svo thetta maelir regluna og ekki hvort GW1
+     se buin i dag. An fastrar klukku vaeri `PRE` "byrjad" af thvi einu ad
+     21.8. er lidinn i raunheimi.                                        */
+  ok(startedFrom(PRE, DEADLINE - 60000) === false,
+    "seasonStarted = false FYRIR frest (engin `is_current`, enginn frestur lidinn)");
+  ok(startedFrom(POST, DEADLINE + 60000) === true,
+    "og TRUE i astandi A — frestur lidinn, engin umferd lokin, tolurnar nullstilltar");
+  ok(startedFrom(PRE, DEADLINE + 60000) === true,
+    "frestur-sem-er-lidinn einn og ser dugar (bakvorn ef `events.json` frys)");
+  ok(startedFrom(POST.map((e, i) => i === 0 ? { ...e, finished: true } : e),
+                 DEADLINE - 60000) === true,
+    "og `finished` einn og ser dugar lika (einratt sidar a timabilinu)");
+  ok(startedGameweeks(PRE, DEADLINE - 60000) === 0,
+    "`startedGameweeks` telur 0 fyrir frest");
+  ok(startedGameweeks(POST, DEADLINE + 60000) === 1,
+    "og nakvaemlega 1 thegar GW1 er byrjud (ekki 38)");
 }
 
 /* A2. GW1 ER UPPHAFSLIDID — MA EKKI KOSTA STIG ThEGAR KLUKKAN FER FRAM.
@@ -627,15 +655,34 @@ const FULL_STARTS = 220, FULL_MINUTES = 19800;
    BYRJAR — sem er i astandi A eda B, ADUR en nokkur umferd er lokin. A
    thvi bili stendur "2025/26" ofan a tolum sem eru 2026/27.
    Vokull vordur: fellur ThANN DAG sem summurnar nullstillast. */
+/* > VORDURINN GAT EKKI FALLID OG VAR LAGADUR 24.8.2026. Hann spurdi
+   > `totalMin > 0` og LAS ThAD SEM "summurnar eru enn fyrra timabils" —
+   > en um leid og EIN minuta er spilud a nyju timabili er `totalMin > 0`
+   > lika satt, svo hann svaf ad eilifu. Maelt thann dag: `totalMin` 17.700
+   > og summurnar voru ThESSA timabils, svo vordurinn sagdi "fyrra
+   > timabil" um 2026/27-tolur. Hann gat adeins vaknad i glugganum milli
+   > nullstillingar og fyrstu minutu (~1,5 klst), sem er nakvaemlega
+   > "fullyrding sem tharf tvennt til ad bregdast" (CLAUDE.md 5b).
+   > RETTI MAELIKVARDINN ER `starts`, og CLAUDE.md nefnir hann berum ordum:
+   > "Eina svidid sem greinir astondin i sundur er `starts`" — 38 er heilt
+   > timabil, 1 er ein umferd. Vidmidid er ThVI leitt: max `starts` ma
+   > aldrei vera haerra en fjoldi BYRJADRA umferda.                      */
 {
   const players = J("players.json").players;
-  const totalMin = players.reduce((a, p) => a + (+p.minutes || 0), 0);
-  const anyFinished = events.some(e => e.finished);
-  if (totalMin > 0) {
-    console.log(`     BID: players.json ber ${totalMin} minutur — summurnar eru enn fyrra timabils.`);
-    ok(true, "merkimida-vordurinn sefur (bootstrap er enn fyrra timabil)");
+  const maxStarts = players.reduce((a, p) => Math.max(a, +p.starts || 0), 0);
+  const started = startedGameweeks(events);
+  /* `starts` <= byrjadar umferdir  <=>  summurnar eru ThESSA timabils.
+     Tvofold umferd gefur 2 byrjanir i einni umferd, svo thakid er rumt. */
+  const isThisSeason = maxStarts <= Math.max(1, started) * 2;
+  console.log(`     max starts ${maxStarts}, byrjadar umferdir ${started}`
+            + ` -> summurnar eru ${isThisSeason ? "ThESSA" : "FYRRA"} timabils`);
+  if (!isThisSeason) {
+    ok(!seasonHasStarted(events),
+      "summurnar eru fyrra timabils -> klukkan VERDUR ad segja 'ekki byrjad',"
+      + " annars stendur 'GW1-N' ofan a tolum SIDASTA timabils");
   } else {
-    ok(anyFinished, "bootstrap er nullstillt -> `seasonStarted` VERDUR ad vera true,"
+    ok(seasonHasStarted(events),
+      "summurnar eru nullstilltar -> `seasonStarted` VERDUR ad vera true,"
       + " annars stendur 'sidasta timabil' ofan a tolum thessa timabils");
   }
 }

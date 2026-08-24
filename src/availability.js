@@ -9,7 +9,10 @@
       timabils i bootstrap-static thangad til nytt timabil byrjar, svo
       bann-haetta reiknud a theim er VILLA — Luke Shaw var syndur "9 gul,
       1 fra banni" thegar hann hefur null. Thess vegna: EKKERT fyrr en
-      umferd er lokin.
+      timabilid er BYRJAD — sem er FRESTURINN, ekki fyrsta lokna umferdin
+      (leidrett 24.8.2026, sja `seasonHasStarted` og athugasemdina vid
+      `banRisk`). Skilyrdid er thad sama og FPL sjalft notar til ad
+      nullstilla tolurnar, svo hvorki of snemmt ne of seint.
    2. `setPieceOf` les RODUN INNAN LIDS (`rank === 1`), ekki FPL-toluna.
       Grunnurinn sem FPL notar fyrir horn er EKKI fastur: hann var 2-12 (engin
       1) fram til 12.8.2026 og 1-6 (18 af 20 lidum med 1) fra 13.8.2026, svo
@@ -38,6 +41,42 @@ export function availOf(p) {
   const chance = p?.chance_of_playing_next_round;
   return { ...a, chance, news: (p?.news || "").trim(), isRisk: p?.status && p.status !== "a" };
 }
+/* ============================================================
+   ER TIMABILID BYRJAD — EIN UTFAERSLA FYRIR ALLT APPID (24.8.2026)
+
+   `App.jsx` spurdi `events.some(e => e.finished)` og `PlayerList.jsx`
+   spurdi hvort EIN umferd vaeri byrjud. MAELT 24.8.2026 a lifandi `data/`:
+   thau svorudu SITTHVORU — App sagdi `false` og PlayerList `true` — thvi
+   GW1 ber `finished: false, is_current: true` med frest lidinn 21.8., og
+   `finished` flettist ekki fyrr en umferdin er stadfest med bonus. Tvaer
+   klukkur um sama tima er sama aett og `buildTeamMetrics` (CLAUDE.md 7):
+   afritin reka i sundur og BADA lita ut fyrir ad vera rett.
+
+   OG `finished` ER RANGA SPURNINGIN, EKKI BARA SU SEINNI. FPL nullstillir
+   arstidar-summurnar VID FRESTINN, ekki thegar umferd klarast — maelt sama
+   dag a `players.json`: max `starts` 1, max `minutes` 90, max
+   `yellow_cards` 1, allt 2026/27. A thvi bili gerdi gamla reglan tvennt
+   rangt i einu: `cumLabel` skrifadi "2025/26" ofan a tolum THESSA
+   timabils, og `banRisk` thagdi yfir spjoldum sem VORU thessa timabils —
+   nakvaemlega ofugt vid thad sem hun a ad verja (sja regluna nedar).
+
+   `finished_provisional` ER EKKI LEIDIN HER: thad svid er a LEIKJUM
+   (`fixtures.json`), ekki a `events` — maelt, thad er `undefined` a ollum
+   38 rodunum — svo vorpunin i `matchesPlayedByClub` flyst EKKI hingad.
+   Skilyrdin thrju eru `finished` (einratt sidar a timabilinu),
+   `is_current` (flettist a frestinum sjalfum) og FRESTUR-SEM-ER-LIDINN
+   (bakvorn ef `events.json` frys — tha er klukkan eina heimildin sem
+   eftir er). Thrju skilyrdi, EIN spurning: thau geta ekki verid osammala
+   um annad en hversu snemma svarid kemur.
+   ============================================================ */
+export function startedGameweeks(events, now = Date.now()) {
+  return (events || []).filter(
+    e => e.finished || e.is_current
+      || (e.deadline_time && Date.parse(e.deadline_time) <= now)).length;
+}
+export const seasonHasStarted = (events, now = Date.now()) =>
+  startedGameweeks(events, now) > 0;
+
 /* Hversu nálægt NÆSTA spjaldabanni?
    ATH: raunverulegt bann kemur úr FPL status ('s') — sjá availOf().
    Þetta mælir aðeins HÆTTU á komandi banni.
@@ -46,7 +85,12 @@ export function availOf(p) {
    MIKILVÆGT: gul spjöld NÚLLSTILLAST milli tímabila, en FPL sýnir tölur
    FYRRA tímabils í bootstrap-static þar til nýtt tímabil byrjar. Að reikna
    bann-hættu á þeim er villa — Luke Shaw var sýndur "9 gul" og "1 frá banni"
-   þegar hann hefur núll. Þess vegna: EKKERT fyrr en umferð er lokin.        */
+   þegar hann hefur núll. Þess vegna: EKKERT fyrr en tímabilið er byrjað.
+   LEIÐRÉTT 24.8.2026: skilyrðið var „umferð LOKIN" og það var of seint.
+   FPL núllstillir spjöldin VIÐ FRESTINN (mælt: max `yellow_cards` 1 þann
+   dag, meðan engin umferð var `finished`), svo gamla reglan þagði yfir
+   spjöldum þessa tímabils í ~3 daga — hún varði ekki neitt á því bili,
+   hún faldi rétt gögn. `seasonHasStarted` er sama klukka og allt annað.  */
 export function banRisk(p, gwNow, seasonStarted) {
   if (!seasonStarted) return null;      // spjöld fyrra tímabils gilda ekki
   const y = p?.yellow_cards;

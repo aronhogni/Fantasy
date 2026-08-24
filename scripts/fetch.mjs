@@ -208,7 +208,12 @@ function parseCSV(text) {
    lid-skordunin er thad sem kemur i veg fyrir ThA porun). Heimildin telur
    hopa vidari en FPL gerir, svo hlutfall undir 100% er RETT UTKOMA.
    ============================================================ */
-async function apiNameIndex() {
+/* `export` BAETTIST VID 24.8.2026 — ekkert annad breyttist i fallinu.
+   Skrain er innflytjanleg sidan `main()` vard skilyrt (kafli 7.1), svo
+   nafna-visirinn ma nu PROFA BEINT i stad thess ad draga hann ut sem
+   TEXTA og `eval`-a afrit. Textaleidin i `tests/lineups.mjs` heldur afram
+   ad virka obreytt; nyi FotMob-vordurinn notar innflutninginn.          */
+export async function apiNameIndex() {
   const tmap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
   const teamsJs = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
   const players = JSON.parse(await readFile(`${DATA}/players.json`, "utf8")).players;
@@ -283,6 +288,12 @@ async function apiNameIndex() {
       web: norm(p.web_name),
       toks: new Set([...norm(p.second_name).split(" "), ...norm(p.web_name).split(" ")]
         .filter(t => t.length >= 2)),
+      /* ThREP 4 LES ThETTA — OG ThAD INNIHELDUR `first_name`, olikt `toks`.
+         Sja athugasemdina vid threp 4 nedar: heimild sem sendir FULLT nafn
+         ("Bruno Fernandes") strandar a thvi ad `toks` er byggt UR
+         `second_name` + `web_name` einum, svo "bruno" er hvergi til.    */
+      full: new Set([...norm(p.first_name).split(" "), ...norm(p.second_name).split(" "),
+                     ...norm(p.web_name).split(" ")].filter(t => t.length >= 2)),
       initial: norm(p.first_name)[0] || "" });
   }
   const matchFpl = (nm, teamId) => {
@@ -311,6 +322,47 @@ async function apiNameIndex() {
       if (sur.length) {
         const cand = c.filter(x => sur.every(t => x.toks.has(t))
                                 && (!initial || x.initial === initial));
+        if (cand.length === 1) hit = cand[0];
+      }
+    }
+    /* ThREP 4 — FULLT NAFN FRA HEIMILD SEM SENDIR ThAD (FotMob, 24.8.2026).
+       API-Sports sendir SKAMMSTAFAD ("J. Trafford") og threp 1-3 eru
+       byggd fyrir thad. FotMob sendir FULLT nafn ("Bruno Fernandes"), og
+       tha strandar threp 3 a einu: `toks` er byggt ur `second_name` +
+       `web_name`, svo FORNAFNID er hvergi i menginu. FPL geymir Bruno sem
+       `first "Bruno"`, `second "Borges Fernandes"` — "bruno" finnst thvi
+       ekki og hann datt ut.
+
+       MAELT 24.8.2026 a ollum 10 GW1-leikjunum (400 nofn, 20 byrjunarlid):
+       threp 1-3 gefa 392 (98,0%), threp 4 bjargar 5 til vidbotar -> 397
+       (99,3%). ARKESTRAR: **0** — engin tvirædd porun og ekkert nafn thar
+       sem threp 4 er OSAMMALA threpum 1-3.
+       Ad thad se **VIDBOT OG ADEINS VIDBOT** er ekki tilviljun heldur
+       bygging: threp 4 keyrir adeins thegar `hit` er ThEGAR null, svo thad
+       getur BREYTT null -> id en ALDREI id -> annad id. Thess vegna getur
+       thad ekki spillt API-Sports-leidinni.
+       ThRIR STANDA EFTIR OG ThAD ER RETT UTKOMA: "Kalimuendo-Muinga" og
+       "De Fougerolles" eru EKKI i FPL (heimildin telur hopa vidari en FPL
+       gerir), og "Yeremi Pino" er stafsett med -i medan FPL ritar
+       "Yeremy Pino Santos". Stafsetningar-mun ma ekki brua med fuzzy —
+       thogul rong porun er verri en engin (CLAUDE.md 6).                */
+    /* > OG FYRSTA UTGAFA ThREPS 4 VAR ROSKUD — `tests/name-match.mjs` TOK
+       > HANA SAMSTUNDIS (24.8.2026). Hun sleppti ollum tokum styttri en
+       > tveimur stofum, sem thurrkadi ut UPPHAFSSTAFINN: "Q. Joseph" vard
+       > ad "joseph" einu, sem er EINKVAEMT innan lidsins — svo hun skiladi
+       > 349 thar sem threp 3 skilar RETTILEGA null. Threp 3 hafnar honum
+       > einmitt af thvi ad upphafsstafurinn passar ekki, og threp 4 hefdi
+       > thvi BAKKAD UPP akvordun sem var thegar tekin. Nakvaemlega thogla
+       > ranga porunin sem allt thetta fall er byggt gegn.
+       > VORNIN ER TVOFOLD: (a) upphafsstafurinn er VIRTUR eins og i threpi
+       > 3, og (b) threp 4 keyrir ADEINS a nofnum an upphafsstafs — thad er
+       > SKAMMSTOFUNAR-formid (API-Sports) og threp 1-3 eiga thad ein. Threp
+       > 4 er thvi bundid vid FULL nofn, sem var tilefnid.                */
+    if (!hit) {
+      const abbrev = toks.some(t => t.length === 1);
+      const t4 = toks.filter(t => t.length >= 2);
+      if (!abbrev && t4.length) {
+        const cand = c.filter(x => t4.every(t => x.full.has(t)));
         if (cand.length === 1) hit = cand[0];
       }
     }
@@ -1629,6 +1681,119 @@ async function computePlayerForm(events, els) {
      [{ team:{id,name}, formation:"4-3-3", startXI:[{player:{id,name,pos}}],
         substitutes:[{player:{...}}] }]
    Se snidid annad fellur EKKERT — vid skrifum tha 0 leikmenn og skraum thad. */
+/* ============================================================
+   STADFEST BYRJUNARLID UR FOTMOB — VARALEID ThEGAR API-SPORTS ER LOKAD
+
+   AF HVERJU (24.8.2026): API-Sports-reikningurinn er UPPSAGDUR i annad
+   sinn ("Your account is suspended", tveir olikir endapunktar, ~4 af 100
+   dagskollum notud), og hann lagast ADEINS a `dashboard.api-football.com`
+   — ekkert i thessu repo-i getur opnad hann. Stadfest byrjunarlid eru
+   thad eina sem tapast, svo spurningin er ekki "hvernig opnum vid hann"
+   heldur "hver onnur heimild ber thau".
+
+   FOTMOB BER ThAU, OG ThAD ER MAELT EN EKKI AAETLAD (allt 24.8.2026):
+     · `/api/data/matchDetails?matchId=` svarar **200 an token**, med
+       venjulegum vafra-UA. Sama slod og `fetchPreseason` notar thegar.
+     · `content.lineup.lineupType` ER prófsteinninn: leikinn GW1-leikur
+       gefur **"standard"** med 11 byrjunarmonnum, en leikur eftir 5 daga
+       gefur **"unavailable"** med **0**. Vid tokum ThVI ADEINS
+       `"standard"` — SPA MA ALDREI RATA I SKRA SEM SEGIST BERA
+       STADFESTINGU (`bsd_lineups.json` er geymd olesin af sokum sem eru
+       nakvaemlega thessar).
+     · Oll 10 GW1-leikina: `lineupType` "standard" i **10 af 10**, og
+       **20 af 20** byrjunarlid med nakvaemlega 11 menn.
+     · Klubbanofn: FotMob sendir LONG nofn og `teamIdOf` leysir **20 af
+       20** an nyrrar toflu.
+     · Leikmannanofn: **397 af 400 (99,3%)**. Their thrir sem eftir standa
+       eru RETT oparadir — tveir eru alls ekki i FPL og einn er stafsettur
+       odruvisi (sja threp 4 i `apiNameIndex`).
+
+   KLUBBURINN ER SANNREYNDUR, EKKI TREYST. Vid leitum i deild **47** einni
+   (svo "Arsenal" geti ekki ordid FC Arsenal Tula, sbr. `fetchPreseason`)
+   OG krefjumst thess ad BADIR klubbar leikssins leysist i NAKVAEMLEGA
+   thau tvo FPL-lid sem FPL-leikurinn ber. Passi thad ekki er leiknum
+   sleppt og thad TALID. Sama regla og `csFor`: sannreyndu motherja, ekki
+   adeins ad rod hafi fundist.
+   ============================================================ */
+async function fotmobLineups(fx, idx) {
+  const out = { teams: [], players: [], unmatched: [], errors: [], calls: 0,
+                skipped: 0, notStandard: {} };
+  const get = async url => {
+    out.calls++;
+    /* TIMAMORK ERU SKYLDA (`tests/wiring.mjs`). */
+    const r = await fetch(url, { headers: { "User-Agent": FM_UA },
+                                 signal: AbortSignal.timeout(20000) });
+    if (!r.ok) return { __http: r.status };
+    return r.json();
+  };
+  /* 1. FotMob-leikir per dagsetning, SIADIR VID DEILD 47.
+     ODYRI LISTINN ER NOTADUR TIL AD VELJA, SA DYRI TIL AD SANNREYNA.
+     `matches?date=` ber SKAMMSTOFUD nofn ("Man United") og leysist
+     **10 af 10** (maelt 24.8.2026), svo hann dugar til ad finna RETTA
+     leikinn — og tha er `matchDetails` sott NAKVAEMLEGA EINU SINNI per
+     leik i stad einu sinni per (leikur x leikur).                      */
+  const dates = [...new Set(fx.map(f => f.kickoff_time.slice(0, 10).replace(/-/g, "")))];
+  const fmMatches = [];
+  for (const d of dates) {
+    let j;
+    try { j = await get(`${FM}/matches?date=${d}`); }
+    catch (e) { out.errors.push(`fotmob matches ${d}: ${e.message}`); continue; }
+    if (j.__http) { out.errors.push(`fotmob matches ${d}: HTTP ${j.__http}`); continue; }
+    const pl = (j.leagues || []).find(l => l.id === 47);
+    for (const m of (pl?.matches || [])) if (m?.id != null) fmMatches.push(m);
+  }
+  /* 2. Byrjunarlid per leik sem parast VID BADA klubba FPL-leiksins. */
+  for (const f of fx) {
+    const cand = fmMatches.find(m => idx.teamIdOf(m.home?.name) === f.team_h
+                                  && idx.teamIdOf(m.away?.name) === f.team_a);
+    if (!cand) { out.skipped++; continue; }
+    let j;
+    try { j = await get(`${FM}/matchDetails?matchId=${cand.id}`); }
+    catch (e) { out.errors.push(`fotmob matchDetails ${cand.id}: ${e.message}`); out.skipped++; continue; }
+    if (j.__http) { out.errors.push(`fotmob matchDetails ${cand.id}: HTTP ${j.__http}`); out.skipped++; continue; }
+    const L = j.content?.lineup;
+    /* SANNREYNT AFTUR A LONGU NOFNUNUM — valid var gert a skammstofudum.
+       Passi thau ekki er thetta annar leikur og rodin vaeri rett tala um
+       rangan leik (sama regla og `csFor`: motherji OG dagsetning).      */
+    const h = idx.teamIdOf(L?.homeTeam?.name), a = idx.teamIdOf(L?.awayTeam?.name);
+    if (h !== f.team_h || a !== f.team_a) {
+      out.errors.push(`fotmob ${cand.id}: clubs disagree with the FPL fixture — skipped`);
+      out.skipped++; continue;
+    }
+    const det = { L, id: cand.id };
+    const type = det.L?.lineupType || "none";
+    out.notStandard[type] = (out.notStandard[type] || 0) + 1;
+    /* SPA ER EKKI STADFESTING. Adeins "standard" fer i skrana.         */
+    if (type !== "standard") continue;
+    for (const side of ["homeTeam", "awayTeam"]) {
+      const t = det.L[side];
+      const teamId = idx.teamIdOf(t?.name);
+      if (!teamId) { out.errors.push(`club name unresolved: "${t?.name}"`); continue; }
+      const starters = (t.starters || []).flat(9);
+      /* 11 ER KRAFA, EKKI VAENTING: hluta-uppstilling er spa i dulargervi. */
+      if (starters.length !== 11) {
+        out.errors.push(`${t.name}: ${starters.length} starters, not 11 — skipped`);
+        continue;
+      }
+      out.teams.push({ fpl_team: teamId, gw: f.event, formation: t.formation ?? null,
+                       fixture: f.id });
+      const add = (arr, started) => {
+        for (const e of (arr || [])) {
+          const nm = e?.name;
+          const id = idx.matchFpl(nm, teamId);
+          if (id == null) { out.unmatched.push(`${nm} (${t.name})`); continue; }
+          out.players.push({ fpl_id: id, fpl_team: teamId, gw: f.event, fixture: f.id,
+                             started, pos: e.positionId ?? null, name_api: nm,
+                             src: "fotmob" });
+        }
+      };
+      add(starters, true);
+      add((t.subs || []).flat(9), false);
+    }
+  }
+  return out;
+}
+
 async function fetchLineups() {
   const errTxt = o => (o.errors && (Array.isArray(o.errors) ? o.errors.join("; ")
                                     : JSON.stringify(o.errors))) || "";
@@ -1671,6 +1836,19 @@ async function fetchLineups() {
     try { prev = JSON.parse(await readFile(`${DATA}/lineups.json`, "utf8")).probe; } catch {}
     const prevAge = prev?.at ? (Date.now() - Date.parse(prev.at)) / 864e5 : Infinity;
     const PROBE_TTL_DAYS = prev?.gated ? PROBE_TTL_BLOCKED : PROBE_TTL_OK;
+    /* AN LYKILS ER ENGU AD SVARA — og rannsoknar-kallid a ekki ad vera
+       gert. Utan gluggans er FotMob lika thogul (byrjunarlid eru ekki til
+       fyrr en ~1 klst fyrir leik), svo tomt svar er RETT her.           */
+    if (!FLAGS.apisports) {
+      await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [],
+        players: [], sources: [],
+        note: "Confirmed line-ups. EMPTY outside the matchday window. No API-Sports key "
+            + "is configured, so only the FotMob fallback is available and it is queried "
+            + "only inside the window." });
+      record("api_lineups", true, 0,
+        "no match in window; no API-Sports key — FotMob fallback runs inside the window");
+      return;
+    }
     if (prev && prevAge < PROBE_TTL_DAYS) {
       await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [],
         players: [], probe: prev,
@@ -1728,7 +1906,10 @@ async function fetchLineups() {
   const dates = [...new Set(missing.map(f => f.kickoff_time.slice(0, 10)))];
   const apiFx = [];
   let calls = 0, errs = [];
-  for (const dt of dates) {
+  /* API-SPORTS-KOLLIN ERU GATUD, FALLID SJALFT EKKI. An lykils er ekkert
+     til ad spyrja hja theim — og tha tekur FotMob-varaleidin nedar vid,
+     sem er allur tilgangurinn med thvi ad ungata kallid.                */
+  for (const dt of (FLAGS.apisports ? dates : [])) {
     const r = await apiSports(`/fixtures?league=39&date=${dt}`); calls++;
     if (errTxt(r)) errs.push(`fixtures ${dt}: ${errTxt(r)}`);
     for (const it of (r.response || [])) {
@@ -1774,28 +1955,70 @@ async function fetchLineups() {
           const id = matchFpl(nm, teamId);
           if (id == null) { unmatched.push(`${nm} (${side.team?.name})`); continue; }
           outPlayers.push({ fpl_id: id, fpl_team: teamId, gw: f.event, fixture: f.id,
-                            started, pos: e.player?.pos ?? null, name_api: nm });
+                            started, pos: e.player?.pos ?? null, name_api: nm,
+                            src: "api-sports" });
         }
       };
       add(side.startXI, true);
       add(side.substitutes, false);
     }
   }
+  /* ---- VARALEID: FOTMOB ThEGAR API-SPORTS SKILADI ENGU ----
+     KVEIKJAN ER UTKOMAN, EKKI ORSOKIN. Vid spyrjum ekki "er reikningurinn
+     uppsagdur?" heldur "vantar okkur byrjunarlid fyrir leiki i glugganum?"
+     — thvi uppsogn, kvoti, timamork og snidsbreyting enda ollu i sama
+     stad, og skilyrdi sem telur upp orsakir gleymir alltaf einni (sbr.
+     "suspended" sem VANTADI i `gated`-regexid og gaf ranga stodu).
+     Vid biðjum ADEINS um leikina sem vantar, svo velheppnud API-Sports-
+     keyrsla kostar ekkert FotMob-kall.                                  */
+  const haveNow = new Set(outPlayers.map(p => p.fixture));
+  const needFm = fx.filter(f => !haveNow.has(f.id));
+  let fm = null;
+  if (needFm.length) {
+    try {
+      fm = await fotmobLineups(needFm, { teamIdOf, matchFpl });
+      calls += fm.calls;
+      outTeams.push(...fm.teams);
+      outPlayers.push(...fm.players);
+      unmatched.push(...fm.unmatched);
+      errs.push(...fm.errors);
+    } catch (e) { errs.push(`fotmob fallback: ${e.message}`); }
+  }
+  /* `sources` ER LEITT UR RODUNUM, EKKI SETT AF GREININNI SEM KEYRDI.
+     Fyrsta utgafan setti "api-sports" thegar `outPlayers` var otom — en
+     rodir eru ENDURNYTTAR ur fyrri keyrslu (glugginn er 5 klst, cron a 30
+     min), svo FotMob-rod fra fyrri keyrslu hefdi verid MERKT API-Sports.
+     Nakvaemlega `odds.gw`-villan: merkimidi um leidina i stad innihalds. */
+  const sources = [...new Set(outPlayers.map(p => p.src || "unknown"))].sort();
+  const fmNote = fm
+    ? ` · fotmob: ${fm.players.length} players for ${needFm.length} missing match(es)`
+      + (fm.skipped ? `, ${fm.skipped} not found` : "")
+      + (Object.keys(fm.notStandard).length
+          ? `, lineupType ${JSON.stringify(fm.notStandard)}` : "")
+    : "";
   await writeJSON("lineups.json", { updated: status.updated,
-    gws: [...new Set(fx.map(f => f.event))], calls,
+    gws: [...new Set(fx.map(f => f.event))], calls, sources,
     teams: outTeams, players: outPlayers, unmatched, errors: errs,
     unresolved_teams: [...unresolvedTeams], alias_collisions: aliasCollisions,
-    note: "Confirmed starters (started=true) and bench (false) from API-Sports "
-        + "/fixtures/lineups for matches inside the window. FPL status still governs "
-        + "availability; this is CONFIRMATION, not a forecast. `unresolved_teams` lists "
-        + "club names this source sent that no club-name variant matched — an empty list "
-        + "is the only correct value; anything in it means whole line-ups were dropped." });
+    note: "Confirmed starters (started=true) and bench (false) for matches inside the "
+        + "window. FPL status still governs availability; this is CONFIRMATION, not a "
+        + "forecast. `sources` says which feed each run actually used: API-Sports "
+        + "/fixtures/lineups first, and FotMob /matchDetails as a fallback when that "
+        + "returns nothing (the account has been suspended twice and only the provider "
+        + "can reopen it). The FotMob rows are taken ONLY when `lineupType` is "
+        + "\"standard\" and the side has exactly 11 starters — that value is "
+        + "\"unavailable\" before a line-up is published, so a PREDICTED XI can never "
+        + "enter this file. Both clubs of a match are re-checked against the FPL fixture "
+        + "before any row is written. `unresolved_teams` lists club names a source sent "
+        + "that no club-name variant matched — an empty list is the only correct value; "
+        + "anything in it means whole line-ups were dropped." });
   const started = outPlayers.filter(p => p.started).length;
-  record("api_lineups", !errs.length || !!outPlayers.length, outPlayers.length,
-    errs.length ? `${calls} calls (${reused} reused), ${started} starting, errors: ${errs[0].slice(0, 90)}`
-                : `${calls} calls (${reused} matches reused), ${outTeams.length} clubs, `
-                  + `${started} starting, ${unmatched.length} unmatched`
-                  + (unresolvedTeams.size ? ` — CLUB NAMES UNRESOLVED: ${[...unresolvedTeams].join(", ")}` : ""));
+  record("api_lineups", !!outPlayers.length || !errs.length, outPlayers.length,
+    `${calls} calls (${reused} matches reused), ${outTeams.length} clubs, `
+    + `${started} starting, ${unmatched.length} unmatched`
+    + ` · source: ${sources.join("+") || "none"}` + fmNote
+    + (unresolvedTeams.size ? ` — CLUB NAMES UNRESOLVED: ${[...unresolvedTeams].join(", ")}` : "")
+    + (errs.length ? ` — first error: ${errs[0].slice(0, 90)}` : ""));
 }
 
 /* ========== 4. CLUB ELO — CSV, tvö köll (http + endurtekning v. yfirálags) ========== */
@@ -3492,10 +3715,14 @@ async function fetchFast() {
      verid daudur kodi sem virtist virka. 30-minutna keyrslan er einmitt su
      sem naer lidunum 40-60 min fyrir leik — sja CLAUDE.md kafla 7.1.
      Utan gluggans kostar thetta 1 kall (rannsokn) eda 0.               */
-  if (FLAGS.apisports) {
-    try { await fetchLineups(); }
-    catch (e) { record("api_lineups", false, 0, e.message); }
-  }
+  /* EKKI LENGUR BUNDID VID `FLAGS.apisports` (24.8.2026). Varaleidin er
+     FotMob og hun tharf ENGAN lykil — vaeri kallid afram gatad a
+     API-Sports-lyklinum myndi hun ALDREI keyra a theim degi sem lykillinn
+     hverfur, sem er einmitt dagurinn sem hun er til fyrir. API-Sports-
+     kollin sjalf eru gatud INNI i fallinu. Sama gildra og `fetch-fast.yml`
+     an `env`-blokkar: fallid var kallad og sleppti ser thegjandi.       */
+  try { await fetchLineups(); }
+  catch (e) { record("api_lineups", false, 0, e.message); }
 
   /* BSD-SPA UM BYRJUNARLID TILHEYRIR LIKA HRADA KEYRSLUNNI, OG HER ER
      ASTAEDA SEM GILDIR UM ENGA ADRA HEIMILD I ThESSU REPO-I:
@@ -5376,7 +5603,8 @@ async function main() {
   try { await computeDefconHistory(); }        catch (e) { record("defcon_history", false, 0, e.message); }
   try { await computeConsistency(); }          catch (e) { record("consistency", false, 0, e.message); }
   try { await computePlayerForm(events, els); } catch (e) { record("player_form", false, 0, e.message); }
-  if (FLAGS.apisports) { try { await fetchLineups(); } catch (e) { record("api_lineups", false, 0, e.message); } }
+  /* OGATAD — sja athugasemdina vid hitt kallid (FotMob tharf engan lykil). */
+  try { await fetchLineups(); } catch (e) { record("api_lineups", false, 0, e.message); }
   /* ============================================================
      ALDUR ELO ER TALINN, EKKI ADEINS SIDASTA UTKOMA (14.8.2026).
      `elo` er inntak i FFDR (`DIFF_W.elo = 0.15` i ollum fjorum stodu-hopum)

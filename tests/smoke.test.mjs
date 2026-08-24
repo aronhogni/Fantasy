@@ -264,9 +264,26 @@ ok([...container.querySelectorAll("th")].every(el => el.textContent.trim() !== "
 ok(text().includes("2026/27"), "dálkur yfirstandandi tímabils ber rétt ártal (2026/27)");
 ok(text().includes("2025/26") && text().includes("2024/25"),
   "eldri tímabil fylgja með í töflunni");
-// FYRIR TIMABIL a yfirstandandi dalkur ad vera TOMUR, ekki tvitekning a i fyrra
-ok(text().includes("2026/27 has not started"),
-  "tómur dálkur útskýrður — FPL-tölurnar eru enn fyrra tímabils");
+/* ASTAND-BUNDID, EKKI FAST (24.8.2026). Fullyrdingin var fost a
+   "2026/27 has not started" og bar rokstudninginn "FPL-tolurnar eru enn
+   fyrra timabils". Hvorttveggja var satt i forleik og VARD OSATT vid
+   GW1-frestinn: maelt thann dag ber `players.json` max `starts` 1, max
+   `minutes` 90 — tolurnar ERU thessa timabils, svo skyringin a
+   RETTILEGA ad vera horfin og dalkurinn ad fyllast.
+   Klukkan er lesin UR SOMU UTFAERSLU og appid notar, ekki endurskrifud
+   her: annars gaeti profid sagt eitt og appid annad — sem var einmitt
+   villan sem var logud thennan dag (tvaer klukkur, sitt hvort svarid). */
+{
+  const { seasonHasStarted } = await import("../src/availability.js");
+  const evsNow = JSON.parse(readFileSync(`${DATA}events.json`, "utf8")).events || [];
+  const startedNow = seasonHasStarted(evsNow);
+  const note = text().includes("2026/27 has not started");
+  console.log(`     timabilid er ${startedNow ? "BYRJAD" : "EKKI byrjad"}`
+            + ` -> skyringin ${note ? "birtist" : "birtist EKKI"}`);
+  ok(startedNow ? !note : note,
+    startedNow ? "timabilid byrjad -> tomi-dalks skyringin er RETTILEGA horfin"
+               : "timabilid ekki byrjad -> tomi dalkurinn er utskyrdur");
+}
 // radirnar sem beðið var um
 for (const k of ["Minutes", "xGI", "YC / RC", "BP / BPS"])
   ok(text().includes(k), `tímabila-röðin '${k}'`);

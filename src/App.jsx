@@ -23,7 +23,7 @@ import BestOfBest from "./BestOfBest.jsx";
 import { C, mono, sans, S } from "./appStyles.js";
 import { storageMode, saveState, loadState } from "./storage.js";
 import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk,
-         matchesPlayedByClub } from "./availability.js";
+         matchesPlayedByClub, seasonHasStarted } from "./availability.js";
 import { Crest, PlayerImg, Kit, crestUrl, photoUrl, CREST_FALLBACK } from "./Crest.jsx";
 import FfdrTable from "./FfdrTable.jsx";
 import { buildTeamMetrics } from "./teamstats.js";
@@ -400,7 +400,15 @@ export default function App() {
     }
     const teams = shotFile.legend?.teams || [];
     const fields = Object.fromEntries((shotFile.legend?.fields || []).map((f, i) => [f, i]));
+    /* `season` FYLGIR MED — SKRAIN BER HANA OG VID HENTUM HENNI (24.8.2026).
+       `bsd_shots.json` ber `season: "2025/26"`, en visirinn flutti hana ekki,
+       svo `Teams.jsx` gat ekki nefnt timabil skotakortsins og THAGDI i
+       stadinn. I lifandi syn (2026/27) thyddi thogn ad 2025/26-skot voru
+       teiknud undir 2026/27-haus an nokkurs merkis. Ad lesa toluna ur
+       ANNARRI skra vaeri agiskun; ad lesa hana ur skranni sem skotin komu
+       UR er einfaldlega svidid sjalft.                                   */
     return { byCode, byTeam, byOpp, teams, fields, calib: shotFile.calib,
+             season: shotFile.season || null,
              positions: shotFile.positions || {} };
   }, [shotFile]);
   const [playerForm, setPlayerForm] = useState(null);   // per-umferðar mínútusaga
@@ -943,7 +951,10 @@ export default function App() {
   /* Fostu-leikatriða rodun INNAN LIDS — reiknud einu sinni, notud af
      `setPieceOf` (sja thar hvers vegna FPL-tolan er ekki nog).          */
   const spRanks = useMemo(() => setPieceRanks(players || []), [players]);
-  const seasonStarted = !!events?.some(e => e.finished);
+  /* EIN KLUKKA — utfaerslan er i `availability.js`, ekki her. Hun var
+     `events.some(e => e.finished)` og svaradi ODRU en PlayerList a lifandi
+     gognum 24.8.2026; sja maelinguna vid `seasonHasStarted`.             */
+  const seasonStarted = seasonHasStarted(events);
   const seasonGames = (events || []).filter(e => e.finished).length;
   /* LEIKIR SEM HVERT FELAG HEFUR SPILAD — NEFNARINN I `rotationRisk`.
      `seasonGames` telur umferdir sem eru `finished`, og hun er RETT thar
@@ -2646,8 +2657,18 @@ export default function App() {
                                                         : [...v, id].slice(0, 4))} />
       )}
       {view === "teams" && (
+        /* `bsdLive` BER `team_matches` — EINA HEIMILDIN UM xGC A
+           YFIRSTANDANDI TIMABILI. Hun vantadi hingad (24.8.2026):
+           `teamstats.js` hafdi bædi samlagninguna OG jafngildis-vordinn,
+           en propid var ALDREI sent, svo dalkarnir hefdu stadid tomir
+           ThOTT pipeline-an skrifadi rodina. Nakvaemlega gildran sem
+           `lineups.json` er nefnd fyrir i kafla 7.1: "pipeline skrifadi
+           hana en APPID LAS HANA ALDREI".
+           ATH: venjuleg /* *\/-athugasemd, EKKI {/* *\/} — sidara formid
+           er JSX-BARN og bjo til TVO born i `cond && ( ... )` sem tekur
+           eitt. Byggingin fell samstundis.                            */
         <Teams teams={teams} teamForm={teamForm} luck={luck} teamShots={teamShots}
-          fixtures={fixtures}
+          fixtures={fixtures} bsdLive={bsdLive}
           bsdTeams={bsdTeams} shotIndex={shotIndex}
           seasonLabel={currentSeasonLabel} Crest={Crest} />
       )}

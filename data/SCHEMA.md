@@ -170,13 +170,28 @@ réttur mælikvarði á úreltu tré. Prófin stöðvuðu þetta og skrárnar vo
 endurheimtar. **Lærdómur: `git pull` OG endurlesa lesendur ÁÐUR en gögnum er
 eytt, ekki bara þegar ýtt er.**
 
-### `lineups.json` — STAÐFEST byrjunarlið (API-Sports)
-`{ updated, gws, calls, teams:[{fpl_team, gw, formation, fixture}],
-players:[{fpl_id, fpl_team, gw, fixture, started, pos, name_api}],
+### `lineups.json` — STAÐFEST byrjunarlið (API-Sports **eða FotMob**)
+`{ updated, gws, calls, sources, teams:[{fpl_team, gw, formation, fixture}],
+players:[{fpl_id, fpl_team, gw, fixture, started, pos, name_api, src}],
 unmatched, errors, probe, note }`
 
 `started: true` = í **startXI**, `false` = á bekk. Þetta er **staðfesting**,
 ekki spá — FPL-status ræður áfram tiltækileika.
+
+**`src` PER RÖÐ OG `sources` LEITT AF ÞEIM** (24.8.2026). API-Sports-
+reikningurinn er uppsagður í annað sinn, svo FotMob `/matchDetails` er
+varaleið (sjá CLAUDE.md kafla 6). `src` er `"api-sports"` eða `"fotmob"` og
+`sources` er **reiknað úr röðunum**, ekki sett af greininni sem keyrði —
+raðir eru **endurnýttar** úr fyrri keyrslu (glugginn er 5 klst, cron á 30
+mín), svo FotMob-röð hefði annars verið merkt API-Sports í næstu keyrslu.
+Sama ætt og `odds.gw`: merkimiði um leiðina í stað innihaldsins.
+
+**FotMob-raðir eru teknar AÐEINS þegar `lineupType === "standard"` og hliðin
+ber nákvæmlega 11 byrjunarmenn.** Sviðið er `"unavailable"` áður en
+byrjunarlið er birt (mælt: leikinn leikur „standard"/11, leikur eftir 5 daga
+„unavailable"/0), svo **spá kemst ekki inn í skrá sem segist bera
+staðfestingu**. Báðir klúbbar leiksins eru sannreyndir gegn FPL-leiknum áður
+en nokkur röð er skrifuð.
 
 **Tómt utan leikdags-glugga** (leikur innan 2 klst eða nýbyrjaður). Þá er
 `probe` skrifað í staðinn: eitt könnunar-kall sem svarar því hvort fría þrepið

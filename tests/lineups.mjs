@@ -47,7 +47,18 @@ ok(axStart > 0, "apiNameIndex finnst i scripts/fetch.mjs");
 const axDecl = src.slice(axStart, src.indexOf("\n}\n", axStart) + 3);
 ok(/matchFpl/.test(axDecl) && /teamIdByNorm/.test(axDecl),
   "nafna-visirinn ber matchFpl OG teamIdByNorm (ein utfaersla fyrir bædi foll)");
-const decl = axDecl + "\n" + src.slice(start, end + 3);
+/* FOTMOB-VARALEIDIN FYLGIR LIKA MED (24.8.2026) — SOMU ROK OG HER AD OFAN.
+   `fetchLineups` odladist nyja had thegar varaleidin kom, og safnid TOK
+   EFTIR ThVI: keyrslan fell med "FLAGS is not defined". Thad er RETT
+   hegdun og hun er skjolud her fremur en thogguð.                       */
+const fmStart = src.indexOf("async function fotmobLineups(");
+ok(fmStart > 0, "fotmobLineups finnst i scripts/fetch.mjs");
+const fmDecl = src.slice(fmStart, src.indexOf("\n}\n", fmStart) + 3);
+ok(/lineupType/.test(fmDecl) && /!==\s*"standard"/.test(fmDecl),
+  "og hun tekur ADEINS `lineupType: \"standard\"` — spa ma ekki rata i skrana");
+ok(/starters\.length !== 11/.test(fmDecl),
+  "og krefst NAKVAEMLEGA 11 byrjunarmanna (hluta-uppstilling er spa i dulargervi)");
+const decl = axDecl + "\n" + fmDecl + "\n" + src.slice(start, end + 3);
 ok(/apiSports\(`\/fixtures\/lineups\?fixture=/.test(decl),
   "kallar a rettan endapunkt (/fixtures/lineups?fixture=)");
 ok(/\/fixtures\?league=39&date=/.test(decl),
@@ -127,10 +138,16 @@ const FIXTURES_OK = {
    Fellur med "normName is not defined" se hann ekki gefinn — sem er RETT
    hegdun: fallid odlaðist nyja hað og safnid a ad taka eftir thvi.      */
 const { normName } = await import("../src/names.js");
-async function run({ dir, responder }) {
+/* `FLAGS`, `FM`, `FM_UA` og `fetch` eru GEFIN, ekki afrituð — FotMob-
+   varaleidin les thau. Sjalfgefid er `apisports: true` svo ELDRI kaflarnir
+   i thessu safni maeli obreytta API-Sports-hegdun; FotMob-kaflarnir gefa
+   `apisports: false`. `fetch` er stubbur sem KASTAR nema profid gefi
+   annan — engin ytri kall mega verda i profasafni.                      */
+async function run({ dir, responder, flags = { apisports: true }, fmFetch = null }) {
   let written = null; const rec = {};
   const factory = new Function("readFile", "DATA", "writeJSON", "record", "status",
-    "apiSports", "console", "normName", `${decl}\nreturn fetchLineups;`);
+    "apiSports", "console", "normName", "FLAGS", "FM", "FM_UA", "fetch",
+    `${decl}\nreturn fetchLineups;`);
   const calls = [];
   const fn = factory(readFile, dir,
     async (name, obj) => { written = { name, obj }; },
@@ -142,7 +159,9 @@ async function run({ dir, responder }) {
        kodinn vaeri rettur.                                               */
     { updated: new Date().toISOString() },
     async (path) => { calls.push(path); return responder(path); },
-    { log() {}, warn() {} }, normName);
+    { log() {}, warn() {} }, normName,
+    flags, "https://fm.test/api/data", "test-ua",
+    fmFetch || (async u => { throw new Error(`unexpected network call: ${u}`); }));
   await fn();
   return { written, rec, calls };
 }
@@ -282,7 +301,12 @@ console.log("─".repeat(84));
     ? FIXTURES_OK : { http: 499, results: 0, response: [], errors: { rateLimit: "Too many requests" } } });
   ok(r1.written?.obj?.players?.length === 0 && Array.isArray(r1.written?.obj?.errors),
     "lineups-villa -> 0 leikmenn og villan SKRÁÐ, ekki thoguð");
-  ok(/errors:/.test(r1.rec.note), `status ber villuna: "${r1.rec.note.slice(0, 60)}"`);
+  /* ORDALAGID ER EKKI PROFSTEINNINN, HEGDUNIN ER ThAD (CLAUDE.md 5).
+     Fyrri utgafan leitadi ad "errors:" og fell thegar nótan var
+     endurordud i "first error:" — thott hun bæri villuna afram. Nu er
+     krafan: nótan nefnir villu OG ber TEXTA raunverulegu villunnar.   */
+  ok(/error/i.test(r1.rec.note) && /rate ?limit|Too many/i.test(r1.rec.note),
+    `status ber villuna: "${r1.rec.note.slice(-70)}"`);
 
   const r2 = await run({ dir, responder: p => p.startsWith("/fixtures?")
     ? { http: 200, results: 0, errors: [], response: [] } : LINEUP_OK });
@@ -428,6 +452,154 @@ console.log("─".repeat(84));
     `nafnid er SKRAD (${(written?.obj?.unresolved_teams || []).join(", ") || "TOMT"})`);
   ok((rec.note || "").includes("Arsenal FC London"),
     `og stadan nefnir thad thott villulistinn se tomur: "${rec.note}"`);
+}
+
+/* ============================================================
+   7. FOTMOB-VARALEIDIN (24.8.2026)
+
+   API-Sports-reikningurinn hefur verid uppsagdur TVISVAR og lagast adeins
+   hja veitunni. Varaleidin er FotMob `/matchDetails`, sem svarar 200 an
+   token. Kaflarnir her keyra a TILBUNUM svorum — engin ytri kall — og
+   prófa ThAD SEM MA FARA URSKEIDIS, ekki ad "hun virki":
+
+     a) hun fyllir i skardid thegar API-Sports skilar engu
+     b) SPA MA ALDREI RATA INN (`lineupType` annad en "standard")
+     c) hluta-uppstilling (faerri en 11) er SPA I DULARGERVI og er felld
+     d) rangir klubbar -> rod er ALDREI skrifud
+     e) an API-Sports-lykils keyrir hun SAMT (annars vaeri hun daud
+        nakvaemlega thann dag sem hun er til fyrir)
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("7. FOTMOB-VARALEIDIN — tilbuin svor, engin ytri koll");
+console.log("─".repeat(84));
+{
+  const mkPlayer = n => ({ name: n, positionId: 11 });
+  /* Nofnin eru ThAU SEM ERU I `sandbox()` — annars maeldi kaflinn
+     nafna-porun i stad varaleidarinnar.                                */
+  const XI = n => Array.from({ length: 11 },
+    (_, i) => mkPlayer(i === 0 ? n : `Filler ${n} ${i}`));
+  const fmDetails = (type, homeXI = XI("Saka"), awayXI = XI("Palmer")) => ({
+    content: { lineup: { lineupType: type,
+      homeTeam: { id: 1, name: "Arsenal", formation: "4-3-3", starters: homeXI,
+                  subs: [mkPlayer("Gabriel")] },
+      awayTeam: { id: 2, name: "Chelsea", formation: "4-2-3-1", starters: awayXI, subs: [] } } },
+  });
+  const fmList = { leagues: [{ id: 47, matches: [
+    { id: 771001, home: { name: "Arsenal" }, away: { name: "Chelsea" } }] }] };
+  /* Deild 61 er ekki 47 — hun MA ALDREI vera valin (Arsenal Tula-gildran). */
+  const fmListWrongLeague = { leagues: [{ id: 61, matches: [
+    { id: 779999, home: { name: "Arsenal" }, away: { name: "Chelsea" } }] }] };
+  const mkFetch = (listJson, detailJson) => async url => ({
+    ok: true,
+    json: async () => (/\/matches\?/.test(url) ? listJson : detailJson),
+  });
+  /* API-Sports skilar ENGU — thad er kveikjan a varaleidinni. */
+  const apiDead = () => ({ http: 403, results: 0, response: [],
+                           errors: { access: "Your account is suspended" } });
+
+  /* --- a) fyllir i skardid --- */
+  {
+    const dir = await sandbox();
+    const { written, rec } = await run({ dir, responder: apiDead,
+      fmFetch: mkFetch(fmList, fmDetails("standard")) });
+    const pl = written?.obj?.players || [];
+    ok(pl.length > 0, `FotMob fyllir i skardid: ${pl.length} leikmenn`);
+    ok(pl.filter(p => p.started).length === 22,
+      `22 byrjunarmenn (11 per lid): ${pl.filter(p => p.started).length}`);
+    ok(pl.some(p => p.fpl_id === 11 && p.started) && pl.some(p => p.fpl_id === 21 && p.started),
+      "og their eru PARADIR vid FPL-id (Saka 11, Palmer 21)");
+    ok(pl.some(p => p.fpl_id === 12 && !p.started), "bekkurinn er merktur started:false");
+    ok((written?.obj?.sources || []).includes("fotmob"),
+      `sources nefnir hvadan thau komu: ${JSON.stringify(written?.obj?.sources)}`);
+    ok(/fotmob/.test(rec.note || ""), `og stadan lika: "${(rec.note || "").slice(-80)}"`);
+  }
+
+  /* --- b) SPA MA ALDREI RATA INN. Thetta er kjarna-fullyrdingin. --- */
+  for (const type of ["unavailable", "predicted", "none"]) {
+    const dir = await sandbox();
+    const { written } = await run({ dir, responder: apiDead,
+      fmFetch: mkFetch(fmList, fmDetails(type)) });
+    ok((written?.obj?.players || []).length === 0,
+      `lineupType "${type}" -> ENGIN rod skrifud (spa er ekki stadfesting)`);
+  }
+  /* POSITIV FORSENDA VID HLIDINA (CLAUDE.md 5b regla 2): sama uppsetning
+     med "standard" SKRIFAR radir — annars vaeri (b) sonn a bilaðri leid. */
+  {
+    const dir = await sandbox();
+    const { written } = await run({ dir, responder: apiDead,
+      fmFetch: mkFetch(fmList, fmDetails("standard")) });
+    ok((written?.obj?.players || []).length > 0,
+      "forsenda: SAMA uppsetning med \"standard\" SKRIFAR radir");
+  }
+
+  /* --- c) hluta-uppstilling er felld OG skrad --- */
+  {
+    const dir = await sandbox();
+    const { written } = await run({ dir, responder: apiDead,
+      fmFetch: mkFetch(fmList, fmDetails("standard", XI("Saka").slice(0, 7))) });
+    const pl = written?.obj?.players || [];
+    ok(!pl.some(p => p.fpl_team === 1),
+      "7 byrjunarmenn -> ENGIN rod fyrir thad lid");
+    ok((written?.obj?.errors || []).some(e => /not 11/.test(e)),
+      `og thad er SKRAD, ekki thagad: ${JSON.stringify((written?.obj?.errors || []).slice(-1))}`);
+    ok(pl.some(p => p.fpl_team === 2),
+      "en HITT lidid heldur sinni uppstillingu (ein bilud hlid fellir ekki leikinn)");
+  }
+
+  /* --- d) rangir klubbar / rong deild -> ekkert --- */
+  {
+    const dir = await sandbox();
+    const { written } = await run({ dir, responder: apiDead,
+      fmFetch: mkFetch(fmListWrongLeague, fmDetails("standard")) });
+    ok((written?.obj?.players || []).length === 0,
+      "leikur utan deildar 47 er ALDREI valinn (Arsenal Tula-gildran)");
+  }
+  {
+    const dir = await sandbox();
+    /* Listinn segir Arsenal-Chelsea en smaatriðin segja Leeds-Everton:
+       thau eiga ad REKAST A og rodin ma ekki verda til.                */
+    const wrong = fmDetails("standard");
+    wrong.content.lineup.homeTeam.name = "Leeds";
+    wrong.content.lineup.awayTeam.name = "Everton";
+    const { written } = await run({ dir, responder: apiDead,
+      fmFetch: mkFetch(fmList, wrong) });
+    ok((written?.obj?.players || []).length === 0,
+      "klubbar smaatriðanna VERDA ad passa vid FPL-leikinn, annars engin rod");
+    ok((written?.obj?.errors || []).some(e => /disagree/.test(e)),
+      "og osamraemid er SKRAD");
+  }
+
+  /* --- d2) ENDURNYTTAR RADIR HALDA SINNI HEIMILD ---
+     Glugginn er 5 klst og cron gengur a 30 min, svo rodir eru
+     ENDURNYTTAR ur fyrri keyrslu. Fyrsta utgafan setti `sources` eftir
+     ThVI HVOR GREININ KEYRDI, svo FotMob-rod fra fyrri keyrslu hefdi
+     verid merkt "api-sports" i naestu keyrslu. Nakvaemlega `odds.gw`-
+     villan: merkimidi um LEIDINA i stad INNIHALDSINS.                  */
+  {
+    const dir = await sandbox();
+    await writeFile(join(dir, "lineups.json"), JSON.stringify({
+      players: [{ fpl_id: 11, fpl_team: 1, gw: 1, fixture: 9001, started: true,
+                  pos: null, name_api: "Saka", src: "fotmob" }],
+      teams: [{ fpl_team: 1, gw: 1, formation: "4-3-3", fixture: 9001 }],
+    }));
+    const { written, calls } = await run({ dir, responder: apiDead,
+      fmFetch: async u => { throw new Error(`must not be called: ${u}`); } });
+    ok(calls.length === 0 && (written?.obj?.players || []).length === 1,
+      `rodin er ENDURNYTT an nokkurs kalls (${calls.length} koll)`);
+    ok(JSON.stringify(written?.obj?.sources) === '["fotmob"]',
+      `og heldur sinni heimild: ${JSON.stringify(written?.obj?.sources)}`);
+  }
+
+  /* --- e) an API-Sports-lykils keyrir hun SAMT --- */
+  {
+    const dir = await sandbox();
+    const { written, calls } = await run({ dir, responder: apiDead,
+      flags: { apisports: false },
+      fmFetch: mkFetch(fmList, fmDetails("standard")) });
+    ok(calls.length === 0, `ENGIN API-Sports-koll gerd an lykils: ${calls.length}`);
+    ok((written?.obj?.players || []).length > 0,
+      "en FotMob keyrir SAMT — annars vaeri varaleidin daud thann dag sem hun tharf ad virka");
+  }
 }
 
 console.log(`\nBYRJUNARLIÐ: ${pass} stóðust, ${fail} féllu`);

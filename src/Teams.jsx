@@ -34,7 +34,7 @@ const C = {
 const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdTeams,
-                                shotIndex, seasonLabel, Crest }) {
+                                shotIndex, bsdLive, seasonLabel, Crest }) {
   /* HEITID ER LEITT, EKKI SKRIFAD. Fyrsta utgafan bar
      `SEASON_LIVE_LABEL = "2026-27"` her — og `team-stats.mjs` felldi hana
      samstundis: "engin timabils-tala er hardkodud i kodanum sjalfum".
@@ -98,18 +98,36 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
      mork per leik) i stad thess ad trua henni.                          */
   /* LIFANDI SYN NOTAR ENGIN SKOT — `bsd_shots.json` er 2025/26, svo
      `shotIndex` yrdi ur ODRU timabili. Bilid fylgir thvi urslitunum einum.  */
-  const use = useMemo(() => teamRangeUse({ base, shotIndex: liveOn ? null : shotIndex, fixtures }),
-    [base, shotIndex, fixtures, liveOn]);
+  /* YFIRSTANDANDI TIMABIL FAER SINA EIGIN SKOTA-HEIMILD (24.8.2026).
+     `bsd_shots.json` er FROSID 2025/26, svo `shotIndex` er rettilega
+     `null` i lifandi syn — en thad skildi xG OG xGC eftir tom thar.
+     `bsd_live.team_matches` er EIN rod per leikinn leik med BADAR hlidar,
+     sem er einmitt thad sem xGC krefst (hun er summa MOTHERJANNA og
+     verdur aldrei reiknud ur per-leikmanns summum).
+     Rodin er skrifud af pipeline-unni og `teamstats.js` hafdi bædi
+     samlagninguna og jafngildis-vordinn — thad sem vantadi var ThETTA:
+     ad senda hana inn. An thess hefdu dalkarnir stadid tomir ad eilifu
+     og litid ut eins og "BSD vantar", ekki "vid gleymdum ad tengja".   */
+  const liveMatches = useMemo(
+    () => (liveOn && Array.isArray(bsdLive?.team_matches) ? bsdLive.team_matches : null),
+    [liveOn, bsdLive]);
+  const use = useMemo(() => teamRangeUse({ base, shotIndex: liveOn ? null : shotIndex,
+                                           liveMatches, fixtures }),
+    [base, shotIndex, liveMatches, fixtures, liveOn]);
 
   /* EIN UTFAERSLA, OG `range: null` ER LIKA HUN. Arstidar-rodin er thvi
      REIKNUD UR SOMU FORMULUM sem bilid notar — annars kaemi "whole season"
      ur `bsd_teams.json` (pipeline-summa, sott 8.8.) og "GW 1-38" ur
      `bsd_shots.json` (sott 19.8.), tvaer tolur um sama hlut (ARS xG/leik
      1,725 a moti 1,76). Sja teamstats.js.                              */
+  /* `liveMatches` FYLGIR BADUM KOLLUNUM — `teamRangeUse` OG `applyTeamRange`.
+     Ad senda hana adeins i takt-profid en ekki i samlagninguna hefdi gefid
+     "heimildin er i takt" OG tomar tolur i sama andartaki: verra en hvorugt,
+     thvi merkid hefdi sagt ad allt vaeri i lagi.                        */
   const rows = useMemo(
     () => applyTeamRange(base, { range: gwRange, shotIndex: liveOn ? null : shotIndex,
-                                 fixtures, use }),
-    [base, gwRange, shotIndex, fixtures, use, liveOn]);
+                                 liveMatches, fixtures, use }),
+    [base, gwRange, shotIndex, liveMatches, fixtures, use, liveOn]);
 
   /* ThAKID KEMUR UR GOGNUNUM. Bil sem endar a GW38 i heimild sem naer til
      GW34 gaefi thogla null-summu — tolu sem litur ut eins og maeling (sama
@@ -284,8 +302,29 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
      thad er ekki agiskun heldur utkoma taktprofsins.
      Se kortid EKKI i takt er EKKERT timabil nefnt. Thogn er retta svarid
      thegar svarid er okunnugt (sama regla og "engin gogn" er ekki 0).
-     ============================================================ */
-  const shotSeason = use.shots ? (teamForm?.season || null) : null;
+
+     > OG SVARID VAR EKKI OKUNNUGT — LEIDRETT 24.8.2026. Setningin her ad
+     > ofan ("`shotIndex` FLYTUR EKKI `season`-svidid") var RETT lysing a
+     > visinum og RONG astaeda til ad thegja: `bsd_shots.json` BER
+     > `season` og visirinn flytur hana nu (App.jsx). Thogn var thvi ekki
+     > "svarid er okunnugt" heldur "vid slepptum ad spyrja".
+     > ThAD SKIPTI MALI I LIFANDI SYN: `use.shots` er alltaf false thar
+     > (`shotIndex` er sendur sem `null` inn i `teamRangeUse`), en
+     > skotakorts-blokkin sjalf les HRAA propid — svo 2025/26-skot voru
+     > teiknud undir 2026/27-haus MED ENGU timabili nefndu. Nakvaemlega
+     > sama aett og hardkodadi "2025/26"-strengurinn sem thessi kafli var
+     > skrifadur gegn, bara med thogn i stad rangrar tolu.
+     > REGLAN NU: se kortid i takt vid tofluna er timabil TOFLUNNAR nefnt
+     > (obreytt); annars er timabil KORTSINS nefnt ur skranni sjalfri, og
+     > se thad annad en taflan syni er thad sagt BERUM ORDUM. Vanti
+     > svidid (eldri skra i cache) er thagad eins og adur.               */
+  const shotSeason = use.shots ? (teamForm?.season || null)
+                               : (shotIndex?.season || null);
+  /* ER KORTID UR ODRU TIMABILI EN TAFLAN SYNIR? Adeins fullyrt thegar
+     BADAR tolur eru til — annars er thogn afram retta svarid.          */
+  const shotSeasonOff = !use.shots && !!shotIndex?.season
+    && !!(liveOn ? liveLabel : teamForm?.season)
+    && shotIndex.season !== (liveOn ? liveLabel : teamForm?.season);
 
   /* BSD-DALKARNIR OG TIMABILID — `season_locked` GERIR NU EITTHVAD.
      Beri `bsd_teams.json` annad timabil en taflan synir eru dalkarnir
@@ -606,6 +645,19 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
                     ? `The shot map covers ${shotSeason} only, so a side that was not in the league then has none — and none means no data.`
                     : "The shot map covers a single season, so a side that was not in the league then has none — and none means no data."}
                 </div>
+                {/* TIMABILS-OSAMRAEMID ER SAGT, EKKI THAGAD. Skotakortid er
+                    eina rodin a thessum flipa sem getur borid ANNAD timabil
+                    en taflan; an thessarar linu las hun eins og hun aetti
+                    vid tolurnar fyrir ofan. Sama regla og `lockedBlank`.  */}
+                {shotSeasonOff && (
+                  <div style={{ fontSize: 12, color: "#8a5f00", background: "#fff6e0",
+                                border: "1px solid #f0d68a", borderRadius: 6,
+                                padding: "6px 9px", marginBottom: 10 }}>
+                    {`These maps are ${shotIndex.season} — the table above is `}
+                    {liveOn ? liveLabel : teamForm?.season}
+                    {". They are not the same season, so read them side by side, not as one number."}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{"Shots faced"}</div>

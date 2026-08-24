@@ -307,6 +307,25 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
     mörk, mörk á sig og hrein blöð. **Skot, skot á mark, horn, brot og spjöld
     eru EKKI í `fixtures.json`**, svo þeir reitir eru ekki settir og verða
     `null` → „—", aldrei 0. xG/xGC koma úr BSD sem nær yfir 2025/26 eitt.
+    > **xG/xGC Á YFIRSTANDANDI TÍMABILI KOMA NÚ ÚR `bsd_live.team_matches`
+    > — OG SÍÐASTI SPOLURINN VANTAÐI (24.8.2026).** `teamstats.js` bar
+    > **bæði** samlagninguna (`aggLiveMatchRange`) **og** jafngildis-vörðinn
+    > (`team-stats.mjs` kafli 12g), og `fetch.mjs` skrifaði röðina — en
+    > `App.jsx` sendi `bsdLive` **aldrei** inn í `<Teams>` og `Teams.jsx`
+    > nefndi `liveMatches` **hvergi**. Dálkarnir hefðu því staðið tómir
+    > þótt pipeline-an skrifaði gögnin, og lesist eins og „BSD vantar" í
+    > stað „við gleymdum að tengja". **Nákvæmlega sú villa sem
+    > `lineups.json` er nefnd fyrir í kafla 7.1** — og hún er ástæðan fyrir
+    > því að „kóðinn og verðirnir eru komnir" er **ekki** sama og „talan
+    > lendir á skjánum". Vörður: `team-gw.mjs` kafli 4d les xGC **af
+    > skjánum** sem **delta** (tómt án `bsdLive`, tala með henni) og
+    > fullyrðir að hún sé xG **mótherjans**, ekki liðsins sjálfs — snúin
+    > tenging er tengd og röng, sem er verra en ótengd.
+    > **AUKAVÍSBENDING SEM ER RÉTT HEGÐUN, EKKI VILLA:** sjálfgefni
+    > flokkurinn **skiptir** um leið og skota-heimildin fær gögn (úr vörn
+    > yfir í skot), því flokkurinn er valinn eftir því hvað er ekki tómt.
+    > Prófið færir **báðar** teikningar í sama flokk — annars væri það að
+    > bera saman tvær ólíkar töflur.
   · **LEIKUR TELST SPILAÐUR VIÐ `finished_provisional`, EKKI `finished`.**
     Mælt: allir sex leiknu GW1-leikirnir bera `finished: false` með
     `finished_provisional: true, minutes: 90` og fullum úrslitum — `finished`
@@ -356,6 +375,21 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
   > `fetchLineups` skrifar `probe` UTAN glugga en `errors[]` **innan** hans, og
   > gamla fullyrðingin las aðeins `probe.gated` → `undefined` → grænt. Sannað
   > með því að spila leikdags-skrána aftur.
+  > **OG HANN ER EKKI LENGUR EINRÁÐUR (24.8.2026).** Notandinn: *„allir API
+  > eiga að vera inni á GIT, ef ekki finndu aðra leið sem virkar."* Lykillinn
+  > ER í GitHub Secrets og hann er ekki vandamálið — **reikningurinn** er það,
+  > og hann lagast hvergi nema hjá veitunni. Leiðin sem virkar er **FotMob
+  > `/matchDetails`** (200, enginn token) og hún er **mæld, ekki áætluð** —
+  > tölurnar eru í heimilda-töflunni í kafla 6. Tvennt hér er almennt:
+  > **(a) KVEIKJAN ER ÚTKOMAN, EKKI ORSÖKIN.** Varaleiðin fer í gang þegar
+  > *byrjunarlið vantar*, ekki þegar *reikningurinn er uppsagður* — skilyrði
+  > sem telur upp orsakir gleymir alltaf einni, nákvæmlega eins og „suspended"
+  > vantaði í `gated`-regexið hér að ofan.
+  > **(b) VARALEIÐ SEM ER GÖTUÐ Á AÐALLEIÐINNI ER EKKI VARALEIÐ.** Kallið á
+  > `fetchLineups` var gatað á `FLAGS.apisports` (sem krefst API-lykilsins),
+  > svo FotMob hefði **aldrei keyrt** þann dag sem lykillinn hverfur. Nú er
+  > fallið ógatað og API-Sports-**kallið** gatað inni í því. Sama ætt og
+  > `fetch-fast.yml` án `env`-blokkar: fallið var kallað og sleppti sér þegjandi.
 - **Markaðsþyngd er reiknuð úr `xga` þegar `diff` vantar.** Ekki fjarlægja þá
   varaleið: án hennar var markaðsliðurinn **dauður í appinu í heila viku** þótt
   öll prófin væru græn — þau prófuðu formúluna, ekki hvort gögnin sem hún fær
@@ -686,7 +720,8 @@ hann, aldrei skipta honum út.
 | **Odds API** (um Netlify-proxy) | virk, kvótaður | Markaðslínan; `h2h,totals,spreads`. Sótt tvisvar per umferð |
 | **ESPN** site-API | 200 | **Eina lifandi skot-heimildin**: hnit, útkoma, stöng, svæði, upplegg úr texta. Gefur **enga xG** |
 | **BSD** (`sports.bzzoiro.com`) | 200, ókeypis, enginn kvóti | Per-skot xG, skotakort, treverk, föst leikatriði. **Aðeins 2025/26** |
-| **API-Sports** | virk, 100 köll/dag | `/fixtures/lineups` (staðfest byrjunarlið). **Fyrsta raunprófun 20.–21. ágúst** |
+| **API-Sports** | **UPPSAGÐUR — og hann er ekki lengur eina leiðin** | `/fixtures/lineups` (staðfest byrjunarlið). Reikningurinn er `suspended` í annað sinn og lagast **aðeins** á `dashboard.api-football.com` — ekkert í repo-inu getur opnað hann. **STAÐFEST BYRJUNARLIÐ KOMA NÚ ÚR FOTMOB ÞEGAR HANN ÞEGIR** (24.8.2026, `fotmobLineups` í `fetch.mjs`): kveikjan er **útkoman, ekki orsökin** — við spyrjum „vantar okkur byrjunarlið?", ekki „er reikningurinn uppsagður?", því uppsögn, kvóti, tímamörk og sniðsbreyting enda öll á sama stað og skilyrði sem telur upp orsakir gleymir alltaf einni (sbr. „suspended" sem VANTAÐI í `gated`-regexið). Kallið er **ekki lengur gatað á `FLAGS.apisports`** — væri það svo myndi varaleiðin aldrei keyra þann dag sem lykillinn hverfur, sem er einmitt dagurinn sem hún er til fyrir |
+| **FotMob `/matchDetails`** — staðfest byrjunarlið | virk, **enginn token** | **MÆLT 24.8.2026, ekki áætlað:** `lineupType` er prófsteinninn — leikinn GW1-leikur gefur **`"standard"`** með 11 byrjunarmönnum, leikur eftir 5 daga gefur **`"unavailable"`** með **0**. Aðeins `"standard"` **og nákvæmlega 11** fer í skrána; **spá má ALDREI rata í skrá sem segist bera staðfestingu** (sama regla og geymir `bsd_lineups.json` ólesna). Öll 10 GW1-leikina: `lineupType` „standard" í **10/10**, **20/20** byrjunarlið með 11 menn. Klúbbar: **20/20** leysast gegnum `teamIdOf` — **engin ný tafla**; leitað er í **deild 47 einni** (svo „Arsenal" verði ekki FC Arsenal Tula) og **báðir** klúbbar sannreyndir gegn FPL-leiknum. Leikmenn: **397/400 (99,3%)** — þrír sem eftir standa eru **rétt** ópöraðir (tveir ekki í FPL, einn stafsettur öðruvísi). **BSD-REGLAN HELDUR:** `lineups.json` fæðir AÐEINS „STARTS/BENCHED"-merkið á spjaldinu — ekkert í FFDR, `rankScore` né væntum stigum les hana, svo þetta er birtingar-heimild en ekki burðarvirki |
 | **vaastav-speglun** | 200 | Söguleg per-umferðar CSV, 2019-20 til 2025-26 |
 | **FPL `entry/{id}`** (history · picks · transfers) | virk, opin | Sérfræðinga-hópurinn. `history` byggir hópinn (handvirkt, `scan-elite.mjs`); `picks` + `transfers` lesa hvað hann gerði, **eftir frest** — fyrir frest er 404 hjá öllum og það er regla leiksins, ekki API-galli. **Engin söguleg stigatafla er til**: `leagues-classic/314` skilar aðeins yfirstandandi tímabili, svo skönnun á lið-id er eina leiðin |
 | Understat | **LIFANDI — en læst fyrir HTTP-biðlara** | **LEIÐRÉTT 9.8.2026.** Fyrri greining sagði „gögnin eru farin". Það var RANGT um deildarsíður: byte-eins 18.645 b skelin var **Cloudflare-vörn**, ekki gagnaleysi. Í alvöru vafra skilar `league/EPL/2024` **175 KB með lifandi xG** og `JSON.parse` er á sínum stað. curl fær skelina (18.645 b), curl með vafra-hausum fær ANNAÐ skeljar-svar (4.675 b) — hvorugt með gögnum, bæði merkt Cloudflare. Þyrfti JS-keyrslu (headless) eða clearance-vafrakökur; pipeline er Node **án dependencies** og það er arkitektúr-breyting. **Leikja-síðurnar eru samt raunverulega tómar**: `shotsData`/`rostersData` vantar EINNIG í vafra, aðeins `match_info` eftir (staðfest á match/26630, engin XHR sækir þau). **OG ÞAÐ SKIPTIR HVORT EÐ ER EKKI MÁLI:** eina talan sem Understat átti ein — xGChain/xGBuildup — mældist gagnslaus (kafli 4). Að endurvekja hana myndi ekki bæta spána |
@@ -1330,7 +1365,7 @@ og vaknar við fyrstu loknu umferð. Ekki treysta á minnið hér.
 | atriði | af hverju blokkað | hvað á að skoða |
 |---|---|---|
 | API-Sports meiðsla-**tegund** | fría þrepið sér aðeins ±1 dag frá leikdegi | `injuries.json` → `via`, `players`, `unmatched` |
-| `/fixtures/lineups` staðfest byrjunarlið | sami gluggi | pörun við skammstöfuð nöfn |
+| `/fixtures/lineups` staðfest byrjunarlið | **EKKI LENGUR BLOKKAÐ** — FotMob tók við 24.8.2026 (sjá kafla 6); API-Sports-leiðin stendur óbreytt ef aðgangur opnast | pörun við skammstöfuð nöfn hjá API-Sports, **full nöfn** hjá FotMob (þrep 4 í `apiNameIndex`) |
 | „í ár vs. í fyrra"-taflan | byggð og villuvarin, hefur **aldrei keyrt** | birtist hún rétt? |
 | `fdcouk_e0` 2026/27 | CSV verður til við fyrsta leik | **EKKI „404 → 200" — það merki er ekki til, og HTTP-staðan er ÞRÍBREYTT.** Sama ástand („PL-skráin er ekki til enn") hefur svarað á þrjá vegu á þremur vikum: **404** upphaflega · **301** 14.8. yfir á `EC.csv` (utandeild, og `fetch` fylgir því þegjandi svo það kemur inn sem 200 með röngum gögnum) · **300** 20.8. „Multiple Choices" frá Apache mod_speling, sem `fetch` fylgir EKKI, svo heimildin varð rauð með engu nema tölunni. 300 og 404 eru nú bæði „bíður tímabils" (mælt: 300-svarið segir orðrétt „could not be found on this server" og mod_speling kviknar aðeins þegar slóðin finnst ekki), en **prófsteinninn er áfram `Div === "E0"`, ekki HTTP-staðan** — hann er sá eini sem tekur 301-tilfellið. Vörður: `fdcouk-e0.mjs` kaflar 4b/4c, þar sem 4c krefst þess að 500/403/429 KASTI, því „bíður" er græn heimild og víkkað skilyrði myndi fela raunverulega bilun |
 | Mínútuþróun (`player_form.json`) | `data/live/` er tóm í forleik | kviknar við GW4 |

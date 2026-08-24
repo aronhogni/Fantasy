@@ -601,6 +601,173 @@ console.log("\n4b) ENGIN HEIMILD I TAKT -> SLOKKT STYRING MED SKYRINGU");
   host.remove();
 }
 
+/* ============================================================
+   4c) SKOTAKORTIN I LIFANDI SYN BERA SITT EIGID TIMABIL (24.8.2026)
+
+   VILLAN SEM VAR: i lifandi syn (2026/27) er `shotIndex` sendur sem `null`
+   inn i `teamRangeUse`, svo `use.shots` er false og `shotSeason` var
+   thvi ALLTAF `null` — en skotakorts-blokkin sjalf les HRAA propid og
+   teiknadi 2025/26-skotin samt. Utkoman var 2025/26-gogn undir
+   2026/27-haus MED ENGU timabili nefndu.
+
+   Thogn var vorin sem var valin thegar `shotIndex` bar ekki `season`.
+   Skrain BER hana (`bsd_shots.json.season`), svo thogn var ekki "svarid er
+   okunnugt" heldur "vid slepptum ad spyrja" — og thogn um rangt timabil er
+   sama aett og hardkodadi "2025/26"-strengurinn sem kafli 7 var skrifadur
+   gegn, bara thogul i stad rangrar.
+
+   POSITIV FORSENDA FYRST: kortin verda ad vera A SKJANUM, annars stæðist
+   hver einasta fullyrding her a tomum flipa (CLAUDE.md 5b regla 2).
+   ============================================================ */
+console.log("\n4c) LIFANDI SYN — SKOTAKORTIN NEFNA SITT EIGID TIMABIL");
+{
+  const { default: Teams } = await import("../src/Teams.jsx");
+  const sf = J("bsd_shots.json");
+  const Fx = Object.fromEntries(sf.legend.fields.map((f, i) => [f, i]));
+  const mk = season => {
+    const byTeam = new Map(), byOpp = new Map(), byCode = new Map();
+    const put = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+    for (const s of sf.shots) { put(byTeam, s[Fx.team], s); put(byOpp, s[Fx.opp], s);
+      put(byCode, s[Fx.code], s); }
+    return { byTeam, byOpp, byCode, teams: sf.legend.teams, fields: Fx,
+             calib: sf.calib, positions: {}, season };
+  };
+  const LIVE = "2026/27";
+  const run = async idx => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => { root.render(React.createElement(Teams, {
+      teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
+      teamShots: J("team_shots.json"), bsdTeams: J("bsd_teams.json"),
+      fixtures: realFix, shotIndex: idx, seasonLabel: LIVE })); });
+    /* Smellum a lid sem A skot i kortinu — annars er blokkin ekki teiknud
+       og allt sem a eftir kemur vaeri tomt (og thvi thogult graent).     */
+    const target = sf.legend.teams.find(t => t === "ARS") || sf.legend.teams[0];
+    const cells = [...host.querySelectorAll("tbody td")]
+      .filter(td => (td.textContent || "").includes(target));
+    if (cells.length) await act(async () => {
+      cells[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    return { host, root, text: host.textContent || "", target };
+  };
+
+  const a = await run(mk("2025/26"));
+  ok(`forsenda: lifandi syn er valin og haus hennar ber ${LIVE}`,
+    a.text.includes(LIVE), a.text.slice(0, 120));
+  ok("forsenda: skotakortin ERU teiknud (annars er allt her ad nedan thogult)",
+    /shot maps/.test(a.text) && a.host.querySelectorAll("svg").length > 0,
+    `${a.host.querySelectorAll("svg").length} svg`);
+  /* FULLYRDINGIN ER A HAUSNUM SJALFUM, EKKI A "2025/26 er einhvers stadar
+     i textanum". Sidari utgafan var SONN af vidvorunar-kassanum einum, svo
+     hun gat ekki greint hausinn i sundur — nakvaemlega "fullyrding sem
+     tvennt getur uppfyllt" (CLAUDE.md 13).                              */
+  ok("HAUS kortsins nefnir sitt eigid timabil (2025/26), hann thegir ekki",
+    /shot maps\s*2025\/26\s*·/.test(a.text),
+    a.text.match(/shot maps[^]{0,90}/)?.[0] || "");
+  ok("og OSAMRAEMID er sagt berum ordum, ekki latid liggja",
+    /not the same season/.test(a.text),
+    a.text.match(/These maps are[^]{0,110}/)?.[0] || "");
+  ok("skyringin nefnir BAEDI timabilin", /These maps are 2025\/26/.test(a.text)
+    && new RegExp(`table above is ${LIVE.replace("/", "\\/")}`).test(a.text),
+    a.text.match(/These maps are[^]{0,110}/)?.[0] || "");
+  await act(async () => { a.root.unmount(); }); a.host.remove();
+
+  /* GAMLA HEGDUNIN ER VARDVEITT ThEGAR SVIDID VANTAR: eldri skra i cache
+     ber ekkert `season`, og THA er thogn afram retta svarid. Ad fullyrda
+     "2025/26" thar vaeri agiskun i buningi maelingar.                   */
+  const b = await run(mk(undefined));
+  ok("forsenda: kortin eru teiknud lika an `season`-svidsins",
+    /shot maps/.test(b.text) && b.host.querySelectorAll("svg").length > 0);
+  ok("an `season` er THAGAD (engin timabils-fullyrding, engin vidvorun)",
+    !/not the same season/.test(b.text) && !/These maps are/.test(b.text));
+  await act(async () => { b.root.unmount(); }); b.host.remove();
+}
+
+/* ============================================================
+   4d) SIDASTI SPOLURINN: `bsd_live.team_matches` -> xG OG xGC I LIFANDI SYN
+
+   VILLAN SEM VAR (24.8.2026): `teamstats.js` bar BADI `aggLiveMatchRange`
+   OG jafngildis-vordinn i kafla 12g, og `fetch.mjs` skrifadi rodina — en
+   `App.jsx` sendi `bsdLive` ALDREI inn i `<Teams>` og `Teams.jsx` nefndi
+   `liveMatches` hvergi. Dalkarnir hefdu thvi stadid TOMIR thott
+   pipeline-an skrifadi gognin, og lesist eins og "BSD vantar" i stad
+   "vid gleymdum ad tengja". Nakvaemlega su villa sem `lineups.json` er
+   nefnd fyrir i CLAUDE.md 7.1.
+
+   FULLYRDINGIN ER DELTA, EKKI ASTAND: SAMA teikning an `bsdLive` verdur
+   ad gefa TOMT og med henni TOLUR. Fost fullyrding ("dalkurinn ber tolu")
+   vaeri sonn af ollum odrum astaedum lika.
+   ============================================================ */
+console.log("\n4d) `bsd_live.team_matches` -> xG/xGC I LIFANDI SYN");
+{
+  const { default: Teams } = await import("../src/Teams.jsx");
+  /* RADIRNAR ERU BYGGDAR UR RAUNVERULEGU URSLITUNUM, EKKI FUNDNAR UPP.
+     `routeInStep` krefst >= 8 klubba OG ad mork/leik stemmi vid tofluna
+     (`maxGoalGap` 0,10) — einn tilbuinn leikur gefur `checked = 2` og
+     fellur, sem er RETT hegdun heimildarinnar og ekki villa i henni.
+     Vid speglum thvi thad sem pipeline-an skrifar i raun: eina rod per
+     LEIKINN leik med rettum morkum baðum megin. xG er tilbuid (skotin eru
+     ekki i `fixtures.json`) og ThAD ER EINMITT ThAD SEM ER MAELT — ad
+     talan RATI ALLA LEID a skjainn.                                     */
+  const shortById = new Map((J("teams.json").teams || []).map(t => [t.id, t.short]));
+  const XG_H = 2.4, XG_A = 0.7;
+  const LIVE_MATCHES = realFix
+    .filter(f => (f.finished === true || f.finished_provisional === true)
+              && f.team_h_score != null && f.team_a_score != null)
+    .map((f, i) => ({ id: i + 1, gw: f.event,
+      home: { team: shortById.get(f.team_h) ?? null, xg: XG_H, shots: 15, bc: 3,
+              goals: f.team_h_score },
+      away: { team: shortById.get(f.team_a) ?? null, xg: XG_A, shots: 6, bc: 1,
+              goals: f.team_a_score } }));
+  ok(`forsenda: ${LIVE_MATCHES.length} leikja-radir byggdar ur raunurslitum`,
+    LIVE_MATCHES.length >= 5 && LIVE_MATCHES.every(m => m.home.team && m.away.team),
+    `${LIVE_MATCHES.length} radir`);
+  /* Lid sem spiladi HEIMA i thessum gognum — tha er xGC thess = xG utilidsins. */
+  const homeShort = LIVE_MATCHES[0].home.team;
+  const draw = async bsdLive => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => { root.render(React.createElement(Teams, {
+      teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
+      teamShots: J("team_shots.json"), bsdTeams: J("bsd_teams.json"),
+      fixtures: realFix, shotIndex: null, bsdLive, seasonLabel: "2026/27" })); });
+    /* BADAR TEIKNINGAR ERU FAERDAR I SAMA FLOKK — annars vaeri thetta ekki
+       delta heldur samanburdur a TVEIMUR OLIKUM TOFLUM. Sjalfgefni
+       flokkurinn ER nefnilega ANNAR eftir thvi hvort skota-heimildin hefur
+       gogn (CLAUDE.md: "notandinn lendir ekki a tomum flokki"), og ThAD ER
+       RETT hegdun — hun er meira ad segja sjalfstaed vísbending um ad
+       tengingin virki, en hun ma ekki rugla thessa maelingu.            */
+    const catBtn = [...host.querySelectorAll("button")]
+      .find(b => /^Defence$/.test((b.textContent || "").trim()));
+    if (catBtn) await act(async () => {
+      catBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    /* Rod heimalidsins, og hvad stendur i xGC-dalkinum. */
+    const head = [...host.querySelectorAll("thead th")].map(t => t.textContent.trim());
+    const iXgc = head.findIndex(h => /^xGC tot/.test(h));
+    const row = [...host.querySelectorAll("tbody tr")]
+      .find(tr => (tr.querySelector("td")?.textContent || "").includes(homeShort));
+    const cell = i => i >= 0 && row ? (row.querySelectorAll("td")[i]?.textContent || "").trim() : null;
+    const out = { xgc: cell(iXgc), iXgc, has: !!row };
+    await act(async () => { root.unmount(); }); host.remove();
+    return out;
+  };
+  const off = await draw(null);
+  const on = await draw({ team_matches: LIVE_MATCHES });
+  ok(`forsenda: xGC-dalkurinn er a skjanum og ${homeShort}-rodin finnst`,
+    on.iXgc >= 0 && on.has, `iXgc=${on.iXgc} row=${on.has}`);
+  ok(`AN \`bsdLive\`: xGC er TOMT ("${off.xgc}")`, !/\d/.test(off.xgc || ""));
+  ok(`MED \`bsd_live.team_matches\`: xGC ber TOLU ("${on.xgc}")`, /\d/.test(on.xgc || ""));
+  /* xGC ER KJARNI KAERUNNAR ("Afhverju fae eg ekki xGC a lid?") — hun er
+     summa MOTHERJANNA og verdur ALDREI reiknud ur per-leikmanns summum.
+     Talan verdur thvi ad vera xG ANDSTAEDINGSINS (0,7), ekki thess sjalfs
+     (2,4). Vaeri hun 2,4 vaeri rodin tengd en SNUIN.                     */
+  ok(`og xGC ${homeShort} er xG MOTHERJANS (${XG_A}), ekki thess sjalfs (${XG_H}): "${on.xgc}"`,
+    /0[.,]7/.test(on.xgc || "") && !/2[.,]4/.test(on.xgc || ""));
+}
+
 console.log("\n5) TEXTARNIR SEM VORU TEKNIR UT ERU FARNIR");
 {
   const t = document.body.textContent || "";
