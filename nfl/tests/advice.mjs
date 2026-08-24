@@ -368,6 +368,54 @@ console.log("\nstodu-thorf og lifunarlikur RADA ENGU");
 }
 
 /* ============================================================
+   LIFUNAR-HAD TIMASETNING — README 4m, `measure/sequencing.json`
+   ============================================================
+   `tiebreak-lab` her ad ofan spurdi VEIKARI spurningar en notandinn:
+   hun kviknar lika thegar BADIR frambjodendur eru 0% (thar sem enginn
+   hagnadur er i bodi), hun maeldi EINA lognun og hun bar ENGIN
+   leikmanna-klosud vikmork. `seq-lab.mjs` maelir hina — threskuld med
+   X (efsti madur lifir) OG Z (hinn lifir ekki), thrju EV-form, badar
+   deildir notandans, og tvo mekanisma-arma an nokkurra lifunarlikinda.
+
+   ThRENNT ER VARID HER, OG ThAD ThRIDJA ER ThAD SEM SKIPTIR MALI:
+     1. THEKJA FYRST. Skrain verdur ad bera raunverulega rist, annars
+        maelir kaflinn ekkert og vaeri samt graenn (CLAUDE.md 5b).
+     2. `verdict[*].passing` verdur ad vera TOMT. Byrji hólf ad
+        standast barinn a ad MAELA UPP A NYTT — ekki ad thegja.
+     3. `ev-cross` — retta EV-formid MED GOLFI — verdur ad vera
+        NEGATIFT. Thad er sterkasta einstaka nidurstadan i 4m, og hun
+        er su sem freistingin snyr vid: "reikningurinn segir ad taka
+        thann sem tapast". Reikningurinn segir thad adeins an golfsins.
+   ============================================================ */
+{
+  const f = path.join(DATA, "measure", "sequencing.json");
+  if (!existsSync(f)) { console.log("  (sequencing.json vantar — keyrdu scripts/seq-lab.mjs)"); }
+  else {
+    const S = JSON.parse(readFileSync(f, "utf8"));
+    const shapes = Object.keys(S.verdict || {});
+    ok(shapes.length >= 2, `${shapes.length} lagnir maeldar`);
+    ok((S.design.seasons || []).length >= 8,
+      `${(S.design.seasons || []).length} timabil hermd`);
+    /* THEKJA ER FULLYRDING: ristin verdur ad vera raunveruleg og hun
+       verdur ad hafa KVIKNAD, annars er "0 standast" satt af tomum
+       astaedum (nakvaemlega bilunin sem `tiebreak-lab` fell a fyrst). */
+    const fired = Object.entries(S.fireStats || {})
+      .filter(([k]) => !k.endsWith("|shipped")).map(([, v]) => v.fireRate || 0);
+    ok(fired.length >= 100 && Math.max(...fired) > 0.05,
+      `ristin er raunveruleg og hun kviknadi (${fired.length} hólf, haest ${Math.max(...fired)})`);
+    for (const s of shapes) {
+      const v = S.verdict[s];
+      ok((v.passing || []).length === 0,
+        `${s}: 0 af ${v.cellsBarEvaluated} mötnum hólfum standast barinn` +
+        `${(v.passing || []).length ? ` — ${v.passing.join(", ")} STENST, MAELDU UPP A NYTT` : ""}`);
+      const ec = S.cells[`${s}|ev-cross`];
+      ok(ec && ec.mean < 0,
+        `${s}: retta EV-formid med golfi TAPAR (${ec ? ec.mean : "vantar"})`);
+    }
+  }
+}
+
+/* ============================================================
    SJALFGEFIN GILDI MEGA EKKI REKA I SUNDUR MILLI SKRAA
    ============================================================
    `advice.js` bar `league.rounds || 14` medan `DEFAULT_LEAGUE.rounds`
