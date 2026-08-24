@@ -139,16 +139,38 @@ import { loadTeModels, TE_GRID, TE_SHIPPED, teKey } from "./lib/te-sweep.mjs";
 const DATA = path.resolve(process.cwd(), "data");
 const ARG = parseArgs(process.argv.slice(2), {
   runs: "number", sruns: "number", boot: "number", from: "number",
-  q3runs: "number", pboot: "number",
+  q3runs: "number", pboot: "number", q3var: "string", extra: "string",
+  out: "string",
 });
 const DEFAULTS = { runs: 10, sruns: 4, boot: 2000, from: 2019,
-                   q3runs: 2, pboot: 200 };
+                   q3runs: 2, pboot: 200, q3var: "prevCarG", extra: null,
+                   out: "h2h.json" };
 const RUNS  = Number(ARG.runs  ?? DEFAULTS.runs);    // fraekorn per (ar, fruma)
 const SRUNS = Number(ARG.sruns ?? DEFAULTS.sruns);   // fraekorn i stefnu-toflunni
 const BOOT  = Number(ARG.boot  ?? DEFAULTS.boot);
 const FROM  = Number(ARG.from  ?? DEFAULTS.from);
 const Q3RUNS = Number(ARG.q3runs ?? DEFAULTS.q3runs); // fraekorn per Q3-reit
 const PBOOT  = Number(ARG.pboot  ?? DEFAULTS.pboot);  // per-leikmanns bootstrap
+/* ============================================================
+   --q3var / --extra — SAMA Q3-NET, ONNUR BREYTA (24.8.2026)
+   ============================================================
+   Q3 var byggt til ad spyrja "bjargar sigra-maelikvardinn hugmynd sem
+   FELL a stigum?" og svarid fyrir `prevCarG` var nei. Spurningin um
+   markadinn og serfraedingana er NAKVAEMLEGA sama spurning med annarri
+   breytu, svo netid er obreytt og adeins breytan er skipt ut.
+
+   `--q3var=<lykill>`  hvad er maelt (sjalfgefid `prevCarG`, bokada
+                       talan i README 4d/5n — su keyrsla ma ekki
+                       thurfa vidfang til ad endurtakast).
+   `--extra=<skra>`    les `data/measure/<skra>` (bygging
+                       `build-extra-features.mjs`) svo breytur sem eru
+                       EKKI i `features.json` seu taekar.
+   `--out=<skra>`      skrifar annad en `h2h.json` svo ny keyrsla eydi
+                       ekki bokudu maelingunni.                        */
+const Q3VAR = String(ARG.q3var ?? DEFAULTS.q3var);
+const EXTRA_FILE = ARG.extra ? String(ARG.extra) : null;
+const OUT_FILE = String(ARG.out ?? DEFAULTS.out);
+let EXTRA = null, EXTRA_META = null;
 
 /* ============================================================
    `--tesweep` — SVEIPUR A `FLEX_SPLIT.TE`, MAELDUR I SIGRUM
@@ -398,16 +420,27 @@ function buildWorld(y, weekly, featIdx) {
   let carRows = 0, carHead = 0;
   for (let i = 0; i < N; i++) {
     const a = featIdx.get(`${y}|${P[i].id}|ppr`);
-    const f = { prevCarG: a && a.prevCarG != null ? a.prevCarG : null };
+    /* Breytan er leitud FYRST i `features.json` og sidan i
+       `--extra`-skranni. Rodin er asett: se sami lykill i badum a
+       bokada heimildin ad vinna, annars gaeti ny skra breytt bokudu
+       tolu thegjandi. */
+    const x = EXTRA ? EXTRA.get(`${P[i].id}|${y}`) : null;
+    let v = a && a[Q3_VAR] != null ? a[Q3_VAR] : null;
+    if (v == null && x && x[Q3_VAR] != null) v = x[Q3_VAR];
+    const f = { [Q3_VAR]: v };
     for (let k = 1; k <= 8; k++) f[`placebo${k}`] = placeboValue(P[i].id, y, k);
     feat.set(P[i].id, f);
-    if (f.prevCarG != null) { carRows++; if (proj.ppr[i] != null) carHead++; }
+    if (f[Q3_VAR] != null) { carRows++; if (proj.ppr[i] != null) carHead++; }
   }
 
   return { y, N, P, idx, prior, priorFrom, proj, adp, adpSd, byWeek, wf,
            actual, actual14, totAll, tot14, feat,
            coverage: { players: N, projected, withAdp,
-                       prevCarG: carRows, prevCarGInHead: carHead,
+                       /* Lyklarnir heita `prevCarG*` thegar breytan ER
+                          `prevCarG` — bokada skrain ma ekki breyta
+                          formi. Annars bera their nafn breytunnar. */
+                       [Q3_VAR]: carRows, [`${Q3_VAR}InHead`]: carHead,
+                       q3Var: Q3_VAR,
                        priorSource: prev ? "prevSeason+projection" : "projection only (engin fyrri vikugogn)" } };
 }
 
@@ -511,7 +544,7 @@ function placeboValue(id, season, seed) {
 }
 
 const Q3_PLACEBOS = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => `placebo${i}`);
-const Q3_VAR = "prevCarG";
+const Q3_VAR = Q3VAR;
 const Q3_VARS = [Q3_VAR, ...Q3_PLACEBOS];
 
 /* Vogar-gridid er ORDRETT gridid i `opp-lab`: tvihlida, -0,10 til
@@ -903,6 +936,13 @@ async function main() {
 
   const featIdx = new Map();
   for (const r of feats.rows) featIdx.set(`${r.season}|${r.id}|${r.scoring}`, r);
+  if (EXTRA_FILE) {
+    const raw = JSON.parse(await readFile(path.join(DATA, "measure", EXTRA_FILE), "utf8"));
+    EXTRA = new Map(raw.rows.map((r) => [`${r.id}|${r.season}`, r]));
+    EXTRA_META = { file: EXTRA_FILE, provenance: raw.provenance, leak: raw.leak,
+                   variables: raw.variables, coverage: raw.coverage };
+    console.log(`--extra=${EXTRA_FILE}: ${EXTRA.size} radir · Q3-breyta \`${Q3_VAR}\``);
+  }
 
   console.log(`timabil med vikugognum: ${seasons.join(", ")}`);
   const worlds = {};
@@ -2274,10 +2314,15 @@ async function writeOut(body) {
   await mkdir(path.join(DATA, "measure"), { recursive: true });
   const inputs = ["features.json", "strategy_ppr.json", "model_eval_ppr.json",
     ...[2019, 2020, 2021, 2022, 2023, 2024, 2025].map((y) => `weekly/${y}.json`)];
-  await writeFile(path.join(DATA, "measure", "h2h.json"), JSON.stringify({
+  await writeFile(path.join(DATA, "measure", OUT_FILE), JSON.stringify({
     generated: new Date().toISOString(),
     provenance: stamp({ argv: process.argv.slice(2), defaults: DEFAULTS,
-      inputs, dataDir: DATA }),
+      inputs: EXTRA_FILE ? [...inputs, `measure/${EXTRA_FILE}`] : inputs, dataDir: DATA }),
+    /* Fingrafar `--extra`-skrarinnar fylgir MED, ekki i stad — annars
+       gaetu tvaer keyrslur med sama vidfangi en olikri inntaksskra
+       litid samanburdarhaefar ut. */
+    extraInputs: EXTRA_META,
+    q3Variable: Q3_VAR,
     question: "Fantasy vinnst a vikulegum vidureignum, ekki a stigum. " +
       "Halda tolurnar sem eru bokadar i stigum thegar thaer eru maeldar i SIGRUM?",
     design: {

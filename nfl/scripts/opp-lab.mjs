@@ -109,11 +109,39 @@ import { parseArgs, requireSeasons } from "./lib/args.mjs";
 const OUT = path.resolve(process.cwd(), "data");
 const REL = "https://github.com/nflverse/nflverse-data/releases/download";
 const ARG = parseArgs(process.argv.slice(2), {
-  runs: "number", from: "number", boot: "number",
+  runs: "number", from: "number", boot: "number", extra: "string", only: "string",
+  out: "string",
 });
 const RUNS = Number(ARG.runs || 4);
 const FROM = Number(ARG.from || 2015);
 const BOOT = Number(ARG.boot || 1000);
+/* ============================================================
+   --extra / --only — SAMA NET, NYJAR BREYTUR (24.8.2026)
+   ============================================================
+   Spurningin "geta nyju markadsodds eda serfraedingarnir baett
+   A-Ranking?" er NAKVAEMLEGA sama spurning sem thetta net var byggt
+   fyrir: baetir litil, einraen vog OFAN A obreyttan kjarna
+   akvordunina, maeld gegn atta plaseboum og walk-forward? Thess vegna
+   er hun ekki ny vel heldur nyjar BREYTUR i gomlu velina.
+
+   `--extra=<skra>`  les `data/measure/<skra>` (byggd af
+                     `build-extra-features.mjs`) og laetur breyturnar
+                     thar fljota med i ollu — grid, plaseboum,
+                     lekahlidi, Tier A, Tier B, walk-forward.
+   `--only=a,b,c`    keyrir adeins thessar RAUNBREYTUR. PLASEBOARNIR
+                     ERU ALDREI FILTERADIR — thak an nulldreifingar er
+                     ekki thak, og su villa vaeri osynileg i utkomunni.
+   `--out=<skra>`    skrifar i `data/measure/<skra>` i stad `opp.json`
+                     svo ny keyrsla eydi ekki bokudu maelingunni.
+
+   AD BAETA BREYTU VID KOSTAR FRIGRADUR OG THAD ER TALID i
+   `degreesOfFreedom`. Netid er obreytt ad odru leyti — sama grid, sami
+   BOOT, somu lognun, somu stigagjafir — svo tolur ur `--extra`-keyrslu
+   eru SAMANBURDARHAEFAR vid bokudu `prevCarG`-tolurnar. Vaeri einhverju
+   odru breytt i leidinni vaeri sa samanburdur ord, ekki maeling.     */
+const EXTRA_FILE = ARG.extra ? String(ARG.extra) : null;
+const ONLY = ARG.only ? String(ARG.only).split(",").map((s) => s.trim()).filter(Boolean) : null;
+const OUT_FILE = ARG.out ? String(ARG.out) : "opp.json";
 
 const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
 const r3 = (x) => (x == null ? null : Math.round(x * 1000) / 1000);
@@ -159,7 +187,7 @@ const FORMATS = ["ppr", "half", "standard"];
    vera xGI og ekki xG — markmidid inniheldur assist, svo magn slaer
    nytni. Hlidstaedan hér er "taekifaeri slaer nytni", og hun er
    PROFUD med thvi ad hafa nytni-breyturnar i somu toflu.            */
-const VARS = [
+const BASE_VARS = [
   { key: "prevTshare",       kind: "volume",  label: "Target share, prior season" },
   { key: "prevWopr",         kind: "volume",  label: "Weighted opportunity rating, prior season" },
   { key: "prevTouches",      kind: "volume",  label: "Touches (carries + receptions), prior season" },
@@ -172,6 +200,10 @@ const VARS = [
   { key: "prevYpt",          kind: "efficiency", label: "Yards per target, prior season (efficiency)" },
   { key: "prevYpc",          kind: "efficiency", label: "Yards per carry, prior season (efficiency)" },
 ];
+
+/* Fyllt i `main()` — `VARS` er thad sem raunverulega er keyrt eftir
+   ad `--extra` og `--only` hafa verid tekin til greina. */
+let VARS = BASE_VARS;
 
 /* ============================================================
    PLASEBO-BREYTURNAR — OG HVERS VEGNA THAER ERU NAUDSYNLEGAR
@@ -414,6 +446,29 @@ function bootSeasons(per) {
 async function main() {
   const feats = JSON.parse(await readFile(path.join(OUT, "features.json"), "utf8"));
 
+  /* ---------- --extra: NYJAR BREYTUR I SAMA NETID ---------- */
+  let extra = null;                             // `${id}|${season}` -> row
+  let extraMeta = null;
+  if (EXTRA_FILE) {
+    const raw = JSON.parse(await readFile(path.join(OUT, "measure", EXTRA_FILE), "utf8"));
+    extra = new Map(raw.rows.map((r) => [`${r.id}|${r.season}`, r]));
+    const keys = Object.keys(raw.variables || {});
+    if (!keys.length) { console.error(`${EXTRA_FILE} ber engar breytur`); process.exit(2); }
+    VARS = [...BASE_VARS, ...keys.map((k) => ({
+      key: k, kind: "extra", label: raw.variables[k], fromExtra: true }))];
+    extraMeta = { file: EXTRA_FILE, provenance: raw.provenance, leak: raw.leak,
+      coverage: raw.coverage, anchor: raw.anchor, honestVsOracle: raw.honestVsOracle,
+      variables: raw.variables };
+    console.log(`--extra=${EXTRA_FILE}: ${keys.length} nyjar breytur, ${extra.size} radir`);
+  }
+  if (ONLY) {
+    const before = VARS.length;
+    VARS = VARS.filter((v) => ONLY.includes(v.key));
+    if (!VARS.length) { console.error(`--only skildi engar breytur eftir`); process.exit(2); }
+    console.log(`--only: ${VARS.length} af ${before} raunbreytum ` +
+      `(${VARS.map((v) => v.key).join(", ")}); PLASEBOARNIR ERU OSKERTIR`);
+  }
+
   /* ---------- PORUN ppr <-> standard (half er algebra) ---------- */
   const byKey = { ppr: new Map(), standard: new Map() };
   for (const r of feats.rows) {
@@ -427,9 +482,17 @@ async function main() {
   const years = [...new Set(feats.rows.map((r) => r.season))].sort()
     .filter((y) => y >= FROM && y <= 2025);
 
-  /* ---------- FRAMVINDU-BREYTAN ---------- */
-  console.log(`\nsaeki vikuleg nflverse-fylki fyrir oppLateMinusEarly …`);
-  const trend = await loadTrend(years);
+  /* ---------- FRAMVINDU-BREYTAN ----------
+     Sotti EKKI ~11 vikuleg nflverse-fylki thegar `--only` skilur
+     `oppLateMinusEarly` ekki eftir; hun vaeri tha bara ekki notud. */
+  const needTrend = !ONLY || ONLY.includes("oppLateMinusEarly");
+  let trend = { map: new Map(), okYears: 0 };
+  if (needTrend) {
+    console.log(`\nsaeki vikuleg nflverse-fylki fyrir oppLateMinusEarly …`);
+    trend = await loadTrend(years);
+  } else {
+    console.log(`\n(sleppi vikulegum nflverse-fylkjum: oppLateMinusEarly er ekki i --only)`);
+  }
 
   /* ---------- LAUGIN PER AR ---------- */
   const pools = {};
@@ -453,9 +516,15 @@ async function main() {
       };
       /* Breyturnar eru stigagjafar-obundnar (thaer eru tolfraedi fyrra
          timabils), svo thaer eru teknar ur ppr-rodinni. */
-      for (const v of VARS) p[v.key] = a[v.key] != null ? a[v.key] : null;
-      p.oppLateMinusEarly = trend.map.has(`${a.id}|${y}`)
-        ? trend.map.get(`${a.id}|${y}`) : null;
+      const xr = extra ? extra.get(`${a.id}|${y}`) : null;
+      for (const v of VARS) {
+        if (v.fromExtra) p[v.key] = xr && xr[v.key] != null ? xr[v.key] : null;
+        else p[v.key] = a[v.key] != null ? a[v.key] : null;
+      }
+      if (!ONLY || ONLY.includes("oppLateMinusEarly")) {
+        p.oppLateMinusEarly = trend.map.has(`${a.id}|${y}`)
+          ? trend.map.get(`${a.id}|${y}`) : null;
+      }
       for (let i = 0; i < PLACEBOS.length; i++) {
         p[PLACEBOS[i].key] = placeboValue(a.id, y, i + 1);
       }
@@ -1236,6 +1305,11 @@ async function main() {
     `${"top50".padStart(9)}`);
   for (const k of KINDS) {
     const q = volumeVsEfficiency.overall[k];
+    /* FLOKKUR GETUR VERID TOMUR — `--only` (eda `--extra` med adeins
+       nyjum breytum) skilur t.d. "volume" eftir an breytu, og tha er
+       `statOf` null. Prenta thad BERUM ORDUM; tom lina hér vaeri lesin
+       eins og maeling upp a null. */
+    if (!q || !q.ci) { console.log(`   ${k.padEnd(12)}${"engin breyta i thessum flokki".padStart(30)}`); continue; }
     console.log(`   ${k.padEnd(12)}${sgn(q.mean).padStart(8)}${String(q.t).padStart(8)}` +
       `${(q.wins + "/" + q.years).padStart(7)}${`[${sgn(q.ci.lo)}, ${sgn(q.ci.hi)}]`.padStart(18)}` +
       `${sgn(volumeVsEfficiency.byFormat.ppr[k].mean).padStart(9)}` +
@@ -1244,10 +1318,14 @@ async function main() {
       `${sgn(volumeVsEfficiency.byScope.top50[k].mean).padStart(9)}`);
   }
   const vme = volumeVsEfficiency.volumeMinusEfficiency;
-  console.log(`   magn - nytni: ${sgn(vme.mean)} stig, t=${vme.t}, ${vme.wins}/${vme.years} ar, ` +
-    `95% [${sgn(vme.ci.lo)}, ${sgn(vme.ci.hi)}]  -> ` +
-    `${vme.ci && vme.ci.excludesZero ? (vme.mean > 0 ? "MAGN SLAER NYTNI" : "NYTNI SLAER MAGN")
-      : "ekki greinanlegt"}`);
+  if (!vme || !vme.ci) {
+    console.log(`   magn - nytni: OMAELT (annar flokkurinn ber enga breytu i thessari keyrslu)`);
+  } else {
+    console.log(`   magn - nytni: ${sgn(vme.mean)} stig, t=${vme.t}, ${vme.wins}/${vme.years} ar, ` +
+      `95% [${sgn(vme.ci.lo)}, ${sgn(vme.ci.hi)}]  -> ` +
+      `${vme.ci && vme.ci.excludesZero ? (vme.mean > 0 ? "MAGN SLAER NYTNI" : "NYTNI SLAER MAGN")
+        : "ekki greinanlegt"}`);
+  }
 
   console.log(`\n${"=".repeat(104)}`);
   console.log("  NIDURSTADA");
@@ -1374,7 +1452,7 @@ async function main() {
     generated: new Date().toISOString(),
     provenance: stamp({
       argv: process.argv.slice(2),
-      defaults: { runs: 4, from: 2015, boot: 1000 },
+      defaults: { runs: 4, from: 2015, boot: 1000, extra: null, only: null, out: "opp.json" },
       resolved: {
         runs: RUNS, boot: BOOT, weights: WEIGHTS,
         scopes: SCOPES.map((s) => s.key), formats: FORMATS,
@@ -1393,8 +1471,14 @@ async function main() {
         projection: "sleeperProj when present, else ffProj (same rule as half-lab)",
         trendSource: `nflverse stats_player_week, ${trend.okYears}/${years.length} seasons read`,
       },
-      inputs: ["features.json"], dataDir: OUT,
+      inputs: EXTRA_FILE ? ["features.json", `measure/${EXTRA_FILE}`] : ["features.json"],
+      dataDir: OUT,
     }),
+    /* Fingrafar a `--extra`-skranni fylgir MED, ekki i stad. Vaeri thad
+       ekki hér gaeti tvaer keyrslur med somu vidfong en OLIKA
+       inntaksskra litid samanburdarhaefar ut — nakvaemlega villan sem
+       `provenance.mjs` var skrifad til ad utiloka. */
+    extraInputs: extraMeta,
     seasons: ys, pairing: { paired, unpaired },
     poolSize: Object.fromEntries(ys.map((y) => [y, pools[y].length])),
     coverage, leakGate, leakGateFailures: leakFail,
@@ -1463,8 +1547,8 @@ async function main() {
     best: bestOverall.slice(0, 20),
     verdict,
   }, null, 1).replace(`"${BIG}"`, JSON.stringify(compactDecision()));
-  await writeFile(path.join(OUT, "measure", "opp.json"), payloadText);
-  console.log(`\n-> data/measure/opp.json (${(payloadText.length / 1e6).toFixed(2)} MB)`);
+  await writeFile(path.join(OUT, "measure", OUT_FILE), payloadText);
+  console.log(`\n-> data/measure/${OUT_FILE} (${(payloadText.length / 1e6).toFixed(2)} MB)`);
   console.log(`\n  ${verdict}\n`);
 }
 
