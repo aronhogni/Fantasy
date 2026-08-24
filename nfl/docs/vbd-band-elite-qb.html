@@ -1,0 +1,481 @@
+<title>Where in the draft does VBD actually win?</title>
+<style>
+:root{
+  --paper:#EAEEF0; --card:#FAFBFC; --card2:#F1F4F6;
+  --ink:#101820; --ink2:#37454F; --muted:#647380;
+  --rule:#C8D3DA; --rule2:#DDE4E9;
+  --accent:#12525E; --accent-soft:#D3E4E6;
+  --pass:#1D6647; --pass-soft:#D6E8DE;
+  --null:#6C7A85; --null-soft:#E1E6EA;
+  --fail:#8B3628; --fail-soft:#F0DBD6;
+  --qb:#6B4A8F; --rb:#A9553B; --wr:#2C6B87; --te:#69782E;
+  --shadow:0 1px 2px rgba(16,24,32,.06), 0 8px 24px -16px rgba(16,24,32,.18);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C1215; --card:#141C21; --card2:#101A1E;
+    --ink:#E6ECEF; --ink2:#BAC6CD; --muted:#8A99A3;
+    --rule:#2A363D; --rule2:#1E282E;
+    --accent:#5EB6AE; --accent-soft:#16333A;
+    --pass:#63B98C; --pass-soft:#152C22;
+    --null:#8A99A3; --null-soft:#1A2429;
+    --fail:#D6836F; --fail-soft:#2C1A16;
+    --qb:#A98BC7; --rb:#D18A6E; --wr:#71AECB; --te:#A6B463;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C1215; --card:#141C21; --card2:#101A1E;
+  --ink:#E6ECEF; --ink2:#BAC6CD; --muted:#8A99A3;
+  --rule:#2A363D; --rule2:#1E282E;
+  --accent:#5EB6AE; --accent-soft:#16333A;
+  --pass:#63B98C; --pass-soft:#152C22;
+  --null:#8A99A3; --null-soft:#1A2429;
+  --fail:#D6836F; --fail-soft:#2C1A16;
+  --qb:#A98BC7; --rb:#D18A6E; --wr:#71AECB; --te:#A6B463;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.62;
+  margin:0; padding:0 20px 96px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto}
+.col{max-width:66ch}
+p{margin:0 0 1.05em}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ---------- masthead ---------- */
+header.top{
+  border-bottom:1px solid var(--rule); padding:48px 0 28px; margin-bottom:38px;
+}
+.kicker{
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 18px;
+}
+h1{
+  font-family:var(--serif); font-weight:600; font-size:clamp(30px,4.4vw,50px);
+  line-height:1.08; letter-spacing:-.015em; margin:0 0 20px; text-wrap:balance;
+  max-width:24ch;
+}
+.standfirst{font-size:19px; line-height:1.55; color:var(--ink2); max-width:62ch; margin:0}
+.meta{
+  display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:26px;
+  font-family:var(--mono); font-size:11.5px; color:var(--muted);
+}
+.meta b{color:var(--ink2); font-weight:500}
+
+/* ---------- section furniture ---------- */
+section{margin:52px 0 0}
+h2{
+  font-family:var(--mono); font-size:12px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--accent); font-weight:600;
+  margin:0 0 6px; padding-bottom:8px; border-bottom:1px solid var(--rule);
+}
+h2 .n{color:var(--muted); margin-right:12px}
+h3{
+  font-family:var(--serif); font-weight:600; font-size:25px; line-height:1.24;
+  letter-spacing:-.01em; margin:26px 0 12px; text-wrap:balance; max-width:34ch;
+}
+h4{
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); font-weight:600; margin:26px 0 10px;
+}
+
+/* ---------- verdict statements ---------- */
+.verdict{
+  font-family:var(--serif); font-size:clamp(20px,2.5vw,26px); line-height:1.34;
+  letter-spacing:-.01em; margin:30px 0; padding-left:22px;
+  border-left:3px solid var(--accent); max-width:48ch; color:var(--ink);
+}
+.verdict em{font-style:italic; color:var(--accent)}
+
+.chip{
+  display:inline-flex; align-items:center; gap:6px; vertical-align:2px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; font-weight:600;
+  padding:3px 8px; border-radius:2px; border:1px solid transparent;
+  white-space:nowrap;
+}
+.chip.pass{background:var(--pass-soft); color:var(--pass); border-color:var(--pass)}
+.chip.null{background:var(--null-soft); color:var(--null); border-color:var(--null)}
+.chip.fail{background:var(--fail-soft); color:var(--fail); border-color:var(--fail)}
+
+/* ---------- panels ---------- */
+.panel{
+  background:var(--card); border:1px solid var(--rule); border-radius:3px;
+  box-shadow:var(--shadow); padding:24px 26px; margin:28px 0;
+}
+.panel > :first-child{margin-top:0}
+.panel > :last-child{margin-bottom:0}
+.panel.quiet{background:var(--card2); box-shadow:none}
+.plabel{
+  font-family:var(--mono); font-size:11px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 14px;
+  display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+
+/* ---------- round strip (hero diagram) ---------- */
+.strip{margin:34px 0 8px}
+.rounds{display:grid; grid-template-columns:repeat(15,1fr); gap:3px; margin-bottom:4px}
+.rounds div{
+  height:26px; border-radius:2px; display:grid; place-items:center;
+  font-family:var(--mono); font-size:10px; color:var(--muted);
+  border:1px solid var(--rule2); background:var(--card2);
+}
+.rounds div.hot{background:var(--accent); border-color:var(--accent); color:var(--card); font-weight:600}
+.brackets{display:grid; grid-template-columns:3fr 4fr 8fr; gap:3px}
+.bracket{border-top:1px solid var(--rule); padding-top:9px}
+.bracket .bname{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink2)}
+.bracket .bval{font-family:var(--mono); font-size:clamp(17px,2.4vw,25px); font-weight:600; letter-spacing:-.02em; margin-top:2px; font-variant-numeric:tabular-nums}
+.bracket .bci{font-family:var(--mono); font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums}
+.bracket.big .bval{color:var(--pass)}
+.bracket.flat .bval{color:var(--null)}
+
+/* ---------- bar+whisker rows ---------- */
+.bars{margin:6px 0 0}
+.bar{display:grid; grid-template-columns:minmax(96px,20%) 1fr minmax(150px,auto); gap:14px; align-items:center; padding:7px 0; border-top:1px solid var(--rule2)}
+.bar:first-child{border-top:0}
+.bar .lab{font-family:var(--mono); font-size:11.5px; color:var(--ink2)}
+.bar .num{font-family:var(--mono); font-size:11.5px; color:var(--muted); text-align:right; font-variant-numeric:tabular-nums}
+.track{position:relative; height:20px}
+.track .zero{position:absolute; top:0; bottom:0; width:1px; background:var(--rule); }
+.track .ci{position:absolute; top:9px; height:2px; background:var(--muted); opacity:.55}
+.track .ci::before,.track .ci::after{content:""; position:absolute; top:-4px; width:1px; height:10px; background:var(--muted); opacity:.9}
+.track .ci::before{left:0} .track .ci::after{right:0}
+.track .dot{position:absolute; top:5px; width:10px; height:10px; margin-left:-5px; border-radius:50%; background:var(--null); border:1.5px solid var(--card)}
+.track .dot.pass{background:var(--pass)} .track .dot.fail{background:var(--fail)}
+
+/* ---------- position mix ---------- */
+.mix{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); margin-top:8px}
+.mixrow{display:flex; height:30px; border-radius:2px; overflow:hidden; border:1px solid var(--rule)}
+.mixrow span{display:grid; place-items:center; font-family:var(--mono); font-size:10.5px; font-weight:600; color:#fff; min-width:0; overflow:hidden}
+.mixrow span.qb{background:var(--qb)} .mixrow span.rb{background:var(--rb)}
+.mixrow span.wr{background:var(--wr)} .mixrow span.te{background:var(--te)}
+.mixcap{font-family:var(--mono); font-size:11px; color:var(--muted); margin:6px 0 0}
+.mixname{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink2); margin:0 0 6px}
+
+/* ---------- tables ---------- */
+.scroll{overflow-x:auto; margin:18px 0; border:1px solid var(--rule); border-radius:3px; background:var(--card)}
+table{border-collapse:collapse; width:100%; font-family:var(--mono); font-size:12.5px; font-variant-numeric:tabular-nums}
+caption{
+  text-align:left; font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); padding:14px 16px 0;
+}
+th,td{padding:8px 14px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--rule2)}
+th{font-weight:600; color:var(--muted); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; border-bottom:1px solid var(--rule)}
+th:first-child,td:first-child{text-align:left}
+tbody tr:last-child td{border-bottom:0}
+tr.group td{background:var(--card2); color:var(--ink2); font-weight:600; letter-spacing:.06em; font-size:11px; text-transform:uppercase}
+td.sig{color:var(--pass); font-weight:600}
+td.neg{color:var(--fail); font-weight:600}
+td.dim{color:var(--muted)}
+td.name{font-family:var(--sans); white-space:normal; min-width:210px; font-size:13px}
+
+ul{margin:0 0 1.05em; padding-left:1.25em}
+li{margin-bottom:.5em}
+.footnote{font-size:14px; color:var(--muted); max-width:64ch}
+code{font-family:var(--mono); font-size:.9em; background:var(--card2); padding:1px 5px; border-radius:2px; border:1px solid var(--rule2)}
+hr.end{border:0; border-top:1px solid var(--rule); margin:56px 0 24px}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="kicker">Measurement · nfl/scripts/band-lab.mjs → data/measure/band.json</p>
+  <h1>Where in the draft does VBD actually win?</h1>
+  <p class="standfirst">You drafted from seat 4, followed the app on every pick, and finished 4th of 10 — while the seat picking one slot behind you won. The suspicion was that value-over-replacement misranks the top of the board. It was measured. It does the opposite: almost the entire edge lives in rounds 1&ndash;3, and there is nothing left in the middle.</p>
+  <div class="meta">
+    <span><b>7 seasons</b> 2019–2025</span>
+    <span><b>3 league shapes</b> both of yours + the general one</span>
+    <span><b>2 metrics</b> weekly wins and season points</span>
+    <span><b>50 cells</b> paired, mirrored, in the same league</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="n">01</span>The short answer</h2>
+  <div class="col">
+    <p class="verdict">Taking Jonathan Taylor over Ja'Marr Chase at 1.4 was <em>not</em> a measurable mistake — and neither would the reverse have been.</p>
+    <p>Three separate claims were tested. Two are new results; one turned out to be already booked under a different name.</p>
+    <ul>
+      <li><strong>Does VBD misorder rounds 1&ndash;3?</strong> No — that is where its whole edge is. <span class="chip pass">clears the bar</span></li>
+      <li><strong>Is the RB-vs-WR ordering at the top right?</strong> Unresolved: not better, not worse than raw projection. <span class="chip null">null</span></li>
+      <li><strong>Is an elite QB underpriced in a 1-QB league?</strong> No, in three independent forms. <span class="chip fail">fails</span></li>
+      <li><strong>Does <code>maxPos.QB = 2</code> cost you a pick?</strong> Nothing measurable. <span class="chip null">null</span></li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">02</span>The round-band decomposition</h2>
+  <div class="col">
+    <p>The booked <code>+75</code> for A-Ranking over the raw Sleeper projection is an average over a whole draft. Nothing in the repo had ever cut it by round. The board is a function of the round — raw projection order inside the band, A-Ranking outside it — so exactly one variable moves: which ranking rule governs those picks. Everything else, including the room, is identical, and the two arms sit in the same league, mirrored across seats.</p>
+  </div>
+
+  <div class="panel strip">
+    <p class="plabel"><span>10-team full PPR — VBD's edge in season points, by band</span><span>positive = VBD beats raw projection</span></p>
+    <div class="rounds" role="img" aria-label="Fifteen draft rounds; rounds 1 to 3 highlighted as where the measured edge lives">
+      <div class="hot">1</div><div class="hot">2</div><div class="hot">3</div>
+      <div>4</div><div>5</div><div>6</div><div>7</div>
+      <div>8</div><div>9</div><div>10</div><div>11</div><div>12</div><div>13</div><div>14</div><div>15</div>
+    </div>
+    <div class="brackets">
+      <div class="bracket big">
+        <div class="bname">Rounds 1–3</div>
+        <div class="bval">+98.3</div>
+        <div class="bci">95% CI [+36.2, +173.0] · 6/7 seasons</div>
+      </div>
+      <div class="bracket flat">
+        <div class="bname">Rounds 4–7</div>
+        <div class="bval">+3.3</div>
+        <div class="bci">[−87.1, +95.4] · 3/7 seasons</div>
+      </div>
+      <div class="bracket flat">
+        <div class="bname">Rounds 8–15</div>
+        <div class="bval">−8.7</div>
+        <div class="bci">[−43.8, +32.3] · 2/7 seasons</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <caption>VBD edge over raw projection, by band. Positive = the shipped rule wins that band.</caption>
+      <thead>
+        <tr><th>Band</th><th>Wins (of 14)</th><th>95% CI</th><th>t</th><th>Seasons</th><th>Season points</th><th>95% CI</th><th>Seasons</th></tr>
+      </thead>
+      <tbody>
+        <tr class="group"><td colspan="8">10 teams · 2 FLEX · full PPR — your Patriots league</td></tr>
+        <tr><td>Rounds 1–3</td><td class="sig">+0.83</td><td>[+0.24, +1.49]</td><td>2.37</td><td>6/7</td><td class="sig">+98.3</td><td>[+36.2, +173.0]</td><td>6/7</td></tr>
+        <tr><td>Rounds 4–7</td><td class="dim">−0.10</td><td>[−1.08, +0.83]</td><td>−0.19</td><td>3/7</td><td class="dim">+3.3</td><td>[−87.1, +95.4]</td><td>3/7</td></tr>
+        <tr><td>Rounds 8–15</td><td class="dim">+0.11</td><td>[−0.30, +0.61]</td><td>0.43</td><td>4/7</td><td class="dim">−8.7</td><td>[−43.8, +32.3]</td><td>2/7</td></tr>
+        <tr><td>Whole draft</td><td class="dim">+0.20</td><td>[−0.79, +1.05]</td><td>0.39</td><td>5/7</td><td class="dim">+36.6</td><td>[−21.6, +88.5]</td><td>5/7</td></tr>
+        <tr class="group"><td colspan="8">12 teams · 2 FLEX · half-PPR — Sófahetjur</td></tr>
+        <tr><td>Rounds 1–3</td><td class="sig">+0.89</td><td>[+0.39, +1.44]</td><td>2.95</td><td>6/7</td><td class="sig">+108.0</td><td>[+44.8, +171.6]</td><td>5/7</td></tr>
+        <tr><td>Rounds 4–7</td><td class="dim">−0.03</td><td>[−0.74, +0.61]</td><td>−0.07</td><td>4/7</td><td class="dim">−7.8</td><td>[−52.1, +33.4]</td><td>4/7</td></tr>
+        <tr><td>Rounds 8–14</td><td class="dim">+0.10</td><td>[−0.62, +0.73]</td><td>0.26</td><td>3/7</td><td class="dim">+3.0</td><td>[−51.2, +47.7]</td><td>4/7</td></tr>
+        <tr><td>Whole draft</td><td class="sig">+1.34</td><td>[+0.83, +1.80]</td><td>4.81</td><td>7/7</td><td class="sig">+136.2</td><td>[+58.8, +206.1]</td><td>6/7</td></tr>
+        <tr class="group"><td colspan="8">12 teams · 1 FLEX · WR3 · PPR — the shape everything else was measured in</td></tr>
+        <tr><td>Rounds 1–3</td><td class="sig">+0.83</td><td>[+0.40, +1.30]</td><td>3.41</td><td>7/7</td><td class="sig">+88.7</td><td>[+38.3, +132.8]</td><td>6/7</td></tr>
+        <tr><td>Rounds 4–7</td><td class="dim">+0.22</td><td>[−0.57, +0.86]</td><td>0.56</td><td>5/7</td><td class="dim">+16.3</td><td>[−73.9, +92.2]</td><td>5/7</td></tr>
+        <tr><td>Rounds 8–14</td><td class="neg">−0.65</td><td>[−1.14, −0.23]</td><td>−2.48</td><td>1/7</td><td class="neg">−59.9</td><td>[−124.8, −8.8]</td><td>2/7</td></tr>
+        <tr><td>Whole draft</td><td class="dim">+0.60</td><td>[−0.00, +1.20]</td><td>1.73</td><td>4/7</td><td class="dim">+55.5</td><td>[−0.1, +108.1]</td><td>5/7</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <p><strong>The bands do not sum to the whole, and that is measured rather than assumed.</strong> A different pick in round 2 changes who is on the board in round 9, so the interaction is real: +92.9 across bands against +36.6 for the whole draft in the 10-team shape (interaction −56.3), +103.2 against +136.2 in the 12-team half-PPR (+33.1). Both numbers are reported; neither is the other's error.</p>
+    <p>One band is significantly <em>negative</em>: in the general 12-team shape, using raw projection from round 8 onward beats VBD by 59.9 points. That is the deep-roster end, where the replacement-level argument should be strongest, and it is the one place the shipped rule loses.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">03</span>The mechanism — and why it isn't the question you asked</h2>
+  <div class="col">
+    <p>A +98-point edge in three picks looked too large for a ranking nuance. It is. Counting what each board actually takes with its first three picks, pooled over every seat and every season:</p>
+  </div>
+
+  <div class="panel">
+    <p class="plabel"><span>Position mix of picks in rounds 1–3</span><span>210–252 picks per shape</span></p>
+    <div class="mix">
+      <div>
+        <p class="mixname">10-team PPR · A-Ranking (VBD)</p>
+        <div class="mixrow" role="img" aria-label="VBD rounds 1 to 3: QB 7 percent, RB 23 percent, WR 12 percent, TE 58 percent">
+          <span class="qb" style="width:7%"></span><span class="rb" style="width:23%">RB 23</span><span class="wr" style="width:12%"></span><span class="te" style="width:58%">TE 58</span>
+        </div>
+        <p class="mixcap">QB 7% · RB 23% · WR 12% · TE 58%</p>
+      </div>
+      <div>
+        <p class="mixname">10-team PPR · raw projection</p>
+        <div class="mixrow" role="img" aria-label="Raw projection rounds 1 to 3: QB 67 percent, RB 4 percent, WR 24 percent, TE 5 percent">
+          <span class="qb" style="width:67%">QB 67</span><span class="rb" style="width:4%"></span><span class="wr" style="width:24%">WR 24</span><span class="te" style="width:5%"></span>
+        </div>
+        <p class="mixcap">QB 67% · RB 4% · WR 24% · TE 5%</p>
+      </div>
+    </div>
+    <p class="mixcap" style="margin-top:16px">Same picture in both other shapes: raw projection spends 67% of its first three picks on quarterbacks; VBD spends 7–12%.</p>
+  </div>
+
+  <div class="col">
+    <p class="verdict">Rounds 1&ndash;3 is not where VBD ranks running backs above receivers correctly. It is where VBD <em>refuses to draft quarterbacks</em>.</p>
+    <p>Raw season projection puts quarterbacks on top, so ordering by it takes two of them in the first three picks — and only one can ever start. That effect is already booked, under a different name: forcing a QB in round 1 measures at &minus;0.82 wins and &minus;90.2 points in this same league shape (<code>h2h.json → q2</code>). The band result is largely a rediscovery of it through a different door.</p>
+    <p><strong>So the question was asked again with quarterbacks removed from both arms.</strong> Both boards are forbidden from taking a QB in rounds 1&ndash;3, which leaves the RB/WR/TE ordering as the only variable. This is the actual Taylor-versus-Chase question:</p>
+  </div>
+
+  <div class="panel quiet">
+    <p class="plabel"><span>Rounds 1–3, QB excluded from both arms</span><span>VBD edge over raw projection</span></p>
+    <div class="bars">
+      <div class="bar"><span class="lab">10-team PPR</span>
+        <span class="track"><span class="zero" style="left:50%"></span><span class="ci" style="left:47.05%;right:22%"></span><span class="dot" style="left:62.95%"></span></span>
+        <span class="num">+25.9 pts [−5.9, +56.0] · 4/7</span></div>
+      <div class="bar"><span class="lab">12-team half</span>
+        <span class="track"><span class="zero" style="left:50%"></span><span class="ci" style="left:26.9%;right:43.05%"></span><span class="dot" style="left:42.4%"></span></span>
+        <span class="num">−15.2 pts [−46.2, +13.9] · 3/7</span></div>
+      <div class="bar"><span class="lab">12-team 1-FLEX</span>
+        <span class="track"><span class="zero" style="left:50%"></span><span class="ci" style="left:8.85%;right:35.9%"></span><span class="dot" style="left:41.15%"></span></span>
+        <span class="num">−17.7 pts [−82.3, +28.2] · 4/7</span></div>
+    </div>
+    <p class="mixcap" style="margin-top:14px">Scale spans ±100 points; the vertical rule is zero. Every interval contains it.</p>
+  </div>
+
+  <div class="col">
+    <p>All three intervals cross zero and the signs disagree across shapes. <strong>Conditional on not taking a quarterback early, the app's ordering of running backs and receivers at the top of the draft is not measurably better than sorting by raw projection — and not measurably worse.</strong> That is the honest answer to 1.4, and it is a null. Taylor over Chase was defensible; Chase over Taylor would have been equally defensible. Neither is the reason seat 5 won.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">04</span>The seven first-three-picks, and a trap worth keeping</h2>
+  <div class="col">
+    <p>Descriptive, not a measurement — seven seasons is seven cases. It is here because the concrete question deserves a concrete answer, and because the first version of this table was wrong in an instructive way.</p>
+  </div>
+  <div class="scroll">
+    <table>
+      <caption>First three picks from seat 4, 10-team PPR, plain-ADP room</caption>
+      <thead><tr><th>Season</th><th>A-Ranking takes</th><th>Startable</th><th>Raw projection takes</th><th>Startable</th><th>QBs</th></tr></thead>
+      <tbody>
+        <tr><td>2019</td><td class="name">Hopkins (WR), Kelce (TE), Ertz (TE)</td><td class="sig">746.3</td><td class="name">Mahomes (QB), Watson (QB), Adams (WR)</td><td>555.5</td><td>2</td></tr>
+        <tr><td>2020</td><td class="name">Thomas (WR), Kelce (TE), Kittle (TE)</td><td>521.8</td><td class="name">L. Jackson (QB), Mahomes (QB), Thomas (WR)</td><td class="sig">625.5</td><td>2</td></tr>
+        <tr><td>2021</td><td class="name">J. Taylor (RB), Waller (TE), Kelce (TE)</td><td class="sig">704.6</td><td class="name">Allen (QB), Mahomes (QB), Adams (WR)</td><td>598.5</td><td>2</td></tr>
+        <tr><td>2022</td><td class="name">Kelce (TE), Andrews (TE), Ekeler (RB)</td><td>749.9</td><td class="name">Allen (QB), L. Jackson (QB), Kelce (TE)</td><td class="sig">756.7</td><td>2</td></tr>
+        <tr><td>2023</td><td class="name">Kelce (TE), Andrews (TE), McCaffrey (RB)</td><td class="sig">726.6</td><td class="name">Hurts (QB), Mahomes (QB), Kelce (TE)</td><td>601.7</td><td>2</td></tr>
+        <tr><td>2024</td><td class="name">Henry (RB), Kelce (TE), LaPorta (TE)</td><td class="sig">768.4</td><td class="name">Allen (QB), L. Jackson (QB), Chase (WR)</td><td>572.2</td><td>2</td></tr>
+        <tr><td>2025</td><td class="name">Gibbs (RB), Bowers (TE), McBride (TE)</td><td class="sig">859.0</td><td class="name">L. Jackson (QB), Allen (QB), Chase (WR)</td><td>428.1</td><td>2</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p><strong>The trap:</strong> add those three players' raw season points together and raw projection "wins" 6 of 7 years by 173 points a season. That number rewards stacking quarterbacks — it measures exactly the thing VBD exists to correct, and it reads as if it refuted the model. Scored through the league's actual starting slots, where the second and third QB contribute nothing, VBD leads 5 of 7 by +134 points. Both numbers are kept in the output file so nobody rebuilds the wrong one.</p>
+    <p><strong>And an unasked question surfaced.</strong> VBD spends 58% of its first three picks on tight ends in your 10-team PPR league — the TE replacement rank there is TE14, against roughly 30 relevant tight ends, so elite ones carry the largest VBD on the board. Capping our own team at one TE is the largest positive arm anywhere in this run (+39.0 points, +0.32 wins) and it still does not clear the bar. The <code>FLEX_SPLIT.TE = 0.193</code> sweep already stands on its own measurement (0 of 102 cells), so this is a flag, not a finding.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">05</span>Elite quarterback in a one-QB league</h2>
+  <div class="col">
+    <p>The argument is real on its face: the QB slot cannot be left empty, so the realised edge is Allen minus whichever quarterback you would otherwise have started, while VBD prices him against QB10 or QB12. Measured gap between the top projected QB and the shipped baseline: <strong>51 to 91 points</strong> in the 10-team shape, 59 to 97 in the 12-team. The hypothesised magnitude is right. It does not survive being turned into a draft rule, in any of three forms.</p>
+  </div>
+
+  <h4>Form one — move the QB baseline only</h4>
+  <div class="scroll">
+    <table>
+      <caption>QB replacement rank swept, RB/WR/TE fixed at shipped. Deeper rank = more VBD for quarterbacks.</caption>
+      <thead><tr><th>QB baseline</th><th>10-team PPR · wins</th><th>points</th><th>12-team half · wins</th><th>points</th></tr></thead>
+      <tbody>
+        <tr><td>−4 seats (shallower)</td><td class="dim">+0.34</td><td class="dim">+20.2</td><td class="dim">+0.06</td><td class="dim">+4.5</td></tr>
+        <tr><td>shipped (QB10 / QB12)</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
+        <tr><td>+4 seats</td><td class="dim">+0.13</td><td class="dim">+27.5</td><td class="dim">−0.14</td><td class="dim">−16.5</td></tr>
+        <tr><td>+8 seats</td><td class="dim">+0.10</td><td class="dim">+25.8</td><td class="dim">−0.37</td><td class="neg">−47.1</td></tr>
+        <tr><td>+12 seats</td><td class="dim">−0.35</td><td class="dim">−17.8</td><td class="dim">−0.56</td><td class="neg">−70.1</td></tr>
+        <tr><td>+18 seats</td><td class="neg">−0.63</td><td class="dim">−51.5</td><td class="neg">−0.73</td><td class="neg">−85.3</td></tr>
+        <tr class="group"><td>Placebo ceiling — same shifts on RB/WR/TE</td><td>+0.68</td><td>+72.0</td><td>+0.40</td><td>+31.1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p>Nothing in the QB column reaches the ceiling that the same-sized shifts at other positions produce, and pushing the baseline deeper — which is what "value the elite QB more" means — becomes significantly <em>worse</em> at +12 and +18 seats. The per-position offset family was already measured and rejected in <code>vbdbase-lab</code> (0 of 153 cells); this adds that it is also null on wins, and that the direction, if anything, points the other way.</p>
+  </div>
+
+  <h4>Form two — a conditional rule, which is the sharpest version</h4>
+  <div class="col">
+    <p>"Take the best quarterback in round R if his gap over the QB baseline is at least G points." <code>G = 0</code> is an anchor rather than a variant: it reduces to the booked <code>qb1</code>/<code>qb2</code>/<code>qb3</code> plans, and it reads the same (&minus;0.95 wins / &minus;99.6 points here against &minus;0.82 / &minus;90.2 booked).</p>
+  </div>
+  <div class="scroll">
+    <table>
+      <caption>10-team PPR. Fires only in seasons where the gap clears G; 7 seasons.</caption>
+      <thead><tr><th>Rule</th><th>Fires</th><th>Wins</th><th>95% CI</th><th>Points</th><th>95% CI</th></tr></thead>
+      <tbody>
+        <tr><td>Round 1, G ≤ 40</td><td>7/7</td><td class="neg">−0.95</td><td>[−1.37, −0.55]</td><td class="neg">−99.6</td><td>[−136.9, −64.9]</td></tr>
+        <tr><td>Round 1, G = 60</td><td>4/7</td><td class="neg">−0.47</td><td>[−0.84, −0.13]</td><td class="neg">−35.6</td><td>[−62.7, −12.5]</td></tr>
+        <tr><td>Round 1, G = 80</td><td>1/7</td><td class="dim">−0.20</td><td>[−0.58, 0.00]</td><td class="dim">−8.9</td><td>[−26.7, 0.0]</td></tr>
+        <tr><td>Round 2, G ≤ 40</td><td>7/7</td><td class="dim">−0.12</td><td>[−0.61, +0.35]</td><td class="dim">−18.4</td><td>[−73.5, +33.3]</td></tr>
+        <tr><td>Round 2, G = 60</td><td>4/7</td><td class="dim">+0.09</td><td>[−0.14, +0.36]</td><td class="dim">+8.8</td><td>[−16.0, +37.8]</td></tr>
+        <tr><td>Round 3, G ≤ 40</td><td>7/7</td><td class="dim">−0.04</td><td>[−0.16, +0.09]</td><td class="dim">−2.7</td><td>[−25.5, +18.9]</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p>Round 1 is significantly negative at every threshold that fires often enough to matter. Round 2 — Josh Allen at 2.6 — is a clean zero. Round 3 is a zero. The best cell in the whole grid is +0.09 wins on 2 of 7 seasons, which is what noise looks like.</p>
+  </div>
+
+  <h4>Form three — the second quarterback</h4>
+  <div class="scroll">
+    <table>
+      <caption>Capping our own team at one player in a position, against the shipped cap of two. Positive = the cap helps.</caption>
+      <thead>
+        <tr><th rowspan="2">Cap</th><th colspan="2">10-team PPR</th><th colspan="2">12-team half</th><th colspan="2">12-team 1-FLEX</th></tr>
+        <tr><th>wins</th><th>points</th><th>wins</th><th>points</th><th>wins</th><th>points</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>QB ≤ 1</td><td class="dim">−0.03</td><td class="dim">−3.6</td><td class="dim">−0.06</td><td class="dim">+4.6</td><td class="dim">+0.02</td><td class="dim">+4.9</td></tr>
+        <tr><td>TE ≤ 1 <span class="dim">(contrast)</span></td><td class="dim">+0.32</td><td class="dim">+39.0</td><td class="dim">+0.11</td><td class="dim">+21.3</td><td class="dim">+0.28</td><td class="dim">+29.7</td></tr>
+        <tr><td>RB ≤ 5 <span class="dim">(contrast)</span></td><td class="dim">+0.04</td><td class="dim">+2.5</td><td class="dim">−0.09</td><td class="dim">−1.5</td><td class="dim">+0.01</td><td class="dim">+0.4</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p>You took Prescott at 10.7 and Lawrence at 11.4, and Lawrence never started. That reads like the clearest identifiable loss in the draft, and it isn't: forbidding the second quarterback costs 3.6 points and 0.03 wins in the Patriots shape, with the interval spanning [&minus;39.8, +33.8]. All six cells contain zero.</p>
+    <p><strong>The caveat runs in favour of the shipped rule, so it is worth stating plainly.</strong> The simulator has no waivers — rosters are frozen for the season — but the weekly lineup is chosen from who actually scored. A drafted backup therefore covers a bye week and an injury that a real manager would have covered for free off waivers, so the simulator flatters him. The true cost of that pick is somewhere between zero and small; what the measurement rules out is a large one. <code>maxPos.QB = 2</code> is also a permission, not a recommendation: the board decides when a second quarterback is worth an eleventh-round pick, and the cap only allows it.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">06</span>What clears the bar, and what the gates were</h2>
+  <div class="col">
+    <p>Five conditions, all of them the repo's own: correct sign; season-clustered bootstrap excluding zero; <em>player</em>-clustered bootstrap excluding zero — the gate that gave <code>vbdbase-lab</code> 0 of 153; above a one-sided placebo ceiling on both mean and <em>t</em>; positive in a clear majority of seasons. And then it has to hold on both metrics, because wins and points track each other at rho 0.96–0.99 in the booked numbers, so a split reading is evidence about the instrument.</p>
+  </div>
+  <div class="scroll">
+    <table>
+      <caption>50 cells × 2 metrics. Only the rounds-1–3 band survives.</caption>
+      <thead><tr><th>Cell</th><th>Sign</th><th>Season CI</th><th>Player CI</th><th>Above placebo</th><th>Majority</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>10-team PPR · R1–3 · wins</td><td>✓</td><td>✓</td><td>✓ [+0.28, +2.21]</td><td>✓ +0.83 vs +0.35</td><td>✓ 6/7</td><td class="sig">clears</td></tr>
+        <tr><td>10-team PPR · R1–3 · points</td><td>✓</td><td>✓</td><td>✓ [+17.1, +227.7]</td><td>✓ +98.3 vs +35.6</td><td>✓ 6/7</td><td class="sig">clears</td></tr>
+        <tr><td>12-team half · R1–3 · wins</td><td>✓</td><td>✓</td><td>✓ [+0.20, +2.31]</td><td>✓ +0.89 vs +0.28</td><td>✓ 6/7</td><td class="sig">clears</td></tr>
+        <tr><td>12-team half · R1–3 · points</td><td>✓</td><td>✓</td><td>✓ [+11.4, +217.7]</td><td>mean ✓, <em>t</em> ✗</td><td>✓ 5/7</td><td class="dim">held back</td></tr>
+        <tr><td>the other 46 cells</td><td colspan="5" class="dim">at least one condition fails</td><td class="dim">null</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col">
+    <p>The one held-back cell fails on a technicality that deserves naming rather than hiding: its mean of +108.0 is four times the placebo mean of +26.9, but its <em>t</em> of 2.89 sits below a placebo <em>t</em> of 4.66. That ceiling <em>t</em> comes from a placebo with a tiny, very consistent effect — the exact pathology the repo already documented once, where a &minus;1.5-point arm produced |t| = 22 because it lost every single season. The rule stands as written and the cell is reported as held back, not as passed.</p>
+    <p><strong>Robustness on the source the app actually ships.</strong> Both arms read the same projection, so all seven seasons are usable — but Sleeper only covers five, and "not significant in the source the app uses" is a real objection in this repo. On the five Sleeper seasons alone, the rounds-1&ndash;3 band still excludes zero in all three shapes: +71.4 [+19.6, +129.4], +75.7 [+2.7, +157.2], +69.4 [+8.2, +123.9] points.</p>
+  </div>
+
+  <div class="panel quiet">
+    <p class="plabel"><span>Four gates ran before any number was allowed out</span><span>each one can kill the run</span></p>
+    <ul style="margin-bottom:0">
+      <li><strong>Self-test.</strong> The board against itself must give exactly 0 wins and 0 points. It does.</li>
+      <li><strong>Identity.</strong> The placebo at weight 0 must be bit-identical to the A-Ranking board, key for key. It is.</li>
+      <li><strong>Anchors at both ends.</strong> An oracle board must win big (+4.21 wins) and reversed ADP must lose big (&minus;9.71).</li>
+      <li><strong>Cross-anchor.</strong> The world here is a verbatim copy of <code>h2h-lab</code>'s, so A-Ranking versus ADP is re-run and compared against the booked figure: +2.71 wins against +2.58 booked, +2.70 against +2.52. Out of family, the run dies rather than reporting.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">07</span>What wiring would involve — and why nothing is wired</h2>
+  <div class="col">
+    <p>Nothing was changed. <code>src/</code> is untouched. The measurement is a new lab and one output file.</p>
+    <p><strong>Nothing here asks to be wired, and that is the useful part.</strong> The one result that clears the bar says the shipped rule is already right where it was doubted — a confirmation needs no code. The elite-QB family fails, so wiring it would be wiring noise. The second-QB cap is null, so removing <code>maxPos.QB = 2</code> would trade a measured zero for an unmeasured one.</p>
+    <p>Two things are genuinely open, and both are new questions rather than pending changes:</p>
+    <ul>
+      <li><strong>Rounds 8+ in the general shape lose 59.9 points.</strong> Only one of three shapes, and not one of yours, so it is a lead and not a defect. If it repeats in your shapes it would argue for a shallower baseline late in the draft — which is <em>dynamic</em> VBD in reverse, and dynamic VBD is already measured and failed (&minus;89, &minus;31, &minus;97, +12).</li>
+      <li><strong>58% of VBD's first three picks are tight ends in your PPR league.</strong> The TE cap is the largest positive arm in this run and still fails the bar, so there is nothing to change today. It is the most interesting number I found that I was not asked about.</li>
+    </ul>
+    <p class="footnote">Sample honesty: one mock draft is one draft, and it did not drive any conclusion here — it only chose which questions to ask. The measurements run over 7 seasons and 3 shapes with 5,000+ simulated leagues per cell, and 46 of 50 cells came back null. The season starts in September; there is time to take the tight-end question apart properly.</p>
+  </div>
+</section>
+
+<hr class="end">
+<p class="footnote">Reproduce: <code>node scripts/band-lab.mjs</code> from <code>nfl/</code> — 150 s, deterministic seeds, arguments stamped into <code>data/measure/band.json</code>. Defaults <code>runs=4 pruns=2 boot=2000 pboot=120 from=2019</code>.</p>
+
+</div>
