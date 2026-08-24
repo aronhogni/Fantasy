@@ -54,6 +54,7 @@ import * as D from "./data.js";
 import { standingsFrom, myRosterId, recordLine } from "./standings.js";
 import { optimalLineup, lineupAdvice, slotsFor } from "./lineup.js";
 import { usagePool } from "./usageblend.js";
+import { rosCurrency } from "./ros.js";
 import { currentWeek, weekContext, weekRows, onByeThisWeek,
          weeklyEdgeNote, dstStream, dstStreamNote,
          compareOppImplied } from "./weekview.js";
@@ -184,7 +185,7 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
       {real.map((e) => (
         <LeagueCard key={e.id} entry={e} rows={rows} live={live[e.imported.leagueId]}
           week={week} ctx={ctx} news={news} sleeperUser={sleeperUser} busy={busy}
-          weekly={weekly} />
+          weekly={weekly} schedule={schedule} season={meta && meta.season} />
       ))}
     </>
   );
@@ -193,7 +194,8 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
 /* ============================================================
    EIN DEILD
    ============================================================ */
-function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy, weekly }) {
+function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy, weekly,
+                      schedule, season }) {
   const league = entry.rules;
   const rosters = live && live.rosters;
   const users = live && live.users;
@@ -261,10 +263,31 @@ function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy, wee
 
   const fa = useMemo(
     () => freeAgents({ rows, rosters, myRosterId: mineId }), [rows, rosters, mineId]);
+  /* ============================================================
+     REST-OF-SEASON GJALDMIDILLINN
+     ============================================================
+     REGLULEGU VIKURNAR ERU LESNAR, EKKI VALDAR. `playoffWeekStart`
+     kemur ur deildinni sjalfri (`sleeper-league.js` tekur hana inn
+     einmitt fyrir thetta), svo deild med 15 reglulegar vikur pro-ratar
+     yfir 15 en ekki yfir 14. Vanti hana er ekkert reiknad — labs-talan
+     14 vaeri AGISKUN um HANS deild, og agiskun sem litur ut eins og
+     maeling er versta utkoman.
+
+     `null` fram ad viku 2 og thad er RETT: an fyrri viku er engin
+     notkun til, og tha er timabils-VBD besta svarid sem til er. */
+  const ros = useMemo(() => {
+    const pws = entry.imported && entry.imported.playoffWeekStart;
+    if (pws == null) return null;
+    return rosCurrency({
+      rows, weeklyRows: weekly, schedule, season, week,
+      lastRegWeek: pws - 1, scoring: league.scoring, league,
+    });
+  }, [rows, weekly, schedule, season, week, entry.imported, league]);
+
   const picks = useMemo(() => {
     if (!fa || fa.pool == null) return null;
-    return pickupAdvice({ pool: fa.pool, mine: fa.mine, league, week });
-  }, [fa, league, week]);
+    return pickupAdvice({ pool: fa.pool, mine: fa.mine, league, week, ros });
+  }, [fa, league, week, ros]);
 
   const bye = onByeThisWeek(myRows || [], week);
 

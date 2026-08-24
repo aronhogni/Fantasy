@@ -70,6 +70,7 @@
    annars faerdi hopur sem er hálfur engin rad.
    ============================================================ */
 
+import { proRatedFloor } from "./ros.js";
 import { normalizeLeague } from "./build.js";
 import { availability } from "./model.js";
 import { slotsFor } from "./lineup.js";
@@ -104,18 +105,22 @@ export const WAIVER_CAL = {
           "DEAD: waiver-lab puts a weekly-projection currency at -74.6 points a " +
           "season against this one (CI [-91, -57]), and dropping the " +
           "replacement-level adjustment entirely (raw weekly points) at -118 more. " +
-          "Chasing one week churns away season value. BUT THIS IS NOT THE BEST " +
-          "CURRENCY EITHER: rest-of-season VBD, pro-rated, beats season VBD by " +
-          "+13.2 points a season (t=2.97, 6 of 7 seasons, CI [5.9, 22.2], positive " +
-          "in 17 of 18 cells). It is not used here because it CANNOT BE: it needs " +
-          "the weeks that remain and the season-to-date usage behind them, and the " +
-          "app cannot yet supply both. THE PLUMBING HALF IS NOW DONE: data.js has " +
-          "loadWeekly(season) and the pipeline archives the current season " +
-          "weekly (nfl-data.yml, Tuesdays). What is still missing is the SEASON " +
-          "ITSELF - data/weekly/ stops at 2025 because 2026 has not been played. " +
-          "In preseason the two currencies are identical anyway, so nothing is " +
-          "lost today; the switch becomes live and testable in week 2. " +
-          "See README 4g.",
+          "Chasing one week churns away season value. AND THE BETTER CURRENCY IS " +
+          "NOW WIRED: rest-of-season VBD with a pro-rated floor beats season VBD " +
+          "by +13.6 points a season (t=3.331, 7 of 7 seasons, CI [7.1, 21.9]), " +
+          "winning 17 of 18 individual cells. It lives in src/ros.js and arrives " +
+          "through the `ros` argument; see ROS_MEASURED there for the full table " +
+          "and for the floor finding, which is the part that actually decides the " +
+          "shape. IT IS NULL UNTIL WEEK 2 AND THAT IS THE CORRECT ANSWER - it " +
+          "reaches the season through data.js loadWeekly(season), and " +
+          "data/weekly/{season}.json does not exist until a week has "  +
+          "been played, so today every number is byte-identical to season VBD. " +
+          "THESE NUMBERS USED TO BE WRONG HERE: this note said +13.2, t=2.97, 6 of " +
+          "7, CI [5.9, 22.2] - none of which is in data/measure/waiver.json. The " +
+          "lab was re-run 2026-08-14T23:08Z and the note was written before that " +
+          "and never compared against the file, so two sources claimed the same " +
+          "measurement and disagreed for ten days. tests/waivers.mjs chapter 12 " +
+          "now pins every one of them to the file. See README 4g.",
   },
   minGain: {
     value: 10,
@@ -130,10 +135,17 @@ export const WAIVER_CAL = {
           "half). 10 is exactly as defensible as 0, and the two leagues do not " +
           "measurably want different floors. So this stays `measured: false`: the " +
           "value is a choice inside a measured indifference band, which is a " +
-          "different and honest thing from an unexamined guess. ONE CONDITIONAL " +
-          "FINDING travels with it: if `currency` ever becomes rest-of-season, an " +
-          "ABSOLUTE floor starts to hurt (floor 0 minus floor 10 = +5.4, CI " +
-          "[2.2, 8.2]) and must be pro-rated to the weeks that remain.",
+          "different and honest thing from an unexamined guess. THE CONDITIONAL " +
+          "FINDING THAT TRAVELLED WITH IT HAS NOW COME DUE, and it is the reason " +
+          "the pro-rated variant is the one shipped: under rest-of-season " +
+          "currency an ABSOLUTE floor hurts (floor 0 minus floor 10 = +7.1, CI " +
+          "[3.8, 10], excludes zero) because 10 points is a mild ask in week 3 " +
+          "and an impossible one in week 13, so the tool goes quiet exactly when " +
+          "the league is being decided. Pro-rating it (floor * weeks-left / weeks, " +
+          "src/ros.js proRatedFloor) returns the choice to immaterial: +0.1, CI " +
+          "[-1.1, 1.3]. So 10 stays, and it stays SAFE rather than merely " +
+          "defensible. (This note said +5.4, CI [2.2, 8.2]; the file says +7.1, " +
+          "CI [3.8, 10]. Same direction, stale numbers - see currency above.)",
   },
   /* ============================================================
      GILDID VERDUR AD VERA THAD SEM `confidenceOf` RAUNVERULEGA PROFAR
@@ -344,7 +356,7 @@ function byVbd(rowsIn) {
  * Tomt fylki er GILT SVAR og thad er algengasta rétta svarid a godum
  * hop.
  */
-export function pickupAdvice({ pool, mine, league, week, minGain } = {}) {
+export function pickupAdvice({ pool, mine, league, week, minGain, ros } = {}) {
   /* `null` fra `freeAgents` thydir "vitum ekki" — hvorki laug ne
      hopur. Radgjof ur ovissu vaeri hreinn tilbuningur, svo hun er
      ekki gefin. Tomt fylki, ekkert hrun. */
@@ -355,11 +367,37 @@ export function pickupAdvice({ pool, mine, league, week, minGain } = {}) {
   /* Ruslsvar i `minGain` fellur i sjalfgefna golfid — ekki i 0.
      `Number("abc")` er NaN og `NaN >= x` er false, svo 0-golf hefdi
      hleypt HVERJU skipti i gegn. */
-  const floor = Number.isFinite(Number(minGain)) && Number(minGain) >= 0
+  const floorRaw = Number.isFinite(Number(minGain)) && Number(minGain) >= 0
     ? Number(minGain) : WAIVER_CAL.minGain.value;
 
+  /* ============================================================
+     GJALDMIDILLINN — OG GOLFID VERDUR AD FYLGJA HONUM
+     ============================================================
+     `ros` er `null` i forleik og fram ad viku 2, og TA ER ALLT HER
+     NAKVAEMLEGA EINS OG ADUR (`tests/waivers.mjs` kafli 12 ber thad
+     sem BAETI-JAFNGILDI, ekki sem "svipada tolu").
+
+     Thegar hann er til skiptast BAEDI i einu og thad ma ekki losna i
+     sundur: ROS-VBD er annar kvardi en timabils-VBD, svo algilt golf
+     ofan a hann er ONNUR KRAFA — maelt +7,1 stig/timabil i kostnad,
+     CI [3,8 · 10]. `proRatedFloor` er thvi kollud i somu grein og
+     gjaldmidillinn er valinn, ekki annars stadar. Sja `ROS_MEASURED`.
+
+     ALLT-EDA-EKKERT PER LEIKMANN: `priceOf` skilar `null` fyrir mann
+     sem ROS naer ekki yfir (K/DST, nylidi an lids, madur an spar), og
+     `null` fer sömu leid og adur — hann er OVERDLAGDUR og talinn i
+     `unpriced`. Ad falla i timabils-VBD fyrir hann einan vaeri ad bera
+     saman tvo gjaldmidla og kalla mismuninn abata. */
+  const useRos = !!(ros && ros.vbd && typeof ros.vbd.get === "function" && ros.priced > 0);
+  const floor = useRos
+    ? proRatedFloor(floorRaw, { week: wk, lastRegWeek: ros.weeks })
+    : floorRaw;
+  const priceOf = useRos
+    ? (r) => { const v = ros.vbd.get(String(r && r.id)); return v == null ? null : v; }
+    : (r) => num(r && r.vbd);
+
   const adds = pool.filter((r) => r && RANKED_POS.includes(r.pos) &&
-    num(r.vbd) != null &&
+    priceOf(r) != null &&
     /* MADURINN SEM ER TEKINN VERDUR AD GETA SPILAD.
        Radgjof um ad droppa manni sem er `Out` og taka annan sem er
        lika `Out` er hreint hrindl: hun kostar waiver-rod og skilar
@@ -370,7 +408,7 @@ export function pickupAdvice({ pool, mine, league, week, minGain } = {}) {
     availOf(r) > 0);
 
   const mineRanked = mine.filter((r) => r && RANKED_POS.includes(r.pos));
-  const drops = mineRanked.filter((r) => num(r.vbd) != null);
+  const drops = mineRanked.filter((r) => priceOf(r) != null);
   /* Madur an spar hefur `vbd: null`, og null er EKKI 0 — vid getum
      ekki fullyrt ad hann se odyr. Hann er thvi ekki verdlagdur sem
      skiptimynt, EN thad verdur ad sjast: annars gaeti radgjofin sagt
@@ -387,9 +425,9 @@ export function pickupAdvice({ pool, mine, league, week, minGain } = {}) {
 
   const out = [];
   for (const a of adds) {
-    const drop = cheapestDrop(drops, a, before, needFixed);
+    const drop = cheapestDrop(drops, a, before, needFixed, priceOf);
     if (!drop) continue;
-    const gain = round1(num(a.vbd) - num(drop.vbd));
+    const gain = round1(priceOf(a) - priceOf(drop));
     if (gain == null || gain < floor) continue;
 
     const conf = confidenceOf(a);
@@ -407,6 +445,11 @@ export function pickupAdvice({ pool, mine, league, week, minGain } = {}) {
      gognum verda ad gefa somu rod, annars les vidmotid nyja tillogu
      thar sem ekkert breyttist. */
   out.sort((x, y) => (y.gain - x.gain) || (num(y.add.vbd) - num(x.add.vbd)));
+  /* NB: jafnteflis-brotid les `add.vbd` (timabils-VBD ur `brief`) OG
+     THAD ER RETT ThRATT FYRIR ROS. Thad er ekki gjaldmidill heldur
+     ENDURGERANLEIKI — tvaer keyrslur a somu gognum verda ad gefa somu
+     rod. Timabils-VBD er til fyrir hverja rod i badum hattum, medan
+     ROS-VBD er thad ekki, svo hann er stodugri lykill i thetta. */
 
   /* HVER ROD ER SJALFSTAETT SKIPTI, EKKI PLAN — og thad er sagt ADEINS
      thegar thad er satt. Spurningin "hvern maetti eg missa" hefur eitt
@@ -438,8 +481,13 @@ export function pickupAdvice({ pool, mine, league, week, minGain } = {}) {
  * refsad fyrir thad, annars faeri hálfur hopur engin rad og verkfaerid
  * yrdi thogult nakvaemlega thegar thad er mest tharft.
  */
-function cheapestDrop(drops, add, before, needFixed) {
-  const sorted = drops.slice().sort((a, b) => num(a.vbd) - num(b.vbd));
+function cheapestDrop(drops, add, before, needFixed, priceOf) {
+  /* ODYRAST I THEIM GJALDMIDLI SEM ER I GILDI. Vaeri hér alltaf radad
+     eftir timabils-VBD medan abatinn er reiknadur ur ROS-VBD vaeri
+     "odyrast ad missa" svar vid ANNARRI spurningu en thad sem er birt
+     — og thad er sama ætt og teljari og nefnari ur sitthvorri heimild. */
+  const price = typeof priceOf === "function" ? priceOf : (r) => num(r && r.vbd);
+  const sorted = drops.slice().sort((a, b) => price(a) - price(b));
   for (const d of sorted) {
     if (allowedSwap(add, d, before, needFixed)) return d;
   }

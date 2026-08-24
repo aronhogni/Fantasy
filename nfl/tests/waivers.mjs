@@ -938,5 +938,332 @@ console.log("\nFLEX telst ekki fast saeti");
     "— fost saeti eru virt, svo fullyrdingin ofan er ekki tom");
 }
 
+/* ============================================================
+   12. REST-OF-SEASON GJALDMIDILLINN
+   ============================================================
+   Thrir profsteinar og their eru OLIKIR:
+
+     A. BOKADA TAFLAN VERDUR AD PASSA VID `data/measure/waiver.json`,
+        tala fyrir tolu. Thetta er ekki formsatridi: nótan i
+        `WAIVER_CAL.currency` bar "+13,2 · t=2,97 · 6 af 7 · CI
+        [5,9 · 22,2]" og EKKERT af thvi er i skranni. Labid var
+        endurkeyrt og nótan sat eftir, svo tvaer heimildir baðu um sama
+        sannleikann og sogdu sitthvad. Vordurinn er talan sjalf.
+     B. AN `ros` ER ALLT BAETIS-EINS. Forleikur ma ekki hreyfast.
+     C. MED `ros` HREYFIST BAEDI RODIN OG GOLFID — annars vaeri B
+        stodust af koda sem hendir `ros` (tom fullyrding, 5b r.2).
+   ============================================================ */
+console.log("\n12. rest-of-season gjaldmidillinn");
+{
+  const { ROS_MEASURED, rosCurrency, proRatedFloor, pointsToDate, teamGames } =
+    await import("../src/ros.js");
+  const LAB = JSON.parse(readFileSync(path.join(DATA, "measure", "waiver.json"), "utf8"));
+
+  /* ---- A. TAFLAN GEGN SKRANNI ---- */
+  const pooled = LAB.verdict.currency.pooled;
+  const chk = (label, baked, live, keys) => {
+    for (const k of keys) {
+      ok(baked[k] === live[k],
+        `A: ${label}.${k} = ${baked[k]} (skra: ${live[k]})`);
+    }
+  };
+  chk("currency.proRatedFloor", ROS_MEASURED.currency.proRatedFloor,
+      { mean: pooled["rosVbdPro-seasonVbd"].mean, t: pooled["rosVbdPro-seasonVbd"].t,
+        years: pooled["rosVbdPro-seasonVbd"].years, wins: pooled["rosVbdPro-seasonVbd"].wins,
+        lo: pooled["rosVbdPro-seasonVbd"].ci.lo, hi: pooled["rosVbdPro-seasonVbd"].ci.hi },
+      ["mean", "t", "years", "wins", "lo", "hi"]);
+  chk("currency.absoluteFloor", ROS_MEASURED.currency.absoluteFloor,
+      { mean: pooled["rosVbd-seasonVbd"].mean, t: pooled["rosVbd-seasonVbd"].t,
+        years: pooled["rosVbd-seasonVbd"].years, wins: pooled["rosVbd-seasonVbd"].wins,
+        lo: pooled["rosVbd-seasonVbd"].ci.lo, hi: pooled["rosVbd-seasonVbd"].ci.hi },
+      ["mean", "t", "years", "wins", "lo", "hi"]);
+  chk("currency.weekVbd", ROS_MEASURED.currency.weekVbd,
+      { mean: pooled["weekVbd-seasonVbd"].mean, t: pooled["weekVbd-seasonVbd"].t,
+        years: pooled["weekVbd-seasonVbd"].years, wins: pooled["weekVbd-seasonVbd"].wins,
+        lo: pooled["weekVbd-seasonVbd"].ci.lo, hi: pooled["weekVbd-seasonVbd"].ci.hi },
+      ["mean", "t", "years", "wins", "lo", "hi"]);
+
+  ok(ROS_MEASURED.currency.cells === LAB.verdict.currency.rosCells,
+     `A: rosCells ${ROS_MEASURED.currency.cells}`);
+  ok(ROS_MEASURED.currency.positiveCells === LAB.verdict.currency.rosPositiveCells,
+     `A: rosPositiveCells ${ROS_MEASURED.currency.positiveCells} af ${ROS_MEASURED.currency.cells}`);
+  ok(ROS_MEASURED.currency.significantCells === LAB.verdict.currency.rosSignificantCells,
+     `A: rosSignificantCells ${ROS_MEASURED.currency.significantCells}`);
+
+  for (const key of ["seasonVbd", "rosVbd", "rosVbdPro"]) {
+    const live = LAB.floorCost[`pooled|${key}`];
+    const baked = ROS_MEASURED.floorCost[key];
+    ok(baked.mean === live.mean && baked.lo === live.ci.lo && baked.hi === live.ci.hi &&
+       baked.excludesZero === live.ci.excludesZero,
+      `A: floorCost.${key} = ${baked.mean} CI [${baked.lo} · ${baked.hi}]` +
+      `${baked.excludesZero ? " MARKT" : ""}`);
+  }
+  ok(ROS_MEASURED.kPrior === LAB.provenance.params.k.value,
+     `A: k = ${ROS_MEASURED.kPrior}`);
+  ok(ROS_MEASURED.labWeeks === LAB.provenance.params.weeks.value,
+     `A: labs-vikur = ${ROS_MEASURED.labWeeks}`);
+  ok(ROS_MEASURED.leagueRuns === LAB.design.leagueRuns,
+     `A: ${ROS_MEASURED.leagueRuns} deildar-keyrslur`);
+
+  /* OG NIDURSTADAN SJALF: pro-rata golfid er thad sem er sent, og
+     astaedan er ad ALGILDA golfid kostar marktaekt. Fullyrdingin er um
+     SKRANA, ekki um bokudu tofluna — annars vaeri hun sjalfsvisun. */
+  ok(LAB.floorCost["pooled|rosVbd"].ci.excludesZero === true &&
+     LAB.floorCost["pooled|rosVbdPro"].ci.excludesZero === false,
+     "A: skrain segir sjalf: ALGILT golf kostar marktaekt, PRO-RATA ekki — thess vegna er pro-rata sent");
+
+  /* Og gamla, ranga talan ma ekki snua aftur i nótuna. */
+  const wsrc = readFileSync(path.join(DATA, "..", "src", "waivers.js"), "utf8");
+  /* GOMLU TOLURNAR STANDA ENN I NOTUNNI OG THAD ER ASETT — thaer eru
+     skjalfestar SEM RANGAR ("this note said ..."), sem er hvernig
+     villusaga er geymd hér. Fullyrdingin ma thvi ekki vera "+13,2
+     hvergi"; hun vaeri einfaldlega osonn. Hun er i stadinn: nótan ber
+     REKTU toluna, og gomlu tolurnar bera merkimidann sem gerir thaer
+     sogulegar. */
+  ok(/13\.6 points a season/.test(wsrc) && /7 of 7 seasons/.test(wsrc) &&
+     /CI \[7\.1, 21\.9\]/.test(wsrc),
+     "A: nótan ber toluna sem ER i skranni (+13.6, 7 af 7, CI [7.1, 21.9])");
+  ok(/THESE NUMBERS USED TO BE WRONG HERE/.test(wsrc) && /\+13\.2/.test(wsrc),
+     "A: og gamla talan er GEYMD sem villusaga, ekki thurrkud ut");
+  ok(/floor 0 minus floor 10 = \+7\.1/.test(wsrc) && /\[3\.8, 10\]/.test(wsrc),
+     "A: golf-fundurinn ber toluna ur skranni (+7.1, CI [3.8, 10])");
+
+  /* ---- B. AN `ros`: BAETIS-EINS ---- */
+  const w = world(WEAK, ranked.slice(15, 150));
+  const faW = freeAgents({ rows, rosters: w, myRosterId: 1 });
+  const base   = pickupAdvice({ pool: faW.pool, mine: faW.mine, league: LEAGUE, week: 6 });
+  const baseU  = pickupAdvice({ pool: faW.pool, mine: faW.mine, league: LEAGUE, week: 6, ros: undefined });
+  const baseN  = pickupAdvice({ pool: faW.pool, mine: faW.mine, league: LEAGUE, week: 6, ros: null });
+  ok(base.length > 0, `B: ${base.length} tillogur a timabils-VBD (grunnurinn er ekki tomur)`);
+  ok(JSON.stringify(base) === JSON.stringify(baseU) &&
+     JSON.stringify(base) === JSON.stringify(baseN),
+     "B: `ros` undefined/null er BAETIS-EINS vid enga breytu");
+  /* Tom laug telst EKKI gjaldmidill — annars felli hun alla ut. */
+  const baseEmpty = pickupAdvice({ pool: faW.pool, mine: faW.mine, league: LEAGUE, week: 6,
+                                   ros: { vbd: new Map(), priced: 0, weeks: 14 } });
+  ok(JSON.stringify(base) === JSON.stringify(baseEmpty),
+     "B: tom ROS-laug (`priced: 0`) fellur i timabils-VBD, hun tæmir ekki listann");
+
+  /* ---- C. MED `ros`: LIFANDI ---- */
+  const schedule = JSON.parse(readFileSync(path.join(DATA, "schedule.json"), "utf8"));
+  const wk2025 = JSON.parse(readFileSync(path.join(DATA, "weekly", "2025.json"), "utf8"));
+  const ros = rosCurrency({
+    rows, weeklyRows: wk2025, schedule, season: 2025, week: 8,
+    lastRegWeek: 14, scoring: "ppr", league: LEAGUE,
+  });
+  ok(ros != null, "C: gjaldmidill byggdur (2025, vika 8, 14 reglulegar vikur)");
+  ok(ros.priced > 100, `C: ${ros.priced} leikmenn verdlagdir a ROS-kvarda`);
+  ok(ros.weeksLeft === 7, `C: vikur eftir = ${ros.weeksLeft} (14 - 8 + 1)`);
+
+  const live = pickupAdvice({ pool: faW.pool, mine: faW.mine, league: LEAGUE, week: 8, ros });
+  const seasonAt8 = pickupAdvice({ pool: faW.pool, mine: faW.mine, league: LEAGUE, week: 8 });
+  ok(JSON.stringify(live) !== JSON.stringify(seasonAt8),
+     "C: utkoman er ONNUR en a timabils-VBD — gjaldmidillinn er lifandi");
+  const topLive = live.length ? live[0].add.name : null;
+  const topSeason = seasonAt8.length ? seasonAt8[0].add.name : null;
+  ok(topLive != null, `C: efsta tillagan a ROS er ${topLive} (timabils-VBD: ${topSeason})`);
+
+  /* ---- C2. ROS ER EKKI TIMABILS-VBD I DULARGERVI ----
+     `live !== seasonAt8` eitt er VEIK fullyrding og hun SLEPPTI I GEGN
+     stokkbreytingu sem tekur varamanns-threpid ur timabils-spanni i
+     stad ROS-spanna.
+
+     FYRSTA TILRAUN MIN AD LAGA THAD VAR LIKA TOM, og hun er skrifud hér
+     thvi hun er laerdomurinn: eg taldi hve morg SAETI faerast i rodinni
+     og krafdist > 50%. Rett kodi gefur 500 af 505 — en stokkbreytingin
+     gefur 409, sem stenst lika. Astaedan er ad rodin er full af
+     JAFNTEFLUM og saeta-talning maelir tha adallega hvernig jafntefli
+     radast, ekki hvort tolurnar seu adrar. MAELIKVARDI SEM ER
+     HAVADA-DRIFINN ER EKKI MAELIKVARDI.
+
+     Profsteinninn sem GREINIR thau i sundur er GILDID sjalft: se threpid
+     tekid ur timabils-spanni verda ROS-tolurnar BOKSTAFLEGA JAFNAR
+     timabils-VBD (maelt: r = 0,9995 og 505 af 505 tolum eins). Se thad
+     reiknad upp a nytt ur ROS-spanni er r = 0,893 og engin tala eins. */
+  {
+    const priced = rows.filter((r) => ros.vbd.has(String(r.id)) && r.vbd != null);
+    ok(priced.length > 300, `C2: ${priced.length} leikmenn bera BADAR tolur`);
+
+    let identical = 0;
+    for (const r of priced) {
+      if (Math.abs(ros.vbd.get(String(r.id)) - r.vbd) < 0.05) identical++;
+    }
+    const idShare = identical / priced.length;
+    ok(idShare < 0.05,
+      `C2: ${identical} af ${priced.length} (${(idShare * 100).toFixed(1)}%) bera SOMU tolu og ` +
+      "timabils-VBD — vaeri threpid tekid ur timabils-spanni vaeri thetta 100%");
+
+    /* Og fylgnin ma ekki vera ~1: ROS er onnur staerd, ekki skolun. */
+    const xs = priced.map((r) => r.vbd);
+    const ys = priced.map((r) => ros.vbd.get(String(r.id)));
+    const mean = (v) => v.reduce((a, b) => a + b, 0) / v.length;
+    const mx = mean(xs), my = mean(ys);
+    let cov = 0, sx = 0, sy = 0;
+    for (let i = 0; i < xs.length; i++) {
+      cov += (xs[i] - mx) * (ys[i] - my); sx += (xs[i] - mx) ** 2; sy += (ys[i] - my) ** 2;
+    }
+    const r = cov / Math.sqrt(sx * sy);
+    ok(r < 0.98,
+      `C2: r(timabils-VBD, ROS-VBD) = ${r.toFixed(3)} — undir 0,98. ` +
+      "Stokkbreytingin gefur 0,9995 og fellur hér");
+    ok(r > 0.5,
+      `C2: en hun er samt sterk (${r.toFixed(3)}) — ROS er sami leikur, ekki nyr havadi`);
+  }
+
+  /* ---- D. GOLFID PRO-RATAST, OG THAD ER ADALATRIDID ---- */
+  ok(proRatedFloor(10, { week: 1, lastRegWeek: 14 }) === 10,
+     "D: vika 1 -> fullt golf (14/14)");
+  ok(Math.abs(proRatedFloor(10, { week: 8, lastRegWeek: 14 }) - 10 * 7 / 14) < 1e-9,
+     "D: vika 8 -> 5,0 (7 vikur eftir af 14)");
+  ok(Math.abs(proRatedFloor(10, { week: 13, lastRegWeek: 14 }) - 10 * 2 / 14) < 1e-9,
+     "D: vika 13 -> 1,43 — thad sem gerir verkfaerid ekki thogult i lokin");
+  ok(proRatedFloor(10, { week: 20, lastRegWeek: 14 }) === 0,
+     "D: eftir reglulegu vikurnar -> 0, aldrei neikvaett golf");
+  ok(proRatedFloor(10, { week: null, lastRegWeek: 14 }) === 10,
+     "D: an viku -> algilt golf obreytt (engin thogul skolun)");
+  /* Og deildarlengdin er LESIN: 15 vikur pro-rata yfir 15, ekki 14. */
+  ok(Math.abs(proRatedFloor(10, { week: 8, lastRegWeek: 15 }) - 10 * 8 / 15) < 1e-9,
+     "D: 15-vikna deild pro-ratar yfir 15 — lengdin er lesin, ekki labs-fastinn 14");
+
+  /* Golfid er RAUNVERULEGA laegra i seinni vikum -> fleiri tillogur. */
+  const rosLate = rosCurrency({ rows, weeklyRows: wk2025, schedule, season: 2025,
+                                week: 13, lastRegWeek: 14, scoring: "ppr", league: LEAGUE });
+  ok(rosLate != null, "D: gjaldmidill i viku 13");
+  const lateGains = pickupAdvice({ pool: faW.pool, mine: faW.mine, league: LEAGUE,
+                                   week: 13, ros: rosLate }).map((x) => x.gain);
+  ok(lateGains.length === 0 || Math.min(...lateGains) < 10,
+     `D: i viku 13 komast tillogur undir 10 i gegn (laegsta ${lateGains.length ? Math.min(...lateGains) : "-"}) ` +
+     "— med algildu golfi hefdu thaer allar thagnad");
+
+  /* ---- E. LEKINN OG HLIDIN ---- */
+  ok(rosCurrency({ rows, weeklyRows: wk2025, schedule, season: 2025, week: 1,
+                   lastRegWeek: 14, scoring: "ppr", league: LEAGUE }) === null,
+     "E: vika 1 -> null (engin fyrri vika til ad meta ur)");
+  ok(rosCurrency({ rows, weeklyRows: null, schedule, season: 2026, week: 8,
+                   lastRegWeek: 14, scoring: "ppr", league: LEAGUE }) === null,
+     "E: engin vikuskra (forleikur 2026) -> null");
+  ok(rosCurrency({ rows, weeklyRows: wk2025, schedule, season: 2025, week: 8,
+                   lastRegWeek: 14, scoring: "superflex", league: LEAGUE }) === null,
+     "E: omaeld stigagjof -> null");
+  const p7 = pointsToDate(wk2025, { throughWeek: 7, scoring: "ppr" });
+  const p8 = pointsToDate(wk2025, { throughWeek: 8, scoring: "ppr" });
+  let grew = 0;
+  for (const [k, v] of p8) { const a = p7.get(k); if (a && v.games > a.games) grew++; }
+  ok(grew > 100, `E: ${grew} leikmenn baeta vid sig leik milli viku 7 og 8 — glugginn faerist`);
+  ok([...p7.values()].every((v) => v.games <= 6),
+     "E: og enginn ber fleiri en 6 leiki fyrir viku 7 (leki vaeri 7)");
+
+  /* ---- F. LEIKIR EFTIR: AUD VIKA TELUR SIG SJALF ---- */
+  const tg = teamGames(schedule, { season: 2026, week: 1, lastRegWeek: 14 });
+  ok(tg.size === 32, `F: oll 32 lid i leikjaskranni (${tg.size})`);
+  const lefts = [...tg.values()].map((v) => v.left);
+  ok(Math.min(...lefts) === 13 && Math.max(...lefts) === 13,
+     `F: hvert lid a 13 leiki i vikum 1-14 (${Math.min(...lefts)}-${Math.max(...lefts)}) ` +
+     "— 14 vikur minus ein aud, og OLL fri 2026 liggja innan gluggans");
+  /* OG AUDA VIKAN ER RAUNVERULEGA DREGIN FRA. 13 eitt sér gaeti komid
+     ur hverju sem er; profsteinninn er ad VIKKA gluggann og sja
+     muninn: 18 vikur - eitt fri = 17. Vaeri talid i vikum i stad leikja
+     gaefi thetta 18. */
+  const tgFull = teamGames(schedule, { season: 2026, week: 1, lastRegWeek: 18 });
+  const fulls = [...tgFull.values()].map((v) => v.left);
+  ok(Math.min(...fulls) === 17 && Math.max(...fulls) === 17,
+     `F: og yfir allar 18 vikurnar a hvert lid 17 leiki (${Math.min(...fulls)}) — friid er dregid fra, ekki talid`);
+  ok([...tg.values()].every((v) => v.played === 0),
+     "F: og engir leikir 'spiladir' fyrir viku 1");
+
+  /* ---- F2. LEIKIRNIR SEM EFTIR ERU VERDA AD RADA VERDINU ----
+     `proj = ppg * leikir eftir`. Ad sleppa margfoldunni breytir NANAST
+     ENGU um rodun innan stodu (allir hafa 13 eda 14 leiki), svo hun
+     slapp gegnum hvern einasta raungagna-vord — thar med C2, sem er
+     annars sa strangasti hér. Vélbunadurinn er samt raunverulegur og
+     hann kemur i ljos um leid og tveir menn eiga OLIKAN fjolda leikja
+     eftir: madur med fri framundan a faerri leiki eftir en sa sem er
+     buinn med sitt, og hann er thess virdi minna. THAD er thad sem
+     ROS-gjaldmidill A ad segja og thad er profad hér a TILBUNUM
+     leikjaskra thar sem svarid er reiknanlegt i hausnum. */
+  {
+    /* Tvo lid, 4 vikur. AAA spilar allar; BBB er i frii i viku 3. */
+    const synth = [];
+    for (let w = 1; w <= 4; w++) {
+      synth.push({ season: 2099, week: w, type: "REG", home: "AAA", away: w === 3 ? "CCC" : "BBB" });
+    }
+    const g = teamGames(synth, { season: 2099, week: 1, lastRegWeek: 4 });
+    ok(g.get("AAA").left === 4 && g.get("BBB").left === 3,
+      `F2: AAA a 4 leiki eftir, BBB 3 (${g.get("AAA").left}/${g.get("BBB").left})`);
+
+    /* Tveir EINS leikmenn, sitthvort lidid, engin fyrri stig. Eini
+       munurinn er leikjafjoldinn. */
+    const wkRows = [{ id: "g1", week: 1, ppr: 10 }, { id: "g2", week: 1, ppr: 10 }];
+    const synth2 = synth.map((x) => ({ ...x }));
+    const twoRows = [
+      { id: "p1", gsisId: "g1", pos: "RB", team: "AAA", proj: 170, adp: 10 },
+      { id: "p2", gsisId: "g2", pos: "RB", team: "BBB", proj: 170, adp: 10 },
+    ];
+    const r2 = rosCurrency({ rows: twoRows, weeklyRows: wkRows, schedule: synth2,
+                             season: 2099, week: 2, lastRegWeek: 4, scoring: "ppr",
+                             league: LEAGUE });
+    ok(r2 != null, "F2: gjaldmidill byggdur a tilbunu leikjaskranni");
+    const v1 = r2.vbd.get("p1"), v2 = r2.vbd.get("p2");
+    ok(v1 != null && v2 != null && v1 > v2,
+      `F2: sa sem a FLEIRI leiki eftir er meira virdi (${v1} > ${v2}) — ` +
+      "an `* leikir eftir` vaeru their JAFNIR");
+    ok(Math.abs(v1 - v2) > 0.5,
+      `F2: og munurinn er raunverulegur (${(v1 - v2).toFixed(1)}), ekki namundunar-suð`);
+  }
+}
+
+/* ============================================================
+   12b. „ODYRAST AD MISSA" VERDUR AD LESA GJALDMIDILINN SEM ER I GILDI
+   ============================================================
+   `cheapestDrop` radadi eftir `r.vbd` — TIMABILS-VBD — medan abatinn
+   var reiknadur ur ROS-VBD. Utkoman er svar vid ANNARRI SPURNINGU en
+   thad sem er birt: "odyrastur a timabilinu" settur inn i reikning sem
+   er allur i ROS. Sama ætt og teljari og nefnari ur sitthvorri heimild.
+
+   RAUNGOGN GATU EKKI FELLT THETTA — badar radanirnar gefa oftast sama
+   mann, svo stokkbreytingin slapp i gegn a ollu bordinu. Vordurinn
+   liggur thvi a TILBUNUM hop thar sem radanirnar tvaer eru ANDSTAEDAR
+   og svarid er thekkt fyrirfram.
+   ============================================================ */
+console.log("\n12b. odyrasti madurinn er odyrastur i RETTA gjaldmidlinum");
+{
+  const L = { teams: 10, scoring: "ppr",
+              starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 },
+              superflex: false };
+  const mk = (id, pos, vbd, name) => ({ id, name, pos, team: "SF", vbd, proj: 100 + vbd,
+                                        adp: 50, avail: 1, injury: null });
+  /* Hopurinn: nogu breidur til ad hvor sem er MEGI fara (stodu-verndin
+     ma ekki vera thad sem raedur). */
+  const mine = [
+    mk("m1", "RB", 60, "Season-cheap"),   /* odyrastur a TIMABILS-VBD */
+    mk("m2", "RB", 90, "Ros-cheap"),      /* odyrastur a ROS-VBD      */
+    mk("m3", "RB", 95, "RB filler"),
+    mk("m4", "WR", 80, "WR a"), mk("m5", "WR", 82, "WR b"), mk("m6", "WR", 84, "WR c"),
+    mk("m7", "QB", 70, "QB a"), mk("m8", "TE", 65, "TE a"),
+  ];
+  const add = mk("a1", "RB", 150, "The add");
+  /* ROS SNYR RODINNI VID milli m1 og m2 — og adeins theirra. */
+  const rosVbd = new Map([["m1", 200], ["m2", 20], ["m3", 210],
+                          ["m4", 180], ["m5", 182], ["m6", 184],
+                          ["m7", 170], ["m8", 165], ["a1", 300]]);
+  const ros = { vbd: rosVbd, priced: rosVbd.size, weeks: 14, weeksLeft: 7, basis: "rosVbdPro" };
+
+  const season = pickupAdvice({ pool: [add], mine, league: L, week: 8 });
+  ok(season.length === 1 && season[0].drop.id === "m1",
+    `a TIMABILS-VBD er droppadur "${season[0] && season[0].drop.name}" (odyrastur thar: 60)`);
+
+  const withRos = pickupAdvice({ pool: [add], mine, league: L, week: 8, ros });
+  ok(withRos.length === 1 && withRos[0].drop.id === "m2",
+    `a ROS-VBD er droppadur "${withRos[0] && withRos[0].drop.name}" (odyrastur thar: 20)`);
+  ok(season[0].drop.id !== withRos[0].drop.id,
+    "og thad ER sitthvor madurinn — fullyrdingin getur brugdist");
+
+  /* Abatinn verdur lika ad vera reiknadur i sama gjaldmidli. */
+  ok(withRos[0].gain === 280,
+    `abatinn er 300 - 20 = 280 i ROS (mælt ${withRos[0].gain}), ekki 150 - 90 = 60 i timabils-VBD`);
+  ok(season[0].gain === 90,
+    `og 150 - 60 = 90 an ROS (mælt ${season[0].gain})`);
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
