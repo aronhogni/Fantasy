@@ -27,11 +27,12 @@ import { optimalLineup, slotsFor } from "./lineup.js";
    notandans, og afrit hefdi verid onnur utfaersla af somu formulu. Sja
    hausinn a `weekview.js` fyrir tvo skjolud tilfelli af thvi hvad thad
    kostar (`buildTeamMetrics` og `makeEnricher` i FPL-appinu). */
+import { usagePool } from "./usageblend.js";
 import { currentWeek, weekContext, weekRows, onByeThisWeek } from "./weekview.js";
 import { newsForRoster, injuredOn } from "./newsmatch.js";
 
 export default function MyTeam({ rows, league, news, meta, market, schedule, defense,
-                                 leagueKey, sleeperUser }) {
+                                 leagueKey, sleeperUser, weekly: weeklyRows }) {
   /* HOPURINN ER BUNDINN DEILDINNI — sja `scoped` i `data.js`. Deildu
      tvaer deildir sama `myPicks` vaeri uppstillingin reiknud ur
      leikmonnum sem thu eigir i ANNARRI deild, og hun vaeri trulega
@@ -98,9 +99,20 @@ export default function MyTeam({ rows, league, news, meta, market, schedule, def
     () => weekContext({ schedule, defense, week: curWeek, season: meta && meta.season }),
     [schedule, defense, curWeek, meta]);
 
+  /* NOTKUN-TIL-THESSA. `weekly` hér fyrir ofan er VIKU-SAMHENGID
+     (motherjar og markadslina); `weeklyRows` eru RADIRNAR ur
+     `data/weekly/{ar}.json`. Tvo olik hugtok med naerri sama nafni —
+     thess vegna er eigindid tekid inn undir odru nafni i undirskriftinni
+     hér ad ofan i stad thess ad skyggja a thad sem fyrir er.
+
+     Laugin er byggd ur OLLU bordinu (`rows`), ekki ur hopnum minum. */
+  const usage = useMemo(
+    () => usagePool({ weeklyRows, throughWeek: curWeek, scoring: league.scoring, rows }),
+    [weeklyRows, curWeek, league.scoring, rows]);
+
   const lineup = useMemo(
-    () => optimalLineup(weekRows(roster, weekly), slots),
-    [roster, slots, weekly]);
+    () => optimalLineup(weekRows(roster, weekly, usage), slots),
+    [roster, slots, weekly, usage]);
 
   const preseason = !meta || meta.seasonType === "pre" || meta.seasonType === "off";
 

@@ -422,6 +422,11 @@ export default function App() {
       arankFfPpr: () => D.loadArankFf("ppr"), arankFfStd: () => D.loadArankFf("standard"),
       kickers: () => D.loadKickers(),
       shapes: () => D.loadShapes(),
+      /* VIKURNAR SEM ERU LIDNAR AF THESSU TIMABILI. `null` i forleik og
+         thad er RETT SVAR — `data/weekly/2026.json` verdur ekki til fyrr
+         en fyrsta vika er spilud, og `load()` skilar `null` vid 404.
+         Adeins `home` og `myteam` bidja um hana; hun er ~1,4 MB. */
+      weekly: () => D.loadWeekly((core && core.meta && core.meta.season) || null),
     };
     const got = await Promise.all(missing.map((k) => loaders[k]()));
     setExtra((prev) => {
@@ -429,7 +434,7 @@ export default function App() {
       missing.forEach((k, i) => { next[k] = got[i]; });
       return next;
     });
-  }, [extra]);
+  }, [extra, core]);
 
   useEffect(() => {
     /* `shapes` fylgir draft-flipanum THVI innflutt deild verdur ad
@@ -445,13 +450,13 @@ export default function App() {
     else if (view === "schedule") need([]);
     else if (view === "sources") need(["calibration", "adp"]);
     else if (view === "market") need(["marketHistory"]);
-    else if (view === "myteam") need(["seasons", "accuracy", "experts", "news", "defense"]);
+    else if (view === "myteam") need(["seasons", "accuracy", "experts", "news", "defense", "weekly"]);
     /* Forsidan tharf `defense` (vorn gegn stodu -> viku-spa) og
        `seasons`/`accuracy`/`experts` thvi `buildRows` byggir `vbd` og
        `aRank` ur theim, og BADIR waiver-listinn og start/sit hanga a
        theim tolum. `kickers` fylgir thvi 10-lida deildin BER
        spyrnumann og vorn — sú deild tharf thau saeti fyllt. */
-    else if (view === "home") need(["seasons", "accuracy", "experts", "defense",
+    else if (view === "home") need(["weekly", "seasons", "accuracy", "experts", "defense",
                                     "news", "kickers"]);
     else if (view === "lab") need(["evalPpr", "evalStd", "stratPpr", "stratStd", "arankPpr", "arankStd",
                             "arankFfPpr", "arankFfStd", "shapes"]);
@@ -557,6 +562,7 @@ export default function App() {
       {view === "home" && (
         <Dashboard entries={entries} rows={built.rows} meta={meta}
           schedule={core.schedule} defense={extra.defense} news={extra.news}
+          weekly={extra.weekly}
           sleeperUser={sleeperUser.userId || sleeperUser.name || null} />
       )}
       {view === "players" && (
@@ -580,6 +586,7 @@ export default function App() {
         <MyTeam key={boardKey} leagueKey={boardKey}
           rows={built.rows} league={league} news={extra.news} meta={meta}
           market={core.market} schedule={core.schedule} defense={extra.defense}
+          weekly={extra.weekly}
           sleeperUser={sleeperUser.name || ""} />
       )}
       {view === "market" && (

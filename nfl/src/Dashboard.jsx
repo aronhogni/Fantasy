@@ -53,6 +53,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import * as D from "./data.js";
 import { standingsFrom, myRosterId, recordLine } from "./standings.js";
 import { optimalLineup, lineupAdvice, slotsFor } from "./lineup.js";
+import { usagePool } from "./usageblend.js";
 import { currentWeek, weekContext, weekRows, onByeThisWeek,
          weeklyEdgeNote, dstStream, dstStreamNote,
          compareOppImplied } from "./weekview.js";
@@ -95,7 +96,7 @@ import { newsForRoster, injuredOn } from "./newsmatch.js";
 import Fine from "./Fine.jsx";
 
 export default function Dashboard({ entries, rows, meta, schedule, defense, news,
-                                    sleeperUser }) {
+                                    sleeperUser, weekly }) {
   /* Eitt svar per deild: `{ rosters, users, error }`. Lyklad a
      deildar-audkenni svo tvaer deildir geti ekki blandast — sama regla
      og `scoped` i `data.js`. */
@@ -182,7 +183,8 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
 
       {real.map((e) => (
         <LeagueCard key={e.id} entry={e} rows={rows} live={live[e.imported.leagueId]}
-          week={week} ctx={ctx} news={news} sleeperUser={sleeperUser} busy={busy} />
+          week={week} ctx={ctx} news={news} sleeperUser={sleeperUser} busy={busy}
+          weekly={weekly} />
       ))}
     </>
   );
@@ -191,7 +193,7 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
 /* ============================================================
    EIN DEILD
    ============================================================ */
-function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy }) {
+function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy, weekly }) {
   const league = entry.rules;
   const rosters = live && live.rosters;
   const users = live && live.users;
@@ -230,7 +232,18 @@ function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy }) {
   }, [rosters, mineId, rows]);
 
   const slots = useMemo(() => slotsFor(league), [league]);
-  const wr = useMemo(() => weekRows(myRows || [], ctx), [myRows, ctx]);
+  /* NOTKUN-TIL-THESSA. Laugin er byggd UR OLLU BORDINU (`rows`), ekki
+     ur minum hop — `z` er thversnid og thversnid ur 15 monnum er ekki
+     thversnid. Stigagjofin er DEILDARINNAR, svo hun er byggd hér inni i
+     kortinu en ekki einu sinni fyrir badar deildir: tvaer deildir med
+     olika stigagjof eiga tvo olik mot og ad deila einu vaeri ad birta
+     tolu annarrar deildar i hinni.
+
+     `null` i forleik (engin `weekly`) -> `weekRows` er BAETIS-EINS. */
+  const usage = useMemo(
+    () => usagePool({ weeklyRows: weekly, throughWeek: week, scoring: league.scoring, rows }),
+    [weekly, week, league.scoring, rows]);
+  const wr = useMemo(() => weekRows(myRows || [], ctx, usage), [myRows, ctx, usage]);
   const lineup = useMemo(
     () => (myRows && myRows.length ? optimalLineup(wr, slots) : null), [myRows, wr, slots]);
   const advice = useMemo(() => {

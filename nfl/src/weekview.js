@@ -34,7 +34,7 @@ import { weeklyProjection, impliedTeamTotals } from "./model.js";
    og `weekview` bar sitt eigid `17`. Tvo afrit af somu forsendu, og
    athugasemdin sem nefndi thau bædi var eina tengingin.
    Nu er hun ein, og `usageblend.mjs` kafli 5b ber hana. */
-import { GAMES_IN_SEASON } from "./usageblend.js";
+import { GAMES_IN_SEASON, blendedFor } from "./usageblend.js";
 
 /* ============================================================
    HVE MIKID ER VIKU-ADLOGUNIN THESS VIRDI — PER STIGAGJOF
@@ -322,9 +322,20 @@ export function weekContext({ schedule, defense, week, season }) {
  * spa 0 — `optimalLineup` setur hann a bekk OG telur hann i `unknown`,
  * sem er upplysing en ekki domur. NULL ER EKKI NULL.
  */
-export function weekRows(roster, ctx) {
+export function weekRows(roster, ctx, usage) {
   return (roster || []).map((r) => {
-    const base = r.proj != null ? r.proj / GAMES_IN_SEASON : null;
+    /* ARSTIDAR-SPAIN, BLONDUD MED THVI SEM ER LIDID AF TIMABILINU.
+       `blendedFor` fellur i `r.proj` obreytt i hvert sinn sem hun veit
+       ekki — og i forleik VEIT HUN ALDREI (engin `data/weekly/2026.json`,
+       svo `usagePool` skilar `null`), sem gerir thessa linu BAETIS-EINA
+       vid gomlu `r.proj` a medan. Vordur: `usageblend.mjs` kafli 11.
+
+       AF HVERJU HER OG EKKI I `weeklyProjection`: blondunin er a
+       ARSTIDAR-kvarda (sja `GAMES_IN_SEASON`), svo hun verdur ad gerast
+       ADUR en deilt er a 17. Ad blanda eftir a vaeri onnur algebra og
+       maelingin var ekki gerd a henni. */
+    const seasonProj = usage ? blendedFor(usage, r) : (r.proj != null ? r.proj : null);
+    const base = seasonProj != null ? seasonProj / GAMES_IN_SEASON : null;
     let proj = base;
     if (ctx && base != null && r.team) {
       const o = ctx.opp.get(r.team);
@@ -355,7 +366,12 @@ export function weekRows(roster, ctx) {
          EKKI enn (`scripts/sources/sleeper.mjs` sækir timabilid). Thegar
          thaer koma a `projSleeper` ad vera THEIRRA viku-tala; thangad til
          er thetta jafn-deiling og ma ekki lesast sem annad. */
-      projSleeper: base,
+      /* OG THESSI TALA MA EKKI BLANDAST. `projSleeper` er THEIRRA
+         tala; blondun er OKKAR adgerd. Vaeri `base` notad hér eftir ad
+         blondunin kviknar baeru badir dalkarnir okkar leidrettingu og
+         samanburdurinn — sem er allur tilgangur thess ad birta thaer
+         hlid vid hlid — yrdi vid sjalfan sig. Vordur: kafli 11d. */
+      projSleeper: r.proj != null ? r.proj / GAMES_IN_SEASON : null,
       avail: r.avail,
       /* Auð vika er REIKNUD hér og ekki gefin ser. `bye: false`
          hardkodad thydir "enginn er nokkurn timann i frii", svo

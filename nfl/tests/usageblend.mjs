@@ -1216,5 +1216,126 @@ console.log("\n10. fittin eru talin ur skranni, ekki reiknud");
     "og ekki gomlu reiknudu toluna 72");
 }
 
+/* ============================================================
+   11. VIRINN SJALFUR — `usagePool` -> `weekRows`
+   ============================================================
+   Kaflar 1-10 profa EININGUNA. Hun var rett i tvo vikur og var samt
+   ekki kollud ur `src/` — nakvaemlega su bilun sem `lineups.json` er
+   nefnd fyrir i FPL-verkefninu: "kodinn og verdirnir eru komnir" er
+   EKKI sama og "talan lendir a skjanum".
+
+   TVAER FULLYRDINGAR SEM VERDA BADAR AD VERA TIL, og hvorug dugar ein:
+     · A: an vikuskrar er utkoman BAETIS-EINS og gamla `r.proj / 17`.
+     · B: MED vikuskra HREYFAST tolurnar raunverulega.
+   An B vaeri A stodust af kода sem hendir `usage` og gerir ekkert —
+   thad er tom fullyrding (5b regla 2). An A gaeti virinn breytt
+   forleiknum thegjandi, sem er thad sem hann ma ALDREI gera.
+   ============================================================ */
+console.log("\n11. virinn: usagePool -> weekRows");
+{
+  const { weekRows } = await import("../src/weekview.js");
+  const { usagePool, blendedFor } = await import("../src/usageblend.js");
+
+  const players = JSON.parse(readFileSync(path.join(DATA, "players.json"), "utf8"));
+  const plist = Array.isArray(players) ? players : (players.players || []);
+  /* Radir eins og `buildRows` skilar their: adp + proj + gsisId + pos. */
+  const rows = plist
+    .filter((p) => p && p.gsisId && p.pos && p.adpSleeper != null && p.projSleeper != null)
+    .map((p) => ({ id: p.id, gsisId: p.gsisId, name: p.name, pos: p.pos, team: p.team,
+                   adp: p.adpSleeper, proj: p.projSleeper, avail: 1, bye: null, injury: null }));
+  ok(rows.length > 100, `${rows.length} radir med badi adp og proj (laugin)`);
+
+  const roster = rows.slice(0, 40);
+
+  /* ---- A. FORLEIKUR: engin vikuskra -> BAETIS-EINS ---- */
+  const preNo   = weekRows(roster, null);
+  const preNull = weekRows(roster, null, null);
+  const poolNone = usagePool({ weeklyRows: null, throughWeek: 5, scoring: "ppr", rows });
+  ok(poolNone === null, "engin vikuskra -> `usagePool` skilar null (ekki tomt mot)");
+  const preUndef = weekRows(roster, null, poolNone);
+  ok(JSON.stringify(preNo) === JSON.stringify(preNull),
+     "A: `weekRows(r, ctx)` og `weekRows(r, ctx, null)` eru BAETIS-EINS");
+  ok(JSON.stringify(preNo) === JSON.stringify(preUndef),
+     "A: og eins med null-laug — forleikurinn hreyfist ekki um einn bæti");
+
+  /* Og talan er RETT gamla talan, ekki bara stodug. */
+  const anyProj = preNo.find((x) => x.proj != null);
+  const src0 = roster.find((r) => r.id === anyProj.id);
+  ok(near(anyProj.proj, src0.proj / 17, 1e-12),
+     "A: og hun er nakvaemlega `proj / 17`");
+
+  /* ---- B. MED VIKUSKRA: tolurnar HREYFAST ---- */
+  /* 2026 er ekki spilad, svo profid keyrir 2025-skrana i gegnum sama
+     vir. Thad er ekki afrit af neinu: thad er SAMA fallid, sama laug,
+     sami lykill — adeins arid er annad. */
+  const wk2025 = JSON.parse(readFileSync(path.join(DATA, "weekly", "2025.json"), "utf8"));
+  const pool = usagePool({ weeklyRows: wk2025, throughWeek: 12, scoring: "ppr", rows });
+  ok(pool != null, "B: laug byggd ur data/weekly/2025.json");
+  ok(pool.estimated > 20, `B: ${pool.estimated} leikmenn fa mat (vorpun til)`);
+
+  const live = weekRows(roster, null, pool);
+  let moved = 0, same = 0;
+  for (let i = 0; i < roster.length; i++) {
+    if (live[i].proj == null || preNo[i].proj == null) continue;
+    if (Math.abs(live[i].proj - preNo[i].proj) > 1e-9) moved++; else same++;
+  }
+  ok(moved > 0, `B: ${moved} radir HREYFAST (og ${same} ekki) — virinn er lifandi`);
+
+  /* ---- C. LYKILLINN ER `gsisId`, EKKI `id` ---- */
+  /* Talid SJALFSTAETT: hve margir i lauginni eiga rod i vikuskranni
+     fyrir viku < 12. Vaeri lyklad a Sleeper-`id` vaeri thetta 0 og
+     kafli B felli — en `moved > 0` eitt gaeti stadist af tilviljun ef
+     einhver onnur grein hreyfdi toluna, svo talan er borin lika. */
+  const gsisSeen = new Set();
+  for (const r of wk2025) if (r && Number(r.week) < 12) gsisSeen.add(String(r.id));
+  const expect = rows.filter((r) => gsisSeen.has(String(r.gsisId))).length;
+  ok(pool.byGsis.size === expect,
+     `C: ${pool.byGsis.size} pardir = sjalfstaed talning ${expect} (lykillinn er gsisId)`);
+  ok(expect > 100, `C: og talan er raunveruleg (${expect}), ekki 0`);
+
+  /* Stokkbreytingin sjalf: lykladu a `id` og C VERDUR ad falla. */
+  const byWrongKey = rows.filter((r) => gsisSeen.has(String(r.id))).length;
+  ok(byWrongKey === 0,
+     `C: og Sleeper-\`id\` finnur ENGAN i vikuskranni (${byWrongKey}) — lyklarnir eru olikir`);
+
+  /* ---- D. `projSleeper` ER THEIRRA TALA OG BLANDAST ALDREI ---- */
+  let sleeperMoved = 0;
+  for (let i = 0; i < roster.length; i++) {
+    if (live[i].projSleeper == null) continue;
+    if (Math.abs(live[i].projSleeper - roster[i].proj / 17) > 1e-12) sleeperMoved++;
+  }
+  ok(sleeperMoved === 0,
+     "D: `projSleeper` er obreytt `proj / 17` i BADUM tilfellum — okkar leidretting lekur ekki i theirra dalk");
+  ok(moved > 0 && sleeperMoved === 0,
+     "D: og dalkarnir tveir eru thar med raunverulega OLIKIR (samanburdurinn heldur)");
+
+  /* ---- E. FALLID I SPANA, ALDREI I 0 ---- */
+  const ghost = { id: "zz", gsisId: "00-9999999", pos: "WR", proj: 170, adp: 50 };
+  ok(blendedFor(pool, ghost) === 170,
+     "E: madur sem finnst ekki i vikuskranni heldur arstidar-spanni sinni (ekki 0, ekki null)");
+  const kicker = { id: "zk", gsisId: [...gsisSeen][0], pos: "K", proj: 140, adp: 200 };
+  ok(blendedFor(pool, kicker) === 140,
+     "E: stada an vorpunar (K) heldur spanni sinni — `PRIOR_FIT` naer ekki yfir hana");
+  ok(blendedFor(pool, { id: "x", gsisId: "00-0023459", pos: "QB", proj: null }) === null,
+     "E: engin spa -> null, ekki tala ur engu");
+
+  /* ---- F. OMAELD STIGAGJOF FAER ENGA LAUG ---- */
+  ok(usagePool({ weeklyRows: wk2025, throughWeek: 12, scoring: "superflex-ppr", rows }) === null,
+     "F: stigagjof sem `PRIOR_FIT` hefur ekki -> null, ekki naesta snid");
+  ok(usagePool({ weeklyRows: wk2025, throughWeek: null, scoring: "ppr", rows }) === null,
+     "F: engin vika -> null");
+  ok(usagePool({ weeklyRows: wk2025, throughWeek: 12, scoring: "ppr", rows: [] }) === null,
+     "F: engar radir -> null");
+
+  /* ---- G. LEKINN, GEGNUM VIRINN ---- */
+  /* Kafli 4 ver `usageToDate`. Hér er sama krafa a HEILU leidinni:
+     vika 1 hefur engar fyrri vikur, svo engin blondun getur ordid. */
+  const w1 = usagePool({ weeklyRows: wk2025, throughWeek: 1, scoring: "ppr", rows });
+  ok(w1 === null, "G: vika 1 -> engin fyrri vika -> null (og thar med baetis-eins)");
+  const w1rows = weekRows(roster, null, w1);
+  ok(JSON.stringify(w1rows) === JSON.stringify(preNo),
+     "G: og vika 1 er thar med BAETIS-EINS vid forleikinn");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

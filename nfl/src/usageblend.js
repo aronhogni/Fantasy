@@ -983,3 +983,171 @@ export const MAPPING_RISK = {
         "cannot be measured backwards: today's players.json is not the 2021 one. " +
         "It is the one known deviation between the measurement and the app.",
 };
+
+/* ============================================================
+   4. LAUGIN — BRUIN SEM VANTADI, OG HUN ER EINA NYJA AKVORDUNIN
+   ============================================================
+   `usageToDate`, `blendWeight`, `estimateFromZ` og `blendedSeasonProj`
+   voru allar skrifadar og profadar 12.-14.8.2026 og ENGIN theirra var
+   kollud ur `src/`. Astaedan var ekki gleymska heldur ad EITT vantadi:
+   `estimateFromZ` tekur `z`, og `z` er ekki eiginleiki leikmanns heldur
+   THVERSNIDS — hann er ekki til fyrr en einhver hefur valid LAUGINA.
+
+   Sa sem velur laugina velur `mu` og `sd`, og thar med hverja einustu
+   tolu sem kemur ut. Thess vegna er thad gert HER, i einu falli, i stad
+   thess ad hver kallandi geri thad sjalfur: tvaer laugar gefa tvo `z`
+   SEM LITA NAKVAEMLEGA EINS UT (sja `MAPPING_RISK`).
+
+   SKILYRDID ER TEKID ORDRETT UR LABINU og er skrifad thar sem thad er
+   framkvaemt, ekki bara i athugasemd: "hver leikmadur sem ber BAEDI ADP
+   og timabils-spa, innan stodunnar". Skran er onnur (`rows` ur
+   `buildRows`, ekki `features.json`) og THAD ER SKRIFAD I
+   `MAPPING_RISK.poolDiffers` — thetta fall bytir thvi ekki, thad
+   framkvaemir naest-besta jafngildid.
+
+   FIMM UTKOMUR ERU `null` OG THAER ERU ALLAR "VID GETUM EKKI SVARAD",
+   aldrei "engin notkun":
+     · engar vikurodir (forleikur — `data/weekly/2026.json` er ekki til)
+     · engin vika
+     · omaeld stigagjof (`PRIOR_FIT` hefur adeins thrju snid)
+     · engar radir
+     · thversnid sem naer ekki 8 endanlegum gildum i NEINNI stodu
+
+   NULL HER ER THAD SEM GERIR FORLEIKINN BAETIS-EINS. `weekRows` fellur
+   tha i `r.proj / 17` nakvaemlega eins og adur — engin grein keyrir,
+   engin tala breytist. Thad er profad sem BAETI-JAFNGILDI, ekki sem
+   "svipud tala": `tests/usageblend.mjs` kafli 11.
+   ============================================================ */
+
+/**
+ * Thversnids-laugin og matid per leikmann.
+ *
+ * @param weeklyRows radir ur `data/weekly/{season}.json`.
+ * @param throughWeek vikan sem er SPAD — UTILOKANDI, borid beint i
+ *        `usageToDate`.
+ * @param scoring `"ppr"` | `"half-ppr"` | `"standard"`.
+ * @param rows radirnar ur `buildRows` (laugin er sidud UR theim).
+ * @param window gluggi; sjalfgefid maelda armid.
+ *
+ * @returns `{ byGsis, cross, throughWeek, scoring, window, pooled,
+ *            estimated }` eda `null`.
+ *
+ * `byGsis` er `Map<gsisId, { usage, z, est }>`. **LYKILLINN ER `gsisId`,
+ * EKKI `id`** — vikuskrarnar bera GSIS-audkenni (`"00-0023459"`) medan
+ * `rows` bera Sleeper-audkenni, og thau eru OLIK. Ad lykla a `id` gefur
+ * Map sem finnur ENGAN og skilar thogult sondu svari (spain obreytt) —
+ * bilun sem lítur nakvaemlega eins ut og rett forleiks-hegdun. Vordur:
+ * kafli 11c ber fjolda paradra manna vid tolu sem er talin sjalfstaett.
+ */
+export function usagePool({ weeklyRows, throughWeek, scoring, rows, window } = {}) {
+  if (!Array.isArray(weeklyRows) || !weeklyRows.length) return null;
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const through = num(throughWeek);
+  if (through == null) return null;
+  const sk = scoringKey(scoring);
+  if (sk == null) return null;
+  /* Stigagjof sem `PRIOR_FIT` hefur ekki er ekki maeld. Ad velja
+     naesta snid vaeri ad birta eina maelingu sem adra. */
+  if (!PRIOR_FIT[scoring]) return null;
+  const win = window === undefined ? ARM.window : window;
+  if (!Object.prototype.hasOwnProperty.call(WINDOW_N, win)) return null;
+
+  /* --- 1. laugin: BAEDI adp og proj, og hann verdur ad vera
+         finnanlegur i vikuskranni (gsisId). --- */
+  const pool = [];
+  for (const r of rows) {
+    if (!r || typeof r !== "object") continue;
+    if (num(r.adp) == null || num(r.proj) == null) continue;
+    if (r.gsisId == null || r.gsisId === "") continue;
+    if (!r.pos) continue;
+    pool.push(r);
+  }
+  if (!pool.length) return null;
+
+  /* --- 2. notkun-til-thessa fyrir hvern i lauginni --- */
+  const usageOf = new Map();
+  const oppByPos = new Map();
+  for (const r of pool) {
+    const u = usageToDate(weeklyRows, {
+      playerId: r.gsisId, throughWeek: through, window: win, scoring,
+    });
+    if (!u) continue;
+    usageOf.set(String(r.gsisId), { row: r, usage: u });
+    if (typeof u.opp === "number" && Number.isFinite(u.opp)) {
+      if (!oppByPos.has(r.pos)) oppByPos.set(r.pos, []);
+      oppByPos.get(r.pos).push(u.opp);
+    }
+  }
+  if (!usageOf.size) return null;
+
+  /* --- 3. THVERSNIDID, PER STODU. `crossSection` ber sjalft
+         lagmarkid (8) og `sd`-golfid; stada sem naer thvi ekki faer
+         EKKERT thversnid og thar med engan `z` — og thar med fellur
+         hver madur i theirri stodu i spana eina. Thad er rett svar:
+         thversnid ur fjorum monnum er ekki thversnid. --- */
+  const cross = {};
+  for (const [pos, vals] of oppByPos) {
+    const c = crossSection(vals);
+    if (c) cross[pos] = c;
+  }
+
+  /* --- 4. matid --- */
+  const byGsis = new Map();
+  let estimated = 0;
+  for (const [gid, { row, usage }] of usageOf) {
+    const c = cross[row.pos] || null;
+    const z = c ? zOf(usage.opp, c) : null;
+    const est = z == null ? null : estimateFromZ({ pos: row.pos, scoring, z });
+    if (est != null) estimated++;
+    /* STADAN FYLGIR MATINU. `est` er reiknad UR `PRIOR_FIT[scoring][pos]`,
+       svo hun er tala UM STODU — ekki um mann. Vaeri hun geymd an
+       stodunnar gaeti kallandi med rod sem ber ANNAD `pos` fyrir sama
+       `gsisId` (stodubreyting milli skraa, eda K/DST sem ratar inn undir
+       audkenni utileikmanns) fengid mat ur RANGRI stodu og hvergi vaeri
+       hægt ad sja thad. Sja `blendedFor`. */
+    byGsis.set(gid, { usage, z, est, pos: row.pos });
+  }
+
+  return {
+    byGsis, cross,
+    throughWeek: through, scoring, window: win,
+    pooled: pool.length,
+    estimated,
+  };
+}
+
+/**
+ * Blondud ARSTIDAR-spa fyrir eina rod ur `buildRows`, gegnum laugina.
+ *
+ * Thetta er thad sem `weekview.weekRows` kallar, og thad er VILJANDI
+ * eina snertiflotur hennar vid thessa einingu: `weekRows` a ekki ad
+ * thurfa ad vita hvad `z` er.
+ *
+ * FELLUR I `row.proj` I HVERT SINN SEM VID VITUM EKKI — aldrei i 0 og
+ * aldrei i `usage.ppg`. Thrju tilfelli falla hingad og thau eru olik:
+ * enginn pool (forleikur), madurinn finnst ekki i vikuskranni (nylidi,
+ * eda hann hefur ekki spilad), og vorpunin vantar (stada an thversnids,
+ * eda K/DST sem `PRIOR_FIT` naer aldrei yfir). Oll thrju thyda "vid
+ * hofum enga vitneskju um thetta timabil um HANN", og tha er
+ * arstidar-spain besta svarid sem til er.
+ */
+export function blendedFor(pool, row) {
+  const proj = row ? num(row.proj) : null;
+  if (proj == null) return null;
+  if (!pool || !pool.byGsis || row.gsisId == null) return proj;
+  const hit = pool.byGsis.get(String(row.gsisId));
+  if (!hit) return proj;
+  /* STADAN VERDUR AD STEMMA. Matid var reiknad ur thversnidi HANS
+     STODU; ad bera thad a rod sem segist vera onnur stada vaeri ad
+     nota maelingu einnar stodu sem maelingu annarrar. Osamraemi er
+     "vitum ekki" -> arstidar-spain, sem er sama regla og allar hinar
+     fjorar leidirnar hér. */
+  if (hit.pos !== row.pos) return proj;
+  const b = blendedSeasonProj({
+    seasonProj: proj,
+    usage: hit.usage,
+    scoring: pool.scoring,
+    toDatePerGame: hit.est,
+  });
+  return b == null ? proj : b;
+}
