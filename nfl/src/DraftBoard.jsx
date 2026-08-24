@@ -1097,11 +1097,16 @@ function BoardTable({ rows, onTake, reach, nextOwn, showMine = true, showGone = 
                     GRAENA "kaup"-merkid er tekid af manni sem spilar
                     ekki: thad er fullyrding sem spain a bak vid hana
                     getur ekki barid. */}
-                <td className={`mono ${r.avail === 0 ? "dim"
+                <td className={`mono ${r.avail === 0 || r.valueOutside ? "dim"
                   : r.value > 0.5 ? "good" : r.value < -0.5 ? "bad" : ""}`}
                   title={r.avail === 0
                     ? `${r.injury || "unavailable"} — projection is not discounted for this,`
                       + " so this figure is not a buy signal"
+                    : r.valueOutside
+                    ? "the market takes him after this draft ends, so the figure is"
+                      + " real but names a round you never reach — measured: inside the"
+                      + " draft the buy signal clears its placebo in 3 of 3 cells,"
+                      + " outside it in 0 of 3"
                     : undefined}>
                   {r.value == null ? <span className="null">—</span> : signed(r.value)}
                 </td>

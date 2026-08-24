@@ -781,6 +781,118 @@ console.log("\n9. netkoll");
    HVERT safn i tests/ og krefst thess ad thad beri exit-kodann OG se i
    `SUITES`.                                                            */
 console.log(`\n${"=".repeat(56)}`);
+/* ============================================================
+   10. `value` UTAN DROFTSINS — TALAN STENDUR, FULLYRDINGIN EKKI
+   ============================================================
+   `valuecap-lab` maeldi ad graena kaupmerkid stenst sitt eigid prof
+   INNAN gluggans (delta gegn plasebo utilokar null i 3 af 3 frumum) en
+   ekki UTAN hans (0 af 3). Adgerdin er ad HALDA tolunni og DRAGA
+   FULLYRDINGUNA til baka — sama regla og `avail === 0` beitir thegar.
+
+   ThRJAR FULLYRDINGAR OG SU ThRIDJA ER SU SEM BITUR:
+     1. rodir utan gluggans bera `valueOutside` og halda TOLUNNI
+     2. thaer eru raunverulega til i deildinni hans (annars vaeri
+        thetta prof um tomt mengi)
+     3. **A SKJANUM** ber hólfid theirra ekki `good` — lesid ur DOM,
+        ekki ur kodanum, thvi thad var kodinn sem var rettur adur og
+        skjarinn sem laug.
+   ============================================================ */
+console.log("\n10. `value` utan droftsins");
+{
+  const { buildRows } = await import("../src/build.js");
+  const rd = (f) => JSON.parse(readFileSync(path.join(DATA, f), "utf8"));
+  const L = { teams: 10, scoring: "ppr", rounds: 15,
+              starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2, K: 1, DST: 1 } };
+  const { rows } = buildRows({ players: rd("players.json"), league: L });
+  const picks = L.teams * L.rounds;
+
+  const priced = rows.filter((r) => r.value != null);
+  const outside = priced.filter((r) => r.valueOutside);
+  ok(outside.length > 0,
+    `${outside.length} radir liggja utan droftsins (${picks} vol) — mengid er ekki tomt`);
+  ok(outside.every((r) => r.adp > picks),
+    "og hver theirra ber raunverulega adp yfir thakinu");
+  ok(priced.filter((r) => !r.valueOutside).every((r) => r.adp <= picks),
+    "og engin INNAN gluggans er ranglega merkt");
+  ok(outside.every((r) => r.value != null),
+    "TALAN STENDUR — engin theirra var nulluð (engin maeling segir hana ranga)");
+
+  /* Var thetta yfirleitt vandamal? Talan sem rettlaetir breytinguna. */
+  const top20 = priced.slice().sort((a, b) => b.value - a.value).slice(0, 20);
+  const badTop = top20.filter((r) => r.valueOutside).length;
+  ok(badTop > 0,
+    `og thad var raunverulegt: ${badTop} af topp-20 kaupum lagu utan droftsins`);
+
+  /* --- 3. AF SKJANUM. Appid er thegar tengt her ad ofan. ---
+     Vidmotid er lesid ur DOM-inu sem draft-flipinn teiknar: dalkurinn
+     er fundinn a HAUSNUM (ekki a fostu saeti — dalkarodin er stillanleg),
+     og fyrir hverja rod er nafnid parad vid `valueOutside` ur sama
+     `buildRows`-kalli og appid notar.
+
+     ThETTA ER PROFSTEINNINN THVI KODINN VAR RETTUR ADUR OG SKJARINN
+     LAUG: gamla `avail === 0`-reglan var skrifud i athugasemd longu
+     adur en hun komst i `className`. */
+  /* Draft-flipinn ber bordid. Hann er ekki endilega sa sem sidasti
+     kafli skildi eftir, svo hann er OPNADUR — og thad er fullyrding
+     lika: fai hann ekki opnast er thekjan 0 og profid segir thad. */
+  const opened = await clickTab("Draft");
+  ok(opened, "draft-flipinn opnadur (bordid er thar)");
+  await settle(600);
+  /* TVAER TOFLUR ERU A FLIPANUM (radgjafar-kassinn og bordid), svo
+     leitin ma EKKI vera hnattraen: fyrsta utgafa thessa kafla las
+     `document.querySelectorAll("table tbody tr")` og fekk 205 radir
+     ur BADUM, thar sem fyrsta taflan ber 6 dalka og Value-visitalan
+     atti vid hina. Utkoman var "0 radir lesnar" OG "0 graen utan" —
+     og seinni fullyrdingin hefdi stadist ein og ser. Taflan er thvi
+     valin a THVI AD HUN BERI HAUSINN. */
+  const board = [...document.querySelectorAll("table")]
+    .find((t) => [...t.querySelectorAll("thead th")]
+      .some((th) => /^value$/i.test((th.textContent || "").trim())));
+  const heads = board ? [...board.querySelectorAll("thead th")]
+    .map((th) => (th.textContent || "").trim()) : [];
+  const vi = heads.findIndex((h) => /^value$/i.test(h));
+  const rowsSeen = board ? [...board.querySelectorAll("tbody tr")] : [];
+  if (!board || vi < 0 || !rowsSeen.length) {
+    ok(false, `THEKJA: fann ekki bordid med Value-dalkinum (tofur ${document.querySelectorAll("table").length})`);
+  } else {
+    /* ADP ER LESID AF SKJANUM LIKA, og thad er ekki smaatridi:
+       fyrsta utgafa bar nofn ur 10-lida glugganum (`outside` her ad
+       ofan) vid bord sem appid teiknar med SJALFGEFINNI 12-lida deild.
+       Tveir gluggar, 150 og 180 vol — og prófid taldi 0 graen "innan"
+       thott 40 vaeru a skjanum. Nu kemur BADT ur sama stad: talan ur
+       ADP-dalkinum og liturinn ur Value-dalkinum, i somu rod. */
+    const ai = heads.findIndex((h) => /^adp$/i.test(h));
+    ok(ai >= 0, `ADP-dalkurinn finnst a skjanum (saeti ${ai})`);
+    const { DEFAULT_LEAGUE } = await import("../src/build.js");
+    const picksApp = DEFAULT_LEAGUE.teams * DEFAULT_LEAGUE.rounds;
+
+    let seen = 0, numbered = 0, greenIn = 0, greenOut = 0, outNumbered = 0;
+    for (const tr of rowsSeen) {
+      const tds = tr.querySelectorAll("td");
+      if (tds.length <= Math.max(vi, ai)) continue;
+      seen++;
+      const cell = tds[vi];
+      const cls = cell.className || "";
+      const txt = (cell.textContent || "").trim();
+      const adp = Number((tds[ai].textContent || "").trim());
+      if (txt && txt !== "—") numbered++;
+      if (!Number.isFinite(adp)) continue;
+      const isOut = adp > picksApp;
+      if (isOut && txt && txt !== "—") outNumbered++;
+      if (/\bgood\b/.test(cls)) { if (isOut) greenOut++; else greenIn++; }
+    }
+    ok(seen > 20, `THEKJA: ${seen} radir lesnar af bordinu`);
+    ok(numbered > 10, `og ${numbered} theirra bera raunverulega tolu i Value`);
+    ok(outNumbered > 0,
+      `THEKJA: ${outNumbered} radir UTAN droftsins (adp > ${picksApp}) bera tolu — ` +
+      "talan var ekki nulluð, sem er helmingur nidurstodunnar");
+    ok(greenIn > 0,
+      `SENTINEL: ${greenIn} graen kaup INNAN gluggans — reglan slekkur ekki a ollu`);
+    ok(greenOut === 0,
+      `og ${greenOut} graen UTAN hans — fullyrdingin er dregin til baka thar`);
+  }
+}
+
 console.log(fail ? `${fail} PROF FELLU (${warn} vidvaranir)`
                  : `oll prof graen (${warn} vidvaranir)`);
 process.exit(fail ? 1 : 0);

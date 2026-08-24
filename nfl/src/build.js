@@ -537,7 +537,52 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
      rodum adur en hann er talinn, svo thetta getur ekki verid i sama
      lykkju og rodin sjalf. */
   const valMap = valueColumn(withVbd, league.teams);
-  for (const r of withVbd) r.value = valMap.get(r.id) ?? null;
+  /* ============================================================
+     `valueOutside` — UTAN DROFTSINS. MAELT 24.8.2026.
+     ============================================================
+     Talan er RETT eftir grunn-lagfaeringuna, lika fyrir mann sem
+     markadurinn tekur i vali 389 i drofti sem ber 168 vol. En "umferd
+     25" er ekki til, og MAELT a raunbordinu i dag voru **8 af topp 20**
+     kaupum i 10-lida deildinni og **12 af topp 20** i theirri 12-lida
+     UTAN gluggans — nanast allt thettendar (Jonnu Smith, ADP 389, las
+     "+5,25 umferdir KAUP").
+
+     `scripts/valuecap-lab.mjs` maeldi hvort graena merkid eigi ser stod
+     thar. Svarid er ThRIThAETT og thad skiptir mali:
+       · INNAN gluggans stenst dalkurinn sitt eigid prof — delta gegn
+         plasebo (SAMA `adp'`, umrodud rod) utilokar null i **3 af 3**
+         frumum (+0,202 / +0,214 / +0,133).
+       · UTAN hans er punktmatid HAERRA (+0,482 / +0,310 / +0,416) en
+         **0 af 3** vikmarkabil utiloka null — laugin er 18-136 menn.
+       · Thad er thvi hvorki "merkid er daudt" ne "merkid er gott",
+         heldur VID GETUM EKKI SAGT.
+
+     ADGERDIN SEM ThAD STYDUR: hvorki eyda tolunni (engin maeling segir
+     hana ranga) ne mala hana graena (engin maeling styður
+     fullyrdinguna). Talan stendur; FULLYRDINGIN er dregin til baka —
+     nakvaemlega sama regla og `avail === 0` beitir thegar i
+     `DraftBoard.jsx`.
+
+     HRA FYLGNIN VAR VELRAEN OG FYRSTA UTGAFA LABSINS FELL A ThVI:
+     `value` og raun-utkoman deila lidnum `adp'`, sem sveiflast miklu
+     meira utan gluggans, svo hra `r` MAELDIST HAERRA UTAN (0,54 a moti
+     0,51) — nidurstada sem hefdi lokad spurningunni rangt. Plasebo sem
+     heldur `adp'` obreyttu og umrodar adeins okkar rod tekur mengunina
+     ut.
+
+     `rounds` ER LESID, EKKI VALID (`normalizeLeague`, Sleeper
+     `settings.rounds`). Se thad sjalfgefna talan 15 er glugginn
+     Sleeper-sjalfgefinn en ekki hans deild — OG ThAD ER OSKADLEGT HER,
+     thvi adgerdin er ADEINS AD DRAGA FULLYRDINGU TIL BAKA. Rangur
+     gluggi getur haldid aftur af graenu merki sem atti rett a ser; hann
+     getur ALDREI buid til merki sem a thad ekki. Ottinn i uttektinni
+     ("thak vid `rounds` er valin tala") a vid um ad EYDA tolunni, sem
+     er einmitt thad sem er ekki gert.                                */
+  const draftPicks = league.rounds != null ? league.teams * league.rounds : null;
+  for (const r of withVbd) {
+    r.value = valMap.get(r.id) ?? null;
+    r.valueOutside = draftPicks != null && r.adp != null && r.adp > draftPicks;
+  }
 
   /* Rod Sleeper eftir HRASTIGUM — til ad syna hvar VBD faerir mann. */
   const slpRanked = withVbd.slice()

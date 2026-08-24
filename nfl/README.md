@@ -2122,6 +2122,98 @@ aftur.
 > **ENGU VAR TENGT.** Barinn var ekki náð, svo það er ekkert að tengja. Væri
 > einhver frumu-röð tengd síðar þyrfti hún **nýja mælingu**, ekki þessa.
 
+### 4p. `value` UTAN DRAFTSINS — mælt 24.8.2026, og svarið er „við getum ekki sagt"
+
+Úttektin skildi þetta eftir opið með réttum rökum: eftir grunn-lagfæringuna
+(4b) er `value` **rétt** líka fyrir mann sem markaðurinn tekur í vali 389 —
+en „umferð 25" er ekki til í 15-umferða drafti, og **þak bundið við `rounds`
+er valin tala nema mæling styðji hana.**
+
+**FYRST UMFANGIÐ, MÆLT Á RAUNBORÐINU Í DAG:**
+
+| deild | val | raðir utan | af topp-20 kaupum |
+|---|---|---|---|
+| Patriots (10 lið, 15 umf.) | 150 | 113 | **8 af 20** |
+| Sófahetjur (12 lið, 14 umf.) | 168 | 78 | **12 af 20** |
+
+Nánast allt þéttendar — Jonnu Smith á **ADP 389** las „+5,25 umferðir KAUP" í
+drafti sem ber 168 val. Þetta er sama undirskrift sem 4b lagfærði einu sinni
+(„sex TE-ar í ADP 224–251"); grunnurinn er nú réttur, en **toppurinn á
+kauplistanum er samt að meirihluta menn sem hann getur ekki draftað**. Það
+tengist 4n: spá-heimildin er rausnarleg við djúpa þéttenda, og sú rausn kemur
+upp á yfirborðið hér.
+
+**MÆLINGIN — `scripts/valuecap-lab.mjs`, 11 tímabil, `features.json`.**
+Ekki er mælt hvort þak „bæti spána": `value` er **birtingar-dálkur** og
+ekkert í líkaninu les hann (`grep` á `src/`: eini lesandinn er liturinn í
+`DraftBoard.jsx`). Mælt er **fullyrðingin sjálf** — ber dálkurinn upplýsingar
+um raunverulega útkomu, og ber hann þær jafnt innan og utan gluggans?
+
+Mælikvarðinn er í **sömu einingu og dálkurinn**:
+
+```
+value       = (adp' - rank_spá)      / teams     <- það sem er birt
+realSurplus = (adp' - rank_raunstig) / teams     <- það sama, með raunstigum
+```
+
+> **OG HRÁ FYLGNIN ER VÉLRÆN — FYRSTA ÚTGÁFA LABSINS FÉLL Á ÞVÍ.** Hún mældi
+> `r(value, realSurplus)` beint og fékk **0,54 / 0,61 / 0,37 UTAN** á móti
+> **0,51 / 0,53 / 0,53 innan** — niðurstaða sem hefði sagt „merkið er jafn gott
+> utan" og lokað spurningunni **rangt**. Báðar stærðirnar bera **sama liðinn
+> `adp'`**, svo þær eru fylgnar áður en nokkur upplýsing kemur við sögu — og
+> mengunin er **stærri utan** gluggans, því þar sveiflast `adp'` yfir 150–400 í
+> stað 1–150. Hærra `r` utan er einmitt það sem mengunin ein spáir. Sama ætt og
+> `xg_share` 148% í FPL-verkefninu: teljari og nefnari úr sömu heimild.
+>
+> Lausnin er **plasebó sem heldur `adp'` óbreyttu** og umraðar aðeins okkar röð
+> (innan stöðu, fast fræ). Mælt er þá `r(value) − r(plasebó)`.
+
+| fruma | innan: delta (CI) | utan: delta (CI) |
+|---|---|---|
+| 10-2flex ppr | **+0,202** [0,41 · 1,18] MARKT | +0,482 [−1,09 · 0,01] |
+| 10-2flex standard | **+0,214** [0,33 · 1,05] MARKT | +0,310 [−0,97 · 0,08] |
+| 12-2flex ppr | **+0,133** [0,08 · 0,58] MARKT | +0,416 [−1,98 · 0,11] |
+
+**INNAN gluggans stenst dálkurinn sitt eigið próf: 3 af 3.** Utan hans er
+punktmatið **hærra** en **0 af 3** vikmarkabil útiloka null — laugin er 18–136
+menn á frumu og bilin eru breið og halla ef eitthvað í mínus.
+
+**ÞAÐ ER HVORKI „MERKIÐ ER DAUTT" NÉ „MERKIÐ ER GOTT" — ÞAÐ ER VIÐ GETUM EKKI
+SAGT.** Og þrenns konar útkoma kallar á þrenns konar aðgerð, svo úrskurðurinn í
+skránni er `undetermined-outside` og **ekki** tvíundargildi: „þak: nei" hefði
+þýtt bæði „merkið er til" og „við vitum ekki", sem kalla á andstæðar aðgerðir.
+
+**AÐGERÐIN SEM MÆLINGIN STYÐUR:** hvorki eyða tölunni (engin mæling segir hana
+ranga) né mála hana græna (engin mæling styður fullyrðinguna) — heldur **halda
+tölunni og draga fullyrðinguna til baka**. Það er ekki ný viðmótsregla heldur
+sú sem `DraftBoard.jsx` beitir þegar fyrir `avail === 0`: *ófullkomin tala
+fullyrðir ekki.*
+
+**`rounds` ER LESIÐ, EKKI VALIÐ** (`normalizeLeague`, Sleeper
+`settings.rounds`). Sé það sjálfgefna talan 15 er glugginn Sleeper-sjálfgefinn
+en ekki hans deild — **og það er óskaðlegt hér**, því aðgerðin er aðeins að
+*draga fullyrðingu til baka*. Rangur gluggi getur haldið aftur af grænu merki
+sem átti rétt á sér; hann getur **aldrei búið til** merki sem á það ekki.
+Óttinn í úttektinni („þak við `rounds` er valin tala") á við um að **eyða**
+tölunni, sem er einmitt það sem er ekki gert.
+
+**VÖRÐUR: `tests/audit.mjs` kafli 10, og hann er ÓSAMHVERFUR — hann fellur í
+BÁÐAR áttir.** Þrjár stökkbreytingar felldar: reglan tekin út (5 græn utan) ·
+`valueOutside` alltaf satt (sentinel fer í 0) · **talan nulluð utan gluggans**
+(þekjan fer í 0) — sú síðasta er of hörð aðgerðin, og vörður sem greinir hana
+ekki frá of mildri væri hálfur vörður. Talan og liturinn eru **bæði lesin af
+skjánum**, í sömu röð, úr ADP-dálkinum og Value-dálkinum.
+
+> **OG PRÓFIÐ SJÁLFT VAR RANGT TVISVAR ÁÐUR EN ÞAÐ VARÐ RÉTT** — skráð því
+> hvorug villan var sjáanleg í grænu: (a) `document.querySelectorAll("table
+> tbody tr")` las **báðar** töflur flipans (ráðgjafar-kassinn ber 6 dálka,
+> borðið 13), svo Value-vísitalan átti við aðra töflu og útkoman var „0 raðir
+> lesnar" **OG** „0 græn utan" — seinni fullyrðingin hefði staðist ein og sér.
+> (b) Fyrsta útgáfan bar **nöfn úr 10-liða glugganum** við borð sem appið
+> teiknar með sjálfgefinni **12-liða** deild — tveir gluggar, 150 og 180 val —
+> og taldi 0 græn „innan" þótt 40 væru á skjánum. Bæði leyst með því að lesa
+> **ADP af sama skjá** í stað þess að flytja mengi inn utan frá.
+
 ### 4o. SPÁ-GRUNNURINN SJÁLFUR — mældur 24.8.2026, og hann STENDUR
 
 Þetta var **eini ásinn sem hafði aldrei verið prófaður**. A-Ranking er

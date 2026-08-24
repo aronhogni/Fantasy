@@ -1,0 +1,189 @@
+{
+ "provenance": {
+  "generated": "2026-08-24T21:45:59.306Z",
+  "argv": [],
+  "params": {
+   "boot": {
+    "value": 2000,
+    "fromDefault": true
+   },
+   "from": {
+    "value": 2015,
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-24T20:25:10.662Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "question": "Ber `value` upplysingar um raunverulega utkomu UTAN draft-gluggans, eins og hun gerir innan hans? Dalkurinn er birtingar-dalkur og ekkert i likaninu les hann, svo spurningin er um FULLYRDINGUNA (graena kaupmerkid), ekki um spa-gaedi.",
+ "seasons": [
+  2015,
+  2016,
+  2017,
+  2018,
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "shapes": [
+  {
+   "key": "10-2flex",
+   "teams": 10,
+   "rounds": 15
+  },
+  {
+   "key": "12-2flex",
+   "teams": 12,
+   "rounds": 14
+  }
+ ],
+ "formats": [
+  "ppr",
+  "standard"
+ ],
+ "gates": {
+  "g1SameFormula": true,
+  "g2SentinelInsideRDelta": 0.214,
+  "g3OutsideRows": 242
+ },
+ "cells": {
+  "10-2flex|ppr": {
+   "picks": 150,
+   "inside": {
+    "n": 737,
+    "players": 288,
+    "r": 0.505,
+    "rPlacebo": 0.303,
+    "rDelta": 0.202,
+    "buys": 227,
+    "placeboBuys": 289,
+    "buyMean": 2.01,
+    "placeboMean": 0.52,
+    "gap": 1.49,
+    "deltaCI": {
+     "lo": 0.41,
+     "hi": 1.18,
+     "excludesZero": true,
+     "clusters": 288
+    }
+   },
+   "outside": {
+    "n": 136,
+    "players": 128,
+    "r": 0.542,
+    "rPlacebo": 0.06,
+    "rDelta": 0.482,
+    "buys": 66,
+    "placeboBuys": 112,
+    "buyMean": 5.71,
+    "placeboMean": 3.95,
+    "gap": 1.75,
+    "deltaCI": {
+     "lo": -1.09,
+     "hi": 0.01,
+     "excludesZero": false,
+     "clusters": 128
+    }
+   }
+  },
+  "10-2flex|standard": {
+   "picks": 150,
+   "inside": {
+    "n": 716,
+    "players": 285,
+    "r": 0.529,
+    "rPlacebo": 0.315,
+    "rDelta": 0.214,
+    "buys": 239,
+    "placeboBuys": 309,
+    "buyMean": 2.4,
+    "placeboMean": 0.97,
+    "gap": 1.44,
+    "deltaCI": {
+     "lo": 0.33,
+     "hi": 1.05,
+     "excludesZero": true,
+     "clusters": 285
+    }
+   },
+   "outside": {
+    "n": 88,
+    "players": 82,
+    "r": 0.614,
+    "rPlacebo": 0.303,
+    "rDelta": 0.31,
+    "buys": 61,
+    "placeboBuys": 74,
+    "buyMean": 5.18,
+    "placeboMean": 4.73,
+    "gap": 0.45,
+    "deltaCI": {
+     "lo": -0.97,
+     "hi": 0.08,
+     "excludesZero": false,
+     "clusters": 82
+    }
+   }
+  },
+  "12-2flex|ppr": {
+   "picks": 168,
+   "inside": {
+    "n": 855,
+    "players": 350,
+    "r": 0.53,
+    "rPlacebo": 0.397,
+    "rDelta": 0.133,
+    "buys": 268,
+    "placeboBuys": 393,
+    "buyMean": 2.39,
+    "placeboMean": 1.23,
+    "gap": 1.16,
+    "deltaCI": {
+     "lo": 0.08,
+     "hi": 0.58,
+     "excludesZero": true,
+     "clusters": 350
+    }
+   },
+   "outside": {
+    "n": 18,
+    "players": 18,
+    "r": 0.373,
+    "rPlacebo": -0.043,
+    "rDelta": 0.416,
+    "buys": 11,
+    "placeboBuys": 17,
+    "buyMean": 5.43,
+    "placeboMean": 4.33,
+    "gap": 1.09,
+    "deltaCI": {
+     "lo": -1.98,
+     "hi": 0.11,
+     "excludesZero": false,
+     "clusters": 18
+    }
+   }
+  }
+ },
+ "verdict": {
+  "cells": 3,
+  "insideMeanRDelta": 0.183,
+  "outsideMeanRDelta": 0.403,
+  "insideCiExcludesZero": 3,
+  "outsideCiExcludesZero": 0,
+  "outsideWeakerThanInside": 0,
+  "outsideRows": 242,
+  "outcome": "undetermined-outside",
+  "note": "INNAN gluggans stenst dalkurinn sitt eigid prof: deltan gegn plasebo utilokar null i hverri frumu. UTAN hans er punktmatid HAERRA en ekkert vikmarkabil utilokar null — laugin er 18-136 leikmenn a frumu. Thad er ekki 'merkid er daudt' og ekki 'merkid er gott'; thad er VID GETUM EKKI SAGT. Adgerdin sem thad styður er hvorki ad eyda tolunni (engin maeling segir hana ranga) ne ad mala hana graena (engin maeling styður fullyrdinguna) — heldur ad HALDA TOLUNNI OG DRAGA FULLYRDINGUNA TIL BAKA. Sama regla og 'ofullkomin tala fullyrdir ekki'."
+ }
+}
