@@ -1121,5 +1121,80 @@ console.log("\n8c. Sharp Delta er maeld gegn PPR-ECR, i hvada sniði sem er");
     `i PPR gengur dalkurinn upp vid deltuna (${mismatchPpr.length} frávik)`);
 }
 
+/* ============================================================
+   12. SPA-GRUNNURINN — MAELDUR, OG VORDURINN ER TVIHLIDA
+   ============================================================
+   `projbase-lab` spyr hvort SLEEPER se rettur grunnur undir A-Ranking.
+   Svarid er ja og thad er BOKAD i tveimur skram. Vordurinn hér ver
+   thrennt og thad thridja er thad sem gerir hann marktaekan:
+
+     1. Sleeper-armurinn ma ekki bera frumu sem stenst barinn an thess
+        ad einhver taki eftir.
+     2. Hlidin fimm verda ad hafa stadist — skra sem er skrifud med
+        follnu hlidi er ekki maeling.
+     3. **OFUGI ARMURINN VERDUR AD FINNA SIGURVEGARA.** "0 af 315" er
+        nakvaemlega thad sem BILAD maelitaeki gefur lika, svo nullid
+        eitt er einskis virdi sem sonnun. Sama net med FFToday sem
+        vidmid FINNUR Sleeper, og thad er thad sem gerir nullid ad
+        nidurstodu i stad thagnar. Se ofugi armurinn tomur er thetta
+        prof ad segja "vid saum ekkert" og ekkert annad.
+   ============================================================ */
+console.log("\n12. spa-grunnurinn (projbase)");
+{
+  const P1 = path.join(DATA, "measure", "projbase.json");
+  const P2 = path.join(DATA, "measure", "projbase_ff.json");
+  ok(existsSync(P1) && existsSync(P2),
+    "badar maelingarnar eru til (projbase.json + projbase_ff.json)");
+  if (existsSync(P1) && existsSync(P2)) {
+    const A = JSON.parse(readFileSync(P1, "utf8"));
+    const B = JSON.parse(readFileSync(P2, "utf8"));
+
+    ok(A.reference === "sleeper" && B.reference === "fftoday",
+      `vidmidin eru sitthvor (${A.reference} / ${B.reference})`);
+
+    /* --- 1. Sleeper stendur --- */
+    ok(A.verdict.passes.length === 0,
+      `Sleeper-armurinn: ${A.verdict.passes.length} af ${A.verdict.cellsJudged} frumum standast ` +
+      "barinn — ekkert slaer grunninn");
+    ok(A.verdict.cellsJudged > 300,
+      `og netid var raunverulega keyrt (${A.verdict.cellsJudged} frumur domdar)`);
+
+    /* --- 2. HLIDIN --- */
+    ok(A.gates.n1SelfMax === 0, `N1: vidmid gegn sjalfu ser = ${A.gates.n1SelfMax}`);
+    ok(A.gates.n3Sentinel > 0,
+      `N3: sentinel ${A.gates.n3Sentinel} > 0 — velin les ekki bara null`);
+    ok(A.gates.n4Oracle > 0 && A.gates.n4AntiRef < 0,
+      `N4: orakel ${A.gates.n4Oracle} yfir og andhverfa ${A.gates.n4AntiRef} undir — merki i BADAR attir`);
+    ok(A.gates.n5AffineComparisons > 0 && B.gates.n5AffineComparisons > 0,
+      `N5: ${A.gates.n5AffineComparisons} og ${B.gates.n5AffineComparisons} affin-samanburdir`);
+
+    /* --- 3. OFUGI ARMURINN — OG HANN VERDUR AD FINNA SLEEPER --- */
+    const passes = B.verdict.passes || [];
+    ok(passes.length > 0,
+      `ofugi armurinn: ${passes.length} frumur standast barinn — netid GETUR fundid sigurvegara`);
+    const allAlt = passes.length > 0 && passes.every((p) => /\|alt\|/.test(p.cell));
+    ok(allAlt,
+      "og ALLAR their eru `alt` = Sleeper-spa — thad er Sleeper sem slaer FFToday, ekki eitthvad annad");
+    const best = passes.reduce((m, p) => (p.mean > m ? p.mean : m), -Infinity);
+    ok(best > 100,
+      `og hrifin eru stor (${best} stig) — ekki jadar-marktaekni`);
+    ok(passes.every((p) => p.cond.positive && p.cond.seasonCi &&
+                           p.cond.playerCi && p.cond.beatsPlacebo),
+      "og hver theirra stodst OLL fjogur skilyrdi barsins, ekki bara punktmatid");
+
+    /* --- N5 MA EKKI VERDA OSTADANLEGT AFTUR --- */
+    /* Hlidid var `abs / max(1e-9, |exp|) <= 1e-9`, sem er `abs <= 1e-18`
+       thegar `exp` er 0 — undir tvofaldri nakvaemni, svo leikmadur
+       nakvaemlega a varamannsgildi gat ALDREI stadist thad. Textinn er
+       borinn thvi talan sjalf er ekki i skranni. */
+    const labSrc = readFileSync(
+      path.join(DATA, "..", "scripts", "projbase-lab.mjs"), "utf8");
+    ok(/ATOL\s*=\s*1e-9/.test(labSrc) && /RTOL\s*=\s*1e-9/.test(labSrc),
+      "N5 ber BLONDUD vikmork (ATOL + RTOL), ekki hreint hlutfall");
+    ok(!/rel\s*=\s*Math\.abs\(got - exp\) \/ Math\.max\(1e-9/.test(labSrc),
+      "og gamla hlutfallid (deilt med golfi 1e-9) er farid — thad var ostadanlegt vid exp = 0");
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

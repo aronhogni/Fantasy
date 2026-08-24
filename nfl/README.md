@@ -2122,6 +2122,76 @@ aftur.
 > **ENGU VAR TENGT.** Barinn var ekki náð, svo það er ekkert að tengja. Væri
 > einhver frumu-röð tengd síðar þyrfti hún **nýja mælingu**, ekki þessa.
 
+### 4o. SPÁ-GRUNNURINN SJÁLFUR — mældur 24.8.2026, og hann STENDUR
+
+Þetta var **eini ásinn sem hafði aldrei verið prófaður**. A-Ranking er
+`spá Sleeper -> VBD -> röð`, og um fimmtán hugmyndir höfðu verið mældar og
+felldar — **allar sem leiðrétting OFAN Á Sleeper**. Enginn hafði spurt hvort
+grunnurinn sjálfur væri réttur. VBD, þrepin, `value`, lifunar-litirnir og
+ráðgjöfin erfa öll það sem spáin segir, svo sé grunnurinn ekki bestur er allt
+hitt **reiknað rétt úr röngu inntaki**.
+
+`scripts/projbase-lab.mjs` var skrifað 24.8. en **hafði aldrei verið keyrt** —
+`data/measure/projbase.json` var ekki til. Nú er það keyrt, í báðar áttir.
+
+| viðmið | tímabil | frumur sem standast barinn |
+|---|---|---|
+| **Sleeper** | 2021–2025 (5) | **0 af 315** |
+| **FFToday** | 2015–2025 (11) | **7 af 315 — allar `alt` = Sleeper** |
+
+Barinn er sá sami og 4d/4m/4l beittu: jákvætt punktmat **og** árs-klasað CI
+útilokar null **og** leikmanna-klasað CI útilokar null **og** slær
+plasebó-þakið.
+
+**ÖFUGI ARMURINN ER AÐALATRIÐIÐ, EKKI AUKAATRIÐI.** Núll af 315 er nákvæmlega
+það sem bilað mælitæki gefur líka, og repo-ið hefur þegar tapað tíma á
+fullyrðingum sem gátu ekki brugðist (5b). Þess vegna var sama netið keyrt með
+FFToday sem viðmið: þar **finnur það sigurvegara**, og sigurvegarinn er
+Sleeper — +329,1 · +408,7 · +410,4 · +399,1 · +403,6 · +445,9 · +388,9 stig,
+`t` 2,8–5,7, fjögur eða fimm ár af fimm, og bestu vogirnar eru
+**w = 0,5 · 0,75 · 1** — það er, *skiptu FFToday alveg út fyrir Sleeper*.
+Sami bar, sama rist, sama plasebó-þak. Núllið í fyrri arminum er því
+**mæld niðurstaða, ekki blinda**.
+
+Næst-besta fruman í Sleeper-arminum er `12-std|half|ecrproj|w0,1` með **+39,2**
+og `t = 0,712` — hvorugt vikmarkabilið útilokar null. Til samanburðar er
+plasebó-þakið í þeirri lögun **+38,0**.
+
+**HLIÐIN FIMM STÓÐUST:** `N1` sjálfs-samanburður nákvæmlega 0 · `N3` sentinel
+1084,1 (netið SÉR merki) · `N4` orakel **+518,3** og andhverfa **−969,7**
+(í báðar áttir) · `N5` 135 affin-samanburðir. Orakel-armurinn er byggður
+viljandi og **má aldrei lesast sem tillaga** — hann er þak.
+
+> **HLIÐ SEM GETUR EKKI STAÐIST MÆLIR EKKERT — SPEGILMYND TÓMU
+> FULLYRÐINGARINNAR (fundið hér 24.8.2026).** FFToday-armurinn **drap
+> skriftuna** á `N5` með „afstætt vik 2,84e−5". Mælt með diagnostík í stað
+> þess að slaka á þröskuldinum:
+>
+> ```
+> id 00-0033090   v = 0   exp = (1-w)*0 = 0
+> got = -2,842e-14   abs = 2,842e-14
+> rel = abs / max(1e-9, |exp|) = abs / 1e-9 = 2,84e-5
+> ```
+>
+> Nefnarinn **fellur í gólfið** þegar `exp` er nákvæmlega 0 — sem gerist fyrir
+> hvern leikmann sem liggur akkúrat á varamannsgildi. Þá er „afstæða" vikið
+> ekki afstætt heldur **algilt vik margfaldað með 1e9**, svo krafan
+> `rel <= 1e-9` er í raun `abs <= 1e-18`. Tvöföld nákvæmni ber
+> `eps ~ 2,2e-16`, svo **engin rétt reiknuð tala getur uppfyllt hana**.
+>
+> **Sleeper-armurinn slapp á heppni, ekki á réttleika:** í þeim fimm tímabilum
+> lenti enginn leikmaður nákvæmlega á 0. Að lesa græna keyrslu þar sem
+> staðfestingu á hliðinu hefði verið rangt.
+>
+> Vikmörkin eru nú blönduð, `|got - exp| <= ATOL + RTOL*|exp|` með báðar 1e−9.
+> **Og hliðið var stökkbreytt til að sanna að það geti enn fallið:** 0,001
+> hliðrun á RB fellur (2,00e−4) · suð 1e−8 fellur (2,00e−9) · suð 1e−11
+> stenst · VBD nákvæmlega 0 stenst. Þetta er **þriðja** leiðréttingin á N5;
+> hinar tvær féllu ranglega á jafnteflum, þessi gat ekki staðist.
+
+**ENGU VAR TENGT OG ÞAÐ ER NIÐURSTAÐAN.** Sleeper stendur sem grunnur, nú
+mælt frekar en erft. Vörður: `tests/model.mjs` kafli 12.
+
 ### 4c. Bootstrap KLASAÐUR PER LEIKMANN — aðferðin sem breytti niðurstöðu
 
 Þetta er almennt og það á að standa: `vbdbase-lab` fékk **28 hólf** sem

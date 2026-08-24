@@ -548,19 +548,62 @@ function rawBoardOrder(pool, league, vals) {
  * i `computeVbd`, sem BYR TIL jafntefli i storum stil og slitur onnur.
  * Thad er ekki villa heldur golf, og `posmean`-armurinn i toflunni
  * MAELIR thad golf (README 4h maelir sama golf sem +-0,42/0,58/0,86 pp).
+ *
+ * ============================================================
+ * ÞRIDJA LEIDRETTINGIN: HLIDID GAT EKKI STADIST (24.8.2026)
+ * ============================================================
+ * Fyrstu tvaer leidrettingarnar hér ad ofan snerust um hlid sem FELL
+ * ranglega a jafnteflum. Su thridja er alvarlegri og andstaed i eðli:
+ * hlidid var **ostadanlegt** fyrir einn tiltekinn leikmann.
+ *
+ * `--ref=fftoday` (11 timabil) drap skriftuna a
+ * `12-2flex|ppr|2020|w=0,2` med "afstaett vik 2,84e-5". MAELT MED
+ * DIAGNOSTIK I STAD ThESS AD SLAKA A ThROSKULDINUM:
+ *
+ *     id 00-0033090   v = 0   exp = (1-w)*0 = 0
+ *     got  = -2,842e-14      (hrein fleytitolu-suð)
+ *     abs  =  2,842e-14
+ *     rel  =  abs / max(1e-9, |exp|) = abs / 1e-9 = 2,84e-5
+ *
+ * Nefnarinn FELLUR I GOLFID thegar `exp` er nakvaemlega 0 — sem gerist
+ * fyrir hvern leikmann sem liggur akkurat a varamannsgildi. Tha er
+ * "afstaeda" vikid ekki afstaett heldur **algilt vik margfaldad med
+ * 1e9**, svo krafan `rel <= 1e-9` er i raun `abs <= 1e-18`. Tvofold
+ * nakvaemni ber `eps ~ 2,2e-16`, svo ENGIN rett reiknud tala getur
+ * uppfyllt hana.
+ *
+ * SLEEPER-ARMURINN SLAPP A HEPPNI, EKKI A RETTLEIKA: i theim fimm
+ * timabilum lenti enginn leikmadur nakvaemlega a 0. Ad lesa graena
+ * keyrslu thar sem stadfestingu a hlidinu hefdi verid rangt.
+ *
+ * ÞETTA ER SPEGILMYND „TOMU FULLYRDINGARINNAR": hlid sem GETUR EKKI
+ * FALLID maelir ekkert, og hlid sem GETUR EKKI STADIST maelir ekkert
+ * heldur — thad drepur bara keyrsluna i stad thess ad hleypa henni i
+ * gegn. Baedi lita ut eins og strangleiki.
+ *
+ * Vikmorkin eru thvi BLONDUD, sem er stadlada formid:
+ *     |got - exp| <= ATOL + RTOL * |exp|
+ * `RTOL = 1e-9` er obreytt thar sem thad a vid; `ATOL = 1e-9` er
+ * astronomiskt staerra en suðið (2,8e-14) og astronomiskt minna en
+ * nokkur VBD-munur sem skiptir mali — minnsti munur sem `computeVbd`
+ * getur birt er 0,1 eftir namundun, sem er 1e8 sinnum ATOL.
  */
 function affineViolation(a, b, w) {
   if (a.length !== b.length) return `lengd ${a.length} vs ${b.length}`;
   const bv = new Map(b);
-  let maxRel = 0;
+  const ATOL = 1e-9, RTOL = 1e-9;
+  let worstAbs = 0, worstExp = 0, bad = false;
   for (const [id, v] of a) {
     const got = bv.get(id);
     if (got == null) return `id ${id} vantar i blondudu bordi`;
     const exp = (1 - w) * v;
-    const rel = Math.abs(got - exp) / Math.max(1e-9, Math.abs(exp));
-    if (rel > maxRel) maxRel = rel;
+    const abs = Math.abs(got - exp);
+    if (abs > ATOL + RTOL * Math.abs(exp)) { bad = true; }
+    if (abs > worstAbs) { worstAbs = abs; worstExp = exp; }
   }
-  if (maxRel > 1e-9) return `VBD' != (1-w)*VBD, afstaett vik ${maxRel.toExponential(2)}`;
+  if (bad) {
+    return `VBD' != (1-w)*VBD, algilt vik ${worstAbs.toExponential(2)} vid exp ${worstExp}`;
+  }
   const av = new Map(a);
   for (let i = 0; i < a.length; i++) {
     if (a[i][0] === b[i][0]) continue;
