@@ -1,0 +1,726 @@
+{
+ "generated": "2026-08-24T17:04:28.711Z",
+ "provenance": {
+  "generated": "2026-08-24T17:04:28.712Z",
+  "argv": [
+   "--noOutcome"
+  ],
+  "params": {
+   "runs": {
+    "value": 4,
+    "fromDefault": true
+   },
+   "pruns": {
+    "value": 2,
+    "fromDefault": true
+   },
+   "boot": {
+    "value": 2000,
+    "fromDefault": true
+   },
+   "pboot": {
+    "value": 120,
+    "fromDefault": true
+   },
+   "from": {
+    "value": 2019,
+    "fromDefault": true
+   },
+   "pbruns": {
+    "value": 1,
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "players.json": {
+    "bytes": 1581274,
+    "sha1": "a0dd89e4e371",
+    "mtime": "2026-08-24T16:47:43.942Z"
+   },
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-24T16:47:43.915Z"
+   },
+   "measure/band.json": {
+    "bytes": 369496,
+    "sha1": "4ec0d9a80680",
+    "mtime": "2026-08-24T16:47:43.920Z"
+   },
+   "weekly/2019.json": {
+    "bytes": 2087665,
+    "sha1": "b87162c16e6c",
+    "mtime": "2026-08-24T16:47:43.952Z"
+   },
+   "weekly/2020.json": {
+    "bytes": 2137851,
+    "sha1": "0e05f5d0ae97",
+    "mtime": "2026-08-24T16:47:43.955Z"
+   },
+   "weekly/2021.json": {
+    "bytes": 2254051,
+    "sha1": "b7c14b38378e",
+    "mtime": "2026-08-24T16:47:43.959Z"
+   },
+   "weekly/2022.json": {
+    "bytes": 2228207,
+    "sha1": "5039b290f420",
+    "mtime": "2026-08-24T16:47:43.963Z"
+   },
+   "weekly/2023.json": {
+    "bytes": 2223594,
+    "sha1": "1f08f78d710b",
+    "mtime": "2026-08-24T16:47:43.966Z"
+   },
+   "weekly/2024.json": {
+    "bytes": 2232115,
+    "sha1": "f27f0c5323a8",
+    "mtime": "2026-08-24T16:47:43.970Z"
+   },
+   "weekly/2025.json": {
+    "bytes": 2283805,
+    "sha1": "da568b4abc6f",
+    "mtime": "2026-08-24T16:47:43.974Z"
+   }
+  },
+  "node": "v26.5.0"
+ },
+ "phase": "decomposition only (--noOutcome) — Q2/Q3 NOT RUN",
+ "question": {
+  "origin": "A round-band measurement (data/measure/band.json -> q1positionMix) found in passing that the shipped board spends 57.6% of its first three picks on TIGHT ENDS in the 10-team 2FLEX full-PPR league, which starts ONE tight end. Nobody asked for that number.",
+  "q1": "Where does the TE skew come from — FLEX_SPLIT.TE, the projection source, or the `value` column's dense-versus-absolute basis?",
+  "q2": "Does the concentration cost anything? Cap the board at one tight end inside rounds 1-3, and separately before round 8, and measure the OUTCOME against the shipped order.",
+  "q3": "If a cap wins, is it about TIGHT ENDS or about CONCENTRATION? The same cap on RB and WR is the control.",
+  "notTheSameAs": "scripts/vbdbase-lab.mjs --tesweep and h2h-lab.mjs --tesweep swept the CONSTANT (0 -> 0.40, 0 of 102 cells cleared, README 4l). A different replacement rank is not the same intervention as a cap on how many you take."
+ },
+ "design": {
+  "harness": "src/accuracy.js (simulateDraft, scoreLeague, roundRobin, startersPoints) — imported, not copied. World, cell, bootstrap, placebo perturbation and resampled pool are VERBATIM from scripts/band-lab.mjs, which takes them verbatim from h2h-lab.mjs.",
+  "onlyNewPiece": "makeWindowCapBoard — a cap that applies only while r < until. At until = 99 it is bit-identical to band-lab's makeCapBoard, and gate N5 proves it by reproducing the booked band.json q2b number exactly.",
+  "q1Harness": "buildRows (src/build.js) through a patched copy whose model.js import is bent onto a patched FLEX_SPLIT line (lib/te-sweep.mjs). Same method as flexsplit-lab.mjs — no reimplementation of computeVbd.",
+  "placeboFamily": "A cap on a PSEUDO-GROUP: players partitioned by a seeded hash into a group the same SIZE as the TE pool, capped in the same windows. Size is what controls how often a cap binds, so size is what must match. RB and WR caps are the CONTROL (a real hypothesis about concentration), not the placebo.",
+  "bar": [
+   "cap actually binds",
+   "sign",
+   "season-clustered bootstrap excludes zero",
+   "player-clustered bootstrap excludes zero",
+   "above the placebo ceiling (one-sided mean AND t)",
+   "majority of seasons",
+   "holds walk-forward against the same search over the placebo family",
+   "holds on BOTH metrics"
+  ]
+ },
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "sleeperSeasons": [
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "replacementRanks": {
+  "10-2flex": {
+   "QB": 10,
+   "RB": 27,
+   "WR": 29,
+   "TE": 14,
+   "K": 10,
+   "DST": 10
+  },
+  "12-2flex": {
+   "QB": 12,
+   "RB": 32,
+   "WR": 35,
+   "TE": 17,
+   "K": 0,
+   "DST": 0
+  }
+ },
+ "q1": {
+  "kind": "descriptive",
+  "shapes": {
+   "10-2flex": {
+    "label": "10 lid, 2 FLEX, PPR (Patriots)",
+    "levels": {
+     "L0_projectionOnly": {
+      "QB": {
+       "n": 23,
+       "meanSlots": 85.3,
+       "medianSlots": 82,
+       "meanRounds": 8.53
+      },
+      "RB": {
+       "n": 44,
+       "meanSlots": -31,
+       "medianSlots": -32.5,
+       "meanRounds": -3.1
+      },
+      "WR": {
+       "n": 54,
+       "meanSlots": -17.4,
+       "medianSlots": -18,
+       "meanRounds": -1.74
+      },
+      "TE": {
+       "n": 27,
+       "meanSlots": 19.7,
+       "medianSlots": 9,
+       "meanRounds": 1.97
+      },
+      "__gapTeWr": 37.1,
+      "__gapTeSkill": 43.9
+     },
+     "L1_vbdTe0": {
+      "QB": {
+       "n": 23,
+       "meanSlots": 11.7,
+       "medianSlots": 10,
+       "meanRounds": 1.17
+      },
+      "RB": {
+       "n": 44,
+       "meanSlots": -3,
+       "medianSlots": 0,
+       "meanRounds": -0.3
+      },
+      "WR": {
+       "n": 54,
+       "meanSlots": -9.6,
+       "medianSlots": -8,
+       "meanRounds": -0.96
+      },
+      "TE": {
+       "n": 27,
+       "meanSlots": 44.4,
+       "medianSlots": 41,
+       "meanRounds": 4.44
+      },
+      "__gapTeWr": 54,
+      "__gapTeSkill": 50.7
+     },
+     "L2_vbdShipped": {
+      "QB": {
+       "n": 23,
+       "meanSlots": 15.3,
+       "medianSlots": 14,
+       "meanRounds": 1.53
+      },
+      "RB": {
+       "n": 44,
+       "meanSlots": -2.2,
+       "medianSlots": 2,
+       "meanRounds": -0.22
+      },
+      "WR": {
+       "n": 54,
+       "meanSlots": -19.4,
+       "medianSlots": -16,
+       "meanRounds": -1.94
+      },
+      "TE": {
+       "n": 27,
+       "meanSlots": 59.8,
+       "medianSlots": 57,
+       "meanRounds": 5.98
+      },
+      "__gapTeWr": 79.2,
+      "__gapTeSkill": 70.6
+     },
+     "L3_shippedColumn": {
+      "QB": {
+       "n": 23,
+       "meanSlots": 12.8,
+       "medianSlots": 13.2,
+       "meanRounds": 1.28
+      },
+      "RB": {
+       "n": 44,
+       "meanSlots": -3.2,
+       "medianSlots": 1.3,
+       "meanRounds": -0.32
+      },
+      "WR": {
+       "n": 54,
+       "meanSlots": -20.3,
+       "medianSlots": -15.5,
+       "meanRounds": -2.03
+      },
+      "TE": {
+       "n": 27,
+       "meanSlots": 52,
+       "medianSlots": 55,
+       "meanRounds": 5.2
+      },
+      "__gapTeWr": 72.3,
+      "__gapTeSkill": 63.8
+     }
+    },
+    "wholeBoard": {
+     "L2_vbdShipped": {
+      "QB": {
+       "n": 35,
+       "meanSlots": -37.5,
+       "medianSlots": 11,
+       "meanRounds": -3.75
+      },
+      "RB": {
+       "n": 83,
+       "meanSlots": -26.7,
+       "medianSlots": -12,
+       "meanRounds": -2.67
+      },
+      "WR": {
+       "n": 111,
+       "meanSlots": -39.4,
+       "medianSlots": -22,
+       "meanRounds": -3.94
+      },
+      "TE": {
+       "n": 38,
+       "meanSlots": 53,
+       "medianSlots": 56,
+       "meanRounds": 5.3
+      },
+      "__gapTeWr": 92.4,
+      "__gapTeSkill": 86.1
+     },
+     "L3_shippedColumn": {
+      "QB": {
+       "n": 35,
+       "meanSlots": -45.3,
+       "medianSlots": 9.2,
+       "meanRounds": -4.53
+      },
+      "RB": {
+       "n": 83,
+       "meanSlots": -32.2,
+       "medianSlots": -15.4,
+       "meanRounds": -3.22
+      },
+      "WR": {
+       "n": 111,
+       "meanSlots": -44.3,
+       "medianSlots": -28.1,
+       "meanRounds": -4.43
+      },
+      "TE": {
+       "n": 38,
+       "meanSlots": 46.8,
+       "medianSlots": 55.4,
+       "meanRounds": 4.68
+      },
+      "__gapTeWr": 91.1,
+      "__gapTeSkill": 85.1
+     },
+     "L1_vbdTe0": {
+      "QB": {
+       "n": 35,
+       "meanSlots": -42.6,
+       "medianSlots": 5,
+       "meanRounds": -4.26
+      },
+      "RB": {
+       "n": 83,
+       "meanSlots": -26.7,
+       "medianSlots": -10,
+       "meanRounds": -2.67
+      },
+      "WR": {
+       "n": 111,
+       "meanSlots": -24.8,
+       "medianSlots": -11,
+       "meanRounds": -2.48
+      },
+      "TE": {
+       "n": 38,
+       "meanSlots": 36.2,
+       "medianSlots": 40.5,
+       "meanRounds": 3.62
+      },
+      "__gapTeWr": 61,
+      "__gapTeSkill": 62
+     }
+    },
+    "population": {
+     "keptPlayers": 148,
+     "draftableCap": 150
+    },
+    "decomposition": {
+     "unit": "board slots; TE minus WR of mean(market rank - our rank)",
+     "totalGapTeMinusWrSlots": 72.3,
+     "totalGapTeMinusWrRounds": 7.23,
+     "fromProjectionSource": 37.1,
+     "fromVbdTransform": 16.9,
+     "fromFlexSplitTe": 25.2,
+     "fromValueBasisDefect": -6.9,
+     "sumCheck": 72.3,
+     "identity": true,
+     "shareProjection": 0.51,
+     "shareVbdTransform": 0.23,
+     "shareFlexSplit": 0.35,
+     "shareBasis": -0.1,
+     "roundsFromFlexSplitTe": 2.52,
+     "roundsFromVbdTransform": 1.69,
+     "roundsFromValueBasisDefect": -0.69,
+     "roundsFromProjectionSource": 3.71
+    },
+    "basisDefect": {
+     "note": "value inflation from the dense-vs-absolute basis, in rounds; positive = the shipped column reads richer than it should",
+     "allMedianRounds": -0.19,
+     "deepAdpOver100MedianRounds": -0.57,
+     "byPosDeepMedianRounds": {
+      "QB": -0.28,
+      "RB": -0.67,
+      "WR": -0.55,
+      "TE": -0.34
+     }
+    }
+   },
+   "12-2flex": {
+    "label": "12 lid, 2 FLEX, half-PPR (Sofahetjur)",
+    "levels": {
+     "L0_projectionOnly": {
+      "QB": {
+       "n": 23,
+       "meanSlots": 90.1,
+       "medianSlots": 86,
+       "meanRounds": 7.51
+      },
+      "RB": {
+       "n": 45,
+       "meanSlots": -21,
+       "medianSlots": -22,
+       "meanRounds": -1.75
+      },
+      "WR": {
+       "n": 66,
+       "meanSlots": -24,
+       "medianSlots": -26.5,
+       "meanRounds": -2
+      },
+      "TE": {
+       "n": 30,
+       "meanSlots": 12,
+       "medianSlots": 11,
+       "meanRounds": 1
+      },
+      "__gapTeWr": 36,
+      "__gapTeSkill": 34.5
+     },
+     "L1_vbdTe0": {
+      "QB": {
+       "n": 23,
+       "meanSlots": 3.8,
+       "medianSlots": 4,
+       "meanRounds": 0.32
+      },
+      "RB": {
+       "n": 45,
+       "meanSlots": 0.4,
+       "medianSlots": 1,
+       "meanRounds": 0.03
+      },
+      "WR": {
+       "n": 66,
+       "meanSlots": -6.7,
+       "medianSlots": -6,
+       "meanRounds": -0.55
+      },
+      "TE": {
+       "n": 30,
+       "meanSlots": 39.2,
+       "medianSlots": 35,
+       "meanRounds": 3.26
+      },
+      "__gapTeWr": 45.9,
+      "__gapTeSkill": 42.4
+     },
+     "L2_vbdShipped": {
+      "QB": {
+       "n": 23,
+       "meanSlots": 2.7,
+       "medianSlots": 5,
+       "meanRounds": 0.23
+      },
+      "RB": {
+       "n": 45,
+       "meanSlots": -3,
+       "medianSlots": 0,
+       "meanRounds": -0.25
+      },
+      "WR": {
+       "n": 66,
+       "meanSlots": -11.9,
+       "medianSlots": -10.5,
+       "meanRounds": -0.99
+      },
+      "TE": {
+       "n": 30,
+       "meanSlots": 56.2,
+       "medianSlots": 55,
+       "meanRounds": 4.68
+      },
+      "__gapTeWr": 68.1,
+      "__gapTeSkill": 63.7
+     },
+     "L3_shippedColumn": {
+      "QB": {
+       "n": 23,
+       "meanSlots": 1.2,
+       "medianSlots": 2,
+       "meanRounds": 0.1
+      },
+      "RB": {
+       "n": 45,
+       "meanSlots": -4.1,
+       "medianSlots": 0.2,
+       "meanRounds": -0.35
+      },
+      "WR": {
+       "n": 66,
+       "meanSlots": -13.2,
+       "medianSlots": -11,
+       "meanRounds": -1.1
+      },
+      "TE": {
+       "n": 30,
+       "meanSlots": 59.3,
+       "medianSlots": 58.3,
+       "meanRounds": 4.94
+      },
+      "__gapTeWr": 72.5,
+      "__gapTeSkill": 67.9
+     }
+    },
+    "wholeBoard": {
+     "L2_vbdShipped": {
+      "QB": {
+       "n": 33,
+       "meanSlots": -37.5,
+       "medianSlots": -1,
+       "meanRounds": -3.13
+      },
+      "RB": {
+       "n": 76,
+       "meanSlots": -37.3,
+       "medianSlots": -19,
+       "meanRounds": -3.11
+      },
+      "WR": {
+       "n": 100,
+       "meanSlots": -23.9,
+       "medianSlots": -13,
+       "meanRounds": -1.99
+      },
+      "TE": {
+       "n": 45,
+       "meanSlots": 27.3,
+       "medianSlots": 40,
+       "meanRounds": 2.27
+      },
+      "__gapTeWr": 51.2,
+      "__gapTeSkill": 57.9
+     },
+     "L3_shippedColumn": {
+      "QB": {
+       "n": 33,
+       "meanSlots": -32.5,
+       "medianSlots": -0.6,
+       "meanRounds": -2.71
+      },
+      "RB": {
+       "n": 76,
+       "meanSlots": -32.5,
+       "medianSlots": -13.6,
+       "meanRounds": -2.71
+      },
+      "WR": {
+       "n": 100,
+       "meanSlots": -18.5,
+       "medianSlots": -14.3,
+       "meanRounds": -1.54
+      },
+      "TE": {
+       "n": 45,
+       "meanSlots": 49.3,
+       "medianSlots": 56.5,
+       "meanRounds": 4.11
+      },
+      "__gapTeWr": 67.8,
+      "__gapTeSkill": 74.8
+     },
+     "L1_vbdTe0": {
+      "QB": {
+       "n": 33,
+       "meanSlots": -37.5,
+       "medianSlots": 0,
+       "meanRounds": -3.13
+      },
+      "RB": {
+       "n": 76,
+       "meanSlots": -30.2,
+       "medianSlots": -10.5,
+       "meanRounds": -2.52
+      },
+      "WR": {
+       "n": 100,
+       "meanSlots": -15.6,
+       "medianSlots": -8.5,
+       "meanRounds": -1.3
+      },
+      "TE": {
+       "n": 45,
+       "meanSlots": 4.5,
+       "medianSlots": 26,
+       "meanRounds": 0.38
+      },
+      "__gapTeWr": 20.1,
+      "__gapTeSkill": 27.4
+     }
+    },
+    "population": {
+     "keptPlayers": 164,
+     "draftableCap": 168
+    },
+    "decomposition": {
+     "unit": "board slots; TE minus WR of mean(market rank - our rank)",
+     "totalGapTeMinusWrSlots": 72.5,
+     "totalGapTeMinusWrRounds": 6.04,
+     "fromProjectionSource": 36,
+     "fromVbdTransform": 9.9,
+     "fromFlexSplitTe": 22.2,
+     "fromValueBasisDefect": 4.4,
+     "sumCheck": 72.5,
+     "identity": true,
+     "shareProjection": 0.5,
+     "shareVbdTransform": 0.14,
+     "shareFlexSplit": 0.31,
+     "shareBasis": 0.06,
+     "roundsFromFlexSplitTe": 1.85,
+     "roundsFromVbdTransform": 0.82,
+     "roundsFromValueBasisDefect": 0.37,
+     "roundsFromProjectionSource": 3
+    },
+    "basisDefect": {
+     "note": "value inflation from the dense-vs-absolute basis, in rounds; positive = the shipped column reads richer than it should",
+     "allMedianRounds": -0.05,
+     "deepAdpOver100MedianRounds": 0.07,
+     "byPosDeepMedianRounds": {
+      "QB": -0.02,
+      "RB": 0.05,
+      "WR": -0.01,
+      "TE": 2.1
+     }
+    }
+   }
+  },
+  "patchGate": {
+   "shippedTe": 14,
+   "te0": 10,
+   "ok": true
+  },
+  "projectionSource": {
+   "note": "dense projection rank versus dense ADP rank in the SAME pool, so the basis defect and FLEX_SPLIT are both out. Positive = the source ranks the position richer than the market does. `draftable` is the population comparable to L0 (top 150 by ADP); `wholePool` is every player the source projects and is NOT comparable to L0.",
+   "draftable": {
+    "sleeper": {
+     "seasons": 5,
+     "pooledPlayers": 742,
+     "QB": {
+      "n": 104,
+      "meanSlots": 69.3
+     },
+     "RB": {
+      "n": 259,
+      "meanSlots": -25.7
+     },
+     "WR": {
+      "n": 300,
+      "meanSlots": -6.9
+     },
+     "TE": {
+      "n": 79,
+      "meanSlots": -22.9
+     },
+     "gapTeWr": -16
+    },
+    "fftoday": {
+     "seasons": 7,
+     "pooledPlayers": 1040,
+     "QB": {
+      "n": 146,
+      "meanSlots": 68.5
+     },
+     "RB": {
+      "n": 377,
+      "meanSlots": -25
+     },
+     "WR": {
+      "n": 400,
+      "meanSlots": -8.1
+     },
+     "TE": {
+      "n": 117,
+      "meanSlots": -10.5
+     },
+     "gapTeWr": -2.4
+    }
+   },
+   "wholePool": {
+    "sleeper": {
+     "seasons": 5,
+     "pooledPlayers": 869,
+     "QB": {
+      "n": 123,
+      "meanSlots": 75.8
+     },
+     "RB": {
+      "n": 294,
+      "meanSlots": -22.4
+     },
+     "WR": {
+      "n": 350,
+      "meanSlots": -3.6
+     },
+     "TE": {
+      "n": 102,
+      "meanSlots": -14.5
+     },
+     "gapTeWr": -10.9
+    },
+    "fftoday": {
+     "seasons": 7,
+     "pooledPlayers": 1164,
+     "QB": {
+      "n": 170,
+      "meanSlots": 75.2
+     },
+     "RB": {
+      "n": 413,
+      "meanSlots": -23.1
+     },
+     "WR": {
+      "n": 451,
+      "meanSlots": -5
+     },
+     "TE": {
+      "n": 130,
+      "meanSlots": -7.5
+     },
+     "gapTeWr": -2.5
+    }
+   },
+   "liveBoardL0GapTeWr": {
+    "10-2flex": 37.1,
+    "12-2flex": 36
+   }
+  }
+ },
+ "runtimeSec": 0.3
+}
