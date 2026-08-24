@@ -1900,10 +1900,40 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
       + `OLEIKNA leik: ${shouldHave.size} lid aettu, ${haveIt.size} bera `
       + `(vantar: ${missing.join(",") || "engin"} · ofaukid: ${extra.join(",") || "engin"})`);
     /* FORSENDA: mengið ma ekki vera tomt i BADA enda — tomt "aettu" gerir
-       fullyrdinguna ad tautologiu (kafli 5b).                           */
-    ok(shouldHave.size > 0 || unplayedFix.length === 0,
-      `forsenda: ${shouldHave.size} lid eiga passandi odds-rod (af ${Object.keys(nextUnplayed).length} `
-      + `med oleikinn leik) — vaeri thad 0 maeldi fullyrdingin ekkert`);
+       fullyrdinguna ad tautologiu (kafli 5b).
+
+       EN TOMT "AETTU" HEFUR TVAER GEROLIKAR ORSAKIR OG FYRSTA UTGAFAN
+       LAGDI ThAER I SAMA FLOKK (lagad 24.8.2026):
+         (a) porunin er BILUD — raunveruleg villa, verdur ad falla;
+         (b) `odds.json` NAER EINFALDLEGA EKKI YFIR neinn oleikinn leik enn.
+       (b) er VENJULEGT astand, ekki bilun: linur eru sottar tvisvar per
+       umferd, svo milli umferda ber skrain adeins leiki sem eru BUNIR.
+       MAELT 24.8.2026: `odds.json` er fra 22.8. og ber 18 radir, allar
+       GW1-leiki sem eru spiladir — svo `shouldHave` er 0 og fullyrdingin
+       fell, THOTT dalkurinn se rettur (tomur er RETTA svarid tha).
+
+       SVEFNINN ER SJALFUR FULLYRDING (sama regla og `calibration.mjs`):
+       vid stadhaefum ad skrain se raunverulega a UNDAN ollum oleiknum
+       leikjum. Beri hun rod fyrir leik sem er OLEIKINN en `shouldHave` er
+       samt 0, tha er thad (a) og kaflinn FELLUR eins og adur.           */
+    const upcomingDays = new Set(unplayedFix.map(f => String(f.kickoff_time).slice(0, 10)));
+    const oddsDays = Object.values(odds || {})
+      .map(r => (r?.kickoff ? String(r.kickoff).slice(0, 10) : null)).filter(Boolean);
+    const oddsTouchesUpcoming = oddsDays.some(d => upcomingDays.has(d));
+    if (!unplayedFix.length) {
+      ok(true, "engir oleiknir leikir eftir — ekkert ad maela (rett astand)");
+    } else if (!oddsTouchesUpcoming) {
+      /* SVEFN MED TENNUR: skrain VERDUR ad vera oll a undan naesta leik. */
+      const firstUpcoming = [...upcomingDays].sort()[0];
+      ok(oddsDays.length > 0 && oddsDays.every(d => d < firstUpcoming),
+        `kaflinn SEFUR: odds.json (${oddsDays.length} radir, nyjasta ${
+          oddsDays.slice().sort().at(-1)}) nær EKKI yfir neinn oleikinn leik `
+        + `(sa naesti er ${firstUpcoming}) — tomur dalkur er RETTA svarid`);
+    } else {
+      ok(shouldHave.size > 0,
+        `forsenda: ${shouldHave.size} lid eiga passandi odds-rod (af ${Object.keys(nextUnplayed).length} `
+        + `med oleikinn leik) — odds.json NAER yfir oleikinn leik, svo 0 er porunar-bilun`);
+    }
     /* OG MERKIMIDINN SJALFUR VERDUR AD SEGJA SATT — en adeins fyrir skrar
        sem NYJA pipeline-an skrifadi. `gws` er svidid sem hun baetti vid, svo
        tilvist thess er hlidid: eldri skra (skrifud fyrir 22.8.) er ekki
