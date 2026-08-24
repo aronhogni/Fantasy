@@ -407,15 +407,16 @@ function buildWorld(y, weekly, featIdx) {
     actual14[fmt] = new Map(P.map((p, i) => [p.id, { pos: p.pos, pts: tot14[fmt][i] }]));
   }
 
-  /* --- Q3-BREYTURNAR: `prevCarG` OG PLACEBOARNIR ---
-     `prevCarG` er stigagjafar-obundin (hun er tolfraedi FYRRA timabils)
-     og er thvi tekin ur ppr-rodinni — nakvaemlega eins og `opp-lab`
-     gerir. Placeboarnir eru deterministiskt suð ur (id, timabil,
-     fraekorn) og hafa thvi FULLA thekju medan `prevCarG` hefur ~88%.
+  /* --- Q3-BREYTURNAR: `Q3_VAR` OG PLACEBOARNIR ---
+     Maelda breytan er stigagjafar-obundin (hun er tolfraedi FYRRA
+     timabils, eda lidseinkunn) og er thvi tekin ur ppr-rodinni —
+     nakvaemlega eins og `opp-lab` gerir. Placeboarnir eru
+     deterministiskt suð ur (id, timabil, fraekorn) og hafa thvi FULLA
+     thekju medan raunbreytan hefur ~88-99%.
      Su osamhverfa er ARFUR UR `opp-lab` og er hoggvin i stein her:
      thettari truflun getur adeins gert placebo-thakid HAERRA, sem er
      rett attin — hun gerir throskuldinn fyrir raunverulegu breytuna
-     erfidari, ekki audveldari. `coverage.prevCarG` ber toluna.        */
+     erfidari, ekki audveldari. `coverage[Q3_VAR]` ber toluna.        */
   const feat = new Map();
   let carRows = 0, carHead = 0;
   for (let i = 0; i < N; i++) {
@@ -1076,7 +1077,7 @@ async function main() {
     await writeOut({ gate: false, nullTest, note:
       "NULLPROFID FELL. Herminn hallar a arm og hver tala undir honum er " +
       "merkingarlaus. Engar nidurstodur eru reiknadar." });
-    console.error("\n  NULLPROFID FELL — engar nidurstodur reiknadar. Sja data/measure/h2h.json\n");
+    console.error(`\n  NULLPROFID FELL — engar nidurstodur reiknadar. Sja data/measure/${OUT_FILE}\n`);
     process.exit(3);
   }
 
@@ -1688,12 +1689,18 @@ async function main() {
        3  heldur walk-forward (val a fyrri arum eingongu)
      ============================================================ */
     console.log(`\n${"=".repeat(78)}`);
-  console.log("  Q3 BJARGAR SIGRA-MAELIKVARDINN `prevCarG`? (README 4d: +23,8 stig, plsb-thak +21,3)");
+  /* HEITID VERDUR AD KOMA UR `Q3_VAR`. Fyrsta utgafa `--q3var` skildi
+     thennan streng harkodadan og loggið sagdi thvi `prevCarG` medan
+     `mktOwnHonest` var maelt — NAKVAEMLEGA villan sem README kafli 5
+     bokar ("textinn i Experts sagdi ANNAD VAL en bordid notadi").
+     Bokada samanburdartalan fylgir adeins thegar breytan ER su bokada. */
+  console.log(`  Q3 BJARGAR SIGRA-MAELIKVARDINN \`${Q3_VAR}\`?` +
+    (Q3_VAR === "prevCarG" ? " (README 4d: +23,8 stig, plsb-thak +21,3)" : ""));
   console.log("=".repeat(78));
 
   const q3Years = seasons;                 // 2019-2025, sama regla og Q2
-  console.log(`  thekja \`prevCarG\`: ` + q3Years.map((y) =>
-    `${y} ${worlds[y].coverage.prevCarGInHead}/${worlds[y].coverage.projected}`).join(" · "));
+  console.log(`  thekja \`${Q3_VAR}\`: ` + q3Years.map((y) =>
+    `${y} ${worlds[y].coverage[`${Q3_VAR}InHead`]}/${worlds[y].coverage.projected}`).join(" · "));
 
   /* --- 3b-1 NULLHLIDID: w=0 VERDUR AD VERA SAMA BORD, LYKIL FYRIR LYKIL ---
      Tvennt er profad og hvorugt daemir hitt: (a) bordin eru borin saman
@@ -2059,10 +2066,10 @@ async function main() {
 
   const q3 = {
     question: "Bjargar thad ad skipta ur STIGUM i SIGRA einhverri hugmynd sem " +
-      "var hafnad? Eini frambjodandinn sem er naerri morkunum er `prevCarG` " +
+      `var hafnad? Maeld breyta: \`${Q3_VAR}\`. Bokadi frambjodandinn er \`prevCarG\` ` +
       "(README 4d: +23,8 stig gegn placebo-thaki +21,3).",
     design: {
-      treatment: "A-Ranking bordid endurradad eftir `z(VBD) + w * z(prevCarG)`, " +
+      treatment: `A-Ranking bordid endurradad eftir \`z(VBD) + w * z(${Q3_VAR})\`, ` +
         "z INNAN STODU fyrir breytuna og yfir hausinn fyrir VBD — ordrett " +
         "regla `opp-lab.mjs`. Taglid (their sem eiga enga spa) er ohreyft.",
       control: "hreint A-Ranking bordid. z-stodlun a VBD er einraen umbreyting " +
@@ -2085,7 +2092,8 @@ async function main() {
     },
     nullGate: q3Null,
     coverage: Object.fromEntries(q3Years.map((y) => [y,
-      { head: worlds[y].coverage.projected, withPrevCarG: worlds[y].coverage.prevCarGInHead }])),
+      { head: worlds[y].coverage.projected,
+        withVariable: worlds[y].coverage[`${Q3_VAR}InHead`], variable: Q3_VAR }])),
     variable: q3Var, placebos: q3Plc,
     placeboCeiling: { wins: ceilWins, points: ceilPts, byScope: ceilByScope },
     era: q3Era,
@@ -2210,7 +2218,11 @@ async function main() {
     coverage: Object.fromEntries(seasons.map((y) => [y, worlds[y].coverage])),
     sumCheck, shapeGuard, projYears, seasons, runtimeSec: secs,
   });
-  console.log(`\n-> data/measure/h2h.json  (${secs} s)`);
+  /* SKRAARHEITID ER LESID UR `OUT_FILE`, ekki harkodad. Fyrsta utgafa
+     `--out` skildi thennan streng eftir og loggið sagdi thvi
+     "h2h.json" medan skrifad var i "h2h_mkt.json" — tala med rangri
+     slod er osamanburdarhaef (sama regla og `DEAD_GAMES` i 4e). */
+  console.log(`\n-> data/measure/${OUT_FILE}  (${secs} s)`);
 }
 
 function buildVerdict({ q1, q2, anchors, q3 }) {
@@ -2291,7 +2303,7 @@ function buildVerdict({ q1, q2, anchors, q3 }) {
      linan ekki verda "hun er naerri" — hun ber toluna.               */
   if (q3) {
     const V = q3.verdict, C = q3.placeboCeiling.wins;
-    lines.push(`Q3 \`prevCarG\` a SIGRUM: osamhverft ${sgn(q3.variable.wins.mean, 3)} sigrar af ` +
+    lines.push(`Q3 \`${Q3_VAR}\` a SIGRUM: osamhverft ${sgn(q3.variable.wins.mean, 3)} sigrar af ` +
       `${REG_WEEKS} (t=${q3.variable.wins.t}, ${q3.variable.wins.wins}/${q3.variable.wins.years}), ` +
       `placebo-thak ${sgn(C.hi, 3)} — bord ${sgn(V.marginOverCeiling, 3)}.`);
     lines.push(`Q3 skilyrdin thrju: per-leikmanns CI ` +
