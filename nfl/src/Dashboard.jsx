@@ -58,6 +58,41 @@ import { currentWeek, weekContext, weekRows, onByeThisWeek,
          compareOppImplied } from "./weekview.js";
 import { freeAgents, pickupAdvice } from "./waivers.js";
 import { newsForRoster, injuredOn } from "./newsmatch.js";
+/* ============================================================
+   HVERS VEGNA FORSIDAN BER `Fine` FRA 24.8.2026
+   ============================================================
+   BEIDNI NOTANDANS, ordrett: "Mer finnst alltof mikid ad gera a
+   forsidunni, taktu ut eithvad af thessum texta, eg vill adalega nota
+   draft siduna til ad segja mer hvenr eg a ad velja."
+
+   ÞRIDJA BEIDNIN UM MINNI TEXTA. Bordid var fellt 20.8.; forsidan var
+   thad ekki, og hun bar SJO malsgreinar af adferdafraedi ofan a tholur
+   sem svara "hvad gerí eg i thessari viku".
+
+   FLOKKUNIN SEM VAR NOTUD — og hun er thrju olik hlutir, ekki eitt:
+
+     (a) FYRIRVARI SEM ER TIL ThVI EITTHVAD ER OMAELT -> FELLDUR, ALDREI
+         EYDDUR. "the defence term is absent, not zero", "missing data,
+         not a verdict", "gain unknown", `weeklyEdgeNote` sjalf. Ef ein
+         theirra er eydd fer omaelt merki ad lesast eins og MAELT merki.
+     (b) UPPRUNI OG ADFERD -> FELLD I `Fine` eda i `title`. Talan heldur
+         getu sinni til ad segja hvadan hun kemur; hun hettir ad hropa
+         thad. `dstStreamNote`, "Defence is from 2025", "News is shown,
+         never interpreted".
+     (c) ENDURSOGN A ThVI SEM TALAN SYNIR ThEGAR -> EYTT BERUM ORDUM.
+         "there is no change that raises expected points" (talan er
+         thegar a skjanum), "a tool that always finds a move is
+         useless", "a list that ignores that is worse than none".
+
+   OG ThAD SEM KVIKNAR A RAUNVERULEGRI BILUN VAR EKKI HREYFT: "Sleeper
+   did not answer", "Rosters were not read", `fa.notes`, meiddu nofnin,
+   auda vikan, "we do not know which team is yours". Þau eru
+   GREININGAR, ekki prosa — hvert theirra kostadi eitthvad ahur en thad
+   var skrifad.
+
+   VORDUR: `dashboard.mjs` kafli 3h. Sama tvihlida krafa og
+   `render.mjs` kafli 8 gerir a bordid.                              */
+import Fine from "./Fine.jsx";
 
 export default function Dashboard({ entries, rows, meta, schedule, defense, news,
                                     sleeperUser }) {
@@ -117,10 +152,12 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
       <div className="panel">
         <h2>Your leagues</h2>
         <div className="note warn">
+          {/* (c): "…the standings, start/sit and waiver advice on this page all
+              come from your actual league rules, so there is nothing to show
+              until one is read" var endursogn a thvi sem tomt spjald syair
+              thegar. Adgerdin er thad sem tharf. */}
           <b>No league connected yet.</b> Open the Draft tab and paste your
-          Sleeper league link — the standings, start/sit and waiver advice on this
-          page all come from your actual league rules, so there is nothing to show
-          until one is read.
+          Sleeper league link.
         </div>
       </div>
     );
@@ -386,11 +423,14 @@ function RosterNews({ roster, news }) {
       <Head>Injuries &amp; news</Head>
 
       {hurt.length > 0 && (
-        <div className="note warn" style={{ marginTop: 6 }}>
+        /* NOFNIN ERU GREININGIN og thau standa obreytt. Setningin um ad
+           opinber status radi tiltaekileika er (b) — uppruni, ekki
+           adgerd — og hun er nu i `title`. Hun er EKKI eydd: hun er su
+           eina sem segir hvers vegna listinn er eins og hann er. */
+        <div className="note warn" style={{ marginTop: 6 }}
+             title="Official status decides availability — everything else may inform it, never replace it.">
           <b>{hurt.length} flagged on your roster:</b>{" "}
           {hurt.map((r) => `${r.name} (${r.injury})`).join(", ")}.
-          <span className="dim"> Official status decides availability —
-            everything else may inform it, never replace it.</span>
         </div>
       )}
 
@@ -407,14 +447,22 @@ function RosterNews({ roster, news }) {
               )}
             </div>
           ))}
+          {/* TALNINGARNAR ERU GREINING (thogul rong nafna-parun er verri en
+              engin) og thaer standa. Setningin "News is shown, never
+              interpreted" er (b): hun segir hvad appid gerir EKKI vid
+              thessar greinar. Hun er felld, ekki eydd — an hennar gaeti
+              lesandi haldid ad frett hefdi faert spa. */}
           <div className="dim" style={{ fontSize: 11.5, marginTop: 3 }}>
             {m.items.length} of the latest stories mention someone on your roster
             {m.viaName > 0 && <span className="warn"> · {m.viaName} matched on
               name rather than id</span>}
             {m.ambiguous > 0 && <span className="warn"> · {m.ambiguous} skipped as
               ambiguous</span>}.
-            <b> News is shown, never interpreted</b> — nothing here moves a
-            projection or a rank.
+            <Fine summary="What the app does with these">
+              <b>News is shown, never interpreted</b> — nothing here moves a
+              projection or a rank. Letting text analysis shift a projection would
+              put an unmeasured number in a cell that looks measured.
+            </Fine>
           </div>
         </div>
       )}
@@ -467,9 +515,12 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring,
     <div style={{ marginTop: 14 }}>
       <Head>Start / sit</Head>
       {week == null && (
+        /* (b): UPPRUNI TOLUNNAR. Hann VERDUR ad sjast — 12,4 les eins og
+           vikuleg spa og er thad ekki — en hann er ein setning, ekki tvaer.
+           Setningin "It is not a weekly number and it does not pretend to
+           be" var (c): "season projection over 17" segir thad thegar. */
         <div className="dim" style={{ fontSize: 11.5, marginTop: 4 }}>
-          Preseason — there is no week to project, so this is the season projection
-          divided by 17. It is not a weekly number and it does not pretend to be.
+          Preseason — no week to project, so this is the season projection over 17.
         </div>
       )}
 
@@ -530,13 +581,14 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring,
              upp tolu sem hreina rokfraedin hafnadi.              */}
       {!advice ? (
         <div className="dim" style={{ fontSize: 11.5, marginTop: 6 }}>
-          Sleeper has no lineup set for you yet, so this is the best lineup rather
-          than a list of corrections.
+          No lineup set on Sleeper yet — this is the best lineup, not a list of
+          corrections.
         </div>
       ) : advice.isOptimal ? (
+        /* (c): "there is no change that raises expected points" er
+           NAKVAEMLEGA thad sem "already optimal" segir. Tvisvar sagt. */
         <div className="note" style={{ marginTop: 6 }}>
-          <b>Your lineup is already optimal</b> against these projections — there is
-          no change that raises expected points.
+          <b>Your lineup is already optimal</b> against these projections.
         </div>
       ) : (
         <div className="note warn" style={{ marginTop: 6 }}>
@@ -555,11 +607,12 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring,
                     {c.slot && <span className="dim"> at {c.slot}</span>}
                   </>
                 ) : (
-                  <>
-                    Start <b>{c.in.name}</b> — your <b>{c.slot}</b> slot is empty and
-                    no one you are starting is eligible for it, so this is not a swap
-                    but a player added to an empty slot.
-                  </>
+                  /* Þetta er EKKI skipti og thad ma ekki lesast sem skipti —
+                     en thad tharf ekki thrjar setningar. Astaedan (enginn
+                     gjaldgengur i byrjunarlidinu) er i `title`. */
+                  <span title="Nobody you are starting is eligible for this slot, so this is an addition to an empty slot rather than a swap.">
+                    Start <b>{c.in.name}</b> — your <b>{c.slot}</b> slot is empty.
+                  </span>
                 )}
               </li>
             ))}
@@ -655,11 +708,34 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring,
            Notandinn spilar i baðum. Ad bera PPR-toluna a half-deildina
            var ad lata omarktaeka tolu lesast eins og maelda. */
         <div className="dim" style={{ fontSize: 11.5, marginTop: 5 }}>
-          <b>Sleeper</b> is their projection, season number over 17.{" "}
-          <b>Ours</b> is that same number adjusted by the team's implied total from
-          the betting line and the opponent's defence against the position.{" "}
-          <span className={edge.significant ? "good" : "warn"}>{edge.text}</span>{" "}
-          It has never run on a live week, so treat week 1 as its first real test.{" "}
+          {/* ============================================================
+              ÞETTA VAR STAERSTI TEXTAKASSINN A FORSIDUNNI — FJORAR
+              MALSGREINAR UNDIR TVEIMUR DALKUM
+              ============================================================
+              (c) OG EYTT: "Sleeper is their projection, season number over
+              17. Ours is that same number adjusted by the team's implied
+              total from the betting line and the opponent's defence against
+              the position." Þetta er ORDRETT thad sem `title` a dalkunum
+              tveimur segir thegar, tveimur linum ofar. Tvaer utgafur af
+              somu setningu geta rekid i sundur og su i toflunni er su sem
+              hann les thegar hann spyr.
+
+              (a) OG FELLT, ALDREI EYTT: `edge.text` og "never run on a live
+              week". Su fyrri BER MARKTAEKNINA (`edge.significant` styrir
+              litnum) og hun er astaedan fyrir thvi ad talan "Ours" ma
+              standa; su sidari segir ad hun hafi enga lifandi viku a bak
+              vid sig. Baðar eru fyrirvarar um MAELINGU og hvorug ma
+              hverfa. `edge.text` verdur ad koma UR `weeklyEdgeNote(scoring)`
+              per deild — sja `dashboard.mjs` kafla 3e, thar sem
+              hardkodad `"ppr"` fellur.
+
+              (a) OG STENDUR SYNILEG: "the defence term is absent, not
+              zero". Su ein er ekki fyrirvari um adferd heldur um ThESSA
+              TOLU I DAG — hun er ekki heil — svo hun a ekki ad thurfa
+              smell. Hun stendur.                                       */}
+          <span className={edge.significant ? "good" : "warn"}>
+            {edge.measured && edge.significant ? "Ours is measured" : "Ours is unproven"}
+          </span>{" "}
           {/* ============================================================
               "WEEKS ALREADY PLAYED ONLY" VAR PROSA SEM KODINN STODST EKKI
               ============================================================
@@ -671,19 +747,34 @@ function StartSit({ lineup, advice, bye, week, myRows, mineId, scoring,
               rettara, en thad ma ekki vera thogult heldur. Sama regla og
               thrjar tegundir af engu i DST-listanum. */}
           {defSeason == null
-            ? <span className="warn">No defence-vs-position rows exist for{" "}
-                {season != null ? season : "this season"} yet, so &quot;Ours&quot;
-                carries the betting line only — the defence term is absent, not
-                zero. It appears once a week has been played.</span>
-            : <span className="dim">Defence is from {defSeason} ({defRows}{" "}
-                team-position rows).</span>}
+            ? <span className="warn">No defence-vs-position rows for{" "}
+                {season != null ? season : "this season"} yet — the defence term is
+                absent, not zero.</span>
+            : <span className="dim">Defence from {defSeason}.</span>}
+          <Fine summary="Where Ours comes from, and how well it is measured">
+            <b>Sleeper</b> is their projection, season number over 17. <b>Ours</b> is
+            that same number adjusted by the team&apos;s implied total from the betting
+            line and the opponent&apos;s defence against the position.
+            <br /><br />
+            <span className={edge.significant ? "good" : "warn"}>{edge.text}</span>{" "}
+            It has never run on a live week, so treat week 1 as its first real test.
+            {defSeason == null
+              ? <> The defence term appears once a week of{" "}
+                  {season != null ? season : "this season"} has been played; until
+                  then &quot;Ours&quot; carries the betting line only.</>
+              : <> Defence is from {defSeason} ({defRows} team-position rows).</>}
+          </Fine>
         </div>
       )}
 
       {lineup && lineup.unknown && lineup.unknown.length > 0 && (
+        /* (a) OG HUN STENDUR SYNILEG: "missing data, not a verdict" er
+           null-reglan sjalf (tomt gildi er ekki nullgildi). Adeins "on
+           your roster" og "here" foru — thau saga ekkert sem stadurinn
+           segir ekki thegar. */
         <div className="dim" style={{ fontSize: 11.5, marginTop: 6 }}>
-          {lineup.unknown.length} on your roster have no projection, so they are
-          benched here. That is missing data, not a verdict on them.
+          {lineup.unknown.length} have no projection, so they are benched — missing
+          data, not a verdict.
         </div>
       )}
     </div>
@@ -796,8 +887,15 @@ function DstStream({ dst, rostersRead }) {
         </table>
       </div>
 
+      {/* (b): `dstStreamNote()` er FIMM tolur i einni malsgrein og hun er
+          UPPRUNI — hun rettlaetir hvers vegna thetta er VIKULEGUR listi og
+          ekki season-rod. Hun er felld, ekki eydd, og hun kemur AFRAM ur
+          `weekview.js` (`dst.mjs` kafli 9 fullyrdir kallid). Ad afrita
+          tolurnar hingad vaeri tvo utgafur af somu maelingu. */}
       <div className="dim" style={{ fontSize: 11, marginTop: 6, whiteSpace: "normal" }}>
-        {note.text}
+        <Fine summary="Why this is a weekly list and not a season ranking">
+          {note.text}
+        </Fine>
       </div>
     </div>
   );
@@ -843,9 +941,11 @@ function Waivers({ fa, picks, league }) {
 
       {(!fa || fa.pool == null) ? (
         <div className="note warn" style={{ marginTop: 6 }}>
-          <b>Rosters were not read, so the free-agent pool is unknown.</b> This is
-          deliberately blank rather than a list of everyone — most of those players
-          are on someone's roster, and a list that ignores that is worse than none.
+          {/* GREINING og hun stendur. (c): "…and a list that ignores that is
+              worse than none" er skodun um verkfaerid, ekki upplysing um
+              astandid. */}
+          <b>Rosters were not read, so the free-agent pool is unknown.</b> Blank on
+          purpose — most of those players are on someone&apos;s roster.
         </div>
       ) : fa.mine == null ? (
         /* Vitum ekki hvada lid er mitt -> engin skipti eru reiknanleg.
@@ -871,10 +971,12 @@ function Waivers({ fa, picks, league }) {
            astand; waiver-hlutinn hafdi thad ekki. Fannst med thvi ad
            HORFA A SIDUNA, ekki i talningu.                            */
         <div className="note" style={{ marginTop: 6 }}>
+          {/* RAMMINN ER ThAD SEM SKIPTIR MALI (sja notuna ad ofan) og hann
+              stendur. (c): "This becomes useful once the season starts and
+              rosters have holes in them" — "Nothing drafted yet" segir thad. */}
           <b>Nothing drafted yet, so there is no waiver wire.</b> All{" "}
           {fa.pool.length} players are still unowned — that is the draft pool, not a
-          list of pickups. This becomes useful once the season starts and rosters
-          have holes in them.
+          list of pickups.
         </div>
       ) : (
         <>
@@ -927,10 +1029,15 @@ function Waivers({ fa, picks, league }) {
               </table>
             </div>
           ) : (
+            /* SETNINGIN SJALF ER SVARID og hun stendur ordrett (prof i
+               dashboard.mjs kafla 7b krefjast thess ad hun se ThARNA og
+               HVERGI annars stadar). (c): "That is the answer, not an empty
+               screen — doing nothing is usually right, and a tool that always
+               finds a move is useless" er rokstudningur fyrir framsetningu
+               sem er thegar a skjanum. */
             <div className="note" style={{ marginTop: 6 }}>
-              <b>Nobody on waivers beats anyone on your roster.</b> That is the
-              answer, not an empty screen — doing nothing is usually right, and a
-              tool that always finds a move is useless.
+              <b>Nobody on waivers beats anyone on your roster.</b> Doing nothing is
+              the move.
             </div>
           )}
 
@@ -954,12 +1061,24 @@ function Waivers({ fa, picks, league }) {
               nefnir orsok sem notandinn getur sannad ranga kennir honum ad
               hunsa vidvaranir.                                          */}
           {picks && picks.some((p) => !p.confident) && (
+            /* (b) OG FELLT: thrju skilyrdin eru UPPRUNI `confident`-flaggsins
+               og hvert theirra stendur thegar i `why` per rod. Setningin um
+               golfid er ThAR AFRAM — hun er ekki adferdafraedi heldur
+               LEIDRETTING a fyrri rangri orsok (14.8.2026), og
+               `dashboard.mjs` kafli 3f fellur se hun horfin.
+
+               "Rows not in green" stendur UPPI an smells, thvi thad er
+               flaggid sjalft: notandi sem ser graena og ograena rod verdur
+               ad geta sed AN smells ad munurinn se raunverulegur. */
             <div className="dim" style={{ fontSize: 11.5, marginTop: 5 }}>
-              Rows not in green fail one of the three inputs behind the gain: the
-              player projects below your league's replacement level, his projection is
-              the ESPN fallback rather than Sleeper's own, or he is not fully
-              available. Each such row says which, in Why. The minimum-gain floor is
-              not one of them — every row here has already cleared it.
+              Rows not in green fail one of the three inputs behind the gain — each
+              says which, in Why.
+              <Fine summary="Which three inputs, and what is not one of them">
+                The player projects below your league&apos;s replacement level, his
+                projection is the ESPN fallback rather than Sleeper&apos;s own, or he
+                is not fully available. The minimum-gain floor is not one of them —
+                every row here has already cleared it.
+              </Fine>
             </div>
           )}
         </>

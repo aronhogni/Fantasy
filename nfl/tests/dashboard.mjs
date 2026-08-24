@@ -1907,5 +1907,211 @@ console.log("\n11. waiver-noturnar eru a skjanum");
   unreadableSlot = null;
 }
 
+/* ============================================================
+   3h. FELLDUR ROKSTUDNINGUR A FORSIDUNNI — STUTT SJALFGEFID, EKKI EYTT
+   ============================================================
+   BEIDNI NOTANDANS 24.8.2026, ordrett: "Mer finnst alltof mikid ad gera
+   a forsidunni, taktu ut eithvad af thessum texta, eg vill adalega nota
+   draft siduna til ad segja mer hvenr eg a ad velja."
+
+   ÞRIDJA BEIDNIN UM MINNI TEXTA. `render.mjs` kafli 8 gerdi thessa somu
+   tvihlida krofu a DRAFT-BORDID 20.8.; forsidan var ekki vardin, og hun
+   bar staersta textakassann i appinu.
+
+   KRAFAN ER TVIHLIDA OG HVORUG HELMINGURINN NAEGIR EINN:
+
+     (a) setningin er ENN I DOM-inu                    -> ekki eydd
+     (b) hun er inni i `<details>` sem er EKKI `open`  -> hun er FELLD
+
+   Med (a) einu maetti skilja hverja malsgrein eftir opna og kaflinn
+   vaeri graenn — thad er nakvaemlega thad sem hann bad um ad yrdi
+   breytt. Med (b) einu maetti eyda setningunni og hafa TOMT details.
+
+   ============================================================
+   OG ThRJAR SETNINGAR ERU NEFNDAR BERUM ORDUM, EKKI TALDAR
+   ============================================================
+   `<details>`-talning er ThEKJA og hun getur stadid medan tiltekin
+   setning er horfin. Thessar thrjar eru hver um sig su EINA sem heldur
+   omældu eda ohaeilu merki fra ad lesast eins og maelt:
+
+     · `weeklyEdgeNote` — MARKTAEKNIN a bak vid "Ours". An hennar er
+       dalkurinn tala an umbods.
+     · "absent, not zero" — og hun MA EKKI vera felld. Hun er ekki
+       adferdafraedi heldur fyrirvari um ThESSA TOLU I DAG, svo hun er
+       profud i HINA attina: hun verdur ad sjast AN smells.
+     · `dstStreamNote` — hvers vegna vornin er VIKULEGUR listi og ekki
+       season-rod. Season-rod maeldist -0,82 medal theirra sem eru
+       raunverulega lausir; ad thegja um thad vaeri ad bjoda hana.      */
+console.log("\n3h. felldur rokstudningur a forsidunni");
+{
+  played = true; sleeperMode = "ok";
+  const root = await boot();
+  await waitFor(() => /Measured walk-forward/.test(text()));
+
+  /* ============================================================
+     FANGAD MEDAN DOM-ID ER LIFANDI
+     ============================================================
+     `root.unmount()` taemir `document`, svo hver `!/x/.test("")` er SONN
+     eftir a — tom fullyrding af verstu gerd (CLAUDE.md 5b). Sama gildra
+     og kaflar 3e og 3f skjala.                                        */
+  const fines = [...document.querySelectorAll("details.fine")];
+  const fineText = fines
+    .map((d) => (d.querySelector(".fine-body") || {}).textContent || "").join(" ")
+    .replace(/\s+/g, " ");
+  const bodyAll = (document.body.textContent || "").replace(/\s+/g, " ");
+  /* Sjalfgefna synin = allt minus INNIHALD hverrar felldrar blokkar.
+     `summary`-linan er VILJANDI inni i henni: hun er synileg og a ad
+     teljast bædi i thekju og i lengd. */
+  let dflt = bodyAll;
+  for (const d of fines) {
+    const b = ((d.querySelector(".fine-body") || {}).textContent || "")
+      .replace(/\s+/g, " ");
+    if (b) dflt = dflt.split(b).join(" ");
+  }
+  /* ============================================================
+     PROSAN, PER DEILDARSPJALDI — OG TOFLURNAR ERU EKKI PROSA
+     ============================================================
+     `.sub`/`.note`/`.dim` eru thau thrju snid sem baru malsgreinarnar.
+     `.dim` er hins vegar LIKA a toflu-holfum (`<td className="txt dim">`
+     i stodutoflunni, a bekknum og a ollum 32 vornum), svo fyrsta utgafa
+     thessa maelis las 2.681 staf thar sem ~1.500 voru LIDSNOFN,
+     MOTHERJAR og "yours/rostered/free". Þau eru ekki "auka texti"; thau
+     eru INNIHALDID — nakvaemlega gildran sem `render.mjs` kafli 8
+     skjalar um nofnin i trending-chip-unum.
+
+     ÞVI ER ALLT INNAN `<table>` UNDANSKILID. Prosa situr aldrei i
+     toflu-holfi, svo skilin eru byggingarleg og ekki smekksatridi.   */
+  const proseLen = (() => {
+    const panels = [...document.querySelectorAll("div.panel")];
+    let n = 0;
+    for (const p of panels) {
+      let t = [...p.querySelectorAll(".sub, .note, .dim")]
+        .filter((x) => !x.closest("table"))
+        .map((x) => x.textContent || "").join(" ").replace(/\s+/g, " ");
+      for (const d of p.querySelectorAll("details.fine")) {
+        const b = ((d.querySelector(".fine-body") || {}).textContent || "")
+          .replace(/\s+/g, " ");
+        if (b) t = t.split(b).join(" ");
+      }
+      n = Math.max(n, t.length);
+    }
+    return n;
+  })();
+  root.unmount();
+
+  /* -- ThEKJA ER FULLYRDING, EKKI LOGGA -- */
+  ok(fines.length >= 3,
+    `ThEKJA: ${fines.length} felldar rokstudnings-blokkir a forsidunni (>= 3)`);
+  ok(fines.filter((d) => d.hasAttribute("open")).length === 0,
+    "og ENGIN er opin sjalfgefid");
+  ok(fines.filter((d) =>
+    ((d.querySelector(".fine-body") || {}).textContent || "").trim().length < 40)
+    .length === 0, "og engin er tom (tomt details er eyding i dulargervi)");
+  ok(fines.filter((d) =>
+    ((d.querySelector("summary") || {}).textContent || "").trim().length < 8)
+    .length === 0, "og hver ber laesilegt summary");
+
+  /* -- 1. MARKTAEKNIN A BAK VID "Ours": TIL, OG FELLD -- */
+  ok(/Measured walk-forward/.test(fineText),
+    "`weeklyEdgeNote` er ENN i DOM-inu i fullri lengd (ekki eydd)");
+  ok(!/Measured walk-forward/.test(dflt),
+    "og hun er FELLD — malsgreinin stendur ekki i sjalfgefnu syninni");
+  /* En FLAGGID sest an smells: notandinn ma ekki thurfa ad smella til ad
+     sja hvort dalkurinn hafi umbod. Sama rok og `render.mjs` kafli 8
+     hefur um ordid "unmeasured" i summary. */
+  ok(/Ours is (measured|unproven)/.test(dflt),
+    "en FLAGGID sest an smells (\"Ours is measured\" / \"Ours is unproven\")");
+
+  /* -- 2. "ABSENT, NOT ZERO" ER PROFUD I HINA ATTINA -- */
+  /* Hun er (a)-fyrirvari um tolu sem er a skjanum I DAG, ekki um adferd.
+     Kafli 9 krefst hennar i MyTeam; hér er krafan ad hun se SYNILEG a
+     forsidunni — felld vaeri hun jafngild thvi ad thegja. */
+  ok(/absent, not zero/.test(bodyAll),
+    "forsendan: forleiks-/vorn-vantar-greinin er a skjanum i dag");
+  ok(/absent, not zero/.test(dflt),
+    "og hun er SYNILEG an smells — hun er fyrirvari um toluna, ekki um adferdina");
+
+  /* -- 3. DST-MAELINGIN: TIL, OG FELLD -- */
+  ok(/team-weeks/.test(fineText),
+    "`dstStreamNote` er ENN i DOM-inu (fimm tolur, ekki eyddar)");
+  ok(!/team-weeks/.test(dflt),
+    "og hun er FELLD undan sjalfgefnu syninni");
+
+  /* ============================================================
+     4. ENDURSAGNIRNAR ERU EYDDAR, EKKI FELLDAR
+     ============================================================
+     (c) i flokkuninni: setningar sem endursegja thad sem talan eda
+     ramminn segir ThEGAR. Þaer eru EKKI i `<details>` — thad vaeri ad
+     halda theim; thaer eru farnar ur skranni.
+
+     OG ÞRJAR AF FJORUM VORU TOM FULLYRDING I FYRSTU UTGAFU ÞESSA KAFLA.
+     Kaflinn var keyrdur A 45b9cde (koda FYRIR styttinguna) til ad sanna
+     ad hann fangi hana — og af fjorum `!bodyAll.includes(...)` **fell
+     adeins EIN**. Hinar thrjar voru graenar a gamla kodanum, thvi
+     greinarnar sem bera thaer TEIKNAST EKKI i thessari uppsetningu:
+
+       "no change that raises expected points"  -> `isOptimal`-greinin
+          (fixturan hefur VILJANDI hrakinn hop, svo hun er alltaf false)
+       "a list that ignores that is worse than none" -> `pool == null`
+          (rostrar ERU lesnir hér)
+       "does not pretend to be" -> forleiks-greinin (`week` er 5)
+
+     ÞAD ER NAKVAEMLEGA CLAUDE.md 5b regla 2: neikvaed fullyrding er
+     einskis virdi nema strengurinn hafi verid SANNANLEGA tharna. Þaer
+     thrjar eru thvi profadar A UPPRUNANUM, thar sem greinin ER — sama
+     medferd og kafli 9b gefur setningunum i `MyTeam.jsx` sem birtast
+     adeins eftir fyrstu spiluðu viku. Su EINA sem sannanlega var a
+     skjanum heldur DOM-krofunni.                                     */
+  ok(!bodyAll.includes("a tool that always finds a move is useless"),
+    "endursogn eydd ur DOM-inum (hun var SANNANLEGA thar i 45b9cde): " +
+    "\"a tool that always finds a move is useless\"");
+
+  const dashCode = readFileSync(path.join(ROOT, "src", "Dashboard.jsx"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\s+/g, " ");
+  for (const gone of [
+    "no change that raises expected points",
+    "a list that ignores that is worse than none",
+    "does not pretend to be",
+  ]) {
+    ok(!dashCode.includes(gone),
+      `endursogn eydd ur uppruna (greinin teiknast ekki hér): "${gone}"`);
+  }
+  /* ThEKJA A UPPRUNA-LEITINNI SJALFRI. Vaeri `dashCode` tomur — rong
+     slod, breytt strippun — vaeru thrjar krofurnar ad ofan tomar. Þessi
+     thrjar strengir ERU i skranni og verda ad vera thad: thad eru
+     greinarnar sem endursagnirnar voru teknar UR. */
+  for (const kept of ["already optimal", "free-agent pool is unknown",
+                      "season projection over 17"]) {
+    ok(dashCode.includes(kept),
+      `ThEKJA: uppruna-leitin les raunverulega skrana ("${kept}" fannst)`);
+  }
+  /* OG ThAD SEM KVIKNAR A RAUNVERULEGRI BILUN VAR EKKI HREYFT. Hver
+     thessara er GREINING sem kostadi eitthvad adur en hun var skrifud;
+     stytting ma ekki hafa tekid hana med. */
+  for (const keep of ["Nobody on waivers beats", "Waiver wire", "Start / sit"]) {
+    ok(bodyAll.includes(keep), `greiningin stendur: "${keep}"`);
+  }
+
+  /* ============================================================
+     5. OG PROSAN SJALF ER STUTT — ThAD ER BEIDNIN
+     ============================================================
+     ÞAKID ER MAELT, EKKI VALID. Kaflinn var keyrdur a badum utgafum med
+     THESSUM SAMA maeli (toflur undanskildar):
+
+       45b9cde  (fyrir)   **2.291 stafir**
+       eftir styttinguna   **915 stafir**   (-60%)
+
+     1.100 er ~20% ofan vid mælda utkomu — nog fyrir eina nyja
+     greiningu, of litid fyrir nya malsgrein. Þakid ma HAEKKA thegar ny
+     GREINING kemur inn (thaer eru ekki prosa i thessum skilningi), en
+     tha a talan ad vera maeld upp a nytt og notan uppfaerd, ekki bara
+     thakid hreyft.                                                    */
+  ok(proseLen > 200,
+    `ThEKJA: prosan er raunverulega lesin (${proseLen} stafir)`);
+  ok(proseLen <= 1100,
+    `og hun er STUTT sjalfgefid (${proseLen} stafir <= 1100; ` +
+    "maelt 2.291 a 45b9cde, 915 eftir)");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
