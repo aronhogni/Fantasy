@@ -487,7 +487,8 @@ function vbdBoard(pool, league, vals) {
   return new Map(live.map((p, i) => [p.id, i + 1]));
 }
 
-/** Sama regla ONAMUNDUD — adeins til ad sannprofa affin ohagganleika. */
+/** Sama regla ONAMUNDUD — adeins til ad sannprofa affin ohagganleika.
+    Skilar `[id, vbd]` i rod svo N5 geti bordid BADI rodina OG gildin. */
 function rawBoardOrder(pool, league, vals) {
   const repl = replacementRanks(league);
   const byPos = {};
@@ -510,7 +511,65 @@ function rawBoardOrder(pool, league, vals) {
     for (const p of list) scored.push([p.id, p.proj - base]);
   }
   scored.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
-  return scored.map(([id]) => id);
+  return scored;
+}
+
+/**
+ * N5 — AFFIN OHAGGANLEIKI, OG HANN VAR FYRST OFPRENGDUR.
+ *
+ * Fullyrdingin er algebrusk: se `proj' = (1-w)*proj + w*m_pos` (fast per
+ * stodu) tha er `base' = (1-w)*base + w*m_pos` og thvi
+ * `VBD' = (1-w)*VBD` — einn hnattraenn skali og SAMA ROD.
+ *
+ * FYRSTA UTGAFA THESSA HLIDS BAR `a.join(",") !== b.join(",")` A
+ * ID-ROÐINNI OG FELL — a 10-2flex|ppr|2023|w=0,5. **Algebran var samt
+ * ekki brotin.** Maelt: staersta AFSTAEDA vik fra `(1-w)*VBD` er
+ * **1,5e-13** (absolut 5,7e-14), og roðin skeikadi i **2 saetum af 154**,
+ * badum a EINU jafntefli (`vbd` beggja nakvaemlega 25,533333333333303,
+ * bil = **0**). Jafntefli er brotid a `id`, og fleytitolu-summan
+ * `((1-w)*p + w*m) - ((1-w)*b + w*m)` er ekki BITAEINS `(1-w)*(p-b)`,
+ * svo sidustu bitarnir sveiflast og jafnteflid snyst.
+ *
+ * Hlidid var thvi ad maela **fleytitolu-tie-break**, ekki reikninginn.
+ * Nu er fullyrdingin sjalf profud beint — `VBD' == (1-w)*VBD` innan
+ * 1e-9 afstaett — og rodin er bordin THAR SEM HUN ER SKILGREIND, thad
+ * er thar sem gildin eru ekki jafn. Thetta er STRANGARA i thvi sem
+ * mali skiptir (gildin sjalf, ekki bara rodin) og ekki logid um hitt.
+ *
+ * OG "JAFN" VERDUR AD VERA MED VIKMORKUM, sem onnur tilraun sannadi:
+ * `10-2flex|standard|2024|w=0,2` skeikadi a saeti 40 milli
+ * `16,166666666666686` og `16,16666666666667` — bil **1,6e-14**, sem er
+ * mathematiskt jafntefli sem `x !== y` les sem tvo gildi. Jafntefli er
+ * thvi `|x-y| <= 1e-9 * max(1,|x|,|y|)`. Tha eftir stendur ad hlidid
+ * fellur ef GILDIN vikja (1e-9) eda rodin skeikar THAR SEM BIL ER
+ * RAUNVERULEGT — og hvorugt gerist.
+ *
+ * Namundada leidin (`vbdBoard`) er hins vegar `Math.round(x*10)/10` inni
+ * i `computeVbd`, sem BYR TIL jafntefli i storum stil og slitur onnur.
+ * Thad er ekki villa heldur golf, og `posmean`-armurinn i toflunni
+ * MAELIR thad golf (README 4h maelir sama golf sem +-0,42/0,58/0,86 pp).
+ */
+function affineViolation(a, b, w) {
+  if (a.length !== b.length) return `lengd ${a.length} vs ${b.length}`;
+  const bv = new Map(b);
+  let maxRel = 0;
+  for (const [id, v] of a) {
+    const got = bv.get(id);
+    if (got == null) return `id ${id} vantar i blondudu bordi`;
+    const exp = (1 - w) * v;
+    const rel = Math.abs(got - exp) / Math.max(1e-9, Math.abs(exp));
+    if (rel > maxRel) maxRel = rel;
+  }
+  if (maxRel > 1e-9) return `VBD' != (1-w)*VBD, afstaett vik ${maxRel.toExponential(2)}`;
+  const av = new Map(a);
+  for (let i = 0; i < a.length; i++) {
+    if (a[i][0] === b[i][0]) continue;
+    /* Skeikar rodin? Tha ma thad ADEINS vera a jafntefli i vidmidinu. */
+    const x = av.get(a[i][0]), y = av.get(b[i][0]);
+    const tie = Math.abs(x - y) <= 1e-9 * Math.max(1, Math.abs(x), Math.abs(y));
+    if (!tie) return `saeti ${i}: ${a[i][0]} (${x}) <-> ${b[i][0]} (${y}), EKKI jafntefli`;
+  }
+  return null;
 }
 
 function noisyField(pool, fieldKey, sdKey, seed) {
@@ -596,27 +655,29 @@ async function main() {
   }
 
   /* ---------- N5: AFFIN OHAGGANLEIKI, ONAMUNDAD ---------- */
-  let affineChecked = 0;
+  let affineChecked = 0, affineTies = 0;
   for (const s of SHAPES) {
     for (const fmt of FORMATS) {
       for (const y of ys) {
         const pool = pools[y];
         const ref = refValues(pool, fmt);
         const pm = candValues("posmean", pool, fmt, y, fits[`${fmt}|${y}`]);
-        const a = rawBoardOrder(pool, s.league, ref).join(",");
+        const a = rawBoardOrder(pool, s.league, ref);
         for (const w of [0.2, 0.5, 0.9]) {
-          const b = rawBoardOrder(pool, s.league, blend(ref, pm, w)).join(",");
-          if (a !== b) {
-            die(`N5 affin ohagganleiki brotinn (${s.key}|${fmt}|${y}|w=${w}) — ` +
-              `onamundud blondun vid stodu-medaltal MA EKKI hreyfa rodina`);
+          const b = rawBoardOrder(pool, s.league, blend(ref, pm, w));
+          const bad = affineViolation(a, b, w);
+          if (bad) {
+            die(`N5 affin ohagganleiki brotinn (${s.key}|${fmt}|${y}|w=${w}) — ${bad}`);
           }
+          for (let i = 0; i < a.length; i++) if (a[i][0] !== b[i][0]) affineTies++;
           affineChecked++;
         }
       }
     }
   }
   console.log(`\nN5 affin ohagganleiki: ${affineChecked} samanburdir, ` +
-    `rod bitaeins ohreyfd (onamundad)`);
+    `VBD' = (1-w)*VBD innan 1e-9, rod ohreyfd nema a jafnteflum ` +
+    `(${affineTies} saeti a jafntefli, sja athugasemd vid affineViolation)`);
 
   /* ---------- NETID ---------- */
   const cells = {};           // shape|fmt|cand|w -> { perSeason, ... }
