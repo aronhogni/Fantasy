@@ -1968,6 +1968,160 @@ eitthvað hólf byrjar að standast barinn (þá á að **mæla upp á nýtt**, 
 > (5m); það gildir eins um báða arma en talan má ekki lesast sem hrein
 > spá-útkoma.
 
+### 4n. 58% AF FYRSTU ÞREMUR VÖLUNUM Á ÞÉTTENDA — HVAÐAN OG HVAÐ KOSTAR ÞAÐ (24.8.2026)
+
+**Talan sem enginn bað um.** Umferðabanda-mælingin (`band.json ->
+q1positionMix`) fann í framhjáhlaupi að A-Ranking setur **57,6% af þremur
+fyrstu völunum í ÞÉTTENDA** í 10-liða PPR-deildinni — sem byrjar **einn**
+þéttenda. Hún situr við hliðina á þrennu öðru sem hallar eins (4l og 6k).
+
+**`--tesweep` SVARAÐI ÞESSU EKKI OG ÞAÐ ER EKKI SAMA SPURNING.** Sveipurinn
+spurði *„er annað gildi á `FLEX_SPLIT.TE` betra?"* og féll (0 af 102). Annað
+varamanns-þrep er **ekki sama íhlutun** og þak á hve marga þú tekur.
+`scripts/tepos-lab.mjs` (ný, `data/measure/tepos.json`) spyr hitt.
+
+#### Q1. HVAÐAN HALLINN KEMUR — fjögur þrep, ein leið
+
+Mælt á lifandi borðinu, 10-liða PPR, **draftanlegu bili** (148 menn). Talan er
+`mean(markaðsröð − okkar röð)` í sætum, og bilið sem er sundurliðað er
+**TE mínus WR**:
+
+| þrep | hvað er breytt | TE−WR |
+|---|---|---|
+| **L0** | hrá spá-röð (`sleeperRank`) — heimildin ein, engin VBD | **+37,1** |
+| **L1** | VBD með `te = 0` (TE-þrep = TE10, engin flex-hlutdeild) | +54,0 |
+| **L2** | VBD með senda `te = 0,193` | +79,2 |
+| **L3** | borið við **algilda** ADP — dálkurinn sem appið BIRTIR | **+72,3** |
+
+| þáttur | sæti | hlutur | umferðir |
+|---|---|---|---|
+| **spá-heimildin** | **+37,1** | **51%** | +3,71 |
+| VBD-umbreytingin (stöðu-þrepin) | +16,9 | 23% | +1,69 |
+| **`FLEX_SPLIT.TE`** | **+25,2** | **35%** | +2,52 |
+| grunnur `value`-dálksins | **−6,9** | **−10%** | −0,69 |
+| **summa** | **+72,3** | | **samlagnanlegt upp á bitann** |
+
+12-liða half gefur **50 / 14 / 31 / +6%**. Þrennt sem af þessu leiðir:
+
+1. **`FLEX_SPLIT.TE` er ÞRIÐJUNGUR hallans, ekki ~70%.** Bókaða ~70% í 4l er
+   mæld **á öllu borðinu**, ekki í draftanlega bilinu, og þær eru **ekki sama
+   tala**. Báðar lesningar eru í skránni: allt borðið gefur hér +67,8 -> +20,1 í
+   12-liða deildinni (**70%, endurgert**) en +91,1 -> +61,0 í 10-liða (**33%**).
+   Hvorug er röng; þær svara ekki sömu spurningu.
+2. **Grunn-skekkja `value`-dálksins hallar í GAGNSTÆÐA ÁTT í 10-liða
+   deildinni** (−10%). Þétt röð yfir 148 gegn algildri ADP gerir TE-kaupin
+   **hljóðari** en þau ættu að vera, ekki háværari — svo lagfæringin sem er í
+   gangi í `src/` **hækkar** TE-merkin þar. Í 12-liða deildinni er formerkið
+   +6%. Miðgildi skekkjunnar er −0,19 umferðir (10-liða) og −0,05 (12-liða).
+3. **LEIFIN VAR MÆLD, EKKI NEFND.** Fyrsta útgáfa hafði tvo þætti og kallaði
+   leifina „spá-heimildina" — 53,4 sæti. `L0` mælir heimildina beint og hún er
+   **37,1**; mismunurinn er VBD sjálft. Ómæld tala sem lítur út eins og mæling
+   er versta útkoman, og hún var þarna í eina ítrun.
+
+> **OG STÆRSTA ÞÁTTINN GETUR HERMUNIN EKKI PRÓFAÐ.** „Sleeper spáir djúpum
+> þéttendum rausnarlega gagnvart ADP" er **rétt um lifandi borðið** (+37,1) og
+> **rangt um hvert einasta ár sem bakprófið nær yfir**. Sama tala, sama þýði
+> (topp 150 eftir ADP), 2021–2025: Sleeper **−16,0**, FFToday **−2,4**.
+> **Formerkið er snúið.** Helmingur hallans á borðinu í dag er því eiginleiki
+> **2026-spáskrárinnar** sem ekkert tímabil í `features.json` ber — og þar með
+> ekkert sem Q2 hér getur mælt útkomuna af.
+
+#### Q2. KOSTAR ÞÉTTINGIN NOKKUÐ? — 18 frumur, TVÖ VIÐMIÐ
+
+Þak á **einum** manni í stöðunni innan umferðabands (`makeWindowCapBoard`;
+við `until = 99` er það **bitaeins** `makeCapBoard` úr `band-lab`, og **hlið N5
+endurgerir bókuðu `q2b`-töluna upp á 1e−6** — þvert akkeri á nýja kóðann
+sjálfan, ekki bara á heiminn undir honum). Þakið færir stöðuna **í taglið**,
+gerir hana aldrei óhæfa.
+
+**10-liða PPR (Patriots):**
+
+| þak | bindur | sigrar | árs-CI | ár+ | stig | árs-CI |
+|---|---|---|---|---|---|---|
+| TE ≤ 1, umferðir 1-3 | 7,4% | +0,09 | [−0,06, +0,27] | 4/7 | +14,9 | [−2,5, +32,5] |
+| TE ≤ 1, fyrir 8. umferð | 33,3% | +0,31 | [−0,20, +0,82] | 5/7 | +33,6 | [−8,3, +79,6] |
+| **TE ≤ 1, allt draftið** | 86,6% | +0,25 | [−0,16, +0,69] | 5/7 | **+34,2** | **[+1,8, +69,2]\*** |
+| RB ≤ 1, umferðir 1-3 | 7,2% | **−0,28** | **[−0,48, −0,10]\*** | 0/7 | **−24,2** | **[−43,6, −6,7]\*** |
+| RB ≤ 1, fyrir 8. umferð | 27,0% | −0,04 | [−0,43, +0,36] | 3/7 | +16,2 | [−14,9, +44,7] |
+| RB ≤ 1, allt draftið | 77,9% | −0,14 | [−0,89, +0,65] | 3/7 | +23,9 | [−4,6, +56,0] |
+| WR ≤ 1, umferðir 1-3 | 3,3% | +0,05 | [−0,02, +0,14] | 2/7 | −0,7 | [−4,7, +3,7] |
+| WR ≤ 1, fyrir 8. umferð | 17,8% | **−0,32** | **[−0,50, −0,15]\*** | 0/7 | **−27,0** | **[−41,2, −12,2]\*** |
+| WR ≤ 1, allt draftið | 67,8% | **−0,795** | **[−1,48, −0,30]\*** | 1/7 | **−86,7** | **[−141,0, −44,6]\*** |
+
+`* = árs-klasað 95% bil útilokar núll.` **„bindur" er HLIÐ, ekki logga:** þak
+sem bindur aldrei mælir ekkert, og „engin breyting" úr slíkri frumu væri ómæld
+tala sem lítur út eins og mæling. Hver fruma ber hlutfallið og `vacuous`-flagg;
+engin fruma hér er tóm, en **WR ≤ 1 í umferðum 1-3 bindur aðeins 3,3%** og sú
+tala á að lesast sem „nánast ekkert var breytt", ekki sem „þetta breytir engu".
+
+**12-liða half (Sófahetjur) — ÁTTIN SKIPTIR FORMERKI, ÞRIÐJA SINNI:**
+TE ≤ 1 í umferðum 1-3 gefur **−0,06** sigra og **−1,8** stig; fyrir 8. umferð
+**−0,15** og **−1,0**. Allt draftið +0,07 / +21,1, hvorugt marktækt.
+
+#### **0 AF 18 FRUMUM STANDAST BARINN — Á HVORUGUM MÆLIKVARÐA**
+
+Ein fruma komst yfir árs-hliðið: **10-liða, TE ≤ 1 allt draftið, stig**
+(+34,2, CI útilokar núll, 5/7, yfir placebo-þaki). Hún fellur á **tvennu**:
+
+| skilyrði | TE≤1/allt/stig |
+|---|---|
+| formerki | ✔ |
+| árs-klasað CI útilokar núll | ✔ |
+| **leikmanna-klasað CI útilokar núll** | **✘ [−19,8, +70,1]** (meðaltal +21,9) |
+| yfir placebo-þaki (mean OG t) | ✔ |
+| meirihluti tímabila | ✔ (5/7) |
+| **heldur walk-forward** | **✘** |
+
+**Þetta er nákvæmlega undirskriftin úr 4c** (28 hólf árs-klasað -> **0 af 153**
+leikmanna-klasað) og úr 4l (**0 af 102**). Þriðja sinni sem sama hlið fellir
+sömu ætt af frambjóðanda.
+
+Walk-forward (val á fyrri árum eingöngu, **innan deildar** — pooluð leit hefði
+haft 18 frambjóðendur í stað 9 og því MEIRA úrtaksval): 10-liða/stig gefur
+**+16,3 gegn placebo-leit +40,6** — leitin yfir **merkingarlausa gervi-hópa
+vinnur meira**. Hin þrjú (skipulag × mælikvarði) slá placebó-leitina en ekkert
+CI útilokar núll.
+
+> **PLACEBO-FJÖLSKYLDAN ER NÝ OG HÚN ER VALIN AF ÁSTÆÐU.** Þak á RB/WR er
+> **VIÐMIÐ** — raunveruleg tilgáta um þéttingu — ekki placebó. Nullið er þak á
+> **gervi-hópi**: leikmenn skiptir með ákveðnu hakki í hóp sem er **nákvæmlega
+> jafnstór TE-lauginni** (123–137 manna, jafn *að byggingu*, ekki að væntingu —
+> fyrsta útgáfan tók alla með hak undir `teN/N` og fékk 104 þar sem TE voru
+> 125, sem gerir þakið mýkra en það á að vera). Meðal-bindihlutfall hópsins er
+> **30,5%**, sem er sama svið og „fyrir 8. umferð" (33,3%) — stærðin er það sem
+> stýrir hve oft þak bindur, svo stærðin er það sem verður að vera eins.
+> Þakið mælist **+0,17 sigrar (t 1,53) og +26,3 stig (t 1,07)** í 10-liða.
+> **Og t-ið er hærra en frumunnar** (1,05 / 1,80 á móti 1,53 / 1,07): merking-
+> arlaust suð með **minni dreifni** getur borið hærra t en raunverulegur
+> frambjóðandi með stærra meðaltal. Sama meinsemd og 4e bókar, í hina áttina.
+
+#### Q3. ER ÞETTA UM ÞÉTTENDA EÐA UM ÞÉTTINGU? — **UM ÞÉTTENDA**
+
+Viðmiðin svara þessu skýrt, og svarið er **ekki** „þéttingu": að þjappa einni
+stöðu snemma er **mælanlega skaðlegt** hjá RB og WR í 10-liða deildinni
+(RB ≤ 1 í 1.-3. **−0,28 sigrar** og **−24,2 stig**, bæði CI útiloka núll;
+WR ≤ 1 fyrir 8. umferð **−0,32** og **−27,0**, bæði marktæk). Hjá þéttendum er
+sama þak **jákvætt** en ómarktækt.
+
+**Formerkja-munurinn er raunverulegur; stærðin er ekki mælanleg.** Ef eitthvað
+væri þarna væri það um þéttenda — en það kemst ekki yfir barinn, og
+12-liða deildin snýr við formerkinu.
+
+#### **SVARIÐ Í EINNI SETNINGU**
+
+**Nei — appið er ekki mælanlega rangt um þéttenda, og talan er samt ekki
+staðfest.** Þéttingin kostar ekkert sem mælist (0 af 18), en hún **ávinnur**
+ekkert heldur, og stærsti einstaki þáttur hennar (51%) er eiginleiki
+2026-spáskrárinnar sem **snýst við** í öllum sjö tímabilunum sem hægt er að
+mæla útkomu á. **4l-dómurinn stendur óhaggaður og er nú betur skjalaður:**
+lestu TE-kaupin sem ómæld. Það sem er NÝTT er að `FLEX_SPLIT` er þriðjungur
+hallans en ekki 70%, að `value`-grunnurinn hallar í gagnstæða átt í deildinni
+sem skiptir máli, og að **þak var mælt og féll** — svo enginn þarf að mæla það
+aftur.
+
+> **ENGU VAR TENGT.** Barinn var ekki náð, svo það er ekkert að tengja. Væri
+> einhver frumu-röð tengd síðar þyrfti hún **nýja mælingu**, ekki þessa.
+
 ### 4c. Bootstrap KLASAÐUR PER LEIKMANN — aðferðin sem breytti niðurstöðu
 
 Þetta er almennt og það á að standa: `vbdbase-lab` fékk **28 hólf** sem
@@ -2007,6 +2161,8 @@ séð merki — höfnunin er niðurstaða, ekki bilað mælitæki. `verdict`-rei
 | hugmynd / vandamál | niðurstaða |
 |---|---|
 | **Annað `FLEX_SPLIT.TE` en 0,193** | Sveipað 0 -> 0,40 (RB:WR fast) í BÁÐUM deildum hans, á STIGUM (11 tímabil, 81 fruma) og á SIGRUM (5 tímabil, 21 fruma). **0 af 102 standast**; hvert leikmanna-klasað bil inniheldur núll. Áttin skiptir formerki milli deildanna tveggja. **Dýpra er mælanlega verra** (te=0,40 fellur á báðum), svo 0,193 er á réttri hlið. Sjá **4l** |
+| **ÞAK á fjölda þéttenda snemma** („mest EINN TE í umferðum 1-3", og sér „mest EINN fyrir 8. umferð") | **ÖNNUR íhlutun en `--tesweep`**, sem sveipaði varamanns-ÞREPIÐ; hér er þakað hve MARGA þú tekur. 18 frumur (TE + viðmiðin RB/WR × þrjú umferðabönd × báðar deildir), bæði mælikvarðar, 7 tímabil: **0 af 18 standast**. Sterkasta fruman (10-liða, TE ≤ 1 allt draftið, stig **+34,2**, árs-CI [+1,8, +69,2], yfir placebo-þaki) fellur á **leikmanna-klösun** ([−19,8, +70,1]) OG á **walk-forward** (+16,3 gegn placebo-leit **+40,6**) — undirskriftin úr 4c, þriðja sinni. Áttin skiptir formerki milli deildanna hans. **VIÐMIÐIN SVARA „TE EÐA ÞÉTTING?":** sama þak á RB (−0,28 sigrar, −24,2 stig) og WR (−0,32 / −27,0) er **marktækt SKAÐLEGT**, svo formerkja-munurinn er um þéttenda — en stærðin mælist ekki. Sjá **4n** |
+| **Að skýra TE-hallann með `FLEX_SPLIT` einum** | **Sundurliðað 24.8.2026 og talan er ÞRIÐJUNGUR, ekki ~70%:** spá-heimildin **51%**, VBD-umbreytingin 23%, `FLEX_SPLIT.TE` **35%**, grunnur `value`-dálksins **−10%** (í GAGNSTÆÐA ÁTT í 10-liða deildinni). Bókaða ~70% í 4l er mæld á ÖLLU borðinu, ekki í draftanlega bilinu — báðar eru réttar og svara ekki sömu spurningu. Og stærsti þátturinn er **óprófanlegur**: „heimildin er rausnarleg við djúpa þéttenda" er +37,1 á lifandi borðinu og **−16,0** í 2021–2025 á sama þýði. Sjá **4n** |
 | **Lifunar-háð tímasetning** („taktu þann sem lifir SÍÐUR þegar bilið í VBD er minna en vænta tapið") | **ÖNNUR regla en `urgencyDrivesOrder`** og önnur en `tiebreak-lab` (sem spurði hvorki um `X` né `Z`, mældi eina lögn og engin leikmanna-vikmörk). Mælt á 11 tímabilum × 3 lögnum × 86 afbrigðum + 36 placebo: **0 af 27 mötnum hólfum standast**, hvert leikmanna-klasað bil inniheldur núll (43 árs-klasað marktæk í almennu lögninni og **0** leikmanna-klasað — undirskriftin úr 4c). **Rétta EV-formið með gólfi (`ev-cross`) TAPAR marktækt í öllum þremur lögnum** (−57,2 / −38,5 / −60,0 stig; −0,94 / −0,27 / −0,88 sigrar). Og mekanisminn er mældur: `deferTE` og `adpward` — **hvorugur með lifunarlíkur** — gefa sömu eða hærri tölu, svo merkið er TE-kvörðun og markaðs-átt. Óbreytt af `adpSd`-bakfalli. Sjá **4m** |
 | **Sleeper sem auðkennisbrú** | Sleeper er **hættur** að bera `gsis_id`/`espn_id` — aðeins **162 af 989** virkum QB/RB/WR/TE. Sú leið gaf nafna-pörun á **732** leikmönnum. DynastyProcess-brúin færði það í **105** |
 | **ADP beint úr Sleeper** | **999 (og 400) eru TÓMGILDI**, ekki ADP. 1.930 af 2.107 RB/WR voru nákvæmlega 999. Án síunar sluppu 3.083 leikmenn í stað 1.130 |
@@ -5329,7 +5485,16 @@ node scripts/h2h-lab.mjs --tesweep            # -> measure/tesplit_h2h.json (sig
 node scripts/dst-lab.mjs                      # -> measure/dst.json (sja 4k)
 node scripts/ecr-timing.mjs [--day=21]        # -> measure/ecr_timing.json (sja kafla 5)
 node scripts/seq-lab.mjs                      # -> measure/sequencing.json (sja 4m)
+node scripts/tepos-lab.mjs                    # -> measure/tepos.json (sja 4n)
+node scripts/tepos-lab.mjs --noOutcome        # adeins sundurlidunin (Q1), 0,3 s
 ```
+
+`tepos-lab.mjs` tekur **~55 s** með sjálfgefnum viðföngum. `--noOutcome` gefur
+**aðeins Q1** (sundurliðunina á lifandi borðinu) og er sú keyrsla sem á að
+endurtaka þegar `players.json` hefur breyst — Q1-tölurnar eru **dæmi með
+dagsetningu, ekki fasti** (4b), en Q2/Q3 eru mældar á lokuðum tímabilum og reka
+ekki. Skriftan **deyr fremur en að skila tölu** ef `band.json` er ekki til: hlið
+N5 er þvert akkeri á sjálfan þak-kóðann og það þarf bókuðu töluna.
 
 `seq-lab.mjs` er **handvirk mæling og á ekki heima í pipeline-inu**: hún les
 `features.json`, `data/weekly/*.json` og `data/measure/waiver.json`, sem breytast
