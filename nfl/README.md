@@ -1881,11 +1881,14 @@ beiðninni (`44,7 + 0,87·55,4 ≈ 93` á móti `55,4 + varamaður`) er réttur 
 aritmetík; það sem hann vantaði var að **„varamaður" er nærri jafn góður og
 maðurinn sem þú slepptir**, af því að VBD er þegar virði **ofan á varamann**.
 
-> **HVERS VEGNA ÞETTA ER EKKI ÞVERSÖGN VIÐ AÐ HÓLFIN LÍTI JÁKVÆÐ ÚT.**
-> Þröskulds-hólfin sem lesa jákvætt fórna í mesta lagi `Y` stigum og kvikna
-> sjaldan (kviknunartíðni 0,03–0,26); `ev-cross` kviknar í **53–54%** valanna og
-> fórnar meira. Rist sem er nógu varfærin til að skaða ekki er líka nógu
-> varfærin til að mæla ekkert — og það er sama niðurstaða, ekki tvær.
+> **HVERS VEGNA ÞETTA ER EKKI ÞVERSÖGN VIÐ AÐ HÓLFIN LÍTI JÁKVÆÐ ÚT — OG TALAN
+> SEM SKER ER `vbdSacrificedPerFire`, EKKI KVIKNUNARTÍÐNIN.** Hólfin sem lesa
+> jákvætt fórna **1,4–9,9 VBD** í hvert skipti sem þau kvikna; EV-formin fórna
+> **12,3–20,9**. Kviknunartíðnin greinir þau EKKI að (þröskulds-hólfin sem lesa
+> jákvætt liggja á 0,013–0,647 og `ev-cross` á 0,255–0,537), svo skýringin er
+> **stærð fórnarinnar** og ekkert annað: regla sem er nógu varfærin til að skaða
+> ekki er líka nógu varfærin til að mæla ekkert. Það er sama niðurstaða, ekki
+> tvær — og það er þess vegna sem `Y = 3` er efst í half-deildinni.
 
 #### MEKANISMINN — MERKIÐ ER **EKKI** LIFUN, OG ÞAÐ ER MÆLT
 
