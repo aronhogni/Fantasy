@@ -74,6 +74,66 @@ function record(name, ok, count, note) {
 }
 
 /* ============================================================
+   ThRALAT RAUD HEIMILD — TELJARI, EKKI HLID (25.8.2026)
+
+   `status.json` skrar raudar heimildir samviskusamlega, en hun skrar
+   ADEINS DAGINN I DAG. Baedi fjolddaga-atvikin sem eru skjaladh i thessu
+   repo-i voru SYNILEG i henni allan timann og enginn tok eftir:
+     · elo FROSIN 14.-20.8. — sex dagar, og FFDR keyrdi a Elo fra 14.
+     · BSD 400 a ollu 18.-19.8. — fjorir dagar (`?limit=5`-atvikid)
+   Ein raud rod litur eins ut hvort sem hun er klukkutima gomul eda viku
+   gomul. ThAD er thad sem vantadi: ekki merkid, heldur ALDURINN a thvi.
+
+   HVERS VEGNA TELJARI OG EKKI HLID SEM FELLIR KEYRSLUNA:
+   Kafli 6 segir berum ordum ad appid eigi ad virka thott heimild vanti,
+   og thad er RETT — thess vegna eru varaleidir til. Fjorar heimildir eru
+   raudar i dag (`elo_api`, `elo_fixtures`, `apisports_account`,
+   `apisports_injuries`) og ALLAR fjorar eru ThEKKT, SAMThYKKT astand:
+   ClubElo-hosturinn er nidri og vefur-varaleidin tekur vid; API-Sports-
+   reikningurinn er uppsagdur og FotMob tok vid. Hlid sem fellir keyrsluna
+   eftir N daga myndi thvi FRYSTA `data/` fyrir astand sem thegar hefur
+   verid akvedid ad se i lagi — og thad er verri utkoma en thogn.
+
+   Talan fer thess i stad ThANGAD SEM NOTANDINN HORFIR: inn i notuna, sem
+   birtist i "Data sources". Dagur eitt segir "1 day", dagur sex segir
+   "6 days" — vaxandi tala er thad sem greinir hiksta fra bilun.
+
+   HREINT FALL, PROFAD A TILBUNUM INNTOKUM: dagsetningin er BREYTA, ekki
+   `new Date()`, svo haegt se ad spila marga daga i rod i profi.
+   ============================================================ */
+export function redStreaks(prev, sources, today) {
+  const out = {};
+  for (const [name, v] of Object.entries(sources || {})) {
+    const was = prev?.[name];
+    if (v?.ok === false) {
+      /* ADEINS `since` ER GEYMT, OG ThAD ER ASETT.
+         Fyrsta utgafa min geymdi lika `last` og bar "sami dagur tvisvar
+         haekkar ekki teljarann"-vord. Su vord var DAUD: `streakDays`
+         reiknar ur `since` TIL `today`, svo `last` var skrifad og aldrei
+         lesid — og stokkbreyting sem fjarlaegdi vordina STODST profid.
+         Rett svar var ekki ad styrkja vordina heldur ad henda svidinu:
+         thegar talan er LEIDD af tveimur dagsetningum getur tidni
+         keyrslunnar ekki haft ahrif a hana, hversu oft sem cron gengur.
+         Ovirk vorn um vandamal sem er utilokad med byggingu er sama
+         aett og tom fullyrding (CLAUDE.md 5b).                        */
+      out[name] = { since: was?.since ?? today };
+    }
+    /* GRAEN ROD HREINSAR — annars vaeri "6 daga" satt um heimild sem
+       lagadist i gaer, sem er sama villa i hina attina.               */
+  }
+  return out;
+}
+/* Dagar fra `since` TIL OG MED `today` (1 = raud i dag i fyrsta sinn).
+   LEIDD AF DAGSETNINGUNUM TVEIMUR — thess vegna er hun onaem fyrir thvi
+   hve oft keyrslan gengur (hrada keyrslan er 48x a dag).             */
+export function streakDays(entry, today) {
+  if (!entry?.since) return 0;
+  const a = Date.parse(entry.since + "T00:00:00Z"), b = Date.parse(today + "T00:00:00Z");
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.max(1, Math.round((b - a) / 864e5) + 1);
+}
+
+/* ============================================================
    ATOMISK SKRIF — HALFSKRIFUD SKRA MA ALDREI SITJA A COMMITTADRI SLOD
    (25.8.2026)
 
@@ -5965,6 +6025,31 @@ async function main() {
                        try { await fetchPlayerSeasons(); }      catch (e) { record("player_seasons", false, 0, e.message); }
                        try { await deriveImminent(); }          catch (e) { record("imminent", false, 0, e.message); } }
 
+  /* ThRALAT RAUD HEIMILD FAER ALDUR — sja `redStreaks`. Talan er sett i
+     NOTUNA thvi thad er hun sem birtist i "Data sources"; ny svid i
+     `status.json` vaeru osynileg an breytinga i vidmotinu.           */
+  {
+    const today = status.updated.slice(0, 10);
+    let prevStreak = {};
+    try { prevStreak = JSON.parse(
+      await readFile(`${DATA}/status_streak.json`, "utf8")).sources || {}; } catch {}
+    const streak = redStreaks(prevStreak, status.sources, today);
+    for (const [name, e] of Object.entries(streak)) {
+      const d = streakDays(e, today);
+      if (d >= 2 && status.sources[name]) {
+        status.sources[name].note =
+          `RED FOR ${d} DAYS (since ${e.since}) · ${status.sources[name].note ?? ""}`.trim();
+      }
+    }
+    const stale = Object.entries(streak).filter(([, e]) => streakDays(e, today) >= 3);
+    if (stale.length) console.warn(`\n!! ${stale.length} source(s) red for 3+ days: `
+      + stale.map(([n, e]) => `${n} (${streakDays(e, today)}d)`).join(", "));
+    await writeJSON("status_streak.json", { updated: status.updated, sources: streak,
+      note: "How many consecutive days each source has been red. A COUNTER, not a "
+          + "gate: chapter 6 says the app must work when a source is missing, and a "
+          + "gate would freeze data/ for states already decided to be acceptable. "
+          + "The age is folded into the source's note so it shows in Data sources." });
+  }
   await writeJSON("status.json", status);
   console.log("\n=== status.json ===");
   console.log(JSON.stringify(status, null, 2));

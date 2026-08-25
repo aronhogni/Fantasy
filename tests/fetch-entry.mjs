@@ -423,5 +423,65 @@ console.log("\n=== 7. ATOMISK SKRIF (writeJSON) ===");
     "undirmoppur (live/, history/) fara sama veg");
 }
 
+/* ============================================================
+   8. ThRALAT RAUD HEIMILD FAER ALDUR (25.8.2026)
+
+   `status.json` skrar ADEINS daginn i dag, svo raud rod litur eins ut
+   hvort hun er klukkutima gomul eda viku. Baedi fjolddaga-atvikin sem
+   eru skjaladh i thessu repo-i (elo frosin 14.-20.8., BSD 400 i fjora
+   daga 18.-19.8.) voru SYNILEG allan timann og enginn tok eftir. Thad
+   sem vantadi var ekki merkid heldur ALDURINN a thvi.
+
+   Fallid er hreint og tekur DAGSETNINGU sem breytu — ekki `new Date()`
+   — svo haegt se ad spila marga daga i rod. Kodinn sem thetta ver
+   kviknar annars adeins thegar heimild hefur verid raud i tvo daga,
+   sem er astand sem ekkert prof gaeti bedid eftir.
+   ============================================================ */
+console.log("\n=== 8. ThRALAT RAUD HEIMILD ===");
+{
+  const { redStreaks, streakDays } = await import(SRC);
+  const red = ok_ => ({ elo: { ok: ok_ }, fpl: { ok: true } });
+
+  let st = {};
+  st = redStreaks(st, red(false), "2026-08-20");
+  ok(streakDays(st.elo, "2026-08-20") === 1, `fyrsti raudi dagur = 1 (${streakDays(st.elo, "2026-08-20")})`);
+  ok(st.fpl === undefined, "graen heimild fær ENGA faerslu");
+
+  st = redStreaks(st, red(false), "2026-08-21");
+  st = redStreaks(st, red(false), "2026-08-22");
+  ok(streakDays(st.elo, "2026-08-22") === 3, `thrir dagar i rod = 3 (${streakDays(st.elo, "2026-08-22")})`);
+  ok(st.elo.since === "2026-08-20", `og upphafsdagurinn helst (${st.elo.since})`);
+
+  /* HRADA KEYRSLAN GENGUR A 30 MIN FRESTI, OG TALAN ER ONAEM FYRIR ThVI
+     MED BYGGINGU — hun er LEIDD af `since` og `today`, ekki talin upp.
+     ATH: fyrsta utgafa min geymdi `last` og bar ser-vord um thetta. Su
+     vord var DAUD (stokkbreyting sem fjarlaegdi hana STODST profid),
+     thvi `streakDays` las `last` aldrei. Svidid var fjarlaegt i stad
+     thess ad styrkja vordina. Fullyrdingin hér er thvi um ThAD SEM
+     GERIR HANA ONAEMA: fjolda-keyrsla sama dag skilar somu tolu, OG
+     faerslan ber ekkert svid sem gaeti rekist a vid hana.            */
+  let same = st;
+  for (let i = 0; i < 48; i++) same = redStreaks(same, red(false), "2026-08-22");
+  ok(streakDays(same.elo, "2026-08-22") === 3,
+     `48 keyrslur sama dag gefa afram 3 (${streakDays(same.elo, "2026-08-22")})`);
+  ok(JSON.stringify(same.elo) === JSON.stringify({ since: "2026-08-20" }),
+     `og faerslan ber ADEINS \`since\` (${JSON.stringify(same.elo)}) — ekkert svid sem er skrifad an thess ad vera lesid`);
+
+  /* GRAEN ROD HREINSAR. An thess vaeri "6 dagar" satt um heimild sem
+     lagadist i gaer — sama villa i hina attina, og hun er verri thvi
+     hun kennir manni ad hunsa teljarann.                            */
+  const healed = redStreaks(st, red(true), "2026-08-23");
+  ok(healed.elo === undefined, "graen rod HREINSAR teljarann");
+  /* og hun byrjar upp a nytt, ekki thar sem frá var horfid */
+  const again = redStreaks(healed, red(false), "2026-08-24");
+  ok(streakDays(again.elo, "2026-08-24") === 1,
+     `ny bilun byrjar a 1, ekki 4 (${streakDays(again.elo, "2026-08-24")})`);
+
+  /* Ologleg/vantandi inntok mega ekki gefa NaN a skjainn. */
+  ok(streakDays(null, "2026-08-24") === 0, "vantandi faersla -> 0, ekki NaN");
+  ok(streakDays({ since: "rusl" }, "2026-08-24") === 0, "ologleg dagsetning -> 0, ekki NaN");
+  ok(Object.keys(redStreaks(null, null, "2026-08-24")).length === 0, "tom inntok hrynja ekki");
+}
+
 console.log(`\nFETCH-ENTRY: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

@@ -11,6 +11,17 @@ Tvær keyrslur:
 | `fetch-data` | 05:00 daglega | allt |
 | `fetch-fast` | á 30 mín | `news.json`, `fixtures.json` |
 
+`status_streak.json` — **mælitæki, ekki birtingargagn.** Geymir `{ since }`
+fyrir hverja heimild sem er rauð, þ.e. hvenær núverandi rauða runa hófst.
+Appið les hana **aldrei**; talan er felld inn í `note` heimildarinnar í
+`status.json`, sem *er* lesin („Data sources"). Ástæðan er sú að ein rauð
+röð lítur eins út hvort hún er klukkutíma gömul eða viku — bæði fjöldaga
+atvikin sem eru skjöluð í repo-inu (elo frosin 14.–20.8., BSD 400 í fjóra
+daga) voru sýnileg allan tímann og enginn tók eftir. **Teljari, ekki hlið:**
+kafli 6 segir að appið eigi að virka þótt heimild vanti, svo hlið sem fellir
+keyrsluna myndi frysta `data/` fyrir ástand sem þegar hefur verið ákveðið að
+sé í lagi. Græn röð hreinsar færsluna.
+
 `status.json` og `status_fast.json` telja raðir úr hverri heimild. **Núll raðir
 eru verri en villa** — athugaðu þau fyrst ef eitthvað vantar.
 

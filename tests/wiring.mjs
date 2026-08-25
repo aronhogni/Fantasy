@@ -83,6 +83,13 @@ const OK_UNREAD = {
      BSD-event-id), svo thad er MAELING og akvordun, ekki flyti-lagfaering.
      Skrad her svo thad se ekki thogult — sja CLAUDE.md kafla 10.        */
   "bsd_odds.json":             "VARALEID SEM ER EKKI TENGD — sja athugasemd",
+  /* MAELITAEKI, EKKI BIRTINGARGAGN — sama flokkur og `data/predictions/`.
+     Geymir hve marga daga i rod hver heimild hefur verid raud. Appid les
+     hana ALDREI: talan er felld inn i `note` heimildarinnar sjalfrar i
+     `status.json`, sem ER lesin ("Data sources"), thvi nytt svid i
+     status-rodinni vaeri osynilegt an breytinga i vidmotinu. Skrain er
+     minnid milli keyrslna, ekki uppspretta fyrir skjainn.             */
+  "status_streak.json":        "TELJARI MILLI KEYRSLNA — talan birtist gegnum status.json",
   /* VILJANDI OLESIN, OG THAD ER SKJALFEST i CLAUDE.md kafla 7: BSD-spa um
      byrjunarlid er GEYMD svo haegt se ad MAELA hana sidar gegn 6h-likaninu.
      Hun ma EKKI radast i neina akvordun fyrr en su maeling liggur fyrir
