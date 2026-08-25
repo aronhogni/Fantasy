@@ -11,6 +11,7 @@
    ============================================================ */
 
 import React, { useMemo, useState } from "react";
+import { shapeKeyOf } from "./rulebasis.js";
 
 export default function ModelLab({ evalPpr, evalStd, stratPpr, stratStd, league, rows,
                                   arankPpr, arankStd, arankFfPpr, arankFfStd, shapes }) {
@@ -709,12 +710,22 @@ function Shapes({ shapes, std, league }) {
     .filter((r) => r.scoring === (std ? "standard" : "ppr"));
   if (!rows.length) return null;
 
-  /* Hvada rod passar vid deildina sem notandinn hefur stillt? */
-  const sf = league.superflex || (league.starters && league.starters.SUPERFLEX);
-  const flex = (league.starters && league.starters.FLEX) || 1;
-  const qb = (league.starters && league.starters.QB) || 1;
-  const mine = sf ? "12-sflex" : qb >= 2 ? "12-2qb" : flex >= 2 ? "12-2flex"
-    : `${league.teams}-std`;
+  /* ============================================================
+     LOGUNAR-LYKILLINN ER REIKNADUR I `rulebasis.js`, EKKI HER
+     (25.8.2026)
+
+     Thessi lina HARDKODADI `12-` fyrir sflex/2qb/2flex-afbrigdin og
+     las adeins `${league.teams}` i "std"-greininni. Tiu-lida deild med
+     tveimur FLEX fekk thvi merkid `12-2flex` — MAELING A ANNARRI
+     DEILDARLOGUN SYND SEM ThIN EIGIN, sem er nakvaemlega thad sem
+     repo-id kallar sjalft "versta utkoduna" (omaeld tala sem litur ut
+     eins og maeling).
+
+     `shapeKeyOf` reiknar thetta rett og er ThEGAR notud i
+     `DraftBoard.jsx`. Ad endursmida hana her var tvitekning sem for
+     ranga leid — ein utfaersla, einn lykill.
+     ============================================================ */
+  const mine = shapeKeyOf(league);
 
   return (
     <div className="panel">

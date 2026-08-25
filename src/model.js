@@ -609,7 +609,11 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
   return function fixDifficulty(teamId, fx, pos) {
     if (!fx) return null;
     const me = teamMetrics[teamId], opp = teamMetrics[fx.opp];
-    if (!me || !opp) return fx.fdr;
+    /* SNEMM-UTGANGAN LYTUR SOMU REGLU OG SU NEDRI (25.8.2026): otaek
+       tala er ENGIN tala. An thessa gat `fx.fdr` sjalft borid NaN her
+       inn, og tha var vardan nedar gagnslaus — hun ver adra utgonguna
+       af tveimur. Sama villa, tveir stadir.                          */
+    if (!me || !opp) return Number.isFinite(+fx.fdr) ? fx.fdr : null;
     const W = DIFF_W[pos] || DIFF_W[3];
     /* 2-tímabila blöndun með KVIKRI vog per liði — hvert lið hefur sína
        eigin leikjatölu (frestaðir leikir gera þær ólíkar). Sjá prevWeight. */
@@ -699,7 +703,34 @@ export function makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam }) {
     const homeAdj = ((W.home || 0)
                      + ((!usedMarket && usedElo) ? (W.homeCore || 0) : 0))
                     * (fx.home ? 1 : -1);
-    return +clamp(core - homeAdj, 1, 5).toFixed(2);
+    /* ============================================================
+       NaN MA ALDREI VERDA "ThYNGSTI LEIKUR DEILDARINNAR" (25.8.2026)
+
+       Vanti `fx.fdr` verdur `core` NaN, og NaN SLEPPUR gegnum allar
+       `d != null`-vardirnar i appinu (NaN er ekki null). Utkoman er
+       ekki hlutlaus heldur skekkt i AKVEDNA att, thvi hver einasti
+       lesandi fellur a sinn sidasta reit:
+         `clamp(NaN, …)` -> NaN -> lykkjan i `lookupPos`/`lookupMeasured`
+         finnur ekkert bil og skilar SIDUSTU rodinni (thyngsta threpi),
+         og `tierOf(NaN)` skilar 5 — dokkraudu.
+       MAELT: `lookupPos(3,"pts",NaN)` gefur 2,79, sem er nakvaemlega
+       thyngsta threpid, og `tierOf(NaN)` gefur 5.
+
+       Madurinn litur thvi ILLA ut i stad thess ad leikurinn se
+       SLEPPT — og enginn dalkur segir fra. Vantandi inntak a ad gefa
+       ENGA TOLU (kafli 8: "faar maelingar -> ENGIN tala"), aldrei
+       verstu toluna.
+
+       Vardan er a UTKOMUNNI, ekki a einu sviði: `own`, `them`, `bkDiff`
+       og Elo geta oll borid NaN inn, og skilyrdi sem telur upp inntok
+       gleymir alltaf einu (sama laerdomur og `gated`-regexid i
+       fetch.mjs). MAELT 25.8.2026 a `fixtures.json`: 0 af 760 sviðum
+       vantar i dag, svo thetta er DULIN villa — hun bidur eftir
+       leikjaskra sem er hálfskrifud, ekki eftir venjulegum degi.
+       ============================================================ */
+    const out = clamp(core - homeAdj, 1, 5);
+    if (!Number.isFinite(out)) return null;
+    return +out.toFixed(2);
   };
 }
 
@@ -995,10 +1026,83 @@ export function parseReturn(news, nowTs = Date.now()) {
   if (ts < nowTs - 30 * 864e5) ts = Date.UTC(y + 1, mon, day);
   return { kind: /Suspended/i.test(m[1]) ? "ban" : "injury", ts };
 }
+/* ============================================================
+   VANTANDI LIKUR ERU EKKI 0% — EIN TALA FYRIR BADAR LEIDIR (25.8.2026)
+
+   `recommend.js` lagadi thessa villu hja ser 7.8.2026 (`UNMEASURED_UI
+   .unknownChance`) eftir raunverulega notenda-tilkynningu, og skrifadi
+   rokstudninginn ut: FPL skilar OFT `chance_of_playing_next_round: null`
+   einfaldlega thvi frettin er ekki komin, og `?? 0` ler tha thogninni
+   merkinguna "utilokadur". `availForKickoff` — sem faedir `expPointsFor`,
+   og thar med skiptanetid, Triple-Captain-timasetninguna og
+   `captainScore` — bar somu villuna afram OSNERT. Tvo foll svorudu
+   sitthvoru um SAMA hlut, sem er ættbogi `buildTeamMetrics` (CLAUDE.md 7).
+
+   TALAN BYR HER OG `recommend.js` FLYTUR HANA INN, ekki ofugt: sa
+   innflutningur er thegar til (`rankScore`) og hinn vaeri hringur.
+   HUN ER VALIN, EKKI MAELD — `status`/`chance`/`news` eiga sér ENGA sogu
+   i `fpl_player_gw.json`, svo thetta er ekki maelanlegt og a ekki ad
+   vitna i sem maelingu. Sja hausinn a `UNMEASURED_UI`.
+
+   ATH: ADEINS `null`/`undefined` faer hana. RAUNVERULEG tala gildir sem
+   hun er — `chance: 0` er STADREYND um manninn (meiddur, bannadur) og
+   ma aldrei hakka upp i 50%.
+   ============================================================ */
+export const UNKNOWN_CHANCE = 0.5;
+
+/* ============================================================
+   TVAER SKJALADAR REGLUR REKAST A — OG BADAR VORU OF BREIDAR
+
+   `tests/best-team.mjs` fullyrdir: *status "d" an prosentu er 0, thvi
+   FPL-STATUS ER EINRATT* (CLAUDE.md kafli 6).
+   `src/recommend.js` fullyrdir: *VANTANDI LIKUR ERU EKKI 0% — null
+   thydir "veit ekki", og tha er varfaerid mat 50%.*
+   Baðar eru rettar um sitt tilfelli og baðar voru UTFAERDAR BREIDAR EN
+   ThAER ERU ORDADAR:
+     · `availForKickoff` gaf `?? 0` — svo "veit ekki" vard "utilokadur"
+     · `recommend.js` gaf 0,5 a HVERN sem er ekki "a" — svo BANNADUR
+       madur an prosentu vard 50% liklegur til ad spila
+
+   ROKSTUDNINGUR BEGGJA NEFNIR STODU "d" ORDRETT ("stodu-'d' mann MED
+   ochekktar likur"). Reglan sem thau bædi LYSA, en hvorugt utfaerdi, er
+   thvi thessi:
+
+     FPL-STODURNAR ERU EKKI JAFNGILDAR. "d" (doubtful) er FPL ad segja
+     *vid vitum ekki*; "i" (injured), "s" (suspended), "u"
+     (unavailable) og "n" (not in squad) eru FPL ad segja *hann spilar
+     ekki*. Ad lesa thogn eins fyrir bada flokka er ad henda theirri
+     upplysingu sem stadan sjalf ber.
+
+   ThVI:
+     · raunveruleg tala  -> hun gildir, oháð stodu (nakvaemasta stadreyndin)
+     · "a"               -> 1
+     · "d" an tolu       -> UNKNOWN_CHANCE (stadan SEGIR "ovist")
+     · onnur an tolu     -> 0 (stadan segir "spilar ekki" — status raedur)
+
+   ThETTA ER OMAELT OG ER YFIRLYST SEM SLIKT. `status`/`chance`/`news`
+   eiga ser ENGA sogu i `fpl_player_gw.json`, svo thetta er ekki
+   maelanlegt a panelinum og ma ALDREI vitna i sem maelingu (sja hausinn
+   a `UNMEASURED_UI`). Nanasta MAELDA hlidstaedan studur thó attina:
+   CLAUDE.md kafli 4 maeldi ad naift `expPts x sp` an `?? 1` bekkjar
+   81,6% theirra sem eiga ENGA byrjunar-tolu og kostar -3,86 stig/umferd
+   — "engin gogn" ma ekki verda ad lagri tolu.
+
+   MAELT 25.8.2026 a `data/players.json`: **0 af 609** leikmonnum eru i
+   thessu astandi i dag (a|null 461 · i|0 54 · a|100 30 · d|75 17 ·
+   u|0 39 · s|0 3 · d|25 1 · d|50 4), svo thetta er DULID astand sem
+   kviknar thegar frett lendir a undan prosentunni.
+   ============================================================ */
+export function availFromStatus(p) {
+  const ch = p?.chance_of_playing_next_round;
+  if (typeof ch === "number" && Number.isFinite(ch)) return ch / 100;
+  if (p?.status === "a" || p?.status == null) return 1;
+  return p.status === "d" ? UNKNOWN_CHANCE : 0;
+}
+
 /* Tiltækileiki fyrir EINN leik. `kickoff` er ISO-strengur leiksins.
    Fyrir dagsetninguna (eða ef hún vantar) gildir FPL-talan óbreytt.     */
 export function availForKickoff(p, kickoff, nowTs = Date.now()) {
-  const cur = p?.status === "a" ? 1 : (p?.chance_of_playing_next_round ?? 0) / 100;
+  const cur = availFromStatus(p);
   if (p?.status === "a" || cur >= 1) return 1;
   const r = parseReturn(p?.news, nowTs);
   if (!r || !kickoff) return cur;

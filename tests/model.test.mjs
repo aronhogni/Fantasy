@@ -16,7 +16,8 @@ import { sellTenths, computeTransferCost, expPointsFor, lookupPos, priceMovePred
   rankScore, RANK_W, greenRuns,
   gwSpans, intlBreaks, euroWeeks, euroTeams, BREAK_MIN_DAYS, compLabel, COMP_EN } from "../src/model.js";
 import { marketDiff } from "../src/market.js";
-import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, availForKickoff, parseEntryId,
+import { UNMEASURED_UI } from "../src/recommend.js";
+import { ELO_STALE_BAD, ELO_STALE_WARN, RETURN_AVAIL, UNKNOWN_CHANCE, availFromStatus, availForKickoff, parseEntryId,
          eloStale, parseReturn, rarelyStarted, priceFloors } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
@@ -492,6 +493,81 @@ ok(availForKickoff(P_NODATE, "2026-09-01T14:00:00Z", NOW) === 0.25,
   "engin dagsetning -> FPL-talan obreytt (varaleidin er REGLAN, 45 af 55)");
 ok(availForKickoff({ status:"a" }, "2026-09-01T14:00:00Z", NOW) === 1,
   "heilbrigdur madur er ohreyfdur");
+/* ============================================================
+   VANTANDI LIKUR ERU EKKI 0% (25.8.2026)
+
+   `?? 0` gerdi flaggadan mann MED ochekktar likur ad 0 i OLLUM leikjum,
+   svo vaent stig hans nulludust yfir allan gluggann — og thad faedir
+   skiptanetid, Triple-Captain-timasetninguna og `captainScore`.
+   `recommend.js` lagadi nakvaemlega thessa villu hja ser 7.8.2026 eftir
+   notenda-tilkynningu; `availForKickoff` bar hana afram.
+
+   BADAR ATTIR ERU FULLYRTAR, thvi onnur ein er tautologia: `null` faer
+   0,5 EN `chance: 0` faer AFRAM 0. Sidari fullyrdingin er su sem fellur
+   ef einhver "lagar" thetta med `|| 0.5` og hakkar tha meidda menn upp.
+   ============================================================ */
+const P_UNK = { status:"d", chance_of_playing_next_round:null, element_type:3,
+                ep_next:"3.0", points_per_game:"3.0", news:"Knock" };
+ok(availForKickoff(P_UNK, "2026-09-01T14:00:00Z", NOW) === UNKNOWN_CHANCE,
+  `"d" (DOUBTFUL) an prosentu -> ${UNKNOWN_CHANCE} ("veit ekki"), EKKI 0`);
+ok(availForKickoff({ status:"d", element_type:3 }, "2026-09-01T14:00:00Z", NOW) === UNKNOWN_CHANCE,
+  "sviðið ALVEG fjarverandi telst lika \"veit ekki\" fyrir \"d\"");
+ok(availForKickoff({ status:"i", chance_of_playing_next_round:0 }, "2026-09-01T14:00:00Z", NOW) === 0,
+  "en RAUNVERULEG 0 stendur — hun er STADREYND, ekki thogn");
+/* HIN ATTIN, OG HUN VAR HERT 25.8.2026 EFTIR AD `tests/best-team.mjs`
+   FELL: "d" er FPL ad segja *vid vitum ekki*, en "i"/"s"/"u"/"n" eru
+   FPL ad segja *hann spilar ekki*. Fyrsta utgafa thessarar lagfaeringar
+   gaf 0,5 a ALLT sem er ekki "a" — svo BANNADUR madur an prosentu
+   mældist 50% liklegur til ad spila. Ad flokka allt sem er ekki "a" i
+   eitt hendir theirri upplysingu sem stadan sjalf ber (kafli 6).     */
+for (const st of ["i", "s", "u", "n"]) {
+  ok(availForKickoff({ status:st, element_type:3 }, "2026-09-01T14:00:00Z", NOW) === 0,
+    `"${st}" an prosentu -> 0 (stadan segir "spilar ekki", hun er ekki thogn)`);
+}
+ok(availForKickoff({ status:"d", chance_of_playing_next_round:75 }, "2026-09-01T14:00:00Z", NOW) === 0.75,
+  "raunveruleg tala gildir oháð stodu (nakvaemasta stadreyndin vinnur)");
+for (const [st, ch, want] of [["a", null, 1], ["d", null, 0.5], ["i", null, 0],
+                              ["s", null, 0], ["d", 50, 0.5], ["i", 0, 0]]) {
+  ok(availFromStatus({ status: st, chance_of_playing_next_round: ch }) === want,
+    `availFromStatus("${st}", ${ch}) = ${want} — EIN tafla, badir lesendur`);
+}
+/* ============================================================
+   VANTANDI INNTAK -> ENGIN TALA, ALDREI VERSTA TALAN (25.8.2026)
+
+   Vanti `fx.fdr` verdur `core` NaN. NaN er EKKI null, svo hann slapp
+   gegnum hverja einustu `d != null`-vord — og hver lesandi fell tha a
+   sinn SIDASTA reit, sem er thyngsta threpid. Leikur an gagna las thvi
+   sem "erfidasti leikur deildarinnar" i stad thess ad vera slepptur.
+
+   BADAR ATTIR: heilbrigt inntak verdur AFRAM ad gefa tolu (annars vaeri
+   "lagfaeringin" ad slokkva a toflunni), og NaN-leidirnar sem lesa `d`
+   verda ad vera sannreyndar ad falla a thyngsta threpid — thad er
+   MEKANISMINN og an hans er fullyrdingin bara um `null`.
+   ============================================================ */
+{
+  /* SOMU LIDSTOLUR OG KAFLI 5 — raunhaeft inntak, annars maeldi
+     "heilbrigda" tilfellid sitt eigid galla inntak.                  */
+  const teamById = tb;
+  const fd = makeFixDifficulty({ teamMetrics: tm, teamById, odds: null, eloByTeam: {} });
+  const good = fd(1, { fdr: 3, opp: 2, home: true }, 2);
+  ok(Number.isFinite(good), `FORSENDA: heilbrigdur leikur gefur tolu (${good})`);
+  ok(fd(1, { fdr: undefined, opp: 2, home: true }, 2) === null,
+    "leikur AN `fdr` -> null (slepptur), EKKI thyngsta threp");
+  ok(fd(1, { fdr: NaN, opp: 2, home: true }, 2) === null, "og NaN beint eins");
+  const fdNoMetrics = makeFixDifficulty({ teamMetrics: {}, teamById, odds: null, eloByTeam: {} });
+  ok(fdNoMetrics(1, { fdr: NaN, opp: 2, home: true }, 2) === null,
+    "og an lidstalna gildir sama regla (snemm-utgangan skilar ekki NaN)");
+  ok(fdNoMetrics(1, { fdr: 3, opp: 2, home: true }, 2) === 3,
+    "en gild FDR-tala fer afram obreytt thar");
+  /* MEKANISMINN sjalfur — an thessa vissum vid ekki i HVADA att skekkjan la. */
+  ok(lookupPos(3, "pts", NaN) === lookupPos(3, "pts", 99),
+    "SONNUN A SKADANUM: NaN las aður sem THYNGSTA threpid i lookupPos");
+  ok(tierOf(NaN) === tierOf(99),
+    "og `tierOf(NaN)` gaf dokkraudasta threpid — verstu toluna, ekki enga");
+}
+
+ok(UNMEASURED_UI.unknownChance === UNKNOWN_CHANCE,
+  `EIN tala fyrir bada lesendur (model ${UNKNOWN_CHANCE} = recommend ${UNMEASURED_UI.unknownChance})`);
 
 /* GW1 STRAEKKAR 21.-24. AGUST — thvi ER thetta per LEIK og ekki per umferd */
 const fdFlat = () => 2.5;
@@ -766,11 +842,26 @@ console.log(`\n${"─".repeat(72)}\nMARKADS-LYKKJAN: OHEMJULEG LINA MA EKKI HENG
       return { hung: e.killed === true || e.signal === "SIGTERM" || /ETIMEDOUT/.test(String(e.code)) };
     }
   };
+  /* KRAFAN ER "HENGIR SIG EKKI", EKKI "SKILAR TOLU" (hert 25.8.2026).
+     Upphaflega villan var OAFMORKUD LYKKJA og fullyrdingin var skrifud
+     gegn HENNI; "skilar tolu" var einfaldlega thad sem fallid gerdi tha.
+     Sidan faekk `lambdaFromOver` hlid sem skilar `null` fyrir inntak sem
+     er ekki lina — og `null` uppfyllir upphaflega markmidid BETUR en
+     tala: 0,1 vaent mork er truverdug tala i sniðinu og hreinn uppspuni
+     i merkingu, og `marketGoals` skrifar hana beint i `odds.json`.
+     Vid krefjumst thvi: EKKI hengja, og EKKI uppspunnin tala.        */
   for (const lit of ["Infinity", "1e12", "1e308", "Number.MAX_VALUE"]) {
     const r = call(lit);
-    ok(!r.hung && Number.isFinite(Number(r.out)),
-       `line=${lit} skilar tolu i stad ad hengja (${r.hung ? "HENGDI" : r.out})`);
+    const v = r.hung ? null : (r.out === "null" ? null : Number(r.out));
+    ok(!r.hung && (v === null || Number.isFinite(v)),
+       `line=${lit} hengir sig EKKI (${r.hung ? "HENGDI" : r.out})`);
   }
+  /* OG `Infinity` ER EKKI LINA — hun a ad skila `null`, ekki tolu.
+     Thessi fullyrding er ADSKILIN fra theirri ad ofan viljandi: su ver
+     gegn HENGINGU (ollum fjorum), thessi gegn UPPSPUNA (einu tilfelli).
+     Vaeru thaer ein fullyrding gaeti hun stadist af rangri astaedu.   */
+  ok(call("Infinity").out === "null",
+     `line=Infinity skilar null (ekki uppspunnin tala) — ${call("Infinity").out}`);
   /* OG FULLYRDINGIN MA EKKI VERA TOM: raunveruleg lina VERDUR ad fara
      obreytt i gegn, annars vaeri "vornin" ad klippa gild gogn.          */
   const real = call("2.5");

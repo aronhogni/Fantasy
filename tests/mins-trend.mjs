@@ -48,7 +48,23 @@ console.log("─".repeat(84));
   const start = src.indexOf("async function computePlayerForm(");
   ok(start > 0, "computePlayerForm finnst í scripts/fetch.mjs");
   const end = src.indexOf("\n}\n", start);
-  const decl = src.slice(start, end + 3);
+  /* KLUKKAN FYLGIR MED (25.8.2026) — SOMU LEID OG `defcon-shrink.mjs`.
+     `computePlayerForm` haetti ad gata a `ev.finished` og for ad kalla
+     `playedGwIdsFromDisk`; textinn sem er dreginn ut nadi ekki yfir hana,
+     svo safnid fell med "playedGwIdsFromDisk is not defined". Systursafnid
+     var lagfaert i somu lotu og THETTA GLEYMDIST — nakvaemlega aettin sem
+     bad safn er skrifad gegn ("lexia lerd a einum stad og ekki borin
+     afram er ekki lerd"). Vid drogum ThVI raunverulegu follin ut lika —
+     ekki stubba — svo profid keyri SOMU klukku og pipeline-an.          */
+  const clkStart = src.indexOf("export function playedGwIds(");
+  ok(clkStart > 0, "playedGwIds finnst i scripts/fetch.mjs");
+  const clkEnd = src.indexOf("\n}\n", src.indexOf("async function playedGwIdsFromDisk("));
+  const clkDecl = src.slice(clkStart, clkEnd + 3).replace("export function", "function");
+  ok(/finished_provisional/.test(clkDecl),
+    "og hun les `finished_provisional`, ekki adeins `finished`");
+  ok(!/e\.finished\)\.map/.test(src.slice(start, end)),
+    "computePlayerForm gatar EKKI lengur beint a `e.finished`");
+  const decl = clkDecl + "\n" + src.slice(start, end + 3);
 
   const dir = await mkdtemp(join(tmpdir(), "pf-"));
   await mkdir(join(dir, "live"), { recursive: true });

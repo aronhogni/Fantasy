@@ -600,6 +600,41 @@ console.log("─".repeat(84));
     ok((written?.obj?.players || []).length > 0,
       "en FotMob keyrir SAMT — annars vaeri varaleidin daud thann dag sem hun tharf ad virka");
   }
+
+  /* ============================================================
+     f) FLUTNINGS-VILLA (timamork / connection reset) MA EKKI FELLA
+        FALLID — ThAD VAR EINA LEIDIN FRAMHJA VARALEIDINNI (25.8.2026)
+
+     `apiSports` bar `AbortSignal.timeout(20000)` en EKKERT try/catch, svo
+     timamork KOSTUDU undantekningu sem flaug ut ur `fetchLineups` allri.
+     Ytri vordurinn skrifadi `record("api_lineups", false, ...)` og
+     keyrslan hélt afram — svo utkoman var THOGUL: engin byrjunarlid, ein
+     raud rod, og FotMob (200, enginn token) aldrei spurdur. A leikdegi er
+     flutnings-bilun liklegasta bilunin, svo thetta er einmitt dagurinn.
+
+     PROFSTEINNINN ER EKKI "kastar hun ekki" HELDUR "kemST VARALEIDIN AD":
+     fullyrding sem adeins segir ad fallid lifi vaeri sonn thott engin
+     byrjunarlid skiludu ser. Vid krefjumst ThVI 22 byrjunarmanna UR
+     FOTMOB og ad villan se SKRAD (thogul lagfaering er onnur bilun).
+     ============================================================ */
+  {
+    const dir = await sandbox();
+    const boom = () => { const e = new Error("The operation was aborted due to timeout");
+                         e.name = "TimeoutError"; throw e; };
+    const { written, rec } = await run({ dir, responder: boom,
+      fmFetch: mkFetch(fmList, fmDetails("standard")) });
+    const pl = written?.obj?.players || [];
+    ok(written?.name === "lineups.json",
+      `timamork i API-Sports fella EKKI keyrsluna (skrifar ${written?.name})`);
+    ok(pl.filter(p => p.started).length === 22,
+      `og FotMob-varaleidin KEMST AD: ${pl.filter(p => p.started).length} byrjunarmenn`);
+    ok((written?.obj?.sources || []).includes("fotmob"),
+      `heimildin er skrad: ${JSON.stringify(written?.obj?.sources)}`);
+    ok((written?.obj?.errors || []).some(e => /threw|timeout|abort/i.test(e)),
+      `og API-Sports-villan er SKRAD, ekki thogguð: ${JSON.stringify((written?.obj?.errors || [])[0])}`);
+    ok(rec.ok === true,
+      "stadan er graen af thvi ad byrjunarlid FENGUST — ekki thratt fyrir ad thau vanti");
+  }
 }
 
 console.log(`\nBYRJUNARLIÐ: ${pass} stóðust, ${fail} féllu`);

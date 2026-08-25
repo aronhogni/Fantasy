@@ -132,7 +132,14 @@ export function shapeKeyOf(league) {
   const st = league.starters || {};
   const qb = Number(st.QB) || 0;
   const flex = Number(st.FLEX) || 0;
-  const variant = league.superflex ? "sflex"
+  /* BADAR LEIDIRNAR AD SEGJA "SUPERFLEX" ERU VIRTAR (25.8.2026).
+     `model.js:264` og `lineup.js:69` lesa BADAR `st.SUPERFLEX` OG
+     `league.superflex`; thetta fall las adeins tha sidari, svo deild
+     sem lysir superflex-saetinu i `starters` fekk lykilinn "12-std" —
+     rett snid, rangt svar, og thogult. Sama spurning ma ekki eiga tvo
+     svor i sama repo-i.                                              */
+  const sflex = Number(st.SUPERFLEX) > 0 || !!league.superflex;
+  const variant = sflex ? "sflex"
                 : qb >= 2 ? "2qb"
                 : flex >= 2 ? "2flex"
                 : "std";

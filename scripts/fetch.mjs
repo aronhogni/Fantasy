@@ -13,7 +13,7 @@
    - nafnastafsetning nýliða hjá ClubElo
    ============================================================ */
 
-import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
+import { mkdir, writeFile, readFile, readdir, rename, unlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { existsSync, realpathSync } from "node:fs";
 /* Markaðs-umbreytingin (odds -> vænt mörk -> FFDR-þyngd) er FLUTT í
@@ -73,10 +73,40 @@ function record(name, ok, count, note) {
   console.log(`[${ok ? "OK " : "ERR"}] ${name} — ${count ?? "?"} ${note ? "· " + note : ""}`);
 }
 
+/* ============================================================
+   ATOMISK SKRIF — HALFSKRIFUD SKRA MA ALDREI SITJA A COMMITTADRI SLOD
+   (25.8.2026)
+
+   `writeFile` skrifar A STADNUM. Deyi keyrslan i midju skrifi — timamork
+   i Actions, OOM, `exit` ur odrum thraedi — situr TRUNKUD JSON-skra eftir
+   a slodinni sem appid les BEINT af `raw.githubusercontent.com`. Enginn
+   bakendi er a milli, svo hun faeri oleidrett i vafra notandans.
+
+   Sama aett og reglan sem ThEGAR gildir um INNIHALD ("tom keyrsla ma
+   aldrei thurrka ut god gogn", kafli 8e): thar er vornin um toluna, her
+   um BITANA. `data-resilience.mjs` profar akkurat thetta inntak
+   (halfskrifad JSON) i appinu — en profid getur adeins mælt ad appid
+   lifi, ekki komid i veg fyrir ad skrain verdi til.
+
+   `rename` innan somu skraarmoppu er atomiskt a POSIX og a NTFS. Vid
+   skrifum thvi i systkina-`.tmp` og faerum yfir: annadhvort er GAMLA
+   skrain heil eda su NYJA — aldrei helmingur af hvorri. Temp-skrain
+   ber PID svo tvaer keyrslur i somu mappu troði ekki hvor a annarri.
+
+   MISTAKIST SKRIFID er `.tmp`-skrain HREINSUD og villunni KASTAD afram:
+   ad gleypa hana vaeri ad skila graenni keyrslu sem skrifadi ekkert.
+   ============================================================ */
 async function writeJSON(path, obj) {
   const full = `${DATA}/${path}`;
   await mkdir(full.split("/").slice(0, -1).join("/"), { recursive: true });
-  await writeFile(full, JSON.stringify(obj));
+  const tmp = `${full}.${process.pid}.tmp`;
+  try {
+    await writeFile(tmp, JSON.stringify(obj));
+    await rename(tmp, full);
+  } catch (e) {
+    try { await unlink(tmp); } catch {}
+    throw e;
+  }
 }
 /* TIMAMORK A OLL UTANHUSS-KOLL. VANTADI a 8 af 10 — thar med a THESSUM
    sameiginlega hjalpara, sem FPL, ESPN, GitHub-raw og football-data.co.uk
@@ -1966,8 +1996,24 @@ async function fetchLineups() {
   /* API-SPORTS-KOLLIN ERU GATUD, FALLID SJALFT EKKI. An lykils er ekkert
      til ad spyrja hja theim — og tha tekur FotMob-varaleidin nedar vid,
      sem er allur tilgangurinn med thvi ad ungata kallid.                */
+  /* ============================================================
+     API-SPORTS-LEGGURINN MA EKKI FELLA FALLID — VARALEIDIN STENDUR NEDAR
+     (25.8.2026)
+
+     `apiSports` skilar nu villu-umslagi i stad thess ad kasta (sja thar).
+     ThESSI vorn er ONNUR og hun er ekki tvitekning: hun er um ALLT sem
+     getur kastad i thessum legg — nyr kodi, breytt snid, `teamIdOf` sem
+     kastar a oveentu inntaki. Kveikja varaleidarinnar er UTKOMAN
+     ("vantar okkur byrjunarlid?"), og undantekning sem sleppur hedan
+     breytir henni thegjandi i ORSAKA-skilyrdi: hun keyrir ekki.
+     Villan er SKRAD i `errs` og keyrslan heldur afram med thad sem
+     kom — sem er nakvaemlega hegdunin sem `sources`-rodin ber sidar.
+     ============================================================ */
   for (const dt of (FLAGS.apisports ? dates : [])) {
-    const r = await apiSports(`/fixtures?league=39&date=${dt}`); calls++;
+    let r;
+    try { r = await apiSports(`/fixtures?league=39&date=${dt}`); }
+    catch (e) { errs.push(`fixtures ${dt}: threw: ${e?.message || e}`); continue; }
+    calls++;
     if (errTxt(r)) errs.push(`fixtures ${dt}: ${errTxt(r)}`);
     for (const it of (r.response || [])) {
       const h = teamIdOf(it.teams?.home?.name);
@@ -1994,7 +2040,10 @@ async function fetchLineups() {
     }
     const m = apiFx.find(x => (x.h === f.team_h && x.a === f.team_a));
     if (!m) continue;
-    const r = await apiSports(`/fixtures/lineups?fixture=${m.apiId}`); calls++;
+    let r;
+    try { r = await apiSports(`/fixtures/lineups?fixture=${m.apiId}`); }
+    catch (e) { errs.push(`lineups ${m.apiId}: threw: ${e?.message || e}`); continue; }
+    calls++;
     if (errTxt(r)) { errs.push(`lineups ${m.apiId}: ${errTxt(r)}`); continue; }
     for (const side of (r.response || [])) {
       const teamId = teamIdOf(side.team?.name);
@@ -2564,8 +2613,24 @@ export function bsdLineupNote({ seen, nearestMs, season, windowH = 13 }) {
     + `${Number.isFinite(nearestMs) ? (nearestMs / 3600e3).toFixed(1) : "?"}h - the `
     + `prediction window is ~${windowH}h so nothing is fetched yet`;
 }
-export function bsdOddsNote({ seen, priced, season }) {
-  if (priced) return `${priced} of ${seen} notstarted matches priced`;
+export function bsdOddsNote({ seen, priced, season, failed = 0, kept = false }) {
+  if (priced) return `${priced} of ${seen} notstarted matches priced`
+    + (failed ? ` (${failed} odds call(s) failed)` : "");
+  /* ============================================================
+     BILUD KEYRSLA OG TOM UMFERD ERU EKKI SAMA ASTAND (25.8.2026)
+
+     Per-leikja villur voru gleyptar (`catch { continue; }`) og EKKI
+     taldar, svo keyrsla thar sem odda-endapunkturinn 400-adi a ollu
+     leit nakvaemlega eins ut og rolegur dagur utan ~4 daga gluggans —
+     og skrifadi `events: {}` ofan a verdlagda skra. Thad brytur reglu
+     8e ("tom keyrsla ma aldrei thurrka ut god gogn"), sem `odds.json`
+     fylgir thegar vid somu adstaedur.
+     Sama laerdomur og notan sjalf var smiðud fyrir: tvennt sem hefur
+     ANDSTAEDA orsok ma ekki bera somu nótu.
+     ============================================================ */
+  if (failed && kept) return `ALL ${failed} odds call(s) failed - the previous `
+    + `priced file was KEPT (an empty run must not erase good data)`;
+  if (failed) return `${failed} of ${seen} odds call(s) failed and none were priced`;
   if (!seen) return `BSD returned NO notstarted event for season ${season} - empty `
     + `result, not a window miss; check that the season id is the current one`;
   return `${seen} notstarted matches came back but NONE carried odds - BSD prices `
@@ -3365,11 +3430,48 @@ async function apiSports(path) {
     return { http: 0, blocked: apiBlocked, errors: { budget: apiBlocked }, response: [] };
   }
   apiCalls++;
-  const r = await fetch(`${APIS}${path}`, {
-    headers: { "x-apisports-key": process.env.API_SPORTS_KEY, "User-Agent": UA },
-    signal: AbortSignal.timeout(20000),
-  });
-  const j = await r.json();
+  /* ============================================================
+     FLUTNINGS-VILLA MA EKKI KASTA — HUN VAR EINA LEIDIN FRAMHJA
+     FOTMOB-VARALEIDINNI (25.8.2026)
+
+     `AbortSignal.timeout` og `fetch` KASTA vid timamork, DNS-bilun og
+     connection reset. Ekkert try/catch var her, svo undantekningin flaug
+     UT UR `fetchLineups` allri — og varaleidin sem er smiduð fyrir
+     nakvaemlega thetta ("vantar okkur byrjunarlid?") stendur NEDAR i
+     sama falli og keyrdi thvi ALDREI. Ytri vordurinn skrifadi
+     `record("api_lineups", false, ...)` og keyrslan hélt afram, svo
+     utkoman var THOGUL: engin byrjunarlid, ein raud rod, og FotMob —
+     sem svarar 200 an tokens — aldrei spurdur.
+
+     HTTP-villur og kvotavillur voru ThEGAR medhondladar hér; adeins
+     flutnings-lagid vantadi. A leikdegi er thad liklegasta bilunin.
+
+     Villan er skilad i SAMA umslagi og adrar villur (`errors` +
+     tomt `response`), svo hver einasti kallandi — `errTxt`,
+     `r.response || []` — sér hana sem villu OG heldur afram. Hun er
+     EKKI sett i `apiBlocked`: timamork eru um ThETTA kall, ekki um
+     reikninginn, og ad stodva alla keyrsluna a einu hiksti vaeri ad
+     endurvekja bilunina sem verid er ad laga i annarri mynd.
+     ============================================================ */
+  let r;
+  try {
+    r = await fetch(`${APIS}${path}`, {
+      headers: { "x-apisports-key": process.env.API_SPORTS_KEY, "User-Agent": UA },
+      signal: AbortSignal.timeout(20000),
+    });
+  } catch (e) {
+    const msg = `transport error: ${e?.name === "TimeoutError" ? "timed out after 20s" : (e?.message || e)}`;
+    console.warn(`API-Sports ${path}: ${msg}`);
+    return { http: 0, errors: { transport: msg }, response: [] };
+  }
+  let j;
+  try { j = await r.json(); }
+  catch (e) {
+    /* 200 med ogildum bol er lika bilun, og hun kastar a somu leid.  */
+    const msg = `unreadable body (http ${r.status}): ${e?.message || e}`;
+    console.warn(`API-Sports ${path}: ${msg}`);
+    return { http: r.status, errors: { transport: msg }, response: [] };
+  }
   const rem = r.headers.get("x-ratelimit-requests-remaining");
   if (rem != null && Number.isFinite(+rem)) apiRemaining = +rem;
   /* ADGANGS-VILLA STODVAR ALLA KEYRSLUNA, EKKI BARA ThETTA KALL. Hun er um
@@ -3615,7 +3717,7 @@ async function fetchOdds() {
   const PREFERRED = ["bet365", "williamhill", "betfair_ex_uk", "skybet", "paddypower"];
   const teams = {};
   const unmatched = new Set();
-  let games = 0;
+  let games = 0, unpriced = 0;
 
   for (const g of (raw || [])) {
     const books = (g.bookmakers || []).filter(b =>
@@ -3662,6 +3764,12 @@ async function fetchOdds() {
       pHome: p.home, pAway: p.away, line, pOver,
       ah: ahN ? ahPoint / ahN : null,
     });
+    /* OVERDLAGDUR LEIKUR ER SLEPPT, EKKI SKRIFADUR (25.8.2026).
+       `marketGoals` skilar nu `method: "unpriced"` thegar linan eda
+       yfirlikurnar vantar, i stad thess ad "konvergera" a 0,1 vaent
+       mork. Rodin verdur einfaldlega ekki til — og thad er RETT svar:
+       dalkurinn er tomur i stad thess ad bera uppspuna.              */
+    if (hxg == null || axg == null) { unpriced++; continue; }
 
     const hs = byNorm[norm(g.home_team)], as = byNorm[norm(g.away_team)];
     if (!hs) unmatched.add(g.home_team);
@@ -3713,7 +3821,11 @@ async function fetchOdds() {
     note: "CS% from a Poisson on the opponent's expected goals. 'opp' and 'kickoff' CONFIRM that the line refers to the right match.",
     teams,
   });
-  record("odds", true, games, `${gate.window} · ${Object.keys(teams).length} teams · ${remaining} credits left`);
+  /* OVERDLAGDIR LEIKIR ERU TALDIR OG SAGDIR. An talningarinnar vaeri
+     "8 leikir" af tiu sama sniðid og "10 af tiu" — thogn i stad tolu.  */
+  record("odds", true, games, `${gate.window} · ${Object.keys(teams).length} teams`
+    + (unpriced ? ` · ${unpriced} unpriced (no total/over line) - SKIPPED, not guessed` : "")
+    + ` · ${remaining} credits left`);
 }
 
 /* ========== HRAÐUR HAMUR (--fast) ==========
@@ -3956,11 +4068,14 @@ async function fetchBsdOdds() {
   if (!season) { record("bsd_odds", true, 0, "no season"); return; }
   const d = await bsdGet(`/events/?league_id=${BSD_LEAGUE}&season_id=${season}&status=notstarted&limit=20`);
   const out = {};
-  let priced = 0;
+  let priced = 0, failed = 0;
   for (const e of (d.results || [])) {
     let o;
+    /* VILLUR ERU TALDAR, EKKI GLEYPTAR. An talningarinnar var
+       "engir oddar i glugganum" og "hvert einasta kall brast" sama
+       astandid — sja `bsdOddsNote`.                                */
     try { o = await bsdGet(`/events/${e.id}/odds/`); }
-    catch { continue; }
+    catch { failed++; continue; }
     const q = o?.odds || {};
     if (q.home_win == null || q.over_25_goals == null) continue;
     priced++;
@@ -3970,22 +4085,50 @@ async function fetchBsdOdds() {
       over_25: q.over_25_goals, under_25: q.under_25_goals,
     };
   }
-  await writeJSON("bsd_odds.json", {
-    updated: new Date().toISOString(), season_id: season,
-    note: "A FALLBACK for odds.json (Odds-API), not a replacement. BSD has "
-        + "NO Asian handicap market, so the line is computed through the "
-        + "marketGoals() 'totals+h2h' route — MEASURED as good as the spread route "
-        + "over 2,658 E0 matches (r 0.3958 against 0.3950). BSD odds only reach "
-        + "~4 days ahead, so the file is empty outside that window and that is CORRECT.",
-    events: out,
-  });
+  /* ============================================================
+     REGLA 8e: TOM KEYRSLA MA ALDREI ThURRKA UT GOD GOGN (25.8.2026)
+
+     `writeJSON` keyrdi SKILYRDISLAUST. Keyrsla thar sem hvert einasta
+     odda-kall brast — sem GERDIST i `?limit=5`-atvikinu — skrifadi
+     thvi `events: {}` ofan a verdlagda skra. `odds.json` heldur gamla
+     glugganum vid somu adstaedur; thessi skra gerdi thad ekki.
+
+     SKILYRDID ER ThRONGT OG ThAD ER ASETT: adeins thegar EKKERT
+     verdlagdist OG kall brast OG eldri skra ber raunveruleg gogn.
+     · verdlagt eitthvad        -> skrifad (ferskt vinnur)
+     · ekkert verdlagt, engin villa -> skrifad TOMT, thvi thad er
+       RETT SVAR utan ~4 daga gluggans (skjalad i notunni sjalfri)
+     · ekkert verdlagt, allt brast -> GAMLA SKRAIN STENDUR
+     Vaeri sidasta tilfellid latid skrifa vaeri thogn tulkud sem
+     maeling; vaeri annad tilfellid stodvad myndi skrain frjosa ad
+     eilifu a gomlum leikjum sem eru longu spiladir.
+     ============================================================ */
+  let prevEvents = 0;
+  try {
+    prevEvents = Object.keys(JSON.parse(
+      await readFile(`${DATA}/bsd_odds.json`, "utf8")).events || {}).length;
+  } catch {}
+  const keep = priced === 0 && failed > 0 && prevEvents > 0;
+  if (!keep) {
+    await writeJSON("bsd_odds.json", {
+      updated: new Date().toISOString(), season_id: season,
+      note: "A FALLBACK for odds.json (Odds-API), not a replacement. BSD has "
+          + "NO Asian handicap market, so the line is computed through the "
+          + "marketGoals() 'totals+h2h' route — MEASURED as good as the spread route "
+          + "over 2,658 E0 matches (r 0.3958 against 0.3950). BSD odds only reach "
+          + "~4 days ahead, so the file is empty outside that window and that is CORRECT.",
+      events: out,
+    });
+  }
   /* SAMA REGLA OG I `bsd_lineups` (21.8.2026): thessi lykkja hefur ENGA
      tima-siu — hun tekur 20 notstarted-leiki og telur tha sem hafa odda.
      `priced === 0` gat thvi thytt thrennt (engin rod til baka · rod an
      odda · rod fra rongu timabili) og notan valdi EITT theirra og bar thad
      fram sem maelingu: "no matches within the ~4 day odds window".      */
-  record("bsd_odds", true, priced,
-         bsdOddsNote({ seen: (d.results || []).length, priced, season }));
+  /* RAUD ROD ThEGAR ALLT BRAST — graen rod ofan a horfnum gognum er
+     nakvaemlega thad sem `status.json` er til ad koma i veg fyrir.   */
+  record("bsd_odds", !(failed && !priced), priced,
+         bsdOddsNote({ seen: (d.results || []).length, priced, season, failed, kept: keep }));
 }
 
 /* ---- YFIRSTANDANDI TIMABIL: BSD-LEIKMANNATOLUR ----

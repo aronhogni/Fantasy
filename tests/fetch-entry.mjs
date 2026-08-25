@@ -347,5 +347,81 @@ ok(!existsSync(copy), "afritid var fjarlaegt");
   ok(cap < 100, `og minna en dagskvotinn 100 (${cap}) — annars vaeri thad ekkert thak`);
 }
 
+/* ============================================================
+   7. ATOMISK SKRIF — HALFSKRIFUD SKRA MA ALDREI SITJA A COMMITTADRI SLOD
+
+   `writeJSON` var beint `writeFile`, sem skrifar A STADNUM. Deyi keyrslan
+   i midju skrifi situr TRUNKUD JSON-skra eftir — og appid les `data/`
+   BEINT af raw.githubusercontent.com, an bakenda, svo hun faeri oleidrett
+   i vafra notandans.
+
+   FULLYRDINGIN ER UM HEGDUN, EKKI UM TEXTA. Texta-leit ("nefnir hun
+   `rename`?") vaeri uppfyllt af athugasemdinni sjalfri — nakvaemlega
+   gildran i CLAUDE.md 5b. Vid KEYRUM thvi raunverulegt afrit af fallinu:
+     (a) heilbrigt skrif skilar heilli skra OG skilur ENGA `.tmp` eftir
+     (b) skrif sem BREGST (obundinn hlutur -> JSON.stringify kastar)
+         skilur GOMLU skrana eftir OSNERTA — thad er allur tilgangurinn —
+         hreinsar `.tmp` og KASTAR afram (thogul bilun vaeri graen keyrsla
+         sem skrifadi ekkert).
+   ============================================================ */
+console.log("\n=== 7. ATOMISK SKRIF (writeJSON) ===");
+{
+  const { mkdtemp, readFile: rf, readdir: rd, writeFile: wf } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const wStart = src.indexOf("async function writeJSON(");
+  ok(wStart > 0, "writeJSON finnst i scripts/fetch.mjs");
+  const wEnd = src.indexOf("\n}\n", wStart);
+  const wDecl = src.slice(wStart, wEnd + 3);
+  ok(/rename\(/.test(wDecl), "FORSENDA: fallid nefnir `rename` (annars maelum vid rangt fall)");
+
+  const { mkdir: mk, writeFile: wF, rename: rn, unlink: ul } = await import("node:fs/promises");
+  const dir = await mkdtemp(join(tmpdir(), "aw-"));
+  const factory = new Function("mkdir", "writeFile", "rename", "unlink", "DATA", "process",
+    `${wDecl}\nreturn writeJSON;`);
+  const writeJSON = factory(mk, wF, rn, ul, dir, { pid: 4242 });
+
+  await writeJSON("t.json", { a: 1 });
+  ok(JSON.parse(await rf(join(dir, "t.json"), "utf8")).a === 1, "heilbrigt skrif skilar heilli skra");
+  ok((await rd(dir)).every(f => !f.endsWith(".tmp")),
+    `og engin .tmp situr eftir (${JSON.stringify(await rd(dir))})`);
+
+  /* ============================================================
+     BILUNIN SEM ER HERMD VERDUR AD VERA SU RETTA — FYRSTA UTGAFA MIN
+     VAR ThAD EKKI OG STOKKBREYTINGIN SLAPP I GEGN.
+
+     Eg lét fyrst `JSON.stringify` kasta (hringtilvisun). Su villa
+     verdur til ADUR EN nokkud er skrifad, svo gamla skrain lifir
+     hvort sem skrifid er atomiskt EDA a stadnum — fullyrdingin gat
+     ekki greint utfaerslurnar i sundur og var thvi tautologia
+     (CLAUDE.md 13). Stokkbreyting i beint `writeFile` STODST hana.
+
+     RETTA HERMUNIN er ad `writeFile` SJALFT deyi eftir ad hafa skrifad
+     hluta — thad er nakvaemlega OOM/SIGKILL-tilfellid. Hun er
+     inndaelanleg thvi fallid tekur `writeFile` sem breytu.
+     ============================================================ */
+  let threw = null;
+  const halfWrite = async (path, data) => {
+    await wf(path, String(data).slice(0, 5));      // TRUNKUD skrif...
+    throw new Error("ENOSPC: simulated death mid-write");   // ...og svo daudi
+  };
+  const dying = new Function("mkdir", "writeFile", "rename", "unlink", "DATA", "process",
+    `${wDecl}\nreturn writeJSON;`)(mk, halfWrite, rn, ul, dir, { pid: 4242 });
+  try { await dying("t.json", { a: 2 }); } catch (e) { threw = e; }
+  ok(threw !== null, "misheppnad skrif KASTAR afram (thogul bilun vaeri graen keyrsla an skrifa)");
+  const after = await rf(join(dir, "t.json"), "utf8");
+  ok(after === '{"a":1}',
+    `GAMLA SKRAIN ER OSNERT, EKKI TRUNKUD — thetta er allur tilgangurinn (${after})`);
+  ok(JSON.parse(after).a === 1, "og hun er enn thattanleg JSON");
+  ok((await rd(dir)).every(f => !f.endsWith(".tmp")),
+    `og .tmp-skrain er hreinsud (${JSON.stringify(await rd(dir))})`);
+
+  /* UNDIRMOPPUR (data/live/, data/history/) fara sama veg. */
+  await writeJSON("live/gw1.json", { ok: true });
+  ok(JSON.parse(await rf(join(dir, "live/gw1.json"), "utf8")).ok === true,
+    "undirmoppur (live/, history/) fara sama veg");
+}
+
 console.log(`\nFETCH-ENTRY: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

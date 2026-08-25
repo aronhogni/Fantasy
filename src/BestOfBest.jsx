@@ -418,7 +418,13 @@ export default function BestOfBest({ pros, panelFile, players, teamById, onPickP
                           {p ? <span style={{ ...S.pill, background:POS_COLOR[p.element_type] || C.text3 }}>
                                  {POS[p.element_type] || "?"}</span> : null}
                           <Name p={p} onPick={onPickPlayer} />
-                          <span style={{ fontSize:10.5, color:C.text3 }}>{t?.short_name || ""}</span>
+                          {/* `short`, EKKI `short_name` (25.8.2026). `teams.json` ber `short`
+                              ("ARS") og hefur alltaf gert; `short_name` er ekki til a
+                              rodinni, svo thetta var FAST tomur strengur og lidid sast
+                              aldrei i thessari toflu. Systur-taflan 300 linum ofar
+                              (`MoveTable`) las rett gildi allan timann — sama skra, tvo
+                              svor. Thogul birtingar-villa: engin villa, bara tomt.   */}
+                          <span style={{ fontSize:10.5, color:C.text3 }}>{t?.short || ""}</span>
                           {mine.has(r.id)
                             ? <span title="In your squad" style={{ width:6, height:6, borderRadius:3,
                                                                    background:C.green, display:"inline-block" }} />

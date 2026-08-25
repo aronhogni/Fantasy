@@ -476,6 +476,48 @@ console.log(`\n${"─".repeat(72)}\nPROXY-LEIDIRNAR (netlify/functions/odds.js)\
     !new RegExp(`\\^\\\\d\\+\\$[\\s\\S]{0,200}\\b${v}\\b|\\b${v}\\b[\\s\\S]{0,200}\\^\\\\d\\+\\$`).test(code));
   ok(`hvert vidfang i FPL-slod er stadfest (${interpolated.length} stadir)`,
      unchecked.length === 0, `ostadfest: ${unchecked.join(", ")}`);
+
+  /* ============================================================
+     5. FALLID ER KEYRT, EKKI LESID — OThEKKT `fpl-*` SKILADI
+        `undefined` (25.8.2026)
+
+     Hlidid i #3 hleypir ollu sem byrjar a `fpl-` i gegn, og ALLAR
+     thekktar `fpl-*`-leidir skila svari i sinni eigin grein. Thad eina
+     sem komst nidur ur try-blokkinni var thvi `fpl-` MED OThEKKTU
+     VIDSKEYTI (`?path=fpl-typo`) — og thar var ENGIN `return`. Fallid
+     skiladi `undefined`, sem Netlify thydir i 502/tomt svar **AN
+     CORS-HAUSA**, svo vafrinn ser CORS-villu i stad 400.
+
+     Athugasemdin a stadnum FULLYRTI hid gagnstaeda ("hingad kemst
+     adeins thekkt fpl-*"), svo texta-leit hefdi stadfest ranga
+     hegdun. Kaflarnir ad ofan lesa TEXTA og gátu ekki sed thetta —
+     hér er `handler` thvi KALLADUR. `fetch` er stubbadur svo ekkert
+     ytra kall verdi; othekkta leidin snertir hann hvort sem er ekki.
+     ============================================================ */
+  const { handler } = await import(new URL("netlify/functions/odds.js", REPO).href);
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async u => { throw new Error(`unexpected network call: ${u}`); };
+  const call = p => handler({ httpMethod: "GET", queryStringParameters: p });
+
+  const typo = await call({ path: "fpl-typo" });
+  ok("othekkt `fpl-*` skilar SVARI, ekki undefined",
+     typo != null && typeof typo === "object", String(typo));
+  ok(`og thad er 400 (fekk ${typo?.statusCode})`, typo?.statusCode === 400);
+  ok("MED CORS-hausum — an theirra ser vafrinn CORS-villu i stad skyringar",
+     typo?.headers?.["Access-Control-Allow-Origin"] === "*",
+     JSON.stringify(typo?.headers));
+  ok("og bolurinn er thattanlegt JSON sem NEFNIR leidina",
+     (() => { try { return JSON.parse(typo.body).error.includes("fpl-typo"); }
+              catch { return false; } })(), typo?.body);
+
+  /* POSITIV FORSENDA (CLAUDE.md 5b regla 2): leid sem er RAUNVERULEGA
+     othekkt fer somu leid, svo fullyrdingin ad ofan snyst um `fpl-`
+     forskeytid en ekki um ad allt skili 400.                          */
+  const bogus = await call({ path: "nonsense" });
+  ok(`ohaskyld othekkt leid svarar lika 400 (${bogus?.statusCode})`, bogus?.statusCode === 400);
+  const opts = await handler({ httpMethod: "OPTIONS", queryStringParameters: {} });
+  ok(`OPTIONS svarar afram 204 (${opts?.statusCode})`, opts?.statusCode === 204);
+  globalThis.fetch = realFetch;
 }
 
 console.log(`\nOTRAUST INNTAK: ${pass} stodust, ${fail} fellu`);

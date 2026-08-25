@@ -114,8 +114,32 @@ export function Kit({ short, size = 34 }) {
   );
 }
 
+/* ============================================================
+   BILUD MYND MA EKKI SMITA A NAESTA LEIKMANN (25.8.2026)
+
+   `ok` er teljara-state og lifir i KOMPONENT-SAETINU, ekki i myndinni.
+   Overlay-ith skiptir um leikmann UTAN thess ad skipta um saeti (enginn
+   `key`), svo `ok: false` — sett af manni sem A ENGA mynd hja FPL —
+   hekk afram og NAESTI madur fekk treyju-fallbackid thott hans mynd se
+   til. MAELT i CLAUDE.md kafla 8: 109 leikmenn eru raunverulega
+   myndalausir, svo kveikjan er algeng.
+
+   LAGAD I KOMPONENTINUM, EKKI A KALLSTODUM. `key={p.id}` a hverjum
+   fjorum kallstodum hefdi virkad lika — og fimmta kallstodin sem
+   baettist vid seinna hefdi gleymt honum. Thetta er sama laerdomur og
+   `avail === 0` i MyTeam: reglan a heima thar sem hun getur ekki
+   gleymst.
+
+   ENGINN `useEffect`: state sem er leidrett i teikningu er endurstillt
+   ADUR en vafrinn malar, svo enginn rammi synir ranga mynd. Effect
+   hefdi gefid eitt blikk af treyju a hverjum skiptum.
+   ============================================================ */
 export function Crest({ team, size = 16, style }) {
-  const [ok, setOk] = useState(true);
+  const id = team?.code ?? team?.short ?? null;
+  const [st, setSt] = useState({ id, ok: true });
+  if (st.id !== id) setSt({ id, ok: true });
+  const ok = st.id === id ? st.ok : true;
+  const setOk = v => setSt({ id, ok: v });
   const url = crestUrl(team?.code ?? CREST_FALLBACK[team?.short]);
   if (!url || !ok) return (
     <span style={{ ...S.crestFallback, fontSize: Math.max(7, size * 0.5), ...style }}>
@@ -128,8 +152,14 @@ export function Crest({ team, size = 16, style }) {
 }
 
 
+/* Sama regla og i `Crest` her ad ofan — sja rokstudninginn thar.
+   ThETTA VAR TILFELLID SEM NOTANDINN GAT SED: detail-overlay-ith
+   skiptir um leikmann an thess ad skipta um komponent-saeti.        */
 export function PlayerImg({ code, short, size = 34 }) {
-  const [ok, setOk] = useState(true);
+  const [st, setSt] = useState({ code, ok: true });
+  if (st.code !== code) setSt({ code, ok: true });
+  const ok = st.code === code ? st.ok : true;
+  const setOk = v => setSt({ code, ok: v });
   const url = photoUrl(code);
   if (!url || !ok) return <Kit short={short} size={size} />;
   return <img src={url} alt="" style={{ height:size, width:"auto", objectFit:"contain" }}

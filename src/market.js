@@ -74,6 +74,35 @@ export function lambdaFromOver(pOver, line) {
      tolu-breyting.
      (data/odds.json var EKKI notad sem sonnun — hun geymir cs/xg/xga per lid,
      ekki `line`, svo "stadfest a raunlinum" hefdi verid tom fullyrding.)   */
+  /* ============================================================
+     VANTANDI INNTAK GEFUR ENGA TOLU — HELMINGUNIN "KONVERGERAR"
+     ANNARS A NEDRI MORKUNUM (25.8.2026)
+
+     Lykkjan hengdi ekki lengur (11.8.), en hun SVARADI samt: med
+     `pOver = null/NaN/undefined` er `1 - cum < pOver` ALLTAF false, svo
+     `hi` er faert i hverri ítrun og utkoman er nedri jaðarinn — **0,1**.
+     MAELT: `lambdaFromOver(null, 2.5)` gefur 0,1 og
+     `lambdaFromOver(0.5, null)` gefur 0,693.
+
+     Hvorug er hlutlaus. 0,1 vaent mork i knattspyrnuleik er TRUVERDUG
+     tala i sniðinu og HREIN UPPSPUNI i merkingu, og `marketGoals`
+     skrifar hana beint i `odds.json` sem `lambda`/`xg`/`xga`/`cs` —
+     thadan i FFDR-markadslidinn. Uppspunnin tala sem litur ut eins og
+     maeling er versta utkoman i thessu repo-i (CLAUDE.md, grunnreglan).
+
+     `null` her er ORUGGT: `marketGoals` ber sina eigin vord og
+     `fetch.mjs` sleppir tha leiknum — engin rod verdur til. Tom rod er
+     rett svar; 0,1 er thad ekki.
+     ============================================================ */
+  /* `+null === 0` OG ThAD FELLDI FYRSTU UTGAFU ThESSARAR VORDAR:
+     `Number.isFinite(+null)` er TRUE, svo `line: null` slapp i gegn og
+     gaf 0,693 (thvi `Math.floor(null)` er 0). Tomt gildi ma ekki verda
+     ad tolunni null — sama regla og "NULL ER EKKI NULL" i kafla 8,
+     bara i talna-thvingun i stad birtingar. Prófad BERUM ORDUM.     */
+  const nOf = v => (v == null || v === "" || typeof v === "boolean") ? NaN : +v;
+  const po = nOf(pOver), ln = nOf(line);
+  if (!Number.isFinite(po) || po <= 0 || po >= 1) return null;
+  if (!Number.isFinite(ln) || ln < 0) return null;
   const K_MAX = 20;
   const kEff = Math.min(k, K_MAX);
   let lo = 0.1, hi = 8;
@@ -81,7 +110,7 @@ export function lambdaFromOver(pOver, line) {
     const m = (lo + hi) / 2;
     let cum = 0, term = Math.exp(-m);
     for (let j = 0; j <= kEff; j++) { cum += term; term *= m / (j + 1); }
-    (1 - cum < pOver) ? lo = m : hi = m;
+    (1 - cum < po) ? lo = m : hi = m;
   }
   return (lo + hi) / 2;
 }
@@ -170,7 +199,14 @@ export function marketAttackDiff(expectedGoalsFor) {
    asískt handicap (nákvæmara, notað þegar það er til).
    Skilar { hxg, axg, lambda, method }.                                  */
 export function marketGoals({ pHome, pAway, line, pOver, ah = null }) {
-  const lambda = lambdaFromOver(pOver, line) * MARKET_CALIB;
+  /* VANTI LINAN ER ENGIN VAENTING TIL — sja `lambdaFromOver`. Kallandinn
+     (`fetch.mjs`) SLEPPIR tha leiknum i stad thess ad skrifa uppspunnar
+     tolur i `odds.json`. Ollum svidum er skilad `null` svo hvert einasta
+     afleidda gildi (cs/xg/xga/diff) se lika tomt — hálft svar vaeri
+     verra en ekkert, thvi thad laeðist inn i eitt svid i einu.        */
+  const raw = lambdaFromOver(pOver, line);
+  if (raw == null) return { hxg: null, axg: null, lambda: null, method: "unpriced" };
+  const lambda = raw * MARKET_CALIB;
   let hxg, axg, method;
   if (ah != null && Number.isFinite(ah)) {
     hxg = (lambda - ah) / 2; axg = (lambda + ah) / 2;

@@ -30,6 +30,12 @@ import { RAW } from "./dataUrl.js";
    skipti OG skipti milli lesenda af (leikmannalistinn og samanburdurinn
    deila thvi — sja hausinn).                                            */
 export const GW_CACHE = new Map();
+/* SOKNIR SEM ERU A LEIDINNI. Sja `loadGwSeason`: `GW_CACHE` svarar
+   "er hun KOMIN?" (lesid samstundis af hookinu) og thetta kort svarar
+   "er hun A LEIDINNI?". An thess sottu tveir samtimis lesendur SOMU
+   1,3-1,6 MB skrana tvisvar — einmitt tvitekningin sem kveikir
+   throttlunina sem skyndiminnid var skrifad gegn.                    */
+export const GW_INFLIGHT = new Map();
 
 /* "2025/26" -> "2526". Skrarnar heita player_gw_{key}.json.              */
 export function seasonToKey(season) {
@@ -117,6 +123,27 @@ export function lastNRange(n, maxGw) {
        tilraun eftir 800 ms taekur venjulegan hiksta en ekki throttlun, sem
        er einmitt thad sem gerdist.
    ============================================================ */
+/* ============================================================
+   SKYNDIMINNID GEYMIR LOFORDID, EKKI NIDURSTODUNA (25.8.2026)
+
+   `GW_CACHE.set` var kallad i `.then(...)`, th.e. ThEGAR sóknin var
+   BUIN. Bidji tveir lesendur um SOMU timabils-skra a sama augnabliki
+   — sem er nakvaemlega tilfellid sem skyndiminnid var skrifad fyrir
+   (`PlayerList` kveikir vid val a bili, `Compare` vid opnun valarans)
+   — er skyndiminnid tomt hja theim baðum og **1,3-1,6 MB skrain er
+   sott TVISVAR**. Verra: einmitt su tvitekning kveikir throttlunina
+   sem athugasemdin hér ad ofan lysir.
+
+   Nu er LOFORDID sjalft geymt strax, svo annar lesandinn tengist
+   sóknina sem er thegar farin af stad. NFL-hlidin (`nfl/src/data.js`)
+   hefur alltaf gert thetta rett — sama spurning, tvo svor, sitthvorum
+   megin i repo-inu.
+
+   BILUN ER EKKI GEYMD: mistakist sóknin er faerslan FJARLAEGD, svo
+   naesta tilraun se raunveruleg. Vaeri bilada loforðid latid liggja
+   yrdi bilid ONOTHAEFT alla lotuna eftir eitt nethiksti — sama regla
+   og `load()` NFL-megin fylgir.
+   ============================================================ */
 export function loadGwSeason(seasonKey, { attempts = 3, timeoutMs = 25000 } = {}) {
   const cached = GW_CACHE.get(seasonKey);
   if (cached) return Promise.resolve(cached);
@@ -128,7 +155,23 @@ export function loadGwSeason(seasonKey, { attempts = 3, timeoutMs = 25000 } = {}
     return new Promise(res => setTimeout(res, 800 * (attempt + 1) ** 2))
       .then(() => run(attempt + 1));
   });
-  return run().then(data => { GW_CACHE.set(seasonKey, data); return data; });
+  /* SAMNYTINGIN ER I SER-KORTI, EKKI I `GW_CACHE` — OG ThAD ER EKKI
+     SMEKKUR. Hookid nedar les `GW_CACHE.get()` SAMSTUNDIS og setur
+     gildid BEINT i React-state (svo skipti milli timabila sem eru
+     thegar sott seu ein endur-teikning). Vaeri loforðid geymt thar
+     lenti PROMISE i `file.data` og taflan faeri ad lesa `.length` af
+     honum. Tvaer olikar spurningar — "er hun KOMIN?" og "er hun A
+     LEIDINNI?" — thurfa tvo kort.                                    */
+  const inflight = GW_INFLIGHT.get(seasonKey);
+  if (inflight) return inflight;
+  const p = run().then(data => { GW_CACHE.set(seasonKey, data); return data; });
+  GW_INFLIGHT.set(seasonKey, p);
+  /* Hreinsad i BADAR attir: eftir ad hun er komin i `GW_CACHE` (tha er
+     samnytingin obarfi) OG eftir bilun (annars vaeri bilada loforðid
+     endurnotad alla lotuna og bilid onothaeft eftir eitt nethiksti). */
+  const done = () => { if (GW_INFLIGHT.get(seasonKey) === p) GW_INFLIGHT.delete(seasonKey); };
+  p.then(done, done);
+  return p;
 }
 
 /* ============================================================

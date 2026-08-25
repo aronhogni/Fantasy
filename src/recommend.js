@@ -74,7 +74,7 @@
    `UNMEASURED_UI`.
    ============================================================ */
 import { setPieceOf } from "./availability.js";
-import { rankScore } from "./model.js";
+import { rankScore, UNKNOWN_CHANCE, availFromStatus } from "./model.js";
 import { interp } from "./interp.js";
 import { ffdrSeries, hardestRun } from "./buywindow.js";
 
@@ -104,7 +104,12 @@ export const PER90_MIN_MINUTES = 400;
 export const UNMEASURED_UI = {
   availFloor: 0.35,      // hversu mikid af skorinu lifir vid 0% likur
   availSlope: 0.65,      // afgangurinn skalast med likunum
-  unknownChance: 0.5,    // `null` = "veit ekki", ekki "utilokadur"
+  /* EIN TALA, TVEIR LESENDUR. Hun bjo her og `availForKickoff` i
+     model.js bar `?? 0` afram i vikur — sami hlutur, tvo svor. Nu er
+     hun skilgreind i model.js (sem getur ekki flutt inn hedan an
+     hrings) og thessi lykill er ADEINS afram til svo eldri lesendur
+     `UNMEASURED_UI.unknownChance` haldi ser.                          */
+  unknownChance: UNKNOWN_CHANCE,   // `null` = "veit ekki", ekki "utilokadur"
 };
 
 /* ---- MÆLDAR VOGTÖLUR FYRIR STIGASPÁ ----
@@ -154,10 +159,13 @@ export function buildRecommendations({
          alveg eins og meiddur madur. FPL skilar oft `null` einfaldlega
          thvi frett er ekki komin. Null = "veit ekki": tha er varfaerid
          mat 50%, ekki utilokun. Adeins RAUNVERULEG tala gildir sem hun er.  */
-      const chance = p.chance_of_playing_next_round;
-      const avail = p.status === "a" ? 1
-        : (typeof chance === "number" && Number.isFinite(chance)) ? chance / 100
-        : UNMEASURED_UI.unknownChance;
+      /* EIN UTFAERSLA FYRIR BADA LESENDUR (25.8.2026). Reglan bjo her
+         og i `availForKickoff` i SITTHVORU LAGI og thaer svorudu
+         sitthvoru: her fekk BANNADUR madur an prosentu 0,5 (thott
+         rokstudningurinn hér ad ofan nefni stodu "d" ordrett) og thar
+         fekk ovis madur 0. `availFromStatus` i model.js ber regluna nu
+         eina — sja langa athugasemd thar.                            */
+      const avail = availFromStatus(p);
       const w = FIT[p.element_type] || FIT[3];
 
       let raw, mode;

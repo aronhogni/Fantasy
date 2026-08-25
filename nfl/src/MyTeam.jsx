@@ -333,7 +333,19 @@ function Lineup({ lineup, slots, preseason, defSeason, defRows, season, week }) 
                     ? s.player.ev.toFixed(1) : <span className="null">—</span>}</td>
                   <td className="txt">
                     {s.player && s.player.injury && s.player.injury !== "Active" && (
-                      <span className={`badge ${/out|ir/i.test(s.player.injury) ? "bad" : "warn"}`}>
+                      /* RAUTT = SPILAR EKKI, OG ThAD ER `avail === 0` — EKKI TEXTALEIT.
+                          `/out|ir/i` var gamla heuristikin. MAELT a ordunum sem
+                          Sleeper sendir raunverulega (`AVAIL` i model.js): hun
+                          hittir ADEINS 2 af 13 — "Out" og "IR". "Injured Reserve",
+                          "PUP", "Suspended", "Sus", "NA", "Inactive" og "COV" thyda
+                          OLL tiltaekileika 0 og fengu GULT, sem segir notandanum ad
+                          madur sem GETUR EKKI spilad muni kannski spila. Skekkjan er
+                          i haettulegu attina.
+                          `DraftBoard.jsx` og `PlayerTable.jsx` voru BADIR faerdir a
+                          `avail === 0` a sinum tima med athugasemdinni "lexia lerd a
+                          einum stad og ekki borin afram er ekki lerd" — thessi skra
+                          gleymdist. Tvaer stodur, ein regla.                        */
+                      <span className={`badge ${s.player.avail === 0 ? "bad" : "warn"}`}>
                         {s.player.injury}
                       </span>
                     )}
@@ -413,7 +425,8 @@ function Alerts({ roster, news }) {
                   <td className="txt frozen">{r.name}</td>
                   <td className="txt"><span className={`pos ${r.pos}`}>{r.pos}</span></td>
                   <td className="txt">
-                    <span className={`badge ${/out|ir/i.test(r.injury) ? "bad" : "warn"}`}>
+                    {/* SAMA REGLA OG I BYRJUNARLIDS-TOFLUNNI OFAR — sja notuna thar. */}
+                    <span className={`badge ${r.avail === 0 ? "bad" : "warn"}`}>
                       {r.injury}
                     </span>
                   </td>

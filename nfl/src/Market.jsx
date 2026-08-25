@@ -20,6 +20,26 @@
    ============================================================ */
 
 import React, { useMemo, useState } from "react";
+/* ============================================================
+   IMPLIED-TOLURNAR KOMA UR `model.js`, EKKI UR AFRITI HER (25.8.2026)
+
+   Thessi tafla reiknadi sjalf `g.total / 2 + g.spread / 2`. Sian ofar
+   krefst adeins `total != null`, og i JS er **`null / 2 === 0`**, svo
+   leikur MED total en AN spreads fekk `44,5/2 ± 0` = 22,3 a BADA dalka
+   — jofn tala sem les eins og bokmakarinn hafi kallad leikinn jafnan.
+   Hann gerdi thad ekki; hann gaf enga linu. Thetta brytur grunnreglu
+   appsins sjalfs: NULL ER EKKI NULL.
+
+   ThAD ER RAUNVERULEGT I DAG, EKKI TILGATA: maelt 25.8.2026 i
+   `market.json` — MIN @ TB i viku 3 ber `total: 44.5, spread: null`,
+   ein rod af 272.
+
+   `impliedTeamTotals` i `model.js` HEFUR thessa vorn (`spread == null
+   -> { home: null, away: null }`) og `Schedule.jsx` notar hana. Thessi
+   tafla afritadi formuluna og missti vornina i leidinni — nakvaemlega
+   `buildTeamMetrics`-aettin. Nu er ein utfaersla og tvo kollstodur.
+   ============================================================ */
+import { impliedTeamTotals } from "./model.js";
 
 export default function Market({ market, rows, meta, history }) {
   const [tab, setTab] = useState("teams");
@@ -285,20 +305,24 @@ function ThisWeek({ market, meta }) {
           </tr></thead>
           <tbody>
             {games.sort((a, b) => (b.total ?? 0) - (a.total ?? 0)).map((g) => {
-              const home = g.total / 2 + g.spread / 2;
-              const away = g.total / 2 - g.spread / 2;
+              const { home, away } = impliedTeamTotals(g.total, g.spread);
               return (
                 <tr key={g.id}>
                   <td className="txt frozen"><b>{g.away}</b> <span className="dim">@</span> <b>{g.home}</b></td>
                   <td className={`mono ${g.total >= 48 ? "good" : g.total <= 41 ? "bad" : ""}`}>
                     {g.total}
                   </td>
-                  <td className="mono dim">{g.spread > 0 ? "+" : ""}{g.spread}</td>
-                  <td className={`mono ${away >= 26 ? "good" : away <= 18 ? "bad" : ""}`}>
-                    {away.toFixed(1)}
+                  {/* VANTANDI SPREAD ER "—", EKKI "+0". Bert `0` her vaeri
+                      sama luginn og reiknudu dalkarnir baru: jafntefli sem
+                      bokmakarinn kalladi aldrei.                          */}
+                  <td className="mono dim">
+                    {g.spread == null ? "—" : `${g.spread > 0 ? "+" : ""}${g.spread}`}
                   </td>
-                  <td className={`mono ${home >= 26 ? "good" : home <= 18 ? "bad" : ""}`}>
-                    {home.toFixed(1)}
+                  <td className={`mono ${away == null ? "" : away >= 26 ? "good" : away <= 18 ? "bad" : ""}`}>
+                    {away == null ? "—" : away.toFixed(1)}
+                  </td>
+                  <td className={`mono ${home == null ? "" : home >= 26 ? "good" : home <= 18 ? "bad" : ""}`}>
+                    {home == null ? "—" : home.toFixed(1)}
                   </td>
                   <td className="txt dimmer">{g.details || "—"}</td>
                 </tr>

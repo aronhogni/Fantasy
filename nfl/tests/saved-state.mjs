@@ -559,5 +559,72 @@ console.log("\n8. bordin — skorðun, tomir lyklar og grisjun");
   localStorage.clear();
 }
 
+/* ============================================================
+   9. `load()` — MISLUKKUD SOKN MA EKKI SITJA I SKYNDIMINNI, OG KALLID
+      MA EKKI HENGJA (25.8.2026)
+
+   TVAER ThOGLAR BILANIR i somu 12 linunum:
+     · `null` var sett i skyndiminnid og LA THAR alla lotuna, svo eitt
+       augnabliks nethiksti vid hleðslu `players.json` skildi flipann
+       eftir tomann thar til SIDAN var endurhladin.
+     · ekkert kall hafdi timamork, svo stodvud tenging hekk i ~300 s
+       (undici-sjalfgildi). I `DraftBoard` er poll-lykkjan
+       `await pull()` -> `setTimeout(tick)`, svo naesta tikk var aldrei
+       bokad og bordid fraus medan stoduljosid sagdi "rauntimi".
+
+   FULLYRDINGARNAR ERU PARADAR (CLAUDE.md 5b regla 2): "villa festist
+   ekki" er einskis virdi an "en HEPPNUD sokn festist SANNARLEGA" —
+   annars vaeri hun lika sonn ef skyndiminnid vaeri alveg oniytt.
+   ============================================================ */
+console.log("\n9. load(): bilun festist ekki, en svar gerir thad");
+{
+  const D = await import("../src/data.js");
+  const realFetch = globalThis.fetch;
+  let calls = 0, lastInit = null;
+
+  /* (a) BILUN FESTIST EKKI — naesta kall reynir raunverulega aftur. */
+  globalThis.fetch = async () => { calls++; throw new Error("network down"); };
+  ok(await D.load("t-a.json") === null, "bilud sokn skilar null (hendir ekki)");
+  ok(calls === 1, `eitt kall (${calls})`);
+  globalThis.fetch = async (u, init) => {
+    calls++; lastInit = init;
+    return { ok: true, json: async () => ({ healed: true }) };
+  };
+  const healed = await D.load("t-a.json");
+  ok(healed?.healed === true,
+    "NAESTA kall soekir AFTUR — bilun er astand sem lagast, ekki svar sem geymist");
+  ok(calls === 2, `og thad var raunverulegt kall (${calls})`);
+
+  /* (b) POSITIV FORSENDA: heppnad svar ER geymt. An hennar gaeti (a)
+         stadist einfaldlega thvi skyndiminnid virkadi alls ekki.      */
+  const again = await D.load("t-a.json");
+  ok(again?.healed === true && calls === 2,
+    `en HEPPNAD svar er geymt — ekkert nytt kall (${calls})`);
+
+  /* (c) HTTP-villa (404/500) telst lika bilun og festist ekki. */
+  globalThis.fetch = async () => { calls++; return { ok: false, status: 503 }; };
+  ok(await D.load("t-c.json") === null, "HTTP 503 -> null");
+  globalThis.fetch = async () => { calls++; return { ok: true, json: async () => ({ n: 7 }) }; };
+  ok((await D.load("t-c.json"))?.n === 7, "og hun festist ekki heldur");
+
+  /* (d) SAMTIMIS KALLENDUR DEILA EINNI SOKN — thad var astaedan fyrir
+         thvi ad LOFORDID (ekki nidurstadan) er geymt, og hun ma ekki
+         tapast vid lagfaeringuna. */
+  let opened = 0;
+  globalThis.fetch = async () => { opened++;
+    await new Promise(r => setTimeout(r, 10));
+    return { ok: true, json: async () => ({ shared: true }) }; };
+  const [x, y] = await Promise.all([D.load("t-d.json"), D.load("t-d.json")]);
+  ok(x?.shared === true && y?.shared === true, "samtimis kallendur fa badir svar");
+  ok(opened === 1, `og their deildu EINNI sokn (${opened})`);
+
+  /* (e) TIMAMORK ERU SETT. Profsteinninn er ad `signal` FYLGI kallinu —
+         an hans er hengjan ovarin, og hun er thogul per skilgreiningu. */
+  ok(lastInit?.signal != null, "hvert kall ber `signal` (timamork), ekki bert fetch");
+  ok(typeof lastInit?.signal?.aborted === "boolean", "og hann er raunverulegur AbortSignal");
+
+  globalThis.fetch = realFetch;
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

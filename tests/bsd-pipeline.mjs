@@ -203,6 +203,49 @@ ok(/fetchOdds\(\)/.test(fetchSrc), "Odds-API leidin er ohreyfd");
   /* Og hvorug ma bera gomlu fullyrdinguna sem var giskun i notu-formi. */
   ok(![empty, far, oEmpty, oNone, oSome].some(n => /within (24h|the ~4 day)/.test(n)),
      "engin nota fullyrdir lengur 'within 24h' / 'within the ~4 day window'");
+
+  /* ============================================================
+     BILUD KEYRSLA ER FJORDA ASTANDID — OG ThAD VAR OSYNILEGT
+     (25.8.2026)
+
+     Per-leikja villur voru gleyptar (`catch { continue; }`) og EKKI
+     taldar, svo keyrsla thar sem hvert einasta odda-kall brast bar
+     NAKVAEMLEGA somu notu og rolegur dagur utan gluggans ("NONE
+     carried odds ... expected further out"). Tvennt med andstaeda
+     orsok og andstaeda lagfaeringu undir einni notu — sama villa og
+     kaflinn her ad ofan var smiðadur gegn, i sama falli.
+     ============================================================ */
+  const oFail = bsdOddsNote({ seen: 20, priced: 0, season: 77, failed: 20, kept: false });
+  const oKept = bsdOddsNote({ seen: 20, priced: 0, season: 77, failed: 20, kept: true });
+  const oPart = bsdOddsNote({ seen: 20, priced: 6, season: 77, failed: 3 });
+  ok(/failed/i.test(oFail) && !/expected further out/.test(oFail),
+     `bilud koll eru ANNAD en roleg umferd: "${oFail.slice(0, 60)}…"`);
+  ok(/KEPT/.test(oKept) && /erase good data/.test(oKept),
+     `og thegar gomlu gognin eru varðveitt SEGIR notan thad: "${oKept.slice(0, 60)}…"`);
+  ok(/3 odds call\(s\) failed/.test(oPart),
+     `hlutabilun sest lika thegar eitthvad verdlagdist: "${oPart}"`);
+  ok(new Set([oEmpty, oNone, oSome, oFail, oKept, oPart]).size === 6,
+     "SEX astond -> SEX OLIKAR notur (fjogur voru thrju adur)");
+
+  /* ============================================================
+     OG REGLAN SJALF, LESIN UR KODANUM: `writeJSON` MA EKKI VERA
+     SKILYRDISLAUS I `fetchBsdOdds`.
+
+     Notan ein daegdi ekki: hun getur sagt "KEPT" medan skrifid
+     gerist samt. Fullyrdingin er thvi um GREININA — og
+     athugasemdir eru strippadar fyrst, thvi thaer vitna i regluna
+     ordrett (CLAUDE.md 13).
+     ============================================================ */
+  const raw = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url), "utf8");
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const i = src.indexOf("async function fetchBsdOdds(");
+  const body = src.slice(i, src.indexOf("\n}\n", i));
+  ok(i > 0, "FORSENDA: fetchBsdOdds finnst (an athugasemda)");
+  ok(/failed\+\+/.test(body), "villur eru TALDAR, ekki gleyptar thegjandi");
+  ok(/if \(!keep\)[\s\S]{0,80}writeJSON\("bsd_odds\.json"/.test(body),
+     "og `writeJSON` er SKILYRT — tom keyrsla ma ekki thurrka ut verdlagda skra");
+  ok(/priced === 0 && failed > 0 && prevEvents > 0/.test(body),
+     "skilyrdid er throngt: adeins ekkert-verdlagt OG villa OG eldri gogn");
 }
 
 /* ============================================================

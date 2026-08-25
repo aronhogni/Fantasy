@@ -56,12 +56,49 @@ const cache = new Map();
  *
  * Skyndiminni sem er deilt ma ekki vera haad lifi eins notanda. Sa
  * sem kallar hunsar sein svor med `alive`-flaggi i stad thess.
+ *
+ * ============================================================
+ * TVAER LAGFAERINGAR 25.8.2026 — BADAR UM ThOGLA BILUN
+ *
+ * (1) TIMAMORK. Ekkert kall hafdi thau, og undici hefur ~300 s
+ *     sjalfgildi — sem eru ekki timamork heldur HENGJA. Stodvud
+ *     TCP-tenging (daemigert a lelegu wifi i midju drafti) skildi
+ *     `load` eftir i naer-eilifri bid. Verst i `DraftBoard`:
+ *     poll-lykkjan er `await pull()` -> `setTimeout(tick)`, svo
+ *     naesta tikk er ALDREI bokad, engin villa er sett, og
+ *     stoduljosid segir afram "les pikk i rauntima" medan bordid er
+ *     frosid — a versta mogulega tima.
+ *
+ *     ThETTA STANGAST EKKI A VID VIDVORUNINA HER AD OFAN. Sa
+ *     eiturbyrlari var `signal` FRA THEIM SEM KALLADI, bundinn lifi
+ *     eins React-mounts, geymdur i SAMEIGINLEGU skyndiminni.
+ *     `AbortSignal.timeout` er buinn til HER INNI, er ohadur ollum
+ *     notendum og deyr med kallinu sjalfu. Skyndiminnid verdur thvi
+ *     aldrei haad lifi eins notanda — sem var allt malid.
+ *
+ * (2) MISLUKKUD SOKN MA EKKI SITJA I SKYNDIMINNI ALLA LOTUNA.
+ *     `null` var sett i cache og LA THAR: eitt augnabliks nethiksti
+ *     vid hleðslu `players.json` skildi flipann eftir tomann thar til
+ *     SIDAN var endurhladin. Skyndiminni a ad geyma SVOR, ekki
+ *     BILANIR — bilun er astand sem lagast, og fostun a henni er
+ *     sama aett og geymda API-Sports-uppsognin i FPL-pipeline-inu
+ *     ("geymsla sem thaggar nidur GODAR frettir er ekki geymsla").
+ *     Faerslan er ThVI FJARLAEGD vid villu, svo naesta kall — eda
+ *     "Refresh"-hnappur — reyni raunverulega aftur.
+ *
+ *     Loforðid sjalft er afram thad sem er geymt (ekki nidurstadan),
+ *     svo samtimis kallendur deili EINNI sokn. Hreinsunin gerist
+ *     eftir a og fjarlaegir ADEINS thetta loforð (`cache.get(name)
+ *     === p`), svo ny sokn sem er thegar farin af stad se ekki
+ *     hent ut undan ser.
  */
+const LOAD_TIMEOUT_MS = 8000;
+
 export async function load(name) {
   if (cache.has(name)) return cache.get(name);
   const p = (async () => {
     try {
-      const r = await fetch(`${BASE}/${name}`);
+      const r = await fetch(`${BASE}/${name}`, { signal: AbortSignal.timeout(LOAD_TIMEOUT_MS) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return await r.json();
     } catch {
@@ -69,6 +106,7 @@ export async function load(name) {
     }
   })();
   cache.set(name, p);
+  p.then(v => { if (v == null && cache.get(name) === p) cache.delete(name); });
   return p;
 }
 
@@ -154,55 +192,80 @@ const SLEEPER = "https://api.sleeper.app/v1";
    thau eru thad FYRSTA sem notandinn les thegar eitthvad brestur. Sama
    regla og gildir um pipeline-strengina i FPL-appinu: vidmot og gogn a
    ensku, rokstudningur (athugasemdir) a islensku.                     */
-export async function sleeperUser(name) {
-  const r = await fetch(`${SLEEPER}/user/${encodeURIComponent(name)}`);
-  if (!r.ok) throw new Error(`Sleeper user not found (${r.status})`);
+/* ============================================================
+   EITT KALL-FALL FYRIR SLEEPER — TIMAMORK OG EIN UTFAERSLA (25.8.2026)
+
+   ATTA NAER-EINS `fetch`-koll voru her, ekkert theirra med timamork.
+   undici hefur ~300 s sjalfgildi, sem eru ekki timamork heldur HENGJA,
+   og hun er ThOGUL a versta mogulega stad: `DraftBoard` pollar med
+   `await pull()` -> `setTimeout(tick)`, svo stodvud tenging (daemigert
+   a lelegu wifi i midju drafti) thydir ad NAESTA TIKK ER ALDREI BOKAD.
+   Engin villa er sett, stoduljosid segir afram "les pikk i rauntima",
+   og bordid er frosid. Frosid bord sem SEGIST vera lifandi er verri
+   utkoma en synileg villa.
+
+   Timamorkin eru buin til HER INNI (ekki tekin fra theim sem kallar),
+   sama rok og vid `load`: skyndiminni og sameiginleg koll mega ekki
+   vera haad lifi eins React-mounts.
+
+   ATTA AFRIT VORU LIKA ATTA TAEKIFAERI TIL AD GLEYMA EINU — reglan sem
+   var lagfaerd a einum stad og gleymdist a odrum er raudi thradurinn i
+   thessari kodarýni. Nu er hun ein.
+   ============================================================ */
+const SLEEPER_TIMEOUT_MS = 8000;
+
+async function sleeperGet(path, whenNotOk) {
+  let r;
+  try {
+    r = await fetch(`${SLEEPER}${path}`, { signal: AbortSignal.timeout(SLEEPER_TIMEOUT_MS) });
+  } catch (e) {
+    /* TIMAMORK OG NET-BILUN ERU EITT FYRIR NOTANDANN: "Sleeper svaradi
+       ekki". Bodin eru ENSK — thau eru vidmot (sja hausinn ofar).      */
+    throw new Error(e?.name === "TimeoutError"
+      ? "Sleeper did not answer within 8s — check your connection"
+      : `Could not reach Sleeper (${e?.message || "network error"})`);
+  }
+  if (!r.ok) throw new Error(whenNotOk(r.status));
   return r.json();
 }
 
+export async function sleeperUser(name) {
+  return sleeperGet(`/user/${encodeURIComponent(name)}`,
+    s => `Sleeper user not found (${s})`);
+}
+
 export async function sleeperLeagues(userId, season) {
-  const r = await fetch(`${SLEEPER}/user/${userId}/leagues/nfl/${season}`);
-  if (!r.ok) throw new Error(`Could not read your leagues (${r.status})`);
-  return r.json();
+  return sleeperGet(`/user/${userId}/leagues/nfl/${season}`,
+    s => `Could not read your leagues (${s})`);
 }
 
 /** Deildin sjalf — REGLURNAR. Stigagjof, saeti, lidafjoldi, draft-id. */
 export async function sleeperLeague(leagueId) {
-  const r = await fetch(`${SLEEPER}/league/${leagueId}`);
-  if (!r.ok) throw new Error(`League not found (${r.status})`);
-  return r.json();
+  return sleeperGet(`/league/${leagueId}`, s => `League not found (${s})`);
 }
 
 /** Notendur i deild — thadan koma LIDSHEITIN sem saetavalid byggir a. */
 export async function sleeperLeagueUsers(leagueId) {
-  const r = await fetch(`${SLEEPER}/league/${leagueId}/users`);
-  if (!r.ok) throw new Error(`Could not read the league members (${r.status})`);
-  return r.json();
+  return sleeperGet(`/league/${leagueId}/users`,
+    s => `Could not read the league members (${s})`);
 }
 
 /** Hopar allra lida i deild — thadan kemur THINN hopur. */
 export async function sleeperRosters(leagueId) {
-  const r = await fetch(`${SLEEPER}/league/${leagueId}/rosters`);
-  if (!r.ok) throw new Error(`Could not read the rosters (${r.status})`);
-  return r.json();
+  return sleeperGet(`/league/${leagueId}/rosters`,
+    s => `Could not read the rosters (${s})`);
 }
 
 export async function sleeperDrafts(leagueId) {
-  const r = await fetch(`${SLEEPER}/league/${leagueId}/drafts`);
-  if (!r.ok) throw new Error(`Draft not found (${r.status})`);
-  return r.json();
+  return sleeperGet(`/league/${leagueId}/drafts`, s => `Draft not found (${s})`);
 }
 
 export async function sleeperDraft(draftId) {
-  const r = await fetch(`${SLEEPER}/draft/${draftId}`);
-  if (!r.ok) throw new Error(`Draft not found (${r.status})`);
-  return r.json();
+  return sleeperGet(`/draft/${draftId}`, s => `Draft not found (${s})`);
 }
 
 export async function sleeperPicks(draftId) {
-  const r = await fetch(`${SLEEPER}/draft/${draftId}/picks`);
-  if (!r.ok) throw new Error(`Could not read the picks (${r.status})`);
-  return r.json();
+  return sleeperGet(`/draft/${draftId}/picks`, s => `Could not read the picks (${s})`);
 }
 
 /* ============================================================

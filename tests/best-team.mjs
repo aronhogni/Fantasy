@@ -222,14 +222,49 @@ const injured = realSquad({ 7: { p: { status: "i", chance_of_playing_next_round:
 eq(realScore(injured[7]), 0, "expPointsFor gefur 0 fyrir 0% tiltaekileika");
 ok("0%-madur byrjar ekki (fellur ut af skorinu, ekki af siu)",
    !bestTeamPlan({ seats: injured, score: realScore }).xi.some(x => x.id === 107));
-/* NULL vs 0: `status:"a"` med ovitad `chance` er FULLT tiltaekur (FPL
-   status er einratt), en `status:"d"` an prosentu er 0. Thad er REGLA
-   `availForKickoff` og hun er STADFEST her, ekki gefin ser.             */
+/* ============================================================
+   NULL vs 0 — REGLAN VAR HERT 25.8.2026, OG HUN BREYTTIST FYRIR
+   NAKVAEMLEGA EINA STODU
+
+   Her stod adur: *`status:"d"` an prosentu er 0, thvi FPL-status er
+   einratt.* Su fullyrding var rett um FORSENDUNA og rong um NIDURSTODUNA:
+   "d" er FPL-skammstofunin fyrir **doubtful** — thad er FPL ad segja
+   *vid vitum ekki*, ekki *hann spilar ekki*. Ad lesa hana sem 0 var ad
+   lata thognina thyda utilokun.
+
+   `src/recommend.js` hafdi ThEGAR lagfaert nakvaemlega thetta hja ser
+   (eftir raunverulega notenda-tilkynningu) og bar rokstudninginn ordrett
+   um stodu "d" — en `availForKickoff` bar gomlu hegdunina afram, svo
+   TVEIR STADIR SVORUDU SITTHVORU um sama mann. Nu er ein utfaersla:
+   `availFromStatus` i `model.js`.
+
+   OG HERSLAN GENGUR I BADAR ATTIR — `recommend.js` var lika of breitt:
+   thad gaf 0,5 a HVERN sem er ekki "a", svo BANNADUR madur an prosentu
+   mældist 50% liklegur til ad spila. Nu:
+     · raunveruleg tala -> hun gildir (nakvaemasta stadreyndin)
+     · "a"              -> 1
+     · "d" an tolu      -> 0,5   (stadan SEGIR "ovist")
+     · "i"/"s"/"u"/"n"  -> 0     (stadan segir "spilar ekki")
+   FPL-STATUS ER ThVI ENN EINRATT (kafli 6); thad sem breyttist er ad
+   vid lesum HVAD hann segir i stad thess ad flokka allt sem er ekki
+   "a" i eitt.
+
+   BADAR ATTIR ERU FULLYRTAR HER AD NEDAN. Vaeri adeins "d"-tilfellid
+   profad gaeti `|| 0.5` a alla flaett meidda menn upp an thess ad
+   nokkud fylli.
+   ============================================================ */
 near(realScore({ p: P(3, { chance_of_playing_next_round: null }), fxs: ONE }),
      realScore({ p: P(3), fxs: ONE }), 1e-9,
      'status "a" + ovitad chance = fullt tiltaekur');
-eq(realScore({ p: P(3, { status: "d", chance_of_playing_next_round: null }), fxs: ONE }), 0,
-   'status "d" + ovitad chance = 0 (FPL-status er einratt)');
+near(realScore({ p: P(3, { status: "d", chance_of_playing_next_round: null }), fxs: ONE }),
+     0.5 * realScore({ p: P(3), fxs: ONE }), 1e-9,
+     'status "d" (DOUBTFUL) an prosentu = 0,5 — "veit ekki", ekki "utilokadur"');
+for (const st of ["i", "s", "u", "n"]) {
+  eq(realScore({ p: P(3, { status: st, chance_of_playing_next_round: null }), fxs: ONE }), 0,
+     `status "${st}" an prosentu = 0 — stadan segir "spilar ekki" (FPL-status er einratt)`);
+}
+eq(realScore({ p: P(3, { status: "i", chance_of_playing_next_round: 0 }), fxs: ONE }), 0,
+   'raunveruleg 0 stendur — hun er STADREYND, ekki thogn');
 near(realScore({ p: P(3, { status: "d", chance_of_playing_next_round: 50 }), fxs: ONE }),
      0.5 * realScore({ p: P(3), fxs: ONE }), 1e-9, "50% = halft skor (linulegt)");
 

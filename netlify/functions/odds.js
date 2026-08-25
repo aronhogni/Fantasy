@@ -152,21 +152,34 @@ export const handler = async (event) => {
           : undefined,
       }) };
     }
-    /* Hingað kemst aðeins þekkt `fpl-*` sem féll ekki í greinarnar að ofan
-       (t.d. `fpl-bootstrap`/`fpl-fixtures`, sem framendinn les núna beint
-       af raw.githubusercontent). Þær svara enn — engin kvóta-áhætta.    */
-    /* BOKMAKERA-GREININ VAR HER OG ER FARIN (10.8.2026).
-       Hlidid ad ofan skilar 400 fyrir allt sem er ekki `live`/`fpl-*`, svo
-       hun var ordin OAANAANLEG — ~60 linur sem enginn gat kallad a, asamt
-       eigin afritum af devig/splitGoals/cleanSheetPct sem enginn annar
-       notadi. Verra: sa kodi bar enn omaeldu `line + 0.2` nalgunina sem
-       src/market.js leysti af holmi med MAELDRI kvordun — tvaer olikar
-       formulur undir sama nafni.
+    /* ============================================================
+       ATHUGASEMDIN SEM STOD HER VAR OFUG — OG HUN VAR EINA "VORNIN"
+       (25.8.2026)
 
-       Appid les markadslinur ur data/odds.json (pipeline saekir Odds-API
-       BEINT). Se leidin endurvakin: taktu formuluna UR src/market.js
-       (esbuild er thegar stillt i netlify.toml) og settu CDN-cache a hana.
-       Git-sagan geymir gomlu utfaersluna.                              */
+       Hun sagdi: "Hingad kemst adeins thekkt `fpl-*` sem fell ekki i
+       greinarnar ad ofan." ThAD ER NAKVAEMLEGA OFUGT. ALLAR thekktar
+       `fpl-*`-leidir skila svari i sinni eigin grein ad ofan, svo thad
+       eina sem kemst hingad er `fpl-` MED OThEKKTU VIDSKEYTI —
+       `?path=fpl-typo`. Hlidid ad ofan hleypir ollu sem byrjar a `fpl-`
+       i gegn, og her var ENGIN `return`: fallid skiladi `undefined`,
+       sem Netlify thydir i 502/tomt svar AN CORS-HAUSA. Vafrinn ser tha
+       CORS-villu i stad skyrs 400, sem sendir naesta mann i ad leita ad
+       CORS-stillingum sem eru ekki bilunin.
+
+       Reglan er su sama og fyrir allar adrar othekktar leidir: 400 med
+       CORS-hausum og skyrri skyringu. Athugasemd sem er rong er verri en
+       engin — hun let gatid lita ut eins og ákvordun.
+
+       (Bokmakera-greinin var her og er farin 10.8.2026; hlidid ad ofan
+       skilar 400 fyrir `odds`. Se hun endurvakin: taktu formuluna UR
+       `src/market.js` og settu CDN-cache a hana. Git-sagan geymir
+       gomlu utfaersluna.)
+       ============================================================ */
+    return { statusCode: 400, headers: cors, body: JSON.stringify({
+      error: `unknown or disabled path: ${path}`,
+      hint: "known paths: live, fpl-bootstrap, fpl-fixtures, fpl-entry, "
+          + "fpl-league, fpl-picks, fpl-live",
+    }) };
   } catch (err) {
     return { statusCode: 200, headers: cors, body: JSON.stringify({ error: String(err.message||err), games: [] }) };
   }

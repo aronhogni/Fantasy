@@ -211,5 +211,61 @@ if (existsSync(path.join(DATA, "market_history.json"))) {
   console.log("  (market_history.json vantar — slepp)");
 }
 
+/* ============================================================
+   VANTANDI SPREAD MA ALDREI VERDA JAFNTEFLI — `null / 2 === 0`
+   (25.8.2026)
+
+   `Market.jsx` reiknadi sjalf `g.total / 2 + g.spread / 2` og sian ofar
+   krefst adeins `total != null`. I JS er `null / 2` **0**, svo leikur
+   MED total en AN spreads fekk somu tolu a bada dalka — jofn tala sem
+   les eins og bokmakarinn hafi kallad leikinn jafnan. Hann gaf enga
+   linu. Grunnregla appsins: NULL ER EKKI NULL.
+
+   ThETTA ER EKKI TILGATA: kaflinn maelir `market.json` sjalfa og segir
+   hve margar radir eru i thessu astandi. Radirnar mega vera NULL — tha
+   sefur kaflinn — en formulan er profud ohað thvi.
+   ============================================================ */
+console.log("\nVANTANDI SPREAD: implied-tolur mega ekki verda 0");
+{
+  /* (a) FORMULAN SJALF — hun er sameiginlega utfaerslan sem badar sýnir lesa. */
+  const none = impliedTeamTotals(44.5, null);
+  ok(none.home === null && none.away === null,
+    `total an spreads -> null/null, EKKI 22,25/22,25 (${JSON.stringify(none)})`);
+  ok(impliedTeamTotals(null, 3).home === null, "spread an total -> null lika");
+  const real = impliedTeamTotals(52.5, 3);
+  ok(real.home === 27.8 && real.away === 24.8,
+    `POSITIV FORSENDA: alvoru lina reiknast afram (${JSON.stringify(real)})`);
+  /* Vaeri `?? 0` sett aftur inn faeri thetta i 22,25/22,25 — jofn tala. */
+  ok(none.home !== none.away || none.home === null,
+    "og vantandi lina gefur ALDREI tvaer jafnar tolur");
+
+  /* (b) BIRTINGIN LES SAMEIGINLEGU UTFAERSLUNA, EKKI AFRIT.
+         `Market.jsx` afritadi formuluna og MISSTI vornina i leidinni;
+         texta-fullyrdingin er thvi um innflutninginn sjalfan.        */
+  const mkRaw = readFileSync(new URL("../src/Market.jsx", import.meta.url), "utf8");
+  /* ATHUGASEMDIR ERU STRIPPADAR FYRST — OG ThAD ER EKKI SNYRTING.
+     Fyrsta utgafa thessa kafla fell a SINNI EIGIN athugasemd i
+     Market.jsx, sem vitnar i gomlu formuluna ordrétt til ad utskyra
+     hana. Texta-fullyrding sem athugasemd getur uppfyllt (eda fellt)
+     maelir ekki kodann — CLAUDE.md 13.                              */
+  const mk = mkRaw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok(/impliedTeamTotals/.test(mkRaw),
+    "FORSENDA: skrain nefnir `impliedTeamTotals` yfirleitt");
+  ok(/import\s*\{[^}]*impliedTeamTotals[^}]*\}\s*from\s*"\.\/model\.js"/.test(mk),
+    "Market.jsx flytur `impliedTeamTotals` inn (afritud formula missti vornina)");
+  ok(!/g\.total\s*\/\s*2\s*[+-]\s*g\.spread\s*\/\s*2/.test(mk),
+    "og reiknar hana EKKI sjalf lengur (athugasemdir strippadar fyrst)");
+
+  /* (c) HVE MARGAR RADIR ERU RAUNVERULEGA I ThESSU ASTANDI I DAG? */
+  const mp = path.join(DATA, "market.json");
+  if (existsSync(mp)) {
+    const lines = JSON.parse(readFileSync(mp, "utf8")).lines || [];
+    const bad = lines.filter(g => g.total != null && g.spread == null);
+    console.log(`  ·    ${bad.length} af ${lines.length} radum bera total AN spreads`
+      + (bad.length ? ` (t.d. ${bad[0].away} @ ${bad[0].home}, vika ${bad[0].week})` : ""));
+    ok(true, "talan er logguð, ekki fullyrt — hun er 0 sumar vikur og thad er i lagi");
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

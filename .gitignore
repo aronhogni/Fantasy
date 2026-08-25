@@ -6,6 +6,12 @@ node_modules/
 # i rot. Fyrsta tilraun min setti C-athugasemd hér og thad var haettulegt.
 node_modules
 dist/
+# ATOMISK SKRIF SKILJA EFTIR SYSTKINA-`.tmp` EF KEYRSLA DEYR I MIDJU SKRIFI
+# (25.8.2026). `writeJSON` hreinsar hana sjalf a villu, en drepist ferlid
+# (SIGKILL, OOM i Actions) kemst hun aldrei ad — og tha situr hun i `data/`,
+# sem ER committad. Trunkud skra sem SLAEDDIST med i commit vaeri nakvaemlega
+# bilunin sem atomisku skrifin eru til ad utiloka, bara undir odru nafni.
+*.tmp
 .env
 .env.local
 # ALLAR .env-utgafur (11.8.2026). Adur voru ADEINS `.env` og `.env.local`
