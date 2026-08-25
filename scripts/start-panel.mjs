@@ -32,6 +32,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { rowsToObjects } from "./csv.mjs";
 
 export const RAW_MIRROR =
   "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data";
@@ -50,24 +51,12 @@ export const START_MIN = 60;
 export const isStart = mins => (mins ?? 0) >= START_MIN;
 
 /* ---------- CSV ---------- */
-export function parseCsv(text) {
-  const rows = []; let f = [], c = "", q = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (q) {
-      if (ch === '"') { if (text[i + 1] === '"') { c += '"'; i++; } else q = false; }
-      else c += ch;
-    } else if (ch === '"') q = true;
-    else if (ch === ",") { f.push(c); c = ""; }
-    else if (ch === "\n") { f.push(c); rows.push(f); f = []; c = ""; }
-    else if (ch !== "\r") c += ch;
-  }
-  if (c !== "" || f.length) { f.push(c); rows.push(f); }
-  const head = rows.shift() || [];
-  return rows.filter(r => r.length > 1)
-             .map(r => Object.fromEntries(head.map((k, j) => [k, r[j]])));
-}
-
+/* ThATTUNIN BYR I `scripts/csv.mjs` (25.8.2026) — sja rokstudninginn thar.
+   `minFields: 1` er SIAN sem thessi skra hafdi: `players_raw.csv` er
+   mjorri en per-umferdar skrarnar, svo throskuldur theirra (3) myndi
+   henda gildum rodum hedan. Siurnar eru olikar AD ASETTU RADI.
+   AFRAM `export` — sjo maelinga-skriftur flytja hana inn hedan.      */
+export const parseCsv = text => rowsToObjects(text, { minFields: 1 });
 async function playersRaw(season) {
   mkdirSync(CACHE, { recursive: true });
   const file = join(CACHE, `players_raw_${season}.csv`);

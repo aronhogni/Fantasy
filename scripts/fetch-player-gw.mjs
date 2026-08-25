@@ -1,4 +1,32 @@
 /* ============================================================
+   !! ThESSI SKRA KEYRIR VID INNFLUTNING — HUN HEFUR ENGA `main()`
+   ============================================================
+   Bolurinn er a EFSTA STIGI, svo `await import("./fetch-player-gw.mjs")`
+   SAEKIR AF NETINU og SKRIFAR i `data/` — hun ljuger engu, hun bara gerir
+   thad strax. Eg gekk sjalfur i thetta 25.8.2026 vid ad sannreyna
+   innflutning eftir ad `parseCsv` var flutt i `scripts/csv.mjs`: eitt
+   `import()` endurskrifadi SEX gagnaskrar (`fpl_player_gw.json` og fimm
+   `player_gw_*.json`).
+
+   ENGIN GOGN TOPUDUST og thad er MAELT, ekki vonad: `seasons` og `header`
+   voru BYTE-EINS eftir a — adeins `updated` (timastimpill) og `note`
+   breyttust. Sem aukaverkun er thad besta stadfestingin sem til er a thvi
+   ad flutningur `parseCsv` i sameiginlegu skrana se HEGDUNAR-HLUTLAUS:
+   139.039 rodir gegnum nyja thattarann gafu sama JSON og gamli.
+
+   GILDRAN ER SAMT RAUNVERULEG OG HUN ER SNUIN: CLAUDE.md kafli 2 §4
+   RADLEGGUR `await import()` a skra til ad sannreyna nafna-leysingu eftir
+   flutning (thvi esbuild leysir ekki nofn). Su radlegging er RETT — og
+   her kostar hun netkoll og skrif. `scripts/fetch.mjs` var lagfaerd
+   vegna nakvaemlega thessa (kafli 7: `if (invokedDirectly) main()`).
+
+   ThESSI SKRA ER EKKI LAGFAERD EINS OG STENDUR, thvi hun er HANDVIRK og
+   keyrd einu sinni per timabil (kafli 7, taflan). Se hun einhvern tima
+   flutt i pipeline-una — eda se skrifad prof sem flytur hana inn —
+   VERDUR hun ad fa somu vord. Thangad til: EKKI `import()` hana. Notadu
+   `node scripts/fetch-player-gw.mjs` viljandi, eda lestu `csv.mjs` beint.
+   ============================================================ */
+/* ============================================================
    PER-UMFERÐAR LEIKMANNAGÖGN — scripts/fetch-player-gw.mjs
 
    AF HVERJU: allar FFDR-mælingar hingað til hafa notað LIÐ-útkomur
@@ -25,6 +53,7 @@
    ============================================================ */
 import { writeFile, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { rowsToObjects } from "./csv.mjs";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const RAW = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data";
@@ -44,26 +73,14 @@ const TEAM_MAP = {
   "Sunderland": "Sunderland", "Burnley": "Burnley",
 };
 
-function parseCsv(text) {
-  const rows = [];
-  let row = [], cell = "", q = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (q) {
-      if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
-      else if (c === '"') q = false;
-      else cell += c;
-    } else if (c === '"') q = true;
-    else if (c === ",") { row.push(cell); cell = ""; }
-    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
-    else if (c !== "\r") cell += c;
-  }
-  if (cell || row.length) { row.push(cell); rows.push(row); }
-  const header = rows[0];
-  return rows.slice(1).filter(r => r.length > 3)
-    .map(r => Object.fromEntries(header.map((h, i) => [h, r[i]])));
-}
-
+/* ThATTUNIN BYR I `scripts/csv.mjs` (25.8.2026) — hun var afrituð i
+   ThREMUR skram. Kjarninn var SANNADUR jafngildur a sjo inntokum adur en
+   hann var sameinadur (gaesalappa-svid MED kommu, tvofaldar gaesalappir,
+   CRLF, engin lokalina, tom svid, linubrot innan gaesalappa).
+   SIAN FYLGIR HER EFTIR SEM ADUR: vaastav-CSV eru breid (20+ dalkar) og
+   rod med 1-3 svidum er RUSL. Sian er ThEKKING A ThESSU gagnasetti og var
+   ekki su sama i hinum afritunum — thess vegna er hun breyta.        */
+const parseCsv = text => rowsToObjects(text, { minFields: 3 });
 /* Sömu 20 tölur fyrir hverja röð — sjá HEADER. */
 /* `dc` (defensive_contribution) og `cbit` eru AÐEINS til frá 2025/26 —
    DefCon er ný stigagjöf. Eldri tímabil fá null, EKKI 0: núll myndi lesast
