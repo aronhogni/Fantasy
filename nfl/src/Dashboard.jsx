@@ -97,7 +97,7 @@ import { newsForRoster, injuredOn } from "./newsmatch.js";
 import Fine from "./Fine.jsx";
 
 export default function Dashboard({ entries, rows, meta, schedule, defense, news,
-                                    sleeperUser, weekly }) {
+                                    sleeperUser, weekly, buildFor }) {
   /* Eitt svar per deild: `{ rosters, users, error }`. Lyklad a
      deildar-audkenni svo tvaer deildir geti ekki blandast — sama regla
      og `scoped` i `data.js`. */
@@ -184,6 +184,7 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
 
       {real.map((e) => (
         <LeagueCard key={e.id} entry={e} rows={rows} live={live[e.imported.leagueId]}
+          buildFor={buildFor}
           week={week} ctx={ctx} news={news} sleeperUser={sleeperUser} busy={busy}
           weekly={weekly} schedule={schedule} season={meta && meta.season} />
       ))}
@@ -194,9 +195,41 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
 /* ============================================================
    EIN DEILD
    ============================================================ */
-function LeagueCard({ entry, rows, live, week, ctx, news, sleeperUser, busy, weekly,
-                      schedule, season }) {
+function LeagueCard({ entry, rows: rowsShared, live, week, ctx, news, sleeperUser, busy,
+                      weekly, schedule, season, buildFor }) {
   const league = entry.rules;
+
+  /* ============================================================
+     HVERT KORT VERDLEGGUR UR SINNI EIGIN DEILD
+     ============================================================
+     `App.jsx` byggir `rows` ur EINNI deild (`league`, su virka) og
+     forsidan teiknar KORT PER DEILD. Adur baru oll kortin thvi tolur
+     virku deildarinnar: VBD, aRank, threp og `value` reiknud ur rongum
+     varamanns-threpum, og waiver-radgjofin ofan a theim.
+
+     MAELT A HANS TVEIMUR DEILDUM (10-lida PPR med K/DST a moti 12-lida
+     half-PPR AN theirra): midgildi |aRank| **9** saeti og |VBD| **25,4**
+     stig, og **75 K/DST-radir** flakka milli raunverulegs VBD og `null`
+     — thvi deild an spyrnu-saetis gefur `replacementRanks` K:0/DST:0 og
+     thar med `vbd: null`, medan hin gefur raunverulega tolu.
+
+     ThETTA ER SAMA AETT OG "TVAER SANNLEIKS-HEIMILDIR SEM GETA VERID
+     OSAMHLJODA" (kafli 7 i handover): deild sem bæri reglur hinnar litur
+     fullkomlega normal ut a skjanum — engin tala er tom, ekkert er
+     rautt, og hvert einasta prof var graent.
+
+     `buildFor` er sama `useCallback` og `App.jsx` notar fyrir bordid
+     (`builtBoard`), svo thetta er EKKI ny utfaersla heldur sama fallid
+     kallad med annarri deild. Vanti hana (eldri kallandi, prof sem
+     sendir hana ekki) fellur kortid i sameiginlegu radirnar — thad er
+     gamla hegdunin og hun er ekki ny villa, en hun er lakari, svo
+     `wiring`-vordurinn krefst thess ad `App.jsx` sendi hana. */
+  const ownBuilt = useMemo(
+    () => (typeof buildFor === "function" ? buildFor(league) : null),
+    [buildFor, league]);
+  const rows = (ownBuilt && Array.isArray(ownBuilt.rows) && ownBuilt.rows.length)
+    ? ownBuilt.rows : rowsShared;
+
   const rosters = live && live.rosters;
   const users = live && live.users;
 

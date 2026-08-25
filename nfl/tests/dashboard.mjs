@@ -2113,5 +2113,124 @@ console.log("\n3h. felldur rokstudningur a forsidunni");
     "maelt 2.291 a 45b9cde, 915 eftir)");
 }
 
+/* ============================================================
+   3i. HVERT SPJALD VERDLEGGUR UR SINNI EIGIN DEILD
+   ============================================================
+   `App.jsx` byggir `rows` ur EINNI deild og forsidan teiknar KORT PER
+   DEILD, svo hitt kortid bar tolur virku deildarinnar: VBD, aRank,
+   threp og `value` reiknud ur rongum varamanns-threpum, og start/sit og
+   waiver ofan a theim.
+
+   MAELT A RAUNGOGNUM (`buildRows` a badum deildum, 1.175 pardar radir):
+   midgildi |aRank| **9** saeti, midgildi |VBD| **25,4** stig, og **75**
+   af 102 K/DST-rodum flakka milli raunverulegs VBD og `null`.
+
+   ÞETTA VAR OSYNILEGT AF ThVI AD ThAD LEIT NORMAL UT. Engin tala var
+   tom, ekkert var rautt, og oll 27 profasofnin voru graen. Kafli 3e
+   verdur einmitt til vegna sama forms einum lid framar i kedjunni
+   (`weeklyEdgeNote("ppr")` hardkodad a badar deildir).
+
+   FULLYRDINGIN MA EKKI VERA FOST TALA. `players.json` er endurskrifud
+   daglega, svo "spjaldid ber 90,7" urelist thegjandi (sama regla og
+   felldi „4-10 og aldrei 1" i FPL-verkefninu). Hun er thvi um SKORUN:
+   spjoldin tvo mega ekki bera SOMU spa-tolurnar.
+
+   MAELT MED OG AN LAGFAERINGARINNAR, sama fixtura:
+     med:  Sofahetjur 17.6 · 17.2 · 15.1 · 12.1     skorun vid ppr = 0
+     an:   Sofahetjur 19.5 · 19.1 · 18.3 · 14.7     skorun vid ppr = 3
+   Tolurnar 19,5 / 19,1 / 18,3 eru Patriots-tolurnar ORDRETT — thad er
+   villan sjalf, laesileg a skjanum.
+
+   OG PPR-SPJALDID ER OBREYTT (4.825 stafir i badum keyrslum), sem er
+   rett: thad ER virka deildin, svo radirnar voru thegar hennar. Su
+   osamhverfa er hluti af fullyrdingunni — lagfaering sem breytti BADUM
+   vaeri ad faera vandann, ekki leysa hann.                            */
+console.log("\n3i. hvert spjald verdleggur ur SINNI deild");
+{
+  /* --- (a) forsendan: deildirnar eru raunverulega olikar --- */
+  const { buildRows: br } = await import("../src/build.js");
+  const bA = br({ players, league: L_A.rules }).rows;
+  const bB = br({ players, league: L_B.rules }).rows;
+  const byId = new Map(bB.map((r) => [String(r.id), r]));
+  const dR = [], dV = [];
+  let kdst = 0, flick = 0;
+  for (const r of bA) {
+    const o = byId.get(String(r.id));
+    if (!o) continue;
+    if (r.aRank != null && o.aRank != null) dR.push(Math.abs(r.aRank - o.aRank));
+    if (r.vbd != null && o.vbd != null) dV.push(Math.abs(r.vbd - o.vbd));
+    if (r.pos === "K" || r.pos === "DST") {
+      kdst++; if ((r.vbd == null) !== (o.vbd == null)) flick++;
+    }
+  }
+  const med = (x) => { const t = x.slice().sort((a, b) => a - b); return t.length ? t[t.length >> 1] : null; };
+  ok(dR.length > 200 && dV.length > 200,
+    `FORSENDA: ${dR.length} radir bera BADAR tolur`);
+  ok(med(dR) >= 3,
+    `FORSENDA: midgildi |aRank| milli deildanna er ${med(dR)} saeti — thaer eru raunverulega olikar`);
+  ok(med(dV) >= 10,
+    `FORSENDA: midgildi |VBD| er ${med(dV).toFixed(1)} stig`);
+  ok(flick >= 20,
+    `FORSENDA: ${flick} af ${kdst} K/DST-rodum flakka milli tolu og null (deild an theirra saeta gefur null)`);
+
+  /* --- (b) SKJARINN, OG FULLYRDINGIN ER ORSAKATENGD ---
+     FYRSTA TILRAUN MIN VAR TOM OG HUN ER SKRAD ThVI HUN LITUR VEL UT:
+     eg maldi hvort spjoldin BAERU SOMU spa-tolurnar og krafdist ad
+     skorunin vaeri 0. Maelt bædi med og an lagfaeringarinnar: skorunin
+     er **0 i BADUM** — fullyrdingin gat aldrei fallid.
+
+     Rett prof er ekki um GILDI heldur um ORSOK: sama kortid er teiknad
+     TVISVAR i somu keyrslu, med `buildFor` og an hennar, og spurt hvort
+     innihaldid breytist. Thad er lika onaemt fyrir thvi ad
+     `players.json` er endurskrifud daglega — engin fost tala.
+
+     OSAMHVERFAN ER HLUTI AF FULLYRDINGUNNI: kort VIRKU deildarinnar
+     (`rows` eru hennar) ma EKKI breytast, hitt VERDUR ad gera thad.
+     Lagfaering sem breytti badum vaeri ad faera vandann. */
+  const { default: Dashboard } = await import("../src/Dashboard.jsx");
+  const { normalizeLeague } = await import("../src/build.js");
+  const buildForTest = (lg) => br({ players, league: normalizeLeague(lg) });
+
+  const renderDash = async (withBuildFor) => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const r = createRoot(host);
+    await act(async () => {
+      r.render(React.createElement(Dashboard, {
+        entries: [L_A, L_B],
+        rows: bA,                       /* virka deildin er A */
+        meta: { season: 2026 },
+        schedule: null, defense: null, news: null, weekly: null,
+        sleeperUser: "u-me",
+        ...(withBuildFor ? { buildFor: buildForTest } : {}),
+      }));
+    });
+    await settle(500);
+    const grab = (name) => {
+      const p = [...host.querySelectorAll("div.panel")]
+        .find((el) => [...el.querySelectorAll("h2")]
+          .some((h) => (h.textContent || "").trim() === name));
+      return p ? (p.textContent || "") : null;
+    };
+    const out = { a: grab("Patriots SB champs"), b: grab("Sofahetjur") };
+    await act(async () => { r.unmount(); });
+    host.remove();
+    return out;
+  };
+
+  const withFix = await renderDash(true);
+  const without = await renderDash(false);
+
+  ok(withFix.a && withFix.b && without.a && without.b,
+    "THEKJA: badi spjoldin teiknast i BADUM keyrslum");
+  ok((withFix.b || "").length > 300,
+    `THEKJA: Sofahetju-spjaldid ber raunverulegt innihald (${(withFix.b || "").length} stafir)`);
+
+  ok(withFix.a === without.a,
+    "VIRKA deildin (Patriots) er OBREYTT — radirnar voru thegar hennar");
+  ok(withFix.b !== without.b,
+    "en HIN deildin (Sofahetjur) breytist — hun var verdlogd ur rangri deild");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

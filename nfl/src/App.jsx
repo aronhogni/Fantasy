@@ -559,10 +559,18 @@ export default function App() {
           season={meta.season} accuracy={extra.accuracy}
           kickers={extra.kickers} shapes={extra.shapes} />
       )}
+      {/* `buildFor` FYLGIR MED OG ThAD ER EKKI HAGRAEDING. `built.rows`
+          er byggt ur `league` — EINNI deild — en forsidan teiknar KORT
+          PER DEILD. Bæru oll kortin tolur virku deildarinnar vaeri hitt
+          kortid reiknad RETT UR RONGU INNTAKI (maelt: midgildi |aRank| 9,
+          |VBD| 25,4, og 75 K/DST-radir flakka milli tolu og null).
+          `Dashboard` byggir thvi sinar eigin radir per deild — sja
+          `LeagueCard`. Sama fall og bordid notar (`builtBoard`), svo
+          thetta er ekki ny utfaersla. */}
       {view === "home" && (
         <Dashboard entries={entries} rows={built.rows} meta={meta}
           schedule={core.schedule} defense={extra.defense} news={extra.news}
-          weekly={extra.weekly}
+          weekly={extra.weekly} buildFor={buildFor}
           sleeperUser={sleeperUser.userId || sleeperUser.name || null} />
       )}
       {view === "players" && (
