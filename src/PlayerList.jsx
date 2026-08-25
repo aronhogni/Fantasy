@@ -50,7 +50,8 @@ import { startedGameweeks } from "./availability.js";
    afritast hingad: hun var her inni adur og tha gat profid adeins lesid
    kodann, svo stokkbreyting sem fjarlaegdi namundunina SLAPP I GEGN.   */
 import { STAT_DEFS, STAT_GROUPS, STAT_BY_KEY, fmtStat, num, normName,
-         sumGwRange, gwBlindKeys, makeEnricher, passesThreshold } from "./stats.js";
+         sumGwRange, gwBlindKeys, makeEnricher, passesThreshold,
+         tableDefs, visibleInGroups } from "./stats.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -95,6 +96,15 @@ const OVERSCAN = 12;
 const BAND_H = 17;
 const LABEL_H = 30;
 const HEAD_H = BAND_H + LABEL_H;
+
+/* DALKA-RONDIN — TVO EINS LITASTOPP, SEM ER GRADIENT SEM ER FLATUR.
+   Formid er valid svo hun se `backgroundImage` og ekki `backgroundColor`:
+   thannig liggur hun UNDIR hitakorts-litnum i stad thess ad skipta honum
+   ut, og hun eydir hvorki rada-tonunum ("mitt lid" graent, "i samanburdi"
+   fjolublatt) sem eru MERKING. Styrkurinn er 2,2% svartur — nogu mikid til
+   ad augad rekji rodina thvert yfir 20 dalka, of litid til ad keppa vid
+   sex hitakorts-tonana sem eiga ad hropa.                              */
+export const STRIPE_BG = "linear-gradient(rgba(0,0,0,.022), rgba(0,0,0,.022))";
 
 /* ---- Sniðgrunnur fyrir "min/max"-siur: hvada dalkar eru tolulegir ---- */
 const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
@@ -225,9 +235,15 @@ export function staleSeasonRows(rows = [], blind = new Set(), defs = STAT_DEFS) 
    hann fylgdi bilinu. Hann horfir FRAM og getur thad aldrei.
    Maelt 16.8.2026: core 11 · attack 27 · defence 19 · setp 3 · aron 0 ·
    fixtures 0.                                                           */
+/* OG HANN LES SOMU SYNILEIKA-SIU OG TAFLAN SJALF (25.8.2026). Bordinn
+   BENDIR notandanum a flokk til ad skipta i, svo flokkur sem hefur engan
+   syndan dalk — "Set pieces and cards" er nu allur `build_only` — ma ekki
+   standa i tillogunni: hann hefur ekki einu sinni hnapp lengur. Tvo
+   skilyrdi um sama hlut er hvernig thau fara i sundur, svo `tableDefs`
+   er lesid her eins og i toflunni og i flokka-rodinni.                 */
 export function rangeAwareGroupsOf(blind, defs = STAT_DEFS, groups = STAT_GROUPS) {
   return groups.filter(g =>
-    defs.some(d => d.group === g.key && !rangeBlind(d, blind)));
+    defs.some(d => d.group === g.key && visibleInGroups(d) && !rangeBlind(d, blind)));
 }
 
 /* ============================================================
@@ -366,6 +382,63 @@ export function headWidth(d, badge = false) {
   const dec = d?.dec ?? 0;
   const val = (4 + (dec ? dec + 1 : 0)) * 6.2 + 12;    // tala (11px mono)
   return Math.round(Math.max(46, Math.min(142, Math.max(lab, val))));
+}
+
+/* ============================================================
+   BANDS-HEITID VAR ALDREI INNTAK I BREIDDINA — LAGAD 25.8.2026
+
+   TILKYNNT AF NOTANDA: i "Upcoming fixtures" stod "M, NEXT MA" og
+   "EAM, NEXT 6" i bands-rodinni. Orsokin er nakvaemlega su sama og
+   "season"-merkid var (14.-16.8.): breidd bands-holfsins var SUMMAN AF
+   BREIDDUM SINNA DALKA og heitid var hvergi i theim reikningi, svo band
+   med EINUM dalki (`team_cs_prob` 66 px, `team_dc` 66 px) fekk 66 px
+   fyrir heiti sem tharf 101 og 83. Holfid er `center` + `nowrap` +
+   `overflow:hidden`, svo klippingin er SAMHVERF — thess vegna hvarf bædi
+   "TE" fremst og "TCH" aftast og textinn las eins og bilun.
+
+   BREIDDIN ER LEIDD AF SOMU MAELDU TOLU OG HAUSINN, EKKI VALIN: canvas er
+   ekki til i thessu umhverfi (jsdom an `canvas`-pakkans), svo px/staf er
+   reiknad UT UR `HEAD_PXC` = 6,35 px vid 10,5 px. Bands-rodin er 9,5 px
+   med `letterSpacing: 0.4`:
+     6,35 · 9,5/10,5 = 5,74 px/staf  +  0,4 letterSpacing = 6,14 px/staf
+   Bandsheitin eru HASTAFIR (`textTransform: uppercase`), sem er breidasta
+   stada leturs sem er ekki jafnbreitt, svo talan er varfaerin i retta att.
+
+   EIN UTFAERSLA, TVEIR LESENDUR — `bandLayout` skilar BADUM: bondunum
+   (bands-rodin) og auka-plassinu per dalk (holf og haus). Tveir
+   utreikningar a somu breidd reka i sundur og tha stendur bandid ekki
+   lengur yfir sinum dalkum — thad er ordrett `wOf`/`marker`-atvikid
+   (CLAUDE.md 8) sem kostadi 44 klippt haus-heiti.
+   ============================================================ */
+export const BAND_PXC = HEAD_PXC * 9.5 / 10.5 + 0.4;
+export const BAND_PAD = 9;                 // padding "0 4px" + 1 px bord
+export const bandWidth = label =>
+  Math.ceil(String(label ?? "").length * BAND_PXC + BAND_PAD);
+
+/* `widen: false` er SIMINN. Thar er hvert holf negld i 66 px (kafli 6i) og
+   ad thenja dalk undir bandsheiti myndi endurvekja larett skrun sem
+   simahamurinn var smidadur til ad forðast — sama val og merkid: heiti
+   an merkis vinnur yfir merki an heitis.                               */
+export function bandLayout(cols, widthOf, { widen = true } = {}) {
+  const bands = [];
+  for (const d of cols) {
+    const b = d.band || "";
+    const last = bands[bands.length - 1];
+    if (last && last.band === b) last.ds.push(d);
+    else bands.push({ band: b, ds: [d] });
+  }
+  const extra = new Map();
+  for (const b of bands) {
+    const base = b.ds.reduce((s, d) => s + widthOf(d), 0);
+    const need = widen ? bandWidth(b.band) : 0;
+    /* Jafnt a alla dalka bandsins og NAMUNDAD UPP, svo summan geti aldrei
+       lent undir thvi sem heitid tharf vegna heiltolu-deilingar.        */
+    const add = need > base ? Math.ceil((need - base) / b.ds.length) : 0;
+    if (add) for (const d of b.ds) extra.set(d.key, add);
+    b.w = base + add * b.ds.length;
+    b.n = b.ds.length;
+  }
+  return { bands, extra };
 }
 
 /* BROTTFELLD BRODDSTOFUM VID LEIT — `fold` er notud af `ColumnPicker`.
@@ -927,12 +1000,34 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
 
   /* I `custom` er rodin VALROD notandans (sa sem var valinn fyrst kemur
      fyrst), i `groups` er hun skra-rodin.                               */
+  /* ---------- FLOKKARNIR SEM EIGA HNAPP — LEIDDIR, EKKI TALDIR UPP ----
+     "Set pieces and cards" er nu allur `build_only`, svo hann a ENGAN
+     syndan dalk i flokka-toflunni. Hnappur sem opnar tomma toflu er verri
+     en enginn hnappur (sama rok og "dalkur sem er syndur en alltaf tomur
+     er SAMA UTKOMA og dalkur sem er falinn"), svo listinn er leiddur ur
+     SOMU siu og dalkarnir sjalfir — `tableDefs`. Vaeru thetta tvo
+     skilyrdi gaeti hnappur lifad flokk sem er ordinn tomur.            */
+  const visibleGroups = useMemo(
+    () => STAT_GROUPS.filter(g => tableDefs({ group: g.key, pos }).length > 0), [pos]);
+  /* OG STADAN VERDUR AD VERA VIÐ: `setGroup` er kallad ur sia-chip-inu
+     (`setGroup(d.group)`), sem getur bent a flokk sem a engan hnapp —
+     dalkur sem var siadur i "Build table" og notandinn skiptir svo i
+     flokka-ham. Tha er fallid a fyrsta SYNILEGA flokkinn i stad thess ad
+     teikna tomma toflu. Hreint leitt gildi, ekki `useEffect`: effect sem
+     leidrettir vid hverja teikningu hendir notandanum ut ur flokknum sem
+     hann valdi (Teams-atvikid, CLAUDE.md 3).                           */
+  const activeGroup = visibleGroups.some(g => g.key === group)
+    ? group : (visibleGroups[0]?.key ?? group);
+
   const visibleCols = useMemo(() => {
     if (mode === "custom") {
+      /* I bygginga-ham gildir VAL NOTANDANS — `build_only` er ekki sia
+         thar heldur einmitt stadurinn sem their dalkar eiga heima a, og
+         markmanns-dalkur sem madur BAD UM ma ekki hverfa vid stodu-val. */
       return customKeys.map(k => STAT_BY_KEY[k]).filter(d => d && !pinnedKeys.has(d.key));
     }
-    return STAT_DEFS.filter(d => d.group === group && !pinnedKeys.has(d.key));
-  }, [group, mode, customKeys, pinnedKeys]);
+    return tableDefs({ group: activeGroup, pos }).filter(d => !pinnedKeys.has(d.key));
+  }, [activeGroup, mode, customKeys, pinnedKeys, pos]);
 
   /* ---------- HVAD ER RAUNVERULEGA A SKJANUM, OG HVAD GETUR FYLGT BILINU ----
      `visibleCols` sleppir FOSTU dalkunum — their eru birtir ser. Spurningin
@@ -1247,11 +1342,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
   /* Fostu dalkarnir (Verd, Eign %) sátu i 88 px thott heitin seu stutt. */
   const wNum = narrow ? 60 : wOf({ short: "Owned %", dec: 1 });
   const cNum  = { ...S.cNum,  width: wNum,  minWidth: wNum, maxWidth: wNum };
-  const wCol = d => (narrow ? Math.min(66, wOf(d)) : wOf(d));
-  const cFor = d => {
-    const w = wCol(d);
-    return { ...S.cNum, width: w, minWidth: w, maxWidth: w };
-  };
+  const wBase = d => (narrow ? Math.min(66, wOf(d)) : wOf(d));
 
   /* ---------- BANDS: SPANNANDI HAUSROD (FFS-lagid) ----------
      FFS birtir 100+ tolur i einni toflu og gerir thad laesilegt med tveimur
@@ -1266,21 +1357,43 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      raunverulegan haus skilur eftir gat eda felur fyrstu rodina.        */
   const headH = mode === "custom" ? LABEL_H : HEAD_H;
 
-  const bands = useMemo(() => {
-    const out = [];
-    for (const d of visibleCols) {
-      const b = d.band || "";
-      const last = out[out.length - 1];
-      /* SAMA FALL sem holfin nota (`wCol`), ekki afrit af formulunni:
-         tvo threp sem reikna breidd sitt i hvoru lagi reka i sundur og tha
-         stendur bandid ekki lengur yfir sinum dalkum — nakvaemlega sama
-         afturfor sem `boxSizing` olli i einu threpi (kafli 6j).          */
-      const w = wCol(d);
-      if (last && last.band === b) { last.w += w; last.n++; }
-      else out.push({ band: b, w, n: 1 });
-    }
-    return out;
-  }, [visibleCols, narrow]);   // eslint-disable-line react-hooks/exhaustive-deps
+  /* EIN UTREIKNING, TVEIR LESENDUR (`bandLayout` ofar): bands-rodin les
+     `bands` og HVERT HOLF les `extra`. Tvo threp sem reikna breidd sitt i
+     hvoru lagi reka i sundur og tha stendur bandid ekki lengur yfir sinum
+     dalkum — sama afturfor sem `boxSizing` olli i einu threpi (kafli 6j)
+     og sama aett og `wOf`/`marker`-afritid (CLAUDE.md 8).
+     `widen` er slokkt i SIMA og i "Build table": bands-rodin er ekki
+     teiknud i bygginga-ham (valrod notandans er ekki samfelld), svo thar
+     vaeri auka-plassid breidd fyrir heiti sem er ekki a skjanum.        */
+  const layout = useMemo(
+    () => bandLayout(visibleCols, wBase, { widen: !narrow && mode !== "custom" }),
+    [visibleCols, narrow, mode, gwActive, blindKeys]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const bands = layout.bands;
+  const wCol = d => wBase(d) + (layout.extra.get(d.key) || 0);
+  const cFor = d => {
+    const w = wCol(d);
+    return { ...S.cNum, width: w, minWidth: w, maxWidth: w };
+  };
+
+  /* ---------- RANDIR: ANNAR HVER DALKUR FAER ORLITINN TON ----------
+     Beidni notandans: rod med 20+ dalkum er ekki laesileg thvert yfir.
+     ThRJU SKILYRDI, OG HVERT UM SIG ER ASTAEDA FYRIR UTFAERSLUNNI:
+       1. `backgroundImage`, EKKI `background`. Hitakortid teiknar LITINN
+          (`backgroundColor`), svo randin verdur ad liggja UNDIR honum og
+          ekki i stad hans — gradient a sama holfi blandast SAMAN vid
+          litinn i stad thess ad skipta honum ut. Baðar eru LANGRITADAR:
+          `background` (stytting) vid hlidina a `backgroundImage`
+          (langritun) er nakvaemlega blandan sem React varar vid og sem
+          `react-warnings.mjs` fellur a (CLAUDE.md 8).
+       2. PARITETID KEMUR UR VISI I `visibleCols`, ekki ur DOM-stodu.
+          Hausinn og holfin lesa SOMU lykkju, svo randirnar geta ekki
+          faerst um einn dalk milli threpanna.
+       3. FROSNI NAFNADALKURINN FAER ENGA RONDU. Hann ber
+          `background: "inherit"` viljandi (annars skruna tolurnar
+          synilega undir hann, kafli 6j) og rond a honum myndi liggja
+          ofan a rada-tonunum — graent "mitt lid" og fjolublatt
+          "i samanburdi" — sem eru MERKING, ekki skraut.               */
+  const stripeOf = i => (i % 2 ? STRIPE_BG : undefined);
 
   const sortOn = (key, higherBetter = true) => {
     if (sortKey === key) { setSortDir(d => d === "asc" ? "desc" : "asc"); return; }
@@ -1596,7 +1709,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
               bygginga-ham (hann er adeins settur ur flokka-rodinni), svo thar
               vaeri heitid RANGT — thad var einmitt villan.               */}
           {mode === "custom" ? "" : <>{" in "}
-            <b>{STAT_GROUPS.find(g => g.key === group)?.label || group}</b></>}
+            <b>{STAT_GROUPS.find(g => g.key === activeGroup)?.label || activeGroup}</b></>}
           {bannerKind === "live"
             ? " looks ahead or shows where he stands today, so changing the gameweek range cannot change them."
             : bannerKind === "mixed"
@@ -1810,8 +1923,8 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
         </>
       ) : (
       <div style={{ ...S.groupRow, ...(narrow ? {} : S.groupRowWide) }}>
-        {STAT_GROUPS.map(g => (
-          <button key={g.key} style={{ ...S.groupBtn, ...(group === g.key ? S.groupOn : {}) }}
+        {visibleGroups.map(g => (
+          <button key={g.key} style={{ ...S.groupBtn, ...(activeGroup === g.key ? S.groupOn : {}) }}
             onClick={() => setGroup(g.key)}>
             {g.label}
           </button>
@@ -1891,10 +2004,11 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                     title={"Share of all FPL squads that own him right now"}
                     onClick={() => sortOn("__own")}>{"Owned %"}{arrow("__own")}</div>
                 )}
-                {visibleCols.map(d => (
+                {visibleCols.map((d, ci) => (
                   <div key={d.key} style={{ ...S.hCell, ...cFor(d),
                          ...(gwActive && blindKeys.has(d.key) ? S.hBlind : {}),
-                         ...(thByKey[d.key] ? S.hFiltered : {}) }}
+                         ...(thByKey[d.key] ? S.hFiltered : {}),
+                         backgroundImage: stripeOf(ci) }}
                     title={`${d.label}${d.short && d.short !== d.label ? ` (${d.short})` : ""}`
                          + `${d.derived ? " · computed by us from FPL fields" : ""}`
                          + `\n\n${d.note || ""}`
@@ -2010,7 +2124,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                       verri en engin sia.                                    */}
                   {(() => { const d = STAT_BY_KEY.now_cost, bg = heatBg(d, r.cost);
                     return <div style={{ ...S.cell, ...cNum, ...S.strong, ...S.cellHit,
-                                         ...(bg ? { background: bg } : {}) }}
+                                         ...(bg ? { backgroundColor: bg } : {}) }}
                       title={`${d.label}: £${r.cost.toFixed(1)}`
                              + `\nClick to filter (max £${r.cost.toFixed(1)}).`}
                       onClick={e => cellFilterClick(e, d, r.cost)}>
@@ -2025,7 +2139,7 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                     return (
                       <div style={{ ...S.cell, ...cNum, ...S.strong,
                                     ...(v == null ? S.miss : S.cellHit),
-                                    ...(() => { const bg = heatBg(pd, v); return bg ? { background: bg } : {}; })() }}
+                                    ...(() => { const bg = heatBg(pd, v); return bg ? { backgroundColor: bg } : {}; })() }}
                         title={v == null ? "Points: no data"
                           : `Points: ${v}\nClick to filter (min ${v}).`}
                         onClick={v == null ? undefined : e => cellFilterClick(e, pd, v)}>
@@ -2035,13 +2149,13 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                   })() : (
                     (() => { const d = STAT_BY_KEY.selected_by_percent, bg = heatBg(d, r.own);
                       return <div style={{ ...S.cell, ...cNum, ...S.cellHit,
-                                           ...(bg ? { background: bg } : {}) }}
+                                           ...(bg ? { backgroundColor: bg } : {}) }}
                         title={`${d.label}: ${r.own.toFixed(1)}%`
                                + `\nClick to filter (min ${r.own.toFixed(1)}).`}
                         onClick={e => cellFilterClick(e, d, r.own)}>
                         {r.own.toFixed(1)}</div>; })()
                   )}
-                  {visibleCols.map(d => {
+                  {visibleCols.map((d, ci) => {
                     const v = r.src ? d.get(r.src) : null;
                     /* TOMT HOLF ER EKKI SIANLEGT: "engin gogn" er ekki tala
                        og throskuldur ur henni vaeri tilbuningur.
@@ -2053,7 +2167,8 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                     return (
                       <div key={d.key} style={{ ...S.cell, ...cFor(d),
                         ...(v == null ? S.miss : S.cellHit),
-                        ...(() => { const bg = heatBg(d, v); return bg ? { background: bg } : {}; })(),
+                        ...(() => { const bg = heatBg(d, v); return bg ? { backgroundColor: bg } : {}; })(),
+                        backgroundImage: stripeOf(ci),
                         ...(isSp && v != null ? {
                           fontWeight: 700,
                           color: r.startLevel === "safe" ? "#046b41"
@@ -2112,7 +2227,10 @@ const S = {
   /* MERKING SEM SEST. Var `∑` i 9 px, #9a8aa8 a #faf7fb — omerkjanlegt, og
      notandinn tilkynnti bilid sem BILUN 14.8.2026. Nu ber hausinn ordid
      "season" i lesanlegri staerd og bakgrunnurinn er greinanlegur.      */
-  hBlind:{ background:"#f3ecf7", color:"#6b5b7b" },
+  /* LANGRITUN, EKKI STYTTING: holfid ber lika `backgroundImage` (dalka-
+     rondin), og stytting vid hlidina a langritun er blandan sem React
+     varar vid og `react-warnings.mjs` fellur a (CLAUDE.md 8).         */
+  hBlind:{ backgroundColor:"#f3ecf7", color:"#6b5b7b" },
   blindMark:{ fontSize:9, fontWeight:700, color:"#fff", background:"#8b7d9b",
               borderRadius:3, padding:"1px 3px", marginLeft:3, letterSpacing:0.2 },
 
@@ -2304,7 +2422,7 @@ const S = {
              letterSpacing:0.4, textTransform:"uppercase", color:C.text3,
              padding:"0 4px", whiteSpace:"nowrap", overflow:"hidden",
              borderRight:"1px solid #e6e4ec" },
-  bandOn:{ color:"#5a4a66", background:"#eae6f0" },
+  bandOn:{ color:"#5a4a66", backgroundColor:"#eae6f0" },
   bandFrozen:{ position:"sticky", left:0, zIndex:2, background:"#f2f0f5",
                borderRight:`1px solid ${C.border}` },
   hRow:{ display:"flex", height:LABEL_H },
@@ -2325,7 +2443,7 @@ const S = {
   hName:{ justifyContent:"flex-start", textAlign:"left", background:C.cardAlt },
   /* SIADUR DALKUR ER MERKTUR I HAUSNUM — chip-rodin getur verid skrunud
      upp ur augsyn og dalkurinn getur legid i ODRUM flokki en theim opna. */
-  hFiltered:{ background:"#f3eaf5", color:C.purple },
+  hFiltered:{ backgroundColor:"#f3eaf5", color:C.purple },
   hFunnel:{ fontSize:7.5, color:C.purple, marginRight:2 },
   frozenShadow:{ boxShadow:"6px 0 8px -6px rgba(0,0,0,0.28)" },
   /* whiteSpace:"normal" + 2 linur: sja wOf. `lineHeight` er sett svo tvaer

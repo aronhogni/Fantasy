@@ -115,7 +115,12 @@ export const STAT_GROUPS = [
   { key: "core",    label: "Basics" },
   { key: "attack",  label: "Attack" },
   { key: "defence", label: "Defence" },
-  { key: "aron",    label: "Consistency (Aron)" },
+  /* HET "Consistency (Aron)" TIL 25.8.2026. Vidhengid var HOFUNDARMERKI a
+     flokki i ensku vidmoti og sagdi notandanum ekkert um HVAD talan er —
+     `aron_net` ber sjalfur fulla skyringu i tooltip. Flokkurinn og
+     dalkurinn bera nu SAMA heiti og bandid ("Consistency"), svo thau
+     geta ekki rekid i sundur.                                          */
+  { key: "aron",    label: "Consistency" },
   { key: "fixtures",label: "Upcoming fixtures" },
   { key: "setp",    label: "Set pieces and cards" },
 ];
@@ -370,12 +375,18 @@ export const STAT_DEFS = [
              return (i == null && o == null) ? null : (i ?? 0) - (o ?? 0); } },
 
   /* ================= SOKN ================= */
+  /* --- band: G+A --- */
+  { key:"gi", label:"Goals + assists", short:"G+A", group:"attack", band:"G+A",
+    dec:0, hi:true, derived:true, note:"Goal involvements: goals plus assists.",
+    get:p=>(num(p.goals_scored)??0)+(num(p.assists)??0) },
+
   /* --- band: Goals --- */
   { key:"goals_scored", label:"Goals", group:"attack", band:"Goals",
     dec:0, hi:true, note:"Goals scored.", get:p=>num(p.goals_scored) },
   { key:"goals_per_90", label:"Goals per 90", short:"/90", group:"attack", band:"Goals",
     dec:2, hi:true, derived:true, note:"Goals per 90 minutes played.",
     get: per90of("goals_scored") },
+
 
   /* --- band: Assists --- */
   { key:"assists", label:"Assists", group:"attack", band:"Assists",
@@ -385,24 +396,6 @@ export const STAT_DEFS = [
     dec:2, hi:true, derived:true, note:"Assists per 90 minutes played.",
     get: per90of("assists") },
 
-  /* --- band: G+A --- */
-  { key:"gi", label:"Goals + assists", short:"G+A", group:"attack", band:"G+A",
-    dec:0, hi:true, derived:true, note:"Goal involvements: goals plus assists.",
-    get:p=>(num(p.goals_scored)??0)+(num(p.assists)??0) },
-  { key:"gi_per_90", label:"Goals + assists per 90", short:"/90", group:"attack", band:"G+A",
-    dec:2, hi:true, derived:true, note:"Goal involvements per 90 minutes played.",
-    get:p=>per90((num(p.goals_scored)??0)+(num(p.assists)??0), num(p.minutes)) },
-  { key:"mins_per_gi", label:"Minutes per G+A", short:"Mins/GA", group:"attack", band:"G+A",
-    dec:0, hi:false, derived:true,
-    note:"How long you wait for a goal or an assist. LOWER IS BETTER. Empty if he has no involvement at all — and also if he has not played, because a rate needs minutes on both sides.",
-    /* MINUTURNAR VERDA AD VERA >0 LIKA, EKKI BARA NEFNARINN. Meslier kemur
-       fra FPL med `goals_scored: 11` og `minutes: 0` (heimildin lygur, sja
-       `isIncoherent`), svo gi>0 stodst og 0/11 = 0 — "mark eda stodusending
-       a NULL minutna fresti", efst i dalki thar sem LAEGRA ER BETRA.
-       Systurdalkurinn `mins_per_xgi` slapp fyrir TILVILJUN: xGI-golfid 0,5
-       utilokar hann. Tilviljun er ekki vordur.                            */
-    get:p=>{ const m=num(p.minutes); if (m == null || m <= 0) return null;
-             const gi=(num(p.goals_scored)??0)+(num(p.assists)??0); return gi>0?safeDiv(m,gi):null; } },
 
   /* --- band: Expected --- */
   { key:"expected_goals", label:"xG (expected goals)", short:"xG", group:"attack", band:"Expected",
@@ -463,30 +456,6 @@ export const STAT_DEFS = [
     get:p=>{ const t=num(p._team_xg), v=num(p._live_xg);
              if (!t || v == null) return null; return (v/t)*100; } },
 
-  /* --- band: Over/under --- */
-  { key:"goals_minus_xg", label:"Goals − xG", short:"G−xG", group:"attack", band:"Over/under",
-    dec:2, hi:true, derived:true, signed:true,
-    note:"Above zero = he scores more than the chances imply (clinical, or lucky). Below zero = he wastes chances. Measured across seasons: this does NOT persist, so a big negative is usually a buy signal rather than a flaw.",
-    get:p=>{ const g=num(p.goals_scored), x=num(p.expected_goals); return (g==null||x==null)?null:g-x; } },
-  { key:"conversion", label:"Goal conversion (goals/xG)", short:"G/xG", group:"attack", band:"Over/under",
-    dec:2, hi:true, derived:true,
-    note:"The same thing as a ratio: above 1.00 = scores more than the chances imply. Needs xG > 0.5 — otherwise one goal from 0.04 xG would read as 25× and top the table.",
-    get:p=>{ const x=num(p.expected_goals); if (x==null||x<0.5) return null;
-             return safeDiv(num(p.goals_scored) ?? 0, x); } },
-  { key:"assists_minus_xa", label:"Assists − xA", short:"A−xA", group:"attack", band:"Over/under",
-    dec:2, hi:true, derived:true, signed:true,
-    note:"Above zero = his team-mates finish the chances he creates. Depends more on others than Goals − xG does.",
-    get:p=>{ const a=num(p.assists), x=num(p.expected_assists); return (a==null||x==null)?null:a-x; } },
-  { key:"assist_conversion", label:"Assist conversion (assists/xA)", short:"A/xA", group:"attack",
-    band:"Over/under", dec:2, hi:true, derived:true,
-    note:"Assists ÷ xA. Needs xA > 0.5 to mean anything.",
-    get:p=>{ const x=num(p.expected_assists); if (x==null||x<0.5) return null;
-             return safeDiv(num(p.assists) ?? 0, x); } },
-  { key:"gi_minus_xgi", label:"G+A − xGI", short:"GA−xGI", group:"attack", band:"Over/under",
-    dec:2, hi:true, derived:true, signed:true,
-    note:"The total gap between real and expected involvements — the single strongest luck signal. A big negative is the classic \"due\" player; that is exactly what the IG score is built on.",
-    get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0), x=num(p.expected_goal_involvements);
-             return x==null?null:gi-x; } },
 
   /* --- band: Shot quality ---
      UR BSD (sports.bzzoiro.com), maelt 8.8.2026. ThETTA ER I FYRSTA SINN
@@ -574,6 +543,66 @@ export const STAT_DEFS = [
     note:"HIS OWN shots that an opponent blocked — not blocks he made. Counted from BSD's shot map (outcome type \"block\"), which reproduces it exactly for 388 of 393 players and within one for all 393. LOWER IS BETTER only at a given shot volume, so read it next to Shots: a player who never shoots also has none blocked.",
     get:p=>num(p._b_blk) },
 
+
+  /* --- OGN (ESPN, sidasta lokna umferd) — SAMA BAND OG BSD-SKOTIN ---
+     FLUTT UR EIGIN FLIPA INN I SOKN 8.8.2026 ad beidni, og 25.8.2026 UR
+     EIGIN BANDI INN I "Shot quality" ad beidni notandans: eitt skota-band,
+     ekki tvo. Rokstudningurinn er sa sami og faerdi tha ur eigin flipa —
+     notandinn atti ad geta lesid skot vid hlidina a xG an thess ad skipta
+     um samhengi, og tvo bond med sama efni er sama tegund af skiptingu,
+     bara minni.
+     ROÐIN SKIPTIR MALI: bond verda ad vera SAMFELLD innan flokks, svo
+     blokkin er flutt LIKAMLEGA hingad — ekki bara merkt upp a nytt.
+
+     `(GW)` I HAUS-HEITINU HELST OG ThAD ER FORSENDA ThESSARAR SAMEININGAR
+     (17.8.2026, endurstadfest 25.8.). Adur baru bondin tvo sitt hvort
+     timabilid og haus-heitin voru adgreind AF BANDINU; nu er bandid EITT,
+     svo `(GW)`-vidskeytid er ORDID EINA adgreiningin milli `Shots` (BSD,
+     arstidartala) og `Shots (GW)` (ESPN, ein umferd) — og milli `In box`
+     og `In box (GW)`. Ad stytta thau vaeri ad endurvekja tofluna sem las
+     `Shots 11 … In box 11 … Shots 4 … In box 4` a rod Danso.
+     Timabils-fyrirvarinn sjalfur er a NOTUNNI, lagdur a af `SCOPE_NOTES`
+     eftir thvi hvada reiti getterinn les — ekki af bandsheitinu.       */
+  { key:"espn_shots", label:"Shots", short:"Shots (GW)", group:"attack", band:"Shot quality",
+    dec:0, hi:true, live_only:true,
+    note:"Shots he took, read from ESPN's match feed.",
+    get:p=>num(p._espn_shots) },
+  { key:"espn_sot", label:"Shots on target", short:"On target", group:"attack", band:"Shot quality",
+    dec:0, hi:true, live_only:true, note:"Shots on target.",
+    get:p=>num(p._espn_sot) },
+  { key:"espn_accuracy", label:"Shot accuracy", short:"Accuracy", group:"attack", band:"Shot quality",
+    dec:0, hi:true, pct:true, live_only:true, derived:true,
+    note:"Shots on target ÷ shots. This is ACCURACY, not finishing — ESPN gives no xG per shot, so we cannot say how good the chances were.",
+    get:p=>{ const s=num(p._espn_shots); if (!s) return null;
+             return safeDiv(num(p._espn_sot) ?? 0, s)*100; } },
+  { key:"espn_in_box", label:"Shots in the box", short:"In box (GW)", group:"attack",
+    band:"Shot quality", dec:0, hi:true, live_only:true,
+    note:"Shots from inside the penalty area, taken from ESPN's own zone text (not from a coordinate rule). Location beats volume: a shot in the box is worth several from distance.",
+    get:p=>num(p._espn_in_box) },
+  { key:"espn_woodwork", label:"Hit the woodwork (1 GW)", short:"Wood", group:"attack",
+    band:"Shot quality", dec:0, hi:true, live_only:true,
+    note:"Shots that hit the post or the bar — its own event type at ESPN. The purest bad-luck signal there is.",
+    get:p=>num(p._espn_woodwork) },
+
+
+  /* --- band: Penalties --- */
+  { key:"pen_order", label:"Penalty order", short:"Order", group:"attack", band:"Penalties",
+    dec:0, hi:false, live_only:true,
+    /* "The strongest single captaincy signal in the data" STOD HER OG VAR
+       OMAELD (fjarlaegt 16.8.2026). `grep -i captain docs/MAELINGAR.md`
+       skilar EINU — heiti Triple Captain-chipsins. Engin fyrirlida-maeling
+       er til i thessu repo-i, hvorki a vitaskyttum ne odru, svo hvorki
+       "sterkasta" ne samanburdurinn sem thad ordalag gefur i skyn a ser
+       nokkra stod. Omaeld tala sem litur ut eins og maeling er versta
+       utkoman (kafli 3) — og thetta var hun i TOOLTIP a skjanum.
+       Afgangurinn af notunni er rettur og naegur.                       */
+    note:"1 = first penalty taker at his club. LOWER IS BETTER. Today's order — it does not follow the selected season.",
+    get:p=>num(p.penalties_order) },
+  { key:"penalties_missed", label:"Penalties missed", short:"Missed", group:"attack", band:"Penalties",
+    dec:0, hi:false, note:"Penalties missed (−2 points each).",
+    get:p=>num(p.penalties_missed) },
+
+
   /* --- band: Set-piece threat ---
      MAELT 8.8.2026: 31,2% allra skota koma ur fostum leikatridum (horn
      17,6% · set-piece 5,9% · innkast-fast 5,1% · aukaspyrna 2,6%). Thad er
@@ -606,6 +635,7 @@ export const STAT_DEFS = [
     note:"Shots that struck the post or bar — BSD reports it as its own outcome type. The repo has carried woodwork as permanently empty since Understat died (see 6b); this is the first real count. Pure bad luck, so it belongs next to Goals − xG rather than being read on its own.",
     get:p=>num(p._b_wood) },
 
+
   /* --- band: Creation ---
      `key_pass` er RAUNVERULEG tala fyrir "faeri skopud". ESPN-dalkurinn i
      Ogn er lesinn UR TEXTA og er GOLF (76% skota nefna upplegg, 6f).   */
@@ -636,13 +666,56 @@ export const STAT_DEFS = [
     note:"Average per-match rating from BSD across the season, on a 0–10 index. The real spread is narrow — measured across 368 players it runs from 6.20 to 7.60 — so three tenths is a large gap, not a rounding difference. It is THEIR model's opinion, not a measured FPL quantity: useful as a second view, never as a reason on its own.",
     get:p=>num(p._b_rating) },
 
+
+  /* --- ESPN-UPPLEGGIN — SAMA BAND OG BSD-SKOPUNIN (25.8.2026) ---
+     Sama beidni og sameinadi skota-bondin: "Created (ESPN, 1 GW)" var
+     eigid band fyrir thrja dalka sem svara somu spurningu og "Creation"
+     — hver skapar faeri — og tvo bond um sama efni er skipting sem
+     notandinn les sem tvennt.
+
+     ALLIR ThRIR KOMA UR SAMA REGEXI A SAMA TEXTA, svo their bera SAMA
+     fyrirvara — og hann er skrifadur EINU SINNI i `SCOPE_NOTES`, ekki
+     afritadur i thrjar notur. Adur bar `espn_created` hann einn: 166 af
+     205 leikmonnum syndu `Crosses = 0` og 194 `Through = 0` an thess ad
+     nokkud segdi ad megnid af theim nullum thydir "ESPN skrifadi enga
+     upplegg-setningu".
+     REGLAN VAR LYKLUD A BANDSHEITID (`d.band.startsWith("Created")`) OG
+     ThAD MATTI EKKI STANDA: um leid og bandid heitir "Creation" naer hun
+     til NULL dalka, og `stats.test.mjs` fellur ordrett a thvi ("regla nær
+     til 0 dálka"). Hun er nu lyklud a lyklana sjalfa (`ESPN_TEXT_KEYS`)
+     — engin afleidsla er til, thvi thessir thrir lesa somu `_espn_`-svid
+     og hinir fimm og ekkert i skranni greinir textalesin gildi fra
+     talningu. Listinn er thvi VARDADUR i stad thess ad vera leiddur:
+     hver lykill verdur ad vera til i `STAT_BY_KEY`.                    */
+  { key:"espn_created", label:"Chances created (1 GW)", short:"Created", group:"attack",
+    band:"Creation", dec:0, hi:true, live_only:true,
+    note:"How often he set up a shot. NOT the same thing as Big Chances — see the note on Shot accuracy.",
+    get:p=>num(p._espn_created) },
+  { key:"espn_cross", label:"Crosses → shots", short:"Crosses", group:"attack",
+    band:"Creation", dec:0, hi:true, live_only:true,
+    note:"Crosses that LED TO A SHOT — not raw cross counts. A raw cross number rewards hopeful balls into the box; this one only counts when it worked.",
+    get:p=>num(p._espn_cross) },
+  { key:"espn_through", label:"Through balls", short:"Through", group:"attack",
+    band:"Creation", dec:0, hi:true, live_only:true,
+    note:"Passes described as a through ball that led to a shot.",
+    get:p=>num(p._espn_through) },
+
+
+  /* `build_only: true` A OLLU BANDINU (25.8.2026, beidni notandans).
+     Dalkarnir hverfa UR FLOKKA-TOFLUNNI en standa afram i "Build table",
+     i stigatoflunni og i hverri siu — thad er BIRTINGAR-sia, ekki
+     eyding. Rokstudningurinn er sa sami og bak vid `PINNED`: flokka-
+     taflan er lesin i einu kasti og dalkur sem enginn les thar kostar
+     larett skrun fyrir alla hina. Sian sjalf er `tableDefs` (hreint,
+     utflutt fall) — hun ma ekki bua i JSX, thvi tha getur profid adeins
+     LESID hana (CLAUDE.md 7.1).                                       */
   /* --- band: Indexes ---
      FLUTT UR GRUNNI 8.8.2026 ad beidni notanda. ICT, ahrif, skopun og ogn
      eru SOKNAR-tolur (threat er bokstaflega staðsetningar-haetta i teig) og
      i Grunni sátu thaer a milli verds og eignarhalds. Hver /90 stendur nu
      VID SINA grunntolu — thad var onnur beidni i somu ferd.             */
   { key:"ict_index", label:"ICT index", short:"ICT", group:"attack", band:"Indexes",
-    dec:1, hi:true, note:"FPL's combined Influence + Creativity + Threat index. A summary of everything he does, not just returns.",
+    build_only:true, dec:1, hi:true, note:"FPL's combined Influence + Creativity + Threat index. A summary of everything he does, not just returns.",
     get:p=>num(p.ict_index) },
   /* "comparable between a starter and a substitute" STOD HER OG VAR OSATT
      (17.8.2026). Thad er nakvaemlega thad sem /90 er EKKI thegar nefnarinn
@@ -652,27 +725,28 @@ export const STAT_DEFS = [
      samanburd sem talan tholir ekki. Almenni /90-fyrirvarinn er lagdur a
      ALLA `*_per_90`-dalka i `SCOPE_NOTES` nedar, ekki afritadur her.     */
   { key:"ict_per_90", label:"ICT index per 90", short:"ICT/90", group:"attack", band:"Indexes",
-    dec:2, hi:true, derived:true,
+    build_only:true, dec:2, hi:true, derived:true,
     note:"ICT index per 90 minutes played. This note used to say it was \"comparable between a starter and a substitute\" and that was wrong: measured on 2025/26, two minutes on the pitch led this column outright at 72.0.",
     get: per90of("ict_index") },
   { key:"influence", label:"Influence", short:"Infl", group:"attack", band:"Indexes",
-    dec:1, hi:true, note:"FPL's Influence: how much he affects the result — goals, assists, saves, decisive defensive actions.",
+    build_only:true, dec:1, hi:true, note:"FPL's Influence: how much he affects the result — goals, assists, saves, decisive defensive actions.",
     get:p=>num(p.influence) },
   { key:"influence_per_90", label:"Influence per 90", short:"Infl/90", group:"attack", band:"Indexes",
-    dec:1, hi:true, derived:true, note:"Influence per 90 minutes played.",
+    build_only:true, dec:1, hi:true, derived:true, note:"Influence per 90 minutes played.",
     get: per90of("influence") },
   { key:"creativity", label:"Creativity", short:"Creat", group:"attack", band:"Indexes",
-    dec:1, hi:true, note:"FPL's Creativity: chance creation, passes into danger, crosses. This is the raw material behind the IA score.",
+    build_only:true, dec:1, hi:true, note:"FPL's Creativity: chance creation, passes into danger, crosses. This is the raw material behind the IA score.",
     get:p=>num(p.creativity) },
   { key:"creativity_per_90", label:"Creativity per 90", short:"Creat/90", group:"attack", band:"Indexes",
-    dec:1, hi:true, derived:true, note:"Creativity per 90 minutes played — the column a two-minute cameo led at 508.5 in 2025/26. This is exactly what the IA score uses — measured as the best form of the question \"who creates chances without getting the assist?\"",
+    build_only:true, dec:1, hi:true, derived:true, note:"Creativity per 90 minutes played — the column a two-minute cameo led at 508.5 in 2025/26. This is exactly what the IA score uses — measured as the best form of the question \"who creates chances without getting the assist?\"",
     get: per90of("creativity") },
   { key:"threat", label:"Threat", group:"attack", band:"Indexes",
-    dec:1, hi:true, note:"FPL's Threat: how dangerous the positions he gets into are — shot volume and shot location. High threat with few goals is the most common \"due\" pattern.",
+    build_only:true, dec:1, hi:true, note:"FPL's Threat: how dangerous the positions he gets into are — shot volume and shot location. High threat with few goals is the most common \"due\" pattern.",
     get:p=>num(p.threat) },
   { key:"threat_per_90", label:"Threat per 90", short:"Threat/90", group:"attack", band:"Indexes",
-    dec:1, hi:true, derived:true, note:"Threat per 90 minutes played — the column a two-minute cameo led at 180.0 in 2025/26.",
+    build_only:true, dec:1, hi:true, derived:true, note:"Threat per 90 minutes played — the column a two-minute cameo led at 180.0 in 2025/26.",
     get: per90of("threat") },
+
 
   /* --- band: Imminent --- */
   { key:"mo", label:"Imminent goal (IG)", short:"IG", group:"attack", band:"Imminent",
@@ -689,84 +763,35 @@ export const STAT_DEFS = [
     note:"OUR MEASURED SCORE: plain creativity/90 over the form window. A composite that added xA was tested and BEAT the plain figure in 0 of 3 seasons (2.179 against 2.206), and the xA weight fitted to ZERO every single time — so the plain figure is not a simplification, it is the measurement. Live figure; goalkeepers never get it.",
     get:p=>num(p._ao) },
 
-  /* --- band: Penalties --- */
-  { key:"pen_order", label:"Penalty order", short:"Order", group:"attack", band:"Penalties",
-    dec:0, hi:false, live_only:true,
-    /* "The strongest single captaincy signal in the data" STOD HER OG VAR
-       OMAELD (fjarlaegt 16.8.2026). `grep -i captain docs/MAELINGAR.md`
-       skilar EINU — heiti Triple Captain-chipsins. Engin fyrirlida-maeling
-       er til i thessu repo-i, hvorki a vitaskyttum ne odru, svo hvorki
-       "sterkasta" ne samanburdurinn sem thad ordalag gefur i skyn a ser
-       nokkra stod. Omaeld tala sem litur ut eins og maeling er versta
-       utkoman (kafli 3) — og thetta var hun i TOOLTIP a skjanum.
-       Afgangurinn af notunni er rettur og naegur.                       */
-    note:"1 = first penalty taker at his club. LOWER IS BETTER. Today's order — it does not follow the selected season.",
-    get:p=>num(p.penalties_order) },
-  { key:"penalties_missed", label:"Penalties missed", short:"Missed", group:"attack", band:"Penalties",
-    dec:0, hi:false, note:"Penalties missed (−2 points each).",
-    get:p=>num(p.penalties_missed) },
+
+  /* --- band: Over/under --- */
+  { key:"goals_minus_xg", label:"Goals − xG", short:"G−xG", group:"attack", band:"Over/under",
+    dec:2, hi:true, derived:true, signed:true,
+    note:"Above zero = he scores more than the chances imply (clinical, or lucky). Below zero = he wastes chances. Measured across seasons: this does NOT persist, so a big negative is usually a buy signal rather than a flaw.",
+    get:p=>{ const g=num(p.goals_scored), x=num(p.expected_goals); return (g==null||x==null)?null:g-x; } },
+  { key:"conversion", label:"Goal conversion (goals/xG)", short:"G/xG", group:"attack", band:"Over/under",
+    dec:2, hi:true, derived:true,
+    note:"The same thing as a ratio: above 1.00 = scores more than the chances imply. Needs xG > 0.5 — otherwise one goal from 0.04 xG would read as 25× and top the table.",
+    get:p=>{ const x=num(p.expected_goals); if (x==null||x<0.5) return null;
+             return safeDiv(num(p.goals_scored) ?? 0, x); } },
+  { key:"assists_minus_xa", label:"Assists − xA", short:"A−xA", group:"attack", band:"Over/under",
+    dec:2, hi:true, derived:true, signed:true,
+    note:"Above zero = his team-mates finish the chances he creates. Depends more on others than Goals − xG does.",
+    get:p=>{ const a=num(p.assists), x=num(p.expected_assists); return (a==null||x==null)?null:a-x; } },
+  { key:"assist_conversion", label:"Assist conversion (assists/xA)", short:"A/xA", group:"attack",
+    band:"Over/under", dec:2, hi:true, derived:true,
+    note:"Assists ÷ xA. Needs xA > 0.5 to mean anything.",
+    get:p=>{ const x=num(p.expected_assists); if (x==null||x<0.5) return null;
+             return safeDiv(num(p.assists) ?? 0, x); } },
+  { key:"gi_minus_xgi", label:"G+A − xGI", short:"GA−xGI", group:"attack", band:"Over/under",
+    dec:2, hi:true, derived:true, signed:true,
+    note:"The total gap between real and expected involvements — the single strongest luck signal. A big negative is the classic \"due\" player; that is exactly what the IG score is built on.",
+    get:p=>{ const gi=(num(p.goals_scored)??0)+(num(p.assists)??0), x=num(p.expected_goal_involvements);
+             return x==null?null:gi-x; } },
+
 
   /* ================= VORN ================= */
   /* --- band: Clean sheets --- */
-  /* --- OGN (ESPN, sidasta lokna umferd) ---
-     FLUTT UR EIGIN FLIPA INN I SOKN 8.8.2026 ad beidni. Thetta eru
-     soknartolur og attu aldrei heima i serflokki; serflokkurinn thydi
-     bara ad notandinn thurfti ad skipta um flokk til ad sja skot vid
-     hlidina a xG. Bondin halda ser (ESPN, ein umferd) og bera thad
-     sjalf i heiti og note.
-     ROÐIN SKIPTIR MALI: bond verda ad vera SAMFELLD innan flokks, svo
-     blokkin er flutt LIKAMLEGA hingad — ekki bara merkt upp a nytt.
-
-     TVEIR DALKAR MED SAMA HAUS-HEITI ER SAMA OG ENGINN HAUS (17.8.2026).
-     Bandid het "Shots" og BSD-bandid "Shot quality", svo taflan bar TVO
-     holf merkt `Shots` og TVO merkt `In box` — med 30 dalka a milli, ur
-     sitthvorri heimildinni og yfir sitthvort timabilid. A rod Danso las
-     thetta `Shots 11 … In box 11 … Shots 4 … In box 4`. ESPN-parid ber nu
-     `(GW)` i haus-heitinu sjalfu, ekki bara i bandinu: bands-rodin er EKKI
-     teiknud i "Build table"-ham (sama rok og faerdi "CS next" i haus, sja
-     `team_cs_prob`), svo haus sem treystir a bandid eitt er omerktur thar. */
-  { key:"espn_shots", label:"Shots", short:"Shots (GW)", group:"attack", band:"Shots (ESPN, 1 GW)",
-    dec:0, hi:true, live_only:true,
-    note:"Shots he took, read from ESPN's match feed.",
-    get:p=>num(p._espn_shots) },
-  { key:"espn_sot", label:"Shots on target", short:"On target", group:"attack", band:"Shots (ESPN, 1 GW)",
-    dec:0, hi:true, live_only:true, note:"Shots on target.",
-    get:p=>num(p._espn_sot) },
-  { key:"espn_accuracy", label:"Shot accuracy", short:"Accuracy", group:"attack", band:"Shots (ESPN, 1 GW)",
-    dec:0, hi:true, pct:true, live_only:true, derived:true,
-    note:"Shots on target ÷ shots. This is ACCURACY, not finishing — ESPN gives no xG per shot, so we cannot say how good the chances were.",
-    get:p=>{ const s=num(p._espn_shots); if (!s) return null;
-             return safeDiv(num(p._espn_sot) ?? 0, s)*100; } },
-  { key:"espn_in_box", label:"Shots in the box", short:"In box (GW)", group:"attack",
-    band:"Shots (ESPN, 1 GW)", dec:0, hi:true, live_only:true,
-    note:"Shots from inside the penalty area, taken from ESPN's own zone text (not from a coordinate rule). Location beats volume: a shot in the box is worth several from distance.",
-    get:p=>num(p._espn_in_box) },
-  { key:"espn_woodwork", label:"Hit the woodwork (1 GW)", short:"Wood", group:"attack",
-    band:"Shots (ESPN, 1 GW)", dec:0, hi:true, live_only:true,
-    note:"Shots that hit the post or the bar — its own event type at ESPN. The purest bad-luck signal there is.",
-    get:p=>num(p._espn_woodwork) },
-
-  /* --- band: Created (ESPN, 1 GW) ---
-     ALLIR ThRIR KOMA UR SAMA REGEXI A SAMA TEXTA, svo their bera SAMA
-     fyrirvara — og hann er skrifadur EINU SINNI og LAGDUR A BANDID
-     (`SCOPE_NOTES` nedar), ekki afritadur i thrjar notur. Adur bar
-     `espn_created` hann einn: 166 af 205 leikmonnum syndu `Crosses = 0` og
-     194 `Through = 0` an thess ad nokkud segdi ad megnid af theim nullum
-     thydir "ESPN skrifadi enga upplegg-setningu".                        */
-  { key:"espn_created", label:"Chances created (1 GW)", short:"Created", group:"attack",
-    band:"Created (ESPN, 1 GW)", dec:0, hi:true, live_only:true,
-    note:"How often he set up a shot. NOT the same thing as Big Chances — see the note on Shot accuracy.",
-    get:p=>num(p._espn_created) },
-  { key:"espn_cross", label:"Crosses → shots", short:"Crosses", group:"attack",
-    band:"Created (ESPN, 1 GW)", dec:0, hi:true, live_only:true,
-    note:"Crosses that LED TO A SHOT — not raw cross counts. A raw cross number rewards hopeful balls into the box; this one only counts when it worked.",
-    get:p=>num(p._espn_cross) },
-  { key:"espn_through", label:"Through balls", short:"Through", group:"attack",
-    band:"Created (ESPN, 1 GW)", dec:0, hi:true, live_only:true,
-    note:"Passes described as a through ball that led to a shot.",
-    get:p=>num(p._espn_through) },
-
-  /* ================= JOFNUDUR (ARON-STUDULL) ================= */
   { key:"clean_sheets", label:"Clean sheets", short:"CS", group:"defence", band:"Clean sheets",
     dec:0, hi:true, pos:[1,2,3],
     note:"Clean sheets he was credited with. FPL's rule is 60+ minutes without conceding WHILE HE IS ON THE PITCH, so it is counted per player and not per team.",
@@ -854,16 +879,24 @@ export const STAT_DEFS = [
     note:"How many games sit behind the hit rate. Small n means the raw percentage says very little.",
     get:p=>num(p._dc_starts) },
 
+  /* `build_only: true` A OLLU BANDINU (25.8.2026, beidni notandans).
+     Dalkarnir hverfa UR FLOKKA-TOFLUNNI en standa afram i "Build table",
+     i stigatoflunni og i hverri siu — thad er BIRTINGAR-sia, ekki
+     eyding. Rokstudningurinn er sa sami og bak vid `PINNED`: flokka-
+     taflan er lesin i einu kasti og dalkur sem enginn les thar kostar
+     larett skrun fyrir alla hina. Sian sjalf er `tableDefs` (hreint,
+     utflutt fall) — hun ma ekki bua i JSX, thvi tha getur profid adeins
+     LESID hana (CLAUDE.md 7.1).                                       */
   /* --- band: Defensive actions --- */
   { key:"clearances_blocks_interceptions", label:"Clearances/blocks/int", short:"CBI",
-    group:"defence", band:"Defensive actions", dec:0, hi:true,
+    group:"defence", band:"Defensive actions", build_only:true, dec:0, hi:true,
     note:"Clearances, blocks and interceptions added together — the bulk of a defender's DefCon count.",
     get:p=>num(p.clearances_blocks_interceptions) },
   { key:"cbi_per_90", label:"CBI per 90", short:"CBI/90", group:"defence", band:"Defensive actions",
-    dec:2, hi:true, derived:true, note:"Clearances, blocks and interceptions per 90 minutes played.",
+    build_only:true, dec:2, hi:true, derived:true, note:"Clearances, blocks and interceptions per 90 minutes played.",
     get: per90of("clearances_blocks_interceptions") },
   { key:"tackles", label:"Tackles", short:"Tack", group:"defence", band:"Defensive actions",
-    dec:0, hi:true,
+    build_only:true, dec:0, hi:true,
     /* NOTAN SAGDI "for midfielders and forwards" — RANGT. Tacklingar eru T-id
        i CBIT og telja fyrir VARNARMENN LIKA (stadfest a 459 rodum: DefCon
        varnarmanns = CBI + tacklingar upp a mann). Thad sem er BUNDID vid
@@ -871,15 +904,23 @@ export const STAT_DEFS = [
     note:"Tackles. Counts towards DefCon in EVERY outfield position — for defenders it is the T in CBIT, and for midfielders and forwards it is added to recoveries.",
     get:p=>num(p.tackles) },
   { key:"tackles_per_90", label:"Tackles per 90", short:"Tack/90", group:"defence",
-    band:"Defensive actions", dec:2, hi:true, derived:true, note:"Tackles per 90 minutes played.",
+    band:"Defensive actions", build_only:true, dec:2, hi:true, derived:true, note:"Tackles per 90 minutes played.",
     get: per90of("tackles") },
   { key:"recoveries", label:"Recoveries", short:"Recov", group:"defence", band:"Defensive actions",
-    dec:0, hi:true, note:"Ball recoveries. Counts towards DefCon for midfielders and forwards, and it is the term that decides most of their hit rate.",
+    build_only:true, dec:0, hi:true, note:"Ball recoveries. Counts towards DefCon for midfielders and forwards, and it is the term that decides most of their hit rate.",
     get:p=>num(p.recoveries) },
   { key:"recoveries_per_90", label:"Recoveries per 90", short:"Recov/90", group:"defence",
-    band:"Defensive actions", dec:2, hi:true, derived:true, note:"Ball recoveries per 90 minutes played.",
+    band:"Defensive actions", build_only:true, dec:2, hi:true, derived:true, note:"Ball recoveries per 90 minutes played.",
     get: per90of("recoveries") },
 
+  /* `build_only: true` A OLLU BANDINU (25.8.2026, beidni notandans).
+     Dalkarnir hverfa UR FLOKKA-TOFLUNNI en standa afram i "Build table",
+     i stigatoflunni og i hverri siu — thad er BIRTINGAR-sia, ekki
+     eyding. Rokstudningurinn er sa sami og bak vid `PINNED`: flokka-
+     taflan er lesin i einu kasti og dalkur sem enginn les thar kostar
+     larett skrun fyrir alla hina. Sian sjalf er `tableDefs` (hreint,
+     utflutt fall) — hun ma ekki bua i JSX, thvi tha getur profid adeins
+     LESID hana (CLAUDE.md 7.1).                                       */
   /* --- band: Defensive detail ---
      FPL bundlar hreinsanir, stodvanir og stodvud skot i EINA tolu (CBI).
      BSD heldur theim ADSKILDUM, svo hér sest HVAD madurinn gerir — midjumadur
@@ -889,24 +930,24 @@ export const STAT_DEFS = [
      stodvun sem hann gerdi heldur HANS EIGID skot sem var stodvad. Sja
      skyringuna vid dalkinn i "Shot quality".                              */
   { key:"bsd_tackles", label:"Tackles (BSD)", short:"Tack (B)", group:"defence",
-    band:"Defensive detail", dec:0, hi:true,
+    band:"Defensive detail", build_only:true, dec:0, hi:true,
     note:"Tackles as counted by BSD. Shown next to the FPL tackle count deliberately: two independent sources for the same action, so a gap is visible rather than hidden.",
     get:p=>num(p._b_tack) },
   { key:"bsd_interceptions", label:"Interceptions", short:"Intercept", group:"defence",
-    band:"Defensive detail", dec:0, hi:true,
+    band:"Defensive detail", build_only:true, dec:0, hi:true,
     note:"Interceptions on their own. FPL only publishes them inside the combined CBI total, so this is the first time the term can be read separately.",
     get:p=>num(p._b_int) },
   { key:"bsd_clearances", label:"Clearances", short:"Clear", group:"defence",
-    band:"Defensive detail", dec:0, hi:true,
+    band:"Defensive detail", build_only:true, dec:0, hi:true,
     note:"Clearances on their own, split out of FPL's combined CBI total. High clearances usually means a defender under sustained pressure, which pulls against clean sheets.",
     get:p=>num(p._b_clr) },
   { key:"bsd_aerial", label:"Aerial duels won", short:"Aerials", group:"defence",
-    band:"Defensive detail", dec:0, hi:true,
+    band:"Defensive detail", build_only:true, dec:0, hi:true,
     note:"Aerial duels won across the season (BSD). No FPL field carries this at all.",
     get:p=>num(p._b_aer) },
 
-  /* ================= OGN (ESPN, sidasta lokna umferd) ================= */
-  /* --- band: Shots --- */
+
+  /* ================= JOFNUDUR (ARON-STUDULL) ================= */
   /* AFTURVIRKNIN VAR NEFND A EINUM AF ThREMUR DALKUM. `aron_hit4` sagdi
      "shrunk for sample size (k=10)" en `aron_blank` og `aron_net` thogdu —
      thott BADAR tolur seu afturvirkjadar i pipeline (fetch.mjs: hit4_pct OG
@@ -915,7 +956,11 @@ export const STAT_DEFS = [
      ekki smaatridi: Arrizabalaga hittir 1 af 1 og HRAA talan er 100% —
      birt tala er 60%. Notandi sem les "share of games" tekur toluna sem
      hlutfall og hun er thad ekki.                                        */
-  { key:"aron_net", label:"Consistency (Aron)", short:"Aron", group:"aron", band:"Consistency",
+  /* HAUS-HEITID VAR "Aron" OG ThAD VAR HOFUNDARMERKI, EKKI HEITI (25.8.2026).
+     Dalkurinn er mismunur tveggja hlutfalla (4+ stig MINUS <=2 stig), svo
+     "Net" segir hvad talan ER; bandid fyrir ofan segir hvad hun MAELIR.
+     Fulla heitid er "Consistency", eins og flokkurinn og bandid.        */
+  { key:"aron_net", label:"Consistency", short:"Net", group:"aron", band:"Consistency",
     dec:2, hi:true, signed:true, derived:true,
     note:"ARON COEFFICIENT: share of games with 4+ points MINUS share with 2 or fewer. BOTH HALVES ARE SHRUNK for sample size (empirical Bayes, k=10 towards the position mean), so this is not a plain difference of two raw percentages — at a handful of games it is pulled most of the way to the positional average. Higher = steady 4–6 every week instead of 2-2-2-then-11. MEASURED AND DOCUMENTED: it DESCRIBES THE PAST and does not predict — the hit rate tracks points/match at r=0.90, and once you control for points AND price inside a position no persistent residual is left. So compare players in the SAME POSITION at a SIMILAR PRICE. Never used in any ranking.",
     get:p=>num(p._aron) },
@@ -940,6 +985,7 @@ export const STAT_DEFS = [
     dec:0, hi:true, derived:true,
     note:"How many GAMEWEEKS sit behind the percentages, not how many matches: a double gameweek is summed into ONE round, so a player with 35 starts can read 33 here. Small n means little — and it is exactly the n that the shrinkage on the other three columns works against.",
     get:p=>num(p._cgames) },
+
 
   /* ================= LEIKIR FRAMUNDAN ================= */
   { key:"fdr6", label:"FDR next 6", short:"FDR6", group:"fixtures", band:"Next 6 gameweeks",
@@ -972,12 +1018,21 @@ export const STAT_DEFS = [
     note:"How much defensive work his team is likely to have over the NEXT SIX fixtures — the opportunity side of DefCon, built from his team's own xGC and the opponents' attacking strength (defcon.json records fixtures_used = 6). High means a busy defence, which is good for DC points and bad for a clean sheet. It is NOT a next-match figure, unlike the clean-sheet column beside it.",
     get:p=>num(p._team_dc) },
 
+
+  /* `build_only: true` A OLLU BANDINU (25.8.2026, beidni notandans).
+     Dalkarnir hverfa UR FLOKKA-TOFLUNNI en standa afram i "Build table",
+     i stigatoflunni og i hverri siu — thad er BIRTINGAR-sia, ekki
+     eyding. Rokstudningurinn er sa sami og bak vid `PINNED`: flokka-
+     taflan er lesin i einu kasti og dalkur sem enginn les thar kostar
+     larett skrun fyrir alla hina. Sian sjalf er `tableDefs` (hreint,
+     utflutt fall) — hun ma ekki bua i JSX, thvi tha getur profid adeins
+     LESID hana (CLAUDE.md 7.1).                                       */
   /* ================= FOST LEIKATRIDI OG SPJOLD ================= */
   { key:"fk_order", label:"Free-kick order", short:"FK", group:"setp", band:"Set-piece order",
-    dec:0, hi:false, live_only:true, note:"1 = first direct free-kick taker at his club. LOWER IS BETTER. Today's order — it does not follow the selected season.",
+    build_only:true, dec:0, hi:false, live_only:true, note:"1 = first direct free-kick taker at his club. LOWER IS BETTER. Today's order — it does not follow the selected season.",
     get:p=>num(p.direct_freekicks_order) },
   { key:"ck_order", label:"Corner order", short:"Corners", group:"setp", band:"Set-piece order",
-    dec:0, hi:false, live_only:true,
+    build_only:true, dec:0, hi:false, live_only:true,
     /* FOST TALA UM LIFANDI GOGN — VILLAN SEM ThESSI NOTA VAR. Her stod
        "MEASURED: ... the range is 4-10 and NO club has a 1". FPL endurgrunnadi
        hornarodunina 13.8.2026 (2-12 -> 1-6, 18 af 20 lidum med 1) og notan
@@ -988,16 +1043,16 @@ export const STAT_DEFS = [
     note:"Corner and indirect free-kick order, as FPL enters it by hand. FPL has renumbered this base mid-season before, so \"first taker\" means the LOWEST number at that club — never the number 1. The Set pieces tab shows today's actual range.",
     get:p=>num(p.corners_and_indirect_freekicks_order) },
   { key:"yellow_cards", label:"Yellow cards", short:"Yellow", group:"setp", band:"Cards",
-    dec:0, hi:false, note:"Yellow cards (−1 point each). LOWER IS BETTER.",
+    build_only:true, dec:0, hi:false, note:"Yellow cards (−1 point each). LOWER IS BETTER.",
     get:p=>num(p.yellow_cards) },
   { key:"red_cards", label:"Red cards", short:"Red", group:"setp", band:"Cards",
-    dec:0, hi:false, note:"Red cards (−3 points, plus the suspension that follows). LOWER IS BETTER.",
+    build_only:true, dec:0, hi:false, note:"Red cards (−3 points, plus the suspension that follows). LOWER IS BETTER.",
     get:p=>num(p.red_cards) },
   { key:"cards_per_90", label:"Cards per 90", short:"Cards/90", group:"setp", band:"Cards",
-    dec:2, hi:false, derived:true, note:"Yellow and red cards per 90 minutes played. LOWER IS BETTER — this is the honest form of the question, since a card count rewards players who barely play.",
+    build_only:true, dec:2, hi:false, derived:true, note:"Yellow and red cards per 90 minutes played. LOWER IS BETTER — this is the honest form of the question, since a card count rewards players who barely play.",
     get:p=>per90((num(p.yellow_cards) ?? 0) + (num(p.red_cards) ?? 0), num(p.minutes)) },
   { key:"own_goals", label:"Own goals", short:"OG", group:"setp", band:"Cards",
-    dec:0, hi:false, note:"Own goals (−2 points each). LOWER IS BETTER.",
+    build_only:true, dec:0, hi:false, note:"Own goals (−2 points each). LOWER IS BETTER.",
     get:p=>num(p.own_goals) },
 ];
 
@@ -1060,6 +1115,14 @@ export const FIELDS_READ = new Map(STAT_DEFS.map(d => [d.key, readsFields(d)]));
 const reads = (d, prefix) =>
   [...(FIELDS_READ.get(d.key) || [])].some(k => k.startsWith(prefix));
 
+/* ThRIR ESPN-DALKAR SEM ERU LESNIR UR TEXTA, EKKI TALDIR.
+   Their lesa NAKVAEMLEGA somu `_espn_`-svid og hinir fimm, svo ekkert i
+   skranni greinir tha ad — engin afleidsla er moguleg og listinn er thvi
+   handskrifadur. Handskrifadur listi stadnar (CLAUDE.md 8), svo hann er
+   VARDADUR: `stats.test.mjs` krefst thess ad hver lykill se til i
+   `STAT_BY_KEY`, sem fellur um leid og einhver endurnefnir dalk.       */
+export const ESPN_TEXT_KEYS = ["espn_created", "espn_cross", "espn_through"];
+
 /* Hver regla: HVER a vid (leitt) og HVAD er sagt. Vordur i stats.test.mjs
    kafla 2b krefst thess ad textinn standi NAKVAEMLEGA EINU SINNI i hverri
    notu sem reglan tekur til — og hvergi annars stadar.                  */
@@ -1070,8 +1133,14 @@ export const SCOPE_NOTES = [
   { id: "espn",
     applies: d => reads(d, "_espn_"),
     text: "SOURCE: ESPN's match feed for ONE gameweek — the last one the pipeline finished, which is NOT a round of the season selected above (before a season starts it is a round of the previous one). A snapshot, never a season total." },
+  /* LYKLAD A LYKLANA, EKKI A BANDSHEITID (25.8.2026). Reglan var
+     `d.band.startsWith("Created")` og bandid "Created (ESPN, 1 GW)" var
+     sameinad "Creation" sama dag — tha hefdi hun nad til NULL dalka og
+     `stats.test.mjs` fellt hana ordrett ("regla nær til 0 dálka"). Sama
+     villuaett og daudi aefingaleikja-fyrirvarinn fyrir nedan: regla sem
+     hvilir a birtingar-streng deyr thogult vid endurnefningu.          */
   { id: "espn-floor",
-    applies: d => reads(d, "_espn_") && d.band.startsWith("Created"),
+    applies: d => ESPN_TEXT_KEYS.includes(d.key),
     text: "A FLOOR, NOT AN EXACT COUNT: it is read out of ESPN's commentary (\"Assisted by X …\") and only 76% of shots name their assist, so a 0 can mean \"no assist sentence was written\" rather than \"he created nothing\"." },
   /* AEFINGALEIKJA-REGLAN VAR FJARLAEGD 24.8.2026 — DAUD REGLA I LIFANDI
      BUNINGI. Fjorir forleiks-dalkar voru teknir ut ad beidni notandans
@@ -1163,6 +1232,45 @@ export function passesThreshold(def, v, op, target) {
 }
 
 export const STAT_BY_KEY = Object.fromEntries(STAT_DEFS.map(d => [d.key, d]));
+
+/* ============================================================
+   HVAD SEST I FLOKKA-TOFLUNNI — EITT HREINT FALL, ENGIN AFRIT (25.8.2026)
+
+   TVAER SIUR, BADAR AD BEIDNI NOTANDANS:
+     1. `build_only` — dalkar sem eiga heima i "Build table" en ekki i
+        flokka-toflunni (ICT-visitolurnar, varnar-adgerdirnar, BSD-varnar-
+        smaatridin og allur "Set pieces and cards"-flokkurinn). Their eru
+        EKKI eyddir: stigataflan, dalkavalarinn, siurnar og throskuldarnir
+        lesa `STAT_DEFS` afram, svo ekkert hverfur nema ur EINNI toflu.
+     2. MARKMANNS-DALKAR — dalkur sem er skilgreindur FYRIR MARKMENN EINA
+        (`pos: [1]`) synir "—" hja 90% listans og eyðir larettu plassi
+        fyrir alla hina. Reglan er LEIDD af `pos`, ekki af bandsheitinu:
+        bandsheiti er birtingar-strengur og regla sem hvilir a honum deyr
+        thogult vid endurnefningu (sja `espn-floor` her ad ofan, sem gerdi
+        nakvaemlega thad). Hun naer thvi lika til `gk_chief_out`, sem er
+        markmanns-dalkur i Grunni og var jafn tomur hja utileikmonnum.
+
+   AF HVERJU HER OG EKKI I `PlayerList.jsx`: fullyrding sem bur i
+   JSX-skilyrdi verdur adeins LESIN af profi, aldrei KEYRD — sama lexia og
+   `passesThreshold`, `rangeBanner` og `buildTeamMetrics` (CLAUDE.md 7.1).
+   Og hun er lesin a THREMUR stodum (dalkarnir sjalfir, flokka-hnapparnir
+   og `rangeAwareGroupsOf`); thrju eintok af sama skilyrdi er hvernig thau
+   fara i sundur.
+   ============================================================ */
+export const isGkOnly = d =>
+  Array.isArray(d?.pos) && d.pos.length === 1 && d.pos[0] === 1;
+
+export function visibleInGroups(d, pos = "all") {
+  if (!d || d.build_only) return false;
+  if (isGkOnly(d) && String(pos) !== "1") return false;
+  return true;
+}
+
+/* `group == null` skilar OLLUM syndum dalkum (thad er formid sem
+   `rangeAwareGroupsOf` og flokka-hnapparnir lesa).                      */
+export function tableDefs({ group = null, pos = "all", defs = STAT_DEFS } = {}) {
+  return defs.filter(d => (group == null || d.group === group) && visibleInGroups(d, pos));
+}
 
 /* Snyrtileg birting einnar tolu samkvaemt skra-lysingunni. */
 export function fmtStat(def, v) {
@@ -1306,7 +1414,12 @@ export function buildLeaderboard({
     if (isIncoherent(p, def.key, v)) { incoherent++; continue; }
     // minutu-thak gildir adeins um hlutfallstolur (/90, %) — heildartolur
     // eins og "mork" eru sjalfkrafa ovarnar gegn litilli spilun.
-    const rateLike = /_per_90$|_pct$|^pts_per_90$|^mins_per_gi$/.test(def.key) || def.pct;
+    /* `^mins_per_gi$` stod her og var TEKID UT 25.8.2026 MED DALKINUM.
+       Dalkurinn `mins_per_gi` var felldur ad beidni notandans; regex sem
+       nefnir horfinn lykil er dautt skilyrdi sem lítur ut eins og regla.
+       `mins_per_xgi` er EKKI i talningunni og var thad aldrei — hann ber
+       sitt eigid xGI-golf (>= 0,5) og tharf ekki minutu-thakid.        */
+    const rateLike = /_per_90$|_pct$|^pts_per_90$/.test(def.key) || def.pct;
     if (rateLike && mins < minMinutes) { skipped++; continue; }
     rows.push({ p, v });
   }

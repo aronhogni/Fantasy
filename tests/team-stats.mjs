@@ -21,12 +21,13 @@
 
    Keyrsla: node tests/team-stats.mjs
    ============================================================ */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          TEAM_RANGE_SRC, teamRangeBlind, aggShotRange, aggFixtureRange, routeInStep,
          teamRangeUse, applyTeamRange, maxEventOf, SHOT_GOAL_TYPE,
          aggLiveMatchRange, maxGwOfLiveMatches,
-         buildTeamMetrics, PROMOTED_PL, seasonKey, bsdSeasonInStep, buildLiveTeamForm }
+         buildTeamMetrics, PROMOTED_PL, seasonKey, bsdSeasonInStep, buildLiveTeamForm,
+         teamFormFlags, FORM_WINDOW_GW, FORM_MIN_MATCHES }
   from "../src/teamstats.js";
 import { makeFixDifficulty, tierOf, TIER_NEUTRAL } from "../src/model.js";
 import { aggregateTeamShots, BIG_CHANCE_XG, IN_BOX_X } from "../scripts/fetch-bsd-teams.mjs";
@@ -71,6 +72,31 @@ ok("engir tvitekar lyklar", new Set(TEAM_STAT_DEFS.map(d => d.key)).size === TEA
 ok("hver dalkur tilheyrir gildum flokki",
   TEAM_STAT_DEFS.every(d => TEAM_GROUPS.some(g => g.key === d.group)));
 ok("enginn flokkur tomur", TEAM_GROUPS.every(g => TEAM_STAT_DEFS.some(d => d.group === g.key)));
+/* ============================================================
+   FLOKKA-RODIN OG MARKVARDAR-HEITID — ORDALAG SEM ER PINNAD AF ASETTU RADI
+
+   Reglan i thessu repo-i er ad prof profi HEGDUN en ekki ORDALAG (CLAUDE.md
+   kafli 5), og hun a vid um nanast allt. HER ER UNDANTEKNING OG HUN ER
+   ROKSTUDD: hvort tveggja var BEIN BEIDNI notandans 25.8.2026 og hvorugt
+   hefur nokkurn annan vord.
+     - RODIN ver ad notandinn lendi ekki a tomasta flokknum. Markvardar-
+       flokkurinn er SKOTA-DRIFINN AD OLLU LEYTI og engin skota-heimild naer
+       yfir yfirstandandi timabil, sem er sjalfgefna synin fra 22.8. Fyrir
+       snuninginn var tomasti flokkurinn sa fremsti.
+     - HEITID: "What the keeper faces" er thrisvar lengra en hin thrju og
+       braut hnappa-rodina i tvennt a throngum skja.
+   OG MISSIRINN VAERI ThOGULL AN ThESSA: `team-gw.mjs` les heitin UR ThESSARI
+   SKRA (rett akvordun thar — thad safn profar hegdun), og `react-warnings`
+   telur heimsokn i hlutfalli, svo EITT tapad vidmot af 52 helst yfir
+   90%-golfinu. Enginn vordur beit a ordalagid; nu gerir thessi thad.   */
+{
+  const order = TEAM_GROUPS.map(g => g.key);
+  ok(`markvardar-flokkurinn kemur AFTAN vid Defence og Attack (${order.join(" > ")})`,
+     order.indexOf("keeper") > order.indexOf("defence")
+     && order.indexOf("keeper") > order.indexOf("attack"));
+  ok(`og hann heitir "GK" (${JSON.stringify(TEAM_GROUPS.find(g => g.key === "keeper")?.label)})`,
+     TEAM_GROUPS.find(g => g.key === "keeper")?.label === "GK");
+}
 /* Stutt haus-heiti eru RADGATA an skyringar; styttingin og skyringin eru
    ein og sama akvordunin (sama regla og i stats.js).                    */
 ok("hver dalkur hefur skyringu", TEAM_STAT_DEFS.every(d => (d.note || "").length > 20),
@@ -1980,6 +2006,206 @@ console.log("─".repeat(84));
   const fin = buildLiveTeamForm({ teams: T, fixtures: [{ event: 1, team_h: 1, team_a: 2,
     team_h_score: 2, team_a_score: 1, finished: true, finished_provisional: false }] });
   ok("`finished: true` telst lika buinn leikur", fin?.matches_counted === 1);
+}
+
+/* ============================================================
+   16. ELDUR OG IS — MERKI SEM MA ALDREI VERDA AD TOLU (25.8.2026)
+
+   Notandinn bad um form-tacn a lidum. I ThESSU REPO-I ER FORM SEM SPA
+   MAELT OG FELLT (leikmanns-form er afturhvarf -4,52pp; hrein blod radast
+   ekki i runur, lyfting 0,99; `PREV_K` endurmaeld 24.8. an thess ad neitt K
+   slaegi K=10), svo merkid ma ADEINS lysa. Fordaemid er Evropu-stjarnan:
+   synt sem samhengi, fer hvergi inn i likanid.
+
+   KAFLINN VER FIMM ADSKILDAR AKVARDANIR, og hver theirra var stokkbreytt:
+     A. EINANGRUNIN — engin onnur skra en `Teams.jsx` ma flytja fallid inn,
+        og hvorki `model.js`, `market.js`, `advisor.js` ne `rotation.js`
+        mega nefna thad. Vaeri thad brotid vaeri felld maeling komin aftur
+        inn um bakdyrnar.
+     B. URTAKS-GATTIN — undir ThREMUR leikjum i glugga er ekkert merki.
+     C. SEXTILL, EKKI ThROSKULDUR — fjoldinn er `floor(n/6)` i BADA enda.
+     D. EIN HEIMILD FYRIR BADA HELMINGA — sama fall, tvo bil.
+     E. FLOT DREIFING FAER ENGIN MERKI — jofn lid mega ekki fa baedi eld
+        og is.
+   TILBUIN GOGN ThAR SEM SVARID ER ThEKKT FYRIRFRAM, svo kaflinn se ohadur
+   thvi hvad `data/` ber i dag — og RAUNGOGNIN VID HLIDINA, thvi thau bera
+   astandid sem notandinn ser.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("16. FORM-MERKID — LYSING, ALDREI TALA");
+console.log("─".repeat(84));
+{
+  /* ---- A. EINANGRUNIN. Lesid UR UPPRUNANUM: hver skra i `src/` sem
+     nefnir fallid. Textaleit ein vaeri veik, svo krafan er TVISKIPT —
+     `Teams.jsx` VERDUR ad nefna thad (annars er merkid ekki teiknad og
+     allt hitt her er thogult) og enginn annar ma gera thad.            */
+  const SRC = new URL("../src/", import.meta.url).pathname;
+  const files = readdirSync(SRC).filter(f => /\.jsx?$/.test(f));
+  const users = files.filter(f => f !== "teamstats.js"
+    && /teamFormFlags/.test(readFileSync(SRC + f, "utf8")));
+  ok(`\`Teams.jsx\` teiknar merkid (forsenda: ${users.join(",") || "ENGINN"})`,
+     users.includes("Teams.jsx"));
+  ok("og ENGIN onnur skra i `src/` les fallid — likanid kemst ekki i thad",
+     users.length === 1, users.join(","));
+  /* OG HIN ATTIN: skrarnar sem BERA likanid mega ekki nefna hvorki fallid
+     ne fastana. `model.js` reiknar `fixDifficulty`/`expPointsFor`,
+     `market.js` markadsthyngdina, `advisor.js` kaup-prosentuna og
+     `rotation.js` roterings-parid.                                     */
+  for (const f of ["model.js", "market.js", "advisor.js", "rotation.js", "stats.js"]) {
+    const t = readFileSync(SRC + f, "utf8");
+    ok(`${f} nefnir hvorki \`teamFormFlags\` ne \`FORM_WINDOW_GW\``,
+       !/teamFormFlags|FORM_WINDOW_GW|FORM_MIN_MATCHES/.test(t));
+  }
+
+  /* ---- TILBUINN HEIMUR. Tolf lid, tiu umferdir, og markamunurinn er
+     STYRDUR: lid 1-2 batna i glugganum (GW5-10), lid 11-12 hrapa, hin
+     atta eru obreytt. Svarid er thvi thekkt adur en fallid er kallad.  */
+  const N_TEAMS = 12, N_GW = 10;
+  const rowsOf = ids => ids.map(id => ({ id, short: `T${id}` }));
+  const IDS = Array.from({ length: N_TEAMS }, (_, i) => i + 1);
+  const rows = rowsOf(IDS);
+  /* Hvert lid spilar EINN leik i hverri umferd, gegn tilbunu "mothverfi"
+     sem er ekki i `rows` — thannig er markamunur hvers lids algerlega
+     stydanlegur og ekkert lid haefir ahrif a annad.                     */
+  const mkFix = score => {
+    const out = [];
+    let id = 1;
+    for (let gw = 1; gw <= N_GW; gw++)
+      for (const t of IDS) {
+        const gf = score(t, gw);
+        out.push({ id: id++, event: gw, finished: true,
+          team_h: t, team_a: 900 + t, team_h_score: gf, team_a_score: 0 });
+      }
+    return out;
+  };
+  /* Grunn-markamunur 1 alls stadar; i glugganum (GW >= 5) skora tvo efstu
+     THRJU og tvo nedstu NULL. Fjarlaegdin fra medaltali er thvi:
+       lid 1-2  +2 ; lid 11-12 -1 ; hin 0.                              */
+  const fixtures = mkFix((t, gw) => (gw >= 5 ? (t <= 2 ? 3 : t >= 11 ? 0 : 1) : 1));
+  const use = { results: "fixtures", shots: false, maxGw: N_GW };
+  const flagged = teamFormFlags({ rows, fixtures, use, range: null });
+  const kindOf = id => flagged.flags.get(id) || null;
+  ok(`forsenda: glugginn er sidustu ${FORM_WINDOW_GW} umferdirnar `
+     + `(${JSON.stringify(flagged.window)}) og grunnurinn allt bilid `
+     + `(${JSON.stringify(flagged.baseRange)})`,
+     flagged.window?.[0] === N_GW - FORM_WINDOW_GW + 1 && flagged.window?.[1] === N_GW
+     && flagged.baseRange?.[0] === 1 && flagged.baseRange?.[1] === N_GW);
+  /* ---- C. SEXTILL: 12 lid -> nakvaemlega TVO i hvorn enda.           */
+  ok(`sextill af ${N_TEAMS} lidum er ${Math.floor(N_TEAMS / 6)} i hvorn enda `
+     + `(faekk ${[...flagged.flags.values()].filter(v => v === "hot").length} eld / `
+     + `${[...flagged.flags.values()].filter(v => v === "cold").length} is)`,
+     flagged.sextile === Math.floor(N_TEAMS / 6)
+     && [...flagged.flags.values()].filter(v => v === "hot").length === 2
+     && [...flagged.flags.values()].filter(v => v === "cold").length === 2);
+  ok("og thad eru RETTU lidin: 1-2 fa eld, 11-12 fa is",
+     kindOf(1) === "hot" && kindOf(2) === "hot"
+     && kindOf(11) === "cold" && kindOf(12) === "cold",
+     [...flagged.flags].map(([k, v]) => `${k}:${v}`).join(","));
+  ok("og lidin i midjunni fa EKKERT — hvorki eld ne is",
+     IDS.slice(2, 10).every(id => kindOf(id) == null),
+     IDS.slice(2, 10).filter(id => kindOf(id) != null).join(","));
+
+  /* ---- E. FLOT DREIFING: enginn munur -> ENGIN merki. Stokkbreyting sem
+     sleppti `hiCut > loCut` gaf ollum tolf lidunum merki.              */
+  const flat = teamFormFlags({ rows, fixtures: mkFix(() => 1), use, range: null });
+  ok("FLOT dreifing (allir eins) faer ENGIN merki, ekki tolf",
+     flat.flags.size === 0, `${flat.flags.size} merki`);
+
+  /* ---- B. URTAKS-GATTIN. Lid 1 spilar ADEINS tvo leiki i glugganum og
+     ma thvi ekki fa merki thott hann se langbestur i theim. Gattin er
+     PROFUD SEM DELTA: sama lid med ThRIDJA leikinn FAER merkid.        */
+  const gate = nInWindow => {
+    const fx = mkFix((t, gw) => (gw >= 5 ? (t <= 2 ? 3 : t >= 11 ? 0 : 1) : 1))
+      .filter(f => !(f.team_h === 1 && f.event >= 5
+                     && f.event < N_GW - nInWindow + 1));
+    return teamFormFlags({ rows, fixtures: fx, use, range: null });
+  };
+  const g2 = gate(2), g3 = gate(3);
+  ok(`forsenda: golfid er ${FORM_MIN_MATCHES} leikir`, FORM_MIN_MATCHES === 3);
+  ok("TVEIR leikir i glugga -> EKKERT merki (urtaks-gattin)",
+     g2.flags.get(1) == null, String(g2.flags.get(1)));
+  ok("ThRIR leikir i glugga -> merkid kviknar (sama lid, sami munur)",
+     g3.flags.get(1) === "hot", String(g3.flags.get(1)));
+
+  /* ---- D. EIN HEIMILD FYRIR BADA HELMINGA. Se urslita-leidin EKKI i
+     takt (`use.results` null) faest ekkert merki — thad er sama gatt og
+     umferdar-valarinn les, og hun er thad sem kemur i veg fyrir ad
+     glugginn se talinn ur einni skra og grunnurinn ur annarri.        */
+  ok("engin per-umferdar urslita-heimild i takt -> ENGIN merki",
+     teamFormFlags({ rows, fixtures, use: { results: null, shots: true } }).flags.size === 0);
+  ok("og rusl-inntak fellur ekki", teamFormFlags().flags.size === 0
+     && teamFormFlags({ rows: null, use: { results: "fixtures" } }).flags.size === 0);
+
+  /* GLUGGI SEM ER ALLT BILID GEFUR ENGA MAELINGU — mismunurinn er null hja
+     ollum med byggingu. Thetta er einmitt astandid i dag (ein umferd
+     spilud) og svarid a ad vera ThOGN, ekki tolf jofn merki.           */
+  const oneGw = teamFormFlags({ rows,
+    fixtures: fixtures.filter(f => f.event === 1), use, range: null });
+  ok("EIN umferd spilud -> glugginn er allt bilid -> ENGIN merki",
+     oneGw.flags.size === 0 && oneGw.window === null);
+
+  /* ---- RAUNGOGNIN VID HLIDINA. I dag er ein umferd spilud, svo merkid er
+     SLOKKT A OLLUM TUTTUGU LIDUM — og thad er RETT utkoma, ekki bilun.
+     Fullyrdingin er thvi um GATTINA sjalfa, ekki um ad tacn birtist.   */
+  {
+    const teamsJ = J("teams.json"), fxJ = J("fixtures.json");
+    const lf = buildLiveTeamForm({ fixtures: fxJ, teams: teamsJ.teams || teamsJ,
+      season: "live" });
+    const liveRows = buildTeamRows({ teams: teamsJ, teamForm: lf, luck: null,
+      teamShots: null });
+    const liveUse = teamRangeUse({ base: liveRows, shotIndex: null, fixtures: fxJ });
+    const played = Math.max(0, ...(lf?.teams || []).map(t => Number(t.matches) || 0));
+    const liveFlags = teamFormFlags({ rows: liveRows, fixtures: fxJ, use: liveUse });
+    /* POSITIVAR FORSENDUR FYRST — an theirra vaeri "engin merki" satt af
+       tomri toflu eda af thvi ad heimildin er ur takti, sem eru ALLT ADRAR
+       astaedur en gattin (CLAUDE.md 5b).                                */
+    ok(`raungogn: ${liveRows.length} lid og urslita-heimildin ER i takt `
+       + `(${liveUse.results}), mest ${played} leikir per lid`,
+       liveRows.length === 20 && !!liveUse.results && played >= 1,
+       `${liveRows.length} / ${liveUse.results} / ${played}`);
+    /* VORDURINN SEFUR I DAG OG SEGIR ThAD — en hann fullyrdir i BADUM
+       astondum, svo "sefur" getur ekki ordid "maelir ekkert" thegjandi.  */
+    if (played >= FORM_MIN_MATCHES + FORM_WINDOW_GW) {
+      const k = liveFlags.sextile;
+      ok(`nog spilad (${played}) -> merkin eru VIRK og bera nakvaemlega `
+         + `sextil i hvorn enda (${k})`,
+         k > 0 && [...liveFlags.flags.values()].filter(v => v === "hot").length >= k
+              && [...liveFlags.flags.values()].filter(v => v === "cold").length >= k,
+         `${liveFlags.flags.size} merki`);
+    } else {
+      ok(`of fatt spilad (${played} < ${FORM_MIN_MATCHES + FORM_WINDOW_GW}) -> merkid er `
+         + `slokkt a ollum ${liveRows.length} lidunum — RETT utkoma, ekki bilun `
+         + `(${liveFlags.flags.size} merki, gluggi ${JSON.stringify(liveFlags.window)})`,
+         liveFlags.flags.size === 0 && liveFlags.window === null);
+    }
+    /* OG HIN ATTIN A RAUNGOGNUM: fyrra timabil (skotakortid) er FULLT
+       timabil, svo thar VERDA merkin ad kvikna. An hennar vaeri "slokkt"
+       satt um bilad fall lika.                                          */
+    const sfR = J("bsd_shots.json");
+    const FxR = Object.fromEntries(sfR.legend.fields.map((f, i) => [f, i]));
+    const btR = new Map(), boR = new Map();
+    const putR = (m, k2, v) => { if (k2 == null) return;
+      const arr = m.get(k2); arr ? arr.push(v) : m.set(k2, [v]); };
+    for (const x of sfR.shots) { putR(btR, x[FxR.team], x); putR(boR, x[FxR.opp], x); }
+    const idxR = { byTeam: btR, byOpp: boR, teams: sfR.legend.teams, fields: FxR };
+    const prevRows = buildTeamRows({ teams: teamsJ, teamForm: J("team_form.json"),
+      luck: J("luck.json"), teamShots: J("team_shots.json"), bsdTeams: J("bsd_teams.json") });
+    const prevUse = teamRangeUse({ base: prevRows, shotIndex: idxR, fixtures: fxJ });
+    const prevFlags = teamFormFlags({ rows: prevRows, shotIndex: idxR, fixtures: fxJ,
+      use: prevUse });
+    ok(`fyrra timabil: skotakortid er i takt (shots=${prevUse.shots}, `
+       + `results=${prevUse.results}) — forsenda`, prevUse.shots === true);
+    const hotN = [...prevFlags.flags.values()].filter(v => v === "hot").length;
+    const coldN = [...prevFlags.flags.values()].filter(v => v === "cold").length;
+    ok(`og ThAR kvikna merkin: ${hotN} eldur / ${coldN} is af ${prevFlags.eligible} `
+       + `gjaldgengum, sextill ${prevFlags.sextile}, gluggi `
+       + `GW ${prevFlags.window?.[0]}-${prevFlags.window?.[1]}`,
+       prevFlags.sextile === Math.floor(prevFlags.eligible / 6)
+       && prevFlags.sextile > 0 && hotN >= prevFlags.sextile && coldN >= prevFlags.sextile
+       && prevFlags.window?.[1] - prevFlags.window?.[0] + 1 === FORM_WINDOW_GW);
+    /* OG ENGINN FAER BADI: mengin tvo mega ekki skarast.                */
+    ok("og ekkert lid ber baedi eld og is", hotN + coldN === prevFlags.flags.size);
+  }
 }
 
 console.log(`\nLIDA-TOLUR: ${pass} stodust, ${fail} fellu`);

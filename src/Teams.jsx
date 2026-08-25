@@ -14,7 +14,8 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import ShotMap from "./ShotMap.jsx";
 import { buildTeamRows, TEAM_STAT_DEFS, TEAM_GROUPS, sortTeamRows, TEAM_STAT_BY_KEY,
          applyTeamRange, teamRangeUse, teamRangeBlind, maxEventOf,
-         TEAM_RANGE_SRC, bsdSeasonInStep, buildLiveTeamForm } from "./teamstats.js";
+         TEAM_RANGE_SRC, bsdSeasonInStep, buildLiveTeamForm,
+         teamFormFlags, FORM_MIN_MATCHES } from "./teamstats.js";
 /* MERKID OG SMELLURINN ERU FLUTT INN, EKKI AFRITUD. `nextRange` stod
    ORDRETT afritad her (thrjar linur) og merkja-ordid "season" var ekki til
    i thessum flipa — thott sami eiginleiki i Player stats hafi bædi haft
@@ -51,7 +52,14 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
      dalkur sem hreyfist ekki var einmitt kaeran (20.8.2026: "i attack
      breytast stats ekki thegar eg filtera gameweeks").                  */
   const [gwRange, setGwRange] = useState(null);       // [fra, til] eda null
-  const [group, setGroup] = useState("keeper");
+  /* SJALFGEFNI FLOKKURINN FYLGIR RODINNI I `TEAM_GROUPS` — hann var
+     "keeper" medan sa flokkur stod fremstur og er "defence" eftir ad
+     rodinni var snuid 25.8.2026 (sja teamstats.js). Hann er skrifadur her
+     og ekki leiddur af `TEAM_GROUPS[0]` af asettu radi: leidrettingin
+     nedar (`groupHasData`) er su sem MA EKKI vera hardkodud, thvi hun
+     raedur hvad notandinn SER; thetta er upphafsstada sem prof mega
+     fullyrda um berum ordum.                                            */
+  const [group, setGroup] = useState("defence");
   /* TIMABILS-VALID (22.8.2026, ad beidni notandans). `season` er "prev" eda
      "live".
 
@@ -71,7 +79,13 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
   const [season, setSeason] = useState("live");
   /* Valid lid fyrir skotakortin. null = ekkert valid.               */
   const [pick, setPick] = useState(null);
-  const [sort, setSort] = useState({ key: "sot_against_pg", dir: "asc" });
+  /* UPPHAFS-RODUNIN VERDUR AD VERA I SJALFGEFNA FLOKKNUM. Hun stod a
+     `sot_against_pg` (markvardar-dalkur) og eftir flokka-snuninginn
+     25.8.2026 var hun a dalki sem er EKKI a skjanum vid opnun — thad var
+     ekki synileg villa (effectinn nedar leidretti hana strax) en thad er
+     ein teikning i osamraemi vid sjalft sig, og "tvo skilyrdi um sama hlut
+     er hvernig thau fara i sundur".                                     */
+  const [sort, setSort] = useState({ key: "conceded_pg", dir: "asc" });
 
   /* YFIRSTANDANDI TIMABIL ER REIKNAD UR `fixtures.json` — engin ny gagnaskra
      (sja `buildLiveTeamForm`). `luck`, `teamShots` og `bsdTeams` eiga OLL
@@ -136,10 +150,15 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
   const gwOn = !!(use.shots || use.results) && maxGw > 0;
 
   /* EKKI LENDA NOTANDANUM A TOMUM FLOKKI (22.8.2026). Sjalfgefni flokkurinn
-     er "What the keeper faces" og hann er skota-drifinn AD OLLU LEYTI, svo
-     smellur a yfirstandandi timabil skiladi TIU dalkum af "—" og skyringu
-     fyrir nedan. Thad er satt en gagnslaust: notandinn bad um ad SJA
-     timabilid, ekki ad sja ad thad se tomt.
+     VAR "What the keeper faces" (nu "GK") og hann er skota-drifinn AD OLLU
+     LEYTI, svo smellur a yfirstandandi timabil skiladi TIU dalkum af "—" og
+     skyringu fyrir nedan. Thad er satt en gagnslaust: notandinn bad um ad
+     SJA timabilid, ekki ad sja ad thad se tomt.
+     25.8.2026 VAR ORSOKIN SJALF LOGUD I STAD ThESS AD LATA PLASTRID DUGA:
+     `TEAM_GROUPS` setti tomasta flokkinn fremstan og hann var thvi baedi
+     sjalfgildid OG thad sem thessi leidretting var alltaf ad hlaupa fra.
+     Vardveitt her thvi hun ver LIKA ondverdu attina (skipt UR lifandi syn
+     i fyrra timabil) og hvern nyjan flokk sem verdur tomur i annarri hvorri.
      FLOKKURINN SEM ER VALINN ER LEIDDUR, EKKI HARDKODADUR: fyrsti flokkur
      sem a a.m.k. einn dalk med tolu i thessari syn. Vaeri hann skrifadur
      ("defence") myndi hann stadna um leid og dalkur faerist milli flokka —
@@ -154,18 +173,21 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
   }, [rows]);
   /* ADEINS VID TIMABILS-SKIPTI, EKKI VID HVERJA TEIKNINGU (lagad strax).
      Fyrsta utgafan leidretti flokkinn i hvert sinn sem hann var tomur, og
-     thad thydir ad notandi sem VELUR "What the keeper faces" i lifandi syn
+     thad thydir ad notandi sem VELUR "GK" i lifandi syn
      er hentur strax til baka i Defence — hann getur ekki skodad flokkinn
      sem hann bad um. Profid fann thad: fullyrding um ad skota-dalkarnir
      seu tomir gat ekki einu sinni OPNAD thann flokk.
      Leidrettingin a heima a SKIPTINNI: thu lendir ekki a tomum flokki, en
      thu maett fara i hann sjalfur.                                       */
   /* `null` OG EKKI `season` — ANNARS KEYRIR LEIDRETTINGIN ALDREI A FYRSTU
-     TEIKNINGU. Um leid og sjalfgildid vard "live" (sama dag) thydir
-     "engin skipti enn" ad flokkurinn er OSNERTUR, og sjalfgefni flokkurinn
-     er skota-drifinn ad ollu leyti — svo notandinn hefdi lent a TOMRI
-     toflu strax vid opnun, sem er nakvaemlega thad sem leidrettingin var
-     smidud til ad afstyra. `null` gerir fyrstu teikninguna ad "skiptum".  */
+     TEIKNINGU. Um leid og sjalfgildid vard "live" (22.8.) thydir "engin
+     skipti enn" ad flokkurinn er OSNERTUR, og tha var sjalfgefni
+     flokkurinn skota-drifinn ad ollu leyti — svo notandinn hefdi lent a
+     TOMRI toflu strax vid opnun. `null` gerir fyrstu teikninguna ad
+     "skiptum". SJALFGILDID ER EKKI LENGUR TOMT (25.8.), en `null` stendur:
+     thad ver hverja framtidar-samsetningu thar sem upphafs-flokkurinn og
+     upphafs-timabilid passa ekki saman, og su samsetning verdur ekki til
+     med thvi ad einhver taki eftir henni.                                */
   const lastSeason = useRef(null);
   useEffect(() => {
     if (lastSeason.current === season) return;       // engin skipti
@@ -199,6 +221,56 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
     return o;
   }, [use]);
   const following = defs.filter(d => !blind[d.key]).length;
+
+  /* ============================================================
+     ELDUR OG IS — SAMHENGI, EKKI TALA (25.8.2026, ad beidni notandans)
+
+     Reikningurinn er ALLUR i `teamstats.js` (`teamFormFlags`) og
+     rokstudningurinn stendur thar: form sem SPA er maelt og fellt thrisvar
+     i thessu repo-i, svo merkid fer HVERGI inn i `fixDifficulty`,
+     `expPointsFor`, `rankScore` ne `csFor`. Thetta er sami samningur og
+     Evropu-stjarnan ber (CLAUDE.md kafli 4) — synt vid hlidina a tolunni,
+     aldrei inni i henni.
+
+     HER ER ADEINS BIRTINGIN, og hun ber tvennt sem ekki ma sleppa:
+     glugginn er NEFNDUR i tooltip-inu (merki an bils er fullyrding sem
+     enginn getur athugad) og tacknin eru VALIN EFTIR SILHUETTU: fyllt
+     dropa-form a moti thunnum geislum. Vid 13 px er thad eina sem lesst
+     (CLAUDE.md 8, ikon-kaflinn) — tveir hringir med smaatridum vaeru sama
+     taknid.
+
+     SVG-IN ERU SKRIFUD HER OG EKKI I `Icons.jsx` af utanadkomandi astaedu:
+     onnur lota a thann skra i somu andra og tvaer lotur i sama vinnutre
+     mega ekki skrifa i somu skra (CLAUDE.md kafli 2). Faerist thau thangad
+     sidar er thad hrein flutningur — thau lesa ekkert ur thessari skra.
+
+     ENGINN TEXTI I HOLFINU. `team-gw.mjs` finnur radir med
+     `textContent.startsWith(short)`, svo emoji a undan skammstofuninni
+     hefdi brotid hverja einustu uppflettingu i thvi safni. `<svg>` ber
+     engan texta og situr auk thess AFTAN vid nafnid.                    */
+  const form = useMemo(
+    () => teamFormFlags({ rows, shotIndex: liveOn ? null : shotIndex,
+                          liveMatches, fixtures, use, range: gwRange }),
+    [rows, shotIndex, liveMatches, fixtures, use, gwRange, liveOn]);
+  const formTitle = kind => {
+    if (!form.window) return "";
+    const [a, b] = form.window, [c, d] = form.baseRange;
+    return (kind === "hot"
+        ? "Hot form. Over GW " : "Poor form. Over GW ")
+      + `${a}–${b} this side's goal difference per match sits in the league's `
+      + (kind === "hot" ? "best " : "worst ")
+      + `sixth measured against its OWN average over GW ${c}–${d} — so it is a `
+      + `statement about a change, not about being good or bad. Both halves are `
+      + `counted from the same source over the same table.`
+      + `\n\nDESCRIPTIVE ONLY. It changes no number anywhere in this app: not `
+      + `fixture difficulty, not expected points, not the buy ranking, not clean-`
+      + `sheet odds. Form as a predictor is measured and rejected here — within a `
+      + `player a goal is followed by regression, and team clean sheets do not run `
+      + `in streaks (lift 0.99).`
+      + `\n\nNo mark is given to a side with fewer than ${FORM_MIN_MATCHES} matches `
+      + `in the window, and the cut is the league's top and bottom sixth rather than `
+      + `a chosen threshold.`;
+  };
 
   /* BESTA OG VERSTA GILDID i hverjum dalki — litud, thvi 20 raedir af
      tveggja aukastafa tolum eru olæsilegar an akkeris. `hi` raedur hvor
@@ -488,35 +560,53 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
         <>
           {/* UMFERDAR-BIL. Hvad hreyfist er LEITT UT (`blind`), aldrei
               upptalid i texta sem stadnar.                              */}
-          {/* TIMABILS-VALID. Tveir hnappar, badir MERKTIR med thvi sem their
-              kosta — "6 matches" a lifandi syninni er ekki skraut heldur
-              adalatridid: hun er eitt-leiks urtak i dag og notandinn a ad
-              sja thad ADUR en hann les toluna, ekki eftir a.            */}
+          {/* TIMABILS-VALID — FELLILISTI FRA 25.8.2026 (ad beidni notandans).
+              Adur voru thetta tveir hnappar. Merkimidarnir eru OBREYTTIR og
+              thad er adalatridid: "10 matches" a lifandi valkostinum er ekki
+              skraut heldur urtaksstaerdin sjalf, og hun a ad sjast ADUR en
+              talan er lesin, ekki eftir a.
+
+              ThRENNT SEM MATTI EKKI TAPAST I SKIPTUNUM:
+              1. `setGwRange(null)` FYLGIR HVERRI BREYTINGU. An thess situr
+                 bil sem var valid i einu timabili ofan a hinu — GW30-38 i
+                 syn sem hefur spilad eina umferd — og dalkarnir yrdu tomir
+                 an thess ad nokkud saegdi hvers vegna.
+              2. `value` KEMUR UR `liveOn`, EKKI UR `season`. Se ekkert
+                 spilad fellur synin i fyrra timabil (`liveForm` er null),
+                 og tha ma valarinn ekki standa a "this season" ofan a
+                 fyrra-timabils tolum — sama regla og red upplysta hnappnum.
+              3. `value` OG `onChange` FYLGJAST AD. Annad an hins gefur
+                 React-vidvorun um ostyrdan reit (`react-warnings.mjs`).
+
+              TOOLTIP-IN TVO LIFA A VALARANUM SJALFUM, EKKI A VALKOSTUNUM:
+              `title` a `<option>` er ekki birt i ollum vofrum, svo thad
+              vaeri texti sem er til i DOM en hvergi a skjanum.          */}
           <div style={S.gwBar}>
             <span style={S.gwToggle}>{"Season"}</span>
-            {/* AUDKENNID FYLGIR ThVI SEM ER A SKJANUM, EKKI ThVI SEM VAR
-                SMELLT: se ekkert spilad fellur synin i fyrra timabil
-                (`liveOn` verdur false) og tha ma "2026/27" ekki standa
-                upplyst ofan a fyrra-timabils tolum.                     */}
-            <button style={{ ...S.gwBox, ...(!liveOn ? S.gwBoxOn : null) }}
-              onClick={() => { setSeason("prev"); setGwRange(null); }}
-              title={"Last season in full — 38 matches per club, and the only season "
-                   + "with shot-map data (xG, xGC, shots on target, big chances)."}>
-              {teamForm?.season || "last season"}
-            </button>
-            <button style={{ ...S.gwBox, ...(liveOn ? S.gwBoxOn : null) }}
-              disabled={!liveForm}
-              onClick={() => { setSeason("live"); setGwRange(null); }}
-              title={liveForm
-                ? `This season so far, built from finished fixtures: `
-                  + `${liveForm.matches_counted} matches played. Results only — `
-                  + `goals, goals conceded and clean sheets. Shots and xG come from `
-                  + `the shot map, which covers ${bsdTeams?.season || "last season"} `
-                  + `only, so those columns are empty here.`
-                : "This season has no finished match yet."}>
-              {liveLabel}
-              {liveForm ? ` · ${liveForm.matches_counted} matches` : " · no matches yet"}
-            </button>
+            <select style={S.seasonSel}
+              value={liveOn ? "live" : "prev"}
+              onChange={e => { setSeason(e.target.value); setGwRange(null); }}
+              aria-label={"Season"}
+              title={`${teamForm?.season || "Last season"}: last season in full — `
+                   + `38 matches per club, and the only season with shot-map data `
+                   + `(xG, xGC, shots on target, big chances).`
+                   + `\n\n${liveLabel}: `
+                   + (liveForm
+                       ? `this season so far, built from finished fixtures: `
+                         + `${liveForm.matches_counted} matches played. Results only — `
+                         + `goals, goals conceded and clean sheets. Shots and xG come `
+                         + `from the shot map, which covers `
+                         + `${bsdTeams?.season || "last season"} only, so those columns `
+                         + `are empty here.`
+                       : `this season has no finished match yet.`)}>
+              <option value="prev">{teamForm?.season || "last season"}</option>
+              {/* SLOKKTUR VALKOSTUR, EKKI HORFINN — "ekkert spilad enn" er
+                  upplysing og hun hverfur ef valkosturinn hverfur.       */}
+              <option value="live" disabled={!liveForm}>
+                {liveLabel}
+                {liveForm ? ` · ${liveForm.matches_counted} matches` : " · no matches yet"}
+              </option>
+            </select>
           </div>
           {liveOn && (
             /* HVAD ER TOMT OG HVERS VEGNA — SAGT EINU SINNI, EKKI EITT
@@ -604,6 +694,12 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
                       {Crest ? <Crest team={r} size={14} /> : null}
                       <span style={S.short}>{r.short}</span>
                       <span style={S.name}>{r.name || ""}</span>
+                      {/* AFTAN VID NAFNID, ALDREI FRAMAN VID SKAMMSTOFUNINA
+                          — sja rokstudninginn vid `form` her ad ofan.    */}
+                      {form.flags.get(r.id)
+                        ? <FormMark kind={form.flags.get(r.id)}
+                                    title={formTitle(form.flags.get(r.id))} />
+                        : null}
                     </td>
                     {defs.map(d => {
                       const v = d.get(r);
@@ -689,10 +785,70 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
           <div style={S.legend}>
             <span style={{ ...S.chip, ...S.best }}>{"best"}</span>
             <span style={{ ...S.chip, ...S.worst }}>{"worst"}</span>
+            {/* TACKNID FAER NAFN A SKJANUM. Litad holf an nafns er thraut en
+                ekki lykill (sama rok og best/worst-flisarnar standa fyrir),
+                og thad gildir enn frekar um tacn sem er ekki texti. Lykillinn
+                birtist ADEINS thegar merkin eru raunverulega a skjanum —
+                annars vaeri hann lykill ad engu.                         */}
+            {form.window && form.flags.size > 0 && (
+              <>
+                <span style={S.legendItem}>
+                  <FormMark kind="hot" title={formTitle("hot")} />
+                  <span style={S.legendTxt}>{"hot form"}</span>
+                </span>
+                <span style={S.legendItem}>
+                  <FormMark kind="cold" title={formTitle("cold")} />
+                  <span style={S.legendTxt}>{"poor form"}</span>
+                </span>
+                <span style={S.legendTxt}>
+                  {`GW ${form.window[0]}–${form.window[1]} against each side's own `}
+                  {`GW ${form.baseRange[0]}–${form.baseRange[1]} average · top and `}
+                  {"bottom sixth · descriptive only, it changes no number here"}
+                </span>
+              </>
+            )}
           </div>
         </>
       )}
     </section>
+  );
+}
+
+/* ============================================================
+   FORM-TACKNIN — TVAER OLIKAR SILHUETTUR, EKKI TVO SKREYTT TACKN
+
+   CLAUDE.md kafli 8: "i smarri staerd er SILHUETTAN allt — tvo ikon sem eru
+   badi hringur med smaatridum verda EINS vid 13 px." Thess vegna er hvort
+   a sinni grunnform-samsetningu: eldurinn er EITT FYLLT FLATARMAL (dropi
+   med oddi upp) og isinn er ThRIR ThUNNIR GEISLAR sem skerast. Fyllt a moti
+   linum les i sundur adur en nokkurt smaatridi gerir thad.
+
+   ENGINN TEXTI, ENGIN EMOJI: `<svg>` ber engan `textContent`, svo radirnar
+   i toflunni haldast laesilegar fyrir prof sem finna thaer eftir texta.
+
+   `aria-hidden` a myndinni og `title` a hylkinu: skjalesari a ad fa
+   SETNINGUNA, ekki "path".                                              */
+function FormMark({ kind, title }) {
+  return (
+    <span style={S.formMark} title={title} role="img"
+          aria-label={kind === "hot" ? "hot form" : "poor form"}>
+      {kind === "hot" ? (
+        <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true" focusable="false">
+          <path fill="#e0562a"
+            d="M4.6 0 C4.9 2.1 6.1 2.9 7 4.1 C7.7 5 8.1 6 8.1 7.1 C8.1 9.3 6.5 11 4.5 11
+               C2.5 11 0.9 9.3 0.9 7.1 C0.9 5.6 1.7 4.6 2.6 3.3 C2.8 4.3 3.2 4.8 3.7 5.2
+               C4.3 3.9 4.7 2 4.6 0 Z" />
+        </svg>
+      ) : (
+        <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true" focusable="false">
+          <g stroke="#2f7bd0" strokeWidth="1.2" strokeLinecap="round">
+            <path d="M5.5 0.7 L5.5 10.3" />
+            <path d="M1.4 3.1 L9.6 7.9" />
+            <path d="M9.6 3.1 L1.4 7.9" />
+          </g>
+        </svg>
+      )}
+    </span>
   );
 }
 
@@ -794,6 +950,19 @@ const S = {
   worst: { background: "#fdecee", color: "#8f2230", fontWeight: 700 },
   legend: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginTop: 10 },
   chip: { fontSize: 10, fontWeight: 700, borderRadius: 4, padding: "1px 6px" },
+  legendItem: { display: "inline-flex", alignItems: "center", gap: 3 },
+  legendTxt: { fontSize: 10, color: C.text3 },
+  /* TACKNID SITUR A GRUNNLINU NAFNSINS OG TEKUR ENGA BREIDD FRA ThVI:
+     `flex: none` svo nafnadalkurinn (frystur, fost breidd) tognist ekki
+     um leid og lid faer merki og hoppi til baka thegar thad missir thad. */
+  formMark: { display: "inline-flex", alignItems: "center", flex: "none",
+    lineHeight: 0, marginLeft: 1 },
+  /* TIMABILS-VALARINN. Sama letur og umferdar-kassarnir (mono) svo
+     tolurnar tvaer lesist eins; `fontSize` er `inherit`-laus af asettu radi
+     — vafra-sjalfgildid a `<select>` er staerra en flipinn ber.          */
+  seasonSel: { border: `1px solid ${C.border}`, background: "#fff", color: C.text,
+    borderRadius: 5, padding: "2px 6px", fontSize: 11, fontFamily: mono,
+    cursor: "pointer", maxWidth: 260 },
   /* `legendTxt`, `srcRow` og `src` voru fjarlaegd med textanum sem thau
      stiludu (16.8.2026). Daudur stil-hlutur er sama aett og `S.vGrp`: hann
      litur ut eins og eitthvad se enn teiknad med honum.                 */

@@ -439,7 +439,18 @@ const readCells = () => {
     if (i < 0) continue;
     const d = LABELS.get(t.slice(0, i));
     if (!d) continue;
-    out.push({ key: d.key, bg: el.style.background || "",
+    /* `backgroundColor`, EKKI `background` — OG ThAD ER MAELING, EKKI SMEKKUR
+       (25.8.2026). Dalka-randirnar sem baettust vid thennan dag eru
+       `backgroundImage` (gradient) svo thaer liggi UNDIR hitakorts-litnum i
+       stad thess ad skipta honum ut. `background` er STYTTING og CSSOM
+       skilar tha BADUM lognum: maelt i jsdom gefur litad+randad holf
+       "linear-gradient(...) rgb(233, 249, 241)", sem stenst ekkert af
+       `GOOD_RGB`/`BAD_RGB`-samanburdunum — HVERT litad holf hefdi talist
+       "annad" og kaflinn hefdi fundid bilun sem er ekki til (nakvaemlega
+       gildran sem hausinn her ad ofan lysir). Langritunin skilar LITNUM
+       EINUM og er thvi threngri maeling, ekki slakari: randin sest ekki og
+       a ekki ad sjast — hun er ekki hitakortstonn.                      */
+    out.push({ key: d.key, bg: el.style.backgroundColor || el.style.background || "",
                txt: (el.textContent || "").trim(),
                missing: /: no data$/.test(t) });
   }
@@ -557,6 +568,84 @@ ok(`ekkert "—"-holf ber bakgrunn (${missColoured})`, missColoured === 0);
     unknown.length === 0, unknown.join(", "));
   const other = [...seen.values()].reduce((s, x) => s + (x.other || 0), 0);
   ok(`...og ekkert holf var flokkad sem 'annad' i talningunni (${other})`, other === 0);
+}
+
+/* ============================================================
+   B5. DALKA-RANDIRNAR — OG AD ThAER TAKI EKKI LITINN MED SER (25.8.2026)
+
+   Beidni notandans: rod med 20+ dalkum er ekki laesileg thvert yfir, svo
+   annar hver dalkur ber orlitinn ton. NAIVA UTFAERSLAN — `background` a
+   holfinu — HEFDI SKIPT HITAKORTS-LITNUM UT a helmingi dalkanna, sem er
+   nakvaemlega thad sem thetta safn er til ad verja. Randin er thvi
+   `backgroundImage` (gradient) og liggur UNDIR litnum.
+
+   ThRJAR FULLYRDINGAR OG ENGIN THEIRRA DUGAR EIN:
+     1. randirnar eru RAUNVERULEGA a skjanum (annars maelir 2 og 3 ekkert)
+     2. holf sem ber BAEDI rond OG hitakortston er til — thad er sonnunin
+        a thvi ad thau LIFI SAMAN, ekki bara ad hvorugt hafi brugdist
+     3. paritetid er ThAD SAMA i haus og i holfum, per dalk — annars
+        faerast randirnar um einn dalk milli threpanna og lesast sem villa
+   Og frosni nafnadalkurinn ber ENGA rond: hann erfir bakgrunn RADARINNAR
+   ("mitt lid" graent, "i samanburdi" fjolublatt), sem er MERKING.
+   ============================================================ */
+{
+  const PL = await import(new URL("src/PlayerList.jsx", REPO).href);
+  const STRIPE = PL.STRIPE_BG;
+  /* CSSOM NORMALISERAR: jsdom (og vafrar) skila `rgba(0, 0, 0, 0.022)` thar
+     sem kodinn skrifadi `rgba(0,0,0,.022)` — bil BAETAST vid og `0` er sett
+     framan a aukastafinn. Ber samanburdur a strengjunum var thvi ALLTAF
+     osannur og fyrsta utgafa thessa kafla maeldi "0 randir" a skja sem var
+     fullur af theim. Sama aett og `#e9f9f1`-samanburdurinn i hausnum her ad
+     ofan (maelitaekid var villan). Bædi bil og forskeytis-null eru felld. */
+  const norm = v => String(v || "").replace(/\s+/g, "").replace(/(^|[^\d.])0\./g, "$1.");
+  const isStriped = el => norm(el.style.backgroundImage) === norm(STRIPE);
+
+  const heads = [...document.querySelectorAll("[aria-sort]")];
+  const stripedHeads = heads.filter(isStriped);
+  ok(`forsenda: haus-holf eru a skjanum (${heads.length})`, heads.length > 5);
+  ok(`randir eru a skjanum: ${stripedHeads.length} af ${heads.length} haus-holfum`,
+     stripedHeads.length > 0 && stripedHeads.length < heads.length,
+     "— hvorki engin rond ne rond a ollu (thad vaeri ekki rond heldur bakgrunnur)");
+
+  /* Nafnadalkurinn: frosinn, `background:inherit`, ma ALDREI fa rond.   */
+  const nameHead = heads.find(h => /Player/.test(h.textContent || ""));
+  ok("frosni nafna-hausinn ber ENGA rond", !!nameHead && !isStriped(nameHead));
+  const nameCells = [...document.querySelectorAll("div")]
+    .filter(el => el.style.position === "sticky" && el.style.left === "0px");
+  ok(`forsenda: frosin holf eru i DOM (${nameCells.length})`, nameCells.length > 0);
+  ok("...og ekkert theirra ber rond", nameCells.every(el => !isStriped(el)));
+
+  /* SAMSETNINGIN — randin OFAN A litnum, ekki i stad hans.              */
+  const bodyCells = [...document.querySelectorAll("div[title]")]
+    .filter(el => /: /.test(el.getAttribute("title") || ""));
+  const both = bodyCells.filter(el => isStriped(el) && el.style.backgroundColor);
+  const colourOnly = bodyCells.filter(el => !isStriped(el) && el.style.backgroundColor);
+  ok(`forsenda: litud holf eru a skjanum (${both.length + colourOnly.length})`,
+     both.length + colourOnly.length > 10);
+  ok(`${both.length} holf bera BAEDI rond og hitakortston — randin skiptir litnum ekki ut`,
+     both.length > 0,
+     "— randin liggur ofan a litnum; se hun `background` hverfur liturinn");
+
+  /* PARITETID: haus og holf lesa SAMA visi i `visibleCols`.             */
+  {
+    const key = h => (h.textContent || "").replace(/[↑↓▼]|season/g, "").trim();
+    const headStripe = new Map();
+    for (const h of heads) if (!/Player/.test(h.textContent || "")) headStripe.set(key(h), isStriped(h));
+    ok(`forsenda: ${headStripe.size} dalka-hausar med heiti`, headStripe.size > 4);
+    /* Holfin bera `title` "<label>: ...", svo dalkurinn er thekktur af
+       skranni og borinn saman vid `short` i hausnum.                    */
+    const mism = [];
+    for (const el of bodyCells) {
+      const t = el.getAttribute("title") || "";
+      const d = LABELS.get(t.slice(0, t.indexOf(": ")));
+      if (!d) continue;
+      const sh = String(d.short ?? d.label);
+      if (!headStripe.has(sh)) continue;
+      if (headStripe.get(sh) !== isStriped(el)) mism.push(`${d.key}: haus ${headStripe.get(sh)} vs holf ${isStriped(el)}`);
+    }
+    ok(`randirnar standa i takti milli hauss og holfa (${mism.length} osamraemi)`,
+       mism.length === 0, mism.slice(0, 3).join(" · "));
+  }
 }
 
 console.log(`\nHITAKORTID: ${pass} stodust, ${fail} fellu`);

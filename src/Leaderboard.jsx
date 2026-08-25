@@ -44,6 +44,8 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
   const [search, setSearch] = useState("");
   const [limitRate, setLimitRate] = useState(true);  // beita minutu-thaki a hlutfallstolur
   const [onlyAvail, setOnlyAvail] = useState(false);
+  /* Hvada tolu-kassi er opinn i staerri glugga (`null` = enginn). */
+  const [more, setMore] = useState(null);
 
   /* Minutu-thakid er HLUTFALL af mestu spiludu minutum, ekki fost tala —
      svo það virki eins i GW3 og GW38 an handstillingar. 25% valid: i
@@ -164,9 +166,27 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
         {groupStats.map(def => (
           <MiniBoard key={def.key} def={def} players={rows} pos={pos} teamId={teamId}
             search={search} minMin={minMin} onlyAvail={onlyAvail}
-            teamById={teamById} Crest={Crest} onPickPlayer={onPickPlayer} />
+            teamById={teamById} Crest={Crest} onPickPlayer={onPickPlayer}
+            onExpand={() => setMore(def)} />
         ))}
       </div>
+
+      {/* STAERRI LISTINN — SAMA VEL, BARA HAERRA THAK.
+          Notandinn: „eg vill geta smellt a kassa i leaderboard og sed tha
+          fleiri en topp 5 i popup boxi."
+          Glugginn kallar `buildLeaderboard` med NAKVAEMLEGA somu siur og
+          kassinn (stada, lid, leit, minutugolf, tiltaekileiki) og adeins
+          ODRU `limit`. Ad endurreikna rodina her — eda sia hana odruvisi —
+          vaeri onnur utfaersla af somu staerd, og tha gaeti kassinn og
+          glugginn sagt sitthvad um sama leikmann (CLAUDE.md 7:
+          `buildTeamMetrics` skrifadi NaN a 17 lid af nakvaemlega theirri
+          astaedu). Ein vel, tvo thok.                                    */}
+      {more && (
+        <ExpandedBoard def={more} players={rows} pos={pos} teamId={teamId}
+          search={search} minMin={minMin} onlyAvail={onlyAvail}
+          teamById={teamById} Crest={Crest} onPickPlayer={onPickPlayer}
+          onClose={() => setMore(null)} />
+      )}
 
       <div style={S.legend}>
         {"Rate figures (/90, %) obey the minutes floor; totals do not."}
@@ -177,7 +197,7 @@ export default function Leaderboard({ players, teams, teamById, Crest, onPickPla
 }
 
 /* ---- Top-5 kassi fyrir eina tolu ---- */
-function MiniBoard({ def, players, pos, teamId, search, minMin, onlyAvail, teamById, Crest, onPickPlayer }) {
+function MiniBoard({ def, players, pos, teamId, search, minMin, onlyAvail, teamById, Crest, onPickPlayer, onExpand }) {
   const { rows, total, skipped, incoherent } = useMemo(() => buildLeaderboard({
     players, statKey: def.key, pos, teamId, search, minMinutes: minMin,
     onlyAvailable: onlyAvail, limit: 5,
@@ -185,7 +205,8 @@ function MiniBoard({ def, players, pos, teamId, search, minMin, onlyAvail, teamB
 
   return (
     <div style={S.mini}>
-      <div style={S.miniHead} title={def.note || ""}>
+      <button style={S.miniHead} onClick={onExpand}
+        title={`${def.note || ""}${def.note ? " — " : ""}Click to see the full list`}>
         <span style={S.miniTitle}>
           {/* †-MERKID VAR TEKID UT 8.8.2026 ad beidni notandans, og thad
               var gert i BADUM toflum: hefdi thad lifad her einni hefdi
@@ -195,7 +216,7 @@ function MiniBoard({ def, players, pos, teamId, search, minMin, onlyAvail, teamB
           {def.label}
         </span>
         <span style={S.miniMore}>{def.hi ? "highest" : "lowest"}</span>
-      </div>
+      </button>
       {!rows.length ? (
         <div style={S.miniEmpty}>{"No numbers"}</div>
       ) : rows.map(r => {
@@ -252,6 +273,81 @@ const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
    svo syntax-tekk er ekki nog eftir ad blokkir eru fluttar milli skraa.
    Thad sem sa thad var appid i vafra og tests/data-resilience.mjs, sem
    opnar hvern flipa og krefst thess ad hann birti eitthvad marktaekt.   */
+/* ============================================================
+   STAERRI LISTINN — SAMA VEL, ODRU ThAKI (25.8.2026)
+
+   Notandinn: „eg vill geta smellt a kassa i leaderboard og sed tha fleiri
+   en topp 5 i popup boxi."
+
+   ThAKID ER EINA BREYTAN. `buildLeaderboard` faer nakvaemlega somu siur og
+   kassinn — stodu, lid, leit, minutugolf og tiltaekileika — og adeins
+   annad `limit`. Ad sia eda rada her vaeri onnur utfaersla af somu staerd
+   og tha gaeti kassinn sagt eitt og glugginn annad um sama leikmann
+   (CLAUDE.md 7). Ein vel, tvo thok.
+
+   LOKUNAR-HNAPPURINN HEITIR „Close", EKKI „✕". Tvo eins ✕-takn i DOM eru
+   skjolud gildra i thessu repo-i: `smoke.test.mjs` lokar leikmannaspjaldi
+   med SIDASTA ✕ i skjalinu (`.at(-1)`), svo nytt ✕ annars stadar gaeti
+   latid thad prof eyda sinum eigin gognum. Ord er lika skyrara.       */
+const EXPAND_LIMIT = 25;
+
+function ExpandedBoard({ def, players, pos, teamId, search, minMin, onlyAvail,
+                         teamById, Crest, onPickPlayer, onClose }) {
+  const { rows, total, skipped, incoherent } = useMemo(() => buildLeaderboard({
+    players, statKey: def.key, pos, teamId, search, minMinutes: minMin,
+    onlyAvailable: onlyAvail, limit: EXPAND_LIMIT,
+  }), [players, def.key, pos, teamId, search, minMin, onlyAvail]);
+
+  return (
+    <div style={S.backdrop} onClick={onClose}>
+      <div style={S.modal} onClick={e => e.stopPropagation()}>
+        <div style={S.modalHead}>
+          <div>
+            <div style={S.modalTitle}>{def.label}</div>
+            <div style={S.modalSub}>
+              {def.hi ? "Highest first" : "Lowest first"}
+              {total > rows.length
+                ? ` · showing ${rows.length} of ${total}`
+                : ` · all ${total}`}
+            </div>
+          </div>
+          <button style={S.modalClose} onClick={onClose}>{"Close"}</button>
+        </div>
+        {def.note && <div style={S.modalNote}>{def.note}</div>}
+        {!rows.length ? (
+          <div style={S.miniEmpty}>{"No numbers"}</div>
+        ) : (
+          <div style={S.modalRows}>
+            {rows.map(r => {
+              const t = teamById?.[r.p.team];
+              return (
+                <button key={r.p.id} style={S.miniRow}
+                  onClick={() => { onClose(); onPickPlayer && onPickPlayer(r.p.id); }}>
+                  <span style={S.miniRank}>{r.rank}</span>
+                  {Crest && t ? <Crest team={t} size={13} /> : null}
+                  <span style={S.miniName}>{r.p.web_name}</span>
+                  <span style={{ ...S.miniPos, color: POS_COLOR[r.p.element_type] }}>
+                    {POS_LABEL[r.p.element_type]}
+                  </span>
+                  <span style={S.miniVal}>{fmtStat(def, r.v)}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {skipped > 0 && (
+          <div style={S.miniNote}>{skipped} {"below the minutes floor"}</div>
+        )}
+        {incoherent > 0 && (
+          <div style={{ ...S.miniNote, color:"#c98a00" }}>
+            {incoherent} {"impossible"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const S = {
   card:{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:14, marginBottom:12 },
   head:{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, flexWrap:"wrap", marginBottom:8 },
@@ -291,6 +387,22 @@ const S = {
   miniVal:{ fontSize:11.5, fontWeight:700, color:C.text, fontFamily:mono, whiteSpace:"nowrap" },
   miniEmpty:{ fontSize:11, color:C.text3, padding:"3px 2px" },
   miniNote:{ fontSize:9.5, color:C.text3, padding:"3px 2px 0" },
+  /* ---- Staerri listinn (ExpandedBoard) ---- */
+  backdrop:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.42)", zIndex:60,
+             display:"flex", alignItems:"center", justifyContent:"center", padding:14 },
+  modal:{ background:C.card, borderRadius:10, border:`1px solid ${C.border}`,
+          width:"min(420px, 100%)", maxHeight:"82vh", overflowY:"auto", padding:12,
+          boxShadow:"0 8px 30px rgba(0,0,0,0.24)" },
+  modalHead:{ display:"flex", alignItems:"flex-start", justifyContent:"space-between",
+              gap:10, marginBottom:6 },
+  modalTitle:{ fontSize:14, fontWeight:800, color:C.text },
+  modalSub:{ fontSize:10.5, color:C.text3, marginTop:1 },
+  modalClose:{ fontSize:11, fontWeight:700, color:C.text2, background:C.cardAlt,
+               border:`1px solid ${C.border}`, borderRadius:6, padding:"4px 9px",
+               cursor:"pointer", whiteSpace:"nowrap" },
+  modalNote:{ fontSize:10, color:C.text3, lineHeight:1.35, margin:"0 0 8px",
+              paddingBottom:8, borderBottom:`1px solid ${C.border}` },
+  modalRows:{ display:"flex", flexDirection:"column", gap:1 },
 
 
   legend:{ fontSize:10.5, color:C.text3, marginTop:10, paddingTop:8,

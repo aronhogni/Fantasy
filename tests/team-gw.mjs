@@ -21,7 +21,16 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
-import { TEAM_STAT_BY_KEY } from "../src/teamstats.js";
+import { TEAM_STAT_BY_KEY, TEAM_GROUPS } from "../src/teamstats.js";
+/* HEITIN A FLOKKA-HNOPPUNUM ERU LESIN UR SKRANNI, EKKI SLEGIN INN. Their
+   stodu hardkodadir ("What the keeper faces") a fjorum stodum her og
+   brotnudu allir i einu thegar heitid var stytt i "GK" 25.8.2026 — og thad
+   sem verra var: `find` skilar `undefined` an thess ad kasta, svo `if (gk)`
+   -kaflarnir hefdu ThAGNAD i stad thess ad falla (CLAUDE.md 5b).
+   Vidmotid les SOMU skra, svo prof og skjar geta ekki farid i sundur;
+   ORDALAGID er ekki thad sem thessi kafli ver, heldur HEGDUNIN.        */
+const GROUP_LABEL = k => TEAM_GROUPS.find(g => g.key === k)?.label;
+const GK_GROUP = GROUP_LABEL("keeper");
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
@@ -195,10 +204,30 @@ const boxes = () => [...document.querySelectorAll("[aria-label='Select gameweeks
    rok gilda her: "2025/26" og "2026/27 · 6 matches" ureldast baedi i agust,
    og hnappur sem finnst ekki gefur `undefined` sem hver "breyttist"-
    fullyrding er sonn um (CLAUDE.md 5b).                                  */
-const seasonBtns = () => {
-  const lab = [...document.querySelectorAll("span")]
+/* VALARINN VARD AD FELLILISTA 25.8.2026, svo hjalparfallid finnur `<select>`
+   i stad tveggja hnappa. AKKERID ER ThAD SAMA og af somu astaedu: "Season"-
+   merkimidinn, aldrei timabils-talan.                                     */
+const seasonSel = (host = document) => {
+  const lab = [...host.querySelectorAll("span")]
     .find(s => s.textContent.trim() === "Season");
-  return lab ? [...lab.parentElement.querySelectorAll("button")] : [];
+  return lab ? lab.parentElement.querySelector("select") : null;
+};
+const seasonOpts = (host = document) =>
+  [...(seasonSel(host)?.options || [])];
+/* SKIPT UM TIMABIL. `<select>` er STYRDUR REITUR — ad setja `.value` eitt
+   og ser er hunsad af React vid naestu teikningu, svo `change`-atburdurinn
+   VERDUR ad fylgja. Skilar `false` thegar valarinn finnst ekki, og hver
+   kallandi FULLYRDIR um thad: "smellti ekki" ma aldrei lesast eins og
+   "breyttist ekki" (CLAUDE.md 5b).                                        */
+const pickSeason = async (v, host = document) => {
+  const sel = seasonSel(host);
+  if (!sel) return false;
+  await act(async () => {
+    sel.value = v;
+    sel.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  await act(async () => { await new Promise(r => setTimeout(r, 120)); });
+  return true;
 };
 
 console.log("\n1) valarinn er ALLTAF synilegur — ekki falinn bak vid takka");
@@ -220,30 +249,43 @@ console.log("\n1) valarinn er ALLTAF synilegur — ekki falinn bak vid takka");
 const realMaxEvent = Math.max(...realFix.map(f => f.event || 0));
 ok(`FORSENDA: tilbuna dagatalid spannar somu umferdir og raunskrain `
    + `(${MAX_EVENT} af ${realMaxEvent})`, MAX_EVENT === realMaxEvent && MAX_EVENT > 3);
-const sb = seasonBtns();
-ok(`FORSENDA: timabils-hnapparnir tveir finnast (${sb.length})`, sb.length === 2);
+const sb = seasonOpts();
+ok(`FORSENDA: timabils-valarinn er FELLILISTI med tveimur valkostum (${sb.length})`,
+   !!seasonSel() && sb.length === 2, sb.map(o => o.textContent.trim()).join(" | "));
 /* SJALFGEFID ER YFIRSTANDANDI TIMABIL (22.8.) — TVAER OHADAR FULLYRDINGAR.
 
    1. HEGDUN: skyringar-linan "This season so far …" er teiknud ADEINS
       thegar `liveOn` er satt. Hun er ekki still og getur ekki verid sonn
       um ranga syn.
-   2. AUDKENNID: hnappurinn sem er upplystur er sa sem ber ANNAN bakgrunn
-      en `S.gwBox`. VIDMIDID ER LESID AF SKJANUM — oval umferdarkassi ber
-      nakvaemlega thann stil — svo engin litatala er hardkodud.
+   2. AUDKENNID: `value` a fellilistanum. ThAD ER STYRT AF `liveOn` — ThVI
+      SEM ER A SKJANUM — en ekki af hraa `season`-astandinu, svo syn sem
+      fellur til baka i fyrra timabil (ekkert spilad) getur ekki stadid
+      merkt "this season". Fyrri utgafan las bakgrunnslit hnappanna
+      tveggja; fellilisti hefur engan slikan lit og `value` er beinni
+      maeling a somu spurningu.
 
-   FYRSTA UTGAFAN VAR TOM FULLYRDING OG STOKKBREYTING SANNADI ThAD: hun
-   sagdi adeins "bakgrunnar hnappanna tveggja eru olikir", sem er JAFN
-   SATT thegar HINN hnappurinn er upplystur. Med sjalfgildinu snuid aftur
-   i "prev" stodst hun. Munur an attar er enginn munur.                 */
+   ThRIDJA FULLYRDINGIN ER NY OG HUN VER ThAD SEM AUDVELDAST VAR AD TAPA I
+   SKIPTUNUM: merkimidi lifandi valkostsins ber LEIKJAFJOLDANN. Urtaks-
+   staerd sem hverfur ur merkimidanum er urtaksstaerd sem er falin.      */
 if (sb.length === 2) {
-  const plain = boxes()[0]?.style.background || "";
-  ok(`FORSENDA: oval umferdarkassi gefur vidmids-bakgrunninn (${plain || "ENGINN"})`,
-     !!plain);
-  ok(`sjalfgefid er YFIRSTANDANDI timabil og ThAD er upplysti hnappurinn `
-     + `(lifandi ${sb[1].style.background} · fyrra ${sb[0].style.background} · oval ${plain})`,
-     sb[1].style.background !== plain && sb[0].style.background === plain);
+  ok(`sjalfgefid er YFIRSTANDANDI timabil og ThAD er valid gildi valarans `
+     + `(value=${JSON.stringify(seasonSel().value)})`,
+     seasonSel().value === "live");
   ok("og skyringar-linan um yfirstandandi timabil er a skjanum",
      /This season so far: \d+ matches played/.test(document.body.textContent || ""));
+  ok(`lifandi valkosturinn ber LEIKJAFJOLDANN (${JSON.stringify(sb[1].textContent.trim())})`,
+     /\d+ matches/.test(sb[1].textContent || ""));
+  /* `value` OG `onChange` VERDA AD FYLGJAST AD — annars kvartar React um
+     ostyrdan reit og valid festist. Profad a HEGDUNINNI: skiptum yfir og
+     til baka, og krefjumst thess ad valarinn fylgi i badar attir.       */
+  ok("FORSENDA: skipt yfir i fyrra timabil", await pickSeason("prev"));
+  ok(`valarinn fylgir skiptunum (value=${JSON.stringify(seasonSel().value)})`,
+     seasonSel().value === "prev"
+     && !/This season so far: \d+ matches played/.test(document.body.textContent || ""));
+  ok("FORSENDA: og til baka", await pickSeason("live"));
+  ok(`valarinn fylgir i BADAR attir (value=${JSON.stringify(seasonSel().value)})`,
+     seasonSel().value === "live"
+     && /This season so far: \d+ matches played/.test(document.body.textContent || ""));
 }
 
 const gwLabels = () => boxes().map(b => b.textContent.trim()).join(",");
@@ -267,7 +309,7 @@ await checkBar("yfirstandandi timabil");
    8. Ad keyra 2-4 i lifandi syn vaeri ad spyrja um bil sem er slokkt og fa
    "breyttist ekki" sem er RETT svar og engin maeling.                  */
 if (sb.length === 2) {
-  await act(async () => { sb[0].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+  ok("FORSENDA: fyrra timabil valid i fellilistanum", await pickSeason("prev"));
   await checkBar("fyrra timabil");
 }
 
@@ -888,8 +930,8 @@ console.log("\n6) HVER DALKUR BER SINA SKYRINGU I HAUSNUM");
      mengi. Markvardar-flokkurinn er lika sa eini sem ber ALLAR THRJAR
      heimildirnar (E0, ESPN, BSD) og sertilfellid um langskotin.        */
   const gk = [...document.querySelectorAll("button")]
-    .find(b => b.textContent.trim() === "What the keeper faces");
-  ok("markvardar-flokkurinn finnst", !!gk);
+    .find(b => b.textContent.trim() === GK_GROUP);
+  ok(`markvardar-flokkurinn finnst (${JSON.stringify(GK_GROUP)})`, !!gk);
   if (gk) await act(async () => { gk.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
   await act(async () => { await new Promise(r => setTimeout(r, 80)); });
 
@@ -1101,12 +1143,8 @@ console.log("\n7) TIMABILS-MISVISIRINN — tolur horfnar OG skyringin a skjanum"
          thvi hun ber saman tvo tom svor. Spurningin i thessum kafla er um
          SKOTAKORTID, sem er 2025/26 eitt, og hun er thvi spurd i theirri
          syn sem kortid a heima i. Kafli 8 spyr um lifandi synina.      */
-      const seasonLab = [...v.host.querySelectorAll("span")]
-        .find(s => s.textContent.trim() === "Season");
-      const prevB = seasonLab?.parentElement.querySelector("button");
-      if (prevB) await act(async () => {
-        prevB.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
-      });
+      ok("forsenda: fyrra timabil valid i fellilistanum (7c)",
+         await pickSeason("prev", v.host));
       const cell = [...v.host.querySelectorAll("tbody td")]
         .find(td => /ARS|AVL|LIV/.test(td.textContent));
       if (cell) await act(async () => {
@@ -1208,16 +1246,19 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
       b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
     await act(async () => { await new Promise(r => setTimeout(r, 120)); }); };
 
-  const prevBtn = btns().find(b => /^\d{4}-\d{2}$/.test((b.textContent || "").trim()));
-  const liveBtn = btns().find(b => /2026\/27/.test(b.textContent || ""));
-  ok(`badir timabils-hnappar a skjanum `
-     + `(${JSON.stringify(prevBtn?.textContent)} / ${JSON.stringify(liveBtn?.textContent)})`,
-     !!prevBtn && !!liveBtn);
-  /* MERKIMIDINN BER KOSTNADINN. "6 matches" er ekki skraut: lifandi synin er
+  /* VALARINN ER FELLILISTI FRA 25.8.2026. Valkostirnir eru fundnir eftir
+     GILDI (`prev`/`live`), ekki eftir timabils-tolu — sama regla og adur:
+     "2025-26" og "2026/27 · 10 matches" ureldast badir i agust.         */
+  const optOf = v => seasonOpts(host).find(o => o.value === v);
+  const prevOpt = optOf("prev"), liveOpt = optOf("live");
+  ok(`badir timabils-valkostir a skjanum `
+     + `(${JSON.stringify(prevOpt?.textContent)} / ${JSON.stringify(liveOpt?.textContent)})`,
+     !!prevOpt && !!liveOpt);
+  /* MERKIMIDINN BER KOSTNADINN. "10 matches" er ekki skraut: lifandi synin er
      eitt-leiks urtak i dag og notandinn a ad sja thad ADUR en hann les
-     toluna.                                                              */
-  ok(`lifandi hnappurinn ber LEIKJAFJOLDANN: ${JSON.stringify(liveBtn?.textContent)}`,
-     /\d+ matches/.test(liveBtn?.textContent || ""));
+     toluna. ThETTA MATTI EKKI TAPAST I SKIPTUNUM UR HNOPPUM I FELLILISTA. */
+  ok(`lifandi valkosturinn ber LEIKJAFJOLDANN: ${JSON.stringify(liveOpt?.textContent)}`,
+     /\d+ matches/.test(liveOpt?.textContent || ""));
 
   /* SJALFGEFNA SYNIN ER YFIRSTANDANDI TIMABIL (22.8.2026, ad beidni:
      "eg vill hafa nyjasta timabilid auto valid allstadar"). ThAD ER
@@ -1235,15 +1276,15 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
      og skota-flokkurinn med, thvi vals-leidrettingin faerir mann UT UR
      honum vid opnun (hann er tomur i lifandi syn), svo "Shots" er ekki
      endilega i hausnum thegar hingad er komid.                          */
-  await click(prevBtn);
-  const keepBtn0 = btns().find(b => /keeper faces/.test(b.textContent || ""));
+  ok("forsenda: fyrra timabil valid (kafli 8)", await pickSeason("prev", host));
+  const keepBtn0 = btns().find(b => (b.textContent || "").trim() === GK_GROUP);
   ok(`forsenda: skota-flokks hnappurinn finnst vid opnun`, !!keepBtn0);
   if (keepBtn0) await click(keepBtn0);
   const prevShots = cell("ARS", "Shots");
   ok(`forsenda: fyrra timabil ber skot-tolu (ARS ${prevShots})`,
      !!prevShots && prevShots !== "—");
 
-  await click(liveBtn);
+  ok("forsenda: yfirstandandi timabil valid (kafli 8)", await pickSeason("live", host));
 
   /* 3 — EKKI TOMUR FLOKKUR. Vid erum nu i flokki sem BER tolur.          */
   const shown = heads().slice(1);
@@ -1270,7 +1311,7 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
      `shots_pg: 0` i lifandi rodina SLAPP i gegn medan adeins xGC var
      fullyrt: xGC kemur ur BSD og var afram tomt, svo fullyrdingin sa
      ekkert. Vid profum thvi BADAR heimildirnar, ekki adra.              */
-  const shotGroupBtn = btns().find(b => b.textContent.trim() === "What the keeper faces");
+  const shotGroupBtn = btns().find(b => b.textContent.trim() === GK_GROUP);
   if (shotGroupBtn) {
     await click(shotGroupBtn);
     const r = (rowOf("ARS") || []).slice(1);
@@ -1287,7 +1328,7 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
   ok("engin NaN/undefined a skjanum", !/\bNaN\b|\bundefined\b/.test(body()));
 
   /* AFTUR TIL BAKA: fyrra timabil ma ekki hafa breyst.                   */
-  await click(prevBtn);
+  ok("forsenda: aftur i fyrra timabil (kafli 8)", await pickSeason("prev", host));
   /* AFTUR I VARNAR-FLOKKINN FYRST. Kaflinn hoppadi i skota-flokkinn hér
      ofar til ad sanna ad hann se tomur, og "Matches" er ekki i honum — an
      thessa maeldi lokafullyrdingin `undefined` og var raud af rangri
@@ -1299,13 +1340,239 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
      cell("ARS", "Matches") === "38");
   /* OG SKOTIN ERU KOMIN AFTUR — annars gaeti "38" thytt ad synin haefi
      einfaldlega frosid i sidasta astandi.                               */
-  const keepBtn2 = btns().find(b => /keeper faces/.test(b.textContent || ""));
-  ok(`forsenda: skota-flokks hnappurinn finnst (${btns().filter(b => /keeper|Defence|Attack/.test(b.textContent || "")).map(b => JSON.stringify(b.textContent.trim())).join(",")})`,
+  const keepBtn2 = btns().find(b => (b.textContent || "").trim() === GK_GROUP);
+  ok(`forsenda: skota-flokks hnappurinn finnst (${btns().filter(b => TEAM_GROUPS.some(g => g.label === (b.textContent || "").trim())).map(b => JSON.stringify(b.textContent.trim())).join(",")})`,
      !!keepBtn2);
   if (keepBtn2) { await click(keepBtn2);
     ok(`og skota-tolurnar eru komnar aftur (ARS ${cell("ARS", "Shots")}, `
        + `hausar: ${heads().slice(1, 4).join(",")})`,
        cell("ARS", "Shots") === prevShots); }
+}
+
+/* ============================================================
+   8b) TIMABILS-SKIPTI HREINSA UMFERDAR-BILID (25.8.2026)
+
+   `setGwRange(null)` fylgdi badum gomlu hnoppunum og matti ekki tapast
+   thegar their urdu ad fellilista. An thess situr bil sem var valid i EINU
+   timabili ofan a hinu: GW30-38 i syn sem hefur spilad eina umferd gefur
+   "—" i hverjum einasta dalki, og EKKERT a skjanum segir hvers vegna —
+   thad les eins og "engin gogn" thegar thad thydir "thu ert ad skoda
+   umferdir sem eru ekki komnar".
+
+   8c) OG VALARINN SEGIR ThAD SEM ER A SKJANUM, EKKI ThAD SEM VAR VALID.
+   `value` er styrt af `liveOn`, ekki af hraa `season`-astandinu. Se ekkert
+   spilad fellur synin i fyrra timabil af sjalfu ser, og tha ma valarinn
+   ekki standa merktur "this season" ofan a fyrra-timabils tolum — sama
+   regla og red upplysta hnappnum adur.
+   ============================================================ */
+console.log("\n8b) TIMABILS-SKIPTI HREINSA BILID — og valarinn ber ThAD SEM ER A SKJANUM");
+{
+  const { default: Teams } = await import("../src/Teams.jsx");
+  const sfB = J("bsd_shots.json");
+  const FB = Object.fromEntries(sfB.legend.fields.map((f, i) => [f, i]));
+  const btB = new Map(), boB = new Map();
+  const putB = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+  for (const x of sfB.shots) { putB(btB, x[FB.team], x); putB(boB, x[FB.opp], x); }
+  const idxB = { byTeam: btB, byOpp: boB, teams: sfB.legend.teams, fields: FB, calib: sfB.calib };
+  const mount = async props => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const r = createRoot(host);
+    await act(async () => { r.render(React.createElement(Teams, props)); });
+    await act(async () => { await new Promise(x => setTimeout(x, 140)); });
+    return { host, r, done: async () => { await act(async () => { r.unmount(); }); host.remove(); } };
+  };
+  const base = { teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
+    teamShots: J("team_shots.json"), bsdTeams: J("bsd_teams.json"),
+    seasonLabel: "this season", Crest: () => null };
+
+  const v = await mount({ ...base, fixtures: realFix, shotIndex: idxB });
+  ok("forsenda: fyrra timabil valid", await pickSeason("prev", v.host));
+  const bx = () => [...v.host.querySelectorAll("[aria-label='Select gameweeks'] button")];
+  ok(`forsenda: umferdar-kassarnir eru virkir i fyrra timabili (${bx().length})`,
+     bx().length >= 38 && bx().every(b => !b.disabled));
+  const clickBox = async i => { await act(async () => {
+      bx()[i].dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await new Promise(x => setTimeout(x, 80)); }); };
+  await clickBox(29); await clickBox(37);
+  ok("forsenda: bil GW 30-38 er valid", /GW\s*30[–-]38/.test(v.host.textContent || ""),
+     (v.host.textContent || "").match(/GW\s*\d+[–-]\d+/)?.[0] || "ENGIN");
+  ok("forsenda: skipt yfir i yfirstandandi timabil", await pickSeason("live", v.host));
+  ok("TIMABILS-SKIPTI HREINSA BILID — hausinn segir aftur 'full season'",
+     /teams · full season/.test(v.host.textContent || "")
+     && !/GW\s*30[–-]38/.test(v.host.textContent || ""),
+     (v.host.textContent || "").match(/teams · [^\n]{0,20}/)?.[0] || "ENGIN");
+  await v.done();
+
+  /* 8c — ENGINN LOKINN LEIKUR: `liveForm` er null, svo synin FELLUR i fyrra
+     timabil thott sjalfgildid heiti "live". Valarinn verdur ad segja ThAD. */
+  const noResults = realFix.map(f => ({ ...f, finished: false, finished_provisional: false,
+    started: false, team_h_score: null, team_a_score: null }));
+  const w = await mount({ ...base, fixtures: noResults, shotIndex: idxB });
+  ok(`forsenda: byggt astand — 0 loknir leikir af ${noResults.length}`,
+     noResults.every(f => !f.finished && !f.finished_provisional));
+  const selW = seasonSel(w.host);
+  ok(`valarinn stendur a FYRRA timabili thott sjalfgildid heiti "live" `
+     + `(value=${JSON.stringify(selW?.value)})`, !!selW && selW.value === "prev");
+  ok("og lifandi valkosturinn er SLOKKTUR med skyringu, ekki horfinn",
+     seasonOpts(w.host).length === 2
+     && seasonOpts(w.host)[1].disabled === true
+     && /no matches yet/.test(seasonOpts(w.host)[1].textContent || ""),
+     seasonOpts(w.host).map(o => `${o.value}:${o.disabled}:${o.textContent.trim()}`).join(" | "));
+  await w.done();
+}
+
+/* ============================================================
+   9) FORM-MERKID A SKJANUM — OG ThAD BER ENGAN TEXTA (25.8.2026)
+
+   Reikningurinn er profadur i `team-stats.mjs` kafla 16 (sextill, urtaks-
+   gatt, ein heimild baedi megin, einangrun fra likaninu). HER ER SPURT UM
+   ThRENNT SEM ADEINS SEST A SKJANUM:
+
+   1. RATAR MERKID ALLA LEID? Fall sem skilar rettri Map en er aldrei
+      teiknad er nakvaemlega `bsd_live`-villan fra 24.8. („vid gleymdum ad
+      tengja"), svo fullyrdingin er DELTA: lifandi syn (ein umferd spilud,
+      merkid slokkt) a moti fyrra timabili (fullt timabil, merkid virkt).
+   2. BER ThAD ENGAN TEXTA? ThETTA ER RENDER-HAETTAN. `team-gw.mjs` finnur
+      radir med `textContent.startsWith(short)` og `cells[0].slice(0,3)`,
+      svo EMOJI a undan skammstofuninni hefdi brotid hverja einustu
+      uppflettingu i thessu safni — og verra: `find` hefdi skilad
+      `undefined` an thess ad kasta, svo kaflarnir hefdu ThAGNAD. Krafan er
+      thvi ad merkta holfid beri NAKVAEMLEGA sama texta og omerkt holf:
+      skammstofun + nafn, ekkert annad.
+   3. HEFUR ThAD NAFN? Tacn an nafns er thraut en ekki lykill (sama rok og
+      best/worst-flisarnar), og lykillinn verdur ad NEFNA GLUGGANN — merki
+      sem segir "heitt" an thess ad segja YFIR HVADA UMFERDIR er fullyrding
+      sem notandinn getur ekki athugad.
+   ============================================================ */
+console.log("\n9) FORM-MERKID — TEIKNAD, NAFNGREINT OG TEXTALAUST");
+{
+  const { default: Teams } = await import("../src/Teams.jsx");
+  const sf9 = J("bsd_shots.json");
+  const F9 = Object.fromEntries(sf9.legend.fields.map((f, i) => [f, i]));
+  const bt9 = new Map(), bo9 = new Map();
+  const put9 = (m, k, v) => { if (k == null) return; const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+  for (const x of sf9.shots) { put9(bt9, x[F9.team], x); put9(bo9, x[F9.opp], x); }
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r9 = createRoot(host);
+  /* `Crest: () => null` svo HVER `<svg>` i nafna-holfi se form-merki og
+     ekkert annad — annars vaeri talningin haed thvi hvort lidsmerkid er
+     teiknad sem mynd eda sem svg thann daginn.                          */
+  await act(async () => { r9.render(React.createElement(Teams, {
+    teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
+    teamShots: J("team_shots.json"), bsdTeams: J("bsd_teams.json"),
+    fixtures: realFix,
+    shotIndex: { byTeam: bt9, byOpp: bo9, teams: sf9.legend.teams, fields: F9,
+                 calib: sf9.calib },
+    seasonLabel: "this season", Crest: () => null })); });
+  await act(async () => { await new Promise(r => setTimeout(r, 120)); });
+
+  const marks = () => [...host.querySelectorAll("tbody [role='img']")];
+  const kinds = () => marks().map(m => m.getAttribute("aria-label"));
+  const nameCells = () => [...host.querySelectorAll("tbody tr")]
+    .map(tr => tr.querySelector("td")).filter(Boolean);
+
+  /* --- LIFANDI SYN: ein umferd spilud -> ENGIN merki. Og POSITIVA
+     forsendan vid hlidina, annars vaeri "engin merki" satt um tomt DOM. */
+  ok(`forsenda: taflan er teiknud i lifandi syn (${nameCells().length} radir)`,
+     nameCells().length === 20);
+  ok(`lifandi syn: ekkert form-merki — ein umferd er ekki form `
+     + `(${marks().length} merki)`, marks().length === 0);
+  ok("og lykillinn nefnir thau ekki heldur", !/hot form|poor form/.test(host.textContent || ""));
+
+  /* --- FYRRA TIMABIL: fullt timabil -> merkin kvikna. */
+  ok("forsenda: skipt i fyrra timabil (kafli 9)", await pickSeason("prev", host));
+  const hot = kinds().filter(k => k === "hot form").length;
+  const cold = kinds().filter(k => k === "poor form").length;
+  ok(`fyrra timabil: merkin ERU teiknud (${hot} eldur / ${cold} is af `
+     + `${nameCells().length} rodum)`, hot > 0 && cold > 0);
+  /* SEXTILL SESTUR A SKJANUM: hvorugur endinn ma na thridjungi deildarinnar.
+     Vaeri throskuldur settur i stad rodunar gaeti hann merkt hvad sem er. */
+  ok(`og hvorugur endinn er nema sjotti hluti (${hot}/${cold} af 20)`,
+     hot <= 4 && cold <= 4 && hot + cold === marks().length);
+  ok("ekkert lid ber baedi eld og is",
+     new Set(marks().map(m => m.closest("tr"))).size === marks().length);
+
+  /* --- RENDER-HAETTAN: merkid ma engan texta bera. */
+  const marked = marks().map(m => m.closest("td"));
+  ok(`forsenda: merkin sitja i nafna-holfinu (${marked.filter(Boolean).length})`,
+     marked.length > 0 && marked.every(td => td && td === td.closest("tr").querySelector("td")));
+  ok("merkt holf ber NAKVAEMLEGA sama texta og omerkt: skammstofun + nafn",
+     marked.every(td => {
+       const spans = [...td.querySelectorAll("span")].filter(x => !x.getAttribute("role"));
+       return td.textContent === spans.map(x => x.textContent).join("");
+     }), marked.map(td => JSON.stringify(td.textContent)).slice(0, 3).join(" "));
+  /* OG UPPFLETTINGIN SEM ALLT SAFNID HVILIR A HELDUR: rod byrjar afram a
+     skammstofuninni. ThETTA er fullyrdingin sem emoji hefdi fellt.      */
+  const shorts = [...host.querySelectorAll("tbody tr")]
+    .map(tr => tr.querySelector("span")?.textContent || "");
+  ok("hver rod byrjar afram a skammstofun lidsins (uppflettingin heldur)",
+     shorts.length === 20 && shorts.every((sh, i) =>
+       (host.querySelectorAll("tbody tr")[i].textContent || "").startsWith(sh)),
+     shorts.slice(0, 3).join(","));
+  ok("og merkid er `<svg>`, ekki tacn i texta",
+     marks().every(m => m.querySelector("svg")));
+
+  /* --- NAFNID OG GLUGGINN. */
+  const t9 = host.textContent || "";
+  ok("lykillinn nefnir baedi merkin", /hot form/.test(t9) && /poor form/.test(t9));
+  ok("og hann NEFNIR GLUGGANN og grunninn berum ordum",
+     /GW \d+[–-]\d+ against each side's own GW \d+[–-]\d+ average/.test(t9),
+     t9.match(/GW \d+[–-]\d+ against[^]{0,80}/)?.[0] || "ENGINN");
+  ok("og hann segir ad merkid breyti ENGRI tolu",
+     /descriptive only, it changes no number here/.test(t9));
+  /* TOOLTIP-ID BER SOMU FULLYRDINGU — tvo log um somu akvordun mega ekki
+     segja sitthvad (sama regla og `blind`-merkid og notan bera).        */
+  const tip = marks()[0]?.getAttribute("title") || "";
+  ok("tooltip merkisins segir gluggann OG ad thad breyti engri tolu",
+     /GW \d+[–-]\d+/.test(tip) && /DESCRIPTIVE ONLY/.test(tip)
+     && /not the buy ranking/.test(tip), tip.slice(0, 90));
+  ok("engin NaN/undefined i merkinu", !/\bNaN\b|\bundefined\b/.test(t9));
+  await act(async () => { r9.unmount(); }); host.remove();
+}
+
+/* ============================================================
+   10) FLOKKA-RODIN OG HEITIN — LESIN AF SKJANUM (25.8.2026)
+
+   Beidni notandans: markvardar-flokkurinn AFTAR og heitid stytt i "GK".
+   Rodin er ekki smekksatridi heldur ver hun thad ad notandinn lendi a
+   tomasta flokknum: hann er skota-drifinn ad ollu leyti og engin skota-
+   heimild naer yfir yfirstandandi timabil, sem er sjalfgefna synin.
+   ============================================================ */
+console.log("\n10) FLOKKA-RODIN — GK AFTAN VID DEFENCE OG ATTACK");
+{
+  const { default: Teams } = await import("../src/Teams.jsx");
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r10 = createRoot(host);
+  await act(async () => { r10.render(React.createElement(Teams, {
+    teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
+    teamShots: J("team_shots.json"), bsdTeams: J("bsd_teams.json"),
+    fixtures: realFix, shotIndex: null, seasonLabel: "this season",
+    Crest: () => null })); });
+  await act(async () => { await new Promise(r => setTimeout(r, 120)); });
+  const labels = TEAM_GROUPS.map(g => g.label);
+  const onScreen = [...host.querySelectorAll("button")]
+    .map(b => (b.textContent || "").trim()).filter(t => labels.includes(t));
+  ok(`allir ${labels.length} flokkarnir eru a skjanum i SKRA-ROD `
+     + `(${onScreen.join(" | ")})`,
+     onScreen.join("|") === labels.join("|"), labels.join("|"));
+  ok(`markvardar-flokkurinn kemur AFTAN vid Defence og Attack `
+     + `(${onScreen.indexOf(GK_GROUP)} af ${onScreen.length - 1})`,
+     onScreen.indexOf(GK_GROUP) > onScreen.indexOf("Defence")
+     && onScreen.indexOf(GK_GROUP) > onScreen.indexOf("Attack"));
+  /* SJALFGEFNI FLOKKURINN ER SA SEM BER TOLUR I LIFANDI SYN — thad er
+     spurningin sem rodin var faerd fyrir. Lesid AF SKJANUM: hausrodin
+     verdur ad vera varnar-flokkurinn OG holfin ad bera tolur.           */
+  const heads10 = [...host.querySelectorAll("thead th")]
+    .map(h => h.textContent.replace(/[↑↓]/g, "").trim());
+  const nums10 = [...host.querySelectorAll("tbody td")]
+    .filter(td => /^\d+(\.\d+)?$/.test(td.textContent.trim())).length;
+  ok(`sjalfgefna synin opnast a flokki sem BER TOLUR `
+     + `(${heads10.slice(1).join(",")} — ${nums10} holf med tolu)`,
+     heads10.includes("GC") && nums10 >= 20, `${nums10}`);
+  await act(async () => { r10.unmount(); }); host.remove();
 }
 
 console.log(`\nTEAMS-UMFERDIR: ${pass} stóðust, ${fail} féllu`);

@@ -319,16 +319,51 @@ export const S = {
      thegar hann bekkjar adra i GW2. Bordinn sagdi „The lighter cards are
      your bench" um tvo menn sem voru hvorugur a bekknum.
 
-     Nu er skugginn 0,74 -> (198,217,205) a torfi = 57 i RGB, og
-     `pcBench`-merkid ber ORDID. Ordid er thad sem gerir thetta otvirætt:
-     litur getur rekist a annan lit (graenn = i lidinu, ljosfjolublatt =
-     i samanburdi, blatt = valinn dalkur — sja kafla 8), texti getur ekki.
+     ------------------------------------------------------------
+     ORDID ER FARID AFTUR OG SKUGGINN BER MERKID EINN (25.8.2026)
+     ------------------------------------------------------------
+     Beidni notandans: „takid BENCH-ordid ut og grayid bekkjarmennina
+     meira ut i stadinn". ThAD ER SAMA AKVORDUN OG VAR SNUID VID 20.8.,
+     svo hun ma adeins standa ef GREYINGIN BER MERKID SJALF — og thad er
+     MAELT, ekki metid.
+
+     ThRENNT BREYTTIST I MEKANISMANUM OG HVERT ER ASETT:
+
+     1. LITURINN ER OGEGNSAER, EKKI GEGNSAER. Gamla villan (13 i RGB) VAR
+        gegnsæid: `rgba(255,255,255,α)` gefur ekki EINN lit heldur einn
+        per bakgrunn, og `bench` er satt a TVEIMUR bokgrunnum — torfinu
+        (Bench Boost, allir 15 a vellinum) og dokka bekkjarbordanum
+        (`benchArea`, rgba(9,24,15,0.78) a torfi -> (15,42,25)). Tala sem
+        er maeld a odrum theirra er agiskun um hinn. Ogegnsær litur hefur
+        eitt gildi og maelingin er thvi ein tala fyrir bada staði.
+     2. TALAN ER MAELD A BADUM BOKGRUNNUM OG ER 76 (`#b3bbc0` = 179,187,192
+        a moti `pCard` #ffffff; mesti rasa-munur 255-179 = 76). Til
+        samanburdar: gamli 0,94-skugginn 13,1 · 0,74-skugginn 56,7 a torfi
+        og 62,4 a bordanum. ThRESKULDUR REPO-SINS ER 20 (CLAUDE.md kafli 3,
+        sjonræn adgreining nagrannathrepa), svo 76 er threfalt yfir honum —
+        og thad er ASTAEDAN fyrir thvi ad ordid ma fara: 20.8. var
+        greyingin ein UNDIR throskuldi, nu er hun langt yfir.
+     3. TEXTINN OG ANDLITSMYNDIN FYLGJA (`pNameBench`, `pPriceBench`,
+        `pPortraitBench`). Their eru STYRKING, EKKI MERKID — merkid er
+        bakgrunnurinn og hann einn er maeldur. Their eru taldir upp her svo
+        enginn haldi ad their beri fullyrdinguna.
+
+     ENGIN BER `opacity`. Sama regla og felldi `isSellHint`-doufnunina
+     (`opacity: 0.62`) 20.8.: omerkt doufnun les sem „bekkur" og rekst tha
+     a bekkjar-merkinguna sjalfa. `filter: saturate()` a myndinni er ekki
+     doufnun — spjaldid er jafn ogegnsætt og adur, myndin missir bara lit.
+
+     OG LITA-AREKSTURINN ER OBREYTTUR-LEYSTUR: graenn = i lidinu,
+     ljosfjolublatt = i samanburdi, blatt = valinn dalkur (kafli 8).
+     HLUTLAUST GRATT er ekkert theirra, svo skugginn getur ekki verid
+     mislesinn sem eitt af hinum thremur.
      Vordur: `initial-squad.mjs` kaflar E og F.                          */
-  pCardBench: { background:"rgba(255,255,255,0.74)" },
-  /* BEKKUR-MERKID. Dokkt, ekki graat: `sigRot` (st%) er graat og thau
-     stæðu hlid vid hlid i sömu rod.                                     */
-  pcBench: { fontFamily:mono, fontSize:7.5, fontWeight:800, letterSpacing:0.4,
-    padding:"1px 3px", borderRadius:3, background:"#2f3a44", color:"#eef2f5" },
+  pCardBench: { background:"#b3bbc0" },
+  /* STYRKING, EKKI MERKID — sja lidi 3 her ad ofan. `pName` og `pPrice`
+     bera annars erfdan/`text2` lit sem er kvardadur a HVITT spjald.     */
+  pNameBench: { color:"#3f474d" },
+  pPriceBench: { color:"#5b656b" },
+  pPortraitBench: { filter:"saturate(0.15)" },
   /* SOLU-ABENDINGIN VAR OMERKT DOFNUN — NU MERKI (20.8.2026).
      `opacity: 0.62` a spjaldinu var sterkasta sjonraena merkid a vellinum
      og bar ENGA skyringu, svo thad las eins og bekkur (og felldi thar med
@@ -337,9 +372,20 @@ export const S = {
      eins og hvert annad merki i `sigRow`.                               */
   sigSell: { fontFamily:mono, fontSize:7.5, fontWeight:700, padding:"1px 3px",
     borderRadius:3, background:"#fde8e8", color:"#9b1c1c" },
+  /* VERDFALL — FPL-s EIGIN FRAMVINDUTALA (25.8.2026). Annar litur en
+     `sigSell` (raudur a ljosraudu) thvi thetta er ONNUR fullyrding:
+     `sellIds` er OKKAR likan, thetta er FPL sjalft. Gulbrunt er hlutlaust
+     gagnvart thremur merkingar-litunum i kafla 8 (graent = i lidinu,
+     ljosfjolublatt = i samanburdi, blatt = valinn dalkur).             */
+  sigDrop: { fontFamily:mono, fontSize:7.5, fontWeight:700, padding:"1px 3px",
+    borderRadius:3, background:"#fff1d6", color:"#8a4b00" },
   pcIcons: { position:"absolute", top:2, right:2, display:"flex", gap:2, zIndex:3 },
   /* WRAP, EKKI CLIP (20.8.2026). Rodin ber nu FJOGUR atridi i versta
-     tilfelli — i · ↻ · meidsla-merki · C — og spjaldid er adeins
+     tilfelli — C/V · i · ↻ · meidsla-merki (C og V utiloka hvort annad) —
+     og RODIN SKIPTIR MALI: thad sem brotnar i naestu linu lendir OFAN A
+     ANDLITSMYNDINNI, svo fyrsta saetid er thad eina sem er trygglega i
+     efsta vinstra horninu. Thess vegna er C/V fyrst (25.8.2026, sja
+     App.jsx). Spjaldid er adeins
      clamp(62px, 17.5%, 100px). Med `nowrap` hefdi fjorda atridid farid ut
      fyrir spjaldid; `maxWidth` + `wrap` lætur thad falla i næstu linu i
      stad thess ad klippast. Sama regla og `pFix` (FixStrip) ver.        */

@@ -227,17 +227,34 @@ console.log("\n--- B. BENCH BOOST: 15 SPJOLD ---");
 
   /* BEKKJARMENN A VELLINUM HALDA `pCardBench` — annars taepast
      vitneskjan "hverjir eru XI-in".
-     ALFANN FOR UR 0,94 I 0,74 (20.8.2026): 0,94 gaf ADEINS 13 i RGB a
-     torfi og notandinn sa thvi ENGAN mun ("thad eru bara 2 kort sem eru
-     lighter"). Thresholdur repo-sins er >= 20 (CLAUDE.md 3). Talan
-     sjalf er MAELD i `initial-squad.mjs` kafla F; hér er adeins TALIN.  */
-  const lighter = onPitch(v).filter(c => /rgba\(255,\s*255,\s*255,\s*0?\.74\)/.test(c.getAttribute("style") || ""));
-  ok(lighter.length === 4, `fjorir bekkjarmenn eru enn adgreindir (ljosari) (${lighter.length})`);
-  /* OG MERKID — thad er thad sem gerir bekkinn otvirædan. Litur getur
-     rekist a annan lit; ord getur ekki.                                */
+     SAGAN I ThREMUR SKREFUM: 0,94 gaf ADEINS 13 i RGB a torfi og
+     notandinn sa ENGAN mun ("thad eru bara 2 kort sem eru lighter");
+     20.8. for hann i 0,74 OG ord-merki („BENCH") bættist vid; 25.8. var
+     ordid tekid ut ad beidni notandans og liturinn gerdur OGEGNSAER
+     (#b3bbc0 = 76 i RGB a BADUM bokgrunnum). Thresholdur repo-sins er
+     >= 20 (CLAUDE.md 3). Talan sjalf er MAELD i `initial-squad.mjs`
+     kafla F; hér er adeins TALID.
+     LITURINN ER LESINN UR `appStyles.js` — hardkodadur litur her vaeri
+     annad eintak sem rekur thegjandi i sundur vid stilinn.             */
+  const HEX = readFileSync(new URL("../src/appStyles.js", import.meta.url).pathname, "utf8")
+    .match(/pCardBench: \{ background:"(#[0-9a-fA-F]{6})" \}/);
+  ok(!!HEX, "fann bekkjar-litinn i appStyles.js");
+  const RGB = HEX
+    ? `rgb(${[1, 3, 5].map(i => parseInt(HEX[1].slice(i, i + 2), 16)).join(", ")})`
+    : " none";
+  const lighter = onPitch(v).filter(c => c.style.backgroundColor === RGB);
+  ok(lighter.length === 4, `fjorir bekkjarmenn eru enn adgreindir (grair) (${lighter.length})`);
+  /* HIN ELLEFU ERU HVIT — an thess vaeri "fjorir eru grair" lika satt
+     thegar OLL fimmtan eru grá.                                        */
+  ok(onPitch(v).filter(c => c.style.backgroundColor === "rgb(255, 255, 255)").length === 11,
+     "og hin ellefu bera hvita spjaldid");
+  /* SETNINGIN SEM ORD-MERKID BAR LIFIR I `title` — fyrst sannad ad hun
+     SE thar, svo fullyrt ad ordid se farid (CLAUDE.md 5b, regla 2).    */
+  const titled = onPitch(v).filter(c => /On your bench for this gameweek/.test(c.getAttribute("title") || ""));
+  ok(titled.length === 4, `bekkjar-setningin er i \`title\` a somu fjorum (${titled.length})`);
   const tagged = onPitch(v).filter(c => [...c.querySelectorAll("span")]
     .some(x => (x.textContent || "").trim() === "BENCH"));
-  ok(tagged.length === 4, `og fjogur bera BENCH-merkid (${tagged.length})`);
+  ok(tagged.length === 0, `og ord-merkid er farid (${tagged.length})`);
 
   ok(/all 15 score/.test(v.text()), "bekkjar-bordinn SEGIR hvers vegna hann er tomur");
   ok(!NANRE.test(v.text()), "ekkert NaN/undefined i BB-umferd");
@@ -271,6 +288,42 @@ console.log("\n--- C. MERKI-STADSETNING ---");
      `HAEGRA: ADEINS ⇄ (${rt.length} hnappur)`, `[${rt.join(" | ")}]`);
   ok(!rt.some(t => /^FFDR comparison/.test(t)), "↻ er EKKI lengur haegra megin");
   ok(/C$|C/.test(L.textContent || ""), "fyrirlida-merkid er enn i vinstri rodinni");
+
+  /* ============================================================
+     C/V ERU FYRSTU BORNIN — OG ThAD ER RUMFRAEDI, EKKI ROD (25.8.2026)
+     ============================================================
+     Kaeran: „C/V hylja andlitid a leikmanninum". `pcIconsL` er
+     `flexWrap:"wrap"` a spjaldi sem er clamp(62px, 17.5%, 100px), svo
+     rodin BROTNAR thegar atridin verda fjogur — og thad sem brotnar
+     lendir a naestu linu, ThAD ER OFAN A ANDLITSMYNDINNI. Merkid sat
+     AFTAST (a eftir i, ↻ og meidsla-merkinu) og var thvi einmitt thad
+     sem brotnadi.
+     FYRSTA SAETID I FLEX-ROD ER EFSTA VINSTRA HORNID og thad getur ALDREI
+     brotnad nidur, hvad sem hin atridin gera. Fullyrdingin er thvi um
+     SAETID (`children[0]`), ekki um ad merkid se einhvers stadar i rodinni
+     — su fullyrding (linan her ad ofan) var SONN allan timann sem kaeran
+     var i gildi og gat thvi ekki tekid hana.
+     jsdom hefur ENGA uppsetningarvel, svo „brotnar rodin?" er ekki
+     maelanlegt her; fullyrdingin er um ORSOKINA (saetid), eins og
+     `initial-squad.mjs` kafli G gerir vid limingu.                    */
+  const vv = await mount({ captain: 411, vice: 11 });
+  const iconsL = c => [...c.children].find(el => /left:\s*2px/.test(el.getAttribute("style") || ""));
+  const firstOf = name => {
+    const c = cardOf(vv, byId[name].web_name); const g = c && iconsL(c);
+    return g && g.children[0] ? (g.children[0].textContent || "").trim() : null;
+  };
+  ok(firstOf(411) === "C", `FYRIRLIDINN: C er FYRSTA barnid i vinstri rodinni (${firstOf(411)})`);
+  ok(firstOf(11) === "V", `VARAFYRIRLIDINN: V er FYRSTA barnid (${firstOf(11)})`);
+  /* OG HJA HINUM ER ThAD i-HNAPPURINN — an thessa vaeri „C er fyrst"
+     lika satt ef ALLIR baeru C.                                       */
+  const plain = cardOf(vv, byId[356].web_name), pg = plain && iconsL(plain);
+  ok(pg && (pg.children[0].textContent || "").trim() === "i",
+     "og hja theim sem er hvorugt byrjar rodin a `i`-hnappnum");
+  /* ENGIN ABSOLUTE-STADSETNING AFTUR: `left: 21/38` var lausnin sem var
+     felld 20.8. og hun ma ekki laumast inn sem „lagfaering" a thessu.  */
+  const capSpan = cardOf(vv, byId[411].web_name).querySelector('[title^="Captain"]');
+  ok(capSpan && !/position:\s*absolute/.test(capSpan.getAttribute("style") || ""),
+     "C-merkid er i FLAEDI, ekki absolute-stadsett");
 
   /* MAGIC-TALAN ER FARIN: engin handreiknud `left: 21px/38px` a
      meidsla-merkinu. Hun var rett fyrir TVO ikon og thogul-rong fyrir thrju. */

@@ -149,6 +149,16 @@ const cardOf = (v, head, needle) => v.q("div")
    hnappsins ("5"), svo sama adferd hér.                                  */
 const gwNode = (v, n) => v.q("button").find(b => b.textContent.trim() === String(n));
 const badges = (v, word) => v.q("span").filter(s => (s.textContent || "").trim() === word);
+/* BEKKUR = GRATT SPJALD (25.8.2026, ordid „BENCH" er farid — sja kafla F).
+   LITURINN ER LESINN UR `appStyles.js`, EKKI SKRIFADUR HER: hardkodadur
+   litur i profinu er annad eintak sem rekur i sundur vid stilinn thegjandi
+   (sama aett og `wOf`/`marker`, CLAUDE.md 8). Lesid AF SKJANUM — `style`
+   a spjaldinu er thad sem notandinn ser; jsdom skilar "rgb(r, g, b)".   */
+const BENCH_HEX = SRC("src/appStyles.js").match(/pCardBench: \{ background:"(#[0-9a-fA-F]{6})" \}/);
+const BENCH_RGB = BENCH_HEX
+  ? `rgb(${[0, 2, 4].map(i => parseInt(BENCH_HEX[1].slice(1).slice(i, i + 2), 16)).join(", ")})`
+  : " none";
+const greyCards = v => cards(v).filter(c => c.style.backgroundColor === BENCH_RGB);
 /* LAUFID, EKKI FORELDRID. Fyrsta utgafa thessa hjalpartols valdi
    `d.children.length >= 3` og ThAD MATCHADI HEILA KORTID — svo `✕` i
    'midrodinni' var i raun `✕` fyrstu rodarinnar og profid staðfesti
@@ -409,30 +419,62 @@ const greenRing = v => cards(v).filter(c =>
 }
 
 /* ============================================================
-   F. BEKKURINN — FJOGUR MERKI, OG SKUGGINN ER MAELDUR
-   ============================================================ */
+   F. BEKKURINN — GREYINGIN BER MERKID EIN, OG HUN ER MAELD
+   ============================================================
+   ORDID „BENCH" ER FARID (25.8.2026, beidni notandans) og thad ma adeins
+   vera farid ef greyingin ein stendur throskuldinn. ThESSI KAFLI ER SU
+   FULLYRDING, OG HUN ER ThRISKIPT:
+     · MENGID  — nakvaemlega fjogur spjold eru grá, og thad eru bekkurinn
+     · TALAN   — > = 20 i RGB, MAELT A BADUM bokgrunnum sem `bench` er satt a
+     · ORDID   — spanid er farid, EN setningin sem thad bar lifir i `title`
+
+   AF HVERJU BADIR BOKGRUNNAR: gamla villan (13 i RGB) var GEGNSÆID.
+   `rgba(255,255,255,α)` gefur ekki einn lit heldur einn per bakgrunn, og
+   `bench` er satt bæði a torfinu (Bench Boost) og a dokka bekkjarbordanum.
+   Ogegnsær litur hefur eitt gildi; kaflinn krefst thess ad hann SE
+   ogegnsær, thvi thad er thad sem gerir EINA maelingu gilda fyrir bada.  */
 console.log("\n--- F. BEKKURINN ---");
 {
   const base = await mount({ captain: 411 });
-  ok(badges(base, "BENCH").length === 4,
-     `an chips: FJOGUR BENCH-merki (${badges(base, "BENCH").length})`);
+  ok(!!BENCH_HEX, "`pCardBench` er OGEGNSAER litur (hex, ekki rgba) — ein maeling gildir a badum bokgrunnum");
+  ok(greyCards(base).length === 4,
+     `an chips: FJOGUR gra spjold (${greyCards(base).length})`);
+  ok(badges(base, "BENCH").length === 0,
+     `og ENGIN ord-merki (${badges(base, "BENCH").length}) — greyingin ein ber thetta`);
 
   const v = await mount({ captain: 411, chips: { "bboost:1": 1 } });
-  const bb = badges(v, "BENCH");
-  ok(bb.length === 4, `BENCH BOOST: nakvaemlega FJOGUR BENCH-merki (${bb.length})`);
   ok(cards(v).length === 15, `forsenda: 15 spjold (${cards(v).length})`);
   /* OG ThAD ERU SOMU MENNIRNIR — ekki 'einhverjir fjorir".             */
-  const marked = cards(v).filter(c => [...c.querySelectorAll("span")]
-    .some(s => (s.textContent || "").trim() === "BENCH"));
-  ok(marked.length === 4, `fjogur SPJOLD bera merkid (${marked.length})`);
+  const marked = greyCards(v);
+  ok(marked.length === 4, `BENCH BOOST: fjogur SPJOLD eru gra (${marked.length})`);
   const names = BENCH_IDS.map(id => byId[id].web_name);
   ok(names.every(n => marked.some(c => (c.textContent || "").includes(n))),
      `og thad eru bekkurinn sjalfur: ${names.join(", ")}`);
-  ok(cards(v).length - marked.length === 11, "og ellefu bera hann EKKI");
-  /* BORDINN MA EKKI FULLYRDA UM ANNAD EN ThAD SEM ER MALAD.            */
-  ok(/marked BENCH are your bench/.test(v.text()),
-     "bordinn bendir a MERKID (ekki a 'the lighter cards')");
-  ok(!/lighter cards are your bench/.test(v.text()), "gamla osanna setningin er farin");
+  ok(cards(v).length - marked.length === 11, "og ellefu eru ThAD EKKI");
+  /* HIN ELLEFU ERU HVIT — an thess er 'fjogur eru gra" satt lika thegar
+     OLL fimmtan eru gra.                                               */
+  ok(cards(v).filter(c => c.style.backgroundColor === "rgb(255, 255, 255)").length === 11,
+     "og hin ellefu bera HVITA spjaldid (`pCard`)");
+
+  /* ORDID ER FARID — EN FYRST ER SANNAD AD SETNINGIN SE ThAR (CLAUDE.md
+     5b, regla 2: neikvæd fullyrding verdur ad nefna streng sem var
+     SANNANLEGA thar). Setningin flutti i `title` a spjaldinu.          */
+  const benchTitles = marked.filter(c => /On your bench for this gameweek/.test(c.getAttribute("title") || ""));
+  ok(benchTitles.length === 4,
+     `bekkjar-setningin er i \`title\` a ollum fjorum grau spjoldunum (${benchTitles.length})`);
+  ok(cards(v).filter(c => /On your bench for this gameweek/.test(c.getAttribute("title") || "")).length === 4,
+     "og HVERGI annars stadar — hin ellefu bera hana ekki");
+  ok(badges(v, "BENCH").length === 0, "ord-merkid `pcBench` er farid af skjanum");
+  ok(!/pcBench:/.test(SRC("src/appStyles.js")),
+     "og stillinn sjalfur er EYDDUR — daudur stil-hlutur er skjalfest bilun (CLAUDE.md 9)");
+
+  /* BORDINN MA EKKI FULLYRDA UM ANNAD EN ThAD SEM ER MALAD. Hann hefur
+     verid osannur TVISVAR: „lighter cards" benti a `isSellHint`-doufnun,
+     „marked BENCH" a ord sem er nu farid.                              */
+  ok(/grey cards are your bench/.test(v.text()),
+     "bordinn bendir a GRAA SPJALDID (thad eina sem er sannanlega thar)");
+  ok(!/marked BENCH are your bench/.test(v.text()), "og nefnir ekki ord sem er farid");
+  ok(!/lighter cards are your bench/.test(v.text()), "gamla osanna setningin er afram farin");
   /* FYRIRLIDA-VALLISTINN — obreytt: 11, sama mengi (handfangid sem er
      ohad malningu, sbr. `gw1-persistence.mjs`).                        */
   const sel = v.q("select")[0];
@@ -441,15 +483,37 @@ console.log("\n--- F. BEKKURINN ---");
 
   /* SKUGGINN SJALFUR — MAELDUR, ekki skodadur. CLAUDE.md kafli 3 setur
      >= 20 i RGB fyrir sjonraena adgreiningu nagrannathrepa; bekkjar-
-     skugginn var 13 og var thvi 'sama sem ekkert merki".               */
-  const ST = SRC("src/appStyles.js");
-  const m = ST.match(/pCardBench: \{ background:"rgba\(255,255,255,([\d.]+)\)"/);
-  ok(!!m, "fann `pCardBench`-alfann i appStyles.js");
-  const alpha = m ? parseFloat(m[1]) : 1;
+     skugginn var 13 og var thvi 'sama sem ekkert merki".
+     MAELT 25.8.2026: #b3bbc0 -> 76 a BADUM bokgrunnum (var 56,7/62,4 med
+     0,74-gegnsæinu og 13,1 med 0,94).                                  */
   const TURF = [37, 107, 62];                 // #256b3e, midtonn Pitch.jsx
-  const over = TURF.map(c => alpha * 255 + (1 - alpha) * c);
-  const diff = Math.max(...over.map(c => Math.abs(255 - c)));
-  ok(diff >= 20, `bekkjar-skugginn er ${diff.toFixed(1)} i RGB a torfi — thresholdur repo-sins er 20`);
+  /* DOKKI BEKKJARBORDINN — `benchArea` i appStyles.js, LESINN ThADAN svo
+     talan geti ekki rekid fra stilnum sem er teiknadur.                */
+  const bA = SRC("src/appStyles.js")
+    .match(/benchArea: \{ flex:"0 0 auto", background:"rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)"/);
+  ok(!!bA, "fann bakgrunn bekkjarbordans (`benchArea`) i appStyles.js");
+  const STRIP = bA
+    ? TURF.map((c, i) => +bA[4] * +bA[i + 1] + (1 - +bA[4]) * c)
+    : TURF;
+  /* VORPUNIN ER ALMENN, EKKI SNIDIN AD ThVI SEM ER I DAG. Hun tekur BADI
+     hex og rgba: væri `pCardBench` gert gegnsætt aftur myndi hun reikna
+     rett — og tha felldi hun kaflann a torfinu, sem er einmitt tilfellid
+     sem gerdist 20.8. Fullyrding sem gerir rád fyrir svarinu maelir
+     ekkert (CLAUDE.md 13).                                             */
+  const CSS = SRC("src/appStyles.js").match(/pCardBench: \{ background:"([^"]+)"/);
+  const parse = s => {
+    const h = /^#([0-9a-fA-F]{6})$/.exec(s || "");
+    if (h) return [...[0, 2, 4].map(i => parseInt(h[1].slice(i, i + 2), 16)), 1];
+    const r = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(s || "");
+    return r ? [+r[1], +r[2], +r[3], r[4] == null ? 1 : +r[4]] : null;
+  };
+  const col = parse(CSS && CSS[1]);
+  ok(!!col, `bekkjar-liturinn er thattadur (${CSS && CSS[1]})`);
+  const dist = bg => Math.max(...(col || [255, 255, 255, 1]).slice(0, 3)
+    .map((c, i) => Math.abs(255 - (col[3] * c + (1 - col[3]) * bg[i]))));
+  const dTurf = dist(TURF), dStrip = dist(STRIP);
+  ok(dTurf >= 20, `bekkjar-skugginn er ${dTurf.toFixed(1)} i RGB a TORFI — throskuldur repo-sins er 20`);
+  ok(dStrip >= 20, `og ${dStrip.toFixed(1)} a DOKKA BEKKJARBORDANUM (${STRIP.map(x => x.toFixed(0)).join(",")}) — badir stadir thar sem \`bench\` er satt`);
   /* OG SOLU-ABENDINGIN DOFNAR EKKI LENGUR SPJALDID: hun var sterkasta
      doufnunin, alltaf nakvaemlega tveir menn, og bar enga skyringu.     */
   const APP = SRC("src/App.jsx");
@@ -592,8 +656,7 @@ console.log("\n--- H. ERFDIN ---");
   ok(onPitchNames(v).includes(P2.web_name),
      `GW3-skiptin bera fram i GW4 (${P2.web_name} er a vellinum)`);
   ok(!onPitchNames(v).includes(byId[397].web_name), "og madurinn sem for er farinn");
-  const marked = cards(v).filter(c => [...c.querySelectorAll("span")]
-    .some(x => (x.textContent || "").trim() === "BENCH"));
+  const marked = greyCards(v);
   ok(marked.length === 4, `og bekkurinn er afram fjorir (${marked.length})`);
   ok(marked.some(c => (c.textContent || "").includes(byId[496].web_name)),
      "og GW2-uppstillingin lifir skiptin (Kinsky er enn a bekknum)");

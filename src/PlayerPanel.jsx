@@ -23,7 +23,7 @@ import { interp } from "./interp.js";
    17 jadartilfellum (null, "", "3.5abc", [], [5], Infinity, true …):
    0 fravik. Innflutt undir sama stadbundna heitinu svo allir 15 kallstadir
    haldist obreyttir. `liveSeasonRow` er sameinada timabils-rodin.        */
-import { num as n, liveSeasonRow } from "./stats.js";
+import { num as n, liveSeasonRow, STAT_BY_KEY } from "./stats.js";
 
 const C = {
   card:"#ffffff", cardAlt:"#fafafb", border:"#e0e0e4", text:"#1d1d20",
@@ -61,6 +61,28 @@ export function PlayerHeadline({ p, buyTenths, sellTenths_, inSquad, onEditPrice
             {sell != null && <> {"· sell £"}{(sell / 10).toFixed(1)}</>}
           </div>
         )}
+        {/* FRAMVINDA AD VERDBREYTINGU — FPL-s EIGIN SVID, OBREYTT.
+            Hun a heima a VERD-REITNUM og hvergi annars stadar: thetta er
+            sama talan og dalkurinn „Progress to price change" ber, lesin
+            ur SOMU skilgreiningu (`priceChangeOf` -> `STAT_BY_KEY`).
+            TOMT ER TOMT: skili FPL engri tolu (eda `calibrating`) birtist
+            ENGIN lina — ekki „0%", sem vaeri tilbuin maeling.           */}
+        {(() => {
+          const pc = priceChangeOf(p);
+          if (pc == null) return null;
+          const tone = pc.locked ? C.text3
+            : pc.falling ? C.red
+            : pc.pct > 0 ? "#046b41" : C.text2;
+          return (
+            <div style={{ ...S.hPrice, color: tone }}
+              title={"FPL's own \"progress to price change\" figure, shown exactly as the API reports it — not rescaled by this app. Positive is heading up, negative heading down, and 100 is where the change lands. It does not track this gameweek's net transfers exactly (73% share its sign): the threshold scales with ownership and the figure builds up over days."}>
+              {pc.pct > 0 ? "↑" : pc.pct < 0 ? "↓" : "·"} {pc.pct > 0 ? "+" : ""}{pc.pct}{"% to price change"}
+              {pc.falling ? <b>{" — falling"}</b> : null}
+              {pc.locked ? " · locked by FPL" : ""}
+              <span style={{ color: C.text3 }}>{" · FPL's own figure"}</span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* THRIR TOMIR REITIR I FORLEIK — SAMEINADIR I EINN.
@@ -98,6 +120,211 @@ function Tile({ v, k, sub }) {
     </div>
   );
 }
+
+/* ============================================================
+   1b. VERDBREYTING — FPL-s EIGIN FRAMVINDA, EIN UTFAERSLA (25.8.2026)
+   ============================================================
+   Beidni notandans: „vara mig vid thegar leikmadur sem eg a er ad falla i
+   verdi". `bootstrap-static` ber ThETTA sjalft siðan 22.8.2026 og appid
+   birtir thad thegar i dalkinum „Progress to price change" (`stats.js`).
+
+   TALAN ER EKKI ENDURREIKNUD HER — `STAT_BY_KEY` er FLUTT INN og `get()`
+   theirrar skilgreiningar er kollud. Tvo afrit af sama reikningi er
+   nakvaemlega thad sem `buildTeamMetrics` (CLAUDE.md 7) og `headWidth`
+   (kafli 8) kostudu, og her vaeri afritid seratkvaemlega hættulegt: reglan
+   sem thad baeri er `calibrating === true -> null`, sem er FPL ad segja
+   sjalft ad talan se omarktæk. Detti dalkurinn ut skilar thetta `null` og
+   spjaldid synir EKKERT — sem er rett svar, ekki tilbuin tala.
+
+   VID SKOLUM EKKI OG SNUUM EKKI FORMERKINU. Maelt 22.8.2026 (CLAUDE.md
+   kafli 3): jakvaett er leid UPP, 177 menn med jakvaeda prosentu hafa
+   medal-netto +2.570 flutninga a moti -1.664 hja 263 med negatifa; svidid
+   er -36,5 .. +34,2 og ENGINN utan [-100, 100], sem stydur ad 100 se
+   throskuldurinn. Nalgunin okkar („↑ i nott?") lifir annars stadar og er
+   MERKT sem agiskun; tvaer tolur undir sama heiti vaeru tveir kvardar.
+
+   `PRICE_FALL_MARK` ER UI-AFMORKUN, EKKI HLUTI LIKANSINS — eins og
+   verdthakid i `rotation.js` og `MIN_WINDOW` i `buywindow.js`. Hun er
+   LEIDD af einu maeldu tolunni sem er til (FPL-throskuldinum 100): halfa
+   leidin nidur. HUN ER VALIN SEM ThRESKULDUR MERKIS, EKKI SEM SPA — talan
+   sjalf stendur alltaf a spjaldinu, obreytt, og merkid er adeins hvenaer
+   hun er nogu langt komin til ad vera vert ad lita a.
+   MAELT A `data/players.json` 25.8.2026 (609 leikmenn, 609 med tolu):
+     mark  -30 -> 24 menn · -40 -> 9 · -50 -> 2 · -60 -> 1 · -70 -> 0
+   -50 velur thvi RAUNVERULEGT urtak (Martinelli -60,2 · Hincapie -50,2) og
+   ekki alla — merki sem kviknar a ollum er ekkert merki (sama rok og
+   `priceChangeSignal`-hlidid i pipeline-unni: 0 hja ollum a `hi:true`
+   dalki les eins og maeling).
+
+   `price_change_locked_until` SLEKKUR MERKID: verdid getur ekki breyst
+   medan lasinn er a, svo vidvorun vaeri fullyrding um eitthvad sem getur
+   ekki gerst. Maelt sama dag: 38 af 609 eru laestir og ALLIR bera 0.     */
+export const PRICE_FALL_MARK = -50;
+
+export function priceChangeOf(p, now = Date.now()) {
+  const v = STAT_BY_KEY?.price_change_percent?.get?.(p);
+  if (v == null || !Number.isFinite(+v)) return null;
+  const until = p?.price_change_locked_until || null;
+  const lockedMs = until ? Date.parse(until) : NaN;
+  const locked = Number.isFinite(lockedMs) && lockedMs > now;
+  const hr = +p?.price_change_hourly_rate;
+  return {
+    pct: +v,
+    hourly: Number.isFinite(hr) ? hr : null,
+    locked, lockedUntil: until,
+    /* AD FALLA = negatift OG kominn ad minnsta kosti halfa leid. Jafnt
+       merki er EKKI sett a haekkun: notandinn bad um vidvorun vid falli,
+       og "hann er ad haekka" er taekifæri en ekki vidvorun.             */
+    falling: !locked && +v <= PRICE_FALL_MARK,
+  };
+}
+
+/* ============================================================
+   1c. YFIRSTANDANDI TIMABIL EFST — OG ThAD SEM ER EKKI TIL ER SAGT
+   ============================================================
+   Beidni notandans: „syna current season efst med per-gameweek tolum eins
+   og a FPL-sidunni sjalfri (leikir, mork, stodsendingar, DC, hrein blod)".
+
+   GAGNA-VEGGURINN ER RAUNVERULEGUR OG HANN ER SAGDUR A SKJANUM, EKKI
+   FALINN. Framendinn hefur TVAER heimildir um yfirstandandi timabil:
+     · `players.json` — UPPSAFNADAR tolur, nullstilltar vid GW1-frestinn.
+       Thaer eru sannar og thaer eru thad sem efsta rodin ber.
+     · `live/gw{n}.json` — 424 KB, og appid sækir ADEINS thá umferd sem er
+       VALIN. Ad sækja hana per umferd vaeri 16 MB i GW38 gegnum
+       raw.githubusercontent, sem hefur throttlad okkur tvisvar.
+   Per-umferdar-rodin fyllist thvi fyrir thaer umferdir sem eru hladnar og
+   ber „—" fyrir hinar MED SKYRINGU. HUN BER ALDREI NULL: nulltala i staðin
+   fyrir „ekki sott" er nakvaemlega gildran i CLAUDE.md kafla 8 (NULL ER
+   EKKI NULL) og i `PlayerPanel` kafla 2, sem neitar ad bera lokatolur
+   fyrra timabils undir thessu ari.
+
+   SKRAIN SEM MYNDI FYLLA RODINA ER ThEGAR TIL — FYRIR ELDRI TIMABIL.
+   `data/player_gw_2526.json` (1,6 MB, 841 leikmenn, 38 umferdir) er
+   nakvaemlega thetta snid: lyklad a `code`, `gw: { "1": [pakkad fylki] }`
+   med `stats`-haus (`mins · starts · pts · goals · assists · cs · gc ·
+   saves · bonus · bps · xg · xa · xgc · dc · cbit · threat · creat ·
+   infl · recov · tack · yc · rc`) og `scale`. `scripts/fetch-player-gw.mjs`
+   skrifar hana. ThAD SEM VANTAR er ad hun se skrifud fyrir YFIRSTANDANDI
+   timabil (`player_gw_2627.json`, uppfaerd thegar umferd klarast) og
+   flutt i `OPTIONAL`-listann i App.jsx. Ein sokn a ~42 KB per lokna
+   umferd kemur i stad 424 KB per umferd — thess vegna er thetta
+   pipeline-verk og ekki lagfaering i framendanum.
+
+   SEFUR I FORLEIK: `seasonStarted` false -> EKKERT. `PlayerHeadline` segir
+   thegar „season not started", og tveir kassar um sama tomid eru tveir
+   kassar sem geta rekid i sundur.
+   ============================================================ */
+export function SeasonSoFar({ p, seasonStarted, currentLabel, startedGws, clubPlayed, gwRows }) {
+  if (!p || !seasonStarted) return null;
+  /* RODIN ER BYGGD MED `liveSeasonRow`, EKKI UR HRAA LEIKMANNINUM.
+     `name-norm.mjs` kafli 4 fellir nakvaemlega thad mynstur (`n(p.<svid>)`)
+     og hann gerdi thad vid fyrstu utgafu thessa kassa — rettilega: thad var
+     ThRIDJA afritid af somu upptalningu (Compare.jsx og `SeasonTable` hofdu
+     bæði sitt aður en hun var sameinud 11.8.2026). Tolurnar eru hinar somu;
+     thad sem breyttist er ad thaer koma nu ur EINNI utfaerslu.          */
+  const row = liveSeasonRow(p);
+  const starts = row.starts, mins = row.minutes;
+  const isDef = p.element_type <= 2;
+  /* ============================================================
+     MARKMENN FA ENGA DC-TOLU — MAELT, EKKI ALYKTAD
+     ============================================================
+     MAELT 25.8.2026 a `data/players.json`: allir 67 markmenn bera
+     `defensive_contribution` og hun er **0 hja hverjum einasta**
+     (hamark 0), medan DEF nær 21, MID 16 og FWD 8. Sama i
+     `live/gw1.json`: 67 markmanna-radir, EITT gildi i menginu — 0.
+     FPL geymir thvi RAUNVERULEGT `0` fyrir tolu sem er ekki maeld a
+     theim, og thad er nakvaemlega gildran i CLAUDE.md kafla 12:
+     „FPL geymir `0` fyrir thann sem aldrei spiladi — thad er ekki
+     maeling". Reiturinn myndi lesa eins og „hann gerir ekkert i vorn".
+     Fimm DC-dalkarnir i `stats.js` bera `pos:[2,3,4]` af somu astaedu
+     og badir DefCon-smidirnir sleppa markmonnum.                     */
+  const hasDc = p.element_type !== 1;
+  const rows = Array.isArray(gwRows) ? gwRows : [];
+  const withData = rows.filter(r => r && r.st);
+  const played = clubPlayed != null ? clubPlayed : startedGws;
+
+  /* HANN HEFUR EKKI SPILAD MINUTU: nulltolur i hverjum reit lesa eins og
+     maeling („0 mork a 3 leikjum") thegar sannleikurinn er „hann hefur
+     ekki verid a vellinum". Ein setning i stad sex nulla.               */
+  const played0 = !(mins > 0);
+
+  return (
+    <>
+      <div style={S.secLbl}>
+        {currentLabel} <span style={S.secNote}>
+          {interp("this season so far · {0} {1} played by his club", [played, played === 1 ? "match" : "matches"])}
+        </span>
+      </div>
+
+      {played0 ? (
+        <div style={S.warn}>
+          <b>{"No minutes yet."}</b> {"He has not been on the pitch in"} {currentLabel}{", so there are no numbers to show. Zeros here would read as a measurement — an unused player and a player who did nothing are not the same thing."}
+        </div>
+      ) : (
+        <div style={S.sofarGrid}>
+          <Tile v={i0(starts)} k={"Starts"} sub={interp("{0} min", [i0(mins)])} />
+          <Tile v={i0(row.total_points)} k={"Points"} sub={interp("{0} bonus", [i0(row.bonus)])} />
+          <Tile v={i0(row.goals_scored)} k={"Goals"} />
+          <Tile v={i0(row.assists)} k={"Assists"} />
+          {isDef && <Tile v={i0(row.clean_sheets)} k={"Clean sheets"} />}
+          {hasDc && <Tile v={i0(row.defensive_contribution)}
+            k={"DC"} sub={"defensive contribution"} />}
+        </div>
+      )}
+
+      {/* PER UMFERD — thad sem ER hladid, og ordid um hitt.             */}
+      {rows.length > 0 && (
+        <>
+          <div style={S.scroll}>
+            <table style={S.tbl}>
+              <thead>
+                <tr>
+                  <th style={S.thK}></th>
+                  {rows.map(r => <th key={r.gw} style={S.th}>GW{r.gw}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {GW_ROWS.filter(row => (!row.def || isDef) && (!row.dc || hasDc)).map(row => (
+                  <tr key={row.label} style={S.tr}>
+                    <td style={S.tdK} title={row.note || ""}>{row.label}</td>
+                    {rows.map(r => (
+                      <td key={r.gw} style={S.td}
+                        title={r.st ? "" : interp("GW{0} is not loaded — the app fetches one gameweek file at a time, the one you have selected in the planner.", [r.gw])}>
+                        {r.st ? row.get(r.st) : "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={S.legend}>
+            {withData.length === rows.length
+              ? interp("Per gameweek, from the FPL gameweek file. {0} of {1} started gameweeks shown.", [withData.length, rows.length])
+              : interp("Per gameweek. {0} of {1} started gameweeks carry numbers: the app loads ONE gameweek file at a time (the one selected in the planner, 424 KB), so the rest show a dash rather than zeros. A compact per-gameweek file in the pipeline would fill the whole row.", [withData.length, rows.length])}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* Radirnar i per-umferdar-toflunni. Sama form og `makeRows`: eitt fall
+   per rod svo dalkarnir geti ekki farid i sundur vid rodarheitin.       */
+const GW_ROWS = [
+  { label: "Points",       get: s => i0(s.total_points) },
+  { label: "Minutes",      get: s => i0(s.minutes) },
+  { label: "Goals",        get: s => i0(s.goals_scored) },
+  { label: "Assists",      get: s => i0(s.assists) },
+  /* `dc: true` = ADEINS utileikmenn (sja `hasDc`). `def: true` = adeins
+     their sem FA hrein blod, sem markmenn GERA — thess vegna tvo svid og
+     ekki eitt: hoparnir eru olikir og eitt svid hefdi thaggad annad
+     hvort theirra rangt.                                              */
+  { label: "DC", dc: true, note: "Defensive contribution",
+    get: s => (s.defensive_contribution == null ? "—" : i0(s.defensive_contribution)) },
+  { label: "CS", def: true, note: "Clean sheet",
+    get: s => (s.clean_sheets ? "yes" : "no") },
+];
 
 /* ============================================================
    2. TIMABILA-TAFLA — 2026/27 efst, svo eldri, minni
@@ -322,6 +549,13 @@ const S = {
          display:"flex", alignItems:"center", gap:5 },
   hKey:{ fontSize:10, color:C.text2, marginTop:2 },
   hSub:{ fontSize:9, color:C.text3, marginTop:1 },
+  /* Sama rist og `headGrid` en threngri lagmarksbreidd: reitirnir bera
+     eina heiltolu, ekki verd med hnappi.                                */
+  sofarGrid:{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(78px, 1fr))",
+              gap:6, marginBottom:10 },
+  /* VERDBREYTING — FPL-s EIGIN TALA. Raud thegar hun er a leid nidur,
+     graen upp; hlutlaus grár thegar hun er laest eda naerri null.       */
+  hPrice:{ fontSize:9, fontFamily:mono, marginTop:2 },
   editBtn:{ border:`1px solid ${C.border}`, background:C.card, color:C.text2, cursor:"pointer",
             borderRadius:4, fontSize:10, lineHeight:1, padding:"2px 4px" },
 

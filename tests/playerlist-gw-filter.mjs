@@ -172,7 +172,7 @@ await settle(600);
 ok("bilid sest sem GW 30–38", /GW\s*30[–-]38/.test(text()), text().slice(0, 0));
 
 /* --- 3a. CONSISTENCY: ekkert getur breyst -> appid VERDUR ad segja thad --- */
-await click(btn("Consistency (Aron)"));
+await click(btn("Consistency"));
 await settle(300);
 const warned = /season totals, not GW\s*30[–-]38/i.test(text());
 ok("CONSISTENCY: appid segir beinum ordum ad thetta seu arstidar-tolur", warned,
@@ -284,16 +284,30 @@ ok("...og bendir a flokk sem VIRKAR", warned && /Basics/.test(text()));
   ok(`hver framsynn dalkur er annadhvort merktur (${badged}) eda undir bordanum`,
      badged === fx.length || /(?:not|follows) GW\s*30[–-]38/i.test(t));
 
-  /* SET PIECES: samsetningin sem skyrir thognina thar — LEIDD, ekki talin. */
+  /* SET PIECES: FLOKKURINN ER ALLUR `build_only` FRA 25.8.2026, svo hann
+     hefur ENGAN hnapp i flokka-rodinni. Kaflinn stod adur her og smellti
+     a hann til ad syna ad bordinn thegdi thar rettilega (blandan af
+     live_only og bils-faerum dalkum). Su fullyrding er ekki lengur
+     prófanleg i DOM — og HEFDI ThAGAD: `click` a hnapp sem er ekki til
+     skilar `false` og lykkjan hefdi haldid afram a fyrri flokki, svo
+     fullyrdingin hefdi maelt HANN. Thad er ordrett tóma fullyrdingin ur
+     CLAUDE.md 5b.
+     Hun er thvi tviskipt: GOGNIN eru afram fullyrt (blandan er til, og
+     hun er astaedan fyrir thvi ad flokkurinn er ekki i tillogu bordans)
+     og BIRTINGIN er fullyrt — hnappurinn er farinn, TALINN, svo hann geti
+     ekki komid aftur thegjandi.                                        */
   const sp = STAT_DEFS.filter(d => d.group === "setp");
   const spLive = sp.filter(d => d.live_only).map(d => d.key);
   const spAware = sp.filter(d => !PL.rangeBlind(d, blind)).map(d => d.key);
   ok(`"Set pieces and cards" ber BAEDI live_only (${spLive.join(",")}) og bils-faera dalka (${spAware.join(",")})`,
      spLive.length > 0 && spAware.length > 0);
-  await click(btn("Set pieces and cards"));
-  await settle(300);
-  ok("...svo bordinn thegir thar RETTILEGA — sumt a skjanum fylgir bilinu",
-     !/(?:not|follows) GW\s*30[–-]38/i.test(text()));
+  ok(`...og hann er allur build_only (${sp.filter(d => d.build_only).length}/${sp.length}), svo hann a engan flokka-hnapp`,
+     sp.length > 0 && sp.every(d => d.build_only) && !btn("Set pieces and cards"),
+     btn("Set pieces and cards") ? "hnappurinn er enn a skjanum" : "");
+  /* MOTVOGID — annars vaeri "hnappurinn er ekki til" satt af thvi ad
+     ENGIR hnappar seu til (flokka-rodin gæti verid horfin med ollu).   */
+  ok(`flokka-rodin er afram a skjanum (${STAT_GROUPS.filter(g => btn(g.label)).length} hnappar)`,
+     STAT_GROUPS.filter(g => btn(g.label)).length >= 4);
 }
 
 /* --- 3b. BASICS: her A talan ad geta breyst, svo advorunin ma EKKI birtast --- */

@@ -161,6 +161,46 @@ const mosRowText = () => {
 await fire(byTab("👥"));
 console.log("\nLIFANDI DÁLKAR (hermt defcon.json)");
 
+/* ============================================================
+   0b. MARKMANNS-DALKARNIR FYLGJA STODU-SIUNNI (25.8.2026)
+
+   Beidni notandans: "Goalkeeping"-bandid (vorslur, vorslur/90, vorslu%,
+   vorslud viti) synir "—" hja hverjum utileikmanni og etur larett plass
+   fyrir alla hina, svo thad sest adeins thegar stodu-sian er GK.
+
+   PROFAD I DOM OG ThAD ER NAUDSYNLEGT, EKKI VARUD: reglan sjalf er hreint
+   fall (`tableDefs`, vardad i stats.test.mjs) en TENGINGIN er `pos` i
+   fylgni-lista `visibleCols`-memosins. Gleymist hann er fallið RETT og
+   taflan STODNUD — memo sem er ekki endurreiknad er nakvaemlega thoegla
+   bilunin sem CLAUDE.md 5b lysir, og HREIN eining getur ekki sed hana.
+   Fullyrdingin er thvi: skipta um stodu -> dalkurinn birtist/hverfur.
+   ============================================================ */
+{
+  const heads = () => [...document.querySelectorAll("[aria-sort]")]
+    .map(h => h.textContent.replace(/[↑↓▼]|season/g, "").trim());
+  await fire(byExact("Defence"));
+  const all0 = heads();
+  ok(`forsenda: Defence-hausinn er a skjanum (${all0.length} holf)`, all0.length > 4);
+  ok("stada \"All\": ENGINN markmanns-dalkur (Saves/Save %/PS)",
+     !all0.includes("Saves") && !all0.includes("Save %") && !all0.includes("PS"),
+     all0.join(" | "));
+  await fire(byExact("GK"));
+  const gk = heads();
+  ok("stada GK: dalkarnir BIRTAST — memo-id endurreiknast a `pos`",
+     gk.includes("Saves") && gk.includes("Save %") && gk.includes("PS"),
+     gk.join(" | "));
+  await fire(byExact("MID"));
+  const mid = heads();
+  ok("stada MID: their hverfa aftur",
+     !mid.includes("Saves") && !mid.includes("Save %") && !mid.includes("PS"),
+     mid.join(" | "));
+  /* MOTVOGID: hinir dalkarnir i flokknum standa OSNERTIR, annars vaeri
+     "hann hvarf" satt af thvi ad taflan hafi tæmst.                     */
+  ok("...og adrir Defence-dalkar standa afram (CS, GC)",
+     mid.includes("CS") && mid.includes("GC"), mid.join(" | "));
+  await fire(byExact("All"));
+}
+
 /* ---- 1. DC-hittni-flokkurinn: nyju dalkarnir ---- */
 ok("flokka-hnappurinn 'Vörn' er til (DC-hittni fluttist thangad 7.8.)", !!byExact("Defence"));
 await fire(byExact("Defence"));

@@ -22,6 +22,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
+import { STAT_GROUPS, tableDefs } from "../src/stats.js";
 
 const D = new URL("data/", REPO).pathname;
 const J = f => JSON.parse(readFileSync(D + f, "utf8"));
@@ -188,8 +189,16 @@ console.log("\nGRAENN BORDI A FROSNA HOLFINU — LIFANDI");
    BORD, svo hann a ad brotna her. Simamalid (<560) heldur strjuk-rodinni
    — thad er RETT thar (kafli 6i) og er gaett i koda gegnum `narrow`.   */
 {
+  /* AKKERID VAR "Set pieces and cards" OG SA FLOKKUR HEFUR ENGAN HNAPP
+     LENGUR (25.8.2026 — hann er allur `build_only`). Hnappur sem er ekki
+     til gefur `undefined` og BADAR fullyrdingarnar hér a eftir hefdu
+     tha lesid `undefined?.style` — thoegult graent i annarri og villandi
+     rautt i hinni. Akkerid er thvi LEITT ur flokka-rodinni sjalfri: sidasti
+     flokkurinn sem A hnapp, hver sem hann er.                          */
+  const gLabels = STAT_GROUPS.filter(g => tableDefs({ group: g.key }).length).map(g => g.label);
+  ok(`forsenda: ${gLabels.length} flokkar eiga hnapp`, gLabels.length >= 4);
   const gRow = [...document.querySelectorAll("button")]
-    .find(b => /Föst leikatriði og spjöld|Set pieces and cards/.test(b.textContent))?.parentElement;
+    .find(b => b.textContent.trim() === gLabels[gLabels.length - 1])?.parentElement;
   ok("flokka-rodin finnst", !!gRow);
   ok("a BORDI brotnar rodin (flexWrap:wrap) svo allir flokkar sjaist",
     gRow?.style.flexWrap === "wrap", `fekk "${gRow?.style.flexWrap}"`);

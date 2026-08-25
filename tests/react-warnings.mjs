@@ -88,9 +88,19 @@ const SURFACES=[
      muna sig (fpl_gwopen i localStorage), svo flipa-smellur opnar thau
      ekki aftur. Their voru fremstir i fyrstu utgafu og felldu 12 vidmot
      a eftir ser. Samanbrot og ham-skipti eru thvi SIDUST.             */
-  ["👥 Player stats",  ["All","GK","DEF","MID","FWD",
-                        "Basics","Attack","Defence","Consistency (Aron)","Upcoming fixtures",
-                        "Set pieces and cards","≡ compact",
+  /* "Set pieces and cards" VAR HER OG ER FARINN UR FLOKKA-RODINNI
+     (25.8.2026): allur flokkurinn er `build_only`, svo hann a engan hnapp
+     i Player stats. Hann er AFRAM i Leaderboard, sem telur `STAT_GROUPS`
+     hrau upp — thess vegna stendur hann afram i theim flipa hér ad nedan.
+     "Consistency (Aron)" heitir nu "Consistency".
+     GK-STADAN ER VIÐ FYRST: markmanns-dalkarnir sjast adeins thegar hun er
+     valin, svo "Defence" med GK og "Defence" med All eru TVAER olikar
+     dalkasamsetningar — og React kvartar adeins vid ENDURTEIKNINGU thegar
+     eiginleiki er FJARLAEGDUR, sem er einmitt thad sem gerist thegar
+     stadan faerist af GK yfir a All.                                    */
+  ["👥 Player stats",  ["GK","Defence","All","DEF","MID","FWD",
+                        "Basics","Attack","Defence","Consistency","Upcoming fixtures",
+                        "≡ compact",
                         /* BUY WINDOWS: hamurinn OG thad sem tekur ramma AF holfum
                            (bil-val og rodunar-skipti). React kvartar adeins vid
                            ENDURTEIKNINGU thegar eiginleiki er FJARLAEGDUR, svo ad
@@ -98,7 +108,11 @@ const SURFACES=[
                            laerdomur og kveikt/slokkt-kaflinn i kafla 5b.        */
                         "Build table","Buy windows","pick","best window","next window",
                         "Imminent","Groups","Gameweeks"]],
-  ["🛡️ Teams",        ["Gameweeks","What the keeper faces","Defence","Attack","Discipline and set pieces"]],
+  /* HEITID "What the keeper faces" STYTTIST I "GK" 25.8.2026 og flokkurinn
+     faerdist AFTAR i rodina. Missir her er ThOGULL — `click()` skilar
+     `false` og lykkjan heldur afram — en `MIN_VISITED` tekur hann, sem er
+     einmitt vardurinn sem var settur upp eftir 0/22-atvikid.           */
+  ["🛡️ Teams",        ["Gameweeks","Defence","Attack","GK","Discipline and set pieces"]],
   ["📊 Gameweek",      ["Overview","Shot map","Players","Matches"]],
   ["🏆 Leaderboard",   ["All","GK","DEF","MID","FWD","Basics","Attack","Defence",
                         "Upcoming fixtures","Set pieces and cards"]],
@@ -225,7 +239,7 @@ if (!cardOk) warns.push("leikmannaspjaldid opnadist ekki — 'Information'/'⇄ 
 const MIN_VISITED = Math.ceil(TOTAL * 0.9);
 const thin = visited < MIN_VISITED;
 console.log(`  ${thin ? "✗" : "✓"} heimsott: ${visited}/${TOTAL} vidmot (lagmark ${MIN_VISITED})`);
-if (thin) console.log("     fann ekki: " + [...new Set(missed)].slice(0,12).join(" | "));
+if (missed.length) console.log("     fann ekki: " + [...new Set(missed)].slice(0,12).join(" | "));
 console.log(warns.length ? `  ✗ ${warns.length} React-vidvaranir:` : "  ✓ ENGIN React-vidvorun");
 [...new Set(warns)].slice(0,10).forEach(w=>console.log("     "+w));
 process.exit(warns.length || thin ? 1 : 0);

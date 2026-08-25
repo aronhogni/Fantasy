@@ -321,5 +321,58 @@ console.log(`\n${"─".repeat(72)}\nBSD-TENGINGIN VID STIGATOFLUNA\n${"─".repe
   ok("App GEFUR Leaderboard `bsd`", /<Leaderboard[\s\S]{0,500}?bsd=\{/.test(appSrc));
 }
 
+/* ============================================================
+   STAERRI LISTINN — SMELLUR A KASSA OPNAR FLEIRI EN TOPP 5 (25.8.2026)
+
+   Notandinn: „eg vill geta smellt a kassa i leaderboard og sed tha fleiri
+   en topp 5 i popup boxi."
+
+   FULLYRDINGIN ER DELTA, EKKI ASTAND: kassinn ber 5 radir, glugginn ber
+   FLEIRI. Fost fullyrding („glugginn ber 25 radir") vaeri sonn af hvada
+   lista sem er og segdi ekkert um hvort hann se STAERRI en kassinn.
+
+   OG TALAN VERDUR AD VERA SU SAMA: efsti madurinn i glugganum verdur ad
+   vera efsti madurinn i kassanum. Vaeri hun ekki thad hefdi glugginn sina
+   eigin rodun — nakvaemlega tvaer utfaerslur af somu staerd (CLAUDE.md 7).
+   ============================================================ */
+console.log(`\n${"\u2500".repeat(72)}\nSTAERRI LISTINN\n${"\u2500".repeat(72)}`);
+{
+  const boxes = [...section.querySelectorAll("button")]
+    .filter(b => /highest|lowest/.test(b.textContent || ""));
+  ok(`forsenda: ${boxes.length} tolu-kassar eru smellanlegir`, boxes.length > 0);
+
+  const box = boxes[0];
+  const boxCard = box.closest("div");
+  const rowText = el => [...el.querySelectorAll("button")]
+    .filter(b => !/highest|lowest/.test(b.textContent || ""))
+    .map(b => (b.textContent || "").trim());
+  const before = rowText(boxCard);
+  ok(`forsenda: kassinn sjalfur ber ${before.length} radir (topp-5)`,
+    before.length > 0 && before.length <= 5, `${before.length}`);
+
+  await fire(box);
+  const modal = [...document.querySelectorAll("button")]
+    .find(b => (b.textContent || "").trim() === "Close")?.closest("div")?.parentElement;
+  ok("glugginn opnast", !!modal);
+  const inModal = modal ? rowText(modal).filter(t => t !== "Close") : [];
+  ok(`og hann ber FLEIRI radir en kassinn (${inModal.length} > ${before.length})`,
+    inModal.length > before.length, `${inModal.length} vs ${before.length}`);
+  ok("efsti madurinn er SA SAMI i badum — ein rodun, ekki tvaer",
+    inModal.length > 0 && before.length > 0 && inModal[0] === before[0],
+    `${inModal[0]} vs ${before[0]}`);
+
+  /* LOKUNIN MA EKKI HEITA ✕ — `smoke.test.mjs` lokar leikmannaspjaldi med
+     SIDASTA ✕ i skjalinu, svo nytt ✕ her gaeti latid thad prof eyda sinum
+     eigin gognum (skjolud gildra i CLAUDE.md 5).                       */
+  const closeBtn = [...document.querySelectorAll("button")]
+    .find(b => (b.textContent || "").trim() === "Close");
+  ok("lokunar-hnappurinn heitir ord, ekki ✕", !!closeBtn);
+  ok("og ekkert nytt ✕-takn baettist vid gluggann",
+    !modal || !/✕/.test(modal.textContent || ""));
+  await fire(closeBtn);
+  ok("glugginn lokast", ![...document.querySelectorAll("button")]
+    .some(b => (b.textContent || "").trim() === "Close"));
+}
+
 console.log(`\nSTIGATAFLA: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

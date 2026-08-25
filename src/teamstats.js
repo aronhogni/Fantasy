@@ -396,10 +396,22 @@ export function buildTeamRows({ teams = [], teamForm = null, luck = null, teamSh
   });
 }
 
+/* RODIN ER BIRTINGAR-RODIN A HNOPPUNUM og hun var `keeper` fyrst fra fyrsta
+   degi. ThVI VAR SNUID 25.8.2026 ad beidni notandans, og astaedan er maeld
+   fremur en smekksatridi: markvardar-flokkurinn er SKOTA-DRIFINN AD OLLU
+   LEYTI (E0-skot, ESPN-svaedi, BSD-xG) og engin theirra heimilda naer yfir
+   yfirstandandi timabil, svo hann er TIU dalkar af "—" i lifandi syn — sem
+   er sjalfgefna synin fra 22.8. `Teams.jsx` bar thegar leidrettingu sem
+   faerdi notandann UT UR tomum flokki vid timabils-skipti, en hun er
+   plastur a rod sem setti tomasta flokkinn fremstan.
+   HEITID STYTTIST I "GK" I SOMU HREYFINGU: "What the keeper faces" var
+   thrisvar lengra en hin thrju heitin og braut hnappa-rodina i tvennt a
+   throngum skja. Spurningin sem flokkurinn svarar stendur afram i notu
+   hvers dalks — thad er thar sem hun er lesin.                          */
 export const TEAM_GROUPS = [
-  { key: "keeper", label: "What the keeper faces" },
   { key: "defence", label: "Defence" },
   { key: "attack", label: "Attack" },
+  { key: "keeper", label: "GK" },
   { key: "other", label: "Discipline and set pieces" },
 ];
 
@@ -1067,6 +1079,153 @@ export function applyTeamRange(base, { range = null, shotIndex = null,
       : diffFields(r.goals, r.conceded, r.xg, r.xgc));
     return out;
   });
+}
+
+/* ============================================================
+   HEITT OG KALT FORM — LYSING, ALDREI SPA (25.8.2026, ad beidni notandans)
+
+   "Eg vill sja eld/is a lidum sem eru i godu eda slaemu formi."
+
+   FYRSTA REGLAN ER SU SEM ALLT HITT HVILIR A: **ThETTA MERKI FER HVERGI INN
+   I NEINA TOLU.** Form sem SPA er MAELT OG FELLT i thessu repo-i, thrisvar
+   og fra thremur attum:
+     - innan leikmanns er "heitur leikmadur" AFTURHVARF: -4,52pp eftir mark
+       (t = -5,26), CLAUDE.md kafli 4 / MAELINGAR 6c;
+     - hrein blod lida RADAST EKKI I RUNUR: lyfting 0,99, sami kafli;
+     - og 24.8.2026 var `PREV_K` — VELIN sem raedur hvenaer yfirstandandi
+       timabil tekur vid af thvi fyrra — endurmaeld med vikmorkum a 6.080
+       lid-leikjum: EKKERT K slaer K=10, og hvert einasta glugga-delta
+       inniheldur null.
+   Merkid ma thvi ekki snerta `fixDifficulty`, `expPointsFor`, `rankScore`
+   ne `csFor`. FORDAEMID ER EVROPU-STJARNAN (CLAUDE.md kafli 4): innan
+   leikmanns maeldist alags-lidurinn -1,37pp CI [-4,67; +1,92] — null innan
+   CI — svo hann er SYNDUR SEM SAMHENGI og fer HVERGI inn i likanid. Nakvaemlega
+   sama medferd her. Vordur: `team-stats.mjs` kafli 15 fellur ef nokkur onnur
+   skra en `Teams.jsx` flytur thetta fall inn.
+
+   ONNUR REGLAN: **EIN HEIMILD FYRIR BADA HELMINGA.** Glugginn og grunnurinn
+   koma ur SAMA falli med sitthvoru bilinu — `aggFixtureRange` i lifandi syn,
+   skotakortid i fyrra timabili — svo hvorki eining ne timabil geta rekid i
+   sundur. Ad taka gluggann ur einni skra og grunninn ur annarri er
+   nakvaemlega `xg_share`-villan (148%, CLAUDE.md 12) og `luck.json` er
+   serstaklega haettuleg her: hun ber CHAMPIONSHIP-radir nylidanna (COV 97
+   mork a 46 leikjum). Hun er hvergi snert i thessu falli.
+
+   ThRIDJA REGLAN: **RODUN, EKKI ThROSKULDUR.** Throskuldur ("+0,5 mork/leik
+   telst heitt") vaeri VALIN tala i buningi maelingar — versta utkoman
+   (CLAUDE.md kafli 3). Notud er sama venja og `TIER_CUTS`: SEXTILAR. Eldur
+   er efsti sjottungur deildarinnar a gluggamaelikvardanum, is sa nedsti,
+   og ekkert thar a milli. Fjoldinn er thvi LEIDDUR (`floor(n/6)`) og
+   deildar-vidur eins og threpin sjalf.
+
+   FJORDA REGLAN: **URTAKS-GATT.** Enginn eldur og enginn is undir
+   ThREMUR leikjum i glugganum — sama golf og `rotationRisk` notar
+   (`seasonGames >= 3` i `availability.js`). Tvo leikir eru ekki form.
+
+   AFLEIDINGIN I DAG ER AD MERKID ER SLOKKT A OLLUM 20 LIDUM, og thad er
+   RETT SVAR en ekki bilun: ein umferd er spilud, svo glugginn er allt sem
+   til er og thad er ekkert ad bera hann vid.
+
+   MAELIKVARDINN ER MARKAMUNUR A LEIK I GLUGGANUM MINUS SAMI MAELIKVARDI
+   YFIR ThAD BIL SEM ER A SKJANUM. Hann er AFSTAEDUR VID LIDID SJALFT af
+   somu astaedu og kaup-gluggarnir eru thad (CLAUDE.md kafli 3): algild
+   rodun svarar "hvada lid er gott", sem toflan svarar thegar; spurningin
+   her er "hver hefur BREYST". Arsenal i sinu vanalega formi er ekki
+   "heitur" og a ekki ad vera thad.
+
+   GLUGGINN ER FESTUR VID ENDANN A ThVI SEM ER A SKJANUM, ekki vid GW38.
+   Tvennt raedur thvi: (a) tvaer fullyrdingar i somu rod mega ekki koma ur
+   sitthvoru bilinu — vaeri bil GW1-10 valid en merkid reiknad ur GW33-38
+   staedi "tveir kvardar undir einu heiti" i beinni mynd; (b) hi er SIDASTA
+   UMFERD MED URSLITUM, ekki lengd dagatalsins — annars vaeri glugginn
+   GW33-38 allt timabilid og merkid kviknadi aldrei fyrr en i mai.
+   ============================================================ */
+/* GLUGGINN OG GOLFID ERU UI-AFMARKANIR, EKKI HLUTI LIKANSINS — sama stada
+   og `MIN_WINDOW`/`MAX_WINDOWS` i buywindow.js og verdthakid i rotation.js.
+   Ekkert i FFDR, `rankScore` ne vaentum stigum les thessa tolu.          */
+export const FORM_WINDOW_GW = 6;
+export const FORM_MIN_MATCHES = 3;      // sama golf og `rotationRisk`
+
+/* SIDASTA UMFERD MED URSLITUM INNAN BILSINS — LESIN UR ThEIRRI HEIMILD SEM
+   VAR SAMThYKKT, aldrei ur dagatalinu. `maxEventOf` telur ALLAR radir,
+   lika ospiladar, og hun er thvi rangt akkeri fyrir form-glugga.        */
+function lastResultGw(u, { fixtures, shotIndex, liveMatches }, range) {
+  if (u.results === "fixtures") {
+    let mx = 0;
+    for (const f of (Array.isArray(fixtures) ? fixtures : [])) {
+      if (!(f?.finished === true || f?.finished_provisional === true)) continue;
+      if (f.team_h_score == null || f.team_a_score == null) continue;
+      if (!inRange(f.event, range)) continue;
+      if (f.event > mx) mx = f.event;
+    }
+    return mx;
+  }
+  if (Array.isArray(liveMatches) && liveMatches.length) {
+    let mx = 0;
+    for (const m of liveMatches)
+      if (inRange(m?.gw, range) && m.gw > mx) mx = m.gw;
+    return mx;
+  }
+  if (!shotIndex?.byTeam) return 0;
+  const F = shotIndex.fields || {};
+  if (F.gw == null) return 0;
+  let mx = 0;
+  for (const arr of shotIndex.byTeam.values())
+    for (const s of arr) { const g = s[F.gw]; if (inRange(g, range) && g > mx) mx = g; }
+  return mx;
+}
+
+/* SKILAR HLUT, EKKI BERRI MAP: vidmotid tharf ad geta NEFNT gluggann og
+   grunninn i tooltip-inu. Merki sem segir "heitt" an thess ad segja YFIR
+   HVADA UMFERDIR er fullyrding sem notandinn getur ekki athugad.        */
+export function teamFormFlags({ rows = [], shotIndex = null, liveMatches = null,
+                                fixtures = null, use = null, range = null } = {}) {
+  const none = { flags: new Map(), window: null, baseRange: null, eligible: 0, sextile: 0 };
+  const u = use || {};
+  /* ENGIN PER-UMFERDAR URSLITA-HEIMILD I TAKT -> ENGIN MERKI. Sama gatt og
+     umferdar-valarinn sjalfur les; merki ur heimild sem er ur takti vid
+     tofluna vaeri ROng fullyrding, ekki tom.                            */
+  if (!u.results) return none;
+  const lo = range ? range[0] : 1;
+  const hi = lastResultGw(u, { fixtures, shotIndex, liveMatches }, range);
+  if (!(hi >= lo)) return none;
+  const wLo = Math.max(lo, hi - FORM_WINDOW_GW + 1);
+  /* GLUGGINN VERDUR AD VERA MINNI EN GRUNNURINN. Se hann allt bilid er
+     mismunurinn NULL hja ollum — og sextilar af tomum mun eru ekki
+     "engin heit lid" heldur "engin maeling". Thogn er retta svarid.     */
+  if (wLo <= lo) return none;
+  const pick = rng => (u.results === "fixtures"
+    ? aggFixtureRange(fixtures, rng)
+    : shotAggOf(shotIndex, liveMatches, rng));
+  const baseAgg = pick(range), winAgg = pick([wLo, hi]);
+  const keyOf = r => (u.results === "fixtures" ? r.id : r.short);
+  const vals = [];
+  for (const r of (Array.isArray(rows) ? rows : [])) {
+    const k = keyOf(r);
+    if (k == null || r.id == null) continue;
+    const b = baseAgg.get(k), w = winAgg.get(k);
+    if (!b || !w) continue;
+    if (!(w.n >= FORM_MIN_MATCHES)) continue;   // URTAKS-GATTIN
+    if (!(b.n > w.n)) continue;                 // grunnurinn ma ekki vera glugginn
+    if (b.gf == null || b.ga == null || w.gf == null || w.ga == null) continue;
+    vals.push({ id: r.id, v: (w.gf - w.ga) / w.n - (b.gf - b.ga) / b.n });
+  }
+  const n = vals.length;
+  const k6 = Math.floor(n / 6);
+  if (!k6) return none;                          // faerri en sex lid -> enginn sextill
+  const desc = vals.map(x => x.v).sort((a, b) => b - a);
+  const hiCut = desc[k6 - 1], loCut = desc[n - k6];
+  /* FLOT DREIFING FAER ENGIN MERKI. Vaeri hiCut === loCut fengi HVERT lid
+     baedi eld og is — sama gildra og sextilar leikmannsins sjalfs i
+     kaup-gluggunum (CLAUDE.md kafli 4: flot leikjaskra ma ekki lesast sem
+     sveiflukennd).                                                      */
+  if (!(hiCut > loCut)) return none;
+  const flags = new Map();
+  for (const x of vals) {
+    if (x.v >= hiCut) flags.set(x.id, "hot");
+    else if (x.v <= loCut) flags.set(x.id, "cold");
+  }
+  return { flags, window: [wLo, hi], baseRange: [lo, hi], eligible: n, sextile: k6 };
 }
 
 /* ============================================================

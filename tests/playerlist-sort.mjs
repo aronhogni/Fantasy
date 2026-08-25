@@ -29,7 +29,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { STAT_DEFS, STAT_GROUPS } from "../src/stats.js";
+import { STAT_DEFS, STAT_GROUPS, tableDefs } from "../src/stats.js";
 
 const REPO = new URL("../", import.meta.url);
 const D = new URL("data/", REPO).pathname;
@@ -206,12 +206,86 @@ async function scanColumn(cells, i, group) {
     problems.push(`${name}: "desc" er ekki minnkandi (${nd.slice(0, 5).join(", ")})`);
 }
 
-for (const g of STAT_GROUPS) await scanGroup(g.label);
+/* FLOKKUR AN SYNDS DALKS A ENGAN HNAPP (25.8.2026). "Set pieces and
+   cards" er allur `build_only` og er thvi ekki i flokka-rodinni — ad
+   leita ad honum hefdi gefid "fannst ekki" fyrir HEGDUN SEM ER RETT.
+   Listinn er leiddur ur SOMU siu og hnapparnir sjalfir (`tableDefs`),
+   ekki ur `STAT_GROUPS` hrau og ekki handskrifadur: baetist flokkur vid
+   — eda hverfur `build_only` af einhverjum — fylgir thekjan med.       */
+const SCANNED = STAT_GROUPS.filter(g => tableDefs({ group: g.key }).length);
+for (const g of SCANNED) await scanGroup(g.label);
+
+/* ============================================================
+   BANDS-RODIN A SKJANUM — HUN VERDUR AD STANDA YFIR SINUM DALKUM
+   OG RUMA SITT EIGID HEITI (25.8.2026)
+
+   TILKYNNT AF NOTANDA: "M, NEXT MA" og "EAM, NEXT 6" i "Upcoming
+   fixtures". Breidd bands-holfsins var SUMMAN AF BREIDDUM SINNA DALKA og
+   heitid var hvergi i theim reikningi, svo band med EINUM dalki fekk
+   66 px fyrir heiti sem tharf 101. `stats.test.mjs` ver REIKNINGINN
+   (`bandLayout`); HER er varin TENGINGIN — ad holfin lesi hann lika.
+   Vaeri hun rofin (holf a `wBase`, band a `bandLayout`) yrdi bandid
+   BREIDARA en dalkarnir undir thvi og hausinn faeri ur samhengi vid
+   tolurnar — nakvaemlega afturforin sem `boxSizing` olli i einu threpi.
+   ============================================================ */
+{
+  const PLm = await import(new URL("../src/PlayerList.jsx", import.meta.url).href);
+  const bandRowOf = () => {
+    const h = headerRow();
+    /* Bands-rodin er systkini haus-rodarinnar inni i sticky-umgjordinni. */
+    const kids = h?.parentElement ? [...h.parentElement.children] : [];
+    return kids[kids.indexOf(h) - 1] || null;
+  };
+  const wpx = el => parseFloat(el.style.width);
+  let checked = 0, oneCol = 0; const bad = [];
+  for (const g of SCANNED) {
+    const b = [...document.querySelectorAll("button")].find(x => x.textContent.trim() === g.label);
+    if (!b) continue;
+    await fire(b);
+    const brow = bandRowOf(), hrow2 = headerRow();
+    if (!brow || !hrow2) { bad.push(`${g.label}: bands-rod eda haus-rod fannst ekki`); continue; }
+    /* Fyrstu tvo holfin i bands-rodinni eru frosna nafna-holfid og
+       "Today" (fostu dalkarnir); haus-rodin ber thrju (nafn + tveir).  */
+    const bcells = [...brow.children].slice(2);
+    const hcells = [...hrow2.children].slice(3);
+    let i = 0;
+    for (const bc of bcells) {
+      const label = (bc.textContent || "").trim();
+      const want = PLm.bandWidth(label);
+      const got = wpx(bc);
+      checked++;
+      /* (1) heitid rumast — thad er tilkynnta bilunin.                 */
+      if (Number.isFinite(got) && got + 0.5 < want)
+        bad.push(`${g.label}/"${label}" faer ${got} px en tharf ${want}`);
+      /* (2) OG bandid stendur NAKVAEMLEGA yfir sinum dalkum. An thessa
+             gaeti hver sem er "lagad" (1) med thvi ad breikka bandid eitt
+             og setja hausinn ur samhengi vid tolurnar.                 */
+      let sum = 0, n = 0;
+      while (i < hcells.length && sum + 0.5 < got) { sum += wpx(hcells[i]); i++; n++; }
+      if (n === 1) oneCol++;
+      if (Math.abs(sum - got) > 0.5)
+        bad.push(`${g.label}/"${label}": band ${got} px en dalkar ${sum} px`);
+    }
+  }
+  ok(`bands-holf maeld a skjanum (${checked})`, checked >= 10);
+  ok(`...thar af ${oneCol} EINS-DALKS bond — tilfellid sem klipptist`, oneCol > 0);
+  ok(`hvert band rumar heiti sitt OG stendur yfir sinum dalkum (${bad.length} frávik)`,
+     bad.length === 0, bad.slice(0, 3).join(" · "));
+}
 
 /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b regla 1).               */
-ok(`allir ${STAT_GROUPS.length} flokkarnir voru heimsottir (${scannedGroups})`,
-   scannedGroups === STAT_GROUPS.length,
-   `${scannedGroups} af ${STAT_GROUPS.length} — flokkur sem er ekki heimsottur er ekki varinn`);
+ok(`allir ${SCANNED.length} synilegu flokkarnir voru heimsottir (${scannedGroups})`,
+   scannedGroups === SCANNED.length,
+   `${scannedGroups} af ${SCANNED.length} — flokkur sem er ekki heimsottur er ekki varinn`);
+/* OG SA SEM ER UTUNDAN ER ThAD AF MAELDRI ASTAEDU, EKKI AF ThVI AD HANN
+   GLEYMDIST: hver flokkur sem er EKKI skannadur verdur ad eiga NULL synda
+   dalka. Vaeri sian of vid faeri flokkur ur vaktun thogult.            */
+{
+  const skipped = STAT_GROUPS.filter(g => !SCANNED.includes(g));
+  ok(`${skipped.length} flokkur utan skonnunar og hann a 0 synda dalka`
+     + `${skipped.length ? " (" + skipped.map(g => g.key).join(",") + ")" : ""}`,
+     skipped.every(g => tableDefs({ group: g.key }).length === 0));
+}
 ok(`dalkar lesnir i badar attir (${checkedCols})`, checkedCols >= 30, `adeins ${checkedCols}`);
 /* AD TOM GILDI SJAIST SJALDAN A TOPPNUM ER REGLAN AD VIRKA, ekki thekjubrestur
    — thau eru einmitt SEND NIDUR. Thetta er ANTI-TOMLEIKA-fullyrding: hun

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { interp } from "./interp.js";
 import Pitch from "./Pitch.jsx";
 import GwReport from "./GwReport.jsx";
-import { PlayerHeadline, SeasonTable, PriceEditor } from "./PlayerPanel.jsx";
+import { PlayerHeadline, SeasonTable, SeasonSoFar, PriceEditor,
+         priceChangeOf } from "./PlayerPanel.jsx";
 import SetPieces, { setPieceRanks } from "./SetPieces.jsx";
 import { SetPieceIcon, CrownIcon } from "./Icons.jsx";
 import Teams from "./Teams.jsx";
@@ -23,7 +24,7 @@ import BestOfBest from "./BestOfBest.jsx";
 import { C, mono, sans, S } from "./appStyles.js";
 import { storageMode, saveState, loadState } from "./storage.js";
 import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk,
-         matchesPlayedByClub, seasonHasStarted } from "./availability.js";
+         matchesPlayedByClub, seasonHasStarted, startedGameweeks } from "./availability.js";
 import { Crest, PlayerImg, Kit, crestUrl, photoUrl, CREST_FALLBACK } from "./Crest.jsx";
 import FfdrTable from "./FfdrTable.jsx";
 import { buildTeamMetrics } from "./teamstats.js";
@@ -527,6 +528,10 @@ export default function App() {
   const [rotIds, setRotIds] = useState([]);
   const [cmpOpen, setCmpOpen] = useState(false);
   const [rivals, setRivals] = useState([]);          // [{id}] — andstæðingar til samanburðar
+  /* SIDASTA UMFERD SEM LIFANDI TOLUR VORU SOTTAR FYRIR. Sja effectinn
+     sem les `live/gw{n}.json`: hann keyrir lika a 60 sek `liveTick`, og
+     an thessa var nullstillt i hvert sinn (flokt a opnu spjaldi).     */
+  const lastLiveGw = React.useRef(null);
   const [rivalInput, setRivalInput] = useState("");
   const [rivalData, setRivalData] = useState({});    // {id: {name, gwPts, totalPts, captain, picks}}
 
@@ -677,9 +682,27 @@ export default function App() {
   /* ---------- Tölur leikmanna í valdri umferð ----------
      Loknar umferðir: data/live/gw{n}.json úr pipeline (frítt, engin function-köll).
      Yfirstandandi: proxy (cache 60s). Explain-blokkin fylgir óskert.               */
+  /* ============================================================
+     ENDURNYJUN ER EKKI SAMA OG UMFERDASKIPTI (25.8.2026)
+
+     `setGwStats(null)` var kallad SAMSTUNDIS i hverri keyrslu thessa
+     effects — og deps eru `[gw, liveTick]`, thar sem `liveTick` telur
+     upp a 60 sek fresti **medan leikur er i gangi**. Opid
+     leikmannaspjald flokti thvi yfir i „engar tolur enn"-textann a
+     hverri minutu, nakvaemlega thegar notandinn er ad horfa.
+
+     GOMLU TOLURNAR ERU RETTAR ThANGAD TIL NYJAR KOMA. Nullstillingin
+     a adeins vid thegar UMFERDIN sjalf breytist, thvi tha eiga gomlu
+     tolurnar vid ADRA umferd og maetti ekki syna thaer undir nyjum
+     haus (sama regla og `file?.key === seasonKey` i `gwRange.js`:
+     gogn eru adeins syn thegar thau eiga vid thad sem er valid).
+
+     `lastGw` er ref en ekki state: hann ma ekki kveikja teikningu, og
+     hann er lesinn/skrifadur i SOMU keyrslu effectsins.
+     ============================================================ */
   useEffect(() => {
     let alive = true;
-    setGwStats(null);
+    if (lastLiveGw.current !== gw) { setGwStats(null); lastLiveGw.current = gw; }
     (async () => {
       // 1) reyna pipeline-skrána
       try {
@@ -933,12 +956,35 @@ export default function App() {
     return () => { alive = false; };
   }, [rivals, gw]);
 
+  /* ============================================================
+     ID-GERDIN VERDUR AD VERA EIN — TVITEKNINGARVORNIN BROTNADI VID
+     ENDURHLEDSLU (25.8.2026)
+
+     `addRival` geymdi id sem **STRENG** (regex skilar streng) en
+     hreinsarinn i `loadState` (`rowArr(s.rivals, ["id"])`) thvingar
+     hvert `id` i **TOLU** vid hleðslu. Eftir endurhleðslu bar listinn
+     thvi tolur medan nyja gildid var strengur, og `r.id === id` er
+     `false` fyrir `606 === "606"`. Utkoman: sami andstaedingur tvitekinn,
+     TVEIR React-hnutar med SAMA `key`, og eyðingartakkinn
+     (`x.id !== r.id`) hegdar ser oreiðanlega thvi hann sier tvo hluti
+     sem eru "sami" fyrir notandanum en ekki fyrir `!==`.
+
+     LEYST A GEYMSLU-FORMINU, EKKI I SAMANBURDINUM: id er geymt sem TALA
+     hedan i fra, sem er nakvaemlega thad sem hreinsarinn skilar. Vaeri
+     adeins samanburdinum breytt (`String(a) === String(b)`) vaeri
+     listinn afram BLANDADUR i minni, og naesta fullyrding sem gleymir
+     ad umbreyta myndi endurvekja villuna. Ein gerd, einn samanburdur.
+
+     Eldri vistud blob bera strengi — thau fara gegnum `rowArr` vid
+     hleðslu og koma ut sem tolur, svo thau lagast sjalf.
+     ============================================================ */
   function addRival() {
     const m = rivalInput.match(/entry\/(\d+)/) || rivalInput.match(/^(\d+)$/);
     if (!m) { flash("Rival URL or team ID — e.g. 606 or .../entry/606/"); return; }
-    const id = m[1];
-    if (rivals.some(r => r.id === id)) { flash("Already on the list."); return; }
-    if (String(id) === String(entryId)) { flash("That is your own team."); return; }
+    const id = Number(m[1]);
+    if (!Number.isFinite(id)) { flash("Rival URL or team ID — e.g. 606 or .../entry/606/"); return; }
+    if (rivals.some(r => Number(r.id) === id)) { flash("Already on the list."); return; }
+    if (id === Number(entryId)) { flash("That is your own team."); return; }
     setRivals(rs => [...rs, { id }]); setRivalInput("");
   }
 
@@ -955,6 +1001,12 @@ export default function App() {
      `events.some(e => e.finished)` og svaradi ODRU en PlayerList a lifandi
      gognum 24.8.2026; sja maelinguna vid `seasonHasStarted`.             */
   const seasonStarted = seasonHasStarted(events);
+  /* HVE MARGAR UMFERDIR ERU BYRJADAR — SAMA KLUKKA, EKKI NY. `seasonStarted`
+     er `startedGameweeks(...) > 0`, svo talan sjalf er thegar til i
+     `availability.js` og er flutt inn her. Ny talning (`e.finished`,
+     `is_current`, frestur) vaeri fjorda afritid af klukkunni og thau tvo
+     sem voru til svorudu SITTHVORU 24.8.2026.                           */
+  const startedGws = startedGameweeks(events);
   const seasonGames = (events || []).filter(e => e.finished).length;
   /* LEIKIR SEM HVERT FELAG HEFUR SPILAD — NEFNARINN I `rotationRisk`.
      `seasonGames` telur umferdir sem eru `finished`, og hun er RETT thar
@@ -1736,7 +1788,7 @@ export default function App() {
           1+ FWD) og `chipValue.bboost` (summa bekkjarins) lesa OBREYTT
           gogn. BB er ekki uppstillingar-breyting.
        2. `bench`-eiginleikinn a spjaldinu. Bekkjarmadur a vellinum heldur
-          `pCardBench` (ljosari bakgrunnur), svo hann er enn adgreinanlegur
+          `pCardBench` (graa spjaldid, 76 i RGB), svo hann er enn adgreinanlegur
           — vitneskjan "hverjir eru XI-in" tapast ekki i BB.
        3. Bekkjar-borainn helst a sinum stad med skyringu i stad spjalda,
           svo tomur borði lesi ekki eins og bilun.
@@ -2930,7 +2982,7 @@ export default function App() {
               {[1, 2, 3, 4].map(pos => (
                 <div key={pos} style={S.pitchRowFlex}>
                   {/* `bench={!sq.starter}`: i BB-umferd eru bekkjarmenn A
-                      VELLINUM og their halda `pCardBench` (ljosari bakgrunnur)
+                      VELLINUM og their halda `pCardBench` (graa spjaldid)
                       svo "hverjir eru XI-in" tapist ekki. Utan BB er thetta
                       alltaf `false` her — obreytt hegdun.                  */}
                   {rows[pos].map(sq => (
@@ -2963,12 +3015,20 @@ export default function App() {
               <div style={S.benchLabel}>{"Bench"}</div>
               {bbActive ? (
                 <div style={S.bbNote}>
-                  {/* „The lighter cards are your bench" VAR OSONN UM ThAU
-                      SPJOLD SEM VORU RAUNVERULEGA LJOSARI: thau tvo voru
-                      solu-abendingar (`opacity 0.62`), en bekkjar-skugginn
-                      var 13 i RGB og sast ekki. Setningin bendir nu a
-                      MERKID sem er sannanlega thar (`pcBench`).          */}
-                  {"Bench Boost — all 15 score, so the whole squad is on the pitch. The four cards marked BENCH are your bench."}
+                  {/* SETNINGIN HEFUR VERID OSONN TVISVAR OG HVORUG VILLAN
+                      VAR I ORDALAGINU HELDUR I ThVI SEM VAR MALAD:
+                      · „The lighter cards are your bench" (fram til 20.8.)
+                        benti a doufnun sem var `opacity: 0.62` fra
+                        `isSellHint` — ALLTAF nakvaemlega tveir menn — medan
+                        bekkjar-skugginn sjalfur var 13 i RGB og sast ekki.
+                      · „the cards marked BENCH" (20.-25.8.) benti a ord sem
+                        er nu FARID (beidni notandans).
+                      Hun bendir nu a GRAA SPJALDID, sem er 76 i RGB a badum
+                      bokgrunnum og er thad eina sem er sannanlega thar.
+                      REGLAN SEM ThETTA KENNIR: bordinn ma adeins nefna thad
+                      sem `pCardBench` malar — ekkert annad a vellinum er
+                      grátt, og thad er maelt.                            */}
+                  {"Bench Boost — all 15 score, so the whole squad is on the pitch. The four grey cards are your bench."}
                 </div>
               ) : (
               <div style={S.pitchRowFlex}>
@@ -3857,7 +3917,18 @@ export default function App() {
             </>
           ) : (
             <>
-              <b style={{ color: C.amber }}>{"Preseason mode."}</b> {"Minutes from recent gameweeks are the dominant factor but they do not exist yet. We use price, FPL ep_next and last season. Measurement shows this is"} <b>{"~1.5 points less accurate"}</b> {"— the score sharpens from GW6."}
+              {/* HEITID FYLGIR KLUKKUNNI, TALAN EKKI (25.8.2026).
+                  „Preseason mode" var satt um LIKANID (formFeat.mode) og vard
+                  osatt um DAGINN um leid og GW1-fresturinn leid: `form_features
+                  .json` er afram i `preseason` medan `gws_used` er 0 (fitting
+                  tharf ~5 loknar umferdir), svo bordinn sagdi „preseason" a
+                  timabili sem VAR byrjad. Tvennt olikt undir einu nafni.
+                  Skilyrdid er sameiginlega klukkan (`seasonStarted`), ekki ny
+                  profun; REIKNINGURINN sjalfur er OBREYTTUR — `recommend.js`
+                  les afram `formFeat.mode` og hvorki vogtolur ne
+                  ~1,5-stiga-maelingin haggast. Adeins ordid um DAGINN er
+                  leidrett.                                                */}
+              <b style={{ color: C.amber }}>{seasonStarted ? "Early-season mode." : "Preseason mode."}</b> {"Minutes from recent gameweeks are the dominant factor but they do not exist yet. We use price, FPL ep_next and last season. Measurement shows this is"} <b>{"~1.5 points less accurate"}</b> {"— the score sharpens from GW6."}
             </>
           )}
         </div>
@@ -4152,10 +4223,54 @@ export default function App() {
                     seasonStarted={seasonStarted}
                     onEditPrice={() => setPriceEdit({ id: p.id })} />
 
+                  {/* ============================================================
+                      YFIRSTANDANDI TIMABIL EFST (25.8.2026, beidni notandans)
+                      ============================================================
+                      Radirnar eru byggdar HER thvi `gwStats` er state appsins;
+                      `SeasonSoFar` er hreinn birtir og fær thaer tilbunar.
+                      EIN UMFERD ER HLADIN I EINU og thad er ASETT: `live/gw{n}
+                      .json` er 424 KB og appid sækir ADEINS thá umferd sem er
+                      valin — 16 MB i GW38 gegnum raw.githubusercontent, sem
+                      hefur throttlad okkur tvisvar. Radirnar sem eru ekki
+                      hladnar bera „—" MED SKYRINGU, aldrei 0.
+                      `startedGws` er SAMA klukka og allt annad.          */}
+                  <SeasonSoFar p={p} seasonStarted={seasonStarted}
+                    currentLabel={currentSeasonLabel} startedGws={startedGws}
+                    clubPlayed={playedByClub[p.team]}
+                    gwRows={Array.from({ length: startedGws }, (_, i) => {
+                      const g = i + 1;
+                      return { gw: g, st: g === gw ? (gwStats?.byId?.[p.id]?.stats || null) : null };
+                    })} />
+
                   {/* ep og vitarod eiga heima her, ekki i timabila-toflunni */}
                   <div style={S.dGrid}>
                     <DStat k={"Next GW forecast (ep)"} v={p.ep_next} />
-                    {rot && <DStat k={"Started"} v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`} />}
+                    {/* ============================================================
+                        „St%" UR EINUM LEIK ER EKKI MAELING — HLIDID VANTADI
+                        A ThENNAN KALLSTAD (25.8.2026, kaera notandans)
+                        ============================================================
+                        `rotationRisk` VEIT thegar hvenaer urtakid er of litid:
+                        `enough = prevSeason || seasonGames >= 3`, og an thess
+                        skilar hun `level: "low"`. HINIR TVEIR kallstadirnir —
+                        vallar-merkid (`rot.level === "high"`) og hlidarstikan —
+                        lesa hana; ThESSI EINI gerdi thad ekki og birti thvi
+                        „1/1 · 100%" eftir eina umferd, sem les eins og maelt
+                        hlutfall en er ein leikur.
+                        SAMA AETT OG NEFNARA-VILLAN 24.8.: lagfaering sem
+                        snertir tvo af thremur kallstodum er osamkvaemni, ekki
+                        lagfaering. Skilyrdid er `rotationRisk` sjalf — ENGIN
+                        ny `seasonGames >= 3`-profun her, thvi thrju afrit af
+                        einni reglu er nakvaemlega thad sem `buildTeamMetrics`
+                        og `headWidth` kostudu.
+                        ENGIN GAT I RASTINNI: `dGrid` er
+                        `repeat(auto-fit, minmax(88px,1fr))`, svo reitirnir
+                        sem eftir eru fylla bilid — reitur sem er ekki
+                        teiknadur skilur ekkert eftir sig.               */}
+                    {rot && rot.level !== "low" &&
+                      <DStat k={"Started"} v={`${rot.starts}/${rot.played}`} sub={`${rot.pct}%`}
+                        title={rot.prevSeason && cumLabel
+                          ? interp("Started {0} of {1} matches in {2}.", [rot.starts, rot.played, cumLabel])
+                          : interp("Started {0} of the {1} matches his club has played this season.", [rot.starts, rot.played])} />}
                     {/* Afturvirkjud tala, ALDREI hra — og n synilegt vid hlidina */}
                     {dcp && dcp.starts > 0 && dcp.hit_rate_adj != null &&
                       <DStat k={"DC hit rate"} v={`${Math.round(dcp.hit_rate_adj * 100)}%`}
@@ -4270,9 +4385,16 @@ export default function App() {
 
                   {/* "Hvar hann spilar" STOD HER og var faert NEDST i gluggann
                       16.8.2026 ad beidni notandans — leit: PositionMap.      */}
-
-                  <SeasonTable p={p} seasonsFile={seasonsFile}
-                    currentLabel={currentSeasonLabel} seasonStarted={seasonStarted} />
+                  {/* `SeasonTable` STOD HER og er faerd NEDST 25.8.2026 ad
+                      beidni notandans — leit: SeasonTable. Hun er staersti
+                      kassinn a spjaldinu (allt ad ellefu radir x fimm
+                      timabil) og sat MILLI kaupakvordunar-talnanna og
+                      leikjanna, svo ThESSI umferd og leikirnir framundan
+                      voru undir henni. Saga er samhengi, ekki akvordun —
+                      sama rok og faerdi `PositionMap` nedst 16.8.
+                      HUN LIFIR FLUTNINGINN OBREYTT: hun teiknar sinn eigin
+                      adskilnad (`S.secLbl` med `borderTop`), svo hun tharf
+                      ekkert fra thvi sem er fyrir ofan hana.             */}
                 </>
               ) : (
                 <>
@@ -4302,8 +4424,30 @@ export default function App() {
                 if (!g) return (
                   <>
                     <div style={S.dSectionLbl}>GW{gw} {"performance"}</div>
+                    {/* ============================================================
+                        FORLEIKS-SETNINGIN VARD OSONN VID FRESTINN (25.8.2026)
+                        ============================================================
+                        Her stod „the season begins 21 August" — FOST DAGSETNING
+                        um lifandi astand, nakvaemlega sama aett og
+                        „the range is 4-10 and NO club has a 1" i `SetPieces`
+                        og hordu „2025/26"-strengirnir i haus skotakortsins.
+                        Hun ureltist ThOGULT: 21. agust leid, GW1 var spilud, og
+                        spjaldid helt afram ad segja notandanum ad timabilid vaeri
+                        ekki byrjad um leid og hann skodadi GW2.
+                        SKILYRDID ER SAMEIGINLEGA KLUKKAN (`seasonStarted` ->
+                        `seasonHasStarted` i availability.js), EKKI NY PROFUN OG
+                        ENGIN DAGSETNING. Tvaer klukkur um sama tima er sama aett
+                        og `buildTeamMetrics`: afritin reka i sundur og BAEDI lita
+                        ut fyrir ad vera rett (maelt 24.8.: App sagdi `false` og
+                        PlayerList `true` um SAMA dag).
+                        TVAER ORSAKIR, TVAER SETNINGAR: fyrir frest er timabilid
+                        ekki byrjad; eftir hann er umferdin annadhvort oleikin eda
+                        skrain ekki komin — og tha er RANGT ad segja ad timabilid
+                        se ekki byrjad.                                     */}
                     <div style={S.muted}>
-                      {"No numbers for GW"}{gw} {"yet — the gameweek has not started (the season begins 21 August)."}
+                      {seasonStarted
+                        ? interp("No numbers for GW{0} yet — it has not been played, or the gameweek file has not been published.", [gw])
+                        : interp("No numbers for GW{0} yet — the season has not started.", [gw])}
                     </div>
                   </>
                 );
@@ -4451,6 +4595,13 @@ export default function App() {
                   </>
                 );
               })()}
+
+              {/* TIMABILA-TAFLAN — NEDST, RETT OFAN VID ADGERDIRNAR
+                  (faerd hingad 25.8.2026, sja skyringuna thar sem hun stod).
+                  ENN INNAN `isPlayer`: `SeasonTable` les `p.code` og
+                  `p.element_type` og lid-spjaldid a hvorugt.             */}
+              {isPlayer && <SeasonTable p={p} seasonsFile={seasonsFile}
+                currentLabel={currentSeasonLabel} seasonStarted={seasonStarted} />}
 
               {/* aðgerðir */}
               <div style={S.dActions}>
@@ -4740,15 +4891,26 @@ function FixStrip({ gws, teamById, diffOf, teamId, pos }) {
           if (d != null && (best == null || d < best)) { best = d; bestFx = f; }
         }
         const use = bestFx || fxs[0];
-        const d = best != null ? best : use.fdr;
+        /* `d` GETUR VERID TOM OG ThAD ER NYTT (25.8.2026).
+           `makeFixDifficulty` skiladi adur `NaN` thegar inntok vantadi;
+           `NaN != null` er TRUE, svo `best` vard NaN og tooltip-id bar
+           ordrett "FFDR NaN" — thogul rong tala. Fallid skilar nu `null`
+           (V11), svo greinin fer i `use.fdr`, sem er `undefined` a leik
+           an FDR-svids — og tha kastadi `d.toFixed(2)`.
+           Bædi astondin eru SAMA vandamalid: engin FFDR-tala er til.
+           Hun er thvi PROFUD sem tala, ekki sem "ekki null", og reiturinn
+           segir "—" i stad thess ad ljuga eda hrynja (CLAUDE.md 8:
+           NULL ER EKKI NULL, og omæld tala fær ekki reit).            */
+        const dRaw = best != null ? best : use.fdr;
+        const d = Number.isFinite(dRaw) ? dRaw : null;
         const t = tierOf(d);
         const opp = teamById[use.opp]?.short || "?";
         const label = fxs.map(f =>
           `${teamById[f.opp]?.short || "?"}${f.home ? "" : " (" + "away" + ")"}`).join(" + ");
         return (
           <div key={i} style={{ ...S.fixMini, background:TIER_BG[t], color:TIER_FG[t] }}
-            title={`${label}\nFFDR ${d.toFixed(2)} — ${TIER_NAME[t]}`
-              + `\nFDR ${use.fdr}${fxs.length > 1 ? "\n" + "DOUBLE GAMEWEEK" : ""}`}>
+            title={`${label}\nFFDR ${d == null ? "—" : d.toFixed(2)} — ${TIER_NAME[t]}`
+              + `\nFDR ${use.fdr ?? "—"}${fxs.length > 1 ? "\n" + "DOUBLE GAMEWEEK" : ""}`}>
             {oppLabel(opp, use.home)}{fxs.length > 1 ? "⧫" : ""}
           </div>
         );
@@ -4944,11 +5106,19 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
             : isPlanned ? `inset 0 0 0 ${av.isRisk ? 4 : 2}px ${C.green}` : "",
         ].filter(Boolean).join(", ") || undefined,
       }}
-      title={swapSel === p.id ? "Selected — click another to swap"
-             : "Click to swap with another player"}>
+      title={[
+        /* BEKKJAR-SETNINGIN LIFIR HER ThOTT ORDID SE FARID (25.8.2026).
+           Sama urlausn og verdspar-malsgreinin 20.8. og Pick-best-XI
+           fyrirvarinn 21.8.: synilega linan for, EFNID for i `title` thar
+           sem spurningin vaknar. Grátt spjald an skyringar er merki sem
+           enginn getur flett upp.                                      */
+        bench ? "On your bench for this gameweek — he only scores if a starter does not play (or with Bench Boost)" : "",
+        swapSel === p.id ? "Selected — click another to swap"
+                         : "Click to swap with another player",
+      ].filter(Boolean).join("\n")}>
       {/* IKON — sér aðgerðir. Smellur á spjaldið er SKIPTI. */}
       {/* ============================================================
-          VINSTRA MEGIN: i + ↻ (+ C/V + meidsla-merki) · HAEGRA MEGIN: ⇄
+          VINSTRA MEGIN: C/V + i + ↻ (+ meidsla-merki) · HAEGRA MEGIN: ⇄
           (beidni notandans 20.8.2026)
           ============================================================
           ↻ (FFDR-samanburdur) var haegra megin med ⇄. Nu er ADEINS
@@ -4969,6 +5139,27 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
           i stad thess ad klippast (sama regla og FixStrip: WRAP, EKKI
           CLIP — sja `pFix` i appStyles.js).                             */}
       <div style={S.pcIconsL}>
+        {/* FYRIRLIDA-MERKID ER FYRST I RODINNI (beidni notandans 25.8.2026).
+            SAGAN I TVEIMUR SKREFUM, OG BADAR VILLURNAR VORU STADSETNING:
+            7.8.2026 sat merkid `position:absolute top:4 right:4` — NAKVAEMLEGA
+            undir ⇄/↻-ikonunum (zIndex 2 a moti 3), svo C-id a Haaland var
+            OSYNILEGT. Thad var flutt i flex-rodina vinstra megin og gat tha
+            ekki legid undir neinu. EN ThAD VAR SETT AFTAST, a eftir i, ↻ og
+            meidsla-merkinu, og `pcIconsL` er `flexWrap:"wrap"` a spjaldi sem
+            er clamp(62px, 17.5%, 100px): fjorda atridid BROTNAR I NAESTU LINU
+            og lendir tha OFAN A ANDLITSMYNDINNI, mitt a spjaldinu.
+            Notandinn ordadi thad thannig: „C/V hylja andlitid a leikmanninum".
+            Fyrsta sætid i flex-rodinni ER efsta vinstra hornid — thad er
+            eina sætid sem getur ALDREI brotnad nidur, hvad sem hin thrju
+            atridin gera.
+            ENGIN ABSOLUTE-STADSETNING AFTUR, OG ENGIN HANDREIKNUD TALA:
+            `left: isCap ? 38 : 21` var akkurat lausnin sem var felld 20.8.
+            (hun var reiknud ur fjolda ikona og vard rong THOGULT um leid og
+            thridja ikonid kom). Rodun i flaedi hefur enga tolu ad reka.   */}
+        {isCap && <span style={{ ...S.bandFlow, background:"#ffd23f", color:"#4a3800" }}
+          title={"Captain — double points"}>C</span>}
+        {isVice && <span style={{ ...S.bandFlow, background:"#c9c9d0", color:"#33333a" }}
+          title={"Vice-captain — takes over if the captain does not play"}>V</span>}
         <button style={S.pcIcon} title={"Information"}
           onClick={e => { e.stopPropagation(); onInfo && onInfo(); }}>i</button>
         {/* FFDR-SAMANBURDUR — hver kemur inn fyrir hann i ERFIDU umferdunum.
@@ -4976,8 +5167,7 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
         <button style={{ ...S.pcIcon, ...S.pcIconRot }}
           title={"FFDR comparison — find a player with easy gameweeks where his are hard"}
           onClick={e => { e.stopPropagation(); onRotation && onRotation(); }}>↻</button>
-        {/* MEIDSLA-/BANN-MERKID — sterkasta upplysingin i rodinni, svo hun
-            kemur strax eftir hnappana og situr a FYRSTU linu.            */}
+        {/* MEIDSLA-/BANN-MERKID — sterkasta upplysingin sem EKKI er C/V.   */}
         {av.isRisk && (
           <span style={{ ...S.availFlow,
                          background:av.solid || av.bg,
@@ -4986,29 +5176,23 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
             {av.short}{av.chance != null && av.chance > 0 ? av.chance : ""}
           </span>
         )}
-        {/* FYRIRLIDA-MERKID ER HER, VINSTRA MEGIN (beidni 7.8.2026).
-            Adur sat thad `position:absolute top:4 right:4` — NAKVAEMLEGA
-            undir ⇄/↻-ikonunum (zIndex 2 a moti 3), svo C-id a Haaland
-            var OSYNILEGT. I flex-rodinni vinstra megin getur thad ekki
-            legid undir neinu.                                          */}
-        {isCap && <span style={{ ...S.bandFlow, background:"#ffd23f", color:"#4a3800" }}
-          title={"Captain — double points"}>C</span>}
-        {isVice && <span style={{ ...S.bandFlow, background:"#c9c9d0", color:"#33333a" }}
-          title={"Vice-captain — takes over if the captain does not play"}>V</span>}
       </div>
       <div style={S.pcIcons}>
         <button style={{ ...S.pcIcon, ...S.pcIconSwap }} title={"Transfer out — opens search"}
           onClick={e => { e.stopPropagation(); onTransfer && onTransfer(); }}>⇄</button>
       </div>
-      <div style={S.pPortrait}
+      {/* STYRKING A GREYINGUNNI, EKKI MERKID (sja `pCardBench`): myndin
+          missir lit og textinn dofnar i lit — hvorugt er `opacity` og
+          hvorugt ber fullyrdinguna. Maelda merkid er bakgrunnurinn.     */}
+      <div style={{ ...S.pPortrait, ...(bench ? S.pPortraitBench : {}) }}
         title={interp("{0}{1}NOTE: the FPL photo can show an OLD club after a transfer. The crest is right.", [team?.name || "?", "\n"])}>
         <PlayerImg code={p.code} short={team?.short} size={38} />
         {/* Merkið er ÓTVÍRÆÐA félags-vísbendingin — stærra og með hvítum
             baug svo það lesist yfir myndinni, sem getur verið úrelt.       */}
         <Crest team={team} size={18} style={S.pCrest} />
       </div>
-      <div style={S.pName}>{p.web_name}</div>
-      <div style={S.pPrice}>
+      <div style={{ ...S.pName, ...(bench ? S.pNameBench : {}) }}>{p.web_name}</div>
+      <div style={{ ...S.pPrice, ...(bench ? S.pPriceBench : {}) }}>
         £{(p.now_cost/10).toFixed(1)}
         {sellTenths_ != null && sellTenths_ < p.now_cost &&
           <span style={S.pSell} title={interp("Sell price under the 50% rule: £{0}", [(sellTenths_/10).toFixed(1)])}>
@@ -5057,18 +5241,39 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
         </div>
       )}
       <div style={S.sigRow}>
-        {/* BEKKUR — ORDID, EKKI SKUGGINN (20.8.2026). `pCardBench` gaf 13 i
-            RGB a torfi og var thvi „sama sem ekkert merki"; i BB-umferd eru
-            bekkjarmennirnir A VELLINUM og tha er stadan a skjanum ekki
-            lengur visbendingin. Texti getur ekki rekist a graena/fjolublaa/
-            blaa merkingu (kafli 8) — thad er allur punkturinn.
-            Merkid er a BADUM stodum (bekkjar-rodin og vollurinn i BB): ein
-            regla, `bench`, og engin auka-eiginleiki sem gæti rekid i sundur
-            vid stilinn sem hann a ad fylgja.                            */}
-        {bench && <span style={S.pcBench}
-          title={"On your bench for this gameweek — he only scores if a starter does not play (or with Bench Boost)"}>{"BENCH"}</span>}
+        {/* BEKKUR-MERKID (`pcBench`, ordid „BENCH") ER FARID 25.8.2026 AD
+            BEIDNI NOTANDANS og GREYINGIN BER MERKID EIN. Thad er sama
+            akvordun og var snuid vid 20.8., svo hun stendur adeins vegna
+            thess ad mekanisminn er annar: skugginn er nu OGEGNSAER og
+            maelist 76 i RGB a BADUM bokgrunnum sem `bench` getur verid satt
+            a (20.8. var hann 13 a odrum theirra). Full maeling og astaedan
+            fyrir ogegnsæinu eru vid `pCardBench` i appStyles.js.
+            SETNINGIN SEM ORDID BAR ER EKKI HORFIN — hun er `title` a
+            spjaldinu sjalfu (sja `title` a ytri <div>), thvi spurningin
+            „af hverju er hann grar?" vaknar a spjaldinu.                */}
         {isSellHint && <span style={S.sigSell}
           title={"Lowest-ranked player in your squad by the sell model — a suggestion, not a verdict"}>{"SELL?"}</span>}
+        {/* VERDFALL — FPL-s EIGIN TALA, OSKOLUD (25.8.2026).
+            Vollurinn ber ADEINS thina eigin menn, svo „vara mig vid thegar
+            leikmadur sem eg a er ad falla" er nakvaemlega thessi rod.
+            Talan sjalf er OBREYTT fra FPL og hun er sott gegnum
+            `priceChangeOf`, sem kallar `STAT_BY_KEY.price_change_percent
+            .get()` — SAMA skilgreining og dalkurinn i Player stats. Ekkert
+            afrit, engin skolun, ekkert formerki snuid.
+            ThRoSKULDURINN ER UI-AFMORKUN (`PRICE_FALL_MARK = -50`, leidd af
+            FPL-throskuldinum 100) og hun er rokstudd og MAELD i
+            PlayerPanel.jsx. Laestur leikmadur fær ekkert merki: verdid
+            getur ekki breyst medan lasinn er a.                        */}
+        {(() => {
+          const pc = priceChangeOf(p);
+          if (!pc?.falling) return null;
+          return (
+            <span style={S.sigDrop}
+              title={interp("FPL's own \"progress to price change\" figure is {0}% — he is at least halfway to a price FALL. The figure is FPL's, shown unscaled; 100 is where the change lands. This app does not predict the night it happens.", [pc.pct])}>
+              {"↓"}{Math.abs(Math.round(pc.pct))}{"%"}
+            </span>
+          );
+        })()}
         {/* FOST LEIKATRIDI ERU EKKI A SPJALDINU (fjarlaegt 29.7. ad bedni
             notanda). Spjaldid er clamp(62px, 17.5%, 100px) breitt og thessi
             ikon-rod (viti + aukaspyrna + horn) trod merkjarodina svo

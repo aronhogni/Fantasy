@@ -25,6 +25,7 @@ import {
   PRESEASON_CAL, preseasonStartProb, indexImminentByTeam, gkChiefOutIds, stampStartWindow,
   MO_WEIGHTS, IMMINENT_MAX_GI, IMMINENT_MIN_MINUTES, makeEnricher, gwBlindKeys, BSD_XGS_MIN_SHOTS,
   SCOPE_NOTES, FIELDS_READ, readsFields,
+  tableDefs, visibleInGroups, isGkOnly, ESPN_TEXT_KEYS,
 } from "../src/stats.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
@@ -169,8 +170,17 @@ eq(STAT_BY_KEY.pts_per_million.get(fake), null,
 near(STAT_BY_KEY.cs_pct.get(fake), 40, 1e-9, "Hreint blað % = 4/10");
 near(STAT_BY_KEY.save_pct.get(fake), 75, 1e-9, "Vörsluhlutfall = 30/(30+10)");
 eq(STAT_BY_KEY.pts_per_90.get({ minutes: 0, total_points: 5 }), null, "0 mínútur → null, ekki Infinity");
-eq(STAT_BY_KEY.mins_per_gi.get({ minutes: 900, goals_scored: 0, assists: 0 }), null,
-  "ekkert framlag → null, ekki deiling með núlli");
+/* `mins_per_gi` VAR FELLDUR 25.8.2026 (beidni notandans) ASAMT `gi_per_90`.
+   Fullyrdingin sem stod her ("ekkert framlag -> null, ekki deiling med
+   nulli") var um HANN, svo hun for med honum. SYSTURDALKURINN BER HANA
+   AFRAM og hann er ENN til: `mins_per_xgi` hefur nakvaemlega somu
+   deilingar-gildru (nefnari getur verid 0) og ber sitt eigid xGI-golf.
+   Ad henda profinu ollu hefdi thagad um regluna sjalfa — hun er ekki um
+   dalkinn sem for heldur um deilinguna.                                */
+eq(STAT_BY_KEY.gi_per_90, undefined, "`gi_per_90` er felldur ur skranni");
+eq(STAT_BY_KEY.mins_per_gi, undefined, "`mins_per_gi` er felldur ur skranni");
+eq(STAT_BY_KEY.mins_per_xgi.get({ minutes: 900, expected_goal_involvements: 0 }), null,
+  "ekkert vaent framlag → null, ekki deiling með núlli");
 
 /* NYJAR OPINBERAR TOLUR — sannreyna ad thaer komi ur rettum svidum.
    MINUTUR ERU NU HLUTI FORSENDUNNAR (16.8.2026). Thessar fjorar lesa FPL-svid
@@ -1575,6 +1585,147 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
          "BADGE_W er leidd af mældu 6,35 px/staf (9px letur + padding + margin)");
   }
 
+  /* ============================================================
+     BANDS-HEITID VERDUR AD PASSA I SITT EIGID BAND — VORDURINN VAR EKKI TIL
+
+     TILKYNNT AF NOTANDA 25.8.2026: bands-rodin i "Upcoming fixtures" bar
+     "M, NEXT MA" og "EAM, NEXT 6". Breidd bands-holfsins var SUMMAN AF
+     BREIDDUM SINNA DALKA og heitid var hvergi i theim reikningi, svo band
+     med EINUM dalki fekk 66 px fyrir heiti sem tharf 101. Holfid er
+     `center` + `nowrap` + `overflow:hidden`, svo klippingin er SAMHVERF —
+     thess vegna hvarf bædi framan af og aftan af.
+
+     ENGIN FULLYRDING VAR TIL UM ThETTA. `stats.test.mjs` maeldi HAUS-rodina
+     (heiti + or + merki) i smaatridum og bands-rodina EKKI neitt — sama
+     tegund af gati og "season"-merkid var: threpid sem enginn maeldi.
+
+     MAELT A OLLUM BONDUM I OLLUM FLOKKUM, i badum stodum merkisins, med
+     SOMU tveimur follum og appid teiknar med (`headWidth` gegnum
+     `bandLayout`) — ekki afriti af theim. Afrit var nakvaemlega thad sem
+     gerdi haus-kaflann ofaeran um ad falla i tvo daga.
+     ============================================================ */
+  {
+    const blind = gwBlindKeys();
+    /* FOSTU DALKARNIR ERU LESNIR UR SKRANNI, EKKI HANDSKRIFADIR — annars
+       maeldi kaflinn bond sem eru ekki thau sem sjast (fastir dalkar eru
+       teknir UT ur flokka-dalkunum og breyta thvi bandinu sinu).       */
+    const plSrc0 = readFileSync(new URL("../src/PlayerList.jsx", import.meta.url), "utf8");
+    const pinM = plSrc0.match(/const PINNED = new Set\(\[([^\]]*)\]\)/);
+    const PINNED_KEYS = new Set(pinM ? [...pinM[1].matchAll(/"([^"]+)"/g)].map(x => x[1]) : []);
+    ok(PINNED_KEYS.size >= 2, `fostu dalkarnir lesnir ur skranni (${[...PINNED_KEYS]})`);
+    const tight = [];
+    let bandsSeen = 0, oneCol = 0;
+    for (const g of STAT_GROUPS) {
+      const cols = tableDefs({ group: g.key }).filter(d => !PINNED_KEYS.has(d.key));
+      if (!cols.length) continue;
+      for (const badge of [false, true]) {
+        const wBase = d => PL.headWidth(d, badge && PL.headBadge(d, { gwActive: true, blind, narrow: false }));
+        const { bands } = PL.bandLayout(cols, wBase);
+        for (const b of bands) {
+          bandsSeen++;
+          if (b.n === 1) oneCol++;
+          if (PL.bandWidth(b.band) > b.w)
+            tight.push(`${g.key}/"${b.band}" faer ${b.w} px en tharf ${PL.bandWidth(b.band)}`);
+        }
+      }
+    }
+    /* FORSENDUR SANNADAR FYRST (CLAUDE.md 5b regla 2): an banda — og
+       serstaklega an EINS-DALKS banda — maeldi kaflinn ekkert, thvi thad
+       eru thau sem klipptust.                                          */
+    ok(bandsSeen > 30, `${bandsSeen} bond maeld yfir alla flokka (forsenda)`);
+    ok(oneCol > 0, `${oneCol} theirra eru EINS-DALKS bond — tilfellid sem klipptist`);
+    eq(tight.length, 0,
+       `hvert bands-heiti rumast i sinu bandi${tight.length ? " — " + tight[0] : ""}`);
+
+    /* OG PX/STAF ER LEIDD AF MAELDU TOLUNNI, EKKI VALIN: 9,5 px letur med
+       0,4 letterSpacing ofan a mældum 6,35 px vid 10,5 px.             */
+    near(PL.BAND_PXC, 6.35 * 9.5 / 10.5 + 0.4, 1e-9,
+         "BAND_PXC er leidd af HEAD_PXC (9,5px letur + letterSpacing)");
+    /* AUKAPLASSID ER SKILYRT — band sem rumar heitid sitt THEGAR fær
+       EKKERT. Fastur kostnadur a oll bond vaeri sama villa og †-merkid. */
+    {
+      const wide = [{ key: "a", short: "AAAAAAAAAAAA", dec: 0, band: "X" },
+                    { key: "b", short: "BBBBBBBBBBBB", dec: 0, band: "X" }];
+      const { extra } = PL.bandLayout(wide, d => PL.headWidth(d, false));
+      eq(extra.size, 0, "band sem rumar heiti sitt fær ekkert aukaplass");
+    }
+    /* OG SIMINN FAER ENGA THENSLU (`widen: false`) — thakid thar er 66 px
+       og thensla undir bandsheiti vaeri larett skrun sem simahamurinn var
+       smidadur til ad forðast.                                         */
+    {
+      const one = [{ key: "c", short: "CS next", dec: 0, band: "Team, next match" }];
+      const w = d => Math.min(66, PL.headWidth(d, false));
+      ok(PL.bandLayout(one, w, { widen: true }).bands[0].w > 66,
+         "forsenda: thetta band THARF thenslu a bordi");
+      eq(PL.bandLayout(one, w, { widen: false }).bands[0].w, 66,
+         "en i sima er hun slokkt — 66 px thakid stendur");
+    }
+  }
+
+  /* ============================================================
+     `build_only` — BIRTINGAR-SIA, EKKI EYDING (25.8.2026)
+
+     Dalkarnir hverfa UR FLOKKA-TOFLUNNI og hvergi annars stadar. Se
+     einhver freistadur af thvi ad "hreinsa til" med thvi ad eyda theim
+     ur `STAT_DEFS` fellur thetta: stigataflan, dalkavalarinn, siurnar og
+     throskuldarnir lesa skrana afram.
+     ============================================================ */
+  {
+    const bo = STAT_DEFS.filter(d => d.build_only);
+    ok(bo.length >= 20, `${bo.length} dalkar eru build_only (forsenda)`);
+    ok(bo.every(d => STAT_BY_KEY[d.key]),
+       "...og their eru ALLIR afram i STAT_DEFS — sian er birting, ekki eyding");
+    /* HEIL BOND, EKKI STOK DALKAR. Hálft band i toflunni og hálft i
+       byggingar-hamnum vaeri haus sem stendur yfir odru en hann segir. */
+    const half = [];
+    for (const d of STAT_DEFS) {
+      const sib = STAT_DEFS.filter(x => x.group === d.group && x.band === d.band);
+      if (sib.some(x => !!x.build_only !== !!d.build_only)) half.push(`${d.group}/${d.band}`);
+    }
+    eq(half.length, 0, `ekkert band er halft build_only${half.length ? " — " + half[0] : ""}`);
+    /* OG FLOKKUR SEM ER ALLUR BUILD_ONLY FAER ENGAN DALK I FLOKKA-TOFLUNNI
+       — thad er `setp` i dag og thad er ASETT, svo hnappurinn hverfur.  */
+    eq(tableDefs({ group: "setp" }).length, 0,
+       "\"Set pieces and cards\" a engan syndan dalk (allur build_only)");
+    ok(STAT_DEFS.filter(d => d.group === "setp").length === 6,
+       "...en flokkurinn er afram til med sina sex dalka (Leaderboard telur hann upp)");
+    /* HVER HINNA FLOKKANNA VERDUR AD EIGA DALK EFTIR — annars hyrfi
+       hnappurinn hans lika og sian vaeri ordin ad felu-hnappi.          */
+    const empty = STAT_GROUPS.filter(g => g.key !== "setp" && !tableDefs({ group: g.key }).length);
+    eq(empty.length, 0, `enginn ANNAR flokkur tæmist${empty.length ? " — " + empty[0].key : ""}`);
+  }
+
+  /* ---- MARKMANNS-DALKAR ERU LEIDDIR AF `pos`, EKKI AF BANDSHEITI ----
+     Bandsheiti er birtingar-strengur; regla sem hvilir a honum deyr
+     thogult vid endurnefningu (thad var `espn-floor` ordrett).         */
+  {
+    const gk = STAT_DEFS.filter(isGkOnly).map(d => d.key);
+    ok(gk.length >= 4, `${gk.length} dalkar eru markmanns-dalkar: ${gk.join(", ")}`);
+    ok(gk.includes("saves") && gk.includes("save_pct") && gk.includes("penalties_saved"),
+       "...og Goalkeeping-bandid er allt i theim hopi");
+    ok(STAT_DEFS.filter(d => d.band === "Goalkeeping").every(isGkOnly),
+       "hver dalkur i Goalkeeping er markmanns-dalkur (reglan naer OLLU bandinu)");
+    ok(gk.every(k => !tableDefs({ pos: "all" }).some(d => d.key === k)),
+       "enginn theirra sest thegar stodu-sian er \"all\"");
+    ok(gk.every(k => tableDefs({ pos: "1" }).some(d => d.key === k)),
+       "...og allir sjast thegar hun er GK");
+    for (const p of ["2", "3", "4"])
+      ok(!tableDefs({ pos: p }).some(isGkOnly), `stada ${p}: enginn markmanns-dalkur`);
+  }
+
+  /* ---- ESPN-TEXTALYKLARNIR ERU VARDADIR (SCOPE_NOTES "espn-floor") ----
+     Reglan var lyklud a `d.band.startsWith("Created")` og bandid var
+     sameinad "Creation" — tha hefdi hun nad til NULL dalka. Nu er hun
+     lyklud a lykla, og handskrifadur lyklalisti stadnar THOGULT nema
+     hann se vardadur.                                                  */
+  {
+    ok(ESPN_TEXT_KEYS.length === 3, `${ESPN_TEXT_KEYS.length} textalesnir ESPN-dalkar`);
+    const gone = ESPN_TEXT_KEYS.filter(k => !STAT_BY_KEY[k]);
+    eq(gone.length, 0, `hver lykill i ESPN_TEXT_KEYS er til${gone.length ? " — " + gone[0] : ""}`);
+    ok(ESPN_TEXT_KEYS.every(k => STAT_BY_KEY[k].band === "Creation"),
+       "...og their sitja allir i \"Creation\" eftir sameininguna");
+  }
+
 
   /* live_only MA ALDREI SITJA A ARSTIDAR-SUMMU — thad myndi fela hana
      ranglega. ADUR var thetta prófad eftir FLOKKI, en 7.8.2026 voru
@@ -2549,17 +2700,36 @@ console.log("\n16) umferdar-bils-bordinn — rokfraedi og orðalag");
   const rec = PL.rangeAwareGroupsOf(blind).map(g => g.key);
   ok(rec.includes("core") && rec.includes("attack") && rec.includes("defence"),
      `tillagan ber grunn-flokkana (${rec.join(", ")})`);
-  ok(rec.includes("setp"),
-     "og \"Set pieces and cards\" — spjalda-dalkarnir fylgja bilinu, en handskrifadi listinn sleppti theim");
+  /* "Set pieces and cards" VAR HER OG ER ThAD EKKI LENGUR — OG ThAD ER TVAER
+     OLIKAR ASTAEDUR SEM MEGA EKKI RUGLAST SAMAN (25.8.2026).
+     Gamla fullyrdingin var rett: spjalda-dalkarnir FYLGJA bilinu og
+     handskrifadi listinn sleppti theim. Hun stendur enn um GOGNIN —
+     `awareIn("setp")` er afram > 0, sem er fullyrt hér ad nedan. En
+     flokkurinn er nu allur `build_only` og hefur ENGAN hnapp i flokka-
+     rodinni, svo tillaga um ad "skipta yfir i hann" bendir a stad sem er
+     ekki til. Bordinn ma ekki lofa tofluskiptum sem eru omoguleg.
+     PROFID VER ThVI BADA HELMINGA: dalkarnir fylgja bilinu (gognin) OG
+     tillagan sleppir honum (birtingin).                                */
+  ok(!rec.includes("setp"),
+     "\"Set pieces and cards\" er EKKI i tillogunni — hann er allur build_only og a engan hnapp");
   /* `fixtures` er GILDRAN: 0 blindir en 5 af 5 `live_only`, svo listi sem
      leiddur vaeri af `blind` einum hefdi maelt med honum — og hann horfir
      FRAM og getur aldrei fylgt bili sem er lidid.                        */
   ok(!rec.includes("fixtures"),
      "\"Upcoming fixtures\" er EKKI i tillogunni (0 blindir en allir live_only)");
-  ok(!rec.includes("aron"), "\"Consistency (Aron)\" er ekki i tillogunni (4/4 blindir)");
+  ok(!rec.includes("aron"), "\"Consistency\" er ekki i tillogunni (4/4 blindir)");
   const awareIn = k => STAT_DEFS.filter(d => d.group === k && !blind.has(d.key) && !d.live_only).length;
-  ok(rec.every(k => awareIn(k) > 0) && STAT_GROUPS.filter(g => awareIn(g.key) > 0).length === rec.length,
-     `hver flokkur i tillogunni ber a.m.k. einn bils-dalk og enginn slikur vantar (${rec.map(k => `${k}:${awareIn(k)}`).join(" ")})`);
+  /* FORSENDAN SEM GAMLA FULLYRDINGIN BAR: spjalda-dalkarnir eru ENN
+     bils-faerir. Vaeri hun ekki hér vaeri "setp er ekki i tillogunni"
+     satt af rangri astaedu.                                            */
+  ok(awareIn("setp") > 0,
+     `forsenda: "setp" ber ENN ${awareIn("setp")} bils-faera dalka — hann er utilokadur af BIRTINGU, ekki af gognum`);
+  /* SIAN ER SU SAMA OG I TOFLUNNI (`visibleInGroups`), ekki afrit.      */
+  const shownAwareIn = k => STAT_DEFS.filter(d =>
+    d.group === k && visibleInGroups(d) && !blind.has(d.key) && !d.live_only).length;
+  ok(rec.every(k => shownAwareIn(k) > 0)
+     && STAT_GROUPS.filter(g => shownAwareIn(g.key) > 0).length === rec.length,
+     `hver flokkur i tillogunni ber a.m.k. einn SYNDAN bils-dalk og enginn slikur vantar (${rec.map(k => `${k}:${shownAwareIn(k)}`).join(" ")})`);
 }
 
 /* ============================================================
