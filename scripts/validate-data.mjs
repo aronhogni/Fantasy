@@ -50,6 +50,28 @@
      · faekkun sem er ekki nidur i null. Leikmenn fara ur 609 i 600 vid
        felagaskipti-glugga; thad er RETT gagn.
 
+   ============================================================
+   ThEKJAN ER EFSTA LAGID EITT — OG ThAD ER SAGT HER ThVI ANNARS
+   VAERI ThAD LOFORD SEM SKRAIN STENDUR EKKI VID
+   ============================================================
+   `readdir` an `recursive` les `data/*.json` og EKKI undirmoppurnar.
+   MAELT 25.8.2026: 51 skra i efsta lagi, en `data/fdcouk/` (17),
+   `data/history/` (31), `data/live/` (1), `data/odds_raw/` (3) og
+   `data/predictions/` (1) eru UTAN thekjunnar — 53 skrar til viðbotar.
+
+   Tvennt af thvi er meðvitað:
+     · `history/` og `predictions/` eru VIDBAETANDI skrar (ein per dag /
+       per umferd) og eldri raðir eru ALDREI endurskrifadar, svo
+       "afturfor i null" er ekki til sem astand hja theim.
+     · `live/gw{n}.json` og `odds_raw/` vaxa lika adeins.
+   Hitt er einfaldlega OGERT: undirmoppurnar fa ENGA JSON-thattun, svo
+   trunkud `live/gw1.json` (409 KB, lesin af appinu) slyppi gegnum thetta
+   hlid. Vaeri hlidid tengt aetti thad ad vera fyrsta viðbotin.
+
+   Ad segja "51 skrar skodadar" an thessarar notu vaeri nakvaemlega su
+   tegund tolu sem repo-ith varar vid: rett tala sem les eins og
+   fullyrding um allt.
+
    Keyrsla:  node scripts/validate-data.mjs        (0 = ma committa)
              node scripts/validate-data.mjs --json <slod>
    ============================================================ */
