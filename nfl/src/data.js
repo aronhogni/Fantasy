@@ -234,8 +234,40 @@ export async function sleeperUser(name) {
     s => `Sleeper user not found (${s})`);
 }
 
+/* ============================================================
+   TIMABILID VERDUR AD VERA TALA — OG SLEEPER SVARAR 200 A RUSLI
+   ============================================================
+   `App.jsx` gerir `const meta = core.meta || {}`, svo bresti
+   `meta.json` er `meta.season` **`undefined`** — og badir kallendur
+   (`DraftBoard.jsx:1526`, `MyTeam.jsx:217`) senda hana hingad obreytta.
+
+   TILKYNNT VAR AD NOTANDINN FENGI HRATT 404. ÞAD ER RANGT, OG
+   RAUNVERULEIKINN ER VERRI. Maelt 25.8.2026 a lifandi endapunkti:
+
+     /user/{id}/leagues/nfl/undefined   ->  HTTP **200**, farmur `[]`
+     /user/{id}/leagues/nfl/2026        ->  HTTP 200, 10.964 baeti
+
+   404 hefdi verid SYNILEG bilun. `[]` er thad ekki: appid segir
+   "thu att engar deildir" — sjalfsoruggt, rangt og fullkomlega
+   truverdugt svar — og notandinn fer ad leita ad vandamalinu i
+   Sleeper-reikningnum sinum. Orsokin er hins vegar OKKAR: `meta.json`
+   hladst ekki.
+
+   Þess vegna er hlidid HER og ekki hja kallendunum: eitt hlid ber bada,
+   og bodin nefna RETTA ORSOK i stad thess ad endursegja HTTP-stodu sem
+   var 200 hvort sem er.                                              */
 export async function sleeperLeagues(userId, season) {
-  return sleeperGet(`/user/${userId}/leagues/nfl/${season}`,
+  /* `Number(null)` er 0 og `Number("")` er 0, svo `Number.isFinite`
+     eitt hleypir badum i gegn sem ari 0. Sama gildra og `num()`-verdirnir
+     annars stadar i thessu repo. */
+  const yr = season == null || season === "" ? null : Number(season);
+  if (!Number.isFinite(yr) || yr < 2000 || yr > 2100) {
+    throw new Error(
+      "Could not read the current season from our own data (meta.json), " +
+      "so your leagues cannot be looked up. This is not a Sleeper problem — " +
+      "reload, and if it persists check the Sources tab.");
+  }
+  return sleeperGet(`/user/${userId}/leagues/nfl/${yr}`,
     s => `Could not read your leagues (${s})`);
 }
 

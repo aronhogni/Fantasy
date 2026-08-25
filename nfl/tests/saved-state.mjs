@@ -626,5 +626,79 @@ console.log("\n9. load(): bilun festist ekki, en svar gerir thad");
   globalThis.fetch = realFetch;
 }
 
+/* ============================================================
+   N7/N8 — TVAER FULLYRDINGAR SEM VORU RANGAR A SKJANUM
+   ============================================================ */
+console.log("\nN7/N8: timastimpill og timabil");
+{
+  const { when } = await import("../src/reltime.js");
+  const { sleeperLeagues } = await import("../src/data.js");
+
+  /* --- N7: "just now" var FASTUR STRENGUR ---
+     `fetchedAt` var thegar geymt i `Dashboard`; merkimidinn las hana
+     bara ekki. Spjald sem var lesid fyrir klukkutima sagdi samt
+     "just now" — merkimidi sem batnar aldrei og versnar med hverri
+     minutu. `when()` er nu ein utfaersla i `reltime.js`; hun var
+     afrituð inni i `Sources.jsx`. */
+  const T0 = Date.parse("2026-08-25T12:00:00Z");
+  const at = (mins) => new Date(T0 - mins * 60000).toISOString();
+  ok(when(at(0), T0) === "just now", "0 min -> 'just now'");
+  ok(when(at(12), T0) === "12m ago", `12 min -> '12m ago' (${when(at(12), T0)})`);
+  ok(when(at(90), T0) === "2h ago", `90 min -> '2h ago' (${when(at(90), T0)})`);
+  ok(when(at(60 * 72), T0) === "2026-08-22",
+    `3 dagar -> dagsetning (${when(at(60 * 72), T0)})`);
+  ok(when(null, T0) === "—" && when("rusl", T0) === "—",
+    "null og rusl -> em-dash, ekki 'Invalid Date'");
+  /* FRAMTID: klukka notandans getur verid a eftir thjonsins og
+     "-3m ago" er verra en ad thegja. */
+  ok(when(new Date(T0 + 60000).toISOString(), T0) === "—",
+    "timastimpill i framtidinni -> em-dash, ekki negatift");
+  /* OG SKJARINN VERDUR AD LESA HANA. Textaleit her er nog thvi
+     `dashboard.mjs` 3j teiknar spjaldid; thetta ver adeins ad
+     fasti strengurinn snui ekki aftur. */
+  const dashRaw = readFileSync(path.join(ROOT, "src", "Dashboard.jsx"), "utf8");
+  /* ATHUGASEMDIR STRIPPADAR ADUR EN NEIKVAEDA KRAFAN ER PROFUD.
+     Fyrsta utgafa fell — og hun fell A SJALFRI SER: athugasemdin sem
+     eg skrifadi vid lagfaeringuna VITNAR i gamla strenginn
+     ("her stod ..."), svo `!/read from Sleeper just now/` var osonn um
+     skra sem er RETT. Nakvaemlega gildran sem CLAUDE.md 13 skjalar
+     (textaleit sem athugasemd uppfyllir). */
+  const dash = dashRaw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok(/read from Sleeper \{when\(fetchedAt\)\}/.test(dash),
+    "`Dashboard` birtir `when(fetchedAt)`, ekki fastan streng");
+  ok(!/read from Sleeper just now/.test(dash),
+    "og gamli fasti strengurinn er farinn ur KODANUM (athugasemdir strippadar)");
+  ok(/read from Sleeper just now/.test(dashRaw),
+    "— og hann stendur afram i ATHUGASEMD sem villusaga, sem er asett");
+
+  /* --- N8: `/leagues/nfl/undefined` SVARAR 200 MED `[]` ---
+     Tilkynnt var ad notandinn faengi hratt 404. Maelt a lifandi
+     endapunkti 25.8.2026: HTTP **200** med farminum `[]`. 404 hefdi
+     verid SYNILEG bilun; `[]` er thad ekki — appid segir "thu att
+     engar deildir", sem er sjalfsoruggt, rangt og truverdugt, og
+     notandinn leitar ad vandamalinu i Sleeper-reikningnum sinum.
+     Orsokin er OKKAR: `App.jsx` gerir `core.meta || {}`, svo
+     `meta.season` er `undefined` thegar `meta.json` brestur.
+
+     Hlidid er profad AN NETS: rusl-timabil ma aldrei komast i sokn. */
+  let calls = 0;
+  const orig = global.fetch;
+  global.fetch = async (u) => { calls++; return { ok: true, status: 200, json: async () => [] }; };
+  try {
+    for (const bad of [undefined, null, "", "undefined", NaN, 0, 1999, 2101]) {
+      let threw = false, named = false;
+      try { await sleeperLeagues("1", bad); }
+      catch (e) { threw = true; named = /our own data/.test(e.message); }
+      ok(threw && named,
+        `season ${JSON.stringify(bad)} -> stoppad ADUR en sott er, med retta orsok`);
+    }
+    ok(calls === 0, `THEKJA: ENGIN sokn gerd fyrir rusl-timabil (${calls})`);
+    /* Og gilt ar VERDUR ad komast i gegn — annars vaeri hlidid bara
+       "aldrei spyrja Sleeper", sem stenst allt hér ad ofan. */
+    await sleeperLeagues("1", 2026);
+    ok(calls === 1, `en gilt ar (2026) fer i gegn (${calls} sokn)`);
+  } finally { global.fetch = orig; }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

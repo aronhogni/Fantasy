@@ -1370,6 +1370,31 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
      thad var nakvaemlega astandid sem let hann drafta sem saeti 5.
      `null` = slegid inn i hendi. Sja `resolveSeat`. */
   const [slotRoute, setSlotRoute] = useState(null);
+  /* ============================================================
+     `slotRoute` I REF — ThVI POLLUNIN LAS HANA UR GAMALLI LOKUN
+     ============================================================
+     `pull()` les `slotRoute` (`mayOverride` nedar), en pollunar-
+     effectinn ber deps `[live, sync.draftId, sync.slot, byId, userId]`
+     — HVORKI `pull` NE `slotRoute`. Effectinn heldur thvi thvi `pull`
+     sem var til thegar hann keyrdi sidast, og su lokun ber GAMLA
+     `slotRoute`.
+
+     AFLEIDINGIN ER A DRAFT-KVOLDI, sem er eina kvoldid sem skiptir mali:
+     stadfesti notandinn saetid sitt gegnum deildarleidina verdur
+     `slotRoute = "league"`, en effectinn endurraesist ekki, svo lokunin
+     ser afram `null`. Tha metst
+
+         seat2.route === "order" && slotRoute === "league"
+
+     sem FALSE thegar hun a ad vera TRUE — og `draft_order`, sem er
+     NAKVAEMARI heimild um sama lidid, faer aldrei ad leidretta saetid
+     thegar rodin er dregin.
+
+     REF EN EKKI DEPS: ad setja `slotRoute` i deps myndi ENDURRAESA
+     pollunar-lykkjuna i hvert sinn sem leidin breytist, i midju drafti.
+     Ref gefur lifandi gildi an thess ad skra sig upp a nytt. */
+  const slotRouteRef = useRef(null);
+  useEffect(() => { slotRouteRef.current = slotRoute; }, [slotRoute]);
   const slotAuto = slotRoute != null;
   /* HVERS VEGNA fannst saetid ekki — i orðum fra `resolveSeat`, svo
      reiturinn segi ekki bara "slaðu thad inn". */
@@ -1794,11 +1819,11 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
       const curSlot = sync.slot == null ? null : Number(sync.slot);
       const mayOverride = curSlot == null
         || seat2.route === "picks"
-        || (seat2.route === "order" && slotRoute === "league");
+        || (seat2.route === "order" && slotRouteRef.current === "league");
       if (seat2.slot != null && seat2.slot !== curSlot && mayOverride) {
         setSlotRoute(seat2.route);
         setSync((prev) => ({ ...prev, slot: seat2.slot }));
-      } else if (seat2.slot != null && seat2.slot === curSlot && !slotRoute) {
+      } else if (seat2.slot != null && seat2.slot === curSlot && !slotRouteRef.current) {
         /* Sama tala, en NU vitum vid hvadan hun kemur. Innslegid saeti sem
            volin stadfesta er ekki lengur giskad — og thad a ad sjast. */
         setSlotRoute(seat2.route);

@@ -56,6 +56,7 @@ import { optimalLineup, lineupAdvice, slotsFor } from "./lineup.js";
 import { usagePool } from "./usageblend.js";
 import { rosCurrency } from "./ros.js";
 import { weekRegret } from "./lineup.js";
+import { when } from "./reltime.js";
 import { currentWeek, weekContext, weekRows, onByeThisWeek,
          weeklyEdgeNote, dstStream, dstStreamNote,
          compareOppImplied } from "./weekview.js";
@@ -173,9 +174,13 @@ export default function Dashboard({ entries, rows, meta, schedule, defense, news
           Your {real.length === 1 ? "league" : `${real.length} leagues`}
         </h2>
         <div className="spacer" />
+        {/* `fetchedAt` VAR ThEGAR GEYMT og var adeins ekki lesid: hér stod
+            "read from Sleeper just now" sem FASTUR STRENGUR, svo spjald sem
+            var lesid fyrir klukkutima sagdi samt "just now" — merkimidi sem
+            batnar aldrei og versnar med hverri minutu. */}
         {fetchedAt != null && (
           <span className="dim" style={{ fontSize: 11.5 }}>
-            read from Sleeper just now
+            read from Sleeper {when(fetchedAt)}
           </span>
         )}
         <button className="act" onClick={load} disabled={busy}>

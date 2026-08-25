@@ -12,6 +12,7 @@
    ============================================================ */
 
 import React from "react";
+import { when } from "./reltime.js";
 import { clearState } from "./data.js";
 import { POS_ELASTICITY, DEF_WEIGHT, FLEX_SPLIT, IMPLIED_BASE } from "./model.js";
 
@@ -199,14 +200,4 @@ function Kpi({ k, v, n }) {
   );
 }
 
-function when(ts) {
-  if (!ts) return "—";
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return "—";
-  const mins = Math.round((Date.now() - d.getTime()) / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const h = Math.round(mins / 60);
-  if (h < 48) return `${h}h ago`;
-  return d.toISOString().slice(0, 10);
-}
+

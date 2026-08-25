@@ -940,5 +940,57 @@ console.log("\n5b. innslegid saeti stendur — adeins vol mega hnekkja thvi");
   await act(async () => { root.unmount(); });
 }
 
+/* ============================================================
+   N6 — POLLUNIN LAS `slotRoute` UR GAMALLI LOKUN
+   ============================================================
+   `pull()` les `slotRoute` (i `mayOverride`), en pollunar-effectinn ber
+   deps `[live, sync.draftId, sync.slot, byId, userId]` — HVORKI `pull`
+   NE `slotRoute`. Effectinn heldur thvi thvi `pull` sem var til thegar
+   hann keyrdi sidast, og su lokun ber GAMLA `slotRoute`.
+
+   AFLEIDINGIN ER A DRAFT-KVOLDI: stadfesti notandinn saetid gegnum
+   deildarleidina verdur `slotRoute = "league"`, en lokunin ser afram
+   `null`, svo `seat2.route === "order" && slotRoute === "league"` metst
+   FALSE thegar hun a ad vera TRUE — og `draft_order`, sem er
+   NAKVAEMARI heimild um sama lidid, faer aldrei ad leidretta saetid
+   thegar rodin er dregin.
+
+   LAGFAERINGIN ER REF, EKKI DEPS, og profid verdur ad greina thad ad:
+   deps myndu ENDURRAESA pollunar-lykkjuna i hverri leidar-breytingu, i
+   midju drafti. Þess vegna ber thetta BADT — ad gildid se lesid ur ref
+   OG ad `slotRoute` se EKKI komid i deps-listann.                    */
+console.log("\nN6: pollunin les lifandi `slotRoute`, ekki gamla lokun");
+{
+  const src = readFileSync(path.join(ROOT, "src", "DraftBoard.jsx"), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  ok(/const slotRouteRef = useRef\(null\)/.test(code),
+    "`slotRouteRef` er til");
+  ok(/slotRouteRef\.current = slotRoute/.test(code),
+    "og hun er haldid i takt vid state-id");
+
+  /* KJARNINN: badir lesendur inni i `pull` lesa REF-inn. */
+  const readsRef = (code.match(/slotRouteRef\.current/g) || []).length;
+  ok(readsRef >= 3,
+    `${readsRef} lestrar a \`slotRouteRef.current\` (skrif + badir lesendur i \`pull\`)`);
+  /* OG ENGINN LES STATE-ID BEINT INNI I `pull`. Talning a ollu skjalinu
+     vaeri of gróf — `slotRoute` er rettilega lesin i teikningunni
+     (linur ~2220, ~2310). Þess vegna er `pull`-blokkin ein skodud. */
+  const i = code.indexOf("const pull = async");
+  ok(i > 0, "FORSENDA: `pull` finnst i skranni");
+  const pullBody = code.slice(i, i + 4000);
+  ok(/slotRouteRef\.current/.test(pullBody),
+    "`pull` les REF-inn");
+  ok(!/[^.]\bslotRoute\b(?!Ref)/.test(pullBody),
+    "og les EKKI `slotRoute` beint — thad vaeri gamla lokunin aftur");
+
+  /* OG HUN MA EKKI VERA KOMIN I DEPS: thad vaeri onnur lagfaering med
+     annan kostnad (endurraesing i midju drafti), og hun myndi lata
+     krofuna hér ad ofan lita ut fyrir ad vera oth&#xF6;rf. */
+  const deps = /\}, \[live, sync\.draftId, sync\.slot, byId, userId\]\)/.test(code);
+  ok(deps,
+    "pollunar-effectinn ber OBREYTTAN deps-lista (ref, ekki endurraesing)");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

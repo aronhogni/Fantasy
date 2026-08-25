@@ -2439,6 +2439,51 @@ console.log("\nmeidsla-serian og innflutnings-hlidid");
     "rod an dagsetningar telst ekki (og fellir ekki)");
   ok(su([g(2026, "rusl")], 2026, NOW) === false, "rusl i dagsetningu telst ekki");
 
+  /* --- 2b. VIKUSKRA YFIRSTANDANDI TIMABILS: ThRJU ASTOND ---
+     `stageHistory` sleppti ari sem skilar engum rodum med berum
+     `continue` — ADUR en `writeJson` faer taekifaeri til ad skra synjun.
+     Fyrir lokin ar er thad rett. Fyrir YFIRSTANDANDI timabil er thad
+     versta mogulega hegdun: FJORAR virkjadar nidurstodur (usage-blend,
+     ROS-gjaldmidillinn, week-regret og `loadWeekly` sjalf) fara ThOGULT
+     i forleiks-hegdun, BAETIS-EINS, og ekkert verdur rautt.
+
+     RAUDA GREININ GETUR EKKI KEYRT A `data/` I DAG — timabilid er ekki
+     byrjad — svo hun faeri i loftid OMAELD 10. september. Þess vegna er
+     urskurdurinn hreint fall og profadur a TILBUNUM inntokum thar sem
+     svarid er thekkt fyrirfram. Sama regla og `seasonBaselineDecision`
+     i FPL. */
+  {
+    const dec = mod.weeklyCurrentDecision;
+    ok(typeof dec === "function", "`weeklyCurrentDecision` er utflutt og profanleg");
+    const G = [{ season: 2026, type: "REG", date: "2026-09-10", week: 1 }];
+    const PRE = Date.parse("2026-08-25T00:00:00Z");
+    const ON = Date.parse("2026-09-15T00:00:00Z");
+
+    const a = dec({ season: 2026, rows: [], games: G, nowMs: PRE });
+    ok(a.ok === true && a.state === "waiting",
+      `forleikur + 0 radir -> GRAENT "bidur" (${a.state})`);
+
+    const b = dec({ season: 2026, rows: new Array(500), games: G, nowMs: ON });
+    ok(b.ok === true && b.state === "written" && b.rows === 500,
+      `byrjad + 500 radir -> GRAENT med fjolda (${b.state}, ${b.rows})`);
+
+    /* KJARNINN: eina astandid sem enginn getur sed a skjanum. */
+    const c = dec({ season: 2026, rows: [], games: G, nowMs: ON });
+    ok(c.ok === false && c.state === "missing",
+      `byrjad + 0 radir -> RAUTT (${c.state}) — ThETTA er astandid sem thagdi`);
+    ok(/2026/.test(c.note) && /weekly\/2026\.json/.test(c.note),
+      "og rodin NEFNIR arid og skrana, svo hun se leitanleg");
+    /* Nefnir hun afleidinguna? Rod sem segir "vantar" an thess ad segja
+       HVAD daigar er tilkynning sem enginn bregst vid. */
+    ok(/usage-blend/.test(c.note) && /byte-for-byte/.test(c.note),
+      "og hvad thad kostar: fjorar nidurstodur fara baetis-eins i forleiks-hegdun");
+
+    /* TVIUNDARGILDI VAERI RANGT: "bidur" og "vantar" bera BADAR 0 radir
+       og verda ad vera adgreinanleg. */
+    ok(a.state !== c.state && a.ok !== c.ok,
+      "og astondin tvo med 0 radir eru ADGREINANLEG (bidur gegn vantar)");
+  }
+
   /* --- 3. STEPID ER RAUNVERULEGA VIRAD OG GATAD --- */
   const src = readFileSync(path.join(ROOT, "scripts", "fetch-nfl.mjs"), "utf8");
   ok(/nv\.injuries\(season\)/.test(src),

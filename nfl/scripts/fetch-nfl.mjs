@@ -178,6 +178,41 @@ export function seasonUnderway(games, season, nowMs) {
   return false;
 }
 
+/**
+ * ThRIGGJA-STODU URSKURDUR UM VIKUSKRA YFIRSTANDANDI TIMABILS.
+ *
+ * HREINT FALL, OG ThAD ER FORSENDA ThESS AD ThETTA SE PROFANLEGT:
+ * RAUDA greinin getur EKKI keyrt a `data/` i dag (timabilid er ekki
+ * byrjad), svo hun myndi fara i loftid OMAELD 10. september. Sama
+ * regla og `seasonBaselineDecision` i FPL-verkefninu — kodi sem
+ * kviknar fyrst a framtidar-degi er dreginn UT og profadur a
+ * tilbunum gognum thar sem svarid er thekkt fyrirfram.
+ *
+ * ÞRJU ASTOND, ThRJU VIDBROGD — og tviundargildi vaeri rangt hér:
+ *   · ekki byrjad        -> GRAENT "bidur"  (rett astand i agust)
+ *   · byrjad + radir     -> GRAENT med fjolda
+ *   · byrjad + ENGAR     -> RAUTT, og thad er allur tilgangurinn
+ */
+export function weeklyCurrentDecision({ season, rows, games, nowMs } = {}) {
+  const n = Array.isArray(rows) ? rows.length : 0;
+  const started = seasonUnderway(Array.isArray(games) ? games : [], season, nowMs);
+  if (!started) {
+    return { ok: true, state: "waiting", rows: n, note:
+      `${season}: season has not started — nflverse publishes weekly rows only ` +
+      "after week 1 is played, so an empty answer is the correct one" };
+  }
+  if (n > 0) {
+    return { ok: true, state: "written", rows: n, note:
+      `${season}: ${n} weekly rows written` };
+  }
+  return { ok: false, state: "missing", rows: 0, note:
+    `${season}: SEASON IS UNDER WAY BUT nflverse RETURNED NO WEEKLY ROWS — ` +
+    `data/weekly/${season}.json is missing, so usage-blend, the rest-of-season ` +
+    "waiver currency and week-regret are ALL silently inert. Nothing else will " +
+    "report this: every one of them falls back to preseason behaviour " +
+    "byte-for-byte." };
+}
+
 function upcomingWeek(games, season, nowMs, windowH = PROJ_WINDOW_H) {
   const firstOf = new Map();          // vika -> ms a midnaetti UTC leikdags
   for (const g of games || []) {
@@ -1333,6 +1368,48 @@ async function stageHistory() {
     totalRows += rows.length;
     await writeJson(`weekly/${yr}.json`, rows,
       { minRows: weeklyMinRows(yr, current) });
+  }
+
+  /* ============================================================
+     VIKUSKRA YFIRSTANDANDI TIMABILS — ThOGNIN VAR VILLAN
+     ============================================================
+     `continue` hér ad ofan sleppir ari sem skilar ENGUM rodum, og gerir
+     thad ThEGJANDI: `writeJson` faer aldrei taekifaeri til ad skra
+     synjun, svo hvorki `record` ne `status.json` nefna thad. Fyrir
+     LOKIN ar er thad rett — thau breytast ekki. Fyrir YFIRSTANDANDI
+     timabil er thad versta mogulega hegdun.
+
+     FJORAR MAELDAR NIDURSTODUR HANGA A ThESSARI EINU SKRA:
+       · `usageblend`  — notkun-til-thessa i viku-spanni
+       · `rosCurrency` — rest-of-season waiver-gjaldmidillinn
+       · `weekRegret`  — eftirsja vikunnar (raunstigin)
+       · og `data.js loadWeekly`, sem allt thetta les
+     Bregdist hun BREYTIST EKKERT A SKJANUM: `usagePool` skilar `null`,
+     `weekRows` fellur i `r.proj / 17`, `rosCurrency` skilar `null` og
+     eftirsju-linan teiknast ekki. Allt helst BAETIS-EINS og forleikur.
+     Sofandi verdirnir i `tests/` vakna ThEGAR skrain kemur — their geta
+     ekki sagt fra thvi ef hun kemur ALDREI.
+
+     Þess vegna er hér FULLYRDING UM ThAD SEM VANTAR, og hun er
+     thribreytt af thvi ad astondin thrju kalla a olik vidbrogd:
+       · timabilid ekki byrjad -> GRAENT "bidur" (rett astand i agust)
+       · byrjad OG skrain kom  -> GRAENT med rodafjolda
+       · byrjad OG hun vantar  -> RAUTT, med arinu i textanum
+     Hlidid les LEIKJASKRANA (`seasonUnderway`), ekki dagsetningu:
+     hardkodud dagsetning urelist thegjandi naesta ar.                */
+  try {
+    let games = [];
+    try { games = JSON.parse(readFileSync(path.join(OUT, "schedule.json"), "utf8")); }
+    catch { /* fyrsta keyrsla: engin leikjaskra, tha er ekkert byrjad */ }
+    const d = weeklyCurrentDecision({
+      season: current,
+      rows: weekly[String(current)] || weekly[current] || [],
+      games: Array.isArray(games) ? games : [],
+      nowMs: Date.now(),
+    });
+    record("weekly_current_season", d.ok, d.note);
+  } catch (e) {
+    record("weekly_current_season", false, `check failed: ${e.message}`);
   }
 
   /* Timabils-summur — thetta er thad sem bakprofid og "i fyrra"
