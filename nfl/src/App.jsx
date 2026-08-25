@@ -45,10 +45,27 @@ const TABS = [
   ["draft", "🏈 Draft"],
   ["home", "🏠 Dashboard"],
   /* `myteam` er FALIN en EKKI FJARLAEGD. Forsidan svarar somu spurningu
-     fyrir BADAR deildir; `MyTeam` ber hins vegar `benchRegret` (var
-     bekkurinn oheppni eda villa?), sem kviknar fyrst thegar vika er
-     lidin og er ekki a forsidunni. Ad fjarlaegja hana vaeri ad henda
-     maelingu sem ekki hefur enn haft faeri a ad birtast. */
+     fyrir BADAR deildir; `MyTeam` er geymd vegna `benchRegret` (var
+     bekkurinn oheppni eda villa?).
+
+     EN HUN ER EKKI TENGD OG ThESSI ATHUGASEMD SAGDI ANNAD (leidrett
+     25.8.2026). Hér stod ad hun "kviknar fyrst thegar vika er lidin",
+     sem les eins og hun geri thad SJALF. `benchRegret` er skrifud og
+     profud i `src/lineup.js` en ENGIN skra i `src/` kallar hana, og
+     thrennt vantar adur en hun getur skilad tolu:
+
+       1. HVAD NOTANDINN BYRJADI I LIDINNI VIKU. `data.js` hefur engan
+          `matchups`-endapunkt; `rosters` ber adeins `starters` EINS OG
+          THEIR ERU NUNA, sem er onnur staerd en "hvad var i saetunum i
+          viku 6".
+       2. RAUNSTIGIN. `actual` kemur ur `data/weekly/{ar}.json`, sem er
+          ekki til fyrir 2026 fyrr en vika er spilud.
+       3. LOKIN VIKA. Engin er til.
+
+     Ad fjarlaegja flipann vaeri samt ad henda maelingu sem hefur ekki
+     enn haft faeri a ad birtast — thess vegna stendur hun. Vordur:
+     `tests/lineup.mjs` kafli „benchRegret er OTENGD", sem SEFUR medan
+     forsendurnar vantar og VAKNAR um leid og vikuskrain verdur til. */
   ["myteam", "⭐ My team", true],
   ["players", "👥 Players", true],
   ["experts", "🧠 Experts", true],

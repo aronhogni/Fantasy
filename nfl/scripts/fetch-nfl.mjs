@@ -24,6 +24,8 @@
    ============================================================ */
 
 import { mkdir, writeFile, readFile, stat } from "node:fs/promises";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -148,6 +150,34 @@ const PROJ_WINDOW_H = 72;
  * Naesta OSPILADA deildarvika og hvort vid seum inni i glugganum hennar.
  * Skilar `null` ef engin slik vika er til (timabilid er buid).
  */
+/**
+ * ER TIMABILID BYRJAD? Leidd af LEIKJASKRANNI, ekki af dagsetningu.
+ *
+ * Satt um leid og EINN REG-leikur arsins liggur ad baki. Hardkodud
+ * dagsetning ("eftir 4. september") vaeri valin tala sem urelist
+ * thegjandi naesta ar — sama regla og felldi `SEASON_LIVE_LABEL` i
+ * FPL-verkefninu.
+ *
+ * ÞETTA ER HLID A SOKN, EKKI SIA A SVARI, og thad er munurinn sem
+ * skiptir mali. Meidsla-skyrslur nflverse (`injuries_{ar}.csv`) eru
+ * EKKI TIL fyrr en vika 1 hefur verid skrad — maelt 25.8.2026:
+ * `injuries_2026.csv` svarar **404** medan `injuries_2025.csv` svarar
+ * **200 med 6.069 rodum**. Vaeri sott hvort sem er skradi `injuries()`
+ * RAUDA ROD i `status.json` hvern einasta dag i margar vikur, og
+ * notandinn laerir a viku ad hunsa kassann — tha er raunveruleg
+ * vidvorun jafn gagnslaus og engin (sama rok og felldu
+ * keeper-fals-jakvaedid i `sleeper-league.js`).
+ */
+export function seasonUnderway(games, season, nowMs) {
+  for (const g of games || []) {
+    if (Number(g.season) !== Number(season)) continue;
+    if (g.type !== "REG" || !g.date) continue;
+    const t = Date.parse(`${g.date}T00:00:00Z`);
+    if (Number.isFinite(t) && t <= nowMs) return true;
+  }
+  return false;
+}
+
 function upcomingWeek(games, season, nowMs, windowH = PROJ_WINDOW_H) {
   const firstOf = new Map();          // vika -> ms a midnaetti UTC leikdags
   for (const g of games || []) {
@@ -554,6 +584,43 @@ async function archiveDaily({ season, games, ffcSets, newsFeed, lines, futures }
       ffc: ffcSets,
     }, { minRows: 100 });
   } catch (e) { record("archive:adp-history", false, `failed: ${e.message}`); }
+
+  /* ---- 2b. MEIDSLA-SKYRSLURNAR (official injury report) ----
+     `nv.injuries()` var skrifud, profud og **ALDREI KOLLUD** — sama aett
+     og `nv.snapCounts` adur, og sama aett og `usageblend` i appinu.
+     `practice_status` (DNP / Limited / Full) er thad sem hun ber umfram
+     `players.json`, sem hefur adeins Out/Questionable ur Sleeper.
+
+     HUN ER SOFNUD NUNA ThVI HUN VERDUR EKKI SOFNUD EFTIR A. Skran hja
+     nflverse er ENDURSKRIFUD — hun ber alltaf nyjustu utgafu arsins, og
+     „hvad sagdi skyrslan a fimmtudegi i viku 6" er OSVARANLEGT thegar
+     vika 6 er lidin. Sama rok og `data/history/` i FPL og `adp-history/`
+     hér: dagleg mynd verdur ekki bui til eftir a. Ætli einhver ad MAELA
+     hvort `practice_status` beri merki umfram FPL-stodu i oktober tharf
+     serian ad hefjast i viku 1.
+
+     ENGIN MAELING FYLGIR ThESSU OG ThAD ER ASETT. Ekkert i appinu les
+     `injuries/` — thetta er HRAEFNI, eins og `data/history/` var i
+     FPL i marga manudi. Ad tengja hana i radgjofina an maelingar vaeri
+     omaeld tala i vel-læsilegum reit.
+
+     HLIDID ER A SOKNINNI (sja `seasonUnderway`): i forleik er EKKERT
+     KALL gert og rodin er GRAEN med „bidur". Rauð rod daglega i margar
+     vikur er havadi sem thjalfar notandann i ad hunsa kassann.        */
+  try {
+    if (!seasonUnderway(games, season, Date.now())) {
+      record("archive:injuries", true,
+        "waiting for week 1 — the official injury report does not exist before it " +
+        "(measured 2026-08-25: injuries_2026.csv is 404, injuries_2025.csv is 200 " +
+        "with 6069 rows). No call is made, so this is a gate, not a failure.");
+    } else {
+      const inj = await nv.injuries(season);
+      await writeOnce(`injuries/${day}.json`, {
+        date: day, captured: new Date().toISOString(), season,
+        rows: inj,
+      }, { minRows: 50 });
+    }
+  } catch (e) { record("archive:injuries", false, `failed: ${e.message}`); }
 
   /* ---- 3. VIKULEG SPA ----
      Gluggi FYRST, sokn a eftir. Sja `upcomingWeek` — utan gluggans er
@@ -1888,7 +1955,36 @@ async function main() {
   if (bad.length) for (const b of bad) console.log(`  ! ${b.name}: ${b.note}`);
 }
 
-main().catch((e) => {
-  console.error("PIPELINE FELL:", e);
-  process.exit(1);
-});
+/* ============================================================
+   `main()` ER SKILYRT — OG VORDURINN A ThVI ER EKKI SKRAUT
+   ============================================================
+   Hér stod `main()` OSKILYRT, svo HVER INNFLUTNINGUR keyrdi alla
+   pipeline-una: oll netkollin, allan kvotann og skrif i `data/`. Thad
+   var ekki oheppilegt heldur BINDANDI — hvert hreint fall inni i
+   skranni var oprofanlegt nema med thvi ad endurrita thad i profinu,
+   sem er nakvaemlega gildran sem `buildTeamMetrics` kostadi i
+   FPL-verkefninu (handafrit skrifadi NaN a 17 lid og merkti thad sem
+   maelingu). Sama lagfaering var gerd thar 21.8.2026.
+
+   `realpathSync` a BADUM megin svo symlinkud eda afstaed slod thaggi
+   hana ekki nidur.
+
+   BILUN I ThESSU SKILYRDI VAERI ThOGUL: pipeline-an myndi ljuka a
+   sekundubroti med utgangsstodu **0** og engum skrifum. Graen keyrsla
+   sem gerir ekkert er verri utkoma en hrun — engin raud rod, og
+   `data/` frystist thann dag. Vordur: `tests/pipeline.mjs` kafli
+   „innflutningur keyrir ekki pipeline-una".                          */
+const invokedDirectly = (() => {
+  try {
+    const self = realpathSync(fileURLToPath(import.meta.url));
+    const argv = process.argv[1] ? realpathSync(process.argv[1]) : null;
+    return argv != null && self === argv;
+  } catch { return true; }   /* i vafa: hegdadu ther eins og adur */
+})();
+
+if (invokedDirectly) {
+  main().catch((e) => {
+    console.error("PIPELINE FELL:", e);
+    process.exit(1);
+  });
+}

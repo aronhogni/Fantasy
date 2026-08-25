@@ -398,5 +398,71 @@ console.log("\naud vika");
   ok(byeFlag("off", 1, 1) === false, "utan timabils: sama");
 }
 
+/* ============================================================
+   `benchRegret` ER OTENGD — OG VORDURINN SEFUR ThANGAD TIL HANN MA VAKNA
+   ============================================================
+   Fallid er skrifad og profad hér ad ofan, en ENGIN skra i `src/` kallar
+   thad. Bædi `App.jsx` og `MyTeam.jsx` sogdu samt ad thad "birtist thegar
+   vikan er lidin" — loford sem kodinn gat ekki efnt. Skjalad skilyrdi
+   sem kodinn uppfyllir ekki er verra en ekkert: thad les eins og thekja.
+
+   ThRENNT VANTAR, OG ThAU ERU OLIK:
+     1. `matchups`-endapunktur — hvad var i saetunum I VIKU N. `rosters`
+        ber adeins `starters` EINS OG ThEIR ERU NUNA.
+     2. `data/weekly/{ar}.json` fyrir `actual`.
+     3. Lokin vika.
+
+   VORDURINN ER TVIStAETTUR og thad er allur tilgangurinn (sama form og
+   `gw1-checklist.mjs` i FPL):
+     · MEDAN vikuskrana vantar: krafan er ad SKJOLIN LJUGI EKKI.
+     · UM LEID OG hun verdur til: krafan snyst vid og heimtar ad
+       `benchRegret` se raunverulega kollud. Tha getur "otengd" ekki
+       ordid varanlegt astand i thogn.
+   ============================================================ */
+console.log("\nbenchRegret: otengd, og vordurinn veit af thvi");
+{
+  const { readFileSync: rf, existsSync: ex, readdirSync: rd } = await import("node:fs");
+  const P = await import("node:path");
+  const ROOT2 = P.resolve(new URL(".", import.meta.url).pathname, "..");
+  const srcDir = P.join(ROOT2, "src");
+
+  const files = rd(srcDir).filter((f) => /\.(js|jsx)$/.test(f));
+  const callers = files.filter((f) => {
+    if (f === "lineup.js") return false;                 /* skilgreiningin sjalf */
+    const t = rf(P.join(srcDir, f), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    return /\bbenchRegret\s*\(/.test(t);
+  });
+  ok(files.length > 20, `THEKJA: ${files.length} skrar i src/ skannadar`);
+
+  /* Er vikuskra yfirstandandi timabils til? */
+  let season = null;
+  try { season = JSON.parse(rf(P.join(ROOT2, "data", "meta.json"), "utf8")).season; } catch { /* */ }
+  const weeklyFile = season != null
+    ? P.join(ROOT2, "data", "weekly", `${season}.json`) : null;
+  const haveWeekly = !!(weeklyFile && ex(weeklyFile));
+
+  if (!haveWeekly) {
+    /* --- SOFANDI ARMUR: skjolin verda ad segja satt --- */
+    ok(callers.length === 0,
+      `SEFUR: engin vikuskra fyrir ${season}, og \`benchRegret\` er otengd (${callers.length} kallendur)`);
+    const app = rf(P.join(srcDir, "App.jsx"), "utf8");
+    const my = rf(P.join(srcDir, "MyTeam.jsx"), "utf8");
+    /* Forsendan: badar skrar nefna hana yfirleitt. An thess vaeru
+       neikvaedu krofurnar hér ad nedan tomar. */
+    ok(/benchRegret/.test(app) && /benchRegret/.test(my),
+      "FORSENDA: badar skrarnar nefna `benchRegret`");
+    ok(/EKKI TENGD/.test(app) && /EKKI TENGD ENN/.test(my),
+      "og BADAR segja berum ordum ad hun se OTENGD");
+    ok(/matchups/.test(app) && /matchups/.test(my),
+      "og badar nefna `matchups`-endapunktinn sem vantar (fyrsta forsendan af thremur)");
+  } else {
+    /* --- VAKNADUR ARMUR --- */
+    ok(callers.length > 0,
+      `VAKNADUR: \`data/weekly/${season}.json\` er til, svo \`benchRegret\` VERDUR ad vera kollud ` +
+      `(fann ${callers.length} kallendur: ${callers.join(", ") || "ENGA"})`);
+  }
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

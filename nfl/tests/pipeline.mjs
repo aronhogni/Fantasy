@@ -2340,5 +2340,125 @@ console.log("\n`sos` er lids-tala og notan segir thad");
   }
 }
 
+/* ============================================================
+   MEIDSLA-SERIAN — OG HLIDID SEM ER A SOKNINNI, EKKI A SVARINU
+   ============================================================
+   `nv.injuries()` var skrifud, profud og ALDREI KOLLUD. Hun er nu i
+   `archiveDaily`, en HUN MA EKKI KALLA I FORLEIK: maelt 25.8.2026 svarar
+   `injuries_2026.csv` **404** medan `injuries_2025.csv` svarar **200 med
+   6.069 rodum` — skyrslan verdur ekki til fyrr en vika 1 er skrad.
+   Vaeri sott hvort sem er faeri RAUÐ ROD i `status.json` daglega i
+   margar vikur, og notandinn laerir a viku ad hunsa kassann.
+
+   OG ThETTA VAR OPROFANLEGT ThANGAD TIL NUNA: `fetch-nfl.mjs` kalladi
+   `main()` OSKILYRT og bar NULL utflutninga, svo hver innflutningur
+   keyrdi alla pipeline-una. Nu er kallid skilyrt (`invokedDirectly`,
+   `realpathSync` badum megin) — sama lagfaering og FPL-hlidin gerdi
+   21.8.2026 — og hlidid er profad a TILBUNUM gognum.                 */
+console.log("\nmeidsla-serian og innflutnings-hlidid");
+{
+  /* --- 1. INNFLUTNINGUR MA EKKI KEYRA PIPELINE-UNA ---
+     Bilun i thessu skilyrdi vaeri ThOGUL: keyrslan lyki a sekundubroti
+     med utgangsstodu 0 og engum skrifum. Graen keyrsla sem gerir ekkert
+     er verri en hrun. Fullyrdingin er thvi TVIThAETT: hun ma hvorki
+     taka langan tima (netkoll) NE snerta `status.json`. */
+  const mod = await import("../scripts/fetch-nfl.mjs");
+  ok(typeof mod.seasonUnderway === "function",
+    "skrain flytur ut `seasonUnderway` (adur voru utflutningarnir NULL)");
+
+  /* TIMAMAELING A INNFLUTNINGI DUGAR EKKI OG ThAD VAR MAELT.
+     Fyrsta utgafa mín var `await import(...)` og krafdist "< 3000 ms".
+     Hun SLAPP i gegnum stokkbreytinguna `if (true) main()` — thvi `main`
+     er ASYNC: einingin skilar strax og lofordid er aldrei bedid, svo
+     innflutningurinn tok 3 ms i BADUM tilfellum. Fullyrding sem stenst
+     stokkbreytinguna sem hun heitir eftir er verri en engin.
+
+     Retta profid keyrir RAUNVERULEGT AFRIT i NYJU FERLI, badar leidir,
+     med `main` skipt ut fyrir eina prentun — svo engin netkoll og engin
+     skrif verda. Sama adferd og `fetch-entry.mjs` i FPL-verkefninu. */
+  {
+    const { writeFileSync, unlinkSync } = await import("node:fs");
+    const { execFileSync } = await import("node:child_process");
+
+    const raw = readFileSync(path.join(ROOT, "scripts", "fetch-nfl.mjs"), "utf8");
+    ok(/\nasync function main\(\) \{/.test(raw),
+      "FORSENDA: `main` er skilgreind sem `async function main() {`");
+    const stubbed = raw.replace("\nasync function main() {",
+      '\nasync function main() { console.log("MAIN_RAN"); return; }\n' +
+      "async function __unused_real_main() {");
+
+    /* AFRITID SITUR I `scripts/` SJALFRI og thad er asett: skrain flytur
+       inn BADI `./sources/...` OG `../src/names.js`, svo afrit i /tmp
+       thyrfti sloda-endurritun — og fyrsta utgafa min gerdi hana adeins
+       fyrir `./`, svo `../src/names.js` fannst ekki og BEINA keyrslan
+       hrundi adur en `main` var kollud. Profid las thad sem "main
+       keyrdi ekki", sem er RETT SVAR VID RANGRI SPURNINGU. Sama stadur
+       = sama upplausn = engin endurritun. */
+    const copy = path.join(ROOT, "scripts", "__entry-probe.mjs");
+    const run = (args) => {
+      try {
+        return String(execFileSync(process.execPath, args,
+          { encoding: "utf8", timeout: 30000, stdio: ["ignore", "pipe", "pipe"] }));
+      } catch (e) { return String((e.stdout || "") + (e.stderr || "")); }
+    };
+    let direct = "", imported = "";
+    try {
+      writeFileSync(copy, stubbed);
+      direct = run([copy, "--stage=core"]);
+      imported = run(["--input-type=module", "-e",
+        `await import(${JSON.stringify("file://" + copy)});`]);
+    } finally {
+      try { unlinkSync(copy); } catch { /* buid ad eyda */ }
+    }
+
+    ok(/MAIN_RAN/.test(direct),
+      `BEINT kall keyrir \`main()\` — annars gerdi pipeline-an EKKERT og skiladi 0` +
+      (/MAIN_RAN/.test(direct) ? "" : ` [utkoma: ${direct.slice(0, 200)}]`));
+    ok(!/MAIN_RAN/.test(imported),
+      "en INNFLUTNINGUR gerir thad EKKI (annars keyrdi hvert prof alla pipeline-una)");
+  }
+
+  /* --- 2. HLIDID A TILBUNUM GOGNUM, ThAR SEM SVARID ER ThEKKT --- */
+  const g = (season, date, type = "REG") => ({ season, date, type, week: 1 });
+  const NOW = Date.parse("2026-08-25T00:00:00Z");
+  const su = mod.seasonUnderway;
+
+  ok(su([g(2026, "2026-09-10")], 2026, NOW) === false,
+    "leikur framundan -> timabilid er EKKI byrjad");
+  ok(su([g(2026, "2026-08-24")], 2026, NOW) === true,
+    "leikur ad baki -> ThAD ER byrjad");
+  ok(su([], 2026, NOW) === false, "engin leikjaskra -> ekki byrjad (ekki hrun)");
+  ok(su(null, 2026, NOW) === false, "null leikjaskra -> ekki byrjad");
+  /* ThRJU TILFELLI SEM MEGA EKKI TELJAST MED, og hvert theirra er
+     raunveruleg rod i `schedule.json`. */
+  ok(su([g(2025, "2025-09-10")], 2026, NOW) === false,
+    "leikur FYRRA ARS telst ekki (arid er sitt eigid skilyrdi)");
+  ok(su([g(2026, "2026-08-10", "PRE")], 2026, NOW) === false,
+    "AEFINGALEIKUR telst ekki — meidsla-skyrslan er REG-skjal");
+  ok(su([{ season: 2026, type: "REG", date: null }], 2026, NOW) === false,
+    "rod an dagsetningar telst ekki (og fellir ekki)");
+  ok(su([g(2026, "rusl")], 2026, NOW) === false, "rusl i dagsetningu telst ekki");
+
+  /* --- 3. STEPID ER RAUNVERULEGA VIRAD OG GATAD --- */
+  const src = readFileSync(path.join(ROOT, "scripts", "fetch-nfl.mjs"), "utf8");
+  ok(/nv\.injuries\(season\)/.test(src),
+    "`archiveDaily` kallar `nv.injuries(season)` (hun var aldrei kollud adur)");
+  ok(/if \(!seasonUnderway\(games, season, Date\.now\(\)\)\)/.test(src),
+    "og kallid er GATAD a `seasonUnderway` — hlid a sokninni, ekki sia a svarinu");
+  ok(/writeOnce\(`injuries\/\$\{day\}\.json`/.test(src),
+    "og skrifar dagsetta serie `injuries/{dagur}.json`");
+  ok(/record\("archive:injuries", true,/.test(src),
+    "og forleikur skrair GRAENA rod (bidur), ekki rauda");
+
+  /* --- 4. WORKFLOW-ID KALLAR SKRANA AFRAM BEINT ---
+     Skilyrta `main()` er gagnslaus ef enginn kallar hana. Textaleit a
+     `.yml` af thvi ad thad er ANNAD skjal en kodinn — profid sem las
+     BARA kodann var einmitt thad sem let `fetch-fast.yml` an
+     `env`-blokkar sleppa i FPL-verkefninu. */
+  const wf = readFileSync(path.join(ROOT, "..", ".github", "workflows", "nfl-data.yml"), "utf8");
+  ok(/node scripts\/fetch-nfl\.mjs/.test(wf),
+    "`nfl-data.yml` kallar `scripts/fetch-nfl.mjs` BEINT (annars threytir skilyrta `main()` hana)");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

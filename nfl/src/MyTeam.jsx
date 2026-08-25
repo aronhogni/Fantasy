@@ -10,7 +10,14 @@
    midad vid spana (sja notu thar; profid ber hann vid taemandi leit).
    Sidari hlutinn er ekki haegt ad tryggja — vid vitum ekki utkomuna —
    en THAD ER HAEGT AD MAELA HANN EFTIR A og greina oheppni fra villu.
-   Thad er `benchRegret`, og thad birtist hér thegar vikan er lidin.
+   Thad er `benchRegret`.
+
+   HUN ER EKKI TENGD ENN OG ThESSI LINA SAGDI ANNAD (leidrett 25.8.2026):
+   hér stod "og thad birtist hér thegar vikan er lidin", sem er loford
+   sem kodinn getur ekki efnt — ekkert i `src/` kallar `benchRegret`.
+   Thrennt vantar: `matchups`-endapunkt (hvad var i saetunum THA, ekki
+   hvad er i theim nuna), `data/weekly/{ar}.json` fyrir raunstigin, og
+   lokna viku. Sja notuna vid `myteam` i `App.jsx`.
 
    FRETTIRNAR ERU BIRTAR, EKKI TULKADAR. ESPN merkir hverja grein
    theim leikmonnum sem hun fjallar um, svo porunin er a audkenni en
