@@ -2460,5 +2460,75 @@ console.log("\nmeidsla-serian og innflutnings-hlidid");
     "`nfl-data.yml` kallar `scripts/fetch-nfl.mjs` BEINT (annars threytir skilyrta `main()` hana)");
 }
 
+/* ============================================================
+   FORMERKI `spread` — BORID VID TEXTA ESPN, SEM ER OHAD TOLUNNI
+   ============================================================
+   `spread` er UR SJONARHORNI HEIMALIDS og JAKVAETT = HEIMALID FAVORIT
+   (`model.js:510`). ALLT viku-likanid hangir a thvi:
+       heimalid = total/2 + spread/2
+   Snuist samningurinn hja veitunni faer STERKARA lidid LAEGRA vaent
+   skor, hvert einasta viku-spa-margfeldi snyst vid, og EKKERT verdur
+   rautt: tolurnar eru afram a rettu bili og lita fullkomlega edlilega
+   ut. Ekkert prof bar thennan samning.
+
+   TILEFNID: onnur lota maldi i dag ad ESPN breytti BAEDI kvarda OG
+   vidmidun a skot-hnitum sinum i einni ferd (0-1 -> 0-100, og halfur
+   vollur fra sotta markinu -> fullur vollur fra eigin marki). Sami
+   veitandi, sami dagur. Ad laga adeins augljosari helminginn hefdi
+   gert profid GRAENT medan kortid var spegilmynd af sjalfu ser.
+   NFL-hlidin les engin hnit — en hun les `spread` fra somu veitu, og
+   thad er nakvaemlega sami flokkur: SAMNINGUR sem getur breyst thegjandi.
+
+   VITNID ER TEXTI ESPN SJALFRAR. Hver lina ber `details` a borð vid
+   `"SEA -3.5"`, sem NEFNIR favoritinn berum ordum og er OHAD tolunni —
+   sama rokfraedi og `zone`-textinn sem hin lotan kvardadi hnitin med.
+   Breytist formerkid an thess ad textinn fylgi, fellur thetta.
+
+   MAELT 25.8.2026: 272 linur, 271 profanlegar, 271 samhljoda um BAEDI
+   formerki og STAERD. Einu "frávikin" i fyrstu keyrslu voru thrju
+   Washington-leikir — ESPN skrifar `WSH` thar sem vid berum `WAS`, sem
+   er SKAMMSTOFUN en ekki formerkjavilla, og `normTeam` leysir hana
+   thegar. Ad hafa ekki normaliserad hefdi gefid "3 osamhljoda" og
+   sent naesta mann i ad leita ad villu sem er ekki til.               */
+console.log("\nformerki `spread` gegn texta ESPN");
+{
+  const M = has("market.json") ? read("market.json") : null;
+  const lines = (M && Array.isArray(M.lines)) ? M.lines : [];
+  ok(lines.length > 50, `FORSENDA: ${lines.length} markadslinur i skranni`);
+
+  let checkable = 0, signOk = 0, magOk = 0;
+  const bad = [], magBad = [];
+  for (const x of lines) {
+    if (!x || x.spread == null || !x.details) continue;
+    /* Sniðið er "<LID> -N.N" — favoritinn og hans forgjof. Jakvaed tala
+       i textanum er annad snid og er SLEPPT fremur en giskad a. */
+    const m = /^([A-Za-z]{2,4})\s+(-\d+(?:\.\d+)?)/.exec(String(x.details).trim());
+    if (!m) continue;
+    if (Number(x.spread) === 0) continue;              /* pick-em: ekkert formerki */
+    checkable++;
+    const favText = normTeam(m[1]);
+    const favNum = Number(x.spread) > 0 ? normTeam(x.home) : normTeam(x.away);
+    if (favText === favNum) signOk++;
+    else if (bad.length < 4) bad.push(`${x.away}@${x.home} spread=${x.spread} details="${x.details}"`);
+    if (Math.abs(Math.abs(Number(m[2])) - Math.abs(Number(x.spread))) < 1e-9) magOk++;
+    else if (magBad.length < 4) magBad.push(`${x.away}@${x.home} ${x.spread} vs "${x.details}"`);
+  }
+
+  ok(checkable > 50,
+    `THEKJA: ${checkable} linur bera BAEDI tolu og nytilegan texta (annars vaeru krofurnar tomar)`);
+  ok(signOk === checkable,
+    `FORMERKI: ${signOk} af ${checkable} — jakvaett spread = HEIMALID favorit` +
+    (bad.length ? ` [${bad.join(" · ")}]` : ""));
+  ok(magOk === checkable,
+    `STAERD: ${magOk} af ${checkable} — |spread| er sama tala og textinn nefnir` +
+    (magBad.length ? ` [${magBad.join(" · ")}]` : ""));
+
+  /* OG SAMNINGURINN VERDUR AD STANDA SKRIFADUR ThAR SEM HANN ER NOTADUR,
+     annars er thetta prof ad verja reglu sem hvergi er sogd. */
+  const mdl = readFileSync(path.join(ROOT, "src", "model.js"), "utf8");
+  ok(/jakvaett = heimalid favorit/i.test(mdl),
+    "og `model.js` segir samninginn berum ordum thar sem hann er notadur");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
