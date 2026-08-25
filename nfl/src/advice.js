@@ -139,7 +139,33 @@ export function expectedBestAt(players, pos, nextPick) {
  * vorpun og `picksUntilNext` notar, bara i hina attina — thaer VERDA
  * ad vera samhljoda, annars segdi bordid annad en radgjofin.
  */
-export function ownPickNo(round, teams, slot) {
+/* ============================================================
+   DRAFT-GERDIN ER LESIN, EKKI GEFIN SER (24.8.2026)
+   ============================================================
+   Þessi thrju foll REIKNUDU SNAKK og ekkert annad, medan
+   `sleeper-league.js` hleypti `linear` gegnum vidvorunina — hun kviknar
+   adeins a gerd sem er HVORKI snake NE linear. Utkoman: i linear-drafti
+   fekk notandinn snakk-tolur an thess ad nokkud segdi fra thvi.
+
+   Í LINEAR-DRAFTI ER RODIN EINS I HVERRI UMFERD (saeti 1 velur fyrst,
+   alltaf), svo bilid milli minna vala er ALLTAF `teams`. Í snakki
+   snyst rodin i sléttum umferdum og bilid skiptist a milli
+   `2*(teams-slot)+1` og `2*slot-1`.
+
+   `draftType` VAR ThEGAR TIL — `sleeper-league.js` skrifar hana i
+   `imported.draftType` og `App.jsx` hreinsar hana i vistudu astandi.
+   Hun var einfaldlega ekki lesin. Þess vegna er thetta ekki ny
+   gagnaleid heldur tenging a heimild sem la ónotuð, sama aett og
+   `usageblend` (kafli 10 i handover).
+
+   ÓTHEKKT GERD FELLUR I SNAKK og thad er rett: snakk er sjalfgefid hja
+   Sleeper og langalgengast. En gerd sem vid getum EKKI heidrad
+   (uppbod o.fl.) ber afram vidvorun — sja `leagueFromSleeper`.       */
+const LINEAR = "linear";
+
+/** Val nr. `round`/`slot` i drafti af gerd `type`. */
+export function ownPickNo(round, teams, slot, type) {
+  if (type === LINEAR) return (round - 1) * teams + slot;
   return round % 2 === 1
     ? (round - 1) * teams + slot
     : (round - 1) * teams + (teams - slot + 1);
@@ -159,7 +185,7 @@ export function ownPickNo(round, teams, slot) {
  *
  * Ein regla ber baedi tilfellin, svo thau geta ekki rekid i sundur.
  */
-export function nextOwnPick(cur, teams, slot, maxRounds = 40) {
+export function nextOwnPick(cur, teams, slot, maxRounds = 40, type) {
   /* `Number(null)` ER 0 OG `Number("")` ER LIKA 0 — svo `Number.isFinite`
      eitt hleypir theim BADUM i gegn sem gildu vali nr. 0. Thad er
      einmitt tilfellid sem tharf ad stoppa: "vid vitum ekki hvar draftid
@@ -172,7 +198,7 @@ export function nextOwnPick(cur, teams, slot, maxRounds = 40) {
   if (!Number.isFinite(t) || !Number.isFinite(s) || !Number.isFinite(c)) return null;
   if (t < 2 || s < 1 || s > t) return null;
   for (let r = 1; r <= maxRounds; r++) {
-    const p = ownPickNo(r, t, s);
+    const p = ownPickNo(r, t, s, type);
     if (p > c) return p;
   }
   return null;
@@ -204,7 +230,11 @@ export function nextOwnPick(cur, teams, slot, maxRounds = 40) {
  * `tests/advice.mjs` kafli 12 — hann ber toluna sem BORDID litar med
  * vid toluna sem KASSINN birtir og fellur ef thaer skilja.
  */
-export function picksUntilNext(pick, teams) {
+export function picksUntilNext(pick, teams, type) {
+  /* LINEAR: rodin er eins i hverri umferd, svo bilid er alltaf `teams`.
+     Það er ekki serstakt tilfelli heldur ALGEBRAN sjalf — sama afleidsla
+     og hér ad nedan med `slot = idx` i hverri umferd. */
+  if (type === LINEAR) return teams;
   const round = Math.ceil(pick / teams);
   const idx = pick - (round - 1) * teams;            // 1..teams
   const slot = round % 2 === 1 ? idx : teams - idx + 1;
@@ -251,14 +281,14 @@ export function picksUntilNext(pick, teams) {
  * tolurnar og fer ad nota magatilfinninguna.
  */
 export function recommend({ available, roster = [], pick, league, nextPick: nextIn,
-                            lastPick = false, rosterUnknown = 0 }) {
+                            lastPick = false, rosterUnknown = 0, draftType }) {
   const teams = league.teams || 12;
   /* Gefid `nextPick` VINNUR. Hafnad er adeins tolu sem er ekki eftir
      `pick` — hun gaefi negatifa bid og "0% lifun" a alla. */
   const nextPick = lastPick ? null
     : (Number.isFinite(nextIn) && nextIn > pick
         ? Math.round(nextIn)
-        : pick + picksUntilNext(pick, teams));
+        : pick + picksUntilNext(pick, teams, draftType));
   const wait = nextPick == null ? null : nextPick - pick;
 
   /* ============================================================

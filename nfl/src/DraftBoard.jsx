@@ -333,6 +333,14 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   const hasDraftTeams = Number.isFinite(dTeams) && dTeams >= 2 && dTeams <= 32;
   const hasDraftRounds = Number.isFinite(dRounds) && dRounds >= 1 && dRounds <= 40;
   const snakeTeams = hasDraftTeams ? dTeams : (Number(league.teams) || 12);
+  /* GERD DRAFTSINS. `imported.draftType` kemur ur `/draft/{id}.type` og
+     var geymd fra fyrsta degi en ALDREI LESIN — snakk var reiknad hvad
+     sem hun sagdi. Í linear-drafti er rodin eins i hverri umferd, svo
+     "naesta val thitt" og hver einasti lifunar-litur voru rangir an
+     thess ad nokkud segdi fra thvi (`linear` er meira ad segja a
+     hvitlista ut ur vidvoruninni i `leagueFromSleeper`, einmitt af thvi
+     ad hun a ad vera HEIDRUD en ekki flogguð). Othekkt gerd -> snakk. */
+  const draftType = (imported && imported.draftType) || null;
   const rounds = hasDraftRounds ? dRounds : (league.rounds || 15);
   /* Hve morg vol eru i draftinu ALLS. Þetta er thakid sem "Pick 151"
      bratt — og thad er nu talid ur draftinu sjalfu. */
@@ -419,7 +427,7 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   const reach = useMemo(() => {
     const m = new Map();
     if (!slotOk) return m;
-    const np = nextOwnPick(pickNo, snakeTeams, slotRaw, rounds);
+    const np = nextOwnPick(pickNo, snakeTeams, slotRaw, rounds, draftType);
     if (np == null) return m;
     for (const r of rows) {
       if (r.adp == null) continue;
@@ -427,12 +435,12 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
       if (p != null) m.set(r.id, p);
     }
     return m;
-  }, [rows, pickNo, slotOk, slotRaw, snakeTeams, rounds]);
+  }, [rows, pickNo, slotOk, slotRaw, snakeTeams, rounds, draftType]);
 
   const nextOwn = useMemo(() => {
     if (!slotOk) return null;
-    return nextOwnPick(pickNo, snakeTeams, slotRaw, rounds);
-  }, [pickNo, slotOk, slotRaw, snakeTeams, rounds]);
+    return nextOwnPick(pickNo, snakeTeams, slotRaw, rounds, draftType);
+  }, [pickNo, slotOk, slotRaw, snakeTeams, rounds, draftType]);
   /* Saetið er thekkt OG gilt EN ekkert val er eftir — thad er allt annad
      astand en "saetið er othekkt", og adeins fyrra ma slokkva a
      lifunartolunum. */
@@ -630,7 +638,8 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
         /* ThAKID KEMUR HINGAD REIKNAD, ur logun DRAFTSINS. Adur reiknadi
            `NextPick` thad sjalft ur `league` og hleypti thvi "Pick 151"
            i gegn i 150 vala drafti. */
-        totalPicks={totalPicks} snakeTeams={snakeTeams} snakeRounds={rounds} />
+        totalPicks={totalPicks} snakeTeams={snakeTeams} snakeRounds={rounds}
+        draftType={draftType} />
 
       {/* `null` ThEGAR APPID SKRAIR SJALFT — sja notuna vid K/DST-chipana:
           `take(r, true)` setur mann i HOPINN og pollunin tekur hann aldrei
@@ -2703,7 +2712,7 @@ function MeasuredEdge({ league, shapes, imported }) {
    (marktaekt i standard). Lifunarlikur eru birtar sem upplysing.
    ============================================================ */
 function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPick,
-                    totalPicks, snakeTeams, snakeRounds, rosterUnknown = 0 }) {
+                    totalPicks, snakeTeams, snakeRounds, rosterUnknown = 0, draftType }) {
   const rec = useMemo(() => {
     if (!available.length) return null;
     try {
@@ -2720,10 +2729,10 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
         /* NAKVAEMLEGA SAMA TALA SEM BORDID LITAR MED — sja hausinn a
            `picksUntilNext`. `null` (ekkert saeti thekkt) fellur i
            afleidsluna, sem er rett i handvirku drafti. */
-        roster, pick, league, nextPick: nextOwn, lastPick, rosterUnknown,
+        roster, pick, league, nextPick: nextOwn, lastPick, rosterUnknown, draftType,
       });
     } catch { return null; }
-  }, [available, roster, pick, league, nextOwn, lastPick, rosterUnknown]);
+  }, [available, roster, pick, league, nextOwn, lastPick, rosterUnknown, draftType]);
 
   /* ============================================================
      DRAFTID GETUR KLARAST — OG THA ER "TAKE THIS" LYGI

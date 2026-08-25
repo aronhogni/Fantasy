@@ -965,5 +965,109 @@ console.log("\n11. hvar sit eg — thrjar leidir, hver profud ein");
     "og ordin eru olik — tvaer leidir med sama texta vaeru ein leid a skjanum");
 }
 
+/* ============================================================
+   9b. LINEAR DRAFT — RODIN ER EINS I HVERRI UMFERD
+   ============================================================
+   `linear` er a HVITLISTA ut ur vidvoruninni i `leagueFromSleeper`
+   (hun kviknar adeins a gerd sem er hvorki snake ne linear) — en
+   `ownPickNo` reiknadi SNAKK hvad sem gerdin sagdi. Notandi i
+   linear-drafti fekk thvi rangt "naesta val mitt", rangan lifunar-lit a
+   HVERJUM leikmanni, og ENGA vidvorun. Vidvorunin var rett ad thegja;
+   thad var reikningurinn sem var rangur.
+
+   `imported.draftType` var geymd fra fyrsta degi og aldrei lesin.
+
+   Sama adferd og kafli 9: rodin er borin vid TALDA rod, ekki vid
+   formuluna sjalfa — tvaer utfaerslur af somu formulu geta bædi verid
+   rangar a sama hatt.                                                */
+console.log("\n9b. linear draft");
+{
+  const enumLinear = (teams, slot, rounds) => {
+    const mine = [];
+    let pick = 0;
+    for (let r = 1; r <= rounds; r++) {
+      for (let s = 1; s <= teams; s++) { pick++; if (s === slot) mine.push(pick); }
+    }
+    return mine;
+  };
+
+  for (const [teams, slot] of [[10, 7], [12, 1], [12, 12], [8, 4], [14, 9]]) {
+    const want = enumLinear(teams, slot, 6);
+    const got = Array.from({ length: 6 }, (_, i) => ownPickNo(i + 1, teams, slot, "linear"));
+    ok(String(got) === String(want),
+      `linear ${teams} lid, saeti ${slot}: ${got.join(",")} (taldi ${want.join(",")})`);
+  }
+
+  /* OG HUN MA EKKI VERA SU SAMA OG SNAKK — annars gaeti allt hér ad ofan
+     stadist medan `type` er hunsad.
+
+     FULLYRDINGIN ER BYGGINGARLEG, EKKI TALNING. Fyrsta utgafa mín
+     krafdist ">= 15 af 20 holfum" og fell a 12 — thvi TALAN LEIDIST AF
+     ALGEBRUNNI og eg hafdi giskad a hana: i ODDATOLU-umferd er snakk
+     EINS og linear (rodin er 1..teams i badum), i SLETTRI umferd snyst
+     hun. Retta fullyrdingin er thvi ekki throskuldur heldur mynstrid
+     sjalft — og hun er strangari: hvert einasta holf verdur ad falla
+     retta megin. */
+  let evenSame = 0, oddDiff = 0, cells = 0;
+  for (const [teams, slot] of [[10, 7], [12, 1], [8, 4], [14, 9]]) {
+    for (let r = 1; r <= 6; r++) {
+      cells++;
+      const sn = ownPickNo(r, teams, slot), li = ownPickNo(r, teams, slot, "linear");
+      if (r % 2 === 0 && sn === li) evenSame++;
+      if (r % 2 === 1 && sn !== li) oddDiff++;
+    }
+  }
+  ok(cells === 24 && evenSame === 0 && oddDiff === 0,
+    `og mynstrid er nakvaemlega retta: ${cells} holf, SLETTAR umferdir vikja allar ` +
+    `(${evenSame} undantekningar) og ODDATOLU-umferdir eru allar eins (${oddDiff}) ` +
+    "— `type` er raunverulega lesid");
+  /* Saeti 1 i umferd 1 er eins i badum; thad er RETT og synir ad
+     munurinn er ekki bara "onnur formula alls stadar". */
+  ok(ownPickNo(1, 10, 1) === ownPickNo(1, 10, 1, "linear"),
+    "en fyrsta val fyrsta saetis er eins i badum (1) — munurinn er raunverulegur, ekki hlidrun");
+
+  /* Andhverfan verdur ad halda I LINEAR LIKA. */
+  for (const [teams, slot] of [[10, 7], [12, 1], [12, 12], [8, 4]]) {
+    let good = true;
+    for (let r = 1; r <= 5; r++) {
+      const p = ownPickNo(r, teams, slot, "linear");
+      if (p + picksUntilNext(p, teams, "linear") !== ownPickNo(r + 1, teams, slot, "linear")) good = false;
+    }
+    ok(good, `linear ${teams}/${slot}: picksUntilNext er andhverfa ownPickNo`);
+  }
+  ok(picksUntilNext(3, 10, "linear") === 10 && picksUntilNext(9, 10, "linear") === 10,
+    "og bilid er ALLTAF `teams` i linear (10), ohaad saeti");
+  ok(picksUntilNext(3, 10) !== 10,
+    `medan snakk gefur ${picksUntilNext(3, 10)} fra sama vali — fullyrdingin ofan er ekki tom`);
+
+  /* `nextOwnPick` verdur ad bera gerdina alla leid. */
+  ok(nextOwnPick(3, 10, 3, 40, "linear") === 13,
+    "nextOwnPick(3, 10, 3, linear) = 13");
+  ok(nextOwnPick(3, 10, 3) === 18,
+    "og snakk gefur 18 fra somu stodu");
+  /* OTHEKKT GERD FELLUR I SNAKK — Sleeper-sjalfgefid og langalgengast. */
+  ok(nextOwnPick(3, 10, 3, 40, "auction") === 18 && nextOwnPick(3, 10, 3, 40, null) === 18,
+    "othekkt gerd og `null` falla i snakk (Sleeper-sjalfgefid)");
+
+  /* VIDVORUNIN: `linear` er nu HEIDRUD, svo hun a afram ad thegja —
+     en gerd sem vid getum ekki heidrad verdur ad flagga. */
+  const src = readFileSync(path.join(DATA, "..", "src", "sleeper-league.js"), "utf8");
+  ok(/D\.type !== "snake" && D\.type !== "linear"/.test(src),
+    "`linear` er afram utan vidvorunarinnar — nu af thvi ad hun ER heidrud");
+
+  /* OG BORDID VERDUR AD SENDA HANA. Byggingarleg fullyrding: an hennar
+     er algebran rett og skjarinn samt rangur — sama aett og
+     `lineups.json` i FPL (kodinn kominn, talan lendir ekki a skjanum). */
+  const db = readFileSync(path.join(DATA, "..", "src", "DraftBoard.jsx"), "utf8");
+  ok(/imported && imported\.draftType/.test(db),
+    "`DraftBoard` les `imported.draftType`");
+  ok(/nextOwnPick\(pickNo, snakeTeams, slotRaw, rounds, draftType\)/.test(db),
+    "og sendir hana i BADA `nextOwnPick`-kallana");
+  ok((db.match(/nextOwnPick\(pickNo, snakeTeams, slotRaw, rounds, draftType\)/g) || []).length === 2,
+    "— badir tveir, ekki bara annar (liturinn og kassinn lesa sinn hvorn)");
+  ok(/draftType,\s*\n\s*\}\);/.test(db) || /rosterUnknown, draftType/.test(db),
+    "og `recommend` faer hana lika (bidin i kassanum)");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
