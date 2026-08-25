@@ -340,7 +340,21 @@ const RANK = (rec, key) => {
 };
 
 /* Ein rod i toflunni. `get(rec)` skilar { v (birt), num (til samanburdar) } */
-function makeRows(pos, live, seasonStarted) {
+/* `live` OG `seasonStarted` VORU TEKIN VID OG NOTUD I ENGU (25.8.2026).
+   MAELT: 0 tilvik beggja i likamanum (linur 344-399); einu tilvikin i
+   skranni voru thessi undirskrift sjalf og OSKYLT fall nedar
+   (`SeasonTable`, sem tekur sitt eigid `seasonStarted`).
+
+   ThAD ER EKKI SNYRTING AD FJARLAEGJA ThAU: undirskrift sem tekur vid
+   `seasonStarted` SEGIST vera timabils-med-vitund. Naesti madur sem
+   tharf ad greina forleik fra byrjudu timabili i thessari toflu myndi
+   lesa hana sem "thetta er thegar tengt" og baeta skilyrdi ofan a
+   breytu sem berst — en er aldrei lesin. Rong undirskrift er rong
+   skjolun, sami flokkur og hausinn a `bestteam.js`.
+
+   Kallandinn (linu ~432) er faerdur i somu lotu; thetta er skra-innra
+   fall (ekki `export`), svo kallstadirnir eru taemandi taldir: EINN.  */
+function makeRows(pos) {
   const isFwd = pos === 4;
   const defensive = !isFwd;             // "Varnarstats tharf ekki fyrir soknarmenn"
 
@@ -429,7 +443,7 @@ export function SeasonTable({ p, seasonsFile, currentLabel, seasonStarted }) {
   if (!p) return null;
   const byCode = seasonsFile?.players?.[String(p.code)] || {};
   const older = (seasonsFile?.seasons || []).filter(s => s !== currentLabel);
-  const rows = makeRows(p.element_type, p, seasonStarted);
+  const rows = makeRows(p.element_type);
 
   /* Dalkar: yfirstandandi fyrst (storst), svo eldri.
      Yfirstandandi er TOMUR thangad til timabilid byrjar — sja hausinn.   */

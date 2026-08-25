@@ -3119,24 +3119,11 @@ async function fetchEuro() {
   const seen = new Set();
 
   // --- Varpa liðanöfnum á FPL-id (normaliserað, þolir mismunandi stafsetningu) ---
-  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "")
-    .replace(/^afc/, "").replace(/fc$/, "").replace(/^the/, "");
-  const fplByNorm = {};
-  for (const [id, t] of Object.entries(teamsById)) {
-    fplByNorm[norm(t.name)] = Number(id);
-    fplByNorm[norm(t.short_name)] = Number(id);
-    // algeng löng nöfn sem ESPN/fd.org nota
-    const LONG = {
-      ARS:["Arsenal"], AVL:["Aston Villa"], BOU:["Bournemouth","AFC Bournemouth"],
-      BRE:["Brentford"], BHA:["Brighton & Hove Albion","Brighton and Hove Albion"],
-      CHE:["Chelsea"], COV:["Coventry City"], CRY:["Crystal Palace"], EVE:["Everton"],
-      FUL:["Fulham"], HUL:["Hull City"], IPS:["Ipswich Town"], LEE:["Leeds United"],
-      LIV:["Liverpool"], MCI:["Manchester City"], MUN:["Manchester United"],
-      NEW:["Newcastle United"], NFO:["Nottingham Forest"], SUN:["Sunderland"],
-      TOT:["Tottenham Hotspur"],
-    }[t.short_name] || [];
-    LONG.forEach(n => fplByNorm[norm(n)] = Number(id));
-  }
+  /* EIN UTFAERSLA — sja `CLUB_NORM`/`CLUB_ALIAS`. Adur var normolarinn og
+     ordabokin skrifud upp a nytt her, og ordabokin vantadi stuttu
+     nafnaformin sem Odds-leidin hafdi.                                */
+  const norm = CLUB_NORM;
+  const fplByNorm = clubIndex(teamsById, id => Number(id));
 
 
   // --- (0) UPPGÖTVUN: spyrja ESPN hvaða keppnir eru til í fótbolta.
@@ -3741,23 +3728,10 @@ async function fetchOdds() {
   }
 
   // Nafnavörpun Odds API -> FPL short_name (normaliserað)
-  const norm = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const byNorm = {};
-  for (const [id, t] of Object.entries(teamsById)) {
-    byNorm[norm(t.name)] = t.short_name;
-    byNorm[norm(t.short_name)] = t.short_name;
-    const LONG = {
-      ARS:["Arsenal"], AVL:["Aston Villa"], BOU:["Bournemouth","AFC Bournemouth"],
-      BRE:["Brentford"], BHA:["Brighton and Hove Albion","Brighton & Hove Albion","Brighton"],
-      CHE:["Chelsea"], COV:["Coventry City","Coventry"], CRY:["Crystal Palace"],
-      EVE:["Everton"], FUL:["Fulham"], HUL:["Hull City","Hull"],
-      IPS:["Ipswich Town","Ipswich"], LEE:["Leeds United","Leeds"], LIV:["Liverpool"],
-      MCI:["Manchester City","Man City"], MUN:["Manchester United","Man Utd","Man United"],
-      NEW:["Newcastle United","Newcastle"], NFO:["Nottingham Forest","Nott'm Forest"],
-      SUN:["Sunderland"], TOT:["Tottenham Hotspur","Tottenham","Spurs"],
-    }[t.short_name] || [];
-    LONG.forEach(n => byNorm[norm(n)] = t.short_name);
-  }
+  /* EIN UTFAERSLA — sja `CLUB_NORM`/`CLUB_ALIAS`. Adur strippadi thessi
+     normolari HVORKI `afc`, `fc` NE `the`, olikt ESPN-leidinni.       */
+  const norm = CLUB_NORM;
+  const byNorm = clubIndex(teamsById, (id, t) => t.short_name);
 
   const PREFERRED = ["bet365", "williamhill", "betfair_ex_uk", "skybet", "paddypower"];
   const teams = {};
@@ -3976,6 +3950,67 @@ async function fetchFast() {
    `scripts/fetch-bsd.mjs` reikni NAKVAEMLEGA thad sama. Tvaer utfaerslur
    myndu thyda ad lokna timabilid og thad lifandi gaetu rekid i sundur an
    thess ad nokkurt prof felli (sama rok og `market.js`, kafli 1).      */
+/* ============================================================
+   EIN KLUBBA-NAFNAVORPUN — VAR TVISVAR, MED TVEIMUR NORMOLURUM
+   OG TVEIMUR ORDABOKUM SEM VORU EKKI EINS (25.8.2026)
+
+   `names.js` var buin til til ad drepa nakvaemlega thetta fyrir
+   LEIKMANNA-nofn ("normName var skilgreint tvisvar og badar utgafur
+   voru export-adar undir SAMA nafni"). KLUBBA-nofnin foru sama veg an
+   thess ad nokkur taeki eftir:
+
+     ESPN-leidin   `norm` strippadi `^afc`, `fc$`, `^the`
+     Odds-leidin   `norm` gerdi ThAD EKKI
+   svo "AFC Bournemouth" vard `bournemouth` odru megin og
+   `afcbournemouth` hinu megin.
+
+   Og ordabaekurnar voru EKKI afrit hvor af annarri heldur ULIKAR:
+     ESPN: BHA ["Brighton & Hove Albion","Brighton and Hove Albion"]
+     Odds: BHA [... , "Brighton"]        <- stutta formid VANTADI ESPN
+   Sama gilti um Coventry/Hull/Ipswich/Leeds/Newcastle/Man City/Spurs.
+   Tvaer toflur sem eiga ad svara somu spurningu og gera thad ekki er
+   `buildTeamMetrics`-aettin, og hun bitnar her a PORUN: nafn sem onnur
+   leidin thekkir og hin ekki verdur ad `unmatched` — thogult.
+
+   MAELT ADUR EN SAMEINAD (scripts/measure-clubnorm.mjs, keyrt a
+   `data/teams.json` + badum ordabokum, 34 einkvaem nofn):
+     arekstrar (tvo felog a sama lykil) . 0
+     AFTURFOR (nafn leysist odruvisi) ... 0
+     nofn sem leysast NU en ekki adur ... 5
+   Sameiningin er thvi hrein VIDBOT: ekkert nafn skiptir um felag,
+   ESPN-leidin erfir stuttu formin sem Odds-leidin hafdi ein.
+
+   HINAR ORDABAEKURNAR ERU VILJANDI ADSKILDAR: `API_TEAM_ALIAS`,
+   `FM_LONG_TO_FPL`, `CLUBELO_CAND` og `BSD_TEAM` tilheyra ODRUM
+   nafnrymum (API-Sports, FotMob, ClubElo, BSD) sem nota onnur form —
+   ad steypa theim saman vaeri ad giska a ad veiturnar seu sammala, sem
+   er einmitt ThAD sem for urskeidis her.
+   ============================================================ */
+export const CLUB_NORM = s => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "")
+  .replace(/^afc/, "").replace(/fc$/, "").replace(/^the/, "");
+export const CLUB_ALIAS = {
+  ARS:["Arsenal"], AVL:["Aston Villa"], BOU:["Bournemouth","AFC Bournemouth"],
+  BRE:["Brentford"],
+  BHA:["Brighton & Hove Albion","Brighton and Hove Albion","Brighton"],
+  CHE:["Chelsea"], COV:["Coventry City","Coventry"], CRY:["Crystal Palace"],
+  EVE:["Everton"], FUL:["Fulham"], HUL:["Hull City","Hull"],
+  IPS:["Ipswich Town","Ipswich"], LEE:["Leeds United","Leeds"], LIV:["Liverpool"],
+  MCI:["Manchester City","Man City"], MUN:["Manchester United","Man Utd","Man United"],
+  NEW:["Newcastle United","Newcastle"], NFO:["Nottingham Forest","Nott'm Forest"],
+  SUN:["Sunderland"], TOT:["Tottenham Hotspur","Tottenham","Spurs"],
+};
+/* Byggir uppflettitoflu ur `teamsById`: fullt nafn, skammstofun og oll
+   samheiti -> hvad sem kallandinn vill (id eda short_name).           */
+export function clubIndex(teamsById, value) {
+  const m = {};
+  for (const [id, t] of Object.entries(teamsById)) {
+    m[CLUB_NORM(t.name)] = value(id, t);
+    m[CLUB_NORM(t.short_name)] = value(id, t);
+    (CLUB_ALIAS[t.short_name] || []).forEach(n => m[CLUB_NORM(n)] = value(id, t));
+  }
+  return m;
+}
+
 const BSD_API = "https://sports.bzzoiro.com/api/v2";
 const BSD_LEAGUE = 1;                    // Premier League
 /* HANDSTADFEST lidatafla — athugasemdin her sagdi sjalf "sama og i

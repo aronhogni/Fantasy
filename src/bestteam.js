@@ -120,7 +120,30 @@ export function legalFormation(count, { min = XI_MIN, max = XI_MAX, size = XI_SI
    SJALFGEFID er RODIN I INNTAKINU (stodug rodun), svo `stats.js` geti
    framselt hingad an thess ad lid vikunnar breytist.
 
-   FRAMSALID UR `stats.js:bestXi` VERDUR AD BERA ThRJA LIDI:
+   ============================================================
+   ATH: FRAMSALID ER EKKI KOMID — ThETTA ER SKILGREINING, EKKI LYSING
+   A ASTANDINU (skyrt 25.8.2026)
+   ============================================================
+   Textinn hér ad nedan var skrifadur i nutid ("framsalid verdur ad
+   bera...") og las thvi eins og `stats.js:bestXi` KALLI ThEGAR hingad.
+   ThAD GERIR HUN EKKI: `bestXi` (stats.js:~1518) er enn sin eigin
+   utfaersla og eini lesandi hennar er `GwReport.jsx:50` ("Team of the
+   week"). `pickXi` her er kolluð adeins innan thessarar skraar.
+
+   Hausinn lysir thvi FYRIRHUGADRI endastodu, ekki theirri sem er. Ad
+   lata thad standa i nutid er sama tegund af rangri skjolun og
+   athugasemdirnar sem voru fjarlaegdar ur `netlify/functions/odds.js`
+   i dag: lysing a kóda sem er ekki tharna sendir naesta mann i ad leita
+   ad utfaerslu sem hann finnur aldrei — eda, verra hér, ad alykta ad
+   toflurnar tvaer seu ThEGAR samstilltar.
+
+   SAMEININGIN SJALF ER OTEKIN AKVORDUN OG A AD VERA ThAD. Hun er EKKI
+   hrein tiltekt: utfaerslurnar tvaer eru MAELDAR jafngodar a stigum
+   (summan er su sama) en gefa SITTHVORA FORMASJONINA i 17 af 506
+   tilvikum. Ad sameina er thvi ad VELJA formasjon fyrir notandann, og
+   thad a ekki ad gerast sem hlidarverkun af tiltektarlotu.
+
+   SE ThAD GERT, ThARF FRAMSALID AD BERA ThRJA LIDI:
        (b.bps ?? 0) - (a.bps ?? 0) || POS_ORDER[a.pos] - POS_ORDER[b.pos]
    Ekki bara `bps`. MAELT (tests/best-team.mjs kafli 8, 506 tilvik):
    an `POS_ORDER`-lidsins breytast 17 tilvik — summan er SU SAMA (jafntefli
@@ -128,6 +151,13 @@ export function legalFormation(count, { min = XI_MIN, max = XI_MAX, size = XI_SI
    lykkjan byggir `rest` i stodu-rod (GK->DEF->MID->FWD) og `Array.sort`
    er stodug, svo jafntefli radast eftir STODU thar en eftir INNTAKS-rod
    her. Tveir stodugir raderar eru ekki sami raderi.
+
+   OG VORDURINN VERDUR AD LIGGJA A FORMASJONINNI, EKKI A SUMMUNNI.
+   Fullyrding um stig stenst BADAR utfaerslur — thad er nakvaemlega
+   astaedan fyrir thvi ad thessi munur lifdi nogu lengi til ad verda
+   skjaladur i stad thess ad fellast. `tests/best-team.mjs` kafli 8 ber
+   506-tilvika grindina sem tharf; hun er thegar til og kostar nanast
+   ekkert ad keyra aftur.
    ------------------------------------------------------------------ */
 export function pickXi(rows, score, { min = XI_MIN, max = XI_MAX, size = XI_SIZE, tiebreak, posOf = defaultPosOf } = {}) {
   const byPos = { GK: [], DEF: [], MID: [], FWD: [] };

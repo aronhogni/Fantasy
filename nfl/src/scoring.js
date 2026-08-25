@@ -38,7 +38,24 @@ export const BASE = {
   passTD: 4,
   passInt: -1,
   pass2pt: 2,
-  pass40Bonus: 0,        // sumar deildir; sjalfgefid af
+  /* `pass40Bonus` VAR HER OG ER FARINN (25.8.2026) — HANN VAR STUBBUR,
+     EKKI EIGINLEIKI.
+     Hann stod sem `pass40Bonus: 0` med athugasemdinni "sumar deildir;
+     sjalfgefid af", sem les eins og stilling sem se haegt ad kveikja a.
+     MAELT: EITT tilvik i ollu `nfl/` — thessi lina sjalf. Ekkert las
+     hann, svo hann gat ALDREI skorad, og `scoringFromSettings` i
+     `sleeper-league.js` varpar honum hvergi — sem thydir ad jafnvel
+     deild sem STILLTI slikan bonus hja Sleeper hefdi ekki nad hingad.
+     MAELT A LIFANDI DEILDUM notandans (badar, gegnum Sleeper-API):
+     42 stigagjafar-lyklar hvor, og ENGINN theirra passar /40|bonus/
+     nema `fgm_40_49` (spyrnu-vegalengd, oskyld). Sleeper A almennt
+     `bonus_*`-fjolskyldu, svo thetta sannar ekki ad hun se ekki til —
+     thad sem thad sannar er ad hvorug deildin sem thetta app thjonar
+     notar hana, OG ad vorpunin bæri hana ekki thott hun gerdi thad.
+     Knappur sem les eins og hann virki og gerir ekkert er verri en
+     enginn knappur. Se 40+ jarda sendingar-bonus einhvern tima
+     onskadur er thad NY VIRKNI: baeta vid vorpun i `scoringFromSettings`
+     OG lesanda hér — ekki endurvekja stubbinn einan.                */
 
   rushYd: 0.1,
   rushTD: 6,

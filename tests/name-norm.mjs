@@ -279,5 +279,128 @@ console.log("\n=== 4. liveSeasonRow: EIN UTFAERSLA ===");
 }
 
 console.log(`\n========================================`);
+
+/* ============================================================
+   KLUBBA-NAFNAVORPUNIN — VAR TVISVAR, MED TVEIMUR NORMOLURUM OG
+   TVEIMUR OLIKUM ORDABOKUM (25.8.2026)
+
+   Thessi skra er til vegna thess ad `normName` (LEIKMANNA-nofn) var
+   skilgreint tvisvar. KLUBBA-nofnin foru nakvaemlega somu leid an thess
+   ad nokkur taeki eftir:
+     ESPN-leidin strippadi `^afc`/`fc$`/`^the`; Odds-leidin gerdi thad EKKI
+     -> "AFC Bournemouth" vard `bournemouth` odru megin, `afcbournemouth` hinu.
+   Og ordabaekurnar voru ULIKAR, ekki afrit: stuttu formin ("Brighton",
+   "Man City", "Spurs", "Leeds", "Hull", "Ipswich", "Coventry",
+   "Newcastle") voru ADEINS i Odds-toflunni, svo ESPN-leidin hefdi skilad
+   `unmatched` a theim — thogult.
+
+   FULLYRDINGARNAR ERU UM HEGDUN, EKKI UM AD KODINN SE SAMEINADUR:
+   textaleit ("er `CLUB_NORM` notad tvisvar?") vaeri uppfyllt af
+   athugasemdinni sem utskyrir hana (CLAUDE.md 13). Vid KEYRUM vorpunina.
+   ============================================================ */
+console.log("\nKLUBBA-NAFNAVORPUN (CLUB_NORM / CLUB_ALIAS)");
+{
+  const { CLUB_NORM, CLUB_ALIAS, clubIndex } = await import("../scripts/fetch.mjs");
+  const { readFileSync } = await import("node:fs");
+  const teams = JSON.parse(readFileSync(new URL("../data/teams.json", import.meta.url), "utf8")).teams;
+  /* FPL-bootstrap ber `short_name`; `data/teams.json` ber `short`. Vorpunin
+     les `short_name`, svo profgognin eru faerd i ThAD form — annars maeldi
+     kaflinn tomt kort og vaeri graenn af rangri astaedu.                */
+  const teamsById = Object.fromEntries(teams.map(t => [t.id, { ...t, short_name: t.short }]));
+  const idx = clubIndex(teamsById, (id, t) => t.short_name);
+
+  /* GOLFID ER LEITT, EKKI VALID. Fyrsta utgafa min setti `>= 60` ur
+     hausnum og raunin er 53 — talan var agiskun sem leit ut eins og
+     krafa. Byggingarlega LAGMARKID er tvo lyklar per lid (fullt nafn +
+     skammstofun, sem geta ekki verid eins), svo `teams.length * 2` er
+     satt oháð thvi hve morg samheiti eru i toflunni.                 */
+  ok(Object.keys(idx).length >= teams.length * 2,
+     `FORSENDA: kortid er byggt (${Object.keys(idx).length} lyklar `
+     + `>= ${teams.length * 2} = nafn+skammstofun per lid) — tomt kort vaeri graent af engu`);
+
+  /* ============================================================
+     1. LONGU FORMIN — ThAD ER ThAD SEM ORDABOKIN GERIR
+
+     FYRSTA UTGAFA MIN PROFADI STUTTU FORMIN ("Brighton", "Man City",
+     "Spurs") OG ThAER FULLYRDINGAR VORU TAUTOLOGIUR. FPL-svidid `name`
+     ER stutta formid (maelt: BHA=Brighton, MCI=Man City, MUN=Man Utd,
+     TOT=Spurs, LEE=Leeds, NEW=Newcastle, NFO=Nott'm Forest), svo thau
+     leysast gegnum `t.name` hvort sem ordabokin er til eda TOM.
+     Stokkbreyting sem TAEMDI samheitin STOD ThVI FULLYRDINGUNA — safnid
+     var graent og maeldi ekkert (CLAUDE.md 5b).
+
+     ThAD SEM ORDABOKIN LEGGUR TIL eru LONGU formin sem VEITURNAR senda
+     og FPL a ekki: ESPN og bokmakarar segja "Brighton & Hove Albion",
+     "Manchester City", "Tottenham Hotspur", "Nottingham Forest". An
+     theirra vaeri hver einasti slikur leikur `unmatched`.
+     ============================================================ */
+  const longForms = [["Brighton & Hove Albion","BHA"],["Brighton and Hove Albion","BHA"],
+    ["Manchester City","MCI"],["Manchester United","MUN"],["Tottenham Hotspur","TOT"],
+    ["Nottingham Forest","NFO"],["Leeds United","LEE"],["Newcastle United","NEW"],
+    ["AFC Bournemouth","BOU"],["Hull City","HUL"],["Ipswich Town","IPS"],
+    ["Coventry City","COV"]];
+  let checked = 0;
+  for (const [name, want] of longForms) {
+    if (!teams.some(t => t.short === want)) continue;   // nyliðar koma og fara
+    checked++;
+    ok(idx[CLUB_NORM(name)] === want,
+       `LANGT form "${name}" -> ${want} (${idx[CLUB_NORM(name)]})`);
+  }
+  /* ThEKJA ER FULLYRDING: faelli deildin ut ur toflunni vaeri lykkjan tom. */
+  ok(checked >= 8, `og thau voru raunverulega profud (${checked} af ${longForms.length})`);
+  /* POSITIV FORSENDA fyrir ad thetta se ordabokin en ekki `t.name`:
+     ekkert langt form ma vera JAFNT FPL-nafninu, annars vaeri kaflinn
+     aftur ad maela `t.name`.                                          */
+  const aliasOnly = longForms.filter(([n, w]) =>
+    teams.some(t => t.short === w) &&
+    !teams.some(t => t.short === w && CLUB_NORM(t.name) === CLUB_NORM(n)));
+  /* MAELT: 8 af 12 longu formunum eru ORDABOKAR-EINGONGU; hin fjogur
+     (Coventry City, Hull City, Ipswich Town, AFC Bournemouth) eru EINNIG
+     FPL-nafnid — thau eru rettmaet en sanna ekkert um ordabokina.
+     Fullyrdingin er thvi um ThAU SEM HUN EIN BER.                     */
+  ok(aliasOnly.length >= 6,
+     `${aliasOnly.length} af ${checked} longum formum leysast EINGONGU gegnum `
+     + `ordabokina (ekki gegnum FPL-nafnid) — thau eru ekki tautologia`);
+  for (const [n, w] of aliasOnly) {
+    ok(idx[CLUB_NORM(n)] === w, `  ordabokar-eingongu: "${n}" -> ${w}`);
+  }
+
+  /* 2. `afc`/`fc`/`the`-STRIPPID GILDIR NU BADUM MEGIN. Thetta var
+        MUNURINN a normolurunum tveimur og hann er hedan i fra einn.   */
+  if (teams.some(t => t.short === "BOU")) {
+    ok(CLUB_NORM("AFC Bournemouth") === CLUB_NORM("Bournemouth"),
+       `"AFC Bournemouth" og "Bournemouth" normaliserast EINS (${CLUB_NORM("AFC Bournemouth")})`);
+    ok(idx[CLUB_NORM("AFC Bournemouth")] === "BOU", "og bædi leysast a BOU");
+  }
+
+  /* 3. ENGIR AREKSTRAR — tvo felog mega ALDREI lenda a sama lykli.
+        Vaeri svo vaeri sameiningin ad para menn a rangt lid, sem er
+        verra en ad para thá ekki (CLAUDE.md 6: "thogul rong porun er
+        verri en engin").                                              */
+  const byKey = {};
+  let collisions = 0;
+  for (const t of teams) {
+    for (const n of [t.name, t.short, ...(CLUB_ALIAS[t.short] || [])]) {
+      const k = CLUB_NORM(n);
+      if (byKey[k] && byKey[k] !== t.short) collisions++;
+      byKey[k] = t.short;
+    }
+  }
+  ok(collisions === 0, `engir arekstrar milli felaga (${collisions})`);
+
+  /* 4. HVERT LID I DEILDINNI ER FINNANLEGT UNDIR FULLU NAFNI OG SKAMMSTOFUN. */
+  const missing = teams.filter(t => idx[CLUB_NORM(t.name)] !== t.short
+                                 || idx[CLUB_NORM(t.short)] !== t.short);
+  ok(missing.length === 0,
+     `oll ${teams.length} lid finnast undir fullu nafni OG skammstofun`
+     + (missing.length ? ` — vantar: ${missing.map(t => t.short).join(", ")}` : ""));
+
+  /* 5. NEIKVAED FULLYRDING MED SANNADA FORSENDU (5b regla 2): nafn sem er
+        EKKI i deildinni ma ekki leysast. An #4 hér ad ofan gaeti thetta
+        stadist einfaldlega af thvi ad kortid vaeri tomt.               */
+  ok(idx[CLUB_NORM("Real Madrid")] === undefined, "utandeildar-nafn leysist EKKI");
+  ok(idx[CLUB_NORM("")] === undefined, "tomur strengur leysist ekki");
+}
+
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);
