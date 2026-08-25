@@ -552,10 +552,10 @@ export const S = {
      midju; rodin sjalf ma brotna (`srcRow`), holfid ekki.               */
   srcUse: { fontFamily:mono, fontSize:9.5, color:C.text2, lineHeight:1.35,
     marginBottom:0, whiteSpace:"nowrap" },
-  /* SKIPTA-TILLAGAN A EIGIN LINU. `flexBasis:"100%"` i wrap-rod thvingar
-     linubrot; `marginBottom:0` af somu astaedu og hin holfin (sja ofar).  */
-  srcSwap: { flexBasis:"100%", minWidth:0, fontSize:10.5, color:C.text3,
-    lineHeight:1.35, marginBottom:0 },
+  /* `srcSwap` VAR FJARLAEGT 25.8.2026 — enginn notandi (0 tilvik i
+     ollu `src/`). ATH: `srcSwapName` HER FYRIR NEDAN ER LIFANDI
+     (App.jsx:~4356) og adliggjandi lyklar med sama forskeyti eru
+     audvelt ad henda i einu — thess vegna er thetta skrifad.       */
   srcSwapName: { color:C.green, fontWeight:700, cursor:"pointer" },
   /* ATT-MERKID A „Not in your XI"-kossunum (21.8.2026). Tveir kassar geta
      verid a skjanum samtimis — AAETLUN (framvirkt) og STADREYND

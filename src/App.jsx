@@ -21,11 +21,21 @@ import ShotMap from "./ShotMap.jsx";
 import PositionMap from "./PositionMap.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import BestOfBest from "./BestOfBest.jsx";
-import { C, mono, sans, S } from "./appStyles.js";
+/* `mono` og `sans` VORU FLUTT UT HER OG NOTUD I ENGU (25.8.2026) —
+   MAELT: 0 tilvik utan innflutnings-linunnar sjalfrar. Stilarnir sem
+   thurfa thau lesa thau innan `appStyles.js`.                        */
+import { C, S } from "./appStyles.js";
 import { storageMode, saveState, loadState } from "./storage.js";
 import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk,
          matchesPlayedByClub, seasonHasStarted, startedGameweeks } from "./availability.js";
-import { Crest, PlayerImg, Kit, crestUrl, photoUrl, CREST_FALLBACK } from "./Crest.jsx";
+/* `Kit`, `crestUrl` og `CREST_FALLBACK` VORU DAUD HER (25.8.2026).
+   MAELT: 0 tilvik utan innflutningsins — eina "notkunin" var inni i
+   ATHUGASEMD (linu ~1080), sem er nakvaemlega gildran i CLAUDE.md 13:
+   athugasemd uppfyllir textaleit. Athugasemdin sagdi rett ad `Crest`
+   noti thau, en `Crest` flytur thau inn HJA SER; thessi lina gerdi
+   thad aftur til einskis. `Crest`, `PlayerImg` og `photoUrl` eru NOTUD
+   (15 / 4 / 3 tilvik) og standa.                                    */
+import { Crest, PlayerImg, photoUrl } from "./Crest.jsx";
 import FfdrTable from "./FfdrTable.jsx";
 import { buildTeamMetrics } from "./teamstats.js";
 import { buildRecommendations, swapCandidates, sellTiming } from "./recommend.js";
