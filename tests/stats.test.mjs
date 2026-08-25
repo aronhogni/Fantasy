@@ -384,10 +384,45 @@ if (shotsF) {
     `markteigs-skot innan markteigs: max x ${mx(xs("close_range")).toFixed(3)} vs 5,5/52,5 = ${(SIX/M_HALF).toFixed(3)}`);
   ok(mx(inBoxX) <= (BOX / M_HALF) * 1.10,
     `teig-skot innan teigs: max x ${mx(inBoxX).toFixed(3)} vs 16,5/52,5 = ${(BOX/M_HALF).toFixed(3)}`);
-  ok(mn(outBoxX) >= (BOX / M_HALF) * 0.95,
-    `skot utan teigs eru utan teigs: min x ${mn(outBoxX).toFixed(3)} vs ${(BOX/M_HALF).toFixed(3)}`);
-  ok(mx(inBoxX) < mn(outBoxX) * 1.05,
-    "teigur og utan-teigs skarast ekki (svæðis-texti og hnit eru samstiga)");
+  /* ============================================================
+     TEIGURINN ER RETTHYRNINGUR — X EITT NAEGIR EKKI (leidrett 25.8.2026)
+
+     Thessar tvaer fullyrdingar profudu ADEINS `x` (fjarlaegd fra
+     marklinu) og kolludu thvi hvert skot naer marki en 16,5 m "i teig".
+     Teigurinn er 16,5 m LANGUR **og 40,3 m BREIDUR** (y 0,204-0,796 skv.
+     kvorduninni i `bsd_shots.json`), svo skot fra hlidarlinu, atta metra
+     fra marklinu, er UTAN teigs — geometriskt, ekki i deilu.
+
+     ThAD KOM I LJOS ThEGAR ESPN SKIPTI UM HNITAKERFI (sja kafla 9 i
+     fetch-entry.mjs). Tvo skot af 101 utan-teigs skotum baru x <= 0,314:
+       x=0.156 y=0.170  "right footed shot from a difficult angle and
+                         long range on the left"
+       x=0.220 y=0.151  "right footed shot from a difficult angle and
+                         long range on the left"
+     BADAR raðirnar segja ORDRETT "difficult angle ... on the left" og
+     y er 0,15-0,17, th.e. UTAN teigs til hlidar. Textinn og hnitin voru
+     SAMMALA allan timann; fullyrdingin las bara annan asinn.
+
+     ThETTA ER EKKI SLOKKNUN A VORD. Krafan er HERT: skot telst i teig
+     adeins ef ThAD ER INNAN BEGGJA maela, og utan-teigs skot verdur ad
+     vera utan ANNARS HVORS. Fyrri utgafa hefdi hleypt gegnum skoti sem
+     er i teignum i x en langt utan i y.
+     ============================================================ */
+  const BOX_Y0 = 0.204, BOX_Y1 = 0.796;      // maeld teigbreidd, sja bsd_shots.calib
+  const inBoxRect = s => s.x <= (BOX / M_HALF) * 1.10
+                      && s.y >= BOX_Y0 * 0.95 && s.y <= BOX_Y1 * 1.05;
+  const outRows = sh.filter(s => s.usable && s.in_box === false && s.y != null);
+  const wrongOut = outRows.filter(inBoxRect);
+  ok(wrongOut.length === 0,
+    `skot utan teigs eru utan teigs i BADUM osum (${wrongOut.length} af ${outRows.length} brjota)`
+    + (wrongOut.length ? ` — t.d. x=${wrongOut[0].x} y=${wrongOut[0].y}` : ""));
+  const inRows = sh.filter(s => s.usable && s.in_box === true && s.y != null);
+  ok(inRows.every(inBoxRect),
+    `og teig-skot eru INNAN beggja (${inRows.filter(s => !inBoxRect(s)).length} af ${inRows.length} brjota)`);
+  /* ThEKJA ER FULLYRDING: vaeru radirnar tomar vaeru baðar ofangreindar
+     tautologiur (`every` a tomu fylki er satt).                       */
+  ok(inRows.length >= 50 && outRows.length >= 50,
+    `og badir hoparnir eru raunverulega til (i teig ${inRows.length}, utan ${outRows.length})`);
   // 105 m kvardinn MA EKKI passa — annars er vordurinn gagnslaus
   ok(!(mx(inBoxX) <= BOX / 105),
     `105 m kvardinn er UTILOKADUR (teigmork vaeru 0,157, en teig-skot na ${mx(inBoxX).toFixed(3)})`);

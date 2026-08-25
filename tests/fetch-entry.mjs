@@ -483,5 +483,78 @@ console.log("\n=== 8. ThRALAT RAUD HEIMILD ===");
   ok(Object.keys(redStreaks(null, null, "2026-08-24")).length === 0, "tom inntok hrynja ekki");
 }
 
+/* ============================================================
+   9. ESPN SKIPTI UM HNITA-KVARDA 25.8.2026 (0-1 -> 0-100)
+
+   Hnitin voru tekin HRA ur `fieldPositionX/Y` og allt sem les thau
+   (ShotMap.jsx, `IN_BOX_X`, kvordunartolurnar) gerir rad fyrir
+   HLUTFALLI af hálfum velli.
+
+   MAELT a committudum snapshotum af `data/last_gw_shots.json`:
+     ... 5d3e307  max x = 0.96
+         a816e02  max x = 0.96
+         d9dd6a8  max x = 0.96
+         da66d92  max x = 0.96
+         15a42e3  max x = 0.96
+         cb99d34  max x = 98.80   <- 25.8.2026
+   Enginn kodi okkar breyttist thann dag; VEITAN skipti um kvarda.
+
+   Thetta er ESPN-kvardavillan ur CLAUDE.md kafla 6 i HINA attina: tha
+   margfaldadi OKKAR kodi med 105 og setti hvert skot i tvofalda
+   fjarlaegd; nu senda ThEIR hundradfalda tolu og kortid faeri 100x ut
+   fyrir vollinn.
+
+   REGLAN ER LEIDD, EKKI HARDKODUD: 0-1 kvardi getur ALDREI farid yfir
+   1, svo gildi > 1 ER hundrads-kvardi. Hun lagar sig thvi sjalf i BADAR
+   attir — sem er allt malid, thvi veitan getur skipt aftur.
+   ============================================================ */
+console.log("\n=== 9. ESPN-HNITAKVARDI ===");
+{
+  const src = readFileSync(SRC.replace("file://", ""), "utf8");
+  const body = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok(/newGrid \? \+\(\(1 - rawX \/ 100\) \* 2\)/.test(body),
+     "vorpunin er i pipeline-unni (ekki i birtingunni)");
+  ok(/rescaled\+\+/.test(body), "og skiptin eru TALIN, svo thau gerist ekki thegjandi");
+
+  /* HEGDUNIN SJALF — texti einn vaeri uppfylltur af athugasemdinni.
+     ESPN skipti um BAEDI kvarda OG vidmidun: nyja kerfid er heill
+     vollur fra EIGIN marki med y speglad; thad gamla (sem allt nedar
+     les) er halfur vollur sem fjarlaegd FRA SOTTA MARKINU.          */
+  const conv = (rx, ry) => {
+    const n = rx > 1 || ry > 1;
+    return [rx == null ? null : (n ? +((1 - rx / 100) * 2).toFixed(4) : rx),
+            ry == null ? null : (n ? +(1 - ry / 100).toFixed(4) : ry)];
+  };
+  const [ox, oy] = conv(0.21, 0.48);
+  ok(ox === 0.21 && oy === 0.48, `GAMALT snid fer OBREYTT i gegn (${ox}, ${oy})`);
+  const [nx, ny] = conv(84.2, 58.0);
+  ok(Math.abs(nx - 0.316) < 1e-9, `NYTT snid: x 84,2 -> ${nx} (naerri marki, i teig)`);
+  ok(Math.abs(ny - 0.42) < 1e-9, `og y 58,0 -> ${ny} (speglad)`);
+  /* ATTIN ER ThAD SEM SKIPTIR MALI: i nyja kerfinu er HAERRA x NAER
+     markinu, i thvi gamla er LAEGRA x naer. Snuist thetta vid vaeri
+     kortid spegilmynd af sjalfu ser og engin talna-vord saei thad.  */
+  ok(conv(95, 50)[0] < conv(70, 50)[0],
+     `skot naer marki (95) faer LAEGRA gamalt x en fjarlaegt (70): `
+     + `${conv(95, 50)[0]} < ${conv(70, 50)[0]}`);
+  ok(conv(null, null)[0] === null, "vantandi hnit helst null, ekki 0");
+
+  /* AFTURFOR-VORDUR A RAUNGOGNUM: skrain sem er committud NUNA ma ekki
+     bera hundrads-kvarda. Hun gerir thad i dag (cb99d34), svo thetta
+     fellur ThANGAD TIL pipeline-an keyrir aftur — sem er RETT: gognin
+     ERU rong og vordurinn a ad segja thad.                          */
+  try {
+    const shots = JSON.parse(readFileSync(new URL("../data/last_gw_shots.json", import.meta.url), "utf8"));
+    const xs = [];
+    (function walk(o) { if (!o || typeof o !== "object") return;
+      if (typeof o.x === "number") xs.push(o.x);
+      Object.values(o).forEach(walk); })(shots);
+    if (xs.length) {
+      const mx = Math.max(...xs);
+      ok(mx <= 1, `committud last_gw_shots.json er a 0-1 kvarda (max ${mx.toFixed(3)})`
+         + (mx > 1 ? " — VEITAN SKIPTI UM KVARDA; keyrdu pipeline-una" : ""));
+    }
+  } catch { /* skrain er ekki alltaf til */ }
+}
+
 console.log(`\nFETCH-ENTRY: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

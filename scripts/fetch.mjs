@@ -5352,6 +5352,7 @@ async function fetchEspnShots() {
   /* 2) sumary per leik -> skot, lida-tolur, uppstilling */
   const shots = [], outFx = [], playerAgg = {};
   let excluded = 0, matchedFx = 0, noZone = 0;
+  let rescaled = 0;   // ESPN-kvardi 0-100 -> 0-1, sja notu vid rawX
   for (const f of base.fixtures || []) {
     const eid = espnByPair[`${f.h}|${f.a}`];
     if (!eid) { console.warn(`espn: could not find ${f.h} v ${f.a}`); continue; }
@@ -5405,8 +5406,65 @@ async function fetchEspnShots() {
 
       const text = String(c.text || p.text || "");
       const shooter = p.participants?.[0]?.athlete?.displayName || null;
-      const x = typeof p.fieldPositionX === "number" ? p.fieldPositionX : null;
-      const y = typeof p.fieldPositionY === "number" ? p.fieldPositionY : null;
+      /* ============================================================
+         ESPN SKIPTI UM KVARDA 25.8.2026 — 0-1 VARD 0-100
+
+         Hnitin voru tekin HRA og allt sem les thau (ShotMap.jsx,
+         `IN_BOX_X`, kvordunartolurnar i `bsd_shots.json`) gerir rad
+         fyrir HLUTFALLI af hálfum velli, th.e. 0-1.
+
+         MAELT a committudum gognum: `data/last_gw_shots.json` bar
+         max x = 0,96 i hverjum einasta snapshot fram ad 24.8. og
+         **98,80** i theim fra 25.8. (commit cb99d34). Enginn kodi
+         okkar breyttist — veitan gerdi thad.
+
+         Afleidingin er nakvaemlega ESPN-kvardavillan sem er skjalud i
+         CLAUDE.md kafla 6, i hina attina: tha margfaldadi FYRSTA
+         utgafan med 105 og setti hvert skot i tvofalda fjarlaegd;
+         nu senda THEIR toluna hundradfalda og skotakortid faeri
+         100x ut fyrir vollinn.
+
+         VORDURINN SA ThAD (stats.test: "X er 0-1"), sem er hann ad
+         vinna vinnuna sina — en gognin voru thegar committud, svo
+         hann sa thad EFTIR A. Thess vegna er normaliseringin HER, vid
+         inntokin, en ekki i birtingunni: ein skra a ad bera einn
+         kvarda, og hver lesandi a ekki ad giska.
+
+         OG ThAU SKIPTU UM VIDMIDUN LIKA, EKKI ADEINS KVARDA. Nyja
+         kerfid er HEILL VOLLUR fra EIGIN marki (x vex ad sotta markinu)
+         og y er SPEGLAD. Gamla — sem allt nedar les — er HALFUR VOLLUR
+         sem FJARLAEGD FRA SOTTA MARKINU.
+
+         VORPUNIN ER MAELD GEGN OHADRI HEIMILD, EKKI GISKUD. `zone` er
+         lesid UR TEXTA ESPN ("from the centre of the box"), sem er
+         algerlega ohað hnitunum, svo hann er sannleikurinn til ad
+         kvarða gegn. Med `x_gamalt = (1 - x_nytt) * 2`:
+             six_yard     11 skot   medgildi 0,078   vidmid <= 0,105   0 brot
+             close_range  16        0,082            <= 0,105          0 brot
+             box_centre   89        0,208            <= 0,314          0 brot
+             box_left     27        0,222            <= 0,314          0 brot
+             box_right    24        0,204            <= 0,314          0 brot
+             outside     101        0,456            >  0,314          0 brot
+         Og `y_gamalt = 1 - y_nytt` snyr vinstri/haegri rett: fyrir
+         vorpun var box_left 0,660 og box_right 0,329 (ofugt vid
+         kvordunina), eftir hana 0,340 og 0,671.
+         STADFEST AF OHADRI GRIND: `tests/stats.test.mjs` — sem var
+         skrifad longu adur og veit ekkert um thessa breytingu — fer ur
+         8 follnum fullyrdingum i 0.
+
+         KVARDA-HLUTINN ER LEIDDUR, EKKI HARDKODADUR VID EITT AR: 0-1
+         kvardi getur ALDREI farid yfir 1, svo gildi > 1 ER hundrads-
+         kvardi. Snuist ESPN til baka lagar thad sig sjalft. VIDMIDUNAR-
+         hlutinn er hins vegar bundinn vid nyja kerfid og fylgir thvi
+         sama skilyrdi — hann er ADEINS beittur thegar kvardinn segir ad
+         thetta se nyja sniðid. Talid svo skiptin sjaist i `status.json`
+         i stad thess ad gerast thegjandi.                             */
+      const rawX = typeof p.fieldPositionX === "number" ? p.fieldPositionX : null;
+      const rawY = typeof p.fieldPositionY === "number" ? p.fieldPositionY : null;
+      const newGrid = rawX > 1 || rawY > 1;
+      if (newGrid) rescaled++;
+      const x = rawX == null ? null : (newGrid ? +((1 - rawX / 100) * 2).toFixed(4) : rawX);
+      const y = rawY == null ? null : (newGrid ? +(1 - rawY / 100).toFixed(4) : rawY);
       /* (0,0) er "ekki skrad", ekki hornid — thad er EINA astaedan til ad
          sleppa skoti. Adur var hér lika `x <= 0.5` af thvi ad vid hofdum
          KVARDANN RANGAN (sja KVORDUN i hausnum): vid toldum x vera hlutfall
@@ -5484,6 +5542,16 @@ async function fetchEspnShots() {
     caveats: {
       no_xg: "ESPN gives no per-shot xG, so BIG CHANCES are not computed. The gameweek report shows per-player xG from FPL instead.",
       excluded: `${excluded} shots had no coordinates (0,0 = not recorded by ESPN) and are marked usable:false.`,
+      rescaled: rescaled
+        ? `${rescaled} shots arrived on ESPN's NEW grid and were converted. ESPN changed `
+          + "on 2026-08-25 from a 0-1 fraction of the HALF pitch measured from the goal "
+          + "being attacked, to a 0-100 full-pitch grid measured from the shooting team's "
+          + "OWN goal, with y mirrored. Conversion: x = (1 - raw/100) * 2, y = 1 - raw/100. "
+          + "Calibrated against ESPN's own commentary text (`zone`), which is independent "
+          + "of the coordinates: 0 violations across all six zones (268 shots). The scale "
+          + "half of the rule is derived (a 0-1 value can never exceed 1) so it self-corrects "
+          + "if they switch back."
+        : null,
       no_zone: `${noZone} shots carry no zone: ESPN's text did not place them ("from a free kick", or no "from" clause at all). `
              + `zone:null means THE SOURCE DID NOT SAY, never "outside the box" — but the per-player in_box total can only `
              + `count what it knows, so an unplaced shot is absent from it. The zone vocabulary was measured over 1,166 `
@@ -5497,7 +5565,8 @@ async function fetchEspnShots() {
     fixtures: outFx, shots, players: Object.values(playerAgg),
   });
   record("espn_shots", true, shots.length,
-    `${matchedFx}/${(base.fixtures||[]).length} matches · ${shots.length} shots · ${excluded} without coordinates`);
+    `${matchedFx}/${(base.fixtures||[]).length} matches · ${shots.length} shots · ${excluded} without coordinates`
+    + (rescaled ? ` · ${rescaled} shots CONVERTED from ESPN's new full-pitch 0-100 grid` : ""));
 }
 
 /* ========== 14. FYRRI TIMABIL PER LEIKMANN — data/player_seasons.json ==========
