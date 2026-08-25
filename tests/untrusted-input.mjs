@@ -520,5 +520,61 @@ console.log(`\n${"─".repeat(72)}\nPROXY-LEIDIRNAR (netlify/functions/odds.js)\
   globalThis.fetch = realFetch;
 }
 
+/* ============================================================
+   MINNIS-FALLBACKID I `storage.js` VAR DAUTT (25.8.2026)
+
+   `saveState` skrifar i `_memStore` thegar localStorage-skrifid bregst
+   (kvoti fullur, einka-gluggi, "block site data") — en `loadState` las i
+   "local"-ham EINGONGU localStorage. Vistun sem "tokst i minni" var thvi
+   ekki laesileg af neinum: appid sagdi ekkert og naesti lestur i SOMU lotu
+   skiladi GAMLA gildinu. Thogult tap a planun notandans, sem er einmitt
+   thad sem thetta safn er til ad utiloka.
+
+   HERMUNIN VERDUR AD HITTA RETTA HAMINN: probe-lykillinn ma TAKAST,
+   annars fellur `storageMode()` i "memory" og kaflinn maeldi allt annad
+   fall en thad sem bilar. Fyrsta utgafa min gerdi einmitt thad og
+   "sannadi" hegdun sem hun snerti aldrei.
+   ============================================================ */
+console.log(`\n${"─".repeat(72)}\nMINNIS-FALLBACK I storage.js\n${"─".repeat(72)}`);
+{
+  const disk = { k: JSON.stringify({ v: "old" }) };
+  let refuse = true;
+  const realWin = globalThis.window;
+  globalThis.window = { localStorage: {
+    getItem: k => (k in disk ? disk[k] : null),
+    setItem: (k, v) => { if (refuse && k === "k") throw new Error("QuotaExceededError"); disk[k] = v; },
+    removeItem: k => { delete disk[k]; },
+  } };
+  const S = await import(new URL("src/storage.js", REPO).href + `?t=${pass}`);
+  ok(`FORSENDA: hamurinn er "local" (${S.storageMode()}) — annars maelum vid rangt fall`,
+     S.storageMode() === "local");
+
+  const saved = await S.saveState("k", { v: "fresh" });
+  ok("misheppnad skrif skilar false (og segir fra i console)", saved === false);
+  ok(`diskurinn er ENN gamall (${disk.k})`, disk.k === JSON.stringify({ v: "old" }));
+  const back = await S.loadState("k");
+  ok(`en lesturinn skilar FERSKA gildinu ur minni (${JSON.stringify(back)}) `
+     + "— adur skiladi hann gamla gildinu og tapid var thogult",
+     back?.v === "fresh");
+
+  /* MERKID VERDUR AD HREINSAST: kvoti getur losnad (notandinn eydir odru),
+     og tha er localStorage aftur retta heimildin. Merki sem er bara SETT
+     en aldrei tekid af er merki sem verdur rangt.                      */
+  refuse = false;
+  ok("heppnad skrif skilar true", await S.saveState("k", { v: "disk2" }) === true);
+  ok(`og eftir thad vinnur DISKURINN aftur (${disk.k})`,
+     (await S.loadState("k"))?.v === "disk2" && disk.k === JSON.stringify({ v: "disk2" }));
+
+  /* POSITIV FORSENDA (5b regla 2): venjulegur lykill er OSNERTUR, svo
+     fullyrdingin ad ofan snyst um FALLBACKID en ekki um ad `_memStore`
+     skyggi almennt a localStorage.                                     */
+  disk.other = JSON.stringify({ v: "plain" });
+  ok("venjulegur lykill les afram localStorage obreytt",
+     (await S.loadState("other"))?.v === "plain");
+  ok("og lykill sem er hvergi til gefur null", await S.loadState("missing") === null);
+
+  globalThis.window = realWin;
+}
+
 console.log(`\nOTRAUST INNTAK: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

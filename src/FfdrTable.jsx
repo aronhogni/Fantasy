@@ -55,7 +55,14 @@ export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, 
   const [dir, setDir] = useState("asc");
   const sortOn = key => {
     if (sortBy === key) { setDir(d => d === "asc" ? "desc" : "asc"); return; }
-    setSortBy(key); setDir(key === "team" ? "asc" : "asc");
+    /* DAUDUR ThRIHYRNINGUR FJARLAEGDUR (25.8.2026): stod
+       `key === "team" ? "asc" : "asc"` — BADAR greinar eins, svo
+       skilyrdid gerdi ekkert. Hegdunin er OBREYTT viljandi: nyr dalkur
+       byrjar alltaf i "asc". Athugid ad thetta VAR liklega aetlad ad
+       gefa "team" adra sjalfgefna att en tolu-dalkunum; se svo er thad
+       BREYTING A HEGDUN og krefst akvordunar, ekki thogullar
+       lagfaeringar a thvi sem litur ut eins og innslattarvilla.       */
+    setSortBy(key); setDir("asc");
   };
   const arrow = k => sortBy !== k ? "" : (dir === "asc" ? " ↑" : " ↓");
 

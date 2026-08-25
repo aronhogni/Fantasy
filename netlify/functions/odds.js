@@ -11,15 +11,17 @@
 
 const FPL_BASE  = "https://fantasy.premierleague.com/api";
 
-// FPL-liðakóðar -> The Odds API heiti (til að para saman leiki)
-
-// ---- Poisson: P(X=0) = e^(-lambda) => CS-líkur = P(andstæðingur skorar 0) ----
-
-// Skiptir væntum heildar-mörkum leiksins niður á liðin út frá sigurlíkum.
-// homeWinP/awayWinP/drawP eru líkur (0–1). Sterkara lið fær stærri hlut.
-
-
-// Normaliserar h2h-líkur (fjarlægir "vig" bókmakarans)
+/* MUNADARLAUSAR ATHUGASEMDIR FJARLAEGDAR (25.8.2026). Fjorar
+   athugasemdir stodu her og lystu follum sem eru EKKI i thessari skra —
+   Poisson-CS, marka-skipting eftir sigurlikum og h2h-devigging fluttu i
+   `src/market.js` thegar bokmakera-greinin var tekin ut 10.8.2026, en
+   hausarnir urdu eftir yfir TOMU plassi.
+   Thetta er ekki snyrting heldur sama regla og annars stadar i skjolun
+   thessa repo-s: athugasemd sem lysir kóda sem er ekki tharna er RONG
+   skjolun, og rong skjolun er verri en engin — hun sendir naesta mann i
+   ad leita ad utfaerslu sem hann finnur aldrei. Nakvaemlega sama einkenni
+   og athugasemdin sem var lagfaerd nedar i thessari skra i dag ("hingad
+   kemst adeins thekkt fpl-*", sem var ofugt).                          */
 
 async function getJSON(url) {
   const r = await fetch(url);
