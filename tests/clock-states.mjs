@@ -1059,14 +1059,41 @@ console.log("─".repeat(84));
 
     const run = () => spawnSync("node", [new URL("gw1-checklist.mjs", import.meta.url).pathname],
       { env: { ...process.env, GW1_DATA_DIR: tmp }, encoding: "utf8" });
-    const r = run();
+    /* SIGNAL-DAUDI BARNSINS ER UMHVERFI, EKKI FALLIN FULLYRDING (25.8.2026).
+       MAELT: keyrsla kl. 11:46 felldi thennan kafla med thremur rodum —
+       tomum tail (`...gognum ()`) og "0 fullyrdingar keyrdu" — medan safnid
+       er GRAENT eitt og ser (189 stodust, 0 fellu, sama HEAD). Orsokin var
+       ad barnid var DREPID undir alagi: thrjar lotur keyrdu profin samtimis
+       a somu vel. Tomur tail er FINGRAFARID — barn sem fell a fullyrdingu
+       prentar hana, barn sem er drepid prentar EKKERT.
+
+       Skilabodin sogdu samt "thekjan hrundi", sem er RONG ORSOK og sendir
+       naesta mann i ad leita ad villu i klukkunni sem er ekki til. Thetta er
+       nakvaemlega sama aett og TIMAMORK i `run-tests.mjs`: `status: null` +
+       `signal` er obreytanlega EKKI thad sama og fallid prof, og skilabodin
+       verda ad greina thau i sundur.
+
+       Ein endurtilraun (kill undir alagi er stundbundid); ef hun deyr lika
+       er thad SAGT BERUM ORDUM. Fullyrdingarnar FALLA afram i badum
+       tilfellum — thad sem breytist er HVAD their segja, ekki hvort thaer
+       verja. Golfid `nAsserts >= 20` er obreytt, svo raunveruleg
+       stokkbreyting sem lataer barnid keyra ekkert fellur enn.          */
+    let r = run();
+    if (r.status === null && (r.signal || r.error)) r = run();
+    const killedBy = r.status === null ? (r.signal || r.error?.code || "unknown") : null;
     const lines = String(r.stdout || "").split("\n");
     const tail = lines.filter(l => /VÖKULISTI:/.test(l)).join("");
-    ok(r.status === 0, `vakandi greinin i gw1-checklist KEYRIR og er GRAEN a tilbunum gognum (${tail.trim()})`,
+    ok(r.status === 0, killedBy
+      ? `barnid var DREPID (${killedBy}) — UMHVERFI, ekki klukkan: keyrdu \`node tests/clock-states.mjs\` eitt og ser`
+      : `vakandi greinin i gw1-checklist KEYRIR og er GRAEN a tilbunum gognum (${tail.trim()})`,
       lines.filter(l => /✗/.test(l)).join(" | "));
-    ok(/loknar umferðir: 1/.test(String(r.stdout)), "og hun tok vakandi greinina (1 lokin umferd)");
+    ok(/loknar umferðir: 1/.test(String(r.stdout)), killedBy
+      ? `barnid drepid (${killedBy}) — vakandi greinin var ALDREI SPURD`
+      : "og hun tok vakandi greinina (1 lokin umferd)");
     const nAsserts = (String(r.stdout).match(/[✓✗]/g) || []).length;
-    ok(nAsserts >= 20, `${nAsserts} fullyrdingar keyrdu (thekjan er fullyrding, ekki logga)`);
+    ok(nAsserts >= 20, killedBy
+      ? `barnid drepid (${killedBy}) — thekjan er OMAELD, ekki hrunin`
+      : `${nAsserts} fullyrdingar keyrdu (thekjan er fullyrding, ekki logga)`);
 
     /* STOKKBREYTING: EIN-UMFERDAR LIFANDI GLUGGI MA EKKI SLEPPA I GEGN.
        Thetta var adur "archive eftir GW1 fellur" — sem er nu RETTA astandid.
