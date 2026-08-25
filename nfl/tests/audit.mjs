@@ -317,6 +317,51 @@ console.log("\n4. tolur innan marka");
   const R = built.rows;
   const num = (k) => R.map((r) => r[k]).filter((v) => v != null && Number.isFinite(v));
 
+  /* ============================================================
+     MAELITAEKID SJALFT VAR BLINT A `NaN` (25.8.2026)
+     ============================================================
+     `num()` hér ad ofan SIGTAR UT ofinit gildi, svo hvert einasta
+     marka-prof ("proj >= -10", "adp <= 400" o.s.frv.) keyrdi a theim
+     sem KOMUST I GEGN. Dalkur sem vaeri fullur af `NaN` hefdi thvi
+     stadist thau OLL — hann vaeri einfaldlega osynilegur. Þad er sama
+     gerd og apaprófid sem las `MUNaNEW` sem villu i FPL: taekid var
+     vandamalid.
+
+     ÞETTA ER EKKI TILGATA. Onnur lota maldi i nott ad a FPL-hlidinni
+     hofdu FJORIR lesendur notad `x != null` sem prof a tolu og allir
+     tekid `NaN` thegjandi — einn theirra teiknadi strenginn
+     "FFDR NaN" i tooltip. `!= null` ver gegn null og EKKI gegn NaN;
+     `??` hefur sama gat.
+
+     A NFL-HLIDINNI ER GATID EKKI OPID I DAG og thad er MAELT: 0 af
+     rodunum bera ofinita tolu i neinu af thessum svidum, thvi
+     `blend()` skilar `value: null` — ekki `NaN` — thegar hun faer
+     rusl. Framleidandinn lokar gatinu.
+
+     ÞESS VEGNA ER RETTA ADGERDIN AD PINNA ÞA TRYGGINGU, ekki ad strá
+     `Number.isFinite` yfir tugi lesenda. `weekview.js:337/374` og
+     `lineup.js:327` lesa `r.proj != null` og thad er OHAETT NAKVAEMLEGA
+     ÞVI ad `proj` getur ekki verid `NaN`. Losni um thad i `blend`
+     fellur ÞETTA prof — ekki tooltip nokkrum vikum sidar.            */
+  {
+    const NUMERIC = ["proj", "vbd", "adp", "adpSd", "value", "tier", "aRank",
+                     "posRank", "replacement", "sharpDelta", "ecr"];
+    const bad = [];
+    for (const k of NUMERIC) {
+      for (const r of R) {
+        const v = r[k];
+        if (typeof v === "number" && !Number.isFinite(v)) bad.push(`${k}:${r.name}`);
+      }
+    }
+    /* THEKJA FYRST: fullyrdingin er tom se ekkert svid til. */
+    const present = NUMERIC.filter((k) => R.some((r) => typeof r[k] === "number"));
+    ok(present.length >= 6,
+      `THEKJA: ${present.length} af ${NUMERIC.length} tolusvidum eru raunverulega til (${present.join(", ")})`);
+    ok(bad.length === 0,
+      `og EKKERT theirra ber NaN/Infinity (${bad.length}${bad.length ? ": " + bad.slice(0, 4).join(", ") : ""}) ` +
+      "— thad er tryggingin sem gerir `x != null` ohaett hja lesendum");
+  }
+
   /* `proj` MA vera litillega neikvaett. Sleeper gefur t.d. Devin Duvernay
      -1,4 (1 hlaup, 6 jardar, og fumble-lidur sem magnsundurlidunin theirra
      synir ekki). Thad er TALA HEIMILDARINNAR, ekki okkar reikningur, og
