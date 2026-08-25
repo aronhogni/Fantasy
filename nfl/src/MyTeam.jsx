@@ -12,12 +12,14 @@
    en THAD ER HAEGT AD MAELA HANN EFTIR A og greina oheppni fra villu.
    Thad er `benchRegret`.
 
-   HUN ER EKKI TENGD ENN OG ThESSI LINA SAGDI ANNAD (leidrett 25.8.2026):
-   hér stod "og thad birtist hér thegar vikan er lidin", sem er loford
-   sem kodinn getur ekki efnt — ekkert i `src/` kallar `benchRegret`.
-   Thrennt vantar: `matchups`-endapunkt (hvad var i saetunum THA, ekki
-   hvad er i theim nuna), `data/weekly/{ar}.json` fyrir raunstigin, og
-   lokna viku. Sja notuna vid `myteam` i `App.jsx`.
+   HUN ER EKKI HER OG ThESSI LINA SAGDI ANNAD (leidrett 25.8.2026):
+   hér stod "og thad birtist hér thegar vikan er lidin". Thad var loford
+   sem thessi skra getur ekki efnt — `roster` hér kemur ur `myPicks` i
+   `localStorage` (draft-bordid), sem er ONNUR staerd en "hvad var i
+   saetunum i viku 6", og hér er ekkert deildar-audkenni til ad spyrja
+   Sleeper med. `benchRegret` er nu tengd A FORSIDUNNI, per deild
+   (`Dashboard.jsx` -> `weekRegret`). Sja notuna vid `myteam` i
+   `App.jsx`.
 
    FRETTIRNAR ERU BIRTAR, EKKI TULKADAR. ESPN merkir hverja grein
    theim leikmonnum sem hun fjallar um, svo porunin er a audkenni en

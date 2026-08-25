@@ -133,6 +133,7 @@ const L_B = mkEntry("222222222222222222", "Sofahetjur",
    rod. Kafli 10 tharf BADAR gerdirnar, svo hann setur sinn eigin hop.
    `null` thydir "notadu sjalfgefna", svo eldri kaflar haggast ekki.   */
 let myOverride = null;
+let matchupsOverride = null;
 
 /* ============================================================
    OLAESILEGUR LEIKMANNALISTI — KAFLI 11
@@ -218,6 +219,13 @@ global.fetch = async (url) => {
   if (s.includes("api.sleeper")) {
     calls.push(s);
     if (sleeperMode === "fail") throw new TypeError("Failed to fetch");
+    /* UPPSTILLING LIDINNAR VIKU. Sjalfgefid `null` — tha er engin vika
+       skorud og `weekRegret` skilar `null`, sem er forleiks-hegdunin. */
+    const mm = /\/league\/(\d+)\/matchups\/(\d+)$/.exec(s);
+    if (mm) {
+      return { ok: true, status: 200,
+               json: async () => (matchupsOverride || []) };
+    }
     const m = /\/league\/(\d+)\/(rosters|users)$/.exec(s);
     if (m) {
       const n = m[1] === L_A.id ? 10 : 12;
@@ -2230,6 +2238,105 @@ console.log("\n3i. hvert spjald verdleggur ur SINNI deild");
     "VIRKA deildin (Patriots) er OBREYTT — radirnar voru thegar hennar");
   ok(withFix.b !== without.b,
     "en HIN deildin (Sofahetjur) breytist — hun var verdlogd ur rangri deild");
+}
+
+/* ============================================================
+   3j. EFTIRSJA VIKUNNAR — TALAN A SKJANUM, EKKI STRENGUR I SKRA
+   ============================================================
+   `benchRegret` var otengd i tvaer vikur. Nu er kedjan
+   `Dashboard -> weekRegret -> benchRegret` og `tests/lineup.mjs` ber
+   hana — EN SU KRAFA ER TEXTALEIT, og stokkbreytingin
+
+     const regret = useMemo(() => (false ? weekRegret({...}) : null))
+
+   SLAPP I GEGN, thvi strengurinn `weekRegret(` stendur enn i skranni.
+   Textaleit greinir ekki "kallad" fra "skrifad". Þess vegna er talan
+   lesin AF SKJANUM hér.
+
+   HEIMURINN ER TILBUINN OG SVARID ER REIKNAD I HAUSNUM:
+     byrjunarlid  X 3 stig · Y 4 stig     = 7
+     bekkur       Z 30 stig · W 1 stig
+     tvo bestu af ollum: Z 30 + Y 4       = 34
+     left = 34 - 7 = 27
+   Slots eru RB1+RB2 (`starters: { RB: 2 }`), svo allir fjorir eru
+   gjaldgengir i badi saetin og reikningurinn er otviraedur.          */
+console.log("\n3j. eftirsja vikunnar er a skjanum");
+{
+  const { buildRows: br2 } = await import("../src/build.js");
+  const { default: Dashboard } = await import("../src/Dashboard.jsx");
+  const L = { teams: 10, scoring: "ppr", rounds: 15, superflex: false,
+              starters: { RB: 2 }, flexPos: ["RB", "WR", "TE"] };
+  const rowsL = br2({ players, league: L }).rows;
+  /* Fjorir RB med `gsisId` — VALDIR UR GOGNUNUM, ekki hardkodadir:
+     nafn eda audkenni sem er neglt inn rekur um leid og
+     `players.json` er endurskrifud (hun er thad daglega). */
+  const rbs = rowsL.filter((r) => r.pos === "RB" && r.gsisId && r.proj != null).slice(0, 4);
+  ok(rbs.length === 4, `FORSENDA: fjorir RB med gsisId (${rbs.length})`);
+
+  const [X, Y, Z, W] = rbs;
+  const PTS = { [X.gsisId]: 3, [Y.gsisId]: 4, [Z.gsisId]: 30, [W.gsisId]: 1 };
+  const weeklyRows = rbs.map((r) => ({ id: r.gsisId, week: 1, team: r.team,
+                                       ppr: PTS[r.gsisId], half: PTS[r.gsisId],
+                                       std: PTS[r.gsisId] }));
+
+  const entryL = { ...L_A, rules: L,
+                   imported: { ...L_A.imported, teams: 10, starters: { RB: 2 } } };
+  matchupsOverride = [{ roster_id: 7,
+                        starters: [String(X.id), String(Y.id)],
+                        players: rbs.map((r) => String(r.id)) }];
+
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r = createRoot(host);
+  await act(async () => {
+    r.render(React.createElement(Dashboard, {
+      entries: [entryL], rows: rowsL, meta: { season: 2026 },
+      schedule: null, defense: null, news: null,
+      weekly: weeklyRows, sleeperUser: "u-me",
+      buildFor: (lg) => br2({ players, league: lg }),
+    }));
+  });
+  await settle(700);
+  const txt = host.textContent || "";
+  await act(async () => { r.unmount(); });
+  host.remove();
+  matchupsOverride = null;
+
+  ok(/Week 1:/.test(txt), "eftirsju-linan er teiknud fyrir viku 1");
+  ok(/left/.test(txt) && /27/.test(txt),
+    `og hun ber toluna 27 (7 spilud, 34 moguleg)${/27/.test(txt) ? "" : ` [texti: ${txt.slice(0, 300)}]`}`);
+  /* NEFNARINN VERDUR AD FYLGJA thegar ekki allir bera stig. Hér bera
+     ALLIR fjorir stig, svo hann a EKKI ad sjast — og su krafa er thess
+     virdi: fotnota sem birtist alltaf er skraut, ekki upplysing. */
+  ok(!/of 4 players have scores/.test(txt),
+    "og nefnarinn sest EKKI thegar allir bera stig");
+
+  /* --- OG I FORLEIK ER EKKERT KALL GERT ---
+     HLID A SOKNINNI, EKKI SIA A SVARINU. `weekRegret` skilar `null`
+     hvort sem er thegar engin vika er skorud, svo rangt vaerd hlid
+     BROTNAR EKKI — thad eydir bara Sleeper-kalli per deild i hverri
+     heimsokn allt sumarid. Su stokkbreyting slapp i gegn thangad til
+     thessi fullyrding kom, thvi hun er um ThAD SEM VAR EKKI GERT. */
+  const before = calls.length;
+  const host2 = document.createElement("div");
+  document.body.appendChild(host2);
+  const r2 = createRoot(host2);
+  await act(async () => {
+    r2.render(React.createElement(Dashboard, {
+      entries: [entryL], rows: rowsL, meta: { season: 2026 },
+      schedule: null, defense: null, news: null,
+      weekly: null, sleeperUser: "u-me",          /* forleikur */
+      buildFor: (lg) => br2({ players, league: lg }),
+    }));
+  });
+  await settle(700);
+  await act(async () => { r2.unmount(); });
+  host2.remove();
+  const fresh = calls.slice(before);
+  ok(fresh.length > 0, `THEKJA: ${fresh.length} Sleeper-koll gerd (annars vaeri krafan ad nedan tom)`);
+  ok(!fresh.some((u) => /\/matchups\//.test(u)),
+    `og ENGIN theirra er \`/matchups/\` — engin vika skorud, engin sokn ` +
+    `(${fresh.filter((u) => /\/matchups\//.test(u)).length} slik)`);
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

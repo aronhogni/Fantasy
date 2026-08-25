@@ -48,24 +48,25 @@ const TABS = [
      fyrir BADAR deildir; `MyTeam` er geymd vegna `benchRegret` (var
      bekkurinn oheppni eda villa?).
 
-     EN HUN ER EKKI TENGD OG ThESSI ATHUGASEMD SAGDI ANNAD (leidrett
-     25.8.2026). Hér stod ad hun "kviknar fyrst thegar vika er lidin",
-     sem les eins og hun geri thad SJALF. `benchRegret` er skrifud og
-     profud i `src/lineup.js` en ENGIN skra i `src/` kallar hana, og
-     thrennt vantar adur en hun getur skilad tolu:
+     EN HUN ER EKKI HER — HUN ER A FORSIDUNNI (25.8.2026). Athugasemdin
+     hér sagdi tvennt rangt i rod: fyrst ad `benchRegret` "kviknadi" i
+     `MyTeam` (hun var otengd med ollu), og svo ad hun aetti heima hér.
+     Hvorugt stenst: `MyTeam` hefur HVORKI deildar-audkenni NE lifandi
+     hop — `roster` thar kemur ur `myPicks` i `localStorage`, sem er
+     draft-bordid, ONNUR staerd en "hvad var i saetunum i viku 6".
 
-       1. HVAD NOTANDINN BYRJADI I LIDINNI VIKU. `data.js` hefur engan
-          `matchups`-endapunkt; `rosters` ber adeins `starters` EINS OG
-          THEIR ERU NUNA, sem er onnur staerd en "hvad var i saetunum i
-          viku 6".
-       2. RAUNSTIGIN. `actual` kemur ur `data/weekly/{ar}.json`, sem er
-          ekki til fyrir 2026 fyrr en vika er spilud.
-       3. LOKIN VIKA. Engin er til.
+     `Dashboard` hefur allt sem tharf (`leagueId`, `mineId`, `rows`,
+     `weekly`, stigagjof) og gerir thad PER DEILD, sem er einmitt thad
+     sem forsidan er til fyrir. Thar er hun nu, gegnum `weekRegret` i
+     `lineup.js` og `D.sleeperMatchups`.
 
-     Ad fjarlaegja flipann vaeri samt ad henda maelingu sem hefur ekki
-     enn haft faeri a ad birtast — thess vegna stendur hun. Vordur:
-     `tests/lineup.mjs` kafli „benchRegret er OTENGD", sem SEFUR medan
-     forsendurnar vantar og VAKNAR um leid og vikuskrain verdur til. */
+     ThA ER SPURNINGIN UM ThENNAN FLIPA OPIN OG HUN ER NOTANDANS: eina
+     bokada astaedan fyrir thvi ad geyma hann var `benchRegret`, sem er
+     farin. Hann er ekki fjarlaegdur hér — ad henda flipa er akvordun
+     sem enginn bad um. Sja handover kafla 12.
+
+     Vordur: `tests/lineup.mjs` kafli „benchRegret", sem SEFUR medan
+     vikuskrana vantar og VAKNAR um leid og hun verdur til. */
   ["myteam", "⭐ My team", true],
   ["players", "👥 Players", true],
   ["experts", "🧠 Experts", true],

@@ -55,6 +55,7 @@ import { standingsFrom, myRosterId, recordLine } from "./standings.js";
 import { optimalLineup, lineupAdvice, slotsFor } from "./lineup.js";
 import { usagePool } from "./usageblend.js";
 import { rosCurrency } from "./ros.js";
+import { weekRegret } from "./lineup.js";
 import { currentWeek, weekContext, weekRows, onByeThisWeek,
          weeklyEdgeNote, dstStream, dstStreamNote,
          compareOppImplied } from "./weekview.js";
@@ -322,6 +323,54 @@ function LeagueCard({ entry, rows: rowsShared, live, week, ctx, news, sleeperUse
     return pickupAdvice({ pool: fa.pool, mine: fa.mine, league, week, ros });
   }, [fa, league, week, ros]);
 
+  /* ============================================================
+     EFTIRSJA VIKUNNAR SEM ER LIDIN — `benchRegret`, LOKSINS TENGD
+     ============================================================
+     Fallid hefur verid til, profad og OKALLAD. `App.jsx` sagdi ad thad
+     birtist i `MyTeam`, en THAR ER HVORKI DEILDAR-AUDKENNI NE LIFANDI
+     HOPUR: `roster` thar kemur ur `myPicks` i `localStorage` (draft-
+     bordid), sem er ONNUR staerd en "hvad var i saetunum i viku 6".
+     Hér er allt til: `leagueId`, `mineId`, `rows`, `weekly` og
+     stigagjofin — og hér er thad gert PER DEILD, sem er einmitt thad
+     sem forsidan a ad gera.
+
+     VIKAN ER LEIDD AF GOGNUNUM, EKKI AF KLUKKUNNI: sidasta vika sem
+     BER RAUNSTIG i `weekly`. Klukkan segir hvada vika er i gangi, sem
+     er annad — og i vikunni sem er ad klarast vaeri hun rong.
+
+     I FORLEIK ER ENGIN SOKN GERD. `lastScored` er `null`, svo
+     `useEffect` sleppir sér og ekkert kall fer til Sleeper. Hlid a
+     sokninni, ekki sia a svarinu — sama regla og meidsla-serian.   */
+  const lastScored = useMemo(() => {
+    if (!Array.isArray(weekly) || !weekly.length) return null;
+    let max = 0;
+    for (const r of weekly) {
+      const w = Number(r && r.week);
+      if (Number.isFinite(w) && w > max) max = w;
+    }
+    return max >= 1 ? max : null;
+  }, [weekly]);
+
+  const leagueId = entry.imported && entry.imported.leagueId;
+  const [pastLineup, setPastLineup] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setPastLineup(null);
+    if (lastScored == null || !leagueId || mineId == null) return undefined;
+    D.sleeperMatchups(leagueId, lastScored)
+      .then((m) => { if (alive) setPastLineup(m); })
+      /* BILUN HER MA EKKI FELLA KORTID. Eftirsja er EFTIR-A-tala;
+         hun er gagnleg en engin akvordun hangir a henni, olikt
+         start/sit og waiver. Thogn er rett svar. */
+      .catch(() => { if (alive) setPastLineup(null); });
+    return () => { alive = false; };
+  }, [leagueId, lastScored, mineId]);
+
+  const regret = useMemo(() => weekRegret({
+    matchups: pastLineup, rosterId: mineId, rows, weeklyRows: weekly,
+    week: lastScored, scoring: league.scoring, slots,
+  }), [pastLineup, mineId, rows, weekly, lastScored, league.scoring, slots]);
+
   const bye = onByeThisWeek(myRows || [], week);
 
   /* ============================================================
@@ -384,6 +433,7 @@ function LeagueCard({ entry, rows: rowsShared, live, week, ctx, news, sleeperUse
         myRows={myRows} mineId={mineId} scoring={league.scoring}
         defSeason={ctx ? ctx.defSeason : null} defRows={ctx ? ctx.defRows : null}
         season={ctx ? ctx.seasonAsked : null} />
+      <Regret r={regret} />
       <DstStream dst={dst} rostersRead={Array.isArray(rosters)} />
       <Waivers fa={fa} picks={picks} league={league} />
     </div>
@@ -1170,4 +1220,41 @@ function Head({ children }) {
 function num(v) {
   if (v == null || !Number.isFinite(Number(v))) return <span className="null">—</span>;
   return Number(v).toFixed(1);
+}
+
+/* ============================================================
+   EFTIRSJA — TVAER TOLUR, OG MUNURINN A THEIM ER ALLT
+   ============================================================
+   `left` er heildartapid; `avoidable` er sa hluti sem SPAIN SA FYRIR.
+   `left - avoidable` er oheppni — madur a bekknum sprakk an thess ad
+   nokkur gaeti sed thad. Ad birta adeins `left` vaeri ad kenna
+   notandanum um heppni; ad birta adeins `avoidable` vaeri ad fela
+   raunverulegt tap. Thess vegna baðar, i einni linu.
+
+   TEXTINN ER STUTTUR AF ASETTU RADI (kafli 6 i handover: bedid um
+   minna mal fjorum sinnum). En NEFNARINN FYLGIR — `scored` af
+   `startedN + benchN` — thvi tala sem hvilir a sex monnum af fimmtan
+   er onnur tala en hun litur ut fyrir ad vera, og hlutfall sem er ekki
+   synilegt er fullyrding sem ekki er haegt ad vera osammala.        */
+function Regret({ r }) {
+  if (!r) return null;
+  const total = r.startedN + r.benchN;
+  const partial = r.scored < total;
+  return (
+    <div className="note" style={{ marginTop: 8 }}>
+      <b>Week {r.week}:</b>{" "}
+      {r.left <= 0
+        ? "you started the best lineup available."
+        : <>you left <b>{r.left}</b> points on the bench
+            {r.avoidable > 0
+              ? <> — <b>{r.avoidable}</b> of that the projection saw beforehand</>
+              : <> — none of it was foreseeable</>}.</>}
+      {partial && (
+        <span className="dim">{" "}
+          ({r.scored} of {total} players have scores; the rest are not in the
+          weekly file yet, so this is a floor.)
+        </span>
+      )}
+    </div>
+  );
 }

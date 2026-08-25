@@ -239,3 +239,95 @@ export function benchRegret({ started, bench, actual, projected, slots = DEFAULT
 }
 
 const round1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
+
+/* ============================================================
+   INNTOKIN I `benchRegret` — HREIN, OG THVI PROFANLEG
+   ============================================================
+   `benchRegret` var skrifud, profud og OTENGD i tvaer vikur af thvi ad
+   ENGINN byggdi inntokin i hana. Sama form og `usageblend`:
+   `estimateFromZ` vantadi laugina, hér vantadi uppstillinguna EINS OG
+   HUN VAR og raunstigin. Fallid sjalft var alltaf rett.
+
+   FJORAR HEIMILDIR MAETAST HER OG THAER BERA THRJU OLIK AUDKENNI:
+     · `matchups`   Sleeper-audkenni (strengir), uppstilling THEIRRAR viku
+     · `rows`       Sleeper-audkenni + `gsisId` — bruin
+     · `weeklyRows` GSIS-audkenni, raunstig per viku
+     · `projected`  okkar spa, per Sleeper-audkenni
+
+   LYKILLINN MILLI `rows` OG `weeklyRows` ER `gsisId`, EKKI `id`, af
+   nakvaemlega somu astaedu og i `usagePool`: rangur lykill finnur ENGAN
+   og skilar thogult "engin eftirsja", sem litur eins ut og fullkomin
+   vika. Vordur: `tests/lineup.mjs` ber toluna.
+
+   `null` ER SVAR OG THAD ER ALGENGASTA SVARID:
+     · engin vika lidin · engin vikuskra (forleikur) · deildin svarar
+       ekki · hopurinn minn finnst ekki i svarinu · engin raunstig fundust
+   Ekkert af thessu er bilun. Eftirsja ur engum raunstigum vaeri hins
+   vegar TILBUNINGUR: allir vaeru med 0 og "perfect" vaeri 0, svo
+   `left: 0` laesist eins og "thu spiladir fullkomlega".              */
+
+/** Stigagjafar-svid i viku-rodunum. Sama vorpun og `usageblend`/`ros`. */
+const WEEK_PTS_FIELD = { ppr: "ppr", "half-ppr": "half", standard: "std" };
+
+/**
+ * Eftirsja vikunnar sem er LIDIN.
+ *
+ * @returns `{ ...benchRegret, week, startedN, benchN, scored }` eda `null`.
+ *
+ * `scored` er fjoldi leikmanna sem RAUNVERULEGA fundust med stig. Hann
+ * er skiladur svo vidmotid geti sagt "6 af 15" i stad thess ad birta
+ * tolu sem hvilir a thremur monnum — hlutfall sem er ekki synilegt er
+ * fullyrding sem ekki er haegt ad vera osammala.
+ */
+export function weekRegret({ matchups, rosterId, rows, weeklyRows, week,
+                             scoring, slots = DEFAULT_SLOTS } = {}) {
+  if (!Array.isArray(matchups) || !Array.isArray(rows) || !Array.isArray(weeklyRows)) return null;
+  const wk = Number(week);
+  if (!Number.isFinite(wk) || wk < 1) return null;
+  const field = WEEK_PTS_FIELD[scoring];
+  if (!field) return null;                       /* omaeld stigagjof -> engin tala */
+
+  const mine = matchups.find((m) => m && Number(m.roster_id) === Number(rosterId));
+  if (!mine || !Array.isArray(mine.starters) || !mine.starters.length) return null;
+
+  const byId = new Map(rows.filter((r) => r && r.id != null).map((r) => [String(r.id), r]));
+  /* SLEEPER SKRIFAR "0" I TOMT SAETI og thad er EKKI leikmadur. Vaeri
+     thad latid i gegn baeri uppstillingin fantom-mann med 0 stig, sem
+     laekkar "yours" og buer til eftirsja ur engu. */
+  const startIds = mine.starters.filter((x) => x && String(x) !== "0").map(String);
+  const allIds = (Array.isArray(mine.players) ? mine.players : [])
+    .filter((x) => x && String(x) !== "0").map(String);
+  const startSet = new Set(startIds);
+  const benchIds = allIds.filter((id) => !startSet.has(id));
+
+  const pick = (ids) => ids.map((id) => byId.get(id)).filter(Boolean)
+    .map((r) => ({ id: String(r.id), name: r.name, pos: r.pos, team: r.team,
+                   proj: r.proj, gsisId: r.gsisId }));
+  const started = pick(startIds);
+  const bench = pick(benchIds);
+  if (!started.length) return null;
+
+  /* --- RAUNSTIGIN, gegnum `gsisId` --- */
+  const ptsByGsis = new Map();
+  for (const r of weeklyRows) {
+    if (!r || Number(r.week) !== wk || r.id == null) continue;
+    const v = Number(r[field]);
+    if (Number.isFinite(v)) ptsByGsis.set(String(r.id), v);
+  }
+  if (!ptsByGsis.size) return null;              /* vikan er ekki i skranni */
+
+  const actual = {}, projected = {};
+  let scored = 0;
+  for (const p of [...started, ...bench]) {
+    const v = p.gsisId != null ? ptsByGsis.get(String(p.gsisId)) : undefined;
+    if (v !== undefined) { actual[p.id] = v; scored++; }
+    /* SPAIN ER ARSTIDAR-SPA DEILD A 17 og thad er sagt hér svo enginn
+       lesi hana sem viku-spa Sleeper. `benchRegret` notar hana ADEINS
+       til ad rada — kvardinn fellur ut i rodun. */
+    if (p.proj != null) projected[p.id] = p.proj / 17;
+  }
+  if (!scored) return null;
+
+  const out = benchRegret({ started, bench, actual, projected, slots });
+  return { ...out, week: wk, startedN: started.length, benchN: bench.length, scored };
+}

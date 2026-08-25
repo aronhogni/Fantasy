@@ -256,6 +256,26 @@ export async function sleeperRosters(leagueId) {
     s => `Could not read the rosters (${s})`);
 }
 
+/* ============================================================
+   UPPSTILLINGIN EINS OG HUN VAR — EKKI EINS OG HUN ER
+   ============================================================
+   `sleeperRosters` ber `starters` EINS OG THEIR ERU NUNA. Thad er
+   ONNUR STAERD en "hvad var i saetunum i viku 6", og munurinn er allur
+   tilgangur `benchRegret`: spurningin er hvad ThU gerdir tha, ekki hvad
+   thu ert med i dag. Notandi sem lagadi uppstillinguna a manudegi
+   maeldist med fullkomna viku ef nuverandi rostur vaeri lesinn.
+
+   `/league/{id}/matchups/{week}` ber `starters` (rod audkenna, i
+   saeta-rod) og `players` (allur hopurinn) EINS OG THAU VORU i theirri
+   viku — Sleeper geymir thad. Bekkurinn er `players` minus `starters`.
+
+   VIKAN ER SKYLDA I SLODINNI, svo hvert kall er um EINA viku og getur
+   ekki skilad "sidustu" viku thegjandi.                              */
+export async function sleeperMatchups(leagueId, week) {
+  return sleeperGet(`/league/${leagueId}/matchups/${week}`,
+    s => `Could not read week ${week} lineups (${s})`);
+}
+
 export async function sleeperDrafts(leagueId) {
   return sleeperGet(`/league/${leagueId}/drafts`, s => `Draft not found (${s})`);
 }

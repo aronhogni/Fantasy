@@ -419,7 +419,102 @@ console.log("\naud vika");
        `benchRegret` se raunverulega kollud. Tha getur "otengd" ekki
        ordid varanlegt astand i thogn.
    ============================================================ */
-console.log("\nbenchRegret: otengd, og vordurinn veit af thvi");
+/* ============================================================
+   `weekRegret` — INNTOKIN, A TILBUNUM GOGNUM ThAR SEM SVARID ER ThEKKT
+   ============================================================
+   Fjorar heimildir maetast hér og thaer bera ThRJU olik audkenni
+   (Sleeper-id, GSIS-id, okkar spa). Hvert einasta hlid er "null er
+   svar", svo profid verdur ad sanna BADT: ad rett inntak gefi RETTA
+   TOLU, og ad hvert vantandi inntak gefi `null` — ekki 0.
+
+   TALAN ER REIKNUD I HAUSNUM HER:
+     byrjunarlid  A 20 · B  2      = 22 raunstig
+     bekkur       C 30 · D  1
+     bestu 2 af ollum: C 30 + A 20 = 50   -> `perfect`
+     spain radlagdi A og C (haest proj)   -> `advised` = 50
+     left = 50 - 22 = 28 · avoidable = 28 · luck = 0
+   Þ.e. ÖLL eftirsjain var fyrirsjaanleg — spain sa C. Þad er villa,
+   ekki oheppni, og profid ver ad tolurnar tvaer greini thad ad.      */
+console.log("\nweekRegret: inntokin i benchRegret");
+{
+  const { weekRegret } = await import("../src/lineup.js");
+  /* `id` ER SKYLDA I SAETI — sja `DEFAULT_SLOTS`/`slotsFor`, sem setja
+     hann alltaf. Fyrsta utgafa thessarar fixturu sleppti honum og TVO
+     saeti med `id: undefined` letu `optimalLineup` telja SAMA MANNINN
+     tvisvar: `advised` maeldist 60 thar sem haesta moguleg summa allra
+     fjogurra er 53. Fixturan bar forsenduna sem var villan — nakvaemlega
+     mynstrid sem kafli 7 i handover varar vid. Kodinn var rettur. */
+  const SLOTS = [{ id: "RB1", pos: ["RB"] }, { id: "RB2", pos: ["RB"] }];
+
+  const rows = [
+    { id: "1", gsisId: "00-A", name: "A", pos: "RB", proj: 200 },
+    { id: "2", gsisId: "00-B", name: "B", pos: "RB", proj: 100 },
+    { id: "3", gsisId: "00-C", name: "C", pos: "RB", proj: 190 },
+    { id: "4", gsisId: "00-D", name: "D", pos: "RB", proj: 50 },
+  ];
+  const weekly = [
+    { id: "00-A", week: 6, ppr: 20, half: 20, std: 20 },
+    { id: "00-B", week: 6, ppr: 2, half: 2, std: 2 },
+    { id: "00-C", week: 6, ppr: 30, half: 30, std: 30 },
+    { id: "00-D", week: 6, ppr: 1, half: 1, std: 1 },
+    /* ONNUR VIKA — ma ALDREI blandast inn. */
+    { id: "00-C", week: 7, ppr: 999, half: 999, std: 999 },
+  ];
+  const matchups = [
+    { roster_id: 9, starters: ["1", "2"], players: ["1", "2", "3", "4"] },
+    { roster_id: 3, starters: ["3", "4"], players: ["3", "4"] },
+  ];
+  const base = { matchups, rosterId: 9, rows, weeklyRows: weekly, week: 6,
+                 scoring: "ppr", slots: SLOTS };
+
+  const r = weekRegret(base);
+  ok(r != null, "rett inntak gefur nidurstodu");
+  ok(r.yours === 22, `thin stig = 22 (maelt ${r && r.yours})`);
+  ok(r.perfect === 50, `fullkomid = 50 (maelt ${r && r.perfect})`);
+  ok(r.left === 28, `eftirsja alls = 28 (maelt ${r && r.left})`);
+  ok(r.avoidable === 28, `thar af fyrirsjaanlegt = 28 (maelt ${r && r.avoidable})`);
+  ok(r.luck === 0, `oheppni = 0 — spain SA C (maelt ${r && r.luck})`);
+  ok(r.startedN === 2 && r.benchN === 2 && r.scored === 4,
+    `2 byrjudu, 2 a bekk, 4 med raunstig (${r && r.startedN}/${r && r.benchN}/${r && r.scored})`);
+
+  /* VIKAN ER UTILOKANDI — vika 7 ma ekki leka inn. Vaeri hun talin
+     yrdi `perfect` 999 og eftirsjain hrein skaldskapur. */
+  ok(r.perfect < 100, "vika 7 lekur EKKI inn i viku 6 (annars vaeri fullkomid 999)");
+
+  /* --- SLEEPER SKRIFAR "0" I TOMT SAETI --- */
+  const withHole = weekRegret({ ...base,
+    matchups: [{ roster_id: 9, starters: ["1", "0"], players: ["1", "0", "3"] }] });
+  ok(withHole != null && withHole.startedN === 1,
+    `"0" i saeti er EKKI leikmadur (${withHole && withHole.startedN} byrjunarmadur, ekki 2)`);
+
+  /* --- HVERT VANTANDI INNTAK GEFUR `null`, EKKI 0 --- */
+  ok(weekRegret({ ...base, weeklyRows: [] }) === null,
+    "engin vikuskra -> null (0 vaeri 'thu spiladir fullkomlega')");
+  ok(weekRegret({ ...base, week: 9 }) === null,
+    "vika sem er ekki i skranni -> null");
+  ok(weekRegret({ ...base, rosterId: 42 }) === null,
+    "hopurinn minn finnst ekki -> null");
+  ok(weekRegret({ ...base, scoring: "te-premium" }) === null,
+    "omaeld stigagjof -> null");
+  ok(weekRegret({ ...base, matchups: null }) === null, "ekkert svar -> null");
+  ok(weekRegret({ ...base, week: null }) === null, "engin vika -> null");
+  ok(weekRegret({ ...base,
+    matchups: [{ roster_id: 9, starters: [], players: ["1"] }] }) === null,
+    "tom uppstilling -> null");
+
+  /* --- LYKILLINN ER `gsisId`, EKKI `id` --- */
+  const noGsis = weekRegret({ ...base, rows: rows.map((r2) => ({ ...r2, gsisId: null })) });
+  ok(noGsis === null,
+    "an `gsisId` finnst EKKERT raunstig -> null (rangur lykill skilar thogult 'engin eftirsja')");
+
+  /* --- STIGAGJOFIN ER LESIN, EKKI GEFIN SER --- */
+  const half = weekRegret({ ...base, scoring: "half-ppr",
+    weeklyRows: weekly.map((w) => ({ ...w, half: w.ppr / 2 })) });
+  ok(half != null && half.yours === 11,
+    `half-PPR les `+"`half`"+`-svidid (11, maelt ${half && half.yours})`);
+}
+
+console.log("\nbenchRegret: tengd via weekRegret, og vordurinn vaktar hana");
 {
   const { readFileSync: rf, existsSync: ex, readdirSync: rd } = await import("node:fs");
   const P = await import("node:path");
@@ -427,12 +522,18 @@ console.log("\nbenchRegret: otengd, og vordurinn veit af thvi");
   const srcDir = P.join(ROOT2, "src");
 
   const files = rd(srcDir).filter((f) => /\.(js|jsx)$/.test(f));
-  const callers = files.filter((f) => {
-    if (f === "lineup.js") return false;                 /* skilgreiningin sjalf */
-    const t = rf(P.join(srcDir, f), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    return /\bbenchRegret\s*\(/.test(t);
-  });
+  /* KEDJAN ER `Dashboard -> weekRegret -> benchRegret`, svo leitin er ad
+     `weekRegret` en ekki ad `benchRegret`: sidara nafnid er kallad INNI i
+     `lineup.js`, sem er skilgreiningarskrain. Fyrsta utgafa thessa
+     kafla leitadi ad `benchRegret(` og fann 0 kallendur EFTIR ad
+     tengingin var komin — hun maldi ranga hlekkinn. */
+  const strip = (f) => rf(P.join(srcDir, f), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const callers = files.filter((f) =>
+    f !== "lineup.js" && /\bweekRegret\s*\(/.test(strip(f)));
+  /* Og hlekkurinn sjalfur verdur ad vera heill. */
+  ok(/\bbenchRegret\(\{/.test(strip("lineup.js")),
+    "`weekRegret` kallar `benchRegret` — kedjan er heil");
   ok(files.length > 20, `THEKJA: ${files.length} skrar i src/ skannadar`);
 
   /* Er vikuskra yfirstandandi timabils til? */
@@ -444,18 +545,28 @@ console.log("\nbenchRegret: otengd, og vordurinn veit af thvi");
 
   if (!haveWeekly) {
     /* --- SOFANDI ARMUR: skjolin verda ad segja satt --- */
-    ok(callers.length === 0,
-      `SEFUR: engin vikuskra fyrir ${season}, og \`benchRegret\` er otengd (${callers.length} kallendur)`);
+    /* SOFANDI ARMURINN KREFST NU TENGINGAR LIKA — kedjan er
+       `Dashboard -> weekRegret -> benchRegret`, og hun a ad vera til
+       ADUR en vikuskrain kemur, svo hun kvikni sjalf. Ad bida med
+       tenginguna thangad til gognin birtast er nakvaemlega hvernig
+       `usageblend` sat otengd i tvaer vikur. */
+    const dash = rf(P.join(srcDir, "Dashboard.jsx"), "utf8");
+    ok(/weekRegret\(/.test(dash),
+      "SEFUR en ER TENGD: `Dashboard` kallar `weekRegret` (kedjan er til fyrir viku 1)");
+    ok(callers.length === 1 && callers[0] === "Dashboard.jsx",
+      `og ADEINS thadan (${callers.length}: ${callers.join(", ") || "engir"})`);
     const app = rf(P.join(srcDir, "App.jsx"), "utf8");
     const my = rf(P.join(srcDir, "MyTeam.jsx"), "utf8");
     /* Forsendan: badar skrar nefna hana yfirleitt. An thess vaeru
        neikvaedu krofurnar hér ad nedan tomar. */
     ok(/benchRegret/.test(app) && /benchRegret/.test(my),
       "FORSENDA: badar skrarnar nefna `benchRegret`");
-    ok(/EKKI TENGD/.test(app) && /EKKI TENGD ENN/.test(my),
-      "og BADAR segja berum ordum ad hun se OTENGD");
-    ok(/matchups/.test(app) && /matchups/.test(my),
-      "og badar nefna `matchups`-endapunktinn sem vantar (fyrsta forsendan af thremur)");
+    /* BADAR VERDA AD BENDA A FORSIDUNA. Thaer sogdu adur ad hun birtist
+       i `MyTeam`; hun er thar ekki og verdur thad ekki. */
+    ok(/EKKI HER/.test(app) && /EKKI HER/.test(my),
+      "og BADAR segja ad hun se EKKI i MyTeam");
+    ok(/Dashboard/.test(app) && /Dashboard/.test(my),
+      "og badar visa a forsiduna, thar sem hun ER");
   } else {
     /* --- VAKNADUR ARMUR --- */
     ok(callers.length > 0,
