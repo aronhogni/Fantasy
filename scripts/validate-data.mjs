@@ -75,7 +75,7 @@
    Keyrsla:  node scripts/validate-data.mjs        (0 = ma committa)
              node scripts/validate-data.mjs --json <slod>
    ============================================================ */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 

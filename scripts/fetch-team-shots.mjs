@@ -143,8 +143,21 @@ for (const eid of eventIds) {
       if (kind === "on_target" || kind === "goal") o.on_target++;
       if (kind === "goal") o.goals++;
       if (z && IN_BOX.has(z)) o.in_box++;
-      if (z === "close_range") o.close++;
-      if (z === "outside" || z === "far") o.outside++;
+      /* SAMEIGINLEGA TAFLAN ER FLUTT INN OG VAR SVO MOTMAELT — LAGAD
+         25.8.2026. Hér stod `z === "close_range"`, sem SLEPPIR
+         `six_yard`, thott `CLOSE` (sem thessi skra flytur inn) beri
+         BADA og athugasemdin vid hana nefni ThESSA SKRA ord fyrir ord.
+         Maelt a `last_gw_shots.json`: close_range 16, six_yard 11 —
+         **11 af 27 (41%) skota ur markteignum voru ekki taldir**, i
+         BADUM dalkum (`close_pg` og `close_against_pg`), medan nóturnar
+         i `teamstats.js` lofa "six-yard area" berum ordum.
+         NAKVAEMLEGA sama aett og `ZONE_RE` (CLAUDE.md kafli 12), thar
+         sem tvo afrit vantadi bædi markteiginn — og hun endurtok sig i
+         theim eina lesanda sem utdrattur toflunnar atti ad laga.
+         Lærdomurinn: **ad FLYTJA INN sameiginlega toflu ver ekkert ef
+         kallandinn skrifar skilyrdid sitt upp a nytt vid hlidina.** */
+      if (z && CLOSE.has(z)) o.close++;
+      if (z && OUTSIDE.has(z)) o.outside++;
     };
     add(T(side).for);
     add(T(other).against);

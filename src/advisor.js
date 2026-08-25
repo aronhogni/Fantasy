@@ -275,9 +275,15 @@ export function contextFactors(p) {
   });
   const ar = num(p?.aron);
   if (ar != null) out.push({
-    key: "aron", label: "Consistency (Aron)", value: ar, fmt: "signed", weighted: false,
+    /* Heitid bar "(Aron)" til 25.8.2026 og notandinn bad um ad thad faeri
+       ("Taka ut (aron) i consistency"). `stats.js` var lagfaerd tha; ThESSI
+       LEID GLEYMDIST og hun er SYNILEG — `Compare.jsx` birtir `t.label`
+       beint, svo strengurinn stod afram a skjanum eftir ad hann var
+       "fjarlaegdur". Maelikvardinn sjalfur heldur nafni sinu i `note`
+       hér ad nedan; thad er lysing, ekki merkimidi a reit. */
+    key: "aron", label: "Consistency", value: ar, fmt: "signed", weighted: false,
     tone: ar > 0.15 ? "good" : ar < -0.1 ? "warn" : "flat",
-    note: "How often he returns 4+ rather than 1-2. Description, not prediction: once points "
+    note: "ARON COEFFICIENT: how often he returns 4+ rather than 1-2. Description, not prediction: once points "
         + "and price are controlled for, nothing measurable is left within a position, so it "
         + "is barred from the score.",
   });

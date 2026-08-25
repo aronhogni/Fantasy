@@ -116,5 +116,58 @@ ok("Kinsky-spjaldið opnaðist (fullt nafn í haus)", txt.includes("Antonín"));
 ok("GK fær ALDREI DC-hittni þótt gögnin séu til", !txt.includes("DC hit rate"),
   "— GK-talan væri ómæld tala sem liti út eins og mæling");
 
+/* ============================================================
+   "DC-LEIKMADUR"-MERKIMIDINN — ThRJU ASTOND, EKKI TVO (25.8.2026)
+
+   Notandinn bad um ad DC-leikmenn yrdu merktir serstaklega ("+50%
+   leikja ad fa DC stig"). Rokstudningurinn og vikmorkin eru i
+   `scripts/measure-dc-flag.mjs` og i athugasemdinni vid
+   `dcPlayerFlag` i `src/stats.js`; hér eru ASTONDIN negld.
+
+   ThAD SEM ThESSI KAFLI VER, OG ThAD ER EKKI SMEKKUR:
+     · undir golfinu er svarid `waiting`, ALDREI `no` — 1 byrjun gefur
+       0% eda 100% og hvorug talan segir neitt,
+     · `rate == null` er `none`, ALDREI `no` — `Number(null)` er 0 og
+       0 er finite, svo bert `Number.isFinite` hefdi fullyrt "hann er
+       ekki DC-leikmadur" ur engum gognum (N8-gildran),
+     · `rate === 0` ER hins vegar maeling og verdur `no`.
+   ============================================================ */
+{
+  const { dcPlayerFlag, DC_FLAG_MIN_STARTS, DC_FLAG_CUT } = await import("../src/stats.js");
+  const st = (o) => dcPlayerFlag(o).state;
+
+  ok("golfid er 5 byrjanir", DC_FLAG_MIN_STARTS === 5);
+  ok("throskuldurinn er 0,50 (skilgreining notandans)", DC_FLAG_CUT === 0.50);
+
+  ok("1 byrjun med 100% -> `waiting`, EKKI `yes`", st({ starts: 1, rate: 1 }) === "waiting",
+    "— annars vaeri 1/1 nog til ad kalla mann DC-leikmann");
+  ok("4 byrjanir -> `waiting` (golfid heldur)", st({ starts: 4, rate: 1 }) === "waiting");
+  ok("5 byrjanir yfir throskuldi -> `yes`", st({ starts: 5, rate: 0.6 }) === "yes");
+  ok("5 byrjanir undir throskuldi -> `no`", st({ starts: 5, rate: 0.4 }) === "no");
+  ok("nakvaemlega 0,50 er EKKI yfir (>0,50, ekki >=)", st({ starts: 9, rate: 0.5 }) === "no");
+
+  ok("`rate: null` -> `none`, EKKI `no` (Number(null) er 0!)",
+    st({ starts: 9, rate: null }) === "none",
+    "— fullyrding ur engum gognum vaeri verri en tomur reitur");
+  ok("`rate` vantar alveg -> `none`", st({ starts: 9 }) === "none");
+  ok("`rate: 0` ER maeling og verdur `no`", st({ starts: 9, rate: 0 }) === "no",
+    "— NULL ER EKKI NULL, og thad gildir i BADAR attir");
+  ok("0 byrjanir -> `none`", st({ starts: 0 }) === "none");
+  ok("rusl-inntak fellir ekki fallid", st({}) === "none" && st() === "none");
+
+  /* DALKURINN SJALFUR: `waiting` verdur ad vera TOMUR reitur, ekki 0.
+     0 i `hi:true` dalki myndi rada theim sem vid vitum EKKERT um
+     nedst — sama og "0.00 hja theim sem aldrei spiladi" (CLAUDE.md 12). */
+  const { STAT_BY_KEY } = await import("../src/stats.js");
+  const d = STAT_BY_KEY.dc_player;
+  ok("dalkurinn `dc_player` er til", !!d);
+  ok("og hann er tomur (null) medan urtakid er of litid",
+    d.get({ _dc_starts: 1, _dc_hit_raw: 1 }) === null,
+    "— 0 thar vaeri ómæld tala sem lítur út eins og mæling");
+  ok("og ber 1 thegar merkid a vid", d.get({ _dc_starts: 8, _dc_hit_raw: 0.7 }) === 1);
+  ok("og 0 thegar hann er MAELDUR og nær ekki", d.get({ _dc_starts: 8, _dc_hit_raw: 0.2 }) === 0);
+  ok("og null thegar hittnin vantar", d.get({ _dc_starts: 8 }) === null);
+}
+
 console.log(`\nDC-HITTNI BIRTING: ${pass} stóðust, ${fail} féllu`);
 if (fail) process.exit(1);

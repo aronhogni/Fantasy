@@ -22,6 +22,7 @@ import ShotMap from "./ShotMap.jsx";
    missed". `BIG_CHANCE_XG` er fittad i `bsd.js` og ma ekki afritast hingad
    sem tala (fost tala um maeldan kvarda urelidist thegjandi).           */
 import { BIG_CHANCE_XG } from "./bsd.js";
+import { goalAssistsByFixture, assistPhrase } from "./goalassist.js";
 import PositionMap from "./PositionMap.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import BestOfBest from "./BestOfBest.jsx";
@@ -29,8 +30,8 @@ import BestOfBest from "./BestOfBest.jsx";
    MAELT: 0 tilvik utan innflutnings-linunnar sjalfrar. Stilarnir sem
    thurfa thau lesa thau innan `appStyles.js`.                        */
 import { C, S } from "./appStyles.js";
-import { storageMode, saveState, loadState } from "./storage.js";
-import { AVAIL, availOf, banRisk, setPieceOf, rotationRisk,
+import { saveState, loadState } from "./storage.js";
+import { availOf, banRisk, setPieceOf, rotationRisk,
          matchesPlayedByClub, seasonHasStarted, startedGameweeks } from "./availability.js";
 /* `Kit`, `crestUrl` og `CREST_FALLBACK` VORU DAUD HER (25.8.2026).
    MAELT: 0 tilvik utan innflutningsins — eina "notkunin" var inni i
@@ -48,8 +49,8 @@ import { buildRecommendations, swapCandidates, sellTiming } from "./recommend.js
    `teamstats.js` (CLAUDE.md kafli 7): afrit af reglunni her vaeri onnur
    utfaersla sem gaeti rekid i sundur vid tha sem velin sjalf notar. */
 import { bestTeamPlan, legalFormation, posKey, XI_SIZE } from "./bestteam.js";
-import { clamp, sellTenths, lookupPos, lookupMeasured,
-  tierOf, TIER_BG, TIER_FG, TIER_NAME, TIER_COUNT, greenRuns,
+import { clamp, sellTenths, lookupPos,
+  tierOf, TIER_BG, TIER_FG, TIER_NAME,
   makeFixDifficulty, computeTransferCost, isInitialSquadPick, applyPlan, expPointsFor, priceMovePrediction,
   cleanSheetProb, rankScore, eloStale, parseEntryId, rarelyStarted, priceFloors,
   intlBreaks, euroWeeks, euroTeams, compLabel } from "./model.js";
@@ -2511,6 +2512,31 @@ export default function App() {
     const y = gw1Deadline ? new Date(gw1Deadline).getFullYear() : null;
     return y ? `${y}/${String((y + 1) % 100).padStart(2, "0")}` : "this year";
   })();
+  /* ============================================================
+     HVADA ASSIST TILHEYRIR HVADA MARKI (25.8.2026)
+     Rokstudningurinn — og hvers vegna fyrra svarid ("ekki i neinni
+     heimild") var rangt — er i haus `src/goalassist.js`. Hér er adeins
+     TENGINGIN, og hun er gatað a BADU timabili og umferd: skran er
+     lykluð a eina umferd og getur borid arkiv ur fyrra timabili.  */
+  const goalAssists = useMemo(
+    () => goalAssistsByFixture({
+      shotsFile: lastGwShots, fixtures, teamById,
+      season: currentSeasonLabel,
+      /* `gw` ER VILJANDI EKKI SENT HEDAN, og astaedan er su ad fyrsta
+         utgafan sendi `gw: lastGwShots?.gw` — sem er BORID SAMAN VID
+         `shotsFile.gw`, thad er ad segja vid SJALFT SIG. Skilyrdid gat
+         thvi aldrei ordid satt: hlid sem lítur út eins og hlid og er
+         tautologia (CLAUDE.md kafli 13).
+         RAUNVERULEGA HLIDID ER LYKLUNIN: kortid er lyklad a FPL-leik,
+         svo umferd sem er EKKI i skot-skranni a einfaldlega engar
+         faerslur og fær ekkert. Ad skoda GW3 medan skrain ber GW1
+         synir thvi ekkert — rett svar, an thess ad nokkur beri saman
+         umferdar-tolur. `gw`-vidfangid lifir i hreina fallinu thvi
+         thad ER marktaekt fyrir kallanda sem veit hvada umferd hann
+         vill (og `goal-assist.mjs` profar thad med OLIKUM gildum). */
+    }),
+    [lastGwShots, fixtures, teamById, currentSeasonLabel]);
+
   // TÍMABIL BYRJAÐ = einhver umferð lokin. Þangað til eru allar uppsöfnuðu
   // tölur í players.json frá SÍÐASTA tímabili (spjöld, mínútur, stig).
   preSeasonRef.current = preSeason;
@@ -3197,6 +3223,7 @@ export default function App() {
           <GwFixtureList gw={gw} fixtures={fixtures} teamById={teamById}
             weatherByFx={weatherByFx} travelByFx={travelByFx} liveByFx={liveByFx}
             nameOf={id => byId[id]?.web_name || `#${id}`} diffOf={fixDifficulty}
+            goalAssists={goalAssists}
             onPick={t => setDetail({ kind:"team", id:t })} />
           {/* ============================================================
               MERKI, EKKI MALSGREIN — OG PER-LEIKMANNS-SMAATRIDIN ERU A
@@ -4551,7 +4578,7 @@ export default function App() {
                             v={interp("GW{0}–{1}", [run.from, run.to])}
                             sub={interp("{0} pts/GW vs {1} average over GW{2}–{3}",
                               [signedPts(run.perGw), sell.basis.scale, sell.basis.from, sell.basis.to])}
-                            title={interp("Expected points per gameweek inside GW{0}-{1} compared with HIS OWN average across GW{2}-{3} ({4} gameweeks with a known fixture). A figure for him — it is not comparable with another player's, and it is not a sell order.", [run.from, run.to, sell.basis.from, sell.basis.to, sell.basis.n])} />}
+                            title={interp("Fixture difficulty (FFDR) is the only input: no form, no minutes, no market line. Expected points per gameweek inside GW{0}-{1} compared with HIS OWN average across GW{2}-{3} ({4} gameweeks with a known fixture) — read through the measured points-per-tier table for his position. A figure for him: it is not comparable with another player's, and it is not a sell order.", [run.from, run.to, sell.basis.from, sell.basis.to, sell.basis.n])} />}
                         </div>
                         {/* SKIPTA-TILLAGAN — FLUTT HINGAD UR VALLAR-MERKINU.
                             Hun ber NAFN og VERD og enga delta-tolu: mismunur
@@ -5158,7 +5185,7 @@ function FixStrip({ gws, teamById, diffOf, teamId, pos }) {
    haus, leikir dagsins undir, tíminn MIÐJAÐUR milli liðanna.
    FFDR er EKKI hér — hann er í sinni eigin töflu, svo þetta er hreinn
    leikjalisti án tvítekningar.                                             */
-function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveByFx, nameOf, diffOf, onPick }) {
+function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveByFx, nameOf, diffOf, goalAssists, onPick }) {
   const [open, setOpen] = useState(null);
   const list = (fixtures || []).filter(f => f.event === gw)
     .sort((a, b) => String(a.kickoff_time || "~").localeCompare(String(b.kickoff_time || "~")));
@@ -5213,15 +5240,21 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
                ("⚽ Clarke · ⚽ Emersonn · ↗ Lukic · ↗ Enciso"), svo
                morkin lesast sem mork og assistin sem assist.
 
-               ThAD SEM ER **EKKI** GERT, OG HVERS VEGNA: PORUNIN
-               mark<->assist ER EKKI I NEINNI HEIMILD SEM VID HOFUM.
-               Maelt 25.8.2026: `live/gw{n}.json` ber per-leikmanns TOLUR
-               (`goals_scored`, `assists`) og `explain` ber stiga-lidun per
-               leik — hvorugt segir HVADA assist tilheyrir HVADA marki.
-               `last_gw.json` ber adeins lids-tolur (skot, horn, spjold).
-               Ad giska a porunina — t.d. para i rod — vaeri uppspuni sem
-               les eins og gogn, svo hun er EKKI birt. Textinn segir thad
-               berum ordum i stad thess ad thegja um thad.
+               OG PORUNIN ER NU BIRT — FYRRA SVARID VAR RANGT.
+               Hér stod ad porunin "ER EKKI I NEINNI HEIMILD SEM VID
+               HOFUM". Su maeling var rett um FPL (`live/gw{n}.json`,
+               `explain`, `last_gw.json` bera hana engin) en ALHAEFD YFIR
+               I "enga heimild" — og `data/last_gw_shots.json`, sem thetta
+               app SAEKIR ThEGAR, ber `assist_by` a hverju skoti. Maelt
+               25.8.2026 a GW1: **29 mork, 20 med nefndan assist.**
+               Rokstudningurinn allur er i haus `src/goalassist.js`.
+
+               TVAER SKILGREININGAR, TVAER LINUR — ALDREI SAMANRUNNAR:
+               ESPN-assistid er OPTA-skilgreiningin ("Assisted by X");
+               FPL-assistid er FANTASY-skilgreiningin og er VIDARI. Thad
+               er einmitt Tzolis-daemid sem notandinn nefndi. Baedi eru
+               synd, hvort undir sinu heiti; ad birta annad sem hitt vaeri
+               rong tala med rettu utliti.
 
                FANTASY-ASSIST ER ThEGAR ThAD SEM ER SYNT: `assists` fra FPL
                ER fantasy-skilgreiningin (thess vegna eru BSD-assist 29%
@@ -5276,9 +5309,22 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
                       return (
                         <div key={sd}>
                           <div><b>{sh}</b> {gs.length ? gs.join(" · ") : "—"}</div>
+                          {/* PORUD LINA — eitt mark per linu med sinum assist.
+                              Mark an `assist` fær ENGAN reit (ekki strik): "ekki
+                              sagt" er ekki "enginn assist" (sja goalassist.js). */}
+                          {(goalAssists?.get(f.id)?.[sd] || []).map((e, i) => (
+                            <div key={i} style={S.gfPairLine}
+                              title={"Who assisted which goal, read from the ESPN match commentary. This is the OFFICIAL (Opta) assist — narrower than FPL's fantasy assist on the line below, which is why a player can hold one and not the other. A goal with no assist named here means the commentary did not state one, not that nobody assisted."}>
+                              <span style={S.gfPairMin}>{e.minute || ""}</span>
+                              {"⚽ "}{e.scorer}
+                              {e.assist && <>{" ← "}{e.assist}
+                                {assistPhrase(e) && <span style={S.gfPairCtx}>{" ("}{assistPhrase(e)}{")"}</span>}
+                              </>}
+                            </div>
+                          ))}
                           {as_.length > 0 && (
                             <div style={S.gfAssistLine}
-                              title={"Fantasy assists (FPL's own definition — wider than the official one). FPL publishes goals and assists as separate per-player counts and never says which assist belongs to which goal, so they are listed rather than paired."}>
+                              title={"FANTASY assists — FPL's own definition, which is wider than the official one above. FPL publishes these as per-player counts and never says which goal each belongs to, so this line is a list, not a pairing. The pairing above comes from ESPN and uses the narrower official definition."}>
                               {as_.join(" · ")}
                             </div>
                           )}

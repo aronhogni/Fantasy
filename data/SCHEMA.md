@@ -77,7 +77,7 @@ Reglur 2026/27: **DEF 10+ CBIT**, **MID/FWD 12+ CBIRT**, hámark 2 stig í leik.
 | `chance_of_playing_next_round` / `_this_round` | `null` eða 0/25/50/75/100 — sett af FPL-ritstjórum |
 | `news`, `news_added` | fréttatexti, t.d. „Groin injury - Expected back 22 Aug" |
 | `defensive_contribution`, `clearances_blocks_interceptions`, `tackles`, `recoveries` | sjá viðvörun ofar |
-| `preseason_starts`, `preseason_games`, `preseason_minutes`, `preseason_last_start` | **ÆFINGALEIKIR, EKKI FPL-SVIÐ** — sameinuð inn úr `preseason.json` (sjá þar). **Sviðin VANTA ALVEG hjá þeim sem sást ekki í birtu byrjunarliði** — þau eru ekki `0`. „Sást ekki" er *mælt og fellt* sem merki (23 af 80 sögulegum klúbb-tímabilum eiga engin lineups), svo appið les þau sem tómt |
+| ~~`preseason_starts`, `preseason_games`, `preseason_minutes`, `preseason_last_start`~~ | **FJARLÆGÐ 25.8.2026 — `players.json` BER ÞAU EKKI LENGUR.** Staðfest á skránni: núll svið með forskeytinu `preseason` í öllum 600 röðum. Æfingaleikja-tölur eru ekki lengur relevant þegar tímabilið er hafið (beiðni notandans), svo bæði dálkarnir fjórir og sviðin sem `fetch.mjs` skrifaði fyrir þau eru farin. Lýsingin stóð hér áfram eftir að sviðin hurfu — **skjalað svið sem er ekki til er verra en óskjalað**, því næsti maður leitar að því. `preseason.json` sjálf er ÁFRAM TIL (sjá næstu töflu); það sem hvarf er samruninn inn í `players.json`
 
 ### `preseason.json` — ÆFINGALEIKJA-BYRJANIR (FotMob), FRYST VIÐ FYRSTA PL-LEIK
 `{ updated, season, source, cutoff, fixtures, finished, lineup_sides,

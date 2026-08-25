@@ -22,10 +22,10 @@
       og haegt var ad VELJA umferdir, thvi runur koma og fara vid hverja
       breytingu og React fjarlaegir longhand-gildin i odefineradri rod.
    ============================================================ */
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { tierOf, TIER_BG, TIER_FG, TIER_NAME, greenRuns } from "./model.js";
 import { interp } from "./interp.js";
-import { C, S, mono } from "./appStyles.js";
+import { C, S } from "./appStyles.js";
 import { Crest } from "./Crest.jsx";
 
 export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, span, maxGw, onPickTeam }) {

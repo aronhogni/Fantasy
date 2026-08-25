@@ -66,7 +66,6 @@ const SQUADS = argn("--squads", 100);          // hopar per umferd per laug
    `--seed 2` teiknar allt adra hopa og verdur ad gefa SAMA MERKI.      */
 const SEED = argn("--seed", 1);
 const mean = a => a.reduce((x, y) => x + y, 0) / (a.length || 1);
-const POSK = { 1: "GK", 2: "DEF", 3: "MID", 4: "FWD" };
 const ci = o => `${fmt(o.point, 4)}  95% CI [${fmt(o.lo, 4)}, ${fmt(o.hi, 4)}]  ${o.excludesZero ? "EXCLUDES 0" : "INCLUDES 0"}`;
 
 /* ============================================================

@@ -273,7 +273,16 @@ eq(savesFwd.rows.length, 0, "vörslur eru ekki í boði fyrir framherja (def.pos
 
 // minutu-thakid gildir a hlutfallstolur en EKKI a heildartolur
 const floor = minutesFloor(players, 0.25);
-ok(floor >= 0, `mínútu-þak reiknað úr mestu spiluðu mínútum (${floor})`);
+/* `floor >= 0` GAT EKKI FALLID (lagad 25.8.2026). `minutesFloor` er
+   `Math.round(max * fraction)` thar sem `max` byrjar i 0 og `num`
+   skilar `null` — aldrei NaN — fyrir rusl, svo utkoman er ALLTAF >= 0
+   hverju sem er breytt. Stokkbreyting i `return 0` slapp thvi i gegn
+   HER, og gerdi um leid naestu fullyrdingu (`minutes >= floor`) tomma,
+   svo PARID vardi ekkert. Nu er SAMBANDID profad en ekki formerkid —
+   sama aett og `>= 20`-golfid a strukturlega 22 (CLAUDE.md kafli 13). */
+const maxMins = players.reduce((m, p) => Math.max(m, Number(p.minutes) || 0), 0);
+ok(floor === Math.round(maxMins * 0.25) && floor > 0,
+   `mínútu-þak er 25% af mestu spiluðu mínútum (${floor} af ${maxMins})`);
 const rate = buildLeaderboard({ players, statKey: "pts_per_90", minMinutes: floor, limit: 30 });
 ok(rate.rows.every(r => (num(r.p.minutes) ?? 0) >= floor), "hlutfallstala hlýðir mínútu-þaki");
 const total = buildLeaderboard({ players, statKey: "goals_scored", minMinutes: floor, limit: 30 });
@@ -2825,9 +2834,24 @@ console.log("\n16) umferdar-bils-bordinn — rokfraedi og orðalag");
   const nz = has.filter(p => Number.parseFloat(p.price_change_percent) !== 0);
   ok(has.length === 0 || nz.length > 0,
      `players.json: ${has.length} bera svidid, ${nz.length} med tolu — aldrei allt nullur`);
+  /* TVIHLIDA — EINHLIDA UTGAFAN VARD ONYT UM LEID OG VERDIN LOSNUDU
+     (lagad 25.8.2026). Hér stod
+         ok(has.length > 0 || vals.length === 0, "... dalkurinn er TOMUR ...")
+     sem er `satt EDA X`: um leid og `has.length` vard 610 skammhleypti
+     fyrri lidurinn og fullyrdingin gat EKKI FALLID framar — og hun
+     prentadi ordrett "dalkurinn er thvi TOMUR ... (610 tolur a
+     skjanum)", thad er ad segja tolu sem afsannar hennar eigin texta.
+     Vordurinn var rett HUGSADUR (hann atti ad slokkna thegar verd
+     losna) en merkimidinn fylgdi ekki, svo hann las eins og thekja.
+     Nu eru BADAR greinar profadar og skilabodin nefna HVOR er virk. */
   const vals = rows.map(p => d.get(p)).filter(v => v != null);
-  ok(has.length > 0 || vals.length === 0,
-     `og dalkurinn er thvi TOMUR medan verd eru fryst (${vals.length} tolur a skjanum)`);
+  if (has.length === 0) {
+    ok(vals.length === 0,
+       `verd eru FRYST: ekkert ber svidid, svo dalkurinn er tomur (${vals.length})`);
+  } else {
+    ok(vals.length > 0,
+       `verd eru LOSNUD: ${has.length} bera svidid og ${vals.length} tolur eru a skjanum`);
+  }
 }
 
 console.log(`\nSTATS-PRÓF: ${pass} stóðust, ${fail} féllu`);

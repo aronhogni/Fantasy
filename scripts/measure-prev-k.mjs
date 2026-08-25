@@ -200,16 +200,6 @@ function playerScore(F, subset = pl) {
   }
   return den ? num / den : NaN;
 }
-function playerPerPos(F, subset = pl) {
-  const out = {};
-  for (const pos of Object.keys(POSN)) {
-    const g = subset.filter(x => x.pos === pos);
-    out[pos] = g.length < 100 ? null
-      : { n: g.length, r: corr(g.map(x => F[x.arr][x.i]), g.map(x => x.pts)) };
-  }
-  return out;
-}
-
 /* ============================================================
    4. SPURNING C FYRST — BLANDAST SKOT A MARK?
    Ef svarid er ja er allt sem a eftir kemur maelt a rettu likani; ef nei
@@ -243,7 +233,6 @@ head("A. K GRID - THE CORE (no market; applies to ALL gameweeks except the nextu
 console.log("  K        r(goals conceded)  |r|(goals scored)  weighted |r| POINTS   GW1-6 vorn");
 line();
 const early = rows.map((r, i) => (r.n <= 5 ? i : -1)).filter(i => i >= 0);
-const earlyPl = pl.filter(x => x.n <= 5);
 const grid = [];
 for (const K of KGRID) {
   const F = FBY.get(K);

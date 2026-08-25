@@ -107,7 +107,7 @@ const HEAD_H = BAND_H + LABEL_H;
 export const STRIPE_BG = "linear-gradient(rgba(0,0,0,.022), rgba(0,0,0,.022))";
 
 /* ---- Sniðgrunnur fyrir "min/max"-siur: hvada dalkar eru tolulegir ---- */
-const numericDefs = () => STAT_DEFS.filter(d => !d.pos || d.pos.length);
+
 
 /* ============================================================
    UMFERDAR-BILS-BORDINN — HREIN ROKFRAEDI, UTFLUTT VILJANDI

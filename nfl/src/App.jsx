@@ -60,10 +60,14 @@ const TABS = [
      sem forsidan er til fyrir. Thar er hun nu, gegnum `weekRegret` i
      `lineup.js` og `D.sleeperMatchups`.
 
-     ThA ER SPURNINGIN UM ThENNAN FLIPA OPIN OG HUN ER NOTANDANS: eina
-     bokada astaedan fyrir thvi ad geyma hann var `benchRegret`, sem er
-     farin. Hann er ekki fjarlaegdur hér — ad henda flipa er akvordun
-     sem enginn bad um. Sja handover kafla 12.
+     SPURNINGIN VAR NOTANDANS OG HANN SVARADI HENNI (25.8.2026):
+     **FLIPINN STENDUR AD SINNI, SKODAST SIDAR.** Eina bokada astaedan
+     fyrir thvi ad geyma hann var `benchRegret`, sem er farin a
+     forsiduna — svo rokin fyrir thvi ad henda honum eru obreytt og
+     ENN GILD. Thad sem breyttist er ad akvordunin er TEKIN: bid, ekki
+     rok. Naesta lota a thvi EKKI ad taka thessa spurningu upp aftur
+     ad fyrra bragdi; hun bidur thess ad notandinn noti flipann (eda
+     noti hann ekki) og segi til. Sja handover kafla 12.
 
      Vordur: `tests/lineup.mjs` kafli „benchRegret", sem SEFUR medan
      vikuskrana vantar og VAKNAR um leid og hun verdur til. */

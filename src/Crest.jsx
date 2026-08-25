@@ -32,7 +32,7 @@
    sex sofn i einu). Bædi `Crest` og `PlayerImg` halda `ok`-astandi til ad
    falla i `Kit`/skammstofun thegar myndin brestur.                        */
 import React, { useState } from "react";
-import { C, S } from "./appStyles.js";
+import { S } from "./appStyles.js";
 
 
 

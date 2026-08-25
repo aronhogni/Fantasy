@@ -41,7 +41,7 @@
    `stats.js` 17.8.2026 og hun lifdi hér; nu er hun maeld OG felld.
    ============================================================ */
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { interp } from "./interp.js";
 import { PenaltyIcon, FreeKickIcon, CornerIcon } from "./Icons.jsx";
 

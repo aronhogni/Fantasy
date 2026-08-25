@@ -73,7 +73,7 @@
    ============================================================ */
 import { writeFileSync, readFileSync } from "node:fs";
 import { BIG_CHANCE_XG, IN_BOX_X, BSD_TEAM, newAcc, addPlayerRow, addShot, resolveTeam,
-         finalize, pairPlayers, FPL_POS } from "../src/bsd.js";
+         finalize, pairPlayers } from "../src/bsd.js";
 
 const KEY = process.env.BSD_KEY;
 if (!KEY) {

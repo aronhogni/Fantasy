@@ -220,7 +220,18 @@ if (finishedGw === 0) {
            og talan sem er EKKI til se ekki krafist.                    */
         ok(a.value != null, `lidsverdmaeti hopsins er tala (${a.value})`);
         if (a.rankMedian == null) {
-          ok(finishedGw === 1 || !events.find(e => e.id === finishedGw)?.finished === false,
+          /* FORMERKID VAR SNUID — LAGAD 25.8.2026. Hér stod
+                 `!events.find(...)?.finished === false`
+             og `!` bindur FASTAR en `===`, svo lidurinn er
+             `(!finished) === false`, thad er ad segja **`finished` er
+             SATT**. Skilabodin segja "leyfilegt adeins medan umferdin
+             er OSTADFEST" og skilyrdid fullyrti nakvaemlega hid
+             gagnstaeda: thad stodst thegar umferdin VAR stadfest (rett
+             afturfor) og fell a leyfilega astandinu.
+             ThAD SAST EKKI ThVI `finishedGw === 1` skammhleypir ollu i
+             dag — sama fjolskylda og `||`-bindingin i CLAUDE.md kafla
+             13, og hun hefdi vaknad sem FALSKT RAUTT i GW2. */
+          ok(finishedGw === 1 || events.find(e => e.id === finishedGw)?.finished !== true,
             `heimsrod vantar — leyfilegt adeins medan umferdin er ostadfest (GW${finishedGw})`);
         } else {
           ok(true, `heimsrod hopsins er tala (${a.rankMedian})`);

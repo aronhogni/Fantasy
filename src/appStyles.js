@@ -54,6 +54,15 @@ export const S = {
   /* ASSIST-LINAN SITUR UNDIR MORKUNUM og er drégin inn svo hun lesist
      sem UNDIRLIDUR thess sem er fyrir ofan, ekki sem onnur lids-rod.  */
   gfAssistLine: { paddingLeft:14, opacity:0.78, fontSize:10.5 },
+  /* PORUD MARK-LINA. Hun er RETT UNDIR morkunum og OFAN vid
+     fantasy-assist linuna, svo lesrodin se: hvad gerdist -> hver atti
+     thatt i thvi (opinbert) -> hverjir fa fantasy-assist. Minutan er
+     monospace og fastbreid svo linurnar standist a; an thess hoppa
+     nofnin til eftir thvi hvort minutan er "5'" eda "90+2'". */
+  gfPairLine: { paddingLeft:14, fontSize:10.5, display:"flex", gap:4, alignItems:"baseline" },
+  gfPairMin: { fontFamily:"ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize:9.5, opacity:0.55, minWidth:26, textAlign:"right" },
+  gfPairCtx: { opacity:0.6, fontSize:9.5 },
   /* TVEIR MERKIMIDAR I "not in your XI"-kassanum. Ekki sami litur:
      "always benched" er STADREYND um aaetlun notandans (hlutlaust gratt),
      "never best XI" er MAT velarinnar (gult, eins og annad samhengi sem

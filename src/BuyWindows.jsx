@@ -35,7 +35,7 @@
       thakid er thvi raunverulegt og "engin thogul thok" gildir.
    ============================================================ */
 import React, { useMemo, useState } from "react";
-import { TIER_BG, TIER_FG, TIER_NAME, tierOf, MEASURED_POS } from "./model.js";
+import { TIER_BG, TIER_FG, TIER_NAME, MEASURED_POS } from "./model.js";
 import { ffdrSeries, buyWindows, meanDifficulty, relTier,
          MIN_WINDOW, MAX_WINDOWS } from "./buywindow.js";
 

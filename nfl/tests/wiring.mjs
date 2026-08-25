@@ -39,7 +39,7 @@
    thvi ad KEYRA appid og lesa thad, ekki med thvi ad skanna kodann.
    ============================================================ */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
@@ -890,6 +890,104 @@ console.log("\n9. hvert LESID svid er svid sem modullinn SKILAR");
   ok(res.bad.length === 0,
     res.bad.length === 0 ? "ENGIN LESIN SVID ERU UPPSPUNI"
       : `${res.bad.length} lesin svid eru UPPSPUNI:\n       ` + res.bad.join("\n       "));
+}
+
+/* ============================================================
+   `practice_status` MA EKKI VERA TENGT I RADGJOFINA
+   ============================================================
+   ÞETTA ER OFUGA HLIDIN A ÞESSU SAFNI. Allir adrir kaflar spyrja
+   "er hreina rokfraedin RAUNVERULEGA KOLLUD?". Þessi spyr hins vegar
+   "er eitthvad kallad sem MA EKKI vera kallad?" — og astaedan er ad
+   hvorug spurningin sest a skjanum.
+
+   HANDOVER-SKJALID SAGDI „practice_status ER SAFNAD EN OMAELT".
+   ÞAD ER ONAKVAEMT OG ONAKVAEMNIN ER I ÞA ATT SEM FREISTAR:
+   „omaelt" bydur naestu lotu ad MAELA thad og tengja. En thad ER
+   maelt, og thad var FELLT:
+
+     · SEM UPPLYSING er thad sterkt — Questionable + Full practice
+       spilar ~86% a moti Questionable + DNP ~49%, naer-tvofold spönn
+       a yfir thusund rodum, EINRAENT i hverri stodu.
+     · SEM AKVORDUN er thad **+0,44 pp, per-leikmanns CI INNIHELDUR
+       NULL** (`avail-lab.mjs`, walk-forward).
+     · Og hausid er maelt LOKAD: thad sem eftir stendur af oracle-bilinu
+       „is NOT reachable through report_status or practice_status —
+       those are measured out" (`avail-lab.mjs`, q7). Þad situr i
+       surprise inactives, sem BERA ENGA skraningu.
+
+   `Out -> 0` sotti 84% af ollum abatanum og er thegar rett i
+   `advice.js`. Fínni threp raða ENGU.
+
+   ÞAD SEM ER OMAELT ER ONNUR SPURNING: hvort DAGSETTA serian
+   (`injuries/{dagur}.json`) beri merki umfram arsskrana — nflverse
+   ENDURSKRIFAR sina, svo "hvad sagdi skyrslan a fimmtudegi i viku 6"
+   er osvaranlegt eftir a. Su maeling opnast i oktober. Serian er thvi
+   HRAEFNI og ekkert i appinu ma lesa hana fyrr en hun er maeld.
+
+   ============================================================
+   HVERS VEGNA ÞETTA ER PROF OG EKKI ATHUGASEMD
+   ============================================================
+   Athugasemd i `fetch-nfl.mjs` SEGIR thegar "ekki tengja an maelingar".
+   Hun stodvar ekkert. Naesta lota les `injuries/{dagur}.json` i
+   `data/`, ser vel-formad svid, og tengir thad — og EKKERT verdur
+   rautt, thvi talan er a rettu bili og lítur ut eins og maeling.
+   Þad er nakvaemlega aettin sem gengur i gegnum badar handover-skrarnar:
+   omaeld tala i vel-læsilegum reit.
+
+   ============================================================
+   TVAER GILDRUR SEM VORU MAELDAR, EKKI GISKADAR
+   ============================================================
+   1. NAIF TEXTALEIT FELLUR STRAX A FOLSKU JAKVAEDI. Maelt i dag:
+      `grep -rn "practice_status" nfl/src/` skilar **einu** hitti og
+      thad er ATHUGASEMD (`advice.js`, sem utskyrir hvers vegna thad
+      er EKKI notad). Athugasemdir eru thvi strippadar adur en leitad
+      er — sama gildra og CLAUDE.md 13 lysir ("textaleit sem
+      athugasemd uppfyllti").
+   2. OG ÞAR MED VERDUR STRIPPUNIN SJALF AD VERA VORDUD. Vaeri
+      `stripComments` brotin eda fjarlaegd myndi thessi kafli verda
+      GRAENN AF RONGUM ASTAEDUM — nei, hann myndi falla; en vaeri hun
+      of građug (sbr. innflutnings-strippunin sem at 2.749 stafi hér
+      ad ofan) gaeti hun etid HELMING skrarinnar og gert leitina blinda.
+      Þess vegna er JAKVAEDA VIDMIDID hér ad nedan: kaflinn fullyrdir
+      ad athugasemdin se SANNANLEGA i hraa textanum OG ad hun se horfin
+      ur theim strippada. Fyrri fullyrdingin gerir tha seinni
+      merkingarbaera — an hennar vaeri "engin hitti" jafn satt um tomt
+      inntak.                                                        */
+console.log("\n9. `practice_status` er EKKI tengt i radgjofina");
+{
+  const files = readdirSync(SRC).filter((f) => /\.(js|jsx)$/.test(f));
+
+  /* ÞEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b). Faeri `SRC` a ranga
+     slod yrdi lykkjan tom og "engin brot" graent ad eilifu. */
+  ok(files.length >= 25,
+    `${files.length} skrar i src/ skodadar (golf 25)`);
+
+  /* JAKVAEDA VIDMIDID — sannar ad leitin SJAI textann yfirhofud.
+     `advice.js` NEFNIR `practice_status` i athugasemd og su
+     athugasemd er thad eina sem stendur i vegi fyrir folsku jakvaedi. */
+  const adviceRaw = read("advice.js");
+  ok(/practice_status/.test(adviceRaw),
+    "`advice.js` NEFNIR `practice_status` i hraum texta (jakvaeda vidmidid)");
+  ok(!/practice_status/.test(stripComments(adviceRaw)),
+    "og thad hverfur vid strippun — thad var athugasemd, ekki lestur");
+
+  /* KJARNINN. */
+  const bad = [];
+  for (const f of files) {
+    const code = stripComments(read(f));
+    for (const [re, what] of [
+      [/\bpractice_status\b/, "practice_status"],
+      [/\bpracticeStatus\b/, "practiceStatus"],
+      [/["'`]injuries\//, "injuries/ serian"],
+      [/\.practice\b/, ".practice (svidid ur nflverse.mjs)"],
+    ]) if (re.test(code)) bad.push(`src/${f}: ${what}`);
+  }
+
+  ok(bad.length === 0,
+    bad.length === 0
+      ? "ekkert i src/ les meidsla-serian eda aefingastoduna"
+      : `TENGT AN MAELINGAR (+0,44 pp, CI inniheldur null):\n       ` +
+        bad.join("\n       "));
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

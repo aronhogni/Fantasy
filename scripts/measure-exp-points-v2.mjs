@@ -51,7 +51,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildPanel, BASE_FEATURES, fitRidge, POSN, mean } from "../tests/lib/panel2.mjs";
 import { corr, SEASONS as E0_SEASONS, loadSeason } from "../tests/lib/e0.mjs";
-import { bootstrapCI, byPlayer, ci, fmt } from "./start-panel.mjs";
+import { bootstrapCI, byPlayer, ci } from "./start-panel.mjs";
 import { lookupPos, POS_MEAN_PTS } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;

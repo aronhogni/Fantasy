@@ -46,7 +46,7 @@ import { join, dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { startFeatures, startProbability, nameScore } from "../src/stats.js";
 import {
-  loadPanel, SEASONS, isStart, logit, sigmoid, brier, logloss, auc,
+  loadPanel, SEASONS, isStart, logit, sigmoid, brier, auc,
   fitLogistic, bootstrapCI, byPlayer, ci, fmt,
 } from "./start-panel.mjs";
 

@@ -21,9 +21,13 @@
      data/players.json       uppsafnad timabil fyrir stigatofluna.
 
    HVAD VANTAR ENN — og hvers vegna ekkert her latir sem svo:
-     xG PER SKOT: ESPN gefur hana ekki, svo "big chances" (xG>0,30 per skot)
-       eru EKKI reiknud. Skyrslan birtir xG per LEIKMANN ur FPL i stadinn og
-       kallar hana ekki big chances.
+     xG PER SKOT UR ESPN: ESPN gefur hana enn ekki.
+       EN "BIG CHANCES" ERU NU REIKNUD — UR BSD, EKKI ESPN (25.8.2026).
+       Thessi klausa sagdi "eru EKKI reiknud" og var ordin OSONN: `bsd_big`
+       er reiknud i thessari skra og threskuldurinn er `BIG_CHANCE_XG`
+       (0,18 i `bsd.js`), EKKI 0,30 sem stod hér. Baedi talan og
+       neitunin voru rangar. BSD naer yfir 2025/26 EITT, svo dalkurinn er
+       tomur i odrum timabilum — thad er thekjan, ekki reikningurinn.
      TOUCHES I TEIG og MEDALSTADSETNING: engin heimild sem vid naum i.
        Vid birtum thad sem ER maelt: skot i teig (ur svaedis-texta ESPN) og
        skot-stadsetningar. Uppstillingin (formation) er birt sem UPPSTILLING,
@@ -49,7 +53,7 @@ const per90 = (v, mins) => (!mins || mins <= 0 || v == null ? null : (v / mins) 
    regla og hledslan i App.jsx fylgir ("verja gegn ovaentri logun").
    Maelt med illgjornu inntaki: 27 logunum x hvert utflutt fall.            */
 const rowsOf = v => Array.isArray(v) ? v.filter(x => x != null && typeof x === "object") : [];
-const str = v => typeof v === "string" ? v : (v == null ? "" : String(v));
+
 const safeDiv = (a, b) => (b == null || b === 0 || a == null ? null : a / b);
 
 /* ============================================================
@@ -327,7 +331,7 @@ export const STAT_DEFS = [
      thetta med okkar eigin skolun vaeri ad setja NALGUN ofan a OPINBERA
      tolu; hun er birt eins og hun er.
 
-     SVIDIN ERU LIFANDI (maelt 22.8.2026 kl. 19:30 UTC): **440 af 600** bera
+     SVIDIN ERU LIFANDI (maelt 22.8.2026 kl. 19:30 UTC): **440 af 600 THA (i dag: 610 af 610 — talan var snapshot, sja notuna)** bera
      tolu. Fyrr sama dag, kl. 01:35, voru thau 0 hja ollum — FPL frystir
      verd fram yfir fyrstu umferd og opnadi thau um kvoldid. **Hlidid i
      pipeline-unni stendur samt** (`priceChangeSignal` i fetch.mjs) og thad
@@ -346,16 +350,29 @@ export const STAT_DEFS = [
      ============================================================ */
   { key:"price_change_percent", label:"Progress to price change", short:"→ price",
     group:"core", band:"Price and ownership", dec:0, hi:true, signed:true, pct:true,
+    /* NOTAN BAR TOLUR OG THAER URELTUST A THREMUR DOGUM — LAGAD
+       25.8.2026. Hér stod "nobody sits outside -37 to +35 yet",
+       "+2,570 against -1,664" og "73% share its sign". Maelt i dag a
+       `players.json` (610 radir, 610 med tolu): sviðid er **-88,2 ..
+       +104,7**, **45 eru utan -37..+35**, formerkin eru samhljoda i
+       **97,9%**, og nettoin eru +20.968 / -7.010. HVER EINASTA TALA
+       VAR ORDIN ROENG — og su sem villir mest var "100 is where the
+       change lands": **einn leikmadur maelist 104,7**, svo 100 er ekki
+       thak heldur mark sem ma fara framhja adur en keyrslan lendir.
+       Notan er thvi skrifud um MEKANISMANN og ber ENGA tolu. Sama
+       lagfaering og `spRanges` i `SetPieces` (CLAUDE.md kafli 8) — thar
+       var sviðið REIKNAD; hér er reiturinn fastur strengur og getur
+       thad ekki, svo talan er einfaldlega FELLD UT i stad thess ad
+       vera endurnyjud og urelast aftur eftir viku.                   */
     note:"How far this player is towards his next price change, as a percentage — "
        + "FPL's own published figure, shown exactly as the API reports it and not "
-       + "rescaled. Positive is heading up, negative heading down, and 100 is where "
-       + "the change lands: measured across the league, players on a positive figure "
-       + "average +2,570 net transfers against -1,664 for those on a negative one, "
-       + "and nobody sits outside -37 to +35 yet. It will not track this gameweek's "
-       + "net transfers exactly (73% share its sign) and that is the column working "
-       + "rather than failing — the threshold scales with ownership and the figure "
-       + "builds up over days, so a lightly owned player travels a long way on a "
-       + "small net. Empty only when FPL is publishing no figure at all.",
+       + "rescaled. Positive is heading up, negative heading down, and the change "
+       + "lands around 100 — figures slightly beyond it do occur, because the value "
+       + "is published on a schedule rather than at the instant the price moves. "
+       + "It will not track this gameweek's net transfers exactly, and that is the "
+       + "column working rather than failing: the threshold scales with ownership "
+       + "and the figure builds up over days, so a lightly owned player travels a "
+       + "long way on a small net. Empty only when FPL is publishing no figure at all.",
     get:p=>{ const v = num(p.price_change_percent);
              /* `calibrating` er FPL ad segja sjalft ad talan se ekki
                 marktaek — tha er hun ekki birt. Ad birta hana med
@@ -878,6 +895,11 @@ export const STAT_DEFS = [
     dec:0, hi:true, derived:true, pos:[2,3,4],
     note:"How many games sit behind the hit rate. Small n means the raw percentage says very little.",
     get:p=>num(p._dc_starts) },
+  { key:"dc_player", label:"DefCon player", short:"DC type", group:"defence", band:"DefCon",
+    dec:0, hi:true, derived:true, pos:[2,3,4],
+    note:"1 when he reaches the DefCon threshold in MORE THAN HALF of his starts \u2014 the user's own definition of a \"DefCon player\", as opposed to one who depends on goals and assists. Needs at least 5 starts: with one start the rate is only ever 0% or 100%. MEASURED, not asserted (scripts/measure-dc-flag.mjs): labelled on a player's first 5 starts, the flagged group goes on to hit the threshold in 44.1% of their REMAINING starts against 16.8% for everyone else \u2014 a gap of +0.273, 95% CI [0.218, 0.334], which excludes zero. It is a LABEL, not a model input: DefCon was measured as an expected-points term the same week and rejected (top-15 delta 0.000, CI [-0.239, +0.232]). Empty, never 0, below 5 starts \u2014 \"too early to say\" is not \"no\".",
+    get:p=>{ const f = dcPlayerFlag({ starts:num(p._dc_starts), rate:num(p._dc_hit_raw) });
+             return f.state === "yes" ? 1 : f.state === "no" ? 0 : null; } },
 
   /* `build_only: true` A OLLU BANDINU (25.8.2026, beidni notandans).
      Dalkarnir hverfa UR FLOKKA-TOFLUNNI en standa afram i "Build table",
@@ -1181,7 +1203,7 @@ for (const d of STAT_DEFS) {
    spjaldid slepptii theim; taflan prentadi ThVI OMAELDA TOLU SEM LEIT UT
    EINS OG MAELING — versta utkoman skv. CLAUDE.md.
 
-   HVERS VEGNA HER OG EKKI I `PlayerList.jsx`: `numericDefs` thar
+   HVERS VEGNA HER OG EKKI I `PlayerList.jsx`: `numericDefs` VAR thar (fjarlaegt 25.8.2026)
    (`d => !d.pos || d.pos.length`) hleypti 124 af 124 gegn OG var auk thess
    ALDREI KOLLUD — dautt fall. Ad laga thad hefdi lagad EINA toflu. Getterinn
    er sameiginlegi flöskuhalsinn: taflan, stigataflan, threskuldarnir,
@@ -1257,6 +1279,53 @@ export const STAT_BY_KEY = Object.fromEntries(STAT_DEFS.map(d => [d.key, d]));
    og `rangeAwareGroupsOf`); thrju eintok af sama skilyrdi er hvernig thau
    fara i sundur.
    ============================================================ */
+/* ============================================================
+   "DC-LEIKMADUR" — MERKIMIDI, MAELDUR (25.8.2026)
+
+   Notandinn: "Defcon leikmenn eru their sem eru +50% leikja ad fa DC
+   stig. Svo eru attacking leikmenn sem thurfa ad treysta a G eda A."
+   Skilgreiningin er HANS; `scripts/measure-dc-flag.mjs` maelir hvort
+   hun beri merki og vid hvada golf. Svarid er ja, med golfi 5:
+
+     merkt a fyrstu 5 byrjunum -> DC-hittni I ThEIM SEM EFTIR ERU
+       merktir  0,441  ·  omerktir  0,168
+       munur **+0,273, 95% CI [0,218, 0,334]** — utilokar null.
+
+   ThRJU ASTOND, EKKI TVO. Undir golfinu er svarid `waiting`, ekki
+   `no`: madur med 1 byrjun hefur hittni sem er annad hvort 0% eda
+   100%, og hvorug talan segir neitt. Ad skila `no` thar vaeri ad
+   fullyrda hid gagnstaeda vid thad sem vid vitum. Sama regla og
+   "faar maelingar -> ENGIN tala" i `calibration.mjs`, og sama
+   astaeda og notandinn kvartadi undan i "Defcon Hit rate virkar
+   ekki" — tomur reitur an skyringar les eins og bilun.
+
+   HRA HITTNIN ER NOTUD, EKKI SU SKRUMPADA, OG ThAD ER ASETT:
+   skilgreiningin er "+50% leikja", sem ER hra hittnin. Skrumpada
+   talan (`hit_rate_adj`) er RETT til ad RADA monnum og er thad sem
+   dalkurinn synir — en hun er dregin ad medaltali stodunnar, svo
+   vid golf 5 naer HUN engum yfir 0,50 (maelt i dag: 31 med hraa
+   hittni yfir 0,50, **0** med skrumpada). Ad byggja merkimidann a
+   henni vaeri ad skila tomum reit ad eilifu og kalla thad merki.
+   Golfid er thad sem ver gegn litlu urtaki her, ekki skrumpunin.  */
+export const DC_FLAG_MIN_STARTS = 5;
+export const DC_FLAG_CUT = 0.50;
+
+export function dcPlayerFlag({ starts, rate } = {}) {
+  const n = Number(starts);
+  if (!Number.isFinite(n) || n <= 0) return { state: "none", starts: null };
+  if (n < DC_FLAG_MIN_STARTS) return { state: "waiting", starts: n };
+  /* `Number(null)` ER 0 OG 0 ER FINITE — svo bert `Number.isFinite`
+     hefdi skilad "no" (hann er EKKI DC-leikmadur) fyrir mann sem vid
+     hofum enga hittni fyrir. Thad er fullyrding ur engum gognum, og
+     nakvaemlega gildran sem `sleeperLeagues` fell i (N8 i kodaryni-
+     handover: `Number(null)` gerdi `Number.isFinite` eitt ad ononu).
+     `rate == null` er thvi prófad SERSTAKLEGA og a undan. */
+  if (rate == null) return { state: "none", starts: n };
+  const r = Number(rate);
+  if (!Number.isFinite(r)) return { state: "none", starts: n };
+  return { state: r > DC_FLAG_CUT ? "yes" : "no", starts: n, rate: r };
+}
+
 export const isGkOnly = d =>
   Array.isArray(d?.pos) && d.pos.length === 1 && d.pos[0] === 1;
 
