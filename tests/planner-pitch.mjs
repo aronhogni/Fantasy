@@ -680,8 +680,31 @@ console.log("\n--- H. WHEN TO SELL ---");
 
   const heads = t.match(/Hardest run ahead: GW\d+–\d+/g) || [];
   /* ThEKJA ER FULLYRDING (CLAUDE.md 5b regla 1): faeri kassinn engar
-     runur vaeru allar naestu fullyrdingar tomar.                       */
-  ok(heads.length >= 5, `thekja: minnst fimm runur a skjanum (${heads.length})`);
+     runur vaeru allar naestu fullyrdingar tomar.
+
+     ThAKID KOM 25.8.2026 (`HARD_RUN_SHOW`, ad beidni notandans: "nog ad
+     syna bara thra leikmenn, sem stysst er i erfida runnid"). Fullyrdingin
+     var "minnst fimm" og hun var RETT thangad til thakid kom.
+     TALAN ER LESIN UR UPPRUNANUM, EKKI SKRIFUD HER: fost 3 hefdi thagnad
+     um leid og thakinu vaeri breytt, og tha maeldi profid annad thak en
+     appid notar (sama aett og `wOf`/`marker`-afritid, CLAUDE.md 8).     */
+  const CAP = +(readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8")
+    .match(/const HARD_RUN_SHOW = (\d+);/) || [])[1];
+  ok(Number.isFinite(CAP) && CAP > 0, `HARD_RUN_SHOW fannst i App.jsx (${CAP})`);
+  ok(heads.length > 0 && heads.length <= CAP,
+     `thekja: runur a skjanum og ekki fleiri en thakid (${heads.length} af ${CAP})`);
+  /* ThAKID MA ALDREI VERA ThOGULT — listi sem er skorinn an ord les eins
+     og "thetta eru allir" (CLAUDE.md 4, "no silent caps").             */
+  if (heads.length === CAP) {
+    ok(/Showing the \d+ whose hard run starts soonest; \d+ more are further out\./.test(t),
+       "og thakid er SAGT a skjanum, ekki thagad");
+  }
+  /* OG INNTAKID ER SAGT: notandinn bad um ad thetta horfdi "bara a FFDR".
+     Thad GERDI thad thegar (`ffdrSeries` les adeins `fixDifficulty`), en
+     merkimidinn sagdi "Expected points" sem les eins og form/minutur seu
+     inni. Fullyrdingin er a ThVI ad textinn segi hvad inntakid er.     */
+  ok(/Fixture difficulty \(FFDR\) is the only input: no form, no minutes, no market line\./.test(t),
+     "textinn segir berum ordum ad FFDR se EINA inntakid");
 
   const figs = t.match(/[−+]\d+\.\d\d pts\/GW/g) || [];
   const withBasis = t.match(/[−+]\d+\.\d\d pts\/GW vs his own average over GW\d+–\d+/g) || [];
@@ -697,7 +720,7 @@ console.log("\n--- H. WHEN TO SELL ---");
 
   /* RODIN ER TIMAROD. Stokkbreyting sem radar eftir `perGw` fellur her. */
   const froms = [...t.matchAll(/Hardest run ahead: GW(\d+)–\d+/g)].map(m => +m[1]);
-  ok(froms.length >= 5 && froms.every((x, i) => i === 0 || froms[i - 1] <= x),
+  ok(froms.length >= 2 && froms.every((x, i) => i === 0 || froms[i - 1] <= x),
      `radirnar eru i TIMAROD, ekki eftir staerd tolunnar (${froms.join(",")})`);
   /* OG ROdIN VAERI ONNUR VAERI HUN EFTIR TOLUNNI — annars gaeti fullyrdingin
      ad ofan stadist af tilviljun.                                       */

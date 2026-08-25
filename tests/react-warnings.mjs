@@ -76,13 +76,17 @@ const click=async(txt)=>{
 /* SKIPULAGID ER PER FLIPA OG ThAD ER NAUDSYNLEGT, EKKI SNYRTIMENNSKA.
    Fyrsta tilraunin var einn flatur listi og 20 vidmot mistokust thogult
    af tveimur astaedum sem badar snuast um AD ASTANDID BREYTIST:
-     - "🔍 Search" er ekki gluggi heldur `setView("players")`, svo
+     - "🔍 Search" var ekki gluggi heldur `setView("players")`, svo
        FFDR-stykin ("pick"/"−"/"+") voru ekki lengur a skjanum.
+       (Hnappurinn var TEKINN UT 25.8.2026 — hann var tviverknadur vid
+       flipann `👥 Player stats`. Astaedan er skjolud her afram thvi hun
+       er skyringin a ThVI HVERS VEGNA skipulagid er per flipa; hun helst
+       rett thott hnappurinn se farinn.)
      - "Imminent" skiptir um ham i toflunni, svo flokkarnir hurfu.
    Her er thvi flipinn SMELLTUR AFTUR a undan hverju undirstyki. Thad
    kostar eina teiknun en gefur thekkt astand — og thekkjanlegt fall.  */
 const SURFACES=[
-  ["⚽ Planner",       ["🔍 Search","📊 FFDR","🎫 Chips","pick","−","+"]],
+  ["⚽ Planner",       ["📊 FFDR","🎫 Chips","pick","−","+"]],
   /* RODIN INNAN FLIPANS ER EKKI TILVILJUN. "Groups" og "Gameweeks" eru
      SAMANBROT — smellur a thau FELUR allt sem er undir theim, og thau
      muna sig (fpl_gwopen i localStorage), svo flipa-smellur opnar thau

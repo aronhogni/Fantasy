@@ -43,7 +43,7 @@ import { useGwSeasonFile, nextRange, rangeBlind as sharedRangeBlind,
 import ImminentPanel from "./Imminent.jsx";
 import BuyWindows from "./BuyWindows.jsx";
 import { photoNext } from "./Crest.jsx";
-import { startedGameweeks } from "./availability.js";
+import { startedGameweeks, banRisk } from "./availability.js";
 /* `passesThreshold` for UT ur thessum innflutningi 17.8.2026 med
    throskuldar-siunni og KOM AFTUR 21.8.2026 med smell-a-tolu (sja
    `filterOnValue`). Reglan sjalf bur AFRAM i `stats.js` — hun ma ekki
@@ -2087,6 +2087,40 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                         {r.team?.short}
                       </span>
                       {!r.avail && <span style={S.flag} title={r.p.news || "Not available"}>!</span>}
+                      {/* ============================================================
+                          GULT SPJALD I LISTANUM (25.8.2026)
+
+                          Notandinn: "baeta vid gulu spjaldi a playerinn
+                          sjalfann ... ef hann nalgast bann vegna spjalda".
+
+                          MERKID SEGIR "NALGAST BANN", EKKI "I BANNI" — OG
+                          ThAD ER NOTANDINN SJALFUR SEM GAF ASTAEDUNA:
+                          "menn taka ut bonn i sumum bikarleikjum ... og
+                          thvi ekki verid i banni i naesta deildarleik (thad
+                          eina sem fantasy appid skodar)."
+                          Vid VITUM ekki hvort bann var tekid ut i bikarleik
+                          — bikar-leikjaskra og afplanun eru hvergi i theim
+                          gognum sem appid les. ThVI er raudu spjaldi ALDREI
+                          umbreytt i "i banni" her; FPL-status ('s') er
+                          einratt um raunverulegt bann (CLAUDE.md 6) og
+                          hann birtist thegar i `!r.avail`-flagginu vid
+                          hlidina. Merkid her er spjalda-SOFNUN, sem er
+                          reiknanleg af tolum sem vid HOFUM.
+
+                          `banRisk` skilar null fyrir timabilid og undir
+                          throskuldi, svo merkid er thogult i forleik og
+                          hja theim sem eru ekki naerri banni.          */}
+                      {(() => {
+                        const b = banRisk(r.p, startedGw, seasonStarted);
+                        if (!b || b.level !== "high") return null;
+                        return (
+                          <span style={S.cardMark}
+                            title={interp("{0} yellow cards — {1} more before a {2}-match ban. This is card ACCUMULATION, not a ban: FPL status is what says he is actually suspended, and a ban can be served in a cup match we cannot see.",
+                                          [b.y, b.toGo, b.matches])}>
+                            {"▮"}
+                          </span>
+                        );
+                      })()}
                       {!isLive && !r.hist && <span style={S.noHist} title={interp("No data in {0}", [season])}>—</span>}
                     </button>
                     {/* ⇄ SITUR A EFTIR NAFNINU, EKKI VID HLIDINA A STJORNUNNI.
@@ -2513,6 +2547,12 @@ const S = {
   nm:{ fontSize:11.5, color:C.text, overflow:"hidden", textOverflow:"ellipsis", flex:1, minWidth:0 },
   teamTag:{ display:"flex", alignItems:"center", gap:2, fontSize:9, color:C.text3 },
   flag:{ fontSize:10, fontWeight:700, color:C.red },
+  /* GULT SPJALD — SPJALDA-SOFNUN, EKKI BANN. Ferningur i FPL-gulum lit.
+     SILHUETTAN ER ThAD SEM SEST i 11 px (CLAUDE.md 8): ferningur er hvorki
+     hringur ne upphropsmerki, svo hann getur ekki lesist sem `flag`-merkid
+     vid hlidina a honum — thau tvo thydia sitt hvad.                    */
+  cardMark:{ fontSize:11, color:"#e0a100", marginLeft:3, lineHeight:1,
+             flexShrink:0, cursor:"help" },
   noHist:{ fontSize:9, color:C.text3 },
 
   empty:{ fontSize:12, color:C.text2, padding:"18px 4px", lineHeight:1.6 },

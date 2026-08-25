@@ -18,6 +18,10 @@ import { moScore, aoScore, startProbability, inImminentPool,
          indexImminentByTeam, matchImminent } from "./stats.js";
 import PlayerList from "./PlayerList.jsx";
 import ShotMap from "./ShotMap.jsx";
+/* ThROSKULDURINN ER LESINN, EKKI SKRIFADUR — sja notuna vid "Big chances
+   missed". `BIG_CHANCE_XG` er fittad i `bsd.js` og ma ekki afritast hingad
+   sem tala (fost tala um maeldan kvarda urelidist thegjandi).           */
+import { BIG_CHANCE_XG } from "./bsd.js";
 import PositionMap from "./PositionMap.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import BestOfBest from "./BestOfBest.jsx";
@@ -75,6 +79,20 @@ const EXPLAIN_LABEL = {
   penalties_missed: "Penalties missed", yellow_cards: "Yellow card", red_cards: "Red card",
   saves: "Saves", bonus: "Bonus", bps:"BPS", defensive_contribution: "Defensive contribution",
 };
+/* HVE MARGIR I "HARDEST RUN AHEAD" (25.8.2026)
+   Notandinn: "i hardest run er nog ad syna bara thra leikmenn, sem stysst
+   er i erfida runnid. Eg graedi litid a ad sja hardest run i gameweek
+   34-38 thegar thad er bara gameweek 1."
+   RODIN VAR ThEGAR TIMAROD (`run.from`), svo fyrstu threir ERU their sem
+   naest eru runnunni — engin ny rodun og engin thver-leikmanna rodun
+   (sem ordalagid i kassanum er beinlinis skrifad gegn).
+   ThAKID ER SAGT A SKJANUM, EKKI ThAGAD: "no silent caps" (CLAUDE.md 4) —
+   listi sem er skorinn an ord les eins og "thetta eru allir".
+   UI-AFMORKUN, EKKI HLUTI LIKANSINS: ekkert i FFDR, `rankScore` ne
+   vaentum stigum les thessa tolu (sbr. MIN_WINDOW/MAX_WINDOWS i
+   buywindow.js og verdthakid i rotation.js).                          */
+const HARD_RUN_SHOW = 3;
+
 const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
 /* ---- MÆLD KVÖRÐUN Á LEIKJAÞYNGD ----
@@ -1566,7 +1584,25 @@ export default function App() {
        er AFRAM adeins a einum stad, i `squadForGw`.
        `Array.isArray` OG `.length > 0` eru SOMU tvo skilyrdi og thar —
        tom fylking telst ekki skyr akvordun (sja langa athugasemdina).   */
-    const fFrom = Math.max(1, gw), fTo = Math.min(maxGw, fFrom + WIN - 1);
+    /* ============================================================
+       FRAMVIRKI GLUGGINN BYRJAR A FYRSTU OLOKNU UMFERD (25.8.2026)
+
+       Notandinn: "Not in your plan's XI — GW1-6, vid natturulega horfum
+       ekki a lidnar umferdir."
+
+       Hann hafdi rett fyrir ser og villan var maelanleg: `fFrom` var
+       `Math.max(1, gw)`, og `gw` er UMFERDIN SEM ER VALIN i timalinunni —
+       ekki naesta oleikna. Med GW1 valda (og spilada) hljodadi kassinn
+       "GW1-6" og taldi umferd sem er BUIN inn i "aetlar ad spila".
+       Fortidin er `back`-hlutinn; hun a ekki ad birtast tvisvar.
+
+       KLUKKAN ER SU SAMA OG ANNARS STADAR (`deadlinePassed`), ekki ny
+       regla: fyrsta umferd sem fresturinn er EKKI runninn ut a.
+       Se timabilinu lokid (allar umferdir bunar) er `fFrom > maxGw` og
+       glugginn thagnar af sjalfu ser.                                */
+    let firstOpen = gw;
+    while (firstOpen <= maxGw && deadlinePassed(firstOpen)) firstOpen++;
+    const fFrom = Math.max(1, firstOpen), fTo = Math.min(maxGw, fFrom + WIN - 1);
     const keyAt = g => {
       let k = 0;
       for (let j = 1; j <= g; j++) {
@@ -2356,6 +2392,56 @@ export default function App() {
     for (const r of unusedPlan.back.rows) m[r.id] = { ...(m[r.id] || {}), back: r };
     return m;
   }, [unusedPlan]);
+  /* ============================================================
+     "KEMST HANN ALDREI I PICK BEST XI?" (25.8.2026)
+
+     Notandinn: "einnig vil eg ad thessi hluti horfi a ef leikmadur kemst
+     aldrei i 'pick best xl' ad hann se tha merktur her, enda er eg tha
+     liklega ekki ad fara ad nota hann og kominn timi til ad velja
+     einhvern annan."
+
+     ThETTA ER ONNUR SPURNING EN "i thinni aaetlun" OG ThAD ER ALLUR
+     PUNKTURINN: `unusedPlan` les HANS EIGIN uppstillingu (staðreynd um
+     hvad hann aetlar), thetta les HVAD APPID MYNDI VELJA (mat a
+     vaentum stigum). Madur getur verid utan aaetlunarinnar en INNAN
+     besta XI — tha er abendingin "thu ert ad bekkja hann ad osekju" —
+     og hann getur verid i aaetluninni en ALDREI i besta XI, sem er
+     hin abendingin. Thess vegna eru thetta tveir merkimidar, ekki einn.
+
+     VELIN ER SU SAMA SEM `pickBestXi`-takkinn notar (`bestTeamPlan` +
+     `expPoints`), ekki afrit: annars gaeti bordinn sagt "aldrei i besta
+     XI" um mann sem takkinn setur i lidid — tveir svor um sama hlut
+     (CLAUDE.md 7). Engin ny rodun og engin ny tala.
+
+     GLUGGINN ER SA SAMI SEM KASSINN SYNIR (`unusedPlan.fwd`), svo
+     merkimidinn getur ekki att vid annad bil en hausinn segir.        */
+  const neverBestXi = useMemo(() => {
+    const out = new Set();
+    const u = unusedPlan?.fwd;
+    if (!u || u.idle || !(u.to >= u.from)) return out;
+    const everIn = new Set();
+    let ran = 0;
+    for (let g = u.from; g <= u.to; g++) {
+      const seats = squadForGw(g);
+      if (!Array.isArray(seats) || !seats.length) continue;
+      let bt = null;
+      try {
+        bt = bestTeamPlan({ seats, score: s => expPoints(s.id, g),
+                            posOf: s => posKey(byId[s.id]?.element_type) });
+      } catch { bt = null; }
+      if (!bt?.xi?.length) continue;
+      ran++;
+      for (const x of bt.xi) if (x?.id != null) everIn.add(x.id);
+    }
+    /* ENGIN KEYRSLA -> ENGIN FULLYRDING. Vaeri `ran` 0 og vid skiladum
+       "aldrei i besta XI" um alla vaeri thad tala ur engu (kafli 8).   */
+    if (!ran) return out;
+    for (const s of squadForGw(u.from) || []) {
+      if (s?.id != null && !everIn.has(s.id)) out.add(s.id);
+    }
+    return out;
+  }, [unusedPlan, squadForGw, expPoints, byId]);
+
   const unusedSwaps = useMemo(() => {
     const out = {};
     const ranked = recommendations?.rankedByPos || {};
@@ -2590,19 +2676,27 @@ export default function App() {
       <header className="app-head" style={S.head}>
         <Logo />
         <div className="head-right" style={S.headRight}>
-          {/* VISAR A LEIKMENN-FLIPANN. browse-hamurinn var TVIVERKNADUR:
-              flipinn gerir thad sama betur (124 dalkar, throskuldar,
-              vaktlisti, samanburdur, fjogur timabil) medan thessi gluggi
-              hafdi adeins nafna-leit + stodu-siu.
-              HEITID BREYTTIST UR "Leikmenn" I "Leita": tveir hnappar hetu
-              "Leikmenn" (thessi og flipinn) og thad rugl er MAELT, ekki
-              tilgatulegt — baedi vafra-leit og prof greipu thann ranga i
-              throun og areksturinn thurfti ad skjalfesta i profaskra.
-              SKIPTA-GLUGGINN (selling) LIFIR OBREYTTUR: hann veit hvad thu
-              ert ad selja, hvad er i bankanum og hvad 3-per-felag reglan
-              segir. Leikmannalistinn veit ekkert af thvi.                 */}
-          <button style={S.searchBtn} onClick={() => setView("players")}
-            title={"Open the player list — search, filters and comparison"}>{"🔍 Search"}</button>
+          {/* "🔍 Search"-HNAPPURINN ER FARINN (25.8.2026, ad beidni
+              notandans: "Search boxid virkar ekki, ma taka ut, eg nota bara
+              player search i player stats").
+
+              Hann GERDI raunar eitt: `setView("players")` — sama og
+              flipinn `👥 Player stats` beint fyrir nedan. Notandinn las
+              samt „Search" sem leitarbox og fekk flipa; vaentingin var
+              rong OG hnappurinn var tviverknadur, svo hvorttveggja leysist
+              med thvi ad taka hann ut. Leitin sjalf er OBREYTT — hun er i
+              flipanum, thar sem hun hefur 124 dalka, throskulda, vaktlista
+              og samanburd sem thessi hnappur hafdi aldrei.
+
+              SAGAN SEM MA EKKI TYNAST: adur var her `browse`-hamur med
+              nafna-leit + stodu-siu. Hann var TVIVERKNADUR og var tekinn
+              ut; hnappurinn lifdi thad af sem visir. Nu fer hann lika.
+              Tveir hnappar hetu einu sinni badir "Leikmenn" og thad rugl
+              var MAELT (bædi vafra-leit og prof greipu thann ranga) —
+              thess vegna er eitt heiti a einum stad rett endastada.
+              SKIPTA-GLUGGINN (selling) LIFIR OBREYTTUR og er OSKYLDUR:
+              hann veit hvad thu ert ad selja, hvad er i bankanum og hvad
+              3-per-felag reglan segir. Leikmannalistinn veit ekkert af thvi. */}
           <button style={{ ...S.searchBtn, ...(showFfdr ? S.searchBtnOn : {}) }}
             onClick={() => setShowFfdr(v => !v)}
             title={"Fixture difficulty for every team, defensive and attacking"}>{"📊 FFDR"}</button>
@@ -2631,11 +2725,13 @@ export default function App() {
               `entryId` er ThAD SEM PIKKA-EFFECTINN LES (linu 785). Vaeri
               skilyrdid `conn` gaeti reiturinn horfid an thess ad nokkud
               vaeri tengt.                                              */}
-          {entryId ? (
-            <button style={S.discBtn} onClick={disconnectFpl}
-              title={"Unlink this FPL team. Your squad, transfer planning, line-ups, chips and captain are NOT touched — but the pitch goes back to your own saved squad, which may differ from the FPL one."}>
-              {"Disconnect"}</button>
-          ) : (<>
+          {/* DISCONNECT-HNAPPURINN FLUTTIST NIDUR I STODU-RODINA (25.8.2026,
+              ad beidni notandans: "Faera disconnect hnapp, gera minni og
+              setja haegra megin vid ✓ Connected").
+              Hann er thvi EKKI lengur her — sja `connRow` nedar. Skilyrdid
+              `entryId ? ... : ...` heldur samt haus-reitnum: an tengingar a
+              inntaks-reiturinn ad vera her, med tengingu ekkert.        */}
+          {entryId ? null : (<>
             <input className="url-input" style={S.urlInput}
               placeholder={"FPL URL or team ID"} value={urlInput}
               title={"Paste the link to YOUR TEAM (it contains /entry/NUMBER/) — or just the number. Example: fantasy.premierleague.com/entry/1234567/event/1"}
@@ -2648,21 +2744,46 @@ export default function App() {
         {/* STADA TENGINGARINNAR — SYNILEG. Adur var engin stadfesting og
             engin villa: notandinn sa "Tengt lid X" samstundis og svo ekkert
             thott soknin hefdi brostid. Nu sest hvad gerdist i raun.       */}
-        {conn.state !== "idle" && (
-          <div style={{ ...S.connMsg,
+        {/* RODIN SEGIR NU HVERJU VID ERUM TENGD, OG BER DISCONNECT (25.8.2026)
+
+            Notandinn: "Baetum vid hvad hvada lid appid er connected vid, t.d.
+            setja sem sagt username lika. T.d. Connected to Kalelgifler eda ef
+            thad er ekki haegt, Connected to og svo team ID."
+
+            TVENNT SEM ThURFTI AD BREYTAST OG ThAD ER EKKI SAMA:
+            1. SKILYRDID. Adur `conn.state !== "idle"`, sem er BIRTINGAR-
+               astand og lifir adeins thessa lotu. Vid ENDURHLEDSLU kemur
+               `entryId` ur localStorage medan `conn` er `idle` — svo rodin
+               (og thar med Disconnect) HORFDI thott lidid vaeri tengt.
+               Skilyrdid er nu `entryId || conn.state !== "idle"`: tenging
+               ER `entryId` (sama rok og haus-reiturinn ofar hvilir a).
+            2. HEITID. `conn.name` er lidsnafnid (eda nafn stjornandans) og
+               er sett vid tengingu — en er NULL eftir endurhledslu af somu
+               astaedu. Tha fellur thad a `team {id}`, sem er nakvaemlega
+               varaleidin sem notandinn nefndi sjalfur. Engin agiskun: ef
+               nafnid er ekki i minni er thad EKKI birt.                  */}
+        {(entryId || conn.state !== "idle") && (
+          <div style={{ ...S.connRow,
             background: conn.state === "error" ? "#fdecee"
                       : conn.state === "checking" ? "#f4f4f6"
                       : conn.picks === false ? "#fff6e0" : "#e6f9f0",
             color: conn.state === "error" ? "#93202b"
                  : conn.state === "checking" ? C.text2
                  : conn.picks === false ? "#7a5600" : "#046b41" }}>
-            {conn.state === "error" ? "✕ " : conn.state === "checking" ? "… "
-              : conn.picks === false ? "⚠ " : "✓ "}
-            {conn.msg}
-            {conn.state === "error" && (
-              <span style={S.connHint}>
-                {" "}{"Example: fantasy.premierleague.com/entry/1234567/event/1 — or just 1234567"}
-              </span>
+            <span style={S.connText}>
+              {conn.state === "error" ? "✕ " : conn.state === "checking" ? "… "
+                : conn.picks === false ? "⚠ " : "✓ "}
+              {conn.msg || interp("Connected to {0}", [conn.name || `team ${entryId}`])}
+              {conn.state === "error" && (
+                <span style={S.connHint}>
+                  {" "}{"Example: fantasy.premierleague.com/entry/1234567/event/1 — or just 1234567"}
+                </span>
+              )}
+            </span>
+            {entryId && (
+              <button style={S.discBtnSm} onClick={disconnectFpl}
+                title={"Unlink this FPL team. Your squad, transfer planning, line-ups, chips and captain are NOT touched — but the pitch goes back to your own saved squad, which may differ from the FPL one."}>
+                {"Disconnect"}</button>
             )}
           </div>
         )}
@@ -3168,6 +3289,38 @@ export default function App() {
                         : "Your plan has him in the XI in {0} of the {1} gameweeks he is in your squad. Gameweeks you have not changed inherit the last line-up you did set.",
                         [r.starts, r.gws])}>
                       {r.starts}{" of "}{r.gws}{" in XI"}</span>
+                    {/* ============================================================
+                        TVEIR MERKIMIDAR SEM NOTANDINN BAD UM (25.8.2026)
+
+                        "Merkja hann tha sem alltaf bekkjadur" og "ef
+                        leikmadur kemst aldrei i pick best xl ad hann se tha
+                        merktur her".
+
+                        ThEIR ERU TVEIR OG ThAD ER ASETT: "always benched"
+                        er STADREYND um HANS EIGIN aaetlun (starts === 0 i
+                        glugganum), "never in best XI" er MAT VELARINNAR
+                        (vaent stig). Madur getur verid annad an ad vera
+                        hitt — og su samsetning er einmitt uppl.: utan
+                        aaetlunar EN i besta XI thydir "thu bekkjar hann ad
+                        osekju", medan badir merkimidar samtimis thydir
+                        "hann er raunverulega ofaukinn".
+
+                        `starts === 0` er ekki thad sama sem `rarelyStarted`
+                        siar a (hun hleypir throdjungi eda minna i gegn), svo
+                        merkid greinir "aldrei" fra "sjaldan" — sem er
+                        munurinn a "seldu hann" og "skodadu hann".        */}
+                    {r.starts === 0 && (
+                      <span style={S.srcNever}
+                        title={interp("Your own arrangement never has him in the XI across GW{0}-{1} — not once in the {2} gameweeks he is in the squad. This is your plan, not a forecast.",
+                                      [u.from, u.to, r.gws])}>
+                        {"always benched"}</span>
+                    )}
+                    {!ui && neverBestXi.has(r.id) && (
+                      <span style={S.srcNeverBest}
+                        title={interp("The app's own \"pick best XI\" would not select him in ANY gameweek from GW{0} to GW{1}, judged on expected points. That is the machine's view, not your arrangement — the two are shown separately on purpose.",
+                                      [u.from, u.to])}>
+                        {"never best XI"}</span>
+                    )}
                     {/* TALAN OG HNAPPURINN ERU EIN OSKIPTANLEG BLOKK — sja
                         `srcAct` i appStyles.js. Ekki `<span style={{flex:1}}/>`
                         + tvo laus holf: thad var uppsetningin sem let
@@ -3183,6 +3336,49 @@ export default function App() {
                       <button style={S.dBtn} onClick={() => { setSelling(p.id); setSearchQ(""); }}>
                         {"Replace"}</button>
                     </span>
+                    {/* ============================================================
+                        "OG HVERN AETTI EG AD FA I STADINN?" — NU LIKA HER
+
+                        Notandinn (25.8.2026): "komdu her lika med hugmynd af
+                        odrum leikmanni til ad kaupa. Sem er med mest
+                        impressive stats og gaeti gengid sem replacement og
+                        adallega horft a naestu leiki med FFDR i huga."
+
+                        TILLAGAN VAR ThEGAR TIL — hun var adeins a
+                        LEIKMANNASPJALDINU (`unusedSwaps`, 20.8.2026). Hun er
+                        thvi FLUTT HINGAD LIKA, EKKI ENDURSMIDUD: sama vorpun,
+                        sami listi, sama rodun.
+
+                        RODUNIN ER `rankScore` OG ThAD ER EKKI VAL: hun er
+                        MAELDA kaup-rodunin (slaer badi eldri adferd appsins og
+                        FPL-eigid xP i 5/5 timabilum, og `rank-model.mjs` ber
+                        orakel-thak sem synir ad haerri tala vaeri LEKI).
+                        "Naestu leikir med FFDR i huga" er inni i henni —
+                        `ffdrAvg` kemur ur `buildRecommendations`, sem kallar
+                        `fixDifficulty` MED STODUNNI, svo varnarmadur og
+                        framherji hja sama felagi fa ekki somu tolu.
+                        Fjorar hordu siurnar (sama stada · a soluverdi + banka ·
+                        thrir-per-felag eftir skiptin · tiltaekileiki) eru allar
+                        i `unusedSwaps`; bordinn reiknar ekkert sjalfur.     */}
+                    {(unusedSwaps[p.id] || []).length > 0 && (
+                      <div style={S.srcSwapRow}>
+                        <span style={S.srcSwapLbl}
+                          title={"Ranked by the measured buy ranking (rankScore), which already reads the upcoming fixtures for THIS position. Filtered to what you could actually do: same position, within his selling price plus your bank, still legal on three-per-club, and available."}>
+                          {"instead:"}</span>
+                        {(unusedSwaps[p.id] || []).map(c => (
+                          <button key={c.id} style={S.srcSwapBtn}
+                            onClick={() => setDetail({ kind:"player", id:c.id })}
+                            title={interp("{0} — {1}, £{2}. Suggested by the measured buy ranking for this position over the coming gameweeks. Opens his card; it does not make the transfer.",
+                                          [byId[c.id]?.web_name || c.id,
+                                           teamById[byId[c.id]?.team]?.short || "?",
+                                           ((byId[c.id]?.now_cost ?? 0) / 10).toFixed(1)])}>
+                            {byId[c.id]?.web_name || c.id}
+                            <span style={S.srcSwapCost}>
+                              {" £"}{((byId[c.id]?.now_cost ?? 0) / 10).toFixed(1)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -3230,8 +3426,13 @@ export default function App() {
                 <div style={S.sellWhenHead}>{"When to sell — hardest run ahead"}</div>
                 <div style={S.muted}>
                   {"Relative to his own fixtures — this does not say sell him rather than someone else. Sell order is the squad list's own ranking."}
+                  {" "}{"Fixture difficulty (FFDR) is the only input: no form, no minutes, no market line. The points figure is FFDR read through the measured points-per-tier table for his position, which is what makes two positions comparable at the same difficulty."}
+                  {withRun.length > HARD_RUN_SHOW && (
+                    <>{" "}<b>{interp("Showing the {0} whose hard run starts soonest; {1} more are further out.",
+                                      [HARD_RUN_SHOW, withRun.length - HARD_RUN_SHOW])}</b></>
+                  )}
                 </div>
-                {withRun.map(({ p, t }) => (
+                {withRun.slice(0, HARD_RUN_SHOW).map(({ p, t }) => (
                   <div key={p.id} style={S.srcRow}>
                     <span style={{ ...S.posDot, background: POS_COLOR[p.element_type] }} />
                     <span style={S.srcName}
@@ -3241,7 +3442,7 @@ export default function App() {
                       title={"His worst stretch of fixtures between now and the end of the range, measured against his own average over that range — the same search that finds buy windows, with the direction flipped."}>
                       {interp("Hardest run ahead: GW{0}–{1}", [t.run.from, t.run.to])}</span>
                     <span style={S.sellWhenFig}
-                      title={interp("Expected points per gameweek inside GW{0}-{1} compared with his own average across GW{2}-{3} ({4} gameweeks with a known fixture). A figure for HIM — it is not comparable with another player's.", [t.run.from, t.run.to, t.basis.from, t.basis.to, t.basis.n])}>
+                      title={interp("FFDR for GW{0}-{1}, read through the measured points-per-tier table for his position, compared with his own average across GW{2}-{3} ({4} gameweeks with a known fixture). FFDR is the ONLY input. A figure for HIM — it is not comparable with another player's.", [t.run.from, t.run.to, t.basis.from, t.basis.to, t.basis.n])}>
                       {interp("{0} pts/GW vs {1} average over GW{2}–{3}",
                         [signedPts(t.run.perGw), t.basis.scale, t.basis.from, t.basis.to])}</span>
                     <span style={S.sellWhenSum}
@@ -4509,9 +4710,26 @@ export default function App() {
                       </>
                     )}
 
-                    {/* Big chances missed — krefst Understat */}
+                    {/* BIG CHANCES MISSED — NOTAN NEFNDI HEIMILD SEM ER DAUD
+                        OG ThROSKULD SEM ER EKKI OKKAR (lagad 25.8.2026).
+
+                        Hun sagdi "derived from Understat shot data (xG above
+                        0.30)". Hvorttveggja er rangt:
+                        · Understat er DAUD sem heimild (maelt 9.8.2026 —
+                          deildarsidur Cloudflare-vardar, leikjasidur bera
+                          hvorki `shotsData` ne `rostersData` i vafra), og
+                          eina talan sem hun atti EIN maeldist gagnslaus.
+                        · ThROSKULDURINN ER 0,18, EKKI 0,30 — `BIG_CHANCE_XG`
+                          i `src/bsd.js`, og hann er FITTADUR gegn
+                          raunverulega BSD-sviðinu `big_chances` (MAE 0,746,
+                          r 0,774 a 748 lid-leikjum). 0,30 var agiskun um
+                          annad gagnasett.
+                        Fost tala um lifandi kvarda urelidist thegjandi — og
+                        her var hun UROREITT fra upphafi. Nu er hun LEIDD ur
+                        sama fasta sem kodinn notar, svo hun getur ekki
+                        rekist i sundur vid hann.                          */}
                     <div style={S.dNote}>
-                      <b>Big chances missed</b> {"is not in the FPL API. It is derived from Understat shot data (a shot with xG above 0.30 that did not go in) — it appears once shot data arrives (season under way)."}
+                      <b>Big chances missed</b> {interp("is not in the FPL API. It is derived from BSD per-shot xG — a shot with xG at or above {0} that did not go in. BSD covers 2025/26 only, so this is empty for other seasons.", [BIG_CHANCE_XG])}
                     </div>
                   </>
                 );
@@ -4984,10 +5202,36 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
             const live = L?.started && !L?.finished;
             const done = L?.finished || f.finished;
             const hs = L?.h?.score ?? f.team_h_score, as = L?.a?.score ?? f.team_a_score;
-            const scorers = side => [
-              ...(L?.[side]?.goals || []).map(id => `⚽ ${nameOf ? nameOf(id) : id}`),
-              ...(L?.[side]?.assists || []).map(id => `↗ ${nameOf ? nameOf(id) : id}`),
-            ];
+            /* ============================================================
+               MORK OG ASSIST ERU TVAER LINUR, EKKI EIN (25.8.2026)
+
+               Notandinn: "hérna skulum vid syna assist undir markinu,
+               thannig ad sjaist hver gaf assist fyrir hvada mark."
+
+               ThAD SEM ER GERT: assistin eru nu a EIGIN LINU undir
+               morkunum i stad thess ad vera limd i sama streng
+               ("⚽ Clarke · ⚽ Emersonn · ↗ Lukic · ↗ Enciso"), svo
+               morkin lesast sem mork og assistin sem assist.
+
+               ThAD SEM ER **EKKI** GERT, OG HVERS VEGNA: PORUNIN
+               mark<->assist ER EKKI I NEINNI HEIMILD SEM VID HOFUM.
+               Maelt 25.8.2026: `live/gw{n}.json` ber per-leikmanns TOLUR
+               (`goals_scored`, `assists`) og `explain` ber stiga-lidun per
+               leik — hvorugt segir HVADA assist tilheyrir HVADA marki.
+               `last_gw.json` ber adeins lids-tolur (skot, horn, spjold).
+               Ad giska a porunina — t.d. para i rod — vaeri uppspuni sem
+               les eins og gogn, svo hun er EKKI birt. Textinn segir thad
+               berum ordum i stad thess ad thegja um thad.
+
+               FANTASY-ASSIST ER ThEGAR ThAD SEM ER SYNT: `assists` fra FPL
+               ER fantasy-skilgreiningin (thess vegna eru BSD-assist 29%
+               faerri, CLAUDE.md 6). Tzolis-daemid sem notandinn nefndi er
+               nakvaemlega thetta svid — thad er thegar inni.            */
+            const goalsOf = side => (L?.[side]?.goals || [])
+              .map(id => `⚽ ${nameOf ? nameOf(id) : id}`);
+            const assistsOf = side => (L?.[side]?.assists || [])
+              .map(id => `↗ ${nameOf ? nameOf(id) : id}`);
+            const scorers = side => [...goalsOf(side), ...assistsOf(side)];
             const hasDetail = live || (done && (scorers("h").length || scorers("a").length));
             const mid = (done || live) && hs != null ? `${hs}–${as}` : timeLbl(f.kickoff_time);
             // FFDR-pilla per lið — LITURINN situr á pillunni sjálfri
@@ -5027,8 +5271,19 @@ function GwFixtureList({ gw, fixtures, teamById, weatherByFx, travelByFx, liveBy
                 {open === f.id && hasDetail && (
                   <div style={S.gfDetail}>
                     {[["h", H?.short], ["a", A?.short]].map(([sd, sh]) => {
-                      const sc = scorers(sd);
-                      return sc.length ? <div key={sd}><b>{sh}</b> {sc.join(" · ")}</div> : null;
+                      const gs = goalsOf(sd), as_ = assistsOf(sd);
+                      if (!gs.length && !as_.length) return null;
+                      return (
+                        <div key={sd}>
+                          <div><b>{sh}</b> {gs.length ? gs.join(" · ") : "—"}</div>
+                          {as_.length > 0 && (
+                            <div style={S.gfAssistLine}
+                              title={"Fantasy assists (FPL's own definition — wider than the official one). FPL publishes goals and assists as separate per-player counts and never says which assist belongs to which goal, so they are listed rather than paired."}>
+                              {as_.join(" · ")}
+                            </div>
+                          )}
+                        </div>
+                      );
                     })}
                   </div>
                 )}

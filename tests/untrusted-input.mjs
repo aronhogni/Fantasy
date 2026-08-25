@@ -402,6 +402,30 @@ console.log(`\n${"─".repeat(72)}\nSVOR FRA PROXY-INU\n${"─".repeat(72)}`);
     const nan = /\bundefined\b|\bNaN\b|\[object Object\]/.test(txt);
     ok(`${label}: nothaeft og an NaN`, !crash && usable && !nan,
        crash ? "KASTADI: " + crash.slice(0, 55) : !usable ? "ekki nothaeft" : "NaN/undefined a skja");
+
+    /* ---- TENGINGAR-RODIN EFTIR ENDURHLEDSLU (25.8.2026) ----
+       ThETTA ER NAKVAEMLEGA ASTANDID SEM KLIKKADI: `entryId` kemur ur
+       localStorage (linan ofar saedir 123456) medan `conn.state` er
+       `idle`, thvi `conn` er birtingar-astand sem lifir adeins lotuna.
+       Gamla skilyrdid var `conn.state !== "idle"`, svo rodin — OG
+       Disconnect-hnappurinn med henni — HORFDI thott lidid vaeri tengt.
+       Kaflinn er her thvi thetta safn er thad EINA sem raesir appid med
+       vistad `entryId` og engri tengingar-lotu.                        */
+    if (!crash) {
+      ok(`${label}: tengingar-rodin birtist thegar entryId er vistad`,
+        /Connected/.test(txt),
+        txt.match(/Connected[^]{0,40}/)?.[0] || "hvergi");
+      ok(`${label}: Disconnect er a skjanum vid hlidina`,
+        /Disconnect/.test(txt));
+      /* ATH — VARAHEITID (`Connected to team {id}`) ER EKKI PROFAD HER OG
+         ThAD ER MAELT, EKKI GLEYMT: hver atburdaras i thessu safni LYKUR
+         picks-sokninni (jafnvel villu-leidirnar setja `conn.msg`), svo
+         `conn.msg` er ALLTAF settur og tekur rettilega framar varaheitinu.
+         Astandid sem framkallar varaheitid er "vistad entryId OG engin
+         tengingar-lota", sem thetta safn byr ekki til. Ad fullyrda thad
+         her hefdi thvi verid tom fullyrding (CLAUDE.md 5b) — hun fell
+         a 6 af 8 atburdarasum thegar eg reyndi.                        */
+    }
   }
 }
 

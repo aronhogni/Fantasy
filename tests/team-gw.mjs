@@ -678,9 +678,19 @@ console.log("\n4d0) RAUNVERULEG URSLIT -> VALARINN ER VIRKUR");
   const { default: Teams } = await import("../src/Teams.jsx");
   const played = realFix.filter(f => f.finished || f.finished_provisional);
   const prov = played.filter(f => !f.finished && f.finished_provisional);
-  ok(`forsenda: ${played.length} spiladir leikir, ${prov.length} theirra ADEINS \`finished_provisional\``,
-    played.length >= 5 && prov.length >= 1,
-    `${played.length} / ${prov.length}`);
+  /* FORSENDAN ER "ThAD ERU URSLIT", EKKI "ThAU ERU OSTADFEST" (hert
+     25.8.2026). Fyrsta utgafan kraufdist `prov >= 1` — og thad var satt
+     thegar hun var skrifud (10 af 10 GW1-leikjum voru ADEINS
+     `finished_provisional`) en varð OSATT nokkrum klukkustundum sidar
+     thegar FPL stadfesti umferdina med bonus. Fost fullyrding um
+     ForBIGENGILEGT astand: nakvaemlega ættin sem thetta safn er skrifad
+     gegn, og hun fell tvisvar i rod a raungognum.
+     Kaflinn profar ad VALARINN VAKNI thegar urslit eru til; hvort thau eru
+     stadfest edur ei er onnur spurning. `finished_provisional`-tilfellid
+     sjalft er profad a TILBUNUM gognum i `team-stats.mjs` kafla 12e, thar
+     sem thad getur ekki urelst.                                        */
+  ok(`forsenda: ${played.length} spiladir leikir (${prov.length} ostadfestir)`,
+    played.length >= 5, `${played.length} spiladir`);
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host);

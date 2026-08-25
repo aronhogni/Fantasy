@@ -1007,6 +1007,19 @@ console.log("─".repeat(84));
     ev.events[0] = { ...ev.events[0], finished: true, data_checked: true, is_current: true, is_next: false };
     ev.events[1] = { ...ev.events[1], is_next: true };
     W("events.json", ev);
+    /* LEIKJASKRA VERDUR AD FYLGJA (25.8.2026). `gw1-checklist` les nu
+       klukkuna ur `playedGwIds(events, fixtures)` i stad `e.finished` —
+       sjounda tilfellid af theirri lagfaeringu, og thad var i PROFI.
+       Tilbuni heimurinn var thvi ekki lengur FULLBUINN: an
+       `fixtures.json` kastadi listinn og NULL fullyrdingar keyrdu, sem
+       kafli hér nedan greip (`0 fullyrdingar keyrdu`). Astandid sem er
+       byggt er "ein umferd spilud", svo leikirnir eru merktir bunir —
+       annars vaeri leikjaskrain ekki i takt vid `events`.               */
+    W("fixtures.json", Array.from({ length: 10 }, (_, i) => ({
+      id: 1000 + i, event: 1, team_h: (i * 2) + 1, team_a: (i * 2) + 2,
+      finished: true, finished_provisional: true, started: true,
+      team_h_score: 1, team_a_score: 0,
+      kickoff_time: "2026-08-22T14:00:00Z" })));
 
     const st = J("status.json");
     const src = st.sources || st;

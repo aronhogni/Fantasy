@@ -87,6 +87,11 @@ const DEF_ID = 11; // Mosquera — ARS DEF (lid 1), i sjalfgefna lidinu
 const REAL_ARS_OPP = J("defcon.json").opportunity?.["1"]?.defcon_opportunity ?? null;
 const ARS_OPP = REAL_ARS_OPP ?? 6437;
 
+/* Sja kafla 9: `BAN_ON` kveikir a spjalda-tilfellinu, `BAN_ID` er
+   leikmadurinn sem er lyftur i 4 gul spjold. Byrjar SLOKKT.          */
+let BAN_ON = false;
+const BAN_ID = 115;   /* De Cuyper — haestur i stigum, svo hann er a FYRSTU sidu syndargluggans (leit i listanum er otraust, CLAUDE.md 5) */
+
 globalThis.fetch = async u => {
   const n = String(u).split("/data/")[1];
   if (!n) return { ok: false, status: 404, json: async () => ({}) };
@@ -109,6 +114,17 @@ globalThis.fetch = async u => {
       { fpl_id: DEF_ID, position: 2, starts: 12, threshold_hits: 9,
         hit_rate: 0.75, hit_rate_adj: 0.573, p0: 0.361, cbit_per_90: 9.1, cbirt_per_90: 13.2 },
     ] }) };
+  }
+  /* SPJALDA-MERKID (kafli 9 nedar) tharf leikmann sem er NAERRI BANNI.
+     Raungogn i dag bera max 1 gult spjald, svo merkid er RETTILEGA
+     osynilegt — og fullyrding um ad thad BIRTIST vaeri tom (CLAUDE.md 5b).
+     Vid lyftum ThVI EINUM leikmanni i 4 spjold, og adeins thegar flaggid
+     er sett, svo hinar 73 fullyrdingarnar sjai obreytt gogn.          */
+  if (n === "players.json" && BAN_ON) {
+    const real = J(n);
+    return { ok: true, status: 200, json: async () => ({ ...real,
+      players: real.players.map(p =>
+        p.id === BAN_ID ? { ...p, yellow_cards: 4 } : p) }) };
   }
   try { return { ok: true, status: 200, json: async () => J(n) }; }
   catch { return { ok: false, status: 404, json: async () => { throw new Error("404"); } }; }
@@ -729,6 +745,76 @@ await new Promise(r => setTimeout(r, 60));
      "— sia a dalki i lokudum flokki vaeri annars osynileg i hausnum");
   await fire(clearAll());
   ok(`hreinsad aftur (${count()} af ${N0})`, count() === N0);
+}
+
+/* ============================================================
+   9. GULT SPJALD I LISTANUM — SOFNUN, ALDREI "I BANNI" (25.8.2026)
+
+   Notandinn: "baeta vid gulu spjaldi a playerinn sjalfann ... ef hann
+   nalgast bann vegna spjalda" — OG hann gaf sjalfur skordunina:
+   "menn taka ut bonn i sumum bikarleikjum ... og thvi ekki verid i banni
+   i naesta deildarleik (thad eina sem fantasy appid skodar)."
+
+   ThAD ER ThVI TVENNT SEM ER VARIÐ HER, OG ThAD SEINNA ER ThAD SEM
+   AUDVELT ER AD BRJOTA SEINNA:
+     (a) merkid BIRTIST thegar madur er einu spjaldi fra banni
+     (b) thad segir ALDREI ad hann se i banni, og raud spjold reka thad
+         EKKI — vid getum ekki vitad hvort bann var teki ut i bikarleik,
+         svo FPL-status er einratt (CLAUDE.md 6).
+
+   NEGATIFA TILFELLID ER MAELT, EKKI GEFID: raungogn i dag bera max 1
+   gult spjald (maelt), svo merkid er rettilega hvergi — og ThAD er
+   ástæðan fyrir ad positiva tilfellid tharf tilbuinn leikmann.
+   ============================================================ */
+console.log(`\n${"\u2500".repeat(72)}\n9. GULT SPJALD — SOFNUN, EKKI BANN\n${"\u2500".repeat(72)}`);
+{
+  const MARK = "\u25AE";
+  /* --- negatift, a RAUNGOGNUM --- */
+  const before = (document.body.textContent || "").split(MARK).length - 1;
+  const maxY = Math.max(...J("players.json").players.map(p => +p.yellow_cards || 0));
+  ok(`forsenda: raungogn bera max ${maxY} gult spjald, svo merkid a ad vera hvergi`,
+    maxY < 4 && before === 0, `${before} merki`);
+
+  /* --- positift, med TILBUNUM leikmanni (4 spjold -> einu fra banni) --- */
+  BAN_ON = true;
+  const host2 = document.createElement("div");
+  host2.id = "root2";
+  document.body.appendChild(host2);
+  const root2 = createRoot(host2);
+  await act(async () => { root2.render(React.createElement(App)); });
+  await act(async () => { await new Promise(r => setTimeout(r, 400)); });
+  const goPlayers = [...host2.querySelectorAll("button")]
+    .find(b => (b.textContent || "").trim().startsWith("\uD83D\uDC65"));
+  if (goPlayers) await act(async () => {
+    goPlayers.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+  });
+  await act(async () => { await new Promise(r => setTimeout(r, 300)); });
+  const txt2 = host2.textContent || "";
+  const marks = txt2.split(MARK).length - 1;
+  ok(`leikmadur einu spjaldi fra banni FAER merkid (${marks})`, marks >= 1);
+
+  /* ORDALAGID: merkid ma ekki segja "suspended", og ver ad nefna ad
+     FPL-status se thad sem raedur. Titillinn er lesinn AF ELEMENTINU. */
+  const markEl = [...host2.querySelectorAll("span")]
+    .find(e => (e.textContent || "").trim() === MARK);
+  const ttl = markEl?.getAttribute("title") || "";
+  ok("merkid er a skjanum sem element med titli", !!markEl && ttl.length > 20, ttl.slice(0, 40));
+  ok("titillinn segir SPJALDA-SOFNUN, ekki bann",
+    /accumulation/i.test(ttl) && !/\bis suspended\b/i.test(ttl), ttl.slice(0, 70));
+  ok("og hann nefnir ad FPL-status se thad sem raedur",
+    /FPL status/i.test(ttl), ttl.slice(0, 70));
+  ok("og hann nefnir bikarleikinn sem vid getum ekki sed",
+    /cup match/i.test(ttl), ttl.slice(-70));
+
+  /* RAUD SPJOLD REKA ThAD EKKI — hvergi i PlayerList ma bann leidast af
+     `red_cards`. Lesid ur upprunanum thvi thetta er FJARVERA.          */
+  const src = readFileSync(new URL("src/PlayerList.jsx", REPO), "utf8");
+  ok("PlayerList leidir ALDREI bann af `red_cards`",
+    !/red_cards[\s\S]{0,80}(ban|suspend)/i.test(src));
+
+  await act(async () => { root2.unmount(); });
+  host2.remove();
+  BAN_ON = false;
 }
 
 console.log(`\nLIFANDI DÁLKAR: ${pass} stóðust, ${fail} féllu`);

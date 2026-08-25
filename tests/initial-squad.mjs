@@ -1433,6 +1433,29 @@ const squadNames = v => cards(v).map(c => {
    ============================================================ */
 console.log("\n--- O. FRAMVIRKT ---");
 const FWD_HEAD = "Not in your plan's XI";
+/* ============================================================
+   GLUGGINN ER LEIDDUR AF KLUKKUNNI, EKKI SKRIFADUR (25.8.2026)
+
+   Thessar fullyrdingar voru fastar a "GW1-6" og thad var RETT medan
+   forleikur stod — kaflinn segir sjalfur "0 umferdir byrjadar". Um leid
+   og GW1 var spilud varð talan RONG, og hun er einmitt sú tegund sem
+   thetta safn er skrifað gegn: fost tala um lifandi astand.
+
+   Framvirki glugginn byrjar nu a FYRSTU OLOKNU umferd (beidni notandans:
+   "vid natturulega horfum ekki a lidnar umferdir"), svo vaentanlegt bil
+   er leitt UR SOMU KLUKKU sem appid notar — fresturinn.               */
+const EV = J("events.json").events || [];
+const FWD_FROM = (() => {
+  const now = Date.now();
+  for (const e of [...EV].sort((a, z) => a.id - z.id)) {
+    const dl = e?.deadline_time ? Date.parse(e.deadline_time) : NaN;
+    if (!Number.isFinite(dl) || dl > now) return e.id;
+  }
+  return EV.length ? EV[EV.length - 1].id : 1;
+})();
+const FWD_TO = Math.min(38, FWD_FROM + 5);
+const FWD_WIN = `GW${FWD_FROM}\u2013${FWD_TO}`;
+console.log(`     framvirki glugginn i dag: ${FWD_WIN}`);
 {
   const HAAL = byId[411].web_name, CAL = byId[346].web_name;
 
@@ -1442,8 +1465,12 @@ const FWD_HEAD = "Not in your plan's XI";
   const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } });
   ok(!/Not been in your XI/.test(v.text()),
      "FORSENDA: AFTURVIRKA synin thegir afram i forleik (0 umferdir byrjadar)");
-  ok(new RegExp(FWD_HEAD + " — GW1–6").test(v.text()),
-     "FRAMVIRKA synin BIRTIST — og hausinn ber gluggann");
+  ok(v.text().includes(`${FWD_HEAD} \u2014 ${FWD_WIN}`),
+     `FRAMVIRKA synin BIRTIST — og hausinn ber gluggann (${FWD_WIN})`);
+  /* OG HANN NAER EKKI YFIR LOKNA UMFERD. Thetta er fullyrdingin sem
+     beidnin snerist um og hun er ohad thvi hvada umferd vid erum i.  */
+  ok(FWD_FROM > 1 ? !v.text().includes(`${FWD_HEAD} \u2014 GW1\u2013`) : true,
+     `og hann byrjar EKKI a GW1 thegar GW1 er bunn (byrjar a GW${FWD_FROM})`);
   const fc = cardOf(v, FWD_HEAD, "Save £");
   ok(!!fc, "framvirki kassinn er ratanlegur i DOM-inum");
   const fseg = fc ? fc.textContent : "";
@@ -1454,8 +1481,58 @@ const FWD_HEAD = "Not in your plan's XI";
      hun er einmitt kaeran sem for i gegnum tvaer utgafur.              */
   ok(/carried forward/.test(fseg),
      "SETNINGIN NEFNIR ERFDINA (carried forward)", fseg.slice(0, 140));
-  ok(/your own GW1 line-up, carried forward/.test(fseg),
-     "og hun segir HVADAN: GW1 er hans skyra val, GW2-6 erfa thad", fseg.slice(0, 140));
+  /* SETNINGIN VERDUR AD NEFNA HVADA UMFERD ER ERFD, ekki bara "carried
+     forward". Ordalagid sjalft er ekki fest: thegar GW1 er INNAN
+     gluggans stendur "your own GW1 line-up, carried forward", og thegar
+     hun er FYRIR hann (eins og nu) "carried forward from your GW1
+     line-up". Badar segja thad sama; fullyrdingin er a UPPLYSINGUNNI. */
+  ok(/carried forward/.test(fseg) && /GW1 line-up/.test(fseg),
+     "og hun segir HVADAN — nefnir umferdina sem er erfd", fseg.slice(0, 140));
+
+  /* ---- MERKIMIDARNIR OG TILLAGAN (25.8.2026) ----
+     Notandinn bad um thrennt i thessum kassa: "merkja hann tha sem alltaf
+     bekkjadur", "ef leikmadur kemst aldrei i pick best xl ... merktur her",
+     og "komdu her lika med hugmynd af odrum leikmanni til ad kaupa".
+
+     ThRENNT ER PROFAD OG ThAU ERU OLIK:
+       · "always benched" er STADREYND um hans aaetlun (starts === 0)
+       · "never best XI" er MAT velarinnar (vaent stig) — og hun ma ALDREI
+         birtast i AFTURVIRKA kassanum, thvi thad er stadreynda-kassi
+       · tillagan er `rankScore`-rodun, ekki ny tala                     */
+  /* RADIRNAR ERU TALDAR AF HOLFUNUM, EKKI UR `textContent` — sama
+     gildra og nefnarinn nedar: verdid og talan renna saman i
+     "£15.50 of 6 in XI", svo /\b0 of/ finnur ekkert. Fyrsta utgafa
+     THESSARAR fullyrdingar fell a nakvaemlega thvi.                   */
+  const useCells = fc ? [...fc.querySelectorAll("span")]
+    .filter(el => /^\d+ of \d+ in XI$/.test((el.textContent || "").trim())) : [];
+  const zeroRows = useCells
+    .filter(el => /^0 of /.test(el.textContent.trim())).length;
+  const benched = (fseg.match(/always benched/g) || []).length;
+  ok(useCells.length > 0 && zeroRows > 0,
+     `forsenda: ${zeroRows} af ${useCells.length} rodum hafa 0 byrjanir i glugganum`);
+  ok(benched === zeroRows,
+     `"always benched" er a NAKVAEMLEGA theim rodum sem hafa 0 byrjanir (${benched} af ${zeroRows})`);
+  /* ORdALAGID MA EKKI SEGJA "BANN" ne "seldu" — thetta er stadreynd um
+     uppstillingu, ekki radgjof.                                        */
+  ok(!/suspended|must sell/i.test(fseg), "og merkid segir hvorki bann ne skipun");
+
+  /* AFTURVIRKI KASSINN ER EKKI TIL I DAG OG ThAD ER SAGT, EKKI ThAGAD.
+     Hann krefst >= 2 spiladra umferda (`bTo >= MIN_GWS`); i dag er ein
+     spilud, svo hann er rettilega hvergi. Fullyrdingin um ad velar-merkid
+     leki EKKI inn i hann getur thvi ekki keyrt enn — og `if (backCard)`
+     an thessarar setningar vaeri ThOGULT SLEPP (CLAUDE.md 5b).
+     Merkid sjalft er profad i kafla O2 a fixtura sem BER badar tegundir. */
+  const backCard = cardOf(v, "Not been in your XI", "Save £");
+  const playedNow = EV.filter(e => e?.deadline_time
+    && Date.parse(e.deadline_time) <= Date.now()).length;
+  if (backCard) {
+    ok(!/never best XI/.test(backCard.textContent || ""),
+       "AFTURVIRKI kassinn ber EKKI velar-merkid (hann er stadreynda-kassi)");
+  } else {
+    ok(playedNow < 2,
+       `afturvirki kassinn SEFUR — ${playedNow} umferd(ir) spilud, hann krefst 2`);
+  }
+
   ok(!/as you have them set up/.test(v.text()),
      "OG GAMLA FALSKA FORSENDAN ER HVERGI I VIDMOTINU");
 
@@ -1576,6 +1653,61 @@ const FWD_HEAD = "Not in your plan's XI";
 }
 
 /* ============================================================
+   O2. MERKIMIDARNIR ERU AGREINANDI — TVAER TEGUNDIR I SAMA KASSA
+
+   Kafli O profar merkin a fixtura sem ber EINA rod, og su rod hefur
+   0 byrjanir. `benched === zeroRows` er thvi 1 === 1 og STENST LIKA
+   thott merkid vaeri sett a HVERJA rod — stokkbreyting sannadi thad
+   (0 fallnar). Fullyrding sem tharf tvennt til ad bregdast er veikari
+   en hun litur ut fyrir (CLAUDE.md 5b, fjorda tilfellid).
+
+   ThESSI FIXTURA BER BADAR TEGUNDIR SAMTIMIS: einn madur bekkjadur
+   ALLAN gluggann (0 byrjanir -> merkid) og annar bekkjadur i 5 af 6
+   (1 byrjun -> ENGIN merki, en hann er samt i kassanum thvi
+   `rarelyStarted` hleypir thridjungi eda minna i gegn).
+   ============================================================ */
+console.log("\n--- O2. MERKIMIDARNIR ERU AGREINANDI ---");
+{
+  /* GW2 erfir GW1-lykilinn (bekkir X); GW3+ bekkja X OG Y.
+     PORIN VERDA AD HALDA LEYFILEGRI UPPSTILLINGU og thad afmarkar valid:
+     XI-id er 1-3-5-2 og bekkurinn 497 GK / 173 DEF / 278 DEF / 321 FWD.
+     Ad bekkja BADA framherjana (411 og 346) er OLEYFILEGT — 321 er eini
+     framherjinn a bekknum, svo XI-id faeri i 0 FWD (lagmark 1). Y er thvi
+     VARNARMADUR (423 Shaw, GBP4,5) a moti 173 (GBP4,0): leyfilegt, og hann
+     er yfir verdgolfinu svo `rarelyStarted` hendir honum ekki ut.      */
+  const X = 411, Y = 423, S1 = 321, S2 = 173;
+  const v2 = await mount({ captain: X,
+    benchSwaps: { 1: [[X, S1]], 3: [[X, S1], [Y, S2]] } });
+  const fc2 = cardOf(v2, FWD_HEAD, "Save £");
+  ok(!!fc2, "framvirki kassinn er their");
+  const cells = fc2 ? [...fc2.querySelectorAll("span")]
+    .filter(el => /^\d+ of \d+ in XI$/.test((el.textContent || "").trim())) : [];
+  const zero = cells.filter(el => /^0 of /.test(el.textContent.trim())).length;
+  const nonZero = cells.length - zero;
+  ok(zero > 0 && nonZero > 0,
+     `FORSENDA: kassinn ber BADAR tegundir — ${zero} med 0 byrjanir og ${nonZero} med fleiri`,
+     cells.map(e => e.textContent.trim()).join(" | "));
+  const marks = ((fc2?.textContent || "").match(/always benched/g) || []).length;
+  ok(marks === zero,
+     `"always benched" er a theim ${zero} EINUM, ekki ollum ${cells.length} (${marks})`);
+
+  /* ---- TILLAGAN UM ANNAN MANN (25.8.2026) ----
+     Notandinn: "komdu her lika med hugmynd af odrum leikmanni til ad
+     kaupa." Rodin var ThEGAR til a leikmannaspjaldinu (`unusedSwaps`) og
+     var FLUTT hingad, ekki endursmidud — svo fullyrdingin er a ThVI ad
+     hun se a skjanum OG ad hun nefni verd (tillaga an verds er ekki
+     framkvaemanleg tillaga; fjarhags-sian er hluti af `unusedSwaps`).  */
+  const t2 = fc2?.textContent || "";
+  const hasSug = /instead:/.test(t2);
+  ok(hasSug, "tillogu-rodin er i kassanum (\"instead:\")", t2.slice(0, 120));
+  if (hasSug) {
+    ok(/instead:[\s\S]{0,80}£\d+\.\d/.test(t2),
+       "og hver tillaga ber VERD — tillaga an verds er ekki framkvaemanleg",
+       (t2.match(/instead:[^]{0,60}/) || [])[0] || "");
+  }
+}
+
+/* ============================================================
    P. SPJALDID — ThAR SEM PER-LEIKMANNS-TOLURNAR BUA (21.8.2026)
    ============================================================
    Notandinn: „thetta er alltof mikill og flokinn texti, thott
@@ -1623,8 +1755,8 @@ console.log("\n--- P. SPJALDID ---");
   ok(!!tile, "framvirki reiturinn er a spjaldinu");
   const tseg = tile ? tile.textContent : "";
   ok(/0 of 6/.test(tseg), "med nefnaranum sinum — 0 af 6", tseg.slice(0, 120));
-  ok(/GW1–6/.test(tseg),
-     "OG GLUGGANUM, A SAMA REIT: talan er onyt an hans", tseg.slice(0, 120));
+  ok(tseg.includes(FWD_WIN),
+     `OG GLUGGANUM, A SAMA REIT: talan er onyt an hans (${FWD_WIN})`, tseg.slice(0, 120));
   ok(/carried forward/.test(tseg),
      "og erfdin er nefnd a REITNUM lika — sami stadur sem talan", tseg.slice(0, 120));
   /* EIN SETNING VER GEGN RANGLESTRI — og hun er NEFND, svo hun getur

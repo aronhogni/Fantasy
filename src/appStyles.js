@@ -46,6 +46,41 @@ export const S = {
   headRight: { display:"flex", gap:8, alignItems:"center" },
   connMsg: { margin:"6px 0 0", padding:"5px 9px", borderRadius:6, fontSize:11.5,
     lineHeight:1.5, maxWidth:"100%" },
+  /* STODU-RODIN BER NU DISCONNECT HAEGRA MEGIN (25.8.2026). `connMsg` er
+     obreytt thvi hun er lesin annars stadar; `connRow` er hun + flex.
+     `minWidth:0` a textanum er ThAD SEM GERIR `ellipsis` moguleg — an hennar
+     hafnar flex-barn ad skreppa undir innihaldid sitt og hnappurinn faerist
+     ut ur rodinni a sima (maelt mynstur, sbr. frosnu dalkana i toflunni). */
+  /* ASSIST-LINAN SITUR UNDIR MORKUNUM og er drégin inn svo hun lesist
+     sem UNDIRLIDUR thess sem er fyrir ofan, ekki sem onnur lids-rod.  */
+  gfAssistLine: { paddingLeft:14, opacity:0.78, fontSize:10.5 },
+  /* TVEIR MERKIMIDAR I "not in your XI"-kassanum. Ekki sami litur:
+     "always benched" er STADREYND um aaetlun notandans (hlutlaust gratt),
+     "never best XI" er MAT velarinnar (gult, eins og annad samhengi sem
+     appid leggur til). Tveir olikir merkimidar i sama lit lesast sem
+     eitt merki (CLAUDE.md 8, silhuettu-reglan i ordum).               */
+  /* TILLOGU-RODIN SITUR UNDIR LEIKMANNINUM sem hun er tillaga UM, drégin
+     inn svo hun lesist sem undirlidur og ekki sem onnur leikmanns-rod
+     (sama rok og `gfAssistLine`).                                      */
+  srcSwapRow: { display:"flex", alignItems:"center", gap:5, flexWrap:"wrap",
+    paddingLeft:16, marginTop:2 },
+  srcSwapLbl: { fontSize:9.5, color:C.text3, cursor:"help", flexShrink:0 },
+  srcSwapBtn: { fontSize:10, fontWeight:600, color:C.text2, background:C.cardAlt,
+    border:`1px solid ${C.border}`, borderRadius:4, padding:"1px 5px",
+    cursor:"pointer", whiteSpace:"nowrap" },
+  srcSwapCost: { color:C.text3, fontWeight:400 },
+  srcNever: { fontSize:9.5, fontWeight:700, color:C.text3, background:"#eeeef1",
+    border:`1px solid ${C.border}`, borderRadius:4, padding:"1px 4px",
+    whiteSpace:"nowrap", flexShrink:0, cursor:"help" },
+  srcNeverBest: { fontSize:9.5, fontWeight:700, color:"#7a5600", background:"#fff6e0",
+    border:"1px solid #f0d68a", borderRadius:4, padding:"1px 4px",
+    whiteSpace:"nowrap", flexShrink:0, cursor:"help" },
+  connRow: { margin:"6px 0 0", padding:"5px 9px", borderRadius:6, fontSize:11.5,
+    lineHeight:1.5, maxWidth:"100%", display:"flex", alignItems:"center", gap:8 },
+  connText: { flex:1, minWidth:0 },
+  discBtnSm: { background:"rgba(255,255,255,0.72)", border:`1px solid ${C.border}`,
+    borderRadius:6, padding:"2px 8px", fontSize:10.5, fontWeight:600,
+    color:C.text2, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 },
   connHint: { opacity:0.85, fontFamily:mono, fontSize:10.5 },
   urlInput: { background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 11px", fontSize:13, color:C.text, width:210, outline:"none" },
   searchBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:8, padding:"8px 12px", fontSize:12.5, color:C.text, cursor:"pointer", whiteSpace:"nowrap" },

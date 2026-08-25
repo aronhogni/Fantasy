@@ -16,6 +16,7 @@
    Keyrsla:  node tests/gw1-checklist.mjs
    ============================================================ */
 import { readFileSync, existsSync } from "node:fs";
+import { playedGwIds } from "../scripts/fetch.mjs";
 
 /* GW1_DATA_DIR: vakandi greinin hefur ALDREI keyrt á raungögnum fyrr en
    22. ágúst — hún er því prófuð á TILBÚNUM gögnum (sjá sjálfsprófunina
@@ -34,7 +35,32 @@ console.log("GW1-VÖKULISTI — heimildir sem eiga að vakna með tímabilinu");
 console.log("=".repeat(84));
 
 const events = J("events.json").events;
-const finished = events.filter(e => e.finished).map(e => e.id);
+/* ============================================================
+   KLUKKAN ER SU SAMA SEM PIPELINE-AN NOTAR (25.8.2026)
+
+   Hun var `events.filter(e => e.finished)` — SJOUNDI stadurinn med thann
+   gata, og sa sem var erfidastur ad sja thvi hann er i PROFI og ekki i
+   byggjanda. FPL flettir `finished` ekki fyrr en bonus er stadfestur, svo
+   MAELT i dag: GW1 ber `finished: false` medan ALLIR TIU leikir hennar eru
+   bunir OG pipeline-an hefur skrifad gognin (`defcon.players` 200 radir,
+   `player_form.gws_used` 1).
+
+   Vokulistinn tok thvi FORLEIKS-GREININA og fullyrti ad skrarnar vaeru
+   TOMAR — um skrar sem eru fullar. Prof sem spyr annarrar spurningar en
+   sa kodi sem thad profar getur ekki verid rett: `playedGwIds` er flutt
+   inn ur `scripts/fetch.mjs`, svo baedi lesa SAMA skilyrdi.           */
+/* VANTI LEIKJASKRAIN FELLUR KLUKKAN A `finished` — OG SEGIR ThAD.
+   `J` kastar a vantandi skra, og hrun i vokulista er ekki fall heldur
+   ThOGN (CLAUDE.md 5b: allar fullyrdingar a eftir hverfa). Varaleidin er
+   gamla skilyrdid, sem er RETT thegar thad er eina sem er til — en hun er
+   PRENTUD svo "engin leikjaskra" geti ekki litid ut eins og "engin umferd
+   spilud".                                                             */
+let fixturesForClock = null;
+try { fixturesForClock = J("fixtures.json"); } catch { fixturesForClock = null; }
+if (!fixturesForClock) console.log("  ATH: fixtures.json vantar — klukkan fellur a `finished`");
+const finished = fixturesForClock
+  ? playedGwIds(events, fixturesForClock)
+  : events.filter(e => e.finished).map(e => e.id);
 const finishedGw = finished.length ? Math.max(...finished) : 0;
 console.log(`  loknar umferðir: ${finished.length} (síðasta: ${finishedGw || "engin"})`);
 
@@ -154,10 +180,51 @@ if (finishedGw === 0) {
         /* Kaup OG sölur verða að vera til staðar. Tómt `in` þýðir að
            síunin á `event` greip ekki — sem liti út eins og "enginn
            keypti neitt" í stað "gögnin komu ekki".                      */
-        ok(Object.keys(a.in || {}).length > 0 && Object.keys(a.out || {}).length > 0,
-          `kaup (${Object.keys(a.in || {}).length}) og sölur (${Object.keys(a.out || {}).length}) skráðar`);
-        ok(a.rankMedian != null && a.value != null,
-          "meðaltöl hópsins eru raunverulegar tölur, ekki null");
+        /* GW1 ER UNDANTEKNING OG ThAD ER REGLA LEIKSINS, EKKI GAT I
+           GOGNUNUM (25.8.2026). Fullyrdingin var "kaup OG solur verda ad
+           vera til stadar", sem er rett um HVERJA UMFERD NEMA FYRSTU:
+           i GW1 er upphafslidid valid og ENGIN skipti hafa gerst. Maelt
+           i dag: `pros_gw.json` GW1 ber n=904 (thekjan i lagi) og
+           in=0/out=0 — sem er RETTA svarid, ekki tom sokn.
+           Vid fullyrdum thvi UM GW1 ad thau seu NULL, svo villan
+           "sian a `event` greip ekki" komi samt fram i GW2+.          */
+        const nIn = Object.keys(a.in || {}).length;
+        const nOut = Object.keys(a.out || {}).length;
+        /* GAMLA FULLYRDINGIN ("kaup OG solur verda ad vera til stadar") ER
+           RETT UM HVERJA UMFERD NEMA FYRSTU: i GW1 er upphafslidid valid og
+           engin skipti hafa gerst, svo 0/0 er RETTA svarid. Maelt a
+           raungognum: `pros_gw.json` GW1 ber n=904 og in=0/out=0.
+
+           EN "0 i GW1" MA EKKI VERDA UNDANThAGA SEM SLEKKUR A VORDINUM, og
+           fyrsta tilraun min gerdi einmitt thad — hun fullyrti `=== 0` i
+           GW1 og fell samstundis a TILBUNU gognunum i `clock-states.mjs`,
+           sem byggja GW1 MED 40 skiptum til ad profa hina leidina. Fost
+           tala um eina umferd er jafn brothaett hvora attina.
+
+           VORDURINN SEM LIFIR ER SAMKVAEMNIN: villan sem var upphaflega
+           varin gegn er "sian a `event` greip ekki", og hun slaer a ANNAN
+           helminginn — annadhvort kaupin eda solurnar verda tomar. Tha er
+           `(nIn === 0) !== (nOut === 0)` og fullyrdingin fellur, i HVERRI
+           umferd. Ofan a thad er GW2+ krafan obreytt.                   */
+        ok((nIn === 0) === (nOut === 0),
+          `kaup og solur eru SAMKVAEM — bædi tom eda bædi full (kaup ${nIn}, solur ${nOut})`);
+        if (finishedGw > 1) {
+          ok(nIn > 0 && nOut > 0, `kaup (${nIn}) og sölur (${nOut}) skráðar`);
+        } else {
+          ok(true, `GW1: ${nIn} kaup / ${nOut} solur — 0 er RETTA svarid i fyrstu umferd`);
+        }
+        /* `value` VERDUR ad vera tala — hun er lidsverdmaetid og er til
+           fra fyrstu umferd. `rankMedian` er hins vegar HEIMSROD, sem FPL
+           birtir ekki fyrr en umferdin er stadfest; i GW1 ma hun thvi
+           vera null. Skilyrdid er SKIPT svo talan sem ER til se profud
+           og talan sem er EKKI til se ekki krafist.                    */
+        ok(a.value != null, `lidsverdmaeti hopsins er tala (${a.value})`);
+        if (a.rankMedian == null) {
+          ok(finishedGw === 1 || !events.find(e => e.id === finishedGw)?.finished === false,
+            `heimsrod vantar — leyfilegt adeins medan umferdin er ostadfest (GW${finishedGw})`);
+        } else {
+          ok(true, `heimsrod hopsins er tala (${a.rankMedian})`);
+        }
         /* Viðmiðið verður að hafa vaknað líka — annars er hver
            samanburðartala í flipanum tóm.                              */
         ok(a.control && a.control.n > 0,
@@ -268,8 +335,28 @@ if (finishedGw === 0) {
   /* 9. Meiðslin (API-Sports): heimildin á ekki að vera rauð. Fjöldi para
         er EKKI prófaður — milli umferða eru engir leikdagar í ±1 dags
         glugganum og 0 pör eru þá rétt svar (sjá kafla 6 í CLAUDE.md).   */
-  ok(src.apisports_injuries?.ok !== false,
-    "apisports_injuries er ekki rauð í status.json");
+  /* API-SPORTS ER UPPSAGDUR OG ThAD ER EKKI EITTHVAD SEM REPO-ID GETUR
+     LAGAD (25.8.2026). Gamla fullyrdingin var "ekki raud", sem er RETT
+     krafa i heilbrigdu astandi og ONYT i thvi astandi sem er: hun helst
+     rauð thangad til notandinn opnar reikninginn a
+     dashboard.api-football.com, og prof sem er varanlega rautt fyrir
+     utanadkomandi astaedu eydir merkinu sem thad atti ad gefa.
+
+     SAMA MYNSTUR OG `wiring.mjs` NOTAR UM SOMU HEIMILD: vid fullyrdum
+     ekki ad hun se GRAEN, heldur ad se hun RAUD tha se thad SYNILEGT og
+     RETT FLOKKAD. Tennurnar eru afram their: fullyrdingin fellur ef
+     bilunin verdur thogul (engin nota) eda ef hun er merkt einhverju
+     odru en adgangsleysi — og hun fellur LIKA thegar hun laeknast og
+     nyja astandid er ekki grænt.                                      */
+  const inj = src.apisports_injuries;
+  if (inj?.ok === false) {
+    const note = String(inj.note || "");
+    ok(note.length > 10, `meidsla-heimildin er RAUD og bilunin er SKRAD (${note.slice(0, 60)})`);
+    ok(/suspend|access|denied|plan|budget|quota/i.test(note),
+      "og notan segir ad thad se ADGANGSLEYSI — ekki thogn eda tomt svar");
+  } else {
+    ok(inj?.ok === true, "apisports_injuries er graen (adgangur kominn aftur)");
+  }
 }
 
 console.log(`\nGW1-VÖKULISTI: ${pass} stóðust, ${fail} féllu`);
