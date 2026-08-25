@@ -25,8 +25,23 @@ töflur, öll úrtaksstærð, allar villusögur — eru í **`docs/MAELINGAR.md`
 FPL-skipulagstól (Fantasy Premier League) fyrir eigin notkun. **Viðmótið er
 enskt og bara enskt** (tungumálalagið var tekið út 7.8.2026, sjá kafla 9).
 Tímabilið **2026/27 hefst 21. ágúst 2026** (GW1-frestur 21.8. kl. 17:30 UTC).
-Þegar þetta er skrifað er **preseason — engin umferð lokin**, og það skýrir
-flestar tómar tölur í appinu.
+> **ÞESSI LÍNA VAR ORÐIN ÓSÖNN OG ER NÚ LEIDD, EKKI SKRIFUÐ (25.8.2026).**
+> Hér stóð *„Þegar þetta er skrifað er **preseason — engin umferð lokin**, og
+> það skýrir flestar tómar tölur í appinu."* GW1 var spiluð 21.–24. ágúst, svo
+> setningin var orðin röng — og hún var *skýringin* sem skjalið bauð á tómum
+> tölum, þannig að hún sendi næsta mann í að afgreiða raunveruleg göt sem
+> „preseason". Nákvæmlega sama ætt og „the range is 4–10 and NO club has a 1"
+> í `SetPieces` og hörðu „2025/26"-strengirnir í haus skotakortsins: **föst
+> fullyrðing um lifandi ástand úreldist þegjandi.**
+>
+> **Spurðu gögnin, ekki skjalið.** Klukkan er sameiginleg og er þegar til:
+> `seasonHasStarted` í `src/availability.js` (appið) og `playedGwIds` í
+> `scripts/fetch.mjs` (pipeline). Fyrri umferð telst spiluð við
+> `finished || finished_provisional` — `finished` flettist ekki fyrr en bónus
+> er staðfestur, ~3 dögum eftir umferðina, og sex byggjendur gátu á honum og
+> sögðu því allir „engin umferð lokin" í þrjá daga eftir GW1.
+> `node -e 'JSON.parse(...).filter(f => f.finished_provisional).length'` á
+> `data/fixtures.json` svarar þessu á sekúndubroti og er alltaf rétt.
 
 | Hluti | Hvar | Athugasemd |
 |---|---|---|
