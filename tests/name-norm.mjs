@@ -402,5 +402,52 @@ console.log("\nKLUBBA-NAFNAVORPUN (CLUB_NORM / CLUB_ALIAS)");
   ok(idx[CLUB_NORM("")] === undefined, "tomur strengur leysist ekki");
 }
 
+/* ============================================================
+   `num` ER TVIRAETT AD ASETTU RADI — VORDUR GEGN "TILTEKT"
+
+   Thessi skra er til vegna thess ad `normName` var skilgreint tvisvar og
+   utgafurnar ráku i sundur. `num` LITUR EINS UT vid fyrstu syn (fjorar
+   skilgreiningar, tvaer olikar hegdanir) og ER ThAD EKKI: hvor um sig er
+   RETT fyrir sin inntok.
+
+     stats.js       LAUS  (`parseFloat`) — les FPL-svid, og FPL sendir
+                    tolur SEM STRENGI. MAELT: 6.710 slik svid i
+                    `players.json` (`ep_next:"4.0"`, `form:"6.0"` ...).
+                    Strong utgafa myndi nulla thau OLL.
+     teamstats.js   STRONG — les `team_form`/`luck`/`fixtures`. MAELT:
+     bestteam.js           889 tolur og 53 strengir, og hver einasti
+     advisor.js            strengur er DAGSETNING eda TIMABILS-MERKI.
+                    Laus utgafa myndi gefa parseFloat("2026-08-25T...")
+                    = 2026 og parseFloat("2025-26") = 2025.
+
+   Sameining i hvora attina sem er BYR TIL VILLU. Vordurinn er thvi ekki
+   "ein utfaersla" heldur "hvor helst sinni hegdun".
+   ============================================================ */
+console.log("\n`num`: TVAER HEGDANIR, BADAR RETTAR");
+{
+  const { readFileSync } = await import("node:fs");
+  const src = f => readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  const loose = src("stats.js").match(/export const num = v => \{[\s\S]{0,160}?\};/);
+  ok(!!loose && /parseFloat/.test(loose[0]),
+     "stats.js:num er AFRAM laus (parseFloat) — FPL sendir tolur sem strengi");
+
+  for (const f of ["teamstats.js", "bestteam.js", "advisor.js"]) {
+    const m = src(f).match(/const num = v => \([\s\S]{0,120}?\);/);
+    ok(!!m, `${f} skilgreinir num`);
+    ok(!!m && /typeof v === "number"/.test(m[0]) && !/parseFloat/.test(m[0]),
+       `${f}:num er AFRAM strong — dagsetningar mega ekki verda ad 2026`);
+  }
+
+  /* MEKANISMINN SANNADUR, ekki adeins fullyrtur: an hans er ofangreint
+     bara texta-leit og segir ekkert um HVERS VEGNA thad skiptir mali. */
+  ok(parseFloat("2026-08-25T05:28:14.061Z") === 2026,
+     "SONNUN: parseFloat a ISO-dagsetningu gefur 2026 (thess vegna strong)");
+  ok(parseFloat("2025-26") === 2025, "og a timabils-merki gefur 2025");
+  const { num: looseNum } = await import("../src/stats.js");
+  ok(looseNum("4.0") === 4, "SONNUN: FPL-strengur \"4.0\" verdur 4 i lausu utgafunni");
+}
+
 console.log(`NIÐURSTAÐA: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

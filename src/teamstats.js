@@ -66,6 +66,34 @@
 
 import { BIG_CHANCE_XG } from "./bsd.js";
 
+/* ============================================================
+   STRONG `num` — TEKUR EKKI VID TOLU-STRENGJUM, OG ThAD ER ASETT
+   (skjalad 25.8.2026)
+
+   KODARYNI-2026-08-24 lagdi til ad sameina thessa utgafu vid
+   `stats.js:num`, sem gerir `parseFloat` og TEKUR vid tolu-strengjum
+   ("3.0" -> 3). Su sameining var MAELD OG HAFNAD — hun myndi setja
+   RUSL i tolu-svid:
+
+     parseFloat("2026-08-25T05:28:14.061Z")  ->  2026
+     parseFloat("2025-26")                   ->  2025
+
+   MAELT a theim skram sem ThESSI skra les (`team_form.json`,
+   `luck.json`, `fixtures.json`): 889 raunveruleg tolu-svid og 53
+   strengir — og hver einasti strengur er DAGSETNING eda TIMABILS-MERKI
+   (`updated`, `season`, `kickoff_time`). ENGINN theirra er tala i
+   dulargervi. Strangi vordurinn hafnar theim rett; lausa utgafan
+   myndi breyta theim i 2026 og 2025.
+
+   `stats.js:num` er LAUS af jafn-godri astaedu: hun les FPL-svid, og
+   FPL sendir tolur SEM STRENGI (`ep_next: "4.0"`, `points_per_game`,
+   `selected_by_percent`, `form`, `expected_goals` — maelt: 6.710 slik
+   svid i `players.json`). Vaeri hun strong yrdi hvert theirra `null`.
+
+   ThAER ERU ThVI EKKI TVITEKNING SEM REK I SUNDUR HELDUR TVO RETT SVOR
+   VID TVEIMUR OLIKUM INNTOKUM. Ekki sameina thaer an thess ad maela
+   inntokin fyrst — og se thad gert VERDUR ein theirra rong.
+   ============================================================ */
 const num = v => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const div = (a, b) => (num(a) != null && num(b) ? +(a / b).toFixed(3) : null);
 
