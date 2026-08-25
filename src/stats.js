@@ -2453,7 +2453,30 @@ export function makeEnricher({
      ThEGAR hlutur i `player_form.json`, `player_seasons.json` og ollum
      `player_gw_*.json`, en fylki i thessum thremur. Sami aettbogi og
      "pipeline skrifadi lineups.json en appid las hana aldrei".          */
-  for (const sp of rowsOf(shotsFile?.players)) (shotByTeam[sp.team] ||= []).push(sp);
+  /* ============================================================
+     ESPN-DALKARNIR VORU UR RONGU TIMABILI — LAGAD 24.8.2026
+
+     KAERAN: „Afhverju er Ollie Watkins skradur med 4x skot i ESPN stats
+     thegar hann hefur ekki spilad neinn leik?"
+
+     ORSOKIN VAR EKKI PORUN HELDUR SKRAIN: `last_gw_shots.json` bar
+     `season: "2025/26", gw: 38, archive: true`, thvi pipeline-an gataði a
+     `event.finished` og fann enga lokna umferd i ~3 daga eftir ad GW1 var
+     spilud (sja `playedGwIds` i fetch.mjs). Skotin voru thvi rett tala um
+     RANGT timabil — Watkins skorar tvennu i GW38 i mai.
+
+     OG HANN VAR EKKI EINN: MAELT thann dag voru **64 leikmenn med 0
+     minutur** i 2026/27 sem baru samt skot-tolur, radaðir `hi:true` svo
+     their sátu efstir.
+
+     BSD-BLOKKIN 20 LINUM NEDAR HEFUR ThETTA HLID ThEGAR (`f.season ===
+     season`). ESPN hafdi thad ekki — ein skra, sama fall, tvaer heimildir,
+     onnur vardaðar og hin ekki. Nu bera baðar sama hlid: passi timabil
+     skrarinnar ekki vid ThAD SEM ER VALIÐ er EKKERT birt. Tomur dalkur er
+     rett svar; tala ur odru timabili er thad ekki.                     */
+  const shotSeasonOk = !shotsFile?.season || shotsFile.season === season;
+  const shotRows = shotSeasonOk ? rowsOf(shotsFile?.players) : [];
+  for (const sp of shotRows) (shotByTeam[sp.team] ||= []).push(sp);
   const findShot = (p) => {
     const cands = shotByTeam[teamById?.[p.team]?.short] || [];
     let best = null, bs = 0, second = 0;
@@ -2463,7 +2486,16 @@ export function makeEnricher({
       if (sc > bs) { second = bs; bs = sc; best = c; }
       else if (sc > second) second = sc;
     }
-    return (best && bs >= 1 && bs > second) ? best : null;
+    /* ThROSKULDURINN ER 1,5 — SAMEIGINLEGT FORNAFN EITT ER EKKI PORUN.
+       `nameScore` gefur 2,5 fyrir fulla jofnu, 1,5 fyrir gaelunafn og
+       **1,0 fyrir fornafn eitt og ser**. Med gamla golfinu (`>= 1`)
+       paradist Trafford vid „James Justin", Pope vid „Nick Woltemade" og
+       Struijk vid „Pascal Gross" — MAELT: **25 af 169 porunum voru rangur
+       madur**, og thaer voru allar nakvaemlega a 1,0.
+       Skyldufallid `matchShotsToPlayers` (nedar i thessari skra) var hert
+       gegn thessu a sinum tima; thetta afrit var thad aldrei.
+       Gaelunafna-threpid (1,5) lifir, svo Savinho/Richarlison halda ser. */
+    return (best && bs >= 1.5 && bs > second) ? best : null;
   };
 
   /* LEIKIR FRAMUNDAN — talid per UMFERD, ekki per leik: `fix6 < 6` er auð

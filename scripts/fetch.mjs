@@ -1275,6 +1275,60 @@ async function computeConsistency() {
     `${files} seasons: ${Object.entries(seasons).map(([k, v]) => `${k} (${Object.keys(v).length})`).join(", ")}`);
 }
 
+/* ============================================================
+   EIN KLUKKA FYRIR PIPELINE-UNA — HVAÐA UMFERÐIR ERU RAUNVERULEGA SPILAÐAR
+
+   `events[].finished` FLETTIST EKKI FYRR EN BÓNUS ER STAÐFESTUR, sem er
+   ~3 dögum eftir að umferðin er búin. SEX byggjendur gátu á honum og
+   sögðu því allir „engin umferð lokin" í þrjá daga eftir að GW1 var
+   spiluð. Afleiðingarnar voru MÆLDAR 24.8.2026 og þær voru ekki smáar:
+
+     · `defcon.json.players` var TÓM -> DC-hittni sýndi ekkert þótt
+       leikmenn hefðu 1/1
+     · `deriveLastGwReport` fann enga lokna umferð og féll aftur á
+       ARKÍVIÐ (2025/26 GW38) -> Ollie Watkins birtist með 4 skot þótt
+       hann hafi ekki spilað mínútu í ár; MÆLT: 64 leikmenn með 0
+       mínútur báru skot-tölur síðasta tímabils
+     · `player_form.json` og `form_features.json` stóðu tóm (`gws_used: 0`)
+     · `deriveImminent` hélt áfram að skrifa `archive: true`
+
+   `finished_provisional` ER Á LEIKJUM, EKKI Á `events` (mælt: `undefined`
+   á öllum 38 röðunum), svo klukkan VERÐUR að lesa `fixtures.json`. Sama
+   svið og `matchesPlayedByClub` og `buildLiveTeamForm` nota þegar — þetta
+   er ekki ný regla, hún var bara aldrei sótt hingað.
+
+   UMFERÐ TELST SPILUÐ ÞEGAR **ALLIR** LEIKIR HENNAR ERU BÚNIR. Það er
+   ásetningur: hálfnuð umferð gefur hlutatölur, og hittni reiknuð á þeim
+   er tala sem lítur út eins og mæling. Umferð í gangi bíður því — sem er
+   rétt svar, ekki bilun.
+   ============================================================ */
+export function playedGwIds(events, fixtures) {
+  const evs = Array.isArray(events) ? events : [];
+  const fxs = Array.isArray(fixtures) ? fixtures : [];
+  const done = f => f?.finished === true || f?.finished_provisional === true;
+  const byGw = new Map();
+  for (const f of fxs) {
+    if (f?.event == null) continue;
+    const a = byGw.get(f.event) || { n: 0, done: 0 };
+    a.n++; if (done(f)) a.done++;
+    byGw.set(f.event, a);
+  }
+  const out = [];
+  for (const ev of evs) {
+    if (ev?.id == null) continue;
+    if (ev.finished === true) { out.push(ev.id); continue; }
+    const a = byGw.get(ev.id);
+    if (a && a.n > 0 && a.done === a.n) out.push(ev.id);
+  }
+  return out.sort((a, b) => a - b);
+}
+/* Þægindafall fyrir byggjendur sem hafa ekki `fixtures` við höndina. */
+async function playedGwIdsFromDisk(events) {
+  let fx = [];
+  try { fx = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8")); } catch {}
+  return playedGwIds(events, fx);
+}
+
 async function computeDefconHistory() {
   const DC_K = 10;
   const DC_P0_FALLBACK = { DEF: 0.27, MID: 0.17, FWD: 0.10 };   // GK: utilokadir, sja ofar
@@ -1365,7 +1419,9 @@ async function computeDefconHistory() {
 async function computeDefcon(events, els) {
   // þröskuldar: DEF 10 CBIT, MID/FWD 12 CBIRT. Hámark 2 stig/leik.
   // element_type: 1 GK, 2 DEF, 3 MID, 4 FWD
-  const finished = events.filter(ev => ev.finished).map(ev => ev.id);
+  /* EIN KLUKKA — sja `playedGwIds`. Adur `ev.finished`, sem thagdi i
+     ~3 daga eftir hverja umferd og skildi `defcon.json.players` eftir TOMA. */
+  const finished = await playedGwIdsFromDisk(events);
   const agg = {}; // id -> { starts, hits, cbit, cbirt }
   const posOf = {}; els.forEach(e => posOf[e.id] = e.element_type);
 
@@ -1602,7 +1658,8 @@ async function computeDefcon(events, els) {
    fær 0 og telur með. (Fyrri mæling sem sleppti 0-röðum lét bekkjarmenn
    virðast í formi — sjá tests/rank-model.mjs.)                          */
 async function computePlayerForm(events, els) {
-  const finished = events.filter(ev => ev.finished).map(ev => ev.id).sort((a, b) => a - b);
+  /* EIN KLUKKA — sja `playedGwIds` (adur `ev.finished`). */
+  const finished = await playedGwIdsFromDisk(events);
   const hist = {};                        // id -> [{gw, mins, pts, starts}]
   els.forEach(e => hist[e.id] = []);
 
@@ -4496,7 +4553,8 @@ async function deriveTeamForm() {
    (stöðluð áhrif +4,6 til +5,1 stig/5 umferðir). FDR mælist ~0.            */
 async function deriveFormFeatures() {
   const events = JSON.parse(await readFile(`${DATA}/events.json`, "utf8")).events;
-  const finished = events.filter(e => e.finished).map(e => e.id).sort((a, b) => a - b);
+  /* EIN KLUKKA — sja `playedGwIds` (adur `e.finished`). */
+  const finished = await playedGwIdsFromDisk(events);
   if (!finished.length) {
     await writeJSON("form_features.json", {
       updated: status.updated, gws_used: 0, mode: "preseason",
@@ -4613,7 +4671,11 @@ async function deriveLastGwReport() {
   const jread = async p => JSON.parse(await readFile(`${DATA}/${p}`, "utf8"));
   let events = [];
   try { events = (await jread("events.json")).events || []; } catch {}
-  const finished = events.filter(e => e.finished).map(e => e.id);
+  /* EIN KLUKKA — sja `playedGwIds`. ThETTA VAR WATKINS-VILLAN: an hennar
+     fannst engin lokin umferd i ~3 daga og fallid fell aftur a ARKIVID
+     (2025/26 GW38), svo 64 leikmenn med 0 minutur baru skot-tolur fyrra
+     timabils undir haus thessa timabils.                                */
+  const finished = await playedGwIdsFromDisk(events);
   const curGw = finished.length ? Math.max(...finished) : null;
 
   if (curGw != null) {
@@ -5325,7 +5387,8 @@ async function deriveImminent() {
   const jread = async p => JSON.parse(await readFile(`${DATA}/${p}`, "utf8"));
   let events = [];
   try { events = (await jread("events.json")).events || []; } catch {}
-  const finished = events.filter(e => e.finished).map(e => e.id).sort((a, b) => a - b);
+  /* EIN KLUKKA — sja `playedGwIds` (adur `e.finished`). */
+  const finished = await playedGwIdsFromDisk(events);
 
   let rows = [], season, gws, archive;
   /* ============================================================

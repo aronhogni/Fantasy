@@ -33,11 +33,25 @@ const src = await readFile(new URL("../scripts/fetch.mjs", import.meta.url), "ut
 const start = src.indexOf("async function computeDefcon(");
 ok(start > 0, "computeDefcon finnst í scripts/fetch.mjs");
 const end = src.indexOf("\n}\n", start);
-const decl = src.slice(start, end + 3);
+/* KLUKKAN FYLGIR MED (24.8.2026) — `computeDefcon` odladist nyja had
+   thegar hun haetti ad gata a `ev.finished` og for ad kalla
+   `playedGwIdsFromDisk`. Safnid TOK EFTIR ThVI: keyrslan fell med
+   "playedGwIdsFromDisk is not defined". Vid drogum ThVI raunverulegu
+   follin ut lika — ekki stubba — svo profid keyri SOMU klukku og
+   pipeline-an. Sama regla og `apiNameIndex` i `lineups.mjs`.          */
+const clkStart = src.indexOf("export function playedGwIds(");
+ok(clkStart > 0, "playedGwIds finnst i scripts/fetch.mjs");
+const clkEnd = src.indexOf("\n}\n", src.indexOf("async function playedGwIdsFromDisk("));
+const clkDecl = src.slice(clkStart, clkEnd + 3).replace("export function", "function");
+ok(/finished_provisional/.test(clkDecl),
+  "og hun les `finished_provisional`, ekki adeins `finished`");
+ok(!/ev\.finished\)\.map/.test(src.slice(start, end)),
+  "computeDefcon gatar EKKI lengur beint a `ev.finished`");
+const decl = clkDecl + "\n" + src.slice(start, end + 3);
 
 /* Smíðar prófumhverfi: DATA-mappa með live/gw{n}.json og fixtures.json. */
 async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), recov = {}, mins = {},
-                           existing = null }) {
+                           existing = null, eventsOverride = null }) {
   const dir = await mkdtemp(join(tmpdir(), "dc-"));
   await mkdir(join(dir, "live"), { recursive: true });
   const gws = Object.values(gwMetrics)[0]?.length ?? 0;
@@ -76,7 +90,8 @@ async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), rec
        — an hennar gat kafli 7 ekki verid til.                        */
     (k, o, c, note) => { rec.ok = o; rec.n = c; rec.note = note ?? null; },
     { updated: "prof" });
-  const events = Array.from({ length: gws }, (_, i) => ({ id: i + 1, finished: true }));
+  const events = eventsOverride
+    || Array.from({ length: gws }, (_, i) => ({ id: i + 1, finished: true }));
   await computeDefcon(events, els);
   return { written, rec };
 }
@@ -520,6 +535,56 @@ console.log("─".repeat(84));
   const recB = (await runDefcon({ gwMetrics, els: real, fixtures })).rec;
   ok(/^2 of 2 teams/.test(String(recB.note)),
     `og "2 of 2" thegar tolurnar eru raunverulegar (${recB.note?.slice(0, 20)})`);
+}
+
+/* ============================================================
+   8. KLUKKAN — UMFERD SEM ER `finished_provisional` TELST SPILUD
+
+   VILLAN SEM VAR (24.8.2026): `computeDefcon` gatadi a `ev.finished`, sem
+   FPL flettir ekki fyrr en bonus er stadfestur ~3 dogum eftir umferdina.
+   Maelt thann dag: GW1 var spilud, `data/live/gw1.json` var 432 KB — og
+   `defcon.json.players` var TOM. Notandinn: „Defcon Hit rate virkar ekki,
+   synir ekkert thott ad nokkrir leikmenn aettu ad vera med 100% hit rate."
+
+   Kaflarnir her ad ofan SAU ThETTA ALDREI thvi their smida `events` med
+   `finished: true` — rett hegdun, rangt astand. Vid profum thvi ASTANDID
+   SJALFT: umferd sem er OSTADFEST en spilud til enda.
+   ============================================================ */
+console.log(`\n${"\u2500".repeat(84)}`);
+console.log("8. KLUKKAN — ostadfest en spilud umferd telst med");
+console.log("\u2500".repeat(84));
+{
+  const gwMetrics = { 1: [12], 2: [3] };
+  const els = [{ id: 1, element_type: 2, team: 1 }, { id: 2, element_type: 2, team: 1 }];
+  const fixtures = [{ id: 1, event: 1, team_h: 1, team_a: 2,
+                      finished: false, finished_provisional: true }];
+  /* GW1 er `finished: false` — nakvaemlega thad sem FPL syndi 21.-24.8. */
+  const provisional = [{ id: 1, finished: false }];
+  const { written } = await runDefcon({ gwMetrics, els, fixtures,
+                                        eventsOverride: provisional });
+  const rows = written?.obj?.players || [];
+  ok(rows.length === 2,
+    `ostadfest en spilud umferd GEFUR radir (${rows.length} radir)`);
+  const p1 = rows.find(r => r.fpl_id === 1);
+  ok(p1?.starts === 1 && p1?.threshold_hits === 1,
+    `og talan er rett: 1/1 (${p1?.threshold_hits}/${p1?.starts})`);
+
+  /* MOTPROFID — an leikjaskrarinnar er EKKERT sem segir ad umferdin se
+     buin, og tha a hun ekki ad teljast. An thessa vaeri fullyrdingin ad
+     ofan sonn af thvi einu ad klukkan hleypti ollu i gegn.            */
+  const { written: none } = await runDefcon({ gwMetrics, els, fixtures: [],
+                                              eventsOverride: provisional });
+  ok((none?.obj?.players || []).length === 0,
+    `en ostadfest umferd AN loknna leikja gefur ENGAR radir (${(none?.obj?.players || []).length})`);
+
+  /* Og leikur sem er BYRJADUR en ekki bunn telst ekki heldur — hlutastodur
+     mega ekki rata i hittni-tolu.                                      */
+  const midMatch = [{ id: 1, event: 1, team_h: 1, team_a: 2,
+                      finished: false, finished_provisional: false, started: true }];
+  const { written: mid } = await runDefcon({ gwMetrics, els, fixtures: midMatch,
+                                             eventsOverride: provisional });
+  ok((mid?.obj?.players || []).length === 0,
+    `leikur I GANGI telst ekki spiladur (${(mid?.obj?.players || []).length} radir)`);
 }
 
 console.log(`\nDC-AFTURVIRKNI: ${pass} stóðust, ${fail} féllu`);

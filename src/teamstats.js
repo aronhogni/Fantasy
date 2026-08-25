@@ -851,9 +851,20 @@ export function aggFixtureRange(fixtures, range = null) {
     out.set(id, a);
   };
   for (const f of fixtures) {
-    /* ADEINS LOKNIR LEIKIR. Onnur skilyrdi (started/minutes) duga ekki:
-       leikur i gangi hefur hlutastodu, og hun myndi telja sem urslit.    */
-    if (!f?.finished) continue;
+    /* ADEINS LOKNIR LEIKIR — EN `finished_provisional` TELST LOKID.
+       Onnur skilyrdi (started/minutes ein og ser) duga ekki: leikur i
+       gangi hefur hlutastodu og hun myndi telja sem urslit.
+       LEIDRETT 24.8.2026: skilyrdid var `finished` EITT, og thad flettist
+       ekki fyrr en bonus er stadfestur ~3 dogum eftir umferdina. Maelt
+       thann dag: NIU af tiu GW1-leikjum baru `finished: false` med
+       `finished_provisional: true, minutes: 90` og fullum urslitum, svo
+       `aggFixtureRange` skiladi TOMU -> `use.results` vard null ->
+       UMFERDAR-VALARINN VAR ALVEG SLOKKTUR i lifandi syn. Notandinn:
+       „nu get eg ekki filterad eftir gameweeks."
+       `buildLiveTeamForm` i sama skjali (sja ofar) hefur ALLTAF notad
+       retta skilyrdid — tvo foll i einni skra svorudu sitthvoru um sama
+       hlut, nakvaemlega `buildTeamMetrics`-aettin (CLAUDE.md 7).        */
+    if (!(f?.finished === true || f?.finished_provisional === true)) continue;
     if (!inRange(f.event, range)) continue;
     if (f.team_h_score == null || f.team_a_score == null) continue;
     bump(f.team_h, f.team_h_score, f.team_a_score);

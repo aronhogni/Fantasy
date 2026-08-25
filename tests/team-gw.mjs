@@ -560,10 +560,28 @@ console.log("\n4b) ENGIN HEIMILD I TAKT -> SLOKKT STYRING MED SKYRINGU");
   const host = document.createElement("div");
   document.body.appendChild(host);
   const r2 = createRoot(host);
+  /* ASTANDID ER BYGGT, EKKI FENGID AD LANI UR `data/` (24.8.2026).
+     Thessi kafli sendi adur `fixtures: realFix` og treysti thvi ad HVORUG
+     leidin vaeri i takt. Su forsenda var SONN af RANGRI astaedu:
+     `aggFixtureRange` gataði a `f.finished` EINU, sem FPL flettir ekki
+     fyrr en bonus er stadfestur, svo niu spiladir GW1-leikir toldust ekki
+     — og thad var einmitt villan sem notandinn kvartadi yfir („nu get eg
+     ekki filterad eftir gameweeks"). Um leid og hun var logud vaknadi
+     valarinn og ALLAR sex fullyrdingar her fellu.
+     Kaflinn a ad profa „engin heimild i takt", svo hann verdur ad BYGGJA
+     thad astand: leikjaskra an nokkurs lokins leiks. Tha er hann sannur
+     um sitt eigid efni og ohað thvi hvad `data/` ber i dag.           */
+  const noResults = realFix.map(f => ({ ...f, finished: false,
+    finished_provisional: false, started: false,
+    team_h_score: null, team_a_score: null }));
   const props = { teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
     teamShots: J("team_shots.json"), bsdTeams: J("bsd_teams.json"),
-    fixtures: realFix, shotIndex: null };
+    fixtures: noResults, shotIndex: null };
   await act(async () => { r2.render(React.createElement(Teams, props)); });
+  /* FORSENDA UM FORSENDUNA: leikjaskrain sem vid smiðuðum ber raunverulega
+     ENGAN lokinn leik — annars vaeri kaflinn aftur sannur af tilviljun. */
+  ok(`byggt astand: 0 loknir leikir af ${noResults.length}`,
+    noResults.every(f => !f.finished && !f.finished_provisional));
   const bx = [...host.querySelectorAll("[aria-label='Select gameweeks'] button")];
   const t2 = host.textContent || "";
   /* POSITIV FORSENDA: flipinn er teiknadur og taflan ber tolur. */
@@ -599,6 +617,42 @@ console.log("\n4b) ENGIN HEIMILD I TAKT -> SLOKKT STYRING MED SKYRINGU");
     ![...host.querySelectorAll("thead th")].some(x => /season$/.test(x.textContent.trim())));
   await act(async () => { r2.unmount(); });
   host.remove();
+}
+
+/* ============================================================
+   4d0) HIN HLIDIN: MED RAUNVERULEGUM URSLITUM ER VALARINN VIRKUR
+
+   Kaflinn a undan byggir astand ThAR SEM ENGIN heimild er i takt. Hann
+   einn vaeri sonn lysing a BILUDU appi lika — svo hin attin verdur ad
+   vera fullyrt vid hlidina (CLAUDE.md 5b regla 2).
+
+   Notandinn: „nu get eg ekki filterad eftir gameweeks." Orsokin var
+   `aggFixtureRange` sem gataði a `f.finished` EINU; niu spiladir
+   GW1-leikir bera `finished: false, finished_provisional: true`, svo
+   urslita-leidin var tom og valarinn slokknadi alveg.
+   ============================================================ */
+console.log("\n4d0) RAUNVERULEG URSLIT -> VALARINN ER VIRKUR");
+{
+  const { default: Teams } = await import("../src/Teams.jsx");
+  const played = realFix.filter(f => f.finished || f.finished_provisional);
+  const prov = played.filter(f => !f.finished && f.finished_provisional);
+  ok(`forsenda: ${played.length} spiladir leikir, ${prov.length} theirra ADEINS \`finished_provisional\``,
+    played.length >= 5 && prov.length >= 1,
+    `${played.length} / ${prov.length}`);
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  await act(async () => { root.render(React.createElement(Teams, {
+    teams: J("teams.json"), teamForm: J("team_form.json"), luck: J("luck.json"),
+    teamShots: J("team_shots.json"), bsdTeams: J("bsd_teams.json"),
+    fixtures: realFix, shotIndex: null, seasonLabel: "2026/27" })); });
+  const bx = [...host.querySelectorAll("[aria-label='Select gameweeks'] button")];
+  const live = bx.filter(b => !b.disabled);
+  ok(`umferdar-valarinn er VIRKUR i lifandi syn (${live.length} af ${bx.length} kassar)`,
+    bx.length > 0 && live.length > 0, `${live.length}/${bx.length}`);
+  ok("og engin \"not available\"-skyring stendur eftir",
+    !/not available for this table/.test(host.textContent || ""));
+  await act(async () => { root.unmount(); }); host.remove();
 }
 
 /* ============================================================
