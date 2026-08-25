@@ -517,6 +517,47 @@ console.log(`\n${"─".repeat(72)}\nPROXY-LEIDIRNAR (netlify/functions/odds.js)\
   ok(`ohaskyld othekkt leid svarar lika 400 (${bogus?.statusCode})`, bogus?.statusCode === 400);
   const opts = await handler({ httpMethod: "OPTIONS", queryStringParameters: {} });
   ok(`OPTIONS svarar afram 204 (${opts?.statusCode})`, opts?.statusCode === 204);
+
+  /* ============================================================
+     6. BILUN MA EKKI SVARA 200 (25.8.2026)
+
+     Catch-blokkin skiladi `statusCode: 200` med `{ error, games: [] }`.
+     Klient sem les ekki `error`-svidid — og App.jsx gerir thad ekki,
+     hann setur svarid BEINT i state — tulkar bilun sem GOGN, og tom
+     `games` les eins og "engir leikir" i stad "vid vitum ekki". Sama
+     regla og allt annad i thessu safni: TOMT GILDI ER EKKI NULL.
+
+     Prófad a BADUM tegundum bilunar, thvi thaer eiga ad greinast ad:
+     uppstreymid (FPL svarar ekki / timamork) -> 502, og okkar eigin
+     villa -> 500. Og villusvar ma ALDREI bera CDN-cache: vaeri thad
+     cachad i 60 s myndi eitt hiksti hja FPL frysta villuna fyrir ALLA
+     notendur i minutu.
+     ============================================================ */
+  globalThis.fetch = async () => { throw new Error("ECONNREFUSED"); };
+  const down = await call({ path: "fpl-bootstrap" });
+  ok(`uppstreymis-bilun svarar 502, ekki 200 (${down?.statusCode})`, down?.statusCode === 502);
+  ok("og ber afram CORS-hausa", down?.headers?.["Access-Control-Allow-Origin"] === "*");
+  ok(`og ENGAN CDN-cache (${JSON.stringify(down?.headers?.["Netlify-CDN-Cache-Control"] ?? null)}) `
+     + "— cachud villa frystir hana fyrir alla i 60 s",
+     down?.headers?.["Netlify-CDN-Cache-Control"] == null);
+  ok("bolurinn nefnir villuna", (() => {
+    try { return !!JSON.parse(down.body).error; } catch { return false; } })());
+
+  /* TIMAMORK ERU SETT A UPPSTREYMID — an theirra deyr fallid a
+     Netlify-thakinu i stad thess ad svara sjalft, og tha koma ENGIR
+     CORS-hausar med.                                                */
+  let sawSignal = false;
+  globalThis.fetch = async (u, init) => { sawSignal = init?.signal != null;
+    return { ok: true, json: async () => ({ ok: 1 }) }; };
+  const good = await call({ path: "fpl-fixtures" });
+  ok(`heilbrigt svar er afram 200 (${good?.statusCode})`, good?.statusCode === 200);
+  ok("og uppstreymis-kallid ber `signal` (timamork)", sawSignal);
+  /* POSITIV FORSENDA fyrir cache-hausinn: leidir sem SVARA eiga hann,
+     svo fullyrdingin ad ofan snyst um VILLUNA en ekki um ad hausinn
+     se hvergi.                                                      */
+  ok(`og heilbrigt svar BER CDN-cache (${good?.headers?.["Netlify-CDN-Cache-Control"]})`,
+     /max-age=60/.test(good?.headers?.["Netlify-CDN-Cache-Control"] || ""));
+
   globalThis.fetch = realFetch;
 }
 

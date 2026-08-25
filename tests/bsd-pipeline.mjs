@@ -246,6 +246,48 @@ ok(/fetchOdds\(\)/.test(fetchSrc), "Odds-API leidin er ohreyfd");
      "og `writeJSON` er SKILYRT — tom keyrsla ma ekki thurrka ut verdlagda skra");
   ok(/priced === 0 && failed > 0 && prevEvents > 0/.test(body),
      "skilyrdid er throngt: adeins ekkert-verdlagt OG villa OG eldri gogn");
+
+  /* ============================================================
+     NAFNA-LYKKJAN SOTTI ALLA I HVERRI KEYRSLU (25.8.2026)
+
+     `acc` er UPPSOFNUD timabils-summa, svo `Object.keys(acc)` vex allt
+     timabilid — ~600 leikmenn um mitt timabil. Lykkjan sotti nafn HVERS
+     theirra i hverri keyrslu sem hafdi nyjan leik, thott nofn breytist
+     ekki. Hausinn a fallinu lofar "~20 kollum a viku"; raunin var ~600
+     PER KEYRSLU. Nofn eru nu borin afram i `_names` og adeins okunn id
+     sott.
+
+     ThETTA ER TENGINGAR-FULLYRDING, EKKI HEGDUNAR — og hun er merkt sem
+     slik. Lykkjan bydur inni i `fetchBsdLive`, sem tharf BSD-lykil, svo
+     hana ma ekki keyra her. Fullyrdingin er hert eins og haegt er:
+     athugasemdir eru STRIPPADAR (thaer vitna i regluna ordrett), og
+     BADIR endar eru krafdir — ad lesa `_names` OG ad skrifa hana. Vaeri
+     adeins annar profadur gaeti helmingurinn dottid ut thegjandi, sem er
+     nakvaemlega `lineups.json`-villan (skrifad en aldrei lesid).
+     ============================================================ */
+  const bi = src.indexOf("async function fetchBsdLive(");
+  const bbody = src.slice(bi, src.indexOf("\n}\n", bi));
+  ok(bi > 0, "FORSENDA: fetchBsdLive finnst (an athugasemda)");
+  ok(/prev\._names/.test(bbody), "les nofn ur fyrri skra (`prev._names`)");
+  ok(/names\.has\(\+id\)\s*\)\s*continue/.test(bbody),
+     "og SLEPPIR theim sem eru thegar thekkt — annars vaeri geymslan gagnslaus");
+  ok(/_names:\s*Object\.fromEntries/.test(bbody),
+     "og SKRIFAR thau aftur — skrifad-en-ekki-lesid og lesid-en-ekki-skrifad eru badar daudar");
+
+  /* ============================================================
+     VEDRID VAR GRAENT ThOTT HVERT KALL BRYSTI (25.8.2026)
+     `record("weather", true, out.length)` var SKILYRDISLAUST og villur
+     voru adeins `console.warn`, sem enginn les. Detti open-meteo ut yrdi
+     stadan afram GRAEN med laekkandi tolu.
+     ============================================================ */
+  const wi = src.indexOf("async function fetchWeather(");
+  const wbody = src.slice(wi, src.indexOf("\n}\n", wi));
+  ok(wi > 0, "FORSENDA: fetchWeather finnst");
+  ok(/wErr\+\+/.test(wbody), "villur eru TALDAR, ekki adeins loggadar");
+  ok(!/record\("weather",\s*true\b/.test(wbody),
+     "og `record` er EKKI hardkodad `true` lengur");
+  ok(/record\("weather",\s*!\(wErr > 0 && withData === 0\)/.test(wbody),
+     "rautt ADEINS thegar ekkert tokst — hluta-bilun fellir ekki heimildina");
 }
 
 /* ============================================================

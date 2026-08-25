@@ -1021,9 +1021,32 @@ export function parseReturn(news, nowTs = Date.now()) {
   /* ÁRIÐ ER EKKI I TEXTANUM. Veljum það ár sem setur dagsetninguna innan
      næstu ~11 mánaða — annars yrði "Expected back 10 Jan" lesið sem
      dagsetning í fortíðinni og maðurinn talinn til leiks strax.          */
-  let y = now.getUTCFullYear();
-  let ts = Date.UTC(y, mon, day);
-  if (ts < nowTs - 30 * 864e5) ts = Date.UTC(y + 1, mon, day);
+  /* ============================================================
+     ARAMOTIN GENGU ADEINS I ADRA ATTINA (25.8.2026)
+
+     Gamla reglan var `if (ts < nowTs - 30d) ts = y + 1` — hun leidretti
+     desember-frett sem er lesin i januar SAMA ars, en EKKI januar-frett
+     sem er lesin i desember. MAELT: "Expected back 25 Dec" lesid 5. jan
+     2027 gaf **25. des 2027** — 354 dogum OF SEINT. Madurinn er tiltækur
+     eftir ellefu daga og telst omogulegur i ellefu manudi.
+
+     Ahrifin eru "ihaldssom" i theim skilningi ad thau ofmeta fjarveru, en
+     thad er EKKI hlutlaust: `availForKickoff` notar `r.ts` til ad AKVEDA
+     hvenaer madurinn kemur inn aftur, svo skekkjan slekkur a honum yfir
+     allan gluggann — sama form af thogulli skekkju og NaN-threpid i
+     `makeFixDifficulty`.
+
+     RETTA REGLAN ER SYMMETRISK: arid er ekki i textanum, svo vid veljum
+     thad ar sem setur dagsetninguna NAEST deginum i dag. Thrju ar eru
+     skodud (i fyrra, i ar, ad ari) og thad naesta valid — engin
+     ihaldssemi i hvoruga att, bara naesta lesning.
+     ============================================================ */
+  const y0 = now.getUTCFullYear();
+  let ts = null;
+  for (const y of [y0 - 1, y0, y0 + 1]) {
+    const cand = Date.UTC(y, mon, day);
+    if (ts == null || Math.abs(cand - nowTs) < Math.abs(ts - nowTs)) ts = cand;
+  }
   return { kind: /Suspended/i.test(m[1]) ? "ban" : "injury", ts };
 }
 /* ============================================================

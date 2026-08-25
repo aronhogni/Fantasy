@@ -477,6 +477,33 @@ ok(parseReturn("Expected back 32 Xyz", NOW) === null, "rusl-manudur -> null, eng
 /* ARID ER EKKI I TEXTANUM — "back 10 Jan" i juli er NAESTA jan, ekki lidid */
 const jan = parseReturn("Expected back 10 Jan", NOW);
 ok(jan && jan.ts > NOW, "'10 Jan' i juli er NAESTI januar, ekki lidinn (annars til leiks strax)");
+/* ============================================================
+   ARAMOTIN GENGU ADEINS I ADRA ATTINA (lagad 25.8.2026)
+
+   Gamla reglan (`ts < nowTs - 30d -> y + 1`) leidretti desember-frett
+   sem er lesin i JANUAR, en ekki januar-frett sem er lesin i DESEMBER.
+   MAELT: "Expected back 25 Dec" lesid 5. jan 2027 gaf 25. des 2027 —
+   **354 dogum of seint**, svo madur sem er tiltækur eftir ellefu daga
+   taldist omogulegur i ellefu manudi.
+
+   BADAR ATTIR ERU FULLYRTAR. Fullyrding um adra eina hefdi stadist
+   gomlu regluna lika — hun var RETT i thá attina.
+   ============================================================ */
+{
+  const jan5 = Date.UTC(2027, 0, 5);
+  const dec = parseReturn("Expected back 25 Dec", jan5);
+  ok(Math.abs(dec.ts - Date.UTC(2026, 11, 25)) < 1,
+    `"25 Dec" lesid 5. jan er SIDASTI desember, ekki naesti `
+    + `(${new Date(dec.ts).toISOString().slice(0, 10)})`);
+  ok(dec.ts < jan5, "og hann telst thvi KOMINN til leiks, ekki fjarverandi i 11 manudi");
+
+  const dec20 = Date.UTC(2026, 11, 20);
+  const jn = parseReturn("Expected back 10 Jan", dec20);
+  ok(Math.abs(jn.ts - Date.UTC(2027, 0, 10)) < 1,
+    `HIN ATTIN OBREYTT: "10 Jan" lesid 20. des er NAESTI januar `
+    + `(${new Date(jn.ts).toISOString().slice(0, 10)})`);
+  ok(jn.ts > dec20, "og hann er thvi enn fjarverandi");
+}
 
 ok(availForKickoff(P_INJ, "2026-08-21T17:30:00Z", NOW) === 0,
   "FYRIR endurkomu: 0 (obreytt)");

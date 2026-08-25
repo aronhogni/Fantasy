@@ -23,9 +23,29 @@ const FPL_BASE  = "https://fantasy.premierleague.com/api";
    og athugasemdin sem var lagfaerd nedar i thessari skra i dag ("hingad
    kemst adeins thekkt fpl-*", sem var ofugt).                          */
 
+/* TIMAMORK — VANTADI ALVEG (25.8.2026). Node/undici hefur ~300 s
+   sjalfgildi, sem er ekki timamork heldur HENGJA, og Netlify drepur
+   fallid a sinu eigin thaki (10 s) an thess ad skila CORS-hausum — svo
+   vafrinn ser CORS-villu i stad "FPL svaradi ekki". Sama fjolskylda af
+   thogulli bilun og var lagfaerd i `scripts/fetch.mjs` (FETCH_TIMEOUT_MS)
+   og i `nfl/src/data.js` i dag. 8 s liggur UNDIR Netlify-thakinu, sem er
+   allur tilgangurinn: vid viljum svara sjalf, ekki vera drepin.        */
+const UPSTREAM_TIMEOUT_MS = 8000;
+
 async function getJSON(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`${r.status} ${url.replace(/apiKey=[^&]+/, "apiKey=***")}`);
+  const safe = url.replace(/apiKey=[^&]+/, "apiKey=***");
+  let r;
+  try {
+    r = await fetch(url, { signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) });
+  } catch (e) {
+    throw Object.assign(
+      new Error(e?.name === "TimeoutError"
+        ? `upstream timed out after ${UPSTREAM_TIMEOUT_MS / 1000}s: ${safe}`
+        : `upstream unreachable: ${safe}`),
+      { upstream: true });
+  }
+  if (!r.ok) throw Object.assign(new Error(`${r.status} ${safe}`),
+                                 { upstream: true, status: r.status });
   return r.json();
 }
 
@@ -43,13 +63,24 @@ export const handler = async (event) => {
 
   try {
     // --- FPL-leiðir (opnar, engin lykill) — proxy framhjá CORS ---
+    /* CDN-CACHE A ALLAR LEIDIR, EKKI ADEINS ThRJAR (25.8.2026).
+       `fpl-league` og `fpl-live` hofdu hana; `bootstrap`, `fixtures`,
+       `entry` og `picks` ekki — svo hver notandi, i hverri teikningu,
+       kostadi sitt eigid kall i gegn. Fallid er OPID OG OAUDKENNT
+       proxy, svo cache-hausinn er lika odyrasta motvaegid sem til er
+       gegn thvi ad thad se misnotad: 60 s thak setur efri mork a hve
+       mikid alag eitt kall getur borid uppstreymis.
+       60 s er sama tala og hinar leidirnar bera — ekki ny akvordun,
+       heldur SAMA akvordun latin gilda alls stadar.                   */
+    const cache60 = { ...cors, "Netlify-CDN-Cache-Control": "public, durable, max-age=60" };
+
     if (path === "fpl-bootstrap") {
       const data = await getJSON(`${FPL_BASE}/bootstrap-static/`);
-      return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
+      return { statusCode: 200, headers: cache60, body: JSON.stringify(data) };
     }
     if (path === "fpl-fixtures") {
       const data = await getJSON(`${FPL_BASE}/fixtures/`);
-      return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
+      return { statusCode: 200, headers: cache60, body: JSON.stringify(data) };
     }
     /* `id` ER STADFEST SEM TALA — annars er slodin opin i uppstreymid.
        `fpl-league` gerdi thetta thegar; hér og i `fpl-picks` vantadi thad,
@@ -63,7 +94,7 @@ export const handler = async (event) => {
                  body: JSON.stringify({ error: "id must be a number" }) };
       }
       const data = await getJSON(`${FPL_BASE}/entry/${id}/`);
-      return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
+      return { statusCode: 200, headers: cache60, body: JSON.stringify(data) };
     }
     /* EINKA-DEILDIR (mini-leagues). Standings-endapunkturinn er opinn en
        CORS-lokadur, eins og allt annad FPL — thess vegna fer hann hedan.
@@ -90,7 +121,7 @@ export const handler = async (event) => {
                  body: JSON.stringify({ error: "id and gw must be numbers" }) };
       }
       const data = await getJSON(`${FPL_BASE}/entry/${id}/event/${gw}/picks/`);
-      return { statusCode: 200, headers: cors, body: JSON.stringify(data) };
+      return { statusCode: 200, headers: cache60, body: JSON.stringify(data) };
     }
 
     /* --- LIFANDI GÖGN — leiðirnar sem appið kallar á í hverri umferð ---
@@ -183,6 +214,31 @@ export const handler = async (event) => {
           + "fpl-league, fpl-picks, fpl-live",
     }) };
   } catch (err) {
-    return { statusCode: 200, headers: cors, body: JSON.stringify({ error: String(err.message||err), games: [] }) };
+    /* ============================================================
+       BILUN SVARADI 200 (25.8.2026)
+
+       Her stod `statusCode: 200` med `{ error, games: [] }`. Klient sem
+       les ekki `error`-svidid — og `App.jsx` gerir thad ekki, hann setur
+       svarid beint i state — tulkar bilun sem GOGN. Tom `games` les tha
+       eins og "engir leikir", sem er MAELING, i stad "vid vitum ekki".
+       Nakvaemlega reglan sem allt thetta repo er byggt a: tomt gildi er
+       ekki null (CLAUDE.md kafli 8).
+
+       502 fyrir uppstreymis-bilun, 500 fyrir okkar eigin. CORS-hausar
+       fylgja BADUM — an theirra ser vafrinn CORS-villu i stad
+       skyringar, sem er villan sem var lagfaerd nokkrum linum ofar.
+       `games: []` er varðveitt i bolnum svo eldri klient sem afbyggir
+       hann hrynji ekki; thad sem breytist er ad stadan segir loksins
+       satt.
+
+       ATH: ENGINN CDN-CACHE a villu. Vaeri hun cachud i 60 s myndi eitt
+       hiksti hja FPL frysta villuna fyrir ALLA notendur i minutu.
+       ============================================================ */
+    const upstream = err?.upstream === true;
+    return {
+      statusCode: upstream ? 502 : 500,
+      headers: { ...cors, "Cache-Control": "no-store" },
+      body: JSON.stringify({ error: String(err.message || err), games: [] }),
+    };
   }
 };

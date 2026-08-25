@@ -2151,12 +2151,39 @@ async function eloFetch(url, tries = 6) {
       const r = await fetch(url, { headers: { "User-Agent": UA },
                                    signal: AbortSignal.timeout(20000) });
       if (r.status === 429 || r.status >= 500) throw new Error(`${r.status} (overload?)`);
+      /* ============================================================
+         VARANLEG 4xx ER EKKI ENDURTEKIN (25.8.2026)
+
+         Bidin nedar er 5/20/45/90/180 s = ~6,5 MIN i versta falli, og hun
+         er RETT fyrir throttlun (sja rokin thar — thad var maelt tvisvar).
+         En hun var lika keyrd fyrir **404 og 403**, sem eru ekki throttlun
+         heldur svar sem breytist ekki: slodin er horfin eda lokud. Sex
+         tilraunir a horfna slod eyda ~6,5 min af dagkeyrslunni i ad fa
+         SAMA svarid sex sinnum — og medan a thvi stendur er allt sem kemur
+         a eftir stoppad.
+
+         `getText` (sameiginlegi hjalparinn) endursendir varanlegar villur
+         STRAX; thetta fall var eftir. Sama spurning, tvo svor — sami
+         aettbogi og allt annad i thessari lotu.
+
+         429 og 5xx eru UNDANSKILIN her ad ofan og halda ollum sinum
+         tilraunum: their ERU timabundnir og thad er throttlunin sem
+         bidin var lengd fyrir.
+         ============================================================ */
+      if (!r.ok && r.status >= 400 && r.status < 500) {
+        log.push(`#${i + 1} ${r.status} permanent - not retried`);
+        console.warn(`ClubElo ${r.status} on ${url} — permanent, not retrying`);
+        throw Object.assign(new Error(`${r.status} ${url} (permanent)`), { permanent: true });
+      }
       if (!r.ok) throw new Error(`${r.status} ${url}`);
       const text = await r.text();
       if (!text || text.length < 20) throw new Error("empty response");
       return text;
     } catch (e) {
       lastErr = e;
+      /* VARANLEG VILLA HAETTIR STRAX — sja rokin ofar. Kastad ut ur
+         lykkjunni svo kallandinn fai sama umslag og adur.            */
+      if (e?.permanent) throw e;
       /* 48 STAFIR, EKKI 34: "The operation was aborted due to timeout" er 40
          stafir og 34 klippti burt ordid TIMEOUT — thad eina sem adgreinir
          throttlun fra ollu odru. Profid fann thad.                      */
@@ -3026,6 +3053,7 @@ async function fetchWeather() {
   const teamsMap = JSON.parse(await readFile(`${DATA}/teams_map.json`, "utf8"));
   const upcoming = fixtures.filter(f => !f.finished && f.kickoff_time);
   const out = [];
+  let wErr = 0;          // talning fyrir `record` nedar — sja rokin thar
   for (const f of upcoming) {
     const home = teamsMap[f.team_h];
     if (!home || home.lat == null) continue;
@@ -3046,10 +3074,27 @@ async function fetchWeather() {
         wind_kmh: w.hourly?.wind_speed_10m?.[i] ?? null,
         gust_kmh: w.hourly?.wind_gusts_10m?.[i] ?? null });
       await new Promise(r => setTimeout(r, 300));
-    } catch (e) { console.warn(`weather fixture ${f.id}: ${e.message}`); }
+    } catch (e) { wErr++; console.warn(`weather fixture ${f.id}: ${e.message}`); }
   }
   await writeJSON("weather.json", { updated: status.updated, fixtures: out });
-  record("weather", true, out.length);
+  /* ============================================================
+     GRAEN ROD ThOTT HVERT KALL BRESTI (25.8.2026)
+
+     `record("weather", true, out.length)` var SKILYRDISLAUST og villur
+     voru adeins `console.warn` — sem enginn les. Detti open-meteo ut
+     yrdi stadan afram graen med laekkandi tolu, og "Data sources" er
+     einmitt stadurinn thar sem thad a ad sjast. Sama aett og
+     `bsd_odds`-notan i dag: thogn og bilun undir sama merki.
+
+     Rautt ADEINS thegar EKKERT tokst sem atti ad takast — hluta-bilun er
+     talin i notunni en fellir ekki heimildina, thvi leikur sem er meira
+     en 16 daga fram i timann fer i `out` med null-um an nokkurs kalls og
+     er RETT hegdun.
+     ============================================================ */
+  const withData = out.filter(r => r.temp_c != null).length;
+  record("weather", !(wErr > 0 && withData === 0), out.length,
+    wErr ? `${withData} of ${out.length} fixtures have a forecast · ${wErr} call(s) failed`
+         : `${withData} of ${out.length} fixtures have a forecast`);
 }
 
 
@@ -4154,7 +4199,7 @@ async function fetchBsdLive() {
   const season = await bsdCurrentSeason();
   if (!season) { record("bsd_live", true, 0, "no season"); return; }
 
-  let prev = { season_id: null, events: [], acc: {}, shots: [], positions: {} };
+  let prev = { season_id: null, events: [], acc: {}, shots: [], positions: {}, _names: {} };
   try {
     const f = JSON.parse(await readFile(`${DATA}/bsd_live.json`, "utf8"));
     if (f.season_id === season) prev = { ...prev, ...f, acc: f._acc || {} };
@@ -4260,10 +4305,35 @@ async function fetchBsdLive() {
   const byShort = Object.fromEntries(tm.map(t => [t.short, t]));
   const byTeamId = {};
   for (const p of pl) (byTeamId[p.team] ||= []).push(p);
+  /* ============================================================
+     NOFNIN ERU GEYMD — LYKKJAN SOTTI ALLA I HVERRI KEYRSLU (25.8.2026)
+
+     `acc` er UPPSOFNUD timabils-summa, svo `Object.keys(acc)` vex allt
+     timabilid: ~600 leikmenn um mitt tímabil. Lykkjan sotti nafn HVERS
+     theirra i hverri keyrslu sem hafdi nyjan leik — thott nofn breytist
+     ekki og thott skrain sjalf beri thau nu thegar. Hausinn a thessu
+     falli lofar "~20 kollum a viku"; raunin var ~600 per keyrslu.
+
+     Nofn eru nu borin afram ur fyrri skra (`_names`) og ADEINS okunn id
+     sott. Sama meginregla og gildir um allt annad her: leikur sem er
+     buinn breytist ekki, svo hann er ekki sottur aftur.
+
+     ThETTA ER EKKI SKYNDIMINNI SEM GETUR SKEMMT: mistakist kall er id-id
+     einfaldlega afram okunnugt og reynt aftur naest (rodin er sleppt i
+     `if (!ft || !m) continue` nedar, sem er obreytt hegdun).
+     ============================================================ */
   const names = new Map();
-  for (const id of Object.keys(acc)) {
-    try { const m = await bsdGet(`/players/${id}/`); names.set(+id, m); } catch { /* nafnlaus */ }
+  for (const [k, v] of Object.entries(prev._names || {})) {
+    if (v && v.name) names.set(+k, v);
   }
+  const carried = names.size;
+  let nameCalls = 0;
+  for (const id of Object.keys(acc)) {
+    if (names.has(+id)) continue;
+    try { const m = await bsdGet(`/players/${id}/`); names.set(+id, m); nameCalls++; }
+    catch { /* nafnlaus — reynt aftur i naestu keyrslu */ }
+  }
+  console.log(`BSD live names: ${carried} carried over, ${nameCalls} fetched`);
   const cands = [];
   for (const [id, o] of Object.entries(acc)) {
     resolveTeam(o);
@@ -4314,6 +4384,11 @@ async function fetchBsdLive() {
     team_matches: [...tmatch.values()].sort((a, b) => a.id - b.id),
     players, positions,
     _acc: Object.fromEntries(Object.entries(acc).map(([k, v]) => [k, { ...v, teams: [...v.teams] }])),
+    /* NOFNIN GEYMD SVO NAESTA KEYRSLA ThURFI EKKI AD SAEKJA ThAU AFTUR —
+       sja lykkjuna ofar. ADEINS thrju svid, thvi thetta er uppflettitafla
+       en ekki afrit af BSD-rodinni.                                     */
+    _names: Object.fromEntries([...names.entries()].sort((a, b) => a[0] - b[0])
+      .map(([k, v]) => [k, { name: v.name, short_name: v.short_name, position: v.position }])),
   });
   /* NOTAN BER ANOMALIURNAR, EKKI BARA TOLUNA. Leikur an skotakorts og skot
      an hnita eru bædi RAUNVERULEG (2025/26 atti 6 leiki thar sem onnur
