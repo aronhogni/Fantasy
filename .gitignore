@@ -12,6 +12,13 @@ dist/
 # sem ER committad. Trunkud skra sem SLAEDDIST med i commit vaeri nakvaemlega
 # bilunin sem atomisku skrifin eru til ad utiloka, bara undir odru nafni.
 *.tmp
+# `_to_delete/` — 160 MB af snapshot-tarbollum og afritum sem notandinn
+# geymir i rotinni. HUN ER OTRACKED OG A AD VERA ThAD: eitt `git add -A`
+# (sem CLAUDE.md bannar einmitt, kafli 2 regla 2) myndi setja
+# `fantasy_snapshot.tar.gz` og felaga BEINT I SOGUNA, thar sem thau
+# haetta aldrei ad vera til. Skrain er EKKI eydd hedan — hun er
+# notandans og hann kaus nafnid; thetta er adeins vord gegn slysni.
+_to_delete/
 .env
 .env.local
 # ALLAR .env-utgafur (11.8.2026). Adur voru ADEINS `.env` og `.env.local`
