@@ -680,15 +680,55 @@ console.log("\n6. sources-flipinn");
 
 /* ---------- 7. ENGIN ISLENSKA I VIDMOTINU ----------
    Vidmotid er enskt og bara enskt, eins og i FPL-appinu (kafli 9).
-   Athugasemdir i koda mega vera islenskar — thaer rata ekki i DOM. */
+   Athugasemdir i koda mega vera islenskar — thaer rata ekki i DOM.
+
+   ============================================================
+   `title=` ER VIDMOT LIKA — GATID SEM ThESSI KAFLI HAFDI (25.8.2026)
+   ============================================================
+   Fullyrdingarnar tvaer (stafir og ASCII-ordalisti) voru rettar en
+   thaer lasu ADEINS `textContent`. Notur dalkanna i `columns.js` rata
+   HVERGI ANNARS STADAR en i `title=` — `PlayerTable` setur
+   `title={c.note}` a hvern toflu-haus og a hvern hnapp i
+   dalkavalaranum — svo **42 islenskir strengir voru synilegir
+   notandanum** medan thessi kafli var graenn. Fullyrding sem les ekki
+   thann stad thar sem strengurinn birtist maelir hann ekki; sama aett
+   og "neikvaed fullyrding verdur ad nefna streng sem var sannanlega
+   tharna" (CLAUDE.md 5b).
+
+   DALKAVALARINN ER OPNADUR VILJANDI. Sjalfgefid eru adeins 15 dalkar
+   valdir, svo 15 af 39 notum eru i DOM-inu og thekjan vaeri 38% — og
+   thaer 24 sem ut af standa vaeru nakvaemlega thaer sem enginn sér
+   fyrr en hann opnar valarann. ThEKJAN ER FULLYRDING, EKKI LOGGA
+   (CLAUDE.md 5b regla 1): talan fellir kaflann ef hun hrynur.        */
 console.log("\n7. vidmotid er enskt");
 {
   await clickTab("Draft");
+  /* Hvert `title=` i DOM-inu, hvar sem thad situr. */
+  const titles = () => [...document.querySelectorAll("[title]")]
+    .map((el) => el.getAttribute("title") || "").join("  ");
+  const openPicker = async () => {
+    const b = [...document.querySelectorAll("button.act")]
+      .find((x) => /^Columns \(/.test((x.textContent || "").trim()));
+    if (!b) return false;
+    await act(async () => {
+      b.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    });
+    await settle(300);
+    return true;
+  };
   let all = "";
+  let colNotes = 0;
   for (const tab of ["Draft", "Players", "Experts", "Schedule", "Sources"]) {
     await clickTab(tab);
-    all += " " + text();
+    if (tab === "Players") {
+      ok(await openPicker(), "dalkavalarinn opnast svo ALLAR dalka-noturnar seu i DOM");
+      colNotes = [...document.querySelectorAll("button.chip[title]")]
+        .filter((b) => (b.getAttribute("title") || "").length >= 12).length;
+    }
+    all += " " + text() + "  " + titles();
   }
+  ok(colNotes >= 39,
+    `ThEKJA: ${colNotes} dalka-notur lesnar ur title= (>= 39 — ein per dalk)`);
   const icelandic = all.match(/[þðæöáéíóúýÞÐÆÖÁÉÍÓÚÝ]/g) || [];
   ok(icelandic.length === 0,
     `engir islenskir stafir i DOM (fann ${icelandic.length}: ${[...new Set(icelandic)].join("")})`);

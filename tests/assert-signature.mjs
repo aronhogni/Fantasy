@@ -51,8 +51,21 @@ function stripCommentsAndTemplates(src) {
   let out = "", i = 0, n = src.length;
   while (i < n) {
     const c = src[i], d = src[i + 1];
+    /* LINUSKIL ERU VARDVEITT ThEGAR BLOKK-ATHUGASEMD ER FELLD
+       (lagad 25.8.2026). Adur skiladi 20-lina blokk EINU bili, en
+       `at` — offset i ThESSUM strippada texta — er sidar lesid a HRAA
+       textanum (`raw.slice(0, at)`) til ad reikna linuna. Uppgefid
+       `file:line` var thvi of LAGT sem nam ollum felldum linum a undan:
+       rangt i hverri skra sem ber athugasemdir, thad er hverri skra i
+       thessu repo-i. Greiningin sjalf var alltaf rett; TILVISUNIN laug,
+       og vordur sem bendir a ranga linu sendir lesandann a rangan stad.
+       ATH: strengir eru maskadir med `\x01` sem HELDUR LENGD, svo their
+       skekkja ekkert — thad var aldrei villa thott thad liti thannig ut
+       i lesanda sem synir ekki styritakn. */
     if (c === "/" && d === "*") { const e = src.indexOf("*/", i + 2);
-      i = e < 0 ? n : e + 2; out += " "; continue; }
+      const body = src.slice(i, e < 0 ? n : e + 2);
+      i = e < 0 ? n : e + 2;
+      out += " " + "\n".repeat((body.match(/\n/g) || []).length); continue; }
     if (c === "/" && d === "/") { const e = src.indexOf("\n", i);
       i = e < 0 ? n : e; out += " "; continue; }
     if (c === '"' || c === "'" || c === "`") {
@@ -140,7 +153,14 @@ for (const rel of files) {
     scanned++;
     const condArg = family === "cond" ? args[0] : args[1];
     if (isStringLiteral(condArg)) {
-      const line = raw.slice(0, at).split("\n").length;
+      /* TALID I STRIPPADA TEXTANUM, EKKI ThEIM HRAA — `at` ER offset i
+         `s`. Ad lesa `raw.slice(0, at)` bar saman epli og appelsinur og
+         gaf LINU 1 fyrir kall a linu 12 i probe-inu her ad nedan.
+         Ad vardveita linuskilin i strippuninni (her ad ofan) DUGAR EKKI
+         EITT: stafa-offsetin eru afram olik, thvi athugasemd sem er 400
+         stafir verdur ad 11. Badar breytingarnar tharf — linuskil
+         vardveitt OG talid i sama texta og offsetid a heima i. */
+      const line = s.slice(0, at).split("\n").length;
       offenders.push(`${rel}:${line} — ${family}-first skra en skilyrdid er STRENGUR`);
     }
   }

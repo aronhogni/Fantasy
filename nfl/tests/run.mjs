@@ -51,7 +51,32 @@ for (const [f, loader] of SUITES) {
   const args = loader
     ? ["--import", `data:text/javascript,import{register}from"node:module";register("${here}jsx-loader.mjs","file://${here}")`, here + f]
     : [here + f];
-  const r = spawnSync("node", args, { stdio: ["ignore", "inherit", "pipe"] });
+  /* ============================================================
+     TIMAMORK — FPL-KEYRARINN FEKK ThAU 25.8., ThESSI EKKI (lagad samdaegurs)
+
+     `spawnSync` an `timeout` bidur AD EILIFU. Eitt safn sem hengir —
+     opinn `setInterval`, loford sem leysist aldrei, netkall an
+     timamarka — frystir ALLA keyrsluna, og i CI thydir thad job sem
+     gengur thar til hamarkid rennur ut an thess ad segja HVAR thad
+     stoppadi. Naer-eilif bid er ekki bilun sem sest, hun er bilun sem
+     ThEGIR.
+
+     Og HENGJA VERDUR AD VERA ADGREIND FRA FOLLNU SAFNI: barn sem fellur
+     a fullyrdingu PRENTAR hana, barn sem er DREPID prentar ekkert. Vaeri
+     thad ekki adgreint framleiddi thakid draug undir alagi — nakvaemlega
+     thad sem `clock-states` gerdi FPL-megin (falskt rautt med tomum
+     sviga). 15 minutur eru rifleg: haegasta NFL-safnid er langt undir. */
+  const SUITE_TIMEOUT_MS = 15 * 60 * 1000;
+  const t0 = Date.now();
+  const r = spawnSync("node", args,
+    { stdio: ["ignore", "inherit", "pipe"], timeout: SUITE_TIMEOUT_MS });
+  const timedOut = r.error?.code === "ETIMEDOUT"
+    || (r.status === null && r.signal === "SIGTERM");
+  if (timedOut) {
+    console.log(`\n  --- TIMAMORK (${f}) ---\n  Safnid svaradi ekki innan `
+      + `${SUITE_TIMEOUT_MS / 60000} minutna og var DREPID. Thetta er HENGJA, `
+      + `ekki fallin fullyrding. (Keyrdi i ${((Date.now() - t0) / 1000) | 0}s.)`);
+  }
   /* STDERR ER TEKID UPP TIL AD ÞAGGA NIDUR DEPRECATION-SUDID FRA
      `module.register()` — en thad var THAGGAD OG SVO FLEYGT. Safn sem
      HRYNUR skrifar stakkinn a stderr, svo keyrslan sagdi "safn fell" og

@@ -78,11 +78,19 @@ export function csvRows(text) {
 /**
  * Fyrsta rodin er haus; skilar hlutum.
  * `minFields` er SIAN og hun er BREYTA af asettu radi — sja hausinn.
+ *
+ * HUN VAR `> minFields` (UTILOKANDI) TIL 25.8.2026 og er nu `>=`.
+ * Hegdunin er OBREYTT — hver kallandi var faerdur upp um einn i somu
+ * breytingu (3 -> 4, 1 -> 2, sjalfgildid 1 -> 2) — en NAFNID laug adur:
+ * `minFields: 3` helt rodum med FJORUM sviðum. Naesti kallandi sem les
+ * nafnid og velur tolu hefdi verid einum framhja, og su villa hefdi verid
+ * thogul (of far raðir, engin skilaboð). Nafn sem segir "minnst N" a ad
+ * thyda minnst N.
  */
-export function rowsToObjects(text, { minFields = 1 } = {}) {
+export function rowsToObjects(text, { minFields = 2 } = {}) {
   const rows = csvRows(text);
   const head = rows[0] || [];
   return rows.slice(1)
-    .filter(r => r.length > minFields)
+    .filter(r => r.length >= minFields)
     .map(r => Object.fromEntries(head.map((h, i) => [h, r[i]])));
 }

@@ -17,7 +17,36 @@ import { spawnSync } from "node:child_process";
 const here = new URL(".", import.meta.url).pathname;
 let failed = 0;
 const SUITES = [["assert-signature.mjs"], ["model.test.mjs"], ["stats.test.mjs"], ["ffdr-backtest.mjs"], ["ffdr-walkforward.mjs"], ["ffdr-player-points.mjs"], ["ffdr-old-vs-new.mjs"], ["cs-model.mjs"], ["cs-logistic.mjs"], ["form-blend.mjs"], ["ffdr-cs-versions.mjs"], ["defcon-mid.mjs"], ["defcon-shrink.mjs"], ["preseason.mjs"], ["exp-points.mjs"], ["xp-contaminated.mjs"], ["rank-model.mjs"], ["advisor.mjs"], ["recommend.mjs", true], ["captain.mjs"], ["best-team.mjs"], ["pros.mjs"], ["pros-render.mjs", true], ["mins-trend.mjs"], ["rotation.mjs"], ["workflow-push.mjs"], ["lineups.mjs"], ["elo-fetch.mjs"], ["wiring.mjs"], ["wiring-static.mjs"], ["euro-participation.mjs"], ["team-gw.mjs", true], ["gw1-checklist.mjs"], ["clock-states.mjs"], ["consistency.mjs"], ["team-stats.mjs"], ["travel-measure.mjs"], ["pos-vs-opponent.mjs"], ["mo-candidates.mjs"], ["player-gw-range.mjs"], ["bsd.mjs"], ["bsd-pipeline.mjs"], ["fetch-entry.mjs"], ["archive-gw-report.mjs"], ["fdcouk-e0.mjs"], ["shotmap.mjs", true], ["set-pieces.mjs", true], ["name-match.mjs"], ["name-norm.mjs"], ["data-resilience.mjs", true], ["player-cards.mjs", true], ["ffdr-table.mjs", true], ["playerlist-sort.mjs", true], ["playerlist-gw-filter.mjs", true], ["playerlist-narrow.mjs", true], ["playerlist-heat.mjs", true], ["buy-windows.mjs", true], ["goal-assist.mjs"], ["goal-assist-dom.mjs", true], ["gw-report-tiles.mjs", true], ["imminent-board.mjs", true], ["leaderboard-values.mjs", true], ["untrusted-input.mjs", true], ["gw1-persistence.mjs", true], ["extreme-values.mjs", true], ["prediction-ledger.mjs", true], ["calibration.mjs"], ["monkey.mjs", true], ["react-warnings.mjs", true], ["watchlist.mjs", true], ["dc-hit-display.mjs", true], ["player-card-panel.mjs", true], ["playerlist-live-cols.mjs", true], ["leagues.mjs", true], ["compare-visual.mjs", true], ["no-icelandic.mjs", true], ["error-boundary.mjs", true], ["planner-idle.mjs", true], ["planner-pitch.mjs", true], ["initial-squad.mjs", true], ["smoke.test.mjs", true]];
-for (const [f, loader] of SUITES) {
+/* ============================================================
+   `--only <sia>` OG TIMI PER SAFN (25.8.2026)
+
+   79+ sofn i rod taka ~19 minutur. Ad finna haega safnid thydi ad lesa
+   scrollback, og ad keyra EITT safn thydi ad skrifa `--import`-toframulu
+   jsx-hledarans upp ur minni i hvert sinn. Hvort tveggja er nuningur sem
+   dregur ur thvi ad profin seu keyrd — og prof sem eru ekki keyrd verja
+   ekkert.
+
+   `--only` TEKUR HLUTSTRENG, ekki nakvaemt heiti: `--only playerlist`
+   keyrir oll fimm playerlist-sofnin. Sian er SOGD a skjanum og fjoldinn
+   lika, thvi listi sem er skorinn an ord les eins og "thetta eru allir"
+   (sama regla og `SEARCH_SHOW` og `HARD_RUN_SHOW` i appinu).
+
+   OG HUN MA ALDREI GEFA GRAENA HEILDARNIDURSTODU: sia sem hittir ekkert
+   er notandavilla, ekki graen keyrsla, svo hun fellur med utgangsstodu 1.
+   Annars gaeti `--only tpyo` synst vera "allt i lagi".            */
+const ONLY = (() => { const i = process.argv.indexOf("--only");
+                      return i > 0 ? process.argv[i + 1] : null; })();
+const RUN = ONLY ? SUITES.filter(([f]) => f.includes(ONLY)) : SUITES;
+if (ONLY) {
+  console.log(`--only "${ONLY}" -> ${RUN.length} af ${SUITES.length} sofnum`
+    + (RUN.length ? `: ${RUN.map(([f]) => f).join(", ")}` : ""));
+  if (!RUN.length) {
+    console.log(`ENGIN SOFN PASSA VID "${ONLY}" — sia sem hittir ekkert er villa, ekki graen keyrsla.`);
+    process.exit(1);
+  }
+}
+const times = [];
+for (const [f, loader] of RUN) {
   console.log(`\n${"=".repeat(56)}\n  ${f}\n${"=".repeat(56)}`);
   const args = loader ? ["--import", `data:text/javascript,import{register}from"node:module";register("${here}jsx-loader.mjs","file://${here}")`, here + f] : [here + f];
   /* ============================================================
@@ -62,10 +91,22 @@ for (const [f, loader] of SUITES) {
     const errText = String(r.stderr || "").trim();
     if (errText) console.log(`\n  --- stderr (${f}) ---\n${errText.split("\n").slice(0, 12).join("\n")}`);
   }
+  /* TIMINN VAR ThEGAR MAELDUR OG SVO HENT — `t0` var adeins lesin inni i
+     timamarka-greininni. Ad prenta hann kostar ekkert nytt og svarar
+     spurningunni "hvada safn er haegt?" an thess ad lesa scrollback. */
+  times.push([f, Date.now() - t0]);
 }
 console.log(`\n${"=".repeat(56)}`);
 /* Fjoldinn er REIKNADUR — hardkodud tala ("fimmtan") var ord
    sem staðnadi um leid og safni var bætt vid.                      */
-console.log(failed ? `HEILD: ${failed} af ${SUITES.length} prófasöfnum féll`
-                   : `HEILD: öll ${SUITES.length} prófasöfnin græn`);
+/* HAEGUSTU SOFNIN — adeins thegar ALLT var keyrt, thvi rodun a fimm
+   sofnum af 81 segir ekkert um hvar timinn liggur. */
+if (!ONLY && times.length > 5) {
+  const tot = times.reduce((a, [, ms]) => a + ms, 0);
+  const top = [...times].sort((a, z) => z[1] - a[1]).slice(0, 5);
+  console.log(`TIMI: ${(tot / 60000).toFixed(1)} min alls · haegust: `
+    + top.map(([f, ms]) => `${f} ${(ms / 1000) | 0}s`).join(" · "));
+}
+console.log(failed ? `HEILD: ${failed} af ${RUN.length} prófasöfnum féll`
+                   : `HEILD: öll ${RUN.length} prófasöfnin græn`);
 process.exit(failed ? 1 : 0);

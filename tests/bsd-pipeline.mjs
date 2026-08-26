@@ -187,9 +187,14 @@ ok(/fetchOdds\(\)/.test(fetchSrc), "Odds-API leidin er ohreyfd");
   ok(empty !== far, "tom rod og full rod gefa SITTHVORA notu");
   ok(!/empty result/i.test(far),
      "full rod segir ALDREI 'empty result' — thad var einmitt villan");
-  /* Vantandi timi ma ekki verda "NaNh" a skjanum. */
-  ok(/nearest in \?h/.test(bsdLineupNote({ seen: 3, nearestMs: null, season: 1 })),
-     "oleysanleg dagsetning gefur '?h', ekki NaN");
+  /* Vantandi timi ma ekki verda "NaNh" a skjanum. PROFAD SEM HEGDUN,
+     EKKI ORDALAG (hert 25.8.2026): fullyrdingin negldi setninguna
+     "nearest in ?h" og fell thegar notan var ordud upp a nytt — thott
+     hegdunin sem hun ver (spurningarmerki i stad NaN) vaeri obreytt.
+     Nu er spurt ad thvi sem skiptir mali: `?h` birtist OG `NaN` hvergi. */
+  const unk = bsdLineupNote({ seen: 3, nearestMs: null, season: 1 });
+  ok(/\?h/.test(unk) && !/\bNaN\b/.test(unk),
+     `oleysanleg dagsetning gefur '?h', ekki NaN (${unk.slice(0, 60)}…)`);
 
   const oEmpty = bsdOddsNote({ seen: 0, priced: 0, season: 77 });
   const oNone  = bsdOddsNote({ seen: 20, priced: 0, season: 77 });

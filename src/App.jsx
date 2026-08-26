@@ -23,6 +23,7 @@ import ShotMap from "./ShotMap.jsx";
    sem tala (fost tala um maeldan kvarda urelidist thegjandi).           */
 import { BIG_CHANCE_XG } from "./bsd.js";
 import { goalAssistsByFixture, assistPhrase } from "./goalassist.js";
+import { rankCaptains, CAPTAIN_MEASURED } from "./captain.js";
 import PositionMap from "./PositionMap.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import BestOfBest from "./BestOfBest.jsx";
@@ -31,7 +32,7 @@ import BestOfBest from "./BestOfBest.jsx";
    thurfa thau lesa thau innan `appStyles.js`.                        */
 import { C, S } from "./appStyles.js";
 import { saveState, loadState } from "./storage.js";
-import { availOf, banRisk, setPieceOf, rotationRisk,
+import { availOf, banRisk, setPieceOf, rotationRisk, fixturePlayed,
          matchesPlayedByClub, seasonHasStarted, startedGameweeks } from "./availability.js";
 /* `Kit`, `crestUrl` og `CREST_FALLBACK` VORU DAUD HER (25.8.2026).
    MAELT: 0 tilvik utan innflutningsins — eina "notkunin" var inni i
@@ -93,6 +94,8 @@ const EXPLAIN_LABEL = {
    vaentum stigum les thessa tolu (sbr. MIN_WINDOW/MAX_WINDOWS i
    buywindow.js og verdthakid i rotation.js).                          */
 const HARD_RUN_SHOW = 3;
+/* Sama regla og `HARD_RUN_SHOW`: thakid er UI-afmorkun OG thad er SAGT. */
+const SEARCH_SHOW = 120;
 
 const POS_COLOR = { 1:"#8b5cf6", 2:"#2563eb", 3:"#00b96b", 4:"#d92d3c" };
 
@@ -2268,6 +2271,48 @@ export default function App() {
     return im?.start_feats ? startProbability(im.start_feats) : null;
   }, [immIdx, teamById]);
 
+  /* ============================================================
+     FYRIRLIDA-RADGJOFIN — TENGD 25.8.2026
+
+     `src/captain.js` var FULLBYGGD, PROFUD (`tests/captain.mjs` er i
+     `SUITES`) og MAELD — og hafdi **NULL innflytjendur i `src/`**.
+     Modulid var skrifad, appid las thad ekki: nakvaemlega flokkurinn
+     sem CLAUDE.md kallar sjalft thann versta (daudi markadslidurinn,
+     `<Teams>` an `bsdLive`, `usageblend` i nfl/).
+
+     ThRJAR REGLUR SEM MA EKKI BROTA I KYNNINGU — allar ur haus
+     `captain.js`, og `tests/captain.mjs` ver thaer:
+
+     1. **ThETTA SLAER EKKI `rankScore`.** vsRankScore er
+        **+0,351 CI [-0,420, +1,122] — INNIHELDUR NULL**. Forskotid sem
+        ER maelt er gegn NAIVA vidmidinu ("bandid a dyrasta manninn"):
+        +1,046 CI [+0,178, +1,902]. Textinn a skjanum segir thad og
+        ekkert meira.
+     2. **DREIFINGIN VERDUR AD FYLGJA TOLUNNI.** sd 5,49 a moti medaltali
+        6,97; 28,2% valanna skila <=2 stigum. Haus modulsins segir
+        berum ordum: "verkfaeri sem birtir 'best captain' an thessara
+        talna er ad ljuga um vissu."
+     3. **ENGIN SJALFVIRK FAERSLA.** Bandid er akvordun notandans; thetta
+        er TILLAGA sem hann smellir a. Sama regla og V8 (fyrirlidinn ma
+        ekki faerast sjalfkrafa — thad felur villuna i stad thess ad
+        syna hana).
+
+     `startPOf` er sent HRATT: thad skilar `null` thegar gogn vantar og
+     `captainScore` breytir null i HLUTLAUST 1 — ekki 0. Naift
+     `expPts x sp` an thess golfs bekkjar 81,6% theirra sem eiga enga
+     byrjunar-tolu og kostar -3,86 stig/umferd (CLAUDE.md kafli 4).
+
+     URTAKID ER ANNAD OG ThAD ER SAGT: +1,046 var maelt a ~733 manna
+     laug per umferd, ekki a ellefu monnum. Rodunin helt a badum maeldu
+     laugunum, en talan a skjanum er um ADFERDINA, ekki um thessa 11. */
+  const capRanked = useMemo(() => rankCaptains(
+    starters.map(s => {
+      const p = byId[s.id];
+      return { id: s.id, name: p?.web_name, expPoints: expPoints(s.id, gw),
+               startProb: startPOf(p) };
+    }), { limit: 3 }),
+    [starters, byId, gw, startPOf, expPoints]);
+
   const signalsOf = useCallback(p => {
     if (!p) return null;
     const im = matchImminent(p, immIdx, teamById?.[p.team]?.short);
@@ -2296,6 +2341,7 @@ export default function App() {
   }, [immIdx, teamById, netByPlayer, ffdrAhead]);
 
   const searchResults = useMemo(() => {
+    const ranked = (() => {
     if (!players) return [];
     const q = searchQ.toLowerCase().trim()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -2321,7 +2367,16 @@ export default function App() {
       }
       return parseFloat(b.ep_next || 0) - parseFloat(a.ep_next || 0)
           || (b.total_points || 0) - (a.total_points || 0);
-    }).slice(0, 120);
+    });
+    })();
+    /* ThAKID ER SAGT A SKJANUM, EKKI ThAGAD (lagad 25.8.2026).
+       Hér stod bert `.slice(0, 120)`. Reglan er skrifud i thessari SOMU
+       skra (vid `HARD_RUN_SHOW`): "listi sem er skorinn an ord les eins
+       og 'thetta eru allir'" — og hun var virt allsstadar NEMA hér.
+       Thad er ekki taeknilegt smaatridi: i solu-ham med tomri leit er
+       laugin ~150 menn per stodu, svo listinn ER skorinn i hvert sinn
+       sem notandinn opnar hann og hann hefur enga leid ad vita thad. */
+    return { rows: ranked.slice(0, SEARCH_SHOW), total: ranked.length };
   }, [players, searchQ, selling, squadIds, byId, teamById, ffdrAhead]);
 
   /* ---------- Tillogu-kerfid ----------
@@ -2502,7 +2557,29 @@ export default function App() {
     const y = gw1Deadline ? new Date(gw1Deadline).getFullYear() : null;
     return y ? `${y - 1}/${String(y).slice(-2)}` : "last season";
   })();
-  const cumLabel = seasonStarted ? `GW1–${seasonGames}` : prevSeasonLabel;
+  /* ============================================================
+     "GW1–0" VAR A SKJANUM — MERKIMIDINN TALDI STADFESTAR UMFERDIR
+     ============================================================
+     Hér stod `GW1–${seasonGames}` og `seasonGames` telur
+     `events.finished`, sem er **0 i dag** thott ALLIR TIU GW1-leikirnir
+     beri `finished: true`. Merkid las thvi bokstaflega "GW1–0" a
+     thremur tooltip-um (byrjunar-hlutfallid, elo-linan og
+     roterings-ahaettan a hverju spjaldi).
+
+     Verra en ljott: thad er RANGUR merkimidi a REttum tolum. FPL
+     nullstillir arstidar-tolurnar VID FRESTINN (maelt, `availability.js`
+     kafli um `startedGameweeks`), svo tolurnar i `players.json` eiga
+     vid GW1 — thad er talningin sem var rong, ekki tolurnar.
+
+     Efri morkin eru nu UMFERDIR SEM ERU RAUNVERULEGA SPILADAR, lesnar
+     ur leikjaskranni sem appid hefur thegar (`playedByClub`). Hæsta
+     tala nokkurs félags er retta svarid thvi hun tekur bædi tvofalda
+     umferd og auda: lid sem atti fri i GW1 dregur ekki merkid nidur.
+     `startedGameweeks` vaeri RANGT hér — thad telur umferd sem er I
+     GANGI med, og uppsofnudu tolurnar innihalda hana ekki fyrr en
+     leikurinn er buinn.                                             */
+  const cumPlayed = Math.max(0, ...Object.values(playedByClub || {}));
+  const cumLabel = seasonStarted ? `GW1–${cumPlayed}` : prevSeasonLabel;
   /* HEITI YFIRSTANDANDI TIMABILS — annad en cumLabel!
      cumLabel merkir "hvada timabil eiga tolurnar i players.json vid" og er
      thvi fyrra timabilid fyrir GW1. Timabila-taflan tharf hins vegar RETTA
@@ -2685,6 +2762,27 @@ export default function App() {
     Object.values(transferCost).reduce((a, x) => a + x.points, 0), [transferCost]);
 
   const ev = events?.find(e => e.id === gw);
+  /* ============================================================
+     ER UMFERDIN SPILUD? — LEIDD AF LEIKJUNUM, EKKI AF `ev.finished`
+
+     Notandinn sa thetta a forsidunni: **"Gameweek 1 — not started"**
+     medan Gameweek-flipinn vid hlidina bar fulla GW1-skyrslu (29 mork).
+     Orsokin er sú sem CLAUDE.md kafli 1 skjalar: `finished` flettist
+     ekki fyrr en bonus er stadfestur, ~3 dogum eftir umferdina.
+
+     `finished_provisional` er svid a LEIK en EKKI a UMFERD (maelt:
+     allar 38 radir i `events.json` bera `undefined`), svo hér ma ekki
+     einfaldlega bæta thvi vid — spurningin verdur ad fara nidur i
+     leikjaskrana. `fixturePlayed` ber regluna.
+
+     `is_current` DUGAR EKKI OG MA EKKI NOTA: umferd i GANGI er
+     `is_current` en er ekki spilud, og "finished" a henni vaeri jafn
+     rangt og "not started" er i dag — bara i hina attina.            */
+  const evPlayed = useMemo(() => {
+    if (ev?.finished) return true;
+    const own = (fixtures || []).filter(f => f.event === gw);
+    return own.length > 0 && own.every(fixturePlayed);
+  }, [ev, fixtures, gw]);
 
   /* ---------- Hleðsla / villa ---------- */
   if (dataState === "loading") return (
@@ -2996,7 +3094,7 @@ export default function App() {
         </div>
         <div style={S.deadline}>
           <b>GW{gw}</b> {"· deadline"} {fmtDeadline(ev?.deadline_time)}
-          {ev?.finished ? " · finished" : ""}
+          {evPlayed ? " · finished" : ""}
           {/* ENDURSTILLA UMFERÐ — birtist aðeins ef eitthvað er plönuð */}
           {(() => {
             const pl = gwPlanned(gw);
@@ -3063,7 +3161,7 @@ export default function App() {
         <Stat icon="📅" label={interp("Gameweek {0}", [gw])} value={gwPts == null ? "—" : gwPts}
           sub={apiHit ? interp("{0} hit taken", [-apiHit])
             : transferCost[gw]?.hits > 0 ? interp("planned hit {0}", [transferCost[gw].points])
-            : ev?.finished ? "finished" : "not started"}
+            : evPlayed ? "finished" : "not started"}
           tone={(apiHit || transferCost[gw]?.hits) ? "bad" : "ok"} />
       </div>
       {/* Leikir umferðarinnar eru NÚ AÐEINS við hliðina á vellinum
@@ -3087,6 +3185,26 @@ export default function App() {
                 {starters.filter(s => s.id !== captain).map(s => <option key={s.id} value={s.id}>{byId[s.id]?.web_name}</option>)}
               </select>
             </div>
+            {/* TILLAGAN — SMELLANLEG, ALDREI SJALFVIRK. Rokstudningurinn
+                og reglurnar thrjar eru vid `capRanked` her ad ofan. */}
+            {capRanked.length > 0 && capRanked[0].id !== captain && (
+              <button style={S.capSuggest}
+                onClick={() => { const v = capRanked[0].id;
+                                 if (v === vice) setVice(null); setCaptain(v);
+                                 flash(interp("{0} is captain", [capRanked[0].name])); }}
+                title={interp(
+                  "Suggested captain: expected points x start probability. Measured over {0} gameweeks and 5 seasons, this beats captaining your most expensive player by {1} points a gameweek (95% CI {2} to {3}) — but it is INDISTINGUISHABLE from the ranking score the buy list already uses (+{4}, CI {5} to {6}, which includes zero), so it is a second opinion rather than a better one. And it is noisy: the average pick returns {7} points with a spread of {8}, hauls 10+ about {9}% of the time and blanks at 2 or fewer about {10}% of the time. Measured on the whole league, not on eleven men. Click to set the armband — nothing moves on its own.",
+                  [CAPTAIN_MEASURED.gameweeks, CAPTAIN_MEASURED.vsNaive.delta,
+                   CAPTAIN_MEASURED.vsNaive.lo, CAPTAIN_MEASURED.vsNaive.hi,
+                   CAPTAIN_MEASURED.vsRankScore.delta, CAPTAIN_MEASURED.vsRankScore.lo,
+                   CAPTAIN_MEASURED.vsRankScore.hi, CAPTAIN_MEASURED.meanPoints,
+                   CAPTAIN_MEASURED.sd, Math.round(CAPTAIN_MEASURED.haulRate * 100),
+                   Math.round(CAPTAIN_MEASURED.blankRate * 100)])}>
+                {"\u2605 "}{capRanked[0].name}
+                {capRanked[0].startProbKnown === false && <span style={S.capUnsure} title={"No start-probability data for him — treated as neutral, not as certain."}>{"?"}</span>}
+                <span style={S.capSpread}>{"\u00b1"}{CAPTAIN_MEASURED.sd}</span>
+              </button>
+            )}
             {/* ============================================================
                 "PICK BEST XI" — SJA `pickBestXi` FYRIR ROKSTUDNINGINN
                 ============================================================
@@ -4896,7 +5014,7 @@ export default function App() {
               <button style={S.close} onClick={() => { setSelling(null); setSearchQ(""); }}>✕</button>
             </div>
             <div style={S.searchList}>
-              {searchResults.map(p => {
+              {searchResults.rows.map(p => {
                 const t = teamById[p.team];
                 const fx = (fixByTeamGw[p.team]?.[gw] || [])[0];
                 const diff = (sellOf(selling) - p.now_cost) / 10;
@@ -5007,7 +5125,10 @@ export default function App() {
                   </button>
                 );
               })}
-              {!searchResults.length && <div style={S.muted}>{"No player found."}</div>}
+              {!searchResults.rows.length && <div style={S.muted}>{"No player found."}</div>}
+              {searchResults.total > searchResults.rows.length &&
+                <div style={S.muted}>{interp("Showing the first {0} of {1} — narrow the search to see the rest.",
+                  [searchResults.rows.length, searchResults.total])}</div>}
             </div>
           </div>
         </div>

@@ -1126,7 +1126,18 @@ export function availFromStatus(p) {
    Fyrir dagsetninguna (eða ef hún vantar) gildir FPL-talan óbreytt.     */
 export function availForKickoff(p, kickoff, nowTs = Date.now()) {
   const cur = availFromStatus(p);
-  if (p?.status === "a" || cur >= 1) return 1;
+  /* `p?.status === "a" ||` STOD HER OG BRAUT REGLU `availFromStatus`
+     (lagad 25.8.2026). Fallid reiknar `cur` — sem gefur RAUNTOLUNNI
+     forgang yfir stodu — og henti henni svo um leid og stadan var "a".
+     Utkoman var TVAER TILTAEKILEIKA-TOLUR fyrir sama mann: `recommend.js`
+     las 0,75 gegnum `availFromStatus` medan `expPointsFor` las 1,0
+     gegnum thetta fall. `cur >= 1` einn ber sama verk og virdir tolulna.
+     DORMANT I DAG OG ThAD ER MAELT: 0 af 610 i `players.json` og 0 af
+     18.510 rodum i `data/history/` bera "a" MED tolu undir 100. Thad
+     bitur thann dag sem FPL skilur mann eftir a "a" og lækkar
+     prósentuna — "fréttin lendir a undan tolunni", sem haus
+     `availFromStatus` skjalar sjalfur. */
+  if (cur >= 1) return 1;
   const r = parseReturn(p?.news, nowTs);
   if (!r || !kickoff) return cur;
   const k = Date.parse(kickoff);

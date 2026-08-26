@@ -65,6 +65,7 @@
    ============================================================ */
 
 import { BIG_CHANCE_XG } from "./bsd.js";
+import { fixturePlayed } from "./availability.js";
 
 /* ============================================================
    STRONG `num` — TEKUR EKKI VID TOLU-STRENGJUM, OG ThAD ER ASETT
@@ -224,8 +225,7 @@ export function buildLiveTeamForm({ fixtures, teams, season = null } = {}) {
   let played = 0;
   for (const f of fx) {
     const h = num(f?.team_h_score), a = num(f?.team_a_score);
-    const done = f?.finished === true || f?.finished_provisional === true;
-    if (!done || h == null || a == null) continue;
+    if (!fixturePlayed(f) || h == null || a == null) continue;
     const H = acc.get(f.team_h), A = acc.get(f.team_a);
     if (!H || !A) continue;                       // lid utan deildar
     played++;
@@ -904,7 +904,7 @@ export function aggFixtureRange(fixtures, range = null) {
        `buildLiveTeamForm` i sama skjali (sja ofar) hefur ALLTAF notad
        retta skilyrdid — tvo foll i einni skra svorudu sitthvoru um sama
        hlut, nakvaemlega `buildTeamMetrics`-aettin (CLAUDE.md 7).        */
-    if (!(f?.finished === true || f?.finished_provisional === true)) continue;
+    if (!fixturePlayed(f)) continue;
     if (!inRange(f.event, range)) continue;
     if (f.team_h_score == null || f.team_a_score == null) continue;
     bump(f.team_h, f.team_h_score, f.team_a_score);
@@ -1181,7 +1181,7 @@ function lastResultGw(u, { fixtures, shotIndex, liveMatches }, range) {
   if (u.results === "fixtures") {
     let mx = 0;
     for (const f of (Array.isArray(fixtures) ? fixtures : [])) {
-      if (!(f?.finished === true || f?.finished_provisional === true)) continue;
+      if (!fixturePlayed(f)) continue;
       if (f.team_h_score == null || f.team_a_score == null) continue;
       if (!inRange(f.event, range)) continue;
       if (f.event > mx) mx = f.event;

@@ -204,7 +204,7 @@ export function normalizeLeague(raw) {
  */
 export function buildRows({ players, seasons, accuracy, experts, schedule, market,
                             league = DEFAULT_LEAGUE, weights = null }) {
-  if (!players || !players.length) return { rows: [], meta: { reason: "engin gogn" } };
+  if (!players || !players.length) return { rows: [], meta: { reason: "no data" } };
 
   const lastBy = indexSeason(seasons, 2025);
   const sharp = buildSharpBoard(accuracy, experts);

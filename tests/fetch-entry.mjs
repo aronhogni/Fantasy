@@ -467,6 +467,31 @@ console.log("\n=== 8. ThRALAT RAUD HEIMILD ===");
   ok(JSON.stringify(same.elo) === JSON.stringify({ since: "2026-08-20" }),
      `og faerslan ber ADEINS \`since\` (${JSON.stringify(same.elo)}) — ekkert svid sem er skrifad an thess ad vera lesid`);
 
+  /* ============================================================
+     OSKRAD ER EKKI GRAENT — TILFELLID SEM LYKKJAN GAT EKKI SED
+     ============================================================
+     Til 25.8.2026 gekk `redStreaks` yfir `sources` DAGSINS EINAR, svo
+     heimild sem hvarf ur skranni tapadi `since` og naesti raudi dagur
+     byrjadi i 1. Braut sem er raunveruleg: `fetchInjuries` er gatad a
+     `FLAGS.apisports`, svo an lykils er `apisports_injuries` HVORKI
+     graen NE raud — hun er einfaldlega ekki thar. Og `App.jsx` teiknar
+     enga rod fyrir heimild sem vantar, svo notandinn ser thad ekki.
+     ThRIGGJA-ASTANDA PROF: raudur -> OSKRADUR -> raudur aftur.       */
+  {
+    let g = {};
+    g = redStreaks(g, { elo: { ok: false } }, "2026-08-20");
+    g = redStreaks(g, {}, "2026-08-21");            // heimildin er EKKI skrad
+    ok(g.elo?.since === "2026-08-20",
+       `OSKRAD dag 2 tapar EKKI streakinu (${JSON.stringify(g.elo)})`);
+    g = redStreaks(g, { elo: { ok: false } }, "2026-08-22");
+    ok(streakDays(g.elo, "2026-08-22") === 3,
+       `og dagur 3 telur fra UPPHAFINU, ekki fra endurkomunni (${streakDays(g.elo, "2026-08-22")})`);
+    /* OG HUN MA SAMT HREINSAST VID SKYRT GRAENT — annars vaeri
+       lagfaeringin ad bua til hina villuna (streak sem deyr aldrei). */
+    const gone = redStreaks(g, { elo: { ok: true } }, "2026-08-23");
+    ok(gone.elo === undefined, "en SKYRT graent hreinsar hana afram");
+  }
+
   /* GRAEN ROD HREINSAR. An thess vaeri "6 dagar" satt um heimild sem
      lagadist i gaer — sama villa i hina attina, og hun er verri thvi
      hun kennir manni ad hunsa teljarann.                            */

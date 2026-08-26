@@ -82,7 +82,14 @@ keyra nákvæmlega sama kóða og appið birtir.** Ekki afrita formúlur inn í
 > 4.294, `teamstats.js` 243 -> 284). Tala sem er alltaf röng er verri en
 > engin tala. `wc -l src/*.js*` gefur hana rétta á sekúndubroti.
 
-`scripts/fetch.mjs` er 3.371 lína og skrifar allt í `data/`.
+`scripts/fetch.mjs` skrifar allt í `data/`.
+
+> **HÉR STÓÐ „er 3.371 lína" OG ÞAÐ VAR 82% RANGT (leiðrétt 25.8.2026).**
+> Rétt tala þann dag: **6.212**. Þetta er sama villan og taflan sextíu
+> línum ofar varar við í hástöfum („ENGAR LÍNUTÖLUR HÉR — ÞÆR REKA") —
+> hún lifði af í einu setningarbroti undir sinni eigin reglu.
+> **Engin ný tala kemur í staðinn**, því hver rétt tala verður röng við
+> næsta commit. `wc -l scripts/fetch.mjs` svarar á sekúndubroti.
 
 **Leyndarmál í GitHub Secrets:** `ODDS_API_KEY`, `EURO_API_KEY`,
 `API_SPORTS_KEY`, `BSD_KEY`. Þau eru gefin sem `env` í workflow-unum og eru

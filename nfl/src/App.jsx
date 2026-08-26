@@ -508,7 +508,7 @@ export default function App() {
 
   if (err && !core) {
     return <div className="shell"><div className="empty">
-      <h2>Gögnin hlóðust ekki</h2><p className="dim">{err}</p>
+      <h2>The data did not load</h2><p className="dim">{err}</p>
     </div></div>;
   }
   if (!core) {

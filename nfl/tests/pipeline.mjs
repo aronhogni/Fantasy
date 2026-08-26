@@ -2335,7 +2335,14 @@ console.log("\n`sos` er lids-tala og notan segir thad");
       const n = COL[key].note;
       ok(!/gegn hans stodu/i.test(n),
         `(b) ${key}-notan lofar ekki "gegn hans stodu"`);
-      ok(/lids-tala/i.test(n), `og hun segir berum ordum ad thetta se lids-tala`);
+      /* NOTURNAR URDU ENSKAR 25.8.2026 (regla CLAUDE.md kafla 9: vidmot a
+         ensku, rokstudningur a islensku). Fullyrdingin negldi ISLENSKA
+         ordid "lids-tala" og fell thvi vid thyðinguna — thott innihaldid,
+         sem hun ver, se obreytt ("A TEAM FIGURE: every position on the
+         team carries the same value"). Nu er spurt ad KROFUNNI a thvi
+         mali sem notan er skrifud a. */
+      ok(/team figure|team-level|per team/i.test(n),
+        `og hun segir berum ordum ad thetta se lids-tala (${String(n).slice(0, 60)}…)`);
     }
   }
 }

@@ -32,6 +32,8 @@
    ============================================================ */
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { C as APP_C } from "./appStyles.js";
+const BORDER_STRONG = APP_C.borderStrong;
 import { interp } from "./interp.js";
 /* UMFERDAR-BILS-VELIN ER SAMEIGINLEG (src/gwRange.js, 20.8.2026). Hun var
    HER og Compare fekk sama eiginleika; afrit af hledslunni hefdi thytt tvo
@@ -2449,7 +2451,16 @@ const S = {
      holfin eru sett i badar radir hvor fyrir sig — eitt holf getur ekki
      spannad bædi threpin.                                               */
   hStick:{ position:"sticky", top:0, zIndex:3, display:"flex", flexDirection:"column",
-           background:C.cardAlt, borderBottom:`1px solid ${C.borderStrong || C.border}` },
+           /* `C.borderStrong` ER EKKI TIL I ThESSARI SKRA — staðbundna
+              `C` ber 12 lykla, `appStyles.js` 18, og thennan vantar.
+              `|| C.border` gerdi thad OSYNILEGT: fasti hausinn fekk
+              #e0e0e4 i stad #c9c9d0, svo skilin milli hauss og fyrstu
+              radar voru veikari en aetlad var — nakvaemlega thad sem
+              CLAUDE.md kafli 8 kvedur a um (fastur haus tharf synileg
+              skil, annars lesa klippt heiti eins og bilun).
+              Gildid er SOTT ur sameiginlegu topfluinu, ekki afritad, svo
+              litirnir tveir geti ekki rekid i sundur. */
+           background:C.cardAlt, borderBottom:`1px solid ${BORDER_STRONG}` },
   bandRow:{ display:"flex", height:BAND_H, background:"#f2f0f5" },
   bandCell:{ boxSizing:"border-box", display:"flex", alignItems:"center",
              justifyContent:"center", fontSize:9.5, fontWeight:700,

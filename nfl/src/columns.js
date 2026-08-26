@@ -22,12 +22,12 @@
 
 export const COLUMNS = [
   /* ---------- audkenni ---------- */
-  { key: "name", label: "Player", short: "Player", band: "", note: "Nafn og lid.", type: "text", frozen: true },
+  { key: "name", label: "Player", short: "Player", band: "", note: "Player name and team.", type: "text", frozen: true },
   { key: "pos", label: "Position", short: "Pos", band: "", note: "QB/RB/WR/TE/K/DST.", type: "text" },
-  { key: "team", label: "Team", short: "Team", band: "", note: "Lid fyrir 2026.", type: "text" },
-  { key: "bye", label: "Bye week", short: "Bye", band: "", note: "Vikan sem lidid spilar ekki. Kemur ur FantasyPros.", hi: null },
-  { key: "age", label: "Age", short: "Age", band: "", note: "Aldur ur Sleeper.", hi: false },
-  { key: "exp", label: "Years experience", short: "Exp", band: "", note: "Ar i deildinni. 0 = nyliði.", hi: null },
+  { key: "team", label: "Team", short: "Team", band: "", note: "Team for the 2026 season.", type: "text" },
+  { key: "bye", label: "Bye week", short: "Bye", band: "", note: "The week his team does not play. From FantasyPros.", hi: null },
+  { key: "age", label: "Age", short: "Age", band: "", note: "Age, from Sleeper.", hi: false },
+  { key: "exp", label: "Years experience", short: "Exp", band: "", note: "Years in the league. 0 = rookie.", hi: null },
 
   /* ---------- likanid ---------- */
   { key: "aRank", label: "A-Ranking", short: "A-Rank", band: "Model", hi: false,
@@ -50,9 +50,9 @@ export const COLUMNS = [
        er lesid i ollum deildum, heldur ad NEFNA harnessid og benda a
        toluna sem er logunar-bundin. Vordur: `sleeper.mjs` (d2) ver ad
        logunar-talan a skjanum se su retta.                            */
-    note: "Okkar rod: spa Sleeper umreiknud i virdi yfir varamanni fyrir thina deild. MAELD 2021-2025 I 12-LIDA DEILD med QB/RB2/WR3/TE/FLEX (varamanns-threp WR42): slaer ADP um +234 stig og vinnur OLL FIMM arin (marktaekt). ÞIN LOGUN GETUR VERID ONNUR og tha er talan onnur — draft-flipinn birtir maelda forskotid fyrir thina eigin logun (t.d. +186,1 i 10-lida tveggja-FLEX PPR). Gegn Sleeper-rodinni sjalfri er hun +60 og vinnur 3 af 5 — jakvaett i hverri hermun en EKKI marktaekt; thad thyrfti 13 timabil." },
+    note: "Our ranking: Sleeper's projection converted into value over replacement for your league. MEASURED 2021-2025 IN A 12-TEAM LEAGUE with QB/RB2/WR3/TE/FLEX (replacement level WR42): beats ADP by +234 points and wins ALL FIVE seasons (significant). YOUR LEAGUE SHAPE MAY DIFFER, and then so does the number — the Draft tab shows the measured edge for your own shape (e.g. +186.1 in a 10-team two-FLEX PPR). Against Sleeper's own raw order it is +60 and wins 3 of 5 — positive in every simulation but NOT significant; that would take 13 seasons." },
   { key: "proj", label: "Projected points", short: "Proj", band: "Model",
-    note: "Spa Sleeper i thinni stigagjof. MAELD sterkasta heimildin (rho 0,695 gegn 0,458 hja ADP). ESPN er notad ef Sleeper thegir." },
+    note: "Sleeper's projection in your scoring. MEASURED the strongest single source (rho 0.695 against 0.458 for ADP). ESPN is used when Sleeper is silent." },
   /* HEITID LAUG. Thetta er OKKAR rod a spa Sleeper eftir hrastigum, EKKI
      rodin sem Sleeper-appid synir (thar er Josh Allen QB1, ekki heildar-1).
      Hrastigarod setur 14 QB i topp-20 i PPR og 20 af 20 i standard — hun
@@ -60,65 +60,65 @@ export const COLUMNS = [
      thu sérd i Sleeper" gerdi hana ad einhverju sem hun er ekki.
      Rodin sem Sleeper birtir sjalfur er ADP-dalkurinn. */
   { key: "sleeperRank", label: "Sleeper projection, raw order", short: "Raw #", band: "Model", hi: false,
-    note: "Rod eftir HRASTIGUM spar Sleeper, reiknud her. Thetta er EKKI rodin i Sleeper-appinu (hun er ADP) — hrastig setja QB efst thvi their skora mest, an tillits til varamanns." },
+    note: "Rank by the RAW projected points from Sleeper, computed here. THIS IS NOT the order the Sleeper app shows (that one is ADP) — raw points put quarterbacks on top because they score the most, with no account of replacement level." },
   { key: "vsSleeperRank", label: "A-Rank vs raw order", short: "vs Raw", band: "Model",
-    note: "Hve morgum saetum ofar A-Ranking setur hann en hra stigarod. Jakvaett = varamanns-leidrettingin lyftir honum." },
+    note: "How many places higher A-Ranking puts him than the raw points order does. Positive = the replacement-level correction lifts him." },
   { key: "vbd", label: "Value over replacement", short: "VBD", band: "Model",
-    note: "Spa minus spa varamanns a somu stodu i THINNI deild. Thetta er talan sem radar — ekki hrastigin." },
+    note: "His projection minus the projection of the replacement player at the same position in YOUR league. This is the number that ranks — not the raw points." },
   { key: "tier", label: "Model tier", short: "Tier", band: "Model", hi: false,
-    note: "Threp eftir BILUM i VBD, ekki fostum fjolda. Svarar: fae ég sambaerilegan mann i naesta vali?" },
+    note: "Tiers cut at the GAPS in VBD, not at a fixed count. It answers: will I still get a comparable player with my next pick?" },
   { key: "posRank", label: "Positional rank (model)", short: "Pos #", band: "Model", hi: false,
-    note: "Rod innan stodu eftir spa likansins." },
+    note: "Rank within his position by the model's projection." },
 
   /* ---------- markadurinn ---------- */
   { key: "adp", label: "ADP (your scoring)", short: "ADP", band: "Market", hi: false,
-    note: "Medal-draftstada i thvi sniði sem thu valdir. Ur FantasyFootballCalculator (raunveruleg droft)." },
+    note: "Average draft position in the format you selected. From FantasyFootballCalculator (real drafts)." },
   { key: "adpSleeper", label: "Sleeper ADP", short: "ADP Slp", band: "Market", hi: false,
-    note: "ADP a Sleeper — vettvangnum sem thu draftar a. Tomgildi (999/400) eru fjarlaegð." },
+    note: "ADP on Sleeper — the platform you actually draft on. Placeholder values (999/400) are stripped out." },
   { key: "adpEspn", label: "ESPN ADP", short: "ADP ESPN", band: "Market", hi: false,
-    note: "ADP a ESPN, ordrett. Munur a honum og Sleeper-ADP er merki, ekki havadi: vettvangarnir meta olikt. VARNAGLI: ESPN gefur OSKRIFADUM leikmanni sentinel um 170 — 81% af rodum liggja i [169,171], thar a medal menn sem eru ekki i NFL — svo tala thar thydir 'aldrei draftadur', ekki verd. Hun er ThVI EKKI notud sem markadsverd; sja `adp`." },
+    note: "ESPN's ADP, verbatim. The difference between it and Sleeper ADP is signal, not noise: the platforms value players differently. CAVEAT: ESPN gives an UNDRAFTED player a sentinel around 170 — 81% of rows sit in [169,171], among them players who are not in the NFL — so a value there means 'never drafted', not a price. It is THEREFORE NOT used as the market price; see `adp`." },
   { key: "value", label: "Value vs market", short: "Value", band: "Market",
-    note: "Hversu morgum UMFERDUM sidar markadurinn tekur hann en okkar rod segir. Jakvaett = kaup. BADAR RADIR TELJA ADEINS ThAD SEM VID RODUM: markadsstadan er faerd nidur um thann fjolda manna sem markadurinn tekur a undan honum en rodin sleppir (K, DST og skilamenn an spar — 237 af 1.175). An theirrar faerslu bar talan tvo grunna og ofmat kaup um midgildi +2,80 umferdir vid ADP > 120 (mest +20,90), thott hun vaeri NAKVAEMLEGA rett innan droftsins." },
+    note: "How many ROUNDS later the market takes him than our ranking says. Positive = a bargain. BOTH ORDERS COUNT ONLY WHAT WE RANK: the market position is shifted down by the number of players the market takes ahead of him that our ranking leaves out (K, DST and skill players with no projection — 237 of 1,175). Without that shift the number mixed two different bases and overstated bargains by a median of +2.80 rounds at ADP > 120 (worst +20.90), even though it was EXACTLY right inside the draft." },
   { key: "auctionEspn", label: "Auction value (ESPN)", short: "Auction", band: "Market",
-    note: "Medalverd i uppbodsdrofti a ESPN, i dollurum af 200." },
+    note: "Average price in ESPN auction drafts, in dollars out of 200." },
   { key: "ownedEspn", label: "Rostered %", short: "Owned%", band: "Market",
-    note: "Hlutfall ESPN-deilda sem a hann. Atferli milljona lida, ekki skodun." },
+    note: "Share of ESPN leagues that roster him. The behaviour of millions of teams, not an opinion." },
   { key: "trendAdd", label: "Adds (24h)", short: "Adds 24h", band: "Market",
-    note: "Fjoldi Sleeper-deilda sem baettu honum vid sidasta solarhring. Ferskasta markadsmerkid sem til er." },
+    note: "Number of Sleeper leagues that added him in the last 24 hours. The freshest market signal there is." },
 
   /* ---------- serfraedingar ---------- */
   { key: "ecr", label: "Expert consensus rank", short: "ECR", band: "Experts", hi: false,
-    note: "Samsteypa serfraedinga FantasyPros FYRIR THINA STIGAGJOF. Snidid skiptir mali: af 502 sameiginlegum leikmonnum hafa 467 annad saeti i standard en i PPR, og efstu fjorir snuast vid." },
+    note: "FantasyPros' expert consensus FOR YOUR SCORING. The format matters: of 502 players present in both, 467 sit at a different rank in standard than in PPR, and the top four swap around." },
   { key: "ecrTier", label: "FantasyPros tier", short: "FP tier", band: "Experts", hi: false,
-    note: "Threp FantasyPros. Onnur skodun vid hlidina a okkar threpum, ekki i stad theirra." },
+    note: "FantasyPros' own tiers. A second opinion alongside our tiers, not a replacement for them." },
   { key: "ecrSd", label: "Expert disagreement", short: "ECR sd", band: "Experts", hi: null,
-    note: "Stadalfravik rada serfraedinga. HATT GILDI ER EKKI SLAEMT — thad merkir umdeildan leikmann, og thar liggja baedi bestu og verstu valin." },
+    note: "Standard deviation of the expert ranks. A HIGH VALUE IS NOT BAD — it marks a divisive player, and that is where both the best and the worst picks are." },
   { key: "ecrBest", label: "Highest expert rank", short: "Best", band: "Experts", hi: false,
-    note: "Haesta rod sem NOKKUR serfraedingur gaf honum." },
+    note: "The highest rank ANY single expert gave him." },
   { key: "ecrWorst", label: "Lowest expert rank", short: "Worst", band: "Experts", hi: false,
-    note: "Laegsta rod sem nokkur serfraedingur gaf honum." },
+    note: "The lowest rank any single expert gave him." },
   { key: "sharpRank", label: "Sharp-weighted rank", short: "Sharp #", band: "Experts", hi: false,
-    note: "Samsteypa ADEINS theirra borda sem maeldust YFIR nulldreifingu 2025. Rodin sem maelingin styður." },
+    note: "Consensus of ONLY the boards that measured ABOVE the null distribution in 2025. The ranking the measurement supports." },
   { key: "sharpDelta", label: "Sharp vs consensus", short: "Sharp Δ", band: "Experts",
-    note: "Hvad skorpu bordin eru haerri a honum en samsteypan. Jakvaett = their sem eiga besta FERILINN eru hrifnari. Hopurinn er valinn a midgildi yfir >= 4 ar og their verda ad vera enn ad birta — eitt ar er of veikur valari (rho 0,370). SAMHENGI, EKKI ROD: vik theirra fra ADP ber raunverulegt merki (hluta-r 0,105 ofan a okkar eigid vik, 7/7 ar) en ad blanda thvi inn i A-Ranking TAPADI stigum i drott-hermun (-11,6, 1/6 ar). Lestu thad thvi sem skodun, ekki sem rod." },
+    note: "How much higher the sharp boards have him than the consensus does. Positive = the boards with the best TRACK RECORD like him more. The group is picked on the median over >= 4 years and they must still be publishing — a single year is too weak a selector (rho 0.370). CONTEXT, NOT A RANKING: their deviation from ADP carries real signal (partial r 0.105 on top of our own deviation, 7/7 years), but blending it into A-Ranking LOST points in draft simulation (-11.6, 1/6 years). So read it as an opinion, not as a rank." },
 
   /* ---------- 2025 ---------- */
   { key: "lastPpg", label: "2025 points per game", short: "PPG 25", band: "2025",
-    note: "Raunveruleg PPR-stig per leik 2025, reiknud ur nflverse-fylkjum." },
+    note: "Actual PPR points per game in 2025, computed from the nflverse weekly player stats." },
   { key: "lastPts", label: "2025 total points", short: "Pts 25", band: "2025",
-    note: "Heildarstig 2025. Ólikt PPG refsar thetta fyrir meidsli — og thad er RETT fyrir draft." },
+    note: "Total points in 2025. Unlike points per game this punishes missed time through injury — and for a draft that is RIGHT." },
   { key: "lastGames", label: "2025 games", short: "G 25", band: "2025",
-    note: "Leikir spiladir 2025 af 17." },
+    note: "Games played in 2025, out of 17." },
   { key: "lastBoom", label: "2025 boom weeks", short: "Boom", band: "2025",
-    note: "Vikur yfir 85. hundradshluta byrjunarlids-vikna (MAELT: QB 30 / RB 25 / WR 24 / TE 21 stig)." },
+    note: "Weeks above the 85th percentile of starter weeks (MEASURED: QB 30 / RB 25 / WR 24 / TE 21 points)." },
   { key: "lastBust", label: "2025 bust weeks", short: "Bust", band: "2025", hi: false,
-    note: "Vikur undir 25. hundradshluta (MAELT: QB 20 / RB 14 / WR 13 / TE 12). Thetta eru vikurnar sem tapa thér leiknum." },
+    note: "Weeks below the 25th percentile (MEASURED: QB 20 / RB 14 / WR 13 / TE 12). These are the weeks that lose you the matchup." },
   { key: "lastTgt", label: "2025 targets", short: "Tgt 25", band: "2025",
-    note: "Sendingar a hann 2025. Magn er stodugra milli ara en skilvirkni." },
+    note: "Targets thrown his way in 2025. Volume is more stable from year to year than efficiency is." },
   { key: "lastTshare", label: "2025 target share", short: "Tgt%", band: "2025",
-    note: "Hlutfall sendinga lidsins sem fóru a hann. Besta einstaka maelistikan a hlutverki mottakara." },
+    note: "Share of his team's targets that went to him. The best single measure of a receiver's role." },
   { key: "lastWopr", label: "2025 WOPR", short: "WOPR", band: "2025",
-    note: "Vegin samsetning sendingahlutfalls og loftyarda-hlutfalls. Nær hlutverki betur en hvorugt eitt." },
+    note: "A weighted combination of target share and air-yards share. Captures role better than either one on its own." },
 
   /* ---------- adstaedur ---------- */
   /* ============================================================
@@ -142,13 +142,13 @@ export const COLUMNS = [
      SKOTHRID og thvi GOTT. Ad snua honum vaeri fullyrding sem enga
      maelingu hefur; ahrifin eru hvort sem er 0,13% i RMSE.          */
   { key: "sos", label: "Strength of schedule", short: "SoS", band: "Context", hi: false,
-    note: "Medal vaent stigaskor andstaedinganna gegn LIDINU, ur vedbankalinum. LIDS-TALA: hvert svid a lidinu ber sama gildid og ENGIN stodu-sundurlidun er reiknud. VARNAGLI: maeld ahrif eru ORSMA (0,13% i RMSE) — thetta radar ekki, thad brytur jofn tilvik." },
+    note: "Average points his opponents are expected to score against the TEAM, taken from the betting line. A TEAM FIGURE: every position on the team carries the same value and NO positional breakdown is computed. CAVEAT: the measured effect is TINY (0.13% in RMSE) — this does not rank anyone, it breaks ties." },
   { key: "playoffSos", label: "Playoff SoS (wk 15-17)", short: "PO SoS", band: "Context", hi: false,
-    note: "Sama lids-tala fyrir vikur 15-17 thar sem fantasy-urslitakeppnin er. Sami varnagli gildir, og hun er ekki sundurlidud eftir stodu heldur." },
+    note: "The same team figure for weeks 15-17, where the fantasy playoffs are played. The same caveat applies, and it is not broken down by position either." },
   { key: "depth", label: "Depth chart spot", short: "Depth", band: "Context", hi: false,
-    note: "Saeti a dyptartoflu Sleeper. 1 = byrjar." },
+    note: "His spot on Sleeper's depth chart. 1 = starter." },
   { key: "injury", label: "Injury status", short: "Status", band: "Context", type: "text",
-    note: "Opinber stada. HUN RAEDUR tiltaekileika — adrar heimildir mega audga hana, aldrei skipta henni ut." },
+    note: "The official status. IT DECIDES availability — other sources may add to it, never replace it." },
 ];
 
 /** Uppfletting eftir lykli. */

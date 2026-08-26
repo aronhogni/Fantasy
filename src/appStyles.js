@@ -44,10 +44,13 @@ export const S = {
 
   head: { display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, marginBottom:14, flexWrap:"wrap" },
   headRight: { display:"flex", gap:8, alignItems:"center" },
-  connMsg: { margin:"6px 0 0", padding:"5px 9px", borderRadius:6, fontSize:11.5,
-    lineHeight:1.5, maxWidth:"100%" },
-  /* STODU-RODIN BER NU DISCONNECT HAEGRA MEGIN (25.8.2026). `connMsg` er
-     obreytt thvi hun er lesin annars stadar; `connRow` er hun + flex.
+  /* STODU-RODIN BER NU DISCONNECT HAEGRA MEGIN (25.8.2026). `connRow` er
+     `connMsg` + flex; `connMsg` SJALF VAR FJARLAEGD 25.8.2026.
+     Athugasemdin hér sagdi ad hun vaeri "obreytt thvi hun er lesin annars
+     stadar" — thad var OSATT thegar thad var skrifad: sama commit bjo til
+     `connRow` og `discBtnSm` og gerdi bædi frumritin munadarlaus. Ein
+     athugasemd sem heldur svidi a lifi med rangri astaedu er verri en
+     ekkert svid, thvi naesti madur trystir henni og leitar ekki.
      `minWidth:0` a textanum er ThAD SEM GERIR `ellipsis` moguleg — an hennar
      hafnar flex-barn ad skreppa undir innihaldid sitt og hnappurinn faerist
      ut ur rodinni a sima (maelt mynstur, sbr. frosnu dalkana i toflunni). */
@@ -102,9 +105,8 @@ export const S = {
      (tengja aftur skilar hopnum) og rautt vaeri fullyrding um haettu sem
      ekki er their — sama regla sem gerir Evropu-merkid GRATT og ekki
      rautt (CLAUDE.md kafli 4).                                          */
-  discBtn: { background:C.card, border:`1px solid ${C.borderStrong}`, borderRadius:8,
-             padding:"8px 12px", fontSize:12.5, color:C.text2, cursor:"pointer",
-             whiteSpace:"nowrap" },
+  /* `discBtn` VAR HER og var munadarlaus fra sama commiti og `connMsg`
+     (25.8.2026) — `App.jsx` notar `discBtnSm`. Fjarlaegd. */
 
   cmpFab: { position:"fixed", right:16, bottom:16, zIndex:60, border:"none",
             background:C.purple, color:"#fff", borderRadius:22, padding:"10px 16px",
@@ -297,6 +299,15 @@ export const S = {
   capBar: { display:"flex", gap:8, alignItems:"center", marginBottom:9 },
   capBox: { display:"flex", alignItems:"center", gap:6, background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 8px" },
   capBadge: { width:20, height:20, borderRadius:"50%", background:"#ffd23f", color:"#4a3800", fontFamily:mono, fontSize:11, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+  /* TILLAGAN ER VISUALLY UNDIRSKIPUD VALMYNDUNUM — hun er RAD, ekki
+     stilling. Spönnin (±sd) er PRENTUD VID HLIDINA, ekki i tooltip-inu
+     einu: haus `captain.js` krefst thess ad dreifingin fylgi tolunni,
+     og tala sem birtist an hennar les eins og vissa. */
+  capSuggest: { display:"inline-flex", alignItems:"center", gap:4,
+    fontSize:11.5, padding:"3px 9px", borderRadius:999, cursor:"pointer",
+    border:"1px solid #d5cbee", background:"#f6f2ff", color:"#4b3b78" },
+  capSpread: { fontSize:9.5, opacity:0.6, fontVariantNumeric:"tabular-nums" },
+  capUnsure: { fontSize:9.5, opacity:0.75, fontWeight:700 },
   capSel: { border:"none", background:"transparent", fontSize:12.5, color:C.text, outline:"none", maxWidth:120 },
   ghost: { background:"transparent", border:`1px solid ${C.border}`, borderRadius:7, padding:"6px 10px", fontSize:11.5, color:C.text2, cursor:"pointer" },
   /* SLOKKTUR `ghost`. `cursor:"default"` og EKKI `not-allowed`: takkinn er

@@ -506,10 +506,22 @@ export default function Teams({ teams, teamForm, luck, teamShots, fixtures, bsdT
               skrunar nidur i tofluna og kemur til baka a ekki ad thurfa ad
               giska a hvad hann er ad lesa (sama regla og hausrodin i
               leikmannalistanum ber bilid).                                */}
+          {/* UNDIRTITILLINN LAS `teamForm` — SEM ER ALLTAF FYRRA TIMABIL
+              (lagad 25.8.2026). Notandinn sa **"2025-26 · 20 teams · full
+              season"** standa vid hlidina a valaranum sem sagdi
+              **"2026/27 · 10 matches"** — tvaer fullyrdingar um sama skjá,
+              hlid vid hlid, og bædi ordin i theirri fyrri rong: rangt ar OG
+              "full season" um tiu leiki.
+              Skrain VISSI thetta thegar: `liveOn ? liveLabel : teamForm.season`
+              stod tveimur hundrud linum nedar. Undirtitillinn var eina
+              stadurinn sem las skrana i stad VALSINS. */}
           <div style={S.sub}>
-            {teamForm?.season ? `${teamForm.season} · ` : ""}
+            {(() => { const lbl = liveOn ? liveLabel : teamForm?.season;
+                      return lbl ? `${lbl} · ` : ""; })()}
             {rows.length} {"teams · "}
-            {gwRange ? `GW ${gwRange[0]}–${gwRange[1]}` : "full season"}
+            {gwRange ? `GW ${gwRange[0]}–${gwRange[1]}`
+              : liveOn ? `${liveForm?.matches_counted ?? 0} matches`
+              : "full season"}
           </div>
         </div>
       </div>

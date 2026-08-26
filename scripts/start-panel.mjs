@@ -56,7 +56,7 @@ export const isStart = mins => (mins ?? 0) >= START_MIN;
    mjorri en per-umferdar skrarnar, svo throskuldur theirra (3) myndi
    henda gildum rodum hedan. Siurnar eru olikar AD ASETTU RADI.
    AFRAM `export` — sjo maelinga-skriftur flytja hana inn hedan.      */
-export const parseCsv = text => rowsToObjects(text, { minFields: 1 });
+export const parseCsv = text => rowsToObjects(text, { minFields: 2 });
 async function playersRaw(season) {
   mkdirSync(CACHE, { recursive: true });
   const file = join(CACHE, `players_raw_${season}.csv`);

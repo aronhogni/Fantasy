@@ -317,7 +317,15 @@ export default function BestOfBest({ pros, panelFile, players, teamById, onPickP
                       <td style={{ ...S.td, color:C.text3 }}>{f(b)}</td>
                       <td style={{ ...S.td, color: good == null ? C.text3 : good ? C.green : C.red }}>
                         {d == null ? "—"
-                          : (kind === "money" ? `${d > 0 ? "+" : ""}£${(d / 10).toFixed(1)}`
+                          : (kind === "money"
+        /* FORMERKID VAR INNAN I GJALDMIDLINUM (lagad 25.8.2026):
+           `${d>0?"+":""}£${(d/10).toFixed(1)}` bældi "+" fyrir neikvaeda
+           tolu og let `toFixed` skila sinu eigin "-" A EFTIR pundamerkinu
+           -> **"£-1.2"**. Skrain setur sina eigin reglu tveimur linum
+           ofar (`f`, sem ber `£` fremst) og braut hana hér. Neikvaedur
+           munur er ekki jadartilfelli: tveir daemigerdir dalkar
+           (hopsvirdi, bekkjar-kostnadur) liggja undir medaltalinu. */
+        ? `${d < 0 ? "\u2212" : "+"}£${(Math.abs(d) / 10).toFixed(1)}`
                                               : `${d > 0 ? "+" : ""}${d.toFixed(dp)}`)}
                       </td>
                     </tr>

@@ -80,7 +80,7 @@ const TEAM_MAP = {
    SIAN FYLGIR HER EFTIR SEM ADUR: vaastav-CSV eru breid (20+ dalkar) og
    rod med 1-3 svidum er RUSL. Sian er ThEKKING A ThESSU gagnasetti og var
    ekki su sama i hinum afritunum — thess vegna er hun breyta.        */
-const parseCsv = text => rowsToObjects(text, { minFields: 3 });
+const parseCsv = text => rowsToObjects(text, { minFields: 4 });
 /* Sömu 20 tölur fyrir hverja röð — sjá HEADER. */
 /* `dc` (defensive_contribution) og `cbit` eru AÐEINS til frá 2025/26 —
    DefCon er ný stigagjöf. Eldri tímabil fá null, EKKI 0: núll myndi lesast

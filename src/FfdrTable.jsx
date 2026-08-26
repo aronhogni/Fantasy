@@ -81,15 +81,44 @@ export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, 
       if (!fxs.length) return { blank: true };
       return {
         multi: fxs.length > 1,
-        items: fxs.map(f => ({ f, d: diffOf(t.id, f, pos) ?? f.fdr })),
+        /* ============================================================
+           OTOLULEG THYNGD MA ALDREI VERDA THREP (lagad 25.8.2026)
+
+           Hér stod `d: diffOf(...) ?? f.fdr` an nokkurs varnar. `??`
+           tekur adeins vid null/undefined — hun hleypir OLLU odru i
+           gegn, og `f.fdr` er ekki trygging: FPL sendir **`null`**
+           thegar leikur er ometinn.
+
+           BADAR UTKOMURNAR ERU RANGAR, OG SU LIKLEGRI ER VERRI:
+             `undefined` -> Math.max -> **NaN** -> `tierOf` = thyngsta
+                            threpid (dokkraudt), tooltip "· undefined"
+             `null`      -> Math.max -> **0**   -> `tierOf` = LETTASTA
+                            threpid (dokkgraent), tooltip "· null"
+           FPL sendir `null`, svo sjalfgefna utkoman er ad ometinn
+           leikur birtist sem **audveldasti leikur toflunnar**. Thad er
+           ekki bara rangur litur heldur rong RADGJOF, i toflunni sem er
+           til thess ad segja hvada leikir eru audveldir.
+
+           `FixStrip` var lagfaerd fyrir nakvaemlega thetta 25.8. og
+           thessi skra gleymdist — sama villa, tveir stadir. `avgFor` i
+           thessari SOMU skra vardi sig thegar (`if (d != null)`), svo
+           skrain var osammala sjalfri ser.
+
+           `null` fer thvi alla leid og hvert stig ber hana: hólf sem á
+           enga tolu er BLANKT, ekki litad. */
+        items: fxs.map(f => {
+          const raw = diffOf(t.id, f, pos) ?? f.fdr;
+          return { f, d: Number.isFinite(+raw) ? +raw : null };
+        }),
       };
     });
-    const vals = cells.flatMap(c => c.items ? c.items.map(x => x.d) : []);
+    /* `avg` og `played` VORU REIKNUD HER OG ENGINN LAS THAU (fjarlaegt
+       25.8.2026). Eini neytandinn afbyggir `{ t, cells, def, att, n }`.
+       `avg` var ekki einu sinni tvitekning a `def`/`att` — hun fylgdi
+       VALINNI stodu, svo hun var THRIDJA talan sem hvergi sast. */
     return { t, cells,
-             avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
              def: avgFor(t.id, 2), att: avgFor(t.id, 4),
-             n: cells.filter(c => !c.blank).length,
-             played: vals.length };
+             n: cells.filter(c => !c.blank).length };
   }).sort((a, z) => {
     if (sortBy === "team") return (dir === "asc" ? 1 : -1) * String(a.t.short).localeCompare(String(z.t.short));
     /* VANTAR (tomt bil) RADAST ALLTAF NEDST, i BADAR attir — sama regla
@@ -176,8 +205,17 @@ export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, 
              Reiknad A RODINNI, ekki i holfinu: holf veit ekkert um
              nagranna sina. Sjalf reglan er i model.js (`greenRuns`) af
              somu astaedu og allt annad reiknad — profin keyra sama kodann.  */
-          const run = greenRuns(cells.map(c => c.blank ? null
-            : tierOf(Math.max(...c.items.map(x => x.d)))));
+          /* `worstOf` skilar `null` thegar ENGIN tala er i holfinu —
+             tha er thad medhondlad eins og audt, ekki litad. */
+          const worstOf = (c) => {
+            const ds = (c.items || []).map(x => x.d).filter(x => x != null);
+            return ds.length ? Math.max(...ds) : null;
+          };
+          const run = greenRuns(cells.map(c => {
+            if (c.blank) return null;
+            const w = worstOf(c);
+            return w == null ? null : tierOf(w);
+          }));
           return (
               <tr key={t.id}>
                 <td style={S.ffdrTeamCell}>
@@ -187,7 +225,10 @@ export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, 
                 </td>
                 {cells.map((c, i) => {
                   if (c.blank) return <td key={i} style={S.ffdrBlank} title={"Blank gameweek"}>—</td>;
-                  const worst = Math.max(...c.items.map(x => x.d));
+                  const worst = worstOf(c);
+                  if (worst == null) return (
+                    <td key={i} style={S.ffdrBlank}
+                      title={"No difficulty for this fixture — neither our own model nor FPL has rated it."}>{"—"}</td>);
                   const tier = tierOf(worst);
                   const r = run[i];
                   return (
@@ -200,7 +241,7 @@ export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, 
                             borderTopRightRadius: r.last ? 5 : 0, borderBottomRightRadius: r.last ? 5 : 0,
                           } : {}) }}
                       title={(r ? `${r.len} easy gameweeks in a row — ` : "")
-                        + c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (a)"} · ${x.d}`).join("  |  ")}>
+                        + c.items.map(x => `${teamById[x.f.opp]?.short}${x.f.home ? " (h)" : " (a)"} · ${x.d == null ? "—" : x.d}`).join("  |  ")}>
                       {c.items.map((x, k) => (
                         <span key={k} style={S.ffdrOpp}>
                           {teamById[x.f.opp]?.short || "?"}{x.f.home ? "" : <i style={S.ffdrAway}>{"a"}</i>}

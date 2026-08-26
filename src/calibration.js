@@ -27,6 +27,7 @@
                 umferd hun er.
    ============================================================ */
 import { PRESEASON_CAL } from "./stats.js";
+import { fixturePlayed } from "./availability.js";
 
 /* ============================================================
    BYRJUNAR-LIKUR: TVO LIKON, TVO VIDMID — OG EITT ThEIRRA ER RANGT
@@ -265,9 +266,15 @@ export function startProbCalibration({ snapshots, minutes, minN = 100 }) {
 export function resultsFromFixtures(fixtures) {
   const out = [];
   for (const f of (fixtures || [])) {
-    /* ADEINS LOKNIR LEIKIR. Leikur i gangi hefur hlutastodu og hun myndi
-       telja sem urslit — sama regla og Teams-flipinn fylgir.            */
-    if (!f?.finished) continue;
+    /* ADEINS SPILADIR LEIKIR — OG ThESSI LINA VAR RONG TIL 25.8.2026.
+       Hér stod bert `if (!f?.finished)` med athugasemd sem sagdi "sama
+       regla og Teams-flipinn fylgir". Teams-flipinn ber BADAR
+       (`finished || finished_provisional`), svo athugasemdin fullyrti
+       samhljodan sem var MAELT OSONN, og kvordunin hefdi lesid NULL
+       leiki i ~3 daga eftir hverja umferd. Nu er reglan SOTT, ekki
+       endurskrifud (`fixturePlayed`, `availability.js`).
+       Leikur I GANGI fellur afram ut a skor-hlidinu a naestu linu. */
+    if (!fixturePlayed(f)) continue;
     if (f.team_h_score == null || f.team_a_score == null) continue;
     out.push({ fixture: f.id, team: f.team_h, conceded: f.team_a_score, scored: f.team_h_score });
     out.push({ fixture: f.id, team: f.team_a, conceded: f.team_h_score, scored: f.team_a_score });

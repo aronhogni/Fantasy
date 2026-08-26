@@ -1408,10 +1408,20 @@ console.log("\n8b) TIMABILS-SKIPTI HREINSA BILID — og valarinn ber ThAD SEM ER
   ok("forsenda: bil GW 30-38 er valid", /GW\s*30[–-]38/.test(v.host.textContent || ""),
      (v.host.textContent || "").match(/GW\s*\d+[–-]\d+/)?.[0] || "ENGIN");
   ok("forsenda: skipt yfir i yfirstandandi timabil", await pickSeason("live", v.host));
-  ok("TIMABILS-SKIPTI HREINSA BILID — hausinn segir aftur 'full season'",
-     /teams · full season/.test(v.host.textContent || "")
-     && !/GW\s*30[–-]38/.test(v.host.textContent || ""),
-     (v.host.textContent || "").match(/teams · [^\n]{0,20}/)?.[0] || "ENGIN");
+  /* INVARIANTID ER AD BILID SE HORFID — EKKI ORDALAGID (hert 25.8.2026).
+     Fullyrdingin krafdist ordanna "full season", og thau voru sjalf
+     ONAKVAEM um yfirstandandi timabil: syn sem hefur spilad EINA umferd
+     er ekki "full season". Undirtitillinn ber nu leikjafjoldann thar
+     (og las adur `teamForm.season`, sem er FYRRA timabil — notandinn sa
+     "2025-26 ... full season" ofan a 2026/27-vali).
+     Profad er thvi HEGDUNIN: ekkert BIL ma standa eftir skiptin, og
+     hausinn verdur ad segja EITTHVAD um umfangid — ekki hvada ord thad
+     eru (CLAUDE.md kafli 5: "prof eiga ad profa hegdun, ekki ordalag"). */
+  const head8b = (v.host.textContent || "").match(/teams · [^\n]{0,24}/)?.[0] || "ENGIN";
+  ok("TIMABILS-SKIPTI HREINSA BILID — ekkert GW-bil stendur eftir",
+     !/GW\s*\d+[–-]\d+/.test(v.host.textContent || ""), head8b);
+  ok("og hausinn ber umfangid (leikjafjolda eda 'full season'), ekki tomt",
+     /teams · (full season|\d+ matches)/.test(v.host.textContent || ""), head8b);
   await v.done();
 
   /* 8c — ENGINN LOKINN LEIKUR: `liveForm` er null, svo synin FELLUR i fyrra

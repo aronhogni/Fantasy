@@ -72,7 +72,7 @@ export function blend(sources) {
  */
 export function blendWeights(accuracy, { topN = 20 } = {}) {
   if (!accuracy || !accuracy.experts || !accuracy.nullDist) {
-    return { measured: false, weights: {}, note: "engin maeling til — jofn vog" };
+    return { measured: false, weights: {}, note: "no measurement available — equal weights" };
   }
   const { mean, sd } = accuracy.nullDist;
   const weights = {};

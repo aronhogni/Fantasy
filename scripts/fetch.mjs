@@ -103,8 +103,35 @@ function record(name, ok, count, note) {
    ============================================================ */
 export function redStreaks(prev, sources, today) {
   const out = {};
-  for (const [name, v] of Object.entries(sources || {})) {
+  /* ============================================================
+     LYKKJAN VAR YFIR DEGINUM I DAG EINUM — OG ThAD TAPADI STREAKINU
+     ============================================================
+     Hér stod `Object.entries(sources)`, svo heimild sem er EKKI SKRAD i
+     dag datt einfaldlega ut ur `out` og `since` hennar hvarf. Naesti
+     raudi dagur byrjadi thvi upp a nytt i 1.
+
+     ThETTA ER RAUNVERULEG BRAUT, EKKI TILGATA: `fetchInjuries` er gatad
+     a `FLAGS.apisports`, svo vanti lykillinn eru `apisports_injuries`
+     og `apisports_account` ALDREI `record`-ud — hvorki graen ne raud.
+     Sama gildir um hverja heimild sem kastar adur en hun naer sinu
+     `record(...)`. Heimild sem flokrar milli RAUTT og OSKRAD er
+     nakvaemlega tilfellid sem teljarinn er til fyrir (frosin Elo
+     14.–20.8., BSD 400 i fjora daga) og thad eina sem hann gat ekki sed.
+
+     OG BIRTINGIN GERIR ThAD ThOGULT: `App.jsx` teiknar ENGA rod fyrir
+     heimild sem vantar i `sources`, svo "ekki skrad" lítur út eins og
+     "graent" a skjanum — fjarvera sem birtist eins og edlilegt astand.
+
+     Nu er gengid yfir SAMMENGID og `since` varðveitt medan heimildin er
+     OSKRAD. Hun hreinsast adeins vid SKYRT `ok === true`. */
+  const names = new Set([...Object.keys(prev || {}), ...Object.keys(sources || {})]);
+  for (const name of names) {
+    const v = (sources || {})[name];
     const was = prev?.[name];
+    /* OSKRAD I DAG: haldið, ekki hreinsad og ekki haekkad — `streakDays`
+       er leidd af `since` og `today`, svo hun heldur afram ad telja
+       rettilega thegar heimildin birtist aftur raud. */
+    if (v === undefined) { if (was?.since) out[name] = { since: was.since }; continue; }
     if (v?.ok === false) {
       /* ADEINS `since` ER GEYMT, OG ThAD ER ASETT.
          Fyrsta utgafa min geymdi lika `last` og bar "sami dagur tvisvar
@@ -2693,12 +2720,42 @@ export function seasonBaselineDecision({ fixtures, candidate, existing }) {
    glugganum". Su nota er ekki bara omakleg — hun sendir mann i ad leita a
    rongum stad.
    Sama regla og kafli 8: **tomt gildi er ekki null.**              */
-export function bsdLineupNote({ seen, nearestMs, season, windowH = 13 }) {
+/* ============================================================
+   ThRIDJA ASTANDID: "NAESTI" ER NAESTI AF ThEIM SEM VID FENGUM
+   ============================================================
+   Notan sagdi "nearest in 6303.1h" (262 dagar, ~mai 2027) medan
+   `fixtures.json` bar naesta leik eftir **67,6 klst**. Reikningurinn er
+   RETTUR — hann tekur minnstu framtidar-dagsetningu ur svarinu — en
+   svarid er `limit=30` af ~380 oleiknum leikjum OG kallid bidur ekki um
+   neina RODUN. Vid faum thvi thrjatiu handahofskennda leiki og kollum
+   thann fyrsta theirra "naesta".
+
+   Talan er thess vegna EKKI "naesti leikur" heldur "naesti af theim 30
+   sem svarid bar", og notan verdur ad segja thad: nota sem bydur
+   godkynja skyringu ("glugginn er ekki opinn enn") a astandi sem gaeti
+   verid urtaks-galli er nakvaemlega thad sem thessi skra var endurskrifud
+   til ad haetta ad gera. Sama regla og adur: **tvennt sem hefur andstaeda
+   orsok ma ekki bera somu notu.**
+
+   ORSOKIN SJALF ER OSTADFEST og verdur ekki stadfest hedan: BSD-lykillinn
+   er i GitHub Secrets og thetta fall keyrir adeins med honum. Tilgatan
+   sem gognin styðja er rodunar-leysid; ad laga hana krefst thess ad
+   einhver med lykil profi hvort endapunkturinn taki vid `order`/`sort`
+   eda dagsetningar-siu. Notan nefnir thad svo naesti madur leiti a
+   RETTUM stad.                                                        */
+export function bsdLineupNote({ seen, nearestMs, season, windowH = 13, limit = 30 }) {
   if (!seen) return `BSD returned NO notstarted event for season ${season} - not a `
     + `window miss but an empty result; check that the season id is the current one`;
-  return `${seen} notstarted events, nearest in `
-    + `${Number.isFinite(nearestMs) ? (nearestMs / 3600e3).toFixed(1) : "?"}h - the `
-    + `prediction window is ~${windowH}h so nothing is fetched yet`;
+  const h = Number.isFinite(nearestMs) ? (nearestMs / 3600e3).toFixed(1) : "?";
+  const capped = seen >= limit;
+  return `${seen} notstarted events, nearest of THOSE in ${h}h - the prediction `
+    + `window is ~${windowH}h so nothing is fetched yet`
+    + (capped
+        ? `. NOTE: the call asks for ${limit} events and does NOT request an order, `
+        + `so this is the nearest of the ${limit} returned, not the nearest fixture. `
+        + `If this number is far larger than the next real kickoff, that is a sampling `
+        + `artefact and not a quiet window`
+        : "");
 }
 export function bsdOddsNote({ seen, priced, season, failed = 0, kept = false }) {
   if (priced) return `${priced} of ${seen} notstarted matches priced`
@@ -3653,6 +3710,36 @@ async function fetchInjuries() {
     d = { ...d, response: merged };
     via = dates.length ? `match days ${dates.join(", ")} (${dates.length} calls)` : "no match days inside the free-tier window (±1 day)";
     if (errs.length && !merged.length) {
+      /* ============================================================
+         TOM KEYRSLA MA ALDREI ThURRKA UT GOD GOGN (CLAUDE.md 8e)
+         ============================================================
+         Hér stod skilyrdislaust `writeJSON(... players: [] ...)`, svo
+         dagur thar sem OLL kollin klikka skrifadi tomma skra ofan a
+         heila. **OG ThAD VAR ThEGAR BUID AD GERAST**: `injuries.json`
+         i trenu ber `players: 0` med
+         `"access denied by the provider: Your account is suspended"` —
+         raunverulegt gagnatap, ekki tilgata.
+
+         VERRA EN VENJULEGT GAGNATAP, ThVI TOMT ER LOGLEGT ASTAND HER:
+         nótan i skránni segir sjalf ad i forleik "the list is empty, as
+         it should be". Tom skra ur BILUN og tom skra ur RETTU astandi
+         lita thvi NAKVAEMLEGA EINS vid skodun — enginn getur greint
+         thaer ad eftir a. Thess vegna verdur vordurinn ad vera VID
+         SKRIFIN, ekki vid lesturinn.
+
+         Formid er tekid ORDRETT ur `fetchBsdOdds` (`keep`-hlidid) sem
+         var lagfaert fyrir sama flokk — ein utfaersla, tvo kollstodur. */
+      let prevPlayers = 0;
+      try {
+        prevPlayers = ((JSON.parse(
+          await readFile(`${DATA}/injuries.json`, "utf8")).players) || []).length;
+      } catch {}
+      if (prevPlayers > 0) {
+        record("apisports_injuries", false, prevPlayers,
+          `every call failed — KEPT the previous file (${prevPlayers} rows) rather than `
+          + `writing an empty one: ${errs[0].slice(0, 60)}`);
+        return;
+      }
       await writeJSON("injuries.json", { updated: status.updated, plan, via,
         error: errs.join(" | ").slice(0, 200), players: [], unmatched: [] });
       record("apisports_injuries", false, 0, errs[0].slice(0, 70));
@@ -4032,11 +4119,18 @@ async function fetchFast() {
    `buildTeamMetrics`-aettin, og hun bitnar her a PORUN: nafn sem onnur
    leidin thekkir og hin ekki verdur ad `unmatched` — thogult.
 
-   MAELT ADUR EN SAMEINAD (scripts/measure-clubnorm.mjs, keyrt a
+   MAELT ADUR EN SAMEINAD (einskiptis-maeling 25.8.2026, keyrt a
    `data/teams.json` + badum ordabokum, 34 einkvaem nofn):
      arekstrar (tvo felog a sama lykil) . 0
      AFTURFOR (nafn leysist odruvisi) ... 0
      nofn sem leysast NU en ekki adur ... 5
+   SKRIFTAN VAR EKKI GEYMD, OG ThAD ER SAGT HER (leidrett 25.8.2026):
+   thessi klausa nefndi `scripts/measure-clubnorm.mjs` sem heimild og su
+   skra er EKKI TIL i repo-inu. Tilvisun i skriftu sem er ekki til les
+   eins og "thetta er endurtakanlegt" og er thad ekki — eigin regla
+   hussins (kafli 7: oskrad maelingaskrifta er oendurtakanleg). Tolurnar
+   thrjar standa sem EINSKIPTIS-maeling; vilji einhver endurtaka hana
+   tharf ad skrifa skriftuna upp a nytt ur lysingunni hér ad ofan.
    Sameiningin er thvi hrein VIDBOT: ekkert nafn skiptir um felag,
    ESPN-leidin erfir stuttu formin sem Odds-leidin hafdi ein.
 

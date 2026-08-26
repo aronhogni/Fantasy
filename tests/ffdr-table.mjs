@@ -376,5 +376,42 @@ console.log(`\n${"─".repeat(72)}\nFFDR-SPJALDID UNDIR VELLINUM\n${"─".repeat
   }
 }
 
+/* ============================================================
+   OMETINN LEIKUR MA ALDREI FA THREP — A TILBUNUM GOGNUM
+
+   HVERS VEGNA TILBUIN: maelt i dag bera **0 af 380** leikjum i
+   `data/fixtures.json` enga thyngd, svo raungogn geta ekki keyrt
+   thessa grein. Kodi sem kviknar fyrst thann dag sem heimild bregst
+   er nakvaemlega thad sem a ad profast a tilbunum inntokum
+   (CLAUDE.md kafli 5).
+
+   OG BADAR UTKOMURNAR VERDA AD VERA PROFADAR, ThVI ThAER ERU
+   ANDSTAEDAR:
+     `undefined` -> Math.max -> NaN  -> thyngsta threp (dokkraudt)
+     `null`      -> Math.max -> 0    -> LETTASTA threp (dokkgraent)
+   FPL sendir `null`, svo sjalfgefna bilunin var ad ometinn leikur
+   birtist sem AUDVELDASTI leikur toflunnar — rong radgjof i toflu
+   sem er til thess ad gefa radgjof. Sviðs-vordur hefdi ekki tekid
+   hvoruga: bædi 0 og 5 eru gild threp.
+   ============================================================ */
+console.log("\n=== OMETINN LEIKUR (tilbuin gogn) ===");
+{
+  const mod = await import(new URL("src/FfdrTable.jsx", REPO).href);
+  const src = readFileSync(new URL("src/FfdrTable.jsx", REPO).pathname, "utf8");
+  ok("thyngdin er sannreynd med `Number.isFinite` adur en hun verdur threp",
+     /Number\.isFinite\(\+raw\)/.test(src),
+     "— `?? f.fdr` eitt ver ekkert: `??` hleypir bædi NaN og null i gegn");
+  ok("og holf an tolu er teiknad sem AUTT, ekki litad",
+     /worst == null/.test(src) && /worstOf/.test(src));
+  ok("og tooltip-id prentar ekki bera `null`/`undefined`",
+     /x\.d == null \? "—"/.test(src));
+  /* HERMUM BADAR UTKOMURNAR BEINT A `tierOf` svo talan sem var rong
+     se skjolud, ekki adeins vordurinn. */
+  ok(`SANNREYNT: Math.max(undefined) -> NaN -> tierOf = ${tierOf(Math.max(undefined))} (thyngsta)`,
+     tierOf(Math.max(undefined)) === TIER_CUTS.length);
+  ok(`SANNREYNT: Math.max(null) -> 0 -> tierOf = ${tierOf(Math.max(null))} (LETTASTA — verri villan)`,
+     tierOf(Math.max(null)) === 0);
+}
+
 console.log(`\nFFDR-TAFLA: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);

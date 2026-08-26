@@ -145,11 +145,36 @@ export function setPieceOf(p, ranks) {
    Leikur I GANGI er utilokadur (bædi skor verda ad vera til OG leikurinn
    merktur bunum), svo hlutfall hoppi ekki a medan spilad er.
    ============================================================ */
+/* ============================================================
+   `fixturePlayed` — EIN UTFAERSLA A "VAR ThESSI LEIKUR SPILADUR?"
+
+   Reglan sjalf er MAELD og skjolud i CLAUDE.md kafla 1: leikur telst
+   spiladur vid `finished || finished_provisional`, thvi `finished`
+   flettist EKKI fyrr en bonus er stadfestur, ~3 dogum eftir umferdina.
+
+   HUN VAR HANDSKRIFUD A FJORUM STODUM OG EITT AFRITID VAR ThEGAR ORDID
+   RANGT AFTUR (25.8.2026): `calibration.js` bar bert `f.finished` med
+   athugasemd sem sagdi "sama regla og Teams-flipinn fylgir" — sem var
+   maelt OSATT, thvi Teams-flipinn ber badar. Afrit sem lysir sjalfu ser
+   sem samhljoda odru afriti er versta utgafan af tvitekningu.
+
+   ============================================================
+   ThETTA A **EKKI** VID UM `events` — OG ThAD ER MAELT
+   ============================================================
+   `finished_provisional` er svid a LEIK, ekki a UMFERD: maelt a
+   `data/events.json`, allar 38 radir bera `undefined`. Fall sem vaeri
+   beitt a umferd myndi thvi bera lid sem er ALLTAF OSATT — hol
+   fullyrding i skilningi CLAUDE.md 5b, sem lítur út eins og hlid.
+   Spurningin "er umferdin byrjud?" er ONNUR og hun a sitt eigid fall
+   (`startedGameweeks` her ad nedan, thrju skilyrdi, skjolud).
+   ============================================================ */
+export const fixturePlayed = (f) =>
+  f?.finished === true || f?.finished_provisional === true;
+
 export function matchesPlayedByClub(fixtures) {
   const by = {};
   for (const f of (Array.isArray(fixtures) ? fixtures : [])) {
-    const done = f?.finished === true || f?.finished_provisional === true;
-    if (!done) continue;
+    if (!fixturePlayed(f)) continue;
     if (f?.team_h_score == null || f?.team_a_score == null) continue;
     by[f.team_h] = (by[f.team_h] || 0) + 1;
     by[f.team_a] = (by[f.team_a] || 0) + 1;

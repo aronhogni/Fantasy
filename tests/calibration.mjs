@@ -254,17 +254,38 @@ console.log("\n3b) Provenans: forleiks-rod er borin vid FORLEIKS-vidmidid");
    --------------------------------------------------------------- */
 console.log("\n4) Urslit ur leikjaskra");
 {
+  /* ============================================================
+     LEIKUR 4 ER ASTAEDAN FYRIR ThVI AD ThESSI KAFLI SE EKKI HOLL
+     ============================================================
+     Til 25.8.2026 baru ALLIR tilbunu leikirnir hér adeins `finished`,
+     og thess vegna gaf `if (!f.finished)` og
+     `if (!(finished || finished_provisional))` NAKVAEMLEGA SOMU
+     NIDURSTODU — kaflinn gat ekki greint reglurnar ad. Sannreynt med
+     stokkbreytingu: ad skipta rettu reglunni ut fyrir bera `finished`
+     felldi ENGA fullyrdingu.
+     Leikur 4 er glugginn sem raunverulega er til: FPL skilur
+     `finished` eftir FALSE i ~3 daga eftir umferdina medan
+     `finished_provisional` er satt og urslitin fullbuin. Hann VERDUR
+     ad teljast. Leikur 5 er leikur I GANGI — hlutastada, hvorugt
+     flaggid — og hann ma ALDREI teljast.                            */
   const fx = [
-    { id: 1, finished: true, team_h: 1, team_a: 2, team_h_score: 2, team_a_score: 0 },
-    { id: 2, finished: false, team_h: 3, team_a: 4, team_h_score: 1, team_a_score: 1 },
-    { id: 3, finished: true, team_h: 5, team_a: 6, team_h_score: null, team_a_score: null },
+    { id: 1, finished: true,  finished_provisional: true,  team_h: 1, team_a: 2, team_h_score: 2, team_a_score: 0 },
+    { id: 2, finished: false, finished_provisional: false, team_h: 3, team_a: 4, team_h_score: 1, team_a_score: 1 },
+    { id: 3, finished: true,  finished_provisional: true,  team_h: 5, team_a: 6, team_h_score: null, team_a_score: null },
+    { id: 4, finished: false, finished_provisional: true,  team_h: 7, team_a: 8, team_h_score: 3, team_a_score: 1 },
+    { id: 5, finished: false, finished_provisional: false, team_h: 9, team_a: 10, team_h_score: 0, team_a_score: 0 },
   ];
   const r = resultsFromFixtures(fx);
-  ok(`adeins LOKNIR leikir med stodu (${r.length} radir = 1 leikur x 2 lid)`, r.length === 2);
+  ok(`adeins SPILADIR leikir med stodu (${r.length} radir = 2 leikir x 2 lid)`, r.length === 4);
   ok("heimalid: 0 a sig (hreint blad)", r.find(x => x.team === 1)?.conceded === 0);
   ok("utilid: 2 a sig", r.find(x => x.team === 2)?.conceded === 2);
   ok("leikur I GANGI telur EKKI (hlutastada er ekki urslit)", !r.some(x => x.team === 3));
   ok("lokinn leikur AN stodu telur ekki", !r.some(x => x.team === 5));
+  /* ThESSAR TVAER ERU PROFSTEINNINN — thaer FALLA vid bert `finished`. */
+  ok("PROVISIONAL leikur TELUR (finished:false, provisional:true, full urslit)",
+     r.find(x => x.team === 7)?.conceded === 1 && r.find(x => x.team === 8)?.conceded === 3);
+  ok("og leikur i gangi med 0-0 telur EKKI (bædi flogg fols)",
+     !r.some(x => x.team === 9 || x.team === 10));
 }
 
 /* ---------------------------------------------------------------
