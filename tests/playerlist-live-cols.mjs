@@ -407,12 +407,47 @@ await new Promise(r => setTimeout(r, 60));
   ok(`forsenda A: ad minnsta kosti ein umferd er BYRJUD (${nStarted})`,
      nStarted > 0,
      "— i alvoru forleik er ekkert ad maela og sjalfgildid A ad vera arkivid");
-  ok(`forsenda B: og ENGIN er "finished" (${nFinished}) — gamla skilyrdid`
-     + ` hefdi thvi valid arkivid`,
-     nFinished === 0,
-     nFinished > 0 ? "FPL hefur stadfest umferd: gamla skilyrdid gaefi nu sama svar,"
-                   + " svo thessi kafli greinir ekki lengur utfaerslurnar i sundur"
-                   : "");
+  /* ============================================================
+     FORSENDA B FELL 26.8.2026 — OG PROFID SAGDI ThAD SJALFT
+     ============================================================
+     Hér stod `ok(..., nFinished === 0, ...)` med skilabodum sem sogdu
+     ordrett: "FPL hefur stadfest umferd: gamla skilyrdid gaefi nu sama
+     svar, svo thessi kafli greinir ekki lengur utfaerslurnar i sundur."
+     Nakvaemlega thad gerdist: FPL flettu `finished: true` a GW1 um
+     nottina (maelt: 1 umferd `finished`, `data_checked: true`), og
+     forsendan getur ALDREI ordid sonn aftur a thessu timabili.
+
+     Fullyrding sem er bundin vid FORGENGILEGT astand i `data/` er ekki
+     vordur heldur klukka. Greiningin — ad NYJA reglan telji umferd sem
+     ER BYRJUD en OSTADFEST, thar sem gamla reglan taldi hana ekki —
+     er flutt a TILBUIN inntok, thar sem hun er sonn ad eilifu og
+     ohad thvi hvad FPL gerdi i nott. Sama regla og allur annar kodi
+     sem kviknar a einum degi (CLAUDE.md kafli 5).
+
+     LIFANDI HLUTINN STENDUR OBREYTTUR hér ad nedan: valarinn verdur
+     afram ad standa a yfirstandandi timabili. Thad er thad sem
+     notandinn bad um og thad er maelanlegt hvern dag. */
+  {
+    const { startedGameweeks } = await import("../src/availability.js");
+    const T0 = Date.parse("2026-08-22T12:00:00Z");
+    /* Umferd 1: FRESTURINN LIDINN, `is_current`, EKKI stadfest — thetta
+       er glugginn sem varir ~3 daga eftir hverja umferd. */
+    const synth = [
+      { id: 1, finished: false, is_current: true,  deadline_time: "2026-08-21T17:30:00Z" },
+      { id: 2, finished: false, is_current: false, deadline_time: "2026-08-28T17:30:00Z" },
+    ];
+    const oldRule = synth.filter(e => e.finished).length;      // gamla skilyrdid
+    const newRule = startedGameweeks(synth, T0);               // thad sem keyrir
+    ok(`forsenda B (TILBUIN): gamla skilyrdid telur ${oldRule}, nyja ${newRule}`
+       + " — utfaerslurnar ERU greindar i sundur",
+       oldRule === 0 && newRule === 1,
+       "— an thessa vaeri 'nyjasta timabilid valid' satt af gomlu astaedunni lika");
+    /* OG HIN ATTIN: umferd sem er hvorki byrjud ne stadfest ma ALDREI
+       teljast — annars vaeri nyja reglan einfaldlega laus. */
+    ok("og umferd sem er OBYRJUD telst ekki byrjud",
+       startedGameweeks([{ id: 1, finished: false, is_current: false,
+                           deadline_time: "2026-09-30T17:30:00Z" }], T0) === 0);
+  }
 
   await fire(byTab("👥"));
   const sel = [...document.querySelectorAll("select")]
