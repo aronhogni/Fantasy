@@ -83,7 +83,14 @@ const CANDIDATES = [
   ["sort=event_date",                `${base}&limit=30&sort=event_date`],
   ["order_by=event_date",            `${base}&limit=30&order_by=event_date`],
   ["sort_by=event_date",             `${base}&limit=30&sort_by=event_date`],
-  ["date_from (filter instead of order)", `${base}&limit=30&date_from=${new Date().toISOString().slice(0, 10)}`],
+  ["date_from only (no upper bound)", `${base}&limit=30&date_from=${new Date().toISOString().slice(0, 10)}`],
+  /* ThETTA ER LAGFAERINGIN SEM VAR SETT INN — bædi morkin. */
+  ["date_from + date_to = THE FIX (48h)",
+   `${base}&limit=50&date_from=${new Date().toISOString().slice(0, 10)}`
+   + `&date_to=${new Date(Date.now() + 48 * 3600e3).toISOString().slice(0, 10)}`],
+  ["date_from + date_to (5 days, odds window)",
+   `${base}&limit=50&date_from=${new Date().toISOString().slice(0, 10)}`
+   + `&date_to=${new Date(Date.now() + 5 * 24 * 3600e3).toISOString().slice(0, 10)}`],
 ];
 
 const now = Date.now();

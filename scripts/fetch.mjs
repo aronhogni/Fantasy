@@ -4194,6 +4194,45 @@ async function bsdGet(path) {
 }
 /* Leikir yfirstandandi timabils. `is_current` er lesid ur BSD sjalfu svo
    timabils-id se ekki hardkodad — thad breytist arlega.                */
+/* ============================================================
+   BSD `/events/` SKILAR NYJUSTU LEIKJUM FYRST — OG ThAD GERDI BADA
+   GLUGGANA DAUDA (maelt i Actions 26.8.2026)
+
+   `status_fast.json` sagdi manudum saman "nearest in 6303.1h" (262
+   dagar) medan naesti leikur var eftir 67,6 klst, og `bsd_odds` sagdi
+   "20 notstarted matches came back but NONE carried odds". Baðar
+   noturnar budu godkynja skyringu — "glugginn er ekki opinn enn",
+   "BSD verðleggur adeins ~4 daga fram i timann" — og BADAR VORU RANGAR.
+
+   KONNUN MED LYKLINUM (`scripts/probe-bsd-order.mjs`, keyrd i Actions
+   thvi `BSD_KEY` er write-only Secret):
+     limit=30            -> fyrsti 2027-05-15, naesti framundan 6285,6h
+     limit=400           -> n=200 (thak), fyrsti 2027-01-02
+     order / sort / order_by / sort_by  -> 400 Unknown query parameter
+     leyfdar breytur: date_from, date_to, league_id, limit, offset,
+                      season_id, status, team_id, team_name
+
+   Rodunin er thvi NYJASTA FYRST og hana er EKKI haegt ad snua vid.
+   `limit=30` skilar 30 FJARLAEGUSTU leikjunum — leikirnir sem
+   gluggarnir eiga ad finna voru ALDREI i farminum. Kollin voru ekki ad
+   missa af glugganum; their voru ad hordfa a rangan enda timabilsins.
+
+   LAUSNIN ER SIA, EKKI RODUN: `date_from`/`date_to` eru leyfdar, svo
+   vid bidjum beint um dagana sem skipta mali. Thad er lika FAERRI radir
+   og faerri koll en `limit=200`.
+
+   `date_to` ER NAUDSYNLEG, EKKI SKRAUT: an hennar (adeins `date_from`)
+   skilar hun afram nyjustu leikjunum fyrst — profad i konnuninni, hun
+   gaf sama 6285,6h svar.                                              */
+const bsdDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+export function bsdWindowQuery(season, hoursAhead, now = Date.now()) {
+  /* Dagsetningar eru heilir dagar, svo "i dag" og "a morgun" tharf til
+     ad na glugga sem spannar midnaetti. Einn dagur er lagdur vid til ad
+     leikur seint annad kvold detti ekki ut. */
+  return `/events/?league_id=${BSD_LEAGUE}&season_id=${season}&status=notstarted`
+    + `&date_from=${bsdDay(now)}&date_to=${bsdDay(now + (hoursAhead + 24) * 3600e3)}&limit=50`;
+}
+
 async function bsdCurrentSeason() {
   /* `?limit=5` VAR FJARLAEGT 19.8.2026 — BSD haetti ad taka vid thvi.
      Endapunkturinn svarar nu 400 med `accepted_parameters: []`, thea hann
@@ -4217,7 +4256,7 @@ async function bsdCurrentSeason() {
 async function fetchBsdLineups() {
   const season = await bsdCurrentSeason();
   if (!season) { record("bsd_lineups", true, 0, "no season"); return; }
-  const d = await bsdGet(`/events/?league_id=${BSD_LEAGUE}&season_id=${season}&status=notstarted&limit=30`);
+  const d = await bsdGet(bsdWindowQuery(season, 24));
   const now = Date.now();
   /* Adeins leikir innan 24 klst — glugginn maeldist ~11-13 klst, svo
      vidara en thad er hreint soun a kollum.                           */
@@ -4300,7 +4339,7 @@ function sideOf(s) {
 async function fetchBsdOdds() {
   const season = await bsdCurrentSeason();
   if (!season) { record("bsd_odds", true, 0, "no season"); return; }
-  const d = await bsdGet(`/events/?league_id=${BSD_LEAGUE}&season_id=${season}&status=notstarted&limit=20`);
+  const d = await bsdGet(bsdWindowQuery(season, 4 * 24));
   const out = {};
   let priced = 0, failed = 0;
   for (const e of (d.results || [])) {
