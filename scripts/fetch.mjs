@@ -2026,9 +2026,12 @@ async function fetchLineups() {
     if (prev && prevAge < PROBE_TTL_DAYS) {
       await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [],
         players: [], probe: prev,
-        note: "Confirmed line-ups from API-Sports /fixtures/lineups. EMPTY outside "
-            + "the matchday window. `probe` is a STORED response (repeated every "
-            + `${PROBE_TTL_DAYS} days) — not a fresh call on every run.` });
+        note: "Confirmed line-ups. PRIMARY SOURCE IS FOTMOB /matchDetails (no token); "
+            + "API-Sports /fixtures/lineups is the SECOND source and its account is "
+            + "currently suspended, which does NOT stop this file being filled. "
+            + "EMPTY outside the matchday window. `probe` is a STORED response "
+            + `(repeated every ${PROBE_TTL_DAYS} days) — not a fresh call on every run. `
+            + "It describes API-Sports ONLY." });
       record("api_lineups", true, 0,
         `no match in window; stored response is ${prevAge.toFixed(1)} days old`
         + (prev.gated ? " — ENDPOINT CLOSED" : ""));
@@ -2061,9 +2064,11 @@ async function fetchLineups() {
                   : "no match in window (waiting for a matchday) — endpoint answers without a plan error");
     await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [], players: [],
       probe: { at: status.updated, http: probe.http, errors: probe.errors ?? null, gated },
-      note: "Confirmed line-ups from API-Sports /fixtures/lineups. EMPTY outside "
-          + "the matchday window (a match within 2h or just started). `probe` "
-          + "stores the answer to whether the free tier allows the endpoint." });
+      note: "Confirmed line-ups. PRIMARY SOURCE IS FOTMOB /matchDetails (no token); "
+          + "API-Sports /fixtures/lineups is the SECOND source. EMPTY outside the "
+          + "matchday window (a match within 2h or just started). `probe` stores the "
+          + "answer to whether the free tier allows the API-Sports endpoint — it says "
+          + "nothing about FotMob, which is what actually fills this file." });
     return;
   }
 
