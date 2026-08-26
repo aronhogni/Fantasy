@@ -1,0 +1,28 @@
+# Handvirk konnun: tekur BSD `/events/` vid rodun?
+#
+# HVERS VEGNA SER WORKFLOW: `BSD_KEY` er i Secrets og er WRITE-ONLY —
+# hvorki notandinn ne lota getur lesid hann stadbundid. Eina leidin ad
+# svara spurningunni er ad keyra konnunina ThAR SEM lykillinn er til.
+#
+# ENGIN SKRIF, ENGIN COMMIT: hun les og prentar LOGUN svarsins.
+# `workflow_dispatch` EINGONGU — hun ma ekki keyra a cron og eyda kvota.
+name: probe-bsd
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: probe BSD ordering
+        env:
+          BSD_KEY: ${{ secrets.BSD_KEY }}
+        run: node scripts/probe-bsd-order.mjs
