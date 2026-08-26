@@ -364,5 +364,45 @@ ok(/fetchOdds\(\)/.test(fetchSrc), "Odds-API leidin er ohreyfd");
      "og talan ratar i `record(...)` svo hun sjaist i Data sources");
 }
 
+/* ============================================================
+   GLUGGA-FYRIRSPURNIN VERDUR AD VERA DAGSETNINGA-BUNDIN
+
+   MAELT I ACTIONS 26.8.2026 (`scripts/probe-bsd-order.mjs`, keyrd thar
+   thvi `BSD_KEY` er write-only Secret):
+     limit=30 an siu   -> fyrsti leikur 2027-05-15, naesti framundan
+                          **6285,6h** — hinn endi timabilsins
+     date_from + date_to (48h) -> n=1, 2026-08-28, naesti **50,6h**
+   `/events/` skilar NYJUSTU FYRST og `order`/`sort`/`order_by`/`sort_by`
+   eru OLL hofnud med 400. Rodun er thvi ekki i bodi; sian er thad.
+
+   ThESSI KAFLI VER TVENNT SEM ER AUDVELT AD TAPA AFTUR:
+     · `date_to` MA EKKI HVERFA — `date_from` EIN gaf sama 6285,6h svar
+       i konnuninni (profad, ekki alyktad).
+     · glugginn ma ekki skreppa saman i einn dag — leikur seint annad
+       kvold verdur ad vera innan hans.
+   ============================================================ */
+console.log("\nBSD glugga-fyrirspurnin");
+{
+  const { bsdWindowQuery } = await import("../scripts/fetch.mjs");
+  const NOW = Date.parse("2026-08-26T16:00:00Z");
+  const q = bsdWindowQuery(1058, 24, NOW);
+
+  ok(/date_from=2026-08-26/.test(q), `nedri mork eru I DAG (${q.match(/date_from=[\d-]+/)?.[0]})`);
+  ok(/date_to=/.test(q), "og EFRI MORK eru sett — an theirra skilar BSD nyjustu leikjum fyrst");
+  ok(/season_id=1058/.test(q) && /status=notstarted/.test(q), "timabil og stada fylgja med");
+  /* Efri morkin verda ad na YFIR gluggann, ekki nakvaemlega ad honum. */
+  const to = q.match(/date_to=([\d-]+)/)?.[1];
+  ok(Date.parse(to) >= NOW + 24 * 3600e3,
+     `efri morkin (${to}) na yfir 24h gluggann, svo leikur annad kvold detti ekki ut`);
+  /* ODDA-GLUGGINN ER VIDARI OG ThAD MA SJAST. */
+  const q4 = bsdWindowQuery(1058, 96, NOW);
+  ok(Date.parse(q4.match(/date_to=([\d-]+)/)[1]) > Date.parse(to),
+     "odda-glugginn (4 dagar) naer LENGRA en byrjunarlids-glugginn (24h)");
+  /* OG ENGIN RODUNAR-BREYTA — thaer eru allar hofnud med 400 og myndu
+     fella hvert einasta kall. */
+  ok(!/[?&](order|sort|order_by|sort_by|ordering)=/.test(q),
+     "engin rodunar-breyta er send (BSD hafnar theim ollum med 400)");
+}
+
 console.log(`\nBSD-PIPELINE: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);
