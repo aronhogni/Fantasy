@@ -304,13 +304,33 @@ if (!histOk) {
               .replace(/[^a-z ]/g, " ").split(/\s+/).filter(w => w.length > 1);
     };
     const noShare = [];
+    let byCode = 0;
     for (const p of paired) {
       const f = byId.get(p.fpl_id);
       if (!f) continue;
+      /* ============================================================
+         `code` SANNAR PORUNINA — NAFNID ER ADEINS VISBENDING
+         ============================================================
+         Fundid 26.8.2026: FPL endurnefndi **Savinho -> Sávio** i
+         dagskeyrslunni og thessi fullyrding fell — thott porunin se
+         SONNUD: BSD-rodin ber `code 510281` og FPL-madurinn ber sama
+         `code`. `code` er FAST YFIR TIMABIL (thess vegna er thad
+         join-lykillinn allsstadar annars stadar i thessu repo-i);
+         `web_name` er ritstjornarleg akvordun hja FPL sem getur
+         breyst hvenaer sem er.
+         Nafna-profid er thvi SIDARA threpid: bara thegar `code`
+         sannar ekki porunina er spurt hvort nofnin deili ordi.
+         An thessa fellur safnid i hvert sinn sem FPL breytir ritun
+         a nafni — flokt sem er ekki um kodann og yrdi slokkt. */
+      if (p.code != null && f.code != null && p.code === f.code) { byCode++; continue; }
       const a = new Set(toks(p.name));
       const b = toks(`${f.first_name || ""} ${f.second_name || ""} ${f.web_name || ""}`);
       if (!b.some(t => a.has(t))) noShare.push(`${p.name}→${f.web_name}`);
     }
+    /* ThEKJA ER FULLYRDING: vaeri `code` tomt i ollum rodum myndi
+       lykkjan sleppa ollum og "engin brot" yrdi satt ad eilifu. */
+    ok(byCode > 0 || paired.length === 0,
+       `${byCode} af ${paired.length} porunum eru SANNADAR med \`code\` (nafn ekki spurt)`);
     ok(noShare.length === 0,
        `hver pörun deilir nafni med FPL-manninum${noShare.length ? ` — ${noShare.length} gera thad ekki: ` + noShare.slice(0, 5).join(", ") : ""}`);
   }
@@ -542,6 +562,52 @@ console.log("\nLIFANDI PORUN — minuturnar skera ur");
   const src = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url).pathname, "utf8");
   ok(/pairPlayers\(cands,\s*\{\s*minutesOf/.test(src),
      "`fetch.mjs` sendir `minutesOf` inn i lifandi porunina");
+}
+
+/* ============================================================
+   RAUNGOGN: ENGIN BSD-ROD MA SITJA A MANNI SEM SPILADI EKKI
+
+   Kaflinn ad ofan ver PORUNAR-FALLID a tilbunum gognum. Thessi ver
+   SKRANA SJALFA — thvi fallid getur verid rett og skrain samt rong
+   (hun er adeins endurbyggd thegar NYR leikur berst, sja
+   "nothing new"-stuttleidina i `fetchBsdLive`).
+
+   INVARIANTID ER OSAMHVERFT OG ThAD ER ASETT:
+     BSD-minutur > 0  OG  FPL-minutur = 0  ->  ALLTAF villa
+   Hitt tilfellid (FPL-minutur > 0, BSD-minutur 0) er LOGLEGT: BSD
+   nær ekki yfir alla leikmenn (399 af 610), svo madur sem spiladi ma
+   vel eiga enga BSD-rod.
+   ============================================================ */
+console.log("\nRAUNGOGN — engin rod a rongum manni");
+{
+  const live = read("data/bsd_live.json");
+  const fpl = read("data/players.json").players || [];
+  const byId = Object.fromEntries(fpl.map(p => [p.id, p]));
+  const rows = live.players || [];
+
+  ok(rows.length > 300, `forsenda: skrain ber radir (${rows.length}) — annars maelir thetta ekkert`);
+  ok(fpl.some(p => (Number(p.minutes) || 0) > 0),
+     "forsenda: einhver hefur spilad i FPL-gognunum");
+
+  const bad = [];
+  for (const r of rows) {
+    const fp = byId[r.fpl_id];
+    if (!fp) continue;
+    if ((Number(r.minutes) || 0) > 0 && (Number(fp.minutes) || 0) === 0)
+      bad.push(`${r.name} (${r.minutes} min) -> ${fp.web_name} (0 min)`);
+  }
+  ok(bad.length === 0,
+     bad.length ? `ROD A RONGUM MANNI: ${bad.join(" | ")}`
+                : `engin af ${rows.length} rodum situr a manni med 0 FPL-minutur`);
+
+  /* OG LYKLARNIR VERDA AD VERA EINKVAEMIR — tveir menn geta ekki borid
+     somu skrana, og `code` verdur ad fylgja `fpl_id`. */
+  const ids = rows.map((r) => r.fpl_id).filter((x) => x != null);
+  ok(ids.length === new Set(ids).size,
+     `hver FPL-leikmadur a i mesta lagi EINA rod (${ids.length - new Set(ids).size} tvitekningar)`);
+  const codeBad = rows.filter((r) => byId[r.fpl_id] && byId[r.fpl_id].code !== r.code);
+  ok(codeBad.length === 0,
+     codeBad.length ? `\`code\` fylgir ekki \`fpl_id\` hja ${codeBad.length}` : "`code` fylgir `fpl_id` i ollum rodum");
 }
 
 console.log(`\nBSD: ${pass} stodust, ${fail} féllu`);

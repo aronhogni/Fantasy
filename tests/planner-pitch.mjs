@@ -724,9 +724,41 @@ console.log("\n--- H. WHEN TO SELL ---");
      `radirnar eru i TIMAROD, ekki eftir staerd tolunnar (${froms.join(",")})`);
   /* OG ROdIN VAERI ONNUR VAERI HUN EFTIR TOLUNNI — annars gaeti fullyrdingin
      ad ofan stadist af tilviljun.                                       */
+  /* ============================================================
+     ADGREININGIN ER HAD GOGNUM DAGSINS — OG ThAD VAR ThOGULT
+     ============================================================
+     Hér stod eingongu `pgs.some(... pgs[i-1] < x ...)`: ad tolurnar
+     hoppi upp og nidur, sem sannar ad rodin se ekki eftir staerd.
+     Su fullyrding er RETT thegar gognin geta adgreint — en 26.8.2026
+     komu thrjar runur thar sem tolurnar voru TILVILJANAKENND
+     LAEKKANDI, og tha fell hun a saklausum gognum. Deterministiskt,
+     ekki flökt (keyrt thrisvar).
+
+     Fullyrding sem getur fallid a rettum kodda er jafn slaem og su sem
+     getur ekki fallid a rongum: hvor tveggja ThJALFAR MANN I AD HUNSA
+     HANA. Sama aett og forsendan i `playerlist-live-cols` sem FPL
+     felldi med thvi ad stadfesta GW1.
+
+     Nu er hun TVISKIPT og segir HVOR greinin er virk:
+       · geti gognin adgreint  -> upprunalega fullyrdingin, ohreyfd
+       · geti thau thad ekki   -> ThAD ER SAGT, og rodunin er negld
+                                  a KODANUM i stadinn (`run.from`
+                                  fremst i samanburdinum)
+     Seinni greinin er veikari — hun les koda en ekki skjainn — og hun
+     er thess vegna EKKI sjalfgefin heldur adeins notud thegar hitt er
+     omogulegt. */
   const pgs = [...t.matchAll(/[−+](\d+\.\d\d) pts\/GW/g)].map(m => +m[1]);
-  ok(pgs.some((x, i) => i > 0 && pgs[i - 1] < x),
-     "og hun er sannanlega EKKI rodud eftir tolunni (tolurnar hoppa upp og nidur)");
+  const canTell = pgs.some((x, i) => i > 0 && pgs[i - 1] < x);
+  if (canTell) {
+    ok(true, `og hun er sannanlega EKKI rodud eftir tolunni (${pgs.join(",")} hoppa upp og nidur)`);
+  } else {
+    const appSrc = readFileSync(new URL("../src/App.jsx", import.meta.url).pathname, "utf8");
+    ok(/a\.t\.run\.from\s*-\s*z\.t\.run\.from/.test(appSrc),
+       `gogn dagsins geta EKKI adgreint (${pgs.join(",")} eru laekkandi) — `
+       + "svo rodunin er negld a kodanum: `run.from` er FREMST i samanburdinum");
+    ok(!/\.sort\([^)]*perGw/.test(appSrc),
+       "og ekkert i rodununni les `perGw` (talan sem hun mætti EKKI radast eftir)");
+  }
 
   ok(!/pts\/GW vs his own average over GWnull/.test(t), "engin null-umferd i grunninum");
   ok(!NANRE.test(t), "ekkert NaN/undefined i kassanum");
