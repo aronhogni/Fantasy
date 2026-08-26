@@ -39,7 +39,9 @@
    public), svo ekkert her ma bera leyndarmal. Prentad er adeins LOGUN
    svarsins: staða, fjoldi, elsta/yngsta dagsetning.
    ============================================================ */
-const BSD_API = "https://sports.bzzoiro.com/api";
+/* GRUNNURINN ER `/api/v2` — fyrsta utgafa mín notadi `/api` og fekk
+   404 med JSON-bol (ekki 401, svo lykillinn var alltaf i lagi). */
+const BSD_API = "https://sports.bzzoiro.com/api/v2";
 const LEAGUE = 1;
 
 if (!process.env.BSD_KEY) {
@@ -61,8 +63,11 @@ async function get(path) {
 /* Hvada timabil er i gangi? Sama leid og `bsdCurrentSeason`. */
 const seasons = await get(`/leagues/${LEAGUE}/seasons/`);
 if (!seasons.ok) { console.log("seasons ->", seasons.status, seasons.text); process.exit(1); }
-const rows = seasons.json?.results || seasons.json || [];
-const cur = rows.find(s => /2026/.test(String(s.name || s.year || ""))) || rows[rows.length - 1];
+/* Svarid ber `seasons` og markar thad rétta med `is_current` — sama og
+   `bsdCurrentSeason` gerir. `/leagues/{id}/seasons/` tekur ENGA
+   fyrirspurnar-breytu (skjalad i `fetch.mjs`), svo hun er ekki send. */
+const rows = seasons.json?.seasons || [];
+const cur = rows.find(s => s.is_current) || rows[0];
 const SEASON = cur?.id;
 console.log(`season: id=${SEASON} name=${cur?.name ?? "?"}\n`);
 
