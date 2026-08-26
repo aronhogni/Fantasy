@@ -1737,7 +1737,18 @@ export function shotSummary(shots) {
   const s = { total:0, goal:0, on_target:0, off_target:0, blocked:0, woodwork:0, own_goal:0,
               in_box:0, outside:0, left:0, right:0, head:0 };
   for (const x of rowsOf(shots)) {
-    s.total++;
+    /* SJALFSMARK ER EKKI SKOT ThESS LIDS SEM HAGNAST — OG ThAD VAR TALID
+       (lagad 26.8.2026). `s.total++` var oskilyrt, svo eina
+       `own_goal`-rodin i GW1 (Lindelof, 8., `team: null`) taldist sem
+       skot: umferdar-reiturinn sagdi **276** thar sem 275 er rett
+       (95 off + 90 blocked + 29 goal + 57 on target + 4 woodwork).
+       VERRA EN TALAN: leikja-spjoldin sia a lidi og slepptu henni thvi
+       sjalfkrafa, svo YFIRLITID og SPJOLDIN toldu eftir SITTHVORRI
+       reglu — tvaer tolur um sama hlut, hvor ur sinni utfaerslu.
+       `own_goal` er afram TALID i sinu eigin sviði (`s.own_goal`), svo
+       engin upplysing tapast; hun er bara ekki lengur skot.
+       ATH: `accuracy` les `s.total`, svo nefnarinn lagast i somu ferd. */
+    if (x.kind !== "own_goal") s.total++;
     if (s[x.kind] != null) s[x.kind]++;
     if (x.in_box === true) s.in_box++; else if (x.in_box === false) s.outside++;
     if (x.foot && s[x.foot] != null) s[x.foot]++;

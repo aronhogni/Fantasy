@@ -474,7 +474,17 @@ if (shotsF) {
 
   // shotSummary
   const sum = shotSummary(sh);
-  eq(sum.total, sh.length, "shotSummary telur öll skot");
+  /* SJALFSMORK ERU EKKI SKOT (hert 26.8.2026). Fullyrdingin var
+     `total === sh.length`, sem negldi GOMLU regluna: hver rod taldist
+     skot, thar med `own_goal`-rodin sem ber `team: null` og tilheyrir
+     hvorugu lidi sem SKAUT. Umferdar-reiturinn sagdi thvi 276 medan
+     leikja-spjoldin (sem sia a lidi) sogdu samtals 275 — tvaer tolur um
+     sama hlut. Nu er profad ad `total` telji skotin OG ad sjalfsmarkid
+     se afram talid i SINU eigin sviði, svo engin upplysing tapist. */
+  const nOwn = sh.filter(x => x.kind === "own_goal").length;
+  eq(sum.total, sh.length - nOwn, "shotSummary telur skot EN EKKI sjalfsmork");
+  eq(sum.own_goal, nOwn, "og sjalfsmorkin eru talin i sinu eigin sviði");
+  ok(nOwn > 0, `forsenda: gognin BERA sjalfsmark (${nOwn}) — annars maelir thetta ekkert`);
   eq(sum.on_target_total, sum.goal + sum.on_target, "skot á mark = mörk + varin");
   ok(sum.accuracy >= 0 && sum.accuracy <= 100, `nýtingarhlutfall 0–100 (${sum.accuracy}%)`);
   eq(shotSummary([]).total, 0, "tómt inntak hrynur ekki");

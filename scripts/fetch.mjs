@@ -4572,7 +4572,48 @@ async function fetchBsdLive() {
     cands.push({ bsd_id: +id, name: m.name, short_name: m.short_name, pos: m.position,
                  minutes: o.minutes_played, pool: byTeamId[ft.id] || [] });
   }
-  const pairs = pairPlayers(cands);
+  /* ============================================================
+     MINUTURNAR VORU EKKI SENDAR — OG TVEIR MENN BARU RANGA SKRA
+     ============================================================
+     Hér stod `pairPlayers(cands)` an `minutesOf`, medan
+     `fetch-bsd.mjs:303` sendir thaer. Afleidingin var maeld a
+     `bsd_live.json` (26.8.2026), og hun er ekki fraedileg:
+
+       BSD "James Trafford" (LEE, GK, 90 min, 3 vorslur, einkunn 7,3)
+         -> lenti a **Daniel James** (LEE, MID), sem spiladi 0 minutur
+       BSD "Jacob Murphy"  (NEW, 14 min)
+         -> lenti a **Alex Murphy** (NEW, DEF), 0 minutur
+
+     Menn sem spiludu i raun fengu EKKERT; menn sem spiludu ekki baru
+     einkunn og snertingar a spjaldinu sinu. Sannreynt gegnum
+     `makeEnricher`: `_b_rating` 7,3 a Daniel James.
+
+     ThRJU ATRIDI URDU AD FARA SAMAN OG OLL ERU SKJALFEST:
+       1. `nameScore` deilir med `min(tokens)`, svo eins-ords `web_name`
+          sem birtist i BSD-nafninu faer FULLKOMIN 1,0 — "James Trafford"
+          skorar 1,0 gegn BADUM: `web_name: "James"` og `"Trafford"`.
+       2. Stodu-vordurinn (`FPL_POS !== c.pos && s < 0.99`) er ThVI
+          SNIDGENGINN vid 1,0 — markmadur maetti lenda a midjumanni.
+       3. Jafntefli brotnar a LAEGSTA FPL-id: James 343 < Trafford 385,
+          Alex 451 < Jacob 457. I BADUM tilvikum tapadi sa sem spiladi.
+
+     Minuturnar skera ur samstundis (90 a moti 0, 14 a moti 0) og thaer
+     eru ThEGAR i skranni sem thetta fall les. Athugasemdin i `src/bsd.js`
+     segir berum ordum ad minutu-lidurinn se thar "thvi nafnid eitt
+     vixladi Jacob og Alex Murphy" — vorninn var til, hun var bara ekki
+     tengd hér. Sama aett og allt annad: skrifad, oprofad i thessari leid.
+
+     Sweep a ollum 399 rodum fann FIMM 1,0-jafntefli; thrju leystust
+     rett af TILVILJUN (id-rodin) og tvo ekki. Tilviljun er ekki vordur. */
+  /* ATH: `num` er EKKI til i thessari skra (adeins nefnd i athugasemdum
+     og `num_` annars stadar). `node --check` hefdi ekki fundid thad —
+     hann thattar en leysir ekki nofn, sama gildra og `npx esbuild`
+     (CLAUDE.md kafli 2). Thvi bein umbreyting hér. */
+  const fplMinutes = new Map(pl.map((p) => {
+    const m = Number(p.minutes);
+    return [p.id, Number.isFinite(m) ? m : 0];
+  }));
+  const pairs = pairPlayers(cands, { minutesOf: (id) => fplMinutes.get(id) ?? null });
   const players = [];
   for (const [id, o] of Object.entries(acc)) {
     const fp = pairs.get(+id);

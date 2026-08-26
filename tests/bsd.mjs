@@ -488,5 +488,61 @@ H("8. npxG — VITASPYRNUR DREGNAR FRA");
   ok(allPen.sp_xg_share === null, "npxG = 0 -> null (oskilgreint), ekki 0");
 }
 
+/* ============================================================
+   LIFANDI PORUNIN VERDUR AD FA MINUTURNAR
+
+   MAELT A `bsd_live.json` 26.8.2026 — thetta er ekki tilgata:
+     BSD "James Trafford" (LEE, GK, 90 min, 3 vorslur, einkunn 7,3)
+       lenti a **Daniel James** (LEE, MID) sem spiladi 0 minutur
+     BSD "Jacob Murphy" (NEW, 14 min)
+       lenti a **Alex Murphy** (NEW, DEF) sem spiladi 0 minutur
+   Menn sem spiludu fengu EKKERT; menn sem spiludu ekki baru einkunn
+   annars manns a spjaldinu sinu.
+
+   ThRJU ATRIDI URDU AD FARA SAMAN:
+     1. `nameScore` deilir med `min(tokens)`, svo eins-ords `web_name`
+        faer 1,0 — "James Trafford" skorar 1,0 gegn BADUM leikmonnum.
+     2. Stodu-vordurinn er snidgenginn vid `s >= 0.99`.
+     3. Jafntefli brotnar a LAEGSTA FPL-id, og i badum tilvikum var thad
+        madurinn sem spiladi EKKI.
+
+   `fetch-bsd.mjs` sendi alltaf `minutesOf`; `fetch.mjs` gerdi thad ekki.
+   Vordurinn er thvi um BADAR attir: an minutna VELST rangi madurinn
+   (svo profid getur fallid) og med theim sa retti.
+   ============================================================ */
+console.log("\nLIFANDI PORUN — minuturnar skera ur");
+{
+  const { pairPlayers } = await import("../src/bsd.js");
+  const LEE = [
+    { id: 343, web_name: "James",    first_name: "Daniel", second_name: "James",    element_type: 3 },
+    { id: 385, web_name: "Trafford", first_name: "James",  second_name: "Trafford", element_type: 1 },
+  ];
+  const cands = [{ bsd_id: 1, name: "James Trafford", short_name: "J. Trafford",
+                   pos: "G", minutes: 90, pool: LEE }];
+  const mins = new Map([[343, 0], [385, 90]]);
+  const withMin = pairPlayers(cands, { minutesOf: (id) => mins.get(id) ?? null });
+  ok(withMin.get(1)?.id === 385,
+     `markmadurinn sem SPILADI faer sina eigin skra (${withMin.get(1)?.web_name})`);
+  /* MAELITAEKID SJALFT: an minutna A rangi madurinn ad veljast. Se thad
+     ekki svo er profid ekki ad maela thad sem thad heldur. */
+  ok(pairPlayers(cands).get(1)?.id === 343,
+     "og an minutna velst RANGI madurinn — svo fullyrdingin getur fallid");
+
+  const NEW = [
+    { id: 451, web_name: "A.Murphy", first_name: "Alex",  second_name: "Murphy", element_type: 2 },
+    { id: 457, web_name: "J.Murphy", first_name: "Jacob", second_name: "Murphy", element_type: 3 },
+  ];
+  const c2 = [{ bsd_id: 2, name: "Jacob Murphy", short_name: "J. Murphy",
+                pos: "M", minutes: 14, pool: NEW }];
+  const m2 = new Map([[451, 0], [457, 14]]);
+  ok(pairPlayers(c2, { minutesOf: (id) => m2.get(id) ?? null }).get(2)?.id === 457,
+     "Murphy-braedurnir: sa sem spiladi faer skrana");
+
+  /* OG TENGINGIN — hreint fall sem er rett en ekki kallad rett ver ekkert. */
+  const src = readFileSync(new URL("../scripts/fetch.mjs", import.meta.url).pathname, "utf8");
+  ok(/pairPlayers\(cands,\s*\{\s*minutesOf/.test(src),
+     "`fetch.mjs` sendir `minutesOf` inn i lifandi porunina");
+}
+
 console.log(`\nBSD: ${pass} stodust, ${fail} féllu`);
 if (fail) process.exit(1);

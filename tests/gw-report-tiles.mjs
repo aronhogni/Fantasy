@@ -83,9 +83,16 @@ const REF = {
 };
 REF.avg_points = REF.players ? +(REF.points / REF.players).toFixed(2) : null;
 
-/* Skota-summur — talning per tegund, engin `shotSummary`. */
+/* Skota-summur — talning per tegund, engin `shotSummary`.
+   SJALFSMORK ERU EKKI SKOT (leidrett 26.8.2026): `total: rows.length`
+   taldi `own_goal`-rodina med, sem er skot ANDSTAEDINGSINS og ber
+   `team: null`. Reiturinn sagdi 276 medan leikja-spjoldin (sem sia a
+   lidi) sogdu 275 — tvaer tolur um sama hlut. Vidmidid er afram
+   SJALFSTAETT (engin `shotSummary`), thad er adeins sammala rettu
+   skilgreiningunni nu. */
 const shotRef = rows => {
-  const r = { total: rows.length, goal: 0, on_target: 0, off_target: 0, blocked: 0,
+  const r = { total: rows.filter(x => x.kind !== "own_goal").length,
+              goal: 0, on_target: 0, off_target: 0, blocked: 0,
               woodwork: 0, own_goal: 0, in_box: 0, outside: 0, left: 0, right: 0, head: 0 };
   for (const s of rows) {
     if (r[s.kind] != null) r[s.kind]++;
@@ -309,8 +316,23 @@ H("4) SKOTAKORTID — SIURNAR HAFA AHRIF (Refresh-aettin)");
   const label = () => { const p = pitch(); return p ? +(p.getAttribute("aria-label").match(/(\d+)/)?.[1]) : -1; };
 
   ok("skotakortid teiknast", !!pitch());
-  ok(`"All matches" -> ${dots()} punktar = ${SHREF.total} skot i skranni`, dots() === SHREF.total);
-  ok(`...og aria-label segir SOMU tolu (${label()})`, label() === SHREF.total);
+  /* ============================================================
+     KORTID TEIKNAR SKOT-ATBURDI; REITURINN TELUR SKOT LIDS
+     ============================================================
+     Thessar tvaer tolur voru bornar vid SOMU staerd og eru thad ekki:
+     `own_goal`-rodin ER skot-atburdur (einhver skaut) og a heima a
+     kortinu, en hun er EKKI skot lids i sokn — hun ber `team: null` og
+     tilheyrir hvorugu lidinu sem SKAUT ad marki andstaedingsins.
+     Reiturinn "Shots" telur thvi 275 medan kortid teiknar 276 punkta,
+     og BADAR tolur eru rettar um sina spurningu.
+     Fullyrdingin er thess vegna a SH.length (allir atburdir), ekki a
+     `SHREF.total` (skot lids) — og munurinn er negldur hér ad nedan svo
+     hann geti ekki thagnad nidur i eina tolu aftur. */
+  ok(`"All matches" -> ${dots()} punktar = ${SH.length} skot-atburdir i skranni`,
+     dots() === SH.length);
+  ok(`...og aria-label segir SOMU tolu (${label()})`, label() === SH.length);
+  ok(`og reiturinn telur SKOT LIDS, sem er einum faerra (${SHREF.total} = ${SH.length} - 1 sjalfsmark)`,
+     SHREF.total === SH.length - SH.filter(x => x.kind === "own_goal").length);
 
   const selects = () => [...document.querySelectorAll("select")];
   ok("tvaer sior eru til: leikur og lid", selects().length === 2);
@@ -359,8 +381,8 @@ H("4) SKOTAKORTID — SIURNAR HAFA AHRIF (Refresh-aettin)");
   ok("...engin tom/`null` rod i valmyndinni",
     tOpts.every(v => v && v !== "null" && v !== "undefined"));
   ok(`forsenda fyrir naestu rod: ${nullTeam} skot i skranni bera EKKERT lid`, nullTeam > 0);
-  ok(`...og thau eru afram inni i "All teams" (${dots()} = ${SHREF.total}, `
-    + `ekki ${SHREF.total - nullTeam})`, dots() === SHREF.total);
+  ok(`...og thau eru afram inni i "All teams" (${dots()} = ${SH.length}, `
+    + `ekki ${SH.length - nullTeam})`, dots() === SH.length);
 
   const perTeam = new Map();
   for (const s of SH) if (s.team) perTeam.set(s.team, (perTeam.get(s.team) ?? 0) + 1);
