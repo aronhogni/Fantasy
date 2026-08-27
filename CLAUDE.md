@@ -912,6 +912,25 @@ form, elo, markaðslína). „Hvað hefðum við sagt fyrir GW5" er ÓSVARANLEGT
 GW5 er liðin — inntökin eru horfin. **Sama röksemd og `history/`: dagleg mynd
 verður ekki búin til eftir á.**
 
+> **MARKAÐSLIÐURINN VAR ALDREI Í BÓKHALDINU — LAGAÐ 27.8.2026.**
+> `makeFixDifficulty` tekur **töfluna** (`odds[short]`), ekki skrána:
+> `App.jsx:692` skrifar `setOdds(d?.teams || null)`. `buildSnapshot` fékk
+> hins vegar **skrána sjálfa** (`tryJ("odds.json")`), svo `odds["ARS"]` var
+> `undefined` og markaðsliðurinn — sterkasta einstaka inntakið í FFDR —
+> datt út úr bókhaldinu einu. Mælt á GW2: **19 af 20 röðum** bera aðra tölu
+> og **þrepið færist líka** (def 3,05/þrep 4 → 3,27/þrep 5). Bókhaldið
+> skráði því ANNAÐ LÍKAN en notandinn sá, og kvörðunin hefði mælt það —
+> nákvæmlega ástæðan fyrir því að `buildTeamMetrics` var flutt úr App.jsx.
+> **OG PRÓFIÐ GAT EKKI SÉÐ ÞAÐ ÞVÍ VIÐMIÐS-ÚTFÆRSLAN BAR SÖMU VILLU:**
+> „bókhaldið == endurreiknað, á bitanum" sendi líka skrána, svo tvö eintök
+> af sömu villu staðfestu hvort annað og kaflinn var grænn. Bæði eru
+> leiðrétt; nýr kafli fullyrðir að taflan **HREYFI** töluna (≥10 raðir),
+> því „odds eru send" var satt allan tímann — í röngu sniði.
+> **`data/predictions/gw1.json` VAR SKRIFUÐ MEÐ VILLUNNI OG STENDUR
+> ÓBREYTT.** Röð sem er til er aldrei endurskrifuð (reglan hér að neðan);
+> kvörðun sem les hana á að vita að FFDR-tölur hennar bera **engan
+> markaðslið**. Að „laga" hana eftir á væri retro-fitting.
+
 Fjórar reglur: **aðeins í 12 KLST GLUGGA fyrir frest** · **aðeins einu sinni**
 (röð sem er til er ALDREI endurskrifuð — endurskrifuð spá er retro-fitting) ·
 **þunn inntök -> engin skrá**. Verðir: `prediction-ledger.mjs`, `calibration.mjs`.

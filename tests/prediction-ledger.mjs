@@ -202,8 +202,15 @@ console.log("\n3) PROFSTEINNINN: FFDR i bokhaldi == FFDR a skja");
   const byIdChk = {}; for (const t of teams) byIdChk[t.id] = t;
   const eloChk = {};
   for (const e of (tryJ("elo.json")?.teams || [])) if (e?.fpl_id != null) eloChk[e.fpl_id] = e.elo ?? null;
+  /* TAFLAN, EKKI SKRAIN — `makeFixDifficulty` les `odds[short]`, og
+     `App.jsx:692` sendir `d.teams`. Vidmids-utfaerslan her sendi SKRANA,
+     svo hun reiknadi FFDR AN markadslidarins og var samt kollud
+     "endurreiknad". Meðan bokhaldid bar somu villu voru thau sammala og
+     kaflinn graenn — tvo eintok af SOMU villu stadfesta hvort annad, sem
+     er nakvaemlega thad sem thessi kafli er til ad utiloka.            */
+  const oddsChk = tryJ("odds.json");
   const fdChk = makeFixDifficulty({ teamMetrics: tmChk, teamById: byIdChk,
-                                    odds: tryJ("odds.json"), eloByTeam: eloChk });
+                                    odds: oddsChk?.teams ?? oddsChk, eloByTeam: eloChk });
   const fixById = {}; for (const f of fixtures) fixById[f.id] = f;
   let checked = 0, off = [];
   for (const r of snap.ffdr) {
@@ -531,6 +538,62 @@ console.log("\n6) --dry SKRIFAR EKKERT (keyrt sem undirferli, baeti borin saman)
   const cov = out.match(/coverage (\{[^}]*\})/);
   ok("thekju-blokkin er lesanlegt JSON med `players` yfir 400",
      !!cov && (JSON.parse(cov[1]).players ?? 0) > 400, cov ? cov[1] : "ENGIN thekja i utprenti");
+}
+
+/* ============================================================
+   MARKADSLIDURINN VERDUR AD RATA I BOKHALDID (27.8.2026)
+
+   `makeFixDifficulty` tekur TOFLUNA (`odds[short]`), ekki skrana.
+   `buildSnapshot` fekk skrana sjalfa fra `main()`, svo `odds["ARS"]` var
+   `undefined` og markadslidurinn — sterkasta einstaka inntakid i FFDR —
+   var EKKI i bokhaldinu. Maelt: 19 af 20 GW2-rodum baru adra tolu og
+   threpid faerdist lika. Bokhaldid skradi thvi ANNAD LIKAN en notandinn
+   sa, og kvordunin hefdi maelt thad.
+
+   PROFSTEINNINN ER TENGINGIN, EKKI FORMULAN: taflan verdur ad HREYFA
+   toluna. Fullyrding um ad "odds seu send" vaeri tom — thau voru send
+   allan timann, bara i rongu sniði.
+   ============================================================ */
+{
+  console.log("\n--- MARKADSLIDURINN I BOKHALDINU ---");
+  const oddsFile = JSON.parse(readFileSync(new URL("../data/odds.json", import.meta.url), "utf8"));
+  const nTeams = Object.keys(oddsFile.teams || {}).length;
+  ok("FORSENDA: odds.json ber tofluna", nTeams >= 10, `${nTeams} felog`);
+  const gwOdds = Array.isArray(oddsFile.gws) && oddsFile.gws.length ? oddsFile.gws[0] : null;
+  ok("FORSENDA: taflan naer yfir tiltekna umferd", gwOdds != null, `gws ${JSON.stringify(oddsFile.gws)}`);
+
+  const mk = (odds, gw) => buildSnapshot({
+    gw,
+    players: arr(tryJ("players.json"), "players"),
+    teams: arr(tryJ("teams.json"), "teams"),
+    fixtures: arr(tryJ("fixtures.json"), "fixtures"),
+    teamForm: tryJ("team_form.json"), odds,
+    elo: tryJ("elo.json"), playerForm: tryJ("player_form.json"),
+    promoted: tryJ("promoted_baseline.json"), imminent: tryJ("imminent.json"),
+    nowTs: Date.now(),
+  });
+  const withMkt = mk(oddsFile, gwOdds);
+  const noMkt = mk(null, gwOdds);
+  const key = r => `${r.team}|${r.opp}`;
+  const byKey = new Map(noMkt.ffdr.map(r => [key(r), r]));
+  const moved = withMkt.ffdr.filter(r => {
+    const q = byKey.get(key(r));
+    return q && (Math.abs((r.att ?? 0) - (q.att ?? 0)) > 0.005
+              || Math.abs((r.def ?? 0) - (q.def ?? 0)) > 0.005);
+  }).length;
+  ok("markadslidurinn HREYFIR FFDR i bokhaldinu", moved >= 10,
+     `${moved} af ${withMkt.ffdr.length} rodum hreyfast`);
+
+  /* OG SNIDID MA EKKI SKIPTA MALI: `main()` sendir skrana, profin sendu
+     tofluna. Baed eiga ad gefa SOMU tolu — annars er villan bara flutt.  */
+  const withTable = mk(oddsFile.teams, gwOdds);
+  const byKey2 = new Map(withTable.ffdr.map(r => [key(r), r]));
+  const same = withMkt.ffdr.every(r => {
+    const q = byKey2.get(key(r));
+    return q && Math.abs((r.att ?? 0) - (q.att ?? 0)) < 1e-9
+             && Math.abs((r.def ?? 0) - (q.def ?? 0)) < 1e-9;
+  });
+  ok("skrain og taflan gefa NAKVAEMLEGA somu tolu (snidid er jafnad inni i buildSnapshot)", same);
 }
 
 console.log(`\nSPA-BOKHALD: ${pass} stodust, ${fail} fellu`);

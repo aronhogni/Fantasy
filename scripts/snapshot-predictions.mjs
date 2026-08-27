@@ -101,7 +101,26 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
   const eloByTeam = {};
   for (const e of (Array.isArray(elo?.teams) ? elo.teams : []))
     if (e && e.fpl_id != null) eloByTeam[e.fpl_id] = e.elo ?? e.rating ?? null;
-  const fixDifficulty = makeFixDifficulty({ teamMetrics, teamById, odds, eloByTeam });
+  /* ============================================================
+     MARKADSLIDURINN VAR ALDREI I BOKHALDINU — LAGAD 27.8.2026
+
+     `makeFixDifficulty` tekur TOFLUNA (`odds[short]`), ekki skrana:
+     `App.jsx:692` skrifar `setOdds(d?.teams || null)` og sendir hana. Her
+     var send SKRAIN sjalf (`tryJ("odds.json")`), svo `odds["ARS"]` var
+     `undefined` og markadslidurinn — sterkasta einstaka inntakid i FFDR —
+     datt UT UR BOKHALDINU einu. Maelt 27.8.2026 a GW2: **19 af 20 rodum**
+     bera adra tolu, og threpid faerist lika (t.d. def 3,05/threp 4 ->
+     3,27/threp 5).
+     Bokhaldid var thvi ad skra ANNAD LIKAN en notandinn sa, og kvordunin
+     hefdi maelt thad likan — nakvaemlega astaedan fyrir thvi ad
+     `buildTeamMetrics` var flutt ur App.jsx (CLAUDE.md 7.1).
+     Sniðid er leidrett HER en ekki adeins i `main()`, thvi profin kalla
+     `buildSnapshot` beint og maegu ekki thurfa ad muna eftir `.teams`.
+     Vordur: `prediction-ledger.mjs` — markadslidurinn VERDUR ad hreyfa
+     toluna thegar taflan naer yfir umferdina.
+     ============================================================ */
+  const oddsTeams = (odds && typeof odds === "object" && odds.teams) ? odds.teams : odds;
+  const fixDifficulty = makeFixDifficulty({ teamMetrics, teamById, odds: oddsTeams, eloByTeam });
 
   /* FFDR per LEIK og per STODU-HOP. Tvo hopar, eins og spjoldin: 2 = GK+DEF
      (mork a sig) og 4 = MID+FWD (eigin vaent mork). Bædi samfellda talan OG
