@@ -214,7 +214,7 @@ global.fetch = async (url) => {
       const L = leagues.get(s.split("/").pop());
       return L ? jsonOk(L.league) : notFound;
     }
-    if (/\/picks$/.test(s)) {
+    if (/\/picks(\?|$)/.test(s)) {
       const id = /\/draft\/([^/]+)\/picks/.exec(s)[1];
       const w = worlds.get(id);
       if (!w) return notFound;

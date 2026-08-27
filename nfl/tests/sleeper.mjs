@@ -302,7 +302,7 @@ global.fetch = async (url) => {
        audkenni sem svarar engu vaeri sama lygin i annarri mynd.       */
     const byDraft = (id) => Object.values(SCENARIOS)
       .find((sc) => sc.draft && sc.draft.draft_id === id) || null;
-    if (/\/picks$/.test(s)) {
+    if (/\/picks(\?|$)/.test(s)) {
       const id = (/\/draft\/([^/]+)\/picks/.exec(s) || [])[1];
       const sc = byDraft(id);
       if (!sc) return { ok: false, status: 404, json: async () => null };

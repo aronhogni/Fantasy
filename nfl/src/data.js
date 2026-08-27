@@ -214,10 +214,77 @@ const SLEEPER = "https://api.sleeper.app/v1";
    ============================================================ */
 const SLEEPER_TIMEOUT_MS = 8000;
 
-async function sleeperGet(path, whenNotOk) {
+/* ============================================================
+   BORDID VAR FROSID I FIMM MINUTUR OG POLLUNIN VAR SAKLAUS (27.8.2026)
+   ============================================================
+   Notandinn: "eg er ad mock drafta en ekkert gerist, kallarnir
+   updateast ekki og eg thurfti ad haetta thvi eg fell ut a tima" —
+   og sidan, upp ur thurru: "svo allt i einu poppadi upp pick 53".
+
+   ÞAD ER EKKI HAEG POLLUN. Bordid stod a **6 picks made**, og su tala
+   kemur ur `setInfo(shape)` sem er skrifud i HVERRI pollun, an nokkurs
+   fingrafars-hlids. Stod hun kyrr fekk pollunin thvi SAMA SVARID aftur
+   og aftur — eda var aldrei kollud. `pull()` er heil inni i try/catch
+   og `pollDelay` gefur 1.500/5.000 ms, svo hvorugt getur frosid.
+
+   MAELT A LIFANDI ENDAPUNKTI, EKKI ALYKTAD:
+
+     GET /v1/draft/{id}         -> cache-control: public, s-maxage=300,
+     GET /v1/draft/{id}/picks      stale-while-revalidate=300,
+                                   stale-if-error=600
+     thrjar radir a somu slod   -> cf-cache-status: HIT, HIT, HIT
+                                   **age: 103, 103, 103**
+
+   Somu baetin, sami aldur, thrisvar. Cloudflare-jadarinn fer EKKI til
+   upprunans innan `s-maxage`, svo pollun a 1,5 sek fresti fekk fimm
+   minutna gamla mynd af draftinu — 1,5 sek af FERSKLEIKA er tala sem
+   vid akvadum og hun var aldrei til. Med `stale-while-revalidate` er
+   versta tilfellid 300+300 = **tiu minutur**.
+
+   Þetta er nakvaemlega thad sem notandinn sa: sex vol, ekkert i fimm
+   minutur medan botarnir toku 47 vol, og svo allt i einu 53.
+
+   LAUSNIN ER EINKVAEMUR CACHE-LYKILL. Jadarinn lyklar a slodina MED
+   fyrirspurnarstreng, svo `?_=<tiskuklukka>` gefur MISS. Maelt a somu
+   slod: `?_=<ts>` -> **cf-cache-status: MISS** og API-id skilar
+   nakvaemlega sama farmi (okunn svid eru virt ad vettugi).
+   `cache: "no-store"` er thar fyrir vafra-minnid sjalft; einkvaem slod
+   utilokar thad hvort ed er, en hun a ekki ad fylla thad ad ganslausu.
+
+   AÐEINS DRAFT-SLODIRNAR TVAER FA THETTA og thad er akvordun:
+   `/players/nfl` (14,6 MB), deildin, notendur og hopar eru sott EINU
+   SINNI eda a mannlegum hrada, og thar er jadar-minnid GAGN — vid erum
+   gestir hja Sleeper. Kostnadurinn af thessu er 2 koll a 1,5 sek medan
+   draft er i gangi (~80 a minutu), sem er langt undir theim 1.000 a
+   minutu sem Sleeper nefnir.
+
+   AÐ POLLA ORAR HEFDI EKKI LAGAD NEITT — thad er thess vert ad muna,
+   thvi thad var fyrsta agiskunin sidast (`pollDelay`, 5.000 -> 1.500).
+   Hradari pollun a jadar-minni er sami frosni ramminn, oftar.
+   Vordur: `draft-live.mjs` kafli 23.                                 */
+export function bustCache(path, stamp) {
+  return `${path}${path.includes("?") ? "&" : "?"}_=${stamp}`;
+}
+
+/* KLUKKAN EIN ER EKKI EINKVAEM LYKILL. `Date.now()` hefur upplausn i
+   millisekundum og tveir kollar geta lent i somu — `pull()` sendir bada
+   i einu `Promise.all` (ekki vandamal, oliker slodir) EN profin stytta
+   pollunar-bidina i 6 ms og raunverulegur vafri getur skilad somu tolu
+   tvisvar. Vaxandi teljari gerir einkvaemnina BYGGINGARLEGA i stad
+   thess ad vera hlutfall: tvaer pollanir geta ekki fengid sama
+   jadar-lykil. Klukkan er hofd MED svo lykillinn se lika einkvaemur
+   milli hledslna (nyr flipi byrjar teljarann a 0).                    */
+let stampSeq = 0;
+export function nextStamp(now = Date.now()) { return `${now}.${++stampSeq}`; }
+
+async function sleeperGet(path, whenNotOk, opts = {}) {
+  const url = opts.fresh ? bustCache(path, nextStamp()) : path;
   let r;
   try {
-    r = await fetch(`${SLEEPER}${path}`, { signal: AbortSignal.timeout(SLEEPER_TIMEOUT_MS) });
+    r = await fetch(`${SLEEPER}${url}`, {
+      signal: AbortSignal.timeout(SLEEPER_TIMEOUT_MS),
+      ...(opts.fresh ? { cache: "no-store" } : null),
+    });
   } catch (e) {
     /* TIMAMORK OG NET-BILUN ERU EITT FYRIR NOTANDANN: "Sleeper svaradi
        ekki". Bodin eru ENSK — thau eru vidmot (sja hausinn ofar).      */
@@ -312,12 +379,18 @@ export async function sleeperDrafts(leagueId) {
   return sleeperGet(`/league/${leagueId}/drafts`, s => `Draft not found (${s})`);
 }
 
+/* ÞESSAR TVAER ERU POLLADAR I BEINNI — theim ma ekki svara ur
+   jadar-minni. Sja `bustCache`. `fresh` er ekki valkostur kallandans:
+   badar leidir (tenging OG pollun) vilja ferskt svar, og valkostur sem
+   annar kallandi getur gleymt er sama villan aftur.                   */
 export async function sleeperDraft(draftId) {
-  return sleeperGet(`/draft/${draftId}`, s => `Draft not found (${s})`);
+  return sleeperGet(`/draft/${draftId}`, s => `Draft not found (${s})`,
+    { fresh: true });
 }
 
 export async function sleeperPicks(draftId) {
-  return sleeperGet(`/draft/${draftId}/picks`, s => `Could not read the picks (${s})`);
+  return sleeperGet(`/draft/${draftId}/picks`, s => `Could not read the picks (${s})`,
+    { fresh: true });
 }
 
 /* ============================================================

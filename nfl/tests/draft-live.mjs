@@ -247,7 +247,7 @@ global.fetch = async (url) => {
     /* VOLIN ERU LYKLUD A DRAFT-AUDKENNI. Hermir sem skilar sama lista
        fyrir hvada draft sem er lygur um leid og tvo draft eru til — og
        thad var nakvaemlega gildran sem fannst i `sleeper.mjs` kafla 2f. */
-    if (/\/picks$/.test(s)) {
+    if (/\/picks(\?|$)/.test(s)) {
       const id = /\/draft\/([^/]+)\/picks/.exec(s)[1];
       /* OTHEKKT AUDKENNI SVARAR 404 — sja notuna vid `knownDraftId`. */
       if (!knownDraftId(id)) {
@@ -2665,6 +2665,75 @@ console.log("\n22. mine/gone eru sjalfvirk i samstillingu, handvirk an hennar");
   ok(/your slot is not set/.test(text().replace(/\s+/g, " ")),
     "C: og linan segir hvers vegna hnappurinn er enn thar");
   ok(!junk(), `C: ekkert NaN/undefined (${junk() || "-"})`);
+  await settle(60);
+  await act(async () => { root.unmount(); });
+}
+
+/* ============================================================
+   23. POLLUNIN VERDUR AD KOMAST FRAM HJA JADAR-MINNI SLEEPER
+   ============================================================
+   HVERS VEGNA THESSI KAFLI ER TIL — MAELT 27.8.2026 A LIFANDI API:
+
+     GET /v1/draft/{id}/picks  ->  cache-control: public, s-maxage=300,
+                                   stale-while-revalidate=300
+     thrjar radir a somu slod  ->  cf-cache-status: HIT, HIT, HIT
+                                   **age: 103, 103, 103**
+
+   Somu baetin, sami aldur. Cloudflare svarar sjalfur innan `s-maxage`,
+   svo pollun a 1,5 sek fresti las FIMM MINUTNA GAMALT draft. Notandinn
+   sa thad orðrétt: bordid stod a sex volum medan botarnir toku 47, og
+   svo "poppadi upp pick 53". Hann fell ut a tima a sinu eigin vali.
+
+   ÞETTA ER PROFAD A SLODUNUM, EKKI A SVARINU. Hermirinn hér svarar
+   ferskt hvad sem er i slodinni, svo ENGINN annar kafli i thessari skra
+   getur brugdist thott bustinn se fjarlaegdur — jsdom hefur ekkert
+   jadar-minni og getur ekki hermt eftir thvi. Fullyrdingin verdur thvi
+   ad vera um lykilinn sem vid sendum.
+
+   ÞRJAR FULLYRDINGAR, OG SU MIDJA ER SU SEM BITUR:
+     A. hver draft-/picks-slod ber `_=`            (bustinn er a)
+     B. ENGIR TVEIR eru eins                       (lykillinn er
+        EINKVAEMUR — fastur busti stenst A og fellur hér)
+     C. slodir sem eru sottar EINU SINNI bera hann EKKI (`/league/…`,
+        `/user/…`): vid erum gestir hja Sleeper og jadar-minnid er
+        GAGN a theim, svo akvordunin er skorðud og synileg.
+
+   STOKKBREYTINGAR STADFESTAR: `{ fresh: true }` fjarlaegt af
+   `sleeperPicks` -> A fellur; `nextStamp` skipt ut fyrir fastan streng
+   -> B fellur; `fresh` sett a `sleeperLeague` -> C fellur.          */
+console.log("\n23. pollunin ber einkvaeman cache-lykil");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const root = await boot();
+  calls.length = 0;
+  await connectAndSync();
+  /* ÞEKJA: kaflinn er einskis virdi an raunverulegra pollana. Fjogur vol
+     med bid a milli tryggja ad lykkjan hafi gengid margar umferdir —
+     tvaer slodir per pollun. */
+  for (let n = 1; n <= 4; n++) { pushPick(n); await settle(80); }
+  await waitFor(() => draftedOnScreen() === 4, 8000);
+
+  const draftCalls = calls.filter((u) => /\/draft\/[^/]+(\/picks)?(\?|$)/.test(u));
+  ok(draftCalls.length >= 8,
+    `ThEKJA: pollunin sotti draftid margsinnis (${draftCalls.length} koll)`);
+
+  const withoutBust = draftCalls.filter((u) => !/[?&]_=/.test(u));
+  for (const u of withoutBust.slice(0, 3)) console.log(`     ${u}`);
+  ok(withoutBust.length === 0,
+    `A: hver draft-slod ber cache-bust (${withoutBust.length} af ${draftCalls.length} an hans)`);
+
+  const uniq = new Set(draftCalls);
+  ok(uniq.size === draftCalls.length,
+    `B: allar slodirnar eru EINKVAEMAR (${uniq.size} af ${draftCalls.length})`);
+
+  /* C — og hér er ThEKJA lika nauðsyn: vaeri listinn tomur vaeri
+     fullyrdingin sonn af tomri astaedu (CLAUDE.md 5b). */
+  const once = calls.filter((u) => !/\/draft\//.test(u));
+  ok(once.length > 0, `ThEKJA/C: einu-sinnis slodir voru sottar (${once.length})`);
+  const bustedOnce = once.filter((u) => /[?&]_=/.test(u));
+  ok(bustedOnce.length === 0,
+    `C: og THAER bera hann EKKI (${bustedOnce.length} af ${once.length})`);
+  ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
   await settle(60);
   await act(async () => { root.unmount(); });
 }
