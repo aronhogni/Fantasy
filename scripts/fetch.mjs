@@ -41,6 +41,43 @@ import { normName } from "../src/names.js";
 
 const UA = "Mozilla/5.0 (compatible; FPL-data-collector/1.0; +github-actions)";
 const DATA = "data";
+
+/* ============================================================
+   DEFCON-FORGILDID (p0) ER MAELT, EKKI VALID — LAGAD 27.8.2026
+
+   Hlutfallid `hit_rate_adj = (hits + K*p0)/(starts + K)` dregur ad
+   STODU-medaltali medan laugin er lítil. Laugin sjalf er notud um leid og
+   hun ber >= 50 byrjanir; thangad til er thetta forgildi ALLT sem talan
+   segir. I fyrstu umferd hvers timabils er thad thvi EINA talan a skjanum.
+
+   VILLAN SEM ThETTA LAGAR: gomlu fostu tolurnar voru
+   `{DEF: 0,27, MID: 0,17, FWD: 0,10}`. Taer tvaer fyrri eru maelda talan
+   rúnnud (0,2632 og 0,1675) — su thridja er thad EKKI. Maelt a
+   `data/player_gw_2526.json`, nefnari BYRJANIR (sama regla og 17.8.2026):
+     DEF  829 / 3.150 = 0,2632
+     MID  595 / 3.553 = 0,1675
+     FWD   11 /   823 = 0,0134
+   FWD-forgildid var thvi **7,5x maelda gildid**. Afleidingin sast a
+   skjanum 27.8.2026: FWD-laugin bar 21 byrjun (< 50) og NULL hittu, svo
+   hver einasti sokn i deildinni — Haaland lika — synd **0,091** thar sem
+   maelingin segir ~0,01. Tilbuin tala sem lítur ut eins og maeling er
+   versta utkoman (CLAUDE.md 3), og thetta er nakvaemlega sama aett og
+   `DC_P0_FALLBACK.GK = 0,02` sem var fjarlaegt 17.8.2026.
+
+   OG TAFLAN VAR TVIRITUD: `computeDefconHistory` bar hana med
+   stodu-heitum og `computeDefcon` med element_type-lyklum. Tvo afrit af
+   somu tolu reka i sundur — thau gerdu thad ekki enn, en GK-fjarlaegingin
+   snerti adeins annad theirra. Nu er hun EIN og badir lesa hana.
+
+   VORDUR: `tests/defcon-shrink.mjs` kafli 7 endurreiknar hlutfollin ur
+   `player_gw_2526.json` og fellur ef fastarnir vikja meira en 0,005 fra
+   theim. Fastinn getur thvi ekki verid "valinn" aftur an thess ad profid
+   segi fra.
+   ============================================================ */
+export const DC_P0_PRIOR = { DEF: 0.263, MID: 0.168, FWD: 0.013 };
+export const DC_P0_PRIOR_BY_TYPE = { 2: DC_P0_PRIOR.DEF, 3: DC_P0_PRIOR.MID, 4: DC_P0_PRIOR.FWD };
+
+
 const today = new Date().toISOString().slice(0, 10);
 
 const FLAGS = {
@@ -1448,7 +1485,6 @@ async function playedGwIdsFromDisk(events) {
 
 async function computeDefconHistory() {
   const DC_K = 10;
-  const DC_P0_FALLBACK = { DEF: 0.27, MID: 0.17, FWD: 0.10 };   // GK: utilokadir, sja ofar
   const POS_THRESH = { GK: 10, DEF: 10, MID: 12, FWD: 12 };
   const seasons = {};
   let files = 0;
@@ -1513,7 +1549,7 @@ async function computeDefconHistory() {
     for (const r of Object.values(out)) {
       const q = pool[r.pos];
       const p0 = q && q.starts >= 50 ? q.hits / q.starts
-                                     : (DC_P0_FALLBACK[r.pos] ?? 0.17);
+                                     : (DC_P0_PRIOR[r.pos] ?? DC_P0_PRIOR.MID);
       r.p0 = +p0.toFixed(3);
       r.hit_rate = +(r.hits / r.starts).toFixed(3);
       r.hit_rate_adj = +((r.hits + DC_K * p0) / (r.starts + DC_K)).toFixed(3);
@@ -1630,7 +1666,6 @@ async function computeDefcon(events, els) {
      Dæmi ur handoffinu: 9/12 hratt = 75% -> (9+10*0,32)/22 = 56%.
      HRAA TALAN OG n HALDA SER — afturvirknin er VIDBOT, ekki yfirskrift. */
   const DC_K = 10;
-  const DC_P0_FALLBACK = { 2: 0.27, 3: 0.17, 4: 0.10 };   // 1=GK utilokadur, sja ofar
   const pool = {};
   for (const p of out) {
     const q = pool[p.position] || (pool[p.position] = { hits: 0, starts: 0 });
@@ -1639,7 +1674,7 @@ async function computeDefcon(events, els) {
   for (const p of out) {
     const q = pool[p.position];
     const p0 = q && q.starts >= 50 ? q.hits / q.starts
-                                   : (DC_P0_FALLBACK[p.position] ?? 0.17);
+                                   : (DC_P0_PRIOR_BY_TYPE[p.position] ?? DC_P0_PRIOR.MID);
     p.p0 = +p0.toFixed(3);
     p.hit_rate_adj = +((p.threshold_hits + DC_K * p0) / (p.starts + DC_K)).toFixed(3);
   }
@@ -2588,6 +2623,36 @@ async function fetchElo() {
    ein tala getur verid sonn um tvaer umferdir, svo hun laetur ekki eins og
    hun se thad.
    ============================================================ */
+/* ============================================================
+   EIN ROD PER FELAG — OG ThAD VERDUR AD VERA NAESTI LEIKUR (27.8.2026)
+
+   `odds.json` ber EINA rod per felag, og hun var skrifud med "sidasti
+   vinnur": `teams[hs] = {...}` i lykkju yfir svarid. Svarid spannar
+   hins vegar OFT TVAER UMFERDIR — bokmakarinn verdlegger viku fram i
+   timann — og tha yfirskrifar SEINNI leikurinn thann sem er a naesta
+   leiti.
+
+   MAELT A RAUNGOGNUM 27.8.2026: `data/odds_raw/2026-08-27-sharp.json`
+   ber 20 leiki fra 28.8. til 6.9. — GW2 OG GW3 — og `odds.json` sat
+   eftir med **GW3 hja ollum 20 felogum** (`gws: [3]`), daginn fyrir
+   GW2-frestinn. Afleidingin er ekki rong tala heldur ENGIN: `csFor`
+   sannreynir motherja OG dagsetningu (CLAUDE.md 8), svo CS%-dalkurinn
+   og markadslidurinn — sterkasta einstaka inntakid i FFDR — voru TOM
+   fyrir tha umferd sem verid var ad skipuleggja.
+
+   Sama aett og BSD-reglan "lid leikmanns er FLEST-LEIKID lid, ekki
+   sidasti sem vinnur" (CLAUDE.md 6): thegar tvaer radir keppa um sama
+   reit ma rodin ekki radast af ROD I SVARINU.
+   ============================================================ */
+export function preferNextMatch(existing, row) {
+  if (!existing?.kickoff) return row;
+  if (!row?.kickoff) return existing;
+  const a = Date.parse(existing.kickoff), b = Date.parse(row.kickoff);
+  if (!Number.isFinite(b)) return existing;
+  if (!Number.isFinite(a)) return row;
+  return b < a ? row : existing;
+}
+
 export function oddsGwCoverage(teams, fixtures) {
   const rows = Object.values(teams || {});
   const fx = Array.isArray(fixtures) ? fixtures : [];
@@ -3798,6 +3863,124 @@ async function fetchInjuries() {
         + (aliasCollisions.length ? ` — ALIAS COLLISION: ${aliasCollisions.join("; ")}` : ""));
 }
 
+/* ============================================================
+   SVAR BOKMAKARANS -> EIN ROD PER FELAG (dregid ut 27.8.2026)
+
+   Umbreytingin bjo INNI i `fetchOdds`, sem gerir HTTP-kallid sjalft. Hun
+   var thess vegna oprofanleg an API-lykils — og thegar villa fannst i
+   henni (naesti leikur a moti theim sidasta, sja `preferNextMatch`) var
+   engin leid til ad endurbyggja `odds.json` ur hraa svarinu sem ER
+   committad i `data/odds_raw/`. Skra sem er geymd en ekki haegt ad lesa
+   aftur er arkiv ad nafninu til.
+
+   Nu er hun hreint fall: raw-svar + felagatafla -> `{ teams, unmatched,
+   games, unpriced }`. `fetchOdds` kallar hana, `scripts/rebuild-odds.mjs`
+   kallar hana, og `tests/odds-transform.mjs` profar hana a RAUNVERULEGA
+   arkiv-svarinu. Ein utfaersla, threir lesendur — sama regla og
+   `buildTeamMetrics` (CLAUDE.md 7.1).
+   ============================================================ */
+export function oddsTeamsFromRaw(raw, teamsById) {
+  // Nafnavörpun Odds API -> FPL short_name (normaliserað)
+  /* EIN UTFAERSLA — sja `CLUB_NORM`/`CLUB_ALIAS`. Adur strippadi thessi
+     normolari HVORKI `afc`, `fc` NE `the`, olikt ESPN-leidinni.       */
+  const norm = CLUB_NORM;
+  const byNorm = clubIndex(teamsById, (id, t) => t.short_name);
+
+  const PREFERRED = ["bet365", "williamhill", "betfair_ex_uk", "skybet", "paddypower"];
+  const teams = {};
+  const unmatched = new Set();
+  let games = 0, unpriced = 0;
+
+  for (const g of (raw || [])) {
+    const books = (g.bookmakers || []).filter(b =>
+      b.markets?.some(m => m.key === "h2h") && b.markets?.some(m => m.key === "totals"));
+    const pick = books.sort((a, b) =>
+      (PREFERRED.indexOf(a.key) + 1 || 99) - (PREFERRED.indexOf(b.key) + 1 || 99)).slice(0, 3);
+    if (!pick.length) continue;
+
+    let totLine = 0, totOver = 0, totUnder = 0, totN = 0, hO = 0, dO = 0, aO = 0, n = 0;
+    let ahPoint = 0, ahN = 0;
+    for (const b of pick) {
+      const h2h = b.markets.find(m => m.key === "h2h");
+      const tot = b.markets.find(m => m.key === "totals");
+      if (h2h) {
+        const ho = h2h.outcomes.find(o => o.name === g.home_team)?.price;
+        const ao = h2h.outcomes.find(o => o.name === g.away_team)?.price;
+        const dr = h2h.outcomes.find(o => o.name === "Draw")?.price;
+        if (ho && ao && dr) { hO += ho; aO += ao; dO += dr; n++; }
+      }
+      if (tot) {
+        const over = tot.outcomes.find(o => o.name === "Over");
+        const under = tot.outcomes.find(o => o.name === "Under");
+        if (over?.point && over?.price && under?.price) {
+          totLine += over.point; totOver += over.price; totUnder += under.price; totN++;
+        }
+      }
+      // SPREADS = asískt handicap. Punkturinn á heimaliðinu er handicap-ið.
+      const spr = b.markets.find(m => m.key === "spreads");
+      if (spr) {
+        const hs = spr.outcomes.find(o => o.name === g.home_team);
+        if (hs?.point != null) { ahPoint += hs.point; ahN++; }
+      }
+    }
+    if (!n || !totN) continue;
+
+    const p = devig(hO / n, dO / n, aO / n);
+    // λ úr LÍKUM, ekki línunni sjálfri (línan er viðmið, ekki vænting)
+    const line = totLine / totN;
+    const pOver = devig2(totOver / totN, totUnder / totN);
+    /* SAMEIGINLEGA UMBREYTINGIN (src/market.js) — asískt handicap notað
+       þegar það er til (nákvæmara), annars 1X2-skipting. Spreads-punktur
+       á heimaliði er +N þegar heimalið FÆR forgjöf.                      */
+    const { hxg, axg, lambda, method } = marketGoals({
+      pHome: p.home, pAway: p.away, line, pOver,
+      ah: ahN ? ahPoint / ahN : null,
+    });
+    /* OVERDLAGDUR LEIKUR ER SLEPPT, EKKI SKRIFADUR (25.8.2026).
+       `marketGoals` skilar nu `method: "unpriced"` thegar linan eda
+       yfirlikurnar vantar, i stad thess ad "konvergera" a 0,1 vaent
+       mork. Rodin verdur einfaldlega ekki til — og thad er RETT svar:
+       dalkurinn er tomur i stad thess ad bera uppspuna.              */
+    if (hxg == null || axg == null) { unpriced++; continue; }
+
+    const hs = byNorm[norm(g.home_team)], as = byNorm[norm(g.away_team)];
+    if (!hs) unmatched.add(g.home_team);
+    if (!as) unmatched.add(g.away_team);
+    if (!hs || !as) continue;
+    games++;
+
+    // LYKILATRIÐI: við geymum mótherja + kickoff svo framendinn geti staðfest
+    // að línan gildi um RÉTTA leikinn (ekki notað á aðra umferð).
+    // MARKAÐS-ÞYNGD (marketDiff) er á sama 1-5 kvarða sem framendinn notar.
+    /* NAESTI LEIKUR VINNUR, EKKI SA SIDASTI I SVARINU — sja
+       `preferNextMatch`. Svarid spannar oft tvaer umferdir.          */
+    teams[hs] = preferNextMatch(teams[hs], { cs: poissonCleanSheet(axg), xga: +axg.toFixed(2), xg: +hxg.toFixed(2),
+      diff: marketDiff(axg), opp: as, home: true, kickoff: g.commence_time,
+      method, lambda: +lambda.toFixed(2), books: pick.map(b => b.title) });
+    teams[as] = preferNextMatch(teams[as], { cs: poissonCleanSheet(hxg), xga: +hxg.toFixed(2), xg: +axg.toFixed(2),
+      diff: marketDiff(hxg), opp: hs, home: false, kickoff: g.commence_time,
+      method, lambda: +lambda.toFixed(2), books: pick.map(b => b.title) });
+  }
+  return { teams, unmatched: [...unmatched], games, unpriced };
+}
+
+/* SKRAIN SJALF — sama fall fyrir sokn og endurbyggingu. `updated` og
+   `window` FYLGJA SOKNINNI sem gognin komu ur, ekki klukkunni i dag:
+   `shouldFetchOdds` gatar a aldri thessarar tolu, svo ad stimpla "nuna" a
+   endurbyggda skra myndi loka glugganum i 30 klst til vidbotar fyrir gogn
+   sem eru ekki ny.                                                     */
+export function oddsFileFrom({ teams, fixtures, updated, window: win, gw, requestsRemaining }) {
+  const cover = oddsGwCoverage(teams, fixtures || []);
+  return {
+    updated, window: win || null,
+    gw: cover.gw ?? gw ?? null, gws: cover.gws,
+    gw_deadline: gw ?? null,
+    requests_remaining: requestsRemaining ?? null,
+    note: "CS% from a Poisson on the opponent's expected goals. 'opp' and 'kickoff' CONFIRM that the line refers to the right match.",
+    teams,
+  };
+}
+
 async function fetchOdds() {
   const key = process.env.ODDS_API_KEY;
   if (!key) { record("odds", false, 0, "ODDS_API_KEY missing"); return; }
@@ -3879,86 +4062,9 @@ async function fetchOdds() {
     record("odds_raw", false, 0, `archive failed: ${e.message} - odds.json itself is unaffected`);
   }
 
-  // Nafnavörpun Odds API -> FPL short_name (normaliserað)
-  /* EIN UTFAERSLA — sja `CLUB_NORM`/`CLUB_ALIAS`. Adur strippadi thessi
-     normolari HVORKI `afc`, `fc` NE `the`, olikt ESPN-leidinni.       */
-  const norm = CLUB_NORM;
-  const byNorm = clubIndex(teamsById, (id, t) => t.short_name);
-
-  const PREFERRED = ["bet365", "williamhill", "betfair_ex_uk", "skybet", "paddypower"];
-  const teams = {};
-  const unmatched = new Set();
-  let games = 0, unpriced = 0;
-
-  for (const g of (raw || [])) {
-    const books = (g.bookmakers || []).filter(b =>
-      b.markets?.some(m => m.key === "h2h") && b.markets?.some(m => m.key === "totals"));
-    const pick = books.sort((a, b) =>
-      (PREFERRED.indexOf(a.key) + 1 || 99) - (PREFERRED.indexOf(b.key) + 1 || 99)).slice(0, 3);
-    if (!pick.length) continue;
-
-    let totLine = 0, totOver = 0, totUnder = 0, totN = 0, hO = 0, dO = 0, aO = 0, n = 0;
-    let ahPoint = 0, ahN = 0;
-    for (const b of pick) {
-      const h2h = b.markets.find(m => m.key === "h2h");
-      const tot = b.markets.find(m => m.key === "totals");
-      if (h2h) {
-        const ho = h2h.outcomes.find(o => o.name === g.home_team)?.price;
-        const ao = h2h.outcomes.find(o => o.name === g.away_team)?.price;
-        const dr = h2h.outcomes.find(o => o.name === "Draw")?.price;
-        if (ho && ao && dr) { hO += ho; aO += ao; dO += dr; n++; }
-      }
-      if (tot) {
-        const over = tot.outcomes.find(o => o.name === "Over");
-        const under = tot.outcomes.find(o => o.name === "Under");
-        if (over?.point && over?.price && under?.price) {
-          totLine += over.point; totOver += over.price; totUnder += under.price; totN++;
-        }
-      }
-      // SPREADS = asískt handicap. Punkturinn á heimaliðinu er handicap-ið.
-      const spr = b.markets.find(m => m.key === "spreads");
-      if (spr) {
-        const hs = spr.outcomes.find(o => o.name === g.home_team);
-        if (hs?.point != null) { ahPoint += hs.point; ahN++; }
-      }
-    }
-    if (!n || !totN) continue;
-
-    const p = devig(hO / n, dO / n, aO / n);
-    // λ úr LÍKUM, ekki línunni sjálfri (línan er viðmið, ekki vænting)
-    const line = totLine / totN;
-    const pOver = devig2(totOver / totN, totUnder / totN);
-    /* SAMEIGINLEGA UMBREYTINGIN (src/market.js) — asískt handicap notað
-       þegar það er til (nákvæmara), annars 1X2-skipting. Spreads-punktur
-       á heimaliði er +N þegar heimalið FÆR forgjöf.                      */
-    const { hxg, axg, lambda, method } = marketGoals({
-      pHome: p.home, pAway: p.away, line, pOver,
-      ah: ahN ? ahPoint / ahN : null,
-    });
-    /* OVERDLAGDUR LEIKUR ER SLEPPT, EKKI SKRIFADUR (25.8.2026).
-       `marketGoals` skilar nu `method: "unpriced"` thegar linan eda
-       yfirlikurnar vantar, i stad thess ad "konvergera" a 0,1 vaent
-       mork. Rodin verdur einfaldlega ekki til — og thad er RETT svar:
-       dalkurinn er tomur i stad thess ad bera uppspuna.              */
-    if (hxg == null || axg == null) { unpriced++; continue; }
-
-    const hs = byNorm[norm(g.home_team)], as = byNorm[norm(g.away_team)];
-    if (!hs) unmatched.add(g.home_team);
-    if (!as) unmatched.add(g.away_team);
-    if (!hs || !as) continue;
-    games++;
-
-    // LYKILATRIÐI: við geymum mótherja + kickoff svo framendinn geti staðfest
-    // að línan gildi um RÉTTA leikinn (ekki notað á aðra umferð).
-    // MARKAÐS-ÞYNGD (marketDiff) er á sama 1-5 kvarða sem framendinn notar.
-    teams[hs] = { cs: poissonCleanSheet(axg), xga: +axg.toFixed(2), xg: +hxg.toFixed(2),
-      diff: marketDiff(axg), opp: as, home: true, kickoff: g.commence_time,
-      method, lambda: +lambda.toFixed(2), books: pick.map(b => b.title) };
-    teams[as] = { cs: poissonCleanSheet(hxg), xga: +hxg.toFixed(2), xg: +axg.toFixed(2),
-      diff: marketDiff(hxg), opp: hs, home: false, kickoff: g.commence_time,
-      method, lambda: +lambda.toFixed(2), books: pick.map(b => b.title) };
-  }
-  if (unmatched.size) console.warn(`Odds: unmatched names: ${[...unmatched].join(" | ")}`);
+  /* UMBREYTINGIN ER EITT FALL — sja `oddsTeamsFromRaw` ad ofan. */
+  const { teams, unmatched, games, unpriced } = oddsTeamsFromRaw(raw, teamsById);
+  if (unmatched.length) console.warn(`Odds: unmatched names: ${unmatched.join(" | ")}`);
 
   /* TOMT SVAR MA EKKI ThURRKA UT NYTILEGAR LINUR (8e).
      200-svar med ENGUM porudum leikjum (utan glugga, nofn breyttust, allir
@@ -3983,15 +4089,11 @@ async function fetchOdds() {
      ma ekki bera sama nafn.                                             */
   let fixturesForOdds = [];
   try { fixturesForOdds = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8")); } catch {}
-  const cover = oddsGwCoverage(teams, fixturesForOdds);
-  await writeJSON("odds.json", {
-    updated: status.updated, window: gate.window || null,
-    gw: cover.gw ?? gate.gw ?? null, gws: cover.gws,
-    gw_deadline: gate.gw ?? null,
-    requests_remaining: remaining ? +remaining : null,
-    note: "CS% from a Poisson on the opponent's expected goals. 'opp' and 'kickoff' CONFIRM that the line refers to the right match.",
-    teams,
-  });
+  await writeJSON("odds.json", oddsFileFrom({
+    teams, fixtures: fixturesForOdds, updated: status.updated,
+    window: gate.window, gw: gate.gw ?? null,
+    requestsRemaining: remaining ? +remaining : null,
+  }));
   /* OVERDLAGDIR LEIKIR ERU TALDIR OG SAGDIR. An talningarinnar vaeri
      "8 leikir" af tiu sama sniðid og "10 af tiu" — thogn i stad tolu.  */
   record("odds", true, games, `${gate.window} · ${Object.keys(teams).length} teams`

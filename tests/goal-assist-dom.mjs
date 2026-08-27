@@ -21,6 +21,7 @@ import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { selectGw } from "./lib/select-gw.mjs";
 import { act } from "react";
 
 let pass = 0, fail = 0;
@@ -97,6 +98,16 @@ async function boot(patch = null) {
   const { default: App } = await import("../src/App.jsx");
   createRoot(document.getElementById("root")).render(React.createElement(App));
   await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
+  /* UMFERD 1 ER VALIN (27.8.2026). Markaskorara-spjoldin haenga a
+     leikjalista ThEIRRAR umferdar sem er opin, og appid opnar nu a theirri
+     sem er verid ad SKIPULEGGJA (`planningGw`) — GW2 hefur enga skorada
+     leiki, svo safnid fann NULL spjold og fullyrdingarnar fellu an thess
+     ad neitt vaeri ad. Sja tests/lib/select-gw.mjs.                     */
+  const doc = dom.window.document;
+  dom.gwPicked = await selectGw(doc, 1, async el => {
+    await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+  });
   console.error = orig;
   return dom;
 }

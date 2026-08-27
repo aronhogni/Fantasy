@@ -19,6 +19,7 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
+import { selectGw } from "./select-gw.mjs";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
@@ -52,7 +53,12 @@ const sleep = ms => new Promise(r => realSetTimeout(r, ms));
    vorpunin sjalf oprofud — og hun er einmitt thar sem bekkurinn og
    bandid geta tapast.
    ============================================================ */
-export async function boot(state, { delay = 0, picks = null, entry = null, warns = null } = {}) {
+/* `gw` — HVADA UMFERD ER OPIN ThEGAR PROFID BYRJAR (27.8.2026)
+   Sjalfgildid er `null` = "ekki snerta", svo eldri kallendur breytast ekki.
+   Safn sem er UM akvedna umferd a ad SEGJA thad: appid opnar a theirri
+   umferd sem er verid ad skipuleggja (`planningGw`), og su tala faerist
+   um leid og umferd klarast. Sja `tests/lib/select-gw.mjs`.            */
+export async function boot(state, { delay = 0, picks = null, entry = null, warns = null, gw = null } = {}) {
   const dom = new JSDOM("<!doctype html><div id=root></div>",
     { url: "http://localhost/", pretendToBeVisual: true });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -129,8 +135,18 @@ export async function boot(state, { delay = 0, picks = null, entry = null, warns
   console.error = orig; console.warn = ow;
 
   const doc = dom.window.document;
+  const clickEl = async el => {
+    if (!el) return false;
+    await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await sleep(50); });
+    return true;
+  };
+  /* `gwPicked`: `null` = ekki bedid um, `false` = BEDID UM OG MISTOKST.
+     Kallandinn a ad fullyrda um `false`-tilfellid — thogul mistok her
+     letu safnid keyra a hvada umferd sem er og lita eins ut.          */
+  const gwPicked = (gw == null || crash) ? null : await selectGw(doc, gw, clickEl);
   return {
-    crash, doc, dom,
+    crash, doc, dom, gwPicked,
     text: () => doc.body.textContent || "",
     q: s => [...doc.querySelectorAll(s)],
     /* SMELLUR. `initial-squad.mjs` H2 tharf ad FLAKKA milli umferda eftir
@@ -138,12 +154,7 @@ export async function boot(state, { delay = 0, picks = null, entry = null, warns
        verdur ad koma UR ThESSARI JSDOM-lotu — atburdur ur annarri lotu
        fer ekki gegnum React. Thess vegna er hann HER og ekki afritadur i
        kallandann.                                                        */
-    click: async el => {
-      if (!el) return false;
-      await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
-      await act(async () => { await sleep(50); });
-      return true;
-    },
+    click: clickEl,
     /* RATT blobbid sem appid skrifadi — baetin sem hord endurhledsla flytur. */
     raw: () => dom.window.localStorage.getItem("fpl_planner_v3"),
     /* `saved()` er SAMA UTFAERSLA undir odru nafni — `initial-squad.mjs`

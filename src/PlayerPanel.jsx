@@ -39,11 +39,10 @@ const i0 = v => v == null ? "—" : String(Math.round(v));
 /* ============================================================
    1. EFSTI HLUTI — sex tolur sem skipta mestu, 2026/27
    ============================================================ */
-export function PlayerHeadline({ p, buyTenths, sellTenths_, inSquad, onEditPrice, seasonStarted }) {
+export function PlayerHeadline({ p, buyTenths, inSquad, onEditPrice, seasonStarted }) {
   if (!p) return null;
   const cost = n(p.now_cost);
   const buy = inSquad ? buyTenths : null;
-  const sell = inSquad ? sellTenths_ : null;
 
   return (
     <div style={S.headGrid}>
@@ -58,7 +57,6 @@ export function PlayerHeadline({ p, buyTenths, sellTenths_, inSquad, onEditPrice
         {inSquad && buy != null && (
           <div style={S.hSub}>
             {"bought £"}{(buy / 10).toFixed(1)}
-            {sell != null && <> {"· sell £"}{(sell / 10).toFixed(1)}</>}
           </div>
         )}
         {/* FRAMVINDA AD VERDBREYTINGU — FPL-s EIGIN SVID, OBREYTT.

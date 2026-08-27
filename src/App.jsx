@@ -30,10 +30,12 @@ import BestOfBest from "./BestOfBest.jsx";
 /* `mono` og `sans` VORU FLUTT UT HER OG NOTUD I ENGU (25.8.2026) —
    MAELT: 0 tilvik utan innflutnings-linunnar sjalfrar. Stilarnir sem
    thurfa thau lesa thau innan `appStyles.js`.                        */
+import { START_BENCHMARKS } from "./calibration.js";
 import { C, S } from "./appStyles.js";
 import { saveState, loadState } from "./storage.js";
 import { availOf, banRisk, setPieceOf, rotationRisk, fixturePlayed,
-         matchesPlayedByClub, seasonHasStarted, startedGameweeks } from "./availability.js";
+         matchesPlayedByClub, seasonHasStarted, startedGameweeks,
+         planningGw, latestStartedGw } from "./availability.js";
 /* `Kit`, `crestUrl` og `CREST_FALLBACK` VORU DAUD HER (25.8.2026).
    MAELT: 0 tilvik utan innflutningsins — eina "notkunin" var inni i
    ATHUGASEMD (linu ~1080), sem er nakvaemlega gildran i CLAUDE.md 13:
@@ -662,8 +664,18 @@ export default function App() {
         ];
         await Promise.allSettled(OPTIONAL.map(([file, set]) =>
           j(file).then(set, () => {})));
-        const cur = evA.find(e => e.is_current) || evA.find(e => e.is_next);
-        if (cur) setGw(cur.id);
+        /* UMFERDIN SEM OPNAST ER SU SEM ER VERID AD SKIPULEGGJA, EKKI SU
+           SEM FPL KALLAR `is_current` (27.8.2026). Her stod
+           `evA.find(e => e.is_current) || evA.find(e => e.is_next)`, og
+           FPL heldur `is_current` a umferdinni ThANGAD TIL naesti frestur
+           lidur — svo tha thrja til fjora daga sem madur er einmitt ad
+           skipuleggja opnadist appid a umferd sem var BUIN, og vaent stig
+           a hverju einasta spjaldi voru reiknud ur leik sem var spiladur.
+           Reglan sjalf (og hvers vegna hun les LEIKINA en ekki
+           `finished` a umferdinni) er i `planningGw`; vordur:
+           `tests/planning-gw.mjs`.                                     */
+        const planGw = planningGw(evA, fxA);
+        if (planGw != null) setGw(planGw);
       } catch (e) { setDataState("error"); }
     })();
   }, []);
@@ -854,9 +866,32 @@ export default function App() {
        Sest fyrst thegar flett er hratt milli umferda — thad er einmitt thad
        sem madur gerir thegar tímabilid er byrjad.                        */
     let alive = true;
+    /* ============================================================
+       LIDID ER SOTT FYRIR SIDUSTU BYRJUDU UMFERD, EKKI ThA SEM ER OPIN
+       (27.8.2026)
+
+       FPL birtir `picks` fyrst thegar fresturinn er lidinn. Medan appid
+       opnadi alltaf a `is_current` var thad meinlaust — su umferd var
+       alltaf byrjud. Um leid og skipuleggjarinn faerdist a NAESTU umferd
+       (`planningGw`) hefdi sama sokn skilad 404, `squadOverride` ordid
+       null og TENGDA LIDID horfid af vellinum theim thrja daga sem madur
+       er ad skipuleggja. Lagfaering a einum stad ma ekki brjota annan.
+
+       SKIPTINGIN ER SKYR OG HUN ER EKKI SMEKKUR:
+         · lid, fyrirlidi, varafyrirlidi, kaupverd, banki, HEILDARSTIG
+           eru ASTAND — their eiga vid i dag, hvada umferd sem er opin.
+         · stig umferdarinnar og refsingin i henni eru UM ThA UMFERD.
+           Ad syna GW1-stig og GW1-refsingu medan GW2 er opin vaeri tala
+           undir rongum haus — sama aett og samtolur i Teams (CLAUDE.md 3).
+       Thess vegna eru their tveir reitir nullstilltir thegar sotta
+       umferdin er ONNUR en su sem er opin.
+       ============================================================ */
+    const lastStarted = latestStartedGw(events);
+    const picksGw = (lastStarted != null && gw > lastStarted) ? lastStarted : gw;
+    const sameGw = picksGw === gw;
     (async () => {
       try {
-        const r = await fetch(`${PROXY_URL}?path=fpl-picks&id=${entryId}&gw=${gw}`);
+        const r = await fetch(`${PROXY_URL}?path=fpl-picks&id=${entryId}&gw=${picksGw}`);
         const d = await r.json();
         /* EINN UTGANGUR DUGAR FYRIR ALLA SETJARA HER A EFTIR: hafi umferdin
            (eda lidid) breyst medan bedid var er thetta svar urelt.        */
@@ -869,12 +904,14 @@ export default function App() {
            thydir "veit ekki" og appid kann thad thegar; NaN kann thad
            ekki — sbr. regluna um ad tomt gildi se ALDREI 0.            */
         const n = v => (typeof v === "number" && Number.isFinite(v)) ? v : null;
-        setGwPts(n(d?.entry_history?.points));
+        /* `sameGw` — sja blokkina ad ofan: stig og refsing eru UM umferdina,
+           heildarstig og banki eru ASTAND.                                */
+        setGwPts(sameGw ? n(d?.entry_history?.points) : null);
         setTotalPts(n(d?.entry_history?.total_points));
         // FPL gefur banka í entry_history — nákvæmara en okkar áætlun
         if (n(d?.entry_history?.bank) != null) setApiBank(d.entry_history.bank);
         // FPL segir okkur raunverulega refsingu sem var tekin í umferðinni
-        setApiHit(n(d?.entry_history?.event_transfers_cost));
+        setApiHit(sameGw ? n(d?.entry_history?.event_transfers_cost) : null);
         if (d?.error) {
           /* SKYRING I STAD ThOGNAR. Forleikur: FPL birtir ekki `picks` fyrir
              umferd sem er EKKI byrjud — /entry/{id}/event/{gw}/picks/ er 404.
@@ -882,7 +919,7 @@ export default function App() {
           const is404 = /404/.test(String(d.error));
           setConn(c => (c.state === "ok" || c.state === "picks")
             ? { ...c, state:"picks", picks:false,
-                msg: is404 ? interp("Connected ✓ — but FPL does not publish the squad until gameweek {0} starts. Points and your real squad will arrive automatically.", [gw])
+                msg: is404 ? interp("Connected ✓ — but FPL does not publish the squad until gameweek {0} starts. Points and your real squad will arrive automatically.", [picksGw])
                            : interp("Connected ✓ — but could not fetch the squad ({0}).", [String(d.error).slice(0, 40)]) }
             : c);
         }
@@ -920,7 +957,7 @@ export default function App() {
           if (v) setVice(v.element);
           /* STADFESTING A ThVI SEM SKIPTIR: lidid UPPFAERDIST. */
           setConn(cc => ({ ...cc, state:"picks", picks:true,
-            msg: interp("Connected ✓ — {0} players fetched from FPL for gameweek {1}.", [d.picks.length, gw]) }));
+            msg: interp("Connected ✓ — {0} players fetched from FPL for gameweek {1}.", [d.picks.length, picksGw]) }));
         }
       } catch { if (alive) { setTotalPts(null); setGwPts(null); } }
     })();
@@ -945,7 +982,7 @@ export default function App() {
        og refsing HREYFAST. Utan thess eru pikkarnir frosnir og ekkert
        ad endurnyja. Vill hann thvinga sokn — Disconnect og tengja aftur;
        thad nullstillir `entryId` og keyrir thennan effect fra grunni.  */
-  }, [entryId, gw, liveTick]);
+  }, [entryId, gw, events, liveTick]);
 
 
   // preSeason er reiknað neðar (þarf events) — ref til að buyOf nái í það
@@ -2254,6 +2291,45 @@ export default function App() {
      spila 21,6% EKKI 60+ naest, og laegsti tiundarhlutinn fangar 42-49%
      theirra — lyfting 2,09x, samhljoda oll thrju timabilin.               */
   const immIdx = useMemo(() => indexImminentByTeam(imminent), [imminent]);
+
+  /* ============================================================
+     TEXTINN UM BYRJUNAR-GLUGGANN ER LEIDDUR, EKKI SKRIFADUR (27.8.2026)
+
+     Her stod fastur strengur: "The window is the LAST 5 COMPLETED
+     GAMEWEEKS; in preseason that means the end of last season" — og hann
+     bar LIKA "Brier 0.089". Badar fullyrdingarnar voru ORDNAR OSANNAR a
+     sama degi: 27.8.2026 er timabilid byrjad (svo ordid "preseason"
+     afsakar ekki lengur neitt) medan `imminent.json` ber ENN
+     arkiv-gluggann (2025/26 GW34-38) — thad er MAELT val sem stendur thar
+     til fimm umferdir eru loknar — og a theim glugga er maelda Brier-talan
+     0,1683, ekki 0,089. Tvaer tolur um sama hlut, onnur birt.
+
+     Nakvaemlega sama aett og "preseason - engin umferd lokin" i CLAUDE.md
+     kafla 1 og "the range is 4-10" i SetPieces: FOST FULLYRDING UM
+     LIFANDI ASTAND URELDIST ThEGJANDI. Glugginn kemur nu ur skranni sem
+     ber hann og talan ur `START_BENCHMARKS`, sem er sama tafla og
+     kvordunin maelir sig vid — ekkert nytt eintak.                     */
+  const startProbNote = useMemo(() => {
+    const key = imminent ? (imminent.archive === true ? "archive" : "live") : null;
+    const b = key ? START_BENCHMARKS[key] : null;
+    const gws = Array.isArray(imminent?.gws) ? imminent.gws : null;
+    const span = gws?.length ? `GW${gws[0]}-${gws[gws.length - 1]}` : null;
+    /* TALAN SEM ER EKKI TIL FAER EKKI SETNINGU: `baselineBrier` er null a
+       arkiv-glugganum (omaeld thar), svo samanburdurinn er sleppt fremur
+       en fylltur med lifandi tolunni.                                   */
+    const acc = !b ? ""
+      : b.baselineBrier != null
+        ? `Measured Brier ${b.brier} against ${b.baselineBrier} for "started last time". `
+        : `Measured Brier ${b.brier} on this window. `;
+    const where = !imminent
+      ? "The window is the last completed gameweeks. "
+      : imminent.archive === true
+        ? `The window is still ${imminent.season || "last season"}${span ? " " + span : ""} — last season's `
+          + "run-in, when rest and rotation are heavy, so the figure is on the recalibrated scale. "
+          + "It switches by itself once five gameweeks of this season are in. "
+        : `The window is ${imminent.season || "this season"}${span ? " " + span : ""}. `;
+    return `Chance of 60+ minutes — our measured model, not an FPL field. ${acc}${where}Below 50% = bench risk.`;
+  }, [imminent]);
   const netByPlayer = useMemo(() => {
     const m = {};
     for (const p of players || []) {
@@ -3044,7 +3120,14 @@ export default function App() {
                       );
                     })()}
                   </div>
-                  <button onClick={() => setGw(n)} style={{ ...S.node, ...(active ? S.nodeOn : {}) }}>
+                  {/* HEITID ER SYNILEGT AKKERI, EKKI PROF-KROKUR: hnappurinn
+                      ber adeins toluna, svo bædi mus-notandi og prof hofdu
+                      ekkert nema "1" til ad thekkja hann a. `title` gefur
+                      honum nafn a skjanum OG stodugan festipunkt fyrir
+                      profin (`tests/lib/select-gw.mjs`) — sami rokstudningur
+                      og ikon-forskeytin a flipunum (CLAUDE.md 5). */}
+                  <button onClick={() => setGw(n)} title={interp("Gameweek {0}", [n])}
+                    style={{ ...S.node, ...(active ? S.nodeOn : {}) }}>
                     <span style={S.nodeNum}>{n}</span>
                     {has && <span style={S.nodeDot} />}
                     {transferCost[n]?.hits > 0 &&
@@ -4575,7 +4658,6 @@ export default function App() {
                     p={p}
                     inSquad={squadIds.has(p.id)}
                     buyTenths={squadIds.has(p.id) ? buyOf(p.id) : null}
-                    sellTenths_={squadIds.has(p.id) ? sellOf(p.id) : null}
                     seasonStarted={seasonStarted}
                     onEditPrice={() => setPriceEdit({ id: p.id })} />
 
@@ -5071,7 +5153,7 @@ export default function App() {
                               <span style={{ ...S.sigPill,
                                              ...(sg.startP < 0.5 ? S.sigBad
                                                  : sg.startP < 0.75 ? S.sigWarn : S.sigOk) }}
-                                title={"Chance of 60+ minutes — measured model (Brier 0.089 vs 0.118 for \"started last time\"). The window is the LAST 5 COMPLETED GAMEWEEKS; in preseason that means the end of last season, when rest and rotation are heavy. Below 50% = bench risk."}>
+                                title={startProbNote}>
                                 {Math.round(sg.startP * 100)}%
                               </span>
                             )}

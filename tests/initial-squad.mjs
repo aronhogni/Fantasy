@@ -71,6 +71,7 @@ import { act } from "react";
 import { isInitialSquadPick, INITIAL_SQUAD_GW } from "../src/model.js";
 import { rotationRisk } from "../src/availability.js";
 import { playedEvents } from "./lib/played-events.mjs";
+import { selectGw } from "./lib/select-gw.mjs";
 /* `boot` ER ENDURNOTAD UR `gw1-persistence.mjs` — thad er EINA harness-id
    sem rifur appid nidur og reisir thad upp UR BLOBBINU EINU, og thad er
    thad sem 'les gamalt blobb thad sama?' krefst. Annad harness vaeri
@@ -98,7 +99,11 @@ const BENCH_IDS = [497,173,278,321];          // starter:false i START_SQUAD
 const realSetTimeout = globalThis.setTimeout;
 const sleep = ms => new Promise(r => realSetTimeout(r, ms));
 
-async function mount(state, { width = 1280, patch = null } = {}) {
+/* `gw` ER GEFIN UPP, EKKI ERFD (27.8.2026) — sja tests/lib/select-gw.mjs.
+   Safnid er UM umferd 1 (upphafslidid) og treysti adur a ad appid opnadist
+   thar. Sjalfgildid er nu su umferd sem er verid ad SKIPULEGGJA, svo lokin
+   GW1 fleytir manni a GW2 og "opnunardagurinn" hefdi maelt ranga mynd.   */
+async function mount(state, { width = 1280, patch = null, gw = 1 } = {}) {
   const dom = new JSDOM("<!doctype html><div id=root></div>",
     { url: "http://localhost/", pretendToBeVisual: true });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -126,12 +131,17 @@ async function mount(state, { width = 1280, patch = null } = {}) {
   const root = createRoot(dom.window.document.getElementById("root"));
   await act(async () => { root.render(React.createElement(App)); });
   await act(async () => { await sleep(340); });
-  console.error = orig;
   const doc = dom.window.document;
+  const clickEl = async el => {
+    await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await sleep(50); });
+  };
+  const gwPicked = gw == null ? null : await selectGw(doc, gw, clickEl);
+  console.error = orig;
   return {
-    doc, win: dom.window,
+    doc, win: dom.window, gwPicked,
     text: () => doc.body.textContent || "",
-    click: async el => { await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); }); await act(async () => { await sleep(50); }); },
+    click: clickEl,
     q: s => [...doc.querySelectorAll(s)],
     blob: () => dom.window.localStorage.getItem("fpl_planner_v3"),
   };
@@ -560,7 +570,7 @@ console.log("\n--- G. LIMINGIN (BYGGINGARLEG FULLYRDING) ---");
      fyrstu utgafu og gerdi fullyrdinguna ad tautologiu (CLAUDE.md 13);
      hun tharf PLANADAN blob svo bordinn birtist yfirleitt.              */
   const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
-  const v2 = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED });
+  const v2 = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED , gw: null });
   const side2 = v2.q(".pitch-side")[0];
   ok(!!side2 && /Not been in your XI/.test(side2.textContent || ""),
      "og 'Not been in your XI' er INNI i SOMU limdu sulu — thad var parid sem skarst");
@@ -885,7 +895,7 @@ console.log("\n--- I. 'Never in your XI' ---");
 
   /* MERKIMIDINN — a raungognum, med POSITIFRI forsendu fyrst.          */
   const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
-  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED });
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED , gw: null });
   const banner = cardOf(v, "Not been in your XI", "Save £");
   ok(!!banner, "bordinn birtist og ber Save-merkimidann");
   const seg = banner ? banner.textContent : "";
@@ -1054,7 +1064,7 @@ console.log("\n--- K. AFTURABAK ---");
      mars. Sama aett og `fdcouk`-rodin (404 -> 301 -> 300) og
      `gw1-checklist`, sem baedi urealdust af klukkunni og ekki af villu. */
   const P0 = { "events.json": { events: playedEvents(EV, 0) } };
-  const pre = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P0 });
+  const pre = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P0 , gw: null });
   const started0 = (P0["events.json"].events || []).filter(e => e.deadline_time
     && Date.now() >= new Date(e.deadline_time).getTime()).length;
   ok(started0 === 0, `forsenda: ThVINGAD forleiks-astand, engin byrjud umferd (${started0})`);
@@ -1064,12 +1074,12 @@ console.log("\n--- K. AFTURABAK ---");
      "og gamla framvirka fullyrdingin er hvergi i vidmotinu");
 
   /* 2. GOLFID — EIN byrjud umferd er ekki nog til ad brennimerkja mann. */
-  const one = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P1 });
+  const one = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P1 , gw: null });
   ok(!/Not been in your XI/.test(one.text()),
      "EIN byrjud umferd -> afram ThOGN (golfid er tvaer)");
 
   /* 3. SAGA — Haaland a bekknum GW1-4 (erfist fra einni faerslu).      */
-  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P4 });
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P4 , gw: null });
   ok(/Not been in your XI/.test(v.text()), "FJORAR byrjadar umferdir -> bordinn birtist");
   const banner = cardOf(v, "Not been in your XI", "Save £");
   ok(!!banner, "bordinn fannst sem afmarkad element");
@@ -1100,7 +1110,7 @@ console.log("\n--- K. AFTURABAK ---");
         SLAPP GEGNUM safnid. Hun fellur adeins thegar notandinn er ad SKODA
         umferd sem er ekki byrjud.                                       */
   const P2 = { "events.json": { events: playedEvents(EV, 2) } };
-  const far = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P2 });
+  const far = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: P2 , gw: null });
   const n6 = far.q("button").find(b => b.textContent.trim() === "6");
   ok(!!n6, "forsenda: GW6-hnutur er a timalinunni");
   await far.click(n6);
@@ -1125,7 +1135,7 @@ console.log("\n--- K. AFTURABAK ---");
      lykill'-regluna: listinn i hverri umferd er FULLUR mismunur fra
      grunninum, svo 'til baka' er tvofalt vixl og ekki tomur lykill.   */
   const v2 = await mount({ captain: 411,
-    benchSwaps: { 1: [[411, 321]], 3: [[411, 321], [411, 321]] } }, { patch: P4 });
+    benchSwaps: { 1: [[411, 321]], 3: [[411, 321], [411, 321]] } }, { patch: P4 , gw: null });
   const b2 = cardOf(v2, "Not been in your XI", "Save £");
   ok(/Not been in your XI/.test(v2.text()) === false || !(b2 || { textContent: "" }).textContent.includes(HAAL),
      `${HAAL} er EKKI nefndur eftir ad hann byrjadi tvaer af fjorum`);
@@ -1207,7 +1217,7 @@ console.log("\n--- L. TALNINGIN ---");
 
   /* OG A SKJANUM: talan birtist MED nefnara.                           */
   const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
-  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED });
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED , gw: null });
   const banner = cardOf(v, "Not been in your XI", "Save £");
   ok(!!banner, "forsenda: bordinn er a skjanum");
   const seg = banner ? banner.textContent : "";
@@ -1249,7 +1259,7 @@ console.log("\n--- M. SKIPTA-TILLAGAN ---");
      profadur nedar. Calvert-Lewin (LEE) a thyngri leiki, svo tillogur ERU
      til fyrir hann og siurnar hafa eitthvad ad bita i.                  */
   const SIT = 346;                                  // Calvert-Lewin, LEE FWD
-  const v = await mount({ captain: 411, benchSwaps: { 1: [[SIT, 321]] } }, { patch: PLAYED });
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[SIT, 321]] } }, { patch: PLAYED , gw: null });
   const banner = cardOf(v, "Not been in your XI", "Save £");
   ok(!!banner, "forsenda: bordinn er a skjanum");
   const seg = banner ? banner.textContent : "";
@@ -1835,7 +1845,13 @@ console.log("\n--- O. RAUNLIDID UR FPL ER UPPHAFSLIDID (opnunardagurinn) ---");
      fullyrding um dedup, ekki um kodann (CLAUDE.md 5b).
      ============================================================ */
   const warnsO = [];
-  const v = await boot(JSON.stringify(blob), { picks: PICKS, warns: warnsO });
+  /* UMFERD 1 ER VALIN: kaflinn heitir "opnunardagurinn" og fullyrdir um
+     GW1-myndina (hans fimmtan, bankinn adur en GW2-skiptid lendir). Appid
+     opnar nu a theirri umferd sem er verid ad SKIPULEGGJA, svo an thessa
+     laesi kaflinn GW2 — thar sem Semenyo ER farinn og bankinn ER 4,0.
+     Naesti kafli sannreynir einmitt tha mynd, svo badar eru profadar.  */
+  const v = await boot(JSON.stringify(blob), { picks: PICKS, warns: warnsO, gw: 1 });
+  ok(v.gwPicked === true, "forsenda: umferd 1 er VALIN (timalinu-hnuturinn fannst)");
   const t = v.text();
   ok(warnsO.length === 0,
      `ENGIN React-vidvorun i TENGDU myndinni (${warnsO.length})`,

@@ -69,10 +69,23 @@ export function availOf(p) {
    eftir er). Thrju skilyrdi, EIN spurning: thau geta ekki verid osammala
    um annad en hversu snemma svarid kemur.
    ============================================================ */
+export const gwStarted = (e, now = Date.now()) =>
+  !!(e && (e.finished || e.is_current
+    || (e.deadline_time && Date.parse(e.deadline_time) <= now)));
 export function startedGameweeks(events, now = Date.now()) {
-  return (events || []).filter(
-    e => e.finished || e.is_current
-      || (e.deadline_time && Date.parse(e.deadline_time) <= now)).length;
+  return (events || []).filter(e => gwStarted(e, now)).length;
+}
+/* SIDASTA UMFERDIN SEM ER BYRJUD — ThAD ER SU SEM FPL BIRTIR LID FYRIR.
+   `entry/{id}/event/{gw}/picks/` er 404 thangad til fresturinn lidur, svo
+   "hvada umferd er verid ad skipuleggja" og "hvada lid getum vid SED" eru
+   TVAER spurningar. Thaer voru sama talan medan appid opnadi alltaf a
+   `is_current`; um leid og skipuleggjarinn faerdist a naestu umferd
+   (`planningGw`) yrdi sokinn ad 404 og TENGDA LIDID hyrfi af vellinum.
+   Sama klukka og `startedGameweeks` — ekki nytt skilyrdi, sama fall.   */
+export function latestStartedGw(events, now = Date.now()) {
+  const ids = (Array.isArray(events) ? events : [])
+    .filter(e => gwStarted(e, now)).map(e => Number(e.id)).filter(Number.isFinite);
+  return ids.length ? Math.max(...ids) : null;
 }
 export const seasonHasStarted = (events, now = Date.now()) =>
   startedGameweeks(events, now) > 0;
@@ -170,6 +183,52 @@ export function setPieceOf(p, ranks) {
    ============================================================ */
 export const fixturePlayed = (f) =>
   f?.finished === true || f?.finished_provisional === true;
+
+/* ============================================================
+   HVAÐA UMFERÐ ER VERIÐ AÐ SKIPULEGGJA? (27.8.2026)
+
+   App.jsx opnaði á `is_current` og féll aðeins á `is_next` ef engin
+   umferð var current. FPL heldur hins vegar `is_current` á umferðinni
+   ÞANGAÐ TIL næsti frestur líður — svo frá því að síðasti leikur
+   umferðarinnar flautar og þar til næsti frestur rennur upp (þrír til
+   fjórir dagar af hverri viku, NÁKVÆMLEGA þeir dagar sem skipti eru
+   gerð) opnaðist skipuleggjarinn á umferð sem VAR BÚIN.
+
+   MÆLT 27.8.2026 á lifandi `data/`: allir tíu GW1-leikirnir bera
+   `finished_provisional`, GW2-fresturinn er eftir ~21 klst, og `gw` var
+   samt 1. Vænt stig á hverju spjaldi — allir 616 leikmenn — voru þar með
+   reiknuð úr leik sem var þegar spilaður (Sangaré 2,12 gegn Tottenham
+   í stað 1,92 að Leeds), og leikjastikan sýndi hann fremstan.
+
+   ÞRENNT SEM REGLAN VERÐUR AÐ VIRÐA:
+     1. UMFERÐ Í GANGI ER ENN UMFERÐIN MANNS. Meðan einhver leikur er
+        óspilaður (eða í gangi) er `is_current` rétta svarið — það er þá
+        sem maður horfir á lifandi stig. Þess vegna er prófsteinninn
+        `fixturePlayed` á ÖLLUM leikjum umferðarinnar, ekki `finished`
+        á umferðinni sjálfri (hún flettist ~3 dögum of seint, CLAUDE.md 1).
+     2. TÓM LEIKJASKRÁ MÁ EKKI ÁKVEÐA NEITT. `[].every(...)` er `true`,
+        svo umferð sem á enga leik í skránni myndi lesast sem "fullspiluð"
+        og fleyta manni áfram — hol fullyrðing í skilningi CLAUDE.md 5b.
+        Vantandi gögn halda manni kyrrum.
+     3. SÍÐASTA UMFERÐIN Á SIG SJÁLF. Að GW38 lokinni er ekkert `is_next`;
+        þá stendur maður í 38 en fær ekki `null`.
+   ============================================================ */
+/* ENGIN KLUKKA HER OG ThAD ER ASETT: fresturinn kemur hvergi vid sogu,
+   thvi spurningin er hvort LEIKIRNIR seu spiladir. Breyta sem er tekin
+   vid og aldrei lesin er loford sem fallid heldur ekki. */
+export function planningGw(events, fixtures) {
+  const evs = Array.isArray(events) ? events : [];
+  if (!evs.length) return null;
+  const cur = evs.find(e => e?.is_current);
+  const next = evs.find(e => e?.is_next);
+  if (!cur) return next?.id ?? null;               /* forleikur: `is_next` */
+  const fxs = (Array.isArray(fixtures) ? fixtures : []).filter(f => f?.event === cur.id);
+  if (!fxs.length) return cur.id;                  /* regla 2 */
+  if (!fxs.every(fixturePlayed)) return cur.id;    /* regla 1 */
+  if (next?.id != null) return next.id;
+  const later = evs.filter(e => e?.id > cur.id).sort((a, b) => a.id - b.id)[0];
+  return later?.id ?? cur.id;                      /* regla 3 */
+}
 
 export function matchesPlayedByClub(fixtures) {
   const by = {};

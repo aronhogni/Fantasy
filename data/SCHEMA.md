@@ -1064,6 +1064,24 @@ var raunveruleg í ESPN-kortinu, sjá CLAUDE.md).
 Liða-samtölur og markaðslínur úr sömu heimild. `bsd_odds` er **valfrjáls**
 viðbót við `odds.json`, ekki staðgengill.
 
+### `bsd_lineups.json` — SPÁÐ byrjunarlið, GEYMD TIL MÆLINGAR
+
+Skrifuð af `fetchBsdLineups()` í hröðu keyrslunni. **Ekkert í appinu les
+hana og það er ásetningur**: þetta eru *spár* BSD (`status: "predicted"`,
+gluggi ~11–13 klst fyrir leik), ekki staðfest lið, og spá má aldrei rata í
+skrá sem segist bera staðfestingu — staðfest byrjunarlið eiga sína eigin
+skrá (`lineups.json`, kafli um FotMob/API-Sports).
+
+Efnið: `updated`, `season_id`, `note`, og `events` — hlutur lyklaður á leik
+þar sem hver færsla ber `fixture`, `kickoff` og `snapshots[]`. Hver snapshot
+ber `at`, `status` og `home`/`away` með `formation`, `confidence` og `xi[]`
+(`n` nafn, `pos`, `ai` — **eigin líkan BSD, ómælt gegn okkar 6h-líkani**).
+
+**Hún er skrifuð oftar en einu sinni per leik og það er tilgangurinn:**
+spáin er ekki geymd afturvirkt (búinn leikur skilar `confirmed`), svo hún
+tapast ef hún er ekki sótt fyrir leik. Röðin safnast því í `snapshots[]` og
+verður seinna hægt að mæla — hvenær spáin stöðvast og hversu vel hún hittir.
+
 ### `bsd_live.json` — YFIRSTANDANDI tímabil
 Skrifuð af `fetchBsdLive()`. **Er ekki til í forleik** og það er rétt:
 `record("bsd_live", true, 0, "no season")`. Framendinn sækir hana og þolir

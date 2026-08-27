@@ -392,6 +392,35 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
   merkimiðann var blekkt, og `stats.test.mjs` fann það orðrétt. Talan er nú
   **leidd af innihaldinu** (`oddsGwCoverage`), `gws` ber allar umferðir sem
   raðirnar spanna og `gw_deadline` heldur gömlu tölunni undir sínu eigin nafni.
+- **EIN ODDS-RÖÐ PER FÉLAG — OG HÚN VAR SÚ SÍÐASTA Í SVARINU, EKKI SÚ NÆSTA**
+  (27.8.2026). `teams[hs] = {...}` í lykkju yfir svar bókmakarans er
+  „síðasti vinnur", og svarið **spannar oft tvær umferðir** (hann verðleggur
+  viku fram í tímann). Mælt: `data/odds_raw/2026-08-27-sharp.json` ber 20 leiki
+  frá 28.8. til 6.9. — GW2 OG GW3 — og `odds.json` sat eftir með **GW3 hjá
+  öllum 20 félögum** (`gws: [3]`) daginn fyrir GW2-frestinn. Afleiðingin er
+  ekki röng tala heldur **engin**: `csFor` sannreynir mótherja OG dagsetningu,
+  svo CS%-dálkurinn og markaðsliðurinn — sterkasta einstaka inntakið í FFDR —
+  voru **tóm fyrir þá umferð sem verið var að skipuleggja**. Sama ætt og
+  BSD-reglan „lið leikmanns er FLEST-LEIKIÐ lið, ekki síðasti sem vinnur"
+  (kafli 6): þegar tvær raðir keppa um sama reit má röðin ekki ráðast af röð í
+  svarinu. Leyst með `preferNextMatch` (fyrsti leikur vinnur).
+  · **OG SKRÁIN VAR ENDURBYGGÐ ÚR ARKÍVINU, EKKI SÓTT AFTUR.** Hliðið hleypir
+    aðeins einni sókn í hvorn glugga (`age < 30` klst), svo skráin hefði borið
+    GW3 fram yfir GW2-frestinn. Umbreytingin bjó INNI í `fetchOdds`, sem gerir
+    HTTP-kallið sjálft — hún var því óprófanleg án API-lykils OG hráa svarið,
+    sem er committað, varð ekki lesið aftur. **Arkív sem ekki er hægt að lesa
+    aftur er arkív að nafninu til.** Nú eru `oddsTeamsFromRaw` og
+    `oddsFileFrom` hrein föll með þrjá lesendur (sóknin,
+    `scripts/rebuild-odds.mjs`, `tests/odds-transform.mjs`) og GW2-línurnar
+    voru endurbyggðar úr `odds_raw/2026-08-27-sharp.json` — **engin ný sókn,
+    enginn kvóti**. `updated` fylgir sókninni sem gögnin komu úr, ekki
+    klukkunni: hliðið gátar á aldri hennar, svo „núna“ hefði lokað glugganum í
+    30 klst til viðbótar fyrir gögn sem eru ekki ný.
+  · **FULLYRÐING PRÓFSINS ER TÍMA-STÖÐUG OG ÞAÐ ER ÁSETT:** hún er um
+    eiginleika umbreytingarinnar (hver röð er FYRSTI leikur félagsins í
+    svarinu), ekki um dagatalið. „Næsti óleikni leikur“ hefði verið sannur í
+    dag og ósannur í næstu viku — og þá hefði safnið fallið án þess að nokkuð
+    væri að. Stökkbreytingin („síðasti vinnur“) fellir 3 fullyrðingar.
 - **API-SPORTS ER UPPSAGÐUR AFTUR — OG ÞAÐ ER EKKI KVÓTI** (22.8.2026, milli
   05:23 og 18:23). Svarið er `{"access":"Your account is suspended…"}` á
   **tveimur ólíkum endapunktum**, og aðeins ~4 af 100 daglegum köllum voru
@@ -530,6 +559,7 @@ töflu. Smáatriðin eru í `docs/MAELINGAR.md`.
 | **STÓRA STIGALÍKANS-BEIÐNIN (25.8.2026) — SEX TILGÁTUR, ALLAR FELLDAR** | **Mælt að beiðni notandans** („ég vill búa til betra spálíkan fyrir stig … ekki hætta fyrr en þú nærð marktækri bætingu"), `scripts/measure-exp-points-v2.mjs`, 5 tímabil, **51.262 / 126.730 leikmanna-umferðir**, bootstrap **klasað per leikmann**, 400 ítranir, fast fræ. **ENGIN breyting á `src/model.js` var réttlætt og engin var gerð.** (1) **DefCon sem inntak:** þrautseigjan er raunveruleg (DC-hittni split-half **r 0,7551** á móti **0,3263** fyrir stig = **2,31×**) en ákvörðunin hreyfist ekki — `d top15` **0,000 CI [−0,239, +0,232]**; og formið sem notandinn lýsti sjálfur (`nonDC-ppg × mult + 2 × p_hit`) er **VERRA**: `d top15` **−0,344 CI [−0,565, −0,088]**, útilokar null í RANGA átt. (2) **Mótherji × staða:** `d r` **−0,0007 CI [−0,0014, −0,0000]** (neikvætt), þekja 92,7% — ekki gagnaskortur. (3) **Markaðsoddar:** ÞEGAR inni; DEF **+0,0038 [+0,0018, +0,0059]**, GK **−0,0008 [−0,0051, +0,0031]**. (4) **Big chances:** `d r` +0,0009 CI [−0,0027, +0,0046]. (5) **Mínútur/byrjunar-líkur:** lítur út eins og eini sigurvegarinn á `ppg5`-grunni og **SNÝST VIÐ** á skrumpuðum grunni (`d top15` −0,179 [−0,287, −0,080]) — það var aldrei um mínútur, hrátt 5-leikja meðaltal er einfaldlega vondur grunnur. (6) **threat/ICT/xGI:** að fella xG/xA-fjölskylduna úr 56-inntaka ridge gefur `d r` **−0,0003 [−0,0005, −0,0001]** — hún er þegar inni og ber sitt. **VÖRNIN SEM VANN:** bygging appsins (`grunnur × FFDR-margfaldari`) **jafnar eða slær** 56-inntaka ridge þegar grunnurinn er góður (topp-15 5,104 á móti 5,104), og FFDR-margfaldarinn ber sitt þar: **Δtopp-15 +0,175 CI [+0,066, +0,292]**, útilokar null. **Sangaré-dæmið sem notandinn nefndi er RÉTT SÉÐ EN RANGT GREINT:** hans eigið meðaltal 2025/26 var **3,24** svo 2,3 var raunverulega lágt — en orsökin er skrumpun grunnsins, ekki vantandi DC-liður; 14 stig eru **hala-atburður** (4,19% raða ná 10+, besta líkan spáir þeim 3,58) | 25.8.2026 |
 | **FPL-EIGIÐ `xP` SEM VIÐMIÐ EÐA INNTAK** | **LEKIÐ — og það er nú VARÐAÐ, ekki bara skjalað.** `xP` fylgir raunstigum **r 0,4529** innan leikmanns á móti **0,0720** hjá besta leka-frjálsa líkaninu — **6,3×**, sem er ekki gæði heldur gegnsýring (það er reiknað eftir á). Safn sem notar `xP` sem viðmið mælir því hversu vel við hermum eftir leka. **`tests/xp-contaminated.mjs` fellur** ef `xP` er notað sem viðmið eða sem inntak í sömu röð; `xP5` (aðeins fortíð) er beinlínis leyft | 25.8.2026 |
 | **ÞRJÚ INNTÖK ÚR BEIÐNINNI SEM VORU ALDREI MÆLD — NÚ MÆLD (25.8.2026)** | **`scripts/measure-opp-pens-shots.mjs`**, committuð `data/`, engin ytri köll, ~38 s, **deterministísk** (fast fræ 7, bootstrap klasað per leikmann fyrir r/MAE og per umferð fyrir topp-15). Röðin hér að neðan hét áður „ekki reynt"; hún er nú **reynd og felld**, nema þar sem gögnin eru einfaldlega ekki til. **(a) MEIÐSLI Í LIÐI MÓTHERJANS — EKKI MÆLANLEG SEM MEIÐSLI.** Ekkert í repo-inu geymir **sögu um tiltækileika**: `fpl_player_gw.json` ber ekkert slíkt svið, og `data/history/` er **verð-eingöngu og hefst 25.7.2026**, svo hún spannar enga lokna umferð. Staðgengillinn sem ER hægt að byggja er **fjarvera** (hlutfall mínútna mótherjans síðustu 5 umferðir sem tilheyra mönnum sem spiluðu 0 í dag) og hann blandar meiðslum, bönnum, róteringu og félagaskiptum — ekkert í gögnunum skilur þau að. Orakel-útgáfan: hrár halli innan leikmanns **+0,0954 stig per +0,10 fjarveru CI [0,0666, 0,1236]**, net af líkani **+0,0703 CI [0,0427, 0,0974]** = **~0,16 stig** yfir raunsviðið. **En nothæfa útgáfan (fjarvera í N−1, sú eina sem er þekkt fyrir frest) mælist `d r +0,0003 CI [−0,0002, +0,0007] — INNIHELDUR NULL**, og topp-15 versnar í **öllum fjórum** reitum (t.d. orakel `−0,029`). Óstöðug líka: halli per tímabil 0,0086–0,1506, **17× spönn**, og nýjasta tímabilið er nánast núll. **(b) VÍTI OG DÓMARI — DÓMARA-HELMINGURINN ER EKKI MÆLANLEGUR.** E0 ber `Referee` í öllum 15 tímabilum en **ENGAN víta-dálk í neinu þeirra** (dálkarnir eru nákvæmlega `HS,AS,HST,AST,HF,AF,HC,AC,HY,AY,HR,AR`); víti eru aðeins til í BSD, sem nær yfir **2025/26 eitt**. Prófið sem felldi dómara-spjöldin — `r(N→N+1)` yfir 14 tímabila-pör — **er því ekki hægt að keyra**. Innan þess eina tímabils: 89 víti á 17 dómara með ≥10 leiki, umfram-dreifni **0,00265 CI [−0,00713, +0,01751] — inniheldur null**, og þak með FULLKOMINNI vitneskju **0,102 stig** (á móti 0,016 sem spjöldin voru felld við). Lids-víti á sig: `d r −0,0013 CI [−0,0042, +0,0016]`; og fullyrðing notandans sjálfs (hjálpar það vítaskyttunni?) mælist **+1,063 stig per +1 víti/leik CI [−3,773, +6,639]** — CI 20× breiðara en matið. Aflið skýrir hvers vegna: 0,24 víti per leik þýðir að félag hefur gefið **um tvö** við GW20. **(c) HRÁ SKOT-TALNING SEM EP-LIÐUR — FELLD, OG HÚN SKAÐAR.** Ofan á grunn sem ber ÞEGAR `xg90/xa90/xgi90/threat90/ict90`: `d r +0,0026 CI [−0,0036, +0,0080]` og `d MAE` inniheldur null — **en `d topp-15 −0,196 CI [−0,330, −0,074]`, sem ÚTILOKAR NULL Í RANGA ÁTT.** Sama niðurstaða og box-snertingarnar eftir annarri leið: **merki sem fylgir því sem er þegar í líkaninu er ekki ný upplýsing.** Pörunin er BYGGINGARLEG (mínútu/stiga-vigur per umferð, ekki nöfn): 534 einkvæm af 537 | 25.8.2026 |
+| **EIN BYRJUN SEM DEFCON-MERKI — MERKIÐ ER RAUNVERULEGT, BIRTINGIN BREYTIST SAMT EKKI** | **Mælt 27.8.2026 að beiðni notandans um M.Sangaré** („hann er líklegur að fara að ná DefCon" eftir 13 DC á 75 mín í GW1), `scripts/measure-first-start-dc.mjs`, 360 leikmenn 2025/26 með ≥6 byrjanir, bootstrap klasað per leikmann, fast fræ. **`measure-dc-flag.mjs` setti GÓLF VIÐ 5 BYRJANIR og það er rétt um SINN mælikvarða** — hrá hittni á einni byrjun er 0% eða 100%. **En DC-TALNINGIN er samfelld og var aldrei mæld**, svo gólfið gilti um hana án mælingar. Hún ber merki: `r(DC/90 í fyrstu byrjun -> hittni í ÞEIM SEM Á EFTIR KOMA)` = **0,396 CI [0,274, 0,511] hjá MID** (DEF 0,259 [0,077, 0,418]; FWD 0,149 [−0,090, 0,361] inniheldur null), og hún slær **binæru** hittuna (0,230 [0,059, 0,399]). Hópur ≥15 DC/90 á móti <15: **+0,221 CI [+0,062, +0,422]**, útilokar null — **en n=9 í efri hópnum og bandið er ekki einrænt** (12–15 mælist 0,171, LÆGRA en 8–12 sem er 0,214), sem er undirskrift hávaða. **ÞAÐ SEM ER FELLT ER BIRTINGIN:** að skipta `hit_rate_adj` út fyrir DC/90-línu bætir MAE um **0,0063 CI [−0,0010, +0,0136] — INNIHELDUR NULL**, og línan var meira að segja fittuð á SÖMU gögnum (þak, ekki tillaga). **Skrumpaða talan stendur.** Sami mælikvarði og felldi „sleppa óheppnis-liðnum" | 27.8.2026 |
 | Stöðu-forgildi í stað `ep_next` fyrir nýliða | Skekkjan er raunveruleg en **hver leiðrétting gerir spána VERRI** á lauginni sem appið beitir henni á (MAE 0,848 → 0,873). **Vörður: `exp-points.mjs`** fellur ef blint forgildi er sett inn | 3e |
 | `full90` + `start_rate5` í rankScore | −0,018 í báðum laugum | 3c |
 | Margföldunar-liður `W.xg≈0,20` | 0,14σ, slær kjarnann í 5/8 tímabilum | 3 |
@@ -942,6 +972,8 @@ niðurstaðan committuð:
 | `start-panel.mjs` | ekkert (sameiginlegur hleðari) | **BYRJUNAR-LÍKANA-PANELLINN, ein útfærsla fyrir þrjár mælingar** (sama regla og `espn-zones.mjs`). Parar `fpl_player_gw.json` við FPL-`code` gegnum `players_raw.csv`; mælt **733/735 · 776/777 · 865/869 · 804/805 · 841/841** — NAFNA-pörun milli tímabila tapar þögult 10–52 raunverulegum tengingum per skil (2,4–7,5%). Geymir líka klasaða bootstrappið (400 ítranir, ákveðið RNG) |
 | `measure-dc-flag.mjs` | ekkert (skýrsla; `--json <slóð>`) | **MÁ MERKJA MANN SEM „DC-LEIKMANN"?** (25.8.2026) Skilgreining notandans (hrá hittni > 0,50) mæld á `player_gw_2526.json`: golf **5 byrjanir** (1 byrjun gefur 0% eða 100%), og merkt á fyrstu 5 skilur hópana **0,441 á móti 0,168 í ÞEIM SEM EFTIR ERU — +0,273 CI [0,218, 0,334]**. Deterministísk, ~1 s. **Skjalar líka MITT EIGIÐ ranga mælitæki:** fyrsta fals-jákvæðu talan (79%) taldi tímabils-hittni 0,48 sem VILLU; sundurliðuð er hún 12 sannir · 11 á jaðri · 5 undir · **0 undir 0,25** |
 | `measure-opp-pens-shots.mjs` | ekkert (skýrsla; `--json <slóð>`) | **ÞRJÚ INNTÖK SEM VANTAÐI ÚR STÓRU BEIÐNINNI** (25.8.2026): meiðsli mótherjans, víti/dómari, hrá skot-talning. Öll þrjú **felld** — sjá kafla 4. Flytur inn `panel2.mjs`, `e0.mjs` og `bootstrapCI` úr `start-panel.mjs`; **engin formúla endurrituð**. Deterministísk (sannreynt með því að bera tvær heilar keyrslur saman bæti fyrir bæti) |
+| `rebuild-odds.mjs` | `odds.json` | **ENDURBYGGIR MARKAÐSLÍNUNA ÚR COMMITTAÐA HRÁA SVARINU** (27.8.2026) — engin netköll, enginn kvóti. Til vegna þess að hliðið (`shouldFetchOdds`) hleypir aðeins einni sókn í hvorn glugga, svo skrá sem er skökk daginn fyrir frest hefði staðið þannig fram yfir hann. Notar SÖMU föll og sóknin (`oddsTeamsFromRaw`, `oddsFileFrom`) — ekkert endurritað. Þrír verðir í skriftunni sjálfri: tómt svar skrifar ekkert · engin pöruð félög skrifa ekkert · **færri félög en fyrir er stöðvað** (afturför er merki um bilun í umbreytingunni, ekki um þögn á markaðnum). `--dry` skrifar ekkert |
+| `measure-first-start-dc.mjs` | ekkert (skýrsla; `--json <slóð>`) | **HVAÐ SEGIR EIN BYRJUN UM DEFCON?** (27.8.2026) Svarar spurningunni sem 5-byrjana gólfið í `measure-dc-flag.mjs` lokaði án þess að mæla hana: hittnin er ómæld á einni byrjun, **talningin er það ekki**. Les `player_gw_2526.json` eitt (sannreynt: `dc > 0` í 9.620 röðum 2526 og **0 í öllum fjórum eldri skrám**), flytur inn `bootstrapCI` úr `start-panel.mjs` — **engin formúla endurrituð**. Deterministísk (tvær keyrslur bornar saman, eins staf fyrir staf), ~2 s. **MÆLIKVARÐINN ER `dc`-DÁLKURINN Í ÖLLUM STÖÐUM, LÍKA HJÁ VÖRNINNI** — fyrsta útgáfan las `cbit` fyrir DEF af því að FPL skilgreinir þröskuld varnarmanna sem CBIT án endurheimta, en skráin ber BÁÐA dálka og þeir eru ekki þeir sömu (meðaltal á byrjun 7,30 á móti 5,70, jafnir í 802 af 3.150 röðum). Sú útgáfa mældi hittni **0,1546** meðan pipeline-an sjálf (`fetch.mjs`:1493) les `dc` og fær **0,2632** — talan sem kafli 12 skjalar. **Endurreiknuð skilgreining laug**, sama ætt og `buildTeamMetrics`-afritið; villan fannst við að bera nýju töluna við skjalið. Ber líka **stigin sjálf**: MID með fyrstu byrjun í DC/90 13–18 skoruðu **4,02 stig/byrjun CI [3,51, 4,52]** í síðari byrjunum á móti 3,78 hjá öllum. Niðurstaða í kafla 4 |
 | `measure-tail-to-gw1.mjs` | ekkert (skýrsla) | **Halda inntök síðustu fimm umferða FYRRA tímabils fyrir GW1?** Svarið er JÁ en á RÖNGUM KVARÐA — sjá kafla 12b |
 | `measure-rival-out.mjs` | ekkert (skýrsla) | Keppinautur úr leik. Fellt fyrir útileikmenn, samþykkt fyrir markmenn (kafli 4 og 12b) |
 | `measure-preseason-starts.mjs` | ekkert (skýrsla; `--now`, `--covered`) | Æfingaleikja-byrjanir sem GW1-merki. **FotMob svarar sögulegum dagsetningum** (`/api/data/matches?date=20210724` o.s.frv., 200, engan token), svo þetta er EKKI aðeins framvirkt prófanlegt — mælt á fjórum sumrum. **TVÆR GILDRUR SEM ÞÖGÐU:** (a) `matches?date=` skilar STUTTUM félagsnöfnum og `matchDetails.lineup` LÖNGUM, svo uppflettingin skilaði `undefined` og `continue` — **22 af 80 lið-tímabilum fengu núll uppstillingar** og „sást í æfingaleik" mældist 26% í stað 54%; (b) **„Arsenal" hjá FotMob eru TVÖ félög** — 6 af 13 leikjum sumarið 2026 eru **FC Arsenal Tula úr rússnesku B-deildinni**. Bæði leyst með því að **festa FotMob-id** (Arsenal = 9825) og varpa heima/úti eftir STÖÐU, ekki nafni. Vörður prentar þekju per lið-tímabil og kastar ef eitthvert af 20 liðum parast ekki |
@@ -1110,6 +1142,33 @@ bókmakera-greinina og **eyddi Odds-API kvótanum**. CDN-cache 60 s. Leiðirnar
 ## 8. Viðmótsreglur sem hafa þegar verið lærðar
 
 ### Gögn og birting
+
+- **APPIÐ OPNAR Á UMFERÐINNI SEM ER VERIÐ AÐ SKIPULEGGJA, EKKI Á `is_current`**
+  (27.8.2026). FPL heldur `is_current` á umferðinni **þangað til næsti frestur
+  líður**, svo frá síðasta flauti og fram að næsta fresti — þrír til fjórir
+  dagar af hverri viku, nákvæmlega þeir dagar sem skipti eru gerð — opnaðist
+  skipuleggjarinn á umferð sem **var búin**. Mælt 27.8.2026: allir tíu
+  GW1-leikirnir `finished_provisional`, GW2-fresturinn eftir ~21 klst, og
+  `gw` samt 1 — svo **vænt stig á öllum 616 spjöldunum** voru reiknuð úr leik
+  sem var þegar spilaður (Sangaré 2,12 gegn Tottenham í stað 1,92 að Leeds).
+  Reglan er `planningGw` (`availability.js`) og hún les **LEIKINA**
+  (`fixturePlayed`), ekki `finished` á umferðinni — það svið flettist ~3 dögum
+  of seint (kafli 1). Þrjú skilyrði sem hún verður að virða: **umferð í gangi
+  er enn umferðin manns** · **tóm leikjaskrá ákveður ekkert** (`[].every` er
+  `true`, sem er hol fullyrðing í skilningi 5b) · **GW38 á sig sjálf**.
+  · **OG LIÐIÐ ER SÓTT FYRIR AÐRA UMFERÐ EN ÞÁ SEM ER OPIN.** FPL birtir
+    `picks` fyrst eftir frest, svo GW2-sókn hefði skilað 404 og **tengda liðið
+    horfið af vellinum** einmitt þessa þrjá daga. `latestStartedGw` sækir liðið;
+    **stig umferðarinnar og refsingin í henni** eru hins vegar UM umferðina og
+    eru núllstillt þegar sótta umferðin er önnur — samtala undir röngum haus er
+    sama ætt og xGC-dálkarnir í Teams (kafli 3).
+  · **FIMM PRÓFASÖFN FÉLLU VIÐ ÞETTA OG EKKERT ÞEIRRA VEGNA VILLU Í APPINU.**
+    Þau sögðu aldrei hvaða umferð þau meintu — þau erfðu sjálfgildið. Reglan
+    sem leiðir af því: **próf sem er UM eina umferð á að VELJA hana**
+    (`tests/lib/select-gw.mjs`, akkerið er `title` á tímalínu-hnútnum því
+    textinn er berr tölustafur). `gw1-persistence` leitaði meira að segja að
+    hólfinu `"📅Gameweek 1"` — orðalag, ekki hegðun (kafli 5).
+
 
 - **LEIKMANNANAFN Í `data/` ER `web_name`, Á BÁÐUM LEIÐUM.** Fundið 20.8.2026:
   `last_gw.json` hefur **tvo** byggjendur — lifandi (`p.web_name`) og

@@ -23,6 +23,7 @@
 import { readFile, writeFile, mkdir, mkdtemp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { DC_P0_PRIOR as PRIOR, DC_P0_PRIOR_BY_TYPE as PRIOR_BY_TYPE } from "../scripts/fetch.mjs";
 import { join } from "node:path";
 
 let pass = 0, fail = 0;
@@ -80,7 +81,13 @@ async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), rec
   if (existing) await writeFile(join(dir, "defcon.json"), JSON.stringify(existing));
   let written = null;
   const rec = { ok: null, n: 0, note: null };
+  /* FORGILDID ER FLUTT INN, EKKI ENDURSKRIFAD HER (27.8.2026). `p0`-taflan
+     var faerd upp a einingarsvid i `fetch.mjs` (eitt eintak i stad tveggja,
+     sja hausinn a `DC_P0_PRIOR`), svo textinn sem er dreginn ut ser hana
+     ekki lengur. Ad skrifa toluna i profid vaeri ThRIDJA eintakid — og tha
+     gaeti profid stadist medan pipeline-an ber adra tolu. */
   const factory = new Function("existsSync", "readFile", "DATA", "writeJSON", "record", "status",
+    "DC_P0_PRIOR", "DC_P0_PRIOR_BY_TYPE",
     `${decl}\nreturn computeDefcon;`);
   const computeDefcon = factory(
     existsSync, readFile, dir,
@@ -89,7 +96,7 @@ async function runDefcon({ gwMetrics, els, fixtures = [], bench = new Set(), rec
        `note` og hun er thad EINA sem segir hvad tapadist i tomri keyrslu
        — an hennar gat kafli 7 ekki verid til.                        */
     (k, o, c, note) => { rec.ok = o; rec.n = c; rec.note = note ?? null; },
-    { updated: "prof" });
+    { updated: "prof" }, PRIOR, PRIOR_BY_TYPE);
   const events = eventsOverride
     || Array.from({ length: gws }, (_, i) => ({ id: i + 1, finished: true }));
   await computeDefcon(events, els);
@@ -176,13 +183,19 @@ console.log("─".repeat(84));
   const { written } = await runDefcon({ gwMetrics, els });
   const P = Object.fromEntries(written.obj.players.map(p => [p.fpl_id, p]));
 
-  ok(P[1].p0 === 0.27, `DEF-fastinn 0,27 notaður þegar laugin er < 50 startir (${P[1].p0})`);
-  ok(P[3].p0 === 0.17, `MID-fastinn 0,17 (${P[3].p0})`);
+  /* TALAN ER LESIN UR SAMEIGINLEGA FASTANUM, EKKI SKRIFUD HER (27.8.2026).
+     Hun stod aður sem `0.27` og `0.17` orðrett i profinu — og THAD ER
+     PROFUN A TOLU, ekki a hegdun: um leið og forgildið var LEIÐRETT ur
+     maelingu (FWD 0,10 -> 0,013, sja kafla 7) fellu thessar thrjar
+     fullyrdingar an thess ad neitt vaeri ad. Rett fullyrding er "laugin er
+     of litil, svo forgildið tekur vid" — hvert svo sem thad er. */
+  ok(P[1].p0 === PRIOR.DEF, `DEF-forgildid ${PRIOR.DEF} notad thegar laugin er < 50 startir (${P[1].p0})`);
+  ok(P[3].p0 === PRIOR.MID, `MID-forgildid ${PRIOR.MID} (${P[3].p0})`);
   ok(P[1].hit_rate === 1 && P[1].hit_rate_adj < 0.6,
     `2/2 hrátt = 100% en afturvirkjað ${P[1].hit_rate_adj} — nákvæmlega ofmælingin sem á að hverfa`);
-  const expect1 = (2 + 10 * 0.27) / (2 + 10);
+  const expect1 = (2 + 10 * PRIOR.DEF) / (2 + 10);
   ok(Math.abs(P[1].hit_rate_adj - expect1) < 0.001,
-    `formúlan rétt með fastanum: (2+10·0,27)/12 = ${expect1.toFixed(3)}`);
+    `formúlan rétt með forgildinu: (2+10·${PRIOR.DEF})/12 = ${expect1.toFixed(3)}`);
 }
 
 /* ============================================================
@@ -232,7 +245,13 @@ console.log("─".repeat(84));
   ok(/DC_K\s*=\s*10/.test(body), "K = 10 (sama fjölskylda og prevWeight í handoff №4)");
   ok(/hit_rate_adj/.test(body), "hit_rate_adj reiknuð í computeDefcon");
   ok(/starts\s*>=\s*50/.test(body), "laugar-þröskuldur (50 startir) fyrir p0 úr gögnum");
-  ok(/0\.27/.test(body) && /0\.17/.test(body), "fallback-fastar DEF 0,27 / MID 0,17 til staðar");
+  /* HER STOD TEXTALEIT AD `0.27` OG `0.17` I LIKAMA FALLSINS. Hun var
+     ONYT a tvo vegu: taflan er nu a einingarsvidi (svo hun er EKKI i
+     likamanum lengur) og textaleit ad tolu fellur hvort ed er thegar
+     talan er LEIDRETT — ekki thegar liðurinn hverfur. Fullyrdingin er nu
+     um TENGINGUNA: fallid verdur ad lesa sameiginlegu tofluna.        */
+  ok(/DC_P0_PRIOR_BY_TYPE/.test(body), "forgildid er lesid ur sameiginlegu toflunni (DC_P0_PRIOR_BY_TYPE)");
+  ok(!/DC_P0_FALLBACK\s*=/.test(body), "og gamla stadbundna taflan er farin (ekkert nytt eintak)");
 }
 
 /* ============================================================
@@ -585,6 +604,59 @@ console.log("\u2500".repeat(84));
                                              eventsOverride: provisional });
   ok((mid?.obj?.players || []).length === 0,
     `leikur I GANGI telst ekki spiladur (${(mid?.obj?.players || []).length} radir)`);
+}
+
+/* ============================================================
+   KAFLI 7 — FORGILDID p0 ER MÆLT, OG ÞAÐ MÁ EKKI REKA FRÁ GÖGNUNUM
+   (27.8.2026)
+
+   p0 er ekki skraut: meðan staðan á færri en 50 byrjanir í lauginni ER
+   forgildið eina talan sem `hit_rate_adj` ber. Í fyrstu umferð hvers
+   tímabils sér notandinn því EKKERT ANNAÐ en þennan fasta.
+
+   Gamla taflan var `{DEF: 0,27, MID: 0,17, FWD: 0,10}`. Tvær fyrri eru
+   mælda talan rúnnuð; sú þriðja var **7,5× mælda gildið**, svo hver
+   einasti sóknarmaður í deildinni bar 0,091 þar sem mælingin segir ~0,01
+   — tilbúin tala sem lítur út eins og mæling.
+
+   PRÓFSTEINNINN ER GÖGNIN SJÁLF, EKKI TALA Í PRÓFINU: hlutföllin eru
+   endurreiknuð úr `data/player_gw_2526.json` með nefnarann BYRJANIR (sama
+   regla og 17.8.2026) og borin við fastann sem `fetch.mjs` FLYTUR ÚT.
+   Þar með getur hvorugt hreyfst án hins — og fastinn getur ekki orðið
+   "valinn" aftur án þess að prófið segi frá.
+   ============================================================ */
+{
+  console.log("\n=== 7. p0-FORGILDID ER MAELT UR GOGNUNUM ===");
+  const DC_P0_PRIOR = PRIOR;
+  const G = JSON.parse(await readFile(new URL("../data/player_gw_2526.json", import.meta.url), "utf8"));
+  const IX = Object.fromEntries(G.stats.map((k, i) => [k, i]));
+  const TH = { DEF: 10, MID: 12, FWD: 12 };
+  const agg = {};
+  for (const row of Object.values(G.players)) {
+    if (!TH[row.p]) continue;                       /* GK eiga engin DC-stig */
+    for (const v of Object.values(row.gw || {})) {
+      if (!((v[IX.starts] ?? 0) > 0 && (v[IX.mins] ?? 0) > 0)) continue;
+      const a = agg[row.p] || (agg[row.p] = { hits: 0, starts: 0 });
+      a.starts++;
+      if ((v[IX.dc] ?? 0) >= TH[row.p]) a.hits++;
+    }
+  }
+  ok(Object.keys(agg).length === 3, `haegt ad maela allar threr stodurnar (${Object.keys(agg).length})`);
+  for (const pos of ["DEF", "MID", "FWD"]) {
+    const a = agg[pos];
+    ok(a && a.starts > 500, `${pos}: nogu stort urtak til ad maela (${a?.starts} byrjanir)`);
+    const measured = a.hits / a.starts;
+    const d = Math.abs(measured - DC_P0_PRIOR[pos]);
+    ok(d <= 0.005,
+      `${pos}: forgildi ${DC_P0_PRIOR[pos]} er maelda talan ${measured.toFixed(4)} `
+      + `(fravik ${d.toFixed(4)} <= 0,005)`);
+  }
+  /* MOTPROFID — fullyrdingin ma ekki standast hvada tolu sem er.
+     Gamla FWD-gildid (0,10) VERDUR ad falla a somu profun; annars vaeri
+     thakid svo vitt ad thad naeði yfir villuna sem thetta lagar.      */
+  const oldFwd = 0.10, mFwd = agg.FWD.hits / agg.FWD.starts;
+  ok(Math.abs(mFwd - oldFwd) > 0.005,
+    `og gamla FWD-gildid 0,10 FELLUR a somu profun (fravik ${Math.abs(mFwd - oldFwd).toFixed(4)})`);
 }
 
 console.log(`\nDC-AFTURVIRKNI: ${pass} stóðust, ${fail} féllu`);

@@ -25,6 +25,7 @@ import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { selectGw } from "./lib/select-gw.mjs";
 import { act } from "react";
 import { playedEvents } from "./lib/played-events.mjs";
 /* ADEINS REGLAN, EKKI VELIN. Kafli G telur XI-in UPP SJALFUR og ma thvi
@@ -53,7 +54,13 @@ const sleep = ms => new Promise(r => realSetTimeout(r, ms));
 
 /* Ein hledsla per tilfelli. Skilar DOM-inum sjalfum (ekki bara texta) —
    kaflar B, C og F thurfa ad SPYRJA UM UPPSETNINGU, ekki bara innihald. */
-async function mount(state, { width = 1280, patch = null } = {}) {
+/* `gw` ER NU GEFIN UPP, EKKI ERFD FRA SJALFGILDI APPSINS (27.8.2026).
+   Safnid er UM umferd 1 (GW1-kedjan, chips a GW1, upphafslidid), en thad
+   sagdi thad hvergi — thad treysti a ad appid opnadist thar. Sjalfgildid
+   var lagad (`planningGw`: lokin umferd fleytir manni a tha naestu) og tha
+   fellu ellefu fullyrdingar her an thess ad neitt vaeri ad appinu.
+   Sja `tests/lib/select-gw.mjs`.                                        */
+async function mount(state, { width = 1280, patch = null, gw = 1 } = {}) {
   const dom = new JSDOM("<!doctype html><div id=root></div>",
     { url: "http://localhost/", pretendToBeVisual: true });
   globalThis.window = dom.window; globalThis.document = dom.window.document;
@@ -81,13 +88,18 @@ async function mount(state, { width = 1280, patch = null } = {}) {
   const root = createRoot(dom.window.document.getElementById("root"));
   await act(async () => { root.render(React.createElement(App)); });
   await act(async () => { await sleep(320); });
-  console.error = orig;
   const doc = dom.window.document;
+  const clickEl = async el => {
+    await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+    await act(async () => { await sleep(40); });
+  };
+  const gwPicked = gw == null ? null : await selectGw(doc, gw, clickEl);
+  console.error = orig;
   return {
-    doc,
+    doc, gwPicked,
     text: () => doc.body.textContent || "",
     html: () => doc.body.innerHTML || "",
-    click: async el => { await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); }); await act(async () => { await sleep(40); }); },
+    click: clickEl,
     q: s => [...doc.querySelectorAll(s)],
   };
 }
@@ -133,6 +145,10 @@ console.log("\n--- A. MINUS-BANKI ---");
   ok(after < 0, `forsenda: Isak er YFIR tiltaeku fe — banki eftir ${after}`);
 
   const v = await mount({ captain: 411 });
+  /* ThEKJA ER FULLYRDING (CLAUDE.md 5b): `mount` velur umferd 1 fyrir okkur
+     og gerdi thad ThEGJANDI i fyrstu utgafu — hefdi hnuturinn ekki fundist
+     hefdi safnid keyrt a hvada umferd sem er og litid eins ut.          */
+  ok(v.gwPicked === true, "forsenda: umferd 1 er VALIN (timalinu-hnuturinn fannst)");
   ok(/£1\.5/.test(v.text()), "byrjunarbanki £1,5 a maelabordinu");
 
   const card = cardOf(v, byId[SELL].web_name);
@@ -439,7 +455,12 @@ console.log("\n--- F. 'Never in your XI' ---");
   /* EIN FAERSLA, EKKI SEX: uppstillingin ERFIST nu fram (`squadForGw`
      foldar 1..g), svo sex eins faerslur toggla i stad thess ad safnast. */
   const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
-  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, { patch: PLAYED });
+  /* HER ER UMFERDIN EKKI VALIN: bordinn HORFIR AFTURABAK fra theirri
+     umferd sem er opin, svo kaflinn snyst um SJALFGILDID — fjorar umferdir
+     spiladar eiga ad opna a theirri fimmtu og glugginn er tha GW1-4.
+     `gw: null` thydir "ekki snerta", olikt hinum koflunum sem VELJA 1.  */
+  const v = await mount({ captain: 411, benchSwaps: { 1: [[411, 321]] } },
+                        { patch: PLAYED, gw: null });
   ok(/Not been in your XI/.test(v.text()), "forsenda: bordinn birtist");
   /* MALSGREININ VAR HER OG ER FARIN 21.8. (notandinn: "alltof mikill og
      flokinn texti"). Glugginn er sagdur i HAUSNUM og attin i eigin linu —

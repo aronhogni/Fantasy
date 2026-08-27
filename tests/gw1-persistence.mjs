@@ -278,9 +278,9 @@ ok(new Set(LEGAL.ids).size === 15 && LEGAL.ids.every(i => !SS.has(i)),
    ============================================================ */
 console.log("\n--- 0. MAELITAEKID: hledsla 2 les storage, ekki minni ---");
 {
-  const a = await boot(SCEN[1].blob);
+  const a = await boot(SCEN[1].blob, { gw: 1 });
   const sa = snapshot(a); await a.down();
-  const b = await boot(SCEN[2].blob);
+  const b = await boot(SCEN[2].blob, { gw: 1 });
   const sb = snapshot(b); await b.down();
   ok(!!sa.rows && !!sb.rows, "badar hledslur teiknudu vollinn");
   ok(flat(sa).filter(Boolean).length === 15, `forsenda: hledsla A hefur 15 spjold (${flat(sa).filter(Boolean).length})`);
@@ -299,7 +299,7 @@ console.log("\n--- 0. MAELITAEKID: hledsla 2 les storage, ekki minni ---");
    ============================================================ */
 for (const sc of SCEN) {
   console.log(`\n--- ${sc.name} ---`);
-  const b1 = await boot(sc.blob);
+  const b1 = await boot(sc.blob, { gw: 1 });
   ok(!b1.crash, "hledsla 1 keyrdi an hruns", b1.crash ? "KASTADI: " + b1.crash.slice(0, 70) : "");
   const s1 = snapshot(b1);
   const t1 = b1.text();
@@ -323,6 +323,9 @@ for (const sc of SCEN) {
   ok(s1.starterOpts && s1.starterOpts.length === 11,
      `forsenda: byrjunarlidid er 11 (${s1.starterOpts?.length})`);
   ok(/£/.test(s1.bank || ""), `forsenda: bankinn er tala (${s1.bank})`);
+  /* ThEKJA ER FULLYRDING: `boot({gw:1})` velur umferdina og myndi thegja
+     ef hnuturinn fyndist ekki — tha vaeri hver tala her ur RANGRI umferd. */
+  ok(b1.gwPicked === true, "forsenda: umferd 1 er VALIN (timalinu-hnuturinn fannst)");
   /* THEKJA ER FULLYRDING (CLAUDE.md 5b regla 1): undirtextarnir eru thad
      sem ber lidsverdid og refsinguna, og `null === null` stenst.       */
   ok(/£/.test(s1.bankSub || ""), `forsenda: lidsverdid er lesid (${s1.bankSub})`);
@@ -362,7 +365,7 @@ for (const sc of SCEN) {
   await b1.down();
 
   /* --- HORD ENDURHLEDSLA: ekkert nema `raw1` kemst yfir.            --- */
-  const b2 = await boot(raw1);
+  const b2 = await boot(raw1, { gw: 1 });
   ok(!b2.crash, "hledsla 2 keyrdi an hruns", b2.crash ? "KASTADI: " + b2.crash.slice(0, 70) : "");
   const s2 = snapshot(b2);
   const t2 = b2.text();
@@ -411,7 +414,7 @@ for (const sc of SCEN) {
    ============================================================ */
 console.log("\n--- R1. GW1-kostnadur er LEIDDUR, ekki vistadur ---");
 {
-  const b = await boot(SCEN[1].blob);
+  const b = await boot(SCEN[1].blob, { gw: 1 });
   const j = JSON.parse(b.raw() || "{}");
   const bad = Object.keys(j).filter(k => /cost|hit|unlimited|free|preseason|initial|ft|squad|start/i.test(k));
   ok(bad.length === 0, "ekkert kostnadar-/GW1-svid i blobbinu", bad.join(","));
@@ -437,11 +440,11 @@ console.log("\n--- R1. GW1-kostnadur er LEIDDUR, ekki vistadur ---");
    ============================================================ */
 console.log("\n--- R2. minus-banki lifir sem MINUS ---");
 {
-  const b1 = await boot(SCEN[2].blob);
+  const b1 = await boot(SCEN[2].blob, { gw: 1 });
   const s1 = snapshot(b1);
   ok(s1.bank === "-£1.5", `forsenda: bankinn ER minus fyrir endurhledslu (${s1.bank})`);
   const raw = b1.raw(); await b1.down();
-  const b2 = await boot(raw);
+  const b2 = await boot(raw, { gw: 1 });
   const s2 = snapshot(b2), t2 = b2.text();
   ok(s2.bank === "-£1.5", `minus-bankinn lifdi endurhledsluna (${s2.bank})`);
   ok(!/^£0\.0$/.test(s2.bank || ""), "bankinn var EKKI klipptur i 0", s2.bank);
@@ -463,7 +466,7 @@ console.log("\n--- R2. minus-banki lifir sem MINUS ---");
    ============================================================ */
 console.log("\n--- R3. Bench Boost snertir ekki `starter`-mengid ---");
 {
-  const bb = await boot(SCEN[3].blob);
+  const bb = await boot(SCEN[3].blob, { gw: 1 });
   const sbb = snapshot(bb);
   const nOn = (pitchRows(bb) || []).flat().filter(Boolean).length;
   ok(nOn === 15, `forsenda: BB setur 15 a vollinn (${nOn})`);
@@ -479,7 +482,7 @@ console.log("\n--- R3. Bench Boost snertir ekki `starter`-mengid ---");
      og hefdi verid lesid sem BB-leki. Fullyrding sem ber tvo olik inntok
      saman getur hvorki fallid ne stadist um thad sem hun heitir eftir.  */
   const twin = JSON.parse(SCEN[3].blob); twin.chips = {};
-  const noBb = await boot(JSON.stringify(twin));
+  const noBb = await boot(JSON.stringify(twin), { gw: 1 });
   const snb = snapshot(noBb);
   const nOn2 = (pitchRows(noBb) || []).flat().filter(Boolean).length;
   ok(nOn2 === 11, `forsenda: an BB eru 11 a vellinum (${nOn2})`);
@@ -508,7 +511,7 @@ console.log("\n--- R3. Bench Boost snertir ekki `starter`-mengid ---");
 console.log("\n--- R4. gerd-thvingunin eydir ekki gildu astandi ---");
 {
   const IN = JSON.parse(SCEN[4].blob);
-  const b = await boot(SCEN[4].blob);
+  const b = await boot(SCEN[4].blob, { gw: 1 });
   const j = JSON.parse(b.raw() || "{}");
   ok(j.plan?.length === 18, `oll 18 skipti komust i gegn (${j.plan?.length})`);
   ok(eq(j.plan, IN.plan), "hvert skipti er STAFRETT eins (gw/outId/inId, rodin)",
