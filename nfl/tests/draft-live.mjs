@@ -2738,6 +2738,74 @@ console.log("\n23. pollunin ber einkvaeman cache-lykil");
   await act(async () => { root.unmount(); });
 }
 
+/* ============================================================
+   24. SMELLUR A URSKURDARKASSANN AFRITAR NAFNID
+   ============================================================
+   BEIDNI NOTANDANS: "thegar eg smelli a kassan med picki vill eg ad
+   nafn leikmann se sjalfkrafa copyad svo eg geti paistad beint i
+   sleeper appid."
+
+   TVENNT ER PROFAD OG ANNAD THEIRRA ER ThAD SEM SKIPTIR MALI:
+
+     A. rett nafn i klippiborðid — OG ThAD ER NAFNID EITT. Kassinn ber
+        lika stodu, lid og bye ("WR · GB · bye 11"); limdist thad med
+        fyndi Sleeper-leitin ENGAN. Fullyrdingin er thvi a JOFNU, ekki
+        a `includes`.
+     B. ad hun SEGI fra. Þogul bilun er versta utkoman: notandinn
+        heldur ad nafnid se komid, limir gamalt innihald a klukkunni og
+        tapar valinu. `navigator.clipboard` er FJARLAEGT i seinni
+        hlutanum og tha verdur kassinn ad bera "copy failed" — jsdom
+        hefur ekkert `execCommand`, svo su leid fellur lika og
+        `copyToClipboard` skilar `false` an thess ad kasta.
+
+   jsdom HEFUR EKKERT KLIPPIBORD sjalfgefid, svo thad er hermt hér.
+   Þad er RETT herming en ekki tilbuningur: `writeText` er nakvaemlega
+   thad sem vafrinn birtir, og fullyrdingin er um hvad VID sendum
+   thangad — sama rok og vid slodirnar i kafla 23.                  */
+console.log("\n24. smellur a urskurdarkassann afritar nafnid");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const copies = [];
+  const realClip = Object.getOwnPropertyDescriptor(dom.window.navigator, "clipboard");
+  Object.defineProperty(dom.window.navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: async (t) => { copies.push(t); } },
+  });
+  const root = await boot();
+  await connectAndSync();
+  await settle(200);
+
+  const cards = () => [...document.querySelectorAll(".verdict")];
+  ok(cards().length > 0, `ThEKJA: urskurdarkassi er a skjanum (${cards().length})`);
+  const card = cards()[0];
+  /* ThEKJA a nafninu sjalfu: an thess vaeri jafnadar-fullyrdingin nedar
+     sonn um hvada streng sem er, lika tomann. */
+  const nm = (card.querySelector(".verdict-name b") || {}).textContent || "";
+  ok(nm.length > 3, `ThEKJA: kassinn nefnir mann ("${nm}")`);
+  ok(/copy/i.test(text()), "linan segir ad haegt se ad smella og afrita");
+
+  await click(card);
+  await settle(120);
+  ok(copies.length === 1, `A: eitt afrit vid einn smell (${copies.length})`);
+  ok(copies[0] === nm,
+    `A: og thad er NAFNID EITT, an stodu/lids/bye ("${copies[0]}" = "${nm}")`);
+  ok(/copied/.test(text()), "B: og kassinn segir ad thad hafi tekist");
+
+  /* ---- B2: klippibordid neitar -> kassinn VERDUR ad segja fra ---- */
+  Object.defineProperty(dom.window.navigator, "clipboard", {
+    configurable: true, value: undefined,
+  });
+  await settle(2100);            // fyrra merkid rennur ut (2 sek)
+  await click(cards()[0]);
+  await settle(120);
+  ok(/copy failed/i.test(text()),
+     "B2: an klippibords stendur \"copy failed\" — engin thogul bilun");
+  ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
+  if (realClip) Object.defineProperty(dom.window.navigator, "clipboard", realClip);
+  await settle(60);
+  await act(async () => { root.unmount(); });
+}
+
 console.log(`\n(pollunar-bidir styttar: ${pollTicks})`);
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

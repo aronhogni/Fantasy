@@ -2736,6 +2736,58 @@ function MeasuredEdge({ league, shapes, imported }) {
    thvi hversu bratt stadan versnar — var maeld og hun TAPAR
    (marktaekt i standard). Lifunarlikur eru birtar sem upplysing.
    ============================================================ */
+/* ============================================================
+   SMELLUR A URSKURDARKASSANN AFRITAR NAFNID (27.8.2026)
+   ============================================================
+   BEIDNI NOTANDANS, ORÐRETT: "thegar eg smelli a kassan med picki vill
+   eg ad nafn leikmann se sjalfkrafa copyad svo eg geti paistad beint i
+   sleeper appid."
+
+   ÞETTA ER SU HANDHREYFING SEM APPID SPARADI EKKI: urskurdurinn nefnir
+   manninn, notandinn les hann, skiptir um glugga og slaer hann inn i
+   leitina hja Sleeper — a klukku. Nafnid er AFRITAD OBREYTT (`p.name`),
+   thvi thad er nakvaemlega strengurinn sem Sleeper-leitin thekkir; hver
+   snyrting a honum vaeri agiskun um leit sem vid hofum ekki maelt.
+
+   TVAER LEIDIR OG BADAR ERU NAUÐSYNLEGAR:
+     · `navigator.clipboard` — krefst ORUGGS SAMHENGIS (https). Sidan er
+       a GitHub Pages, svo hun er til stadar i raun — EN EKKI i jsdom og
+       ekki a `http://localhost` i ollum vofrum.
+     · `execCommand("copy")` a fold textareitum — gamla leidin, virkar
+       an orugga samhengisins.
+   Bregdist BADAR skilar fallid `false`, og kassinn SEGIR ThAD. Þogul
+   bilun vaeri versta utkoman hér: notandinn heldur ad nafnid se komid,
+   limir gamalt innihald i leitina og tapar valinu a klukkunni — sem er
+   nakvaemlega thad sem thessi adgerd var smiðud til ad koma i veg fyrir.
+   Ekkert kastast ut: `document.execCommand` er ekki til i jsdom og
+   `navigator.clipboard` getur hafnad an nokkurrar astaedu.          */
+export async function copyToClipboard(text, w = typeof window === "undefined" ? null : window) {
+  if (!text || !w) return false;
+  try {
+    if (w.navigator && w.navigator.clipboard && w.navigator.clipboard.writeText) {
+      await w.navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fellur i varaleidina fyrir nedan */ }
+  try {
+    const doc = w.document;
+    if (!doc || typeof doc.execCommand !== "function") return false;
+    const ta = doc.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    /* UTAN SJONMALS EN INNAN SKJALS: reitur sem er `display:none` eda
+       utan `body` er ekki valanlegur, svo afritunin mistekst thegjandi. */
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    ta.style.opacity = "0";
+    doc.body.appendChild(ta);
+    ta.select();
+    const ok = doc.execCommand("copy");
+    doc.body.removeChild(ta);
+    return !!ok;
+  } catch { return false; }
+}
+
 function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPick,
                     totalPicks, snakeTeams, snakeRounds, rosterUnknown = 0, draftType }) {
   const rec = useMemo(() => {
@@ -2758,6 +2810,45 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
       });
     } catch { return null; }
   }, [available, roster, pick, league, nextOwn, lastPick, rosterUnknown, draftType]);
+
+  /* HOOKARNIR ERU HER OG EKKI NEDAR: `NextPick` ber TVO skilyrta
+     `return` (thak a valnumeri, og `!rec`), svo hook sem stendur
+     nedar keyrir EKKI i theim teikningum — React fellur tha med
+     "Rendered fewer hooks than expected" og bordid verdur hvitt.
+     Þetta var raunveruleg villa i fyrstu utgafu og `draft-live.mjs`
+     kafli 24 tok hana i fyrstu keyrslu. */
+  /* AFRITUNIN — sja `copyToClipboard` ofar. Astandid ber BADI hvern og
+     hvernig for: "copied" og "copy failed" eru sitthvor upplysingin og
+     mega ekki deila birtingu. Tiskuklukkan hreinsar merkid eftir 2 sek
+     og er hreinsud vid unmount, annars skrifar hun i horfid tre. */
+  const [copied, setCopied] = useState(null);
+  const copyTimer = useRef(null);
+  useEffect(() => () => clearTimeout(copyTimer.current), []);
+  const doCopy = async (p) => {
+    const ok = await copyToClipboard(p.name);
+    setCopied({ id: p.id, ok });
+    clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopied(null), 2000);
+  };
+  /* LYKLABORD LIKA: kassinn er ekki `<button>` (hann ber eigin
+     uppbyggingu og stila), svo hlutverkid og lyklarnir eru sagdir
+     berum ordum — annars vaeri hann smellanlegur fyrir mus eina. */
+  const copyProps = (p) => ({
+    className: "copyable",
+    role: "button",
+    tabIndex: 0,
+    title: `Copy "${p.name}" to paste into Sleeper`,
+    onClick: () => doCopy(p),
+    onKeyDown: (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); doCopy(p); }
+    },
+  });
+  /* Merkid er a NAFNALINUNNI thvi thad er strengurinn sem var afritadur. */
+  const copyMark = (p) => (copied && copied.id === p.id
+    ? <span className={copied.ok ? "copy-ok" : "copy-bad"}>
+        {copied.ok ? " · copied" : " · copy failed — select it and press Cmd+C"}
+      </span>
+    : null);
 
   /* ============================================================
      DRAFTID GETUR KLARAST — OG THA ER "TAKE THIS" LYGI
@@ -2899,6 +2990,7 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
   const rowFor = (p) => available.find((r) => r.id === p.id) || null;
   const chosen = (rec.choice && rec.choice.list) || [];
 
+
   return (
     <div className="panel">
       {/* HAUSINN NEFNIR ENN "take this" — sa fyrri ER urskurdurinn og
@@ -2908,6 +3000,12 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
           svo hann og kassinn segja thad sama. */}
       <h2>Pick {pick} — take this{!kdstPick && chosen.length > 1
         ? " (★), or the backup beside it" : ""}</h2>
+      {/* SMELLANLEIKI SEM ER EKKI SAGDUR ER EKKI TIL. Bendillinn og
+          `title` sjast adeins med mus; linan segir thad einu sinni og
+          er nefnd i ordum thvi hun er FLYTILEID, ekki skraut. */}
+      <div className="note" style={{ marginTop: -4, marginBottom: 8 }}>
+        Click a card to copy the name — paste it straight into Sleeper.
+      </div>
 
       {/* ============================================================
           TVEIR KOSTIR, EKKI EINN — OG EKKI FIMM (20.8.2026)
@@ -2938,12 +3036,13 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
 
           Vordur: `advice.mjs` kafli 15 og `draft-live.mjs` kafli 20.   */}
       {kdstPick || chosen.length === 0 ? (
-        <div className="verdict">
+        <div {...copyProps(verdict)} className="verdict copyable">
           <div className="verdict-name">
             <span className={`pos ${verdict.pos}`}>{verdict.pos}</span>
             <b>{verdict.name}</b>
             {vRow && vRow.team && <span className="dim"> · {vRow.team}</span>}
             {vRow && vRow.bye != null && <span className="dim"> · bye {vRow.bye}</span>}
+            {copyMark(verdict)}
           </div>
           <div className="verdict-why">{why}</div>
         </div>
@@ -2959,7 +3058,8 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
                  merkimidinn vid hlidina segir thad sama i orðum;
                  stjornutakn i skjalesara vaeri hravara. */
               return (
-                <div key={p.id} className={`verdict${i === 0 ? "" : " backup"}`}
+                <div key={p.id} {...copyProps(p)}
+                  className={`verdict copyable${i === 0 ? "" : " backup"}`}
                   style={{ flex: "1 1 250px" }}>
                   <div className="verdict-name">
                     {i === 0 && (
@@ -2972,6 +3072,7 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
                     <b>{p.name}</b>
                     {row && row.team && <span className="dim"> · {row.team}</span>}
                     {row && row.bye != null && <span className="dim"> · bye {row.bye}</span>}
+                    {copyMark(p)}
                   </div>
                   <div className="verdict-why">
                     {/* BILID ER TALAN SEM GERIR THETTA AD VALI OG EKKI AD

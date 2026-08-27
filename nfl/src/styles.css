@@ -226,6 +226,34 @@ table.data tbody tr:hover td.frozen { background: #1b1f28; }
 .verdict-why { color: var(--dim); font-size: 12.5px; margin-top: 6px; }
 
 /* ============================================================
+   SMELLANLEGUR KASSI SEM AFRITAR NAFNID (27.8.2026)
+   ============================================================
+   Beidni notandans: nafnid a ad afritast vid smell svo hann geti limt
+   thad beint i Sleeper-leitina a klukkunni.
+
+   BENDILLINN OG SVORUNIN ERU EKKI SKRAUT: kassi sem gerir eitthvad vid
+   smell og litur nakvaemlega eins ut og kassi sem gerir thad ekki er
+   flytileid sem enginn finnur. `:hover` lyftir kantinum, `:active`
+   thrystir honum inn — badar sagdar i einum lit (`--good`) svo enginn
+   nyr litur baetist i tungumalid, sama rok og vid stjornuna nedar.
+
+   `:focus-visible` EN EKKI `:focus`: kassinn er `tabIndex=0` (hann er
+   ekki `<button>`, sja `copyProps` i DraftBoard.jsx), svo mus-smellur
+   setur a hann fokus — og `:focus` hefdi skilid eftir hring EFTIR
+   smellinn a hverjum einasta kassa. Sama regla og gildir um hnappana i
+   FPL-hlutanum.                                                     */
+.verdict.copyable { cursor: pointer; }
+.verdict.copyable:hover { background: var(--panel); }
+.verdict.copyable:active { transform: translateY(1px); }
+.verdict.copyable:focus-visible {
+  outline: 2px solid currentColor; outline-offset: -2px;
+}
+/* "copied" er UPPLYSING og "copy failed" er VILLA — sitthvor liturinn,
+   thvi thau eru sitthvor nidurstadan. Sja `copyToClipboard`. */
+.copy-ok  { color: var(--good); font-size: 13px; }
+.copy-bad { color: var(--bad);  font-size: 13px; }
+
+/* ============================================================
    FYRSTA VALID OG VARAMADURINN — STJARNA, EKKI ORD
    ============================================================
    BEIDNI 21.8.2026, ordrett: "Syndu betur med mynd af stjornu eda
