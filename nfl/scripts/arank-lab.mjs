@@ -23,11 +23,18 @@
           med klosun leidrettri fyrir fylgni innan timabils
    ============================================================ */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { simulateDraft, DEFAULT_LEAGUE } from "../src/accuracy.js";
-import { mean, bootstrapDiff } from "../src/learn.js";
+import { DEFAULT_LEAGUE } from "../src/accuracy.js";
+import { mean } from "../src/learn.js";
 import { stamp } from "./lib/provenance.mjs";
+/* HEIMURINN, BORDID OG PROFIN BUA I `lib/arank-world.mjs` — sja hausinn
+   thar. Ekkert af thessu var endurritad; thad var FLUTT, og profsteinn
+   flutningsins er ad `arank_ppr.json` er byte-eins a eftir. */
+import {
+  REPL_VARIANTS, vbdBoard, loadWorld, makeRun, makeHeadToHead, makeTests,
+  binomialTail, sgn, round1, round2, round4,
+} from "./lib/arank-world.mjs";
 
 import { parseArgs, requireSeasons } from "./lib/args.mjs";
 const OUT = path.resolve(process.cwd(), "data");
@@ -53,71 +60,9 @@ const LEAGUE = { ...DEFAULT_LEAGUE, teams: TEAMS, rounds: ROUNDS };
 /* ---------- afbrigdin sem eru profud ----------
    Hvert afbrigdi er FALL sem tekur laugina og skilar bordi. */
 
-/** Varamanns-threp. Fyrsta talan er su sem er i notkun i dag. */
-const REPL_VARIANTS = {
-  "starters+flex (current)": { QB: 12, RB: 28, WR: 41, TE: 14 },
-  "last starter": { QB: 12, RB: 24, WR: 36, TE: 12 },
-  "one round deeper": { QB: 18, RB: 34, WR: 48, TE: 18 },
-  "drafted count": { QB: 20, RB: 40, WR: 60, TE: 20 },
-  "waiver level": { QB: 24, RB: 48, WR: 72, TE: 24 },
-};
-
-function vbdBoard(pool, repl, { shrink = 0, blend = 0 } = {}) {
-  const byPos = {};
-  for (const p of pool) (byPos[p.pos] = byPos[p.pos] || []).push(p);
-
-  const scored = [];
-  for (const [pos, list] of Object.entries(byPos)) {
-    const vals = list.map((p) => p.proj).sort((a, b) => b - a);
-    const k = Math.min(vals.length - 1, (repl[pos] ?? 24) - 1);
-    const around = vals.slice(Math.max(0, k - 1), k + 2);
-    const base = around.length ? mean(around) : 0;
-    const m = mean(vals);
-    for (const p of list) {
-      /* SKREPPING: spar hafa thykkari hala en raunveruleikinn — sa
-         sem er spad 330 endar sjaldnar i 330 en sa sem er spad 200
-         endar i 200. `shrink` faerir hvern mann hlutfallslega ad
-         medaltali stodunnar adur en VBD er tekid. */
-      const proj = p.proj * (1 - shrink) + m * shrink;
-      const v = proj - base;
-      /* BLONDUN: `blend` = 0 er hreint VBD, 1 er hra spa. Millistig
-         segir hve mikid af hrastigunum a ad halda. */
-      scored.push([p.id, (1 - blend) * v + blend * proj]);
-    }
-  }
-  scored.sort((a, b) => b[1] - a[1]);
-  return new Map(scored.map(([id], i) => [id, i + 1]));
-}
-
 async function main() {
-  const feats = JSON.parse(await readFile(path.join(OUT, "features.json"), "utf8"));
-  const rows = feats.rows.filter((r) => r.scoring === SCORING);
-
-  /* Timabil sem hafa hreina Sleeper-spa (leka-hlidid i
-     build-features hefur thegar hent hinum). */
-  const years = [...new Set(rows.filter((r) => r[PROJ_FIELD] != null)
-    .map((r) => r.season))].sort();
+  const { world, ys, years } = await loadWorld({ dataDir: OUT, scoring: SCORING, proj: PROJ });
   console.log(`timabil med hreina spa (${PROJ}): ${years.join(", ")}`);
-
-  /* ---------- heimurinn per ar ---------- */
-  const world = {};
-  for (const y of years) {
-    const yr = rows.filter((r) => r.season === y && r.adp != null &&
-                                  r[PROJ_FIELD] != null);
-    if (yr.length < 120) continue;
-    const pts = (r) => (SCORING === "ppr" ? r.pts : r.ptsStd);
-    const pool = yr.map((r) => ({ id: r.id, pos: r.pos, proj: r[PROJ_FIELD],
-                                  adp: r.adp, actual: pts(r) }));
-    world[y] = {
-      pool,
-      actual: new Map(pool.map((p) => [p.id, { pos: p.pos, pts: p.actual }])),
-      field: new Map(pool.slice().sort((a, b) => a.adp - b.adp)
-        .map((p, i) => [p.id, i + 1])),
-      sleeper: new Map(pool.slice().sort((a, b) => b.proj - a.proj)
-        .map((p, i) => [p.id, i + 1])),
-    };
-  }
-  const ys = Object.keys(world).map(Number).sort();
   requireSeasons(ys, "timabil med hreina spa");
   console.log(`hermdir heimar: ${ys.length}`);
 
@@ -141,38 +86,7 @@ async function main() {
 
      Fraekornid er fast — sama keyrsla gefur somu tolu. */
   const NOISE_RUNS = Number(ARG.runs || 20);
-  const noisyField = (pool, seed) => {
-    let a = seed >>> 0;
-    const rnd = () => {
-      a = (a * 1664525 + 1013904223) >>> 0;
-      return a / 4294967296;
-    };
-    /* Box-Muller ur jafndreifingunni. */
-    const gauss = () => {
-      const u = Math.max(1e-9, rnd()), v = rnd();
-      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-    };
-    const jittered = pool.map((p) => {
-      const sd = p.adpSd != null && p.adpSd > 0 ? p.adpSd : 1.08 * Math.sqrt(Math.max(1, p.adp));
-      return [p.id, p.adp + gauss() * sd];
-    }).sort((x, y) => x[1] - y[1]);
-    return new Map(jittered.map(([id], i) => [id, i + 1]));
-  };
-
-  /* Keyrir eitt bord gegn ollum saetum og arum; skilar per (ar, saeti). */
-  const run = (boardOf) => {
-    const bySlot = {};
-    for (const y of ys) {
-      const w = world[y];
-      const board = boardOf(w.pool, y);
-      bySlot[y] = [];
-      for (let slot = 1; slot <= TEAMS; slot++) {
-        bySlot[y].push(simulateDraft({ board, fieldBoard: w.field,
-          actual: w.actual, slot, league: LEAGUE }).points);
-      }
-    }
-    return bySlot;
-  };
+  const run = makeRun({ world, ys, league: LEAGUE, teams: TEAMS });
 
   const sleeperRuns = run((pool, y) => world[y].sleeper);
   const adpRuns = run((pool, y) => world[y].field);
@@ -244,95 +158,15 @@ async function main() {
 
      Hvert saetapar er keyrt i BADAR attir (A-Ranking i saeti i og
      Sleeper i saeti j, og svo ofugt) svo saetin sjalf jafnist ut. */
-  const headToHead = (boardOf) => {
-    const diffs = [];
-    for (const y of ys) {
-      const w = world[y];
-      const board = boardOf(w.pool, y);
-      for (let r = 0; r < NOISE_RUNS; r++) {
-        /* Hver keyrsla er nyr voll med eigin havada — mismunandi
-           deild, somu leikmenn. */
-        const field = r === 0 ? w.field : noisyField(w.pool, y * 1000 + r * 7919);
-        for (let i = 1; i <= TEAMS; i++) {
-          const j = i % TEAMS + 1;
-          for (const swap of [false, true]) {
-            const aSlot = swap ? j : i, sSlot = swap ? i : j;
-            const a = simulateDraft({
-              board, fieldBoard: field, actual: w.actual,
-              slot: aSlot, league: LEAGUE,
-              rival: { slot: sSlot, board: w.sleeper },
-            });
-            diffs.push({ season: y, aSlot, sSlot, diff: a.points - a.rivalPoints });
-          }
-        }
-      }
-    }
-    const m = mean(diffs.map((d) => d.diff));
-    const wins = diffs.filter((d) => d.diff > 0).length;
-    /* Klasar eru AFRAM arin — porun fjarlaegir arsahrifin en radir
-       innan ars eru enn hadar hver annarri. Stadalvillan er thvi
-       reiknud ur ARA-MEDALTOLUM. */
-    const byYear = ys.map((y) => mean(diffs.filter((d) => d.season === y).map((d) => d.diff)));
-    const mm = mean(byYear);
-    const sd = Math.sqrt(mean(byYear.map((v) => (v - mm) ** 2)) *
-                         byYear.length / Math.max(1, byYear.length - 1));
-    const se = sd / Math.sqrt(byYear.length);
-    const t = se ? mm / se : 0;
-    const yearWins = byYear.filter((v) => v > 0).length;
-    return {
-      mean: round1(m), n: diffs.length, wins, winRate: round4(wins / diffs.length),
-      byYear: Object.fromEntries(ys.map((y, i) => [y, round1(byYear[i])])),
-      yearWins, years: ys.length,
-      t: round2(t), se: round1(se),
-      lo: round1(mm - 2.776 * se), hi: round1(mm + 2.776 * se),
-      significant: Math.abs(t) > 2.776,
-      signP: round4(binomialTail(yearWins, ys.length)),
-    };
-  };
+  const headToHead = makeHeadToHead({ world, ys, league: LEAGUE, teams: TEAMS,
+    runs: NOISE_RUNS, rivalOf: (w) => w.sleeper });
 
   /* ---------- 3. THRJU PROF ---------- */
   const current = scored.find((s) => s.name === "starters+flex (current)" &&
                                      s.shrink === 0 && s.blend === 0);
 
-  const tests = (label, perSeason, runsBySlot) => {
-    /* Arasettid kemur UR `perSeason`, ekki ur `ys`. Walk-forward
-       afbrigdid naer ekki fyrsta arinu (thad hefur ekkert a undan ser)
-       og fyrsta utgafan gerdi rad fyrir ollum arum — sem felldi
-       keyrsluna. */
-    const ys = Object.keys(perSeason).map(Number).sort();
-    const wins = ys.filter((y) => perSeason[y] > slpPerSeason[y]).length;
-    const boot = bootstrapDiff(perSeason, slpPerSeason);
-    /* Tekna-prof: undir nulltilgatu er hvert ar hlutkesti. */
-    const signP = binomialTail(wins, ys.length);
-    /* Pardur samanburdur per (ar, saeti). Klasar eru arin, svo
-       stadalvillan er reiknud UR ARA-MEDALTOLUM, ekki ur 60 porum —
-       annars vaeri hun allt of throng. */
-    const perSlotDiffs = [];
-    for (const y of ys) {
-      for (let i = 0; i < TEAMS; i++) {
-        perSlotDiffs.push(runsBySlot[y][i] - sleeperRuns[y][i]);
-      }
-    }
-    const yearMeans = ys.map((y) =>
-      mean(runsBySlot[y].map((v, i) => v - sleeperRuns[y][i])));
-    const m = mean(yearMeans);
-    const sd = Math.sqrt(mean(yearMeans.map((v) => (v - m) ** 2)) *
-                         ys.length / Math.max(1, ys.length - 1));
-    const se = sd / Math.sqrt(ys.length);
-    const t = se ? m / se : 0;
-    return {
-      label, mean: round1(mean(Object.values(perSeason))),
-      diff: round1(m), wins, years: ys.length,
-      boot: boot ? { lo: round1(boot.lo), hi: round1(boot.hi),
-                     excludesZero: boot.excludesZero } : null,
-      signP: round4(signP),
-      paired: { t: round2(t), se: round1(se),
-                lo: round1(m - 2.776 * se), hi: round1(m + 2.776 * se),
-                significant: Math.abs(t) > 2.776 },   // t(4), 95%
-      slotWins: perSlotDiffs.filter((d) => d > 0).length,
-      slots: perSlotDiffs.length,
-    };
-  };
+  const tests = makeTests({ ys, teams: TEAMS, baseRuns: sleeperRuns,
+    basePerSeason: slpPerSeason });
 
   const resCurrent = tests("A-Ranking (current)", current.perSeason, current.runs);
   const resBest = tests(`A-Ranking (best variant: ${scored[0].name}, ` +
@@ -409,21 +243,6 @@ async function main() {
   console.log(`\n-> data/arank_${SCORING}${PROJ === "fftoday" ? "_fftoday" : ""}.json`);
 }
 
-/** P(X >= k) fyrir X ~ Bin(n, 0.5) — einhliða tekna-prof. */
-function binomialTail(k, n) {
-  let s = 0;
-  for (let i = k; i <= n; i++) s += choose(n, i);
-  return s / 2 ** n;
-}
-function choose(n, k) {
-  let r = 1;
-  for (let i = 1; i <= k; i++) r = (r * (n - k + i)) / i;
-  return r;
-}
 
-const sgn = (x) => (x == null ? "-" : (x > 0 ? "+" : "") + x.toFixed(1));
-const round1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
-const round2 = (x) => (x == null ? null : Math.round(x * 100) / 100);
-const round4 = (x) => (x == null ? null : Math.round(x * 10000) / 10000);
 
 main().catch((e) => { console.error(e); process.exit(1); });

@@ -2315,9 +2315,31 @@ console.log("\n20. tveir kostir eru a skjanum, og urskurdurinn er oskertur");
      meiddur madur raddist efst.                                       */
   const firstDraftable = boardRows()
     .find((tr) => !tr.querySelector("td.frozen .badge.bad"));
+  /* ============================================================
+     MERKID ER FJARLAEGT UR HLUTNUM, EKKI SKAFID AF STRENGNUM
+     ============================================================
+     Hér stod `.replace(/\s*(R|Out|IR|Q|D|PUP|Sus|NA)$/, "")` — listi
+     af SKAMMSTOFUNUM. Merkid teiknar hins vegar FULLT ord thegar thad
+     er til ("Questionable"), svo skafningin nadi thvi ekki og
+     nafna-samanburdurinn fell a "Christian McCaffreyQuestionable".
+
+     ÞETTA SVAF I HALFT AR OG VAKNADI VID GOGNIN: enginn af theim sem
+     stod efstur a bordinu bar stodu fyrr en `players.json` 28.8.2026
+     flaggadi McCaffrey. Fullyrding sem er had thvi hvada leikmadur er
+     efstur i dag er ekki fullyrding um kodann.
+
+     RETT LEID ER AD SPYRJA DOM-INN: afrita holfid, henda `.badge` ur
+     afritinu og lesa thad sem eftir stendur. Þa er engin talning a
+     stodu-heitum og enginn listi sem getur stadnad — merkid er
+     skilgreint sem `.badge` i `Crest.jsx` og hvergi annars stadar. */
+  const nameOf = (cell) => {
+    if (!cell) return null;
+    const c = cell.cloneNode(true);
+    for (const b of [...c.querySelectorAll(".badge")]) b.remove();
+    return (c.textContent || "").trim();
+  };
   const firstBoard = firstDraftable
-    ? (firstDraftable.querySelector("td.frozen")?.textContent || "")
-        .replace(/\s*(R|Out|IR|Q|D|PUP|Sus|NA)$/, "").trim()
+    ? nameOf(firstDraftable.querySelector("td.frozen"))
     : null;
   ok(!!firstBoard, `bordid er lesid, obundid (${firstBoard || "ekkert"})`);
   ok(firstBoard && firstCard.includes(firstBoard),

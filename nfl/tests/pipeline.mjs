@@ -767,6 +767,16 @@ console.log("\nolesnar skrar eru asettar");
     "projectors_ppr.json": "rodun spamanna, PPR",
     "projectors_standard.json": "rodun spamanna, standard",
     "arank_search_ppr.json": "422-afbrigda leitin — sonnun fyrir ad leitin finni havada",
+
+    /* AFGANGS-MAELINGIN (28.8.2026). `arank-need-lab.mjs` spyr hvort
+       eitthvad ANNAD en threpid/skreppingin/blondunin baeti A-Ranking:
+       hopurinn thinn (need), kvikt threp, markadur, ECR, tiltaekileiki.
+       Adeins `need` stodst, og NIDURSTADAN sjalf er komin i kodann
+       (`NEED_K` i `advice.js`) — skrarnar eru SONNUNARGAGNID fyrir
+       hinum fjorum sem FELLU, svo thau verdi ekki reynd aftur. Appid
+       les thaer ekki og a ekki ad gera thad. */
+    "arank_need_ppr_fftoday.json": "afgangs-fradratturinn maeldur a 11 timabilum (FFToday)",
+    "arank_need_ppr.json": "sama maeling a OHADRI heimild — 5 timabil (Sleeper)",
     "superflex_split.json": "86,0% QB i superflex — talan sem `SUPERFLEX_SPLIT` byggir a",
 
     /* LESNAR UM SMIDAD HEITI. Thessar eru NOTADAR — appid kallar
