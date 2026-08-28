@@ -450,6 +450,86 @@ console.log("\n--- E. VERDBREYTINGAR ---");
    PLANUNIN (Haaland a bekknum, annars er hann i XI-inu og enginn er
    "onotadur"). Vantadi timinn vaeri hver fullyrding hér graen af RANGRI
    astaedu; thess vegna er hun MAELD i fyrstu linu kaflans.              */
+/* ============================================================
+   E9. UMFERDAR-ASTANDID ER ThRIGILDT — OG ThRIDJA GILDID VANTADI
+   ============================================================
+   Undirtextinn a Gameweek-holfinu var `evPlayed ? "finished" : "not
+   started"`. Athugasemdin i App.jsx sagdi sjalf ad umferd I GANGI vaeri
+   thridja astandid og ad hvorugt ordid aetti vid hana — en tvigildi
+   skilyrdid gaf henni "not started".
+
+   MAELT A LIFANDI GOGNUM 28.8.2026 kl. 21:25 UTC: GW2-fresturinn leid kl.
+   17:30, einn af tiu leikjum var buinn, og holfid sagdi
+   "Gameweek 2 - not started". Nakvaemlega sama einkenni og notandinn
+   kvartadi undan fyrir GW1, i hina attina.
+
+   Profad a TILBUNUM leikjaskram thar sem svarid er thekkt fyrirfram —
+   lifandi gogn fara gegnum oll thrju astondin a einni viku og geta thvi
+   ekki varið neitt af theim.                                          */
+console.log("\n--- E9. NOT STARTED / IN PROGRESS / FINISHED ---");
+{
+  const real = J("fixtures.json");
+  const all = Array.isArray(real) ? real : real.fixtures;
+  const other = all.filter(f => f.event !== 1);
+  const gw1 = all.filter(f => f.event === 1);
+  /* `events.json` ER PATCHAD LIKA — OG ThAD ER EKKI SNYRTING A PROFGOGNUM.
+     `ev.finished` er ThAD SEM FPL HEFUR STADFEST og ma rada: raunskrain
+     ber `finished: true` a GW1, svo an thessa saegi holfid "finished" i
+     ollum thremur astondunum og kaflinn maeldi ekkert. Reglan sem er verid
+     ad profa er su sem gildir MEDAN merkid er ekki komid — thad er einmitt
+     bilid sem villan bjo i (~3 dagar per umferd, CLAUDE.md kafli 1).    */
+  const evReal = J("events.json");
+  const evAll = Array.isArray(evReal) ? evReal : evReal.events;
+  const evPatch = { events: evAll.map(e => e.id === 1 ? { ...e, finished: false } : e) };
+
+  const mk = state => ({ "events.json": evPatch, "fixtures.json": { fixtures: [...other, ...gw1.map((f, i) => ({
+    ...f,
+    finished: state === "done" || (state === "live" && i === 0),
+    finished_provisional: state === "done" || (state === "live" && i === 0),
+    started: state !== "soon",
+    /* KICKOFF ER FAERDUR LIKA: "i gangi" ma ekki hanga a `started` einu,
+       thvi tha vaeri profid ad profa eitt svid en ekki regluna.        */
+    kickoff_time: state === "soon" ? new Date(Date.now() + 6 * 36e5).toISOString()
+                                   : new Date(Date.now() - 2 * 36e5).toISOString(),
+  }))] } });
+
+  /* MOTPROFID A PATCHINU SJALFU: se `ev.finished` satt vinnur thad, og thad
+     er RETT — stadfest umferd er stadfest. An thessarar fullyrdingar vaeri
+     ekki ljost hvort kaflinn er ad profa regluna eda patchid.           */
+  const confirmed = await mount({ captain: 411 },
+    { patch: { "fixtures.json": mk("soon")["fixtures.json"] }, gw: 1 });
+
+  const sub = v => {
+    const el = [...v.doc.querySelectorAll("*")].map(e => (e.textContent || "").trim())
+      .find(t => /^📅Gameweek 1/.test(t) && t.length < 80);
+    return el || "";
+  };
+
+  const soon = await mount({ captain: 411 }, { patch: mk("soon"), gw: 1 });
+  ok(soon.gwPicked === true, "forsenda: umferd 1 er valin");
+  const sSoon = sub(soon);
+  ok(/not started/.test(sSoon), `enginn leikur hafinn -> "not started" (${JSON.stringify(sSoon)})`);
+
+  const live = await mount({ captain: 411 }, { patch: mk("live"), gw: 1 });
+  const sLive = sub(live);
+  ok(/in progress/.test(sLive), `einn buinn, hinir i gangi -> "in progress" (${JSON.stringify(sLive)})`);
+  ok(/1\/10|1 \/ 10/.test(sLive), "og talan segir hversu margir eru buner");
+  ok(!/not started/.test(sLive), "og ThAD SEGIR EKKI 'not started' — villan sjalf");
+
+  const done = await mount({ captain: 411 }, { patch: mk("done"), gw: 1 });
+  const sDone = sub(done);
+  ok(/finished/.test(sDone), `allir buner -> "finished" (${JSON.stringify(sDone)})`);
+
+  /* ThRJU ASTOND, ThRIR OLIKIR STRENGIR. Vaeru tveir eins vaeri holfid ekki
+     ad greina thau ad — og fullyrdingarnar haer ad ofan gaetu allar stadist
+     med tvigilda skilyrdinu.                                            */
+  ok(new Set([sSoon, sLive, sDone]).size === 3,
+     "astondin thrju gefa ThRJA olika strengi (tvigilt skilyrdi felli thetta)");
+  const sConf = sub(confirmed);
+  ok(/finished/.test(sConf),
+     `og `+"`ev.finished`"+` VINNUR yfir leikjunum — stadfest umferd er stadfest (${JSON.stringify(sConf)})`);
+}
+
 console.log("\n--- F. 'Never in your XI' ---");
 {
   /* EIN FAERSLA, EKKI SEX: uppstillingin ERFIST nu fram (`squadForGw`

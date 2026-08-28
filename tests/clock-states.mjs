@@ -269,10 +269,16 @@ console.log("─".repeat(84));
 
 /* A4. SPA-BOKHALDID — GLUGGINN LOKAST VID FRESTINN OG SKRA ER ONEMANDI. */
 {
-  eq(WINDOW_H, 12, "glugginn er 12 klst");
+  /* GLUGGINN VAR BREIKKADUR UR 12 I 36 KLST (28.8.2026) — sja hausinn a
+     `shouldWrite`. Astaedan er maeld: GW2-rodin tapadist thegar ENGIN
+     keyrsla for i gang i 12,5 klst thvert yfir 12-klst gluggann. Talan er
+     LESIN her, ekki skrifud, svo naesta breidd felli ekki kaflann af
+     rangri astaedu — en hun verdur ad vera breidari en mesta maelda bilid. */
+  ok(WINDOW_H > 12.1, `fraeglugginn er breidari en mesta maelda keyrslubil (${WINDOW_H}h > 12,1h)`);
   const g = (nowMs, exists = false) =>
     shouldWrite({ gw: 1, deadlineMs: DEADLINE, nowMs, exists });
-  ok(g(DEADLINE - 19.6 * 36e5).write === false, "19,6 klst fyrir frest: EKKERT skrifad (utan gluggans)");
+  ok(g(DEADLINE - (WINDOW_H + 4) * 36e5).write === false,
+     `${WINDOW_H + 4} klst fyrir frest: EKKERT skrifad (utan gluggans)`);
   ok(g(DEADLINE - 6 * 36e5).write === true, "6 klst fyrir frest: skrifad (innan gluggans)");
   ok(g(DEADLINE - 1).write === true, "1 ms fyrir frest: enn skrifad");
   const after = g(DEADLINE + 1);

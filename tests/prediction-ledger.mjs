@@ -23,7 +23,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { buildSnapshot, shouldWrite, inputsUsable, WINDOW_H, windowOpen, ledgerGaps } from "../scripts/snapshot-predictions.mjs";
+import { buildSnapshot, shouldWrite, inputsUsable, WINDOW_H, NEAR_H, windowOpen, ledgerGaps } from "../scripts/snapshot-predictions.mjs";
 import { buildTeamMetrics } from "../src/teamstats.js";
 
 const REPO = new URL("../", import.meta.url);
@@ -59,18 +59,61 @@ console.log("\n1) HLIDIN: adeins fyrir frest, adeins einu sinni");
      adeins "skrifar fyrir frest" hefdi hleypt villunni gegn.            */
   ok("222 klst fyrir frest -> EKKERT (utan gluggans)",
      shouldWrite({ ...base, nowMs: base.deadlineMs - 222 * H }).write === false);
-  ok("24 klst fyrir frest -> EKKERT",
-     shouldWrite({ ...base, nowMs: base.deadlineMs - 24 * H }).write === false);
-  ok("12,1 klst -> EKKERT (rett utan)",
-     shouldWrite({ ...base, nowMs: base.deadlineMs - 12.1 * H }).write === false);
-  ok("11,9 klst -> SKRIFAR (rett innan)",
+  ok("40 klst fyrir frest -> EKKERT (utan fraegluggans)",
+     shouldWrite({ ...base, nowMs: base.deadlineMs - 40 * H }).write === false);
+  /* ============================================================
+     GLUGGINN VAR 12 KLST OG GW2 TAPADIST SAMT (28.8.2026)
+     Maelt a raunverulegri keyrslusogu: badar vinnuskrar saman gefa
+     midgildi 0,78 klst milli keyrslna en MESTA BIL 12,06 — og thad bil la
+     28.8. milli kl. 05:04 og 17:34, thvert yfir allan GW2-gluggann
+     (frestur 17:30). Engin keyrsla snerti hann og rodin er tolud fyrir
+     fullt og allt, thvi inntokin hverfa vid frestinn.
+     Fraeglugginn er thvi 36 klst — tvo sjalfstaed taekifaeri vid mesta
+     maelda bil — og EIN uppfaersla er leyfd strangt fyrir frest.       */
+  ok("24 klst fyrir frest -> SKRIFAR FRAE (innan 36 klst gluggans)",
+     shouldWrite({ ...base, nowMs: base.deadlineMs - 24 * H }).write === true);
+  ok("12,1 klst -> SKRIFAR (frae; gamli glugginn hefdi hafnad)",
+     shouldWrite({ ...base, nowMs: base.deadlineMs - 12.1 * H }).write === true);
+  ok("11,9 klst -> SKRIFAR (naer-endanlegt)",
      shouldWrite({ ...base, nowMs: base.deadlineMs - 11.9 * H }).write === true);
   const early = shouldWrite({ ...base, nowMs: base.deadlineMs - 100 * H });
   ok("og notan segir HVERS VEGNA of snemma er verra",
      /window|worse-informed/i.test(early.why), early.why);
-  /* Glugginn ma ekki vera svo thunnur ad 30-minutna cron missi hann: 12 klst
-     gefa ~24 taekifaeri. Fullyrding a TOLUNNI, ekki bara a hegduninni.   */
-  ok(`glugginn er >= 6 klst svo cron a morg taekifaeri (${WINDOW_H}h)`, WINDOW_H >= 6);
+  /* Fullyrding a TOLUNNI, ekki bara a hegduninni: glugginn verdur ad vera
+     BREIDARI en mesta maelda bilid (12,1 klst), annars getur ein throttlud
+     nott tekid umferdina.                                              */
+  ok(`fraeglugginn er > 12,1 klst (mesta maelda bil milli keyrslna) — ${WINDOW_H}h`,
+     WINDOW_H > 12.1);
+  ok(`naer-bandid er enn 12 klst (${NEAR_H}h) — thad var gamli glugginn`, NEAR_H === 12);
+
+  /* ---- UPPFAERSLAN: EIN, OG STRANGT FYRIR FREST ---- */
+  const seed = { lead_h: 20 };
+  ok("frae (20 klst) + nu innan 12 klst bandsins -> UPPFAERT",
+     shouldWrite({ ...base, exists: true, existing: seed,
+                   nowMs: base.deadlineMs - 10 * H }).write === true);
+  ok("og notan segir ad thetta se uppfaersla, ekki ny rod",
+     /upgrading/.test(shouldWrite({ ...base, exists: true, existing: seed,
+                   nowMs: base.deadlineMs - 10 * H }).why));
+  ok("frae (20 klst) + nu 15 klst -> EKKERT (ekki komid i bandid)",
+     shouldWrite({ ...base, exists: true, existing: seed,
+                   nowMs: base.deadlineMs - 15 * H }).write === false);
+  ok("rod sem er ThEGAR naer-endanleg (8 klst) -> ALDREI endurskrifud",
+     shouldWrite({ ...base, exists: true, existing: { lead_h: 8 },
+                   nowMs: base.deadlineMs - 2 * H }).write === false);
+  ok("TVAER uppfaerslur eru ekki leyfdar (thakid er tvaer skrifanir alls)",
+     shouldWrite({ ...base, exists: true, existing: { lead_h: 10 },
+                   nowMs: base.deadlineMs - 1 * H }).write === false);
+  ok("rod an `lead_h` (eldri en reglan) er ONEMANDI",
+     shouldWrite({ ...base, exists: true, existing: { generated: "x" },
+                   nowMs: base.deadlineMs - 2 * H }).write === false);
+  /* SU EINA REGLA SEM MA ALDREI SLAKNA: eftir frestinn er hvorki skrifad
+     ne uppfaert. Frae sem bidur uppfaerslu ma ekki opna bakdyr.        */
+  ok("EFTIR FREST er frae EKKI uppfaert (bakdyrin sem ma aldrei opnast)",
+     shouldWrite({ ...base, exists: true, existing: seed,
+                   nowMs: base.deadlineMs + 1 }).write === false);
+  ok("og nakvaemlega a frestinum ekki heldur",
+     shouldWrite({ ...base, exists: true, existing: seed,
+                   nowMs: base.deadlineMs }).write === false);
   /* EFTIR FREST ER ThAD EKKI SPA. Sama regla og pros.mjs kafli 12.        */
   const after = shouldWrite({ ...base, nowMs: base.deadlineMs + 1 });
   ok("1 ms EFTIR frest -> EKKERT skrifad", after.write === false);
@@ -80,7 +123,7 @@ console.log("\n1) HLIDIN: adeins fyrir frest, adeins einu sinni");
   /* ONEMANDI: rod sem er til er ALDREI endurskrifud, ekki heldur "med betri
      gognum" — endurskrifud spa er retro-fitting.                          */
   const twice = shouldWrite({ ...base, exists: true, nowMs: base.deadlineMs - 2 * H });
-  ok("rod sem ThEGAR er til -> EKKERT skrifad", twice.write === false);
+  ok("rod sem ThEGAR er til (an lead_h) -> EKKERT skrifad", twice.write === false);
   ok("og notan segir ad hun se onemandi", /never rewritten|already recorded/i.test(twice.why), twice.why);
   ok("enginn frestur -> EKKERT skrifad",
      shouldWrite({ gw: 5, deadlineMs: NaN, nowMs: 1, exists: false }).write === false);
@@ -429,17 +472,46 @@ console.log("\n4) RODIN: nog til ad kvarda, engin tilbuin tala");
    kviknar fyrst 21.8. kl. 05:30 UTC, svo hann er profadur a TILBUNUM
    gognum, eins og `bsd-pipeline.mjs` og `defcon-shrink.mjs`.
    --------------------------------------------------------------- */
+/* ---------------------------------------------------------------
+   4b. HVER KALLAR BOKHALDID — TVAER VINNUSKRAR, EKKI EIN (28.8.2026)
+   ---------------------------------------------------------------
+   Skriftan var adeins i `fetch-fast` af thvi ad hun "naer alltaf
+   glugganum". Su fullyrding var maeld osonn: GW2-rodin tapadist thegar
+   engin hrad keyrsla for i gang i 12,5 klst thvert yfir gluggann, og rod
+   sem tapast er ekki endurheimtanleg. Nu er hun kollud ur BADUM — tvaer
+   olikar cron-skrar bresta ekki a sama tima.
+
+   ThEKJA ER FULLYRDING: an thessa gaeti seinni kallandinn horfid thegjandi
+   og enginn tekid eftir fyrr en naest tapast rod.                       */
+{
+  console.log("\n4b) BADAR VINNUSKRAR KALLA BOKHALDID");
+  const wf = f => readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), "utf8");
+  for (const f of ["fetch.yml", "fetch-fast.yml"]) {
+    const y = wf(f);
+    ok(`${f} keyrir snapshot-predictions.mjs`, /node scripts\/snapshot-predictions\.mjs/.test(y));
+    /* OG ThAD MA ALDREI FELLA GAGNA-KEYRSLUNA: bokhaldid er maelitaeki.  */
+    const step = y.slice(Math.max(0, y.indexOf("snapshot-predictions.mjs") - 400),
+                         y.indexOf("snapshot-predictions.mjs"));
+    ok(`${f} ber \`continue-on-error\` a thvi skrefi`, /continue-on-error:\s*true/.test(step));
+  }
+}
+
 console.log("\n5) EFTIRLIT: gluggi opinn + engin rod = RAUTT");
 {
   const H = 36e5, DL = Date.UTC(2026, 7, 21, 17, 30);
-  ok("utan gluggans er `windowOpen` false (13 klst fyrir)",
-     windowOpen({ deadlineMs: DL, nowMs: DL - 13 * H }) === false);
-  ok("a mörkunum (12,0 klst) er hann OPINN — sama mark og shouldWrite",
+  /* MORKIN ERU LESIN UR `WINDOW_H`, EKKI SKRIFUD SEM TALA. Foest utgafa
+     thessa kafla bar "13 klst" og "12,1 klst" ordrett og fell thegar
+     glugginn var BREIKKADUR ur 12 i 36 (28.8.2026) — an thess ad nokkud
+     vaeri ad. Fullyrdingin er um SAMHLJODA MORK tveggja falla, ekki um
+     toluna sjalfa.                                                     */
+  ok(`utan gluggans er \`windowOpen\` false (${WINDOW_H + 1} klst fyrir)`,
+     windowOpen({ deadlineMs: DL, nowMs: DL - (WINDOW_H + 1) * H }) === false);
+  ok(`a morkunum (${WINDOW_H} klst) er hann OPINN — sama mark og shouldWrite`,
      windowOpen({ deadlineMs: DL, nowMs: DL - WINDOW_H * H }) === true
      && shouldWrite({ gw: 1, deadlineMs: DL, nowMs: DL - WINDOW_H * H, exists: false }).write === true);
-  ok("rett fyrir 12,1 klst er hvorugt opid (samhljoda mork)",
-     windowOpen({ deadlineMs: DL, nowMs: DL - 12.1 * H }) === false
-     && shouldWrite({ gw: 1, deadlineMs: DL, nowMs: DL - 12.1 * H, exists: false }).write === false);
+  ok(`rett utan (${WINDOW_H + 0.1} klst) er hvorugt opid (samhljoda mork)`,
+     windowOpen({ deadlineMs: DL, nowMs: DL - (WINDOW_H + 0.1) * H }) === false
+     && shouldWrite({ gw: 1, deadlineMs: DL, nowMs: DL - (WINDOW_H + 0.1) * H, exists: false }).write === false);
   ok("eftir frestinn er glugginn lokadur", windowOpen({ deadlineMs: DL, nowMs: DL + 60e3 }) === false);
   ok("an frests er hann lokadur (engin gisking)", windowOpen({ deadlineMs: NaN, nowMs: DL }) === false);
 

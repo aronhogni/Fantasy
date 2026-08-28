@@ -63,6 +63,34 @@ console.log("\n=== 3. TOM EDA VANTANDI GOGN AKVEDA EKKERT ===");
   ok(planningGw(null, null) === null, "events null -> null");
 }
 
+console.log("\n=== 3b. UREL `is_current` — MAELT ASTAND, EKKI TILGATA ===");
+{
+  /* 28.8.2026 kl. 21:25 UTC bar `events.json` enn `is_current: 1` thott
+     GW2-fresturinn hefdi lidid kl. 17:30 og einn GW2-leikur vaeri buinn.
+     Merkid er thvi EKKI klukka og reglan verdur ad thola ad thad se urelt. */
+  const stale = [
+    { id: 1, is_current: true, is_next: false },
+    { id: 2, is_current: false, is_next: true },
+    { id: 3, is_current: false, is_next: false },
+  ];
+  const fxs = [...FX(1, Array(10).fill(CONFIRMED)), ...FX(2, [PLAYED, ...Array(9).fill(TOPLAY)])];
+  ok(planningGw(stale, fxs) === 2,
+     "GW1 buin, GW2 hafin en oloknum leikjum -> 2 (umferdin sem er i gangi)");
+
+  /* HER BRAST FYRSTA UTGAFAN: hun tok EITT skref og skilaði 2, sem tha var
+     lokin umferd. Gangan verdur ad halda afram ad GW3.                   */
+  const bothDone = [...FX(1, Array(10).fill(CONFIRMED)), ...FX(2, Array(10).fill(PLAYED)),
+                    ...FX(3, Array(10).fill(TOPLAY))];
+  ok(planningGw(stale, bothDone) === 3,
+     "GW1 OG GW2 fullspiladar med urelt merki -> 3, ekki 2 (gengid afram)");
+
+  /* Og tom leikjaskra fyrir naestu umferd stoppar gonguna — vantandi gogn
+     akveda ekkert, lika i midri gongu.                                   */
+  const noGw3 = [...FX(1, Array(10).fill(CONFIRMED)), ...FX(2, Array(10).fill(PLAYED))];
+  ok(planningGw(stale, noGw3) === 3,
+     "engir GW3-leikir i skranni -> 3 (kyrr a fyrstu umferd an gagna)");
+}
+
 console.log("\n=== 4. JADRARNIR ===");
 {
   const preseason = [{ id: 1, is_current: false, is_next: true }];
@@ -84,6 +112,12 @@ console.log("\n=== 5. STOKKBREYTINGAR SEM VERDA AD FELLA ===");
     "skilar alltaf is_current": (evs) => evs.find(e => e.is_current)?.id ?? null,
     "les `finished` a umferdinni": (evs) => (evs.find(e => e.is_current)?.finished
       ? (evs.find(e => e.is_next)?.id ?? null) : evs.find(e => e.is_current)?.id ?? null),
+    "tekur EITT skref (gamla utgafan)": (evs, fxs) => {
+      const cur = evs.find(e => e.is_current);
+      const f = (fxs || []).filter(x => x.event === cur.id);
+      if (!f.length || !f.every(x => x.finished || x.finished_provisional)) return cur.id;
+      return evs.find(e => e.is_next)?.id ?? cur.id;
+    },
     "sleppir tomu-skrar vordunni": (evs, fxs) => {
       const cur = evs.find(e => e.is_current);
       const f = (fxs || []).filter(x => x.event === cur.id);
@@ -95,6 +129,12 @@ console.log("\n=== 5. STOKKBREYTINGAR SEM VERDA AD FELLA ===");
     ["umferd fullspilud", EV(), FX(1, Array(10).fill(PLAYED)), 2],
     ["leikur i gangi", EV(), FX(1, [PLAYED, LIVE]), 1],
     ["tom leikjaskra", EV(), [], 1],
+    /* TVAER umferdir buner med urelt merki — thetta tilfelli er thad eina
+       sem skilur "eitt skref" fra "gengid afram", svo an thess vaeri
+       stokkbreytingin osynileg.                                         */
+    ["tvaer buner, urelt merki", EV(),
+      [...FX(1, Array(10).fill(CONFIRMED)), ...FX(2, Array(10).fill(PLAYED)),
+       ...FX(3, Array(10).fill(TOPLAY))], 3],
   ];
   for (const [name, fn] of Object.entries(mut)) {
     const broke = cases.filter(([, evs, fxs, want]) => fn(evs, fxs) !== want);
@@ -104,7 +144,7 @@ console.log("\n=== 5. STOKKBREYTINGAR SEM VERDA AD FELLA ===");
   /* Og retta utfaerslan stenst OLL thrju — annars vaeri profid ad verja
      hegdun sem kodinn hefur ekki.                                     */
   const rightPasses = cases.every(([, evs, fxs, want]) => planningGw(evs, fxs) === want);
-  ok(rightPasses, "og planningGw sjalf stenst oll thrju tilvikin");
+  ok(rightPasses, `og planningGw sjalf stenst oll ${cases.length} tilvikin`);
 }
 
 console.log(`\nPLANNING-GW: ${pass} stóðust, ${fail} féllu`);

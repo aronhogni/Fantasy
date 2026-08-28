@@ -222,12 +222,33 @@ export function planningGw(events, fixtures) {
   const cur = evs.find(e => e?.is_current);
   const next = evs.find(e => e?.is_next);
   if (!cur) return next?.id ?? null;               /* forleikur: `is_next` */
-  const fxs = (Array.isArray(fixtures) ? fixtures : []).filter(f => f?.event === cur.id);
-  if (!fxs.length) return cur.id;                  /* regla 2 */
-  if (!fxs.every(fixturePlayed)) return cur.id;    /* regla 1 */
-  if (next?.id != null) return next.id;
-  const later = evs.filter(e => e?.id > cur.id).sort((a, b) => a.id - b.id)[0];
-  return later?.id ?? cur.id;                      /* regla 3 */
+  const fxAll = Array.isArray(fixtures) ? fixtures : [];
+  /* ============================================================
+     GENGID AFRAM ThANGAD TIL UMFERD A OLEIKINN LEIK — EKKI EITT SKREF
+     (28.8.2026)
+
+     Fyrsta utgafan skilaði `next.id` um leid og `is_current` var
+     fullspilud. Thad dugar medan FPL flettir merkinu a rettum tima — en
+     thad gerir hun EKKI: maelt 28.8. kl. 21:25 UTC bar `events.json` enn
+     `is_current: 1` thott GW2-fresturinn hefdi lidid kl. 17:30 og einn
+     GW2-leikur vaeri buinn. Vaeri merkid enn a GW1 thegar OLL GW2 er
+     spilud skilaði gamla reglan 2 — sem er ThA lokin umferd, nakvaemlega
+     villan sem hun var skrifud gegn, i nyjum bunningi.
+     Thess vegna er gengid afram: fyrsta umferd fra `is_current` sem A
+     oleikinn leik. Skilyrdin thrju halda ser — umferd i gangi stoppar
+     gonguna, tom leikjaskra stoppar hana lika (vantandi gogn akveda
+     ekkert), og sidasta umferdin a sig sjalf.
+     ============================================================ */
+  const ordered = evs.filter(e => e?.id >= cur.id).sort((a, b) => a.id - b.id);
+  for (const e of ordered) {
+    const fxs = fxAll.filter(f => f?.event === e.id);
+    if (!fxs.length) return e.id;                  /* regla 2 */
+    if (!fxs.every(fixturePlayed)) return e.id;    /* regla 1 */
+  }
+  /* Allt spilad fra `is_current` og ut: `is_next` ef hun er seinna, annars
+     sidasta umferdin sjalf (regla 3).                                   */
+  if (next?.id != null && next.id > cur.id) return next.id;
+  return ordered.length ? ordered[ordered.length - 1].id : cur.id;
 }
 
 export function matchesPlayedByClub(fixtures) {

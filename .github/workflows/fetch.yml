@@ -53,6 +53,28 @@ jobs:
           BSD_KEY: ${{ secrets.BSD_KEY }}
         run: node scripts/fetch.mjs
 
+      # SPA-BOKHALDID ER LIKA KALLAD HER — MAELT 28.8.2026
+      #
+      # Thad var adeins i `fetch-fast` af theirri astaedu ad hun gengur a 30
+      # min fresti og "naer thvi alltaf glugganum fyrir frest". SU FULLYRDING
+      # ER MAELD OSONN: GW2-rodin (frestur 28.8. kl. 17:30) TAPADIST, thvi
+      # engin hrad keyrsla for i gang milli kl. 05:04 og 17:34 — 12,5 klst
+      # bil thvert yfir gluggann. Yfir 100 keyrslur er midgildi bilsins 0,79
+      # klst og p90 1,58, en MESTA BILID 12,5; ein throttlud nott taekur thvi
+      # umferdina, og rodin er ekki endurheimtanleg (inntokin hverfa vid
+      # frestinn).
+      #
+      # Tvaer olikar cron-skrar bresta ekki a sama tima, svo thetta er odyr
+      # ovissu-vorn. Skriftan ver sig sjalf gegn tvitekningu: rod sem er
+      # komin innan 12 klst bandsins er ALDREI endurskrifud og ekkert er
+      # skrifad eftir frestinn (sja `shouldWrite`).
+      #
+      # `continue-on-error` af somu astaedu og i hradri keyrslu: bokhaldid er
+      # maelitaeki og ma aldrei fella gagna-keyrsluna.
+      - name: Skra spa (bokhald)
+        continue-on-error: true
+        run: node scripts/snapshot-predictions.mjs
+
       - name: Committa ef eitthvað breyttist
         run: |
           set -uo pipefail

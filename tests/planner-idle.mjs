@@ -69,8 +69,19 @@ const HAS = t => /Not been in your XI/.test(t);
    ============================================================ */
 const PLAYED = { "events.json": { events: playedEvents(J("events.json").events, 4) } };
 
-/* FORSENDAN FYRST: i FORLEIK segir bordinn EKKERT — engin saga er til.  */
-ok(!HAS(await render({ captain: 411, benchSwaps: { 1: [[411, 321]] } })),
+/* FORSENDAN FYRST: i FORLEIK segir bordinn EKKERT — engin saga er til.
+
+   FORLEIKURINN ER NU BYGGDUR, EKKI FENGINN AD LANI FRA `data/` (28.8.2026).
+   Her stod berr `render(...)` an patch-s og athugasemdin ad ofan sagdi
+   "committud `events.json` ER forleikur". Su fullyrding var sonn 20.8. og
+   ER ThAD EKKI LENGUR: GW1 er lokin og GW2 hafin, svo bordinn birtist
+   rettilega og fullyrdingin fell — an thess ad nokkud vaeri ad appinu.
+   Nakvaemlega sama aett og "preseason - engin umferd lokin" i CLAUDE.md
+   kafla 1: FOST FULLYRDING UM LIFANDI GOGN URELDIST ThEGJANDI. Nu er
+   forleikurinn smidadur (`playedEvents(EV, 0)`) svo kaflinn maeli sama
+   heim i dag og eftir ar.                                              */
+const PRESEASON = { "events.json": { events: playedEvents(J("events.json").events, 0) } };
+ok(!HAS(await render({ captain: 411, benchSwaps: { 1: [[411, 321]] } }, PRESEASON)),
    "FORLEIKUR: engin notkunar-saga -> bordinn segir EKKERT (ekki tom fullyrding)");
 
 ok(!HAS(await render(null, PLAYED)), "engin planun -> ThOGN");

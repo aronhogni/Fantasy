@@ -398,15 +398,67 @@ export function ledgerGaps({ events, nowMs, has }) {
     .map(e => e.id);
 }
 
-export const WINDOW_H = 12;
-export function shouldWrite({ gw, deadlineMs, nowMs, exists, windowH = WINDOW_H }) {
-  if (exists) return { write: false, why: `gw${gw} already recorded - never rewritten` };
+/* ============================================================
+   GLUGGINN VAR 12 KLST OG GW2 TAPADIST SAMT — MAELT 28.8.2026
+
+   Bokhaldid skrifar EINU SINNI per umferd og rodin er ekki endurheimtanleg:
+   inntokin (verd, form, elo, markadslina) eru horfin eftir frestinn. Reglan
+   "adeins i 12 klst glugga" byggdi a thvi ad `fetch-fast` gengur a 30 min
+   fresti og gefi thvi ~24 taekifaeri.
+
+   ThAD BRAST FYRIR GW2. Maelt a raunverulegri keyrslusogu (gh run list, 100
+   keyrslur, 4,8 dagar):
+     fetch-fast: midgildi bils 0,79 klst, p90 1,58 — EN MESTA BIL 12,5 KLST
+     baðar vinnuskrar saman: midgildi 0,78, p90 1,57, p99 8,42, MESTA 12,06
+   Bilid 28.8. la milli kl. 05:04 og 17:34 UTC. Glugginn fyrir GW2 (frestur
+   17:30) opnadist kl. 05:30 og lokadist kl. 17:30 — ENGIN KEYRSLA snerti
+   hann, og GW2-rodin er tolud fyrir fullt og allt. Thettari cron-id a
+   leikdogum (15 min, fostudagur er i honum) breytti thar engu: GitHub sleppir
+   skipulogdum keyrslum ad vild. Daglega keyrslan er ekki heldur akkeri —
+   hun hefur fardst ur 05:2x i 16-17 sidustu thrja daga.
+
+   ThVI TVENNT, OG HVORUGT SLAKAR A ThVI SEM MALI SKIPTIR:
+     1. FRAE-GLUGGI 36 KLST. Vid mesta maelda bil (12,1) gefur hann tvo
+        sjalfstaed taekifaeri i versta tilfelli. Rod skrifud snemma er
+        VERRI en engin? Nei — hun ber `lead_h`, svo kvordunin veit nakvaemlega
+        hversu fersk hun var, og tom rod maelir ekkert.
+     2. EIN UPPFAERSLA LEYFD, STRANGT FYRIR FREST. Frae sem var skrifad
+        utan 12-klst bandsins ma vikja fyrir betri mynd ThEGAR vid komumst
+        inn i thad — en ALDREI eftir ad rod er komin innan bandsins og
+        ALDREI eftir frestinn. Ad skrifa betri mynd ADUR en utkoman er til
+        er ekki retro-fitting; thad er RETT TIMASETNING a maelingu (sama
+        rokstudningur og thegar GW1-rodin var tekin upp a nytt 16.8.2026).
+        Thakid er thvi TVAER skrifanir per umferd, ekki ~40.
+
+   ThAD SEM ER OBREYTT OG MA ALDREI BREYTAST: eftir frestinn er ekkert
+   skrifad, hvorki ny rod ne uppfaersla. Su regla er oll vornin gegn
+   retro-fitting og hun er profud a badar hlidar.
+   ============================================================ */
+export const WINDOW_H = 36;      // fraeglugginn (maelt: mesta bil 12,1 klst)
+export const NEAR_H = 12;        // "naer-endanlegt" band — gamli glugginn
+export function shouldWrite({ gw, deadlineMs, nowMs, exists, existing = null,
+                              windowH = WINDOW_H, nearH = NEAR_H }) {
   if (!Number.isFinite(deadlineMs)) return { write: false, why: "no deadline for the gameweek" };
   if (nowMs >= deadlineMs) return { write: false, why: "deadline has passed - a prediction made after kickoff is not a prediction" };
   const hLeft = (deadlineMs - nowMs) / 36e5;
   if (hLeft > windowH)
     return { write: false, why: `${hLeft.toFixed(1)}h before the deadline - outside the ${windowH}h window, `
                               + "an early snapshot would freeze a worse-informed prediction" };
+  if (exists || existing) {
+    /* Rod an `lead_h` er eldri en thessi regla — hun er ONEMANDI, thvi vid
+       vitum ekki hversu fersk hun var og maegum ekki giska.               */
+    const prevLead = Number(existing?.lead_h);
+    if (!Number.isFinite(prevLead))
+      return { write: false, why: `gw${gw} already recorded (no lead recorded) - never rewritten` };
+    if (prevLead <= nearH)
+      return { write: false, why: `gw${gw} already recorded ${prevLead.toFixed(1)}h out, inside the `
+                                + `${nearH}h near-final band - never rewritten` };
+    if (hLeft > nearH)
+      return { write: false, why: `gw${gw} already recorded ${prevLead.toFixed(1)}h out and ${hLeft.toFixed(1)}h `
+                                + `is not inside the ${nearH}h band - kept` };
+    return { write: true, replaces: prevLead,
+             why: `upgrading the ${prevLead.toFixed(1)}h seed with a ${hLeft.toFixed(1)}h snapshot, still before the deadline` };
+  }
   return { write: true, why: `${Math.round((deadlineMs - nowMs) / 60000)} min before the deadline` };
 }
 
@@ -452,7 +504,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const gaps = ledgerGaps({ events, nowMs: Date.now(),
                             has: id => existsSync(`${OUT}gw${id}.json`) });
   if (gaps.length) console.log(`snapshot: LEDGER GAPS - no row for GW${gaps.join(", GW")}`);
-  const gate = shouldWrite({ gw, deadlineMs, nowMs: Date.now(), exists: existsSync(file) });
+  /* ROÐIN SEM ER TIL ER LESIN, EKKI ADEINS TALIN: uppfaerslu-reglan tharf
+     ad vita hversu fersk hun var (`lead_h`), og "til eda ekki" svarar thvi
+     ekki. Onyt skra telst sem rod an `lead_h` -> onemandi.              */
+  let existingRow = null;
+  if (existsSync(file)) { try { existingRow = JSON.parse(readFileSync(file, "utf8")); } catch { existingRow = {}; } }
+  const gate = shouldWrite({ gw, deadlineMs, nowMs: Date.now(),
+                             exists: existsSync(file), existing: existingRow });
   if (!gate.write) {
     console.log(`snapshot gw${gw}: ${dry ? "would skip" : "skipped"} - ${gate.why}`);
     if (!dry) {
@@ -495,6 +553,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       process.exit(0);
     }
     mkdirSync(OUT, { recursive: true });
+    /* `lead_h` ER SKRAD A RODINA, EKKI LEITT SIDAR: fresturinn faerist
+       (FPL breytir honum) og `generated` eitt segir ekki hversu naerri
+       honum myndin var. Kvordunin tharf toluna til ad greina frae fra
+       naer-endanlegri mynd, og uppfaerslu-reglan les hana beint.        */
+    const leadH = +((deadlineMs - Date.now()) / 36e5).toFixed(2);
+    snap.lead_h = leadH;
+    snap.deadline = cur.deadline_time ?? null;
+    if (gate.replaces != null) snap.replaced_lead_h = +Number(gate.replaces).toFixed(2);
     writeFileSync(file, JSON.stringify(snap));
     console.log(`snapshot gw${gw}: written (${snap.ffdr.length} ffdr rows, ${snap.rank.length} players) - ${gate.why}`);
     recordLedger(gw, true, snap.rank.length,

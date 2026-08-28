@@ -58,8 +58,13 @@ jobs:
         #
         # HER, EKKI I DAGLEGU KEYRSLUNNI: hun gengur kl. 05 UTC en frestur er
         # ~17:30 og leikir 12-19 UTC, svo dagkeyrslan er of langt fra honum.
-        # Hrada keyrslan gengur a 30 min fresti (og a 15 min a leikdogum) og
-        # naer thvi alltaf glugganum fyrir frest.
+        # Hrada keyrslan gengur a 30 min fresti (og a 15 min a leikdogum).
+        # HUN NAER SAMT EKKI ALLTAF GLUGGANUM — her stod ad hun gerdi thad og
+        # thad er MAELT OSATT: GW2-rodin tapadist 28.8.2026 thvi engin keyrsla
+        # for i gang milli kl. 05:04 og 17:34 (12,5 klst bil, midgildi 0,79 og
+        # p90 1,58 yfir 100 keyrslur). Thess vegna er skriftan nu KOLLUD UR
+        # BADUM vinnuskram og fraeglugginn er 36 klst med einni leyfdri
+        # uppfaerslu; sja hausinn a `shouldWrite`.
         #
         # `continue-on-error` ER ASETT: bokhaldid er MAELITAEKI, ekki gogn sem
         # appid les. Bresti thad ma thad ALDREI fella gagna-keyrsluna sjalfa —

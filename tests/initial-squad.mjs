@@ -147,6 +147,25 @@ async function mount(state, { width = 1280, patch = null, gw = 1 } = {}) {
   };
 }
 
+/* ============================================================
+   OSNERTUR TIMI — FYRIR KAFLA SEM SNUAST UM ORDALAG, EKKI UM KLUKKUNA
+   (28.8.2026)
+
+   Framvirki glugginn byrjar a FYRSTU umferd sem fresturinn er ekki
+   runninn ut a (`firstOpen` i App.jsx). Thad er RETT hegdun — framvirkur
+   kassi ma ekki na yfir spiladar umferdir — en thad thydir ad kaflar sem
+   profa ORDALAGID innan gluggans faerast med dagatalinu: 28.8.2026 voru
+   GW1 OG GW2 lidnar, svo gluggi sem atti ad vera GW1-6 var ordinn GW3-8
+   og setningin "plus your own change in GW3" gat ekki lengur komid fram
+   (GW3 var tha UPPHAF gluggans, ekki breyting inni i honum).
+
+   Thessir kaflar smida thvi sinn tima i stad thess ad erfa hann ur
+   `data/events.json`. Sama regla og `playedEvents` var buin til fyrir —
+   og sama villa og CLAUDE.md kafli 1 lysir: fost fullyrding um lifandi
+   gogn ureldist thegjandi.
+   ============================================================ */
+const PRESEASON = { "events.json": { events: playedEvents(J("events.json").events, 0) } };
+
 const cards = v => v.q('[draggable="true"]');
 const NANRE = /\bNaN\b|\bundefined\b/;
 /* MINNSTA element sem ber BAEDI heitid OG rod — sama adferd og
@@ -1533,14 +1552,22 @@ console.log(`     framvirki glugginn i dag: ${FWD_WIN}`);
      an thessarar setningar vaeri ThOGULT SLEPP (CLAUDE.md 5b).
      Merkid sjalft er profad i kafla O2 a fixtura sem BER badar tegundir. */
   const backCard = cardOf(v, "Not been in your XI", "Save £");
+  /* ASTAEDAN VERDUR AD VERA REGLA APPSINS, EKKI NAER-LAG AF HENNI
+     (lagad 28.8.2026). Her stod `playedNow < 2` — fjoldi lidina fresta —
+     en appid reiknar `bTo = min(VALIN umferd, sidasta lidna)` og krefst
+     `bTo >= 2`. Thau tvo voru somu tala thangad til safnid for ad VELJA
+     umferd 1 (`mount({gw:1})`): tha var `playedNow` ordinn 2 medan
+     glugginn var 1, svo kaflinn fell an thess ad nokkud vaeri ad. Naerlag
+     af reglu er onnur regla.                                          */
   const playedNow = EV.filter(e => e?.deadline_time
     && Date.parse(e.deadline_time) <= Date.now()).length;
+  const bTo = Math.min(1, playedNow);            /* kaflinn skodar GW1-synina */
   if (backCard) {
     ok(!/never best XI/.test(backCard.textContent || ""),
        "AFTURVIRKI kassinn ber EKKI velar-merkid (hann er stadreynda-kassi)");
   } else {
-    ok(playedNow < 2,
-       `afturvirki kassinn SEFUR — ${playedNow} umferd(ir) spilud, hann krefst 2`);
+    ok(bTo < 2,
+       `afturvirki kassinn SEFUR — gluggi min(GW1, ${playedNow} lidnar) = ${bTo}, hann krefst 2`);
   }
 
   ok(!/as you have them set up/.test(v.text()),
@@ -1607,7 +1634,8 @@ console.log(`     framvirki glugginn i dag: ${FWD_WIN}`);
         3: [[411,321],[346,278]] er FULLUR mismunur fra grunninum (sja
         kafla H), svo GW1-2 erfa lykil 1 og GW3-6 lykil 3.              */
   const vm = await mount({ captain: 411,
-    benchSwaps: { 1: [[411, 321]], 3: [[411, 321], [346, 278]] } });
+    benchSwaps: { 1: [[411, 321]], 3: [[411, 321], [346, 278]] } },
+    { patch: PRESEASON, gw: 1 });
   const mseg = (cardOf(vm, FWD_HEAD, "Save £") || { textContent: "" }).textContent;
   ok(/plus your own change in GW3/.test(mseg),
      "SKYR BREYTING I GW3 -> setningin segir bædi erfd OG skyra breytingu", mseg.slice(0, 200));
@@ -1687,7 +1715,8 @@ console.log("\n--- O2. MERKIMIDARNIR ERU AGREINANDI ---");
      er yfir verdgolfinu svo `rarelyStarted` hendir honum ekki ut.      */
   const X = 411, Y = 423, S1 = 321, S2 = 173;
   const v2 = await mount({ captain: X,
-    benchSwaps: { 1: [[X, S1]], 3: [[X, S1], [Y, S2]] } });
+    benchSwaps: { 1: [[X, S1]], 3: [[X, S1], [Y, S2]] } },
+    { patch: PRESEASON, gw: 1 });
   const fc2 = cardOf(v2, FWD_HEAD, "Save £");
   ok(!!fc2, "framvirki kassinn er their");
   const cells = fc2 ? [...fc2.querySelectorAll("span")]

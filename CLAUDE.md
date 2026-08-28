@@ -931,6 +931,31 @@ verður ekki búin til eftir á.**
 > kvörðun sem les hana á að vita að FFDR-tölur hennar bera **engan
 > markaðslið**. Að „laga" hana eftir á væri retro-fitting.
 
+> **OG GLUGGINN VAR 12 KLST — GW2 TAPAÐIST SAMT (28.8.2026).** Reglan
+> „aðeins í 12 klst glugga“ byggði á því að `fetch-fast` gengur á 30 mín
+> fresti og gefi ~24 tækifæri. **Mælt á raunverulegri keyrslusögu**
+> (`gh run list`, 100 keyrslur, 4,8 dagar): miðgildi bils **0,79 klst**,
+> p90 1,58 — **en mesta bil 12,5 klst**, og það bil lá 28.8. milli kl.
+> 05:04 og 17:34, þvert yfir allan GW2-gluggann (frestur 17:30). Engin
+> keyrsla snerti hann og **röðin er töpuð fyrir fullt og allt** — inntökin
+> hverfa við frestinn. Þéttari cron á leikdögum breytti engu: GitHub
+> sleppir skipulögðum keyrslum að vild, og **daglega keyrslan er ekki
+> akkeri heldur**: hún færðist úr 05:2x í 16–17 síðustu þrjá dagana.
+> **Tvennt lagað, hvorugt slakar á því sem máli skiptir:**
+> **(a) fræ-gluggi 36 klst** (`WINDOW_H`) — við mesta mælda bil gefur hann
+> tvö sjálfstæð tækifæri; röðin ber `lead_h` svo kvörðunin viti nákvæmlega
+> hversu fersk hún var. **(b) EIN uppfærsla leyfð, strangt fyrir frest**:
+> fræ sem var skrifað utan 12-klst bandsins (`NEAR_H`) má víkja fyrir betri
+> mynd þegar við komumst inn í það — aldrei eftir að röð er komin innan
+> bandsins, og **aldrei eftir frestinn**. Þakið er því **tvær skrifanir**
+> per umferð, ekki ~40. Að skrifa betri mynd ÁÐUR en útkoman er til er
+> ekki retro-fitting heldur rétt tímasetning á mælingu — sama rök og þegar
+> GW1-röðin var tekin upp á nýtt 16.8.2026.
+> **(c) SKRIFTAN ER NÚ KÖLLUÐ ÚR BÁÐUM VINNUSKRÁM.** Tvær ólíkar cron-skrár
+> bresta ekki á sama tíma; `prediction-ledger.mjs` kafli 4b fellur ef
+> annar kallandinn hverfur, því þögult hvarf sæist fyrst þegar næsta röð
+> tapast.
+
 Fjórar reglur: **aðeins í 12 KLST GLUGGA fyrir frest** · **aðeins einu sinni**
 (röð sem er til er ALDREI endurskrifuð — endurskrifuð spá er retro-fitting) ·
 **þunn inntök -> engin skrá**. Verðir: `prediction-ledger.mjs`, `calibration.mjs`.
@@ -1181,6 +1206,21 @@ bókmakera-greinina og **eyddi Odds-API kvótanum**. CDN-cache 60 s. Leiðirnar
     **stig umferðarinnar og refsingin í henni** eru hins vegar UM umferðina og
     eru núllstillt þegar sótta umferðin er önnur — samtala undir röngum haus er
     sama ætt og xGC-dálkarnir í Teams (kafli 3).
+  · **OG UMFERÐ Í GANGI ER ÞRIÐJA ÁSTANDIÐ — ÞAÐ VANTAÐI** (28.8.2026).
+    Undirtextinn á Gameweek-hólfinu var `evPlayed ? "finished" : "not
+    started"`. Athugasemdin í `App.jsx` sagði það sjálf — *„umferð í GANGI
+    er `is_current` en er ekki spiluð, og `finished` á henni væri jafn
+    rangt og `not started` er í dag"* — en tvígilda skilyrðið gaf henni
+    samt „not started". Mælt 28.8.2026 kl. 21:25 UTC: fresturinn leið kl.
+    17:30, **einn af tíu leikjum búinn**, og hólfið sagði **„Gameweek 2 —
+    not started"**. Ástandið er nú leitt af LEIKJUNUM (`started`,
+    `fixturePlayed`, kickoff sem er liðinn) og ber töluna með sér
+    („in progress · 1/10 played"); **engin leikjaskrá -> ENGIN fullyrðing**
+    (`null`), ekki „not started". `ev.finished` vinnur áfram yfir öllu —
+    staðfest umferð er staðfest. Vörður: `planner-pitch.mjs` kafli E9,
+    þrjú tilbúin ástönd + mótpróf á `ev.finished`; tvígilda skilyrðið
+    fellir fjórar fullyrðingar.
+
   · **FIMM PRÓFASÖFN FÉLLU VIÐ ÞETTA OG EKKERT ÞEIRRA VEGNA VILLU Í APPINU.**
     Þau sögðu aldrei hvaða umferð þau meintu — þau erfðu sjálfgildið. Reglan
     sem leiðir af því: **próf sem er UM eina umferð á að VELJA hana**

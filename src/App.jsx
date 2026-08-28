@@ -2859,6 +2859,37 @@ export default function App() {
     const own = (fixtures || []).filter(f => f.event === gw);
     return own.length > 0 && own.every(fixturePlayed);
   }, [ev, fixtures, gw]);
+  /* ============================================================
+     ThRIDJA ASTANDID: UMFERD I GANGI — OG ThAD VANTADI (28.8.2026)
+
+     Athugasemdin haer ad ofan sagdi thad sjalf: "umferd i GANGI er
+     `is_current` en er ekki spilud, og 'finished' a henni vaeri jafn rangt
+     og 'not started' er i dag — bara i hina attina." Undirtextinn var samt
+     TVIGILDUR (`evPlayed ? "finished" : "not started"`), svo thridja
+     astandid hafdi engan streng og lenti i "not started".
+
+     MAELT 28.8.2026 kl. 21:25 UTC: GW2-fresturinn leid kl. 17:30, EINN af
+     tiu leikjum var buinn — og holfid sagdi **"Gameweek 2 - not started"**.
+     Nakvaemlega sama einkenni og notandinn kvartadi undan fyrir GW1, i
+     hinni attinni.
+
+     ASTANDID ER LEITT AF LEIKJUNUM, EKKI AF `events`: `started` a leik,
+     `fixturePlayed`, eda kickoff sem er lidinn. `is_current` kemur hvergi
+     vid sogu — hun var enn a GW1 thegar thetta var maelt.
+     ENGIN LEIKJASKRA -> ENGIN FULLYRDING (`null`), ekki "not started":
+     vantandi gogn eru ekki stadreynd um umferdina.
+     ============================================================ */
+  const evPhase = useMemo(() => {
+    const own = (fixtures || []).filter(f => f.event === gw);
+    if (!own.length) return null;
+    if (ev?.finished || own.every(fixturePlayed)) return { key: "finished", label: "finished" };
+    const now = Date.now();
+    const done = own.filter(fixturePlayed).length;
+    const live = own.some(f => f.started === true
+      || (f.kickoff_time && Date.parse(f.kickoff_time) <= now));
+    if (!done && !live) return { key: "upcoming", label: "not started" };
+    return { key: "live", label: interp("in progress · {0}/{1} played", [done, own.length]) };
+  }, [ev, fixtures, gw, liveTick]);
 
   /* ---------- Hleðsla / villa ---------- */
   if (dataState === "loading") return (
@@ -3177,7 +3208,8 @@ export default function App() {
         </div>
         <div style={S.deadline}>
           <b>GW{gw}</b> {"· deadline"} {fmtDeadline(ev?.deadline_time)}
-          {evPlayed ? " · finished" : ""}
+          {evPhase?.key === "finished" ? " · finished"
+            : evPhase?.key === "live" ? interp(" · {0}", [evPhase.label]) : ""}
           {/* ENDURSTILLA UMFERÐ — birtist aðeins ef eitthvað er plönuð */}
           {(() => {
             const pl = gwPlanned(gw);
@@ -3244,7 +3276,7 @@ export default function App() {
         <Stat icon="📅" label={interp("Gameweek {0}", [gw])} value={gwPts == null ? "—" : gwPts}
           sub={apiHit ? interp("{0} hit taken", [-apiHit])
             : transferCost[gw]?.hits > 0 ? interp("planned hit {0}", [transferCost[gw].points])
-            : evPlayed ? "finished" : "not started"}
+            : evPhase?.label ?? "—"}
           tone={(apiHit || transferCost[gw]?.hits) ? "bad" : "ok"} />
       </div>
       {/* Leikir umferðarinnar eru NÚ AÐEINS við hliðina á vellinum

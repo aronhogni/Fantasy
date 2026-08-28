@@ -302,7 +302,30 @@ if (sel) {
   await act(async () => { await new Promise(r => setTimeout(r, 80)); });
   const b6 = txt();
   ok("valid skiptir raunverulega um umferd (GW6)", /Gameweek 6/.test(b6));
-  ok("kaup-talan breytist (300 i GW6, var 620)", /300/.test(b6) && !/620/.test(b6));
+  /* ============================================================
+     TALAN ER LESIN UR KAUP-TOFLUNNI, EKKI LEITAD I OLLUM BOLNUM
+     (lagad 28.8.2026)
+
+     Her stod `/300/.test(b6) && !/620/.test(b6)` — leit ad BERUM TOLUM i
+     ollum textanum. Hun fell 28.8.2026 an thess ad nokkud vaeri ad
+     appinu: `players.json` for ur 616 rodum i 620, og hlidarstikan ber
+     "FPL bootstrap - 620 players", svo `!/620/` gat ekki stadist framar.
+     Fullyrding sem hverfur vid ad gagnaskra staekki er profun a ORDALAGI
+     (CLAUDE.md 5) — og hun hefdi jafn vel getad stadist af rangri astaedu,
+     thvi "300" er lika algeng tala.
+
+     Rett invariant: RODIN i kaup-toflunni breytist milli umferda. Hun er
+     lesin ur toflunni sjalfri i BADUM astondum og borin saman.        */
+  const buyRow = t => {
+    const m = /Bought[\s\S]*?Net([\s\S]*?)Sold/.exec(t);
+    return m ? m[1].replace(/\s+/g, " ").trim() : null;
+  };
+  const buy7 = buyRow(body), buy6 = buyRow(b6);
+  ok("kaup-taflan finnst i BADUM umferdum (thekja er fullyrding)", !!buy7 && !!buy6,
+     `gw7 ${JSON.stringify(buy7)} · gw6 ${JSON.stringify(buy6)}`);
+  ok("og hun BREYTIST vid umferdar-skiptin", buy7 !== buy6, `${buy7} -> ${buy6}`);
+  ok("GW6-rodin ber sina eigin tolu (300), ekki GW7-toluna (620)",
+     /\b300\b/.test(buy6 || "") && !/\b620\b/.test(buy6 || ""), buy6);
   /* GW6 hefur ENGIN chip -> athugasemdin MA EKKI vera thar. Thetta er
      neikvaed fullyrding um streng sem var SANNANLEGA a skjanum adan.    */
   ok("chip-athugasemdin hverfur i umferd an chips", !/played a transfer chip/.test(b6));

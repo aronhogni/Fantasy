@@ -785,8 +785,21 @@ hdr("A11j. RAUNGOGN — ERFIDU RUNURNAR FRAMUNDAN");
         n++; lenSum += h.run.len;
         const slice = s.filter(x => x.gw >= gwNow);
         const a = slice.find(x => x.gw === h.run.from), b = slice.find(x => x.gw === h.run.to);
-        /* SPEGLADA ENDA-INVARIANTID a raungognum. */
-        if (!(a.v < h.basis.baseline) || !(b.v < h.basis.baseline)) endBad++;
+        /* SPEGLADA ENDA-INVARIANTID a raungognum.
+
+           NAMUNDUNIN ER TEKIN MED, OG ThAD ER EKKI SLAKI (28.8.2026):
+           `basis.baseline` er BIRT tala og er namundud i tvo aukastafi
+           (`+r.baseline.toFixed(2)`), medan valid sjalft notar ONAMUNDADA
+           medaltalid (`w = dir * (v - baseline) > 0` i greedyWindows).
+           Vid jafntefli a birtu nakvaemninni — maelt tilfelli: EVE GK
+           GW28-32, endagildi 3,65 a moti birtri grunnlinu 3,65 medan
+           raunmunurinn er ~0,0003 — fellur `<` an thess ad nokkud se ad.
+           Tholmorkin eru ThVI NAKVAEMLEGA halft birt threp (0,005): allt
+           sem er verra en thad er raunverulegt brot og fellur afram.
+           Sama fjolskylda og "tvaer nakvaemnir a somu kvarda eru tveir
+           kvardar" (CLAUDE.md, `meanDifficulty`).                        */
+        const EPS = 0.005;
+        if (!(a.v < h.basis.baseline + EPS) || !(b.v < h.basis.baseline + EPS)) endBad++;
         /* BESTI KAUP-GLUGGI OG VERSTA RUNAN A SOMU SNEID MEGA ALDREI VERA
            SAMI BUTUR — se thad svo er attin ekki virk a raungognum.     */
         const bw = buyWindows(slice).windows[0];
