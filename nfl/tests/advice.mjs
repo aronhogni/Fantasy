@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import {
   survivalProb, normalCdf, defaultSd, expectedBestAt, picksUntilNext,
-  recommend, SD_K, MEASURED, nextOwnPick,
+  recommend, SD_K, MEASURED, nextOwnPick, NEED_K, startableSlots, needPenalty,
 } from "../src/advice.js";
 
 const DATA = path.resolve(new URL(".", import.meta.url).pathname, "..", "data");
@@ -1190,6 +1190,92 @@ console.log("\n16. `DEF` er thvingad i `DST` — mustFill ma aldrei nefna stodu 
   const leak = recommend({ available: av, roster: [], pick: 5, league: rawLeague, nextPick: 15 });
   ok(leak.mustFill.some((m) => m.pos === "DEF"),
     "an `normalizeLeague` NEFNIR mustFill \"DEF\" — svo hlidid er raunverulegt");
+}
+
+/* ============================================================
+   17. AFGANGUR I MONNUDU SAETI — MAELDI FRADRATTURINN
+   ============================================================
+   Kafli 5 ver ad BRADANAUÐSYN radar EKKI (hun var maeld og tapadi
+   60,06 stigum). Þessi kafli ver ad SU niðurstaða se ekki lesin of
+   vitt: fradrattur fyrir mann sem thu getur EKKI BYRJAT er ONNUR
+   spurning og hun var maeld sérstaklega — +65,4 stig og 10/11 ar i
+   einvigi (11 timabil, FFToday), +84,9 og 5/5 (5 timabil, Sleeper).
+   Sja `scripts/arank-need-lab.mjs` og notuna vid `needPenalty`.
+
+   ÞRJAR FULLYRDINGAR, HVER MED SITT HLUTVERK:
+     A. med TOMAN hop breytir fradratturinn ENGU — hann ma ekki vera
+        almennt sia a stodur, adeins a afgang
+     B. med saetid fullt vikur haerra hra VBD fyrir theim sem getur
+        byrjad — OG kassinn faer `insteadOf` svo hann geti sagt thad.
+        Þogul rodun sem stangast a vid birta VBD-tolu er thad sem
+        gerir toluna otruverduga.
+     C. hann er EKKI bradanauðsyn i dulargervi: sa sem er i stodu sem
+        er TOM en verri madur ma ALDREI fara upp fyrir betri mann i
+        stodu sem er lika opin. Fradratturinn ma ADEINS draga NIDUR.
+   ============================================================ */
+console.log("\n17. afgangur i monnudu saeti — fradratturinn");
+{
+  const LG = { teams: 12, rounds: 14, starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+               /* THAKID ER RUMT VILJANDI: `maxPos` UTILOKAR mann alveg,
+                  og tha vaeri profid ad maela thakid en ekki fradrattinn.
+                  Þessi kafli snyst um manninn sem MA taka en aetti ekki. */
+               flexPos: ["RB", "WR", "TE"], maxPos: { QB: 4, RB: 8, WR: 8, TE: 5 } };
+  const st = startableSlots(LG);
+  ok(st.QB === 1 && st.TE === 3 && st.RB === 4 && st.WR === 4,
+    `byrjunarsaeti leidd ur deildinni: ${JSON.stringify(st)}`);
+  /* SUPERFLEX-tilfellid er ekki tilgata: deildin ber thad svid og
+     `startableSlots` er eina utfaerslan sem les thad. */
+  const sf = startableSlots({ starters: { QB: 1, RB: 2, WR: 2, TE: 1, SUPERFLEX: 1 },
+                              flexPos: ["RB", "WR", "TE"] });
+  ok(sf.QB === 2, `superflex telst med QB (${sf.QB})`);
+
+  const mk = (id, pos, vbd, adp) => ({ id, name: `${pos}${id}`, pos, vbd, adp, adpSd: 5,
+                                       proj: 100 + vbd, tier: 1, avail: 1 });
+  /* TE er BETRI a hra VBD — thad er forsendan sem gerir profid marktaekt. */
+  const av = [mk("t1", "TE", 60, 20), mk("r1", "RB", 40, 22), mk("w1", "WR", 38, 24),
+              mk("r2", "RB", 30, 40), mk("t2", "TE", 25, 45), mk("q1", "QB", 20, 50)];
+
+  /* ---- A. tomur hopur: hra rodin stendur ---- */
+  const empty = recommend({ available: av, roster: [], pick: 20, league: LG, nextPick: 30 });
+  ok(empty.picks[0].id === "t1",
+    `A: med toman hop stendur haesta VBD efst (${empty.picks[0].id})`);
+  ok(!empty.picks[0].insteadOf, "A: og engin skyring er gefin thvi engu var vikid");
+
+  /* ---- B. TE-saetid fullt: sa sem getur byrjad tekur vid ---- */
+  const full = recommend({ available: av,
+    roster: [{ pos: "TE" }, { pos: "TE" }, { pos: "TE" }],
+    pick: 20, league: LG, nextPick: 30 });
+  ok(full.picks[0].id === "r1",
+    `B: med thrja TE (byrjar 3) vikur TE fyrir RB (${full.picks[0].id})`);
+  const io = full.picks[0].insteadOf;
+  ok(io && io.id === "t1" && io.have === 3 && io.startable === 3,
+    `B: og \`insteadOf\` nefnir manninn sem var vikid (${io ? io.id : "ekkert"})`);
+  ok(full.picks.find((p) => p.id === "t1").vbd === 60,
+    "B: BIRTA VBD-talan er OHREYFD — fradratturinn radar, hann skrifar ekki");
+  /* Stiga-staerdin sjalf: 60 - 30 = 30 < 40, svo rodin snyst vid. Vaeri
+     `NEED_K` sett i 0 stæði TE afram efstur — thad er stokkbreytingin. */
+  ok(NEED_K > 20 && NEED_K < 61,
+    `B: \`NEED_K\` er innan maelda flata bilsins 15-60 (${NEED_K})`);
+  ok(needPenalty("TE", { TE: 3 }, st) === NEED_K,
+    "B: fyrsti afgangs-madur ber NAKVAEMLEGA einn K, ekki tvo");
+  ok(needPenalty("TE", { TE: 2 }, st) === 0,
+    "B: og sa sem KEMST i byrjunarlid ber ENGAN");
+
+  /* ---- C. ekki bradanauðsyn i dulargervi ---- */
+  const openBoth = recommend({ available: av, roster: [{ pos: "RB" }],
+    pick: 20, league: LG, nextPick: 30 });
+  ok(openBoth.picks[0].id === "t1",
+    `C: badar stodur opnar -> BESTI madurinn, ekki sa i tomari stodu (${openBoth.picks[0].id})`);
+  const wOrder = openBoth.picks.map((p) => p.id);
+  ok(wOrder.indexOf("r1") < wOrder.indexOf("w1"),
+    "C: og innan opinna stada helst hra VBD-rodin oskert");
+  /* Fradratturinn er per STODU, svo hann getur aldrei vixlad tveimur
+     monnum i SOMU stodu — thad er invariant, ekki tilviljun. */
+  const two = recommend({ available: av, roster: [{ pos: "TE" }, { pos: "TE" }, { pos: "TE" }],
+    pick: 20, league: LG, nextPick: 30 });
+  const ord = two.picks.map((p) => p.id);
+  ok(ord.indexOf("t1") < ord.indexOf("t2"),
+    "C: og TE1 er afram a undan TE2 thott badir beri sama fradratt");
 }
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");

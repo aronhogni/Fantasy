@@ -3077,9 +3077,21 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
                   <div className="verdict-why">
                     {/* BILID ER TALAN SEM GERIR THETTA AD VALI OG EKKI AD
                         MATSEDLI: an hennar eru tvo nofn adeins tvo nofn. */}
+                    {/* "Highest value over replacement" ER OSONN um leid
+                        og afgangs-fradratturinn faerir einhvern nidur
+                        (`insteadOf`, sja `needPenalty` i advice.js). Tha
+                        segir kassinn HVERN hann for framhja og hvers
+                        vegna — thogul rodun sem stangast a vid birta tolu
+                        er thad sem gerir toluna otruverduga. */}
                     {i === 0
-                      ? `Highest value over replacement — VBD ${p.vbd == null
-                          ? "—" : p.vbd.toFixed(1)}.`
+                      ? (p.insteadOf
+                        ? `Best value you can actually start — VBD ${p.vbd == null
+                            ? "—" : p.vbd.toFixed(1)}. ${p.insteadOf.name} is worth`
+                          + ` ${p.insteadOf.vbd} but you already have`
+                          + ` ${p.insteadOf.have} at ${p.insteadOf.pos} and start`
+                          + ` ${p.insteadOf.startable}.`
+                        : `Highest value over replacement — VBD ${p.vbd == null
+                            ? "—" : p.vbd.toFixed(1)}.`)
                       : `${Math.abs(p.behind)} VBD behind him — VBD ${p.vbd == null
                           ? "—" : p.vbd.toFixed(1)}.`}
                     {" "}{lasts(p)}

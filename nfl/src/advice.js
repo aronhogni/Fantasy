@@ -280,6 +280,82 @@ export function picksUntilNext(pick, teams, type) {
  * osammala, og notandi sem getur ekki verid osammala haettir ad nota
  * tolurnar og fer ad nota magatilfinninguna.
  */
+
+/* ============================================================
+   AFGANGUR I STODU SEM ER ThEGAR MONNUD — MAELT 28.8.2026
+   ============================================================
+   ÞETTA KEMUR UR MOCK-DRAFTI NOTANDANS 27.8.2026. I umferd 9 og 10 var
+   efsti madur bordsins TE (Kelce, thá Andrews) og hann atti ThEGAR
+   Loveland OG Kittle i deild sem byrjar EINN TE. Hann tok tvo
+   leikstjornendur i stadinn — lika i deild sem byrjar EINN.
+
+   BORDID VAR EKKI AD LJUGA: their VORU haesta VBD sem eftir var. En
+   VBD spyr "hvers virdi er hann ofan a varamann DEILDARINNAR", ekki
+   "hvers virdi er hann ofan a thann sem thu ert ThEGAR ad fara ad
+   byrja". Fyrir mann numer tvo i einssaetis stodu er seinna svarid
+   naerri NULLI, og bordid hafdi enga leid til ad segja thad.
+
+   ÞETTA ER **EKKI** BRADANAUÐSYN (positional urgency) SEM VAR MAELD OG
+   FELLD (-60,06 stig, 0 af 5 arum). Su regla TEYGIR SIG eftir stodu
+   sem er ad thorna upp — hun tekur VERRI mann af ottá. Þessi dregur
+   adeins fra fyrir mann sem thu getur EKKI BYRJAT. Tvaer olikar
+   spurningar; adeins onnur hafdi verid maeld.
+
+   MAELT (`scripts/arank-need-lab.mjs`, tveir OHADIR heimar):
+
+     11 timabil (FFToday 2015-2025), einvigi i somu deild gegn
+     nuverandi bordi:  +64,3 stig, 11/11 ar, t = 3,37,
+                       95% [+21,7, +106,8], tekna-prof p = 0,0005
+     5 timabil (Sleeper 2021-2025):  +89,4 stig, 5/5 ar, t = 3,24,
+                       95% [+12,7, +166,0], p = 0,0313
+     walk-forward (valid a fyrri arum): 8/10 og 4/4 ar, +67,5 / +50,4
+
+   K ER EKKI HNIFSEGG: 5, 15, 30 og 60 eru OLL jakvaed og oll utiloka
+   null i einviginu (+31,5 / +43,2 / +64,3 / +60,5 i 11-ara heiminum).
+   30 er valid ur MIDJU flata bilsins, ekki af toppi thess.
+
+   OG ÞAD ER EKKI MAELITAEKINU AD KENNA. Nálæg skyring var ad
+   `startersPoints` telur arstidar-summu byrjunarlids, svo varamadur i
+   einssaetis stodu er NAKVAEMLEGA 0 i honum — og tha vaeri "ekki taka
+   annan QB" ohjakvaemilega betra i maelingunni an thess ad vera thad i
+   raun. SUNDURLIDUN FELLDI ThA SKYRINGU: fradrattur a QB/TE EINUM
+   gefur **-6,5 stig (3/11 ar)**, en a RB/WR einum **+68,4 (9/11,
+   t = 3,84)**. Ahrifin eru thvi i FLEXHAEFU stodunum, thar sem
+   maelikvardinn getur alveg verdlagt varamann.
+
+   HVAD VAR LIKA PROFAD OG FELL: markadsblondun (ADP w=0,5: +36,7 en
+   t = 1,43, ekki marktaekt · ECR: -8,4), tiltaekileiki ur `durability`
+   (-4,6, t = -0,22) og KVIKT varamanns-threp reiknad ur theim sem eru
+   eftir (**-44,9**, verst af ollu). Sja hausinn a skriftunni.       */
+export const NEED_K = 30;
+
+/** Hve marga i stodunni getur lidid BYRJAT? Leidd ur deildinni, ekki
+ *  skrifud — deild med adra uppstillingu faer adra tolu an thess ad
+ *  nokkur muni eftir ad breyta henni hér. FLEX telst med a hverja
+ *  flex-haefa stodu: sa sem situr i flexinu ER ad byrja. */
+export function startableSlots(league = {}) {
+  const st = league.starters || {};
+  const flexPos = Array.isArray(league.flexPos) && league.flexPos.length
+    ? league.flexPos : ["RB", "WR", "TE"];
+  const out = {};
+  for (const pos of ["QB", "RB", "WR", "TE"]) {
+    /* SUPERFLEX telst med QB — thad ER superflexid. `flexPos` nefnir
+       hann ekki, svo hann er talinn hér berum ordum. */
+    out[pos] = (st[pos] || 0)
+      + (flexPos.includes(pos) ? (st.FLEX || 0) : 0)
+      + (pos === "QB" ? (st.SUPERFLEX || 0) : 0);
+  }
+  return out;
+}
+
+/** Fradrattur fyrir mann sem THU getur ekki byrjad — 0 fyrir alla adra. */
+export function needPenalty(pos, counts = {}, startable = {}, k = NEED_K) {
+  const cap = startable[pos];
+  if (cap == null) return 0;
+  const surplus = Math.max(0, (counts[pos] || 0) - cap + 1);
+  return k * surplus;
+}
+
 export function recommend({ available, roster = [], pick, league, nextPick: nextIn,
                             lastPick = false, rosterUnknown = 0, draftType }) {
   const teams = league.teams || 12;
@@ -449,7 +525,32 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
      Lifunarlikur eru gagnlegar — thaer segja hvort thu getir beðid —
      en akvordunin er afram: taktu besta A-Ranking-manninn sem thu matt.
      ============================================================ */
-  out.sort((a, b) => b.vbd - a.vbd);
+  /* RODIN ER A LEIDRETTU VIRDI — sja `needPenalty`. `vbd` sjalft er
+     OHREYFT thvi thad er BIRT talan; tvaer merkingar undir sama nafni
+     vaeru tveir kvardar. Fradratturinn er per STODU, svo hann getur
+     ekki vixlad monnum innan somu stodu. */
+  const startable = startableSlots(league);
+  const penOf = {};
+  for (const pos of ["QB", "RB", "WR", "TE"]) {
+    penOf[pos] = needPenalty(pos, counts, startable);
+  }
+  for (const p of out) p.needPenalty = round1(penOf[p.pos] || 0);
+  out.sort((a, b) => (b.vbd - (penOf[b.pos] || 0)) - (a.vbd - (penOf[a.pos] || 0)));
+
+  /* OG ThAD VERDUR AD SJAST. Kassinn segir "Highest value over
+     replacement" — su setning er OSONN um leid og fradratturinn faerir
+     einhvern nidur, og thogul rodun sem stangast a vid birta tolu er
+     nakvaemlega thad sem gerir tolu otruverduga. `insteadOf` ber
+     manninn sem BAR haesta hra VBD, svo vidmotid geti sagt hvers vegna
+     hann er ekki efstur. `null` thegar rodin er oadgreind fra hrarri
+     rod — engin setning tha, ekki tom setning. */
+  if (out.length) {
+    const rawTop = out.reduce((a, b) => (b.vbd > a.vbd ? b : a), out[0]);
+    out[0].insteadOf = rawTop.id === out[0].id ? null : {
+      id: rawTop.id, name: rawTop.name, pos: rawTop.pos, vbd: round1(rawTop.vbd),
+      have: counts[rawTop.pos] || 0, startable: startable[rawTop.pos] ?? null,
+    };
+  }
 
   /* ============================================================
      SAETI SEM RODIN NAER ALDREI TIL — K OG DST
