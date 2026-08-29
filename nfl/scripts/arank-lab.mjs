@@ -3,6 +3,12 @@
    arank-lab.mjs — GERUM A-RANKING BETRI, OG MAELUM THAD RETT.
 
      node scripts/arank-lab.mjs [--scoring=ppr|standard]
+                                [--proj=sleeper|fftoday] [--runs=N]
+
+   `--proj` RAEDUR FJOLDA TIMABILA **OG SKRAARNAFNINU**: `sleeper`
+   gefur 5 hrein timabil -> `arank_<scoring>.json`; `fftoday` gefur 11
+   -> `arank_<scoring>_fftoday.json`. `--runs` er fjoldi hristra valla
+   per ar (sjalfgefid 20; committadar skrar eru keyrdar med 25).
 
    -> data/arank_<scoring>.json
 
@@ -17,10 +23,23 @@
    2. MAELT MED THREMUR OLIKUM PROFUM sem hafa olikan styrk og
       olikar forsendur. Ad birta adeins thad ihaldssamasta er jafn
       villandi og ad birta adeins thad hagstaedasta:
-        - bootstrap klosad per timabil  (faerst, 5 klasar)
+        - bootstrap klosad per timabil  (faerst; 5 eda 11 klasar)
         - tekna-prof a timabilum         (5/5 -> p = 1/32)
-        - pardur samanburdur per (timabil, saeti), 60 por,
+        - pardur samanburdur per (timabil, saeti), 12 saeti per ar,
           med klosun leidrettri fyrir fylgni innan timabils
+
+   TOLURNAR HER AD OFAN VORU HARDKODADAR A 5-TIMABILA HEIMINN ("5
+   klasar", "60 por") longu eftir ad `--proj=fftoday` baetti vid
+   ellefu. Þaer eru nu sagdar sem BADAR myndir — sama regla og gildir
+   um linutolur og safna-fjolda annars stadar i thessu repo: tala um
+   lifandi astand a heima thar sem hun er reiknud.
+
+   OG BOOTSTRAPPID ER **EKKI** IHALDSSAMASTA PROFID, thott hausinn hafi
+   sagt thad. Maeld thekja `bootstrapDiff` a nulltilgatu: **83,7% vid
+   n=5 og 90,8% vid n=11**, thar sem 95% er markmidid — thad er
+   ANTI-IHALDSSAMT og gefur fleiri fals-jakvaed en pardra t-profid vid
+   hlidina. Þess vegna eru THRJU prof birt og thess vegna er t-profid
+   thad sem er lesid thegar thau greinir a.
    ============================================================ */
 
 import { writeFile } from "node:fs/promises";

@@ -334,16 +334,40 @@ export const NEED_K = 30;
  *  nokkur muni eftir ad breyta henni hér. FLEX telst med a hverja
  *  flex-haefa stodu: sa sem situr i flexinu ER ad byrja. */
 export function startableSlots(league = {}) {
-  const st = league.starters || {};
+  const st = league.starters;
+  /* ============================================================
+     ENGIN UPPSTILLING -> ENGIN TALA, EKKI NULL SAETI (29.8.2026)
+     ============================================================
+     Fyrsta utgafan skiladi ALLTAF tolu, svo deild an `starters` fekk
+     0 saeti i hverri stodu — og tha bar HVER EINASTI madur fradratt
+     med TOMAN hop. Nullid i `needPenalty` (`cap == null`) var thar
+     med onaanlegt ur `recommend`. Þetta er "tomt gildi er ekki null"
+     ordrett: vantandi uppstilling er OTHEKKT, ekki "byrjar engan". */
+  if (!st || typeof st !== "object" || !Object.keys(st).length) return {};
   const flexPos = Array.isArray(league.flexPos) && league.flexPos.length
     ? league.flexPos : ["RB", "WR", "TE"];
+  /* ============================================================
+     SUPERFLEX ER TVIRITAD I THESSU REPO — BADAR MYNDIR GILDA
+     ============================================================
+     `model.js` (`replacementRanks`), `sleeper-league.js` og
+     `DraftBoard.jsx` lesa OLL `league.superflex === true` JAFNT OG
+     `starters.SUPERFLEX`. Fyrsta utgafan hér las adeins seinni myndina,
+     svo i superflex-deild sem ber flaggid — sem er su mynd sem
+     Sleeper-innflutningurinn skrifar — fekk ANNAR QB fradratt thott
+     hann byrji i hverri viku, og kassinn sagdi "you already have 1 at
+     QB and start 1" MEDAN uppstillingar-spjaldid a sama skja syndi
+     superflex-saetid tomt.
+
+     `superflexPos` er lika virt: Sleeper-deildir bera `["QB","RB",
+     "WR","TE"]` thar, svo saetid er ekki QB-eingongu.               */
+  const sflex = (st.SUPERFLEX || 0) || (league.superflex ? 1 : 0);
+  const sflexPos = Array.isArray(league.superflexPos) && league.superflexPos.length
+    ? league.superflexPos : ["QB", "RB", "WR", "TE"];
   const out = {};
   for (const pos of ["QB", "RB", "WR", "TE"]) {
-    /* SUPERFLEX telst med QB — thad ER superflexid. `flexPos` nefnir
-       hann ekki, svo hann er talinn hér berum ordum. */
     out[pos] = (st[pos] || 0)
       + (flexPos.includes(pos) ? (st.FLEX || 0) : 0)
-      + (pos === "QB" ? (st.SUPERFLEX || 0) : 0);
+      + (sflexPos.includes(pos) ? sflex : 0);
   }
   return out;
 }
@@ -704,9 +728,34 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
      madur leidrettu rodarinnar einn, eins og adur.                 */
   const adjOf = (p) => p.vbd - (penOf[p.pos] || 0);
   const above = out.filter((p) => p.vbd != null && adjOf(p) > 0);
+  /* ============================================================
+     VARAMADURINN MA ALDREI VERA SA SEM VID VORUM AD HAFNA
+     ============================================================
+     ÞETTA VAR RAUNVERULEG MOTSOGN A SKJANUM (fundid i rynni 29.8.2026):
+     med thrja TE i hop og bordid TE 60 · RB 40 · WR 25 stod
+
+       take   "Best value you can actually start — VBD 40,0.
+               TE X is worth 60,0 en thu att thegar 3 og byrjar 3."
+       backup "10 VBD behind him — VBD 60,0."
+
+     Seinni kassinn bar HAERRI tolu, sagdist vera a eftir, OG var
+     nakvaemlega madurinn sem sa fyrri hafdi ratlagt gegn — med "take"-
+     hnapp vid hlidina. Bilid var maelt a leidrettum kvarda medan tolurnar
+     eru hraar, sem er tveir kvardar i einni setningu.
+
+     Rot vandans er ekki talan heldur VALID: madur sem thu getur ekki
+     byrjad er ekki "hinn kosturinn". Hann er thvi tekinn UT UR
+     kassavalinu svo lengi sem nokkur oskadur kostur er til — og se
+     enginn slikur til (seint i drafti) fa their kassana og bera ThA
+     badir sama fradratt, svo bilid er heidarlegt aftur.
+
+     `insteadOf` segir afram hvers vegna sa dyrasti er ekki tharna, svo
+     upplysingin hverfur ekki — hun faerist ur kassa i setningu.      */
+  const unpenalised = above.filter((p) => (penOf[p.pos] || 0) === 0);
+  const pool2 = unpenalised.length ? unpenalised : above;
   /* Seint i drafti getur ENGINN verid yfir linunni. Þa stendur urskurdurinn
      einn — bordid a ekki ad thagna i sidustu umferdum. */
-  const base = above.length ? above : out.slice(0, 1);
+  const base = pool2.length ? pool2 : out.slice(0, 1);
   const withGap = (p) => ({ ...p,
     /* Bilid er ALLTAF maelt fra theim sem maelda rodin setur fyrstan, svo
        talan svarar spurningunni sem er spurd: "hvad kostar hinn?" — og
@@ -722,7 +771,13 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
      fra hrarri rod — engin setning tha, ekki tom setning. */
   if (list.length) {
     const rawTop = out.reduce((a, b) => (b.vbd > a.vbd ? b : a), out[0]);
-    list[0].insteadOf = (rawTop.id !== list[0].id && (penOf[rawTop.pos] || 0) > 0)
+    /* `rawTop !== list[0]` NAEGIR: `reduce` heldur theim fyrsta vid
+       jafntefli, svo annar madur kemst thangad ADEINS med haerra hra
+       VBD — og thad getur hann adeins ef hann var faerdur nidur. Fyrri
+       utgafa bar `&& pen > 0` lika; su fullyrding gat ekki brugdist
+       (3.000 slembin tilfelli, 0 motdaemi) og var thvi thogn i
+       dulargervi verdar. */
+    list[0].insteadOf = rawTop.id !== list[0].id
       ? { id: rawTop.id, name: rawTop.name, pos: rawTop.pos, vbd: round1(rawTop.vbd),
           have: counts[rawTop.pos] || 0, startable: startable[rawTop.pos] ?? null }
       : null;

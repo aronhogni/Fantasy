@@ -278,6 +278,31 @@ export function hitRate(pred, actual, n) {
  * gaefi allt of throng vikmork — tala sem segdi "marktaekt" thegar
  * urtakid er i raun 11 ar, ekki 3.722 radir.
  */
+/* ============================================================
+   t-MORKIN — EIN TAFLA, EINN ARGUMENT-SIDUR (29.8.2026)
+   ============================================================
+   Þaer voru ThRJAR i thessu repo og med OLIKA merkingu a arguminu:
+     `rulebasis.js`      tCrit(YEARS), klippt i [3,11]
+     `handcuff-lab.mjs`  T_CRIT[n-1]
+     `lib/arank-world.mjs` tCrit(DF)
+   `tCrit(11)` skilar 2,201 i einni og 2,228 i annarri. Baðar voru
+   rettar innan sinnar merkingar, sem er nakvaemlega thad sem gerir
+   thetta haettulegt — sama nafn, sama utlit, ollik tala. Þetta er
+   ættin sem `buildTeamMetrics` og `ZONE_RE` eru skjolud fyrir.
+
+   Taflan er t(0,975, df) fyrir df 1..30; yfir 30 er normal-nalgunin
+   ONOG (2,04 vid df=31) svo hun er hofd i toflunni upp ad 30 og
+   1,96 tekur vid eftir thad — thad er sagt, ekki thagad.          */
+const T95_DF = [12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262,
+  2.228, 2.201, 2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093, 2.086,
+  2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042];
+
+/** Tvihlida t-mork vid 95% fyrir gefnar FRIGRADUR. */
+export function tCritDf(df) {
+  if (!Number.isFinite(df) || df < 1) return Infinity;
+  return df <= 30 ? T95_DF[df - 1] : 1.96;
+}
+
 export function bootstrapDiff(perSeasonA, perSeasonB, runs = 2000, seed = 12345) {
   const years = Object.keys(perSeasonA).filter((y) => y in perSeasonB);
   if (years.length < 3) return null;

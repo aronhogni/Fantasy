@@ -1,7 +1,7 @@
 {
- "generated": "2026-08-28T21:37:03.263Z",
+ "generated": "2026-08-29T22:16:56.866Z",
  "provenance": {
-  "generated": "2026-08-28T21:37:03.263Z",
+  "generated": "2026-08-29T22:16:56.867Z",
   "argv": [
    "--proj=sleeper",
    "--runs=25",
@@ -117,6 +117,18 @@
    }
   },
   {
+   "name": "marginal (lineup-aware VBD)",
+   "mean": 2113.7,
+   "vsCurrent": 119.7,
+   "perSeason": {
+    "2021": 2077.7,
+    "2022": 2173.4,
+    "2023": 2109.9,
+    "2024": 2328.9,
+    "2025": 1878.7
+   }
+  },
+  {
    "name": "need k=30 RB/WR only",
    "mean": 2054,
    "vsCurrent": 60.1,
@@ -126,6 +138,30 @@
     "2023": 2034.8,
     "2024": 2152.7,
     "2025": 1894
+   }
+  },
+  {
+   "name": "need k=30 slots=starters only",
+   "mean": 2009.8,
+   "vsCurrent": 15.8,
+   "perSeason": {
+    "2021": 1981.7,
+    "2022": 2109.5,
+    "2023": 2024.2,
+    "2024": 2219.6,
+    "2025": 1713.8
+   }
+  },
+  {
+   "name": "need k=30 slots=flex to RB/WR",
+   "mean": 2052.5,
+   "vsCurrent": 58.6,
+   "perSeason": {
+    "2021": 2045.6,
+    "2022": 2063.5,
+    "2023": 2089.1,
+    "2024": 2190.9,
+    "2025": 1873.6
    }
   },
   {
@@ -227,6 +263,28 @@
  ],
  "duels": [
   {
+   "name": "marginal (lineup-aware VBD)",
+   "mean": 148.4,
+   "n": 3000,
+   "wins": 2169,
+   "winRate": 0.723,
+   "byYear": {
+    "2021": 83.3,
+    "2022": 383.2,
+    "2023": 97,
+    "2024": 148.5,
+    "2025": 30
+   },
+   "yearWins": 5,
+   "years": 5,
+   "t": 2.41,
+   "se": 61.6,
+   "lo": -22.7,
+   "hi": 319.5,
+   "significant": false,
+   "signP": 0.0313
+  },
+  {
    "name": "need k=30",
    "mean": 84.9,
    "n": 3000,
@@ -315,48 +373,26 @@
    "signP": 0.0313
   },
   {
-   "name": "need k=5",
-   "mean": 26.7,
+   "name": "need k=30 slots=flex to RB/WR",
+   "mean": 105.6,
    "n": 3000,
-   "wins": 1654,
-   "winRate": 0.5513,
+   "wins": 2041,
+   "winRate": 0.6803,
    "byYear": {
-    "2021": 32.5,
-    "2022": 34.6,
-    "2023": 31.8,
-    "2024": 5.8,
-    "2025": 28.9
+    "2021": 61.4,
+    "2022": 290,
+    "2023": 79.9,
+    "2024": 97.3,
+    "2025": -0.7
    },
-   "yearWins": 5,
+   "yearWins": 4,
    "years": 5,
-   "t": 5.03,
-   "se": 5.3,
-   "lo": 12,
-   "hi": 41.5,
-   "significant": true,
-   "signP": 0.0313
-  },
-  {
-   "name": "avail k=0.15",
-   "mean": -7.6,
-   "n": 3000,
-   "wins": 1541,
-   "winRate": 0.5137,
-   "byYear": {
-    "2021": -4.6,
-    "2022": 59.3,
-    "2023": -67.9,
-    "2024": 125.9,
-    "2025": -150.6
-   },
-   "yearWins": 2,
-   "years": 5,
-   "t": -0.16,
-   "se": 48.2,
-   "lo": -141.3,
-   "hi": 126.1,
+   "t": 2.16,
+   "se": 49,
+   "lo": -30.4,
+   "hi": 241.6,
    "significant": false,
-   "signP": 0.8125
+   "signP": 0.1875
   }
  ],
  "walkForward": {
@@ -367,22 +403,22 @@
    "diff": 4.1
   },
   "2023": {
-   "chosen": "need k=30",
-   "points": 2072.6,
+   "chosen": "marginal (lineup-aware VBD)",
+   "points": 2109.9,
    "current": 2027.8,
-   "diff": 44.8
+   "diff": 82.1
   },
   "2024": {
-   "chosen": "need k=60",
-   "points": 2152.7,
+   "chosen": "marginal (lineup-aware VBD)",
+   "points": 2328.9,
    "current": 2052.6,
-   "diff": 100.1
+   "diff": 276.3
   },
   "2025": {
-   "chosen": "need k=60",
-   "points": 1873.2,
+   "chosen": "marginal (lineup-aware VBD)",
+   "points": 1878.7,
    "current": 1820.7,
-   "diff": 52.5
+   "diff": 57.9
   }
  },
  "currentVsSleeper": {

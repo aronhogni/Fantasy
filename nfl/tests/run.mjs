@@ -10,6 +10,10 @@ let failed = 0;
 const SUITES = [
   ["model.mjs"], ["accuracy.mjs"], ["learn.mjs"], ["market.mjs"],
   ["advice.mjs"], ["lineup.mjs"], ["names.mjs"], ["pipeline.mjs"],
+  /* Sameiginlegi maelinga-hermirinn. Hann ber t-morkin, tekna-profid,
+     hristinginn og stadalvilluna fyrir TVAER maelingaskrár og var
+     OVARDADUR — sja hausinn a `arank-world.mjs`. */
+  ["arank-world.mjs"],
   ["sleeper-league.mjs"], ["wiring.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
   /* `entry.mjs` VAR UTAN THESSA LISTA og keyrdi thvi hja engum — fullgildur
      vordur med nium fullyrdingum, skradur hvergi. Hann ver villu sem sast

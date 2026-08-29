@@ -911,13 +911,23 @@ console.log("\n3d. viku-abatinn er per stigagjof");
     const { tCritFor } = await import("../src/rulebasis.js")
       .then((m) => ({ tCritFor: m.tCritFor || m.tCrit || null }))
       .catch(() => ({ tCritFor: null }));
-    const src = readFileSync(path.join(ROOT, "src", "rulebasis.js"), "utf8");
-    const m = src.match(/7:\s*([0-9.]+)/);
-    ok(!!m, "`rulebasis.js` ber throskuld fyrir 7 ar i toflunni sinni");
-    if (m) {
-      ok(Math.abs(T_CRIT_7 - Number(m[1])) < 0.0005,
-        `T_CRIT_7 ${T_CRIT_7} == toflan i rulebasis.js (${m[1]})`);
-      ok(Number(m[1]) !== 2.228,
+    /* ============================================================
+       SPURT ER FALLID, EKKI TEXTINN (leidrett 29.8.2026)
+       ============================================================
+       Hér stod `src.match(/7:\s*([0-9.]+)/)` — regex a TOFLU-STAFINA i
+       `rulebasis.js`. Su fullyrding brotnadi um leid og taflan var
+       sameinud i `learn.js` (thrjar afritanir voru til med OLIKA
+       merkingu a arguminu), thott gildid vaeri OBREYTT: 2,447.
+
+       Fullyrding um kodann fell thvi thegar kodinn var lagfaerdur, og
+       hun hefdi jafnframt stadist thott FALLID laesi tofluna rangt —
+       nakvaemlega gagnrynin sem stendur i athugasemdinni fyrir nedan.
+       Nu er talan sott ur fallinu sjalfu, sem er su sem appid notar. */
+    ok(!!tCritFor, "`rulebasis.js` FLYTUR UT throskuldarfallid (`tCrit`)");
+    if (tCritFor) {
+      ok(Math.abs(T_CRIT_7 - tCritFor(7)) < 0.0005,
+        `T_CRIT_7 ${T_CRIT_7} == tCrit(7) i rulebasis.js (${tCritFor(7)})`);
+      ok(tCritFor(7) !== 2.228,
         "og thad er ekki df=10-gildid 2,228 sem stod hér adur");
     }
     /* ÞESSI FULLYRDING VAR DAUD: `rulebasis.js` flutti HVORUGT

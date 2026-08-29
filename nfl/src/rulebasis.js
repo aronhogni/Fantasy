@@ -36,6 +36,9 @@
       vikmarki eftir a.
    ============================================================ */
 
+/* t-morkin koma ur `learn.js` — ein tafla, sja notu thar. */
+import { tCritDf } from "./learn.js";
+
 /* ============================================================
    MAELDA TAFLAN — BOKUD, OG PROFID BER HANA VID DISKINN
    ============================================================
@@ -73,15 +76,17 @@ export const HALF_LAB = {
 /* Tvi-hlida t-mork vid p=0,05. Fjoldi ara er ekki fasti — `shape-lab`
    maeldi 5 timabil og `half-lab` 11 — svo threskuldurinn MA EKKI vera
    hardkodadur i eina tolu. */
-const T_CRIT = { 3: 4.303, 4: 3.182, 5: 2.776, 6: 2.571, 7: 2.447,
-                 8: 2.365, 9: 2.306, 10: 2.262, 11: 2.228 };
+/* TAFLAN SJALF BYR I `learn.js` — sja notu thar um thrjar afritanir
+   med olika merkingu a arguminu. Gildin hér eru OBREYTT: `tCrit(years)`
+   = t(0,975, years-1), og klippingin i [3,11] stendur, thvi hun er
+   hluti af hegdun sem `dashboard.mjs` les. */
 /* FLUTT UT (21.8.2026). `dashboard.mjs` bar `m.tCritFor || m.tCrit || null`
    og hvorugt var flutt ut, svo `if (tCritFor)` var ALLTAF osatt og
    fullyrdingin thar inni keyrdi hja engum — throskuldurinn var borinn
    vid TOFLUNA i skranni (regex) en ALDREI vid fallid sem les hana.
    Sama gerd og tom fullyrding i CLAUDE.md 5b: prof sem finnur ekki
    neitt og heldur bara afram. */
-export const tCrit = (years) => T_CRIT[Math.min(11, Math.max(3, years))] ?? 2.228;
+export const tCrit = (years) => tCritDf(Math.min(11, Math.max(3, years)) - 1);
 const isSig = (q) => q != null && q.t != null && q.years != null &&
   Math.abs(q.t) > tCrit(q.years);
 

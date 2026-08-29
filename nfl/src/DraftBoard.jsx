@@ -3083,6 +3083,18 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
                         segir kassinn HVERN hann for framhja og hvers
                         vegna — thogul rodun sem stangast a vid birta tolu
                         er thad sem gerir toluna otruverduga. */}
+                    {/* FRADRATTURINN A KASSANN SJALFAN. Se hann ekki
+                        synilegur og BADIR kassar bera hann (seint i
+                        drafti, thegar ekkert oskadd er eftir) les
+                        "30 VBD behind him" ofan i tvaer hraar tolur sem
+                        eru 60 i sundur — tveir kvardar i einni setningu.
+                        Talan sjalf er OHREYFD; fradratturinn stendur vid
+                        hlidina a henni og segir sig sjalfur. */}
+                    {p.needPenalty > 0 && (
+                      <span className="bad" style={{ marginRight: 6 }}
+                        title={`Your ${p.pos} starting slots are already full`}>
+                        −{p.needPenalty} surplus at {p.pos} ·</span>
+                    )}
                     {i === 0
                       ? (p.insteadOf
                         ? `Best value you can actually start — VBD ${p.vbd == null
@@ -3133,8 +3145,13 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
             <div className="note" style={{ marginTop: 8 }}>
               {/* (c): "so a second choice here would be padding, not a
                   choice" endursegir "Only one name left is worth a pick". */}
-              <b>Only one name left is worth a pick.</b> Everyone else on the board is
-              below replacement.
+              {/* "below replacement" VAR SONN MEDAN `aboveRepl` VAR HRATT.
+                  Nu er thad talid a leidrettum kvarda (sja `needPenalty`),
+                  svo bordid getur borid menn MED jakvaett VBD sem eru samt
+                  ekki taldir — their eru afgangur i stodu sem er full.
+                  Setningin segir thvi nu thad sem talan raunverulega er. */}
+              <b>Only one name left is worth a pick for this roster.</b> Everyone
+              else is either below replacement or a body you cannot start.
             </div>
           )}
         </>
@@ -3286,7 +3303,7 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
           <thead><tr className="cols">
             <th className="txt frozen">Player</th>
             <th className="txt">Pos</th>
-            <th title="Value over replacement — this is what decides the order">VBD</th>
+            <th title="Value over replacement. Where your starting slots are already filled, a surplus penalty applies on top of it — the order is what is left after that">VBD</th>
             <th title="Chance he is still there at your next pick">Lasts?</th>
             <th title="Best VBD his position should still offer at your next pick">Next best</th>
             <th className="txt">Why</th>
@@ -3300,7 +3317,15 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
                   {p.name}
                 </td>
                 <td className="txt"><span className={`pos ${p.pos}`}>{p.pos}</span></td>
-                <td className="mono"><b>{p.vbd == null ? "—" : p.vbd.toFixed(1)}</b></td>
+                {/* FRADRATTURINN VAR REIKNADUR A HVERJA ROD OG BIRTUR
+                    HVERGI — og tha les dalkurinn eins og rodin se rong.
+                    Sama villa og kassinn sjalfur var lagfaerdur fyrir. */}
+                <td className="mono"><b>{p.vbd == null ? "—" : p.vbd.toFixed(1)}</b>
+                  {p.needPenalty > 0 && (
+                    <span className="dim" style={{ fontSize: 11, marginLeft: 4 }}
+                      title={`Surplus at ${p.pos} — your starting slots there are full`}>
+                      −{p.needPenalty}</span>
+                  )}</td>
                 <td className={`mono ${p.survive != null && p.survive < 0.25 ? "bad"
                   : p.survive != null && p.survive > 0.7 ? "good" : ""}`}>
                   {p.survive == null ? <span className="null">—</span>

@@ -21,7 +21,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { simulateDraft } from "../../src/accuracy.js";
-import { mean, bootstrapDiff } from "../../src/learn.js";
+import { mean, bootstrapDiff, tCritDf } from "../../src/learn.js";
 
 /** Varamanns-threp. Fyrsta talan er su sem er i notkun i dag. */
 export const REPL_VARIANTS = {
@@ -121,15 +121,30 @@ export async function loadWorld({ dataDir, scoring = "ppr", proj = "sleeper" }) 
    og var einfaldlega ekki rett i laugina.
 
    ÞETTA ER SAMA AETT OG "tomt gildi er ekki null": grein sem er
-   skrifud fyrir eitt tilfelli og keyrir i ollum tilfellum. Hun
-   THAGDI thvi hun gefur ALLTAF tolu — bara ranga: sleepari med
-   sd 25 og hornsteinn med sd 3 voru hristir jafn mikid.
+   skrifud fyrir eitt tilfelli og keyrir i ollum tilfellum. Hun THAGDI
+   thvi hun gefur ALLTAF tolu.
 
-   MAELT: h2h-medaltalid fer ur +59,9 i +51,2 (5 timabil, PPR) og
-   arin faerast ohað — 2021 +169,3 -> +187,8. Vordurinn er
-   `arank-lab-refactor` samanburdurinn sjalfur: med `adpSd` fjarlaegt
-   ur lauginni er utkoman BYTE-EINS og fyrir flutninginn, sem sannar
-   ad EKKERT ANNAD breyttist i flutningnum.                        */
+   ============================================================
+   OG FYRSTA LYSINGIN A HENNI VAR SJALF OFMAELT (leidrett 29.8.2026)
+   ============================================================
+   Hér stod: "sleepari med sd 25 og hornsteinn med sd 3 voru hristir
+   jafn mikid". ÞAD ER RANGT. Varaleidin er `1,08*sqrt(ADP)`, sem
+   VEX med ADP og fylgir maeldu dreifingunni **Spearman 0,947 /
+   Pearson 0,828**. Vandinn er ekki jafn hristingur heldur SAMANThJOPPUN:
+   varaleidin spannar 3,2-14,4 medan maelda dreifingin spannar upp i
+   55,4 — of mikid hrist efst (3,63 a moti 2,36 vid ADP 1-24) og of
+   litid nedst (13,04 a moti 15,46 vid ADP 121+).
+
+   OG AHRIFIN ERU UNDIR HAVADAGOLFINU: h2h-medaltalid faerist ur
+   +59,9 i +51,2 (5 timabil), sem er **0,16 af sinni eigin
+   stadalvillu** (se ~50-57), og eitt arid faerist i ONDVERDA att
+   (2021 +169,3 -> +187,8). Þetta er thvi RETT LAGFAERING AN
+   MAELANLEGRA AFLEIDINGA — og thad a ad standa hér, thvi "maelingin
+   breyttist" vaeri ofsogn.
+
+   Vordurinn er flutnings-samanburdurinn sjalfur: med `adpSd`
+   fjarlaegt ur lauginni er utkoman BYTE-EINS og fyrir flutninginn,
+   sem sannar ad EKKERT ANNAD breyttist i flutningnum.            */
 /** Hristur vollur — sama frávik og FFC maelir, fast fraekorn. */
 export function noisyField(pool, seed) {
   let a = seed >>> 0;
@@ -249,23 +264,17 @@ export function makeTests({ ys: allYs, teams, baseRuns, basePerSeason }) {
    `arank-lab.mjs` bar `2.776` med athugasemdinni "t(4), 95%" a BADUM
    stodum. Þad er rett tala fyrir fimm timabil (df=4) og ROMG fyrir
    ellefu (df=10 -> 2,228) — og skriftan tekur `--proj=fftoday`, sem
-   gefur nakvaemlega ellefu. Vikmorkin i `arank_ppr_fftoday.json` voru
-   thvi ~25% of breid, og `significant`-flaggid of strangt: t=2,33
-   (blandan) var merkt "ekki marktaekt" thott 2,228 se rett mork.
+   gefur nakvaemlega ellefu. `significant`-flaggid var thvi of strangt.
 
    ÞETTA ER SKEKKJA I VARFAERNI ATT, sem er astaedan fyrir thvi ad hun
    lifdi — hun gat aldrei buid til fals-jakvaeda nidurstodu, adeins
    falid rettmaeta. En tala sem er kolluð "95%" og er thad ekki er
    ROMG tala, i hvora attina sem hun hallar.
 
-   Taflan er t(0,975, df) fyrir df 1..30 og sidan normal-morkin.     */
-const T95 = [12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262,
-  2.228, 2.201, 2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093, 2.086,
-  2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042];
-export function tCrit(df) {
-  if (df < 1) return Infinity;
-  return df <= 30 ? T95[df - 1] : 1.96;
-}
+   TAFLAN SJALF BYR I `src/learn.js` — thrjar afritanir voru til i
+   repo-inu med OLIKA merkingu a arguminu (`tCrit(11)` skiladi 2,201 i
+   einni og 2,228 i annarri). Sja notuna thar.                      */
+export const tCrit = tCritDf;
 
 /** P(X >= k) fyrir X ~ Bin(n, 0.5) — einhlida tekna-prof. */
 export function binomialTail(k, n) {

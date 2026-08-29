@@ -1302,5 +1302,123 @@ console.log("\n17. afgangur i monnudu saeti — fradratturinn");
     "C: og TE1 er afram a undan TE2 thott badir beri sama fradratt");
 }
 
+/* ============================================================
+   18. ÞAD SEM RYNNIN FANN — FJOGUR TILFELLI SEM VORU RONG
+   ============================================================
+   Kafli 17 varði rodina en EKKI thad sem birtist. Ovilhöll rynni
+   29.8.2026 keyrdi jaðartilfellin og fann fjogur:
+
+     E. superflex-deild sem ber FLAGGID (`league.superflex: true`) en
+        ekkert `SUPERFLEX`-saeti — `model.js`, `sleeper-league.js` og
+        `DraftBoard.jsx` lesa OLL flaggid, en `startableSlots` gerdi
+        thad ekki. Annar QB fekk fradratt thott hann byrji hverja viku.
+     F. `superflexPos` (Sleeper skrifar `["QB","RB","WR","TE"]`) var
+        hunsad, svo RB3 bar fradratt i raunverulegri superflex-deild.
+     G. deild AN `starters` fekk 0 saeti i hverri stodu -> HVER madur
+        bar fradratt med TOMAN hop. "Tomt gildi er ekki null".
+     H. VARAMANNS-KASSINN gat verid nakvaemlega sa sem urskurdurinn
+        hafnadi: "take: VBD 40 — TE X er 60 en thu byrjar 3" og vid
+        hlidina "backup: 10 VBD behind him — VBD 60,0". Haerri tala,
+        sogd a eftir, med "take"-hnapp.
+
+   HVER GREIN VAR STOKKBREYTT: se lagfaeringin afturkolluð fellur hun.
+   ============================================================ */
+console.log("\n18. jaðartilfellin ur rynninni");
+{
+  const mk = (id, pos, vbd, adp) => ({ id, name: `${pos}${id}`, pos, vbd, adp, adpSd: 5,
+                                       proj: 100 + vbd, tier: 1, avail: 1 });
+  const av = [mk("q1", "QB", 50, 10), mk("q2", "QB", 45, 12), mk("r1", "RB", 30, 14),
+              mk("w1", "WR", 25, 16), mk("t1", "TE", 20, 18)];
+
+  /* ---- E. superflex sem FLAGG ---- */
+  const sfFlag = { teams: 12, rounds: 14, starters: { QB: 1, RB: 2, WR: 2, TE: 1 },
+                   superflex: true, flexPos: ["RB", "WR", "TE"],
+                   maxPos: { QB: 4, RB: 8, WR: 8, TE: 4 } };
+  ok(startableSlots(sfFlag).QB === 2,
+    `E: \`superflex: true\` gefur QB TVO saeti (${startableSlots(sfFlag).QB})`);
+  /* PARID ER PROFID: SAMA inntak i tveimur deildum sem eru eins ad
+     ollu leyti nema superflex-saetinu. An thess er "QB stendur efstur"
+     satt af thvi ad hann er hvort ed er bestur — tom fullyrding. */
+  const sfRec = recommend({ available: av, roster: [{ pos: "QB" }], pick: 20,
+    league: sfFlag, nextPick: 30 });
+  const oneQb = recommend({ available: av, roster: [{ pos: "QB" }], pick: 20,
+    league: { ...sfFlag, superflex: false }, nextPick: 30 });
+  ok(sfRec.choice.list[0].pos === "QB",
+    `E: i superflex-deild stendur QB efstur med einn i hop (${sfRec.choice.list[0].id})`);
+  ok(oneQb.choice.list[0].pos !== "QB",
+    `E: en i EINS-QB deild vikur hann — sama inntak, onnur deild (${oneQb.choice.list[0].id})`);
+  ok(!sfRec.choice.list[0].insteadOf && !!oneQb.choice.list[0].insteadOf,
+    "E: og skyringin birtist NAKVAEMLEGA i theirri seinni");
+  ok(sfRec.picks.every((p) => p.pos !== "QB" || (p.needPenalty || 0) === 0),
+    "E: enginn QB ber fradratt i superflex-deild");
+
+  /* ---- F. `superflexPos` ---- */
+  const sfPos = { ...sfFlag, superflex: false,
+    starters: { QB: 1, RB: 2, WR: 2, TE: 1, SUPERFLEX: 1 },
+    superflexPos: ["QB", "RB", "WR", "TE"] };
+  const st2 = startableSlots(sfPos);
+  ok(st2.RB === 3 && st2.QB === 2,
+    `F: superflex-saetid telst med OLLUM stodum sem thad tekur (${JSON.stringify(st2)})`);
+
+  /* ---- G. engin uppstilling -> ENGINN fradrattur ---- */
+  const bare = { teams: 12, rounds: 14, maxPos: { QB: 4, RB: 8, WR: 8, TE: 4 } };
+  ok(Object.keys(startableSlots(bare)).length === 0,
+    "G: deild an `starters` gefur ENGA tolu — ekki 0 saeti");
+  const bareRec = recommend({ available: av, roster: [], pick: 5, league: bare, nextPick: 15 });
+  ok(bareRec.choice.list[0].id === "q1",
+    `G: og med toman hop stendur hra rodin oskert (${bareRec.choice.list[0].id})`);
+  ok(bareRec.picks.every((p) => (p.needPenalty || 0) === 0),
+    "G: enginn ber fradratt thegar uppstillingin er OTHEKKT");
+
+  /* ---- H. varamadurinn er ALDREI sa sem var hafnad ---- */
+  const LG = { teams: 12, rounds: 14, starters: { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 2 },
+               flexPos: ["RB", "WR", "TE"], maxPos: { QB: 4, RB: 8, WR: 8, TE: 5 } };
+  const three = [{ pos: "TE" }, { pos: "TE" }, { pos: "TE" }];
+  const board = [mk("t9", "TE", 60, 20), mk("r9", "RB", 40, 22), mk("w9", "WR", 25, 24)];
+  const h = recommend({ available: board, roster: three, pick: 30, league: LG, nextPick: 42 });
+  const names = h.choice.list.map((p) => p.id);
+  ok(!names.includes("t9"),
+    `H: afgangs-TE er HVORUGUR kassinn (${names.join(", ")})`);
+  ok(names[0] === "r9" && names[1] === "w9",
+    `H: kassarnir eru tveir bestu sem THU getur byrjad (${names.join(", ")})`);
+  /* Og tha — og adeins tha — er "N VBD behind him" satt um TOLURNAR
+     sem standa a kossunum. Þetta er greinin sem vantadi: hun fellur ef
+     `behind` er reiknad a odrum kvarda en kassarnir birta. */
+  ok(Math.abs(h.choice.list[1].behind - (board[1].vbd - board[2].vbd)) < 0.05,
+    `H: og bilid er NAKVAEMLEGA munur birtu talnanna (${h.choice.list[1].behind} = 40 - 25)`);
+  ok(h.choice.list[0].insteadOf && h.choice.list[0].insteadOf.id === "t9",
+    "H: og sa sem var vikid er nefndur i setningu i stadinn");
+  /* ============================================================
+     OG ÞEGAR BADIR KASSAR BERA FRADRATT — SITTHVORN
+     ============================================================
+     Fyrri greinin (H) getur EKKI greint hvort `behind` er reiknad a
+     hrau eda leidrettu gildi, thvi tha bera kassarnir ENGAN fradratt og
+     bilid er hid sama a badum kvordum. Stokkbreyting (`behind` aftur a
+     hratt) slapp thvi i gegn — fullyrding sem tharf tvennt til ad
+     bregdast er veikari en hun litur ut fyrir ad vera (CLAUDE.md 5b).
+
+     Hér er tilfellid smiðad svo kvardarnir TVEIR skilji: fjorir TE
+     (afgangur 2 -> -60) og fjorir RB (afgangur 1 -> -30). Hratt bil er
+     60, leidrett 30. Talan sem RÆÐUR er su leidretta — og kassinn ber
+     fradrattinn synilegan svo hun stangist ekki a vid birtu toluna. */
+  const deep = [...three, { pos: "TE" }, { pos: "RB" }, { pos: "RB" },
+                { pos: "RB" }, { pos: "RB" }];
+  const bothPen = recommend({
+    available: [mk("t5", "TE", 100, 30), mk("r5", "RB", 40, 32)],
+    roster: deep, pick: 60,
+    league: { ...LG, maxPos: { QB: 4, RB: 9, WR: 9, TE: 9 } }, nextPick: 72 });
+  const [c0, c1] = bothPen.choice.list;
+  ok(c0 && c1 && c0.needPenalty === 60 && c1.needPenalty === 30,
+    `H2: kassarnir bera SITTHVORN fradrattinn (${c0 && c0.needPenalty}/${c1 && c1.needPenalty})`);
+  ok(Math.abs(c1.behind - 30) < 0.05,
+    `H2: og bilid er a ThVI GILDI SEM RADAR (${c1.behind}; hratt vaeri 60)`);
+
+  /* Se EKKERT oskadd eftir fa their kassana — bordid a ekki ad thagna. */
+  const onlySurplus = recommend({ available: [mk("t8", "TE", 60, 20), mk("t7", "TE", 50, 22)],
+    roster: three, pick: 30, league: LG, nextPick: 42 });
+  ok(onlySurplus.choice.list.length >= 1 && onlySurplus.choice.list[0].id === "t8",
+    "H: en se ekkert annad til stendur besti afgangs-madurinn — engin thogn");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);
