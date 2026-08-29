@@ -336,10 +336,49 @@ if (!oddsRows.length) {
     `hver röð hefur opp — annars er hún hunsuð sem "rangur mótherji" (vantaði: ${noOpp.map(([k]) => k).join(", ") || "engin"})`);
   ok(noKick.length === 0,
     `hver röð hefur kickoff (vantaði: ${noKick.map(([k]) => k).join(", ") || "engin"})`);
-  // gagnkvæmni: ef A á línu gegn B, á B að eiga línu gegn A
-  const oneSided = oddsRows.filter(([k, v]) => v.opp && oddsRaw[v.opp]?.opp !== k);
+  /* ============================================================
+     GAGNKVAEMNI GILDIR INNAN LEIKS, EKKI YFIR ALLA SKRANA (29.8.2026)
+
+     Her stod `oddsRaw[v.opp]?.opp !== k` — hver rod varð ad benda a felag
+     sem benti til baka. Su fullyrding var sonn medan ALLAR radir komu ur
+     somu umferd, og hun var ThAD af RANGRI astaedu: skrain var skrifud med
+     "sidasti vinnur", svo hun bar eina umferd (og ThA rongu — sja
+     `preferNextMatch`, 27.8.2026).
+
+     Eftir lagfaeringuna ber hver rod NAESTA leik FELAGSINS, og felog eru
+     ekki oll a sama stad i dagatalinu. MAELT a skranni sem pipeline-an
+     skrifadi 29.8. kl. 11:27 (plan-gluggi fyrir GW3): 18 felog bera
+     GW2-leikinn sinn, en CRY og MCI — sem spiludu sinn GW2-leik 28.8. —
+     bera GW3-leikinn. `gws` er thvi [2,3] og MCI->COV a engan tvifara,
+     thvi COV a enn GW2-rod (COV->HUL). ThAD ER RETT: `csFor` sannreynir
+     motherja OG dagsetningu per felag, svo per-felags-rettleiki er thad
+     sem gildir; gagnkvaemni yfir skrana var afleiding af villunni.
+
+     RETTA INVARIANTID ER TVISKIPT og BADIR hlutar hafa taennur:
+       1. hver rod verdur ad svara RAUNVERULEGUM leik i `fixtures.json`
+          (lid + motherji + kickoff) — sterkara en gamla reglan,
+       2. og bendi baedi felog somu leiktimasetningar hvort a annad.
+     ============================================================ */
+  const teamsArr = (() => { const t = J("teams.json"); return Array.isArray(t) ? t : (t.teams || []); })();
+  const fxArr = (() => { const f = J("fixtures.json"); return Array.isArray(f) ? f : (f.fixtures || []); })();
+  const shortById = Object.fromEntries(teamsArr.map(t => [t.id, t.short]));
+  const fxKeys = new Set(fxArr.map(f =>
+    `${shortById[f.team_h]}|${shortById[f.team_a]}|${f.kickoff_time}`));
+  const notReal = oddsRows.filter(([k, v]) => {
+    if (!v.opp || !v.kickoff) return false;
+    const key = v.home ? `${k}|${v.opp}|${v.kickoff}` : `${v.opp}|${k}|${v.kickoff}`;
+    return !fxKeys.has(key);
+  });
+  ok(fxKeys.size > 300, `forsenda: leikjaskrain er lesin (${fxKeys.size} leikir)`);
+  ok(notReal.length === 0,
+    `hver rod svarar RAUNVERULEGUM leik (rangar: ${notReal.map(([k]) => k).join(", ") || "engar"})`);
+  const oneSided = oddsRows.filter(([k, v]) => {
+    const other = oddsRaw[v.opp];
+    if (!other || other.kickoff !== v.kickoff) return false;   /* sitt hvor umferdin */
+    return other.opp !== k;
+  });
   ok(oneSided.length === 0,
-    `línur eru gagnkvæmar (einhliða: ${oneSided.map(([k]) => k).join(", ") || "engar"})`);
+    `linur sama leiks eru gagnkvaemar (einhlida: ${oneSided.map(([k]) => k).join(", ") || "engar"})`);
 }
 
 console.log("\n=== 6. LITAKVÖRÐUN GEGN RAUNGÖGNUM APPSINS ===");
@@ -1041,6 +1080,53 @@ console.log("\n=== ThU NOTAR HANN ALDREI (rarelyStarted) ===");
   ok(Array.isArray(rarelyStarted({ perGw, byId, floors: {} })), "tomt golf hrynur ekki");
 }
 
+
+/* ============================================================
+   5c. SKEMMD ODDS-ROD MA ALDREI VERDA `NaN` A SKJANUM (29.8.2026)
+
+   Kafli 5b ver ad hver rod i RAUNSKRANNI se nytileg. Hitt var oprofad:
+   hvad gerist ef rodin er ONYT — strengur i `diff`, `NaN`, `Infinity`?
+   `bk.diff != null` hleypir theim ollum i gegn (`NaN != null` er satt),
+   svo leidin ad `NaN` i FFDR — og thar med i threpi, lit og vaentum
+   stigum — var opin i ordi kvedidnu.
+
+   MAELT: hun er ThAD EKKI, og thad er `clamp(...)` + `Number.isFinite`
+   i botni `makeFixDifficulty` sem lokar henni (`model.js`:731).
+   Fullyrdingin er thvi um ThA vorn: hun ma ekki hverfa i naestu
+   endurskrifun. Reglan er CLAUDE.md kafli 8: NULL er "veit ekki" og
+   appid kann thad — `NaN` kann thad ekki.
+   ============================================================ */
+{
+  const teamById = { 1: { id: 1, short: "ARS" }, 2: { id: 2, short: "CHE" } };
+  const tm = { 1: { xgc90: 1.2, xg90: 1.5 }, 2: { xgc90: 1.4, xg90: 1.3 } };
+  const KICK = "2026-09-05T14:00:00Z";
+  const fx = { opp: 2, home: true, fdr: 3, kickoff: KICK };
+  const mk = odds => makeFixDifficulty({ teamMetrics: tm, teamById, odds,
+                                         eloByTeam: { 1: 1800, 2: 1750 } });
+  const rows = [
+    ["gild rod", { diff: 2.1, opp: "CHE", kickoff: KICK }],
+    ["diff strengur", { diff: "abc", opp: "CHE", kickoff: KICK }],
+    ["xga strengur", { xga: "abc", opp: "CHE", kickoff: KICK }],
+    ["diff NaN", { diff: NaN, opp: "CHE", kickoff: KICK }],
+    ["diff Infinity", { diff: Infinity, opp: "CHE", kickoff: KICK }],
+    ["diff -Infinity", { diff: -Infinity, opp: "CHE", kickoff: KICK }],
+    ["diff hlutur", { diff: {}, opp: "CHE", kickoff: KICK }],
+    ["diff fylki", { diff: [2.1], opp: "CHE", kickoff: KICK }],
+  ];
+  let checked = 0;
+  for (const [name, row] of rows) {
+    for (const pos of [2, 4]) {
+      const d = mk({ ARS: row })(1, fx, pos);
+      checked++;
+      ok(d === null || (Number.isFinite(d) && d >= 1 && d <= 5),
+         `${name} (pos ${pos}) -> null eda tala a [1,5], aldrei NaN (${d})`);
+    }
+  }
+  ok(checked === rows.length * 2, `allar radir profadar i badum hopum (${checked})`);
+  /* MOTPROFID: gild rod verdur ad SKILA TOLU — annars vaeri kaflinn graenn
+     af thvi einu ad allt se null.                                       */
+  ok(Number.isFinite(mk({ ARS: rows[0][1] })(1, fx, 2)), "og gild rod skilar TOLU");
+}
 
 console.log(`\nMODEL-PRÓF: ${pass} stóðust, ${fail} féllu`);
 process.exit(fail ? 1 : 0);

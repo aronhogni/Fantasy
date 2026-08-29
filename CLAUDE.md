@@ -404,6 +404,21 @@ MCI heima á móti 43% úr hráu Poisson-viðmiði.
   BSD-reglan „lið leikmanns er FLEST-LEIKIÐ lið, ekki síðasti sem vinnur"
   (kafli 6): þegar tvær raðir keppa um sama reit má röðin ekki ráðast af röð í
   svarinu. Leyst með `preferNextMatch` (fyrsti leikur vinnur).
+  · **OG LAGFÆRINGIN SANNAÐI SIG Á LIFANDI GÖGNUM DAGINN EFTIR.** Sóknin
+    29.8. kl. 11:27 (plan-gluggi fyrir GW3) fékk svar sem spannaði GW2 OG
+    GW3: **18 félög halda GW2-leiknum sínum**, en CRY og MCI — sem spiluðu
+    sinn GW2-leik 28.8. — fá GW3-leikinn, og `gws` er `[2,3]`. Með gömlu
+    reglunni hefðu öll félög sem eiga GW3-línu verið yfirskrifuð og
+    markaðsliðurinn dottinn út fyrir umferðina sem var að hefjast.
+    **AFLEIÐINGIN ER AÐ GAGNKVÆMNI YFIR SKRÁNA GILDIR EKKI LENGUR** og það
+    er rétt: `csFor` sannreynir mótherja OG dagsetningu per félag, svo
+    per-félags-réttleiki er það sem gildir. Vörðurinn í `model.test.mjs`
+    krafðist gagnkvæmni yfir ALLA skrána — sem var satt af RANGRI ástæðu
+    (skráin bar eina umferð af því að hún var skökk). Hann spyr nú um
+    tvennt sem hefur tennur: hver röð verður að svara **raunverulegum leik**
+    í `fixtures.json` (lið + mótherji + kickoff), og línur **sama leiks**
+    verða að benda hvor á aðra.
+
   · **OG SKRÁIN VAR ENDURBYGGÐ ÚR ARKÍVINU, EKKI SÓTT AFTUR.** Hliðið hleypir
     aðeins einni sókn í hvorn glugga (`age < 30` klst), svo skráin hefði borið
     GW3 fram yfir GW2-frestinn. Umbreytingin bjó INNI í `fetchOdds`, sem gerir
@@ -797,6 +812,26 @@ hann, aldrei skipta honum út.
 | **BSD** (`sports.bzzoiro.com`) | 200, ókeypis, enginn kvóti | Per-skot xG, skotakort, treverk, föst leikatriði. **Aðeins 2025/26** |
 | **API-Sports** | **UPPSAGÐUR — og hann er ekki lengur eina leiðin** | `/fixtures/lineups` (staðfest byrjunarlið). Reikningurinn er `suspended` í annað sinn og lagast **aðeins** á `dashboard.api-football.com` — ekkert í repo-inu getur opnað hann. **STAÐFEST BYRJUNARLIÐ KOMA NÚ ÚR FOTMOB ÞEGAR HANN ÞEGIR** (24.8.2026, `fotmobLineups` í `fetch.mjs`): kveikjan er **útkoman, ekki orsökin** — við spyrjum „vantar okkur byrjunarlið?", ekki „er reikningurinn uppsagður?", því uppsögn, kvóti, tímamörk og sniðsbreyting enda öll á sama stað og skilyrði sem telur upp orsakir gleymir alltaf einni (sbr. „suspended" sem VANTAÐI í `gated`-regexið). Kallið er **ekki lengur gatað á `FLAGS.apisports`** — væri það svo myndi varaleiðin aldrei keyra þann dag sem lykillinn hverfur, sem er einmitt dagurinn sem hún er til fyrir |
 | **FotMob `/matchDetails`** — staðfest byrjunarlið | virk, **enginn token** | **MÆLT 24.8.2026, ekki áætlað:** `lineupType` er prófsteinninn — leikinn GW1-leikur gefur **`"standard"`** með 11 byrjunarmönnum, leikur eftir 5 daga gefur **`"unavailable"`** með **0**. Aðeins `"standard"` **og nákvæmlega 11** fer í skrána; **spá má ALDREI rata í skrá sem segist bera staðfestingu** (sama regla og geymir `bsd_lineups.json` ólesna). Öll 10 GW1-leikina: `lineupType` „standard" í **10/10**, **20/20** byrjunarlið með 11 menn. Klúbbar: **20/20** leysast gegnum `teamIdOf` — **engin ný tafla**; leitað er í **deild 47 einni** (svo „Arsenal" verði ekki FC Arsenal Tula) og **báðir** klúbbar sannreyndir gegn FPL-leiknum. Leikmenn: **397/400 (99,3%)** — þrír sem eftir standa eru **rétt** ópöraðir (tveir ekki í FPL, einn stafsettur öðruvísi). **BSD-REGLAN HELDUR:** `lineups.json` fæðir AÐEINS „STARTS/BENCHED"-merkið á spjaldinu — ekkert í FFDR, `rankScore` né væntum stigum les hana, svo þetta er birtingar-heimild en ekki burðarvirki |
+> **`lineups.json` SAMEINAR NÚ INNAN UMFERÐAR — HÚN ÞURRKAÐI SIG SJÁLF ÚT
+> (29.8.2026).** `fetchLineups` skrifaði AÐEINS það sem var í glugganum
+> þegar hún keyrði, svo hver keyrsla henti því sem sú fyrri hafði náð.
+> **Mælt á commit-sögunni 29.8.** (leikdagur, fimm GW2-leikir): 13:55 →
+> 4 lið / 79 leikmenn · 17:29 → **2 / 40** (fyrri leikirnir dottnir úr
+> glugganum) · 19:57 → **0 / 0**. Fyrir notandann þýðir það að
+> **STARTS/BENCHED-merkið hverfur nokkrum klukkustundum eftir leik** —
+> gögn sem VIÐ HÖFÐUM voru urðuð. Reglan er sú sama og gildir um BSD
+> (kafli 6): *tóm keyrsla má ALDREI þurrka út góð gögn*, og skrá sem er
+> lykluð SAMEINAR. Hér er lykillinn **umferð**: raðir sömu umferðar
+> safnast og eldri umferð dettur út um leið og sú næsta byrjar að fyllast,
+> svo skráin ber í mesta lagi eina umferð. `carryLineups` er hreint fall.
+> **ÞRJÁR TÓMAR LEIÐIR, EKKI EIN:** enginn API-lykill · geymt probe-svar ·
+> ferskt probe — allar þrjár skrifuðu `players: []`. Fyrsta útgáfa
+> varðarins prófaði aðeins þá þriðju, svo stökkbreyting á hinum tveimur
+> **slapp í gegn (0 fallnar)**; hver grein sem SKRIFAR skrána hefur nú sitt
+> eigið tilfelli. **Raðir dagsins voru endurheimtar úr commit-sögunni**
+> (119 leikmenn, 6 lið, 3 leikir) — engin ný sókn, sama regla og
+> `rebuild-odds.mjs`.
+
 | **vaastav-speglun** | 200 | Söguleg per-umferðar CSV, 2019-20 til 2025-26 |
 | **FPL `entry/{id}`** (history · picks · transfers) | virk, opin | Sérfræðinga-hópurinn. `history` byggir hópinn (handvirkt, `scan-elite.mjs`); `picks` + `transfers` lesa hvað hann gerði, **eftir frest** — fyrir frest er 404 hjá öllum og það er regla leiksins, ekki API-galli. **Engin söguleg stigatafla er til**: `leagues-classic/314` skilar aðeins yfirstandandi tímabili, svo skönnun á lið-id er eina leiðin |
 | Understat | **LIFANDI — en læst fyrir HTTP-biðlara** | **LEIÐRÉTT 9.8.2026.** Fyrri greining sagði „gögnin eru farin". Það var RANGT um deildarsíður: byte-eins 18.645 b skelin var **Cloudflare-vörn**, ekki gagnaleysi. Í alvöru vafra skilar `league/EPL/2024` **175 KB með lifandi xG** og `JSON.parse` er á sínum stað. curl fær skelina (18.645 b), curl með vafra-hausum fær ANNAÐ skeljar-svar (4.675 b) — hvorugt með gögnum, bæði merkt Cloudflare. Þyrfti JS-keyrslu (headless) eða clearance-vafrakökur; pipeline er Node **án dependencies** og það er arkitektúr-breyting. **Leikja-síðurnar eru samt raunverulega tómar**: `shotsData`/`rostersData` vantar EINNIG í vafra, aðeins `match_info` eftir (staðfest á match/26630, engin XHR sækir þau). **OG ÞAÐ SKIPTIR HVORT EÐ ER EKKI MÁLI:** eina talan sem Understat átti ein — xGChain/xGBuildup — mældist gagnslaus (kafli 4). Að endurvekja hana myndi ekki bæta spána |

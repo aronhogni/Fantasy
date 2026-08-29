@@ -345,14 +345,23 @@ console.log("\n--- C. BLONDUD AETLUN ---");
   ok(!!gw2row, "GW2-skipta-rodin fannst");
   const g2 = gw2row ? gw2row.textContent : "";
   ok(/→/.test(g2), "hun ber `ut → inn`");
-  ok(/[+−-]?\d+\.\d/.test(g2), "og hun BER tolur (gain/net) eins og adur", g2.slice(0, 60));
+  /* TALAN ThARF EKKI AUKASTAF — OG KRAFAN UM HANN VAR FORMKRAFA, EKKI
+     HEGDUNAR-KRAFA (lagad 29.8.2026). Appid syndi "+1.2" medan tolurnar
+     voru litlar; 29.8. voru thaer heilar ("+6") og fullyrdingin fell an
+     thess ad nokkud vaeri ad. Rodin a ad BERA TOLU — hvort hun er heil
+     eda ekki er snid.                                                   */
+  ok(/[+−-]?\d+(\.\d)?/.test(g2), "og hun BER tolur (gain/net) eins og adur", g2.slice(0, 60));
 
   /* SUMMAN. Hun er reiknud UT FRA EINNI rod, svo hun getur ekki verid
      summa fimm. Talan er lesin AF SKJANUM og borin vid gain rodarinnar. */
   const netEl = v.q("span").find(s => /^net [+-]?\d/.test((s.textContent || "").trim()));
   ok(!!netEl, "'net X pts' er a skjanum");
   const netVal = netEl ? parseFloat((netEl.textContent || "").replace(/[^\d.+-]/g, "")) : NaN;
-  const nums = [...g2.matchAll(/([+-]?\d+\.\d)/g)].map(m => parseFloat(m[1]));
+  /* FORMERKID ER KRAFIST: an thess mataði "GW2" toluna 2 inn i listann og
+     "sidasta talan" hefdi getad verid hvad sem er. Gain og net bera alltaf
+     formerki a skjanum.                                                 */
+  const nums = [...g2.matchAll(/([+−-]\d+(?:\.\d)?)/g)]
+    .map(m => parseFloat(m[1].replace("−", "-"))).filter(Number.isFinite);
   ok(Number.isFinite(netVal), `summan er tala (${netVal})`);
   /* PROFSTEINNINN: summan er nettoid af ThESSU EINA skipti (engin refsing
      i GW2 — 1 fritt skipti), svo hun er JOFN sidustu tolu rodarinnar.

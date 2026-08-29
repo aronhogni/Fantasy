@@ -2003,19 +2003,65 @@ async function fotmobLineups(fx, idx) {
   return out;
 }
 
+/* ============================================================
+   STADFEST BYRJUNARLID SAFNAST INNAN UMFERDAR — ThAU VORU ThURRKUD UT
+   (29.8.2026)
+
+   `fetchLineups` skrifadi AÐEINS thad sem var i glugganum thegar hun
+   keyrdi, svo hver keyrsla henti thvi sem fyrri keyrsla hafdi nad. MAELT a
+   commit-sogunni 29.8.2026 (leikdagur, fimm GW2-leikir):
+     13:55  4 lid, 79 leikmenn
+     14:58  4 lid, 79 leikmenn
+     17:29  2 lid, 40 leikmenn   <- fyrri leikirnir dottnir ur glugganum
+     19:57  0 lid,  0 leikmenn
+     21:05  0 lid,  0 leikmenn
+   Fyrir notandann thydir thad ad STARTS/BENCHED-merkid a spjaldinu hverfur
+   nokkrum klukkustundum eftir leik — gogn sem VID HOFDUM voru urdud.
+
+   Reglan er su sama og gildir um BSD (CLAUDE.md 6): "tom keyrsla ma ALDREI
+   thurrka ut god gogn" og "skrain er lykluð a timabil og keyrsla
+   SAMEINAR". Her er lykillinn UMFERD: radir somu umferdar safnast, og eldri
+   umferdir detta ut um leid og su naesta byrjar ad fyllast. Skrain vex thvi
+   ekki: hun ber i mesta lagi eina umferd.
+
+   HREINT FALL svo thad se profanlegt an netkalla og an lykils.
+   ============================================================ */
+export function carryLineups(prevAll, fixtures, gwsNow = []) {
+  const gwOf = {};
+  for (const f of (Array.isArray(fixtures) ? fixtures : [])) if (f?.id != null) gwOf[f.id] = f.event;
+  const rows = k => (Array.isArray(prevAll?.[k]) ? prevAll[k] : []);
+  const gwOfRow = r => (r?.gw != null ? r.gw : gwOf[r?.fixture]);
+  const seen = [...rows("players"), ...rows("teams")].map(gwOfRow)
+    .filter(g => Number.isFinite(g));
+  const all = [...gwsNow.filter(g => Number.isFinite(g)), ...seen];
+  if (!all.length) return { players: [], teams: [], gws: [] };
+  const keepGw = Math.max(...all);
+  const keep = r => gwOfRow(r) === keepGw;
+  return { players: rows("players").filter(keep), teams: rows("teams").filter(keep),
+           gws: [keepGw] };
+}
+
 async function fetchLineups() {
   const errTxt = o => (o.errors && (Array.isArray(o.errors) ? o.errors.join("; ")
                                     : JSON.stringify(o.errors))) || "";
   /* GLUGGINN: leikir sem eru ad byrja (innan 2 klst) eda nybyrjadir (3 klst).
      Utan hans er ekkert ad hafa og engin koll eru notud.                  */
-  let fx = [];
+  let fx = [], allFx = [];
   try {
     const all = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
+    allFx = Array.isArray(all) ? all : (all.fixtures || []);
     const now = Date.now();
-    fx = all.filter(f => f.kickoff_time && !f.finished_provisional && !f.finished)
+    fx = allFx.filter(f => f.kickoff_time && !f.finished_provisional && !f.finished)
       .filter(f => { const d = new Date(f.kickoff_time).getTime() - now;
                      return d < 2 * 3600e3 && d > -3 * 3600e3; });
   } catch (e) { record("api_lineups", false, 0, `fixtures.json: ${e.message}`); return; }
+
+  /* ThAD SEM ThEGAR VAR NAD I ThESSARI UMFERD FERDAST MED — sja
+     `carryLineups`. Adur skrifadi hver keyrsla AÐEINS gluggann sinn, svo
+     stadfest byrjunarlid horfdu af spjaldinu nokkrum klst eftir leik.   */
+  let prevFile = null;
+  try { prevFile = JSON.parse(await readFile(`${DATA}/lineups.json`, "utf8")); } catch {}
+  const carry = carryLineups(prevFile, allFx, [...new Set(fx.map(f => f.event))]);
 
   if (!fx.length) {
     /* RANNSAKANDI KALL — svarar AÐEINS "leyfir threpid endapunktinn?"
@@ -2049,22 +2095,24 @@ async function fetchLineups() {
        gert. Utan gluggans er FotMob lika thogul (byrjunarlid eru ekki til
        fyrr en ~1 klst fyrir leik), svo tomt svar er RETT her.           */
     if (!FLAGS.apisports) {
-      await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [],
-        players: [], sources: [],
-        note: "Confirmed line-ups. EMPTY outside the matchday window. No API-Sports key "
-            + "is configured, so only the FotMob fallback is available and it is queried "
-            + "only inside the window." });
+      await writeJSON("lineups.json", { updated: status.updated, gws: carry.gws,
+        teams: carry.teams, players: carry.players, sources: [],
+        note: "Confirmed line-ups. Rows already captured for THIS gameweek are kept "
+            + "(they are dropped only when the next gameweek starts filling) - an empty "
+            + "run must never wipe good data. No API-Sports key is configured, so only "
+            + "the FotMob fallback is available and it is queried only inside the window." });
       record("api_lineups", true, 0,
         "no match in window; no API-Sports key — FotMob fallback runs inside the window");
       return;
     }
     if (prev && prevAge < PROBE_TTL_DAYS) {
-      await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [],
-        players: [], probe: prev,
+      await writeJSON("lineups.json", { updated: status.updated, gws: carry.gws,
+        teams: carry.teams, players: carry.players, probe: prev,
         note: "Confirmed line-ups. PRIMARY SOURCE IS FOTMOB /matchDetails (no token); "
             + "API-Sports /fixtures/lineups is the SECOND source and its account is "
             + "currently suspended, which does NOT stop this file being filled. "
-            + "EMPTY outside the matchday window. `probe` is a STORED response "
+            + "Rows already captured for THIS gameweek are KEPT outside the window - "
+            + "an empty run must never wipe good data. `probe` is a STORED response "
             + `(repeated every ${PROBE_TTL_DAYS} days) — not a fresh call on every run. `
             + "It describes API-Sports ONLY." });
       record("api_lineups", true, 0,
@@ -2097,11 +2145,13 @@ async function fetchLineups() {
       gated ? `ENDPOINT CLOSED on the free tier: ${err.slice(0, 120)}`
             : err ? `no match in window; the probe returned: ${err.slice(0, 120)}`
                   : "no match in window (waiting for a matchday) — endpoint answers without a plan error");
-    await writeJSON("lineups.json", { updated: status.updated, gws: [], teams: [], players: [],
+    await writeJSON("lineups.json", { updated: status.updated, gws: carry.gws,
+      teams: carry.teams, players: carry.players,
       probe: { at: status.updated, http: probe.http, errors: probe.errors ?? null, gated },
       note: "Confirmed line-ups. PRIMARY SOURCE IS FOTMOB /matchDetails (no token); "
-          + "API-Sports /fixtures/lineups is the SECOND source. EMPTY outside the "
-          + "matchday window (a match within 2h or just started). `probe` stores the "
+          + "API-Sports /fixtures/lineups is the SECOND source. Rows already captured "
+          + "for THIS gameweek are KEPT outside the matchday window (a match within 2h "
+          + "or just started) - an empty run must never wipe good data. `probe` stores the "
           + "answer to whether the free tier allows the API-Sports endpoint — it says "
           + "nothing about FotMob, which is what actually fills this file." });
     return;
@@ -2229,9 +2279,19 @@ async function fetchLineups() {
       + (Object.keys(fm.notStandard).length
           ? `, lineupType ${JSON.stringify(fm.notStandard)}` : "")
     : "";
+  /* SAMEINING, EKKI YFIRSKRIFT: radir somu umferdar sem thessi keyrsla
+     snerti ekki (leikir sem eru dottnir ur glugganum) ferdast med. Leikur
+     sem VID SOTTUM NUNA vinnur — hann er ferskari.                      */
+  const wroteFx = new Set(outPlayers.map(p => p.fixture));
+  const keptP = carry.players.filter(r => !wroteFx.has(r.fixture));
+  const keptT = carry.teams.filter(r => !wroteFx.has(r.fixture));
+  const allPlayers = [...keptP, ...outPlayers];
+  const allTeams = [...keptT, ...outTeams];
   await writeJSON("lineups.json", { updated: status.updated,
-    gws: [...new Set(fx.map(f => f.event))], calls, sources,
-    teams: outTeams, players: outPlayers, unmatched, errors: errs,
+    gws: [...new Set([...fx.map(f => f.event), ...allPlayers.map(r => r.gw)])]
+           .filter(g => g != null).sort((a, b) => a - b),
+    calls, sources,
+    teams: allTeams, players: allPlayers, unmatched, errors: errs,
     unresolved_teams: [...unresolvedTeams], alias_collisions: aliasCollisions,
     note: "Confirmed starters (started=true) and bench (false) for matches inside the "
         + "window. FPL status still governs availability; this is CONFIRMATION, not a "
@@ -2245,9 +2305,9 @@ async function fetchLineups() {
         + "before any row is written. `unresolved_teams` lists club names a source sent "
         + "that no club-name variant matched — an empty list is the only correct value; "
         + "anything in it means whole line-ups were dropped." });
-  const started = outPlayers.filter(p => p.started).length;
-  record("api_lineups", !!outPlayers.length || !errs.length, outPlayers.length,
-    `${calls} calls (${reused} matches reused), ${outTeams.length} clubs, `
+  const started = allPlayers.filter(p => p.started).length;
+  record("api_lineups", !!allPlayers.length || !errs.length, allPlayers.length,
+    `${calls} calls (${reused} matches reused, ${keptP.length} rows carried), ${allTeams.length} clubs, `
     + `${started} starting, ${unmatched.length} unmatched`
     + ` · source: ${sources.join("+") || "none"}` + fmNote
     + (unresolvedTeams.size ? ` — CLUB NAMES UNRESOLVED: ${[...unresolvedTeams].join(", ")}` : "")

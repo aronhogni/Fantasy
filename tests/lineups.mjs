@@ -138,6 +138,7 @@ const FIXTURES_OK = {
    Fellur med "normName is not defined" se hann ekki gefinn — sem er RETT
    hegdun: fallid odlaðist nyja hað og safnid a ad taka eftir thvi.      */
 const { normName } = await import("../src/names.js");
+const { carryLineups } = await import("../scripts/fetch.mjs");
 /* `FLAGS`, `FM`, `FM_UA` og `fetch` eru GEFIN, ekki afrituð — FotMob-
    varaleidin les thau. Sjalfgefid er `apisports: true` svo ELDRI kaflarnir
    i thessu safni maeli obreytta API-Sports-hegdun; FotMob-kaflarnir gefa
@@ -145,8 +146,12 @@ const { normName } = await import("../src/names.js");
    annan — engin ytri kall mega verda i profasafni.                      */
 async function run({ dir, responder, flags = { apisports: true }, fmFetch = null }) {
   let written = null; const rec = {};
+  /* `carryLineups` ER FLUTT INN, EKKI ENDURSKRIFAD: hun bjo a einingarsvidi
+     i `fetch.mjs` (29.8.2026) svo textinn sem er dreginn ut ser hana ekki.
+     Afrit i profinu vaeri ANNAD eintak sem gaeti rekid i sundur — sama
+     regla og `DC_P0_PRIOR` i `defcon-shrink.mjs`.                       */
   const factory = new Function("readFile", "DATA", "writeJSON", "record", "status",
-    "apiSports", "console", "normName", "FLAGS", "FM", "FM_UA", "fetch",
+    "apiSports", "console", "normName", "FLAGS", "FM", "FM_UA", "fetch", "carryLineups",
     `${decl}\nreturn fetchLineups;`);
   const calls = [];
   const fn = factory(readFile, dir,
@@ -161,7 +166,8 @@ async function run({ dir, responder, flags = { apisports: true }, fmFetch = null
     async (path) => { calls.push(path); return responder(path); },
     { log() {}, warn() {} }, normName,
     flags, "https://fm.test/api/data", "test-ua",
-    fmFetch || (async u => { throw new Error(`unexpected network call: ${u}`); }));
+    fmFetch || (async u => { throw new Error(`unexpected network call: ${u}`); }),
+    carryLineups);
   await fn();
   return { written, rec, calls };
 }
@@ -634,6 +640,112 @@ console.log("─".repeat(84));
       `og API-Sports-villan er SKRAD, ekki thogguð: ${JSON.stringify((written?.obj?.errors || [])[0])}`);
     ok(rec.ok === true,
       "stadan er graen af thvi ad byrjunarlid FENGUST — ekki thratt fyrir ad thau vanti");
+  }
+}
+
+/* ============================================================
+   N. RADIR SAFNAST INNAN UMFERDAR — ThAER VORU ThURRKADAR UT (29.8.2026)
+
+   `fetchLineups` skrifadi AÐEINS gluggann sinn, svo hver keyrsla henti
+   thvi sem su fyrri hafdi nad. MAELT a commit-sogunni 29.8.2026
+   (leikdagur, fimm GW2-leikir): 13:55 -> 4 lid/79 leikmenn · 17:29 ->
+   2/40 · 19:57 -> 0/0. STARTS/BENCHED-merkid a spjaldinu hvarf thvi
+   nokkrum klst eftir leik, thott gognin hefdu verid sott.
+
+   Reglan er su sama og gildir um BSD: tom keyrsla ma ALDREI thurrka ut
+   god gogn, og skra sem er lykluð (her a UMFERD) SAMEINAR. Skrain vex
+   ekki: hun ber i mesta lagi eina umferd.
+   ============================================================ */
+console.log(`\n${"─".repeat(84)}`);
+console.log("N. RADIR SOMU UMFERDAR SAFNAST, ELDRI UMFERD DETTUR UT");
+console.log("─".repeat(84));
+{
+  /* Fyrri keyrsla nadi leik 9002 (sama umferd, UTAN gluggans nuna).    */
+  const PREV = { updated: "x", gws: [1], teams: [{ fpl_team: 3, gw: 1, fixture: 9002 }],
+                 players: [{ fpl_id: 31, fpl_team: 3, gw: 1, fixture: 9002,
+                             started: true, src: "fotmob" }] };
+  {
+    const dir = await sandbox();
+    await writeFile(join(dir, "lineups.json"), JSON.stringify(PREV));
+    const { written, rec } = await run({ dir, responder: p =>
+      p.startsWith("/fixtures?") ? FIXTURES_OK : LINEUP_OK });
+    const o = written?.obj || {};
+    const ids = (o.players || []).map(x => x.fixture);
+    ok(ids.includes(9002), `rod fyrri keyrslu LIFIR (${JSON.stringify([...new Set(ids)])})`);
+    ok(ids.filter(x => x === 9001).length === 4, "og leikur gluggans er skrifadur lika");
+    ok((o.teams || []).some(t => t.fixture === 9002), "lidsrodin fylgir med");
+    /* SAMEININGIN VERDUR AD SJAST I STODUNNI LIKA — annars veit enginn ad
+       radir ferdudust med, og "40 leikmenn" laesi eins og fersk sokn.   */
+    ok(/rows carried/.test(rec.note || ""), "stadan segir hversu margar radir ferdudust", rec.note);
+  }
+
+  /* UTAN GLUGGANS — ThAD ER TILFELLID SEM ThURRKADI UT. */
+  {
+    const dir = await sandbox({ kickoff: new Date(Date.now() + 30 * 864e5).toISOString() });
+    await writeFile(join(dir, "lineups.json"), JSON.stringify(PREV));
+    const { written, rec } = await run({ dir, responder: () => ({ response: [] }) });
+    const o = written?.obj || {};
+    ok((o.players || []).length === 1 && o.players[0].fixture === 9002,
+       `enginn leikur i glugganum -> radirnar STANDA (${(o.players || []).length})`);
+    ok(JSON.stringify(o.gws) === "[1]", `og umferdin fylgir (${JSON.stringify(o.gws)})`);
+    ok(!/^0 clubs/.test(rec.note || ""), "og stadan segir ekki ad skrain se tom", rec.note);
+  }
+
+  /* ============================================================
+     ThRJAR TOMAR LEIDIR, EKKI EIN — OG TVAER ThEIRRA VORU OVARDAR.
+     Fyrsta utgafa thessa kafla profadi adeins EINA theirra (ferskt probe).
+     Stokkbreyting sem setti `players: []` aftur i probe-GEYMSLU-greinina
+     slapp thvi i gegn (0 fallnar). Hver grein sem SKRIFAR skrana verdur ad
+     hafa sitt eigid tilfelli.                                          */
+  {
+    /* (b) GEYMT probe-svar — greinin sem stokkbreytingin slapp gegnum.  */
+    const dir = await sandbox({ kickoff: new Date(Date.now() + 30 * 864e5).toISOString() });
+    await writeFile(join(dir, "lineups.json"), JSON.stringify({
+      ...PREV, probe: { at: new Date().toISOString(), http: 200, errors: null, gated: false } }));
+    const { written } = await run({ dir, responder: () => ({ response: [] }) });
+    const o = written?.obj || {};
+    ok((o.players || []).length === 1 && o.players[0].fixture === 9002,
+       `geymt probe-svar: radirnar STANDA (${(o.players || []).length})`);
+    ok(!!o.probe, "og geymda svarid fylgir afram med");
+  }
+  {
+    /* (c) ENGINN API-LYKILL — thridja tomas leidin.                     */
+    const dir = await sandbox({ kickoff: new Date(Date.now() + 30 * 864e5).toISOString() });
+    await writeFile(join(dir, "lineups.json"), JSON.stringify(PREV));
+    const { written } = await run({ dir, flags: { apisports: false },
+                                    responder: () => ({ response: [] }) });
+    const o = written?.obj || {};
+    ok((o.players || []).length === 1 && o.players[0].fixture === 9002,
+       `an API-lykils: radirnar STANDA (${(o.players || []).length})`);
+  }
+
+  /* NY UMFERD -> ELDRI RADIR DETTA UT (skrain vex ekki).                */
+  {
+    const dir = await mkdtemp(join(tmpdir(), "lu-gw-"));
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "fixtures.json"), JSON.stringify([
+      { id: 9001, event: 2, team_h: 1, team_a: 2, kickoff_time: KICK, finished: false },
+      { id: 9002, event: 1, team_h: 3, team_a: 4,
+        kickoff_time: new Date(Date.now() - 40 * 864e5).toISOString(), finished: true },
+    ]));
+    for (const [f, v] of [["teams.json", { teams: [
+      { id: 1, name: "Arsenal", short: "ARS" }, { id: 2, name: "Chelsea", short: "CHE" },
+      { id: 3, name: "Leeds", short: "LEE" }, { id: 4, name: "Everton", short: "EVE" }] }],
+      ["teams_map.json", { 1: { fpl: "Arsenal", short: "ARS" }, 2: { fpl: "Chelsea", short: "CHE" },
+        3: { fpl: "Leeds", short: "LEE" }, 4: { fpl: "Everton", short: "EVE" } }],
+      ["players.json", { players: [
+        { id: 11, team: 1, web_name: "Saka", first_name: "Bukayo", second_name: "Saka" },
+        { id: 12, team: 1, web_name: "Gabriel", first_name: "Gabriel", second_name: "Magalhaes" },
+        { id: 13, team: 1, web_name: "Ødegaard", first_name: "Martin", second_name: "Ødegaard" },
+        { id: 21, team: 2, web_name: "Palmer", first_name: "Cole", second_name: "Palmer" }] }],
+      ["lineups.json", PREV]]) await writeFile(join(dir, f), JSON.stringify(v));
+    const { written } = await run({ dir, responder: p =>
+      p.startsWith("/fixtures?") ? FIXTURES_OK : LINEUP_OK });
+    const o = written?.obj || {};
+    ok(!(o.players || []).some(x => x.fixture === 9002),
+       "umferd 1 dettur ut thegar umferd 2 fyllist (skrain ber eina umferd)");
+    ok((o.players || []).length === 4 && JSON.stringify(o.gws) === "[2]",
+       `og nyja umferdin stendur ein eftir (${(o.players || []).length}, ${JSON.stringify(o.gws)})`);
   }
 }
 

@@ -42,7 +42,7 @@ import { JSDOM } from "jsdom";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { rotationRisk, matchesPlayedByClub } from "../src/availability.js";
+import { rotationRisk, matchesPlayedByClub, planningGw } from "../src/availability.js";
 import { priceChangeOf, PRICE_FALL_MARK } from "../src/PlayerPanel.jsx";
 
 let pass = 0, fail = 0;
@@ -308,7 +308,17 @@ console.log("\n--- C. KLUKKU-TEXTAR ---");
      kassinn FULLUR (committud skra er til) og TOMA-ASTANDID — thad eina
      sem bar fostu dagsetninguna — er aldrei teiknad. Fullyrding sem
      getur ekki nad kodanum sem hun heitir eftir maelir ekkert.         */
-  const EMPTY_LIVE = { "live/gw1.json": { elements: [] } };
+  /* UMFERDIN SEM APPID SYNIR ER LEIDD, EKKI NEGLD (29.8.2026).
+     Her stod `{ "live/gw1.json": ... }` fast. Appid opnar a theirri umferd
+     sem er verid ad SKIPULEGGJA (`planningGw`), og um leid og GW2 hofst las
+     thad `live/gw2.json` — sem ER til i `data/` — svo toma-astandid var
+     aldrei teiknad og fullyrdingin um setninguna fell an thess ad nokkud
+     vaeri ad. Skran sem er tomd er thvi SU SEM APPID LES, fundin med sama
+     falli og appid notar.                                               */
+  const liveGw = planningGw(EVENTS.events || EVENTS,
+                            (() => { const f = J("fixtures.json"); return Array.isArray(f) ? f : f.fixtures; })()) ?? 1;
+  const EMPTY_LIVE = { [`live/gw${liveGw}.json`]: { elements: [] },
+                       "live/gw1.json": { elements: [] } };
   const pre = await mount({ captain: 411 },
     { patch: { ...EMPTY_LIVE,
                "events.json": { ...(EVENTS.events ? EVENTS : {}), events: preseasonEvents() } } });

@@ -2006,11 +2006,23 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
       const en = makeEnricher({ players: pl, teamById, fixtures: fx, events: ev, odds: o });
       return pl.map(p => en(p).fields._team_cs).filter(v => v != null);
     };
-    /* SAMA `nextGw`-leidsla og `makeEnricher` notar (src/stats.js kafli 7). */
-    const nextGwId = ev.find(e => e.is_next)?.id ?? (ev.filter(e => e.finished).length + 1);
+    /* ============================================================
+       GRUNNURINN ER BYGGDUR EFTIR SOMU REGLU OG DALKURINN LES — OG HUN
+       ER "NAESTI OLEIKNI LEIKUR", EKKI "NAESTA UMFERD" (lagad 29.8.2026)
+
+       Her stod `f.event !== nextGwId` med athugasemdinni "SAMA
+       `nextGw`-leidsla og `makeEnricher` notar". Su leidsla var RETT
+       thangad til 24.8.2026, thegar `_team_cs` var faerdur yfir a naesta
+       OLEIKNA leik hvers lids (sja langa athugasemd i src/stats.js) — og
+       afritid her fylgdi ekki med. Reglurnar tvaer eru somu tolu i
+       venjulegri viku og SKILJA A LEIKDEGI: 29.8.2026 var `is_next` = 3
+       medan tolf lid attu enn oleikinn GW2-leik, svo grunnurinn var
+       stilltur a ranga leiki og forsendan fell (318 af 622) an thess ad
+       nokkud vaeri ad dalkinum. Naerlag af reglu er onnur regla.       */
     const nextFix = {};
-    for (const f of fx) {
-      if (f.event !== nextGwId) continue;
+    for (const f of [...fx].filter(f => f?.kickoff_time && !f.started
+                                     && !f.finished && !f.finished_provisional)
+                           .sort((a, b) => String(a.kickoff_time).localeCompare(String(b.kickoff_time)))) {
       for (const [t, o] of [[f.team_h, f.team_a], [f.team_a, f.team_h]]) {
         if (nextFix[t]) continue;
         nextFix[t] = { opp: teamById?.[o]?.short ?? null, kickoff: f.kickoff_time ?? null };
@@ -2026,7 +2038,7 @@ if (existsSync(D + "players.json") && existsSync(D + "imminent.json")) {
     const live = teamCs(aligned);
     // FORSENDAN — an hennar getur hvorug neikvæda fullyrdingin brugdist.
     ok(live.length > 400,
-      `_team_cs er FYLLTUR a grunni sem er stilltur a GW${nextGwId}: `
+      `_team_cs er FYLLTUR a grunni sem er stilltur a NAESTA OLEIKNA leik hvers lids: `
       + `${live.length}/${pl.length} leikmenn (${new Set(live).size} olik gildi, `
       + `${Object.keys(aligned).length} lid)`);
     /* OG RAUN-SKRAIN: BADAR ATTIR FULLYRTAR, SVO HVORUGT REGIME ThEGI.

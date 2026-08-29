@@ -1303,15 +1303,34 @@ console.log("\n8) TIMABILS-VALID — yfirstandandi timabil");
   ok(`eftir smell er flokkurinn sem birtist EKKI tomur `
      + `(${nums} af ${shown.length} dalkum bera tolu: ${shown.join(",")})`, nums > 0);
 
-  /* 1 — TOLURNAR ERU ADRAR. ARS: 38 leikir i fyrra, 1 nuna.             */
+  /* 1 — TOLURNAR ERU ADRAR. ARS: 38 leikir i fyrra, faerri nuna.
+
+     TALAN ER LEIDD UR LEIKJASKRANNI, EKKI SKRIFUD (29.8.2026). Her stod
+     `m === "1"` og `cell("COV","Matches") === "1"` — satt medan NAKVAEMLEGA
+     ein umferd var spilud. Um leid og GW2 hofst bar COV tvo leiki og
+     kaflinn fell an thess ad nokkud vaeri ad. Fjoldi spiladra leikja er
+     stadreynd i `fixtures.json`; profid a ad spyrja hana, ekki muna hana.
+     (Sama villa og "committud events.json ER forleikur" i planner-idle.) */
+  const playedOf = short => {
+    const tf = J("teams.json");
+    const t = (Array.isArray(tf) ? tf : tf.teams).find(x => x.short === short);
+    if (!t) return null;
+    const all = Array.isArray(realFix) ? realFix : realFix.fixtures;
+    return all.filter(f => (f.team_h === t.id || f.team_a === t.id)
+      && (f.finished === true || f.finished_provisional === true)).length;
+  };
+  const arsPlayed = playedOf("ARS");
   const m = cell("ARS", "Matches");
-  ok(`ARS ber 1 leik i yfirstandandi timabili (fekk ${JSON.stringify(m)})`, m === "1");
+  ok(`ARS ber ${arsPlayed} leik(i) i yfirstandandi timabili — talan ur fixtures.json (fekk ${JSON.stringify(m)})`,
+     m === String(arsPlayed));
   ok(`og raunveruleg urslit GW1: mork a sig ${cell("ARS", "GC tot")}, CS ${cell("ARS", "CS %")}%`,
      cell("ARS", "GC tot") === "0" && cell("ARS", "CS %") === "100");
   /* Nylidi sem VAR ekki til i fyrra timabili ber nu tolu — thad er einmitt
      munurinn a syninni.                                                  */
-  ok(`nylidi (COV) ber tolu i yfirstandandi timabili, ekki "—" (${cell("COV", "Matches")})`,
-     cell("COV", "Matches") === "1");
+  const covPlayed = playedOf("COV");
+  ok(`nylidi (COV) ber tolu i yfirstandandi timabili, ekki "—" `
+     + `(${cell("COV", "Matches")}, leikjaskrain segir ${covPlayed})`,
+     covPlayed > 0 && cell("COV", "Matches") === String(covPlayed));
 
   /* 2 — ThAD SEM ER EKKI TIL ER TOMT. xGC kemur ur BSD (2025/26 eitt).   */
   ok(`xGC er TOMT i yfirstandandi timabili (${cell("ARS", "xGC")} / ${cell("ARS", "xGC tot")})`,

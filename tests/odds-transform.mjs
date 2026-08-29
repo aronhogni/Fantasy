@@ -22,7 +22,7 @@
    Keyrsla:  node tests/odds-transform.mjs
    ============================================================ */
 import { readFileSync, readdirSync } from "node:fs";
-import { oddsTeamsFromRaw, oddsFileFrom, preferNextMatch } from "../scripts/fetch.mjs";
+import { oddsTeamsFromRaw, oddsFileFrom, preferNextMatch, clubIndex, CLUB_NORM } from "../scripts/fetch.mjs";
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { c ? pass++ : fail++; console.log(`  ${c ? "✓" : "✗"} ${m}`); };
@@ -64,30 +64,48 @@ console.log("\n=== 2. HVER ROD ER FYRSTI LEIKUR FELAGSINS I SVARINU ===");
   ok(games >= 10, `nogu margir leikir verdlagdir til ad maela (${games})`);
   ok(Object.keys(teams).length >= 15, `radir skrifadar fyrir ${Object.keys(teams).length} felog`);
 
-  /* Fyrir hvert felag: FYRSTI kickoff sem thad kemur fyrir i svarinu. */
-  const norm = s => String(s || "");
+  /* FYRSTI KICKOFF PER FELAG — VARPAD GEGNUM SAMA VISI OG UMBREYTINGIN
+     NOTAR (`clubIndex` + `CLUB_NORM`), ekki gegnum timann.
+
+     FYRSTA UTGAFA ThESSA KAFLA PORADI EFTIR TIMA og fell 29.8.2026 an
+     thess ad nokkud vaeri ad: hun leitadi ad "ollum felogum sem spila a
+     thessum tima" og tok minnsta gildi theirra, svo rod CRY (GW3, af thvi
+     ad GW2-leikurinn theirra var ThEGAR SPILADUR og er ekki i svarinu)
+     var borin vid GW2-tima ANNARRA felaga. Naerlag af vorpun er onnur
+     vorpun — sama laerdomur og annars stadar i thessu safni.           */
+  const byNorm = clubIndex(teamsById, (id, t) => t.short_name);
   const firstOf = {};
   for (const g of raw) {
     const t = Date.parse(g.commence_time);
     for (const side of [g.home_team, g.away_team]) {
-      const k = norm(side);
-      if (!(k in firstOf) || t < firstOf[k]) firstOf[k] = t;
+      const short = byNorm[CLUB_NORM(side)];
+      if (!short) continue;
+      if (!(short in firstOf) || t < firstOf[short]) firstOf[short] = t;
     }
   }
-  /* Vorpun felagsnafns -> stuttnefni gegnum sama fall og umbreytingin
-     notar: vid berum saman a TIMANUM, sem er einkvaemur per felag her. */
-  let checked = 0, wrong = 0;
+  ok(Object.keys(firstOf).length === Object.keys(teams).length,
+     `oll felog vorpudust (${Object.keys(firstOf).length} af ${Object.keys(teams).length})`);
+  /* ThEKJA ER FULLYRDING: kaflinn maelir ekkert nema felog komi fyrir
+     OFTAR EN EINU SINNI i svarinu — thad er thá og ADEINS thá sem
+     "sidasti vinnur" getur brugdist.                                   */
+  const seenTimes = {};
+  for (const g of raw) for (const side of [g.home_team, g.away_team]) {
+    const short = byNorm[CLUB_NORM(side)];
+    if (short) (seenTimes[short] ||= []).push(Date.parse(g.commence_time));
+  }
+  const multi = Object.values(seenTimes).filter(v => v.length > 1).length;
+  ok(multi >= 5, `felog med FLEIRI EN EINN leik i svarinu (${multi}) — annars maelir kaflinn ekkert`);
+
+  let checked = 0, wrong = [];
   for (const [short, row] of Object.entries(teams)) {
     const t = Date.parse(row.kickoff);
-    const earliest = Math.min(...Object.entries(firstOf)
-      .filter(([name]) => raw.some(g =>
-        (g.home_team === name || g.away_team === name) && Date.parse(g.commence_time) === t))
-      .map(([, v]) => v));
     checked++;
-    if (Number.isFinite(earliest) && t > earliest) wrong++;
+    if (Number.isFinite(firstOf[short]) && t > firstOf[short])
+      wrong.push(`${short} ${row.kickoff} > ${new Date(firstOf[short]).toISOString()}`);
   }
   ok(checked >= 15, `radir skodadar (${checked})`);
-  ok(wrong === 0, `engin rod ber SEINNI leik felagsins (${wrong} af ${checked})`);
+  ok(wrong.length === 0, `engin rod ber SEINNI leik felagsins (${wrong.length} af ${checked})`,
+     wrong.join(" | "));
 }
 
 console.log("\n=== 3. STOKKBREYTINGIN 'SIDASTI VINNUR' VERDUR AD FALLA ===");
