@@ -537,21 +537,6 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
   for (const p of out) p.needPenalty = round1(penOf[p.pos] || 0);
   out.sort((a, b) => (b.vbd - (penOf[b.pos] || 0)) - (a.vbd - (penOf[a.pos] || 0)));
 
-  /* OG ThAD VERDUR AD SJAST. Kassinn segir "Highest value over
-     replacement" — su setning er OSONN um leid og fradratturinn faerir
-     einhvern nidur, og thogul rodun sem stangast a vid birta tolu er
-     nakvaemlega thad sem gerir tolu otruverduga. `insteadOf` ber
-     manninn sem BAR haesta hra VBD, svo vidmotid geti sagt hvers vegna
-     hann er ekki efstur. `null` thegar rodin er oadgreind fra hrarri
-     rod — engin setning tha, ekki tom setning. */
-  if (out.length) {
-    const rawTop = out.reduce((a, b) => (b.vbd > a.vbd ? b : a), out[0]);
-    out[0].insteadOf = rawTop.id === out[0].id ? null : {
-      id: rawTop.id, name: rawTop.name, pos: rawTop.pos, vbd: round1(rawTop.vbd),
-      have: counts[rawTop.pos] || 0, startable: startable[rawTop.pos] ?? null,
-    };
-  }
-
   /* ============================================================
      SAETI SEM RODIN NAER ALDREI TIL — K OG DST
      ============================================================
@@ -696,15 +681,52 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
      notar. Se adeins EINN yfir henni er EINN synur og thad er sagt;
      ad fylla annad saetid med manni sem er ekki thess virdi ad taka
      vaeri matsedill i sinni verstu mynd.                              */
-  const above = out.filter((p) => p.vbd != null && p.vbd > 0);
+  /* ============================================================
+     LINAN "YFIR VARAMANNI" VERDUR AD VERA A SAMA KVARDA OG RODIN
+     ============================================================
+     ÞETTA VAR HALFTENGT OG ThAD VAR MAELT (29.8.2026): rodin
+     (`out.sort`) var a LEIDRETTU gildi en thessi sia a HRAU. Utkoman
+     i raunverulegu drafti notandans, vid val 102 med einn QB thegar i
+     hopnum:
+
+       rec.picks toppur : Jordan Addison  (leidrett -6,0)
+       kassinn sagdi    : **Brock Purdy**  (hrátt +7,3, leidrett -22,7)
+
+     Fradratturinn var reiknadur, hann var settur a hverja rod, hann
+     radadi listanum RETT — og komst svo ekki a skjainn, thvi `above`
+     valdi ur hraa kvardanum. Nakvaemlega sama aett og `bsdLive` sem
+     var reiknad og aldrei sent i `<Teams>`: kodinn og maelingin voru
+     komin, talan lenti aldrei a skjanum.
+
+     "Yfir varamanni" thydir hér "thess virdi ad taka HANDA ThER", og
+     annar QB i einssaetis deild er thad ekki — thad er einmitt thad
+     sem fradratturinn segir. Se ENGINN yfir linunni stendur efsti
+     madur leidrettu rodarinnar einn, eins og adur.                 */
+  const adjOf = (p) => p.vbd - (penOf[p.pos] || 0);
+  const above = out.filter((p) => p.vbd != null && adjOf(p) > 0);
   /* Seint i drafti getur ENGINN verid yfir linunni. Þa stendur urskurdurinn
      einn — bordid a ekki ad thagna i sidustu umferdum. */
   const base = above.length ? above : out.slice(0, 1);
   const withGap = (p) => ({ ...p,
     /* Bilid er ALLTAF maelt fra theim sem maelda rodin setur fyrstan, svo
-       talan svarar spurningunni sem er spurd: "hvad kostar hinn?" */
-    behind: base.length ? round1(base[0].vbd - p.vbd) : null });
+       talan svarar spurningunni sem er spurd: "hvad kostar hinn?" — og
+       thad er maelt a ThVI GILDI SEM RADADI, annars gaeti "3 VBD behind"
+       stadid vid mann sem ber HAERRI birta tolu en sa fyrri. */
+    behind: base.length ? round1(adjOf(base[0]) - adjOf(p)) : null });
   const list = base.slice(0, 2).map(withGap);
+
+  /* OG FRADRATTURINN VERDUR AD SJAST. "Highest value over replacement"
+     er OSONN setning um leid og hann faerir einhvern nidur, svo
+     urskurdurinn ber `insteadOf`: manninn sem BAR haesta HRA VBD og
+     hvers vegna hann er ekki efstur. `null` thegar rodin er oadgreind
+     fra hrarri rod — engin setning tha, ekki tom setning. */
+  if (list.length) {
+    const rawTop = out.reduce((a, b) => (b.vbd > a.vbd ? b : a), out[0]);
+    list[0].insteadOf = (rawTop.id !== list[0].id && (penOf[rawTop.pos] || 0) > 0)
+      ? { id: rawTop.id, name: rawTop.name, pos: rawTop.pos, vbd: round1(rawTop.vbd),
+          have: counts[rawTop.pos] || 0, startable: startable[rawTop.pos] ?? null }
+      : null;
+  }
   const samePos = list.length === 2 && list[0].pos === list[1].pos;
   const altRaw = samePos
     ? base.slice(2).find((p) => p.pos !== list[0].pos) || null : null;

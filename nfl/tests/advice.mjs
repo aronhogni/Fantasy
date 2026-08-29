@@ -1247,7 +1247,14 @@ console.log("\n17. afgangur i monnudu saeti — fradratturinn");
     pick: 20, league: LG, nextPick: 30 });
   ok(full.picks[0].id === "r1",
     `B: med thrja TE (byrjar 3) vikur TE fyrir RB (${full.picks[0].id})`);
-  const io = full.picks[0].insteadOf;
+  /* `insteadOf` LIGGUR A URSKURDINUM (`choice.list[0]`), ekki a
+     `picks[0]` — thad er kassinn sem birtir hann, og thad var einmitt
+     villan sem fannst 29.8.2026: hann sat a rongum lista og
+     urskurdurinn var valinn eftir HRAU gildi thott rodin vaeri
+     leidrett. Fullyrdingin er thvi um SAMA hlut og skjarinn les. */
+  const io = full.choice.list[0].insteadOf;
+  ok(full.choice.list[0].id === "r1",
+    `B: og URSKURDURINN sjalfur (choice.list[0]) er sami madur (${full.choice.list[0].id})`);
   ok(io && io.id === "t1" && io.have === 3 && io.startable === 3,
     `B: og \`insteadOf\` nefnir manninn sem var vikid (${io ? io.id : "ekkert"})`);
   ok(full.picks.find((p) => p.id === "t1").vbd === 60,
@@ -1260,6 +1267,23 @@ console.log("\n17. afgangur i monnudu saeti — fradratturinn");
     "B: fyrsti afgangs-madur ber NAKVAEMLEGA einn K, ekki tvo");
   ok(needPenalty("TE", { TE: 2 }, st) === 0,
     "B: og sa sem KEMST i byrjunarlid ber ENGAN");
+
+  /* ---- D. HRAA LINAN MA EKKI YFIRTAKA RODINA ----
+     Þetta er tilfellid ur raunverulegu drafti notandans (val 102): sa
+     eini sem er yfir varamanni A HRAA KVARDANUM er afgangs-madurinn
+     sjalfur. Vaeri `above` sift a hrau gildi yrdi HANN urskurdurinn og
+     allur fradratturinn kaemist aldrei a skjainn — kodinn reiknadur,
+     talan aldrei birt. */
+  const only = [mk("q2", "QB", 7, 60), mk("w9", "WR", -6, 62), mk("w8", "WR", -11, 64)];
+  const surplusQb = recommend({ available: only, roster: [{ pos: "QB" }],
+    pick: 60, league: LG, nextPick: 70 });
+  ok(surplusQb.choice.list[0].id === "w9",
+    `D: afgangs-QB med JAKVAETT hra VBD vikur samt (${surplusQb.choice.list[0].id})`);
+  ok(surplusQb.choice.aboveRepl === 0,
+    `D: og "yfir varamanni" er talid a SAMA kvarda og rodin (${surplusQb.choice.aboveRepl})`);
+  ok(surplusQb.choice.list[0].insteadOf
+     && surplusQb.choice.list[0].insteadOf.id === "q2",
+    "D: og kassinn nefnir QB-inn sem var vikid");
 
   /* ---- C. ekki bradanauðsyn i dulargervi ---- */
   const openBoth = recommend({ available: av, roster: [{ pos: "RB" }],

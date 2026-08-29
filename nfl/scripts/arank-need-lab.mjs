@@ -105,7 +105,7 @@ function baseVals(pool) { return vbdValues(pool, CURRENT_REPL, {}); }
  *  leikstjornanda" (sem maelikvardinn getur ekki verdlagt: hann telur
  *  arstidar-summu byrjunarlids, svo varamadur i einssaetis stodu er
  *  NAKVAEMLEGA 0 i honum) eda eitthvad breidara. */
-function needBoard(pool, { k, only = null }) {
+function needBoard(pool, { k, only = null, slots = startable }) {
   const vals = baseVals(pool);
   const posOf = new Map(pool.map((p) => [p.id, p.pos]));
   return (taken, counts) => {
@@ -113,7 +113,7 @@ function needBoard(pool, { k, only = null }) {
     for (const [id, v] of vals) {
       const pos = posOf.get(id);
       const on = !only || only.includes(pos);
-      const surplus = on ? Math.max(0, (counts[pos] || 0) - (startable[pos] ?? 99) + 1) : 0;
+      const surplus = on ? Math.max(0, (counts[pos] || 0) - (slots[pos] ?? 99) + 1) : 0;
       adj.set(id, v - k * surplus);
     }
     return boardFrom(adj);
@@ -189,6 +189,15 @@ async function main() {
     ["need k=30", (p) => needBoard(p, { k: 30 })],
     ["need k=60", (p) => needBoard(p, { k: 60 })],
     ["need k=30 RB/WR only", (p) => needBoard(p, { k: 30, only: ["RB", "WR"] })],
+    /* HVE RUMT A "getur byrjad" AD VERA? Sjalfgefna talan gefur FLEX-saeti
+       a HVERJA flex-haefa stodu, sem er rumt: eitt flex-saeti er talid
+       thrisvar. Mock-draft notandans 27.8. syndi tilfellid — annar TE
+       (Kittle) bar ENGAN fradratt af thvi ad TE faer flexid, og hann
+       spiladi aldrei. Þessi tvo afbrigdi eru hin morkin. */
+    ["need k=30 slots=starters only", (p) => needBoard(p, { k: 30,
+      slots: { QB: 1, RB: 2, WR: 3, TE: 1 } })],
+    ["need k=30 slots=flex to RB/WR", (p) => needBoard(p, { k: 30,
+      slots: { QB: 1, RB: 3, WR: 4, TE: 1 } })],
     ["need k=30 QB/TE only", (p) => needBoard(p, { k: 30, only: ["QB", "TE"] })],
     ["dyn (repl ur theim sem eru eftir)", (p) => dynBoard(p)],
     ["mkt adp w=0.15", (p) => marketBoard(p, { w: 0.15, field: "adp" })],
