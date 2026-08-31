@@ -18,6 +18,18 @@ import {
   weeklyProjection, availability, POS_ELASTICITY, DEF_WEIGHT,
   FLEX_SPLIT, SUPERFLEX_SPLIT, IMPLIED_BASE,
 } from "../src/model.js";
+
+/* Raungogn fyrir gagnadrifnu fullyrdinguna nedst. Skilar TOMU fylki ef
+   skrain er ekki til, og thekju-fullyrdingin fellur tha — thogn um
+   vantandi gogn vaeri tom fullyrding. */
+function readPlayers() {
+  try {
+    const raw = readFileSync(path.join(
+      new URL(".", import.meta.url).pathname, "..", "data", "players.json"), "utf8");
+    const d = JSON.parse(raw);
+    return Array.isArray(d) ? d : (d.players || []);
+  } catch { return []; }
+}
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
@@ -1195,6 +1207,47 @@ console.log("\n12. spa-grunnurinn (projbase)");
       "og gamla hlutfallid (deilt med golfi 1e-9) er farid — thad var ostadanlegt vid exp = 0");
   }
 }
+
+/* ============================================================
+   TVAER MERKINGAR UM SAMA MANN — SU STRANGARI GILDIR
+   ============================================================
+   Gomlu fullyrdingarnar sendu ALLTAF adeins annad svidid
+   (`availability(null, x)` eda `availability("Active", null)`), svo
+   thaer gatu EKKI seð forgangsroðunina — og hun var rong: `injury`
+   hafdi skilyrdislausan forgang, svo `status: "Inactive"` med
+   `injury_status: "Questionable"` gaf **0,75**.
+
+   ÞETTA ER GAGNADRIFIN FULLYRDING OG ThAD ER ASETT: hun les
+   `players.json` og `AVAIL` — engin handskrifud ordalisti sem getur
+   staðnad. Nytt ord med tiltaekileika 0 er thvi sjalfkrafa varið.
+   ============================================================ */
+console.log("\ntiltaekileiki: su strangari merking gildir");
+{
+  const { AVAIL, availability } = await import("../src/model.js");
+  ok(availability("Inactive", "Questionable") === 0,
+    "\"Inactive\" + \"Questionable\" -> 0 (ekki 0,75 eins og adur)");
+  ok(availability("Active", "IR") === 0, "\"Active\" + \"IR\" -> 0");
+  ok(availability("Active", null) === 1, "\"Active\" eitt -> 1");
+  ok(availability(null, "Questionable") === 0.75, "\"Questionable\" eitt -> 0,75");
+  /* OThEKKT ORD MA EKKI VERDA 0 — thad vaeri agiskun i hina attina, og
+     `AVAIL_KNOWN` er til einmitt til ad thau seu akvordun en ekki thogn. */
+  ok(availability("Bogus", "Nonsense") === 1, "othekkt ord -> 1, ekki 0");
+
+  const zero = Object.keys(AVAIL).filter((k) => AVAIL[k] === 0);
+  ok(zero.length > 0, `ThEKJA: ${zero.length} ord thyda "spilar ekki" (${zero.join(", ")})`);
+  const players = readPlayers();
+  ok(players.length > 100, `ThEKJA: ${players.length} leikmenn lesnir ur data/`);
+  const bad = players.filter((p) =>
+    ((p.status && zero.includes(p.status)) || (p.injury && zero.includes(p.injury)))
+    && availability(p.status, p.injury) > 0);
+  for (const p of bad.slice(0, 5)) {
+    console.log(`     ${p.name}: status=${p.status} injury=${p.injury} ` +
+      `-> ${availability(p.status, p.injury)}`);
+  }
+  ok(bad.length === 0,
+    `ENGIN rod ber harda merkingu med tiltaekileika > 0 (${bad.length})`);
+}
+
 
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

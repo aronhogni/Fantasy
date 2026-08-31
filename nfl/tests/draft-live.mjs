@@ -2828,6 +2828,114 @@ console.log("\n24. smellur a urskurdarkassann afritar nafnid");
   await act(async () => { root.unmount(); });
 }
 
+/* ============================================================
+   25. VAL SEM ER EYTT MEDAN FLIPINN ER LOKADUR
+   ============================================================
+   RYNNI 31.8.2026 FANN ThETTA og thad var VERSTA bilunin sem eftir stod:
+   `App.jsx` teiknar `{view === "draft" && <DraftBoard/>}`, svo EINN
+   SMELLUR A ANNAN FLIPA aftengir hlutinn. Gamla mismunar-reglan bar
+   "sidasta svar" i `useRef`, sem nullstillist vid thad — og tha getur
+   naesta pollun EKKERT ANNAD EN BAETT VID.
+
+     20 vol -> Dashboard -> umsjonarmadur eydir vali -> Draft
+     -> skjarinn: 20 drafted, "Pick 21"   (sannleikur: 19 og 20)
+
+   Þad leidrettist ALDREI, og leikmadurinn er afram utstrikadur og
+   ovaljanlegur. `pickNo` fædir `nextOwnPick` og hverja lifunar-prosentu,
+   svo eitt umsjonar-atvik plus einn flipa-smellur eitrar hvert "% likely
+   to last" thad sem eftir er kvoldsins.
+
+   ÞRIR KAFLAR, og sa thridji er sa sem gerir lagfaeringuna marktaeka:
+     A. eytt MEDAN flipinn er opinn        (virkadi adur — ma ekki brotna)
+     B. eytt MEDAN hann er LOKADUR          (villan sjalf)
+     C. HANDVIRKT val lifir endurbygginguna (annars vaeri "lagfaeringin"
+        ad henda skraningu notandans — og thad var einmitt astaedan sem
+        gamla notan gaf fyrir thvi ad reglan vaeri olagfaeranleg)
+   ============================================================ */
+console.log("\n25. val sem er eytt medan flipinn er lokadur");
+{
+  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
+  const root = await boot();
+  await connectAndSync();
+  for (let n = 1; n <= 20; n++) pushPick(n);
+  await waitFor(() => draftedOnScreen() === 20, 8000);
+  ok(draftedOnScreen() === 20, `forsenda: 20 vol a skjanum (${draftedOnScreen()})`);
+  const gone = POOL[9].name;                       // val 10
+  /* Hann er DRAFTADUR, svo hann er EKKI a bordinu — thad er forsendan.
+     Fyrsta utgafa fullyrti hid gagnstaeda og fell rettilega. */
+  ok(!text().includes(gone), `forsenda: ${gone} er draftadur og thvi EKKI a bordinu`);
+
+  /* ---- A. eytt MEDAN flipinn er opinn ---- */
+  live.picks = live.picks.filter((p) => p.pick_no !== 10);
+  await waitFor(() => draftedOnScreen() === 19, 8000);
+  ok(draftedOnScreen() === 19, `A: opinn flipi -> 19 (${draftedOnScreen()})`);
+  ok(pickHeader() === 20, `A: og valnumerid er 20 (${pickHeader()})`);
+
+  /* ---- B. eytt MEDAN hann er LOKADUR ---- */
+  live.picks = []; for (let n = 1; n <= 20; n++) pushPick(n);
+  await waitFor(() => draftedOnScreen() === 20, 8000);
+  const tabs = [...document.querySelectorAll("button")];
+  const dash = tabs.find((b) => /Dashboard/.test(b.textContent || ""));
+  ok(!!dash, "ThEKJA: Dashboard-flipinn finnst (annars maelir kaflinn ekkert)");
+  await click(dash, 200);
+  /* AFTENGINGIN ER MAELD A BORDINU SJALFU, ekki a ordinu "drafted" —
+     thad kemur fyrir vidar i appinu og gerdi fullyrdinguna ranga. */
+  ok(boardRows().length === 0,
+    `ThEKJA: bordid er raunverulega AFTENGT (${boardRows().length} radir)`);
+  live.picks = live.picks.filter((p) => p.pick_no !== 10);   // eytt MEDAN lokad
+  await settle(200);
+  const draftTab = [...document.querySelectorAll("button")]
+    .find((b) => /Draft/.test(b.textContent || ""));
+  await click(draftTab, 300);
+  await waitFor(() => draftedOnScreen() === 19, 8000);
+  ok(draftedOnScreen() === 19,
+    `B: lokadur flipi -> 19 EFTIR ad hann er opnadur aftur (${draftedOnScreen()})`);
+  ok(pickHeader() === 20, `B: og valnumerid er 20, ekki 21 (${pickHeader()})`);
+  ok(text().includes(gone),
+    `B: og ${gone} er KOMINN AFTUR a bordid — ekki utstrikadur ad eilifu`);
+
+  /* ---- C. handvirkt val lifir ---- */
+  const rows0 = boardRows();
+  const cell = rows0[0] && rows0[0].querySelector("td.frozen");
+  const c = cell ? cell.cloneNode(true) : null;
+  if (c) for (const b of [...c.querySelectorAll(".badge")]) b.remove();
+  const manualName = c ? (c.textContent || "").trim() : null;
+  const btns = rows0[0] ? [...rows0[0].querySelectorAll("button")] : [];
+  const goneBtn = btns.find((b) => /^gone$/i.test((b.textContent || "").trim()));
+  const takeBtn = btns.find((b) => /^mine$/i.test((b.textContent || "").trim()));
+  const anyBtn = goneBtn || takeBtn;
+  if (!anyBtn) {
+    /* Med saeti OG pollun eru hnapparnir asett fjarlaegdir (kafli 22),
+       svo yfirtakan er opnud fyrst — thad er sama leid og notandinn fer. */
+    const over = [...document.querySelectorAll("button")]
+      .find((b) => /take over|manual/i.test(b.textContent || ""));
+    if (over) await click(over, 200);
+  }
+  const btns2 = boardRows()[0] ? [...boardRows()[0].querySelectorAll("button")] : [];
+  const mineBtn = btns2.find((b) => /^mine$/i.test((b.textContent || "").trim()));
+  ok(!!mineBtn, `ThEKJA/C: handvirkur hnappur er i bodi (${btns2.length} hnappar)`);
+  if (mineBtn) {
+    const before = draftedOnScreen();
+    await click(mineBtn, 200);
+    await settle(200);
+    ok(draftedOnScreen() === before + 1,
+      `C: handvirkt val skrast (${before} -> ${draftedOnScreen()})`);
+    /* Naesta pollun ENDURBYGGIR bordid ur Sleeper-listanum. Handvirka
+       valid ma EKKI thurrkast ut vid thad. */
+    pushPick(21);
+    await waitFor(() => draftedOnScreen() === before + 2, 8000);
+    ok(draftedOnScreen() === before + 2,
+      `C: og lifir endurbygginguna (${draftedOnScreen()} = ${before} + handvirkt + Sleeper)`);
+    /* `manualName` er lesid til ad kaflinn se laesilegur i keyrslu; hann
+       ber ENGA fullyrdingu, thvi `|| true` vaeri fullyrding sem getur
+       ekki fallid (CLAUDE.md 5b). Talan er profsteinninn. */
+    void manualName;
+  }
+  ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
+  await settle(60);
+  await act(async () => { root.unmount(); });
+}
+
 console.log(`\n(pollunar-bidir styttar: ${pollTicks})`);
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

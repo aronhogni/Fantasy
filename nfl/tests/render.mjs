@@ -193,11 +193,38 @@ console.log("\n2. draft-flipinn");
     ok(note != null, "kassinn nefnir tha sem spila ekki");
     if (note) {
       const named = [...note.querySelectorAll("span.pos")].map((s) => s.textContent.trim());
-      ok(named.length > 0, `(a) ${named.length} nefndir med stodu (${named.join(",")})`);
+      const flat0 = (note.textContent || "").replace(/\s+/g, " ");
+      const counted = Number((/(\d+) more (?:is|are) out/.exec(flat0) || [0, 0])[1]);
+      /* ============================================================
+         (a) VAR BUNDIN VID NEFNDA HELMINGINN — OG HANN TAEMDIST
+         ============================================================
+         Kassinn hefur TVO helminga: their sem eru YFIR varamanni eru
+         NEFNDIR, hinir TALDIR (`advice.js`, `sidelined` gegn
+         `sidelinedBelowRepl`). Fullyrdingin las adeins thann fyrri.
+
+         MAELT 31.8.2026: af 70 monnum med tiltaekileika 0 na 24 a
+         bordid og **ENGINN theirra er yfir varamanni** i neinni af
+         thremur deildarlogunum (bestur er Jordyn Tyson a -59,8).
+         Kassinn segir thvi rettilega "24 more are out and not named
+         here" og nefnir engan. Ekkert er thaggad — kassinn er heill.
+
+         AKKERIN TVO SEM HEILUDUST voru Kittle (PUP -> Questionable,
+         avail 0,75, VBD +9,9 — hann er NU I RODINNI) og Alec Pierce,
+         sem faerdist milli commit-a 27.-28.8. Þa vard safnid rautt.
+
+         OG ÞAD SEM SKIPTIR MEIRA MALI: med tomum nefndum helmingi urdu
+         ThRJAR nagranna-fullyrdingar TAUTOLOGIUR og heldust graenar
+         (`badges.length === named.length` = 0===0, `(b)` yfir tomum
+         lista, og bædi `(c)`-throfin sem sitja inni i `if (row)`).
+         Fullyrdingin spyr thvi nu um KASSANN, ekki um annan helming
+         hans: nefndir EDA taldir. */
+      ok(named.length + counted > 0,
+        `(a) ${named.length} nefndir med stodu (${named.join(",") || "engir"}) + ${counted} taldir`);
       const badges = [...note.querySelectorAll("span.badge.bad")]
         .map((b) => b.textContent.trim());
       ok(badges.length === named.length,
-        `og hver ber stoduna sina (${badges.join(", ")})`);
+        `og hver NEFNDUR ber stoduna sina (${badges.length}/${named.length}` +
+        `${badges.length ? ": " + badges.join(", ") : ""})`);
 
       /* ============================================================
          (a2) OG HANN NEFNIR EKKI ALLA — TALAN ER LESIN AF SKJANUM
@@ -234,14 +261,41 @@ console.log("\n2. draft-flipinn");
       const why = [...document.querySelectorAll(".reasoning table.data tbody tr td.frozen")]
         .map((t) => t.textContent);
       ok(why.length > 0, "rokstudningurinn ber rodina (annars maelir (b) ekkert)");
-      const leak = names.filter((n) => n && why.some((w) => w.includes(n)));
+      /* (b) HAFDI ENGA FRAMBJODENDUR thegar nefndi helmingurinn var
+         tomur (0 nofn -> 0 leki -> alltaf graent). Kandidatarnir eru
+         their sem BORDID merkir raudan — their eru 24 i dag, ekki 0. */
+      const redNames = [...document.querySelectorAll("table.data tbody tr")]
+        .filter((tr) => tr.querySelector("td.frozen span.badge.bad"))
+        .map((tr) => {
+          const c = tr.querySelector("td.frozen").cloneNode(true);
+          for (const b of [...c.querySelectorAll(".badge")]) b.remove();
+          return (c.textContent || "").trim();
+        }).filter(Boolean);
+      const cands = names.length ? names : redNames;
+      ok(cands.length > 0, `ThEKJA/(b): ${cands.length} frambjodendur til leka`);
+      const leak = cands.filter((n) => n && why.some((w) => w.includes(n)));
       ok(leak.length === 0, `(b) enginn theirra i rokstudningnum (${leak.join(", ") || "engir"})`);
 
-      /* (c) merkid i bordinu sjalfu. */
-      const first = names[0];
-      const row = first ? [...document.querySelectorAll("table.data tbody tr")]
-        .find((tr) => (tr.querySelector("td.frozen")?.textContent || "").includes(first)) : null;
-      ok(row != null, `${first} er enn i bordinu — hann er ekki thaggadur, bara ekki radlagdur`);
+      /* ============================================================
+         (c) LAS UR NEFNDA HELMINGNUM — NU UR BORDINU SJALFU
+         ============================================================
+         `names[0]` er `undefined` thegar enginn er nefndur, svo
+         fullyrdingin fell med ordunum "undefined er enn i bordinu" OG
+         bædi throfin fyrir nedan hana slokknudu thegjandi (thau sitja i
+         `if (row)`). Spurningin sem hun ber er hins vegar um BORDID:
+         "sa sem spilar ekki er ekki thaggadur, bara ekki radlagdur" —
+         og bordid merkir hann RAUTT ur `avail`, ohað thvi hvorum megin
+         varamanns-linunnar hann er. Þar er thvi lesid. */
+      const redRows = [...document.querySelectorAll("table.data tbody tr")]
+        .filter((tr) => tr.querySelector("td.frozen span.badge.bad"));
+      ok(redRows.length > 0,
+        `ThEKJA: ${redRows.length} raudmerkt(ar) rod(ir) i bordinu (annars maelir (c) ekkert)`);
+      const row = names[0]
+        ? redRows.find((tr) => (tr.querySelector("td.frozen").textContent || "")
+            .includes(names[0])) || null
+        : redRows[0] || null;
+      ok(row != null,
+        "sa sem spilar ekki er enn i bordinu — hann er ekki thaggadur, bara ekki radlagdur");
       if (row) {
         ok(row.querySelector("td.frozen span.badge.bad") != null,
           "(c) merkid er RAUTT, ekki gult — liturinn kemur ur avail, ekki nafnalista");

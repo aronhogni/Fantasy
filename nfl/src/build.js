@@ -10,6 +10,7 @@
    ============================================================ */
 
 import { computeVbd, tierize, valueVsMarket, blend, availability } from "./model.js";
+import { normTeam } from "./names.js";
 /* `normPos` ER EINA STADU-VORPUNIN — sja notuna vid `starters` nedar.
    `scoring.js` flytur EKKERT inn, svo thetta byr engan hring. */
 import { normPos } from "./scoring.js";
@@ -333,7 +334,17 @@ export function buildRows({ players, seasons, accuracy, experts, schedule, marke
       name: p.name, pos: p.pos, team: p.team, bye: p.bye,
       age: p.age, exp: p.exp, headshot: p.headshot,
       rookie: p.rookie, depth: p.depth,
-      injury: p.injury || p.status || null,
+      /* MERKIMIDINN FYLGIR TOLUNNI: `availability` tekur nu THA
+         STRANGARI af `status`/`injury` (sja notuna thar), svo
+         merkimidinn verdur ad koma ur SOMU akvordun. Adur bar rodin
+         "Questionable" medan talan var 0 — tvaer sogur um sama mann. */
+      injury: (() => {
+        const a = availability(p.status, p.injury);
+        if (p.injury && p.status
+            && availability(null, p.injury) !== a
+            && availability(p.status, null) === a) return p.status;
+        return p.injury || p.status || null;
+      })(),
       injuryNote: p.injuryNote,
       avail: availability(p.status, p.injury),
 
@@ -873,8 +884,12 @@ export function buildSos(schedule, league, market = null) {
     if (g.total == null || g.spread == null) continue;
     const home = g.total / 2 + g.spread / 2;
     const away = g.total / 2 - g.spread / 2;
-    push(byTeam, g.home, { week: g.week, oppImplied: away });
-    push(byTeam, g.away, { week: g.week, oppImplied: home });
+    /* SAMRAEMT VID LESTUR — `schedule.json` ber `LA` medan `players`
+       ber `LAR`; sja notuna i `weekview.js`. Þessi leid er gátud af
+       `market.teams` i dag, en varaleidin ma ekki vera gotótt: an
+       thessa fengu ALLIR 22 Rams-leikmenn null SoS (maelt). */
+    push(byTeam, normTeam(g.home), { week: g.week, oppImplied: away });
+    push(byTeam, normTeam(g.away), { week: g.week, oppImplied: home });
   }
   for (const [team, list] of byTeam) {
     const all = list.map((x) => x.oppImplied);

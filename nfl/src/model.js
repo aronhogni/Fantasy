@@ -734,8 +734,32 @@ export const AVAIL = {
 export const AVAIL_KNOWN = Object.keys(AVAIL)
   .filter((k) => k !== "null" && k !== "undefined");
 
+/* ============================================================
+   TVAER MERKINGAR UM SAMA MANN — SU STRANGARI GILDIR (31.8.2026)
+   ============================================================
+   Her stod `injury` fyrst og `status` til vara. Sleeper sendir BÆÐI
+   svidin og thau eru ohað hvort odru: `status: "Inactive"` med
+   `injury_status: "Questionable"` er raunverulegt par sem kemur fyrir,
+   og gamla reglan las tha `Questionable` -> **0,75** — madur sem er
+   ovirkur var verðlagður sem 3/4 leikmadur.
+
+   MAELT 31.8.2026 a lifandi gognum (og krossprofad vid Sleeper beint,
+   svo thetta er okkar vorpun en ekki theirra gogn): **fjorar radir**
+   bera harda merkingu med tiltaekileika > 0.
+
+   OG AUGLJOSA LAGFAERINGIN ER RONG — hun var maeld lika. "Latum
+   `status` rada" breytir **144 rodum**, skilur **27** eftir osamkvaemar
+   og gefur monnum a IR tiltaekileika **1,0** — nakvaemlega ondverdu
+   villunni. Astaedan er ad hvorugt svidid er nakvaemari utgafa af hinu;
+   thau eru tvaer merkingar um sama mann.
+
+   RETTA REGLAN ER ThVI **SU STRANGARI SEM VID ThEKKJUM**: 4 radir
+   breytast, allar i att ad 0, og engin situr eftir osamkvaem. Ordid sem
+   vid thekkjum EKKI er afram sleppt (`AVAIL_KNOWN` heldur um thad) —
+   ohekkt ord ma ekki verda ad 0, thad vaeri agiskun i hina attina. */
 export function availability(status, injury) {
-  if (injury && AVAIL[injury] != null) return AVAIL[injury];
-  if (status && AVAIL[status] != null) return AVAIL[status];
-  return 1;
+  const known = [status, injury]
+    .map((v) => (v && AVAIL[v] != null ? AVAIL[v] : null))
+    .filter((v) => v != null);
+  return known.length ? Math.min(...known) : 1;
 }

@@ -82,6 +82,21 @@
    thess ad thegja um thad.                                          */
 
 import { computeVbd } from "./model.js";
+/* ============================================================
+   LIDSKODINN ER SAMRAEMDUR VID LESTUR (31.8.2026)
+   ============================================================
+   `schedule.json` og `team_form.json` baru `LA` fyrir Rams medan
+   `players.json`, `defense.json` og `weekly/*` bera `LAR`. Skrifin eru
+   lagfaerd i `scripts/sources/nflverse.mjs`, EN thad daekkir ekki
+   skrarnar sem eru ThEGAR committadar — og `schedule_history.json` er
+   eins-skiptis afurð sem verdur aldrei sott aftur. Þess vegna er
+   samraemt BADUM MEGIN: vid skrif svo gogn framtidarinnar seu rett, og
+   vid lestur svo gogn dagsins i dag seu thad lika.
+
+   MAELT ADUR EN ThESSU VAR BREYTT: Rams-vornin flogguð "audur leikur"
+   i 17 vikum af 17, `teamGames` felldi 22 leikmenn, og 386
+   leikmanna-vikur gegn Rams tapadu DvP-lidnum thegjandi.             */
+import { normTeam } from "./names.js";
 
 /* ============================================================
    MAELDA TAFLAN — BOKUD, OG PROFID BER HANA VID DISKINN
@@ -228,8 +243,9 @@ export function teamGames(schedule, { season, week, lastRegWeek } = {}) {
     if (g.type != null && g.type !== "REG") continue;
     const wk = num(g.week);
     if (wk == null) continue;
-    if (wk < from) { bump(g.home, "played"); bump(g.away, "played"); }
-    else if (wk <= last) { bump(g.home, "left"); bump(g.away, "left"); }
+    const H = normTeam(g.home), A = normTeam(g.away);
+    if (wk < from) { bump(H, "played"); bump(A, "played"); }
+    else if (wk <= last) { bump(H, "left"); bump(A, "left"); }
   }
   return out;
 }
@@ -293,7 +309,7 @@ export function rosCurrency({ rows, weeklyRows, schedule, season, week,
     if (!r || !ROS_POS.includes(r.pos)) continue;
     const proj = num(r.proj);
     if (proj == null) continue;
-    const tg = r.team ? games.get(r.team) : null;
+    const tg = r.team ? games.get(normTeam(r.team)) : null;
     if (!tg) continue;
     /* Forgildid er a PER-LEIK kvarda, eins og i labinu. */
     const prior = proj / 17;

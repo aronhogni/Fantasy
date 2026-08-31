@@ -137,10 +137,65 @@ console.log("\n4. lidsheiti");
   ok(teams.size >= 30, `${teams.size} lid i skranni`);
 
   if (schedule.length) {
+    /* ============================================================
+       SPURT ER UM HRAA KODANN — `normTeam` HER GERDI VORDINN BLINDAN
+       ============================================================
+       Her stod `!NFL_TEAMS.includes(normTeam(t))`, sem samraemir
+       ADUR en spurt er: `LA` verdur `LAR` og fullyrdingin stenst.
+       Hun gat thvi ALDREI seð thad astand sem notan tveimur linum ofar
+       lysir sem villunni sjalfri — og thad var einmitt astandid:
+       `schedule.json` bar `LA` medan `players.json` ber `LAR`, i marga
+       manudi, undir graenum verdi.
+
+       Linan fyrir `players.json` (ofar) spyr um HRAA kodann; hér er
+       gert eins. Þad er invariantid: skrarnar tvaer eru samkeyrdar, svo
+       thaer verda ad tala SAMA MALID a diski, ekki adeins eftir
+       samraemingu i minni. */
     const sTeams = new Set(schedule.flatMap((g) => [g.home, g.away]).filter(Boolean));
-    const sUnknown = [...sTeams].filter((t) => !NFL_TEAMS.includes(normTeam(t)));
+    const sUnknown = [...sTeams].filter((t) => !NFL_TEAMS.includes(t));
     ok(sUnknown.length === 0,
-      `leikjaskrain ber adeins gild lidsheiti (${sUnknown.join(", ") || "hrein"})`);
+      `leikjaskrain ber adeins gild lidsheiti, OSAMRAEMD (${sUnknown.join(", ") || "hrein"})`);
+  }
+
+  /* ============================================================
+     SKRAR SEM ERU SAMKEYRDAR VERDA AD BERA SOMU LYKLA
+     ============================================================
+     Þetta er vordurinn sem hefdi gripid `LA`/`LAR` a fyrsta degi.
+     `weekview.js` flettir `defense` upp med lidi ur `schedule`;
+     `build.js` flettir `sos` upp med lidi ur `players`. Se lyklamengid
+     ekki hid sama tapast lid ThEGJANDI — Rams-vornin maeldist "audur
+     leikur" i 17 vikum af 17 an thess ad nokkur fullyrding felli.
+
+     Borid er a HRAUM gildum af nakvaemlega theirri astaedu sem stendur
+     hér ad ofan.                                                    */
+  {
+    const keySets = [];
+    const add = (name, set) => { if (set.size) keySets.push([name, set]); };
+    add("players.json", new Set(players.map((p) => p.team).filter(Boolean)));
+    if (schedule.length) {
+      add("schedule.json", new Set(schedule.flatMap((g) => [g.home, g.away]).filter(Boolean)));
+    }
+    if (has("defense.json")) {
+      const d = read("defense.json");
+      const rows = Array.isArray(d) ? d : (d.rows || d.teams || []);
+      add("defense.json", new Set(rows.map((r) => r && r.team).filter(Boolean)));
+    }
+    if (has("team_form.json")) {
+      const tf = read("team_form.json");
+      const rows = Array.isArray(tf) ? tf : Object.values(tf).flat().filter(Boolean);
+      add("team_form.json", new Set(rows.map((r) => r && r.team).filter(Boolean)));
+    }
+    ok(keySets.length >= 2,
+      `ThEKJA: ${keySets.length} skrar bera lidskoda (annars maelir vordurinn ekkert)`);
+    const base = keySets[0];
+    for (const [name, set] of keySets.slice(1)) {
+      const only = [...set].filter((t) => !base[1].has(t));
+      const missing = [...base[1]].filter((t) => !set.has(t) && set.size >= 30);
+      ok(only.length === 0,
+        `${name} ber engan koda sem ${base[0]} thekkir ekki (${only.join(", ") || "hreint"})`);
+      ok(missing.length === 0,
+        `og engan vantar (${missing.join(", ") || "hreint"})`);
+    }
   }
 }
 

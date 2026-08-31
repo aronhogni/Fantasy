@@ -171,7 +171,18 @@ export async function schedule(seasons) {
     id: g.game_id,
     season: num(g.season), week: num(g.week), type: g.game_type,
     date: str(g.gameday), time: str(g.gametime), weekday: str(g.weekday),
-    away: str(g.away_team), home: str(g.home_team),
+    /* ============================================================
+       NORMTEAM BADUM MEGIN (31.8.2026)
+       ============================================================
+       Systurlinan i thessari sömu skra (`weekly`, lina ~125) skrifar
+       `normTeam(...)` — thessi gerdi thad ekki, svo `schedule.json` bar
+       `LA` medan `weekly`/`seasons`/`defense` bera `LAR`. Hver
+       samkeyrsla milli theirra tapadi Rams ThEGJANDI, og thad var maelt:
+       Rams-vornin var flogguð "audur leikur" i **17 vikum af 17**,
+       `ros.teamGames` felldi **22 leikmenn**, og 386 leikmanna-vikur
+       gegn Rams tapadu DvP-lidnum. Skjolunin i haus thessarar skrar
+       lysir reglunni rett; hun var einfaldlega ekki beitt hér.       */
+    away: normTeam(str(g.away_team)), home: normTeam(str(g.home_team)),
     awayScore: num(g.away_score), homeScore: num(g.home_score),
     // spread_line er ur SJONARHORNI HEIMALIDS og jakvaett = heimalid
     // er favorit. Thad er OFUGT vid amerisku skiltakonvensjonina og
@@ -438,7 +449,7 @@ export async function teamWeekly(seasons) {
         "rushing_yards", "rushing_tds", "passing_epa", "rushing_epa",
         "def_sacks", "def_interceptions", "def_tds"]);
       out[yr] = rows.filter((r) => r.season_type === "REG").map((r) => ({
-        team: str(r.team), week: num(r.week), opp: str(r.opponent_team),
+        team: normTeam(str(r.team)), week: num(r.week), opp: normTeam(str(r.opponent_team)),
         patt: num(r.attempts), pyd: num(r.passing_yards), ptd: num(r.passing_tds),
         car: num(r.carries), ryd: num(r.rushing_yards), rtd: num(r.rushing_tds),
         pepa: num(r.passing_epa), repa: num(r.rushing_epa),

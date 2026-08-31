@@ -29,6 +29,21 @@
    ============================================================ */
 
 import { weeklyProjection, impliedTeamTotals } from "./model.js";
+/* ============================================================
+   LIDSKODINN ER SAMRAEMDUR VID LESTUR (31.8.2026)
+   ============================================================
+   `schedule.json` og `team_form.json` baru `LA` fyrir Rams medan
+   `players.json`, `defense.json` og `weekly/*` bera `LAR`. Skrifin eru
+   lagfaerd i `scripts/sources/nflverse.mjs`, EN thad daekkir ekki
+   skrarnar sem eru ThEGAR committadar — og `schedule_history.json` er
+   eins-skiptis afurð sem verdur aldrei sott aftur. Þess vegna er
+   samraemt BADUM MEGIN: vid skrif svo gogn framtidarinnar seu rett, og
+   vid lestur svo gogn dagsins i dag seu thad lika.
+
+   MAELT ADUR EN ThESSU VAR BREYTT: Rams-vornin flogguð "audur leikur"
+   i 17 vikum af 17, `teamGames` felldi 22 leikmenn, og 386
+   leikmanna-vikur gegn Rams tapadu DvP-lidnum thegjandi.             */
+import { normTeam } from "./names.js";
 /* ÞESSI TALA VAR SKRIFUD TVISVAR. `usageblend.js` flytur `GAMES_IN_SEASON`
    ut MED ATHUGASEMD um ad thad se "sama tala og `weekview` deilir med" —
    og `weekview` bar sitt eigid `17`. Tvo afrit af somu forsendu, og
@@ -272,9 +287,10 @@ export function weekContext({ schedule, defense, week, season }) {
        — 327 lid-vikur af 576 i maelingunni. Nu er hlidid a TOLUNNI, ekki
        a hlutnum: fjarvera er fjarvera og hun er ekki SKRIFUD. */
     const t = impliedTeamTotals(g.total, g.spread);
-    if (t && t.home != null) implied.set(g.home, t.home);
-    if (t && t.away != null) implied.set(g.away, t.away);
-    opp.set(g.home, g.away); opp.set(g.away, g.home);
+    const H = normTeam(g.home), A = normTeam(g.away);
+    if (t && t.home != null) implied.set(H, t.home);
+    if (t && t.away != null) implied.set(A, t.away);
+    opp.set(H, A); opp.set(A, H);
   }
   /* SIDAD A TIMABIL — sja skjolun ad ofan. `season == null` gefur tomt
      kort, og tomt kort thydir "engin vorn", ekki "vorn = 0". */
@@ -287,7 +303,7 @@ export function weekContext({ schedule, defense, week, season }) {
        fyrir bakdyrnar. */
     if (d.season == null) { defUnlabelled++; continue; }
     if (want == null || Number(d.season) !== want) continue;
-    dvp.set(`${d.team}|${d.pos}`, d);
+    dvp.set(`${normTeam(d.team)}|${d.pos}`, d);
     defRows++;
   }
   return {
@@ -338,8 +354,8 @@ export function weekRows(roster, ctx, usage) {
     const base = seasonProj != null ? seasonProj / GAMES_IN_SEASON : null;
     let proj = base;
     if (ctx && base != null && r.team) {
-      const o = ctx.opp.get(r.team);
-      const d = o ? ctx.dvp.get(`${o}|${r.pos}`) : null;
+      const o = ctx.opp.get(normTeam(r.team));
+      const d = o ? ctx.dvp.get(`${normTeam(o)}|${r.pos}`) : null;
       const wp = weeklyProjection({
         base, pos: r.pos, implied: ctx.implied.get(r.team),
         def: d ? { adj: d.adj, leagueMean: d.leagueMean } : null,
@@ -521,7 +537,7 @@ export function dstStream({ ctx, teams, taken, mine } = {}) {
   }
 
   const rows = list.map((t) => {
-    const opp = ctx.opp.get(t.team) ?? null;
+    const opp = ctx.opp.get(normTeam(t.team)) ?? null;
     const raw = ctx.implied.get(t.team);
     /* MOTHERJANS vaenta skor er thad sem vornin gefur fra ser. `implied`
        ber EIGID vaent skor hvers lids, svo thetta er flettingin a

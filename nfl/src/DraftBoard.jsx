@@ -55,6 +55,10 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   const scope = D.boardScope(leagueKey, sync && sync.draftId);
   const kTaken = D.scoped("taken", scope);
   const kMine = D.scoped("myPicks", scope);
+  /* HANDVIRKU VOLIN SER — sja notuna vid `onPicks`. Their eru THIN
+     skraning og mega ekki hverfa thegar Sleeper-listinn er endurbyggdur. */
+  const kManual = D.scoped("manualTaken", scope);
+  const kManualMine = D.scoped("manualMine", scope);
   /* ============================================================
      AUDKENNIN ERU ÞVINGUD, EKKI ADEINS FYLKID
      ============================================================
@@ -88,15 +92,24 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     .filter(Boolean));
   const [taken, setTaken] = useState(() => idSet(D.loadState(kTaken, [])));
   const [myPicks, setMyPicks] = useState(() => idSet(D.loadState(kMine, [])));
+  const [manualIds, setManualIds] = useState(() => idSet(D.loadState(kManual, [])));
+  const [manualMine, setManualMine] = useState(() => idSet(D.loadState(kManualMine, [])));
+  /* `onPicks` er `useCallback` med TOMUM deps (hun ma ekki endurskapast —
+     sja notuna thar), svo hun getur ekki lesid `manualIds` beint. Refin
+     ber lifandi gildid an thess ad endurraesa pollunina. */
+  const manualRef = useRef({ ids: new Set(), mine: new Set() });
+  useEffect(() => { manualRef.current = { ids: manualIds, mine: manualMine }; },
+    [manualIds, manualMine]);
   /* HANDVIRK YFIRTAKA a mine/gone thegar samstillingin gengur — sja longu
      notuna vid `autoMine` nedar. VILJANDI EKKI VISTUD: hun er neydarurraedi
      fyrir eitt val sem pollunin missti, ekki stilling. Vistud hefdi hun
      lifad draftid og skilad honum hnoppunum sem hann bad um ad faera. */
   const [manual, setManual] = useState(false);
-  /* Refin er SANNLEIKURINN UM SIDASTA SVAR FRA SLEEPER — sja langa notuna
-     vid `onPicks`. Hun er skilgreind HER en ekki thar thvi skipti um bord
-     verda ad geta nullstillt hana, og thau gerast ofar i skranni. */
-  const lastSync = useRef({ ids: new Set(), mine: new Set() });
+  /* `lastSync`-REFIN ER FARIN (31.8.2026). Hun bar "sidasta svar fra
+     Sleeper" fyrir mismunar-regluna; bordid er nu endurbyggt i hverri
+     pollun (`manual ∪ sleeper`), svo minni um sidasta svar er hvorki
+     thorf ne oskad — thad var einmitt thad sem nullstilltist vid
+     flipa-smell og gerdi eydd vol oafturkraef. Sja `onPicks`. */
   /* Vol sem Sleeper hefur skrad en bordid kann ekki ad para. Þau ERU
      komin, svo thau tilheyra valnumerinu — sja `pickNo` nedar. Ekki
      vistad: thad er lesid upp a nytt i hverri pollun og vistad gildi an
@@ -163,6 +176,8 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     setStateScope(scope);
     setTaken(t);
     setMyPicks(idSet(D.loadState(kMine, [])));
+    setManualIds(idSet(D.loadState(kManual, [])));
+    setManualMine(idSet(D.loadState(kManualMine, [])));
     /* `offBoard` er tala ur SIDUSTU POLLUN og su pollun var a odru
        drafti. Hun er ekki vistud, svo nyja bordid byrjar a 0 og faer
        sina eigin tolu vid fyrstu pollun. */
@@ -171,7 +186,6 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     /* Og minnid um sidasta Sleeper-svar er minni um ANNAD draft. Vaeri
        thad ekki nullstillt myndi mismunar-reglan i `onPicks` reyna ad
        fjarlaegja vol hins draftsins ur thessu bordi. */
-    lastSync.current = { ids: new Set(), mine: new Set() };
     setRestored(t.size);
   }
 
@@ -192,6 +206,9 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      baka vid naestu hledslu). */
   useEffect(() => { D.saveScoped(kTaken, [...taken]); }, [kTaken, taken]);
   useEffect(() => { D.saveScoped(kMine, [...myPicks]); }, [kMine, myPicks]);
+  useEffect(() => { D.saveScoped(kManual, [...manualIds]); }, [kManual, manualIds]);
+  useEffect(() => { D.saveScoped(kManualMine, [...manualMine]); },
+    [kManualMine, manualMine]);
   /* Bord safnast upp — eitt per mock — svo thau elstu eru grisjud. Adeins
      draft-bord; handvirka bordid er eina eintakid af sinum volum.
 
@@ -227,6 +244,23 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     () => rows.filter((r) => r.aRank == null && r.vbd != null && !taken.has(r.id))
               .sort((a, b) => b.vbd - a.vbd),
     [rows, taken]);
+  /* SPYRNUMENN RADAST EFTIR ThVI SEM REGLAN MAELIR — sja notuna vid
+     chipana. Vardir halda VBD-rodinni, thvi rod theirra er MAELD OG
+     FELLD (`dst-lab`: streymi +3,82 t=5,75 gegn rod +0,77 t=1,16).
+     `kdst` sjalft er OHREYFT: `kdstPick` les thad og su leid er maeld. */
+  const kdstOrdered = useMemo(() => {
+    const ks = kdst.filter((r) => r.pos === "K")
+      .sort((a, b) => (b.lastPts ?? -1) - (a.lastPts ?? -1));
+    const ds = kdst.filter((r) => r.pos !== "K");
+    /* Fléttad svo BADAR stodur seu synilegar innan sextan-marksins —
+       annars aetti onnur theirra allan listann. */
+    const out = [];
+    for (let i = 0; i < Math.max(ks.length, ds.length); i++) {
+      if (ks[i]) out.push(ks[i]);
+      if (ds[i]) out.push(ds[i]);
+    }
+    return out;
+  }, [kdst]);
 
   const shown = useMemo(
     () => (posFilter.length ? available.filter((r) => posFilter.includes(r.pos)) : available),
@@ -333,6 +367,8 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
   const hasDraftTeams = Number.isFinite(dTeams) && dTeams >= 2 && dTeams <= 32;
   const hasDraftRounds = Number.isFinite(dRounds) && dRounds >= 1 && dRounds <= 40;
   const snakeTeams = hasDraftTeams ? dTeams : (Number(league.teams) || 12);
+
+
   /* GERD DRAFTSINS. `imported.draftType` kemur ur `/draft/{id}.type` og
      var geymd fra fyrsta degi en ALDREI LESIN — snakk var reiknad hvad
      sem hun sagdi. Í linear-drafti er rodin eins i hverri umferd, svo
@@ -342,6 +378,40 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      ad hun a ad vera HEIDRUD en ekki flogguð). Othekkt gerd -> snakk. */
   const draftType = (imported && imported.draftType) || null;
   const rounds = hasDraftRounds ? dRounds : (league.rounds || 15);
+
+  /* ============================================================
+     HVENAER MA BIDA MED SPYRNUMANN? SPURT, EKKI FULLYRT
+     ============================================================
+     Reglan sem kassinn ber er "einn af topp-5 sidasta timabils". Su
+     regla er ONYT an thess ad vita hvenaer their klarast — og appid ber
+     `survivalProb`, sem var aldrei keyrd a thessa stodu. Lifun HOPSINS
+     er 1 - PRODUKT(1 - p_i): likurnar a ad A.M.K. EINN se eftir, sem er
+     nakvaemlega thad sem reglan tharf.
+
+     `safeRound` er SIDASTA umferdin thar sem thad er >= 90%. Talan er
+     leidd af snakk-rodinni og ADP dagsins, ekki skrifud. */
+  const kSurvive = useMemo(() => {
+    const top5 = rows.filter((r) => r.pos === "K" && r.lastPts != null)
+      .sort((a, b) => b.lastPts - a.lastPts).slice(0, 5)
+      .filter((r) => r.adp != null);
+    if (top5.length < 3 || !snakeTeams || !rounds) return null;
+    const anyLeft = (pickNoAt) => 1 - top5.reduce((acc, r) => {
+      const p = survivalProb(r.adp, r.adpSd, pickNoAt);
+      return acc * (1 - (p == null ? 0 : p));
+    }, 1);
+    const lastPickNo = snakeTeams * rounds;
+    let safeRound = null;
+    for (let rd = 1; rd <= rounds; rd++) {
+      /* Versta tilfellid innan umferdarinnar: SIDASTA valid i henni. */
+      if (anyLeft(rd * snakeTeams) >= 0.9) safeRound = rd;
+    }
+    if (safeRound == null) return null;
+    return {
+      safeRound,
+      safePct: Math.round(anyLeft(safeRound * snakeTeams) * 100),
+      lastPct: Math.round(anyLeft(lastPickNo) * 100),
+    };
+  }, [rows, snakeTeams, rounds]);
   /* Hve morg vol eru i draftinu ALLS. Þetta er thakid sem "Pick 151"
      bratt — og thad er nu talid ur draftinu sjalfu. */
   const totalPicks = snakeTeams * rounds;
@@ -508,19 +578,42 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
      VILJANDI utan mismunarins — laekki ekki heldur, og hvorug er
      lagfaeranleg her: THAU EIGA AD LIFA innan sins drafts.            */
   const onPicks = useCallback((ids, mineIds, offCount, offMine) => {
-    /* Sleeper hefur talad — bordid er ekki lengur "endurheimt ur vafra". */
+    /* ============================================================
+       ENDURBYGGT, EKKI MISMUNAD (31.8.2026)
+       ============================================================
+       Her stod MISMUNUR gegn `lastSync`-refinni: thad sem var i sidasta
+       svari en ekki i thessu var fjarlaegt. Notan hér ad ofan skjaladi
+       veikleikann sjalf — refin byrjar TOM vid hverja hledslu, svo fyrsta
+       pollun eftir mount getur EKKERT ANNAD EN BAETT VID — og kalladi hann
+       olagfaeranlegan af thvi ad handvirk vol yrdu ad lifa.
+
+       RYNNI 31.8.2026 MAELDI HVAD ThAD KOSTAR, og thad er verra en F5:
+       `App.jsx` teiknar `{view === "draft" && <DraftBoard/>}`, svo
+       EINN SMELLUR A ANNAN FLIPA aftengir hlutinn og nullstillir refina.
+
+         20 vol komin -> smellt a Dashboard -> umsjonarmadur eydir vali 10
+         -> smellt aftur a Draft: skjarinn segir **20 drafted, "Pick 21"**
+         thar sem sannleikurinn er 19/20. Tiu volum sidar: 30 gegn 29.
+         Þad LEIDRETTIST ALDREI, og CeeDee Lamb er afram utstrikadur og
+         OVELJANLEGUR. `pickNo` fædir `nextOwnPick` og hverja einustu
+         lifunar-prosentu, svo eitt umsjonar-lagfaering plus einn
+         flipa-smellur eitrar hvert "% likely to last" thad sem eftir er
+         kvoldsins.
+
+       LAUSNIN ER AD HAETTA AD MISMUNA. Sleeper-listinn er ENDANLEG
+       heimild um Sleeper-vol; handvirku volin eru MIN skraning og bua nu
+       i SINU EIGIN mengi (`manualIds`), sem er vistad eins og hin.
+       Bordid er thvi `manual ∪ sleeper` — reiknad upp a nytt i hverri
+       pollun, an nokkurs minnis um sidasta svar.
+
+       ÞA ER ENGIN REF TIL AD NULLSTILLAST: F5, flipa-smellur, reset og
+       endurtenging gefa OLL sama rett svar, thvi ekkert theirra getur
+       tapad minni sem er ekki lengur til.                             */
     setRestored(0);
     const nextIds = new Set(ids), nextMine = new Set(mineIds);
-    const prevSync = lastSync.current;
-    const reconcile = (prev, gone, add) => {
-      const out = new Set(prev);
-      for (const id of gone) if (!add.has(id)) out.delete(id);
-      for (const id of add) out.add(id);
-      return out;
-    };
-    setTaken((prev) => reconcile(prev, prevSync.ids, nextIds));
-    setMyPicks((prev) => reconcile(prev, prevSync.mine, nextMine));
-    lastSync.current = { ids: nextIds, mine: nextMine };
+    const man = manualRef.current;
+    setTaken(new Set([...man.ids, ...nextIds]));
+    setMyPicks(new Set([...man.mine, ...nextMine]));
     /* SETT, EKKI LOGD VID — `unknown` er talid ur ollum listanum i hverri
        pollun. `null`/skokk gildi ma ekki verda `NaN` i valnumerinu. */
     const n = Math.round(Number(offCount));
@@ -531,11 +624,17 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
 
   const take = (r, mine) => {
     setRestored(0);
+    /* HANDVIRKT VAL ER SKRAD SER — annars thurrkast thad ut i naestu
+       pollun, thvi bordid er nu `manual ∪ sleeper`. Sja `onPicks`. */
+    setManualIds((prev) => new Set(prev).add(r.id));
+    if (mine) setManualMine((prev) => new Set(prev).add(r.id));
     setTaken((prev) => new Set(prev).add(r.id));
     if (mine) setMyPicks((prev) => new Set(prev).add(r.id));
   };
   const undo = (r) => {
     setRestored(0);
+    setManualIds((prev) => { const t = new Set(prev); t.delete(r.id); return t; });
+    setManualMine((prev) => { const m = new Set(prev); m.delete(r.id); return m; });
     setTaken((prev) => { const t = new Set(prev); t.delete(r.id); return t; });
     setMyPicks((prev) => { const m = new Set(prev); m.delete(r.id); return m; });
   };
@@ -564,7 +663,6 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
     /* Minnid um sidasta svar fer LIKA. Annars vaeri "hreinsa" hálft:
        mismunar-reglan i `onPicks` bæri afram vol ur drafti sem er buid
        ad slita, og fyrsta pollun naesta drafts hefdi rangan grunn. */
-    lastSync.current = { ids: new Set(), mine: new Set() };
     /* OG GEYMSLAN LIKA, BERUM ORDUM. Ad slita tenginguna faerir bordid
        yfir a deildar-lykilinn (`boardScope`), svo `setTaken(tomt)` hér
        aetti aldrei leid i lykil DRAFTSINS — hann sæti oskertur eftir og
@@ -824,8 +922,27 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
              EKKI thess virdi er su eina sem stodvar augljosa en maelt
              ranga hugmynd. */
           <div className="note" style={{ marginTop: 10 }}>
-            <b>If you want a rule for the kicker: take one of last season's top five.</b>
-            {" "}<b>It is a last-round pick.</b>
+            <b>If you want a rule for the kicker: take one of last season&apos;s top five.</b>
+            {" "}
+            {/* ============================================================
+                "IT IS A LAST-ROUND PICK" VAR FULLYRDING SEM APPID SJALFT
+                MOTMAELTI (31.8.2026)
+                ============================================================
+                `survivalProb` er i skranni og var ALDREI keyrd a
+                spyrnumenn. Keyrd i dag a topp-5 sidasta timabils segir
+                hun: 100% ad vali 133, 94% ad 145, 70% ad 157 og **52% ad
+                163** — sem er nakvaemlega sidasta umferdin i 12-lida
+                14-umferda drafti. "Sidasta umferd" var thvi hlutkesti,
+                sagt sem regla.
+
+                TALAN ER REIKNUD, EKKI SKRIFUD: hun er lesin ur sama
+                falli og "Lasts?"-dalkurinn, ur ADP dagsins. Fost tala
+                hér vaeri urelt vid naestu ADP-keyrslu — sama regla og
+                gildir um allar adrar tolur i thessu appi. */}
+            {kSurvive ? (
+              <b>Round {kSurvive.safeRound} is free ({kSurvive.safePct}% one of them lasts);
+              by your last pick it is {kSurvive.lastPct}% — a coin toss.</b>
+            ) : <b>It is a late pick.</b>}
             <Fine summary="How big the rule is, and what does not work">
               Measured on {kickers.seasons.length} seasons — worth{" "}
               <b>{kickers.rules.top5.gain > 0 ? "+" : ""}{kickers.rules.top5.gain} points
@@ -866,21 +983,47 @@ export default function DraftBoard({ rows, meta, league, season, accuracy, kicke
             ÞVI TAKA their EKKI ThEGAR APPID SKRAIR SJALFT. Þeir hverfa
             ekki — upplysingin (hverjir eru eftir, i hvadri rod) er thad
             sem spjaldid er til fyrir — their hetta bara ad skrifa.     */}
+        {/* ============================================================
+            REGLAN VAR OFRAMKVAEMANLEG AF LISTANUM SEM STOD UNDIR HENNI
+            ============================================================
+            RYNNI 31.8.2026: kassinn segir "take one of last season's top
+            five" — og chiparnir voru radadir eftir VBD og skornir vid 16,
+            svo **fjordi besti spyrnumadur sidasta timabils (Cameron
+            Dicker, 169 stig) var alls ekki i listanum** (VBD-rod 17).
+            Reglan var maeld, birt og OFRAMKVAEMANLEG af sinum eigin lista.
+
+            TVENNT ER LAGAD, hvort eftir sinni maelingu:
+              K   raðast eftir `lastPts` — thad ER reglan (+15,6 stig,
+                  6 af 6 timabilum). Ad rada theim eftir spa vaeri ad
+                  rada eftir tolu sem appid segir sjalft ad flytjist
+                  varla milli ara (r = 0,13).
+              DST raðast afram eftir VBD OG ER EKKI REGLA: `dst-lab`
+                  maelir ad STREYMI slai rod (+3,82, t = 5,75) medan
+                  rod eftir fyrra timabili gefur +0,77 (t = 1,16).
+                  Listinn er thvi "hverjir eru eftir", ekki "hvern".
+
+            Og talan sem reglan byggir a stendur A CHIPNUM. Regla sem
+            visar i tolu sem er hvergi synileg er ekki regla. */}
         <div className="chips">
-          {kdst.slice(0, 16).map((r) => (
-            autoMine && !manual ? (
+          {kdstOrdered.slice(0, 16).map((r) => {
+            const last = r.lastPts == null ? null : Math.round(r.lastPts);
+            const tip = `${r.pos === "K" ? "2025 total " + (last == null ? "—" : last)
+              : "VBD " + (r.vbd == null ? "—" : r.vbd.toFixed(1))}`
+              + (r.bye != null ? ` · bye ${r.bye}` : "")
+              + (r.adp != null ? ` · ADP ${Math.round(r.adp)}` : "");
+            const label = (
+              <>{r.pos} {r.name}
+                {last != null && <span className="dim" style={{ marginLeft: 4 }}>{last}</span>}
+              </>
+            );
+            return autoMine && !manual ? (
               <span key={r.id} className="chip" style={{ cursor: "default" }}
-                title={`VBD ${r.vbd == null ? "—" : r.vbd.toFixed(1)}`
-                  + " · read from your draft when you take him"}>
-                {r.pos} {r.name}
-              </span>
+                title={`${tip} · read from your draft when you take him`}>{label}</span>
             ) : (
               <button key={r.id} className="chip" onClick={() => take(r, true)}
-                title={`VBD ${r.vbd == null ? "—" : r.vbd.toFixed(1)}`}>
-                {r.pos} {r.name}
-              </button>
-            )
-          ))}
+                title={tip}>{label}</button>
+            );
+          })}
         </div>
       </div>
     </>
@@ -1934,7 +2077,7 @@ function SleeperSync({ sync, setSync, season, rows, onPicks, shapes, league,
     setPollErr(null);
     /* Og logunin uppi LIKA. Vaeri hun ekki nullstillt bæri bordid afram
        lidafjolda draftsins sem var slitid — og reiknadi snakk-tolur ur
-       drafti sem er ekki tengt. Sama aett og `lastSync`-refin. */
+       drafti sem er ekki tengt. Sama aett og gamla `lastSync`-refin var. */
     if (onShape) onShape(null);
   }, [sync.draftId]);
 
