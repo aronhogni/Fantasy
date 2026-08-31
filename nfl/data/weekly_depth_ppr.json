@@ -1,0 +1,120 @@
+{
+ "generated": "2026-08-31T15:50:32.927Z",
+ "provenance": {
+  "generated": "2026-08-31T15:50:32.927Z",
+  "argv": [
+   "--runs=25"
+  ],
+  "params": {
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": true
+   },
+   "proj": {
+    "value": "sleeper",
+    "fromDefault": true
+   },
+   "runs": {
+    "value": "25",
+    "fromDefault": false
+   },
+   "k": {
+    "value": 30,
+    "fromDefault": true
+   },
+   "teams": {
+    "value": 12,
+    "fromDefault": true
+   },
+   "rounds": {
+    "value": 14,
+    "fromDefault": true
+   },
+   "weeks": {
+    "value": 17,
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   },
+   "weekly/*.json": null
+  },
+  "node": "v26.5.0"
+ },
+ "scoring": "ppr",
+ "proj": "sleeper",
+ "needK": 30,
+ "seasons": [
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "teams": 12,
+ "rounds": 14,
+ "weeks": 17,
+ "perSeason": {
+  "2021": {
+   "starters": 64.6,
+   "weekly": 56.3,
+   "bench": 20.5
+  },
+  "2022": {
+   "starters": 194.4,
+   "weekly": 225.1,
+   "bench": 9.2
+  },
+  "2023": {
+   "starters": 56.1,
+   "weekly": 88.5,
+   "bench": 50.6
+  },
+  "2024": {
+   "starters": 28.9,
+   "weekly": -13,
+   "bench": -14
+  },
+  "2025": {
+   "starters": 80.5,
+   "weekly": 68.2,
+   "bench": 37.1
+  }
+ },
+ "tests": {
+  "starters": {
+   "mean": 84.9,
+   "t": 2.97,
+   "lo": 5.5,
+   "hi": 164.3,
+   "significant": true,
+   "wins": 5,
+   "years": 5,
+   "signP": 0.03125
+  },
+  "weekly": {
+   "mean": 85,
+   "t": 2.18,
+   "lo": -23.1,
+   "hi": 193.2,
+   "significant": false,
+   "wins": 4,
+   "years": 5,
+   "signP": 0.1875
+  },
+  "bench": {
+   "mean": 20.7,
+   "t": 1.85,
+   "lo": -10.3,
+   "hi": 51.7,
+   "significant": false,
+   "wins": 4,
+   "years": 5,
+   "signP": 0.1875
+  }
+ }
+}

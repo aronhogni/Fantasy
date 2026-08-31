@@ -196,5 +196,53 @@ console.log("\nupphafsstafa-threpid krefst lids badum megin");
     "og lika thott lid stemmi ekki — thad threp krefst thess ekki");
 }
 
+/* ============================================================
+   VORN PARAST A LIDI, EKKI A NAFNI (31.8.2026)
+   ============================================================
+   MAELT A RAUNGOGNUNUM: **0 af 32** vordum baru FFC-ADP, thvi FFC
+   nefnir thaer "Seattle Defense" og vid "Seattle Seahawks". `build.js`
+   fell thvi thegjandi i Sleeper-ADP fyrir vardir EINAR medan allir 251
+   skilamenn notudu FFC — TVEIR KVARDAR I SAMA DALKI, medal-|munur|
+   47,1 val (3,9 umferdir) og 22 af 26 hallandi SEINT.
+
+   Kaflinn ver thrennt, og thad thridja er thad sem gerir threpid
+   oruggt: EKKERT LID -> ENGIN PORUN. Vaeri thvi sleppt vaeri threpid
+   ad giska, sem er nakvaemlega thad sem thessi modull er til ad hindra.
+   ============================================================ */
+console.log("\nvorn parast a lidi");
+{
+  const ffc = [
+    { name: "Seattle Defense", pos: "DST", team: "SEA", adp: 81.9 },
+    { name: "LA Rams Defense", pos: "DST", team: "LAR", adp: 108.5 },
+    { name: "Denver Defense", pos: "DST", team: "DEN", adp: 87.2 },
+    /* Skilamadur i somu toflu — nafna-threpin verda ad standa oskert. */
+    { name: "Nick Folk", pos: "K", team: "TEN", adp: 200 },
+  ];
+  const idx = buildIndexes(ffc);
+  const via = (n, p, t) => { const m = matchByName(idx, n, p, t); return m ? m.via : null; };
+
+  ok(via("Seattle Seahawks", "DST", "SEA") === "dst-team",
+    "\"Seattle Seahawks\" parast vid \"Seattle Defense\" gegnum lidid");
+  ok(via("Los Angeles Rams", "DST", "LA") === "dst-team",
+    "og LID-SKAMMSTOFUN er samraemd (LA -> LAR), annars tapast Rams");
+  ok(via("Seattle Seahawks", "DST", null) === null,
+    "ENGIN porun an lids — threpid giskar ekki");
+  ok(via("Houston Texans", "DST", "HOU") === null,
+    "og lid sem FFC ber ekki faer ENGA porun (ekki naesta vorn)");
+  /* ÞETTA ER PROFSTEINNINN A ÞVI AD ÞREPID SE EKKI OF GRAÐUGT: vorn
+     ma ekki parast vid SKILAMANN a sama lidi, og skilamadur ma ekki
+     fara i vorna-threpid. */
+  ok(via("Nick Folk", "K", "TEN") === "exact",
+    "skilamadur parast afram a NAFNI (exact), ekki gegnum lid");
+  ok(matchByName(idx, "Tennessee Titans", "DST", "TEN") === null,
+    "og vorn a lidi sem FFC ber adeins SKILAMANN a parast ekki vid hann");
+  /* Tvo lid, tvaer vardir, engin blondun. */
+  const a = matchByName(idx, "Seattle Seahawks", "DST", "SEA");
+  const b = matchByName(idx, "Denver Broncos", "DST", "DEN");
+  ok(a && b && a.item.adp === 81.9 && b.item.adp === 87.2,
+    `hvert lid faer SINA tolu (${a && a.item.adp} / ${b && b.item.adp})`);
+}
+
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

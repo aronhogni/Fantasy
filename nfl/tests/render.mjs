@@ -883,7 +883,11 @@ console.log("\n8. felldur rokstudningur a draft-bordinu");
     const src = readFileSync(
       path.join(new URL(".", import.meta.url).pathname, "..", "src", "DraftBoard.jsx"),
       "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
-    ok(/Bye overlap in your roster/.test(src),
+    /* AKKERID FYLGIR KASSANUM, EKKI ORDALAGINU SEM VAR: fyrirsognin var
+       "Bye overlap in your roster" thar til rodun theirra var lagfaerd
+       31.8.2026 (taldar A VIKU, ekki innan stodu). Fullyrdingin er um
+       ad kassinn SE til; hun ma ekki falla thegar hann er lagfaerdur. */
+    ok(/worst bye week/.test(src),
       "ThEKJA: uppruna-leitin les raunverulega `DraftBoard.jsx` (bye-kassinn fannst)");
     const fineBlocks = src.match(/<Fine\b[\s\S]*?<\/Fine>/g) || [];
     ok(fineBlocks.length >= 4,

@@ -385,11 +385,31 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
   const teams = league.teams || 12;
   /* Gefid `nextPick` VINNUR. Hafnad er adeins tolu sem er ekki eftir
      `pick` — hun gaefi negatifa bid og "0% lifun" a alla. */
+  const seatKnown = Number.isFinite(nextIn) && nextIn > pick;
   const nextPick = lastPick ? null
-    : (Number.isFinite(nextIn) && nextIn > pick
+    : (seatKnown
         ? Math.round(nextIn)
         : pick + picksUntilNext(pick, teams, draftType));
   const wait = nextPick == null ? null : nextPick - pick;
+  /* ============================================================
+     HVADAN NAESTA VAL KEMUR — SAETID EDA AFLEIDSLAN (31.8.2026)
+     ============================================================
+     `picksUntilNext` er varaleid fyrir HANDVIRKT draft, thar sem
+     notandinn er sjalfur klukkan. Se saetid OThEKKT i LIFANDI drafti
+     gefur hun samt tolu — og tha er hun saeti thess sem er a klukkunni,
+     ekki thitt.
+
+     RYNNI 31.8.2026 MAELDI ThAD: draft tengt an notandanafns, rodin
+     odregin, 13 vol komin. Bordid litadi rettilega EKKERT (`nextOwn`
+     null) en kassinn skrifadi "Your next pick is 27, 13 picks away" og
+     "89% likely to still be there at pick 27". Tvennt a somu skjámynd,
+     og adeins annad var satt.
+
+     TALAN ER EKKI FJARLAEGD — hun er RETT i handvirku drafti og
+     `survivalProb` tharf hana. Hun er MERKT, svo vidmotid geti sagt
+     hvort hun er svar eda agiskun. Sama regla og `slotRoute`: thogult
+     rett svar og thogult rangt svar lita eins ut.                   */
+  const nextPickFrom = nextPick == null ? null : (seatKnown ? "seat" : "derived");
 
   /* ============================================================
      TILTAEKILEIKI 0 = SPILAR EKKI. HANN VAR ALDREI SPURDUR.
@@ -633,6 +653,54 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
   const needed = mustFill.reduce((a, m) => a + m.short, 0);
 
   /* ============================================================
+     TOM BYRJUNARSAETI I STODUM SEM RODIN **NAER TIL** (31.8.2026)
+     ============================================================
+     `mustFill` sleppir hverri stodu sem `expNext` thekkir — thad er
+     QB, RB, WR og TE, ALLTAF. Rokin voru ad rodin naer til theirra og
+     muni thvi leysa thau sjalf. RYNNI 31.8.2026 SYNDI AD HUN GERIR
+     ÞAD EKKI:
+
+       hopur 5 RB / 8 WR, EITT val eftir, ekkert QB og ekkert TE
+       -> "Still to fill: 1 K, 1 DST"  ... og urskurdurinn var VORN.
+
+     Appid sendi mann i vorn medan hann var ad fara ad byrja timabilid
+     an leikstjornanda. Astaedan er byggingarleg: `needPenalty` refsar
+     adeins AFGANGI og EKKERT verdlaunar HOLU, svo hola i einssaetis
+     stodu er osynileg baði rodinni OG advoruninni.
+
+     ÞETTA ER EKKI NY VOG OG ENGIN MAELING ER NOTUD: tomt byrjunarsaeti
+     er ARITMETIK. Sae maður sem er ekki i hopnum skorar 0 i thvi saeti
+     allt timabilid, sama hvad likanid segir um hann. Þess vegna er
+     thetta SER SVID (`emptyStarters`) — `mustFill` og `kdstPick` eru
+     OHREYFD, svo K/DST-leidin sem var maeld heldur sinni hegdun — og
+     `allHoles` telur BADAR tegundir svo talan "hve morg saeti eru tom"
+     se ekki tvo olik svor a sama skja.                              */
+  const emptyStarters = [];
+  for (const pos of ["QB", "RB", "WR", "TE"]) {
+    const short = (st[pos] || 0) - (counts[pos] || 0);
+    if (short > 0) emptyStarters.push({ pos, short });
+  }
+  const holes = emptyStarters.reduce((a, m) => a + m.short, 0) + needed;
+  /* HVER VAL SEM EFTIR ER VERDUR AD FYLLA SAETI — thad er thad sem
+     gerir thetta thvingandi og ekki adeins abendingu. Jafnt, ekki
+     "<=", thvi vid einu vali og einni holu er svarid ekki umdeilt. */
+  const holesForced = holes > 0 && picksLeft <= holes;
+  /* ============================================================
+     ÞOGN I FYRSTU UMFERD ER RETT SVAR
+     ============================================================
+     Med TOMAN hop eru OLL byrjunarsaeti tom, svo skilyrdislaus advorun
+     skrifar "you still start no QB, no RB, no WR, no TE" i vali 1 —
+     satt, gagnslaust og fyrir framan thad sem skiptir mali. Fyrsta
+     utgafa gerdi nakvaemlega thad og `render.mjs` greip thad a
+     prosu-thakinu (875 stafir gegn 800).
+
+     Advorunin er ThVI SKORÐUD EINS OG `mustFillUrgent`: hun vaknar
+     thegar valin sem eftir eru eru ad thrjota gagnvart holunum. `+2`
+     gefur svigrum til ad bregdast vid — ADVORUN sem kemur nakvaemlega
+     thegar thad er ordid ummogulegt er ekki advorun. */
+  const holesUrgent = holes > 0 && picksLeft <= holes + 2;
+
+  /* ============================================================
      AUDAR VIKUR — TALDAR, EKKI VEGNAR
      ============================================================
      Hopurinn getur borid thrja hlaupara sem eru allir i frii i viku 7.
@@ -657,6 +725,45 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
       byeClash.push({ pos, bye: Number(bye), n });
     }
     byeClash.sort((a, b) => b.n - a.n);
+  }
+
+  /* ============================================================
+     AUDA VIKAN ER VIKA, EKKI STADA (31.8.2026)
+     ============================================================
+     `byeClash` lyklar a `pos|bye`, svo hann telur adeins arekstra INNAN
+     stodu og radar theim eftir fjolda innan hennar. RYNNI 31.8.2026
+     maeldi hvad thad kostar i orðum:
+
+       hopur: RB Gibbs + RB Achane + WR Chase + TE LaPorta allir i frii
+              i viku 6 — FJORIR byrjunarmenn ur leik samtimis
+       skjarinn: "3 WR in week 11" FYRST (thar sem hann a fjora WR eftir,
+                 svo thad er skaðlaust) og vika 6 nefnd sem "2 RB".
+
+     Rodunin var thvi ANDHVERF vid skadann. Spurningin er ekki "hve
+     margir i somu stodu" heldur **hve morg BYRJUNARSAETI eru tom thessa
+     viku** — og thad thvert a stodur, thvi flex-saetid tekur RB, WR og
+     TE jafnt.
+
+     `byeWeeks` telur thvi VIKUR og hve margir af hopnum eru i frii i
+     hverri, radad eftir fjolda. `byeClash` stendur OSNERT (vidmotid les
+     hann enn og hann er maeldur sem SAMHENGI, ekki rod) — thetta er
+     vidbot, ekki skipti, svo eldri fullyrdingar haldast.             */
+  const byeWeeks = [];
+  {
+    const byWeek = new Map();
+    for (const r of roster) {
+      if (r.bye == null) continue;
+      const w = Number(r.bye);
+      if (!byWeek.has(w)) byWeek.set(w, []);
+      byWeek.get(w).push(r.pos || "?");
+    }
+    for (const [week, list] of byWeek) {
+      if (list.length < 2) continue;
+      const by = {};
+      for (const pos of list) by[pos] = (by[pos] || 0) + 1;
+      byeWeeks.push({ week, n: list.length, byPos: by });
+    }
+    byeWeeks.sort((a, b) => b.n - a.n || a.week - b.week);
   }
 
   /* ============================================================
@@ -816,6 +923,11 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
     /* Stodur sem thu verdur ad fylla en rodin nefnir aldrei. */
     mustFill,
     mustFillUrgent: needed > 0 && picksLeft <= needed + 1,
+    /* Tom byrjunarsaeti i QB/RB/WR/TE — sja notuna ofar. */
+    emptyStarters,
+    holes,
+    holesForced,
+    holesUrgent,
     picksLeft,
     /* Sa sem bradanauðsyn hefdi valid. Hafdur med svo haegt se ad sja
        HVENAER thaer tvaer adferdir eru osammala — thad er sjalft
@@ -827,6 +939,11 @@ export function recommend({ available, roster = [], pick, league, nextPick: next
       Object.entries(expNext).map(([k, v]) => [k, round1(v.value)])),
     /* Vidmotid VERDUR ad geta sagt fra thvi ad rodin se A-Ranking. */
     orderedBy: "aRank",
+    /* Audar vikur taldar A VIKU, thvert a stodur — sja notuna ofar. */
+    byeWeeks,
+    /* "seat" = thitt saeti er thekkt · "derived" = leitt af snakk-rodinni
+       og gildir adeins i handvirku drafti. Sja notuna ofar. */
+    nextPickFrom,
   };
 }
 

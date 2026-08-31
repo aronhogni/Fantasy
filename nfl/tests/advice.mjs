@@ -1420,5 +1420,95 @@ console.log("\n18. jaðartilfellin ur rynninni");
     "H: en se ekkert annad til stendur besti afgangs-madurinn — engin thogn");
 }
 
+/* ============================================================
+   19. DRAFT-KVOLDS LAGFAERINGARNAR (31.8.2026)
+   ============================================================
+   Þrjar rynnir voru keyrdar tveimur dogum fyrir raunverulegt draft.
+   Þessi kafli ver thad sem thaer fundu:
+
+     A. TOM BYRJUNARSAETI I QB/RB/WR/TE voru OSYNILEG. `mustFill`
+        sleppir hverri stodu sem `expNext` thekkir — sem er einmitt
+        thessar fjorar, ALLTAF — svo hopur med 5 RB / 8 WR, EITT val
+        eftir og ekkert QB fekk "Still to fill: 1 K, 1 DST" og vorn
+        sem urskurd.
+     B. og advorunin ma ekki tala i FYRSTU UMFERD, thar sem oll saeti
+        eru tom med byggingu.
+     C. NAESTA VAL var reiknad ur snakk-rodinni thegar saetid var
+        othekkt — tha er thad saeti ANNARS MANNS, og kassinn hengdi
+        lifunar-prosentu a thad.
+     D. AUDA VIKAN var toldud INNAN stodu, svo fjorir byrjunarmenn ur
+        leik i somu viku lasust sem "2 RB" og lentu UNDIR skaðlausum
+        "3 WR".
+   ============================================================ */
+console.log("\n19. draft-kvolds lagfaeringarnar");
+{
+  const LG = { teams: 12, rounds: 14,
+               starters: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, K: 1, DST: 1 },
+               flexPos: ["RB", "WR", "TE"], maxPos: { QB: 2, RB: 6, WR: 7, TE: 2 } };
+  const mk = (id, pos, vbd, bye) => ({ id, name: `${pos}${id}`, pos, vbd, adp: 100,
+                                       adpSd: 10, proj: 100 + vbd, avail: 1, bye });
+  const many = (pos, n) => Array.from({ length: n }, () => ({ pos }));
+
+  /* ---- A. holan i QB/TE SEST ---- */
+  const late = recommend({
+    available: [mk("d1", "DST", 5), mk("q1", "QB", 3), mk("t1", "TE", 2)],
+    roster: [...many("RB", 5), ...many("WR", 8)],
+    pick: 130, league: LG, nextPick: null });
+  const holes = (late.emptyStarters || []).map((m) => m.pos);
+  ok(holes.includes("QB") && holes.includes("TE"),
+    `A: tom byrjunarsaeti i QB og TE eru NEFND (${holes.join(",") || "engin"})`);
+  ok(late.holes === 4 && late.holesForced === true,
+    `A: fjorar holur og eitt val -> thvingun (holes ${late.holes}, forced ${late.holesForced})`);
+  /* K/DST-leidin er MAELD og verdur ad standa oskert vid hlidina. */
+  ok(late.mustFill.some((m) => m.pos === "K") && late.mustFill.some((m) => m.pos === "DST"),
+    "A: og K/DST-leidin er OHREYFD — bædi svorin eru til");
+
+  /* ---- B. ThOGN I FYRSTU UMFERD ---- */
+  const first = recommend({
+    available: [mk("r1", "RB", 90), mk("w1", "WR", 80)],
+    roster: [], pick: 1, league: LG, nextPick: 24 });
+  ok(first.emptyStarters.length === 4,
+    `B: med toman hop eru OLL fjogur saetin tom (${first.emptyStarters.length})`);
+  ok(first.holesUrgent === false,
+    "B: en advorunin ThEGIR — 14 vol gegn 6 holum er ekki neyd");
+  ok(late.holesUrgent === true, "B: og hun TALAR thegar valin thrjota");
+
+  /* ---- C. NAESTA VAL: SAETI EDA AFLEIDSLA ---- */
+  const seat = recommend({ available: [mk("r1", "RB", 90)], roster: [],
+    pick: 13, league: LG, nextPick: 19 });
+  ok(seat.nextPickFrom === "seat" && seat.nextPick === 19,
+    `C: gefid saeti -> "seat" (${seat.nextPickFrom}, ${seat.nextPick})`);
+  const derived = recommend({ available: [mk("r1", "RB", 90)], roster: [],
+    pick: 13, league: LG });
+  ok(derived.nextPickFrom === "derived" && derived.nextPick > 13,
+    `C: ekkert saeti -> "derived" (${derived.nextPickFrom}, ${derived.nextPick})`);
+  ok(seat.nextPickFrom !== derived.nextPickFrom,
+    "C: og svidin TVO eru greinanleg — thogult rett og thogult rangt lita eins ut");
+
+  /* ---- D. AUDA VIKAN ER VIKA ---- */
+  const byes = recommend({ available: [mk("r9", "RB", 5)],
+    /* VERSTA VIKAN ER SEINNA EN SU SKADLAUSA — ÞAD ER PROFSTEINNINN.
+       Fyrsta utgafa setti hana i viku 6 og hina i 11, svo rodun eftir
+       VIKU gaf sama svar og rodun eftir FJOLDA: stokkbreytingin slapp i
+       gegn (0 fallnar). Nu er thad ekki haegt.
+         vika 11: RB+RB+WR+TE = FJORIR byrjunarmenn ur leik  <- verst
+         vika  6: ThRIR WR — flest INNAN stodu, en skaðlausara */
+    roster: [{ pos: "RB", bye: 11 }, { pos: "RB", bye: 11 }, { pos: "WR", bye: 11 },
+             { pos: "TE", bye: 11 }, { pos: "WR", bye: 6 }, { pos: "WR", bye: 6 },
+             { pos: "WR", bye: 6 }],
+    pick: 90, league: LG, nextPick: 100 });
+  ok(byes.byeWeeks && byes.byeWeeks[0].week === 11 && byes.byeWeeks[0].n === 4,
+    `D: versta vikan er VIKA 11 med FJORA, thott vika 6 se BADI fyrr OG ` +
+    `flest innan stodu (${byes.byeWeeks && byes.byeWeeks[0].week}` +
+    `/${byes.byeWeeks && byes.byeWeeks[0].n})`);
+  /* Gamla talningin setti "3 WR i viku 11" fyrst — hun er ENN til (maeld
+     sem samhengi) og ma ekki hafa horfid, en hun radar ekki lengur. */
+  ok(byes.byeClash && byes.byeClash[0].n === 3 && byes.byeClash[0].pos === "WR"
+     && byes.byeClash[0].bye === 6,
+    "D: og gamla talningin innan stodu stendur oskert (hun er maeld sem samhengi)");
+  ok(byes.byeWeeks[0].byPos.RB === 2 && byes.byeWeeks[0].byPos.TE === 1,
+    "D: sundurlidun per stodu fylgir, svo hann sjai HVERJA hann missir");
+}
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

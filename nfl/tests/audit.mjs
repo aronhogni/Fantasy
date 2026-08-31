@@ -240,7 +240,23 @@ for (const teams of [8, 12, 16]) {
 
     /* Deildin verdur ad hafa TEKID VID — annars maelir lykkjan sama
        heiminn niu sinnum og les eins og niu graen prof. */
-    const hdr = (document.querySelector("header.top") || {}).textContent || "";
+    /* ============================================================
+       `textContent` LIMIR SAMAN — LESUM ELEMENTIN, EKKI STRENGINN
+       ============================================================
+       Notan hér undir lysir gildrunni rett og lausnin var samt strengur:
+       31.8.2026 fekk hausinn "· week 1" (timabilid byrjad), svo
+       `textContent` gaf "…week 18 teams…" og varnaglinn gegn "18 teams"
+       felldi **8 teams** — 0 af 9. Gildran beit i sina eigin von.
+
+       Rett lausn er ad LIMA MED BILI: hver textahnutur fyrir sig, svo
+       "week 1" og "8 teams" geti ekki rennt saman. Þa er varnaglinn
+       gegn "18 teams" enn i gildi og datum-drift getur ekki fellt hann
+       aftur. */
+    const hdrEl = document.querySelector("header.top");
+    const hdr = hdrEl
+      ? [...hdrEl.querySelectorAll("*")].map((e) => e.textContent || "").join(" ")
+        + " " + (hdrEl.textContent || "")
+      : "";
     /* `\b${teams}\b` VIRKADI EKKI og gaf 0/9 — hausinn er
        "…preseason8 teams…" thvi `textContent` límir saman texta an bila
        (sama gildra og `MUNaNEW` -> `NaN` i FPL-verkefninu). Milli `n` og

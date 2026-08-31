@@ -21,6 +21,26 @@
    - Vorn: "Houston Texans" vs "HOU" vs "Texans D/ST"
    ============================================================ */
 
+/* ---------- lidsskammstafanir ---------- */
+
+/**
+ * Heimildirnar okkar nota ekki somu skammstafanir. nflverse notar
+ * LA/LAR, Sleeper notar LAR, FFC notar LAR/LA, eldri gogn nota
+ * OAK/SD/STL fyrir lid sem fluttu. Samraemt hedan.
+ *
+ * ATH: WAS/WSH og JAX/JAC eru BÆDI i notkun i lifandi heimildum i
+ * dag — thetta er ekki bara soguleg hreinsun.
+ */
+export const TEAM_ALIAS = {
+  LA: "LAR", STL: "LAR", SD: "LAC", OAK: "LV", SL: "LAR",
+  WSH: "WAS", WFT: "WAS", JAC: "JAX", ARZ: "ARI", BLT: "BAL",
+  CLV: "CLE", HST: "HOU", GNB: "GB", KAN: "KC", NWE: "NE",
+  NOR: "NO", SFO: "SF", TAM: "TB", LVR: "LV",
+};
+export const normTeam = (t) => (t ? (TEAM_ALIAS[String(t).toUpperCase()] || String(t).toUpperCase()) : null);
+
+/** 32 lid — notad til ad sannreyna ad porun hafi ekki buid til nytt lid. */
+
 /** Vidskeyti sem segja EKKERT um hver madurinn er. */
 const SUFFIX = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
 
@@ -127,6 +147,14 @@ export function buildIndex(list, { keyFn = looseKey, nameOf = (x) => x.name,
  * Threpi 3 an lids vaeri agiskun; hun er ekki reynd.
  */
 export function matchByName(idx, name, pos, team = null) {
+  /* VORN FYRST OG A LIDI — sja notuna i `buildIndexes`. Nafnid er ekki
+     spurt, thvi thad er ekki audkenni hennar. */
+  const posUp = String(pos || "").toUpperCase();
+  if ((posUp === "DST" || posUp === "DEF" || posUp === "D/ST") && idx && idx.dstTeam) {
+    const t = normTeam(team);
+    const hit = t ? idx.dstTeam.get(t) : null;
+    if (hit) return { item: hit, via: "dst-team" };
+  }
   for (const [via, keyFn, needTeam] of [
     ["exact", normName, false],
     ["loose", looseKey, false],
@@ -167,28 +195,39 @@ export function buildIndexes(list, opt = {}) {
     exact: buildIndex(list, { ...opt, keyFn: normName }),
     loose: buildIndex(list, { ...opt, keyFn: looseKey }),
     initial: buildIndex(list, { ...opt, keyFn: initialKey }),
+    /* ============================================================
+       VORN ER LID, EKKI NAFN (31.8.2026)
+       ============================================================
+       FFC nefnir vardir "Seattle Defense" og "LA Rams Defense"; vid
+       nefnum thaer "Seattle Seahawks" og "Los Angeles Rams". ÞAU NOFN
+       PARAST ALDREI, og thad er RETT hegdun i nafna-pörun — hun er
+       byggd til ad hafna oskyldum nofnum.
+
+       AFLEIDINGIN VAR MAELD 31.8.2026 og hun kostar vol: **0 af 32**
+       vordum baru FFC-ADP, svo `build.js` fell thegjandi i
+       Sleeper-ADP fyrir thaer EINAR medan allir 251 skilamenn notudu
+       FFC. Tveir kvardar i sama dálki: medal-|munur| **47,1 val =
+       3,9 umferdir**, og **22 af 26 hallast SEINT** (NYJ 147,7 ->
+       282,2). Ad bida eftir vorn eftir thessu bordi thydir ad vera
+       ordinn seinn i hverja goda vorn.
+
+       LAUSNIN ER EKKI LAUSARI NAFNA-PORUN — hun vaeri agiskun. Vorn
+       hefur EINKVAEMT audkenni sem badar heimildir bera: LIDID. Þetta
+       threp er thvi NAKVAEMT, ekki oruggara-en-ekkert: eitt lid, ein
+       vorn, ekkert svigrum fyrir arekstur.                          */
+    dstTeam: (() => {
+      const m = new Map();
+      for (const it of list || []) {
+        const pos = String(it && it.pos || "").toUpperCase();
+        if (pos !== "DST" && pos !== "DEF" && pos !== "D/ST") continue;
+        const t = normTeam(it.team);
+        if (t && !m.has(t)) m.set(t, it);
+      }
+      return m;
+    })(),
   };
 }
 
-/* ---------- lidsskammstafanir ---------- */
-
-/**
- * Heimildirnar okkar nota ekki somu skammstafanir. nflverse notar
- * LA/LAR, Sleeper notar LAR, FFC notar LAR/LA, eldri gogn nota
- * OAK/SD/STL fyrir lid sem fluttu. Samraemt hedan.
- *
- * ATH: WAS/WSH og JAX/JAC eru BÆDI i notkun i lifandi heimildum i
- * dag — thetta er ekki bara soguleg hreinsun.
- */
-export const TEAM_ALIAS = {
-  LA: "LAR", STL: "LAR", SD: "LAC", OAK: "LV", SL: "LAR",
-  WSH: "WAS", WFT: "WAS", JAC: "JAX", ARZ: "ARI", BLT: "BAL",
-  CLV: "CLE", HST: "HOU", GNB: "GB", KAN: "KC", NWE: "NE",
-  NOR: "NO", SFO: "SF", TAM: "TB", LVR: "LV",
-};
-export const normTeam = (t) => (t ? (TEAM_ALIAS[String(t).toUpperCase()] || String(t).toUpperCase()) : null);
-
-/** 32 lid — notad til ad sannreyna ad porun hafi ekki buid til nytt lid. */
 export const NFL_TEAMS = [
   "ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET",
   "GB", "HOU", "IND", "JAX", "KC", "LAC", "LAR", "LV", "MIA", "MIN", "NE",

@@ -777,6 +777,9 @@ console.log("\nolesnar skrar eru asettar");
        les thaer ekki og a ekki ad gera thad. */
     "arank_need_ppr_fftoday.json": "afgangs-fradratturinn maeldur a 11 timabilum (FFToday)",
     "arank_need_ppr.json": "sama maeling a OHADRI heimild — 5 timabil (Sleeper)",
+    "weekly_depth_ppr.json": "vikulegi maelikvardinn, 5 timabil (Sleeper-spa)",
+    "weekly_depth_ppr_fftoday.json": "sami maelikvardi a 7 timabilum (FFToday) — "
+      + "eini staðurinn thar sem bekkjarmadur getur skorad",
     "arank_need_ppr_fftoday_flex2.json": "sama maeling i LOGUN NOTANDANS (2 FLEX, 2 WR) — "
       + "thar bitur spurningin um hvort flexid teljist med a hverja stodu",
     "superflex_split.json": "86,0% QB i superflex — talan sem `SUPERFLEX_SPLIT` byggir a",

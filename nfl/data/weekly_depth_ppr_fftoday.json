@@ -1,0 +1,133 @@
+{
+ "generated": "2026-08-31T15:50:36.519Z",
+ "provenance": {
+  "generated": "2026-08-31T15:50:36.520Z",
+  "argv": [
+   "--proj=fftoday",
+   "--runs=25"
+  ],
+  "params": {
+   "scoring": {
+    "value": "ppr",
+    "fromDefault": true
+   },
+   "proj": {
+    "value": "fftoday",
+    "fromDefault": false
+   },
+   "runs": {
+    "value": "25",
+    "fromDefault": false
+   },
+   "k": {
+    "value": 30,
+    "fromDefault": true
+   },
+   "teams": {
+    "value": 12,
+    "fromDefault": true
+   },
+   "rounds": {
+    "value": 14,
+    "fromDefault": true
+   },
+   "weeks": {
+    "value": 17,
+    "fromDefault": true
+   }
+  },
+  "inputs": {
+   "features.json": {
+    "bytes": 3147475,
+    "sha1": "0b159cf19ed7",
+    "mtime": "2026-08-09T23:41:33.222Z"
+   },
+   "weekly/*.json": null
+  },
+  "node": "v26.5.0"
+ },
+ "scoring": "ppr",
+ "proj": "fftoday",
+ "needK": 30,
+ "seasons": [
+  2019,
+  2020,
+  2021,
+  2022,
+  2023,
+  2024,
+  2025
+ ],
+ "teams": 12,
+ "rounds": 14,
+ "weeks": 17,
+ "perSeason": {
+  "2019": {
+   "starters": 108.5,
+   "weekly": 104.8,
+   "bench": 123.9
+  },
+  "2020": {
+   "starters": 90.1,
+   "weekly": 101,
+   "bench": 46.3
+  },
+  "2021": {
+   "starters": 30.3,
+   "weekly": 54.6,
+   "bench": -22.5
+  },
+  "2022": {
+   "starters": 213.8,
+   "weekly": 220.2,
+   "bench": 30.4
+  },
+  "2023": {
+   "starters": 17.6,
+   "weekly": 26.8,
+   "bench": -71.2
+  },
+  "2024": {
+   "starters": -6.6,
+   "weekly": 12,
+   "bench": -0.7
+  },
+  "2025": {
+   "starters": 1.7,
+   "weekly": 37.5,
+   "bench": -3.8
+  }
+ },
+ "tests": {
+  "starters": {
+   "mean": 65,
+   "t": 2.18,
+   "lo": -7.8,
+   "hi": 137.9,
+   "significant": false,
+   "wins": 6,
+   "years": 7,
+   "signP": 0.0625
+  },
+  "weekly": {
+   "mean": 79.6,
+   "t": 2.95,
+   "lo": 13.5,
+   "hi": 145.6,
+   "significant": true,
+   "wins": 7,
+   "years": 7,
+   "signP": 0.007809999999999999
+  },
+  "bench": {
+   "mean": 14.6,
+   "t": 0.63,
+   "lo": -42,
+   "hi": 71.3,
+   "significant": false,
+   "wins": 3,
+   "years": 7,
+   "signP": 0.77344
+  }
+ }
+}

@@ -2962,6 +2962,33 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
      nakvaemlega thad ad lata notandann velja. Their eru utan A-Ranking
      af maeldri astaedu (spar theirra flytjast ekki milli ara), svo
      urskurdurinn segir thad berum ordum i stad thess ad thegja. */
+  /* ============================================================
+     K/DST BIDA MEDAN BYRJUNARSAETI ER TOMT (31.8.2026)
+     ============================================================
+     RYNNI FANN ThETTA: hopur 5 RB / 8 WR, EITT val eftir, ekkert QB og
+     ekkert TE — og urskurdurinn var **VORN**, thvi `mustFillUrgent`
+     kviknar a K/DST og hijackar kassann. Notandinn var sendur i vorn
+     medan hann atti ad fara ad byrja timabilid an leikstjornanda.
+
+     ARITMETIKIN ER OTVIRAED og hun er lesin ur appinu sjalfu: tomt
+     QB-saeti kostar ~300 stig yfir timabilid, tomt DST-saeti ~110 og
+     spyrnumadurinn maelist +15,6 stig yfir varamann (`kicker-lab`).
+     Se ekki nog val eftir fyrir bædi, fyllist thad DYRARA fyrst.
+
+     ÞETTA ER EKKI ROD I LIKANINU heldur hlid a thvingun sem var thegar
+     til: `emptyStarters` (sja `advice.js`) er tom i langflestum
+     stodum, svo hegdunin sem var MAELD fyrir K/DST helst obreytt i
+     hvert sinn sem byrjunarlidid er fullskipad.                     */
+  /* ============================================================
+     K/DST-URSKURDURINN STENDUR — EN HANN THEGIR EKKI UM HITT
+     ============================================================
+     Fyrsta lagfaering min a rynnis-fundinum SLOKKTI a `kdstPick` thegar
+     byrjunarsaeti var tomt. Þad felldi `draft-live.mjs` kafla 16d, og
+     rettilega: K/DST-linan er MAELD hegdun sem a ad standa. Vandinn sem
+     rynnin fann var ekki ad vorn se nefnd heldur ad QB-holan se ÞOGUL.
+     Þess vegna er urskurdurinn ohreyfdur og aukasetningin ber
+     arekstrinum vitni — bædi svorin a skjanum, notandinn velur. */
+  const skillHoles = (rec.emptyStarters || []).length > 0;
   const needKdst = rec.mustFillUrgent && rec.mustFill && rec.mustFill.length > 0;
   const kdstPick = needKdst && kdst && kdst.length
     ? kdst.find((r) => rec.mustFill.some((m) => m.pos === r.pos)) || null
@@ -2970,8 +2997,15 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
   const vRow = available.find((r) => r.id === verdict.id)
     || (kdst || []).find((r) => r.id === verdict.id) || null;
   const why = kdstPick
-    ? `You have ${rec.picksLeft} picks left and still need ${
-        rec.mustFill.map((m) => m.pos).join(" and ")}. Take him now or start a player short.`
+    ? `You have ${rec.picksLeft} pick${rec.picksLeft === 1 ? "" : "s"} left and still need ${
+        rec.mustFill.map((m) => m.pos).join(" and ")}.`
+      + (rec.mustFill.length > rec.picksLeft
+        ? " That is more slots than picks — one of them will start empty."
+        : " Take him now or start a player short.")
+      + (skillHoles
+        ? ` But you also start no ${rec.emptyStarters.map((m) => m.pos).join(", no ")}`
+          + ` — an empty QB slot costs about three times an empty defence.`
+        : "")
     : (top[0].reasons && top[0].reasons.length
         ? top[0].reasons[0].text
         : "Highest value over replacement on the board.");
@@ -3040,6 +3074,10 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
           <div className="verdict-name">
             <span className={`pos ${verdict.pos}`}>{verdict.pos}</span>
             <b>{verdict.name}</b>
+            {vRow && vRow.injury && vRow.injury !== "Active"
+              && <span className="badge bad" style={{ marginLeft: 6 }}
+                   title="Projection is a full 17-game number and is not discounted for this"
+                 >{vRow.injury}</span>}
             {vRow && vRow.team && <span className="dim"> · {vRow.team}</span>}
             {vRow && vRow.bye != null && <span className="dim"> · bye {vRow.bye}</span>}
             {copyMark(verdict)}
@@ -3070,6 +3108,18 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
                       style={{ marginRight: 6 }}>{i === 0 ? "take" : "backup"}</span>
                     <span className={`pos ${p.pos}`}>{p.pos}</span>
                     <b>{p.name}</b>
+                    {/* ============================================================
+                        MEIDSLA-MERKID VANTADI A ThVI EINA SPJALDI SEM HANN LES
+                        ============================================================
+                        RYNNI 31.8.2026: 112 leikmenn bera `Questionable` i dag —
+                        Nacua, Chase, McCaffrey thar med — og spain theirra er
+                        OAFSLEGIN 17-leikja tala (asett, sja `sidelined`). Bordid
+                        BADGE-ar thad, en urskurdarkassinn slepti thvi. Kassinn er
+                        thad sem hann les a klukkunni; svidid var thegar a rodinni. */}
+                    {row && row.injury && row.injury !== "Active"
+                      && <span className="badge bad" style={{ marginLeft: 6 }}
+                           title="Projection is a full 17-game number and is not discounted for this"
+                         >{row.injury}</span>}
                     {row && row.team && <span className="dim"> · {row.team}</span>}
                     {row && row.bye != null && <span className="dim"> · bye {row.bye}</span>}
                     {copyMark(p)}
@@ -3164,9 +3214,22 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
         {/* ENGIN TALA THEGAR ENGIN TALA ER TIL. Rounds+2-slakinn let
             kassann skrifa "Your next pick is 154" i 150 vala drafti —
             tala sem er rong OG truverdug, sem er versta utkoman. */}
+        {/* ============================================================
+            SAETIS-TALA SEM ER LEIDD ER MERKT SEM LEIDD (31.8.2026)
+            ============================================================
+            Se saetid othekkt i lifandi drafti er `nextPick` leidd af
+            snakk-rodinni fra thvi vali sem er a klukkunni — thad er
+            saeti EINHVERS ANNARS. Bordid litar rettilega ekkert i thvi
+            astandi, en kassinn skrifadi samt "Your next pick is 27" og
+            hengdi lifunar-prosentu a hana. Sja `nextPickFrom`. */}
         {rec.nextPick == null
           ? <b>This is your last pick — you have none after it.</b>
-          : <>Your next pick is <b>{rec.nextPick}</b>, {rec.wait} picks away.</>}
+          : rec.nextPickFrom === "derived" && sync && sync.draftId
+            ? <><b>Your seat is not set, so this is not your pick number.</b>{" "}
+                Pick <b>{rec.nextPick}</b> is {rec.wait} picks away for whoever is on
+                the clock — set your slot above and every "lasts?" number below
+                becomes yours.</>
+            : <>Your next pick is <b>{rec.nextPick}</b>, {rec.wait} picks away.</>}
         {/* (a): ThETTA ER EINA KALLID I APPINU AN BAKPROFS og thad ma
             aldrei lesast eins og hin. Fellt, ekki eytt. */}
         {kdstPick && (
@@ -3201,10 +3264,20 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
       {/* TALNINGIN ER SVARID og hun stendur. Malsgreinin um MAELINGUNA
           er (a) — hun er su eina sem heldur thessu merki fra ad lesast
           eins og rodunar-liður — og hun er FELLD, ekki eydd. */}
-      {rec.byeClash && rec.byeClash.length > 0 && (
+      {rec.byeWeeks && rec.byeWeeks.length > 0 && (
         <div className="note" style={{ marginTop: 8 }}>
-          <b>Bye overlap in your roster:</b>{" "}
-          {rec.byeClash.map((c) => `${c.n} ${c.pos} in week ${c.bye}`).join(" · ")}.
+          {/* ============================================================
+              RADAD EFTIR VIKU, EKKI EFTIR STODU (31.8.2026)
+              ============================================================
+              Adur var `byeClash` lesinn hér — hann telur INNAN stodu, svo
+              "3 WR in week 11" (skaðlaust, fjorir WR eftir) stod FYRIR
+              viku 6 thar sem FJORIR byrjunarmenn voru i frii samtimis.
+              Rodunin var andhverf vid skadann. Sja `byeWeeks`. */}
+          <b>Your worst bye week is {rec.byeWeeks[0].week}: {rec.byeWeeks[0].n} of
+          your players are off.</b>{" "}
+          {rec.byeWeeks.slice(0, 3).map((c) => `week ${c.week}: ${
+            Object.entries(c.byPos).sort((a, b) => b[1] - a[1])
+              .map(([pos, n]) => `${n} ${pos}`).join(" + ")}`).join(" · ")}.
           <Fine summary="Context only — why this moves nobody in the list">
             This does <b>not</b> move anyone in the list below — measured across
             2019–2025 on both projections it is worth somewhere between nothing and
@@ -3276,6 +3349,26 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
             <i>will not play</i> removes anyone, because that step was measured to
             carry the benefit and finer grades were measured to carry none.
           </Fine>
+        </div>
+      )}
+
+      {/* ============================================================
+          TOM BYRJUNARSAETI — SAGT BERUM ORDUM
+          ============================================================
+          Þetta stod HVERGI: `mustFill` sleppir hverri stodu sem rodin
+          naer til (QB/RB/WR/TE, alltaf), svo hola i einssaetis stodu
+          var osynileg. Sja notuna vid `emptyStarters` i `advice.js`. */}
+      {rec.emptyStarters && rec.emptyStarters.length > 0 && rec.holesUrgent && (
+        <div className={`note ${rec.holesForced ? "warn" : ""}`} style={{ marginTop: 8 }}>
+          <b>You still start no {rec.emptyStarters.map((m) =>
+            `${m.short > 1 ? m.short + " " : ""}${m.pos}`).join(", no ")}.</b>{" "}
+          {rec.holesForced
+            ? `${rec.holes} slots are empty and you have ${rec.picksLeft} `
+              + `pick${rec.picksLeft === 1 ? "" : "s"} left — you cannot fill them all. `
+              + `An empty slot scores zero every week, so fill the most expensive one first: `
+              + `a quarterback is worth about three times a defence.`
+            : "The ranking reaches these positions, so it will not nag — but it does not "
+              + "reward a hole either. It only penalises a surplus."}
         </div>
       )}
 

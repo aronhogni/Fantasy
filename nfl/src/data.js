@@ -292,7 +292,29 @@ async function sleeperGet(path, whenNotOk, opts = {}) {
       ? "Sleeper did not answer within 8s — check your connection"
       : `Could not reach Sleeper (${e?.message || "network error"})`);
   }
-  if (!r.ok) throw new Error(whenNotOk(r.status));
+  /* ============================================================
+     429 OG 5xx ERU **EKKI** "DRAFT NOT FOUND" (31.8.2026)
+     ============================================================
+     Hver kallandi gefur EINN streng fyrir allar stodur, svo 429 og 503
+     komu ut sem "Draft not found (429)". RYNNI 31.8.2026: a
+     draft-kvoldi — sem er alagstoppurinn hja Sleeper — er thad sentence
+     sem bydur upp a eina eyðileggjandi adgerdina a spjaldinu, "Reset &
+     disconnect". Sokn og endurheimt voru i fullkomnu lagi; ordalagid
+     eitt laug um orsokina.
+
+     Stodurnar sem hafa SINA EIGIN merkingu eru meðhondladar hér, i
+     einu lagi fyrir alla kallendur; `whenNotOk` heldur ollu odru. */
+  if (!r.ok) {
+    if (r.status === 429) {
+      throw new Error("Sleeper is rate-limiting us (429) — the draft is fine, "
+        + "this will clear on its own. Do not disconnect.");
+    }
+    if (r.status >= 500) {
+      throw new Error(`Sleeper is having trouble (${r.status}) — their problem, not `
+        + "yours. Polling keeps trying. Do not disconnect.");
+    }
+    throw new Error(whenNotOk(r.status));
+  }
   return r.json();
 }
 

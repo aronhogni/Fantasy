@@ -14,6 +14,10 @@ const SUITES = [
      hristinginn og stadalvilluna fyrir TVAER maelingaskrár og var
      OVARDADUR — sja hausinn a `arank-world.mjs`. */
   ["arank-world.mjs"],
+  /* Vikulegi maelikvardinn — sa EINI thar sem bekkjarmadur getur
+     skorad, og thvi sa eini sem getur svarad hvort dypt borgi sig.
+     Profud a TILBUNUM gognum thar sem svarid er thekkt fyrirfram. */
+  ["weekly-depth.mjs"],
   ["sleeper-league.mjs"], ["wiring.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
   /* `entry.mjs` VAR UTAN THESSA LISTA og keyrdi thvi hja engum — fullgildur
      vordur med nium fullyrdingum, skradur hvergi. Hann ver villu sem sast
