@@ -117,10 +117,31 @@ export function counts(obj, prefix = "", out = {}, depth = 0) {
    medal a RAUNVERULEGA tilfellinu sem slapp 29.8.2026 (`lineups.json`
    players 40 -> 0), sem thetta hlid hefdi hafnad hefdi thad verid tengt.
    ============================================================ */
+/* ============================================================
+   HEIMILD SEM ER TEKIN UR NOTKUN ER EKKI AFTURFOR (31.8.2026)
+
+   Fyrsta tengda keyrslan HAFNADI commit-i af rettri astaedu og RANGRI
+   niðurstodu: eg hafdi fjarlaegt `deriveRotation` og
+   `deriveGameweekShape`, svo `status.json.sources.rotation` og
+   `.gameweek_shape` HURFU — sem hlidid las sem gagnatap.
+
+   `status.json` er BOKHALD UM KEYRSLUNA, ekki gogn: heimildir koma og
+   fara (API-Sports var sagt upp, FotMob kom i stadinn, tvaer leiddar
+   skrar voru teknar ut). Hver stodu-rod telur thrju svid (ok/count/note),
+   svo "3 rows DISAPPEARED" segir ekkert um gogn.
+
+   ThAD SEM ER EKKI SLAKAD: `sources` I HEILD ma aldrei fara i null — tha
+   hefur pipeline-an haett ad skra nokkud — og allar adrar skrar lyta
+   obreyttri reglu. OG SPURNINGIN "er hver skrifud skra skrad sem heimild"
+   a sinn eigin vord: `tests/wiring.mjs`, sem er thar sem hun a heima.
+   ============================================================ */
+const BOOKKEEPING = /^(status|status_fast)\.json$/;
 export function regressions(nowObj, headObj, name = "file") {
   const out = [];
   const now = counts(nowObj), was = counts(headObj);
   for (const [field, before] of Object.entries(was)) {
+    /* Stok heimild ma hverfa ur bokhaldinu; `sources` i heild ma thad ekki. */
+    if (BOOKKEEPING.test(name) && /^sources\./.test(field)) continue;
     const after = now[field];
     if (before > 0 && after === 0) {
       out.push(`${name}: \`${field}\` went ${before} -> 0. An empty run must `

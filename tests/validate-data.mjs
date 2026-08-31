@@ -49,6 +49,31 @@ console.log("=== 1. AFTURFOR I NULL ===");
      "nytt svid er ekki vandamal");
 }
 
+console.log("\n=== 1b. BOKHALD ER EKKI GOGN (status.json) ===");
+{
+  /* FYRSTA TENGDA KEYRSLAN HAFNADI COMMIT-I AF RETTRI ASTAEDU OG RANGRI
+     NIDURSTODU (31.8.2026): tvaer leiddar heimildir voru teknar ur
+     notkun, svo `status.json.sources.rotation` og `.gameweek_shape`
+     hurfu — og hlidid las thad sem gagnatap. Heimildir koma og fara;
+     `status.json` er bokhald um keyrsluna.                            */
+  const head = { updated: "x", sources: { rotation: { ok: 1, count: 3, note: "n" },
+                                          elo: { ok: 1, count: 20, note: "n" } } };
+  const retired = { updated: "y", sources: { elo: { ok: 1, count: 20, note: "n" } } };
+  ok(regressions(retired, head, "status.json").length === 0,
+     "heimild sem er tekin ur notkun stodvar EKKI commit");
+  ok(regressions(retired, head, "status_fast.json").length === 0,
+     "sama gildir um status_fast.json");
+  /* EN ThAD SEM MA ALDREI GERAST STENDUR: bokhaldid ma ekki tomast.   */
+  const empty = { updated: "y", sources: {} };
+  ok(regressions(empty, head, "status.json").length > 0,
+     "TOMT bokhald er afram HOFNAD (pipeline haetti ad skra nokkud)");
+  /* OG UNDANThAGAN MA EKKI LEKA A ADRAR SKRAR.                        */
+  ok(regressions({ sources: {} }, { sources: { a: { x: 1 } } }, "lineups.json").length > 0,
+     "undanthagan gildir EKKI um adrar skrar");
+  ok(regressions({ teams: [] }, { teams: [1, 2], sources: { a: { x: 1 } } }, "status.json").length > 0,
+     "og EKKI um onnur svid i status.json sjalfri");
+}
+
 console.log("\n=== 2. `counts` SER OFAN I SNIDID SEM DATA/ NOTAR ===");
 {
   const c = counts({ players: [1, 2, 3], teams: { ARS: {}, CHE: {} },
