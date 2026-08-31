@@ -4546,11 +4546,15 @@ export default function App() {
               last_gw:        "Gameweek report",
               player_seasons: "Players' earlier seasons",
               travel:         "Travel distances",
-              rotation:       "Rotation",
               team_form:      "Team form",
               luck:           "Luck meter",
               form_features:  "Rolling form",
-              gameweek_shape: "Gameweek shape",
+              /* `rotation` og `gameweek_shape` VORU HER — merkimidar fyrir
+                 stodu-radir sem eru ekki lengur skrifadar (31.8.2026).
+                 Skrarnar voru leiddar, olesnar og endurgeranlegar; sja
+                 hausinn thar sem follin voru i `fetch.mjs`. Merkimidi an
+                 rodar er thogull daudur kodi — hann syndi aldrei neitt en
+                 hefdi latid naesta mann halda ad heimildin vaeri til.   */
               euro_fixtures:  "European fixtures",
               /* THESSI VAR SKRIFUD EN ALDREI SYND (baett vid 16.8.2026).
                  `prediction_ledger` er eina merkid um hvort spa-bokhaldid

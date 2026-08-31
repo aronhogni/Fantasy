@@ -139,7 +139,14 @@ console.log("\n--- A. MINUS-BANKI ---");
   const SELL = 321, BUY = 379;                 // Walle Egeli FWD -> Isak FWD
   const avail = bank0 + byId[SELL].now_cost / 10;
   const after = +(avail - byId[BUY].now_cost / 10).toFixed(1);
-  ok(bank0 === 1.5, `forsenda: banki proflidsins er 1,5 (${bank0})`);
+  /* TALAN ER REIKNUD OG ER ThVI EKKI SKRIFUD (lagad 31.8.2026). Her stod
+     `bank0 === 1.5` — ordrett tala rett fyrir nedan athugasemd sem segir
+     "profid getur ekki ordid osamstiga verdlistanum". Verd hreyfast a
+     hverri nottu og 31.8. var bankinn 1,6, svo kaflinn fell an thess ad
+     nokkud vaeri ad appinu. Fullyrdingin sem skiptir mali er ad bankinn
+     se RAUNHAEFUR OG JAKVAEDUR, og ad hann passi vid thad sem skjarinn
+     synir — hvor talan sem hun er.                                     */
+  ok(bank0 > 0 && bank0 < 10, `forsenda: banki proflidsins er jakvaedur (${bank0})`);
   ok(byId[BUY].element_type === byId[SELL].element_type,
      "forsenda: sama stada (FPL leyfir ekki annad)");
   ok(after < 0, `forsenda: Isak er YFIR tiltaeku fe — banki eftir ${after}`);
@@ -149,7 +156,8 @@ console.log("\n--- A. MINUS-BANKI ---");
      og gerdi thad ThEGJANDI i fyrstu utgafu — hefdi hnuturinn ekki fundist
      hefdi safnid keyrt a hvada umferd sem er og litid eins ut.          */
   ok(v.gwPicked === true, "forsenda: umferd 1 er VALIN (timalinu-hnuturinn fannst)");
-  ok(/£1\.5/.test(v.text()), "byrjunarbanki £1,5 a maelabordinu");
+  ok(new RegExp(`£${bank0.toFixed(1).replace(".", "\\.")}`).test(v.text()),
+     `byrjunarbanki £${bank0.toFixed(1)} a maelabordinu — TALAN UR VERDLISTANUM`);
 
   const card = cardOf(v, byId[SELL].web_name);
   ok(!!card, `forsenda: spjald ${byId[SELL].web_name} er a vellinum`);
@@ -166,8 +174,9 @@ console.log("\n--- A. MINUS-BANKI ---");
 
   /* HLIDID SEM VAR: rodin ma EKKI vera dofud (opacity 0,45) fyrir verd.
      Fullyrdingin er ekki tom — rodin er sannanlega minus-rod, sja naest. */
-  ok(/bank -£3\.0/.test(isak.textContent || ""),
-     "rodin SEGIR hvad bankinn verdur: 'bank -£3.0'",
+  const wantBank = `bank -£${Math.abs(after).toFixed(1)}`;
+  ok((isak.textContent || "").includes(wantBank),
+     `rodin SEGIR hvad bankinn verdur: '${wantBank}' — reiknad ur verdlistanum`,
      `[${(isak.textContent||"").slice(0,120)}]`);
   ok((isak.getAttribute("style") || "").replace(/\s/g, "").indexOf("opacity:0.45") < 0,
      "og hun er EKKI dofud — verd er upplysing, ekki hindrun");
@@ -186,7 +195,9 @@ console.log("\n--- A. MINUS-BANKI ---");
   ok(!/short — transfer too expensive/.test(t), "engin 'too expensive'-skilabod");
   ok(new RegExp(`${byId[SELL].web_name}\\s*→\\s*${byId[BUY].web_name}`).test(t)
      || /→/.test(t), "skiptin voru SKRAD (toast med →)");
-  ok(/-£3\.0/.test(t), "bankinn er birtur SEM MINUS: -£3.0", `[${t.slice(0, 60)}]`);
+  ok(t.includes(`-£${Math.abs(after).toFixed(1)}`),
+     `bankinn er birtur SEM MINUS: -£${Math.abs(after).toFixed(1)} (reiknad)`,
+     `[${t.slice(0, 60)}]`);
   ok(!/£-3\.0/.test(t), "og ALDREI sem '£-3.0' — merkid fer fyrir pundid");
   ok(/sell someone to fund it|sell to fund it/.test(t),
      "og notandanum er sagt hvernig hann fjarmagnar thad");

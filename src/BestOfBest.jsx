@@ -21,7 +21,7 @@
    til er thetta upplysing a skja, ekki inntak i likan.
    ============================================================ */
 
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { eo, movers, differential, coverageOk, marginPct, chipTimeline,
          MIN_PANEL_RESPONSE } from "./pros.js";
 import { CrownIcon } from "./Icons.jsx";

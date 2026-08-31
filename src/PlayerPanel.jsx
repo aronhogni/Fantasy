@@ -17,7 +17,7 @@
    fetchPlayerSeasons i scripts/fetch.mjs.
    ============================================================ */
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { interp } from "./interp.js";
 /* `n` VAR STAFRETT AFRIT AF `num` UR stats.js (lagad 11.8.2026) — mælt a
    17 jadartilfellum (null, "", "3.5abc", [], [5], Infinity, true …):

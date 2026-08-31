@@ -24,7 +24,6 @@
    ============================================================ */
 import React, { useState } from "react";
 import { tierOf, TIER_BG, TIER_FG, TIER_NAME, greenRuns } from "./model.js";
-import { interp } from "./interp.js";
 import { C, S } from "./appStyles.js";
 import { Crest } from "./Crest.jsx";
 

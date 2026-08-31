@@ -4882,126 +4882,26 @@ async function deriveTravel() {
   record("travel", true, out.length, `${longs} long trips (>${LONG_TRIP_KM} km)`);
 }
 
-/* ---- 6. UMFERÐAFORM: auðar og tvöfaldar umferðir ----
-   Leitt úr fixtures.json. Lið með 0 leiki = auð umferð, 2+ = tvöföld.
-   ATH SEM ER OFT MISSKILIN: lið sem fer ÚR bikar snemma fær TRYGGARI
-   mínútur, ekki verri — þess vegna cup_exited-sviðið.                    */
-async function deriveGameweekShape() {
-  const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
-  const teams = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
-  const events = JSON.parse(await readFile(`${DATA}/events.json`, "utf8")).events;
-  // bikarleikir (úr euro_fixtures.json ef til) til að meta cup_exited
-  let extra = {};
-  try {
-    const eu = JSON.parse(await readFile(`${DATA}/euro_fixtures.json`, "utf8"));
-    extra = eu.by_team || {};
-  } catch {}
+/* ---- UMFERÐAFORM OG HVÍLDARDAGAR VORU HÉR — FJARLÆGÐ 31.8.2026 ----
+   `deriveGameweekShape` skrifaði `gameweek_shape.json` og `deriveRotation`
+   skrifaði `rotation.json` (109 KB í hverri keyrslu). HVORUGA LAS NEITT:
+   hvorki `src/`, prófin né mælingaskrifturnar — og `wiring.mjs` hleypti
+   þeim í gegn á hvítlista sem SAGÐI að þær væru lesnar („lesin í GwReport
+   gegnum breytu", „lesin sem `rotation` (14 tilvik)"). Hvorug fullyrðingin
+   stóðst: einu tilvikin í `src/` eru MERKIMIÐI í „Data sources"-töflunni
+   og orðið `rotationRisk`, sem er annað fall.
 
-  const count = {};
-  fixtures.forEach(f => {
-    if (!f.event) return;
-    [f.team_h, f.team_a].forEach(t => {
-      count[t] = count[t] || {};
-      count[t][f.event] = (count[t][f.event] || 0) + 1;
-    });
-  });
+   AF HVERJU MÁTTI EYÐA ÞEIM EN EKKI `history/` EÐA `predictions/`:
+   þær eru LEIDDAR og ENDURGERANLEGAR úr skrám sem eru committaðar og
+   lesnar áfram (`fixtures.json`, `euro_fixtures.json`). Dagleg verðmynd
+   og spá-röð verða hins vegar EKKI búnar til eftir á — þess vegna standa
+   þær þótt enginn lesi þær í dag (CLAUDE.md kafli 7).
 
-  const shape = events.map(ev => {
-    const playing = [], blanks = [], doubles = [];
-    teams.forEach(t => {
-      const n = count[t.id]?.[ev.id] || 0;
-      if (n === 0) blanks.push(t.id);
-      else { playing.push(t.id); if (n >= 2) doubles.push(t.id); }
-    });
-    return { event: ev.id, teams_playing: playing, blanks, doubles };
-  });
+   OG KJARNI ÞEIRRA VAR ÞEGAR MÆLDUR ÓNÝTUR: hvíld undir 4 dögum gefur
+   27,0% á móti 27,3% (n=10.448) og flaggið var tekið út 29.7.2026;
+   það sem eftir stóð (Evrópu-nálægð) kemur úr `euro_fixtures.json`, sem
+   appið hleður sjálft og notar fyrir ★-merkið.                          */
 
-  // cup_exited: lið sem hafa ENGA bikar-/Evrópuleiki skráða framvegis.
-  // Fyrir tímabil er þetta óþekkt — merkjum null, ekki false (ekki ljúga).
-  const anyExtra = Object.keys(extra).length > 0;
-  const cupStatus = {};
-  teams.forEach(t => {
-    const games = extra[t.id] || extra[String(t.id)] || [];
-    cupStatus[t.id] = anyExtra ? { extra_games: games.length, cup_exited: games.length === 0 }
-                               : { extra_games: 0, cup_exited: null };
-  });
-
-  await writeJSON("gameweek_shape.json", {
-    updated: status.updated,
-    note: "blanks = clubs with 0 matches in a gameweek, doubles = 2+. cup_exited null = unknown (cups not yet drawn).",
-    cup_status: cupStatus, shape,
-  });
-  const nB = shape.reduce((a, s) => a + s.blanks.length, 0);
-  const nD = shape.reduce((a, s) => a + s.doubles.length, 0);
-  record("gameweek_shape", true, shape.length, `${nB} blanks, ${nD} doubles`);
-}
-
-/* ---- 1b. HVÍLDARDAGAR ----
-   rest_days úr KICKOFF-TÍMA (ekki dagsetningu eingöngu), yfir ALLAR
-   keppnir sem við höfum. euro_before/after fyllast þegar Evrópudráttur
-   er gerður — þangað til eru þau false, sem er rétt (engir leikir skráðir).
-
-   „<4 DAGA HVÍLD"-FLAGGIÐ VAR TEKIÐ ÚT 29.7.2026 — MÆLT ÓNÝTT.
-   Það var talið í status og las eins og rótasjón-hætta. Mæling á 65.557
-   leikmanna-umferðum (3 tímabil): eftir <4 daga hvíld spila 27,0% af
-   leikmönnum 60+ mínútur, á móti 27,3% annars (10.448 leikir með skammri
-   hvíld). Það er EKKERT forspárgildi um mínútur, svo talan mátti ekki
-   birtast við hlið raunverulegra hættu-merkja.
-   `rest_days` sjálft er GEYMT sem UPPLÝSING — sama regla og ferðalengd
-   (kafli 3 í CLAUDE.md): mælt ómarktækt => birt, ekki vegið. */
-async function deriveRotation() {
-  const fixtures = JSON.parse(await readFile(`${DATA}/fixtures.json`, "utf8"));
-  const teams = JSON.parse(await readFile(`${DATA}/teams.json`, "utf8")).teams;
-  let extra = {};
-  try {
-    const eu = JSON.parse(await readFile(`${DATA}/euro_fixtures.json`, "utf8"));
-    extra = eu.by_team || {};
-  } catch {}
-
-  const out = [];
-  for (const t of teams) {
-    // allir leikir liðsins: deild + Evrópa/bikar, tímaraðaðir
-    const pl = fixtures
-      .filter(f => (f.team_h === t.id || f.team_a === t.id) && f.kickoff_time)
-      .map(f => ({ when: new Date(f.kickoff_time), event: f.event, comp: "PL" }));
-    const ex = (extra[t.id] || extra[String(t.id)] || [])
-      .filter(x => x.date)
-      .map(x => ({ when: new Date(x.date), event: null, comp: x.comp_label || x.comp }));
-    const all = [...pl, ...ex].sort((a, b) => a.when - b.when);
-
-    for (let i = 0; i < all.length; i++) {
-      const g = all[i];
-      if (g.comp !== "PL" || !g.event) continue;      // aðeins PL-umferðir
-      const prev = all[i - 1];
-      const next = all[i + 1];
-      const dayDiff = (x, y) => Math.round((y - x) / 86400000 * 10) / 10;
-      const restDays = prev ? dayDiff(prev.when, g.when) : null;
-      const beforeGap = prev && prev.comp !== "PL" ? dayDiff(prev.when, g.when) : null;
-      const afterGap = next && next.comp !== "PL" ? dayDiff(g.when, next.when) : null;
-      out.push({
-        fpl_id: t.id, event: g.event, kickoff_time: g.when.toISOString(),
-        rest_days: restDays,
-        euro_before: beforeGap != null && beforeGap >= 2 && beforeGap <= 4,
-        euro_after: afterGap != null && afterGap >= 2 && afterGap <= 4,
-        euro_competition: (beforeGap != null && beforeGap <= 4) ? prev.comp
-                        : (afterGap != null && afterGap <= 4) ? next.comp : null,
-      });
-    }
-  }
-  const flagged = out.filter(x => x.euro_before || x.euro_after).length;
-  await writeJSON("rotation.json", {
-    updated: status.updated,
-    note: "rest_days = days since the club's LAST match in any competition (from kickoff_time). euro_before/after = a European or cup match 2-4 days before/after.",
-    /* Mælt 29.7.2026: hvíld hefur ekkert forspárgildi um mínútur (27,0% á
-       móti 27,3% spila 60+ eftir <4 daga hvíld, n=10.448). Talningin var
-       tekin úr status svo hún lesist ekki sem hætta. Evrópu-nálægð er
-       ÓMÆLD og heldur sér. */
-    rest_measured: { short_rest_60plus: 0.270, other_60plus: 0.273,
-                     samples: 10448, verdict: "no effect — not a warning sign" },
-    rows: out,
-  });
-  record("rotation", true, out.length, `${flagged} with a European match nearby (rest measured useless, not flagged)`);
-}
 
 /* ---- 4b. HEPPNISMÆLIR ----
    TREVERK KEMUR NU UR BSD, EKKI UNDERSTAT (8.8.2026).
@@ -6425,9 +6325,7 @@ async function main() {
 
   // ---- AFLEIDD LÖG (engin ný köll) — keyrð SÍÐAST því þau lesa skrárnar ofan ----
   if (FLAGS.travel)  { try { await deriveTravel(); }           catch (e) { record("travel", false, 0, e.message); } }
-  if (FLAGS.derived) { try { await deriveGameweekShape(); }    catch (e) { record("gameweek_shape", false, 0, e.message); }
-                       try { await deriveRotation(); }         catch (e) { record("rotation", false, 0, e.message); }
-                       try { await deriveTeamForm(); }          catch (e) { record("team_form", false, 0, e.message); }
+  if (FLAGS.derived) { try { await deriveTeamForm(); }          catch (e) { record("team_form", false, 0, e.message); }
                        try { await deriveLuck(); }              catch (e) { record("luck", false, 0, e.message); }
                        try { await deriveFormFeatures(); }      catch (e) { record("form_features", false, 0, e.message); }
                        try { await deriveLastGwReport(); }      catch (e) { record("last_gw", false, 0, e.message); }

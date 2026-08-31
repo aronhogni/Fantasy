@@ -75,6 +75,25 @@ jobs:
         continue-on-error: true
         run: node scripts/snapshot-predictions.mjs
 
+      # HLID FYRIR COMMIT — `scripts/validate-data.mjs` (tengt 31.8.2026)
+      #
+      # Skriftan var skrifud 25.8.2026 og var TENGD ENGU: hvorki vinnuskrar,
+      # `package.json` ne prof kolludu hana. Hun er hlid sem hafnar commit-i
+      # (`exit 1`) thegar snapshot er skemmt — og nakvaemlega su tegund
+      # bilunar sem hun er til fyrir SLAPP I GEGN 29.8.2026: `lineups.json`
+      # for ur 40 leikmonnum i 0 og var committud. Endurspilad a
+      # commit-sogunni hafnar hlidid theirri breytingu ordrett
+      # ("players: 40 -> 0"). Vordur sem keyrir ekki er ekki vordur
+      # (CLAUDE.md 5).
+      #
+      # ENGIN `continue-on-error` HER — OG ThAD ER MUNURINN A ThESSU SKREFI
+      # OG SPA-BOKHALDINU: bokhaldid er maelitaeki og ma ekki fella
+      # keyrsluna, en thetta hlid ER tilgangurinn. Bresti thad a commit-ID
+      # AD stodvast; appid les `data/` beint af raw.githubusercontent, svo
+      # skemmd skra fer oleidrett i vafra notandans.
+      - name: Hlid: sannreyna snapshot fyrir commit
+        run: node scripts/validate-data.mjs
+
       - name: Committa ef eitthvað breyttist
         run: |
           set -uo pipefail

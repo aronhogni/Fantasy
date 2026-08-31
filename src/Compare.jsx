@@ -32,7 +32,7 @@
    vid naum i gefur thaer — sja kafla 6b i CLAUDE.md.
    ============================================================ */
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { num, liveSeasonRow, sumGwRange, gwBlindKeys } from "./stats.js";
 import { useGwSeasonFile, gwSeasonsOf, nextRange, lastNRange, rangeBlind,
          RANGE_BLIND_BADGE, RANGE_LIVE_BADGE } from "./gwRange.js";

@@ -13,7 +13,7 @@
    kafli 3). Ein skra, einn innflutningur.
    ============================================================ */
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { imminentBoard, nameScore } from "./stats.js";
 import { photoNext } from "./Crest.jsx";
 

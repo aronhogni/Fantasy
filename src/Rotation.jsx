@@ -20,7 +20,7 @@
    (TIER_BG úr model.js) — ekkert afstætt innan liðs, sjá kafla 8.
    ============================================================ */
 
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { interp } from "./interp.js";
 import { TIER_BG, TIER_FG, TIER_NAME } from "./model.js";
 import {

@@ -17,7 +17,7 @@
    HEIMILD: `fpl-league` í netlify/functions/odds.js (FPL-standings er
    CORS-lokað eins og allt annað FPL). CDN-cache 60 s.
    ============================================================ */
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { interp } from "./interp.js";
 
 const C = {

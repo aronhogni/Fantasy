@@ -33,7 +33,6 @@
        fanadukurinn): fyllt smaatridi eru thad sem lifir nidur i 11px
    ============================================================ */
 
-import React from "react";
 
 /* Sameiginleg umgjord. `size` er BAEDI breidd og haed. Linuthykktin er 1,5
    i 16-grid-inu og skalast thvi MED staerdinni (1,03 px vid 11px, 1,88 vid

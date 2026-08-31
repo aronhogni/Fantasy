@@ -11,7 +11,7 @@
    i tests/stats.test.mjs maeli somu tolu sem birtist a skjanum.
    ============================================================ */
 
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { interp } from "./interp.js";
 import { STAT_DEFS, STAT_GROUPS, buildLeaderboard, fmtStat, minutesFloor,
          num, makeEnricher } from "./stats.js";

@@ -20,7 +20,7 @@
    ESPN-kvardinn (CLAUDE.md 6b). Sokn er UPP i badum kortum, en thad
    naest med ANDSTAEDRI umbreytingu.
    ============================================================ */
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 
 const RATIO = 68 / 105;          // breidd : lengd, rett hlutfoll
 const C = {

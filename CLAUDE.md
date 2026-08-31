@@ -1016,6 +1016,32 @@ Fjórar reglur: **aðeins í 12 KLST GLUGGA fyrir frest** · **aðeins einu sinn
 > báðir (viðmótið og bókhaldið) flytja hann inn, og `prediction-ledger.mjs`
 > fellur ef App.jsx skilgreinir hann sjálft.
 
+### TILTEKT 31.8.2026 — HVAÐ MÁTTI FARA OG EFTIR HVAÐA REGLU
+
+**Reglan sem greinir dautt frá vísvitandi óles­nu:** *leidd og
+endurgeranleg skrá má fara — óendurheimtanleg dagleg mynd ekki.*
+`history/` og `predictions/` verða ekki búnar til eftir á (kaflarnir hér
+að neðan); `rotation` og `gameweek shape` voru hins vegar reiknaðar úr
+`fixtures.json` og `euro_fixtures.json`, sem eru committaðar og lesnar
+áfram, svo ekkert tapaðist við að taka þær út.
+
+| tekið út | af hverju |
+|---|---|
+| `deriveRotation` + skráin (109 KB **í hverri keyrslu**) | Kjarninn — hvíld undir 4 dögum — var **mældur ónýtur 29.7.2026** (27,0% á móti 27,3%, n=10.448) og flaggið tekið út þá. Evrópu-nálægðin sem eftir stóð kemur úr `euro_fixtures.json`, sem appið hleður sjálft. **Enginn las skrána** |
+| `deriveGameweekShape` + skráin | Auðar/tvöfaldar umferðir eru leiddar úr `fixtures.json`, sem appið hleður. **Enginn las skrána** |
+| tveir merkimiðar í „Data sources" (`rotation`, `gameweek_shape`) | Merkimiði án stöðu-raðar er þögull dauður kóði — hann sýndi aldrei neitt en hefði látið næsta mann halda að heimildin væri til |
+| 12 ónotaðir `React`-innflutningar + 2 aðrir | Bæði `@vitejs/plugin-react` og `tests/jsx-loader.mjs` nota **automatic** JSX-runtime, svo `import React` er dauð þyngd. `App.jsx` heldur sínum — hann notar `React.Fragment` |
+| `bandEstimate` í `measure-first-start-dc.mjs` | Útflutt API án lesanda — boð um að kalla það rangt |
+
+> **OG HVÍTLISTINN LAUG.** `wiring.mjs` hleypti báðum skránum í gegn á
+> `OK_UNREAD` með ástæðunum *„lesin í GwReport gegnum breytu"* og *„lesin
+> sem `rotation` (14 tilvik)"*. **Hvorug stóðst:** einu tilvikin í `src/`
+> voru merkimiðinn í „Data sources"-töflunni og orðið `rotationRisk`, sem
+> er annað fall. Afsökun sem hættir að vera sönn er þögul heimild — nákvæmlega
+> það sem listinn á að hindra. Nýr vörður: **hver lykill í `OK_UNREAD`
+> verður að vera skrá sem pipeline-an SKRIFAR ENN** (svið-afsakanir og
+> sniðmát undanskilin, enda nefnir `writeJSON` þau ekki).
+
 ### `data/history/` — SKRIFAÐ, ÓLESIÐ, OG MÁ EKKI EYÐA
 
 `fetch.mjs` skrifar daglega verðmynd í `data/history/YYYY-MM-DD.json`
@@ -1191,6 +1217,34 @@ lagfæringu** — og nótan lagði þær í sama flokk. Nóturnar eru nú útflu
 föllin `bsdLineupNote`/`bsdOddsNote`, prófuð á tilbúnum inntökum þar sem svarið
 er þekkt fyrirfram; prófsteinninn er **ekki orðalagið** heldur að ástöndin gefi
 **sitthvora** nótu (`bsd-pipeline.mjs` kafli 9).
+
+### HLIÐIÐ FYRIR COMMIT — SKRIFAÐ 25.8., TENGT 31.8.2026
+
+`scripts/validate-data.mjs` hafnar commit-i (`exit 1`) þegar snapshot er
+skemmt: ógilt JSON, `teams.json` sem er ekki 20 félög, og **afturför í
+null** (svið sem fór úr N í 0 eða hvarf). Hún var skrifuð 25.8.2026 og
+**tengd engu** — hvorki vinnuskrám, `package.json` né prófum.
+
+**ÞAÐ VAR EKKI FRÆÐILEGT.** Nákvæmlega sú bilun sem hún er til fyrir
+slapp í gegn 29.8.2026: `lineups.json` fór úr 40 leikmönnum í 0 og var
+committuð. Endurspilað á commit-sögunni hafnar reglan þeirri breytingu
+orðrétt — `players: 40 -> 0`, `teams: 2 -> 0`, `sources` HVARF. *Vörður
+sem keyrir ekki er ekki vörður* (kafli 5), og hér kostaði það gögn.
+
+Hliðið keyrir nú í **báðum** vinnuskrám, **á undan** commit-skrefinu og
+**án `continue-on-error`** — það er munurinn á því og spá-bókhaldinu:
+bókhaldið er mælitæki og má ekki fella keyrsluna, en þetta hlið ER
+tilgangurinn. Appið les `data/` beint af raw.githubusercontent, svo
+skemmd skrá fer óleiðrétt í vafra notandans.
+
+Tvennt fylgdi með: **undirmöppurnar eru nú þáttaðar** (`live/`,
+`predictions/`, `history/`, `odds_raw/`, `fdcouk/` — 64 skrár til
+viðbótar; hausinn á skriftunni nefndi sjálfur að trunkuð `live/gw1.json`
+slyppi í gegn), og **skriftan er `invokedDirectly`-hliðuð** eins og
+`fetch.mjs`, því innflutningur keyrði allt hliðið og kallaði
+`process.exit()` — prófið komst ekki að fyrstu fullyrðingu sinni.
+Vörður: `tests/validate-data.mjs` (25 fullyrðingar, fjórar
+stökkbreytingar felldar; reglan sjálf er hreint fall, `regressions`).
 
 ### Cron
 

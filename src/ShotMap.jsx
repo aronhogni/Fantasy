@@ -19,7 +19,7 @@
    **BSD-x ER ANNAR KVARDI EN ESPN-x** (hlutfall af FULLUM velli, 105 m, a
    moti halfum). Ekki flytja reglur milli theirra — sja 6t.
    ============================================================ */
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 
 /* Teiknum fra marklinu og 40 einingar ut (=42 m af 105) — thar liggja
    99,5% skota. Rett hlutfoll: 68 m breidd a moti 42 m dypt.          */

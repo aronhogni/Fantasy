@@ -27,7 +27,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildPanel, BASE_FEATURES, fitRidge, mean, sd } from "../tests/lib/panel2.mjs";
 import { corr, loadSeason, SEASONS as E0_SEASONS } from "../tests/lib/e0.mjs";
-import { bootstrapCI, byPlayer, ci, fmt } from "./start-panel.mjs";
+import { bootstrapCI, byPlayer, ci } from "./start-panel.mjs";
 import { IN_BOX_X } from "../src/bsd.js";
 
 const D = new URL("../data/", import.meta.url).pathname;

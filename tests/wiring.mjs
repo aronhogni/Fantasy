@@ -64,16 +64,29 @@ const uniq = [...new Set(written)].sort();
 ok(uniq.length > 20, `${uniq.length} fastar gagnaskrár skrifaðar úr pipeline`);
 
 /* SKRÁR SEM ENGINN LES — hver með ÁSTÆÐU. Ekki bæta við án ástæðu. */
+/* ============================================================
+   AFSOKUN FYRIR SKRA SEM ER EKKI LENGUR SKRIFUD ER DAUD AFSOKUN
+   (31.8.2026)
+
+   Tvaer faerslur her SOGDU ad skrarnar vaeru lesnar — "lesin i GwReport
+   gegnum breytu" og "lesin sem `rotation` (14 tilvik)" — og HVORUG
+   fullyrdingin stodst: einu tilvikin i `src/` voru MERKIMIDI i
+   "Data sources"-toflunni og ordid `rotationRisk`, sem er annad fall.
+   Hvitlistinn hleypti thvi 114 KB af daudum utgangi i gegn i hverri
+   keyrslu. Baðar skrarnar (og follin sem skrifudu thaer) eru farnar.
+
+   VORDURINN GEGN ThVI AD ThETTA SAFNIST UPP: hver lykill i `OK_UNREAD`
+   verdur ad vera skra sem pipeline-an SKRIFAR ENN. Stodnud afsokun er
+   thogul heimild — nakvaemlega tegundin sem thessi listi a ad hindra.
+   ============================================================ */
 const OK_UNREAD = {
   "teams_map.json":            "pipeline-innri nafnavörpun; appið notar teams.json",
   "status_fast.json":          "lesin GEGNUM pipeStatusFast — sjá athugasemd hér neðar",
   "fdcouk/h2h.json":           "hráefni fyrir framtíðar-h2h; engin sýn enn (skjalað í SCHEMA)",
   "fdcouk/referees.json":      "hráefni fyrir dómara-sýn; engin sýn enn",
   "season_baseline.json":      "lesin sem seasonsFile/baseline — nefnd óbeint",
-  "gameweek_shape.json":       "lesin í GwReport gegnum breytu",
   "odds.json":                 "lesin sem `odds` (44 tilvik) — nafnið sjálft ekki í src",
   "luck.json":                 "lesin sem `luck` (12 tilvik)",
-  "rotation.json":             "lesin sem `rotation` (14 tilvik)",
   "lineups.json":              "lesin sem `lineups` — TENGD 1.8.2026",
   /* RAUNVERULEG EFTIRSTODVA, EKKI UNDANTHAGA. Skrain lysir ser sjalf sem
      "A FALLBACK for odds.json" — en EKKERT i src/ les hana, svo
@@ -157,6 +170,20 @@ const OK_UNREAD = {
   "odds_raw/{date}-{window}.json": "ARKIV: hratt Odds-API-svar, dagsett og onemandi — linu-hreyfing og "
                              + "misraemi milli boka fæst hvergi annars stadar; merki-notkun krefst nyrrar maelingar (CLAUDE.md 4)",
 };
+
+/* HVER AFSOKUN VERDUR AD EIGA SKRA SEM ER ENN SKRIFUD — sja hausinn.  */
+{
+  /* SVID-AFSAKANIR (`events.json:crowd_fields`) og SNIDMAT
+     (`odds_raw/{date}-...`) eru UTAN: hvorugt er skra sem `writeJSON`
+     nefnir, svo krafan aetti ekki vid thau. Eftir standa VENJULEGU
+     skrarnar — thar sem baðar rongu afsakanirnar bjuggu.              */
+  const literal = Object.keys(OK_UNREAD).filter(f => !/[:{]/.test(f));
+  const stale = literal.filter(f => !uniq.includes(f));
+  ok(stale.length === 0,
+     `engin STODNUD afsokun i OK_UNREAD (${stale.join(", ") || "engin"})`);
+  ok(literal.length > 3,
+     `listinn ber venjulegar skrar (${literal.length}) — annars maelir vordurinn ekkert`);
+}
 /* Lyklarnir sem eru ARKIV en ekki venjuleg skraarheiti. Their eru TALDIR
    UPP her svo athugunin nedar geti fallid — hvitlista-faersla sem ekkert
    les er nakvaemlega su thogn sem thetta safn er til ad drepa.          */

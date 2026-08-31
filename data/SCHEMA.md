@@ -445,15 +445,6 @@ home_fpl_id, away_fpl_id, km, is_long_trip }] }`
 Haversine úr `teams_map` hnitum. `km` gildir um **útiliðið**.
 Þröskuldur 300 km. Staðfest: Newcastle→Bournemouth 472 km.
 
-### `gameweek_shape.json`
-`{ cup_status: { <fpl_id>: { extra_games, cup_exited } },
-  shape: [{ event, teams_playing, blanks, doubles }] }`
-
-`cup_exited: null` = **óþekkt** (bikarar ódregnir) — ekki `false`.
-
-**Merking sem er oft misskilin:** lið sem fer ÚR bikar snemma fær **TRYGGARI**
-mínútur, ekki verri.
-
 ### `team_form.json` — LIÐ-STYRKUR, HEILT
 `{ season, header_columns, teams: [{ fpl_id, short, matches, source,
 goals_pg, conceded_pg, shots_pg, shots_against_pg, sot_pg, sot_against_pg,
@@ -999,24 +990,6 @@ Dæmi: Arsenal og Man Utd eru bæði FDR 2, en fá 35% og 28% því vörnin
 Nýleg gögn eru of hávaðakennd á lið-stigi. **Regla: nýleg gögn fyrir
 leikmenn, heilt tímabil fyrir lið.**
 
-### `rotation.json`
-`{ rows: [{ fpl_id, event, kickoff_time, rest_days,
-euro_before, euro_after, euro_competition }] }`
-
-**`rest_days` ER UPPLÝSING, EKKI HÆTTUMERKI (29.7.2026).** Mælt á 10.448
-leikjum með skammri hvíld: 27,0% spila 60+ mínútur eftir <4 daga hvíld á móti
-27,3% annars — ekkert forspárgildi. „<4 daga hvíld"-talningin var því tekin úr
-`status.json`; `rest_measured` í skránni geymir tölurnar. Evrópu-nálægð er
-**ómæld** og heldur sér.
-
-`rest_days` úr **kickoff-tíma**, yfir allar keppnir. `euro_before`/`euro_after`
-= Evrópu-/bikarleikur 2–4 dögum fyrir/eftir. Þau eru `false` þar til dráttur
-er gerður — það er rétt, ekki vöntun.
-
----
-
-## Veður
-
 ### `weather.json`
 `{ fixtures: [{ fixture_id, kickoff, temp_c, precip_mm, wind_kmh, gust_kmh }] }`
 
@@ -1088,6 +1061,24 @@ Skrifuð af `fetchBsdLive()`. **Er ekki til í forleik** og það er rétt:
 404 — prófað í `tests/untrusted-input.mjs` og `data-resilience.mjs`.
 
 ---
+
+
+### Fjarlægt 31.8.2026 — umferðaform og hvíldardagar
+
+Tvær leiddar skrár voru teknar út: **rotation** (hvíldardagar og
+Evrópu-nálægð) og **gameweek shape** (auðar/tvöfaldar umferðir).
+Skráarheitin eru **viljandi ekki skrifuð hér með bakkatikkum** — vörður
+í `wiring.mjs` les þau og krefst þess að hver nefnd skrá sé til, svo
+minningargrein um horfna skrá myndi falla sem „draugur".
+
+Báðar voru **leiddar** (úr `fixtures.json` og `euro_fixtures.json`) og
+**enginn las þær** — hvorki appið, prófin né mælingaskrifturnar.
+Hvíldardagarnir voru auk þess mældir ónýtir 29.7.2026 (27,0% á móti
+27,3%, n=10.448) og flaggið tekið út þá; Evrópu-nálægðin sem eftir stóð
+kemur úr `euro_fixtures.json`, sem appið hleður sjálft.
+
+Reglan sem greinir þær frá `history/` og `predictions/`: **leidd og
+endurgeranleg skrá má fara, óendurheimtanleg dagleg mynd ekki.**
 
 ## Óútfært
 

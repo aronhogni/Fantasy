@@ -100,18 +100,13 @@ const pearson = (xs, ys) => {
    engri fyrir FWD-bond thar sem merkid maeldist ekki (r inniheldur null).
    "Faar maelingar -> ENGIN tala" (CLAUDE.md 4).
    ============================================================ */
+/* `pool` OG `THRESH` ERU FLUTT UT FYRIR LIDS-UTTEKTINA — `bandEstimate`
+   VAR ThAD LIKA OG ENGINN KALLADI HANA (fjarlaegd 31.8.2026). Hun var
+   skrifud 27.8. fyrir skriftu sem var aldrei committud, svo hun var
+   utflutt API an lesanda: bod um ad kalla thad rangt. Bondin sjalf eru
+   i skyrslunni her ad nedan og verda endurgerd i einni linu ur `pool`
+   ef einhver tharf thau aftur.                                         */
 export { pool, THRESH };
-
-const BANDS = [[0, 8], [8, 12], [12, 15], [15, 99]];
-export function bandEstimate(pos, dc90, { minN = 8 } = {}) {
-  if (!THRESH[pos] || !Number.isFinite(dc90)) return null;
-  const band = BANDS.find(([lo, hi]) => dc90 >= lo && dc90 < hi);
-  if (!band) return null;
-  const rs = pool.filter(p => p.pos === pos && p.first_dc90 >= band[0] && p.first_dc90 < band[1]);
-  if (rs.length < minN) return { band, n: rs.length, rate: null, ci: null, why: `only ${rs.length} comparable players` };
-  const ci = bootstrapCI(rs.map(p => [p]), xs => xs.reduce((s, x) => s + x.later_rate, 0) / xs.length);
-  return { band, n: rs.length, rate: ci.point, ci: [ci.lo, ci.hi] };
-}
 
 const invokedDirectly = (() => {
   try { return realpathSync(process.argv[1] || "") === realpathSync(new URL(import.meta.url).pathname); }

@@ -75,7 +75,7 @@
    Keyrsla:  node scripts/validate-data.mjs        (0 = ma committa)
              node scripts/validate-data.mjs --json <slod>
    ============================================================ */
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
@@ -94,7 +94,7 @@ function headVersion(rel) {
 }
 
 /** Fjoldi radaa i hverju svidi sem BER safn. Djupt nog fyrir okkar snid. */
-function counts(obj, prefix = "", out = {}, depth = 0) {
+export function counts(obj, prefix = "", out = {}, depth = 0) {
   if (depth > 2 || obj == null || typeof obj !== "object") return out;
   if (Array.isArray(obj)) { out[prefix || "(root)"] = obj.length; return out; }
   for (const [k, v] of Object.entries(obj)) {
@@ -107,6 +107,49 @@ function counts(obj, prefix = "", out = {}, depth = 0) {
   }
   return out;
 }
+
+/* ============================================================
+   AFTURFOR I NULL — HREINT FALL SVO ThAD SE PROFANLEGT (31.8.2026)
+
+   Reglan var innbyggd i lykkjuna og thvi adeins profanleg med thvi ad
+   smida git-hirslu. Nu er hun fall: tvo hlutir inn, listi af vandamalum
+   ut. `tests/validate-data.mjs` keyrir hana a tilbunum gognum — thar a
+   medal a RAUNVERULEGA tilfellinu sem slapp 29.8.2026 (`lineups.json`
+   players 40 -> 0), sem thetta hlid hefdi hafnad hefdi thad verid tengt.
+   ============================================================ */
+export function regressions(nowObj, headObj, name = "file") {
+  const out = [];
+  const now = counts(nowObj), was = counts(headObj);
+  for (const [field, before] of Object.entries(was)) {
+    const after = now[field];
+    if (before > 0 && after === 0) {
+      out.push(`${name}: \`${field}\` went ${before} -> 0. An empty run must `
+        + "never erase good data (rule 8e).");
+    } else if (before > 0 && after === undefined) {
+      out.push(`${name}: \`${field}\` (${before} rows) DISAPPEARED from the file.`);
+    }
+  }
+  return out;
+}
+
+/* ============================================================
+   HLIDID KEYRIR ADEINS ThEGAR ThAD ER KEYRT (31.8.2026)
+
+   Skriftan var OSKILYRT: hver innflutningur keyrdi allt hlidid OG kalladi
+   `process.exit()`. Profid sem atti ad profa regluna gat thvi ekki einu
+   sinni raest — skriftan for ut adur en fyrsta fullyrdingin keyrdi.
+   Sama villa og `fetch.mjs` bar (CLAUDE.md 7.1) og sama lausn:
+   `realpathSync` a BADUM megin svo symlinkud eda afstaed slod thaggi hana
+   ekki nidur. Hreinu follin (`counts`, `regressions`) eru fyrir ofan
+   thetta og eru thvi innflytjanleg an thess ad neitt gerist.
+   ============================================================ */
+const invokedDirectly = (() => {
+  try { return realpathSync(process.argv[1] || "") === realpathSync(new URL(import.meta.url).pathname); }
+  catch { return false; }
+})();
+if (!invokedDirectly) {
+  /* innflutt: engin skrif, engin utganga, engin prentun */
+} else {
 
 const files = (await readdir(DATA, { withFileTypes: true }))
   .filter(d => d.isFile() && d.name.endsWith(".json"))
@@ -145,16 +188,35 @@ for (const name of files) {
   catch { notes.push(`${name}: HEAD copy does not parse — skipping comparison`); continue; }
   compared++;
 
-  const now = counts(obj), was = counts(headObj);
-  for (const [field, before] of Object.entries(was)) {
-    const after = now[field];
-    if (before > 0 && after === 0) {
-      problems.push(`${name}: \`${field}\` went ${before} -> 0. An empty run must `
-        + "never erase good data (rule 8e).");
-    } else if (before > 0 && after === undefined) {
-      problems.push(`${name}: \`${field}\` (${before} rows) DISAPPEARED from the file.`);
-    }
+  for (const p of regressions(obj, headObj, name)) problems.push(p);
+}
+
+/* ============================================================
+   UNDIRMOPPURNAR — GATID SEM HAUSINN NEFNIR SJALFUR (31.8.2026)
+
+   Hausinn sagdi: "undirmoppurnar fa ENGA JSON-thattun, svo trunkud
+   `live/gw1.json` (409 KB, LESIN AF APPINU) slyppi gegnum thetta hlid.
+   Vaeri hlidid tengt aetti thad ad vera fyrsta viðbotin." Hlidid er nu
+   tengt (badar vinnuskrar), svo thetta er su viðbot.
+
+   ADEINS ThATTUN, ENGIN AFTURFARAR-SAMANBURDUR: skrarnar eru
+   VIDBAETANDI (ein per dag / per umferd / per glugga) og eldri radir eru
+   aldrei endurskrifadar, svo "afturfor i null" er ekki til sem astand
+   hja theim. Ad bera thaer saman vid HEAD vaeri ad finna upp astand sem
+   getur ekki komid fyrir.                                            */
+const SUBDIRS = ["live", "predictions", "history", "odds_raw", "fdcouk"];
+let subParsed = 0;
+for (const dir of SUBDIRS) {
+  let entries = [];
+  try { entries = (await readdir(`${DATA}/${dir}`)).filter(f => f.endsWith(".json")); }
+  catch { notes.push(`${dir}/: not present`); continue; }
+  let bad = 0;
+  for (const f of entries) {
+    try { JSON.parse(readFileSync(`${DATA}/${dir}/${f}`, "utf8")); subParsed++; }
+    catch (e) { bad++; problems.push(`${dir}/${f}: NOT VALID JSON (${(e.message || "").slice(0, 90)}) `
+      + "— the app reads these files straight from raw.githubusercontent"); }
   }
+  notes.push(`${dir}/: ${entries.length} json${bad ? `, ${bad} BROKEN` : ""}`);
 }
 
 /* ThEKJA ER FULLYRDING, EKKI LOGGA: fyndi hlidid engar skrar vaeri thad
@@ -177,9 +239,12 @@ if (jsonAt > 0 && process.argv[jsonAt + 1]) {
 }
 
 console.log(`validate-data: ${files.length} files, ${parsed} parsed, `
-  + `${compared} compared against HEAD`);
+  + `${compared} compared against HEAD · ${subParsed} more parsed in `
+  + `${SUBDIRS.join("/, ")}/`);
 for (const n of notes) console.log(`  ·    ${n}`);
 if (!problems.length) { console.log("  OK   snapshot is safe to commit"); process.exit(0); }
 console.log(`\n  ${problems.length} PROBLEM(S) — REFUSING THE COMMIT:`);
 for (const p of problems) console.log(`  ✗    ${p}`);
 process.exit(1);
+
+}
