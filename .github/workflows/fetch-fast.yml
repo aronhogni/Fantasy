@@ -90,7 +90,7 @@ jobs:
       # keyrsluna, en thetta hlid ER tilgangurinn. Bresti thad a commit-ID
       # AD stodvast; appid les `data/` beint af raw.githubusercontent, svo
       # skemmd skra fer oleidrett i vafra notandans.
-      - name: Hlid: sannreyna snapshot fyrir commit
+      - name: Hlid - sannreyna snapshot fyrir commit
         run: node scripts/validate-data.mjs
 
       - name: Committa ef eitthvað breyttist
