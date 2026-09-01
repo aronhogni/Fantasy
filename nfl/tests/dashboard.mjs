@@ -2349,5 +2349,45 @@ console.log("\n3j. eftirsja vikunnar er a skjanum");
     `(${fresh.filter((u) => /\/matchups\//.test(u)).length} slik)`);
 }
 
+/* ============================================================
+   LIDSKODINN VERDUR AD VERA SAMRAEMDUR I OLLUM UPPFLETTINGUM
+   ============================================================
+   Stokkbreytinga-yfirferd 1.9.2026 fjarlaegdi `normTeam` ur EINNI af
+   tveimur uppflettingum i somu setningu og EKKERT safn fell. Vid ad
+   smiða thetta prof fannst svo ad `implied`-uppflettingin var ALDREI
+   samraemd — sama rod typud `LA` fekk mothverja sinn (rett) en TAPADI
+   leikja-margfaldaranum: 14,8 gegn 14,4 fyrir sama mann.
+
+   Þetta er sama gerd og `LA`/`LAR`-villan sem kostadi 22 Rams-leikmenn
+   SoS: ekkert i `players.json` ber `LA` i dag, svo hun bidur thegjandi
+   thangad til heimild skilar odru sniði. Fullyrdingin er thvi a
+   TILBUNU tilfelli, ekki a lifandi gognum.
+   ============================================================ */
+console.log("\nlidskodinn er samraemdur i OLLUM uppflettingum");
+{
+  const { weekContext, weekRows } = await import("../src/weekview.js");
+  /* STERKT LEIKJASNID VILJANDI: med hlutlausri linu er margfaldarinn
+     ~1,0 og "badir kodar gefa somu tolu" er satt af thvi ad HVORUGUR
+     fekk adlogun — tom fullyrding. Halfa 62 stiga leiks med 14 stiga
+     forskoti gefur margfaldara sem er otvirætt ekki 1. */
+  const schedule = [{ season: 2026, week: 1, type: "REG",
+    home: "LAR", away: "SF", total: 62, spread: 14 }];
+  const ctx = weekContext({ schedule, defense: [], market: null,
+    season: 2026, week: 1 });
+  const mk = (team) => [{ id: "x", name: "X", pos: "RB", team, proj: 238, avail: 1 }];
+  const asLa = weekRows(mk("LA"), ctx)[0];
+  const asLar = weekRows(mk("LAR"), ctx)[0];
+  ok(asLar && asLar.proj != null, `ThEKJA: "LAR" faer viku-tolu (${asLar && asLar.proj})`);
+  ok(asLa && asLa.proj != null, `ThEKJA: "LA" faer viku-tolu (${asLa && asLa.proj})`);
+  ok(asLa && asLar && Math.abs(asLa.proj - asLar.proj) < 1e-9,
+    `sama lid undir badum kodum gefur SOMU tolu (${asLa && asLa.proj} = ${asLar && asLar.proj})`);
+  /* OG ThAD MA EKKI VERA AF ThVI AD HVORUGUR FAI ADLOGUN: se
+     margfaldarinn ekki virkur er fullyrdingin ad ofan tom. */
+  const flat = weekRows(mk("LAR"), null)[0];
+  ok(flat && Math.abs(flat.proj - asLar.proj) > 1e-9,
+    `ThEKJA: viku-adlogunin er raunverulega virk (${flat && flat.proj} gegn ${asLar && asLar.proj})`);
+}
+
+
 console.log(fail ? `\n${fail} PROF FELLU` : "\noll prof graen");
 process.exit(fail ? 1 : 0);

@@ -357,7 +357,12 @@ export function weekRows(roster, ctx, usage) {
       const o = ctx.opp.get(normTeam(r.team));
       const d = o ? ctx.dvp.get(`${normTeam(o)}|${r.pos}`) : null;
       const wp = weeklyProjection({
-        base, pos: r.pos, implied: ctx.implied.get(r.team),
+        /* `normTeam` LIKA HER. Linan fyrir ofan samraemdi `opp` en thessi
+           gerdi thad ekki, svo rod sem ber `LA` fekk mothverja SINN
+           (rett) en TAPADI leikja-margfaldaranum — 14,8 gegn 14,4 fyrir
+           sama mann. Fannst i stokkbreytinga-yfirferd 1.9.2026: ein af
+           tveimur uppflettingum i somu setningu var samraemd. */
+        base, pos: r.pos, implied: ctx.implied.get(normTeam(r.team)),
         def: d ? { adj: d.adj, leagueMean: d.leagueMean } : null,
         avail: 1, bye: false,
       });
@@ -538,7 +543,7 @@ export function dstStream({ ctx, teams, taken, mine } = {}) {
 
   const rows = list.map((t) => {
     const opp = ctx.opp.get(normTeam(t.team)) ?? null;
-    const raw = ctx.implied.get(t.team);
+    const raw = ctx.implied.get(normTeam(t.team));
     /* MOTHERJANS vaenta skor er thad sem vornin gefur fra ser. `implied`
        ber EIGID vaent skor hvers lids, svo thetta er flettingin a
        motherjanum — ekki minus a minu eigin. Fyrsta utgafan las mitt og

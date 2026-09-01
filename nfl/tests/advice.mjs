@@ -36,6 +36,22 @@ console.log("\n1. normaldreifing");
 /* ---------- 2. LIFUNARLIKUR ---------- */
 console.log("\n2. lifunarlikur");
 {
+  /* ============================================================
+     SAMFELLDNILEIDRETTINGIN — STOKKBREYTING SLAPP I GEGN (1.9.2026)
+     ============================================================
+     Kaflinn profadi EINRAENI og MORK en aldrei halfa-vals-hlidrunina
+     sjalfa. Stokkbreytinga-yfirferd fjarlaegdi `- 0.5` og EKKERT SAFN
+     fell — medan tolurnar a bordinu skekkjast ad medaltali 2,6
+     prosentustig og mest **26,2** (Gibbs, adp 1,5 / sd 0,7: 50% -> 24%).
+     Þad er einmitt hja throngu ADP-monnunum sem "get eg beðid?" skiptir
+     mali.
+
+     Akkerid er nakvaemt: vid `adp + 0,5` er madurinn nakvaemlega a
+     morkunum, svo likurnar eru NAKVAEMLEGA 0,5. */
+  near(survivalProb(20, 4, 20.5), 0.5, 1e-6,
+    "samfelldnileidretting: lifun er NAKVAEMLEGA 0,5 vid adp + 0,5");
+  near(survivalProb(60, 12, 60.5), 0.5, 1e-6, "og hun er ohað dreifingunni");
+
   /* Vid sitt eigid ADP eiga likurnar ad vera naerri 0,5. */
   near(survivalProb(30, 8, 30), 0.5, 0.05, "vid eigid ADP eru likurnar ~0,5");
   ok(survivalProb(30, 8, 10) > 0.99, "langt a undan ADP: nanast oruggur");

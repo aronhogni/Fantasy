@@ -447,7 +447,8 @@ console.log("\n1. heilt 10x15 snakk-draft keyrt i gegn");
   let mismatchPick = 0, mismatchNext = 0, mismatchBoardBox = 0,
       reappeared = 0, junkSeen = null, junkAt = 0,
       rosterWrong = 0, colourWrong = 0, colourChecked = 0,
-      snakeWrong = 0, myPickMissed = 0, lastPickWrong = 0, lastPickSeen = 0;
+      snakeWrong = 0, myPickMissed = 0, lastPickWrong = 0, lastPickSeen = 0,
+      takeSplit = 0, takeSeen = 0, takeExample = null;
 
   for (let n = 1; n <= TOTAL; n++) {
     const player = POOL[n - 1];
@@ -460,6 +461,42 @@ console.log("\n1. heilt 10x15 snakk-draft keyrt i gegn");
 
     const got = await waitFor(() => draftedOnScreen() === n, 4000);
     if (!got) { ok(false, `val ${n}: bordid tok ekki vid valinu (${draftedOnScreen()}/${n})`); break; }
+
+    /* ============================================================
+       (a0) NAKVAEMLEGA EITT SVAR VID "hvern a eg ad taka"
+       ============================================================
+       Kassinn OG rod 0 i rokstudnings-toflunni bera bædi "take"-merki.
+       I venjulegu astandi er thad SAMI madur (endurtekning); thegar
+       K/DST-thvingunin tekur yfir urskurdinn var thad SITTHVOR — maelt
+       31.8.2026: "DST Los Angeles Rams" og "Jahmyr Gibbs" i sama
+       spjaldi. Fullyrdingin er thvi um NOFNIN, ekki fjoldann.
+
+       Hun er hér inni i lykkjunni af thvi ad hun er OKEYPIS: kaflinn
+       keyrir hvert einasta val hvort ed er, og seinni helmingur
+       draftsins — thar sem thvingunin kviknar — kostar tha ekkert.
+       Ser kafli sem draftadi 140 vol til ad na thvi astandi setti
+       safnid yfir 15 minutna thakid. */
+    {
+      const vp = [...document.querySelectorAll(".panel")]
+        .find((x) => /^Pick \d+ —/.test((x.querySelector("h2") || {}).textContent || ""));
+      if (vp) {
+        const names = [];
+        for (const b of [...vp.querySelectorAll(".badge")]) {
+          if (!/^take$/i.test((b.textContent || "").trim())) continue;
+          const host = b.closest("td, .verdict-name") || b.parentNode;
+          const c = host.cloneNode(true);
+          for (const x of [...c.querySelectorAll(".badge, .pos, .dim, .verdict-star")]) x.remove();
+          names.push((c.textContent || "").trim());
+        }
+        if (names.length) {
+          takeSeen++;
+          if (new Set(names).size > 1) {
+            takeSplit++;
+            if (!takeExample) takeExample = `val ${n}: ${[...new Set(names)].join(" | ")}`;
+          }
+        }
+      }
+    }
 
     /* (a) valnumerid — og eftir sidasta val er RETT SVAR ad hann se
        enginn: "Pick 151 — take this" i 150 vala drafti er fullyrding
@@ -533,6 +570,11 @@ console.log("\n1. heilt 10x15 snakk-draft keyrt i gegn");
     `sidustu ${TOTAL - 145} volin voru raunverulega skodud sem "ekkert val eftir" (${lastPickSeen})`);
   ok(lastPickWrong === 0,
     `og engin tala er lofad thegar ekkert val er eftir (${lastPickWrong} rong)`);
+  ok(takeSeen > TOTAL / 2,
+    `ThEKJA: "take"-merki sast i ${takeSeen} af ${TOTAL} volum`);
+  ok(takeSplit === 0,
+    `EITT svar vid "hvern a eg ad taka" i hverju vali (${takeSplit} klofin` +
+    `${takeExample ? ", t.d. " + takeExample : ""})`);
   ok(snakeWrong === 0, `snakk-vorpun hermisins stemmir vid sjalfstaeda utfaerslu (${snakeWrong} frávik)`);
   ok(mismatchPick === 0, `valnumerid a skjanum er rett i ollum ${TOTAL} volum (${mismatchPick} rong)`);
   ok(mismatchNext === 0, `"naesta val mitt" er rett i ollum volum (${mismatchNext} rong)`);
@@ -2931,79 +2973,6 @@ console.log("\n25. val sem er eytt medan flipinn er lokadur");
        ekki fallid (CLAUDE.md 5b). Talan er profsteinninn. */
     void manualName;
   }
-  ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
-  await settle(60);
-  await act(async () => { root.unmount(); });
-}
-
-/* ============================================================
-   26. NAKVAEMLEGA EITT "take" I SPJALDINU
-   ============================================================
-   RYNNI 31.8.2026: thegar K/DST-thvingunin tekur yfir urskurdinn bar
-   kassinn `DST Los Angeles Rams` medan rokstudnings-taflan tiu linum
-   nedar bar `Jahmyr Gibbs` — OG BADIR MED "take"-merki. Tvo svor vid
-   somu spurningu i sama spjaldi er nakvaemlega thad sem kassinn er til
-   ad losa notandann vid.
-
-   Fullyrdingin er TALNING A SKJANUM og hun gildir i BADUM astondum:
-   hvort sem rodin sjalf a urskurdinn eda saeti sem verdur ad fyllast.
-   ============================================================ */
-console.log("\n26. nakvaemlega eitt \"take\" i urskurdar-spjaldinu");
-{
-  live.picks = []; live.draft = mkDraft(); live.mode = "ok"; live.secondDraft = null;
-  const root = await boot();
-  await connectAndSync();
-  const panel = () => [...document.querySelectorAll(".panel")]
-    .find((p) => /^Pick \d+ —/.test((p.querySelector("h2") || {}).textContent || "")) || null;
-  /* ============================================================
-     INVARIANTID ER "SAMI MADUR", EKKI "EITT MERKI"
-     ============================================================
-     Fyrsta utgafa krafdist NAKVAEMLEGA EINS "take" og fell rettilega i
-     fyrstu umferd: kassinn OG rod 0 i toflunni bera bædi merkid, og tha
-     er thad SAMI MADUR — endurtekning, ekki motsogn. Villan sem fannst
-     var ad thau nefndu SITTHVORN manninn. Fullyrdingin er thvi um
-     nofnin, ekki fjoldann. */
-  const takeNames = () => {
-    const p = panel();
-    if (!p) return null;
-    const out = [];
-    for (const b of [...p.querySelectorAll(".badge")]) {
-      if (!/^take$/i.test((b.textContent || "").trim())) continue;
-      /* Nafnid er i sama hylki og merkid — hreinsad af merkjum svo
-         "QuestionableJahmyr Gibbs" verdi ekki eigid nafn. */
-      const host = b.closest("td, .verdict-name") || b.parentNode;
-      const c = host.cloneNode(true);
-      for (const x of [...c.querySelectorAll(".badge, .pos, .dim, .verdict-star")]) x.remove();
-      out.push((c.textContent || "").trim());
-    }
-    return out;
-  };
-  /* Rokstudnings-taflan er felld sjalfgefid — hun verdur ad vera OPIN,
-     annars telur fullyrdingin adeins kassann og getur ekki brugdist. */
-  const openTable = async () => {
-    const sum = [...document.querySelectorAll("details.reasoning summary")][0];
-    if (sum) await click(sum, 150);
-  };
-  await openTable();
-  ok(panel() != null, "ThEKJA: urskurdar-spjaldid er a skjanum");
-  ok([...panel().querySelectorAll("table.data tbody tr")].length > 0,
-    "ThEKJA: rokstudnings-taflan er OPIN (annars telur kaflinn adeins kassann)");
-
-  /* ---- A. venjulegt astand: rodin a urskurdinn ---- */
-  const a = takeNames();
-  ok(a && a.length >= 1, `ThEKJA/A: ${a ? a.length : 0} "take"-merki fundust`);
-  ok(a && new Set(a).size === 1,
-    `A: OLL "take"-merki nefna SAMA mann (${[...new Set(a || [])].join(" | ")})`);
-
-  /* ---- B. SEINT I DRAFTI, thar sem K/DST-thvingunin kviknar ---- */
-  for (let n = 1; n <= 140; n++) pushPick(n);
-  await waitFor(() => draftedOnScreen() >= 130, 12000);
-  await openTable();
-  const b = takeNames();
-  ok(b != null, `ThEKJA/B: spjaldid er enn a skjanum vid val ${pickHeader()}`);
-  ok(b && b.length >= 1, `ThEKJA/B: ${b ? b.length : 0} "take"-merki fundust`);
-  ok(b && new Set(b).size === 1,
-    `B: og THAR nefna thau lika SAMA mann (${[...new Set(b || [])].join(" | ")})`);
   ok(!junk(), `ekkert NaN/undefined (${junk() || "-"})`);
   await settle(60);
   await act(async () => { root.unmount(); });
