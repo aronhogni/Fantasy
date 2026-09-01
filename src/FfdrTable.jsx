@@ -27,7 +27,8 @@ import { tierOf, TIER_BG, TIER_FG, TIER_NAME, greenRuns } from "./model.js";
 import { C, S } from "./appStyles.js";
 import { Crest } from "./Crest.jsx";
 
-export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, span, maxGw, onPickTeam }) {
+export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, span, maxGw,
+                                   firstOpen, onPickTeam }) {
   const [pos, setPos] = useState(2);   // 2 = varnar-hópur, 4 = sóknar-hópur
   /* ---------- EIGID UMFERDABIL ----------
      Adur var bilid NEGLT vid timalinuna (`from`/`span` ur `tlStart`/
@@ -38,8 +39,21 @@ export default function FfdrTable({ teams, fixByTeamGw, teamById, diffOf, from, 
      upphaf og annar endi, "reset" fer aftur i timalinuna.              */
   const [range, setRange] = useState(null);         // [fra, til] eda null
   const [picking, setPicking] = useState(false);
-  const gFrom = range ? range[0] : from;
-  const gTo   = range ? range[1] : Math.min(from + span - 1, maxGw);
+  /* ============================================================
+     SJALFGEFID BYRJAR TAFLAN A FYRSTU OLEIKNU UMFERD (31.8.2026)
+
+     Adur byrjadi hun a `from` — timalinu-glugganum, sem byrjar i GW1 —
+     svo lidnar umferdir satu efst og notandinn thurfti ad yta theim burt
+     i hvert sinn. `firstOpen` kemur ur App.jsx og er leidd af LEIKJUNUM
+     (`fixturePlayed`), ekki af `finished` a umferdinni.
+
+     ThETTA ER SJALFGILDI, EKKI HINDRUN: "pick" og "-" faera bilid aftur
+     yfir lidnar umferdir eins og adur, og "reset" fer i thetta sjalfgildi
+     — thad var beidnin ordrett ("geti thurft ad baeta theim inn ef eg
+     vill sja thaer").                                                   */
+  const base = Number.isFinite(firstOpen) ? Math.max(from, firstOpen) : from;
+  const gFrom = range ? range[0] : base;
+  const gTo   = range ? range[1] : Math.min(base + span - 1, maxGw);
   const gws = Array.from({ length: Math.max(0, gTo - gFrom + 1) }, (_, i) => gFrom + i)
     .filter(g => g >= 1 && g <= maxGw);
 

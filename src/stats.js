@@ -390,6 +390,31 @@ export const STAT_DEFS = [
        vanti BAEDI svidin er talan EKKI TIL.                               */
     get:p=>{ const i=num(p.transfers_in_event), o=num(p.transfers_out_event);
              return (i == null && o == null) ? null : (i ?? 0) - (o ?? 0); } },
+  /* FFDR4 SITUR AFTAST I "BASICS" OG ThAD ER BYGGINGARLEGT, EKKI SMEKKUR:
+     bond verda ad vera SAMFELLD innan flokks (`stats.test.mjs` fellur
+     annars), svo dalkur med nyju bandi ma ekki liggja inni i "Points".  */
+  /* ============================================================
+     FFDR 4 — BEIDNI NOTANDANS 31.8.2026
+
+     "Ég vil bæta FFDR rating í basic stats á leikmönnum ... FFDR4 (4
+     næstu leikir) að geta raðað leikmönnum eftir því. Varnarmenn með
+     FFDR DEF töluna og miðju- og sóknarmenn með ATT töluna."
+
+     ÞRENNT SEM ER ÁSETT:
+       · HÓPURINN ER LEIDDUR AF STÖÐUNNI, ekki valinn í dálknum:
+         GK+DEF fá varnar-töluna (pos 2), MID+FWD sóknar-töluna (pos 4) —
+         sama skipting og spjöldin og `expPointsFor` nota. Ein regla.
+       · TALIÐ ER Í LEIKJUM, EKKI UMFERÐUM. Tvöföld umferð leggur til TVO
+         leiki, auð umferð ekkert. `_fdr6` við hliðina telur umferðir og
+         svarar annarri spurningu — þess vegna stendur fjöldinn í heitinu.
+       · LÆGRA ER LÉTTARA (`hi:false`), eins og allar FFDR-tölur.
+     TÓMT ÞEGAR EKKERT ER FRAMUNDAN (leikjaskrá búin eða vantar) — ekki 0,
+     sem læsi eins og "auðveldasta bilið sem til er".
+     ============================================================ */
+  { key:"ffdr4", label:"FFDR, next 4 matches", short:"FFDR4", group:"core", band:"Fixtures",
+    dec:2, hi:false, derived:true, live_only:true,
+    note:"Our own fixture difficulty over the club's NEXT FOUR UNPLAYED MATCHES, averaged. Defenders and goalkeepers get the DEFENSIVE number (what the opponent is expected to score); midfielders and forwards get the ATTACKING one (what the club is expected to score) - the same split the player cards use, because the same fixture is not equally hard for both ends of the pitch. Counted in MATCHES, not gameweeks: a double gameweek contributes two, a blank contributes nothing. Lower is easier. The scale is the league-wide sextiles used everywhere else in the app, so 1 is the easiest sixth and 5 the hardest. Empty when the club has no unplayed matches left.",
+    get:p=>num(p._ffdr4) },
 
   /* ================= SOKN ================= */
   /* --- band: G+A --- */
@@ -2612,6 +2637,11 @@ export function gkChiefOutIds({ players } = {}) {
 export function makeEnricher({
   players, teamById, imminent, shotsFile, fixtures, events, odds,
   defcon, defconHist, consist, bsd, season, isLive = true,
+  /* FFDR-4: `diffOf` er `fixDifficulty` APPSINS, send inn — EKKI byggð hér.
+     Hún þarf `teamMetrics`, `elo` og `odds`, og er þegar til í App.jsx;
+     önnur smíði væri annað líkan undir sama nafni (sama rök og
+     `buildTeamMetrics` var flutt út úr App.jsx, CLAUDE.md 7.1).        */
+  diffOf = null,
 } = {}) {
   /* PORUN VID imminent.json: hun geymir FULLT nafn ("Cole Palmer") en
      players.json `web_name` ("Palmer"), svo bein uppfletting skilar ENGU. */
@@ -2622,6 +2652,53 @@ export function makeEnricher({
      er alltaf dagsins tala og fylgir ekki voldu timabili, eins og
      `_start_p` sjalf.                                                  */
   const gkChief = gkChiefOutIds({ players });
+
+  /* ============================================================
+     FFDR YFIR NAESTU FJORA LEIKI (31.8.2026, beidni notandans)
+
+     "Varnarmenn sem FFDR DEF toluna og midju og soknarmenn sem ATT
+     toluna" — thad er NAKVAEMLEGA sama skipting og spjoldin nota
+     (`element_type <= 2 ? 2 : 4`), svo engin ny regla verdur til.
+
+     LEIKIR, EKKI UMFERDIR: talid er yfir naestu FJORA OLEIKNU LEIKI
+     lidsins i tima-rod. Tvofold umferd leggur thvi til TVO leiki og aud
+     umferd leggur ekkert til — sem er rett svar vid spurningunni "hversu
+     thungt er naesta bilid", olikt `_fdr6` sem telur UMFERDIR.
+
+     OLEIKINN = `!finished && !finished_provisional` — sama regla og
+     annars stadar (`finished` flettist ~3 dogum of seint).
+
+     VANTI `diffOf` ER TALAN NULL, EKKI 0: dalkurinn er tomur i stad thess
+     ad bera uppspuna (CLAUDE.md 8).                                     */
+  const FFDR_N = 4;
+  const ffdr4ByTeamPos = new Map();
+  if (typeof diffOf === "function") {
+    const ahead = {};
+    for (const f of (Array.isArray(fixtures) ? fixtures : [])) {
+      if (!f || f.finished === true || f.finished_provisional === true) continue;
+      if (f.event == null) continue;
+      for (const [team, opp, home] of [[f.team_h, f.team_a, true], [f.team_a, f.team_h, false]]) {
+        (ahead[team] = ahead[team] || []).push({ opp, home, kickoff: f.kickoff_time,
+          fdr: home ? f.team_h_difficulty : f.team_a_difficulty });
+      }
+    }
+    for (const [teamId, list] of Object.entries(ahead)) {
+      list.sort((a, b) => String(a.kickoff).localeCompare(String(b.kickoff)));
+      for (const pos of [2, 4]) {
+        const ds = [];
+        for (const fx of list.slice(0, FFDR_N)) {
+          const d = diffOf(Number(teamId), fx, pos);
+          if (d != null && Number.isFinite(d)) ds.push(d);
+        }
+        ffdr4ByTeamPos.set(`${teamId}|${pos}`,
+          ds.length ? +(ds.reduce((a, b) => a + b, 0) / ds.length).toFixed(2) : null);
+      }
+    }
+  }
+  const ffdr4Of = p => {
+    const pos = p?.element_type <= 2 ? 2 : 4;
+    return ffdr4ByTeamPos.get(`${p?.team}|${pos}`) ?? null;
+  };
 
   /* LIDS-SAMTALA: xG lidsins, fyrir "hlutur af xG lidsins". */
   const teamXg = {};
@@ -2862,6 +2939,7 @@ export function makeEnricher({
         _fdr6: fa && fa.n ? +(fa.fdr / fa.n).toFixed(2) : null,
         _home6: fa?.home ?? null, _fix6: fa?.n ?? null,
         _team_cs: teamCsOf(p.team, short),
+        _ffdr4: ffdr4Of(p),
         /* dcById[p.team] er HLUTUR og num(hlutur) er null — thess vegna
            `.defcon_opportunity`. Sá dalkur var DAUDUR fra faedingu og
            faldi sig sjalfur sem tomur (kafli 6l).                       */

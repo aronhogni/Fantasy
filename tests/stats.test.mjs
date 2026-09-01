@@ -368,7 +368,27 @@ if (shotsF) {
     "caveats telja hnitalaus skot OG skjalfesta kvarðann (52,5 m)");
 
   const usable = sh.filter(s => s.usable);
-  ok(usable.every(s => s.x >= 0 && s.x <= 1), "X er 0–1 (hlutfall af hálfum velli)");
+  /* ============================================================
+     SKOT UR EIGIN VALLARHELMINGI ER TIL — OG `x <= 1` NEITADI ThVI
+     (lagad 31.8.2026)
+
+     Krafan var `0 <= x <= 1`, sem segir ad enginn skjoti lengra en fra
+     midlinu. GW2 bar mottilfellid: Liam Millar (HUL), x = 1,052, og
+     ESPN-textinn sjalfur segir "shot from more than 40 yards on the left
+     wing". Gognin voru RETT og fullyrdingin ROng.
+
+     VORNIN SEM SKIPTIR MALI ER KVARDAVILLAN (CLAUDE.md 6: fyrsta utgafa
+     margfaldadi med 105 og setti hvert skot i tvofalda fjarlaegd). Hun
+     lifir i TVENNU: hart thak vid 2 (skot getur ekki verid lengra en
+     heill vollur fra marki) OG ThEKJU-KRAFA — yfirgnaefandi meirihluti
+     verdur ad vera innan hals vallar. Vaeri ollu margfaldad med 2 fellur
+     sidari krafan strax, thott sum gildi kaemust undir thakid.
+     ============================================================ */
+  ok(usable.every(s => s.x >= 0 && s.x <= 2),
+     "X er 0-2 (skot ur eigin helmingi er til, tvofaldur vollur er kvardavilla)");
+  const beyondHalf = usable.filter(s => s.x > 1).length;
+  ok(usable.length > 20 && beyondHalf / usable.length < 0.05,
+     `nanast oll skot eru innan hals vallar (${beyondHalf} af ${usable.length} yfir midlinu)`);
   ok(usable.every(s => s.y >= 0 && s.y <= 1), "Y er 0–1 þvert yfir völlinn");
   ok(usable.every(s => !(s.x === 0 && s.y === 0)), "(0,0) er talið óskráð, ekki hornið");
   ok(sh.filter(s => !s.usable).every(s => s.x == null || (s.x === 0 && s.y === 0)),
@@ -418,16 +438,35 @@ if (shotsF) {
      er i teignum i x en langt utan i y.
      ============================================================ */
   const BOX_Y0 = 0.204, BOX_Y1 = 0.796;      // maeld teigbreidd, sja bsd_shots.calib
-  const inBoxRect = s => s.x <= (BOX / M_HALF) * 1.10
-                      && s.y >= BOX_Y0 * 0.95 && s.y <= BOX_Y1 * 1.05;
+  /* MORKIN VORU BLASIN UT UM 10% OG ThAD SNERIST VID A JADRINUM
+     (lagad 31.8.2026): teigbrunin er 16,5/52,5 = 0,314, en `* 1,10` faerdi
+     hana i 0,345 — svo skot Cherki a x = 0,344, sem ESPN-textinn sjalfur
+     kallar "from outside the box", taldist MOTSOGN. Padding sem er sett
+     til ad thola kvarda-suð ma ekki gleypa skot sem eru raunverulega
+     utan teigs.
+     RETTA ATTIN ER OFUG: fullyrdingin a ad fella skot sem eru ORUGGLEGA
+     INNI (0,90 af brun), sem er einmitt thad sem kvardavilla framleiðir —
+     hun setur skot i BROT af rettri fjarlaegd, ekki 3% utan hennar.     */
+  /* TVAER ATTIR, TVENN MORK — OG ThAD ER EKKI SLAKI HELDUR NAKVAEMNI:
+       · "segist UTAN" fellur adeins ef skotid er ORUGGLEGA INNI (0,90 af
+         brun) — thad er thad sem kvardavilla framleiðir.
+       · "segist INNAN" ma nota BLASNU morkin (1,10), thvi hnitin eru
+         omakvaem og teigbrunin sjalf er maeld tala.
+     Ein sameiginleg predikata gat ekki thjonad badum: hun var 1,10 og
+     hleypti Cherki-skotinu (0,344) i gegn sem "motsogn", og thegar hun
+     var hert i 0,90 ULLU 28 raunveruleg teig-skot i hina attina.       */
+  const wellInside = s => s.x <= (BOX / M_HALF) * 0.90
+                       && s.y >= BOX_Y0 * 0.95 && s.y <= BOX_Y1 * 1.05;
+  const insidePadded = s => s.x <= (BOX / M_HALF) * 1.10
+                         && s.y >= BOX_Y0 * 0.95 && s.y <= BOX_Y1 * 1.05;
   const outRows = sh.filter(s => s.usable && s.in_box === false && s.y != null);
-  const wrongOut = outRows.filter(inBoxRect);
+  const wrongOut = outRows.filter(wellInside);
   ok(wrongOut.length === 0,
     `skot utan teigs eru utan teigs i BADUM osum (${wrongOut.length} af ${outRows.length} brjota)`
     + (wrongOut.length ? ` — t.d. x=${wrongOut[0].x} y=${wrongOut[0].y}` : ""));
   const inRows = sh.filter(s => s.usable && s.in_box === true && s.y != null);
-  ok(inRows.every(inBoxRect),
-    `og teig-skot eru INNAN beggja (${inRows.filter(s => !inBoxRect(s)).length} af ${inRows.length} brjota)`);
+  ok(inRows.every(insidePadded),
+    `og teig-skot eru INNAN beggja (${inRows.filter(s => !insidePadded(s)).length} af ${inRows.length} brjota)`);
   /* ThEKJA ER FULLYRDING: vaeru radirnar tomar vaeru baðar ofangreindar
      tautologiur (`every` a tomu fylki er satt).                       */
   ok(inRows.length >= 50 && outRows.length >= 50,
@@ -1804,6 +1843,10 @@ console.log("\n=== 13. LEIKMANNALISTINN (dálkaskráin) ===");
        svo an `live_only` vaeri dalkurinn tomur hja ollum 587 — sama villa
        og `pen_order` var, CLAUDE.md kafli 12.)                          */
     "preseason_starts","preseason_games","preseason_minutes","preseason_last_start",
+    /* FFDR4 (31.8.2026). `live_only` ER RETT: talan er um LEIKI FRAMUNDAN,
+       sem eru ekki til i eldra timabili — an flaggsins vaeri dalkurinn
+       tomur hja ollum i skjalasafninu, sama villa og `pen_order` var.  */
+    "ffdr4",
   ]);
   const badLive = STAT_DEFS.filter(d => d.live_only && !LIVE_OK.has(d.key));
   eq(badLive.length, 0, `hver live_only dálkur er skráður${badLive.length ? " — " + badLive[0].key : ""}`);

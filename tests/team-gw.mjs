@@ -817,15 +817,24 @@ console.log("\n4d) `bsd_live.team_matches` -> xG/xGC I LIFANDI SYN");
      ekki i `fixtures.json`) og ThAD ER EINMITT ThAD SEM ER MAELT — ad
      talan RATI ALLA LEID a skjainn.                                     */
   const shortById = new Map((J("teams.json").teams || []).map(t => [t.id, t.short]));
+  /* TOLURNAR ERU OLIKAR I HVERJUM LEIK — OG ThAD ER PROFSTEINN, EKKI
+     SKRAUT (31.8.2026). Fyrsta utgafan gaf OLLUM heimalidum 2,4 og ollum
+     utilidum 0,7. Medan adeins GW1 var spilud kom hvert felag fyrir EINU
+     SINNI og "xGC = 0,7" adgreindi rett svar fra rongu. Um leid og GW2
+     baettist vid kemur felag fyrir tvisvar — einu sinni heima, einu sinni
+     uti — og BADAR summur urdu 0,7 + 2,4 = 3,1. Fullyrdingin gat tha ekki
+     brugdist, hvort sem dalkurinn syndi motherjann eda felagid sjalft.
+     Med thvi ad faera tolurnar milli leikja verda summurnar OLIKAR og
+     adgreiningin lifir hversu margar umferdir sem eru spiladar.        */
   const XG_H = 2.4, XG_A = 0.7;
   const LIVE_MATCHES = realFix
     .filter(f => (f.finished === true || f.finished_provisional === true)
               && f.team_h_score != null && f.team_a_score != null)
     .map((f, i) => ({ id: i + 1, gw: f.event,
-      home: { team: shortById.get(f.team_h) ?? null, xg: XG_H, shots: 15, bc: 3,
-              goals: f.team_h_score },
-      away: { team: shortById.get(f.team_a) ?? null, xg: XG_A, shots: 6, bc: 1,
-              goals: f.team_a_score } }));
+      home: { team: shortById.get(f.team_h) ?? null, xg: +(XG_H + i * 0.13).toFixed(2),
+              shots: 15, bc: 3, goals: f.team_h_score },
+      away: { team: shortById.get(f.team_a) ?? null, xg: +(XG_A + i * 0.07).toFixed(2),
+              shots: 6, bc: 1, goals: f.team_a_score } }));
   ok(`forsenda: ${LIVE_MATCHES.length} leikja-radir byggdar ur raunurslitum`,
     LIVE_MATCHES.length >= 5 && LIVE_MATCHES.every(m => m.home.team && m.away.team),
     `${LIVE_MATCHES.length} radir`);
@@ -870,8 +879,28 @@ console.log("\n4d) `bsd_live.team_matches` -> xG/xGC I LIFANDI SYN");
      summa MOTHERJANNA og verdur ALDREI reiknud ur per-leikmanns summum.
      Talan verdur thvi ad vera xG ANDSTAEDINGSINS (0,7), ekki thess sjalfs
      (2,4). Vaeri hun 2,4 vaeri rodin tengd en SNUIN.                     */
-  ok(`og xGC ${homeShort} er xG MOTHERJANS (${XG_A}), ekki thess sjalfs (${XG_H}): "${on.xgc}"`,
-    /0[.,]7/.test(on.xgc || "") && !/2[.,]4/.test(on.xgc || ""));
+  /* ============================================================
+     TALAN ER SUMMA YFIR ALLA LEIKI FELAGSINS — OG HUN VAR NEGLD VID EINN
+     (lagad 31.8.2026)
+
+     Fullyrdingin var `/0[.,]7/` — xG andstaedingsins i EINUM leik. Hun var
+     sonn medan adeins GW1 var spilud, en `LIVE_MATCHES` er byggd ur
+     RAUNVERULEGRI leikjaskra: um leid og GW2 baettist vid kemur ARS fyrir
+     TVISVAR (heima og uti) og dalkurinn — sem er SAMTALA — synir 0,7 +
+     2,4 = 3,1. Appid hafdi rett fyrir ser; profid taldi einn leik.
+
+     VAENTA TALAN ER NU REIKNUD UR SOMU FIXTURU og eiginleikinn sem kaeran
+     snerist um er profadur BEINT: talan verdur ad vera summa xG
+     MOTHERJANNA, og hun ma ekki vera summa hans eigin xG.              */
+  const oppSum = LIVE_MATCHES.reduce((a, m) =>
+    a + (m.home.team === homeShort ? m.away.xg : m.away.team === homeShort ? m.home.xg : 0), 0);
+  const ownSum = LIVE_MATCHES.reduce((a, m) =>
+    a + (m.home.team === homeShort ? m.home.xg : m.away.team === homeShort ? m.away.xg : 0), 0);
+  const shown = parseFloat(String(on.xgc || "").replace(",", "."));
+  ok(`forsenda: ${homeShort} kemur fyrir i ${LIVE_MATCHES.filter(m => m.home.team === homeShort || m.away.team === homeShort).length} leik(jum) i fixturunni`,
+    oppSum > 0 && ownSum > 0, `opp ${oppSum} own ${ownSum}`);
+  ok(`og xGC ${homeShort} er SUMMA xG MOTHERJANNA (${oppSum.toFixed(1)}), ekki hans eigin (${ownSum.toFixed(1)}): "${on.xgc}"`,
+    Number.isFinite(shown) && Math.abs(shown - oppSum) < 0.15 && Math.abs(shown - ownSum) > 0.15);
 }
 
 console.log("\n5) TEXTARNIR SEM VORU TEKNIR UT ERU FARNIR");

@@ -915,11 +915,16 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
      Nu er audgunin sitt eigid memo sem hangir ADEINS a theim skram sem hun
      les. `cook` hangir afram a season/gwRange en gerir tha enga porun.
      Audgunin sjalf er i src/stats.js svo stigataflan noti SAMA kod.      */
+  /* `fixDifficulty` ER SEND INN, EKKI BYGGD I AUDGUNINNI (31.8.2026):
+     hun tharf `teamMetrics`, `elo` og `odds` og er thegar smiðuð EINU
+     SINNI i App.jsx. Onnur smid vaeri annad likan undir sama nafni —
+     sama rok og fyrir `buildTeamMetrics` (CLAUDE.md 7.1). Vanti hun er
+     `_ffdr4` einfaldlega null og dalkurinn tomur.                      */
   const enrich = useMemo(() => makeEnricher({
     players, teamById, imminent, shotsFile, fixtures, events, odds,
-    defcon, defconHist, consist, bsd, season, isLive,
+    defcon, defconHist, consist, bsd, season, isLive, diffOf: fixDifficulty,
   }), [players, teamById, imminent, shotsFile, fixtures, events, odds,
-       defcon, defconHist, consist, bsd, season, isLive]);
+       defcon, defconHist, consist, bsd, season, isLive, fixDifficulty]);
 
   /* ---------- "cook": ein umferd yfir gognin ---------- */
   const rows = useMemo(() => {
@@ -1491,6 +1496,42 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
     setPending(null);
   };
   const dropThAt = i => setThresholds(t => t.filter((_, j) => j !== i));
+  /* ============================================================
+     SIAN ER STILLANLEG A STADNUM (31.8.2026)
+
+     Adur var eina leidin ad fjarlaegja siuna og setja hana aftur ur
+     tillogu-glugganum. Beidnin: "eg vill geta smellt a filter og breytt
+     honum t.d. laekkad toluna eda haekkad".
+
+     SKREFID ER LEITT AF DALKINUM, EKKI VALID: `dec` segir hversu marga
+     aukastafi dalkurinn birtir, svo heiltoludalkur faerist um 1 og
+     tveggja-aukastafa dalkur um 0,01. Fost tala hefdi verid rong i annan
+     hvorn endann — 1 er gagnslaust a xG/90 og 0,01 er gagnslaust a
+     minutum. Talan er svo NAMUNDUD ad somu nakvaemni, thvi 0,1 + 0,2 er
+     0,30000000000000004 i JS og chipid a ekki ad bera thad.
+
+     PROSENTU-DALKAR: `fmtStat` margfaldar sjalft med 100 vid birtingu, svo
+     geymda talan er a 0-1 kvarda og skrefid verdur ad vera 0,01 = eitt
+     prosentustig. `dec` eitt gaefi 1 (heilt hlutfall) og hoppid vaeri
+     hundradfalt.                                                       */
+  const stepOf = d => {
+    if (!d) return 1;
+    if (d.pct) return 0.01;
+    const dec = Number.isFinite(d.dec) ? d.dec : 0;
+    return dec <= 0 ? 1 : Math.pow(10, -dec);
+  };
+  const bumpThAt = (i, dir) => setThresholds(list => list.map((t, j) => {
+    if (j !== i) return t;
+    const d = STAT_BY_KEY[t.key];
+    const step = stepOf(d);
+    const dec = d?.pct ? 2 : (Number.isFinite(d?.dec) ? d.dec : 0);
+    const next = +( (Number(t.val) || 0) + dir * step ).toFixed(Math.max(0, dec));
+    /* NEIKVAED MORK EIGA VID: `signed`-dalkar (nettoflutningar, verdbreyting)
+       fara i minus af eðlilegum astaedum. Adrir eru klemmdir vid 0 — sia
+       sem heimtar "faerri en -3 minutur" er ekki spurning.              */
+    const floored = d?.signed ? next : Math.max(0, next);
+    return { ...t, val: floored };
+  }));
   /* HVADA DALKAR ERU UNDIR SIU — merkt i hausnum, svo sian se synileg
      thott chip-rodin se skrunud upp ur augsyn.                          */
   const thByKey = useMemo(() => {
@@ -1835,6 +1876,18 @@ export default function PlayerList({ players, teamById, events, seasonsFile,
                     if (!customSet.has(d.key) && !pinnedKeys.has(d.key)) toggleCol(d.key);
                   } else setGroup(d.group);
                 }}>{thLabel(t)}</button>
+              {/* -/+ FAERA THROSKULDINN. Attin er ORDUD i `title` thvi
+                  "min 5" sem laekkar i "min 4" SLAKAR a siunni medan
+                  "max 5" -> "max 4" HERDIR hana — sama hnapp, ohug
+                  merking, og notandinn a ekki ad thurfa ad giska.      */}
+              <button style={S.thChipStep} aria-label={`Lower ${thLabel(t)}`}
+                title={t.op === ">=" ? "Lower the minimum (more players pass)"
+                                     : "Lower the maximum (fewer players pass)"}
+                onClick={() => bumpThAt(i, -1)}>−</button>
+              <button style={S.thChipStep} aria-label={`Raise ${thLabel(t)}`}
+                title={t.op === ">=" ? "Raise the minimum (fewer players pass)"
+                                     : "Raise the maximum (more players pass)"}
+                onClick={() => bumpThAt(i, +1)}>+</button>
               <button style={S.thChipX} aria-label={`Remove filter ${thLabel(t)}`}
                 title={"Remove this filter"}
                 onClick={() => dropThAt(i)}>✕</button>
@@ -2352,6 +2405,15 @@ const S = {
   thChipX:{ borderTop:"none", borderRight:"none", borderBottom:"none",
             borderLeft:"1px solid #ecdff0", background:"#faf6fb",
             color:C.text3, fontSize:10, padding:"0 6px", cursor:"pointer", height:"100%" },
+  /* +/- A SIUNNI SJALFRI (31.8.2026, beidni notandans: "eg vill geta smellt
+     a filter og breytt honum, t.d. laekkad toluna eda haekkad"). Sami
+     rammi og ✕-hnappurinn svo chipid haldi haed sinni; monospace svo
+     "+" og "-" hoppi ekki til thegar skipt er a milli.                 */
+  thChipStep:{ borderTop:"none", borderRight:"none", borderBottom:"none",
+               borderLeft:"1px solid #ecdff0", background:"#faf6fb",
+               color:C.purple, fontSize:11, fontWeight:700, lineHeight:1,
+               fontFamily:"ui-monospace, SFMono-Regular, Menlo, monospace",
+               padding:"0 6px", cursor:"pointer", height:"100%" },
 
   /* ---- lesmata-rofi ---- */
   modeRow:{ display:"flex", gap:3 },

@@ -41,7 +41,13 @@ const J = (f) => JSON.parse(readFileSync(D + f, "utf8"));
    ============================================================ */
 const FXF = J("fixtures.json");
 const ALL_FX = Array.isArray(FXF) ? FXF : FXF.fixtures;
-const LIVE_GW = 1;
+/* UMFERDIN ER SU SEM SKOTASKRAIN NAER YFIR (31.8.2026). Her stod `1`
+   fast: hermda live-svarid bar GW1-leiki medan `last_gw_shots.json`
+   faerdist afram med pipeline-unni. Um leid og hun bar GW2 pardi kaflinn
+   spjold einnar umferdar vid skotaskra annarrar — 22 porun i skranni, 0
+   a skjanum — og kaflinn fell an thess ad nokkud vaeri ad appinu.
+   Baedi hermda svarid OG umferdar-valid lesa nu SOMU TOLU ur skranni.  */
+const LIVE_GW = (() => { try { return J("last_gw_shots.json").gw ?? 1; } catch { return 1; } })();
 const LIVE = {
   gw: LIVE_GW, any_live: false,
   fixtures: ALL_FX.filter((f) => f.event === LIVE_GW).map((f) => ({
@@ -104,7 +110,13 @@ async function boot(patch = null) {
      leiki, svo safnid fann NULL spjold og fullyrdingarnar fellu an thess
      ad neitt vaeri ad. Sja tests/lib/select-gw.mjs.                     */
   const doc = dom.window.document;
-  dom.gwPicked = await selectGw(doc, 1, async el => {
+  /* UMFERDIN ER SU SEM SKOTASKRAIN NAER YFIR, EKKI FAST 1 (31.8.2026).
+     Kaflinn les porun `mark <- assist` af MARKASKORARA-SPJALDINU, og thau
+     spjold haenga a leikjum theirrar umferdar sem er opin. `last_gw_shots`
+     faerist afram med pipeline-unni (GW1 -> GW2 -> ...), svo fast 1 pardi
+     spjold einnar umferdar vid skotaskra annarrar og fann NULL porun —
+     22 voru i skranni. Talan er lesin UR SKRANNI sjalfri.             */
+  dom.gwPicked = await selectGw(doc, LIVE_GW, async el => {
     await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
     await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
   });

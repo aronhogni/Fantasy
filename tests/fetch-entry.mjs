@@ -574,9 +574,25 @@ console.log("\n=== 9. ESPN-HNITAKVARDI ===");
       if (typeof o.x === "number") xs.push(o.x);
       Object.values(o).forEach(walk); })(shots);
     if (xs.length) {
+      /* ============================================================
+         SKOT UR EIGIN VALLARHELMINGI ER TIL (lagad 31.8.2026)
+
+         Krafan var `max <= 1`, sem segir ad enginn skjoti lengra en fra
+         midlinu. GW2 bar mottilfellid: Liam Millar (HUL) a x = 1,052, og
+         ESPN-textinn segir sjalfur "shot from more than 40 yards". Ein
+         rod af 275. Vordurinn er til ad taka HUNDRADS-KVARDA (x ~ 34
+         i stad 0,34) og MARGFOLDUN (x ~ 2 i stad 1) — hvorugt lifir
+         thakid 2 eda thekjukrofuna hér. Sama lagfaering og i
+         `stats.test.mjs` sama dag; tvo eintok af somu krofu voru
+         hoftud, thvi thau LESA sama svid.
+         ============================================================ */
       const mx = Math.max(...xs);
-      ok(mx <= 1, `committud last_gw_shots.json er a 0-1 kvarda (max ${mx.toFixed(3)})`
-         + (mx > 1 ? " — VEITAN SKIPTI UM KVARDA; keyrdu pipeline-una" : ""));
+      ok(mx <= 2, `committud last_gw_shots.json er a rettum kvarda (max ${mx.toFixed(3)})`
+         + (mx > 2 ? " — VEITAN SKIPTI UM KVARDA; keyrdu pipeline-una" : ""));
+      const beyond = xs.filter(v => v > 1).length;
+      ok(beyond / xs.length < 0.05,
+         `nanast oll skot eru innan hals vallar (${beyond} af ${xs.length}) `
+         + "— hlutfall sem springur er kvardavilla, ekki langskot");
     }
   } catch { /* skrain er ekki alltaf til */ }
 }

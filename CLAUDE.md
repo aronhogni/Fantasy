@@ -1548,6 +1548,50 @@ Tveir flipar með sama tákni er það sama og ekkert tákn.
 
 ---
 
+### BEIÐNIR 31.8.2026 — FFDR4, STILLANLEG SÍA, OG FFDR SEM BYRJAR Á RÉTTUM STAÐ
+
+**`FFDR4` í Basics** (`stats.js`): meðal-FFDR yfir **næstu fjóra ÓLEIKNU
+LEIKI** félagsins. GK+DEF fá varnar-töluna (pos 2), MID+FWD sóknar-töluna
+(pos 4) — sama skipting og spjöldin og `expPointsFor` nota, svo **engin ný
+regla verður til**. Talið er í LEIKJUM: tvöföld umferð leggur til tvo, auð
+umferð ekkert (`_fdr6` við hliðina telur UMFERÐIR og svarar annarri
+spurningu). `fixDifficulty` er **send inn** í `makeEnricher` frá
+`PlayerList` — hún er þegar smíðuð einu sinni í `App.jsx` og önnur smíði
+væri annað líkan undir sama nafni (sama rök og `buildTeamMetrics`).
+Mælt á lifandi gögnum: DEF og MID fá **ólíka tölu í 20 af 20 félögum** —
+væri það 0 væri skiptingin marklaus. Vörður:
+`tests/ffdr4-and-filter-step.mjs`.
+
+**Síur eru stillanlegar á staðnum**: hvert þröskulds-chip ber nú `−`/`+`.
+**Skrefið er LEITT AF DÁLKINUM, ekki valið**: `dec` segir hversu marga
+aukastafi hann birtir, svo heiltöludálkur færist um 1 og tveggja-aukastafa
+dálkur um 0,01 — föst tala væri röng í annan hvorn endann (1 er gagnslaust
+á xG/90, 0,01 á mínútum). Prósentu-dálkar færast um 0,01 því `fmtStat`
+margfaldar sjálft með 100. Stökkbreyting sem neglir skrefið í 1 fellur.
+
+**FFDR-taflan byrjar á fyrstu ÓLEIKNU umferð** (`firstOpenGw`, leitt af
+`fixturePlayed` á leikjunum — ekki `is_current`, ekki `finished` á
+umferðinni). Þetta er **sjálfgildi, ekki hindrun**: „pick" og „−" ná áfram
+yfir liðnar umferðir. Vörður í `ffdr-table.mjs` ber saman við leikjaskrána
+sjálfa, svo hann segir ekki „GW3" heldur „fyrsta umferð sem á óleikinn
+leik" — og fyrsta útgáfa hans sneri `ok(nafn, skilyrði)` við, svo allar
+þrjár fullyrðingarnar voru holar (prentuðu nöfnin voru „false, false,
+true"); það sást vegna þess að stökkbreytingin felldi þær ekki.
+
+> **OG NÓTAN Á VÆNTUM STIGUM LOFAÐI LIÐ SEM ER EKKI Í TÖLUNNI.** Hún sagði
+> *„Expected points this gameweek (minutes + FFDR + form)"*. **Mínútur eru
+> hvergi í `expPointsFor`** — margfeldi við byrjunar-líkur var mælt og
+> hafnað 20.8.2026 (kafli 4) — og *„form"* er ekki okkar liður heldur
+> **grunnurinn frá FPL**: mælt 31.8.2026 er `ep_next` nákvæmlega jafnt
+> `form` hjá **94,2%** þeirra sem hafa spilað og `points_per_game` hjá
+> **71,7%**. Þess vegna „spáir" appið Sangaré ~10 stigum í GW3: hann fékk
+> 18 stig í tveimur byrjunum, FPL setur `ep_next` í 9,0 og okkar
+> FFDR-margfaldari færir hann í ~10. **Nótan nefnir enga prósentu** — hún
+> segir mekanismann, sem stendur þótt FPL skipti yfir í eigið líkan.
+> Þetta er sama niðurstaða og stóra stigalíkans-mælingin 25.8.2026:
+> **gatið er í grunninum**, og eina opna leiðin að því er spá-bókhaldið
+> frá ~GW6.
+
 ## 9. Enska eingöngu
 
 Tungumálalagið (`i18n.js`, `i18n-en.js`, `useLang.js`, IS/EN-hnappurinn,

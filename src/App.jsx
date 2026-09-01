@@ -1150,6 +1150,36 @@ export default function App() {
 
   const maxGw = events ? events.length : 38;
 
+  /* ============================================================
+     FYRSTA UMFERÐ SEM Á EFTIR AÐ SPILAST (31.8.2026, beiðni notandans)
+
+     FFDR-taflan byrjaði á `tlStart`, sem er tímalínu-glugginn og byrjar í
+     GW1 — svo hún sýndi LIÐNAR umferðir efst og notandinn þurfti að ýta
+     þeim burt í hvert sinn. Beiðnin: *„taktu liðnar umferðir auto úr
+     FFDR, og geti þurft að bæta þeim inn ef ég vill sjá þær."*
+
+     REGLAN ER SÚ SAMA OG ANNARS STAÐAR — `fixturePlayed` á LEIKJUNUM, ekki
+     `finished` á umferðinni (það svið flettist ~3 dögum of seint) og ekki
+     `is_current` (hún situr á lokinni umferð fram að næsta fresti). Umferð
+     í GANGI telst ÓLOKIN og heldur sér því á skjánum meðan hún er að
+     klárast — sama val og `planningGw` gerir.
+
+     TÓM LEIKJASKRÁ ÁKVEÐUR EKKERT: án leikja er `firstOpenGw` einfaldlega
+     1 og taflan hegðar sér eins og áður.                                */
+  const firstOpenGw = useMemo(() => {
+    const byGw = {};
+    for (const f of (fixtures || [])) {
+      if (!f?.event) continue;
+      (byGw[f.event] = byGw[f.event] || []).push(f);
+    }
+    for (let g = 1; g <= maxGw; g++) {
+      const own = byGw[g];
+      if (!own || !own.length) return g;             /* engin gögn -> hér */
+      if (!own.every(fixturePlayed)) return g;
+    }
+    return maxGw;
+  }, [fixtures, maxGw]);
+
   /* tímalínu-glugginn fylgir valdri umferð ef hún fer út fyrir hann.
      ATH: verður að vera EFTIR maxGw — TDZ annars.                          */
   useEffect(() => {
@@ -3808,7 +3838,7 @@ export default function App() {
           {showFfdr && (
             <FfdrTable teams={teams} fixByTeamGw={fixByTeamGw} teamById={teamById}
               diffOf={fixDifficulty}
-              from={tlStart} span={tlWindow} maxGw={maxGw}
+              from={tlStart} span={tlWindow} maxGw={maxGw} firstOpen={firstOpenGw}
               onPickTeam={id => setDetail({ kind:"team", id })} />
           )}
 
@@ -5769,7 +5799,27 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
           inniheldur það þegar (eigin sóknarstyrkur vegur 0,60 í FFDR fyrir
           framherja). Vænt stig er leikmanns-stig og ekki tvítalning.        */}
       <div style={S.pMain}>
-        <span style={S.pEp} title={"Expected points this gameweek (minutes + FFDR + form)"}>
+        {/* ============================================================
+            NOTAN SAGDI "minutes + FFDR + form" OG ThAD VAR RANGT (31.8.2026)
+
+            Notandinn spurdi: "Hvernig getur Sangare verid spad 10 stigum i
+            GW3?" — og svarid er i GRUNNINUM, ekki i okkar hluta.
+            `expPointsFor` margfaldar GRUNN (`ep_next`, annars stig/leik)
+            med maeldum stiga-margfaldara fyrir FFDR leiksins og
+            tiltaekileika. MINUTUR KOMA ThAR HVERGI VID SOGU — margfeldi
+            vid byrjunar-likur var MAELT OG HAFNAD 20.8.2026 (CLAUDE.md 4),
+            svo notan lofadi lid sem er viljandi ekki i tolunni.
+
+            OG GRUNNURINN ER FPL-S EIGIN TALA: maelt 31.8.2026 a lifandi
+            `players.json` er `ep_next` NAKVAEMLEGA jafnt `form` hja
+            94,2% theirra sem hafa spilad og `points_per_game` hja 71,7%.
+            Eftir tvaer umferdir er thad tveggja-leikja medaltal — Sangare
+            fekk 18 stig i tveimur byrjunum, svo FPL setur hann i 9,0 og
+            okkar margfaldari faerir hann i ~10.
+            NOTAN NEFNIR ENGA PROSENTU: hun myndi urelda st thegar FPL
+            skiptir yfir i eigid likan. Hun segir MEKANISMANN, sem stendur.
+            ============================================================ */}
+        <span style={S.pEp} title={"Expected points for this gameweek. The LEVEL is FPL's own ep_next (their expected-points field, which early in a season is simply his average so far - so a player with two big returns reads high). What this app adds is the FIXTURE: that base is multiplied by the measured points-per-tier figure for his position at this fixture's FFDR, and by availability. Minutes are NOT in it - multiplying by start probability was measured and rejected, because the FPL bench does that job for free."}>
           {ep == null ? "—" : `≈${ep.toFixed(1)}`}
         </span>
         {isDef && csObj?.cs != null && (

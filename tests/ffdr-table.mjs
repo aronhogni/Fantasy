@@ -413,5 +413,53 @@ console.log("\n=== OMETINN LEIKUR (tilbuin gogn) ===");
      tierOf(Math.max(null)) === 0);
 }
 
+/* ============================================================
+   SJALFGEFID BIL BYRJAR A FYRSTU OLEIKNU UMFERD (31.8.2026)
+
+   Beidni notandans: "Taktu lidnar umferdir auto ur FFDR, og thegi thurfi
+   ad baeta theim inn ef eg vill sja thaer. Nuna aetti t.d. ad byrja a
+   GW3." Taflan byrjadi adur a `tlStart` (timalinu-glugganum), sem byrjar
+   i GW1 — svo spiladar umferdir satu efst.
+
+   REGLAN ER LESIN AF LEIKJUNUM, ekki af `is_current` (hun situr a lokinni
+   umferd fram ad naesta fresti) og ekki af `finished` a umferdinni (thad
+   svid flettist ~3 dogum of seint). Kaflinn ber saman VID LEIKJASKRANA
+   sjalfa, svo hann er tima-stodugur: hann segir ekki "GW3" heldur "fyrsta
+   umferd sem a oleikinn leik".
+   ============================================================ */
+{
+  console.log("\n--- SJALFGEFID BIL: FYRSTA OLEIKNA UMFERD ---");
+  const fxAll = (() => { const f = J("fixtures.json"); return Array.isArray(f) ? f : f.fixtures; })();
+  const played = f => f?.finished === true || f?.finished_provisional === true;
+  const byGw = {};
+  for (const f of fxAll) if (f?.event) (byGw[f.event] = byGw[f.event] || []).push(f);
+  let firstOpen = 1;
+  for (let g = 1; g <= 38; g++) {
+    const own = byGw[g];
+    if (!own || !own.length || !own.every(played)) { firstOpen = g; break; }
+  }
+  /* HAUSARNIR BERA BERA TOLU (`<th>{g}</th>`), ekki "GW3" — fyrsta utgafan
+     leitadi ad `/^GW\d+$/` og fann EKKERT, svo forsendan fell rettilega.
+     Bilid er lika prentad i eigin linu ("GW 3-7"), og hun er notud sem
+     onnur, ohad staðfesting a sama svari.                              */
+  const heads = [...document.querySelectorAll("th")]
+    .map(e => (e.textContent || "").trim())
+    .filter(t => /^\d{1,2}$/.test(t)).map(Number);
+  const first = heads.length ? Math.min(...heads) : null;
+  const shownRange = /GW\s*(\d+)(?:\s*[–-]\s*(\d+))?/.exec(document.body.textContent || "");
+  /* `ok(NAFN, SKILYRDI)` I ThESSU SAFNI — ekki ofugt. Fyrsta utgafa
+     thessa kafla sneri theim vid, svo strengurinn var skilyrdid (alltaf
+     satt) og ALLAR ThRJAR fullyrdingarnar voru holar. Prentudu nofnin
+     ("false", "false", "true") voru einu merkin.                       */
+  ok(`forsenda: umferdar-hausar lesnir af skjanum (${heads.length})`, heads.length >= 3);
+  ok(`taflan byrjar a fyrstu OLEIKNU umferd (GW${first} = GW${firstOpen})`,
+     first === firstOpen);
+  ok(`og lidin umferd (GW${firstOpen - 1}) er EKKI sjalfgefid inni`,
+     firstOpen === 1 || !heads.includes(firstOpen - 1));
+  /* OG TEXTINN SEGIR ThAD SAMA — tvaer ohadar leidir ad somu tolu.     */
+  ok(`bils-textinn segir sömu byrjun (GW${shownRange?.[1]})`,
+     !!shownRange && +shownRange[1] === firstOpen);
+}
+
 console.log(`\nFFDR-TAFLA: ${pass} stodust, ${fail} fellu`);
 process.exit(fail ? 1 : 0);
