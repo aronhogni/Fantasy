@@ -76,6 +76,36 @@ function Rankings({ ev, ar, arFf, std, shapes, league }) {
   const adp = rows.find((m) => m.key === "adp");
   const slp = rows.find((m) => m.key === "sleeper");
   const a = rows.find((m) => m.key === "slp_vbd");
+  /* SAMA HEIMILD OG KASSINN NEDAR (`HeadToHead`) — sja notuna thar sem
+     hun er notud. Tvaer tolur um somu maelingu i sama spjaldi var
+     nakvaemlega villan. */
+  const h2h = ar && ar.headToHead && ar.headToHead.current;
+  /* ============================================================
+     "ThRETTAN TIMABIL" VAR TALA AN HEIMILDAR (leidrett 31.8.2026)
+     ============================================================
+     Rynni 31.8.2026 leitadi ad henni i `arank_ppr.json` og fann hana
+     hvergi. Hun er hins vegar REIKNANLEG ur thvi sem skrain ber: vid
+     hofum `t` a `years` timabilum, og `t` vex sem sqrt(n) haldist
+     ahrifastaerdin og dreifingin ohreyfd. Minnsta `n` thar sem
+     `t*sqrt(n/years)` fer yfir tvihlida 95% morkin er svarid — og thad
+     er **27**, ekki threttan.
+
+     Talan er ThVI LEIDD, ekki skrifud: breytist maelingin breytist hun
+     med. Fost tala um lifandi maelingu ureldist thegjandi, og thessi
+     var meira ad segja rong fra byrjun. */
+  const seasonsNeeded = (() => {
+    if (!h2h || !h2h.t || !h2h.years) return null;
+    const T95 = [12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262,
+      2.228, 2.201, 2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093, 2.086,
+      2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042];
+    const crit = (df) => (df < 1 ? Infinity : (df <= 30 ? T95[df - 1] : 1.96));
+    const t0 = Math.abs(h2h.t);
+    if (!(t0 > 0)) return null;
+    for (let n = h2h.years + 1; n <= 200; n++) {
+      if (t0 * Math.sqrt(n / h2h.years) > crit(n - 1)) return n;
+    }
+    return null;
+  })();
   /* Arin thar sem ALLAR heimildir eru til — eina mengid sem ma bera saman. */
   const common = adp && slp
     ? ev.testYears.filter((y) => adp.draftPerSeason[y] != null &&
@@ -132,16 +162,34 @@ function Rankings({ ev, ar, arFf, std, shapes, league }) {
             <b>Against ADP this holds.</b> +{(a.draftCommon - adp.draftCommon).toFixed(0)} points,
             winning every season tested, with the interval clear of zero.
             <br /><br />
+            {/* ============================================================
+                ÞESSAR TOLUR VORU HARDKODADAR OG SKRAIN SAGDI ANNAD
+                ============================================================
+                RYNNI 31.8.2026: haer stod "+60", "57% af thrjatiu
+                hundrud" og sveiflan "(+169, −50, −43, +48, +176)" —
+                medan KASSINN TIU LINUM NEDAR a somu skjámynd las
+                `headToHead.current` og prentadi +51,2 og 55,1%. Tvaer
+                tolur um somu maelingu, i sama spjaldi, og hvorug vissi
+                af hinni. "Threttan timabil" atti sér enga stod i
+                skranni yfirleitt.
+
+                Tolurnar eru nu LESNAR ur sömu heimild og kassinn. Fost
+                tala i prosa um lifandi maelingu ureldist thegjandi —
+                thetta er sama regla og gildir um allt annad hér. */}
             <b>Against the raw projection order it does not, yet.</b> The gap is
-            +{(a.draftCommon - slp.draftCommon).toFixed(0)} here and +60 when both boards
-            draft head-to-head in the same league — positive in every simulation we ran,
-            and it wins 57% of three thousand head-to-head drafts. But it wins only
-            three of five seasons, and the year-to-year swing (+169, −50, −43, +48, +176)
-            dwarfs the gap. <b>The interval does not exclude zero.</b>
+            +{(a.draftCommon - slp.draftCommon).toFixed(0)} here
+            {h2h && <> and {h2h.mean > 0 ? "+" : ""}{h2h.mean} when both boards
+              draft head-to-head in the same league — it wins{" "}
+              {(h2h.winRate * 100).toFixed(0)}% of {h2h.n.toLocaleString("en")}{" "}
+              head-to-head drafts, but only {h2h.yearWins} of {h2h.years} seasons,
+              and the year-to-year swing ({Object.values(h2h.byYear)
+                .map((v) => `${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(0)}`).join(", ")})
+              dwarfs the gap</>}. <b>The interval does not exclude zero.</b>
             <br /><br />
-            At this effect size that would take <b>thirteen seasons</b> to settle. We
-            have five — the only ones where Sleeper's stored projections are not
-            contaminated by the outcome.
+            {h2h && seasonsNeeded && <>At this effect size it would take
+              about <b>{seasonsNeeded} seasons</b> to settle. </>}
+            We have {h2h ? h2h.years : "five"} — the only ones where
+            Sleeper&apos;s stored projections are not contaminated by the outcome.
           </div>
           {/* `HeadToHead` skilar `.note` og a thvi heima HER INNI.
               `Replication` og `Shapes` skila hins vegar `.panel` og

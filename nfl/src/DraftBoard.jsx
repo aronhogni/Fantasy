@@ -3215,6 +3215,13 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
       {kdstPick || chosen.length === 0 ? (
         <div {...copyProps(verdict)} className="verdict copyable">
           <div className="verdict-name">
+            {/* MERKID VANTADI A ThESSARI LEID. Þegar K/DST-thvingunin
+                tekur yfir er thetta EINA spjaldid a skjanum, og eftir ad
+                merkid var (rettilega) tekid af rokstudnings-toflunni
+                stod ENGIN "take"-merking eftir — notandinn faer engan
+                jakvaedan visi um hvad hann a ad gera. Eitt merki, a
+                theim manni sem urskurdurinn nefnir. */}
+            <span className="badge on" style={{ marginRight: 6 }}>take</span>
             <span className={`pos ${verdict.pos}`}>{verdict.pos}</span>
             <b>{verdict.name}</b>
             {vRow && vRow.injury && vRow.injury !== "Active"
@@ -3533,7 +3540,22 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
       )}
 
       <details className="reasoning">
-        <summary>Why him — and the four behind him</summary>
+        {/* ============================================================
+            "HIM" ER EKKI ALLTAF SAMI MADUR — OG MERKID SAGDI ThAD EKKI
+            ============================================================
+            RYNNI 31.8.2026: thegar K/DST-thvingunin tekur yfir kassann
+            ber urskurdurinn `DST Los Angeles Rams` medan ROD 0 i thessari
+            toflu ber `Jahmyr Gibbs` — OG BADIR BERA "take"-merkid, i
+            sama spjaldi, tiu linum hvor fra odrum.
+
+            Taflan er RODIN (A-Ranking); urskurdurinn er stundum saeti
+            sem VERDUR ad fyllast. Þegar thau tvo eru ekki sami madur er
+            merkid tekid af rodinni og fyrirsognin segir hvad taflan er.
+            Ad merkja bada vaeri ad bidja notandann ad velja — sem er
+            nakvaemlega thad sem kassinn er til ad losa hann vid. */}
+        <summary>{kdstPick
+          ? "The ranking's top five — the verdict above is a slot that must be filled"
+          : "Why him — and the four behind him"}</summary>
       <div className="tablewrap" style={{ marginTop: 10 }}>
         <table className="data">
           <thead><tr className="cols">
@@ -3546,10 +3568,11 @@ function NextPick({ available, kdst, roster, league, sync, nextOwn, pick, lastPi
           </tr></thead>
           <tbody>
             {top.map((p, i) => (
-              <tr key={p.id} style={i === 0
+              <tr key={p.id} style={i === 0 && !kdstPick
                 ? { background: "rgba(53,196,122,.10)" } : undefined}>
                 <td className="txt frozen">
-                  {i === 0 && <span className="badge on" style={{ marginRight: 6 }}>take</span>}
+                  {i === 0 && !kdstPick
+                    && <span className="badge on" style={{ marginRight: 6 }}>take</span>}
                   {p.name}
                 </td>
                 <td className="txt"><span className={`pos ${p.pos}`}>{p.pos}</span></td>

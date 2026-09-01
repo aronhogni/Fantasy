@@ -285,9 +285,29 @@ function rowCount(data, depth = 0) {
   return best || Object.keys(data).length;
 }
 
-async function writeJson(name, data, { minRows = 1 } = {}) {
+/* ============================================================
+   RADAFJOLDI GETUR EKKI TJAD ALLAR KROFUR (31.8.2026)
+   ============================================================
+   `rowCount` skilar DYPSTA fylkinu, svo EITT heilt fylki uppfyllir
+   golfid fyrir alla skrana. Rynni 31.8.2026 sannadi thad a fimm
+   skram — daemi: `experts.json` med **tomum** bordum en 520 manna
+   samsteypu gefur rowCount 520 og stenst `minRows: 100`, svo dagurinn
+   sem bordin brustu skrifar tomu bordin OFAN A tha godu.
+
+   `require` er thvi predikat sem hver kallandi skrifar UM SINA SKRA:
+   thad skilar astaedu (streng) ef skrain er ekki nothaef, annars null.
+   Golfid stendur afram — thetta er VIDBOT, ekki skipti, thvi thau
+   svara sitt hvorri spurningunni ("er eitthvad i henni?" gegn "er
+   ThAD i henni sem tharf?").                                        */
+async function writeJson(name, data, { minRows = 1, require: requireFn = null } = {}) {
   const file = path.join(OUT, name);
   const rows = rowCount(data);
+  const why = typeof requireFn === "function" ? requireFn(data) : null;
+  if (why) {
+    record(`write:${name}`, false,
+      `REFUSED: ${why} — existing file left in place`);
+    return false;
+  }
   if (rows < minRows) {
     record(`write:${name}`, false,
       `REFUSED: ${rows} rows (minimum ${minRows}) — existing file left in place`);
@@ -491,11 +511,27 @@ async function stageCore() {
     season,
     ffc: ffcSets,
     generated: new Date().toISOString(),
-  }, { minRows: 100 });   // 258 leikmenn per sett
+  }, { minRows: 100,      // 258 leikmenn per sett
+    /* EITT sett af fimm gefur rowCount 258 og staðst golfid, svo dagur
+       thar sem fjogur snid brustu skrifadi eitt snid ofan a oll fimm.
+       Bordid les `ppr_12`/`half-ppr_12`/`standard_12` — hvert theirra
+       sem vantar thydir ad su deildarlogun fellur i Sleeper-ADP, sem er
+       ANNAR KVARDI (sja `dst-team`-notuna i names.js). */
+    require: (d) => ((d.ffc || []).length >= 4 ? null
+      : `only ${(d.ffc || []).length} FFC sets (need 4)`) });
   await writeJson("ecr.json", {
     season,
     ppr: ecrPpr, half: ecrHalf, standard: ecrStd,
-  }, { minRows: 100 });  // 500+ leikmenn per snid
+  }, { minRows: 100,
+    /* ÞRJU SNID, OG EITT ThEIRRA STOD UNDIR GOLFINU FYRIR OLL:
+       `{ppr: 515, half: null, standard: null}` gefur rowCount 515 og
+       slapp i gegn — tvaer af thremur deildarlogunum hefdu misst ECR
+       thegjandi, og `fp_ecr_half`/`consensus` skra sig ekki einu sinni
+       raudar (their eru `.catch(() => null)` an `record`). */
+    require: (d) => {
+      const miss = ["ppr", "half", "standard"].filter((k) => !d[k]);
+      return miss.length ? `missing ${miss.join(", ")}` : null;
+    } });  // 500+ leikmenn per snid
   /* Frettir og meidsli i eigin skra — thaer eru THAD SEM BREYTIST
      ORAST og eiga thvi ekki ad thvinga endurhledslu a `players.json`
      (1,4 MB) i hvert sinn sem frett baetist vid. */
@@ -531,13 +567,25 @@ async function stageCore() {
     withLine: lines.filter((g) => g.total != null).length,
     /* 272 leikir a tomu timabili; 200 er golf sem lifandi keyrsla
        nær alltaf en tom keyrsla nær aldrei. */
-  }, { minRows: 200 });
+  }, { minRows: 200,
+    /* GOLFID TALDI LEIKI, EKKI VERDLAGDA LEIKI: 272 radir med
+       `total: null` i hverri einustu stodust — nakvaemlega utkoman
+       thegar bokmakara-heimildin svarar 403, sem hun gerdi i 11 daga i
+       agust. `withLine` er ThEGAR reiknad i sama hlut. */
+    require: (d) => (d.withLine >= 200 ? null
+      : `only ${d.withLine} of ${(d.lines || []).length} games carry a line`) });
+  /* ARID ER ROTIN UNDIR OLLU HINU. `sl.state()` sem svarar 200 med
+     skertum farmi gefur `season: null`; tha verdur `Number(null) = 0`,
+     `historyYears()` skilar TOMU og history-threpid skrifar EKKERT —
+     og skrair sig GRAENT ("0 player weeks across 0 seasons"). Graen
+     keyrsla sem skrifar ekkert er verri en hrun. */
   await writeJson("meta.json", {
     season, week: state.week, seasonType: state.season_type,
     seasonStart: state.season_start_date,
     displayWeek: state.display_week,
     generated: new Date().toISOString(),
-  });
+  }, { require: (d) => (Number.isFinite(Number(d.season)) && Number(d.season) > 2000
+        ? null : `season is ${JSON.stringify(d.season)}, not a year`) });
 
   /* Vistunin sidast: hun ma aldrei tefja ne fella fersku kjarnagognin. */
   await archiveDaily({ season, games, ffcSets, newsFeed, lines, futures });
@@ -1808,7 +1856,13 @@ async function stageExperts(season) {
     boardsPrev: compactBoards(prev),
     consensus: consensusNow,
     generated: new Date().toISOString(),
-  }, { minRows: 100 });
+  }, { minRows: 100,
+    /* GOLFID TALDI SAMSTEYPUNA (520 leikmenn) og bordin gatu thvi
+       verid TOM. Bordin eru thad sem "Sharp Δ"-dalkurinn og
+       sérfraedinga-flipinn lesa; dagurinn sem their brustu hefdi
+       skrifad tom bord ofan a godu bordin fra i gaer. */
+    require: (d) => (Object.keys(d.boards || {}).length > 0 ? null
+      : "boards are empty") });
 
   record("experts", now.length > 0,
     `${now.length} boards ${season}, ${prev.length} boards ${season - 1}, ` +

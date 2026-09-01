@@ -19,6 +19,17 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { JSDOM } from "jsdom";
 
+/* Les maelingaskra ur `data/` ef hun er til — annars null. Notad thar
+   sem profid endurreiknar tolu UR HEIMILDINNI i stad thess ad afrita
+   hana; afrit badum megin vaeri ekki prof. */
+function readJsonIfAny(name) {
+  try {
+    return JSON.parse(readFileSync(path.join(
+      new URL(".", import.meta.url).pathname, "..", "data", name), "utf8"));
+  } catch { return null; }
+}
+
+
 const ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
 const DATA = path.join(ROOT, "data");
 
@@ -694,8 +705,35 @@ console.log("\n4c. model-lab-flipinn");
       "vidmotid adgreinir fullyrdingarnar tvaer");
     ok(/Against ADP this holds/i.test(t), "og segir hvor stenst");
     ok(/does not, yet/i.test(t), "og hvor gerir thad ekki");
-    ok(/thirteen seasons/i.test(t),
-      "og hvad thyrfti til: threttan timabil");
+    /* ============================================================
+       TALAN VAR HARDKODUD OG RONG — NU ER HUN REIKNUD OG BORIN VID
+       ============================================================
+       Hér stod `/thirteen seasons/` og vidmotid sagdi "thirteen".
+       Rynni 31.8.2026 fann enga stod fyrir theirri tolu i
+       `arank_ppr.json`. Rett svar er reiknanlegt ur skranni: `t` vex
+       sem sqrt(n), svo minnsta `n` thar sem `t*sqrt(n/years)` fer yfir
+       tvihlida 95% morkin er svarid — og thad er **27**.
+
+       Fullyrdingin er thvi ekki lengur um ORDID heldur um TOLUNA, og
+       hun er endurreiknud hér UR SKRANNI SJALFRI. Vaeri hun hardkodud
+       badum megin vaeri thetta afrit, ekki prof. */
+    const arank = readJsonIfAny("arank_ppr.json");
+    const h = arank && arank.headToHead && arank.headToHead.current;
+    ok(h && h.t && h.years, `ThEKJA: h2h-maelingin er lesin (t=${h && h.t}, n=${h && h.years})`);
+    if (h && h.t && h.years) {
+      const T95 = [12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262,
+        2.228, 2.201, 2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093, 2.086,
+        2.080, 2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042];
+      const crit = (df) => (df < 1 ? Infinity : (df <= 30 ? T95[df - 1] : 1.96));
+      let want = null;
+      for (let n = h.years + 1; n <= 200; n++) {
+        if (Math.abs(h.t) * Math.sqrt(n / h.years) > crit(n - 1)) { want = n; break; }
+      }
+      const m = /about (\d+) seasons to settle/i.exec(t);
+      ok(m != null, `og hvad thyrfti til stendur a skjanum ("${(t.match(/[^.]*to settle[^.]*/i) || ["ekkert"])[0].slice(0, 70)}")`);
+      ok(m && want != null && Number(m[1]) === want,
+        `og talan er REIKNUD ur maelingunni (skjar ${m ? m[1] : "?"} = ${want})`);
+    }
     ok(/head to head/i.test(t) || /Head to head/.test(t),
       "beina einvigid birtist");
     ok(/sign test/i.test(t), "og teknaprofid med p-gildi");

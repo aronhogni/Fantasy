@@ -18,6 +18,10 @@ const SUITES = [
      skorad, og thvi sa eini sem getur svarad hvort dypt borgi sig.
      Profud a TILBUNUM gognum thar sem svarid er thekkt fyrirfram. */
   ["weekly-depth.mjs"],
+  /* Slembnar deildarlaganir. Oll onnur sofn profa EINA logun; thetta
+     spyr hvort reglurnar seu samkvaemar i hvada deild sem er — og ber
+     thekju-teljara svo thau geti ekki verid graen af tomri astaedu. */
+  ["shapes.mjs"],
   ["sleeper-league.mjs"], ["wiring.mjs"], ["draft-sync.mjs"], ["rulebasis.mjs"],
   /* `entry.mjs` VAR UTAN THESSA LISTA og keyrdi thvi hja engum — fullgildur
      vordur med nium fullyrdingum, skradur hvergi. Hann ver villu sem sast

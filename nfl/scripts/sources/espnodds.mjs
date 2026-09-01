@@ -90,6 +90,24 @@ export async function gameLines(season, weeks = 18) {
       record(`espn_lines_w${w}`, false, `failed: ${e.message}`);
     }
   });
+  /* ============================================================
+     ROD UT UR `pool` ER KOMURODIN — OG HUN SKILAR SER A SKJAINN
+     ============================================================
+     `pool(..., 4, ...)` keyrir fjora samtimis og `out.push` skrifar i
+     ThEIRRI rod sem svorin berast. Maelt 31.8.2026: `market/2026-08-30`
+     og `-08-31` bera NAKVAEMLEGA somu leiki i ANNARRI rod.
+
+     ÞAD ER EKKI SNYRTIMAL: `teamMarketStrength` byggir kort sitt i
+     thessari rod og radar sidan a NAMUNDADRI tolu, svo jafntefli
+     leysast eftir komurod — sami inntakslisti i ondverdri rod faerdi
+     `allowedRank`/`scoredRank` hja **2 lidum af 32**. Þaer tolur eru
+     birtar sem varnar-rod i bordinu.
+
+     Þetta er sama aett og BSD-keyrslan i FPL-verkefninu sem gaf
+     389/390/391 paranir i thremur keyrslum: keyrsla sem er ekki
+     endurgeranleg er ekki maeling. */
+  out.sort((a, b) => (a.week - b.week)
+    || String(a.id).localeCompare(String(b.id)));
   const withLine = out.filter((g) => g.total != null && g.spread != null).length;
   record("espn_game_lines", out.length > 200,
     `${out.length} games, ${withLine} with a posted line`);
@@ -239,12 +257,23 @@ export function teamMarketStrength(lines) {
                        scored: r2(r.scored), allowed: r2(r.allowed) })),
     });
   }
-  /* Rodun: 1 = mest gefid a sig (BESTA vidureign fyrir sokn). */
-  out.sort((a, b) => b.allowed - a.allowed)
+  /* ============================================================
+     Rodun: 1 = mest gefid a sig (BESTA vidureign fyrir sokn).
+     ============================================================
+     JAFNTEFLIS-ROFID ER LIDSHEITID, EKKI KOMURODIN. Tolurnar eru
+     NAMUNDADAR (`r2`), svo jafntefli eru raunveruleg og ekki sjaldgaef;
+     stodug rodun i JS leysir thau eftir rod i fylkinu, sem var komurod
+     ur `pool`. Maelt: sami inntakslisti i ondverdri rod faerdi
+     `allowedRank`/`scoredRank` hja tveimur lidum af 32.
+
+     Med lidsheitinu sem sidasta lykli er rodin fall af GOGNUNUM einum
+     og keyrslan endurgeranleg. */
+  const byTeam = (a, b) => String(a.team || "").localeCompare(String(b.team || ""));
+  out.sort((a, b) => (b.allowed - a.allowed) || byTeam(a, b))
     .forEach((t, i) => { t.allowedRank = i + 1; });
-  out.slice().sort((a, b) => b.scored - a.scored)
+  out.slice().sort((a, b) => (b.scored - a.scored) || byTeam(a, b))
     .forEach((t, i) => { t.scoredRank = i + 1; });
-  return out.sort((a, b) => b.scored - a.scored);
+  return out.sort((a, b) => (b.scored - a.scored) || byTeam(a, b));
 }
 
 /* ---------- hjalparfoll ---------- */
