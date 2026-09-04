@@ -171,6 +171,30 @@ const BOOKKEEPING = /^(status|status_fast)\.json$/;
    glugga, thar hverfur ALLT ur skra.
    ============================================================ */
 const ROLLING = /^(bsd_odds|bsd_lineups)\.json$/;
+/* ============================================================
+   SVID SEM HEIMILDIN SJALF NULLSTILLIR (4.9.2026)
+
+   Tvo svid til vidbotar tomast af RETTRI astaedu, og hvorugt er gagnatap:
+
+   · `news.json.price_changes` er `cost_change_event !== 0` beint ur
+     `bootstrap-static` — ThAD ER TELJARI SEM FPL NULLSTILLIR VID
+     FRESTINN. Maelt i dag: 119 -> 0 i keyrslunni strax eftir GW3-frestinn.
+     Sama nullstilling og klobbradi `season_baseline` (CLAUDE.md 7.1); thar
+     var hun VILLA thvi vid skrifudum verri skra ofan a betri, her er hun
+     RETT thvi svidid ER teljari umferdarinnar.
+   · `lineups.json.probe` er GEYMT greiningarsvar um API-Sports og er
+     adeins skrifad ThEGAR ENGINN LEIKUR ER I GLUGGANUM. A leikdegi er
+     thad rettilega fjarverandi. Sama edli og `status.json.sources`:
+     bokhald um keyrsluna, ekki gogn.
+
+   ThAD SEM ER EKKI SLAKAD: bædi eru negld a SKRA OG SVID. `news.json`
+   ma ekki missa `players`, og `lineups.json` ma ekki missa `players`
+   ne `teams` — su regla felldi einmitt villuna i `carryLineups` samdaegurs.
+   ============================================================ */
+const SOURCE_RESET = [
+  [/^news\.json$/,    /^price_changes(\.|$)/],
+  [/^lineups\.json$/, /^probe(\.|$)/],
+];
 export function regressions(nowObj, headObj, name = "file") {
   const out = [];
   const now = counts(nowObj), was = counts(headObj);
@@ -179,6 +203,7 @@ export function regressions(nowObj, headObj, name = "file") {
     if (BOOKKEEPING.test(name) && /^sources\./.test(field)) continue;
     /* Stakur leikur ma hverfa ur lifandi glugga; sja ROLLING ad ofan. */
     if (ROLLING.test(name) && /^events(\.|$)/.test(field)) continue;
+    if (SOURCE_RESET.some(([f, k]) => f.test(name) && k.test(field))) continue;
     const after = now[field];
     if (before > 0 && after === 0) {
       out.push(`${name}: \`${field}\` went ${before} -> 0. An empty run must `

@@ -109,6 +109,35 @@ console.log("\n=== 1c. LIFANDI GLUGGI ER EKKI GAGNATAP (bsd_odds / bsd_lineups) 
      "ekki heldur i systkina-skra sem er EKKI gluggi");
 }
 
+console.log("\n=== 1d. SVID SEM HEIMILDIN SJALF NULLSTILLIR ===");
+{
+  /* `news.json.price_changes` er `cost_change_event !== 0` beint ur
+     `bootstrap-static` — teljari sem FPL NULLSTILLIR VID FRESTINN.
+     Maelt 4.9.2026: 119 -> 0 i keyrslunni strax eftir GW3-frestinn, og
+     hlidid hafnadi commit-inu. `lineups.json.probe` er geymt
+     greiningarsvar sem er adeins skrifad UTAN leikja-gluggans.        */
+  const nHead = { updated: "x", price_changes: [1, 2, 3],
+                  players: [{ id: 1 }, { id: 2 }] };
+  ok(regressions({ updated: "y", price_changes: [], players: [{ id: 1 }, { id: 2 }] },
+                 nHead, "news.json").length === 0,
+     "FPL-teljari sem nullstillist vid frestinn stodvar EKKI commit");
+  ok(regressions({ updated: "y", price_changes: [1], players: [] },
+                 nHead, "news.json").length > 0,
+     "EN `players` i somu skra lytur obreyttri reglu");
+
+  const lHead = { updated: "x", probe: { at: "t", http: 200, errors: { a: 1 }, gated: true },
+                  players: [{ id: 1 }], teams: [{ id: 1 }] };
+  ok(regressions({ updated: "y", players: [{ id: 1 }], teams: [{ id: 1 }] },
+                 lHead, "lineups.json").length === 0,
+     "`probe` ma hverfa a leikdegi (thad er skrifad UTAN gluggans)");
+  ok(regressions({ updated: "y", probe: lHead.probe, players: [], teams: [] },
+                 lHead, "lineups.json").length > 0,
+     "EN `players`/`teams` mega thad ALDREI — su regla felldi `carryLineups`-villuna");
+  ok(regressions({ updated: "y", probe: lHead.probe, players: [{ id: 1 }], teams: [{ id: 1 }] },
+                 { ...lHead, price_changes: [1, 2] }, "lineups.json").length > 0,
+     "og undanthagan er negld a SKRA OG SVID — `price_changes` er ekki undanthegin her");
+}
+
 console.log("\n=== 2. `counts` SER OFAN I SNIDID SEM DATA/ NOTAR ===");
 {
   const c = counts({ players: [1, 2, 3], teams: { ARS: {}, CHE: {} },
