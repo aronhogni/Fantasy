@@ -574,6 +574,9 @@ töflu. Smáatriðin eru í `docs/MAELINGAR.md`.
 | **STÓRA STIGALÍKANS-BEIÐNIN (25.8.2026) — SEX TILGÁTUR, ALLAR FELLDAR** | **Mælt að beiðni notandans** („ég vill búa til betra spálíkan fyrir stig … ekki hætta fyrr en þú nærð marktækri bætingu"), `scripts/measure-exp-points-v2.mjs`, 5 tímabil, **51.262 / 126.730 leikmanna-umferðir**, bootstrap **klasað per leikmann**, 400 ítranir, fast fræ. **ENGIN breyting á `src/model.js` var réttlætt og engin var gerð.** (1) **DefCon sem inntak:** þrautseigjan er raunveruleg (DC-hittni split-half **r 0,7551** á móti **0,3263** fyrir stig = **2,31×**) en ákvörðunin hreyfist ekki — `d top15` **0,000 CI [−0,239, +0,232]**; og formið sem notandinn lýsti sjálfur (`nonDC-ppg × mult + 2 × p_hit`) er **VERRA**: `d top15` **−0,344 CI [−0,565, −0,088]**, útilokar null í RANGA átt. (2) **Mótherji × staða:** `d r` **−0,0007 CI [−0,0014, −0,0000]** (neikvætt), þekja 92,7% — ekki gagnaskortur. (3) **Markaðsoddar:** ÞEGAR inni; DEF **+0,0038 [+0,0018, +0,0059]**, GK **−0,0008 [−0,0051, +0,0031]**. (4) **Big chances:** `d r` +0,0009 CI [−0,0027, +0,0046]. (5) **Mínútur/byrjunar-líkur:** lítur út eins og eini sigurvegarinn á `ppg5`-grunni og **SNÝST VIÐ** á skrumpuðum grunni (`d top15` −0,179 [−0,287, −0,080]) — það var aldrei um mínútur, hrátt 5-leikja meðaltal er einfaldlega vondur grunnur. (6) **threat/ICT/xGI:** að fella xG/xA-fjölskylduna úr 56-inntaka ridge gefur `d r` **−0,0003 [−0,0005, −0,0001]** — hún er þegar inni og ber sitt. **VÖRNIN SEM VANN:** bygging appsins (`grunnur × FFDR-margfaldari`) **jafnar eða slær** 56-inntaka ridge þegar grunnurinn er góður (topp-15 5,104 á móti 5,104), og FFDR-margfaldarinn ber sitt þar: **Δtopp-15 +0,175 CI [+0,066, +0,292]**, útilokar null. **Sangaré-dæmið sem notandinn nefndi er RÉTT SÉÐ EN RANGT GREINT:** hans eigið meðaltal 2025/26 var **3,24** svo 2,3 var raunverulega lágt — en orsökin er skrumpun grunnsins, ekki vantandi DC-liður; 14 stig eru **hala-atburður** (4,19% raða ná 10+, besta líkan spáir þeim 3,58) | 25.8.2026 |
 | **FPL-EIGIÐ `xP` SEM VIÐMIÐ EÐA INNTAK** | **LEKIÐ — og það er nú VARÐAÐ, ekki bara skjalað.** `xP` fylgir raunstigum **r 0,4529** innan leikmanns á móti **0,0720** hjá besta leka-frjálsa líkaninu — **6,3×**, sem er ekki gæði heldur gegnsýring (það er reiknað eftir á). Safn sem notar `xP` sem viðmið mælir því hversu vel við hermum eftir leka. **`tests/xp-contaminated.mjs` fellur** ef `xP` er notað sem viðmið eða sem inntak í sömu röð; `xP5` (aðeins fortíð) er beinlínis leyft | 25.8.2026 |
 | **ÞRJÚ INNTÖK ÚR BEIÐNINNI SEM VORU ALDREI MÆLD — NÚ MÆLD (25.8.2026)** | **`scripts/measure-opp-pens-shots.mjs`**, committuð `data/`, engin ytri köll, ~38 s, **deterministísk** (fast fræ 7, bootstrap klasað per leikmann fyrir r/MAE og per umferð fyrir topp-15). Röðin hér að neðan hét áður „ekki reynt"; hún er nú **reynd og felld**, nema þar sem gögnin eru einfaldlega ekki til. **(a) MEIÐSLI Í LIÐI MÓTHERJANS — EKKI MÆLANLEG SEM MEIÐSLI.** Ekkert í repo-inu geymir **sögu um tiltækileika**: `fpl_player_gw.json` ber ekkert slíkt svið, og `data/history/` er **verð-eingöngu og hefst 25.7.2026**, svo hún spannar enga lokna umferð. Staðgengillinn sem ER hægt að byggja er **fjarvera** (hlutfall mínútna mótherjans síðustu 5 umferðir sem tilheyra mönnum sem spiluðu 0 í dag) og hann blandar meiðslum, bönnum, róteringu og félagaskiptum — ekkert í gögnunum skilur þau að. Orakel-útgáfan: hrár halli innan leikmanns **+0,0954 stig per +0,10 fjarveru CI [0,0666, 0,1236]**, net af líkani **+0,0703 CI [0,0427, 0,0974]** = **~0,16 stig** yfir raunsviðið. **En nothæfa útgáfan (fjarvera í N−1, sú eina sem er þekkt fyrir frest) mælist `d r +0,0003 CI [−0,0002, +0,0007] — INNIHELDUR NULL**, og topp-15 versnar í **öllum fjórum** reitum (t.d. orakel `−0,029`). Óstöðug líka: halli per tímabil 0,0086–0,1506, **17× spönn**, og nýjasta tímabilið er nánast núll. **(b) VÍTI OG DÓMARI — DÓMARA-HELMINGURINN ER EKKI MÆLANLEGUR.** E0 ber `Referee` í öllum 15 tímabilum en **ENGAN víta-dálk í neinu þeirra** (dálkarnir eru nákvæmlega `HS,AS,HST,AST,HF,AF,HC,AC,HY,AY,HR,AR`); víti eru aðeins til í BSD, sem nær yfir **2025/26 eitt**. Prófið sem felldi dómara-spjöldin — `r(N→N+1)` yfir 14 tímabila-pör — **er því ekki hægt að keyra**. Innan þess eina tímabils: 89 víti á 17 dómara með ≥10 leiki, umfram-dreifni **0,00265 CI [−0,00713, +0,01751] — inniheldur null**, og þak með FULLKOMINNI vitneskju **0,102 stig** (á móti 0,016 sem spjöldin voru felld við). Lids-víti á sig: `d r −0,0013 CI [−0,0042, +0,0016]`; og fullyrðing notandans sjálfs (hjálpar það vítaskyttunni?) mælist **+1,063 stig per +1 víti/leik CI [−3,773, +6,639]** — CI 20× breiðara en matið. Aflið skýrir hvers vegna: 0,24 víti per leik þýðir að félag hefur gefið **um tvö** við GW20. **(c) HRÁ SKOT-TALNING SEM EP-LIÐUR — FELLD, OG HÚN SKAÐAR.** Ofan á grunn sem ber ÞEGAR `xg90/xa90/xgi90/threat90/ict90`: `d r +0,0026 CI [−0,0036, +0,0080]` og `d MAE` inniheldur null — **en `d topp-15 −0,196 CI [−0,330, −0,074]`, sem ÚTILOKAR NULL Í RANGA ÁTT.** Sama niðurstaða og box-snertingarnar eftir annarri leið: **merki sem fylgir því sem er þegar í líkaninu er ekki ný upplýsing.** Pörunin er BYGGINGARLEG (mínútu/stiga-vigur per umferð, ekki nöfn): 534 einkvæm af 537 | 25.8.2026 |
+| **VELDI A FFDR-MARGFALDARANN (`mult^a`)** | **Mælt 4.9.2026, fasi B (28 afbrigði).** Nested held-out **−0,007, 2 ár af 5**, og foldarnir ÓSAMMÁLA. `a = 1,5` lítur best út á öllu úrtakinu (+0,056) og **fellur í nested-prófinu**. **EN `a = 0` (enginn leikjaliður) gefur −0,138, p 0,0043** — margfaldarinn ber merki og það er nú prófað með tönnum | 4.9.2026 |
+| **BLANDA `ep_next` AFTUR INN Í GRUNNINN** | **Mælt 4.9.2026, fasi B.** Neikvætt í ÖLLUM þyngdum: −0,072 við w = 0,3 og **−0,154 við w = 0,5 (p 0,0025)**. Okkar grunnur ber ÞEGAR það sem FPL-talan hefur — sjálfstæð staðfesting á því að `ep_next` sé form en ekki spá | 4.9.2026 |
+| **MERKI OFAN Á GÓÐAN GRUNN (`threat90`, `bps90`, `xgi90`, `dc90` …)** | **Mælt 4.9.2026, fasi C (60 afbrigði) — og þetta er NÝ spurning, því 25.8. voru þau prófuð ofan á `ppg5`-grunni sem var sjálfur vondur.** Sterkastur er `threat90 + 0,2`: nested í **5 af 5** foldum, held-out **+0,072**, 4 ár af 5 — **en p = 0,0813 og hann lifir ekki Holm**. Fellur á sama þröskuldi og sjöunda þrepið (+0,00085) og „sleppa óheppnis-liðnum" (P = 74%). **Eina afbrigðið sem lifir Holm er `hauls − 0,2` með −0,737** — einu áhrifin sem eru nógu sterk eru þau sem gera spána VERRI. `threat90` er skráður sem sterkasti opni frambjóðandinn og á að endurmælast við sjötta tímabilið | 4.9.2026 |
 | **STODU-BUNDID K I GRUNNI VAENTRA STIGA** | **Mælt 4.9.2026** (`measure-base-search.mjs` kafli 5b), nested val a þjálfunar-tímabilum: **held-out −0,021, 1 ár af 5**. Ein skrumpunar-tala fyrir allar stöður stendur. Prófað sem EIN breyting á sigurvegaranum, ekki sem 5⁴ rist — það síðara væri ofurmátun í dulargervi leitar | 4.9.2026 |
 | **FORGILDID SEM „STIG PER LEIK" Í STAÐ per-90 × 60 mín** | **Mælt 4.9.2026, fimmti ás í leitinni (300 afbrigði).** Grunurinn er réttmætur — fasti 60/90 lítur út fyrir að skera 90-mínútna mann niður um þriðjung — en beina leiðin (`prevPts/prevMatches`) **kemst í topp-8 og vinnur ekki**: +0,381 á móti +0,406. Fastinn stendur | 4.9.2026 |
 | **EIN BYRJUN SEM DEFCON-MERKI — MERKIÐ ER RAUNVERULEGT, BIRTINGIN BREYTIST SAMT EKKI** | **Mælt 27.8.2026 að beiðni notandans um M.Sangaré** („hann er líklegur að fara að ná DefCon" eftir 13 DC á 75 mín í GW1), `scripts/measure-first-start-dc.mjs`, 360 leikmenn 2025/26 með ≥6 byrjanir, bootstrap klasað per leikmann, fast fræ. **`measure-dc-flag.mjs` setti GÓLF VIÐ 5 BYRJANIR og það er rétt um SINN mælikvarða** — hrá hittni á einni byrjun er 0% eða 100%. **En DC-TALNINGIN er samfelld og var aldrei mæld**, svo gólfið gilti um hana án mælingar. Hún ber merki: `r(DC/90 í fyrstu byrjun -> hittni í ÞEIM SEM Á EFTIR KOMA)` = **0,396 CI [0,274, 0,511] hjá MID** (DEF 0,259 [0,077, 0,418]; FWD 0,149 [−0,090, 0,361] inniheldur null), og hún slær **binæru** hittuna (0,230 [0,059, 0,399]). Hópur ≥15 DC/90 á móti <15: **+0,221 CI [+0,062, +0,422]**, útilokar null — **en n=9 í efri hópnum og bandið er ekki einrænt** (12–15 mælist 0,171, LÆGRA en 8–12 sem er 0,214), sem er undirskrift hávaða. **ÞAÐ SEM ER FELLT ER BIRTINGIN:** að skipta `hit_rate_adj` út fyrir DC/90-línu bætir MAE um **0,0063 CI [−0,0010, +0,0136] — INNIHELDUR NULL**, og línan var meira að segja fittuð á SÖMU gögnum (þak, ekki tillaga). **Skrumpaða talan stendur.** Sami mælikvarði og felldi „sleppa óheppnis-liðnum" | 27.8.2026 |
@@ -1078,7 +1081,8 @@ niðurstaðan committuð:
 | `measure-friendly-dc.mjs` | ekkert (skýrsla; `--json <slóð>`) | **VANTAÐI Í ÞESSA TÖFLU til 16.8.2026** — óskráð mælingaskrifta er skrifta sem enginn getur endurtekið. Sækir FotMob `/api/data/matchDetails` (sjá kafla 6) fyrir varnar-tölur úr æfingaleikjum |
 | `start-panel.mjs` | ekkert (sameiginlegur hleðari) | **BYRJUNAR-LÍKANA-PANELLINN, ein útfærsla fyrir þrjár mælingar** (sama regla og `espn-zones.mjs`). Parar `fpl_player_gw.json` við FPL-`code` gegnum `players_raw.csv`; mælt **733/735 · 776/777 · 865/869 · 804/805 · 841/841** — NAFNA-pörun milli tímabila tapar þögult 10–52 raunverulegum tengingum per skil (2,4–7,5%). Geymir líka klasaða bootstrappið (400 ítranir, ákveðið RNG) |
 | `measure-dc-flag.mjs` | ekkert (skýrsla; `--json <slóð>`) | **MÁ MERKJA MANN SEM „DC-LEIKMANN"?** (25.8.2026) Skilgreining notandans (hrá hittni > 0,50) mæld á `player_gw_2526.json`: golf **5 byrjanir** (1 byrjun gefur 0% eða 100%), og merkt á fyrstu 5 skilur hópana **0,441 á móti 0,168 í ÞEIM SEM EFTIR ERU — +0,273 CI [0,218, 0,334]**. Deterministísk, ~1 s. **Skjalar líka MITT EIGIÐ ranga mælitæki:** fyrsta fals-jákvæðu talan (79%) taldi tímabils-hittni 0,48 sem VILLU; sundurliðuð er hún 12 sannir · 11 á jaðri · 5 undir · **0 undir 0,25** |
-| `measure-base-search.mjs` | ekkert (skýrsla; `--json`, `--quick`) | **LEITIN AD BESTA GRUNNINUM** (4.9.2026, sjá kafla 15) — 200 afbrigði, **nested val**, tekna-próf á árum, **Holm-leiðrétting** og **neikvæð viðmið sem VERÐA að tapa** (snúið skor −4,2; fast skor −3,4). Sama strangleiki og `nfl/scripts/arank-search.mjs`. Les committuð `data/`, engin ytri köll, ~8 mín (`--quick` ~1 mín) |
+| `measure-base-search.mjs` | ekkert (skýrsla; `--json`, `--quick`) | **LEITIN AD BESTA GRUNNINUM — ÞRÍR FASAR** (4.9.2026, sjá kafla 15). **A:** 300 afbrigði af GRUNNINUM. **B:** margfaldarinn sjálfur (veldi + blöndun við `ep_next`) — 28 afbrigði. **C:** bætir nokkuð OFAN Á góðan grunn — 60 mjúkir hallar. Allir með **nested vali**, tekna-prófi á árum, **Holm-leiðréttingu** og **neikvæðum viðmiðum sem VERÐA að tapa** (snúið skor −4,1; fast skor −3,4; `a = 0` gefur −0,138). Sama strangleiki og `nfl/scripts/arank-search.mjs`. Les committuð `data/`, engin ytri köll, ~15 mín (`--quick` ~2 mín) |
+| `backtest-season.mjs` | ekkert (skýrsla; `--season=`, `--json`) | **HVERNIG HEFÐI LÍKANIÐ GENGIÐ?** (4.9.2026, sjá kafla 15). Gönguleikur yfir eitt tímabil með föstum sem LOSO valdi ÁN þess. Ber líkanið við `ppg5`, **oraklið** (þak) og **tilviljun** (gólf) — ein tala segir ekkert án beggja. Prentar líka kvörðunartöflu per tíundarhlut, sem er **hún sem fann +1,61 skekkjuna á toppnum**. ~2 mín |
 | `measure-base.mjs` | ekkert (skýrsla; `--json <slóð>`) | **GRUNNURINN Í VÆNTUM STIGUM** (4.9.2026, sjá kafla 15). Les committuð `data/` gegnum `tests/lib/panel2.mjs`, engin ytri köll, ~3 mín, **deterministísk** (fast fræ 7). Ber **fimm** grunna gegnum SÖMU byggingu appsins og velur eftir MAE + topp-15 með vikmörkum; prentar líka K-næmið og stöðu-forgildin sem `model.js` ber, svo talan í kóðanum sé rekjanleg til mælingar. **Hún er FYRSTA skrefið, ekki það síðasta** — fjórir handvaldir grunnar eru ekki leit; sjá `measure-base-search.mjs` |
 | `measure-opp-pens-shots.mjs` | ekkert (skýrsla; `--json <slóð>`) | **ÞRJÚ INNTÖK SEM VANTAÐI ÚR STÓRU BEIÐNINNI** (25.8.2026): meiðsli mótherjans, víti/dómari, hrá skot-talning. Öll þrjú **felld** — sjá kafla 4. Flytur inn `panel2.mjs`, `e0.mjs` og `bootstrapCI` úr `start-panel.mjs`; **engin formúla endurrituð**. Deterministísk (sannreynt með því að bera tvær heilar keyrslur saman bæti fyrir bæti) |
 | `rebuild-odds.mjs` | `odds.json` | **ENDURBYGGIR MARKAÐSLÍNUNA ÚR COMMITTAÐA HRÁA SVARINU** (27.8.2026) — engin netköll, enginn kvóti. Til vegna þess að hliðið (`shouldFetchOdds`) hleypir aðeins einni sókn í hvorn glugga, svo skrá sem er skökk daginn fyrir frest hefði staðið þannig fram yfir hann. Notar SÖMU föll og sóknin (`oddsTeamsFromRaw`, `oddsFileFrom`) — ekkert endurritað. Þrír verðir í skriftunni sjálfri: tómt svar skrifar ekkert · engin pöruð félög skrifa ekkert · **færri félög en fyrir er stöðvað** (afturför er merki um bilun í umbreytingunni, ekki um þögn á markaðnum). `--dry` skrifar ekkert |
@@ -1954,6 +1958,49 @@ truverdug", sem var kaeran. `shrunkMin` vinnur MAE alls stadar
 >   dulargervi leitar), med somu nested-adferd: **held-out −0,021 og
 >   1 ar af 5.** Ein tala stendur.
 >
+> **FASI B — MARGFALDARINN SJALFUR, SEM HAFDI ALDREI VERID LEITAD.**
+> Fasi A leitadi ad grunninum og helt margfaldaranum fostum; hann er samt
+> HELMINGUR formulunnar og var adeins punkt-maeldur 25.8.2026. Tveir asar,
+> badir ein tala: **veldi** a margfaldarann (`mult^a`) og **blondun**
+> grunnsins vid `ppg5` (stadgengil `ep_next`). 28 afbrigdi, sama
+> nested-adferd.
+> **NIDURSTADA: ENGIN BREYTING.** Nested held-out **−0,007 og 2 ar af 5**;
+> foldarnir eru meira ad segja OSAMMALA (a1,5 a moti a2·w0,15), sem er
+> undirskrift havada. `a = 1,5` litur best ut a ollu urtakinu (+0,056) og
+> **fellur i nested-profinu** — nakvaemlega valskekkjan sem adferdin er til
+> ad hindra.
+> · **EN MARGFALDARINN BER MERKI OG ThAD ER NU PROFAD MED TENNUR:**
+>   `a = 0` (enginn leikjaliður) gefur **−0,138, t −5,82, p 0,0043**.
+>   Punkt-maelingin fra 25.8. stendur, nu med almennilegu profi.
+> · **OG BLONDUN VID `ep_next` ER NEIKVAED I OLLUM ThYNGDUM** — −0,072 vid
+>   w = 0,3 og **−0,154 vid w = 0,5** (p 0,0025). **Okkar grunnur ber ThEGAR
+>   thad sem FPL-talan hefur**, og ad blanda henni aftur inn thynnir hann.
+>   Thad er sjalfstaed stadfesting a thvi ad `ep_next` se form en ekki spa.
+>
+> **FASI C — BAETIR NOKKUD OFAN A GODAN GRUNN?** Stora maelingin 25.8.
+> felldi sex merki — **en hun profadi thau ofan a `ppg5`-grunni**, sem var
+> einmitt grunnurinn sem reyndist vondur. Spurningin er thvi ny. Tiu merki
+> ur panelinu (`xgi90`, `bps90`, `threat90`, `bonusRate`, `dc90`,
+> `csRate5`, `hauls`, `own`, `minsTrend`, `startRate`), hvert sem MJUKUR
+> HALLI (`base x (1 + c*z)`), `z` stadlad **innan stodu**, c i badar attir
+> — 60 afbrigdi.
+> **NIDURSTADA: EKKERT ER TEKID UPP.** Sterkasti frambjodandinn er
+> `threat90 + 0,2`: valinn nested i **5 af 5** foldum, held-out **+0,072**,
+> **4 ar af 5** — **en p = 0,0813 a ollu urtakinu og hann lifir ekki Holm.**
+> Reglan i thessu repo-i er skyr og hun var sett fyrir nakvaemlega thetta:
+> *lidur er thess virdi ADEINS ef CI utilokar null* (sjounda threpid var
+> fellt vid +0,00085 og „sleppa oheppnis-lidnum" vid P = 74%). Ahrifin eru
+> auk thess **5x minni** en grunnbreytingin sjalf (+0,380).
+> · **OG HOLM-SIAN SEGIR EITTHVAD OSKEMMTILEGT UM RISTINA:** **eina
+>   afbrigdid sem lifir leidrettinguna er `hauls − 0,2` med −0,737** — thad
+>   er ad segja **einu ahrifin sem eru nogu sterk til ad lifa af eru thau
+>   sem GERA SPANA VERRI.** Thad er retta myndin af thvi hversu litid er
+>   eftir: hægt er ad EYDILEGGJA spana med merkjum, ekki ad bæta hana.
+> · `threat90` er skrad her sem **sterkasti opni frambjodandinn** og a ad
+>   endurmælast thegar sjotta timabilid baetist vid — ekki ad vera tekinn
+>   upp i millitiðinni af thvi ad einhver muni eftir honum sem „naestum
+>   marktækum".
+>
 > **OG GRINDIN GETUR TAPAD — ThAD ER PROFAD:** snuid skor gefur **−4,147**
 > og fast skor **−3,437**. Leit sem skilar „bæting" i 218 af 300 afbrigdum
 > a ad vekja grun um grindina adur en hun vekur gledi; neikvaedu vidmidin
@@ -1977,7 +2024,76 @@ LOSO valdi 3 i fjorum timabilum af fimm og ristin er flot
 K = 0 er urkynjad. Stodu-forgildin eru medalstig per rod, maeld a somu 5
 timabilum, LOSO-sveifla **±0,03** — thess vegna dugar **ein** tala per stodu.
 
-**FORMULAN SEM ER I APPINU I DAG** (`pointsBase`, `src/model.js`):
+### BAKPROFID A SIDUSTU LEIKTID — OG GALLINN SEM ThAD FANN (4.9.2026)
+
+Notandinn: *„keyrdu projected points spalikanid a sidustu leiktid, sjadu
+hvernig thvi modeli hefdi gengid."* `scripts/backtest-season.mjs` keyrir
+likanid **gonguleik** yfir 2025/26 (hver rod ur fortid einni) med fostum
+sem **LOSO valdi AN thess timabils** — bakprof med fittudum fostum er ekki
+bakprof.
+
+| regla | raunstig theirra 15 sem hun valdi |
+|---|---|
+| **likanid** | **4,530** |
+| `ppg5` (thad sem appid gerdi) | 4,108 |
+| orakel (15 bestu EFTIR A) | 11,805 |
+| tilviljun (golf) | 1,002 |
+
+Likanid lokar **32,7%** af bilinu fra tilviljun ad orakli; gamla adferdin
+lokadi 28,8%. Thad vann **25 af 37 umferdum**; yfir 15 val og 37 umferdir
+er munurinn **~234 stig**.
+
+**EN KVORDUNARTAFLAN AFHJUPADI RAUNVERULEGAN GALLA — I EFSTA
+TIUNDARHLUTANUM, SEM ER EINMITT LIDID HANS:** spad **5,46**, raun **3,84**
+— **+1,61 of hatt**. Nionda tiundin var nakvaem (3,01 a moti 2,96), svo
+skekkjan var ekki fasti heldur ThJOPPUN: likanid teygdi toppinn.
+**Upprunalega kaeran i nyrri mynd.**
+
+**MEKANISMINN:** `perMatch x (vaentar minutur / 60)` margfaldar tolu sem
+BER ThEGAR minutur mannsins. Fyrir 90-minutna mann er thad x1,5 ofan a
+tolu sem innihelt 90 minuturnar. Leitin valdi thad thvi **thad baetir
+rodun** — og rodun og staerd eru tvo olik storf.
+
+**LAGFAERINGIN HREYFIR EKKI RODUNINA:** `a + b*x^g` med b, g > 0 er
+**einraen**, svo hver einasta topp-15 maeling stendur obreytt MED
+BYGGINGU (sannreynt a 4.000 rodum og i profinu a atta gildum).
+Eftir kvordun er **hver einasti tiundarhluti innan ±0,23** og sa efsti
+**+0,16** — og MAE fer ur 0,970 i **0,919** (og ur 4,37 i **3,14** a theim
+15 sem likanid velur).
+
+**MAELIKVARDINN ER SKEKKJA PER TIUNDARHLUT, EKKI MAE — OG ThAD KOSTADI
+TVAER UTGAFUR AD SJA.** MAE-fittud utgafa BATNADI a MAE og rak um leid
+veldid i `g -> 0`, sem stefnir a FASTA: a dreifingu thar sem 60% radanna
+eru null er MAE minnkud med thvi ad spa naerri MIDGILDINU, sem er null.
+„Kvordunin" var thvi a leid i **„spadu ollum lagt"**. Vaent stig eru logd
+saman yfir 11 menn, svo staerdin sem skiptir mali er MEDALTALID
+(ohlutdraegni), ekki midgildid.
+
+**OG LAUGIN VARD AD VERA SU SEM KVORDUNIN GILDIR A.** Fyrsta utgafa
+fasans fittadi a OLLUM rodum — en 60% theirra bera grunn upp a nakvaemlega
+0 og fa i appinu `ep_next`, aldrei thessa kvordun. **Maelingin maeldi annan
+heim en keyrslan**, sama villa og profid sem sendi ekki
+`player_seasons.json`. Skorðud vid jakvaedan grunn (59.800 af 134.711
+rodum) faerdist held-out skekkjan ur −0,279 i **−0,670** og MAE hætti ad
+versna: hun **batnar** um 0,082. Enginn fornarkostnadur eftir ad rett
+laug var maeld.
+
+**OG ThETTA BREYTIR SKIPTA-RADGJOFINNI, EKKI ADEINS TOLUNNI A SPJALDINU.**
+`transferNet` er `SUM (vaent stig inn - vaent stig ut)` yfir sjondeildarhringinn
+og BADAR tolur voru teygdar a toppnum, svo avinningurinn var uppblasinn — medan
+refsingin (-4) er RAUNTALA fra FPL. Uppblasinn avinningur a moti raunverulegri
+refsingu rettlaetir hits sem borga sig ekki. Eftir kvordun eru baðar hlidar a
+sama kvarda.
+
+**Vordur:** `exp-points.mjs` — einraeni a atta gildum, `cal(0) = 0`,
+thjoppun a toppnum, lyfting a botninum, **per LEIK en ekki a summuna**
+(tvofold umferd er tvisvar kvordud), **tiltaekileiki UTAN kvordunarinnar**
+(profanlegt adeins med `avail < 1` — fyrsta utgafan profadi mann a fullum
+tiltaekileika og stokkbreytingin slapp i gegn), og ad `ep_next`-varaleidin
+se OKVORDUD. **Fimm stokkbreytingar felldar.**
+
+**FORMULAN SEM ER I APPINU I DAG** (`pointsBase` + `calibrateExp`,
+`src/model.js`):
 ```
 posP90   = BASE_POS_PRIOR[pos] / (60/90)
 prev90   = prevPts / (prevMins/90)                  (ef fyrra timabil er til)
@@ -1986,6 +2102,9 @@ prior90  = w*prev90 + (1-w)*posP90
 perMatch = (total_points + K*prior90*(60/90)) / (leikir felagsins + K)   K = 8
 minutur  = clamp(mins5 + mins_trend, 0, 90)
 grunnur  = perMatch * (minutur / 60)
+
+vaent stig = SUM_leikir  cal(grunnur * FFDR-margfaldari)  *  tiltaekileiki
+             thar sem cal(x) = 0,76 + 0,96 * x^0,7   (x > 0, annars 0)
 ```
 
 **OKKAR EIGIN TALA ER NU I SPA-BOKHALDINU** (4.9.2026). Fram ad thessu

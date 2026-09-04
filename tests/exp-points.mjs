@@ -29,7 +29,7 @@ import {
   marketForRow, eloFor, corr,
 } from "./lib/e0.mjs";
 import { makeFixDifficulty, lookupPos, POS_MEAN_PTS, cleanSheetProb, expPointsFor,
-         pointsBase } from "../src/model.js";
+         pointsBase, calibrateExp } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 let pass = 0, fail = 0;
@@ -629,6 +629,66 @@ console.log("\n=== 6. MAELDI GRUNNURINN — `pointsBase` ===");
   ok(Math.abs(on - off) > 0.5,
      `og med klukkuna a BREYTIST talan raunverulega (${off.toFixed(2)} -> ${on.toFixed(2)})`);
   ok(on < off, "hun laekkar her, thvi ep_next 9,0 var tveggja leikja medaltal");
+
+  /* ============================================================
+     (c2) KVORDUNIN — RODIN MA EKKI HREYFAST
+     ============================================================
+     Bakprofid a 2025/26 syndi ad likanid RADAR betur en SPADI +1,61 of
+     hatt i efsta tiundarhlutanum — sem er einmitt lidid hans.
+     `a + b*x^g` med b, g > 0 er EINRAEN, svo rodin er obreytt og allar
+     topp-15 maelingar standa MED BYGGINGU. Thad er profad her, ekki
+     fullyrt.                                                          */
+  ok(calibrateExp(0) === 0, "kvordun a 0 er 0 — engar minutur, engin stig");
+  ok(calibrateExp(-1) === 0, "og neikvaett inntak gefur 0, ekki NaN");
+  ok(calibrateExp(5) < 5 && calibrateExp(5) > 3,
+     `hun ThJAPPAR toppinn (5,0 -> ${calibrateExp(5).toFixed(2)})`);
+  ok(calibrateExp(1) > 1, `og LYFTIR botninum (1,0 -> ${calibrateExp(1).toFixed(2)})`);
+  const xs = [0.1, 0.5, 1, 2, 3, 5, 8, 12];
+  ok(xs.every((x, i) => i === 0 || calibrateExp(x) > calibrateExp(xs[i - 1])),
+     "EINRAEN — rodin getur ekki hreyfst (profad a 8 gildum)");
+  /* OG HUN ER TENGD I `expPointsFor` — ANNARS ER HUN DAUDUR KODI.     */
+  const calOn = expPointsFor({ p: P, fxs, fixDifficulty: fd, teamId: 1,
+    basis: { ...ON, ...F, prevPts: 120, prevMins: 2700 } });
+  const rawBase = pointsBase({ ...ON, ...F, p: P, prevPts: 120, prevMins: 2700 });
+  /* MARGFALDARINN ER REIKNADUR BEINT — ekki leiddur ut ur svarinu
+     sjalfu. Fyrsta utgafa thessara tveggja fullyrdinga deildi svarinu
+     med sjalfu ser (`calOn / calibrateExp(rawBase)`) og var thvi TOM:
+     `Math.abs(x - x) >= 0` er alltaf satt.                            */
+  const m1 = lookupPos(P.element_type, "pts", 2) / POS_MEAN_PTS[P.element_type];
+  ok(Math.abs(calOn - calibrateExp(rawBase * m1)) < 1e-9,
+     `expPointsFor er NAKVAEMLEGA cal(grunnur x margfaldari) `
+     + `(${calOn.toFixed(4)} = cal(${(rawBase * m1).toFixed(4)}))`);
+  ok(Math.abs(calOn - rawBase * m1) > 0.3,
+     `og hun er ekki sama tala og OKVORDUD (${calOn.toFixed(2)} a moti `
+     + `${(rawBase * m1).toFixed(2)})`);
+  /* TILTAEKILEIKI STENDUR UTAN KVORDUNARINNAR OG ThAD ER PROFANLEGT
+     ADEINS ThEGAR HANN ER < 1. Fyrsta utgafa thessa kafla profadi
+     adeins mann a fullum tiltaekileika, svo stokkbreyting sem faerdi
+     `av` INN i kvordunina slapp i gegn (0 fallnar) — badar leidir gefa
+     somu tolu vid av = 1. `cal(x)*0,5` og `cal(x*0,5)` eru olik af thvi
+     ad kvordunin er ekki hlutfallsleg (hun ber skurdpunkt).          */
+  const HURT = { ...P, status: "d", chance_of_playing_next_round: 50 };
+  const hurtEp = expPointsFor({ p: HURT, fxs, fixDifficulty: fd, teamId: 1,
+    basis: { ...ON, ...F, prevPts: 120, prevMins: 2700 } });
+  const hurtBase = pointsBase({ ...ON, ...F, p: HURT, prevPts: 120, prevMins: 2700 });
+  ok(Math.abs(hurtEp - calibrateExp(hurtBase * m1) * 0.5) < 1e-9,
+     `50% tiltaekileiki margfaldar KVORDUDU toluna (${hurtEp.toFixed(4)})`);
+  ok(Math.abs(hurtEp - calibrateExp(hurtBase * m1 * 0.5)) > 0.2,
+     `og hann fer EKKI inn i kvordunina (${calibrateExp(hurtBase * m1 * 0.5).toFixed(4)} vaeri rangt)`);
+
+  /* TVOFOLD UMFERD: kvordunin er kupt, svo ad beita henni a SUMMUNA
+     myndi thjappa seinni leikinn ranglega. Tveir leikir eiga ad gefa
+     naerri tvofalt, ekki `cal(2x)`.                                   */
+  const two = expPointsFor({ p: P, fxs: [{ kickoff: null }, { kickoff: null }],
+    fixDifficulty: fd, teamId: 1, basis: { ...ON, ...F, prevPts: 120, prevMins: 2700 } });
+  ok(Math.abs(two - 2 * calOn) < 1e-9,
+     `tvofold umferd er TVISVAR kvordud, ekki kvordun a summunni `
+     + `(${two.toFixed(3)} = 2 x ${calOn.toFixed(3)})`);
+  /* OG `ep_next`-VARALEIDIN ER EKKI KVORDUD — FPL-talan er theirra
+     kvordun og tvaer ofan a hvor adra vaeru tveir kvardar.            */
+  const fallback = expPointsFor({ p: P, fxs, fixDifficulty: fd, teamId: 1 });
+  ok(Math.abs(fallback - 9 * (fallback / 9)) < 1e-12 && fallback > 9,
+     `varaleidin (ep_next 9,0) er OKVORDUD (${fallback.toFixed(2)})`);
 
   /* (d) TENGINGIN — „kodinn er kominn" er EKKI „talan lendir a skjanum". */
   const appSrc = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");

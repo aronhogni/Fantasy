@@ -1258,6 +1258,69 @@ export function pointsBase({ p, mins5, minsTrend, prevPts, prevMins,
   return perMatch * (exp / REF_MINS);
 }
 
+/* ============================================================
+   KVORDUN TOLUNNAR — RODUNIN HREYFIST EKKI (4.9.2026)
+   ============================================================
+   BAKPROFID A 2025/26 (`scripts/backtest-season.mjs`) syndi tvennt i
+   einu: likanid RADAR betur (4,53 stig per val a moti 4,11 hja gomlu
+   adferdinni) EN TALAN VAR SKOKK ThAR SEM HUN SKIPTIR MESTU MALI —
+   efsti tiundarhlutinn spadi **5,46 medan raunin var 3,84**, +1,61 of
+   hatt. Nionda tiundin var nakvaem (3,01 a moti 2,96), svo skekkjan er
+   ekki fasti heldur ThJOPPUN: likanid teygir toppinn. Efsti
+   tiundarhlutinn ER lidid hans, svo thetta er upprunalega kaeran i
+   nyrri mynd.
+
+   MEKANISMINN: `perMatch x (vaentar minutur / 60)` margfaldar tolu sem
+   BER ThEGAR minutur mannsins. Fyrir 90-minutna mann er thad x1,5 ofan
+   a tolu sem innihelt 90 minuturnar. Leitin valdi thad thvi ThAD BAETIR
+   RODUN — og rodun og staerd eru tvo olik storf (sami laerdomur og
+   `rankScore` a moti `score`, kafli 3).
+
+   LAGFAERINGIN MA ThVI EKKI HREYFA RODUNINA og hun gerir thad ekki:
+   `a + b*x^g` med b, g > 0 er EINRAEN, svo rodin er nakvaemlega su sama
+   og allar topp-15 maelingar standa obreyttar MED BYGGINGU. Sannreynt a
+   4.000 rodum i leitinni.
+
+   MAELIKVARDINN ER SKEKKJA PER TIUNDARHLUT, EKKI MAE — OG ThAD KOSTADI
+   TVAER UTGAFUR AD SJA. MAE fittud utgafa BATNADI a MAE og rak um leid
+   veldid i g -> 0, sem stefnir a FASTA: a dreifingu thar sem 60%
+   radanna eru null er MAE minnkud med thvi ad spa naerri MIDGILDINU,
+   sem er null. „Kvordunin" var thvi a leid i „spadu ollum lagt".
+   VAENT STIG ERU LOGD SAMAN YFIR 11 MENN, svo staerdin sem skiptir mali
+   er MEDALTALID (ohlutdraegni), ekki midgildid.
+
+   OG LAUGIN VERDUR AD VERA SU SEM KVORDUNIN GILDIR A. Fyrsta utgafa
+   fasans fittadi a OLLUM rodum — en 60% theirra bera grunn upp a
+   nakvaemlega 0 og fa i appinu `ep_next`, aldrei thessa kvordun. Sama
+   villa og profid sem sendi ekki `player_seasons.json`: MAELINGIN MAELDI
+   ANNAN HEIM EN KEYRSLAN. Laugin er nu skorðud vid jakvaedan grunn,
+   nakvaemlega hlidid i kodanum hér ad nedan (59.800 af 134.711 rodum).
+
+   MAELT (LOSO, `measure-base-search.mjs` fasi D): `g = 0,7` valid i
+   **5 af 5** foldum, `a` 0,723-0,781 og `b` 0,949-0,968 — bædi stodug
+   og INNI i ristinni. Held-out skekkja per tiundarhlut **−0,670, betri
+   i 5 af 5 arum**; efsti tiundarhlutinn **+2,48 -> +0,15** a 2025/26 og
+   **−2,19 ad medaltali yfir foldin**. MAE batnar LIKA (−0,082) a
+   theirri laug — enginn fornarkostnadur, ólikt fyrri utgafunni sem
+   fittadi a rongu urtaki.
+
+   PER LEIK, EKKI A SUMMUNA: kvordunin var fittud a EINN leik
+   (`grunnur x margfaldari`), og `x^0,7` er kupt nidur a vid, svo ad
+   beita henni a summu tvofaldrar umferdar myndi ThJAPPA seinni leikinn
+   ranglega. Tiltaekileiki er LINULEGUR lidur (likur a ad spila
+   yfirleitt) og stendur thvi UTAN kvordunarinnar.
+
+   HUN GILDIR ADEINS UM MAELDA GRUNNINN. Falli hann a `ep_next` er
+   FPL-talan notud obreytt — hun er theirra kvordun og tvaer kvardanir
+   ofan a hvor adra vaeru tveir kvardar (kafli 15).
+   ============================================================ */
+export const BASE_CAL = { a: 0.76, b: 0.96, g: 0.7 };
+export function calibrateExp(x) {
+  if (!Number.isFinite(x) || x <= 0) return 0;
+  const { a, b, g } = BASE_CAL;
+  return Math.max(0, a + b * Math.pow(x, g));
+}
+
 export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs, basis }) {
   if (!p || !fxs?.length) return 0;
   const pos = p.element_type;
@@ -1271,7 +1334,8 @@ export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs, basis }) {
     : (Number.isFinite(ep) && ep > 0 ? ep : ppg);
   if (!base) return 0;
   const mean = POS_MEAN_PTS[pos] || 3.4;
-  let mult = 0;
+  const calibrated = Number.isFinite(measured) && measured > 0;
+  let mult = 0, total = 0;
   for (const f of fxs) {
     const d = fixDifficulty(teamId, f, pos);
     const pts = d != null ? lookupPos(pos, "pts", d) : null;
@@ -1279,9 +1343,12 @@ export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs, basis }) {
        agust, svo madur sem er "back 22 Aug" getur spilad INNAN GW1 — thess
        vegna er thetta i leikja-lykkjunni og ekki fyrir utan hana.        */
     const av = availForKickoff(p, f?.kickoff ?? f?.kickoff_time, nowTs);
-    mult += (Number.isFinite(pts) ? pts / mean : 1) * av;
+    const m = Number.isFinite(pts) ? pts / mean : 1;
+    mult += m * av;
+    /* KVORDUNIN ER PER LEIK og tiltaekileikinn stendur UTAN hennar. */
+    total += calibrated ? calibrateExp(base * m) * av : base * m * av;
   }
-  return base * mult;
+  return calibrated ? total : base * mult;
 }
 
 /* ============================================================

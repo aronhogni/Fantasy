@@ -414,6 +414,300 @@ console.log("5b. POSITION-SPECIFIC K — one extra question, chosen nested");
 }
 
 /* ============================================================
+   5c. FASI B — MARGFALDARINN SJALFUR (4.9.2026)
+   ============================================================
+   Fasi A leitadi ad GRUNNINUM og helt margfaldaranum fostum. Hann er
+   hins vegar HELMINGUR formulunnar og hefur ALDREI verid leitad — hann
+   var punkt-maeldur 25.8.2026 (Dtopp-15 +0,175 CI [+0,066, +0,292],
+   thad er ad segja „hann ber sitt") en enginn spurdi hvort hann vaeri
+   RETT STILLTUR.
+
+   TVEIR ASAR, badir ein tala:
+     ALPHA  veldi a margfaldarann: `mult^a`. a = 1 er thad sem er i
+            appinu; a > 1 magnar leikjaahrifin, a < 1 daempar thau, og
+            **a = 0 er NEIKVAETT VIDMID** — tha er enginn leikjaliður,
+            svo hann VERDUR ad tapa ef margfaldarinn ber merki.
+     W      blondun grunnsins vid `ppg5` (stadgengill `ep_next`):
+            `(1-w)*base + w*ppg5`. Spurningin er hvort FPL-eigin tala
+            beri UPPLYSINGAR SEM OKKAR GRUNN VANTAR — t.d. lidsfrettir,
+            sem hun uppfaerir en vid lesum ekki. w = 0 er obreytt.
+
+   SAMA ADFERD: nested val, tekna-prof a arum, Holm yfir fasann.
+   ============================================================ */
+line();
+console.log("5c. PHASE B — the multiplier itself (never searched, only spot-measured)");
+{
+  const ALPHAS = QUICK ? [0, 1, 1.5] : [0, 0.5, 0.75, 1, 1.25, 1.5, 2];
+  const WS = QUICK ? [0, 0.3] : [0, 0.15, 0.3, 0.5];
+  const BV = [];
+  for (const a of ALPHAS) for (const w of WS) BV.push({ a, w, id: `a${a}·w${w}` });
+  const gBase = scoreOf(PICK);
+  /* `_mult` er summa yfir leiki i `_mult` sjalfum? NEI — hann er EIN
+     tala per rod (leikur radarinnar). Veldid er thvi beint a hana.   */
+  const sc = v => r => ((1 - v.w) * gBase(r) + v.w * BASE_REF(r)) * Math.pow(r._mult, v.a);
+  const perGwB = v => gwGroups.map(list => ({
+    season: list[0].season,
+    d: top15(list, sc(v)) - top15(list, sc({ a: 1, w: 0 })),
+  }));
+  const cacheB = new Map();
+  const pgB = v => cacheB.get(v.id) || (cacheB.set(v.id, perGwB(v)), cacheB.get(v.id));
+
+  const foldsB = [];
+  for (const hold of SEASONS) {
+    let best = null;
+    for (const v of BV) {
+      const m = mean(pgB(v).filter(x => x.season !== hold).map(x => x.d));
+      if (!best || m > best.m) best = { v, m };
+    }
+    const te = mean(pgB(best.v).filter(x => x.season === hold).map(x => x.d));
+    foldsB.push({ hold, id: best.v.id, test: te });
+    console.log(`   hold ${hold}: picked ${best.v.id.padEnd(12)} -> HELD-OUT ${fmt(te, 3)}`);
+  }
+  const mB = mean(foldsB.map(f => f.test)), wB = foldsB.filter(f => f.test > 0).length;
+  console.log(`   nested held-out gain over the current multiplier: ${fmt(mB, 3)}`
+    + ` · years won ${wB}/${SEASONS.length}`);
+
+  const allB = BV.map(v => {
+    const st = tOnYears(bySeason(pgB(v)));
+    return { v, ...st, p: tP(st.t, st.n - 1) };
+  }).sort((a, b) => b.m - a.m);
+  console.log("   grid (d top-15 against alpha=1, w=0):");
+  console.log("   variant       d top15   t       p        years   MAE");
+  for (const x of allB) {
+    const mae = maeOf(rows, r => ((1 - x.v.w) * gBase(r) + x.v.w * BASE_REF(r))
+      * Math.pow(r._mult, x.v.a) / r._mult);   // MAE ber margfaldarann sjalf
+    console.log(`   ${x.v.id.padEnd(12)} ${fmt(x.m, 3)}  ${fmt(x.t, 2)}  ${fmt(x.p, 4)}`
+      + `  ${x.wins}/${x.n}   ${fmt(mae, 4)}`);
+  }
+  /* NEIKVAEDA VIDMIDID INNAN FASANS: a = 0 (enginn leikjalidur).      */
+  const zero = allB.find(x => x.v.a === 0 && x.v.w === 0);
+  console.log(`   CONTROL alpha=0 (no fixture term at all): ${fmt(zero.m, 3)}`
+    + `  — must be clearly negative if the multiplier carries signal`);
+  const winner = foldsB[0] && foldsB.every(f => f.id === foldsB[0].id) ? foldsB[0].id : null;
+  console.log(`   VERDICT: ${mB > 0.05 && wB >= 4
+    ? `CHANGE INDICATED${winner ? ` (${winner}, unanimous)` : ""}`
+    : "NO CHANGE — the multiplier as it stands is not beaten"}`);
+  OUT.phaseB = { folds: foldsB, mean: mB, wins: wB,
+    grid: allB.map(x => ({ id: x.v.id, m: x.m, t: x.t, p: x.p, wins: x.wins })) };
+}
+
+/* ============================================================
+   5d. FASI C — BAETIR NOKKUD OFAN A GODAN GRUNN? (4.9.2026)
+   ============================================================
+   Stora stigalikans-maelingin 25.8.2026 felldi sex merki — EN HUN
+   PROFADI ThAU OFAN A `ppg5`-GRUNNI, sem var einmitt grunnurinn sem
+   reyndist vondur. Spurningin „baetir xGI vid?" er thvi EKKI sama
+   spurning nuna: merki sem drukknar i vondum grunni getur birst i
+   godum, og merki sem SYNDIST hjalpa getur horfid.
+
+   Hvert merki er profad sem MJUKUR HALLI a grunninn:
+       skor = base * (1 + c * z(merki)) * margfaldari
+   thar sem `z` er stadlad innan STODU (annars maelist adeins ad
+   framherjar skora meira en markmenn). c > 0 og c < 0 eru badir i
+   ristinni — merki sem hjalpar i RANGA att er suð, ekki merki.
+
+   NESTED VAL og Holm yfir fasann. Ekkert er tekið upp nema thad vinni
+   held-out og i minnst 4 arum af 5.
+   ============================================================ */
+line();
+console.log("5d. PHASE C — does anything add ON TOP of a good base?");
+{
+  const FEATS = ["xgi90", "bps90", "threat90", "bonusRate", "dc90", "csRate5",
+                 "hauls", "own", "minsTrend", "startRate"];
+  /* Stadlad INNAN STODU — annars maelist stodumunur, ekki merkid.     */
+  const zOf = {};
+  for (const f of FEATS) {
+    const byPos = {};
+    for (const r of rows) (byPos[r.pos] ||= []).push(Number(r[f]) || 0);
+    const mu = {}, sd = {};
+    for (const [k, v] of Object.entries(byPos)) {
+      mu[k] = mean(v);
+      sd[k] = Math.sqrt(mean(v.map(x => (x - mu[k]) ** 2))) || 1;
+    }
+    zOf[f] = r => ((Number(r[f]) || 0) - mu[r.pos]) / sd[r.pos];
+  }
+  const CS = QUICK ? [-0.1, 0.1] : [-0.2, -0.1, -0.05, 0.05, 0.1, 0.2];
+  const CV = [];
+  for (const f of FEATS) for (const c of CS) CV.push({ f, c, id: `${f}${c > 0 ? "+" : ""}${c}` });
+  const gBase = scoreOf(PICK);
+  const ref = r => gBase(r) * r._mult;
+  const sc = v => r => gBase(r) * (1 + v.c * zOf[v.f](r)) * r._mult;
+  const perGwC = v => gwGroups.map(list => ({
+    season: list[0].season, d: top15(list, sc(v)) - top15(list, ref),
+  }));
+  const cacheC = new Map();
+  const pgC = v => cacheC.get(v.id) || (cacheC.set(v.id, perGwC(v)), cacheC.get(v.id));
+
+  const foldsC = [];
+  for (const hold of SEASONS) {
+    let best = null;
+    for (const v of CV) {
+      const m = mean(pgC(v).filter(x => x.season !== hold).map(x => x.d));
+      if (!best || m > best.m) best = { v, m };
+    }
+    const te = mean(pgC(best.v).filter(x => x.season === hold).map(x => x.d));
+    foldsC.push({ hold, id: best.v.id, test: te });
+    console.log(`   hold ${hold}: picked ${best.v.id.padEnd(14)} -> HELD-OUT ${fmt(te, 3)}`);
+  }
+  const mC = mean(foldsC.map(f => f.test)), wC = foldsC.filter(f => f.test > 0).length;
+  console.log(`   nested held-out gain over the base alone: ${fmt(mC, 3)}`
+    + ` · years won ${wC}/${SEASONS.length}`);
+
+  const allC = CV.map(v => {
+    const st = tOnYears(bySeason(pgC(v)));
+    return { v, ...st, p: tP(st.t, st.n - 1) };
+  }).sort((a, b) => b.m - a.m);
+  const byPC = [...allC].sort((a, b) => a.p - b.p);
+  let holmC = 0;
+  for (let i = 0; i < byPC.length; i++) {
+    if (byPC[i].p <= 0.05 / (byPC.length - i)) holmC = i + 1; else break;
+  }
+  console.log(`   ${allC.length} tilts · nominally significant ${allC.filter(x => x.p < 0.05).length}`
+    + ` · SURVIVING HOLM ${holmC}`);
+  console.log("   top 6:");
+  console.log("   tilt            d top15   t       p        years");
+  for (const x of allC.slice(0, 6))
+    console.log(`   ${x.v.id.padEnd(14)} ${fmt(x.m, 3)}  ${fmt(x.t, 2)}  ${fmt(x.p, 4)}  ${x.wins}/${x.n}`);
+  console.log(`   VERDICT: ${mC > 0.05 && wC >= 4
+    ? "SOMETHING ADDS — investigate"
+    : "NOTHING ADDS — the base already carries it"}`);
+  OUT.phaseC = { folds: foldsC, mean: mC, wins: wC, holm: holmC,
+    grid: allC.map(x => ({ id: x.v.id, m: x.m, t: x.t, p: x.p, wins: x.wins })) };
+}
+
+/* ============================================================
+   5e. FASI D — KVORDUN TOLUNNAR (4.9.2026)
+   ============================================================
+   BAKPROFID A 2025/26 (`scripts/backtest-season.mjs`) syndi tvennt i
+   einu: likanid RADAR betur (4,53 stig per val a moti 4,11) EN TALAN ER
+   SKOKK I EFSTA TIUNDARHLUTANUM — spad 5,46, raunverulegt 3,84,
+   **+1,61 of hatt**. Nionda tiundin er hins vegar nakvaem (3,01 a moti
+   2,96), svo skekkjan er ekki fasti heldur ThJOPPUN: likanid teygir
+   toppinn.
+
+   ThETTA ER NAKVAEMLEGA UPPRUNALEGA KAERAN I NYRRI MYND — „thad er
+   ekkert ad marka thau" — thvi efsti tiundarhlutinn ER lidid hans.
+
+   MEKANISMINN ER SKILJANLEGUR: `perMatch x (vaentar minutur / 60)`
+   margfaldar stig-per-leik sem BER ThEGAR minutur mannsins. Fyrir mann
+   sem spilar 90 minutur er thad x1,5 ofan a tolu sem innihelt 90
+   minuturnar. Leitin valdi thad thvi ThAD BAETIR RODUN — en rodun og
+   staerd eru tvo ólik storf (sama laerdomur og `rankScore` a moti
+   `score`, CLAUDE.md kafli 3).
+
+   LAUSNIN MA ThVI EKKI HREYFA RODUNINA. Einraen umbreyting (`a + b*x`
+   med b > 0, eda `c*x^g` med g > 0) skilar NAKVAEMLEGA somu rod, svo
+   allar topp-15 maelingar standa obreyttar med byggingu — og MAE ma
+   batna. Fittad a ThJALFUNAR-timabilunum, maelt a thvi sem er haldid
+   eftir.
+   ============================================================ */
+line();
+console.log("5d/e. PHASE D — recalibrating the LEVEL without touching the ORDER");
+{
+  /* ============================================================
+     MAE ER RANGUR MAELIKVARDI A ThESSA SPURNINGU — OG ThAD KOSTADI
+     MIG TVAER UTGAFUR AD SJA ThAD (4.9.2026)
+     ============================================================
+     Fyrsta utgafan fittadi minnstu kvadrot og MAE VERSNADI i 5 ar af 5.
+     Onnur utgafan fittadi thvi a MAE og hun BATNADI i 5 ar af 5 — en
+     rist-leitin rak i g -> 0 og b -> jadar, og thegar yfirbordid var
+     prentad var thad FLATT ALLA LEID NIDUR.
+
+     ThAD VAR VISBENDING, EKKI SIGUR. `x^g` med g -> 0 stefnir a FASTA,
+     og MAE a dreifingu thar sem 60% radanna eru NULL er minnkud med thvi
+     ad spa naerri MIDGILDINU — sem er null. „Kvordunin" var thvi a leid
+     i „spadu ollum lagt", sem er nakvaemlega ONYT spa.
+
+     VAENT STIG ERU LOGD SAMAN YFIR 11 MENN. Staerdin sem skiptir mali er
+     thvi MEDALTALID (ohlutdraegni), ekki midgildid. Rettur maelikvardi
+     er SKEKKJA PER TIUNDARHLUT: er spadid medaltal jafnt raunverulegu
+     medaltali i hverjum hluta? Bakprofid a 2025/26 syndi +1,61 i efsta
+     tiundarhlutanum — ThAD er gallinn sem a ad laga.
+     MAE er PRENTAD afram, en thad er STUDNINGSTALA, ekki markmid.
+     ============================================================ */
+  const gBase = scoreOf(PICK);
+  const raw = r => gBase(r) * r._mult;
+  const maeOn = (rs, f) => mean(rs.map(r => Math.abs(f(r) - r.pts)));
+  /* SKEKKJA PER TIUNDARHLUT — medaltal spar a moti medaltali raunar. */
+  const decBias = (rs, f) => {
+    const srt = [...rs].sort((a, b) => f(a) - f(b));
+    const gaps = [];
+    for (let i = 0; i < 10; i++) {
+      const a = Math.floor(i * srt.length / 10), b = Math.floor((i + 1) * srt.length / 10);
+      const sl = srt.slice(a, b);
+      if (sl.length) gaps.push(mean(sl.map(f)) - mean(sl.map(r => r.pts)));
+    }
+    return { mean: mean(gaps.map(Math.abs)), top: gaps[gaps.length - 1], gaps };
+  };
+  const GS = QUICK ? [1, 0.8] : [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7];
+  const t15 = rs => {
+    const m = new Map();
+    for (const r of rs) { const k = `${r.season}|${r.round}`; (m.get(k) || m.set(k, []).get(k)).push(r); }
+    return mean([...m.values()].map(l => top15(l, raw)));
+  };
+
+  /* ============================================================
+     FITTAD A ThEIM RODUM ThAR SEM HUN GILDIR I RAUN (4.9.2026)
+     ============================================================
+     `expPointsFor` beitir kvordun ADEINS thegar maeldi grunnurinn er
+     jakvaedur; se hann 0 (madurinn hefur engar minutur) fellur appid a
+     `ep_next`. Fyrsta utgafa fasans fittadi hins vegar a OLLUM rodum,
+     og 60% theirra bera grunn upp a nakvaemlega 0 — radir sem fa
+     ALDREI thessa kvordun i appinu.
+     Sama villa og profid sem sendi ekki `player_seasons.json`:
+     MAELINGIN MAELDI ANNAN HEIM EN KEYRSLAN. Laugin er thvi skorðud vid
+     `raw > 0`, sem er nakvaemlega hlidid i `expPointsFor`.
+     ============================================================ */
+  const live = rows.filter(r => raw(r) > 0);
+  console.log(`   pool: ${live.length} of ${rows.length} rows carry a positive base `
+    + `(the rest fall back to ep_next in the app and are never calibrated)`);
+  const foldsD = [];
+  for (const hold of SEASONS) {
+    const tr = live.filter(r => r.season !== hold), te = live.filter(r => r.season === hold);
+    /* `g` valid a ThJALFUN eftir tiundarhluta-skekkju; `a, b` fittud med
+       minnstu kvadrotum, sem er retta taekid fyrir MEDALTAL.          */
+    let best = null;
+    for (const g of GS) {
+      const pw = r => Math.pow(Math.max(0, raw(r)), g);
+      const xs = tr.map(pw), ys = tr.map(r => r.pts);
+      const mx = mean(xs), my = mean(ys);
+      let sxy = 0, sxx = 0;
+      for (let i = 0; i < xs.length; i++) { sxy += (xs[i] - mx) * (ys[i] - my); sxx += (xs[i] - mx) ** 2; }
+      const b = sxx ? sxy / sxx : 1, a = my - b * mx;
+      const f = r => Math.max(0, a + b * pw(r));
+      const bias = decBias(tr, f).mean;
+      if (!best || bias < best.bias) best = { g, a, b, bias };
+    }
+    const cal = r => Math.max(0, best.a + best.b * Math.pow(Math.max(0, raw(r)), best.g));
+    const b0 = decBias(te, raw), b1 = decBias(te, cal);
+    foldsD.push({ hold, g: best.g, a: best.a, b: best.b,
+      biasBefore: b0.mean, biasAfter: b1.mean, topBefore: b0.top, topAfter: b1.top,
+      maeBefore: maeOn(te, raw), maeAfter: maeOn(te, cal) });
+    console.log(`   hold ${hold}: g=${best.g} a=${fmt(best.a, 3)} b=${fmt(best.b, 3)}`
+      + ` | decile bias ${fmt(b0.mean, 3)} -> ${fmt(b1.mean, 3)}`
+      + ` · TOP decile ${fmt(b0.top, 2)} -> ${fmt(b1.top, 2)}`
+      + ` · MAE ${fmt(maeOn(te, raw), 3)} -> ${fmt(maeOn(te, cal), 3)}`);
+  }
+  const dB = mean(foldsD.map(f => f.biasAfter - f.biasBefore));
+  const better = foldsD.filter(f => f.biasAfter < f.biasBefore).length;
+  const dTop = mean(foldsD.map(f => Math.abs(f.topAfter) - Math.abs(f.topBefore)));
+  const dMae = mean(foldsD.map(f => f.maeAfter - f.maeBefore));
+  console.log(`   nested held-out: decile bias ${fmt(dB, 4)} (better in ${better}/${SEASONS.length})`
+    + ` · TOP-decile |bias| ${fmt(dTop, 4)} · MAE ${fmt(dMae, 4)} (support only)`);
+  const f0 = foldsD[0];
+  const cal0 = r => Math.max(0, f0.a + f0.b * Math.pow(Math.max(0, raw(r)), f0.g));
+  const sample = live.slice(0, 4000);
+  const orderSame = sample.every((r, i) => i === 0
+    || (raw(sample[i - 1]) <= raw(r)) === (cal0(sample[i - 1]) <= cal0(r)));
+  console.log(`   monotone (order untouched, ${sample.length} rows): ${orderSame ? "YES" : "NO"}`);
+  console.log(`   top-15 ${fmt(t15(rows), 3)} — unchanged by construction`);
+  console.log(`   VERDICT: ${dB < -0.02 && better >= 4 && orderSame
+    ? "CALIBRATE — the number matches reality better and the ranking does not move"
+    : "NO CHANGE"}`);
+  OUT.phaseD = { folds: foldsD, dBias: dB, better, dTop, dMae, monotone: orderSame };
+}
+
+/* ============================================================
    6. NEIKVAETT VIDMID — GETUR ThESSI GRIND YFIRLEITT TAPAD?
    ============================================================
    Leit sem skilar „bæting" i 143 af 200 afbrigdum a ad vekja grun um
