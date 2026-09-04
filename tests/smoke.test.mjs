@@ -287,7 +287,11 @@ ok(text().includes("2025/26") && text().includes("2024/25"),
 // radirnar sem beðið var um
 for (const k of ["Minutes", "xGI", "YC / RC", "BP / BPS"])
   ok(text().includes(k), `tímabila-röðin '${k}'`);
-ok(text().includes("Next GW forecast"), "ep birtist áfram");
+/* AKKERID FAERDIST MED HEITINU (4.9.2026): reiturinn bar „Next GW
+   forecast (ep)" en hann er FPL-s eigin `ep_next`, og fra og med
+   maelda grunninum (`pointsBase`) er hun EKKI sama tala og spjaldid
+   synir. Tvaer spar undir einu heiti — thvi var hann endurnefndur. */
+ok(text().includes("FPL's own ep_next"), "FPL-ep-reiturinn birtist áfram");
 // MEIÐSLA-TEGUNDIN úr API-Sports: FPL segir 'a' -> varfærna óstaðfesta línan
 ok(text().includes("API-Sports records:") && text().includes("Knock"),
   "meiðsla-tegund úr API-Sports birt varfærið þegar FPL flaggar ekki");

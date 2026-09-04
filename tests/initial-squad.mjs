@@ -186,7 +186,7 @@ const badges = (v, word) => v.q("span").filter(s => (s.textContent || "").trim()
 const BENCH_HEX = SRC("src/appStyles.js").match(/pCardBench: \{ background:"(#[0-9a-fA-F]{6})" \}/);
 const BENCH_RGB = BENCH_HEX
   ? `rgb(${[0, 2, 4].map(i => parseInt(BENCH_HEX[1].slice(1).slice(i, i + 2), 16)).join(", ")})`
-  : " none";
+  : "none";
 const greyCards = v => cards(v).filter(c => c.style.backgroundColor === BENCH_RGB);
 /* LAUFID, EKKI FORELDRID. Fyrsta utgafa thessa hjalpartols valdi
    `d.children.length >= 3` og ThAD MATCHADI HEILA KORTID — svo `✕` i
@@ -1763,7 +1763,7 @@ console.log("\n--- O2. MERKIMIDARNIR ERU AGREINANDI ---");
    spjaldinu?"
 
    PORUN (CLAUDE.md 5b regla 2): fyrst er sannad ad SPJALDID se opid og
-   beri tolu sem var ThEGAR their ('Next GW forecast'), og ADEINS ThA er
+   beri tolu sem var ThEGAR their ('FPL's own ep_next'), og ADEINS ThA er
    spurt um nyju tolurnar. An thess vaeri hver neikvaed fullyrding her
    graen einfaldlega vegna thess ad spjaldid opnadist ekki.
    ============================================================ */
@@ -1781,7 +1781,11 @@ console.log("\n--- P. SPJALDID ---");
   if (nameEl) await v.click(nameEl);
 
   const t = v.text();
-  ok(/Next GW forecast/.test(t),
+  /* AKKERID FAERDIST MED HEITINU (4.9.2026): reiturinn bar „Next GW
+   forecast (ep)" en hann er FPL-s eigin `ep_next`, og fra og med
+   maelda grunninum (`pointsBase`) er hun EKKI sama tala og spjaldid
+   synir. Tvaer spar undir einu heiti — thvi var hann endurnefndur. */
+  ok(/FPL's own ep_next/.test(t),
      "PORUN: spjaldid er OPID — reitur sem var ThEGAR their finnst");
   ok(t.includes(byId[411].second_name),
      `og thad er spjald ${HAAL} (fullt nafn i hausnum)`);
@@ -2234,6 +2238,233 @@ console.log("\n--- P. Disconnect — tengingin fer, lidid og plonunin standa ---
      "ANNAD ID: fyrri hopurinn er ekki their (Kinsky) — ekkert cachead");
   ok(!NANRE.test(c.text()), "ekkert NaN/undefined");
   await c.down();
+}
+
+/* ============================================================
+   R. ENDURSTILLING UMFERDAR — UPPHAFSLIDID MA ALDREI FYLGJA MED
+   (4.9.2026)
+
+   `resetAll` var lagfaert 20.8.2026 svo thad haldi GW1-volunum
+   (`isInitialSquadPick`). SU LAGFAERING BARST ALDREI I PER-UMFERDAR
+   HNAPPINN: `resetGw` sio einfaldlega `t.gw !== g`, svo "↺ reset GW1"
+   henti hopnum hans. MAELT I JSDOM ADUR EN NOKKRU VAR BREYTT: thrjar
+   GW1-radir -> NULL, medan vollurinn syndi AFRAM 15 spjold thvi hann
+   fellur a `START_SQUAD`. Notandinn hefdi sed sitt lid hverfa ThEGJANDI
+   og fengid sjalfgefid lid sem hann valdi aldrei.
+
+   OG HEITID LAUG LIKA: hnappurinn taldi upphafs-radirnar sem „3
+   transfers" — sama aett og „4-10 and NO club has a 1" i SetPieces:
+   fullyrding um innihald sem er ekki lesin ur innihaldinu.
+
+   AF HVERJU KAFLINN LIGGUR A GW1 OG GW3, EKKI BARA A EINNI:
+   `isInitialSquadPick` er `gw === 1` SKILYRDISLAUST, svo GW1 GETUR ekki
+   borid raunveruleg skipti — thar er profsteinninn ad hnappurinn
+   birtist alls ekki (ekkert ad hreinsa) og ad hann eydi engu thegar
+   uppstilling kveikir a honum. GW3 er hin hlidin: thar ER haegt ad
+   skipta, og nyi hnappurinn ("↺ transfers") er beidni notandans —
+   geta prufad skipti og hent theim AN thess ad missa uppstillinguna.
+   ============================================================ */
+console.log("\n--- R. ENDURSTILLING: SKIPTIN EIN, OG HOPURINN ER FRIDADUR ---");
+{
+  const P2 = ALL.find(p => p.element_type === 3 && p.status === "a"
+    && ![...START_IDS, P_MID.id].includes(p.id));
+  const base = { captain: 411, plan: [...GW1_PLAN, { gw: 3, outId: 397, inId: P2.id }] };
+  const nInit = GW1_PLAN.length;
+  const resetBtn = (v, g) => v.q("button")
+    .find(b => new RegExp(`reset GW${g}$`).test((b.textContent || "").trim()));
+  const yes = async v => {
+    const y = v.q("button").find(b => /^yes$/.test((b.textContent || "").trim()));
+    ok(!!y, "stadfestingar-skrefid birtist");
+    if (y) await v.click(y);
+  };
+
+  /* --- GW1 A: ekkert nema hopurinn -> ENGINN hnappur ---------------- */
+  const vA = await mount(base, { patch: PRESEASON, gw: 1 });
+  const blobA = () => JSON.parse(vA.blob() || "{}");
+  ok(blobA().plan.filter(t => t.gw === 1).length === nInit,
+     `forsenda: blobbid ber ${nInit} GW1-radir og thaer eru UPPHAFSLIDID`);
+  ok(!resetBtn(vA, 1),
+     "GW1 an uppstillingar/chips faer ENGAN reset-hnapp — thad er ekkert ad hreinsa",
+     resetBtn(vA, 1)?.getAttribute("title"));
+  ok(!vA.q("button").some(b => /↺ transfers/.test(b.textContent || "")),
+     "og engan skipta-hnapp heldur — GW1 getur ekki borid skipti");
+
+  /* --- GW1 B: uppstilling kveikir a honum, og tha ma hann ekki ljuga
+     ne eyda. THETTA ER SJALF AFTURFORIN.                              --- */
+  const vB = await mount({ ...base, benchSwaps: { 1: [[411, 321]] } },
+                         { patch: PRESEASON, gw: 1 });
+  const blobB = () => JSON.parse(vB.blob() || "{}");
+  const btnB = resetBtn(vB, 1);
+  ok(!!btnB, "uppstilling i GW1 kveikir a reset-hnappnum");
+  ok(!/transfer/.test(btnB?.getAttribute("title") || ""),
+     "og hann kallar upphafslidid EKKI 'skipti'", btnB?.getAttribute("title"));
+  if (btnB) { await vB.click(btnB); await yes(vB); }
+  ok(blobB().plan.filter(t => t.gw === 1).length === nInit,
+     `UPPHAFSLIDID STENDUR eftir "reset GW1" (${nInit} radir)`,
+     JSON.stringify(blobB().plan.filter(t => t.gw === 1)));
+  ok((blobB().benchSwaps?.["1"] || []).length === 0,
+     "en uppstillingin sem hann BAD um ad hreinsa er farin");
+  ok(cards(vB).length === 15, "og vollurinn ber afram 15 spjold");
+
+  /* --- GW3: skiptin ein, uppstillingin heldur ser ------------------- */
+  const vC = await mount({ ...base, benchSwaps: { 3: [[411, 321]] } },
+                         { patch: PRESEASON, gw: 3 });
+  const blobC = () => JSON.parse(vC.blob() || "{}");
+  const trBtn = vC.q("button").find(b => /↺ transfers/.test(b.textContent || ""));
+  ok(!!trBtn, "skipta-hnappurinn birtist thegar umferdin ber skipti");
+  ok(/line-up, captain and chip/.test(trBtn?.getAttribute("title") || ""),
+     "og hann segir HVAD stendur eftir", trBtn?.getAttribute("title")?.slice(0, 60));
+  if (trBtn) { await vC.click(trBtn); await yes(vC); }
+  const c1 = blobC();
+  ok(c1.plan.filter(t => t.gw === 3).length === 0, "GW3-skiptin eru farin");
+  ok(c1.plan.filter(t => t.gw === 1).length === nInit, "upphafslidid stendur enn");
+  ok((c1.benchSwaps?.["3"] || []).length > 0,
+     "OG UPPSTILLING GW3 STENDUR — thad er allur tilgangur hnappsins",
+     JSON.stringify(c1.benchSwaps));
+  /* MOTPROFID: hnapparnir tveir eru ekki sami hnappur.                 */
+  const wide = resetBtn(vC, 3);
+  ok(!!wide, "vidari hnappurinn er enn their (uppstillingin ein eftir)");
+  if (wide) { await vC.click(wide); await yes(vC); }
+  const c2 = blobC();
+  ok((c2.benchSwaps?.["3"] || []).length === 0,
+     "og hann hreinsar uppstillinguna lika");
+  ok(c2.plan.filter(t => t.gw === 1).length === nInit,
+     "en upphafslidid stendur eftir BADA hnappana");
+}
+
+/* ============================================================
+   S. „AFTUR I LIDID EINS OG FPL STADFESTIR ThAD" (4.9.2026)
+
+   Beidni notandans ordrett: „eg vill sem sagt getad resetad a standard
+   lidid eins og thad er stadfest fra official sidunni."
+
+   HVERS VEGNA ThETTA ER ANNAR HNAPPUR EN `resetAll`: sa hreinsar
+   plonun en snertir HVORKI `captain` NE `vice`, svo eftir hann situr
+   fyrirlidi sem notandinn valdi ofan a opinberum hopi. Su mynd er
+   hvorki hans plonun ne opinbera lidid — og hun er nakvaemlega tha
+   thogla milliastand sem hann kaerdi thegar GW1-valin sátu „redundant"
+   an thess ad nokkur segdi fra.
+
+   KAFLINN LIGGUR THVI A FYRIRLIDANUM SERSTAKLEGA. Skiptin, uppstillingin
+   og chipin fara lika i `resetAll`, svo fullyrding sem profar thau ein
+   GAETI EKKI GREINT hnappana tvo i sundur — sama gildra og per-90
+   vordurinn i CLAUDE.md kafla 12 (formula sem badar utfaerslur uppfylla
+   mælir hvoruga). Fyrirlidinn er eina svidid sem skilur their.
+
+   OG HANN ER SETTUR GEGNUM VIDMOTID, ekki i blobbid: sokning yfirskrifar
+   `captain` med opinberu tolunni vid tengingu (`setCaptain(c.element)`),
+   svo vistad frabrigdi gaeti ALDREI lifad af raesingu. Astandid sem
+   profad er verdur thvi ad verda til eftir tengingu — eins og hja honum.
+   ============================================================ */
+console.log("\n--- S. AFTUR I OPINBERA LIDID — OG FYRIRLIDINN ER PROFSTEINNINN ---");
+{
+  /* SAMA FIXTURE OG TENGDA MYNDIN AD OFAN — hopurinn er blokkbundinn
+     thar, svo hann er endurtekinn her fremur en gerdur global: tvo
+     safnabrot sem deila breytilegu astandi eru tvo brot sem geta
+     spillt hvort odru (sbr. „afrituð tafla er tvaer toflur" — MUNURINN
+     er ad her er ekkert REIKNAD ur honum, adeins id-listi).           */
+  const FPL_IDS = [496, 532, 391, 418, 10, 427, 565, 557, 397, 411, 165,
+                   412, 8, 542, 346];
+  const CAP = 411, VICE = 427;
+  const PICKS = {
+    active_chip: null,
+    entry_history: { points: 0, total_points: 0, bank: 5, event_transfers_cost: 0 },
+    picks: FPL_IDS.map((el, i) => ({
+      element: el, position: i + 1, multiplier: el === CAP ? 2 : (i < 11 ? 1 : 0),
+      is_captain: el === CAP, is_vice_captain: el === VICE })),
+  };
+  /* BYRJUNARLIDSMADUR SEM ER HVORKI FYRIRLIDINN NE SA SEM VID
+     BEKKJUM AD NEDAN — „Captain"-hnappurinn a spjaldinu krefst thess ad
+     madurinn BYRJI (`starters.some(...)`), svo fyrsta valid (FPL_IDS[0])
+     mistokst thegjandi: hann var bekkjadur af okkar EIGIN benchSwaps.  */
+  const CAP2 = FPL_IDS[1];
+  const blobO = {
+    entryId: 179938, captain: CAP, vice: VICE,
+    plan: [{ gw: 2, outId: FPL_IDS[10], inId: 351 }],
+    benchSwaps: { 2: [[496, 412]] },   // GK-skipti: snertir hvorki CAP ne CAP2
+    chips: { "bboost:2": 2 }, buyPrices: {}, rivals: [], watch: [],
+  };
+  const offBtn = v => v.q("button").find(b => /↺ my FPL team/.test(b.textContent || ""));
+
+  /* --- OTENGT: hnappurinn ma ekki vera their. Ekkert „official" er til
+     ad fara i, og hnappur sem lofar thvi er fullyrding an heimildar. --- */
+  const vOff = await boot(JSON.stringify({ ...blobO, entryId: null }), { gw: 2 });
+  /* ThEKJA ER FULLYRDING: „hnappurinn er ekki their" er SONN i hruninu
+     lika, svo hun tharf nagranna sem sannar ad spjaldid se a lifi.
+     `resetAll`-hnappurinn er i SOMU rod og er oskilyrtur.              */
+  ok(vOff.q("button").some(b => /reset transfer planning/.test(b.textContent || "")),
+     "OTENGT: plonunar-spjaldid teiknast (reset-hnappurinn er their)");
+  ok(!vOff.q("button").some(b => /Disconnect/.test(b.textContent || "")),
+     "OTENGT: og engin tenging er skrad");
+  ok(!offBtn(vOff), "OTENGT: enginn 'my FPL team' hnappur — ekkert opinbert lid er til");
+
+  /* --- TENGT: hnappurinn birtist og TELUR thad sem hann tekur -------- */
+  const v = await boot(JSON.stringify(blobO), { picks: PICKS, gw: 2 });
+  const blob = () => JSON.parse(v.raw() || "{}");
+  ok(blob().entryId === 179938, "forsenda: tengingin lifdi raesinguna");
+  ok(blob().captain === CAP, "forsenda: opinberi fyrirlidinn situr eftir tengingu");
+  const b1 = offBtn(v);
+  ok(!!b1, "TENGT: hnappurinn birtist");
+  const t1 = b1?.getAttribute("title") || "";
+  ok(/1 transfer\b/.test(t1) && /line-up/.test(t1) && /1 chip/.test(t1),
+     "og hann telur skiptin, uppstillinguna og chipid", t1.slice(-90));
+  ok(!/captain(?!,)/.test(t1.split("Clears")[1] || ""),
+     "en TELUR EKKI fyrirlidann medan hann er sa opinberi", t1.split("Clears")[1]);
+
+  /* --- FYRIRLIDINN FAERDUR GEGNUM SPJALDID (hans eigin leid) --------- */
+  const cardEl = v.q('[draggable="true"]')
+    .find(c => c.textContent.includes(byId[CAP2]?.web_name || "\u0000"));
+  ok(!!cardEl, `forsenda: spjald ${byId[CAP2]?.web_name} er a vellinum`);
+  if (cardEl) {
+    /* „i"-HNAPPURINN A SPJALDINU, EKKI SPJALDID SJALFT. Smellur a
+       spjaldid velur/dregur; hann opnar ekki upplysinga-spjaldid
+       (`onInfo` liggur a eigin hnappi med `stopPropagation`). Fyrsta
+       utgafa profsins smellti a spjaldid og fekk ENGA hnappa — sem
+       las eins og „Captain vantar" en thydir „spjaldid opnadist ekki". */
+    const info = [...cardEl.querySelectorAll("button")]
+      .find(b => (b.textContent || "").trim() === "i");
+    ok(!!info, "spjaldid ber 'i'-hnappinn sem opnar upplysingarnar");
+    await v.click(info || cardEl);
+    const cb = v.q("button").find(b => /^Captain$/.test((b.textContent || "").trim()));
+    ok(!!cb, "spjaldid bydur 'Captain'");
+    if (cb) await v.click(cb);
+  }
+  ok(blob().captain === CAP2,
+     "FORSENDA SEM MA EKKI VANTA: fyrirlidinn er nu ANNAR en sa opinberi",
+     `${blob().captain} vs ${CAP}`);
+  /* LESID UR „Clears …"-HLUTANUM EINUM. Hausinn sjalfur nefnir
+     „and its captain" i hverri utgafu, svo leit i ollum strengnum er
+     TOM FULLYRDING — hun stenst adur en fyrirlidinn er faerdur.       */
+  const t2 = (offBtn(v)?.getAttribute("title") || "").split("Clears")[1] || "";
+  ok(/captain/.test(t2), "og hnappurinn NEFNIR hann nuna", t2);
+
+  /* --- SMELLURINN: allt fer, LIKA fyrirlidinn -------------------------- */
+  const b2 = offBtn(v);
+  if (b2) {
+    await v.click(b2);
+    const y = v.q("button").find(b => /yes, use my FPL team/.test(b.textContent || ""));
+    ok(!!y, "stadfestingar-skrefid birtist");
+    if (y) await v.click(y);
+  }
+  const after = blob();
+  ok((after.plan || []).filter(t => Number(t.gw) !== 1).length === 0, "skiptin eru farin");
+  ok(Object.keys(after.benchSwaps || {}).length === 0, "uppstillingin er farin");
+  ok(Object.keys(after.chips || {}).length === 0, "chipid er farid");
+  ok(after.captain === CAP,
+     "OG FYRIRLIDINN ER AFTUR SA OPINBERI — thad er thad sem `resetAll` gerir EKKI",
+     `${after.captain} vs ${CAP}`);
+  ok(after.vice === VICE, "sama um varafyrirlidann");
+  /* NAGRANNI SEM SANNAR AD RODIN SE A LIFI. Hnappurinn liggur i
+     tengingar-rodinni, svo „Disconnect" er retti nagranninn — fyrsta
+     utgafan notadi `reset transfer planning`, sem HVERFUR eftir
+     endurstillinguna (plonunar-spjaldid er tomt), og gerdi thar med
+     fullyrdinguna hér a eftir toma.                                  */
+  ok(v.q("button").some(b => /Disconnect/.test(b.textContent || "")),
+     "tengingar-rodin er enn a lifi eftir endurstillinguna");
+  ok(!offBtn(v),
+     "og hnappurinn hverfur thegar ekkert er lengur frabrugdid — hnappur sem gerir ekkert er fullyrding um breytingu sem verdur ekki",
+     offBtn(v)?.getAttribute("title"));
+  ok(!NANRE.test(v.text()), "ekkert NaN/undefined");
 }
 
 console.log(`\n${"=".repeat(84)}`);

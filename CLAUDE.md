@@ -1076,6 +1076,7 @@ niðurstaðan committuð:
 | `measure-friendly-dc.mjs` | ekkert (skýrsla; `--json <slóð>`) | **VANTAÐI Í ÞESSA TÖFLU til 16.8.2026** — óskráð mælingaskrifta er skrifta sem enginn getur endurtekið. Sækir FotMob `/api/data/matchDetails` (sjá kafla 6) fyrir varnar-tölur úr æfingaleikjum |
 | `start-panel.mjs` | ekkert (sameiginlegur hleðari) | **BYRJUNAR-LÍKANA-PANELLINN, ein útfærsla fyrir þrjár mælingar** (sama regla og `espn-zones.mjs`). Parar `fpl_player_gw.json` við FPL-`code` gegnum `players_raw.csv`; mælt **733/735 · 776/777 · 865/869 · 804/805 · 841/841** — NAFNA-pörun milli tímabila tapar þögult 10–52 raunverulegum tengingum per skil (2,4–7,5%). Geymir líka klasaða bootstrappið (400 ítranir, ákveðið RNG) |
 | `measure-dc-flag.mjs` | ekkert (skýrsla; `--json <slóð>`) | **MÁ MERKJA MANN SEM „DC-LEIKMANN"?** (25.8.2026) Skilgreining notandans (hrá hittni > 0,50) mæld á `player_gw_2526.json`: golf **5 byrjanir** (1 byrjun gefur 0% eða 100%), og merkt á fyrstu 5 skilur hópana **0,441 á móti 0,168 í ÞEIM SEM EFTIR ERU — +0,273 CI [0,218, 0,334]**. Deterministísk, ~1 s. **Skjalar líka MITT EIGIÐ ranga mælitæki:** fyrsta fals-jákvæðu talan (79%) taldi tímabils-hittni 0,48 sem VILLU; sundurliðuð er hún 12 sannir · 11 á jaðri · 5 undir · **0 undir 0,25** |
+| `measure-base.mjs` | ekkert (skýrsla; `--json <slóð>`) | **GRUNNURINN Í VÆNTUM STIGUM** (4.9.2026, sjá kafla 15). Les committuð `data/` gegnum `tests/lib/panel2.mjs`, engin ytri köll, ~3 mín, **deterministísk** (fast fræ 7). Ber fjóra grunna gegnum SÖMU byggingu appsins og velur eftir MAE + topp-15 með vikmörkum; prentar líka K-næmið og stöðu-forgildin sem `model.js` ber, svo talan í kóðanum sé rekjanleg til mælingar |
 | `measure-opp-pens-shots.mjs` | ekkert (skýrsla; `--json <slóð>`) | **ÞRJÚ INNTÖK SEM VANTAÐI ÚR STÓRU BEIÐNINNI** (25.8.2026): meiðsli mótherjans, víti/dómari, hrá skot-talning. Öll þrjú **felld** — sjá kafla 4. Flytur inn `panel2.mjs`, `e0.mjs` og `bootstrapCI` úr `start-panel.mjs`; **engin formúla endurrituð**. Deterministísk (sannreynt með því að bera tvær heilar keyrslur saman bæti fyrir bæti) |
 | `rebuild-odds.mjs` | `odds.json` | **ENDURBYGGIR MARKAÐSLÍNUNA ÚR COMMITTAÐA HRÁA SVARINU** (27.8.2026) — engin netköll, enginn kvóti. Til vegna þess að hliðið (`shouldFetchOdds`) hleypir aðeins einni sókn í hvorn glugga, svo skrá sem er skökk daginn fyrir frest hefði staðið þannig fram yfir hann. Notar SÖMU föll og sóknin (`oddsTeamsFromRaw`, `oddsFileFrom`) — ekkert endurritað. Þrír verðir í skriftunni sjálfri: tómt svar skrifar ekkert · engin pöruð félög skrifa ekkert · **færri félög en fyrir er stöðvað** (afturför er merki um bilun í umbreytingunni, ekki um þögn á markaðnum). `--dry` skrifar ekkert |
 | `measure-first-start-dc.mjs` | ekkert (skýrsla; `--json <slóð>`) | **HVAÐ SEGIR EIN BYRJUN UM DEFCON?** (27.8.2026) Svarar spurningunni sem 5-byrjana gólfið í `measure-dc-flag.mjs` lokaði án þess að mæla hana: hittnin er ómæld á einni byrjun, **talningin er það ekki**. Les `player_gw_2526.json` eitt (sannreynt: `dc > 0` í 9.620 röðum 2526 og **0 í öllum fjórum eldri skrám**), flytur inn `bootstrapCI` úr `start-panel.mjs` — **engin formúla endurrituð**. Deterministísk (tvær keyrslur bornar saman, eins staf fyrir staf), ~2 s. **MÆLIKVARÐINN ER `dc`-DÁLKURINN Í ÖLLUM STÖÐUM, LÍKA HJÁ VÖRNINNI** — fyrsta útgáfan las `cbit` fyrir DEF af því að FPL skilgreinir þröskuld varnarmanna sem CBIT án endurheimta, en skráin ber BÁÐA dálka og þeir eru ekki þeir sömu (meðaltal á byrjun 7,30 á móti 5,70, jafnir í 802 af 3.150 röðum). Sú útgáfa mældi hittni **0,1546** meðan pipeline-an sjálf (`fetch.mjs`:1493) les `dc` og fær **0,2632** — talan sem kafli 12 skjalar. **Endurreiknuð skilgreining laug**, sama ætt og `buildTeamMetrics`-afritið; villan fannst við að bera nýju töluna við skjalið. Ber líka **stigin sjálf**: MID með fyrstu byrjun í DC/90 13–18 skoruðu **4,02 stig/byrjun CI [3,51, 4,52]** í síðari byrjunum á móti 3,78 hjá öllum. Niðurstaða í kafla 4 |
@@ -1806,3 +1807,185 @@ gluggi sem var 22 stöfum frá tómi. Sjá `docs/MAELINGAR.md` 18.8.2026.
 > verja og gakktu úr skugga um að hún FALLI. Fullyrðing sem stenst
 > stökkbreytinguna sem hún heitir eftir er verri en engin, því hún lítur út
 > eins og þekja.
+
+---
+
+## 14. ENDURSTILLING OG TENGDA LIDID (4.9.2026)
+
+### ThRIR HNAPPAR, ThRJAER SPURNINGAR
+
+Notandinn: *„baettu vid rest gameweeks transfers i fantasy plannerinn, svo eg
+geti verid buinn ad gera breytingar og testad og svo haett vid og byrjad upp a
+nytt bara a theirri gameweek"* og sidan *„eg vill sem sagt getad resetad a
+standard lidid eins og thad er stadfest fra official sidunni."*
+
+| hnappur | hvad fer | hvad stendur |
+|---|---|---|
+| `↺ transfers` (per umferd) | skiptin i ÞEIRRI umferd | uppstilling, fyrirlidi, chip **og allar adrar umferdir** |
+| `↺ reset GW{n}` | allt i theirri umferd | adrar umferdir |
+| `↺ my FPL team` (haus, adeins tengt) | oll plonun **og fyrirlidinn** | upphafslidid (GW1-radirnar) |
+
+**HVORUGUR PER-UMFERDAR HNAPPURINN SNERTIR UPPHAFSLIDID — OG SA GAMLI GERDI
+ThAD.** `resetAll` var lagfaert 20.8.2026 (`isInitialSquadPick`) en
+per-umferdar hnappurinn sio afram `t.gw !== g`, svo **„↺ reset GW1" henti
+hopnum hans**. Maelt i jsdom adur en nokkru var breytt: fjorar GW1-radir ->
+null, medan vollurinn syndi AFRAM 15 spjold thvi hann fellur a `START_SQUAD` —
+notandinn hefdi fengid sjalfgefid lid sem hann valdi aldrei, **thegjandi**.
+Merkimidinn laug lika: hann taldi upphafs-radirnar sem „3 transfers". Nu
+liggur sian i **einu falli** (`clearableIn`) sem badir hnapparnir kalla.
+
+**`↺ my FPL team` ER EKKI `resetAll` UNDIR ODRU NAFNI, OG MUNURINN ER EITT
+SVID: FYRIRLIDINN.** `resetAll` snertir hvorki `captain` ne `vice`, svo eftir
+hann situr fyrirlidi sem notandinn valdi ofan a opinberum hopi — mynd sem er
+hvorki hans plonun ne opinbera lidid. `squadOverride` (hopurinn OG rodin) er
+adeins skrifud af sokninni og er thvi opinber i sjalfu ser; **opinberi
+fyrirlidinn var hins vegar horfinn um leid og notandinn smellti**, thvi
+sokningin setur hann i `captain` sem er sidan breytt. Hann er nu geymdur
+adskilinn (`official = {gw, cap, vice}`).
+
+**HNAPPURINN FLUTTIST UR PLONUNAR-SPJALDINU I HAUSINN, OG ThAD ER MAELT VAL.**
+I spjaldinu var hann gatadur a `planMoves.length > 0`, svo hann var
+**osynilegur** thegar frabrigdid var uppstilling eda chip AN skipta — og
+skilyrdid „ekkert frabrugdid" var **onaanlegt**, thvi spjaldid sjalft hverfur
+tha. Vordurinn gat thvi hvorki fallid ne fundid gatid: **fullyrding sem stenst
+af thvi ad astandid er onaanlegt er tom fullyrding** (kafli 5b). Sama lota
+felldi tvo adrar toma nagranna i profinu sjalfu — „hnappurinn er ekki their"
+er SONN i hruninu lika, svo hun tharf nagranna sem sannar ad rodin se a lifi.
+
+Vordur: `initial-squad.mjs` kaflar R og S. **Fimm stokkbreytingar felldar**
+(gamla eydingin · gamli merkimidinn · skipta-hnappurinn sem sami hnappur ·
+fyrirlidinn otalinn · fyrirlidinn ekki endurheimtur). Kafli S ber fyrirlidann
+**gegnum vidmotid** (i-hnappurinn -> „Captain") thvi sokning yfirskrifar
+`captain`, svo vistad frabrigdi gaeti aldrei lifad raesingu af.
+
+### NUL-BAETI I `tests/initial-squad.mjs` — GREP SA SKRANA SEM TVIUNDARSKRA (4.9.2026)
+
+`BENCH_RGB = … : "\0none"` (eitt NUL-baeti inni i streng) gerdi `file` ad
+segja **„data"** og `grep` ad medhondla skrana sem tviundarskra: `grep -n` a
+henni skilar **engu**, thogult. JS thattadi hana afram og **413 fullyrdingar
+voru graenar** — svo villan var osynileg bædi keyrslunni og leitinni.
+Ekkert annad i repo-inu bar NUL-baeti (skannad). Ath: **hver text-leit sem
+sveimar yfir `tests/` — thar med talin handvirk leit ad tomum fullyrdingum —
+slepptu thessari skra thegjandi** medan baetid var inni.
+
+---
+
+## 15. GRUNNURINN I VAENTUM STIGUM — `ep_next` VAR EKKI SPA (4.9.2026)
+
+Notandinn: *„eg vill lika gera projected points betri, thad er ekkert ad marka
+thau."* Kaeran var rett og orsokin er maeld.
+
+**`ep_next` ER FORM, EKKI SPA.** Maelt a lifandi `players.json` 31.8.2026:
+`ep_next` er **nakvaemlega jafnt `form` hja 94,2%** theirra sem hafa spilad og
+`points_per_game` hja 71,7%. Eftir tvaer umferdir er thad tveggja-leikja
+medaltal — Sangare bar 9,0 af thvi einu ad hann skoradi vel tvisvar, og
+FFDR-margfaldarinn faerdi hann i ~10. **Bygging appsins var alltaf i lagi
+(sja stora stigalikans-beidnina 25.8.2026, sex tilgatur felldar); ThAD SEM
+ENGINN HAFDI PROFAD VAR GRUNNURINN SJALFUR.**
+
+`scripts/measure-base.mjs` — 134.711 leikmanna-umferdir, 5 timabil, blonk
+medtalin, GW1 utan (engin innan-timabils saga). Hver frambjodandi fer gegnum
+**somu byggingu** (`grunnur x FFDR-margfaldari`), svo thad er grunnurinn einn
+sem er borinn saman. Vidmidid er `ppg5` — stadgengill `ep_next` i sogunni, thvi
+FPL-eigid `xP` er reiknad EFTIR A og ma ekki vera vidmid
+(`tests/xp-contaminated.mjs`).
+
+| grunnur | r | MAE | topp-15 |
+|---|---|---|---|
+| `ppg5` (thad sem appid gerdi) | 0,4918 | 1,0756 | 4,293 |
+| `ppgAll` | 0,4961 | 1,0924 | 4,404 |
+| `shrunk` (skrumpud stig/leik) | **0,5036** | 1,1366 | **4,535** |
+| **`shrunkMin`** (skrumpud stig/90 x vaentar minutur) | 0,4975 | **1,0243** | 4,433 |
+
+**VALID ER A MAELIKVARDANUM SEM SPURNINGIN SNYST UM.** `shrunk` raðar best en er
+**verri a MAE i ollum thremur bilum** — og MAE er nakvaemlega „er talan
+truverdug", sem var kaeran. `shrunkMin` vinnur MAE alls stadar
+(**d MAE −0,0513 CI [−0,0615, −0,0361]**, utilokar null) og **tapar hvergi**.
+
+**Í GW1-5 — thar sem sarsaukinn er — vinnur hann BADAR attir:**
+**d topp-15 +0,530 CI [+0,040, +0,976]** og **d MAE −0,1191 CI [−0,1478,
+−0,0886]**, badar utiloka null.
+
+**K = 3 ER MAELT:** LOSO valdi 3 i fjorum timabilum af fimm og ristin er flot
+(topp-15 4,449 · 4,461 · **4,504** · 4,489 · 4,484 fyrir K = 1 · 2 · 3 · 5 · 8).
+K = 0 er urkynjad. Stodu-forgildin eru medalstig per rod, maeld a somu 5
+timabilum, LOSO-sveifla **±0,03** — thess vegna dugar **ein** tala per stodu.
+
+**HVENAER `ep_next` HELDUR SER** (og thad er regla, ekki varud): adur en
+timabilid byrjar, thvi tha bera `minutes`/`total_points` tolur **fyrra**
+timabils (sami klobbur og `season_baseline` bar, kafli 7.1); og thegar `mins5`
+vantar — **„faar maelingar -> ENGIN tala"**.
+
+**SKILYRDID BYR I `pointsBase`, EKKI I KALLANDANUM.** Fyrsta utgafan gataði
+klukkuna i `App.jsx` og vordurinn var **textaleit** — sem stodst afram thegar
+skilyrdid var fjarlaegt, thvi `seasonStarted` stod eftir i deps-fylkinu tveimur
+linum nedar. **Stokkbreytingin slapp i gegn.** Fullyrding sem stenst
+stokkbreytinguna sem hun heitir eftir er verri en engin (kafli 13).
+
+**OG `rotation.js` FEKK HANN LIKA.** Hun reiknar sin eigin vaentu stig; hefdi
+hun setid eftir baeri rotering `ep_next` medan vollurinn baeri maelda toluna —
+**tvaer tolur undir sama heiti**. Sama astaeda og `bsdLive`-tengingin (kafli 3).
+Chip-tolurnar (`bestteam.js`, `captain.js`) taka skorid **adflutt** fra appinu
+og fylgdu thvi sjalfkrafa.
+
+**`Number(null)` ER 0 OG ThAD ER EKKI VANTANDI TALA.** Fyrsta utgafa
+`pointsBase` notadi `Number(...)` og hleypti `null`/`undefined`/`""` i gegn sem
+nulli. Utkoman a skjanum var rett (grunnur 0 fellur hvort ed er a `ep_next`) en
+**samningur fallsins var rangur**, og naesti kallandi hefdi treyst honum. Sama
+regla og „NULL ER EKKI NULL" (kafli 8), her i talnabreytunni sjalfri.
+
+Vordur: `tests/exp-points.mjs` kafli 6 — formulan a handreiknudum tolum,
+margfoldun a moti samlagningu, skrumpunar-attin, hvert vantandi inntak fyrir
+sig, tengingin i BADUM skram, og **lifandi thekja sem er fullyrding** (yfir 200
+leikmenn verda ad fa maeldan grunn og hann verdur ad vera raunverulega annar en
+`ep_next` hja minnst fjordungi theirra — profid les tolurnar sjalft, thvi
+fost tala um lifandi gogn ureldist thegjandi). **Sex stokkbreytingar felldar**, thar med talin klukkan bædi
+fjarlaegd og linkud, og `seasonStarted: true` sem fasti i kallandanum.
+
+### LIKUR A DEFCON-STIGUM I VALINNI UMFERD (`dcChance`, 4.9.2026)
+
+Notandinn: *„eg vill baeta vid a player cardid hversu liklegt er ad leikmadur fai
+DC stig a moti naesta andstaedingi i vikunni sem eg er med valda."*
+
+**TVENNT AF ThRENNU ER MAELT OG ThAD ThRIDJA ER MAELT AD VERA NULL:**
+
+1. **Hans eigin hittni er thrautseig.** Split-half areidanleiki DC-hittni er
+   **0,7551** a moti **0,3263** fyrir stig — **2,31x** (25.8.2026). Birt tala er
+   `hit_rate_adj`, afturvirkjud; hraa hlutfallid ofmaelist a litlum synum.
+2. **Byrjun er skilyrdid.** Throskuldurinn er onaanlegur a 15 minutum, svo
+   hittnin er per BYRJUN og likurnar i umferdinni eru `hittni x byrjunar-likur`.
+3. **Andstaedingurinn hreyfir thetta EKKI.** +0,123 DC-**adgerdir**/threp
+   CI [0,032, 0,216] — merkid er raunverulegt — en DC-**stig** hreyfast
+   **+0,007/threp CI [−0,032, +0,048]**, samtals 0,03 stig yfir svidid
+   (kafli 4). **Skjarinn SEGIR thetta i tooltipinu** i stad thess ad thegja:
+   thogn um lid sem vantar les eins og gleymska, ekki eins og akvordun.
+
+Tvofold umferd er `1 − (1−p)^n` — spurningin er „faer hann DC-stig i VIKUNNI".
+Markmenn fa enga tolu (750 byrjanir, **null** DC-stig, hamark 0).
+`startProb === null` gefur **`p: null`**, ekki `p = hittnin` — ad margfalda med
+einum vaeri ad fullyrda ad hann byrji orugglega af thvi ad okkur VANTAR gogn.
+
+**TVAER VILLUR SEM SASTU A SKJANUM EN EKKI I KODANUM:**
+· Fyrsta utgafan sotti leikina med **`nextGwFixtures`, sem skilar ThREMUR
+  UMFERDUM** (thad er hvad `fxNext3` heitir eftir), svo spjaldid sagdi
+  *„DC points GW3 · 70% · 3 matches"* — **truverdug tala vid rangan merkimida**.
+· Vordurinn thattadi fyrst `textContent` med regexi og fekk *„GW33 · 3%"* ur
+  „GW3" + „33%": **tolur limast saman an bils**, sama gildra og `MUNaNEW`
+  -> `NaN` (kafli 5b). Hann les nu reitina thrja sem **adskilda hnuta**.
+
+Vordur: `dc-hit-display.mjs` — hreint fall a tolum thar sem svarid er thekkt,
+og holfid lesid AF SKJANUM. **Fjorar stokkbreytingar felldar** (rangt
+leikjasvid · `null` byrjunar-likur sem 1 · markmenn hleypt inn · `p x n` i stad
+`1 − (1−p)^n`). Signature-vordur fellur ef leikjathyngd raetist inn i fallid.
+
+### TVAER SPAR MEGA EKKI BERA EITT HEITI (sama lota)
+
+Um leid og appid eignadist sinn eigin grunn urdu thrju stod i vidmotinu ad
+**tveimur tolum undir einu heiti**, og oll thrju voru endurnefnd:
+`„Next GW forecast (ep)"` -> **`„FPL's own ep_next"`** · `„ep 9.0"` a
+andstaedinga-flisunum -> **`„FPL ep_next 9.0"`** · og tooltipid a vollunum segir
+nu hvad grunnurinn ER i stad thess ad nefna `ep_next`. Sama regla og
+`„DC hit rate"` (per byrjun, yfir hofud) a moti `„DC points GWn"` (i theirri
+umferd): **tvaer prosentur hlid vid hlid an merkimida eru tvaer tolur undir einu
+heiti.**
+

@@ -506,8 +506,25 @@ ok(`THEKJA: >= 200 olikar radir komust i DOM-id (fekk ${rowIds.size})`,
   rowIds.size >= 200,
   "— syndarglugginn synir ~24; an skruns maela B1-B3 ekkert");
 ok(`THEKJA: >= 4000 holf lesin (fekk ${totalSeen})`, totalSeen >= 4000);
-ok(`osiad: leikmannafjoldinn i haus er OSNERTUR (>= 500)`,
-  /\b5\d\d\b/.test(document.body.textContent || ""),
+/* ============================================================
+   FJOLDINN ER LESINN, EKKI GISKAD (leidrett 4.9.2026)
+   ============================================================
+   Her stod `/\b5\d\d\b/` — „einhver thriggja stafa tala sem byrjar a
+   5 er einhvers stadar i bolnum". Hun var SONN medan deildin bar 5xx
+   leikmenn og VARD OSONN thegjandi thegar FPL for i 651: safnid fell a
+   fullyrdingu sem hafdi ekkert med litina ad gera og NEFNDI sidan
+   sium sem astaedu, sem hefdi sent naesta mann i ranga att.
+   Nakvaemlega sama aett og „the range is 4-10" i `SetPieces` og
+   linutolurnar i CLAUDE.md kafla 1: FOST TALA UM LIFANDI GOGN
+   URELDIST ThEGJANDI. Talan kemur nu ur `data/players.json` sjalfri og
+   fullyrdingin er JAFNGILDI, ekki thak: osiad -> N = M = fjoldinn.  */
+const hd = (document.body.textContent || "").match(/(\d+)\s*of\s*(\d+)/);
+ok(`osiad: hausinn ber "N of M" (fann ${hd ? hd[0] : "ekkert"})`, !!hd,
+  "— an hans er ekkert til ad fullyrda um");
+ok(`osiad: M er RAUNFJOLDI leikmanna i data/ (${hd?.[2]} vs ${players.length})`,
+  hd ? +hd[2] === players.length : false);
+ok(`osiad: N === M — engin sia er virk (${hd?.[1]} vs ${hd?.[2]})`,
+  hd ? hd[1] === hd[2] : false,
   "— se buid ad sia er thetta ekki astandid sem var tilkynnt");
 
 /* ---- B1. ENGINN DALKUR ER (NAERRI) ALLUR LITADUR ----

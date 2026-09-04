@@ -170,7 +170,11 @@ console.log("\n--- A. St%-HLIDID ---");
   const opened = await v.openCard(low[0].web_name);
   ok(opened, `spjald ${low[0].web_name} opnadist (of litid urtak)`);
   const t1 = v.card();
-  ok(/Next GW forecast/.test(t1), "forsenda: thad ER spjaldid (ep-reiturinn sest)");
+  /* AKKERID FAERDIST MED HEITINU (4.9.2026): reiturinn bar „Next GW
+   forecast (ep)" en hann er FPL-s eigin `ep_next`, og fra og med
+   maelda grunninum (`pointsBase`) er hun EKKI sama tala og spjaldid
+   synir. Tvaer spar undir einu heiti — thvi var hann endurnefndur. */
+  ok(/FPL's own ep_next/.test(t1), "forsenda: thad ER spjaldid (ep-reiturinn sest)");
   const rl = rotOf(low[0], played[low[0].team] ?? seasonGames);
   ok(!/Started/.test(t1),
      `„Started"-reiturinn er EKKI their (${rl.starts}/${rl.played} = ${rl.pct}%)`);

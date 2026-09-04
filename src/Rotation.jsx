@@ -65,6 +65,7 @@ const HORIZONS = [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 38];
 export default function Rotation({
   targetIds, players, teamById, fixByTeamGw, fixDifficulty, gwNow, maxGw = 38,
   squadIds, Crest, onToggleTarget, onClear, onClose, startProbOf = null,
+  basisOf = null,
 }) {
   const [horizon, setHorizon] = useState(DEFAULT_HORIZON);
   const [onlyMine, setOnlyMine] = useState(false);
@@ -97,9 +98,9 @@ export default function Rotation({
   const R = useMemo(() => findRotationPartners({
     targets, candidates: pool, gwFrom: gwNow, horizon, maxGw,
     fixByTeamGw, fixDifficulty, ownedIds: owned, limit: 12, maxTenths, hardFrom,
-    startProbOf,
+    startProbOf, basisOf,
   }), [targets, pool, gwNow, horizon, maxGw, fixByTeamGw, fixDifficulty, owned,
-       maxTenths, hardFrom, startProbOf]);
+       maxTenths, hardFrom, startProbOf, basisOf]);
 
   const gws = horizonGws(gwNow, horizon, maxGw);
   const hardSet = new Set(R.hard.map(h => h.gw));

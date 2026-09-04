@@ -231,7 +231,7 @@ let cardOk=false;
 if (info.length) {
   await act(async()=>{ info[0].dispatchEvent(new dom.window.MouseEvent("click",{bubbles:true})); });
   await act(async()=>{ await new Promise(r=>setTimeout(r,120)); });
-  cardOk = document.body.textContent.includes("Next GW forecast");
+  cardOk = document.body.textContent.includes("FPL's own ep_next");
   await click("⇄ Compare");
 }
 console.log(`  ${cardOk?"✓":"✗"} leikmannaspjald + samanburdur opnast (${info.length} i-hnappar)`);

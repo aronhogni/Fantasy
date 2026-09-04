@@ -2284,6 +2284,52 @@ viljandi og **má aldrei lesast sem tillaga** — hann er þak.
 **ENGU VAR TENGT OG ÞAÐ ER NIÐURSTAÐAN.** Sleeper stendur sem grunnur, nú
 mælt frekar en erft. Vörður: `tests/model.mjs` kafli 12.
 
+### 4q. HOP-MEDVITAD VBD („tveir TE i rod") — MAELT OG FELLT (4.9.2026)
+
+**Kaeran er RETT og hun er raunveruleg.** Notandinn eftir draftid: *„appid var
+stundum ad maela med tveim i somu stodu — t.d. tveim TE thegar eg var buinn ad
+velja TE."* Endurspilun a hans eigin drafti (Sofahetjur, 12 lid, half-PPR)
+stadfesti thad: **i 5 af 14 pikkum voru BADIR kostirnir i somu stodu**, og i
+pikki 67 voru thad tveir TE medan hann atti thegar Trey McBride.
+
+**MEKANISMINN ER LIKA RAUNVERULEGUR OG HANN ER I KODANUM:**
+`computeVbd(players, league)` tekur **deildina en aldrei hopinn**.
+Varamanns-threpid er thvi fast fyrir deildina, svo annar TE er metinn eins og
+hann leysi af TE-**byrjunarmann** i medallagi — thott hann geti i raun adeins
+fyllt FLEX hja theim sem a thegar TE. **Talan er ekki rong; hun svarar rangri
+spurningu.**
+
+**OG ThRATT FYRIR ThAD FELLUR LAGFAERINGIN.** `nfl/scripts/slotvbd-lab.mjs`
+gerir bordid ad FALLI sem velur threp eftir thvi saeti sem leikmadurinn myndi
+raunverulega fylla (byrjunarsaeti laust -> threp stodunnar · fullt en FLEX
+laust -> FLEX-threp · allt fullt -> bekkjar-threp). FLEX-threpid er **leitt**
+(saeti `teams x (RB+WR+TE+FLEX)` i sameinudum RB/WR/TE-lista) og bekkjar-threpid
+er `waiver` ur `REPL_VARIANTS` — **engin ny tala**. Beint einvigi i somu deild
+(`makeHeadToHead`), 5 timabil, 1.440 einvigi per afbrigdi, deterministiskt
+(sannreynt med tveimur heilum keyrslum, samhljoda upp a aukastaf):
+
+| afbrigdi | stig/timabil | 95% CI | ar unnin | einvigi |
+|---|---|---|---|---|
+| **full** (oll threp hop-hád) | **−99,9** | [−183,3, −16,5] t=−3,33 | **0/5** | 34,0% |
+| **flexOnly** (adeins FLEX-threpid) | −15,8 | [−126,2, +94,6] | 3/5 | 48,8% |
+| **teOnly** (adeins TE) | −1,7 | [−62,5, +59,1] | 3/5 | 49,7% |
+
+**Fulla utgafan utilokar null I RANGA ATT og tapar 0 af 5 arum** — thad er ekki
+suð heldur maeld versnun. Hinar tvaer eru **ogreinanlegar fra null** og skila
+tha engri astaedu til ad flaekja bordid.
+
+**HVERS VEGNA:** VBD raðar **hverjir eru bestir eftir**, ekki **hvad thu tharft
+naest**. Ad draga annan TE nidur af thvi ad TE-saetid er fullt hendir upplysingum
+um leikmanninn sjalfan — og i 14 umferda drafti er **bekkurinn helmingur
+hopsins**, svo „hann fyllir adeins FLEX/bekk" er RANGT verd a manni sem verdur
+byrjunarmadur eftir meidsli eda skipti. Bordid a ad segja hver er bestur; **hvad
+thu tharft er ONNUR akvordun og hun er thegar til** (`urgencyPick` og
+`samePos`-athugasemdin i `recommend()`).
+
+**ThAD SEM SITUR EFTIR ER BIRTING, EKKI TALA.** Kaeran hans var ad sja **tvo i
+somu stodu** — ekki ad talan vaeri rong. Su spurning er onnur og var ekki maeld
+her.
+
 ### 4c. Bootstrap KLASAÐUR PER LEIKMANN — aðferðin sem breytti niðurstöðu
 
 Þetta er almennt og það á að standa: `vbdbase-lab` fékk **28 hólf** sem
@@ -5649,6 +5695,7 @@ node scripts/ecr-timing.mjs [--day=21]        # -> measure/ecr_timing.json (sja 
 node scripts/seq-lab.mjs                      # -> measure/sequencing.json (sja 4m)
 node scripts/tepos-lab.mjs                    # -> measure/tepos.json (sja 4n)
 node scripts/tepos-lab.mjs --noOutcome        # adeins sundurlidunin (Q1), 0,3 s
+node scripts/slotvbd-lab.mjs [--scoring=…]    # hop-medvitad VBD (sja 4q) — ~2 min
 ```
 
 `tepos-lab.mjs` tekur **~55 s** með sjálfgefnum viðföngum. `--noOutcome` gefur

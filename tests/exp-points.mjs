@@ -28,7 +28,8 @@ import {
   SEASONS, loadSeason, buildStrength, PROMO_DEFAULT, fdrFor,
   marketForRow, eloFor, corr,
 } from "./lib/e0.mjs";
-import { makeFixDifficulty, lookupPos, POS_MEAN_PTS, cleanSheetProb, expPointsFor } from "../src/model.js";
+import { makeFixDifficulty, lookupPos, POS_MEAN_PTS, cleanSheetProb, expPointsFor,
+         pointsBase } from "../src/model.js";
 
 const D = new URL("../data/", import.meta.url).pathname;
 let pass = 0, fail = 0;
@@ -510,11 +511,150 @@ console.log("\n=== NYLIDA-GRUNNURINN (vordur) ===");
   const fn = modelSrc.slice(modelSrc.indexOf("export function expPointsFor"));
   const body = fn.slice(0, fn.indexOf("\n}\n"));
   ok(/ep_next/.test(body) && /points_per_game/.test(body),
-    "grunnurinn er ENN ep_next med points_per_game sem varaleid");
+    "VARALEIDIN er ENN ep_next med points_per_game (4.9.2026: hun er "
+    + "ekki lengur eina leidin — sja kaflann her a eftir)");
   ok(!/PROMO|promoted|nylid|NYLID/i.test(body),
     "ENGIN nylida-serregla i grunninum — maeld og hafnad, sja kafla 3e");
   ok(!/POS_MEAN_PTS\s*\[/.test(body.replace(/const mean = POS_MEAN_PTS[^;]*;/, "")),
     "POS_MEAN_PTS er adeins notad sem NORMALISERING, ekki sem forgildi a grunninn");
+}
+
+/* ============================================================
+   6. MAELDI GRUNNURINN (`pointsBase`, 4.9.2026)
+
+   Kaeran: „eg vill lika gera projected points betri, thad er ekkert ad
+   marka thau." Orsokin er maeld: `ep_next === form` hja 94,2% theirra
+   sem hofdu spilad (lifandi svar 26.8.2026), svo „vaent stig" var i
+   framkvaemd 30-daga medaltal — og eftir tvaer umferdir er thad tvaer
+   tolur. Sangare bar `ep_next` 9,0 af thvi einu ad hann hafdi skorad
+   vel i tveimur leikjum.
+
+   MAELINGIN sjalf er i `scripts/measure-base.mjs` (134.711
+   leikmanna-umferdir, 5 timabil) og tolurnar eru i athugasemdinni vid
+   `pointsBase`. Thessi kafli ver ThRENNT sem maelingin getur ekki:
+     (a) formuluna sjalfa a tilbunum tolum thar sem svarid er thekkt,
+     (b) ad hun se SLEPPT — ekki gisk — thegar inntokin vantar,
+     (c) AD HUN SE TENGD. Thridja atriðið er ekki formsatridi: `bsdLive`
+         var reiknad, vardad og skrifad en ALDREI sent inn i `<Teams>`
+         (CLAUDE.md kafli 3), og `lineups.json` er nefnd fyrir sömu
+         villu. „Kodinn og verdirnir eru komnir" er EKKI sama og
+         „talan lendir a skjanum".
+   ============================================================ */
+console.log("\n=== 6. MAELDI GRUNNURINN — `pointsBase` ===");
+{
+  const P = { element_type: 3, total_points: 11, minutes: 180, ep_next: "9.0",
+              points_per_game: "5.5" };
+  /* (a) FORMULAN A TOLUM ThAR SEM SVARID ER REIKNAD I HONDUNUM.
+     prior90 = 120/(2700/90) = 4; per90 = (11 + 3x4)/(2 + 3) = 4,6;
+     grunnur = 4,6 x 90/90 = 4,6.                                     */
+  const ON = { seasonStarted: true };
+  const b = pointsBase({ ...ON, p: P, mins5: 90, prevPts: 120, prevMins: 2700 });
+  ok(Math.abs(b - 4.6) < 1e-9, `formulan gefur handreiknada svarid (${b})`);
+  /* Halfar minutur -> halfur grunnur. Lidurinn er MARGFOLDUN, ekki
+     leidretting — vaeri hann lagdur vid myndi thetta ekki halda.      */
+  const half = pointsBase({ ...ON, p: P, mins5: 45, prevPts: 120, prevMins: 2700 });
+  ok(Math.abs(half - b / 2) < 1e-9, "vaentar minutur eru MARGFALDARI (45 min -> halft)");
+
+  /* SKRUMPUNIN DREGUR I RETTA ATT OG HUN SLOKNAR MED GOGNUM.        */
+  const hot = { element_type: 3, total_points: 20, minutes: 180 };
+  const small = pointsBase({ ...ON, p: hot, mins5: 90, prevPts: 60, prevMins: 2700 });
+  const raw = 20 / (180 / 90);
+  ok(small < raw, `litid urtak er DREGID NIDUR ad forgildinu (${small.toFixed(2)} < ${raw})`);
+  const big = pointsBase({ ...ON, p: { ...hot, total_points: 200, minutes: 1800 },
+                           mins5: 90, prevPts: 60, prevMins: 2700 });
+  ok(Math.abs(big - 200 / 20) < Math.abs(small - raw),
+     "og stort urtak er DREGID MINNA — skrumpunin slokknar med gognum");
+
+  /* (b) FAAR MAELINGAR -> ENGIN TALA. Hvert vantandi inntak fyrir sig. */
+  ok(pointsBase({ ...ON, p: P }) === null, "`mins5` vantar -> ENGIN tala (ekki 0)");
+  /* `Number(null)` er 0, svo thetta tilfelli greindi fyrstu utgafuna:
+     hun skilaði 0 thar sem samningurinn segir `null`.                */
+  ok(pointsBase({ ...ON, p: P, mins5: null }) === null, "null `mins5` -> ENGIN tala");
+  ok(pointsBase({ ...ON, p: P, mins5: undefined }) === null, "undefined `mins5` -> ENGIN tala");
+  ok(pointsBase({ ...ON, p: P, mins5: "" }) === null, "tomur strengur -> ENGIN tala");
+  ok(pointsBase({ ...ON, p: { ...P, minutes: null }, mins5: 90 }) === null,
+     "null `minutes` -> ENGIN tala");
+  ok(Number.isFinite(pointsBase({ ...ON, p: P, mins5: "90" })),
+     "en TALA I STRENG er gild — FPL sendir bædi snidin");
+  ok(pointsBase({ ...ON, p: null, mins5: 90 }) === null, "enginn leikmadur -> ENGIN tala");
+  ok(pointsBase({ ...ON, p: { element_type: 3 }, mins5: 90 }) === null,
+     "engar minutur/stig a leikmanninum -> ENGIN tala");
+  /* An fyrra timabils er stodu-forgildid notad — EKKI null. Thad er
+     maelt: forgildin eru medalstig per rod og LOSO-sveiflan er +-0,03. */
+  const noPrev = pointsBase({ ...ON, p: P, mins5: 90 });
+  ok(Number.isFinite(noPrev) && noPrev > 0,
+     `an fyrra timabils stendur stodu-forgildid (${noPrev.toFixed(2)})`);
+
+  /* HLIDID: `expPointsFor` ma ekki nota hann obeðið. */
+  const fxs = [{ kickoff: null }];
+  const fd = () => 2;
+  const off = expPointsFor({ p: P, fxs, fixDifficulty: fd, teamId: 1 });
+  const offOff = expPointsFor({ p: P, fxs, fixDifficulty: fd, teamId: 1,
+    basis: { seasonStarted: false, mins5: 90 } });
+  const on = expPointsFor({ p: P, fxs, fixDifficulty: fd, teamId: 1,
+    basis: { seasonStarted: true, mins5: 90, prevPts: 120, prevMins: 2700 } });
+  ok(Math.abs(off - offOff) < 1e-12, "`seasonStarted: false` er NAKVAEMLEGA sama og enginn basis");
+  ok(Math.abs(off - 9 * (off / 9)) < 1e-12 && off > 0, "forsenda: gamla leidin gefur tolu");
+  ok(Math.abs(on - off) > 0.5,
+     `og med `+ "`seasonStarted: true`" + ` BREYTIST talan raunverulega (${off.toFixed(2)} -> ${on.toFixed(2)})`);
+  ok(on < off, "hun laekkar her, thvi ep_next 9,0 var tveggja leikja medaltal");
+
+  /* (c) TENGINGIN. Structural — ekki „er hun til" heldur „er hun notud". */
+  const appSrc = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  ok(/basis:\s*basisFor\(p\)/.test(appSrc),
+     "App.jsx SENDIR `basis` inn i expPointsFor (annars nær talan aldrei skjanum)");
+  ok(/player_form|playerForm/.test(appSrc) && /seasonsFile/.test(appSrc),
+     "og hann byggir hann ur skram sem appid les ThEGAR — engin ny sokn");
+  /* EIN TALA UNDIR EINU HEITI. `rotation.js` reiknar sin eigin vaentu
+     stig; faeri hun ekki grunninn lika baeri rotering `ep_next` medan
+     vollurinn baeri maelda toluna — tvaer tolur undir sama heiti.    */
+  const rotSrc = readFileSync(new URL("../src/rotation.js", import.meta.url), "utf8");
+  ok(/basis:\s*basisOf\s*\?/.test(rotSrc),
+     "rotation.js sendir grunninn lika (annars tvaer tolur undir sama heiti)");
+  ok(/basisOf=\{basisFor\}/.test(appSrc), "og App.jsx gefur honum hann");
+  ok(/seasonStarted/.test(appSrc.slice(appSrc.indexOf("const basisFor"),
+                                       appSrc.indexOf("function expPoints("))),
+     "og App.jsx SENDIR klukkuna med");
+  /* OG HANN SENDIR BREYTUNA, EKKI FASTA. Thetta er eina fullyrdingin
+     sem getur greint `seasonStarted: true` fra `seasonStarted` — a
+     lifandi gognum eru thau EINS, thvi timabilid ER byrjad, svo hegdun
+     getur ekki skorid ur fyrr en naesta sumar. Textaleit er thvi retta
+     taekid her, og hun er sogd vera thad.                            */
+  ok(!/seasonStarted:\s*(true|false|1|0)\b/.test(
+       appSrc.slice(appSrc.indexOf("const basisFor"),
+                    appSrc.indexOf("function expPoints("))),
+     "og hann sendir BREYTUNA, ekki fasta (fasti vaeri hlid sem er alltaf opid)");
+  /* KLUKKAN SJALF ER PROFUD A HEGDUN, EKKI A TEXTA. Textaleitin her a
+     undan stodst afram thegar skilyrdid var fjarlaegt (`seasonStarted`
+     stod eftir i deps-fylkinu) — su stokkbreyting slapp i gegn og
+     thess vegna byr reglan nu i `pointsBase`.                        */
+  ok(pointsBase({ p: P, mins5: 90, prevPts: 120, prevMins: 2700 }) === null,
+     "AN KLUKKUNNAR -> ENGIN tala (forleikur ber minutur FYRRA timabils)");
+  ok(pointsBase({ seasonStarted: false, p: P, mins5: 90 }) === null,
+     "og `seasonStarted: false` lika");
+  ok(pointsBase({ seasonStarted: 1, p: P, mins5: 90 }) === null,
+     "og hun er STRONG — `1` er ekki `true`, svo hun getur ekki kviknad a slysni");
+
+  /* LIFANDI THEKJA ER FULLYRDING, EKKI LOGGA. Vaeri tengingin rett en
+     `player_form` tom fengi ENGINN nyja grunninn og allt her ad ofan
+     vaeri satt um kóda sem snertir engan.                            */
+  const PL = JSON.parse(readFileSync(new URL("../data/players.json", import.meta.url), "utf8"));
+  const PF = JSON.parse(readFileSync(new URL("../data/player_form.json", import.meta.url), "utf8"));
+  const PS = JSON.parse(readFileSync(new URL("../data/player_seasons.json", import.meta.url), "utf8"));
+  const prevKey = PS.seasons?.[0];
+  let got = 0, moved = 0;
+  for (const p of PL.players || []) {
+    const m5 = PF.players?.[p.id]?.mins5;
+    if (!Number.isFinite(m5)) continue;
+    const pv = PS.players?.[String(p.code)]?.[prevKey];
+    const nb = pointsBase({ ...ON, p, mins5: m5, prevPts: pv?.total_points, prevMins: pv?.minutes });
+    if (!Number.isFinite(nb)) continue;
+    got++;
+    if (Math.abs(nb - parseFloat(p.ep_next)) > 0.5) moved++;
+  }
+  ok(got >= 200, `THEKJA: ${got} leikmenn faa maeldan grunn a raungognum`);
+  ok(moved >= got * 0.25,
+     `og hann er RAUNVERULEGA annar en ep_next hja ${moved} af ${got} (>25%)`);
 }
 
 console.log(`\nVÆNT-STIG: ${pass} stóðust, ${fail} féllu`);

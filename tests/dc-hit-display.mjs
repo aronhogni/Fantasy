@@ -97,13 +97,72 @@ ok("i-hnappur Mosquera finnst", !!mosBtn);
 await fire(mosBtn);
 
 let txt = document.body.textContent;
-ok("spjaldið opnaðist (Spá næstu sést)", txt.includes("Next GW forecast"));
+/* AKKERID VAR „Next GW forecast" OG ThAD HEITI FOR 4.9.2026: reiturinn
+   ber FPL-s eigin `ep_next` og heitir thad nu, thvi appid reiknar sina
+   eigin spa (`pointsBase`) og tvaer spar undir einu heiti eru tvaer
+   spar undir einu heiti. Akkerid faerdist thvi med heitinu.          */
+ok("spjaldið opnaðist (FPL-reiturinn sést)", txt.includes("FPL's own ep_next"));
 ok("„DC-hittni“ birtist á DEF-spjaldi", txt.includes("DC hit rate"));
 ok("AFTURVIRKJAÐA talan er birt (57%)", txt.includes("57%"),
   "— birting á hráu tölunni í staðinn er nákvæmlega villan sem prófið ver gegn");
 ok("n er sýnilegt við hlið tölunnar (12 byrjaðir)", /12 starts/.test(txt));
 ok("hráa talan sýnd sem undirtexti, merkt hrá (75%)", /raw 75%/.test(txt));
 ok("hráa talan er EKKI aðaltalan", !/DChitrate75%/.test(txt.replace(/\s+/g, "")));
+
+/* ============================================================
+   LIKUR A DC-STIGUM I VALINNI UMFERD (4.9.2026, beidni notandans)
+
+   „Eg vill baeta vid a player cardid hversu liklegt er ad leikmadur fai
+   DC stig a moti naesta andstaedingi i vikunni sem eg er med valda."
+
+   TVO HEITI, TVAER SPURNINGAR: „DC hit rate" er per BYRJUN yfir hofud;
+   „DC points GWn" er I ThEIRRI UMFERD. Baðar verda ad sjast med sinum
+   merkimida — tvaer prosentur hlid vid hlid an theirra vaeru tvaer tolur
+   undir einu heiti.
+   ============================================================ */
+{
+  /* LESID UR HOLFINU SJALFU, EKKI UR `textContent` HEILDARINNAR.
+     Fyrsta utgafan thattadi „DC points GW333%" med regexi og fekk
+     „GW33 · 3%" — tolurnar limast saman an bils, nakvaemlega sama
+     gildra og `MUNaNEW` -> `NaN` (CLAUDE.md 5b). Reitirnir thrir eru
+     adskildir hnutar; thad er thvi haegt ad lesa thá rett.            */
+  const tile = [...document.querySelectorAll("div")]
+    .filter(el => (el.children[0]?.textContent || "").startsWith("DC points GW"))
+    .sort((a, b) => a.textContent.length - b.textContent.length)[0];
+  ok("`DC points GWn` birtist a DEF-spjaldi", !!tile,
+    "— " + (txt.match(/DC points[^A-Z]{0,60}/) || ["fannst ekki"])[0]);
+  if (tile) {
+    const [kEl, vEl, sEl] = tile.children;
+    const g = +(kEl.textContent.match(/GW(\d+)/) || [])[1];
+    const shown = +(vEl.textContent.match(/(\d+)%/) || [])[1];
+    const sub = sEl?.textContent || "";
+    const rate = +(sub.match(/(\d+)% per start/) || [])[1];
+    const nStarts = +(sub.match(/per start \((\d+)\)/) || [])[1];
+    const sp = +(sub.match(/(\d+)% to start/) || [])[1];
+    ok(`umferdin i heitinu er su sem er VALIN (GW${g})`, g >= 1 && g <= 38);
+    ok("hlutfallid er hittni x byrjunar-likur, ekki hittnin ein",
+      Math.abs(shown - Math.round(rate * sp / 100)) <= 1,
+      `— ${shown}% a moti ${rate}% x ${sp}%`);
+    ok("og thad er LAEGRA en hittnin ein (byrjun er skilyrdi)", shown < rate);
+    ok("hittnin i undirtextanum er AFTURVIRKJADA talan (57%), ekki hra (75%)",
+      rate === 57, `— fekk ${rate}%`);
+    /* `defcon.json` segir sjalf: „USE THAT ONE for display, always with
+       starts beside it". Eftir tvaer umferdir er `hit_rate_adj` skrumpud
+       nanast alveg ad stodu-medaltalinu, svo an `n` laesi hun eins og
+       maeling a MANNINUM i stad forgildis a STODUNNI.                  */
+    ok("og `n` fylgir henni i SAMA reit (12 byrjanir)", nStarts === 12,
+      `— fekk ${nStarts}, undirtexti: "${sub}"`);
+    /* EINN LEIKUR I UMFERDINNI -> ENGIN „N matches"-vidbot. Fyrsta
+       utgafan notadi `nextGwFixtures`, sem skilar ThREMUR UMFERDUM, og
+       spjaldid sagdi tha „70% · 3 matches" — truverdug tala vid rangan
+       merkimida. Sast a skjanum, ekki i kodanum.                      */
+    ok("engin tvofold-umferdar vidbot thegar leikurinn er einn",
+      !/matches/.test(sub), `— "${sub}"`);
+    ok("og motherjinn er nefndur i tooltipinu, ekki thagad um hann",
+      /OPPONENT is deliberately not in it/.test(tile.getAttribute("title") || ""),
+      "— thogn um lid sem vantar les eins og gleymska");
+  }
+}
 
 /* GK: spjaldið hefur gögn í mockinu en má samt ekki birta reitinn. */
 const gkBtn = infoBtnFor("Kinsky");
@@ -115,6 +174,8 @@ txt = document.body.textContent;
 ok("Kinsky-spjaldið opnaðist (fullt nafn í haus)", txt.includes("Antonín"));
 ok("GK fær ALDREI DC-hittni þótt gögnin séu til", !txt.includes("DC hit rate"),
   "— GK-talan væri ómæld tala sem liti út eins og mæling");
+ok("og ENGA umferdar-likindi heldur", !txt.includes("DC points GW"),
+  "— maelt 25.8.2026: 750 GK-byrjanir, NULL DC-stig, hamark 0");
 
 /* ============================================================
    "DC-LEIKMADUR"-MERKIMIDINN — ThRJU ASTOND, EKKI TVO (25.8.2026)
@@ -167,6 +228,44 @@ ok("GK fær ALDREI DC-hittni þótt gögnin séu til", !txt.includes("DC hit rat
   ok("og ber 1 thegar merkid a vid", d.get({ _dc_starts: 8, _dc_hit_raw: 0.7 }) === 1);
   ok("og 0 thegar hann er MAELDUR og nær ekki", d.get({ _dc_starts: 8, _dc_hit_raw: 0.2 }) === 0);
   ok("og null thegar hittnin vantar", d.get({ _dc_starts: 8 }) === null);
+}
+
+/* ============================================================
+   `dcChance` A TOLUM ThAR SEM SVARID ER ThEKKT FYRIRFRAM
+   ============================================================ */
+{
+  const { dcChance } = await import("../src/model.js");
+  const D = { position: 3, hit_rate_adj: 0.5, starts: 12 };
+  const one = dcChance({ dcRow: D, startProb: 0.8, fixtures: [1] });
+  ok("einn leikur: 0,5 x 0,8 = 0,40", Math.abs(one.p - 0.4) < 1e-12);
+  const two = dcChance({ dcRow: D, startProb: 0.8, fixtures: [1, 2] });
+  ok("tvofold umferd: 1-(1-0,4)^2 = 0,64", Math.abs(two.p - 0.64) < 1e-12,
+    "— spurningin er: faer hann DC-stig i VIKUNNI, ekki i leiknum");
+  ok("og hun er HAERRI en einn leikur, ekki tvofold", two.p > one.p && two.p < 2 * one.p);
+
+  /* `startProb === null` MA ALDREI VERDA 1. Ad margfalda med einum vaeri
+     ad fullyrda ad hann byrji ORUGGLEGA af thvi ad okkur VANTAR gogn.  */
+  const noSp = dcChance({ dcRow: D, startProb: null, fixtures: [1] });
+  ok("byrjunar-likur vantar -> `p` er null, EKKI hittnin sjalf", noSp.p === null);
+  ok("og per-byrjun talan stendur undir SINU eigin heiti", noSp.perStart === 0.5);
+
+  ok("markmadur -> ENGIN tala", dcChance({ dcRow: { ...D, position: 1 },
+    startProb: 0.9, fixtures: [1] }) === null);
+  ok("aud umferd -> ENGIN tala", dcChance({ dcRow: D, startProb: 0.9, fixtures: [] }) === null);
+  ok("0 byrjanir -> ENGIN tala", dcChance({ dcRow: { ...D, starts: 0 },
+    startProb: 0.9, fixtures: [1] }) === null);
+  ok("hittni vantar -> ENGIN tala (Number(null) er 0!)",
+    dcChance({ dcRow: { ...D, hit_rate_adj: null }, startProb: 0.9, fixtures: [1] }) === null);
+  ok("engin rod -> ENGIN tala", dcChance({ dcRow: null, startProb: 0.9, fixtures: [1] }) === null);
+
+  /* MOTHERJINN ER EKKI I FORMULUNNI OG ThAD ER MAELT VAL (CLAUDE.md 4):
+     DC-STIG hreyfast +0,007/threp CI [-0,032, +0,048]. Vordurinn er a
+     SIGNATURNNI — vaeri leikjathyngd tekin inn kaemi hun her.          */
+  const src = readFileSync(new URL("../src/model.js", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("export function dcChance"));
+  ok("`dcChance` tekur ENGA leikjathyngd inn",
+    !/ffdr|fixDifficulty|tierOf|difficulty/i.test(body.slice(0, body.indexOf("\n}"))),
+    "— +0,007 stig/threp CI [-0,032, +0,048]: ad thyngja hana vaeri omaeld tala");
 }
 
 console.log(`\nDC-HITTNI BIRTING: ${pass} stóðust, ${fail} féllu`);

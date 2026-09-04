@@ -108,7 +108,7 @@ async function sweep({ label, missing = new Set(), teams = false }) {
       catch (e) { problems.push(`${name}: KASTADI ${e.message.slice(0, 70)}`); continue; }
 
       const txt = document.body.textContent || "";
-      if (!/Next GW forecast|Compare|See team:/.test(txt)) problems.push(`${name}: spjald opnadist ekki`);
+      if (!/FPL's own ep_next|Compare|See team:/.test(txt)) problems.push(`${name}: spjald opnadist ekki`);
       else {
         opened++;
         /* `undefined`/`NaN` a skja er alltaf villa; `[object Object]` thydir

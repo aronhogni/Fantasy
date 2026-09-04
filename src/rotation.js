@@ -108,6 +108,11 @@ export function findRotationPartners({
   targets, candidates, gwFrom, horizon = DEFAULT_HORIZON, maxGw = 38,
   fixByTeamGw, fixDifficulty, ownedIds, limit = 10, maxTenths = null,
   hardFrom = HARD_TIER_MIN, byTeamOnly = true, startProbOf = null,
+  /* MAELDI GRUNNURINN, ADFLUTTUR EINS OG `startProbOf` (4.9.2026).
+     An hans reiknadi thessi skra vaent stig ur `ep_next` medan vollurinn
+     birti maelda grunninn — TVAER TOLUR UNDIR SAMA HEITI, sem er sama
+     villa og „tvaer nakvaemnir a sama kvarda eru tveir kvardar".      */
+  basisOf = null,
 }) {
   const gws = horizonGws(gwFrom, horizon, maxGw);
   const T = (targets || []).filter(t => t?.p);
@@ -131,7 +136,7 @@ export function findRotationPartners({
   const need = gws.map((gw, i) => {
     const per = tRows.map(t => ({
       id: t.p.id, name: t.p.web_name, cell: t.cells[i], need: needOf(t.cells[i], hardFrom),
-      ep: epOf(t.p, t.teamId, t.cells[i], fixDifficulty) * (pOf(t.p) ?? 1),
+      ep: epOf(t.p, t.teamId, t.cells[i], fixDifficulty, basisOf) * (pOf(t.p) ?? 1),
     }));
     return { gw, need: per.reduce((a, x) => a + x.need, 0), per };
   });
@@ -162,7 +167,7 @@ export function findRotationPartners({
     for (const n of hard) {
       const cell = gwCell({ teamId: c.teamId, pos: c.p.element_type, gw: n.gw,
                             fixByTeamGw, fixDifficulty });
-      const cEp = epOf(c.p, c.teamId, cell, fixDifficulty) * (cP ?? 1);
+      const cEp = epOf(c.p, c.teamId, cell, fixDifficulty, basisOf) * (cP ?? 1);
       /* skipt er út þeim VERSTA af völdu mönnunum sem er þungur í þessari
          umferð — það er stærsta framförin sem raunverulega er í boði.   */
       const hardHere = n.per.filter(x => x.need > 0);
@@ -225,9 +230,10 @@ export function findRotationPartners({
 }
 
 /* Vænt stig fyrir EINA umferð úr þegar-reiknaðri rútu (auð umferð = 0). */
-function epOf(p, teamId, cell, fixDifficulty) {
+function epOf(p, teamId, cell, fixDifficulty, basisOf = null) {
   if (!cell || cell.blank || !cell.fxs.length) return 0;
-  return expPointsFor({ p, fxs: cell.fxs, fixDifficulty, teamId });
+  return expPointsFor({ p, fxs: cell.fxs, fixDifficulty, teamId,
+                        basis: basisOf ? basisOf(p) : undefined });
 }
 
 /* ---- STÖÐU-REGLAN ----

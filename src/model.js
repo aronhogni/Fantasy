@@ -1145,12 +1145,112 @@ export function availForKickoff(p, kickoff, nowTs = Date.now()) {
   return Math.max(cur, RETURN_AVAIL[r.kind] ?? cur);
 }
 
-export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs }) {
+/* ============================================================
+   GRUNNURINN — MAELDUR 4.9.2026, `scripts/measure-base.mjs`
+   ============================================================
+   Notandinn: „eg vill lika gera projected points betri, thad er ekkert
+   ad marka thau."
+
+   `ep_next` ER EKKI SPA I NEINUM ThEIM SKILNINGI SEM HEITID GEFUR I
+   SKYN. Maelt a lifandi svari 26.8.2026: `ep_next === form` hja 94,2%
+   theirra sem hofdu spilad — thad er 30-daga medaltal. Sangare fekk
+   2,3 af thvi ad hann hafdi skorad litid, ekki af thvi ad leikurinn
+   vaeri erfidur; sa sem blankadi tvisvar er spadur naestum null og sa
+   sem hauladi einu sinni er spadur haerra en hann a skilid.
+
+   MAELT A 134.711 LEIKMANNA-UMFERDUM (5 timabil, blonk medtalin, GW1
+   utan thvi thar er engin innan-timabils saga). Hver frambjodandi fer
+   gegnum SOMU byggingu appsins (grunnur x FFDR-margfaldari), svo thad
+   er GRUNNURINN einn sem er borinn saman. Vidmidid er `ppg5` —
+   stadgengill `ep_next` i sogunni, thvi FPL-eigid `xP` er REIKNAD EFTIR
+   A og ma ekki vera vidmid (`tests/xp-contaminated.mjs`).
+
+     grunnur      r        MAE      topp-15
+     ppg5      0,4918   1,0756     4,293      <- thad sem appid gerdi
+     ppgAll    0,4961   1,0924     4,404
+     shrunk    0,5036   1,1366     4,535
+     shrunkMin 0,4975   1,0243     4,433      <- thetta
+
+   VALID ER A MAELIKVARDANUM SEM SPURNINGIN SNYST UM. `shrunk` (an
+   minutna) raðar best en er VERRI a MAE i ollum thremur bilum — og
+   MAE er nakvaemlega „er talan truverdug", sem var kaeran. `shrunkMin`
+   vinnur MAE alls stadar (d MAE -0,0513 CI [-0,0615, -0,0361],
+   utilokar null) og TAPAR HVERGI.
+
+   OG I GW1-5 — ThAR SEM SARSAUKINN ER — VINNUR HANN BADAR ATTIR:
+     d topp-15  +0,530  CI [+0,040, +0,976]   utilokar null
+     d MAE      -0,1191 CI [-0,1478, -0,0886] utilokar null
+   Astaedan er vélræn: eftir tvaer umferdir er `form` byggt a tveimur
+   tolum og sveiflast fra 0 upp i 10; skrumpad per-90 gildi med fyrra
+   timabil sem forgildi gerir thad ekki.
+
+   K = 3 ER MAELT, EKKI VALID: LOSO valdi 3 i fjorum timabilum af fimm
+   og ristin er FLOT (topp-15 4,449 · 4,461 · 4,504 · 4,489 · 4,484
+   fyrir K = 1 · 2 · 3 · 5 · 8). K = 0 er urkynjad (enginn nefnari
+   fyrstu umferdina).
+
+   FORGILDIN eru medalstig per rod i hverri stodu, maeld a somu 5
+   timabilum; LOSO-sveiflan er +-0,03, svo EIN tala per stodu er nog.
+   Their eru gefnir sem STIG PER 90 med thvi ad deila med 60/90 —
+   nakvaemlega sama umbreyting og maelingin notadi.
+
+   HVENAER ER HANN EKKI NOTADUR (og `ep_next` heldur ser):
+     · adur en timabilid byrjar (`seasonStarted !== true`) — tha bera
+       `minutes`/`total_points` tolur FYRRA timabils (sama gildra og
+       `season_baseline` klobburinn, sja CLAUDE.md 7.1), svo skrumpunin
+       vaeri reiknud ur rongum heimi. SKILYRDID BYR I `pointsBase`
+       SJALFRI, ekki i kallandanum — sja athugasemdina thar;
+     · thegar `mins5` vantar (nyr leikmadur, `player_form` ekki komin) —
+       „faar maelingar -> ENGIN tala", ekki agiskun.
+   Vordur: `tests/exp-points.mjs` kafli 6.
+   ============================================================ */
+export const BASE_K = 3;
+/* Medalstig per rod (blonk medtalin), 5 timabil, lyklad a element_type. */
+export const BASE_POS_PRIOR = { 1: 0.8481, 2: 1.1033, 3: 1.2342, 4: 1.2888 };
+
+export function pointsBase({ p, mins5, prevPts, prevMins, seasonStarted }) {
+  /* KLUKKAN ER HLUTI AF FORMULUNNI, EKKI AF KALLANDANUM. Fyrsta
+     utgafan gataði hana i App.jsx og vordurinn var TEXTALEIT — sem
+     stodst afram thegar skilyrdid var fjarlaegt, thvi `seasonStarted`
+     stod eftir i deps-fylkinu tveimur linum nedar. Fullyrding sem
+     stenst stokkbreytinguna sem hun heitir eftir er verri en engin
+     (CLAUDE.md kafli 13). Reglan byr thvi HER og er profud a hegdun. */
+  if (seasonStarted !== true) return null;
+  if (!p) return null;
+  /* `Number(null)` ER 0 OG ThAD ER EKKI VANTANDI TALA. Fyrsta utgafan
+     notadi `Number(...)` og hleypti `null`/`undefined`/"" i gegn sem
+     nulli — sama gildra og „NULL ER EKKI NULL" (CLAUDE.md kafli 8), her
+     i talnabreytunni sjalfri. Utkoman var ekki rong tala a skjanum
+     (grunnur 0 fellur hvort ed er a `ep_next`) en samningur fallsins
+     var rangur, og naesti kallandi hefdi treyst honum.               */
+  const num = v => (typeof v === "number" && Number.isFinite(v) ? v
+    : (typeof v === "string" && v.trim() !== "" && Number.isFinite(+v) ? +v : null));
+  const m5 = num(mins5);
+  if (m5 == null) return null;
+  const pts = num(p.total_points), mins = num(p.minutes);
+  if (pts == null || mins == null) return null;
+  const pos = p.element_type;
+  const pp = num(prevPts), pm = num(prevMins);
+  /* Forgildid er stig per 90 — ur fyrra timabili thegar thad er til,
+     annars stodu-medaltalid a sama kvarda (60/90 min, eins og maelt). */
+  const prior90 = pp != null && pm != null && pm > 0
+    ? pp / (pm / 90)
+    : (BASE_POS_PRIOR[pos] ?? 1.2) / (60 / 90);
+  const per90 = (pts + BASE_K * prior90) / (mins / 90 + BASE_K);
+  return per90 * (m5 / 90);
+}
+
+export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs, basis }) {
   if (!p || !fxs?.length) return 0;
   const pos = p.element_type;
   const ep = parseFloat(p.ep_next);
   const ppg = parseFloat(p.points_per_game || 0);
-  const base = Number.isFinite(ep) && ep > 0 ? ep : ppg;
+  /* MAELDI GRUNNURINN ThEGAR HANN ER HAEGT AD REIKNA, annars `ep_next`.
+     `basis` kemur fra kallandanum thvi `p` eitt ber hvorki `mins5` ne
+     fyrra timabil — og hann er SLEPPT (ekki 0) thegar hann vantar.   */
+  const measured = pointsBase({ p, ...basis });
+  const base = Number.isFinite(measured) && measured > 0 ? measured
+    : (Number.isFinite(ep) && ep > 0 ? ep : ppg);
   if (!base) return 0;
   const mean = POS_MEAN_PTS[pos] || 3.4;
   let mult = 0;
@@ -1164,6 +1264,61 @@ export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs }) {
     mult += (Number.isFinite(pts) ? pts / mean : 1) * av;
   }
   return base * mult;
+}
+
+/* ============================================================
+   LIKUR A DEFCON-STIGUM I VALINNI UMFERD (4.9.2026)
+   ============================================================
+   Notandinn: „eg vill baeta vid a player cardid hversu liklegt er ad
+   leikmadur fai DC stig a moti naesta andstaedingi i vikunni sem eg er
+   med valda."
+
+   TVENNT AF ThRENNU ER MAELT OG ThAD ThRIDJA ER MAELT AD VERA NULL:
+
+   1. HANS EIGIN HITTNI ER RAUNVERULEG OG ThRAUTSEIG. Split-half
+      areidanleiki DC-hittni er **0,7551** a moti **0,3263** fyrir stig —
+      **2,31x** (maelt 25.8.2026). Talan sem er notud er `hit_rate_adj`,
+      AFTURVIRKJUD (`(hits + 10*p0)/(starts + 10)`); hraa hlutfallid
+      ofmaelist a litlum synum og ma aldrei birtast eitt.
+
+   2. BYRJUN ER SKILYRDID. DC-throskuldurinn er onaanlegur a 15
+      minutum, svo hittnin er skilgreind PER BYRJUN — likurnar i
+      umferdinni eru thvi `hittni x byrjunar-likur`.
+
+   3. ANDSTAEDINGURINN HREYFIR ThETTA EKKI — OG ThAD ER MAELT, EKKI
+      SLEPPT. A 3.580 MID-byrjunum 2025/26 gefur hvert FFDR-threp
+      **+0,123 DC-adgerdir CI [0,032, 0,216]** — merkid er raunverulegt —
+      en STIGA-RASIN er lokud af throskuldinum: DefCon-stig hreyfast
+      **+0,007/threp CI [−0,032, +0,048]** og yfir allt threpasvidid er
+      rasin **0,03 stig, i besta falli 0,24** (CLAUDE.md kafli 4).
+      Ad thyngja toluna eftir motherja vaeri thvi OMAELD TALA SEM LITUR
+      UT EINS OG MAELING — versta utkoman. Skjarinn SEGIR thetta i stad
+      thess ad thegja, thvi thogn um lid sem vantar les eins og gleymska.
+
+   TVOFOLD UMFERD: spurningin er „faer hann DC-stig i thessari viku",
+   svo tveir leikir eru `1 - (1-p)^2`. Aud umferd -> engin tala.
+
+   MARKMENN FA ENGA TOLU: maelt 25.8.2026 a `player_gw_2526.json` —
+   757 leikja-umferdir, 750 byrjanir, **NULL DC-stig, hamark 0**.
+   ============================================================ */
+export function dcChance({ dcRow, startProb, fixtures }) {
+  if (!dcRow || dcRow.position === 1) return null;
+  const rate = dcRow.hit_rate_adj;
+  const starts = dcRow.starts;
+  if (!Number.isFinite(rate) || !Number.isFinite(starts) || starts <= 0) return null;
+  const n = Array.isArray(fixtures) ? fixtures.length : 0;
+  if (!n) return null;
+  const sp = Number.isFinite(startProb) ? startProb : null;
+  /* `startProb === null` ER EKKI 1. Ad margfalda med einum vaeri ad
+     fullyrda ad hann byrji orugglega — af thvi ad okkur VANTAR gogn.
+     Tha er per-byrjun talan birt undir SINU eigin heiti i stadinn
+     (`p === null`), sem er sama regla og „faar maelingar -> ENGIN tala". */
+  const per = sp == null ? null : rate * sp;
+  return {
+    perStart: 1 - (1 - rate) ** n,        // „ef hann byrjar alla leikina"
+    p: per == null ? null : 1 - (1 - per) ** n,
+    startProb: sp, rate, starts, n,
+  };
 }
 
 /* ---- RÖÐUNARSKOR FYRIR TILLÖGUR (mælt 29.7.2026) ----

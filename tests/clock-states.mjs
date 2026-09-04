@@ -1010,8 +1010,27 @@ console.log("─".repeat(84));
     const pros = J("pros.json");
 
     const ev = J("events.json");
-    ev.events[0] = { ...ev.events[0], finished: true, data_checked: true, is_current: true, is_next: false };
-    ev.events[1] = { ...ev.events[1], is_next: true };
+    /* ============================================================
+       HEIMURINN VERDUR AD VERA HEILL, EKKI BARA FYRSTU TVAER RADIRNAR
+       (leidrett 4.9.2026)
+       ============================================================
+       Adur var ADEINS `events[0]` og `events[1]` snert og afgangurinn
+       afritadur ur RAUNGOGNUM. Medan adeins GW1 var lokin i raun var
+       thad satt fyrir slysni; um leid og GW2 klaradist bar tilbuni
+       heimurinn `finished: true` a GW2 lika, svo `playedGwIds` skiladi
+       TVEIMUR umferdum medan `fixtures.json`, `live/` og `last_gw`
+       voru byggd fyrir EINA. Barnid krafdist tha GW2-skraa sem
+       heimurinn atti aldrei ad hafa og fell — a dagatalinu, ekki a
+       kodanum.
+       Sama aett og allt annad her: FOST FULLYRDING UM LIFANDI GOGN
+       URELDIST ThEGJANDI. Nu er hver umferd EFTIR theirri fyrstu
+       nullstillt, svo heimurinn er heill og dagatalid getur ekki
+       hreyft hann.                                                   */
+    ev.events = ev.events.map((e, i) => i === 0
+      ? { ...e, finished: true, finished_provisional: true, data_checked: true,
+          is_current: true, is_next: false, is_previous: false }
+      : { ...e, finished: false, finished_provisional: false, data_checked: false,
+          is_current: false, is_previous: false, is_next: i === 1 });
     W("events.json", ev);
     /* LEIKJASKRA VERDUR AD FYLGJA (25.8.2026). `gw1-checklist` les nu
        klukkuna ur `playedGwIds(events, fixtures)` i stad `e.finished` —

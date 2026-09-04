@@ -54,7 +54,7 @@ import { buildRecommendations, swapCandidates, sellTiming } from "./recommend.js
 import { bestTeamPlan, legalFormation, posKey, XI_SIZE } from "./bestteam.js";
 import { clamp, sellTenths, lookupPos,
   tierOf, TIER_BG, TIER_FG, TIER_NAME,
-  makeFixDifficulty, computeTransferCost, isInitialSquadPick, applyPlan, expPointsFor, priceMovePrediction,
+  makeFixDifficulty, computeTransferCost, isInitialSquadPick, applyPlan, expPointsFor, dcChance, priceMovePrediction,
   cleanSheetProb, rankScore, eloStale, parseEntryId, rarelyStarted, priceFloors,
   intlBreaks, euroWeeks, euroTeams, compLabel } from "./model.js";
 
@@ -480,6 +480,14 @@ export default function App() {
   const [entryId, setEntryId] = useState(null);
   const [urlInput, setUrlInput] = useState("");
   const [squadOverride, setSquadOverride] = useState(null); // raunlið úr FPL-slóð
+  /* OPINBERA MYNDIN — TEKIN VID SOKN, EKKI LEIDD EFTIR A (4.9.2026).
+     `squadOverride` ber hopinn OG rodina (`position <= 11`) og er ADEINS
+     skrifud af sokninni, svo hun er opinbera uppstillingin sjalf. Fyrirlidi
+     og varafyrirlidi eru hins vegar SETTIR i `captain`/`vice`, sem notandinn
+     breytir sidan — svo opinbera talan er horfin um leid og hann smellir.
+     Hun er thvi geymd her ADSKILIN. Umferdin fylgir med: „opinbert" an thess
+     ad segja FYRIR HVADA UMFERD er fullyrding sem eldist thegjandi.       */
+  const [official, setOfficial] = useState(null); // {gw, cap, vice} | null
   /* STADA TENGINGARINNAR. Adur var flash("Tengt lid X") sent SAMSTUNDIS —
      ADUR en nokkud var sannreynt — og ef soknin brast var thad ThOGULT
      (`catch { setTotalPts(null) }`). Notandinn sa thvi "tengt" og svo
@@ -858,7 +866,7 @@ export default function App() {
   useEffect(() => {
     /* `apiBank` VAR EKKI NULLSTILLTUR vid aftengingu, svo gamall FPL-banki
        hélt afram ad yfirskrifa aaetlada bankann eftir ad tengingin for.   */
-    if (!PROXY_URL || !entryId) { setTotalPts(null); setGwPts(null); setSquadOverride(null); setApiHit(null); setApiBank(null); return; }
+    if (!PROXY_URL || !entryId) { setTotalPts(null); setGwPts(null); setSquadOverride(null); setOfficial(null); setApiHit(null); setApiBank(null); return; }
     /* KAPPHLAUPS-VORD — systur-effectarnir (live, gwStats, rivals) hafa thad
        allir, thessi ekki. An thess getur SEINT svar fra fyrri umferd lent
        EFTIR svari nyju umferdarinnar og yfirskrifad `squadOverride`,
@@ -955,6 +963,7 @@ export default function App() {
           const v = d.picks.find(p => p.is_vice_captain);
           if (c) setCaptain(c.element);
           if (v) setVice(v.element);
+          setOfficial({ gw: picksGw, cap: c?.element ?? null, vice: v?.element ?? null });
           /* STADFESTING A ThVI SEM SKIPTIR: lidid UPPFAERDIST. */
           setConn(cc => ({ ...cc, state:"picks", picks:true,
             msg: interp("Connected ✓ — {0} players fetched from FPL for gameweek {1}.", [d.picks.length, picksGw]) }));
@@ -1070,6 +1079,36 @@ export default function App() {
      `events.some(e => e.finished)` og svaradi ODRU en PlayerList a lifandi
      gognum 24.8.2026; sja maelinguna vid `seasonHasStarted`.             */
   const seasonStarted = seasonHasStarted(events);
+  /* HANN STENDUR HER OG ThAD ER EKKI SMEKKSATRIDI: `const` i falli er i
+     TEMPORAL DEAD ZONE thangad til lina hans keyrir, og `expPoints`
+     (fall-yfirlysing, hoistud) er kolluð UR useMemo-um SEM LIGGJA OFAR.
+     Fyrsta utgafan setti hann vid hlidina a `expPoints` og appid
+     HRUNDI I HEILU LAGI — „Cannot access 'basisFor' before
+     initialization", hvitur skjar i ollum 21 atburdarasum
+     `data-resilience.mjs`. Sa vordur er „eina sem ser hvitan skja" og
+     hann tok thetta i FYRSTU heilu keyrslu.                          */
+  /* ============================================================
+     GRUNNURINN ER MAELDUR ThEGAR HANN ER HAEGT AD REIKNA (4.9.2026)
+     ============================================================
+     `model.js:pointsBase` ber formuluna og maelinguna; her er ADEINS
+     tenging vid tvaer skrar sem appid les thegar. HVORUG er ny sokn:
+       · `player_form.json` -> `mins5` (vaentar minutur)
+       · `player_seasons.json` -> fyrra timabil, LYKLAD A `code` sem er
+         fast a leikmanni (FPL endurnytir `id` milli timabila)
+     `on` er SAMEIGINLEGA KLUKKAN, ekki ny: adur en timabilid byrjar bera
+     `minutes`/`total_points` tolur FYRRA timabils, svo skrumpunin vaeri
+     reiknud ur rongum heimi. Sami klobbur og `season_baseline` bar.  */
+  const prevSeasonKey = seasonsFile?.seasons?.[0] || null;
+  const basisFor = useCallback(p => {
+    if (!p) return null;
+    const prev = prevSeasonKey
+      ? seasonsFile?.players?.[String(p.code)]?.[prevSeasonKey] : null;
+    /* ENGIN SIA HER — `pointsBase` skilar `null` sjalf thegar klukkan er
+       ekki komin eda `mins5` vantar. Tvo skilyrdi a tveimur stodum eru
+       tvo skilyrdi sem geta rekid i sundur.                          */
+    return { seasonStarted, mins5: playerForm?.players?.[p.id]?.mins5,
+             prevPts: prev?.total_points, prevMins: prev?.minutes };
+  }, [seasonStarted, playerForm, seasonsFile, prevSeasonKey]);
   /* HVE MARGAR UMFERDIR ERU BYRJADAR — SAMA KLUKKA, EKKI NY. `seasonStarted`
      er `startedGameweeks(...) > 0`, svo talan sjalf er thegar til i
      `availability.js` og er flutt inn her. Ny talning (`e.finished`,
@@ -2121,7 +2160,25 @@ export default function App() {
      Hvað er plönuð í umferð: skipti, bekkjar-breytingar, chip.
      Tveggja-skrefa staðfesting því þetta er óafturkræft.                */
   function gwPlanned(g) {
-    const tr = plan.filter(t => t.gw === g).length;
+    /* ============================================================
+       UPPHAFSLIDID ER EKKI "SKIPTI" — OG HNAPPURINN EYDDI ThVI
+       (4.9.2026)
+
+       `tr` taldi ALLAR aaetlunar-radir umferdarinnar, svo i GW1 — thar
+       sem radirnar ERU hopurinn — sagdi hnappurinn "Clear 3 transfers"
+       og `resetGw` henti theim. MAELT i jsdom fyrir lagfaeringu: 3
+       GW1-radir -> 0, medan vollurinn syndi afram 15 spjold thvi hann
+       fellur a `START_SQUAD`. Notandinn hefdi thvi sed sitt lid hverfa
+       ThEGJANDI og fengid sjalfgefid lid sem hann valdi aldrei.
+
+       ThETTA ER FIMMTA ANDLIT SOMU VILLU (kostnadurinn, aaetlunar-listinn,
+       graeni ramminn, "reset all planning" — og nu thessi hnappur), og
+       hun er leyst med SAMA predikati og hin fjogur: `isInitialSquadPick`.
+       `resetAll` var lagfaert 20.8.2026; lagfaeringin barst aldrei hingad.
+       ============================================================ */
+    const rows = plan.filter(t => t.gw === g);
+    const tr = rows.filter(t => !isInitialSquadPick(t)).length;
+    const init = rows.length - tr;
     /* `bs` ER BOOLEAN, EKKI TALA (20.8.2026). Adur var thad
        `benchSwaps[g].length` og textinn sagdi „3 bench changes". Eftir ad
        listinn vard FULLUR MISMUNUR FRA GRUNNINUM (sja `squadForGw`) berr
@@ -2132,14 +2189,37 @@ export default function App() {
     const bs = Array.isArray(benchSwaps[g]) && benchSwaps[g].length > 0;
     const chKey = Object.keys(chips).find(k => chips[k] === g);
     const ch = chKey ? (CHIPS[chipSlots.find(x => x.key === chKey)?.name]?.short || "chip") : null;
-    return { tr, bs, ch, any: tr > 0 || bs || !!ch };
+    return { tr, init, bs, ch, any: tr > 0 || bs || !!ch };
   }
+  /* Aaetlunar-radir umferdarinnar sem MA hreinsa: upphafslidid aldrei. */
+  const clearableIn = g => (pl => pl.filter(t => t.gw !== g || isInitialSquadPick(t)));
   function resetGw(g) {
-    setPlan(pl => pl.filter(t => t.gw !== g));
+    setPlan(clearableIn(g));
     setBenchSwaps(bs => { const n = { ...bs }; delete n[g]; return n; });
     setChips(c => { const n = { ...c }; for (const k of Object.keys(n)) if (n[k] === g) delete n[k]; return n; });
     setSwapSel(null); setSelling(null); setConfirmReset(null);
-    flash(interp("GW{0} reset — original squad restored.", [g]));
+    /* ORDALAGID VAR "original squad restored" OG ThAD VAR VILLANDI: i GW1
+       skiladi thad SJALFGEFNU lidi, ekki hans. Nu segir thad hvad var
+       hreinsad og hvad stendur eftir.                                  */
+    flash(interp("GW{0} cleared — your starting squad is untouched.", [g]));
+  }
+  /* ============================================================
+     SKIPTIN EIN — BEIDNI NOTANDANS 4.9.2026
+     ============================================================
+     "Svo eg geti verid buinn ad gera breytingar og testad og svo haett
+     vid og byrjad upp a nytt bara a theirri gameweek."
+
+     `resetGw` hreinsar ALLT umferdarinnar — skipti, uppstillingu OG chip.
+     Ad prufa skipti og henda theim atti thvi ad kosta uppstillinguna
+     lika. Thessi hnappur snertir ADEINS `plan` og skilur bekkjar-rodina,
+     fyrirlidann og chip-id eftir.
+     UPPHAFSLIDID ER VARID MED SAMA PREDIKATI — annars vaeri hann sama
+     eydingarskipun og hnappurinn vid hlidina var.
+     ============================================================ */
+  function resetGwTransfers(g) {
+    setPlan(clearableIn(g));
+    setSwapSel(null); setSelling(null); setConfirmReset(null);
+    flash(interp("GW{0} transfers cleared — line-up and chip kept.", [g]));
   }
   /* ============================================================
      „reset all planning" EYDDI LIDINU HANS (20.8.2026)
@@ -2187,6 +2267,41 @@ export default function App() {
     setBenchSwaps({}); setChips({});
     setSwapSel(null); setSelling(null); setConfirmReset(null);
     flash("Transfer planning reset — your starting squad is untouched.");
+  }
+
+  /* ============================================================
+     „AFTUR I LIDID EINS OG FPL STADFESTIR ThAD" (4.9.2026)
+     ============================================================
+     Beidni notandans: „eg vill sem sagt getad resetad a standard lidid
+     eins og thad er stadfest fra official sidunni."
+
+     ThETTA ER EKKI SAMI HNAPPUR OG `resetAll`, OG MUNURINN ER MAELDUR
+     A EINU SVIDI: FYRIRLIDANUM. `resetAll` hreinsar plonun en snertir
+     hvorki `captain` ne `vice`, svo eftir hann situr fyrirlidi sem
+     notandinn valdi sjalfur ofan a opinberum hopi — mynd sem er
+     hvorki hans plonun ne opinbera lidid. `squadOverride` (hopurinn OG
+     rodin) er ADEINS skrifud af sokninni og er thvi opinber i sjalfu
+     ser; thad sem vantadi var opinberi fyrirlidinn, sem `official`
+     geymir nu.
+
+     UPPHAFSLIDS-RADIRNAR (GW1) FARA EKKI — sama regla og `resetAll`
+     og `adoptFplSquad` standa a: thaer eru hopurinn hans EF hann
+     aftengist, svo rod sem vid eydum i dag er saeti sem hann a ekki a
+     morgun. Medan tengt er hunsar vollurinn thaer hvort ed er
+     (`applyPlan`, `official`), svo ad halda theim breytir ENGU um
+     thad sem hann ser — og bjargar honum vid aftengingu.
+
+     HNAPPURINN BIRTIST ADEINS ThEGAR OPINBERT LID ER TIL. An tengingar
+     er ekkert „official" ad fara i, og hnappur sem lofar thvi vaeri
+     fullyrding sem vid getum ekki stadid vid.                         */
+  function resetToOfficial() {
+    setPlan(p => p.filter(isInitialSquadPick));
+    setBenchSwaps({}); setChips({});
+    if (official?.cap != null) setCaptain(official.cap);
+    if (official?.vice != null) setVice(official.vice);
+    setSwapSel(null); setSelling(null); setConfirmReset(null);
+    flash(interp("Back to the squad, line-up and captain FPL has for gameweek {0}.",
+                 [official?.gw ?? gw]));
   }
 
   /* ============================================================
@@ -2739,7 +2854,7 @@ export default function App() {
     const p = byId[pid];
     if (!p) return 0;
     return expPointsFor({ p, fxs: fixByTeamGw[p.team]?.[g] || [],
-      fixDifficulty, teamId: p.team });
+      fixDifficulty, teamId: p.team, basis: basisFor(p) });
   }
   // Nettó ávinningur skipta: vænt stig inn − út yfir sjóndeildarhring, mínus
   // refsing. FH-skipti gilda AÐEINS í sinni umferð — ávinningurinn líka.
@@ -3041,6 +3156,72 @@ export default function App() {
                 </span>
               )}
             </span>
+            {/* ============================================================
+                AFTUR I OPINBERA LIDID — TALID, EKKI FULLYRT (4.9.2026)
+                ============================================================
+                Hnappurinn birtist ADEINS thegar (a) opinbert lid er
+                tengt og (b) eitthvad er raunverulega frabrugdid thvi.
+                Baedi skilyrdin eru sama regla: hnappur sem gerir
+                ekkert er fullyrding um breytingu sem verdur ekki.
+                HANN LIGGUR I TENGINGAR-RODINNI, VID HLIDINA A
+                „Disconnect", OG ThAD ER MAELT VAL. Fyrsta utgafan sat i
+                plonunar-spjaldinu — sem er gatad a `planMoves.length > 0`
+                — svo hann var OSYNILEGUR thegar frabrigdid var uppstilling
+                eda chip AN skipta, og skilyrdid „ekkert frabrugdid" var
+                OSNERTANLEGT (spjaldid sjalft hverfur tha). Vordurinn gat
+                thvi hvorki fallid ne fundid gatid: fullyrding sem stenst
+                af thvi ad astandid er ONAANLEGT er tom fullyrding
+                (CLAUDE.md 5b). I hausnum er hann synilegur a ollum
+                flipum, sem er lika retta umfangid — hann snyst um LIDID,
+                ekki um plonunar-listann.
+                TALNINGIN ER SUNDURLIDUD thvi fyrirlidinn er einmitt
+                thad sem `resetAll` skilur eftir — vaeri hann talinn
+                med hinu gaeti notandinn ekki sed af hverju thessi
+                hnappur er annar hnappur.                            */}
+            {(() => {
+              /* EITT SKILYRDI, EKKI TVO: `official` og `squadOverride` eru
+                 skrifud i SOMU lotu i sokninni, svo `!squadOverride` gaeti
+                 aldrei fallid sjalfstaett — og skilyrdi sem getur ekki
+                 fallid er ekki vordur heldur skraut. Vid lesum `official`,
+                 svo hun er sa sem er profadur.                            */
+              if (!official) return null;
+              const capOff = official.cap != null && captain !== official.cap;
+              const vcOff = official.vice != null && vice !== official.vice;
+              const bits = [
+                planMoves.length ? interp(planMoves.length === 1
+                  ? "{0} transfer" : "{0} transfers", [planMoves.length]) : null,
+                Object.keys(benchSwaps).length ? interp(Object.keys(benchSwaps).length === 1
+                  ? "{0} gameweek with its own line-up"
+                  : "{0} gameweeks with their own line-up",
+                  [Object.keys(benchSwaps).length]) : null,
+                Object.keys(chips).length ? interp(Object.keys(chips).length === 1
+                  ? "{0} chip" : "{0} chips", [Object.keys(chips).length]) : null,
+                capOff || vcOff ? (capOff && vcOff ? "your captain and vice"
+                  : capOff ? "your captain" : "your vice-captain") : null,
+              ].filter(Boolean);
+              if (!bits.length) return null;
+              return confirmReset === "official" ? (
+                <span style={S.resetConfirm}>
+                  {interp("Drop {0} and go back to the squad FPL confirmed for GW{1}?",
+                          [bits.join(", "), official.gw])}
+                  <button style={S.resetYes} onClick={resetToOfficial}>
+                    {"yes, use my FPL team"}</button>
+                  <button style={S.resetNo} onClick={() => setConfirmReset(null)}>{"no"}</button>
+                </span>
+              ) : (
+                /* SAMA STILL OG NAGRANNINN („Disconnect"), EKKI
+                   `S.resetBtn` — sa er 9,5 px og aetladur i plonunar-
+                   spjaldid; i hausnum sat hann sem minni, ljosari hnappur
+                   vid hlidina a jafn-mikilvaegum og las eins og nedanmals. */
+                <button style={S.discBtnSm} onClick={() => setConfirmReset("official")}
+                  title={interp("Put everything back to the team FPL has for gameweek {0}"
+                    + " — its squad, its line-up and its captain. Clears {1}."
+                    + " Your GW1 starting squad is kept, so the pitch still knows your"
+                    + " own team if you disconnect later.", [official.gw, bits.join(", ")])}>
+                  {"↺ my FPL team"}
+                </button>
+              );
+            })()}
             {entryId && (
               <button style={S.discBtnSm} onClick={disconnectFpl}
                 title={"Unlink this FPL team. Your squad, transfer planning, line-ups, chips and captain are NOT touched — but the pitch goes back to your own saved squad, which may differ from the FPL one."}>
@@ -3245,21 +3426,45 @@ export default function App() {
             const pl = gwPlanned(gw);
             if (!pl.any) return null;
             const what = [
-              pl.tr ? interp("{0} transfers", [pl.tr]) : null,
+              pl.tr ? interp(pl.tr === 1 ? "{0} transfer" : "{0} transfers", [pl.tr]) : null,
               pl.bs ? "its own line-up" : null,
               pl.ch,
             ].filter(Boolean).join(" · ");
+            /* TVEIR HNAPPAR, TVAER SPURNINGAR (4.9.2026). Beidni
+               notandans var ad geta prufad SKIPTI og hent theim an thess
+               ad missa uppstillinguna sem hann var buinn ad raða. Sa
+               vidari hnappur stendur obreyttur vid hlidina.
+               HVORUGUR SNERTIR UPPHAFSLIDID — sja `clearableIn`.       */
             return confirmReset === "gw" ? (
               <span style={S.resetConfirm}>
                 {"Clear"} {what}?
                 <button style={S.resetYes} onClick={() => resetGw(gw)}>{"yes"}</button>
                 <button style={S.resetNo} onClick={() => setConfirmReset(null)}>{"no"}</button>
               </span>
+            ) : confirmReset === "gwTr" ? (
+              <span style={S.resetConfirm}>
+                {interp(pl.tr === 1 ? "Clear {0} transfer in GW{1}?"
+                                    : "Clear {0} transfers in GW{1}?", [pl.tr, gw])}
+                <button style={S.resetYes} onClick={() => resetGwTransfers(gw)}>{"yes"}</button>
+                <button style={S.resetNo} onClick={() => setConfirmReset(null)}>{"no"}</button>
+              </span>
             ) : (
-              <button style={S.resetBtn} onClick={() => setConfirmReset("gw")}
-                title={interp("Clear all planning in GW{0}: {1}", [gw, what])}>
-                {"↺ reset GW"}{gw}
-              </button>
+              <>
+                {pl.tr > 0 && (
+                  <button style={S.resetBtn} onClick={() => setConfirmReset("gwTr")}
+                    title={interp((pl.tr === 1
+                        ? "Clear ONLY the {0} planned transfer in GW{1}."
+                        : "Clear ONLY the {0} planned transfers in GW{1}.")
+                      + " Your line-up, captain and chip for that gameweek stay as they are"
+                      + " — and your starting squad is never touched.", [pl.tr, gw])}>
+                    {"↺ transfers"}
+                  </button>
+                )}
+                <button style={S.resetBtn} onClick={() => setConfirmReset("gw")}
+                  title={interp("Clear all planning in GW{0}: {1}. Your starting squad is never touched.", [gw, what])}>
+                  {"↺ reset GW"}{gw}
+                </button>
+              </>
             );
           })()}
           {(() => {
@@ -4355,17 +4560,22 @@ export default function App() {
                         {d.capId != null && <> {"· captain"} <b>{byId[d.capId]?.web_name ?? "?"}</b>
                           {d.capId === captain ? " (same as yours)" : ""}</>}
                       </div>
+                      {/* HEITID SEGIR HVADAN TALAN KEMUR (4.9.2026).
+                          Adur stod bert „ep 9.0". Fra og med maelda
+                          grunninum er ThAD EKKI SAMA TALA og spjaldid
+                          synir, svo bert „ep" vaeri tvaer tolur undir
+                          einu heiti — og su litla er FPL-s, ekki okkar. */}
                       {theirs.length > 0 && <div style={S.rivalDiff}>
                         <span style={S.rivalDiffLbl}>{"their differentials"}</span>
                         {theirs.slice(0, 3).map(p => <span key={p.id} style={S.rivalChip}
-                          title={`ep ${p.ep_next} · ${teamById[p.team]?.short}`}
+                          title={`FPL ep_next ${p.ep_next} · ${teamById[p.team]?.short}`}
                           onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>)}
                         {theirs.length > 3 && <span style={S.muted}>+{theirs.length - 3}</span>}
                       </div>}
                       {mine.length > 0 && <div style={S.rivalDiff}>
                         <span style={{ ...S.rivalDiffLbl, color:C.green }}>{"your differentials"}</span>
                         {mine.slice(0, 3).map(p => <span key={p.id} style={{ ...S.rivalChip, background:C.greenBg, color:"#0a7a4a" }}
-                          title={`ep ${p.ep_next} · ${teamById[p.team]?.short}`}
+                          title={`FPL ep_next ${p.ep_next} · ${teamById[p.team]?.short}`}
                           onClick={() => setDetail({ kind:"player", id:p.id })}>{p.web_name}</span>)}
                         {mine.length > 3 && <span style={S.muted}>+{mine.length - 3}</span>}
                       </div>}
@@ -4663,6 +4873,22 @@ export default function App() {
            liti ut eins og maeling (sama regla og mo/ao i skiptaglugganum). */
         const dcp = isPlayer && p.element_type !== 1 && defcon?.players?.length
           ? defcon.players.find(x => x.fpl_id === p.id) : null;
+        /* LIKUR A DC-STIGUM I VALINNI UMFERD (4.9.2026, beidni notandans).
+           Reglan og maelingarnar eru i `model.js:dcChance`; her er ADEINS
+           tengingin — leikir theirrar umferdar og byrjunar-likurnar sem
+           appid reiknar thegar (`startPOf`). `position` er sent med thvi
+           `defcon.json` ber hana og fallid a ad geta neitad markmanni an
+           thess ad thekkja FPL-snidid.                                  */
+        const dcGw = isPlayer ? dcChance({
+          dcRow: dcp ? { ...dcp, position: p.element_type } : null,
+          startProb: startPOf(p),
+          /* LEIKIR ThESSARAR UMFERDAR EINNAR. `nextGwFixtures` skilar
+             ThREMUR umferdum (thad er hvad `fxNext3` heitir eftir) og
+             fyrsta utgafan notadi hana — spjaldid sagdi tha „DC points
+             GW3 · 70% · 3 matches", sem er svar vid ALLT ANNARRI
+             spurningu en merkimidinn ber. Fannst a skjanum, ekki i
+             kodanum: talan var truverdug og RONG.                     */
+          fixtures: fixByTeamGw[p.team]?.[gw] || [] }) : null;
         const tm = teamMetrics[t.id] || {};
         const e = eloByTeam[t.id], dcv = dcOpp[t.id];
         return (
@@ -4748,7 +4974,16 @@ export default function App() {
 
                   {/* ep og vitarod eiga heima her, ekki i timabila-toflunni */}
                   <div style={S.dGrid}>
-                    <DStat k={"Next GW forecast (ep)"} v={p.ep_next} />
+                    {/* HEITID SEGIR HVERS TALAN ER (4.9.2026). Adur stod
+                        „Next GW forecast (ep)" — sem las eins og SPA APPSINS
+                        thott hun se FPL-s eigin `ep_next`, og fra og med
+                        maelda grunninum (`pointsBase`) er hun EKKI sama tala
+                        og spjaldid synir. Tvaer spar undir einu heiti er sama
+                        villa og „ep 9.0" a andstaedinga-flisunum.        */}
+                    <DStat k={"FPL's own ep_next"} v={p.ep_next}
+                      title={"FPL's own expected-points field, shown raw. Early in a "
+                        + "season it is simply his average so far, which is why this "
+                        + "app now computes its own base for the projection on the pitch."} />
                     {/* ============================================================
                         „St%" UR EINUM LEIK ER EKKI MAELING — HLIDID VANTADI
                         A ThENNAN KALLSTAD (25.8.2026, kaera notandans)
@@ -4779,6 +5014,37 @@ export default function App() {
                     {dcp && dcp.starts > 0 && dcp.hit_rate_adj != null &&
                       <DStat k={"DC hit rate"} v={`${Math.round(dcp.hit_rate_adj * 100)}%`}
                         sub={interp("{0} starts · raw {1}%", [dcp.starts, Math.round(dcp.hit_rate * 100)])} />}
+                    {/* SAMA TALA, ONNUR SPURNING: hittnin ad ofan er „per
+                        byrjun, yfir hofud"; thessi er „i UMFERDINNI sem er
+                        valin". Baðar bera merkimida um hvor er hvor —
+                        annars vaeru tvaer prosentur hlid vid hlid an thess
+                        ad segja hvad skilur thaer ad.                    */}
+                    {dcGw && (dcGw.p != null || dcGw.perStart != null) &&
+                      <DStat k={interp("DC points GW{0}", [gw])}
+                        v={dcGw.p != null ? `${Math.round(dcGw.p * 100)}%`
+                                          : `${Math.round(dcGw.perStart * 100)}%`}
+                        /* `n` FYLGIR ALLTAF MED. `defcon.json` segir thad
+                           sjalf um `hit_rate_adj`: „USE THAT ONE for display,
+                           always with starts beside it". Eftir tvaer umferdir
+                           er hun skrumpud nanast alveg ad stodu-medaltalinu
+                           (allir liggja a 29-35%), og AN `n` laesi thad eins
+                           og maeling a manninum i stad forgildis a stodunni. */
+                        sub={dcGw.p != null
+                          ? interp("{0}% per start ({1}) × {2}% to start{3}",
+                              [Math.round(dcGw.rate * 100), dcGw.starts,
+                               Math.round(dcGw.startProb * 100),
+                               dcGw.n > 1 ? interp(" · {0} matches", [dcGw.n]) : ""])
+                          : interp("if he starts · {0} starts of data", [dcGw.starts])}
+                        title={interp("Chance he reaches the defensive-contribution threshold "
+                          + "at least once in gameweek {0}. It is his own shrunk hit rate "
+                          + "({1}% over {2} starts) combined with his chance of starting"
+                          + "{3}. The OPPONENT is deliberately not in it: harder fixtures do "
+                          + "give more defensive actions (+0.123 per tier, CI [0.032, 0.216]) "
+                          + "but the points barely move (+0.007 per tier, CI [-0.032, +0.048]) "
+                          + "because the threshold is rarely crossed either way — weighting "
+                          + "this by opponent would be an unmeasured number that looks measured.",
+                          [gw, Math.round(dcGw.rate * 100), dcGw.starts,
+                           dcGw.n > 1 ? interp(", across the {0} matches his club plays that week", [dcGw.n]) : ""])} />}
                     {sp && <DStat k={"Penalty order"} v={sp.pen ?? "—"} sub={sp.isPenTaker ? "first taker" : ""} />}
                     {sp?.ck != null && <DStat k={"Corners/FK"} v={sp.ck} />}
                     {sp?.fk != null && <DStat k={"Free kicks"} v={sp.fk} />}
@@ -5311,7 +5577,7 @@ export default function App() {
       {!!rotIds.length && (
         <Rotation targetIds={rotIds} players={players} teamById={teamById}
           fixByTeamGw={fixByTeamGw} fixDifficulty={fixDifficulty}
-          startProbOf={startPOf}
+          startProbOf={startPOf} basisOf={basisFor}
           gwNow={gw} maxGw={maxGw} squadIds={squadIds} Crest={Crest}
           onToggleTarget={id => setRotIds(v => v.includes(id)
             ? (v.length > 1 ? v.filter(x => x !== id) : v)
@@ -5810,16 +6076,25 @@ function PlayerCard({ s, p, team, teamById, fx, bench, captain, vice, csFor,
             vid byrjunar-likur var MAELT OG HAFNAD 20.8.2026 (CLAUDE.md 4),
             svo notan lofadi lid sem er viljandi ekki i tolunni.
 
-            OG GRUNNURINN ER FPL-S EIGIN TALA: maelt 31.8.2026 a lifandi
-            `players.json` er `ep_next` NAKVAEMLEGA jafnt `form` hja
-            94,2% theirra sem hafa spilad og `points_per_game` hja 71,7%.
-            Eftir tvaer umferdir er thad tveggja-leikja medaltal — Sangare
-            fekk 18 stig i tveimur byrjunum, svo FPL setur hann i 9,0 og
-            okkar margfaldari faerir hann i ~10.
-            NOTAN NEFNIR ENGA PROSENTU: hun myndi urelda st thegar FPL
-            skiptir yfir i eigid likan. Hun segir MEKANISMANN, sem stendur.
+            OG GRUNNURINN VAR FPL-S EIGIN TALA — ThAD BREYTTIST 4.9.2026.
+            Maelt 31.8.2026 a lifandi `players.json`: `ep_next` er
+            NAKVAEMLEGA jafnt `form` hja 94,2% theirra sem hafa spilad.
+            Eftir tvaer umferdir var thad tveggja-leikja medaltal, svo
+            Sangare fekk 9,0 og okkar margfaldari faerdi hann i ~10.
+            NU BER APPID SINN EIGIN GRUNN (`pointsBase` i model.js):
+            skrumpud stig per 90 (K = 3, fyrra timabil sem forgildi)
+            sinnum vaentar minutur. MAELT A 134.711 LEIKMANNA-UMFERDUM;
+            i GW1-5 vinnur hann BADAR attir — topp-15 +0,530 CI
+            [+0,040, +0,976] og MAE -0,1191 CI [-0,1478, -0,0886].
+            `ep_next` er afram VARALEIDIN thegar grunninn vantar.
+            MINUTURNAR ERU I GRUNNINUM, EKKI I MARGFALDARANUM: margfeldi
+            vid BYRJUNAR-LIKUR var maelt og hafnad 20.8.2026 (CLAUDE.md 4)
+            og thad er ONNUR staerd — vaentar minutur eru maelt medaltal
+            ur fortidinni, byrjunar-likur eru spa um naesta leik.
+            NOTAN NEFNIR ENGA PROSENTU af `ep_next`: hun myndi urelda st
+            thegar FPL skiptir yfir i eigid likan.
             ============================================================ */}
-        <span style={S.pEp} title={"Expected points for this gameweek. The LEVEL is FPL's own ep_next (their expected-points field, which early in a season is simply his average so far - so a player with two big returns reads high). What this app adds is the FIXTURE: that base is multiplied by the measured points-per-tier figure for his position at this fixture's FFDR, and by availability. Minutes are NOT in it - multiplying by start probability was measured and rejected, because the FPL bench does that job for free."}>
+        <span style={S.pEp} title={"Expected points for this gameweek. The LEVEL is his own measured base: points per 90 so far this season, shrunk towards last season's rate (so two big games do not read as a projection), multiplied by his recent minutes. What this app adds on top is the FIXTURE: that base is multiplied by the measured points-per-tier figure for his position at this fixture's FFDR, and by availability. Before the season starts, or when his minutes history is missing, FPL's own ep_next is used instead. Start probability is NOT a multiplier here - that was measured and rejected, because the FPL bench does that job for free."}>
           {ep == null ? "—" : `≈${ep.toFixed(1)}`}
         </span>
         {isDef && csObj?.cs != null && (
