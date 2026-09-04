@@ -2909,13 +2909,28 @@ console.log("\n16) umferdar-bils-bordinn — rokfraedi og orðalag");
      Vordurinn var rett HUGSADUR (hann atti ad slokkna thegar verd
      losna) en merkimidinn fylgdi ekki, svo hann las eins og thekja.
      Nu eru BADAR greinar profadar og skilabodin nefna HVOR er virk. */
+  /* ThRJU ASTOND, EKKI TVO — ThRIDJA FANNST 4.9.2026.
+     Tvihlida utgafan hér a undan gerdi rad fyrir „frosid" eda „losnad",
+     en FPL a ThRIDJA astandid: svidid ER their og talan er raunveruleg,
+     en `price_change_calibrating` er `true` — tha SEGIR FPL sjalft ad
+     talan se ekki tilbuin og appid birtir hana rettilega ekki.
+     MAELT: eftir GW3-frestinn bera **allir 652** `calibrating: true`
+     medan 488 bera tolu, svo safnid fell a RETTRI hegdun.
+     Sama aett og `/\b5\d\d\b/` fyrr i dag: fullyrding sem er sonn um
+     ASTAND lifandi gagna ureldist thegar astandid skiptir. Fullyrdingin
+     er nu um REGLUNA og hun nefnir hvor greinin er virk.             */
   const vals = rows.map(p => d.get(p)).filter(v => v != null);
+  const live = has.filter(p => !p.price_change_calibrating);
   if (has.length === 0) {
     ok(vals.length === 0,
        `verd eru FRYST: ekkert ber svidid, svo dalkurinn er tomur (${vals.length})`);
+  } else if (live.length === 0) {
+    ok(vals.length === 0,
+       `FPL SEGIR AD TALAN SE I KVORDUN (${has.length} bera svidid, 0 utan kvordunar) `
+       + `— dalkurinn a ad vera tomur og er thad (${vals.length})`);
   } else {
     ok(vals.length > 0,
-       `verd eru LOSNUD: ${has.length} bera svidid og ${vals.length} tolur eru a skjanum`);
+       `verd eru LOSNUD: ${live.length} utan kvordunar og ${vals.length} tolur a skjanum`);
   }
 }
 

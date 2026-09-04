@@ -33,7 +33,7 @@
    naerri frestinum; daglega keyrslan kl. 05 UTC er of langt fra honum.
    ============================================================ */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { makeFixDifficulty, tierOf, rankScore } from "../src/model.js";
+import { makeFixDifficulty, tierOf, rankScore, pointsBase, expPointsFor } from "../src/model.js";
 /* `startFeatures` er VILJANDI EKKI FLUTT INN: hun tekur fylki af minutum og
    pipeline reiknar tha vidd ThEGAR i `imminent.json` (`start_feats`). Innflutt
    fall sem enginn kallar er bod um ad kalla thad rangt — sem var einmitt
@@ -56,7 +56,7 @@ const arr = (v, k) => Array.isArray(v) ? v : (Array.isArray(v?.[k]) ? v[k] : nul
 
 /* HREINT: tekur gogn, skilar bokhalds-rod. Engin skrif, engin klukka —
    thess vegna er thad profanlegt a tilbunum gognum ADUR en 21. agust.  */
-export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, elo, playerForm, promoted, imminent, nowTs }) {
+export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, elo, playerForm, promoted, imminent, seasonsFile, nowTs }) {
   /* ============================================================
      BYRJUNAR-LIKURNAR KOMU UR ENGU — MAELT OG LAGAD 14.8.2026.
      Her stod `startProbability(startFeatures(mins, p.now_cost))` thar sem
@@ -172,6 +172,17 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
      fixtures.json i stad thess ad vera gefid, svo skriftan se sjalfstaed. */
   const gamesSoFar = fixtures.filter(f => f.finished).reduce((mx, f) =>
     Math.max(mx, Number(f.event) || 0), 0) || 38;
+  /* LEIKIR FELAGSINS OG FYRRA TIMABIL — inntok `pointsBase`, leidd her
+     ur skram sem skriftan hefur thegar. `finished_provisional` telur med:
+     `finished` flettist ~3 dogum of seint (CLAUDE.md kafli 1).         */
+  const playedByTeam = {};
+  for (const f of fixtures) if (f.finished || f.finished_provisional) {
+    playedByTeam[f.team_h] = (playedByTeam[f.team_h] || 0) + 1;
+    playedByTeam[f.team_a] = (playedByTeam[f.team_a] || 0) + 1;
+  }
+  const prevKey = seasonsFile?.seasons?.[0] || null;
+  const prevOf = p => (prevKey ? seasonsFile?.players?.[String(p.code)]?.[prevKey] : null);
+
   const rank = [];
   for (const p of players) {
     const fxs = nextFx[p.team] || [];
@@ -199,6 +210,17 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
     const sf = startFeatsByCode.get(String(p.code));
     const sp = sf ? startProbability(sf) : null;
     const raw = rankScore(inputs);
+    /* SAMA BASIS OG APPID BYGGIR (`App.jsx:basisFor`) — engin ny regla.
+       `seasonsFile` er lykluð a `code`, sem er fast a leikmanni.        */
+    const basis = {
+      seasonStarted: true, mins5: pf?.mins5, minsTrend: pf?.mins_trend,
+      prevPts: prevOf(p)?.total_points, prevMins: prevOf(p)?.minutes,
+      matchesPlayed: playedByTeam[p.team],
+    };
+    const basisRow = pointsBase({ p, ...basis });
+    const expPts = fxs.length
+      ? expPointsFor({ p, fxs, fixDifficulty, teamId: p.team, nowTs, basis })
+      : null;
     rank.push({
       id: p.id, code: p.code, team: p.team, pos: p.element_type,
       score: +raw.toFixed(4),
@@ -212,6 +234,23 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
          gegn thvi (4,48 a moti 5,13) og kvordunin verdur ad gera thad lika,
          annars er "5,1 stig per val" tala an samanburdar.                */
       ep_next: p.ep_next == null ? null : Number(p.ep_next),
+      /* ============================================================
+         OKKAR EIGIN TALA VERDUR LIKA AD VERA I BOKHALDINU (4.9.2026)
+         ============================================================
+         Fram ad thessu skrasetti bokhaldid `rankScore` (rodun) og
+         `ep_next` (vidmid FPL) — en EKKI toluna sem notandinn ser.
+         Medan grunnurinn VAR `ep_next` var thad ekki gat; fra og med
+         `pointsBase` er thad gat sem lokast ekki eftir a: `mins5`,
+         `mins_trend`, leikjafjoldi og fyrra timabil eru oll fortid sem
+         BREYTIST i hverri viku, svo „hvad spadum vid Sangare fyrir GW4"
+         er OSVARANLEGT thegar GW4 er lidin. Nakvaemlega sama roksemd og
+         skjalid gefur fyrir bokhaldinu i heild.
+         BADAR TOLUR ERU SKRADAR: `base` (grunnurinn einn) og
+         `exp_points` (grunnur x FFDR-margfaldari x tiltaekileiki), thvi
+         their svara sitt hvorri spurningunni — er GRUNNURINN godur, og
+         er MARGFALDARINN thad.                                        */
+      base: basisRow == null ? null : +basisRow.toFixed(4),
+      exp_points: expPts == null ? null : +expPts.toFixed(4),
       status: p.status ?? null,
       /* Vaentanlegt: `blank` thegar lid a engan leik i umferdinni.        */
       fixtures: fxs.length,
@@ -254,6 +293,11 @@ export function buildSnapshot({ gw, players, teams, fixtures, teamForm, odds, el
       mins_trend: rank.filter(r => r.inputs?.minsTrend != null).length,
       ffdr: rank.filter(r => r.inputs?.ffdr != null).length,
       ep_next: rank.filter(r => r.ep_next != null).length,
+      /* ThEKJA ER FULLYRDING, EKKI LOGGA (CLAUDE.md 5b): vaeri
+         `pointsBase` otengd her myndi hun skila null hja OLLUM og
+         bokhaldid geymdi tomann dalk an thess ad nokkur saei thad. */
+      base: rank.filter(r => r.base != null).length,
+      exp_points: rank.filter(r => r.exp_points != null).length,
     },
     note: "PREDICTIONS RECORDED BEFORE THE DEADLINE. Written once and never "
         + "rewritten - a prediction re-recorded after the fact is not a prediction. "
@@ -539,6 +583,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       teamForm: tryJ("team_form.json"), odds: tryJ("odds.json"),
       elo: tryJ("elo.json"), playerForm: tryJ("player_form.json"),
       promoted: tryJ("promoted_baseline.json"), imminent: tryJ("imminent.json"),
+      seasonsFile: tryJ("player_seasons.json"),
       nowTs: Date.now(),
     });
     if (dry) {

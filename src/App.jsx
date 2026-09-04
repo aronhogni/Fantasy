@@ -1079,6 +1079,22 @@ export default function App() {
      `events.some(e => e.finished)` og svaradi ODRU en PlayerList a lifandi
      gognum 24.8.2026; sja maelinguna vid `seasonHasStarted`.             */
   const seasonStarted = seasonHasStarted(events);
+  /* HVE MARGAR UMFERDIR ERU BYRJADAR — SAMA KLUKKA, EKKI NY. `seasonStarted`
+     er `startedGameweeks(...) > 0`, svo talan sjalf er thegar til i
+     `availability.js` og er flutt inn her. Ny talning (`e.finished`,
+     `is_current`, frestur) vaeri fjorda afritid af klukkunni og thau tvo
+     sem voru til svorudu SITTHVORU 24.8.2026.                           */
+  const startedGws = startedGameweeks(events);
+  const seasonGames = (events || []).filter(e => e.finished).length;
+  /* LEIKIR SEM HVERT FELAG HEFUR SPILAD — NEFNARINN I `rotationRisk`.
+     `seasonGames` telur umferdir sem eru `finished`, og hun er RETT thar
+     sem hun er notud annars stadar (uppsafnadar tolur eru bundnar vid
+     stadfestar umferdir). Hun er hins vegar RANGUR NEFNARI fyrir hlutfall
+     byrjana: umferd telst ekki `finished` fyrr en bonus er stadfestur, svo
+     eftir GW1 var hun 0 medan sex leikir voru spiladir — og
+     `rotationRisk` deildi ThESSA timabils byrjunum med 38 leikjum SIDASTA
+     timabils. Sja blokkina i `availability.js`.                          */
+  const playedByClub = useMemo(() => matchesPlayedByClub(fixtures), [fixtures]);
   /* HANN STENDUR HER OG ThAD ER EKKI SMEKKSATRIDI: `const` i falli er i
      TEMPORAL DEAD ZONE thangad til lina hans keyrir, og `expPoints`
      (fall-yfirlysing, hoistud) er kolluð UR useMemo-um SEM LIGGJA OFAR.
@@ -1086,7 +1102,12 @@ export default function App() {
      HRUNDI I HEILU LAGI — „Cannot access 'basisFor' before
      initialization", hvitur skjar i ollum 21 atburdarasum
      `data-resilience.mjs`. Sa vordur er „eina sem ser hvitan skja" og
-     hann tok thetta i FYRSTU heilu keyrslu.                          */
+     hann tok thetta i FYRSTU heilu keyrslu.
+     OG I ANNAD SINN SAMA DAG, thegar `matchesPlayed` baettist vid:
+     DEPS-FYLKID er metid vid SKILGREININGU, svo `playedByClub` i thvi
+     kastadi thott fallid sjalft se kallad sidar. Hann stendur thvi
+     NEDAN vid `playedByClub`, ekki bara nedan vid `seasonStarted` —
+     `prediction-ledger.mjs` tok thad tilfelli.                       */
   /* ============================================================
      GRUNNURINN ER MAELDUR ThEGAR HANN ER HAEGT AD REIKNA (4.9.2026)
      ============================================================
@@ -1106,25 +1127,13 @@ export default function App() {
     /* ENGIN SIA HER — `pointsBase` skilar `null` sjalf thegar klukkan er
        ekki komin eda `mins5` vantar. Tvo skilyrdi a tveimur stodum eru
        tvo skilyrdi sem geta rekid i sundur.                          */
-    return { seasonStarted, mins5: playerForm?.players?.[p.id]?.mins5,
-             prevPts: prev?.total_points, prevMins: prev?.minutes };
-  }, [seasonStarted, playerForm, seasonsFile, prevSeasonKey]);
-  /* HVE MARGAR UMFERDIR ERU BYRJADAR — SAMA KLUKKA, EKKI NY. `seasonStarted`
-     er `startedGameweeks(...) > 0`, svo talan sjalf er thegar til i
-     `availability.js` og er flutt inn her. Ny talning (`e.finished`,
-     `is_current`, frestur) vaeri fjorda afritid af klukkunni og thau tvo
-     sem voru til svorudu SITTHVORU 24.8.2026.                           */
-  const startedGws = startedGameweeks(events);
-  const seasonGames = (events || []).filter(e => e.finished).length;
-  /* LEIKIR SEM HVERT FELAG HEFUR SPILAD — NEFNARINN I `rotationRisk`.
-     `seasonGames` telur umferdir sem eru `finished`, og hun er RETT thar
-     sem hun er notud annars stadar (uppsafnadar tolur eru bundnar vid
-     stadfestar umferdir). Hun er hins vegar RANGUR NEFNARI fyrir hlutfall
-     byrjana: umferd telst ekki `finished` fyrr en bonus er stadfestur, svo
-     eftir GW1 var hun 0 medan sex leikir voru spiladir — og
-     `rotationRisk` deildi ThESSA timabils byrjunum med 38 leikjum SIDASTA
-     timabils. Sja blokkina i `availability.js`.                          */
-  const playedByClub = useMemo(() => matchesPlayedByClub(fixtures), [fixtures]);
+    const pf = playerForm?.players?.[p.id];
+    return { seasonStarted, mins5: pf?.mins5, minsTrend: pf?.mins_trend,
+             prevPts: prev?.total_points, prevMins: prev?.minutes,
+             /* NEFNARINN ER LEIKIR FELAGSINS — sama tala og spjaldid
+                birtir („2 matches played by his club"), ekki ny.      */
+             matchesPlayed: playedByClub?.[p.team] };
+  }, [seasonStarted, playerForm, seasonsFile, prevSeasonKey, playedByClub]);
   /* ---- EIN KLUKKA, EKKI FJORAR ----
      „Er umferd g byrjud?" er sama spurning og `preSeason` svarar fyrir
      GW1, og hun a ad hafa EITT svar. Fresturinn er profsteinninn (ekki

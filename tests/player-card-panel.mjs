@@ -393,11 +393,19 @@ console.log("\n--- D. VERDFALL ---");
      a SOMU tolu — tha getur „merkid birtist" ekki verid satt af annarri
      astaedu en theirri sem er verid ad profa.                          */
   const FALL_ID = 411, LOCK_ID = 346;
+  /* `calibrating: false` ER HLUTI AF HEIMINUM, EKKI SKRAUT (4.9.2026).
+     Fixturinn setti tolu og las en LET `price_change_calibrating` liggja
+     eins og hun var i raungognum. Eftir GW3-frestinn er hun `true` hja
+     ollum 652, svo appid faldi merkid RETTILEGA og kaflinn fell a rettri
+     hegdun. Tilbuinn heimur verdur ad vera HEILL — sama villa og
+     `clock-states.mjs` bar samdaegurs (tvaer radir snertar, afgangurinn
+     ur raungognum).                                                   */
+  const live = p => ({ ...p, price_change_calibrating: false });
   const patched = ALL.map(p =>
-    p.id === FALL_ID ? { ...p, price_change_percent: "-70.4", price_change_locked_until: null }
-    : p.id === LOCK_ID ? { ...p, price_change_percent: "-70.4",
-                           price_change_locked_until: "2099-01-01T00:00:00Z" }
-    : { ...p, price_change_percent: "0", price_change_locked_until: null });
+    p.id === FALL_ID ? live({ ...p, price_change_percent: "-70.4", price_change_locked_until: null })
+    : p.id === LOCK_ID ? live({ ...p, price_change_percent: "-70.4",
+                                price_change_locked_until: "2099-01-01T00:00:00Z" })
+    : live({ ...p, price_change_percent: "0", price_change_locked_until: null }));
   const v = await mount({ captain: 411 },
     { patch: { "players.json": { ...PLAYERS_FILE, players: patched } } });
   const pills = v.q("span").filter(s => /^↓\d+%$/.test((s.textContent || "").trim()));

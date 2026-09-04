@@ -114,10 +114,30 @@ for (const s of new Set(rows.map(r => r.season))) {
 /* ---------- Frambjodendur ----------
    ALLIR nota adeins tolur sem appid hefur fyrir frest.               */
 const priorOf = r => r.prev ? r.prev.ppg : posPrior[r.season][r.pos];
+/* Minutu-vaegi forgildisins i `shrunkMin2` — 900 min = 10 heilir leikir.
+   Naemid er prentad nedst svo talan se ekki valin i blindni.          */
+const PRIOR_M90 = +((process.argv.find(a => a.startsWith("--priorM=")) || "").split("=")[1] || 10);
 const BASES = {
   ppg5:   r => r.ppg5,
   ppgAll: r => (r.n > 0 ? r.sumPts / r.n : priorOf(r)),
   shrunk: (r, K) => (r.sumPts + K * priorOf(r)) / (r.n + K),
+  /* FORGILDID SJALFT ER LIKA URTAK — VARIANT SEM SKRUMPAR ThAD (4.9.2026).
+     `shrunkMin` tekur fyrra timabil sem prior90 an thess ad spyrja HVE
+     MIKID thad er. Maelt a lifandi gognum i dag: fjorir leikmenn fa
+     grunn > 4 ut a fyrra timabil sem er 25-360 minutur (Onyeka: 12 stig
+     a 88 min = 12,3/90). Talan er truverdug og byggd a engu.
+     Her er forgildid dregid ad stodu-medaltalinu eftir SINU eigin
+     urtaki: w = prevMin90/(prevMin90 + PRIOR_M90).                    */
+  shrunkMin2: (r, K) => {
+    const n90 = r.sumMins / 90;
+    const pm90 = r.prev && r.prev.mins > 0 ? (r.prev.mins * r.prev.n) / 90 : 0;
+    const posP90 = priorOf(r) / (60 / 90);
+    const raw90 = pm90 > 0 ? (r.prev.ppg * r.prev.n) / pm90 : posP90;
+    const w = pm90 / (pm90 + PRIOR_M90);
+    const prior90 = w * raw90 + (1 - w) * posP90;
+    const per90 = (r.sumPts + K * prior90) / (n90 + K);
+    return per90 * (r.mins5 / 90);
+  },
   shrunkMin: (r, K) => {
     /* Stig per 90 skrumpud, sinnum vaentar minutur. Vaentar minutur eru
        5-leikja medaltal — SAMA tala og appid a (`mins5`).            */
@@ -183,7 +203,7 @@ function bestK(rs, baseFn, holdout) {
 
 const seasons = [...new Set(rows.map(r => r.season))];
 const KPICK = {};
-for (const nm of ["shrunk", "shrunkMin"]) {
+for (const nm of ["shrunk", "shrunkMin", "shrunkMin2"]) {
   KPICK[nm] = {};
   for (const s of seasons) KPICK[nm][s] = bestK(rows, BASES[nm], s);
 }

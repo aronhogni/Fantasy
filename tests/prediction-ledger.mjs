@@ -319,6 +319,10 @@ console.log("\n4) RODIN: nog til ad kvarda, engin tilbuin tala");
     teamForm: tryJ("team_form.json"), odds: tryJ("odds.json"),
     elo: tryJ("elo.json"), playerForm: tryJ("player_form.json"),
     promoted: tryJ("promoted_baseline.json"), imminent: tryJ("imminent.json"),
+    /* SOMU SKRAR OG KEYRSLAN — an hennar bar profid grunn sem VAR til
+       en byggdan a stodu-forgildinu einu, svo fullyrdingarnar um hann
+       stodust an thess ad fyrra timabilid vaeri i honum.              */
+    seasonsFile: tryJ("player_seasons.json"),
     nowTs: Date.UTC(2026, 7, 20) });
 
   const top = snap.rank[0];
@@ -366,6 +370,58 @@ console.log("\n4) RODIN: nog til ad kvarda, engin tilbuin tala");
        snap.coverage?.start_prob === have.length, JSON.stringify(snap.coverage));
     ok("thekjan er EKKI 0 — talan sem var 0 af 584 fyrir lagfaeringuna",
        (snap.coverage?.start_prob || 0) > 0, JSON.stringify(snap.coverage));
+
+    /* ============================================================
+       OKKAR EIGIN TALA ER I BOKHALDINU (4.9.2026)
+       ============================================================
+       Bokhaldid skrasetti `rankScore` og FPL-eigid `ep_next` — en EKKI
+       toluna sem notandinn ser. Medan grunnurinn VAR `ep_next` var thad
+       ekki gat; fra og med `pointsBase` er thad gat sem lokast ekki
+       eftir a: `mins5`, leikjafjoldi og fyrra timabil eru oll fortid sem
+       breytist i hverri viku.
+       BADAR TOLUR: `base` (grunnurinn einn) og `exp_points` (grunnur x
+       margfaldari x tiltaekileiki) — their svara sitt hvorri spurningu.  */
+    const withBase = snap.rank.filter(r => r.base != null);
+    ok(`grunnurinn er skradur a rodunum (${withBase.length} af ${snap.rank.length})`,
+       withBase.length > 200, JSON.stringify(snap.coverage));
+    ok("og hann er TALA, ekki strengur",
+       withBase.every(r => typeof r.base === "number" && r.base >= 0));
+    ok(`thekja `+"`base`"+` er skrad i skranni (${snap.coverage?.base})`,
+       snap.coverage?.base === withBase.length, JSON.stringify(snap.coverage));
+    const withEp = snap.rank.filter(r => r.exp_points != null);
+    ok(`vaent stig eru skrad lika (${withEp.length})`, withEp.length > 200);
+    ok(`thekja `+"`exp_points`"+` er skrad i skranni (${snap.coverage?.exp_points})`,
+       snap.coverage?.exp_points === withEp.length, JSON.stringify(snap.coverage));
+    /* OG ThAU ERU EKKI SAMA TALA. Vaeri margfaldarinn otengdur vaeri
+       `exp_points === base` hja ollum og dalkurinn segdi ekkert nytt.  */
+    const differ = snap.rank.filter(r => r.base != null && r.exp_points != null
+      && Math.abs(r.base - r.exp_points) > 0.01);
+    ok(`og their eru ADSKILDAR tolur (${differ.length} radir bera mun)`,
+       differ.length > 100,
+       "— annars vaeri FFDR-margfaldarinn otengdur i bokhaldinu");
+    /* OG HVORUG ER `ep_next`. Bokhald sem skrasetti FPL-toluna tvisvar
+       vaeri blint a nakvaemlega thad sem breyttist 4.9.2026.           */
+    const same = snap.rank.filter(r => r.base != null && r.ep_next != null
+      && Math.abs(r.base - r.ep_next) < 0.01);
+    ok(`grunnurinn er ekki `+"`ep_next`"+` i dulargervi (${same.length} eins af ${withBase.length})`,
+       same.length < withBase.length * 0.5);
+    /* OG FYRRA TIMABILID RAETIST RAUNVERULEGA INN. An thessa stodst allt
+       hér a undan thott `seasonsFile` vaeri EKKI send — grunnurinn var tha
+       byggdur a stodu-forgildinu einu og enginn hefdi sed thad. Beint
+       samanburdar-prof i stad texta-leitar.                            */
+    const noPrev = buildSnapshot({ gw: 1, players, teams, fixtures,
+      teamForm: tryJ("team_form.json"), odds: tryJ("odds.json"),
+      elo: tryJ("elo.json"), playerForm: tryJ("player_form.json"),
+      promoted: tryJ("promoted_baseline.json"), imminent: tryJ("imminent.json"),
+      nowTs: Date.UTC(2026, 7, 20) });
+    const byId2 = new Map(noPrev.rank.map(r => [r.id, r]));
+    const movedByPrev = snap.rank.filter(r => r.base != null
+      && byId2.get(r.id)?.base != null
+      && Math.abs(r.base - byId2.get(r.id).base) > 0.01);
+    ok(`fyrra timabilid FAERIR grunninn (${movedByPrev.length} radir)`,
+       movedByPrev.length > 200,
+       "— annars vaeri `seasonsFile` osend og forgildid stodu-medaltalid eitt");
+    /* OG KEYRSLAN SENDIR HANA LIKA (sami lærdomur og `imminent` hér nedar). */
     /* OG AD KEYRSLAN SJALF SENDI ThETTA INN. Profid getur sent `imminent`
        medan skriftan sleppir thvi — thad var NAKVAEMLEGA astandid fyrir
        lagfaeringuna, i hina attina. Sami lærdomur og `lineups.mjs`: prof sem
@@ -373,6 +429,8 @@ console.log("\n4) RODIN: nog til ad kvarda, engin tilbuin tala");
        thegjandi (CLAUDE.md 7.1).                                          */
     const runner = readFileSync(new URL("../scripts/snapshot-predictions.mjs", import.meta.url), "utf8");
     const call = runner.slice(runner.lastIndexOf("buildSnapshot({"));
+    ok("keyrslan sendir `player_seasons.json` inn i buildSnapshot",
+       /seasonsFile:\s*tryJ\("player_seasons\.json"\)/.test(call), call.slice(0, 420));
     ok("keyrslan sendir `imminent` inn i buildSnapshot",
        /imminent:\s*tryJ\("imminent\.json"\)/.test(call), call.slice(0, 320));
     ok("og hun kallar EKKI `startFeatures` (fylkid sem hun hafdi ekki)",

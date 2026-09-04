@@ -1204,11 +1204,19 @@ export function availForKickoff(p, kickoff, nowTs = Date.now()) {
        „faar maelingar -> ENGIN tala", ekki agiskun.
    Vordur: `tests/exp-points.mjs` kafli 6.
    ============================================================ */
-export const BASE_K = 3;
+export const BASE_K = 8;
+/* Vaegi fyrra timabils: thad tharf ~5 heila leiki (450 min) adur en eigin
+   hlutfall leikmannsins raeður forgildinu. MAELT, sja leitina ad ofan. */
+export const BASE_PRIOR_M90 = 5;
 /* Medalstig per rod (blonk medtalin), 5 timabil, lyklad a element_type. */
 export const BASE_POS_PRIOR = { 1: 0.8481, 2: 1.1033, 3: 1.2342, 4: 1.2888 };
+/* Vidmidunar-minutur: forgildin ad ofan eru stig per ROD, og rod er ad
+   medaltali ~60 min a velli. Umbreytingin i stig per 90 er thvi /(60/90)
+   — nakvaemlega su sem maelingin notadi.                              */
+const REF_MINS = 60;
 
-export function pointsBase({ p, mins5, prevPts, prevMins, seasonStarted }) {
+export function pointsBase({ p, mins5, minsTrend, prevPts, prevMins,
+                             matchesPlayed, seasonStarted }) {
   /* KLUKKAN ER HLUTI AF FORMULUNNI, EKKI AF KALLANDANUM. Fyrsta
      utgafan gataði hana i App.jsx og vordurinn var TEXTALEIT — sem
      stodst afram thegar skilyrdid var fjarlaegt, thvi `seasonStarted`
@@ -1220,24 +1228,34 @@ export function pointsBase({ p, mins5, prevPts, prevMins, seasonStarted }) {
   /* `Number(null)` ER 0 OG ThAD ER EKKI VANTANDI TALA. Fyrsta utgafan
      notadi `Number(...)` og hleypti `null`/`undefined`/"" i gegn sem
      nulli — sama gildra og „NULL ER EKKI NULL" (CLAUDE.md kafli 8), her
-     i talnabreytunni sjalfri. Utkoman var ekki rong tala a skjanum
-     (grunnur 0 fellur hvort ed er a `ep_next`) en samningur fallsins
-     var rangur, og naesti kallandi hefdi treyst honum.               */
+     i talnabreytunni sjalfri.                                        */
   const num = v => (typeof v === "number" && Number.isFinite(v) ? v
     : (typeof v === "string" && v.trim() !== "" && Number.isFinite(+v) ? +v : null));
   const m5 = num(mins5);
   if (m5 == null) return null;
-  const pts = num(p.total_points), mins = num(p.minutes);
-  if (pts == null || mins == null) return null;
+  const pts = num(p.total_points);
+  if (pts == null) return null;
+  const played = num(matchesPlayed);
+  if (played == null || played <= 0) return null;
   const pos = p.element_type;
+
+  /* FORGILDID ER SJALFT URTAK OG ER SKRUMPAD EFTIR ThVI. Leikmadur med
+     12 stig a 88 minutum i fyrra ber 12,3 stig/90 — tala sem er
+     truverdug og byggd a engu. `BASE_PRIOR_M90` dregur hana ad
+     stodu-medaltalinu eftir hans EIGIN minutufjolda.                 */
+  const posP90 = (BASE_POS_PRIOR[pos] ?? 1.2) / (REF_MINS / 90);
   const pp = num(prevPts), pm = num(prevMins);
-  /* Forgildid er stig per 90 — ur fyrra timabili thegar thad er til,
-     annars stodu-medaltalid a sama kvarda (60/90 min, eins og maelt). */
-  const prior90 = pp != null && pm != null && pm > 0
-    ? pp / (pm / 90)
-    : (BASE_POS_PRIOR[pos] ?? 1.2) / (60 / 90);
-  const per90 = (pts + BASE_K * prior90) / (mins / 90 + BASE_K);
-  return per90 * (m5 / 90);
+  const prevM90 = pm != null && pm > 0 ? pm / 90 : 0;
+  const prev90 = prevM90 > 0 && pp != null ? pp / prevM90 : null;
+  const w = prevM90 / (prevM90 + BASE_PRIOR_M90);
+  const prior90 = prev90 == null ? posP90 : w * prev90 + (1 - w) * posP90;
+
+  /* NEFNARINN ER LEIKIR FELAGSINS, EKKI BYRJANIR. Blonk eru ThEGAR i
+     talningunni — ad sleppa theim vaeri ad spyrja „hve morg stig EF hann
+     spilar", sem er onnur spurning en „hvern a eg ad velja".         */
+  const perMatch = (pts + BASE_K * prior90 * (REF_MINS / 90)) / (played + BASE_K);
+  const exp = Math.max(0, Math.min(90, m5 + (num(minsTrend) ?? 0)));
+  return perMatch * (exp / REF_MINS);
 }
 
 export function expPointsFor({ p, fxs, fixDifficulty, teamId, nowTs, basis }) {
