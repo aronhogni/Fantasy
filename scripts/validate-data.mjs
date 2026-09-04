@@ -117,25 +117,46 @@ export function counts(obj, prefix = "", out = {}, depth = 0) {
    medal a RAUNVERULEGA tilfellinu sem slapp 29.8.2026 (`lineups.json`
    players 40 -> 0), sem thetta hlid hefdi hafnad hefdi thad verid tengt.
    ============================================================ */
+
 /* ============================================================
-   HEIMILD SEM ER TEKIN UR NOTKUN ER EKKI AFTURFOR (31.8.2026)
+   FJORDA UNDANThAGAN A EINUM DEGI — SVO REGLAN SJALF VAR
+   ENDURORDUD (4.9.2026)
+   ============================================================
+   Hlidid stodvadi pipeline-una FJORUM SINNUM i dag, i hvert sinn a
+   RETTUM gognum:
+     · `bsd_odds.events.<id>`      lifandi ~4 daga gluggi
+     · `news.price_changes`        FPL nullstillir vid frestinn
+     · `lineups.probe`             skrifad adeins UTAN leikja-gluggans
+     · `lineups.errors` 1 -> 0     ENGAR VILLUR i thessari keyrslu
+     · `status_streak.sources.elo_fixtures`  heimild haetti ad skra sig
+   Fyrri thrjar voru leystar med ThVI AD BAETA VID UNDANThAGU. Su fjorda
+   sagdi ad ThAD VAERI RANGA LEIDIN: `errors` sem fer ur 1 i 0 er ekki
+   gagnatap heldur GODAR FRETTIR, og regla sem les godar frettir sem
+   bilun er RANGT ORDUD, ekki of throng.
 
-   Fyrsta tengda keyrslan HAFNADI commit-i af rettri astaedu og RANGRI
-   niðurstodu: eg hafdi fjarlaegt `deriveRotation` og
-   `deriveGameweekShape`, svo `status.json.sources.rotation` og
-   `.gameweek_shape` HURFU — sem hlidid las sem gagnatap.
+   RETTA ORDALAGID: hlidid ver **BURDARGOGN**, ekki bokhald um keyrsluna.
+   Bokhaldid ber i thessu repo-i litinn og upptalanlegan nafnalista, og
+   nofnin thyda thad sama HVAR SEM ThAU BIRTAST:
 
-   `status.json` er BOKHALD UM KEYRSLUNA, ekki gogn: heimildir koma og
-   fara (API-Sports var sagt upp, FotMob kom i stadinn, tvaer leiddar
-   skrar voru teknar ut). Hver stodu-rod telur thrju svid (ok/count/note),
-   svo "3 rows DISAPPEARED" segir ekkert um gogn.
+     RUN_LOG    greiningarlistar thar sem TOMT ER GOTT — `errors`,
+                `probe`, `calls`, `unmatched*`, `unresolved_teams`,
+                `alias_collisions`, `requests_remaining`.
+                Baedi hylkid og undirlyklar mega hverfa.
+     RUN_LEDGER `sources` / `sources_ok` — stok heimild ma hverfa (thaer
+                koma og fara) EN HYLKID MA ALDREI TOMAST: tha hefur
+                pipeline-an haett ad skra nokkud. Nakvaemlega su regla
+                sem `BOOKKEEPING`-reglan bar adur (31.8.2026, thegar
+                tvaer leiddar heimildir voru teknar ur notkun og
+                `status.json.sources.rotation` hvarf), nu an thess ad
+                vera negld vid tvaer skrar — `status_streak.json` bar
+                somu villu og var ekki a theim lista.
 
-   ThAD SEM ER EKKI SLAKAD: `sources` I HEILD ma aldrei fara i null — tha
-   hefur pipeline-an haett ad skra nokkud — og allar adrar skrar lyta
-   obreyttri reglu. OG SPURNINGIN "er hver skrifud skra skrad sem heimild"
-   a sinn eigin vord: `tests/wiring.mjs`, sem er thar sem hun a heima.
+   ThAD SEM ER EKKI SLAKAD: hvert svid sem APPID LES lytur obreyttri
+   reglu. `lineups.players`/`teams` mega ALDREI hverfa — su regla felldi
+   `carryLineups`-villuna fyrr i dag og hun stendur oskert.
    ============================================================ */
-const BOOKKEEPING = /^(status|status_fast)\.json$/;
+const RUN_LOG = /^(errors|probe|calls|unmatched|unmatched_names|unmatched_to_fpl|unresolved_teams|alias_collisions|requests_remaining)(\.|$)/;
+const RUN_LEDGER = /^(sources|sources_ok)\./;
 /* ============================================================
    LIFANDI GLUGGI ER EKKI GAGNATAP (4.9.2026 — HLIDID STOPPADI
    PIPELINE-UNA I FIMM KLST OG ThAD VAR ThESSI REGLA SEM VANTADI)
@@ -200,7 +221,9 @@ export function regressions(nowObj, headObj, name = "file") {
   const now = counts(nowObj), was = counts(headObj);
   for (const [field, before] of Object.entries(was)) {
     /* Stok heimild ma hverfa ur bokhaldinu; `sources` i heild ma thad ekki. */
-    if (BOOKKEEPING.test(name) && /^sources\./.test(field)) continue;
+    /* Bokhald um keyrsluna — sja RUN_LOG / RUN_LEDGER ad ofan.        */
+    if (RUN_LOG.test(field)) continue;
+    if (RUN_LEDGER.test(field)) continue;
     /* Stakur leikur ma hverfa ur lifandi glugga; sja ROLLING ad ofan. */
     if (ROLLING.test(name) && /^events(\.|$)/.test(field)) continue;
     if (SOURCE_RESET.some(([f, k]) => f.test(name) && k.test(field))) continue;

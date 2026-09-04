@@ -109,6 +109,36 @@ console.log("\n=== 1c. LIFANDI GLUGGI ER EKKI GAGNATAP (bsd_odds / bsd_lineups) 
      "ekki heldur i systkina-skra sem er EKKI gluggi");
 }
 
+console.log("\n=== 1e. BOKHALD UM KEYRSLUNA ER EKKI BURDARGOGN ===");
+{
+  /* FJORDA UNDANThAGAN A EINUM DEGI SAGDI AD REGLAN VAERI RANGT ORDUD:
+     `lineups.errors` sem fer ur 1 i 0 er ekki gagnatap heldur GODAR
+     FRETTIR. Nofnin i `RUN_LOG` thyda thad sama hvar sem thau birtast. */
+  const H = { updated: "x", players: [{ id: 1 }], teams: [{ id: 1 }],
+              errors: ["boom"], probe: { at: "t", http: 200 },
+              calls: 4, unmatched: [1, 2], unresolved_teams: ["X"],
+              alias_collisions: [1] };
+  const N = { updated: "y", players: [{ id: 1 }], teams: [{ id: 1 }] };
+  ok(regressions(N, H, "lineups.json").length === 0,
+     "TOM villuskra er GODAR FRETTIR, ekki gagnatap");
+  ok(regressions(N, H, "hvad_sem_er.json").length === 0,
+     "og reglan er a NAFNINU, ekki a skranni — hun gildir alls stadar");
+  ok(regressions({ updated: "y", teams: [{ id: 1 }], errors: [] },
+                 H, "lineups.json").length > 0,
+     "EN burdargogn i somu skra lyta obreyttri reglu (`players` hvarf)");
+
+  /* RUN_LEDGER: stok heimild ma hverfa, HYLKID ma ekki tomast — og
+     `status_streak.json` bar somu villu og var utan gamla listans.    */
+  const L = { updated: "x", sources: { elo: { ok: 1 }, elo_fixtures: { ok: 1 } } };
+  ok(regressions({ updated: "y", sources: { elo: { ok: 1 } } }, L,
+                 "status_streak.json").length === 0,
+     "heimild sem haetti ad skra sig stodvar EKKI commit — i HVADA stodu-skra sem er");
+  ok(regressions({ updated: "y", sources: {} }, L, "status.json").length > 0,
+     "en TOMT bokhald er afram HOFNAD (pipeline haetti ad skra nokkud)");
+  ok(regressions({ updated: "y", sources: {} }, L, "status_streak.json").length > 0,
+     "og su regla gildir lika i skram sem gamli listinn nefndi ekki");
+}
+
 console.log("\n=== 1d. SVID SEM HEIMILDIN SJALF NULLSTILLIR ===");
 {
   /* `news.json.price_changes` er `cost_change_event !== 0` beint ur
