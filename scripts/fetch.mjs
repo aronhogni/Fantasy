@@ -2024,6 +2024,23 @@ async function fotmobLineups(fx, idx) {
    umferdir detta ut um leid og su naesta byrjar ad fyllast. Skrain vex thvi
    ekki: hun ber i mesta lagi eina umferd.
 
+   „BYRJAR AD FYLLAST" ThYDIR RADIR, EKKI DAGATAL — LAGAD 4.9.2026.
+   Fyrsta utgafan sendi UMFERDIR LEIKJANNA I GLUGGANUM inn sem `gwsNow`,
+   svo hun henti fyrri umferdinni um leid og naesti leikur DATT INN I
+   GLUGGANN — ThREMUR KLST adur en nokkur uppstilling er til (FotMob gefur
+   `lineupType: "unavailable"` fram ad ~1 klst fyrir leik). Utkoman var
+   nakvaemlega thad sem fallid var smiðad til ad hindra: 275 leikmenn og
+   14 lid -> 0.
+   MAELT I DAG: GW3-leikur kl. 19:00 for i gluggann kl. 17:00, og
+   `fetch-fast` skilaði tomri skra kl. 17:23, 17:33 og 17:49. Hlidid fyrir
+   commit (`validate-data.mjs`) HAFNADI theim ollum — „players went 275 ->
+   0" — svo engin gogn tapadust; en pipeline-an stodvadist a medan, sem er
+   thess virdi ad taka eftir: TVEIR VERDIR SEM SEGJA SITTHVAD eru betri en
+   einn, en their verda ad vera sammala um regluna.
+   Nu raeður `gwsNow` ADEINS thegar radir hafa raunverulega borist — sja
+   kallstadinn i `fetchLineups`, sem sendir umferdir SOTTU radanna, ekki
+   gluggans.
+
    HREINT FALL svo thad se profanlegt an netkalla og an lykils.
    ============================================================ */
 export function carryLineups(prevAll, fixtures, gwsNow = []) {
@@ -2061,7 +2078,10 @@ async function fetchLineups() {
      stadfest byrjunarlid horfdu af spjaldinu nokkrum klst eftir leik.   */
   let prevFile = null;
   try { prevFile = JSON.parse(await readFile(`${DATA}/lineups.json`, "utf8")); } catch {}
-  const carry = carryLineups(prevFile, allFx, [...new Set(fx.map(f => f.event))]);
+  /* TOMUR `gwsNow`: gluggi an rada ma EKKI fella fyrri umferd (sja
+     athugasemdina vid `carryLineups`). Adalleidin endurreiknar hann
+     eftir sokn med UMFERDUM SOTTU RADANNA.                            */
+  const carry = carryLineups(prevFile, allFx, []);
 
   if (!fx.length) {
     /* RANNSAKANDI KALL — svarar AÐEINS "leyfir threpid endapunktinn?"
@@ -2283,8 +2303,12 @@ async function fetchLineups() {
      snerti ekki (leikir sem eru dottnir ur glugganum) ferdast med. Leikur
      sem VID SOTTUM NUNA vinnur — hann er ferskari.                      */
   const wroteFx = new Set(outPlayers.map(p => p.fixture));
-  const keptP = carry.players.filter(r => !wroteFx.has(r.fixture));
-  const keptT = carry.teams.filter(r => !wroteFx.has(r.fixture));
+  /* NU eru radir komnar, svo naesta umferd MA fella tha fyrri — og
+     adeins nu. `outPlayers` ber umferdina sem var raunverulega sott.  */
+  const carried = carryLineups(prevFile, allFx,
+    [...new Set(outPlayers.map(r => r.gw))]);
+  const keptP = carried.players.filter(r => !wroteFx.has(r.fixture));
+  const keptT = carried.teams.filter(r => !wroteFx.has(r.fixture));
   const allPlayers = [...keptP, ...outPlayers];
   const allTeams = [...keptT, ...outTeams];
   await writeJSON("lineups.json", { updated: status.updated,

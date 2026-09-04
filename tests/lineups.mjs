@@ -692,6 +692,52 @@ console.log("─".repeat(84));
   }
 
   /* ============================================================
+     NAESTA UMFERD I GLUGGANUM MED ENGAR RADIR MA EKKI FELLA ThA FYRRI
+     (4.9.2026 — ThETTA GERDIST I RAUN OG STODVADI PIPELINE-UNA)
+     ============================================================
+     Reglan segir „eldri umferd dettur ut um leid og su naesta BYRJAR AD
+     FYLLAST". Fyrsta utfaerslan sendi hins vegar umferdir LEIKJANNA I
+     GLUGGANUM inn, svo hun felldi fyrri umferdina um leid og naesti
+     leikur DATT INN I GLUGGANN — thremur klst adur en nokkur uppstilling
+     er til (FotMob gefur `unavailable` fram ad ~1 klst fyrir leik).
+     MAELT 4.9.2026: GW3-leikur kl. 19:00 for i gluggann kl. 17:00 og
+     thrjar keyrslur i rod skiladu TOMRI skra ofan a 275 leikmenn og 14
+     lid. Hlidid fyrir commit hafnadi theim ollum, svo ekkert tapadist —
+     en pipeline-an stodvadist.
+     „Byrjar ad fyllast" ThYDIR RADIR, EKKI DAGATAL.                    */
+  {
+    /* Leikur 9001 er i glugganum og ber UMFERD 2; fyrri radirnar eru
+       umferd 1. Svarid er TOMT, svo ekkert fyllist.                    */
+    const dir = await sandbox();
+    const fx = JSON.parse(await readFile(join(dir, "fixtures.json"), "utf8"));
+    fx[0].event = 2;
+    await writeFile(join(dir, "fixtures.json"), JSON.stringify(fx));
+    await writeFile(join(dir, "lineups.json"), JSON.stringify(PREV));
+    const { written } = await run({ dir, responder: p =>
+      p.startsWith("/fixtures?") ? FIXTURES_OK : { response: [] } });
+    const o = written?.obj || {};
+    ok((o.players || []).length === 1 && o.players[0].fixture === 9002,
+       `naesta umferd I GLUGGANUM en TOM -> fyrri umferd STENDUR `
+       + `(${(o.players || []).length} radir)`,
+       JSON.stringify((o.players || []).map(x => [x.gw, x.fixture])));
+  }
+  {
+    /* OG UM LEID OG HUN FYLLIST fellur su fyrri — annars vaeri skrain
+       ordin tvaer umferdir og „i mesta lagi ein umferd" osatt.         */
+    const dir = await sandbox();
+    const fx = JSON.parse(await readFile(join(dir, "fixtures.json"), "utf8"));
+    fx[0].event = 2;
+    await writeFile(join(dir, "fixtures.json"), JSON.stringify(fx));
+    await writeFile(join(dir, "lineups.json"), JSON.stringify(PREV));
+    const { written } = await run({ dir, responder: p =>
+      p.startsWith("/fixtures?") ? FIXTURES_OK : LINEUP_OK });
+    const o = written?.obj || {};
+    const gws = [...new Set((o.players || []).map(x => x.gw))];
+    ok((o.players || []).length > 0 && !gws.includes(1),
+       `og um leid og hun FYLLIST fellur su fyrri (umferdir i skra: ${JSON.stringify(gws)})`);
+  }
+
+  /* ============================================================
      ThRJAR TOMAR LEIDIR, EKKI EIN — OG TVAER ThEIRRA VORU OVARDAR.
      Fyrsta utgafa thessa kafla profadi adeins EINA theirra (ferskt probe).
      Stokkbreyting sem setti `players: []` aftur i probe-GEYMSLU-greinina
