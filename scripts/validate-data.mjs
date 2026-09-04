@@ -136,12 +136,49 @@ export function counts(obj, prefix = "", out = {}, depth = 0) {
    a sinn eigin vord: `tests/wiring.mjs`, sem er thar sem hun a heima.
    ============================================================ */
 const BOOKKEEPING = /^(status|status_fast)\.json$/;
+/* ============================================================
+   LIFANDI GLUGGI ER EKKI GAGNATAP (4.9.2026 — HLIDID STOPPADI
+   PIPELINE-UNA I FIMM KLST OG ThAD VAR ThESSI REGLA SEM VANTADI)
+
+   `bsd_odds.json` og `bsd_lineups.json` eru lyklud a LEIK-ID og bera
+   adeins thad sem er innan ~4 daga glugga. Nota theirra eigin skrar
+   segir thad berum ordum: „BSD odds only reach ~4 days ahead, so the
+   file is empty outside that window and THAT IS CORRECT." Leikur sem
+   er buinn hverfur thvi ur `events` — og hlidid las hvern slikan
+   lykil sem gagnatap: `events.209545 (7 rows) DISAPPEARED`.
+
+   AFLEIDINGIN VAR ThOGUL A RANGA ATT: hlidid er ordid ad hafna
+   commit-inu, svo `fetch-fast` fell i HVERRI keyrslu fra 09:23 og
+   `data/` frysti a GW1-mynd medan GW2 var buin. Vordur sem hafnar
+   rettum gognum er ekki strangur heldur bilaður — og hann litur eins
+   ut og bilud sokn thangad til logginn er lesinn.
+
+   TOMUR GLUGGI ER LIKA LEYFDUR OG ThAD ER EKKI SLAKI A REGLU 8e:
+   verdi ekkert af leikjunum innan ~4 daga (t.d. landsleikjahle) ER
+   `events: {}` retta svarid, og ad hafna thvi vaeri ad frysta
+   pipeline-una AFTUR — a fyrirsjaanlegum degi. Reglan 8e er variN
+   ThAR SEM HUN A HEIMA, i SKRIFARANUM: `fetchBsdOdds` HELDUR fyrri
+   verdlagdri skra thegar OLL kollin bila (`kept`), svo tom `events`
+   sem NAER i skrana getur ekki verid bilud keyrsla. Vordur:
+   `bsd-pipeline.mjs` kafli 9 og fullyrdingin i `validate-data.mjs`
+   kafla 1c sem ber notu-ástöndin tvo saman.
+
+   ThAD SEM ER EKKI SLAKAD: reglan gildir ADEINS um `events` (og lykla
+   undir henni) i thessum tveimur skram. Skrarnar sjalfar, `updated`,
+   `season_id` og hver onnur skra lyta obreyttri reglu — og
+   `bsd-pipeline.mjs` ver afram ad TOM keyrsla megi ekki skrifa yfir
+   heila (regla 8e), sem er ONNUR spurning: her hverfur EIN rod ur
+   glugga, thar hverfur ALLT ur skra.
+   ============================================================ */
+const ROLLING = /^(bsd_odds|bsd_lineups)\.json$/;
 export function regressions(nowObj, headObj, name = "file") {
   const out = [];
   const now = counts(nowObj), was = counts(headObj);
   for (const [field, before] of Object.entries(was)) {
     /* Stok heimild ma hverfa ur bokhaldinu; `sources` i heild ma thad ekki. */
     if (BOOKKEEPING.test(name) && /^sources\./.test(field)) continue;
+    /* Stakur leikur ma hverfa ur lifandi glugga; sja ROLLING ad ofan. */
+    if (ROLLING.test(name) && /^events(\.|$)/.test(field)) continue;
     const after = now[field];
     if (before > 0 && after === 0) {
       out.push(`${name}: \`${field}\` went ${before} -> 0. An empty run must `

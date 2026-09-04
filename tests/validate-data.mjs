@@ -18,6 +18,7 @@
    ============================================================ */
 import { readFileSync } from "node:fs";
 import { counts, regressions } from "../scripts/validate-data.mjs";
+import { bsdOddsNote } from "../scripts/fetch.mjs";
 
 let pass = 0, fail = 0;
 const ok = (c, m, extra = "") => { c ? pass++ : fail++;
@@ -72,6 +73,40 @@ console.log("\n=== 1b. BOKHALD ER EKKI GOGN (status.json) ===");
      "undanthagan gildir EKKI um adrar skrar");
   ok(regressions({ teams: [] }, { teams: [1, 2], sources: { a: { x: 1 } } }, "status.json").length > 0,
      "og EKKI um onnur svid i status.json sjalfri");
+}
+
+console.log("\n=== 1c. LIFANDI GLUGGI ER EKKI GAGNATAP (bsd_odds / bsd_lineups) ===");
+{
+  /* ThETTA STOPPADI PIPELINE-UNA I FIMM KLST (4.9.2026). `bsd_odds.json`
+     ber odda i ~4 daga glugga og lykillinn er LEIK-ID, svo leikur sem er
+     buinn HVERFUR. Hlidid las `events.209545 (7 rows) DISAPPEARED` og
+     hafnadi commit-inu i hverri einustu `fetch-fast`-keyrslu — `data/`
+     frysti a GW1-mynd medan GW2 var buin.
+     Vordur sem hafnar RETTUM gognum litur eins ut og bilud sokn.      */
+  const head = { updated: "x", events: { 209545: { odds: [1, 2, 3] },
+                                         209556: { odds: [1, 2] } } };
+  const gone = { updated: "y", events: { 209556: { odds: [1, 2] } } };
+  ok(regressions(gone, head, "bsd_odds.json").length === 0,
+     "leikur sem er buinn ma hverfa ur glugganum");
+  ok(regressions(gone, head, "bsd_lineups.json").length === 0,
+     "sama gildir um bsd_lineups.json");
+  ok(regressions({ updated: "y", events: {} }, head, "bsd_odds.json").length === 0,
+     "TOMUR gluggi er lika rettur — landsleikjahle gefur engan leik innan 4 daga");
+  /* OG ThAD ER EKKI SLAKI A REGLU 8e, ThVI SKRIFARINN VER HANA:
+     bili OLL kollin er fyrri skra HALDIN, svo tom `events` sem NAER i
+     skrana getur ekki verid bilud keyrsla. Sonnunin er ad astondin tvo
+     beri SITTHVORA notu — annars vaeri undanthagan her ad treysta a
+     vord sem er ekki til.                                            */
+  ok(/KEPT/.test(bsdOddsNote({ seen: 9, priced: 0, season: 1, failed: 9, kept: true }))
+     && !/KEPT/.test(bsdOddsNote({ seen: 0, priced: 0, season: 1 })),
+     "og skrifarinn greinir BILADA keyrslu fra TOMUM glugga (regla 8e er varin thar)");
+  /* OG UNDANThAGAN MA EKKI LEKA. */
+  ok(regressions({ updated: "y" }, { updated: "x", teams: [1, 2] }, "bsd_odds.json").length > 0,
+     "en ONNUR svid i SOMU skra lyta obreyttri reglu");
+  ok(regressions(gone, head, "lineups.json").length > 0,
+     "og `events` i ODRUM skram ma ekki hverfa");
+  ok(regressions(gone, head, "bsd_shots.json").length > 0,
+     "ekki heldur i systkina-skra sem er EKKI gluggi");
 }
 
 console.log("\n=== 2. `counts` SER OFAN I SNIDID SEM DATA/ NOTAR ===");
