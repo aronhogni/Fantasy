@@ -26,17 +26,25 @@ const ok = (c, m, extra = "") => { c ? pass++ : fail++;
 
 console.log("=== 1. AFTURFOR I NULL ===");
 {
+  /* DAEMID UM „SVID SEM HVERFUR" VAR `sources` OG ThAD VAR RANGT VALID
+     (leidrett 4.9.2026). `lineups.json.sources` er FYLKI af straumum sem
+     svorudu — run-log sem MA hverfa (kafli 1e). Fullyrdingin thurfti svid
+     sem er raunveruleg BURDARGOGN, og `bench` er thad: rod sem hverfur
+     ur skranni er tapad gagn.                                          */
   const head = { gws: [2], sources: ["fotmob"], teams: [{ a: 1 }, { a: 2 }],
+                 bench: [{ id: 9 }],
                  players: Array.from({ length: 40 }, (_, i) => ({ i })) };
   const wiped = { gws: [], teams: [], players: [] };
   const p = regressions(wiped, head, "lineups.json");
   ok(p.length >= 3, `tomd skra er HOFNUD (${p.length} vandamal)`, JSON.stringify(p));
   ok(p.some(x => /players.*40 -> 0/.test(x)), "og talan sjalf er nefnd (players 40 -> 0)",
      p.join(" | "));
-  ok(p.some(x => /sources.*DISAPPEARED/.test(x)), "svid sem HVERFUR er lika vandamal");
+  ok(p.some(x => /bench.*DISAPPEARED/.test(x)), "svid sem HVERFUR er lika vandamal",
+     p.join(" | "));
 
   /* VIDBOT ER EKKI AFTURFOR — annars gaeti hlidid aldrei hleypt neinu i gegn. */
   const grew = { gws: [2], sources: ["fotmob"], teams: [{ a: 1 }, { a: 2 }, { a: 3 }],
+                 bench: [{ id: 9 }],
                  players: Array.from({ length: 79 }, (_, i) => ({ i })) };
   ok(regressions(grew, head, "lineups.json").length === 0,
      "skra sem STAEKKAR fer i gegn (40 -> 79)");
@@ -68,9 +76,12 @@ console.log("\n=== 1b. BOKHALD ER EKKI GOGN (status.json) ===");
   const empty = { updated: "y", sources: {} };
   ok(regressions(empty, head, "status.json").length > 0,
      "TOMT bokhald er afram HOFNAD (pipeline haetti ad skra nokkud)");
-  /* OG UNDANThAGAN MA EKKI LEKA A ADRAR SKRAR.                        */
-  ok(regressions({ sources: {} }, { sources: { a: { x: 1 } } }, "lineups.json").length > 0,
-     "undanthagan gildir EKKI um adrar skrar");
+  /* OG UNDANThAGAN MA EKKI LEKA A BURDARGOGN. (`sources` sjalft er
+     run-log i odrum skram en stodu-skram — sja kafla 1e — svo daemid
+     verdur ad vera svid sem ER burdargogn.)                            */
+  ok(regressions({ teams: [] }, { teams: [{ a: 1 }], sources: { a: { x: 1 } } },
+                 "lineups.json").length > 0,
+     "undanthagan gildir EKKI um burdargogn i odrum skram");
   ok(regressions({ teams: [] }, { teams: [1, 2], sources: { a: { x: 1 } } }, "status.json").length > 0,
      "og EKKI um onnur svid i status.json sjalfri");
 }
@@ -137,6 +148,23 @@ console.log("\n=== 1e. BOKHALD UM KEYRSLUNA ER EKKI BURDARGOGN ===");
      "en TOMT bokhald er afram HOFNAD (pipeline haetti ad skra nokkud)");
   ok(regressions({ updated: "y", sources: {} }, L, "status_streak.json").length > 0,
      "og su regla gildir lika i skram sem gamli listinn nefndi ekki");
+
+  /* SAMA NAFN, TVAER MERKINGAR — FIMMTA TILFELLID (4.9.2026).
+     `lineups.json.sources` er FYLKI af straumum sem svorudu og hverfur
+     thegar enginn var notadur; `status.json.sources` er HLUTUR med 37
+     heimildum og ER efni skrarinnar. Nafna-reglan ein raedur ekki vid
+     thad, svo skilyrdid er tvithaett.                                */
+  const LU = { updated: "x", players: [{ id: 1 }], teams: [{ id: 1 }], sources: ["fotmob"] };
+  ok(regressions({ updated: "y", players: [{ id: 1 }], teams: [{ id: 1 }] },
+                 LU, "lineups.json").length === 0,
+     "`sources` sem FYLKI af straumum ma hverfa (enginn straumur var notadur)");
+  ok(regressions({ updated: "y", sources: {} },
+                 { updated: "x", sources: { a: { ok: 1 }, b: { ok: 1 } } },
+                 "status.json").length > 0,
+     "EN i stodu-skra ma hylkid ALDREI tomast — thad er efni skrarinnar");
+  ok(regressions({ updated: "y", players: [], teams: [{ id: 1 }], sources: ["fotmob"] },
+                 LU, "lineups.json").length > 0,
+     "og undanthagan snertir EKKI burdargognin i somu skra");
 }
 
 console.log("\n=== 1d. SVID SEM HEIMILDIN SJALF NULLSTILLIR ===");

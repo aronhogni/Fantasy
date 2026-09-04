@@ -156,6 +156,23 @@ export function counts(obj, prefix = "", out = {}, depth = 0) {
    `carryLineups`-villuna fyrr i dag og hun stendur oskert.
    ============================================================ */
 const RUN_LOG = /^(errors|probe|calls|unmatched|unmatched_names|unmatched_to_fpl|unresolved_teams|alias_collisions|requests_remaining)(\.|$)/;
+/* ============================================================
+   FIMMTA TILFELLID: SAMA NAFN, TVAER MERKINGAR (4.9.2026)
+   ============================================================
+   `lineups.json.sources` er **FYLKI** af heitum theirra strauma sem
+   svorudu (`["fotmob"]`) — run-log, og thad hverfur thegar enginn
+   straumur var notadur. `status.json.sources` er **HLUTUR** med 37
+   heimildum og ER sjalft efni skrarinnar; tomni thar thydir ad
+   pipeline-an haetti ad skra nokkud.
+
+   Nafna-reglan ein raedur thvi ekki vid thetta, og thad er lardomurinn:
+   endurordunin fyrr i dag („reglan er a NAFNINU, ekki a skranni") var
+   RETT UM ORSOKINA en of einfold um MERKINGUNA. Skilyrdid er thvi
+   tvithaett og hvor helmingur er sagdur berum ordum:
+     · `sources` SEM HYLKI ma hverfa alls stadar NEMA i stodu-skram,
+     · undirlyklar `sources` mega alltaf hverfa (heimildir koma og fara).
+   ============================================================ */
+const STATUS_FILE = /^(status|status_fast|status_streak)\.json$/;
 const RUN_LEDGER = /^(sources|sources_ok)\./;
 /* ============================================================
    LIFANDI GLUGGI ER EKKI GAGNATAP (4.9.2026 — HLIDID STOPPADI
@@ -224,6 +241,8 @@ export function regressions(nowObj, headObj, name = "file") {
     /* Bokhald um keyrsluna — sja RUN_LOG / RUN_LEDGER ad ofan.        */
     if (RUN_LOG.test(field)) continue;
     if (RUN_LEDGER.test(field)) continue;
+    /* `sources` sem HYLKI: run-log alls stadar nema i stodu-skram. */
+    if (/^(sources|sources_ok)$/.test(field) && !STATUS_FILE.test(name)) continue;
     /* Stakur leikur ma hverfa ur lifandi glugga; sja ROLLING ad ofan. */
     if (ROLLING.test(name) && /^events(\.|$)/.test(field)) continue;
     if (SOURCE_RESET.some(([f, k]) => f.test(name) && k.test(field))) continue;
